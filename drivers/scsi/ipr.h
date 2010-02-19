@@ -381,7 +381,7 @@ struct ipr_cmd_pkt {
 #define IPR_RQTYPE_HCAM			0x02
 #define IPR_RQTYPE_ATA_PASSTHRU	0x04
 
-	u8 luntar_luntrn;
+	u8 reserved2;
 
 	u8 flags_hi;
 #define IPR_FLAGS_HI_WRITE_NOT_READ		0x80
@@ -403,7 +403,7 @@ struct ipr_cmd_pkt {
 	__be16 timeout;
 }__attribute__ ((packed, aligned(4)));
 
-struct ipr_ioarcb_ata_regs {
+struct ipr_ioarcb_ata_regs {	/* 22 bytes */
 	u8 flags;
 #define IPR_ATA_FLAG_PACKET_CMD			0x80
 #define IPR_ATA_FLAG_XFER_TYPE_DMA			0x40
@@ -442,28 +442,49 @@ struct ipr_ioadl_desc {
 	__be32 address;
 }__attribute__((packed, aligned (8)));
 
+struct ipr_ioadl64_desc {
+	__be32 flags;
+	__be32 data_len;
+	__be64 address;
+}__attribute__((packed, aligned (16)));
+
+struct ipr_ata64_ioadl {
+	struct ipr_ioarcb_ata_regs regs;
+	u16 reserved[5];
+	struct ipr_ioadl64_desc ioadl64[IPR_NUM_IOADL_ENTRIES];
+}__attribute__((packed, aligned (16)));
+
 struct ipr_ioarcb_add_data {
 	union {
 		struct ipr_ioarcb_ata_regs regs;
 		struct ipr_ioadl_desc ioadl[5];
 		__be32 add_cmd_parms[10];
-	}u;
-}__attribute__ ((packed, aligned(4)));
+	} u;
+}__attribute__ ((packed, aligned (4)));
+
+struct ipr_ioarcb_sis64_add_addr_ecb {
+	__be64 ioasa_host_pci_addr;
+	__be64 data_ioadl_addr;
+	__be64 reserved;
+	__be32 ext_control_buf[4];
+}__attribute__((packed, aligned (8)));
 
 /* IOA Request Control Block    128 bytes  */
 struct ipr_ioarcb {
-	__be32 ioarcb_host_pci_addr;
-	__be32 reserved;
+	union {
+		__be32 ioarcb_host_pci_addr;
+		__be64 ioarcb_host_pci_addr64;
+	} a;
 	__be32 res_handle;
 	__be32 host_response_handle;
 	__be32 reserved1;
 	__be32 reserved2;
 	__be32 reserved3;
 
-	__be32 write_data_transfer_length;
+	__be32 data_transfer_length;
 	__be32 read_data_transfer_length;
 	__be32 write_ioadl_addr;
-	__be32 write_ioadl_len;
+	__be32 ioadl_len;
 	__be32 read_ioadl_addr;
 	__be32 read_ioadl_len;
 
@@ -473,8 +494,14 @@ struct ipr_ioarcb {
 
 	struct ipr_cmd_pkt cmd_pkt;
 
-	__be32 add_cmd_parms_len;
-	struct ipr_ioarcb_add_data add_data;
+	__be16 add_cmd_parms_offset;
+	__be16 add_cmd_parms_len;
+
+	union {
+		struct ipr_ioarcb_add_data add_data;
+		struct ipr_ioarcb_sis64_add_addr_ecb sis64_addr_data;
+	} u;
+
 }__attribute__((packed, aligned (4)));
 
 struct ipr_ioasa_vset {
@@ -1029,6 +1056,9 @@ struct ipr_chip_t {
 	u16 intr_type;
 #define IPR_USE_LSI			0x00
 #define IPR_USE_MSI			0x01
+	u16 sis_type;
+#define IPR_SIS32			0x00
+#define IPR_SIS64			0x01
 	const struct ipr_chip_cfg_t *cfg;
 };
 
@@ -1099,6 +1129,7 @@ struct ipr_ioa_cfg {
 	u8 dual_raid:1;
 	u8 needs_warm_reset:1;
 	u8 msi_received:1;
+	u8 sis64:1;
 
 	u8 revid;
 
@@ -1202,13 +1233,17 @@ struct ipr_ioa_cfg {
 	char ipr_cmd_label[8];
 #define IPR_CMD_LABEL		"ipr_cmd"
 	struct ipr_cmnd *ipr_cmnd_list[IPR_NUM_CMD_BLKS];
-	u32 ipr_cmnd_list_dma[IPR_NUM_CMD_BLKS];
+	dma_addr_t ipr_cmnd_list_dma[IPR_NUM_CMD_BLKS];
 };
 
 struct ipr_cmnd {
 	struct ipr_ioarcb ioarcb;
+	union {
+		struct ipr_ioadl_desc ioadl[IPR_NUM_IOADL_ENTRIES];
+		struct ipr_ioadl64_desc ioadl64[IPR_NUM_IOADL_ENTRIES];
+		struct ipr_ata64_ioadl ata_ioadl;
+	} i;
 	struct ipr_ioasa ioasa;
-	struct ipr_ioadl_desc ioadl[IPR_NUM_IOADL_ENTRIES];
 	struct list_head queue;
 	struct scsi_cmnd *scsi_cmd;
 	struct ata_queued_cmd *qc;
@@ -1221,7 +1256,7 @@ struct ipr_cmnd {
 	u8 sense_buffer[SCSI_SENSE_BUFFERSIZE];
 	dma_addr_t sense_buffer_dma;
 	unsigned short dma_use_sg;
-	dma_addr_t dma_handle;
+	dma_addr_t dma_addr;
 	struct ipr_cmnd *sibling;
 	union {
 		enum ipr_shutdown_type shutdown_type;

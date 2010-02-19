@@ -131,13 +131,13 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 };
 
 static const struct ipr_chip_t ipr_chip[] = {
-	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE, IPR_USE_LSI, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE, IPR_USE_LSI, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN, IPR_USE_LSI, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN, IPR_USE_LSI, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E, IPR_USE_MSI, &ipr_chip_cfg[0] },
-	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE, IPR_USE_LSI, &ipr_chip_cfg[1] },
-	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP, IPR_USE_LSI, &ipr_chip_cfg[1] }
+	{ PCI_VENDOR_ID_MYLEX, PCI_DEVICE_ID_IBM_GEMSTONE, IPR_USE_LSI, IPR_SIS32, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_CITRINE, IPR_USE_LSI, IPR_SIS32, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_OBSIDIAN, IPR_USE_LSI, IPR_SIS32, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN, IPR_USE_LSI, IPR_SIS32, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_OBSIDIAN_E, IPR_USE_MSI, IPR_SIS32, &ipr_chip_cfg[0] },
+	{ PCI_VENDOR_ID_IBM, PCI_DEVICE_ID_IBM_SNIPE, IPR_USE_LSI, IPR_SIS32, &ipr_chip_cfg[1] },
+	{ PCI_VENDOR_ID_ADAPTEC2, PCI_DEVICE_ID_ADAPTEC2_SCAMP, IPR_USE_LSI, IPR_SIS32, &ipr_chip_cfg[1] }
 };
 
 static int ipr_max_bus_speeds [] = {
@@ -468,7 +468,10 @@ static void ipr_trc_hook(struct ipr_cmnd *ipr_cmd,
 	trace_entry->time = jiffies;
 	trace_entry->op_code = ipr_cmd->ioarcb.cmd_pkt.cdb[0];
 	trace_entry->type = type;
-	trace_entry->ata_op_code = ipr_cmd->ioarcb.add_data.u.regs.command;
+	if (ipr_cmd->ioa_cfg->sis64)
+		trace_entry->ata_op_code = ipr_cmd->i.ata_ioadl.regs.command;
+	else
+		trace_entry->ata_op_code = ipr_cmd->ioarcb.u.add_data.u.regs.command;
 	trace_entry->cmd_index = ipr_cmd->cmd_index & 0xff;
 	trace_entry->res_handle = ipr_cmd->ioarcb.res_handle;
 	trace_entry->u.add_data = add_data;
@@ -488,16 +491,23 @@ static void ipr_reinit_ipr_cmnd(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
 	struct ipr_ioasa *ioasa = &ipr_cmd->ioasa;
-	dma_addr_t dma_addr = be32_to_cpu(ioarcb->ioarcb_host_pci_addr);
+	dma_addr_t dma_addr = ipr_cmd->dma_addr;
 
 	memset(&ioarcb->cmd_pkt, 0, sizeof(struct ipr_cmd_pkt));
-	ioarcb->write_data_transfer_length = 0;
+	ioarcb->data_transfer_length = 0;
 	ioarcb->read_data_transfer_length = 0;
-	ioarcb->write_ioadl_len = 0;
+	ioarcb->ioadl_len = 0;
 	ioarcb->read_ioadl_len = 0;
-	ioarcb->write_ioadl_addr =
-		cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, ioadl));
-	ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
+
+	if (ipr_cmd->ioa_cfg->sis64)
+		ioarcb->u.sis64_addr_data.data_ioadl_addr =
+			cpu_to_be64(dma_addr + offsetof(struct ipr_cmnd, i.ioadl64));
+	else {
+		ioarcb->write_ioadl_addr =
+			cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, i.ioadl));
+		ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
+	}
+
 	ioasa->ioasc = 0;
 	ioasa->residual_data_len = 0;
 	ioasa->u.gata.status = 0;
@@ -693,6 +703,35 @@ static void ipr_fail_all_ops(struct ipr_ioa_cfg *ioa_cfg)
 }
 
 /**
+ * ipr_send_command -  Send driver initiated requests.
+ * @ipr_cmd:		ipr command struct
+ *
+ * This function sends a command to the adapter using the correct write call.
+ * In the case of sis64, calculate the ioarcb size required. Then or in the
+ * appropriate bits.
+ *
+ * Return value:
+ * 	none
+ **/
+static void ipr_send_command(struct ipr_cmnd *ipr_cmd)
+{
+	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
+	dma_addr_t send_dma_addr = ipr_cmd->dma_addr;
+
+	if (ioa_cfg->sis64) {
+		/* The default size is 256 bytes */
+		send_dma_addr |= 0x1;
+
+		/* If the number of ioadls * size of ioadl > 128 bytes,
+		   then use a 512 byte ioarcb */
+		if (ipr_cmd->dma_use_sg * sizeof(struct ipr_ioadl64_desc) > 128 )
+			send_dma_addr |= 0x4;
+		writeq(send_dma_addr, ioa_cfg->regs.ioarrin_reg);
+	} else
+		writel(send_dma_addr, ioa_cfg->regs.ioarrin_reg);
+}
+
+/**
  * ipr_do_req -  Send driver initiated requests.
  * @ipr_cmd:		ipr command struct
  * @done:			done function
@@ -724,8 +763,8 @@ static void ipr_do_req(struct ipr_cmnd *ipr_cmd,
 	ipr_trc_hook(ipr_cmd, IPR_TRACE_START, 0);
 
 	mb();
-	writel(be32_to_cpu(ipr_cmd->ioarcb.ioarcb_host_pci_addr),
-	       ioa_cfg->regs.ioarrin_reg);
+
+	ipr_send_command(ipr_cmd);
 }
 
 /**
@@ -744,6 +783,51 @@ static void ipr_internal_cmd_done(struct ipr_cmnd *ipr_cmd)
 		ipr_cmd->sibling = NULL;
 	else
 		complete(&ipr_cmd->completion);
+}
+
+/**
+ * ipr_init_ioadl - initialize the ioadl for the correct SIS type
+ * @ipr_cmd:	ipr command struct
+ * @dma_addr:	dma address
+ * @len:	transfer length
+ * @flags:	ioadl flag value
+ *
+ * This function initializes an ioadl in the case where there is only a single
+ * descriptor.
+ *
+ * Return value:
+ * 	nothing
+ **/
+static void ipr_init_ioadl(struct ipr_cmnd *ipr_cmd, dma_addr_t dma_addr,
+			   u32 len, int flags)
+{
+	struct ipr_ioadl_desc *ioadl = ipr_cmd->i.ioadl;
+	struct ipr_ioadl64_desc *ioadl64 = ipr_cmd->i.ioadl64;
+
+	ipr_cmd->dma_use_sg = 1;
+
+	if (ipr_cmd->ioa_cfg->sis64) {
+		ioadl64->flags = cpu_to_be32(flags);
+		ioadl64->data_len = cpu_to_be32(len);
+		ioadl64->address = cpu_to_be64(dma_addr);
+
+		ipr_cmd->ioarcb.ioadl_len =
+		       	cpu_to_be32(sizeof(struct ipr_ioadl64_desc));
+		ipr_cmd->ioarcb.data_transfer_length = cpu_to_be32(len);
+	} else {
+		ioadl->flags_and_data_len = cpu_to_be32(flags | len);
+		ioadl->address = cpu_to_be32(dma_addr);
+
+		if (flags == IPR_IOADL_FLAGS_READ_LAST) {
+			ipr_cmd->ioarcb.read_ioadl_len =
+				cpu_to_be32(sizeof(struct ipr_ioadl_desc));
+			ipr_cmd->ioarcb.read_data_transfer_length = cpu_to_be32(len);
+		} else {
+			ipr_cmd->ioarcb.ioadl_len =
+			       	cpu_to_be32(sizeof(struct ipr_ioadl_desc));
+			ipr_cmd->ioarcb.data_transfer_length = cpu_to_be32(len);
+		}
+	}
 }
 
 /**
@@ -803,11 +887,8 @@ static void ipr_send_hcam(struct ipr_ioa_cfg *ioa_cfg, u8 type,
 		ioarcb->cmd_pkt.cdb[7] = (sizeof(hostrcb->hcam) >> 8) & 0xff;
 		ioarcb->cmd_pkt.cdb[8] = sizeof(hostrcb->hcam) & 0xff;
 
-		ioarcb->read_data_transfer_length = cpu_to_be32(sizeof(hostrcb->hcam));
-		ioarcb->read_ioadl_len = cpu_to_be32(sizeof(struct ipr_ioadl_desc));
-		ipr_cmd->ioadl[0].flags_and_data_len =
-			cpu_to_be32(IPR_IOADL_FLAGS_READ_LAST | sizeof(hostrcb->hcam));
-		ipr_cmd->ioadl[0].address = cpu_to_be32(hostrcb->hostrcb_dma);
+		ipr_init_ioadl(ipr_cmd, hostrcb->hostrcb_dma,
+			       sizeof(hostrcb->hcam), IPR_IOADL_FLAGS_READ_LAST);
 
 		if (type == IPR_HCAM_CDB_OP_CODE_CONFIG_CHANGE)
 			ipr_cmd->done = ipr_process_ccn;
@@ -817,8 +898,8 @@ static void ipr_send_hcam(struct ipr_ioa_cfg *ioa_cfg, u8 type,
 		ipr_trc_hook(ipr_cmd, IPR_TRACE_START, IPR_IOA_RES_ADDR);
 
 		mb();
-		writel(be32_to_cpu(ipr_cmd->ioarcb.ioarcb_host_pci_addr),
-		       ioa_cfg->regs.ioarrin_reg);
+
+		ipr_send_command(ipr_cmd);
 	} else {
 		list_add_tail(&hostrcb->queue, &ioa_cfg->hostrcb_free_q);
 	}
@@ -2976,6 +3057,37 @@ static int ipr_copy_ucode_buffer(struct ipr_sglist *sglist,
 }
 
 /**
+ * ipr_build_ucode_ioadl64 - Build a microcode download IOADL
+ * @ipr_cmd:		ipr command struct
+ * @sglist:		scatter/gather list
+ *
+ * Builds a microcode download IOA data list (IOADL).
+ *
+ **/
+static void ipr_build_ucode_ioadl64(struct ipr_cmnd *ipr_cmd,
+				    struct ipr_sglist *sglist)
+{
+	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
+	struct ipr_ioadl64_desc *ioadl64 = ipr_cmd->i.ioadl64;
+	struct scatterlist *scatterlist = sglist->scatterlist;
+	int i;
+
+	ipr_cmd->dma_use_sg = sglist->num_dma_sg;
+	ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_WRITE_NOT_READ;
+	ioarcb->data_transfer_length = cpu_to_be32(sglist->buffer_len);
+
+	ioarcb->ioadl_len =
+		cpu_to_be32(sizeof(struct ipr_ioadl64_desc) * ipr_cmd->dma_use_sg);
+	for (i = 0; i < ipr_cmd->dma_use_sg; i++) {
+		ioadl64[i].flags = cpu_to_be32(IPR_IOADL_FLAGS_WRITE);
+		ioadl64[i].data_len = cpu_to_be32(sg_dma_len(&scatterlist[i]));
+		ioadl64[i].address = cpu_to_be64(sg_dma_address(&scatterlist[i]));
+	}
+
+	ioadl64[i-1].flags |= cpu_to_be32(IPR_IOADL_FLAGS_LAST);
+}
+
+/**
  * ipr_build_ucode_ioadl - Build a microcode download IOADL
  * @ipr_cmd:	ipr command struct
  * @sglist:		scatter/gather list
@@ -2987,14 +3099,15 @@ static void ipr_build_ucode_ioadl(struct ipr_cmnd *ipr_cmd,
 				  struct ipr_sglist *sglist)
 {
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
-	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
+	struct ipr_ioadl_desc *ioadl = ipr_cmd->i.ioadl;
 	struct scatterlist *scatterlist = sglist->scatterlist;
 	int i;
 
 	ipr_cmd->dma_use_sg = sglist->num_dma_sg;
 	ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_WRITE_NOT_READ;
-	ioarcb->write_data_transfer_length = cpu_to_be32(sglist->buffer_len);
-	ioarcb->write_ioadl_len =
+	ioarcb->data_transfer_length = cpu_to_be32(sglist->buffer_len);
+
+	ioarcb->ioadl_len =
 		cpu_to_be32(sizeof(struct ipr_ioadl_desc) * ipr_cmd->dma_use_sg);
 
 	for (i = 0; i < ipr_cmd->dma_use_sg; i++) {
@@ -3828,14 +3941,19 @@ static int ipr_device_reset(struct ipr_ioa_cfg *ioa_cfg,
 	ipr_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
 	ioarcb = &ipr_cmd->ioarcb;
 	cmd_pkt = &ioarcb->cmd_pkt;
-	regs = &ioarcb->add_data.u.regs;
+
+	if (ipr_cmd->ioa_cfg->sis64) {
+		regs = &ipr_cmd->i.ata_ioadl.regs;
+		ioarcb->add_cmd_parms_offset = cpu_to_be16(sizeof(*ioarcb));
+	} else
+		regs = &ioarcb->u.add_data.u.regs;
 
 	ioarcb->res_handle = res->cfgte.res_handle;
 	cmd_pkt->request_type = IPR_RQTYPE_IOACMD;
 	cmd_pkt->cdb[0] = IPR_RESET_DEVICE;
 	if (ipr_is_gata(res)) {
 		cmd_pkt->cdb[2] = IPR_ATA_PHY_RESET;
-		ioarcb->add_cmd_parms_len = cpu_to_be32(sizeof(regs->flags));
+		ioarcb->add_cmd_parms_len = cpu_to_be16(sizeof(regs->flags));
 		regs->flags |= IPR_ATA_FLAG_STATUS_ON_GOOD_COMPLETION;
 	}
 
@@ -4309,15 +4427,15 @@ static irqreturn_t ipr_isr(int irq, void *devp)
 }
 
 /**
- * ipr_build_ioadl - Build a scatter/gather list and map the buffer
+ * ipr_build_ioadl64 - Build a scatter/gather list and map the buffer
  * @ioa_cfg:	ioa config struct
  * @ipr_cmd:	ipr command struct
  *
  * Return value:
  * 	0 on success / -1 on failure
  **/
-static int ipr_build_ioadl(struct ipr_ioa_cfg *ioa_cfg,
-			   struct ipr_cmnd *ipr_cmd)
+static int ipr_build_ioadl64(struct ipr_ioa_cfg *ioa_cfg,
+			     struct ipr_cmnd *ipr_cmd)
 {
 	int i, nseg;
 	struct scatterlist *sg;
@@ -4325,7 +4443,7 @@ static int ipr_build_ioadl(struct ipr_ioa_cfg *ioa_cfg,
 	u32 ioadl_flags = 0;
 	struct scsi_cmnd *scsi_cmd = ipr_cmd->scsi_cmd;
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
-	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
+	struct ipr_ioadl64_desc *ioadl64 = ipr_cmd->i.ioadl64;
 
 	length = scsi_bufflen(scsi_cmd);
 	if (!length)
@@ -4342,8 +4460,55 @@ static int ipr_build_ioadl(struct ipr_ioa_cfg *ioa_cfg,
 	if (scsi_cmd->sc_data_direction == DMA_TO_DEVICE) {
 		ioadl_flags = IPR_IOADL_FLAGS_WRITE;
 		ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_WRITE_NOT_READ;
-		ioarcb->write_data_transfer_length = cpu_to_be32(length);
-		ioarcb->write_ioadl_len =
+	} else if (scsi_cmd->sc_data_direction == DMA_FROM_DEVICE)
+		ioadl_flags = IPR_IOADL_FLAGS_READ;
+
+	scsi_for_each_sg(scsi_cmd, sg, ipr_cmd->dma_use_sg, i) {
+		ioadl64[i].flags = cpu_to_be32(ioadl_flags);
+		ioadl64[i].data_len = cpu_to_be32(sg_dma_len(sg));
+		ioadl64[i].address = cpu_to_be64(sg_dma_address(sg));
+	}
+
+	ioadl64[i-1].flags |= cpu_to_be32(IPR_IOADL_FLAGS_LAST);
+	return 0;
+}
+
+/**
+ * ipr_build_ioadl - Build a scatter/gather list and map the buffer
+ * @ioa_cfg:	ioa config struct
+ * @ipr_cmd:	ipr command struct
+ *
+ * Return value:
+ * 	0 on success / -1 on failure
+ **/
+static int ipr_build_ioadl(struct ipr_ioa_cfg *ioa_cfg,
+			   struct ipr_cmnd *ipr_cmd)
+{
+	int i, nseg;
+	struct scatterlist *sg;
+	u32 length;
+	u32 ioadl_flags = 0;
+	struct scsi_cmnd *scsi_cmd = ipr_cmd->scsi_cmd;
+	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
+	struct ipr_ioadl_desc *ioadl = ipr_cmd->i.ioadl;
+
+	length = scsi_bufflen(scsi_cmd);
+	if (!length)
+		return 0;
+
+	nseg = scsi_dma_map(scsi_cmd);
+	if (nseg < 0) {
+		dev_err(&ioa_cfg->pdev->dev, "pci_map_sg failed!\n");
+		return -1;
+	}
+
+	ipr_cmd->dma_use_sg = nseg;
+
+	if (scsi_cmd->sc_data_direction == DMA_TO_DEVICE) {
+		ioadl_flags = IPR_IOADL_FLAGS_WRITE;
+		ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_WRITE_NOT_READ;
+		ioarcb->data_transfer_length = cpu_to_be32(length);
+		ioarcb->ioadl_len =
 			cpu_to_be32(sizeof(struct ipr_ioadl_desc) * ipr_cmd->dma_use_sg);
 	} else if (scsi_cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		ioadl_flags = IPR_IOADL_FLAGS_READ;
@@ -4352,11 +4517,10 @@ static int ipr_build_ioadl(struct ipr_ioa_cfg *ioa_cfg,
 			cpu_to_be32(sizeof(struct ipr_ioadl_desc) * ipr_cmd->dma_use_sg);
 	}
 
-	if (ipr_cmd->dma_use_sg <= ARRAY_SIZE(ioarcb->add_data.u.ioadl)) {
-		ioadl = ioarcb->add_data.u.ioadl;
-		ioarcb->write_ioadl_addr =
-			cpu_to_be32(be32_to_cpu(ioarcb->ioarcb_host_pci_addr) +
-				    offsetof(struct ipr_ioarcb, add_data));
+	if (ipr_cmd->dma_use_sg <= ARRAY_SIZE(ioarcb->u.add_data.u.ioadl)) {
+		ioadl = ioarcb->u.add_data.u.ioadl;
+		ioarcb->write_ioadl_addr = cpu_to_be32((ipr_cmd->dma_addr) +
+				    offsetof(struct ipr_ioarcb, u.add_data));
 		ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
 	}
 
@@ -4446,18 +4610,24 @@ static void ipr_reinit_ipr_cmnd_for_erp(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
 	struct ipr_ioasa *ioasa = &ipr_cmd->ioasa;
-	dma_addr_t dma_addr = be32_to_cpu(ioarcb->ioarcb_host_pci_addr);
+	dma_addr_t dma_addr = ipr_cmd->dma_addr;
 
 	memset(&ioarcb->cmd_pkt, 0, sizeof(struct ipr_cmd_pkt));
-	ioarcb->write_data_transfer_length = 0;
+	ioarcb->data_transfer_length = 0;
 	ioarcb->read_data_transfer_length = 0;
-	ioarcb->write_ioadl_len = 0;
+	ioarcb->ioadl_len = 0;
 	ioarcb->read_ioadl_len = 0;
 	ioasa->ioasc = 0;
 	ioasa->residual_data_len = 0;
-	ioarcb->write_ioadl_addr =
-		cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, ioadl));
-	ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
+
+	if (ipr_cmd->ioa_cfg->sis64)
+		ioarcb->u.sis64_addr_data.data_ioadl_addr =
+			cpu_to_be64(dma_addr + offsetof(struct ipr_cmnd, i.ioadl64));
+	else {
+		ioarcb->write_ioadl_addr =
+			cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, i.ioadl));
+		ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
+	}
 }
 
 /**
@@ -4489,15 +4659,8 @@ static void ipr_erp_request_sense(struct ipr_cmnd *ipr_cmd)
 	cmd_pkt->flags_hi |= IPR_FLAGS_HI_NO_ULEN_CHK;
 	cmd_pkt->timeout = cpu_to_be16(IPR_REQUEST_SENSE_TIMEOUT / HZ);
 
-	ipr_cmd->ioadl[0].flags_and_data_len =
-		cpu_to_be32(IPR_IOADL_FLAGS_READ_LAST | SCSI_SENSE_BUFFERSIZE);
-	ipr_cmd->ioadl[0].address =
-		cpu_to_be32(ipr_cmd->sense_buffer_dma);
-
-	ipr_cmd->ioarcb.read_ioadl_len =
-		cpu_to_be32(sizeof(struct ipr_ioadl_desc));
-	ipr_cmd->ioarcb.read_data_transfer_length =
-		cpu_to_be32(SCSI_SENSE_BUFFERSIZE);
+	ipr_init_ioadl(ipr_cmd, ipr_cmd->sense_buffer_dma,
+		       SCSI_SENSE_BUFFERSIZE, IPR_IOADL_FLAGS_READ_LAST);
 
 	ipr_do_req(ipr_cmd, ipr_erp_done, ipr_timeout,
 		   IPR_REQUEST_SENSE_TIMEOUT * 2);
@@ -4916,13 +5079,16 @@ static int ipr_queuecommand(struct scsi_cmnd *scsi_cmd,
 	    (!ipr_is_gscsi(res) || scsi_cmd->cmnd[0] == IPR_QUERY_RSRC_STATE))
 		ioarcb->cmd_pkt.request_type = IPR_RQTYPE_IOACMD;
 
-	if (likely(rc == 0))
-		rc = ipr_build_ioadl(ioa_cfg, ipr_cmd);
+	if (likely(rc == 0)) {
+		if (ioa_cfg->sis64)
+			rc = ipr_build_ioadl64(ioa_cfg, ipr_cmd);
+		else
+			rc = ipr_build_ioadl(ioa_cfg, ipr_cmd);
+	}
 
 	if (likely(rc == 0)) {
 		mb();
-		writel(be32_to_cpu(ipr_cmd->ioarcb.ioarcb_host_pci_addr),
-		       ioa_cfg->regs.ioarrin_reg);
+		ipr_send_command(ipr_cmd);
 	} else {
 		 list_move_tail(&ipr_cmd->queue, &ioa_cfg->free_q);
 		 return SCSI_MLQUEUE_HOST_BUSY;
@@ -5146,6 +5312,52 @@ static void ipr_sata_done(struct ipr_cmnd *ipr_cmd)
 }
 
 /**
+ * ipr_build_ata_ioadl64 - Build an ATA scatter/gather list
+ * @ipr_cmd:	ipr command struct
+ * @qc:		ATA queued command
+ *
+ **/
+static void ipr_build_ata_ioadl64(struct ipr_cmnd *ipr_cmd,
+				  struct ata_queued_cmd *qc)
+{
+	u32 ioadl_flags = 0;
+	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
+	struct ipr_ioadl64_desc *ioadl64 = ipr_cmd->i.ioadl64;
+	struct ipr_ioadl64_desc *last_ioadl64 = NULL;
+	int len = qc->nbytes;
+	struct scatterlist *sg;
+	unsigned int si;
+	dma_addr_t dma_addr = ipr_cmd->dma_addr;
+
+	if (len == 0)
+		return;
+
+	if (qc->dma_dir == DMA_TO_DEVICE) {
+		ioadl_flags = IPR_IOADL_FLAGS_WRITE;
+		ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_WRITE_NOT_READ;
+	} else if (qc->dma_dir == DMA_FROM_DEVICE)
+		ioadl_flags = IPR_IOADL_FLAGS_READ;
+
+	ioarcb->data_transfer_length = cpu_to_be32(len);
+	ioarcb->ioadl_len =
+		cpu_to_be32(sizeof(struct ipr_ioadl64_desc) * ipr_cmd->dma_use_sg);
+	ioarcb->u.sis64_addr_data.data_ioadl_addr =
+		cpu_to_be64(dma_addr + offsetof(struct ipr_cmnd, i.ata_ioadl));
+
+	for_each_sg(qc->sg, sg, qc->n_elem, si) {
+		ioadl64->flags = cpu_to_be32(ioadl_flags);
+		ioadl64->data_len = cpu_to_be32(sg_dma_len(sg));
+		ioadl64->address = cpu_to_be64(sg_dma_address(sg));
+
+		last_ioadl64 = ioadl64;
+		ioadl64++;
+	}
+
+	if (likely(last_ioadl64))
+		last_ioadl64->flags |= cpu_to_be32(IPR_IOADL_FLAGS_LAST);
+}
+
+/**
  * ipr_build_ata_ioadl - Build an ATA scatter/gather list
  * @ipr_cmd:	ipr command struct
  * @qc:		ATA queued command
@@ -5156,7 +5368,7 @@ static void ipr_build_ata_ioadl(struct ipr_cmnd *ipr_cmd,
 {
 	u32 ioadl_flags = 0;
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
-	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
+	struct ipr_ioadl_desc *ioadl = ipr_cmd->i.ioadl;
 	struct ipr_ioadl_desc *last_ioadl = NULL;
 	int len = qc->nbytes;
 	struct scatterlist *sg;
@@ -5168,8 +5380,8 @@ static void ipr_build_ata_ioadl(struct ipr_cmnd *ipr_cmd,
 	if (qc->dma_dir == DMA_TO_DEVICE) {
 		ioadl_flags = IPR_IOADL_FLAGS_WRITE;
 		ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_WRITE_NOT_READ;
-		ioarcb->write_data_transfer_length = cpu_to_be32(len);
-		ioarcb->write_ioadl_len =
+		ioarcb->data_transfer_length = cpu_to_be32(len);
+		ioarcb->ioadl_len =
 			cpu_to_be32(sizeof(struct ipr_ioadl_desc) * ipr_cmd->dma_use_sg);
 	} else if (qc->dma_dir == DMA_FROM_DEVICE) {
 		ioadl_flags = IPR_IOADL_FLAGS_READ;
@@ -5212,10 +5424,15 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 
 	ipr_cmd = ipr_get_free_ipr_cmnd(ioa_cfg);
 	ioarcb = &ipr_cmd->ioarcb;
-	regs = &ioarcb->add_data.u.regs;
 
-	memset(&ioarcb->add_data, 0, sizeof(ioarcb->add_data));
-	ioarcb->add_cmd_parms_len = cpu_to_be32(sizeof(ioarcb->add_data.u.regs));
+	if (ioa_cfg->sis64) {
+		regs = &ipr_cmd->i.ata_ioadl.regs;
+		ioarcb->add_cmd_parms_offset = cpu_to_be16(sizeof(*ioarcb));
+	} else
+		regs = &ioarcb->u.add_data.u.regs;
+
+	memset(regs, 0, sizeof(*regs));
+	ioarcb->add_cmd_parms_len = cpu_to_be16(sizeof(*regs));
 
 	list_add_tail(&ipr_cmd->queue, &ioa_cfg->pending_q);
 	ipr_cmd->qc = qc;
@@ -5226,7 +5443,11 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 	ioarcb->cmd_pkt.flags_hi |= IPR_FLAGS_HI_NO_ULEN_CHK;
 	ipr_cmd->dma_use_sg = qc->n_elem;
 
-	ipr_build_ata_ioadl(ipr_cmd, qc);
+	if (ioa_cfg->sis64)
+		ipr_build_ata_ioadl64(ipr_cmd, qc);
+	else
+		ipr_build_ata_ioadl(ipr_cmd, qc);
+
 	regs->flags |= IPR_ATA_FLAG_STATUS_ON_GOOD_COMPLETION;
 	ipr_copy_sata_tf(regs, &qc->tf);
 	memcpy(ioarcb->cmd_pkt.cdb, qc->cdb, IPR_MAX_CDB_LEN);
@@ -5257,8 +5478,9 @@ static unsigned int ipr_qc_issue(struct ata_queued_cmd *qc)
 	}
 
 	mb();
-	writel(be32_to_cpu(ioarcb->ioarcb_host_pci_addr),
-	       ioa_cfg->regs.ioarrin_reg);
+
+	ipr_send_command(ipr_cmd);
+
 	return 0;
 }
 
@@ -5459,7 +5681,7 @@ static void ipr_set_sup_dev_dflt(struct ipr_supported_device *supported_dev,
  * ipr_set_supported_devs - Send Set Supported Devices for a device
  * @ipr_cmd:	ipr command struct
  *
- * This function send a Set Supported Devices to the adapter
+ * This function sends a Set Supported Devices to the adapter
  *
  * Return value:
  * 	IPR_RC_JOB_CONTINUE / IPR_RC_JOB_RETURN
@@ -5468,7 +5690,6 @@ static int ipr_set_supported_devs(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	struct ipr_supported_device *supp_dev = &ioa_cfg->vpd_cbs->supp_dev;
-	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
 	struct ipr_resource_entry *res = ipr_cmd->u.res;
 
@@ -5489,13 +5710,11 @@ static int ipr_set_supported_devs(struct ipr_cmnd *ipr_cmd)
 		ioarcb->cmd_pkt.cdb[7] = (sizeof(struct ipr_supported_device) >> 8) & 0xff;
 		ioarcb->cmd_pkt.cdb[8] = sizeof(struct ipr_supported_device) & 0xff;
 
-		ioadl->flags_and_data_len = cpu_to_be32(IPR_IOADL_FLAGS_WRITE_LAST |
-							sizeof(struct ipr_supported_device));
-		ioadl->address = cpu_to_be32(ioa_cfg->vpd_cbs_dma +
-					     offsetof(struct ipr_misc_cbs, supp_dev));
-		ioarcb->write_ioadl_len = cpu_to_be32(sizeof(struct ipr_ioadl_desc));
-		ioarcb->write_data_transfer_length =
-			cpu_to_be32(sizeof(struct ipr_supported_device));
+		ipr_init_ioadl(ipr_cmd,
+			       ioa_cfg->vpd_cbs_dma +
+				 offsetof(struct ipr_misc_cbs, supp_dev),
+			       sizeof(struct ipr_supported_device),
+			       IPR_IOADL_FLAGS_WRITE_LAST);
 
 		ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout,
 			   IPR_SET_SUP_DEVICE_TIMEOUT);
@@ -5695,10 +5914,9 @@ static void ipr_modify_ioafp_mode_page_28(struct ipr_ioa_cfg *ioa_cfg,
  * 	none
  **/
 static void ipr_build_mode_select(struct ipr_cmnd *ipr_cmd,
-				  __be32 res_handle, u8 parm, u32 dma_addr,
-				  u8 xfer_len)
+				  __be32 res_handle, u8 parm,
+				  dma_addr_t dma_addr, u8 xfer_len)
 {
-	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
 
 	ioarcb->res_handle = res_handle;
@@ -5708,11 +5926,7 @@ static void ipr_build_mode_select(struct ipr_cmnd *ipr_cmd,
 	ioarcb->cmd_pkt.cdb[1] = parm;
 	ioarcb->cmd_pkt.cdb[4] = xfer_len;
 
-	ioadl->flags_and_data_len =
-		cpu_to_be32(IPR_IOADL_FLAGS_WRITE_LAST | xfer_len);
-	ioadl->address = cpu_to_be32(dma_addr);
-	ioarcb->write_ioadl_len = cpu_to_be32(sizeof(struct ipr_ioadl_desc));
-	ioarcb->write_data_transfer_length = cpu_to_be32(xfer_len);
+	ipr_init_ioadl(ipr_cmd, dma_addr, xfer_len, IPR_IOADL_FLAGS_WRITE_LAST);
 }
 
 /**
@@ -5762,9 +5976,8 @@ static int ipr_ioafp_mode_select_page28(struct ipr_cmnd *ipr_cmd)
  **/
 static void ipr_build_mode_sense(struct ipr_cmnd *ipr_cmd,
 				 __be32 res_handle,
-				 u8 parm, u32 dma_addr, u8 xfer_len)
+				 u8 parm, dma_addr_t dma_addr, u8 xfer_len)
 {
-	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
 
 	ioarcb->res_handle = res_handle;
@@ -5773,11 +5986,7 @@ static void ipr_build_mode_sense(struct ipr_cmnd *ipr_cmd,
 	ioarcb->cmd_pkt.cdb[4] = xfer_len;
 	ioarcb->cmd_pkt.request_type = IPR_RQTYPE_SCSICDB;
 
-	ioadl->flags_and_data_len =
-		cpu_to_be32(IPR_IOADL_FLAGS_READ_LAST | xfer_len);
-	ioadl->address = cpu_to_be32(dma_addr);
-	ioarcb->read_ioadl_len = cpu_to_be32(sizeof(struct ipr_ioadl_desc));
-	ioarcb->read_data_transfer_length = cpu_to_be32(xfer_len);
+	ipr_init_ioadl(ipr_cmd, dma_addr, xfer_len, IPR_IOADL_FLAGS_READ_LAST);
 }
 
 /**
@@ -6033,7 +6242,6 @@ static int ipr_ioafp_query_ioa_cfg(struct ipr_cmnd *ipr_cmd)
 {
 	struct ipr_ioa_cfg *ioa_cfg = ipr_cmd->ioa_cfg;
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
-	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
 	struct ipr_inquiry_page3 *ucode_vpd = &ioa_cfg->vpd_cbs->page3_data;
 	struct ipr_inquiry_cap *cap = &ioa_cfg->vpd_cbs->cap;
 
@@ -6050,13 +6258,9 @@ static int ipr_ioafp_query_ioa_cfg(struct ipr_cmnd *ipr_cmd)
 	ioarcb->cmd_pkt.cdb[7] = (sizeof(struct ipr_config_table) >> 8) & 0xff;
 	ioarcb->cmd_pkt.cdb[8] = sizeof(struct ipr_config_table) & 0xff;
 
-	ioarcb->read_ioadl_len = cpu_to_be32(sizeof(struct ipr_ioadl_desc));
-	ioarcb->read_data_transfer_length =
-		cpu_to_be32(sizeof(struct ipr_config_table));
-
-	ioadl->address = cpu_to_be32(ioa_cfg->cfg_table_dma);
-	ioadl->flags_and_data_len =
-		cpu_to_be32(IPR_IOADL_FLAGS_READ_LAST | sizeof(struct ipr_config_table));
+	ipr_init_ioadl(ipr_cmd, ioa_cfg->cfg_table_dma,
+		       sizeof(struct ipr_config_table),
+		       IPR_IOADL_FLAGS_READ_LAST);
 
 	ipr_cmd->job_step = ipr_init_res_table;
 
@@ -6076,10 +6280,9 @@ static int ipr_ioafp_query_ioa_cfg(struct ipr_cmnd *ipr_cmd)
  * 	none
  **/
 static void ipr_ioafp_inquiry(struct ipr_cmnd *ipr_cmd, u8 flags, u8 page,
-			      u32 dma_addr, u8 xfer_len)
+			      dma_addr_t dma_addr, u8 xfer_len)
 {
 	struct ipr_ioarcb *ioarcb = &ipr_cmd->ioarcb;
-	struct ipr_ioadl_desc *ioadl = ipr_cmd->ioadl;
 
 	ENTER;
 	ioarcb->cmd_pkt.request_type = IPR_RQTYPE_SCSICDB;
@@ -6090,12 +6293,7 @@ static void ipr_ioafp_inquiry(struct ipr_cmnd *ipr_cmd, u8 flags, u8 page,
 	ioarcb->cmd_pkt.cdb[2] = page;
 	ioarcb->cmd_pkt.cdb[4] = xfer_len;
 
-	ioarcb->read_ioadl_len = cpu_to_be32(sizeof(struct ipr_ioadl_desc));
-	ioarcb->read_data_transfer_length = cpu_to_be32(xfer_len);
-
-	ioadl->address = cpu_to_be32(dma_addr);
-	ioadl->flags_and_data_len =
-		cpu_to_be32(IPR_IOADL_FLAGS_READ_LAST | xfer_len);
+	ipr_init_ioadl(ipr_cmd, dma_addr, xfer_len, IPR_IOADL_FLAGS_READ_LAST);
 
 	ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout, IPR_INTERNAL_TIMEOUT);
 	LEAVE;
@@ -6785,7 +6983,10 @@ static int ipr_reset_ucode_download(struct ipr_cmnd *ipr_cmd)
 	ipr_cmd->ioarcb.cmd_pkt.cdb[7] = (sglist->buffer_len & 0x00ff00) >> 8;
 	ipr_cmd->ioarcb.cmd_pkt.cdb[8] = sglist->buffer_len & 0x0000ff;
 
-	ipr_build_ucode_ioadl(ipr_cmd, sglist);
+	if (ioa_cfg->sis64)
+		ipr_build_ucode_ioadl64(ipr_cmd, sglist);
+	else
+		ipr_build_ucode_ioadl(ipr_cmd, sglist);
 	ipr_cmd->job_step = ipr_reset_ucode_download_done;
 
 	ipr_do_req(ipr_cmd, ipr_reset_ioa_job, ipr_timeout,
@@ -7209,7 +7410,7 @@ static int __devinit ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 	int i;
 
 	ioa_cfg->ipr_cmd_pool = pci_pool_create (IPR_NAME, ioa_cfg->pdev,
-						 sizeof(struct ipr_cmnd), 8, 0);
+						 sizeof(struct ipr_cmnd), 16, 0);
 
 	if (!ioa_cfg->ipr_cmd_pool)
 		return -ENOMEM;
@@ -7227,13 +7428,25 @@ static int __devinit ipr_alloc_cmd_blks(struct ipr_ioa_cfg *ioa_cfg)
 		ioa_cfg->ipr_cmnd_list_dma[i] = dma_addr;
 
 		ioarcb = &ipr_cmd->ioarcb;
-		ioarcb->ioarcb_host_pci_addr = cpu_to_be32(dma_addr);
+		ipr_cmd->dma_addr = dma_addr;
+		if (ioa_cfg->sis64)
+			ioarcb->a.ioarcb_host_pci_addr64 = cpu_to_be64(dma_addr);
+		else
+			ioarcb->a.ioarcb_host_pci_addr = cpu_to_be32(dma_addr);
+
 		ioarcb->host_response_handle = cpu_to_be32(i << 2);
-		ioarcb->write_ioadl_addr =
-			cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, ioadl));
-		ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
-		ioarcb->ioasa_host_pci_addr =
-			cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, ioasa));
+		if (ioa_cfg->sis64) {
+			ioarcb->u.sis64_addr_data.data_ioadl_addr =
+				cpu_to_be64(dma_addr + offsetof(struct ipr_cmnd, i.ioadl64));
+			ioarcb->u.sis64_addr_data.ioasa_host_pci_addr =
+				cpu_to_be64(dma_addr + offsetof(struct ipr_cmnd, ioasa));
+		} else {
+			ioarcb->write_ioadl_addr =
+				cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, i.ioadl));
+			ioarcb->read_ioadl_addr = ioarcb->write_ioadl_addr;
+			ioarcb->ioasa_host_pci_addr =
+				cpu_to_be32(dma_addr + offsetof(struct ipr_cmnd, ioasa));
+		}
 		ioarcb->ioasa_len = cpu_to_be16(sizeof(struct ipr_ioasa));
 		ipr_cmd->cmd_index = i;
 		ipr_cmd->ioa_cfg = ioa_cfg;
@@ -7578,6 +7791,8 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 		goto out_scsi_host_put;
 	}
 
+	/* set SIS 32 or SIS 64 */
+	ioa_cfg->sis64 = ioa_cfg->ipr_chip->sis_type == IPR_SIS64 ? 1 : 0;
 	ioa_cfg->chip_cfg = ioa_cfg->ipr_chip->cfg;
 
 	if (ipr_transop_timeout)
@@ -7615,7 +7830,16 @@ static int __devinit ipr_probe_ioa(struct pci_dev *pdev,
 
 	pci_set_master(pdev);
 
-	rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+	if (ioa_cfg->sis64) {
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(64));
+		if (rc < 0) {
+			dev_dbg(&pdev->dev, "Failed to set 64 bit PCI DMA mask\n");
+			rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+		}
+
+	} else
+		rc = pci_set_dma_mask(pdev, DMA_BIT_MASK(32));
+
 	if (rc < 0) {
 		dev_err(&pdev->dev, "Failed to set PCI DMA mask\n");
 		goto cleanup_nomem;
