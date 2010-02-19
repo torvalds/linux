@@ -3357,22 +3357,30 @@ static void iwl_force_rf_reset(struct iwl_priv *priv)
 	return;
 }
 
-#define IWL_DELAY_NEXT_FORCE_RESET (HZ*3)
 
 int iwl_force_reset(struct iwl_priv *priv, int mode)
 {
+	struct iwl_force_reset *force_reset;
+
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return -EINVAL;
 
-	if (priv->last_force_reset_jiffies &&
-	    time_after(priv->last_force_reset_jiffies +
-		       IWL_DELAY_NEXT_FORCE_RESET, jiffies)) {
+	if (mode >= IWL_MAX_FORCE_RESET) {
+		IWL_DEBUG_INFO(priv, "invalid reset request.\n");
+		return -EINVAL;
+	}
+	force_reset = &priv->force_reset[mode];
+	force_reset->reset_request_count++;
+	if (force_reset->last_force_reset_jiffies &&
+	    time_after(force_reset->last_force_reset_jiffies +
+	    force_reset->reset_duration, jiffies)) {
 		IWL_DEBUG_INFO(priv, "force reset rejected\n");
+		force_reset->reset_reject_count++;
 		return -EAGAIN;
 	}
-
+	force_reset->reset_success_count++;
+	force_reset->last_force_reset_jiffies = jiffies;
 	IWL_DEBUG_INFO(priv, "perform force reset (%d)\n", mode);
-
 	switch (mode) {
 	case IWL_RF_RESET:
 		iwl_force_rf_reset(priv);
@@ -3389,12 +3397,7 @@ int iwl_force_reset(struct iwl_priv *priv, int mode)
 		clear_bit(STATUS_READY, &priv->status);
 		queue_work(priv->workqueue, &priv->restart);
 		break;
-	default:
-		IWL_DEBUG_INFO(priv, "invalid reset request.\n");
-		return -EINVAL;
 	}
-	priv->last_force_reset_jiffies = jiffies;
-
 	return 0;
 }
 

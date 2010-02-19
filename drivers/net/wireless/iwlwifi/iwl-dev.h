@@ -1036,9 +1036,21 @@ struct iwl_event_log {
 #define IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF	(200)
 #define IWL_MAX_PLCP_ERR_THRESHOLD_MAX	(255)
 
+#define IWL_DELAY_NEXT_FORCE_RF_RESET  (HZ*3)
+#define IWL_DELAY_NEXT_FORCE_FW_RELOAD (HZ*5)
+
 enum iwl_reset {
 	IWL_RF_RESET = 0,
 	IWL_FW_RESET,
+	IWL_MAX_FORCE_RESET,
+};
+
+struct iwl_force_reset {
+	int reset_request_count;
+	int reset_success_count;
+	int reset_reject_count;
+	unsigned long reset_duration;
+	unsigned long last_force_reset_jiffies;
 };
 
 struct iwl_priv {
@@ -1076,7 +1088,7 @@ struct iwl_priv {
 	u8 agg_tids_count;
 
 	/* force reset */
-	unsigned long last_force_reset_jiffies;
+	struct iwl_force_reset force_reset[IWL_MAX_FORCE_RESET];
 
 	/* we allocate array of iwl4965_channel_info for NIC's valid channels.
 	 *    Access via channel # using indirect index array */
