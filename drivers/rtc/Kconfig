@@ -868,4 +868,14 @@ config RTC_DRV_MC13783
 	help
 	  This enables support for the Freescale MC13783 PMIC RTC
 
+config RTC_DRV_MPC5121
+	tristate "Freescale MPC5121 built-in RTC"
+	depends on PPC_MPC512x && RTC_CLASS
+	help
+	  If you say yes here you will get support for the
+	  built-in RTC MPC5121.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called rtc-mpc5121.
+
 endif # RTC_CLASS
