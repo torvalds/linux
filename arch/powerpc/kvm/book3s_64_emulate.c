@@ -169,7 +169,7 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		{
 			ulong rb = kvmppc_get_gpr(vcpu, get_rb(inst));
 			ulong ra = 0;
-			ulong addr;
+			ulong addr, vaddr;
 			u32 zeros[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 			if (get_ra(inst))
@@ -178,15 +178,16 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			addr = (ra + rb) & ~31ULL;
 			if (!(vcpu->arch.msr & MSR_SF))
 				addr &= 0xffffffff;
+			vaddr = addr;
 
-			if (kvmppc_st(vcpu, addr, 32, zeros)) {
-				vcpu->arch.dear = addr;
-				vcpu->arch.fault_dear = addr;
+			if (kvmppc_st(vcpu, &addr, 32, zeros, true)) {
+				vcpu->arch.dear = vaddr;
+				vcpu->arch.fault_dear = vaddr;
 				to_book3s(vcpu)->dsisr = DSISR_PROTFAULT |
 						      DSISR_ISSTORE;
 				kvmppc_book3s_queue_irqprio(vcpu,
 					BOOK3S_INTERRUPT_DATA_STORAGE);
-				kvmppc_mmu_pte_flush(vcpu, addr, ~0xFFFULL);
+				kvmppc_mmu_pte_flush(vcpu, vaddr, ~0xFFFULL);
 			}
 
 			break;

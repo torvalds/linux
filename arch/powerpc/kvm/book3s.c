@@ -440,55 +440,64 @@ err:
 	return kvmppc_bad_hva();
 }
 
-int kvmppc_st(struct kvm_vcpu *vcpu, ulong eaddr, int size, void *ptr)
+int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
+	      bool data)
 {
 	struct kvmppc_pte pte;
-	hva_t hva = eaddr;
+	hva_t hva = *eaddr;
 
 	vcpu->stat.st++;
 
-	if (kvmppc_xlate(vcpu, eaddr, false, &pte))
-		goto err;
+	if (kvmppc_xlate(vcpu, *eaddr, data, &pte))
+		goto nopte;
+
+	*eaddr = pte.raddr;
 
 	hva = kvmppc_pte_to_hva(vcpu, &pte, false);
 	if (kvm_is_error_hva(hva))
-		goto err;
+		goto mmio;
 
 	if (copy_to_user((void __user *)hva, ptr, size)) {
 		printk(KERN_INFO "kvmppc_st at 0x%lx failed\n", hva);
-		goto err;
+		goto mmio;
 	}
 
-	return 0;
+	return EMULATE_DONE;
 
-err:
+nopte:
 	return -ENOENT;
+mmio:
+	return EMULATE_DO_MMIO;
 }
 
-int kvmppc_ld(struct kvm_vcpu *vcpu, ulong eaddr, int size, void *ptr,
+int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 		      bool data)
 {
 	struct kvmppc_pte pte;
-	hva_t hva = eaddr;
+	hva_t hva = *eaddr;
 
 	vcpu->stat.ld++;
 
-	if (kvmppc_xlate(vcpu, eaddr, data, &pte))
-		goto err;
+	if (kvmppc_xlate(vcpu, *eaddr, data, &pte))
+		goto nopte;
+
+	*eaddr = pte.raddr;
 
 	hva = kvmppc_pte_to_hva(vcpu, &pte, true);
 	if (kvm_is_error_hva(hva))
-		goto err;
+		goto mmio;
 
 	if (copy_from_user(ptr, (void __user *)hva, size)) {
 		printk(KERN_INFO "kvmppc_ld at 0x%lx failed\n", hva);
-		goto err;
+		goto mmio;
 	}
 
-	return 0;
+	return EMULATE_DONE;
 
-err:
+nopte:
 	return -ENOENT;
+mmio:
+	return EMULATE_DO_MMIO;
 }
 
 static int kvmppc_visible_gfn(struct kvm_vcpu *vcpu, gfn_t gfn)
