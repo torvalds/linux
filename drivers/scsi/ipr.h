@@ -232,6 +232,13 @@
 #define IPR_DOORBELL					0x82800000
 #define IPR_RUNTIME_RESET				0x40000000
 
+#define IPR_IPL_INIT_MIN_STAGE_TIME			5
+#define IPR_IPL_INIT_STAGE_UNKNOWN			0x0
+#define IPR_IPL_INIT_STAGE_TRANSOP			0xB0000000
+#define IPR_IPL_INIT_STAGE_MASK				0xff000000
+#define IPR_IPL_INIT_STAGE_TIME_MASK			0x0000ffff
+#define IPR_PCII_IPL_STAGE_CHANGE			(0x80000000 >> 0)
+
 #define IPR_PCII_IOA_TRANS_TO_OPER			(0x80000000 >> 0)
 #define IPR_PCII_IOARCB_XFER_FAILED			(0x80000000 >> 3)
 #define IPR_PCII_IOA_UNIT_CHECKED			(0x80000000 >> 4)
@@ -1196,14 +1203,23 @@ struct ipr_misc_cbs {
 struct ipr_interrupt_offsets {
 	unsigned long set_interrupt_mask_reg;
 	unsigned long clr_interrupt_mask_reg;
+	unsigned long clr_interrupt_mask_reg32;
 	unsigned long sense_interrupt_mask_reg;
+	unsigned long sense_interrupt_mask_reg32;
 	unsigned long clr_interrupt_reg;
+	unsigned long clr_interrupt_reg32;
 
 	unsigned long sense_interrupt_reg;
+	unsigned long sense_interrupt_reg32;
 	unsigned long ioarrin_reg;
 	unsigned long sense_uproc_interrupt_reg;
+	unsigned long sense_uproc_interrupt_reg32;
 	unsigned long set_uproc_interrupt_reg;
+	unsigned long set_uproc_interrupt_reg32;
 	unsigned long clr_uproc_interrupt_reg;
+	unsigned long clr_uproc_interrupt_reg32;
+
+	unsigned long init_feedback_reg;
 
 	unsigned long dump_addr_reg;
 	unsigned long dump_data_reg;
@@ -1212,14 +1228,23 @@ struct ipr_interrupt_offsets {
 struct ipr_interrupts {
 	void __iomem *set_interrupt_mask_reg;
 	void __iomem *clr_interrupt_mask_reg;
+	void __iomem *clr_interrupt_mask_reg32;
 	void __iomem *sense_interrupt_mask_reg;
+	void __iomem *sense_interrupt_mask_reg32;
 	void __iomem *clr_interrupt_reg;
+	void __iomem *clr_interrupt_reg32;
 
 	void __iomem *sense_interrupt_reg;
+	void __iomem *sense_interrupt_reg32;
 	void __iomem *ioarrin_reg;
 	void __iomem *sense_uproc_interrupt_reg;
+	void __iomem *sense_uproc_interrupt_reg32;
 	void __iomem *set_uproc_interrupt_reg;
+	void __iomem *set_uproc_interrupt_reg32;
 	void __iomem *clr_uproc_interrupt_reg;
+	void __iomem *clr_uproc_interrupt_reg32;
+
+	void __iomem *init_feedback_reg;
 
 	void __iomem *dump_addr_reg;
 	void __iomem *dump_data_reg;
