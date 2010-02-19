@@ -130,6 +130,7 @@ extern spinlock_t forw_bcast_list_lock;
 
 extern atomic_t originator_interval;
 extern atomic_t vis_interval;
+extern atomic_t vis_mode;
 extern atomic_t aggregation_enabled;
 extern int16_t num_hna;
 extern int16_t num_ifs;

@@ -338,11 +338,11 @@ static ssize_t proc_vis_srv_write(struct file *file, const char __user * buffer,
 	if ((strcmp(vis_mode_string, "client") == 0) ||
 			(strcmp(vis_mode_string, "disabled") == 0)) {
 		printk(KERN_INFO "batman-adv:Setting VIS mode to client (disabling vis server)\n");
-		vis_set_mode(VIS_TYPE_CLIENT_UPDATE);
+		atomic_set(&vis_mode, VIS_TYPE_CLIENT_UPDATE);
 	} else if ((strcmp(vis_mode_string, "server") == 0) ||
 			(strcmp(vis_mode_string, "enabled") == 0)) {
 		printk(KERN_INFO "batman-adv:Setting VIS mode to server (enabling vis server)\n");
-		vis_set_mode(VIS_TYPE_SERVER_SYNC);
+		atomic_set(&vis_mode, VIS_TYPE_SERVER_SYNC);
 	} else
 		printk(KERN_ERR "batman-adv:Unknown VIS mode: %s\n",
 		       vis_mode_string);
@@ -353,12 +353,12 @@ static ssize_t proc_vis_srv_write(struct file *file, const char __user * buffer,
 
 static int proc_vis_srv_read(struct seq_file *seq, void *offset)
 {
-	int vis_server = is_vis_server();
+	int vis_server = atomic_read(&vis_mode);
 
 	seq_printf(seq, "[%c] client mode (server disabled) \n",
-			(!vis_server) ? 'x' : ' ');
+			(vis_server == VIS_TYPE_CLIENT_UPDATE) ? 'x' : ' ');
 	seq_printf(seq, "[%c] server mode (server enabled) \n",
-			(vis_server) ? 'x' : ' ');
+			(vis_server == VIS_TYPE_SERVER_SYNC) ? 'x' : ' ');
 
 	return 0;
 }
@@ -377,9 +377,10 @@ static int proc_vis_data_read(struct seq_file *seq, void *offset)
 	int i;
 	char tmp_addr_str[ETH_STR_LEN];
 	unsigned long flags;
+	int vis_server = atomic_read(&vis_mode);
 
 	rcu_read_lock();
-	if (list_empty(&if_list) || (!is_vis_server())) {
+	if (list_empty(&if_list) || (vis_server == VIS_TYPE_CLIENT_UPDATE)) {
 		rcu_read_unlock();
 		goto end;
 	}
@@ -672,5 +673,3 @@ int setup_procfs(void)
 
 	return 0;
 }
-
-

@@ -48,8 +48,6 @@ struct recvlist_node {
 extern struct hashtable_t *vis_hash;
 extern spinlock_t vis_hash_lock;
 
-void vis_set_mode(int mode);
-int is_vis_server(void);
 void proc_vis_read_entry(struct seq_file *seq,
 				struct vis_info_entry *entry,
 				struct hlist_head *if_list,

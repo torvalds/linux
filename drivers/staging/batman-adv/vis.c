@@ -48,41 +48,6 @@ static void free_info(void *data)
 	kfree(info);
 }
 
-/* set the mode of the visualization to client or server */
-void vis_set_mode(int mode)
-{
-	unsigned long flags;
-	spin_lock_irqsave(&vis_hash_lock, flags);
-
-	if (my_vis_info != NULL)
-		my_vis_info->packet.vis_type = mode;
-
-	spin_unlock_irqrestore(&vis_hash_lock, flags);
-}
-
-/* is_vis_server(), locked outside */
-static int is_vis_server_locked(void)
-{
-	if (my_vis_info != NULL)
-		if (my_vis_info->packet.vis_type == VIS_TYPE_SERVER_SYNC)
-			return 1;
-
-	return 0;
-}
-
-/* get the current set mode */
-int is_vis_server(void)
-{
-	int ret = 0;
-	unsigned long flags;
-
-	spin_lock_irqsave(&vis_hash_lock, flags);
-	ret = is_vis_server_locked();
-	spin_unlock_irqrestore(&vis_hash_lock, flags);
-
-	return ret;
-}
-
 /* Compare two vis packets, used by the hashing algorithm */
 static int vis_info_cmp(void *data1, void *data2)
 {
@@ -271,6 +236,7 @@ void receive_server_sync_packet(struct vis_packet *vis_packet, int vis_info_len)
 	struct vis_info *info;
 	int is_new;
 	unsigned long flags;
+	int vis_server = atomic_read(&vis_mode);
 
 	spin_lock_irqsave(&vis_hash_lock, flags);
 	info = add_packet(vis_packet, vis_info_len, &is_new);
@@ -279,7 +245,7 @@ void receive_server_sync_packet(struct vis_packet *vis_packet, int vis_info_len)
 
 	/* only if we are server ourselves and packet is newer than the one in
 	 * hash.*/
-	if (is_vis_server_locked() && is_new) {
+	if (vis_server == VIS_TYPE_SERVER_SYNC && is_new) {
 		memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
 		if (list_empty(&info->send_list))
 			list_add_tail(&info->send_list, &send_list);
@@ -295,6 +261,7 @@ void receive_client_update_packet(struct vis_packet *vis_packet,
 	struct vis_info *info;
 	int is_new;
 	unsigned long flags;
+	int vis_server = atomic_read(&vis_mode);
 
 	/* clients shall not broadcast. */
 	if (is_bcast(vis_packet->target_orig))
@@ -308,7 +275,7 @@ void receive_client_update_packet(struct vis_packet *vis_packet,
 
 
 	/* send only if we're the target server or ... */
-	if (is_vis_server_locked() &&
+	if (vis_server == VIS_TYPE_SERVER_SYNC  &&
 	    is_my_mac(info->packet.target_orig) &&
 	    is_new) {
 		info->packet.vis_type = VIS_TYPE_SERVER_SYNC;	/* upgrade! */
@@ -372,6 +339,7 @@ static int generate_vis_packet(void)
 	unsigned long flags;
 
 	info->first_seen = jiffies;
+	info->packet.vis_type = atomic_read(&vis_mode);
 
 	spin_lock_irqsave(&orig_hash_lock, flags);
 	memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
@@ -379,7 +347,7 @@ static int generate_vis_packet(void)
 	info->packet.seqno++;
 	info->packet.entries = 0;
 
-	if (!is_vis_server_locked()) {
+	if (info->packet.vis_type == VIS_TYPE_CLIENT_UPDATE) {
 		best_tq = find_best_vis_server(info);
 		if (best_tq < 0) {
 			spin_unlock_irqrestore(&orig_hash_lock, flags);
@@ -577,7 +545,6 @@ int vis_init(void)
 	INIT_LIST_HEAD(&my_vis_info->send_list);
 	my_vis_info->packet.version = COMPAT_VERSION;
 	my_vis_info->packet.packet_type = BAT_VIS;
-	my_vis_info->packet.vis_type = VIS_TYPE_CLIENT_UPDATE;
 	my_vis_info->packet.ttl = TTL;
 	my_vis_info->packet.seqno = 0;
 	my_vis_info->packet.entries = 0;
@@ -628,4 +595,3 @@ static void start_vis_timer(void)
 	queue_delayed_work(bat_event_workqueue, &vis_timer_wq,
 			   (atomic_read(&vis_interval) * HZ) / 1000);
 }
-

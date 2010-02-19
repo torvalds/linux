@@ -248,6 +248,7 @@ void schedule_own_packet(struct batman_if *batman_if)
 {
 	unsigned long send_time;
 	struct batman_packet *batman_packet;
+	int vis_server = atomic_read(&vis_mode);
 
 	/**
 	 * the interface gets activated here to avoid race conditions between
@@ -272,7 +273,7 @@ void schedule_own_packet(struct batman_if *batman_if)
 	/* change sequence number to network order */
 	batman_packet->seqno = htons((uint16_t)atomic_read(&batman_if->seqno));
 
-	if (is_vis_server())
+	if (vis_server == VIS_TYPE_SERVER_SYNC)
 		batman_packet->flags = VIS_SERVER;
 	else
 		batman_packet->flags = 0;
