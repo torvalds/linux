@@ -228,6 +228,7 @@
 #define IPR_SDT_FMT2_BAR5_SEL				0x5
 #define IPR_SDT_FMT2_EXP_ROM_SEL			0x8
 #define IPR_FMT2_SDT_READY_TO_USE			0xC4D4E3F2
+#define IPR_FMT3_SDT_READY_TO_USE			0xC4D4E3F3
 #define IPR_DOORBELL					0x82800000
 #define IPR_RUNTIME_RESET				0x40000000
 
@@ -1093,10 +1094,9 @@ struct ipr_hostrcb {
 
 /* IPR smart dump table structures */
 struct ipr_sdt_entry {
-	__be32 bar_str_offset;
-	__be32 end_offset;
-	u8 entry_byte;
-	u8 reserved[3];
+	__be32 start_token;
+	__be32 end_token;
+	u8 reserved[4];
 
 	u8 flags;
 #define IPR_SDT_ENDIAN		0x80
@@ -1204,6 +1204,9 @@ struct ipr_interrupt_offsets {
 	unsigned long sense_uproc_interrupt_reg;
 	unsigned long set_uproc_interrupt_reg;
 	unsigned long clr_uproc_interrupt_reg;
+
+	unsigned long dump_addr_reg;
+	unsigned long dump_data_reg;
 };
 
 struct ipr_interrupts {
@@ -1217,6 +1220,9 @@ struct ipr_interrupts {
 	void __iomem *sense_uproc_interrupt_reg;
 	void __iomem *set_uproc_interrupt_reg;
 	void __iomem *clr_uproc_interrupt_reg;
+
+	void __iomem *dump_addr_reg;
+	void __iomem *dump_data_reg;
 };
 
 struct ipr_chip_cfg_t {
@@ -1536,8 +1542,6 @@ struct ipr_ioa_dump {
 	u32 next_page_index;
 	u32 page_offset;
 	u32 format;
-#define IPR_SDT_FMT2		2
-#define IPR_SDT_UNKNOWN		3
 }__attribute__((packed, aligned (4)));
 
 struct ipr_dump {

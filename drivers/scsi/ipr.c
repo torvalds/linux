@@ -142,7 +142,9 @@ static const struct ipr_chip_cfg_t ipr_chip_cfg[] = {
 			.ioarrin_reg = 0x00070,
 			.sense_uproc_interrupt_reg = 0x00020,
 			.set_uproc_interrupt_reg = 0x00020,
-			.clr_uproc_interrupt_reg = 0x00028
+			.clr_uproc_interrupt_reg = 0x00028,
+			.dump_addr_reg = 0x00064,
+			.dump_data_reg = 0x00068
 		}
 	},
 };
@@ -2514,6 +2516,31 @@ static int ipr_wait_iodbg_ack(struct ipr_ioa_cfg *ioa_cfg, int max_delay)
 }
 
 /**
+ * ipr_get_sis64_dump_data_section - Dump IOA memory
+ * @ioa_cfg:			ioa config struct
+ * @start_addr:			adapter address to dump
+ * @dest:			destination kernel buffer
+ * @length_in_words:		length to dump in 4 byte words
+ *
+ * Return value:
+ * 	0 on success
+ **/
+static int ipr_get_sis64_dump_data_section(struct ipr_ioa_cfg *ioa_cfg,
+					   u32 start_addr,
+					   __be32 *dest, u32 length_in_words)
+{
+	int i;
+
+	for (i = 0; i < length_in_words; i++) {
+		writel(start_addr+(i*4), ioa_cfg->regs.dump_addr_reg);
+		*dest = cpu_to_be32(readl(ioa_cfg->regs.dump_data_reg));
+		dest++;
+	}
+
+	return 0;
+}
+
+/**
  * ipr_get_ldump_data_section - Dump IOA memory
  * @ioa_cfg:			ioa config struct
  * @start_addr:			adapter address to dump
@@ -2529,6 +2556,10 @@ static int ipr_get_ldump_data_section(struct ipr_ioa_cfg *ioa_cfg,
 {
 	volatile u32 temp_pcii_reg;
 	int i, delay = 0;
+
+	if (ioa_cfg->sis64)
+		return ipr_get_sis64_dump_data_section(ioa_cfg, start_addr,
+						       dest, length_in_words);
 
 	/* Write IOA interrupt reg starting LDUMP state  */
 	writel((IPR_UPROCI_RESET_ALERT | IPR_UPROCI_IO_DEBUG_ALERT),
@@ -2787,6 +2818,7 @@ static void ipr_get_ioa_dump(struct ipr_ioa_cfg *ioa_cfg, struct ipr_dump *dump)
 	u32 num_entries, start_off, end_off;
 	u32 bytes_to_copy, bytes_copied, rc;
 	struct ipr_sdt *sdt;
+	int valid = 1;
 	int i;
 
 	ENTER;
@@ -2800,7 +2832,7 @@ static void ipr_get_ioa_dump(struct ipr_ioa_cfg *ioa_cfg, struct ipr_dump *dump)
 
 	start_addr = readl(ioa_cfg->ioa_mailbox);
 
-	if (!ipr_sdt_is_fmt2(start_addr)) {
+	if (!ioa_cfg->sis64 && !ipr_sdt_is_fmt2(start_addr)) {
 		dev_err(&ioa_cfg->pdev->dev,
 			"Invalid dump table format: %lx\n", start_addr);
 		spin_unlock_irqrestore(ioa_cfg->host->host_lock, lock_flags);
@@ -2829,7 +2861,6 @@ static void ipr_get_ioa_dump(struct ipr_ioa_cfg *ioa_cfg, struct ipr_dump *dump)
 
 	/* IOA Dump entry */
 	ipr_init_dump_entry_hdr(&ioa_dump->hdr);
-	ioa_dump->format = IPR_SDT_FMT2;
 	ioa_dump->hdr.len = 0;
 	ioa_dump->hdr.data_type = IPR_DUMP_DATA_TYPE_BINARY;
 	ioa_dump->hdr.id = IPR_DUMP_IOA_DUMP_ID;
@@ -2844,7 +2875,8 @@ static void ipr_get_ioa_dump(struct ipr_ioa_cfg *ioa_cfg, struct ipr_dump *dump)
 					sizeof(struct ipr_sdt) / sizeof(__be32));
 
 	/* Smart Dump table is ready to use and the first entry is valid */
-	if (rc || (be32_to_cpu(sdt->hdr.state) != IPR_FMT2_SDT_READY_TO_USE)) {
+	if (rc || ((be32_to_cpu(sdt->hdr.state) != IPR_FMT3_SDT_READY_TO_USE) &&
+	    (be32_to_cpu(sdt->hdr.state) != IPR_FMT2_SDT_READY_TO_USE))) {
 		dev_err(&ioa_cfg->pdev->dev,
 			"Dump of IOA failed. Dump table not valid: %d, %X.\n",
 			rc, be32_to_cpu(sdt->hdr.state));
@@ -2868,12 +2900,19 @@ static void ipr_get_ioa_dump(struct ipr_ioa_cfg *ioa_cfg, struct ipr_dump *dump)
 		}
 
 		if (sdt->entry[i].flags & IPR_SDT_VALID_ENTRY) {
-			sdt_word = be32_to_cpu(sdt->entry[i].bar_str_offset);
-			start_off = sdt_word & IPR_FMT2_MBX_ADDR_MASK;
-			end_off = be32_to_cpu(sdt->entry[i].end_offset);
+			sdt_word = be32_to_cpu(sdt->entry[i].start_token);
+			if (ioa_cfg->sis64)
+				bytes_to_copy = be32_to_cpu(sdt->entry[i].end_token);
+			else {
+				start_off = sdt_word & IPR_FMT2_MBX_ADDR_MASK;
+				end_off = be32_to_cpu(sdt->entry[i].end_token);
 
-			if (ipr_sdt_is_fmt2(sdt_word) && sdt_word) {
-				bytes_to_copy = end_off - start_off;
+				if (ipr_sdt_is_fmt2(sdt_word) && sdt_word)
+					bytes_to_copy = end_off - start_off;
+				else
+					valid = 0;
+			}
+			if (valid) {
 				if (bytes_to_copy > IPR_MAX_IOA_DUMP_SIZE) {
 					sdt->entry[i].flags &= ~IPR_SDT_VALID_ENTRY;
 					continue;
@@ -7202,7 +7241,7 @@ static void ipr_get_unit_check_buffer(struct ipr_ioa_cfg *ioa_cfg)
 
 	mailbox = readl(ioa_cfg->ioa_mailbox);
 
-	if (!ipr_sdt_is_fmt2(mailbox)) {
+	if (!ioa_cfg->sis64 && !ipr_sdt_is_fmt2(mailbox)) {
 		ipr_unit_check_no_data(ioa_cfg);
 		return;
 	}
@@ -7211,15 +7250,20 @@ static void ipr_get_unit_check_buffer(struct ipr_ioa_cfg *ioa_cfg)
 	rc = ipr_get_ldump_data_section(ioa_cfg, mailbox, (__be32 *) &sdt,
 					(sizeof(struct ipr_uc_sdt)) / sizeof(__be32));
 
-	if (rc || (be32_to_cpu(sdt.hdr.state) != IPR_FMT2_SDT_READY_TO_USE) ||
-	    !(sdt.entry[0].flags & IPR_SDT_VALID_ENTRY)) {
+	if (rc || !(sdt.entry[0].flags & IPR_SDT_VALID_ENTRY) ||
+	    ((be32_to_cpu(sdt.hdr.state) != IPR_FMT3_SDT_READY_TO_USE) &&
+	    (be32_to_cpu(sdt.hdr.state) != IPR_FMT2_SDT_READY_TO_USE))) {
 		ipr_unit_check_no_data(ioa_cfg);
 		return;
 	}
 
 	/* Find length of the first sdt entry (UC buffer) */
-	length = (be32_to_cpu(sdt.entry[0].end_offset) -
-		  be32_to_cpu(sdt.entry[0].bar_str_offset)) & IPR_FMT2_MBX_ADDR_MASK;
+	if (be32_to_cpu(sdt.hdr.state) == IPR_FMT3_SDT_READY_TO_USE)
+		length = be32_to_cpu(sdt.entry[0].end_token);
+	else
+		length = (be32_to_cpu(sdt.entry[0].end_token) -
+			  be32_to_cpu(sdt.entry[0].start_token)) &
+			  IPR_FMT2_MBX_ADDR_MASK;
 
 	hostrcb = list_entry(ioa_cfg->hostrcb_free_q.next,
 			     struct ipr_hostrcb, queue);
@@ -7227,7 +7271,7 @@ static void ipr_get_unit_check_buffer(struct ipr_ioa_cfg *ioa_cfg)
 	memset(&hostrcb->hcam, 0, sizeof(hostrcb->hcam));
 
 	rc = ipr_get_ldump_data_section(ioa_cfg,
-					be32_to_cpu(sdt.entry[0].bar_str_offset),
+					be32_to_cpu(sdt.entry[0].start_token),
 					(__be32 *)&hostrcb->hcam,
 					min(length, (int)sizeof(hostrcb->hcam)) / sizeof(__be32));
 
@@ -8202,6 +8246,11 @@ static void __devinit ipr_init_ioa_cfg(struct ipr_ioa_cfg *ioa_cfg,
 	t->sense_uproc_interrupt_reg = base + p->sense_uproc_interrupt_reg;
 	t->set_uproc_interrupt_reg = base + p->set_uproc_interrupt_reg;
 	t->clr_uproc_interrupt_reg = base + p->clr_uproc_interrupt_reg;
+
+	if (ioa_cfg->sis64) {
+		t->dump_addr_reg = base + p->dump_addr_reg;
+		t->dump_data_reg = base + p->dump_data_reg;
+	}
 }
 
 /**
