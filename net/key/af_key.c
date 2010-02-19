@@ -1712,6 +1712,23 @@ static int pfkey_register(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 	return 0;
 }
 
+static int unicast_flush_resp(struct sock *sk, struct sadb_msg *ihdr)
+{
+	struct sk_buff *skb;
+	struct sadb_msg *hdr;
+
+	skb = alloc_skb(sizeof(struct sadb_msg) + 16, GFP_ATOMIC);
+	if (!skb)
+		return -ENOBUFS;
+
+	hdr = (struct sadb_msg *) skb_put(skb, sizeof(struct sadb_msg));
+	memcpy(hdr, ihdr, sizeof(struct sadb_msg));
+	hdr->sadb_msg_errno = (uint8_t) 0;
+	hdr->sadb_msg_len = (sizeof(struct sadb_msg) / sizeof(uint64_t));
+
+	return pfkey_broadcast(skb, GFP_ATOMIC, BROADCAST_ONE, sk, sock_net(sk));
+}
+
 static int key_notify_sa_flush(struct km_event *c)
 {
 	struct sk_buff *skb;
@@ -1740,7 +1757,7 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 	unsigned proto;
 	struct km_event c;
 	struct xfrm_audit audit_info;
-	int err;
+	int err, err2;
 
 	proto = pfkey_satype2proto(hdr->sadb_msg_satype);
 	if (proto == 0)
@@ -1750,8 +1767,10 @@ static int pfkey_flush(struct sock *sk, struct sk_buff *skb, struct sadb_msg *hd
 	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = 0;
 	err = xfrm_state_flush(net, proto, &audit_info);
-	if (err)
-		return err;
+	err2 = unicast_flush_resp(sk, hdr);
+	if (err || err2)
+		return err ? err : err2;
+
 	c.data.proto = proto;
 	c.seq = hdr->sadb_msg_seq;
 	c.pid = hdr->sadb_msg_pid;
@@ -2706,14 +2725,16 @@ static int pfkey_spdflush(struct sock *sk, struct sk_buff *skb, struct sadb_msg 
 	struct net *net = sock_net(sk);
 	struct km_event c;
 	struct xfrm_audit audit_info;
-	int err;
+	int err, err2;
 
 	audit_info.loginuid = audit_get_loginuid(current);
 	audit_info.sessionid = audit_get_sessionid(current);
 	audit_info.secid = 0;
 	err = xfrm_policy_flush(net, XFRM_POLICY_TYPE_MAIN, &audit_info);
-	if (err)
-		return err;
+	err2 = unicast_flush_resp(sk, hdr);
+	if (err || err2)
+		return err ? err : err2;
+
 	c.data.type = XFRM_POLICY_TYPE_MAIN;
 	c.event = XFRM_MSG_FLUSHPOLICY;
 	c.pid = hdr->sadb_msg_pid;
