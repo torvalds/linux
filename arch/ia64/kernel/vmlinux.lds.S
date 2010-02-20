@@ -8,7 +8,7 @@
 
 #define IVT_TEXT							\
 		VMLINUX_SYMBOL(__start_ivt_text) = .;			\
-		*(.text.ivt)						\
+		*(.text..ivt)						\
 		VMLINUX_SYMBOL(__end_ivt_text) = .;
 
 OUTPUT_FORMAT("elf64-ia64-little")
