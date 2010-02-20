@@ -27,6 +27,7 @@
  * P/N 861040-0000: Sensor ST VV6410       ASIC STV0610   - QuickCam Web
  */
 
+#include <linux/input.h>
 #include "stv06xx_sensor.h"
 
 MODULE_AUTHOR("Erik Andrén");
@@ -427,6 +428,29 @@ frame_data:
 	}
 }
 
+#ifdef CONFIG_INPUT
+static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,		/* interrupt packet data */
+			int len)		/* interrupt packet length */
+{
+	int ret = -EINVAL;
+
+	if (len == 1 && data[0] == 0x80) {
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
+		input_sync(gspca_dev->input_dev);
+		ret = 0;
+	}
+
+	if (len == 1 && data[0] == 0x88) {
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+		input_sync(gspca_dev->input_dev);
+		ret = 0;
+	}
+
+	return ret;
+}
+#endif
+
 static int stv06xx_config(struct gspca_dev *gspca_dev,
 			  const struct usb_device_id *id);
 
@@ -437,7 +461,10 @@ static const struct sd_desc sd_desc = {
 	.init = stv06xx_init,
 	.start = stv06xx_start,
 	.stopN = stv06xx_stopN,
-	.pkt_scan = stv06xx_pkt_scan
+	.pkt_scan = stv06xx_pkt_scan,
+#ifdef CONFIG_INPUT
+	.int_pkt_scan = sd_int_pkt_scan,
+#endif
 };
 
 /* This function is called at probe time */
