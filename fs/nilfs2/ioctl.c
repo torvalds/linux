@@ -601,13 +601,17 @@ static int nilfs_ioctl_sync(struct inode *inode, struct file *filp,
 {
 	__u64 cno;
 	int ret;
+	struct the_nilfs *nilfs;
 
 	ret = nilfs_construct_segment(inode->i_sb);
 	if (ret < 0)
 		return ret;
 
 	if (argp != NULL) {
-		cno = NILFS_SB(inode->i_sb)->s_nilfs->ns_cno - 1;
+		nilfs = NILFS_SB(inode->i_sb)->s_nilfs;
+		down_read(&nilfs->ns_segctor_sem);
+		cno = nilfs->ns_cno - 1;
+		up_read(&nilfs->ns_segctor_sem);
 		if (copy_to_user(argp, &cno, sizeof(cno)))
 			return -EFAULT;
 	}
