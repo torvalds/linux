@@ -57,10 +57,10 @@ SECTIONS
   _text = .;
   _stext = .;
   .text : {
-	*(.text.start)
-	*(.text.entry)
-	*(.text.break)
-	*(.text.tlbmiss)
+	*(.text..start)
+	*(.text..entry)
+	*(.text..break)
+	*(.text..tlbmiss)
 	TEXT_TEXT
 	SCHED_TEXT
 	LOCK_TEXT
