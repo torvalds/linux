@@ -2338,7 +2338,7 @@ EXPORT_SYMBOL_GPL(iscsi_session_recovery_timedout);
  * This function will wait for a relogin, session termination from
  * userspace, or a recovery/replacement timeout.
  */
-static int iscsi_eh_session_reset(struct scsi_cmnd *sc)
+int iscsi_eh_session_reset(struct scsi_cmnd *sc)
 {
 	struct iscsi_cls_session *cls_session;
 	struct iscsi_session *session;
@@ -2389,6 +2389,7 @@ failed:
 	mutex_unlock(&session->eh_mutex);
 	return SUCCESS;
 }
+EXPORT_SYMBOL_GPL(iscsi_eh_session_reset);
 
 static void iscsi_prep_tgt_reset_pdu(struct scsi_cmnd *sc, struct iscsi_tm *hdr)
 {
@@ -2403,8 +2404,7 @@ static void iscsi_prep_tgt_reset_pdu(struct scsi_cmnd *sc, struct iscsi_tm *hdr)
  * iscsi_eh_target_reset - reset target
  * @sc: scsi command
  *
- * This will attempt to send a warm target reset. If that fails
- * then we will drop the session and attempt ERL0 recovery.
+ * This will attempt to send a warm target reset.
  */
 int iscsi_eh_target_reset(struct scsi_cmnd *sc)
 {
@@ -2476,12 +2476,27 @@ done:
 	ISCSI_DBG_EH(session, "tgt %s reset result = %s\n", session->targetname,
 		     rc == SUCCESS ? "SUCCESS" : "FAILED");
 	mutex_unlock(&session->eh_mutex);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(iscsi_eh_target_reset);
 
+/**
+ * iscsi_eh_recover_target - reset target and possibly the session
+ * @sc: scsi command
+ *
+ * This will attempt to send a warm target reset. If that fails,
+ * we will escalate to ERL0 session recovery.
+ */
+int iscsi_eh_recover_target(struct scsi_cmnd *sc)
+{
+	int rc;
+
+	rc = iscsi_eh_target_reset(sc);
 	if (rc == FAILED)
 		rc = iscsi_eh_session_reset(sc);
 	return rc;
 }
-EXPORT_SYMBOL_GPL(iscsi_eh_target_reset);
+EXPORT_SYMBOL_GPL(iscsi_eh_recover_target);
 
 /*
  * Pre-allocate a pool of @max items of @item_size. By default, the pool
