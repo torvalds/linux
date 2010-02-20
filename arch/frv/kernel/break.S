@@ -21,7 +21,7 @@
 #
 # the break handler has its own stack
 #
-	.section	.bss.stack
+	.section	.bss..stack
 	.globl		__break_user_context
 	.balign		THREAD_SIZE
 __break_stack:
