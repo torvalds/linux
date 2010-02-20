@@ -241,7 +241,7 @@ void __init setup_per_cpu_areas(void)
 #endif
 #endif
 		/*
-		 * Up to this point, the boot CPU has been using .data.init
+		 * Up to this point, the boot CPU has been using .init.data
 		 * area.  Reload any changed state for the boot CPU.
 		 */
 		if (cpu == boot_cpu_id)
