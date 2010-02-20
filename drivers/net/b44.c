@@ -338,7 +338,7 @@ static int b44_phy_reset(struct b44 *bp)
 		}
 	}
 
-	return 0;
+	return err;
 }
 
 static void __b44_set_flow_ctrl(struct b44 *bp, u32 pause_flags)
@@ -2214,6 +2214,10 @@ static int __devinit b44_init_one(struct ssb_device *sdev,
 	 * is necessary for MAC register access.
 	 */
 	b44_chip_reset(bp, B44_CHIP_RESET_FULL);
+
+	/* do a phy reset to test if there is an active phy */
+	if (b44_phy_reset(bp) < 0)
+		bp->phy_addr = B44_PHY_ADDR_NO_PHY;
 
 	netdev_info(dev, "Broadcom 44xx/47xx 10/100BaseT Ethernet %pM\n",
 		    dev->dev_addr);
