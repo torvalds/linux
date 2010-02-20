@@ -4,7 +4,7 @@ SECTIONS
         {
         __stext = . ;
 	__text = .;
-	       *(.text.startup)
+	       *(.text..startup)
 	       *(.text)
         __etext = . ;
         }
