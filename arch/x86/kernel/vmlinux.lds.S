@@ -305,7 +305,7 @@ SECTIONS
 	. = ALIGN(PAGE_SIZE);
 	.bss : AT(ADDR(.bss) - LOAD_OFFSET) {
 		__bss_start = .;
-		*(.bss.page_aligned)
+		*(.bss..page_aligned)
 		*(.bss)
 		. = ALIGN(4);
 		__bss_stop = .;
