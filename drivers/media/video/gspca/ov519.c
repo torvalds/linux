@@ -2702,6 +2702,11 @@ static void sd_reset_snapshot(struct gspca_dev *gspca_dev)
 	sd->snapshot_needs_reset = 0;
 
 	switch (sd->bridge) {
+	case BRIDGE_OV518:
+	case BRIDGE_OV518PLUS:
+		reg_w(sd, R51x_SYS_SNAP, 0x02); /* Reset */
+		reg_w(sd, R51x_SYS_SNAP, 0x01); /* Enable */
+		break;
 	case BRIDGE_OV519:
 		reg_w(sd, R51x_SYS_RESET, 0x40);
 		reg_w(sd, R51x_SYS_RESET, 0x00);
@@ -3977,6 +3982,28 @@ static void sd_stop0(struct gspca_dev *gspca_dev)
 		w9968cf_stop0(sd);
 }
 
+static void ov51x_handle_button(struct gspca_dev *gspca_dev, u8 state)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->snapshot_pressed != state) {
+#ifdef CONFIG_INPUT
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, state);
+		input_sync(gspca_dev->input_dev);
+#endif
+		if (state)
+			sd->snapshot_needs_reset = 1;
+
+		sd->snapshot_pressed = state;
+	} else {
+		/* On the ov519 we need to reset the button state multiple
+		   times, as resetting does not work as long as the button
+		   stays pressed */
+		if (sd->bridge == BRIDGE_OV519 && state)
+			sd->snapshot_needs_reset = 1;
+	}
+}
+
 static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 			u8 *in,			/* isoc packet */
 			int len)		/* iso packet length */
@@ -4035,6 +4062,7 @@ static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
 	/* A false positive here is likely, until OVT gives me
 	 * the definitive SOF/EOF format */
 	if ((!(data[0] | data[1] | data[2] | data[3] | data[5])) && data[6]) {
+		ov51x_handle_button(gspca_dev, (data[6] >> 1) & 1);
 		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
 		gspca_frame_add(gspca_dev, FIRST_PACKET, NULL, 0);
 		sd->packet_nr = 0;
@@ -4061,30 +4089,6 @@ static void ov518_pkt_scan(struct gspca_dev *gspca_dev,
 
 	/* intermediate packet */
 	gspca_frame_add(gspca_dev, INTER_PACKET, data, len);
-}
-
-static void ov519_handle_button(struct gspca_dev *gspca_dev, u8 state)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	/* This should never happen, but better to check */
-	if (state != 0 && state != 1)
-		return;
-
-	/* We may need to reset the button state multiple times, as resetting
-	   does not work as long as the button stays pressed, so always set
-	   snapshot_needs_reset (instead of only on a state change to 1). */
-	if (state)
-		sd->snapshot_needs_reset = 1;
-
-	if (sd->snapshot_pressed != state) {
-#ifdef CONFIG_INPUT
-		input_report_key(gspca_dev->input_dev, KEY_CAMERA, state);
-		input_sync(gspca_dev->input_dev);
-#endif
-
-		sd->snapshot_pressed = state;
-	}
 }
 
 static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
@@ -4120,7 +4124,7 @@ static void ov519_pkt_scan(struct gspca_dev *gspca_dev,
 				gspca_dev->last_packet_type = DISCARD_PACKET;
 			return;
 		case 0x51:		/* end of frame */
-			ov519_handle_button(gspca_dev, data[11]);
+			ov51x_handle_button(gspca_dev, data[11] & 1);
 			if (data[9] != 0)
 				gspca_dev->last_packet_type = DISCARD_PACKET;
 			gspca_frame_add(gspca_dev, LAST_PACKET,
