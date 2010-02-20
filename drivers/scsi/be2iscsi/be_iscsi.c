@@ -482,7 +482,7 @@ static int beiscsi_open_conn(struct iscsi_endpoint *ep,
 	tag = mgmt_open_connection(phba, dst_addr, beiscsi_ep);
 	if (!tag) {
 		SE_DEBUG(DBG_LVL_1,
-			 "mgmt_invalidate_connection Failed for cid=%d \n",
+			 "mgmt_open_connection Failed for cid=%d \n",
 			 beiscsi_ep->ep_cid);
 	} else {
 		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
@@ -701,7 +701,7 @@ void beiscsi_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	if (!tag) {
 		SE_DEBUG(DBG_LVL_1,
 			 "mgmt_invalidate_connection Failed for cid=%d \n",
-			 beiscsi_ep->ep_cid);
+			  beiscsi_ep->ep_cid);
 	} else {
 		wait_event_interruptible(phba->ctrl.mcc_wait[tag],
 					 phba->ctrl.mcc_numtag[tag]);
