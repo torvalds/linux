@@ -94,8 +94,8 @@ SECTIONS
 
 	/* PA-RISC locks requires 16-byte alignment */
 	. = ALIGN(16);
-	.data.lock_aligned : {
-		*(.data.lock_aligned)
+	.data..lock_aligned : {
+		*(.data..lock_aligned)
 	}
 
 	/* End of data section */

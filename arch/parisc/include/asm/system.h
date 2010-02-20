@@ -174,7 +174,7 @@ static inline void set_eiem(unsigned long val)
 })
 
 #ifdef CONFIG_SMP
-# define __lock_aligned __attribute__((__section__(".data.lock_aligned")))
+# define __lock_aligned __attribute__((__section__(".data..lock_aligned")))
 #endif
 
 #define arch_align_stack(x) (x)
