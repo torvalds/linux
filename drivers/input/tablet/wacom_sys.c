@@ -592,7 +592,17 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	if (error)
 		goto fail2;
 
-	input_dev->name = features->name;
+	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
+
+	if (features->type == TABLETPC || features->type == TABLETPC2FG) {
+		/* Append the device type to the name */
+		strlcat(wacom_wac->name,
+			features->device_type == BTN_TOOL_PEN ?
+				" Pen" : " Finger",
+			sizeof(wacom_wac->name));
+	}
+
+	input_dev->name = wacom_wac->name;
 	wacom->wacom_wac = wacom_wac;
 
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
