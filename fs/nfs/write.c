@@ -1415,12 +1415,30 @@ static int nfs_commit_inode(struct inode *inode, int how)
 
 static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_control *wbc)
 {
-	int ret;
+	struct nfs_inode *nfsi = NFS_I(inode);
+	int flags = FLUSH_SYNC;
+	int ret = 0;
 
-	ret = nfs_commit_inode(inode,
-			wbc->sync_mode == WB_SYNC_ALL ? FLUSH_SYNC : 0);
-	if (ret >= 0)
+	/* Don't commit yet if this is a non-blocking flush and there are
+	 * lots of outstanding writes for this mapping.
+	 */
+	if (wbc->sync_mode == WB_SYNC_NONE &&
+	    nfsi->ncommit <= (nfsi->npages >> 1))
+		goto out_mark_dirty;
+
+	if (wbc->nonblocking)
+		flags = 0;
+	ret = nfs_commit_inode(inode, flags);
+	if (ret >= 0) {
+		if (wbc->sync_mode == WB_SYNC_NONE) {
+			if (ret < wbc->nr_to_write)
+				wbc->nr_to_write -= ret;
+			else
+				wbc->nr_to_write = 0;
+		}
 		return 0;
+	}
+out_mark_dirty:
 	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
 	return ret;
 }
