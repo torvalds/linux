@@ -57,7 +57,7 @@ SECTIONS {
 	.romvec : {
 		__rom_start = . ;
 		_romvec = .;
-		*(.data.initvect)
+		*(.data..initvect)
 	} > romvec
 #endif
 

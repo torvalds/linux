@@ -280,7 +280,7 @@ _dprbase:
      * and then overwritten as needed.
      */
  
-.section ".data.initvect","awx"
+.section ".data..initvect","awx"
     .long   RAMEND	/* Reset: Initial Stack Pointer                 - 0.  */
     .long   _start      /* Reset: Initial Program Counter               - 1.  */
     .long   buserr      /* Bus Error                                    - 2.  */
