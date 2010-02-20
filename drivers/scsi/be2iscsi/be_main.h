@@ -498,8 +498,6 @@ struct hwi_async_entry {
 	struct list_head data_busy_list;
 };
 
-#define BE_MIN_ASYNC_ENTRIES 128
-
 struct hwi_async_pdu_context {
 	struct {
 		struct be_bus_address pa_base;
@@ -540,7 +538,7 @@ struct hwi_async_pdu_context {
 	 * This is a varying size list! Do not add anything
 	 * after this entry!!
 	 */
-	struct hwi_async_entry async_entry[BE_MIN_ASYNC_ENTRIES];
+	struct hwi_async_entry async_entry[BE2_MAX_SESSIONS * 2];
 };
 
 #define PDUCQE_CODE_MASK	0x0000003F

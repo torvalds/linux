@@ -359,7 +359,7 @@ static void beiscsi_get_params(struct beiscsi_hba *phba)
 				    + BE2_TMFS
 				    + BE2_NOPOUT_REQ));
 	phba->params.cxns_per_ctrl = phba->fw_config.iscsi_cid_count;
-	phba->params.asyncpdus_per_ctrl = phba->fw_config.iscsi_cid_count;;
+	phba->params.asyncpdus_per_ctrl = phba->fw_config.iscsi_cid_count * 2;
 	phba->params.icds_per_ctrl = phba->fw_config.iscsi_icd_count;;
 	phba->params.num_sge_per_io = BE2_SGE;
 	phba->params.defpdu_hdr_sz = BE2_DEFPDU_HDR_SZ;
@@ -2169,7 +2169,7 @@ static void beiscsi_init_wrb_handle(struct beiscsi_hba *phba)
 	num_cxn_wrb = (mem_descr_wrb->mem_array[idx].size) /
 		      ((sizeof(struct iscsi_wrb) *
 			phba->params.wrbs_per_cxn));
-	for (index = 0; index < phba->params.cxns_per_ctrl; index += 2) {
+	for (index = 0; index < phba->params.cxns_per_ctrl * 2; index += 2) {
 		pwrb_context = &phwi_ctrlr->wrb_context[index];
 		if (num_cxn_wrb) {
 			for (j = 0; j < phba->params.wrbs_per_cxn; j++) {
