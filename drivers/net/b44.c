@@ -809,7 +809,7 @@ static int b44_rx(struct b44 *bp, int budget)
 			struct sk_buff *copy_skb;
 
 			b44_recycle_rx(bp, cons, bp->rx_prod);
-			copy_skb = dev_alloc_skb(len + 2);
+			copy_skb = netdev_alloc_skb(bp->dev, len + 2);
 			if (copy_skb == NULL)
 				goto drop_it_no_recycle;
 
