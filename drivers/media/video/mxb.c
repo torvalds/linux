@@ -298,7 +298,7 @@ static int mxb_init_done(struct saa7146_dev* dev)
 	/* select tuner-output on saa7111a */
 	i = 0;
 	saa7111a_call(mxb, video, s_routing, SAA7115_COMPOSITE0,
-		SAA7111_FMT_CCIR | SAA7111_VBI_BYPASS, 0);
+		SAA7111_FMT_CCIR, 0);
 
 	/* select a tuner type */
 	tun_setup.mode_mask = T_ANALOG_TV;
@@ -522,8 +522,8 @@ static int vidioc_s_input(struct file *file, void *fh, unsigned int input)
 		return err;
 
 	/* switch video in saa7111a */
-	if (saa7111a_call(mxb, video, s_routing, i, 0, 0))
-		printk(KERN_ERR "VIDIOC_S_INPUT: could not address saa7111a #1.\n");
+	if (saa7111a_call(mxb, video, s_routing, i, SAA7111_FMT_CCIR, 0))
+		printk(KERN_ERR "VIDIOC_S_INPUT: could not address saa7111a.\n");
 
 	/* switch the audio-source only if necessary */
 	if (0 == mxb->cur_mute)
