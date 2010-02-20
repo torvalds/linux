@@ -475,7 +475,6 @@ extern int nfs_writeback_done(struct rpc_task *, struct nfs_write_data *);
  * Try to write back everything synchronously (but check the
  * return value!)
  */
-extern long nfs_sync_mapping_wait(struct address_space *, struct writeback_control *, int);
 extern int nfs_wb_all(struct inode *inode);
 extern int nfs_wb_page(struct inode *inode, struct page* page);
 extern int nfs_wb_page_cancel(struct inode *inode, struct page* page);
