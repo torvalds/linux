@@ -169,7 +169,11 @@ static struct saa7146_extension extension;
 static int mxb_probe(struct saa7146_dev *dev)
 {
 	struct mxb *mxb = NULL;
+	int err;
 
+	err = saa7146_vv_devinit(dev);
+	if (err)
+		return err;
 	mxb = kzalloc(sizeof(struct mxb), GFP_KERNEL);
 	if (mxb == NULL) {
 		DEB_D(("not enough kernel memory.\n"));
