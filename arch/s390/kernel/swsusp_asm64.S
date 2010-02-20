@@ -261,7 +261,7 @@ restore_registers:
 	lghi	%r2,0
 	br	%r14
 
-	.section .data.nosave,"aw",@progbits
+	.section .data..nosave,"aw",@progbits
 	.align	8
 .Ldisabled_wait_31:
 	.long  0x000a0000,0x00000000
