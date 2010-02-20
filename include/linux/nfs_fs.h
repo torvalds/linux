@@ -166,6 +166,7 @@ struct nfs_inode {
 	struct radix_tree_root	nfs_page_tree;
 
 	unsigned long		npages;
+	unsigned long		ncommit;
 
 	/* Open contexts for shared mmap writes */
 	struct list_head	open_files;
