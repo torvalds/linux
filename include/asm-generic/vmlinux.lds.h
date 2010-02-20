@@ -181,7 +181,7 @@
 
 #define PAGE_ALIGNED_DATA(page_align)					\
 	. = ALIGN(page_align);						\
-	*(.data.page_aligned)
+	*(.data..page_aligned)
 
 #define READ_MOSTLY_DATA(align)						\
 	. = ALIGN(align);						\

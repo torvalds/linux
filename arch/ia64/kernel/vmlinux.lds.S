@@ -175,7 +175,7 @@ SECTIONS
   . = ALIGN(PAGE_SIZE);
   __init_end = .;
 
-  .data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET)
+  .data..page_aligned : AT(ADDR(.data..page_aligned) - LOAD_OFFSET)
         {
 	PAGE_ALIGNED_DATA(PAGE_SIZE)
 	  . = ALIGN(PAGE_SIZE);
