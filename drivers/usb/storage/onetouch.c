@@ -202,7 +202,7 @@ static int onetouch_connect_input(struct us_data *ss)
 		goto fail1;
 
 	onetouch->data = usb_buffer_alloc(udev, ONETOUCH_PKT_LEN,
-					  GFP_ATOMIC, &onetouch->data_dma);
+					  GFP_KERNEL, &onetouch->data_dma);
 	if (!onetouch->data)
 		goto fail1;
 
