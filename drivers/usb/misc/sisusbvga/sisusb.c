@@ -250,7 +250,7 @@ sisusb_bulkout_msg(struct sisusb_usb_data *sisusb, int index, unsigned int pipe,
 	sisusb->urbstatus[index] |= SU_URB_BUSY;
 
 	/* Submit URB */
-	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	retval = usb_submit_urb(urb, GFP_KERNEL);
 
 	/* If OK, and if timeout > 0, wait for completion */
 	if ((retval == 0) && timeout) {
@@ -306,7 +306,7 @@ sisusb_bulkin_msg(struct sisusb_usb_data *sisusb, unsigned int pipe, void *data,
 	urb->actual_length = 0;
 
 	sisusb->completein = 0;
-	retval = usb_submit_urb(urb, GFP_ATOMIC);
+	retval = usb_submit_urb(urb, GFP_KERNEL);
 	if (retval == 0) {
 		wait_event_timeout(sisusb->wait_q, sisusb->completein, timeout);
 		if (!sisusb->completein) {
