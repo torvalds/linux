@@ -3411,8 +3411,10 @@ S:	Maintained
 F:	drivers/scsi/sym53c8xx_2/
 
 LTP (Linux Test Project)
-M:	Subrata Modak <subrata@linux.vnet.ibm.com>
-M:	Mike Frysinger <vapier@gentoo.org>
+M:	Rishikesh K Rajak <risrajak@linux.vnet.ibm.com>
+M:	Garrett Cooper <yanegomi@gmail.com>
+M:     Mike Frysinger <vapier@gentoo.org>
+M:     Subrata Modak <subrata@linux.vnet.ibm.com>
 L:	ltp-list@lists.sourceforge.net (subscribers-only)
 W:	http://ltp.sourceforge.net/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/galak/ltp.git

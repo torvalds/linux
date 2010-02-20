@@ -105,7 +105,7 @@ static unsigned long of_bus_sbus_get_flags(const u32 *addr, unsigned long flags)
 
 static int of_bus_ambapp_match(struct device_node *np)
 {
-	return !strcmp(np->name, "ambapp");
+	return !strcmp(np->type, "ambapp");
 }
 
 static void of_bus_ambapp_count_cells(struct device_node *child,

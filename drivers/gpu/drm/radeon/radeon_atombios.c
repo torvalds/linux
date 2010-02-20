@@ -287,6 +287,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
 	}
 
+	/* XFX Pine Group device rv730 reports no VGA DDC lines
+	 * even though they are wired up to record 0x93
+	 */
+	if ((dev->pdev->device == 0x9498) &&
+	    (dev->pdev->subsystem_vendor == 0x1682) &&
+	    (dev->pdev->subsystem_device == 0x2452)) {
+		struct radeon_device *rdev = dev->dev_private;
+		*i2c_bus = radeon_lookup_i2c_gpio(rdev, 0x93);
+	}
 	return true;
 }
 

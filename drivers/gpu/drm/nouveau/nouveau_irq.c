@@ -211,6 +211,20 @@ nouveau_fifo_irq_handler(struct drm_device *dev)
 								get + 4);
 		}
 
+		if (status & NV_PFIFO_INTR_SEMAPHORE) {
+			uint32_t sem;
+
+			status &= ~NV_PFIFO_INTR_SEMAPHORE;
+			nv_wr32(dev, NV03_PFIFO_INTR_0,
+				NV_PFIFO_INTR_SEMAPHORE);
+
+			sem = nv_rd32(dev, NV10_PFIFO_CACHE1_SEMAPHORE);
+			nv_wr32(dev, NV10_PFIFO_CACHE1_SEMAPHORE, sem | 0x1);
+
+			nv_wr32(dev, NV03_PFIFO_CACHE1_GET, get + 4);
+			nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, 1);
+		}
+
 		if (status) {
 			NV_INFO(dev, "PFIFO_INTR 0x%08x - Ch %d\n",
 				status, chid);
@@ -566,86 +580,99 @@ nouveau_pgraph_irq_handler(struct drm_device *dev)
 static void
 nv50_pgraph_irq_handler(struct drm_device *dev)
 {
-	uint32_t status, nsource;
+	uint32_t status;
 
-	status = nv_rd32(dev, NV03_PGRAPH_INTR);
-	nsource = nv_rd32(dev, NV03_PGRAPH_NSOURCE);
+	while ((status = nv_rd32(dev, NV03_PGRAPH_INTR))) {
+		uint32_t nsource = nv_rd32(dev, NV03_PGRAPH_NSOURCE);
 
-	if (status & 0x00000001) {
-		nouveau_pgraph_intr_notify(dev, nsource);
-		status &= ~0x00000001;
-		nv_wr32(dev, NV03_PGRAPH_INTR, 0x00000001);
-	}
+		if (status & 0x00000001) {
+			nouveau_pgraph_intr_notify(dev, nsource);
+			status &= ~0x00000001;
+			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00000001);
+		}
 
-	if (status & 0x00000010) {
-		nouveau_pgraph_intr_error(dev, nsource |
-					  NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD);
+		if (status & 0x00000010) {
+			nouveau_pgraph_intr_error(dev, nsource |
+					NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD);
 
-		status &= ~0x00000010;
-		nv_wr32(dev, NV03_PGRAPH_INTR, 0x00000010);
-	}
+			status &= ~0x00000010;
+			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00000010);
+		}
 
-	if (status & 0x00001000) {
-		nv_wr32(dev, 0x400500, 0x00000000);
-		nv_wr32(dev, NV03_PGRAPH_INTR, NV_PGRAPH_INTR_CONTEXT_SWITCH);
-		nv_wr32(dev, NV40_PGRAPH_INTR_EN, nv_rd32(dev,
-			NV40_PGRAPH_INTR_EN) & ~NV_PGRAPH_INTR_CONTEXT_SWITCH);
-		nv_wr32(dev, 0x400500, 0x00010001);
+		if (status & 0x00001000) {
+			nv_wr32(dev, 0x400500, 0x00000000);
+			nv_wr32(dev, NV03_PGRAPH_INTR,
+				NV_PGRAPH_INTR_CONTEXT_SWITCH);
+			nv_wr32(dev, NV40_PGRAPH_INTR_EN, nv_rd32(dev,
+				NV40_PGRAPH_INTR_EN) &
+				~NV_PGRAPH_INTR_CONTEXT_SWITCH);
+			nv_wr32(dev, 0x400500, 0x00010001);
 
-		nv50_graph_context_switch(dev);
+			nv50_graph_context_switch(dev);
 
-		status &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
-	}
+			status &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
+		}
 
-	if (status & 0x00100000) {
-		nouveau_pgraph_intr_error(dev, nsource |
-					  NV03_PGRAPH_NSOURCE_DATA_ERROR);
+		if (status & 0x00100000) {
+			nouveau_pgraph_intr_error(dev, nsource |
+					NV03_PGRAPH_NSOURCE_DATA_ERROR);
 
-		status &= ~0x00100000;
-		nv_wr32(dev, NV03_PGRAPH_INTR, 0x00100000);
-	}
+			status &= ~0x00100000;
+			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00100000);
+		}
 
-	if (status & 0x00200000) {
-		int r;
+		if (status & 0x00200000) {
+			int r;
 
-		nouveau_pgraph_intr_error(dev, nsource |
-					  NV03_PGRAPH_NSOURCE_PROTECTION_ERROR);
+			nouveau_pgraph_intr_error(dev, nsource |
+					NV03_PGRAPH_NSOURCE_PROTECTION_ERROR);
 
-		NV_ERROR(dev, "magic set 1:\n");
-		for (r = 0x408900; r <= 0x408910; r += 4)
-			NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r, nv_rd32(dev, r));
-		nv_wr32(dev, 0x408900, nv_rd32(dev, 0x408904) | 0xc0000000);
-		for (r = 0x408e08; r <= 0x408e24; r += 4)
-			NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r, nv_rd32(dev, r));
-		nv_wr32(dev, 0x408e08, nv_rd32(dev, 0x408e08) | 0xc0000000);
+			NV_ERROR(dev, "magic set 1:\n");
+			for (r = 0x408900; r <= 0x408910; r += 4)
+				NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r,
+					nv_rd32(dev, r));
+			nv_wr32(dev, 0x408900,
+				nv_rd32(dev, 0x408904) | 0xc0000000);
+			for (r = 0x408e08; r <= 0x408e24; r += 4)
+				NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r,
+							nv_rd32(dev, r));
+			nv_wr32(dev, 0x408e08,
+				nv_rd32(dev, 0x408e08) | 0xc0000000);
 
-		NV_ERROR(dev, "magic set 2:\n");
-		for (r = 0x409900; r <= 0x409910; r += 4)
-			NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r, nv_rd32(dev, r));
-		nv_wr32(dev, 0x409900, nv_rd32(dev, 0x409904) | 0xc0000000);
-		for (r = 0x409e08; r <= 0x409e24; r += 4)
-			NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r, nv_rd32(dev, r));
-		nv_wr32(dev, 0x409e08, nv_rd32(dev, 0x409e08) | 0xc0000000);
+			NV_ERROR(dev, "magic set 2:\n");
+			for (r = 0x409900; r <= 0x409910; r += 4)
+				NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r,
+					nv_rd32(dev, r));
+			nv_wr32(dev, 0x409900,
+				nv_rd32(dev, 0x409904) | 0xc0000000);
+			for (r = 0x409e08; r <= 0x409e24; r += 4)
+				NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r,
+					nv_rd32(dev, r));
+			nv_wr32(dev, 0x409e08,
+				nv_rd32(dev, 0x409e08) | 0xc0000000);
 
-		status &= ~0x00200000;
-		nv_wr32(dev, NV03_PGRAPH_NSOURCE, nsource);
-		nv_wr32(dev, NV03_PGRAPH_INTR, 0x00200000);
-	}
+			status &= ~0x00200000;
+			nv_wr32(dev, NV03_PGRAPH_NSOURCE, nsource);
+			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00200000);
+		}
 
-	if (status) {
-		NV_INFO(dev, "Unhandled PGRAPH_INTR - 0x%08x\n", status);
-		nv_wr32(dev, NV03_PGRAPH_INTR, status);
-	}
+		if (status) {
+			NV_INFO(dev, "Unhandled PGRAPH_INTR - 0x%08x\n",
+				status);
+			nv_wr32(dev, NV03_PGRAPH_INTR, status);
+		}
 
-	{
-		const int isb = (1 << 16) | (1 << 0);
+		{
+			const int isb = (1 << 16) | (1 << 0);
 
-		if ((nv_rd32(dev, 0x400500) & isb) != isb)
-			nv_wr32(dev, 0x400500, nv_rd32(dev, 0x400500) | isb);
-		nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) & ~(1 << 31));
+			if ((nv_rd32(dev, 0x400500) & isb) != isb)
+				nv_wr32(dev, 0x400500,
+					nv_rd32(dev, 0x400500) | isb);
+		}
 	}
 
 	nv_wr32(dev, NV03_PMC_INTR_0, NV_PMC_INTR_0_PGRAPH_PENDING);
+	nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) & ~(1 << 31));
 }
 
 static void

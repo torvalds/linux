@@ -660,10 +660,9 @@ void dm_rh_recovery_end(struct dm_region *reg, int success)
 	spin_lock_irq(&rh->region_lock);
 	if (success)
 		list_add(&reg->list, &reg->rh->recovered_regions);
-	else {
-		reg->state = DM_RH_NOSYNC;
+	else
 		list_add(&reg->list, &reg->rh->failed_recovered_regions);
-	}
+
 	spin_unlock_irq(&rh->region_lock);
 
 	rh->wakeup_workers(rh->context);

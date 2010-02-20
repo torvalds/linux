@@ -1893,6 +1893,9 @@ static int azx_position_ok(struct azx *chip, struct azx_dev *azx_dev)
 
 	if (!bdl_pos_adj[chip->dev_index])
 		return 1; /* no delayed ack */
+	if (WARN_ONCE(!azx_dev->period_bytes,
+		      "hda-intel: zero azx_dev->period_bytes"))
+		return 0; /* this shouldn't happen! */
 	if (pos % azx_dev->period_bytes > azx_dev->period_bytes / 2)
 		return 0; /* NG - it's below the period boundary */
 	return 1; /* OK, it's fine */
@@ -2347,7 +2350,7 @@ static void __devinit check_probe_mask(struct azx *chip, int dev)
  */
 static struct snd_pci_quirk msi_black_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1043, 0x81f2, "ASUS", 0), /* Athlon64 X2 + nvidia */
-	SND_PCI_QUIRK(0x1043, 0x829c, "ASUS", 0), /* nvidia */
+	SND_PCI_QUIRK(0x1043, 0x81f6, "ASUS", 0), /* nvidia */
 	{}
 };
 

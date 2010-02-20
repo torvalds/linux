@@ -494,8 +494,7 @@ static int ssb_devices_register(struct ssb_bus *bus)
 #endif
 			break;
 		case SSB_BUSTYPE_SDIO:
-#ifdef CONFIG_SSB_SDIO
-			sdev->irq = bus->host_sdio->dev.irq;
+#ifdef CONFIG_SSB_SDIOHOST
 			dev->parent = &bus->host_sdio->dev;
 #endif
 			break;

@@ -927,6 +927,7 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 	case ETHTOOL_GPERMADDR:
 	case ETHTOOL_GUFO:
 	case ETHTOOL_GGSO:
+	case ETHTOOL_GGRO:
 	case ETHTOOL_GFLAGS:
 	case ETHTOOL_GPFLAGS:
 	case ETHTOOL_GRXFH:

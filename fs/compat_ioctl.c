@@ -301,6 +301,12 @@ static int sg_ioctl_trans(unsigned int fd, unsigned int cmd,
 	u32 data;
 	void __user *dxferp;
 	int err;
+	int interface_id;
+
+	if (get_user(interface_id, &sgio32->interface_id))
+		return -EFAULT;
+	if (interface_id != 'S')
+		return sys_ioctl(fd, cmd, (unsigned long)sgio32);
 
 	if (get_user(iovec_count, &sgio32->iovec_count))
 		return -EFAULT;
@@ -936,6 +942,7 @@ COMPATIBLE_IOCTL(TCSETSF)
 COMPATIBLE_IOCTL(TIOCLINUX)
 COMPATIBLE_IOCTL(TIOCSBRK)
 COMPATIBLE_IOCTL(TIOCCBRK)
+COMPATIBLE_IOCTL(TIOCGSID)
 COMPATIBLE_IOCTL(TIOCGICOUNT)
 /* Little t */
 COMPATIBLE_IOCTL(TIOCGETD)
@@ -1038,6 +1045,8 @@ COMPATIBLE_IOCTL(FIOQSIZE)
 #ifdef CONFIG_BLOCK
 /* loop */
 IGNORE_IOCTL(LOOP_CLR_FD)
+/* md calls this on random blockdevs */
+IGNORE_IOCTL(RAID_VERSION)
 /* SG stuff */
 COMPATIBLE_IOCTL(SG_SET_TIMEOUT)
 COMPATIBLE_IOCTL(SG_GET_TIMEOUT)

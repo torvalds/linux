@@ -1950,6 +1950,13 @@ int r600_resume(struct radeon_device *rdev)
 		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
 		return r;
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: audio resume failed\n");
+		return r;
+	}
+
 	return r;
 }
 
@@ -1957,6 +1964,7 @@ int r600_suspend(struct radeon_device *rdev)
 {
 	int r;
 
+	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r600_cp_stop(rdev);
 	rdev->cp.ready = false;
