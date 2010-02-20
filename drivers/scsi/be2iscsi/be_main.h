@@ -257,6 +257,11 @@ struct hba_parameters {
 	unsigned int num_sge;
 };
 
+struct invalidate_command_table {
+	unsigned short icd;
+	unsigned short cid;
+} __packed;
+
 struct beiscsi_hba {
 	struct hba_parameters params;
 	struct hwi_controller *phwi_ctrlr;
@@ -329,6 +334,8 @@ struct beiscsi_hba {
 	struct work_struct work_cqs;	/* The work being queued */
 	struct be_ctrl_info ctrl;
 	unsigned int generation;
+	struct invalidate_command_table inv_tbl[128];
+
 };
 
 struct beiscsi_session {
