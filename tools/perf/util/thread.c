@@ -36,7 +36,10 @@ int thread__set_comm(struct thread *self, const char *comm)
 	if (self->comm)
 		free(self->comm);
 	self->comm = strdup(comm);
-	return self->comm ? 0 : -ENOMEM;
+	if (self->comm == NULL)
+		return -ENOMEM;
+	self->comm_set = true;
+	return 0;
 }
 
 int thread__comm_len(struct thread *self)
@@ -255,11 +258,14 @@ int thread__fork(struct thread *self, struct thread *parent)
 {
 	int i;
 
-	if (self->comm)
-		free(self->comm);
-	self->comm = strdup(parent->comm);
-	if (!self->comm)
-		return -ENOMEM;
+	if (parent->comm_set) {
+		if (self->comm)
+			free(self->comm);
+		self->comm = strdup(parent->comm);
+		if (!self->comm)
+			return -ENOMEM;
+		self->comm_set = true;
+	}
 
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		if (map_groups__clone(&self->mg, &parent->mg, i) < 0)
