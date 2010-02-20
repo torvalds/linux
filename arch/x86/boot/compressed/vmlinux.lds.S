@@ -26,8 +26,8 @@ SECTIONS
 		HEAD_TEXT
 		_ehead = . ;
 	}
-	.rodata.compressed : {
-		*(.rodata.compressed)
+	.rodata..compressed : {
+		*(.rodata..compressed)
 	}
 	.text :	{
 		_text = .; 	/* Text */
