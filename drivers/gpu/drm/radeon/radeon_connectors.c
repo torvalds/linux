@@ -780,7 +780,7 @@ static enum drm_connector_status radeon_dvi_detect(struct drm_connector *connect
 			 * connected and the DVI port disconnected.  If the edid doesn't
 			 * say HDMI, vice versa.
 			 */
-			if (radeon_connector->shared_ddc && connector_status_connected) {
+			if (radeon_connector->shared_ddc && (ret == connector_status_connected)) {
 				struct drm_device *dev = connector->dev;
 				struct drm_connector *list_connector;
 				struct radeon_connector *list_radeon_connector;
@@ -1060,8 +1060,7 @@ radeon_add_atom_connector(struct drm_device *dev,
 			return;
 		}
 		if (radeon_connector->ddc_bus && i2c_bus->valid) {
-			if (memcmp(&radeon_connector->ddc_bus->rec, i2c_bus,
-				    sizeof(struct radeon_i2c_bus_rec)) == 0) {
+			if (radeon_connector->ddc_bus->rec.i2c_id == i2c_bus->i2c_id) {
 				radeon_connector->shared_ddc = true;
 				shared_ddc = true;
 			}
