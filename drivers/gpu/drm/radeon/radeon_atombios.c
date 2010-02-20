@@ -1450,7 +1450,6 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 	power_info = (union power_info *)(mode_info->atom_context->bios + data_offset);
 
 	rdev->pm.default_power_state = NULL;
-	rdev->pm.current_power_state = NULL;
 
 	if (power_info) {
 		if (frev < 4) {
@@ -1517,10 +1516,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].type =
 							POWER_STATE_TYPE_DEFAULT;
 						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
-						rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.power_state[state_index].default_clock_mode =
-							&rdev->pm.power_state[state_index].clock_info[0];
-						rdev->pm.power_state[state_index].current_clock_mode =
 							&rdev->pm.power_state[state_index].clock_info[0];
 					}
 					state_index++;
@@ -1586,10 +1582,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].type =
 							POWER_STATE_TYPE_DEFAULT;
 						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
-						rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.power_state[state_index].default_clock_mode =
-							&rdev->pm.power_state[state_index].clock_info[0];
-						rdev->pm.power_state[state_index].current_clock_mode =
 							&rdev->pm.power_state[state_index].clock_info[0];
 					}
 					state_index++;
@@ -1661,10 +1654,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].type =
 							POWER_STATE_TYPE_DEFAULT;
 						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
-						rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.power_state[state_index].default_clock_mode =
-							&rdev->pm.power_state[state_index].clock_info[0];
-						rdev->pm.power_state[state_index].current_clock_mode =
 							&rdev->pm.power_state[state_index].clock_info[0];
 					}
 					state_index++;
@@ -1765,10 +1755,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 						rdev->pm.power_state[state_index].type =
 							POWER_STATE_TYPE_DEFAULT;
 						rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
-						rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
 						rdev->pm.power_state[state_index].default_clock_mode =
-							&rdev->pm.power_state[state_index].clock_info[mode_index - 1];
-						rdev->pm.power_state[state_index].current_clock_mode =
 							&rdev->pm.power_state[state_index].clock_info[mode_index - 1];
 					}
 					state_index++;
@@ -1788,18 +1775,19 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 		rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
 		rdev->pm.power_state[state_index].default_clock_mode =
 			&rdev->pm.power_state[state_index].clock_info[0];
-		rdev->pm.power_state[state_index].current_clock_mode =
-			&rdev->pm.power_state[state_index].clock_info[0];
 		rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
 		if (rdev->asic->get_pcie_lanes)
 			rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = radeon_get_pcie_lanes(rdev);
 		else
 			rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = 16;
 		rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
-		rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
 		state_index++;
 	}
 	rdev->pm.num_power_states = state_index;
+
+	rdev->pm.current_power_state = rdev->pm.default_power_state;
+	rdev->pm.current_clock_mode =
+		rdev->pm.default_power_state->default_clock_mode;
 }
 
 void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable)

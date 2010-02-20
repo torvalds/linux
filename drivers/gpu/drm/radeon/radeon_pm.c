@@ -143,50 +143,50 @@ static void radeon_get_power_state(struct radeon_device *rdev,
 				   enum radeon_pm_action action)
 {
 	switch (action) {
-	case PM_ACTION_NONE:
-	default:
-		rdev->pm.requested_power_state = rdev->pm.current_power_state;
-		rdev->pm.requested_power_state->requested_clock_mode =
-			rdev->pm.requested_power_state->current_clock_mode;
-		break;
 	case PM_ACTION_MINIMUM:
 		rdev->pm.requested_power_state = radeon_pick_power_state(rdev, POWER_STATE_TYPE_BATTERY);
-		rdev->pm.requested_power_state->requested_clock_mode =
+		rdev->pm.requested_clock_mode =
 			radeon_pick_clock_mode(rdev, rdev->pm.requested_power_state, POWER_MODE_TYPE_LOW);
 		break;
 	case PM_ACTION_DOWNCLOCK:
 		rdev->pm.requested_power_state = radeon_pick_power_state(rdev, POWER_STATE_TYPE_POWERSAVE);
-		rdev->pm.requested_power_state->requested_clock_mode =
+		rdev->pm.requested_clock_mode =
 			radeon_pick_clock_mode(rdev, rdev->pm.requested_power_state, POWER_MODE_TYPE_MID);
 		break;
 	case PM_ACTION_UPCLOCK:
 		rdev->pm.requested_power_state = radeon_pick_power_state(rdev, POWER_STATE_TYPE_DEFAULT);
-		rdev->pm.requested_power_state->requested_clock_mode =
+		rdev->pm.requested_clock_mode =
 			radeon_pick_clock_mode(rdev, rdev->pm.requested_power_state, POWER_MODE_TYPE_HIGH);
 		break;
+	case PM_ACTION_NONE:
+	default:
+		DRM_ERROR("Requested mode for not defined action\n");
+		return;
 	}
 	DRM_INFO("Requested: e: %d m: %d p: %d\n",
-		 rdev->pm.requested_power_state->requested_clock_mode->sclk,
-		 rdev->pm.requested_power_state->requested_clock_mode->mclk,
+		 rdev->pm.requested_clock_mode->sclk,
+		 rdev->pm.requested_clock_mode->mclk,
 		 rdev->pm.requested_power_state->non_clock_info.pcie_lanes);
 }
 
 static void radeon_set_power_state(struct radeon_device *rdev)
 {
-	if (rdev->pm.requested_power_state == rdev->pm.current_power_state)
+	/* if *_clock_mode are the same, *_power_state are as well */
+	if (rdev->pm.requested_clock_mode == rdev->pm.current_clock_mode)
 		return;
 
 	DRM_INFO("Setting: e: %d m: %d p: %d\n",
-		 rdev->pm.requested_power_state->requested_clock_mode->sclk,
-		 rdev->pm.requested_power_state->requested_clock_mode->mclk,
+		 rdev->pm.requested_clock_mode->sclk,
+		 rdev->pm.requested_clock_mode->mclk,
 		 rdev->pm.requested_power_state->non_clock_info.pcie_lanes);
 	/* set pcie lanes */
 	/* set voltage */
 	/* set engine clock */
-	radeon_set_engine_clock(rdev, rdev->pm.requested_power_state->requested_clock_mode->sclk);
+	radeon_set_engine_clock(rdev, rdev->pm.requested_clock_mode->sclk);
 	/* set memory clock */
 
 	rdev->pm.current_power_state = rdev->pm.requested_power_state;
+	rdev->pm.current_clock_mode = rdev->pm.requested_clock_mode;
 }
 
 int radeon_pm_init(struct radeon_device *rdev)

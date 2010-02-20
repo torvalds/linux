@@ -2358,7 +2358,6 @@ void radeon_combios_get_power_modes(struct radeon_device *rdev)
 	int state_index = 0;
 
 	rdev->pm.default_power_state = NULL;
-	rdev->pm.current_power_state = NULL;
 
 	if (rdev->flags & RADEON_IS_MOBILITY) {
 		offset = combios_get_table_offset(dev, COMBIOS_POWERPLAY_INFO_TABLE);
@@ -2447,15 +2446,17 @@ default_mode:
 	rdev->pm.power_state[state_index].clock_info[0].mclk = rdev->clock.default_mclk;
 	rdev->pm.power_state[state_index].clock_info[0].sclk = rdev->clock.default_sclk;
 	rdev->pm.power_state[state_index].default_clock_mode = &rdev->pm.power_state[state_index].clock_info[0];
-	rdev->pm.power_state[state_index].current_clock_mode = &rdev->pm.power_state[state_index].clock_info[0];
 	rdev->pm.power_state[state_index].clock_info[0].voltage.type = VOLTAGE_NONE;
 	if (rdev->asic->get_pcie_lanes)
 		rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = radeon_get_pcie_lanes(rdev);
 	else
 		rdev->pm.power_state[state_index].non_clock_info.pcie_lanes = 16;
 	rdev->pm.default_power_state = &rdev->pm.power_state[state_index];
-	rdev->pm.current_power_state = &rdev->pm.power_state[state_index];
 	rdev->pm.num_power_states = state_index + 1;
+
+	rdev->pm.current_power_state = rdev->pm.default_power_state;
+	rdev->pm.current_clock_mode =
+		rdev->pm.default_power_state->default_clock_mode;
 }
 
 void radeon_external_tmds_setup(struct drm_encoder *encoder)
