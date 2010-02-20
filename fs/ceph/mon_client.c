@@ -763,7 +763,7 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 	struct ceph_mon_client *monc = con->private;
 	int type = le16_to_cpu(hdr->type);
 	int front_len = le32_to_cpu(hdr->front_len);
-	struct ceph_msg *m;
+	struct ceph_msg *m = NULL;
 
 	*skip = 0;
 
@@ -777,13 +777,17 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 	case CEPH_MSG_AUTH_REPLY:
 		m = ceph_msgpool_get(&monc->msgpool_auth_reply, front_len);
 		break;
-	default:
-		return NULL;
+	case CEPH_MSG_MON_MAP:
+	case CEPH_MSG_MDS_MAP:
+	case CEPH_MSG_OSD_MAP:
+		m = ceph_msg_new(type, front_len, 0, 0, NULL);
+		break;
 	}
 
-	if (!m)
+	if (!m) {
+		pr_info("alloc_msg unknown type %d\n", type);
 		*skip = 1;
-
+	}
 	return m;
 }
 

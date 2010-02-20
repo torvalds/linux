@@ -1396,23 +1396,21 @@ static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
 	ceph_msg_put(msg);
 }
 
-static struct ceph_msg *alloc_msg(struct ceph_connection *con,
+/*
+ * lookup and return message for incoming reply
+ */
+static struct ceph_msg *get_reply(struct ceph_connection *con,
 				  struct ceph_msg_header *hdr,
 				  int *skip)
 {
 	struct ceph_osd *osd = con->private;
 	struct ceph_osd_client *osdc = osd->o_osdc;
-	int type = le16_to_cpu(hdr->type);
-	int front = le32_to_cpu(hdr->front_len);
-	int data_len = le32_to_cpu(hdr->data_len);
 	struct ceph_msg *m;
 	struct ceph_osd_request *req;
+	int front = le32_to_cpu(hdr->front_len);
+	int data_len = le32_to_cpu(hdr->data_len);
 	u64 tid;
 	int err;
-
-	*skip = 0;
-	if (type != CEPH_MSG_OSD_OPREPLY)
-		return NULL;
 
 	tid = le64_to_cpu(hdr->tid);
 	mutex_lock(&osdc->request_mutex);
@@ -1420,7 +1418,8 @@ static struct ceph_msg *alloc_msg(struct ceph_connection *con,
 	if (!req) {
 		*skip = 1;
 		m = NULL;
-		dout("alloc_msg unknown tid %llu\n", tid);
+		pr_info("alloc_msg unknown tid %llu from osd%d\n", tid,
+			osd->o_osd);
 		goto out;
 	}
 	m = __get_next_reply(con, req, front);
@@ -1437,11 +1436,33 @@ static struct ceph_msg *alloc_msg(struct ceph_connection *con,
 			m = ERR_PTR(err);
 		}
 	}
+	*skip = 0;
 
 out:
 	mutex_unlock(&osdc->request_mutex);
-
 	return m;
+
+}
+
+static struct ceph_msg *alloc_msg(struct ceph_connection *con,
+				  struct ceph_msg_header *hdr,
+				  int *skip)
+{
+	struct ceph_osd *osd = con->private;
+	int type = le16_to_cpu(hdr->type);
+	int front = le32_to_cpu(hdr->front_len);
+
+	switch (type) {
+	case CEPH_MSG_OSD_MAP:
+		return ceph_msg_new(type, front, 0, 0, NULL);
+	case CEPH_MSG_OSD_OPREPLY:
+		return get_reply(con, hdr, skip);
+	default:
+		pr_info("alloc_msg unexpected msg type %d from osd%d\n", type,
+			osd->o_osd);
+		*skip = 1;
+		return NULL;
+	}
 }
 
 /*

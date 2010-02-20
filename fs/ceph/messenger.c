@@ -1361,7 +1361,7 @@ static int read_partial_message(struct ceph_connection *con)
 		con->in_msg = ceph_alloc_msg(con, &con->in_hdr, &skip);
 		if (skip) {
 			/* skip this message */
-			pr_err("alloc_msg returned NULL, skipping message\n");
+			dout("alloc_msg returned NULL, skipping message\n");
 			con->in_base_pos = -front_len - middle_len - data_len -
 				sizeof(m->footer);
 			con->in_tag = CEPH_MSGR_TAG_READY;
@@ -1370,7 +1370,8 @@ static int read_partial_message(struct ceph_connection *con)
 		if (IS_ERR(con->in_msg)) {
 			ret = PTR_ERR(con->in_msg);
 			con->in_msg = NULL;
-			con->error_msg = "error allocating memory for incoming message";
+			con->error_msg =
+				"error allocating memory for incoming message";
 			return ret;
 		}
 		m = con->in_msg;
