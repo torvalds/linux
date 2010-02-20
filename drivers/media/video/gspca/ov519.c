@@ -2702,6 +2702,11 @@ static void sd_reset_snapshot(struct gspca_dev *gspca_dev)
 	sd->snapshot_needs_reset = 0;
 
 	switch (sd->bridge) {
+	case BRIDGE_OV511:
+	case BRIDGE_OV511PLUS:
+		reg_w(sd, R51x_SYS_SNAP, 0x02);
+		reg_w(sd, R51x_SYS_SNAP, 0x00);
+		break;
 	case BRIDGE_OV518:
 	case BRIDGE_OV518PLUS:
 		reg_w(sd, R51x_SYS_SNAP, 0x02); /* Reset */
@@ -3996,11 +4001,17 @@ static void ov51x_handle_button(struct gspca_dev *gspca_dev, u8 state)
 
 		sd->snapshot_pressed = state;
 	} else {
-		/* On the ov519 we need to reset the button state multiple
-		   times, as resetting does not work as long as the button
-		   stays pressed */
-		if (sd->bridge == BRIDGE_OV519 && state)
-			sd->snapshot_needs_reset = 1;
+		/* On the ov511 / ov519 we need to reset the button state
+		   multiple times, as resetting does not work as long as the
+		   button stays pressed */
+		switch (sd->bridge) {
+		case BRIDGE_OV511:
+		case BRIDGE_OV511PLUS:
+		case BRIDGE_OV519:
+			if (state)
+				sd->snapshot_needs_reset = 1;
+			break;
+		}
 	}
 }
 
@@ -4025,6 +4036,7 @@ static void ov511_pkt_scan(struct gspca_dev *gspca_dev,
 	 */
 	if (!(in[0] | in[1] | in[2] | in[3] | in[4] | in[5] | in[6] | in[7]) &&
 	    (in[8] & 0x08)) {
+		ov51x_handle_button(gspca_dev, (in[8] >> 2) & 1);
 		if (in[8] & 0x80) {
 			/* Frame end */
 			if ((in[9] + 1) * 8 != gspca_dev->width ||
