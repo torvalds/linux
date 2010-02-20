@@ -233,7 +233,7 @@ SECTIONS
 		CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)
 	}
 
-	.data.read_mostly : AT(ADDR(.data.read_mostly) - LOAD_OFFSET) {
+	.data..read_mostly : AT(ADDR(.data..read_mostly) - LOAD_OFFSET) {
 		READ_MOSTLY_DATA(L1_CACHE_BYTES)
 	}
 

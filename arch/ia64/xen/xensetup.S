@@ -14,7 +14,7 @@
 #include <linux/init.h>
 #include <xen/interface/elfnote.h>
 
-	.section .data.read_mostly
+	.section .data..read_mostly
 	.align 8
 	.global xen_domain_type
 xen_domain_type:

@@ -185,7 +185,7 @@
 
 #define READ_MOSTLY_DATA(align)						\
 	. = ALIGN(align);						\
-	*(.data.read_mostly)
+	*(.data..read_mostly)
 
 #define CACHELINE_ALIGNED_DATA(align)					\
 	. = ALIGN(align);						\

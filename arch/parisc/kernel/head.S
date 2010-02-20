@@ -345,7 +345,7 @@ smp_slave_stext:
 ENDPROC(stext)
 
 #ifndef CONFIG_64BIT
-	.section .data.read_mostly
+	.section .data..read_mostly
 
 	.align	4
 	.export	$global$,data
