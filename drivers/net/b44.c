@@ -1684,9 +1684,11 @@ static int __b44_load_mcast(struct b44 *bp, struct net_device *dev)
 	int i, num_ents;
 
 	num_ents = min_t(int, netdev_mc_count(dev), B44_MCAST_TABLE_SIZE);
-	mclist = dev->mc_list;
-	for (i = 0; mclist && i < num_ents; i++, mclist = mclist->next) {
-		__b44_cam_write(bp, mclist->dmi_addr, i + 1);
+	i = 0;
+	netdev_for_each_mc_addr(mclist, dev) {
+		if (i == num_ents)
+			break;
+		__b44_cam_write(bp, mclist->dmi_addr, i++ + 1);
 	}
 	return i+1;
 }

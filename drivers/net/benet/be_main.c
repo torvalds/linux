@@ -577,13 +577,13 @@ static void be_set_multicast_list(struct net_device *netdev)
 	/* Enable multicast promisc if num configured exceeds what we support */
 	if (netdev->flags & IFF_ALLMULTI ||
 	    netdev_mc_count(netdev) > BE_MAX_MC) {
-		be_cmd_multicast_set(adapter, adapter->if_handle, NULL, 0,
+		be_cmd_multicast_set(adapter, adapter->if_handle, NULL,
 				&adapter->mc_cmd_mem);
 		goto done;
 	}
 
-	be_cmd_multicast_set(adapter, adapter->if_handle, netdev->mc_list,
-		netdev_mc_count(netdev), &adapter->mc_cmd_mem);
+	be_cmd_multicast_set(adapter, adapter->if_handle, netdev,
+			&adapter->mc_cmd_mem);
 done:
 	return;
 }

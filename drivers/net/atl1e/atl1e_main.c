@@ -307,7 +307,7 @@ static void atl1e_set_multi(struct net_device *netdev)
 	AT_WRITE_REG_ARRAY(hw, REG_RX_HASH_TABLE, 1, 0);
 
 	/* comoute mc addresses' hash value ,and put it into hash table */
-	for (mc_ptr = netdev->mc_list; mc_ptr; mc_ptr = mc_ptr->next) {
+	netdev_for_each_mc_addr(mc_ptr, netdev) {
 		hash_value = atl1e_hash_mc_addr(hw, mc_ptr->dmi_addr);
 		atl1e_hash_set(hw, hash_value);
 	}

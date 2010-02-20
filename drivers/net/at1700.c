@@ -849,11 +849,9 @@ set_rx_mode(struct net_device *dev)
 		outb(1, ioaddr + RX_MODE);	/* Ignore almost all multicasts. */
 	} else {
 		struct dev_mc_list *mclist;
-		int i;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
-			 i++, mclist = mclist->next) {
+		netdev_for_each_mc_addr(mclist, dev) {
 			unsigned int bit =
 				ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 26;
 			mc_filter[bit >> 3] |= (1 << bit);
