@@ -666,16 +666,16 @@
  */
 #define PERCPU_VADDR(vaddr, phdr)					\
 	VMLINUX_SYMBOL(__per_cpu_load) = .;				\
-	.data.percpu vaddr : AT(VMLINUX_SYMBOL(__per_cpu_load)		\
+	.data..percpu vaddr : AT(VMLINUX_SYMBOL(__per_cpu_load)		\
 				- LOAD_OFFSET) {			\
 		VMLINUX_SYMBOL(__per_cpu_start) = .;			\
-		*(.data.percpu.first)					\
-		*(.data.percpu.page_aligned)				\
-		*(.data.percpu)						\
-		*(.data.percpu.shared_aligned)				\
+		*(.data..percpu..first)					\
+		*(.data..percpu..page_aligned)				\
+		*(.data..percpu)					\
+		*(.data..percpu..shared_aligned)			\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
 	} phdr								\
-	. = VMLINUX_SYMBOL(__per_cpu_load) + SIZEOF(.data.percpu);
+	. = VMLINUX_SYMBOL(__per_cpu_load) + SIZEOF(.data..percpu);
 
 /**
  * PERCPU - define output section for percpu area, simple version
@@ -687,18 +687,18 @@
  *
  * This macro is equivalent to ALIGN(align); PERCPU_VADDR( , ) except
  * that __per_cpu_load is defined as a relative symbol against
- * .data.percpu which is required for relocatable x86_32
+ * .data..percpu which is required for relocatable x86_32
  * configuration.
  */
 #define PERCPU(align)							\
 	. = ALIGN(align);						\
-	.data.percpu	: AT(ADDR(.data.percpu) - LOAD_OFFSET) {	\
+	.data..percpu	: AT(ADDR(.data..percpu) - LOAD_OFFSET) {	\
 		VMLINUX_SYMBOL(__per_cpu_load) = .;			\
 		VMLINUX_SYMBOL(__per_cpu_start) = .;			\
-		*(.data.percpu.first)					\
-		*(.data.percpu.page_aligned)				\
-		*(.data.percpu)						\
-		*(.data.percpu.shared_aligned)				\
+		*(.data..percpu..first)					\
+		*(.data..percpu..page_aligned)				\
+		*(.data..percpu)					\
+		*(.data..percpu..shared_aligned)			\
 		VMLINUX_SYMBOL(__per_cpu_end) = .;			\
 	}
 

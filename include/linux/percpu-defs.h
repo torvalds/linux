@@ -127,11 +127,11 @@
  * Declaration/definition used for per-CPU variables that must be page aligned.
  */
 #define DECLARE_PER_CPU_PAGE_ALIGNED(type, name)			\
-	DECLARE_PER_CPU_SECTION(type, name, ".page_aligned")		\
+	DECLARE_PER_CPU_SECTION(type, name, "..page_aligned")		\
 	__aligned(PAGE_SIZE)
 
 #define DEFINE_PER_CPU_PAGE_ALIGNED(type, name)				\
-	DEFINE_PER_CPU_SECTION(type, name, ".page_aligned")		\
+	DEFINE_PER_CPU_SECTION(type, name, "..page_aligned")		\
 	__aligned(PAGE_SIZE)
 
 /*

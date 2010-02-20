@@ -31,7 +31,7 @@ extern void *per_cpu_init(void);
 
 #endif	/* SMP */
 
-#define PER_CPU_BASE_SECTION ".data.percpu"
+#define PER_CPU_BASE_SECTION ".data..percpu"
 
 /*
  * Be extremely careful when taking the address of this variable!  Due to virtual
