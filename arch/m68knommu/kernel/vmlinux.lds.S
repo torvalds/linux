@@ -68,7 +68,7 @@ SECTIONS {
 		TEXT_TEXT
 		SCHED_TEXT
 		LOCK_TEXT
-        	*(.text.lock)
+		*(.text..lock)
 
 		. = ALIGN(16);          /* Exception table              */
 		__start___ex_table = .;

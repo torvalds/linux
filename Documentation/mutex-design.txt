@@ -66,14 +66,14 @@ of advantages of mutexes:
 
     c0377ccb <mutex_lock>:
     c0377ccb:       f0 ff 08                lock decl (%eax)
-    c0377cce:       78 0e                   js     c0377cde <.text.lock.mutex>
+    c0377cce:       78 0e                   js     c0377cde <.text..lock.mutex>
     c0377cd0:       c3                      ret
 
    the unlocking fastpath is equally tight:
 
     c0377cd1 <mutex_unlock>:
     c0377cd1:       f0 ff 00                lock incl (%eax)
-    c0377cd4:       7e 0f                   jle    c0377ce5 <.text.lock.mutex+0x7>
+    c0377cd4:       7e 0f                   jle    c0377ce5 <.text..lock.mutex+0x7>
     c0377cd6:       c3                      ret
 
  - 'struct mutex' semantics are well-defined and are enforced if

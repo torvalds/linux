@@ -54,8 +54,8 @@ SECTIONS
   .text2 : AT(ADDR(.text2) - LOAD_OFFSET)
 	{ *(.text2) }
 #ifdef CONFIG_SMP
-  .text.lock : AT(ADDR(.text.lock) - LOAD_OFFSET)
-	{ *(.text.lock) }
+  .text..lock : AT(ADDR(.text..lock) - LOAD_OFFSET)
+	{ *(.text..lock) }
 #endif
   _etext = .;
 
