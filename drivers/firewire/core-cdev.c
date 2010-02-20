@@ -25,6 +25,7 @@
 #include <linux/firewire.h>
 #include <linux/firewire-cdev.h>
 #include <linux/idr.h>
+#include <linux/irqflags.h>
 #include <linux/jiffies.h>
 #include <linux/kernel.h>
 #include <linux/kref.h>
@@ -32,7 +33,6 @@
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/poll.h>
-#include <linux/preempt.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/time.h>
@@ -1013,21 +1013,19 @@ static int ioctl_get_cycle_timer(struct client *client, void *buffer)
 {
 	struct fw_cdev_get_cycle_timer *request = buffer;
 	struct fw_card *card = client->device->card;
-	unsigned long long bus_time;
 	struct timeval tv;
-	unsigned long flags;
+	u32 cycle_time;
 
-	preempt_disable();
-	local_irq_save(flags);
+	local_irq_disable();
 
-	bus_time = card->driver->get_bus_time(card);
+	cycle_time = card->driver->get_bus_time(card);
 	do_gettimeofday(&tv);
 
-	local_irq_restore(flags);
-	preempt_enable();
+	local_irq_enable();
 
 	request->local_time = tv.tv_sec * 1000000ULL + tv.tv_usec;
-	request->cycle_timer = bus_time & 0xffffffff;
+	request->cycle_timer = cycle_time;
+
 	return 0;
 }
 

@@ -1795,60 +1795,61 @@ static int ohci_enable_phys_dma(struct fw_card *card,
 #endif /* CONFIG_FIREWIRE_OHCI_REMOTE_DMA */
 }
 
-static inline u32 cycle_timer_ticks(u32 cycle_timer)
+static u32 cycle_timer_ticks(u32 cycle_timer)
 {
 	u32 ticks;
 
 	ticks = cycle_timer & 0xfff;
 	ticks += 3072 * ((cycle_timer >> 12) & 0x1fff);
 	ticks += (3072 * 8000) * (cycle_timer >> 25);
+
 	return ticks;
 }
 
+/*
+ * Some controllers exhibit one or more of the following bugs when updating the
+ * iso cycle timer register:
+ *  - When the lowest six bits are wrapping around to zero, a read that happens
+ *    at the same time will return garbage in the lowest ten bits.
+ *  - When the cycleOffset field wraps around to zero, the cycleCount field is
+ *    not incremented for about 60 ns.
+ *  - Occasionally, the entire register reads zero.
+ *
+ * To catch these, we read the register three times and ensure that the
+ * difference between each two consecutive reads is approximately the same, i.e.
+ * less than twice the other.  Furthermore, any negative difference indicates an
+ * error.  (A PCI read should take at least 20 ticks of the 24.576 MHz timer to
+ * execute, so we have enough precision to compute the ratio of the differences.)
+ */
 static u64 ohci_get_bus_time(struct fw_card *card)
 {
 	struct fw_ohci *ohci = fw_ohci(card);
 	u32 c0, c1, c2;
 	u32 t0, t1, t2;
 	s32 diff01, diff12;
-	u64 bus_time;
+	int i;
 
-	if (!ohci->iso_cycle_timer_quirk) {
+	c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
+
+	if (ohci->iso_cycle_timer_quirk) {
+		i = 0;
+		c1 = c2;
 		c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
-	} else {
-		/*
-		 * Some controllers exhibit one or more of the following bugs
-		 * when updating the iso cycle timer register:
-		 *  - When the lowest six bits are wrapping around to zero,
-		 *    a read that happens at the same time will return garbage
-		 *    in the lowest ten bits.
-		 *  - When the cycleOffset field wraps around to zero, the
-		 *    cycleCount field is not incremented for about 60 ns.
-		 *  - Occasionally, the entire register reads zero.
-		 *
-		 * To catch these, we read the register three times and ensure
-		 * that the difference between each two consecutive reads is
-		 * approximately the same, i.e., less than twice the other.
-		 * Furthermore, any negative difference indicates an error.
-		 * (A PCI read should take at least 20 ticks of the 24.576 MHz
-		 * timer to execute, so we have enough precision to compute the
-		 * ratio of the differences.)
-		 */
 		do {
-			c0 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
-			c1 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
+			c0 = c1;
+			c1 = c2;
 			c2 = reg_read(ohci, OHCI1394_IsochronousCycleTimer);
 			t0 = cycle_timer_ticks(c0);
 			t1 = cycle_timer_ticks(c1);
 			t2 = cycle_timer_ticks(c2);
 			diff01 = t1 - t0;
 			diff12 = t2 - t1;
-		} while (diff01 <= 0 || diff12 <= 0 ||
-			 diff01 / diff12 >= 2 || diff12 / diff01 >= 2);
+		} while ((diff01 <= 0 || diff12 <= 0 ||
+			  diff01 / diff12 >= 2 || diff12 / diff01 >= 2)
+			 && i++ < 20);
 	}
-	bus_time = ((u64)atomic_read(&ohci->bus_seconds) << 32) | c2;
 
-	return bus_time;
+	return ((u64)atomic_read(&ohci->bus_seconds) << 32) | c2;
 }
 
 static void copy_iso_headers(struct iso_context *ctx, void *p)
