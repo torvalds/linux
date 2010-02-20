@@ -1,9 +1,9 @@
-/* linux/arch/arm/plat-s3c24xx/include/plat/dma-plat.h
+/* linux/arch/arm/plat-samsung/include/plat/dma-s3c24xx.h
  *
  * Copyright (C) 2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * Samsung S3C24XX DMA support
+ * Samsung S3C24XX DMA support - per SoC functions
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

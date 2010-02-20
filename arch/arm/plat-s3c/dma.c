@@ -20,8 +20,6 @@ struct s3c2410_dma_buf;
 #include <mach/dma.h>
 #include <mach/irqs.h>
 
-#include <plat/dma-plat.h>
-
 /* dma channel state information */
 struct s3c2410_dma_chan s3c2410_chans[S3C_DMA_CHANNELS];
 struct s3c2410_dma_chan *s3c_dma_chan_map[DMACH_MAX];
