@@ -75,10 +75,10 @@ SECTIONS
 	  __stop___mca_table = .;
 	}
 
-  .data.patch.phys_stack_reg : AT(ADDR(.data.patch.phys_stack_reg) - LOAD_OFFSET)
+  .data..patch.phys_stack_reg : AT(ADDR(.data..patch.phys_stack_reg) - LOAD_OFFSET)
 	{
 	  __start___phys_stack_reg_patchlist = .;
-	  *(.data.patch.phys_stack_reg)
+	  *(.data..patch.phys_stack_reg)
 	  __end___phys_stack_reg_patchlist = .;
 	}
 
@@ -110,24 +110,24 @@ SECTIONS
   INIT_TEXT_SECTION(PAGE_SIZE)
   INIT_DATA_SECTION(16)
 
-  .data.patch.vtop : AT(ADDR(.data.patch.vtop) - LOAD_OFFSET)
+  .data..patch.vtop : AT(ADDR(.data..patch.vtop) - LOAD_OFFSET)
 	{
 	  __start___vtop_patchlist = .;
-	  *(.data.patch.vtop)
+	  *(.data..patch.vtop)
 	  __end___vtop_patchlist = .;
 	}
 
-  .data.patch.rse : AT(ADDR(.data.patch.rse) - LOAD_OFFSET)
+  .data..patch.rse : AT(ADDR(.data..patch.rse) - LOAD_OFFSET)
 	{
 	  __start___rse_patchlist = .;
-	  *(.data.patch.rse)
+	  *(.data..patch.rse)
 	  __end___rse_patchlist = .;
 	}
 
-  .data.patch.mckinley_e9 : AT(ADDR(.data.patch.mckinley_e9) - LOAD_OFFSET)
+  .data..patch.mckinley_e9 : AT(ADDR(.data..patch.mckinley_e9) - LOAD_OFFSET)
 	{
 	  __start___mckinley_e9_bundles = .;
-	  *(.data.patch.mckinley_e9)
+	  *(.data..patch.mckinley_e9)
 	  __end___mckinley_e9_bundles = .;
 	}
 

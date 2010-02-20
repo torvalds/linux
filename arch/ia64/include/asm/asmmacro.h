@@ -70,12 +70,12 @@ name:
  * path (ivt.S - TLB miss processing) or in places where it might not be
  * safe to use a "tpa" instruction (mca_asm.S - error recovery).
  */
-	.section ".data.patch.vtop", "a"	// declare section & section attributes
+	.section ".data..patch.vtop", "a"	// declare section & section attributes
 	.previous
 
 #define	LOAD_PHYSICAL(pr, reg, obj)		\
 [1:](pr)movl reg = obj;				\
-	.xdata4 ".data.patch.vtop", 1b-.
+	.xdata4 ".data..patch.vtop", 1b-.
 
 /*
  * For now, we always put in the McKinley E9 workaround.  On CPUs that don't need it,
@@ -84,11 +84,11 @@ name:
 #define DO_MCKINLEY_E9_WORKAROUND
 
 #ifdef DO_MCKINLEY_E9_WORKAROUND
-	.section ".data.patch.mckinley_e9", "a"
+	.section ".data..patch.mckinley_e9", "a"
 	.previous
 /* workaround for Itanium 2 Errata 9: */
 # define FSYS_RETURN					\
-	.xdata4 ".data.patch.mckinley_e9", 1f-.;	\
+	.xdata4 ".data..patch.mckinley_e9", 1f-.;	\
 1:{ .mib;						\
 	nop.m 0;					\
 	mov r16=ar.pfs;					\
@@ -107,11 +107,11 @@ name:
  * If physical stack register size is different from DEF_NUM_STACK_REG,
  * dynamically patch the kernel for correct size.
  */
-	.section ".data.patch.phys_stack_reg", "a"
+	.section ".data..patch.phys_stack_reg", "a"
 	.previous
 #define LOAD_PHYS_STACK_REG_SIZE(reg)			\
 [1:]	adds reg=IA64_NUM_PHYS_STACK_REG*8+8,r0;	\
-	.xdata4 ".data.patch.phys_stack_reg", 1b-.
+	.xdata4 ".data..patch.phys_stack_reg", 1b-.
 
 /*
  * Up until early 2004, use of .align within a function caused bad unwind info.

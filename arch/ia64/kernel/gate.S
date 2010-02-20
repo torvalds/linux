@@ -21,18 +21,18 @@
  * to targets outside the shared object) and to avoid multi-phase kernel builds, we
  * simply create minimalistic "patch lists" in special ELF sections.
  */
-	.section ".data.patch.fsyscall_table", "a"
+	.section ".data..patch.fsyscall_table", "a"
 	.previous
 #define LOAD_FSYSCALL_TABLE(reg)			\
 [1:]	movl reg=0;					\
-	.xdata4 ".data.patch.fsyscall_table", 1b-.
+	.xdata4 ".data..patch.fsyscall_table", 1b-.
 
-	.section ".data.patch.brl_fsys_bubble_down", "a"
+	.section ".data..patch.brl_fsys_bubble_down", "a"
 	.previous
 #define BRL_COND_FSYS_BUBBLE_DOWN(pr)			\
 [1:](pr)brl.cond.sptk 0;				\
 	;;						\
-	.xdata4 ".data.patch.brl_fsys_bubble_down", 1b-.
+	.xdata4 ".data..patch.brl_fsys_bubble_down", 1b-.
 
 GLOBAL_ENTRY(__kernel_syscall_via_break)
 	.prologue
