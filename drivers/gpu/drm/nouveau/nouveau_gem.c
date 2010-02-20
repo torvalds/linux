@@ -558,11 +558,11 @@ nouveau_gem_pushbuf_reloc_apply(struct drm_device *dev,
 
 		spin_lock(&nvbo->bo.lock);
 		ret = ttm_bo_wait(&nvbo->bo, false, false, false);
+		spin_unlock(&nvbo->bo.lock);
 		if (ret) {
 			NV_ERROR(dev, "reloc wait_idle failed: %d\n", ret);
 			break;
 		}
-		spin_unlock(&nvbo->bo.lock);
 
 		nouveau_bo_wr32(nvbo, r->reloc_bo_offset >> 2, data);
 	}
