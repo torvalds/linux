@@ -512,15 +512,23 @@ EXPORT_SYMBOL_GPL(rds_atomic_send_complete);
  * socket, socket lock) and can just move the notifier.
  */
 static inline void
-__rds_rdma_send_complete(struct rds_sock *rs, struct rds_message *rm, int status)
+__rds_send_complete(struct rds_sock *rs, struct rds_message *rm, int status)
 {
 	struct rm_rdma_op *ro;
+	struct rm_atomic_op *ao;
 
 	ro = &rm->rdma;
 	if (ro->op_active && ro->op_notify && ro->op_notifier) {
 		ro->op_notifier->n_status = status;
 		list_add_tail(&ro->op_notifier->n_list, &rs->rs_notify_queue);
 		ro->op_notifier = NULL;
+	}
+
+	ao = &rm->atomic;
+	if (ao->op_active && ao->op_notify && ao->op_notifier) {
+		ao->op_notifier->n_status = status;
+		list_add_tail(&ao->op_notifier->n_list, &rs->rs_notify_queue);
+		ao->op_notifier = NULL;
 	}
 
 	/* No need to wake the app - caller does this */
@@ -733,7 +741,7 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		spin_lock_irqsave(&rm->m_rs_lock, flags);
 
 		spin_lock(&rs->rs_lock);
-		__rds_rdma_send_complete(rs, rm, RDS_RDMA_CANCELED);
+		__rds_send_complete(rs, rm, RDS_RDMA_CANCELED);
 		spin_unlock(&rs->rs_lock);
 
 		rm->m_rs = NULL;
