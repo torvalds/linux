@@ -248,6 +248,9 @@ union fw_cdev_event {
 #define FW_CDEV_IOC_SEND_BROADCAST_REQUEST       _IOW('#', 0x12, struct fw_cdev_send_request)
 #define FW_CDEV_IOC_SEND_STREAM_PACKET           _IOW('#', 0x13, struct fw_cdev_send_stream_packet)
 
+/* available since kernel version 2.6.34 */
+#define FW_CDEV_IOC_GET_CYCLE_TIMER2   _IOWR('#', 0x14, struct fw_cdev_get_cycle_timer2)
+
 /*
  * FW_CDEV_VERSION History
  *  1  (2.6.22)  - initial version
@@ -544,17 +547,37 @@ struct fw_cdev_stop_iso {
 /**
  * struct fw_cdev_get_cycle_timer - read cycle timer register
  * @local_time:   system time, in microseconds since the Epoch
- * @cycle_timer:  isochronous cycle timer, as per OHCI 1.1 clause 5.13
+ * @cycle_timer:  Cycle Time register contents
  *
  * The %FW_CDEV_IOC_GET_CYCLE_TIMER ioctl reads the isochronous cycle timer
- * and also the system clock.  This allows to express the receive time of an
- * isochronous packet as a system time with microsecond accuracy.
+ * and also the system clock (%CLOCK_REALTIME).  This allows to express the
+ * receive time of an isochronous packet as a system time.
  *
  * @cycle_timer consists of 7 bits cycleSeconds, 13 bits cycleCount, and
- * 12 bits cycleOffset, in host byte order.
+ * 12 bits cycleOffset, in host byte order.  Cf. the Cycle Time register
+ * per IEEE 1394 or Isochronous Cycle Timer register per OHCI-1394.
  */
 struct fw_cdev_get_cycle_timer {
 	__u64 local_time;
+	__u32 cycle_timer;
+};
+
+/**
+ * struct fw_cdev_get_cycle_timer2 - read cycle timer register
+ * @tv_sec:       system time, seconds
+ * @tv_nsec:      system time, sub-seconds part in nanoseconds
+ * @clk_id:       input parameter, clock from which to get the system time
+ * @cycle_timer:  Cycle Time register contents
+ *
+ * The %FW_CDEV_IOC_GET_CYCLE_TIMER2 works like
+ * %FW_CDEV_IOC_GET_CYCLE_TIMER but lets you choose a clock like with POSIX'
+ * clock_gettime function.  Supported @clk_id values are POSIX' %CLOCK_REALTIME
+ * and %CLOCK_MONOTONIC and Linux' %CLOCK_MONOTONIC_RAW.
+ */
+struct fw_cdev_get_cycle_timer2 {
+	__s64 tv_sec;
+	__s32 tv_nsec;
+	__s32 clk_id;
 	__u32 cycle_timer;
 };
 

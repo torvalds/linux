@@ -1031,22 +1031,46 @@ static int ioctl_stop_iso(struct client *client, void *buffer)
 	return fw_iso_context_stop(client->iso_context);
 }
 
-static int ioctl_get_cycle_timer(struct client *client, void *buffer)
+static int ioctl_get_cycle_timer2(struct client *client, void *buffer)
 {
-	struct fw_cdev_get_cycle_timer *request = buffer;
+	struct fw_cdev_get_cycle_timer2 *request = buffer;
 	struct fw_card *card = client->device->card;
-	struct timeval tv;
+	struct timespec ts = {0, 0};
 	u32 cycle_time;
+	int ret = 0;
 
 	local_irq_disable();
 
 	cycle_time = card->driver->get_cycle_time(card);
-	do_gettimeofday(&tv);
+
+	switch (request->clk_id) {
+	case CLOCK_REALTIME:      getnstimeofday(&ts);                   break;
+	case CLOCK_MONOTONIC:     do_posix_clock_monotonic_gettime(&ts); break;
+	case CLOCK_MONOTONIC_RAW: getrawmonotonic(&ts);                  break;
+	default:
+		ret = -EINVAL;
+	}
 
 	local_irq_enable();
 
-	request->local_time = tv.tv_sec * 1000000ULL + tv.tv_usec;
-	request->cycle_timer = cycle_time;
+	request->tv_sec		= ts.tv_sec;
+	request->tv_nsec	= ts.tv_nsec;
+	request->cycle_timer	= cycle_time;
+
+	return ret;
+}
+
+static int ioctl_get_cycle_timer(struct client *client, void *buffer)
+{
+	struct fw_cdev_get_cycle_timer *request = buffer;
+	struct fw_cdev_get_cycle_timer2 ct2;
+
+	ct2.clk_id = CLOCK_REALTIME;
+	ioctl_get_cycle_timer2(client, &ct2);
+
+	request->local_time	= ct2.tv_sec * USEC_PER_SEC +
+				  ct2.tv_nsec / NSEC_PER_USEC;
+	request->cycle_timer	= ct2.cycle_timer;
 
 	return 0;
 }
@@ -1320,6 +1344,7 @@ static int (* const ioctl_handlers[])(struct client *client, void *buffer) = {
 	ioctl_get_speed,
 	ioctl_send_broadcast_request,
 	ioctl_send_stream_packet,
+	ioctl_get_cycle_timer2,
 };
 
 static int dispatch_ioctl(struct client *client,
@@ -1341,6 +1366,7 @@ static int dispatch_ioctl(struct client *client,
 		struct fw_cdev_get_cycle_timer		_0c;
 		struct fw_cdev_allocate_iso_resource	_0d;
 		struct fw_cdev_send_stream_packet	_13;
+		struct fw_cdev_get_cycle_timer2		_14;
 	})];
 	int ret;
 
