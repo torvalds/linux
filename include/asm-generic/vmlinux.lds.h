@@ -193,7 +193,7 @@
 
 #define INIT_TASK_DATA(align)						\
 	. = ALIGN(align);						\
-	*(.data.init_task)
+	*(.data..init_task)
 
 /*
  * Read only Data
@@ -435,7 +435,7 @@
  */
 #define INIT_TASK_DATA_SECTION(align)					\
 	. = ALIGN(align);						\
-	.data.init_task : {						\
+	.data..init_task : {						\
 		INIT_TASK_DATA(align)					\
 	}
 

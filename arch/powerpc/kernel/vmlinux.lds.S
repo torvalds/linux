@@ -223,9 +223,7 @@ SECTIONS
 #endif
 
 	/* The initial task and kernel stack */
-	.data.init_task : AT(ADDR(.data.init_task) - LOAD_OFFSET) {
-		INIT_TASK_DATA(THREAD_SIZE)
-	}
+	INIT_TASK_DATA_SECTION(THREAD_SIZE)
 
 	.data.page_aligned : AT(ADDR(.data.page_aligned) - LOAD_OFFSET) {
 		PAGE_ALIGNED_DATA(PAGE_SIZE)

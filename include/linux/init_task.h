@@ -191,7 +191,7 @@ extern struct cred init_cred;
 }
 
 /* Attach to the init_task data structure for proper alignment */
-#define __init_task_data __attribute__((__section__(".data.init_task")))
+#define __init_task_data __attribute__((__section__(".data..init_task")))
 
 
 #endif
