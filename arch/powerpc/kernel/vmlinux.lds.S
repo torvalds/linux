@@ -231,7 +231,7 @@ SECTIONS
 		PAGE_ALIGNED_DATA(PAGE_SIZE)
 	}
 
-	.data.cacheline_aligned : AT(ADDR(.data.cacheline_aligned) - LOAD_OFFSET) {
+	.data..cacheline_aligned : AT(ADDR(.data..cacheline_aligned) - LOAD_OFFSET) {
 		CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)
 	}
 

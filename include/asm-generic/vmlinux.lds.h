@@ -189,7 +189,7 @@
 
 #define CACHELINE_ALIGNED_DATA(align)					\
 	. = ALIGN(align);						\
-	*(.data.cacheline_aligned)
+	*(.data..cacheline_aligned)
 
 #define INIT_TASK_DATA(align)						\
 	. = ALIGN(align);						\
