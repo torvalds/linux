@@ -38,7 +38,7 @@ static int fb_notifier_callback(struct notifier_block *self,
 	mutex_lock(&bd->ops_lock);
 	if (bd->ops)
 		if (!bd->ops->check_fb ||
-		    bd->ops->check_fb(evdata->info)) {
+		    bd->ops->check_fb(bd, evdata->info)) {
 			bd->props.fb_blank = *(int *)evdata->data;
 			if (bd->props.fb_blank == FB_BLANK_UNBLANK)
 				bd->props.state &= ~BL_CORE_FBBLANK;

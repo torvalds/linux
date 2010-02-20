@@ -47,7 +47,7 @@ struct backlight_ops {
 	int (*get_brightness)(struct backlight_device *);
 	/* Check if given framebuffer device is the one bound to this backlight;
 	   return 0 if not, !=0 if it is. If NULL, backlight always matches the fb. */
-	int (*check_fb)(struct fb_info *);
+	int (*check_fb)(struct backlight_device *, struct fb_info *);
 };
 
 /* This structure defines all the properties of a backlight */

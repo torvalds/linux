@@ -56,7 +56,7 @@ static int adx_backlight_get_brightness(struct backlight_device *bldev)
 	return brightness & 0xff;
 }
 
-static int adx_backlight_check_fb(struct fb_info *fb)
+static int adx_backlight_check_fb(struct backlight_device *bldev, struct fb_info *fb)
 {
 	return 1;
 }
