@@ -1391,7 +1391,7 @@ static const struct rpc_call_ops nfs_commit_ops = {
 	.rpc_release = nfs_commit_release,
 };
 
-int nfs_commit_inode(struct inode *inode, int how)
+static int nfs_commit_inode(struct inode *inode, int how)
 {
 	LIST_HEAD(head);
 	int res;
@@ -1406,12 +1406,34 @@ int nfs_commit_inode(struct inode *inode, int how)
 	}
 	return res;
 }
+
+static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_control *wbc)
+{
+	int ret;
+
+	ret = nfs_commit_inode(inode,
+			wbc->sync_mode == WB_SYNC_ALL ? FLUSH_SYNC : 0);
+	if (ret >= 0)
+		return 0;
+	__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
+	return ret;
+}
 #else
 static inline int nfs_commit_list(struct inode *inode, struct list_head *head, int how)
 {
 	return 0;
 }
+
+static int nfs_commit_unstable_pages(struct inode *inode, struct writeback_control *wbc)
+{
+	return 0;
+}
 #endif
+
+int nfs_write_inode(struct inode *inode, struct writeback_control *wbc)
+{
+	return nfs_commit_unstable_pages(inode, wbc);
+}
 
 long nfs_sync_mapping_wait(struct address_space *mapping, struct writeback_control *wbc, int how)
 {
