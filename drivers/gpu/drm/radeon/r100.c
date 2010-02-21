@@ -3011,7 +3011,11 @@ int r100_cs_track_check(struct radeon_device *rdev, struct r100_cs_track *track)
 		}
 	}
 	prim_walk = (track->vap_vf_cntl >> 4) & 0x3;
-	nverts = (track->vap_vf_cntl >> 16) & 0xFFFF;
+	if (track->vap_vf_cntl & (1 << 14)) {
+		nverts = track->vap_alt_nverts;
+	} else {
+		nverts = (track->vap_vf_cntl >> 16) & 0xFFFF;
+	}
 	switch (prim_walk) {
 	case 1:
 		for (i = 0; i < track->num_arrays; i++) {
