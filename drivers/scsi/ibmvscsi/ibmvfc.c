@@ -29,6 +29,7 @@
 #include <linux/interrupt.h>
 #include <linux/kthread.h>
 #include <linux/of.h>
+#include <linux/pm.h>
 #include <linux/stringify.h>
 #include <asm/firmware.h>
 #include <asm/irq.h>
@@ -4736,6 +4737,27 @@ static int ibmvfc_remove(struct vio_dev *vdev)
 }
 
 /**
+ * ibmvfc_resume - Resume from suspend
+ * @dev:	device struct
+ *
+ * We may have lost an interrupt across suspend/resume, so kick the
+ * interrupt handler
+ *
+ */
+static int ibmvfc_resume(struct device *dev)
+{
+	unsigned long flags;
+	struct ibmvfc_host *vhost = dev_get_drvdata(dev);
+	struct vio_dev *vdev = to_vio_dev(dev);
+
+	spin_lock_irqsave(vhost->host->host_lock, flags);
+	vio_disable_interrupts(vdev);
+	tasklet_schedule(&vhost->tasklet);
+	spin_unlock_irqrestore(vhost->host->host_lock, flags);
+	return 0;
+}
+
+/**
  * ibmvfc_get_desired_dma - Calculate DMA resources needed by the driver
  * @vdev:	vio device struct
  *
@@ -4755,6 +4777,10 @@ static struct vio_device_id ibmvfc_device_table[] __devinitdata = {
 };
 MODULE_DEVICE_TABLE(vio, ibmvfc_device_table);
 
+static struct dev_pm_ops ibmvfc_pm_ops = {
+	.resume = ibmvfc_resume
+};
+
 static struct vio_driver ibmvfc_driver = {
 	.id_table = ibmvfc_device_table,
 	.probe = ibmvfc_probe,
@@ -4763,6 +4789,7 @@ static struct vio_driver ibmvfc_driver = {
 	.driver = {
 		.name = IBMVFC_NAME,
 		.owner = THIS_MODULE,
+		.pm = &ibmvfc_pm_ops,
 	}
 };
 
