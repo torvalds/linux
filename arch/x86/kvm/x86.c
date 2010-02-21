@@ -3443,7 +3443,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	if (vcpu->arch.pio.string)
 		return EMULATE_DO_MMIO;
 
-	if ((r || vcpu->mmio_is_write) && run) {
+	if (r || vcpu->mmio_is_write) {
 		run->exit_reason = KVM_EXIT_MMIO;
 		run->mmio.phys_addr = vcpu->mmio_phys_addr;
 		memcpy(run->mmio.data, vcpu->mmio_data, 8);
