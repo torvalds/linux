@@ -91,14 +91,24 @@ static struct radeon_power_state * radeon_pick_power_state(struct radeon_device 
 	default:
 		return rdev->pm.default_power_state;
 	case POWER_STATE_TYPE_POWERSAVE:
-		wanted_types[0] = POWER_STATE_TYPE_POWERSAVE;
-		wanted_types[1] = POWER_STATE_TYPE_BATTERY;
-		wanted_count = 2;
+		if (rdev->flags & RADEON_IS_MOBILITY) {
+			wanted_types[0] = POWER_STATE_TYPE_POWERSAVE;
+			wanted_types[1] = POWER_STATE_TYPE_BATTERY;
+			wanted_count = 2;
+		} else {
+			wanted_types[0] = POWER_STATE_TYPE_PERFORMANCE;
+			wanted_count = 1;
+		}
 		break;
 	case POWER_STATE_TYPE_BATTERY:
-		wanted_types[0] = POWER_STATE_TYPE_BATTERY;
-		wanted_types[1] = POWER_STATE_TYPE_POWERSAVE;
-		wanted_count = 2;
+		if (rdev->flags & RADEON_IS_MOBILITY) {
+			wanted_types[0] = POWER_STATE_TYPE_BATTERY;
+			wanted_types[1] = POWER_STATE_TYPE_POWERSAVE;
+			wanted_count = 2;
+		} else {
+			wanted_types[0] = POWER_STATE_TYPE_PERFORMANCE;
+			wanted_count = 1;
+		}
 		break;
 	case POWER_STATE_TYPE_BALANCED:
 	case POWER_STATE_TYPE_PERFORMANCE:
