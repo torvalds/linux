@@ -158,9 +158,11 @@ nouveau_pci_suspend(struct pci_dev *pdev, pm_message_t pm_state)
 	if (pm_state.event == PM_EVENT_PRETHAW)
 		return 0;
 
+	NV_INFO(dev, "Disabling fbcon acceleration...\n");
 	fbdev_flags = dev_priv->fbdev_info->flags;
 	dev_priv->fbdev_info->flags |= FBINFO_HWACCEL_DISABLED;
 
+	NV_INFO(dev, "Unpinning framebuffer(s)...\n");
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct nouveau_framebuffer *nouveau_fb;
 
