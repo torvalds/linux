@@ -2395,17 +2395,17 @@ static int __devinit pci_probe(struct pci_dev *dev,
 		     OHCI1394_AsRspTrContextControlSet, handle_at_packet);
 
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskSet, ~0);
-	ohci->it_context_mask = reg_read(ohci, OHCI1394_IsoRecvIntMaskSet);
-	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, ~0);
-	size = sizeof(struct iso_context) * hweight32(ohci->it_context_mask);
-	ohci->it_context_list = kzalloc(size, GFP_KERNEL);
-
-	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
 	ohci->ir_context_channels = ~0ULL;
-	ohci->ir_context_mask = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
-	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, ~0);
+	ohci->ir_context_mask = reg_read(ohci, OHCI1394_IsoRecvIntMaskSet);
+	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, ~0);
 	size = sizeof(struct iso_context) * hweight32(ohci->ir_context_mask);
 	ohci->ir_context_list = kzalloc(size, GFP_KERNEL);
+
+	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
+	ohci->it_context_mask = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
+	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, ~0);
+	size = sizeof(struct iso_context) * hweight32(ohci->it_context_mask);
+	ohci->it_context_list = kzalloc(size, GFP_KERNEL);
 
 	if (ohci->it_context_list == NULL || ohci->ir_context_list == NULL) {
 		err = -ENOMEM;
