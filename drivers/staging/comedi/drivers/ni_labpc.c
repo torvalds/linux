@@ -583,8 +583,11 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	/* analog output */
 	s = dev->subdevices + 1;
 	if (thisboard->has_ao) {
-/* Could provide command support, except it only has a one sample
- * hardware buffer for analog output and no underrun flag. */
+		/*
+		 * Could provide command support, except it only has a
+		 * one sample hardware buffer for analog output and no
+		 * underrun flag.
+		 */
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = NUM_AO_CHAN;
@@ -1356,7 +1359,10 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 	}
 
 	if (devpriv->current_transfer == isa_dma_transfer) {
-		/*  if a dma terminal count of external stop trigger has occurred */
+		/*
+		 * if a dma terminal count of external stop trigger
+		 * has occurred
+		 */
 		if (devpriv->status1_bits & DMATC_BIT ||
 		    (thisboard->register_layout == labpc_1200_layout
 		     && devpriv->status2_bits & A1_TC_BIT)) {
