@@ -1227,27 +1227,20 @@ static const struct ivtv_card ivtv_card_kikyou = {
 	.hw_audio_ctrl = IVTV_HW_GPIO,
 	.hw_all = IVTV_HW_GPIO | IVTV_HW_SAA7115 | IVTV_HW_TUNER,
 	.video_inputs = {
-	{ IVTV_CARD_INPUT_VID_TUNER,  0, IVTV_SAA71XX_COMPOSITE5 },
-	{ IVTV_CARD_INPUT_COMPOSITE1, 1, IVTV_SAA71XX_COMPOSITE4 }, /* rear */
-	{ IVTV_CARD_INPUT_COMPOSITE2, 2, IVTV_SAA71XX_COMPOSITE1 }, /* front */
+	{ IVTV_CARD_INPUT_VID_TUNER,  0, IVTV_SAA71XX_COMPOSITE1 },
+	{ IVTV_CARD_INPUT_COMPOSITE1, 1, IVTV_SAA71XX_COMPOSITE1 },
 	{ IVTV_CARD_INPUT_SVIDEO1,    1, IVTV_SAA71XX_SVIDEO1 },
-	{ IVTV_CARD_INPUT_SVIDEO2,    2, IVTV_SAA71XX_SVIDEO2 },
 	},
 	.audio_inputs = {
 	     { IVTV_CARD_INPUT_AUD_TUNER,  IVTV_GPIO_TUNER },
 	     { IVTV_CARD_INPUT_LINE_IN1,   IVTV_GPIO_LINE_IN },
-	     /* IVTV_GPIO_RADIO?? pretend to have "radio" for 2nd audio GPIO. */
-	     { IVTV_CARD_INPUT_LINE_IN2,   2 },
+	     { IVTV_CARD_INPUT_LINE_IN2,   IVTV_GPIO_LINE_IN },
 	},
-	/*
-	 * Sony windows software seems to set 0x200 when unmuting.
-	 * Does it do anything?  Not clear what 0x100 does either.
-	 */
-	.gpio_init = { .direction = 0x0381, .initial_value = 0x0320 },
+	.gpio_init = { .direction = 0x03e1, .initial_value = 0x0320 },
 	.gpio_audio_input = { .mask   = 0x0060,
-			      .tuner  = 0x0000,
-			      .linein = 0x0060,
-			      .radio  = 0x0020 },
+			      .tuner  = 0x0020,
+			      .linein = 0x0000,
+			      .radio  = 0x0060 },
 	.gpio_audio_mute  = { .mask = 0x0000,
 			      .mute = 0x0000 }, /* 0x200? Disable for now. */
 	.gpio_audio_mode  = { .mask   = 0x0080,
