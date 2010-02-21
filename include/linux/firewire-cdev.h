@@ -256,8 +256,12 @@ union fw_cdev_event {
  *  1  (2.6.22)  - initial version
  *  2  (2.6.30)  - changed &fw_cdev_event_iso_interrupt.header if
  *                 &fw_cdev_create_iso_context.header_size is 8 or more
+ *     (2.6.32)  - added time stamp to xmit &fw_cdev_event_iso_interrupt
+ *     (2.6.33)  - IR has always packet-per-buffer semantics now, not one of
+ *                 dual-buffer or packet-per-buffer depending on hardware
+ *  3  (2.6.34)  - made &fw_cdev_get_cycle_timer reliable
  */
-#define FW_CDEV_VERSION 2
+#define FW_CDEV_VERSION 3
 
 /**
  * struct fw_cdev_get_info - General purpose information ioctl
@@ -556,6 +560,9 @@ struct fw_cdev_stop_iso {
  * @cycle_timer consists of 7 bits cycleSeconds, 13 bits cycleCount, and
  * 12 bits cycleOffset, in host byte order.  Cf. the Cycle Time register
  * per IEEE 1394 or Isochronous Cycle Timer register per OHCI-1394.
+ *
+ * In version 1 and 2 of the ABI, this ioctl returned unreliable (non-
+ * monotonic) @cycle_timer values on certain controllers.
  */
 struct fw_cdev_get_cycle_timer {
 	__u64 local_time;
