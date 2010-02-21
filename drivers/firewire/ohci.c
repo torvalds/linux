@@ -166,9 +166,6 @@ struct fw_ohci {
 	struct fw_card card;
 
 	__iomem char *registers;
-	dma_addr_t self_id_bus;
-	__le32 *self_id_cpu;
-	struct tasklet_struct bus_reset_tasklet;
 	int node_id;
 	int generation;
 	int request_generation;	/* for timestamping incoming requests */
@@ -182,14 +179,6 @@ struct fw_ohci {
 	 * this driver with this lock held.
 	 */
 	spinlock_t lock;
-	u32 self_id_buffer[512];
-
-	/* Config rom buffers */
-	__be32 *config_rom;
-	dma_addr_t config_rom_bus;
-	__be32 *next_config_rom;
-	dma_addr_t next_config_rom_bus;
-	__be32 next_header;
 
 	struct ar_context ar_request_ctx;
 	struct ar_context ar_response_ctx;
@@ -201,6 +190,18 @@ struct fw_ohci {
 	u64 ir_context_channels;
 	u32 ir_context_mask;
 	struct iso_context *ir_context_list;
+
+	__be32    *config_rom;
+	dma_addr_t config_rom_bus;
+	__be32    *next_config_rom;
+	dma_addr_t next_config_rom_bus;
+	__be32     next_header;
+
+	__le32    *self_id_cpu;
+	dma_addr_t self_id_bus;
+	struct tasklet_struct bus_reset_tasklet;
+
+	u32 self_id_buffer[512];
 };
 
 static inline struct fw_ohci *fw_ohci(struct fw_card *card)
