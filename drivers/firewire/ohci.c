@@ -2329,7 +2329,7 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	struct fw_ohci *ohci;
 	u32 bus_options, max_receive, link_speed, version;
 	u64 guid;
-	int i, err;
+	int i, err, n_ir, n_it;
 	size_t size;
 
 	ohci = kzalloc(sizeof(*ohci), GFP_KERNEL);
@@ -2370,8 +2370,6 @@ static int __devinit pci_probe(struct pci_dev *dev,
 		goto fail_iomem;
 	}
 
-	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
-
 	for (i = 0; i < ARRAY_SIZE(ohci_quirks); i++)
 		if (ohci_quirks[i].vendor == dev->vendor &&
 		    (ohci_quirks[i].device == dev->device ||
@@ -2398,13 +2396,15 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	ohci->ir_context_channels = ~0ULL;
 	ohci->ir_context_mask = reg_read(ohci, OHCI1394_IsoRecvIntMaskSet);
 	reg_write(ohci, OHCI1394_IsoRecvIntMaskClear, ~0);
-	size = sizeof(struct iso_context) * hweight32(ohci->ir_context_mask);
+	n_ir = hweight32(ohci->ir_context_mask);
+	size = sizeof(struct iso_context) * n_ir;
 	ohci->ir_context_list = kzalloc(size, GFP_KERNEL);
 
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskSet, ~0);
 	ohci->it_context_mask = reg_read(ohci, OHCI1394_IsoXmitIntMaskSet);
 	reg_write(ohci, OHCI1394_IsoXmitIntMaskClear, ~0);
-	size = sizeof(struct iso_context) * hweight32(ohci->it_context_mask);
+	n_it = hweight32(ohci->it_context_mask);
+	size = sizeof(struct iso_context) * n_it;
 	ohci->it_context_list = kzalloc(size, GFP_KERNEL);
 
 	if (ohci->it_context_list == NULL || ohci->ir_context_list == NULL) {
@@ -2432,8 +2432,11 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	if (err)
 		goto fail_self_id;
 
-	fw_notify("Added fw-ohci device %s, OHCI version %x.%x\n",
-		  dev_name(&dev->dev), version >> 16, version & 0xff);
+	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
+	fw_notify("Added fw-ohci device %s, OHCI v%x.%x, "
+		  "%d IR + %d IT contexts, quirks 0x%x\n",
+		  dev_name(&dev->dev), version >> 16, version & 0xff,
+		  n_ir, n_it, ohci->quirks);
 
 	return 0;
 
