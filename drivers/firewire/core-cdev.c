@@ -1349,6 +1349,9 @@ static int dispatch_ioctl(struct client *client,
 	union ioctl_arg buffer;
 	int ret;
 
+	if (fw_device_is_shutdown(client->device))
+		return -ENODEV;
+
 	if (_IOC_TYPE(cmd) != '#' ||
 	    _IOC_NR(cmd) >= ARRAY_SIZE(ioctl_handlers))
 		return -EINVAL;
@@ -1375,24 +1378,14 @@ static int dispatch_ioctl(struct client *client,
 static long fw_device_op_ioctl(struct file *file,
 			       unsigned int cmd, unsigned long arg)
 {
-	struct client *client = file->private_data;
-
-	if (fw_device_is_shutdown(client->device))
-		return -ENODEV;
-
-	return dispatch_ioctl(client, cmd, (void __user *) arg);
+	return dispatch_ioctl(file->private_data, cmd, (void __user *)arg);
 }
 
 #ifdef CONFIG_COMPAT
 static long fw_device_op_compat_ioctl(struct file *file,
 				      unsigned int cmd, unsigned long arg)
 {
-	struct client *client = file->private_data;
-
-	if (fw_device_is_shutdown(client->device))
-		return -ENODEV;
-
-	return dispatch_ioctl(client, cmd, compat_ptr(arg));
+	return dispatch_ioctl(file->private_data, cmd, compat_ptr(arg));
 }
 #endif
 
