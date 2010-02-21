@@ -246,6 +246,15 @@ static const struct {
 	{PCI_VENDOR_ID_APPLE,	PCI_DEVICE_ID_APPLE_UNI_N_FW, QUIRK_BE_HEADERS},
 };
 
+/* This overrides anything that was found in ohci_quirks[]. */
+static int param_quirks;
+module_param_named(quirks, param_quirks, int, 0644);
+MODULE_PARM_DESC(quirks, "Chip quirks (default = 0"
+	", nonatomic cycle timer = "	__stringify(QUIRK_CYCLE_TIMER)
+	", reset packet generation = "	__stringify(QUIRK_RESET_PACKET)
+	", AR/selfID endianess = "	__stringify(QUIRK_BE_HEADERS)
+	")");
+
 #ifdef CONFIG_FIREWIRE_OHCI_DEBUG
 
 #define OHCI_PARAM_DEBUG_AT_AR		1
@@ -2370,6 +2379,8 @@ static int __devinit pci_probe(struct pci_dev *dev,
 			ohci->quirks = ohci_quirks[i].flags;
 			break;
 		}
+	if (param_quirks)
+		ohci->quirks = param_quirks;
 
 	ar_context_init(&ohci->ar_request_ctx, ohci,
 			OHCI1394_AsReqRcvContextControlSet);
