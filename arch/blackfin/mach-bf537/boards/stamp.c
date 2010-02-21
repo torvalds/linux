@@ -663,6 +663,18 @@ static struct bfin5xx_spi_chip ad2s90_spi_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_AD2S120X) || defined(CONFIG_AD2S120X_MODULE)
+unsigned short ad2s120x_platform_data[] = {
+	/* used as SAMPLE and RDVEL */
+	GPIO_PF5, GPIO_PF6, 0
+};
+
+static struct bfin5xx_spi_chip ad2s120x_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 #define MMC_SPI_CARD_DETECT_INT IRQ_PF5
 
@@ -984,6 +996,16 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.chip_select = 3,            /* change it for your board */
 		.platform_data = NULL,
 		.controller_data = &ad2s90_spi_chip_info,
+	},
+#endif
+
+#if defined(CONFIG_AD2S120X) || defined(CONFIG_AD2S120X_MODULE)
+	{
+		.modalias = "ad2s120x",
+		.bus_num = 0,
+		.chip_select = 4,            /* CS, change it for your board */
+		.platform_data = ad2s120x_platform_data,
+		.controller_data = &ad2s120x_spi_chip_info,
 	},
 #endif
 
