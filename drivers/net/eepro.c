@@ -1288,7 +1288,7 @@ set_multicast_list(struct net_device *dev)
 	short ioaddr = dev->base_addr;
 	unsigned short mode;
 	struct dev_mc_list *dmi=dev->mc_list;
-	int mc_count = mc_count;
+	int mc_count = netdev_mc_count(dev);
 
 	if (dev->flags&(IFF_ALLMULTI|IFF_PROMISC) || mc_count > 63)
 	{
