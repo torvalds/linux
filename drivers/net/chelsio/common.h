@@ -36,6 +36,8 @@
  *                                                                           *
  ****************************************************************************/
 
+#define pr_fmt(fmt) "cxgb: " fmt
+
 #ifndef _CXGB_COMMON_H_
 #define _CXGB_COMMON_H_
 
@@ -55,28 +57,6 @@
 #define DRV_DESCRIPTION "Chelsio 10Gb Ethernet Driver"
 #define DRV_NAME "cxgb"
 #define DRV_VERSION "2.2"
-#define PFX      DRV_NAME ": "
-
-#define CH_ERR(fmt, ...)   printk(KERN_ERR PFX fmt, ## __VA_ARGS__)
-#define CH_WARN(fmt, ...)  printk(KERN_WARNING PFX fmt, ## __VA_ARGS__)
-#define CH_ALERT(fmt, ...) printk(KERN_ALERT PFX fmt, ## __VA_ARGS__)
-
-/*
- * More powerful macro that selectively prints messages based on msg_enable.
- * For info and debugging messages.
- */
-#define CH_MSG(adapter, level, category, fmt, ...) do { \
-	if ((adapter)->msg_enable & NETIF_MSG_##category) \
-		printk(KERN_##level PFX "%s: " fmt, (adapter)->name, \
-		       ## __VA_ARGS__); \
-} while (0)
-
-#ifdef DEBUG
-# define CH_DBG(adapter, category, fmt, ...) \
-	CH_MSG(adapter, DEBUG, category, fmt, ## __VA_ARGS__)
-#else
-# define CH_DBG(fmt, ...)
-#endif
 
 #define CH_DEVICE(devid, ssid, idx) \
 	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, ssid, 0, 0, idx }

@@ -251,8 +251,9 @@ static int pm3393_interrupt_handler(struct cmac *cmac)
 	/* Read the master interrupt status register. */
 	pmread(cmac, SUNI1x10GEXP_REG_MASTER_INTERRUPT_STATUS,
 	       &master_intr_status);
-	CH_DBG(cmac->adapter, INTR, "PM3393 intr cause 0x%x\n",
-	       master_intr_status);
+	if (netif_msg_intr(cmac->adapter))
+		dev_dbg(&cmac->adapter->pdev->dev, "PM3393 intr cause 0x%x\n",
+			master_intr_status);
 
 	/* TBD XXX Lets just clear everything for now */
 	pm3393_interrupt_clear(cmac);
@@ -776,11 +777,12 @@ static int pm3393_mac_reset(adapter_t * adapter)
 		successful_reset = (is_pl4_reset_finished && !is_pl4_outof_lock
 				    && is_xaui_mabc_pll_locked);
 
-		CH_DBG(adapter, HW,
-		       "PM3393 HW reset %d: pl4_reset 0x%x, val 0x%x, "
-		       "is_pl4_outof_lock 0x%x, xaui_locked 0x%x\n",
-		       i, is_pl4_reset_finished, val, is_pl4_outof_lock,
-		       is_xaui_mabc_pll_locked);
+		if (netif_msg_hw(adapter))
+			dev_dbg(&adapter->pdev->dev,
+				"PM3393 HW reset %d: pl4_reset 0x%x, val 0x%x, "
+				"is_pl4_outof_lock 0x%x, xaui_locked 0x%x\n",
+				i, is_pl4_reset_finished, val,
+				is_pl4_outof_lock, is_xaui_mabc_pll_locked);
 	}
 	return successful_reset ? 0 : 1;
 }

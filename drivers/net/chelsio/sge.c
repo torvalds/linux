@@ -953,7 +953,7 @@ int t1_sge_intr_error_handler(struct sge *sge)
 		sge->stats.respQ_empty++;
 	if (cause & F_RESPQ_OVERFLOW) {
 		sge->stats.respQ_overflow++;
-		CH_ALERT("%s: SGE response queue overflow\n",
+		pr_alert("%s: SGE response queue overflow\n",
 			 adapter->name);
 	}
 	if (cause & F_FL_EXHAUSTED) {
@@ -962,12 +962,12 @@ int t1_sge_intr_error_handler(struct sge *sge)
 	}
 	if (cause & F_PACKET_TOO_BIG) {
 		sge->stats.pkt_too_big++;
-		CH_ALERT("%s: SGE max packet size exceeded\n",
+		pr_alert("%s: SGE max packet size exceeded\n",
 			 adapter->name);
 	}
 	if (cause & F_PACKET_MISMATCH) {
 		sge->stats.pkt_mismatch++;
-		CH_ALERT("%s: SGE packet mismatch\n", adapter->name);
+		pr_alert("%s: SGE packet mismatch\n", adapter->name);
 	}
 	if (cause & SGE_INT_FATAL)
 		t1_fatal_err(adapter);
@@ -1101,7 +1101,7 @@ static void unexpected_offload(struct adapter *adapter, struct freelQ *fl)
 
 	pci_dma_sync_single_for_cpu(adapter->pdev, pci_unmap_addr(ce, dma_addr),
 			    pci_unmap_len(ce, dma_len), PCI_DMA_FROMDEVICE);
-	CH_ERR("%s: unexpected offload packet, cmd %u\n",
+	pr_err("%s: unexpected offload packet, cmd %u\n",
 	       adapter->name, *skb->data);
 	recycle_fl_buf(fl, fl->cidx);
 }
@@ -1687,7 +1687,7 @@ static int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
 			netif_stop_queue(dev);
 			set_bit(dev->if_port, &sge->stopped_tx_queues);
 			sge->stats.cmdQ_full[2]++;
-			CH_ERR("%s: Tx ring full while queue awake!\n",
+			pr_err("%s: Tx ring full while queue awake!\n",
 			       adapter->name);
 		}
 		spin_unlock(&q->lock);
