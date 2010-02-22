@@ -85,6 +85,10 @@ struct gc {
 	char phys[GC_MAX_DEVICES][32];
 };
 
+struct gc_subdev {
+	unsigned int idx;
+};
+
 static struct gc *gc_base[3];
 
 static int gc_status_bit[] = { 0x40, 0x80, 0x20, 0x10, 0x08 };
@@ -100,9 +104,16 @@ static unsigned char gc_n64_bytes[] = { 0, 1, 13, 15, 14, 12, 10, 11, 2, 3 };
 static short gc_n64_btn[] = { BTN_A, BTN_B, BTN_C, BTN_X, BTN_Y, BTN_Z, BTN_TL, BTN_TR, BTN_TRIGGER, BTN_START };
 
 #define GC_N64_LENGTH		32		/* N64 bit length, not including stop bit */
-#define GC_N64_REQUEST_LENGTH	37		/* transmit request sequence is 9 bits long */
+#define GC_N64_STOP_LENGTH	5		/* Length of encoded stop bit */
+#define GC_N64_CMD_00		0x11111111UL
+#define GC_N64_CMD_01		0xd1111111UL
+#define GC_N64_CMD_03		0xdd111111UL
+#define GC_N64_CMD_1b		0xdd1dd111UL
+#define GC_N64_CMD_c0		0x111111ddUL
+#define GC_N64_CMD_80		0x1111111dUL
+#define GC_N64_STOP_BIT		0x1d		/* Encoded stop bit */
+#define GC_N64_REQUEST_DATA	GC_N64_CMD_01	/* the request data command */
 #define GC_N64_DELAY		133		/* delay between transmit request, and response ready (us) */
-#define GC_N64_REQUEST		0x1dd1111111ULL /* the request data command (encoded for 000000011) */
 #define GC_N64_DWS		3		/* delay between write segments (required for sound playback because of ISA DMA) */
 						/* GC_N64_DWS > 24 is known to fail */
 #define GC_N64_POWER_W		0xe2		/* power during write (transmit request) */
@@ -112,6 +123,37 @@ static short gc_n64_btn[] = { BTN_A, BTN_B, BTN_C, BTN_X, BTN_Y, BTN_Z, BTN_TL, 
 						/* in GC_N64_OUT is pulled low on the output port (by any routine) for more */
 						/* than 123 us */
 #define GC_N64_CLOCK		0x02		/* clock bits for read */
+
+/*
+ * Used for rumble code.
+ */
+
+/* Send encoded command */
+static void gc_n64_send_command(struct gc *gc, unsigned long cmd,
+				unsigned char target)
+{
+	struct parport *port = gc->pd->port;
+	int i;
+
+	for (i = 0; i < GC_N64_LENGTH; i++) {
+		unsigned char data = (cmd >> i) & 1 ? target : 0;
+		parport_write_data(port, GC_N64_POWER_W | data);
+		udelay(GC_N64_DWS);
+	}
+}
+
+/* Send stop bit */
+static void gc_n64_send_stop_bit(struct gc *gc, unsigned char target)
+{
+	struct parport *port = gc->pd->port;
+	int i;
+
+	for (i = 0; i < GC_N64_STOP_LENGTH; i++) {
+		unsigned char data = (GC_N64_STOP_BIT >> i) & 1 ? target : 0;
+		parport_write_data(port, GC_N64_POWER_W | data);
+		udelay(GC_N64_DWS);
+	}
+}
 
 /*
  * gc_n64_read_packet() reads an N64 packet.
@@ -128,10 +170,8 @@ static void gc_n64_read_packet(struct gc *gc, unsigned char *data)
  */
 
 	local_irq_save(flags);
-	for (i = 0; i < GC_N64_REQUEST_LENGTH; i++) {
-		parport_write_data(gc->pd->port, GC_N64_POWER_W | ((GC_N64_REQUEST >> i) & 1 ? GC_N64_OUT : 0));
-		udelay(GC_N64_DWS);
-	}
+	gc_n64_send_command(gc, GC_N64_REQUEST_DATA, GC_N64_OUT);
+	gc_n64_send_stop_bit(gc, GC_N64_OUT);
 	local_irq_restore(flags);
 
 /*
@@ -146,6 +186,7 @@ static void gc_n64_read_packet(struct gc *gc, unsigned char *data)
 
 	for (i = 0; i < GC_N64_LENGTH; i++) {
 		parport_write_data(gc->pd->port, GC_N64_POWER_R);
+		udelay(2);
 		data[i] = parport_read_status(gc->pd->port);
 		parport_write_data(gc->pd->port, GC_N64_POWER_R | GC_N64_CLOCK);
 	 }
@@ -197,6 +238,70 @@ static void gc_n64_process_packet(struct gc *gc)
 			input_sync(dev);
 		}
 	}
+}
+
+static int gc_n64_play_effect(struct input_dev *dev, void *data,
+			      struct ff_effect *effect)
+{
+	int i;
+	unsigned long flags;
+	struct gc *gc = input_get_drvdata(dev);
+	struct gc_subdev *sdev = data;
+	unsigned char target = 1 << sdev->idx; /* select desired pin */
+
+	if (effect->type == FF_RUMBLE) {
+		struct ff_rumble_effect *rumble = &effect->u.rumble;
+		unsigned int cmd =
+			rumble->strong_magnitude || rumble->weak_magnitude ?
+			GC_N64_CMD_01 : GC_N64_CMD_00;
+
+		local_irq_save(flags);
+
+		/* Init Rumble - 0x03, 0x80, 0x01, (34)0x80 */
+		gc_n64_send_command(gc, GC_N64_CMD_03, target);
+		gc_n64_send_command(gc, GC_N64_CMD_80, target);
+		gc_n64_send_command(gc, GC_N64_CMD_01, target);
+		for (i = 0; i < 32; i++)
+			gc_n64_send_command(gc, GC_N64_CMD_80, target);
+		gc_n64_send_stop_bit(gc, target);
+
+		udelay(GC_N64_DELAY);
+
+		/* Now start or stop it - 0x03, 0xc0, 0zx1b, (32)0x01/0x00 */
+		gc_n64_send_command(gc, GC_N64_CMD_03, target);
+		gc_n64_send_command(gc, GC_N64_CMD_c0, target);
+		gc_n64_send_command(gc, GC_N64_CMD_1b, target);
+		for (i = 0; i < 32; i++)
+			gc_n64_send_command(gc, cmd, target);
+		gc_n64_send_stop_bit(gc, target);
+
+		local_irq_restore(flags);
+
+	}
+
+	return 0;
+}
+
+static int __init gc_n64_init_ff(struct input_dev *dev, int i)
+{
+	struct gc_subdev *sdev;
+	int err;
+
+	sdev = kmalloc(sizeof(*sdev), GFP_KERNEL);
+	if (!sdev)
+		return -ENOMEM;
+
+	sdev->idx = i;
+
+	input_set_capability(dev, EV_FF, FF_RUMBLE);
+
+	err = input_ff_create_memless(dev, sdev, gc_n64_play_effect);
+	if (err) {
+		kfree(sdev);
+		return err;
+	}
+
+	return 0;
 }
 
 /*
@@ -624,6 +729,7 @@ static int __init gc_setup_pad(struct gc *gc, int idx, int pad_type)
 {
 	struct input_dev *input_dev;
 	int i;
+	int err;
 
 	if (!pad_type)
 		return 0;
@@ -671,6 +777,13 @@ static int __init gc_setup_pad(struct gc *gc, int idx, int pad_type)
 			for (i = 0; i < 2; i++) {
 				input_set_abs_params(input_dev, ABS_X + i, -127, 126, 0, 2);
 				input_set_abs_params(input_dev, ABS_HAT0X + i, -1, 1, 0, 0);
+			}
+
+			err = gc_n64_init_ff(input_dev, idx);
+			if (err) {
+				printk(KERN_WARNING "gamecon.c: Failed to initiate rumble for N64 device %d\n", idx);
+				input_free_device(input_dev);
+				return err;
 			}
 
 			break;
