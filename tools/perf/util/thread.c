@@ -53,11 +53,6 @@ int thread__comm_len(struct thread *self)
 	return self->comm_len;
 }
 
-static const char *map_type__name[MAP__NR_TYPES] = {
-	[MAP__FUNCTION] = "Functions",
-	[MAP__VARIABLE] = "Variables",
-};
-
 static size_t __map_groups__fprintf_maps(struct map_groups *self,
 					 enum map_type type, FILE *fp)
 {

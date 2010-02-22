@@ -13,6 +13,8 @@ enum map_type {
 
 #define MAP__NR_TYPES (MAP__VARIABLE + 1)
 
+extern const char *map_type__name[MAP__NR_TYPES];
+
 struct dso;
 struct ref_reloc_sym;
 struct map_groups;

@@ -5,6 +5,11 @@
 #include <stdio.h>
 #include "debug.h"
 
+const char *map_type__name[MAP__NR_TYPES] = {
+	[MAP__FUNCTION] = "Functions",
+	[MAP__VARIABLE] = "Variables",
+};
+
 static inline int is_anon_memory(const char *filename)
 {
 	return strcmp(filename, "//anon") == 0;

@@ -367,6 +367,10 @@ size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp)
 	struct rb_node *nd;
 	size_t ret = fprintf(fp, "dso: %s (", self->short_name);
 
+	if (self->short_name != self->long_name)
+		ret += fprintf(fp, "%s, ", self->long_name);
+	ret += fprintf(fp, "%s, %sloaded, ", map_type__name[type],
+		       self->loaded ? "" : "NOT ");
 	ret += dso__fprintf_buildid(self, fp);
 	ret += fprintf(fp, ")\n");
 	for (nd = rb_first(&self->symbols[type]); nd; nd = rb_next(nd)) {
@@ -1580,6 +1584,9 @@ static int dso__load_vmlinux(struct dso *self, struct map *map,
 	err = dso__load_sym(self, map, vmlinux, fd, filter, 0);
 	close(fd);
 
+	if (err > 0)
+		pr_debug("Using %s for symbols\n", vmlinux);
+
 	return err;
 }
 
@@ -1594,7 +1601,6 @@ int dso__load_vmlinux_path(struct dso *self, struct map *map,
 	for (i = 0; i < vmlinux_path__nr_entries; ++i) {
 		err = dso__load_vmlinux(self, map, vmlinux_path[i], filter);
 		if (err > 0) {
-			pr_debug("Using %s for symbols\n", vmlinux_path[i]);
 			dso__set_long_name(self, strdup(vmlinux_path[i]));
 			break;
 		}
@@ -1661,12 +1667,16 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 
 		if (asprintf(&kallsyms_allocated_filename,
 			     "%s/.debug/[kernel.kallsyms]/%s",
-			     getenv("HOME"), sbuild_id) == -1)
+			     getenv("HOME"), sbuild_id) == -1) {
+			pr_err("Not enough memory for kallsyms file lookup\n");
 			return -1;
+		}
 
 		kallsyms_filename = kallsyms_allocated_filename;
 
 		if (access(kallsyms_filename, F_OK)) {
+			pr_err("No kallsyms or vmlinux with build-id %s "
+			       "was found\n", sbuild_id);
 			free(kallsyms_allocated_filename);
 			return -1;
 		}
@@ -1680,6 +1690,8 @@ static int dso__load_kernel_sym(struct dso *self, struct map *map,
 
 do_kallsyms:
 	err = dso__load_kallsyms(self, kallsyms_filename, map, filter);
+	if (err > 0)
+		pr_debug("Using %s for symbols\n", kallsyms_filename);
 	free(kallsyms_allocated_filename);
 
 out_try_fixup:
