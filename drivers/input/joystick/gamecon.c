@@ -99,9 +99,9 @@ struct gc_subdev {
 
 static struct gc *gc_base[3];
 
-static int gc_status_bit[] = { 0x40, 0x80, 0x20, 0x10, 0x08 };
+static const int gc_status_bit[] = { 0x40, 0x80, 0x20, 0x10, 0x08 };
 
-static char *gc_names[] = {
+static const char *gc_names[] = {
 	NULL, "SNES pad", "NES pad", "NES FourPort", "Multisystem joystick",
 	"Multisystem 2-button joystick", "N64 controller", "PSX controller",
 	"PSX DDR controller", "SNES mouse"
@@ -111,8 +111,8 @@ static char *gc_names[] = {
  * N64 support.
  */
 
-static unsigned char gc_n64_bytes[] = { 0, 1, 13, 15, 14, 12, 10, 11, 2, 3 };
-static short gc_n64_btn[] = {
+static const unsigned char gc_n64_bytes[] = { 0, 1, 13, 15, 14, 12, 10, 11, 2, 3 };
+static const short gc_n64_btn[] = {
 	BTN_A, BTN_B, BTN_C, BTN_X, BTN_Y, BTN_Z,
 	BTN_TL, BTN_TR, BTN_TRIGGER, BTN_START
 };
@@ -339,9 +339,9 @@ static int __init gc_n64_init_ff(struct input_dev *dev, int i)
 #define GC_NES_CLOCK	0x01
 #define GC_NES_LATCH	0x02
 
-static unsigned char gc_nes_bytes[] = { 0, 1, 2, 3 };
-static unsigned char gc_snes_bytes[] = { 8, 0, 2, 3, 9, 1, 10, 11 };
-static short gc_snes_btn[] = {
+static const unsigned char gc_nes_bytes[] = { 0, 1, 2, 3 };
+static const unsigned char gc_snes_bytes[] = { 8, 0, 2, 3, 9, 1, 10, 11 };
+static const short gc_snes_btn[] = {
 	BTN_A, BTN_B, BTN_SELECT, BTN_START, BTN_X, BTN_Y, BTN_TL, BTN_TR
 };
 
@@ -547,14 +547,14 @@ static int gc_psx_delay = GC_PSX_DELAY;
 module_param_named(psx_delay, gc_psx_delay, uint, 0);
 MODULE_PARM_DESC(psx_delay, "Delay when accessing Sony PSX controller (usecs)");
 
-static short gc_psx_abs[] = {
+static const short gc_psx_abs[] = {
 	ABS_X, ABS_Y, ABS_RX, ABS_RY, ABS_HAT0X, ABS_HAT0Y
 };
-static short gc_psx_btn[] = {
+static const short gc_psx_btn[] = {
 	BTN_TL, BTN_TR, BTN_TL2, BTN_TR2, BTN_A, BTN_B, BTN_X, BTN_Y,
 	BTN_START, BTN_SELECT, BTN_THUMBL, BTN_THUMBR
 };
-static short gc_psx_ddr_btn[] = { BTN_0, BTN_1, BTN_2, BTN_3 };
+static const short gc_psx_ddr_btn[] = { BTN_0, BTN_1, BTN_2, BTN_3 };
 
 /*
  * gc_psx_command() writes 8bit command and reads 8bit data from
