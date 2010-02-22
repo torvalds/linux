@@ -50,12 +50,15 @@ static int map_lapic_id(struct acpi_subtable_header *entry,
 {
 	struct acpi_madt_local_apic *lapic =
 		(struct acpi_madt_local_apic *)entry;
-	if ((lapic->lapic_flags & ACPI_MADT_ENABLED) &&
-	    lapic->processor_id == acpi_id) {
-		*apic_id = lapic->id;
-		return 1;
-	}
-	return 0;
+
+	if (!(lapic->lapic_flags & ACPI_MADT_ENABLED))
+		return 0;
+
+	if (lapic->processor_id != acpi_id)
+		return 0;
+
+	*apic_id = lapic->id;
+	return 1;
 }
 
 static int map_x2apic_id(struct acpi_subtable_header *entry,
