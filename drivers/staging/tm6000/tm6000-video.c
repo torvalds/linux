@@ -1,5 +1,5 @@
 /*
-   tm6000-video.c - driver for TM5600/TM6000 USB video capture devices
+   tm6000-video.c - driver for TM5600/TM6000/TM6010 USB video capture devices
 
    Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
 
@@ -894,7 +894,7 @@ static int vidioc_querycap (struct file *file, void  *priv,
 	//	struct tm6000_core *dev = ((struct tm6000_fh *)priv)->dev;
 
 	strlcpy(cap->driver, "tm6000", sizeof(cap->driver));
-	strlcpy(cap->card,"Trident TVMaster TM5600/6000", sizeof(cap->card));
+	strlcpy(cap->card,"Trident TVMaster TM5600/6000/6010", sizeof(cap->card));
 	//	strlcpy(cap->bus_info, dev->udev->dev.bus_id, sizeof(cap->bus_info));
 	cap->version = TM6000_VERSION;
 	cap->capabilities =	V4L2_CAP_VIDEO_CAPTURE |
@@ -1537,7 +1537,7 @@ int tm6000_v4l2_register(struct tm6000_core *dev)
 	vfd->v4l2_dev = &dev->v4l2_dev;
 
 	ret = video_register_device(dev->vfd, VFL_TYPE_GRABBER, video_nr);
-	printk(KERN_INFO "Trident TVMaster TM5600/TM6000 USB2 board (Load status: %d)\n", ret);
+	printk(KERN_INFO "Trident TVMaster TM5600/TM6000/TM6010 USB2 board (Load status: %d)\n", ret);
 	return ret;
 }
 

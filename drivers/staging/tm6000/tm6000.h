@@ -1,5 +1,5 @@
 /*
-   tm6000.h - driver for TM5600/TM6000 USB video capture devices
+   tm6000.h - driver for TM5600/TM6000/TM6010 USB video capture devices
 
    Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
 

@@ -1,5 +1,5 @@
 /*
-   tm6000-cards.c - driver for TM5600/TM6000 USB video capture devices
+   tm6000-cards.c - driver for TM5600/TM6000/TM6010 USB video capture devices
 
    Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
 
@@ -795,6 +795,6 @@ static void __exit tm6000_module_exit(void)
 module_init(tm6000_module_init);
 module_exit(tm6000_module_exit);
 
-MODULE_DESCRIPTION("Trident TVMaster TM5600/TM6000 USB2 adapter");
+MODULE_DESCRIPTION("Trident TVMaster TM5600/TM6000/TM6010 USB2 adapter");
 MODULE_AUTHOR("Mauro Carvalho Chehab");
 MODULE_LICENSE("GPL");

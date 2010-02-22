@@ -1,5 +1,5 @@
 /*
-   tm6000-regs.h - driver for TM5600/TM6000 USB video capture devices
+   tm6000-regs.h - driver for TM5600/TM6000/TM6010 USB video capture devices
 
    Copyright (C) 2006-2007 Mauro Carvalho Chehab <mchehab@infradead.org>
 
@@ -18,7 +18,7 @@
  */
 
 /*
- * Define TV Master TM5600/TM6000 Request codes
+ * Define TV Master TM5600/TM6000/TM6010 Request codes
  */
 #define REQ_00_SET_IR_VALUE		0
 #define REQ_01_SET_WAKEUP_IRCODE	1
@@ -49,7 +49,7 @@
 	/* Read : Slave Addr, register, 2, data */
 
 /*
- * Define TV Master TM5600/TM6000 GPIO lines
+ * Define TV Master TM5600/TM6000/TM6010 GPIO lines
  */
 
 #define TM6000_GPIO_CLK		0x101
@@ -74,7 +74,7 @@
 #define TM6010_GPIO_7      0x0301
 #define TM6010_GPIO_9      0x0305
 /*
- * Define TV Master TM5600/TM6000 URB message codes and length
+ * Define TV Master TM5600/TM6000/TM6010 URB message codes and length
  */
 
 enum {
