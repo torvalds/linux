@@ -630,8 +630,10 @@ static void gc_psx_report_one(struct gc *gc, struct input_dev *dev,
 				input_report_abs(dev, gc_psx_abs[i + 2],
 						 data[i + 2]);
 
-			input_report_abs(dev, ABS_X, 128 + !(data[0] & 0x20) * 127 - !(data[0] & 0x80) * 128);
-			input_report_abs(dev, ABS_Y, 128 + !(data[0] & 0x40) * 127 - !(data[0] & 0x10) * 128);
+			input_report_abs(dev, ABS_X,
+				!!(data[0] & 0x80) * 128 + !(data[0] & 0x20) * 127);
+			input_report_abs(dev, ABS_Y,
+				!!(data[0] & 0x10) * 128 + !(data[0] & 0x40) * 127);
 		}
 
 		for (i = 0; i < 8; i++)
@@ -650,8 +652,10 @@ static void gc_psx_report_one(struct gc *gc, struct input_dev *dev,
 				input_report_key(dev, gc_psx_ddr_btn[i],
 						 ~data[0] & (0x10 << i));
 		} else {
-			input_report_abs(dev, ABS_X, 128 + !(data[0] & 0x20) * 127 - !(data[0] & 0x80) * 128);
-			input_report_abs(dev, ABS_Y, 128 + !(data[0] & 0x40) * 127 - !(data[0] & 0x10) * 128);
+			input_report_abs(dev, ABS_X,
+				!!(data[0] & 0x80) * 128 + !(data[0] & 0x20) * 127);
+			input_report_abs(dev, ABS_Y,
+				!!(data[0] & 0x10) * 128 + !(data[0] & 0x40) * 127);
 
 			/*
 			 * For some reason if the extra axes are left unset
