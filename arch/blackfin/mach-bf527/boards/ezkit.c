@@ -428,8 +428,8 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_SND_BLACKFIN_AD1836) \
-	|| defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
+#if defined(CONFIG_SND_BLACKFIN_AD183X) \
+	|| defined(CONFIG_SND_BLACKFIN_AD183X_MODULE)
 static struct bfin5xx_spi_chip ad1836_spi_chip_info = {
 	.enable_dma = 0,
 	.bits_per_word = 16,
@@ -544,8 +544,8 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_SND_BLACKFIN_AD1836) \
-	|| defined(CONFIG_SND_BLACKFIN_AD1836_MODULE)
+#if defined(CONFIG_SND_BLACKFIN_AD183X) \
+	|| defined(CONFIG_SND_BLACKFIN_AD183X_MODULE)
 	{
 		.modalias = "ad1836",
 		.max_speed_hz = 3125000,     /* max spi clock (SCK) speed in HZ */
