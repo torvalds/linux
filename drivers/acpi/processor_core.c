@@ -43,8 +43,6 @@ static struct dmi_system_id __cpuinitdata processor_idle_dmi_table[] = {
 };
 
 #ifdef CONFIG_SMP
-static struct acpi_table_madt *madt;
-
 static int map_lapic_id(struct acpi_subtable_header *entry,
 		 u32 acpi_id, int *apic_id)
 {
@@ -100,7 +98,16 @@ static int map_lsapic_id(struct acpi_subtable_header *entry,
 static int map_madt_entry(int type, u32 acpi_id)
 {
 	unsigned long madt_end, entry;
+	static struct acpi_table_madt *madt;
+	static int read_madt;
 	int apic_id = -1;
+
+	if (!read_madt) {
+		if (ACPI_FAILURE(acpi_get_table(ACPI_SIG_MADT, 0,
+					(struct acpi_table_header **)&madt)))
+			madt = NULL;
+		read_madt++;
+	}
 
 	if (!madt)
 		return apic_id;
@@ -335,13 +342,6 @@ early_init_pdc(acpi_handle handle, u32 lvl, void *context, void **rv)
 
 void __init acpi_early_processor_set_pdc(void)
 {
-
-#ifdef CONFIG_SMP
-	if (ACPI_FAILURE(acpi_get_table(ACPI_SIG_MADT, 0,
-				(struct acpi_table_header **)&madt)))
-		madt = NULL;
-#endif
-
 	/*
 	 * Check whether the system is DMI table. If yes, OSPM
 	 * should not use mwait for CPU-states.
