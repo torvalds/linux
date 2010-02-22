@@ -136,6 +136,7 @@ static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 	},
 	{
 		.phys_base	= OMAP34XX_MCBSP2_BASE,
+		.phys_base_st	= OMAP34XX_MCBSP2_ST_BASE,
 		.dma_rx_sync	= OMAP24XX_DMA_MCBSP2_RX,
 		.dma_tx_sync	= OMAP24XX_DMA_MCBSP2_TX,
 		.rx_irq		= INT_24XX_MCBSP2_IRQ_RX,
@@ -145,6 +146,7 @@ static struct omap_mcbsp_platform_data omap34xx_mcbsp_pdata[] = {
 	},
 	{
 		.phys_base	= OMAP34XX_MCBSP3_BASE,
+		.phys_base_st	= OMAP34XX_MCBSP3_ST_BASE,
 		.dma_rx_sync	= OMAP24XX_DMA_MCBSP3_RX,
 		.dma_tx_sync	= OMAP24XX_DMA_MCBSP3_TX,
 		.rx_irq		= INT_24XX_MCBSP3_IRQ_RX,
