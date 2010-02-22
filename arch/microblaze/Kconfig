@@ -145,7 +145,6 @@ menu "Advanced setup"
 
 config ADVANCED_OPTIONS
 	bool "Prompt for advanced kernel configuration options"
-	depends on MMU
 	help
 	  This option will enable prompting for a variety of advanced kernel
 	  configuration options.  These options can cause the kernel to not
@@ -174,7 +173,7 @@ config HIGHMEM_START
 
 config LOWMEM_SIZE_BOOL
 	bool "Set maximum low memory"
-	depends on ADVANCED_OPTIONS
+	depends on ADVANCED_OPTIONS && MMU
 	help
 	  This option allows you to set the maximum amount of memory which
 	  will be used as "low memory", that is, memory which the kernel can
@@ -186,7 +185,6 @@ config LOWMEM_SIZE_BOOL
 
 config LOWMEM_SIZE
 	hex "Maximum low memory size (in bytes)" if LOWMEM_SIZE_BOOL
-	depends on MMU
 	default "0x30000000"
 
 config KERNEL_START_BOOL
@@ -207,7 +205,7 @@ config KERNEL_START
 
 config TASK_SIZE_BOOL
 	bool "Set custom user task size"
-	depends on ADVANCED_OPTIONS
+	depends on ADVANCED_OPTIONS && MMU
 	help
 	  This option allows you to set the amount of virtual address space
 	  allocated to user tasks.  This can be useful in optimizing the
@@ -217,34 +215,7 @@ config TASK_SIZE_BOOL
 
 config TASK_SIZE
 	hex "Size of user task space" if TASK_SIZE_BOOL
-	depends on MMU
 	default "0x80000000"
-
-config CONSISTENT_START_BOOL
-	bool "Set custom consistent memory pool address"
-	depends on ADVANCED_OPTIONS && NOT_COHERENT_CACHE
-	help
-	  This option allows you to set the base virtual address
-	  of the the consistent memory pool.  This pool of virtual
-	  memory is used to make consistent memory allocations.
-
-config CONSISTENT_START
-	hex "Base virtual address of consistent memory pool" if CONSISTENT_START_BOOL
-	depends on MMU
-	default "0xff100000" if NOT_COHERENT_CACHE
-
-config CONSISTENT_SIZE_BOOL
-	bool "Set custom consistent memory pool size"
-	depends on ADVANCED_OPTIONS && NOT_COHERENT_CACHE
-	help
-	  This option allows you to set the size of the the
-	  consistent memory pool.  This pool of virtual memory
-	  is used to make consistent memory allocations.
-
-config CONSISTENT_SIZE
-	hex "Size of consistent memory pool" if CONSISTENT_SIZE_BOOL
-	depends on MMU
-	default "0x00200000" if NOT_COHERENT_CACHE
 
 endmenu
 
