@@ -826,7 +826,6 @@ static int ti_hecc_open(struct net_device *ndev)
 		return err;
 	}
 
-	clk_enable(priv->clk);
 	ti_hecc_start(ndev);
 	napi_enable(&priv->napi);
 	netif_start_queue(ndev);
@@ -842,7 +841,6 @@ static int ti_hecc_close(struct net_device *ndev)
 	napi_disable(&priv->napi);
 	ti_hecc_stop(ndev);
 	free_irq(ndev->irq, ndev);
-	clk_disable(priv->clk);
 	close_candev(ndev);
 
 	return 0;
@@ -928,6 +926,7 @@ static int ti_hecc_probe(struct platform_device *pdev)
 	netif_napi_add(ndev, &priv->napi, ti_hecc_rx_poll,
 		HECC_DEF_NAPI_WEIGHT);
 
+	clk_enable(priv->clk);
 	err = register_candev(ndev);
 	if (err) {
 		dev_err(&pdev->dev, "register_candev() failed\n");
@@ -956,6 +955,7 @@ static int __devexit ti_hecc_remove(struct platform_device *pdev)
 	struct net_device *ndev = platform_get_drvdata(pdev);
 	struct ti_hecc_priv *priv = netdev_priv(ndev);
 
+	clk_disable(priv->clk);
 	clk_put(priv->clk);
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	iounmap(priv->base);
@@ -967,6 +967,48 @@ static int __devexit ti_hecc_remove(struct platform_device *pdev)
 	return 0;
 }
 
+
+#ifdef CONFIG_PM
+static int ti_hecc_suspend(struct platform_device *pdev, pm_message_t state)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct ti_hecc_priv *priv = netdev_priv(dev);
+
+	if (netif_running(dev)) {
+		netif_stop_queue(dev);
+		netif_device_detach(dev);
+	}
+
+	hecc_set_bit(priv, HECC_CANMC, HECC_CANMC_PDR);
+	priv->can.state = CAN_STATE_SLEEPING;
+
+	clk_disable(priv->clk);
+
+	return 0;
+}
+
+static int ti_hecc_resume(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct ti_hecc_priv *priv = netdev_priv(dev);
+
+	clk_enable(priv->clk);
+
+	hecc_clear_bit(priv, HECC_CANMC, HECC_CANMC_PDR);
+	priv->can.state = CAN_STATE_ERROR_ACTIVE;
+
+	if (netif_running(dev)) {
+		netif_device_attach(dev);
+		netif_start_queue(dev);
+	}
+
+	return 0;
+}
+#else
+#define ti_hecc_suspend NULL
+#define ti_hecc_resume NULL
+#endif
+
 /* TI HECC netdevice driver: platform driver structure */
 static struct platform_driver ti_hecc_driver = {
 	.driver = {
@@ -975,6 +1017,8 @@ static struct platform_driver ti_hecc_driver = {
 	},
 	.probe = ti_hecc_probe,
 	.remove = __devexit_p(ti_hecc_remove),
+	.suspend = ti_hecc_suspend,
+	.resume = ti_hecc_resume,
 };
 
 static int __init ti_hecc_init_driver(void)
@@ -982,14 +1026,15 @@ static int __init ti_hecc_init_driver(void)
 	printk(KERN_INFO DRV_DESC "\n");
 	return platform_driver_register(&ti_hecc_driver);
 }
-module_init(ti_hecc_init_driver);
 
 static void __exit ti_hecc_exit_driver(void)
 {
 	printk(KERN_INFO DRV_DESC " unloaded\n");
 	platform_driver_unregister(&ti_hecc_driver);
 }
+
 module_exit(ti_hecc_exit_driver);
+module_init(ti_hecc_init_driver);
 
 MODULE_AUTHOR("Anant Gole <anantgole@ti.com>");
 MODULE_LICENSE("GPL v2");
