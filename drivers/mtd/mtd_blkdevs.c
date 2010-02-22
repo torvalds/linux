@@ -379,6 +379,10 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		set_disk_ro(gd, 1);
 
 	add_disk(gd);
+
+	if (new->disk_attributes)
+		sysfs_create_group(&disk_to_dev(gd)->kobj,
+					new->disk_attributes);
 	return 0;
 error4:
 	module_put(tr->owner);
@@ -404,6 +408,10 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 
 	/* Stop new requests to arrive */
 	del_gendisk(old->disk);
+
+	if (old->disk_attributes)
+		sysfs_remove_group(&disk_to_dev(old->disk)->kobj,
+						old->disk_attributes);
 
 	/* Stop the thread */
 	kthread_stop(old->thread);
