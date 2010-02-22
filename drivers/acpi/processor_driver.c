@@ -608,9 +608,6 @@ static int __cpuinit acpi_processor_add(struct acpi_device *device)
 		goto err_remove_fs;
 	}
 
-	/* _PDC call should be done before doing anything else (if reqd.). */
-	acpi_processor_set_pdc(pr->handle);
-
 #ifdef CONFIG_CPU_FREQ
 	acpi_processor_ppc_has_changed(pr, 0);
 #endif
