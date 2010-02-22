@@ -105,7 +105,7 @@ static void pcie_pme_interrupt_enable(struct pci_dev *dev, bool enable)
 	int rtctl_pos;
 	u16 rtctl;
 
-	rtctl_pos = pci_find_capability(dev, PCI_CAP_ID_EXP) + PCI_EXP_RTCTL;
+	rtctl_pos = pci_pcie_cap(dev) + PCI_EXP_RTCTL;
 
 	pci_read_config_word(dev, rtctl_pos, &rtctl);
 	if (enable)
@@ -124,7 +124,7 @@ static void pcie_pme_clear_status(struct pci_dev *dev)
 	int rtsta_pos;
 	u32 rtsta;
 
-	rtsta_pos = pci_find_capability(dev, PCI_CAP_ID_EXP) + PCI_EXP_RTSTA;
+	rtsta_pos = pci_pcie_cap(dev) + PCI_EXP_RTSTA;
 
 	pci_read_config_dword(dev, rtsta_pos, &rtsta);
 	rtsta |= PCI_EXP_RTSTA_PME;
@@ -278,7 +278,7 @@ static void pcie_pme_work_fn(struct work_struct *work)
 	int rtsta_pos;
 	u32 rtsta;
 
-	rtsta_pos = pci_find_capability(port, PCI_CAP_ID_EXP) + PCI_EXP_RTSTA;
+	rtsta_pos = pci_pcie_cap(port) + PCI_EXP_RTSTA;
 
 	spin_lock_irq(&data->lock);
 
@@ -332,7 +332,7 @@ static irqreturn_t pcie_pme_irq(int irq, void *context)
 	port = ((struct pcie_device *)context)->port;
 	data = get_service_data((struct pcie_device *)context);
 
-	rtsta_pos = pci_find_capability(port, PCI_CAP_ID_EXP) + PCI_EXP_RTSTA;
+	rtsta_pos = pci_pcie_cap(port) + PCI_EXP_RTSTA;
 
 	spin_lock_irqsave(&data->lock, flags);
 	pci_read_config_dword(port, rtsta_pos, &rtsta);
