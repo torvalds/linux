@@ -243,34 +243,18 @@ int xstateregs_get(struct task_struct *target, const struct user_regset *regset,
 		return ret;
 
 	/*
-	 * First copy the fxsave bytes 0..463.
+	 * Copy the 48bytes defined by the software first into the xstate
+	 * memory layout in the thread struct, so that we can copy the entire
+	 * xstateregs to the user using one user_regset_copyout().
 	 */
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.xstate->xsave, 0,
-				  offsetof(struct user_xstateregs,
-					   i387.xstate_fx_sw));
-	if (ret)
-		return ret;
+	memcpy(&target->thread.xstate->fxsave.sw_reserved,
+	       xstate_fx_sw_bytes, sizeof(xstate_fx_sw_bytes));
 
 	/*
-	 * Copy the 48bytes defined by software.
+	 * Copy the xstate memory layout.
 	 */
 	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  xstate_fx_sw_bytes,
-				  offsetof(struct user_xstateregs,
-					   i387.xstate_fx_sw),
-				  offsetof(struct user_xstateregs,
-					   xsave_hdr));
-	if (ret)
-		return ret;
-
-	/*
-	 * Copy the rest of xstate memory layout.
-	 */
-	ret = user_regset_copyout(&pos, &count, &kbuf, &ubuf,
-				  &target->thread.xstate->xsave.xsave_hdr,
-				  offsetof(struct user_xstateregs,
-					   xsave_hdr), -1);
+				  &target->thread.xstate->xsave, 0, -1);
 	return ret;
 }
 
