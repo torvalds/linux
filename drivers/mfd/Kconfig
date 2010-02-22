@@ -47,7 +47,7 @@ config MFD_ASIC3
 
 config MFD_SH_MOBILE_SDHI
 	bool "Support for SuperH Mobile SDHI"
-	depends on SUPERH
+	depends on SUPERH || ARCH_SHMOBILE
 	select MFD_CORE
 	 ---help---
 	  This driver supports the SDHI hardware block found in many
