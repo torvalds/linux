@@ -459,7 +459,6 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	else
 		cpu_dai->capture.active = codec_dai->capture.active = 1;
 	cpu_dai->active = codec_dai->active = 1;
-	cpu_dai->runtime = runtime;
 	card->codec->active++;
 	mutex_unlock(&pcm_mutex);
 	return 0;
@@ -559,7 +558,6 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 
 	if (platform->pcm_ops->close)
 		platform->pcm_ops->close(substream);
-	cpu_dai->runtime = NULL;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		/* start delayed pop wq here for playback streams */

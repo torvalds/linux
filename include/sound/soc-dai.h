@@ -215,7 +215,6 @@ struct snd_soc_dai {
 	unsigned int symmetric_rates:1;
 
 	/* DAI runtime info */
-	struct snd_pcm_runtime *runtime;
 	struct snd_soc_codec *codec;
 	unsigned int active;
 	unsigned char pop_wait:1;
