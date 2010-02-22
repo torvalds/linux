@@ -66,22 +66,16 @@ static int map_x2apic_id(struct acpi_subtable_header *entry,
 {
 	struct acpi_madt_local_x2apic *apic =
 		(struct acpi_madt_local_x2apic *)entry;
-	u32 tmp = apic->local_apic_id;
 
-	/* Only check enabled APICs*/
 	if (!(apic->lapic_flags & ACPI_MADT_ENABLED))
 		return 0;
 
-	/* Device statement declaration type */
-	if (device_declaration) {
-		if (apic->uid == acpi_id)
-			goto found;
+	if (device_declaration && (apic->uid == acpi_id)) {
+		*apic_id = apic->local_apic_id;
+		return 1;
 	}
 
 	return 0;
-found:
-	*apic_id = tmp;
-	return 1;
 }
 
 static int map_lsapic_id(struct acpi_subtable_header *entry,
