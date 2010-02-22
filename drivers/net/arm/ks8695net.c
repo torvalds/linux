@@ -1333,7 +1333,6 @@ ks8695_stop(struct net_device *ndev)
 
 	netif_stop_queue(ndev);
 	napi_disable(&ksp->napi);
-	netif_carrier_off(ndev);
 
 	ks8695_shutdown(ksp);
 
