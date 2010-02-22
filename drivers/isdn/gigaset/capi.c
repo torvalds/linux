@@ -171,20 +171,6 @@ static inline void ignore_cstruct_param(struct cardstate *cs, _cstruct param,
 }
 
 /*
- * check for legal hex digit
- */
-static inline int ishexdigit(char c)
-{
-	if (c >= '0' && c <= '9')
-		return 1;
-	if (c >= 'A' && c <= 'F')
-		return 1;
-	if (c >= 'a' && c <= 'f')
-		return 1;
-	return 0;
-}
-
-/*
  * convert hex to binary
  */
 static inline u8 hex2bin(char c)
@@ -204,7 +190,7 @@ static int encode_ie(char *in, u8 *out, int maxlen)
 {
 	int l = 0;
 	while (*in) {
-		if (!ishexdigit(in[0]) || !ishexdigit(in[1]) || l >= maxlen)
+		if (!isxdigit(in[0]) || !isxdigit(in[1]) || l >= maxlen)
 			return -1;
 		out[++l] = (hex2bin(in[0]) << 4) + hex2bin(in[1]);
 		in += 2;
