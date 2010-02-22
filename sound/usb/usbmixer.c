@@ -2258,7 +2258,8 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 	};
 	struct usb_mixer_interface *mixer;
 	struct snd_info_entry *entry;
-	int err;
+	struct usb_host_interface *host_iface;
+	int err, protocol;
 
 	strcpy(chip->card->mixername, "USB Mixer");
 
@@ -2273,6 +2274,16 @@ int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
 	if (!mixer->id_elems) {
 		kfree(mixer);
 		return -ENOMEM;
+	}
+
+	host_iface = &usb_ifnum_to_if(chip->dev, ctrlif)->altsetting[0];
+	protocol = host_iface->desc.bInterfaceProtocol;
+
+	/* FIXME! */
+	if (protocol != UAC_VERSION_1) {
+		snd_printk(KERN_WARNING "mixer interface protocol 0x%02x not yet supported\n",
+					protocol);
+		return 0;
 	}
 
 	if ((err = snd_usb_mixer_controls(mixer)) < 0 ||
