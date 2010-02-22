@@ -65,4 +65,12 @@ static inline void wl1271_raw_write32(struct wl1271 *wl, int addr, u32 val)
 	wl1271_raw_write(wl, addr, &wl->buffer_32,
 			     sizeof(wl->buffer_32), false);
 }
+
+/* Functions from wl1271_main.c */
+
+int wl1271_register_hw(struct wl1271 *wl);
+int wl1271_init_ieee80211(struct wl1271 *wl);
+struct ieee80211_hw *wl1271_alloc_hw(void);
+int wl1271_free_hw(struct wl1271 *wl);
+
 #endif
