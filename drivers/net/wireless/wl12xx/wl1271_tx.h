@@ -26,7 +26,7 @@
 #define __WL1271_TX_H__
 
 #define TX_HW_BLOCK_SPARE                2
-#define TX_HW_BLOCK_SHIFT_DIV            8
+#define TX_HW_BLOCK_SIZE                 252
 
 #define TX_HW_MGMT_PKT_LIFETIME_TU       2000
 /* The chipset reference driver states, that the "aid" value 1

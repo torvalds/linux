@@ -46,7 +46,7 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra)
 {
 	struct wl1271_tx_hw_descr *desc;
 	u32 total_len = skb->len + sizeof(struct wl1271_tx_hw_descr) + extra;
-	u32 total_blocks, excluded;
+	u32 total_blocks;
 	int id, ret = -EBUSY;
 
 	/* allocate free identifier for the packet */
@@ -56,12 +56,8 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra)
 
 	/* approximate the number of blocks required for this packet
 	   in the firmware */
-	/* FIXME: try to figure out what is done here and make it cleaner */
-	total_blocks = (total_len + 20) >> TX_HW_BLOCK_SHIFT_DIV;
-	excluded = (total_blocks << 2) + ((total_len + 20) & 0xff) + 34;
-	total_blocks += (excluded > 252) ? 2 : 1;
-	total_blocks += TX_HW_BLOCK_SPARE;
-
+	total_blocks = total_len + TX_HW_BLOCK_SIZE - 1;
+	total_blocks = total_blocks / TX_HW_BLOCK_SIZE + TX_HW_BLOCK_SPARE;
 	if (total_blocks <= wl->tx_blocks_available) {
 		desc = (struct wl1271_tx_hw_descr *)skb_push(
 			skb, total_len - skb->len);
