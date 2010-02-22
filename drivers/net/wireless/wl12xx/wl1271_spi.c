@@ -324,7 +324,9 @@ static irqreturn_t wl1271_irq(int irq, void *cookie)
 		wl->elp_compl = NULL;
 	}
 
-	ieee80211_queue_work(wl->hw, &wl->irq_work);
+	if (!test_and_set_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags))
+		ieee80211_queue_work(wl->hw, &wl->irq_work);
+	set_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags);
 	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
 	return IRQ_HANDLED;

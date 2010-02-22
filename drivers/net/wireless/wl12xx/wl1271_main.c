@@ -406,10 +406,14 @@ static void wl1271_fw_status(struct wl1271 *wl,
 		le32_to_cpu(status->fw_localtime);
 }
 
+#define WL1271_IRQ_MAX_LOOPS 10
+
 static void wl1271_irq_work(struct work_struct *work)
 {
 	int ret;
 	u32 intr;
+	int loopcount = WL1271_IRQ_MAX_LOOPS;
+	unsigned long flags;
 	struct wl1271 *wl =
 		container_of(work, struct wl1271, irq_work);
 
@@ -417,51 +421,65 @@ static void wl1271_irq_work(struct work_struct *work)
 
 	wl1271_debug(DEBUG_IRQ, "IRQ work");
 
-	if (wl->state == WL1271_STATE_OFF)
+	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
 
 	ret = wl1271_ps_elp_wakeup(wl, true);
 	if (ret < 0)
 		goto out;
 
-	wl1271_fw_status(wl, wl->fw_status);
-	intr = le32_to_cpu(wl->fw_status->intr);
-	if (!intr) {
-		wl1271_debug(DEBUG_IRQ, "Zero interrupt received.");
-		goto out_sleep;
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	while (test_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags) && loopcount) {
+		clear_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags);
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+		loopcount--;
+
+		wl1271_fw_status(wl, wl->fw_status);
+		intr = le32_to_cpu(wl->fw_status->intr);
+		if (!intr) {
+			wl1271_debug(DEBUG_IRQ, "Zero interrupt received.");
+			continue;
+		}
+
+		intr &= WL1271_INTR_MASK;
+
+		if (intr & WL1271_ACX_INTR_DATA) {
+			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_DATA");
+
+			/* check for tx results */
+			if (wl->fw_status->tx_results_counter !=
+			    (wl->tx_results_count & 0xff))
+				wl1271_tx_complete(wl);
+
+			wl1271_rx(wl, wl->fw_status);
+		}
+
+		if (intr & WL1271_ACX_INTR_EVENT_A) {
+			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_A");
+			wl1271_event_handle(wl, 0);
+		}
+
+		if (intr & WL1271_ACX_INTR_EVENT_B) {
+			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_B");
+			wl1271_event_handle(wl, 1);
+		}
+
+		if (intr & WL1271_ACX_INTR_INIT_COMPLETE)
+			wl1271_debug(DEBUG_IRQ,
+				     "WL1271_ACX_INTR_INIT_COMPLETE");
+
+		if (intr & WL1271_ACX_INTR_HW_AVAILABLE)
+			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_HW_AVAILABLE");
+
+		spin_lock_irqsave(&wl->wl_lock, flags);
 	}
 
-	intr &= WL1271_INTR_MASK;
+	if (test_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags))
+		ieee80211_queue_work(wl->hw, &wl->irq_work);
+	else
+		clear_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
-	if (intr & WL1271_ACX_INTR_EVENT_A) {
-		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_A");
-		wl1271_event_handle(wl, 0);
-	}
-
-	if (intr & WL1271_ACX_INTR_EVENT_B) {
-		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_B");
-		wl1271_event_handle(wl, 1);
-	}
-
-	if (intr & WL1271_ACX_INTR_INIT_COMPLETE)
-		wl1271_debug(DEBUG_IRQ,
-			     "WL1271_ACX_INTR_INIT_COMPLETE");
-
-	if (intr & WL1271_ACX_INTR_HW_AVAILABLE)
-		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_HW_AVAILABLE");
-
-	if (intr & WL1271_ACX_INTR_DATA) {
-		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_DATA");
-
-		/* check for tx results */
-		if (wl->fw_status->tx_results_counter !=
-		    (wl->tx_results_count & 0xff))
-			wl1271_tx_complete(wl);
-
-		wl1271_rx(wl, wl->fw_status);
-	}
-
-out_sleep:
 	wl1271_ps_elp_sleep(wl);
 
 out:
