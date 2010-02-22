@@ -287,19 +287,20 @@ out_unlock:
 	pthread_mutex_unlock(&syme->src->lock);
 }
 
+#define PATTERN_LEN		(BITS_PER_LONG / 4 + 2)
+
 static void lookup_sym_source(struct sym_entry *syme)
 {
 	struct symbol *symbol = sym_entry__symbol(syme);
 	struct source_line *line;
-	const size_t pattern_len = BITS_PER_LONG / 4 + 2;
-	char pattern[pattern_len + 1];
+	char pattern[PATTERN_LEN + 1];
 
 	sprintf(pattern, "%0*Lx <", BITS_PER_LONG / 4,
 		map__rip_2objdump(syme->map, symbol->start));
 
 	pthread_mutex_lock(&syme->src->lock);
 	for (line = syme->src->lines; line; line = line->next) {
-		if (memcmp(line->line, pattern, pattern_len) == 0) {
+		if (memcmp(line->line, pattern, PATTERN_LEN) == 0) {
 			syme->src->source = line;
 			break;
 		}
