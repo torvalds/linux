@@ -856,8 +856,8 @@ static int __ceph_is_any_caps(struct ceph_inode_info *ci)
 }
 
 /*
- * caller should hold i_lock, and session s_mutex.
- * returns true if this is the last cap.  if so, caller should iput.
+ * caller should hold i_lock.
+ * caller will not hold session s_mutex if called from destroy_inode.
  */
 void __ceph_remove_cap(struct ceph_cap *cap)
 {
@@ -974,15 +974,14 @@ static int send_cap_msg(struct ceph_mds_session *session,
 }
 
 /*
- * Queue cap releases when an inode is dropped from our
- * cache.
+ * Queue cap releases when an inode is dropped from our cache.  Since
+ * inode is about to be destroyed, there is no need for i_lock.
  */
 void ceph_queue_caps_release(struct inode *inode)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct rb_node *p;
 
-	spin_lock(&inode->i_lock);
 	p = rb_first(&ci->i_caps);
 	while (p) {
 		struct ceph_cap *cap = rb_entry(p, struct ceph_cap, ci_node);
@@ -1024,9 +1023,7 @@ void ceph_queue_caps_release(struct inode *inode)
 		spin_unlock(&session->s_cap_lock);
 		p = rb_next(p);
 		__ceph_remove_cap(cap);
-
 	}
-	spin_unlock(&inode->i_lock);
 }
 
 /*
