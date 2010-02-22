@@ -27,6 +27,9 @@
 
 struct wl1271;
 
+void wl1271_disable_interrupts(struct wl1271 *wl);
+void wl1271_enable_interrupts(struct wl1271 *wl);
+
 void wl1271_io_reset(struct wl1271 *wl);
 void wl1271_io_init(struct wl1271 *wl);
 

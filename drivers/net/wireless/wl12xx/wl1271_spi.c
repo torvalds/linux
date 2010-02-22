@@ -34,6 +34,16 @@
 #include "wl1271_io.h"
 
 
+void wl1271_spi_disable_interrupts(struct wl1271 *wl)
+{
+	disable_irq(wl->irq);
+}
+
+void wl1271_spi_enable_interrupts(struct wl1271 *wl)
+{
+	enable_irq(wl->irq);
+}
+
 void wl1271_spi_reset(struct wl1271 *wl)
 {
 	u8 *cmd;

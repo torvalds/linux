@@ -31,6 +31,16 @@
 #include "wl1271_spi.h"
 #include "wl1271_io.h"
 
+void wl1271_disable_interrupts(struct wl1271 *wl)
+{
+	wl1271_spi_disable_interrupts(wl);
+}
+
+void wl1271_enable_interrupts(struct wl1271 *wl)
+{
+	wl1271_spi_enable_interrupts(wl);
+}
+
 static int wl1271_translate_addr(struct wl1271 *wl, int addr)
 {
 	/*

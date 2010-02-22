@@ -84,6 +84,9 @@
 #define OCP_STATUS_REQ_FAILED 0x20000
 #define OCP_STATUS_RESP_ERROR 0x30000
 
+void wl1271_spi_disable_interrupts(struct wl1271 *wl);
+void wl1271_spi_enable_interrupts(struct wl1271 *wl);
+
 /* Raw target IO, address is not translated */
 void wl1271_spi_raw_write(struct wl1271 *wl, int addr, void *buf,
 		      size_t len, bool fixed);

@@ -299,7 +299,7 @@ static int wl1271_boot_upload_nvs(struct wl1271 *wl)
 
 static void wl1271_boot_enable_interrupts(struct wl1271 *wl)
 {
-	enable_irq(wl->irq);
+	wl1271_enable_interrupts(wl);
 	wl1271_write32(wl, ACX_REG_INTERRUPT_MASK,
 		       WL1271_ACX_INTR_ALL & ~(WL1271_INTR_MASK));
 	wl1271_write32(wl, HI_CFG, HI_CFG_DEF_VAL);

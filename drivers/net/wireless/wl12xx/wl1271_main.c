@@ -360,11 +360,6 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	return ret;
 }
 
-static void wl1271_disable_interrupts(struct wl1271 *wl)
-{
-	disable_irq(wl->irq);
-}
-
 static void wl1271_power_off(struct wl1271 *wl)
 {
 	wl->set_power(false);
