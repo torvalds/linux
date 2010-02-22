@@ -46,6 +46,8 @@
 #include <linux/usb.h>
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
+#include <linux/usb/audio.h>
+
 #include <sound/core.h>
 #include <sound/info.h>
 #include <sound/pcm.h>
@@ -2421,15 +2423,17 @@ static int is_big_endian_format(struct snd_usb_audio *chip, struct audioformat *
  * @fmt: the format type descriptor
  */
 static int parse_audio_format_i_type(struct snd_usb_audio *chip, struct audioformat *fp,
-				     int format, unsigned char *fmt)
+				     int format, void *fmt_raw)
 {
 	int pcm_format;
 	int sample_width, sample_bytes;
+	struct uac_format_type_i_discrete_descriptor *fmt = fmt_raw;
 
 	/* FIXME: correct endianess and sign? */
 	pcm_format = -1;
-	sample_width = fmt[6];
-	sample_bytes = fmt[5];
+	sample_width = fmt->bBitResolution;
+	sample_bytes = fmt->bSubframeSize;
+
 	switch (format) {
 	case 0: /* some devices don't define this correctly... */
 		snd_printdd(KERN_INFO "%d:%u:%d : format type 0 is detected, processed as PCM\n",
@@ -2442,7 +2446,7 @@ static int parse_audio_format_i_type(struct snd_usb_audio *chip, struct audiofor
 				   sample_width, sample_bytes);
 		}
 		/* check the format byte size */
-		switch (fmt[5]) {
+		switch (sample_bytes) {
 		case 1:
 			pcm_format = SNDRV_PCM_FORMAT_S8;
 			break;
@@ -2463,8 +2467,8 @@ static int parse_audio_format_i_type(struct snd_usb_audio *chip, struct audiofor
 			break;
 		default:
 			snd_printk(KERN_INFO "%d:%u:%d : unsupported sample bitwidth %d in %d bytes\n",
-				   chip->dev->devnum, fp->iface,
-				   fp->altsetting, sample_width, sample_bytes);
+				   chip->dev->devnum, fp->iface, fp->altsetting,
+				   sample_width, sample_bytes);
 			break;
 		}
 		break;
@@ -2564,11 +2568,12 @@ static int parse_audio_format_rates(struct snd_usb_audio *chip, struct audioform
  * parse the format type I and III descriptors
  */
 static int parse_audio_format_i(struct snd_usb_audio *chip, struct audioformat *fp,
-				int format, unsigned char *fmt)
+				int format, void *fmt_raw)
 {
 	int pcm_format;
+	struct uac_format_type_i_discrete_descriptor *fmt = fmt_raw;
 
-	if (fmt[3] == USB_FORMAT_TYPE_III) {
+	if (fmt->bFormatType == USB_FORMAT_TYPE_III) {
 		/* FIXME: the format type is really IECxxx
 		 *        but we give normal PCM format to get the existing
 		 *        apps working...
@@ -2590,23 +2595,27 @@ static int parse_audio_format_i(struct snd_usb_audio *chip, struct audioformat *
 		if (pcm_format < 0)
 			return -1;
 	}
+
 	fp->format = pcm_format;
-	fp->channels = fmt[4];
+	fp->channels = fmt->bNrChannels;
+
 	if (fp->channels < 1) {
 		snd_printk(KERN_ERR "%d:%u:%d : invalid channels %d\n",
 			   chip->dev->devnum, fp->iface, fp->altsetting, fp->channels);
 		return -1;
 	}
-	return parse_audio_format_rates(chip, fp, fmt, 7);
+	return parse_audio_format_rates(chip, fp, fmt_raw, 7);
 }
 
 /*
- * prase the format type II descriptor
+ * parse the format type II descriptor
  */
 static int parse_audio_format_ii(struct snd_usb_audio *chip, struct audioformat *fp,
-				 int format, unsigned char *fmt)
+				 int format, void *fmt_raw)
 {
 	int brate, framesize;
+	struct uac_format_type_ii_discrete_descriptor *fmt = fmt_raw;
+
 	switch (format) {
 	case USB_AUDIO_FORMAT_AC3:
 		/* FIXME: there is no AC3 format defined yet */
@@ -2622,20 +2631,25 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip, struct audioformat 
 		fp->format = SNDRV_PCM_FORMAT_MPEG;
 		break;
 	}
+
 	fp->channels = 1;
-	brate = combine_word(&fmt[4]); 	/* fmt[4,5] : wMaxBitRate (in kbps) */
-	framesize = combine_word(&fmt[6]); /* fmt[6,7]: wSamplesPerFrame */
+
+	brate = le16_to_cpu(fmt->wMaxBitRate);
+	framesize = le16_to_cpu(fmt->wSamplesPerFrame);
 	snd_printd(KERN_INFO "found format II with max.bitrate = %d, frame size=%d\n", brate, framesize);
 	fp->frame_size = framesize;
-	return parse_audio_format_rates(chip, fp, fmt, 8); /* fmt[8..] sample rates */
+	return parse_audio_format_rates(chip, fp, fmt_raw, 8); /* fmt[8..] sample rates */
 }
 
 static int parse_audio_format(struct snd_usb_audio *chip, struct audioformat *fp,
-			      int format, unsigned char *fmt, int stream)
+			      int format, void *fmt_raw, int stream)
 {
 	int err;
+	/* we only parse the common header of all format types here,
+	 * so it is safe to take a type_i struct */
+	struct uac_format_type_i_discrete_descriptor *fmt = fmt_raw;
 
-	switch (fmt[3]) {
+	switch (fmt->bFormatType) {
 	case USB_FORMAT_TYPE_I:
 	case USB_FORMAT_TYPE_III:
 		err = parse_audio_format_i(chip, fp, format, fmt);
@@ -2645,10 +2659,10 @@ static int parse_audio_format(struct snd_usb_audio *chip, struct audioformat *fp
 		break;
 	default:
 		snd_printd(KERN_INFO "%d:%u:%d : format type %d is not supported yet\n",
-			   chip->dev->devnum, fp->iface, fp->altsetting, fmt[3]);
+			   chip->dev->devnum, fp->iface, fp->altsetting, fmt->bFormatType);
 		return -1;
 	}
-	fp->fmt_type = fmt[3];
+	fp->fmt_type = fmt->bFormatType;
 	if (err < 0)
 		return err;
 #if 1
@@ -2659,7 +2673,7 @@ static int parse_audio_format(struct snd_usb_audio *chip, struct audioformat *fp
 	if (chip->usb_id == USB_ID(0x041e, 0x3000) ||
 	    chip->usb_id == USB_ID(0x041e, 0x3020) ||
 	    chip->usb_id == USB_ID(0x041e, 0x3061)) {
-		if (fmt[3] == USB_FORMAT_TYPE_I &&
+		if (fmt->bFormatType == USB_FORMAT_TYPE_I &&
 		    fp->rates != SNDRV_PCM_RATE_48000 &&
 		    fp->rates != SNDRV_PCM_RATE_96000)
 			return -1;
@@ -2708,6 +2722,8 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		num = 4;
 
 	for (i = 0; i < num; i++) {
+		struct uac_as_header_descriptor_v1 *as;
+
 		alts = &iface->altsetting[i];
 		altsd = get_iface_desc(alts);
 		/* skip invalid one */
@@ -2726,7 +2742,7 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		stream = (get_endpoint(alts, 0)->bEndpointAddress & USB_DIR_IN) ?
 			SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
 		altno = altsd->bAlternateSetting;
-	
+
 		/* audiophile usb: skip altsets incompatible with device_setup
 		 */
 		if (chip->usb_id == USB_ID(0x0763, 0x2003) && 
@@ -2734,20 +2750,21 @@ static int parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 			continue;
 
 		/* get audio formats */
-		fmt = snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, AS_GENERAL);
-		if (!fmt) {
+		as = snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, AS_GENERAL);
+
+		if (!as) {
 			snd_printk(KERN_ERR "%d:%u:%d : AS_GENERAL descriptor not found\n",
 				   dev->devnum, iface_no, altno);
 			continue;
 		}
 
-		if (fmt[0] < 7) {
+		if (as->bLength < sizeof(*as)) {
 			snd_printk(KERN_ERR "%d:%u:%d : invalid AS_GENERAL desc\n",
 				   dev->devnum, iface_no, altno);
 			continue;
 		}
 
-		format = (fmt[6] << 8) | fmt[5]; /* remember the format value */
+		format = le16_to_cpu(as->wFormatTag); /* remember the format value */
 
 		/* get format type */
 		fmt = snd_usb_find_csint_desc(alts->extra, alts->extralen, NULL, FORMAT_TYPE);
@@ -2875,6 +2892,65 @@ static void snd_usb_stream_disconnect(struct list_head *head)
 	}
 }
 
+static int snd_usb_create_stream(struct snd_usb_audio *chip, int ctrlif, int interface)
+{
+	struct usb_device *dev = chip->dev;
+	struct usb_host_interface *alts;
+	struct usb_interface_descriptor *altsd;
+	struct usb_interface *iface = usb_ifnum_to_if(dev, interface);
+
+	if (!iface) {
+		snd_printk(KERN_ERR "%d:%u:%d : does not exist\n",
+			   dev->devnum, ctrlif, interface);
+		return -EINVAL;
+	}
+
+	if (usb_interface_claimed(iface)) {
+		snd_printdd(KERN_INFO "%d:%d:%d: skipping, already claimed\n",
+						dev->devnum, ctrlif, interface);
+		return -EINVAL;
+	}
+
+	alts = &iface->altsetting[0];
+	altsd = get_iface_desc(alts);
+	if ((altsd->bInterfaceClass == USB_CLASS_AUDIO ||
+	     altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC) &&
+	    altsd->bInterfaceSubClass == USB_SUBCLASS_MIDI_STREAMING) {
+		int err = snd_usbmidi_create(chip->card, iface,
+					     &chip->midi_list, NULL);
+		if (err < 0) {
+			snd_printk(KERN_ERR "%d:%u:%d: cannot create sequencer device\n",
+						dev->devnum, ctrlif, interface);
+			return -EINVAL;
+		}
+		usb_driver_claim_interface(&usb_audio_driver, iface, (void *)-1L);
+
+		return 0;
+	}
+
+	if ((altsd->bInterfaceClass != USB_CLASS_AUDIO &&
+	     altsd->bInterfaceClass != USB_CLASS_VENDOR_SPEC) ||
+	    altsd->bInterfaceSubClass != USB_SUBCLASS_AUDIO_STREAMING) {
+		snd_printdd(KERN_ERR "%d:%u:%d: skipping non-supported interface %d\n",
+					dev->devnum, ctrlif, interface, altsd->bInterfaceClass);
+		/* skip non-supported classes */
+		return -EINVAL;
+	}
+
+	if (snd_usb_get_speed(dev) == USB_SPEED_LOW) {
+		snd_printk(KERN_ERR "low speed audio streaming not supported\n");
+		return -EINVAL;
+	}
+
+	if (! parse_audio_endpoints(chip, interface)) {
+		usb_set_interface(dev, interface, 0); /* reset the current interface */
+		usb_driver_claim_interface(&usb_audio_driver, iface, (void *)-1L);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 /*
  * parse audio control descriptor and create pcm/midi streams
  */
@@ -2882,68 +2958,35 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 {
 	struct usb_device *dev = chip->dev;
 	struct usb_host_interface *host_iface;
-	struct usb_interface *iface;
-	unsigned char *p1;
-	int i, j;
+	struct uac_ac_header_descriptor_v1 *h1;
+	void *control_header;
+	int i;
 
 	/* find audiocontrol interface */
 	host_iface = &usb_ifnum_to_if(dev, ctrlif)->altsetting[0];
-	if (!(p1 = snd_usb_find_csint_desc(host_iface->extra, host_iface->extralen, NULL, HEADER))) {
+	control_header = snd_usb_find_csint_desc(host_iface->extra,
+						 host_iface->extralen,
+						 NULL, HEADER);
+
+	if (!control_header) {
 		snd_printk(KERN_ERR "cannot find HEADER\n");
 		return -EINVAL;
 	}
-	if (! p1[7] || p1[0] < 8 + p1[7]) {
-		snd_printk(KERN_ERR "invalid HEADER\n");
+
+	h1 = control_header;
+
+	if (!h1->bInCollection) {
+		snd_printk(KERN_INFO "skipping empty audio interface (v1)\n");
 		return -EINVAL;
 	}
 
-	/*
-	 * parse all USB audio streaming interfaces
-	 */
-	for (i = 0; i < p1[7]; i++) {
-		struct usb_host_interface *alts;
-		struct usb_interface_descriptor *altsd;
-		j = p1[8 + i];
-		iface = usb_ifnum_to_if(dev, j);
-		if (!iface) {
-			snd_printk(KERN_ERR "%d:%u:%d : does not exist\n",
-				   dev->devnum, ctrlif, j);
-			continue;
-		}
-		if (usb_interface_claimed(iface)) {
-			snd_printdd(KERN_INFO "%d:%d:%d: skipping, already claimed\n", dev->devnum, ctrlif, j);
-			continue;
-		}
-		alts = &iface->altsetting[0];
-		altsd = get_iface_desc(alts);
-		if ((altsd->bInterfaceClass == USB_CLASS_AUDIO ||
-		     altsd->bInterfaceClass == USB_CLASS_VENDOR_SPEC) &&
-		    altsd->bInterfaceSubClass == USB_SUBCLASS_MIDI_STREAMING) {
-			int err = snd_usbmidi_create(chip->card, iface,
-						     &chip->midi_list, NULL);
-			if (err < 0) {
-				snd_printk(KERN_ERR "%d:%u:%d: cannot create sequencer device\n", dev->devnum, ctrlif, j);
-				continue;
-			}
-			usb_driver_claim_interface(&usb_audio_driver, iface, (void *)-1L);
-			continue;
-		}
-		if ((altsd->bInterfaceClass != USB_CLASS_AUDIO &&
-		     altsd->bInterfaceClass != USB_CLASS_VENDOR_SPEC) ||
-		    altsd->bInterfaceSubClass != USB_SUBCLASS_AUDIO_STREAMING) {
-			snd_printdd(KERN_ERR "%d:%u:%d: skipping non-supported interface %d\n", dev->devnum, ctrlif, j, altsd->bInterfaceClass);
-			/* skip non-supported classes */
-			continue;
-		}
-		if (snd_usb_get_speed(dev) == USB_SPEED_LOW) {
-			snd_printk(KERN_ERR "low speed audio streaming not supported\n");
-			continue;
-		}
-		if (! parse_audio_endpoints(chip, j)) {
-			usb_set_interface(dev, j, 0); /* reset the current interface */
-			usb_driver_claim_interface(&usb_audio_driver, iface, (void *)-1L);
-		}
+	if (h1->bLength < sizeof(*h1) + h1->bInCollection) {
+		snd_printk(KERN_ERR "invalid HEADER (v1)\n");
+		return -EINVAL;
 	}
+
+	for (i = 0; i < h1->bInCollection; i++)
+		snd_usb_create_stream(chip, ctrlif, h1->baInterfaceNr[i]);
 
 	return 0;
 }
@@ -3607,7 +3650,6 @@ static void *snd_usb_audio_probe(struct usb_device *dev,
 	ifnum = get_iface_desc(alts)->bInterfaceNumber;
 	id = USB_ID(le16_to_cpu(dev->descriptor.idVendor),
 		    le16_to_cpu(dev->descriptor.idProduct));
-
 	if (quirk && quirk->ifnum >= 0 && ifnum != quirk->ifnum)
 		goto __err_val;
 

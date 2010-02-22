@@ -32,6 +32,8 @@
 #include <linux/slab.h>
 #include <linux/string.h>
 #include <linux/usb.h>
+#include <linux/usb/audio.h>
+
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/hwdep.h>
@@ -1086,29 +1088,30 @@ static void build_feature_ctl(struct mixer_build *state, unsigned char *desc,
  *
  * most of controlls are defined here.
  */
-static int parse_audio_feature_unit(struct mixer_build *state, int unitid, unsigned char *ftr)
+static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void *_ftr)
 {
 	int channels, i, j;
 	struct usb_audio_term iterm;
 	unsigned int master_bits, first_ch_bits;
 	int err, csize;
+	struct uac_feature_unit_descriptor *ftr = _ftr;
 
-	if (ftr[0] < 7 || ! (csize = ftr[5]) || ftr[0] < 7 + csize) {
+	if (ftr->bLength < 7 || ! (csize = ftr->bControlSize) || ftr->bLength < 7 + csize) {
 		snd_printk(KERN_ERR "usbaudio: unit %u: invalid FEATURE_UNIT descriptor\n", unitid);
 		return -EINVAL;
 	}
 
 	/* parse the source unit */
-	if ((err = parse_audio_unit(state, ftr[4])) < 0)
+	if ((err = parse_audio_unit(state, ftr->bSourceID)) < 0)
 		return err;
 
 	/* determine the input source type and name */
-	if (check_input_term(state, ftr[4], &iterm) < 0)
+	if (check_input_term(state, ftr->bSourceID, &iterm) < 0)
 		return -EINVAL;
 
-	channels = (ftr[0] - 7) / csize - 1;
+	channels = (ftr->bLength - 7) / csize - 1;
 
-	master_bits = snd_usb_combine_bytes(ftr + 6, csize);
+	master_bits = snd_usb_combine_bytes(ftr->controls, csize);
 	/* master configuration quirks */
 	switch (state->chip->usb_id) {
 	case USB_ID(0x08bb, 0x2702):
@@ -1119,21 +1122,21 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, unsig
 		break;
 	}
 	if (channels > 0)
-		first_ch_bits = snd_usb_combine_bytes(ftr + 6 + csize, csize);
+		first_ch_bits = snd_usb_combine_bytes(ftr->controls + csize, csize);
 	else
 		first_ch_bits = 0;
 	/* check all control types */
 	for (i = 0; i < 10; i++) {
 		unsigned int ch_bits = 0;
 		for (j = 0; j < channels; j++) {
-			unsigned int mask = snd_usb_combine_bytes(ftr + 6 + csize * (j+1), csize);
+			unsigned int mask = snd_usb_combine_bytes(ftr->controls + csize * (j+1), csize);
 			if (mask & (1 << i))
 				ch_bits |= (1 << j);
 		}
 		if (ch_bits & 1) /* the first channel must be set (for ease of programming) */
-			build_feature_ctl(state, ftr, ch_bits, i, &iterm, unitid);
+			build_feature_ctl(state, _ftr, ch_bits, i, &iterm, unitid);
 		if (master_bits & (1 << i))
-			build_feature_ctl(state, ftr, 0, i, &iterm, unitid);
+			build_feature_ctl(state, _ftr, 0, i, &iterm, unitid);
 	}
 
 	return 0;
@@ -1780,7 +1783,7 @@ static int snd_usb_mixer_dev_free(struct snd_device *device)
  */
 static int snd_usb_mixer_controls(struct usb_mixer_interface *mixer)
 {
-	unsigned char *desc;
+	struct uac_output_terminal_descriptor_v1 *desc;
 	struct mixer_build state;
 	int err;
 	const struct usbmix_ctl_map *map;
@@ -1805,13 +1808,13 @@ static int snd_usb_mixer_controls(struct usb_mixer_interface *mixer)
 
 	desc = NULL;
 	while ((desc = snd_usb_find_csint_desc(hostif->extra, hostif->extralen, desc, OUTPUT_TERMINAL)) != NULL) {
-		if (desc[0] < 9)
+		if (desc->bLength < 9)
 			continue; /* invalid descriptor? */
-		set_bit(desc[3], state.unitbitmap);  /* mark terminal ID as visited */
-		state.oterm.id = desc[3];
-		state.oterm.type = combine_word(&desc[4]);
-		state.oterm.name = desc[8];
-		err = parse_audio_unit(&state, desc[7]);
+		set_bit(desc->bTerminalID, state.unitbitmap);  /* mark terminal ID as visited */
+		state.oterm.id = desc->bTerminalID;
+		state.oterm.type = le16_to_cpu(desc->wTerminalType);
+		state.oterm.name = desc->iTerminal;
+		err = parse_audio_unit(&state, desc->bSourceID);
 		if (err < 0)
 			return err;
 	}

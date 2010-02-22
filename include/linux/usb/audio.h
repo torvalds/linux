@@ -81,7 +81,7 @@
 
 /* Terminal Control Selectors */
 /* 4.3.2  Class-Specific AC Interface Descriptor */
-struct uac_ac_header_descriptor {
+struct uac_ac_header_descriptor_v1 {
 	__u8  bLength;			/* 8 + n */
 	__u8  bDescriptorType;		/* USB_DT_CS_INTERFACE */
 	__u8  bDescriptorSubtype;	/* UAC_MS_HEADER */
@@ -95,7 +95,7 @@ struct uac_ac_header_descriptor {
 
 /* As above, but more useful for defining your own descriptors: */
 #define DECLARE_UAC_AC_HEADER_DESCRIPTOR(n) 			\
-struct uac_ac_header_descriptor_##n {				\
+struct uac_ac_header_descriptor_v1_##n {			\
 	__u8  bLength;						\
 	__u8  bDescriptorType;					\
 	__u8  bDescriptorSubtype;				\
@@ -131,7 +131,7 @@ struct uac_input_terminal_descriptor {
 #define UAC_INPUT_TERMINAL_PROC_MICROPHONE_ARRAY	0x206
 
 /* 4.3.2.2 Output Terminal Descriptor */
-struct uac_output_terminal_descriptor {
+struct uac_output_terminal_descriptor_v1 {
 	__u8  bLength;			/* in bytes: 9 */
 	__u8  bDescriptorType;		/* CS_INTERFACE descriptor type */
 	__u8  bDescriptorSubtype;	/* OUTPUT_TERMINAL descriptor subtype */
@@ -171,7 +171,7 @@ struct uac_feature_unit_descriptor_##ch {			\
 } __attribute__ ((packed))
 
 /* 4.5.2 Class-Specific AS Interface Descriptor */
-struct uac_as_header_descriptor {
+struct uac_as_header_descriptor_v1 {
 	__u8  bLength;			/* in bytes: 7 */
 	__u8  bDescriptorType;		/* USB_DT_CS_INTERFACE */
 	__u8  bDescriptorSubtype;	/* AS_GENERAL */
@@ -232,6 +232,19 @@ struct uac_format_type_i_discrete_descriptor_##n {		\
 
 #define UAC_FORMAT_TYPE_I_DISCRETE_DESC_SIZE(n)	(8 + (n * 3))
 
+/* Formats - Audio Data Format Type I Codes */
+
+struct uac_format_type_ii_discrete_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bFormatType;
+	__le16 wMaxBitRate;
+	__le16 wSamplesPerFrame;
+	__u8 bSamFreqType;
+	__u8 tSamFreq[][3];
+} __attribute__((packed));
+
 /* Formats - A.2 Format Type Codes */
 #define UAC_FORMAT_TYPE_UNDEFINED	0x0
 #define UAC_FORMAT_TYPE_I		0x1
@@ -253,6 +266,17 @@ struct uac_iso_endpoint_descriptor {
 #define UAC_EP_CS_ATTR_FILL_MAX		0x80
 
 /* A.10.2 Feature Unit Control Selectors */
+
+struct uac_feature_unit_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bUnitID;
+	__u8 bSourceID;
+	__u8 bControlSize;
+	__u8 controls[0]; /* variable length */
+} __attribute__((packed));
+
 #define UAC_FU_CONTROL_UNDEFINED	0x00
 #define UAC_MUTE_CONTROL		0x01
 #define UAC_VOLUME_CONTROL		0x02
