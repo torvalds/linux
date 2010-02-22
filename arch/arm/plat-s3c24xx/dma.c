@@ -33,7 +33,7 @@
 #include <mach/dma.h>
 #include <mach/map.h>
 
-#include <plat/dma-plat.h>
+#include <plat/dma-s3c24xx.h>
 #include <plat/regs-dma.h>
 
 /* io map for dma */
