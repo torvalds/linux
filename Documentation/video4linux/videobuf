@@ -112,7 +112,7 @@ then pass it to the appropriate free routine(s):
 
     /* Scatter/gather drivers */
     int videobuf_dma_unmap(struct videobuf_queue *q,
-    			   struct videobuf_dmabuf *dma);
+			   struct videobuf_dmabuf *dma);
     int videobuf_dma_free(struct videobuf_dmabuf *dma);
 
     /* vmalloc drivers */
@@ -120,7 +120,7 @@ then pass it to the appropriate free routine(s):
 
     /* Contiguous drivers */
     void videobuf_dma_contig_free(struct videobuf_queue *q,
-			          struct videobuf_buffer *buf);
+				  struct videobuf_buffer *buf);
 
 One way to ensure that a buffer is no longer under I/O is to pass it to:
 
@@ -138,21 +138,21 @@ first step is in the open() function, which must initialize the
 videobuf queue.  The function to use depends on the type of buffer used:
 
     void videobuf_queue_sg_init(struct videobuf_queue *q,
-			        struct videobuf_queue_ops *ops,
-			 	struct device *dev,
-			 	spinlock_t *irqlock,
-			 	enum v4l2_buf_type type,
-			 	enum v4l2_field field,
-			 	unsigned int msize,
-			 	void *priv);
+				struct videobuf_queue_ops *ops,
+				struct device *dev,
+				spinlock_t *irqlock,
+				enum v4l2_buf_type type,
+				enum v4l2_field field,
+				unsigned int msize,
+				void *priv);
 
     void videobuf_queue_vmalloc_init(struct videobuf_queue *q,
-			        struct videobuf_queue_ops *ops,
-			 	struct device *dev,
-			 	spinlock_t *irqlock,
-			 	enum v4l2_buf_type type,
-			 	enum v4l2_field field,
-			 	unsigned int msize,
+				struct videobuf_queue_ops *ops,
+				struct device *dev,
+				spinlock_t *irqlock,
+				enum v4l2_buf_type type,
+				enum v4l2_field field,
+				unsigned int msize,
 				void *priv);
 
     void videobuf_queue_dma_contig_init(struct videobuf_queue *q,
@@ -183,11 +183,11 @@ easy to do that with the same code.  To implement read(), the driver need
 only make a call to one of:
 
     ssize_t videobuf_read_one(struct videobuf_queue *q,
-			      char __user *data, size_t count, 
+			      char __user *data, size_t count,
 			      loff_t *ppos, int nonblocking);
 
     ssize_t videobuf_read_stream(struct videobuf_queue *q,
-			         char __user *data, size_t count, 
+				 char __user *data, size_t count,
 				 loff_t *ppos, int vbihack, int nonblocking);
 
 Either one of these functions will read frame data into data, returning the
@@ -240,15 +240,15 @@ the many ioctl() commands made available to user space.  A number of these
 calls.  The relevant helper functions are:
 
     int videobuf_reqbufs(struct videobuf_queue *q,
-		         struct v4l2_requestbuffers *req);
+			 struct v4l2_requestbuffers *req);
     int videobuf_querybuf(struct videobuf_queue *q, struct v4l2_buffer *b);
     int videobuf_qbuf(struct videobuf_queue *q, struct v4l2_buffer *b);
-    int videobuf_dqbuf(struct videobuf_queue *q, struct v4l2_buffer *b, 
-                       int nonblocking);
+    int videobuf_dqbuf(struct videobuf_queue *q, struct v4l2_buffer *b,
+		       int nonblocking);
     int videobuf_streamon(struct videobuf_queue *q);
     int videobuf_streamoff(struct videobuf_queue *q);
-    int videobuf_cgmbuf(struct videobuf_queue *q, struct video_mbuf *mbuf, 
-    			int count);
+    int videobuf_cgmbuf(struct videobuf_queue *q, struct video_mbuf *mbuf,
+			int count);
 
 So, for example, a VIDIOC_REQBUFS call turns into a call to the driver's
 vidioc_reqbufs() callback which, in turn, usually only needs to locate the

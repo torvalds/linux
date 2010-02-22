@@ -609,4 +609,3 @@ scatter/gather method (videobuf-dma-sg), DMA with linear access
 
 Please see Documentation/video4linux/videobuf for more information on how
 to use the videobuf layer.
-
