@@ -318,8 +318,7 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 
 	/* reset TX security counters */
 	wl->tx_security_last_seq = 0;
-	wl->tx_security_seq_16 = 0;
-	wl->tx_security_seq_32 = 0;
+	wl->tx_security_seq = 0;
 
 	ret = wl1271_cmd_send(wl, CMD_START_JOIN, join, sizeof(*join), 0);
 	if (ret < 0) {

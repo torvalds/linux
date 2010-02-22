@@ -110,6 +110,9 @@ enum {
 #define WL1271_FW_NAME "wl1271-fw.bin"
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
 
+#define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
+#define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
+
 /* NVS data structure */
 #define WL1271_NVS_SECTION_SIZE                  468
 
@@ -419,8 +422,7 @@ struct wl1271 {
 
 	/* Security sequence number counters */
 	u8 tx_security_last_seq;
-	u16 tx_security_seq_16;
-	u32 tx_security_seq_32;
+	s64 tx_security_seq;
 
 	/* FW Rx counter */
 	u32 rx_counter;
