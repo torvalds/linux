@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <mach/irqs.h>
 #include <plat/mux.h>
+#include <plat/i2c.h>
 
 #define OMAP_I2C_SIZE		0x3f
 #define OMAP1_I2C_BASE		0xfffb3800
@@ -117,6 +118,11 @@ static int __init omap_i2c_add_bus(int bus_id)
 		res[1].start = irq;
 	}
 
+	if (cpu_class_is_omap1())
+		omap1_i2c_mux_pins(bus_id);
+	if (cpu_class_is_omap2())
+		omap2_i2c_mux_pins(bus_id);
+
 	return platform_device_register(pdev);
 }
 
@@ -169,7 +175,7 @@ out:
 subsys_initcall(omap_register_i2c_bus_cmdline);
 
 /**
- * omap_plat_register_i2c_bus - register I2C bus with device descriptors
+ * omap_register_i2c_bus - register I2C bus with device descriptors
  * @bus_id: bus id counting from number 1
  * @clkrate: clock rate of the bus in kHz
  * @info: pointer into I2C device descriptor table or NULL
@@ -177,7 +183,7 @@ subsys_initcall(omap_register_i2c_bus_cmdline);
  *
  * Returns 0 on success or an error code.
  */
-int __init omap_plat_register_i2c_bus(int bus_id, u32 clkrate,
+int __init omap_register_i2c_bus(int bus_id, u32 clkrate,
 			  struct i2c_board_info const *info,
 			  unsigned len)
 {
