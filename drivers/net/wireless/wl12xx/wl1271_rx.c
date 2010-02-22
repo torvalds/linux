@@ -224,6 +224,7 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 
 		wl->rx_counter++;
 		drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
-		wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
 	}
+
+	wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
 }
