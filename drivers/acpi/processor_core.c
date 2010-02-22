@@ -16,7 +16,7 @@
 
 #define PREFIX			"ACPI: "
 #define _COMPONENT		ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME("processor_pdc");
+ACPI_MODULE_NAME("processor_core");
 
 static int set_no_mwait(const struct dmi_system_id *id)
 {

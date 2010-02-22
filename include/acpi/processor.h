@@ -320,7 +320,7 @@ static inline int acpi_processor_get_bios_limit(int cpu, unsigned int *limit)
 
 #endif				/* CONFIG_CPU_FREQ */
 
-/* in processor_pdc.c */
+/* in processor_core.c */
 void acpi_processor_set_pdc(acpi_handle handle);
 
 /* in processor_throttling.c */
