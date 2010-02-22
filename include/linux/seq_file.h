@@ -140,10 +140,17 @@ extern struct list_head *seq_list_next(void *v, struct list_head *head,
  */
 
 extern struct hlist_node *seq_hlist_start(struct hlist_head *head,
-		loff_t pos);
+					  loff_t pos);
 extern struct hlist_node *seq_hlist_start_head(struct hlist_head *head,
-		loff_t pos);
+					       loff_t pos);
 extern struct hlist_node *seq_hlist_next(void *v, struct hlist_head *head,
-		loff_t *ppos);
+					 loff_t *ppos);
 
+extern struct hlist_node *seq_hlist_start_rcu(struct hlist_head *head,
+					      loff_t pos);
+extern struct hlist_node *seq_hlist_start_head_rcu(struct hlist_head *head,
+						   loff_t pos);
+extern struct hlist_node *seq_hlist_next_rcu(void *v,
+						   struct hlist_head *head,
+						   loff_t *ppos);
 #endif
