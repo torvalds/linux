@@ -67,14 +67,14 @@ static unsigned cmd_loop(unsigned numbytes, struct inbuf_t *inbuf)
 			/* --v-- fall through --v-- */
 		case '\r':
 			/* end of message line, pass to response handler */
-			gig_dbg(DEBUG_TRANSCMD, "%s: End of Message (%d Bytes)",
-				__func__, cbytes);
 			if (cbytes >= MAX_RESP_SIZE) {
 				dev_warn(cs->dev, "response too large (%d)\n",
 					 cbytes);
 				cbytes = MAX_RESP_SIZE;
 			}
 			cs->cbytes = cbytes;
+			gigaset_dbg_buffer(DEBUG_TRANSCMD, "received response",
+					   cbytes, cs->respdata);
 			gigaset_handle_modem_response(cs);
 			cbytes = 0;
 

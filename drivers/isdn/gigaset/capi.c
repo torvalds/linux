@@ -1427,9 +1427,10 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 
 	/* queue & schedule EV_DIAL event */
 	if (!gigaset_add_event(cs, &bcs->at_state, EV_DIAL, commands,
-			       bcs->at_state.seq_index, NULL))
-		goto oom;
-	gig_dbg(DEBUG_CMD, "scheduling DIAL");
+			       bcs->at_state.seq_index, NULL)) {
+		info = CAPI_MSGOSRESOURCEERR;
+		goto error;
+	}
 	gigaset_schedule_event(cs);
 	ap->connected = APCONN_SETUP;
 	send_conf(iif, ap, skb, CapiSuccess);
@@ -1543,7 +1544,6 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 		if (!gigaset_add_event(cs, &cs->bcs[channel-1].at_state,
 				       EV_ACCEPT, NULL, 0, NULL))
 			return;
-		gig_dbg(DEBUG_CMD, "scheduling ACCEPT");
 		gigaset_schedule_event(cs);
 		return;
 
@@ -1584,7 +1584,6 @@ static void do_connect_resp(struct gigaset_capi_ctr *iif,
 		if (!gigaset_add_event(cs, &cs->bcs[channel-1].at_state,
 				       EV_HUP, NULL, 0, NULL))
 			return;
-		gig_dbg(DEBUG_CMD, "scheduling HUP");
 		gigaset_schedule_event(cs);
 		return;
 	}
@@ -1667,11 +1666,9 @@ static void do_connect_b3_resp(struct gigaset_capi_ctr *iif,
 		/* trigger hangup, causing eventual DISCONNECT_IND */
 		if (!gigaset_add_event(cs, &bcs->at_state,
 				       EV_HUP, NULL, 0, NULL)) {
-			dev_err(cs->dev, "%s: out of memory\n", __func__);
 			dev_kfree_skb_any(skb);
 			return;
 		}
-		gig_dbg(DEBUG_CMD, "scheduling HUP");
 		gigaset_schedule_event(cs);
 
 		/* emit DISCONNECT_B3_IND */
@@ -1770,11 +1767,9 @@ static void do_disconnect_req(struct gigaset_capi_ctr *iif,
 
 	/* trigger hangup, causing eventual DISCONNECT_IND */
 	if (!gigaset_add_event(cs, &bcs->at_state, EV_HUP, NULL, 0, NULL)) {
-		dev_err(cs->dev, "%s: out of memory\n", __func__);
 		send_conf(iif, ap, skb, CAPI_MSGOSRESOURCEERR);
 		return;
 	}
-	gig_dbg(DEBUG_CMD, "scheduling HUP");
 	gigaset_schedule_event(cs);
 
 	/* emit reply */
@@ -1817,11 +1812,9 @@ static void do_disconnect_b3_req(struct gigaset_capi_ctr *iif,
 	/* trigger hangup, causing eventual DISCONNECT_B3_IND */
 	if (!gigaset_add_event(cs, &cs->bcs[channel-1].at_state,
 			       EV_HUP, NULL, 0, NULL)) {
-		dev_err(cs->dev, "%s: out of memory\n", __func__);
 		send_conf(iif, ap, skb, CAPI_MSGOSRESOURCEERR);
 		return;
 	}
-	gig_dbg(DEBUG_CMD, "scheduling HUP");
 	gigaset_schedule_event(cs);
 
 	/* NCPI parameter: not applicable for B3 Transparent */
