@@ -1235,13 +1235,13 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		 * through the bss_info_changed() hook.
 		 */
 		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
-			wl1271_info("psm enabled");
+			wl1271_debug(DEBUG_PSM, "psm enabled");
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
 						 true);
 		}
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
-		wl1271_info("psm disabled");
+		wl1271_debug(DEBUG_PSM, "psm disabled");
 
 		clear_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags);
 
