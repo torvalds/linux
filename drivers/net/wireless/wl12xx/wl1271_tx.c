@@ -350,6 +350,8 @@ static void wl1271_tx_complete_packet(struct wl1271 *wl,
 		     result->id, skb, result->ack_failures,
 		     result->rate_class_index, result->status);
 
+	/* FIXME: do we need to tell the stack about the used rate? */
+
 	/* return the packet to the stack */
 	ieee80211_tx_status(wl->hw, skb);
 	wl->tx_frames[result->id] = NULL;
