@@ -142,6 +142,9 @@ struct snd_usb_audio {
 	int num_interfaces;
 	int num_suspended_intf;
 
+	/* for audio class v2 */
+	int clock_id;
+
 	struct list_head pcm_list;	/* list of pcm streams */
 	int pcm_devs;
 
