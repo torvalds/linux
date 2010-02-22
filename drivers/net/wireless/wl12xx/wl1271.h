@@ -491,7 +491,8 @@ int wl1271_plt_stop(struct wl1271 *wl);
 
 #define WL1271_DEFAULT_POWER_LEVEL 0
 
-#define WL1271_TX_QUEUE_MAX_LENGTH 20
+#define WL1271_TX_QUEUE_LOW_WATERMARK  10
+#define WL1271_TX_QUEUE_HIGH_WATERMARK 25
 
 /* WL1271 needs a 200ms sleep after power on, and a 20ms sleep before power
    on in case is has been shut down shortly before */

@@ -278,22 +278,12 @@ void wl1271_tx_work(struct work_struct *work)
 
 		ret = wl1271_tx_frame(wl, skb);
 		if (ret == -EBUSY) {
-			/* firmware buffer is full, stop queues */
-			wl1271_debug(DEBUG_TX, "tx_work: fw buffer full, "
-				     "stop queues");
-			ieee80211_stop_queues(wl->hw);
-			set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
+			/* firmware buffer is full, lets stop transmitting. */
 			skb_queue_head(&wl->tx_queue, skb);
 			goto out_ack;
 		} else if (ret < 0) {
 			dev_kfree_skb(skb);
 			goto out_ack;
-		} else if (test_and_clear_bit(WL1271_FLAG_TX_QUEUE_STOPPED,
-					      &wl->flags)) {
-			/* firmware buffer has space, restart queues */
-			wl1271_debug(DEBUG_TX,
-				     "complete_packet: waking queues");
-			ieee80211_wake_queues(wl->hw);
 		}
 	}
 
@@ -380,8 +370,6 @@ void wl1271_tx_complete(struct wl1271 *wl)
 	u32 count, fw_counter;
 	u32 i;
 
-	wl1271_debug(DEBUG_TX, "tx_complete received, packets: %d", count);
-
 	/* read the tx results from the chipset */
 	wl1271_read(wl, le32_to_cpu(memmap->tx_result),
 		    wl->tx_res_if, sizeof(*wl->tx_res_if), false);
@@ -393,6 +381,7 @@ void wl1271_tx_complete(struct wl1271 *wl)
 				tx_result_host_counter), fw_counter);
 
 	count = fw_counter - wl->tx_results_count;
+	wl1271_debug(DEBUG_TX, "tx_complete received, packets: %d", count);
 
 	/* verify that the result buffer is not getting overrun */
 	if (unlikely(count > TX_HW_RESULT_QUEUE_LEN))
@@ -408,6 +397,19 @@ void wl1271_tx_complete(struct wl1271 *wl)
 		wl1271_tx_complete_packet(wl, result);
 
 		wl->tx_results_count++;
+	}
+
+	if (test_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags) &&
+	    skb_queue_len(&wl->tx_queue) <= WL1271_TX_QUEUE_LOW_WATERMARK) {
+		unsigned long flags;
+
+		/* firmware buffer has space, restart queues */
+		wl1271_debug(DEBUG_TX, "tx_complete: waking queues");
+		spin_lock_irqsave(&wl->wl_lock, flags);
+		ieee80211_wake_queues(wl->hw);
+		clear_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+		ieee80211_queue_work(wl->hw, &wl->tx_work);
 	}
 }
 
