@@ -7879,6 +7879,9 @@ static void alc885_imac24_setup(struct hda_codec *codec)
 	spec->autocfg.speaker_pins[1] = 0x1a;
 }
 
+#define alc885_mb5_setup	alc885_imac24_setup
+#define alc885_macmini3_setup	alc885_imac24_setup
+
 static void alc885_mbp3_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -7887,66 +7890,13 @@ static void alc885_mbp3_setup(struct hda_codec *codec)
 	spec->autocfg.speaker_pins[0] = 0x14;
 }
 
-static void alc885_mb5_automute(struct hda_codec *codec)
+static void alc885_imac91_setup(struct hda_codec *codec)
 {
-	unsigned int present;
+	struct alc_spec *spec = codec->spec;
 
-	present = snd_hda_codec_read(codec, 0x14, 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_stereo(codec, 0x18, HDA_OUTPUT, 0,
-				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
-	snd_hda_codec_amp_stereo(codec, 0x1a, HDA_OUTPUT, 0,
-				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
-
-}
-
-static void alc885_macmini3_automute(struct hda_codec *codec)
-{
-	unsigned int present;
-
-	present = snd_hda_codec_read(codec, 0x14, 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_stereo(codec, 0x18, HDA_OUTPUT, 0,
-				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
-	snd_hda_codec_amp_stereo(codec, 0x1a, HDA_OUTPUT, 0,
-				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
-}
-
-static void alc885_mb5_unsol_event(struct hda_codec *codec,
-				    unsigned int res)
-{
-	/* Headphone insertion or removal. */
-	if ((res >> 26) == ALC880_HP_EVENT)
-		alc885_mb5_automute(codec);
-}
-
-static void alc885_macmini3_unsol_event(struct hda_codec *codec,
-				    unsigned int res)
-{
-	/* Headphone insertion or removal. */
-	if ((res >> 26) == ALC880_HP_EVENT)
-		alc885_mb5_automute(codec);
-}
-
-static void alc885_imac91_automute(struct hda_codec *codec)
-{
- 	unsigned int present;
-
-	present = snd_hda_codec_read(codec, 0x14, 0,
-				     AC_VERB_GET_PIN_SENSE, 0) & 0x80000000;
-	snd_hda_codec_amp_stereo(codec, 0x15, HDA_OUTPUT, 0,
-				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
-	snd_hda_codec_amp_stereo(codec, 0x1a, HDA_OUTPUT, 0,
-				 HDA_AMP_MUTE, present ? HDA_AMP_MUTE : 0);
-
-}
-
-static void alc885_imac91_unsol_event(struct hda_codec *codec,
-				    unsigned int res)
-{
-	/* Headphone insertion or removal. */
-	if ((res >> 26) == ALC880_HP_EVENT)
-		alc885_imac91_automute(codec);
+	spec->autocfg.hp_pins[0] = 0x14;
+	spec->autocfg.speaker_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[1] = 0x1a;
 }
 
 static struct hda_verb alc882_targa_verbs[] = {
@@ -9357,8 +9307,9 @@ static struct alc_config_preset alc882_presets[] = {
 		.input_mux = &mb5_capture_source,
 		.dig_out_nid = ALC882_DIGOUT_NID,
 		.dig_in_nid = ALC882_DIGIN_NID,
-		.unsol_event = alc885_mb5_unsol_event,
-		.init_hook = alc885_mb5_automute,
+		.unsol_event = alc_automute_amp_unsol_event,
+		.setup = alc885_mb5_setup,
+		.init_hook = alc_automute_amp,
 	},
 	[ALC885_MACMINI3] = {
 		.mixers = { alc885_macmini3_mixer, alc882_chmode_mixer },
@@ -9371,8 +9322,9 @@ static struct alc_config_preset alc882_presets[] = {
 		.input_mux = &macmini3_capture_source,
 		.dig_out_nid = ALC882_DIGOUT_NID,
 		.dig_in_nid = ALC882_DIGIN_NID,
-		.unsol_event = alc885_macmini3_unsol_event,
-		.init_hook = alc885_macmini3_automute,
+		.unsol_event = alc_automute_amp_unsol_event,
+		.setup = alc885_macmini3_setup,
+		.init_hook = alc_automute_amp,
 	},
 	[ALC885_MACPRO] = {
 		.mixers = { alc882_macpro_mixer },
@@ -9411,8 +9363,9 @@ static struct alc_config_preset alc882_presets[] = {
 		.input_mux = &alc882_capture_source,
 		.dig_out_nid = ALC882_DIGOUT_NID,
 		.dig_in_nid = ALC882_DIGIN_NID,
-		.unsol_event = alc885_imac91_unsol_event,
-		.init_hook = alc885_imac91_automute,
+		.unsol_event = alc_automute_amp_unsol_event,
+		.setup = alc885_imac91_setup,
+		.init_hook = alc_automute_amp,
 	},
 	[ALC882_TARGA] = {
 		.mixers = { alc882_targa_mixer, alc882_chmode_mixer },
