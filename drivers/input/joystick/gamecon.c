@@ -30,6 +30,8 @@
  * Vojtech Pavlik, Simunkova 1594, Prague 8, 182 00 Czech Republic
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -818,13 +820,13 @@ static int __init gc_setup_pad(struct gc *gc, int idx, int pad_type)
 	int err;
 
 	if (pad_type < 1 || pad_type > GC_MAX) {
-		printk(KERN_WARNING "gamecon.c: Pad type %d unknown\n", pad_type);
+		pr_err("Pad type %d unknown\n", pad_type);
 		return -EINVAL;
 	}
 
 	pad->dev = input_dev = input_allocate_device();
 	if (!input_dev) {
-		printk(KERN_ERR "gamecon.c: Not enough memory for input device\n");
+		pr_err("Not enough memory for input device\n");
 		return -ENOMEM;
 	}
 
@@ -868,7 +870,7 @@ static int __init gc_setup_pad(struct gc *gc, int idx, int pad_type)
 
 		err = gc_n64_init_ff(input_dev, idx);
 		if (err) {
-			printk(KERN_WARNING "gamecon.c: Failed to initiate rumble for N64 device %d\n", idx);
+			pr_warning("Failed to initiate rumble for N64 device %d\n", idx);
 			goto err_free_dev;
 		}
 
@@ -936,21 +938,21 @@ static struct gc __init *gc_probe(int parport, int *pads, int n_pads)
 
 	pp = parport_find_number(parport);
 	if (!pp) {
-		printk(KERN_ERR "gamecon.c: no such parport\n");
+		pr_err("no such parport %d\n", parport);
 		err = -EINVAL;
 		goto err_out;
 	}
 
 	pd = parport_register_device(pp, "gamecon", NULL, NULL, NULL, PARPORT_DEV_EXCL, NULL);
 	if (!pd) {
-		printk(KERN_ERR "gamecon.c: parport busy already - lp.o loaded?\n");
+		pr_err("parport busy already - lp.o loaded?\n");
 		err = -EBUSY;
 		goto err_put_pp;
 	}
 
 	gc = kzalloc(sizeof(struct gc), GFP_KERNEL);
 	if (!gc) {
-		printk(KERN_ERR "gamecon.c: Not enough memory\n");
+		pr_err("Not enough memory\n");
 		err = -ENOMEM;
 		goto err_unreg_pardev;
 	}
@@ -971,7 +973,7 @@ static struct gc __init *gc_probe(int parport, int *pads, int n_pads)
 	}
 
 	if (count == 0) {
-		printk(KERN_ERR "gamecon.c: No valid devices specified\n");
+		pr_err("No valid devices specified\n");
 		err = -EINVAL;
 		goto err_free_gc;
 	}
@@ -1015,7 +1017,7 @@ static int __init gc_init(void)
 			continue;
 
 		if (gc_cfg[i].nargs < 2) {
-			printk(KERN_ERR "gamecon.c: at least one device must be specified\n");
+			pr_err("at least one device must be specified\n");
 			err = -EINVAL;
 			break;
 		}
