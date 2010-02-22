@@ -68,7 +68,7 @@ static void define_value(enum print_arg_type field_type,
 	if (field_type == PRINT_SYMBOL)
 		handler_name = "define_symbolic_value";
 
-	t = PyTuple_New(MAX_FIELDS);
+	t = PyTuple_New(4);
 	if (!t)
 		Py_FatalError("couldn't create Python tuple");
 
@@ -78,9 +78,6 @@ static void define_value(enum print_arg_type field_type,
 	PyTuple_SetItem(t, n++, PyString_FromString(field_name));
 	PyTuple_SetItem(t, n++, PyInt_FromLong(value));
 	PyTuple_SetItem(t, n++, PyString_FromString(field_str));
-
-	if (_PyTuple_Resize(&t, n) == -1)
-		Py_FatalError("error resizing Python tuple");
 
 	handler = PyDict_GetItemString(main_dict, handler_name);
 	if (handler && PyCallable_Check(handler)) {
@@ -116,7 +113,10 @@ static void define_field(enum print_arg_type field_type,
 	if (field_type == PRINT_SYMBOL)
 		handler_name = "define_symbolic_field";
 
-	t = PyTuple_New(MAX_FIELDS);
+	if (field_type == PRINT_FLAGS)
+		t = PyTuple_New(3);
+	else
+		t = PyTuple_New(2);
 	if (!t)
 		Py_FatalError("couldn't create Python tuple");
 
@@ -124,9 +124,6 @@ static void define_field(enum print_arg_type field_type,
 	PyTuple_SetItem(t, n++, PyString_FromString(field_name));
 	if (field_type == PRINT_FLAGS)
 		PyTuple_SetItem(t, n++, PyString_FromString(delim));
-
-	if (_PyTuple_Resize(&t, n) == -1)
-		Py_FatalError("error resizing Python tuple");
 
 	handler = PyDict_GetItemString(main_dict, handler_name);
 	if (handler && PyCallable_Check(handler)) {
