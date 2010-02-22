@@ -24,10 +24,12 @@ struct mtd_blktrans_dev {
 	int devnum;
 	unsigned long size;
 	int readonly;
-	void *blkcore_priv; /* gendisk in 2.5, devfs_handle in 2.4 */
+	struct gendisk *disk;
+	struct task_struct *thread;
+	struct request_queue *rq;
+	spinlock_t queue_lock;
+	void *priv;
 };
-
-struct blkcore_priv; /* Differs for 2.4 and 2.5 kernels; private */
 
 struct mtd_blktrans_ops {
 	char *name;
@@ -60,8 +62,6 @@ struct mtd_blktrans_ops {
 	struct list_head devs;
 	struct list_head list;
 	struct module *owner;
-
-	struct mtd_blkcore_priv *blkcore_priv;
 };
 
 extern int register_mtd_blktrans(struct mtd_blktrans_ops *tr);
