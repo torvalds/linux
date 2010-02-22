@@ -25,6 +25,9 @@
 #define USB_SUBCLASS_AUDIOSTREAMING	0x02
 #define USB_SUBCLASS_MIDISTREAMING	0x03
 
+#define UAC_VERSION_1			0x00
+#define UAC_VERSION_2			0x20
+
 /* A.5 Audio Class-Specific AC Interface Descriptor Subtypes */
 #define UAC_HEADER			0x01
 #define UAC_INPUT_TERMINAL		0x02
@@ -180,6 +183,19 @@ struct uac_as_header_descriptor_v1 {
 	__le16 wFormatTag;		/* The Audio Data Format */
 } __attribute__ ((packed));
 
+struct uac_as_header_descriptor_v2 {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bTerminalLink;
+	__u8 bmControls;
+	__u8 bFormatType;
+	__u32 bmFormats;
+	__u8 bNrChannels;
+	__u32 bmChannelConfig;
+	__u8 iChannelNames;
+} __attribute__((packed));
+
 #define UAC_DT_AS_HEADER_SIZE		7
 
 /* Formats - A.1.1 Audio Data Format Type I Codes */
@@ -232,6 +248,19 @@ struct uac_format_type_i_discrete_descriptor_##n {		\
 
 #define UAC_FORMAT_TYPE_I_DISCRETE_DESC_SIZE(n)	(8 + (n * 3))
 
+struct uac_format_type_i_ext_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bSubslotSize;
+	__u8 bFormatType;
+	__u8 bBitResolution;
+	__u8 bHeaderLength;
+	__u8 bControlSize;
+	__u8 bSideBandProtocol;
+} __attribute__((packed));
+
+
 /* Formats - Audio Data Format Type I Codes */
 
 struct uac_format_type_ii_discrete_descriptor {
@@ -245,11 +274,26 @@ struct uac_format_type_ii_discrete_descriptor {
 	__u8 tSamFreq[][3];
 } __attribute__((packed));
 
+struct uac_format_type_ii_ext_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bFormatType;
+	__u16 wMaxBitRate;
+	__u16 wSamplesPerFrame;
+	__u8 bHeaderLength;
+	__u8 bSideBandProtocol;
+} __attribute__((packed));
+
+
 /* Formats - A.2 Format Type Codes */
 #define UAC_FORMAT_TYPE_UNDEFINED	0x0
 #define UAC_FORMAT_TYPE_I		0x1
 #define UAC_FORMAT_TYPE_II		0x2
 #define UAC_FORMAT_TYPE_III		0x3
+#define UAC_EXT_FORMAT_TYPE_I		0x81
+#define UAC_EXT_FORMAT_TYPE_II		0x82
+#define UAC_EXT_FORMAT_TYPE_III		0x83
 
 struct uac_iso_endpoint_descriptor {
 	__u8  bLength;			/* in bytes: 7 */
@@ -264,6 +308,19 @@ struct uac_iso_endpoint_descriptor {
 #define UAC_EP_CS_ATTR_SAMPLE_RATE	0x01
 #define UAC_EP_CS_ATTR_PITCH_CONTROL	0x02
 #define UAC_EP_CS_ATTR_FILL_MAX		0x80
+
+/* Audio class v2.0: CLOCK_SOURCE descriptor */
+
+struct uac_clock_source_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bClockID;
+	__u8 bmAttributes;
+	__u8 bmControls;
+	__u8 bAssocTerminal;
+	__u8 iClockSource;
+} __attribute__((packed));
 
 /* A.10.2 Feature Unit Control Selectors */
 

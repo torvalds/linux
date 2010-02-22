@@ -36,8 +36,17 @@
 #define MIXER_UNIT			0x04
 #define SELECTOR_UNIT			0x05
 #define FEATURE_UNIT			0x06
-#define PROCESSING_UNIT			0x07
-#define EXTENSION_UNIT			0x08
+#define PROCESSING_UNIT_V1		0x07
+#define EXTENSION_UNIT_V1		0x08
+
+/* audio class v2 */
+#define EFFECT_UNIT			0x07
+#define PROCESSING_UNIT_V2		0x08
+#define EXTENSION_UNIT_V2		0x09
+#define CLOCK_SOURCE			0x0a
+#define CLOCK_SELECTOR			0x0b
+#define CLOCK_MULTIPLIER		0x0c
+#define SAMPLE_RATE_CONVERTER		0x0d
 
 #define AS_GENERAL			0x01
 #define FORMAT_TYPE			0x02
@@ -60,7 +69,7 @@
 #define EP_CS_ATTR_PITCH_CONTROL	0x02
 #define EP_CS_ATTR_FILL_MAX		0x80
 
-/* Audio Class specific Request Codes */
+/* Audio Class specific Request Codes (v1) */
 
 #define SET_CUR    0x01
 #define GET_CUR    0x81
@@ -73,6 +82,10 @@
 #define SET_MEM    0x05
 #define GET_MEM    0x85
 #define GET_STAT   0xff
+
+/* Audio Class specific Request Codes (v2) */
+#define CS_CUR     0x01
+#define CS_RANGE   0x02
 
 /* Terminal Control Selectors */
 
