@@ -46,6 +46,8 @@
 #include <linux/timer.h>
 #include <linux/usb.h>
 #include <linux/wait.h>
+#include <linux/usb/audio.h>
+
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/rawmidi.h>
@@ -1540,7 +1542,7 @@ static int snd_usbmidi_get_ms_info(struct snd_usb_midi* umidi,
 	if (hostif->extralen >= 7 &&
 	    ms_header->bLength >= 7 &&
 	    ms_header->bDescriptorType == USB_DT_CS_INTERFACE &&
-	    ms_header->bDescriptorSubtype == HEADER)
+	    ms_header->bDescriptorSubtype == UAC_HEADER)
 		snd_printdd(KERN_INFO "MIDIStreaming version %02x.%02x\n",
 			    ms_header->bcdMSC[1], ms_header->bcdMSC[0]);
 	else
@@ -1556,7 +1558,7 @@ static int snd_usbmidi_get_ms_info(struct snd_usb_midi* umidi,
 		if (hostep->extralen < 4 ||
 		    ms_ep->bLength < 4 ||
 		    ms_ep->bDescriptorType != USB_DT_CS_ENDPOINT ||
-		    ms_ep->bDescriptorSubtype != MS_GENERAL)
+		    ms_ep->bDescriptorSubtype != UAC_MS_GENERAL)
 			continue;
 		if (usb_endpoint_dir_out(ep)) {
 			if (endpoints[epidx].out_ep) {
@@ -1768,9 +1770,9 @@ static int snd_usbmidi_detect_yamaha(struct snd_usb_midi* umidi,
 	     cs_desc < hostif->extra + hostif->extralen && cs_desc[0] >= 2;
 	     cs_desc += cs_desc[0]) {
 		if (cs_desc[1] == USB_DT_CS_INTERFACE) {
-			if (cs_desc[2] == MIDI_IN_JACK)
+			if (cs_desc[2] == UAC_MIDI_IN_JACK)
 				endpoint->in_cables = (endpoint->in_cables << 1) | 1;
-			else if (cs_desc[2] == MIDI_OUT_JACK)
+			else if (cs_desc[2] == UAC_MIDI_OUT_JACK)
 				endpoint->out_cables = (endpoint->out_cables << 1) | 1;
 		}
 	}

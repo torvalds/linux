@@ -35,8 +35,17 @@
 #define UAC_MIXER_UNIT			0x04
 #define UAC_SELECTOR_UNIT		0x05
 #define UAC_FEATURE_UNIT		0x06
-#define UAC_PROCESSING_UNIT		0x07
-#define UAC_EXTENSION_UNIT		0x08
+#define UAC_PROCESSING_UNIT_V1		0x07
+#define UAC_EXTENSION_UNIT_V1		0x08
+
+/* UAC v2.0 types */
+#define UAC_EFFECT_UNIT			0x07
+#define UAC_PROCESSING_UNIT_V2		0x08
+#define UAC_EXTENSION_UNIT_V2		0x09
+#define UAC_CLOCK_SOURCE		0x0a
+#define UAC_CLOCK_SELECTOR		0x0b
+#define UAC_CLOCK_MULTIPLIER		0x0c
+#define UAC_SAMPLE_RATE_CONVERTER	0x0d
 
 /* A.6 Audio Class-Specific AS Interface Descriptor Subtypes */
 #define UAC_AS_GENERAL			0x01
@@ -68,6 +77,10 @@
 #define UAC_GET_MEM			(UAC_GET_ | UAC__MEM)
 
 #define UAC_GET_STAT			0xff
+
+/* Audio class v2.0 handles all the parameter calls differently */
+#define UAC2_CS_CUR			0x01
+#define UAC2_CS_RANGE			0x02
 
 /* MIDI - A.1 MS Class-Specific Interface Descriptor Subtypes */
 #define UAC_MS_HEADER			0x01
@@ -132,6 +145,10 @@ struct uac_input_terminal_descriptor {
 #define UAC_INPUT_TERMINAL_OMNI_DIR_MICROPHONE		0x204
 #define UAC_INPUT_TERMINAL_MICROPHONE_ARRAY		0x205
 #define UAC_INPUT_TERMINAL_PROC_MICROPHONE_ARRAY	0x206
+
+/* Terminals - control selectors */
+
+#define UAC_TERMINAL_CS_COPY_PROTECT_CONTROL		0x01
 
 /* 4.3.2.2 Output Terminal Descriptor */
 struct uac_output_terminal_descriptor_v1 {
@@ -263,6 +280,9 @@ struct uac_format_type_i_ext_descriptor {
 
 /* Formats - Audio Data Format Type I Codes */
 
+#define UAC_FORMAT_TYPE_II_MPEG	0x1001
+#define UAC_FORMAT_TYPE_II_AC3	0x1002
+
 struct uac_format_type_ii_discrete_descriptor {
 	__u8 bLength;
 	__u8 bDescriptorType;
@@ -285,6 +305,13 @@ struct uac_format_type_ii_ext_descriptor {
 	__u8 bSideBandProtocol;
 } __attribute__((packed));
 
+/* type III */
+#define UAC_FORMAT_TYPE_III_IEC1937_AC3	0x2001
+#define UAC_FORMAT_TYPE_III_IEC1937_MPEG1_LAYER1	0x2002
+#define UAC_FORMAT_TYPE_III_IEC1937_MPEG2_NOEXT	0x2003
+#define UAC_FORMAT_TYPE_III_IEC1937_MPEG2_EXT	0x2004
+#define UAC_FORMAT_TYPE_III_IEC1937_MPEG2_LAYER1_LS	0x2005
+#define UAC_FORMAT_TYPE_III_IEC1937_MPEG2_LAYER23_LS	0x2006
 
 /* Formats - A.2 Format Type Codes */
 #define UAC_FORMAT_TYPE_UNDEFINED	0x0

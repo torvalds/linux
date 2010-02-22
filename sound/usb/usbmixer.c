@@ -286,7 +286,7 @@ static void *find_audio_control_unit(struct mixer_build *state, unsigned char un
 	p = NULL;
 	while ((p = snd_usb_find_desc(state->buffer, state->buflen, p,
 				      USB_DT_CS_INTERFACE)) != NULL) {
-		if (p[0] >= 4 && p[2] >= INPUT_TERMINAL && p[2] <= EXTENSION_UNIT_V1 && p[3] == unit)
+		if (p[0] >= 4 && p[2] >= UAC_INPUT_TERMINAL && p[2] <= UAC_EXTENSION_UNIT_V1 && p[3] == unit)
 			return p;
 	}
 	return NULL;
@@ -407,14 +407,14 @@ static int get_ctl_value(struct usb_mixer_elem_info *cval, int request, int vali
 
 static int get_cur_ctl_value(struct usb_mixer_elem_info *cval, int validx, int *value)
 {
-	return get_ctl_value(cval, GET_CUR, validx, value);
+	return get_ctl_value(cval, UAC_GET_CUR, validx, value);
 }
 
 /* channel = 0: master, 1 = first channel */
 static inline int get_cur_mix_raw(struct usb_mixer_elem_info *cval,
 				  int channel, int *value)
 {
-	return get_ctl_value(cval, GET_CUR, (cval->control << 8) | channel, value);
+	return get_ctl_value(cval, UAC_GET_CUR, (cval->control << 8) | channel, value);
 }
 
 static int get_cur_mix_value(struct usb_mixer_elem_info *cval,
@@ -468,14 +468,14 @@ static int set_ctl_value(struct usb_mixer_elem_info *cval, int request, int vali
 
 static int set_cur_ctl_value(struct usb_mixer_elem_info *cval, int validx, int value)
 {
-	return set_ctl_value(cval, SET_CUR, validx, value);
+	return set_ctl_value(cval, UAC_SET_CUR, validx, value);
 }
 
 static int set_cur_mix_value(struct usb_mixer_elem_info *cval, int channel,
 			     int index, int value)
 {
 	int err;
-	err = set_ctl_value(cval, SET_CUR, (cval->control << 8) | channel,
+	err = set_ctl_value(cval, UAC_SET_CUR, (cval->control << 8) | channel,
 			    value);
 	if (err < 0)
 		return err;
@@ -605,13 +605,13 @@ static int get_term_name(struct mixer_build *state, struct usb_audio_term *iterm
 		if (term_only)
 			return 0;
 		switch (iterm->type >> 16) {
-		case SELECTOR_UNIT:
+		case UAC_SELECTOR_UNIT:
 			strcpy(name, "Selector"); return 8;
-		case PROCESSING_UNIT_V1:
+		case UAC_PROCESSING_UNIT_V1:
 			strcpy(name, "Process Unit"); return 12;
-		case EXTENSION_UNIT_V1:
+		case UAC_EXTENSION_UNIT_V1:
 			strcpy(name, "Ext Unit"); return 8;
-		case MIXER_UNIT:
+		case UAC_MIXER_UNIT:
 			strcpy(name, "Mixer"); return 5;
 		default:
 			return sprintf(name, "Unit %d", iterm->id);
@@ -650,22 +650,22 @@ static int check_input_term(struct mixer_build *state, int id, struct usb_audio_
 	while ((p1 = find_audio_control_unit(state, id)) != NULL) {
 		term->id = id;
 		switch (p1[2]) {
-		case INPUT_TERMINAL:
+		case UAC_INPUT_TERMINAL:
 			term->type = combine_word(p1 + 4);
 			term->channels = p1[7];
 			term->chconfig = combine_word(p1 + 8);
 			term->name = p1[11];
 			return 0;
-		case FEATURE_UNIT:
+		case UAC_FEATURE_UNIT:
 			id = p1[4];
 			break; /* continue to parse */
-		case MIXER_UNIT:
+		case UAC_MIXER_UNIT:
 			term->type = p1[2] << 16; /* virtual type */
 			term->channels = p1[5 + p1[4]];
 			term->chconfig = combine_word(p1 + 6 + p1[4]);
 			term->name = p1[p1[0] - 1];
 			return 0;
-		case SELECTOR_UNIT:
+		case UAC_SELECTOR_UNIT:
 			/* call recursively to retrieve the channel info */
 			if (check_input_term(state, p1[5], term) < 0)
 				return -ENODEV;
@@ -673,8 +673,8 @@ static int check_input_term(struct mixer_build *state, int id, struct usb_audio_
 			term->id = id;
 			term->name = p1[9 + p1[0] - 1];
 			return 0;
-		case PROCESSING_UNIT_V1:
-		case EXTENSION_UNIT_V1:
+		case UAC_PROCESSING_UNIT_V1:
+		case UAC_EXTENSION_UNIT_V1:
 			if (p1[6] == 1) {
 				id = p1[7];
 				break; /* continue to parse */
@@ -752,23 +752,23 @@ static int get_min_max(struct usb_mixer_elem_info *cval, int default_min)
 					break;
 				}
 		}
-		if (get_ctl_value(cval, GET_MAX, (cval->control << 8) | minchn, &cval->max) < 0 ||
-		    get_ctl_value(cval, GET_MIN, (cval->control << 8) | minchn, &cval->min) < 0) {
+		if (get_ctl_value(cval, UAC_GET_MAX, (cval->control << 8) | minchn, &cval->max) < 0 ||
+		    get_ctl_value(cval, UAC_GET_MIN, (cval->control << 8) | minchn, &cval->min) < 0) {
 			snd_printd(KERN_ERR "%d:%d: cannot get min/max values for control %d (id %d)\n",
 				   cval->id, cval->mixer->ctrlif, cval->control, cval->id);
 			return -EINVAL;
 		}
-		if (get_ctl_value(cval, GET_RES, (cval->control << 8) | minchn, &cval->res) < 0) {
+		if (get_ctl_value(cval, UAC_GET_RES, (cval->control << 8) | minchn, &cval->res) < 0) {
 			cval->res = 1;
 		} else {
 			int last_valid_res = cval->res;
 
 			while (cval->res > 1) {
-				if (set_ctl_value(cval, SET_RES, (cval->control << 8) | minchn, cval->res / 2) < 0)
+				if (set_ctl_value(cval, UAC_SET_RES, (cval->control << 8) | minchn, cval->res / 2) < 0)
 					break;
 				cval->res /= 2;
 			}
-			if (get_ctl_value(cval, GET_RES, (cval->control << 8) | minchn, &cval->res) < 0)
+			if (get_ctl_value(cval, UAC_GET_RES, (cval->control << 8) | minchn, &cval->res) < 0)
 				cval->res = last_valid_res;
 		}
 		if (cval->res == 0)
@@ -1097,7 +1097,7 @@ static int parse_audio_feature_unit(struct mixer_build *state, int unitid, void 
 	struct uac_feature_unit_descriptor *ftr = _ftr;
 
 	if (ftr->bLength < 7 || ! (csize = ftr->bControlSize) || ftr->bLength < 7 + csize) {
-		snd_printk(KERN_ERR "usbaudio: unit %u: invalid FEATURE_UNIT descriptor\n", unitid);
+		snd_printk(KERN_ERR "usbaudio: unit %u: invalid UAC_FEATURE_UNIT descriptor\n", unitid);
 		return -EINVAL;
 	}
 
@@ -1739,17 +1739,17 @@ static int parse_audio_unit(struct mixer_build *state, int unitid)
 	}
 
 	switch (p1[2]) {
-	case INPUT_TERMINAL:
+	case UAC_INPUT_TERMINAL:
 		return 0; /* NOP */
-	case MIXER_UNIT:
+	case UAC_MIXER_UNIT:
 		return parse_audio_mixer_unit(state, unitid, p1);
-	case SELECTOR_UNIT:
+	case UAC_SELECTOR_UNIT:
 		return parse_audio_selector_unit(state, unitid, p1);
-	case FEATURE_UNIT:
+	case UAC_FEATURE_UNIT:
 		return parse_audio_feature_unit(state, unitid, p1);
-	case PROCESSING_UNIT_V1:
+	case UAC_PROCESSING_UNIT_V1:
 		return parse_audio_processing_unit(state, unitid, p1);
-	case EXTENSION_UNIT_V1:
+	case UAC_EXTENSION_UNIT_V1:
 		return parse_audio_extension_unit(state, unitid, p1);
 	default:
 		snd_printk(KERN_ERR "usbaudio: unit %u: unexpected type 0x%02x\n", unitid, p1[2]);
@@ -1779,7 +1779,7 @@ static int snd_usb_mixer_dev_free(struct snd_device *device)
 /*
  * create mixer controls
  *
- * walk through all OUTPUT_TERMINAL descriptors to search for mixers
+ * walk through all UAC_OUTPUT_TERMINAL descriptors to search for mixers
  */
 static int snd_usb_mixer_controls(struct usb_mixer_interface *mixer)
 {
@@ -1807,7 +1807,7 @@ static int snd_usb_mixer_controls(struct usb_mixer_interface *mixer)
 	}
 
 	desc = NULL;
-	while ((desc = snd_usb_find_csint_desc(hostif->extra, hostif->extralen, desc, OUTPUT_TERMINAL)) != NULL) {
+	while ((desc = snd_usb_find_csint_desc(hostif->extra, hostif->extralen, desc, UAC_OUTPUT_TERMINAL)) != NULL) {
 		if (desc->bLength < 9)
 			continue; /* invalid descriptor? */
 		set_bit(desc->bTerminalID, state.unitbitmap);  /* mark terminal ID as visited */
@@ -2047,7 +2047,7 @@ static int snd_usb_soundblaster_remote_init(struct usb_mixer_interface *mixer)
 	}
 	mixer->rc_setup_packet->bRequestType =
 		USB_DIR_IN | USB_TYPE_CLASS | USB_RECIP_INTERFACE;
-	mixer->rc_setup_packet->bRequest = GET_MEM;
+	mixer->rc_setup_packet->bRequest = UAC_GET_MEM;
 	mixer->rc_setup_packet->wValue = cpu_to_le16(0);
 	mixer->rc_setup_packet->wIndex = cpu_to_le16(0);
 	mixer->rc_setup_packet->wLength = cpu_to_le16(len);
@@ -2170,7 +2170,7 @@ static void snd_audigy2nx_proc_read(struct snd_info_entry *entry,
 		snd_iprintf(buffer, "%s: ", jacks[i].name);
 		err = snd_usb_ctl_msg(mixer->chip->dev,
 				      usb_rcvctrlpipe(mixer->chip->dev, 0),
-				      GET_MEM, USB_DIR_IN | USB_TYPE_CLASS |
+				      UAC_GET_MEM, USB_DIR_IN | USB_TYPE_CLASS |
 				      USB_RECIP_INTERFACE, 0,
 				      jacks[i].unitid << 8, buf, 3, 100);
 		if (err == 3 && (buf[0] == 3 || buf[0] == 6))
