@@ -2630,7 +2630,7 @@ int napi_frags_finish(struct napi_struct *napi, struct sk_buff *skb, int ret)
 	switch (ret) {
 	case GRO_NORMAL:
 	case GRO_HELD:
-		skb->protocol = eth_type_trans(skb, napi->dev);
+		skb->protocol = eth_type_trans(skb, skb->dev);
 
 		if (ret == GRO_NORMAL)
 			return netif_receive_skb(skb);
