@@ -361,10 +361,7 @@ static inline int acpi_processor_remove_fs(struct acpi_device *device)
 
 /* Use the acpiid in MADT to map cpus in case of SMP */
 
-#ifndef CONFIG_SMP
-static int get_cpu_id(acpi_handle handle, int type, u32 acpi_id) { return -1; }
-#else
-
+#ifdef CONFIG_SMP
 static struct acpi_table_madt *madt;
 
 static int map_lapic_id(struct acpi_subtable_header *entry,
@@ -496,7 +493,7 @@ exit:
 	return apic_id;
 }
 
-static int get_cpu_id(acpi_handle handle, int type, u32 acpi_id)
+int acpi_get_cpuid(acpi_handle handle, int type, u32 acpi_id)
 {
 	int i;
 	int apic_id = -1;
@@ -513,6 +510,7 @@ static int get_cpu_id(acpi_handle handle, int type, u32 acpi_id)
 	}
 	return -1;
 }
+EXPORT_SYMBOL_GPL(acpi_get_cpuid);
 #endif
 
 /* --------------------------------------------------------------------------
@@ -579,7 +577,7 @@ static int acpi_processor_get_info(struct acpi_device *device)
 		device_declaration = 1;
 		pr->acpi_id = value;
 	}
-	cpu_index = get_cpu_id(pr->handle, device_declaration, pr->acpi_id);
+	cpu_index = acpi_get_cpuid(pr->handle, device_declaration, pr->acpi_id);
 
 	/* Handle UP system running SMP kernel, with no LAPIC in MADT */
 	if (!cpu0_initialized && (cpu_index == -1) &&
