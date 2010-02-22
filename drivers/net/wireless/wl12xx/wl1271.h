@@ -396,10 +396,10 @@ struct wl1271 {
 	/* Accounting for allocated / available TX blocks on HW */
 	u32 tx_blocks_freed[NUM_TX_QUEUES];
 	u32 tx_blocks_available;
-	u8 tx_results_count;
+	u32 tx_results_count;
 
 	/* Transmitted TX packets counter for chipset interface */
-	int tx_packets_count;
+	u32 tx_packets_count;
 
 	/* Time-offset between host and chipset clocks */
 	int time_offset;

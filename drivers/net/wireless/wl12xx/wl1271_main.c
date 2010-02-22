@@ -453,14 +453,12 @@ static void wl1271_irq_work(struct work_struct *work)
 		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_HW_AVAILABLE");
 
 	if (intr & WL1271_ACX_INTR_DATA) {
-		u8 tx_res_cnt = wl->fw_status->tx_results_counter -
-			wl->tx_results_count;
-
 		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_DATA");
 
 		/* check for tx results */
-		if (tx_res_cnt)
-			wl1271_tx_complete(wl, tx_res_cnt);
+		if (wl->fw_status->tx_results_counter !=
+		    (wl->tx_results_count & 0xff))
+			wl1271_tx_complete(wl);
 
 		wl1271_rx(wl, wl->fw_status);
 	}
