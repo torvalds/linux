@@ -219,6 +219,8 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 		goto out_irq;
 
 	sdio_claim_host(func);
+	sdio_set_drvdata(func, wl);
+
 	ret = sdio_enable_func(func);
 	if (ret)
 		goto out_release;
@@ -246,10 +248,11 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 {
 	struct wl1271 *wl = sdio_get_drvdata(func);
 
+	ieee80211_unregister_hw(wl->hw);
+
 	sdio_claim_host(func);
 	sdio_disable_func(func);
 	sdio_release_host(func);
-	ieee80211_unregister_hw(wl->hw);
 
 	free_irq(wl->irq, wl);
 
