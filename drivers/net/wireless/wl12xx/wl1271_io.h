@@ -33,6 +33,8 @@ void wl1271_enable_interrupts(struct wl1271 *wl);
 void wl1271_io_reset(struct wl1271 *wl);
 void wl1271_io_init(struct wl1271 *wl);
 
+struct device *wl1271_wl_to_dev(struct wl1271 *wl);
+
 /* Raw target IO, address is not translated */
 void wl1271_raw_write(struct wl1271 *wl, int addr, void *buf,
 		      size_t len, bool fixed);

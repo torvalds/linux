@@ -33,6 +33,15 @@
 #include "wl1271_spi.h"
 #include "wl1271_io.h"
 
+static struct spi_device *wl_to_spi(struct wl1271 *wl)
+{
+	return wl->if_priv;
+}
+
+static struct device *wl1271_spi_wl_to_dev(struct wl1271 *wl)
+{
+	return &(wl_to_spi(wl)->dev);
+}
 
 void wl1271_spi_disable_interrupts(struct wl1271 *wl)
 {
@@ -65,7 +74,7 @@ void wl1271_spi_reset(struct wl1271 *wl)
 	t.len = WSPI_INIT_CMD_LEN;
 	spi_message_add_tail(&t, &m);
 
-	spi_sync(wl->spi, &m);
+	spi_sync(wl_to_spi(wl), &m);
 
 	wl1271_dump(DEBUG_SPI, "spi reset -> ", cmd, WSPI_INIT_CMD_LEN);
 }
@@ -119,7 +128,7 @@ void wl1271_spi_init(struct wl1271 *wl)
 	t.len = WSPI_INIT_CMD_LEN;
 	spi_message_add_tail(&t, &m);
 
-	spi_sync(wl->spi, &m);
+	spi_sync(wl_to_spi(wl), &m);
 
 	wl1271_dump(DEBUG_SPI, "spi init -> ", cmd, WSPI_INIT_CMD_LEN);
 }
@@ -151,7 +160,7 @@ static void wl1271_spi_read_busy(struct wl1271 *wl, void *buf, size_t len)
 			t[0].rx_buf = buf + (len - num_busy_bytes);
 			t[0].len = num_busy_bytes;
 			spi_message_add_tail(&t[0], &m);
-			spi_sync(wl->spi, &m);
+			spi_sync(wl_to_spi(wl), &m);
 			return;
 		}
 	}
@@ -171,7 +180,7 @@ static void wl1271_spi_read_busy(struct wl1271 *wl, void *buf, size_t len)
 		t[0].rx_buf = busy_buf;
 		t[0].len = sizeof(u32);
 		spi_message_add_tail(&t[0], &m);
-		spi_sync(wl->spi, &m);
+		spi_sync(wl_to_spi(wl), &m);
 
 		if (*busy_buf & 0x1) {
 			spi_message_init(&m);
@@ -179,7 +188,7 @@ static void wl1271_spi_read_busy(struct wl1271 *wl, void *buf, size_t len)
 			t[0].rx_buf = buf;
 			t[0].len = len;
 			spi_message_add_tail(&t[0], &m);
-			spi_sync(wl->spi, &m);
+			spi_sync(wl_to_spi(wl), &m);
 			return;
 		}
 	}
@@ -225,7 +234,7 @@ void wl1271_spi_raw_read(struct wl1271 *wl, int addr, void *buf,
 	t[2].len = len;
 	spi_message_add_tail(&t[2], &m);
 
-	spi_sync(wl->spi, &m);
+	spi_sync(wl_to_spi(wl), &m);
 
 	/* FIXME: Check busy words, removed due to SPI bug */
 	/* if (!(busy_buf[WL1271_BUSY_WORD_CNT - 1] & 0x1))
@@ -263,7 +272,7 @@ void wl1271_spi_raw_write(struct wl1271 *wl, int addr, void *buf,
 	t[1].len = len;
 	spi_message_add_tail(&t[1], &m);
 
-	spi_sync(wl->spi, &m);
+	spi_sync(wl_to_spi(wl), &m);
 
 	wl1271_dump(DEBUG_SPI, "spi_write cmd -> ", cmd, sizeof(*cmd));
 	wl1271_dump(DEBUG_SPI, "spi_write buf -> ", buf, len);
@@ -306,6 +315,16 @@ static struct platform_device wl1271_device = {
 	},
 };
 
+static struct wl1271_if_operations spi_ops = {
+	.read		= wl1271_spi_raw_read,
+	.write		= wl1271_spi_raw_write,
+	.reset		= wl1271_spi_reset,
+	.init		= wl1271_spi_init,
+	.dev		= wl1271_spi_wl_to_dev,
+	.enable_irq	= wl1271_spi_enable_interrupts,
+	.disable_irq	= wl1271_spi_disable_interrupts
+};
+
 static int __devinit wl1271_probe(struct spi_device *spi)
 {
 	struct wl12xx_platform_data *pdata;
@@ -326,7 +345,9 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	wl = hw->priv;
 
 	dev_set_drvdata(&spi->dev, wl);
-	wl->spi = spi;
+	wl->if_priv = spi;
+
+	wl->if_ops = &spi_ops;
 
 	/* This is the only SPI value that we need to set here, the rest
 	 * comes from the board-peripherals file */

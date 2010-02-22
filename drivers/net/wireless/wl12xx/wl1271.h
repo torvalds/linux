@@ -334,11 +334,25 @@ struct wl1271_scan {
 	u8 probe_requests;
 };
 
+struct wl1271_if_operations {
+	void (*read)(struct wl1271 *wl, int addr, void *buf, size_t len,
+		     bool fixed);
+	void (*write)(struct wl1271 *wl, int addr, void *buf, size_t len,
+		     bool fixed);
+	void (*reset)(struct wl1271 *wl);
+	void (*init)(struct wl1271 *wl);
+	struct device* (*dev)(struct wl1271 *wl);
+	void (*enable_irq)(struct wl1271 *wl);
+	void (*disable_irq)(struct wl1271 *wl);
+};
+
 struct wl1271 {
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
 
-	struct spi_device *spi;
+	void *if_priv;
+
+	struct wl1271_if_operations *if_ops;
 
 	void (*set_power)(bool enable);
 	int irq;

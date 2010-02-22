@@ -31,14 +31,19 @@
 #include "wl1271_spi.h"
 #include "wl1271_io.h"
 
+struct device *wl1271_wl_to_dev(struct wl1271 *wl)
+{
+	return wl->if_ops->dev(wl);
+}
+
 void wl1271_disable_interrupts(struct wl1271 *wl)
 {
-	wl1271_spi_disable_interrupts(wl);
+	wl->if_ops->disable_irq(wl);
 }
 
 void wl1271_enable_interrupts(struct wl1271 *wl)
 {
-	wl1271_spi_enable_interrupts(wl);
+	wl->if_ops->enable_irq(wl);
 }
 
 static int wl1271_translate_addr(struct wl1271 *wl, int addr)
@@ -127,24 +132,24 @@ int wl1271_set_partition(struct wl1271 *wl,
 
 void wl1271_io_reset(struct wl1271 *wl)
 {
-	wl1271_spi_reset(wl);
+	wl->if_ops->reset(wl);
 }
 
 void wl1271_io_init(struct wl1271 *wl)
 {
-	wl1271_spi_init(wl);
+	wl->if_ops->init(wl);
 }
 
 void wl1271_raw_write(struct wl1271 *wl, int addr, void *buf,
 		      size_t len, bool fixed)
 {
-	wl1271_spi_raw_write(wl, addr, buf, len, fixed);
+	wl->if_ops->write(wl, addr, buf, len, fixed);
 }
 
 void wl1271_raw_read(struct wl1271 *wl, int addr, void *buf,
 		     size_t len, bool fixed)
 {
-	wl1271_spi_raw_read(wl, addr, buf, len, fixed);
+	wl->if_ops->read(wl, addr, buf, len, fixed);
 }
 
 void wl1271_read(struct wl1271 *wl, int addr, void *buf, size_t len,
@@ -154,7 +159,7 @@ void wl1271_read(struct wl1271 *wl, int addr, void *buf, size_t len,
 
 	physical = wl1271_translate_addr(wl, addr);
 
-	wl1271_spi_raw_read(wl, physical, buf, len, fixed);
+	wl1271_raw_read(wl, physical, buf, len, fixed);
 }
 
 void wl1271_write(struct wl1271 *wl, int addr, void *buf, size_t len,
@@ -164,7 +169,7 @@ void wl1271_write(struct wl1271 *wl, int addr, void *buf, size_t len,
 
 	physical = wl1271_translate_addr(wl, addr);
 
-	wl1271_spi_raw_write(wl, physical, buf, len, fixed);
+	wl1271_raw_write(wl, physical, buf, len, fixed);
 }
 
 u32 wl1271_read32(struct wl1271 *wl, int addr)
