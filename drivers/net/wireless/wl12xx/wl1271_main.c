@@ -374,6 +374,7 @@ static void wl1271_power_on(struct wl1271 *wl)
 static void wl1271_fw_status(struct wl1271 *wl,
 			     struct wl1271_fw_status *status)
 {
+	struct timespec ts;
 	u32 total = 0;
 	int i;
 
@@ -402,8 +403,9 @@ static void wl1271_fw_status(struct wl1271 *wl,
 		ieee80211_queue_work(wl->hw, &wl->tx_work);
 
 	/* update the host-chipset time offset */
-	wl->time_offset = jiffies_to_usecs(jiffies) -
-		le32_to_cpu(status->fw_localtime);
+	getnstimeofday(&ts);
+	wl->time_offset = (timespec_to_ns(&ts) >> 10) -
+		(s64)le32_to_cpu(status->fw_localtime);
 }
 
 #define WL1271_IRQ_MAX_LOOPS 10

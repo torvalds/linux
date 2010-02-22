@@ -404,7 +404,7 @@ struct wl1271 {
 	u32 tx_packets_count;
 
 	/* Time-offset between host and chipset clocks */
-	int time_offset;
+	s64 time_offset;
 
 	/* Session counter for the chipset */
 	int session_counter;

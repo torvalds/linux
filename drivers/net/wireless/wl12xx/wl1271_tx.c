@@ -86,8 +86,10 @@ static int wl1271_tx_allocate(struct wl1271 *wl, struct sk_buff *skb, u32 extra)
 static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 			      u32 extra, struct ieee80211_tx_info *control)
 {
+	struct timespec ts;
 	struct wl1271_tx_hw_descr *desc;
 	int pad, ac;
+	s64 hosttime;
 	u16 tx_attr;
 
 	desc = (struct wl1271_tx_hw_descr *) skb->data;
@@ -101,8 +103,9 @@ static int wl1271_tx_fill_hdr(struct wl1271 *wl, struct sk_buff *skb,
 	}
 
 	/* configure packet life time */
-	desc->start_time = cpu_to_le32(jiffies_to_usecs(jiffies) -
-				       wl->time_offset);
+	getnstimeofday(&ts);
+	hosttime = (timespec_to_ns(&ts) >> 10);
+	desc->start_time = cpu_to_le32(hosttime - wl->time_offset);
 	desc->life_time = cpu_to_le16(TX_HW_MGMT_PKT_LIFETIME_TU);
 
 	/* configure the tx attributes */
