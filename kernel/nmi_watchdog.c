@@ -50,31 +50,31 @@ void touch_all_nmi_watchdog(void)
 
 static int __init setup_nmi_watchdog(char *str)
 {
-        if (!strncmp(str, "panic", 5)) {
-                panic_on_timeout = 1;
-                str = strchr(str, ',');
-                if (!str)
-                        return 1;
-                ++str;
-        }
-        return 1;
+	if (!strncmp(str, "panic", 5)) {
+		panic_on_timeout = 1;
+		str = strchr(str, ',');
+		if (!str)
+			return 1;
+		++str;
+	}
+	return 1;
 }
 __setup("nmi_watchdog=", setup_nmi_watchdog);
 
 struct perf_event_attr wd_hw_attr = {
-	.type = PERF_TYPE_HARDWARE,
-	.config = PERF_COUNT_HW_CPU_CYCLES,
-	.size = sizeof(struct perf_event_attr),
-	.pinned = 1,
-	.disabled = 1,
+	.type		= PERF_TYPE_HARDWARE,
+	.config		= PERF_COUNT_HW_CPU_CYCLES,
+	.size		= sizeof(struct perf_event_attr),
+	.pinned		= 1,
+	.disabled	= 1,
 };
 
 struct perf_event_attr wd_sw_attr = {
-	.type = PERF_TYPE_SOFTWARE,
-	.config = PERF_COUNT_SW_CPU_CLOCK,
-	.size = sizeof(struct perf_event_attr),
-	.pinned = 1,
-	.disabled = 1,
+	.type		= PERF_TYPE_SOFTWARE,
+	.config		= PERF_COUNT_SW_CPU_CLOCK,
+	.size		= sizeof(struct perf_event_attr),
+	.pinned		= 1,
+	.disabled	= 1,
 };
 
 void wd_overflow(struct perf_event *event, int nmi,
@@ -95,16 +95,15 @@ void wd_overflow(struct perf_event *event, int nmi,
 		 * Ayiee, looks like this CPU is stuck ...
 		 * wait a few IRQs (5 seconds) before doing the oops ...
 		 */
-		per_cpu(alert_counter,cpu) += 1;
-		if (per_cpu(alert_counter,cpu) == 5) {
-			if (panic_on_timeout) {
+		per_cpu(alert_counter, cpu) += 1;
+		if (per_cpu(alert_counter, cpu) == 5) {
+			if (panic_on_timeout)
 				panic("NMI Watchdog detected LOCKUP on cpu %d", cpu);
-			} else {
+			else
 				WARN(1, "NMI Watchdog detected LOCKUP on cpu %d", cpu);
-			}
 		}
 	} else {
-		per_cpu(alert_counter,cpu) = 0;
+		per_cpu(alert_counter, cpu) = 0;
 	}
 
 	return;
@@ -126,7 +125,7 @@ static int enable_nmi_watchdog(int cpu)
 		event = perf_event_create_kernel_counter(wd_attr, cpu, -1, wd_overflow);
 		if (IS_ERR(event)) {
 			/* hardware doesn't exist or not supported, fallback to software events */
-			printk("nmi_watchdog: hardware not available, trying software events\n");
+			printk(KERN_INFO "nmi_watchdog: hardware not available, trying software events\n");
 			wd_attr = &wd_sw_attr;
 			wd_attr->sample_period = NSEC_PER_SEC;
 			event = perf_event_create_kernel_counter(wd_attr, cpu, -1, wd_overflow);
@@ -182,7 +181,7 @@ int proc_nmi_enabled(struct ctl_table *table, int write,
 	if (nmi_watchdog_enabled) {
 		for_each_online_cpu(cpu)
 			if (enable_nmi_watchdog(cpu)) {
-				printk("NMI watchdog failed configuration, "
+				printk(KERN_ERR "NMI watchdog failed configuration, "
 					" can not be enabled\n");
 			}
 	} else {

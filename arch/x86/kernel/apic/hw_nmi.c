@@ -38,15 +38,15 @@ static inline unsigned int get_timer_irqs(int cpu)
 	irqs += per_cpu(irq_stat, cpu).apic_timer_irqs;
 #endif
 
-        return irqs;
+	return irqs;
 }
 
 static inline int mce_in_progress(void)
 {
 #if defined(CONFIG_X86_MCE)
-        return atomic_read(&mce_entry) > 0;
+	return atomic_read(&mce_entry) > 0;
 #endif
-        return 0;
+	return 0;
 }
 
 int hw_nmi_is_cpu_stuck(struct pt_regs *regs)
@@ -69,9 +69,9 @@ int hw_nmi_is_cpu_stuck(struct pt_regs *regs)
 	}
 
 	/* if we are doing an mce, just assume the cpu is not stuck */
-        /* Could check oops_in_progress here too, but it's safer not to */
-        if (mce_in_progress())
-                return 0;
+	/* Could check oops_in_progress here too, but it's safer not to */
+	if (mce_in_progress())
+		return 0;
 
 	/* We determine if the cpu is stuck by checking whether any
 	 * interrupts have happened since we last checked.  Of course
@@ -89,7 +89,7 @@ int hw_nmi_is_cpu_stuck(struct pt_regs *regs)
 
 u64 hw_nmi_get_sample_period(void)
 {
-        return cpu_khz * 1000;
+	return cpu_khz * 1000;
 }
 
 #ifdef ARCH_HAS_NMI_WATCHDOG

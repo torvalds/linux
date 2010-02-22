@@ -57,7 +57,7 @@ u64 hw_nmi_get_sample_period(void);
 extern int nmi_watchdog_enabled;
 struct ctl_table;
 extern int proc_nmi_enabled(struct ctl_table *, int ,
-                        void __user *, size_t *, loff_t *);
+			void __user *, size_t *, loff_t *);
 #endif
 
 #endif

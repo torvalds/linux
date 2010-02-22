@@ -402,9 +402,9 @@ static notrace __kprobes void default_do_nmi(struct pt_regs *regs)
 			return;
 
 #ifdef CONFIG_X86_LOCAL_APIC
-	        if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT)
-	        			                == NOTIFY_STOP)
-	                return;
+		if (notify_die(DIE_NMI, "nmi", regs, reason, 2, SIGINT)
+							== NOTIFY_STOP)
+			return;
 
 #ifndef CONFIG_NMI_WATCHDOG
 		/*
