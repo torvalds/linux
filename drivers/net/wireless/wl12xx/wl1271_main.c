@@ -424,8 +424,6 @@ static void wl1271_irq_work(struct work_struct *work)
 	if (ret < 0)
 		goto out;
 
-	wl1271_write32(wl, ACX_REG_INTERRUPT_MASK, WL1271_ACX_INTR_ALL);
-
 	wl1271_fw_status(wl, wl->fw_status);
 	intr = le32_to_cpu(wl->fw_status->intr);
 	if (!intr) {
@@ -464,8 +462,6 @@ static void wl1271_irq_work(struct work_struct *work)
 	}
 
 out_sleep:
-	wl1271_write32(wl, ACX_REG_INTERRUPT_MASK,
-		       WL1271_ACX_INTR_ALL & ~(WL1271_INTR_MASK));
 	wl1271_ps_elp_sleep(wl);
 
 out:
