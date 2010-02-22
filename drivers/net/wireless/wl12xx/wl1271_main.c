@@ -33,7 +33,6 @@
 #include "wl1271.h"
 #include "wl12xx_80211.h"
 #include "wl1271_reg.h"
-#include "wl1271_spi.h"
 #include "wl1271_io.h"
 #include "wl1271_event.h"
 #include "wl1271_tx.h"

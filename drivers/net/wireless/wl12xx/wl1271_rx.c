@@ -25,7 +25,6 @@
 #include "wl1271_acx.h"
 #include "wl1271_reg.h"
 #include "wl1271_rx.h"
-#include "wl1271_spi.h"
 #include "wl1271_io.h"
 
 static u8 wl1271_rx_get_mem_block(struct wl1271_fw_status *status,

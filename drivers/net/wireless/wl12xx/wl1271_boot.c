@@ -26,7 +26,6 @@
 #include "wl1271_acx.h"
 #include "wl1271_reg.h"
 #include "wl1271_boot.h"
-#include "wl1271_spi.h"
 #include "wl1271_io.h"
 #include "wl1271_event.h"
 

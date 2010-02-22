@@ -25,6 +25,23 @@
 #ifndef __WL1271_IO_H__
 #define __WL1271_IO_H__
 
+#include "wl1271_reg.h"
+
+#define HW_ACCESS_MEMORY_MAX_RANGE	0x1FFC0
+
+#define HW_PARTITION_REGISTERS_ADDR     0x1FFC0
+#define HW_PART0_SIZE_ADDR              (HW_PARTITION_REGISTERS_ADDR)
+#define HW_PART0_START_ADDR             (HW_PARTITION_REGISTERS_ADDR + 4)
+#define HW_PART1_SIZE_ADDR              (HW_PARTITION_REGISTERS_ADDR + 8)
+#define HW_PART1_START_ADDR             (HW_PARTITION_REGISTERS_ADDR + 12)
+#define HW_PART2_SIZE_ADDR              (HW_PARTITION_REGISTERS_ADDR + 16)
+#define HW_PART2_START_ADDR             (HW_PARTITION_REGISTERS_ADDR + 20)
+#define HW_PART3_START_ADDR             (HW_PARTITION_REGISTERS_ADDR + 24)
+
+#define HW_ACCESS_REGISTER_SIZE         4
+
+#define HW_ACCESS_PRAM_MAX_RANGE	0x3c000
+
 struct wl1271;
 
 void wl1271_disable_interrupts(struct wl1271 *wl);
