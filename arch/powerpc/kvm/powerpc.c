@@ -200,6 +200,10 @@ struct kvm_vcpu *kvm_arch_vcpu_create(struct kvm *kvm, unsigned int id)
 
 void kvm_arch_vcpu_free(struct kvm_vcpu *vcpu)
 {
+	/* Make sure we're not using the vcpu anymore */
+	hrtimer_cancel(&vcpu->arch.dec_timer);
+	tasklet_kill(&vcpu->arch.tasklet);
+
 	kvmppc_remove_vcpu_debugfs(vcpu);
 	kvmppc_core_vcpu_free(vcpu);
 }
