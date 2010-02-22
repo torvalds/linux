@@ -85,7 +85,6 @@ static inline pte_t pte_mkspecial(pte_t pte)	{ return pte; }
 #define VMALLOC_START	(CONFIG_KERNEL_START + \
 				max(32 * 1024 * 1024UL, memory_size))
 #define VMALLOC_END	ioremap_bot
-#define VMALLOC_VMADDR(x) ((unsigned long)(x))
 
 #endif /* __ASSEMBLY__ */
 
