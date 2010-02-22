@@ -15,3 +15,4 @@ wl1271-objs		= wl1271_main.o  wl1271_cmd.o wl1271_io.o \
 wl1271-$(CONFIG_NL80211_TESTMODE)	+= wl1271_testmode.o
 obj-$(CONFIG_WL1271)	+= wl1271.o
 obj-$(CONFIG_WL1271_SPI)	+= wl1271_spi.o
+obj-$(CONFIG_WL1271_SDIO)	+= wl1271_sdio.o
