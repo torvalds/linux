@@ -395,7 +395,7 @@ static void emac_hash_mc(struct emac_instance *dev)
 
 	memset(gaht_temp, 0, sizeof (gaht_temp));
 
-	for (dmi = dev->ndev->mc_list; dmi; dmi = dmi->next) {
+	netdev_for_each_mc_addr(dmi, dev->ndev) {
 		int slot, reg, mask;
 		DBG2(dev, "mc %pM" NL, dmi->dmi_addr);
 

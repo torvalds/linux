@@ -965,10 +965,9 @@ static void emac_dev_mcast_set(struct net_device *ndev)
 			mbp_enable = (mbp_enable | EMAC_MBP_RXMCAST);
 			emac_add_mcast(priv, EMAC_ALL_MULTI_CLR, NULL);
 			/* program multicast address list into EMAC hardware */
-			for (mc_ptr = ndev->mc_list; mc_ptr;
-			     mc_ptr = mc_ptr->next) {
+			netdev_for_each_mc_addr(mc_ptr, ndev) {
 				emac_add_mcast(priv, EMAC_MULTICAST_ADD,
-					       (u8 *)mc_ptr->dmi_addr);
+					       (u8 *) mc_ptr->dmi_addr);
 			}
 		} else {
 			mbp_enable = (mbp_enable & ~EMAC_MBP_RXMCAST);

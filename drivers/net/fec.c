@@ -1575,7 +1575,7 @@ static void set_multicast_list(struct net_device *dev)
 {
 	struct fec_enet_private *fep = netdev_priv(dev);
 	struct dev_mc_list *dmi;
-	unsigned int i, j, bit, data, crc, tmp;
+	unsigned int i, bit, data, crc, tmp;
 	unsigned char hash;
 
 	if (dev->flags & IFF_PROMISC) {
@@ -1604,9 +1604,7 @@ static void set_multicast_list(struct net_device *dev)
 	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_HIGH);
 	writel(0, fep->hwp + FEC_GRP_HASH_TABLE_LOW);
 
-	dmi = dev->mc_list;
-
-	for (j = 0; j < netdev_mc_count(dev); j++, dmi = dmi->next) {
+	netdev_for_each_mc_addr(dmi, dev) {
 		/* Only support group multicast for now */
 		if (!(dmi->dmi_addr[0] & 1))
 			continue;

@@ -1537,14 +1537,18 @@ static int e100_hw_init(struct nic *nic)
 static void e100_multi(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 	struct net_device *netdev = nic->netdev;
-	struct dev_mc_list *list = netdev->mc_list;
+	struct dev_mc_list *list;
 	u16 i, count = min(netdev_mc_count(netdev), E100_MAX_MULTICAST_ADDRS);
 
 	cb->command = cpu_to_le16(cb_multi);
 	cb->u.multi.count = cpu_to_le16(count * ETH_ALEN);
-	for (i = 0; list && i < count; i++, list = list->next)
-		memcpy(&cb->u.multi.addr[i*ETH_ALEN], &list->dmi_addr,
+	i = 0;
+	netdev_for_each_mc_addr(list, netdev) {
+		if (i == count)
+			break;
+		memcpy(&cb->u.multi.addr[i++ * ETH_ALEN], &list->dmi_addr,
 			ETH_ALEN);
+	}
 }
 
 static void e100_set_multicast_list(struct net_device *netdev)

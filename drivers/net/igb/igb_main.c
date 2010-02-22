@@ -2877,7 +2877,7 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
 {
 	struct igb_adapter *adapter = netdev_priv(netdev);
 	struct e1000_hw *hw = &adapter->hw;
-	struct dev_mc_list *mc_ptr = netdev->mc_list;
+	struct dev_mc_list *mc_ptr;
 	u8  *mta_list;
 	int i;
 
@@ -2893,14 +2893,10 @@ static int igb_write_mc_addr_list(struct net_device *netdev)
 		return -ENOMEM;
 
 	/* The shared function expects a packed array of only addresses. */
-	mc_ptr = netdev->mc_list;
+	i = 0;
+	netdev_for_each_mc_addr(mc_ptr, netdev)
+		memcpy(mta_list + (i++ * ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
 
-	for (i = 0; i < netdev_mc_count(netdev); i++) {
-		if (!mc_ptr)
-			break;
-		memcpy(mta_list + (i*ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
-		mc_ptr = mc_ptr->next;
-	}
 	igb_update_mc_addr_list(hw, mta_list, i);
 	kfree(mta_list);
 

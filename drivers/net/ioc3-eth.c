@@ -1664,11 +1664,10 @@ static int ioc3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static void ioc3_set_multicast_list(struct net_device *dev)
 {
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	struct ioc3_private *ip = netdev_priv(dev);
 	struct ioc3 *ioc3 = ip->regs;
 	u64 ehar = 0;
-	int i;
 
 	netif_stop_queue(dev);				/* Lock out others. */
 
@@ -1689,9 +1688,8 @@ static void ioc3_set_multicast_list(struct net_device *dev)
 			ip->ehar_h = 0xffffffff;
 			ip->ehar_l = 0xffffffff;
 		} else {
-			for (i = 0; i < netdev_mc_count(dev); i++) {
+			netdev_for_each_mc_addr(dmi, dev) {
 				char *addr = dmi->dmi_addr;
-				dmi = dmi->next;
 
 				if (!(*addr & 1))
 					continue;

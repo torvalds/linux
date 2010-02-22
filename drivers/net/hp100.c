@@ -2098,7 +2098,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
 			/* set hash filter to receive all multicast packets */
 			memset(&lp->hash_bytes, 0xff, 8);
 		} else {
-			int i, j, idx;
+			int i, idx;
 			u_char *addrs;
 			struct dev_mc_list *dmi;
 
@@ -2107,14 +2107,14 @@ static void hp100_set_multicast_list(struct net_device *dev)
 			printk("hp100: %s: computing hash filter - mc_count = %i\n",
 			       dev->name, netdev_mc_count(dev));
 #endif
-			for (i = 0, dmi = dev->mc_list; i < netdev_mc_count(dev); i++, dmi = dmi->next) {
+			netdev_for_each_mc_addr(dmi, dev) {
 				addrs = dmi->dmi_addr;
 				if ((*addrs & 0x01) == 0x01) {	/* multicast address? */
 #ifdef HP100_DEBUG
 					printk("hp100: %s: multicast = %pM, ",
 						     dev->name, addrs);
 #endif
-					for (j = idx = 0; j < 6; j++) {
+					for (i = idx = 0; i < 6; i++) {
 						idx ^= *addrs++ & 0x3f;
 						printk(":%02x:", idx);
 					}

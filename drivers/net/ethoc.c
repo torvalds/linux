@@ -755,7 +755,7 @@ static void ethoc_set_multicast_list(struct net_device *dev)
 {
 	struct ethoc *priv = netdev_priv(dev);
 	u32 mode = ethoc_read(priv, MODER);
-	struct dev_mc_list *mc = NULL;
+	struct dev_mc_list *mc;
 	u32 hash[2] = { 0, 0 };
 
 	/* set loopback mode if requested */
@@ -783,8 +783,8 @@ static void ethoc_set_multicast_list(struct net_device *dev)
 		hash[0] = 0xffffffff;
 		hash[1] = 0xffffffff;
 	} else {
-		for (mc = dev->mc_list; mc; mc = mc->next) {
-			u32 crc = ether_crc(mc->dmi_addrlen, mc->dmi_addr);
+		netdev_for_each_mc_addr(mc, dev) {
+			u32 crc = ether_crc(ETH_ALEN, mc->dmi_addr);
 			int bit = (crc >> 26) & 0x3f;
 			hash[bit >> 5] |= 1 << (bit & 0x1f);
 		}

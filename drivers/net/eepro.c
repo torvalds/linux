@@ -1287,7 +1287,7 @@ set_multicast_list(struct net_device *dev)
 	struct eepro_local *lp = netdev_priv(dev);
 	short ioaddr = dev->base_addr;
 	unsigned short mode;
-	struct dev_mc_list *dmi=dev->mc_list;
+	struct dev_mc_list *dmi;
 	int mc_count = netdev_mc_count(dev);
 
 	if (dev->flags&(IFF_ALLMULTI|IFF_PROMISC) || mc_count > 63)
@@ -1332,10 +1332,8 @@ set_multicast_list(struct net_device *dev)
 		outw(0, ioaddr + IO_PORT);
 		outw(6 * (mc_count + 1), ioaddr + IO_PORT);
 
-		for (i = 0; i < mc_count; i++)
-		{
-			eaddrs=(unsigned short *)dmi->dmi_addr;
-			dmi=dmi->next;
+		netdev_for_each_mc_addr(dmi, dev) {
+			eaddrs = (unsigned short *) dmi->dmi_addr;
 			outw(*eaddrs++, ioaddr + IO_PORT);
 			outw(*eaddrs++, ioaddr + IO_PORT);
 			outw(*eaddrs++, ioaddr + IO_PORT);

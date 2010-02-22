@@ -1413,15 +1413,9 @@ static void igbvf_set_multi(struct net_device *netdev)
 	}
 
 	/* prepare a packed array of only addresses. */
-	mc_ptr = netdev->mc_list;
-
-	for (i = 0; i < netdev_mc_count(netdev); i++) {
-		if (!mc_ptr)
-			break;
-		memcpy(mta_list + (i*ETH_ALEN), mc_ptr->dmi_addr,
-		       ETH_ALEN);
-		mc_ptr = mc_ptr->next;
-	}
+	i = 0;
+	netdev_for_each_mc_addr(mc_ptr, netdev)
+		memcpy(mta_list + (i++ * ETH_ALEN), mc_ptr->dmi_addr, ETH_ALEN);
 
 	hw->mac.ops.update_mc_addr_list(hw, mta_list, i, 0, 0);
 	kfree(mta_list);

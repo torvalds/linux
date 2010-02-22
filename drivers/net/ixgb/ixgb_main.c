@@ -1088,10 +1088,9 @@ ixgb_set_multi(struct net_device *netdev)
 
 		IXGB_WRITE_REG(hw, RCTL, rctl);
 
-		for (i = 0, mc_ptr = netdev->mc_list;
-		     mc_ptr;
-		     i++, mc_ptr = mc_ptr->next)
-			memcpy(&mta[i * IXGB_ETH_LENGTH_OF_ADDRESS],
+		i = 0;
+		netdev_for_each_mc_addr(mc_ptr, netdev)
+			memcpy(&mta[i++ * IXGB_ETH_LENGTH_OF_ADDRESS],
 			       mc_ptr->dmi_addr, IXGB_ETH_LENGTH_OF_ADDRESS);
 
 		ixgb_mc_addr_list_update(hw, mta, netdev_mc_count(netdev), 0);

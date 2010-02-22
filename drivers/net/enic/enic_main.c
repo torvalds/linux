@@ -822,7 +822,7 @@ static int enic_set_mac_addr(struct net_device *netdev, char *addr)
 static void enic_set_multicast_list(struct net_device *netdev)
 {
 	struct enic *enic = netdev_priv(netdev);
-	struct dev_mc_list *list = netdev->mc_list;
+	struct dev_mc_list *list;
 	int directed = 1;
 	int multicast = (netdev->flags & IFF_MULTICAST) ? 1 : 0;
 	int broadcast = (netdev->flags & IFF_BROADCAST) ? 1 : 0;
@@ -851,9 +851,11 @@ static void enic_set_multicast_list(struct net_device *netdev)
 	 * look for changes to add/del.
 	 */
 
-	for (i = 0; list && i < mc_count; i++) {
-		memcpy(mc_addr[i], list->dmi_addr, ETH_ALEN);
-		list = list->next;
+	i = 0;
+	netdev_for_each_mc_addr(list, netdev) {
+		if (i == mc_count)
+			break;
+		memcpy(mc_addr[i++], list->dmi_addr, ETH_ALEN);
 	}
 
 	for (i = 0; i < enic->mc_count; i++) {

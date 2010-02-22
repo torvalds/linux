@@ -666,7 +666,7 @@ set_multicast_list(struct net_device *dev)
 	else if (!netdev_mc_empty(dev))
 	{
 		/* Walk the address list, and load the filter */
-		hardware_set_filter(dev->mc_list);
+		hardware_set_filter(dev);
 
 		outw(MULTICAST, ioaddr);
 	}

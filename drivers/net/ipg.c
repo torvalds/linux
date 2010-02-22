@@ -608,8 +608,7 @@ static void ipg_nic_set_multicast_list(struct net_device *dev)
 	hashtable[1] = 0x00000000;
 
 	/* Cycle through all multicast addresses to filter. */
-	for (mc_list_ptr = dev->mc_list;
-	     mc_list_ptr != NULL; mc_list_ptr = mc_list_ptr->next) {
+	netdev_for_each_mc_addr(mc_list_ptr, dev) {
 		/* Calculate CRC result for each multicast address. */
 		hashindex = crc32_le(0xffffffff, mc_list_ptr->dmi_addr,
 				     ETH_ALEN);

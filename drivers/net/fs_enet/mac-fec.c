@@ -236,7 +236,7 @@ static void set_multicast_list(struct net_device *dev)
 
 	if ((dev->flags & IFF_PROMISC) == 0) {
 		set_multicast_start(dev);
-		for (pmc = dev->mc_list; pmc != NULL; pmc = pmc->next)
+		netdev_for_each_mc_addr(pmc, dev)
 			set_multicast_one(dev, pmc->dmi_addr);
 		set_multicast_finish(dev);
 	} else
