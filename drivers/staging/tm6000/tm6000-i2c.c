@@ -44,6 +44,36 @@ MODULE_PARM_DESC(i2c_debug, "enable debug messages [i2c]");
 			printk(KERN_DEBUG "%s at %s: " fmt, \
 			dev->name, __FUNCTION__ , ##args); } while (0)
 
+static int tm6000_i2c_send_regs(struct tm6000_core *dev, unsigned char addr,
+				__u8 reg, char *buf, int len)
+{
+	return tm6000_read_write_usb(dev, USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+		REQ_16_SET_GET_I2C_WR1_RDN, addr | reg << 8, 0, buf, len);
+}
+
+/* Generic read - doesn't work fine with 16bit registers */
+static int tm6000_i2c_recv_regs(struct tm6000_core *dev, unsigned char addr,
+				__u8 reg, char *buf, int len)
+{
+	int rc;
+
+	rc = tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			REQ_16_SET_GET_I2C_WR1_RDN, addr | reg << 8, 0, buf, len);
+
+	return rc;
+}
+
+/*
+ * read from a 16bit register
+ * for example xc2028, xc3028 or xc3028L
+ */
+static int tm6000_i2c_recv_regs16(struct tm6000_core *dev, unsigned char addr,
+				  __u16 reg, char *buf, int len)
+{
+	return tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+		REQ_14_SET_GET_I2C_WR2_RDN, addr, reg, buf, len);
+}
+
 static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			   struct i2c_msg msgs[], int num)
 {
@@ -78,13 +108,16 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			i2c_dprintk(2, "; joined to read %s len=%d:",
 				    i == num - 2 ? "stop" : "nonstop",
 				    msgs[i + 1].len);
-			rc = tm6000_read_write_usb (dev,
-				USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-				msgs[i].len == 1 ? REQ_16_SET_GET_I2C_WR1_RDN
-						 : REQ_14_SET_GET_I2C_WR2_RDN,
-				addr | msgs[i].buf[0] << 8,
-				msgs[i].len == 1 ? 0 : msgs[i].buf[1],
-				msgs[i + 1].buf, msgs[i + 1].len);
+
+			if (msgs[i].len == 2) {
+				rc = tm6000_i2c_recv_regs16(dev, addr,
+					msgs[i].buf[0] << 8 | msgs[i].buf[1],
+					msgs[i + 1].buf, msgs[i + 1].len);
+			} else {
+				rc = tm6000_i2c_recv_regs(dev, addr, msgs[i].buf[0],
+					msgs[i + 1].buf, msgs[i + 1].len);
+			}
+
 			i++;
 
 			if (addr == dev->tuner_addr << 1) {
@@ -99,10 +132,7 @@ static int tm6000_i2c_xfer(struct i2c_adapter *i2c_adap,
 			if (i2c_debug >= 2)
 				for (byte = 0; byte < msgs[i].len; byte++)
 					printk(" %02x", msgs[i].buf[byte]);
-			rc = tm6000_read_write_usb(dev,
-				USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-				REQ_16_SET_GET_I2C_WR1_RDN,
-				addr | msgs[i].buf[0] << 8, 0,
+			rc = tm6000_i2c_send_regs(dev, addr, msgs[i].buf[0],
 				msgs[i].buf + 1, msgs[i].len - 1);
 
 			if (addr == dev->tuner_addr  << 1) {
@@ -134,9 +164,7 @@ static int tm6000_i2c_eeprom(struct tm6000_core *dev,
 	bytes[16] = '\0';
 	for (i = 0; i < len; ) {
 	*p = i;
-	rc = tm6000_read_write_usb (dev,
-		USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-		REQ_16_SET_GET_I2C_WR1_RDN, 0xa0 | i<<8, 0, p, 1);
+	rc = tm6000_i2c_recv_regs(dev, 0xa0, i, p, 1);
 		if (rc < 1) {
 			if (p == eedata)
 				goto noeeprom;
