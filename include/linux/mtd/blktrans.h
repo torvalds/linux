@@ -9,6 +9,7 @@
 #define __MTD_TRANS_H__
 
 #include <linux/mutex.h>
+#include <linux/kref.h>
 
 struct hd_geometry;
 struct mtd_info;
@@ -24,6 +25,8 @@ struct mtd_blktrans_dev {
 	int devnum;
 	unsigned long size;
 	int readonly;
+	int open;
+	struct kref ref;
 	struct gendisk *disk;
 	struct task_struct *thread;
 	struct request_queue *rq;

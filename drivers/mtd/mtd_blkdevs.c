@@ -24,6 +24,40 @@
 #include "mtdcore.h"
 
 static LIST_HEAD(blktrans_majors);
+static DEFINE_MUTEX(blktrans_ref_mutex);
+
+void blktrans_dev_release(struct kref *kref)
+{
+	struct mtd_blktrans_dev *dev =
+		container_of(kref, struct mtd_blktrans_dev, ref);
+
+	dev->disk->private_data = NULL;
+	put_disk(dev->disk);
+	list_del(&dev->list);
+	kfree(dev);
+}
+
+static struct mtd_blktrans_dev *blktrans_dev_get(struct gendisk *disk)
+{
+	struct mtd_blktrans_dev *dev;
+
+	mutex_lock(&blktrans_ref_mutex);
+	dev = disk->private_data;
+
+	if (!dev)
+		goto unlock;
+	kref_get(&dev->ref);
+unlock:
+	mutex_unlock(&blktrans_ref_mutex);
+	return dev;
+}
+
+void blktrans_dev_put(struct mtd_blktrans_dev *dev)
+{
+	mutex_lock(&blktrans_ref_mutex);
+	kref_put(&dev->ref, blktrans_dev_release);
+	mutex_unlock(&blktrans_ref_mutex);
+}
 
 
 static int do_blktrans_request(struct mtd_blktrans_ops *tr,
@@ -111,81 +145,112 @@ static int mtd_blktrans_thread(void *arg)
 
 static void mtd_blktrans_request(struct request_queue *rq)
 {
-	struct mtd_blktrans_dev *dev = rq->queuedata;
-	wake_up_process(dev->thread);
-}
+	struct mtd_blktrans_dev *dev;
+	struct request *req = NULL;
 
+	dev = rq->queuedata;
+
+	if (!dev)
+		while ((req = blk_fetch_request(rq)) != NULL)
+			__blk_end_request_all(req, -ENODEV);
+	else
+		wake_up_process(dev->thread);
+}
 
 static int blktrans_open(struct block_device *bdev, fmode_t mode)
 {
-	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
-	struct mtd_blktrans_ops *tr = dev->tr;
-	int ret = -ENODEV;
+	struct mtd_blktrans_dev *dev = blktrans_dev_get(bdev->bd_disk);
+	int ret;
 
-	if (!get_mtd_device(NULL, dev->mtd->index))
-		goto out;
+	if (!dev)
+		return -ERESTARTSYS;
 
-	if (!try_module_get(tr->owner))
-		goto out_tr;
+	mutex_lock(&dev->lock);
 
-	/* FIXME: Locking. A hot pluggable device can go away
-	   (del_mtd_device can be called for it) without its module
-	   being unloaded. */
-	dev->mtd->usecount++;
-
-	ret = 0;
-	if (tr->open && (ret = tr->open(dev))) {
-		dev->mtd->usecount--;
-		put_mtd_device(dev->mtd);
-	out_tr:
-		module_put(tr->owner);
+	if (!dev->mtd) {
+		ret = -ENXIO;
+		goto unlock;
 	}
- out:
+
+	ret = !dev->open++ && dev->tr->open ? dev->tr->open(dev) : 0;
+
+	/* Take another reference on the device so it won't go away till
+		last release */
+	if (!ret)
+		kref_get(&dev->ref);
+unlock:
+	mutex_unlock(&dev->lock);
+	blktrans_dev_put(dev);
 	return ret;
 }
 
 static int blktrans_release(struct gendisk *disk, fmode_t mode)
 {
-	struct mtd_blktrans_dev *dev = disk->private_data;
-	struct mtd_blktrans_ops *tr = dev->tr;
-	int ret = 0;
+	struct mtd_blktrans_dev *dev = blktrans_dev_get(disk);
+	int ret = -ENXIO;
 
-	if (tr->release)
-		ret = tr->release(dev);
+	if (!dev)
+		return ret;
 
-	if (!ret) {
-		dev->mtd->usecount--;
-		put_mtd_device(dev->mtd);
-		module_put(tr->owner);
-	}
+	mutex_lock(&dev->lock);
 
+	/* Release one reference, we sure its not the last one here*/
+	kref_put(&dev->ref, blktrans_dev_release);
+
+	if (!dev->mtd)
+		goto unlock;
+
+	ret = !--dev->open && dev->tr->release ? dev->tr->release(dev) : 0;
+unlock:
+	mutex_unlock(&dev->lock);
+	blktrans_dev_put(dev);
 	return ret;
 }
 
 static int blktrans_getgeo(struct block_device *bdev, struct hd_geometry *geo)
 {
-	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
+	struct mtd_blktrans_dev *dev = blktrans_dev_get(bdev->bd_disk);
+	int ret = -ENXIO;
 
-	if (dev->tr->getgeo)
-		return dev->tr->getgeo(dev, geo);
-	return -ENOTTY;
+	if (!dev)
+		return ret;
+
+	mutex_lock(&dev->lock);
+
+	if (!dev->mtd)
+		goto unlock;
+
+	ret = dev->tr->getgeo ? dev->tr->getgeo(dev, geo) : 0;
+unlock:
+	mutex_unlock(&dev->lock);
+	blktrans_dev_put(dev);
+	return ret;
 }
 
 static int blktrans_ioctl(struct block_device *bdev, fmode_t mode,
 			      unsigned int cmd, unsigned long arg)
 {
-	struct mtd_blktrans_dev *dev = bdev->bd_disk->private_data;
-	struct mtd_blktrans_ops *tr = dev->tr;
+	struct mtd_blktrans_dev *dev = blktrans_dev_get(bdev->bd_disk);
+	int ret = -ENXIO;
+
+	if (!dev)
+		return ret;
+
+	mutex_lock(&dev->lock);
+
+	if (!dev->mtd)
+		goto unlock;
 
 	switch (cmd) {
 	case BLKFLSBUF:
-		if (tr->flush)
-			return tr->flush(dev);
-		/* The core code did the work, we had nothing to do. */
-		return 0;
+		ret = dev->tr->flush ? dev->tr->flush(dev) : 0;
 	default:
-		return -ENOTTY;
+		ret = -ENOTTY;
 	}
+unlock:
+	mutex_unlock(&dev->lock);
+	blktrans_dev_put(dev);
+	return ret;
 }
 
 static const struct block_device_operations mtd_blktrans_ops = {
@@ -209,6 +274,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 		BUG();
 	}
 
+	mutex_lock(&blktrans_ref_mutex);
 	list_for_each_entry(d, &tr->devs, list) {
 		if (new->devnum == -1) {
 			/* Use first free number */
@@ -220,6 +286,7 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 			}
 		} else if (d->devnum == new->devnum) {
 			/* Required number taken */
+			mutex_unlock(&blktrans_ref_mutex);
 			return -EBUSY;
 		} else if (d->devnum > new->devnum) {
 			/* Required number was free */
@@ -237,15 +304,19 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	 * minor numbers and that the disk naming code below can cope
 	 * with this number. */
 	if (new->devnum > (MINORMASK >> tr->part_bits) ||
-	    (tr->part_bits && new->devnum >= 27 * 26))
+	    (tr->part_bits && new->devnum >= 27 * 26)) {
+		mutex_unlock(&blktrans_ref_mutex);
 		goto error1;
+	}
 
 	list_add_tail(&new->list, &tr->devs);
  added:
+	mutex_unlock(&blktrans_ref_mutex);
+
 	mutex_init(&new->lock);
+	kref_init(&new->ref);
 	if (!tr->writesect)
 		new->readonly = 1;
-
 
 	/* Create gendisk */
 	ret = -ENOMEM;
@@ -275,7 +346,6 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 	set_capacity(gd, (new->size * tr->blksize) >> 9);
 
-
 	/* Create the request queue */
 	spin_lock_init(&new->queue_lock);
 	new->rq = blk_init_queue(mtd_blktrans_request, &new->queue_lock);
@@ -291,6 +361,9 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 					new->rq);
 
 	gd->queue = new->rq;
+
+	__get_mtd_device(new->mtd);
+	__module_get(tr->owner);
 
 	/* Create processing thread */
 	/* TODO: workqueue ? */
@@ -308,6 +381,8 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 	add_disk(gd);
 	return 0;
 error4:
+	module_put(tr->owner);
+	__put_mtd_device(new->mtd);
 	blk_cleanup_queue(new->rq);
 error3:
 	put_disk(new->disk);
@@ -320,20 +395,41 @@ error1:
 
 int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 {
+	unsigned long flags;
+
 	if (mutex_trylock(&mtd_table_mutex)) {
 		mutex_unlock(&mtd_table_mutex);
 		BUG();
 	}
 
-	list_del(&old->list);
-
-	/* stop new requests to arrive */
+	/* Stop new requests to arrive */
 	del_gendisk(old->disk);
 
 	/* Stop the thread */
 	kthread_stop(old->thread);
 
+	/* Kill current requests */
+	spin_lock_irqsave(&old->queue_lock, flags);
+	old->rq->queuedata = NULL;
+	blk_start_queue(old->rq);
+	spin_unlock_irqrestore(&old->queue_lock, flags);
 	blk_cleanup_queue(old->rq);
+
+	/* Ask trans driver for release to the mtd device */
+	mutex_lock(&old->lock);
+	if (old->open && old->tr->release) {
+		old->tr->release(old);
+		old->open = 0;
+	}
+
+	__put_mtd_device(old->mtd);
+	module_put(old->tr->owner);
+
+	/* At that point, we don't touch the mtd anymore */
+	old->mtd = NULL;
+
+	mutex_unlock(&old->lock);
+	blktrans_dev_put(old);
 	return 0;
 }
 
@@ -396,7 +492,6 @@ int register_mtd_blktrans(struct mtd_blktrans_ops *tr)
 			tr->add_mtd(tr, mtd);
 
 	mutex_unlock(&mtd_table_mutex);
-
 	return 0;
 }
 
@@ -405,7 +500,6 @@ int deregister_mtd_blktrans(struct mtd_blktrans_ops *tr)
 	struct mtd_blktrans_dev *dev, *next;
 
 	mutex_lock(&mtd_table_mutex);
-
 
 	/* Remove it from the list of active majors */
 	list_del(&tr->list);
