@@ -38,7 +38,7 @@
 #define GIG_COMPAT  {0, 4, 0, 0}
 
 #define MAX_REC_PARAMS 10	/* Max. number of params in response string */
-#define MAX_RESP_SIZE 512	/* Max. size of a response string */
+#define MAX_RESP_SIZE 511	/* Max. size of a response string */
 
 #define MAX_EVENTS 64		/* size of event queue */
 
@@ -498,7 +498,7 @@ struct cardstate {
 	spinlock_t ev_lock;
 
 	/* current modem response */
-	unsigned char respdata[MAX_RESP_SIZE];
+	unsigned char respdata[MAX_RESP_SIZE+1];
 	unsigned cbytes;
 
 	/* private data of hardware drivers */

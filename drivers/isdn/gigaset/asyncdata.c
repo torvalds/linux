@@ -40,6 +40,8 @@ static inline int muststuff(unsigned char c)
  * Append received bytes to the command response buffer and forward them
  * line by line to the response handler. Exit whenever a mode/state change
  * might have occurred.
+ * Note: Received lines may be terminated by CR, LF, or CR LF, which will be
+ * removed before passing the line to the response handler.
  * Return value:
  *	number of processed bytes
  */
