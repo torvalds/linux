@@ -212,6 +212,7 @@ struct snd_soc_dai_mode;
 struct snd_soc_pcm_runtime;
 struct snd_soc_dai;
 struct snd_soc_platform;
+struct snd_soc_dai_link;
 struct snd_soc_codec;
 struct soc_enum;
 struct snd_soc_ac97_ops;
@@ -461,8 +462,8 @@ struct snd_soc_platform {
 
 	int (*probe)(struct platform_device *pdev);
 	int (*remove)(struct platform_device *pdev);
-	int (*suspend)(struct snd_soc_dai *dai);
-	int (*resume)(struct snd_soc_dai *dai);
+	int (*suspend)(struct snd_soc_dai_link *dai_link);
+	int (*resume)(struct snd_soc_dai_link *dai_link);
 
 	/* pcm creation and destruction */
 	int (*pcm_new)(struct snd_card *, struct snd_soc_dai *,

@@ -854,7 +854,7 @@ static int soc_suspend(struct device *dev)
 		if (cpu_dai->suspend && !cpu_dai->ac97_control)
 			cpu_dai->suspend(cpu_dai);
 		if (platform->suspend)
-			platform->suspend(cpu_dai);
+			platform->suspend(&card->dai_link[i]);
 	}
 
 	/* close any waiting streams and save state */
@@ -943,7 +943,7 @@ static void soc_resume_deferred(struct work_struct *work)
 		if (cpu_dai->resume && !cpu_dai->ac97_control)
 			cpu_dai->resume(cpu_dai);
 		if (platform->resume)
-			platform->resume(cpu_dai);
+			platform->resume(&card->dai_link[i]);
 	}
 
 	if (card->resume_post)
