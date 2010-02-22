@@ -2033,11 +2033,13 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 	}
 
 	if (!(dqopt->flags & DQUOT_QUOTA_SYS_FILE)) {
-		/* As we bypass the pagecache we must now flush the inode so
-		 * that we see all the changes from userspace... */
-		write_inode_now(inode, 1);
-		/* And now flush the block cache so that kernel sees the
-		 * changes */
+		/* As we bypass the pagecache we must now flush all the
+		 * dirty data and invalidate caches so that kernel sees
+		 * changes from userspace. It is not enough to just flush
+		 * the quota file since if blocksize < pagesize, invalidation
+		 * of the cache could fail because of other unrelated dirty
+		 * data */
+		sync_filesystem(sb);
 		invalidate_bdev(sb->s_bdev);
 	}
 	mutex_lock(&dqopt->dqonoff_mutex);
