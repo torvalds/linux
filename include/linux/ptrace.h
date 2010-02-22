@@ -30,6 +30,11 @@
 /*
  * Generic ptrace interface that exports the architecture specific regsets
  * using the corresponding NT_* types (which are also used in the core dump).
+ * Please note that the NT_PRSTATUS note type in a core dump contains a full
+ * 'struct elf_prstatus'. But the user_regset for NT_PRSTATUS contains just the
+ * elf_gregset_t that is the pr_reg field of 'struct elf_prstatus'. For all the
+ * other user_regset flavors, the user_regset layout and the ELF core dump note
+ * payload are exactly the same layout.
  *
  * This interface usage is as follows:
  *	struct iovec iov = { buf, len};

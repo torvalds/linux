@@ -537,7 +537,7 @@ static int ptrace_regset(struct task_struct *task, int req, unsigned int type,
 	int regset_no;
 
 	if (!regset || (kiov->iov_len % regset->size) != 0)
-		return -EIO;
+		return -EINVAL;
 
 	regset_no = regset - view->regsets;
 	kiov->iov_len = min(kiov->iov_len,
