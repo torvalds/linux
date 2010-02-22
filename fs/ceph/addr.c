@@ -144,7 +144,7 @@ static int ceph_set_page_dirty(struct page *page)
  */
 static void ceph_invalidatepage(struct page *page, unsigned long offset)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode;
 	struct ceph_inode_info *ci;
 	struct ceph_snap_context *snapc = (void *)page->private;
 
@@ -152,6 +152,8 @@ static void ceph_invalidatepage(struct page *page, unsigned long offset)
 	BUG_ON(!page->private);
 	BUG_ON(!PagePrivate(page));
 	BUG_ON(!page->mapping);
+
+	inode = page->mapping->host;
 
 	/*
 	 * We can get non-dirty pages here due to races between
