@@ -713,11 +713,11 @@ static void flush_snaps(struct ceph_mds_client *mdsc)
  * directory into another realm.
  */
 void ceph_handle_snap(struct ceph_mds_client *mdsc,
+		      struct ceph_mds_session *session,
 		      struct ceph_msg *msg)
 {
 	struct super_block *sb = mdsc->client->sb;
-	struct ceph_mds_session *session;
-	int mds;
+	int mds = session->s_mds;
 	u64 split;
 	int op;
 	int trace_len;
@@ -729,10 +729,6 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 	__le64 *split_inos = NULL, *split_realms = NULL;
 	int i;
 	int locked_rwsem = 0;
-
-	if (msg->hdr.src.name.type != CEPH_ENTITY_TYPE_MDS)
-		return;
-	mds = le64_to_cpu(msg->hdr.src.name.num);
 
 	/* decode */
 	if (msg->front.iov_len < sizeof(*h))
@@ -748,15 +744,6 @@ void ceph_handle_snap(struct ceph_mds_client *mdsc,
 
 	dout("handle_snap from mds%d op %s split %llx tracelen %d\n", mds,
 	     ceph_snap_op_name(op), split, trace_len);
-
-	/* find session */
-	mutex_lock(&mdsc->mutex);
-	session = __ceph_lookup_mds_session(mdsc, mds);
-	mutex_unlock(&mdsc->mutex);
-	if (!session) {
-		dout("WTF, got snap but no session for mds%d\n", mds);
-		return;
-	}
 
 	mutex_lock(&session->s_mutex);
 	session->s_seq++;

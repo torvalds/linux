@@ -707,6 +707,7 @@ extern void ceph_put_snap_realm(struct ceph_mds_client *mdsc,
 extern int ceph_update_snap_trace(struct ceph_mds_client *m,
 				  void *p, void *e, bool deletion);
 extern void ceph_handle_snap(struct ceph_mds_client *mdsc,
+			     struct ceph_mds_session *session,
 			     struct ceph_msg *msg);
 extern void ceph_queue_cap_snap(struct ceph_inode_info *ci,
 				struct ceph_snap_context *snapc);

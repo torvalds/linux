@@ -2600,7 +2600,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	struct inode *inode;
 	struct ceph_cap *cap;
 	struct ceph_mds_caps *h;
-	int mds = le64_to_cpu(msg->hdr.src.name.num);
+	int mds = session->s_mds;
 	int op;
 	u32 seq;
 	struct ceph_vino vino;
