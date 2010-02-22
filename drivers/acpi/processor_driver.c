@@ -74,7 +74,7 @@
 #define ACPI_PROCESSOR_LIMIT_THERMAL	1
 
 #define _COMPONENT		ACPI_PROCESSOR_COMPONENT
-ACPI_MODULE_NAME("processor_core");
+ACPI_MODULE_NAME("processor_driver");
 
 MODULE_AUTHOR("Paul Diefenbaugh");
 MODULE_DESCRIPTION("ACPI Processor Driver");
