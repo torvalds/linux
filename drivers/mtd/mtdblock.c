@@ -348,7 +348,8 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 	if (!(mtd->flags & MTD_WRITEABLE))
 		dev->mbd.readonly = 1;
 
-	add_mtd_blktrans_dev(&dev->mbd);
+	if (add_mtd_blktrans_dev(&dev->mbd))
+		kfree(dev);
 }
 
 static void mtdblock_remove_dev(struct mtd_blktrans_dev *dev)
