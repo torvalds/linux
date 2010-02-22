@@ -1093,7 +1093,7 @@ static int wl1271_op_config_interface(struct ieee80211_hw *hw,
 
 		memcpy(wl->bssid, conf->bssid, ETH_ALEN);
 
-		ret = wl1271_cmd_join(wl);
+		ret = wl1271_cmd_join(wl, wl->bss_type);
 		if (ret < 0)
 			goto out_sleep;
 
@@ -1142,17 +1142,16 @@ static int wl1271_join_channel(struct wl1271 *wl, int channel)
 	static const u8 dummy_bssid[ETH_ALEN] = { 0x0b, 0xad, 0xde,
 						  0xad, 0xbe, 0xef };
 
-	/* the dummy join is not required for ad-hoc */
-	if (wl->bss_type == BSS_TYPE_IBSS)
-		goto out;
-
 	/* disable mac filter, so we hear everything */
 	wl->rx_config &= ~CFG_BSSID_FILTER_EN;
 
 	wl->channel = channel;
 	memcpy(wl->bssid, dummy_bssid, ETH_ALEN);
 
-	ret = wl1271_cmd_join(wl);
+	/* the dummy join is performed always with STATION BSS type to allow
+	   also ad-hoc mode to listen to the surroundings without sending any
+	   beacons yet. */
+	ret = wl1271_cmd_join(wl, BSS_TYPE_STA_BSS);
 	if (ret < 0)
 		goto out;
 
@@ -1221,7 +1220,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	    test_bit(WL1271_FLAG_JOINED, &wl->flags)) {
 		wl->channel = channel;
 		/* FIXME: maybe use CMD_CHANNEL_SWITCH for this? */
-		ret = wl1271_cmd_join(wl);
+		ret = wl1271_cmd_join(wl, wl->bss_type);
 		if (ret < 0)
 			wl1271_warning("cmd join to update channel failed %d",
 				       ret);
@@ -1704,7 +1703,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (do_join) {
-		ret = wl1271_cmd_join(wl);
+		ret = wl1271_cmd_join(wl, wl->bss_type);
 		if (ret < 0) {
 			wl1271_warning("cmd join failed %d", ret);
 			goto out_sleep;

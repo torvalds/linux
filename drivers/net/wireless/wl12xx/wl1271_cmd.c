@@ -247,7 +247,7 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	return ret;
 }
 
-int wl1271_cmd_join(struct wl1271 *wl)
+int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 {
 	static bool do_cal = true;
 	struct wl1271_cmd_join *join;
@@ -278,7 +278,7 @@ int wl1271_cmd_join(struct wl1271 *wl)
 
 	join->rx_config_options = cpu_to_le32(wl->rx_config);
 	join->rx_filter_options = cpu_to_le32(wl->rx_filter);
-	join->bss_type = wl->bss_type;
+	join->bss_type = bss_type;
 
 	/*
 	 * FIXME: disable temporarily all filters because after commit
