@@ -115,11 +115,11 @@ struct cfq_queue {
 	/* time when queue got scheduled in to dispatch first request. */
 	unsigned long dispatch_start;
 	unsigned int allocated_slice;
+	unsigned int slice_dispatch;
 	/* time when first request from queue completed and slice started. */
 	unsigned long slice_start;
 	unsigned long slice_end;
 	long slice_resid;
-	unsigned int slice_dispatch;
 
 	/* pending metadata requests */
 	int meta_pending;
@@ -130,12 +130,12 @@ struct cfq_queue {
 	unsigned short ioprio, org_ioprio;
 	unsigned short ioprio_class, org_ioprio_class;
 
+	pid_t pid;
+
 	unsigned int seek_samples;
 	u64 seek_total;
 	sector_t seek_mean;
 	sector_t last_request_pos;
-
-	pid_t pid;
 
 	struct cfq_rb_root *service_tree;
 	struct cfq_queue *new_cfqq;
