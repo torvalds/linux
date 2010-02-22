@@ -56,9 +56,23 @@ static int tm6000_i2c_recv_regs(struct tm6000_core *dev, unsigned char addr,
 				__u8 reg, char *buf, int len)
 {
 	int rc;
+	u8 b[2];
 
-	rc = tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+	if ((dev->caps.has_zl10353) && (dev->demod_addr << 1 == addr) && (reg % 2 == 0)) {
+		/*
+		 * Workaround an I2C bug when reading from zl10353
+		 */
+		reg -= 1;
+		len += 1;
+
+		rc = tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
+			REQ_16_SET_GET_I2C_WR1_RDN, addr | reg << 8, 0, b, len);
+
+		*buf = b[1];
+	} else {
+		rc = tm6000_read_write_usb(dev, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 			REQ_16_SET_GET_I2C_WR1_RDN, addr | reg << 8, 0, buf, len);
+	}
 
 	return rc;
 }
