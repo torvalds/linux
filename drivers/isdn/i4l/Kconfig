@@ -134,14 +134,7 @@ source "drivers/isdn/sc/Kconfig"
 
 source "drivers/isdn/act2000/Kconfig"
 
-source "drivers/isdn/hysdn/Kconfig"
-
 endmenu
 # end ISDN_I4L
 endif
-
-config ISDN_HDLC
-	tristate
-	select CRC_CCITT
-	select BITREVERSE
 
