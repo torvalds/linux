@@ -1117,6 +1117,7 @@ struct kvm_vcpu *kvmppc_core_vcpu_create(struct kvm *kvm, unsigned int id)
 		err = -ENOMEM;
 		goto out;
 	}
+	memset(vcpu_book3s, 0, sizeof(struct kvmppc_vcpu_book3s));
 
 	vcpu = &vcpu_book3s->vcpu;
 	err = kvm_vcpu_init(vcpu, kvm, id);
