@@ -135,12 +135,7 @@ int wl1271_acx_tx_power(struct wl1271 *wl, int power)
 		goto out;
 	}
 
-	/*
-	 * FIXME: This is a workaround needed while we don't the correct
-	 * calibration, to avoid distortions
-	 */
-	/* acx->current_tx_power = power * 10; */
-	acx->current_tx_power = 120;
+	acx->current_tx_power = power * 10;
 
 	ret = wl1271_cmd_configure(wl, DOT11_CUR_TX_PWR, acx, sizeof(*acx));
 	if (ret < 0) {
