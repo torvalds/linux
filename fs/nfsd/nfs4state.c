@@ -718,9 +718,6 @@ expire_client(struct nfs4_client *clp)
 	struct nfs4_delegation *dp;
 	struct list_head reaplist;
 
-	dprintk("NFSD: expire_client cl_count %d\n",
-	                    atomic_read(&clp->cl_count));
-
 	INIT_LIST_HEAD(&reaplist);
 	spin_lock(&recall_lock);
 	while (!list_empty(&clp->cl_delegations)) {
