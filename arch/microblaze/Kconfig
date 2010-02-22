@@ -156,6 +156,15 @@ config ADVANCED_OPTIONS
 comment "Default settings for advanced configuration options are used"
 	depends on !ADVANCED_OPTIONS
 
+config XILINX_UNCACHED_SHADOW
+	bool "Are you using uncached shadow for RAM ?"
+	depends on ADVANCED_OPTIONS && !MMU
+	default n
+	help
+	  This is needed to be able to allocate uncachable memory regions.
+	  The feature requires the design to define the RAM memory controller
+	  window to be twice as large as the actual physical memory.
+
 config HIGHMEM_START_BOOL
 	bool "Set high memory pool address"
 	depends on ADVANCED_OPTIONS && HIGHMEM
