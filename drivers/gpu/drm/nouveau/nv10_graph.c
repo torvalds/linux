@@ -807,6 +807,20 @@ void nv10_graph_destroy_context(struct nouveau_channel *chan)
 	chan->pgraph_ctx = NULL;
 }
 
+void
+nv10_graph_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
+			     uint32_t size, uint32_t pitch)
+{
+	uint32_t limit = max(1u, addr + size) - 1;
+
+	if (pitch)
+		addr |= 1 << 31;
+
+	nv_wr32(dev, NV10_PGRAPH_TLIMIT(i), limit);
+	nv_wr32(dev, NV10_PGRAPH_TSIZE(i), pitch);
+	nv_wr32(dev, NV10_PGRAPH_TILE(i), addr);
+}
+
 int nv10_graph_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
@@ -838,17 +852,9 @@ int nv10_graph_init(struct drm_device *dev)
 	} else
 		nv_wr32(dev, NV10_PGRAPH_DEBUG_4, 0x00000000);
 
-	/* copy tile info from PFB */
-	for (i = 0; i < NV10_PFB_TILE__SIZE; i++) {
-		nv_wr32(dev, NV10_PGRAPH_TILE(i),
-					nv_rd32(dev, NV10_PFB_TILE(i)));
-		nv_wr32(dev, NV10_PGRAPH_TLIMIT(i),
-					nv_rd32(dev, NV10_PFB_TLIMIT(i)));
-		nv_wr32(dev, NV10_PGRAPH_TSIZE(i),
-					nv_rd32(dev, NV10_PFB_TSIZE(i)));
-		nv_wr32(dev, NV10_PGRAPH_TSTATUS(i),
-					nv_rd32(dev, NV10_PFB_TSTATUS(i)));
-	}
+	/* Turn all the tiling regions off. */
+	for (i = 0; i < NV10_PFB_TILE__SIZE; i++)
+		nv10_graph_set_region_tiling(dev, i, 0, 0, 0);
 
 	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH1, 0x00000000);
 	nv_wr32(dev, NV10_PGRAPH_CTX_SWITCH2, 0x00000000);

@@ -37,6 +37,7 @@ modules.builtin
 tags
 TAGS
 vmlinux
+vmlinuz
 System.map
 Module.markers
 Module.symvers

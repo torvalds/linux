@@ -172,8 +172,30 @@ struct drm_i915_display_funcs {
 
 struct intel_overlay;
 
+struct intel_device_info {
+	u8 is_mobile : 1;
+	u8 is_i8xx : 1;
+	u8 is_i915g : 1;
+	u8 is_i9xx : 1;
+	u8 is_i945gm : 1;
+	u8 is_i965g : 1;
+	u8 is_i965gm : 1;
+	u8 is_g33 : 1;
+	u8 need_gfx_hws : 1;
+	u8 is_g4x : 1;
+	u8 is_pineview : 1;
+	u8 is_ironlake : 1;
+	u8 has_fbc : 1;
+	u8 has_rc6 : 1;
+	u8 has_pipe_cxsr : 1;
+	u8 has_hotplug : 1;
+	u8 cursor_needs_physical : 1;
+};
+
 typedef struct drm_i915_private {
 	struct drm_device *dev;
+
+	const struct intel_device_info *info;
 
 	int has_gem;
 
@@ -232,8 +254,6 @@ typedef struct drm_i915_private {
 	int hangcheck_count;
 	uint32_t last_acthd;
 
-	bool cursor_needs_physical;
-
 	struct drm_mm vram;
 
 	unsigned long cfb_size;
@@ -263,6 +283,7 @@ typedef struct drm_i915_private {
 	unsigned int lvds_use_ssc:1;
 	unsigned int edp_support:1;
 	int lvds_ssc_freq;
+	int edp_bpp;
 
 	struct notifier_block lid_notifier;
 
@@ -287,8 +308,6 @@ typedef struct drm_i915_private {
 	u32 saveDSPACNTR;
 	u32 saveDSPBCNTR;
 	u32 saveDSPARB;
-	u32 saveRENDERSTANDBY;
-	u32 savePWRCTXA;
 	u32 saveHWS;
 	u32 savePIPEACONF;
 	u32 savePIPEBCONF;
@@ -474,6 +493,15 @@ typedef struct drm_i915_private {
 		struct list_head flushing_list;
 
 		/**
+		 * List of objects currently pending a GPU write flush.
+		 *
+		 * All elements on this list will belong to either the
+		 * active_list or flushing_list, last_rendering_seqno can
+		 * be used to differentiate between the two elements.
+		 */
+		struct list_head gpu_write_list;
+
+		/**
 		 * LRU list of objects which are not in the ringbuffer and
 		 * are ready to unbind, but are still in the GTT.
 		 *
@@ -561,6 +589,7 @@ typedef struct drm_i915_private {
 	u16 orig_clock;
 	int child_dev_num;
 	struct child_device_config *child_dev;
+	struct drm_connector *int_lvds_connector;
 } drm_i915_private_t;
 
 /** driver private structure attached to each drm_gem_object */
@@ -572,6 +601,8 @@ struct drm_i915_gem_object {
 
 	/** This object's place on the active/flushing/inactive lists */
 	struct list_head list;
+	/** This object's place on GPU write list */
+	struct list_head gpu_write_list;
 
 	/** This object's place on the fenced object LRU */
 	struct list_head fence_list;
@@ -703,6 +734,7 @@ extern struct drm_ioctl_desc i915_ioctls[];
 extern int i915_max_ioctl;
 extern unsigned int i915_fbpercrtc;
 extern unsigned int i915_powersave;
+extern unsigned int i915_lvds_downclock;
 
 extern void i915_save_display(struct drm_device *dev);
 extern void i915_restore_display(struct drm_device *dev);
@@ -794,6 +826,8 @@ int i915_gem_sw_finish_ioctl(struct drm_device *dev, void *data,
 			     struct drm_file *file_priv);
 int i915_gem_execbuffer(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
+int i915_gem_execbuffer2(struct drm_device *dev, void *data,
+			 struct drm_file *file_priv);
 int i915_gem_pin_ioctl(struct drm_device *dev, void *data,
 		       struct drm_file *file_priv);
 int i915_gem_unpin_ioctl(struct drm_device *dev, void *data,
@@ -843,12 +877,13 @@ int i915_do_wait_request(struct drm_device *dev, uint32_t seqno, int interruptib
 int i915_gem_fault(struct vm_area_struct *vma, struct vm_fault *vmf);
 int i915_gem_object_set_to_gtt_domain(struct drm_gem_object *obj,
 				      int write);
+int i915_gem_object_set_to_display_plane(struct drm_gem_object *obj);
 int i915_gem_attach_phys_object(struct drm_device *dev,
 				struct drm_gem_object *obj, int id);
 void i915_gem_detach_phys_object(struct drm_device *dev,
 				 struct drm_gem_object *obj);
 void i915_gem_free_all_phys_object(struct drm_device *dev);
-int i915_gem_object_get_pages(struct drm_gem_object *obj);
+int i915_gem_object_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
 void i915_gem_object_put_pages(struct drm_gem_object *obj);
 void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
 void i915_gem_object_flush_write_domain(struct drm_gem_object *obj);
@@ -860,6 +895,9 @@ void i915_gem_shrinker_exit(void);
 void i915_gem_detect_bit_6_swizzle(struct drm_device *dev);
 void i915_gem_object_do_bit_17_swizzle(struct drm_gem_object *obj);
 void i915_gem_object_save_bit_17_swizzle(struct drm_gem_object *obj);
+bool i915_tiling_ok(struct drm_device *dev, int stride, int size,
+		    int tiling_mode);
+bool i915_obj_fenceable(struct drm_device *dev, struct drm_gem_object *obj);
 
 /* i915_gem_debug.c */
 void i915_gem_dump_object(struct drm_gem_object *obj, int len,
@@ -982,67 +1020,33 @@ extern void g4x_disable_fbc(struct drm_device *dev);
 extern int i915_wrap_ring(struct drm_device * dev);
 extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 
-#define IS_I830(dev) ((dev)->pci_device == 0x3577)
-#define IS_845G(dev) ((dev)->pci_device == 0x2562)
-#define IS_I85X(dev) ((dev)->pci_device == 0x3582)
-#define IS_I865G(dev) ((dev)->pci_device == 0x2572)
-#define IS_I8XX(dev) (IS_I830(dev) || IS_845G(dev) || IS_I85X(dev) || IS_I865G(dev))
+#define INTEL_INFO(dev)	(((struct drm_i915_private *) (dev)->dev_private)->info)
 
-#define IS_I915G(dev) ((dev)->pci_device == 0x2582 || (dev)->pci_device == 0x258a)
-#define IS_I915GM(dev) ((dev)->pci_device == 0x2592)
-#define IS_I945G(dev) ((dev)->pci_device == 0x2772)
-#define IS_I945GM(dev) ((dev)->pci_device == 0x27A2 ||\
-		        (dev)->pci_device == 0x27AE)
-#define IS_I965G(dev) ((dev)->pci_device == 0x2972 || \
-		       (dev)->pci_device == 0x2982 || \
-		       (dev)->pci_device == 0x2992 || \
-		       (dev)->pci_device == 0x29A2 || \
-		       (dev)->pci_device == 0x2A02 || \
-		       (dev)->pci_device == 0x2A12 || \
-		       (dev)->pci_device == 0x2A42 || \
-		       (dev)->pci_device == 0x2E02 || \
-		       (dev)->pci_device == 0x2E12 || \
-		       (dev)->pci_device == 0x2E22 || \
-		       (dev)->pci_device == 0x2E32 || \
-		       (dev)->pci_device == 0x2E42 || \
-		       (dev)->pci_device == 0x0042 || \
-		       (dev)->pci_device == 0x0046)
-
-#define IS_I965GM(dev) ((dev)->pci_device == 0x2A02 || \
-			(dev)->pci_device == 0x2A12)
-
-#define IS_GM45(dev) ((dev)->pci_device == 0x2A42)
-
-#define IS_G4X(dev) ((dev)->pci_device == 0x2E02 || \
-		     (dev)->pci_device == 0x2E12 || \
-		     (dev)->pci_device == 0x2E22 || \
-		     (dev)->pci_device == 0x2E32 || \
-		     (dev)->pci_device == 0x2E42 || \
-		     IS_GM45(dev))
-
-#define IS_PINEVIEW_G(dev) ((dev)->pci_device == 0xa001)
-#define IS_PINEVIEW_M(dev) ((dev)->pci_device == 0xa011)
-#define IS_PINEVIEW(dev) (IS_PINEVIEW_G(dev) || IS_PINEVIEW_M(dev))
-
-#define IS_G33(dev)    ((dev)->pci_device == 0x29C2 ||	\
-			(dev)->pci_device == 0x29B2 ||	\
-			(dev)->pci_device == 0x29D2 ||  \
-			(IS_PINEVIEW(dev)))
-
+#define IS_I830(dev)		((dev)->pci_device == 0x3577)
+#define IS_845G(dev)		((dev)->pci_device == 0x2562)
+#define IS_I85X(dev)		((dev)->pci_device == 0x3582)
+#define IS_I865G(dev)		((dev)->pci_device == 0x2572)
+#define IS_I8XX(dev)		(INTEL_INFO(dev)->is_i8xx)
+#define IS_I915G(dev)		(INTEL_INFO(dev)->is_i915g)
+#define IS_I915GM(dev)		((dev)->pci_device == 0x2592)
+#define IS_I945G(dev)		((dev)->pci_device == 0x2772)
+#define IS_I945GM(dev)		(INTEL_INFO(dev)->is_i945gm)
+#define IS_I965G(dev)		(INTEL_INFO(dev)->is_i965g)
+#define IS_I965GM(dev)		(INTEL_INFO(dev)->is_i965gm)
+#define IS_GM45(dev)		((dev)->pci_device == 0x2A42)
+#define IS_G4X(dev)		(INTEL_INFO(dev)->is_g4x)
+#define IS_PINEVIEW_G(dev)	((dev)->pci_device == 0xa001)
+#define IS_PINEVIEW_M(dev)	((dev)->pci_device == 0xa011)
+#define IS_PINEVIEW(dev)	(INTEL_INFO(dev)->is_pineview)
+#define IS_G33(dev)		(INTEL_INFO(dev)->is_g33)
 #define IS_IRONLAKE_D(dev)	((dev)->pci_device == 0x0042)
 #define IS_IRONLAKE_M(dev)	((dev)->pci_device == 0x0046)
-#define IS_IRONLAKE(dev)	(IS_IRONLAKE_D(dev) || IS_IRONLAKE_M(dev))
+#define IS_IRONLAKE(dev)	(INTEL_INFO(dev)->is_ironlake)
+#define IS_I9XX(dev)		(INTEL_INFO(dev)->is_i9xx)
+#define IS_MOBILE(dev)		(INTEL_INFO(dev)->is_mobile)
 
-#define IS_I9XX(dev) (IS_I915G(dev) || IS_I915GM(dev) || IS_I945G(dev) || \
-		      IS_I945GM(dev) || IS_I965G(dev) || IS_G33(dev) || \
-		      IS_IRONLAKE(dev))
+#define I915_NEED_GFX_HWS(dev)	(INTEL_INFO(dev)->need_gfx_hws)
 
-#define IS_MOBILE(dev) (IS_I830(dev) || IS_I85X(dev) || IS_I915GM(dev) || \
-			IS_I945GM(dev) || IS_I965GM(dev) || IS_GM45(dev) || \
-			IS_PINEVIEW(dev) || IS_IRONLAKE_M(dev))
-
-#define I915_NEED_GFX_HWS(dev) (IS_G33(dev) || IS_GM45(dev) || IS_G4X(dev) || \
-				IS_IRONLAKE(dev))
 /* With the 945 and later, Y tiling got adjusted so that it was 32 128-byte
  * rows, which changed the alignment requirements and fence programming.
  */
@@ -1054,17 +1058,14 @@ extern int i915_wait_ring(struct drm_device * dev, int n, const char *caller);
 #define SUPPORTS_EDP(dev)		(IS_IRONLAKE_M(dev))
 #define SUPPORTS_TV(dev)		(IS_I9XX(dev) && IS_MOBILE(dev) && \
 					!IS_IRONLAKE(dev) && !IS_PINEVIEW(dev))
-#define I915_HAS_HOTPLUG(dev) (IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev) || IS_I965G(dev))
+#define I915_HAS_HOTPLUG(dev)		 (INTEL_INFO(dev)->has_hotplug)
 /* dsparb controlled by hw only */
 #define DSPARB_HWCONTROL(dev) (IS_G4X(dev) || IS_IRONLAKE(dev))
 
 #define HAS_FW_BLC(dev) (IS_I9XX(dev) || IS_G4X(dev) || IS_IRONLAKE(dev))
-#define HAS_PIPE_CXSR(dev) (IS_G4X(dev) || IS_IRONLAKE(dev))
-#define I915_HAS_FBC(dev) (IS_MOBILE(dev) && \
-			   (IS_I9XX(dev) || IS_GM45(dev)) && \
-			   !IS_PINEVIEW(dev) && \
-			   !IS_IRONLAKE(dev))
-#define I915_HAS_RC6(dev) (IS_I965GM(dev) || IS_GM45(dev) || IS_IRONLAKE_M(dev))
+#define HAS_PIPE_CXSR(dev) (INTEL_INFO(dev)->has_pipe_cxsr)
+#define I915_HAS_FBC(dev) (INTEL_INFO(dev)->has_fbc)
+#define I915_HAS_RC6(dev) (INTEL_INFO(dev)->has_rc6)
 
 #define PRIMARY_RINGBUFFER_SIZE         (128*1024)
 

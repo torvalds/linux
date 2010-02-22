@@ -46,8 +46,6 @@
  */
 static int tapeblock_open(struct block_device *, fmode_t);
 static int tapeblock_release(struct gendisk *, fmode_t);
-static int tapeblock_ioctl(struct block_device *, fmode_t, unsigned int,
-				unsigned long);
 static int tapeblock_medium_changed(struct gendisk *);
 static int tapeblock_revalidate_disk(struct gendisk *);
 
@@ -55,7 +53,6 @@ static const struct block_device_operations tapeblock_fops = {
 	.owner		 = THIS_MODULE,
 	.open		 = tapeblock_open,
 	.release	 = tapeblock_release,
-	.ioctl		 = tapeblock_ioctl,
 	.media_changed   = tapeblock_medium_changed,
 	.revalidate_disk = tapeblock_revalidate_disk,
 };
@@ -413,42 +410,6 @@ tapeblock_release(struct gendisk *disk, fmode_t mode)
 	tape_put_device(device);
 
 	return 0;
-}
-
-/*
- * Support of some generic block device IOCTLs.
- */
-static int
-tapeblock_ioctl(
-	struct block_device *	bdev,
-	fmode_t			mode,
-	unsigned int		command,
-	unsigned long		arg
-) {
-	int rc;
-	int minor;
-	struct gendisk *disk = bdev->bd_disk;
-	struct tape_device *device;
-
-	rc     = 0;
-	BUG_ON(!disk);
-	device = disk->private_data;
-	BUG_ON(!device);
-	minor  = MINOR(bdev->bd_dev);
-
-	DBF_LH(6, "tapeblock_ioctl(0x%0x)\n", command);
-	DBF_LH(6, "device = %d:%d\n", tapeblock_major, minor);
-
-	switch (command) {
-		/* Refuse some IOCTL calls without complaining (mount). */
-		case 0x5310:		/* CDROMMULTISESSION */
-			rc = -EINVAL;
-			break;
-		default:
-			rc = -EINVAL;
-	}
-
-	return rc;
 }
 
 /*

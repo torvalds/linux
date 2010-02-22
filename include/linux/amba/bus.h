@@ -1,5 +1,9 @@
 /*
- *  linux/include/asm-arm/hardware/amba.h
+ *  linux/include/amba/bus.h
+ *
+ *  This device type deals with ARM PrimeCells and anything else that
+ *  presents a proper CID (0xB105F00D) at the end of the I/O register
+ *  region or that is derived from a PrimeCell.
  *
  *  Copyright (C) 2003 Deep Blue Solutions Ltd, All Rights Reserved.
  *

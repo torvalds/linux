@@ -174,6 +174,14 @@ static int __init davinci_ks_probe(struct platform_device *pdev)
 	struct davinci_ks_platform_data *pdata = pdev->dev.platform_data;
 	int error, i;
 
+	if (pdata->device_enable) {
+		error = pdata->device_enable(dev);
+		if (error < 0) {
+			dev_dbg(dev, "device enable function failed\n");
+			return error;
+		}
+	}
+
 	if (!pdata->keymap) {
 		dev_dbg(dev, "no keymap from pdata\n");
 		return -EINVAL;

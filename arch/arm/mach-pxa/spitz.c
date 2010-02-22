@@ -389,13 +389,13 @@ static struct gpio_keys_button spitz_gpio_keys[] = {
 		.type	= EV_SW,
 		.code	= 0,
 		.gpio	= SPITZ_GPIO_SWA,
-		.desc	= "﻿Display Down",
+		.desc	= "Display Down",
 	},
 	{
 		.type	= EV_SW,
 		.code	= 1,
 		.gpio	= SPITZ_GPIO_SWB,
-		.desc	= "﻿Lid Closed",
+		.desc	= "Lid Closed",
 	},
 };
 

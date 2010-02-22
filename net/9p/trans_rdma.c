@@ -166,7 +166,7 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 	char *p;
 	substring_t args[MAX_OPT_ARGS];
 	int option;
-	char *options;
+	char *options, *tmp_options;
 	int ret;
 
 	opts->port = P9_PORT;
@@ -177,12 +177,13 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 	if (!params)
 		return 0;
 
-	options = kstrdup(params, GFP_KERNEL);
-	if (!options) {
+	tmp_options = kstrdup(params, GFP_KERNEL);
+	if (!tmp_options) {
 		P9_DPRINTK(P9_DEBUG_ERROR,
 			   "failed to allocate copy of option string\n");
 		return -ENOMEM;
 	}
+	options = tmp_options;
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
@@ -216,7 +217,7 @@ static int parse_opts(char *params, struct p9_rdma_opts *opts)
 	}
 	/* RQ must be at least as large as the SQ */
 	opts->rq_depth = max(opts->rq_depth, opts->sq_depth);
-	kfree(options);
+	kfree(tmp_options);
 	return 0;
 }
 

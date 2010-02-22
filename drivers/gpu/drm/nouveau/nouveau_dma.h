@@ -46,10 +46,11 @@
 /* Hardcoded object assignments to subchannels (subchannel id). */
 enum {
 	NvSubM2MF	= 0,
-	NvSub2D		= 1,
-	NvSubCtxSurf2D  = 1,
-	NvSubGdiRect    = 2,
-	NvSubImageBlit  = 3
+	NvSubSw		= 1,
+	NvSub2D		= 2,
+	NvSubCtxSurf2D  = 2,
+	NvSubGdiRect    = 3,
+	NvSubImageBlit  = 4
 };
 
 /* Object handles. */
@@ -67,6 +68,7 @@ enum {
 	NvClipRect	= 0x8000000b,
 	NvGdiRect	= 0x8000000c,
 	NvImageBlit	= 0x8000000d,
+	NvSw		= 0x8000000e,
 
 	/* G80+ display objects */
 	NvEvoVRAM	= 0x01000000,

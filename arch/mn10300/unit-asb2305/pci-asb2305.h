@@ -34,7 +34,6 @@ extern unsigned int pci_probe;
 extern unsigned int pcibios_max_latency;
 
 extern void pcibios_resource_survey(void);
-extern int pcibios_enable_resources(struct pci_dev *dev, int mask);
 
 /* pci.c */
 

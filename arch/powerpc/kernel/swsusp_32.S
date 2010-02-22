@@ -303,7 +303,7 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_HIGH_BATS)
 	lis	r4,0x1000
 1:	addic.	r4,r4,-0x1000
 	tlbie	r4
-	blt	1b
+	bgt	1b
 	sync
 
 	/* restore the MSR and turn on the MMU */

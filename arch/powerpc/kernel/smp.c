@@ -619,4 +619,16 @@ void __cpu_die(unsigned int cpu)
 	if (smp_ops->cpu_die)
 		smp_ops->cpu_die(cpu);
 }
+
+static DEFINE_MUTEX(powerpc_cpu_hotplug_driver_mutex);
+
+void cpu_hotplug_driver_lock()
+{
+	mutex_lock(&powerpc_cpu_hotplug_driver_mutex);
+}
+
+void cpu_hotplug_driver_unlock()
+{
+	mutex_unlock(&powerpc_cpu_hotplug_driver_mutex);
+}
 #endif

@@ -172,6 +172,15 @@ config GPIO_ADP5520
 	  To compile this driver as a module, choose M here: the module will
 	  be called adp5520-gpio.
 
+config GPIO_ADP5588
+	tristate "ADP5588 I2C GPIO expander"
+	depends on I2C
+	help
+	  This option enables support for 18 GPIOs found
+	  on Analog Devices ADP5588 GPIO Expanders.
+	  To compile this driver as a module, choose M here: the module will be
+	  called adp5588-gpio.
+
 comment "PCI GPIO expanders:"
 
 config GPIO_CS5535

@@ -462,14 +462,63 @@ static int intel_sdvo_get_pixel_multiplier(struct drm_display_mode *mode)
 }
 
 /**
- * Don't check status code from this as it switches the bus back to the
- * SDVO chips which defeats the purpose of doing a bus switch in the first
- * place.
+ * Try to read the response after issuie the DDC switch command. But it
+ * is noted that we must do the action of reading response and issuing DDC
+ * switch command in one I2C transaction. Otherwise when we try to start
+ * another I2C transaction after issuing the DDC bus switch, it will be
+ * switched to the internal SDVO register.
  */
 static void intel_sdvo_set_control_bus_switch(struct intel_output *intel_output,
 					      u8 target)
 {
-	intel_sdvo_write_cmd(intel_output, SDVO_CMD_SET_CONTROL_BUS_SWITCH, &target, 1);
+	struct intel_sdvo_priv *sdvo_priv = intel_output->dev_priv;
+	u8 out_buf[2], cmd_buf[2], ret_value[2], ret;
+	struct i2c_msg msgs[] = {
+		{
+			.addr = sdvo_priv->slave_addr >> 1,
+			.flags = 0,
+			.len = 2,
+			.buf = out_buf,
+		},
+		/* the following two are to read the response */
+		{
+			.addr = sdvo_priv->slave_addr >> 1,
+			.flags = 0,
+			.len = 1,
+			.buf = cmd_buf,
+		},
+		{
+			.addr = sdvo_priv->slave_addr >> 1,
+			.flags = I2C_M_RD,
+			.len = 1,
+			.buf = ret_value,
+		},
+	};
+
+	intel_sdvo_debug_write(intel_output, SDVO_CMD_SET_CONTROL_BUS_SWITCH,
+					&target, 1);
+	/* write the DDC switch command argument */
+	intel_sdvo_write_byte(intel_output, SDVO_I2C_ARG_0, target);
+
+	out_buf[0] = SDVO_I2C_OPCODE;
+	out_buf[1] = SDVO_CMD_SET_CONTROL_BUS_SWITCH;
+	cmd_buf[0] = SDVO_I2C_CMD_STATUS;
+	cmd_buf[1] = 0;
+	ret_value[0] = 0;
+	ret_value[1] = 0;
+
+	ret = i2c_transfer(intel_output->i2c_bus, msgs, 3);
+	if (ret != 3) {
+		/* failure in I2C transfer */
+		DRM_DEBUG_KMS("I2c transfer returned %d\n", ret);
+		return;
+	}
+	if (ret_value[0] != SDVO_CMD_STATUS_SUCCESS) {
+		DRM_DEBUG_KMS("DDC switch command returns response %d\n",
+					ret_value[0]);
+		return;
+	}
+	return;
 }
 
 static bool intel_sdvo_set_target_input(struct intel_output *intel_output, bool target_0, bool target_1)
@@ -1579,6 +1628,32 @@ intel_sdvo_hdmi_sink_detect(struct drm_connector *connector, u16 response)
 	edid = drm_get_edid(&intel_output->base,
 			    intel_output->ddc_bus);
 
+	/* This is only applied to SDVO cards with multiple outputs */
+	if (edid == NULL && intel_sdvo_multifunc_encoder(intel_output)) {
+		uint8_t saved_ddc, temp_ddc;
+		saved_ddc = sdvo_priv->ddc_bus;
+		temp_ddc = sdvo_priv->ddc_bus >> 1;
+		/*
+		 * Don't use the 1 as the argument of DDC bus switch to get
+		 * the EDID. It is used for SDVO SPD ROM.
+		 */
+		while(temp_ddc > 1) {
+			sdvo_priv->ddc_bus = temp_ddc;
+			edid = drm_get_edid(&intel_output->base,
+				intel_output->ddc_bus);
+			if (edid) {
+				/*
+				 * When we can get the EDID, maybe it is the
+				 * correct DDC bus. Update it.
+				 */
+				sdvo_priv->ddc_bus = temp_ddc;
+				break;
+			}
+			temp_ddc >>= 1;
+		}
+		if (edid == NULL)
+			sdvo_priv->ddc_bus = saved_ddc;
+	}
 	/* when there is no edid and no monitor is connected with VGA
 	 * port, try to use the CRT ddc to read the EDID for DVI-connector
 	 */
@@ -2270,6 +2345,14 @@ intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 		connector->connector_type = DRM_MODE_CONNECTOR_VGA;
 		intel_output->clone_mask = (1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
 					(1 << INTEL_ANALOG_CLONE_BIT);
+	} else if (flags & SDVO_OUTPUT_CVBS0) {
+
+		sdvo_priv->controlled_output = SDVO_OUTPUT_CVBS0;
+		encoder->encoder_type = DRM_MODE_ENCODER_TVDAC;
+		connector->connector_type = DRM_MODE_CONNECTOR_SVIDEO;
+		sdvo_priv->is_tv = true;
+		intel_output->needs_tv_clock = true;
+		intel_output->clone_mask = 1 << INTEL_SDVO_TV_CLONE_BIT;
 	} else if (flags & SDVO_OUTPUT_LVDS0) {
 
 		sdvo_priv->controlled_output = SDVO_OUTPUT_LVDS0;
@@ -2662,6 +2745,7 @@ static void intel_sdvo_create_enhance_property(struct drm_connector *connector)
 
 bool intel_sdvo_init(struct drm_device *dev, int output_device)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_connector *connector;
 	struct intel_output *intel_output;
 	struct intel_sdvo_priv *sdvo_priv;
@@ -2708,10 +2792,12 @@ bool intel_sdvo_init(struct drm_device *dev, int output_device)
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOE, "SDVOB DDC BUS");
 		sdvo_priv->analog_ddc_bus = intel_i2c_create(dev, GPIOA,
 						"SDVOB/VGA DDC BUS");
+		dev_priv->hotplug_supported_mask |= SDVOB_HOTPLUG_INT_STATUS;
 	} else {
 		intel_output->ddc_bus = intel_i2c_create(dev, GPIOE, "SDVOC DDC BUS");
 		sdvo_priv->analog_ddc_bus = intel_i2c_create(dev, GPIOA,
 						"SDVOC/VGA DDC BUS");
+		dev_priv->hotplug_supported_mask |= SDVOC_HOTPLUG_INT_STATUS;
 	}
 
 	if (intel_output->ddc_bus == NULL)

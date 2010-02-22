@@ -446,8 +446,8 @@ EXPORT_SYMBOL_GPL(dpm_resume_noirq);
 
 /**
  * legacy_resume - Execute a legacy (bus or class) resume callback for device.
- * dev: Device to resume.
- * cb: Resume callback to execute.
+ * @dev: Device to resume.
+ * @cb: Resume callback to execute.
  */
 static int legacy_resume(struct device *dev, int (*cb)(struct device *dev))
 {
@@ -711,8 +711,9 @@ EXPORT_SYMBOL_GPL(dpm_suspend_noirq);
 
 /**
  * legacy_suspend - Execute a legacy (bus or class) suspend callback for device.
- * dev: Device to suspend.
- * cb: Suspend callback to execute.
+ * @dev: Device to suspend.
+ * @state: PM transition of the system being carried out.
+ * @cb: Suspend callback to execute.
  */
 static int legacy_suspend(struct device *dev, pm_message_t state,
 			  int (*cb)(struct device *dev, pm_message_t state))

@@ -296,29 +296,44 @@ static inline int ext4_ext_space_root_idx(struct inode *inode, int check)
  * to allocate @blocks
  * Worse case is one block per extent
  */
-int ext4_ext_calc_metadata_amount(struct inode *inode, int blocks)
+int ext4_ext_calc_metadata_amount(struct inode *inode, sector_t lblock)
 {
-	int lcap, icap, rcap, leafs, idxs, num;
-	int newextents = blocks;
+	struct ext4_inode_info *ei = EXT4_I(inode);
+	int idxs, num = 0;
 
-	rcap = ext4_ext_space_root_idx(inode, 0);
-	lcap = ext4_ext_space_block(inode, 0);
-	icap = ext4_ext_space_block_idx(inode, 0);
-
-	/* number of new leaf blocks needed */
-	num = leafs = (newextents + lcap - 1) / lcap;
+	idxs = ((inode->i_sb->s_blocksize - sizeof(struct ext4_extent_header))
+		/ sizeof(struct ext4_extent_idx));
 
 	/*
-	 * Worse case, we need separate index block(s)
-	 * to link all new leaf blocks
+	 * If the new delayed allocation block is contiguous with the
+	 * previous da block, it can share index blocks with the
+	 * previous block, so we only need to allocate a new index
+	 * block every idxs leaf blocks.  At ldxs**2 blocks, we need
+	 * an additional index block, and at ldxs**3 blocks, yet
+	 * another index blocks.
 	 */
-	idxs = (leafs + icap - 1) / icap;
-	do {
-		num += idxs;
-		idxs = (idxs + icap - 1) / icap;
-	} while (idxs > rcap);
+	if (ei->i_da_metadata_calc_len &&
+	    ei->i_da_metadata_calc_last_lblock+1 == lblock) {
+		if ((ei->i_da_metadata_calc_len % idxs) == 0)
+			num++;
+		if ((ei->i_da_metadata_calc_len % (idxs*idxs)) == 0)
+			num++;
+		if ((ei->i_da_metadata_calc_len % (idxs*idxs*idxs)) == 0) {
+			num++;
+			ei->i_da_metadata_calc_len = 0;
+		} else
+			ei->i_da_metadata_calc_len++;
+		ei->i_da_metadata_calc_last_lblock++;
+		return num;
+	}
 
-	return num;
+	/*
+	 * In the worst case we need a new set of index blocks at
+	 * every level of the inode's extent tree.
+	 */
+	ei->i_da_metadata_calc_len = 1;
+	ei->i_da_metadata_calc_last_lblock = lblock;
+	return ext_depth(inode) + 1;
 }
 
 static int
@@ -3117,7 +3132,19 @@ out:
 		unmap_underlying_metadata_blocks(inode->i_sb->s_bdev,
 					newblock + max_blocks,
 					allocated - max_blocks);
+		allocated = max_blocks;
 	}
+
+	/*
+	 * If we have done fallocate with the offset that is already
+	 * delayed allocated, we would have block reservation
+	 * and quota reservation done in the delayed write path.
+	 * But fallocate would have already updated quota and block
+	 * count for this offset. So cancel these reservation
+	 */
+	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
+		ext4_da_update_reserve_space(inode, allocated, 0);
+
 map_out:
 	set_buffer_mapped(bh_result);
 out1:
@@ -3353,7 +3380,16 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	/* previous routine could use block we allocated */
 	newblock = ext_pblock(&newex);
 	allocated = ext4_ext_get_actual_len(&newex);
+	if (allocated > max_blocks)
+		allocated = max_blocks;
 	set_buffer_new(bh_result);
+
+	/*
+	 * Update reserved blocks/metadata blocks after successful
+	 * block allocation which had been deferred till now.
+	 */
+	if (flags & EXT4_GET_BLOCKS_DELALLOC_RESERVE)
+		ext4_da_update_reserve_space(inode, allocated, 1);
 
 	/*
 	 * Cache the extent and update transaction to commit on fdatasync only

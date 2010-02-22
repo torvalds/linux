@@ -549,4 +549,21 @@ config MTD_VMU
 	  To build this as a module select M here, the module will be called
 	  vmu-flash.
 
+config MTD_PISMO
+	tristate "MTD discovery driver for PISMO modules"
+	depends on I2C
+	depends on ARCH_VERSATILE
+	help
+	  This driver allows for discovery of PISMO modules - see
+	  <http://www.pismoworld.org/>.  These are small modules containing
+	  up to five memory devices (eg, SRAM, flash, DOC) described by an
+	  I2C EEPROM.
+
+	  This driver does not create any MTD maps itself; instead it
+	  creates MTD physmap and MTD SRAM platform devices.  If you
+	  enable this option, you should consider enabling MTD_PHYSMAP
+	  and/or MTD_PLATRAM according to the devices on your module.
+
+	  When built as a module, it will be called pismo.ko
+
 endmenu

@@ -175,8 +175,14 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "Do not pass platform_data through "
 			"wm97xx_bat_set_pdata!\n");
 		return -EINVAL;
-	} else
-		pdata = wmdata->batt_pdata;
+	}
+
+	if (!wmdata) {
+		dev_err(&dev->dev, "No platform data supplied\n");
+		return -EINVAL;
+	}
+
+	pdata = wmdata->batt_pdata;
 
 	if (dev->id != -1)
 		return -EINVAL;

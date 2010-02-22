@@ -145,6 +145,7 @@ static const struct snd_soc_dapm_widget omap3pandora_in_dapm_widgets[] = {
 };
 
 static const struct snd_soc_dapm_route omap3pandora_out_map[] = {
+	{"PCM DAC", NULL, "APLL Enable"},
 	{"Headphone Amplifier", NULL, "PCM DAC"},
 	{"Line Out", NULL, "PCM DAC"},
 	{"Headphone Jack", NULL, "Headphone Amplifier"},

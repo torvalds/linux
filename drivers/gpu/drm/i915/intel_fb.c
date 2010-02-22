@@ -148,7 +148,7 @@ static int intelfb_create(struct drm_device *dev, uint32_t fb_width,
 
 	mutex_lock(&dev->struct_mutex);
 
-	ret = i915_gem_object_pin(fbo, PAGE_SIZE);
+	ret = i915_gem_object_pin(fbo, 64*1024);
 	if (ret) {
 		DRM_ERROR("failed to pin fb: %d\n", ret);
 		goto out_unref;

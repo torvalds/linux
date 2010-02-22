@@ -64,9 +64,6 @@
 #define REG_SIZE	"4"		/* In bytes */
 #endif
 
-static struct pt_regs die_regs;
-static bool have_die_regs;
-
 static void register_panic_notifier(void);
 static int panic_handler(struct notifier_block *notifier_block,
 	unsigned long event, void *cause_string);
@@ -216,24 +213,6 @@ static int panic_handler(struct notifier_block *notifier_block,
 #endif
 
 	return NOTIFY_DONE;
-}
-
-/**
- * Platform-specific handling of oops
- * @str:	Pointer to the oops string
- * @regs:	Pointer to the oops registers
- * All we do here is to save the registers for subsequent printing through
- * the panic notifier.
- */
-void platform_die(const char *str, const struct pt_regs *regs)
-{
-	/* If we already have saved registers, don't overwrite them as they
-	 * they apply to the initial fault */
-
-	if (!have_die_regs) {
-		have_die_regs = true;
-		die_regs = *regs;
-	}
 }
 
 /* Information about the RF MAC address, if one was supplied on the

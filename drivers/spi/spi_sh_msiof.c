@@ -173,15 +173,12 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 	int edge;
 
 	/*
-	 * CPOL CPHA     TSCKIZ RSCKIZ TEDG REDG(!)
-	 *    0    0         10     10    1    0
-	 *    0    1         10     10    0    1
-	 *    1    0         11     11    0    1
-	 *    1    1         11     11    1    0
-	 *
-	 * (!) Note: REDG is inverted recommended data sheet setting
+	 * CPOL CPHA     TSCKIZ RSCKIZ TEDG REDG
+	 *    0    0         10     10    1    1
+	 *    0    1         10     10    0    0
+	 *    1    0         11     11    0    0
+	 *    1    1         11     11    1    1
 	 */
-
 	sh_msiof_write(p, FCTR, 0);
 	sh_msiof_write(p, TMDR1, 0xe2000005 | (lsb_first << 24));
 	sh_msiof_write(p, RMDR1, 0x22000005 | (lsb_first << 24));
@@ -193,7 +190,7 @@ static void sh_msiof_spi_set_pin_regs(struct sh_msiof_spi_priv *p,
 	edge = cpol ? cpha : !cpha;
 
 	tmp |= edge << 27; /* TEDG */
-	tmp |= !edge << 26; /* REDG */
+	tmp |= edge << 26; /* REDG */
 	tmp |= (tx_hi_z ? 2 : 0) << 22; /* TXDIZ */
 	sh_msiof_write(p, CTR, tmp);
 }

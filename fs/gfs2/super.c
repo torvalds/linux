@@ -21,6 +21,7 @@
 #include <linux/gfs2_ondisk.h>
 #include <linux/crc32.h>
 #include <linux/time.h>
+#include <linux/wait.h>
 
 #include "gfs2.h"
 #include "incore.h"

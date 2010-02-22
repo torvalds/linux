@@ -4730,6 +4730,26 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
 	}
 }
 
+static int hp_blike_system(u32 subsystem_id);
+
+static void set_hp_led_gpio(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+	switch (codec->vendor_id) {
+	case 0x111d7608:
+		/* GPIO 0 */
+		spec->gpio_led = 0x01;
+		break;
+	case 0x111d7600:
+	case 0x111d7601:
+	case 0x111d7602:
+	case 0x111d7603:
+		/* GPIO 3 */
+		spec->gpio_led = 0x08;
+		break;
+	}
+}
+
 /*
  * This method searches for the mute LED GPIO configuration
  * provided as OEM string in SMBIOS. The format of that string
@@ -4741,6 +4761,14 @@ static void stac92xx_unsol_event(struct hda_codec *codec, unsigned int res)
  *
  * So, HP B-series like systems may have HP_Mute_LED_0 (current models)
  * or  HP_Mute_LED_0_3 (future models) OEM SMBIOS strings
+ *
+ *
+ * The dv-series laptops don't seem to have the HP_Mute_LED* strings in
+ * SMBIOS - at least the ones I have seen do not have them - which include
+ * my own system (HP Pavilion dv6-1110ax) and my cousin's
+ * HP Pavilion dv9500t CTO.
+ * Need more information on whether it is true across the entire series.
+ * -- kunal
  */
 static int find_mute_led_gpio(struct hda_codec *codec)
 {
@@ -4751,27 +4779,26 @@ static int find_mute_led_gpio(struct hda_codec *codec)
 		while ((dev = dmi_find_device(DMI_DEV_TYPE_OEM_STRING,
 								NULL, dev))) {
 			if (sscanf(dev->name, "HP_Mute_LED_%d_%d",
-			      &spec->gpio_led_polarity,
-			      &spec->gpio_led) == 2) {
+				  &spec->gpio_led_polarity,
+				  &spec->gpio_led) == 2) {
 				spec->gpio_led = 1 << spec->gpio_led;
 				return 1;
 			}
 			if (sscanf(dev->name, "HP_Mute_LED_%d",
-			      &spec->gpio_led_polarity) == 1) {
-				switch (codec->vendor_id) {
-				case 0x111d7608:
-					/* GPIO 0 */
-					spec->gpio_led = 0x01;
-					return 1;
-				case 0x111d7600:
-				case 0x111d7601:
-				case 0x111d7602:
-				case 0x111d7603:
-					/* GPIO 3 */
-					spec->gpio_led = 0x08;
-					return 1;
-				}
+				  &spec->gpio_led_polarity) == 1) {
+				set_hp_led_gpio(codec);
+				return 1;
 			}
+		}
+
+		/*
+		 * Fallback case - if we don't find the DMI strings,
+		 * we statically set the GPIO - if not a B-series system.
+		 */
+		if (!hp_blike_system(codec->subsystem_id)) {
+			set_hp_led_gpio(codec);
+			spec->gpio_led_polarity = 1;
+			return 1;
 		}
 	}
 	return 0;
@@ -5547,6 +5574,8 @@ again:
 	spec->num_adcs = ARRAY_SIZE(stac92hd71bxx_adc_nids);
 	spec->num_dmuxes = ARRAY_SIZE(stac92hd71bxx_dmux_nids);
 	spec->num_smuxes = stac92hd71bxx_connected_smuxes(codec, 0x1e);
+
+	snd_printdd("Found board config: %d\n", spec->board_config);
 
 	switch (spec->board_config) {
 	case STAC_HP_M4:

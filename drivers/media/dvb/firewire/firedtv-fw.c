@@ -202,14 +202,8 @@ static void handle_fcp(struct fw_card *card, struct fw_request *request,
 	unsigned long flags;
 	int su;
 
-	if ((tcode != TCODE_WRITE_QUADLET_REQUEST &&
-	     tcode != TCODE_WRITE_BLOCK_REQUEST) ||
-	    offset != CSR_REGISTER_BASE + CSR_FCP_RESPONSE ||
-	    length == 0 ||
-	    (((u8 *)payload)[0] & 0xf0) != 0) {
-		fw_send_response(card, request, RCODE_TYPE_ERROR);
+	if (length < 2 || (((u8 *)payload)[0] & 0xf0) != 0)
 		return;
-	}
 
 	su = ((u8 *)payload)[1] & 0x7;
 
@@ -230,10 +224,8 @@ static void handle_fcp(struct fw_card *card, struct fw_request *request,
 	}
 	spin_unlock_irqrestore(&node_list_lock, flags);
 
-	if (fdtv) {
+	if (fdtv)
 		avc_recv(fdtv, payload, length);
-		fw_send_response(card, request, RCODE_COMPLETE);
-	}
 }
 
 static struct fw_address_handler fcp_handler = {

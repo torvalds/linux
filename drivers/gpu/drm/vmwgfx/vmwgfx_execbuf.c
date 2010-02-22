@@ -490,10 +490,29 @@ static int vmw_validate_single_buffer(struct vmw_private *dev_priv,
 	if (vmw_dmabuf_gmr(bo) != SVGA_GMR_NULL)
 		return 0;
 
+	/**
+	 * Put BO in VRAM, only if there is space.
+	 */
+
+	ret = ttm_bo_validate(bo, &vmw_vram_sys_placement, true, false);
+	if (unlikely(ret == -ERESTARTSYS))
+		return ret;
+
+	/**
+	 * Otherwise, set it up as GMR.
+	 */
+
+	if (vmw_dmabuf_gmr(bo) != SVGA_GMR_NULL)
+		return 0;
+
 	ret = vmw_gmr_bind(dev_priv, bo);
 	if (likely(ret == 0 || ret == -ERESTARTSYS))
 		return ret;
 
+	/**
+	 * If that failed, try VRAM again, this time evicting
+	 * previous contents.
+	 */
 
 	ret = ttm_bo_validate(bo, &vmw_vram_placement, true, false);
 	return ret;

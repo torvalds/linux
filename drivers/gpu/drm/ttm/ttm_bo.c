@@ -426,7 +426,8 @@ moved:
 		    bdev->man[bo->mem.mem_type].gpu_offset;
 		bo->cur_placement = bo->mem.placement;
 		spin_unlock(&bo->lock);
-	}
+	} else
+		bo->offset = 0;
 
 	return 0;
 
@@ -523,52 +524,44 @@ static int ttm_bo_cleanup_refs(struct ttm_buffer_object *bo, bool remove_all)
 static int ttm_bo_delayed_delete(struct ttm_bo_device *bdev, bool remove_all)
 {
 	struct ttm_bo_global *glob = bdev->glob;
-	struct ttm_buffer_object *entry, *nentry;
-	struct list_head *list, *next;
-	int ret;
+	struct ttm_buffer_object *entry = NULL;
+	int ret = 0;
 
 	spin_lock(&glob->lru_lock);
-	list_for_each_safe(list, next, &bdev->ddestroy) {
-		entry = list_entry(list, struct ttm_buffer_object, ddestroy);
-		nentry = NULL;
+	if (list_empty(&bdev->ddestroy))
+		goto out_unlock;
 
-		/*
-		 * Protect the next list entry from destruction while we
-		 * unlock the lru_lock.
-		 */
+	entry = list_first_entry(&bdev->ddestroy,
+		struct ttm_buffer_object, ddestroy);
+	kref_get(&entry->list_kref);
 
-		if (next != &bdev->ddestroy) {
-			nentry = list_entry(next, struct ttm_buffer_object,
-					    ddestroy);
+	for (;;) {
+		struct ttm_buffer_object *nentry = NULL;
+
+		if (entry->ddestroy.next != &bdev->ddestroy) {
+			nentry = list_first_entry(&entry->ddestroy,
+				struct ttm_buffer_object, ddestroy);
 			kref_get(&nentry->list_kref);
 		}
-		kref_get(&entry->list_kref);
 
 		spin_unlock(&glob->lru_lock);
 		ret = ttm_bo_cleanup_refs(entry, remove_all);
 		kref_put(&entry->list_kref, ttm_bo_release_list);
+		entry = nentry;
+
+		if (ret || !entry)
+			goto out;
 
 		spin_lock(&glob->lru_lock);
-		if (nentry) {
-			bool next_onlist = !list_empty(next);
-			spin_unlock(&glob->lru_lock);
-			kref_put(&nentry->list_kref, ttm_bo_release_list);
-			spin_lock(&glob->lru_lock);
-			/*
-			 * Someone might have raced us and removed the
-			 * next entry from the list. We don't bother restarting
-			 * list traversal.
-			 */
-
-			if (!next_onlist)
-				break;
-		}
-		if (ret)
+		if (list_empty(&entry->ddestroy))
 			break;
 	}
-	ret = !list_empty(&bdev->ddestroy);
-	spin_unlock(&glob->lru_lock);
 
+out_unlock:
+	spin_unlock(&glob->lru_lock);
+out:
+	if (entry)
+		kref_put(&entry->list_kref, ttm_bo_release_list);
 	return ret;
 }
 
@@ -950,6 +943,14 @@ int ttm_bo_mem_space(struct ttm_buffer_object *bo,
 		ttm_flag_masked(&cur_flags, placement->busy_placement[i],
 				~TTM_PL_MASK_MEMTYPE);
 
+
+		if (mem_type == TTM_PL_SYSTEM) {
+			mem->mem_type = mem_type;
+			mem->placement = cur_flags;
+			mem->mm_node = NULL;
+			return 0;
+		}
+
 		ret = ttm_bo_mem_force_space(bo, mem_type, placement, mem,
 						interruptible, no_wait);
 		if (ret == 0 && mem->mm_node) {
@@ -1019,6 +1020,12 @@ static int ttm_bo_mem_compat(struct ttm_placement *placement,
 			     struct ttm_mem_reg *mem)
 {
 	int i;
+	struct drm_mm_node *node = mem->mm_node;
+
+	if (node && placement->lpfn != 0 &&
+	    (node->start < placement->fpfn ||
+	     node->start + node->size > placement->lpfn))
+		return -1;
 
 	for (i = 0; i < placement->num_placement; i++) {
 		if ((placement->placement[i] & mem->placement &
@@ -1844,6 +1851,9 @@ static int ttm_bo_swapout(struct ttm_mem_shrink *shrink)
 	 * anyone tries to access a ttm page.
 	 */
 
+	if (bo->bdev->driver->swap_notify)
+		bo->bdev->driver->swap_notify(bo);
+
 	ret = ttm_tt_swapout(bo->ttm, bo->persistant_swap_storage);
 out:
 
@@ -1864,3 +1874,4 @@ void ttm_bo_swapout_all(struct ttm_bo_device *bdev)
 	while (ttm_bo_swapout(&bdev->glob->shrink) == 0)
 		;
 }
+EXPORT_SYMBOL(ttm_bo_swapout_all);

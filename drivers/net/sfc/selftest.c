@@ -79,10 +79,14 @@ struct efx_loopback_state {
 static int efx_test_mdio(struct efx_nic *efx, struct efx_self_tests *tests)
 {
 	int rc = 0;
-	int devad = __ffs(efx->mdio.mmds);
+	int devad;
 	u16 physid1, physid2;
 
-	if (efx->phy_type == PHY_TYPE_NONE)
+	if (efx->mdio.mode_support & MDIO_SUPPORTS_C45)
+		devad = __ffs(efx->mdio.mmds);
+	else if (efx->mdio.mode_support & MDIO_SUPPORTS_C22)
+		devad = MDIO_DEVAD_NONE;
+	else
 		return 0;
 
 	mutex_lock(&efx->mac_lock);

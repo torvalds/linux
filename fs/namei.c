@@ -561,6 +561,7 @@ static __always_inline int __do_follow_link(struct path *path, struct nameidata 
 		dget(dentry);
 	}
 	mntget(path->mnt);
+	nd->last_type = LAST_BIND;
 	cookie = dentry->d_inode->i_op->follow_link(dentry, nd);
 	error = PTR_ERR(cookie);
 	if (!IS_ERR(cookie)) {
@@ -822,6 +823,17 @@ fail:
 }
 
 /*
+ * This is a temporary kludge to deal with "automount" symlinks; proper
+ * solution is to trigger them on follow_mount(), so that do_lookup()
+ * would DTRT.  To be killed before 2.6.34-final.
+ */
+static inline int follow_on_final(struct inode *inode, unsigned lookup_flags)
+{
+	return inode && unlikely(inode->i_op->follow_link) &&
+		((lookup_flags & LOOKUP_FOLLOW) || S_ISDIR(inode->i_mode));
+}
+
+/*
  * Name resolution.
  * This is the basic name resolution function, turning a pathname into
  * the final dentry. We expect 'base' to be positive and a directory.
@@ -941,8 +953,7 @@ last_component:
 		if (err)
 			break;
 		inode = next.dentry->d_inode;
-		if ((lookup_flags & LOOKUP_FOLLOW)
-		    && inode && inode->i_op->follow_link) {
+		if (follow_on_final(inode, lookup_flags)) {
 			err = do_follow_link(&next, nd);
 			if (err)
 				goto return_err;
@@ -1603,11 +1614,12 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	struct file *filp;
 	struct nameidata nd;
 	int error;
-	struct path path, save;
+	struct path path;
 	struct dentry *dir;
 	int count = 0;
 	int will_truncate;
 	int flag = open_to_namei_flags(open_flag);
+	int force_reval = 0;
 
 	/*
 	 * O_SYNC is implemented as __O_SYNC|O_DSYNC.  As many places only
@@ -1619,7 +1631,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 		open_flag |= O_DSYNC;
 
 	if (!acc_mode)
-		acc_mode = MAY_OPEN | ACC_MODE(flag);
+		acc_mode = MAY_OPEN | ACC_MODE(open_flag);
 
 	/* O_TRUNC implies we need access checks for write permissions */
 	if (flag & O_TRUNC)
@@ -1659,9 +1671,12 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	/*
 	 * Create - we need to know the parent.
 	 */
+reval:
 	error = path_init(dfd, pathname, LOOKUP_PARENT, &nd);
 	if (error)
 		return ERR_PTR(error);
+	if (force_reval)
+		nd.flags |= LOOKUP_REVAL;
 	error = path_walk(pathname, &nd);
 	if (error) {
 		if (nd.root.mnt)
@@ -1731,8 +1746,7 @@ do_last:
 		if (nd.root.mnt)
 			path_put(&nd.root);
 		if (!IS_ERR(filp)) {
-			error = ima_path_check(&filp->f_path, filp->f_mode &
-				       (MAY_READ | MAY_WRITE | MAY_EXEC));
+			error = ima_file_check(filp, acc_mode);
 			if (error) {
 				fput(filp);
 				filp = ERR_PTR(error);
@@ -1792,8 +1806,7 @@ ok:
 	}
 	filp = nameidata_to_filp(&nd);
 	if (!IS_ERR(filp)) {
-		error = ima_path_check(&filp->f_path, filp->f_mode &
-			       (MAY_READ | MAY_WRITE | MAY_EXEC));
+		error = ima_file_check(filp, acc_mode);
 		if (error) {
 			fput(filp);
 			filp = ERR_PTR(error);
@@ -1853,17 +1866,7 @@ do_link:
 	error = security_inode_follow_link(path.dentry, &nd);
 	if (error)
 		goto exit_dput;
-	save = nd.path;
-	path_get(&save);
 	error = __do_follow_link(&path, &nd);
-	if (error == -ESTALE) {
-		/* nd.path had been dropped */
-		nd.path = save;
-		path_get(&nd.path);
-		nd.flags |= LOOKUP_REVAL;
-		error = __do_follow_link(&path, &nd);
-	}
-	path_put(&save);
 	path_put(&path);
 	if (error) {
 		/* Does someone understand code flow here? Or it is only
@@ -1873,6 +1876,10 @@ do_link:
 		release_open_intent(&nd);
 		if (nd.root.mnt)
 			path_put(&nd.root);
+		if (error == -ESTALE && !force_reval) {
+			force_reval = 1;
+			goto reval;
+		}
 		return ERR_PTR(error);
 	}
 	nd.flags &= ~LOOKUP_PARENT;
