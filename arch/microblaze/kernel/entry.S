@@ -425,8 +425,7 @@ C_ENTRY(ret_from_trap):
 	lwi	r4, r1, PTO + PT_R4;
 
 	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */
-	add	r11, r0, CURRENT_TASK;	/* Get current task ptr into r11 */
-	swi	r11, r0, PER_CPU(CURRENT_SAVE); /* save current */
+	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
 	RESTORE_REGS;
@@ -700,8 +699,7 @@ C_ENTRY(ret_from_exc):
 
 /* Finally, return to user state.  */
 1:	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */
-	add	r11, r0, CURRENT_TASK; /* Get current task ptr into r11 */
-	swi	r11, r0, PER_CPU(CURRENT_SAVE); /* save current */
+	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
 
@@ -828,8 +826,7 @@ no_intr_resched:
     /* Disable interrupts, we are now committed to the state restore */
 	disable_irq
 	swi	r0, r0, PER_CPU(KM); /* MS: Now officially in user state. */
-	add	r11, r0, CURRENT_TASK;
-	swi	r11, r0, PER_CPU(CURRENT_SAVE);
+	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE);
 	VM_OFF;
 	tophys(r1,r1);
 	lwi	r3, r1, PTO + PT_R3; /* MS: restore saved r3, r4 registers */
@@ -979,8 +976,7 @@ dbtrap_call:	rtbd	r11, 0;
 
 /* Finally, return to user state.  */
 1:	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */
-	add	r11, r0, CURRENT_TASK; /* Get current task ptr into r11 */
-	swi	r11, r0, PER_CPU(CURRENT_SAVE); /* save current */
+	swi	CURRENT_TASK, r0, PER_CPU(CURRENT_SAVE); /* save current */
 	VM_OFF;
 	tophys(r1,r1);
 
