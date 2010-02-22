@@ -47,6 +47,8 @@ struct can_priv {
 	int (*do_set_mode)(struct net_device *dev, enum can_mode mode);
 	int (*do_get_state)(const struct net_device *dev,
 			    enum can_state *state);
+	int (*do_get_berr_counter)(const struct net_device *dev,
+				   struct can_berr_counter *bec);
 
 	unsigned int echo_skb_max;
 	struct sk_buff **echo_skb;

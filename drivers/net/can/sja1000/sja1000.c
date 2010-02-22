@@ -130,8 +130,12 @@ static void set_normal_mode(struct net_device *dev)
 		/* check reset bit */
 		if ((status & MOD_RM) == 0) {
 			priv->can.state = CAN_STATE_ERROR_ACTIVE;
-			/* enable all interrupts */
-			priv->write_reg(priv, REG_IER, IRQ_ALL);
+			/* enable interrupts */
+			if (priv->can.ctrlmode & CAN_CTRLMODE_BERR_REPORTING)
+				priv->write_reg(priv, REG_IER, IRQ_ALL);
+			else
+				priv->write_reg(priv, REG_IER,
+						IRQ_ALL & ~IRQ_BEI);
 			return;
 		}
 
@@ -199,6 +203,17 @@ static int sja1000_set_bittiming(struct net_device *dev)
 
 	priv->write_reg(priv, REG_BTR0, btr0);
 	priv->write_reg(priv, REG_BTR1, btr1);
+
+	return 0;
+}
+
+static int sja1000_get_berr_counter(const struct net_device *dev,
+				    struct can_berr_counter *bec)
+{
+	struct sja1000_priv *priv = netdev_priv(dev);
+
+	bec->txerr = priv->read_reg(priv, REG_TXERR);
+	bec->rxerr = priv->read_reg(priv, REG_RXERR);
 
 	return 0;
 }
@@ -437,6 +452,8 @@ static int sja1000_err(struct net_device *dev, uint8_t isrc, uint8_t status)
 				CAN_ERR_CRTL_TX_PASSIVE :
 				CAN_ERR_CRTL_RX_PASSIVE;
 		}
+		cf->data[6] = txerr;
+		cf->data[7] = rxerr;
 	}
 
 	priv->can.state = state;
@@ -567,7 +584,9 @@ struct net_device *alloc_sja1000dev(int sizeof_priv)
 	priv->can.bittiming_const = &sja1000_bittiming_const;
 	priv->can.do_set_bittiming = sja1000_set_bittiming;
 	priv->can.do_set_mode = sja1000_set_mode;
-	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
+	priv->can.do_get_berr_counter = sja1000_get_berr_counter;
+	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES |
+		CAN_CTRLMODE_BERR_REPORTING;
 
 	if (sizeof_priv)
 		priv->priv = (void *)priv + sizeof(struct sja1000_priv);
