@@ -102,6 +102,17 @@ config MTD_NAND_OMAP_PREFETCH_DMA
 config MTD_NAND_IDS
 	tristate
 
+config MTD_NAND_RICOH
+	tristate "Ricoh xD card reader"
+	default n
+	select MTD_SM_COMMON
+	help
+	  Enable support for Ricoh R5C852 xD card reader
+	  You also need to enable ether
+	  NAND SSFDC (SmartMedia) read only translation layer' or new
+	  expermental, readwrite
+	  'SmartMedia/xD new translation layer'
+
 config MTD_NAND_AU1550
 	tristate "Au1550/1200 NAND support"
 	depends on SOC_AU1200 || SOC_AU1550
