@@ -1948,6 +1948,7 @@ int wl1271_register_hw(struct wl1271 *wl)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wl1271_register_hw);
 
 int wl1271_init_ieee80211(struct wl1271 *wl)
 {
@@ -1976,6 +1977,7 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wl1271_init_ieee80211);
 
 #define WL1271_DEFAULT_CHANNEL 0
 
@@ -2030,6 +2032,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	return hw;
 }
+EXPORT_SYMBOL_GPL(wl1271_alloc_hw);
 
 int wl1271_free_hw(struct wl1271 *wl)
 {
@@ -2050,3 +2053,8 @@ int wl1271_free_hw(struct wl1271 *wl)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wl1271_free_hw);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");
+MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
