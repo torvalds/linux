@@ -33,28 +33,24 @@ void wl1271_enable_interrupts(struct wl1271 *wl);
 void wl1271_io_reset(struct wl1271 *wl);
 void wl1271_io_init(struct wl1271 *wl);
 
-struct device *wl1271_wl_to_dev(struct wl1271 *wl);
+static inline struct device *wl1271_wl_to_dev(struct wl1271 *wl)
+{
+	return wl->if_ops->dev(wl);
+}
+
 
 /* Raw target IO, address is not translated */
-void wl1271_raw_write(struct wl1271 *wl, int addr, void *buf,
-		      size_t len, bool fixed);
-void wl1271_raw_read(struct wl1271 *wl, int addr, void *buf,
-		     size_t len, bool fixed);
+static inline void wl1271_raw_write(struct wl1271 *wl, int addr, void *buf,
+				    size_t len, bool fixed)
+{
+	wl->if_ops->write(wl, addr, buf, len, fixed);
+}
 
-/* Translated target IO */
-void wl1271_read(struct wl1271 *wl, int addr, void *buf, size_t len,
-		     bool fixed);
-void wl1271_write(struct wl1271 *wl, int addr, void *buf, size_t len,
-		      bool fixed);
-u32 wl1271_read32(struct wl1271 *wl, int addr);
-void wl1271_write32(struct wl1271 *wl, int addr, u32 val);
-
-/* Top Register IO */
-void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val);
-u16 wl1271_top_reg_read(struct wl1271 *wl, int addr);
-
-int wl1271_set_partition(struct wl1271 *wl,
-			 struct wl1271_partition_set *p);
+static inline void wl1271_raw_read(struct wl1271 *wl, int addr, void *buf,
+				   size_t len, bool fixed)
+{
+	wl->if_ops->read(wl, addr, buf, len, fixed);
+}
 
 static inline u32 wl1271_raw_read32(struct wl1271 *wl, int addr)
 {
@@ -70,6 +66,68 @@ static inline void wl1271_raw_write32(struct wl1271 *wl, int addr, u32 val)
 	wl1271_raw_write(wl, addr, &wl->buffer_32,
 			     sizeof(wl->buffer_32), false);
 }
+
+/* Translated target IO */
+static inline int wl1271_translate_addr(struct wl1271 *wl, int addr)
+{
+	/*
+	 * To translate, first check to which window of addresses the
+	 * particular address belongs. Then subtract the starting address
+	 * of that window from the address. Then, add offset of the
+	 * translated region.
+	 *
+	 * The translated regions occur next to each other in physical device
+	 * memory, so just add the sizes of the preceeding address regions to
+	 * get the offset to the new region.
+	 *
+	 * Currently, only the two first regions are addressed, and the
+	 * assumption is that all addresses will fall into either of those
+	 * two.
+	 */
+	if ((addr >= wl->part.reg.start) &&
+	    (addr < wl->part.reg.start + wl->part.reg.size))
+		return addr - wl->part.reg.start + wl->part.mem.size;
+	else
+		return addr - wl->part.mem.start;
+}
+
+static inline void wl1271_read(struct wl1271 *wl, int addr, void *buf,
+			       size_t len, bool fixed)
+{
+	int physical;
+
+	physical = wl1271_translate_addr(wl, addr);
+
+	wl1271_raw_read(wl, physical, buf, len, fixed);
+}
+
+static inline void wl1271_write(struct wl1271 *wl, int addr, void *buf,
+				size_t len, bool fixed)
+{
+	int physical;
+
+	physical = wl1271_translate_addr(wl, addr);
+
+	wl1271_raw_write(wl, physical, buf, len, fixed);
+}
+
+static inline u32 wl1271_read32(struct wl1271 *wl, int addr)
+{
+	return wl1271_raw_read32(wl, wl1271_translate_addr(wl, addr));
+}
+
+static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
+{
+	wl1271_raw_write32(wl, wl1271_translate_addr(wl, addr), val);
+}
+
+
+/* Top Register IO */
+void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val);
+u16 wl1271_top_reg_read(struct wl1271 *wl, int addr);
+
+int wl1271_set_partition(struct wl1271 *wl,
+			 struct wl1271_partition_set *p);
 
 /* Functions from wl1271_main.c */
 

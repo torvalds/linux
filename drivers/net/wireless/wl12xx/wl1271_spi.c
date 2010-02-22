@@ -33,7 +33,7 @@
 #include "wl1271_spi.h"
 #include "wl1271_io.h"
 
-static struct spi_device *wl_to_spi(struct wl1271 *wl)
+static inline struct spi_device *wl_to_spi(struct wl1271 *wl)
 {
 	return wl->if_priv;
 }

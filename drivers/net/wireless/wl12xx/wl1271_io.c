@@ -31,11 +31,6 @@
 #include "wl1271_spi.h"
 #include "wl1271_io.h"
 
-struct device *wl1271_wl_to_dev(struct wl1271 *wl)
-{
-	return wl->if_ops->dev(wl);
-}
-
 void wl1271_disable_interrupts(struct wl1271 *wl)
 {
 	wl->if_ops->disable_irq(wl);
@@ -44,29 +39,6 @@ void wl1271_disable_interrupts(struct wl1271 *wl)
 void wl1271_enable_interrupts(struct wl1271 *wl)
 {
 	wl->if_ops->enable_irq(wl);
-}
-
-static int wl1271_translate_addr(struct wl1271 *wl, int addr)
-{
-	/*
-	 * To translate, first check to which window of addresses the
-	 * particular address belongs. Then subtract the starting address
-	 * of that window from the address. Then, add offset of the
-	 * translated region.
-	 *
-	 * The translated regions occur next to each other in physical device
-	 * memory, so just add the sizes of the preceeding address regions to
-	 * get the offset to the new region.
-	 *
-	 * Currently, only the two first regions are addressed, and the
-	 * assumption is that all addresses will fall into either of those
-	 * two.
-	 */
-	if ((addr >= wl->part.reg.start) &&
-	    (addr < wl->part.reg.start + wl->part.reg.size))
-		return addr - wl->part.reg.start + wl->part.mem.size;
-	else
-		return addr - wl->part.mem.start;
 }
 
 /* Set the SPI partitions to access the chip addresses
@@ -138,48 +110,6 @@ void wl1271_io_reset(struct wl1271 *wl)
 void wl1271_io_init(struct wl1271 *wl)
 {
 	wl->if_ops->init(wl);
-}
-
-void wl1271_raw_write(struct wl1271 *wl, int addr, void *buf,
-		      size_t len, bool fixed)
-{
-	wl->if_ops->write(wl, addr, buf, len, fixed);
-}
-
-void wl1271_raw_read(struct wl1271 *wl, int addr, void *buf,
-		     size_t len, bool fixed)
-{
-	wl->if_ops->read(wl, addr, buf, len, fixed);
-}
-
-void wl1271_read(struct wl1271 *wl, int addr, void *buf, size_t len,
-		     bool fixed)
-{
-	int physical;
-
-	physical = wl1271_translate_addr(wl, addr);
-
-	wl1271_raw_read(wl, physical, buf, len, fixed);
-}
-
-void wl1271_write(struct wl1271 *wl, int addr, void *buf, size_t len,
-		  bool fixed)
-{
-	int physical;
-
-	physical = wl1271_translate_addr(wl, addr);
-
-	wl1271_raw_write(wl, physical, buf, len, fixed);
-}
-
-u32 wl1271_read32(struct wl1271 *wl, int addr)
-{
-	return wl1271_raw_read32(wl, wl1271_translate_addr(wl, addr));
-}
-
-void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
-{
-	wl1271_raw_write32(wl, wl1271_translate_addr(wl, addr), val);
 }
 
 void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val)
