@@ -111,7 +111,7 @@ static void rcu_preempt_note_context_switch(int cpu)
 		/* Possibly blocking in an RCU read-side critical section. */
 		rdp = rcu_preempt_state.rda[cpu];
 		rnp = rdp->mynode;
-		spin_lock_irqsave(&rnp->lock, flags);
+		raw_spin_lock_irqsave(&rnp->lock, flags);
 		t->rcu_read_unlock_special |= RCU_READ_UNLOCK_BLOCKED;
 		t->rcu_blocked_node = rnp;
 
@@ -132,7 +132,7 @@ static void rcu_preempt_note_context_switch(int cpu)
 		WARN_ON_ONCE(!list_empty(&t->rcu_node_entry));
 		phase = (rnp->gpnum + !(rnp->qsmask & rdp->grpmask)) & 0x1;
 		list_add(&t->rcu_node_entry, &rnp->blocked_tasks[phase]);
-		spin_unlock_irqrestore(&rnp->lock, flags);
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	}
 
 	/*
@@ -189,7 +189,7 @@ static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp, unsigned long flags)
 	struct rcu_node *rnp_p;
 
 	if (rnp->qsmask != 0 || rcu_preempted_readers(rnp)) {
-		spin_unlock_irqrestore(&rnp->lock, flags);
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		return;  /* Still need more quiescent states! */
 	}
 
@@ -206,8 +206,8 @@ static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp, unsigned long flags)
 
 	/* Report up the rest of the hierarchy. */
 	mask = rnp->grpmask;
-	spin_unlock(&rnp->lock);	/* irqs remain disabled. */
-	spin_lock(&rnp_p->lock);	/* irqs already disabled. */
+	raw_spin_unlock(&rnp->lock);	/* irqs remain disabled. */
+	raw_spin_lock(&rnp_p->lock);	/* irqs already disabled. */
 	rcu_report_qs_rnp(mask, &rcu_preempt_state, rnp_p, flags);
 }
 
@@ -257,10 +257,10 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		 */
 		for (;;) {
 			rnp = t->rcu_blocked_node;
-			spin_lock(&rnp->lock);  /* irqs already disabled. */
+			raw_spin_lock(&rnp->lock);  /* irqs already disabled. */
 			if (rnp == t->rcu_blocked_node)
 				break;
-			spin_unlock(&rnp->lock);  /* irqs remain disabled. */
+			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
 		}
 		empty = !rcu_preempted_readers(rnp);
 		empty_exp = !rcu_preempted_readers_exp(rnp);
@@ -274,7 +274,7 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		 * Note that rcu_report_unblock_qs_rnp() releases rnp->lock.
 		 */
 		if (empty)
-			spin_unlock_irqrestore(&rnp->lock, flags);
+			raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		else
 			rcu_report_unblock_qs_rnp(rnp, flags);
 
@@ -324,12 +324,12 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 	struct task_struct *t;
 
 	if (rcu_preempted_readers(rnp)) {
-		spin_lock_irqsave(&rnp->lock, flags);
+		raw_spin_lock_irqsave(&rnp->lock, flags);
 		phase = rnp->gpnum & 0x1;
 		lp = &rnp->blocked_tasks[phase];
 		list_for_each_entry(t, lp, rcu_node_entry)
 			printk(" P%d", t->pid);
-		spin_unlock_irqrestore(&rnp->lock, flags);
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	}
 }
 
@@ -400,11 +400,11 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 		lp_root = &rnp_root->blocked_tasks[i];
 		while (!list_empty(lp)) {
 			tp = list_entry(lp->next, typeof(*tp), rcu_node_entry);
-			spin_lock(&rnp_root->lock); /* irqs already disabled */
+			raw_spin_lock(&rnp_root->lock); /* irqs already disabled */
 			list_del(&tp->rcu_node_entry);
 			tp->rcu_blocked_node = rnp_root;
 			list_add(&tp->rcu_node_entry, lp_root);
-			spin_unlock(&rnp_root->lock); /* irqs remain disabled */
+			raw_spin_unlock(&rnp_root->lock); /* irqs remain disabled */
 		}
 	}
 	return retval;
@@ -528,7 +528,7 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp)
 	unsigned long flags;
 	unsigned long mask;
 
-	spin_lock_irqsave(&rnp->lock, flags);
+	raw_spin_lock_irqsave(&rnp->lock, flags);
 	for (;;) {
 		if (!sync_rcu_preempt_exp_done(rnp))
 			break;
@@ -537,12 +537,12 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp)
 			break;
 		}
 		mask = rnp->grpmask;
-		spin_unlock(&rnp->lock); /* irqs remain disabled */
+		raw_spin_unlock(&rnp->lock); /* irqs remain disabled */
 		rnp = rnp->parent;
-		spin_lock(&rnp->lock); /* irqs already disabled */
+		raw_spin_lock(&rnp->lock); /* irqs already disabled */
 		rnp->expmask &= ~mask;
 	}
-	spin_unlock_irqrestore(&rnp->lock, flags);
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
 /*
@@ -557,11 +557,11 @@ sync_rcu_preempt_exp_init(struct rcu_state *rsp, struct rcu_node *rnp)
 {
 	int must_wait;
 
-	spin_lock(&rnp->lock); /* irqs already disabled */
+	raw_spin_lock(&rnp->lock); /* irqs already disabled */
 	list_splice_init(&rnp->blocked_tasks[0], &rnp->blocked_tasks[2]);
 	list_splice_init(&rnp->blocked_tasks[1], &rnp->blocked_tasks[3]);
 	must_wait = rcu_preempted_readers_exp(rnp);
-	spin_unlock(&rnp->lock); /* irqs remain disabled */
+	raw_spin_unlock(&rnp->lock); /* irqs remain disabled */
 	if (!must_wait)
 		rcu_report_exp_rnp(rsp, rnp);
 }
@@ -606,13 +606,13 @@ void synchronize_rcu_expedited(void)
 	/* force all RCU readers onto blocked_tasks[]. */
 	synchronize_sched_expedited();
 
-	spin_lock_irqsave(&rsp->onofflock, flags);
+	raw_spin_lock_irqsave(&rsp->onofflock, flags);
 
 	/* Initialize ->expmask for all non-leaf rcu_node structures. */
 	rcu_for_each_nonleaf_node_breadth_first(rsp, rnp) {
-		spin_lock(&rnp->lock); /* irqs already disabled. */
+		raw_spin_lock(&rnp->lock); /* irqs already disabled. */
 		rnp->expmask = rnp->qsmaskinit;
-		spin_unlock(&rnp->lock); /* irqs remain disabled. */
+		raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
 	}
 
 	/* Snapshot current state of ->blocked_tasks[] lists. */
@@ -621,7 +621,7 @@ void synchronize_rcu_expedited(void)
 	if (NUM_RCU_NODES > 1)
 		sync_rcu_preempt_exp_init(rsp, rcu_get_root(rsp));
 
-	spin_unlock_irqrestore(&rsp->onofflock, flags);
+	raw_spin_unlock_irqrestore(&rsp->onofflock, flags);
 
 	/* Wait for snapshotted ->blocked_tasks[] lists to drain. */
 	rnp = rcu_get_root(rsp);
@@ -756,7 +756,7 @@ static int rcu_preempted_readers(struct rcu_node *rnp)
 /* Because preemptible RCU does not exist, no quieting of tasks. */
 static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp, unsigned long flags)
 {
-	spin_unlock_irqrestore(&rnp->lock, flags);
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */

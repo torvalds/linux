@@ -90,7 +90,7 @@ struct rcu_dynticks {
  * Definition for node within the RCU grace-period-detection hierarchy.
  */
 struct rcu_node {
-	spinlock_t lock;	/* Root rcu_node's lock protects some */
+	raw_spinlock_t lock;	/* Root rcu_node's lock protects some */
 				/*  rcu_state fields as well as following. */
 	unsigned long gpnum;	/* Current grace period for this node. */
 				/*  This will either be equal to or one */
@@ -291,7 +291,7 @@ struct rcu_state {
 
 	/* End of fields guarded by root rcu_node's lock. */
 
-	spinlock_t onofflock;			/* exclude on/offline and */
+	raw_spinlock_t onofflock;		/* exclude on/offline and */
 						/*  starting new GP.  Also */
 						/*  protects the following */
 						/*  orphan_cbs fields. */
@@ -301,7 +301,7 @@ struct rcu_state {
 						/*  going offline. */
 	struct rcu_head **orphan_cbs_tail;	/* And tail pointer. */
 	long orphan_qlen;			/* Number of orphaned cbs. */
-	spinlock_t fqslock;			/* Only one task forcing */
+	raw_spinlock_t fqslock;			/* Only one task forcing */
 						/*  quiescent states. */
 	unsigned long jiffies_force_qs;		/* Time at which to invoke */
 						/*  force_quiescent_state(). */
