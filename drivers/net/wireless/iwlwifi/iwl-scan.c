@@ -675,7 +675,6 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	};
 	struct iwl_scan_cmd *scan;
 	struct ieee80211_conf *conf = NULL;
-	int ret = 0;
 	u32 rate_flags = 0;
 	u16 cmd_len;
 	u16 rx_chain = 0;
@@ -708,7 +707,6 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
 		IWL_DEBUG_INFO(priv, "Multiple concurrent scan requests in parallel. "
 			       "Ignoring second request.\n");
-		ret = -EIO;
 		goto done;
 	}
 
@@ -741,7 +739,8 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		priv->scan = kmalloc(sizeof(struct iwl_scan_cmd) +
 				     IWL_MAX_SCAN_SIZE, GFP_KERNEL);
 		if (!priv->scan) {
-			ret = -ENOMEM;
+			IWL_DEBUG_SCAN(priv,
+				       "fail to allocate memory for scan\n");
 			goto done;
 		}
 	}
@@ -908,8 +907,7 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	scan->len = cpu_to_le16(cmd.len);
 
 	set_bit(STATUS_SCAN_HW, &priv->status);
-	ret = iwl_send_cmd_sync(priv, &cmd);
-	if (ret)
+	if (iwl_send_cmd_sync(priv, &cmd))
 		goto done;
 
 	queue_delayed_work(priv->workqueue, &priv->scan_check,
