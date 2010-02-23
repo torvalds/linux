@@ -291,21 +291,21 @@ unsigned long long poke_real_address_q(unsigned long long addr,
  * doesn't exist, so everything must go through page tables.
  */
 #ifdef CONFIG_MMU
-void __iomem *__ioremap_caller(unsigned long offset, unsigned long size,
+void __iomem *__ioremap_caller(phys_addr_t offset, unsigned long size,
 			       pgprot_t prot, void *caller);
 void __iounmap(void __iomem *addr);
 
 static inline void __iomem *
-__ioremap(unsigned long offset, unsigned long size, pgprot_t prot)
+__ioremap(phys_addr_t offset, unsigned long size, pgprot_t prot)
 {
 	return __ioremap_caller(offset, size, prot, __builtin_return_address(0));
 }
 
 static inline void __iomem *
-__ioremap_29bit(unsigned long offset, unsigned long size, pgprot_t prot)
+__ioremap_29bit(phys_addr_t offset, unsigned long size, pgprot_t prot)
 {
 #ifdef CONFIG_29BIT
-	unsigned long last_addr = offset + size - 1;
+	phys_addr_t last_addr = offset + size - 1;
 
 	/*
 	 * For P1 and P2 space this is trivial, as everything is already
@@ -329,7 +329,7 @@ __ioremap_29bit(unsigned long offset, unsigned long size, pgprot_t prot)
 }
 
 static inline void __iomem *
-__ioremap_mode(unsigned long offset, unsigned long size, pgprot_t prot)
+__ioremap_mode(phys_addr_t offset, unsigned long size, pgprot_t prot)
 {
 	void __iomem *ret;
 
@@ -349,35 +349,32 @@ __ioremap_mode(unsigned long offset, unsigned long size, pgprot_t prot)
 #define __iounmap(addr)				do { } while (0)
 #endif /* CONFIG_MMU */
 
-static inline void __iomem *
-ioremap(unsigned long offset, unsigned long size)
+static inline void __iomem *ioremap(phys_addr_t offset, unsigned long size)
 {
 	return __ioremap_mode(offset, size, PAGE_KERNEL_NOCACHE);
 }
 
 static inline void __iomem *
-ioremap_cache(unsigned long offset, unsigned long size)
+ioremap_cache(phys_addr_t offset, unsigned long size)
 {
 	return __ioremap_mode(offset, size, PAGE_KERNEL);
 }
 
 #ifdef CONFIG_HAVE_IOREMAP_PROT
 static inline void __iomem *
-ioremap_prot(resource_size_t offset, unsigned long size, unsigned long flags)
+ioremap_prot(phys_addr_t offset, unsigned long size, unsigned long flags)
 {
 	return __ioremap_mode(offset, size, __pgprot(flags));
 }
 #endif
 
 #ifdef CONFIG_IOREMAP_FIXED
-extern void __iomem *ioremap_fixed(resource_size_t, unsigned long,
-				   unsigned long, pgprot_t);
+extern void __iomem *ioremap_fixed(phys_addr_t, unsigned long, pgprot_t);
 extern int iounmap_fixed(void __iomem *);
 extern void ioremap_fixed_init(void);
 #else
 static inline void __iomem *
-ioremap_fixed(resource_size_t phys_addr, unsigned long offset,
-	      unsigned long size, pgprot_t prot)
+ioremap_fixed(phys_addr_t phys_addr, unsigned long size, pgprot_t prot)
 {
 	BUG();
 	return NULL;

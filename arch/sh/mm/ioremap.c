@@ -34,11 +34,12 @@
  * caller shouldn't need to know that small detail.
  */
 void __iomem * __init_refok
-__ioremap_caller(unsigned long phys_addr, unsigned long size,
+__ioremap_caller(phys_addr_t phys_addr, unsigned long size,
 		 pgprot_t pgprot, void *caller)
 {
 	struct vm_struct *area;
 	unsigned long offset, last_addr, addr, orig_addr;
+	void __iomem *mapped;
 
 	/* Don't allow wraparound or zero size */
 	last_addr = phys_addr + size - 1;
@@ -46,17 +47,25 @@ __ioremap_caller(unsigned long phys_addr, unsigned long size,
 		return NULL;
 
 	/*
+	 * If we can't yet use the regular approach, go the fixmap route.
+	 */
+	if (!mem_init_done)
+		return ioremap_fixed(phys_addr, size, pgprot);
+
+	/*
+	 * First try to remap through the PMB.
+	 * PMB entries are all pre-faulted.
+	 */
+	mapped = pmb_remap_caller(phys_addr, size, pgprot, caller);
+	if (mapped && !IS_ERR(mapped))
+		return mapped;
+
+	/*
 	 * Mappings have to be page-aligned
 	 */
 	offset = phys_addr & ~PAGE_MASK;
 	phys_addr &= PAGE_MASK;
 	size = PAGE_ALIGN(last_addr+1) - phys_addr;
-
-	/*
-	 * If we can't yet use the regular approach, go the fixmap route.
-	 */
-	if (!mem_init_done)
-		return ioremap_fixed(phys_addr, offset, size, pgprot);
 
 	/*
 	 * Ok, go for it..
@@ -67,33 +76,10 @@ __ioremap_caller(unsigned long phys_addr, unsigned long size,
 	area->phys_addr = phys_addr;
 	orig_addr = addr = (unsigned long)area->addr;
 
-#ifdef CONFIG_PMB
-	/*
-	 * First try to remap through the PMB once a valid VMA has been
-	 * established. Smaller allocations (or the rest of the size
-	 * remaining after a PMB mapping due to the size not being
-	 * perfectly aligned on a PMB size boundary) are then mapped
-	 * through the UTLB using conventional page tables.
-	 *
-	 * PMB entries are all pre-faulted.
-	 */
-	if (unlikely(phys_addr >= P1SEG)) {
-		unsigned long mapped;
-
-		mapped = pmb_remap(addr, phys_addr, size, pgprot);
-		if (likely(mapped)) {
-			addr		+= mapped;
-			phys_addr	+= mapped;
-			size		-= mapped;
-		}
+	if (ioremap_page_range(addr, addr + size, phys_addr, pgprot)) {
+		vunmap((void *)orig_addr);
+		return NULL;
 	}
-#endif
-
-	if (likely(size))
-		if (ioremap_page_range(addr, addr + size, phys_addr, pgprot)) {
-			vunmap((void *)orig_addr);
-			return NULL;
-		}
 
 	return (void __iomem *)(offset + (char *)orig_addr);
 }
@@ -133,23 +119,11 @@ void __iounmap(void __iomem *addr)
 	if (iounmap_fixed(addr) == 0)
 		return;
 
-#ifdef CONFIG_PMB
 	/*
-	 * Purge any PMB entries that may have been established for this
-	 * mapping, then proceed with conventional VMA teardown.
-	 *
-	 * XXX: Note that due to the way that remove_vm_area() does
-	 * matching of the resultant VMA, we aren't able to fast-forward
-	 * the address past the PMB space until the end of the VMA where
-	 * the page tables reside. As such, unmap_vm_area() will be
-	 * forced to linearly scan over the area until it finds the page
-	 * tables where PTEs that need to be unmapped actually reside,
-	 * which is far from optimal. Perhaps we need to use a separate
-	 * VMA for the PMB mappings?
-	 *					-- PFM.
+	 * If the PMB handled it, there's nothing else to do.
 	 */
-	pmb_unmap(vaddr);
-#endif
+	if (pmb_unmap(addr) == 0)
+		return;
 
 	p = remove_vm_area((void *)(vaddr & PAGE_MASK));
 	if (!p) {

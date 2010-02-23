@@ -23,6 +23,7 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
+#include <linux/vmalloc.h>
 #include <asm/sizes.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -51,6 +52,16 @@ struct pmb_entry {
 	struct pmb_entry *link;
 };
 
+static struct {
+	unsigned long size;
+	int flag;
+} pmb_sizes[] = {
+	{ .size	= SZ_512M, .flag = PMB_SZ_512M, },
+	{ .size = SZ_128M, .flag = PMB_SZ_128M, },
+	{ .size = SZ_64M,  .flag = PMB_SZ_64M,  },
+	{ .size = SZ_16M,  .flag = PMB_SZ_16M,  },
+};
+
 static void pmb_unmap_entry(struct pmb_entry *, int depth);
 
 static DEFINE_RWLOCK(pmb_rwlock);
@@ -70,6 +81,88 @@ static __always_inline unsigned long mk_pmb_addr(unsigned int entry)
 static __always_inline unsigned long mk_pmb_data(unsigned int entry)
 {
 	return mk_pmb_entry(entry) | PMB_DATA;
+}
+
+static __always_inline unsigned int pmb_ppn_in_range(unsigned long ppn)
+{
+	return ppn >= __pa(memory_start) && ppn < __pa(memory_end);
+}
+
+/*
+ * Ensure that the PMB entries match our cache configuration.
+ *
+ * When we are in 32-bit address extended mode, CCR.CB becomes
+ * invalid, so care must be taken to manually adjust cacheable
+ * translations.
+ */
+static __always_inline unsigned long pmb_cache_flags(void)
+{
+	unsigned long flags = 0;
+
+#if defined(CONFIG_CACHE_OFF)
+	flags |= PMB_WT | PMB_UB;
+#elif defined(CONFIG_CACHE_WRITETHROUGH)
+	flags |= PMB_C | PMB_WT | PMB_UB;
+#elif defined(CONFIG_CACHE_WRITEBACK)
+	flags |= PMB_C;
+#endif
+
+	return flags;
+}
+
+/*
+ * Convert typical pgprot value to the PMB equivalent
+ */
+static inline unsigned long pgprot_to_pmb_flags(pgprot_t prot)
+{
+	unsigned long pmb_flags = 0;
+	u64 flags = pgprot_val(prot);
+
+	if (flags & _PAGE_CACHABLE)
+		pmb_flags |= PMB_C;
+	if (flags & _PAGE_WT)
+		pmb_flags |= PMB_WT | PMB_UB;
+
+	return pmb_flags;
+}
+
+static bool pmb_can_merge(struct pmb_entry *a, struct pmb_entry *b)
+{
+	return (b->vpn == (a->vpn + a->size)) &&
+	       (b->ppn == (a->ppn + a->size)) &&
+	       (b->flags == a->flags);
+}
+
+static bool pmb_size_valid(unsigned long size)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++)
+		if (pmb_sizes[i].size == size)
+			return true;
+
+	return false;
+}
+
+static inline bool pmb_addr_valid(unsigned long addr, unsigned long size)
+{
+	return (addr >= P1SEG && (addr + size - 1) < P3SEG);
+}
+
+static inline bool pmb_prot_valid(pgprot_t prot)
+{
+	return (pgprot_val(prot) & _PAGE_USER) == 0;
+}
+
+static int pmb_size_to_flags(unsigned long size)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++)
+		if (pmb_sizes[i].size == size)
+			return pmb_sizes[i].flag;
+
+	return 0;
 }
 
 static int pmb_alloc_entry(void)
@@ -139,33 +232,13 @@ static void pmb_free(struct pmb_entry *pmbe)
 }
 
 /*
- * Ensure that the PMB entries match our cache configuration.
- *
- * When we are in 32-bit address extended mode, CCR.CB becomes
- * invalid, so care must be taken to manually adjust cacheable
- * translations.
- */
-static __always_inline unsigned long pmb_cache_flags(void)
-{
-	unsigned long flags = 0;
-
-#if defined(CONFIG_CACHE_WRITETHROUGH)
-	flags |= PMB_C | PMB_WT | PMB_UB;
-#elif defined(CONFIG_CACHE_WRITEBACK)
-	flags |= PMB_C;
-#endif
-
-	return flags;
-}
-
-/*
  * Must be run uncached.
  */
 static void __set_pmb_entry(struct pmb_entry *pmbe)
 {
-	writel_uncached(pmbe->vpn | PMB_V, mk_pmb_addr(pmbe->entry));
-	writel_uncached(pmbe->ppn | pmbe->flags | PMB_V,
-			mk_pmb_data(pmbe->entry));
+	/* Set V-bit */
+	__raw_writel(pmbe->ppn | pmbe->flags | PMB_V, mk_pmb_data(pmbe->entry));
+	__raw_writel(pmbe->vpn | PMB_V, mk_pmb_addr(pmbe->entry));
 }
 
 static void __clear_pmb_entry(struct pmb_entry *pmbe)
@@ -193,39 +266,56 @@ static void set_pmb_entry(struct pmb_entry *pmbe)
 	spin_unlock_irqrestore(&pmbe->lock, flags);
 }
 
-static struct {
-	unsigned long size;
-	int flag;
-} pmb_sizes[] = {
-	{ .size	= SZ_512M, .flag = PMB_SZ_512M, },
-	{ .size = SZ_128M, .flag = PMB_SZ_128M, },
-	{ .size = SZ_64M,  .flag = PMB_SZ_64M,  },
-	{ .size = SZ_16M,  .flag = PMB_SZ_16M,  },
-};
+int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
+		     unsigned long size, pgprot_t prot)
+{
+	return 0;
+}
 
-long pmb_remap(unsigned long vaddr, unsigned long phys,
-	       unsigned long size, pgprot_t prot)
+void __iomem *pmb_remap_caller(phys_addr_t phys, unsigned long size,
+			       pgprot_t prot, void *caller)
 {
 	struct pmb_entry *pmbp, *pmbe;
-	unsigned long wanted;
-	int pmb_flags, i;
-	long err;
-	u64 flags;
+	unsigned long pmb_flags;
+	int i, mapped;
+	unsigned long orig_addr, vaddr;
+	phys_addr_t offset, last_addr;
+	phys_addr_t align_mask;
+	unsigned long aligned;
+	struct vm_struct *area;
 
-	flags = pgprot_val(prot);
-
-	pmb_flags = PMB_WT | PMB_UB;
-
-	/* Convert typical pgprot value to the PMB equivalent */
-	if (flags & _PAGE_CACHABLE) {
-		pmb_flags |= PMB_C;
-
-		if ((flags & _PAGE_WT) == 0)
-			pmb_flags &= ~(PMB_WT | PMB_UB);
-	}
+	/*
+	 * Small mappings need to go through the TLB.
+	 */
+	if (size < SZ_16M)
+		return ERR_PTR(-EINVAL);
+	if (!pmb_prot_valid(prot))
+		return ERR_PTR(-EINVAL);
 
 	pmbp = NULL;
-	wanted = size;
+	pmb_flags = pgprot_to_pmb_flags(prot);
+	mapped = 0;
+
+	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++)
+		if (size >= pmb_sizes[i].size)
+			break;
+
+	last_addr = phys + size;
+	align_mask = ~(pmb_sizes[i].size - 1);
+	offset = phys & ~align_mask;
+	phys &= align_mask;
+	aligned = ALIGN(last_addr, pmb_sizes[i].size) - phys;
+
+	area = __get_vm_area_caller(aligned, VM_IOREMAP, uncached_end,
+				    P3SEG, caller);
+	if (!area)
+		return NULL;
+
+	area->phys_addr = phys;
+	orig_addr = vaddr = (unsigned long)area->addr;
+
+	if (!pmb_addr_valid(vaddr, aligned))
+		return ERR_PTR(-EFAULT);
 
 again:
 	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++) {
@@ -237,19 +327,19 @@ again:
 		pmbe = pmb_alloc(vaddr, phys, pmb_flags | pmb_sizes[i].flag,
 				 PMB_NO_ENTRY);
 		if (IS_ERR(pmbe)) {
-			err = PTR_ERR(pmbe);
-			goto out;
+			pmb_unmap_entry(pmbp, mapped);
+			return pmbe;
 		}
 
 		spin_lock_irqsave(&pmbe->lock, flags);
 
+		pmbe->size = pmb_sizes[i].size;
+
 		__set_pmb_entry(pmbe);
 
-		phys	+= pmb_sizes[i].size;
-		vaddr	+= pmb_sizes[i].size;
-		size	-= pmb_sizes[i].size;
-
-		pmbe->size = pmb_sizes[i].size;
+		phys	+= pmbe->size;
+		vaddr	+= pmbe->size;
+		size	-= pmbe->size;
 
 		/*
 		 * Link adjacent entries that span multiple PMB entries
@@ -269,6 +359,7 @@ again:
 		 * pmb_sizes[i].size again.
 		 */
 		i--;
+		mapped++;
 
 		spin_unlock_irqrestore(&pmbe->lock, flags);
 	}
@@ -276,61 +367,35 @@ again:
 	if (size >= SZ_16M)
 		goto again;
 
-	return wanted - size;
-
-out:
-	pmb_unmap_entry(pmbp, NR_PMB_ENTRIES);
-
-	return err;
+	return (void __iomem *)(offset + (char *)orig_addr);
 }
 
-void pmb_unmap(unsigned long addr)
+int pmb_unmap(void __iomem *addr)
 {
 	struct pmb_entry *pmbe = NULL;
-	int i;
+	unsigned long vaddr = (unsigned long __force)addr;
+	int i, found = 0;
 
 	read_lock(&pmb_rwlock);
 
 	for (i = 0; i < ARRAY_SIZE(pmb_entry_list); i++) {
 		if (test_bit(i, pmb_map)) {
 			pmbe = &pmb_entry_list[i];
-			if (pmbe->vpn == addr)
+			if (pmbe->vpn == vaddr) {
+				found = 1;
 				break;
+			}
 		}
 	}
 
 	read_unlock(&pmb_rwlock);
 
-	pmb_unmap_entry(pmbe, NR_PMB_ENTRIES);
-}
+	if (found) {
+		pmb_unmap_entry(pmbe, NR_PMB_ENTRIES);
+		return 0;
+	}
 
-static bool pmb_can_merge(struct pmb_entry *a, struct pmb_entry *b)
-{
-	return (b->vpn == (a->vpn + a->size)) &&
-	       (b->ppn == (a->ppn + a->size)) &&
-	       (b->flags == a->flags);
-}
-
-static bool pmb_size_valid(unsigned long size)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++)
-		if (pmb_sizes[i].size == size)
-			return true;
-
-	return false;
-}
-
-static int pmb_size_to_flags(unsigned long size)
-{
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++)
-		if (pmb_sizes[i].size == size)
-			return pmb_sizes[i].flag;
-
-	return 0;
+	return -EINVAL;
 }
 
 static void __pmb_unmap_entry(struct pmb_entry *pmbe, int depth)
@@ -366,11 +431,6 @@ static void pmb_unmap_entry(struct pmb_entry *pmbe, int depth)
 	write_lock_irqsave(&pmb_rwlock, flags);
 	__pmb_unmap_entry(pmbe, depth);
 	write_unlock_irqrestore(&pmb_rwlock, flags);
-}
-
-static __always_inline unsigned int pmb_ppn_in_range(unsigned long ppn)
-{
-	return ppn >= __pa(memory_start) && ppn < __pa(memory_end);
 }
 
 static void __init pmb_notify(void)

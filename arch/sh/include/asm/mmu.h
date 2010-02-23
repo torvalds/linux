@@ -55,19 +55,29 @@ typedef struct {
 
 #ifdef CONFIG_PMB
 /* arch/sh/mm/pmb.c */
-long pmb_remap(unsigned long virt, unsigned long phys,
-	       unsigned long size, pgprot_t prot);
-void pmb_unmap(unsigned long addr);
-void pmb_init(void);
 bool __in_29bit_mode(void);
+
+void pmb_init(void);
+int pmb_bolt_mapping(unsigned long virt, phys_addr_t phys,
+		     unsigned long size, pgprot_t prot);
+void __iomem *pmb_remap_caller(phys_addr_t phys, unsigned long size,
+			       pgprot_t prot, void *caller);
+int pmb_unmap(void __iomem *addr);
+
 #else
-static inline long pmb_remap(unsigned long virt, unsigned long phys,
-			     unsigned long size, pgprot_t prot)
+
+static inline void __iomem *
+pmb_remap_caller(phys_addr_t phys, unsigned long size,
+		 pgprot_t prot, void *caller)
+{
+	return NULL;
+}
+
+static inline int pmb_unmap(void __iomem *addr)
 {
 	return -EINVAL;
 }
 
-#define pmb_unmap(addr)		do { } while (0)
 #define pmb_init(addr)		do { } while (0)
 
 #ifdef CONFIG_29BIT
@@ -77,6 +87,13 @@ static inline long pmb_remap(unsigned long virt, unsigned long phys,
 #endif
 
 #endif /* CONFIG_PMB */
+
+static inline void __iomem *
+pmb_remap(phys_addr_t phys, unsigned long size, pgprot_t prot)
+{
+	return pmb_remap_caller(phys, size, prot, __builtin_return_address(0));
+}
+
 #endif /* __ASSEMBLY__ */
 
 #endif /* __MMU_H */
