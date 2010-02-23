@@ -906,3 +906,72 @@ static void __init __rcu_init_preempt(void)
 }
 
 #endif /* #else #ifdef CONFIG_TREE_PREEMPT_RCU */
+
+#if !defined(CONFIG_RCU_FAST_NO_HZ)
+
+/*
+ * Check to see if any future RCU-related work will need to be done
+ * by the current CPU, even if none need be done immediately, returning
+ * 1 if so.  This function is part of the RCU implementation; it is -not-
+ * an exported member of the RCU API.
+ *
+ * Because we have preemptible RCU, just check whether this CPU needs
+ * any flavor of RCU.  Do not chew up lots of CPU cycles with preemption
+ * disabled in a most-likely vain attempt to cause RCU not to need this CPU.
+ */
+int rcu_needs_cpu(int cpu)
+{
+	return rcu_needs_cpu_quick_check(cpu);
+}
+
+#else /* #if !defined(CONFIG_RCU_FAST_NO_HZ) */
+
+#define RCU_NEEDS_CPU_FLUSHES 5
+
+/*
+ * Check to see if any future RCU-related work will need to be done
+ * by the current CPU, even if none need be done immediately, returning
+ * 1 if so.  This function is part of the RCU implementation; it is -not-
+ * an exported member of the RCU API.
+ *
+ * Because we are not supporting preemptible RCU, attempt to accelerate
+ * any current grace periods so that RCU no longer needs this CPU, but
+ * only if all other CPUs are already in dynticks-idle mode.  This will
+ * allow the CPU cores to be powered down immediately, as opposed to after
+ * waiting many milliseconds for grace periods to elapse.
+ */
+int rcu_needs_cpu(int cpu)
+{
+	int c = 1;
+	int i;
+	int thatcpu;
+
+	/* Don't bother unless we are the last non-dyntick-idle CPU. */
+	for_each_cpu_not(thatcpu, nohz_cpu_mask)
+		if (thatcpu != cpu)
+			return rcu_needs_cpu_quick_check(cpu);
+
+	/* Try to push remaining RCU-sched and RCU-bh callbacks through. */
+	for (i = 0; i < RCU_NEEDS_CPU_FLUSHES && c; i++) {
+		c = 0;
+		if (per_cpu(rcu_sched_data, cpu).nxtlist) {
+			rcu_sched_qs(cpu);
+			force_quiescent_state(&rcu_sched_state, 0);
+			__rcu_process_callbacks(&rcu_sched_state,
+						&per_cpu(rcu_sched_data, cpu));
+			c = !!per_cpu(rcu_sched_data, cpu).nxtlist;
+		}
+		if (per_cpu(rcu_bh_data, cpu).nxtlist) {
+			rcu_bh_qs(cpu);
+			force_quiescent_state(&rcu_bh_state, 0);
+			__rcu_process_callbacks(&rcu_bh_state,
+						&per_cpu(rcu_bh_data, cpu));
+			c = !!per_cpu(rcu_bh_data, cpu).nxtlist;
+		}
+	}
+
+	/* If RCU callbacks are still pending, RCU still needs this CPU. */
+	return c;
+}
+
+#endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
