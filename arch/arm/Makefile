@@ -182,10 +182,10 @@ plat-$(CONFIG_PLAT_IOP)		:= iop
 plat-$(CONFIG_PLAT_NOMADIK)	:= nomadik
 plat-$(CONFIG_PLAT_ORION)	:= orion
 plat-$(CONFIG_PLAT_PXA)		:= pxa
-plat-$(CONFIG_PLAT_S3C24XX)	:= s3c24xx s3c samsung
-plat-$(CONFIG_ARCH_S3C64XX)	:= s3c samsung
-plat-$(CONFIG_PLAT_S5PC1XX)	:= s5pc1xx s3c samsung
-plat-$(CONFIG_PLAT_S5P)		:= s5p samsung s3c
+plat-$(CONFIG_PLAT_S3C24XX)	:= s3c24xx samsung
+plat-$(CONFIG_ARCH_S3C64XX)	:= samsung
+plat-$(CONFIG_PLAT_S5PC1XX)	:= s5pc1xx samsung
+plat-$(CONFIG_PLAT_S5P)		:= s5p samsung
 plat-$(CONFIG_ARCH_STMP3XXX)	:= stmp3xxx
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
