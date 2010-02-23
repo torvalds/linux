@@ -927,6 +927,8 @@ static struct clk dpll4_m5_ck_3630 __initdata = {
 	.clksel_mask	= OMAP3630_CLKSEL_CAM_MASK,
 	.clksel		= div32_dpll4_clksel,
 	.clkdm_name	= "dpll4_clkdm",
+	.set_rate	= &omap2_clksel_set_rate,
+	.round_rate	= &omap2_clksel_round_rate,
 	.recalc		= &omap2_clksel_recalc,
 };
 
