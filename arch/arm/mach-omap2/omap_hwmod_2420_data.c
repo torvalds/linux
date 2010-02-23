@@ -1,7 +1,7 @@
 /*
- * omap_hwmod_2420.h - hardware modules present on the OMAP2420 chips
+ * omap_hwmod_2420_data.c - hardware modules present on the OMAP2420 chips
  *
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009-2010 Nokia Corporation
  * Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
@@ -9,19 +9,23 @@
  * published by the Free Software Foundation.
  *
  * XXX handle crossbar/shared link difference for L3?
- *
+ * XXX these should be marked initdata for multi-OMAP kernels
  */
-#ifndef __ARCH_ARM_PLAT_OMAP_INCLUDE_MACH_OMAP_HWMOD2420_H
-#define __ARCH_ARM_PLAT_OMAP_INCLUDE_MACH_OMAP_HWMOD2420_H
-
-#ifdef CONFIG_ARCH_OMAP2420
-
 #include <plat/omap_hwmod.h>
 #include <mach/irqs.h>
 #include <plat/cpu.h>
 #include <plat/dma.h>
 
 #include "prm-regbits-24xx.h"
+
+/*
+ * OMAP2420 hardware module integration data
+ *
+ * ALl of the data in this section should be autogeneratable from the
+ * TI hardware database or other technical documentation.  Data that
+ * is driver-specific or driver-kernel integration-specific belongs
+ * elsewhere.
+ */
 
 static struct omap_hwmod omap2420_mpu_hwmod;
 static struct omap_hwmod omap2420_l3_hwmod;
@@ -131,10 +135,9 @@ static __initdata struct omap_hwmod *omap2420_hwmods[] = {
 	NULL,
 };
 
-#else
-# define omap2420_hwmods		0
-#endif
-
-#endif
+int __init omap2420_hwmod_init(void)
+{
+	return omap_hwmod_init(omap2420_hwmods);
+}
 
 

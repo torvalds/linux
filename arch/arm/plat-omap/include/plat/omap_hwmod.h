@@ -504,4 +504,12 @@ int omap_hwmod_set_clockact_none(struct omap_hwmod *oh);
 int omap_hwmod_enable_wakeup(struct omap_hwmod *oh);
 int omap_hwmod_disable_wakeup(struct omap_hwmod *oh);
 
+/*
+ * Chip variant-specific hwmod init routines - XXX should be converted
+ * to use initcalls once the initial boot ordering is straightened out
+ */
+extern int omap2420_hwmod_init(void);
+extern int omap2430_hwmod_init(void);
+extern int omap3xxx_hwmod_init(void);
+
 #endif

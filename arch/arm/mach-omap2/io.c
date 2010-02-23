@@ -46,9 +46,6 @@
 #include <plat/clockdomain.h>
 #include "clockdomains.h"
 #include <plat/omap_hwmod.h>
-#include "omap_hwmod_2420.h"
-#include "omap_hwmod_2430.h"
-#include "omap_hwmod_34xx.h"
 
 /*
  * The machine specific code may provide the extra mapping besides the
@@ -322,21 +319,17 @@ static int __init _omap2_init_reprogram_sdrc(void)
 void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 				 struct omap_sdrc_params *sdrc_cs1)
 {
-	struct omap_hwmod **hwmods = NULL;
-
-	if (cpu_is_omap2420())
-		hwmods = omap2420_hwmods;
-	else if (cpu_is_omap2430())
-		hwmods = omap2430_hwmods;
-	else if (cpu_is_omap34xx())
-		hwmods = omap34xx_hwmods;
-
 	pwrdm_init(powerdomains_omap);
 	clkdm_init(clockdomains_omap, clkdm_autodeps);
 #ifndef CONFIG_ARCH_OMAP4 /* FIXME: Remove this once the clkdev is ready */
-	/* The OPP tables have to be registered before a clk init */
-	omap_hwmod_init(hwmods);
+	if (cpu_is_omap242x())
+		omap2420_hwmod_init();
+	else if (cpu_is_omap243x())
+		omap2430_hwmod_init();
+	else if (cpu_is_omap34xx())
+		omap3xxx_hwmod_init();
 	omap2_mux_init();
+	/* The OPP tables have to be registered before a clk init */
 	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
 #endif
 
