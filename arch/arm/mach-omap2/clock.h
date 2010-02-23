@@ -127,6 +127,7 @@ void omap2_clk_print_new_rates(const char *hfclkin_ck_name,
 extern u8 cpu_mask;
 
 extern const struct clkops clkops_omap2_dflt_wait;
+extern const struct clkops clkops_dummy;
 extern const struct clkops clkops_omap2_dflt;
 
 extern struct clk_functions omap2_clk_functions;

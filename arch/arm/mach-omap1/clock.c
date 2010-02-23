@@ -38,20 +38,6 @@ struct clk *api_ck_p, *ck_dpll1_p, *ck_ref_p;
  * Omap1 specific clock functions
  *-------------------------------------------------------------------------*/
 
-static int clk_omap1_dummy_enable(struct clk *clk)
-{
-	return 0;
-}
-
-static void clk_omap1_dummy_disable(struct clk *clk)
-{
-}
-
-const struct clkops clkops_dummy = {
-	.enable		= clk_omap1_dummy_enable,
-	.disable	= clk_omap1_dummy_disable,
-};
-
 unsigned long omap1_uart_recalc(struct clk *clk)
 {
 	unsigned int val = __raw_readl(clk->enable_reg);

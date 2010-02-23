@@ -27,12 +27,6 @@
  * Omap1 clocks
  *-------------------------------------------------------------------------*/
 
-/* XXX is this necessary? */
-static struct clk dummy_ck = {
-	.name	= "dummy",
-	.ops	= &clkops_dummy,
-};
-
 static struct clk ck_ref = {
 	.name		= "ck_ref",
 	.ops		= &clkops_null,

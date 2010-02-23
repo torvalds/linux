@@ -186,6 +186,8 @@ extern struct clk *omap_clk_get_by_name(const char *name);
 
 extern const struct clkops clkops_null;
 
+extern struct clk dummy_ck;
+
 /* Clock flags */
 #define ENABLE_REG_32BIT	(1 << 0)	/* Use 32-bit access */
 #define CLOCK_IDLE_CONTROL	(1 << 1)

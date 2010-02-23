@@ -357,6 +357,16 @@ const struct clkops clkops_null = {
 	.disable	= clkll_disable_null,
 };
 
+/*
+ * Dummy clock
+ *
+ * Used for clock aliases that are needed on some OMAPs, but not others
+ */
+struct clk dummy_ck = {
+	.name	= "dummy",
+	.ops	= &clkops_null,
+};
+
 #ifdef CONFIG_CPU_FREQ
 void clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 {
