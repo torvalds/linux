@@ -657,24 +657,28 @@ out:
 static struct file *do_open(struct ipc_namespace *ipc_ns,
 				struct dentry *dentry, int oflag)
 {
+	int ret;
 	const struct cred *cred = current_cred();
 
 	static const int oflag2acc[O_ACCMODE] = { MAY_READ, MAY_WRITE,
 						  MAY_READ | MAY_WRITE };
 
 	if ((oflag & O_ACCMODE) == (O_RDWR | O_WRONLY)) {
-		dput(dentry);
-		mntput(ipc_ns->mq_mnt);
-		return ERR_PTR(-EINVAL);
+		ret = -EINVAL;
+		goto err;
 	}
 
 	if (inode_permission(dentry->d_inode, oflag2acc[oflag & O_ACCMODE])) {
-		dput(dentry);
-		mntput(ipc_ns->mq_mnt);
-		return ERR_PTR(-EACCES);
+		ret = -EACCES;
+		goto err;
 	}
 
 	return dentry_open(dentry, ipc_ns->mq_mnt, oflag, cred);
+
+err:
+	dput(dentry);
+	mntput(ipc_ns->mq_mnt);
+	return ERR_PTR(ret);
 }
 
 SYSCALL_DEFINE4(mq_open, const char __user *, u_name, int, oflag, mode_t, mode,
