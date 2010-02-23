@@ -261,8 +261,9 @@ static void mqueue_delete_inode(struct inode *inode)
 
 	clear_inode(inode);
 
-	mq_bytes = (info->attr.mq_maxmsg * sizeof(struct msg_msg *) +
-		   (info->attr.mq_maxmsg * info->attr.mq_msgsize));
+	/* Total amount of bytes accounted for the mqueue */
+	mq_bytes = info->attr.mq_maxmsg * (sizeof(struct msg_msg *)
+	    + info->attr.mq_msgsize);
 	user = info->user;
 	if (user) {
 		spin_lock(&mq_lock);
@@ -601,8 +602,8 @@ static int mq_attr_ok(struct ipc_namespace *ipc_ns, struct mq_attr *attr)
 	/* check for overflow */
 	if (attr->mq_msgsize > ULONG_MAX/attr->mq_maxmsg)
 		return 0;
-	if ((unsigned long)(attr->mq_maxmsg * attr->mq_msgsize) +
-	    (attr->mq_maxmsg * sizeof (struct msg_msg *)) <
+	if ((unsigned long)(attr->mq_maxmsg * (attr->mq_msgsize
+	    + sizeof (struct msg_msg *))) <
 	    (unsigned long)(attr->mq_maxmsg * attr->mq_msgsize))
 		return 0;
 	return 1;
