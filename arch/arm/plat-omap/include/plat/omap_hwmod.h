@@ -110,8 +110,7 @@ struct omap_hwmod_dma_info {
 /**
  * struct omap_hwmod_opt_clk - optional clocks used by this hwmod
  * @role: "sys", "32k", "tv", etc -- for use in clk_get()
- * @clkdev_dev_id: opt clock: clkdev dev_id string
- * @clkdev_con_id: opt clock: clkdev con_id string
+ * @clk: opt clock: OMAP clock name
  * @_clk: pointer to the struct clk (filled in at runtime)
  *
  * The module's interface clock and main functional clock should not
@@ -119,8 +118,7 @@ struct omap_hwmod_dma_info {
  */
 struct omap_hwmod_opt_clk {
 	const char	*role;
-	const char	*clkdev_dev_id;
-	const char	*clkdev_con_id;
+	const char	*clk;
 	struct clk	*_clk;
 };
 
@@ -187,8 +185,7 @@ struct omap_hwmod_addr_space {
  * @master: struct omap_hwmod that initiates OCP transactions on this link
  * @slave: struct omap_hwmod that responds to OCP transactions on this link
  * @addr: address space associated with this link
- * @clkdev_dev_id: interface clock: clkdev dev_id string
- * @clkdev_con_id: interface clock: clkdev con_id string
+ * @clk: interface clock: OMAP clock name
  * @_clk: pointer to the interface struct clk (filled in at runtime)
  * @fw: interface firewall data
  * @addr_cnt: ARRAY_SIZE(@addr)
@@ -207,8 +204,7 @@ struct omap_hwmod_ocp_if {
 	struct omap_hwmod		*master;
 	struct omap_hwmod		*slave;
 	struct omap_hwmod_addr_space	*addr;
-	const char			*clkdev_dev_id;
-	const char			*clkdev_con_id;
+	const char			*clk;
 	struct clk			*_clk;
 	union {
 		struct omap_hwmod_omap2_firewall omap2;
@@ -401,8 +397,7 @@ struct omap_hwmod_omap4_prcm {
  * @mpu_irqs: ptr to an array of MPU IRQs (see also mpu_irqs_cnt)
  * @sdma_chs: ptr to an array of SDMA channel IDs (see also sdma_chs_cnt)
  * @prcm: PRCM data pertaining to this hwmod
- * @clkdev_dev_id: main clock: clkdev dev_id string
- * @clkdev_con_id: main clock: clkdev con_id string
+ * @main_clk: main clock: OMAP clock name
  * @_clk: pointer to the main struct clk (filled in at runtime)
  * @opt_clks: other device clocks that drivers can request (0..*)
  * @masters: ptr to array of OCP ifs that this hwmod can initiate on
@@ -426,10 +421,10 @@ struct omap_hwmod_omap4_prcm {
  * @omap_chip: OMAP chips this hwmod is present on
  * @node: list node for hwmod list (internal use)
  *
- * @clkdev_dev_id, @clkdev_con_id, and @clk all refer to this module's "main
- * clock," which for our purposes is defined as "the functional clock needed
- * for register accesses to complete."  Modules may not have a main clock if
- * the interface clock also serves as a main clock.
+ * @main_clk refers to this module's "main clock," which for our
+ * purposes is defined as "the functional clock needed for register
+ * accesses to complete."  Modules may not have a main clock if the
+ * interface clock also serves as a main clock.
  *
  * Parameter names beginning with an underscore are managed internally by
  * the omap_hwmod code and should not be set during initialization.
@@ -443,8 +438,7 @@ struct omap_hwmod {
 		struct omap_hwmod_omap2_prcm omap2;
 		struct omap_hwmod_omap4_prcm omap4;
 	}				prcm;
-	const char			*clkdev_dev_id;
-	const char			*clkdev_con_id;
+	const char			*main_clk;
 	struct clk			*_clk;
 	struct omap_hwmod_opt_clk	*opt_clks;
 	struct omap_hwmod_ocp_if	**masters; /* connect to *_IA */

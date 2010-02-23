@@ -416,18 +416,18 @@ static int _init_main_clk(struct omap_hwmod *oh)
 	struct clk *c;
 	int ret = 0;
 
-	if (!oh->clkdev_con_id)
+	if (!oh->main_clk)
 		return 0;
 
-	c = clk_get_sys(oh->clkdev_dev_id, oh->clkdev_con_id);
-	WARN(IS_ERR(c), "omap_hwmod: %s: cannot clk_get main_clk %s.%s\n",
-	     oh->name, oh->clkdev_dev_id, oh->clkdev_con_id);
+	c = omap_clk_get_by_name(oh->main_clk);
+	WARN(IS_ERR(c), "omap_hwmod: %s: cannot clk_get main_clk %s\n",
+	     oh->name, oh->main_clk);
 	if (IS_ERR(c))
 		ret = -EINVAL;
 	oh->_clk = c;
 
 	WARN(!c->clkdm, "omap_hwmod: %s: missing clockdomain for %s.\n",
-	     oh->clkdev_con_id, c->name);
+	     oh->main_clk, c->name);
 
 	return ret;
 }
@@ -450,13 +450,12 @@ static int _init_interface_clks(struct omap_hwmod *oh)
 		return 0;
 
 	for (i = 0, os = *oh->slaves; i < oh->slaves_cnt; i++, os++) {
-		if (!os->clkdev_con_id)
+		if (!os->clk)
 			continue;
 
-		c = clk_get_sys(os->clkdev_dev_id, os->clkdev_con_id);
+		c = omap_clk_get_by_name(os->clk);
 		WARN(IS_ERR(c), "omap_hwmod: %s: cannot clk_get "
-		     "interface_clk %s.%s\n", oh->name,
-		     os->clkdev_dev_id, os->clkdev_con_id);
+		     "interface_clk %s\n", oh->name, os->clk);
 		if (IS_ERR(c))
 			ret = -EINVAL;
 		os->_clk = c;
@@ -480,10 +479,9 @@ static int _init_opt_clks(struct omap_hwmod *oh)
 	int ret = 0;
 
 	for (i = oh->opt_clks_cnt, oc = oh->opt_clks; i > 0; i--, oc++) {
-		c = clk_get_sys(oc->clkdev_dev_id, oc->clkdev_con_id);
+		c = omap_clk_get_by_name(oc->clk);
 		WARN(IS_ERR(c), "omap_hwmod: %s: cannot clk_get opt_clk "
-		     "%s.%s\n", oh->name, oc->clkdev_dev_id,
-		     oc->clkdev_con_id);
+		     "%s\n", oh->name, oc->clk);
 		if (IS_ERR(c))
 			ret = -EINVAL;
 		oc->_clk = c;

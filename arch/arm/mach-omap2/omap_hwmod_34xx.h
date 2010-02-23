@@ -143,8 +143,7 @@ static struct omap_hwmod_ocp_if *omap34xx_mpu_masters[] = {
 /* MPU */
 static struct omap_hwmod omap34xx_mpu_hwmod = {
 	.name		= "mpu_hwmod",
-	.clkdev_dev_id	= NULL,
-	.clkdev_con_id	= "arm_fck",
+	.main_clk	= "arm_fck",
 	.masters	= omap34xx_mpu_masters,
 	.masters_cnt	= ARRAY_SIZE(omap34xx_mpu_masters),
 	.omap_chip	= OMAP_CHIP_INIT(CHIP_IS_OMAP3430),
