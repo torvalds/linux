@@ -118,7 +118,7 @@ int bat_device_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&device_client->queue_list);
 	device_client->queue_len = 0;
 	device_client->index = i;
-	device_client->lock = __SPIN_LOCK_UNLOCKED(device_client->lock);
+	spin_lock_init(&device_client->lock);
 	init_waitqueue_head(&device_client->queue_wait);
 
 	file->private_data = device_client;

@@ -20,7 +20,7 @@ static inline int __iio_init_sw_ring_buffer(struct iio_sw_ring_buffer *ring,
 		return -EINVAL;
 
 	__iio_init_ring_buffer(&ring->buf, bytes_per_datum, length);
-	ring->use_lock = __SPIN_LOCK_UNLOCKED((ring)->use_lock);
+	spin_lock_init(&ring->use_lock);
 	ring->data = kmalloc(length*ring->buf.bpd, GFP_KERNEL);
 	ring->read_p = 0;
 	ring->write_p = 0;
