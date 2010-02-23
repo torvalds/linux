@@ -57,10 +57,12 @@ obj-$(CONFIG_ARCH_OMAP4)		+= cm4xxx.o
 
 # Clock framework
 obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o \
-					   clock2xxx_data.o clkt2xxx_sys.o \
+					   clkt2xxx_sys.o \
 					   clkt2xxx_dpllcore.o \
 					   clkt2xxx_virt_prcm_set.o \
 					   clkt2xxx_apll.o clkt2xxx_osc.o
+obj-$(CONFIG_ARCH_OMAP2420)		+= clock2420_data.o
+obj-$(CONFIG_ARCH_OMAP2430)		+= clock2430.o clock2430_data.o
 obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common) clock3xxx.o \
 					   clock34xx.o clkt34xx_dpll3m2.o \
 					   clock3517.o clock36xx.o \

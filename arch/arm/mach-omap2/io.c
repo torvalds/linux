@@ -340,8 +340,10 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
 #endif
 
-	if (cpu_is_omap24xx())
-		omap2xxx_clk_init();
+	if (cpu_is_omap2420())
+		omap2420_clk_init();
+	else if (cpu_is_omap2430())
+		omap2430_clk_init();
 	else if (cpu_is_omap34xx())
 		omap3xxx_clk_init();
 	else if (cpu_is_omap44xx())

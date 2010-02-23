@@ -35,42 +35,6 @@ struct clk *vclk, *sclk, *dclk;
  * Omap24xx specific clock functions
  */
 
-#ifdef CONFIG_ARCH_OMAP2430
-
-/**
- * omap2430_clk_i2chs_find_idlest - return CM_IDLEST info for 2430 I2CHS
- * @clk: struct clk * being enabled
- * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
- * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
- * @idlest_val: pointer to a u8 to store the CM_IDLEST indicator
- *
- * OMAP2430 I2CHS CM_IDLEST bits are in CM_IDLEST1_CORE, but the
- * CM_*CLKEN bits are in CM_{I,F}CLKEN2_CORE.  This custom function
- * passes back the correct CM_IDLEST register address for I2CHS
- * modules.  No return value.
- */
-static void omap2430_clk_i2chs_find_idlest(struct clk *clk,
-					   void __iomem **idlest_reg,
-					   u8 *idlest_bit,
-					   u8 *idlest_val)
-{
-	*idlest_reg = OMAP_CM_REGADDR(CORE_MOD, CM_IDLEST);
-	*idlest_bit = clk->enable_bit;
-	*idlest_val = OMAP24XX_CM_IDLEST_VAL;
-}
-
-#else
-#define omap2430_clk_i2chs_find_idlest	NULL
-#endif
-
-/* 2430 I2CHS has non-standard IDLEST register */
-const struct clkops clkops_omap2430_i2chs_wait = {
-	.enable		= omap2_dflt_clk_enable,
-	.disable	= omap2_dflt_clk_disable,
-	.find_idlest	= omap2430_clk_i2chs_find_idlest,
-	.find_companion = omap2_clk_dflt_find_companion,
-};
-
 /*
  * Set clocks for bypass mode for reboot to work.
  */
@@ -106,7 +70,7 @@ static int __init omap2xxx_clk_arch_init(void)
 	mpu_ck = clk_get(NULL, "mpu_ck");
 
 	if (clk_set_rate(virt_prcm_set, mpurate))
-		printk(KERN_ERR "Could not find matching MPU rate\n");
+		pr_err("Could not find matching MPU rate\n");
 
 	recalculate_root_clocks();
 
