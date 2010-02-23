@@ -2775,6 +2775,12 @@ static int handle_rmode_exception(struct kvm_vcpu *vcpu,
 		kvm_queue_exception(vcpu, vec);
 		return 1;
 	case BP_VECTOR:
+		/*
+		 * Update instruction length as we may reinject the exception
+		 * from user space while in guest debugging mode.
+		 */
+		to_vmx(vcpu)->vcpu.arch.event_exit_inst_len =
+			vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
 		if (vcpu->guest_debug & KVM_GUESTDBG_USE_SW_BP)
 			return 0;
 		/* fall through */
@@ -2897,6 +2903,13 @@ static int handle_exception(struct kvm_vcpu *vcpu)
 		kvm_run->debug.arch.dr7 = vmcs_readl(GUEST_DR7);
 		/* fall through */
 	case BP_VECTOR:
+		/*
+		 * Update instruction length as we may reinject #BP from
+		 * user space while in guest debugging mode. Reading it for
+		 * #DB as well causes no harm, it is not used in that case.
+		 */
+		vmx->vcpu.arch.event_exit_inst_len =
+			vmcs_read32(VM_EXIT_INSTRUCTION_LEN);
 		kvm_run->exit_reason = KVM_EXIT_DEBUG;
 		kvm_run->debug.arch.pc = vmcs_readl(GUEST_CS_BASE) + rip;
 		kvm_run->debug.arch.exception = ex_no;
