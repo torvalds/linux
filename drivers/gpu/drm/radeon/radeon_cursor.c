@@ -219,6 +219,11 @@ int radeon_crtc_cursor_move(struct drm_crtc *crtc,
 
 	radeon_lock_cursor(crtc, true);
 	if (ASIC_IS_DCE4(rdev)) {
+		/* cursors are offset into the total surface */
+		x += crtc->x;
+		y += crtc->y;
+		DRM_DEBUG("x %d y %d c->x %d c->y %d\n", x, y, crtc->x, crtc->y);
+
 		/* XXX: check if evergreen has the same issues as avivo chips */
 		WREG32(EVERGREEN_CUR_POSITION + radeon_crtc->crtc_offset,
 		       ((xorigin ? 0 : x) << 16) |
