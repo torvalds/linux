@@ -778,7 +778,7 @@ static unsigned long dsi_fclk_rate(void)
 {
 	unsigned long r;
 
-	if (dss_get_dsi_clk_source() == 0) {
+	if (dss_get_dsi_clk_source() == DSS_SRC_DSS1_ALWON_FCLK) {
 		/* DSI FCLK source is DSS1_ALWON_FCK, which is dss1_fck */
 		r = dss_clk_get_rate(DSS_CLK_FCK1);
 	} else {
@@ -1231,17 +1231,19 @@ void dsi_dump_clocks(struct seq_file *s)
 	seq_printf(s,	"dsi1_pll_fck\t%-16luregm3 %u\t(%s)\n",
 			cinfo->dsi1_pll_fclk,
 			cinfo->regm3,
-			dss_get_dispc_clk_source() == 0 ? "off" : "on");
+			dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
+			"off" : "on");
 
 	seq_printf(s,	"dsi2_pll_fck\t%-16luregm4 %u\t(%s)\n",
 			cinfo->dsi2_pll_fclk,
 			cinfo->regm4,
-			dss_get_dsi_clk_source() == 0 ? "off" : "on");
+			dss_get_dsi_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
+			"off" : "on");
 
 	seq_printf(s,	"- DSI -\n");
 
 	seq_printf(s,	"dsi fclk source = %s\n",
-			dss_get_dsi_clk_source() == 0 ?
+			dss_get_dsi_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
 			"dss1_alwon_fclk" : "dsi2_pll_fclk");
 
 	seq_printf(s,	"DSI_FCLK\t%lu\n", dsi_fclk_rate());
