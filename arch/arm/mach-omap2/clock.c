@@ -318,11 +318,6 @@ int omap2_clk_set_rate(struct clk *clk, unsigned long rate)
 
 	pr_debug("clock: set_rate for clock %s to rate %ld\n", clk->name, rate);
 
-	/* CONFIG_PARTICIPANT clocks are changed only in sets via the
-	   rate table mechanism, driven by mpu_speed  */
-	if (clk->flags & CONFIG_PARTICIPANT)
-		return -EINVAL;
-
 	/* dpll_ck, core_ck, virt_prcm_set; plus all clksel clocks */
 	if (clk->set_rate)
 		ret = clk->set_rate(clk, rate);
@@ -332,11 +327,11 @@ int omap2_clk_set_rate(struct clk *clk, unsigned long rate)
 
 int omap2_clk_set_parent(struct clk *clk, struct clk *new_parent)
 {
-	if (clk->flags & CONFIG_PARTICIPANT)
-		return -EINVAL;
-
 	if (!clk->clksel)
 		return -EINVAL;
+
+	if (clk->parent == new_parent)
+		return 0;
 
 	return omap2_clksel_set_parent(clk, new_parent);
 }
