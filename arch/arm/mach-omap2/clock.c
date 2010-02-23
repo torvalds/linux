@@ -37,9 +37,9 @@
 
 u8 cpu_mask;
 
-/*-------------------------------------------------------------------------
- * OMAP2/3/4 specific clock functions
- *-------------------------------------------------------------------------*/
+/*
+ * OMAP2+ specific clock functions
+ */
 
 /* Private functions */
 
@@ -69,20 +69,6 @@ static void _omap2_module_wait_ready(struct clk *clk)
 
 	omap2_cm_wait_idlest(idlest_reg, (1 << idlest_bit), idlest_val,
 			     clk->name);
-}
-
-/* Enables clock without considering parent dependencies or use count
- * REVISIT: Maybe change this to use clk->enable like on omap1?
- */
-static int _omap2_clk_enable(struct clk *clk)
-{
-	return clk->ops->enable(clk);
-}
-
-/* Disables clock without considering parent dependencies or use count */
-static void _omap2_clk_disable(struct clk *clk)
-{
-	clk->ops->disable(clk);
 }
 
 /* Public functions */
@@ -245,46 +231,106 @@ const struct clkops clkops_omap2_dflt = {
 	.disable	= omap2_dflt_clk_disable,
 };
 
+/**
+ * omap2_clk_disable - disable a clock, if the system is not using it
+ * @clk: struct clk * to disable
+ *
+ * Decrements the usecount on struct clk @clk.  If there are no users
+ * left, call the clkops-specific clock disable function to disable it
+ * in hardware.  If the clock is part of a clockdomain (which they all
+ * should be), request that the clockdomain be disabled.  (It too has
+ * a usecount, and so will not be disabled in the hardware until it no
+ * longer has any users.)  If the clock has a parent clock (most of
+ * them do), then call ourselves, recursing on the parent clock.  This
+ * can cause an entire branch of the clock tree to be powered off by
+ * simply disabling one clock.  Intended to be called with the clockfw_lock
+ * spinlock held.  No return value.
+ */
 void omap2_clk_disable(struct clk *clk)
 {
-	if (clk->usecount > 0 && !(--clk->usecount)) {
-		_omap2_clk_disable(clk);
-		if (clk->parent)
-			omap2_clk_disable(clk->parent);
-		if (clk->clkdm)
-			omap2_clkdm_clk_disable(clk->clkdm, clk);
-
+	if (clk->usecount == 0) {
+		WARN(1, "clock: %s: omap2_clk_disable() called, but usecount "
+		     "already 0?", clk->name);
+		return;
 	}
-}
 
-int omap2_clk_enable(struct clk *clk)
-{
-	int ret = 0;
+	pr_debug("clock: %s: decrementing usecount\n", clk->name);
 
-	if (clk->usecount++ == 0) {
-		if (clk->clkdm)
-			omap2_clkdm_clk_enable(clk->clkdm, clk);
+	clk->usecount--;
 
-		if (clk->parent) {
-			ret = omap2_clk_enable(clk->parent);
-			if (ret)
-				goto err;
-		}
+	if (clk->usecount > 0)
+		return;
 
-		ret = _omap2_clk_enable(clk);
-		if (ret) {
-			if (clk->parent)
-				omap2_clk_disable(clk->parent);
+	pr_debug("clock: %s: disabling in hardware\n", clk->name);
 
-			goto err;
-		}
-	}
-	return ret;
+	clk->ops->disable(clk);
 
-err:
 	if (clk->clkdm)
 		omap2_clkdm_clk_disable(clk->clkdm, clk);
+
+	if (clk->parent)
+		omap2_clk_disable(clk->parent);
+}
+
+/**
+ * omap2_clk_enable - request that the system enable a clock
+ * @clk: struct clk * to enable
+ *
+ * Increments the usecount on struct clk @clk.  If there were no users
+ * previously, then recurse up the clock tree, enabling all of the
+ * clock's parents and all of the parent clockdomains, and finally,
+ * enabling @clk's clockdomain, and @clk itself.  Intended to be
+ * called with the clockfw_lock spinlock held.  Returns 0 upon success
+ * or a negative error code upon failure.
+ */
+int omap2_clk_enable(struct clk *clk)
+{
+	int ret;
+
+	pr_debug("clock: %s: incrementing usecount\n", clk->name);
+
+	clk->usecount++;
+
+	if (clk->usecount > 1)
+		return 0;
+
+	pr_debug("clock: %s: enabling in hardware\n", clk->name);
+
+	if (clk->parent) {
+		ret = omap2_clk_enable(clk->parent);
+		if (ret) {
+			WARN(1, "clock: %s: could not enable parent %s: %d\n",
+			     clk->name, clk->parent->name, ret);
+			goto oce_err1;
+		}
+	}
+
+	if (clk->clkdm) {
+		ret = omap2_clkdm_clk_enable(clk->clkdm, clk);
+		if (ret) {
+			WARN(1, "clock: %s: could not enable clockdomain %s: "
+			     "%d\n", clk->name, clk->clkdm->name, ret);
+			goto oce_err2;
+		}
+	}
+
+	ret = clk->ops->enable(clk);
+	if (ret) {
+		WARN(1, "clock: %s: could not enable: %d\n", clk->name, ret);
+		goto oce_err3;
+	}
+
+	return 0;
+
+oce_err3:
+	if (clk->clkdm)
+		omap2_clkdm_clk_disable(clk->clkdm, clk);
+oce_err2:
+	if (clk->parent)
+		omap2_clk_disable(clk->parent);
+oce_err1:
 	clk->usecount--;
+
 	return ret;
 }
 
@@ -325,9 +371,9 @@ const struct clkops clkops_omap3_noncore_dpll_ops = {
 #endif
 
 
-/*-------------------------------------------------------------------------
- * Omap2 clock reset and init functions
- *-------------------------------------------------------------------------*/
+/*
+ * OMAP2+ clock reset and init functions
+ */
 
 #ifdef CONFIG_OMAP_RESET_CLOCKS
 void omap2_clk_disable_unused(struct clk *clk)
@@ -344,8 +390,9 @@ void omap2_clk_disable_unused(struct clk *clk)
 	if (cpu_is_omap34xx()) {
 		omap2_clk_enable(clk);
 		omap2_clk_disable(clk);
-	} else
-		_omap2_clk_disable(clk);
+	} else {
+		clk->ops->disable(clk);
+	}
 	if (clk->clkdm != NULL)
 		pwrdm_clkdm_state_switch(clk->clkdm);
 }
