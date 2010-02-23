@@ -121,6 +121,7 @@ static void vhost_vq_reset(struct vhost_dev *dev,
 	vq->kick = NULL;
 	vq->call_ctx = NULL;
 	vq->call = NULL;
+	vq->log_ctx = NULL;
 }
 
 long vhost_dev_init(struct vhost_dev *dev,
