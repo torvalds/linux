@@ -125,7 +125,6 @@ struct clk {
 	struct list_head	children;
 	struct list_head	sibling;	/* node for children */
 	unsigned long		rate;
-	__u32			flags;
 	void __iomem		*enable_reg;
 	unsigned long		(*recalc)(struct clk *);
 	int			(*set_rate)(struct clk *, unsigned long);
@@ -134,6 +133,7 @@ struct clk {
 	__u8			enable_bit;
 	__s8			usecount;
 	u8			fixed_div;
+	u8			flags;
 #ifdef CONFIG_ARCH_OMAP2PLUS
 	void __iomem		*clksel_reg;
 	u32			clksel_mask;
@@ -187,20 +187,14 @@ extern void clk_exit_cpufreq_table(struct cpufreq_frequency_table **table);
 extern const struct clkops clkops_null;
 
 /* Clock flags */
-/* bit 0 is free */
-#define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
-/* bits 2-4 are free */
-#define ENABLE_REG_32BIT	(1 << 5)	/* Use 32-bit access */
-/* bit 6 is free */
-#define CLOCK_IDLE_CONTROL	(1 << 7)
-#define CLOCK_NO_IDLE_PARENT	(1 << 8)
-#define DELAYED_APP		(1 << 9)	/* Delay application of clock */
-/* bit 10 is currently free */
-#define ENABLE_ON_INIT		(1 << 11)	/* Enable upon framework init */
-#define INVERT_ENABLE		(1 << 12)	/* 0 enables, 1 disables */
-/* bit 13 is currently free */
-#define ALWAYS_ENABLED		(1 << 14)
-/* bits 15-31 are currently free */
+#define RATE_FIXED		(1 << 0)	/* Fixed clock rate */
+#define ENABLE_REG_32BIT	(1 << 1)	/* Use 32-bit access */
+#define CLOCK_IDLE_CONTROL	(1 << 2)
+#define CLOCK_NO_IDLE_PARENT	(1 << 3)
+#define DELAYED_APP		(1 << 4)	/* Delay application of clock */
+#define ENABLE_ON_INIT		(1 << 5)	/* Enable upon framework init */
+#define INVERT_ENABLE		(1 << 6)	/* 0 enables, 1 disables */
+#define ALWAYS_ENABLED		(1 << 7)
 
 /* Clksel_rate flags */
 #define DEFAULT_RATE		(1 << 0)
