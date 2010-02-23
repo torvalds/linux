@@ -371,9 +371,9 @@ static void init_8259A(int auto_eoi)
  * platforms, such as x86 MID.
  */
 
-static void __init legacy_pic_noop(void) { };
-static void __init legacy_pic_uint_noop(unsigned int unused) { };
-static void __init legacy_pic_int_noop(int unused) { };
+static void legacy_pic_noop(void) { };
+static void legacy_pic_uint_noop(unsigned int unused) { };
+static void legacy_pic_int_noop(int unused) { };
 
 static struct irq_chip dummy_pic_chip  = {
 	.name = "dummy pic",
