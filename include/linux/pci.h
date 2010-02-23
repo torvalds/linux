@@ -364,9 +364,26 @@ static inline void pci_add_saved_cap(struct pci_dev *pci_dev,
 	hlist_add_head(&new_cap->next, &pci_dev->saved_cap_space);
 }
 
-#ifndef PCI_BUS_NUM_RESOURCES
-#define PCI_BUS_NUM_RESOURCES	16
-#endif
+/*
+ * The first PCI_BRIDGE_RESOURCE_NUM PCI bus resources (those that correspond
+ * to P2P or CardBus bridge windows) go in a table.  Additional ones (for
+ * buses below host bridges or subtractive decode bridges) go in the list.
+ * Use pci_bus_for_each_resource() to iterate through all the resources.
+ */
+
+/*
+ * PCI_SUBTRACTIVE_DECODE means the bridge forwards the window implicitly
+ * and there's no way to program the bridge with the details of the window.
+ * This does not apply to ACPI _CRS windows, even with the _DEC subtractive-
+ * decode bit set, because they are explicit and can be programmed with _SRS.
+ */
+#define PCI_SUBTRACTIVE_DECODE	0x1
+
+struct pci_bus_resource {
+	struct list_head list;
+	struct resource *res;
+	unsigned int flags;
+};
 
 #define PCI_REGION_FLAG_MASK	0x0fU	/* These bits of resource flags tell us the PCI region flags */
 
@@ -377,8 +394,8 @@ struct pci_bus {
 	struct list_head devices;	/* list of devices on this bus */
 	struct pci_dev	*self;		/* bridge device as seen by parent */
 	struct list_head slots;		/* list of slots on this bus */
-	struct resource	*resource[PCI_BUS_NUM_RESOURCES];
-					/* address space routed to this bus */
+	struct resource *resource[PCI_BRIDGE_RESOURCE_NUM];
+	struct list_head resources;	/* address space routed to this bus */
 
 	struct pci_ops	*ops;		/* configuration access functions */
 	void		*sysdata;	/* hook for sys-specific extension */
@@ -829,8 +846,14 @@ int pci_request_selected_regions_exclusive(struct pci_dev *, int, const char *);
 void pci_release_selected_regions(struct pci_dev *, int);
 
 /* drivers/pci/bus.c */
+void pci_bus_add_resource(struct pci_bus *bus, struct resource *res, unsigned int flags);
+struct resource *pci_bus_resource_n(const struct pci_bus *bus, int n);
+void pci_bus_remove_resources(struct pci_bus *bus);
+
 #define pci_bus_for_each_resource(bus, res, i)				\
-	for (i = 0; res = bus->resource[i], i < PCI_BUS_NUM_RESOURCES; i++)
+	for (i = 0;							\
+	    (res = pci_bus_resource_n(bus, i)) || i < PCI_BRIDGE_RESOURCE_NUM; \
+	     i++)
 
 int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
 			struct resource *res, resource_size_t size,

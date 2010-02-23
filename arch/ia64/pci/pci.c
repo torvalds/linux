@@ -320,9 +320,9 @@ static __devinit acpi_status add_window(struct acpi_resource *res, void *data)
 static void __devinit
 pcibios_setup_root_windows(struct pci_bus *bus, struct pci_controller *ctrl)
 {
-	int i, j;
+	int i;
 
-	j = 0;
+	pci_bus_remove_resources(bus);
 	for (i = 0; i < ctrl->windows; i++) {
 		struct resource *res = &ctrl->window[i].resource;
 		/* HP's firmware has a hack to work around a Windows bug.
@@ -330,13 +330,7 @@ pcibios_setup_root_windows(struct pci_bus *bus, struct pci_controller *ctrl)
 		if ((res->flags & IORESOURCE_MEM) &&
 		    (res->end - res->start < 16))
 			continue;
-		if (j >= PCI_BUS_NUM_RESOURCES) {
-			dev_warn(&bus->dev,
-				 "ignoring host bridge window %pR (no space)\n",
-				 res);
-			continue;
-		}
-		bus->resource[j++] = res;
+		pci_bus_add_resource(bus, res, 0);
 	}
 }
 

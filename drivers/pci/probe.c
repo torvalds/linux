@@ -89,6 +89,7 @@ static void release_pcibus_dev(struct device *dev)
 
 	if (pci_bus->bridge)
 		put_device(pci_bus->bridge);
+	pci_bus_remove_resources(pci_bus);
 	kfree(pci_bus);
 }
 
@@ -394,6 +395,7 @@ static void __devinit pci_read_bridge_mmio_pref(struct pci_bus *child)
 void __devinit pci_read_bridge_bases(struct pci_bus *child)
 {
 	struct pci_dev *dev = child->self;
+	struct resource *res;
 	int i;
 
 	if (pci_is_root_bus(child))	/* It's a host bus, nothing to read */
@@ -403,17 +405,23 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		 child->secondary, child->subordinate,
 		 dev->transparent ? " (subtractive decode)" : "");
 
+	pci_bus_remove_resources(child);
+	for (i = 0; i < PCI_BRIDGE_RESOURCE_NUM; i++)
+		child->resource[i] = &dev->resource[PCI_BRIDGE_RESOURCES+i];
+
 	pci_read_bridge_io(child);
 	pci_read_bridge_mmio(child);
 	pci_read_bridge_mmio_pref(child);
 
 	if (dev->transparent) {
-		for (i = 3; i < PCI_BUS_NUM_RESOURCES; i++) {
-			child->resource[i] = child->parent->resource[i - 3];
-			if (child->resource[i])
+		pci_bus_for_each_resource(child->parent, res, i) {
+			if (res) {
+				pci_bus_add_resource(child, res,
+						     PCI_SUBTRACTIVE_DECODE);
 				dev_printk(KERN_DEBUG, &dev->dev,
 					   "  bridge window %pR (subtractive decode)\n",
-					   child->resource[i]);
+					   res);
+			}
 		}
 	}
 }
@@ -428,6 +436,7 @@ static struct pci_bus * pci_alloc_bus(void)
 		INIT_LIST_HEAD(&b->children);
 		INIT_LIST_HEAD(&b->devices);
 		INIT_LIST_HEAD(&b->slots);
+		INIT_LIST_HEAD(&b->resources);
 		b->max_bus_speed = PCI_SPEED_UNKNOWN;
 		b->cur_bus_speed = PCI_SPEED_UNKNOWN;
 	}
