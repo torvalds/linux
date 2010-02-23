@@ -467,7 +467,6 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 {
 	struct octeon_mgmt *p = netdev_priv(netdev);
 	int port = p->port;
-	int i;
 	union cvmx_agl_gmx_rxx_adr_ctl adr_ctl;
 	union cvmx_agl_gmx_prtx_cfg agl_gmx_prtx;
 	unsigned long flags;
@@ -511,12 +510,8 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 		}
 	}
 	if (multicast_mode == 0) {
-		i = netdev_mc_count(netdev);
-		list = netdev->mc_list;
-		while (i--) {
+		netdev_for_each_mc_addr(list, netdev)
 			octeon_mgmt_cam_state_add(&cam_state, list->da_addr);
-			list = list->next;
-		}
 	}
 
 
