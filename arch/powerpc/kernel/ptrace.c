@@ -1070,7 +1070,7 @@ static int del_dac(struct task_struct *child, int slot)
 		child->thread.dvc1 = 0;
 #endif
 	} else if (slot == 2) {
-		if (child->thread.dac1 == 0)
+		if (child->thread.dac2 == 0)
 			return -ENOENT;
 
 #ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE
