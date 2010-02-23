@@ -276,6 +276,8 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 				    (unsigned long long) sta->sta.supp_rates[band]);
 #endif
 			rcu_read_unlock();
+
+			/* FIXME: update rate control */
 		} else {
 			rcu_read_unlock();
 			ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa,
@@ -370,6 +372,7 @@ static void ieee80211_rx_bss_info(struct ieee80211_sub_if_data *sdata,
 		       sdata->name, mgmt->bssid);
 #endif
 		ieee80211_sta_join_ibss(sdata, bss);
+		supp_rates = ieee80211_sta_get_rates(local, elems, band);
 		ieee80211_ibss_add_sta(sdata, mgmt->bssid, mgmt->sa,
 				       supp_rates, GFP_KERNEL);
 	}
