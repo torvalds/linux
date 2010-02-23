@@ -1,9 +1,9 @@
 /*
- *  arch/arm/plat-omap/include/mach/clock.h
+ * OMAP clock: data structure definitions, function prototypes, shared macros
  *
- *  Copyright (C) 2004 - 2005 Nokia corporation
- *  Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
- *  Based on clocks.h by Tony Lindgren, Gordon McNutt and RidgeRun, Inc
+ * Copyright (C) 2004-2005, 2008-2010 Nokia Corporation
+ * Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
+ * Based on clocks.h by Tony Lindgren, Gordon McNutt and RidgeRun, Inc
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -41,9 +41,49 @@ struct clksel {
 	const struct clksel_rate *rates;
 };
 
-/*
- * A new flag called flag has been added which indicates what is the
- * type of dpll (like j_type, no_dco_sel)
+/**
+ * struct dpll_data - DPLL registers and integration data
+ * @mult_div1_reg: register containing the DPLL M and N bitfields
+ * @mult_mask: mask of the DPLL M bitfield in @mult_div1_reg
+ * @div1_mask: mask of the DPLL N bitfield in @mult_div1_reg
+ * @clk_bypass: struct clk pointer to the clock's bypass clock input
+ * @clk_ref: struct clk pointer to the clock's reference clock input
+ * @control_reg: register containing the DPLL mode bitfield
+ * @enable_mask: mask of the DPLL mode bitfield in @control_reg
+ * @rate_tolerance: maximum variance allowed from target rate (in Hz)
+ * @last_rounded_rate: cache of the last rate result of omap2_dpll_round_rate()
+ * @last_rounded_m: cache of the last M result of omap2_dpll_round_rate()
+ * @max_multiplier: maximum valid non-bypass multiplier value (actual)
+ * @last_rounded_n: cache of the last N result of omap2_dpll_round_rate()
+ * @min_divider: minimum valid non-bypass divider value (actual)
+ * @max_divider: maximum valid non-bypass divider value (actual)
+ * @modes: possible values of @enable_mask
+ * @autoidle_reg: register containing the DPLL autoidle mode bitfield
+ * @idlest_reg: register containing the DPLL idle status bitfield
+ * @autoidle_mask: mask of the DPLL autoidle mode bitfield in @autoidle_reg
+ * @freqsel_mask: mask of the DPLL jitter correction bitfield in @control_reg
+ * @idlest_mask: mask of the DPLL idle status bitfield in @idlest_reg
+ * @auto_recal_bit: bitshift of the driftguard enable bit in @control_reg
+ * @recal_en_bit: bitshift of the PRM_IRQENABLE_* bit for recalibration IRQs
+ * @recal_st_bit: bitshift of the PRM_IRQSTATUS_* bit for recalibration IRQs
+ * @flags: DPLL type/features (see below)
+ *
+ * Possible values for @flags:
+ * DPLL_J_TYPE: "J-type DPLL" (only some 36xx, 4xxx DPLLs)
+ * NO_DCO_SEL: don't program DCO (only for some J-type DPLLs)
+
+ * @freqsel_mask is only used on the OMAP34xx family and AM35xx.
+ *
+ * XXX Some DPLLs have multiple bypass inputs, so it's not technically
+ * correct to only have one @clk_bypass pointer.
+ *
+ * XXX @rate_tolerance should probably be deprecated - currently there
+ * don't seem to be any usecases for DPLL rounding that is not exact.
+ *
+ * XXX The runtime-variable fields (@last_rounded_rate, @last_rounded_m,
+ * @last_rounded_n) should be separated from the runtime-fixed fields
+ * and placed into a differenct structure, so that the runtime-fixed data
+ * can be placed into read-only space.
  */
 struct dpll_data {
 	void __iomem		*mult_div1_reg;
@@ -56,13 +96,12 @@ struct dpll_data {
 	unsigned int		rate_tolerance;
 	unsigned long		last_rounded_rate;
 	u16			last_rounded_m;
+	u16			max_multiplier;
 	u8			last_rounded_n;
 	u8			min_divider;
 	u8			max_divider;
-	u32			max_tolerance;
-	u16			max_multiplier;
-#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 	u8			modes;
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 	void __iomem		*autoidle_reg;
 	void __iomem		*idlest_reg;
 	u32			autoidle_mask;
@@ -152,6 +191,7 @@ extern const struct clkops clkops_null;
 #define RATE_FIXED		(1 << 1)	/* Fixed clock rate */
 /* bits 2-4 are free */
 #define ENABLE_REG_32BIT	(1 << 5)	/* Use 32-bit access */
+/* bit 6 is free */
 #define CLOCK_IDLE_CONTROL	(1 << 7)
 #define CLOCK_NO_IDLE_PARENT	(1 << 8)
 #define DELAYED_APP		(1 << 9)	/* Delay application of clock */
@@ -160,14 +200,14 @@ extern const struct clkops clkops_null;
 #define INVERT_ENABLE           (1 << 12)       /* 0 enables, 1 disables */
 #define CLOCK_IN_OMAP4430	(1 << 13)
 #define ALWAYS_ENABLED		(1 << 14)
-/* bits 13-31 are currently free */
+/* bits 15-31 are currently free */
 
 /* Clksel_rate flags */
 #define DEFAULT_RATE		(1 << 0)
 #define RATE_IN_242X		(1 << 1)
 #define RATE_IN_243X		(1 << 2)
 #define RATE_IN_343X		(1 << 3)	/* rates common to all 343X */
-#define RATE_IN_3430ES2	(1 << 4)	/* 3430ES2 rates only */
+#define RATE_IN_3430ES2		(1 << 4)	/* 3430ES2 rates only */
 #define RATE_IN_36XX		(1 << 5)
 #define RATE_IN_4430		(1 << 6)
 

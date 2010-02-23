@@ -20,7 +20,7 @@
  */
 
 #include <linux/kernel.h>
-#include <linux/module.h>
+#include <linux/list.h>
 #include <linux/clk.h>
 
 #include <plat/control.h>

@@ -2,7 +2,7 @@
  *  linux/arch/arm/mach-omap2/clock2xxx_data.c
  *
  *  Copyright (C) 2005-2009 Texas Instruments, Inc.
- *  Copyright (C) 2004-2009 Nokia Corporation
+ *  Copyright (C) 2004-2010 Nokia Corporation
  *
  *  Contacts:
  *  Richard Woodruff <r-woodruff2@ti.com>
@@ -13,9 +13,9 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/clk.h>
+#include <linux/list.h>
 
 #include <plat/clkdev_omap.h>
 
@@ -107,7 +107,7 @@ static struct dpll_data dpll_dd = {
 	.clk_ref		= &sys_ck,
 	.control_reg		= OMAP_CM_REGADDR(PLL_MOD, CM_CLKEN),
 	.enable_mask		= OMAP24XX_EN_DPLL_MASK,
-	.max_multiplier		= 1024,
+	.max_multiplier		= 1023,
 	.min_divider		= 1,
 	.max_divider		= 16,
 	.rate_tolerance		= DEFAULT_DPLL_RATE_TOLERANCE

@@ -1,8 +1,8 @@
 /*
  * OMAP3 clock data
  *
- * Copyright (C) 2007-2009 Texas Instruments, Inc.
- * Copyright (C) 2007-2009 Nokia Corporation
+ * Copyright (C) 2007-2010 Texas Instruments, Inc.
+ * Copyright (C) 2007-2010 Nokia Corporation
  *
  * Written by Paul Walmsley
  * With many device clock fixes by Kevin Hilman and Jouni Högander
@@ -16,9 +16,9 @@
  * to be requested from drivers directly.
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/clk.h>
+#include <linux/list.h>
 
 #include <plat/control.h>
 #include <plat/clkdev_omap.h>
@@ -37,7 +37,7 @@
 #define OMAP_CM_REGADDR		OMAP34XX_CM_REGADDR
 
 /* Maximum DPLL multiplier, divider values for OMAP3 */
-#define OMAP3_MAX_DPLL_MULT		2048
+#define OMAP3_MAX_DPLL_MULT		2047
 #define OMAP3630_MAX_JTYPE_DPLL_MULT	4095
 #define OMAP3_MAX_DPLL_DIV		128
 
