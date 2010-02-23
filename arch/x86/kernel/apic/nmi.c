@@ -416,13 +416,13 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 
 	/* We can be called before check_nmi_watchdog, hence NULL check. */
 	if (cpumask_test_cpu(cpu, to_cpumask(backtrace_mask))) {
-		static DEFINE_SPINLOCK(lock);	/* Serialise the printks */
+		static DEFINE_RAW_SPINLOCK(lock); /* Serialise the printks */
 
-		spin_lock(&lock);
+		raw_spin_lock(&lock);
 		printk(KERN_WARNING "NMI backtrace for cpu %d\n", cpu);
 		show_regs(regs);
 		dump_stack();
-		spin_unlock(&lock);
+		raw_spin_unlock(&lock);
 		cpumask_clear_cpu(cpu, to_cpumask(backtrace_mask));
 
 		rc = 1;
