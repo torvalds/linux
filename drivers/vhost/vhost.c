@@ -646,8 +646,9 @@ static int set_bit_to_user(int nr, void __user *addr)
 	int bit = nr + (log % PAGE_SIZE) * 8;
 	int r;
 	r = get_user_pages_fast(log, 1, 1, &page);
-	if (r)
+	if (r < 0)
 		return r;
+	BUG_ON(r != 1);
 	base = kmap_atomic(page, KM_USER0);
 	set_bit(bit, base);
 	kunmap_atomic(base, KM_USER0);
