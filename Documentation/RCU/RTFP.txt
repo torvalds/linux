@@ -870,6 +870,6 @@ Revised:
 , month  = "December"
 , year   = 2009
 ,note="Available:
-\url{http://www.lttng.org/pub/thesis/desnoyers-dissertation-2009-12-v24.pdf}
+\url{http://www.lttng.org/pub/thesis/desnoyers-dissertation-2009-12.pdf}
 [Viewed December 9, 2009]"
 }
