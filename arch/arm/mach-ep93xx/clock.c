@@ -463,7 +463,7 @@ static int __init ep93xx_clock_init(void)
 	ep93xx_dma_clock_init();
 
 	/* Determine the bootloader configured pll2 rate */
-	value = __raw_readl(EP93XX_SYSCON_CLOCK_SET2);
+	value = __raw_readl(EP93XX_SYSCON_CLKSET2);
 	if (!(value & EP93XX_SYSCON_CLKSET2_NBYP2))
 		clk_pll2.rate = clk_xtali.rate;
 	else if (value & EP93XX_SYSCON_CLKSET2_PLL2_EN)
