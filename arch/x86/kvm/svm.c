@@ -47,6 +47,7 @@ MODULE_LICENSE("GPL");
 #define SVM_FEATURE_NPT  (1 << 0)
 #define SVM_FEATURE_LBRV (1 << 1)
 #define SVM_FEATURE_SVML (1 << 2)
+#define SVM_FEATURE_NRIP (1 << 3)
 #define SVM_FEATURE_PAUSE_FILTER (1 << 10)
 
 #define NESTED_EXIT_HOST	0	/* Exit handled on host level */
@@ -110,6 +111,9 @@ struct vcpu_svm {
 	struct nested_state nested;
 
 	bool nmi_singlestep;
+
+	unsigned int3_injected;
+	unsigned long int3_rip;
 };
 
 /* enable NPT for AMD64 and X86 with PAE */
@@ -290,6 +294,22 @@ static void svm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
 	   guest handle the exception */
 	if (nested_svm_check_exception(svm, nr, has_error_code, error_code))
 		return;
+
+	if (nr == BP_VECTOR && !svm_has(SVM_FEATURE_NRIP)) {
+		unsigned long rip, old_rip = kvm_rip_read(&svm->vcpu);
+
+		/*
+		 * For guest debugging where we have to reinject #BP if some
+		 * INT3 is guest-owned:
+		 * Emulate nRIP by moving RIP forward. Will fail if injection
+		 * raises a fault that is not intercepted. Still better than
+		 * failing in all cases.
+		 */
+		skip_emulated_instruction(&svm->vcpu);
+		rip = kvm_rip_read(&svm->vcpu);
+		svm->int3_rip = rip + svm->vmcb->save.cs.base;
+		svm->int3_injected = rip - old_rip;
+	}
 
 	svm->vmcb->control.event_inj = nr
 		| SVM_EVTINJ_VALID
@@ -2701,6 +2721,9 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 	u8 vector;
 	int type;
 	u32 exitintinfo = svm->vmcb->control.exit_int_info;
+	unsigned int3_injected = svm->int3_injected;
+
+	svm->int3_injected = 0;
 
 	if (svm->vcpu.arch.hflags & HF_IRET_MASK)
 		svm->vcpu.arch.hflags &= ~(HF_NMI_MASK | HF_IRET_MASK);
@@ -2720,12 +2743,21 @@ static void svm_complete_interrupts(struct vcpu_svm *svm)
 		svm->vcpu.arch.nmi_injected = true;
 		break;
 	case SVM_EXITINTINFO_TYPE_EXEPT:
-		/* In case of software exception do not reinject an exception
-		   vector, but re-execute and instruction instead */
 		if (is_nested(svm))
 			break;
-		if (kvm_exception_is_soft(vector))
+		/*
+		 * In case of software exceptions, do not reinject the vector,
+		 * but re-execute the instruction instead. Rewind RIP first
+		 * if we emulated INT3 before.
+		 */
+		if (kvm_exception_is_soft(vector)) {
+			if (vector == BP_VECTOR && int3_injected &&
+			    kvm_is_linear_rip(&svm->vcpu, svm->int3_rip))
+				kvm_rip_write(&svm->vcpu,
+					      kvm_rip_read(&svm->vcpu) -
+					      int3_injected);
 			break;
+		}
 		if (exitintinfo & SVM_EXITINTINFO_VALID_ERR) {
 			u32 err = svm->vmcb->control.exit_int_info_err;
 			kvm_queue_exception_e(&svm->vcpu, vector, err);
