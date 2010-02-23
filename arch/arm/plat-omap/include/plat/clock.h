@@ -197,8 +197,8 @@ extern const struct clkops clkops_null;
 #define DELAYED_APP		(1 << 9)	/* Delay application of clock */
 #define CONFIG_PARTICIPANT	(1 << 10)	/* Fundamental clock */
 #define ENABLE_ON_INIT		(1 << 11)	/* Enable upon framework init */
-#define INVERT_ENABLE           (1 << 12)       /* 0 enables, 1 disables */
-#define CLOCK_IN_OMAP4430	(1 << 13)
+#define INVERT_ENABLE		(1 << 12)	/* 0 enables, 1 disables */
+/* bit 13 is currently free */
 #define ALWAYS_ENABLED		(1 << 14)
 /* bits 15-31 are currently free */
 
