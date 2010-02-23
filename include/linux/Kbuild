@@ -125,6 +125,7 @@ header-y += nfs2.h
 header-y += nfs4_mount.h
 header-y += nfs_mount.h
 header-y += nl80211.h
+header-y += omapfb.h
 header-y += param.h
 header-y += pci_regs.h
 header-y += perf_event.h
