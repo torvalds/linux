@@ -2170,8 +2170,7 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 			hash_bit = hash_value & 0x1F;
 			mta = (1 << hash_bit);
 			mcarray[hash_reg] |= mta;
-		}
-		else {
+		} else {
 			e1000_rar_set(hw, mc_ptr->da_addr, i++);
 		}
 	}
