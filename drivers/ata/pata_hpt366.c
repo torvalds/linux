@@ -361,7 +361,7 @@ static int hpt36x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 			break;
 	}
 	/* Now kick off ATA set up */
-	return ata_pci_sff_init_one(dev, ppi, &hpt36x_sht, hpriv);
+	return ata_pci_sff_init_one(dev, ppi, &hpt36x_sht, hpriv, 0);
 }
 
 #ifdef CONFIG_PM

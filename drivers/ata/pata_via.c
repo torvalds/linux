@@ -624,7 +624,7 @@ static int via_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	/* We have established the device type, now fire it up */
-	return ata_pci_sff_init_one(pdev, ppi, &via_sht, (void *)config);
+	return ata_pci_sff_init_one(pdev, ppi, &via_sht, (void *)config, 0);
 }
 
 #ifdef CONFIG_PM

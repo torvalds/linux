@@ -153,7 +153,7 @@ static int marvell_init_one (struct pci_dev *pdev, const struct pci_device_id *i
 		return -ENODEV;
 	}
 #endif
-	return ata_pci_sff_init_one(pdev, ppi, &marvell_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &marvell_sht, NULL, 0);
 }
 
 static const struct pci_device_id marvell_pci_tbl[] = {

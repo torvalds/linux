@@ -1643,8 +1643,8 @@ extern int ata_pci_sff_activate_host(struct ata_host *host,
 				     irq_handler_t irq_handler,
 				     struct scsi_host_template *sht);
 extern int ata_pci_sff_init_one(struct pci_dev *pdev,
-				const struct ata_port_info * const * ppi,
-				struct scsi_host_template *sht, void *host_priv);
+		const struct ata_port_info * const * ppi,
+		struct scsi_host_template *sht, void *host_priv, int hflags);
 #endif /* CONFIG_PCI */
 
 /**

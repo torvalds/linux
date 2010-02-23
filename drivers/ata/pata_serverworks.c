@@ -460,7 +460,7 @@ static int serverworks_init_one(struct pci_dev *pdev, const struct pci_device_id
 	if (pdev->device == PCI_DEVICE_ID_SERVERWORKS_CSB5IDE)
 		ata_pci_bmdma_clear_simplex(pdev);
 
-	return ata_pci_sff_init_one(pdev, ppi, &serverworks_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &serverworks_sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM

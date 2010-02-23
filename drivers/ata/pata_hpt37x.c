@@ -987,7 +987,7 @@ static int hpt37x_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 	}
 
 	/* Now kick off ATA set up */
-	return ata_pci_sff_init_one(dev, ppi, &hpt37x_sht, private_data);
+	return ata_pci_sff_init_one(dev, ppi, &hpt37x_sht, private_data, 0);
 }
 
 static const struct pci_device_id hpt37x[] = {

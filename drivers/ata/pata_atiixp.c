@@ -237,7 +237,7 @@ static int atiixp_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 		if (!pci_test_config_bits(pdev, &atiixp_enable_bits[i]))
 			ppi[i] = &ata_dummy_port_info;
 
-	return ata_pci_sff_init_one(pdev, ppi, &atiixp_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &atiixp_sht, NULL, 0);
 }
 
 static const struct pci_device_id atiixp[] = {

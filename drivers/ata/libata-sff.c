@@ -3037,6 +3037,7 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_activate_host);
  *	@ppi: array of port_info, must be enough for two ports
  *	@sht: scsi_host_template to use when registering the host
  *	@host_priv: host private_data
+ *	@hflag: host flags
  *
  *	This is a helper function which can be called from a driver's
  *	xxx_init_one() probe function if the hardware uses traditional
@@ -3057,8 +3058,8 @@ EXPORT_SYMBOL_GPL(ata_pci_sff_activate_host);
  *	Zero on success, negative on errno-based value on error.
  */
 int ata_pci_sff_init_one(struct pci_dev *pdev,
-			 const struct ata_port_info * const *ppi,
-			 struct scsi_host_template *sht, void *host_priv)
+		 const struct ata_port_info * const *ppi,
+		 struct scsi_host_template *sht, void *host_priv, int hflag)
 {
 	struct device *dev = &pdev->dev;
 	const struct ata_port_info *pi = NULL;
@@ -3093,6 +3094,7 @@ int ata_pci_sff_init_one(struct pci_dev *pdev,
 	if (rc)
 		goto out;
 	host->private_data = host_priv;
+	host->flags |= hflag;
 
 	pci_set_master(pdev);
 	rc = ata_pci_sff_activate_host(host, ata_sff_interrupt, sht);

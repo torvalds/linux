@@ -583,7 +583,7 @@ static int ali_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	        	ppi[0] = &info_20_udma;
 	}
 
-	return ata_pci_sff_init_one(pdev, ppi, &ali_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &ali_sht, NULL, 0);
 }
 
 #ifdef CONFIG_PM

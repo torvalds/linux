@@ -337,7 +337,7 @@ static int pdc202xx_init_one(struct pci_dev *dev, const struct pci_device_id *id
 				return -ENODEV;
 		}
 	}
-	return ata_pci_sff_init_one(dev, ppi, &pdc202xx_sht, NULL);
+	return ata_pci_sff_init_one(dev, ppi, &pdc202xx_sht, NULL, 0);
 }
 
 static const struct pci_device_id pdc202xx[] = {

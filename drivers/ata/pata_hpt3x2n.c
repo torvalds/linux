@@ -548,7 +548,7 @@ static int hpt3x2n_init_one(struct pci_dev *dev, const struct pci_device_id *id)
 		outb(inb(iobase + 0x9c) | 0x04, iobase + 0x9c);
 
 	/* Now kick off ATA set up */
-	return ata_pci_sff_init_one(dev, ppi, &hpt3x2n_sht, hpriv);
+	return ata_pci_sff_init_one(dev, ppi, &hpt3x2n_sht, hpriv, 0);
 }
 
 static const struct pci_device_id hpt3x2n[] = {
