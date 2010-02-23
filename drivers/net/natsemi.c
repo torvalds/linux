@@ -2495,9 +2495,9 @@ static void __set_rx_mode(struct net_device *dev)
 	} else {
 		struct dev_mc_list *mclist;
 		int i;
+
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
-			 i++, mclist = mclist->next) {
+		netdev_for_each_mc_addr(mclist, dev) {
 			int b = (ether_crc(ETH_ALEN, mclist->dmi_addr) >> 23) & 0x1ff;
 			mc_filter[b/8] |= (1 << (b & 0x07));
 		}

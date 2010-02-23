@@ -6365,7 +6365,7 @@ static void niu_set_rx_mode(struct net_device *dev)
 		for (i = 0; i < 16; i++)
 			hash[i] = 0xffff;
 	} else if (!netdev_mc_empty(dev)) {
-		for (addr = dev->mc_list; addr; addr = addr->next) {
+		netdev_for_each_mc_addr(addr, dev) {
 			u32 crc = ether_crc_le(ETH_ALEN, addr->da_addr);
 
 			crc >>= 24;

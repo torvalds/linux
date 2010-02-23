@@ -250,9 +250,10 @@ static void temac_set_multicast_list(struct net_device *ndev)
 		temac_indirect_out32(lp, XTE_AFM_OFFSET, XTE_AFM_EPPRM_MASK);
 		dev_info(&ndev->dev, "Promiscuous mode enabled.\n");
 	} else if (!netdev_mc_empty(ndev)) {
-		struct dev_mc_list *mclist = ndev->mc_list;
-		for (i = 0; mclist && i < netdev_mc_count(ndev); i++) {
+		struct dev_mc_list *mclist;
 
+		i = 0;
+		netdev_for_each_mc_addr(mclist, ndev) {
 			if (i >= MULTICAST_CAM_TABLE_NUM)
 				break;
 			multi_addr_msw = ((mclist->dmi_addr[3] << 24) |
@@ -265,7 +266,7 @@ static void temac_set_multicast_list(struct net_device *ndev)
 					  (mclist->dmi_addr[4]) | (i << 16));
 			temac_indirect_out32(lp, XTE_MAW1_OFFSET,
 					     multi_addr_lsw);
-			mclist = mclist->next;
+			i++;
 		}
 	} else {
 		val = temac_indirect_in32(lp, XTE_AFM_OFFSET);

@@ -1997,7 +1997,6 @@ jme_set_multi(struct net_device *netdev)
 {
 	struct jme_adapter *jme = netdev_priv(netdev);
 	u32 mc_hash[2] = {};
-	int i;
 
 	spin_lock_bh(&jme->rxmcs_lock);
 
@@ -2012,10 +2011,7 @@ jme_set_multi(struct net_device *netdev)
 		int bit_nr;
 
 		jme->reg_rxmcs |= RXMCS_MULFRAME | RXMCS_MULFILTERED;
-		for (i = 0, mclist = netdev->mc_list;
-			mclist && i < netdev_mc_count(netdev);
-			++i, mclist = mclist->next) {
-
+		netdev_for_each_mc_addr(mclist, netdev) {
 			bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) & 0x3F;
 			mc_hash[bit_nr >> 5] |= 1 << (bit_nr & 0x1F);
 		}

@@ -4270,8 +4270,8 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 		status = ql_sem_spinlock(qdev, SEM_MAC_ADDR_MASK);
 		if (status)
 			goto exit;
-		for (i = 0, mc_ptr = ndev->mc_list; mc_ptr;
-		     i++, mc_ptr = mc_ptr->next)
+		i = 0;
+		netdev_for_each_mc_addr(mc_ptr, ndev) {
 			if (ql_set_mac_addr_reg(qdev, (u8 *) mc_ptr->dmi_addr,
 						MAC_ADDR_TYPE_MULTI_MAC, i)) {
 				netif_err(qdev, hw, qdev->ndev,
@@ -4279,6 +4279,8 @@ static void qlge_set_multicast_list(struct net_device *ndev)
 				ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 				goto exit;
 			}
+			i++;
+		}
 		ql_sem_unlock(qdev, SEM_MAC_ADDR_MASK);
 		if (ql_set_routing_reg
 		    (qdev, RT_IDX_MCAST_MATCH_SLOT, RT_IDX_MCAST_MATCH, 1)) {

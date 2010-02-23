@@ -1794,7 +1794,7 @@ oom:
 	memset(mc_spec, 0, 0x100);
 	memset(mc_other, 0, 0x100);
 
-	for (addr = dev->mc_list; addr != NULL; addr = addr->next) {
+	netdev_for_each_mc_addr(addr, dev) {
 		u8 *a = addr->da_addr;
 		u32 *table;
 		int entry;

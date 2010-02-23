@@ -2590,7 +2590,7 @@ static void pcnet32_load_multicast(struct net_device *dev)
 	struct pcnet32_private *lp = netdev_priv(dev);
 	volatile struct pcnet32_init_block *ib = lp->init_block;
 	volatile __le16 *mcast_table = (__le16 *)ib->filter;
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	unsigned long ioaddr = dev->base_addr;
 	char *addrs;
 	int i;
@@ -2611,9 +2611,8 @@ static void pcnet32_load_multicast(struct net_device *dev)
 	ib->filter[1] = 0;
 
 	/* Add addresses */
-	for (i = 0; i < netdev_mc_count(dev); i++) {
+	netdev_for_each_mc_addr(dmi, dev) {
 		addrs = dmi->dmi_addr;
-		dmi = dmi->next;
 
 		/* multicast address? */
 		if (!(*addrs & 1))

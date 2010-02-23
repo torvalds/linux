@@ -596,7 +596,7 @@ static int init586(struct net_device *dev)
 	struct iasetup_cmd_struct __iomem *ias_cmd;
 	struct tdr_cmd_struct __iomem *tdr_cmd;
 	struct mcsetup_cmd_struct __iomem *mc_cmd;
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	int num_addrs = netdev_mc_count(dev);
 
 	ptr = p->scb + 1;
@@ -724,9 +724,9 @@ static int init586(struct net_device *dev)
 		writew(0xffff, &mc_cmd->cmd_link);
 		writew(num_addrs * 6, &mc_cmd->mc_cnt);
 
-		for (i = 0; i < num_addrs; i++, dmi = dmi->next)
-			memcpy_toio(mc_cmd->mc_list[i],
-							dmi->dmi_addr, 6);
+		i = 0;
+		netdev_for_each_mc_addr(dmi, dev)
+			memcpy_toio(mc_cmd->mc_list[i++], dmi->dmi_addr, 6);
 
 		writew(make16(mc_cmd), &p->scb->cbl_offset);
 		writeb(CUC_START, &p->scb->cmd_cuc);

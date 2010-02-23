@@ -1267,8 +1267,8 @@ static void set_multicast_list(struct net_device *dev) {
 		cmd->command = CmdMulticastList;
 		*((unsigned short *) (cmd + 1)) = netdev_mc_count(dev) * 6;
 		cp = ((char *)(cmd + 1))+2;
-		for (dmi = dev->mc_list; dmi != NULL; dmi = dmi->next) {
-			memcpy(cp, dmi,6);
+		netdev_for_each_mc_addr(dmi, dev) {
+			memcpy(cp, dmi->dmi_addr, 6);
 			cp += 6;
 		}
 		if (i596_debug & LOG_SRCDST)

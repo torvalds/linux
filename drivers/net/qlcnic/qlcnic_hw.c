@@ -453,8 +453,7 @@ void qlcnic_set_multi(struct net_device *netdev)
 	}
 
 	if (!netdev_mc_empty(netdev)) {
-		for (mc_ptr = netdev->mc_list; mc_ptr;
-				     mc_ptr = mc_ptr->next) {
+		netdev_for_each_mc_addr(mc_ptr, netdev) {
 			qlcnic_nic_add_mac(adapter, mc_ptr->dmi_addr,
 							&del_list);
 		}

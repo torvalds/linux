@@ -884,15 +884,12 @@ static void macb_sethashtable(struct net_device *dev)
 {
 	struct dev_mc_list *curr;
 	unsigned long mc_filter[2];
-	unsigned int i, bitnr;
+	unsigned int bitnr;
 	struct macb *bp = netdev_priv(dev);
 
 	mc_filter[0] = mc_filter[1] = 0;
 
-	curr = dev->mc_list;
-	for (i = 0; i < netdev_mc_count(dev); i++, curr = curr->next) {
-		if (!curr) break;	/* unexpected end of list */
-
+	netdev_for_each_mc_addr(curr, dev) {
 		bitnr = hash_get_index(curr->dmi_addr);
 		mc_filter[bitnr >> 5] |= 1 << (bitnr & 31);
 	}

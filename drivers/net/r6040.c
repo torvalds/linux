@@ -938,7 +938,7 @@ static void r6040_multicast_list(struct net_device *dev)
 	u16 *adrp;
 	u16 reg;
 	unsigned long flags;
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	int i;
 
 	/* MAC Address */
@@ -973,10 +973,8 @@ static void r6040_multicast_list(struct net_device *dev)
 		for (i = 0; i < 4; i++)
 			hash_table[i] = 0;
 
-		for (i = 0; i < netdev_mc_count(dev); i++) {
+		netdev_for_each_mc_addr(dmi, dev) {
 			char *addrs = dmi->dmi_addr;
-
-			dmi = dmi->next;
 
 			if (!(*addrs & 1))
 				continue;
@@ -995,17 +993,19 @@ static void r6040_multicast_list(struct net_device *dev)
 		iowrite16(hash_table[3], ioaddr + MAR3);
 	}
 	/* Multicast Address 1~4 case */
-	for (i = 0, dmi; (i < netdev_mc_count(dev)) && (i < MCAST_MAX); i++) {
-		adrp = (u16 *)dmi->dmi_addr;
-		iowrite16(adrp[0], ioaddr + MID_1L + 8*i);
-		iowrite16(adrp[1], ioaddr + MID_1M + 8*i);
-		iowrite16(adrp[2], ioaddr + MID_1H + 8*i);
-		dmi = dmi->next;
-	}
-	for (i = netdev_mc_count(dev); i < MCAST_MAX; i++) {
-		iowrite16(0xffff, ioaddr + MID_0L + 8*i);
-		iowrite16(0xffff, ioaddr + MID_0M + 8*i);
-		iowrite16(0xffff, ioaddr + MID_0H + 8*i);
+	i = 0;
+	netdev_for_each_mc_addr(dmi, dev) {
+		if (i < MCAST_MAX) {
+			adrp = (u16 *) dmi->dmi_addr;
+			iowrite16(adrp[0], ioaddr + MID_1L + 8 * i);
+			iowrite16(adrp[1], ioaddr + MID_1M + 8 * i);
+			iowrite16(adrp[2], ioaddr + MID_1H + 8 * i);
+		} else {
+			iowrite16(0xffff, ioaddr + MID_0L + 8 * i);
+			iowrite16(0xffff, ioaddr + MID_0M + 8 * i);
+			iowrite16(0xffff, ioaddr + MID_0H + 8 * i);
+		}
+		i++;
 	}
 }
 

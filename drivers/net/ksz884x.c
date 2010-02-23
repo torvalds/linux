@@ -5777,7 +5777,7 @@ static void netdev_set_rx_mode(struct net_device *dev)
 	if (hw_priv->hw.dev_count > 1)
 		return;
 
-	if ((dev->flags & IFF_MULTICAST) && dev->mc_count) {
+	if ((dev->flags & IFF_MULTICAST) && !netdev_mc_empty(dev)) {
 		int i = 0;
 
 		/* List too big to support so turn on all multicast mode. */
@@ -5790,7 +5790,7 @@ static void netdev_set_rx_mode(struct net_device *dev)
 			return;
 		}
 
-		for (mc_ptr = dev->mc_list; mc_ptr; mc_ptr = mc_ptr->next) {
+		netdev_for_each_mc_addr(mc_ptr, dev) {
 			if (!(*mc_ptr->dmi_addr & 1))
 				continue;
 			if (i >= MAX_MULTICAST_LIST)

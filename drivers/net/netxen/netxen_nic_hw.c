@@ -539,7 +539,7 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 	struct netxen_adapter *adapter = netdev_priv(netdev);
 	struct dev_mc_list *mc_ptr;
 	u8 null_addr[6];
-	int index = 0;
+	int i;
 
 	memset(null_addr, 0, 6);
 
@@ -570,16 +570,13 @@ void netxen_p2_nic_set_multi(struct net_device *netdev)
 
 	netxen_nic_enable_mcast_filter(adapter);
 
-	for (mc_ptr = netdev->mc_list; mc_ptr; mc_ptr = mc_ptr->next, index++)
-		netxen_nic_set_mcast_addr(adapter, index, mc_ptr->dmi_addr);
-
-	if (index != netdev_mc_count(netdev))
-		printk(KERN_WARNING "%s: %s multicast address count mismatch\n",
-			netxen_nic_driver_name, netdev->name);
+	i = 0;
+	netdev_for_each_mc_addr(mc_ptr, netdev)
+		netxen_nic_set_mcast_addr(adapter, i++, mc_ptr->dmi_addr);
 
 	/* Clear out remaining addresses */
-	for (; index < adapter->max_mc_count; index++)
-		netxen_nic_set_mcast_addr(adapter, index, null_addr);
+	while (i < adapter->max_mc_count)
+		netxen_nic_set_mcast_addr(adapter, i++, null_addr);
 }
 
 static int
@@ -710,10 +707,8 @@ void netxen_p3_nic_set_multi(struct net_device *netdev)
 	}
 
 	if (!netdev_mc_empty(netdev)) {
-		for (mc_ptr = netdev->mc_list; mc_ptr;
-		     mc_ptr = mc_ptr->next) {
+		netdev_for_each_mc_addr(mc_ptr, netdev)
 			nx_p3_nic_add_mac(adapter, mc_ptr->dmi_addr, &del_list);
-		}
 	}
 
 send_fw_cmd:

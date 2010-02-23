@@ -3035,7 +3035,7 @@ static void myri10ge_set_multicast_list(struct net_device *dev)
 	}
 
 	/* Walk the multicast list, and add each address */
-	for (mc_list = dev->mc_list; mc_list != NULL; mc_list = mc_list->next) {
+	netdev_for_each_mc_addr(mc_list, dev) {
 		memcpy(data, &mc_list->dmi_addr, 6);
 		cmd.data0 = ntohl(data[0]);
 		cmd.data1 = ntohl(data[1]);

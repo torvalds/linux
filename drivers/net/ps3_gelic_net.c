@@ -580,7 +580,7 @@ void gelic_net_set_multi(struct net_device *netdev)
 	}
 
 	/* set multicast addresses */
-	for (mc = netdev->mc_list; mc; mc = mc->next) {
+	netdev_for_each_mc_addr(mc, netdev) {
 		addr = 0;
 		p = mc->dmi_addr;
 		for (i = 0; i < ETH_ALEN; i++) {

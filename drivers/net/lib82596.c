@@ -1396,15 +1396,16 @@ static void set_multicast_list(struct net_device *dev)
 		cmd->cmd.command = SWAP16(CmdMulticastList);
 		cmd->mc_cnt = SWAP16(netdev_mc_count(dev) * 6);
 		cp = cmd->mc_addrs;
-		for (dmi = dev->mc_list;
-		     cnt && dmi != NULL;
-		     dmi = dmi->next, cnt--, cp += 6) {
+		netdev_for_each_mc_addr(dmi, dev) {
+			if (!cnt--)
+				break;
 			memcpy(cp, dmi->dmi_addr, 6);
 			if (i596_debug > 1)
 				DEB(DEB_MULTI,
 				    printk(KERN_DEBUG
 					   "%s: Adding address %pM\n",
 					   dev->name, cp));
+			cp += 6;
 		}
 		DMA_WBACK_INV(dev, &dma->mc_cmd, sizeof(struct mc_cmd));
 		i596_add_cmd(dev, &cmd->cmd);
