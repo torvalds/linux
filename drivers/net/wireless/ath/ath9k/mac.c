@@ -31,8 +31,10 @@ static void ath9k_hw_set_txq_interrupts(struct ath_hw *ah,
 	REG_WRITE(ah, AR_IMR_S1,
 		  SM(ah->txerr_interrupt_mask, AR_IMR_S1_QCU_TXERR)
 		  | SM(ah->txeol_interrupt_mask, AR_IMR_S1_QCU_TXEOL));
-	REG_RMW_FIELD(ah, AR_IMR_S2,
-		      AR_IMR_S2_QCU_TXURN, ah->txurn_interrupt_mask);
+
+	ah->imrs2_reg &= ~AR_IMR_S2_QCU_TXURN;
+	ah->imrs2_reg |= (ah->txurn_interrupt_mask & AR_IMR_S2_QCU_TXURN);
+	REG_WRITE(ah, AR_IMR_S2, ah->imrs2_reg);
 }
 
 u32 ath9k_hw_gettxbuf(struct ath_hw *ah, u32 q)
