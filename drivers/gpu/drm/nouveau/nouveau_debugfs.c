@@ -144,9 +144,22 @@ nouveau_debugfs_memory_info(struct seq_file *m, void *data)
 	return 0;
 }
 
+static int
+nouveau_debugfs_vbios_image(struct seq_file *m, void *data)
+{
+	struct drm_info_node *node = (struct drm_info_node *) m->private;
+	struct drm_nouveau_private *dev_priv = node->minor->dev->dev_private;
+	int i;
+
+	for (i = 0; i < dev_priv->VBIOS.length; i++)
+		seq_printf(m, "%c", dev_priv->VBIOS.data[i]);
+	return 0;
+}
+
 static struct drm_info_list nouveau_debugfs_list[] = {
 	{ "chipset", nouveau_debugfs_chipset_info, 0, NULL },
 	{ "memory", nouveau_debugfs_memory_info, 0, NULL },
+	{ "vbios.rom", nouveau_debugfs_vbios_image, 0, NULL },
 };
 #define NOUVEAU_DEBUGFS_ENTRIES ARRAY_SIZE(nouveau_debugfs_list)
 
