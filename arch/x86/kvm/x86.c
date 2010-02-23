@@ -1570,6 +1570,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_HYPERV_VAPIC:
 	case KVM_CAP_HYPERV_SPIN:
 	case KVM_CAP_PCI_SEGMENT:
+	case KVM_CAP_X86_ROBUST_SINGLESTEP:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
