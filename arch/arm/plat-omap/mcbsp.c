@@ -133,8 +133,7 @@ static irqreturn_t omap_mcbsp_tx_irq_handler(int irq, void *dev_id)
 		dev_err(mcbsp_tx->dev, "TX Frame Sync Error! : 0x%x\n",
 			irqst_spcr2);
 		/* Writing zero to XSYNC_ERR clears the IRQ */
-		MCBSP_WRITE(mcbsp_tx, SPCR2,
-			    MCBSP_READ_CACHE(mcbsp_tx, SPCR2) & ~(XSYNC_ERR));
+		MCBSP_WRITE(mcbsp_tx, SPCR2, MCBSP_READ_CACHE(mcbsp_tx, SPCR2));
 	} else {
 		complete(&mcbsp_tx->tx_irq_completion);
 	}
@@ -154,8 +153,7 @@ static irqreturn_t omap_mcbsp_rx_irq_handler(int irq, void *dev_id)
 		dev_err(mcbsp_rx->dev, "RX Frame Sync Error! : 0x%x\n",
 			irqst_spcr1);
 		/* Writing zero to RSYNC_ERR clears the IRQ */
-		MCBSP_WRITE(mcbsp_rx, SPCR1,
-			    MCBSP_READ_CACHE(mcbsp_rx, SPCR1) & ~(RSYNC_ERR));
+		MCBSP_WRITE(mcbsp_rx, SPCR1, MCBSP_READ_CACHE(mcbsp_rx, SPCR1));
 	} else {
 		complete(&mcbsp_rx->tx_irq_completion);
 	}
@@ -934,8 +932,7 @@ int omap_mcbsp_pollwrite(unsigned int id, u16 buf)
 	/* if frame sync error - clear the error */
 	if (MCBSP_READ(mcbsp, SPCR2) & XSYNC_ERR) {
 		/* clear error */
-		MCBSP_WRITE(mcbsp, SPCR2,
-				MCBSP_READ_CACHE(mcbsp, SPCR2) & (~XSYNC_ERR));
+		MCBSP_WRITE(mcbsp, SPCR2, MCBSP_READ_CACHE(mcbsp, SPCR2));
 		/* resend */
 		return -1;
 	} else {
@@ -975,8 +972,7 @@ int omap_mcbsp_pollread(unsigned int id, u16 *buf)
 	/* if frame sync error - clear the error */
 	if (MCBSP_READ(mcbsp, SPCR1) & RSYNC_ERR) {
 		/* clear error */
-		MCBSP_WRITE(mcbsp, SPCR1,
-				MCBSP_READ_CACHE(mcbsp, SPCR1) & (~RSYNC_ERR));
+		MCBSP_WRITE(mcbsp, SPCR1, MCBSP_READ_CACHE(mcbsp, SPCR1));
 		/* resend */
 		return -1;
 	} else {
