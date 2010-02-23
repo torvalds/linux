@@ -807,7 +807,7 @@ static ssize_t ceph_aio_write(struct kiocb *iocb, const struct iovec *iov,
 	struct ceph_osd_client *osdc = &ceph_client(inode->i_sb)->osdc;
 	loff_t endoff = pos + iov->iov_len;
 	int got = 0;
-	int ret;
+	int ret, err;
 
 	if (ceph_snap(inode) != CEPH_NOSNAP)
 		return -EROFS;
@@ -838,9 +838,12 @@ retry_snap:
 
 		if ((ret >= 0 || ret == -EIOCBQUEUED) &&
 		    ((file->f_flags & O_SYNC) || IS_SYNC(file->f_mapping->host)
-		     || ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL)))
-			ret = vfs_fsync_range(file, file->f_path.dentry,
+		     || ceph_osdmap_flag(osdc->osdmap, CEPH_OSDMAP_NEARFULL))) {
+			err = vfs_fsync_range(file, file->f_path.dentry,
 					      pos, pos + ret - 1, 1);
+			if (err < 0)
+				ret = err;
+		}
 	}
 	if (ret >= 0) {
 		spin_lock(&inode->i_lock);
