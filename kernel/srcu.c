@@ -34,6 +34,30 @@
 #include <linux/smp.h>
 #include <linux/srcu.h>
 
+static int init_srcu_struct_fields(struct srcu_struct *sp)
+{
+	sp->completed = 0;
+	mutex_init(&sp->mutex);
+	sp->per_cpu_ref = alloc_percpu(struct srcu_struct_array);
+	return sp->per_cpu_ref ? 0 : -ENOMEM;
+}
+
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+
+int __init_srcu_struct(struct srcu_struct *sp, const char *name,
+		       struct lock_class_key *key)
+{
+#ifdef CONFIG_DEBUG_LOCK_ALLOC
+	/* Don't re-initialize a lock while it is held. */
+	debug_check_no_locks_freed((void *)sp, sizeof(*sp));
+	lockdep_init_map(&sp->dep_map, name, key, 0);
+#endif /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+	return init_srcu_struct_fields(sp);
+}
+EXPORT_SYMBOL_GPL(__init_srcu_struct);
+
+#else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+
 /**
  * init_srcu_struct - initialize a sleep-RCU structure
  * @sp: structure to initialize.
@@ -44,12 +68,11 @@
  */
 int init_srcu_struct(struct srcu_struct *sp)
 {
-	sp->completed = 0;
-	mutex_init(&sp->mutex);
-	sp->per_cpu_ref = alloc_percpu(struct srcu_struct_array);
-	return (sp->per_cpu_ref ? 0 : -ENOMEM);
+	return init_srcu_struct_fields(sp);
 }
 EXPORT_SYMBOL_GPL(init_srcu_struct);
+
+#endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 /*
  * srcu_readers_active_idx -- returns approximate number of readers
@@ -100,15 +123,12 @@ void cleanup_srcu_struct(struct srcu_struct *sp)
 }
 EXPORT_SYMBOL_GPL(cleanup_srcu_struct);
 
-/**
- * srcu_read_lock - register a new reader for an SRCU-protected structure.
- * @sp: srcu_struct in which to register the new reader.
- *
+/*
  * Counts the new reader in the appropriate per-CPU element of the
  * srcu_struct.  Must be called from process context.
  * Returns an index that must be passed to the matching srcu_read_unlock().
  */
-int srcu_read_lock(struct srcu_struct *sp)
+int __srcu_read_lock(struct srcu_struct *sp)
 {
 	int idx;
 
@@ -120,26 +140,22 @@ int srcu_read_lock(struct srcu_struct *sp)
 	preempt_enable();
 	return idx;
 }
-EXPORT_SYMBOL_GPL(srcu_read_lock);
+EXPORT_SYMBOL_GPL(__srcu_read_lock);
 
-/**
- * srcu_read_unlock - unregister a old reader from an SRCU-protected structure.
- * @sp: srcu_struct in which to unregister the old reader.
- * @idx: return value from corresponding srcu_read_lock().
- *
+/*
  * Removes the count for the old reader from the appropriate per-CPU
  * element of the srcu_struct.  Note that this may well be a different
  * CPU than that which was incremented by the corresponding srcu_read_lock().
  * Must be called from process context.
  */
-void srcu_read_unlock(struct srcu_struct *sp, int idx)
+void __srcu_read_unlock(struct srcu_struct *sp, int idx)
 {
 	preempt_disable();
 	srcu_barrier();  /* ensure compiler won't misorder critical section. */
 	per_cpu_ptr(sp->per_cpu_ref, smp_processor_id())->c[idx]--;
 	preempt_enable();
 }
-EXPORT_SYMBOL_GPL(srcu_read_unlock);
+EXPORT_SYMBOL_GPL(__srcu_read_unlock);
 
 /*
  * Helper function for synchronize_srcu() and synchronize_srcu_expedited().

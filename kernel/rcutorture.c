@@ -796,7 +796,11 @@ static void rcu_torture_timer(unsigned long unused)
 
 	idx = cur_ops->readlock();
 	completed = cur_ops->completed();
-	p = rcu_dereference(rcu_torture_current);
+	p = rcu_dereference_check(rcu_torture_current,
+				  rcu_read_lock_held() ||
+				  rcu_read_lock_bh_held() ||
+				  rcu_read_lock_sched_held() ||
+				  srcu_read_lock_held(&srcu_ctl));
 	if (p == NULL) {
 		/* Leave because rcu_torture_writer is not yet underway */
 		cur_ops->readunlock(idx);
@@ -853,7 +857,11 @@ rcu_torture_reader(void *arg)
 		}
 		idx = cur_ops->readlock();
 		completed = cur_ops->completed();
-		p = rcu_dereference(rcu_torture_current);
+		p = rcu_dereference_check(rcu_torture_current,
+					  rcu_read_lock_held() ||
+					  rcu_read_lock_bh_held() ||
+					  rcu_read_lock_sched_held() ||
+					  srcu_read_lock_held(&srcu_ctl));
 		if (p == NULL) {
 			/* Wait for rcu_torture_writer to get underway */
 			cur_ops->readunlock(idx);
