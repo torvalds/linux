@@ -667,7 +667,7 @@ extern int iwl_send_statistics_request(struct iwl_priv *priv,
 				       u8 flags, bool clear);
 extern int iwl_verify_ucode(struct iwl_priv *priv);
 extern int iwl_send_lq_cmd(struct iwl_priv *priv,
-		struct iwl_link_quality_cmd *lq, u8 flags);
+		struct iwl_link_quality_cmd *lq, u8 flags, bool init);
 extern void iwl_rx_reply_rx(struct iwl_priv *priv,
 		struct iwl_rx_mem_buffer *rxb);
 extern void iwl_rx_reply_rx_phy(struct iwl_priv *priv,

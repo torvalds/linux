@@ -2530,7 +2530,6 @@ void iwl_mac_reset_tsf(struct ieee80211_hw *hw)
 	spin_lock_irqsave(&priv->lock, flags);
 	priv->assoc_id = 0;
 	priv->assoc_capability = 0;
-	priv->assoc_station_added = 0;
 
 	/* new association get rid of ibss beacon skb */
 	if (priv->ibss_beacon)

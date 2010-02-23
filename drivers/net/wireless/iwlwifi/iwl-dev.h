@@ -544,11 +544,18 @@ struct iwl_qos_info {
 	struct iwl_qosparam_cmd def_qos_parm;
 };
 
+/*
+ * Structure should be accessed with sta_lock held. When station addition
+ * is in progress (IWL_STA_UCODE_INPROGRESS) it is possible to access only
+ * the commands (iwl_addsta_cmd and iwl_link_quality_cmd) without sta_lock
+ * held.
+ */
 struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used;
 	struct iwl_hw_key keyinfo;
+	struct iwl_link_quality_cmd *lq;
 };
 
 /*
@@ -1163,7 +1170,6 @@ struct iwl_priv {
 
 	u16 active_rate;
 
-	u8 assoc_station_added;
 	u8 start_calib;
 	struct iwl_sensitivity_data sensitivity_data;
 	struct iwl_chain_noise_data chain_noise_data;

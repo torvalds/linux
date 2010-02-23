@@ -144,9 +144,6 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 		return 0;
 	}
 
-	/* station table will be cleared */
-	priv->assoc_station_added = 0;
-
 	/* If we are currently associated and the new config requires
 	 * an RXON_ASSOC and the new config wants the associated mask enabled,
 	 * we must clear the associated from the active configuration
@@ -198,25 +195,7 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 	}
 
 	priv->start_calib = 0;
-
-	/* If we have set the ASSOC_MSK and we are in BSS mode then
-	 * add the IWL_AP_ID to the station rate table */
 	if (new_assoc) {
-		if (priv->iw_mode == NL80211_IFTYPE_STATION) {
-			ret = iwl_rxon_add_station(priv,
-					   priv->active_rxon.bssid_addr, 1);
-			if (ret == IWL_INVALID_STATION) {
-				IWL_ERR(priv,
-					"Error adding AP address for TX.\n");
-				return -EIO;
-			}
-			priv->assoc_station_added = 1;
-			if (priv->default_wep_key &&
-			    iwl_send_static_wepkey_cmd(priv, 0))
-				IWL_ERR(priv,
-					"Could not send WEP static key.\n");
-		}
-
 		/*
 		 * allow CTS-to-self if possible for new association.
 		 * this is relevant only for 5000 series and up,
@@ -2498,10 +2477,6 @@ void iwl_post_associate(struct iwl_priv *priv)
 		return;
 	}
 
-	IWL_DEBUG_ASSOC(priv, "Associated as %d to: %pM\n",
-			priv->assoc_id, priv->active_rxon.bssid_addr);
-
-
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;
 
@@ -2553,6 +2528,9 @@ void iwl_post_associate(struct iwl_priv *priv)
 
 	iwlcore_commit_rxon(priv);
 
+	IWL_DEBUG_ASSOC(priv, "Associated as %d to: %pM\n",
+			priv->assoc_id, priv->active_rxon.bssid_addr);
+
 	switch (priv->iw_mode) {
 	case NL80211_IFTYPE_STATION:
 		break;
@@ -2562,7 +2540,7 @@ void iwl_post_associate(struct iwl_priv *priv)
 		/* assume default assoc id */
 		priv->assoc_id = 1;
 
-		iwl_rxon_add_station(priv, priv->bssid, 0);
+		iwl_add_local_station(priv, priv->bssid, true);
 		iwl_send_beacon_cmd(priv);
 
 		break;
@@ -2572,9 +2550,6 @@ void iwl_post_associate(struct iwl_priv *priv)
 			  __func__, priv->iw_mode);
 		break;
 	}
-
-	if (priv->iw_mode == NL80211_IFTYPE_ADHOC)
-		priv->assoc_station_added = 1;
 
 	spin_lock_irqsave(&priv->lock, flags);
 	iwl_activate_qos(priv, 0);
@@ -2974,18 +2949,7 @@ static void iwl_mac_sta_notify(struct ieee80211_hw *hw,
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
 	int sta_id;
 
-	/*
-	 * TODO: We really should use this callback to
-	 *	 actually maintain the station table in
-	 *	 the device.
-	 */
-
 	switch (cmd) {
-	case STA_NOTIFY_ADD:
-		atomic_set(&sta_priv->pending_frames, 0);
-		if (vif->type == NL80211_IFTYPE_AP)
-			sta_priv->client = true;
-		break;
 	case STA_NOTIFY_SLEEP:
 		WARN_ON(!sta_priv->client);
 		sta_priv->asleep = true;
@@ -3004,6 +2968,55 @@ static void iwl_mac_sta_notify(struct ieee80211_hw *hw,
 	default:
 		break;
 	}
+}
+
+/**
+ * iwl_restore_wepkeys - Restore WEP keys to device
+ */
+static void iwl_restore_wepkeys(struct iwl_priv *priv)
+{
+	mutex_lock(&priv->mutex);
+	if (priv->iw_mode == NL80211_IFTYPE_STATION &&
+	    priv->default_wep_key &&
+	    iwl_send_static_wepkey_cmd(priv, 0))
+		IWL_ERR(priv, "Could not send WEP static key\n");
+	mutex_unlock(&priv->mutex);
+}
+
+static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_sta *sta)
+{
+	struct iwl_priv *priv = hw->priv;
+	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
+	bool is_ap = priv->iw_mode == NL80211_IFTYPE_STATION;
+	int ret;
+	u8 sta_id;
+
+	IWL_DEBUG_INFO(priv, "received request to add station %pM\n",
+			sta->addr);
+
+	atomic_set(&sta_priv->pending_frames, 0);
+	if (vif->type == NL80211_IFTYPE_AP)
+		sta_priv->client = true;
+
+	ret = iwl_add_station_common(priv, sta->addr, is_ap, &sta->ht_cap,
+				     &sta_id);
+	if (ret) {
+		IWL_ERR(priv, "Unable to add station %pM (%d)\n",
+			sta->addr, ret);
+		/* Should we return success if return code is EEXIST ? */
+		return ret;
+	}
+
+	iwl_restore_wepkeys(priv);
+
+	/* Initialize rate scaling */
+	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM \n",
+		       sta->addr);
+	iwl_rs_rate_init(priv, sta, sta_id);
+
+	return ret;
 }
 
 /*****************************************************************************
@@ -3359,6 +3372,8 @@ static struct ieee80211_ops iwl_hw_ops = {
 	.ampdu_action = iwl_mac_ampdu_action,
 	.hw_scan = iwl_mac_hw_scan,
 	.sta_notify = iwl_mac_sta_notify,
+	.sta_add = iwlagn_mac_sta_add,
+	.sta_remove = iwl_mac_sta_remove,
 };
 
 static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)

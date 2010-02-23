@@ -3116,12 +3116,13 @@ void iwl3945_post_associate(struct iwl_priv *priv)
 	case NL80211_IFTYPE_ADHOC:
 
 		priv->assoc_id = 1;
-		iwl_add_station(priv, priv->bssid, 0, CMD_SYNC, NULL);
+		iwl_add_local_station(priv, priv->bssid, false);
 		iwl3945_sync_sta(priv, IWL_STA_ID,
-				 (priv->band == IEEE80211_BAND_5GHZ) ?
-				 IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP,
+				(priv->band == IEEE80211_BAND_5GHZ) ?
+				IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP,
 				 CMD_ASYNC);
 		iwl3945_rate_scale_init(priv->hw, IWL_STA_ID);
+
 		iwl3945_send_beacon_cmd(priv);
 
 		break;
@@ -3306,7 +3307,7 @@ void iwl3945_config_ap(struct iwl_priv *priv)
 		/* restore RXON assoc */
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwlcore_commit_rxon(priv);
-		iwl_add_station(priv, iwl_bcast_addr, 0, CMD_SYNC, NULL);
+		iwl_add_local_station(priv, iwl_bcast_addr, false);
 	}
 	iwl3945_send_beacon_cmd(priv);
 
@@ -3373,6 +3374,38 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return ret;
 }
 
+static int iwl3945_mac_sta_add(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_sta *sta)
+{
+	struct iwl_priv *priv = hw->priv;
+	int ret;
+	bool is_ap = priv->iw_mode == NL80211_IFTYPE_STATION;
+	u8 sta_id;
+
+	IWL_DEBUG_INFO(priv, "received request to add station %pM\n",
+			sta->addr);
+
+	ret = iwl_add_station_common(priv, sta->addr, is_ap, &sta->ht_cap,
+				     &sta_id);
+	if (ret) {
+		IWL_ERR(priv, "Unable to add station %pM (%d)\n",
+			sta->addr, ret);
+		/* Should we return success if return code is EEXIST ? */
+		return ret;
+	}
+
+	/* Initialize rate scaling */
+	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM \n",
+		       sta->addr);
+	iwl3945_rs_rate_init(priv, sta, sta_id);
+
+	return 0;
+
+
+
+	return ret;
+}
 /*****************************************************************************
  *
  * sysfs attributes
@@ -3812,7 +3845,9 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.conf_tx = iwl_mac_conf_tx,
 	.reset_tsf = iwl_mac_reset_tsf,
 	.bss_info_changed = iwl_bss_info_changed,
-	.hw_scan = iwl_mac_hw_scan
+	.hw_scan = iwl_mac_hw_scan,
+	.sta_add = iwl3945_mac_sta_add,
+	.sta_remove = iwl_mac_sta_remove,
 };
 
 static int iwl3945_init_drv(struct iwl_priv *priv)

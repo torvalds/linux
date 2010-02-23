@@ -1956,16 +1956,6 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 		return rc;
 	}
 
-	/* If we have set the ASSOC_MSK and we are in BSS mode then
-	 * add the IWL_AP_ID to the station rate table */
-	if (iwl_is_associated(priv) &&
-	    (priv->iw_mode == NL80211_IFTYPE_STATION))
-		if (iwl_add_station(priv, priv->active_rxon.bssid_addr,
-				true, CMD_SYNC, NULL) == IWL_INVALID_STATION) {
-			IWL_ERR(priv, "Error adding AP address for transmit\n");
-			return -EIO;
-		}
-
 	/* Init the hardware's rate fallback order based on the band */
 	rc = iwl3945_init_hw_rate_table(priv);
 	if (rc) {
