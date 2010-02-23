@@ -210,7 +210,6 @@ static const struct clksel func_96m_clksel[] = {
 	{ .parent = NULL }
 };
 
-/* The parent of this clock is not selectable on 2420. */
 static struct clk func_96m_ck = {
 	.name		= "func_96m_ck",
 	.ops		= &clkops_null,
@@ -221,8 +220,6 @@ static struct clk func_96m_ck = {
 	.clksel_mask	= OMAP2430_96M_SOURCE,
 	.clksel		= func_96m_clksel,
 	.recalc		= &omap2_clksel_recalc,
-	.round_rate	= &omap2_clksel_round_rate,
-	.set_rate	= &omap2_clksel_set_rate
 };
 
 /* func_48m_ck */
