@@ -182,6 +182,7 @@ unsigned long omap_fixed_divisor_recalc(struct clk *clk);
 extern void clk_init_cpufreq_table(struct cpufreq_frequency_table **table);
 extern void clk_exit_cpufreq_table(struct cpufreq_frequency_table **table);
 #endif
+extern struct clk *omap_clk_get_by_name(const char *name);
 
 extern const struct clkops clkops_null;
 
