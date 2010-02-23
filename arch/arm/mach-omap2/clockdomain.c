@@ -1,8 +1,8 @@
 /*
  * OMAP2/3/4 clockdomain framework functions
  *
- * Copyright (C) 2008-2009 Texas Instruments, Inc.
- * Copyright (C) 2008-2009 Nokia Corporation
+ * Copyright (C) 2008-2010 Texas Instruments, Inc.
+ * Copyright (C) 2008-2010 Nokia Corporation
  *
  * Written by Paul Walmsley and Jouni Högander
  * Added OMAP4 specific support by Abhijit Pagare <abhijitpagare@ti.com>
@@ -891,8 +891,17 @@ void omap2_clkdm_allow_idle(struct clockdomain *clkdm)
 	pr_debug("clockdomain: enabling automatic idle transitions for %s\n",
 		 clkdm->name);
 
-	if (atomic_read(&clkdm->usecount) > 0)
-		_clkdm_add_autodeps(clkdm);
+	/*
+	 * XXX This should be removed once TI adds wakeup/sleep
+	 * dependency code and data for OMAP4.
+	 */
+	if (cpu_is_omap44xx()) {
+		WARN_ONCE(1, "clockdomain: OMAP4 wakeup/sleep dependency "
+			  "support is not yet implemented\n");
+	} else {
+		if (atomic_read(&clkdm->usecount) > 0)
+			_clkdm_add_autodeps(clkdm);
+	}
 
 	_omap2_clkdm_set_hwsup(clkdm, 1);
 
@@ -924,8 +933,17 @@ void omap2_clkdm_deny_idle(struct clockdomain *clkdm)
 
 	_omap2_clkdm_set_hwsup(clkdm, 0);
 
-	if (atomic_read(&clkdm->usecount) > 0)
-		_clkdm_del_autodeps(clkdm);
+	/*
+	 * XXX This should be removed once TI adds wakeup/sleep
+	 * dependency code and data for OMAP4.
+	 */
+	if (cpu_is_omap44xx()) {
+		WARN_ONCE(1, "clockdomain: OMAP4 wakeup/sleep dependency "
+			  "support is not yet implemented\n");
+	} else {
+		if (atomic_read(&clkdm->usecount) > 0)
+			_clkdm_del_autodeps(clkdm);
+	}
 }
 
 
