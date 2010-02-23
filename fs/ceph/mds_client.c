@@ -1896,17 +1896,15 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 			   struct ceph_msg *msg)
 {
 	struct ceph_mds_request *req;
-	u64 tid;
+	u64 tid = le64_to_cpu(msg->hdr.tid);
 	u32 next_mds;
 	u32 fwd_seq;
 	u8 must_resend;
 	int err = -EINVAL;
 	void *p = msg->front.iov_base;
 	void *end = p + msg->front.iov_len;
-	int state;
 
-	ceph_decode_need(&p, end, sizeof(u64)+2*sizeof(u32), bad);
-	tid = ceph_decode_64(&p);
+	ceph_decode_need(&p, end, 2*sizeof(u32), bad);
 	next_mds = ceph_decode_32(&p);
 	fwd_seq = ceph_decode_32(&p);
 	must_resend = ceph_decode_8(&p);
@@ -1920,10 +1918,6 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 		goto out;  /* dup reply? */
 	}
 
-	if (next_mds >= mdsc->max_sessions)
-		goto out;
-
-	state = mdsc->sessions[next_mds]->s_state;
 	if (fwd_seq <= req->r_num_fwd) {
 		dout("forward %llu to mds%d - old seq %d <= %d\n",
 		     tid, next_mds, req->r_num_fwd, fwd_seq);
