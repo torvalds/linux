@@ -106,6 +106,14 @@ static inline int srcu_read_lock_held(struct srcu_struct *sp)
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
 /**
+ * srcu_dereference - fetch SRCU-protected pointer with checking
+ *
+ * Makes rcu_dereference_check() do the dirty work.
+ */
+#define srcu_dereference(p, sp) \
+		rcu_dereference_check(p, srcu_read_lock_held(sp))
+
+/**
  * srcu_read_lock - register a new reader for an SRCU-protected structure.
  * @sp: srcu_struct in which to register the new reader.
  *
