@@ -133,7 +133,7 @@ struct radeon_tmds_pll {
 /* pll algo */
 enum radeon_pll_algo {
 	PLL_ALGO_LEGACY,
-	PLL_ALGO_AVIVO
+	PLL_ALGO_NEW
 };
 
 struct radeon_pll {

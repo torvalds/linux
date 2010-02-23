@@ -603,95 +603,173 @@ static void radeon_compute_pll_legacy(struct radeon_pll *pll,
 	*post_div_p = best_post_div;
 }
 
-static void radeon_compute_pll_avivo(struct radeon_pll *pll,
-				     uint64_t freq,
-				     uint32_t *dot_clock_p,
-				     uint32_t *fb_div_p,
-				     uint32_t *frac_fb_div_p,
-				     uint32_t *ref_div_p,
-				     uint32_t *post_div_p)
+static bool
+calc_fb_div(struct radeon_pll *pll,
+	    uint32_t freq,
+            uint32_t post_div,
+            uint32_t ref_div,
+            uint32_t *fb_div,
+            uint32_t *fb_div_frac)
 {
-	fixed20_12 m, n, frac_n, p, f_vco, f_pclk, best_freq;
-	fixed20_12 pll_out_max, pll_out_min;
-	fixed20_12 pll_in_max, pll_in_min;
-	fixed20_12 reference_freq;
-	fixed20_12 error, ffreq, a, b;
+	fixed20_12 feedback_divider, a, b;
+	u32 vco_freq;
 
-	pll_out_max.full = rfixed_const(pll->pll_out_max);
-	pll_out_min.full = rfixed_const(pll->pll_out_min);
-	pll_in_max.full = rfixed_const(pll->pll_in_max);
-	pll_in_min.full = rfixed_const(pll->pll_in_min);
-	reference_freq.full = rfixed_const(pll->reference_freq);
-	do_div(freq, 10);
+	vco_freq = freq * post_div;
+	/* feedback_divider = vco_freq * ref_div / pll->reference_freq; */
+	a.full = rfixed_const(pll->reference_freq);
+	feedback_divider.full = rfixed_const(vco_freq);
+	feedback_divider.full = rfixed_div(feedback_divider, a);
+	a.full = rfixed_const(ref_div);
+	feedback_divider.full = rfixed_mul(feedback_divider, a);
+
+	if (pll->flags & RADEON_PLL_USE_FRAC_FB_DIV) {
+		/* feedback_divider = floor((feedback_divider * 10.0) + 0.5) * 0.1; */
+		a.full = rfixed_const(10);
+		feedback_divider.full = rfixed_mul(feedback_divider, a);
+		feedback_divider.full += rfixed_const_half(0);
+		feedback_divider.full = rfixed_floor(feedback_divider);
+		feedback_divider.full = rfixed_div(feedback_divider, a);
+
+		/* *fb_div = floor(feedback_divider); */
+		a.full = rfixed_floor(feedback_divider);
+		*fb_div = rfixed_trunc(a);
+		/* *fb_div_frac = fmod(feedback_divider, 1.0) * 10.0; */
+		a.full = rfixed_const(10);
+		b.full = rfixed_mul(feedback_divider, a);
+
+		feedback_divider.full = rfixed_floor(feedback_divider);
+		feedback_divider.full = rfixed_mul(feedback_divider, a);
+		feedback_divider.full = b.full - feedback_divider.full;
+		*fb_div_frac = rfixed_trunc(feedback_divider);
+	} else {
+		/* *fb_div = floor(feedback_divider + 0.5); */
+		feedback_divider.full += rfixed_const_half(0);
+		feedback_divider.full = rfixed_floor(feedback_divider);
+
+		*fb_div = rfixed_trunc(feedback_divider);
+		*fb_div_frac = 0;
+	}
+
+	if (((*fb_div) < pll->min_feedback_div) || ((*fb_div) > pll->max_feedback_div))
+		return false;
+	else
+		return true;
+}
+
+static bool
+calc_fb_ref_div(struct radeon_pll *pll,
+		uint32_t freq,
+		uint32_t post_div,
+		uint32_t *fb_div,
+                uint32_t *fb_div_frac,
+                uint32_t *ref_div)
+{
+	fixed20_12 ffreq, max_error, error, pll_out, a;
+	u32 vco;
+
 	ffreq.full = rfixed_const(freq);
-	error.full = rfixed_const(100 * 100);
+	/* max_error = ffreq * 0.0025; */
+	a.full = rfixed_const(400);
+	max_error.full = rfixed_div(ffreq, a);
 
-	/* max p */
-	p.full = rfixed_div(pll_out_max, ffreq);
-	p.full = rfixed_floor(p);
+	for ((*ref_div) = pll->min_ref_div; (*ref_div) < pll->max_ref_div; ++(*ref_div)) {
+		if (calc_fb_div(pll, freq, post_div, (*ref_div), fb_div, fb_div_frac)) {
+			vco = pll->reference_freq * (((*fb_div) * 10) + (*fb_div_frac));
+			vco = vco / ((*ref_div) * 10);
 
-	/* min m */
-	m.full = rfixed_div(reference_freq, pll_in_max);
-	m.full = rfixed_ceil(m);
+			if ((vco < pll->pll_out_min) || (vco > pll->pll_out_max))
+				continue;
 
-	while (1) {
-		n.full = rfixed_div(ffreq, reference_freq);
-		n.full = rfixed_mul(n, m);
-		n.full = rfixed_mul(n, p);
+			/* pll_out = vco / post_div; */
+			a.full = rfixed_const(post_div);
+			pll_out.full = rfixed_const(vco);
+			pll_out.full = rfixed_div(pll_out, a);
 
-		f_vco.full = rfixed_div(n, m);
-		f_vco.full = rfixed_mul(f_vco, reference_freq);
+			if (pll_out.full >= ffreq.full) {
+				error.full = pll_out.full - ffreq.full;
+				if (error.full <= max_error.full)
+					return true;
+			}
+		}
+	}
+	return false;
+}
 
-		f_pclk.full = rfixed_div(f_vco, p);
+static void radeon_compute_pll_new(struct radeon_pll *pll,
+				   uint64_t freq,
+				   uint32_t *dot_clock_p,
+				   uint32_t *fb_div_p,
+				   uint32_t *frac_fb_div_p,
+				   uint32_t *ref_div_p,
+				   uint32_t *post_div_p)
+{
+	u32 fb_div = 0, fb_div_frac = 0, post_div = 0, ref_div = 0;
+	u32 best_freq = 0, vco_frequency;
 
-		if (f_pclk.full > ffreq.full)
-			error.full = f_pclk.full - ffreq.full;
-		else
-			error.full = ffreq.full - f_pclk.full;
-		error.full = rfixed_div(error, f_pclk);
-		a.full = rfixed_const(100 * 100);
-		error.full = rfixed_mul(error, a);
+	/* freq = freq / 10; */
+	do_div(freq, 10);
 
-		a.full = rfixed_mul(m, p);
-		a.full = rfixed_div(n, a);
-		best_freq.full = rfixed_mul(reference_freq, a);
+	if (pll->flags & RADEON_PLL_USE_POST_DIV) {
+		post_div = pll->post_div;
+		if ((post_div < pll->min_post_div) || (post_div > pll->max_post_div))
+			goto done;
 
-		if (rfixed_trunc(error) < 25)
-			break;
+		vco_frequency = freq * post_div;
+		if ((vco_frequency < pll->pll_out_min) || (vco_frequency > pll->pll_out_max))
+			goto done;
 
-		a.full = rfixed_const(1);
-		m.full = m.full + a.full;
-		a.full = rfixed_div(reference_freq, m);
-		if (a.full >= pll_in_min.full)
-			continue;
+		if (pll->flags & RADEON_PLL_USE_REF_DIV) {
+			ref_div = pll->reference_div;
+			if ((ref_div < pll->min_ref_div) || (ref_div > pll->max_ref_div))
+				goto done;
+			if (!calc_fb_div(pll, freq, post_div, ref_div, &fb_div, &fb_div_frac))
+				goto done;
+		}
+	} else {
+		for (post_div = pll->max_post_div; post_div >= pll->min_post_div; --post_div) {
+			if (pll->flags & RADEON_PLL_LEGACY) {
+				if ((post_div == 5) ||
+				    (post_div == 7) ||
+				    (post_div == 9) ||
+				    (post_div == 10) ||
+				    (post_div == 11))
+					continue;
+			}
 
-		m.full = rfixed_div(reference_freq, pll_in_max);
-		m.full = rfixed_ceil(m);
-		a.full= rfixed_const(1);
-		p.full = p.full - a.full;
-		a.full = rfixed_mul(p, ffreq);
-		if (a.full >= pll_out_min.full)
-			continue;
-		else {
-			DRM_ERROR("Unable to find pll dividers\n");
-			break;
+			if ((pll->flags & RADEON_PLL_NO_ODD_POST_DIV) && (post_div & 1))
+				continue;
+
+			vco_frequency = freq * post_div;
+			if ((vco_frequency < pll->pll_out_min) || (vco_frequency > pll->pll_out_max))
+				continue;
+			if (pll->flags & RADEON_PLL_USE_REF_DIV) {
+				ref_div = pll->reference_div;
+				if ((ref_div < pll->min_ref_div) || (ref_div > pll->max_ref_div))
+					goto done;
+				if (calc_fb_div(pll, freq, post_div, ref_div, &fb_div, &fb_div_frac))
+					break;
+			} else {
+				if (calc_fb_ref_div(pll, freq, post_div, &fb_div, &fb_div_frac, &ref_div))
+					break;
+			}
 		}
 	}
 
-	a.full = rfixed_const(10);
-	b.full = rfixed_mul(n, a);
+	best_freq = pll->reference_freq * 10 * fb_div;
+	best_freq += pll->reference_freq * fb_div_frac;
+	best_freq = best_freq / (ref_div * post_div);
 
-	frac_n.full = rfixed_floor(n);
-	frac_n.full = rfixed_mul(frac_n, a);
-	frac_n.full = b.full - frac_n.full;
+done:
+	if (best_freq == 0)
+		DRM_ERROR("Couldn't find valid PLL dividers\n");
 
-	*dot_clock_p = rfixed_trunc(best_freq);
-	*fb_div_p = rfixed_trunc(n);
-	*frac_fb_div_p = rfixed_trunc(frac_n);
-	*ref_div_p = rfixed_trunc(m);
-	*post_div_p = rfixed_trunc(p);
+	*dot_clock_p = best_freq / 10;
+	*fb_div_p = fb_div;
+	*frac_fb_div_p = fb_div_frac;
+	*ref_div_p = ref_div;
+	*post_div_p = post_div;
 
-	DRM_DEBUG("%u %d.%d, %d, %d\n", *dot_clock_p * 10, *fb_div_p, *frac_fb_div_p, *ref_div_p, *post_div_p);
+	DRM_DEBUG("%u %d.%d, %d, %d\n", *dot_clock_p, *fb_div_p, *frac_fb_div_p, *ref_div_p, *post_div_p);
 }
 
 void radeon_compute_pll(struct radeon_pll *pll,
@@ -703,9 +781,9 @@ void radeon_compute_pll(struct radeon_pll *pll,
 			uint32_t *post_div_p)
 {
 	switch (pll->algo) {
-	case PLL_ALGO_AVIVO:
-		radeon_compute_pll_avivo(pll, freq, dot_clock_p, fb_div_p,
-					 frac_fb_div_p, ref_div_p, post_div_p);
+	case PLL_ALGO_NEW:
+		radeon_compute_pll_new(pll, freq, dot_clock_p, fb_div_p,
+				       frac_fb_div_p, ref_div_p, post_div_p);
 		break;
 	case PLL_ALGO_LEGACY:
 	default:

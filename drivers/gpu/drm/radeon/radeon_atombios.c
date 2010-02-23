@@ -1191,12 +1191,16 @@ struct radeon_encoder_atom_dig *radeon_atombios_get_lvds_info(struct
 		lvds->ss = radeon_atombios_get_ss_info(encoder, lvds_info->info.ucSS_Id);
 
 		if (ASIC_IS_AVIVO(rdev)) {
-			if (radeon_new_pll)
-				lvds->pll_algo = PLL_ALGO_AVIVO;
+			if (radeon_new_pll == 0)
+				lvds->pll_algo = PLL_ALGO_LEGACY;
+			else
+				lvds->pll_algo = PLL_ALGO_NEW;
+		} else {
+			if (radeon_new_pll == 1)
+				lvds->pll_algo = PLL_ALGO_NEW;
 			else
 				lvds->pll_algo = PLL_ALGO_LEGACY;
-		} else
-			lvds->pll_algo = PLL_ALGO_LEGACY;
+		}
 
 		/* LVDS quirks */
 		radeon_atom_apply_lvds_quirks(dev, lvds);

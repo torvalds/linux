@@ -438,12 +438,16 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 
 	/* select the PLL algo */
 	if (ASIC_IS_AVIVO(rdev)) {
-		if (radeon_new_pll)
-			pll->algo = PLL_ALGO_AVIVO;
+		if (radeon_new_pll == 0)
+			pll->algo = PLL_ALGO_LEGACY;
+		else
+			pll->algo = PLL_ALGO_NEW;
+	} else {
+		if (radeon_new_pll == 1)
+			pll->algo = PLL_ALGO_NEW;
 		else
 			pll->algo = PLL_ALGO_LEGACY;
-	} else
-		pll->algo = PLL_ALGO_LEGACY;
+	}
 
 	if (ASIC_IS_AVIVO(rdev)) {
 		if ((rdev->family == CHIP_RS600) ||
