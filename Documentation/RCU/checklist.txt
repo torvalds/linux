@@ -127,10 +127,14 @@ over a rather long period of time, but improvements are always welcome!
 		perfectly legal (if redundant) for update-side code to
 		use rcu_dereference() and the "_rcu()" list-traversal
 		primitives.  This is particularly useful in code that
-		is common to readers and updaters.  However, neither
-		rcu_dereference() nor the "_rcu()" list-traversal
-		primitives can substitute for a good concurrency design
-		coordinating among multiple updaters.
+		is common to readers and updaters.  However, lockdep
+		will complain if you access rcu_dereference() outside
+		of an RCU read-side critical section.  See lockdep.txt
+		to learn what to do about this.
+
+		Of course, neither rcu_dereference() nor the "_rcu()"
+		list-traversal primitives can substitute for a good
+		concurrency design coordinating among multiple updaters.
 
 	b.	If the list macros are being used, the list_add_tail_rcu()
 		and list_add_rcu() primitives must be used in order
@@ -249,7 +253,9 @@ over a rather long period of time, but improvements are always welcome!
 	must be protected by appropriate update-side locks.  RCU
 	read-side critical sections are delimited by rcu_read_lock()
 	and rcu_read_unlock(), or by similar primitives such as
-	rcu_read_lock_bh() and rcu_read_unlock_bh().
+	rcu_read_lock_bh() and rcu_read_unlock_bh(), in which case
+	the matching rcu_dereference() primitive must be used in order
+	to keep lockdep happy, in this case, rcu_dereference_bh().
 
 	The reason that it is permissible to use RCU list-traversal
 	primitives when the update-side lock is held is that doing so
@@ -302,15 +308,15 @@ over a rather long period of time, but improvements are always welcome!
 	not the case, a self-spawning RCU callback would prevent the
 	victim CPU from ever going offline.)
 
-14.	SRCU (srcu_read_lock(), srcu_read_unlock(), synchronize_srcu(),
-	and synchronize_srcu_expedited()) may only be invoked from
-	process context.  Unlike other forms of RCU, it -is- permissible
-	to block in an SRCU read-side critical section (demarked by
-	srcu_read_lock() and srcu_read_unlock()), hence the "SRCU":
-	"sleepable RCU".  Please note that if you don't need to sleep
-	in read-side critical sections, you should be using RCU rather
-	than SRCU, because RCU is almost always faster and easier to
-	use than is SRCU.
+14.	SRCU (srcu_read_lock(), srcu_read_unlock(), srcu_dereference(),
+	synchronize_srcu(), and synchronize_srcu_expedited()) may only
+	be invoked from process context.  Unlike other forms of RCU, it
+	-is- permissible to block in an SRCU read-side critical section
+	(demarked by srcu_read_lock() and srcu_read_unlock()), hence the
+	"SRCU": "sleepable RCU".  Please note that if you don't need
+	to sleep in read-side critical sections, you should be using
+	RCU rather than SRCU, because RCU is almost always faster and
+	easier to use than is SRCU.
 
 	Also unlike other forms of RCU, explicit initialization
 	and cleanup is required via init_srcu_struct() and

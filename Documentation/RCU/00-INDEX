@@ -6,6 +6,8 @@ checklist.txt
 	- Review Checklist for RCU Patches
 listRCU.txt
 	- Using RCU to Protect Read-Mostly Linked Lists
+lockdep.txt
+	- RCU and lockdep checking
 NMI-RCU.txt
 	- Using RCU to Protect Dynamic NMI Handlers
 rcubarrier.txt
