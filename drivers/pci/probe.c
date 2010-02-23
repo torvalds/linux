@@ -403,14 +403,19 @@ void __devinit pci_read_bridge_bases(struct pci_bus *child)
 		 child->secondary, child->subordinate,
 		 dev->transparent ? " (subtractive decode)" : "");
 
-	if (dev->transparent) {
-		for (i = 3; i < PCI_BUS_NUM_RESOURCES; i++)
-			child->resource[i] = child->parent->resource[i - 3];
-	}
-
 	pci_read_bridge_io(child);
 	pci_read_bridge_mmio(child);
 	pci_read_bridge_mmio_pref(child);
+
+	if (dev->transparent) {
+		for (i = 3; i < PCI_BUS_NUM_RESOURCES; i++) {
+			child->resource[i] = child->parent->resource[i - 3];
+			if (child->resource[i])
+				dev_printk(KERN_DEBUG, &dev->dev,
+					   "  bridge window %pR (subtractive decode)\n",
+					   child->resource[i]);
+		}
+	}
 }
 
 static struct pci_bus * pci_alloc_bus(void)
