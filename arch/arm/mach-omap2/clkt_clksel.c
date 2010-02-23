@@ -258,10 +258,6 @@ long omap2_clk_round_rate(struct clk *clk, unsigned long rate)
 	if (clk->round_rate)
 		return clk->round_rate(clk, rate);
 
-	if (clk->flags & RATE_FIXED)
-		printk(KERN_ERR "clock: generic omap2_clk_round_rate called "
-		       "on fixed-rate clock %s\n", clk->name);
-
 	return clk->rate;
 }
 

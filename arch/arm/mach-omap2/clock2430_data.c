@@ -55,7 +55,6 @@ static struct clk func_32k_ck = {
 	.name		= "func_32k_ck",
 	.ops		= &clkops_null,
 	.rate		= 32000,
-	.flags		= RATE_FIXED,
 	.clkdm_name	= "wkup_clkdm",
 };
 
@@ -63,7 +62,6 @@ static struct clk secure_32k_ck = {
 	.name		= "secure_32k_ck",
 	.ops		= &clkops_null,
 	.rate		= 32768,
-	.flags		= RATE_FIXED,
 	.clkdm_name	= "wkup_clkdm",
 };
 
@@ -88,7 +86,6 @@ static struct clk alt_ck = {		/* Typical 54M or 48M, may not exist */
 	.name		= "alt_ck",
 	.ops		= &clkops_null,
 	.rate		= 54000000,
-	.flags		= RATE_FIXED,
 	.clkdm_name	= "wkup_clkdm",
 };
 
@@ -134,7 +131,7 @@ static struct clk apll96_ck = {
 	.ops		= &clkops_apll96,
 	.parent		= &sys_ck,
 	.rate		= 96000000,
-	.flags		= RATE_FIXED | ENABLE_ON_INIT,
+	.flags		= ENABLE_ON_INIT,
 	.clkdm_name	= "wkup_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKEN),
 	.enable_bit	= OMAP24XX_EN_96M_PLL_SHIFT,
@@ -145,7 +142,7 @@ static struct clk apll54_ck = {
 	.ops		= &clkops_apll54,
 	.parent		= &sys_ck,
 	.rate		= 54000000,
-	.flags		= RATE_FIXED | ENABLE_ON_INIT,
+	.flags		= ENABLE_ON_INIT,
 	.clkdm_name	= "wkup_clkdm",
 	.enable_reg	= OMAP_CM_REGADDR(PLL_MOD, CM_CLKEN),
 	.enable_bit	= OMAP24XX_EN_54M_PLL_SHIFT,

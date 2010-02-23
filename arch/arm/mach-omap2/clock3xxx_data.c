@@ -64,14 +64,12 @@ static struct clk omap_32k_fck = {
 	.name		= "omap_32k_fck",
 	.ops		= &clkops_null,
 	.rate		= 32768,
-	.flags		= RATE_FIXED,
 };
 
 static struct clk secure_32k_fck = {
 	.name		= "secure_32k_fck",
 	.ops		= &clkops_null,
 	.rate		= 32768,
-	.flags		= RATE_FIXED,
 };
 
 /* Virtual source clocks for osc_sys_ck */
@@ -79,42 +77,36 @@ static struct clk virt_12m_ck = {
 	.name		= "virt_12m_ck",
 	.ops		= &clkops_null,
 	.rate		= 12000000,
-	.flags		= RATE_FIXED,
 };
 
 static struct clk virt_13m_ck = {
 	.name		= "virt_13m_ck",
 	.ops		= &clkops_null,
 	.rate		= 13000000,
-	.flags		= RATE_FIXED,
 };
 
 static struct clk virt_16_8m_ck = {
 	.name		= "virt_16_8m_ck",
 	.ops		= &clkops_null,
 	.rate		= 16800000,
-	.flags		= RATE_FIXED,
 };
 
 static struct clk virt_19_2m_ck = {
 	.name		= "virt_19_2m_ck",
 	.ops		= &clkops_null,
 	.rate		= 19200000,
-	.flags		= RATE_FIXED,
 };
 
 static struct clk virt_26m_ck = {
 	.name		= "virt_26m_ck",
 	.ops		= &clkops_null,
 	.rate		= 26000000,
-	.flags		= RATE_FIXED,
 };
 
 static struct clk virt_38_4m_ck = {
 	.name		= "virt_38_4m_ck",
 	.ops		= &clkops_null,
 	.rate		= 38400000,
-	.flags		= RATE_FIXED,
 };
 
 static const struct clksel_rate osc_sys_12m_rates[] = {
@@ -167,7 +159,6 @@ static struct clk osc_sys_ck = {
 	.clksel_mask	= OMAP3430_SYS_CLKIN_SEL_MASK,
 	.clksel		= osc_sys_clksel,
 	/* REVISIT: deal with autoextclkmode? */
-	.flags		= RATE_FIXED,
 	.recalc		= &omap2_clksel_recalc,
 };
 
@@ -3168,7 +3159,6 @@ static struct clk emac_ick = {
 static struct clk rmii_ck = {
 	.name		= "rmii_ck",
 	.ops		= &clkops_null,
-	.flags		= RATE_FIXED,
 	.rate		= 50000000,
 };
 
@@ -3224,7 +3214,6 @@ static struct clk vpfe_ick = {
 static struct clk pclk_ck = {
 	.name		= "pclk_ck",
 	.ops		= &clkops_null,
-	.flags		= RATE_FIXED,
 	.rate		= 27000000,
 };
 
