@@ -645,7 +645,7 @@ static inline int cpu_of(struct rq *rq)
 #endif
 }
 
-#define for_each_domain_rd(p) \
+#define rcu_dereference_check_sched_domain(p) \
 	rcu_dereference_check((p), \
 			      rcu_read_lock_sched_held() || \
 			      lockdep_is_held(&sched_domains_mutex))
@@ -658,7 +658,7 @@ static inline int cpu_of(struct rq *rq)
  * preempt-disabled sections.
  */
 #define for_each_domain(cpu, __sd) \
-	for (__sd = for_each_domain_rd(cpu_rq(cpu)->sd); __sd; __sd = __sd->parent)
+	for (__sd = rcu_dereference_check_sched_domain(cpu_rq(cpu)->sd); __sd; __sd = __sd->parent)
 
 #define cpu_rq(cpu)		(&per_cpu(runqueues, (cpu)))
 #define this_rq()		(&__get_cpu_var(runqueues))
