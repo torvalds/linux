@@ -483,6 +483,19 @@ static void mxc_init_i2c(void)
 }
 #endif
 
+static unsigned int ssi_pins[] = {
+	MX31_PIN_SFS5__SFS5,
+	MX31_PIN_SCK5__SCK5,
+	MX31_PIN_SRXD5__SRXD5,
+	MX31_PIN_STXD5__STXD5,
+};
+
+static void mxc_init_audio(void)
+{
+	mxc_register_device(&imx_ssi_device0, NULL);
+	mxc_iomux_setup_multiple_pins(ssi_pins, ARRAY_SIZE(ssi_pins), "ssi");
+}
+
 /*!
  * This structure defines static mappings for the i.MX31ADS board.
  */
@@ -518,6 +531,7 @@ static void __init mxc_board_init(void)
 	mxc_init_extuart();
 	mxc_init_imx_uart();
 	mxc_init_i2c();
+	mxc_init_audio();
 }
 
 static void __init mx31ads_timer_init(void)
