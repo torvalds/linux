@@ -120,8 +120,7 @@ int i1480_usb_write(struct i1480 *i1480, u32 memory_address,
 		result = usb_control_msg(
 			i1480_usb->usb_dev, usb_sndctrlpipe(i1480_usb->usb_dev, 0),
 			0xf0, USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			cpu_to_le16(memory_address & 0xffff),
-			cpu_to_le16((memory_address >> 16) & 0xffff),
+			memory_address,	(memory_address >> 16),
 			i1480->cmd_buf, buffer_size, 100 /* FIXME: arbitrary */);
 		if (result < 0)
 			break;
@@ -166,8 +165,7 @@ int i1480_usb_read(struct i1480 *i1480, u32 addr, size_t size)
 		result = usb_control_msg(
 			i1480_usb->usb_dev, usb_rcvctrlpipe(i1480_usb->usb_dev, 0),
 			0xf0, USB_DIR_IN | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
-			cpu_to_le16(itr_addr & 0xffff),
-			cpu_to_le16((itr_addr >> 16) & 0xffff),
+			itr_addr, (itr_addr >> 16),
 			i1480->cmd_buf + itr, itr_size,
 			100 /* FIXME: arbitrary */);
 		if (result < 0) {
