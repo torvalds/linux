@@ -259,11 +259,11 @@ nouveau_i2c_find(struct drm_device *dev, int index)
 	if (index >= DCB_MAX_NUM_I2C_ENTRIES)
 		return NULL;
 
-	if (!bios->bdcb.dcb.i2c[index].chan) {
-		if (nouveau_i2c_init(dev, &bios->bdcb.dcb.i2c[index], index))
+	if (!bios->dcb.i2c[index].chan) {
+		if (nouveau_i2c_init(dev, &bios->dcb.i2c[index], index))
 			return NULL;
 	}
 
-	return bios->bdcb.dcb.i2c[index].chan;
+	return bios->dcb.i2c[index].chan;
 }
 

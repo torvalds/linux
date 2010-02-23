@@ -465,7 +465,7 @@ static int nv50_display_disable(struct drm_device *dev)
 int nv50_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct parsed_dcb *dcb = dev_priv->vbios->dcb;
+	struct dcb_table *dcb = &dev_priv->VBIOS.dcb;
 	uint32_t connector[16] = {};
 	int ret, i;
 
@@ -667,8 +667,8 @@ nv50_display_irq_head(struct drm_device *dev, int *phead,
 		return -1;
 	}
 
-	for (i = 0; i < dev_priv->vbios->dcb->entries; i++) {
-		struct dcb_entry *dcbent = &dev_priv->vbios->dcb->entry[i];
+	for (i = 0; i < dev_priv->VBIOS.dcb.entries; i++) {
+		struct dcb_entry *dcbent = &dev_priv->VBIOS.dcb.entry[i];
 
 		if (dcbent->type != type)
 			continue;

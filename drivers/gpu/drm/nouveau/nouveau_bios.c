@@ -700,7 +700,7 @@ static int dcb_entry_idx_from_crtchead(struct drm_device *dev)
 
 	uint8_t dcb_entry = NVReadVgaCrtc5758(dev, bios->state.crtchead, 0);
 
-	if (dcb_entry > bios->bdcb.dcb.entries) {
+	if (dcb_entry > bios->dcb.entries) {
 		NV_ERROR(dev, "CR58 doesn't have a valid DCB entry currently "
 				"(%02X)\n", dcb_entry);
 		dcb_entry = 0x7f;	/* unused / invalid marker */
@@ -713,25 +713,26 @@ static struct nouveau_i2c_chan *
 init_i2c_device_find(struct drm_device *dev, int i2c_index)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct bios_parsed_dcb *bdcb = &dev_priv->VBIOS.bdcb;
+	struct dcb_table *dcb = &dev_priv->VBIOS.dcb;
 
 	if (i2c_index == 0xff) {
 		/* note: dcb_entry_idx_from_crtchead needs pre-script set-up */
 		int idx = dcb_entry_idx_from_crtchead(dev), shift = 0;
-		int default_indices = bdcb->i2c_default_indices;
+		int default_indices = dcb->i2c_default_indices;
 
-		if (idx != 0x7f && bdcb->dcb.entry[idx].i2c_upper_default)
+		if (idx != 0x7f && dcb->entry[idx].i2c_upper_default)
 			shift = 4;
 
 		i2c_index = (default_indices >> shift) & 0xf;
 	}
 	if (i2c_index == 0x80)	/* g80+ */
-		i2c_index = bdcb->i2c_default_indices & 0xf;
+		i2c_index = dcb->i2c_default_indices & 0xf;
 
 	return nouveau_i2c_find(dev, i2c_index);
 }
 
-static uint32_t get_tmds_index_reg(struct drm_device *dev, uint8_t mlv)
+static uint32_t
+get_tmds_index_reg(struct drm_device *dev, uint8_t mlv)
 {
 	/*
 	 * For mlv < 0x80, it is an index into a table of TMDS base addresses.
@@ -744,6 +745,7 @@ static uint32_t get_tmds_index_reg(struct drm_device *dev, uint8_t mlv)
 	 */
 
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nvbios *bios = &dev_priv->VBIOS;
 	const int pramdac_offset[13] = {
 		0, 0, 0x8, 0, 0x2000, 0, 0, 0, 0x2008, 0, 0, 0, 0x2000 };
 	const uint32_t pramdac_table[4] = {
@@ -756,8 +758,7 @@ static uint32_t get_tmds_index_reg(struct drm_device *dev, uint8_t mlv)
 		dcb_entry = dcb_entry_idx_from_crtchead(dev);
 		if (dcb_entry == 0x7f)
 			return 0;
-		dacoffset = pramdac_offset[
-				dev_priv->VBIOS.bdcb.dcb.entry[dcb_entry].or];
+		dacoffset = pramdac_offset[bios->dcb.entry[dcb_entry].or];
 		if (mlv == 0x81)
 			dacoffset ^= 8;
 		return 0x6808b0 + dacoffset;
@@ -2574,19 +2575,19 @@ init_gpio(struct nvbios *bios, uint16_t offset, struct init_exec *iexec)
 
 	const uint32_t nv50_gpio_reg[4] = { 0xe104, 0xe108, 0xe280, 0xe284 };
 	const uint32_t nv50_gpio_ctl[2] = { 0xe100, 0xe28c };
-	const uint8_t *gpio_table = &bios->data[bios->bdcb.gpio_table_ptr];
+	const uint8_t *gpio_table = &bios->data[bios->dcb.gpio_table_ptr];
 	const uint8_t *gpio_entry;
 	int i;
 
 	if (!iexec->execute)
 		return 1;
 
-	if (bios->bdcb.version != 0x40) {
+	if (bios->dcb.version != 0x40) {
 		NV_ERROR(bios->dev, "DCB table not version 4.0\n");
 		return 0;
 	}
 
-	if (!bios->bdcb.gpio_table_ptr) {
+	if (!bios->dcb.gpio_table_ptr) {
 		NV_WARN(bios->dev, "Invalid pointer to INIT_8E table\n");
 		return 0;
 	}
@@ -4796,10 +4797,10 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	uint16_t legacy_scripts_offset, legacy_i2c_offset;
 
 	/* load needed defaults in case we can't parse this info */
-	bios->bdcb.dcb.i2c[0].write = NV_CIO_CRE_DDC_WR__INDEX;
-	bios->bdcb.dcb.i2c[0].read = NV_CIO_CRE_DDC_STATUS__INDEX;
-	bios->bdcb.dcb.i2c[1].write = NV_CIO_CRE_DDC0_WR__INDEX;
-	bios->bdcb.dcb.i2c[1].read = NV_CIO_CRE_DDC0_STATUS__INDEX;
+	bios->dcb.i2c[0].write = NV_CIO_CRE_DDC_WR__INDEX;
+	bios->dcb.i2c[0].read = NV_CIO_CRE_DDC_STATUS__INDEX;
+	bios->dcb.i2c[1].write = NV_CIO_CRE_DDC0_WR__INDEX;
+	bios->dcb.i2c[1].read = NV_CIO_CRE_DDC0_STATUS__INDEX;
 	bios->pub.digital_min_front_porch = 0x4b;
 	bios->fmaxvco = 256000;
 	bios->fminvco = 128000;
@@ -4907,10 +4908,10 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	bios->legacy.i2c_indices.crt = bios->data[legacy_i2c_offset];
 	bios->legacy.i2c_indices.tv = bios->data[legacy_i2c_offset + 1];
 	bios->legacy.i2c_indices.panel = bios->data[legacy_i2c_offset + 2];
-	bios->bdcb.dcb.i2c[0].write = bios->data[legacy_i2c_offset + 4];
-	bios->bdcb.dcb.i2c[0].read = bios->data[legacy_i2c_offset + 5];
-	bios->bdcb.dcb.i2c[1].write = bios->data[legacy_i2c_offset + 6];
-	bios->bdcb.dcb.i2c[1].read = bios->data[legacy_i2c_offset + 7];
+	bios->dcb.i2c[0].write = bios->data[legacy_i2c_offset + 4];
+	bios->dcb.i2c[0].read = bios->data[legacy_i2c_offset + 5];
+	bios->dcb.i2c[1].write = bios->data[legacy_i2c_offset + 6];
+	bios->dcb.i2c[1].read = bios->data[legacy_i2c_offset + 7];
 
 	if (bmplength > 74) {
 		bios->fmaxvco = ROM32(bmp[67]);
@@ -5037,7 +5038,7 @@ read_dcb_i2c_entry(struct drm_device *dev, int dcb_version, uint8_t *i2ctable, i
 static struct dcb_gpio_entry *
 new_gpio_entry(struct nvbios *bios)
 {
-	struct dcb_gpio_table *gpio = &bios->bdcb.gpio;
+	struct dcb_gpio_table *gpio = &bios->dcb.gpio;
 
 	return &gpio->entry[gpio->entries++];
 }
@@ -5049,11 +5050,11 @@ nouveau_bios_gpio_entry(struct drm_device *dev, enum dcb_gpio_tag tag)
 	struct nvbios *bios = &dev_priv->VBIOS;
 	int i;
 
-	for (i = 0; i < bios->bdcb.gpio.entries; i++) {
-		if (bios->bdcb.gpio.entry[i].tag != tag)
+	for (i = 0; i < bios->dcb.gpio.entries; i++) {
+		if (bios->dcb.gpio.entry[i].tag != tag)
 			continue;
 
-		return &bios->bdcb.gpio.entry[i];
+		return &bios->dcb.gpio.entry[i];
 	}
 
 	return NULL;
@@ -5101,7 +5102,7 @@ static void
 parse_dcb_gpio_table(struct nvbios *bios)
 {
 	struct drm_device *dev = bios->dev;
-	uint16_t gpio_table_ptr = bios->bdcb.gpio_table_ptr;
+	uint16_t gpio_table_ptr = bios->dcb.gpio_table_ptr;
 	uint8_t *gpio_table = &bios->data[gpio_table_ptr];
 	int header_len = gpio_table[1],
 	    entries = gpio_table[2],
@@ -5109,7 +5110,7 @@ parse_dcb_gpio_table(struct nvbios *bios)
 	void (*parse_entry)(struct nvbios *, uint16_t) = NULL;
 	int i;
 
-	if (bios->bdcb.version >= 0x40) {
+	if (bios->dcb.version >= 0x40) {
 		if (gpio_table_ptr && entry_len != 4) {
 			NV_WARN(dev, "Invalid DCB GPIO table entry length.\n");
 			return;
@@ -5117,7 +5118,7 @@ parse_dcb_gpio_table(struct nvbios *bios)
 
 		parse_entry = parse_dcb40_gpio_entry;
 
-	} else if (bios->bdcb.version >= 0x30) {
+	} else if (bios->dcb.version >= 0x30) {
 		if (gpio_table_ptr && entry_len != 2) {
 			NV_WARN(dev, "Invalid DCB GPIO table entry length.\n");
 			return;
@@ -5125,7 +5126,7 @@ parse_dcb_gpio_table(struct nvbios *bios)
 
 		parse_entry = parse_dcb30_gpio_entry;
 
-	} else if (bios->bdcb.version >= 0x22) {
+	} else if (bios->dcb.version >= 0x22) {
 		/*
 		 * DCBs older than v3.0 don't really have a GPIO
 		 * table, instead they keep some GPIO info at fixed
@@ -5162,10 +5163,10 @@ nouveau_bios_connector_entry(struct drm_device *dev, int index)
 	struct nvbios *bios = &dev_priv->VBIOS;
 	struct dcb_connector_table_entry *cte;
 
-	if (index >= bios->bdcb.connector.entries)
+	if (index >= bios->dcb.connector.entries)
 		return NULL;
 
-	cte = &bios->bdcb.connector.entry[index];
+	cte = &bios->dcb.connector.entry[index];
 	if (cte->type == 0xff)
 		return NULL;
 
@@ -5176,13 +5177,13 @@ static void
 parse_dcb_connector_table(struct nvbios *bios)
 {
 	struct drm_device *dev = bios->dev;
-	struct dcb_connector_table *ct = &bios->bdcb.connector;
+	struct dcb_connector_table *ct = &bios->dcb.connector;
 	struct dcb_connector_table_entry *cte;
-	uint8_t *conntab = &bios->data[bios->bdcb.connector_table_ptr];
+	uint8_t *conntab = &bios->data[bios->dcb.connector_table_ptr];
 	uint8_t *entry;
 	int i;
 
-	if (!bios->bdcb.connector_table_ptr) {
+	if (!bios->dcb.connector_table_ptr) {
 		NV_DEBUG_KMS(dev, "No DCB connector table present\n");
 		return;
 	}
@@ -5232,7 +5233,7 @@ parse_dcb_connector_table(struct nvbios *bios)
 	}
 }
 
-static struct dcb_entry *new_dcb_entry(struct parsed_dcb *dcb)
+static struct dcb_entry *new_dcb_entry(struct dcb_table *dcb)
 {
 	struct dcb_entry *entry = &dcb->entry[dcb->entries];
 
@@ -5242,7 +5243,7 @@ static struct dcb_entry *new_dcb_entry(struct parsed_dcb *dcb)
 	return entry;
 }
 
-static void fabricate_vga_output(struct parsed_dcb *dcb, int i2c, int heads)
+static void fabricate_vga_output(struct dcb_table *dcb, int i2c, int heads)
 {
 	struct dcb_entry *entry = new_dcb_entry(dcb);
 
@@ -5253,7 +5254,7 @@ static void fabricate_vga_output(struct parsed_dcb *dcb, int i2c, int heads)
 	/* "or" mostly unused in early gen crt modesetting, 0 is fine */
 }
 
-static void fabricate_dvi_i_output(struct parsed_dcb *dcb, bool twoHeads)
+static void fabricate_dvi_i_output(struct dcb_table *dcb, bool twoHeads)
 {
 	struct dcb_entry *entry = new_dcb_entry(dcb);
 
@@ -5280,7 +5281,7 @@ static void fabricate_dvi_i_output(struct parsed_dcb *dcb, bool twoHeads)
 #endif
 }
 
-static void fabricate_tv_output(struct parsed_dcb *dcb, bool twoHeads)
+static void fabricate_tv_output(struct dcb_table *dcb, bool twoHeads)
 {
 	struct dcb_entry *entry = new_dcb_entry(dcb);
 
@@ -5291,13 +5292,13 @@ static void fabricate_tv_output(struct parsed_dcb *dcb, bool twoHeads)
 }
 
 static bool
-parse_dcb20_entry(struct drm_device *dev, struct bios_parsed_dcb *bdcb,
+parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		  uint32_t conn, uint32_t conf, struct dcb_entry *entry)
 {
 	entry->type = conn & 0xf;
 	entry->i2c_index = (conn >> 4) & 0xf;
 	entry->heads = (conn >> 8) & 0xf;
-	if (bdcb->version >= 0x40)
+	if (dcb->version >= 0x40)
 		entry->connector = (conn >> 12) & 0xf;
 	entry->bus = (conn >> 16) & 0xf;
 	entry->location = (conn >> 20) & 0x3;
@@ -5315,7 +5316,7 @@ parse_dcb20_entry(struct drm_device *dev, struct bios_parsed_dcb *bdcb,
 		 * Although the rest of a CRT conf dword is usually
 		 * zeros, mac biosen have stuff there so we must mask
 		 */
-		entry->crtconf.maxfreq = (bdcb->version < 0x30) ?
+		entry->crtconf.maxfreq = (dcb->version < 0x30) ?
 					 (conf & 0xffff) * 10 :
 					 (conf & 0xff) * 10000;
 		break;
@@ -5324,7 +5325,7 @@ parse_dcb20_entry(struct drm_device *dev, struct bios_parsed_dcb *bdcb,
 		uint32_t mask;
 		if (conf & 0x1)
 			entry->lvdsconf.use_straps_for_mode = true;
-		if (bdcb->version < 0x22) {
+		if (dcb->version < 0x22) {
 			mask = ~0xd;
 			/*
 			 * The laptop in bug 14567 lies and claims to not use
@@ -5348,7 +5349,7 @@ parse_dcb20_entry(struct drm_device *dev, struct bios_parsed_dcb *bdcb,
 			 * Until we even try to use these on G8x, it's
 			 * useless reporting unknown bits.  They all are.
 			 */
-			if (bdcb->version >= 0x40)
+			if (dcb->version >= 0x40)
 				break;
 
 			NV_ERROR(dev, "Unknown LVDS configuration bits, "
@@ -5358,7 +5359,7 @@ parse_dcb20_entry(struct drm_device *dev, struct bios_parsed_dcb *bdcb,
 		}
 	case OUTPUT_TV:
 	{
-		if (bdcb->version >= 0x30)
+		if (dcb->version >= 0x30)
 			entry->tvconf.has_component_output = conf & (0x8 << 4);
 		else
 			entry->tvconf.has_component_output = false;
@@ -5385,7 +5386,7 @@ parse_dcb20_entry(struct drm_device *dev, struct bios_parsed_dcb *bdcb,
 		break;
 	case 0xe:
 		/* weird g80 mobile type that "nv" treats as a terminator */
-		bdcb->dcb.entries--;
+		dcb->entries--;
 		return false;
 	}
 
@@ -5397,7 +5398,7 @@ parse_dcb20_entry(struct drm_device *dev, struct bios_parsed_dcb *bdcb,
 }
 
 static bool
-parse_dcb15_entry(struct drm_device *dev, struct parsed_dcb *dcb,
+parse_dcb15_entry(struct drm_device *dev, struct dcb_table *dcb,
 		  uint32_t conn, uint32_t conf, struct dcb_entry *entry)
 {
 	switch (conn & 0x0000000f) {
@@ -5463,27 +5464,27 @@ parse_dcb15_entry(struct drm_device *dev, struct parsed_dcb *dcb,
 	return true;
 }
 
-static bool parse_dcb_entry(struct drm_device *dev, struct bios_parsed_dcb *bdcb,
+static bool parse_dcb_entry(struct drm_device *dev, struct dcb_table *dcb,
 			    uint32_t conn, uint32_t conf)
 {
-	struct dcb_entry *entry = new_dcb_entry(&bdcb->dcb);
+	struct dcb_entry *entry = new_dcb_entry(dcb);
 	bool ret;
 
-	if (bdcb->version >= 0x20)
-		ret = parse_dcb20_entry(dev, bdcb, conn, conf, entry);
+	if (dcb->version >= 0x20)
+		ret = parse_dcb20_entry(dev, dcb, conn, conf, entry);
 	else
-		ret = parse_dcb15_entry(dev, &bdcb->dcb, conn, conf, entry);
+		ret = parse_dcb15_entry(dev, dcb, conn, conf, entry);
 	if (!ret)
 		return ret;
 
-	read_dcb_i2c_entry(dev, bdcb->version, bdcb->i2c_table,
-			   entry->i2c_index, &bdcb->dcb.i2c[entry->i2c_index]);
+	read_dcb_i2c_entry(dev, dcb->version, dcb->i2c_table,
+			   entry->i2c_index, &dcb->i2c[entry->i2c_index]);
 
 	return true;
 }
 
 static
-void merge_like_dcb_entries(struct drm_device *dev, struct parsed_dcb *dcb)
+void merge_like_dcb_entries(struct drm_device *dev, struct dcb_table *dcb)
 {
 	/*
 	 * DCB v2.0 lists each output combination separately.
@@ -5535,17 +5536,13 @@ static int
 parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct bios_parsed_dcb *bdcb = &bios->bdcb;
-	struct parsed_dcb *dcb;
+	struct dcb_table *dcb = &bios->dcb;
 	uint16_t dcbptr = 0, i2ctabptr = 0;
 	uint8_t *dcbtable;
 	uint8_t headerlen = 0x4, entries = DCB_MAX_NUM_ENTRIES;
 	bool configblock = true;
 	int recordlength = 8, confofs = 4;
 	int i;
-
-	dcb = bios->pub.dcb = &bdcb->dcb;
-	dcb->entries = 0;
 
 	/* get the offset from 0x36 */
 	if (dev_priv->card_type > NV_04) {
@@ -5568,21 +5565,21 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 	dcbtable = &bios->data[dcbptr];
 
 	/* get DCB version */
-	bdcb->version = dcbtable[0];
+	dcb->version = dcbtable[0];
 	NV_TRACE(dev, "Found Display Configuration Block version %d.%d\n",
-		 bdcb->version >> 4, bdcb->version & 0xf);
+		 dcb->version >> 4, dcb->version & 0xf);
 
-	if (bdcb->version >= 0x20) { /* NV17+ */
+	if (dcb->version >= 0x20) { /* NV17+ */
 		uint32_t sig;
 
-		if (bdcb->version >= 0x30) { /* NV40+ */
+		if (dcb->version >= 0x30) { /* NV40+ */
 			headerlen = dcbtable[1];
 			entries = dcbtable[2];
 			recordlength = dcbtable[3];
 			i2ctabptr = ROM16(dcbtable[4]);
 			sig = ROM32(dcbtable[6]);
-			bdcb->gpio_table_ptr = ROM16(dcbtable[10]);
-			bdcb->connector_table_ptr = ROM16(dcbtable[20]);
+			dcb->gpio_table_ptr = ROM16(dcbtable[10]);
+			dcb->connector_table_ptr = ROM16(dcbtable[20]);
 		} else {
 			i2ctabptr = ROM16(dcbtable[2]);
 			sig = ROM32(dcbtable[4]);
@@ -5594,7 +5591,7 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 					"signature (%08X)\n", sig);
 			return -EINVAL;
 		}
-	} else if (bdcb->version >= 0x15) { /* some NV11 and NV20 */
+	} else if (dcb->version >= 0x15) { /* some NV11 and NV20 */
 		char sig[8] = { 0 };
 
 		strncpy(sig, (char *)&dcbtable[-7], 7);
@@ -5642,9 +5639,9 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 	if (!i2ctabptr)
 		NV_WARN(dev, "No pointer to DCB I2C port table\n");
 	else {
-		bdcb->i2c_table = &bios->data[i2ctabptr];
-		if (bdcb->version >= 0x30)
-			bdcb->i2c_default_indices = bdcb->i2c_table[4];
+		dcb->i2c_table = &bios->data[i2ctabptr];
+		if (dcb->version >= 0x30)
+			dcb->i2c_default_indices = dcb->i2c_table[4];
 	}
 
 	parse_dcb_gpio_table(bios);
@@ -5674,7 +5671,7 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 		NV_TRACEWARN(dev, "Raw DCB entry %d: %08x %08x\n",
 			     dcb->entries, connection, config);
 
-		if (!parse_dcb_entry(dev, bdcb, connection, config))
+		if (!parse_dcb_entry(dev, dcb, connection, config))
 			break;
 	}
 
@@ -5682,7 +5679,7 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 	 * apart for v2.1+ not being known for requiring merging, this
 	 * guarantees dcbent->index is the index of the entry in the rom image
 	 */
-	if (bdcb->version < 0x21)
+	if (dcb->version < 0x21)
 		merge_like_dcb_entries(dev, dcb);
 
 	return dcb->entries ? 0 : -ENXIO;
@@ -5691,8 +5688,7 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 static void
 fixup_legacy_connector(struct nvbios *bios)
 {
-	struct bios_parsed_dcb *bdcb = &bios->bdcb;
-	struct parsed_dcb *dcb = &bdcb->dcb;
+	struct dcb_table *dcb = &bios->dcb;
 	int high = 0, i;
 
 	/*
@@ -5701,7 +5697,7 @@ fixup_legacy_connector(struct nvbios *bios)
 	 * indices are all 0.  We don't need the connector indices on pre-G80
 	 * chips (yet?) so limit the use to DCB 4.0 and above.
 	 */
-	if (bdcb->version >= 0x40)
+	if (dcb->version >= 0x40)
 		return;
 
 	/*
@@ -5741,7 +5737,7 @@ fixup_legacy_connector(struct nvbios *bios)
 static void
 fixup_legacy_i2c(struct nvbios *bios)
 {
-	struct parsed_dcb *dcb = &bios->bdcb.dcb;
+	struct dcb_table *dcb = &bios->dcb;
 	int i;
 
 	for (i = 0; i < dcb->entries; i++) {
@@ -5947,9 +5943,9 @@ nouveau_run_vbios_init(struct drm_device *dev)
 	}
 
 	if (dev_priv->card_type >= NV_50) {
-		for (i = 0; i < bios->bdcb.dcb.entries; i++) {
+		for (i = 0; i < bios->dcb.entries; i++) {
 			nouveau_bios_run_display_table(dev,
-						       &bios->bdcb.dcb.entry[i],
+						       &bios->dcb.entry[i],
 						       0, 0);
 		}
 	}
@@ -5967,7 +5963,7 @@ nouveau_bios_i2c_devices_takedown(struct drm_device *dev)
 	struct dcb_i2c_entry *entry;
 	int i;
 
-	entry = &bios->bdcb.dcb.i2c[0];
+	entry = &bios->dcb.i2c[0];
 	for (i = 0; i < DCB_MAX_NUM_I2C_ENTRIES; i++, entry++)
 		nouveau_i2c_fini(dev, entry);
 }

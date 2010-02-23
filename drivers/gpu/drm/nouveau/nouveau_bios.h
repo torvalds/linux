@@ -77,12 +77,6 @@ struct dcb_i2c_entry {
 	struct nouveau_i2c_chan *chan;
 };
 
-struct parsed_dcb {
-	int entries;
-	struct dcb_entry entry[DCB_MAX_NUM_ENTRIES];
-	struct dcb_i2c_entry i2c[DCB_MAX_NUM_I2C_ENTRIES];
-};
-
 enum dcb_gpio_tag {
 	DCB_GPIO_TVDAC0 = 0xc,
 	DCB_GPIO_TVDAC1 = 0x2d,
@@ -111,13 +105,15 @@ struct dcb_connector_table {
 	struct dcb_connector_table_entry entry[DCB_MAX_NUM_CONNECTOR_ENTRIES];
 };
 
-struct bios_parsed_dcb {
+struct dcb_table {
 	uint8_t version;
 
-	struct parsed_dcb dcb;
+	int entries;
+	struct dcb_entry entry[DCB_MAX_NUM_ENTRIES];
 
 	uint8_t *i2c_table;
 	uint8_t i2c_default_indices;
+	struct dcb_i2c_entry i2c[DCB_MAX_NUM_I2C_ENTRIES];
 
 	uint16_t gpio_table_ptr;
 	struct dcb_gpio_table gpio;
@@ -191,8 +187,6 @@ struct pll_lims {
 };
 
 struct nouveau_bios_info {
-	struct parsed_dcb *dcb;
-
 	uint8_t chip_version;
 
 	uint32_t dactestval;
@@ -234,7 +228,7 @@ struct nvbios {
 	uint16_t some_script_ptr; /* BIT I + 14 */
 	uint16_t init96_tbl_ptr; /* BIT I + 16 */
 
-	struct bios_parsed_dcb bdcb;
+	struct dcb_table dcb;
 
 	struct {
 		int crtchead;
