@@ -101,8 +101,11 @@ struct thread_struct {
 	unsigned long sp;
 	unsigned long pc;
 
+	/* Various thread flags, see SH_THREAD_xxx */
+	unsigned long flags;
+
 	/* Save middle states of ptrace breakpoints */
-	struct perf_event	*ptrace_bps[HBP_NUM];
+	struct perf_event *ptrace_bps[HBP_NUM];
 
 #ifdef CONFIG_SH_DSP
 	/* Dsp status information */
@@ -115,6 +118,7 @@ struct thread_struct {
 
 #define INIT_THREAD  {						\
 	.sp = sizeof(init_stack) + (long) &init_stack,		\
+	.flags = 0,						\
 }
 
 /* Forward declaration, a strange C thing */

@@ -14,6 +14,7 @@
 #include <linux/proc_fs.h>
 #include <linux/uaccess.h>
 #include <asm/alignment.h>
+#include <asm/processor.h>
 
 static unsigned long se_user;
 static unsigned long se_sys;
@@ -59,9 +60,36 @@ void inc_unaligned_kernel_access(void)
 	se_sys++;
 }
 
+/*
+ * This defaults to the global policy which can be set from the command
+ * line, while processes can overload their preferences via prctl().
+ */
 unsigned int unaligned_user_action(void)
 {
-	return se_usermode;
+	unsigned int action = se_usermode;
+
+	if (current->thread.flags & SH_THREAD_UAC_SIGBUS) {
+		action &= ~UM_FIXUP;
+		action |= UM_SIGNAL;
+	}
+
+	if (current->thread.flags & SH_THREAD_UAC_NOPRINT)
+		action &= ~UM_WARN;
+
+	return action;
+}
+
+int get_unalign_ctl(struct task_struct *tsk, unsigned long addr)
+{
+	return put_user(tsk->thread.flags & SH_THREAD_UAC_MASK,
+			(unsigned int __user *)addr);
+}
+
+int set_unalign_ctl(struct task_struct *tsk, unsigned int val)
+{
+	tsk->thread.flags = (tsk->thread.flags & ~SH_THREAD_UAC_MASK) |
+			    (val & SH_THREAD_UAC_MASK);
+	return 0;
 }
 
 void unaligned_fixups_notify(struct task_struct *tsk, insn_size_t insn,

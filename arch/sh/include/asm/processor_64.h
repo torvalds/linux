@@ -108,6 +108,10 @@ union thread_xstate {
 struct thread_struct {
 	unsigned long sp;
 	unsigned long pc;
+
+	/* Various thread flags, see SH_THREAD_xxx */
+	unsigned long flags;
+
 	/* This stores the address of the pt_regs built during a context
 	   switch, or of the register save area built for a kernel mode
 	   exception.  It is used for backtracing the stack of a sleeping task
@@ -138,6 +142,7 @@ struct thread_struct {
 	.trap_no	= 0,			\
 	.error_code	= 0,			\
 	.address	= 0,			\
+	.flags		= 0,			\
 }
 
 /*
