@@ -1945,18 +1945,18 @@ tc35815_set_multicast_list(struct net_device *dev)
 		/* Disable promiscuous mode, use normal mode. */
 		tc_writel(CAM_CompEn | CAM_BroadAcc | CAM_GroupAcc, &tr->CAM_Ctl);
 	} else if (!netdev_mc_empty(dev)) {
-		struct dev_mc_list *cur_addr = dev->mc_list;
+		struct dev_mc_list *cur_addr;
 		int i;
 		int ena_bits = CAM_Ena_Bit(CAM_ENTRY_SOURCE);
 
 		tc_writel(0, &tr->CAM_Ctl);
 		/* Walk the address list, and load the filter */
-		for (i = 0; i < netdev_mc_count(dev); i++, cur_addr = cur_addr->next) {
-			if (!cur_addr)
-				break;
+		i = 0;
+		netdev_for_each_mc_addr(cur_addr, dev) {
 			/* entry 0,1 is reserved. */
 			tc35815_set_cam_entry(dev, i + 2, cur_addr->dmi_addr);
 			ena_bits |= CAM_Ena_Bit(i + 2);
+			i++;
 		}
 		tc_writel(ena_bits, &tr->CAM_Ena);
 		tc_writel(CAM_CompEn | CAM_BroadAcc, &tr->CAM_Ctl);

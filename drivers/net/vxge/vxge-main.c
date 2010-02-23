@@ -1217,9 +1217,7 @@ static void vxge_set_multicast(struct net_device *dev)
 		}
 
 		/* Add new ones */
-		for (i = 0, mclist = dev->mc_list; i < netdev_mc_count(dev);
-			i++, mclist = mclist->next) {
-
+		netdev_for_each_mc_addr(mclist, dev) {
 			memcpy(mac_info.macaddr, mclist->dmi_addr, ETH_ALEN);
 			for (vpath_idx = 0; vpath_idx < vdev->no_of_vpath;
 					vpath_idx++) {

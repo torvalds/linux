@@ -1675,15 +1675,12 @@ vmxnet3_copy_mc(struct net_device *netdev)
 		/* We may be called with BH disabled */
 		buf = kmalloc(sz, GFP_ATOMIC);
 		if (buf) {
-			int i;
-			struct dev_mc_list *mc = netdev->mc_list;
+			struct dev_mc_list *mc;
+			int i = 0;
 
-			for (i = 0; i < netdev_mc_count(netdev); i++) {
-				BUG_ON(!mc);
-				memcpy(buf + i * ETH_ALEN, mc->dmi_addr,
+			netdev_for_each_mc_addr(mc, netdev)
+				memcpy(buf + i++ * ETH_ALEN, mc->dmi_addr,
 				       ETH_ALEN);
-				mc = mc->next;
-			}
 		}
 	}
 	return buf;

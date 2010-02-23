@@ -2002,7 +2002,6 @@ static void ucc_geth_set_multi(struct net_device *dev)
 	struct dev_mc_list *dmi;
 	struct ucc_fast __iomem *uf_regs;
 	struct ucc_geth_82xx_address_filtering_pram __iomem *p_82xx_addr_filt;
-	int i;
 
 	ugeth = netdev_priv(dev);
 
@@ -2029,11 +2028,7 @@ static void ucc_geth_set_multi(struct net_device *dev)
 			out_be32(&p_82xx_addr_filt->gaddr_h, 0x0);
 			out_be32(&p_82xx_addr_filt->gaddr_l, 0x0);
 
-			dmi = dev->mc_list;
-
-			for (i = 0; i < netdev_mc_count(dev);
-			     i++, dmi = dmi->next) {
-
+			netdev_for_each_mc_addr(dmi, dev) {
 				/* Only support group multicast for now.
 				 */
 				if (!(dmi->dmi_addr[0] & 1))

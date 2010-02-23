@@ -434,18 +434,18 @@ static void smc_shutdown( int ioaddr )
 */
 
 
-static void smc_setmulticast( int ioaddr, int count, struct dev_mc_list * addrs ) {
+static void smc_setmulticast(int ioaddr, struct net_device *dev)
+{
 	int			i;
 	unsigned char		multicast_table[ 8 ];
-	struct dev_mc_list	* cur_addr;
+	struct dev_mc_list *cur_addr;
 	/* table for flipping the order of 3 bits */
 	unsigned char invert3[] = { 0, 4, 2, 6, 1, 5, 3, 7 };
 
 	/* start with a table of all zeros: reject all */
 	memset( multicast_table, 0, sizeof( multicast_table ) );
 
-	cur_addr = addrs;
-	for ( i = 0; i < count ; i ++, cur_addr = cur_addr->next  ) {
+	netdev_for_each_mc_addr(cur_addr, dev) {
 		int position;
 
 		/* do we have a pointer here? */
@@ -1550,7 +1550,7 @@ static void smc_set_multicast_list(struct net_device *dev)
 			ioaddr + RCR );
 		/* NOTE: this has to set the bank, so make sure it is the
 		   last thing called.  The bank is set to zero at the top */
-		smc_setmulticast(ioaddr, netdev_mc_count(dev), dev->mc_list);
+		smc_setmulticast(ioaddr, dev);
 	}
 	else  {
 		outw( inw( ioaddr + RCR ) & ~(RCR_PROMISC | RCR_ALMUL),

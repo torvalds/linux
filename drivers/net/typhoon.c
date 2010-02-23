@@ -922,12 +922,9 @@ typhoon_set_rx_mode(struct net_device *dev)
 		filter |= TYPHOON_RX_FILTER_ALL_MCAST;
 	} else if (!netdev_mc_empty(dev)) {
 		struct dev_mc_list *mclist;
-		int i;
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list;
-		     mclist && i < netdev_mc_count(dev);
-		     i++, mclist = mclist->next) {
+		netdev_for_each_mc_addr(mclist, dev) {
 			int bit = ether_crc(ETH_ALEN, mclist->dmi_addr) & 0x3f;
 			mc_filter[bit >> 5] |= 1 << (bit & 0x1f);
 		}

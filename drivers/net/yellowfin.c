@@ -1303,9 +1303,9 @@ static void set_rx_mode(struct net_device *dev)
 		struct dev_mc_list *mclist;
 		u16 hash_table[4];
 		int i;
+
 		memset(hash_table, 0, sizeof(hash_table));
-		for (i = 0, mclist = dev->mc_list; mclist && i < netdev_mc_count(dev);
-			 i++, mclist = mclist->next) {
+		netdev_for_each_mc_addr(mclist, dev) {
 			unsigned int bit;
 
 			/* Due to a bug in the early chip versions, multiple filter

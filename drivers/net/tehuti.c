@@ -824,10 +824,8 @@ static void bdx_setmulti(struct net_device *ndev)
 		/* TBD: sort addreses and write them in ascending order
 		 * into RX_MAC_MCST regs. we skip this phase now and accept ALL
 		 * multicast frames throu IMF */
-		mclist = ndev->mc_list;
-
 		/* accept the rest of addresses throu IMF */
-		for (; mclist; mclist = mclist->next) {
+		netdev_for_each_mc_addr(mclist, ndev) {
 			hash = 0;
 			for (i = 0; i < ETH_ALEN; i++)
 				hash ^= mclist->dmi_addr[i];

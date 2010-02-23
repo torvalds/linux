@@ -1186,27 +1186,17 @@ static void tsi108_set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_ALLMULTI || !netdev_mc_empty(dev)) {
 		int i;
-		struct dev_mc_list *mc = dev->mc_list;
+		struct dev_mc_list *mc;
 		rxcfg |= TSI108_EC_RXCFG_MFE | TSI108_EC_RXCFG_MC_HASH;
 
 		memset(data->mc_hash, 0, sizeof(data->mc_hash));
 
-		while (mc) {
+		netdev_for_each_mc_addr(mc, dev) {
 			u32 hash, crc;
 
-			if (mc->dmi_addrlen == 6) {
-				crc = ether_crc(6, mc->dmi_addr);
-				hash = crc >> 23;
-
-				__set_bit(hash, &data->mc_hash[0]);
-			} else {
-				printk(KERN_ERR
-		"%s: got multicast address of length %d instead of 6.\n",
-				       dev->name,
-				       mc->dmi_addrlen);
-			}
-
-			mc = mc->next;
+			crc = ether_crc(6, mc->dmi_addr);
+			hash = crc >> 23;
+			__set_bit(hash, &data->mc_hash[0]);
 		}
 
 		TSI_WRITE(TSI108_EC_HASHADDR,

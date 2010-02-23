@@ -1314,7 +1314,7 @@ static struct net_device_stats *TLan_GetStats( struct net_device *dev )
 
 static void TLan_SetMulticastList( struct net_device *dev )
 {
-	struct dev_mc_list	*dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	u32			hash1 = 0;
 	u32			hash2 = 0;
 	int			i;
@@ -1335,7 +1335,8 @@ static void TLan_SetMulticastList( struct net_device *dev )
 			TLan_DioWrite32( dev->base_addr, TLAN_HASH_1, 0xFFFFFFFF );
 			TLan_DioWrite32( dev->base_addr, TLAN_HASH_2, 0xFFFFFFFF );
 		} else {
-			for ( i = 0; i < netdev_mc_count(dev); i++ ) {
+			i = 0;
+			netdev_for_each_mc_addr(dmi, dev) {
 				if ( i < 3 ) {
 					TLan_SetMac( dev, i + 1,
 						     (char *) &dmi->dmi_addr );
@@ -1346,7 +1347,7 @@ static void TLan_SetMulticastList( struct net_device *dev )
 					else
 						hash2 |= ( 1 << ( offset - 32 ) );
 				}
-				dmi = dmi->next;
+				i++;
 			}
 			for ( ; i < 3; i++ )
 				TLan_SetMac( dev, i + 1, NULL );

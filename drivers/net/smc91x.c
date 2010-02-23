@@ -1413,7 +1413,6 @@ static void smc_set_multicast_list(struct net_device *dev)
 	 * within that register.
 	 */
 	else if (!netdev_mc_empty(dev)) {
-		int i;
 		struct dev_mc_list *cur_addr;
 
 		/* table for flipping the order of 3 bits */
@@ -1422,13 +1421,9 @@ static void smc_set_multicast_list(struct net_device *dev)
 		/* start with a table of all zeros: reject all */
 		memset(multicast_table, 0, sizeof(multicast_table));
 
-		cur_addr = dev->mc_list;
-		for (i = 0; i < netdev_mc_count(dev); i++, cur_addr = cur_addr->next) {
+		netdev_for_each_mc_addr(cur_addr, dev) {
 			int position;
 
-			/* do we have a pointer here? */
-			if (!cur_addr)
-				break;
 			/* make sure this is a multicast address -
 		   	   shouldn't this be a given if we have it here ? */
 			if (!(*cur_addr->dmi_addr & 1))
