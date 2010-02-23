@@ -235,7 +235,7 @@ acpi_status acpi_set_gpe(acpi_handle gpe_device, u32 gpe_number, u8 action)
 
 	switch (action) {
 	case ACPI_GPE_ENABLE:
-		status = acpi_ev_enable_gpe(gpe_event_info, TRUE);
+		status = acpi_ev_enable_gpe(gpe_event_info);
 		break;
 
 	case ACPI_GPE_DISABLE:
@@ -276,6 +276,9 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 type)
 
 	ACPI_FUNCTION_TRACE(acpi_enable_gpe);
 
+	if (type & ~ACPI_GPE_TYPE_WAKE_RUN)
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 
 	/* Ensure that we have a valid GPE number */
@@ -287,11 +290,11 @@ acpi_status acpi_enable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 type)
 	}
 
 	if (type & ACPI_GPE_TYPE_RUNTIME) {
-		if (++gpe_event_info->runtime_count == 1)
-			status = acpi_ev_enable_gpe(gpe_event_info, TRUE);
-
-		if (ACPI_FAILURE(status))
-			gpe_event_info->runtime_count--;
+		if (++gpe_event_info->runtime_count == 1) {
+			status = acpi_ev_enable_gpe(gpe_event_info);
+			if (ACPI_FAILURE(status))
+				gpe_event_info->runtime_count--;
+		}
 	}
 
 	if (type & ACPI_GPE_TYPE_WAKE) {
@@ -335,6 +338,9 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 type)
 
 	ACPI_FUNCTION_TRACE(acpi_disable_gpe);
 
+	if (type & ~ACPI_GPE_TYPE_WAKE_RUN)
+		return_ACPI_STATUS(AE_BAD_PARAMETER);
+
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
 	/* Ensure that we have a valid GPE number */
 
@@ -344,12 +350,12 @@ acpi_status acpi_disable_gpe(acpi_handle gpe_device, u32 gpe_number, u8 type)
 		goto unlock_and_exit;
 	}
 
-	if ((type & ACPI_GPE_TYPE_WAKE) && gpe_event_info->runtime_count) {
+	if ((type & ACPI_GPE_TYPE_RUNTIME) && gpe_event_info->runtime_count) {
 		if (--gpe_event_info->runtime_count == 0)
-			acpi_ev_disable_gpe(gpe_event_info);
+			status = acpi_ev_disable_gpe(gpe_event_info);
 	}
 
-	if ((type & ACPI_GPE_TYPE_RUNTIME) && gpe_event_info->wakeup_count) {
+	if ((type & ACPI_GPE_TYPE_WAKE) && gpe_event_info->wakeup_count) {
 		/*
 		 * Wake-up GPEs are not enabled after leaving system sleep
 		 * states, so we don't need to disable them here.

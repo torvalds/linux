@@ -98,8 +98,6 @@ acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info)
  * FUNCTION:    acpi_ev_enable_gpe
  *
  * PARAMETERS:  gpe_event_info          - GPE to enable
- *              write_to_hardware       - Enable now, or just mark data structs
- *                                        (WAKE GPEs should be deferred)
  *
  * RETURN:      Status
  *
@@ -107,9 +105,7 @@ acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info)
  *
  ******************************************************************************/
 
-acpi_status
-acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info,
-		   u8 write_to_hardware)
+acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info)
 {
 	acpi_status status;
 
@@ -123,7 +119,7 @@ acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info,
 
 	/* Mark wake-enabled or HW enable, or both */
 
-	if (gpe_event_info->runtime_count && write_to_hardware) {
+	if (gpe_event_info->runtime_count) {
 		/* Clear the GPE (of stale events), then enable it */
 		status = acpi_hw_clear_gpe(gpe_event_info);
 		if (ACPI_FAILURE(status))
@@ -400,7 +396,7 @@ static void ACPI_SYSTEM_XFACE acpi_ev_asynch_execute_gpe_method(void *context)
 
 	/* Set the GPE flags for return to enabled state */
 
-	(void)acpi_ev_enable_gpe(gpe_event_info, FALSE);
+	(void)acpi_ev_update_gpe_enable_masks(gpe_event_info);
 
 	/*
 	 * Take a snapshot of the GPE info for this level - we copy the info to
