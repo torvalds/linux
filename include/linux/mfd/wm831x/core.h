@@ -15,6 +15,7 @@
 #ifndef __MFD_WM831X_CORE_H__
 #define __MFD_WM831X_CORE_H__
 
+#include <linux/completion.h>
 #include <linux/interrupt.h>
 
 /*
@@ -261,6 +262,7 @@ struct wm831x {
 	int num_gpio;
 
 	struct mutex auxadc_lock;
+	struct completion auxadc_done;
 
 	/* The WM831x has a security key blocking access to certain
 	 * registers.  The mutex is taken by the accessors for locking
