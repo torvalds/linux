@@ -41,6 +41,10 @@ struct clksel {
 	const struct clksel_rate *rates;
 };
 
+/*
+ * A new flag called flag has been added which indicates what is the
+ * type of dpll (like j_type, no_dco_sel)
+ */
 struct dpll_data {
 	void __iomem		*mult_div1_reg;
 	u32			mult_mask;
@@ -67,6 +71,7 @@ struct dpll_data {
 	u8			auto_recal_bit;
 	u8			recal_en_bit;
 	u8			recal_st_bit;
+	u8			flags;
 #  endif
 };
 
