@@ -59,6 +59,15 @@ struct op_counter_config;
 
 static inline void op_x86_warn_in_use(int counter)
 {
+	/*
+	 * The warning indicates an already running counter. If
+	 * oprofile doesn't collect data, then try using a different
+	 * performance counter on your platform to monitor the desired
+	 * event. Delete counter #%d from the desired event by editing
+	 * the /usr/share/oprofile/%s/<cpu>/events file. If the event
+	 * cannot be monitored by any other counter, contact your
+	 * hardware or BIOS vendor.
+	 */
 	pr_warning("oprofile: counter #%d on cpu #%d may already be used\n",
 		   counter, smp_processor_id());
 }
