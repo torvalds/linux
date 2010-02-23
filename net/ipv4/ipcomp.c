@@ -36,7 +36,7 @@ static void ipcomp4_err(struct sk_buff *skb, u32 info)
 		return;
 
 	spi = htonl(ntohs(ipch->cpi));
-	x = xfrm_state_lookup(net, (xfrm_address_t *)&iph->daddr,
+	x = xfrm_state_lookup(net, skb->mark, (xfrm_address_t *)&iph->daddr,
 			      spi, IPPROTO_COMP, AF_INET);
 	if (!x)
 		return;
@@ -63,6 +63,7 @@ static struct xfrm_state *ipcomp_tunnel_create(struct xfrm_state *x)
 	t->props.mode = x->props.mode;
 	t->props.saddr.a4 = x->props.saddr.a4;
 	t->props.flags = x->props.flags;
+	memcpy(&t->mark, &x->mark, sizeof(t->mark));
 
 	if (xfrm_init_state(t))
 		goto error;
@@ -87,8 +88,9 @@ static int ipcomp_tunnel_attach(struct xfrm_state *x)
 	struct net *net = xs_net(x);
 	int err = 0;
 	struct xfrm_state *t;
+	u32 mark = x->mark.v & x->mark.m;
 
-	t = xfrm_state_lookup(net, (xfrm_address_t *)&x->id.daddr.a4,
+	t = xfrm_state_lookup(net, mark, (xfrm_address_t *)&x->id.daddr.a4,
 			      x->props.saddr.a4, IPPROTO_IPIP, AF_INET);
 	if (!t) {
 		t = ipcomp_tunnel_create(x);
