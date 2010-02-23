@@ -5884,7 +5884,7 @@ unsigned long kvm_get_rflags(struct kvm_vcpu *vcpu)
 
 	rflags = kvm_x86_ops->get_rflags(vcpu);
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
-		rflags &= ~(unsigned long)(X86_EFLAGS_TF | X86_EFLAGS_RF);
+		rflags &= ~X86_EFLAGS_TF;
 	return rflags;
 }
 EXPORT_SYMBOL_GPL(kvm_get_rflags);
@@ -5893,7 +5893,7 @@ void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP &&
 	    kvm_is_linear_rip(vcpu, vcpu->arch.singlestep_rip))
-		rflags |= X86_EFLAGS_TF | X86_EFLAGS_RF;
+		rflags |= X86_EFLAGS_TF;
 	kvm_x86_ops->set_rflags(vcpu, rflags);
 }
 EXPORT_SYMBOL_GPL(kvm_set_rflags);
