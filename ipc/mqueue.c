@@ -134,7 +134,6 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 			init_waitqueue_head(&info->wait_q);
 			INIT_LIST_HEAD(&info->e_wait_q[0].list);
 			INIT_LIST_HEAD(&info->e_wait_q[1].list);
-			info->messages = NULL;
 			info->notify_owner = NULL;
 			info->qsize = 0;
 			info->user = NULL;	/* set when all is ok */
@@ -146,6 +145,10 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 				info->attr.mq_msgsize = attr->mq_msgsize;
 			}
 			mq_msg_tblsz = info->attr.mq_maxmsg * sizeof(struct msg_msg *);
+			info->messages = kmalloc(mq_msg_tblsz, GFP_KERNEL);
+			if (!info->messages)
+				goto out_inode;
+
 			mq_bytes = (mq_msg_tblsz +
 				(info->attr.mq_maxmsg * info->attr.mq_msgsize));
 
@@ -154,18 +157,12 @@ static struct inode *mqueue_get_inode(struct super_block *sb,
 		 	    u->mq_bytes + mq_bytes >
 			    p->signal->rlim[RLIMIT_MSGQUEUE].rlim_cur) {
 				spin_unlock(&mq_lock);
+				kfree(info->messages);
 				goto out_inode;
 			}
 			u->mq_bytes += mq_bytes;
 			spin_unlock(&mq_lock);
 
-			info->messages = kmalloc(mq_msg_tblsz, GFP_KERNEL);
-			if (!info->messages) {
-				spin_lock(&mq_lock);
-				u->mq_bytes -= mq_bytes;
-				spin_unlock(&mq_lock);
-				goto out_inode;
-			}
 			/* all is ok */
 			info->user = get_uid(u);
 		} else if (S_ISDIR(mode)) {
