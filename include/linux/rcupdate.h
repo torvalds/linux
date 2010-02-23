@@ -182,8 +182,8 @@ static inline int rcu_read_lock_sched_held(void)
  */
 #define rcu_dereference_check(p, c) \
 	({ \
-		if (debug_locks) \
-			WARN_ON_ONCE(!(c)); \
+		if (debug_locks && !(c)) \
+			lockdep_rcu_dereference(__FILE__, __LINE__); \
 		rcu_dereference_raw(p); \
 	})
 
