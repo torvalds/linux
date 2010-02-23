@@ -500,7 +500,7 @@ static void print_cpu_stall(struct rcu_state *rsp)
 	trigger_all_cpu_backtrace();
 
 	spin_lock_irqsave(&rnp->lock, flags);
-	if ((long)(jiffies - rsp->jiffies_stall) >= 0)
+	if (ULONG_CMP_GE(jiffies, rsp->jiffies_stall))
 		rsp->jiffies_stall =
 			jiffies + RCU_SECONDS_TILL_STALL_RECHECK;
 	spin_unlock_irqrestore(&rnp->lock, flags);
@@ -1216,8 +1216,7 @@ static void force_quiescent_state(struct rcu_state *rsp, int relaxed)
 		rsp->n_force_qs_lh++; /* Inexact, can lose counts.  Tough! */
 		return;	/* Someone else is already on the job. */
 	}
-	if (relaxed &&
-	    (long)(rsp->jiffies_force_qs - jiffies) >= 0)
+	if (relaxed && ULONG_CMP_GE(rsp->jiffies_force_qs, jiffies))
 		goto unlock_fqs_ret; /* no emergency and done recently. */
 	rsp->n_force_qs++;
 	spin_lock(&rnp->lock);  /* irqs already disabled */
@@ -1295,7 +1294,7 @@ __rcu_process_callbacks(struct rcu_state *rsp, struct rcu_data *rdp)
 	 * If an RCU GP has gone long enough, go check for dyntick
 	 * idle CPUs and, if needed, send resched IPIs.
 	 */
-	if ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0)
+	if (ULONG_CMP_LT(ACCESS_ONCE(rsp->jiffies_force_qs), jiffies))
 		force_quiescent_state(rsp, 1);
 
 	/*
@@ -1392,7 +1391,7 @@ __call_rcu(struct rcu_head *head, void (*func)(struct rcu_head *rcu),
 			force_quiescent_state(rsp, 0);
 		rdp->n_force_qs_snap = rsp->n_force_qs;
 		rdp->qlen_last_fqs_check = rdp->qlen;
-	} else if ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0)
+	} else if (ULONG_CMP_LT(ACCESS_ONCE(rsp->jiffies_force_qs), jiffies))
 		force_quiescent_state(rsp, 1);
 	local_irq_restore(flags);
 }
@@ -1525,7 +1524,7 @@ static int __rcu_pending(struct rcu_state *rsp, struct rcu_data *rdp)
 
 	/* Has an RCU GP gone long enough to send resched IPIs &c? */
 	if (rcu_gp_in_progress(rsp) &&
-	    ((long)(ACCESS_ONCE(rsp->jiffies_force_qs) - jiffies) < 0)) {
+	    ULONG_CMP_LT(ACCESS_ONCE(rsp->jiffies_force_qs), jiffies)) {
 		rdp->n_rp_need_fqs++;
 		return 1;
 	}

@@ -92,10 +92,10 @@ struct rcu_dynticks {
 struct rcu_node {
 	spinlock_t lock;	/* Root rcu_node's lock protects some */
 				/*  rcu_state fields as well as following. */
-	long	gpnum;		/* Current grace period for this node. */
+	unsigned long gpnum;	/* Current grace period for this node. */
 				/*  This will either be equal to or one */
 				/*  behind the root rcu_node's gpnum. */
-	long	completed;	/* Last grace period completed for this node. */
+	unsigned long completed; /* Last GP completed for this node. */
 				/*  This will either be equal to or one */
 				/*  behind the root rcu_node's gpnum. */
 	unsigned long qsmask;	/* CPUs or groups that need to switch in */
@@ -161,11 +161,11 @@ struct rcu_node {
 /* Per-CPU data for read-copy update. */
 struct rcu_data {
 	/* 1) quiescent-state and grace-period handling : */
-	long		completed;	/* Track rsp->completed gp number */
+	unsigned long	completed;	/* Track rsp->completed gp number */
 					/*  in order to detect GP end. */
-	long		gpnum;		/* Highest gp number that this CPU */
+	unsigned long	gpnum;		/* Highest gp number that this CPU */
 					/*  is aware of having started. */
-	long		passed_quiesc_completed;
+	unsigned long	passed_quiesc_completed;
 					/* Value of completed at time of qs. */
 	bool		passed_quiesc;	/* User-mode/idle loop etc. */
 	bool		qs_pending;	/* Core waits for quiesc state. */
@@ -221,14 +221,14 @@ struct rcu_data {
 	unsigned long resched_ipi;	/* Sent a resched IPI. */
 
 	/* 5) __rcu_pending() statistics. */
-	long n_rcu_pending;		/* rcu_pending() calls since boot. */
-	long n_rp_qs_pending;
-	long n_rp_cb_ready;
-	long n_rp_cpu_needs_gp;
-	long n_rp_gp_completed;
-	long n_rp_gp_started;
-	long n_rp_need_fqs;
-	long n_rp_need_nothing;
+	unsigned long n_rcu_pending;	/* rcu_pending() calls since boot. */
+	unsigned long n_rp_qs_pending;
+	unsigned long n_rp_cb_ready;
+	unsigned long n_rp_cpu_needs_gp;
+	unsigned long n_rp_gp_completed;
+	unsigned long n_rp_gp_started;
+	unsigned long n_rp_need_fqs;
+	unsigned long n_rp_need_nothing;
 
 	int cpu;
 };
@@ -254,6 +254,9 @@ struct rcu_data {
 						  /*  before ratting on them. */
 
 #endif /* #ifdef CONFIG_RCU_CPU_STALL_DETECTOR */
+
+#define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
+#define ULONG_CMP_LT(a, b)	(ULONG_MAX / 2 < (a) - (b))
 
 /*
  * RCU global state, including node hierarchy.  This hierarchy is
@@ -283,8 +286,8 @@ struct rcu_state {
 						/*  period because */
 						/*  force_quiescent_state() */
 						/*  was running. */
-	long	gpnum;				/* Current gp number. */
-	long	completed;			/* # of last completed gp. */
+	unsigned long gpnum;			/* Current gp number. */
+	unsigned long completed;		/* # of last completed gp. */
 
 	/* End of fields guarded by root rcu_node's lock. */
 
