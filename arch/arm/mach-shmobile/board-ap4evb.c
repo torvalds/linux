@@ -29,6 +29,8 @@
 #include <linux/io.h>
 #include <linux/smsc911x.h>
 #include <linux/gpio.h>
+#include <linux/input.h>
+#include <linux/input/sh_keysc.h>
 #include <mach/common.h>
 #include <mach/sh7372.h>
 #include <asm/mach-types.h>
@@ -75,6 +77,15 @@
  * -----------------------
  *  ON		access disable
  *  OFF		access enable
+ */
+
+/*
+ * KEYSC
+ *
+ * SW43		KEYSC
+ * -------------------------
+ * ON		enable
+ * OFF		disable
  */
 
 /* MTD */
@@ -158,9 +169,47 @@ static struct platform_device smc911x_device = {
 	},
 };
 
+/* KEYSC (Needs SW43 set to ON) */
+static struct sh_keysc_info keysc_info = {
+	.mode		= SH_KEYSC_MODE_1,
+	.scan_timing	= 3,
+	.delay		= 2500,
+	.keycodes = {
+		KEY_0, KEY_1, KEY_2, KEY_3, KEY_4,
+		KEY_5, KEY_6, KEY_7, KEY_8, KEY_9,
+		KEY_A, KEY_B, KEY_C, KEY_D, KEY_E,
+		KEY_F, KEY_G, KEY_H, KEY_I, KEY_J,
+		KEY_K, KEY_L, KEY_M, KEY_N, KEY_O,
+	},
+};
+
+static struct resource keysc_resources[] = {
+	[0] = {
+		.name	= "KEYSC",
+		.start  = 0xe61b0000,
+		.end    = 0xe61b0063,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 79,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device keysc_device = {
+	.name           = "sh_keysc",
+	.id             = 0, /* "keysc0" clock */
+	.num_resources  = ARRAY_SIZE(keysc_resources),
+	.resource       = keysc_resources,
+	.dev	= {
+		.platform_data	= &keysc_info,
+	},
+};
+
 static struct platform_device *ap4evb_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
+	&keysc_device,
 };
 
 static struct map_desc ap4evb_io_desc[] __initdata = {
@@ -224,6 +273,18 @@ static void __init ap4evb_init(void)
 	gpio_export(GPIO_PORT33, 0);
 	gpio_export(GPIO_PORT34, 0);
 	gpio_export(GPIO_PORT35, 0);
+
+	/* enable KEYSC */
+	gpio_request(GPIO_FN_KEYOUT0, NULL);
+	gpio_request(GPIO_FN_KEYOUT1, NULL);
+	gpio_request(GPIO_FN_KEYOUT2, NULL);
+	gpio_request(GPIO_FN_KEYOUT3, NULL);
+	gpio_request(GPIO_FN_KEYOUT4, NULL);
+	gpio_request(GPIO_FN_KEYIN0_136, NULL);
+	gpio_request(GPIO_FN_KEYIN1_135, NULL);
+	gpio_request(GPIO_FN_KEYIN2_134, NULL);
+	gpio_request(GPIO_FN_KEYIN3_133, NULL);
+	gpio_request(GPIO_FN_KEYIN4,     NULL);
 
 	sh7372_add_standard_devices();
 
