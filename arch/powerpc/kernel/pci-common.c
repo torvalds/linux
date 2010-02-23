@@ -1047,10 +1047,8 @@ static void __devinit pcibios_fixup_bridge(struct pci_bus *bus)
 
 	struct pci_dev *dev = bus->self;
 
-	for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
-		if ((res = bus->resource[i]) == NULL)
-			continue;
-		if (!res->flags)
+	pci_bus_for_each_resource(bus, res, i) {
+		if (!res || !res->flags)
 			continue;
 		if (i >= 3 && bus->self->transparent)
 			continue;
@@ -1277,9 +1275,8 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 	pr_debug("PCI: Allocating bus resources for %04x:%02x...\n",
 		 pci_domain_nr(bus), bus->number);
 
-	for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
-		if ((res = bus->resource[i]) == NULL || !res->flags
-		    || res->start > res->end || res->parent)
+	pci_bus_for_each_resource(bus, res, i) {
+		if (!res || !res->flags || res->start > res->end || res->parent)
 			continue;
 		if (bus->parent == NULL)
 			pr = (res->flags & IORESOURCE_IO) ?

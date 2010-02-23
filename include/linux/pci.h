@@ -829,6 +829,9 @@ int pci_request_selected_regions_exclusive(struct pci_dev *, int, const char *);
 void pci_release_selected_regions(struct pci_dev *, int);
 
 /* drivers/pci/bus.c */
+#define pci_bus_for_each_resource(bus, res, i)				\
+	for (i = 0; res = bus->resource[i], i < PCI_BUS_NUM_RESOURCES; i++)
+
 int __must_check pci_bus_alloc_resource(struct pci_bus *bus,
 			struct resource *res, resource_size_t size,
 			resource_size_t align, resource_size_t min,

@@ -387,8 +387,7 @@ static struct resource *find_free_bus_resource(struct pci_bus *bus, unsigned lon
 	unsigned long type_mask = IORESOURCE_IO | IORESOURCE_MEM |
 				  IORESOURCE_PREFETCH;
 
-	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
-		r = bus->resource[i];
+	pci_bus_for_each_resource(bus, r, i) {
 		if (r == &ioport_resource || r == &iomem_resource)
 			continue;
 		if (r && (r->flags & type_mask) == type && !r->parent)
@@ -803,11 +802,10 @@ static void __ref pci_bus_release_bridge_resources(struct pci_bus *bus,
 
 static void pci_bus_dump_res(struct pci_bus *bus)
 {
-        int i;
+	struct resource *res;
+	int i;
 
-        for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
-                struct resource *res = bus->resource[i];
-
+	pci_bus_for_each_resource(bus, res, i) {
 		if (!res || !res->end || !res->flags)
                         continue;
 

@@ -803,8 +803,7 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		return -EINVAL;
 #endif
 
-	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
-		res = s->cb_dev->bus->resource[i];
+	pci_bus_for_each_resource(s->cb_dev->bus, res, i) {
 		if (!res)
 			continue;
 
