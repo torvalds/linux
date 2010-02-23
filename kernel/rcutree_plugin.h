@@ -318,18 +318,15 @@ EXPORT_SYMBOL_GPL(__rcu_read_unlock);
  */
 static void rcu_print_task_stall(struct rcu_node *rnp)
 {
-	unsigned long flags;
 	struct list_head *lp;
 	int phase;
 	struct task_struct *t;
 
 	if (rcu_preempted_readers(rnp)) {
-		raw_spin_lock_irqsave(&rnp->lock, flags);
 		phase = rnp->gpnum & 0x1;
 		lp = &rnp->blocked_tasks[phase];
 		list_for_each_entry(t, lp, rcu_node_entry)
 			printk(" P%d", t->pid);
-		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	}
 }
 
