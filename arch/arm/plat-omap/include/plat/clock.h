@@ -190,10 +190,9 @@ extern const struct clkops clkops_null;
 #define ENABLE_REG_32BIT	(1 << 1)	/* Use 32-bit access */
 #define CLOCK_IDLE_CONTROL	(1 << 2)
 #define CLOCK_NO_IDLE_PARENT	(1 << 3)
-#define DELAYED_APP		(1 << 4)	/* Delay application of clock */
-#define ENABLE_ON_INIT		(1 << 5)	/* Enable upon framework init */
-#define INVERT_ENABLE		(1 << 6)	/* 0 enables, 1 disables */
-#define ALWAYS_ENABLED		(1 << 7)
+#define ENABLE_ON_INIT		(1 << 4)	/* Enable upon framework init */
+#define INVERT_ENABLE		(1 << 5)	/* 0 enables, 1 disables */
+#define ALWAYS_ENABLED		(1 << 6)
 
 /* Clksel_rate flags */
 #define DEFAULT_RATE		(1 << 0)

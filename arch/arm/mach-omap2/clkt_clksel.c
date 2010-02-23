@@ -377,8 +377,6 @@ int omap2_clksel_set_rate(struct clk *clk, unsigned long rate)
 
 	clk->rate = clk->parent->rate / new_div;
 
-	omap2xxx_clk_commit(clk);
-
 	return 0;
 }
 
@@ -399,8 +397,6 @@ int omap2_clksel_set_parent(struct clk *clk, struct clk *new_parent)
 	v |= field_val << __ffs(clk->clksel_mask);
 	__raw_writel(v, clk->clksel_reg);
 	v = __raw_readl(clk->clksel_reg);    /* OCP barrier */
-
-	omap2xxx_clk_commit(clk);
 
 	clk_reparent(clk, new_parent);
 

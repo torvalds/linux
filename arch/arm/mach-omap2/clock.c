@@ -2,7 +2,7 @@
  *  linux/arch/arm/mach-omap2/clock.c
  *
  *  Copyright (C) 2005-2008 Texas Instruments, Inc.
- *  Copyright (C) 2004-2008 Nokia Corporation
+ *  Copyright (C) 2004-2010 Nokia Corporation
  *
  *  Contacts:
  *  Richard Woodruff <r-woodruff2@ti.com>
@@ -14,12 +14,9 @@
  */
 #undef DEBUG
 
-#include <linux/module.h>
 #include <linux/kernel.h>
-#include <linux/device.h>
 #include <linux/list.h>
 #include <linux/errno.h>
-#include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
@@ -87,28 +84,6 @@ static void _omap2_clk_disable(struct clk *clk)
 }
 
 /* Public functions */
-
-/**
- * omap2xxx_clk_commit - commit clock parent/rate changes in hardware
- * @clk: struct clk *
- *
- * If @clk has the DELAYED_APP flag set, meaning that parent/rate changes
- * don't take effect until the VALID_CONFIG bit is written, write the
- * VALID_CONFIG bit and wait for the write to complete.  No return value.
- */
-void omap2xxx_clk_commit(struct clk *clk)
-{
-	if (!cpu_is_omap24xx())
-		return;
-
-	if (!(clk->flags & DELAYED_APP))
-		return;
-
-	prm_write_mod_reg(OMAP24XX_VALID_CONFIG, OMAP24XX_GR_MOD,
-		OMAP2_PRCM_CLKCFG_CTRL_OFFSET);
-	/* OCP barrier */
-	prm_read_mod_reg(OMAP24XX_GR_MOD, OMAP2_PRCM_CLKCFG_CTRL_OFFSET);
-}
 
 /**
  * omap2_init_clk_clkdm - look up a clockdomain name, store pointer in clk
