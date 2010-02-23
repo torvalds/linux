@@ -39,42 +39,36 @@ static struct clk extalt_clkin_ck = {
 	.name		= "extalt_clkin_ck",
 	.rate		= 59000000,
 	.ops		= &clkops_null,
-	.flags		= ALWAYS_ENABLED,
 };
 
 static struct clk pad_clks_ck = {
 	.name		= "pad_clks_ck",
 	.rate		= 12000000,
 	.ops		= &clkops_null,
-	.flags		= ALWAYS_ENABLED,
 };
 
 static struct clk pad_slimbus_core_clks_ck = {
 	.name		= "pad_slimbus_core_clks_ck",
 	.rate		= 12000000,
 	.ops		= &clkops_null,
-	.flags		= ALWAYS_ENABLED,
 };
 
 static struct clk secure_32k_clk_src_ck = {
 	.name		= "secure_32k_clk_src_ck",
 	.rate		= 32768,
 	.ops		= &clkops_null,
-	.flags		= ALWAYS_ENABLED,
 };
 
 static struct clk slimbus_clk = {
 	.name		= "slimbus_clk",
 	.rate		= 12000000,
 	.ops		= &clkops_null,
-	.flags		= ALWAYS_ENABLED,
 };
 
 static struct clk sys_32k_ck = {
 	.name		= "sys_32k_ck",
 	.rate		= 32768,
 	.ops		= &clkops_null,
-	.flags		= ALWAYS_ENABLED,
 };
 
 static struct clk virt_12000000_ck = {
@@ -179,35 +173,30 @@ static struct clk sys_clkin_ck = {
 	.clksel_mask	= OMAP4430_SYS_CLKSEL_MASK,
 	.ops		= &clkops_null,
 	.recalc		= &omap2_clksel_recalc,
-	.flags		= ALWAYS_ENABLED,
 };
 
 static struct clk utmi_phy_clkout_ck = {
 	.name		= "utmi_phy_clkout_ck",
 	.rate		= 12000000,
 	.ops		= &clkops_null,
-	.flags		= ALWAYS_ENABLED,
 };
 
 static struct clk xclk60mhsp1_ck = {
 	.name		= "xclk60mhsp1_ck",
 	.rate		= 12000000,
 	.ops		= &clkops_null,
-	.flags		= ALWAYS_ENABLED,
 };
 
 static struct clk xclk60mhsp2_ck = {
 	.name		= "xclk60mhsp2_ck",
 	.rate		= 12000000,
 	.ops		= &clkops_null,
-	.flags		= ALWAYS_ENABLED,
 };
 
 static struct clk xclk60motg_ck = {
 	.name		= "xclk60motg_ck",
 	.rate		= 60000000,
 	.ops		= &clkops_null,
-	.flags		= ALWAYS_ENABLED,
 };
 
 /* Module clocks and DPLL outputs */

@@ -191,7 +191,6 @@ extern const struct clkops clkops_null;
 #define CLOCK_NO_IDLE_PARENT	(1 << 2)
 #define ENABLE_ON_INIT		(1 << 3)	/* Enable upon framework init */
 #define INVERT_ENABLE		(1 << 4)	/* 0 enables, 1 disables */
-#define ALWAYS_ENABLED		(1 << 5)
 
 /* Clksel_rate flags */
 #define DEFAULT_RATE		(1 << 0)
