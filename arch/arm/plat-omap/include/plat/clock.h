@@ -120,7 +120,6 @@ struct clk {
 	struct list_head	node;
 	const struct clkops	*ops;
 	const char		*name;
-	int			id;
 	struct clk		*parent;
 	struct list_head	children;
 	struct list_head	sibling;	/* node for children */
