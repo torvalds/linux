@@ -35,7 +35,7 @@ void extent_map_exit(void)
  */
 void extent_map_tree_init(struct extent_map_tree *tree, gfp_t mask)
 {
-	tree->map.rb_node = NULL;
+	tree->map = RB_ROOT;
 	rwlock_init(&tree->lock);
 }
 
