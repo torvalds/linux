@@ -154,9 +154,9 @@ static void fill_fb(struct fb_info *fbi)
 }
 #endif
 
-static unsigned omapfb_get_vrfb_offset(struct omapfb_info *ofbi, int rot)
+static unsigned omapfb_get_vrfb_offset(const struct omapfb_info *ofbi, int rot)
 {
-	struct vrfb *vrfb = &ofbi->region.vrfb;
+	const struct vrfb *vrfb = &ofbi->region.vrfb;
 	unsigned offset;
 
 	switch (rot) {
@@ -181,7 +181,7 @@ static unsigned omapfb_get_vrfb_offset(struct omapfb_info *ofbi, int rot)
 	return offset;
 }
 
-static u32 omapfb_get_region_rot_paddr(struct omapfb_info *ofbi, int rot)
+static u32 omapfb_get_region_rot_paddr(const struct omapfb_info *ofbi, int rot)
 {
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
 		return ofbi->region.vrfb.paddr[rot]
@@ -191,7 +191,7 @@ static u32 omapfb_get_region_rot_paddr(struct omapfb_info *ofbi, int rot)
 	}
 }
 
-static u32 omapfb_get_region_paddr(struct omapfb_info *ofbi)
+static u32 omapfb_get_region_paddr(const struct omapfb_info *ofbi)
 {
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
 		return ofbi->region.vrfb.paddr[0];
@@ -199,7 +199,7 @@ static u32 omapfb_get_region_paddr(struct omapfb_info *ofbi)
 		return ofbi->region.paddr;
 }
 
-static void __iomem *omapfb_get_region_vaddr(struct omapfb_info *ofbi)
+static void __iomem *omapfb_get_region_vaddr(const struct omapfb_info *ofbi)
 {
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
 		return ofbi->region.vrfb.vaddr[0];
@@ -780,8 +780,8 @@ static int omapfb_release(struct fb_info *fbi, int user)
 	return 0;
 }
 
-static unsigned calc_rotation_offset_dma(struct fb_var_screeninfo *var,
-		struct fb_fix_screeninfo *fix, int rotation)
+static unsigned calc_rotation_offset_dma(const struct fb_var_screeninfo *var,
+		const struct fb_fix_screeninfo *fix, int rotation)
 {
 	unsigned offset;
 
@@ -791,8 +791,8 @@ static unsigned calc_rotation_offset_dma(struct fb_var_screeninfo *var,
 	return offset;
 }
 
-static unsigned calc_rotation_offset_vrfb(struct fb_var_screeninfo *var,
-		struct fb_fix_screeninfo *fix, int rotation)
+static unsigned calc_rotation_offset_vrfb(const struct fb_var_screeninfo *var,
+		const struct fb_fix_screeninfo *fix, int rotation)
 {
 	unsigned offset;
 
