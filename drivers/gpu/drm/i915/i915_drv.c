@@ -49,6 +49,7 @@ unsigned int i915_lvds_downclock = 0;
 module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
 
 static struct drm_driver driver;
+extern int intel_agp_enabled;
 
 #define INTEL_VGA_DEVICE(id, info) {		\
 	.class = PCI_CLASS_DISPLAY_VGA << 8,	\
@@ -558,6 +559,11 @@ static struct drm_driver driver = {
 
 static int __init i915_init(void)
 {
+	if (!intel_agp_enabled) {
+		DRM_ERROR("drm/i915 can't work without intel_agp module!\n");
+		return -ENODEV;
+	}
+
 	driver.num_ioctls = i915_max_ioctl;
 
 	i915_gem_shrinker_init();
