@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/mutex.h>
 #include <linux/interrupt.h>
+#include <linux/completion.h>
 
 #include <linux/mfd/wm8350/audio.h>
 #include <linux/mfd/wm8350/gpio.h>
@@ -621,6 +622,7 @@ struct wm8350 {
 	u16 *reg_cache;
 
 	struct mutex auxadc_mutex;
+	struct completion auxadc_done;
 
 	/* Interrupt handling */
 	struct mutex irq_lock;
