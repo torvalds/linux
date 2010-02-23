@@ -236,23 +236,6 @@ static void svm_set_efer(struct kvm_vcpu *vcpu, u64 efer)
 	vcpu->arch.efer = efer;
 }
 
-static void svm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
-				bool has_error_code, u32 error_code)
-{
-	struct vcpu_svm *svm = to_svm(vcpu);
-
-	/* If we are within a nested VM we'd better #VMEXIT and let the
-	   guest handle the exception */
-	if (nested_svm_check_exception(svm, nr, has_error_code, error_code))
-		return;
-
-	svm->vmcb->control.event_inj = nr
-		| SVM_EVTINJ_VALID
-		| (has_error_code ? SVM_EVTINJ_VALID_ERR : 0)
-		| SVM_EVTINJ_TYPE_EXEPT;
-	svm->vmcb->control.event_inj_err = error_code;
-}
-
 static int is_external_interrupt(u32 info)
 {
 	info &= SVM_EVTINJ_TYPE_MASK | SVM_EVTINJ_VALID;
@@ -296,6 +279,23 @@ static void skip_emulated_instruction(struct kvm_vcpu *vcpu)
 
 	kvm_rip_write(vcpu, svm->next_rip);
 	svm_set_interrupt_shadow(vcpu, 0);
+}
+
+static void svm_queue_exception(struct kvm_vcpu *vcpu, unsigned nr,
+				bool has_error_code, u32 error_code)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+
+	/* If we are within a nested VM we'd better #VMEXIT and let the
+	   guest handle the exception */
+	if (nested_svm_check_exception(svm, nr, has_error_code, error_code))
+		return;
+
+	svm->vmcb->control.event_inj = nr
+		| SVM_EVTINJ_VALID
+		| (has_error_code ? SVM_EVTINJ_VALID_ERR : 0)
+		| SVM_EVTINJ_TYPE_EXEPT;
+	svm->vmcb->control.event_inj_err = error_code;
 }
 
 static int has_svm(void)
