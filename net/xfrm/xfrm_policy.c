@@ -1154,6 +1154,7 @@ static struct xfrm_policy *clone_policy(struct xfrm_policy *old, int dir)
 		}
 		newp->lft = old->lft;
 		newp->curlft = old->curlft;
+		newp->mark = old->mark;
 		newp->action = old->action;
 		newp->flags = old->flags;
 		newp->xfrm_nr = old->xfrm_nr;
