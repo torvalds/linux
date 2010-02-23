@@ -566,6 +566,7 @@ static int __init acpi_pci_root_init(void)
 	if (acpi_pci_disabled)
 		return 0;
 
+	pci_acpi_crs_quirks();
 	if (acpi_bus_register_driver(&acpi_pci_root_driver) < 0)
 		return -ENODEV;
 

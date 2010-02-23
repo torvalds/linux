@@ -98,6 +98,7 @@ ia64_acpi_release_global_lock (unsigned int *lock)
 #endif
 #define acpi_processor_cstate_check(x) (x) /* no idle limits on IA64 :) */
 static inline void disable_acpi(void) { }
+static inline void pci_acpi_crs_quirks(void) { }
 
 const char *acpi_get_sysname (void);
 int acpi_request_vector (u32 int_type);
