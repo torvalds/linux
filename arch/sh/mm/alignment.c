@@ -27,6 +27,8 @@ static int se_usermode = UM_WARN | UM_FIXUP;
 /* 0: no warning 1: print a warning message, disabled by default */
 static int se_kernmode_warn;
 
+core_param(alignment, se_usermode, int, 0600);
+
 void inc_unaligned_byte_access(void)
 {
 	se_half++;
