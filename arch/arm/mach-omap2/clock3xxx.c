@@ -18,12 +18,9 @@
 
 #include <linux/kernel.h>
 #include <linux/errno.h>
-#include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/err.h>
 
-#include <plat/cpu.h>
 #include <plat/clock.h>
 
 #include "clock.h"
@@ -83,63 +80,25 @@ void __init omap3_clk_lock_dpll5(void)
 
 /* Common clock code */
 
-/* REVISIT: Move this init stuff out into clock.c */
-
 /*
- * Switch the MPU rate if specified on cmdline.
- * We cannot do this early until cmdline is parsed.
+ * Switch the MPU rate if specified on cmdline.  We cannot do this
+ * early until cmdline is parsed.  XXX This should be removed from the
+ * clock code and handled by the OPP layer code in the near future.
  */
 static int __init omap3xxx_clk_arch_init(void)
 {
-	struct clk *osc_sys_ck, *dpll1_ck, *arm_fck, *core_ck;
-	unsigned long osc_sys_rate;
-	bool err = 0;
+	int ret;
 
 	if (!cpu_is_omap34xx())
 		return 0;
 
-	if (!mpurate)
-		return -EINVAL;
+	ret = omap2_clk_switch_mpurate_at_boot("dpll1_ck");
+	if (!ret)
+		omap2_clk_print_new_rates("osc_sys_ck", "arm_fck", "core_ck");
 
-	/* XXX test these for success */
-	dpll1_ck = clk_get(NULL, "dpll1_ck");
-	if (WARN(IS_ERR(dpll1_ck), "Failed to get dpll1_ck.\n"))
-		err = 1;
-
-	arm_fck = clk_get(NULL, "arm_fck");
-	if (WARN(IS_ERR(arm_fck), "Failed to get arm_fck.\n"))
-		err = 1;
-
-	core_ck = clk_get(NULL, "core_ck");
-	if (WARN(IS_ERR(core_ck), "Failed to get core_ck.\n"))
-		err = 1;
-
-	osc_sys_ck = clk_get(NULL, "osc_sys_ck");
-	if (WARN(IS_ERR(osc_sys_ck), "Failed to get osc_sys_ck.\n"))
-		err = 1;
-
-	if (err)
-		return -ENOENT;
-
-	/* REVISIT: not yet ready for 343x */
-	if (clk_set_rate(dpll1_ck, mpurate))
-		printk(KERN_ERR "*** Unable to set MPU rate\n");
-
-	recalculate_root_clocks();
-
-	osc_sys_rate = clk_get_rate(osc_sys_ck);
-
-	pr_info("Switched to new clocking rate (Crystal/Core/MPU): "
-		"%ld.%01ld/%ld/%ld MHz\n",
-		(osc_sys_rate / 1000000),
-		((osc_sys_rate / 100000) % 10),
-		(clk_get_rate(core_ck) / 1000000),
-		(clk_get_rate(arm_fck) / 1000000));
-
-	calibrate_delay();
-
-	return 0;
+	return ret;
 }
+
 arch_initcall(omap3xxx_clk_arch_init);
 
 

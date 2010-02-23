@@ -50,40 +50,24 @@ void omap2xxx_clk_prepare_for_reboot(void)
 }
 
 /*
- * Switch the MPU rate if specified on cmdline.
- * We cannot do this early until cmdline is parsed.
+ * Switch the MPU rate if specified on cmdline.  We cannot do this
+ * early until cmdline is parsed.  XXX This should be removed from the
+ * clock code and handled by the OPP layer code in the near future.
  */
 static int __init omap2xxx_clk_arch_init(void)
 {
-	struct clk *virt_prcm_set, *sys_ck, *dpll_ck, *mpu_ck;
-	unsigned long sys_ck_rate;
+	int ret;
 
 	if (!cpu_is_omap24xx())
 		return 0;
 
-	if (!mpurate)
-		return -EINVAL;
+	ret = omap2_clk_switch_mpurate_at_boot("virt_prcm_set");
+	if (!ret)
+		omap2_clk_print_new_rates("sys_ck", "dpll_ck", "mpu_ck");
 
-	virt_prcm_set = clk_get(NULL, "virt_prcm_set");
-	sys_ck = clk_get(NULL, "sys_ck");
-	dpll_ck = clk_get(NULL, "dpll_ck");
-	mpu_ck = clk_get(NULL, "mpu_ck");
-
-	if (clk_set_rate(virt_prcm_set, mpurate))
-		pr_err("Could not find matching MPU rate\n");
-
-	recalculate_root_clocks();
-
-	sys_ck_rate = clk_get_rate(sys_ck);
-
-	pr_info("Switched to new clocking rate (Crystal/DPLL/MPU): "
-		"%ld.%01ld/%ld/%ld MHz\n",
-		(sys_ck_rate / 1000000), (sys_ck_rate / 100000) % 10,
-		(clk_get_rate(dpll_ck) / 1000000),
-		(clk_get_rate(mpu_ck) / 1000000));
-
-	return 0;
+	return ret;
 }
+
 arch_initcall(omap2xxx_clk_arch_init);
 
 

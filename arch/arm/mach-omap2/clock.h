@@ -119,6 +119,10 @@ void omap2_clk_dflt_find_companion(struct clk *clk, void __iomem **other_reg,
 				   u8 *other_bit);
 void omap2_clk_dflt_find_idlest(struct clk *clk, void __iomem **idlest_reg,
 				u8 *idlest_bit, u8 *idlest_val);
+int omap2_clk_switch_mpurate_at_boot(const char *mpurate_ck_name);
+void omap2_clk_print_new_rates(const char *hfclkin_ck_name,
+			       const char *core_ck_name,
+			       const char *mpu_ck_name);
 
 extern u8 cpu_mask;
 

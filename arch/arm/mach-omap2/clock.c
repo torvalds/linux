@@ -17,6 +17,8 @@
 #include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/errno.h>
+#include <linux/err.h>
+#include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
 #include <linux/bitops.h>
@@ -348,6 +350,89 @@ void omap2_clk_disable_unused(struct clk *clk)
 		pwrdm_clkdm_state_switch(clk->clkdm);
 }
 #endif
+
+/**
+ * omap2_clk_switch_mpurate_at_boot - switch ARM MPU rate by boot-time argument
+ * @mpurate_ck_name: clk name of the clock to change rate
+ *
+ * Change the ARM MPU clock rate to the rate specified on the command
+ * line, if one was specified.  @mpurate_ck_name should be
+ * "virt_prcm_set" on OMAP2xxx and "dpll1_ck" on OMAP34xx/OMAP36xx.
+ * XXX Does not handle voltage scaling - on OMAP2xxx this is currently
+ * handled by the virt_prcm_set clock, but this should be handled by
+ * the OPP layer.  XXX This is intended to be handled by the OPP layer
+ * code in the near future and should be removed from the clock code.
+ * Returns -EINVAL if 'mpurate' is zero or if clk_set_rate() rejects
+ * the rate, -ENOENT if the struct clk referred to by @mpurate_ck_name
+ * cannot be found, or 0 upon success.
+ */
+int __init omap2_clk_switch_mpurate_at_boot(const char *mpurate_ck_name)
+{
+	struct clk *mpurate_ck;
+	int r;
+
+	if (!mpurate)
+		return -EINVAL;
+
+	mpurate_ck = clk_get(NULL, mpurate_ck_name);
+	if (WARN(IS_ERR(mpurate_ck), "Failed to get %s.\n", mpurate_ck_name))
+		return -ENOENT;
+
+	r = clk_set_rate(mpurate_ck, mpurate);
+	if (IS_ERR_VALUE(r)) {
+		WARN(1, "clock: %s: unable to set MPU rate to %d: %d\n",
+		     mpurate_ck->name, mpurate, r);
+		return -EINVAL;
+	}
+
+	calibrate_delay();
+	recalculate_root_clocks();
+
+	clk_put(mpurate_ck);
+
+	return 0;
+}
+
+/**
+ * omap2_clk_print_new_rates - print summary of current clock tree rates
+ * @hfclkin_ck_name: clk name for the off-chip HF oscillator
+ * @core_ck_name: clk name for the on-chip CORE_CLK
+ * @mpu_ck_name: clk name for the ARM MPU clock
+ *
+ * Prints a short message to the console with the HFCLKIN oscillator
+ * rate, the rate of the CORE clock, and the rate of the ARM MPU clock.
+ * Called by the boot-time MPU rate switching code.   XXX This is intended
+ * to be handled by the OPP layer code in the near future and should be
+ * removed from the clock code.  No return value.
+ */
+void __init omap2_clk_print_new_rates(const char *hfclkin_ck_name,
+				      const char *core_ck_name,
+				      const char *mpu_ck_name)
+{
+	struct clk *hfclkin_ck, *core_ck, *mpu_ck;
+	unsigned long hfclkin_rate;
+
+	mpu_ck = clk_get(NULL, mpu_ck_name);
+	if (WARN(IS_ERR(mpu_ck), "clock: failed to get %s.\n", mpu_ck_name))
+		return;
+
+	core_ck = clk_get(NULL, core_ck_name);
+	if (WARN(IS_ERR(core_ck), "clock: failed to get %s.\n", core_ck_name))
+		return;
+
+	hfclkin_ck = clk_get(NULL, hfclkin_ck_name);
+	if (WARN(IS_ERR(hfclkin_ck), "Failed to get %s.\n", hfclkin_ck_name))
+		return;
+
+	hfclkin_rate = clk_get_rate(hfclkin_ck);
+
+	pr_info("Switched to new clocking rate (Crystal/Core/MPU): "
+		"%ld.%01ld/%ld/%ld MHz\n",
+		(hfclkin_rate / 1000000),
+		((hfclkin_rate / 100000) % 10),
+		(clk_get_rate(core_ck) / 1000000),
+		(clk_get_rate(mpu_ck) / 1000000));
+}
 
 /* Common data */
 
