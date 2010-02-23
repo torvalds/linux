@@ -362,8 +362,8 @@ struct kvm_vcpu_arch {
 	u64 *mce_banks;
 
 	/* used for guest single stepping over the given code position */
-	u16 singlestep_cs;
 	unsigned long singlestep_rip;
+
 	/* fields used by HYPER-V emulation */
 	u64 hv_vapic;
 };
@@ -819,5 +819,7 @@ int kvm_cpu_get_interrupt(struct kvm_vcpu *v);
 
 void kvm_define_shared_msr(unsigned index, u32 msr);
 void kvm_set_shared_msr(unsigned index, u64 val, u64 mask);
+
+bool kvm_is_linear_rip(struct kvm_vcpu *vcpu, unsigned long linear_rip);
 
 #endif /* _ASM_X86_KVM_HOST_H */

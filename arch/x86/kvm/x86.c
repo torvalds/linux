@@ -5376,11 +5376,9 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 		vcpu->arch.switch_db_regs = (vcpu->arch.dr7 & DR7_BP_EN_MASK);
 	}
 
-	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP) {
-		vcpu->arch.singlestep_cs =
-			get_segment_selector(vcpu, VCPU_SREG_CS);
-		vcpu->arch.singlestep_rip = kvm_rip_read(vcpu);
-	}
+	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP)
+		vcpu->arch.singlestep_rip = kvm_rip_read(vcpu) +
+			get_segment_base(vcpu, VCPU_SREG_CS);
 
 	/*
 	 * Trigger an rflags update that will inject or remove the trace
@@ -5871,6 +5869,15 @@ int kvm_arch_interrupt_allowed(struct kvm_vcpu *vcpu)
 	return kvm_x86_ops->interrupt_allowed(vcpu);
 }
 
+bool kvm_is_linear_rip(struct kvm_vcpu *vcpu, unsigned long linear_rip)
+{
+	unsigned long current_rip = kvm_rip_read(vcpu) +
+		get_segment_base(vcpu, VCPU_SREG_CS);
+
+	return current_rip == linear_rip;
+}
+EXPORT_SYMBOL_GPL(kvm_is_linear_rip);
+
 unsigned long kvm_get_rflags(struct kvm_vcpu *vcpu)
 {
 	unsigned long rflags;
@@ -5885,9 +5892,7 @@ EXPORT_SYMBOL_GPL(kvm_get_rflags);
 void kvm_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
 {
 	if (vcpu->guest_debug & KVM_GUESTDBG_SINGLESTEP &&
-	    vcpu->arch.singlestep_cs ==
-			get_segment_selector(vcpu, VCPU_SREG_CS) &&
-	    vcpu->arch.singlestep_rip == kvm_rip_read(vcpu))
+	    kvm_is_linear_rip(vcpu, vcpu->arch.singlestep_rip))
 		rflags |= X86_EFLAGS_TF | X86_EFLAGS_RF;
 	kvm_x86_ops->set_rflags(vcpu, rflags);
 }
