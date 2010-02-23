@@ -24,7 +24,11 @@
 #include <plat/clkdev_omap.h>
 
 #include "clock.h"
+#include "clock3xxx.h"
 #include "clock34xx.h"
+#include "clock36xx.h"
+#include "clock3517.h"
+
 #include "cm.h"
 #include "cm-regbits-34xx.h"
 #include "prm.h"
@@ -374,7 +378,7 @@ static struct dpll_data dpll2_dd = {
 
 static struct clk dpll2_ck = {
 	.name		= "dpll2_ck",
-	.ops		= &omap3_clkops_noncore_dpll_ops,
+	.ops		= &clkops_omap3_noncore_dpll_ops,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll2_dd,
 	.round_rate	= &omap2_dpll_round_rate,
@@ -615,7 +619,7 @@ static struct dpll_data dpll4_dd_3630 __initdata = {
 
 static struct clk dpll4_ck = {
 	.name		= "dpll4_ck",
-	.ops		= &omap3_clkops_noncore_dpll_ops,
+	.ops		= &clkops_omap3_noncore_dpll_ops,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll4_dd,
 	.round_rate	= &omap2_dpll_round_rate,
@@ -1023,7 +1027,7 @@ static struct dpll_data dpll5_dd = {
 
 static struct clk dpll5_ck = {
 	.name		= "dpll5_ck",
-	.ops		= &omap3_clkops_noncore_dpll_ops,
+	.ops		= &clkops_omap3_noncore_dpll_ops,
 	.parent		= &sys_ck,
 	.dpll_data	= &dpll5_dd,
 	.round_rate	= &omap2_dpll_round_rate,
@@ -3567,10 +3571,12 @@ int __init omap3xxx_clk_init(void)
 
 	clk_init(&omap2_clk_functions);
 
-	for (c = omap3xxx_clks; c < omap3xxx_clks + ARRAY_SIZE(omap3xxx_clks); c++)
+	for (c = omap3xxx_clks; c < omap3xxx_clks + ARRAY_SIZE(omap3xxx_clks);
+	     c++)
 		clk_preinit(c->lk.clk);
 
-	for (c = omap3xxx_clks; c < omap3xxx_clks + ARRAY_SIZE(omap3xxx_clks); c++)
+	for (c = omap3xxx_clks; c < omap3xxx_clks + ARRAY_SIZE(omap3xxx_clks);
+	     c++)
 		if (c->cpu & cpu_clkflg) {
 			clkdev_add(&c->lk);
 			clk_register(c->lk.clk);

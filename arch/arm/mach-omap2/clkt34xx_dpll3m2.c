@@ -26,6 +26,7 @@
 #include <plat/sdrc.h>
 
 #include "clock.h"
+#include "clock3xxx.h"
 #include "clock34xx.h"
 #include "sdrc.h"
 
