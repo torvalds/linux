@@ -57,6 +57,17 @@ struct op_x86_model_spec {
 
 struct op_counter_config;
 
+static inline void op_x86_warn_in_use(int counter)
+{
+	pr_warning("oprofile: counter #%d on cpu #%d may already be used\n",
+		   counter, smp_processor_id());
+}
+
+static inline void op_x86_warn_reserved(int counter)
+{
+	pr_warning("oprofile: counter #%d is already reserved\n", counter);
+}
+
 extern u64 op_x86_get_ctrl(struct op_x86_model_spec const *model,
 			   struct op_counter_config *counter_config);
 extern int op_x86_phys_to_virt(int phys);
