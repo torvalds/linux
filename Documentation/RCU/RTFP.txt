@@ -864,9 +864,12 @@ Revised:
 }
 
 @phdthesis{MathieuDesnoyersPhD
-, title  = "Low-impact Operating System Tracing"
+, title  = "Low-Impact Operating System Tracing"
 , author = "Mathieu Desnoyers"
 , school = "Ecole Polytechnique de Montr\'{e}al"
 , month  = "December"
 , year   = 2009
+,note="Available:
+\url{http://www.lttng.org/pub/thesis/desnoyers-dissertation-2009-12-v24.pdf}
+[Viewed December 9, 2009]"
 }
