@@ -126,13 +126,6 @@ __setup("selinux=", selinux_enabled_setup);
 int selinux_enabled = 1;
 #endif
 
-
-/*
- * Minimal support for a secondary security module,
- * just to allow the use of the capability module.
- */
-static struct security_operations *secondary_ops;
-
 /* Lists of inode and superblock security structures initialized
    before the policy was loaded. */
 static LIST_HEAD(superblock_security_head);
@@ -5674,9 +5667,6 @@ static __init int selinux_init(void)
 					    0, SLAB_PANIC, NULL);
 	avc_init();
 
-	secondary_ops = security_ops;
-	if (!secondary_ops)
-		panic("SELinux: No initial security operations\n");
 	if (register_security(&selinux_ops))
 		panic("SELinux: Unable to register with kernel.\n");
 
@@ -5837,8 +5827,7 @@ int selinux_disable(void)
 	selinux_disabled = 1;
 	selinux_enabled = 0;
 
-	/* Reset security_ops to the secondary module, dummy or capability. */
-	security_ops = secondary_ops;
+	reset_security_ops();
 
 	/* Try to destroy the avc node cache */
 	avc_disable();
