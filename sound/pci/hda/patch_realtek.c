@@ -7008,35 +7008,7 @@ static struct hda_channel_mode alc885_mb5_6ch_modes[2] = {
 	{ 6, alc885_mb5_ch6_init },
 };
 
-/*
- * 2ch
- * Speakers/Woofer/HP = Front
- * LineIn = Input
- */
-static struct hda_verb alc885_macmini3_ch2_init[] = {
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_IN},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_MUTE},
-	{ } /* end */
-};
-
-/*
- * 6ch mode
- * Speakers/HP = Front
- * Woofer = LFE
- * LineIn = Surround
- */
-static struct hda_verb alc885_macmini3_ch6_init[] = {
-	{0x15, AC_VERB_SET_PIN_WIDGET_CONTROL, PIN_OUT},
-	{0x15, AC_VERB_SET_AMP_GAIN_MUTE, AMP_OUT_UNMUTE},
-	{0x15, AC_VERB_SET_CONNECT_SEL, 0x01},
-	{ } /* end */
-};
-
-static struct hda_channel_mode alc885_macmini3_6ch_modes[2] = {
-	{ 2, alc885_mb5_ch2_init },
-	{ 6, alc885_mb5_ch6_init },
-};
-
+#define alc885_macmini3_6ch_modes	alc885_mb5_6ch_modes
 
 /*
  * 2ch mode
