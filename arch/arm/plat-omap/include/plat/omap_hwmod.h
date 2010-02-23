@@ -4,7 +4,7 @@
  * Copyright (C) 2009 Nokia Corporation
  * Paul Walmsley
  *
- * Created in collaboration with (alphabetical order): Benoit Cousson,
+ * Created in collaboration with (alphabetical order): Benoît Cousson,
  * Kevin Hilman, Tony Lindgren, Rajendra Nayak, Vikram Pandita, Sakari
  * Poussa, Anand Sawant, Santosh Shilimkar, Richard Woodruff
  *
@@ -254,7 +254,7 @@ struct omap_hwmod_ocp_if {
  * @sidle_shift: Offset of the sidle bit
  * @enwkup_shift: Offset of the enawakeup bit
  * @srst_shift: Offset of the softreset bit
- * @autoidle_shift: Offset of the autoidle bit.
+ * @autoidle_shift: Offset of the autoidle bit
  */
 struct omap_hwmod_sysc_fields {
 	u8 midle_shift;
@@ -266,7 +266,7 @@ struct omap_hwmod_sysc_fields {
 };
 
 /**
- * struct omap_hwmod_sysconfig - hwmod OCP_SYSCONFIG/OCP_SYSSTATUS data
+ * struct omap_hwmod_class_sysconfig - hwmod class OCP_SYS* data
  * @rev_offs: IP block revision register offset (from module base addr)
  * @sysc_offs: OCP_SYSCONFIG register offset (from module base addr)
  * @syss_offs: OCP_SYSSTATUS register offset (from module base addr)
@@ -282,16 +282,15 @@ struct omap_hwmod_sysc_fields {
  * been associated with the clocks marked in @clockact.  This field is
  * only used if HWMOD_SET_DEFAULT_CLOCKACT is set (see below)
  *
- *
  * @sysc_fields: structure containing the offset positions of various bits in
  * SYSCONFIG register. This can be populated using omap_hwmod_sysc_type1 or
  * omap_hwmod_sysc_type2 defined in omap_hwmod_common_data.c depending on
  * whether the device ip is compliant with the original PRCM protocol
- * defined for OMAP2420 or the new  PRCM protocol for new OMAP4 IPs.
- * If the device follows a differnt scheme for the sysconfig register ,
+ * defined for OMAP2420 or the new PRCM protocol for new OMAP4 IPs.
+ * If the device follows a different scheme for the sysconfig register ,
  * then this field has to be populated with the correct offset structure.
  */
-struct omap_hwmod_sysconfig {
+struct omap_hwmod_class_sysconfig {
 	u16 rev_offs;
 	u16 sysc_offs;
 	u16 syss_offs;
@@ -391,8 +390,24 @@ struct omap_hwmod_omap4_prcm {
 #define _HWMOD_STATE_DISABLED			6
 
 /**
+ * struct omap_hwmod_class - the type of an IP block
+ * @name: name of the hwmod_class
+ * @sysc: device SYSCONFIG/SYSSTATUS register data
+ * @rev: revision of the IP class
+ *
+ * Represent the class of a OMAP hardware "modules" (e.g. timer,
+ * smartreflex, gpio, uart...)
+ */
+struct omap_hwmod_class {
+	const char				*name;
+	struct omap_hwmod_class_sysconfig	*sysc;
+	u32					rev;
+};
+
+/**
  * struct omap_hwmod - integration data for OMAP hardware "modules" (IP blocks)
  * @name: name of the hwmod
+ * @class: struct omap_hwmod_class * to the class of this hwmod
  * @od: struct omap_device currently associated with this hwmod (internal use)
  * @mpu_irqs: ptr to an array of MPU IRQs (see also mpu_irqs_cnt)
  * @sdma_chs: ptr to an array of SDMA channel IDs (see also sdma_chs_cnt)
@@ -402,7 +417,6 @@ struct omap_hwmod_omap4_prcm {
  * @opt_clks: other device clocks that drivers can request (0..*)
  * @masters: ptr to array of OCP ifs that this hwmod can initiate on
  * @slaves: ptr to array of OCP ifs that this hwmod can respond on
- * @sysconfig: device SYSCONFIG/SYSSTATUS register data
  * @dev_attr: arbitrary device attributes that can be passed to the driver
  * @_sysc_cache: internal-use hwmod flags
  * @_rt_va: cached register target start address (internal use)
@@ -431,6 +445,7 @@ struct omap_hwmod_omap4_prcm {
  */
 struct omap_hwmod {
 	const char			*name;
+	struct omap_hwmod_class		*class;
 	struct omap_device		*od;
 	struct omap_hwmod_irq_info	*mpu_irqs;
 	struct omap_hwmod_dma_info	*sdma_chs;
@@ -443,7 +458,6 @@ struct omap_hwmod {
 	struct omap_hwmod_opt_clk	*opt_clks;
 	struct omap_hwmod_ocp_if	**masters; /* connect to *_IA */
 	struct omap_hwmod_ocp_if	**slaves;  /* connect to *_TA */
-	struct omap_hwmod_sysconfig	*sysconfig;
 	void				*dev_attr;
 	u32				_sysc_cache;
 	void __iomem			*_rt_va;
@@ -503,6 +517,11 @@ int omap_hwmod_set_clockact_none(struct omap_hwmod *oh);
 
 int omap_hwmod_enable_wakeup(struct omap_hwmod *oh);
 int omap_hwmod_disable_wakeup(struct omap_hwmod *oh);
+
+int omap_hwmod_for_each_by_class(const char *classname,
+				 int (*fn)(struct omap_hwmod *oh,
+					   void *user),
+				 void *user);
 
 /*
  * Chip variant-specific hwmod init routines - XXX should be converted

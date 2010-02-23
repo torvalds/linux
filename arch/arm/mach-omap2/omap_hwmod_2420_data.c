@@ -16,6 +16,8 @@
 #include <plat/cpu.h>
 #include <plat/dma.h>
 
+#include "omap_hwmod_common_data.h"
+
 #include "prm-regbits-24xx.h"
 
 /*
@@ -58,6 +60,7 @@ static struct omap_hwmod_ocp_if *omap2420_l3_masters[] = {
 /* L3 */
 static struct omap_hwmod omap2420_l3_hwmod = {
 	.name		= "l3_hwmod",
+	.class		= &l3_hwmod_class,
 	.masters	= omap2420_l3_masters,
 	.masters_cnt	= ARRAY_SIZE(omap2420_l3_masters),
 	.slaves		= omap2420_l3_slaves,
@@ -87,6 +90,7 @@ static struct omap_hwmod_ocp_if *omap2420_l4_core_masters[] = {
 /* L4 CORE */
 static struct omap_hwmod omap2420_l4_core_hwmod = {
 	.name		= "l4_core_hwmod",
+	.class		= &l4_hwmod_class,
 	.masters	= omap2420_l4_core_masters,
 	.masters_cnt	= ARRAY_SIZE(omap2420_l4_core_masters),
 	.slaves		= omap2420_l4_core_slaves,
@@ -106,6 +110,7 @@ static struct omap_hwmod_ocp_if *omap2420_l4_wkup_masters[] = {
 /* L4 WKUP */
 static struct omap_hwmod omap2420_l4_wkup_hwmod = {
 	.name		= "l4_wkup_hwmod",
+	.class		= &l4_hwmod_class,
 	.masters	= omap2420_l4_wkup_masters,
 	.masters_cnt	= ARRAY_SIZE(omap2420_l4_wkup_masters),
 	.slaves		= omap2420_l4_wkup_slaves,
@@ -121,6 +126,7 @@ static struct omap_hwmod_ocp_if *omap2420_mpu_masters[] = {
 /* MPU */
 static struct omap_hwmod omap2420_mpu_hwmod = {
 	.name		= "mpu_hwmod",
+	.class		= &mpu_hwmod_class,
 	.main_clk	= "mpu_ck",
 	.masters	= omap2420_mpu_masters,
 	.masters_cnt	= ARRAY_SIZE(omap2420_mpu_masters),

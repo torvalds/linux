@@ -3,6 +3,10 @@
  *
  * Copyright (C) 2010 Texas Instruments, Inc.
  * Thara Gopinath <thara@ti.com>
+ * Benoît Cousson
+ *
+ * Copyright (C) 2010 Nokia Corporation
+ * Paul Walmsley
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -13,6 +17,8 @@
  */
 
 #include <plat/omap_hwmod.h>
+
+#include "omap_hwmod_common_data.h"
 
 /**
  * struct omap_hwmod_sysc_type1 - TYPE1 sysconfig scheme.
@@ -42,3 +48,21 @@ struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2 = {
 	.sidle_shift	= SYSC_TYPE2_SIDLEMODE_SHIFT,
 	.srst_shift	= SYSC_TYPE2_SOFTRESET_SHIFT,
 };
+
+
+/*
+ * omap_hwmod class data
+ */
+
+struct omap_hwmod_class l3_hwmod_class = {
+	.name = "l3"
+};
+
+struct omap_hwmod_class l4_hwmod_class = {
+	.name = "l4"
+};
+
+struct omap_hwmod_class mpu_hwmod_class = {
+	.name = "mpu"
+};
+
