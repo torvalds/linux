@@ -315,22 +315,23 @@ struct sk_buff {
 	struct sk_buff		*next;
 	struct sk_buff		*prev;
 
-	struct sock		*sk;
 	ktime_t			tstamp;
+
+	struct sock		*sk;
 	struct net_device	*dev;
 
-	unsigned long		_skb_dst;
-#ifdef CONFIG_XFRM
-	struct	sec_path	*sp;
-#endif
 	/*
 	 * This is the control buffer. It is free to use for every
 	 * layer. Please put your private variables there. If you
 	 * want to keep them across layers you have to do a skb_clone()
 	 * first. This is owned by whoever has the skb queued ATM.
 	 */
-	char			cb[48];
+	char			cb[48] __aligned(8);
 
+	unsigned long		_skb_dst;
+#ifdef CONFIG_XFRM
+	struct	sec_path	*sp;
+#endif
 	unsigned int		len,
 				data_len;
 	__u16			mac_len,
