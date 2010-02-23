@@ -94,7 +94,7 @@ struct dcb_gpio_entry {
 	bool invert;
 };
 
-struct parsed_dcb_gpio {
+struct dcb_gpio_table {
 	int entries;
 	struct dcb_gpio_entry entry[DCB_MAX_NUM_GPIO_ENTRIES];
 };
@@ -120,7 +120,7 @@ struct bios_parsed_dcb {
 	uint8_t i2c_default_indices;
 
 	uint16_t gpio_table_ptr;
-	struct parsed_dcb_gpio gpio;
+	struct dcb_gpio_table gpio;
 	uint16_t connector_table_ptr;
 	struct dcb_connector_table connector;
 };

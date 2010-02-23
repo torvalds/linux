@@ -5037,7 +5037,7 @@ read_dcb_i2c_entry(struct drm_device *dev, int dcb_version, uint8_t *i2ctable, i
 static struct dcb_gpio_entry *
 new_gpio_entry(struct nvbios *bios)
 {
-	struct parsed_dcb_gpio *gpio = &bios->bdcb.gpio;
+	struct dcb_gpio_table *gpio = &bios->bdcb.gpio;
 
 	return &gpio->entry[gpio->entries++];
 }
