@@ -5392,7 +5392,7 @@ QAllEAsRetry:
 	temp_fea = ea_response_data->list;
 	temp_ptr = (char *)temp_fea;
 	while (list_len > 0) {
-		__u8 name_len;
+		int name_len;
 		__u16 value_len;
 
 		list_len -= 4;
