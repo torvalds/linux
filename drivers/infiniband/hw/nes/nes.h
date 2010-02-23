@@ -64,8 +64,9 @@
  * NetEffect PCI vendor id and NE010 PCI device id.
  */
 #ifndef PCI_VENDOR_ID_NETEFFECT	/* not in pci.ids yet */
-#define PCI_VENDOR_ID_NETEFFECT       0x1678
-#define PCI_DEVICE_ID_NETEFFECT_NE020 0x0100
+#define PCI_VENDOR_ID_NETEFFECT          0x1678
+#define PCI_DEVICE_ID_NETEFFECT_NE020    0x0100
+#define PCI_DEVICE_ID_NETEFFECT_NE020_KR 0x0110
 #endif
 
 #define NE020_REV   4
