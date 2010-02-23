@@ -61,7 +61,7 @@ static void __exit cleanup_soundcore(void)
 	class_destroy(sound_class);
 }
 
-module_init(init_soundcore);
+subsys_initcall(init_soundcore);
 module_exit(cleanup_soundcore);
 
 

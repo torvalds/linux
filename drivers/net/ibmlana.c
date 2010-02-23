@@ -87,6 +87,7 @@ History:
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/if_ether.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
 
@@ -988,7 +989,7 @@ static int __devinit ibmlana_init_one(struct device *kdev)
 
 	/* copy out MAC address */
 
-	for (z = 0; z < sizeof(dev->dev_addr); z++)
+	for (z = 0; z < ETH_ALEN; z++)
 		dev->dev_addr[z] = inb(dev->base_addr + MACADDRPROM + z);
 
 	/* print config */

@@ -136,6 +136,10 @@ enum ocfs2_unlock_action {
 #define OCFS2_LOCK_PENDING       (0x00000400) /* This lockres is pending a
 						 call to dlm_lock.  Only
 						 exists with BUSY set. */
+#define OCFS2_LOCK_UPCONVERT_FINISHING (0x00000800) /* blocks the dc thread
+						     * from downconverting
+						     * before the upconvert
+						     * has completed */
 
 struct ocfs2_lock_res_ops;
 

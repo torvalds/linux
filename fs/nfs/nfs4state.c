@@ -901,7 +901,7 @@ void nfs4_schedule_state_recovery(struct nfs_client *clp)
 	nfs4_schedule_state_manager(clp);
 }
 
-static int nfs4_state_mark_reclaim_reboot(struct nfs_client *clp, struct nfs4_state *state)
+int nfs4_state_mark_reclaim_reboot(struct nfs_client *clp, struct nfs4_state *state)
 {
 
 	set_bit(NFS_STATE_RECLAIM_REBOOT, &state->flags);

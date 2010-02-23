@@ -308,14 +308,15 @@ static int load_aout_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	if (retval)
 		return retval;
 
-	regs->cs = __USER32_CS;
-	regs->r8 = regs->r9 = regs->r10 = regs->r11 = regs->r12 =
-		regs->r13 = regs->r14 = regs->r15 = 0;
-
 	/* OK, This is the point of no return */
 	set_personality(PER_LINUX);
 	set_thread_flag(TIF_IA32);
-	clear_thread_flag(TIF_ABI_PENDING);
+
+	setup_new_exec(bprm);
+
+	regs->cs = __USER32_CS;
+	regs->r8 = regs->r9 = regs->r10 = regs->r11 = regs->r12 =
+		regs->r13 = regs->r14 = regs->r15 = 0;
 
 	current->mm->end_code = ex.a_text +
 		(current->mm->start_code = N_TXTADDR(ex));
@@ -326,7 +327,6 @@ static int load_aout_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 	current->mm->free_area_cache = TASK_UNMAPPED_BASE;
 	current->mm->cached_hole_size = 0;
 
-	current->mm->mmap = NULL;
 	install_exec_creds(bprm);
 	current->flags &= ~PF_FORKNOEXEC;
 

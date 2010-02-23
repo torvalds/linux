@@ -240,6 +240,7 @@ int dsi_init(struct platform_device *pdev);
 void dsi_exit(void);
 
 void dsi_dump_clocks(struct seq_file *s);
+void dsi_dump_irqs(struct seq_file *s);
 void dsi_dump_regs(struct seq_file *s);
 
 void dsi_save_context(void);
@@ -268,6 +269,7 @@ int dpi_init_display(struct omap_dss_device *dssdev);
 int dispc_init(void);
 void dispc_exit(void);
 void dispc_dump_clocks(struct seq_file *s);
+void dispc_dump_irqs(struct seq_file *s);
 void dispc_dump_regs(struct seq_file *s);
 void dispc_irq_handler(void);
 void dispc_fake_vsync_irq(void);
@@ -366,5 +368,17 @@ void rfbi_transfer_area(u16 width, u16 height,
 void rfbi_set_timings(int rfbi_module, struct rfbi_timings *t);
 unsigned long rfbi_get_max_tx_rate(void);
 int rfbi_init_display(struct omap_dss_device *display);
+
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+static inline void dss_collect_irq_stats(u32 irqstatus, unsigned *irq_arr)
+{
+	int b;
+	for (b = 0; b < 32; ++b) {
+		if (irqstatus & (1 << b))
+			irq_arr[b]++;
+	}
+}
+#endif
 
 #endif

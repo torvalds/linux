@@ -202,10 +202,14 @@ static ssize_t set_phy_short_reach(struct device *dev,
 	int rc;
 
 	rtnl_lock();
-	efx_mdio_set_flag(efx, MDIO_MMD_PMAPMD, MDIO_PMA_10GBT_TXPWR,
-			  MDIO_PMA_10GBT_TXPWR_SHORT,
-			  count != 0 && *buf != '0');
-	rc = efx_reconfigure_port(efx);
+	if (efx->state != STATE_RUNNING) {
+		rc = -EBUSY;
+	} else {
+		efx_mdio_set_flag(efx, MDIO_MMD_PMAPMD, MDIO_PMA_10GBT_TXPWR,
+				  MDIO_PMA_10GBT_TXPWR_SHORT,
+				  count != 0 && *buf != '0');
+		rc = efx_reconfigure_port(efx);
+	}
 	rtnl_unlock();
 
 	return rc < 0 ? rc : (ssize_t)count;
@@ -298,35 +302,61 @@ static int tenxpress_init(struct efx_nic *efx)
 	return 0;
 }
 
-static int sfx7101_phy_probe(struct efx_nic *efx)
-{
-	efx->mdio.mmds = TENXPRESS_REQUIRED_DEVS;
-	efx->mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
-	efx->loopback_modes = SFX7101_LOOPBACKS | FALCON_XMAC_LOOPBACKS;
-	return 0;
-}
-
-static int sft9001_phy_probe(struct efx_nic *efx)
-{
-	efx->mdio.mmds = TENXPRESS_REQUIRED_DEVS;
-	efx->mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
-	efx->loopback_modes = (SFT9001_LOOPBACKS | FALCON_XMAC_LOOPBACKS |
-			       FALCON_GMAC_LOOPBACKS);
-	return 0;
-}
-
-static int tenxpress_phy_init(struct efx_nic *efx)
+static int tenxpress_phy_probe(struct efx_nic *efx)
 {
 	struct tenxpress_phy_data *phy_data;
-	int rc = 0;
+	int rc;
 
-	falcon_board(efx)->type->init_phy(efx);
-
+	/* Allocate phy private storage */
 	phy_data = kzalloc(sizeof(*phy_data), GFP_KERNEL);
 	if (!phy_data)
 		return -ENOMEM;
 	efx->phy_data = phy_data;
 	phy_data->phy_mode = efx->phy_mode;
+
+	/* Create any special files */
+	if (efx->phy_type == PHY_TYPE_SFT9001B) {
+		rc = device_create_file(&efx->pci_dev->dev,
+					&dev_attr_phy_short_reach);
+		if (rc)
+			goto fail;
+	}
+
+	if (efx->phy_type == PHY_TYPE_SFX7101) {
+		efx->mdio.mmds = TENXPRESS_REQUIRED_DEVS;
+		efx->mdio.mode_support = MDIO_SUPPORTS_C45;
+
+		efx->loopback_modes = SFX7101_LOOPBACKS | FALCON_XMAC_LOOPBACKS;
+
+		efx->link_advertising = (ADVERTISED_TP | ADVERTISED_Autoneg |
+					 ADVERTISED_10000baseT_Full);
+	} else {
+		efx->mdio.mmds = TENXPRESS_REQUIRED_DEVS;
+		efx->mdio.mode_support = MDIO_SUPPORTS_C45 | MDIO_EMULATE_C22;
+
+		efx->loopback_modes = (SFT9001_LOOPBACKS |
+				       FALCON_XMAC_LOOPBACKS | 
+				       FALCON_GMAC_LOOPBACKS);
+
+		efx->link_advertising = (ADVERTISED_TP | ADVERTISED_Autoneg |
+					 ADVERTISED_10000baseT_Full |
+					 ADVERTISED_1000baseT_Full |
+					 ADVERTISED_100baseT_Full);
+	}
+
+	return 0;
+
+fail:
+	kfree(efx->phy_data);
+	efx->phy_data = NULL;
+	return rc;
+}
+
+static int tenxpress_phy_init(struct efx_nic *efx)
+{
+	int rc;
+
+	falcon_board(efx)->type->init_phy(efx);
 
 	if (!(efx->phy_mode & PHY_MODE_SPECIAL)) {
 		if (efx->phy_type == PHY_TYPE_SFT9001A) {
@@ -341,32 +371,20 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 
 		rc = efx_mdio_wait_reset_mmds(efx, TENXPRESS_REQUIRED_DEVS);
 		if (rc < 0)
-			goto fail;
+			return rc;
 
 		rc = efx_mdio_check_mmds(efx, TENXPRESS_REQUIRED_DEVS, 0);
 		if (rc < 0)
-			goto fail;
+			return rc;
 	}
 
 	rc = tenxpress_init(efx);
 	if (rc < 0)
-		goto fail;
+		return rc;
 
-	/* Initialise advertising flags */
-	efx->link_advertising = (ADVERTISED_TP | ADVERTISED_Autoneg |
-				  ADVERTISED_10000baseT_Full);
-	if (efx->phy_type != PHY_TYPE_SFX7101)
-		efx->link_advertising |= (ADVERTISED_1000baseT_Full |
-					   ADVERTISED_100baseT_Full);
+	/* Reinitialise flow control settings */
 	efx_link_set_wanted_fc(efx, efx->wanted_fc);
 	efx_mdio_an_reconfigure(efx);
-
-	if (efx->phy_type == PHY_TYPE_SFT9001B) {
-		rc = device_create_file(&efx->pci_dev->dev,
-					&dev_attr_phy_short_reach);
-		if (rc)
-			goto fail;
-	}
 
 	schedule_timeout_uninterruptible(HZ / 5); /* 200ms */
 
@@ -374,11 +392,6 @@ static int tenxpress_phy_init(struct efx_nic *efx)
 	falcon_reset_xaui(efx);
 
 	return 0;
-
- fail:
-	kfree(efx->phy_data);
-	efx->phy_data = NULL;
-	return rc;
 }
 
 /* Perform a "special software reset" on the PHY. The caller is
@@ -589,24 +602,25 @@ static bool tenxpress_phy_poll(struct efx_nic *efx)
 	return !efx_link_state_equal(&efx->link_state, &old_state);
 }
 
-static void tenxpress_phy_fini(struct efx_nic *efx)
+static void sfx7101_phy_fini(struct efx_nic *efx)
 {
 	int reg;
 
+	/* Power down the LNPGA */
+	reg = (1 << PMA_PMD_LNPGA_POWERDOWN_LBN);
+	efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG, reg);
+
+	/* Waiting here ensures that the board fini, which can turn
+	 * off the power to the PHY, won't get run until the LNPGA
+	 * powerdown has been given long enough to complete. */
+	schedule_timeout_uninterruptible(LNPGA_PDOWN_WAIT); /* 200 ms */
+}
+
+static void tenxpress_phy_remove(struct efx_nic *efx)
+{
 	if (efx->phy_type == PHY_TYPE_SFT9001B)
 		device_remove_file(&efx->pci_dev->dev,
 				   &dev_attr_phy_short_reach);
-
-	if (efx->phy_type == PHY_TYPE_SFX7101) {
-		/* Power down the LNPGA */
-		reg = (1 << PMA_PMD_LNPGA_POWERDOWN_LBN);
-		efx_mdio_write(efx, MDIO_MMD_PMAPMD, PMA_PMD_XCONTROL_REG, reg);
-
-		/* Waiting here ensures that the board fini, which can turn
-		 * off the power to the PHY, won't get run until the LNPGA
-		 * powerdown has been given long enough to complete. */
-		schedule_timeout_uninterruptible(LNPGA_PDOWN_WAIT); /* 200 ms */
-	}
 
 	kfree(efx->phy_data);
 	efx->phy_data = NULL;
@@ -819,11 +833,12 @@ static void sft9001_set_npage_adv(struct efx_nic *efx, u32 advertising)
 }
 
 struct efx_phy_operations falcon_sfx7101_phy_ops = {
-	.probe		  = sfx7101_phy_probe,
+	.probe		  = tenxpress_phy_probe,
 	.init             = tenxpress_phy_init,
 	.reconfigure      = tenxpress_phy_reconfigure,
 	.poll             = tenxpress_phy_poll,
-	.fini             = tenxpress_phy_fini,
+	.fini             = sfx7101_phy_fini,
+	.remove		  = tenxpress_phy_remove,
 	.get_settings	  = tenxpress_get_settings,
 	.set_settings	  = tenxpress_set_settings,
 	.set_npage_adv    = sfx7101_set_npage_adv,
@@ -832,11 +847,12 @@ struct efx_phy_operations falcon_sfx7101_phy_ops = {
 };
 
 struct efx_phy_operations falcon_sft9001_phy_ops = {
-	.probe		  = sft9001_phy_probe,
+	.probe		  = tenxpress_phy_probe,
 	.init             = tenxpress_phy_init,
 	.reconfigure      = tenxpress_phy_reconfigure,
 	.poll             = tenxpress_phy_poll,
-	.fini             = tenxpress_phy_fini,
+	.fini             = efx_port_dummy_op_void,
+	.remove		  = tenxpress_phy_remove,
 	.get_settings	  = tenxpress_get_settings,
 	.set_settings	  = tenxpress_set_settings,
 	.set_npage_adv    = sft9001_set_npage_adv,

@@ -305,7 +305,7 @@ struct device_domain_info {
 	int segment;		/* PCI domain */
 	u8 bus;			/* PCI bus number */
 	u8 devfn;		/* PCI devfn number */
-	struct pci_dev *dev; /* it's NULL for PCIE-to-PCI bridge */
+	struct pci_dev *dev; /* it's NULL for PCIe-to-PCI bridge */
 	struct intel_iommu *iommu; /* IOMMU used by this device */
 	struct dmar_domain *domain; /* pointer to domain */
 };
@@ -1604,7 +1604,7 @@ domain_context_mapping(struct dmar_domain *domain, struct pci_dev *pdev,
 			return ret;
 		parent = parent->bus->self;
 	}
-	if (pci_is_pcie(tmp)) /* this is a PCIE-to-PCI bridge */
+	if (pci_is_pcie(tmp)) /* this is a PCIe-to-PCI bridge */
 		return domain_context_mapping_one(domain,
 					pci_domain_nr(tmp->subordinate),
 					tmp->subordinate->number, 0,
@@ -3325,7 +3325,7 @@ static void iommu_detach_dependent_devices(struct intel_iommu *iommu,
 					 parent->devfn);
 			parent = parent->bus->self;
 		}
-		if (pci_is_pcie(tmp)) /* this is a PCIE-to-PCI bridge */
+		if (pci_is_pcie(tmp)) /* this is a PCIe-to-PCI bridge */
 			iommu_detach_dev(iommu,
 				tmp->subordinate->number, 0);
 		else /* this is a legacy PCI bridge */

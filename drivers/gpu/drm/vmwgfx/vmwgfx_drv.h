@@ -32,6 +32,7 @@
 #include "drmP.h"
 #include "vmwgfx_drm.h"
 #include "drm_hashtab.h"
+#include "linux/suspend.h"
 #include "ttm/ttm_bo_driver.h"
 #include "ttm/ttm_object.h"
 #include "ttm/ttm_lock.h"
@@ -94,6 +95,8 @@ struct vmw_surface {
 	uint32_t mip_levels[DRM_VMW_MAX_SURFACE_FACES];
 	struct drm_vmw_size *sizes;
 	uint32_t num_sizes;
+
+	bool scanout;
 
 	/* TODO so far just a extra pointer */
 	struct vmw_cursor_snooper snooper;
@@ -258,6 +261,7 @@ struct vmw_private {
 
 	struct vmw_master *active_master;
 	struct vmw_master fbdev_master;
+	struct notifier_block pm_nb;
 };
 
 static inline struct vmw_private *vmw_priv(struct drm_device *dev)
@@ -353,6 +357,7 @@ extern int vmw_dmabuf_to_start_of_vram(struct vmw_private *vmw_priv,
 				       struct vmw_dma_buffer *bo);
 extern int vmw_dmabuf_from_vram(struct vmw_private *vmw_priv,
 				struct vmw_dma_buffer *bo);
+extern void vmw_dmabuf_gmr_unbind(struct ttm_buffer_object *bo);
 extern int vmw_stream_claim_ioctl(struct drm_device *dev, void *data,
 				  struct drm_file *file_priv);
 extern int vmw_stream_unref_ioctl(struct drm_device *dev, void *data,
@@ -386,6 +391,7 @@ extern int vmw_fifo_send_fence(struct vmw_private *dev_priv,
 			       uint32_t *sequence);
 extern void vmw_fifo_ping_host(struct vmw_private *dev_priv, uint32_t reason);
 extern int vmw_fifo_mmap(struct file *filp, struct vm_area_struct *vma);
+extern bool vmw_fifo_have_3d(struct vmw_private *dev_priv);
 
 /**
  * TTM glue - vmwgfx_ttm_glue.c
@@ -401,6 +407,7 @@ extern int vmw_mmap(struct file *filp, struct vm_area_struct *vma);
 
 extern struct ttm_placement vmw_vram_placement;
 extern struct ttm_placement vmw_vram_ne_placement;
+extern struct ttm_placement vmw_vram_sys_placement;
 extern struct ttm_placement vmw_sys_placement;
 extern struct ttm_bo_driver vmw_bo_driver;
 extern int vmw_dma_quiescent(struct drm_device *dev);

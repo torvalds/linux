@@ -114,7 +114,7 @@ static void add_cpus_to_core(struct tl_cpu *tl_cpu, struct core_info *core)
 
 		rcpu = CPU_BITS - 1 - cpu + tl_cpu->origin;
 		for_each_present_cpu(lcpu) {
-			if (__cpu_logical_map[lcpu] == rcpu) {
+			if (cpu_logical_map(lcpu) == rcpu) {
 				cpu_set(lcpu, core->mask);
 				smp_cpu_polarization[lcpu] = tl_cpu->pp;
 			}

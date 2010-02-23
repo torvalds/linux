@@ -446,6 +446,12 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 {
 	*irq = gsi;
+
+#ifdef CONFIG_X86_IO_APIC
+	if (acpi_irq_model == ACPI_IRQ_MODEL_IOAPIC)
+		setup_IO_APIC_irq_extra(gsi);
+#endif
+
 	return 0;
 }
 
@@ -473,7 +479,8 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 		plat_gsi = mp_register_gsi(dev, gsi, trigger, polarity);
 	}
 #endif
-	acpi_gsi_to_irq(plat_gsi, &irq);
+	irq = plat_gsi;
+
 	return irq;
 }
 
@@ -1185,9 +1192,6 @@ static void __init acpi_process_madt(void)
 		if (!error) {
 			acpi_lapic = 1;
 
-#ifdef CONFIG_X86_BIGSMP
-			generic_bigsmp_probe();
-#endif
 			/*
 			 * Parse MADT IO-APIC entries
 			 */
@@ -1197,8 +1201,6 @@ static void __init acpi_process_madt(void)
 				acpi_ioapic = 1;
 
 				smp_found_config = 1;
-				if (apic->setup_apic_routing)
-					apic->setup_apic_routing();
 			}
 		}
 		if (error == -EINVAL) {
@@ -1529,16 +1531,10 @@ static struct dmi_system_id __initdata acpi_dmi_table_late[] = {
  *	if acpi_blacklisted() acpi_disabled = 1;
  *	acpi_irq_model=...
  *	...
- *
- * return value: (currently ignored)
- *	0: success
- *	!0: failure
  */
 
-int __init acpi_boot_table_init(void)
+void __init acpi_boot_table_init(void)
 {
-	int error;
-
 	dmi_check_system(acpi_dmi_table);
 
 	/*
@@ -1546,15 +1542,14 @@ int __init acpi_boot_table_init(void)
 	 * One exception: acpi=ht continues far enough to enumerate LAPICs
 	 */
 	if (acpi_disabled && !acpi_ht)
-		return 1;
+		return; 
 
 	/*
 	 * Initialize the ACPI boot-time table parser.
 	 */
-	error = acpi_table_init();
-	if (error) {
+	if (acpi_table_init()) {
 		disable_acpi();
-		return error;
+		return;
 	}
 
 	acpi_table_parse(ACPI_SIG_BOOT, acpi_parse_sbf);
@@ -1562,18 +1557,15 @@ int __init acpi_boot_table_init(void)
 	/*
 	 * blacklist may disable ACPI entirely
 	 */
-	error = acpi_blacklisted();
-	if (error) {
+	if (acpi_blacklisted()) {
 		if (acpi_force) {
 			printk(KERN_WARNING PREFIX "acpi=force override\n");
 		} else {
 			printk(KERN_WARNING PREFIX "Disabling ACPI support\n");
 			disable_acpi();
-			return error;
+			return;
 		}
 	}
-
-	return 0;
 }
 
 int __init early_acpi_boot_init(void)

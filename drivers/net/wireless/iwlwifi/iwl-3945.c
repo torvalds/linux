@@ -681,19 +681,13 @@ static void iwl3945_rx_reply_rx(struct iwl_priv *priv,
 		snr = rx_stats_sig_avg / rx_stats_noise_diff;
 		rx_status.noise = rx_status.signal -
 					iwl3945_calc_db_from_ratio(snr);
-		rx_status.qual = iwl3945_calc_sig_qual(rx_status.signal,
-							 rx_status.noise);
-
-	/* If noise info not available, calculate signal quality indicator (%)
-	 *   using just the dBm signal level. */
 	} else {
 		rx_status.noise = priv->last_rx_noise;
-		rx_status.qual = iwl3945_calc_sig_qual(rx_status.signal, 0);
 	}
 
 
-	IWL_DEBUG_STATS(priv, "Rssi %d noise %d qual %d sig_avg %d noise_diff %d\n",
-			rx_status.signal, rx_status.noise, rx_status.qual,
+	IWL_DEBUG_STATS(priv, "Rssi %d noise %d sig_avg %d noise_diff %d\n",
+			rx_status.signal, rx_status.noise,
 			rx_stats_sig_avg, rx_stats_noise_diff);
 
 	header = (struct ieee80211_hdr *)IWL_RX_DATA(pkt);
@@ -1835,8 +1829,7 @@ static int iwl3945_send_rxon_assoc(struct iwl_priv *priv)
 		rc = -EIO;
 	}
 
-	priv->alloc_rxb_page--;
-	free_pages(cmd.reply_page, priv->hw_params.rx_page_order);
+	iwl_free_pages(priv, cmd.reply_page);
 
 	return rc;
 }
@@ -2836,6 +2829,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.use_isr_legacy = true,
 	.ht_greenfield_support = false,
 	.led_compensation = 64,
+	.broken_powersave = true,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2852,6 +2846,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.use_isr_legacy = true,
 	.ht_greenfield_support = false,
 	.led_compensation = 64,
+	.broken_powersave = true,
 };
 
 struct pci_device_id iwl3945_hw_card_ids[] = {

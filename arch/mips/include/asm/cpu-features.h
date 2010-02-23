@@ -191,6 +191,9 @@
 # ifndef cpu_has_64bit_addresses
 # define cpu_has_64bit_addresses	0
 # endif
+# ifndef cpu_vmbits
+# define cpu_vmbits 31
+# endif
 #endif
 
 #ifdef CONFIG_64BIT
@@ -208,6 +211,10 @@
 # endif
 # ifndef cpu_has_64bit_addresses
 # define cpu_has_64bit_addresses	1
+# endif
+# ifndef cpu_vmbits
+# define cpu_vmbits cpu_data[0].vmbits
+# define __NEED_VMBITS_PROBE
 # endif
 #endif
 

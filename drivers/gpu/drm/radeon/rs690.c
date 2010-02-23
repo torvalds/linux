@@ -172,6 +172,7 @@ static int rs690_mc_init(struct radeon_device *rdev)
 	rdev->mc.vram_location = G_000100_MC_FB_START(tmp) << 16;
 	rdev->mc.gtt_location = 0xFFFFFFFFUL;
 	r = radeon_mc_setup(rdev);
+	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	if (r)
 		return r;
 	return 0;
@@ -625,6 +626,7 @@ static int rs690_startup(struct radeon_device *rdev)
 		return r;
 	/* Enable IRQ */
 	rs600_irq_set(rdev);
+	rdev->config.r300.hdp_cntl = RREG32(RADEON_HOST_PATH_CNTL);
 	/* 1M ring buffer */
 	r = r100_cp_init(rdev, 1024 * 1024);
 	if (r) {
@@ -674,7 +676,6 @@ int rs690_suspend(struct radeon_device *rdev)
 
 void rs690_fini(struct radeon_device *rdev)
 {
-	rs690_suspend(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
@@ -754,7 +755,6 @@ int rs690_init(struct radeon_device *rdev)
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
-		rs690_suspend(rdev);
 		r100_cp_fini(rdev);
 		r100_wb_fini(rdev);
 		r100_ib_fini(rdev);

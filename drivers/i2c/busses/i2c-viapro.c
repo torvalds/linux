@@ -165,10 +165,10 @@ static int vt596_transaction(u8 size)
 	do {
 		msleep(1);
 		temp = inb_p(SMBHSTSTS);
-	} while ((temp & 0x01) && (timeout++ < MAX_TIMEOUT));
+	} while ((temp & 0x01) && (++timeout < MAX_TIMEOUT));
 
 	/* If the SMBus is still busy, we give up */
-	if (timeout >= MAX_TIMEOUT) {
+	if (timeout == MAX_TIMEOUT) {
 		result = -ETIMEDOUT;
 		dev_err(&vt596_adapter.dev, "SMBus timeout!\n");
 	}

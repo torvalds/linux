@@ -858,8 +858,6 @@ int gpio_sysfs_set_active_low(unsigned gpio, int value)
 	desc = &gpio_desc[gpio];
 
 	if (test_bit(FLAG_EXPORT, &desc->flags)) {
-		struct device *dev;
-
 		dev = class_find_device(&gpio_class, NULL, desc, match_export);
 		if (dev == NULL) {
 			status = -ENODEV;

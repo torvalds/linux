@@ -83,6 +83,17 @@ static int block_group_bits(struct btrfs_block_group_cache *cache, u64 bits)
 	return (cache->flags & bits) == bits;
 }
 
+void btrfs_get_block_group(struct btrfs_block_group_cache *cache)
+{
+	atomic_inc(&cache->count);
+}
+
+void btrfs_put_block_group(struct btrfs_block_group_cache *cache)
+{
+	if (atomic_dec_and_test(&cache->count))
+		kfree(cache);
+}
+
 /*
  * this adds the block group to the fs_info rb tree for the block group
  * cache
@@ -156,7 +167,7 @@ block_group_cache_tree_search(struct btrfs_fs_info *info, u64 bytenr,
 		}
 	}
 	if (ret)
-		atomic_inc(&ret->count);
+		btrfs_get_block_group(ret);
 	spin_unlock(&info->block_group_cache_lock);
 
 	return ret;
@@ -407,6 +418,8 @@ err:
 
 	put_caching_control(caching_ctl);
 	atomic_dec(&block_group->space_info->caching_threads);
+	btrfs_put_block_group(block_group);
+
 	return 0;
 }
 
@@ -447,6 +460,7 @@ static int cache_block_group(struct btrfs_block_group_cache *cache)
 	up_write(&fs_info->extent_commit_sem);
 
 	atomic_inc(&cache->space_info->caching_threads);
+	btrfs_get_block_group(cache);
 
 	tsk = kthread_run(caching_kthread, cache, "btrfs-cache-%llu\n",
 			  cache->key.objectid);
@@ -484,12 +498,6 @@ struct btrfs_block_group_cache *btrfs_lookup_block_group(
 	cache = block_group_cache_tree_search(info, bytenr, 1);
 
 	return cache;
-}
-
-void btrfs_put_block_group(struct btrfs_block_group_cache *cache)
-{
-	if (atomic_dec_and_test(&cache->count))
-		kfree(cache);
 }
 
 static struct btrfs_space_info *__find_space_info(struct btrfs_fs_info *info,
@@ -2582,7 +2590,7 @@ next_block_group(struct btrfs_root *root,
 	if (node) {
 		cache = rb_entry(node, struct btrfs_block_group_cache,
 				 cache_node);
-		atomic_inc(&cache->count);
+		btrfs_get_block_group(cache);
 	} else
 		cache = NULL;
 	spin_unlock(&root->fs_info->block_group_cache_lock);
@@ -4227,7 +4235,7 @@ search:
 		u64 offset;
 		int cached;
 
-		atomic_inc(&block_group->count);
+		btrfs_get_block_group(block_group);
 		search_start = block_group->key.objectid;
 
 have_block_group:
@@ -4315,7 +4323,7 @@ have_block_group:
 
 				btrfs_put_block_group(block_group);
 				block_group = last_ptr->block_group;
-				atomic_inc(&block_group->count);
+				btrfs_get_block_group(block_group);
 				spin_unlock(&last_ptr->lock);
 				spin_unlock(&last_ptr->refill_lock);
 
@@ -5394,15 +5402,15 @@ static noinline int walk_down_tree(struct btrfs_trans_handle *trans,
 	int ret;
 
 	while (level >= 0) {
-		if (path->slots[level] >=
-		    btrfs_header_nritems(path->nodes[level]))
-			break;
-
 		ret = walk_down_proc(trans, root, path, wc, lookup_info);
 		if (ret > 0)
 			break;
 
 		if (level == 0)
+			break;
+
+		if (path->slots[level] >=
+		    btrfs_header_nritems(path->nodes[level]))
 			break;
 
 		ret = do_walk_down(trans, root, path, wc, &lookup_info);
@@ -7395,9 +7403,7 @@ int btrfs_free_block_groups(struct btrfs_fs_info *info)
 			wait_block_group_cache_done(block_group);
 
 		btrfs_remove_free_space_cache(block_group);
-
-		WARN_ON(atomic_read(&block_group->count) != 1);
-		kfree(block_group);
+		btrfs_put_block_group(block_group);
 
 		spin_lock(&info->block_group_cache_lock);
 	}

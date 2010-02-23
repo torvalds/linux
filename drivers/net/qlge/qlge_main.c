@@ -4119,7 +4119,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	err = pcie_set_readrq(pdev, 4096);
 	if (err) {
 		dev_err(&pdev->dev, "Set readrq failed.\n");
-		goto err_out;
+		goto err_out1;
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);
@@ -4140,7 +4140,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 
 	if (err) {
 		dev_err(&pdev->dev, "No usable DMA configuration.\n");
-		goto err_out;
+		goto err_out2;
 	}
 
 	/* Set PCIe reset type for EEH to fundamental. */
@@ -4152,7 +4152,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	if (!qdev->reg_base) {
 		dev_err(&pdev->dev, "Register mapping failed.\n");
 		err = -ENOMEM;
-		goto err_out;
+		goto err_out2;
 	}
 
 	qdev->doorbell_area_size = pci_resource_len(pdev, 3);
@@ -4162,14 +4162,14 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	if (!qdev->doorbell_area) {
 		dev_err(&pdev->dev, "Doorbell register mapping failed.\n");
 		err = -ENOMEM;
-		goto err_out;
+		goto err_out2;
 	}
 
 	err = ql_get_board_info(qdev);
 	if (err) {
 		dev_err(&pdev->dev, "Register access failed.\n");
 		err = -EIO;
-		goto err_out;
+		goto err_out2;
 	}
 	qdev->msg_enable = netif_msg_init(debug, default_msg);
 	spin_lock_init(&qdev->hw_lock);
@@ -4179,7 +4179,7 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 	err = qdev->nic_ops->get_flash(qdev);
 	if (err) {
 		dev_err(&pdev->dev, "Invalid FLASH.\n");
-		goto err_out;
+		goto err_out2;
 	}
 
 	memcpy(ndev->perm_addr, ndev->dev_addr, ndev->addr_len);
@@ -4212,8 +4212,9 @@ static int __devinit ql_init_device(struct pci_dev *pdev,
 			 DRV_NAME, DRV_VERSION);
 	}
 	return 0;
-err_out:
+err_out2:
 	ql_release_all(pdev);
+err_out1:
 	pci_disable_device(pdev);
 	return err;
 }

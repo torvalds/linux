@@ -149,8 +149,13 @@ static void msi_wmi_notify(u32 value, void *context)
 	static struct key_entry *key;
 	union acpi_object *obj;
 	ktime_t cur;
+	acpi_status status;
 
-	wmi_get_event_data(value, &response);
+	status = wmi_get_event_data(value, &response);
+	if (status != AE_OK) {
+		printk(KERN_INFO DRV_PFX "bad event status 0x%x\n", status);
+		return;
+	}
 
 	obj = (union acpi_object *)response.pointer;
 
@@ -236,7 +241,7 @@ static int __init msi_wmi_init(void)
 	}
 	err = wmi_install_notify_handler(MSIWMI_EVENT_GUID,
 			msi_wmi_notify, NULL);
-	if (err)
+	if (ACPI_FAILURE(err))
 		return -EINVAL;
 
 	err = msi_wmi_input_setup();

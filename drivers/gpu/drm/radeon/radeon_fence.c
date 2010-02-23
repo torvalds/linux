@@ -140,16 +140,15 @@ int radeon_fence_create(struct radeon_device *rdev, struct radeon_fence **fence)
 
 bool radeon_fence_signaled(struct radeon_fence *fence)
 {
-	struct radeon_device *rdev = fence->rdev;
 	unsigned long irq_flags;
 	bool signaled = false;
 
-	if (rdev->gpu_lockup) {
+	if (!fence)
 		return true;
-	}
-	if (fence == NULL) {
+
+	if (fence->rdev->gpu_lockup)
 		return true;
-	}
+
 	write_lock_irqsave(&fence->rdev->fence_drv.lock, irq_flags);
 	signaled = fence->signaled;
 	/* if we are shuting down report all fence as signaled */

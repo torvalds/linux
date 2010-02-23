@@ -189,7 +189,7 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 {
 	unsigned i;
 
-	if (error) {
+	if (error && parser->ib) {
 		radeon_bo_list_unvalidate(&parser->validated,
 						parser->ib->fence);
 	} else {
@@ -231,6 +231,7 @@ int radeon_cs_ioctl(struct drm_device *dev, void *data, struct drm_file *filp)
 	memset(&parser, 0, sizeof(struct radeon_cs_parser));
 	parser.filp = filp;
 	parser.rdev = rdev;
+	parser.dev = rdev->dev;
 	r = radeon_cs_parser_init(&parser, data);
 	if (r) {
 		DRM_ERROR("Failed to initialize parser !\n");

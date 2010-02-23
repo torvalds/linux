@@ -768,7 +768,7 @@ wbcir_parse_rc6(struct device *dev, struct wbcir_data *data)
 		return;
 	}
 
-	dev_info(dev, "IR-RC6 ad 0x%02X cm 0x%02X cu 0x%04X "
+	dev_dbg(dev, "IR-RC6 ad 0x%02X cm 0x%02X cu 0x%04X "
 		"toggle %u mode %u scan 0x%08X\n",
 		address,
 		command,

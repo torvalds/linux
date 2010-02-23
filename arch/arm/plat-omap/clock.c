@@ -36,10 +36,6 @@ static struct clk_functions *arch_clock;
  * Standard clock functions defined in include/linux/clk.h
  *-------------------------------------------------------------------------*/
 
-/* This functions is moved to arch/arm/common/clkdev.c. For OMAP4 since
- * clock framework is not up , it is defined here to avoid rework in
- * every driver. Also dummy prcm reset function is added */
-
 int clk_enable(struct clk *clk)
 {
 	unsigned long flags;
@@ -305,7 +301,6 @@ void clk_enable_init_clocks(void)
 			clk_enable(clkp);
 	}
 }
-EXPORT_SYMBOL(clk_enable_init_clocks);
 
 /*
  * Low level helpers
@@ -334,7 +329,16 @@ void clk_init_cpufreq_table(struct cpufreq_frequency_table **table)
 		arch_clock->clk_init_cpufreq_table(table);
 	spin_unlock_irqrestore(&clockfw_lock, flags);
 }
-EXPORT_SYMBOL(clk_init_cpufreq_table);
+
+void clk_exit_cpufreq_table(struct cpufreq_frequency_table **table)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&clockfw_lock, flags);
+	if (arch_clock->clk_exit_cpufreq_table)
+		arch_clock->clk_exit_cpufreq_table(table);
+	spin_unlock_irqrestore(&clockfw_lock, flags);
+}
 #endif
 
 /*-------------------------------------------------------------------------*/
@@ -387,7 +391,7 @@ static struct dentry *clk_debugfs_root;
 static int clk_debugfs_register_one(struct clk *c)
 {
 	int err;
-	struct dentry *d, *child;
+	struct dentry *d, *child, *child_tmp;
 	struct clk *pa = c->parent;
 	char s[255];
 	char *p = s;
@@ -419,7 +423,7 @@ static int clk_debugfs_register_one(struct clk *c)
 
 err_out:
 	d = c->dent;
-	list_for_each_entry(child, &d->d_subdirs, d_u.d_child)
+	list_for_each_entry_safe(child, child_tmp, &d->d_subdirs, d_u.d_child)
 		debugfs_remove(child);
 	debugfs_remove(c->dent);
 	return err;

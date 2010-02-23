@@ -181,7 +181,7 @@ err:
 	return ret;
 }
 
-static int palmte2_backlight_notify(int brightness)
+static int palmte2_backlight_notify(struct device *dev, int brightness)
 {
 	gpio_set_value(GPIO_NR_PALMTE2_BL_POWER, brightness);
 	gpio_set_value(GPIO_NR_PALMTE2_LCD_POWER, brightness);

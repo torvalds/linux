@@ -33,7 +33,6 @@
 #include <plat/sdrc.h>
 #include <plat/gpmc.h>
 #include <plat/serial.h>
-#include <plat/mux.h>
 #include <plat/vram.h>
 
 #include "clock.h"
@@ -73,21 +72,21 @@ static struct map_desc omap24xx_io_desc[] __initdata = {
 #ifdef CONFIG_ARCH_OMAP2420
 static struct map_desc omap242x_io_desc[] __initdata = {
 	{
-		.virtual	= DSP_MEM_24XX_VIRT,
-		.pfn		= __phys_to_pfn(DSP_MEM_24XX_PHYS),
-		.length		= DSP_MEM_24XX_SIZE,
+		.virtual	= DSP_MEM_2420_VIRT,
+		.pfn		= __phys_to_pfn(DSP_MEM_2420_PHYS),
+		.length		= DSP_MEM_2420_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= DSP_IPI_24XX_VIRT,
-		.pfn		= __phys_to_pfn(DSP_IPI_24XX_PHYS),
-		.length		= DSP_IPI_24XX_SIZE,
+		.virtual	= DSP_IPI_2420_VIRT,
+		.pfn		= __phys_to_pfn(DSP_IPI_2420_PHYS),
+		.length		= DSP_IPI_2420_SIZE,
 		.type		= MT_DEVICE
 	},
 	{
-		.virtual	= DSP_MMU_24XX_VIRT,
-		.pfn		= __phys_to_pfn(DSP_MMU_24XX_PHYS),
-		.length		= DSP_MMU_24XX_SIZE,
+		.virtual	= DSP_MMU_2420_VIRT,
+		.pfn		= __phys_to_pfn(DSP_MMU_2420_PHYS),
+		.length		= DSP_MMU_2420_SIZE,
 		.type		= MT_DEVICE
 	},
 };

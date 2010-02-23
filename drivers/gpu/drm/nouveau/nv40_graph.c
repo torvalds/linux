@@ -181,6 +181,48 @@ nv40_graph_unload_context(struct drm_device *dev)
 	return ret;
 }
 
+void
+nv40_graph_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
+			     uint32_t size, uint32_t pitch)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	uint32_t limit = max(1u, addr + size) - 1;
+
+	if (pitch)
+		addr |= 1;
+
+	switch (dev_priv->chipset) {
+	case 0x44:
+	case 0x4a:
+	case 0x4e:
+		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), pitch);
+		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), limit);
+		nv_wr32(dev, NV20_PGRAPH_TILE(i), addr);
+		break;
+
+	case 0x46:
+	case 0x47:
+	case 0x49:
+	case 0x4b:
+		nv_wr32(dev, NV47_PGRAPH_TSIZE(i), pitch);
+		nv_wr32(dev, NV47_PGRAPH_TLIMIT(i), limit);
+		nv_wr32(dev, NV47_PGRAPH_TILE(i), addr);
+		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), pitch);
+		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), limit);
+		nv_wr32(dev, NV40_PGRAPH_TILE1(i), addr);
+		break;
+
+	default:
+		nv_wr32(dev, NV20_PGRAPH_TSIZE(i), pitch);
+		nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), limit);
+		nv_wr32(dev, NV20_PGRAPH_TILE(i), addr);
+		nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), pitch);
+		nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), limit);
+		nv_wr32(dev, NV40_PGRAPH_TILE1(i), addr);
+		break;
+	}
+}
+
 /*
  * G70		0x47
  * G71		0x49
@@ -195,7 +237,8 @@ nv40_graph_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv =
 		(struct drm_nouveau_private *)dev->dev_private;
-	uint32_t vramsz, tmp;
+	struct nouveau_fb_engine *pfb = &dev_priv->engine.fb;
+	uint32_t vramsz;
 	int i, j;
 
 	nv_wr32(dev, NV03_PMC_ENABLE, nv_rd32(dev, NV03_PMC_ENABLE) &
@@ -292,74 +335,9 @@ nv40_graph_init(struct drm_device *dev)
 	nv_wr32(dev, 0x400b38, 0x2ffff800);
 	nv_wr32(dev, 0x400b3c, 0x00006000);
 
-	/* copy tile info from PFB */
-	switch (dev_priv->chipset) {
-	case 0x40: /* vanilla NV40 */
-		for (i = 0; i < NV10_PFB_TILE__SIZE; i++) {
-			tmp = nv_rd32(dev, NV10_PFB_TILE(i));
-			nv_wr32(dev, NV40_PGRAPH_TILE0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TILE1(i), tmp);
-			tmp = nv_rd32(dev, NV10_PFB_TLIMIT(i));
-			nv_wr32(dev, NV40_PGRAPH_TLIMIT0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), tmp);
-			tmp = nv_rd32(dev, NV10_PFB_TSIZE(i));
-			nv_wr32(dev, NV40_PGRAPH_TSIZE0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), tmp);
-			tmp = nv_rd32(dev, NV10_PFB_TSTATUS(i));
-			nv_wr32(dev, NV40_PGRAPH_TSTATUS0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TSTATUS1(i), tmp);
-		}
-		break;
-	case 0x44:
-	case 0x4a:
-	case 0x4e: /* NV44-based cores don't have 0x406900? */
-		for (i = 0; i < NV40_PFB_TILE__SIZE_0; i++) {
-			tmp = nv_rd32(dev, NV40_PFB_TILE(i));
-			nv_wr32(dev, NV40_PGRAPH_TILE0(i), tmp);
-			tmp = nv_rd32(dev, NV40_PFB_TLIMIT(i));
-			nv_wr32(dev, NV40_PGRAPH_TLIMIT0(i), tmp);
-			tmp = nv_rd32(dev, NV40_PFB_TSIZE(i));
-			nv_wr32(dev, NV40_PGRAPH_TSIZE0(i), tmp);
-			tmp = nv_rd32(dev, NV40_PFB_TSTATUS(i));
-			nv_wr32(dev, NV40_PGRAPH_TSTATUS0(i), tmp);
-		}
-		break;
-	case 0x46:
-	case 0x47:
-	case 0x49:
-	case 0x4b: /* G7X-based cores */
-		for (i = 0; i < NV40_PFB_TILE__SIZE_1; i++) {
-			tmp = nv_rd32(dev, NV40_PFB_TILE(i));
-			nv_wr32(dev, NV47_PGRAPH_TILE0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TILE1(i), tmp);
-			tmp = nv_rd32(dev, NV40_PFB_TLIMIT(i));
-			nv_wr32(dev, NV47_PGRAPH_TLIMIT0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), tmp);
-			tmp = nv_rd32(dev, NV40_PFB_TSIZE(i));
-			nv_wr32(dev, NV47_PGRAPH_TSIZE0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), tmp);
-			tmp = nv_rd32(dev, NV40_PFB_TSTATUS(i));
-			nv_wr32(dev, NV47_PGRAPH_TSTATUS0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TSTATUS1(i), tmp);
-		}
-		break;
-	default: /* everything else */
-		for (i = 0; i < NV40_PFB_TILE__SIZE_0; i++) {
-			tmp = nv_rd32(dev, NV40_PFB_TILE(i));
-			nv_wr32(dev, NV40_PGRAPH_TILE0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TILE1(i), tmp);
-			tmp = nv_rd32(dev, NV40_PFB_TLIMIT(i));
-			nv_wr32(dev, NV40_PGRAPH_TLIMIT0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TLIMIT1(i), tmp);
-			tmp = nv_rd32(dev, NV40_PFB_TSIZE(i));
-			nv_wr32(dev, NV40_PGRAPH_TSIZE0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TSIZE1(i), tmp);
-			tmp = nv_rd32(dev, NV40_PFB_TSTATUS(i));
-			nv_wr32(dev, NV40_PGRAPH_TSTATUS0(i), tmp);
-			nv_wr32(dev, NV40_PGRAPH_TSTATUS1(i), tmp);
-		}
-		break;
-	}
+	/* Turn all the tiling regions off. */
+	for (i = 0; i < pfb->num_tiles; i++)
+		nv40_graph_set_region_tiling(dev, i, 0, 0, 0);
 
 	/* begin RAM config */
 	vramsz = drm_get_resource_len(dev, 0) - 1;

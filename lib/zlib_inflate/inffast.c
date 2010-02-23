@@ -8,6 +8,21 @@
 #include "inflate.h"
 #include "inffast.h"
 
+/* Only do the unaligned "Faster" variant when
+ * CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS is set
+ *
+ * On powerpc, it won't be as we don't include autoconf.h
+ * automatically for the boot wrapper, which is intended as
+ * we run in an environment where we may not be able to deal
+ * with (even rare) alignment faults. In addition, we do not
+ * define __KERNEL__ for arch/powerpc/boot unlike x86
+ */
+
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+#include <asm/unaligned.h>
+#include <asm/byteorder.h>
+#endif
+
 #ifndef ASMINF
 
 /* Allow machine dependent optimization for post-increment or pre-increment.
@@ -24,9 +39,11 @@
 #ifdef POSTINC
 #  define OFF 0
 #  define PUP(a) *(a)++
+#  define UP_UNALIGNED(a) get_unaligned((a)++)
 #else
 #  define OFF 1
 #  define PUP(a) *++(a)
+#  define UP_UNALIGNED(a) get_unaligned(++(a))
 #endif
 
 /*
@@ -239,18 +256,62 @@ void inflate_fast(z_streamp strm, unsigned start)
                     }
                 }
                 else {
+#ifdef CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS
+		    unsigned short *sout;
+		    unsigned long loops;
+
+                    from = out - dist;          /* copy direct from output */
+		    /* minimum length is three */
+		    /* Align out addr */
+		    if (!((long)(out - 1 + OFF) & 1)) {
+			PUP(out) = PUP(from);
+			len--;
+		    }
+		    sout = (unsigned short *)(out - OFF);
+		    if (dist > 2) {
+			unsigned short *sfrom;
+
+			sfrom = (unsigned short *)(from - OFF);
+			loops = len >> 1;
+			do
+			    PUP(sout) = UP_UNALIGNED(sfrom);
+			while (--loops);
+			out = (unsigned char *)sout + OFF;
+			from = (unsigned char *)sfrom + OFF;
+		    } else { /* dist == 1 or dist == 2 */
+			unsigned short pat16;
+
+			pat16 = *(sout-2+2*OFF);
+			if (dist == 1)
+#if defined(__BIG_ENDIAN)
+			    pat16 = (pat16 & 0xff) | ((pat16 & 0xff) << 8);
+#elif defined(__LITTLE_ENDIAN)
+			    pat16 = (pat16 & 0xff00) | ((pat16 & 0xff00) >> 8);
+#else
+#error __BIG_ENDIAN nor __LITTLE_ENDIAN is defined
+#endif
+			loops = len >> 1;
+			do
+			    PUP(sout) = pat16;
+			while (--loops);
+			out = (unsigned char *)sout + OFF;
+		    }
+		    if (len & 1)
+			PUP(out) = PUP(from);
+#else /* CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
                     from = out - dist;          /* copy direct from output */
                     do {                        /* minimum length is three */
-                        PUP(out) = PUP(from);
-                        PUP(out) = PUP(from);
-                        PUP(out) = PUP(from);
-                        len -= 3;
+			 PUP(out) = PUP(from);
+			 PUP(out) = PUP(from);
+			 PUP(out) = PUP(from);
+			 len -= 3;
                     } while (len > 2);
                     if (len) {
-                        PUP(out) = PUP(from);
-                        if (len > 1)
-                            PUP(out) = PUP(from);
+			 PUP(out) = PUP(from);
+			 if (len > 1)
+			     PUP(out) = PUP(from);
                     }
+#endif /* !CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS */
                 }
             }
             else if ((op & 64) == 0) {          /* 2nd level distance code */

@@ -25,6 +25,13 @@ config OMAP2_DSS_DEBUG_SUPPORT
 	  This enables debug messages. You need to enable printing
 	  with 'debug' module parameter.
 
+config OMAP2_DSS_COLLECT_IRQ_STATS
+	bool "Collect DSS IRQ statistics"
+	depends on OMAP2_DSS_DEBUG_SUPPORT
+	default n
+	help
+	  Collect DSS IRQ statistics, printable via debugfs
+
 config OMAP2_DSS_RFBI
 	bool "RFBI support"
         default n

@@ -587,7 +587,7 @@ out_unlock:
 	return count;
 }
 
-const struct file_operations filter_fops = {
+static const struct file_operations filter_fops = {
 	.read  = filter_read,
 	.write = filter_write,
 };
@@ -670,12 +670,13 @@ static int device_dma_allocations(struct device *dev)
 	return count;
 }
 
-static int dma_debug_device_change(struct notifier_block *nb,
-				    unsigned long action, void *data)
+static int dma_debug_device_change(struct notifier_block *nb, unsigned long action, void *data)
 {
 	struct device *dev = data;
 	int count;
 
+	if (global_disable)
+		return 0;
 
 	switch (action) {
 	case BUS_NOTIFY_UNBOUND_DRIVER:
@@ -696,6 +697,9 @@ static int dma_debug_device_change(struct notifier_block *nb,
 void dma_debug_add_bus(struct bus_type *bus)
 {
 	struct notifier_block *nb;
+
+	if (global_disable)
+		return;
 
 	nb = kzalloc(sizeof(struct notifier_block), GFP_KERNEL);
 	if (nb == NULL) {
@@ -909,6 +913,9 @@ static void check_sync(struct device *dev,
 				ref->size);
 	}
 
+	if (entry->direction == DMA_BIDIRECTIONAL)
+		goto out;
+
 	if (ref->direction != entry->direction) {
 		err_printk(dev, entry, "DMA-API: device driver syncs "
 				"DMA memory with different direction "
@@ -918,9 +925,6 @@ static void check_sync(struct device *dev,
 				dir2name[entry->direction],
 				dir2name[ref->direction]);
 	}
-
-	if (entry->direction == DMA_BIDIRECTIONAL)
-		goto out;
 
 	if (to_cpu && !(entry->direction == DMA_FROM_DEVICE) &&
 		      !(ref->direction == DMA_TO_DEVICE))
@@ -944,7 +948,6 @@ static void check_sync(struct device *dev,
 
 out:
 	put_hash_bucket(bucket, &flags);
-
 }
 
 void debug_dma_map_page(struct device *dev, struct page *page, size_t offset,

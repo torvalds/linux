@@ -1201,10 +1201,11 @@ static int __probe_event_show_format(struct trace_seq *s,
 #undef SHOW_FIELD
 #define SHOW_FIELD(type, item, name)					\
 	do {								\
-		ret = trace_seq_printf(s, "\tfield: " #type " %s;\t"	\
-				"offset:%u;\tsize:%u;\n", name,		\
+		ret = trace_seq_printf(s, "\tfield:" #type " %s;\t"	\
+				"offset:%u;\tsize:%u;\tsigned:%d;\n", name,\
 				(unsigned int)offsetof(typeof(field), item),\
-				(unsigned int)sizeof(type));		\
+				(unsigned int)sizeof(type),		\
+				is_signed_type(type));			\
 		if (!ret)						\
 			return 0;					\
 	} while (0)

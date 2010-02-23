@@ -60,7 +60,9 @@ static void putc(int ch)
 	UART(TXR) = ch;
 }
 
-#define flush() do { } while (0)
+static inline void flush(void)
+{
+}
 
 #define MX1_UART1_BASE_ADDR	0x00206000
 #define MX25_UART1_BASE_ADDR	0x43f90000

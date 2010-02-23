@@ -293,12 +293,12 @@ struct _lowcore
 	__u64	clock_comparator;		/* 0x02d0 */
 	__u32	machine_flags;			/* 0x02d8 */
 	__u32	ftrace_func;			/* 0x02dc */
-	__u8	pad_0x02f0[0x0300-0x02f0];	/* 0x02f0 */
+	__u8	pad_0x02e0[0x0300-0x02e0];	/* 0x02e0 */
 
 	/* Interrupt response block */
 	__u8	irb[64];			/* 0x0300 */
 
-	__u8	pad_0x0400[0x0e00-0x0400];	/* 0x0400 */
+	__u8	pad_0x0340[0x0e00-0x0340];	/* 0x0340 */
 
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information

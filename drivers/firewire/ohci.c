@@ -2226,7 +2226,6 @@ static int ohci_queue_iso_receive_dualbuffer(struct fw_iso_context *base,
 	if (rest == 0)
 		return -EINVAL;
 
-	/* FIXME: make packet-per-buffer/dual-buffer a context option */
 	while (rest > 0) {
 		d = context_get_descriptors(&ctx->context,
 					    z + header_z, &d_bus);
@@ -2421,6 +2420,7 @@ static void ohci_pmac_off(struct pci_dev *dev)
 
 #define PCI_VENDOR_ID_AGERE		PCI_VENDOR_ID_ATT
 #define PCI_DEVICE_ID_AGERE_FW643	0x5901
+#define PCI_DEVICE_ID_TI_TSB43AB23	0x8024
 
 static int __devinit pci_probe(struct pci_dev *dev,
 			       const struct pci_device_id *ent)
@@ -2470,7 +2470,10 @@ static int __devinit pci_probe(struct pci_dev *dev,
 	}
 
 	version = reg_read(ohci, OHCI1394_Version) & 0x00ff00ff;
+#if 0
+	/* FIXME: make it a context option or remove dual-buffer mode */
 	ohci->use_dualbuffer = version >= OHCI_VERSION_1_1;
+#endif
 
 	/* dual-buffer mode is broken if more than one IR context is active */
 	if (dev->vendor == PCI_VENDOR_ID_AGERE &&
@@ -2486,7 +2489,8 @@ static int __devinit pci_probe(struct pci_dev *dev,
 #if !defined(CONFIG_X86_32)
 	/* dual-buffer mode is broken with descriptor addresses above 2G */
 	if (dev->vendor == PCI_VENDOR_ID_TI &&
-	    dev->device == PCI_DEVICE_ID_TI_TSB43AB22)
+	    (dev->device == PCI_DEVICE_ID_TI_TSB43AB22 ||
+	     dev->device == PCI_DEVICE_ID_TI_TSB43AB23))
 		ohci->use_dualbuffer = false;
 #endif
 

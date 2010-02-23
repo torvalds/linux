@@ -1918,13 +1918,13 @@ int snd_pcm_hw_constraints_complete(struct snd_pcm_substream *substream)
 
 	err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_RATE,
 					   hw->rate_min, hw->rate_max);
-	 if (err < 0)
-		 return err;
+	if (err < 0)
+		return err;
 
 	err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIOD_BYTES,
 					   hw->period_bytes_min, hw->period_bytes_max);
-	 if (err < 0)
-		 return err;
+	if (err < 0)
+		return err;
 
 	err = snd_pcm_hw_constraint_minmax(runtime, SNDRV_PCM_HW_PARAM_PERIODS,
 					   hw->periods_min, hw->periods_max);
