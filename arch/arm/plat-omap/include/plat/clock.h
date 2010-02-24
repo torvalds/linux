@@ -22,8 +22,10 @@ struct clockdomain;
 struct clkops {
 	int			(*enable)(struct clk *);
 	void			(*disable)(struct clk *);
-	void			(*find_idlest)(struct clk *, void __iomem **, u8 *);
-	void			(*find_companion)(struct clk *, void __iomem **, u8 *);
+	void			(*find_idlest)(struct clk *, void __iomem **,
+					       u8 *, u8 *);
+	void			(*find_companion)(struct clk *, void __iomem **,
+						  u8 *);
 };
 
 #ifdef CONFIG_ARCH_OMAP2PLUS

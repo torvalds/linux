@@ -57,7 +57,7 @@ u8 cpu_mask;
 static void _omap2_module_wait_ready(struct clk *clk)
 {
 	void __iomem *companion_reg, *idlest_reg;
-	u8 other_bit, idlest_bit;
+	u8 other_bit, idlest_bit, idlest_val;
 
 	/* Not all modules have multiple clocks that their IDLEST depends on */
 	if (clk->ops->find_companion) {
@@ -66,9 +66,10 @@ static void _omap2_module_wait_ready(struct clk *clk)
 			return;
 	}
 
-	clk->ops->find_idlest(clk, &idlest_reg, &idlest_bit);
+	clk->ops->find_idlest(clk, &idlest_reg, &idlest_bit, &idlest_val);
 
-	omap2_cm_wait_idlest(idlest_reg, (1 << idlest_bit), clk->name);
+	omap2_cm_wait_idlest(idlest_reg, (1 << idlest_bit), idlest_val,
+			     clk->name);
 }
 
 /* Enables clock without considering parent dependencies or use count
@@ -175,7 +176,8 @@ void omap2_clk_dflt_find_companion(struct clk *clk, void __iomem **other_reg,
  * omap2_clk_dflt_find_idlest - find CM_IDLEST reg va, bit shift for @clk
  * @clk: struct clk * to find IDLEST info for
  * @idlest_reg: void __iomem ** to return the CM_IDLEST va in
- * @idlest_bit: u8 ** to return the CM_IDLEST bit shift in
+ * @idlest_bit: u8 * to return the CM_IDLEST bit shift in
+ * @idlest_val: u8 * to return the idle status indicator
  *
  * Return the CM_IDLEST register address and bit shift corresponding
  * to the module that "owns" this clock.  This default code assumes
@@ -185,13 +187,26 @@ void omap2_clk_dflt_find_companion(struct clk *clk, void __iomem **other_reg,
  * CM_IDLEST2).  This is not true for all modules.  No return value.
  */
 void omap2_clk_dflt_find_idlest(struct clk *clk, void __iomem **idlest_reg,
-				u8 *idlest_bit)
+				u8 *idlest_bit, u8 *idlest_val)
 {
 	u32 r;
 
 	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
 	*idlest_reg = (__force void __iomem *)r;
 	*idlest_bit = clk->enable_bit;
+
+	/*
+	 * 24xx uses 0 to indicate not ready, and 1 to indicate ready.
+	 * 34xx reverses this, just to keep us on our toes
+	 * AM35xx uses both, depending on the module.
+	 */
+	if (cpu_is_omap24xx())
+		*idlest_val = OMAP24XX_CM_IDLEST_VAL;
+	else if (cpu_is_omap34xx())
+		*idlest_val = OMAP34XX_CM_IDLEST_VAL;
+	else
+		BUG();
+
 }
 
 int omap2_dflt_clk_enable(struct clk *clk)

@@ -47,6 +47,7 @@ struct clk *sdrc_ick_p, *arm_fck_p;
  * @clk: struct clk * being enabled
  * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
  * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ * @idlest_val: pointer to a u8 to store the CM_IDLEST indicator
  *
  * The OMAP3430ES2 SSI target CM_IDLEST bit is at a different shift
  * from the CM_{I,F}CLKEN bit.  Pass back the correct info via
@@ -54,13 +55,15 @@ struct clk *sdrc_ick_p, *arm_fck_p;
  */
 static void omap3430es2_clk_ssi_find_idlest(struct clk *clk,
 					    void __iomem **idlest_reg,
-					    u8 *idlest_bit)
+					    u8 *idlest_bit,
+					    u8 *idlest_val)
 {
 	u32 r;
 
 	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
 	*idlest_reg = (__force void __iomem *)r;
 	*idlest_bit = OMAP3430ES2_ST_SSI_IDLE_SHIFT;
+	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }
 
 const struct clkops clkops_omap3430es2_ssi_wait = {
@@ -75,6 +78,7 @@ const struct clkops clkops_omap3430es2_ssi_wait = {
  * @clk: struct clk * being enabled
  * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
  * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ * @idlest_val: pointer to a u8 to store the CM_IDLEST indicator
  *
  * Some OMAP modules on OMAP3 ES2+ chips have both initiator and
  * target IDLEST bits.  For our purposes, we are concerned with the
@@ -85,7 +89,8 @@ const struct clkops clkops_omap3430es2_ssi_wait = {
  */
 static void omap3430es2_clk_dss_usbhost_find_idlest(struct clk *clk,
 						    void __iomem **idlest_reg,
-						    u8 *idlest_bit)
+						    u8 *idlest_bit,
+						    u8 *idlest_val)
 {
 	u32 r;
 
@@ -93,6 +98,7 @@ static void omap3430es2_clk_dss_usbhost_find_idlest(struct clk *clk,
 	*idlest_reg = (__force void __iomem *)r;
 	/* USBHOST_IDLE has same shift */
 	*idlest_bit = OMAP3430ES2_ST_DSS_IDLE_SHIFT;
+	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }
 
 const struct clkops clkops_omap3430es2_dss_usbhost_wait = {
@@ -107,6 +113,7 @@ const struct clkops clkops_omap3430es2_dss_usbhost_wait = {
  * @clk: struct clk * being enabled
  * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
  * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ * @idlest_val: pointer to a u8 to store the CM_IDLEST indicator
  *
  * The OMAP3430ES2 HSOTGUSB target CM_IDLEST bit is at a different
  * shift from the CM_{I,F}CLKEN bit.  Pass back the correct info via
@@ -114,13 +121,15 @@ const struct clkops clkops_omap3430es2_dss_usbhost_wait = {
  */
 static void omap3430es2_clk_hsotgusb_find_idlest(struct clk *clk,
 						 void __iomem **idlest_reg,
-						 u8 *idlest_bit)
+						 u8 *idlest_bit,
+						 u8 *idlest_val)
 {
 	u32 r;
 
 	r = (((__force u32)clk->enable_reg & ~0xf0) | 0x20);
 	*idlest_reg = (__force void __iomem *)r;
 	*idlest_bit = OMAP3430ES2_ST_HSOTGUSB_IDLE_SHIFT;
+	*idlest_val = OMAP34XX_CM_IDLEST_VAL;
 }
 
 const struct clkops clkops_omap3430es2_hsotgusb_wait = {

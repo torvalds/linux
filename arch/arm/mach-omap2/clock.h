@@ -114,7 +114,7 @@ void omap2_dflt_clk_disable(struct clk *clk);
 void omap2_clk_dflt_find_companion(struct clk *clk, void __iomem **other_reg,
 				   u8 *other_bit);
 void omap2_clk_dflt_find_idlest(struct clk *clk, void __iomem **idlest_reg,
-				u8 *idlest_bit);
+				u8 *idlest_bit, u8 *idlest_val);
 void omap2xxx_clk_commit(struct clk *clk);
 
 extern u8 cpu_mask;

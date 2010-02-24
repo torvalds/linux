@@ -42,6 +42,7 @@ struct clk *vclk, *sclk, *dclk;
  * @clk: struct clk * being enabled
  * @idlest_reg: void __iomem ** to store CM_IDLEST reg address into
  * @idlest_bit: pointer to a u8 to store the CM_IDLEST bit shift into
+ * @idlest_val: pointer to a u8 to store the CM_IDLEST indicator
  *
  * OMAP2430 I2CHS CM_IDLEST bits are in CM_IDLEST1_CORE, but the
  * CM_*CLKEN bits are in CM_{I,F}CLKEN2_CORE.  This custom function
@@ -50,10 +51,12 @@ struct clk *vclk, *sclk, *dclk;
  */
 static void omap2430_clk_i2chs_find_idlest(struct clk *clk,
 					   void __iomem **idlest_reg,
-					   u8 *idlest_bit)
+					   u8 *idlest_bit,
+					   u8 *idlest_val)
 {
 	*idlest_reg = OMAP_CM_REGADDR(CORE_MOD, CM_IDLEST);
 	*idlest_bit = clk->enable_bit;
+	*idlest_val = OMAP24XX_CM_IDLEST_VAL;
 }
 
 #else
