@@ -44,7 +44,6 @@
 #include <linux/string.h>
 #include <linux/backing-dev.h>
 #include <linux/poll.h>
-#include <linux/smp_lock.h>
 
 #include <asm/uaccess.h>
 
@@ -589,27 +588,21 @@ static int dlmfs_fill_super(struct super_block * sb,
 	struct inode * inode;
 	struct dentry * root;
 
-	lock_kernel();
-
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize = PAGE_CACHE_SIZE;
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = DLMFS_MAGIC;
 	sb->s_op = &dlmfs_ops;
 	inode = dlmfs_get_root_inode(sb);
-	if (!inode) {
-		unlock_kernel();
+	if (!inode)
 		return -ENOMEM;
-	}
 
 	root = d_alloc_root(inode);
 	if (!root) {
 		iput(inode);
-		unlock_kernel();
 		return -ENOMEM;
 	}
 	sb->s_root = root;
-	unlock_kernel();
 	return 0;
 }
 

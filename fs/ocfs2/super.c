@@ -609,8 +609,6 @@ static int ocfs2_remount(struct super_block *sb, int *flags, char *data)
 	struct mount_options parsed_options;
 	struct ocfs2_super *osb = OCFS2_SB(sb);
 
-	lock_kernel();
-
 	if (!ocfs2_parse_options(sb, data, &parsed_options, 1) ||
 	    !ocfs2_check_set_options(sb, &parsed_options)) {
 		ret = -EINVAL;
@@ -717,7 +715,6 @@ unlock_osb:
 							MS_POSIXACL : 0);
 	}
 out:
-	unlock_kernel();
 	return ret;
 }
 
@@ -1002,8 +999,6 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	char nodestr[8];
 	struct ocfs2_blockcheck_stats stats;
 
-	lock_kernel();
-
 	mlog_entry("%p, %p, %i", sb, data, silent);
 
 	if (!ocfs2_parse_options(sb, data, &parsed_options, 0)) {
@@ -1181,7 +1176,6 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 			atomic_set(&osb->vol_state, VOLUME_DISABLED);
 			wake_up(&osb->osb_mount_event);
 			mlog_exit(status);
-			unlock_kernel();
 			return status;
 		}
 	}
@@ -1196,7 +1190,6 @@ static int ocfs2_fill_super(struct super_block *sb, void *data, int silent)
 	ocfs2_orphan_scan_start(osb);
 
 	mlog_exit(status);
-	unlock_kernel();
 	return status;
 
 read_super_error:
@@ -1212,7 +1205,6 @@ read_super_error:
 	}
 
 	mlog_exit(status);
-	unlock_kernel();
 	return status;
 }
 
@@ -1645,12 +1637,8 @@ static void ocfs2_put_super(struct super_block *sb)
 {
 	mlog_entry("(0x%p)\n", sb);
 
-	lock_kernel();
-
 	ocfs2_sync_blockdev(sb);
 	ocfs2_dismount_volume(sb, 0);
-
-	unlock_kernel();
 
 	mlog_exit_void();
 }
