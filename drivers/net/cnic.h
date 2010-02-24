@@ -224,9 +224,12 @@ struct cnic_local {
 	u16		kcq_prod_idx;
 	u32		kcq_io_addr;
 
-	void				*status_blk;
-	struct status_block_msix	*bnx2_status_blk;
-	struct host_status_block	*bnx2x_status_blk;
+	union {
+		void				*gen;
+		struct status_block_msix	*bnx2;
+		struct host_status_block	*bnx2x;
+	} status_blk;
+
 	struct host_def_status_block	*bnx2x_def_status_blk;
 
 	u32				status_blk_num;
