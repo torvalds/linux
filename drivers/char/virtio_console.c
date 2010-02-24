@@ -379,7 +379,7 @@ static ssize_t send_control_msg(struct port *port, unsigned int event,
 	struct scatterlist sg[1];
 	struct virtio_console_control cpkt;
 	struct virtqueue *vq;
-	int len;
+	unsigned int len;
 
 	if (!use_multiport(port->portdev))
 		return 0;
