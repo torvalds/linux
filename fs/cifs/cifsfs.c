@@ -35,7 +35,6 @@
 #include <linux/delay.h>
 #include <linux/kthread.h>
 #include <linux/freezer.h>
-#include <linux/smp_lock.h>
 #include "cifsfs.h"
 #include "cifspdu.h"
 #define DECLARE_GLOBALS_HERE
@@ -200,8 +199,6 @@ cifs_put_super(struct super_block *sb)
 		return;
 	}
 
-	lock_kernel();
-
 	rc = cifs_umount(sb, cifs_sb);
 	if (rc)
 		cERROR(1, "cifs_umount failed with return code %d", rc);
@@ -215,8 +212,6 @@ cifs_put_super(struct super_block *sb)
 	unload_nls(cifs_sb->local_nls);
 	bdi_destroy(&cifs_sb->bdi);
 	kfree(cifs_sb);
-
-	unlock_kernel();
 }
 
 static int
@@ -516,28 +511,22 @@ cifs_get_sb(struct file_system_type *fs_type,
 	int rc;
 	struct super_block *sb;
 
-	lock_kernel();
-
 	sb = sget(fs_type, NULL, set_anon_super, NULL);
 
 	cFYI(1, "Devname: %s flags: %d ", dev_name, flags);
 
-	if (IS_ERR(sb)) {
-		unlock_kernel();
+	if (IS_ERR(sb))
 		return PTR_ERR(sb);
-	}
 
 	sb->s_flags = flags;
 
 	rc = cifs_read_super(sb, data, dev_name, flags & MS_SILENT ? 1 : 0);
 	if (rc) {
 		deactivate_locked_super(sb);
-		unlock_kernel();
 		return rc;
 	}
 	sb->s_flags |= MS_ACTIVE;
 	simple_set_mnt(mnt, sb);
-	unlock_kernel();
 	return 0;
 }
 
