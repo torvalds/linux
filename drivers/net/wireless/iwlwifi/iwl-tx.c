@@ -37,25 +37,62 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 
-static const u16 default_tid_to_tx_fifo[] = {
-	IWL_TX_FIFO_AC1,
-	IWL_TX_FIFO_AC0,
-	IWL_TX_FIFO_AC0,
-	IWL_TX_FIFO_AC1,
-	IWL_TX_FIFO_AC2,
-	IWL_TX_FIFO_AC2,
-	IWL_TX_FIFO_AC3,
-	IWL_TX_FIFO_AC3,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_NONE,
-	IWL_TX_FIFO_AC3
+/*
+ * mac80211 queues, ACs, hardware queues, FIFOs.
+ *
+ * Cf. http://wireless.kernel.org/en/developers/Documentation/mac80211/queues
+ *
+ * Mac80211 uses the following numbers, which we get as from it
+ * by way of skb_get_queue_mapping(skb):
+ *
+ *	VO	0
+ *	VI	1
+ *	BE	2
+ *	BK	3
+ *
+ *
+ * Regular (not A-MPDU) frames are put into hardware queues corresponding
+ * to the FIFOs, see comments in iwl-prph.h. Aggregated frames get their
+ * own queue per aggregation session (RA/TID combination), such queues are
+ * set up to map into FIFOs too, for which we need an AC->FIFO mapping. In
+ * order to map frames to the right queue, we also need an AC->hw queue
+ * mapping. This is implemented here.
+ *
+ * Due to the way hw queues are set up (by the hw specific modules like
+ * iwl-4965.c, iwl-5000.c etc.), the AC->hw queue mapping is the identity
+ * mapping.
+ */
+
+static const u8 tid_to_ac[] = {
+	/* this matches the mac80211 numbers */
+	2, 3, 3, 2, 1, 1, 0, 0
 };
+
+static const u8 ac_to_fifo[] = {
+	IWL_TX_FIFO_VO,
+	IWL_TX_FIFO_VI,
+	IWL_TX_FIFO_BE,
+	IWL_TX_FIFO_BK,
+};
+
+static inline int get_fifo_from_ac(u8 ac)
+{
+	return ac_to_fifo[ac];
+}
+
+static inline int get_queue_from_ac(u16 ac)
+{
+	return ac;
+}
+
+static inline int get_fifo_from_tid(u16 tid)
+{
+	if (likely(tid < ARRAY_SIZE(tid_to_ac)))
+		return get_fifo_from_ac(tid_to_ac[tid]);
+
+	/* no support for TIDs 8-15 yet */
+	return -EINVAL;
+}
 
 static inline int iwl_alloc_dma_ptr(struct iwl_priv *priv,
 				    struct iwl_dma_ptr *ptr, size_t size)
@@ -591,13 +628,12 @@ static void iwl_tx_cmd_build_basic(struct iwl_priv *priv,
 	tx_cmd->next_frame_len = 0;
 }
 
-#define RTS_HCCA_RETRY_LIMIT		3
 #define RTS_DFAULT_RETRY_LIMIT		60
 
 static void iwl_tx_cmd_build_rate(struct iwl_priv *priv,
 			      struct iwl_tx_cmd *tx_cmd,
 			      struct ieee80211_tx_info *info,
-			      __le16 fc, int is_hcca)
+			      __le16 fc)
 {
 	u32 rate_flags;
 	int rate_idx;
@@ -613,8 +649,7 @@ static void iwl_tx_cmd_build_rate(struct iwl_priv *priv,
 	tx_cmd->data_retry_limit = data_retry_limit;
 
 	/* Set retry limit on RTS packets */
-	rts_retry_limit = (is_hcca) ?  RTS_HCCA_RETRY_LIMIT :
-		RTS_DFAULT_RETRY_LIMIT;
+	rts_retry_limit = RTS_DFAULT_RETRY_LIMIT;
 	if (data_retry_limit < rts_retry_limit)
 		rts_retry_limit = data_retry_limit;
 	tx_cmd->rts_retry_limit = rts_retry_limit;
@@ -794,7 +829,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		iwl_sta_modify_sleep_tx_count(priv, sta_id, 1);
 	}
 
-	txq_id = skb_get_queue_mapping(skb);
+	txq_id = get_queue_from_ac(skb_get_queue_mapping(skb));
 	if (ieee80211_is_data_qos(fc)) {
 		qc = ieee80211_get_qos_ctl(hdr);
 		tid = qc[0] & IEEE80211_QOS_CTL_TID_MASK;
@@ -859,8 +894,7 @@ int iwl_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	iwl_tx_cmd_build_basic(priv, tx_cmd, info, hdr, sta_id);
 	iwl_dbg_log_tx_data_frame(priv, len, hdr);
 
-	/* set is_hcca to 0; it probably will never be implemented */
-	iwl_tx_cmd_build_rate(priv, tx_cmd, info, fc, 0);
+	iwl_tx_cmd_build_rate(priv, tx_cmd, info, fc);
 
 	iwl_update_stats(priv, true, fc, len);
 	/*
@@ -1260,7 +1294,7 @@ EXPORT_SYMBOL(iwl_tx_cmd_complete);
  * Find first available (lowest unused) Tx Queue, mark it "active".
  * Called only when finding queue for aggregation.
  * Should never return anything < 7, because they should already
- * be in use as EDCA AC (0-3), Command (4), HCCA (5, 6).
+ * be in use as EDCA AC (0-3), Command (4), reserved (5, 6)
  */
 static int iwl_txq_ctx_activate_free(struct iwl_priv *priv)
 {
@@ -1281,10 +1315,9 @@ int iwl_tx_agg_start(struct iwl_priv *priv, const u8 *ra, u16 tid, u16 *ssn)
 	unsigned long flags;
 	struct iwl_tid_data *tid_data;
 
-	if (likely(tid < ARRAY_SIZE(default_tid_to_tx_fifo)))
-		tx_fifo = default_tid_to_tx_fifo[tid];
-	else
-		return -EINVAL;
+	tx_fifo = get_fifo_from_tid(tid);
+	if (unlikely(tx_fifo < 0))
+		return tx_fifo;
 
 	IWL_WARN(priv, "%s on ra = %pM tid = %d\n",
 			__func__, ra, tid);
@@ -1345,13 +1378,9 @@ int iwl_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid)
 		return -EINVAL;
 	}
 
-	if (unlikely(tid >= MAX_TID_COUNT))
-		return -EINVAL;
-
-	if (likely(tid < ARRAY_SIZE(default_tid_to_tx_fifo)))
-		tx_fifo_id = default_tid_to_tx_fifo[tid];
-	else
-		return -EINVAL;
+	tx_fifo_id = get_fifo_from_tid(tid);
+	if (unlikely(tx_fifo_id < 0))
+		return tx_fifo_id;
 
 	sta_id = iwl_find_station(priv, ra);
 
@@ -1419,7 +1448,7 @@ int iwl_txq_check_empty(struct iwl_priv *priv, int sta_id, u8 tid, int txq_id)
 		if ((txq_id  == tid_data->agg.txq_id) &&
 		    (q->read_ptr == q->write_ptr)) {
 			u16 ssn = SEQ_TO_SN(tid_data->seq_number);
-			int tx_fifo = default_tid_to_tx_fifo[tid];
+			int tx_fifo = get_fifo_from_tid(tid);
 			IWL_DEBUG_HT(priv, "HW queue empty: continue DELBA flow\n");
 			priv->cfg->ops->lib->txq_agg_disable(priv, txq_id,
 							     ssn, tx_fifo);

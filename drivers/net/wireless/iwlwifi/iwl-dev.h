@@ -304,13 +304,11 @@ struct iwl_channel_info {
 	struct iwl3945_scan_power_info scan_pwr_info[IWL_NUM_SCAN_RATES];
 };
 
-#define IWL_TX_FIFO_AC0	0
-#define IWL_TX_FIFO_AC1	1
-#define IWL_TX_FIFO_AC2	2
-#define IWL_TX_FIFO_AC3	3
-#define IWL_TX_FIFO_HCCA_1	5
-#define IWL_TX_FIFO_HCCA_2	6
-#define IWL_TX_FIFO_NONE	7
+#define IWL_TX_FIFO_BK		0
+#define IWL_TX_FIFO_BE		1
+#define IWL_TX_FIFO_VI		2
+#define IWL_TX_FIFO_VO		3
+#define IWL_TX_FIFO_UNUSED	-1
 
 /* Minimum number of queues. MAX_NUM is defined in hw specific files.
  * Set the minimum to accommodate the 4 standard TX queues, 1 command

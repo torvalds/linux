@@ -502,14 +502,14 @@ static void iwl4965_tx_queue_set_status(struct iwl_priv *priv,
 		       scd_retry ? "BA" : "AC", txq_id, tx_fifo_id);
 }
 
-static const u16 default_queue_to_tx_fifo[] = {
-	IWL_TX_FIFO_AC3,
-	IWL_TX_FIFO_AC2,
-	IWL_TX_FIFO_AC1,
-	IWL_TX_FIFO_AC0,
+static const s8 default_queue_to_tx_fifo[] = {
+	IWL_TX_FIFO_VO,
+	IWL_TX_FIFO_VI,
+	IWL_TX_FIFO_BE,
+	IWL_TX_FIFO_BK,
 	IWL49_CMD_FIFO_NUM,
-	IWL_TX_FIFO_HCCA_1,
-	IWL_TX_FIFO_HCCA_2
+	IWL_TX_FIFO_UNUSED,
+	IWL_TX_FIFO_UNUSED,
 };
 
 static int iwl4965_alive_notify(struct iwl_priv *priv)
@@ -589,9 +589,15 @@ static int iwl4965_alive_notify(struct iwl_priv *priv)
 	/* reset to 0 to enable all the queue first */
 	priv->txq_ctx_active_msk = 0;
 	/* Map each Tx/cmd queue to its corresponding fifo */
+	BUILD_BUG_ON(ARRAY_SIZE(default_queue_to_tx_fifo) != 7);
 	for (i = 0; i < ARRAY_SIZE(default_queue_to_tx_fifo); i++) {
 		int ac = default_queue_to_tx_fifo[i];
+
 		iwl_txq_ctx_activate(priv, i);
+
+		if (ac == IWL_TX_FIFO_UNUSED)
+			continue;
+
 		iwl4965_tx_queue_set_status(priv, &priv->txq[i], ac, 0);
 	}
 

@@ -64,14 +64,17 @@
 #define _IWL5150_MODULE_FIRMWARE(api) IWL5150_FW_PRE #api ".ucode"
 #define IWL5150_MODULE_FIRMWARE(api) _IWL5150_MODULE_FIRMWARE(api)
 
-static const u16 iwl5000_default_queue_to_tx_fifo[] = {
-	IWL_TX_FIFO_AC3,
-	IWL_TX_FIFO_AC2,
-	IWL_TX_FIFO_AC1,
-	IWL_TX_FIFO_AC0,
+static const s8 iwl5000_default_queue_to_tx_fifo[] = {
+	IWL_TX_FIFO_VO,
+	IWL_TX_FIFO_VI,
+	IWL_TX_FIFO_BE,
+	IWL_TX_FIFO_BK,
 	IWL50_CMD_FIFO_NUM,
-	IWL_TX_FIFO_HCCA_1,
-	IWL_TX_FIFO_HCCA_2
+	IWL_TX_FIFO_UNUSED,
+	IWL_TX_FIFO_UNUSED,
+	IWL_TX_FIFO_UNUSED,
+	IWL_TX_FIFO_UNUSED,
+	IWL_TX_FIFO_UNUSED,
 };
 
 /* NIC configuration for 5000 series */
@@ -657,24 +660,20 @@ int iwl5000_alive_notify(struct iwl_priv *priv)
 	/* reset to 0 to enable all the queue first */
 	priv->txq_ctx_active_msk = 0;
 	/* map qos queues to fifos one-to-one */
+	BUILD_BUG_ON(ARRAY_SIZE(iwl5000_default_queue_to_tx_fifo) != 10);
+
 	for (i = 0; i < ARRAY_SIZE(iwl5000_default_queue_to_tx_fifo); i++) {
 		int ac = iwl5000_default_queue_to_tx_fifo[i];
+
 		iwl_txq_ctx_activate(priv, i);
+
+		if (ac == IWL_TX_FIFO_UNUSED)
+			continue;
+
 		iwl5000_tx_queue_set_status(priv, &priv->txq[i], ac, 0);
 	}
 
-	/*
-	 * TODO - need to initialize these queues and map them to FIFOs
-	 * in the loop above, not only mark them as active. We do this
-	 * because we want the first aggregation queue to be queue #10,
-	 * but do not use 8 or 9 otherwise yet.
-	 */
-	iwl_txq_ctx_activate(priv, 7);
-	iwl_txq_ctx_activate(priv, 8);
-	iwl_txq_ctx_activate(priv, 9);
-
 	spin_unlock_irqrestore(&priv->lock, flags);
-
 
 	iwl_send_wimax_coex(priv);
 
