@@ -57,6 +57,10 @@ static int fixed_bar_cap(struct pci_bus *bus, unsigned int devfn)
 	u32 pcie_cap = 0, cap_data;
 
 	pos = PCIE_CAP_OFFSET;
+
+	if (!raw_pci_ext_ops)
+		return 0;
+
 	while (pos) {
 		if (raw_pci_ext_ops->read(pci_domain_nr(bus), bus->number,
 					  devfn, pos, 4, &pcie_cap))
