@@ -930,10 +930,9 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 	if (tb[IFLA_VF_MAC]) {
 		struct ifla_vf_mac *ivm;
 		ivm = nla_data(tb[IFLA_VF_MAC]);
-		write_lock_bh(&dev_base_lock);
+		err = -EOPNOTSUPP;
 		if (ops->ndo_set_vf_mac)
 			err = ops->ndo_set_vf_mac(dev, ivm->vf, ivm->mac);
-		write_unlock_bh(&dev_base_lock);
 		if (err < 0)
 			goto errout;
 		modified = 1;
@@ -942,12 +941,11 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 	if (tb[IFLA_VF_VLAN]) {
 		struct ifla_vf_vlan *ivv;
 		ivv = nla_data(tb[IFLA_VF_VLAN]);
-		write_lock_bh(&dev_base_lock);
+		err = -EOPNOTSUPP;
 		if (ops->ndo_set_vf_vlan)
 			err = ops->ndo_set_vf_vlan(dev, ivv->vf,
-						   (u16)ivv->vlan,
-						   (u8)ivv->qos);
-		write_unlock_bh(&dev_base_lock);
+						   ivv->vlan,
+						   ivv->qos);
 		if (err < 0)
 			goto errout;
 		modified = 1;
@@ -957,10 +955,9 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 	if (tb[IFLA_VF_TX_RATE]) {
 		struct ifla_vf_tx_rate *ivt;
 		ivt = nla_data(tb[IFLA_VF_TX_RATE]);
-		write_lock_bh(&dev_base_lock);
+		err = -EOPNOTSUPP;
 		if (ops->ndo_set_vf_tx_rate)
 			err = ops->ndo_set_vf_tx_rate(dev, ivt->vf, ivt->rate);
-		write_unlock_bh(&dev_base_lock);
 		if (err < 0)
 			goto errout;
 		modified = 1;
