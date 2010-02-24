@@ -484,18 +484,24 @@ static struct sk_buff *sis190_alloc_rx_skb(struct sis190_private *tp,
 {
 	u32 rx_buf_sz = tp->rx_buf_sz;
 	struct sk_buff *skb;
+	dma_addr_t mapping;
 
 	skb = netdev_alloc_skb(tp->dev, rx_buf_sz);
-	if (likely(skb)) {
-		dma_addr_t mapping;
-
-		mapping = pci_map_single(tp->pci_dev, skb->data, tp->rx_buf_sz,
-					 PCI_DMA_FROMDEVICE);
-		sis190_map_to_asic(desc, mapping, rx_buf_sz);
-	} else
-		sis190_make_unusable_by_asic(desc);
+	if (unlikely(!skb))
+		goto skb_alloc_failed;
+	mapping = pci_map_single(tp->pci_dev, skb->data, tp->rx_buf_sz,
+			PCI_DMA_FROMDEVICE);
+	if (pci_dma_mapping_error(tp->pci_dev, mapping))
+		goto out;
+	sis190_map_to_asic(desc, mapping, rx_buf_sz);
 
 	return skb;
+
+out:
+	dev_kfree_skb_any(skb);
+skb_alloc_failed:
+	sis190_make_unusable_by_asic(desc);
+	return NULL;
 }
 
 static u32 sis190_rx_fill(struct sis190_private *tp, struct net_device *dev,
@@ -1184,6 +1190,11 @@ static netdev_tx_t sis190_start_xmit(struct sk_buff *skb,
 	}
 
 	mapping = pci_map_single(tp->pci_dev, skb->data, len, PCI_DMA_TODEVICE);
+	if (pci_dma_mapping_error(tp->pci_dev, mapping)) {
+		netif_err(tp, tx_err, dev,
+				"PCI mapping failed, dropping packet");
+		return NETDEV_TX_BUSY;
+	}
 
 	tp->Tx_skbuff[entry] = skb;
 
