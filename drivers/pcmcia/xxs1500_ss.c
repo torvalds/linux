@@ -56,10 +56,9 @@ struct xxs1500_pcmcia_sock {
 	struct pcmcia_socket	socket;
 	void		*virt_io;
 
-	/* the "pseudo" addresses of the PCMCIA space. */
-	unsigned long	phys_io;
-	unsigned long	phys_attr;
-	unsigned long	phys_mem;
+	phys_addr_t	phys_io;
+	phys_addr_t	phys_attr;
+	phys_addr_t	phys_mem;
 
 	/* previous flags for set_socket() */
 	unsigned int old_flags;
@@ -211,7 +210,6 @@ static int __devinit xxs1500_pcmcia_probe(struct platform_device *pdev)
 {
 	struct xxs1500_pcmcia_sock *sock;
 	struct resource *r;
-	phys_t physio;
 	int ret, irq;
 
 	sock = kzalloc(sizeof(struct xxs1500_pcmcia_sock), GFP_KERNEL);
@@ -225,9 +223,9 @@ static int __devinit xxs1500_pcmcia_probe(struct platform_device *pdev)
 	 * for this socket (usually the 36bit address shifted 4 to the
 	 * right).
 	 */
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pseudo-attr");
+	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-attr");
 	if (!r) {
-		dev_err(&pdev->dev, "missing 'pseudo-attr' resource!\n");
+		dev_err(&pdev->dev, "missing 'pcmcia-attr' resource!\n");
 		goto out0;
 	}
 	sock->phys_attr = r->start;
@@ -236,9 +234,9 @@ static int __devinit xxs1500_pcmcia_probe(struct platform_device *pdev)
 	 * pseudo-mem:  The 32bit address of the PCMCIA memory space for
 	 * this socket (usually the 36bit address shifted 4 to the right)
 	 */
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pseudo-mem");
+	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-mem");
 	if (!r) {
-		dev_err(&pdev->dev, "missing 'pseudo-mem' resource!\n");
+		dev_err(&pdev->dev, "missing 'pcmcia-mem' resource!\n");
 		goto out0;
 	}
 	sock->phys_mem = r->start;
@@ -247,18 +245,13 @@ static int __devinit xxs1500_pcmcia_probe(struct platform_device *pdev)
 	 * pseudo-io:  The 32bit address of the PCMCIA IO space for this
 	 * socket (usually the 36bit address shifted 4 to the right).
 	 */
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pseudo-io");
+	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-io");
 	if (!r) {
-		dev_err(&pdev->dev, "missing 'pseudo-io' resource!\n");
+		dev_err(&pdev->dev, "missing 'pcmcia-io' resource!\n");
 		goto out0;
 	}
 	sock->phys_io = r->start;
 
-
-	/* for io must remap the full 36bit address (for reference see
-	 * alchemy/common/setup.c::__fixup_bigphys_addr)
-	 */
-	physio = ((phys_t)sock->phys_io) << 4;
 
 	/*
 	 * PCMCIA client drivers use the inb/outb macros to access
@@ -268,7 +261,7 @@ static int __devinit xxs1500_pcmcia_probe(struct platform_device *pdev)
 	 * to access the I/O or MEM address directly, without
 	 * going through this "mips_io_port_base" mechanism.
 	 */
-	sock->virt_io = (void *)(ioremap(physio, IO_MAP_SIZE) -
+	sock->virt_io = (void *)(ioremap(sock->phys_io, IO_MAP_SIZE) -
 				 mips_io_port_base);
 
 	if (!sock->virt_io) {

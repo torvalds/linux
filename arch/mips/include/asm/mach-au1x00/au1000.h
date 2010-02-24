@@ -1678,18 +1678,4 @@ enum soc_au1200_ints {
 
 #endif
 
-/*
- * All Au1xx0 SOCs have a PCMCIA controller.
- * We setup our 32-bit pseudo addresses to be equal to the
- * 36-bit addr >> 4, to make it easier to check the address
- * and fix it.
- * The PCMCIA socket 0 physical attribute address is 0xF 4000 0000.
- * The pseudo address we use is 0xF400 0000. Any address over
- * 0xF400 0000 is a PCMCIA pseudo address.
- */
-#define PCMCIA_IO_PSEUDO_PHYS	(PCMCIA_IO_PHYS_ADDR >> 4)
-#define PCMCIA_ATTR_PSEUDO_PHYS	(PCMCIA_ATTR_PHYS_ADDR >> 4)
-#define PCMCIA_MEM_PSEUDO_PHYS	(PCMCIA_MEM_PHYS_ADDR >> 4)
-#define PCMCIA_PSEUDO_END	(0xffffffff)
-
 #endif

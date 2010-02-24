@@ -39,12 +39,12 @@ static int __init db1x_poweroff_setup(void)
 late_initcall(db1x_poweroff_setup);
 
 /* register a pcmcia socket */
-int __init db1x_register_pcmcia_socket(unsigned long pseudo_attr_start,
-				       unsigned long pseudo_attr_end,
-				       unsigned long pseudo_mem_start,
-				       unsigned long pseudo_mem_end,
-				       unsigned long pseudo_io_start,
-				       unsigned long pseudo_io_end,
+int __init db1x_register_pcmcia_socket(phys_addr_t pcmcia_attr_start,
+				       phys_addr_t pcmcia_attr_end,
+				       phys_addr_t pcmcia_mem_start,
+				       phys_addr_t pcmcia_mem_end,
+				       phys_addr_t pcmcia_io_start,
+				       phys_addr_t pcmcia_io_end,
 				       int card_irq,
 				       int cd_irq,
 				       int stschg_irq,
@@ -71,20 +71,20 @@ int __init db1x_register_pcmcia_socket(unsigned long pseudo_attr_start,
 		goto out;
 	}
 
-	sr[0].name	= "pseudo-attr";
+	sr[0].name	= "pcmcia-attr";
 	sr[0].flags	= IORESOURCE_MEM;
-	sr[0].start	= pseudo_attr_start;
-	sr[0].end	= pseudo_attr_end;
+	sr[0].start	= pcmcia_attr_start;
+	sr[0].end	= pcmcia_attr_end;
 
-	sr[1].name	= "pseudo-mem";
+	sr[1].name	= "pcmcia-mem";
 	sr[1].flags	= IORESOURCE_MEM;
-	sr[1].start	= pseudo_mem_start;
-	sr[1].end	= pseudo_mem_end;
+	sr[1].start	= pcmcia_mem_start;
+	sr[1].end	= pcmcia_mem_end;
 
-	sr[2].name	= "pseudo-io";
+	sr[2].name	= "pcmcia-io";
 	sr[2].flags	= IORESOURCE_MEM;
-	sr[2].start	= pseudo_io_start;
-	sr[2].end	= pseudo_io_end;
+	sr[2].start	= pcmcia_io_start;
+	sr[2].end	= pcmcia_io_end;
 
 	sr[3].name	= "insert";
 	sr[3].flags	= IORESOURCE_IRQ;
@@ -96,9 +96,9 @@ int __init db1x_register_pcmcia_socket(unsigned long pseudo_attr_start,
 
 	i = 5;
 	if (stschg_irq) {
-		sr[i].name	= "insert";
+		sr[i].name	= "stschg";
 		sr[i].flags	= IORESOURCE_IRQ;
-		sr[i].start = sr[i].end = cd_irq;
+		sr[i].start = sr[i].end = stschg_irq;
 		i++;
 	}
 	if (eject_irq) {

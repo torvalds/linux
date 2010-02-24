@@ -69,38 +69,20 @@ void __init plat_mem_setup(void)
 	iomem_resource.end = IOMEM_RESOURCE_END;
 }
 
-#if defined(CONFIG_64BIT_PHYS_ADDR)
+#if defined(CONFIG_64BIT_PHYS_ADDR) && defined(CONFIG_PCI)
 /* This routine should be valid for all Au1x based boards */
 phys_t __fixup_bigphys_addr(phys_t phys_addr, phys_t size)
 {
+	u32 start = (u32)Au1500_PCI_MEM_START;
+	u32 end   = (u32)Au1500_PCI_MEM_END;
+
 	/* Don't fixup 36-bit addresses */
 	if ((phys_addr >> 32) != 0)
 		return phys_addr;
 
-#ifdef CONFIG_PCI
-	{
-		u32 start = (u32)Au1500_PCI_MEM_START;
-		u32 end   = (u32)Au1500_PCI_MEM_END;
-
-		/* Check for PCI memory window */
-		if (phys_addr >= start && (phys_addr + size - 1) <= end)
-			return (phys_t)
-			       ((phys_addr - start) + Au1500_PCI_MEM_START);
-	}
-#endif
-
-	/*
-	 * All Au1xx0 SOCs have a PCMCIA controller.
-	 * We setup our 32-bit pseudo addresses to be equal to the
-	 * 36-bit addr >> 4, to make it easier to check the address
-	 * and fix it.
-	 * The PCMCIA socket 0 physical attribute address is 0xF 4000 0000.
-	 * The pseudo address we use is 0xF400 0000. Any address over
-	 * 0xF400 0000 is a PCMCIA pseudo address.
-	 */
-	if ((phys_addr >= PCMCIA_ATTR_PSEUDO_PHYS) &&
-	    (phys_addr < PCMCIA_PSEUDO_END))
-		return (phys_t)(phys_addr << 4);
+	/* Check for PCI memory window */
+	if (phys_addr >= start && (phys_addr + size - 1) <= end)
+		return (phys_t)((phys_addr - start) + Au1500_PCI_MEM_START);
 
 	/* default nop */
 	return phys_addr;

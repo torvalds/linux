@@ -43,9 +43,9 @@ struct db1x_pcmcia_sock {
 	void		*virt_io;
 
 	/* the "pseudo" addresses of the PCMCIA space. */
-	unsigned long	phys_io;
-	unsigned long	phys_attr;
-	unsigned long	phys_mem;
+	phys_addr_t	phys_io;
+	phys_addr_t	phys_attr;
+	phys_addr_t	phys_mem;
 
 	/* previous flags for set_socket() */
 	unsigned int old_flags;
@@ -404,7 +404,6 @@ static int __devinit db1x_pcmcia_socket_probe(struct platform_device *pdev)
 {
 	struct db1x_pcmcia_sock *sock;
 	struct resource *r;
-	phys_t physio;
 	int ret, bid;
 
 	sock = kzalloc(sizeof(struct db1x_pcmcia_sock), GFP_KERNEL);
@@ -465,7 +464,7 @@ static int __devinit db1x_pcmcia_socket_probe(struct platform_device *pdev)
 	 * for this socket (usually the 36bit address shifted 4 to the
 	 * right).
 	 */
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pseudo-attr");
+	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-attr");
 	if (!r) {
 		printk(KERN_ERR "pcmcia%d has no 'pseudo-attr' resource!\n",
 			sock->nr);
@@ -477,7 +476,7 @@ static int __devinit db1x_pcmcia_socket_probe(struct platform_device *pdev)
 	 * pseudo-mem:  The 32bit address of the PCMCIA memory space for
 	 * this socket (usually the 36bit address shifted 4 to the right)
 	 */
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pseudo-mem");
+	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-mem");
 	if (!r) {
 		printk(KERN_ERR "pcmcia%d has no 'pseudo-mem' resource!\n",
 			sock->nr);
@@ -489,19 +488,13 @@ static int __devinit db1x_pcmcia_socket_probe(struct platform_device *pdev)
 	 * pseudo-io:  The 32bit address of the PCMCIA IO space for this
 	 * socket (usually the 36bit address shifted 4 to the right).
 	 */
-	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pseudo-io");
+	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-io");
 	if (!r) {
 		printk(KERN_ERR "pcmcia%d has no 'pseudo-io' resource!\n",
 			sock->nr);
 		goto out0;
 	}
 	sock->phys_io = r->start;
-
-
-	/* IO: we must remap the full 36bit address (for reference see
-	 * alchemy/common/setup.c::__fixup_bigphys_addr())
-	 */
-	physio = ((phys_t)sock->phys_io) << 4;
 
 	/*
 	 * PCMCIA client drivers use the inb/outb macros to access
@@ -511,7 +504,7 @@ static int __devinit db1x_pcmcia_socket_probe(struct platform_device *pdev)
 	 * to access the I/O or MEM address directly, without
 	 * going through this "mips_io_port_base" mechanism.
 	 */
-	sock->virt_io = (void *)(ioremap(physio, IO_MAP_SIZE) -
+	sock->virt_io = (void *)(ioremap(sock->phys_io, IO_MAP_SIZE) -
 				 mips_io_port_base);
 
 	if (!sock->virt_io) {
@@ -547,8 +540,8 @@ static int __devinit db1x_pcmcia_socket_probe(struct platform_device *pdev)
 		goto out2;
 	}
 
-	printk(KERN_INFO "Alchemy Db/Pb1xxx pcmcia%d @ io/attr/mem %08lx"
-		"(%p) %08lx %08lx  card/insert/stschg/eject irqs @ %d "
+	printk(KERN_INFO "Alchemy Db/Pb1xxx pcmcia%d @ io/attr/mem %09llx"
+		"(%p) %09llx %09llx  card/insert/stschg/eject irqs @ %d "
 		"%d %d %d\n", sock->nr, sock->phys_io, sock->virt_io,
 		sock->phys_attr, sock->phys_mem, sock->card_irq,
 		sock->insert_irq, sock->stschg_irq, sock->eject_irq);

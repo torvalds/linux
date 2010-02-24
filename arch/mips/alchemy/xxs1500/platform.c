@@ -25,22 +25,22 @@
 
 static struct resource xxs1500_pcmcia_res[] = {
 	{
-		.name	= "pseudo-io",
+		.name	= "pcmcia-io",
 		.flags	= IORESOURCE_MEM,
-		.start	= PCMCIA_IO_PSEUDO_PHYS,
-		.end	= PCMCIA_IO_PSEUDO_PHYS + 0x00040000 - 1,
+		.start	= PCMCIA_IO_PHYS_ADDR,
+		.end	= PCMCIA_IO_PHYS_ADDR + 0x000400000 - 1,
 	},
 	{
-		.name	= "pseudo-attr",
+		.name	= "pcmcia-attr",
 		.flags	= IORESOURCE_MEM,
-		.start	= PCMCIA_ATTR_PSEUDO_PHYS,
-		.end	= PCMCIA_ATTR_PSEUDO_PHYS + 0x00040000 - 1,
+		.start	= PCMCIA_ATTR_PHYS_ADDR,
+		.end	= PCMCIA_ATTR_PHYS_ADDR + 0x000400000 - 1,
 	},
 	{
-		.name	= "pseudo-mem",
+		.name	= "pcmcia-mem",
 		.flags	= IORESOURCE_MEM,
-		.start	= PCMCIA_IO_PSEUDO_PHYS,
-		.end	= PCMCIA_IO_PSEUDO_PHYS + 0x00040000 - 1,
+		.start	= PCMCIA_MEM_PHYS_ADDR,
+		.end	= PCMCIA_MEM_PHYS_ADDR + 0x000400000 - 1,
 	},
 };
 
