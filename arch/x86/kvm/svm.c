@@ -1845,6 +1845,11 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 			       nested_vmcb->control.event_inj,
 			       nested_vmcb->control.nested_ctl);
 
+	trace_kvm_nested_intercepts(nested_vmcb->control.intercept_cr_read,
+				    nested_vmcb->control.intercept_cr_write,
+				    nested_vmcb->control.intercept_exceptions,
+				    nested_vmcb->control.intercept);
+
 	/* Clear internal status */
 	kvm_clear_exception_queue(&svm->vcpu);
 	kvm_clear_interrupt_queue(&svm->vcpu);
