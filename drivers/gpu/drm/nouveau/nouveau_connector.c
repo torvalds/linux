@@ -613,6 +613,9 @@ nouveau_connector_mode_valid(struct drm_connector *connector,
 
 		clock *= 3;
 		break;
+	default:
+		BUG_ON(1);
+		return MODE_BAD;
 	}
 
 	if (clock < min_clock)

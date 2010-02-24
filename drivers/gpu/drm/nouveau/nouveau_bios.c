@@ -5388,6 +5388,8 @@ parse_dcb20_entry(struct drm_device *dev, struct dcb_table *dcb,
 		/* weird g80 mobile type that "nv" treats as a terminator */
 		dcb->entries--;
 		return false;
+	default:
+		break;
 	}
 
 	/* unsure what DCB version introduces this, 3.0? */
