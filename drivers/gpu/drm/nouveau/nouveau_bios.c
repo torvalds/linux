@@ -5754,7 +5754,7 @@ static void
 fixup_legacy_connector(struct nvbios *bios)
 {
 	struct dcb_table *dcb = &bios->dcb;
-	int high = 0, i;
+	int i, i2c, i2c_conn[DCB_MAX_NUM_I2C_ENTRIES] = { };
 
 	/*
 	 * DCB 3.0 also has the table in most cases, but there are some cards
@@ -5765,6 +5765,8 @@ fixup_legacy_connector(struct nvbios *bios)
 	if (dcb->version >= 0x40)
 		return;
 
+	dcb->connector.entries = 0;
+
 	/*
 	 * No known connector info before v3.0, so make it up.  the rule here
 	 * is: anything on the same i2c bus is considered to be on the same
@@ -5772,30 +5774,31 @@ fixup_legacy_connector(struct nvbios *bios)
 	 * its own unique connector index.
 	 */
 	for (i = 0; i < dcb->entries; i++) {
-		if (dcb->entry[i].i2c_index == 0xf)
-			continue;
-
 		/*
 		 * Ignore the I2C index for on-chip TV-out, as there
 		 * are cards with bogus values (nv31m in bug 23212),
 		 * and it's otherwise useless.
 		 */
 		if (dcb->entry[i].type == OUTPUT_TV &&
-		    dcb->entry[i].location == DCB_LOC_ON_CHIP) {
+		    dcb->entry[i].location == DCB_LOC_ON_CHIP)
 			dcb->entry[i].i2c_index = 0xf;
+		i2c = dcb->entry[i].i2c_index;
+
+		if (i2c_conn[i2c]) {
+			dcb->entry[i].connector = i2c_conn[i2c] - 1;
 			continue;
 		}
 
-		dcb->entry[i].connector = dcb->entry[i].i2c_index;
-		if (dcb->entry[i].connector > high)
-			high = dcb->entry[i].connector;
+		dcb->entry[i].connector = dcb->connector.entries++;
+		if (i2c != 0xf)
+			i2c_conn[i2c] = dcb->connector.entries;
 	}
 
-	for (i = 0; i < dcb->entries; i++) {
-		if (dcb->entry[i].i2c_index != 0xf)
-			continue;
-
-		dcb->entry[i].connector = ++high;
+	/* Fake the connector table as well as just connector indices */
+	for (i = 0; i < dcb->connector.entries; i++) {
+		dcb->connector.entry[i].index = i;
+		dcb->connector.entry[i].type = divine_connector_type(bios, i);
+		dcb->connector.entry[i].gpio_tag = 0xff;
 	}
 }
 
