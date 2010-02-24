@@ -71,6 +71,7 @@ struct kvm_vcpu;
 struct nested_state {
 	struct vmcb *hsave;
 	u64 hsave_msr;
+	u64 vm_cr_msr;
 	u64 vmcb;
 
 	/* These are the merged vectors */
@@ -2280,7 +2281,7 @@ static int svm_get_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 *data)
 		*data = svm->nested.hsave_msr;
 		break;
 	case MSR_VM_CR:
-		*data = 0;
+		*data = svm->nested.vm_cr_msr;
 		break;
 	case MSR_IA32_UCODE_REV:
 		*data = 0x01000065;
@@ -2308,6 +2309,31 @@ static int rdmsr_interception(struct vcpu_svm *svm)
 		skip_emulated_instruction(&svm->vcpu);
 	}
 	return 1;
+}
+
+static int svm_set_vm_cr(struct kvm_vcpu *vcpu, u64 data)
+{
+	struct vcpu_svm *svm = to_svm(vcpu);
+	int svm_dis, chg_mask;
+
+	if (data & ~SVM_VM_CR_VALID_MASK)
+		return 1;
+
+	chg_mask = SVM_VM_CR_VALID_MASK;
+
+	if (svm->nested.vm_cr_msr & SVM_VM_CR_SVM_DIS_MASK)
+		chg_mask &= ~(SVM_VM_CR_SVM_LOCK_MASK | SVM_VM_CR_SVM_DIS_MASK);
+
+	svm->nested.vm_cr_msr &= ~chg_mask;
+	svm->nested.vm_cr_msr |= (data & chg_mask);
+
+	svm_dis = svm->nested.vm_cr_msr & SVM_VM_CR_SVM_DIS_MASK;
+
+	/* check for svm_disable while efer.svme is set */
+	if (svm_dis && (vcpu->arch.efer & EFER_SVME))
+		return 1;
+
+	return 0;
 }
 
 static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
@@ -2376,6 +2402,7 @@ static int svm_set_msr(struct kvm_vcpu *vcpu, unsigned ecx, u64 data)
 		svm->nested.hsave_msr = data;
 		break;
 	case MSR_VM_CR:
+		return svm_set_vm_cr(vcpu, data);
 	case MSR_VM_IGNNE:
 		pr_unimpl(vcpu, "unimplemented wrmsr: 0x%x data 0x%llx\n", ecx, data);
 		break;
