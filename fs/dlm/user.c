@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2009 Red Hat, Inc.  All rights reserved.
+ * Copyright (C) 2006-2010 Red Hat, Inc.  All rights reserved.
  *
  * This copyrighted material is made available to anyone wishing to use,
  * modify, copy, or redistribute it subject to the terms and conditions
@@ -173,7 +173,7 @@ static int lkb_is_endoflife(struct dlm_lkb *lkb, int sb_status, int type)
 /* we could possibly check if the cancel of an orphan has resulted in the lkb
    being removed and then remove that lkb from the orphans list and free it */
 
-void dlm_user_add_ast(struct dlm_lkb *lkb, int type, int bastmode)
+void dlm_user_add_ast(struct dlm_lkb *lkb, int type, int mode)
 {
 	struct dlm_ls *ls;
 	struct dlm_user_args *ua;
@@ -206,8 +206,10 @@ void dlm_user_add_ast(struct dlm_lkb *lkb, int type, int bastmode)
 
 	ast_type = lkb->lkb_ast_type;
 	lkb->lkb_ast_type |= type;
-	if (bastmode)
-		lkb->lkb_bastmode = bastmode;
+	if (type == AST_BAST)
+		lkb->lkb_bastmode = mode;
+	else
+		lkb->lkb_castmode = mode;
 
 	if (!ast_type) {
 		kref_get(&lkb->lkb_ref);
