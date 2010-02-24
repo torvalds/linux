@@ -393,15 +393,20 @@ ip6t_do_table(struct sk_buff *skb,
 
 	do {
 		const struct ip6t_entry_target *t;
+		const struct xt_entry_match *ematch;
 
 		IP_NF_ASSERT(e);
 		IP_NF_ASSERT(back);
 		if (!ip6_packet_match(skb, indev, outdev, &e->ipv6,
-		    &mtpar.thoff, &mtpar.fragoff, &hotdrop) ||
-		    IP6T_MATCH_ITERATE(e, do_match, skb, &mtpar) != 0) {
+		    &mtpar.thoff, &mtpar.fragoff, &hotdrop)) {
+ no_match:
 			e = ip6t_next_entry(e);
 			continue;
 		}
+
+		xt_ematch_foreach(ematch, e)
+			if (do_match(ematch, skb, &mtpar) != 0)
+				goto no_match;
 
 		ADD_COUNTER(e->counters,
 			    ntohs(ipv6_hdr(skb)->payload_len) +
@@ -717,6 +722,7 @@ find_check_entry(struct ip6t_entry *e, struct net *net, const char *name,
 	int ret;
 	unsigned int j;
 	struct xt_mtchk_param mtpar;
+	struct xt_entry_match *ematch;
 
 	ret = check_entry(e, name);
 	if (ret)
@@ -728,7 +734,11 @@ find_check_entry(struct ip6t_entry *e, struct net *net, const char *name,
 	mtpar.entryinfo = &e->ipv6;
 	mtpar.hook_mask = e->comefrom;
 	mtpar.family    = NFPROTO_IPV6;
-	ret = IP6T_MATCH_ITERATE(e, find_check_match, &mtpar, &j);
+	xt_ematch_foreach(ematch, e) {
+		ret = find_check_match(ematch, &mtpar, &j);
+		if (ret != 0)
+			break;
+	}
 	if (ret != 0)
 		goto cleanup_matches;
 
@@ -751,7 +761,9 @@ find_check_entry(struct ip6t_entry *e, struct net *net, const char *name,
  err:
 	module_put(t->u.kernel.target->me);
  cleanup_matches:
-	IP6T_MATCH_ITERATE(e, cleanup_match, net, &j);
+	xt_ematch_foreach(ematch, e)
+		if (cleanup_match(ematch, net, &j) != 0)
+			break;
 	return ret;
 }
 
@@ -821,9 +833,12 @@ static void cleanup_entry(struct ip6t_entry *e, struct net *net)
 {
 	struct xt_tgdtor_param par;
 	struct ip6t_entry_target *t;
+	struct xt_entry_match *ematch;
 
 	/* Cleanup all matches */
-	IP6T_MATCH_ITERATE(e, cleanup_match, net, NULL);
+	xt_ematch_foreach(ematch, e)
+		if (cleanup_match(ematch, net, NULL) != 0)
+			break;
 	t = ip6t_get_target(e);
 
 	par.net      = net;
@@ -1090,13 +1105,16 @@ static int compat_calc_entry(const struct ip6t_entry *e,
 			     const struct xt_table_info *info,
 			     const void *base, struct xt_table_info *newinfo)
 {
+	const struct xt_entry_match *ematch;
 	const struct ip6t_entry_target *t;
 	unsigned int entry_offset;
 	int off, i, ret;
 
 	off = sizeof(struct ip6t_entry) - sizeof(struct compat_ip6t_entry);
 	entry_offset = (void *)e - base;
-	IP6T_MATCH_ITERATE(e, compat_calc_match, &off);
+	xt_ematch_foreach(ematch, e)
+		if (compat_calc_match(ematch, &off) != 0)
+			break;
 	t = ip6t_get_target_c(e);
 	off += xt_compat_target_offset(t->u.kernel.target);
 	newinfo->size -= off;
@@ -1474,7 +1492,8 @@ compat_copy_entry_to_user(struct ip6t_entry *e, void __user **dstptr,
 	struct compat_ip6t_entry __user *ce;
 	u_int16_t target_offset, next_offset;
 	compat_uint_t origsize;
-	int ret;
+	const struct xt_entry_match *ematch;
+	int ret = 0;
 
 	origsize = *size;
 	ce = (struct compat_ip6t_entry __user *)*dstptr;
@@ -1486,7 +1505,11 @@ compat_copy_entry_to_user(struct ip6t_entry *e, void __user **dstptr,
 	*dstptr += sizeof(struct compat_ip6t_entry);
 	*size -= sizeof(struct ip6t_entry) - sizeof(struct compat_ip6t_entry);
 
-	ret = IP6T_MATCH_ITERATE(e, xt_compat_match_to_user, dstptr, size);
+	xt_ematch_foreach(ematch, e) {
+		ret = xt_compat_match_to_user(ematch, dstptr, size);
+		if (ret != 0)
+			break;
+	}
 	target_offset = e->target_offset - (origsize - *size);
 	if (ret)
 		return ret;
@@ -1538,9 +1561,12 @@ compat_release_match(struct ip6t_entry_match *m, unsigned int *i)
 static void compat_release_entry(struct compat_ip6t_entry *e)
 {
 	struct ip6t_entry_target *t;
+	struct xt_entry_match *ematch;
 
 	/* Cleanup all matches */
-	COMPAT_IP6T_MATCH_ITERATE(e, compat_release_match, NULL);
+	xt_ematch_foreach(ematch, e)
+		if (compat_release_match(ematch, NULL) != 0)
+			break;
 	t = compat_ip6t_get_target(e);
 	module_put(t->u.kernel.target->me);
 }
@@ -1555,6 +1581,7 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 				  const unsigned int *underflows,
 				  const char *name)
 {
+	struct xt_entry_match *ematch;
 	struct ip6t_entry_target *t;
 	struct xt_target *target;
 	unsigned int entry_offset;
@@ -1583,8 +1610,12 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 	off = sizeof(struct ip6t_entry) - sizeof(struct compat_ip6t_entry);
 	entry_offset = (void *)e - (void *)base;
 	j = 0;
-	ret = COMPAT_IP6T_MATCH_ITERATE(e, compat_find_calc_match, name,
-					&e->ipv6, e->comefrom, &off, &j);
+	xt_ematch_foreach(ematch, e) {
+		ret = compat_find_calc_match(ematch, name,
+		      &e->ipv6, e->comefrom, &off, &j);
+		if (ret != 0)
+			break;
+	}
 	if (ret != 0)
 		goto release_matches;
 
@@ -1623,7 +1654,9 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 out:
 	module_put(t->u.kernel.target->me);
 release_matches:
-	IP6T_MATCH_ITERATE(e, compat_release_match, &j);
+	xt_ematch_foreach(ematch, e)
+		if (compat_release_match(ematch, &j) != 0)
+			break;
 	return ret;
 }
 
@@ -1637,6 +1670,7 @@ compat_copy_entry_from_user(struct compat_ip6t_entry *e, void **dstptr,
 	struct ip6t_entry *de;
 	unsigned int origsize;
 	int ret, h;
+	struct xt_entry_match *ematch;
 
 	ret = 0;
 	origsize = *size;
@@ -1647,8 +1681,11 @@ compat_copy_entry_from_user(struct compat_ip6t_entry *e, void **dstptr,
 	*dstptr += sizeof(struct ip6t_entry);
 	*size += sizeof(struct ip6t_entry) - sizeof(struct compat_ip6t_entry);
 
-	ret = COMPAT_IP6T_MATCH_ITERATE(e, xt_compat_match_from_user,
-					dstptr, size);
+	xt_ematch_foreach(ematch, e) {
+		ret = xt_compat_match_from_user(ematch, dstptr, size);
+		if (ret != 0)
+			break;
+	}
 	if (ret)
 		return ret;
 	de->target_offset = e->target_offset - (origsize - *size);
@@ -1670,8 +1707,9 @@ static int compat_check_entry(struct ip6t_entry *e, struct net *net,
 			      const char *name)
 {
 	unsigned int j;
-	int ret;
+	int ret = 0;
 	struct xt_mtchk_param mtpar;
+	struct xt_entry_match *ematch;
 
 	j = 0;
 	mtpar.net	= net;
@@ -1679,7 +1717,11 @@ static int compat_check_entry(struct ip6t_entry *e, struct net *net,
 	mtpar.entryinfo = &e->ipv6;
 	mtpar.hook_mask = e->comefrom;
 	mtpar.family    = NFPROTO_IPV6;
-	ret = IP6T_MATCH_ITERATE(e, check_match, &mtpar, &j);
+	xt_ematch_foreach(ematch, e) {
+		ret = check_match(ematch, &mtpar, &j);
+		if (ret != 0)
+			break;
+	}
 	if (ret)
 		goto cleanup_matches;
 
@@ -1689,7 +1731,9 @@ static int compat_check_entry(struct ip6t_entry *e, struct net *net,
 	return 0;
 
  cleanup_matches:
-	IP6T_MATCH_ITERATE(e, cleanup_match, net, &j);
+	xt_ematch_foreach(ematch, e)
+		if (cleanup_match(ematch, net, &j) != 0)
+			break;
 	return ret;
 }
 
