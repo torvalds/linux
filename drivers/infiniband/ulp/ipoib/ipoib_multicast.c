@@ -767,11 +767,8 @@ void ipoib_mcast_dev_flush(struct net_device *dev)
 	}
 }
 
-static int ipoib_mcast_addr_is_valid(const u8 *addr, unsigned int addrlen,
-				     const u8 *broadcast)
+static int ipoib_mcast_addr_is_valid(const u8 *addr, const u8 *broadcast)
 {
-	if (addrlen != INFINIBAND_ALEN)
-		return 0;
 	/* reserved QPN, prefix, scope */
 	if (memcmp(addr, broadcast, 6))
 		return 0;
@@ -811,11 +808,10 @@ void ipoib_mcast_restart_task(struct work_struct *work)
 		clear_bit(IPOIB_MCAST_FLAG_FOUND, &mcast->flags);
 
 	/* Mark all of the entries that are found or don't exist */
-	for (mclist = dev->mc_list; mclist; mclist = mclist->next) {
+	netdev_for_each_mc_addr(mclist, dev) {
 		union ib_gid mgid;
 
 		if (!ipoib_mcast_addr_is_valid(mclist->dmi_addr,
-					       mclist->dmi_addrlen,
 					       dev->broadcast))
 			continue;
 
