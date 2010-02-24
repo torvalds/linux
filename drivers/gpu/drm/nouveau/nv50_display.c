@@ -466,7 +466,6 @@ int nv50_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct dcb_table *dcb = &dev_priv->vbios.dcb;
-	uint32_t connector[16] = {};
 	int ret, i;
 
 	NV_DEBUG_KMS(dev, "\n");
@@ -522,44 +521,13 @@ int nv50_display_create(struct drm_device *dev)
 			NV_WARN(dev, "DCB encoder %d unknown\n", entry->type);
 			continue;
 		}
-
-		connector[entry->connector] |= (1 << entry->type);
 	}
 
-	/* It appears that DCB 3.0+ vbios has a connector table, however,
-	 * I'm not 100% certain how to decode it correctly yet so just
-	 * look at what encoders are present on each connector index and
-	 * attempt to derive the connector type from that.
-	 */
-	for (i = 0 ; i < dcb->entries; i++) {
-		struct dcb_entry *entry = &dcb->entry[i];
-		uint16_t encoders;
-		int type;
-
-		encoders = connector[entry->connector];
-		if (!(encoders & (1 << entry->type)))
+	for (i = 0 ; i < dcb->connector.entries; i++) {
+		if (i != 0 && dcb->connector.entry[i].index ==
+			      dcb->connector.entry[i - 1].index)
 			continue;
-		connector[entry->connector] = 0;
-
-		if (encoders & (1 << OUTPUT_DP)) {
-			type = DRM_MODE_CONNECTOR_DisplayPort;
-		} else if (encoders & (1 << OUTPUT_TMDS)) {
-			if (encoders & (1 << OUTPUT_ANALOG))
-				type = DRM_MODE_CONNECTOR_DVII;
-			else
-				type = DRM_MODE_CONNECTOR_DVID;
-		} else if (encoders & (1 << OUTPUT_ANALOG)) {
-			type = DRM_MODE_CONNECTOR_VGA;
-		} else if (encoders & (1 << OUTPUT_LVDS)) {
-			type = DRM_MODE_CONNECTOR_LVDS;
-		} else {
-			type = DRM_MODE_CONNECTOR_Unknown;
-		}
-
-		if (type == DRM_MODE_CONNECTOR_Unknown)
-			continue;
-
-		nouveau_connector_create(dev, entry->connector, type);
+		nouveau_connector_create(dev, &dcb->connector.entry[i]);
 	}
 
 	ret = nv50_display_init(dev);

@@ -742,45 +742,59 @@ out:
 }
 
 int
-nouveau_connector_create(struct drm_device *dev, int index, int type)
+nouveau_connector_create(struct drm_device *dev,
+			 struct dcb_connector_table_entry *dcb)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_connector *nv_connector = NULL;
 	struct drm_connector *connector;
 	struct drm_encoder *encoder;
-	int ret;
+	int ret, type;
 
 	NV_DEBUG_KMS(dev, "\n");
+
+	switch (dcb->type) {
+	case DCB_CONNECTOR_NONE:
+		return 0;
+	case DCB_CONNECTOR_VGA:
+		NV_INFO(dev, "Detected a VGA connector\n");
+		type = DRM_MODE_CONNECTOR_VGA;
+		break;
+	case DCB_CONNECTOR_TV_0:
+	case DCB_CONNECTOR_TV_1:
+	case DCB_CONNECTOR_TV_3:
+		NV_INFO(dev, "Detected a TV connector\n");
+		type = DRM_MODE_CONNECTOR_TV;
+		break;
+	case DCB_CONNECTOR_DVI_I:
+		NV_INFO(dev, "Detected a DVI-I connector\n");
+		type = DRM_MODE_CONNECTOR_DVII;
+		break;
+	case DCB_CONNECTOR_DVI_D:
+	case DCB_CONNECTOR_HDMI_0:
+	case DCB_CONNECTOR_HDMI_1:
+		NV_INFO(dev, "Detected a DVI-D connector\n");
+		type = DRM_MODE_CONNECTOR_DVID;
+		break;
+	case DCB_CONNECTOR_LVDS:
+		NV_INFO(dev, "Detected a LVDS connector\n");
+		type = DRM_MODE_CONNECTOR_LVDS;
+		break;
+	case DCB_CONNECTOR_DP:
+	case DCB_CONNECTOR_eDP:
+		NV_INFO(dev, "Detected a DisplayPort connector\n");
+		type = DRM_MODE_CONNECTOR_DisplayPort;
+		break;
+	default:
+		NV_ERROR(dev, "unknown connector type: 0x%02x!!\n", dcb->type);
+		return -EINVAL;
+	}
 
 	nv_connector = kzalloc(sizeof(*nv_connector), GFP_KERNEL);
 	if (!nv_connector)
 		return -ENOMEM;
-	nv_connector->dcb = nouveau_bios_connector_entry(dev, index);
+	nv_connector->dcb = dcb;
 	connector = &nv_connector->base;
-
-	switch (type) {
-	case DRM_MODE_CONNECTOR_VGA:
-		NV_INFO(dev, "Detected a VGA connector\n");
-		break;
-	case DRM_MODE_CONNECTOR_DVID:
-		NV_INFO(dev, "Detected a DVI-D connector\n");
-		break;
-	case DRM_MODE_CONNECTOR_DVII:
-		NV_INFO(dev, "Detected a DVI-I connector\n");
-		break;
-	case DRM_MODE_CONNECTOR_LVDS:
-		NV_INFO(dev, "Detected a LVDS connector\n");
-		break;
-	case DRM_MODE_CONNECTOR_TV:
-		NV_INFO(dev, "Detected a TV connector\n");
-		break;
-	case DRM_MODE_CONNECTOR_DisplayPort:
-		NV_INFO(dev, "Detected a DisplayPort connector\n");
-		break;
-	default:
-		NV_ERROR(dev, "Unknown connector, this is not good.\n");
-		break;
-	}
 
 	/* defaults, will get overridden in detect() */
 	connector->interlace_allowed = false;
@@ -788,6 +802,26 @@ nouveau_connector_create(struct drm_device *dev, int index, int type)
 
 	drm_connector_init(dev, connector, &nouveau_connector_funcs, type);
 	drm_connector_helper_add(connector, &nouveau_connector_helper_funcs);
+
+	/* attach encoders */
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+
+		if (nv_encoder->dcb->connector != dcb->index)
+			continue;
+
+		if (get_slave_funcs(nv_encoder))
+			get_slave_funcs(nv_encoder)->create_resources(encoder, connector);
+
+		drm_mode_connector_attach_encoder(connector, encoder);
+	}
+
+	if (!connector->encoder_ids[0]) {
+		NV_WARN(dev, "  no encoders, ignoring\n");
+		drm_connector_cleanup(connector);
+		kfree(connector);
+		return 0;
+	}
 
 	/* Init DVI-I specific properties */
 	if (type == DRM_MODE_CONNECTOR_DVII) {
@@ -820,19 +854,6 @@ nouveau_connector_create(struct drm_device *dev, int index, int type)
 					dev->mode_config.scaling_mode_property,
 					nv_connector->scaling_mode);
 		}
-	}
-
-	/* attach encoders */
-	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
-		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-
-		if (nv_encoder->dcb->connector != index)
-			continue;
-
-		if (get_slave_funcs(nv_encoder))
-			get_slave_funcs(nv_encoder)->create_resources(encoder, connector);
-
-		drm_mode_connector_attach_encoder(connector, encoder);
 	}
 
 	drm_sysfs_connector_add(connector);
