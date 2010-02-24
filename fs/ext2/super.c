@@ -747,8 +747,6 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	__le32 features;
 	int err;
 
-	lock_kernel();
-
 	err = -ENOMEM;
 	sbi = kzalloc(sizeof(*sbi), GFP_KERNEL);
 	if (!sbi)
@@ -1086,7 +1084,6 @@ static int ext2_fill_super(struct super_block *sb, void *data, int silent)
 	if (ext2_setup_super (sb, es, sb->s_flags & MS_RDONLY))
 		sb->s_flags |= MS_RDONLY;
 	ext2_write_super(sb);
-	unlock_kernel();
 	return 0;
 
 cantfind_ext2:
@@ -1112,7 +1109,6 @@ failed_sbi:
 	kfree(sbi->s_blockgroup_lock);
 	kfree(sbi);
 failed_unlock:
-	unlock_kernel();
 	return ret;
 }
 
