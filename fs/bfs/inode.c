@@ -12,7 +12,6 @@
 #include <linux/slab.h>
 #include <linux/init.h>
 #include <linux/fs.h>
-#include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
 #include <linux/writeback.h>
@@ -215,14 +214,10 @@ static void bfs_put_super(struct super_block *s)
 	if (!info)
 		return;
 
-	lock_kernel();
-
 	mutex_destroy(&info->bfs_lock);
 	kfree(info->si_imap);
 	kfree(info);
 	s->s_fs_info = NULL;
-
-	unlock_kernel();
 }
 
 static int bfs_statfs(struct dentry *dentry, struct kstatfs *buf)
@@ -322,13 +317,9 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	int ret = -EINVAL;
 	unsigned long i_sblock, i_eblock, i_eoff, s_size;
 
-	lock_kernel();
-
 	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (!info) {
-		unlock_kernel();
+	if (!info)
 		return -ENOMEM;
-	}
 	mutex_init(&info->bfs_lock);
 	s->s_fs_info = info;
 
@@ -443,7 +434,6 @@ static int bfs_fill_super(struct super_block *s, void *data, int silent)
 	brelse(bh);
 	brelse(sbh);
 	dump_imap("read_super", s);
-	unlock_kernel();
 	return 0;
 
 out3:
@@ -457,7 +447,6 @@ out:
 	mutex_destroy(&info->bfs_lock);
 	kfree(info);
 	s->s_fs_info = NULL;
-	unlock_kernel();
 	return ret;
 }
 
