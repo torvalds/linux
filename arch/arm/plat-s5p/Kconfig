@@ -7,7 +7,7 @@
 
 config PLAT_S5P
 	bool
-	depends on (ARCH_S5P6440 || ARCH_S5P6442)
+	depends on (ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PV210)
 	default y
 	select ARM_VIC
 	select NO_IOPORT

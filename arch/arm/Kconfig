@@ -672,6 +672,15 @@ config ARCH_S5PC1XX
 	help
 	  Samsung S5PC1XX series based systems
 
+config ARCH_S5PV210
+	bool "Samsung S5PV210/S5PC110"
+	select CPU_V7
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select ARM_L1_CACHE_SHIFT_6
+	help
+	  Samsung S5PV210/S5PC110 series based systems
+
 config ARCH_SHARK
 	bool "Shark"
 	select CPU_SA110
@@ -831,6 +840,8 @@ source "arch/arm/plat-stmp3xxx/Kconfig"
 if ARCH_S5PC1XX
 source "arch/arm/mach-s5pc100/Kconfig"
 endif
+
+source "arch/arm/mach-s5pv210/Kconfig"
 
 source "arch/arm/mach-lh7a40x/Kconfig"
 
@@ -1106,7 +1117,7 @@ source kernel/Kconfig.preempt
 config HZ
 	int
 	default 128 if ARCH_L7200
-	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P6440 || ARCH_S5P6442
+	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PV210
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
 	default 100
