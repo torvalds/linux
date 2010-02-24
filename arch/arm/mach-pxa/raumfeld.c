@@ -231,6 +231,10 @@ static mfp_cfg_t raumfeld_connector_pin_config[] __initdata = {
 	GPIO26_SSP2_FRM,
 	GPIO27_SSP2_TXD,
 	GPIO29_SSP2_EXTCLK,
+
+	/* LEDs */
+	GPIO35_GPIO | MFP_LPM_PULL_LOW,
+	GPIO36_GPIO | MFP_LPM_DRIVE_HIGH,
 };
 
 static mfp_cfg_t raumfeld_speaker_pin_config[] __initdata = {
@@ -277,6 +281,10 @@ static mfp_cfg_t raumfeld_speaker_pin_config[] __initdata = {
 	GPIO87_SSP1_TXD,
 	GPIO88_SSP1_RXD,
 	GPIO90_SSP1_SYSCLK,
+
+	/* LEDs */
+	GPIO35_GPIO | MFP_LPM_PULL_LOW,
+	GPIO36_GPIO | MFP_LPM_DRIVE_HIGH,
 };
 
 /*
