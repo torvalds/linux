@@ -62,6 +62,7 @@
  *
  */
 struct omap_device {
+	u32                             magic;
 	struct platform_device		pdev;
 	struct omap_hwmod		**hwmods;
 	struct omap_device_pm_latency	*pm_lats;
@@ -81,6 +82,7 @@ int omap_device_shutdown(struct platform_device *pdev);
 
 /* Core code interface */
 
+bool omap_device_is_valid(struct omap_device *od);
 int omap_device_count_resources(struct omap_device *od);
 int omap_device_fill_resources(struct omap_device *od, struct resource *res);
 
