@@ -2507,7 +2507,7 @@ static int cnic_cm_offload_pg(struct cnic_sock *csk)
 	l4kwqe->sa5 = dev->mac_addr[5];
 
 	l4kwqe->etype = ETH_P_IP;
-	l4kwqe->ipid_count = DEF_IPID_COUNT;
+	l4kwqe->ipid_start = DEF_IPID_START;
 	l4kwqe->host_opaque = csk->l5_cid;
 
 	if (csk->vlan_id) {
@@ -3046,6 +3046,14 @@ static void cnic_cm_process_offld_pg(struct cnic_dev *dev, struct l4_kcq *kcqe)
 		clear_bit(SK_F_OFFLD_SCHED, &csk->flags);
 		goto done;
 	}
+	/* Possible PG kcqe status:  SUCCESS, OFFLOADED_PG, or CTX_ALLOC_FAIL */
+	if (kcqe->status == L4_KCQE_COMPLETION_STATUS_CTX_ALLOC_FAIL) {
+		clear_bit(SK_F_OFFLD_SCHED, &csk->flags);
+		cnic_cm_upcall(cp, csk,
+			       L4_KCQE_OPCODE_VALUE_CONNECT_COMPLETE);
+		goto done;
+	}
+
 	csk->pg_cid = kcqe->pg_cid;
 	set_bit(SK_F_PG_OFFLD_COMPLETE, &csk->flags);
 	cnic_cm_conn_req(csk);
@@ -3083,6 +3091,13 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 	}
 
 	switch (opcode) {
+	case L5CM_RAMROD_CMD_ID_TCP_CONNECT:
+		if (l4kcqe->status != 0) {
+			clear_bit(SK_F_OFFLD_SCHED, &csk->flags);
+			cnic_cm_upcall(cp, csk,
+				       L4_KCQE_OPCODE_VALUE_CONNECT_COMPLETE);
+		}
+		break;
 	case L4_KCQE_OPCODE_VALUE_CONNECT_COMPLETE:
 		if (l4kcqe->status == 0)
 			set_bit(SK_F_OFFLD_COMPLETE, &csk->flags);

@@ -101,7 +101,7 @@ struct cnic_redirect_entry {
 #define BNX2X_KWQ_DATA(cp, x)						\
 	&(cp)->kwq_16_data[BNX2X_KWQ_DATA_PG(cp, x)][BNX2X_KWQ_DATA_IDX(cp, x)]
 
-#define DEF_IPID_COUNT		0xc001
+#define DEF_IPID_START		0x8000
 
 #define DEF_KA_TIMEOUT		10000
 #define DEF_KA_INTERVAL		300000
