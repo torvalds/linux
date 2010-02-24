@@ -1877,10 +1877,12 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	if (npt_enabled) {
 		svm->vmcb->save.cr3 = nested_vmcb->save.cr3;
 		svm->vcpu.arch.cr3 = nested_vmcb->save.cr3;
-	} else {
+	} else
 		kvm_set_cr3(&svm->vcpu, nested_vmcb->save.cr3);
-		kvm_mmu_reset_context(&svm->vcpu);
-	}
+
+	/* Guest paging mode is active - reset mmu */
+	kvm_mmu_reset_context(&svm->vcpu);
+
 	svm->vmcb->save.cr2 = svm->vcpu.arch.cr2 = nested_vmcb->save.cr2;
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RAX, nested_vmcb->save.rax);
 	kvm_register_write(&svm->vcpu, VCPU_REGS_RSP, nested_vmcb->save.rsp);
