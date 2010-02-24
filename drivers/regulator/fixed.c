@@ -32,8 +32,8 @@ struct fixed_voltage_data {
 	int microvolts;
 	int gpio;
 	unsigned startup_delay;
-	unsigned enable_high:1;
-	unsigned is_enabled:1;
+	bool enable_high;
+	bool is_enabled;
 };
 
 static int fixed_voltage_is_enabled(struct regulator_dev *dev)
@@ -49,7 +49,7 @@ static int fixed_voltage_enable(struct regulator_dev *dev)
 
 	if (gpio_is_valid(data->gpio)) {
 		gpio_set_value_cansleep(data->gpio, data->enable_high);
-		data->is_enabled = 1;
+		data->is_enabled = true;
 	}
 
 	return 0;
@@ -61,7 +61,7 @@ static int fixed_voltage_disable(struct regulator_dev *dev)
 
 	if (gpio_is_valid(data->gpio)) {
 		gpio_set_value_cansleep(data->gpio, !data->enable_high);
-		data->is_enabled = 0;
+		data->is_enabled = false;
 	}
 
 	return 0;
@@ -101,7 +101,7 @@ static struct regulator_ops fixed_voltage_ops = {
 	.list_voltage = fixed_voltage_list_voltage,
 };
 
-static int regulator_fixed_voltage_probe(struct platform_device *pdev)
+static int __devinit reg_fixed_voltage_probe(struct platform_device *pdev)
 {
 	struct fixed_voltage_config *config = pdev->dev.platform_data;
 	struct fixed_voltage_data *drvdata;
@@ -174,7 +174,7 @@ static int regulator_fixed_voltage_probe(struct platform_device *pdev)
 		/* Regulator without GPIO control is considered
 		 * always enabled
 		 */
-		drvdata->is_enabled = 1;
+		drvdata->is_enabled = true;
 	}
 
 	drvdata->dev = regulator_register(&drvdata->desc, &pdev->dev,
@@ -202,7 +202,7 @@ err:
 	return ret;
 }
 
-static int regulator_fixed_voltage_remove(struct platform_device *pdev)
+static int __devexit reg_fixed_voltage_remove(struct platform_device *pdev)
 {
 	struct fixed_voltage_data *drvdata = platform_get_drvdata(pdev);
 
@@ -216,10 +216,11 @@ static int regulator_fixed_voltage_remove(struct platform_device *pdev)
 }
 
 static struct platform_driver regulator_fixed_voltage_driver = {
-	.probe		= regulator_fixed_voltage_probe,
-	.remove		= regulator_fixed_voltage_remove,
+	.probe		= reg_fixed_voltage_probe,
+	.remove		= __devexit_p(reg_fixed_voltage_remove),
 	.driver		= {
 		.name		= "reg-fixed-voltage",
+		.owner		= THIS_MODULE,
 	},
 };
 
