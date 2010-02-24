@@ -431,20 +431,20 @@ static int lp3971_set_bits(struct lp3971 *lp3971, u8 reg, u16 mask, u16 val)
 	return ret;
 }
 
-static int setup_regulators(struct lp3971 *lp3971,
-	struct lp3971_platform_data *pdata)
+static int __devinit setup_regulators(struct lp3971 *lp3971,
+				      struct lp3971_platform_data *pdata)
 {
 	int i, err;
-	int num_regulators = pdata->num_regulators;
-	lp3971->num_regulators = num_regulators;
-	lp3971->rdev = kzalloc(sizeof(struct regulator_dev *) * num_regulators,
-		GFP_KERNEL);
+
+	lp3971->num_regulators = pdata->num_regulators;
+	lp3971->rdev = kcalloc(pdata->num_regulators,
+				sizeof(struct regulator_dev *), GFP_KERNEL);
 
 	/* Instantiate the regulators */
-	for (i = 0; i < num_regulators; i++) {
-		int id = pdata->regulators[i].id;
-		lp3971->rdev[i] = regulator_register(&regulators[id],
-			lp3971->dev, pdata->regulators[i].initdata, lp3971);
+	for (i = 0; i < pdata->num_regulators; i++) {
+		struct lp3971_regulator_subdev *reg = &pdata->regulators[i];
+		lp3971->rdev[i] = regulator_register(&regulators[reg->id],
+					lp3971->dev, reg->initdata, lp3971);
 
 		if (IS_ERR(lp3971->rdev[i])) {
 			err = PTR_ERR(lp3971->rdev[i]);
@@ -455,10 +455,10 @@ static int setup_regulators(struct lp3971 *lp3971,
 	}
 
 	return 0;
+
 error:
-	for (i = 0; i < num_regulators; i++)
-		if (lp3971->rdev[i])
-			regulator_unregister(lp3971->rdev[i]);
+	while (--i >= 0)
+		regulator_unregister(lp3971->rdev[i]);
 	kfree(lp3971->rdev);
 	lp3971->rdev = NULL;
 	return err;
@@ -472,15 +472,17 @@ static int __devinit lp3971_i2c_probe(struct i2c_client *i2c,
 	int ret;
 	u16 val;
 
-	lp3971 = kzalloc(sizeof(struct lp3971), GFP_KERNEL);
-	if (lp3971 == NULL) {
-		ret = -ENOMEM;
-		goto err;
+	if (!pdata) {
+		dev_dbg(&i2c->dev, "No platform init data supplied\n");
+		return -ENODEV;
 	}
+
+	lp3971 = kzalloc(sizeof(struct lp3971), GFP_KERNEL);
+	if (lp3971 == NULL)
+		return -ENOMEM;
 
 	lp3971->i2c = i2c;
 	lp3971->dev = &i2c->dev;
-	i2c_set_clientdata(i2c, lp3971);
 
 	mutex_init(&lp3971->io_lock);
 
@@ -493,19 +495,15 @@ static int __devinit lp3971_i2c_probe(struct i2c_client *i2c,
 		goto err_detect;
 	}
 
-	if (pdata) {
-		ret = setup_regulators(lp3971, pdata);
-		if (ret < 0)
-			goto err_detect;
-	} else
-		dev_warn(lp3971->dev, "No platform init data supplied\n");
+	ret = setup_regulators(lp3971, pdata);
+	if (ret < 0)
+		goto err_detect;
 
+	i2c_set_clientdata(i2c, lp3971);
 	return 0;
 
 err_detect:
-	i2c_set_clientdata(i2c, NULL);
 	kfree(lp3971);
-err:
 	return ret;
 }
 
@@ -513,11 +511,13 @@ static int __devexit lp3971_i2c_remove(struct i2c_client *i2c)
 {
 	struct lp3971 *lp3971 = i2c_get_clientdata(i2c);
 	int i;
-	for (i = 0; i < lp3971->num_regulators; i++)
-		if (lp3971->rdev[i])
-			regulator_unregister(lp3971->rdev[i]);
-	kfree(lp3971->rdev);
+
 	i2c_set_clientdata(i2c, NULL);
+
+	for (i = 0; i < lp3971->num_regulators; i++)
+		regulator_unregister(lp3971->rdev[i]);
+
+	kfree(lp3971->rdev);
 	kfree(lp3971);
 
 	return 0;
