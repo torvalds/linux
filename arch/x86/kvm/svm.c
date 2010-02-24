@@ -1486,6 +1486,21 @@ static inline bool nested_svm_intr(struct vcpu_svm *svm)
 	return true;
 }
 
+/* This function returns true if it is save to enable the nmi window */
+static inline bool nested_svm_nmi(struct vcpu_svm *svm)
+{
+	if (!is_nested(svm))
+		return true;
+
+	if (!(svm->nested.intercept & (1ULL << INTERCEPT_NMI)))
+		return true;
+
+	svm->vmcb->control.exit_code = SVM_EXIT_NMI;
+	svm->nested.exit_required = true;
+
+	return false;
+}
+
 static void *nested_svm_map(struct vcpu_svm *svm, u64 gpa, struct page **_page)
 {
 	struct page *page;
@@ -2687,9 +2702,11 @@ static void enable_nmi_window(struct kvm_vcpu *vcpu)
 	 * Something prevents NMI from been injected. Single step over possible
 	 * problem (IRET or exception injection or interrupt shadow)
 	 */
-	svm->nmi_singlestep = true;
-	svm->vmcb->save.rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
-	update_db_intercept(vcpu);
+	if (gif_set(svm) && nested_svm_nmi(svm)) {
+		svm->nmi_singlestep = true;
+		svm->vmcb->save.rflags |= (X86_EFLAGS_TF | X86_EFLAGS_RF);
+		update_db_intercept(vcpu);
+	}
 }
 
 static int svm_set_tss_addr(struct kvm *kvm, unsigned int addr)
