@@ -26,4 +26,7 @@ extern const struct clkops omap3_clkops_noncore_dpll_ops;
 extern const struct clkops clkops_am35xx_ipss_module_wait;
 extern const struct clkops clkops_am35xx_ipss_wait;
 
+/* OMAP36xx-specific clkops */
+extern const struct clkops clkops_omap36xx_pwrdn_with_hsdiv_wait_restore;
+
 #endif
