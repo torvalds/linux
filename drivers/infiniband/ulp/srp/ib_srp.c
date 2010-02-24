@@ -232,15 +232,14 @@ static int srp_create_target_ib(struct srp_target_port *target)
 				       srp_recv_completion, NULL, target, SRP_RQ_SIZE, 0);
 	if (IS_ERR(target->recv_cq)) {
 		ret = PTR_ERR(target->recv_cq);
-		goto out;
+		goto err;
 	}
 
 	target->send_cq = ib_create_cq(target->srp_host->srp_dev->dev,
 				       srp_send_completion, NULL, target, SRP_SQ_SIZE, 0);
 	if (IS_ERR(target->send_cq)) {
 		ret = PTR_ERR(target->send_cq);
-		ib_destroy_cq(target->recv_cq);
-		goto out;
+		goto err_recv_cq;
 	}
 
 	ib_req_notify_cq(target->recv_cq, IB_CQ_NEXT_COMP);
@@ -258,20 +257,26 @@ static int srp_create_target_ib(struct srp_target_port *target)
 	target->qp = ib_create_qp(target->srp_host->srp_dev->pd, init_attr);
 	if (IS_ERR(target->qp)) {
 		ret = PTR_ERR(target->qp);
-		ib_destroy_cq(target->send_cq);
-		ib_destroy_cq(target->recv_cq);
-		goto out;
+		goto err_send_cq;
 	}
 
 	ret = srp_init_qp(target, target->qp);
-	if (ret) {
-		ib_destroy_qp(target->qp);
-		ib_destroy_cq(target->send_cq);
-		ib_destroy_cq(target->recv_cq);
-		goto out;
-	}
+	if (ret)
+		goto err_qp;
 
-out:
+	kfree(init_attr);
+	return 0;
+
+err_qp:
+	ib_destroy_qp(target->qp);
+
+err_send_cq:
+	ib_destroy_cq(target->send_cq);
+
+err_recv_cq:
+	ib_destroy_cq(target->recv_cq);
+
+err:
 	kfree(init_attr);
 	return ret;
 }
