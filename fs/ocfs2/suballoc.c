@@ -755,7 +755,7 @@ int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
 	status = ocfs2_reserve_suballoc_bits(osb, (*ac),
 					     EXTENT_ALLOC_SYSTEM_INODE,
 					     (u32)osb->slot_num, NULL,
-					     ALLOC_NEW_GROUP);
+					     ALLOC_GROUPS_FROM_GLOBAL|ALLOC_NEW_GROUP);
 
 
 	if (status >= 0) {
@@ -1871,6 +1871,8 @@ int __ocfs2_claim_clusters(struct ocfs2_super *osb,
 	       && ac->ac_which != OCFS2_AC_USE_MAIN);
 
 	if (ac->ac_which == OCFS2_AC_USE_LOCAL) {
+		WARN_ON(min_clusters > 1);
+
 		status = ocfs2_claim_local_alloc_bits(osb,
 						      handle,
 						      ac,
