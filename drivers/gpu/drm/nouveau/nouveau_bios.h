@@ -186,18 +186,15 @@ struct pll_lims {
 	int refclk;
 };
 
-struct nouveau_bios_info {
+struct nvbios {
+	struct drm_device *dev;
+
 	uint8_t chip_version;
 
 	uint32_t dactestval;
 	uint32_t tvdactestval;
 	uint8_t digital_min_front_porch;
 	bool fp_no_ddc;
-};
-
-struct nvbios {
-	struct drm_device *dev;
-	struct nouveau_bios_info pub;
 
 	struct mutex lock;
 

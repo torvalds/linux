@@ -605,8 +605,7 @@ struct drm_nouveau_private {
 
 	struct list_head gpuobj_list;
 
-	struct nvbios VBIOS;
-	struct nouveau_bios_info *vbios;
+	struct nvbios vbios;
 
 	struct nv04_mode_state mode_reg;
 	struct nv04_mode_state saved_reg;

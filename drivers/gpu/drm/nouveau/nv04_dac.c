@@ -230,13 +230,13 @@ uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 	if (dcb->type == OUTPUT_TV) {
 		testval = RGB_TEST_DATA(0xa0, 0xa0, 0xa0);
 
-		if (dev_priv->vbios->tvdactestval)
-			testval = dev_priv->vbios->tvdactestval;
+		if (dev_priv->vbios.tvdactestval)
+			testval = dev_priv->vbios.tvdactestval;
 	} else {
 		testval = RGB_TEST_DATA(0x140, 0x140, 0x140); /* 0x94050140 */
 
-		if (dev_priv->vbios->dactestval)
-			testval = dev_priv->vbios->dactestval;
+		if (dev_priv->vbios.dactestval)
+			testval = dev_priv->vbios.dactestval;
 	}
 
 	saved_rtest_ctrl = NVReadRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset);

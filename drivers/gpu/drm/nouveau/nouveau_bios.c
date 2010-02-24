@@ -311,11 +311,11 @@ valid_reg(struct nvbios *bios, uint32_t reg)
 
 	/* C51 has misaligned regs on purpose. Marvellous */
 	if (reg & 0x2 ||
-	    (reg & 0x1 && dev_priv->VBIOS.pub.chip_version != 0x51))
+	    (reg & 0x1 && dev_priv->vbios.chip_version != 0x51))
 		NV_ERROR(dev, "======= misaligned reg 0x%08X =======\n", reg);
 
 	/* warn on C51 regs that haven't been verified accessible in tracing */
-	if (reg & 0x1 && dev_priv->VBIOS.pub.chip_version == 0x51 &&
+	if (reg & 0x1 && dev_priv->vbios.chip_version == 0x51 &&
 	    reg != 0x130d && reg != 0x1311 && reg != 0x60081d)
 		NV_WARN(dev, "=== C51 misaligned reg 0x%08X not verified ===\n",
 			reg);
@@ -420,7 +420,7 @@ bios_wr32(struct nvbios *bios, uint32_t reg, uint32_t data)
 	LOG_OLD_VALUE(bios_rd32(bios, reg));
 	BIOSLOG(bios, "	Write: Reg: 0x%08X, Data: 0x%08X\n", reg, data);
 
-	if (dev_priv->VBIOS.execute) {
+	if (dev_priv->vbios.execute) {
 		still_alive();
 		nv_wr32(bios->dev, reg, data);
 	}
@@ -647,7 +647,7 @@ nv50_pll_set(struct drm_device *dev, uint32_t reg, uint32_t clk)
 	reg0 = (reg0 & 0xfff8ffff) | (pll.log2P << 16);
 	reg1 = (reg1 & 0xffff0000) | (pll.N1 << 8) | pll.M1;
 
-	if (dev_priv->VBIOS.execute) {
+	if (dev_priv->vbios.execute) {
 		still_alive();
 		nv_wr32(dev, reg + 4, reg1);
 		nv_wr32(dev, reg + 0, reg0);
@@ -689,7 +689,7 @@ setPLL(struct nvbios *bios, uint32_t reg, uint32_t clk)
 static int dcb_entry_idx_from_crtchead(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 
 	/*
 	 * For the results of this function to be correct, CR44 must have been
@@ -713,7 +713,7 @@ static struct nouveau_i2c_chan *
 init_i2c_device_find(struct drm_device *dev, int i2c_index)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct dcb_table *dcb = &dev_priv->VBIOS.dcb;
+	struct dcb_table *dcb = &dev_priv->vbios.dcb;
 
 	if (i2c_index == 0xff) {
 		/* note: dcb_entry_idx_from_crtchead needs pre-script set-up */
@@ -745,7 +745,7 @@ get_tmds_index_reg(struct drm_device *dev, uint8_t mlv)
 	 */
 
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	const int pramdac_offset[13] = {
 		0, 0, 0x8, 0, 0x2000, 0, 0, 0, 0x2008, 0, 0, 0, 0x2000 };
 	const uint32_t pramdac_table[4] = {
@@ -3124,7 +3124,7 @@ run_digital_op_script(struct drm_device *dev, uint16_t scriptptr,
 		      struct dcb_entry *dcbent, int head, bool dl)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	struct init_exec iexec = {true, false};
 
 	NV_TRACE(dev, "0x%04X: Parsing digital output script table\n",
@@ -3141,7 +3141,7 @@ run_digital_op_script(struct drm_device *dev, uint16_t scriptptr,
 static int call_lvds_manufacturer_script(struct drm_device *dev, struct dcb_entry *dcbent, int head, enum LVDS_script script)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	uint8_t sub = bios->data[bios->fp.xlated_entry + script] + (bios->fp.link_c_increment && dcbent->or & OUTPUT_C ? 1 : 0);
 	uint16_t scriptofs = ROM16(bios->data[bios->init_script_tbls_ptr + sub * 2]);
 
@@ -3195,7 +3195,7 @@ static int run_lvds_table(struct drm_device *dev, struct dcb_entry *dcbent, int 
 	 * of a list of pxclks and script pointers.
 	 */
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	unsigned int outputset = (dcbent->or == 4) ? 1 : 0;
 	uint16_t scriptptr = 0, clktable;
 	uint8_t clktableptr = 0;
@@ -3262,7 +3262,7 @@ int call_lvds_script(struct drm_device *dev, struct dcb_entry *dcbent, int head,
 	 */
 
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	uint8_t lvds_ver = bios->data[bios->fp.lvdsmanufacturerpointer];
 	uint32_t sel_clk_binding, sel_clk;
 	int ret;
@@ -3396,7 +3396,7 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 #ifndef __powerpc__
 		NV_ERROR(dev, "Pointer to flat panel table invalid\n");
 #endif
-		bios->pub.digital_min_front_porch = 0x4b;
+		bios->digital_min_front_porch = 0x4b;
 		return 0;
 	}
 
@@ -3429,7 +3429,7 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 		 * fptable[4] is the minimum
 		 * RAMDAC_FP_HCRTC -> RAMDAC_FP_HSYNC_START gap
 		 */
-		bios->pub.digital_min_front_porch = fptable[4];
+		bios->digital_min_front_porch = fptable[4];
 		ofs = -7;
 		break;
 	default:
@@ -3468,7 +3468,7 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 
 	/* nv4x cards need both a strap value and fpindex of 0xf to use DDC */
 	if (lth.lvds_ver > 0x10)
-		bios->pub.fp_no_ddc = fpstrapping != 0xf || fpindex != 0xf;
+		bios->fp_no_ddc = fpstrapping != 0xf || fpindex != 0xf;
 
 	/*
 	 * If either the strap or xlated fpindex value are 0xf there is no
@@ -3492,7 +3492,7 @@ static int parse_fp_mode_table(struct drm_device *dev, struct nvbios *bios)
 bool nouveau_bios_fp_mode(struct drm_device *dev, struct drm_display_mode *mode)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	uint8_t *mode_entry = &bios->data[bios->fp.mode_ptr];
 
 	if (!mode)	/* just checking whether we can produce a mode */
@@ -3563,11 +3563,11 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 	 * until later, when this function should be called with non-zero pxclk
 	 */
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	int fpstrapping = get_fp_strap(dev, bios), lvdsmanufacturerindex = 0;
 	struct lvdstableheader lth;
 	uint16_t lvdsofs;
-	int ret, chip_version = bios->pub.chip_version;
+	int ret, chip_version = bios->chip_version;
 
 	ret = parse_lvds_manufacturer_table_header(dev, bios, &lth);
 	if (ret)
@@ -3683,7 +3683,7 @@ bios_output_config_match(struct drm_device *dev, struct dcb_entry *dcbent,
 			 uint16_t record, int record_len, int record_nr)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	uint32_t entry;
 	uint16_t table;
 	int i, v;
@@ -3717,7 +3717,7 @@ nouveau_bios_dp_table(struct drm_device *dev, struct dcb_entry *dcbent,
 		      int *length)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	uint8_t *table;
 
 	if (!bios->display.dp_table_ptr) {
@@ -3766,7 +3766,7 @@ nouveau_bios_run_display_table(struct drm_device *dev, struct dcb_entry *dcbent,
 	 */
 
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	uint8_t *table = &bios->data[bios->display.script_table_ptr];
 	uint8_t *otable = NULL;
 	uint16_t script;
@@ -3919,8 +3919,8 @@ int run_tmds_table(struct drm_device *dev, struct dcb_entry *dcbent, int head, i
 	 */
 
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
-	int cv = bios->pub.chip_version;
+	struct nvbios *bios = &dev_priv->vbios;
+	int cv = bios->chip_version;
 	uint16_t clktable = 0, scriptptr;
 	uint32_t sel_clk_binding, sel_clk;
 
@@ -3979,8 +3979,8 @@ int get_pll_limits(struct drm_device *dev, uint32_t limit_match, struct pll_lims
 	 */
 
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
-	int cv = bios->pub.chip_version, pllindex = 0;
+	struct nvbios *bios = &dev_priv->vbios;
+	int cv = bios->chip_version, pllindex = 0;
 	uint8_t pll_lim_ver = 0, headerlen = 0, recordlen = 0, entries = 0;
 	uint32_t crystal_strap_mask, crystal_straps;
 
@@ -4333,7 +4333,7 @@ static void parse_bios_version(struct drm_device *dev, struct nvbios *bios, uint
 	 */
 
 	bios->major_version = bios->data[offset + 3];
-	bios->pub.chip_version = bios->data[offset + 2];
+	bios->chip_version = bios->data[offset + 2];
 	NV_TRACE(dev, "Bios version %02x.%02x.%02x.%02x\n",
 		 bios->data[offset + 3], bios->data[offset + 2],
 		 bios->data[offset + 1], bios->data[offset]);
@@ -4403,7 +4403,7 @@ static int parse_bit_A_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 	}
 
 	/* First entry is normal dac, 2nd tv-out perhaps? */
-	bios->pub.dactestval = ROM32(bios->data[load_table_ptr + headerlen]) & 0x3ff;
+	bios->dactestval = ROM32(bios->data[load_table_ptr + headerlen]) & 0x3ff;
 
 	return 0;
 }
@@ -4527,8 +4527,8 @@ static int parse_bit_i_tbl_entry(struct drm_device *dev, struct nvbios *bios, st
 		return -ENOSYS;
 	}
 
-	bios->pub.dactestval = ROM32(bios->data[daccmpoffset + dacheaderlen]);
-	bios->pub.tvdactestval = ROM32(bios->data[daccmpoffset + dacheaderlen + 4]);
+	bios->dactestval = ROM32(bios->data[daccmpoffset + dacheaderlen]);
+	bios->tvdactestval = ROM32(bios->data[daccmpoffset + dacheaderlen + 4]);
 
 	return 0;
 }
@@ -4801,7 +4801,7 @@ static int parse_bmp_structure(struct drm_device *dev, struct nvbios *bios, unsi
 	bios->dcb.i2c[0].read = NV_CIO_CRE_DDC_STATUS__INDEX;
 	bios->dcb.i2c[1].write = NV_CIO_CRE_DDC0_WR__INDEX;
 	bios->dcb.i2c[1].read = NV_CIO_CRE_DDC0_STATUS__INDEX;
-	bios->pub.digital_min_front_porch = 0x4b;
+	bios->digital_min_front_porch = 0x4b;
 	bios->fmaxvco = 256000;
 	bios->fminvco = 128000;
 	bios->fp.duallink_transition_clk = 90000;
@@ -5047,7 +5047,7 @@ struct dcb_gpio_entry *
 nouveau_bios_gpio_entry(struct drm_device *dev, enum dcb_gpio_tag tag)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	int i;
 
 	for (i = 0; i < bios->dcb.gpio.entries; i++) {
@@ -5160,7 +5160,7 @@ struct dcb_connector_table_entry *
 nouveau_bios_connector_entry(struct drm_device *dev, int index)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	struct dcb_connector_table_entry *cte;
 
 	if (index >= bios->dcb.connector.entries)
@@ -5823,7 +5823,7 @@ static int load_nv17_hw_sequencer_ucode(struct drm_device *dev,
 uint8_t *nouveau_bios_embedded_edid(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	const uint8_t edid_sig[] = {
 			0x00, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0x00 };
 	uint16_t offset = 0;
@@ -5856,7 +5856,7 @@ nouveau_bios_run_init_table(struct drm_device *dev, uint16_t table,
 			    struct dcb_entry *dcbent)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	struct init_exec iexec = { true, false };
 
 	mutex_lock(&bios->lock);
@@ -5869,7 +5869,7 @@ nouveau_bios_run_init_table(struct drm_device *dev, uint16_t table,
 static bool NVInitVBIOS(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 
 	memset(bios, 0, sizeof(struct nvbios));
 	mutex_init(&bios->lock);
@@ -5885,7 +5885,7 @@ static bool NVInitVBIOS(struct drm_device *dev)
 static int nouveau_parse_vbios_struct(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	const uint8_t bit_signature[] = { 0xff, 0xb8, 'B', 'I', 'T' };
 	const uint8_t bmp_signature[] = { 0xff, 0x7f, 'N', 'V', 0x0 };
 	int offset;
@@ -5912,7 +5912,7 @@ int
 nouveau_run_vbios_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	int i, ret = 0;
 
 	NVLockVgaCrtcs(dev, false);
@@ -5959,7 +5959,7 @@ static void
 nouveau_bios_i2c_devices_takedown(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	struct dcb_i2c_entry *entry;
 	int i;
 
@@ -5972,12 +5972,10 @@ int
 nouveau_bios_init(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	uint32_t saved_nv_pextdev_boot_0;
 	bool was_locked;
 	int ret;
-
-	dev_priv->vbios = &bios->pub;
 
 	if (!NVInitVBIOS(dev))
 		return -ENODEV;
@@ -6020,10 +6018,8 @@ nouveau_bios_init(struct drm_device *dev)
 	bios_wr32(bios, NV_PEXTDEV_BOOT_0, saved_nv_pextdev_boot_0);
 
 	ret = nouveau_run_vbios_init(dev);
-	if (ret) {
-		dev_priv->vbios = NULL;
+	if (ret)
 		return ret;
-	}
 
 	/* feature_byte on BMP is poor, but init always sets CR4B */
 	was_locked = NVLockVgaCrtcs(dev, false);

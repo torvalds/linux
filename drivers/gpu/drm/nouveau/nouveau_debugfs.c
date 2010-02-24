@@ -151,8 +151,8 @@ nouveau_debugfs_vbios_image(struct seq_file *m, void *data)
 	struct drm_nouveau_private *dev_priv = node->minor->dev->dev_private;
 	int i;
 
-	for (i = 0; i < dev_priv->VBIOS.length; i++)
-		seq_printf(m, "%c", dev_priv->VBIOS.data[i]);
+	for (i = 0; i < dev_priv->vbios.length; i++)
+		seq_printf(m, "%c", dev_priv->vbios.data[i]);
 	return 0;
 }
 

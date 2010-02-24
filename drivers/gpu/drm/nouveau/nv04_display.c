@@ -93,7 +93,7 @@ int
 nv04_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct dcb_table *dcb = &dev_priv->VBIOS.dcb;
+	struct dcb_table *dcb = &dev_priv->vbios.dcb;
 	struct drm_encoder *encoder;
 	struct drm_crtc *crtc;
 	uint16_t connector[16] = { 0 };

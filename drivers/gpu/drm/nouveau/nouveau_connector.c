@@ -680,7 +680,7 @@ nouveau_connector_create_lvds(struct drm_device *dev,
 	/* Firstly try getting EDID over DDC, if allowed and I2C channel
 	 * is available.
 	 */
-	if (!dev_priv->VBIOS.pub.fp_no_ddc && nv_encoder->dcb->i2c_index < 0xf)
+	if (!dev_priv->vbios.fp_no_ddc && nv_encoder->dcb->i2c_index < 0xf)
 		i2c = nouveau_i2c_find(dev, nv_encoder->dcb->i2c_index);
 
 	if (i2c) {
@@ -695,7 +695,7 @@ nouveau_connector_create_lvds(struct drm_device *dev,
 	 */
 	if (!nv_connector->edid && nouveau_bios_fp_mode(dev, &native) &&
 	     (nv_encoder->dcb->lvdsconf.use_straps_for_mode ||
-	      dev_priv->VBIOS.pub.fp_no_ddc)) {
+	      dev_priv->vbios.fp_no_ddc)) {
 		nv_connector->native_mode = drm_mode_duplicate(dev, &native);
 		goto out;
 	}
@@ -704,7 +704,7 @@ nouveau_connector_create_lvds(struct drm_device *dev,
 	 * stored for the panel stored in them.
 	 */
 	if (!nv_connector->edid && !nv_connector->native_mode &&
-	    !dev_priv->VBIOS.pub.fp_no_ddc) {
+	    !dev_priv->vbios.fp_no_ddc) {
 		struct edid *edid =
 			(struct edid *)nouveau_bios_embedded_edid(dev);
 		if (edid) {
