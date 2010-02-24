@@ -16,3 +16,4 @@ obj-$(CONFIG_CPU_S5PV210)	+= cpu.o init.o clock.o
 
 # machine support
 
+obj-$(CONFIG_MACH_SMDKV210)	+= mach-smdkv210.o
