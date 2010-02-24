@@ -5646,9 +5646,6 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 			dcb->i2c_default_indices = dcb->i2c_table[4];
 	}
 
-	parse_dcb_gpio_table(bios);
-	parse_dcb_connector_table(bios);
-
 	if (entries > DCB_MAX_NUM_ENTRIES)
 		entries = DCB_MAX_NUM_ENTRIES;
 
@@ -5684,7 +5681,12 @@ parse_dcb_table(struct drm_device *dev, struct nvbios *bios, bool twoHeads)
 	if (dcb->version < 0x21)
 		merge_like_dcb_entries(dev, dcb);
 
-	return dcb->entries ? 0 : -ENXIO;
+	if (!dcb->entries)
+		return -ENXIO;
+
+	parse_dcb_gpio_table(bios);
+	parse_dcb_connector_table(bios);
+	return 0;
 }
 
 static void
