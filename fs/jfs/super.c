@@ -33,7 +33,6 @@
 #include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/seq_file.h>
-#include <linux/smp_lock.h>
 
 #include "jfs_incore.h"
 #include "jfs_filsys.h"
@@ -176,8 +175,6 @@ static void jfs_put_super(struct super_block *sb)
 
 	dquot_disable(sb, -1, DQUOT_USAGE_ENABLED | DQUOT_LIMITS_ENABLED);
 
-	lock_kernel();
-
 	rc = jfs_umount(sb);
 	if (rc)
 		jfs_err("jfs_umount failed with return code %d", rc);
@@ -188,8 +185,6 @@ static void jfs_put_super(struct super_block *sb)
 	iput(sbi->direct_inode);
 
 	kfree(sbi);
-
-	unlock_kernel();
 }
 
 enum {
@@ -369,19 +364,16 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 	if (!parse_options(data, sb, &newLVSize, &flag)) {
 		return -EINVAL;
 	}
-	lock_kernel();
+
 	if (newLVSize) {
 		if (sb->s_flags & MS_RDONLY) {
 			printk(KERN_ERR
 		  "JFS: resize requires volume to be mounted read-write\n");
-			unlock_kernel();
 			return -EROFS;
 		}
 		rc = jfs_extendfs(sb, newLVSize, 0);
-		if (rc) {
-			unlock_kernel();
+		if (rc)
 			return rc;
-		}
 	}
 
 	if ((sb->s_flags & MS_RDONLY) && !(*flags & MS_RDONLY)) {
@@ -397,36 +389,30 @@ static int jfs_remount(struct super_block *sb, int *flags, char *data)
 		/* mark the fs r/w for quota activity */
 		sb->s_flags &= ~MS_RDONLY;
 
-		unlock_kernel();
 		dquot_resume(sb, -1);
 		return ret;
 	}
 	if ((!(sb->s_flags & MS_RDONLY)) && (*flags & MS_RDONLY)) {
 		rc = dquot_suspend(sb, -1);
 		if (rc < 0) {
-			unlock_kernel();
 			return rc;
 		}
 		rc = jfs_umount_rw(sb);
 		JFS_SBI(sb)->flag = flag;
-		unlock_kernel();
 		return rc;
 	}
 	if ((JFS_SBI(sb)->flag & JFS_NOINTEGRITY) != (flag & JFS_NOINTEGRITY))
 		if (!(sb->s_flags & MS_RDONLY)) {
 			rc = jfs_umount_rw(sb);
-			if (rc) {
-				unlock_kernel();
+			if (rc)
 				return rc;
-			}
+
 			JFS_SBI(sb)->flag = flag;
 			ret = jfs_mount_rw(sb, 1);
-			unlock_kernel();
 			return ret;
 		}
 	JFS_SBI(sb)->flag = flag;
 
-	unlock_kernel();
 	return 0;
 }
 
@@ -438,20 +424,15 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	s64 newLVSize = 0;
 	int flag, ret = -EINVAL;
 
-	lock_kernel();
-
 	jfs_info("In jfs_read_super: s_flags=0x%lx", sb->s_flags);
 
-	if (!new_valid_dev(sb->s_bdev->bd_dev)) {
-		unlock_kernel();
+	if (!new_valid_dev(sb->s_bdev->bd_dev))
 		return -EOVERFLOW;
-	}
 
 	sbi = kzalloc(sizeof (struct jfs_sb_info), GFP_KERNEL);
-	if (!sbi) {
-		unlock_kernel();
+	if (!sbi)
 		return -ENOMEM;
-	}
+
 	sb->s_fs_info = sbi;
 	sbi->sb = sb;
 	sbi->uid = sbi->gid = sbi->umask = -1;
@@ -548,7 +529,6 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_maxbytes = min(((u64) PAGE_CACHE_SIZE << 32) - 1, (u64)sb->s_maxbytes);
 #endif
 	sb->s_time_gran = 1;
-	unlock_kernel();
 	return 0;
 
 out_no_root:
@@ -571,7 +551,6 @@ out_unload:
 		unload_nls(sbi->nls_tab);
 out_kfree:
 	kfree(sbi);
-	unlock_kernel();
 	return ret;
 }
 
