@@ -33,6 +33,12 @@ struct clk clk_ext_xtal_mux = {
 	.id		= -1,
 };
 
+static struct clk s5p_clk_27m = {
+	.name		= "clk_27m",
+	.id		= -1,
+	.rate		= 27000000,
+};
+
 /* 48MHz USB Phy clock output */
 struct clk clk_48m = {
 	.name		= "clk_48m",
@@ -104,6 +110,11 @@ struct clksrc_sources clk_src_epll = {
 	.nr_sources	= ARRAY_SIZE(clk_src_epll_list),
 };
 
+struct clk clk_vpll = {
+	.name		= "vpll",
+	.id		= -1,
+};
+
 int s5p_gatectrl(void __iomem *reg, struct clk *clk, int enable)
 {
 	unsigned int ctrlbit = clk->ctrlbit;
@@ -118,10 +129,12 @@ int s5p_gatectrl(void __iomem *reg, struct clk *clk, int enable)
 static struct clk *s5p_clks[] __initdata = {
 	&clk_ext_xtal_mux,
 	&clk_48m,
+	&s5p_clk_27m,
 	&clk_fout_apll,
 	&clk_fout_mpll,
 	&clk_fout_epll,
 	&clk_arm,
+	&clk_vpll,
 };
 
 void __init s5p_register_clocks(unsigned long xtal_freq)
