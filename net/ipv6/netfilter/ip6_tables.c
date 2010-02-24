@@ -710,7 +710,7 @@ static int check_target(struct ip6t_entry *e, struct net *net, const char *name)
 
 static int
 find_check_entry(struct ip6t_entry *e, struct net *net, const char *name,
-		 unsigned int size, unsigned int *i)
+		 unsigned int size)
 {
 	struct ip6t_entry_target *t;
 	struct xt_target *target;
@@ -747,8 +747,6 @@ find_check_entry(struct ip6t_entry *e, struct net *net, const char *name,
 	ret = check_target(e, net, name);
 	if (ret)
 		goto err;
-
-	(*i)++;
 	return 0;
  err:
 	module_put(t->u.kernel.target->me);
@@ -779,8 +777,7 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 			   const unsigned char *limit,
 			   const unsigned int *hook_entries,
 			   const unsigned int *underflows,
-			   unsigned int valid_hooks,
-			   unsigned int *i)
+			   unsigned int valid_hooks)
 {
 	unsigned int h;
 
@@ -817,19 +814,13 @@ check_entry_size_and_hooks(struct ip6t_entry *e,
 	/* Clear counters and comefrom */
 	e->counters = ((struct xt_counters) { 0, 0 });
 	e->comefrom = 0;
-
-	(*i)++;
 	return 0;
 }
 
-static int
-cleanup_entry(struct ip6t_entry *e, struct net *net, unsigned int *i)
+static void cleanup_entry(struct ip6t_entry *e, struct net *net)
 {
 	struct xt_tgdtor_param par;
 	struct ip6t_entry_target *t;
-
-	if (i && (*i)-- == 0)
-		return 1;
 
 	/* Cleanup all matches */
 	IP6T_MATCH_ITERATE(e, cleanup_match, net, NULL);
@@ -842,7 +833,6 @@ cleanup_entry(struct ip6t_entry *e, struct net *net, unsigned int *i)
 	if (par.target->destroy != NULL)
 		par.target->destroy(&par);
 	module_put(par.target->me);
-	return 0;
 }
 
 /* Checks and translates the user-supplied table segment (held in
@@ -876,13 +866,11 @@ translate_table(struct net *net,
 	/* Walk through entries, checking offsets. */
 	xt_entry_foreach(iter, entry0, newinfo->size) {
 		ret = check_entry_size_and_hooks(iter, newinfo, entry0,
-		      entry0 + size, hook_entries, underflows,
-		      valid_hooks, &i);
+		      entry0 + size, hook_entries, underflows, valid_hooks);
 		if (ret != 0)
-			break;
+			return ret;
+		++i;
 	}
-	if (ret != 0)
-		return ret;
 
 	if (i != number) {
 		duprintf("translate_table: %u not %u entries\n",
@@ -913,15 +901,18 @@ translate_table(struct net *net,
 	/* Finally, each sanity check must pass */
 	i = 0;
 	xt_entry_foreach(iter, entry0, newinfo->size) {
-		ret = find_check_entry(iter, net, name, size, &i);
+		ret = find_check_entry(iter, net, name, size);
 		if (ret != 0)
 			break;
+		++i;
 	}
 
 	if (ret != 0) {
-		xt_entry_foreach(iter, entry0, newinfo->size)
-			if (cleanup_entry(iter, net, &i) != 0)
+		xt_entry_foreach(iter, entry0, newinfo->size) {
+			if (i-- == 0)
 				break;
+			cleanup_entry(iter, net);
+		}
 		return ret;
 	}
 
@@ -932,29 +923,6 @@ translate_table(struct net *net,
 	}
 
 	return ret;
-}
-
-/* Gets counters. */
-static inline int
-add_entry_to_counter(const struct ip6t_entry *e,
-		     struct xt_counters total[],
-		     unsigned int *i)
-{
-	ADD_COUNTER(total[*i], e->counters.bcnt, e->counters.pcnt);
-
-	(*i)++;
-	return 0;
-}
-
-static inline int
-set_entry_to_counter(const struct ip6t_entry *e,
-		     struct ip6t_counters total[],
-		     unsigned int *i)
-{
-	SET_COUNTER(total[*i], e->counters.bcnt, e->counters.pcnt);
-
-	(*i)++;
-	return 0;
 }
 
 static void
@@ -977,18 +945,22 @@ get_counters(const struct xt_table_info *t,
 	curcpu = smp_processor_id();
 
 	i = 0;
-	xt_entry_foreach(iter, t->entries[curcpu], t->size)
-		if (set_entry_to_counter(iter, counters, &i) != 0)
-			break;
+	xt_entry_foreach(iter, t->entries[curcpu], t->size) {
+		SET_COUNTER(counters[i], iter->counters.bcnt,
+			iter->counters.pcnt);
+		++i;
+	}
 
 	for_each_possible_cpu(cpu) {
 		if (cpu == curcpu)
 			continue;
 		i = 0;
 		xt_info_wrlock(cpu);
-		xt_entry_foreach(iter, t->entries[cpu], t->size)
-			if (add_entry_to_counter(iter, counters, &i) != 0)
-				break;
+		xt_entry_foreach(iter, t->entries[cpu], t->size) {
+			ADD_COUNTER(counters[i], iter->counters.bcnt,
+				iter->counters.pcnt);
+			++i;
+		}
 		xt_info_wrunlock(cpu);
 	}
 	local_bh_enable();
@@ -1148,7 +1120,7 @@ static int compat_table_info(const struct xt_table_info *info,
 {
 	struct ip6t_entry *iter;
 	void *loc_cpu_entry;
-	int ret = 0;
+	int ret;
 
 	if (!newinfo || !info)
 		return -EINVAL;
@@ -1160,9 +1132,9 @@ static int compat_table_info(const struct xt_table_info *info,
 	xt_entry_foreach(iter, loc_cpu_entry, info->size) {
 		ret = compat_calc_entry(iter, info, loc_cpu_entry, newinfo);
 		if (ret != 0)
-			break;
+			return ret;
 	}
-	return ret;
+	return 0;
 }
 #endif
 
@@ -1321,8 +1293,7 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 	/* Decrease module usage counts and free resource */
 	loc_cpu_old_entry = oldinfo->entries[raw_smp_processor_id()];
 	xt_entry_foreach(iter, loc_cpu_old_entry, oldinfo->size)
-		if (cleanup_entry(iter, net, NULL) != 0)
-			break;
+		cleanup_entry(iter, net);
 
 	xt_free_table_info(oldinfo);
 	if (copy_to_user(counters_ptr, counters,
@@ -1385,24 +1356,10 @@ do_replace(struct net *net, const void __user *user, unsigned int len)
 
  free_newinfo_untrans:
 	xt_entry_foreach(iter, loc_cpu_entry, newinfo->size)
-		if (cleanup_entry(iter, net, NULL) != 0)
-			break;
+		cleanup_entry(iter, net);
  free_newinfo:
 	xt_free_table_info(newinfo);
 	return ret;
-}
-
-/* We're lazy, and add to the first CPU; overflow works its fey magic
- * and everything is OK. */
-static int
-add_counter_to_entry(struct ip6t_entry *e,
-		     const struct xt_counters addme[],
-		     unsigned int *i)
-{
-	ADD_COUNTER(e->counters, addme[*i].bcnt, addme[*i].pcnt);
-
-	(*i)++;
-	return 0;
 }
 
 static int
@@ -1479,9 +1436,10 @@ do_add_counters(struct net *net, const void __user *user, unsigned int len,
 	curcpu = smp_processor_id();
 	xt_info_wrlock(curcpu);
 	loc_cpu_entry = private->entries[curcpu];
-	xt_entry_foreach(iter, loc_cpu_entry, private->size)
-		if (add_counter_to_entry(iter, paddc, &i) != 0)
-			break;
+	xt_entry_foreach(iter, loc_cpu_entry, private->size) {
+		ADD_COUNTER(iter->counters, paddc[i].bcnt, paddc[i].pcnt);
+		++i;
+	}
 	xt_info_wrunlock(curcpu);
 
  unlock_up_free:
@@ -1510,7 +1468,7 @@ struct compat_ip6t_replace {
 static int
 compat_copy_entry_to_user(struct ip6t_entry *e, void __user **dstptr,
 			  unsigned int *size, struct xt_counters *counters,
-			  unsigned int *i)
+			  unsigned int i)
 {
 	struct ip6t_entry_target *t;
 	struct compat_ip6t_entry __user *ce;
@@ -1518,14 +1476,12 @@ compat_copy_entry_to_user(struct ip6t_entry *e, void __user **dstptr,
 	compat_uint_t origsize;
 	int ret;
 
-	ret = -EFAULT;
 	origsize = *size;
 	ce = (struct compat_ip6t_entry __user *)*dstptr;
-	if (copy_to_user(ce, e, sizeof(struct ip6t_entry)))
-		goto out;
-
-	if (copy_to_user(&ce->counters, &counters[*i], sizeof(counters[*i])))
-		goto out;
+	if (copy_to_user(ce, e, sizeof(struct ip6t_entry)) != 0 ||
+	    copy_to_user(&ce->counters, &counters[i],
+	    sizeof(counters[i])) != 0)
+		return -EFAULT;
 
 	*dstptr += sizeof(struct compat_ip6t_entry);
 	*size -= sizeof(struct ip6t_entry) - sizeof(struct compat_ip6t_entry);
@@ -1533,22 +1489,16 @@ compat_copy_entry_to_user(struct ip6t_entry *e, void __user **dstptr,
 	ret = IP6T_MATCH_ITERATE(e, xt_compat_match_to_user, dstptr, size);
 	target_offset = e->target_offset - (origsize - *size);
 	if (ret)
-		goto out;
+		return ret;
 	t = ip6t_get_target(e);
 	ret = xt_compat_target_to_user(t, dstptr, size);
 	if (ret)
-		goto out;
-	ret = -EFAULT;
+		return ret;
 	next_offset = e->next_offset - (origsize - *size);
-	if (put_user(target_offset, &ce->target_offset))
-		goto out;
-	if (put_user(next_offset, &ce->next_offset))
-		goto out;
-
-	(*i)++;
+	if (put_user(target_offset, &ce->target_offset) != 0 ||
+	    put_user(next_offset, &ce->next_offset) != 0)
+		return -EFAULT;
 	return 0;
-out:
-	return ret;
 }
 
 static int
@@ -1585,19 +1535,14 @@ compat_release_match(struct ip6t_entry_match *m, unsigned int *i)
 	return 0;
 }
 
-static int
-compat_release_entry(struct compat_ip6t_entry *e, unsigned int *i)
+static void compat_release_entry(struct compat_ip6t_entry *e)
 {
 	struct ip6t_entry_target *t;
-
-	if (i && (*i)-- == 0)
-		return 1;
 
 	/* Cleanup all matches */
 	COMPAT_IP6T_MATCH_ITERATE(e, compat_release_match, NULL);
 	t = compat_ip6t_get_target(e);
 	module_put(t->u.kernel.target->me);
-	return 0;
 }
 
 static int
@@ -1608,7 +1553,6 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 				  const unsigned char *limit,
 				  const unsigned int *hook_entries,
 				  const unsigned int *underflows,
-				  unsigned int *i,
 				  const char *name)
 {
 	struct ip6t_entry_target *t;
@@ -1674,8 +1618,6 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 	/* Clear counters and comefrom */
 	memset(&e->counters, 0, sizeof(e->counters));
 	e->comefrom = 0;
-
-	(*i)++;
 	return 0;
 
 out:
@@ -1725,7 +1667,7 @@ compat_copy_entry_from_user(struct compat_ip6t_entry *e, void **dstptr,
 }
 
 static int compat_check_entry(struct ip6t_entry *e, struct net *net,
-			      const char *name, unsigned int *i)
+			      const char *name)
 {
 	unsigned int j;
 	int ret;
@@ -1744,8 +1686,6 @@ static int compat_check_entry(struct ip6t_entry *e, struct net *net,
 	ret = check_target(e, net, name);
 	if (ret)
 		goto cleanup_matches;
-
-	(*i)++;
 	return 0;
 
  cleanup_matches:
@@ -1790,12 +1730,11 @@ translate_compat_table(struct net *net,
 	xt_entry_foreach(iter0, entry0, total_size) {
 		ret = check_compat_entry_size_and_hooks(iter0, info, &size,
 		      entry0, entry0 + total_size, hook_entries, underflows,
-		      &j, name);
+		      name);
 		if (ret != 0)
-			break;
+			goto out_unlock;
+		++j;
 	}
-	if (ret != 0)
-		goto out_unlock;
 
 	ret = -EINVAL;
 	if (j != number) {
@@ -1851,9 +1790,10 @@ translate_compat_table(struct net *net,
 
 	i = 0;
 	xt_entry_foreach(iter1, entry1, newinfo->size) {
-		ret = compat_check_entry(iter1, net, name, &i);
+		ret = compat_check_entry(iter1, net, name);
 		if (ret != 0)
 			break;
+		++i;
 	}
 	if (ret) {
 		/*
@@ -1866,12 +1806,15 @@ translate_compat_table(struct net *net,
 		xt_entry_foreach(iter0, entry0, newinfo->size) {
 			if (skip-- > 0)
 				continue;
-			if (compat_release_entry(iter0, &j) != 0)
+			if (j-- == 0)
 				break;
+			compat_release_entry(iter0);
 		}
-		xt_entry_foreach(iter1, entry1, newinfo->size)
-			if (cleanup_entry(iter1, net, &i) != 0)
+		xt_entry_foreach(iter1, entry1, newinfo->size) {
+			if (i-- == 0)
 				break;
+			cleanup_entry(iter1, net);
+		}
 		xt_free_table_info(newinfo);
 		return ret;
 	}
@@ -1889,9 +1832,11 @@ translate_compat_table(struct net *net,
 free_newinfo:
 	xt_free_table_info(newinfo);
 out:
-	xt_entry_foreach(iter0, entry0, total_size)
-		if (compat_release_entry(iter0, &j) != 0)
+	xt_entry_foreach(iter0, entry0, total_size) {
+		if (j-- == 0)
 			break;
+		compat_release_entry(iter0);
+	}
 	return ret;
 out_unlock:
 	xt_compat_flush_offsets(AF_INET6);
@@ -1946,8 +1891,7 @@ compat_do_replace(struct net *net, void __user *user, unsigned int len)
 
  free_newinfo_untrans:
 	xt_entry_foreach(iter, loc_cpu_entry, newinfo->size)
-		if (cleanup_entry(iter, net, NULL) != 0)
-			break;
+		cleanup_entry(iter, net);
  free_newinfo:
 	xt_free_table_info(newinfo);
 	return ret;
@@ -2011,7 +1955,7 @@ compat_copy_entries_to_user(unsigned int total_size, struct xt_table *table,
 	size = total_size;
 	xt_entry_foreach(iter, loc_cpu_entry, total_size) {
 		ret = compat_copy_entry_to_user(iter, &pos,
-		      &size, counters, &i);
+		      &size, counters, i++);
 		if (ret != 0)
 			break;
 	}
@@ -2221,8 +2165,7 @@ void ip6t_unregister_table(struct net *net, struct xt_table *table)
 	/* Decrease module usage counts and free resources */
 	loc_cpu_entry = private->entries[raw_smp_processor_id()];
 	xt_entry_foreach(iter, loc_cpu_entry, private->size)
-		if (cleanup_entry(iter, net, NULL) != 0)
-			break;
+		cleanup_entry(iter, net);
 	if (private->number > private->initial_entries)
 		module_put(table_owner);
 	xt_free_table_info(private);

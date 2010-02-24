@@ -512,8 +512,7 @@ static inline int check_target(struct arpt_entry *e, const char *name)
 }
 
 static inline int
-find_check_entry(struct arpt_entry *e, const char *name, unsigned int size,
-		 unsigned int *i)
+find_check_entry(struct arpt_entry *e, const char *name, unsigned int size)
 {
 	struct arpt_entry_target *t;
 	struct xt_target *target;
@@ -538,8 +537,6 @@ find_check_entry(struct arpt_entry *e, const char *name, unsigned int size,
 	ret = check_target(e, name);
 	if (ret)
 		goto err;
-
-	(*i)++;
 	return 0;
 err:
 	module_put(t->u.kernel.target->me);
@@ -568,8 +565,7 @@ static inline int check_entry_size_and_hooks(struct arpt_entry *e,
 					     const unsigned char *limit,
 					     const unsigned int *hook_entries,
 					     const unsigned int *underflows,
-					     unsigned int valid_hooks,
-					     unsigned int *i)
+					     unsigned int valid_hooks)
 {
 	unsigned int h;
 
@@ -606,18 +602,13 @@ static inline int check_entry_size_and_hooks(struct arpt_entry *e,
 	/* Clear counters and comefrom */
 	e->counters = ((struct xt_counters) { 0, 0 });
 	e->comefrom = 0;
-
-	(*i)++;
 	return 0;
 }
 
-static inline int cleanup_entry(struct arpt_entry *e, unsigned int *i)
+static inline void cleanup_entry(struct arpt_entry *e)
 {
 	struct xt_tgdtor_param par;
 	struct arpt_entry_target *t;
-
-	if (i && (*i)-- == 0)
-		return 1;
 
 	t = arpt_get_target(e);
 	par.target   = t->u.kernel.target;
@@ -626,7 +617,6 @@ static inline int cleanup_entry(struct arpt_entry *e, unsigned int *i)
 	if (par.target->destroy != NULL)
 		par.target->destroy(&par);
 	module_put(par.target->me);
-	return 0;
 }
 
 /* Checks and translates the user-supplied table segment (held in
@@ -660,10 +650,10 @@ static int translate_table(const char *name,
 	/* Walk through entries, checking offsets. */
 	xt_entry_foreach(iter, entry0, newinfo->size) {
 		ret = check_entry_size_and_hooks(iter, newinfo, entry0,
-		      entry0 + size, hook_entries, underflows,
-		      valid_hooks, &i);
+		      entry0 + size, hook_entries, underflows, valid_hooks);
 		if (ret != 0)
 			break;
+		++i;
 	}
 	duprintf("translate_table: ARPT_ENTRY_ITERATE gives %d\n", ret);
 	if (ret != 0)
@@ -700,15 +690,18 @@ static int translate_table(const char *name,
 	/* Finally, each sanity check must pass */
 	i = 0;
 	xt_entry_foreach(iter, entry0, newinfo->size) {
-		ret = find_check_entry(iter, name, size, &i);
+		ret = find_check_entry(iter, name, size);
 		if (ret != 0)
 			break;
+		++i;
 	}
 
 	if (ret != 0) {
-		xt_entry_foreach(iter, entry0, newinfo->size)
-			if (cleanup_entry(iter, &i) != 0)
+		xt_entry_foreach(iter, entry0, newinfo->size) {
+			if (i-- == 0)
 				break;
+			cleanup_entry(iter);
+		}
 		return ret;
 	}
 
@@ -719,27 +712,6 @@ static int translate_table(const char *name,
 	}
 
 	return ret;
-}
-
-/* Gets counters. */
-static inline int add_entry_to_counter(const struct arpt_entry *e,
-				       struct xt_counters total[],
-				       unsigned int *i)
-{
-	ADD_COUNTER(total[*i], e->counters.bcnt, e->counters.pcnt);
-
-	(*i)++;
-	return 0;
-}
-
-static inline int set_entry_to_counter(const struct arpt_entry *e,
-				       struct xt_counters total[],
-				       unsigned int *i)
-{
-	SET_COUNTER(total[*i], e->counters.bcnt, e->counters.pcnt);
-
-	(*i)++;
-	return 0;
 }
 
 static void get_counters(const struct xt_table_info *t,
@@ -761,18 +733,22 @@ static void get_counters(const struct xt_table_info *t,
 	curcpu = smp_processor_id();
 
 	i = 0;
-	xt_entry_foreach(iter, t->entries[curcpu], t->size)
-		if (set_entry_to_counter(iter, counters, &i) != 0)
-			break;
+	xt_entry_foreach(iter, t->entries[curcpu], t->size) {
+		SET_COUNTER(counters[i], iter->counters.bcnt,
+			iter->counters.pcnt);
+		++i;
+	}
 
 	for_each_possible_cpu(cpu) {
 		if (cpu == curcpu)
 			continue;
 		i = 0;
 		xt_info_wrlock(cpu);
-		xt_entry_foreach(iter, t->entries[cpu], t->size)
-			if (add_entry_to_counter(iter, counters, &i) != 0)
-				break;
+		xt_entry_foreach(iter, t->entries[cpu], t->size) {
+			ADD_COUNTER(counters[i], iter->counters.bcnt,
+				iter->counters.pcnt);
+			++i;
+		}
 		xt_info_wrunlock(cpu);
 	}
 	local_bh_enable();
@@ -904,7 +880,7 @@ static int compat_table_info(const struct xt_table_info *info,
 {
 	struct arpt_entry *iter;
 	void *loc_cpu_entry;
-	int ret = 0;
+	int ret;
 
 	if (!newinfo || !info)
 		return -EINVAL;
@@ -916,9 +892,9 @@ static int compat_table_info(const struct xt_table_info *info,
 	xt_entry_foreach(iter, loc_cpu_entry, info->size) {
 		ret = compat_calc_entry(iter, info, loc_cpu_entry, newinfo);
 		if (ret != 0)
-			break;
+			return ret;
 	}
-	return ret;
+	return 0;
 }
 #endif
 
@@ -1078,8 +1054,7 @@ static int __do_replace(struct net *net, const char *name,
 	/* Decrease module usage counts and free resource */
 	loc_cpu_old_entry = oldinfo->entries[raw_smp_processor_id()];
 	xt_entry_foreach(iter, loc_cpu_old_entry, oldinfo->size)
-		if (cleanup_entry(iter, NULL) != 0)
-			break;
+		cleanup_entry(iter);
 
 	xt_free_table_info(oldinfo);
 	if (copy_to_user(counters_ptr, counters,
@@ -1142,24 +1117,10 @@ static int do_replace(struct net *net, const void __user *user,
 
  free_newinfo_untrans:
 	xt_entry_foreach(iter, loc_cpu_entry, newinfo->size)
-		if (cleanup_entry(iter, NULL) != 0)
-			break;
+		cleanup_entry(iter);
  free_newinfo:
 	xt_free_table_info(newinfo);
 	return ret;
-}
-
-/* We're lazy, and add to the first CPU; overflow works its fey magic
- * and everything is OK. */
-static int
-add_counter_to_entry(struct arpt_entry *e,
-		     const struct xt_counters addme[],
-		     unsigned int *i)
-{
-	ADD_COUNTER(e->counters, addme[*i].bcnt, addme[*i].pcnt);
-
-	(*i)++;
-	return 0;
 }
 
 static int do_add_counters(struct net *net, const void __user *user,
@@ -1234,9 +1195,10 @@ static int do_add_counters(struct net *net, const void __user *user,
 	curcpu = smp_processor_id();
 	loc_cpu_entry = private->entries[curcpu];
 	xt_info_wrlock(curcpu);
-	xt_entry_foreach(iter, loc_cpu_entry, private->size)
-		if (add_counter_to_entry(iter, paddc, &i) != 0)
-			break;
+	xt_entry_foreach(iter, loc_cpu_entry, private->size) {
+		ADD_COUNTER(iter->counters, paddc[i].bcnt, paddc[i].pcnt);
+		++i;
+	}
 	xt_info_wrunlock(curcpu);
  unlock_up_free:
 	local_bh_enable();
@@ -1249,17 +1211,12 @@ static int do_add_counters(struct net *net, const void __user *user,
 }
 
 #ifdef CONFIG_COMPAT
-static inline int
-compat_release_entry(struct compat_arpt_entry *e, unsigned int *i)
+static inline void compat_release_entry(struct compat_arpt_entry *e)
 {
 	struct arpt_entry_target *t;
 
-	if (i && (*i)-- == 0)
-		return 1;
-
 	t = compat_arpt_get_target(e);
 	module_put(t->u.kernel.target->me);
-	return 0;
 }
 
 static inline int
@@ -1270,7 +1227,6 @@ check_compat_entry_size_and_hooks(struct compat_arpt_entry *e,
 				  const unsigned char *limit,
 				  const unsigned int *hook_entries,
 				  const unsigned int *underflows,
-				  unsigned int *i,
 				  const char *name)
 {
 	struct arpt_entry_target *t;
@@ -1330,8 +1286,6 @@ check_compat_entry_size_and_hooks(struct compat_arpt_entry *e,
 	/* Clear counters and comefrom */
 	memset(&e->counters, 0, sizeof(e->counters));
 	e->comefrom = 0;
-
-	(*i)++;
 	return 0;
 
 release_target:
@@ -1375,19 +1329,6 @@ compat_copy_entry_from_user(struct compat_arpt_entry *e, void **dstptr,
 	return ret;
 }
 
-static inline int compat_check_entry(struct arpt_entry *e, const char *name,
-				     unsigned int *i)
-{
-	int ret;
-
-	ret = check_target(e, name);
-	if (ret)
-		return ret;
-
-	(*i)++;
-	return 0;
-}
-
 static int translate_compat_table(const char *name,
 				  unsigned int valid_hooks,
 				  struct xt_table_info **pinfo,
@@ -1423,12 +1364,11 @@ static int translate_compat_table(const char *name,
 	xt_entry_foreach(iter0, entry0, total_size) {
 		ret = check_compat_entry_size_and_hooks(iter0, info, &size,
 		      entry0, entry0 + total_size, hook_entries, underflows,
-		      &j, name);
+		      name);
 		if (ret != 0)
-			break;
+			goto out_unlock;
+		++j;
 	}
-	if (ret != 0)
-		goto out_unlock;
 
 	ret = -EINVAL;
 	if (j != number) {
@@ -1484,9 +1424,10 @@ static int translate_compat_table(const char *name,
 
 	i = 0;
 	xt_entry_foreach(iter1, entry1, newinfo->size) {
-		ret = compat_check_entry(iter1, name, &i);
+		ret = check_target(iter1, name);
 		if (ret != 0)
 			break;
+		++i;
 	}
 	if (ret) {
 		/*
@@ -1499,12 +1440,15 @@ static int translate_compat_table(const char *name,
 		xt_entry_foreach(iter0, entry0, newinfo->size) {
 			if (skip-- > 0)
 				continue;
-			if (compat_release_entry(iter0, &j) != 0)
+			if (j-- == 0)
 				break;
+			compat_release_entry(iter0);
 		}
-		xt_entry_foreach(iter1, entry1, newinfo->size)
-			if (cleanup_entry(iter1, &i) != 0)
+		xt_entry_foreach(iter1, entry1, newinfo->size) {
+			if (i-- == 0)
 				break;
+			cleanup_entry(iter1);
+		}
 		xt_free_table_info(newinfo);
 		return ret;
 	}
@@ -1522,9 +1466,11 @@ static int translate_compat_table(const char *name,
 free_newinfo:
 	xt_free_table_info(newinfo);
 out:
-	xt_entry_foreach(iter0, entry0, total_size)
-		if (compat_release_entry(iter0, &j) != 0)
+	xt_entry_foreach(iter0, entry0, total_size) {
+		if (j-- == 0)
 			break;
+		compat_release_entry(iter0);
+	}
 	return ret;
 out_unlock:
 	xt_compat_flush_offsets(NFPROTO_ARP);
@@ -1590,8 +1536,7 @@ static int compat_do_replace(struct net *net, void __user *user,
 
  free_newinfo_untrans:
 	xt_entry_foreach(iter, loc_cpu_entry, newinfo->size)
-		if (cleanup_entry(iter, NULL) != 0)
-			break;
+		cleanup_entry(iter);
  free_newinfo:
 	xt_free_table_info(newinfo);
 	return ret;
@@ -1625,7 +1570,7 @@ static int compat_do_arpt_set_ctl(struct sock *sk, int cmd, void __user *user,
 static int compat_copy_entry_to_user(struct arpt_entry *e, void __user **dstptr,
 				     compat_uint_t *size,
 				     struct xt_counters *counters,
-				     unsigned int *i)
+				     unsigned int i)
 {
 	struct arpt_entry_target *t;
 	struct compat_arpt_entry __user *ce;
@@ -1633,14 +1578,12 @@ static int compat_copy_entry_to_user(struct arpt_entry *e, void __user **dstptr,
 	compat_uint_t origsize;
 	int ret;
 
-	ret = -EFAULT;
 	origsize = *size;
 	ce = (struct compat_arpt_entry __user *)*dstptr;
-	if (copy_to_user(ce, e, sizeof(struct arpt_entry)))
-		goto out;
-
-	if (copy_to_user(&ce->counters, &counters[*i], sizeof(counters[*i])))
-		goto out;
+	if (copy_to_user(ce, e, sizeof(struct arpt_entry)) != 0 ||
+	    copy_to_user(&ce->counters, &counters[i],
+	    sizeof(counters[i])) != 0)
+		return -EFAULT;
 
 	*dstptr += sizeof(struct compat_arpt_entry);
 	*size -= sizeof(struct arpt_entry) - sizeof(struct compat_arpt_entry);
@@ -1650,18 +1593,12 @@ static int compat_copy_entry_to_user(struct arpt_entry *e, void __user **dstptr,
 	t = arpt_get_target(e);
 	ret = xt_compat_target_to_user(t, dstptr, size);
 	if (ret)
-		goto out;
-	ret = -EFAULT;
+		return ret;
 	next_offset = e->next_offset - (origsize - *size);
-	if (put_user(target_offset, &ce->target_offset))
-		goto out;
-	if (put_user(next_offset, &ce->next_offset))
-		goto out;
-
-	(*i)++;
+	if (put_user(target_offset, &ce->target_offset) != 0 ||
+	    put_user(next_offset, &ce->next_offset) != 0)
+		return -EFAULT;
 	return 0;
-out:
-	return ret;
 }
 
 static int compat_copy_entries_to_user(unsigned int total_size,
@@ -1687,7 +1624,7 @@ static int compat_copy_entries_to_user(unsigned int total_size,
 	size = total_size;
 	xt_entry_foreach(iter, loc_cpu_entry, total_size) {
 		ret = compat_copy_entry_to_user(iter, &pos,
-		      &size, counters, &i);
+		      &size, counters, i++);
 		if (ret != 0)
 			break;
 	}
@@ -1893,8 +1830,7 @@ void arpt_unregister_table(struct xt_table *table)
 	/* Decrease module usage counts and free resources */
 	loc_cpu_entry = private->entries[raw_smp_processor_id()];
 	xt_entry_foreach(iter, loc_cpu_entry, private->size)
-		if (cleanup_entry(iter, NULL) != 0)
-			break;
+		cleanup_entry(iter);
 	if (private->number > private->initial_entries)
 		module_put(table_owner);
 	xt_free_table_info(private);
