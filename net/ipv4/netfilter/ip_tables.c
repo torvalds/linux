@@ -288,6 +288,7 @@ static void trace_packet(const struct sk_buff *skb,
 	const void *table_base;
 	const struct ipt_entry *root;
 	const char *hookname, *chainname, *comment;
+	const struct ipt_entry *iter;
 	unsigned int rulenum = 0;
 
 	table_base = private->entries[smp_processor_id()];
@@ -296,10 +297,10 @@ static void trace_packet(const struct sk_buff *skb,
 	hookname = chainname = hooknames[hook];
 	comment = comments[NF_IP_TRACE_COMMENT_RULE];
 
-	IPT_ENTRY_ITERATE(root,
-			  private->size - private->hook_entry[hook],
-			  get_chainname_rulenum,
-			  e, hookname, &chainname, &comment, &rulenum);
+	xt_entry_foreach(iter, root, private->size - private->hook_entry[hook])
+		if (get_chainname_rulenum(iter, e, hookname,
+		    &chainname, &comment, &rulenum) != 0)
+			break;
 
 	nf_log_packet(AF_INET, hook, skb, in, out, &trace_loginfo,
 		      "TRACE: %s:%s:%s:%u ",
@@ -826,8 +827,9 @@ translate_table(struct net *net,
 		const unsigned int *hook_entries,
 		const unsigned int *underflows)
 {
+	struct ipt_entry *iter;
 	unsigned int i;
-	int ret;
+	int ret = 0;
 
 	newinfo->size = size;
 	newinfo->number = number;
@@ -841,12 +843,13 @@ translate_table(struct net *net,
 	duprintf("translate_table: size %u\n", newinfo->size);
 	i = 0;
 	/* Walk through entries, checking offsets. */
-	ret = IPT_ENTRY_ITERATE(entry0, newinfo->size,
-				check_entry_size_and_hooks,
-				newinfo,
-				entry0,
-				entry0 + size,
-				hook_entries, underflows, valid_hooks, &i);
+	xt_entry_foreach(iter, entry0, newinfo->size) {
+		ret = check_entry_size_and_hooks(iter, newinfo, entry0,
+		      entry0 + size, hook_entries, underflows,
+		      valid_hooks, &i);
+		if (ret != 0)
+			break;
+	}
 	if (ret != 0)
 		return ret;
 
@@ -878,12 +881,16 @@ translate_table(struct net *net,
 
 	/* Finally, each sanity check must pass */
 	i = 0;
-	ret = IPT_ENTRY_ITERATE(entry0, newinfo->size,
-				find_check_entry, net, name, size, &i);
+	xt_entry_foreach(iter, entry0, newinfo->size) {
+		ret = find_check_entry(iter, net, name, size, &i);
+		if (ret != 0)
+			break;
+	}
 
 	if (ret != 0) {
-		IPT_ENTRY_ITERATE(entry0, newinfo->size,
-				cleanup_entry, net, &i);
+		xt_entry_foreach(iter, entry0, newinfo->size)
+			if (cleanup_entry(iter, net, &i) != 0)
+				break;
 		return ret;
 	}
 
@@ -923,6 +930,7 @@ static void
 get_counters(const struct xt_table_info *t,
 	     struct xt_counters counters[])
 {
+	struct ipt_entry *iter;
 	unsigned int cpu;
 	unsigned int i;
 	unsigned int curcpu;
@@ -938,22 +946,18 @@ get_counters(const struct xt_table_info *t,
 	curcpu = smp_processor_id();
 
 	i = 0;
-	IPT_ENTRY_ITERATE(t->entries[curcpu],
-			  t->size,
-			  set_entry_to_counter,
-			  counters,
-			  &i);
+	xt_entry_foreach(iter, t->entries[curcpu], t->size)
+		if (set_entry_to_counter(iter, counters, &i) != 0)
+			break;
 
 	for_each_possible_cpu(cpu) {
 		if (cpu == curcpu)
 			continue;
 		i = 0;
 		xt_info_wrlock(cpu);
-		IPT_ENTRY_ITERATE(t->entries[cpu],
-				  t->size,
-				  add_entry_to_counter,
-				  counters,
-				  &i);
+		xt_entry_foreach(iter, t->entries[cpu], t->size)
+			if (add_entry_to_counter(iter, counters, &i) != 0)
+				break;
 		xt_info_wrunlock(cpu);
 	}
 	local_bh_enable();
@@ -1111,7 +1115,9 @@ static int compat_calc_entry(const struct ipt_entry *e,
 static int compat_table_info(const struct xt_table_info *info,
 			     struct xt_table_info *newinfo)
 {
+	struct ipt_entry *iter;
 	void *loc_cpu_entry;
+	int ret = 0;
 
 	if (!newinfo || !info)
 		return -EINVAL;
@@ -1120,9 +1126,12 @@ static int compat_table_info(const struct xt_table_info *info,
 	memcpy(newinfo, info, offsetof(struct xt_table_info, entries));
 	newinfo->initial_entries = 0;
 	loc_cpu_entry = info->entries[raw_smp_processor_id()];
-	return IPT_ENTRY_ITERATE(loc_cpu_entry, info->size,
-				 compat_calc_entry, info, loc_cpu_entry,
-				 newinfo);
+	xt_entry_foreach(iter, loc_cpu_entry, info->size) {
+		ret = compat_calc_entry(iter, info, loc_cpu_entry, newinfo);
+		if (ret != 0)
+			break;
+	}
+	return ret;
 }
 #endif
 
@@ -1236,6 +1245,7 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 	struct xt_table_info *oldinfo;
 	struct xt_counters *counters;
 	void *loc_cpu_old_entry;
+	struct ipt_entry *iter;
 
 	ret = 0;
 	counters = vmalloc(num_counters * sizeof(struct xt_counters));
@@ -1278,8 +1288,10 @@ __do_replace(struct net *net, const char *name, unsigned int valid_hooks,
 
 	/* Decrease module usage counts and free resource */
 	loc_cpu_old_entry = oldinfo->entries[raw_smp_processor_id()];
-	IPT_ENTRY_ITERATE(loc_cpu_old_entry, oldinfo->size, cleanup_entry,
-			  net, NULL);
+	xt_entry_foreach(iter, loc_cpu_old_entry, oldinfo->size)
+		if (cleanup_entry(iter, net, NULL) != 0)
+			break;
+
 	xt_free_table_info(oldinfo);
 	if (copy_to_user(counters_ptr, counters,
 			 sizeof(struct xt_counters) * num_counters) != 0)
@@ -1304,6 +1316,7 @@ do_replace(struct net *net, const void __user *user, unsigned int len)
 	struct ipt_replace tmp;
 	struct xt_table_info *newinfo;
 	void *loc_cpu_entry;
+	struct ipt_entry *iter;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
 		return -EFAULT;
@@ -1339,7 +1352,9 @@ do_replace(struct net *net, const void __user *user, unsigned int len)
 	return 0;
 
  free_newinfo_untrans:
-	IPT_ENTRY_ITERATE(loc_cpu_entry, newinfo->size, cleanup_entry, net, NULL);
+	xt_entry_foreach(iter, loc_cpu_entry, newinfo->size)
+		if (cleanup_entry(iter, net, NULL) != 0)
+			break;
  free_newinfo:
 	xt_free_table_info(newinfo);
 	return ret;
@@ -1373,6 +1388,7 @@ do_add_counters(struct net *net, const void __user *user,
 	const struct xt_table_info *private;
 	int ret = 0;
 	void *loc_cpu_entry;
+	struct ipt_entry *iter;
 #ifdef CONFIG_COMPAT
 	struct compat_xt_counters_info compat_tmp;
 
@@ -1430,11 +1446,9 @@ do_add_counters(struct net *net, const void __user *user,
 	curcpu = smp_processor_id();
 	loc_cpu_entry = private->entries[curcpu];
 	xt_info_wrlock(curcpu);
-	IPT_ENTRY_ITERATE(loc_cpu_entry,
-			  private->size,
-			  add_counter_to_entry,
-			  paddc,
-			  &i);
+	xt_entry_foreach(iter, loc_cpu_entry, private->size)
+		if (add_counter_to_entry(iter, paddc, &i) != 0)
+			break;
 	xt_info_wrunlock(curcpu);
  unlock_up_free:
 	local_bh_enable();
@@ -1720,8 +1734,10 @@ translate_compat_table(struct net *net,
 	unsigned int i, j;
 	struct xt_table_info *newinfo, *info;
 	void *pos, *entry0, *entry1;
+	struct compat_ipt_entry *iter0;
+	struct ipt_entry *iter1;
 	unsigned int size;
-	int ret;
+	int ret = 0;
 
 	info = *pinfo;
 	entry0 = *pentry0;
@@ -1738,11 +1754,13 @@ translate_compat_table(struct net *net,
 	j = 0;
 	xt_compat_lock(AF_INET);
 	/* Walk through entries, checking offsets. */
-	ret = COMPAT_IPT_ENTRY_ITERATE(entry0, total_size,
-				       check_compat_entry_size_and_hooks,
-				       info, &size, entry0,
-				       entry0 + total_size,
-				       hook_entries, underflows, &j, name);
+	xt_entry_foreach(iter0, entry0, total_size) {
+		ret = check_compat_entry_size_and_hooks(iter0, info, &size,
+		      entry0, entry0 + total_size, hook_entries, underflows,
+		      &j, name);
+		if (ret != 0)
+			break;
+	}
 	if (ret != 0)
 		goto out_unlock;
 
@@ -1783,9 +1801,12 @@ translate_compat_table(struct net *net,
 	entry1 = newinfo->entries[raw_smp_processor_id()];
 	pos = entry1;
 	size = total_size;
-	ret = COMPAT_IPT_ENTRY_ITERATE(entry0, total_size,
-				       compat_copy_entry_from_user,
-				       &pos, &size, name, newinfo, entry1);
+	xt_entry_foreach(iter0, entry0, total_size) {
+		ret = compat_copy_entry_from_user(iter0, &pos,
+		      &size, name, newinfo, entry1);
+		if (ret != 0)
+			break;
+	}
 	xt_compat_flush_offsets(AF_INET);
 	xt_compat_unlock(AF_INET);
 	if (ret)
@@ -1796,13 +1817,28 @@ translate_compat_table(struct net *net,
 		goto free_newinfo;
 
 	i = 0;
-	ret = IPT_ENTRY_ITERATE(entry1, newinfo->size, compat_check_entry,
-				net, name, &i);
+	xt_entry_foreach(iter1, entry1, newinfo->size) {
+		ret = compat_check_entry(iter1, net, name, &i);
+		if (ret != 0)
+			break;
+	}
 	if (ret) {
+		/*
+		 * The first i matches need cleanup_entry (calls ->destroy)
+		 * because they had called ->check already. The other j-i
+		 * entries need only release.
+		 */
+		int skip = i;
 		j -= i;
-		COMPAT_IPT_ENTRY_ITERATE_CONTINUE(entry0, newinfo->size, i,
-						  compat_release_entry, &j);
-		IPT_ENTRY_ITERATE(entry1, newinfo->size, cleanup_entry, net, &i);
+		xt_entry_foreach(iter0, entry0, newinfo->size) {
+			if (skip-- > 0)
+				continue;
+			if (compat_release_entry(iter0, &i) != 0)
+				break;
+		}
+		xt_entry_foreach(iter1, entry1, newinfo->size)
+			if (cleanup_entry(iter1, net, &i) != 0)
+				break;
 		xt_free_table_info(newinfo);
 		return ret;
 	}
@@ -1820,7 +1856,9 @@ translate_compat_table(struct net *net,
 free_newinfo:
 	xt_free_table_info(newinfo);
 out:
-	COMPAT_IPT_ENTRY_ITERATE(entry0, total_size, compat_release_entry, &j);
+	xt_entry_foreach(iter0, entry0, total_size)
+		if (compat_release_entry(iter0, &j) != 0)
+			break;
 	return ret;
 out_unlock:
 	xt_compat_flush_offsets(AF_INET);
@@ -1835,6 +1873,7 @@ compat_do_replace(struct net *net, void __user *user, unsigned int len)
 	struct compat_ipt_replace tmp;
 	struct xt_table_info *newinfo;
 	void *loc_cpu_entry;
+	struct ipt_entry *iter;
 
 	if (copy_from_user(&tmp, user, sizeof(tmp)) != 0)
 		return -EFAULT;
@@ -1873,7 +1912,9 @@ compat_do_replace(struct net *net, void __user *user, unsigned int len)
 	return 0;
 
  free_newinfo_untrans:
-	IPT_ENTRY_ITERATE(loc_cpu_entry, newinfo->size, cleanup_entry, net, NULL);
+	xt_entry_foreach(iter, loc_cpu_entry, newinfo->size)
+		if (cleanup_entry(iter, net, NULL) != 0)
+			break;
  free_newinfo:
 	xt_free_table_info(newinfo);
 	return ret;
@@ -1922,6 +1963,7 @@ compat_copy_entries_to_user(unsigned int total_size, struct xt_table *table,
 	int ret = 0;
 	const void *loc_cpu_entry;
 	unsigned int i = 0;
+	struct ipt_entry *iter;
 
 	counters = alloc_counters(table);
 	if (IS_ERR(counters))
@@ -1934,9 +1976,12 @@ compat_copy_entries_to_user(unsigned int total_size, struct xt_table *table,
 	loc_cpu_entry = private->entries[raw_smp_processor_id()];
 	pos = userptr;
 	size = total_size;
-	ret = IPT_ENTRY_ITERATE(loc_cpu_entry, total_size,
-				compat_copy_entry_to_user,
-				&pos, &size, counters, &i);
+	xt_entry_foreach(iter, loc_cpu_entry, total_size) {
+		ret = compat_copy_entry_to_user(iter, &pos,
+		      &size, counters, &i);
+		if (ret != 0)
+			break;
+	}
 
 	vfree(counters);
 	return ret;
@@ -2137,12 +2182,15 @@ void ipt_unregister_table(struct net *net, struct xt_table *table)
 	struct xt_table_info *private;
 	void *loc_cpu_entry;
 	struct module *table_owner = table->me;
+	struct ipt_entry *iter;
 
 	private = xt_unregister_table(table);
 
 	/* Decrease module usage counts and free resources */
 	loc_cpu_entry = private->entries[raw_smp_processor_id()];
-	IPT_ENTRY_ITERATE(loc_cpu_entry, private->size, cleanup_entry, net, NULL);
+	xt_entry_foreach(iter, loc_cpu_entry, private->size)
+		if (cleanup_entry(iter, net, NULL) != 0)
+			break;
 	if (private->number > private->initial_entries)
 		module_put(table_owner);
 	xt_free_table_info(private);

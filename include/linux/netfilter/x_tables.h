@@ -139,6 +139,7 @@ struct xt_counters_info {
 	__ret;							\
 })
 
+#ifndef __KERNEL__
 /* fn returns 0 to continue iteration */
 #define XT_ENTRY_ITERATE_CONTINUE(type, entries, size, n, fn, args...) \
 ({								\
@@ -162,6 +163,14 @@ struct xt_counters_info {
 /* fn returns 0 to continue iteration */
 #define XT_ENTRY_ITERATE(type, entries, size, fn, args...) \
 	XT_ENTRY_ITERATE_CONTINUE(type, entries, size, 0, fn, args)
+
+#endif /* !__KERNEL__ */
+
+/* pos is normally a struct ipt_entry/ip6t_entry/etc. */
+#define xt_entry_foreach(pos, ehead, esize) \
+	for ((pos) = (typeof(pos))(ehead); \
+	     (pos) < (typeof(pos))((char *)(ehead) + (esize)); \
+	     (pos) = (typeof(pos))((char *)(pos) + (pos)->next_offset))
 
 #ifdef __KERNEL__
 
