@@ -77,7 +77,7 @@
 #include "myri10ge_mcp.h"
 #include "myri10ge_mcp_gen_header.h"
 
-#define MYRI10GE_VERSION_STR "1.5.1-1.453"
+#define MYRI10GE_VERSION_STR "1.5.2-1.459"
 
 MODULE_DESCRIPTION("Myricom 10G driver (10GbE)");
 MODULE_AUTHOR("Maintainer: help@myri.com");
@@ -1200,6 +1200,9 @@ myri10ge_alloc_rx_pages(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 {
 	struct page *page;
 	int idx;
+#if MYRI10GE_ALLOC_SIZE > 4096
+	int end_offset;
+#endif
 
 	if (unlikely(rx->watchdog_needed && !watchdog))
 		return;
@@ -1241,9 +1244,9 @@ myri10ge_alloc_rx_pages(struct myri10ge_priv *mgp, struct myri10ge_rx_buf *rx,
 
 #if MYRI10GE_ALLOC_SIZE > 4096
 		/* don't cross a 4KB boundary */
-		if ((rx->page_offset >> 12) !=
-		    ((rx->page_offset + bytes - 1) >> 12))
-			rx->page_offset = (rx->page_offset + 4096) & ~4095;
+		end_offset = rx->page_offset + bytes - 1;
+		if ((unsigned)(rx->page_offset ^ end_offset) > 4095)
+			rx->page_offset = end_offset & ~4095;
 #endif
 		rx->fill_cnt++;
 
