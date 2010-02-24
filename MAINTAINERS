@@ -3489,9 +3489,9 @@ S:	Maintained
 F:	drivers/net/wireless/libertas/
 
 MARVELL MV643XX ETHERNET DRIVER
-M:	Lennert Buytenhek <buytenh@marvell.com>
+M:	Lennert Buytenhek <buytenh@wantstofly.org>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/mv643xx_eth.*
 F:	include/linux/mv643xx.h
 
