@@ -35,6 +35,10 @@ extern resource_size_t isa_mem_base;
 
 #define IO_SPACE_LIMIT (0xFFFFFFFF)
 
+/* the following is needed to support PCI with some drivers */
+
+#define mmiowb()
+
 static inline unsigned char __raw_readb(const volatile void __iomem *addr)
 {
 	return *(volatile unsigned char __force *)addr;
