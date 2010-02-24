@@ -125,6 +125,10 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 	for (i = 0; i < PWRDM_MAX_PWRSTS; i++)
 		pwrdm->state_counter[i] = 0;
 
+	pwrdm->ret_logic_off_counter = 0;
+	for (i = 0; i < pwrdm->banks; i++)
+		pwrdm->ret_mem_off_counter[i] = 0;
+
 	pwrdm_wait_transition(pwrdm);
 	pwrdm->state = pwrdm_read_pwrst(pwrdm);
 	pwrdm->state_counter[pwrdm->state] = 1;
@@ -132,6 +136,25 @@ static int _pwrdm_register(struct powerdomain *pwrdm)
 	pr_debug("powerdomain: registered %s\n", pwrdm->name);
 
 	return 0;
+}
+
+static void _update_logic_membank_counters(struct powerdomain *pwrdm)
+{
+	int i;
+	u8 prev_logic_pwrst, prev_mem_pwrst;
+
+	prev_logic_pwrst = pwrdm_read_prev_logic_pwrst(pwrdm);
+	if ((pwrdm->pwrsts_logic_ret == PWRSTS_OFF_RET) &&
+	    (prev_logic_pwrst == PWRDM_POWER_OFF))
+		pwrdm->ret_logic_off_counter++;
+
+	for (i = 0; i < pwrdm->banks; i++) {
+		prev_mem_pwrst = pwrdm_read_prev_mem_pwrst(pwrdm, i);
+
+		if ((pwrdm->pwrsts_mem_ret[i] == PWRSTS_OFF_RET) &&
+		    (prev_mem_pwrst == PWRDM_POWER_OFF))
+			pwrdm->ret_mem_off_counter[i]++;
+	}
 }
 
 static int _pwrdm_state_switch(struct powerdomain *pwrdm, int flag)
@@ -153,6 +176,8 @@ static int _pwrdm_state_switch(struct powerdomain *pwrdm, int flag)
 		prev = pwrdm_read_prev_pwrst(pwrdm);
 		if (pwrdm->state != prev)
 			pwrdm->state_counter[prev]++;
+		if (prev == PWRDM_POWER_RET)
+			_update_logic_membank_counters(pwrdm);
 		break;
 	default:
 		return -EINVAL;
