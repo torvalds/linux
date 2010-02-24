@@ -91,6 +91,10 @@ enum s3c_gpio_number {
 #define S3C_GPIO_END		S3C64XX_GPIO_END
 
 /* define the number of gpios we need to the one after the GPQ() range */
-#define ARCH_NR_GPIOS	(S3C64XX_GPQ(S3C64XX_GPIO_Q_NR) + 1)
+#define GPIO_BOARD_START (S3C64XX_GPQ(S3C64XX_GPIO_Q_NR) + 1)
+
+#define BOARD_NR_GPIOS 16
+
+#define ARCH_NR_GPIOS	(GPIO_BOARD_START + BOARD_NR_GPIOS)
 
 #include <asm-generic/gpio.h>
