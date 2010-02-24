@@ -33,25 +33,42 @@
 #define __ARCH_ARM_PLAT_OMAP_INCLUDE_MACH_OMAP_HWMOD_H
 
 #include <linux/kernel.h>
+#include <linux/list.h>
 #include <linux/ioport.h>
-
 #include <plat/cpu.h>
 
 struct omap_device;
 
-/* OCP SYSCONFIG bit shifts/masks */
-#define SYSC_MIDLEMODE_SHIFT		12
-#define SYSC_MIDLEMODE_MASK		(0x3 << SYSC_MIDLEMODE_SHIFT)
-#define SYSC_CLOCKACTIVITY_SHIFT	8
-#define SYSC_CLOCKACTIVITY_MASK		(0x3 << SYSC_CLOCKACTIVITY_SHIFT)
-#define SYSC_SIDLEMODE_SHIFT		3
-#define SYSC_SIDLEMODE_MASK		(0x3 << SYSC_SIDLEMODE_SHIFT)
-#define SYSC_ENAWAKEUP_SHIFT		2
-#define SYSC_ENAWAKEUP_MASK		(1 << SYSC_ENAWAKEUP_SHIFT)
-#define SYSC_SOFTRESET_SHIFT		1
-#define SYSC_SOFTRESET_MASK		(1 << SYSC_SOFTRESET_SHIFT)
-#define SYSC_AUTOIDLE_SHIFT		0
-#define SYSC_AUTOIDLE_MASK		(1 << SYSC_AUTOIDLE_SHIFT)
+extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type1;
+extern struct omap_hwmod_sysc_fields omap_hwmod_sysc_type2;
+
+/*
+ * OCP SYSCONFIG bit shifts/masks TYPE1. These are for IPs compliant
+ * with the original PRCM protocol defined for OMAP2420
+ */
+#define SYSC_TYPE1_MIDLEMODE_SHIFT	12
+#define SYSC_TYPE1_MIDLEMODE_MASK	(0x3 << SYSC_MIDLEMODE_SHIFT)
+#define SYSC_TYPE1_CLOCKACTIVITY_SHIFT	8
+#define SYSC_TYPE1_CLOCKACTIVITY_MASK	(0x3 << SYSC_CLOCKACTIVITY_SHIFT)
+#define SYSC_TYPE1_SIDLEMODE_SHIFT	3
+#define SYSC_TYPE1_SIDLEMODE_MASK	(0x3 << SYSC_SIDLEMODE_SHIFT)
+#define SYSC_TYPE1_ENAWAKEUP_SHIFT	2
+#define SYSC_TYPE1_ENAWAKEUP_MASK	(1 << SYSC_ENAWAKEUP_SHIFT)
+#define SYSC_TYPE1_SOFTRESET_SHIFT	1
+#define SYSC_TYPE1_SOFTRESET_MASK	(1 << SYSC_SOFTRESET_SHIFT)
+#define SYSC_TYPE1_AUTOIDLE_SHIFT	0
+#define SYSC_TYPE1_AUTOIDLE_MASK	(1 << SYSC_AUTOIDLE_SHIFT)
+
+/*
+ * OCP SYSCONFIG bit shifts/masks TYPE2. These are for IPs compliant
+ * with the new PRCM protocol defined for new OMAP4 IPs.
+ */
+#define SYSC_TYPE2_SOFTRESET_SHIFT	0
+#define SYSC_TYPE2_SOFTRESET_MASK	(1 << SYSC_TYPE2_SOFTRESET_SHIFT)
+#define SYSC_TYPE2_SIDLEMODE_SHIFT	2
+#define SYSC_TYPE2_SIDLEMODE_MASK	(0x3 << SYSC_TYPE2_SIDLEMODE_SHIFT)
+#define SYSC_TYPE2_MIDLEMODE_SHIFT	4
+#define SYSC_TYPE2_MIDLEMODE_MASK	(0x3 << SYSC_TYPE2_MIDLEMODE_SHIFT)
 
 /* OCP SYSSTATUS bit shifts/masks */
 #define SYSS_RESETDONE_SHIFT		0
@@ -61,7 +78,6 @@ struct omap_device;
 #define HWMOD_IDLEMODE_FORCE		(1 << 0)
 #define HWMOD_IDLEMODE_NO		(1 << 1)
 #define HWMOD_IDLEMODE_SMART		(1 << 2)
-
 
 /**
  * struct omap_hwmod_irq_info - MPU IRQs used by the hwmod
@@ -236,6 +252,24 @@ struct omap_hwmod_ocp_if {
 #define CLOCKACT_TEST_NONE	0x3
 
 /**
+ * struct omap_hwmod_sysc_fields - hwmod OCP_SYSCONFIG register field offsets.
+ * @midle_shift: Offset of the midle bit
+ * @clkact_shift: Offset of the clockactivity bit
+ * @sidle_shift: Offset of the sidle bit
+ * @enwkup_shift: Offset of the enawakeup bit
+ * @srst_shift: Offset of the softreset bit
+ * @autoidle_shift: Offset of the autoidle bit.
+ */
+struct omap_hwmod_sysc_fields {
+	u8 midle_shift;
+	u8 clkact_shift;
+	u8 sidle_shift;
+	u8 enwkup_shift;
+	u8 srst_shift;
+	u8 autoidle_shift;
+};
+
+/**
  * struct omap_hwmod_sysconfig - hwmod OCP_SYSCONFIG/OCP_SYSSTATUS data
  * @rev_offs: IP block revision register offset (from module base addr)
  * @sysc_offs: OCP_SYSCONFIG register offset (from module base addr)
@@ -252,6 +286,14 @@ struct omap_hwmod_ocp_if {
  * been associated with the clocks marked in @clockact.  This field is
  * only used if HWMOD_SET_DEFAULT_CLOCKACT is set (see below)
  *
+ *
+ * @sysc_fields: structure containing the offset positions of various bits in
+ * SYSCONFIG register. This can be populated using omap_hwmod_sysc_type1 or
+ * omap_hwmod_sysc_type2 defined in omap_hwmod_common_data.c depending on
+ * whether the device ip is compliant with the original PRCM protocol
+ * defined for OMAP2420 or the new  PRCM protocol for new OMAP4 IPs.
+ * If the device follows a differnt scheme for the sysconfig register ,
+ * then this field has to be populated with the correct offset structure.
  */
 struct omap_hwmod_sysconfig {
 	u16 rev_offs;
@@ -260,6 +302,7 @@ struct omap_hwmod_sysconfig {
 	u8 idlemodes;
 	u8 sysc_flags;
 	u8 clockact;
+	struct omap_hwmod_sysc_fields *sysc_fields;
 };
 
 /**
