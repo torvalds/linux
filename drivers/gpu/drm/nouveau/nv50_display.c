@@ -370,9 +370,7 @@ nv50_display_init(struct drm_device *dev)
 		struct nouveau_connector *conn = nouveau_connector(connector);
 		struct dcb_gpio_entry *gpio;
 
-		if (connector->connector_type != DRM_MODE_CONNECTOR_DVII &&
-		    connector->connector_type != DRM_MODE_CONNECTOR_DVID &&
-		    connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
+		if (conn->dcb->gpio_tag == 0xff)
 			continue;
 
 		gpio = nouveau_bios_gpio_entry(dev, conn->dcb->gpio_tag);
