@@ -29,5 +29,6 @@
 #define VA_VIC0			VA_VIC(0)
 #define VA_VIC1			VA_VIC(1)
 #define VA_VIC2			VA_VIC(2)
+#define VA_VIC3			VA_VIC(3)
 
 #endif /* __ASM_PLAT_MAP_S5P_H */
