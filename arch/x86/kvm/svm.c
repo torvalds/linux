@@ -1043,6 +1043,27 @@ static void svm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 {
 	struct vcpu_svm *svm = to_svm(vcpu);
 
+	if (is_nested(svm)) {
+		/*
+		 * We are here because we run in nested mode, the host kvm
+		 * intercepts cr0 writes but the l1 hypervisor does not.
+		 * But the L1 hypervisor may intercept selective cr0 writes.
+		 * This needs to be checked here.
+		 */
+		unsigned long old, new;
+
+		/* Remove bits that would trigger a real cr0 write intercept */
+		old = vcpu->arch.cr0 & SVM_CR0_SELECTIVE_MASK;
+		new = cr0 & SVM_CR0_SELECTIVE_MASK;
+
+		if (old == new) {
+			/* cr0 write with ts and mp unchanged */
+			svm->vmcb->control.exit_code = SVM_EXIT_CR0_SEL_WRITE;
+			if (nested_svm_exit_handled(svm) == NESTED_EXIT_DONE)
+				return;
+		}
+	}
+
 #ifdef CONFIG_X86_64
 	if (vcpu->arch.efer & EFER_LME) {
 		if (!is_paging(vcpu) && (cr0 & X86_CR0_PG)) {
