@@ -327,6 +327,12 @@ static int cnic_iscsi_nl_msg_recv(struct cnic_dev *dev, u32 msg_type,
 		if (l5_cid >= MAX_CM_SK_TBL_SZ)
 			break;
 
+		rcu_read_lock();
+		if (!rcu_dereference(cp->ulp_ops[CNIC_ULP_L4])) {
+			rc = -ENODEV;
+			rcu_read_unlock();
+			break;
+		}
 		csk = &cp->csk_tbl[l5_cid];
 		csk_hold(csk);
 		if (cnic_in_use(csk)) {
@@ -341,6 +347,7 @@ static int cnic_iscsi_nl_msg_recv(struct cnic_dev *dev, u32 msg_type,
 				cnic_cm_set_pg(csk);
 		}
 		csk_put(csk);
+		rcu_read_unlock();
 		rc = 0;
 	}
 	}
