@@ -68,6 +68,7 @@ enum dcb_connector_type {
 	DCB_CONNECTOR_eDP = 0x47,
 	DCB_CONNECTOR_HDMI_0 = 0x60,
 	DCB_CONNECTOR_HDMI_1 = 0x61,
+	DCB_CONNECTOR_NONE = 0xff
 };
 
 struct dcb_connector_table_entry {

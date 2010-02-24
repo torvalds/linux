@@ -5173,6 +5173,43 @@ nouveau_bios_connector_entry(struct drm_device *dev, int index)
 	return cte;
 }
 
+static enum dcb_connector_type
+divine_connector_type(struct nvbios *bios, int index)
+{
+	struct dcb_table *dcb = &bios->dcb;
+	unsigned encoders = 0, type = DCB_CONNECTOR_NONE;
+	int i;
+
+	for (i = 0; i < dcb->entries; i++) {
+		if (dcb->entry[i].connector == index)
+			encoders |= (1 << dcb->entry[i].type);
+	}
+
+	if (encoders & (1 << OUTPUT_DP)) {
+		if (encoders & (1 << OUTPUT_TMDS))
+			type = DCB_CONNECTOR_DP;
+		else
+			type = DCB_CONNECTOR_eDP;
+	} else
+	if (encoders & (1 << OUTPUT_TMDS)) {
+		if (encoders & (1 << OUTPUT_ANALOG))
+			type = DCB_CONNECTOR_DVI_I;
+		else
+			type = DCB_CONNECTOR_DVI_D;
+	} else
+	if (encoders & (1 << OUTPUT_ANALOG)) {
+		type = DCB_CONNECTOR_VGA;
+	} else
+	if (encoders & (1 << OUTPUT_LVDS)) {
+		type = DCB_CONNECTOR_LVDS;
+	} else
+	if (encoders & (1 << OUTPUT_TV)) {
+		type = DCB_CONNECTOR_TV_0;
+	}
+
+	return type;
+}
+
 static void
 parse_dcb_connector_table(struct nvbios *bios)
 {
@@ -5205,6 +5242,7 @@ parse_dcb_connector_table(struct nvbios *bios)
 			cte->entry = ROM16(entry[0]);
 		else
 			cte->entry = ROM32(entry[0]);
+
 		cte->type  = (cte->entry & 0x000000ff) >> 0;
 		cte->index = (cte->entry & 0x00000f00) >> 8;
 		switch (cte->entry & 0x00033000) {
@@ -5230,6 +5268,29 @@ parse_dcb_connector_table(struct nvbios *bios)
 
 		NV_INFO(dev, "  %d: 0x%08x: type 0x%02x idx %d tag 0x%02x\n",
 			i, cte->entry, cte->type, cte->index, cte->gpio_tag);
+
+		/* check for known types, fallback to guessing the type
+		 * from attached encoders if we hit an unknown.
+		 */
+		switch (cte->type) {
+		case DCB_CONNECTOR_VGA:
+		case DCB_CONNECTOR_TV_0:
+		case DCB_CONNECTOR_TV_1:
+		case DCB_CONNECTOR_TV_3:
+		case DCB_CONNECTOR_DVI_I:
+		case DCB_CONNECTOR_DVI_D:
+		case DCB_CONNECTOR_LVDS:
+		case DCB_CONNECTOR_DP:
+		case DCB_CONNECTOR_eDP:
+		case DCB_CONNECTOR_HDMI_0:
+		case DCB_CONNECTOR_HDMI_1:
+			break;
+		default:
+			cte->type = divine_connector_type(bios, cte->index);
+			NV_WARN(dev, "unknown type, using 0x%02x", cte->type);
+			break;
+		}
+
 	}
 }
 
