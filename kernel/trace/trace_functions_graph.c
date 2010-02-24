@@ -855,7 +855,6 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 	int i;
 
 	if (data) {
-		int cpu = iter->cpu;
 		int *depth = &(per_cpu_ptr(data->cpu_data, cpu)->depth);
 
 		/*
