@@ -1,28 +1,19 @@
 /***************************************************************************
- * Copyright (c) 2005-2009, Broadcom Corporation.
- *
- *  Name: crystalhd_lnx . c
- *
- *  Description:
- *		BCM70010 Linux driver
- *
- *  HISTORY:
- *
- **********************************************************************
- * This file is part of the crystalhd device driver.
- *
- * This driver is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License as published by
- * the Free Software Foundation, version 2 of the License.
- *
- * This driver is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this driver.  If not, see <http://www.gnu.org/licenses/>.
- **********************************************************************/
+  BCM70010 Linux driver
+  Copyright (c) 2005-2009, Broadcom Corporation.
+
+  This driver is free software; you can redistribute it and/or modify
+  it under the terms of the GNU General Public License as published by
+  the Free Software Foundation, version 2 of the License.
+
+  This driver is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU General Public License for more details.
+
+  You should have received a copy of the GNU General Public License
+  along with this driver.  If not, see <http://www.gnu.org/licenses/>.
+***************************************************************************/
 
 #include <linux/version.h>
 
@@ -268,7 +259,7 @@ static int chd_dec_api_cmd(struct crystalhd_adp *adp, unsigned long ua,
 	return rc;
 }
 
-/* ========================= API interfaces =================================*/
+/* API interfaces */
 static int chd_dec_ioctl(struct inode *in, struct file *fd,
 			 unsigned int cmd, unsigned long ua)
 {
@@ -358,7 +349,7 @@ static const struct file_operations chd_dec_fops = {
 	.release = chd_dec_close,
 };
 
-static int chd_dec_init_chdev(struct crystalhd_adp *adp)
+static int __devinit chd_dec_init_chdev(struct crystalhd_adp *adp)
 {
 	crystalhd_ioctl_data *temp;
 	struct device *dev;
@@ -420,7 +411,7 @@ fail:
 	return rc;
 }
 
-static void chd_dec_release_chdev(struct crystalhd_adp *adp)
+static void __devexit chd_dec_release_chdev(struct crystalhd_adp *adp)
 {
 	crystalhd_ioctl_data *temp = NULL;
 	if (!adp)
@@ -446,7 +437,7 @@ static void chd_dec_release_chdev(struct crystalhd_adp *adp)
 	crystalhd_delete_elem_pool(adp);
 }
 
-static int chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
+static int __devinit chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
 {
 	int rc;
 	unsigned long bar2 = pci_resource_start(pinfo->pdev, 2);
@@ -499,7 +490,7 @@ static int chd_pci_reserve_mem(struct crystalhd_adp *pinfo)
 	return 0;
 }
 
-static void chd_pci_release_mem(struct crystalhd_adp *pinfo)
+static void __devexit chd_pci_release_mem(struct crystalhd_adp *pinfo)
 {
 	if (!pinfo)
 		return;
@@ -514,7 +505,7 @@ static void chd_pci_release_mem(struct crystalhd_adp *pinfo)
 }
 
 
-static void chd_dec_pci_remove(struct pci_dev *pdev)
+static void __devexit chd_dec_pci_remove(struct pci_dev *pdev)
 {
 	struct crystalhd_adp *pinfo;
 	BC_STATUS sts = BC_STS_SUCCESS;
@@ -542,7 +533,7 @@ static void chd_dec_pci_remove(struct pci_dev *pdev)
 	g_adp_info = NULL;
 }
 
-static int chd_dec_pci_probe(struct pci_dev *pdev,
+static int __devinit chd_dec_pci_probe(struct pci_dev *pdev,
 			     const struct pci_device_id *entry)
 {
 	struct crystalhd_adp *pinfo;
@@ -621,7 +612,6 @@ static int chd_dec_pci_probe(struct pci_dev *pdev,
 	g_adp_info = pinfo;
 
 	return 0;
-
 }
 
 #ifdef CONFIG_PM
@@ -700,24 +690,22 @@ int chd_dec_pci_resume(struct pci_dev *pdev)
 }
 #endif
 
-static struct pci_device_id chd_dec_pci_id_table[] = {
-/*	vendor, device, subvendor, subdevice, class, classmask, driver_data */
-	{ 0x14e4, 0x1612, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 8 },
+static DEFINE_PCI_DEVICE_TABLE(chd_dec_pci_id_table) = {
+	{ PCI_VDEVICE(BROADCOM, 0x1612), 8 },
 	{ 0, },
 };
+MODULE_DEVICE_TABLE(pci, chd_dec_pci_id_table);
 
-struct pci_driver bc_chd_70012_driver = {
+static struct pci_driver bc_chd_70012_driver = {
 	.name     = "Broadcom 70012 Decoder",
 	.probe    = chd_dec_pci_probe,
-	.remove   = chd_dec_pci_remove,
+	.remove   = __devexit_p(chd_dec_pci_remove),
 	.id_table = chd_dec_pci_id_table,
 #ifdef CONFIG_PM
 	.suspend  = chd_dec_pci_suspend,
 	.resume   = chd_dec_pci_resume
 #endif
 };
-MODULE_DEVICE_TABLE(pci, chd_dec_pci_id_table);
-
 
 void chd_set_log_level(struct crystalhd_adp *adp, char *arg)
 {
@@ -744,7 +732,7 @@ struct crystalhd_adp *chd_get_adp(void)
 	return g_adp_info;
 }
 
-int __init chd_dec_module_init(void)
+static int __init chd_dec_module_init(void)
 {
 	int rc;
 
@@ -759,22 +747,19 @@ int __init chd_dec_module_init(void)
 
 	return rc;
 }
+module_init(chd_dec_module_init);
 
-void __exit chd_dec_module_cleanup(void)
+static void __exit chd_dec_module_cleanup(void)
 {
 	BCMLOG(BCMLOG_DATA, "unloading crystalhd %d.%d.%d \n",
 	       crystalhd_kmod_major, crystalhd_kmod_minor, crystalhd_kmod_rev);
 
 	pci_unregister_driver(&bc_chd_70012_driver);
 }
-
+module_exit(chd_dec_module_cleanup);
 
 MODULE_AUTHOR("Naren Sankar <nsankar@broadcom.com>");
 MODULE_AUTHOR("Prasad Bolisetty <prasadb@broadcom.com>");
 MODULE_DESCRIPTION(CRYSTAL_HD_NAME);
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("bcm70012");
-
-module_init(chd_dec_module_init);
-module_exit(chd_dec_module_cleanup);
-
