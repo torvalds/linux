@@ -1734,7 +1734,7 @@ static int packet_mc_add(struct sock *sk, struct packet_mreq_max *mreq)
 		goto done;
 
 	err = -EINVAL;
-	if (mreq->mr_alen > dev->addr_len)
+	if (mreq->mr_alen != dev->addr_len)
 		goto done;
 
 	err = -ENOBUFS;
