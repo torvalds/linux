@@ -34,7 +34,6 @@
 #include <sys/uio.h>
 #include <termios.h>
 #include <getopt.h>
-#include <zlib.h>
 #include <assert.h>
 #include <sched.h>
 #include <limits.h>
