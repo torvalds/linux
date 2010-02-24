@@ -313,7 +313,7 @@ static struct platform_device fsi_device = {
 /* KEYSC in SoC (Needs SW33-2 set to ON) */
 static struct sh_keysc_info keysc_info = {
 	.mode = SH_KEYSC_MODE_1,
-	.scan_timing = 10,
+	.scan_timing = 3,
 	.delay = 50,
 	.keycodes = {
 		KEY_1, KEY_2, KEY_3, KEY_4, KEY_5,
