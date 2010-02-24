@@ -290,7 +290,7 @@ struct cx88_subid {
 #define RESOURCE_VIDEO         2
 #define RESOURCE_VBI           4
 
-#define BUFFER_TIMEOUT     msecs_to_jiffies(500)  /* 0.5 seconds */
+#define BUFFER_TIMEOUT     msecs_to_jiffies(2000)
 
 /* buffer for one video frame */
 struct cx88_buffer {
