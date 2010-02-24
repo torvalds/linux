@@ -292,6 +292,7 @@ static int virtballoon_probe(struct virtio_device *vdev)
 	vb->num_pages = 0;
 	init_waitqueue_head(&vb->config_change);
 	vb->vdev = vdev;
+	vb->need_stats_update = 0;
 
 	/* We expect two virtqueues: inflate and deflate,
 	 * and optionally stat. */
