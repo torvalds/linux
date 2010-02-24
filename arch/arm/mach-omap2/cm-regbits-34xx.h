@@ -168,6 +168,12 @@
 #define OMAP3430_EN_SDRC				(1 << 1)
 #define OMAP3430_EN_SDRC_SHIFT				1
 
+/* AM35XX specific CM_ICLKEN1_CORE bits */
+#define AM35XX_EN_IPSS_MASK				(1 << 4)
+#define AM35XX_EN_IPSS_SHIFT				4
+#define AM35XX_EN_UART4_MASK			(1 << 23)
+#define AM35XX_EN_UART4_SHIFT				23
+
 /* CM_ICLKEN2_CORE */
 #define OMAP3430_EN_PKA					(1 << 4)
 #define OMAP3430_EN_PKA_SHIFT				4
@@ -219,6 +225,10 @@
 #define OMAP3430_ST_SDRC_MASK				(1 << 1)
 #define OMAP3430_ST_SSI_STDBY_SHIFT			0
 #define OMAP3430_ST_SSI_STDBY_MASK			(1 << 0)
+
+/* AM35xx specific CM_IDLEST1_CORE bits */
+#define AM35XX_ST_IPSS_SHIFT				5
+#define AM35XX_ST_IPSS_MASK 				(1 << 5)
 
 /* CM_IDLEST2_CORE */
 #define OMAP3430_ST_PKA_SHIFT				4

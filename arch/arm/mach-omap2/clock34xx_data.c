@@ -2983,6 +2983,113 @@ static struct clk wdt1_fck = {
 	.recalc		= &followparent_recalc,
 };
 
+/* Clocks for AM35XX */
+static struct clk ipss_ick = {
+	.name		= "ipss_ick",
+	.ops		= &clkops_am35xx_ipss_wait,
+	.parent		= &core_l3_ick,
+	.clkdm_name	= "core_l3_clkdm",
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
+	.enable_bit	= AM35XX_EN_IPSS_SHIFT,
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk emac_ick = {
+	.name		= "emac_ick",
+	.ops		= &clkops_am35xx_ipss_module_wait,
+	.parent		= &ipss_ick,
+	.clkdm_name	= "core_l3_clkdm",
+	.enable_reg	= OMAP343X_CTRL_REGADDR(AM35XX_CONTROL_IPSS_CLK_CTRL),
+	.enable_bit	= AM35XX_CPGMAC_VBUSP_CLK_SHIFT,
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk rmii_ck = {
+	.name		= "rmii_ck",
+	.ops		= &clkops_null,
+	.flags		= RATE_FIXED,
+	.rate		= 50000000,
+};
+
+static struct clk emac_fck = {
+	.name		= "emac_fck",
+	.ops		= &clkops_omap2_dflt,
+	.parent		= &rmii_ck,
+	.enable_reg	= OMAP343X_CTRL_REGADDR(AM35XX_CONTROL_IPSS_CLK_CTRL),
+	.enable_bit	= AM35XX_CPGMAC_FCLK_SHIFT,
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk hsotgusb_ick_am35xx = {
+	.name		= "hsotgusb_ick",
+	.ops		= &clkops_am35xx_ipss_module_wait,
+	.parent		= &ipss_ick,
+	.clkdm_name	= "core_l3_clkdm",
+	.enable_reg	= OMAP343X_CTRL_REGADDR(AM35XX_CONTROL_IPSS_CLK_CTRL),
+	.enable_bit	= AM35XX_USBOTG_VBUSP_CLK_SHIFT,
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk hsotgusb_fck_am35xx = {
+	.name		= "hsotgusb_fck",
+	.ops		= &clkops_omap2_dflt,
+	.parent		= &sys_ck,
+	.clkdm_name	= "core_l3_clkdm",
+	.enable_reg	= OMAP343X_CTRL_REGADDR(AM35XX_CONTROL_IPSS_CLK_CTRL),
+	.enable_bit	= AM35XX_USBOTG_FCLK_SHIFT,
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk hecc_ck = {
+	.name		= "hecc_ck",
+	.ops		= &clkops_am35xx_ipss_module_wait,
+	.parent		= &sys_ck,
+	.clkdm_name	= "core_l3_clkdm",
+	.enable_reg	= OMAP343X_CTRL_REGADDR(AM35XX_CONTROL_IPSS_CLK_CTRL),
+	.enable_bit	= AM35XX_HECC_VBUSP_CLK_SHIFT,
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk vpfe_ick = {
+	.name		= "vpfe_ick",
+	.ops		= &clkops_am35xx_ipss_module_wait,
+	.parent		= &ipss_ick,
+	.clkdm_name	= "core_l3_clkdm",
+	.enable_reg	= OMAP343X_CTRL_REGADDR(AM35XX_CONTROL_IPSS_CLK_CTRL),
+	.enable_bit	= AM35XX_VPFE_VBUSP_CLK_SHIFT,
+	.recalc		= &followparent_recalc,
+};
+
+static struct clk pclk_ck = {
+	.name		= "pclk_ck",
+	.ops		= &clkops_null,
+	.flags		= RATE_FIXED,
+	.rate		= 27000000,
+};
+
+static struct clk vpfe_fck = {
+	.name		= "vpfe_fck",
+	.ops		= &clkops_omap2_dflt,
+	.parent		= &pclk_ck,
+	.enable_reg	= OMAP343X_CTRL_REGADDR(AM35XX_CONTROL_IPSS_CLK_CTRL),
+	.enable_bit	= AM35XX_VPFE_FCLK_SHIFT,
+	.recalc		= &followparent_recalc,
+};
+
+/*
+ * The UART1/2 functional clock acts as the functional
+ * clock for UART4. No separate fclk control available.
+ */
+static struct clk uart4_ick_am35xx = {
+	.name		= "uart4_ick",
+	.ops		= &clkops_omap2_dflt_wait,
+	.parent		= &core_l4_ick,
+	.enable_reg	= OMAP_CM_REGADDR(CORE_MOD, CM_ICLKEN1),
+	.enable_bit	= AM35XX_EN_UART4_SHIFT,
+	.clkdm_name	= "core_l4_clkdm",
+	.recalc		= &followparent_recalc,
+};
+
 
 /*
  * clkdev
@@ -3209,6 +3316,17 @@ static struct omap_clk omap3xxx_clks[] = {
 	CLK(NULL,	"secure_32k_fck", &secure_32k_fck, CK_3XXX),
 	CLK(NULL,	"gpt12_fck",	&gpt12_fck,	CK_3XXX),
 	CLK(NULL,	"wdt1_fck",	&wdt1_fck,	CK_3XXX),
+	CLK(NULL,	"ipss_ick",	&ipss_ick,	CK_AM35XX),
+	CLK(NULL,	"rmii_ck",	&rmii_ck,	CK_AM35XX),
+	CLK(NULL,	"pclk_ck",	&pclk_ck,	CK_AM35XX),
+	CLK("davinci_emac",	"ick",		&emac_ick,	CK_AM35XX),
+	CLK("davinci_emac",	"fck",		&emac_fck,	CK_AM35XX),
+	CLK("vpfe-capture",	"master",	&vpfe_ick,	CK_AM35XX),
+	CLK("vpfe-capture",	"slave",	&vpfe_fck,	CK_AM35XX),
+	CLK("musb_hdrc",	"ick",		&hsotgusb_ick_am35xx,	CK_AM35XX),
+	CLK("musb_hdrc",	"fck",		&hsotgusb_fck_am35xx,	CK_AM35XX),
+	CLK(NULL,	"hecc_ck",	&hecc_ck,	CK_AM35XX),
+	CLK(NULL,	"uart4_ick",	&uart4_ick_am35xx,	CK_AM35XX),
 };
 
 
