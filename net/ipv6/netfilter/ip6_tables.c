@@ -845,22 +845,15 @@ static void cleanup_entry(struct ip6t_entry *e, struct net *net)
 /* Checks and translates the user-supplied table segment (held in
    newinfo) */
 static int
-translate_table(struct net *net,
-		const char *name,
-		unsigned int valid_hooks,
-		struct xt_table_info *newinfo,
-		void *entry0,
-		unsigned int size,
-		unsigned int number,
-		const unsigned int *hook_entries,
-		const unsigned int *underflows)
+translate_table(struct net *net, struct xt_table_info *newinfo, void *entry0,
+                const struct ip6t_replace *repl)
 {
 	struct ip6t_entry *iter;
 	unsigned int i;
 	int ret = 0;
 
-	newinfo->size = size;
-	newinfo->number = number;
+	newinfo->size = repl->size;
+	newinfo->number = repl->num_entries;
 
 	/* Init all hooks to impossible value. */
 	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
@@ -873,42 +866,43 @@ translate_table(struct net *net,
 	/* Walk through entries, checking offsets. */
 	xt_entry_foreach(iter, entry0, newinfo->size) {
 		ret = check_entry_size_and_hooks(iter, newinfo, entry0,
-		      entry0 + size, hook_entries, underflows, valid_hooks);
+		      entry0 + repl->size, repl->hook_entry, repl->underflow,
+		      repl->valid_hooks);
 		if (ret != 0)
 			return ret;
 		++i;
 	}
 
-	if (i != number) {
+	if (i != repl->num_entries) {
 		duprintf("translate_table: %u not %u entries\n",
-			 i, number);
+			 i, repl->num_entries);
 		return -EINVAL;
 	}
 
 	/* Check hooks all assigned */
 	for (i = 0; i < NF_INET_NUMHOOKS; i++) {
 		/* Only hooks which are valid */
-		if (!(valid_hooks & (1 << i)))
+		if (!(repl->valid_hooks & (1 << i)))
 			continue;
 		if (newinfo->hook_entry[i] == 0xFFFFFFFF) {
 			duprintf("Invalid hook entry %u %u\n",
-				 i, hook_entries[i]);
+				 i, repl->hook_entry[i]);
 			return -EINVAL;
 		}
 		if (newinfo->underflow[i] == 0xFFFFFFFF) {
 			duprintf("Invalid underflow %u %u\n",
-				 i, underflows[i]);
+				 i, repl->underflow[i]);
 			return -EINVAL;
 		}
 	}
 
-	if (!mark_source_chains(newinfo, valid_hooks, entry0))
+	if (!mark_source_chains(newinfo, repl->valid_hooks, entry0))
 		return -ELOOP;
 
 	/* Finally, each sanity check must pass */
 	i = 0;
 	xt_entry_foreach(iter, entry0, newinfo->size) {
-		ret = find_check_entry(iter, net, name, size);
+		ret = find_check_entry(iter, net, repl->name, repl->size);
 		if (ret != 0)
 			break;
 		++i;
@@ -1342,9 +1336,7 @@ do_replace(struct net *net, const void __user *user, unsigned int len)
 		goto free_newinfo;
 	}
 
-	ret = translate_table(net, tmp.name, tmp.valid_hooks,
-			      newinfo, loc_cpu_entry, tmp.size, tmp.num_entries,
-			      tmp.hook_entry, tmp.underflow);
+	ret = translate_table(net, newinfo, loc_cpu_entry, &tmp);
 	if (ret != 0)
 		goto free_newinfo;
 
@@ -2145,11 +2137,7 @@ struct xt_table *ip6t_register_table(struct net *net,
 	loc_cpu_entry = newinfo->entries[raw_smp_processor_id()];
 	memcpy(loc_cpu_entry, repl->entries, repl->size);
 
-	ret = translate_table(net, table->name, table->valid_hooks,
-			      newinfo, loc_cpu_entry, repl->size,
-			      repl->num_entries,
-			      repl->hook_entry,
-			      repl->underflow);
+	ret = translate_table(net, newinfo, loc_cpu_entry, repl);
 	if (ret != 0)
 		goto out_free;
 
