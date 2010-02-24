@@ -23,7 +23,7 @@
 #define MAX_RID_LEN 1024
 
 /* Helper routine to record keys
- * Do not call from interrupt context */
+ * It is called under orinoco_lock so it may not sleep */
 static int orinoco_set_key(struct orinoco_private *priv, int index,
 			   enum orinoco_alg alg, const u8 *key, int key_len,
 			   const u8 *seq, int seq_len)
@@ -32,14 +32,14 @@ static int orinoco_set_key(struct orinoco_private *priv, int index,
 	kzfree(priv->keys[index].seq);
 
 	if (key_len) {
-		priv->keys[index].key = kzalloc(key_len, GFP_KERNEL);
+		priv->keys[index].key = kzalloc(key_len, GFP_ATOMIC);
 		if (!priv->keys[index].key)
 			goto nomem;
 	} else
 		priv->keys[index].key = NULL;
 
 	if (seq_len) {
-		priv->keys[index].seq = kzalloc(seq_len, GFP_KERNEL);
+		priv->keys[index].seq = kzalloc(seq_len, GFP_ATOMIC);
 		if (!priv->keys[index].seq)
 			goto free_key;
 	} else

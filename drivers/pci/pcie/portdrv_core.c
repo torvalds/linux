@@ -27,7 +27,7 @@
  */
 static void release_pcie_device(struct device *dev)
 {
-	kfree(to_pcie_device(dev));			
+	kfree(to_pcie_device(dev));
 }
 
 /**
@@ -346,12 +346,11 @@ static int suspend_iter(struct device *dev, void *data)
 {
 	struct pcie_port_service_driver *service_driver;
 
- 	if ((dev->bus == &pcie_port_bus_type) &&
- 	    (dev->driver)) {
- 		service_driver = to_service_driver(dev->driver);
- 		if (service_driver->suspend)
- 			service_driver->suspend(to_pcie_device(dev));
-  	}
+	if ((dev->bus == &pcie_port_bus_type) && dev->driver) {
+		service_driver = to_service_driver(dev->driver);
+		if (service_driver->suspend)
+			service_driver->suspend(to_pcie_device(dev));
+	}
 	return 0;
 }
 
@@ -494,6 +493,7 @@ int pcie_port_service_register(struct pcie_port_service_driver *new)
 
 	return driver_register(&new->driver);
 }
+EXPORT_SYMBOL(pcie_port_service_register);
 
 /**
  * pcie_port_service_unregister - unregister PCI Express port service driver
@@ -503,6 +503,4 @@ void pcie_port_service_unregister(struct pcie_port_service_driver *drv)
 {
 	driver_unregister(&drv->driver);
 }
-
-EXPORT_SYMBOL(pcie_port_service_register);
 EXPORT_SYMBOL(pcie_port_service_unregister);

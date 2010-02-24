@@ -427,7 +427,6 @@ static void hgpk_recalib_work(struct work_struct *work)
 
 static int hgpk_register(struct psmouse *psmouse)
 {
-	struct input_dev *dev = psmouse->dev;
 	int err;
 
 	/* register handlers */

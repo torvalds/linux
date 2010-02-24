@@ -72,7 +72,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 	/* Print device number. */
 	seq_printf(m, "%s", dev_name(&device->cdev->dev));
 	/* Print discipline string. */
-	if (device != NULL && device->discipline != NULL)
+	if (device->discipline != NULL)
 		seq_printf(m, "(%s)", device->discipline->name);
 	else
 		seq_printf(m, "(none)");
@@ -92,10 +92,7 @@ dasd_devices_show(struct seq_file *m, void *v)
 	substr = (device->features & DASD_FEATURE_READONLY) ? "(ro)" : " ";
 	seq_printf(m, "%4s: ", substr);
 	/* Print device status information. */
-	switch ((device != NULL) ? device->state : -1) {
-	case -1:
-		seq_printf(m, "unknown");
-		break;
+	switch (device->state) {
 	case DASD_STATE_NEW:
 		seq_printf(m, "new");
 		break;

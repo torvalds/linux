@@ -67,8 +67,8 @@ enum asic_type asic;
 
 unsigned int platform_features;
 unsigned int platform_family;
-const struct register_map  *register_map;
-EXPORT_SYMBOL(register_map);			/* Exported for testing */
+struct register_map _asic_register_map;
+EXPORT_SYMBOL(_asic_register_map);		/* Exported for testing */
 unsigned long asic_phy_base;
 unsigned long asic_base;
 EXPORT_SYMBOL(asic_base);			/* Exported for testing */
@@ -418,6 +418,15 @@ void platform_unconfigure_usb_ohci()
 {
 }
 
+static void __init set_register_map(unsigned long phys_base,
+	const struct register_map *map)
+{
+	asic_phy_base = phys_base;
+	_asic_register_map = *map;
+	register_map_virtualize(&_asic_register_map);
+	asic_base = (unsigned long)ioremap_nocache(phys_base, ASIC_IO_SIZE);
+}
+
 /**
  * configure_platform - configuration based on platform type.
  */
@@ -431,10 +440,7 @@ void __init configure_platform(void)
 	case FAMILY_1500VZF:
 		platform_features = FFS_CAPABLE;
 		asic = ASIC_CALLIOPE;
-		asic_phy_base = CALLIOPE_IO_BASE;
-		register_map = &calliope_register_map;
-		asic_base = (unsigned long)ioremap_nocache(asic_phy_base,
-			ASIC_IO_SIZE);
+		set_register_map(CALLIOPE_IO_BASE, &calliope_register_map);
 
 		if (platform_family == FAMILY_1500VZE) {
 			gp_resources = non_dvr_vze_calliope_resources;
@@ -455,10 +461,7 @@ void __init configure_platform(void)
 		platform_features = FFS_CAPABLE | PCIE_CAPABLE |
 			DISPLAY_CAPABLE;
 		asic = ASIC_ZEUS;
-		asic_phy_base = ZEUS_IO_BASE;
-		register_map = &zeus_register_map;
-		asic_base = (unsigned long)ioremap_nocache(asic_phy_base,
-			ASIC_IO_SIZE);
+		set_register_map(ZEUS_IO_BASE, &zeus_register_map);
 		gp_resources = non_dvr_zeus_resources;
 
 		pr_info("Platform: 4500 - ZEUS, NON_DVR_CAPABLE\n");
@@ -471,11 +474,6 @@ void __init configure_platform(void)
 		/* The settop has PCIE but it isn't used, so don't advertise
 		 * it*/
 		platform_features = FFS_CAPABLE | DISPLAY_CAPABLE;
-		asic_phy_base = CRONUS_IO_BASE;   /* same as Cronus */
-		register_map = &cronus_register_map;   /* same as Cronus */
-		asic_base = (unsigned long)ioremap_nocache(asic_phy_base,
-			ASIC_IO_SIZE);
-		gp_resources = non_dvr_cronuslite_resources;
 
 		/* ASIC version will determine if this is a real CronusLite or
 		 * Castrati(Cronus) */
@@ -489,6 +487,9 @@ void __init configure_platform(void)
 		else
 			asic = ASIC_CRONUSLITE;
 
+		/* Cronus and Cronus Lite have the same register map */
+		set_register_map(CRONUS_IO_BASE, &cronus_register_map);
+		gp_resources = non_dvr_cronuslite_resources;
 		pr_info("Platform: 4600 - %s, NON_DVR_CAPABLE, "
 			"chipversion=0x%08X\n",
 			(asic == ASIC_CRONUS) ? "CRONUS" : "CRONUS LITE",
@@ -498,10 +499,7 @@ void __init configure_platform(void)
 	case FAMILY_4600VZA:
 		platform_features = FFS_CAPABLE | DISPLAY_CAPABLE;
 		asic = ASIC_CRONUS;
-		asic_phy_base = CRONUS_IO_BASE;
-		register_map = &cronus_register_map;
-		asic_base = (unsigned long)ioremap_nocache(asic_phy_base,
-			ASIC_IO_SIZE);
+		set_register_map(CRONUS_IO_BASE, &cronus_register_map);
 		gp_resources = non_dvr_cronus_resources;
 
 		pr_info("Platform: Vz Class A - CRONUS, NON_DVR_CAPABLE\n");
@@ -512,10 +510,7 @@ void __init configure_platform(void)
 		platform_features = DVR_CAPABLE | PCIE_CAPABLE |
 			DISPLAY_CAPABLE;
 		asic = ASIC_ZEUS;
-		asic_phy_base = ZEUS_IO_BASE;
-		register_map = &zeus_register_map;
-		asic_base = (unsigned long)ioremap_nocache(asic_phy_base,
-			ASIC_IO_SIZE);
+		set_register_map(ZEUS_IO_BASE, &zeus_register_map);
 		gp_resources = dvr_zeus_resources;
 
 		pr_info("Platform: 8500/RNG200 - ZEUS, DVR_CAPABLE\n");
@@ -526,10 +521,7 @@ void __init configure_platform(void)
 		platform_features = DVR_CAPABLE | PCIE_CAPABLE |
 			DISPLAY_CAPABLE;
 		asic = ASIC_CRONUS;
-		asic_phy_base = CRONUS_IO_BASE;
-		register_map = &cronus_register_map;
-		asic_base = (unsigned long)ioremap_nocache(asic_phy_base,
-			ASIC_IO_SIZE);
+		set_register_map(CRONUS_IO_BASE, &cronus_register_map);
 		gp_resources = dvr_cronus_resources;
 
 		pr_info("Platform: 8600/Vz Class B - CRONUS, "

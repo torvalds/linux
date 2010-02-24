@@ -345,10 +345,8 @@ void iwl_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 			pci_unmap_page(priv->pci_dev, rxq->pool[i].page_dma,
 				PAGE_SIZE << priv->hw_params.rx_page_order,
 				PCI_DMA_FROMDEVICE);
-			__free_pages(rxq->pool[i].page,
-				     priv->hw_params.rx_page_order);
+			__iwl_free_pages(priv, rxq->pool[i].page);
 			rxq->pool[i].page = NULL;
-			priv->alloc_rxb_page--;
 		}
 	}
 
@@ -416,9 +414,7 @@ void iwl_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
 			pci_unmap_page(priv->pci_dev, rxq->pool[i].page_dma,
 				PAGE_SIZE << priv->hw_params.rx_page_order,
 				PCI_DMA_FROMDEVICE);
-			priv->alloc_rxb_page--;
-			__free_pages(rxq->pool[i].page,
-				     priv->hw_params.rx_page_order);
+			__iwl_free_pages(priv, rxq->pool[i].page);
 			rxq->pool[i].page = NULL;
 		}
 		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
@@ -653,47 +649,6 @@ void iwl_reply_statistics(struct iwl_priv *priv,
 	iwl_rx_statistics(priv, rxb);
 }
 EXPORT_SYMBOL(iwl_reply_statistics);
-
-#define PERFECT_RSSI (-20) /* dBm */
-#define WORST_RSSI (-95)   /* dBm */
-#define RSSI_RANGE (PERFECT_RSSI - WORST_RSSI)
-
-/* Calculate an indication of rx signal quality (a percentage, not dBm!).
- * See http://www.ces.clemson.edu/linux/signal_quality.shtml for info
- *   about formulas used below. */
-static int iwl_calc_sig_qual(int rssi_dbm, int noise_dbm)
-{
-	int sig_qual;
-	int degradation = PERFECT_RSSI - rssi_dbm;
-
-	/* If we get a noise measurement, use signal-to-noise ratio (SNR)
-	 * as indicator; formula is (signal dbm - noise dbm).
-	 * SNR at or above 40 is a great signal (100%).
-	 * Below that, scale to fit SNR of 0 - 40 dB within 0 - 100% indicator.
-	 * Weakest usable signal is usually 10 - 15 dB SNR. */
-	if (noise_dbm) {
-		if (rssi_dbm - noise_dbm >= 40)
-			return 100;
-		else if (rssi_dbm < noise_dbm)
-			return 0;
-		sig_qual = ((rssi_dbm - noise_dbm) * 5) / 2;
-
-	/* Else use just the signal level.
-	 * This formula is a least squares fit of data points collected and
-	 *   compared with a reference system that had a percentage (%) display
-	 *   for signal quality. */
-	} else
-		sig_qual = (100 * (RSSI_RANGE * RSSI_RANGE) - degradation *
-			    (15 * RSSI_RANGE + 62 * degradation)) /
-			   (RSSI_RANGE * RSSI_RANGE);
-
-	if (sig_qual > 100)
-		sig_qual = 100;
-	else if (sig_qual < 1)
-		sig_qual = 0;
-
-	return sig_qual;
-}
 
 /* Calc max signal level (dBm) among 3 possible receivers */
 static inline int iwl_calc_rssi(struct iwl_priv *priv,
@@ -973,7 +928,10 @@ static void iwl_pass_packet_to_mac80211(struct iwl_priv *priv,
 	if (ieee80211_is_mgmt(fc) ||
 	    ieee80211_has_protected(fc) ||
 	    ieee80211_has_morefrags(fc) ||
-	    le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG)
+	    le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_FRAG ||
+	    (ieee80211_is_data_qos(fc) &&
+	     *ieee80211_get_qos_ctl(hdr) &
+	     IEEE80211_QOS_CONTROL_A_MSDU_PRESENT))
 		ret = skb_linearize(skb);
 	else
 		ret = __pskb_pull_tail(skb, min_t(u16, IWL_LINK_HDR_MAX, len)) ?
@@ -1105,11 +1063,8 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 	if (iwl_is_associated(priv) &&
 	    !test_bit(STATUS_SCANNING, &priv->status)) {
 		rx_status.noise = priv->last_rx_noise;
-		rx_status.qual = iwl_calc_sig_qual(rx_status.signal,
-							 rx_status.noise);
 	} else {
 		rx_status.noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
-		rx_status.qual = iwl_calc_sig_qual(rx_status.signal, 0);
 	}
 
 	/* Reset beacon noise level if not associated. */
@@ -1122,8 +1077,8 @@ void iwl_rx_reply_rx(struct iwl_priv *priv,
 		iwl_dbg_report_frame(priv, phy_res, len, header, 1);
 #endif
 	iwl_dbg_log_rx_data_frame(priv, len, header);
-	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, noise %d, qual %d, TSF %llu\n",
-		rx_status.signal, rx_status.noise, rx_status.qual,
+	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, noise %d, TSF %llu\n",
+		rx_status.signal, rx_status.noise,
 		(unsigned long long)rx_status.mactime);
 
 	/*

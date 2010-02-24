@@ -62,6 +62,12 @@ void reiserfs_write_unlock(struct super_block *s);
 int reiserfs_write_lock_once(struct super_block *s);
 void reiserfs_write_unlock_once(struct super_block *s, int lock_depth);
 
+#ifdef CONFIG_REISERFS_CHECK
+void reiserfs_lock_check_recursive(struct super_block *s);
+#else
+static inline void reiserfs_lock_check_recursive(struct super_block *s) { }
+#endif
+
 /*
  * Several mutexes depend on the write lock.
  * However sometimes we want to relax the write lock while we hold
@@ -92,8 +98,28 @@ void reiserfs_write_unlock_once(struct super_block *s, int lock_depth);
 static inline void reiserfs_mutex_lock_safe(struct mutex *m,
 			       struct super_block *s)
 {
+	reiserfs_lock_check_recursive(s);
 	reiserfs_write_unlock(s);
 	mutex_lock(m);
+	reiserfs_write_lock(s);
+}
+
+static inline void
+reiserfs_mutex_lock_nested_safe(struct mutex *m, unsigned int subclass,
+			       struct super_block *s)
+{
+	reiserfs_lock_check_recursive(s);
+	reiserfs_write_unlock(s);
+	mutex_lock_nested(m, subclass);
+	reiserfs_write_lock(s);
+}
+
+static inline void
+reiserfs_down_read_safe(struct rw_semaphore *sem, struct super_block *s)
+{
+	reiserfs_lock_check_recursive(s);
+	reiserfs_write_unlock(s);
+	down_read(sem);
 	reiserfs_write_lock(s);
 }
 

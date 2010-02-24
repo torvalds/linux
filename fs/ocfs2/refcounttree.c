@@ -2945,7 +2945,7 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 
 	while (offset < end) {
 		page_index = offset >> PAGE_CACHE_SHIFT;
-		map_end = (page_index + 1) << PAGE_CACHE_SHIFT;
+		map_end = ((loff_t)page_index + 1) << PAGE_CACHE_SHIFT;
 		if (map_end > end)
 			map_end = end;
 
@@ -2957,8 +2957,12 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 
 		page = grab_cache_page(mapping, page_index);
 
-		/* This page can't be dirtied before we CoW it out. */
-		BUG_ON(PageDirty(page));
+		/*
+		 * In case PAGE_CACHE_SIZE <= CLUSTER_SIZE, This page
+		 * can't be dirtied before we CoW it out.
+		 */
+		if (PAGE_CACHE_SIZE <= OCFS2_SB(sb)->s_clustersize)
+			BUG_ON(PageDirty(page));
 
 		if (!PageUptodate(page)) {
 			ret = block_read_full_page(page, ocfs2_get_block);
@@ -3170,7 +3174,7 @@ static int ocfs2_cow_sync_writeback(struct super_block *sb,
 
 	while (offset < end) {
 		page_index = offset >> PAGE_CACHE_SHIFT;
-		map_end = (page_index + 1) << PAGE_CACHE_SHIFT;
+		map_end = ((loff_t)page_index + 1) << PAGE_CACHE_SHIFT;
 		if (map_end > end)
 			map_end = end;
 

@@ -738,13 +738,28 @@ static int exofs_write_begin_export(struct file *file,
 					fsdata);
 }
 
+static int exofs_write_end(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata)
+{
+	struct inode *inode = mapping->host;
+	/* According to comment in simple_write_end i_mutex is held */
+	loff_t i_size = inode->i_size;
+	int ret;
+
+	ret = simple_write_end(file, mapping,pos, len, copied, page, fsdata);
+	if (i_size != inode->i_size)
+		mark_inode_dirty(inode);
+	return ret;
+}
+
 const struct address_space_operations exofs_aops = {
 	.readpage	= exofs_readpage,
 	.readpages	= exofs_readpages,
 	.writepage	= exofs_writepage,
 	.writepages	= exofs_writepages,
 	.write_begin	= exofs_write_begin_export,
-	.write_end	= simple_write_end,
+	.write_end	= exofs_write_end,
 };
 
 /******************************************************************************

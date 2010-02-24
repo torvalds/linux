@@ -463,6 +463,7 @@ struct iwm_umac_cmd_stop_resume_tx {
 #define IWM_CMD_PMKID_FLUSH 3
 
 struct iwm_umac_pmkid_update {
+	struct iwm_umac_wifi_if hdr;
 	__le32 command;
 	u8 bssid[ETH_ALEN];
 	__le16 reserved;

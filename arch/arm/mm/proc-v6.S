@@ -59,8 +59,6 @@ ENTRY(cpu_v6_proc_fin)
  *	to what would be the reset vector.
  *
  *	- loc   - location to jump to for soft reset
- *
- *	It is assumed that:
  */
 	.align	5
 ENTRY(cpu_v6_reset)

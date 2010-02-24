@@ -402,7 +402,7 @@ int blkdev_issue_discard(struct block_device *bdev, sector_t sector,
 		 * our current implementations need.  If we'll ever need
 		 * more the interface will need revisiting.
 		 */
-		page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		page = alloc_page(gfp_mask | __GFP_ZERO);
 		if (!page)
 			goto out_free_bio;
 		if (bio_add_pc_page(q, bio, page, sector_size, 0) < sector_size)

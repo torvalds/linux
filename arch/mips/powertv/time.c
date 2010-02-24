@@ -33,5 +33,4 @@ unsigned int __cpuinit get_c0_compare_int(void)
 void __init plat_time_init(void)
 {
 	powertv_clocksource_init();
-	r4k_clockevent_init();
 }

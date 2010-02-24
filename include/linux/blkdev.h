@@ -461,8 +461,7 @@ struct request_queue
 #define QUEUE_FLAG_NONROT      14	/* non-rotational device (SSD) */
 #define QUEUE_FLAG_VIRT        QUEUE_FLAG_NONROT /* paravirt device */
 #define QUEUE_FLAG_IO_STAT     15	/* do IO stats */
-#define QUEUE_FLAG_CQ	       16	/* hardware does queuing */
-#define QUEUE_FLAG_DISCARD     17	/* supports DISCARD */
+#define QUEUE_FLAG_DISCARD     16	/* supports DISCARD */
 
 #define QUEUE_FLAG_DEFAULT	((1 << QUEUE_FLAG_IO_STAT) |		\
 				 (1 << QUEUE_FLAG_CLUSTER) |		\
@@ -586,7 +585,6 @@ enum {
 
 #define blk_queue_plugged(q)	test_bit(QUEUE_FLAG_PLUGGED, &(q)->queue_flags)
 #define blk_queue_tagged(q)	test_bit(QUEUE_FLAG_QUEUED, &(q)->queue_flags)
-#define blk_queue_queuing(q)	test_bit(QUEUE_FLAG_CQ, &(q)->queue_flags)
 #define blk_queue_stopped(q)	test_bit(QUEUE_FLAG_STOPPED, &(q)->queue_flags)
 #define blk_queue_nomerges(q)	test_bit(QUEUE_FLAG_NOMERGES, &(q)->queue_flags)
 #define blk_queue_nonrot(q)	test_bit(QUEUE_FLAG_NONROT, &(q)->queue_flags)
@@ -845,7 +843,6 @@ static inline struct request_queue *bdev_get_queue(struct block_device *bdev)
  * blk_rq_err_bytes()		: bytes left till the next error boundary
  * blk_rq_sectors()		: sectors left in the entire request
  * blk_rq_cur_sectors()		: sectors left in the current segment
- * blk_rq_err_sectors()		: sectors left till the next error boundary
  */
 static inline sector_t blk_rq_pos(const struct request *rq)
 {
@@ -872,11 +869,6 @@ static inline unsigned int blk_rq_sectors(const struct request *rq)
 static inline unsigned int blk_rq_cur_sectors(const struct request *rq)
 {
 	return blk_rq_cur_bytes(rq) >> 9;
-}
-
-static inline unsigned int blk_rq_err_sectors(const struct request *rq)
-{
-	return blk_rq_err_bytes(rq) >> 9;
 }
 
 /*
@@ -943,6 +935,8 @@ extern void blk_limits_io_opt(struct queue_limits *limits, unsigned int opt);
 extern void blk_queue_io_opt(struct request_queue *q, unsigned int opt);
 extern void blk_set_default_limits(struct queue_limits *lim);
 extern int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
+			    sector_t offset);
+extern int bdev_stack_limits(struct queue_limits *t, struct block_device *bdev,
 			    sector_t offset);
 extern void disk_stack_limits(struct gendisk *disk, struct block_device *bdev,
 			      sector_t offset);
@@ -1116,11 +1110,18 @@ static inline int queue_alignment_offset(struct request_queue *q)
 	return q->limits.alignment_offset;
 }
 
+static inline int queue_limit_alignment_offset(struct queue_limits *lim, sector_t offset)
+{
+	unsigned int granularity = max(lim->physical_block_size, lim->io_min);
+
+	offset &= granularity - 1;
+	return (granularity + lim->alignment_offset - offset) & (granularity - 1);
+}
+
 static inline int queue_sector_alignment_offset(struct request_queue *q,
 						sector_t sector)
 {
-	return ((sector << 9) - q->limits.alignment_offset)
-		& (q->limits.io_min - 1);
+	return queue_limit_alignment_offset(&q->limits, sector << 9);
 }
 
 static inline int bdev_alignment_offset(struct block_device *bdev)
@@ -1147,8 +1148,11 @@ static inline int queue_discard_alignment(struct request_queue *q)
 static inline int queue_sector_discard_alignment(struct request_queue *q,
 						 sector_t sector)
 {
-	return ((sector << 9) - q->limits.discard_alignment)
-		& (q->limits.discard_granularity - 1);
+	struct queue_limits *lim = &q->limits;
+	unsigned int alignment = (sector << 9) & (lim->discard_granularity - 1);
+
+	return (lim->discard_granularity + lim->discard_alignment - alignment)
+		& (lim->discard_granularity - 1);
 }
 
 static inline unsigned int queue_discard_zeroes_data(struct request_queue *q)

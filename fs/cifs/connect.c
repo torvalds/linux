@@ -98,7 +98,7 @@ struct smb_vol {
 	bool nostrictsync:1; /* do not force expensive SMBflush on every sync */
 	unsigned int rsize;
 	unsigned int wsize;
-	unsigned int sockopt;
+	bool sockopt_tcp_nodelay:1;
 	unsigned short int port;
 	char *prepath;
 };
@@ -1142,9 +1142,11 @@ cifs_parse_mount_options(char *options, const char *devname,
 					simple_strtoul(value, &value, 0);
 			}
 		} else if (strnicmp(data, "sockopt", 5) == 0) {
-			if (value && *value) {
-				vol->sockopt =
-					simple_strtoul(value, &value, 0);
+			if (!value || !*value) {
+				cERROR(1, ("no socket option specified"));
+				continue;
+			} else if (strnicmp(value, "TCP_NODELAY", 11) == 0) {
+				vol->sockopt_tcp_nodelay = 1;
 			}
 		} else if (strnicmp(data, "netbiosname", 4) == 0) {
 			if (!value || !*value || (*value == ' ')) {
@@ -1514,6 +1516,7 @@ cifs_get_tcp_session(struct smb_vol *volume_info)
 
 	tcp_ses->noblocksnd = volume_info->noblocksnd;
 	tcp_ses->noautotune = volume_info->noautotune;
+	tcp_ses->tcp_nodelay = volume_info->sockopt_tcp_nodelay;
 	atomic_set(&tcp_ses->inFlight, 0);
 	init_waitqueue_head(&tcp_ses->response_q);
 	init_waitqueue_head(&tcp_ses->request_q);
@@ -1764,6 +1767,7 @@ static int
 ipv4_connect(struct TCP_Server_Info *server)
 {
 	int rc = 0;
+	int val;
 	bool connected = false;
 	__be16 orig_port = 0;
 	struct socket *socket = server->ssocket;
@@ -1845,6 +1849,14 @@ ipv4_connect(struct TCP_Server_Info *server)
 			socket->sk->sk_rcvbuf = 140 * 1024;
 	}
 
+	if (server->tcp_nodelay) {
+		val = 1;
+		rc = kernel_setsockopt(socket, SOL_TCP, TCP_NODELAY,
+				(char *)&val, sizeof(val));
+		if (rc)
+			cFYI(1, ("set TCP_NODELAY socket option error %d", rc));
+	}
+
 	 cFYI(1, ("sndbuf %d rcvbuf %d rcvtimeo 0x%lx",
 		 socket->sk->sk_sndbuf,
 		 socket->sk->sk_rcvbuf, socket->sk->sk_rcvtimeo));
@@ -1916,6 +1928,7 @@ static int
 ipv6_connect(struct TCP_Server_Info *server)
 {
 	int rc = 0;
+	int val;
 	bool connected = false;
 	__be16 orig_port = 0;
 	struct socket *socket = server->ssocket;
@@ -1987,6 +2000,15 @@ ipv6_connect(struct TCP_Server_Info *server)
 	 */
 	socket->sk->sk_rcvtimeo = 7 * HZ;
 	socket->sk->sk_sndtimeo = 5 * HZ;
+
+	if (server->tcp_nodelay) {
+		val = 1;
+		rc = kernel_setsockopt(socket, SOL_TCP, TCP_NODELAY,
+				(char *)&val, sizeof(val));
+		if (rc)
+			cFYI(1, ("set TCP_NODELAY socket option error %d", rc));
+	}
+
 	server->ssocket = socket;
 
 	return rc;
@@ -2287,12 +2309,12 @@ int
 cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 		char *mount_data_global, const char *devname)
 {
-	int rc = 0;
+	int rc;
 	int xid;
 	struct smb_vol *volume_info;
-	struct cifsSesInfo *pSesInfo = NULL;
-	struct cifsTconInfo *tcon = NULL;
-	struct TCP_Server_Info *srvTcp = NULL;
+	struct cifsSesInfo *pSesInfo;
+	struct cifsTconInfo *tcon;
+	struct TCP_Server_Info *srvTcp;
 	char   *full_path;
 	char *mount_data = mount_data_global;
 #ifdef CONFIG_CIFS_DFS_UPCALL
@@ -2301,6 +2323,10 @@ cifs_mount(struct super_block *sb, struct cifs_sb_info *cifs_sb,
 	int referral_walks_count = 0;
 try_mount_again:
 #endif
+	rc = 0;
+	tcon = NULL;
+	pSesInfo = NULL;
+	srvTcp = NULL;
 	full_path = NULL;
 
 	xid = GetXid();
@@ -2597,6 +2623,7 @@ remote_path_check:
 
 			cleanup_volume_info(&volume_info);
 			referral_walks_count++;
+			FreeXid(xid);
 			goto try_mount_again;
 		}
 #else /* No DFS support, return error on mount */

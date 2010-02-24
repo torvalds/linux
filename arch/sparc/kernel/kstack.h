@@ -11,6 +11,10 @@ static inline bool kstack_valid(struct thread_info *tp, unsigned long sp)
 {
 	unsigned long base = (unsigned long) tp;
 
+	/* Stack pointer must be 16-byte aligned.  */
+	if (sp & (16UL - 1))
+		return false;
+
 	if (sp >= (base + sizeof(struct thread_info)) &&
 	    sp <= (base + THREAD_SIZE - sizeof(struct sparc_stackf)))
 		return true;

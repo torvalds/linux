@@ -1504,7 +1504,8 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 	led->isink_init.consumer_supplies = &led->isink_consumer;
 	led->isink_init.constraints.min_uA = 0;
 	led->isink_init.constraints.max_uA = pdata->max_uA;
-	led->isink_init.constraints.valid_ops_mask = REGULATOR_CHANGE_CURRENT;
+	led->isink_init.constraints.valid_ops_mask
+		= REGULATOR_CHANGE_CURRENT | REGULATOR_CHANGE_STATUS;
 	led->isink_init.constraints.valid_modes_mask = REGULATOR_MODE_NORMAL;
 	ret = wm8350_register_regulator(wm8350, isink, &led->isink_init);
 	if (ret != 0) {
@@ -1517,6 +1518,7 @@ int wm8350_register_led(struct wm8350 *wm8350, int lednum, int dcdc, int isink,
 	led->dcdc_init.num_consumer_supplies = 1;
 	led->dcdc_init.consumer_supplies = &led->dcdc_consumer;
 	led->dcdc_init.constraints.valid_modes_mask = REGULATOR_MODE_NORMAL;
+	led->dcdc_init.constraints.valid_ops_mask =  REGULATOR_CHANGE_STATUS;
 	ret = wm8350_register_regulator(wm8350, dcdc, &led->dcdc_init);
 	if (ret != 0) {
 		platform_device_put(pdev);

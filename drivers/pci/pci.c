@@ -29,7 +29,17 @@ const char *pci_power_names[] = {
 };
 EXPORT_SYMBOL_GPL(pci_power_names);
 
-unsigned int pci_pm_d3_delay = PCI_PM_D3_WAIT;
+unsigned int pci_pm_d3_delay;
+
+static void pci_dev_d3_sleep(struct pci_dev *dev)
+{
+	unsigned int delay = dev->d3_delay;
+
+	if (delay < pci_pm_d3_delay)
+		delay = pci_pm_d3_delay;
+
+	msleep(delay);
+}
 
 #ifdef CONFIG_PCI_DOMAINS
 int pci_domains_supported = 1;
@@ -522,7 +532,7 @@ static int pci_raw_set_power_state(struct pci_dev *dev, pci_power_t state)
 	/* Mandatory power management transition delays */
 	/* see PCI PM 1.1 5.6.1 table 18 */
 	if (state == PCI_D3hot || dev->current_state == PCI_D3hot)
-		msleep(pci_pm_d3_delay);
+		pci_dev_d3_sleep(dev);
 	else if (state == PCI_D2 || dev->current_state == PCI_D2)
 		udelay(PCI_PM_D2_DELAY);
 
@@ -1153,11 +1163,11 @@ pci_disable_device(struct pci_dev *dev)
 
 /**
  * pcibios_set_pcie_reset_state - set reset state for device dev
- * @dev: the PCI-E device reset
+ * @dev: the PCIe device reset
  * @state: Reset state to enter into
  *
  *
- * Sets the PCI-E reset state for the device. This is the default
+ * Sets the PCIe reset state for the device. This is the default
  * implementation. Architecture implementations can override this.
  */
 int __attribute__ ((weak)) pcibios_set_pcie_reset_state(struct pci_dev *dev,
@@ -1168,7 +1178,7 @@ int __attribute__ ((weak)) pcibios_set_pcie_reset_state(struct pci_dev *dev,
 
 /**
  * pci_set_pcie_reset_state - set reset state for device dev
- * @dev: the PCI-E device reset
+ * @dev: the PCIe device reset
  * @state: Reset state to enter into
  *
  *
@@ -1409,6 +1419,7 @@ void pci_pm_init(struct pci_dev *dev)
 	}
 
 	dev->pm_cap = pm;
+	dev->d3_delay = PCI_PM_D3_WAIT;
 
 	dev->d1_support = false;
 	dev->d2_support = false;
@@ -2247,12 +2258,12 @@ static int pci_pm_reset(struct pci_dev *dev, int probe)
 	csr &= ~PCI_PM_CTRL_STATE_MASK;
 	csr |= PCI_D3hot;
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, csr);
-	msleep(pci_pm_d3_delay);
+	pci_dev_d3_sleep(dev);
 
 	csr &= ~PCI_PM_CTRL_STATE_MASK;
 	csr |= PCI_D0;
 	pci_write_config_word(dev, dev->pm_cap + PCI_PM_CTRL, csr);
-	msleep(pci_pm_d3_delay);
+	pci_dev_d3_sleep(dev);
 
 	return 0;
 }
@@ -2295,6 +2306,10 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 		/* block PM suspend, driver probe, etc. */
 		down(&dev->dev.sem);
 	}
+
+	rc = pci_dev_specific_reset(dev, probe);
+	if (rc != -ENOTTY)
+		goto done;
 
 	rc = pcie_flr(dev, probe);
 	if (rc != -ENOTTY)
@@ -2778,6 +2793,11 @@ int __attribute__ ((weak)) pci_ext_cfg_avail(struct pci_dev *dev)
 {
 	return 1;
 }
+
+void __weak pci_fixup_cardbus(struct pci_bus *bus)
+{
+}
+EXPORT_SYMBOL(pci_fixup_cardbus);
 
 static int __init pci_setup(char *str)
 {

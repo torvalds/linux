@@ -602,10 +602,45 @@ static void intel_lvds_mode_set(struct drm_encoder *encoder,
 /* Some lid devices report incorrect lid status, assume they're connected */
 static const struct dmi_system_id bad_lid_status[] = {
 	{
+		.ident = "Compaq nx9020",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
+			DMI_MATCH(DMI_BOARD_NAME, "3084"),
+		},
+	},
+	{
+		.ident = "Samsung SX20S",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Samsung Electronics"),
+			DMI_MATCH(DMI_BOARD_NAME, "SX20S"),
+		},
+	},
+	{
 		.ident = "Aspire One",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire one"),
+		},
+	},
+	{
+		.ident = "Aspire 1810T",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1810T"),
+		},
+	},
+	{
+		.ident = "PC-81005",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MALATA"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "PC-81005"),
+		},
+	},
+	{
+		.ident = "Clevo M5x0N",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "CLEVO Co."),
+			DMI_MATCH(DMI_BOARD_NAME, "M5x0N"),
 		},
 	},
 	{ }
@@ -622,7 +657,7 @@ static enum drm_connector_status intel_lvds_detect(struct drm_connector *connect
 {
 	enum drm_connector_status status = connector_status_connected;
 
-	if (!acpi_lid_open() && !dmi_check_system(bad_lid_status))
+	if (!dmi_check_system(bad_lid_status) && !acpi_lid_open())
 		status = connector_status_disconnected;
 
 	return status;
@@ -679,7 +714,14 @@ static int intel_lid_notify(struct notifier_block *nb, unsigned long val,
 	struct drm_i915_private *dev_priv =
 		container_of(nb, struct drm_i915_private, lid_notifier);
 	struct drm_device *dev = dev_priv->dev;
+	struct drm_connector *connector = dev_priv->int_lvds_connector;
 
+	/*
+	 * check and update the status of LVDS connector after receiving
+	 * the LID nofication event.
+	 */
+	if (connector)
+		connector->status = connector->funcs->detect(connector);
 	if (!acpi_lid_open()) {
 		dev_priv->modeset_on_lid = 1;
 		return NOTIFY_OK;
@@ -854,65 +896,6 @@ static const struct dmi_system_id intel_no_lvds[] = {
 	{ }	/* terminating entry */
 };
 
-#ifdef CONFIG_ACPI
-/*
- * check_lid_device -- check whether @handle is an ACPI LID device.
- * @handle: ACPI device handle
- * @level : depth in the ACPI namespace tree
- * @context: the number of LID device when we find the device
- * @rv: a return value to fill if desired (Not use)
- */
-static acpi_status
-check_lid_device(acpi_handle handle, u32 level, void *context,
-			void **return_value)
-{
-	struct acpi_device *acpi_dev;
-	int *lid_present = context;
-
-	acpi_dev = NULL;
-	/* Get the acpi device for device handle */
-	if (acpi_bus_get_device(handle, &acpi_dev) || !acpi_dev) {
-		/* If there is no ACPI device for handle, return */
-		return AE_OK;
-	}
-
-	if (!strncmp(acpi_device_hid(acpi_dev), "PNP0C0D", 7))
-		*lid_present = 1;
-
-	return AE_OK;
-}
-
-/**
- * check whether there exists the ACPI LID device by enumerating the ACPI
- * device tree.
- */
-static int intel_lid_present(void)
-{
-	int lid_present = 0;
-
-	if (acpi_disabled) {
-		/* If ACPI is disabled, there is no ACPI device tree to
-		 * check, so assume the LID device would have been present.
-		 */
-		return 1;
-	}
-
-	acpi_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
-				ACPI_UINT32_MAX,
-				check_lid_device, NULL, &lid_present, NULL);
-
-	return lid_present;
-}
-#else
-static int intel_lid_present(void)
-{
-	/* In the absence of ACPI built in, assume that the LID device would
-	 * have been present.
-	 */
-	return 1;
-}
-#endif
-
 /**
  * intel_find_lvds_downclock - find the reduced downclock for LVDS in EDID
  * @dev: drm device
@@ -957,7 +940,8 @@ static void intel_find_lvds_downclock(struct drm_device *dev,
 		}
 	}
 	mutex_unlock(&dev->mode_config.mutex);
-	if (temp_downclock < panel_fixed_mode->clock) {
+	if (temp_downclock < panel_fixed_mode->clock &&
+	    i915_lvds_downclock) {
 		/* We found the downclock for LVDS. */
 		dev_priv->lvds_downclock_avail = 1;
 		dev_priv->lvds_downclock = temp_downclock;
@@ -1031,12 +1015,8 @@ void intel_lvds_init(struct drm_device *dev)
 	if (dmi_check_system(intel_no_lvds))
 		return;
 
-	/*
-	 * Assume LVDS is present if there's an ACPI lid device or if the
-	 * device is present in the VBT.
-	 */
-	if (!lvds_is_present_in_vbt(dev) && !intel_lid_present()) {
-		DRM_DEBUG_KMS("LVDS is not present in VBT and no lid detected\n");
+	if (!lvds_is_present_in_vbt(dev)) {
+		DRM_DEBUG_KMS("LVDS is not present in VBT\n");
 		return;
 	}
 
@@ -1180,6 +1160,8 @@ out:
 		DRM_DEBUG_KMS("lid notifier registration failed\n");
 		dev_priv->lid_notifier.notifier_call = NULL;
 	}
+	/* keep the LVDS connector */
+	dev_priv->int_lvds_connector = connector;
 	drm_sysfs_connector_add(connector);
 	return;
 

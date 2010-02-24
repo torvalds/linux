@@ -25,6 +25,7 @@
 #include <linux/mtd/physmap.h>
 #include <linux/i2c.h>
 #include <linux/i2c/pca953x.h>
+#include <linux/apm-emulation.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -626,8 +627,27 @@ static void zeus_power_off(void)
 	pxa27x_cpu_suspend(PWRMODE_DEEPSLEEP);
 }
 
-int zeus_get_pcb_info(struct i2c_client *client, unsigned gpio,
-		      unsigned ngpio, void *context)
+#ifdef CONFIG_APM_EMULATION
+static void zeus_get_power_status(struct apm_power_info *info)
+{
+	/* Power supply is always present */
+	info->ac_line_status	= APM_AC_ONLINE;
+	info->battery_status	= APM_BATTERY_STATUS_NOT_PRESENT;
+	info->battery_flag	= APM_BATTERY_FLAG_NOT_PRESENT;
+}
+
+static inline void zeus_setup_apm(void)
+{
+	apm_get_power_status = zeus_get_power_status;
+}
+#else
+static inline void zeus_setup_apm(void)
+{
+}
+#endif
+
+static int zeus_get_pcb_info(struct i2c_client *client, unsigned gpio,
+			     unsigned ngpio, void *context)
 {
 	int i;
 	u8 pcb_info = 0;
@@ -726,9 +746,18 @@ static mfp_cfg_t zeus_pin_config[] __initdata = {
 	GPIO99_GPIO,		/* CF RDY */
 };
 
+/*
+ * DM9k MSCx settings:	SRAM, 16 bits
+ *			17 cycles delay first access
+ *			 5 cycles delay next access
+ *			13 cycles recovery time
+ *			faster device
+ */
+#define DM9K_MSC_VALUE		0xe4c9
+
 static void __init zeus_init(void)
 {
-	u16 dm9000_msc = 0xe279;
+	u16 dm9000_msc = DM9K_MSC_VALUE;
 
 	system_rev = __raw_readw(ZEUS_CPLD_VERSION);
 	pr_info("Zeus CPLD V%dI%d\n", (system_rev & 0xf0) >> 4, (system_rev & 0x0f));
@@ -738,6 +767,7 @@ static void __init zeus_init(void)
 	MSC1 = (MSC1 & 0xffff0000) | dm9000_msc;
 
 	pm_power_off = zeus_power_off;
+	zeus_setup_apm();
 
 	pxa2xx_mfp_config(ARRAY_AND_SIZE(zeus_pin_config));
 

@@ -794,7 +794,7 @@ static int iwm_mlme_update_bss_table(struct iwm_priv *iwm, u8 *buf,
 	}
 
 	bss->bss = kzalloc(bss_len, GFP_KERNEL);
-	if (!bss) {
+	if (!bss->bss) {
 		kfree(bss);
 		IWM_ERR(iwm, "Couldn't allocate bss\n");
 		return -ENOMEM;
@@ -1126,7 +1126,7 @@ static int iwm_ntf_stop_resume_tx(struct iwm_priv *iwm, u8 *buf,
 
 		if (!stop) {
 			struct iwm_tx_queue *txq;
-			u16 queue = iwm_tid_to_queue(bit);
+			int queue = iwm_tid_to_queue(bit);
 
 			if (queue < 0)
 				continue;

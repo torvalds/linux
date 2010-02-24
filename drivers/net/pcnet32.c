@@ -45,6 +45,7 @@ static const char *const version =
 #include <linux/crc32.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/if_ether.h>
 #include <linux/skbuff.h>
 #include <linux/spinlock.h>
 #include <linux/moduleparam.h>
@@ -1765,7 +1766,7 @@ pcnet32_probe1(unsigned long ioaddr, int shared, struct pci_dev *pdev)
 
 	/* if the ethernet address is not valid, force to 00:00:00:00:00:00 */
 	if (!is_valid_ether_addr(dev->perm_addr))
-		memset(dev->dev_addr, 0, sizeof(dev->dev_addr));
+		memset(dev->dev_addr, 0, ETH_ALEN);
 
 	if (pcnet32_debug & NETIF_MSG_PROBE) {
 		printk(" %pM", dev->dev_addr);

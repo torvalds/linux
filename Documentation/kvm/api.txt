@@ -685,7 +685,7 @@ struct kvm_vcpu_events {
 		__u8 pad;
 	} nmi;
 	__u32 sipi_vector;
-	__u32 flags;   /* must be zero */
+	__u32 flags;
 };
 
 4.30 KVM_SET_VCPU_EVENTS
@@ -700,6 +700,14 @@ Set pending exceptions, interrupts, and NMIs as well as related states of the
 vcpu.
 
 See KVM_GET_VCPU_EVENTS for the data structure.
+
+Fields that may be modified asynchronously by running VCPUs can be excluded
+from the update. These fields are nmi.pending and sipi_vector. Keep the
+corresponding bits in the flags field cleared to suppress overwriting the
+current in-kernel state. The bits are:
+
+KVM_VCPUEVENT_VALID_NMI_PENDING - transfer nmi.pending to the kernel
+KVM_VCPUEVENT_VALID_SIPI_VECTOR - transfer sipi_vector
 
 
 5. The kvm_run structure

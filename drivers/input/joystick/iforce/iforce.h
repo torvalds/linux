@@ -150,11 +150,9 @@ void iforce_serial_xmit(struct iforce *iforce);
 
 /* iforce-usb.c */
 void iforce_usb_xmit(struct iforce *iforce);
-void iforce_usb_delete(struct iforce *iforce);
 
 /* iforce-main.c */
 int iforce_init_device(struct iforce *iforce);
-void iforce_delete_device(struct iforce *iforce);
 
 /* iforce-packets.c */
 int iforce_control_playback(struct iforce*, u16 id, unsigned int);

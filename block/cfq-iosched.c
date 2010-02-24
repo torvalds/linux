@@ -42,15 +42,12 @@ static const int cfq_hist_divisor = 4;
  */
 #define CFQ_MIN_TT		(2)
 
-/*
- * Allow merged cfqqs to perform this amount of seeky I/O before
- * deciding to break the queues up again.
- */
-#define CFQQ_COOP_TOUT		(HZ)
-
 #define CFQ_SLICE_SCALE		(5)
 #define CFQ_HW_QUEUE_MIN	(5)
 #define CFQ_SERVICE_SHIFT       12
+
+#define CFQQ_SEEK_THR		8 * 1024
+#define CFQQ_SEEKY(cfqq)	((cfqq)->seek_mean > CFQQ_SEEK_THR)
 
 #define RQ_CIC(rq)		\
 	((struct cfq_io_context *) (rq)->elevator_private)
@@ -137,7 +134,6 @@ struct cfq_queue {
 	u64 seek_total;
 	sector_t seek_mean;
 	sector_t last_request_pos;
-	unsigned long seeky_start;
 
 	pid_t pid;
 
@@ -208,8 +204,6 @@ struct cfq_data {
 	/* Root service tree for cfq_groups */
 	struct cfq_rb_root grp_service_tree;
 	struct cfq_group root_group;
-	/* Number of active cfq groups on group service tree */
-	int nr_groups;
 
 	/*
 	 * The priority currently being served
@@ -294,8 +288,7 @@ static struct cfq_group *cfq_get_next_cfqg(struct cfq_data *cfqd);
 
 static struct cfq_rb_root *service_tree_for(struct cfq_group *cfqg,
 					    enum wl_prio_t prio,
-					    enum wl_type_t type,
-					    struct cfq_data *cfqd)
+					    enum wl_type_t type)
 {
 	if (!cfqg)
 		return NULL;
@@ -317,6 +310,7 @@ enum cfqq_state_flags {
 	CFQ_CFQQ_FLAG_slice_new,	/* no requests dispatched in slice */
 	CFQ_CFQQ_FLAG_sync,		/* synchronous queue */
 	CFQ_CFQQ_FLAG_coop,		/* cfqq is shared */
+	CFQ_CFQQ_FLAG_split_coop,	/* shared cfqq will be splitted */
 	CFQ_CFQQ_FLAG_deep,		/* sync cfqq experienced large depth */
 	CFQ_CFQQ_FLAG_wait_busy,	/* Waiting for next request */
 };
@@ -345,6 +339,7 @@ CFQ_CFQQ_FNS(prio_changed);
 CFQ_CFQQ_FNS(slice_new);
 CFQ_CFQQ_FNS(sync);
 CFQ_CFQQ_FNS(coop);
+CFQ_CFQQ_FNS(split_coop);
 CFQ_CFQQ_FNS(deep);
 CFQ_CFQQ_FNS(wait_busy);
 #undef CFQ_CFQQ_FNS
@@ -842,7 +837,6 @@ cfq_group_service_tree_add(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 	__cfq_group_service_tree_add(st, cfqg);
 	cfqg->on_st = true;
-	cfqd->nr_groups++;
 	st->total_weight += cfqg->weight;
 }
 
@@ -863,7 +857,6 @@ cfq_group_service_tree_del(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 	cfq_log_cfqg(cfqd, cfqg, "del_from_rr group");
 	cfqg->on_st = false;
-	cfqd->nr_groups--;
 	st->total_weight -= cfqg->weight;
 	if (!RB_EMPTY_NODE(&cfqg->rb_node))
 		cfq_rb_erase(&cfqg->rb_node, st);
@@ -1150,7 +1143,7 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 #endif
 
 	service_tree = service_tree_for(cfqq->cfqg, cfqq_prio(cfqq),
-						cfqq_type(cfqq), cfqd);
+						cfqq_type(cfqq));
 	if (cfq_class_idle(cfqq)) {
 		rb_key = CFQ_IDLE_DELAY;
 		parent = rb_last(&service_tree->rb);
@@ -1513,9 +1506,6 @@ static int cfq_allow_merge(struct request_queue *q, struct request *rq,
 	struct cfq_io_context *cic;
 	struct cfq_queue *cfqq;
 
-	/* Deny merge if bio and rq don't belong to same cfq group */
-	if ((RQ_CFQQ(rq))->cfqg != cfq_get_cfqg(cfqd, 0))
-		return false;
 	/*
 	 * Disallow merge of a sync bio into an async request.
 	 */
@@ -1574,6 +1564,15 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cfq_clear_cfqq_wait_busy(cfqq);
 
 	/*
+	 * If this cfqq is shared between multiple processes, check to
+	 * make sure that those processes are still issuing I/Os within
+	 * the mean seek distance.  If not, it may be time to break the
+	 * queues apart again.
+	 */
+	if (cfq_cfqq_coop(cfqq) && CFQQ_SEEKY(cfqq))
+		cfq_mark_cfqq_split_coop(cfqq);
+
+	/*
 	 * store what was left of this slice, if the queue idled/timed out
 	 */
 	if (timed_out && !cfq_cfqq_slice_new(cfqq)) {
@@ -1616,7 +1615,7 @@ static struct cfq_queue *cfq_get_next_queue(struct cfq_data *cfqd)
 {
 	struct cfq_rb_root *service_tree =
 		service_tree_for(cfqd->serving_group, cfqd->serving_prio,
-					cfqd->serving_type, cfqd);
+					cfqd->serving_type);
 
 	if (!cfqd->rq_queued)
 		return NULL;
@@ -1671,15 +1670,16 @@ static inline sector_t cfq_dist_from_last(struct cfq_data *cfqd,
 		return cfqd->last_position - blk_rq_pos(rq);
 }
 
-#define CFQQ_SEEK_THR		8 * 1024
-#define CFQQ_SEEKY(cfqq)	((cfqq)->seek_mean > CFQQ_SEEK_THR)
-
 static inline int cfq_rq_close(struct cfq_data *cfqd, struct cfq_queue *cfqq,
-			       struct request *rq)
+			       struct request *rq, bool for_preempt)
 {
 	sector_t sdist = cfqq->seek_mean;
 
 	if (!sample_valid(cfqq->seek_samples))
+		sdist = CFQQ_SEEK_THR;
+
+	/* if seek_mean is big, using it as close criteria is meaningless */
+	if (sdist > CFQQ_SEEK_THR && !for_preempt)
 		sdist = CFQQ_SEEK_THR;
 
 	return cfq_dist_from_last(cfqd, rq) <= sdist;
@@ -1709,7 +1709,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 	 * will contain the closest sector.
 	 */
 	__cfqq = rb_entry(parent, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq, false))
 		return __cfqq;
 
 	if (blk_rq_pos(__cfqq->next_rq) < sector)
@@ -1720,7 +1720,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 		return NULL;
 
 	__cfqq = rb_entry(node, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq, false))
 		return __cfqq;
 
 	return NULL;
@@ -1807,7 +1807,7 @@ static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * Otherwise, we do only if they are the last ones
 	 * in their service tree.
 	 */
-	return service_tree->count == 1;
+	return service_tree->count == 1 && cfq_cfqq_sync(cfqq);
 }
 
 static void cfq_arm_slice_timer(struct cfq_data *cfqd)
@@ -1963,8 +1963,7 @@ static void cfq_setup_merge(struct cfq_queue *cfqq, struct cfq_queue *new_cfqq)
 }
 
 static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
-				struct cfq_group *cfqg, enum wl_prio_t prio,
-				bool prio_changed)
+				struct cfq_group *cfqg, enum wl_prio_t prio)
 {
 	struct cfq_queue *queue;
 	int i;
@@ -1972,24 +1971,9 @@ static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
 	unsigned long lowest_key = 0;
 	enum wl_type_t cur_best = SYNC_NOIDLE_WORKLOAD;
 
-	if (prio_changed) {
-		/*
-		 * When priorities switched, we prefer starting
-		 * from SYNC_NOIDLE (first choice), or just SYNC
-		 * over ASYNC
-		 */
-		if (service_tree_for(cfqg, prio, cur_best, cfqd)->count)
-			return cur_best;
-		cur_best = SYNC_WORKLOAD;
-		if (service_tree_for(cfqg, prio, cur_best, cfqd)->count)
-			return cur_best;
-
-		return ASYNC_WORKLOAD;
-	}
-
-	for (i = 0; i < 3; ++i) {
-		/* otherwise, select the one with lowest rb_key */
-		queue = cfq_rb_first(service_tree_for(cfqg, prio, i, cfqd));
+	for (i = 0; i <= SYNC_WORKLOAD; ++i) {
+		/* select the one with lowest rb_key */
+		queue = cfq_rb_first(service_tree_for(cfqg, prio, i));
 		if (queue &&
 		    (!key_valid || time_before(queue->rb_key, lowest_key))) {
 			lowest_key = queue->rb_key;
@@ -2003,8 +1987,6 @@ static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
 
 static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 {
-	enum wl_prio_t previous_prio = cfqd->serving_prio;
-	bool prio_changed;
 	unsigned slice;
 	unsigned count;
 	struct cfq_rb_root *st;
@@ -2032,24 +2014,19 @@ static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 	 * (SYNC, SYNC_NOIDLE, ASYNC), and to compute a workload
 	 * expiration time
 	 */
-	prio_changed = (cfqd->serving_prio != previous_prio);
-	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type,
-				cfqd);
+	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type);
 	count = st->count;
 
 	/*
-	 * If priority didn't change, check workload expiration,
-	 * and that we still have other queues ready
+	 * check workload expiration, and that we still have other queues ready
 	 */
-	if (!prio_changed && count &&
-	    !time_after(jiffies, cfqd->workload_expires))
+	if (count && !time_after(jiffies, cfqd->workload_expires))
 		return;
 
 	/* otherwise select new workload type */
 	cfqd->serving_type =
-		cfq_choose_wl(cfqd, cfqg, cfqd->serving_prio, prio_changed);
-	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type,
-				cfqd);
+		cfq_choose_wl(cfqd, cfqg, cfqd->serving_prio);
+	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type);
 	count = st->count;
 
 	/*
@@ -3027,19 +3004,6 @@ cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	total = cfqq->seek_total + (cfqq->seek_samples/2);
 	do_div(total, cfqq->seek_samples);
 	cfqq->seek_mean = (sector_t)total;
-
-	/*
-	 * If this cfqq is shared between multiple processes, check to
-	 * make sure that those processes are still issuing I/Os within
-	 * the mean seek distance.  If not, it may be time to break the
-	 * queues apart again.
-	 */
-	if (cfq_cfqq_coop(cfqq)) {
-		if (CFQQ_SEEKY(cfqq) && !cfqq->seeky_start)
-			cfqq->seeky_start = jiffies;
-		else if (!CFQQ_SEEKY(cfqq))
-			cfqq->seeky_start = 0;
-	}
 }
 
 /*
@@ -3104,6 +3068,12 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 		return true;
 
 	/*
+	 * Don't allow a non-RT request to preempt an ongoing RT cfqq timeslice.
+	 */
+	if (cfq_class_rt(cfqq) && !cfq_class_rt(new_cfqq))
+		return false;
+
+	/*
 	 * if the new request is sync, but the currently running queue is
 	 * not, let the sync request have priority.
 	 */
@@ -3143,7 +3113,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 * if this request is as-good as one we would expect from the
 	 * current cfqq, let it preempt
 	 */
-	if (cfq_rq_close(cfqd, cfqq, rq))
+	if (cfq_rq_close(cfqd, cfqq, rq, true))
 		return true;
 
 	return false;
@@ -3474,14 +3444,6 @@ cfq_merge_cfqqs(struct cfq_data *cfqd, struct cfq_io_context *cic,
 	return cic_to_cfqq(cic, 1);
 }
 
-static int should_split_cfqq(struct cfq_queue *cfqq)
-{
-	if (cfqq->seeky_start &&
-	    time_after(jiffies, cfqq->seeky_start + CFQQ_COOP_TOUT))
-		return 1;
-	return 0;
-}
-
 /*
  * Returns NULL if a new cfqq should be allocated, or the old cfqq if this
  * was the last process referring to said cfqq.
@@ -3490,9 +3452,9 @@ static struct cfq_queue *
 split_cfqq(struct cfq_io_context *cic, struct cfq_queue *cfqq)
 {
 	if (cfqq_process_refs(cfqq) == 1) {
-		cfqq->seeky_start = 0;
 		cfqq->pid = current->pid;
 		cfq_clear_cfqq_coop(cfqq);
+		cfq_clear_cfqq_split_coop(cfqq);
 		return cfqq;
 	}
 
@@ -3531,7 +3493,7 @@ new_queue:
 		/*
 		 * If the queue was seeky for too long, break it apart.
 		 */
-		if (cfq_cfqq_coop(cfqq) && should_split_cfqq(cfqq)) {
+		if (cfq_cfqq_coop(cfqq) && cfq_cfqq_split_coop(cfqq)) {
 			cfq_log_cfqq(cfqd, cfqq, "breaking apart cfqq");
 			cfqq = split_cfqq(cic, cfqq);
 			if (!cfqq)

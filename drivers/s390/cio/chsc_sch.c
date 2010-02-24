@@ -12,6 +12,7 @@
 #include <linux/uaccess.h>
 #include <linux/miscdevice.h>
 
+#include <asm/compat.h>
 #include <asm/cio.h>
 #include <asm/chsc.h>
 #include <asm/isc.h>
@@ -770,24 +771,30 @@ out_free:
 static long chsc_ioctl(struct file *filp, unsigned int cmd,
 		       unsigned long arg)
 {
+	void __user *argp;
+
 	CHSC_MSG(2, "chsc_ioctl called, cmd=%x\n", cmd);
+	if (is_compat_task())
+		argp = compat_ptr(arg);
+	else
+		argp = (void __user *)arg;
 	switch (cmd) {
 	case CHSC_START:
-		return chsc_ioctl_start((void __user *)arg);
+		return chsc_ioctl_start(argp);
 	case CHSC_INFO_CHANNEL_PATH:
-		return chsc_ioctl_info_channel_path((void __user *)arg);
+		return chsc_ioctl_info_channel_path(argp);
 	case CHSC_INFO_CU:
-		return chsc_ioctl_info_cu((void __user *)arg);
+		return chsc_ioctl_info_cu(argp);
 	case CHSC_INFO_SCH_CU:
-		return chsc_ioctl_info_sch_cu((void __user *)arg);
+		return chsc_ioctl_info_sch_cu(argp);
 	case CHSC_INFO_CI:
-		return chsc_ioctl_conf_info((void __user *)arg);
+		return chsc_ioctl_conf_info(argp);
 	case CHSC_INFO_CCL:
-		return chsc_ioctl_conf_comp_list((void __user *)arg);
+		return chsc_ioctl_conf_comp_list(argp);
 	case CHSC_INFO_CPD:
-		return chsc_ioctl_chpd((void __user *)arg);
+		return chsc_ioctl_chpd(argp);
 	case CHSC_INFO_DCAL:
-		return chsc_ioctl_dcal((void __user *)arg);
+		return chsc_ioctl_dcal(argp);
 	default: /* unknown ioctl number */
 		return -ENOIOCTLCMD;
 	}

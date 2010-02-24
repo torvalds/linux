@@ -441,6 +441,7 @@ static int aaci_pcm_hw_params(struct snd_pcm_substream *substream,
 			      struct snd_pcm_hw_params *params)
 {
 	int err;
+	struct aaci *aaci = substream->private_data;
 
 	aaci_pcm_hw_free(substream);
 	if (aacirun->pcm_open) {
@@ -560,7 +561,6 @@ static int aaci_pcm_open(struct snd_pcm_substream *substream)
 static int aaci_pcm_playback_hw_params(struct snd_pcm_substream *substream,
 				       struct snd_pcm_hw_params *params)
 {
-	struct aaci *aaci = substream->private_data;
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
 	unsigned int channels = params_channels(params);
 	int ret;
@@ -659,7 +659,6 @@ static struct snd_pcm_ops aaci_playback_ops = {
 static int aaci_pcm_capture_hw_params(struct snd_pcm_substream *substream,
 				      struct snd_pcm_hw_params *params)
 {
-	struct aaci *aaci = substream->private_data;
 	struct aaci_runtime *aacirun = substream->runtime->private_data;
 	int ret;
 

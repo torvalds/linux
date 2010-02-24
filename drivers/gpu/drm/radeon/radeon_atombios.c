@@ -114,6 +114,7 @@ static inline struct radeon_i2c_bus_rec radeon_lookup_i2c_gpio(struct radeon_dev
 			i2c.i2c_id = gpio->sucI2cId.ucAccess;
 
 			i2c.valid = true;
+			break;
 		}
 	}
 
@@ -205,6 +206,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
 	}
 
+	/* Asrock RS600 board lists the DVI port as HDMI */
+	if ((dev->pdev->device == 0x7941) &&
+	    (dev->pdev->subsystem_vendor == 0x1849) &&
+	    (dev->pdev->subsystem_device == 0x7941)) {
+		if ((*connector_type == DRM_MODE_CONNECTOR_HDMIA) &&
+		    (supported_device == ATOM_DEVICE_DFP3_SUPPORT))
+			*connector_type = DRM_MODE_CONNECTOR_DVID;
+	}
+
 	/* a-bit f-i90hd - ciaranm on #radeonhd - this board has no DVI */
 	if ((dev->pdev->device == 0x7941) &&
 	    (dev->pdev->subsystem_vendor == 0x147b) &&
@@ -286,6 +296,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
 	}
 
+	/* XFX Pine Group device rv730 reports no VGA DDC lines
+	 * even though they are wired up to record 0x93
+	 */
+	if ((dev->pdev->device == 0x9498) &&
+	    (dev->pdev->subsystem_vendor == 0x1682) &&
+	    (dev->pdev->subsystem_device == 0x2452)) {
+		struct radeon_device *rdev = dev->dev_private;
+		*i2c_bus = radeon_lookup_i2c_gpio(rdev, 0x93);
+	}
 	return true;
 }
 
@@ -345,7 +364,9 @@ const int object_connector_convert[] = {
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_Unknown,
 	DRM_MODE_CONNECTOR_Unknown,
-	DRM_MODE_CONNECTOR_DisplayPort
+	DRM_MODE_CONNECTOR_DisplayPort,
+	DRM_MODE_CONNECTOR_eDP,
+	DRM_MODE_CONNECTOR_Unknown
 };
 
 bool radeon_get_atom_connector_info_from_object_table(struct drm_device *dev)
@@ -935,6 +956,43 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 	return false;
 }
 
+union igp_info {
+	struct _ATOM_INTEGRATED_SYSTEM_INFO info;
+	struct _ATOM_INTEGRATED_SYSTEM_INFO_V2 info_2;
+};
+
+bool radeon_atombios_sideport_present(struct radeon_device *rdev)
+{
+	struct radeon_mode_info *mode_info = &rdev->mode_info;
+	int index = GetIndexIntoMasterTable(DATA, IntegratedSystemInfo);
+	union igp_info *igp_info;
+	u8 frev, crev;
+	u16 data_offset;
+
+	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev,
+			       &crev, &data_offset);
+
+	igp_info = (union igp_info *)(mode_info->atom_context->bios +
+				      data_offset);
+
+	if (igp_info) {
+		switch (crev) {
+		case 1:
+			if (igp_info->info.ucMemoryType & 0xf0)
+				return true;
+			break;
+		case 2:
+			if (igp_info->info_2.ucMemoryType & 0x0f)
+				return true;
+			break;
+		default:
+			DRM_ERROR("Unsupported IGP table: %d %d\n", frev, crev);
+			break;
+		}
+	}
+	return false;
+}
+
 bool radeon_atombios_get_tmds_info(struct radeon_encoder *encoder,
 				   struct radeon_encoder_int_tmds *tmds)
 {
@@ -1026,6 +1084,7 @@ static struct radeon_atom_ss *radeon_atombios_get_ss_info(struct
 				ss->delay = ss_info->asSS_Info[i].ucSS_Delay;
 				ss->range = ss_info->asSS_Info[i].ucSS_Range;
 				ss->refdiv = ss_info->asSS_Info[i].ucRecommendedRef_Div;
+				break;
 			}
 		}
 	}

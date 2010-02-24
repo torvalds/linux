@@ -1198,6 +1198,7 @@ void update_process_times(int user_tick)
 	run_local_timers();
 	rcu_check_callbacks(cpu, user_tick);
 	printk_tick();
+	perf_event_do_pending();
 	scheduler_tick();
 	run_posix_cpu_timers(p);
 }
@@ -1208,8 +1209,6 @@ void update_process_times(int user_tick)
 static void run_timer_softirq(struct softirq_action *h)
 {
 	struct tvec_base *base = __get_cpu_var(tvec_bases);
-
-	perf_event_do_pending();
 
 	hrtimer_run_pending();
 

@@ -316,7 +316,7 @@ do {									\
 			"	.previous\n"				\
 			: "=a"(__from), "=a"(__to), "=r"(size), "=&r"(w)\
 			: "0"(__from), "1"(__to), "2"(size)		\
-			: "memory");					\
+			: "cc", "memory");				\
 	}								\
 } while (0)
 
@@ -352,7 +352,7 @@ do {									\
 			"	.previous\n"				\
 			: "=a"(__from), "=a"(__to), "=r"(size), "=&r"(w)\
 			: "0"(__from), "1"(__to), "2"(size)		\
-			: "memory");					\
+			: "cc", "memory");				\
 	}								\
 } while (0)
 

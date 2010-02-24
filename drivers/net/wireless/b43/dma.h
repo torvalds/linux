@@ -157,6 +157,7 @@ struct b43_dmadesc_generic {
 } __attribute__ ((__packed__));
 
 /* Misc DMA constants */
+#define B43_DMA_RINGMEMSIZE		PAGE_SIZE
 #define B43_DMA0_RX_FRAMEOFFSET		30
 
 /* DMA engine tuning knobs */
@@ -246,12 +247,6 @@ struct b43_dmaring {
 	/* The QOS priority assigned to this ring. Only used for TX rings.
 	 * This is the mac80211 "queue" value. */
 	u8 queue_prio;
-	/* Pointers and size of the originally allocated and mapped memory
-	 * region for the descriptor ring. */
-	void *alloc_descbase;
-	dma_addr_t alloc_dmabase;
-	unsigned int alloc_descsize;
-	/* Pointer to our wireless device. */
 	struct b43_wldev *dev;
 #ifdef CONFIG_B43_DEBUG
 	/* Maximum number of used slots. */

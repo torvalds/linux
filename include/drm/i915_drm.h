@@ -188,6 +188,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_I915_GEM_MADVISE	0x26
 #define DRM_I915_OVERLAY_PUT_IMAGE	0x27
 #define DRM_I915_OVERLAY_ATTRS	0x28
+#define DRM_I915_GEM_EXECBUFFER2	0x29
 
 #define DRM_IOCTL_I915_INIT		DRM_IOW( DRM_COMMAND_BASE + DRM_I915_INIT, drm_i915_init_t)
 #define DRM_IOCTL_I915_FLUSH		DRM_IO ( DRM_COMMAND_BASE + DRM_I915_FLUSH)
@@ -207,6 +208,7 @@ typedef struct _drm_i915_sarea {
 #define DRM_IOCTL_I915_VBLANK_SWAP	DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_VBLANK_SWAP, drm_i915_vblank_swap_t)
 #define DRM_IOCTL_I915_GEM_INIT		DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_INIT, struct drm_i915_gem_init)
 #define DRM_IOCTL_I915_GEM_EXECBUFFER	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER, struct drm_i915_gem_execbuffer)
+#define DRM_IOCTL_I915_GEM_EXECBUFFER2	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_EXECBUFFER2, struct drm_i915_gem_execbuffer2)
 #define DRM_IOCTL_I915_GEM_PIN		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_PIN, struct drm_i915_gem_pin)
 #define DRM_IOCTL_I915_GEM_UNPIN	DRM_IOW(DRM_COMMAND_BASE + DRM_I915_GEM_UNPIN, struct drm_i915_gem_unpin)
 #define DRM_IOCTL_I915_GEM_BUSY		DRM_IOWR(DRM_COMMAND_BASE + DRM_I915_GEM_BUSY, struct drm_i915_gem_busy)
@@ -272,6 +274,7 @@ typedef struct drm_i915_irq_wait {
 #define I915_PARAM_NUM_FENCES_AVAIL      6
 #define I915_PARAM_HAS_OVERLAY           7
 #define I915_PARAM_HAS_PAGEFLIPPING	 8
+#define I915_PARAM_HAS_EXECBUF2          9
 
 typedef struct drm_i915_getparam {
 	int param;
@@ -565,6 +568,57 @@ struct drm_i915_gem_execbuffer {
 	__u32 num_cliprects;
 	/** This is a struct drm_clip_rect *cliprects */
 	__u64 cliprects_ptr;
+};
+
+struct drm_i915_gem_exec_object2 {
+	/**
+	 * User's handle for a buffer to be bound into the GTT for this
+	 * operation.
+	 */
+	__u32 handle;
+
+	/** Number of relocations to be performed on this buffer */
+	__u32 relocation_count;
+	/**
+	 * Pointer to array of struct drm_i915_gem_relocation_entry containing
+	 * the relocations to be performed in this buffer.
+	 */
+	__u64 relocs_ptr;
+
+	/** Required alignment in graphics aperture */
+	__u64 alignment;
+
+	/**
+	 * Returned value of the updated offset of the object, for future
+	 * presumed_offset writes.
+	 */
+	__u64 offset;
+
+#define EXEC_OBJECT_NEEDS_FENCE (1<<0)
+	__u64 flags;
+	__u64 rsvd1;
+	__u64 rsvd2;
+};
+
+struct drm_i915_gem_execbuffer2 {
+	/**
+	 * List of gem_exec_object2 structs
+	 */
+	__u64 buffers_ptr;
+	__u32 buffer_count;
+
+	/** Offset in the batchbuffer to start execution from. */
+	__u32 batch_start_offset;
+	/** Bytes used in batchbuffer from batch_start_offset */
+	__u32 batch_len;
+	__u32 DR1;
+	__u32 DR4;
+	__u32 num_cliprects;
+	/** This is a struct drm_clip_rect *cliprects */
+	__u64 cliprects_ptr;
+	__u64 flags; /* currently unused */
+	__u64 rsvd1;
+	__u64 rsvd2;
 };
 
 struct drm_i915_gem_pin {

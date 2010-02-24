@@ -925,7 +925,7 @@ static int wm8350_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		iface |= 0x3 << 8;
 		break;
 	case SND_SOC_DAIFMT_DSP_B:
-		iface |= 0x3 << 8;	/* lg not sure which mode */
+		iface |= 0x3 << 8 | WM8350_AIF_LRCLK_INV;
 		break;
 	default:
 		return -EINVAL;

@@ -99,6 +99,7 @@
  * the card will hang early on in the X init process.
  */
 #    define NV_PMC_ENABLE_UNK13                               (1<<13)
+#define NV40_PMC_GRAPH_UNITS				   0x00001540
 #define NV40_PMC_BACKLIGHT				   0x000015f0
 #	define NV40_PMC_BACKLIGHT_MASK			   0x001f0000
 #define NV40_PMC_1700                                      0x00001700
@@ -349,19 +350,19 @@
 #define NV04_PGRAPH_BLEND                                  0x00400824
 #define NV04_PGRAPH_STORED_FMT                             0x00400830
 #define NV04_PGRAPH_PATT_COLORRAM                          0x00400900
-#define NV40_PGRAPH_TILE0(i)                               (0x00400900 + (i*16))
-#define NV40_PGRAPH_TLIMIT0(i)                             (0x00400904 + (i*16))
-#define NV40_PGRAPH_TSIZE0(i)                              (0x00400908 + (i*16))
-#define NV40_PGRAPH_TSTATUS0(i)                            (0x0040090C + (i*16))
+#define NV20_PGRAPH_TILE(i)                                (0x00400900 + (i*16))
+#define NV20_PGRAPH_TLIMIT(i)                              (0x00400904 + (i*16))
+#define NV20_PGRAPH_TSIZE(i)                               (0x00400908 + (i*16))
+#define NV20_PGRAPH_TSTATUS(i)                             (0x0040090C + (i*16))
 #define NV10_PGRAPH_TILE(i)                                (0x00400B00 + (i*16))
 #define NV10_PGRAPH_TLIMIT(i)                              (0x00400B04 + (i*16))
 #define NV10_PGRAPH_TSIZE(i)                               (0x00400B08 + (i*16))
 #define NV10_PGRAPH_TSTATUS(i)                             (0x00400B0C + (i*16))
 #define NV04_PGRAPH_U_RAM                                  0x00400D00
-#define NV47_PGRAPH_TILE0(i)                               (0x00400D00 + (i*16))
-#define NV47_PGRAPH_TLIMIT0(i)                             (0x00400D04 + (i*16))
-#define NV47_PGRAPH_TSIZE0(i)                              (0x00400D08 + (i*16))
-#define NV47_PGRAPH_TSTATUS0(i)                            (0x00400D0C + (i*16))
+#define NV47_PGRAPH_TILE(i)                                (0x00400D00 + (i*16))
+#define NV47_PGRAPH_TLIMIT(i)                              (0x00400D04 + (i*16))
+#define NV47_PGRAPH_TSIZE(i)                               (0x00400D08 + (i*16))
+#define NV47_PGRAPH_TSTATUS(i)                             (0x00400D0C + (i*16))
 #define NV04_PGRAPH_V_RAM                                  0x00400D40
 #define NV04_PGRAPH_W_RAM                                  0x00400D80
 #define NV10_PGRAPH_COMBINER0_IN_ALPHA                     0x00400E40
