@@ -1763,6 +1763,19 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 	},
 #endif
 
+#if defined(CONFIG_AD7414) || defined(CONFIG_AD7414_MODULE)
+	{
+		I2C_BOARD_INFO("ad7414", 0x9),
+		.irq = IRQ_PG5,
+		/*
+		 * platform_data pointer is borrwoed by the driver to
+		 * store custimer defined IRQ ALART level mode.
+		 * only IRQF_TRIGGER_HIGH and IRQF_TRIGGER_LOW are valid.
+		 */
+		.platform_data = (void *)IRQF_TRIGGER_LOW,
+	},
+#endif
+
 #if defined(CONFIG_BFIN_TWI_LCD) || defined(CONFIG_BFIN_TWI_LCD_MODULE)
 	{
 		I2C_BOARD_INFO("pcf8574_lcd", 0x22),
@@ -2056,6 +2069,8 @@ static struct regulator_init_data adp_switch_regulator_data[] = {
 		.constraints = {
 			.name = REGULATOR_ADP122,
 			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+			.min_uA = 0,
+			.max_uA = 300000,
 		},
 		.num_consumer_supplies = 1,	/* only 1 */
 		.consumer_supplies     = &adp122_consumers,
@@ -2065,6 +2080,8 @@ static struct regulator_init_data adp_switch_regulator_data[] = {
 		.constraints = {
 			.name = REGULATOR_ADP150,
 			.valid_ops_mask = REGULATOR_CHANGE_STATUS,
+			.min_uA = 0,
+			.max_uA = 150000,
 		},
 		.num_consumer_supplies = 1,	/* only 1 */
 		.consumer_supplies     = &adp150_consumers,
