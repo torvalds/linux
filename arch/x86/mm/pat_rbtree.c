@@ -223,7 +223,9 @@ int rbt_memtype_check_insert(struct memtype *new, unsigned long *ret_type)
 						new->type, ret_type);
 
 	if (!err) {
-		new->type = *ret_type;
+		if (ret_type)
+			new->type = *ret_type;
+
 		memtype_rb_insert(&memtype_rbroot, new);
 	}
 	return err;
