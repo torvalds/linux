@@ -26,7 +26,7 @@
 
 struct wm8994_ldo {
 	int enable;
-	int is_enabled;
+	bool is_enabled;
 	struct regulator_dev *regulator;
 	struct wm8994 *wm8994;
 };
@@ -43,7 +43,7 @@ static int wm8994_ldo_enable(struct regulator_dev *rdev)
 		return 0;
 
 	gpio_set_value(ldo->enable, 1);
-	ldo->is_enabled = 1;
+	ldo->is_enabled = true;
 
 	return 0;
 }
@@ -57,7 +57,7 @@ static int wm8994_ldo_disable(struct regulator_dev *rdev)
 		return -EINVAL;
 
 	gpio_set_value(ldo->enable, 0);
-	ldo->is_enabled = 0;
+	ldo->is_enabled = false;
 
 	return 0;
 }
@@ -218,7 +218,7 @@ static __devinit int wm8994_ldo_probe(struct platform_device *pdev)
 
 	ldo->wm8994 = wm8994;
 
-	ldo->is_enabled = 1;
+	ldo->is_enabled = true;
 
 	if (pdata->ldo[id].enable && gpio_is_valid(pdata->ldo[id].enable)) {
 		ldo->enable = pdata->ldo[id].enable;
@@ -263,6 +263,8 @@ static __devexit int wm8994_ldo_remove(struct platform_device *pdev)
 {
 	struct wm8994_ldo *ldo = platform_get_drvdata(pdev);
 
+	platform_set_drvdata(pdev, NULL);
+
 	regulator_unregister(ldo->regulator);
 	if (gpio_is_valid(ldo->enable))
 		gpio_free(ldo->enable);
@@ -276,6 +278,7 @@ static struct platform_driver wm8994_ldo_driver = {
 	.remove = __devexit_p(wm8994_ldo_remove),
 	.driver		= {
 		.name	= "wm8994-ldo",
+		.owner	= THIS_MODULE,
 	},
 };
 
