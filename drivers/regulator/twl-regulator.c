@@ -531,7 +531,7 @@ static struct twlreg_info twl_regs[] = {
 	TWL6030_FIXED_LDO(VUSB, 0x70, 3300, 18, 0, 0x21)
 };
 
-static int twlreg_probe(struct platform_device *pdev)
+static int __devinit twlreg_probe(struct platform_device *pdev)
 {
 	int				i;
 	struct twlreg_info		*info;
