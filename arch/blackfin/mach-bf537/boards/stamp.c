@@ -1682,6 +1682,48 @@ static struct adp8870_backlight_platform_data adp8870_pdata = {
 };
 #endif
 
+#if defined(CONFIG_BACKLIGHT_ADP8860) || defined(CONFIG_BACKLIGHT_ADP8860_MODULE)
+#include <linux/i2c/adp8860.h>
+static struct led_info adp8860_leds[] = {
+	{
+		.name = "adp8860-led7",
+		.default_trigger = "none",
+		.flags = ADP8860_LED_D7 | ADP8860_LED_OFFT_600ms,
+	},
+};
+
+static struct adp8860_backlight_platform_data adp8860_pdata = {
+	.bl_led_assign = ADP8860_BL_D1 | ADP8860_BL_D2 | ADP8860_BL_D3 |
+			 ADP8860_BL_D4 | ADP8860_BL_D5 | ADP8860_BL_D6,	/* 1 = Backlight 0 = Individual LED */
+
+	.bl_fade_in = ADP8860_FADE_T_1200ms,		/* Backlight Fade-In Timer */
+	.bl_fade_out = ADP8860_FADE_T_1200ms,		/* Backlight Fade-Out Timer */
+	.bl_fade_law = ADP8860_FADE_LAW_CUBIC1,		/* fade-on/fade-off transfer characteristic */
+
+	.en_ambl_sens = 1,				/* 1 = enable ambient light sensor */
+	.abml_filt = ADP8860_BL_AMBL_FILT_320ms,	/* Light sensor filter time */
+
+	.l1_daylight_max = ADP8860_BL_CUR_mA(20),	/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l1_daylight_dim = ADP8860_BL_CUR_mA(0),	/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l2_office_max = ADP8860_BL_CUR_mA(6),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l2_office_dim = ADP8860_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l3_dark_max = ADP8860_BL_CUR_mA(2),		/* use BL_CUR_mA(I) 0 <= I <= 30 mA */
+	.l3_dark_dim = ADP8860_BL_CUR_mA(0),		/* typ = 0, use BL_CUR_mA(I) 0 <= I <= 30 mA */
+
+	.l2_trip = ADP8860_L2_COMP_CURR_uA(710),	/* use L2_COMP_CURR_uA(I) 0 <= I <= 1106 uA */
+	.l2_hyst = ADP8860_L2_COMP_CURR_uA(73),		/* use L2_COMP_CURR_uA(I) 0 <= I <= 1106 uA */
+	.l3_trip = ADP8860_L3_COMP_CURR_uA(43),		/* use L3_COMP_CURR_uA(I) 0 <= I <= 138 uA */
+	.l3_hyst = ADP8860_L3_COMP_CURR_uA(11),		/* use L3_COMP_CURR_uA(I) 0 <= I <= 138 uA */
+
+	.leds = adp8860_leds,
+	.num_leds = ARRAY_SIZE(adp8860_leds),
+	.led_fade_law = ADP8860_FADE_LAW_SQUARE,	/* fade-on/fade-off transfer characteristic */
+	.led_fade_in = ADP8860_FADE_T_600ms,
+	.led_fade_out = ADP8860_FADE_T_600ms,
+	.led_on_time = ADP8860_LED_ONT_200ms,
+};
+#endif
+
 #if defined(CONFIG_REGULATOR_AD5398) || defined(CONFIG_REGULATOR_AD5398_MODULE)
 static struct regulator_consumer_supply ad5398_consumer = {
 	.supply = "current",
@@ -1866,6 +1908,12 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("ad5398", 0xC),
 		.platform_data = (void *)&ad5398_i2c_platform_data,
+	},
+#endif
+#if defined(CONFIG_BACKLIGHT_ADP8860) || defined(CONFIG_BACKLIGHT_ADP8860_MODULE)
+	{
+		I2C_BOARD_INFO("adp8860", 0x2A),
+		.platform_data = (void *)&adp8860_pdata,
 	},
 #endif
 };
