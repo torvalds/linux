@@ -92,6 +92,15 @@ long ext4_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			flags &= ~EXT4_EXTENTS_FL;
 		}
 
+		if (flags & EXT4_EOFBLOCKS_FL) {
+			/* we don't support adding EOFBLOCKS flag */
+			if (!(oldflags & EXT4_EOFBLOCKS_FL)) {
+				err = -EOPNOTSUPP;
+				goto flags_out;
+			}
+		} else if (oldflags & EXT4_EOFBLOCKS_FL)
+			ext4_truncate(inode);
+
 		handle = ext4_journal_start(inode, 1);
 		if (IS_ERR(handle)) {
 			err = PTR_ERR(handle);

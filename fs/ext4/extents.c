@@ -3186,7 +3186,7 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 {
 	struct ext4_ext_path *path = NULL;
 	struct ext4_extent_header *eh;
-	struct ext4_extent newex, *ex;
+	struct ext4_extent newex, *ex, *last_ex;
 	ext4_fsblk_t newblock;
 	int err = 0, depth, ret, cache_type;
 	unsigned int allocated = 0;
@@ -3367,6 +3367,19 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 						     EXT4_STATE_DIO_UNWRITTEN);
 		}
 	}
+
+	if (unlikely(EXT4_I(inode)->i_flags & EXT4_EOFBLOCKS_FL)) {
+		if (eh->eh_entries) {
+			last_ex = EXT_LAST_EXTENT(eh);
+			if (iblock + ar.len > le32_to_cpu(last_ex->ee_block)
+					    + ext4_ext_get_actual_len(last_ex))
+				EXT4_I(inode)->i_flags &= ~EXT4_EOFBLOCKS_FL;
+		} else {
+			WARN_ON(eh->eh_entries == 0);
+			ext4_error(inode->i_sb, __func__,
+				"inode#%lu, eh->eh_entries = 0!", inode->i_ino);
+			}
+	}
 	err = ext4_ext_insert_extent(handle, inode, path, &newex, flags);
 	if (err) {
 		/* free data blocks we just allocated */
@@ -3500,6 +3513,13 @@ static void ext4_falloc_update_inode(struct inode *inode,
 			i_size_write(inode, new_size);
 		if (new_size > EXT4_I(inode)->i_disksize)
 			ext4_update_i_disksize(inode, new_size);
+	} else {
+		/*
+		 * Mark that we allocate beyond EOF so the subsequent truncate
+		 * can proceed even if the new size is the same as i_size.
+		 */
+		if (new_size > i_size_read(inode))
+			EXT4_I(inode)->i_flags |= EXT4_EOFBLOCKS_FL;
 	}
 
 }

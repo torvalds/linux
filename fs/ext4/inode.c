@@ -4456,6 +4456,8 @@ void ext4_truncate(struct inode *inode)
 	if (!ext4_can_truncate(inode))
 		return;
 
+	EXT4_I(inode)->i_flags &= ~EXT4_EOFBLOCKS_FL;
+
 	if (inode->i_size == 0 && !test_opt(inode->i_sb, NO_AUTO_DA_ALLOC))
 		ext4_set_inode_state(inode, EXT4_STATE_DA_ALLOC_CLOSE);
 
@@ -5305,7 +5307,9 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	if (S_ISREG(inode->i_mode) &&
-	    attr->ia_valid & ATTR_SIZE && attr->ia_size < inode->i_size) {
+	    attr->ia_valid & ATTR_SIZE &&
+	    (attr->ia_size < inode->i_size ||
+	     (EXT4_I(inode)->i_flags & EXT4_EOFBLOCKS_FL))) {
 		handle_t *handle;
 
 		handle = ext4_journal_start(inode, 3);
@@ -5336,6 +5340,9 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 				goto err_out;
 			}
 		}
+		/* ext4_truncate will clear the flag */
+		if ((EXT4_I(inode)->i_flags & EXT4_EOFBLOCKS_FL))
+			ext4_truncate(inode);
 	}
 
 	rc = inode_setattr(inode, attr);
