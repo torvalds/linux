@@ -1839,7 +1839,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	if (!nested_vmcb)
 		return false;
 
-	trace_kvm_nested_vmrun(svm->vmcb->save.rip - 3, svm->nested.vmcb,
+	trace_kvm_nested_vmrun(svm->vmcb->save.rip - 3, vmcb_gpa,
 			       nested_vmcb->save.rip,
 			       nested_vmcb->control.int_ctl,
 			       nested_vmcb->control.event_inj,
