@@ -536,7 +536,6 @@ static irqreturn_t net_interrupt(int irq, void *dev_id)
 		/* Transmit complete. */
 		net_tx(dev);
 		np->stats.tx_packets++;
-		netif_wake_queue(dev);
 	}
 #endif
 	if (status & COUNTERS_INTR) {
