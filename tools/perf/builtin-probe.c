@@ -156,7 +156,9 @@ static const char * const probe_usage[] = {
 	"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
 	"perf probe [<options>] --del '[GROUP:]EVENT' ...",
 	"perf probe --list",
+#ifndef NO_LIBDWARF
 	"perf probe --line 'LINEDESC'",
+#endif
 	NULL
 };
 
