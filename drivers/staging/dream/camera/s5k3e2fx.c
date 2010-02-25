@@ -743,12 +743,12 @@ static int s5k3e2fx_sensor_open_init(const struct msm_camera_sensor_info *data)
 	}
 
 	/* initialize AF */
-	if ((rc = s5k3e2fx_i2c_write_b(s5k3e2fx_client->addr,
-			0x3146, 0x3A)) < 0)
+	rc = s5k3e2fx_i2c_write_b(s5k3e2fx_client->addr, 0x3146, 0x3A);
+	if (rc < 0)
 		goto init_fail1;
 
-	if ((rc = s5k3e2fx_i2c_write_b(s5k3e2fx_client->addr,
-			0x3130, 0x03)) < 0)
+	rc = s5k3e2fx_i2c_write_b(s5k3e2fx_client->addr, 0x3130, 0x03);
+	if (rc < 0)
 		goto init_fail1;
 
 	goto init_done;
