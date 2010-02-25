@@ -67,10 +67,10 @@ struct gpio_controller {
  *
  * These are NOT part of the cross-platform GPIO interface
  */
-static inline struct gpio_controller *__iomem
+static inline struct gpio_controller __iomem *
 __gpio_to_controller(unsigned gpio)
 {
-	void *__iomem ptr;
+	void __iomem *ptr;
 	void __iomem *base = davinci_soc_info.gpio_base;
 
 	if (gpio < 32 * 1)
@@ -102,7 +102,7 @@ static inline u32 __gpio_mask(unsigned gpio)
 static inline void gpio_set_value(unsigned gpio, int value)
 {
 	if (__builtin_constant_p(value) && gpio < DAVINCI_N_GPIO) {
-		struct gpio_controller	*__iomem g;
+		struct gpio_controller	__iomem *g;
 		u32			mask;
 
 		g = __gpio_to_controller(gpio);
@@ -128,7 +128,7 @@ static inline void gpio_set_value(unsigned gpio, int value)
  */
 static inline int gpio_get_value(unsigned gpio)
 {
-	struct gpio_controller	*__iomem g;
+	struct gpio_controller	__iomem *g;
 
 	if (!__builtin_constant_p(gpio) || gpio >= DAVINCI_N_GPIO)
 		return __gpio_get_value(gpio);

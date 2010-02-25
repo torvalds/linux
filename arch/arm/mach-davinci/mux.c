@@ -21,6 +21,7 @@
 
 #include <mach/mux.h>
 #include <mach/common.h>
+#include <mach/da8xx.h>
 
 /*
  * Sets the DAVINCI MUX register based on the table

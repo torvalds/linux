@@ -60,7 +60,7 @@
 
 #define NAND_BLOCK_SIZE		SZ_128K
 
-struct mtd_partition davinci_ntosd2_nandflash_partition[] = {
+static struct mtd_partition davinci_ntosd2_nandflash_partition[] = {
 	{
 		/* UBL (a few copies) plus U-Boot */
 		.name		= "bootloader",

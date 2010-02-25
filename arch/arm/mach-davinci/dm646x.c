@@ -311,7 +311,7 @@ static struct clk vpif1_clk = {
 	.flags = ALWAYS_ENABLED,
 };
 
-struct clk_lookup dm646x_clks[] = {
+static struct clk_lookup dm646x_clks[] = {
 	CLK(NULL, "ref", &ref_clk),
 	CLK(NULL, "aux", &aux_clkin),
 	CLK(NULL, "pll1", &pll1_clk),
@@ -797,7 +797,7 @@ static void __iomem *dm646x_psc_bases[] = {
  * T1_BOT: Timer 1, bottom:  (used by DSP in TI DSPLink code)
  * T1_TOP: Timer 1, top   :  <unused>
  */
-struct davinci_timer_info dm646x_timer_info = {
+static struct davinci_timer_info dm646x_timer_info = {
 	.timers		= davinci_timer_instance,
 	.clockevent_id	= T0_BOT,
 	.clocksource_id	= T0_TOP,
@@ -867,7 +867,7 @@ static struct davinci_soc_info davinci_soc_info_dm646x = {
 	.sram_len		= SZ_32K,
 };
 
-void __init dm646x_init_ide()
+void __init dm646x_init_ide(void)
 {
 	davinci_cfg_reg(DM646X_ATAEN);
 	platform_device_register(&ide_dev);

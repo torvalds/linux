@@ -23,6 +23,8 @@
 #include <mach/mmc.h>
 #include <mach/time.h>
 
+#include "clock.h"
+
 #define DAVINCI_I2C_BASE	     0x01C21000
 #define DAVINCI_MMCSD0_BASE	     0x01E10000
 #define DM355_MMCSD0_BASE	     0x01E11000

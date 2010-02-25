@@ -48,7 +48,7 @@
 #define DAVINCI_ASYNC_EMIF_CONTROL_BASE   0x01e00000
 #define DAVINCI_ASYNC_EMIF_DATA_CE0_BASE  0x02000000
 
-struct mtd_partition davinci_sffsdr_nandflash_partition[] = {
+static struct mtd_partition davinci_sffsdr_nandflash_partition[] = {
 	/* U-Boot Environment: Block 0
 	 * UBL:                Block 1
 	 * U-Boot:             Blocks 6-7 (256 kb)

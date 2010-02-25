@@ -111,7 +111,7 @@ static struct platform_device davinci_evm_norflash_device = {
  * It may used instead of the (default) NOR chip to boot, using TI's
  * tools to install the secondary boot loader (UBL) and U-Boot.
  */
-struct mtd_partition davinci_evm_nandflash_partition[] = {
+static struct mtd_partition davinci_evm_nandflash_partition[] = {
 	/* Bootloader layout depends on whose u-boot is installed, but we
 	 * can hide all the details.
 	 *  - block 0 for u-boot environment ... in mainline u-boot
