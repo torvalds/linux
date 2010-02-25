@@ -61,6 +61,40 @@ static void __init drop_range(int i)
 	early_res_count--;
 }
 
+static void __init drop_range_partial(int i, u64 start, u64 end)
+{
+	u64 common_start, common_end;
+	u64 old_start, old_end;
+
+	old_start = early_res[i].start;
+	old_end = early_res[i].end;
+	common_start = max(old_start, start);
+	common_end = min(old_end, end);
+
+	/* no overlap ? */
+	if (common_start >= common_end)
+		return;
+
+	if (old_start < common_start) {
+		/* make head segment */
+		early_res[i].end = common_start;
+		if (old_end > common_end) {
+			/* add another for left over on tail */
+			reserve_early_without_check(common_end, old_end,
+					 early_res[i].name);
+		}
+		return;
+	} else {
+		if (old_end > common_end) {
+			/* reuse the entry for tail left */
+			early_res[i].start = common_end;
+			return;
+		}
+		/* all covered */
+		drop_range(i);
+	}
+}
+
 /*
  * Split any existing ranges that:
  *  1) are marked 'overlap_ok', and
@@ -282,6 +316,27 @@ void __init free_early(u64 start, u64 end)
 			 start, end - 1);
 
 	drop_range(i);
+}
+
+void __init free_early_partial(u64 start, u64 end)
+{
+	struct early_res *r;
+	int i;
+
+try_next:
+	i = find_overlapped_early(start, end);
+	if (i >= max_early_res)
+		return;
+
+	r = &early_res[i];
+	/* hole ? */
+	if (r->end >= end && r->start <= start) {
+		drop_range_partial(i, start, end);
+		return;
+	}
+
+	drop_range_partial(i, start, end);
+	goto try_next;
 }
 
 #ifdef CONFIG_NO_BOOTMEM

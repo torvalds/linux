@@ -5,6 +5,7 @@
 extern void reserve_early(u64 start, u64 end, char *name);
 extern void reserve_early_overlap_ok(u64 start, u64 end, char *name);
 extern void free_early(u64 start, u64 end);
+void free_early_partial(u64 start, u64 end);
 extern void early_res_to_bootmem(u64 start, u64 end);
 
 void reserve_early_without_check(u64 start, u64 end, char *name);
