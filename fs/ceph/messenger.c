@@ -1853,31 +1853,26 @@ static void ceph_fault(struct ceph_connection *con)
 		con->in_msg = NULL;
 	}
 
+	/* Requeue anything that hasn't been acked */
+	list_splice_init(&con->out_sent, &con->out_queue);
 
 	/* If there are no messages in the queue, place the connection
 	 * in a STANDBY state (i.e., don't try to reconnect just yet). */
 	if (list_empty(&con->out_queue) && !con->out_keepalive_pending) {
 		dout("fault setting STANDBY\n");
 		set_bit(STANDBY, &con->state);
-		mutex_unlock(&con->mutex);
-		goto out;
+	} else {
+		/* retry after a delay. */
+		if (con->delay == 0)
+			con->delay = BASE_DELAY_INTERVAL;
+		else if (con->delay < MAX_DELAY_INTERVAL)
+			con->delay *= 2;
+		dout("fault queueing %p delay %lu\n", con, con->delay);
+		con->ops->get(con);
+		if (queue_delayed_work(ceph_msgr_wq, &con->work,
+				       round_jiffies_relative(con->delay)) == 0)
+			con->ops->put(con);
 	}
-
-	/* Requeue anything that hasn't been acked, and retry after a
-	 * delay. */
-	list_splice_init(&con->out_sent, &con->out_queue);
-
-	if (con->delay == 0)
-		con->delay = BASE_DELAY_INTERVAL;
-	else if (con->delay < MAX_DELAY_INTERVAL)
-		con->delay *= 2;
-
-	/* explicitly schedule work to try to reconnect again later. */
-	dout("fault queueing %p delay %lu\n", con, con->delay);
-	con->ops->get(con);
-	if (queue_delayed_work(ceph_msgr_wq, &con->work,
-			       round_jiffies_relative(con->delay)) == 0)
-		con->ops->put(con);
 
 out_unlock:
 	mutex_unlock(&con->mutex);
