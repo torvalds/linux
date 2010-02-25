@@ -36,10 +36,16 @@ struct imx_pcm_runtime_data {
 	int period;
 	int periods;
 	unsigned long offset;
+	unsigned long last_offset;
 	unsigned long size;
 	struct timer_list timer;
-	int period_time;
+	int poll_time;
 };
+
+static inline void imx_ssi_set_next_poll(struct imx_pcm_runtime_data *iprtd)
+{
+	iprtd->timer.expires = jiffies + iprtd->poll_time;
+}
 
 static void imx_ssi_timer_callback(unsigned long data)
 {
@@ -47,6 +53,7 @@ static void imx_ssi_timer_callback(unsigned long data)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct imx_pcm_runtime_data *iprtd = runtime->private_data;
 	struct pt_regs regs;
+	unsigned long delta;
 
 	get_fiq_regs(&regs);
 
@@ -55,9 +62,25 @@ static void imx_ssi_timer_callback(unsigned long data)
 	else
 		iprtd->offset = regs.ARM_r9 & 0xffff;
 
-	iprtd->timer.expires = jiffies + iprtd->period_time;
+	/* How much data have we transferred since the last period report? */
+	if (iprtd->offset >= iprtd->last_offset)
+		delta = iprtd->offset - iprtd->last_offset;
+	else
+		delta = runtime->buffer_size + iprtd->offset
+			- iprtd->last_offset;
+
+	/* If we've transferred at least a period then report it and
+	 * reset our poll time */
+	if (delta >= runtime->period_size) {
+		snd_pcm_period_elapsed(substream);
+		iprtd->last_offset = iprtd->offset;
+
+		imx_ssi_set_next_poll(iprtd);
+	}
+
+	/* Restart the timer; if we didn't report we'll run on the next tick */
 	add_timer(&iprtd->timer);
-	snd_pcm_period_elapsed(substream);
+
 }
 
 static struct fiq_handler fh = {
@@ -72,9 +95,10 @@ static int snd_imx_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	iprtd->size = params_buffer_bytes(params);
 	iprtd->periods = params_periods(params);
-	iprtd->period = params_period_bytes(params);
+	iprtd->period = params_period_bytes(params) ;
 	iprtd->offset = 0;
-	iprtd->period_time = HZ / (params_rate(params) / params_period_size(params));
+	iprtd->last_offset = 0;
+	iprtd->poll_time = HZ / (params_rate(params) / params_period_size(params));
 
 	snd_pcm_set_runtime_buffer(substream, &substream->dma_buffer);
 
@@ -110,7 +134,7 @@ static int snd_imx_pcm_trigger(struct snd_pcm_substream *substream, int cmd)
 	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
-		iprtd->timer.expires = jiffies + iprtd->period_time;
+		imx_ssi_set_next_poll(iprtd);
 		add_timer(&iprtd->timer);
 		if (++fiq_enable == 1)
 			enable_fiq(imx_pcm_fiq);
