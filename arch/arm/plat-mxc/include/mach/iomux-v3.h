@@ -81,11 +81,13 @@ struct pad_desc {
 
 #define PAD_CTL_ODE			(1 << 3)
 
-#define PAD_CTL_DSE_STANDARD		(0 << 1)
-#define PAD_CTL_DSE_HIGH		(1 << 1)
-#define PAD_CTL_DSE_MAX			(2 << 1)
+#define PAD_CTL_DSE_LOW			(0 << 1)
+#define PAD_CTL_DSE_MED			(1 << 1)
+#define PAD_CTL_DSE_HIGH		(2 << 1)
+#define PAD_CTL_DSE_MAX			(3 << 1)
 
 #define PAD_CTL_SRE_FAST		(1 << 0)
+#define PAD_CTL_SRE_SLOW		(0 << 0)
 
 /*
  * setups a single pad in the iomuxer

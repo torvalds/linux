@@ -477,3 +477,26 @@ struct platform_device mx25_rtc_device = {
 	.num_resources	= ARRAY_SIZE(mx25_rtc_resources),
 	.resource	= mx25_rtc_resources,
 };
+
+static struct resource mx25_fb_resources[] = {
+	{
+		.start	= MX25_LCDC_BASE_ADDR,
+		.end	= MX25_LCDC_BASE_ADDR + 0xfff,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= MX25_INT_LCDC,
+		.end	= MX25_INT_LCDC,
+		.flags	= IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device mx25_fb_device = {
+	.name		= "imx-fb",
+	.id		= 0,
+	.resource	= mx25_fb_resources,
+	.num_resources	= ARRAY_SIZE(mx25_fb_resources),
+	.dev		= {
+		.coherent_dma_mask = 0xFFFFFFFF,
+	},
+};
