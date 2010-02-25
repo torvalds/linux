@@ -2540,6 +2540,12 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj)
 	if (obj_priv->fence_reg == I915_FENCE_REG_NONE)
 		return 0;
 
+	/* If we've changed tiling, GTT-mappings of the object
+	 * need to re-fault to ensure that the correct fence register
+	 * setup is in place.
+	 */
+	i915_gem_release_mmap(obj);
+
 	/* On the i915, GPU access to tiled buffers is via a fence,
 	 * therefore we must wait for any outstanding access to complete
 	 * before clearing the fence.
@@ -2548,12 +2554,12 @@ i915_gem_object_put_fence_reg(struct drm_gem_object *obj)
 		int ret;
 
 		i915_gem_object_flush_gpu_write_domain(obj);
-		i915_gem_object_flush_gtt_write_domain(obj);
 		ret = i915_gem_object_wait_rendering(obj);
 		if (ret != 0)
 			return ret;
 	}
 
+	i915_gem_object_flush_gtt_write_domain(obj);
 	i915_gem_clear_fence_reg (obj);
 
 	return 0;
@@ -3243,7 +3249,8 @@ i915_gem_object_pin_and_relocate(struct drm_gem_object *obj,
 	             obj_priv->tiling_mode != I915_TILING_NONE;
 
 	/* Check fence reg constraints and rebind if necessary */
-	if (need_fence && !i915_obj_fenceable(dev, obj))
+	if (need_fence && !i915_gem_object_fence_offset_ok(obj,
+	    obj_priv->tiling_mode))
 		i915_gem_object_unbind(obj);
 
 	/* Choose the GTT offset for our buffer and put it there. */
@@ -4437,12 +4444,35 @@ i915_gem_evict_from_inactive_list(struct drm_device *dev)
 	return 0;
 }
 
+static int
+i915_gpu_idle(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	bool lists_empty;
+	uint32_t seqno;
+
+	spin_lock(&dev_priv->mm.active_list_lock);
+	lists_empty = list_empty(&dev_priv->mm.flushing_list) &&
+		      list_empty(&dev_priv->mm.active_list);
+	spin_unlock(&dev_priv->mm.active_list_lock);
+
+	if (lists_empty)
+		return 0;
+
+	/* Flush everything onto the inactive list. */
+	i915_gem_flush(dev, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
+	seqno = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS);
+	if (seqno == 0)
+		return -ENOMEM;
+
+	return i915_wait_request(dev, seqno);
+}
+
 int
 i915_gem_idle(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = dev->dev_private;
-	uint32_t seqno, cur_seqno, last_seqno;
-	int stuck, ret;
+	int ret;
 
 	mutex_lock(&dev->struct_mutex);
 
@@ -4451,114 +4481,35 @@ i915_gem_idle(struct drm_device *dev)
 		return 0;
 	}
 
-	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
-	 * We need to replace this with a semaphore, or something.
-	 */
-	dev_priv->mm.suspended = 1;
-	del_timer(&dev_priv->hangcheck_timer);
-
-	/* Cancel the retire work handler, wait for it to finish if running
-	 */
-	mutex_unlock(&dev->struct_mutex);
-	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
-	mutex_lock(&dev->struct_mutex);
-
-	i915_kernel_lost_context(dev);
-
-	/* Flush the GPU along with all non-CPU write domains
-	 */
-	i915_gem_flush(dev, I915_GEM_GPU_DOMAINS, I915_GEM_GPU_DOMAINS);
-	seqno = i915_add_request(dev, NULL, I915_GEM_GPU_DOMAINS);
-
-	if (seqno == 0) {
-		mutex_unlock(&dev->struct_mutex);
-		return -ENOMEM;
-	}
-
-	dev_priv->mm.waiting_gem_seqno = seqno;
-	last_seqno = 0;
-	stuck = 0;
-	for (;;) {
-		cur_seqno = i915_get_gem_seqno(dev);
-		if (i915_seqno_passed(cur_seqno, seqno))
-			break;
-		if (last_seqno == cur_seqno) {
-			if (stuck++ > 100) {
-				DRM_ERROR("hardware wedged\n");
-				atomic_set(&dev_priv->mm.wedged, 1);
-				DRM_WAKEUP(&dev_priv->irq_queue);
-				break;
-			}
-		}
-		msleep(10);
-		last_seqno = cur_seqno;
-	}
-	dev_priv->mm.waiting_gem_seqno = 0;
-
-	i915_gem_retire_requests(dev);
-
-	spin_lock(&dev_priv->mm.active_list_lock);
-	if (!atomic_read(&dev_priv->mm.wedged)) {
-		/* Active and flushing should now be empty as we've
-		 * waited for a sequence higher than any pending execbuffer
-		 */
-		WARN_ON(!list_empty(&dev_priv->mm.active_list));
-		WARN_ON(!list_empty(&dev_priv->mm.flushing_list));
-		/* Request should now be empty as we've also waited
-		 * for the last request in the list
-		 */
-		WARN_ON(!list_empty(&dev_priv->mm.request_list));
-	}
-
-	/* Empty the active and flushing lists to inactive.  If there's
-	 * anything left at this point, it means that we're wedged and
-	 * nothing good's going to happen by leaving them there.  So strip
-	 * the GPU domains and just stuff them onto inactive.
-	 */
-	while (!list_empty(&dev_priv->mm.active_list)) {
-		struct drm_gem_object *obj;
-		uint32_t old_write_domain;
-
-		obj = list_first_entry(&dev_priv->mm.active_list,
-				       struct drm_i915_gem_object,
-				       list)->obj;
-		old_write_domain = obj->write_domain;
-		obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
-		i915_gem_object_move_to_inactive(obj);
-
-		trace_i915_gem_object_change_domain(obj,
-						    obj->read_domains,
-						    old_write_domain);
-	}
-	spin_unlock(&dev_priv->mm.active_list_lock);
-
-	while (!list_empty(&dev_priv->mm.flushing_list)) {
-		struct drm_gem_object *obj;
-		uint32_t old_write_domain;
-
-		obj = list_first_entry(&dev_priv->mm.flushing_list,
-				       struct drm_i915_gem_object,
-				       list)->obj;
-		old_write_domain = obj->write_domain;
-		obj->write_domain &= ~I915_GEM_GPU_DOMAINS;
-		i915_gem_object_move_to_inactive(obj);
-
-		trace_i915_gem_object_change_domain(obj,
-						    obj->read_domains,
-						    old_write_domain);
-	}
-
-
-	/* Move all inactive buffers out of the GTT. */
-	ret = i915_gem_evict_from_inactive_list(dev);
-	WARN_ON(!list_empty(&dev_priv->mm.inactive_list));
+	ret = i915_gpu_idle(dev);
 	if (ret) {
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
+	/* Under UMS, be paranoid and evict. */
+	if (!drm_core_check_feature(dev, DRIVER_MODESET)) {
+		ret = i915_gem_evict_from_inactive_list(dev);
+		if (ret) {
+			mutex_unlock(&dev->struct_mutex);
+			return ret;
+		}
+	}
+
+	/* Hack!  Don't let anybody do execbuf while we don't control the chip.
+	 * We need to replace this with a semaphore, or something.
+	 * And not confound mm.suspended!
+	 */
+	dev_priv->mm.suspended = 1;
+	del_timer(&dev_priv->hangcheck_timer);
+
+	i915_kernel_lost_context(dev);
 	i915_gem_cleanup_ringbuffer(dev);
+
 	mutex_unlock(&dev->struct_mutex);
+
+	/* Cancel the retire work handler, which should be idle now. */
+	cancel_delayed_work_sync(&dev_priv->mm.retire_work);
 
 	return 0;
 }
@@ -4846,7 +4797,8 @@ i915_gem_load(struct drm_device *dev)
 	spin_unlock(&shrink_list_lock);
 
 	/* Old X drivers will take 0-2 for front, back, depth buffers */
-	dev_priv->fence_reg_start = 3;
+	if (!drm_core_check_feature(dev, DRIVER_MODESET))
+		dev_priv->fence_reg_start = 3;
 
 	if (IS_I965G(dev) || IS_I945G(dev) || IS_I945GM(dev) || IS_G33(dev))
 		dev_priv->num_fence_regs = 16;
