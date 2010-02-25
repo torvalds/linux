@@ -179,7 +179,6 @@ static void nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs)
 		if (counter_config[i].enabled) {
 			multiplex[i].saved = -(u64)counter_config[i].count;
 		} else {
-			multiplex[i].addr  = 0;
 			multiplex[i].saved = 0;
 		}
 	}
@@ -189,25 +188,27 @@ static void nmi_cpu_setup_mux(int cpu, struct op_msrs const * const msrs)
 
 static void nmi_cpu_save_mpx_registers(struct op_msrs *msrs)
 {
+	struct op_msr *counters = msrs->counters;
 	struct op_msr *multiplex = msrs->multiplex;
 	int i;
 
 	for (i = 0; i < model->num_counters; ++i) {
 		int virt = op_x86_phys_to_virt(i);
-		if (multiplex[virt].addr)
-			rdmsrl(multiplex[virt].addr, multiplex[virt].saved);
+		if (counters[i].addr)
+			rdmsrl(counters[i].addr, multiplex[virt].saved);
 	}
 }
 
 static void nmi_cpu_restore_mpx_registers(struct op_msrs *msrs)
 {
+	struct op_msr *counters = msrs->counters;
 	struct op_msr *multiplex = msrs->multiplex;
 	int i;
 
 	for (i = 0; i < model->num_counters; ++i) {
 		int virt = op_x86_phys_to_virt(i);
-		if (multiplex[virt].addr)
-			wrmsrl(multiplex[virt].addr, multiplex[virt].saved);
+		if (counters[i].addr)
+			wrmsrl(counters[i].addr, multiplex[virt].saved);
 	}
 }
 

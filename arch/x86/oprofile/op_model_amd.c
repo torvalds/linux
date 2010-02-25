@@ -118,19 +118,6 @@ static u32 get_ibs_caps(void)
 
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 
-static void op_mux_fill_in_addresses(struct op_msrs * const msrs)
-{
-	int i;
-
-	for (i = 0; i < NUM_VIRT_COUNTERS; i++) {
-		int hw_counter = op_x86_virt_to_phys(i);
-		if (reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
-			msrs->multiplex[i].addr = MSR_K7_PERFCTR0 + hw_counter;
-		else
-			msrs->multiplex[i].addr = 0;
-	}
-}
-
 static void op_mux_switch_ctrl(struct op_x86_model_spec const *model,
 			       struct op_msrs const * const msrs)
 {
@@ -148,10 +135,6 @@ static void op_mux_switch_ctrl(struct op_x86_model_spec const *model,
 		wrmsrl(msrs->controls[i].addr, val);
 	}
 }
-
-#else
-
-static inline void op_mux_fill_in_addresses(struct op_msrs * const msrs) { }
 
 #endif
 
@@ -174,8 +157,6 @@ static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
 		else
 			msrs->controls[i].addr = 0;
 	}
-
-	op_mux_fill_in_addresses(msrs);
 }
 
 static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
