@@ -818,6 +818,12 @@ static inline struct sk_buff *ixgbe_transform_rsc_queue(struct sk_buff *skb,
 	return skb;
 }
 
+struct ixgbe_rsc_cb {
+	dma_addr_t dma;
+};
+
+#define IXGBE_RSC_CB(skb) ((struct ixgbe_rsc_cb *)(skb)->cb)
+
 static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
                                struct ixgbe_ring *rx_ring,
                                int *work_done, int work_to_do)
@@ -867,9 +873,21 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 		rx_buffer_info->skb = NULL;
 
 		if (rx_buffer_info->dma) {
-			pci_unmap_single(pdev, rx_buffer_info->dma,
-			                 rx_ring->rx_buf_len,
-			                 PCI_DMA_FROMDEVICE);
+			if ((adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) &&
+			    (!(staterr & IXGBE_RXD_STAT_EOP)) &&
+				 (!(skb->prev)))
+				/*
+				 * When HWRSC is enabled, delay unmapping
+				 * of the first packet. It carries the
+				 * header information, HW may still
+				 * access the header after the writeback.
+				 * Only unmap it when EOP is reached
+				 */
+				IXGBE_RSC_CB(skb)->dma = rx_buffer_info->dma;
+			else
+				pci_unmap_single(pdev, rx_buffer_info->dma,
+				                 rx_ring->rx_buf_len,
+				                 PCI_DMA_FROMDEVICE);
 			rx_buffer_info->dma = 0;
 			skb_put(skb, len);
 		}
@@ -917,6 +935,10 @@ static bool ixgbe_clean_rx_irq(struct ixgbe_q_vector *q_vector,
 			if (skb->prev)
 				skb = ixgbe_transform_rsc_queue(skb, &(rx_ring->rsc_count));
 			if (adapter->flags2 & IXGBE_FLAG2_RSC_ENABLED) {
+				if (IXGBE_RSC_CB(skb)->dma)
+					pci_unmap_single(pdev, IXGBE_RSC_CB(skb)->dma,
+					                 rx_ring->rx_buf_len,
+					                 PCI_DMA_FROMDEVICE);
 				if (rx_ring->flags & IXGBE_RING_RX_PS_ENABLED)
 					rx_ring->rsc_count += skb_shinfo(skb)->nr_frags;
 				else
@@ -3104,6 +3126,10 @@ static void ixgbe_clean_rx_ring(struct ixgbe_adapter *adapter,
 			rx_buffer_info->skb = NULL;
 			do {
 				struct sk_buff *this = skb;
+				if (IXGBE_RSC_CB(this)->dma)
+					pci_unmap_single(pdev, IXGBE_RSC_CB(this)->dma,
+					                 rx_ring->rx_buf_len,
+					                 PCI_DMA_FROMDEVICE);
 				skb = skb->prev;
 				dev_kfree_skb(this);
 			} while (skb);
