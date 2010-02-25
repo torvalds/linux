@@ -396,7 +396,8 @@ int pohmelfs_remove_child(struct pohmelfs_inode *pi, struct pohmelfs_name *n)
 /*
  * Writeback for given inode.
  */
-static int pohmelfs_write_inode(struct inode *inode, int sync)
+static int pohmelfs_write_inode(struct inode *inode,
+				struct writeback_control *wbc)
 {
 	struct pohmelfs_inode *pi = POHMELFS_I(inode);
 
