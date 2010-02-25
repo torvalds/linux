@@ -423,9 +423,9 @@ int iwm_notif_send(struct iwm_priv *iwm, struct iwm_wifi_cmd *cmd,
 static struct iwm_notif *iwm_notif_find(struct iwm_priv *iwm, u32 cmd,
 					u8 source)
 {
-	struct iwm_notif *notif, *next;
+	struct iwm_notif *notif;
 
-	list_for_each_entry_safe(notif, next, &iwm->pending_notif, pending) {
+	list_for_each_entry(notif, &iwm->pending_notif, pending) {
 		if ((notif->cmd_id == cmd) && (notif->src == source)) {
 			list_del(&notif->pending);
 			return notif;

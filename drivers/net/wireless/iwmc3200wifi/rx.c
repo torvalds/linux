@@ -342,12 +342,9 @@ static void iwm_rx_ticket_node_free(struct iwm_rx_ticket_node *ticket_node)
 static struct iwm_rx_packet *iwm_rx_packet_get(struct iwm_priv *iwm, u16 id)
 {
 	u8 id_hash = IWM_RX_ID_GET_HASH(id);
-	struct list_head *packet_list;
-	struct iwm_rx_packet *packet, *next;
+	struct iwm_rx_packet *packet;
 
-	packet_list = &iwm->rx_packets[id_hash];
-
-	list_for_each_entry_safe(packet, next, packet_list, node)
+	list_for_each_entry(packet, &iwm->rx_packets[id_hash], node)
 		if (packet->id == id)
 			return packet;
 
@@ -771,7 +768,7 @@ static int iwm_mlme_update_bss_table(struct iwm_priv *iwm, u8 *buf,
 			(struct iwm_umac_notif_bss_info *)buf;
 	struct ieee80211_channel *channel;
 	struct ieee80211_supported_band *band;
-	struct iwm_bss_info *bss, *next;
+	struct iwm_bss_info *bss;
 	s32 signal;
 	int freq;
 	u16 frame_len = le16_to_cpu(umac_bss->frame_len);
@@ -790,7 +787,7 @@ static int iwm_mlme_update_bss_table(struct iwm_priv *iwm, u8 *buf,
 	IWM_DBG_MLME(iwm, DBG, "\tRSSI: %d\n", umac_bss->rssi);
 	IWM_DBG_MLME(iwm, DBG, "\tFrame Length: %d\n", frame_len);
 
-	list_for_each_entry_safe(bss, next, &iwm->bss_list, node)
+	list_for_each_entry(bss, &iwm->bss_list, node)
 		if (bss->bss->table_idx == umac_bss->table_idx)
 			break;
 
@@ -1331,7 +1328,7 @@ static int iwm_rx_handle_nonwifi(struct iwm_priv *iwm, u8 *buf,
 {
 	u8 seq_num;
 	struct iwm_udma_in_hdr *hdr = (struct iwm_udma_in_hdr *)buf;
-	struct iwm_nonwifi_cmd *cmd, *next;
+	struct iwm_nonwifi_cmd *cmd;
 
 	seq_num = GET_VAL32(hdr->cmd, UDMA_HDI_IN_CMD_NON_WIFI_HW_SEQ_NUM);
 
@@ -1343,7 +1340,7 @@ static int iwm_rx_handle_nonwifi(struct iwm_priv *iwm, u8 *buf,
 	 * That means we only support synchronised non wifi command response
 	 * schemes.
 	 */
-	list_for_each_entry_safe(cmd, next, &iwm->nonwifi_pending_cmd, pending)
+	list_for_each_entry(cmd, &iwm->nonwifi_pending_cmd, pending)
 		if (cmd->seq_num == seq_num) {
 			cmd->resp_received = 1;
 			cmd->buf.len = buf_size;

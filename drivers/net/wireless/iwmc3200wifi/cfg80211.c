@@ -263,7 +263,7 @@ static int iwm_cfg80211_get_station(struct wiphy *wiphy,
 int iwm_cfg80211_inform_bss(struct iwm_priv *iwm)
 {
 	struct wiphy *wiphy = iwm_to_wiphy(iwm);
-	struct iwm_bss_info *bss, *next;
+	struct iwm_bss_info *bss;
 	struct iwm_umac_notif_bss_info *umac_bss;
 	struct ieee80211_mgmt *mgmt;
 	struct ieee80211_channel *channel;
@@ -271,7 +271,7 @@ int iwm_cfg80211_inform_bss(struct iwm_priv *iwm)
 	s32 signal;
 	int freq;
 
-	list_for_each_entry_safe(bss, next, &iwm->bss_list, node) {
+	list_for_each_entry(bss, &iwm->bss_list, node) {
 		umac_bss = bss->bss;
 		mgmt = (struct ieee80211_mgmt *)(umac_bss->frame_buf);
 
