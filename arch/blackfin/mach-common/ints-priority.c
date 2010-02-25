@@ -252,11 +252,6 @@ int bfin_internal_set_wake(unsigned int irq, unsigned int state)
 	wakeup |= USBWE;
 	break;
 #endif
-#ifdef IRQ_KEY
-	case IRQ_KEY:
-	wakeup |= KPADWE;
-	break;
-#endif
 #ifdef CONFIG_BF54x
 	case IRQ_CNT:
 	wakeup |= ROTWE;
