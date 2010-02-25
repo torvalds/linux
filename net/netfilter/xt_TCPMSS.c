@@ -239,6 +239,7 @@ static bool tcpmss_tg4_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_tcpmss_info *info = par->targinfo;
 	const struct ipt_entry *e = par->entryinfo;
+	const struct xt_entry_match *ematch;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU &&
 	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
@@ -248,8 +249,9 @@ static bool tcpmss_tg4_check(const struct xt_tgchk_param *par)
 		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return false;
 	}
-	if (IPT_MATCH_ITERATE(e, find_syn_match))
-		return true;
+	xt_ematch_foreach(ematch, e)
+		if (find_syn_match(ematch))
+			return true;
 	printk("xt_TCPMSS: Only works on TCP SYN packets\n");
 	return false;
 }
@@ -259,6 +261,7 @@ static bool tcpmss_tg6_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_tcpmss_info *info = par->targinfo;
 	const struct ip6t_entry *e = par->entryinfo;
+	const struct xt_entry_match *ematch;
 
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU &&
 	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
@@ -268,8 +271,9 @@ static bool tcpmss_tg6_check(const struct xt_tgchk_param *par)
 		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return false;
 	}
-	if (IP6T_MATCH_ITERATE(e, find_syn_match))
-		return true;
+	xt_ematch_foreach(ematch, e)
+		if (find_syn_match(ematch))
+			return true;
 	printk("xt_TCPMSS: Only works on TCP SYN packets\n");
 	return false;
 }
