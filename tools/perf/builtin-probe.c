@@ -175,22 +175,24 @@ static const struct option options[] = {
 		opt_del_probe_event),
 	OPT_CALLBACK('a', "add", NULL,
 #ifdef NO_DWARF_SUPPORT
-		"[EVENT=]FUNC[+OFFS|%return] [ARG ...]",
+		"[EVENT=]FUNC[+OFF|%return] [ARG ...]",
 #else
-		"[EVENT=]FUNC[+OFFS|%return|:RLN][@SRC]|SRC:ALN [ARG ...]",
+		"[EVENT=]FUNC[+OFF|%return|:RL|;PT][@SRC]|SRC:AL|SRC;PT"
+		" [ARG ...]",
 #endif
 		"probe point definition, where\n"
 		"\t\tGROUP:\tGroup name (optional)\n"
 		"\t\tEVENT:\tEvent name\n"
 		"\t\tFUNC:\tFunction name\n"
-		"\t\tOFFS:\tOffset from function entry (in byte)\n"
+		"\t\tOFF:\tOffset from function entry (in byte)\n"
 		"\t\t%return:\tPut the probe at function return\n"
 #ifdef NO_DWARF_SUPPORT
 		"\t\tARG:\tProbe argument (only \n"
 #else
 		"\t\tSRC:\tSource code path\n"
-		"\t\tRLN:\tRelative line number from function entry.\n"
-		"\t\tALN:\tAbsolute line number in file.\n"
+		"\t\tRL:\tRelative line number from function entry.\n"
+		"\t\tAL:\tAbsolute line number in file.\n"
+		"\t\tPT:\tLazy expression of line code.\n"
 		"\t\tARG:\tProbe argument (local variable name or\n"
 #endif
 		"\t\t\tkprobe-tracer argument format.)\n",

@@ -119,14 +119,14 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 	char c, nc = 0;
 	/*
 	 * <Syntax>
-	 * perf probe [EVENT=]SRC:LN
-	 * perf probe [EVENT=]FUNC[+OFFS|%return][@SRC]
+	 * perf probe [EVENT=]SRC[:LN|;PTN]
+	 * perf probe [EVENT=]FUNC[@SRC][+OFFS|%return|:LN|;PAT]
 	 *
 	 * TODO:Group name support
 	 */
 
-	ptr = strchr(arg, '=');
-	if (ptr) {	/* Event name */
+	ptr = strpbrk(arg, ";=@+%");
+	if (ptr && *ptr == '=') {	/* Event name */
 		*ptr = '\0';
 		tmp = ptr + 1;
 		ptr = strchr(arg, ':');
@@ -139,7 +139,7 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 		arg = tmp;
 	}
 
-	ptr = strpbrk(arg, ":+@%");
+	ptr = strpbrk(arg, ";:+@%");
 	if (ptr) {
 		nc = *ptr;
 		*ptr++ = '\0';
@@ -156,7 +156,11 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 	while (ptr) {
 		arg = ptr;
 		c = nc;
-		ptr = strpbrk(arg, ":+@%");
+		if (c == ';') {	/* Lazy pattern must be the last part */
+			pp->lazy_line = strdup(arg);
+			break;
+		}
+		ptr = strpbrk(arg, ";:+@%");
 		if (ptr) {
 			nc = *ptr;
 			*ptr++ = '\0';
@@ -165,13 +169,13 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 		case ':':	/* Line number */
 			pp->line = strtoul(arg, &tmp, 0);
 			if (*tmp != '\0')
-				semantic_error("There is non-digit charactor"
-						" in line number.");
+				semantic_error("There is non-digit char"
+					       " in line number.");
 			break;
 		case '+':	/* Byte offset from a symbol */
 			pp->offset = strtoul(arg, &tmp, 0);
 			if (*tmp != '\0')
-				semantic_error("There is non-digit charactor"
+				semantic_error("There is non-digit character"
 						" in offset.");
 			break;
 		case '@':	/* File name */
@@ -179,9 +183,6 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 				semantic_error("SRC@SRC is not allowed.");
 			pp->file = strdup(arg);
 			DIE_IF(pp->file == NULL);
-			if (ptr)
-				semantic_error("@SRC must be the last "
-					       "option.");
 			break;
 		case '%':	/* Probe places */
 			if (strcmp(arg, "return") == 0) {
@@ -196,11 +197,18 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 	}
 
 	/* Exclusion check */
+	if (pp->lazy_line && pp->line)
+		semantic_error("Lazy pattern can't be used with line number.");
+
+	if (pp->lazy_line && pp->offset)
+		semantic_error("Lazy pattern can't be used with offset.");
+
 	if (pp->line && pp->offset)
 		semantic_error("Offset can't be used with line number.");
 
-	if (!pp->line && pp->file && !pp->function)
-		semantic_error("File always requires line number.");
+	if (!pp->line && !pp->lazy_line && pp->file && !pp->function)
+		semantic_error("File always requires line number or "
+			       "lazy pattern.");
 
 	if (pp->offset && !pp->function)
 		semantic_error("Offset requires an entry function.");
@@ -208,11 +216,13 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 	if (pp->retprobe && !pp->function)
 		semantic_error("Return probe requires an entry function.");
 
-	if ((pp->offset || pp->line) && pp->retprobe)
-		semantic_error("Offset/Line can't be used with return probe.");
+	if ((pp->offset || pp->line || pp->lazy_line) && pp->retprobe)
+		semantic_error("Offset/Line/Lazy pattern can't be used with "
+			       "return probe.");
 
-	pr_debug("symbol:%s file:%s line:%d offset:%d, return:%d\n",
-		 pp->function, pp->file, pp->line, pp->offset, pp->retprobe);
+	pr_debug("symbol:%s file:%s line:%d offset:%d return:%d lazy:%s\n",
+		 pp->function, pp->file, pp->line, pp->offset, pp->retprobe,
+		 pp->lazy_line);
 }
 
 /* Parse perf-probe event definition */
@@ -456,6 +466,8 @@ static void clear_probe_point(struct probe_point *pp)
 		free(pp->function);
 	if (pp->file)
 		free(pp->file);
+	if (pp->lazy_line)
+		free(pp->lazy_line);
 	for (i = 0; i < pp->nr_args; i++)
 		free(pp->args[i]);
 	if (pp->args)

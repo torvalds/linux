@@ -32,6 +32,7 @@
 #include <stdarg.h>
 #include <ctype.h>
 
+#include "string.h"
 #include "event.h"
 #include "debug.h"
 #include "util.h"
@@ -104,8 +105,67 @@ static int strtailcmp(const char *s1, const char *s2)
 	return 0;
 }
 
-/* Find the fileno of the target file. */
-static int cu_find_fileno(Dwarf_Die *cu_die, const char *fname)
+/* Line number list operations */
+
+/* Add a line to line number list */
+static void line_list__add_line(struct list_head *head, unsigned int line)
+{
+	struct line_node *ln;
+	struct list_head *p;
+
+	/* Reverse search, because new line will be the last one */
+	list_for_each_entry_reverse(ln, head, list) {
+		if (ln->line < line) {
+			p = &ln->list;
+			goto found;
+		} else if (ln->line == line)	/* Already exist */
+			return ;
+	}
+	/* List is empty, or the smallest entry */
+	p = head;
+found:
+	pr_debug("line list: add a line %u\n", line);
+	ln = zalloc(sizeof(struct line_node));
+	DIE_IF(ln == NULL);
+	ln->line = line;
+	INIT_LIST_HEAD(&ln->list);
+	list_add(&ln->list, p);
+}
+
+/* Check if the line in line number list */
+static int line_list__has_line(struct list_head *head, unsigned int line)
+{
+	struct line_node *ln;
+
+	/* Reverse search, because new line will be the last one */
+	list_for_each_entry(ln, head, list)
+		if (ln->line == line)
+			return 1;
+
+	return 0;
+}
+
+/* Init line number list */
+static void line_list__init(struct list_head *head)
+{
+	INIT_LIST_HEAD(head);
+}
+
+/* Free line number list */
+static void line_list__free(struct list_head *head)
+{
+	struct line_node *ln;
+	while (!list_empty(head)) {
+		ln = list_first_entry(head, struct line_node, list);
+		list_del(&ln->list);
+		free(ln);
+	}
+}
+
+/* Dwarf wrappers */
+
+/* Find the realpath of the target file. */
+static const char *cu_find_realpath(Dwarf_Die *cu_die, const char *fname)
 {
 	Dwarf_Files *files;
 	size_t nfiles, i;
@@ -113,21 +173,18 @@ static int cu_find_fileno(Dwarf_Die *cu_die, const char *fname)
 	int ret;
 
 	if (!fname)
-		return -EINVAL;
+		return NULL;
 
 	ret = dwarf_getsrcfiles(cu_die, &files, &nfiles);
-	if (ret == 0) {
-		for (i = 0; i < nfiles; i++) {
-			src = dwarf_filesrc(files, i, NULL, NULL);
-			if (strtailcmp(src, fname) == 0) {
-				ret = (int)i;	/*???: +1 or not?*/
-				break;
-			}
-		}
-		if (ret)
-			pr_debug("found fno: %d\n", ret);
+	if (ret != 0)
+		return NULL;
+
+	for (i = 0; i < nfiles; i++) {
+		src = dwarf_filesrc(files, i, NULL, NULL);
+		if (strtailcmp(src, fname) == 0)
+			break;
 	}
-	return ret;
+	return src;
 }
 
 struct __addr_die_search_param {
@@ -436,17 +493,109 @@ static void find_probe_point_by_line(struct probe_finder *pf)
 	}
 }
 
+/* Find lines which match lazy pattern */
+static int find_lazy_match_lines(struct list_head *head,
+				 const char *fname, const char *pat)
+{
+	char *fbuf, *p1, *p2;
+	int fd, line, nlines = 0;
+	struct stat st;
+
+	fd = open(fname, O_RDONLY);
+	if (fd < 0)
+		die("failed to open %s", fname);
+	DIE_IF(fstat(fd, &st) < 0);
+	fbuf = malloc(st.st_size + 2);
+	DIE_IF(fbuf == NULL);
+	DIE_IF(read(fd, fbuf, st.st_size) < 0);
+	close(fd);
+	fbuf[st.st_size] = '\n';	/* Dummy line */
+	fbuf[st.st_size + 1] = '\0';
+	p1 = fbuf;
+	line = 1;
+	while ((p2 = strchr(p1, '\n')) != NULL) {
+		*p2 = '\0';
+		if (strlazymatch(p1, pat)) {
+			line_list__add_line(head, line);
+			nlines++;
+		}
+		line++;
+		p1 = p2 + 1;
+	}
+	free(fbuf);
+	return nlines;
+}
+
+/* Find probe points from lazy pattern  */
+static void find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
+{
+	Dwarf_Lines *lines;
+	Dwarf_Line *line;
+	size_t nlines, i;
+	Dwarf_Addr addr;
+	Dwarf_Die die_mem;
+	int lineno;
+	int ret;
+
+	if (list_empty(&pf->lcache)) {
+		/* Matching lazy line pattern */
+		ret = find_lazy_match_lines(&pf->lcache, pf->fname,
+					    pf->pp->lazy_line);
+		if (ret <= 0)
+			die("No matched lines found in %s.", pf->fname);
+	}
+
+	ret = dwarf_getsrclines(&pf->cu_die, &lines, &nlines);
+	DIE_IF(ret != 0);
+	for (i = 0; i < nlines; i++) {
+		line = dwarf_onesrcline(lines, i);
+
+		dwarf_lineno(line, &lineno);
+		if (!line_list__has_line(&pf->lcache, lineno))
+			continue;
+
+		/* TODO: Get fileno from line, but how? */
+		if (strtailcmp(dwarf_linesrc(line, NULL, NULL), pf->fname) != 0)
+			continue;
+
+		ret = dwarf_lineaddr(line, &addr);
+		DIE_IF(ret != 0);
+		if (sp_die) {
+			/* Address filtering 1: does sp_die include addr? */
+			if (!dwarf_haspc(sp_die, addr))
+				continue;
+			/* Address filtering 2: No child include addr? */
+			if (die_get_inlinefunc(sp_die, addr, &die_mem))
+				continue;
+		}
+
+		pr_debug("Probe line found: line[%d]:%d addr:0x%llx\n",
+			 (int)i, lineno, (unsigned long long)addr);
+		pf->addr = addr;
+
+		show_probe_point(sp_die, pf);
+		/* Continuing, because target line might be inlined. */
+	}
+	/* TODO: deallocate lines, but how? */
+}
+
 static int probe_point_inline_cb(Dwarf_Die *in_die, void *data)
 {
 	struct probe_finder *pf = (struct probe_finder *)data;
 	struct probe_point *pp = pf->pp;
 
-	/* Get probe address */
-	pf->addr = die_get_entrypc(in_die);
-	pf->addr += pp->offset;
-	pr_debug("found inline addr: 0x%jx\n", (uintmax_t)pf->addr);
+	if (pp->lazy_line)
+		find_probe_point_lazy(in_die, pf);
+	else {
+		/* Get probe address */
+		pf->addr = die_get_entrypc(in_die);
+		pf->addr += pp->offset;
+		pr_debug("found inline addr: 0x%jx\n",
+			 (uintmax_t)pf->addr);
 
-	show_probe_point(in_die, pf);
+		show_probe_point(in_die, pf);
+	}
+
 	return DWARF_CB_OK;
 }
 
@@ -461,17 +610,21 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 	    die_compare_name(sp_die, pp->function) != 0)
 		return 0;
 
+	pf->fname = dwarf_decl_file(sp_die);
 	if (pp->line) { /* Function relative line */
-		pf->fname = dwarf_decl_file(sp_die);
 		dwarf_decl_line(sp_die, &pf->lno);
 		pf->lno += pp->line;
 		find_probe_point_by_line(pf);
 	} else if (!dwarf_func_inline(sp_die)) {
 		/* Real function */
-		pf->addr = die_get_entrypc(sp_die);
-		pf->addr += pp->offset;
-		/* TODO: Check the address in this function */
-		show_probe_point(sp_die, pf);
+		if (pp->lazy_line)
+			find_probe_point_lazy(sp_die, pf);
+		else {
+			pf->addr = die_get_entrypc(sp_die);
+			pf->addr += pp->offset;
+			/* TODO: Check the address in this function */
+			show_probe_point(sp_die, pf);
+		}
 	} else
 		/* Inlined function: search instances */
 		dwarf_func_inline_instances(sp_die, probe_point_inline_cb, pf);
@@ -493,7 +646,6 @@ int find_probe_point(int fd, struct probe_point *pp)
 	size_t cuhl;
 	Dwarf_Die *diep;
 	Dwarf *dbg;
-	int fno = 0;
 
 	dbg = dwarf_begin(fd, DWARF_C_READ);
 	if (!dbg)
@@ -501,6 +653,7 @@ int find_probe_point(int fd, struct probe_point *pp)
 
 	pp->found = 0;
 	off = 0;
+	line_list__init(&pf.lcache);
 	/* Loop on CUs (Compilation Unit) */
 	while (!dwarf_nextcu(dbg, off, &noff, &cuhl, NULL, NULL, NULL)) {
 		/* Get the DIE(Debugging Information Entry) of this CU */
@@ -510,17 +663,19 @@ int find_probe_point(int fd, struct probe_point *pp)
 
 		/* Check if target file is included. */
 		if (pp->file)
-			fno = cu_find_fileno(&pf.cu_die, pp->file);
+			pf.fname = cu_find_realpath(&pf.cu_die, pp->file);
 		else
-			fno = 0;
+			pf.fname = NULL;
 
-		if (!pp->file || fno) {
+		if (!pp->file || pf.fname) {
 			/* Save CU base address (for frame_base) */
 			ret = dwarf_lowpc(&pf.cu_die, &pf.cu_base);
 			if (ret != 0)
 				pf.cu_base = 0;
 			if (pp->function)
 				find_probe_point_by_func(&pf);
+			else if (pp->lazy_line)
+				find_probe_point_lazy(NULL, &pf);
 			else {
 				pf.lno = pp->line;
 				find_probe_point_by_line(&pf);
@@ -528,34 +683,10 @@ int find_probe_point(int fd, struct probe_point *pp)
 		}
 		off = noff;
 	}
+	line_list__free(&pf.lcache);
 	dwarf_end(dbg);
 
 	return pp->found;
-}
-
-
-static void line_range_add_line(struct line_range *lr, unsigned int line)
-{
-	struct line_node *ln;
-	struct list_head *p;
-
-	/* Reverse search, because new line will be the last one */
-	list_for_each_entry_reverse(ln, &lr->line_list, list) {
-		if (ln->line < line) {
-			p = &ln->list;
-			goto found;
-		} else if (ln->line == line)	/* Already exist */
-			return ;
-	}
-	/* List is empty, or the smallest entry */
-	p = &lr->line_list;
-found:
-	pr_debug("Debug: add a line %u\n", line);
-	ln = zalloc(sizeof(struct line_node));
-	DIE_IF(ln == NULL);
-	ln->line = line;
-	INIT_LIST_HEAD(&ln->list);
-	list_add(&ln->list, p);
 }
 
 /* Find line range from its line number */
@@ -570,7 +701,7 @@ static void find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 	const char *src;
 	Dwarf_Die die_mem;
 
-	INIT_LIST_HEAD(&lf->lr->line_list);
+	line_list__init(&lf->lr->line_list);
 	ret = dwarf_getsrclines(&lf->cu_die, &lines, &nlines);
 	DIE_IF(ret != 0);
 
@@ -601,7 +732,7 @@ static void find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 		/* Copy real path */
 		if (!lf->lr->path)
 			lf->lr->path = strdup(src);
-		line_range_add_line(lf->lr, (unsigned int)lineno);
+		line_list__add_line(&lf->lr->line_list, (unsigned int)lineno);
 	}
 	/* Update status */
 	if (!list_empty(&lf->lr->line_list))
@@ -659,7 +790,6 @@ int find_line_range(int fd, struct line_range *lr)
 	size_t cuhl;
 	Dwarf_Die *diep;
 	Dwarf *dbg;
-	int fno;
 
 	dbg = dwarf_begin(fd, DWARF_C_READ);
 	if (!dbg)
@@ -678,15 +808,14 @@ int find_line_range(int fd, struct line_range *lr)
 
 		/* Check if target file is included. */
 		if (lr->file)
-			fno = cu_find_fileno(&lf.cu_die, lr->file);
+			lf.fname = cu_find_realpath(&lf.cu_die, lr->file);
 		else
-			fno = 0;
+			lf.fname = 0;
 
-		if (!lr->file || fno) {
+		if (!lr->file || lf.fname) {
 			if (lr->function)
 				find_line_range_by_func(&lf);
 			else {
-				lf.fname = lr->file;
 				lf.lno_s = lr->start;
 				if (!lr->end)
 					lf.lno_e = INT_MAX;

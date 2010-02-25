@@ -61,11 +61,19 @@ PROBE SYNTAX
 ------------
 Probe points are defined by following syntax.
 
- "[EVENT=]FUNC[+OFFS|:RLN|%return][@SRC]|SRC:ALN [ARG ...]"
+    1) Define event based on function name
+     [EVENT=]FUNC[@SRC][:RLN|+OFFS|%return|;PTN] [ARG ...]
+
+    2) Define event based on source file with line number
+     [EVENT=]SRC:ALN [ARG ...]
+
+    3) Define event based on source file with lazy pattern
+     [EVENT=]SRC;PTN [ARG ...]
+
 
 'EVENT' specifies the name of new event, if omitted, it will be set the name of the probed function. Currently, event group name is set as 'probe'.
-'FUNC' specifies a probed function name, and it may have one of the following options; '+OFFS' is the offset from function entry address in bytes, 'RLN' is the relative-line number from function entry line, and '%return' means that it probes function return. In addition, 'SRC' specifies a source file which has that function.
-It is also possible to specify a probe point by the source line number by using 'SRC:ALN' syntax, where 'SRC' is the source file path and 'ALN' is the line number.
+'FUNC' specifies a probed function name, and it may have one of the following options; '+OFFS' is the offset from function entry address in bytes, ':RLN' is the relative-line number from function entry line, and '%return' means that it probes function return. And ';PTN' means lazy matching pattern (see LAZY MATCHING). Note that ';PTN' must be the end of the probe point definition.  In addition, '@SRC' specifies a source file which has that function.
+It is also possible to specify a probe point by the source line number or lazy matching by using 'SRC:ALN' or 'SRC;PTN' syntax, where 'SRC' is the source file path, ':ALN' is the line number and ';PTN' is the lazy matching pattern.
 'ARG' specifies the arguments of this probe point. You can use the name of local variable, or kprobe-tracer argument format (e.g. $retval, %ax, etc).
 
 LINE SYNTAX
@@ -81,6 +89,16 @@ and 'ALN2' is end line number in the file. It is also possible to specify how
 many lines to show by using 'NUM'.
 So, "source.c:100-120" shows lines between 100th to l20th in source.c file. And "func:10+20" shows 20 lines from 10th line of func function.
 
+LAZY MATCHING
+-------------
+ The lazy line matching is similar to glob matching but ignoring spaces in both of pattern and target. So this accepts wildcards('*', '?') and character classes(e.g. [a-z], [!A-Z]).
+
+e.g.
+ 'a=*' can matches 'a=b', 'a = b', 'a == b' and so on.
+
+This provides some sort of flexibility and robustness to probe point definitions against minor code changes. For example, actual 10th line of schedule() can be moved easily by modifying schedule(), but the same line matching 'rq=cpu_rq*' may still exist in the function.)
+
+
 EXAMPLES
 --------
 Display which lines in schedule() can be probed:
@@ -94,6 +112,12 @@ Add a probe on schedule() function 12th line with recording cpu local variable:
  ./perf probe --add='schedule:12 cpu'
 
  this will add one or more probes which has the name start with "schedule".
+
+ Add probes on lines in schedule() function which calls update_rq_clock().
+
+ ./perf probe 'schedule;update_rq_clock*'
+ or
+ ./perf probe --add='schedule;update_rq_clock*'
 
 Delete all probes on schedule().
 

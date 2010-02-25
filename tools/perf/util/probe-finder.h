@@ -21,6 +21,7 @@ struct probe_point {
 	/* Inputs */
 	char			*file;			/* File name */
 	int			line;			/* Line number */
+	char			*lazy_line;		/* Lazy line pattern */
 
 	char			*function;		/* Function name */
 	int			offset;			/* Offset bytes */
@@ -74,6 +75,7 @@ struct probe_finder {
 	const char		*var;		/* Current variable name */
 	char			*buf;		/* Current output buffer */
 	int			len;		/* Length of output buffer */
+	struct list_head	lcache;		/* Line cache for lazy match */
 };
 
 struct line_finder {
