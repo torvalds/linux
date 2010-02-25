@@ -518,6 +518,8 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 				   unsigned long buf_size,
 				   struct iwm_wifi_cmd *cmd)
 {
+	struct wiphy *wiphy = iwm_to_wiphy(iwm);
+	struct ieee80211_channel *chan;
 	struct iwm_umac_notif_assoc_complete *complete =
 		(struct iwm_umac_notif_assoc_complete *)buf;
 
@@ -526,6 +528,18 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 
 	switch (le32_to_cpu(complete->status)) {
 	case UMAC_ASSOC_COMPLETE_SUCCESS:
+		chan = ieee80211_get_channel(wiphy,
+			ieee80211_channel_to_frequency(complete->channel));
+		if (!chan || chan->flags & IEEE80211_CHAN_DISABLED) {
+			/* Associated to a unallowed channel, disassociate. */
+			__iwm_invalidate_mlme_profile(iwm);
+			IWM_WARN(iwm, "Couldn't associate with %pM due to "
+				 "channel %d is disabled. Check your local "
+				 "regulatory setting.\n",
+				 complete->bssid, complete->channel);
+			goto failure;
+		}
+
 		set_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
 		memcpy(iwm->bssid, complete->bssid, ETH_ALEN);
 		iwm->channel = complete->channel;
@@ -562,6 +576,7 @@ static int iwm_mlme_assoc_complete(struct iwm_priv *iwm, u8 *buf,
 					GFP_KERNEL);
 		break;
 	case UMAC_ASSOC_COMPLETE_FAILURE:
+ failure:
 		clear_bit(IWM_STATUS_ASSOCIATED, &iwm->status);
 		memset(iwm->bssid, 0, ETH_ALEN);
 		iwm->channel = 0;

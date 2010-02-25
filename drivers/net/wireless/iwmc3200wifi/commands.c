@@ -781,10 +781,9 @@ int iwm_send_mlme_profile(struct iwm_priv *iwm)
 	return 0;
 }
 
-int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
+int __iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
 {
 	struct iwm_umac_invalidate_profile invalid;
-	int ret;
 
 	invalid.hdr.oid = UMAC_WIFI_IF_CMD_INVALIDATE_PROFILE;
 	invalid.hdr.buf_size =
@@ -793,7 +792,14 @@ int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
 
 	invalid.reason = WLAN_REASON_UNSPECIFIED;
 
-	ret = iwm_send_wifi_if_cmd(iwm, &invalid, sizeof(invalid), 1);
+	return iwm_send_wifi_if_cmd(iwm, &invalid, sizeof(invalid), 1);
+}
+
+int iwm_invalidate_mlme_profile(struct iwm_priv *iwm)
+{
+	int ret;
+
+	ret = __iwm_invalidate_mlme_profile(iwm);
 	if (ret)
 		return ret;
 
