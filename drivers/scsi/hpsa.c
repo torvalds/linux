@@ -43,6 +43,7 @@
 #include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_device.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
 #include <linux/cciss_ioctl.h>
 #include <linux/string.h>
 #include <linux/bitmap.h>
@@ -134,6 +135,8 @@ static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
 static void hpsa_scan_start(struct Scsi_Host *);
 static int hpsa_scan_finished(struct Scsi_Host *sh,
 	unsigned long elapsed_time);
+static int hpsa_change_queue_depth(struct scsi_device *sdev,
+	int qdepth, int reason);
 
 static int hpsa_eh_device_reset_handler(struct scsi_cmnd *scsicmd);
 static int hpsa_slave_alloc(struct scsi_device *sdev);
@@ -182,6 +185,7 @@ static struct scsi_host_template hpsa_driver_template = {
 	.queuecommand		= hpsa_scsi_queue_command,
 	.scan_start		= hpsa_scan_start,
 	.scan_finished		= hpsa_scan_finished,
+	.change_queue_depth	= hpsa_change_queue_depth,
 	.this_id		= -1,
 	.sg_tablesize		= MAXSGENTRIES,
 	.use_clustering		= ENABLE_CLUSTERING,
@@ -2075,6 +2079,23 @@ static int hpsa_scan_finished(struct Scsi_Host *sh,
 	finished = h->scan_finished;
 	spin_unlock_irqrestore(&h->scan_lock, flags);
 	return finished;
+}
+
+static int hpsa_change_queue_depth(struct scsi_device *sdev,
+	int qdepth, int reason)
+{
+	struct ctlr_info *h = sdev_to_hba(sdev);
+
+	if (reason != SCSI_QDEPTH_DEFAULT)
+		return -ENOTSUPP;
+
+	if (qdepth < 1)
+		qdepth = 1;
+	else
+		if (qdepth > h->nr_cmds)
+			qdepth = h->nr_cmds;
+	scsi_adjust_queue_depth(sdev, scsi_get_tag_type(sdev), qdepth);
+	return sdev->queue_depth;
 }
 
 static void hpsa_unregister_scsi(struct ctlr_info *h)
