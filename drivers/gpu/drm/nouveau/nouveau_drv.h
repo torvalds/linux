@@ -583,6 +583,7 @@ struct drm_nouveau_private {
 	uint64_t vm_end;
 	struct nouveau_gpuobj *vm_vram_pt[NV50_VM_VRAM_NR];
 	int vm_vram_pt_nr;
+	uint64_t vram_sys_base;
 
 	/* the mtrr covering the FB */
 	int fb_mtrr;
