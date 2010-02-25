@@ -36,7 +36,8 @@ scripts listed by that command.
 
 The syscall-counts script is a simple script, but demonstrates all the
 basic ideas necessary to create a useful script.  Here's an example
-of its output:
+of its output (syscall names are not yet supported, they will appear
+as numbers):
 
 ----
 syscall events:
@@ -270,7 +271,8 @@ calling the print_syscall_totals() function from the trace_end()
 handler called at the end of script processing.
 
 The final script producing the output shown above is shown in its
-entirety below:
+entirety below (syscall_name() helper is not yet available, you can
+only deal with id's for now):
 
 ----
 import os
@@ -617,7 +619,6 @@ Various utility functions for use with perf trace:
   nsecs_nsecs(nsecs) - returns nsecs remainder given nsecs
   nsecs_str(nsecs) - returns printable string in the form secs.nsecs
   avg(total, n) - returns average given a sum and a total number of values
-  syscall_name(id) - returns the syscall name for the specified syscall_nr
 
 SEE ALSO
 --------
