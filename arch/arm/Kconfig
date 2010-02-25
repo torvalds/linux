@@ -12,6 +12,7 @@ config ARM
 	select HAVE_IDE
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
+	select GENERIC_ATOMIC64 if (!CPU_32v6K)
 	select HAVE_OPROFILE
 	select HAVE_ARCH_KGDB
 	select HAVE_KPROBES if (!XIP_KERNEL)
@@ -53,6 +54,9 @@ config GENERIC_CLOCKEVENTS_BROADCAST
 config HAVE_TCM
 	bool
 	select GENERIC_ALLOCATOR
+
+config HAVE_PROC_CPU
+	bool
 
 config NO_IOPORT
 	bool
@@ -162,6 +166,11 @@ config ARCH_MTD_XIP
 
 config GENERIC_HARDIRQS_NO__DO_IRQ
 	def_bool y
+
+config ARM_L1_CACHE_SHIFT_6
+	bool
+	help
+	  Setting ARM L1 cache line size to 64 Bytes.
 
 if OPROFILE
 
@@ -649,6 +658,7 @@ config ARCH_S5PC1XX
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select CPU_V7
+	select ARM_L1_CACHE_SHIFT_6
 	help
 	  Samsung S5PC1XX series based systems
 
@@ -938,6 +948,19 @@ config ARM_ERRATA_460075
 	  ACTLR register. Note that setting specific bits in the ACTLR register
 	  may not be available in non-secure mode.
 
+config PL310_ERRATA_588369
+	bool "Clean & Invalidate maintenance operations do not invalidate clean lines"
+	depends on CACHE_L2X0 && ARCH_OMAP4
+	help
+	   The PL310 L2 cache controller implements three types of Clean &
+	   Invalidate maintenance operations: by Physical Address
+	   (offset 0x7F0), by Index/Way (0x7F8) and by Way (0x7FC).
+	   They are architecturally defined to behave as the execution of a
+	   clean operation followed immediately by an invalidate operation,
+	   both performing to the same memory location. This functionality
+	   is not correctly implemented in PL310 as clean lines are not
+	   invalidated as a result of these operations. Note that this errata
+	   uses Texas Instrument's secure monitor api.
 endmenu
 
 source "arch/arm/common/Kconfig"
@@ -1255,6 +1278,7 @@ config ALIGNMENT_TRAP
 	bool
 	depends on CPU_CP15_MMU
 	default y if !ARCH_EBSA110
+	select HAVE_PROC_CPU if PROC_FS
 	help
 	  ARM processors cannot fetch/store information which is not
 	  naturally aligned on the bus, i.e., a 4 byte fetch must start at an

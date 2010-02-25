@@ -898,11 +898,7 @@ static int __init alignment_init(void)
 #ifdef CONFIG_PROC_FS
 	struct proc_dir_entry *res;
 
-	res = proc_mkdir("cpu", NULL);
-	if (!res)
-		return -ENOMEM;
-
-	res = create_proc_entry("alignment", S_IWUSR | S_IRUGO, res);
+	res = create_proc_entry("cpu/alignment", S_IWUSR | S_IRUGO, NULL);
 	if (!res)
 		return -ENOMEM;
 
