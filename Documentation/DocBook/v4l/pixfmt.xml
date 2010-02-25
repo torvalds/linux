@@ -685,6 +685,11 @@ http://www.ivtvdriver.org/</ulink></para><para>The format is documented in the
 kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm12</filename>
 </para></entry>
 	  </row>
+	  <row id="V4L2-PIX-FMT-CPIA1">
+	    <entry><constant>V4L2_PIX_FMT_CPIA1</constant></entry>
+	    <entry>'CPIA'</entry>
+	    <entry>YUV format used by the gspca cpia1 driver.</entry>
+	  </row>
 	  <row id="V4L2-PIX-FMT-SPCA501">
 	    <entry><constant>V4L2_PIX_FMT_SPCA501</constant></entry>
 	    <entry>'S501'</entry>
@@ -769,6 +774,11 @@ kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm
 	    <entry><constant>V4L2_PIX_FMT_SN9C20X_I420</constant></entry>
 	    <entry>'S920'</entry>
 	    <entry>YUV 4:2:0 format of the gspca sn9c20x driver.</entry>
+	  </row>
+	  <row id="V4L2-PIX-FMT-SN9C2028">
+	    <entry><constant>V4L2_PIX_FMT_SN9C2028</constant></entry>
+	    <entry>'SONX'</entry>
+	    <entry>Compressed GBRG bayer format of the gspca sn9c2028 driver.</entry>
 	  </row>
 	  <row id="V4L2-PIX-FMT-STV0680">
 	    <entry><constant>V4L2_PIX_FMT_STV0680</constant></entry>
