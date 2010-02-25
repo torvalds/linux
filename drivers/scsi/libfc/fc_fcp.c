@@ -298,9 +298,6 @@ void fc_fcp_ddp_setup(struct fc_fcp_pkt *fsp, u16 xid)
 {
 	struct fc_lport *lport;
 
-	if (!fsp)
-		return;
-
 	lport = fsp->lp;
 	if ((fsp->req_flags & FC_SRB_READ) &&
 	    (lport->lro_enabled) && (lport->tt.ddp_setup)) {

@@ -221,15 +221,14 @@ static int __init xsc3_l2_init(void)
 	if (!cpu_is_xsc3() || !xsc3_l2_present())
 		return 0;
 
-	if (!(get_cr() & CR_L2)) {
+	if (get_cr() & CR_L2) {
 		pr_info("XScale3 L2 cache enabled.\n");
-		adjust_cr(CR_L2, CR_L2);
 		xsc3_l2_inv_all();
-	}
 
-	outer_cache.inv_range = xsc3_l2_inv_range;
-	outer_cache.clean_range = xsc3_l2_clean_range;
-	outer_cache.flush_range = xsc3_l2_flush_range;
+		outer_cache.inv_range = xsc3_l2_inv_range;
+		outer_cache.clean_range = xsc3_l2_clean_range;
+		outer_cache.flush_range = xsc3_l2_flush_range;
+	}
 
 	return 0;
 }

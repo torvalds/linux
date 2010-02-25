@@ -332,11 +332,13 @@ bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
 	PROCESS_AUX_CHANNEL_TRANSACTION_PS_ALLOCATION args;
 	int index = GetIndexIntoMasterTable(COMMAND, ProcessAuxChannelTransaction);
 	unsigned char *base;
+	int retry_count = 0;
 
 	memset(&args, 0, sizeof(args));
 
 	base = (unsigned char *)rdev->mode_info.atom_context->scratch;
 
+retry:
 	memcpy(base, req_bytes, num_bytes);
 
 	args.lpAuxRequest = 0;
@@ -347,10 +349,12 @@ bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
-	if (args.ucReplyStatus) {
-		DRM_DEBUG("failed to get auxch %02x%02x %02x %02x 0x%02x %02x\n",
+	if (args.ucReplyStatus && !args.ucDataOutLen) {
+		if (args.ucReplyStatus == 0x20 && retry_count++ < 10)
+			goto retry;
+		DRM_DEBUG("failed to get auxch %02x%02x %02x %02x 0x%02x %02x after %d retries\n",
 			  req_bytes[1], req_bytes[0], req_bytes[2], req_bytes[3],
-			  chan->rec.i2c_id, args.ucReplyStatus);
+			  chan->rec.i2c_id, args.ucReplyStatus, retry_count);
 		return false;
 	}
 
@@ -468,7 +472,8 @@ void radeon_dp_set_link_config(struct drm_connector *connector,
 	struct radeon_connector *radeon_connector;
 	struct radeon_connector_atom_dig *dig_connector;
 
-	if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
+	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) &&
+	    (connector->connector_type != DRM_MODE_CONNECTOR_eDP))
 		return;
 
 	radeon_connector = to_radeon_connector(connector);
@@ -582,7 +587,8 @@ void dp_link_train(struct drm_encoder *encoder,
 	u8 train_set[4];
 	int i;
 
-	if (connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
+	if ((connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort) &&
+	    (connector->connector_type != DRM_MODE_CONNECTOR_eDP))
 		return;
 
 	if (!radeon_encoder->enc_priv)
@@ -594,21 +600,14 @@ void dp_link_train(struct drm_encoder *encoder,
 		return;
 	dig_connector = radeon_connector->con_priv;
 
-	if (ASIC_IS_DCE32(rdev)) {
-		if (dig->dig_block)
-			enc_id |= ATOM_DP_CONFIG_DIG2_ENCODER;
-		else
-			enc_id |= ATOM_DP_CONFIG_DIG1_ENCODER;
-		if (dig_connector->linkb)
-			enc_id |= ATOM_DP_CONFIG_LINK_B;
-		else
-			enc_id |= ATOM_DP_CONFIG_LINK_A;
-	} else {
-		if (dig_connector->linkb)
-			enc_id |= ATOM_DP_CONFIG_DIG2_ENCODER | ATOM_DP_CONFIG_LINK_B;
-		else
-			enc_id |= ATOM_DP_CONFIG_DIG1_ENCODER | ATOM_DP_CONFIG_LINK_A;
-	}
+	if (dig->dig_encoder)
+		enc_id |= ATOM_DP_CONFIG_DIG2_ENCODER;
+	else
+		enc_id |= ATOM_DP_CONFIG_DIG1_ENCODER;
+	if (dig_connector->linkb)
+		enc_id |= ATOM_DP_CONFIG_LINK_B;
+	else
+		enc_id |= ATOM_DP_CONFIG_LINK_A;
 
 	memset(link_configuration, 0, DP_LINK_CONFIGURATION_SIZE);
 	if (dig_connector->dp_clock == 270000)

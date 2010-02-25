@@ -52,9 +52,6 @@ int ima_inode_alloc(struct inode *inode)
 	struct ima_iint_cache *iint = NULL;
 	int rc = 0;
 
-	if (!ima_initialized)
-		return 0;
-
 	iint = kmem_cache_alloc(iint_cache, GFP_NOFS);
 	if (!iint)
 		return -ENOMEM;
@@ -66,11 +63,10 @@ int ima_inode_alloc(struct inode *inode)
 	spin_lock(&ima_iint_lock);
 	rc = radix_tree_insert(&ima_iint_store, (unsigned long)inode, iint);
 	spin_unlock(&ima_iint_lock);
+	radix_tree_preload_end();
 out:
 	if (rc < 0)
 		kmem_cache_free(iint_cache, iint);
-
-	radix_tree_preload_end();
 
 	return rc;
 }
@@ -118,8 +114,6 @@ void ima_inode_free(struct inode *inode)
 {
 	struct ima_iint_cache *iint;
 
-	if (!ima_initialized)
-		return;
 	spin_lock(&ima_iint_lock);
 	iint = radix_tree_delete(&ima_iint_store, (unsigned long)inode);
 	spin_unlock(&ima_iint_lock);
@@ -141,9 +135,11 @@ static void init_once(void *foo)
 	kref_set(&iint->refcount, 1);
 }
 
-void __init ima_iintcache_init(void)
+static int __init ima_iintcache_init(void)
 {
 	iint_cache =
 	    kmem_cache_create("iint_cache", sizeof(struct ima_iint_cache), 0,
 			      SLAB_PANIC, init_once);
+	return 0;
 }
+security_initcall(ima_iintcache_init);

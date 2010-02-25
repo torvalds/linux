@@ -48,6 +48,12 @@ static
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xa 2528")
 		}
 	}, {
+		.ident = "Fujitsu-Siemens Amilo Xi 2428",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 2428")
+		}
+	}, {
 		.ident = "Fujitsu-Siemens Amilo Xi 2528",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),

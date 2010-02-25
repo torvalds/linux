@@ -1201,9 +1201,12 @@ static void sony_nc_rfkill_setup(struct acpi_device *device)
 	/* the buffer is filled with magic numbers describing the devices
 	 * available, 0xff terminates the enumeration
 	 */
-	while ((dev_code = *(device_enum->buffer.pointer + i)) != 0xff &&
-			i < device_enum->buffer.length) {
-		i++;
+	for (i = 0; i < device_enum->buffer.length; i++) {
+
+		dev_code = *(device_enum->buffer.pointer + i);
+		if (dev_code == 0xff)
+			break;
+
 		dprintk("Radio devices, looking at 0x%.2x\n", dev_code);
 
 		if (dev_code == 0 && !sony_rfkill_devices[SONY_WIFI])

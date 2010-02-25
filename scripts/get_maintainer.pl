@@ -74,8 +74,8 @@ my %VCS_cmds;
 my %VCS_cmds_git = (
     "execute_cmd" => \&git_execute_cmd,
     "available" => '(which("git") ne "") && (-d ".git")',
-    "find_signers_cmd" => "git log --since=\$email_git_since -- \$file",
-    "find_commit_signers_cmd" => "git log -1 \$commit",
+    "find_signers_cmd" => "git log --no-color --since=\$email_git_since -- \$file",
+    "find_commit_signers_cmd" => "git log --no-color -1 \$commit",
     "blame_range_cmd" => "git blame -l -L \$diff_start,+\$diff_length \$file",
     "blame_file_cmd" => "git blame -l \$file",
     "commit_pattern" => "^commit [0-9a-f]{40,40}",
@@ -296,46 +296,56 @@ my @status = ();
 
 foreach my $file (@files) {
 
-#Do not match excluded file patterns
+    my %hash;
+    my $tvi = find_first_section();
+    while ($tvi < @typevalue) {
+	my $start = find_starting_index($tvi);
+	my $end = find_ending_index($tvi);
+	my $exclude = 0;
+	my $i;
 
-    my $exclude = 0;
-    foreach my $line (@typevalue) {
-	if ($line =~ m/^(\C):\s*(.*)/) {
-	    my $type = $1;
-	    my $value = $2;
-	    if ($type eq 'X') {
-		if (file_match_pattern($file, $value)) {
-		    $exclude = 1;
-		    last;
-		}
-	    }
-	}
-    }
+	#Do not match excluded file patterns
 
-    if (!$exclude) {
-	my $tvi = 0;
-	my %hash;
-	foreach my $line (@typevalue) {
+	for ($i = $start; $i < $end; $i++) {
+	    my $line = $typevalue[$i];
 	    if ($line =~ m/^(\C):\s*(.*)/) {
 		my $type = $1;
 		my $value = $2;
-		if ($type eq 'F') {
+		if ($type eq 'X') {
 		    if (file_match_pattern($file, $value)) {
-			my $value_pd = ($value =~ tr@/@@);
-			my $file_pd = ($file  =~ tr@/@@);
-			$value_pd++ if (substr($value,-1,1) ne "/");
-			if ($pattern_depth == 0 ||
-			    (($file_pd - $value_pd) < $pattern_depth)) {
-			    $hash{$tvi} = $value_pd;
+			$exclude = 1;
+		    }
+		}
+	    }
+	}
+
+	if (!$exclude) {
+	    for ($i = $start; $i < $end; $i++) {
+		my $line = $typevalue[$i];
+		if ($line =~ m/^(\C):\s*(.*)/) {
+		    my $type = $1;
+		    my $value = $2;
+		    if ($type eq 'F') {
+			if (file_match_pattern($file, $value)) {
+			    my $value_pd = ($value =~ tr@/@@);
+			    my $file_pd = ($file  =~ tr@/@@);
+			    $value_pd++ if (substr($value,-1,1) ne "/");
+			    if ($pattern_depth == 0 ||
+				(($file_pd - $value_pd) < $pattern_depth)) {
+				$hash{$tvi} = $value_pd;
+			    }
 			}
 		    }
 		}
 	    }
-	    $tvi++;
 	}
-	foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
-	    add_categories($line);
-	}
+
+	$tvi += ($end - $start);
+
+    }
+
+    foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
+	add_categories($line);
     }
 
     if ($email && $email_git) {
@@ -568,6 +578,20 @@ sub format_email {
     }
 
     return $formatted_email;
+}
+
+sub find_first_section {
+    my $index = 0;
+
+    while ($index < @typevalue) {
+	my $tv = $typevalue[$index];
+	if (($tv =~ m/^(\C):\s*(.*)/)) {
+	    last;
+	}
+	$index++;
+    }
+
+    return $index;
 }
 
 sub find_starting_index {

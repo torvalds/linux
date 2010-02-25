@@ -769,6 +769,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	if (!gl)
 		return -ENOMEM;
 
+	atomic_inc(&sdp->sd_glock_disposal);
 	gl->gl_flags = 0;
 	gl->gl_name = name;
 	atomic_set(&gl->gl_ref, 1);
@@ -1538,6 +1539,9 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 		up_write(&gfs2_umount_flush_sem);
 		msleep(10);
 	}
+	flush_workqueue(glock_workqueue);
+	wait_event(sdp->sd_glock_wait, atomic_read(&sdp->sd_glock_disposal) == 0);
+	gfs2_dump_lockstate(sdp);
 }
 
 void gfs2_glock_finish_truncate(struct gfs2_inode *ip)

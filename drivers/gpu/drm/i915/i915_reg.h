@@ -338,6 +338,7 @@
 #define   FBC_CTL_PERIODIC	(1<<30)
 #define   FBC_CTL_INTERVAL_SHIFT (16)
 #define   FBC_CTL_UNCOMPRESSIBLE (1<<14)
+#define   FBC_C3_IDLE		(1<<13)
 #define   FBC_CTL_STRIDE_SHIFT	(5)
 #define   FBC_CTL_FENCENO	(1<<0)
 #define FBC_COMMAND		0x0320c
@@ -1815,7 +1816,7 @@
 #define   DSPFW_PLANEB_SHIFT	8
 #define DSPFW2			0x70038
 #define   DSPFW_CURSORA_MASK	0x00003f00
-#define   DSPFW_CURSORA_SHIFT	16
+#define   DSPFW_CURSORA_SHIFT	8
 #define DSPFW3			0x7003c
 #define   DSPFW_HPLL_SR_EN	(1<<31)
 #define   DSPFW_CURSOR_SR_SHIFT	24

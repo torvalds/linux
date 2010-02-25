@@ -54,6 +54,7 @@ void __init setup_arch(char **cmdline_p)
 
 	microblaze_cache_init();
 
+	invalidate_dcache();
 	enable_dcache();
 
 	invalidate_icache();

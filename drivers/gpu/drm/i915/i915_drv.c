@@ -45,6 +45,9 @@ module_param_named(fbpercrtc, i915_fbpercrtc, int, 0400);
 unsigned int i915_powersave = 1;
 module_param_named(powersave, i915_powersave, int, 0400);
 
+unsigned int i915_lvds_downclock = 0;
+module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
+
 static struct drm_driver driver;
 
 #define INTEL_VGA_DEVICE(id, info) {		\
@@ -117,7 +120,7 @@ const static struct intel_device_info intel_gm45_info = {
 
 const static struct intel_device_info intel_pineview_info = {
 	.is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .is_i9xx = 1,
-	.has_pipe_cxsr = 1,
+	.need_gfx_hws = 1,
 	.has_hotplug = 1,
 };
 
@@ -171,26 +174,20 @@ const static struct pci_device_id pciidlist[] = {
 MODULE_DEVICE_TABLE(pci, pciidlist);
 #endif
 
-static int i915_suspend(struct drm_device *dev, pm_message_t state)
+static int i915_drm_freeze(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-
-	if (!dev || !dev_priv) {
-		DRM_ERROR("dev: %p, dev_priv: %p\n", dev, dev_priv);
-		DRM_ERROR("DRM not initialized, aborting suspend.\n");
-		return -ENODEV;
-	}
-
-	if (state.event == PM_EVENT_PRETHAW)
-		return 0;
 
 	pci_save_state(dev->pdev);
 
 	/* If KMS is active, we do the leavevt stuff here */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		if (i915_gem_idle(dev))
+		int error = i915_gem_idle(dev);
+		if (error) {
 			dev_err(&dev->pdev->dev,
-				"GEM idle failed, resume may fail\n");
+				"GEM idle failed, resume might fail\n");
+			return error;
+		}
 		drm_irq_uninstall(dev);
 	}
 
@@ -198,26 +195,42 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 
 	intel_opregion_free(dev, 1);
 
-	if (state.event == PM_EVENT_SUSPEND) {
-		/* Shut down the device */
-		pci_disable_device(dev->pdev);
-		pci_set_power_state(dev->pdev, PCI_D3hot);
-	}
-
 	/* Modeset on resume, not lid events */
 	dev_priv->modeset_on_lid = 0;
 
 	return 0;
 }
 
-static int i915_resume(struct drm_device *dev)
+static int i915_suspend(struct drm_device *dev, pm_message_t state)
+{
+	int error;
+
+	if (!dev || !dev->dev_private) {
+		DRM_ERROR("dev: %p\n", dev);
+		DRM_ERROR("DRM not initialized, aborting suspend.\n");
+		return -ENODEV;
+	}
+
+	if (state.event == PM_EVENT_PRETHAW)
+		return 0;
+
+	error = i915_drm_freeze(dev);
+	if (error)
+		return error;
+
+	if (state.event == PM_EVENT_SUSPEND) {
+		/* Shut down the device */
+		pci_disable_device(dev->pdev);
+		pci_set_power_state(dev->pdev, PCI_D3hot);
+	}
+
+	return 0;
+}
+
+static int i915_drm_thaw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret = 0;
-
-	if (pci_enable_device(dev->pdev))
-		return -1;
-	pci_set_master(dev->pdev);
+	int error = 0;
 
 	i915_restore_state(dev);
 
@@ -228,21 +241,28 @@ static int i915_resume(struct drm_device *dev)
 		mutex_lock(&dev->struct_mutex);
 		dev_priv->mm.suspended = 0;
 
-		ret = i915_gem_init_ringbuffer(dev);
-		if (ret != 0)
-			ret = -1;
+		error = i915_gem_init_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
 
 		drm_irq_install(dev);
-	}
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+
 		/* Resume the modeset for every activated CRTC */
 		drm_helper_resume_force_mode(dev);
 	}
 
 	dev_priv->modeset_on_lid = 0;
 
-	return ret;
+	return error;
+}
+
+static int i915_resume(struct drm_device *dev)
+{
+	if (pci_enable_device(dev->pdev))
+		return -EIO;
+
+	pci_set_master(dev->pdev);
+
+	return i915_drm_thaw(dev);
 }
 
 /**
@@ -383,57 +403,62 @@ i915_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-static int
-i915_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int i915_pm_suspend(struct device *dev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	int error;
 
-	return i915_suspend(dev, state);
-}
+	if (!drm_dev || !drm_dev->dev_private) {
+		dev_err(dev, "DRM not initialized, aborting suspend.\n");
+		return -ENODEV;
+	}
 
-static int
-i915_pci_resume(struct pci_dev *pdev)
-{
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	error = i915_drm_freeze(drm_dev);
+	if (error)
+		return error;
 
-	return i915_resume(dev);
-}
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
 
-static int
-i915_pm_suspend(struct device *dev)
-{
-	return i915_pci_suspend(to_pci_dev(dev), PMSG_SUSPEND);
-}
-
-static int
-i915_pm_resume(struct device *dev)
-{
-	return i915_pci_resume(to_pci_dev(dev));
-}
-
-static int
-i915_pm_freeze(struct device *dev)
-{
-	return i915_pci_suspend(to_pci_dev(dev), PMSG_FREEZE);
-}
-
-static int
-i915_pm_thaw(struct device *dev)
-{
-	/* thaw during hibernate, do nothing! */
 	return 0;
 }
 
-static int
-i915_pm_poweroff(struct device *dev)
+static int i915_pm_resume(struct device *dev)
 {
-	return i915_pci_suspend(to_pci_dev(dev), PMSG_HIBERNATE);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return i915_resume(drm_dev);
 }
 
-static int
-i915_pm_restore(struct device *dev)
+static int i915_pm_freeze(struct device *dev)
 {
-	return i915_pci_resume(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	if (!drm_dev || !drm_dev->dev_private) {
+		dev_err(dev, "DRM not initialized, aborting suspend.\n");
+		return -ENODEV;
+	}
+
+	return i915_drm_freeze(drm_dev);
+}
+
+static int i915_pm_thaw(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return i915_drm_thaw(drm_dev);
+}
+
+static int i915_pm_poweroff(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return i915_drm_freeze(drm_dev);
 }
 
 const struct dev_pm_ops i915_pm_ops = {
@@ -442,7 +467,7 @@ const struct dev_pm_ops i915_pm_ops = {
      .freeze = i915_pm_freeze,
      .thaw = i915_pm_thaw,
      .poweroff = i915_pm_poweroff,
-     .restore = i915_pm_restore,
+     .restore = i915_pm_resume,
 };
 
 static struct vm_operations_struct i915_gem_vm_ops = {
@@ -464,6 +489,11 @@ static struct drm_driver driver = {
 	.lastclose = i915_driver_lastclose,
 	.preclose = i915_driver_preclose,
 	.postclose = i915_driver_postclose,
+
+	/* Used in place of i915_pm_ops for non-DRIVER_MODESET */
+	.suspend = i915_suspend,
+	.resume = i915_resume,
+
 	.device_is_agp = i915_driver_device_is_agp,
 	.enable_vblank = i915_enable_vblank,
 	.disable_vblank = i915_disable_vblank,

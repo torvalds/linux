@@ -1762,8 +1762,18 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
 
-	if (!rc)
+	if (!rc) {
 		rc = inode_setattr(inode, attrs);
+
+		/* force revalidate when any of these times are set since some
+		   of the fs types (eg ext3, fat) do not have fine enough
+		   time granularity to match protocol, and we do not have a
+		   a way (yet) to query the server fs's time granularity (and
+		   whether it rounds times down).
+		*/
+		if (!rc && (attrs->ia_valid & (ATTR_MTIME | ATTR_CTIME)))
+			cifsInode->time = 0;
+	}
 out:
 	kfree(args);
 	kfree(full_path);

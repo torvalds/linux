@@ -408,6 +408,7 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 {
 	struct twl4030_hsmmc_info *c;
 	int nr_hsmmc = ARRAY_SIZE(hsmmc_data);
+	int i;
 
 	if (cpu_is_omap2430()) {
 		control_pbias_offset = OMAP243X_CONTROL_PBIAS_LITE;
@@ -434,7 +435,7 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 		mmc = kzalloc(sizeof(struct omap_mmc_platform_data), GFP_KERNEL);
 		if (!mmc) {
 			pr_err("Cannot allocate memory for mmc device!\n");
-			return;
+			goto done;
 		}
 
 		if (c->name)
@@ -532,6 +533,10 @@ void __init twl4030_mmc_init(struct twl4030_hsmmc_info *controllers)
 			continue;
 		c->dev = mmc->dev;
 	}
+
+done:
+	for (i = 0; i < nr_hsmmc; i++)
+		kfree(hsmmc_data[i]);
 }
 
 #endif

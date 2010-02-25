@@ -13,7 +13,7 @@
  */
 
 
-#include <linux/usb/input.h>
+#include <linux/input.h>
 #include <media/ir-common.h>
 
 #define IR_TAB_MIN_SIZE	32

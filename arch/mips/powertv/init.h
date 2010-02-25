@@ -22,7 +22,5 @@
 
 #ifndef _POWERTV_INIT_H
 #define _POWERTV_INIT_H
-extern int prom_argc;
-extern int *_prom_argv;
 extern unsigned long _prom_memsize;
 #endif

@@ -2211,7 +2211,7 @@ static int fcu_of_remove(struct of_device* dev)
 	return 0;
 }
 
-static struct of_device_id fcu_match[] = 
+static const struct of_device_id fcu_match[] = 
 {
 	{
 	.type		= "fcu",

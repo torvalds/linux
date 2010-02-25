@@ -1890,7 +1890,7 @@ static struct fc_seq *fc_exch_seq_send(struct fc_lport *lport,
 	fc_exch_setup_hdr(ep, fp, ep->f_ctl);
 	sp->cnt++;
 
-	if (ep->xid <= lport->lro_xid)
+	if (ep->xid <= lport->lro_xid && fh->fh_r_ctl == FC_RCTL_DD_UNSOL_CMD)
 		fc_fcp_ddp_setup(fr_fsp(fp), ep->xid);
 
 	if (unlikely(lport->tt.frame_send(lport, fp)))

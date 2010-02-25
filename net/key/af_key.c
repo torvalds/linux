@@ -3794,9 +3794,9 @@ static struct pernet_operations pfkey_net_ops = {
 
 static void __exit ipsec_pfkey_exit(void)
 {
-	unregister_pernet_subsys(&pfkey_net_ops);
 	xfrm_unregister_km(&pfkeyv2_mgr);
 	sock_unregister(PF_KEY);
+	unregister_pernet_subsys(&pfkey_net_ops);
 	proto_unregister(&key_proto);
 }
 
@@ -3807,21 +3807,22 @@ static int __init ipsec_pfkey_init(void)
 	if (err != 0)
 		goto out;
 
-	err = sock_register(&pfkey_family_ops);
+	err = register_pernet_subsys(&pfkey_net_ops);
 	if (err != 0)
 		goto out_unregister_key_proto;
+	err = sock_register(&pfkey_family_ops);
+	if (err != 0)
+		goto out_unregister_pernet;
 	err = xfrm_register_km(&pfkeyv2_mgr);
 	if (err != 0)
 		goto out_sock_unregister;
-	err = register_pernet_subsys(&pfkey_net_ops);
-	if (err != 0)
-		goto out_xfrm_unregister_km;
 out:
 	return err;
-out_xfrm_unregister_km:
-	xfrm_unregister_km(&pfkeyv2_mgr);
+
 out_sock_unregister:
 	sock_unregister(PF_KEY);
+out_unregister_pernet:
+	unregister_pernet_subsys(&pfkey_net_ops);
 out_unregister_key_proto:
 	proto_unregister(&key_proto);
 	goto out;

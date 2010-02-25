@@ -46,7 +46,9 @@ static void tmio_mmc_set_clock(struct tmio_mmc_host *host, int new_clock)
 		clk |= 0x100;
 	}
 
-	sd_config_write8(host, CNF_SD_CLK_MODE, clk >> 22);
+	if (host->set_clk_div)
+		host->set_clk_div(host->pdev, (clk>>22) & 1);
+
 	sd_ctrl_write16(host, CTL_SD_CARD_CLK_CTL, clk & 0x1ff);
 }
 
@@ -427,12 +429,13 @@ static void tmio_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	/* Power sequence - OFF -> ON -> UP */
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF: /* power down SD bus */
-		sd_config_write8(host, CNF_PWR_CTL_2, 0x00);
+		if (host->set_pwr)
+			host->set_pwr(host->pdev, 0);
 		tmio_mmc_clk_stop(host);
 		break;
 	case MMC_POWER_ON: /* power up SD bus */
-
-		sd_config_write8(host, CNF_PWR_CTL_2, 0x02);
+		if (host->set_pwr)
+			host->set_pwr(host->pdev, 1);
 		break;
 	case MMC_POWER_UP: /* start bus clock */
 		tmio_mmc_clk_start(host);
@@ -485,20 +488,14 @@ static int tmio_mmc_resume(struct platform_device *dev)
 {
 	struct mfd_cell	*cell = (struct mfd_cell *)dev->dev.platform_data;
 	struct mmc_host *mmc = platform_get_drvdata(dev);
-	struct tmio_mmc_host *host = mmc_priv(mmc);
 	int ret = 0;
 
 	/* Tell the MFD core we are ready to be enabled */
-	if (cell->enable) {
-		ret = cell->enable(dev);
+	if (cell->resume) {
+		ret = cell->resume(dev);
 		if (ret)
 			goto out;
 	}
-
-	/* Enable the MMC/SD Control registers */
-	sd_config_write16(host, CNF_CMD, SDCREN);
-	sd_config_write32(host, CNF_CTL_BASE,
-		(dev->resource[0].start >> host->bus_shift) & 0xfffe);
 
 	mmc_resume_host(mmc);
 
@@ -514,17 +511,16 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 {
 	struct mfd_cell	*cell = (struct mfd_cell *)dev->dev.platform_data;
 	struct tmio_mmc_data *pdata;
-	struct resource *res_ctl, *res_cnf;
+	struct resource *res_ctl;
 	struct tmio_mmc_host *host;
 	struct mmc_host *mmc;
 	int ret = -EINVAL;
 
-	if (dev->num_resources != 3)
+	if (dev->num_resources != 2)
 		goto out;
 
 	res_ctl = platform_get_resource(dev, IORESOURCE_MEM, 0);
-	res_cnf = platform_get_resource(dev, IORESOURCE_MEM, 1);
-	if (!res_ctl || !res_cnf)
+	if (!res_ctl)
 		goto out;
 
 	pdata = cell->driver_data;
@@ -539,7 +535,11 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 
 	host = mmc_priv(mmc);
 	host->mmc = mmc;
+	host->pdev = dev;
 	platform_set_drvdata(dev, mmc);
+
+	host->set_pwr = pdata->set_pwr;
+	host->set_clk_div = pdata->set_clk_div;
 
 	/* SD control register space size is 0x200, 0x400 for bus_shift=1 */
 	host->bus_shift = resource_size(res_ctl) >> 10;
@@ -547,10 +547,6 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 	host->ctl = ioremap(res_ctl->start, resource_size(res_ctl));
 	if (!host->ctl)
 		goto host_free;
-
-	host->cnf = ioremap(res_cnf->start, resource_size(res_cnf));
-	if (!host->cnf)
-		goto unmap_ctl;
 
 	mmc->ops = &tmio_mmc_ops;
 	mmc->caps = MMC_CAP_4_BIT_DATA;
@@ -562,22 +558,8 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 	if (cell->enable) {
 		ret = cell->enable(dev);
 		if (ret)
-			goto unmap_cnf;
+			goto unmap_ctl;
 	}
-
-	/* Enable the MMC/SD Control registers */
-	sd_config_write16(host, CNF_CMD, SDCREN);
-	sd_config_write32(host, CNF_CTL_BASE,
-		(dev->resource[0].start >> host->bus_shift) & 0xfffe);
-
-	/* Disable SD power during suspend */
-	sd_config_write8(host, CNF_PWR_CTL_3, 0x01);
-
-	/* The below is required but why? FIXME */
-	sd_config_write8(host, CNF_STOP_CLK_CTL, 0x1f);
-
-	/* Power down SD bus*/
-	sd_config_write8(host, CNF_PWR_CTL_2, 0x00);
 
 	tmio_mmc_clk_stop(host);
 	reset(host);
@@ -586,14 +568,14 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 	if (ret >= 0)
 		host->irq = ret;
 	else
-		goto unmap_cnf;
+		goto unmap_ctl;
 
 	disable_mmc_irqs(host, TMIO_MASK_ALL);
 
 	ret = request_irq(host->irq, tmio_mmc_irq, IRQF_DISABLED |
 		IRQF_TRIGGER_FALLING, dev_name(&dev->dev), host);
 	if (ret)
-		goto unmap_cnf;
+		goto unmap_ctl;
 
 	mmc_add_host(mmc);
 
@@ -605,8 +587,6 @@ static int __devinit tmio_mmc_probe(struct platform_device *dev)
 
 	return 0;
 
-unmap_cnf:
-	iounmap(host->cnf);
 unmap_ctl:
 	iounmap(host->ctl);
 host_free:
@@ -626,7 +606,6 @@ static int __devexit tmio_mmc_remove(struct platform_device *dev)
 		mmc_remove_host(mmc);
 		free_irq(host->irq, host);
 		iounmap(host->ctl);
-		iounmap(host->cnf);
 		mmc_free_host(mmc);
 	}
 

@@ -125,9 +125,15 @@ intel_dp_link_clock(uint8_t link_bw)
 
 /* I think this is a fiction */
 static int
-intel_dp_link_required(int pixel_clock)
+intel_dp_link_required(struct drm_device *dev,
+		       struct intel_output *intel_output, int pixel_clock)
 {
-	return pixel_clock * 3;
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
+	if (IS_eDP(intel_output))
+		return (pixel_clock * dev_priv->edp_bpp) / 8;
+	else
+		return pixel_clock * 3;
 }
 
 static int
@@ -138,7 +144,8 @@ intel_dp_mode_valid(struct drm_connector *connector,
 	int max_link_clock = intel_dp_link_clock(intel_dp_max_link_bw(intel_output));
 	int max_lanes = intel_dp_max_lane_count(intel_output);
 
-	if (intel_dp_link_required(mode->clock) > max_link_clock * max_lanes)
+	if (intel_dp_link_required(connector->dev, intel_output, mode->clock)
+			> max_link_clock * max_lanes)
 		return MODE_CLOCK_HIGH;
 
 	if (mode->clock < 10000)
@@ -492,7 +499,8 @@ intel_dp_mode_fixup(struct drm_encoder *encoder, struct drm_display_mode *mode,
 		for (clock = 0; clock <= max_clock; clock++) {
 			int link_avail = intel_dp_link_clock(bws[clock]) * lane_count;
 
-			if (intel_dp_link_required(mode->clock) <= link_avail) {
+			if (intel_dp_link_required(encoder->dev, intel_output, mode->clock)
+					<= link_avail) {
 				dp_priv->link_bw = bws[clock];
 				dp_priv->lane_count = lane_count;
 				adjusted_mode->clock = intel_dp_link_clock(dp_priv->link_bw);
@@ -1289,53 +1297,7 @@ intel_dp_hot_plug(struct intel_output *intel_output)
 	if (dp_priv->dpms_mode == DRM_MODE_DPMS_ON)
 		intel_dp_check_link_status(intel_output);
 }
-/*
- * Enumerate the child dev array parsed from VBT to check whether
- * the given DP is present.
- * If it is present, return 1.
- * If it is not present, return false.
- * If no child dev is parsed from VBT, it is assumed that the given
- * DP is present.
- */
-static int dp_is_present_in_vbt(struct drm_device *dev, int dp_reg)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	struct child_device_config *p_child;
-	int i, dp_port, ret;
 
-	if (!dev_priv->child_dev_num)
-		return 1;
-
-	dp_port = 0;
-	if (dp_reg == DP_B || dp_reg == PCH_DP_B)
-		dp_port = PORT_IDPB;
-	else if (dp_reg == DP_C || dp_reg == PCH_DP_C)
-		dp_port = PORT_IDPC;
-	else if (dp_reg == DP_D || dp_reg == PCH_DP_D)
-		dp_port = PORT_IDPD;
-
-	ret = 0;
-	for (i = 0; i < dev_priv->child_dev_num; i++) {
-		p_child = dev_priv->child_dev + i;
-		/*
-		 * If the device type is not DP, continue.
-		 */
-		if (p_child->device_type != DEVICE_TYPE_DP &&
-			p_child->device_type != DEVICE_TYPE_eDP)
-			continue;
-		/* Find the eDP port */
-		if (dp_reg == DP_A && p_child->device_type == DEVICE_TYPE_eDP) {
-			ret = 1;
-			break;
-		}
-		/* Find the DP port */
-		if (p_child->dvo_port == dp_port) {
-			ret = 1;
-			break;
-		}
-	}
-	return ret;
-}
 void
 intel_dp_init(struct drm_device *dev, int output_reg)
 {
@@ -1345,10 +1307,6 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	struct intel_dp_priv *dp_priv;
 	const char *name = NULL;
 
-	if (!dp_is_present_in_vbt(dev, output_reg)) {
-		DRM_DEBUG_KMS("DP is not present. Ignore it\n");
-		return;
-	}
 	intel_output = kcalloc(sizeof(struct intel_output) + 
 			       sizeof(struct intel_dp_priv), 1, GFP_KERNEL);
 	if (!intel_output)
@@ -1373,11 +1331,10 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	else if (output_reg == DP_D || output_reg == PCH_DP_D)
 		intel_output->clone_mask = (1 << INTEL_DP_D_CLONE_BIT);
 
-	if (IS_eDP(intel_output)) {
-		intel_output->crtc_mask = (1 << 1);
+	if (IS_eDP(intel_output))
 		intel_output->clone_mask = (1 << INTEL_EDP_CLONE_BIT);
-	} else
-		intel_output->crtc_mask = (1 << 0) | (1 << 1);
+
+	intel_output->crtc_mask = (1 << 0) | (1 << 1);
 	connector->interlace_allowed = true;
 	connector->doublescan_allowed = 0;
 

@@ -389,7 +389,7 @@ int drm_fb_helper_blank(int blank, struct fb_info *info)
 		break;
 	/* Display: Off; HSync: On, VSync: On */
 	case FB_BLANK_NORMAL:
-		drm_fb_helper_off(info, DRM_MODE_DPMS_ON);
+		drm_fb_helper_off(info, DRM_MODE_DPMS_STANDBY);
 		break;
 	/* Display: Off; HSync: Off, VSync: On */
 	case FB_BLANK_HSYNC_SUSPEND:
@@ -606,11 +606,10 @@ int drm_fb_helper_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 
 	/* Need to resize the fb object !!! */
-	if (var->xres > fb->width || var->yres > fb->height) {
-		DRM_ERROR("Requested width/height is greater than current fb "
-			   "object %dx%d > %dx%d\n", var->xres, var->yres,
-			   fb->width, fb->height);
-		DRM_ERROR("Need resizing code.\n");
+	if (var->bits_per_pixel > fb->bits_per_pixel || var->xres > fb->width || var->yres > fb->height) {
+		DRM_DEBUG("fb userspace requested width/height/bpp is greater than current fb "
+			  "object %dx%d-%d > %dx%d-%d\n", var->xres, var->yres, var->bits_per_pixel,
+			  fb->width, fb->height, fb->bits_per_pixel);
 		return -EINVAL;
 	}
 

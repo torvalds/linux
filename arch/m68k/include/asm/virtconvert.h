@@ -26,6 +26,7 @@ static inline void *phys_to_virt(unsigned long address)
 }
 
 /* Permanent address of a page. */
+#ifdef CONFIG_MMU
 #ifdef CONFIG_SINGLE_MEMORY_CHUNK
 #define page_to_phys(page) \
 	__pa(PAGE_OFFSET + (((page) - pg_data_map[0].node_mem_map) << PAGE_SHIFT))
@@ -36,6 +37,9 @@ static inline void *phys_to_virt(unsigned long address)
 	pgdat = pg_data_table[page_to_nid(__page)];			\
 	page_to_pfn(__page) << PAGE_SHIFT;				\
 })
+#endif
+#else
+#define page_to_phys(page)	(((page) - mem_map) << PAGE_SHIFT)
 #endif
 
 /*

@@ -143,8 +143,8 @@ o provide a way to configure fault attributes
   failslab, fail_page_alloc, and fail_make_request use this way.
   Helper functions:
 
-	init_fault_attr_entries(entries, attr, name);
-	void cleanup_fault_attr_entries(entries);
+	init_fault_attr_dentries(entries, attr, name);
+	void cleanup_fault_attr_dentries(entries);
 
 - module parameters
 

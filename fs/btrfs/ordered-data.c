@@ -626,6 +626,8 @@ int btrfs_ordered_update_i_size(struct inode *inode, u64 offset,
 
 	if (ordered)
 		offset = entry_end(ordered);
+	else
+		offset = ALIGN(offset, BTRFS_I(inode)->root->sectorsize);
 
 	mutex_lock(&tree->mutex);
 	disk_i_size = BTRFS_I(inode)->disk_i_size;

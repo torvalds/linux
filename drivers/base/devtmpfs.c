@@ -354,6 +354,7 @@ int __init devtmpfs_init(void)
 {
 	int err;
 	struct vfsmount *mnt;
+	char options[] = "mode=0755";
 
 	err = register_filesystem(&dev_fs_type);
 	if (err) {
@@ -362,7 +363,7 @@ int __init devtmpfs_init(void)
 		return err;
 	}
 
-	mnt = kern_mount_data(&dev_fs_type, "mode=0755");
+	mnt = kern_mount_data(&dev_fs_type, options);
 	if (IS_ERR(mnt)) {
 		err = PTR_ERR(mnt);
 		printk(KERN_ERR "devtmpfs: unable to create devtmpfs %i\n", err);

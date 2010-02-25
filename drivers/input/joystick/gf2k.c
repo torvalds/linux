@@ -277,7 +277,7 @@ static int gf2k_connect(struct gameport *gameport, struct gameport_driver *drv)
 	}
 
 #ifdef RESET_WORKS
-	if ((gf2k->id != (GB(19,2,0) | GB(15,3,2) | GB(12,3,5))) ||
+	if ((gf2k->id != (GB(19,2,0) | GB(15,3,2) | GB(12,3,5))) &&
 	    (gf2k->id != (GB(31,2,0) | GB(27,3,2) | GB(24,3,5)))) {
 		err = -ENODEV;
 		goto fail2;

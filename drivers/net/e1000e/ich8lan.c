@@ -138,6 +138,10 @@
 #define E1000_NVM_K1_CONFIG 0x1B /* NVM K1 Config Word */
 #define E1000_NVM_K1_ENABLE 0x1  /* NVM Enable K1 bit */
 
+/* KMRN Mode Control */
+#define HV_KMRN_MODE_CTRL      PHY_REG(769, 16)
+#define HV_KMRN_MDIO_SLOW      0x0400
+
 /* ICH GbE Flash Hardware Sequencing Flash Status Register bit breakdown */
 /* Offset 04h HSFSTS */
 union ich8_hws_flash_status {
@@ -219,6 +223,7 @@ static s32 e1000_set_lplu_state_pchlan(struct e1000_hw *hw, bool active);
 static void e1000_power_down_phy_copper_ich8lan(struct e1000_hw *hw);
 static void e1000_lan_init_done_ich8lan(struct e1000_hw *hw);
 static s32  e1000_k1_gig_workaround_hv(struct e1000_hw *hw, bool link);
+static s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw);
 
 static inline u16 __er16flash(struct e1000_hw *hw, unsigned long reg)
 {
@@ -270,7 +275,21 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 	phy->autoneg_mask             = AUTONEG_ADVERTISE_SPEED_DEFAULT;
 
 	phy->id = e1000_phy_unknown;
-	e1000e_get_phy_id(hw);
+	ret_val = e1000e_get_phy_id(hw);
+	if (ret_val)
+		goto out;
+	if ((phy->id == 0) || (phy->id == PHY_REVISION_MASK)) {
+		/*
+		 * In case the PHY needs to be in mdio slow mode (eg. 82577),
+		 * set slow mode and try to get the PHY id again.
+		 */
+		ret_val = e1000_set_mdio_slow_mode_hv(hw);
+		if (ret_val)
+			goto out;
+		ret_val = e1000e_get_phy_id(hw);
+		if (ret_val)
+			goto out;
+	}
 	phy->type = e1000e_get_phy_type_from_id(phy->id);
 
 	switch (phy->type) {
@@ -292,6 +311,7 @@ static s32 e1000_init_phy_params_pchlan(struct e1000_hw *hw)
 		break;
 	}
 
+out:
 	return ret_val;
 }
 
@@ -454,6 +474,8 @@ static s32 e1000_init_mac_params_ich8lan(struct e1000_adapter *adapter)
 		mac->rar_entry_count--;
 	/* Set if manageability features are enabled. */
 	mac->arc_subsystem_valid = true;
+	/* Adaptive IFS supported */
+	mac->adaptive_ifs = true;
 
 	/* LED operations */
 	switch (mac->type) {
@@ -1074,15 +1096,43 @@ out:
 
 
 /**
+ *  e1000_set_mdio_slow_mode_hv - Set slow MDIO access mode
+ *  @hw:   pointer to the HW structure
+ **/
+static s32 e1000_set_mdio_slow_mode_hv(struct e1000_hw *hw)
+{
+	s32 ret_val;
+	u16 data;
+
+	ret_val = e1e_rphy(hw, HV_KMRN_MODE_CTRL, &data);
+	if (ret_val)
+		return ret_val;
+
+	data |= HV_KMRN_MDIO_SLOW;
+
+	ret_val = e1e_wphy(hw, HV_KMRN_MODE_CTRL, data);
+
+	return ret_val;
+}
+
+/**
  *  e1000_hv_phy_workarounds_ich8lan - A series of Phy workarounds to be
  *  done after every PHY reset.
  **/
 static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 {
 	s32 ret_val = 0;
+	u16 phy_data;
 
 	if (hw->mac.type != e1000_pchlan)
 		return ret_val;
+
+	/* Set MDIO slow mode before any other MDIO access */
+	if (hw->phy.type == e1000_phy_82577) {
+		ret_val = e1000_set_mdio_slow_mode_hv(hw);
+		if (ret_val)
+			goto out;
+	}
 
 	if (((hw->phy.type == e1000_phy_82577) &&
 	     ((hw->phy.revision == 1) || (hw->phy.revision == 2))) ||
@@ -1116,16 +1166,32 @@ static s32 e1000_hv_phy_workarounds_ich8lan(struct e1000_hw *hw)
 
 	hw->phy.addr = 1;
 	ret_val = e1000e_write_phy_reg_mdic(hw, IGP01E1000_PHY_PAGE_SELECT, 0);
+	hw->phy.ops.release(hw);
 	if (ret_val)
 		goto out;
-	hw->phy.ops.release(hw);
 
 	/*
 	 * Configure the K1 Si workaround during phy reset assuming there is
 	 * link so that it disables K1 if link is in 1Gbps.
 	 */
 	ret_val = e1000_k1_gig_workaround_hv(hw, true);
+	if (ret_val)
+		goto out;
 
+	/* Workaround for link disconnects on a busy hub in half duplex */
+	ret_val = hw->phy.ops.acquire(hw);
+	if (ret_val)
+		goto out;
+	ret_val = hw->phy.ops.read_reg_locked(hw,
+	                                      PHY_REG(BM_PORT_CTRL_PAGE, 17),
+	                                      &phy_data);
+	if (ret_val)
+		goto release;
+	ret_val = hw->phy.ops.write_reg_locked(hw,
+	                                       PHY_REG(BM_PORT_CTRL_PAGE, 17),
+	                                       phy_data & 0x00FF);
+release:
+	hw->phy.ops.release(hw);
 out:
 	return ret_val;
 }
@@ -1182,6 +1248,7 @@ static s32 e1000_phy_hw_reset_ich8lan(struct e1000_hw *hw)
 	/* Allow time for h/w to get to a quiescent state after reset */
 	mdelay(10);
 
+	/* Perform any necessary post-reset workarounds */
 	if (hw->mac.type == e1000_pchlan) {
 		ret_val = e1000_hv_phy_workarounds_ich8lan(hw);
 		if (ret_val)
@@ -2482,6 +2549,10 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	if (!ret_val)
 		e1000_release_swflag_ich8lan(hw);
 
+	/* Perform any necessary post-reset workarounds */
+	if (hw->mac.type == e1000_pchlan)
+		ret_val = e1000_hv_phy_workarounds_ich8lan(hw);
+
 	if (ctrl & E1000_CTRL_PHY_RST)
 		ret_val = hw->phy.ops.get_cfg_done(hw);
 
@@ -2525,9 +2596,6 @@ static s32 e1000_reset_hw_ich8lan(struct e1000_hw *hw)
 	kab = er32(KABGTXD);
 	kab |= E1000_KABGTXD_BGSQLBIAS;
 	ew32(KABGTXD, kab);
-
-	if (hw->mac.type == e1000_pchlan)
-		ret_val = e1000_hv_phy_workarounds_ich8lan(hw);
 
 out:
 	return ret_val;
