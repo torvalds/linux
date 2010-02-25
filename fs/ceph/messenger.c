@@ -1853,14 +1853,6 @@ static void ceph_fault(struct ceph_connection *con)
 		con->in_msg = NULL;
 	}
 
-	/*
-	 * in case we faulted due to authentication, invalidate our
-	 * current tickets so that we can get new ones.
-         */
-	if (con->auth_retry && con->ops->invalidate_authorizer) {
-		dout("calling invalidate_authorizer()\n");
-		con->ops->invalidate_authorizer(con);
-	}
 
 	/* If there are no messages in the queue, place the connection
 	 * in a STANDBY state (i.e., don't try to reconnect just yet). */
@@ -1890,6 +1882,15 @@ static void ceph_fault(struct ceph_connection *con)
 out_unlock:
 	mutex_unlock(&con->mutex);
 out:
+	/*
+	 * in case we faulted due to authentication, invalidate our
+	 * current tickets so that we can get new ones.
+         */
+	if (con->auth_retry && con->ops->invalidate_authorizer) {
+		dout("calling invalidate_authorizer()\n");
+		con->ops->invalidate_authorizer(con);
+	}
+
 	if (con->ops->fault)
 		con->ops->fault(con);
 }
