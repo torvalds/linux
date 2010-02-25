@@ -239,12 +239,14 @@ nouveau_connector_detect(struct drm_connector *connector)
 	if (nv_connector->dcb->type == DCB_CONNECTOR_LVDS)
 		nv_encoder = find_encoder_by_type(connector, OUTPUT_LVDS);
 	if (nv_encoder && nv_connector->native_mode) {
+		unsigned status = connector_status_connected;
+
 #ifdef CONFIG_ACPI
 		if (!nouveau_ignorelid && !acpi_lid_open())
-			return connector_status_disconnected;
+			status = connector_status_unknown;
 #endif
 		nouveau_connector_set_encoder(connector, nv_encoder);
-		return connector_status_connected;
+		return status;
 	}
 
 	/* Cleanup the previous EDID block. */
