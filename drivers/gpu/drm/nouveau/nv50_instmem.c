@@ -390,7 +390,7 @@ nv50_instmem_populate(struct drm_device *dev, struct nouveau_gpuobj *gpuobj,
 	if (gpuobj->im_backing)
 		return -EINVAL;
 
-	*sz = (*sz + (NV50_INSTMEM_PAGE_SIZE-1)) & ~(NV50_INSTMEM_PAGE_SIZE-1);
+	*sz = ALIGN(*sz, NV50_INSTMEM_PAGE_SIZE);
 	if (*sz == 0)
 		return -EINVAL;
 
