@@ -320,10 +320,12 @@ static void queue_bast(struct dlm_rsb *r, struct dlm_lkb *lkb, int rqmode)
 {
 	lkb->lkb_time_bast = ktime_get();
 
-	if (is_master_copy(lkb))
+	if (is_master_copy(lkb)) {
+		lkb->lkb_bastmode = rqmode; /* printed by debugfs */
 		send_bast(r, lkb, rqmode);
-	else
+	} else {
 		dlm_add_ast(lkb, AST_BAST, rqmode);
+	}
 }
 
 /*
