@@ -229,10 +229,6 @@ nv50_graph_create_context(struct nouveau_channel *chan)
 		nouveau_grctx_vals_load(dev, ctx);
 	}
 	nv_wo32(dev, ctx, 0x00000/4, chan->ramin->instance >> 12);
-	if ((dev_priv->chipset & 0xf0) == 0xa0)
-		nv_wo32(dev, ctx, 0x00004/4, 0x00000000);
-	else
-		nv_wo32(dev, ctx, 0x0011c/4, 0x00000000);
 	dev_priv->engine.instmem.finish_access(dev);
 
 	return 0;
