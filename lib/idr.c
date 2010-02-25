@@ -140,8 +140,7 @@ static int sub_alloc(struct idr *idp, int *starting_id, struct idr_layer **pa)
 	id = *starting_id;
  restart:
 	p = idp->top;
-	l = idp->layers;
-	pa[l--] = NULL;
+	l = p->layer;
 	while (1) {
 		/*
 		 * We run around this while until we reach the leaf node...
@@ -155,8 +154,8 @@ static int sub_alloc(struct idr *idp, int *starting_id, struct idr_layer **pa)
 			oid = id;
 			id = (id | ((1 << (IDR_BITS * l)) - 1)) + 1;
 
-			/* if already at the top layer, we need to grow */
-			if (!(p = pa[l])) {
+			/* did id go over the limit? */
+			if (id >= (1 << (idp->layers * IDR_BITS))) {
 				*starting_id = id;
 				return IDR_NEED_TO_GROW;
 			}
