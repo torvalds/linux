@@ -2388,13 +2388,13 @@ try_mount_again:
 		 */
 		cifs_put_tcp_session(srvTcp);
 
-		down(&pSesInfo->sesSem);
+		mutex_lock(&pSesInfo->session_mutex);
 		if (pSesInfo->need_reconnect) {
 			cFYI(1, ("Session needs reconnect"));
 			rc = cifs_setup_session(xid, pSesInfo,
 						cifs_sb->local_nls);
 		}
-		up(&pSesInfo->sesSem);
+		mutex_unlock(&pSesInfo->session_mutex);
 	} else if (!rc) {
 		cFYI(1, ("Existing smb sess not found"));
 		pSesInfo = sesInfoAlloc();
@@ -2437,12 +2437,12 @@ try_mount_again:
 		}
 		pSesInfo->linux_uid = volume_info->linux_uid;
 		pSesInfo->overrideSecFlg = volume_info->secFlg;
-		down(&pSesInfo->sesSem);
+		mutex_lock(&pSesInfo->session_mutex);
 
 		/* BB FIXME need to pass vol->secFlgs BB */
 		rc = cifs_setup_session(xid, pSesInfo,
 					cifs_sb->local_nls);
-		up(&pSesInfo->sesSem);
+		mutex_unlock(&pSesInfo->session_mutex);
 	}
 
 	/* search for existing tcon to this server share */

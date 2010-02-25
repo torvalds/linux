@@ -170,19 +170,19 @@ cifs_reconnect_tcon(struct cifsTconInfo *tcon, int smb_command)
 	 * need to prevent multiple threads trying to simultaneously
 	 * reconnect the same SMB session
 	 */
-	down(&ses->sesSem);
+	mutex_lock(&ses->session_mutex);
 	if (ses->need_reconnect)
 		rc = cifs_setup_session(0, ses, nls_codepage);
 
 	/* do we need to reconnect tcon? */
 	if (rc || !tcon->need_reconnect) {
-		up(&ses->sesSem);
+		mutex_unlock(&ses->session_mutex);
 		goto out;
 	}
 
 	mark_open_files_invalid(tcon);
 	rc = CIFSTCon(0, ses, tcon->treeName, tcon, nls_codepage);
-	up(&ses->sesSem);
+	mutex_unlock(&ses->session_mutex);
 	cFYI(1, ("reconnect tcon rc = %d", rc));
 
 	if (rc)
@@ -700,13 +700,13 @@ CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses)
 	if (!ses || !ses->server)
 		return -EIO;
 
-	down(&ses->sesSem);
+	mutex_lock(&ses->session_mutex);
 	if (ses->need_reconnect)
 		goto session_already_dead; /* no need to send SMBlogoff if uid
 					      already closed due to reconnect */
 	rc = small_smb_init(SMB_COM_LOGOFF_ANDX, 2, NULL, (void **)&pSMB);
 	if (rc) {
-		up(&ses->sesSem);
+		mutex_unlock(&ses->session_mutex);
 		return rc;
 	}
 
@@ -721,7 +721,7 @@ CIFSSMBLogoff(const int xid, struct cifsSesInfo *ses)
 	pSMB->AndXCommand = 0xFF;
 	rc = SendReceiveNoRsp(xid, ses, (struct smb_hdr *) pSMB, 0);
 session_already_dead:
-	up(&ses->sesSem);
+	mutex_unlock(&ses->session_mutex);
 
 	/* if session dead then we do not need to do ulogoff,
 		since server closed smb session, no sense reporting
