@@ -132,7 +132,7 @@ static irqreturn_t arm11_pmu_interrupt(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-int arm11_request_interrupts(int *irqs, int nr)
+int arm11_request_interrupts(const int *irqs, int nr)
 {
 	unsigned int i;
 	int ret = 0;
@@ -153,7 +153,7 @@ int arm11_request_interrupts(int *irqs, int nr)
 	return ret;
 }
 
-void arm11_release_interrupts(int *irqs, int nr)
+void arm11_release_interrupts(const int *irqs, int nr)
 {
 	unsigned int i;
 
