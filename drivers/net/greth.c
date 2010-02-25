@@ -560,8 +560,6 @@ map_error:
 	if (net_ratelimit())
 		dev_warn(greth->dev, "Could not create TX DMA mapping\n");
 	dev_kfree_skb(skb);
-	return NETDEV_TX_OK;
-
 out:
 	return err;
 }
