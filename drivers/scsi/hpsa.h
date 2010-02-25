@@ -83,6 +83,10 @@ struct ctlr_info {
 	unsigned int maxQsinceinit;
 	unsigned int maxSG;
 	spinlock_t lock;
+	int maxsgentries;
+	u8 max_cmd_sg_entries;
+	int chainsize;
+	struct SGDescriptor **cmd_sg_list;
 
 	/* pointers to command and error info pool */
 	struct CommandList 	*cmd_pool;

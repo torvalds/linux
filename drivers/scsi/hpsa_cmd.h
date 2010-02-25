@@ -23,7 +23,8 @@
 
 /* general boundary defintions */
 #define SENSEINFOBYTES          32 /* may vary between hbas */
-#define MAXSGENTRIES            31
+#define MAXSGENTRIES            32
+#define HPSA_SG_CHAIN		0x80000000
 #define MAXREPLYQS              256
 
 /* Command Status value */
@@ -321,8 +322,8 @@ struct CommandList {
  */
 #define IS_32_BIT ((8 - sizeof(long))/4)
 #define IS_64_BIT (!IS_32_BIT)
-#define PAD_32 (8)
-#define PAD_64 (0)
+#define PAD_32 (24)
+#define PAD_64 (16)
 #define COMMANDLIST_PAD (IS_32_BIT * PAD_32 + IS_64_BIT * PAD_64)
 	u8 pad[COMMANDLIST_PAD];
 };

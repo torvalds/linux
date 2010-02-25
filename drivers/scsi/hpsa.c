@@ -187,7 +187,6 @@ static struct scsi_host_template hpsa_driver_template = {
 	.scan_finished		= hpsa_scan_finished,
 	.change_queue_depth	= hpsa_change_queue_depth,
 	.this_id		= -1,
-	.sg_tablesize		= MAXSGENTRIES,
 	.use_clustering		= ENABLE_CLUSTERING,
 	.eh_device_reset_handler = hpsa_eh_device_reset_handler,
 	.ioctl			= hpsa_ioctl,
@@ -844,6 +843,76 @@ static void hpsa_scsi_setup(struct ctlr_info *h)
 	spin_lock_init(&h->devlock);
 }
 
+static void hpsa_free_sg_chain_blocks(struct ctlr_info *h)
+{
+	int i;
+
+	if (!h->cmd_sg_list)
+		return;
+	for (i = 0; i < h->nr_cmds; i++) {
+		kfree(h->cmd_sg_list[i]);
+		h->cmd_sg_list[i] = NULL;
+	}
+	kfree(h->cmd_sg_list);
+	h->cmd_sg_list = NULL;
+}
+
+static int hpsa_allocate_sg_chain_blocks(struct ctlr_info *h)
+{
+	int i;
+
+	if (h->chainsize <= 0)
+		return 0;
+
+	h->cmd_sg_list = kzalloc(sizeof(*h->cmd_sg_list) * h->nr_cmds,
+				GFP_KERNEL);
+	if (!h->cmd_sg_list)
+		return -ENOMEM;
+	for (i = 0; i < h->nr_cmds; i++) {
+		h->cmd_sg_list[i] = kmalloc(sizeof(*h->cmd_sg_list[i]) *
+						h->chainsize, GFP_KERNEL);
+		if (!h->cmd_sg_list[i])
+			goto clean;
+	}
+	return 0;
+
+clean:
+	hpsa_free_sg_chain_blocks(h);
+	return -ENOMEM;
+}
+
+static void hpsa_map_sg_chain_block(struct ctlr_info *h,
+	struct CommandList *c)
+{
+	struct SGDescriptor *chain_sg, *chain_block;
+	u64 temp64;
+
+	chain_sg = &c->SG[h->max_cmd_sg_entries - 1];
+	chain_block = h->cmd_sg_list[c->cmdindex];
+	chain_sg->Ext = HPSA_SG_CHAIN;
+	chain_sg->Len = sizeof(*chain_sg) *
+		(c->Header.SGTotal - h->max_cmd_sg_entries);
+	temp64 = pci_map_single(h->pdev, chain_block, chain_sg->Len,
+				PCI_DMA_TODEVICE);
+	chain_sg->Addr.lower = (u32) (temp64 & 0x0FFFFFFFFULL);
+	chain_sg->Addr.upper = (u32) ((temp64 >> 32) & 0x0FFFFFFFFULL);
+}
+
+static void hpsa_unmap_sg_chain_block(struct ctlr_info *h,
+	struct CommandList *c)
+{
+	struct SGDescriptor *chain_sg;
+	union u64bit temp64;
+
+	if (c->Header.SGTotal <= h->max_cmd_sg_entries)
+		return;
+
+	chain_sg = &c->SG[h->max_cmd_sg_entries - 1];
+	temp64.val32.lower = chain_sg->Addr.lower;
+	temp64.val32.upper = chain_sg->Addr.upper;
+	pci_unmap_single(h->pdev, temp64.val, chain_sg->Len, PCI_DMA_TODEVICE);
+}
+
 static void complete_scsi_command(struct CommandList *cp,
 	int timeout, u32 tag)
 {
@@ -860,6 +929,8 @@ static void complete_scsi_command(struct CommandList *cp,
 	h = cp->h;
 
 	scsi_dma_unmap(cmd); /* undo the DMA mappings */
+	if (cp->Header.SGTotal > h->max_cmd_sg_entries)
+		hpsa_unmap_sg_chain_block(h, cp);
 
 	cmd->result = (DID_OK << 16); 		/* host byte */
 	cmd->result |= (COMMAND_COMPLETE << 8);	/* msg byte */
@@ -1064,6 +1135,7 @@ static int hpsa_scsi_detect(struct ctlr_info *h)
 	sh->max_id = HPSA_MAX_LUN;
 	sh->can_queue = h->nr_cmds;
 	sh->cmd_per_lun = h->nr_cmds;
+	sh->sg_tablesize = h->maxsgentries;
 	h->scsi_host = sh;
 	sh->hostdata[0] = (unsigned long) h;
 	sh->irq = h->intr[PERF_MODE_INT];
@@ -1765,16 +1837,17 @@ out:
  * dma mapping  and fills in the scatter gather entries of the
  * hpsa command, cp.
  */
-static int hpsa_scatter_gather(struct pci_dev *pdev,
+static int hpsa_scatter_gather(struct ctlr_info *h,
 		struct CommandList *cp,
 		struct scsi_cmnd *cmd)
 {
 	unsigned int len;
 	struct scatterlist *sg;
 	u64 addr64;
-	int use_sg, i;
+	int use_sg, i, sg_index, chained;
+	struct SGDescriptor *curr_sg;
 
-	BUG_ON(scsi_sg_count(cmd) > MAXSGENTRIES);
+	BUG_ON(scsi_sg_count(cmd) > h->maxsgentries);
 
 	use_sg = scsi_dma_map(cmd);
 	if (use_sg < 0)
@@ -1783,15 +1856,33 @@ static int hpsa_scatter_gather(struct pci_dev *pdev,
 	if (!use_sg)
 		goto sglist_finished;
 
+	curr_sg = cp->SG;
+	chained = 0;
+	sg_index = 0;
 	scsi_for_each_sg(cmd, sg, use_sg, i) {
+		if (i == h->max_cmd_sg_entries - 1 &&
+			use_sg > h->max_cmd_sg_entries) {
+			chained = 1;
+			curr_sg = h->cmd_sg_list[cp->cmdindex];
+			sg_index = 0;
+		}
 		addr64 = (u64) sg_dma_address(sg);
 		len  = sg_dma_len(sg);
-		cp->SG[i].Addr.lower =
-			(u32) (addr64 & (u64) 0x00000000FFFFFFFF);
-		cp->SG[i].Addr.upper =
-			(u32) ((addr64 >> 32) & (u64) 0x00000000FFFFFFFF);
-		cp->SG[i].Len = len;
-		cp->SG[i].Ext = 0;  /* we are not chaining */
+		curr_sg->Addr.lower = (u32) (addr64 & 0x0FFFFFFFFULL);
+		curr_sg->Addr.upper = (u32) ((addr64 >> 32) & 0x0FFFFFFFFULL);
+		curr_sg->Len = len;
+		curr_sg->Ext = 0;  /* we are not chaining */
+		curr_sg++;
+	}
+
+	if (use_sg + chained > h->maxSG)
+		h->maxSG = use_sg + chained;
+
+	if (chained) {
+		cp->Header.SGList = h->max_cmd_sg_entries;
+		cp->Header.SGTotal = (u16) (use_sg + 1);
+		hpsa_map_sg_chain_block(h, cp);
+		return 0;
 	}
 
 sglist_finished:
@@ -1887,7 +1978,7 @@ static int hpsa_scsi_queue_command(struct scsi_cmnd *cmd,
 		break;
 	}
 
-	if (hpsa_scatter_gather(h->pdev, c, cmd) < 0) { /* Fill SG list */
+	if (hpsa_scatter_gather(h, c, cmd) < 0) { /* Fill SG list */
 		cmd_free(h, c);
 		return SCSI_MLQUEUE_HOST_BUSY;
 	}
@@ -3283,6 +3374,23 @@ static int __devinit hpsa_pci_init(struct ctlr_info *h, struct pci_dev *pdev)
 
 	h->board_id = board_id;
 	h->max_commands = readl(&(h->cfgtable->MaxPerformantModeCommands));
+	h->maxsgentries = readl(&(h->cfgtable->MaxScatterGatherElements));
+
+	/*
+	 * Limit in-command s/g elements to 32 save dma'able memory.
+	 * Howvever spec says if 0, use 31
+	 */
+
+	h->max_cmd_sg_entries = 31;
+	if (h->maxsgentries > 512) {
+		h->max_cmd_sg_entries = 32;
+		h->chainsize = h->maxsgentries - h->max_cmd_sg_entries + 1;
+		h->maxsgentries--; /* save one for chain pointer */
+	} else {
+		h->maxsgentries = 31; /* default to traditional values */
+		h->chainsize = 0;
+	}
+
 	h->product_name = products[prod_index].product_name;
 	h->access = *(products[prod_index].access);
 	/* Allow room for some ioctls */
@@ -3463,6 +3571,8 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 		rc = -ENOMEM;
 		goto clean4;
 	}
+	if (hpsa_allocate_sg_chain_blocks(h))
+		goto clean4;
 	spin_lock_init(&h->lock);
 	spin_lock_init(&h->scan_lock);
 	init_waitqueue_head(&h->scan_wait_queue);
@@ -3485,6 +3595,7 @@ static int __devinit hpsa_init_one(struct pci_dev *pdev,
 	return 1;
 
 clean4:
+	hpsa_free_sg_chain_blocks(h);
 	kfree(h->cmd_pool_bits);
 	if (h->cmd_pool)
 		pci_free_consistent(h->pdev,
@@ -3560,6 +3671,7 @@ static void __devexit hpsa_remove_one(struct pci_dev *pdev)
 	hpsa_unregister_scsi(h);	/* unhook from SCSI subsystem */
 	hpsa_shutdown(pdev);
 	iounmap(h->vaddr);
+	hpsa_free_sg_chain_blocks(h);
 	pci_free_consistent(h->pdev,
 		h->nr_cmds * sizeof(struct CommandList),
 		h->cmd_pool, h->cmd_pool_dhandle);
