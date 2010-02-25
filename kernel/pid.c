@@ -401,7 +401,7 @@ struct task_struct *pid_task(struct pid *pid, enum pid_type type)
 	struct task_struct *result = NULL;
 	if (pid) {
 		struct hlist_node *first;
-		first = rcu_dereference_check(pid->tasks[type].first,
+		first = rcu_dereference_check(hlist_first_rcu(&pid->tasks[type]),
 					      rcu_read_lock_held() ||
 					      lockdep_tasklist_lock_is_held());
 		if (first)
