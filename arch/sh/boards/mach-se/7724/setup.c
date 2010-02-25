@@ -610,7 +610,8 @@ static int __init devices_setup(void)
 	struct clk *clk;
 
 	/* register board specific self-refresh code */
-	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF |
+					SUSP_SH_RSTANDBY,
 					&ms7724se_sdram_enter_start,
 					&ms7724se_sdram_enter_end,
 					&ms7724se_sdram_leave_start,
