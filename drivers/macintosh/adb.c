@@ -322,8 +322,8 @@ static int __init adb_init(void)
 		adb_controller = NULL;
 	} else {
 #ifdef CONFIG_PPC
-		if (machine_is_compatible("AAPL,PowerBook1998") ||
-			machine_is_compatible("PowerBook1,1"))
+		if (of_machine_is_compatible("AAPL,PowerBook1998") ||
+			of_machine_is_compatible("PowerBook1,1"))
 			sleepy_trackpad = 1;
 #endif /* CONFIG_PPC */
 

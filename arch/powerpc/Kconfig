@@ -173,6 +173,7 @@ config PPC_OF
 
 config OF
 	def_bool y
+	select OF_FLATTREE
 
 config PPC_UDBG_16550
 	bool
