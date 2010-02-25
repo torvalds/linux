@@ -230,7 +230,7 @@ unsigned long segment_base(u16 selector)
 	unsigned long table_base;
 	unsigned long v;
 
-	if (selector == 0)
+	if (!(selector & ~3))
 		return 0;
 
 	native_store_gdt(&gdt);
@@ -239,6 +239,8 @@ unsigned long segment_base(u16 selector)
 	if (selector & 4) {           /* from ldt */
 		u16 ldt_selector = kvm_read_ldt();
 
+		if (!(ldt_selector & ~3))
+			return 0;
 		table_base = segment_base(ldt_selector);
 	}
 	d = (struct desc_struct *)(table_base + (selector & ~7));
