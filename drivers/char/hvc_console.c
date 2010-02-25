@@ -125,7 +125,7 @@ static struct hvc_struct *hvc_get_by_index(int index)
  * console interfaces but can still be used as a tty device.  This has to be
  * static because kmalloc will not work during early console init.
  */
-static struct hv_ops *cons_ops[MAX_NR_HVC_CONSOLES];
+static const struct hv_ops *cons_ops[MAX_NR_HVC_CONSOLES];
 static uint32_t vtermnos[MAX_NR_HVC_CONSOLES] =
 	{[0 ... MAX_NR_HVC_CONSOLES - 1] = -1};
 
@@ -247,7 +247,7 @@ static void destroy_hvc_struct(struct kref *kref)
  * vty adapters do NOT get an hvc_instantiate() callback since they
  * appear after early console init.
  */
-int hvc_instantiate(uint32_t vtermno, int index, struct hv_ops *ops)
+int hvc_instantiate(uint32_t vtermno, int index, const struct hv_ops *ops)
 {
 	struct hvc_struct *hp;
 
@@ -749,7 +749,8 @@ static const struct tty_operations hvc_ops = {
 };
 
 struct hvc_struct __devinit *hvc_alloc(uint32_t vtermno, int data,
-					struct hv_ops *ops, int outbuf_size)
+				       const struct hv_ops *ops,
+				       int outbuf_size)
 {
 	struct hvc_struct *hp;
 	int i;
