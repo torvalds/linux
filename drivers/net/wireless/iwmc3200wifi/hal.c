@@ -104,6 +104,7 @@
 #include "hal.h"
 #include "umac.h"
 #include "debug.h"
+#include "trace.h"
 
 static int iwm_nonwifi_cmd_init(struct iwm_priv *iwm,
 				struct iwm_nonwifi_cmd *cmd,
@@ -276,6 +277,7 @@ static int iwm_send_udma_nonwifi_cmd(struct iwm_priv *iwm,
 		    udma_cmd->handle_by_hw, cmd->seq_num, udma_cmd->addr,
 		    udma_cmd->op1_sz, udma_cmd->op2);
 
+	trace_iwm_tx_nonwifi_cmd(iwm, udma_hdr);
 	return iwm_bus_send_chunk(iwm, buf->start, buf->len);
 }
 
@@ -362,6 +364,7 @@ static int iwm_send_udma_wifi_cmd(struct iwm_priv *iwm,
 		return ret;
 	}
 
+	trace_iwm_tx_wifi_cmd(iwm, umac_hdr);
 	return iwm_bus_send_chunk(iwm, buf->start, buf->len);
 }
 

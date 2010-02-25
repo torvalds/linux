@@ -346,6 +346,7 @@ static int iwm_tx_send_concat_packets(struct iwm_priv *iwm,
 	/* mark EOP for the last packet */
 	iwm_udma_wifi_hdr_set_eop(iwm, txq->concat_ptr, 1);
 
+	trace_iwm_tx_packets(iwm, txq->concat_buf, txq->concat_count);
 	ret = iwm_bus_send_chunk(iwm, txq->concat_buf, txq->concat_count);
 
 	txq->concat_count = 0;

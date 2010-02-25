@@ -1235,26 +1235,30 @@ static int iwm_rx_handle_wifi(struct iwm_priv *iwm, u8 *buf,
 	u8 source, cmd_id;
 	u16 seq_num;
 	u32 count;
-	u8 resp;
 
 	wifi_hdr = (struct iwm_umac_wifi_in_hdr *)buf;
 	cmd_id = wifi_hdr->sw_hdr.cmd.cmd;
-
 	source = GET_VAL32(wifi_hdr->hw_hdr.cmd, UMAC_HDI_IN_CMD_SOURCE);
 	if (source >= IWM_SRC_NUM) {
 		IWM_CRIT(iwm, "invalid source %d\n", source);
 		return -EINVAL;
 	}
 
-	count = (GET_VAL32(wifi_hdr->sw_hdr.meta_data, UMAC_FW_CMD_BYTE_COUNT));
+	if (cmd_id == REPLY_RX_MPDU_CMD)
+		trace_iwm_rx_packet(iwm, buf, buf_size);
+	else if ((cmd_id == UMAC_NOTIFY_OPCODE_RX_TICKET) &&
+		 (source == UMAC_HDI_IN_SOURCE_FW))
+		trace_iwm_rx_ticket(iwm, buf, buf_size);
+	else
+		trace_iwm_rx_wifi_cmd(iwm, wifi_hdr);
+
+	count = GET_VAL32(wifi_hdr->sw_hdr.meta_data, UMAC_FW_CMD_BYTE_COUNT);
 	count += sizeof(struct iwm_umac_wifi_in_hdr) -
 		 sizeof(struct iwm_dev_cmd_hdr);
 	if (count > buf_size) {
 		IWM_CRIT(iwm, "count %d, buf size:%ld\n", count, buf_size);
 		return -EINVAL;
 	}
-
-	resp = GET_VAL32(wifi_hdr->sw_hdr.meta_data, UMAC_FW_CMD_STATUS);
 
 	seq_num = le16_to_cpu(wifi_hdr->sw_hdr.cmd.seq_num);
 
@@ -1330,6 +1334,7 @@ static int iwm_rx_handle_nonwifi(struct iwm_priv *iwm, u8 *buf,
 	struct iwm_udma_in_hdr *hdr = (struct iwm_udma_in_hdr *)buf;
 	struct iwm_nonwifi_cmd *cmd;
 
+	trace_iwm_rx_nonwifi_cmd(iwm, buf, buf_size);
 	seq_num = GET_VAL32(hdr->cmd, UDMA_HDI_IN_CMD_NON_WIFI_HW_SEQ_NUM);
 
 	/*

@@ -75,7 +75,8 @@ do {									  \
 
 
 /* UDMA IN OP CODE -- cmd bits [3:0] */
-#define UDMA_IN_OPCODE_MASK			0xF
+#define UDMA_HDI_IN_NW_CMD_OPCODE_POS		0
+#define UDMA_HDI_IN_NW_CMD_OPCODE_SEED		0xF
 
 #define UDMA_IN_OPCODE_GENERAL_RESP		0x0
 #define UDMA_IN_OPCODE_READ_RESP		0x1

@@ -48,6 +48,7 @@
 #include "umac.h"
 #include "lmac.h"
 #include "eeprom.h"
+#include "trace.h"
 
 #define IWM_COPYRIGHT "Copyright(c) 2009 Intel Corporation"
 #define IWM_AUTHOR "<ilw@linux.intel.com>"
