@@ -375,7 +375,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 
 	printf("%.102s\n", graph_dotted_line);
 	printf(" %-34s |",  is_caller ? "Callsite": "Alloc Ptr");
-	printf(" Total_alloc/Per | Total_req/Per   | Hit   | Ping-pong | Frag\n");
+	printf(" Total_alloc/Per | Total_req/Per   | Hit      | Ping-pong | Frag\n");
 	printf("%.102s\n", graph_dotted_line);
 
 	next = rb_first(root);
@@ -401,7 +401,7 @@ static void __print_result(struct rb_root *root, struct perf_session *session,
 			snprintf(buf, sizeof(buf), "%#Lx", addr);
 		printf(" %-34s |", buf);
 
-		printf(" %9llu/%-5lu | %9llu/%-5lu | %6lu | %8lu | %6.3f%%\n",
+		printf(" %9llu/%-5lu | %9llu/%-5lu | %8lu | %8lu | %6.3f%%\n",
 		       (unsigned long long)data->bytes_alloc,
 		       (unsigned long)data->bytes_alloc / data->hit,
 		       (unsigned long long)data->bytes_req,
@@ -784,7 +784,8 @@ int cmd_kmem(int argc, const char **argv, const char *prefix __used)
 			setup_sorting(&alloc_sort, default_sort_order);
 
 		return __cmd_kmem();
-	}
+	} else
+		usage_with_options(kmem_usage, kmem_options);
 
 	return 0;
 }

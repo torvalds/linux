@@ -3796,6 +3796,12 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 
 	if (location.type == BTRFS_INODE_ITEM_KEY) {
 		inode = btrfs_iget(dir->i_sb, &location, root);
+		if (unlikely(root->clean_orphans) &&
+		    !(inode->i_sb->s_flags & MS_RDONLY)) {
+			down_read(&root->fs_info->cleanup_work_sem);
+			btrfs_orphan_cleanup(root);
+			up_read(&root->fs_info->cleanup_work_sem);
+		}
 		return inode;
 	}
 
@@ -3995,7 +4001,11 @@ skip:
 
 	/* Reached end of directory/root. Bump pos past the last item. */
 	if (key_type == BTRFS_DIR_INDEX_KEY)
-		filp->f_pos = INT_LIMIT(off_t);
+		/*
+		 * 32-bit glibc will use getdents64, but then strtol -
+		 * so the last number we can serve is this.
+		 */
+		filp->f_pos = 0x7fffffff;
 	else
 		filp->f_pos++;
 nopos:

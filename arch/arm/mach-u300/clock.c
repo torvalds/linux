@@ -1276,11 +1276,8 @@ static struct clk_lookup lookups[] = {
 
 static void __init clk_register(void)
 {
-	int i;
-
 	/* Register the lookups */
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 }
 
 /*

@@ -219,6 +219,6 @@ void __init nuc900_map_io(struct map_desc *mach_desc, int mach_size)
 
 void __init nuc900_init_clocks(void)
 {
-	clks_register(nuc900_clkregs, ARRAY_SIZE(nuc900_clkregs));
+	clkdev_add_table(nuc900_clkregs, ARRAY_SIZE(nuc900_clkregs));
 }
 
