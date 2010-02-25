@@ -788,6 +788,7 @@ static void find_line_range_by_line(struct line_finder *lf)
 	Dwarf_Addr addr;
 	int ret;
 
+	INIT_LIST_HEAD(&lf->lr->line_list);
 	ret = dwarf_srclines(lf->cu_die, &lines, &cnt, &__dw_error);
 	DIE_IF(ret != DW_DLV_OK);
 
@@ -848,8 +849,6 @@ static int linefunc_callback(struct die_link *dlink, void *data)
 		lr->start = lf->lno_s;
 		lr->end = lf->lno_e;
 		find_line_range_by_line(lf);
-		/* If we find a target function, this should be end. */
-		lf->found = 1;
 		return 1;
 	}
 	return 0;
