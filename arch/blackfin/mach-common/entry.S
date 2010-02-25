@@ -482,6 +482,8 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	[--sp] = ASTAT;
 	[--sp] = (R7:6,P5:4);
 
+	ANOMALY_283_315_WORKAROUND(p5, r7)
+
 #ifdef CONFIG_EXACT_HWERR
 	/* Make sure all pending read/writes complete. This will ensure any
 	 * accesses which could cause hardware errors completes, and signal
@@ -491,8 +493,6 @@ ENTRY(_trap) /* Exception: 4th entry into system event table(supervisor mode)*/
 	 */
 	ssync;
 #endif
-
-	ANOMALY_283_315_WORKAROUND(p5, r7)
 
 #ifdef CONFIG_DEBUG_DOUBLEFAULT
 	/*
