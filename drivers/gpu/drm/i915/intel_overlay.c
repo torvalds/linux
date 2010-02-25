@@ -1179,7 +1179,7 @@ int intel_overlay_put_image(struct drm_device *dev, void *data,
 out_unlock:
 	mutex_unlock(&dev->struct_mutex);
 	mutex_unlock(&dev->mode_config.mutex);
-	drm_gem_object_unreference(new_bo);
+	drm_gem_object_unreference_unlocked(new_bo);
 	kfree(params);
 
 	return ret;

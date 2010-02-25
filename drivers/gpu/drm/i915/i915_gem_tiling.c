@@ -438,9 +438,7 @@ i915_gem_set_tiling(struct drm_device *dev, void *data,
 	obj_priv = obj->driver_private;
 
 	if (!i915_tiling_ok(dev, args->stride, obj->size, args->tiling_mode)) {
-		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(obj);
-		mutex_unlock(&dev->struct_mutex);
+		drm_gem_object_unreference_unlocked(obj);
 		return -EINVAL;
 	}
 
