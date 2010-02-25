@@ -368,7 +368,7 @@ static int svm_hardware_enable(void *garbage)
 	sd->max_asid = cpuid_ebx(SVM_CPUID_FUNC) - 1;
 	sd->next_asid = sd->max_asid + 1;
 
-	kvm_get_gdt(&gdt_descr);
+	native_store_gdt(&gdt_descr);
 	gdt = (struct desc_struct *)gdt_descr.address;
 	sd->tss_desc = (struct kvm_ldttss_desc *)(gdt + GDT_ENTRY_TSS);
 

@@ -233,7 +233,7 @@ unsigned long segment_base(u16 selector)
 	if (selector == 0)
 		return 0;
 
-	kvm_get_gdt(&gdt);
+	native_store_gdt(&gdt);
 	table_base = gdt.address;
 
 	if (selector & 4) {           /* from ldt */

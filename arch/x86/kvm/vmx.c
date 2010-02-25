@@ -603,7 +603,7 @@ static void reload_tss(void)
 	struct desc_ptr gdt;
 	struct desc_struct *descs;
 
-	kvm_get_gdt(&gdt);
+	native_store_gdt(&gdt);
 	descs = (void *)gdt.address;
 	descs[GDT_ENTRY_TSS].type = 9; /* available TSS */
 	load_TR_desc();
@@ -767,7 +767,7 @@ static void vmx_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		 * processors.
 		 */
 		vmcs_writel(HOST_TR_BASE, kvm_read_tr_base()); /* 22.2.4 */
-		kvm_get_gdt(&dt);
+		native_store_gdt(&dt);
 		vmcs_writel(HOST_GDTR_BASE, dt.address);   /* 22.2.4 */
 
 		rdmsrl(MSR_IA32_SYSENTER_ESP, sysenter_esp);

@@ -723,11 +723,6 @@ static inline void kvm_get_idt(struct desc_ptr *table)
 	asm("sidt %0" : "=m"(*table));
 }
 
-static inline void kvm_get_gdt(struct desc_ptr *table)
-{
-	asm("sgdt %0" : "=m"(*table));
-}
-
 static inline unsigned long kvm_read_tr_base(void)
 {
 	u16 tr;
