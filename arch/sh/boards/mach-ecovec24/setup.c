@@ -794,6 +794,7 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&irda_device,
 };
 
+#ifdef CONFIG_I2C
 #define EEPROM_ADDR 0x50
 static u8 mac_read(struct i2c_adapter *a, u8 command)
 {
@@ -836,6 +837,12 @@ static void __init sh_eth_init(struct sh_eth_plat_data *pd)
 		msleep(10);
 	}
 }
+#else
+static void __init sh_eth_init(struct sh_eth_plat_data *pd)
+{
+	pr_err("unable to read sh_eth MAC address\n");
+}
+#endif
 
 #define PORT_HIZA 0xA4050158
 #define IODRIVEA  0xA405018A
