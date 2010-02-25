@@ -205,7 +205,7 @@ int prism2_fwtry(struct usb_device *udev, wlandevice_t *wlandev)
 		return 1;
 	}
 
-	printk(KERN_INFO "prism2_usb: %s will be processed, size %d\n",
+	printk(KERN_INFO "prism2_usb: %s will be processed, size %zu\n",
 	       PRISM2_USB_FWFILE, fw_entry->size);
 	prism2_fwapply((const struct ihex_binrec *)fw_entry->data, wlandev);
 
