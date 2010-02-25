@@ -2492,8 +2492,7 @@ void ftdi_unthrottle(struct tty_struct *tty)
 	port->throttled = port->throttle_req = 0;
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	/* Resubmit urb if throttled and open. */
-	if (was_throttled && test_bit(ASYNCB_INITIALIZED, &port->port.flags))
+	if (was_throttled)
 		ftdi_submit_read_urb(port, GFP_KERNEL);
 }
 
