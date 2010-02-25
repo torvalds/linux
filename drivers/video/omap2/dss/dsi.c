@@ -2212,6 +2212,22 @@ int dsi_vc_dcs_read_1(int channel, u8 dcs_cmd, u8 *data)
 }
 EXPORT_SYMBOL(dsi_vc_dcs_read_1);
 
+int dsi_vc_dcs_read_2(int channel, u8 dcs_cmd, u16 *data)
+{
+	int r;
+
+	r = dsi_vc_dcs_read(channel, dcs_cmd, (u8 *)data, 2);
+
+	if (r < 0)
+		return r;
+
+	if (r != 2)
+		return -EIO;
+
+	return 0;
+}
+EXPORT_SYMBOL(dsi_vc_dcs_read_2);
+
 int dsi_vc_set_max_rx_packet_size(int channel, u16 len)
 {
 	int r;
