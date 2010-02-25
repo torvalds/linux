@@ -8,7 +8,7 @@
  * MAX_PHYSADDR_BITS		2^N: how much physical address space we have
  * MAX_PHYSMEM_BITS		2^N: how much memory we can have in that space
  */
-#define SECTION_SIZE_BITS       24
+#define SECTION_SIZE_BITS       28
 
 #define MAX_PHYSADDR_BITS       44
 #define MAX_PHYSMEM_BITS        44
