@@ -339,7 +339,11 @@ static int atmel_ac97c_playback_prepare(struct snd_pcm_substream *substream)
 	ac97c_writel(chip, OCA, word);
 
 	/* configure sample format and size */
-	word = AC97C_CMR_DMAEN | AC97C_CMR_SIZE_16;
+	word = ac97c_readl(chip, CAMR);
+	if (chip->opened <= 1)
+		word = AC97C_CMR_DMAEN | AC97C_CMR_SIZE_16;
+	else
+		word |= AC97C_CMR_DMAEN | AC97C_CMR_SIZE_16;
 
 	switch (runtime->format) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -426,7 +430,11 @@ static int atmel_ac97c_capture_prepare(struct snd_pcm_substream *substream)
 	ac97c_writel(chip, ICA, word);
 
 	/* configure sample format and size */
-	word = AC97C_CMR_DMAEN | AC97C_CMR_SIZE_16;
+	word = ac97c_readl(chip, CAMR);
+	if (chip->opened <= 1)
+		word = AC97C_CMR_DMAEN | AC97C_CMR_SIZE_16;
+	else
+		word |= AC97C_CMR_DMAEN | AC97C_CMR_SIZE_16;
 
 	switch (runtime->format) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -506,7 +514,7 @@ atmel_ac97c_playback_trigger(struct snd_pcm_substream *substream, int cmd)
 		} else {
 			ptcr = ATMEL_PDC_TXTEN;
 		}
-		camr |= AC97C_CMR_CENA;
+		camr |= AC97C_CMR_CENA | AC97C_CSR_ENDTX;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH: /* fall through */
 	case SNDRV_PCM_TRIGGER_SUSPEND: /* fall through */
@@ -551,7 +559,7 @@ atmel_ac97c_capture_trigger(struct snd_pcm_substream *substream, int cmd)
 		} else {
 			ptcr = ATMEL_PDC_RXTEN;
 		}
-		camr |= AC97C_CMR_CENA;
+		camr |= AC97C_CMR_CENA | AC97C_CSR_ENDRX;
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH: /* fall through */
 	case SNDRV_PCM_TRIGGER_SUSPEND: /* fall through */
