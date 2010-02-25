@@ -566,7 +566,9 @@ access the palette, this must be done with ioctls of the Linux framebuffer API.<
     &sub-sbggr8;
     &sub-sgbrg8;
     &sub-sgrbg8;
+    &sub-srggb8;
     &sub-sbggr16;
+    &sub-srggb10;
   </section>
 
   <section id="yuv-formats">
@@ -589,6 +591,7 @@ information.</para>
 
     &sub-packed-yuv;
     &sub-grey;
+    &sub-y10;
     &sub-y16;
     &sub-yuyv;
     &sub-uyvy;
@@ -709,11 +712,6 @@ kernel sources in the file <filename>Documentation/video4linux/cx2341x/README.hm
 	    <entry><constant>V4L2_PIX_FMT_SPCA561</constant></entry>
 	    <entry>'S561'</entry>
 	    <entry>Compressed GBRG Bayer format used by the gspca driver.</entry>
-	  </row>
-	  <row id="V4L2-PIX-FMT-SGRBG10">
-	    <entry><constant>V4L2_PIX_FMT_SGRBG10</constant></entry>
-	    <entry>'DA10'</entry>
-	    <entry>10 bit raw Bayer, expanded to 16 bits.</entry>
 	  </row>
 	  <row id="V4L2-PIX-FMT-SGRBG10DPCM8">
 	    <entry><constant>V4L2_PIX_FMT_SGRBG10DPCM8</constant></entry>
