@@ -280,6 +280,7 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 	if (!buf)
 		return -ENOMEM;
 
+	spin_lock(&iwm->ticket_lock);
 	list_for_each_entry(ticket, &iwm->rx_tickets, node) {
 		len += snprintf(buf + len, buf_len - len, "Ticket #%d\n",
 				ticket->ticket->id);
@@ -288,6 +289,7 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 		len += snprintf(buf + len, buf_len - len, "\tflags:  0x%x\n",
 				ticket->ticket->flags);
 	}
+	spin_unlock(&iwm->ticket_lock);
 
 	for (i = 0; i < IWM_RX_ID_HASH; i++) {
 		struct iwm_rx_packet *packet;
@@ -296,6 +298,7 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 		if (!list_empty(pkt_list)) {
 			len += snprintf(buf + len, buf_len - len,
 					"Packet hash #%d\n", i);
+			spin_lock(&iwm->packet_lock[i]);
 			list_for_each_entry(packet, pkt_list, node) {
 				len += snprintf(buf + len, buf_len - len,
 						"\tPacket id:     %d\n",
@@ -304,6 +307,7 @@ static ssize_t iwm_debugfs_rx_ticket_read(struct file *filp,
 						"\tPacket length: %lu\n",
 						packet->pkt_size);
 			}
+			spin_unlock(&iwm->packet_lock[i]);
 		}
 	}
 

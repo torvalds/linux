@@ -344,10 +344,15 @@ static struct iwm_rx_packet *iwm_rx_packet_get(struct iwm_priv *iwm, u16 id)
 	u8 id_hash = IWM_RX_ID_GET_HASH(id);
 	struct iwm_rx_packet *packet;
 
+	spin_lock(&iwm->packet_lock[id_hash]);
 	list_for_each_entry(packet, &iwm->rx_packets[id_hash], node)
-		if (packet->id == id)
+		if (packet->id == id) {
+			list_del(&packet->node);
+			spin_unlock(&iwm->packet_lock[id_hash]);
 			return packet;
+		}
 
+	spin_unlock(&iwm->packet_lock[id_hash]);
 	return NULL;
 }
 
@@ -385,18 +390,22 @@ void iwm_rx_free(struct iwm_priv *iwm)
 	struct iwm_rx_packet *packet, *np;
 	int i;
 
+	spin_lock(&iwm->ticket_lock);
 	list_for_each_entry_safe(ticket, nt, &iwm->rx_tickets, node) {
 		list_del(&ticket->node);
 		iwm_rx_ticket_node_free(ticket);
 	}
+	spin_unlock(&iwm->ticket_lock);
 
 	for (i = 0; i < IWM_RX_ID_HASH; i++) {
+		spin_lock(&iwm->packet_lock[i]);
 		list_for_each_entry_safe(packet, np, &iwm->rx_packets[i],
 					 node) {
 			list_del(&packet->node);
 			kfree_skb(packet->skb);
 			kfree(packet);
 		}
+		spin_unlock(&iwm->packet_lock[i]);
 	}
 }
 
@@ -424,7 +433,9 @@ static int iwm_ntf_rx_ticket(struct iwm_priv *iwm, u8 *buf,
 				   ticket->action ==  IWM_RX_TICKET_RELEASE ?
 				   "RELEASE" : "DROP",
 				   ticket->id);
+			spin_lock(&iwm->ticket_lock);
 			list_add_tail(&ticket_node->node, &iwm->rx_tickets);
+			spin_unlock(&iwm->ticket_lock);
 
 			/*
 			 * We received an Rx ticket, most likely there's
@@ -457,6 +468,7 @@ static int iwm_ntf_rx_packet(struct iwm_priv *iwm, u8 *buf,
 	struct iwm_rx_packet *packet;
 	u16 id, buf_offset;
 	u32 packet_size;
+	u8 id_hash;
 
 	IWM_DBG_RX(iwm, DBG, "\n");
 
@@ -474,7 +486,10 @@ static int iwm_ntf_rx_packet(struct iwm_priv *iwm, u8 *buf,
 	if (IS_ERR(packet))
 		return PTR_ERR(packet);
 
-	list_add_tail(&packet->node, &iwm->rx_packets[IWM_RX_ID_GET_HASH(id)]);
+	id_hash = IWM_RX_ID_GET_HASH(id);
+	spin_lock(&iwm->packet_lock[id_hash]);
+	list_add_tail(&packet->node, &iwm->rx_packets[id_hash]);
+	spin_unlock(&iwm->packet_lock[id_hash]);
 
 	/* We might (unlikely) have received the packet _after_ the ticket */
 	queue_work(iwm->rx_wq, &iwm->rx_worker);
@@ -1664,6 +1679,7 @@ void iwm_rx_worker(struct work_struct *work)
 	 * We stop whenever a ticket is missing its packet, as we're
 	 * supposed to send the packets in order.
 	 */
+	spin_lock(&iwm->ticket_lock);
 	list_for_each_entry_safe(ticket, next, &iwm->rx_tickets, node) {
 		struct iwm_rx_packet *packet =
 			iwm_rx_packet_get(iwm, le16_to_cpu(ticket->ticket->id));
@@ -1672,12 +1688,12 @@ void iwm_rx_worker(struct work_struct *work)
 			IWM_DBG_RX(iwm, DBG, "Skip rx_work: Wait for ticket %d "
 				   "to be handled first\n",
 				   le16_to_cpu(ticket->ticket->id));
-			return;
+			break;
 		}
 
 		list_del(&ticket->node);
-		list_del(&packet->node);
 		iwm_rx_process_packet(iwm, packet, ticket);
 	}
+	spin_unlock(&iwm->ticket_lock);
 }
 

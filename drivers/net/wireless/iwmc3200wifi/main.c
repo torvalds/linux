@@ -276,8 +276,11 @@ int iwm_priv_init(struct iwm_priv *iwm)
 
 	skb_queue_head_init(&iwm->rx_list);
 	INIT_LIST_HEAD(&iwm->rx_tickets);
-	for (i = 0; i < IWM_RX_ID_HASH; i++)
+	spin_lock_init(&iwm->ticket_lock);
+	for (i = 0; i < IWM_RX_ID_HASH; i++) {
 		INIT_LIST_HEAD(&iwm->rx_packets[i]);
+		spin_lock_init(&iwm->packet_lock[i]);
+	}
 
 	INIT_WORK(&iwm->rx_worker, iwm_rx_worker);
 
