@@ -5996,6 +5996,7 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	const struct ixgbe_info *ii = ixgbe_info_tbl[ent->driver_data];
 	static int cards_found;
 	int i, err, pci_using_dac;
+	unsigned int indices = num_possible_cpus();
 #ifdef IXGBE_FCOE
 	u16 device_caps;
 #endif
@@ -6034,7 +6035,18 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	pci_set_master(pdev);
 	pci_save_state(pdev);
 
-	netdev = alloc_etherdev_mq(sizeof(struct ixgbe_adapter), MAX_TX_QUEUES);
+	if (ii->mac == ixgbe_mac_82598EB)
+		indices = min_t(unsigned int, indices, IXGBE_MAX_RSS_INDICES);
+	else
+		indices = min_t(unsigned int, indices, IXGBE_MAX_FDIR_INDICES);
+
+	indices = max_t(unsigned int, indices, IXGBE_MAX_DCB_INDICES);
+#ifdef IXGBE_FCOE
+	indices += min_t(unsigned int, num_possible_cpus(),
+			 IXGBE_MAX_FCOE_INDICES);
+#endif
+	indices = min_t(unsigned int, indices, MAX_TX_QUEUES);
+	netdev = alloc_etherdev_mq(sizeof(struct ixgbe_adapter), indices);
 	if (!netdev) {
 		err = -ENOMEM;
 		goto err_alloc_etherdev;
