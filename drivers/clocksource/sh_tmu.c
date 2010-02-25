@@ -323,15 +323,15 @@ static void sh_tmu_register_clockevent(struct sh_tmu_priv *p,
 	ced->set_next_event = sh_tmu_clock_event_next;
 	ced->set_mode = sh_tmu_clock_event_mode;
 
+	pr_info("sh_tmu: %s used for clock events\n", ced->name);
+	clockevents_register_device(ced);
+
 	ret = setup_irq(p->irqaction.irq, &p->irqaction);
 	if (ret) {
 		pr_err("sh_tmu: failed to request irq %d\n",
 		       p->irqaction.irq);
 		return;
 	}
-
-	pr_info("sh_tmu: %s used for clock events\n", ced->name);
-	clockevents_register_device(ced);
 }
 
 static int sh_tmu_register(struct sh_tmu_priv *p, char *name,
