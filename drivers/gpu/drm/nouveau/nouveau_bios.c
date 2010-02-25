@@ -3726,7 +3726,7 @@ nouveau_bios_dp_table(struct drm_device *dev, struct dcb_entry *dcbent,
 	}
 	table = &bios->data[bios->display.dp_table_ptr];
 
-	if (table[0] != 0x21) {
+	if (table[0] != 0x20 && table[0] != 0x21) {
 		NV_ERROR(dev, "DisplayPort table version 0x%02x unknown\n",
 			 table[0]);
 		return NULL;
