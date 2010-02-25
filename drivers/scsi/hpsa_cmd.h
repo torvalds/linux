@@ -306,11 +306,8 @@ struct CommandList {
 	int			   cmd_type;
 	long			   cmdindex;
 	struct hlist_node list;
-	struct CommandList *prev;
-	struct CommandList *next;
 	struct request *rq;
 	struct completion *waiting;
-	int	 retry_count;
 	void   *scsi_cmd;
 
 /* on 64 bit architectures, to get this to be 32-byte-aligned
@@ -322,8 +319,8 @@ struct CommandList {
  */
 #define IS_32_BIT ((8 - sizeof(long))/4)
 #define IS_64_BIT (!IS_32_BIT)
-#define PAD_32 (24)
-#define PAD_64 (16)
+#define PAD_32 (4)
+#define PAD_64 (4)
 #define COMMANDLIST_PAD (IS_32_BIT * PAD_32 + IS_64_BIT * PAD_64)
 	u8 pad[COMMANDLIST_PAD];
 };
