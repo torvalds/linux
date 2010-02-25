@@ -10,7 +10,7 @@
  */
 #include <mach/hardware.h>
 
-	.macro	addruart,rx
+	.macro	addruart, rx, tmp
 	mrc	p15, 0, \rx, c1, c0
 	tst	\rx, #1					@ MMU enabled?
 	ldreq	\rx, =U8500_UART2_BASE			@ no, physical address
