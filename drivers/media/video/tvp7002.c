@@ -859,13 +859,17 @@ static int tvp7002_g_register(struct v4l2_subdev *sd,
 						struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	u8 val;
+	int ret;
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	return reg->val < 0 ? -EINVAL : 0;
+	ret = tvp7002_read(sd, reg->reg & 0xff, &val);
+	reg->val = val;
+	return ret;
 }
 
 /*
@@ -881,21 +885,13 @@ static int tvp7002_s_register(struct v4l2_subdev *sd,
 						struct v4l2_dbg_register *reg)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct tvp7002 *device = to_tvp7002(sd);
-	int wres;
 
 	if (!v4l2_chip_match_i2c_client(client, &reg->match))
 		return -EINVAL;
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-	wres = tvp7002_write(sd, reg->reg & 0xff, reg->val & 0xff);
-
-	/* Update the register value in device's table */
-	if (!wres)
-		device->registers[reg->reg].value = reg->val;
-
-	return wres < 0 ? -EINVAL : 0;
+	return tvp7002_write(sd, reg->reg & 0xff, reg->val & 0xff);
 }
 #endif
 
