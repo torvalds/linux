@@ -869,16 +869,15 @@ static int iwm_mlme_remove_bss(struct iwm_priv *iwm, u8 *buf,
 	int i;
 
 	for (i = 0; i < le32_to_cpu(bss_rm->count); i++) {
-		table_idx = (le16_to_cpu(bss_rm->entries[i])
-			     & IWM_BSS_REMOVE_INDEX_MSK);
+		table_idx = le16_to_cpu(bss_rm->entries[i]) &
+			    IWM_BSS_REMOVE_INDEX_MSK;
 		list_for_each_entry_safe(bss, next, &iwm->bss_list, node)
 			if (bss->bss->table_idx == cpu_to_le16(table_idx)) {
 				struct ieee80211_mgmt *mgmt;
 
 				mgmt = (struct ieee80211_mgmt *)
 					(bss->bss->frame_buf);
-				IWM_DBG_MLME(iwm, ERR,
-					     "BSS removed: %pM\n",
+				IWM_DBG_MLME(iwm, ERR, "BSS removed: %pM\n",
 					     mgmt->bssid);
 				list_del(&bss->node);
 				kfree(bss->bss);

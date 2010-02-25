@@ -506,7 +506,7 @@ static int iwm_target_read(struct iwm_priv *iwm, __le32 address,
 		return ret;
 	}
 
-	/* When succeding, the send_target routine returns the seq number */
+	/* When succeeding, the send_target routine returns the seq number */
 	seq_num = ret;
 
 	ret = wait_event_interruptible_timeout(iwm->nonwifi_queue,

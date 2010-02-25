@@ -451,7 +451,6 @@ void iwm_tx_worker(struct work_struct *work)
 int iwm_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 {
 	struct iwm_priv *iwm = ndev_to_iwm(netdev);
-	struct net_device *ndev = iwm_to_ndev(iwm);
 	struct wireless_dev *wdev = iwm_to_wdev(iwm);
 	struct iwm_tx_info *tx_info;
 	struct iwm_tx_queue *txq;
@@ -518,12 +517,12 @@ int iwm_xmit_frame(struct sk_buff *skb, struct net_device *netdev)
 
 	queue_work(iwm->txq[queue].wq, &iwm->txq[queue].worker);
 
-	ndev->stats.tx_packets++;
-	ndev->stats.tx_bytes += skb->len;
+	netdev->stats.tx_packets++;
+	netdev->stats.tx_bytes += skb->len;
 	return NETDEV_TX_OK;
 
  drop:
-	ndev->stats.tx_dropped++;
+	netdev->stats.tx_dropped++;
 	dev_kfree_skb_any(skb);
 	return NETDEV_TX_OK;
 }
