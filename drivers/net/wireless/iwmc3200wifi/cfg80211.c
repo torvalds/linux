@@ -725,23 +725,26 @@ static int iwm_cfg80211_set_power_mgmt(struct wiphy *wiphy,
 				       CFG_POWER_INDEX, iwm->conf.power_index);
 }
 
-int iwm_cfg80211_set_pmksa(struct wiphy *wiphy, struct net_device *netdev,
-			   struct cfg80211_pmksa *pmksa)
+static int iwm_cfg80211_set_pmksa(struct wiphy *wiphy,
+				  struct net_device *netdev,
+				  struct cfg80211_pmksa *pmksa)
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 
 	return iwm_send_pmkid_update(iwm, pmksa, IWM_CMD_PMKID_ADD);
 }
 
-int iwm_cfg80211_del_pmksa(struct wiphy *wiphy, struct net_device *netdev,
-			   struct cfg80211_pmksa *pmksa)
+static int iwm_cfg80211_del_pmksa(struct wiphy *wiphy,
+				  struct net_device *netdev,
+				  struct cfg80211_pmksa *pmksa)
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 
 	return iwm_send_pmkid_update(iwm, pmksa, IWM_CMD_PMKID_DEL);
 }
 
-int iwm_cfg80211_flush_pmksa(struct wiphy *wiphy, struct net_device *netdev)
+static int iwm_cfg80211_flush_pmksa(struct wiphy *wiphy,
+				    struct net_device *netdev)
 {
 	struct iwm_priv *iwm = wiphy_to_iwm(wiphy);
 	struct cfg80211_pmksa pmksa;
