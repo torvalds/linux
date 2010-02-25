@@ -362,7 +362,7 @@ static dma_cookie_t fsl_dma_tx_submit(struct dma_async_tx_descriptor *tx)
 		if (cookie < 0)
 			cookie = 1;
 
-		desc->async_tx.cookie = cookie;
+		child->async_tx.cookie = cookie;
 	}
 
 	chan->common.cookie = cookie;
