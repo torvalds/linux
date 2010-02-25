@@ -451,7 +451,6 @@ static void pl2303_send(struct usb_serial_port *port)
 			      port->write_urb->transfer_buffer);
 
 	port->write_urb->transfer_buffer_length = count;
-	port->write_urb->dev = port->serial->dev;
 	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 	if (result) {
 		dev_err(&port->dev, "%s - failed submitting write urb,"
@@ -769,7 +768,6 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 		pl2303_set_termios(tty, port, &tmp_termios);
 
 	dbg("%s - submitting read urb", __func__);
-	port->read_urb->dev = serial->dev;
 	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
 	if (result) {
 		dev_err(&port->dev, "%s - failed submitting read urb,"
@@ -779,7 +777,6 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 	}
 
 	dbg("%s - submitting interrupt urb", __func__);
-	port->interrupt_in_urb->dev = serial->dev;
 	result = usb_submit_urb(port->interrupt_in_urb, GFP_KERNEL);
 	if (result) {
 		dev_err(&port->dev, "%s - failed submitting interrupt urb,"
@@ -1089,7 +1086,6 @@ static void pl2303_read_bulk_callback(struct urb *urb)
 			 * the read */
 			dbg("%s - caught -EPROTO, resubmitting the urb",
 			    __func__);
-			urb->dev = port->serial->dev;
 			result = usb_submit_urb(urb, GFP_ATOMIC);
 			if (result)
 				dev_err(&urb->dev->dev, "%s - failed"
@@ -1116,7 +1112,6 @@ static void pl2303_read_bulk_callback(struct urb *urb)
 	}
 	tty_kref_put(tty);
 	/* Schedule the next read _if_ we are still open */
-	urb->dev = port->serial->dev;
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result && result != -EPERM)
 		dev_err(&urb->dev->dev, "%s - failed resubmitting"
@@ -1150,7 +1145,6 @@ static void pl2303_write_bulk_callback(struct urb *urb)
 		dbg("%s - nonzero write bulk status received: %d", __func__,
 		    status);
 		port->write_urb->transfer_buffer_length = 1;
-		port->write_urb->dev = port->serial->dev;
 		result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 		if (result)
 			dev_err(&urb->dev->dev, "%s - failed resubmitting write"
