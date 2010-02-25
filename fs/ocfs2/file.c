@@ -2041,7 +2041,7 @@ out_dio:
 	 * async dio is going to do it in the future or an end_io after an
 	 * error has already done it.
 	 */
-	if (ret == -EIOCBQUEUED || !ocfs2_iocb_is_rw_locked(iocb)) {
+	if ((ret == -EIOCBQUEUED) || (!ocfs2_iocb_is_rw_locked(iocb))) {
 		rw_level = -1;
 		have_alloc_sem = 0;
 	}
