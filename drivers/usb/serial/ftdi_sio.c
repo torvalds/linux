@@ -88,7 +88,6 @@ struct ftdi_private {
 
 	unsigned int latency;		/* latency setting in use */
 	spinlock_t tx_lock;	/* spinlock for transmit state */
-	unsigned long tx_bytes;
 	unsigned long tx_outstanding_bytes;
 	unsigned long tx_outstanding_urbs;
 	unsigned short max_packet_size;
@@ -1729,10 +1728,6 @@ static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 
 	dbg("%s", __func__);
 
-	spin_lock_irqsave(&priv->tx_lock, flags);
-	priv->tx_bytes = 0;
-	spin_unlock_irqrestore(&priv->tx_lock, flags);
-
 	write_latency_timer(port);
 
 	/* No error checking for this (will get errors later anyway) */
@@ -1917,7 +1912,6 @@ static int ftdi_write(struct tty_struct *tty, struct usb_serial_port *port,
 	} else {
 		spin_lock_irqsave(&priv->tx_lock, flags);
 		priv->tx_outstanding_bytes += count;
-		priv->tx_bytes += count;
 		spin_unlock_irqrestore(&priv->tx_lock, flags);
 	}
 
