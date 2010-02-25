@@ -644,8 +644,6 @@ int emulator_write_emulated(unsigned long addr,
 			    unsigned int bytes,
 			    struct kvm_vcpu *vcpu);
 
-unsigned long segment_base(u16 selector);
-
 void kvm_mmu_flush_tlb(struct kvm_vcpu *vcpu);
 void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		       const u8 *new, int bytes,
@@ -721,13 +719,6 @@ static inline void kvm_load_ldt(u16 sel)
 static inline void kvm_get_idt(struct desc_ptr *table)
 {
 	asm("sidt %0" : "=m"(*table));
-}
-
-static inline unsigned long kvm_read_tr_base(void)
-{
-	u16 tr;
-	asm("str %0" : "=g"(tr));
-	return segment_base(tr);
 }
 
 #ifdef CONFIG_X86_64
