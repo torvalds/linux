@@ -46,6 +46,7 @@ static struct clk clk_ext_xtal_mux = {
 #define clk_fin_epll clk_ext_xtal_mux
 
 #define clk_fout_mpll	clk_mpll
+#define clk_fout_epll	clk_epll
 
 struct clk_sources {
 	unsigned int	nr_sources;
@@ -86,11 +87,6 @@ static struct clksrc_clk clk_mout_apll = {
 	.shift		= S3C6400_CLKSRC_APLL_MOUT_SHIFT,
 	.mask		= S3C6400_CLKSRC_APLL_MOUT,
 	.sources	= &clk_src_apll,
-};
-
-static struct clk clk_fout_epll = {
-	.name		= "fout_epll",
-	.id		= -1,
 };
 
 static struct clk *clk_src_epll_list[] = {
@@ -715,7 +711,6 @@ static struct clk *clks[] __initdata = {
 	&clk_iis_cd1,
 	&clk_pcm_cd,
 	&clk_mout_epll.clk,
-	&clk_fout_epll,
 	&clk_mout_mpll.clk,
 	&clk_dout_mpll,
 	&clk_mmc0.clk,
@@ -760,7 +755,4 @@ void __init s3c6400_register_clocks(unsigned armclk_divlimit)
 			       clkp->name, ret);
 		}
 	}
-
-	clk_mpll.parent = &clk_mout_mpll.clk;
-	clk_epll.parent = &clk_mout_epll.clk;
 }

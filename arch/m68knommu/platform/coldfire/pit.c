@@ -146,7 +146,6 @@ static struct clocksource pit_clk = {
 	.read	= pit_read_clk,
 	.shift	= 20,
 	.mask	= CLOCKSOURCE_MASK(32),
-	.flags	= CLOCK_SOURCE_IS_CONTINUOUS,
 };
 
 /***************************************************************************/

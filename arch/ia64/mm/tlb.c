@@ -48,7 +48,7 @@ DEFINE_PER_CPU(u8, ia64_need_tlb_flush);
 DEFINE_PER_CPU(u8, ia64_tr_num);  /*Number of TR slots in current processor*/
 DEFINE_PER_CPU(u8, ia64_tr_used); /*Max Slot number used by kernel*/
 
-struct ia64_tr_entry __per_cpu_idtrs[NR_CPUS][2][IA64_TR_ALLOC_MAX];
+struct ia64_tr_entry *ia64_idtrs[NR_CPUS];
 
 /*
  * Initializes the ia64_ctx.bitmap array based on max_ctx+1.
@@ -429,10 +429,16 @@ int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size)
 	struct ia64_tr_entry *p;
 	int cpu = smp_processor_id();
 
+	if (!ia64_idtrs[cpu]) {
+		ia64_idtrs[cpu] = kmalloc(2 * IA64_TR_ALLOC_MAX *
+				sizeof (struct ia64_tr_entry), GFP_KERNEL);
+		if (!ia64_idtrs[cpu])
+			return -ENOMEM;
+	}
 	r = -EINVAL;
 	/*Check overlap with existing TR entries*/
 	if (target_mask & 0x1) {
-		p = &__per_cpu_idtrs[cpu][0][0];
+		p = ia64_idtrs[cpu];
 		for (i = IA64_TR_ALLOC_BASE; i <= per_cpu(ia64_tr_used, cpu);
 								i++, p++) {
 			if (p->pte & 0x1)
@@ -444,7 +450,7 @@ int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size)
 		}
 	}
 	if (target_mask & 0x2) {
-		p = &__per_cpu_idtrs[cpu][1][0];
+		p = ia64_idtrs[cpu] + IA64_TR_ALLOC_MAX;
 		for (i = IA64_TR_ALLOC_BASE; i <= per_cpu(ia64_tr_used, cpu);
 								i++, p++) {
 			if (p->pte & 0x1)
@@ -459,16 +465,16 @@ int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size)
 	for (i = IA64_TR_ALLOC_BASE; i < per_cpu(ia64_tr_num, cpu); i++) {
 		switch (target_mask & 0x3) {
 		case 1:
-			if (!(__per_cpu_idtrs[cpu][0][i].pte & 0x1))
+			if (!((ia64_idtrs[cpu] + i)->pte & 0x1))
 				goto found;
 			continue;
 		case 2:
-			if (!(__per_cpu_idtrs[cpu][1][i].pte & 0x1))
+			if (!((ia64_idtrs[cpu] + IA64_TR_ALLOC_MAX + i)->pte & 0x1))
 				goto found;
 			continue;
 		case 3:
-			if (!(__per_cpu_idtrs[cpu][0][i].pte & 0x1) &&
-				!(__per_cpu_idtrs[cpu][1][i].pte & 0x1))
+			if (!((ia64_idtrs[cpu] + i)->pte & 0x1) &&
+			    !((ia64_idtrs[cpu] + IA64_TR_ALLOC_MAX + i)->pte & 0x1))
 				goto found;
 			continue;
 		default:
@@ -488,7 +494,7 @@ found:
 	if (target_mask & 0x1) {
 		ia64_itr(0x1, i, va, pte, log_size);
 		ia64_srlz_i();
-		p = &__per_cpu_idtrs[cpu][0][i];
+		p = ia64_idtrs[cpu] + i;
 		p->ifa = va;
 		p->pte = pte;
 		p->itir = log_size << 2;
@@ -497,7 +503,7 @@ found:
 	if (target_mask & 0x2) {
 		ia64_itr(0x2, i, va, pte, log_size);
 		ia64_srlz_i();
-		p = &__per_cpu_idtrs[cpu][1][i];
+		p = ia64_idtrs[cpu] + IA64_TR_ALLOC_MAX + i;
 		p->ifa = va;
 		p->pte = pte;
 		p->itir = log_size << 2;
@@ -528,7 +534,7 @@ void ia64_ptr_entry(u64 target_mask, int slot)
 		return;
 
 	if (target_mask & 0x1) {
-		p = &__per_cpu_idtrs[cpu][0][slot];
+		p = ia64_idtrs[cpu] + slot;
 		if ((p->pte&0x1) && is_tr_overlap(p, p->ifa, p->itir>>2)) {
 			p->pte = 0;
 			ia64_ptr(0x1, p->ifa, p->itir>>2);
@@ -537,7 +543,7 @@ void ia64_ptr_entry(u64 target_mask, int slot)
 	}
 
 	if (target_mask & 0x2) {
-		p = &__per_cpu_idtrs[cpu][1][slot];
+		p = ia64_idtrs[cpu] + IA64_TR_ALLOC_MAX + slot;
 		if ((p->pte & 0x1) && is_tr_overlap(p, p->ifa, p->itir>>2)) {
 			p->pte = 0;
 			ia64_ptr(0x2, p->ifa, p->itir>>2);
@@ -546,8 +552,8 @@ void ia64_ptr_entry(u64 target_mask, int slot)
 	}
 
 	for (i = per_cpu(ia64_tr_used, cpu); i >= IA64_TR_ALLOC_BASE; i--) {
-		if ((__per_cpu_idtrs[cpu][0][i].pte & 0x1) ||
-				(__per_cpu_idtrs[cpu][1][i].pte & 0x1))
+		if (((ia64_idtrs[cpu] + i)->pte & 0x1) ||
+		    ((ia64_idtrs[cpu] + IA64_TR_ALLOC_MAX + i)->pte & 0x1))
 			break;
 	}
 	per_cpu(ia64_tr_used, cpu) = i;

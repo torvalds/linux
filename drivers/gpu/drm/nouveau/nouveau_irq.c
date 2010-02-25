@@ -635,6 +635,7 @@ nv50_pgraph_irq_handler(struct drm_device *dev)
 
 		if ((nv_rd32(dev, 0x400500) & isb) != isb)
 			nv_wr32(dev, 0x400500, nv_rd32(dev, 0x400500) | isb);
+		nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) & ~(1 << 31));
 	}
 
 	nv_wr32(dev, NV03_PMC_INTR_0, NV_PMC_INTR_0_PGRAPH_PENDING);

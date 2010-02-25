@@ -577,9 +577,9 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	ring_size = num_loops * dwords_per_loop;
 	/* set default  + shaders */
 	ring_size += 40; /* shaders + def state */
-	ring_size += 5; /* fence emit for VB IB */
+	ring_size += 7; /* fence emit for VB IB */
 	ring_size += 5; /* done copy */
-	ring_size += 5; /* fence emit for done copy */
+	ring_size += 7; /* fence emit for done copy */
 	r = radeon_ring_lock(rdev, ring_size);
 	WARN_ON(r);
 

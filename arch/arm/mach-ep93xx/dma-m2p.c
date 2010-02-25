@@ -28,6 +28,8 @@
  * with this implementation.
  */
 
+#define pr_fmt(fmt) "ep93xx " KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/clk.h>
 #include <linux/err.h>
@@ -173,7 +175,7 @@ static irqreturn_t m2p_irq(int irq, void *dev_id)
 
 	switch (m2p_channel_state(ch)) {
 	case STATE_IDLE:
-		pr_crit("m2p_irq: dma interrupt without a dma buffer\n");
+		pr_crit("dma interrupt without a dma buffer\n");
 		BUG();
 		break;
 
@@ -197,7 +199,7 @@ static irqreturn_t m2p_irq(int irq, void *dev_id)
 		break;
 
 	case STATE_NEXT:
-		pr_crit("m2p_irq: dma interrupt while next\n");
+		pr_crit("dma interrupt while next\n");
 		BUG();
 		break;
 	}

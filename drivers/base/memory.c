@@ -309,17 +309,19 @@ static SYSDEV_ATTR(removable, 0444, show_mem_removable, NULL);
  * Block size attribute stuff
  */
 static ssize_t
-print_block_size(struct class *class, char *buf)
+print_block_size(struct sysdev_class *class,
+		 struct sysdev_class_attribute *class_attr,
+		 char *buf)
 {
-	return sprintf(buf, "%lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
+	return sprintf(buf, "%#lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
 }
 
-static CLASS_ATTR(block_size_bytes, 0444, print_block_size, NULL);
+static SYSDEV_CLASS_ATTR(block_size_bytes, 0444, print_block_size, NULL);
 
 static int block_size_init(void)
 {
 	return sysfs_create_file(&memory_sysdev_class.kset.kobj,
-				&class_attr_block_size_bytes.attr);
+				&attr_block_size_bytes.attr);
 }
 
 /*
@@ -330,7 +332,9 @@ static int block_size_init(void)
  */
 #ifdef CONFIG_ARCH_MEMORY_PROBE
 static ssize_t
-memory_probe_store(struct class *class, const char *buf, size_t count)
+memory_probe_store(struct sysdev_class *class,
+		   struct sysdev_class_attribute *class_attr,
+		   const char *buf, size_t count)
 {
 	u64 phys_addr;
 	int nid;
@@ -346,12 +350,12 @@ memory_probe_store(struct class *class, const char *buf, size_t count)
 
 	return count;
 }
-static CLASS_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
+static SYSDEV_CLASS_ATTR(probe, S_IWUSR, NULL, memory_probe_store);
 
 static int memory_probe_init(void)
 {
 	return sysfs_create_file(&memory_sysdev_class.kset.kobj,
-				&class_attr_probe.attr);
+				&attr_probe.attr);
 }
 #else
 static inline int memory_probe_init(void)
@@ -367,7 +371,9 @@ static inline int memory_probe_init(void)
 
 /* Soft offline a page */
 static ssize_t
-store_soft_offline_page(struct class *class, const char *buf, size_t count)
+store_soft_offline_page(struct sysdev_class *class,
+			struct sysdev_class_attribute *class_attr,
+			const char *buf, size_t count)
 {
 	int ret;
 	u64 pfn;
@@ -384,7 +390,9 @@ store_soft_offline_page(struct class *class, const char *buf, size_t count)
 
 /* Forcibly offline a page, including killing processes. */
 static ssize_t
-store_hard_offline_page(struct class *class, const char *buf, size_t count)
+store_hard_offline_page(struct sysdev_class *class,
+			struct sysdev_class_attribute *class_attr,
+			const char *buf, size_t count)
 {
 	int ret;
 	u64 pfn;
@@ -397,18 +405,18 @@ store_hard_offline_page(struct class *class, const char *buf, size_t count)
 	return ret ? ret : count;
 }
 
-static CLASS_ATTR(soft_offline_page, 0644, NULL, store_soft_offline_page);
-static CLASS_ATTR(hard_offline_page, 0644, NULL, store_hard_offline_page);
+static SYSDEV_CLASS_ATTR(soft_offline_page, 0644, NULL, store_soft_offline_page);
+static SYSDEV_CLASS_ATTR(hard_offline_page, 0644, NULL, store_hard_offline_page);
 
 static __init int memory_fail_init(void)
 {
 	int err;
 
 	err = sysfs_create_file(&memory_sysdev_class.kset.kobj,
-				&class_attr_soft_offline_page.attr);
+				&attr_soft_offline_page.attr);
 	if (!err)
 		err = sysfs_create_file(&memory_sysdev_class.kset.kobj,
-				&class_attr_hard_offline_page.attr);
+				&attr_hard_offline_page.attr);
 	return err;
 }
 #else

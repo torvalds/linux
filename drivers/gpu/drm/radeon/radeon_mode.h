@@ -46,32 +46,6 @@ struct radeon_device;
 #define to_radeon_encoder(x) container_of(x, struct radeon_encoder, base)
 #define to_radeon_framebuffer(x) container_of(x, struct radeon_framebuffer, base)
 
-enum radeon_connector_type {
-	CONNECTOR_NONE,
-	CONNECTOR_VGA,
-	CONNECTOR_DVI_I,
-	CONNECTOR_DVI_D,
-	CONNECTOR_DVI_A,
-	CONNECTOR_STV,
-	CONNECTOR_CTV,
-	CONNECTOR_LVDS,
-	CONNECTOR_DIGITAL,
-	CONNECTOR_SCART,
-	CONNECTOR_HDMI_TYPE_A,
-	CONNECTOR_HDMI_TYPE_B,
-	CONNECTOR_0XC,
-	CONNECTOR_0XD,
-	CONNECTOR_DIN,
-	CONNECTOR_DISPLAY_PORT,
-	CONNECTOR_UNSUPPORTED
-};
-
-enum radeon_dvi_type {
-	DVI_AUTO,
-	DVI_DIGITAL,
-	DVI_ANALOG
-};
-
 enum radeon_rmx_type {
 	RMX_OFF,
 	RMX_FULL,

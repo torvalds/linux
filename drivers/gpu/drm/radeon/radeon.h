@@ -319,10 +319,12 @@ struct radeon_mc {
 	u64			real_vram_size;
 	int			vram_mtrr;
 	bool			vram_is_ddr;
+	bool                    igp_sideport_enabled;
 };
 
 int radeon_mc_setup(struct radeon_device *rdev);
-
+bool radeon_combios_sideport_present(struct radeon_device *rdev);
+bool radeon_atombios_sideport_present(struct radeon_device *rdev);
 
 /*
  * GPU scratch registers structures, functions & helpers
@@ -654,7 +656,6 @@ struct radeon_asic {
 			       uint32_t offset, uint32_t obj_size);
 	int (*clear_surface_reg)(struct radeon_device *rdev, int reg);
 	void (*bandwidth_update)(struct radeon_device *rdev);
-	void (*hdp_flush)(struct radeon_device *rdev);
 	void (*hpd_init)(struct radeon_device *rdev);
 	void (*hpd_fini)(struct radeon_device *rdev);
 	bool (*hpd_sense)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
@@ -667,11 +668,14 @@ struct radeon_asic {
 struct r100_asic {
 	const unsigned	*reg_safe_bm;
 	unsigned	reg_safe_bm_size;
+	u32		hdp_cntl;
 };
 
 struct r300_asic {
 	const unsigned	*reg_safe_bm;
 	unsigned	reg_safe_bm_size;
+	u32		resync_scratch;
+	u32		hdp_cntl;
 };
 
 struct r600_asic {
@@ -1007,7 +1011,6 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_set_surface_reg(rdev, r, f, p, o, s) ((rdev)->asic->set_surface_reg((rdev), (r), (f), (p), (o), (s)))
 #define radeon_clear_surface_reg(rdev, r) ((rdev)->asic->clear_surface_reg((rdev), (r)))
 #define radeon_bandwidth_update(rdev) (rdev)->asic->bandwidth_update((rdev))
-#define radeon_hdp_flush(rdev) (rdev)->asic->hdp_flush((rdev))
 #define radeon_hpd_init(rdev) (rdev)->asic->hpd_init((rdev))
 #define radeon_hpd_fini(rdev) (rdev)->asic->hpd_fini((rdev))
 #define radeon_hpd_sense(rdev, hpd) (rdev)->asic->hpd_sense((rdev), (hpd))

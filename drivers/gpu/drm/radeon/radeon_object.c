@@ -221,8 +221,9 @@ int radeon_bo_unpin(struct radeon_bo *bo)
 int radeon_bo_evict_vram(struct radeon_device *rdev)
 {
 	if (rdev->flags & RADEON_IS_IGP) {
-		/* Useless to evict on IGP chips */
-		return 0;
+		if (rdev->mc.igp_sideport_enabled == false)
+			/* Useless to evict on IGP chips */
+			return 0;
 	}
 	return ttm_bo_evict_mm(&rdev->mman.bdev, TTM_PL_VRAM);
 }

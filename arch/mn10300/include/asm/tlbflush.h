@@ -22,7 +22,7 @@ do {								\
 		 "	mov %0,%1		\n"		\
 		 : "=d"(w)					\
 		 : "m"(MMUCTR), "i"(MMUCTR_IIV|MMUCTR_DIV)	\
-		 : "memory"					\
+		 : "cc", "memory"				\
 		 );						\
 } while (0)
 

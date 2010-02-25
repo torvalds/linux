@@ -1271,13 +1271,15 @@ static void pcpu_reclaim(struct work_struct *work)
  */
 void free_percpu(void *ptr)
 {
-	void *addr = __pcpu_ptr_to_addr(ptr);
+	void *addr;
 	struct pcpu_chunk *chunk;
 	unsigned long flags;
 	int off;
 
 	if (!ptr)
 		return;
+
+	addr = __pcpu_ptr_to_addr(ptr);
 
 	spin_lock_irqsave(&pcpu_lock, flags);
 

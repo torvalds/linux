@@ -121,7 +121,7 @@ static int idr_callback(int id, void *p, void *data)
 	if (warned)
 		return 0;
 
-	warned = false;
+	warned = true;
 	entry = p;
 	ientry = container_of(entry, struct inotify_inode_mark_entry, fsn_entry);
 

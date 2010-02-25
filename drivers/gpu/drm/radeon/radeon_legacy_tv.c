@@ -77,7 +77,7 @@ struct radeon_tv_mode_constants {
 	unsigned pix_to_tv;
 };
 
-static const uint16_t hor_timing_NTSC[] = {
+static const uint16_t hor_timing_NTSC[MAX_H_CODE_TIMING_LEN] = {
 	0x0007,
 	0x003f,
 	0x0263,
@@ -98,7 +98,7 @@ static const uint16_t hor_timing_NTSC[] = {
 	0
 };
 
-static const uint16_t vert_timing_NTSC[] = {
+static const uint16_t vert_timing_NTSC[MAX_V_CODE_TIMING_LEN] = {
 	0x2001,
 	0x200d,
 	0x1006,
@@ -115,7 +115,7 @@ static const uint16_t vert_timing_NTSC[] = {
 	0
 };
 
-static const uint16_t hor_timing_PAL[] = {
+static const uint16_t hor_timing_PAL[MAX_H_CODE_TIMING_LEN] = {
 	0x0007,
 	0x0058,
 	0x027c,
@@ -136,7 +136,7 @@ static const uint16_t hor_timing_PAL[] = {
 	0
 };
 
-static const uint16_t vert_timing_PAL[] = 	{
+static const uint16_t vert_timing_PAL[MAX_V_CODE_TIMING_LEN] = {
 	0x2001,
 	0x200c,
 	0x1005,
@@ -623,9 +623,9 @@ void radeon_legacy_tv_mode_set(struct drm_encoder *encoder,
 	}
 	flicker_removal = (tmp + 500) / 1000;
 
-	if (flicker_removal < 3)
-		flicker_removal = 3;
-	for (i = 0; i < 6; ++i) {
+	if (flicker_removal < 2)
+		flicker_removal = 2;
+	for (i = 0; i < ARRAY_SIZE(SLOPE_limit); ++i) {
 		if (flicker_removal == SLOPE_limit[i])
 			break;
 	}

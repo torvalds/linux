@@ -28,8 +28,6 @@ char *zimage_start;
 
 /* The linker tells us where the image is. */
 extern unsigned char __image_begin, __image_end;
-extern unsigned char __ramdisk_begin, __ramdisk_end;
-unsigned long initrd_size;
 
 /* debug interfaces  */
 extern void puts(const char *s);
@@ -101,14 +99,6 @@ void decompress_kernel(unsigned long boot_heap_start)
 	puts(" ");
 	puthex((unsigned long)(zimage_size + zimage_start));
 	puts("\n");
-
-	if (initrd_size) {
-		puts("initrd at:     ");
-		puthex((unsigned long)(&__ramdisk_begin));
-		puts(" ");
-		puthex((unsigned long)(&__ramdisk_end));
-		puts("\n");
-	}
 
 	/* this area are prepared for mallocing when decompressing */
 	free_mem_ptr = boot_heap_start;

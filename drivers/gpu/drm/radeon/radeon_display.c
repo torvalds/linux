@@ -234,7 +234,7 @@ static const char *encoder_names[34] = {
 	"INTERNAL_UNIPHY2",
 };
 
-static const char *connector_names[13] = {
+static const char *connector_names[15] = {
 	"Unknown",
 	"VGA",
 	"DVI-I",
@@ -248,6 +248,8 @@ static const char *connector_names[13] = {
 	"DisplayPort",
 	"HDMI-A",
 	"HDMI-B",
+	"TV",
+	"eDP",
 };
 
 static const char *hpd_names[7] = {
@@ -329,8 +331,11 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 				ret = radeon_get_atom_connector_info_from_object_table(dev);
 			else
 				ret = radeon_get_atom_connector_info_from_supported_devices_table(dev);
-		} else
+		} else {
 			ret = radeon_get_legacy_connector_info_from_bios(dev);
+			if (ret == false)
+				ret = radeon_get_legacy_connector_info_from_table(dev);
+		}
 	} else {
 		if (!ASIC_IS_AVIVO(rdev))
 			ret = radeon_get_legacy_connector_info_from_table(dev);
@@ -349,7 +354,8 @@ int radeon_ddc_get_modes(struct radeon_connector *radeon_connector)
 {
 	int ret = 0;
 
-	if (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) {
+	if ((radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_DisplayPort) ||
+	    (radeon_connector->base.connector_type == DRM_MODE_CONNECTOR_eDP)) {
 		struct radeon_connector_atom_dig *dig = radeon_connector->con_priv;
 		if (dig->dp_i2c_bus)
 			radeon_connector->edid = drm_get_edid(&radeon_connector->base, &dig->dp_i2c_bus->adapter);

@@ -197,7 +197,7 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
 	edac_printk(KERN_DEBUG, EDAC_MC,
 		    "pci-read, sdram scrub control value: %d \n", scrubval);
 
-	for (i = 0; ARRAY_SIZE(scrubrates); i++) {
+	for (i = 0; i < ARRAY_SIZE(scrubrates); i++) {
 		if (scrubrates[i].scrubval == scrubval) {
 			*bw = scrubrates[i].bandwidth;
 			status = 0;

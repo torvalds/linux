@@ -715,31 +715,31 @@ static void *ecryptfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 	/* Released in ecryptfs_put_link(); only release here on error */
 	buf = kmalloc(len, GFP_KERNEL);
 	if (!buf) {
-		rc = -ENOMEM;
+		buf = ERR_PTR(-ENOMEM);
 		goto out;
 	}
 	old_fs = get_fs();
 	set_fs(get_ds());
 	rc = dentry->d_inode->i_op->readlink(dentry, (char __user *)buf, len);
 	set_fs(old_fs);
-	if (rc < 0)
-		goto out_free;
-	else
+	if (rc < 0) {
+		kfree(buf);
+		buf = ERR_PTR(rc);
+	} else
 		buf[rc] = '\0';
-	rc = 0;
-	nd_set_link(nd, buf);
-	goto out;
-out_free:
-	kfree(buf);
 out:
-	return ERR_PTR(rc);
+	nd_set_link(nd, buf);
+	return NULL;
 }
 
 static void
 ecryptfs_put_link(struct dentry *dentry, struct nameidata *nd, void *ptr)
 {
-	/* Free the char* */
-	kfree(nd_get_link(nd));
+	char *buf = nd_get_link(nd);
+	if (!IS_ERR(buf)) {
+		/* Free the char* */
+		kfree(buf);
+	}
 }
 
 /**

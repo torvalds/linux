@@ -286,6 +286,7 @@ struct hso_device {
 	u8 usb_gone;
 	struct work_struct async_get_intf;
 	struct work_struct async_put_intf;
+	struct work_struct reset_device;
 
 	struct usb_device *usb;
 	struct usb_interface *interface;
@@ -332,7 +333,8 @@ static void hso_kick_transmit(struct hso_serial *serial);
 /* Helper functions */
 static int hso_mux_submit_intr_urb(struct hso_shared_int *mux_int,
 				   struct usb_device *usb, gfp_t gfp);
-static void log_usb_status(int status, const char *function);
+static void handle_usb_error(int status, const char *function,
+			     struct hso_device *hso_dev);
 static struct usb_endpoint_descriptor *hso_get_ep(struct usb_interface *intf,
 						  int type, int dir);
 static int hso_get_mux_ports(struct usb_interface *intf, unsigned char *ports);
@@ -350,6 +352,7 @@ static void async_put_intf(struct work_struct *data);
 static int hso_put_activity(struct hso_device *hso_dev);
 static int hso_get_activity(struct hso_device *hso_dev);
 static void tiocmget_intr_callback(struct urb *urb);
+static void reset_device(struct work_struct *data);
 /*****************************************************************************/
 /* Helping functions                                                         */
 /*****************************************************************************/
@@ -461,10 +464,17 @@ static const struct usb_device_id hso_ids[] = {
 	{USB_DEVICE(0x0af0, 0x7501)},		/* GTM 382 */
 	{USB_DEVICE(0x0af0, 0x7601)},		/* GE40x */
 	{USB_DEVICE(0x0af0, 0x7701)},
+	{USB_DEVICE(0x0af0, 0x7706)},
 	{USB_DEVICE(0x0af0, 0x7801)},
 	{USB_DEVICE(0x0af0, 0x7901)},
+	{USB_DEVICE(0x0af0, 0x7A01)},
+	{USB_DEVICE(0x0af0, 0x7A05)},
 	{USB_DEVICE(0x0af0, 0x8200)},
 	{USB_DEVICE(0x0af0, 0x8201)},
+	{USB_DEVICE(0x0af0, 0x8300)},
+	{USB_DEVICE(0x0af0, 0x8302)},
+	{USB_DEVICE(0x0af0, 0x8304)},
+	{USB_DEVICE(0x0af0, 0x8400)},
 	{USB_DEVICE(0x0af0, 0xd035)},
 	{USB_DEVICE(0x0af0, 0xd055)},
 	{USB_DEVICE(0x0af0, 0xd155)},
@@ -473,6 +483,8 @@ static const struct usb_device_id hso_ids[] = {
 	{USB_DEVICE(0x0af0, 0xd157)},
 	{USB_DEVICE(0x0af0, 0xd257)},
 	{USB_DEVICE(0x0af0, 0xd357)},
+	{USB_DEVICE(0x0af0, 0xd058)},
+	{USB_DEVICE(0x0af0, 0xc100)},
 	{}
 };
 MODULE_DEVICE_TABLE(usb, hso_ids);
@@ -655,8 +667,8 @@ static void set_serial_by_index(unsigned index, struct hso_serial *serial)
 	spin_unlock_irqrestore(&serial_table_lock, flags);
 }
 
-/* log a meaningful explanation of an USB status */
-static void log_usb_status(int status, const char *function)
+static void handle_usb_error(int status, const char *function,
+			     struct hso_device *hso_dev)
 {
 	char *explanation;
 
@@ -685,10 +697,20 @@ static void log_usb_status(int status, const char *function)
 	case -EMSGSIZE:
 		explanation = "internal error";
 		break;
+	case -EILSEQ:
+	case -EPROTO:
+	case -ETIME:
+	case -ETIMEDOUT:
+		explanation = "protocol error";
+		if (hso_dev)
+			schedule_work(&hso_dev->reset_device);
+		break;
 	default:
 		explanation = "unknown status";
 		break;
 	}
+
+	/* log a meaningful explanation of an USB status */
 	D1("%s: received USB status - %s (%d)", function, explanation, status);
 }
 
@@ -762,7 +784,7 @@ static void write_bulk_callback(struct urb *urb)
 	/* log status, but don't act on it, we don't need to resubmit anything
 	 * anyhow */
 	if (status)
-		log_usb_status(status, __func__);
+		handle_usb_error(status, __func__, odev->parent);
 
 	hso_put_activity(odev->parent);
 
@@ -806,7 +828,7 @@ static netdev_tx_t hso_net_start_xmit(struct sk_buff *skb,
 	result = usb_submit_urb(odev->mux_bulk_tx_urb, GFP_ATOMIC);
 	if (result) {
 		dev_warn(&odev->parent->interface->dev,
-			"failed mux_bulk_tx_urb %d", result);
+			"failed mux_bulk_tx_urb %d\n", result);
 		net->stats.tx_errors++;
 		netif_start_queue(net);
 	} else {
@@ -998,7 +1020,7 @@ static void read_bulk_callback(struct urb *urb)
 
 	/* is al ok?  (Filip: Who's Al ?) */
 	if (status) {
-		log_usb_status(status, __func__);
+		handle_usb_error(status, __func__, odev->parent);
 		return;
 	}
 
@@ -1019,7 +1041,8 @@ static void read_bulk_callback(struct urb *urb)
 	if (odev->parent->port_spec & HSO_INFO_CRC_BUG) {
 		u32 rest;
 		u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
-		rest = urb->actual_length % odev->in_endp->wMaxPacketSize;
+		rest = urb->actual_length %
+			le16_to_cpu(odev->in_endp->wMaxPacketSize);
 		if (((rest == 5) || (rest == 6)) &&
 		    !memcmp(((u8 *) urb->transfer_buffer) +
 			    urb->actual_length - 4, crc_check, 4)) {
@@ -1053,7 +1076,7 @@ static void read_bulk_callback(struct urb *urb)
 	result = usb_submit_urb(urb, GFP_ATOMIC);
 	if (result)
 		dev_warn(&odev->parent->interface->dev,
-			 "%s failed submit mux_bulk_rx_urb %d", __func__,
+			 "%s failed submit mux_bulk_rx_urb %d\n", __func__,
 			 result);
 }
 
@@ -1207,7 +1230,7 @@ static void hso_std_serial_read_bulk_callback(struct urb *urb)
 		D1("serial == NULL");
 		return;
 	} else if (status) {
-		log_usb_status(status, __func__);
+		handle_usb_error(status, __func__, serial->parent);
 		return;
 	}
 
@@ -1225,7 +1248,7 @@ static void hso_std_serial_read_bulk_callback(struct urb *urb)
 			u8 crc_check[4] = { 0xDE, 0xAD, 0xBE, 0xEF };
 			rest =
 			    urb->actual_length %
-			    serial->in_endp->wMaxPacketSize;
+			    le16_to_cpu(serial->in_endp->wMaxPacketSize);
 			if (((rest == 5) || (rest == 6)) &&
 			    !memcmp(((u8 *) urb->transfer_buffer) +
 				    urb->actual_length - 4, crc_check, 4)) {
@@ -1513,7 +1536,7 @@ static void tiocmget_intr_callback(struct urb *urb)
 	if (!serial)
 		return;
 	if (status) {
-		log_usb_status(status, __func__);
+		handle_usb_error(status, __func__, serial->parent);
 		return;
 	}
 	tiocmget = serial->tiocmget;
@@ -1700,6 +1723,10 @@ static int hso_serial_tiocmset(struct tty_struct *tty, struct file *file,
 		D1("no tty structures");
 		return -EINVAL;
 	}
+
+	if ((serial->parent->port_spec & HSO_PORT_MASK) != HSO_PORT_MODEM)
+		return -EINVAL;
+
 	if_num = serial->parent->interface->altsetting->desc.bInterfaceNumber;
 
 	spin_lock_irqsave(&serial->serial_lock, flags);
@@ -1838,7 +1865,7 @@ static int mux_device_request(struct hso_serial *serial, u8 type, u16 port,
 	result = usb_submit_urb(ctrl_urb, GFP_ATOMIC);
 	if (result) {
 		dev_err(&ctrl_urb->dev->dev,
-			"%s failed submit ctrl_urb %d type %d", __func__,
+			"%s failed submit ctrl_urb %d type %d\n", __func__,
 			result, type);
 		return result;
 	}
@@ -1888,7 +1915,7 @@ static void intr_callback(struct urb *urb)
 
 	/* status check */
 	if (status) {
-		log_usb_status(status, __func__);
+		handle_usb_error(status, __func__, NULL);
 		return;
 	}
 	D4("\n--- Got intr callback 0x%02X ---", status);
@@ -1905,18 +1932,18 @@ static void intr_callback(struct urb *urb)
 			if (serial != NULL) {
 				D1("Pending read interrupt on port %d\n", i);
 				spin_lock(&serial->serial_lock);
-				if (serial->rx_state == RX_IDLE) {
+				if (serial->rx_state == RX_IDLE &&
+					serial->open_count > 0) {
 					/* Setup and send a ctrl req read on
 					 * port i */
-				if (!serial->rx_urb_filled[0]) {
+					if (!serial->rx_urb_filled[0]) {
 						serial->rx_state = RX_SENT;
 						hso_mux_serial_read(serial);
 					} else
 						serial->rx_state = RX_PENDING;
-
 				} else {
-					D1("Already pending a read on "
-					   "port %d\n", i);
+					D1("Already a read pending on "
+					   "port %d or port not open\n", i);
 				}
 				spin_unlock(&serial->serial_lock);
 			}
@@ -1958,7 +1985,7 @@ static void hso_std_serial_write_bulk_callback(struct urb *urb)
 	tty = tty_kref_get(serial->tty);
 	spin_unlock(&serial->serial_lock);
 	if (status) {
-		log_usb_status(status, __func__);
+		handle_usb_error(status, __func__, serial->parent);
 		tty_kref_put(tty);
 		return;
 	}
@@ -2014,7 +2041,7 @@ static void ctrl_callback(struct urb *urb)
 	tty = tty_kref_get(serial->tty);
 	spin_unlock(&serial->serial_lock);
 	if (status) {
-		log_usb_status(status, __func__);
+		handle_usb_error(status, __func__, serial->parent);
 		tty_kref_put(tty);
 		return;
 	}
@@ -2358,12 +2385,12 @@ static int hso_serial_common_create(struct hso_serial *serial, int num_urbs,
 	serial->tx_data_length = tx_size;
 	serial->tx_data = kzalloc(serial->tx_data_length, GFP_KERNEL);
 	if (!serial->tx_data) {
-		dev_err(dev, "%s - Out of memory", __func__);
+		dev_err(dev, "%s - Out of memory\n", __func__);
 		goto exit;
 	}
 	serial->tx_buffer = kzalloc(serial->tx_data_length, GFP_KERNEL);
 	if (!serial->tx_buffer) {
-		dev_err(dev, "%s - Out of memory", __func__);
+		dev_err(dev, "%s - Out of memory\n", __func__);
 		goto exit;
 	}
 
@@ -2391,6 +2418,7 @@ static struct hso_device *hso_create_device(struct usb_interface *intf,
 
 	INIT_WORK(&hso_dev->async_get_intf, async_get_intf);
 	INIT_WORK(&hso_dev->async_put_intf, async_put_intf);
+	INIT_WORK(&hso_dev->reset_device, reset_device);
 
 	return hso_dev;
 }
@@ -2831,13 +2859,14 @@ struct hso_shared_int *hso_create_shared_int(struct usb_interface *interface)
 
 	mux->shared_intr_urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!mux->shared_intr_urb) {
-		dev_err(&interface->dev, "Could not allocate intr urb?");
+		dev_err(&interface->dev, "Could not allocate intr urb?\n");
 		goto exit;
 	}
-	mux->shared_intr_buf = kzalloc(mux->intr_endp->wMaxPacketSize,
-				       GFP_KERNEL);
+	mux->shared_intr_buf =
+		kzalloc(le16_to_cpu(mux->intr_endp->wMaxPacketSize),
+			GFP_KERNEL);
 	if (!mux->shared_intr_buf) {
-		dev_err(&interface->dev, "Could not allocate intr buf?");
+		dev_err(&interface->dev, "Could not allocate intr buf?\n");
 		goto exit;
 	}
 
@@ -3132,6 +3161,26 @@ out:
 	return result;
 }
 
+static void reset_device(struct work_struct *data)
+{
+	struct hso_device *hso_dev =
+	    container_of(data, struct hso_device, reset_device);
+	struct usb_device *usb = hso_dev->usb;
+	int result;
+
+	if (hso_dev->usb_gone) {
+		D1("No reset during disconnect\n");
+	} else {
+		result = usb_lock_device_for_reset(usb, hso_dev->interface);
+		if (result < 0)
+			D1("unable to lock device for reset: %d\n", result);
+		else {
+			usb_reset_device(usb);
+			usb_unlock_device(usb);
+		}
+	}
+}
+
 static void hso_serial_ref_free(struct kref *ref)
 {
 	struct hso_device *hso_dev = container_of(ref, struct hso_device, ref);
@@ -3232,13 +3281,13 @@ static int hso_mux_submit_intr_urb(struct hso_shared_int *shared_int,
 			 usb_rcvintpipe(usb,
 				shared_int->intr_endp->bEndpointAddress & 0x7F),
 			 shared_int->shared_intr_buf,
-			 shared_int->intr_endp->wMaxPacketSize,
+			 1,
 			 intr_callback, shared_int,
 			 shared_int->intr_endp->bInterval);
 
 	result = usb_submit_urb(shared_int->shared_intr_urb, gfp);
 	if (result)
-		dev_warn(&usb->dev, "%s failed mux_intr_urb %d", __func__,
+		dev_warn(&usb->dev, "%s failed mux_intr_urb %d\n", __func__,
 			result);
 
 	return result;

@@ -18,6 +18,8 @@ config ARM
 	select HAVE_KRETPROBES if (HAVE_KPROBES)
 	select HAVE_FUNCTION_TRACER if (!XIP_KERNEL)
 	select HAVE_GENERIC_DMA_COHERENT
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_LZO
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -548,6 +550,15 @@ config ARCH_W90X900
 	  <http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/
 		ConsumerElectronicsIC/ARMMicrocontroller/ARMMicrocontroller>
 
+config ARCH_NUC93X
+	bool "Nuvoton NUC93X CPU"
+	select CPU_ARM926T
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	help
+	  Support for Nuvoton (Winbond logic dept.) NUC93X MCU,The NUC93X is a
+	  low-power and high performance MPEG-4/JPEG multimedia controller chip.
+
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	select CPU_ARM926T
@@ -688,6 +699,7 @@ config ARCH_DAVINCI
 	select HAVE_IDE
 	select COMMON_CLKDEV
 	select GENERIC_ALLOCATOR
+	select ARCH_HAS_HOLES_MEMORYMODEL
 	help
 	  Support for TI's DaVinci platform.
 
@@ -756,6 +768,8 @@ source "arch/arm/mach-pxa/Kconfig"
 source "arch/arm/plat-pxa/Kconfig"
 
 source "arch/arm/mach-mmp/Kconfig"
+
+source "arch/arm/mach-nuc93x/Kconfig"
 
 source "arch/arm/mach-sa1100/Kconfig"
 

@@ -1,7 +1,7 @@
 /*******************************************************************************
 
   Intel 10 Gigabit PCI Express Linux driver
-  Copyright(c) 1999 - 2009 Intel Corporation.
+  Copyright(c) 1999 - 2010 Intel Corporation.
 
   This program is free software; you can redistribute it and/or modify it
   under the terms and conditions of the GNU General Public License,
@@ -52,7 +52,7 @@ static const char ixgbe_driver_string[] =
 
 #define DRV_VERSION "2.0.44-k2"
 const char ixgbe_driver_version[] = DRV_VERSION;
-static char ixgbe_copyright[] = "Copyright (c) 1999-2009 Intel Corporation.";
+static char ixgbe_copyright[] = "Copyright (c) 1999-2010 Intel Corporation.";
 
 static const struct ixgbe_info *ixgbe_info_tbl[] = {
 	[board_82598] = &ixgbe_82598_info,
@@ -262,10 +262,12 @@ static inline bool ixgbe_tx_is_paused(struct ixgbe_adapter *adapter,
 		int reg_idx = tx_ring->reg_idx;
 		int dcb_i = adapter->ring_feature[RING_F_DCB].indices;
 
-		if (adapter->hw.mac.type == ixgbe_mac_82598EB) {
+		switch (adapter->hw.mac.type) {
+		case ixgbe_mac_82598EB:
 			tc = reg_idx >> 2;
 			txoff = IXGBE_TFCS_TXOFF0;
-		} else if (adapter->hw.mac.type == ixgbe_mac_82599EB) {
+			break;
+		case ixgbe_mac_82599EB:
 			tc = 0;
 			txoff = IXGBE_TFCS_TXOFF;
 			if (dcb_i == 8) {
@@ -284,6 +286,9 @@ static inline bool ixgbe_tx_is_paused(struct ixgbe_adapter *adapter,
 						tc += (reg_idx - 96) >> 4;
 				}
 			}
+			break;
+		default:
+			tc = 0;
 		}
 		txoff <<= tc;
 	}
@@ -5570,6 +5575,10 @@ static void ixgbe_netpoll(struct net_device *netdev)
 {
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	int i;
+
+	/* if interface is down do nothing */
+	if (test_bit(__IXGBE_DOWN, &adapter->state))
+		return;
 
 	adapter->flags |= IXGBE_FLAG_IN_NETPOLL;
 	if (adapter->flags & IXGBE_FLAG_MSIX_ENABLED) {

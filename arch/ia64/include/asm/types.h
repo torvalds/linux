@@ -35,6 +35,11 @@ typedef unsigned int umode_t;
  */
 # ifdef __KERNEL__
 
+struct fnptr {
+	unsigned long ip;
+	unsigned long gp;
+};
+
 /* DMA addresses are 64-bits wide, in general.  */
 typedef u64 dma_addr_t;
 

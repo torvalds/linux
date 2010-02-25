@@ -410,9 +410,8 @@ F:	drivers/i2c/busses/i2c-ali1563.c
 
 ALPHA PORT
 M:	Richard Henderson <rth@twiddle.net>
-S:	Odd Fixes for 2.4; Maintained for 2.6.
 M:	Ivan Kokshaysky <ink@jurassic.park.msu.ru>
-S:	Maintained for 2.4; PCI support for 2.6.
+M:	Matt Turner <mattst88@gmail.com>
 L:	linux-alpha@vger.kernel.org
 F:	arch/alpha/
 
@@ -1638,9 +1637,8 @@ S:	Maintained
 F:	sound/pci/cs5535audio/
 
 CX18 VIDEO4LINUX DRIVER
-M:	Hans Verkuil <hverkuil@xs4all.nl>
 M:	Andy Walls <awalls@radix.net>
-L:	ivtv-devel@ivtvdriver.org
+L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://linuxtv.org
@@ -3012,8 +3010,8 @@ S:	Maintained
 F:	drivers/isdn/hardware/eicon/
 
 IVTV VIDEO4LINUX DRIVER
-M:	Hans Verkuil <hverkuil@xs4all.nl>
-L:	ivtv-devel@ivtvdriver.org
+M:	Andy Walls <awalls@radix.net>
+L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
 L:	linux-media@vger.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 W:	http://www.ivtvdriver.org
@@ -3940,28 +3938,19 @@ S:	Maintained
 F:	sound/soc/omap/
 
 OMAP FRAMEBUFFER SUPPORT
-M:	Imre Deak <imre.deak@nokia.com>
+M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
 L:	linux-fbdev@vger.kernel.org
 L:	linux-omap@vger.kernel.org
 S:	Maintained
 F:	drivers/video/omap/
 
-OMAP DISPLAY SUBSYSTEM SUPPORT (DSS2)
+OMAP DISPLAY SUBSYSTEM and FRAMEBUFFER SUPPORT (DSS2)
 M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
 L:	linux-omap@vger.kernel.org
-L:	linux-fbdev@vger.kernel.org (moderated for non-subscribers)
+L:	linux-fbdev@vger.kernel.org
 S:	Maintained
-F:	drivers/video/omap2/dss/
-F:	drivers/video/omap2/vrfb.c
-F:	drivers/video/omap2/vram.c
+F:	drivers/video/omap2/
 F:	Documentation/arm/OMAP/DSS
-
-OMAP FRAMEBUFFER SUPPORT (FOR DSS2)
-M:	Tomi Valkeinen <tomi.valkeinen@nokia.com>
-L:	linux-omap@vger.kernel.org
-L:	linux-fbdev@vger.kernel.org (moderated for non-subscribers)
-S:	Maintained
-F:	drivers/video/omap2/omapfb/
 
 OMAP MMC SUPPORT
 M:	Jarkko Lavinen <jarkko.lavinen@nokia.com>

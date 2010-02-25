@@ -212,16 +212,15 @@ out:
 	return connector_status_disconnected;
 }
 
-enum drm_connector_status nv17_dac_detect(struct drm_encoder *encoder,
-					  struct drm_connector *connector)
+uint32_t nv17_dac_sample_load(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
-	uint32_t testval, regoffset = nv04_dac_output_offset(encoder);
+	uint32_t sample, testval, regoffset = nv04_dac_output_offset(encoder);
 	uint32_t saved_powerctrl_2 = 0, saved_powerctrl_4 = 0, saved_routput,
 		saved_rtest_ctrl, saved_gpio0, saved_gpio1, temp, routput;
-	int head, present = 0;
+	int head;
 
 #define RGB_TEST_DATA(r, g, b) (r << 0 | g << 10 | b << 20)
 	if (dcb->type == OUTPUT_TV) {
@@ -287,13 +286,7 @@ enum drm_connector_status nv17_dac_detect(struct drm_encoder *encoder,
 		      temp | NV_PRAMDAC_TEST_CONTROL_TP_INS_EN_ASSERTED);
 	msleep(5);
 
-	temp = NVReadRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset);
-
-	if (dcb->type == OUTPUT_TV)
-		present = (nv17_tv_detect(encoder, connector, temp)
-			   == connector_status_connected);
-	else
-		present = temp & NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI;
+	sample = NVReadRAMDAC(dev, 0, NV_PRAMDAC_TEST_CONTROL + regoffset);
 
 	temp = NVReadRAMDAC(dev, head, NV_PRAMDAC_TEST_CONTROL);
 	NVWriteRAMDAC(dev, head, NV_PRAMDAC_TEST_CONTROL,
@@ -310,14 +303,24 @@ enum drm_connector_status nv17_dac_detect(struct drm_encoder *encoder,
 	nv17_gpio_set(dev, DCB_GPIO_TVDAC1, saved_gpio1);
 	nv17_gpio_set(dev, DCB_GPIO_TVDAC0, saved_gpio0);
 
-	if (present) {
-		NV_INFO(dev, "Load detected on output %c\n", '@' + ffs(dcb->or));
-		return connector_status_connected;
-	}
-
-	return connector_status_disconnected;
+	return sample;
 }
 
+static enum drm_connector_status
+nv17_dac_detect(struct drm_encoder *encoder, struct drm_connector *connector)
+{
+	struct drm_device *dev = encoder->dev;
+	struct dcb_entry *dcb = nouveau_encoder(encoder)->dcb;
+	uint32_t sample = nv17_dac_sample_load(encoder);
+
+	if (sample & NV_PRAMDAC_TEST_CONTROL_SENSEB_ALLHI) {
+		NV_INFO(dev, "Load detected on output %c\n",
+			'@' + ffs(dcb->or));
+		return connector_status_connected;
+	} else {
+		return connector_status_disconnected;
+	}
+}
 
 static bool nv04_dac_mode_fixup(struct drm_encoder *encoder,
 				struct drm_display_mode *mode,

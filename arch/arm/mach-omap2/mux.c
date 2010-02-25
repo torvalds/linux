@@ -994,8 +994,10 @@ int __init omap_mux_init(u32 mux_pbase, u32 mux_size,
 	}
 
 #ifdef CONFIG_OMAP_MUX
-	omap_mux_package_fixup(package_subset, superset);
-	omap_mux_package_init_balls(package_balls, superset);
+	if (package_subset)
+		omap_mux_package_fixup(package_subset, superset);
+	if (package_balls)
+		omap_mux_package_init_balls(package_balls, superset);
 	omap_mux_set_cmdline_signals();
 	omap_mux_set_board_signals(board_mux);
 #endif

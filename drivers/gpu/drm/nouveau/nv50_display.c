@@ -690,8 +690,20 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcbent,
 			   int pxclk)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_connector *nv_connector = NULL;
+	struct drm_encoder *encoder;
 	struct nvbios *bios = &dev_priv->VBIOS;
 	uint32_t mc, script = 0, or;
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+
+		if (nv_encoder->dcb != dcbent)
+			continue;
+
+		nv_connector = nouveau_encoder_connector_get(nv_encoder);
+		break;
+	}
 
 	or = ffs(dcbent->or) - 1;
 	mc = nv50_display_mode_ctrl(dev, dcbent->type != OUTPUT_ANALOG, or);
@@ -710,6 +722,11 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcbent,
 					script |= 0x0200;
 			} else
 			if (bios->fp.strapless_is_24bit & 1)
+				script |= 0x0200;
+
+			if (nv_connector && nv_connector->edid &&
+			    (nv_connector->edid->revision >= 4) &&
+			    (nv_connector->edid->input & 0x70) >= 0x20)
 				script |= 0x0200;
 		}
 
