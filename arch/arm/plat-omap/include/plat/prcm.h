@@ -25,7 +25,8 @@
 
 u32 omap_prcm_get_reset_sources(void);
 void omap_prcm_arch_reset(char mode);
-int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, const char *name);
+int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, u8 idlest,
+			 const char *name);
 
 #define START_PADCONF_SAVE 0x2
 #define PADCONF_SAVE_DONE  0x1

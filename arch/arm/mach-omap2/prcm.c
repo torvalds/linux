@@ -127,13 +127,15 @@ u32 omap_prcm_get_reset_sources(void)
 		return prm_read_mod_reg(WKUP_MOD, OMAP2_RM_RSTST) & 0x7f;
 	if (cpu_is_omap44xx())
 		return prm_read_mod_reg(WKUP_MOD, OMAP4_RM_RSTST) & 0x7f;
+
+	return 0;
 }
 EXPORT_SYMBOL(omap_prcm_get_reset_sources);
 
 /* Resets clock rates and reboots the system. Only called from system.h */
 void omap_prcm_arch_reset(char mode)
 {
-	s16 prcm_offs;
+	s16 prcm_offs = 0;
 
 	if (cpu_is_omap24xx()) {
 		omap2xxx_clk_prepare_for_reboot();
@@ -242,26 +244,22 @@ u32 cm_rmw_mod_reg_bits(u32 mask, u32 bits, s16 module, s16 idx)
  * omap2_cm_wait_idlest - wait for IDLEST bit to indicate module readiness
  * @reg: physical address of module IDLEST register
  * @mask: value to mask against to determine if the module is active
+ * @idlest: idle state indicator (0 or 1) for the clock
  * @name: name of the clock (for printk)
  *
  * Returns 1 if the module indicated readiness in time, or 0 if it
  * failed to enable in roughly MAX_MODULE_ENABLE_WAIT microseconds.
  */
-int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, const char *name)
+int omap2_cm_wait_idlest(void __iomem *reg, u32 mask, u8 idlest,
+				const char *name)
 {
 	int i = 0;
 	int ena = 0;
 
-	/*
-	 * 24xx uses 0 to indicate not ready, and 1 to indicate ready.
-	 * 34xx reverses this, just to keep us on our toes
-	 */
-	if (cpu_is_omap24xx())
-		ena = mask;
-	else if (cpu_is_omap34xx())
+	if (idlest)
 		ena = 0;
 	else
-		BUG();
+		ena = mask;
 
 	/* Wait for lock */
 	omap_test_timeout(((__raw_readl(reg) & mask) == ena),

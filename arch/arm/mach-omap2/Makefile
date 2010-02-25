@@ -5,23 +5,17 @@
 # Common support
 obj-y := id.o io.o control.o mux.o devices.o serial.o gpmc.o timer-gp.o
 
-omap-2-3-common				= irq.o sdrc.o omap_hwmod.o
-omap-3-4-common				= dpll3xxx.o
+omap-2-3-common				= irq.o sdrc.o
+hwmod-common				= omap_hwmod.o \
+					  omap_hwmod_common_data.o
 prcm-common				= prcm.o powerdomain.o
 clock-common				= clock.o clock_common_data.o \
 					  clockdomain.o clkt_dpll.o \
 					  clkt_clksel.o
-clock-omap2xxx				= clkt2xxx_dpllcore.o \
-					  clkt2xxx_virt_prcm_set.o \
-					  clkt2xxx_apll.o clkt2xxx_osc.o \
-					  clkt2xxx_sys.o
-clock-omap3xxx				= clkt34xx_dpll3m2.o
 
-obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(prcm-common) $(clock-common) \
-			    $(clock-omap2xxx)
-obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(prcm-common) $(clock-common) \
-			    $(omap-3-4-common) $(clock-omap3xxx)
-obj-$(CONFIG_ARCH_OMAP4) += $(omap-3-4-common) $(prcm-common) $(clock-common)
+obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(prcm-common) $(hwmod-common)
+obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(prcm-common) $(hwmod-common)
+obj-$(CONFIG_ARCH_OMAP4) += $(prcm-common)
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 
@@ -63,14 +57,31 @@ obj-$(CONFIG_ARCH_OMAP3)		+= cm.o
 obj-$(CONFIG_ARCH_OMAP4)		+= cm4xxx.o
 
 # Clock framework
-obj-$(CONFIG_ARCH_OMAP2)		+= clock2xxx.o clock2xxx_data.o
+obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o \
+					   clkt2xxx_sys.o \
+					   clkt2xxx_dpllcore.o \
+					   clkt2xxx_virt_prcm_set.o \
+					   clkt2xxx_apll.o clkt2xxx_osc.o
+obj-$(CONFIG_ARCH_OMAP2420)		+= clock2420_data.o
+obj-$(CONFIG_ARCH_OMAP2430)		+= clock2430.o clock2430_data.o
+obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common) clock3xxx.o \
+					   clock34xx.o clkt34xx_dpll3m2.o \
+					   clock3517.o clock36xx.o \
+					   dpll3xxx.o clock3xxx_data.o
+obj-$(CONFIG_ARCH_OMAP4)		+= $(clock-common) clock44xx_data.o \
+					   dpll3xxx.o
+
+# OMAP2 clock rate set data (old "OPP" data)
 obj-$(CONFIG_ARCH_OMAP2420)		+= opp2420_data.o
-obj-$(CONFIG_ARCH_OMAP3)		+= clock34xx.o clock34xx_data.o
 obj-$(CONFIG_ARCH_OMAP2430)		+= opp2430_data.o
-obj-$(CONFIG_ARCH_OMAP4)		+= clock44xx.o clock44xx_data.o
+
+# hwmod data
+obj-$(CONFIG_ARCH_OMAP2420)		+= omap_hwmod_2420_data.o
+obj-$(CONFIG_ARCH_OMAP2430)		+= omap_hwmod_2430_data.o
+obj-$(CONFIG_ARCH_OMAP3)		+= omap_hwmod_3xxx_data.o
 
 # EMU peripherals
-obj-$(CONFIG_OMAP3_EMU)		+= emu.o
+obj-$(CONFIG_OMAP3_EMU)			+= emu.o
 
 obj-$(CONFIG_OMAP_MBOX_FWK)		+= mailbox_mach.o
 mailbox_mach-objs			:= mailbox.o
@@ -128,7 +139,7 @@ obj-$(CONFIG_MACH_OMAP3_TOUCHBOOK)	+= board-omap3touchbook.o \
 					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP_4430SDP)		+= board-4430sdp.o
 
-obj-$(CONFIG_MACH_OMAP3517EVM)     += board-am3517evm.o
+obj-$(CONFIG_MACH_OMAP3517EVM)		+= board-am3517evm.o
 
 # Platform specific device init code
 obj-y					+= usb-musb.o

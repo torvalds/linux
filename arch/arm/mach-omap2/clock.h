@@ -47,6 +47,10 @@
 #define DPLL_LOW_POWER_BYPASS	0x5
 #define DPLL_LOCKED		0x7
 
+/* DPLL Type and DCO Selection Flags */
+#define DPLL_J_TYPE		0x1
+#define DPLL_NO_DCO_SEL		0x2
+
 int omap2_clk_enable(struct clk *clk);
 void omap2_clk_disable(struct clk *clk);
 long omap2_clk_round_rate(struct clk *clk, unsigned long rate);
@@ -114,12 +118,16 @@ void omap2_dflt_clk_disable(struct clk *clk);
 void omap2_clk_dflt_find_companion(struct clk *clk, void __iomem **other_reg,
 				   u8 *other_bit);
 void omap2_clk_dflt_find_idlest(struct clk *clk, void __iomem **idlest_reg,
-				u8 *idlest_bit);
-void omap2xxx_clk_commit(struct clk *clk);
+				u8 *idlest_bit, u8 *idlest_val);
+int omap2_clk_switch_mpurate_at_boot(const char *mpurate_ck_name);
+void omap2_clk_print_new_rates(const char *hfclkin_ck_name,
+			       const char *core_ck_name,
+			       const char *mpu_ck_name);
 
 extern u8 cpu_mask;
 
 extern const struct clkops clkops_omap2_dflt_wait;
+extern const struct clkops clkops_dummy;
 extern const struct clkops clkops_omap2_dflt;
 
 extern struct clk_functions omap2_clk_functions;
@@ -136,5 +144,7 @@ extern void omap2_clk_exit_cpufreq_table(struct cpufreq_frequency_table **table)
 #define omap2_clk_init_cpufreq_table	0
 #define omap2_clk_exit_cpufreq_table	0
 #endif
+
+extern const struct clkops clkops_omap3_noncore_dpll_ops;
 
 #endif

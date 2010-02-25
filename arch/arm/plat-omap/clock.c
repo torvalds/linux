@@ -313,6 +313,33 @@ void clk_enable_init_clocks(void)
 	}
 }
 
+/**
+ * omap_clk_get_by_name - locate OMAP struct clk by its name
+ * @name: name of the struct clk to locate
+ *
+ * Locate an OMAP struct clk by its name.  Assumes that struct clk
+ * names are unique.  Returns NULL if not found or a pointer to the
+ * struct clk if found.
+ */
+struct clk *omap_clk_get_by_name(const char *name)
+{
+	struct clk *c;
+	struct clk *ret = NULL;
+
+	mutex_lock(&clocks_mutex);
+
+	list_for_each_entry(c, &clocks, node) {
+		if (!strcmp(c->name, name)) {
+			ret = c;
+			break;
+		}
+	}
+
+	mutex_unlock(&clocks_mutex);
+
+	return ret;
+}
+
 /*
  * Low level helpers
  */
@@ -328,6 +355,16 @@ static void clkll_disable_null(struct clk *clk)
 const struct clkops clkops_null = {
 	.enable		= clkll_enable_null,
 	.disable	= clkll_disable_null,
+};
+
+/*
+ * Dummy clock
+ *
+ * Used for clock aliases that are needed on some OMAPs, but not others
+ */
+struct clk dummy_ck = {
+	.name	= "dummy",
+	.ops	= &clkops_null,
 };
 
 #ifdef CONFIG_CPU_FREQ
@@ -408,8 +445,6 @@ static int clk_debugfs_register_one(struct clk *c)
 	char *p = s;
 
 	p += sprintf(p, "%s", c->name);
-	if (c->id != 0)
-		sprintf(p, ":%d", c->id);
 	d = debugfs_create_dir(s, pa ? pa->dent : clk_debugfs_root);
 	if (!d)
 		return -ENOMEM;

@@ -29,7 +29,7 @@
 #include "cm-regbits-34xx.h"
 
 /* DPLL rate rounding: minimum DPLL multiplier, divider values */
-#define DPLL_MIN_MULTIPLIER		1
+#define DPLL_MIN_MULTIPLIER		2
 #define DPLL_MIN_DIVIDER		1
 
 /* Possible error results from _dpll_test_mult */

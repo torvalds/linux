@@ -385,6 +385,11 @@ static int pwrdm_dbg_show_counter(struct powerdomain *pwrdm, void *user)
 		seq_printf(s, ",%s:%d", pwrdm_state_names[i],
 			pwrdm->state_counter[i]);
 
+	seq_printf(s, ",RET-LOGIC-OFF:%d", pwrdm->ret_logic_off_counter);
+	for (i = 0; i < pwrdm->banks; i++)
+		seq_printf(s, ",RET-MEMBANK%d-OFF:%d", i + 1,
+				pwrdm->ret_mem_off_counter[i]);
+
 	seq_printf(s, "\n");
 
 	return 0;
