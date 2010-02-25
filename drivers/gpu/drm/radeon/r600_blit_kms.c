@@ -25,7 +25,7 @@ set_render_target(struct radeon_device *rdev, int format,
 	u32 cb_color_info;
 	int pitch, slice;
 
-	h = (h + 7) & ~7;
+	h = ALIGN(h, 8);
 	if (h < 8)
 		h = 8;
 
@@ -396,7 +396,7 @@ set_default_state(struct radeon_device *rdev)
 				    NUM_ES_STACK_ENTRIES(num_es_stack_entries));
 
 	/* emit an IB pointing at default state */
-	dwords = (rdev->r600_blit.state_len + 0xf) & ~0xf;
+	dwords = ALIGN(rdev->r600_blit.state_len, 0x10);
 	gpu_addr = rdev->r600_blit.shader_gpu_addr + rdev->r600_blit.state_offset;
 	radeon_ring_write(rdev, PACKET3(PACKET3_INDIRECT_BUFFER, 2));
 	radeon_ring_write(rdev, gpu_addr & 0xFFFFFFFC);
