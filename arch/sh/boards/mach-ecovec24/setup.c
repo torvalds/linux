@@ -850,7 +850,8 @@ static int __init arch_setup(void)
 	struct clk *clk;
 
 	/* register board specific self-refresh code */
-	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF |
+					SUSP_SH_RSTANDBY,
 					&ecovec24_sdram_enter_start,
 					&ecovec24_sdram_enter_end,
 					&ecovec24_sdram_leave_start,
