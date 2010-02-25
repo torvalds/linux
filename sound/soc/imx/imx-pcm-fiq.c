@@ -35,12 +35,8 @@
 struct imx_pcm_runtime_data {
 	int period;
 	int periods;
-	unsigned long dma_addr;
-	int dma;
 	unsigned long offset;
 	unsigned long size;
-	unsigned long period_cnt;
-	void *buf;
 	struct timer_list timer;
 	int period_time;
 };
