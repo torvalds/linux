@@ -279,7 +279,7 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
-			ctl &= ~(IBS_FETCH_VAL | IBS_FETCH_CNT_MASK);
+			ctl &= ~(IBS_FETCH_VAL | IBS_FETCH_CNT);
 			ctl |= IBS_FETCH_ENABLE;
 			wrmsrl(MSR_AMD64_IBSFETCHCTL, ctl);
 		}
@@ -319,7 +319,7 @@ static inline void op_amd_start_ibs(void)
 		return;
 
 	if (ibs_config.fetch_enabled) {
-		val = (ibs_config.max_cnt_fetch >> 4) & 0xFFFF;
+		val = (ibs_config.max_cnt_fetch >> 4) & IBS_FETCH_MAX_CNT;
 		val |= ibs_config.rand_en ? IBS_FETCH_RAND_EN : 0;
 		val |= IBS_FETCH_ENABLE;
 		wrmsrl(MSR_AMD64_IBSFETCHCTL, val);
@@ -341,7 +341,7 @@ static inline void op_amd_start_ibs(void)
 			 * avoid underflows.
 			 */
 			ibs_op_ctl = min(ibs_op_ctl + IBS_RANDOM_MAXCNT_OFFSET,
-					 0xFFFFULL);
+					 IBS_OP_MAX_CNT);
 		}
 		if (ibs_caps & IBS_CAPS_OPCNT && ibs_config.dispatched_ops)
 			ibs_op_ctl |= IBS_OP_CNT_CTL;
