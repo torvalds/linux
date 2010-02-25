@@ -66,7 +66,6 @@ struct probe_finder {
 	Dwarf_Addr		addr;		/* Address */
 	const char		*fname;		/* File name */
 	int			lno;		/* Line number */
-	void			*origin;	/* Inline origin addr */
 	Dwarf_Die		cu_die;		/* Current CU */
 
 	/* For variable searching */
