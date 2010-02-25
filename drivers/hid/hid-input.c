@@ -1,6 +1,6 @@
 /*
  *  Copyright (c) 2000-2001 Vojtech Pavlik
- *  Copyright (c) 2006-2007 Jiri Kosina
+ *  Copyright (c) 2006-2010 Jiri Kosina
  *
  *  HID to Linux Input mapping
  */
@@ -193,12 +193,17 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		break;
 
 	case HID_UP_BUTTON:
-		code = ((usage->hid - 1) & 0xf);
+		code = ((usage->hid - 1) & HID_USAGE);
 
 		switch (field->application) {
 		case HID_GD_MOUSE:
 		case HID_GD_POINTER:  code += 0x110; break;
-		case HID_GD_JOYSTICK: code += 0x120; break;
+		case HID_GD_JOYSTICK:
+				      if (code <= 0xf)
+					      code += BTN_JOYSTICK;
+				      else
+					      code += BTN_TRIGGER_HAPPY;
+				      break;
 		case HID_GD_GAMEPAD:  code += 0x130; break;
 		default:
 			switch (field->physical) {
@@ -400,6 +405,7 @@ static void hidinput_configure_usage(struct hid_input *hidinput, struct hid_fiel
 		case 0x192: map_key_clear(KEY_CALC);		break;
 		case 0x194: map_key_clear(KEY_FILE);		break;
 		case 0x196: map_key_clear(KEY_WWW);		break;
+		case 0x199: map_key_clear(KEY_CHAT);		break;
 		case 0x19c: map_key_clear(KEY_LOGOFF);		break;
 		case 0x19e: map_key_clear(KEY_COFFEE);		break;
 		case 0x1a6: map_key_clear(KEY_HELP);		break;

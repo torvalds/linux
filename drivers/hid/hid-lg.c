@@ -34,6 +34,7 @@
 #define LG_FF			0x200
 #define LG_FF2			0x400
 #define LG_RDESC_REL_ABS	0x800
+#define LG_FF3			0x1000
 
 /*
  * Certain Logitech keyboards send in report #3 keys which are far
@@ -266,7 +267,7 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		goto err_free;
 	}
 
-	if (quirks & (LG_FF | LG_FF2))
+	if (quirks & (LG_FF | LG_FF2 | LG_FF3))
 		connect_mask &= ~HID_CONNECT_FF;
 
 	ret = hid_hw_start(hdev, connect_mask);
@@ -279,6 +280,8 @@ static int lg_probe(struct hid_device *hdev, const struct hid_device_id *id)
 		lgff_init(hdev);
 	if (quirks & LG_FF2)
 		lg2ff_init(hdev);
+	if (quirks & LG_FF3)
+		lg3ff_init(hdev);
 
 	return 0;
 err_free:
@@ -331,6 +334,8 @@ static const struct hid_device_id lg_devices[] = {
 		.driver_data = LG_FF },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_RUMBLEPAD2),
 		.driver_data = LG_FF2 },
+	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_LOGITECH_FLIGHT_SYSTEM_G940),
+		.driver_data = LG_FF3 },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_SPACENAVIGATOR),
 		.driver_data = LG_RDESC_REL_ABS },
 	{ HID_USB_DEVICE(USB_VENDOR_ID_LOGITECH, USB_DEVICE_ID_SPACETRAVELLER),
