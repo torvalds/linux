@@ -644,8 +644,13 @@ static void serial_out_override(struct uart_port *up, int offset, int value)
 }
 void __init omap_serial_early_init(void)
 {
-	int i;
+	int i, nr_ports;
 	char name[16];
+
+	if (!(cpu_is_omap3630() || cpu_is_omap4430()))
+		nr_ports = 3;
+	else
+		nr_ports = ARRAY_SIZE(omap_uart);
 
 	/*
 	 * Make sure the serial ports are muxed on at this point.
@@ -653,7 +658,7 @@ void __init omap_serial_early_init(void)
 	 * if not needed.
 	 */
 
-	for (i = 0; i < ARRAY_SIZE(omap_uart); i++) {
+	for (i = 0; i < nr_ports; i++) {
 		struct omap_uart_state *uart = &omap_uart[i];
 		struct platform_device *pdev = &uart->pdev;
 		struct device *dev = &pdev->dev;
@@ -669,17 +674,17 @@ void __init omap_serial_early_init(void)
 			continue;
 		}
 
-		sprintf(name, "uart%d_ick", i+1);
+		sprintf(name, "uart%d_ick", i + 1);
 		uart->ick = clk_get(NULL, name);
 		if (IS_ERR(uart->ick)) {
-			printk(KERN_ERR "Could not get uart%d_ick\n", i+1);
+			printk(KERN_ERR "Could not get uart%d_ick\n", i + 1);
 			uart->ick = NULL;
 		}
 
 		sprintf(name, "uart%d_fck", i+1);
 		uart->fck = clk_get(NULL, name);
 		if (IS_ERR(uart->fck)) {
-			printk(KERN_ERR "Could not get uart%d_fck\n", i+1);
+			printk(KERN_ERR "Could not get uart%d_fck\n", i + 1);
 			uart->fck = NULL;
 		}
 
