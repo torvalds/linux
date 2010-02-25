@@ -346,7 +346,8 @@ static u32 group_table[] = {
 	[Group5*8] =
 	DstMem | SrcNone | ModRM, DstMem | SrcNone | ModRM,
 	SrcMem | ModRM | Stack, 0,
-	SrcMem | ModRM | Stack, 0, SrcMem | ModRM | Stack, 0,
+	SrcMem | ModRM | Stack, SrcMem | ModRM | Src2Mem16 | ImplicitOps,
+	SrcMem | ModRM | Stack, 0,
 	[Group7*8] =
 	0, 0, ModRM | SrcMem | Priv, ModRM | SrcMem | Priv,
 	SrcNone | ModRM | DstMem | Mov, 0,
@@ -2322,6 +2323,7 @@ special_insn:
 	case 0xe9: /* jmp rel */
 		goto jmp;
 	case 0xea: /* jmp far */
+	jump_far:
 		if (kvm_load_segment_descriptor(ctxt->vcpu, c->src2.val,
 						VCPU_SREG_CS))
 			goto done;
@@ -2397,11 +2399,16 @@ special_insn:
 		ctxt->eflags |= EFLG_DF;
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
-	case 0xfe ... 0xff:	/* Grp4/Grp5 */
+	case 0xfe: /* Grp4 */
+	grp45:
 		rc = emulate_grp45(ctxt, ops);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		break;
+	case 0xff: /* Grp5 */
+		if (c->modrm_reg == 5)
+			goto jump_far;
+		goto grp45;
 	}
 
 writeback:
