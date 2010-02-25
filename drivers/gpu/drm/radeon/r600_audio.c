@@ -147,6 +147,15 @@ static void r600_audio_update_hdmi(unsigned long param)
 }
 
 /*
+ * turn on/off audio engine
+ */
+static void r600_audio_engine_enable(struct radeon_device *rdev, bool enable)
+{
+	DRM_INFO("%s audio support", enable ? "Enabling" : "Disabling");
+	WREG32_P(R600_AUDIO_ENABLE, enable ? 0x81000000 : 0x0, ~0x81000000);
+}
+
+/*
  * initialize the audio vars and register the update timer
  */
 int r600_audio_init(struct radeon_device *rdev)
@@ -154,8 +163,7 @@ int r600_audio_init(struct radeon_device *rdev)
 	if (!r600_audio_chipset_supported(rdev))
 		return 0;
 
-	DRM_INFO("%s audio support", radeon_audio ? "Enabling" : "Disabling");
-	WREG32_P(R600_AUDIO_ENABLE, radeon_audio ? 0x81000000 : 0x0, ~0x81000000);
+	r600_audio_engine_enable(rdev, radeon_audio);
 
 	rdev->audio_channels = -1;
 	rdev->audio_rate = -1;
@@ -263,4 +271,6 @@ void r600_audio_fini(struct radeon_device *rdev)
 
 	del_timer(&rdev->audio_timer);
 	WREG32_P(R600_AUDIO_ENABLE, 0x0, ~0x81000000);
+
+	r600_audio_engine_enable(rdev, false);
 }

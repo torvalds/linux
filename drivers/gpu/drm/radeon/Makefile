@@ -30,6 +30,9 @@ $(obj)/r420_reg_safe.h: $(src)/reg_srcs/r420 $(obj)/mkregtable
 $(obj)/rs600_reg_safe.h: $(src)/reg_srcs/rs600 $(obj)/mkregtable
 	$(call if_changed,mkregtable)
 
+$(obj)/r600_reg_safe.h: $(src)/reg_srcs/r600 $(obj)/mkregtable
+	$(call if_changed,mkregtable)
+
 $(obj)/r100.o: $(obj)/r100_reg_safe.h $(obj)/rn50_reg_safe.h
 
 $(obj)/r200.o: $(obj)/r200_reg_safe.h
@@ -41,6 +44,8 @@ $(obj)/r300.o: $(obj)/r300_reg_safe.h
 $(obj)/r420.o: $(obj)/r420_reg_safe.h
 
 $(obj)/rs600.o: $(obj)/rs600_reg_safe.h
+
+$(obj)/r600_cs.o: $(obj)/r600_reg_safe.h
 
 radeon-y := radeon_drv.o radeon_cp.o radeon_state.o radeon_mem.o \
 	radeon_irq.o r300_cmdbuf.o r600_cp.o
@@ -54,7 +59,8 @@ radeon-y += radeon_device.o radeon_kms.o \
 	radeon_cs.o radeon_bios.o radeon_benchmark.o r100.o r300.o r420.o \
 	rs400.o rs600.o rs690.o rv515.o r520.o r600.o rv770.o radeon_test.o \
 	r200.o radeon_legacy_tv.o r600_cs.o r600_blit.o r600_blit_shaders.o \
-	r600_blit_kms.o radeon_pm.o atombios_dp.o r600_audio.o r600_hdmi.o
+	r600_blit_kms.o radeon_pm.o atombios_dp.o r600_audio.o r600_hdmi.o \
+	evergreen.o
 
 radeon-$(CONFIG_COMPAT) += radeon_ioc32.o
 

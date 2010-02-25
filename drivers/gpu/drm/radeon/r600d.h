@@ -883,6 +883,16 @@
 
 #define R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL		0x5480
 
+#define R_028C04_PA_SC_AA_CONFIG                     0x028C04
+#define   S_028C04_MSAA_NUM_SAMPLES(x)                 (((x) & 0x3) << 0)
+#define   G_028C04_MSAA_NUM_SAMPLES(x)                 (((x) >> 0) & 0x3)
+#define   C_028C04_MSAA_NUM_SAMPLES                    0xFFFFFFFC
+#define   S_028C04_AA_MASK_CENTROID_DTMN(x)            (((x) & 0x1) << 4)
+#define   G_028C04_AA_MASK_CENTROID_DTMN(x)            (((x) >> 4) & 0x1)
+#define   C_028C04_AA_MASK_CENTROID_DTMN               0xFFFFFFEF
+#define   S_028C04_MAX_SAMPLE_DIST(x)                  (((x) & 0xF) << 13)
+#define   G_028C04_MAX_SAMPLE_DIST(x)                  (((x) >> 13) & 0xF)
+#define   C_028C04_MAX_SAMPLE_DIST                     0xFFFE1FFF
 #define R_0280E0_CB_COLOR0_FRAG                      0x0280E0
 #define   S_0280E0_BASE_256B(x)                        (((x) & 0xFFFFFFFF) << 0)
 #define   G_0280E0_BASE_256B(x)                        (((x) >> 0) & 0xFFFFFFFF)
@@ -905,6 +915,461 @@
 #define R_0280D4_CB_COLOR5_TILE                      0x0280D4
 #define R_0280D8_CB_COLOR6_TILE                      0x0280D8
 #define R_0280DC_CB_COLOR7_TILE                      0x0280DC
-
+#define R_0280A0_CB_COLOR0_INFO                      0x0280A0
+#define   S_0280A0_ENDIAN(x)                           (((x) & 0x3) << 0)
+#define   G_0280A0_ENDIAN(x)                           (((x) >> 0) & 0x3)
+#define   C_0280A0_ENDIAN                              0xFFFFFFFC
+#define   S_0280A0_FORMAT(x)                           (((x) & 0x3F) << 2)
+#define   G_0280A0_FORMAT(x)                           (((x) >> 2) & 0x3F)
+#define   C_0280A0_FORMAT                              0xFFFFFF03
+#define     V_0280A0_COLOR_INVALID                     0x00000000
+#define     V_0280A0_COLOR_8                           0x00000001
+#define     V_0280A0_COLOR_4_4                         0x00000002
+#define     V_0280A0_COLOR_3_3_2                       0x00000003
+#define     V_0280A0_COLOR_16                          0x00000005
+#define     V_0280A0_COLOR_16_FLOAT                    0x00000006
+#define     V_0280A0_COLOR_8_8                         0x00000007
+#define     V_0280A0_COLOR_5_6_5                       0x00000008
+#define     V_0280A0_COLOR_6_5_5                       0x00000009
+#define     V_0280A0_COLOR_1_5_5_5                     0x0000000A
+#define     V_0280A0_COLOR_4_4_4_4                     0x0000000B
+#define     V_0280A0_COLOR_5_5_5_1                     0x0000000C
+#define     V_0280A0_COLOR_32                          0x0000000D
+#define     V_0280A0_COLOR_32_FLOAT                    0x0000000E
+#define     V_0280A0_COLOR_16_16                       0x0000000F
+#define     V_0280A0_COLOR_16_16_FLOAT                 0x00000010
+#define     V_0280A0_COLOR_8_24                        0x00000011
+#define     V_0280A0_COLOR_8_24_FLOAT                  0x00000012
+#define     V_0280A0_COLOR_24_8                        0x00000013
+#define     V_0280A0_COLOR_24_8_FLOAT                  0x00000014
+#define     V_0280A0_COLOR_10_11_11                    0x00000015
+#define     V_0280A0_COLOR_10_11_11_FLOAT              0x00000016
+#define     V_0280A0_COLOR_11_11_10                    0x00000017
+#define     V_0280A0_COLOR_11_11_10_FLOAT              0x00000018
+#define     V_0280A0_COLOR_2_10_10_10                  0x00000019
+#define     V_0280A0_COLOR_8_8_8_8                     0x0000001A
+#define     V_0280A0_COLOR_10_10_10_2                  0x0000001B
+#define     V_0280A0_COLOR_X24_8_32_FLOAT              0x0000001C
+#define     V_0280A0_COLOR_32_32                       0x0000001D
+#define     V_0280A0_COLOR_32_32_FLOAT                 0x0000001E
+#define     V_0280A0_COLOR_16_16_16_16                 0x0000001F
+#define     V_0280A0_COLOR_16_16_16_16_FLOAT           0x00000020
+#define     V_0280A0_COLOR_32_32_32_32                 0x00000022
+#define     V_0280A0_COLOR_32_32_32_32_FLOAT           0x00000023
+#define   S_0280A0_ARRAY_MODE(x)                       (((x) & 0xF) << 8)
+#define   G_0280A0_ARRAY_MODE(x)                       (((x) >> 8) & 0xF)
+#define   C_0280A0_ARRAY_MODE                          0xFFFFF0FF
+#define     V_0280A0_ARRAY_LINEAR_GENERAL              0x00000000
+#define     V_0280A0_ARRAY_LINEAR_ALIGNED              0x00000001
+#define     V_0280A0_ARRAY_1D_TILED_THIN1              0x00000002
+#define     V_0280A0_ARRAY_2D_TILED_THIN1              0x00000004
+#define   S_0280A0_NUMBER_TYPE(x)                      (((x) & 0x7) << 12)
+#define   G_0280A0_NUMBER_TYPE(x)                      (((x) >> 12) & 0x7)
+#define   C_0280A0_NUMBER_TYPE                         0xFFFF8FFF
+#define   S_0280A0_READ_SIZE(x)                        (((x) & 0x1) << 15)
+#define   G_0280A0_READ_SIZE(x)                        (((x) >> 15) & 0x1)
+#define   C_0280A0_READ_SIZE                           0xFFFF7FFF
+#define   S_0280A0_COMP_SWAP(x)                        (((x) & 0x3) << 16)
+#define   G_0280A0_COMP_SWAP(x)                        (((x) >> 16) & 0x3)
+#define   C_0280A0_COMP_SWAP                           0xFFFCFFFF
+#define   S_0280A0_TILE_MODE(x)                        (((x) & 0x3) << 18)
+#define   G_0280A0_TILE_MODE(x)                        (((x) >> 18) & 0x3)
+#define   C_0280A0_TILE_MODE                           0xFFF3FFFF
+#define   S_0280A0_BLEND_CLAMP(x)                      (((x) & 0x1) << 20)
+#define   G_0280A0_BLEND_CLAMP(x)                      (((x) >> 20) & 0x1)
+#define   C_0280A0_BLEND_CLAMP                         0xFFEFFFFF
+#define   S_0280A0_CLEAR_COLOR(x)                      (((x) & 0x1) << 21)
+#define   G_0280A0_CLEAR_COLOR(x)                      (((x) >> 21) & 0x1)
+#define   C_0280A0_CLEAR_COLOR                         0xFFDFFFFF
+#define   S_0280A0_BLEND_BYPASS(x)                     (((x) & 0x1) << 22)
+#define   G_0280A0_BLEND_BYPASS(x)                     (((x) >> 22) & 0x1)
+#define   C_0280A0_BLEND_BYPASS                        0xFFBFFFFF
+#define   S_0280A0_BLEND_FLOAT32(x)                    (((x) & 0x1) << 23)
+#define   G_0280A0_BLEND_FLOAT32(x)                    (((x) >> 23) & 0x1)
+#define   C_0280A0_BLEND_FLOAT32                       0xFF7FFFFF
+#define   S_0280A0_SIMPLE_FLOAT(x)                     (((x) & 0x1) << 24)
+#define   G_0280A0_SIMPLE_FLOAT(x)                     (((x) >> 24) & 0x1)
+#define   C_0280A0_SIMPLE_FLOAT                        0xFEFFFFFF
+#define   S_0280A0_ROUND_MODE(x)                       (((x) & 0x1) << 25)
+#define   G_0280A0_ROUND_MODE(x)                       (((x) >> 25) & 0x1)
+#define   C_0280A0_ROUND_MODE                          0xFDFFFFFF
+#define   S_0280A0_TILE_COMPACT(x)                     (((x) & 0x1) << 26)
+#define   G_0280A0_TILE_COMPACT(x)                     (((x) >> 26) & 0x1)
+#define   C_0280A0_TILE_COMPACT                        0xFBFFFFFF
+#define   S_0280A0_SOURCE_FORMAT(x)                    (((x) & 0x1) << 27)
+#define   G_0280A0_SOURCE_FORMAT(x)                    (((x) >> 27) & 0x1)
+#define   C_0280A0_SOURCE_FORMAT                       0xF7FFFFFF
+#define R_0280A4_CB_COLOR1_INFO                      0x0280A4
+#define R_0280A8_CB_COLOR2_INFO                      0x0280A8
+#define R_0280AC_CB_COLOR3_INFO                      0x0280AC
+#define R_0280B0_CB_COLOR4_INFO                      0x0280B0
+#define R_0280B4_CB_COLOR5_INFO                      0x0280B4
+#define R_0280B8_CB_COLOR6_INFO                      0x0280B8
+#define R_0280BC_CB_COLOR7_INFO                      0x0280BC
+#define R_028060_CB_COLOR0_SIZE                      0x028060
+#define   S_028060_PITCH_TILE_MAX(x)                   (((x) & 0x3FF) << 0)
+#define   G_028060_PITCH_TILE_MAX(x)                   (((x) >> 0) & 0x3FF)
+#define   C_028060_PITCH_TILE_MAX                      0xFFFFFC00
+#define   S_028060_SLICE_TILE_MAX(x)                   (((x) & 0xFFFFF) << 10)
+#define   G_028060_SLICE_TILE_MAX(x)                   (((x) >> 10) & 0xFFFFF)
+#define   C_028060_SLICE_TILE_MAX                      0xC00003FF
+#define R_028064_CB_COLOR1_SIZE                      0x028064
+#define R_028068_CB_COLOR2_SIZE                      0x028068
+#define R_02806C_CB_COLOR3_SIZE                      0x02806C
+#define R_028070_CB_COLOR4_SIZE                      0x028070
+#define R_028074_CB_COLOR5_SIZE                      0x028074
+#define R_028078_CB_COLOR6_SIZE                      0x028078
+#define R_02807C_CB_COLOR7_SIZE                      0x02807C
+#define R_028238_CB_TARGET_MASK                      0x028238
+#define   S_028238_TARGET0_ENABLE(x)                   (((x) & 0xF) << 0)
+#define   G_028238_TARGET0_ENABLE(x)                   (((x) >> 0) & 0xF)
+#define   C_028238_TARGET0_ENABLE                      0xFFFFFFF0
+#define   S_028238_TARGET1_ENABLE(x)                   (((x) & 0xF) << 4)
+#define   G_028238_TARGET1_ENABLE(x)                   (((x) >> 4) & 0xF)
+#define   C_028238_TARGET1_ENABLE                      0xFFFFFF0F
+#define   S_028238_TARGET2_ENABLE(x)                   (((x) & 0xF) << 8)
+#define   G_028238_TARGET2_ENABLE(x)                   (((x) >> 8) & 0xF)
+#define   C_028238_TARGET2_ENABLE                      0xFFFFF0FF
+#define   S_028238_TARGET3_ENABLE(x)                   (((x) & 0xF) << 12)
+#define   G_028238_TARGET3_ENABLE(x)                   (((x) >> 12) & 0xF)
+#define   C_028238_TARGET3_ENABLE                      0xFFFF0FFF
+#define   S_028238_TARGET4_ENABLE(x)                   (((x) & 0xF) << 16)
+#define   G_028238_TARGET4_ENABLE(x)                   (((x) >> 16) & 0xF)
+#define   C_028238_TARGET4_ENABLE                      0xFFF0FFFF
+#define   S_028238_TARGET5_ENABLE(x)                   (((x) & 0xF) << 20)
+#define   G_028238_TARGET5_ENABLE(x)                   (((x) >> 20) & 0xF)
+#define   C_028238_TARGET5_ENABLE                      0xFF0FFFFF
+#define   S_028238_TARGET6_ENABLE(x)                   (((x) & 0xF) << 24)
+#define   G_028238_TARGET6_ENABLE(x)                   (((x) >> 24) & 0xF)
+#define   C_028238_TARGET6_ENABLE                      0xF0FFFFFF
+#define   S_028238_TARGET7_ENABLE(x)                   (((x) & 0xF) << 28)
+#define   G_028238_TARGET7_ENABLE(x)                   (((x) >> 28) & 0xF)
+#define   C_028238_TARGET7_ENABLE                      0x0FFFFFFF
+#define R_02823C_CB_SHADER_MASK                      0x02823C
+#define   S_02823C_OUTPUT0_ENABLE(x)                   (((x) & 0xF) << 0)
+#define   G_02823C_OUTPUT0_ENABLE(x)                   (((x) >> 0) & 0xF)
+#define   C_02823C_OUTPUT0_ENABLE                      0xFFFFFFF0
+#define   S_02823C_OUTPUT1_ENABLE(x)                   (((x) & 0xF) << 4)
+#define   G_02823C_OUTPUT1_ENABLE(x)                   (((x) >> 4) & 0xF)
+#define   C_02823C_OUTPUT1_ENABLE                      0xFFFFFF0F
+#define   S_02823C_OUTPUT2_ENABLE(x)                   (((x) & 0xF) << 8)
+#define   G_02823C_OUTPUT2_ENABLE(x)                   (((x) >> 8) & 0xF)
+#define   C_02823C_OUTPUT2_ENABLE                      0xFFFFF0FF
+#define   S_02823C_OUTPUT3_ENABLE(x)                   (((x) & 0xF) << 12)
+#define   G_02823C_OUTPUT3_ENABLE(x)                   (((x) >> 12) & 0xF)
+#define   C_02823C_OUTPUT3_ENABLE                      0xFFFF0FFF
+#define   S_02823C_OUTPUT4_ENABLE(x)                   (((x) & 0xF) << 16)
+#define   G_02823C_OUTPUT4_ENABLE(x)                   (((x) >> 16) & 0xF)
+#define   C_02823C_OUTPUT4_ENABLE                      0xFFF0FFFF
+#define   S_02823C_OUTPUT5_ENABLE(x)                   (((x) & 0xF) << 20)
+#define   G_02823C_OUTPUT5_ENABLE(x)                   (((x) >> 20) & 0xF)
+#define   C_02823C_OUTPUT5_ENABLE                      0xFF0FFFFF
+#define   S_02823C_OUTPUT6_ENABLE(x)                   (((x) & 0xF) << 24)
+#define   G_02823C_OUTPUT6_ENABLE(x)                   (((x) >> 24) & 0xF)
+#define   C_02823C_OUTPUT6_ENABLE                      0xF0FFFFFF
+#define   S_02823C_OUTPUT7_ENABLE(x)                   (((x) & 0xF) << 28)
+#define   G_02823C_OUTPUT7_ENABLE(x)                   (((x) >> 28) & 0xF)
+#define   C_02823C_OUTPUT7_ENABLE                      0x0FFFFFFF
+#define R_028AB0_VGT_STRMOUT_EN                      0x028AB0
+#define   S_028AB0_STREAMOUT(x)                        (((x) & 0x1) << 0)
+#define   G_028AB0_STREAMOUT(x)                        (((x) >> 0) & 0x1)
+#define   C_028AB0_STREAMOUT                           0xFFFFFFFE
+#define R_028B20_VGT_STRMOUT_BUFFER_EN               0x028B20
+#define   S_028B20_BUFFER_0_EN(x)                      (((x) & 0x1) << 0)
+#define   G_028B20_BUFFER_0_EN(x)                      (((x) >> 0) & 0x1)
+#define   C_028B20_BUFFER_0_EN                         0xFFFFFFFE
+#define   S_028B20_BUFFER_1_EN(x)                      (((x) & 0x1) << 1)
+#define   G_028B20_BUFFER_1_EN(x)                      (((x) >> 1) & 0x1)
+#define   C_028B20_BUFFER_1_EN                         0xFFFFFFFD
+#define   S_028B20_BUFFER_2_EN(x)                      (((x) & 0x1) << 2)
+#define   G_028B20_BUFFER_2_EN(x)                      (((x) >> 2) & 0x1)
+#define   C_028B20_BUFFER_2_EN                         0xFFFFFFFB
+#define   S_028B20_BUFFER_3_EN(x)                      (((x) & 0x1) << 3)
+#define   G_028B20_BUFFER_3_EN(x)                      (((x) >> 3) & 0x1)
+#define   C_028B20_BUFFER_3_EN                         0xFFFFFFF7
+#define   S_028B20_SIZE(x)                             (((x) & 0xFFFFFFFF) << 0)
+#define   G_028B20_SIZE(x)                             (((x) >> 0) & 0xFFFFFFFF)
+#define   C_028B20_SIZE                                0x00000000
+#define R_038000_SQ_TEX_RESOURCE_WORD0_0             0x038000
+#define   S_038000_DIM(x)                              (((x) & 0x7) << 0)
+#define   G_038000_DIM(x)                              (((x) >> 0) & 0x7)
+#define   C_038000_DIM                                 0xFFFFFFF8
+#define     V_038000_SQ_TEX_DIM_1D                     0x00000000
+#define     V_038000_SQ_TEX_DIM_2D                     0x00000001
+#define     V_038000_SQ_TEX_DIM_3D                     0x00000002
+#define     V_038000_SQ_TEX_DIM_CUBEMAP                0x00000003
+#define     V_038000_SQ_TEX_DIM_1D_ARRAY               0x00000004
+#define     V_038000_SQ_TEX_DIM_2D_ARRAY               0x00000005
+#define     V_038000_SQ_TEX_DIM_2D_MSAA                0x00000006
+#define     V_038000_SQ_TEX_DIM_2D_ARRAY_MSAA          0x00000007
+#define   S_038000_TILE_MODE(x)                        (((x) & 0xF) << 3)
+#define   G_038000_TILE_MODE(x)                        (((x) >> 3) & 0xF)
+#define   C_038000_TILE_MODE                           0xFFFFFF87
+#define   S_038000_TILE_TYPE(x)                        (((x) & 0x1) << 7)
+#define   G_038000_TILE_TYPE(x)                        (((x) >> 7) & 0x1)
+#define   C_038000_TILE_TYPE                           0xFFFFFF7F
+#define   S_038000_PITCH(x)                            (((x) & 0x7FF) << 8)
+#define   G_038000_PITCH(x)                            (((x) >> 8) & 0x7FF)
+#define   C_038000_PITCH                               0xFFF800FF
+#define   S_038000_TEX_WIDTH(x)                        (((x) & 0x1FFF) << 19)
+#define   G_038000_TEX_WIDTH(x)                        (((x) >> 19) & 0x1FFF)
+#define   C_038000_TEX_WIDTH                           0x0007FFFF
+#define R_038004_SQ_TEX_RESOURCE_WORD1_0             0x038004
+#define   S_038004_TEX_HEIGHT(x)                       (((x) & 0x1FFF) << 0)
+#define   G_038004_TEX_HEIGHT(x)                       (((x) >> 0) & 0x1FFF)
+#define   C_038004_TEX_HEIGHT                          0xFFFFE000
+#define   S_038004_TEX_DEPTH(x)                        (((x) & 0x1FFF) << 13)
+#define   G_038004_TEX_DEPTH(x)                        (((x) >> 13) & 0x1FFF)
+#define   C_038004_TEX_DEPTH                           0xFC001FFF
+#define   S_038004_DATA_FORMAT(x)                      (((x) & 0x3F) << 26)
+#define   G_038004_DATA_FORMAT(x)                      (((x) >> 26) & 0x3F)
+#define   C_038004_DATA_FORMAT                         0x03FFFFFF
+#define     V_038004_COLOR_INVALID                     0x00000000
+#define     V_038004_COLOR_8                           0x00000001
+#define     V_038004_COLOR_4_4                         0x00000002
+#define     V_038004_COLOR_3_3_2                       0x00000003
+#define     V_038004_COLOR_16                          0x00000005
+#define     V_038004_COLOR_16_FLOAT                    0x00000006
+#define     V_038004_COLOR_8_8                         0x00000007
+#define     V_038004_COLOR_5_6_5                       0x00000008
+#define     V_038004_COLOR_6_5_5                       0x00000009
+#define     V_038004_COLOR_1_5_5_5                     0x0000000A
+#define     V_038004_COLOR_4_4_4_4                     0x0000000B
+#define     V_038004_COLOR_5_5_5_1                     0x0000000C
+#define     V_038004_COLOR_32                          0x0000000D
+#define     V_038004_COLOR_32_FLOAT                    0x0000000E
+#define     V_038004_COLOR_16_16                       0x0000000F
+#define     V_038004_COLOR_16_16_FLOAT                 0x00000010
+#define     V_038004_COLOR_8_24                        0x00000011
+#define     V_038004_COLOR_8_24_FLOAT                  0x00000012
+#define     V_038004_COLOR_24_8                        0x00000013
+#define     V_038004_COLOR_24_8_FLOAT                  0x00000014
+#define     V_038004_COLOR_10_11_11                    0x00000015
+#define     V_038004_COLOR_10_11_11_FLOAT              0x00000016
+#define     V_038004_COLOR_11_11_10                    0x00000017
+#define     V_038004_COLOR_11_11_10_FLOAT              0x00000018
+#define     V_038004_COLOR_2_10_10_10                  0x00000019
+#define     V_038004_COLOR_8_8_8_8                     0x0000001A
+#define     V_038004_COLOR_10_10_10_2                  0x0000001B
+#define     V_038004_COLOR_X24_8_32_FLOAT              0x0000001C
+#define     V_038004_COLOR_32_32                       0x0000001D
+#define     V_038004_COLOR_32_32_FLOAT                 0x0000001E
+#define     V_038004_COLOR_16_16_16_16                 0x0000001F
+#define     V_038004_COLOR_16_16_16_16_FLOAT           0x00000020
+#define     V_038004_COLOR_32_32_32_32                 0x00000022
+#define     V_038004_COLOR_32_32_32_32_FLOAT           0x00000023
+#define     V_038004_FMT_1                             0x00000025
+#define     V_038004_FMT_GB_GR                         0x00000027
+#define     V_038004_FMT_BG_RG                         0x00000028
+#define     V_038004_FMT_32_AS_8                       0x00000029
+#define     V_038004_FMT_32_AS_8_8                     0x0000002A
+#define     V_038004_FMT_5_9_9_9_SHAREDEXP             0x0000002B
+#define     V_038004_FMT_8_8_8                         0x0000002C
+#define     V_038004_FMT_16_16_16                      0x0000002D
+#define     V_038004_FMT_16_16_16_FLOAT                0x0000002E
+#define     V_038004_FMT_32_32_32                      0x0000002F
+#define     V_038004_FMT_32_32_32_FLOAT                0x00000030
+#define R_038010_SQ_TEX_RESOURCE_WORD4_0             0x038010
+#define   S_038010_FORMAT_COMP_X(x)                    (((x) & 0x3) << 0)
+#define   G_038010_FORMAT_COMP_X(x)                    (((x) >> 0) & 0x3)
+#define   C_038010_FORMAT_COMP_X                       0xFFFFFFFC
+#define   S_038010_FORMAT_COMP_Y(x)                    (((x) & 0x3) << 2)
+#define   G_038010_FORMAT_COMP_Y(x)                    (((x) >> 2) & 0x3)
+#define   C_038010_FORMAT_COMP_Y                       0xFFFFFFF3
+#define   S_038010_FORMAT_COMP_Z(x)                    (((x) & 0x3) << 4)
+#define   G_038010_FORMAT_COMP_Z(x)                    (((x) >> 4) & 0x3)
+#define   C_038010_FORMAT_COMP_Z                       0xFFFFFFCF
+#define   S_038010_FORMAT_COMP_W(x)                    (((x) & 0x3) << 6)
+#define   G_038010_FORMAT_COMP_W(x)                    (((x) >> 6) & 0x3)
+#define   C_038010_FORMAT_COMP_W                       0xFFFFFF3F
+#define   S_038010_NUM_FORMAT_ALL(x)                   (((x) & 0x3) << 8)
+#define   G_038010_NUM_FORMAT_ALL(x)                   (((x) >> 8) & 0x3)
+#define   C_038010_NUM_FORMAT_ALL                      0xFFFFFCFF
+#define   S_038010_SRF_MODE_ALL(x)                     (((x) & 0x1) << 10)
+#define   G_038010_SRF_MODE_ALL(x)                     (((x) >> 10) & 0x1)
+#define   C_038010_SRF_MODE_ALL                        0xFFFFFBFF
+#define   S_038010_FORCE_DEGAMMA(x)                    (((x) & 0x1) << 11)
+#define   G_038010_FORCE_DEGAMMA(x)                    (((x) >> 11) & 0x1)
+#define   C_038010_FORCE_DEGAMMA                       0xFFFFF7FF
+#define   S_038010_ENDIAN_SWAP(x)                      (((x) & 0x3) << 12)
+#define   G_038010_ENDIAN_SWAP(x)                      (((x) >> 12) & 0x3)
+#define   C_038010_ENDIAN_SWAP                         0xFFFFCFFF
+#define   S_038010_REQUEST_SIZE(x)                     (((x) & 0x3) << 14)
+#define   G_038010_REQUEST_SIZE(x)                     (((x) >> 14) & 0x3)
+#define   C_038010_REQUEST_SIZE                        0xFFFF3FFF
+#define   S_038010_DST_SEL_X(x)                        (((x) & 0x7) << 16)
+#define   G_038010_DST_SEL_X(x)                        (((x) >> 16) & 0x7)
+#define   C_038010_DST_SEL_X                           0xFFF8FFFF
+#define   S_038010_DST_SEL_Y(x)                        (((x) & 0x7) << 19)
+#define   G_038010_DST_SEL_Y(x)                        (((x) >> 19) & 0x7)
+#define   C_038010_DST_SEL_Y                           0xFFC7FFFF
+#define   S_038010_DST_SEL_Z(x)                        (((x) & 0x7) << 22)
+#define   G_038010_DST_SEL_Z(x)                        (((x) >> 22) & 0x7)
+#define   C_038010_DST_SEL_Z                           0xFE3FFFFF
+#define   S_038010_DST_SEL_W(x)                        (((x) & 0x7) << 25)
+#define   G_038010_DST_SEL_W(x)                        (((x) >> 25) & 0x7)
+#define   C_038010_DST_SEL_W                           0xF1FFFFFF
+#define   S_038010_BASE_LEVEL(x)                       (((x) & 0xF) << 28)
+#define   G_038010_BASE_LEVEL(x)                       (((x) >> 28) & 0xF)
+#define   C_038010_BASE_LEVEL                          0x0FFFFFFF
+#define R_038014_SQ_TEX_RESOURCE_WORD5_0             0x038014
+#define   S_038014_LAST_LEVEL(x)                       (((x) & 0xF) << 0)
+#define   G_038014_LAST_LEVEL(x)                       (((x) >> 0) & 0xF)
+#define   C_038014_LAST_LEVEL                          0xFFFFFFF0
+#define   S_038014_BASE_ARRAY(x)                       (((x) & 0x1FFF) << 4)
+#define   G_038014_BASE_ARRAY(x)                       (((x) >> 4) & 0x1FFF)
+#define   C_038014_BASE_ARRAY                          0xFFFE000F
+#define   S_038014_LAST_ARRAY(x)                       (((x) & 0x1FFF) << 17)
+#define   G_038014_LAST_ARRAY(x)                       (((x) >> 17) & 0x1FFF)
+#define   C_038014_LAST_ARRAY                          0xC001FFFF
+#define R_0288A8_SQ_ESGS_RING_ITEMSIZE               0x0288A8
+#define   S_0288A8_ITEMSIZE(x)                         (((x) & 0x7FFF) << 0)
+#define   G_0288A8_ITEMSIZE(x)                         (((x) >> 0) & 0x7FFF)
+#define   C_0288A8_ITEMSIZE                            0xFFFF8000
+#define R_008C44_SQ_ESGS_RING_SIZE                   0x008C44
+#define   S_008C44_MEM_SIZE(x)                         (((x) & 0xFFFFFFFF) << 0)
+#define   G_008C44_MEM_SIZE(x)                         (((x) >> 0) & 0xFFFFFFFF)
+#define   C_008C44_MEM_SIZE                            0x00000000
+#define R_0288B0_SQ_ESTMP_RING_ITEMSIZE              0x0288B0
+#define   S_0288B0_ITEMSIZE(x)                         (((x) & 0x7FFF) << 0)
+#define   G_0288B0_ITEMSIZE(x)                         (((x) >> 0) & 0x7FFF)
+#define   C_0288B0_ITEMSIZE                            0xFFFF8000
+#define R_008C54_SQ_ESTMP_RING_SIZE                  0x008C54
+#define   S_008C54_MEM_SIZE(x)                         (((x) & 0xFFFFFFFF) << 0)
+#define   G_008C54_MEM_SIZE(x)                         (((x) >> 0) & 0xFFFFFFFF)
+#define   C_008C54_MEM_SIZE                            0x00000000
+#define R_0288C0_SQ_FBUF_RING_ITEMSIZE               0x0288C0
+#define   S_0288C0_ITEMSIZE(x)                         (((x) & 0x7FFF) << 0)
+#define   G_0288C0_ITEMSIZE(x)                         (((x) >> 0) & 0x7FFF)
+#define   C_0288C0_ITEMSIZE                            0xFFFF8000
+#define R_008C74_SQ_FBUF_RING_SIZE                   0x008C74
+#define   S_008C74_MEM_SIZE(x)                         (((x) & 0xFFFFFFFF) << 0)
+#define   G_008C74_MEM_SIZE(x)                         (((x) >> 0) & 0xFFFFFFFF)
+#define   C_008C74_MEM_SIZE                            0x00000000
+#define R_0288B4_SQ_GSTMP_RING_ITEMSIZE              0x0288B4
+#define   S_0288B4_ITEMSIZE(x)                         (((x) & 0x7FFF) << 0)
+#define   G_0288B4_ITEMSIZE(x)                         (((x) >> 0) & 0x7FFF)
+#define   C_0288B4_ITEMSIZE                            0xFFFF8000
+#define R_008C5C_SQ_GSTMP_RING_SIZE                  0x008C5C
+#define   S_008C5C_MEM_SIZE(x)                         (((x) & 0xFFFFFFFF) << 0)
+#define   G_008C5C_MEM_SIZE(x)                         (((x) >> 0) & 0xFFFFFFFF)
+#define   C_008C5C_MEM_SIZE                            0x00000000
+#define R_0288AC_SQ_GSVS_RING_ITEMSIZE               0x0288AC
+#define   S_0288AC_ITEMSIZE(x)                         (((x) & 0x7FFF) << 0)
+#define   G_0288AC_ITEMSIZE(x)                         (((x) >> 0) & 0x7FFF)
+#define   C_0288AC_ITEMSIZE                            0xFFFF8000
+#define R_008C4C_SQ_GSVS_RING_SIZE                   0x008C4C
+#define   S_008C4C_MEM_SIZE(x)                         (((x) & 0xFFFFFFFF) << 0)
+#define   G_008C4C_MEM_SIZE(x)                         (((x) >> 0) & 0xFFFFFFFF)
+#define   C_008C4C_MEM_SIZE                            0x00000000
+#define R_0288BC_SQ_PSTMP_RING_ITEMSIZE              0x0288BC
+#define   S_0288BC_ITEMSIZE(x)                         (((x) & 0x7FFF) << 0)
+#define   G_0288BC_ITEMSIZE(x)                         (((x) >> 0) & 0x7FFF)
+#define   C_0288BC_ITEMSIZE                            0xFFFF8000
+#define R_008C6C_SQ_PSTMP_RING_SIZE                  0x008C6C
+#define   S_008C6C_MEM_SIZE(x)                         (((x) & 0xFFFFFFFF) << 0)
+#define   G_008C6C_MEM_SIZE(x)                         (((x) >> 0) & 0xFFFFFFFF)
+#define   C_008C6C_MEM_SIZE                            0x00000000
+#define R_0288C4_SQ_REDUC_RING_ITEMSIZE              0x0288C4
+#define   S_0288C4_ITEMSIZE(x)                         (((x) & 0x7FFF) << 0)
+#define   G_0288C4_ITEMSIZE(x)                         (((x) >> 0) & 0x7FFF)
+#define   C_0288C4_ITEMSIZE                            0xFFFF8000
+#define R_008C7C_SQ_REDUC_RING_SIZE                  0x008C7C
+#define   S_008C7C_MEM_SIZE(x)                         (((x) & 0xFFFFFFFF) << 0)
+#define   G_008C7C_MEM_SIZE(x)                         (((x) >> 0) & 0xFFFFFFFF)
+#define   C_008C7C_MEM_SIZE                            0x00000000
+#define R_0288B8_SQ_VSTMP_RING_ITEMSIZE              0x0288B8
+#define   S_0288B8_ITEMSIZE(x)                         (((x) & 0x7FFF) << 0)
+#define   G_0288B8_ITEMSIZE(x)                         (((x) >> 0) & 0x7FFF)
+#define   C_0288B8_ITEMSIZE                            0xFFFF8000
+#define R_008C64_SQ_VSTMP_RING_SIZE                  0x008C64
+#define   S_008C64_MEM_SIZE(x)                         (((x) & 0xFFFFFFFF) << 0)
+#define   G_008C64_MEM_SIZE(x)                         (((x) >> 0) & 0xFFFFFFFF)
+#define   C_008C64_MEM_SIZE                            0x00000000
+#define R_0288C8_SQ_GS_VERT_ITEMSIZE                 0x0288C8
+#define   S_0288C8_ITEMSIZE(x)                         (((x) & 0x7FFF) << 0)
+#define   G_0288C8_ITEMSIZE(x)                         (((x) >> 0) & 0x7FFF)
+#define   C_0288C8_ITEMSIZE                            0xFFFF8000
+#define R_028010_DB_DEPTH_INFO                       0x028010
+#define   S_028010_FORMAT(x)                           (((x) & 0x7) << 0)
+#define   G_028010_FORMAT(x)                           (((x) >> 0) & 0x7)
+#define   C_028010_FORMAT                              0xFFFFFFF8
+#define     V_028010_DEPTH_INVALID                     0x00000000
+#define     V_028010_DEPTH_16                          0x00000001
+#define     V_028010_DEPTH_X8_24                       0x00000002
+#define     V_028010_DEPTH_8_24                        0x00000003
+#define     V_028010_DEPTH_X8_24_FLOAT                 0x00000004
+#define     V_028010_DEPTH_8_24_FLOAT                  0x00000005
+#define     V_028010_DEPTH_32_FLOAT                    0x00000006
+#define     V_028010_DEPTH_X24_8_32_FLOAT              0x00000007
+#define   S_028010_READ_SIZE(x)                        (((x) & 0x1) << 3)
+#define   G_028010_READ_SIZE(x)                        (((x) >> 3) & 0x1)
+#define   C_028010_READ_SIZE                           0xFFFFFFF7
+#define   S_028010_ARRAY_MODE(x)                       (((x) & 0xF) << 15)
+#define   G_028010_ARRAY_MODE(x)                       (((x) >> 15) & 0xF)
+#define   C_028010_ARRAY_MODE                          0xFFF87FFF
+#define   S_028010_TILE_SURFACE_ENABLE(x)              (((x) & 0x1) << 25)
+#define   G_028010_TILE_SURFACE_ENABLE(x)              (((x) >> 25) & 0x1)
+#define   C_028010_TILE_SURFACE_ENABLE                 0xFDFFFFFF
+#define   S_028010_TILE_COMPACT(x)                     (((x) & 0x1) << 26)
+#define   G_028010_TILE_COMPACT(x)                     (((x) >> 26) & 0x1)
+#define   C_028010_TILE_COMPACT                        0xFBFFFFFF
+#define   S_028010_ZRANGE_PRECISION(x)                 (((x) & 0x1) << 31)
+#define   G_028010_ZRANGE_PRECISION(x)                 (((x) >> 31) & 0x1)
+#define   C_028010_ZRANGE_PRECISION                    0x7FFFFFFF
+#define R_028000_DB_DEPTH_SIZE                       0x028000
+#define   S_028000_PITCH_TILE_MAX(x)                   (((x) & 0x3FF) << 0)
+#define   G_028000_PITCH_TILE_MAX(x)                   (((x) >> 0) & 0x3FF)
+#define   C_028000_PITCH_TILE_MAX                      0xFFFFFC00
+#define   S_028000_SLICE_TILE_MAX(x)                   (((x) & 0xFFFFF) << 10)
+#define   G_028000_SLICE_TILE_MAX(x)                   (((x) >> 10) & 0xFFFFF)
+#define   C_028000_SLICE_TILE_MAX                      0xC00003FF
+#define R_028004_DB_DEPTH_VIEW                       0x028004
+#define   S_028004_SLICE_START(x)                      (((x) & 0x7FF) << 0)
+#define   G_028004_SLICE_START(x)                      (((x) >> 0) & 0x7FF)
+#define   C_028004_SLICE_START                         0xFFFFF800
+#define   S_028004_SLICE_MAX(x)                        (((x) & 0x7FF) << 13)
+#define   G_028004_SLICE_MAX(x)                        (((x) >> 13) & 0x7FF)
+#define   C_028004_SLICE_MAX                           0xFF001FFF
+#define R_028800_DB_DEPTH_CONTROL                    0x028800
+#define   S_028800_STENCIL_ENABLE(x)                   (((x) & 0x1) << 0)
+#define   G_028800_STENCIL_ENABLE(x)                   (((x) >> 0) & 0x1)
+#define   C_028800_STENCIL_ENABLE                      0xFFFFFFFE
+#define   S_028800_Z_ENABLE(x)                         (((x) & 0x1) << 1)
+#define   G_028800_Z_ENABLE(x)                         (((x) >> 1) & 0x1)
+#define   C_028800_Z_ENABLE                            0xFFFFFFFD
+#define   S_028800_Z_WRITE_ENABLE(x)                   (((x) & 0x1) << 2)
+#define   G_028800_Z_WRITE_ENABLE(x)                   (((x) >> 2) & 0x1)
+#define   C_028800_Z_WRITE_ENABLE                      0xFFFFFFFB
+#define   S_028800_ZFUNC(x)                            (((x) & 0x7) << 4)
+#define   G_028800_ZFUNC(x)                            (((x) >> 4) & 0x7)
+#define   C_028800_ZFUNC                               0xFFFFFF8F
+#define   S_028800_BACKFACE_ENABLE(x)                  (((x) & 0x1) << 7)
+#define   G_028800_BACKFACE_ENABLE(x)                  (((x) >> 7) & 0x1)
+#define   C_028800_BACKFACE_ENABLE                     0xFFFFFF7F
+#define   S_028800_STENCILFUNC(x)                      (((x) & 0x7) << 8)
+#define   G_028800_STENCILFUNC(x)                      (((x) >> 8) & 0x7)
+#define   C_028800_STENCILFUNC                         0xFFFFF8FF
+#define   S_028800_STENCILFAIL(x)                      (((x) & 0x7) << 11)
+#define   G_028800_STENCILFAIL(x)                      (((x) >> 11) & 0x7)
+#define   C_028800_STENCILFAIL                         0xFFFFC7FF
+#define   S_028800_STENCILZPASS(x)                     (((x) & 0x7) << 14)
+#define   G_028800_STENCILZPASS(x)                     (((x) >> 14) & 0x7)
+#define   C_028800_STENCILZPASS                        0xFFFE3FFF
+#define   S_028800_STENCILZFAIL(x)                     (((x) & 0x7) << 17)
+#define   G_028800_STENCILZFAIL(x)                     (((x) >> 17) & 0x7)
+#define   C_028800_STENCILZFAIL                        0xFFF1FFFF
+#define   S_028800_STENCILFUNC_BF(x)                   (((x) & 0x7) << 20)
+#define   G_028800_STENCILFUNC_BF(x)                   (((x) >> 20) & 0x7)
+#define   C_028800_STENCILFUNC_BF                      0xFF8FFFFF
+#define   S_028800_STENCILFAIL_BF(x)                   (((x) & 0x7) << 23)
+#define   G_028800_STENCILFAIL_BF(x)                   (((x) >> 23) & 0x7)
+#define   C_028800_STENCILFAIL_BF                      0xFC7FFFFF
+#define   S_028800_STENCILZPASS_BF(x)                  (((x) & 0x7) << 26)
+#define   G_028800_STENCILZPASS_BF(x)                  (((x) >> 26) & 0x7)
+#define   C_028800_STENCILZPASS_BF                     0xE3FFFFFF
+#define   S_028800_STENCILZFAIL_BF(x)                  (((x) & 0x7) << 29)
+#define   G_028800_STENCILZFAIL_BF(x)                  (((x) >> 29) & 0x7)
+#define   C_028800_STENCILZFAIL_BF                     0x1FFFFFFF
 
 #endif
