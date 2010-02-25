@@ -214,8 +214,8 @@ int omap1_select_table_rate(struct clk *clk, unsigned long rate)
 	struct mpu_rate * ptr;
 	unsigned long dpll1_rate, ref_rate;
 
-	dpll1_rate = clk_get_rate(ck_dpll1_p);
-	ref_rate = clk_get_rate(ck_ref_p);
+	dpll1_rate = ck_dpll1_p->rate;
+	ref_rate = ck_ref_p->rate;
 
 	for (ptr = omap1_rate_table; ptr->rate; ptr++) {
 		if (ptr->xtal != ref_rate)
@@ -306,7 +306,7 @@ long omap1_round_to_table_rate(struct clk *clk, unsigned long rate)
 	long highest_rate;
 	unsigned long ref_rate;
 
-	ref_rate = clk_get_rate(ck_ref_p);
+	ref_rate = ck_ref_p->rate;
 
 	highest_rate = -EINVAL;
 

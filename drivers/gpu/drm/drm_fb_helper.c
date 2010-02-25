@@ -389,7 +389,7 @@ int drm_fb_helper_blank(int blank, struct fb_info *info)
 		break;
 	/* Display: Off; HSync: On, VSync: On */
 	case FB_BLANK_NORMAL:
-		drm_fb_helper_off(info, DRM_MODE_DPMS_ON);
+		drm_fb_helper_off(info, DRM_MODE_DPMS_STANDBY);
 		break;
 	/* Display: Off; HSync: Off, VSync: On */
 	case FB_BLANK_HSYNC_SUSPEND:

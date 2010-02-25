@@ -276,7 +276,12 @@ struct be_adapter {
 	int link_speed;
 	u8 port_type;
 	u8 transceiver;
+	u8 generation;		/* BladeEngine ASIC generation */
 };
+
+/* BladeEngine Generation numbers */
+#define BE_GEN2 2
+#define BE_GEN3 3
 
 extern const struct ethtool_ops be_ethtool_ops;
 

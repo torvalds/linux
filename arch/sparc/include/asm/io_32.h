@@ -8,7 +8,7 @@
 #include <asm/page.h>      /* IO address mapping routines need this */
 #include <asm/system.h>
 
-#define page_to_phys(page)	(((page) - mem_map) << PAGE_SHIFT)
+#define page_to_phys(page)	(page_to_pfn(page) << PAGE_SHIFT)
 
 static inline u32 flip_dword (u32 l)
 {

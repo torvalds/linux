@@ -96,6 +96,7 @@ extern int radeon_audio;
  * symbol;
  */
 #define RADEON_MAX_USEC_TIMEOUT		100000	/* 100 ms */
+/* RADEON_IB_POOL_SIZE must be a power of 2 */
 #define RADEON_IB_POOL_SIZE		16
 #define RADEON_DEBUGFS_MAX_NUM_FILES	32
 #define RADEONFB_CONN_LIMIT		4
@@ -363,11 +364,12 @@ void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev);
  */
 struct radeon_ib {
 	struct list_head	list;
-	unsigned long		idx;
+	unsigned		idx;
 	uint64_t		gpu_addr;
 	struct radeon_fence	*fence;
-	uint32_t	*ptr;
+	uint32_t		*ptr;
 	uint32_t		length_dw;
+	bool			free;
 };
 
 /*
@@ -377,10 +379,9 @@ struct radeon_ib {
 struct radeon_ib_pool {
 	struct mutex		mutex;
 	struct radeon_bo	*robj;
-	struct list_head	scheduled_ibs;
 	struct radeon_ib	ibs[RADEON_IB_POOL_SIZE];
 	bool			ready;
-	DECLARE_BITMAP(alloc_bm, RADEON_IB_POOL_SIZE);
+	unsigned		head_id;
 };
 
 struct radeon_cp {
@@ -410,13 +411,13 @@ struct r600_ih {
 	unsigned		wptr_old;
 	unsigned		ring_size;
 	uint64_t		gpu_addr;
-	uint32_t		align_mask;
 	uint32_t		ptr_mask;
 	spinlock_t              lock;
 	bool                    enabled;
 };
 
 struct r600_blit {
+	struct mutex		mutex;
 	struct radeon_bo	*shader_obj;
 	u64 shader_gpu_addr;
 	u32 vs_offset, ps_offset;
@@ -465,6 +466,7 @@ struct radeon_cs_chunk {
 };
 
 struct radeon_cs_parser {
+	struct device		*dev;
 	struct radeon_device	*rdev;
 	struct drm_file		*filp;
 	/* chunks */
@@ -660,6 +662,13 @@ struct radeon_asic {
 	void (*hpd_fini)(struct radeon_device *rdev);
 	bool (*hpd_sense)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 	void (*hpd_set_polarity)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
+	/* ioctl hw specific callback. Some hw might want to perform special
+	 * operation on specific ioctl. For instance on wait idle some hw
+	 * might want to perform and HDP flush through MMIO as it seems that
+	 * some R6XX/R7XX hw doesn't take HDP flush into account if programmed
+	 * through ring.
+	 */
+	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
 };
 
 /*
@@ -847,7 +856,7 @@ void r600_kms_blit_copy(struct radeon_device *rdev,
 
 static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
 {
-	if (reg < 0x10000)
+	if (reg < rdev->rmmio_size)
 		return readl(((void __iomem *)rdev->rmmio) + reg);
 	else {
 		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
@@ -857,7 +866,7 @@ static inline uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg)
 
 static inline void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v)
 {
-	if (reg < 0x10000)
+	if (reg < rdev->rmmio_size)
 		writel(v, ((void __iomem *)rdev->rmmio) + reg);
 	else {
 		writel(reg, ((void __iomem *)rdev->rmmio) + RADEON_MM_INDEX);
@@ -1017,6 +1026,8 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_hpd_set_polarity(rdev, hpd) (rdev)->asic->hpd_set_polarity((rdev), (hpd))
 
 /* Common functions */
+/* AGP */
+extern void radeon_agp_disable(struct radeon_device *rdev);
 extern int radeon_gart_table_vram_pin(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
@@ -1140,6 +1151,7 @@ extern bool r600_card_posted(struct radeon_device *rdev);
 extern void r600_cp_stop(struct radeon_device *rdev);
 extern void r600_ring_init(struct radeon_device *rdev, unsigned ring_size);
 extern int r600_cp_resume(struct radeon_device *rdev);
+extern void r600_cp_fini(struct radeon_device *rdev);
 extern int r600_count_pipe_bits(uint32_t val);
 extern int r600_gart_clear_page(struct radeon_device *rdev, int i);
 extern int r600_mc_wait_for_idle(struct radeon_device *rdev);
@@ -1160,7 +1172,8 @@ extern int r600_irq_init(struct radeon_device *rdev);
 extern void r600_irq_fini(struct radeon_device *rdev);
 extern void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size);
 extern int r600_irq_set(struct radeon_device *rdev);
-
+extern void r600_irq_suspend(struct radeon_device *rdev);
+/* r600 audio */
 extern int r600_audio_init(struct radeon_device *rdev);
 extern int r600_audio_tmds_index(struct drm_encoder *encoder);
 extern void r600_audio_set_clock(struct drm_encoder *encoder, int clock);

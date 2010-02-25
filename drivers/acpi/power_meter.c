@@ -64,7 +64,7 @@ static int can_cap_in_hardware(void)
 	return force_cap_on || cap_in_hardware;
 }
 
-static struct acpi_device_id power_meter_ids[] = {
+static const struct acpi_device_id power_meter_ids[] = {
 	{"ACPI000D", 0},
 	{"", 0},
 };
@@ -534,6 +534,7 @@ static void remove_domain_devices(struct acpi_power_meter_resource *resource)
 
 	kfree(resource->domain_devices);
 	kobject_put(resource->holders_dir);
+	resource->num_domain_devices = 0;
 }
 
 static int read_domain_devices(struct acpi_power_meter_resource *resource)
@@ -740,7 +741,6 @@ skip_unsafe_cap:
 
 	return res;
 error:
-	remove_domain_devices(resource);
 	remove_attrs(resource);
 	return res;
 }

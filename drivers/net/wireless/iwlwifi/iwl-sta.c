@@ -297,7 +297,7 @@ u8 iwl_add_station(struct iwl_priv *priv, const u8 *addr, bool is_ap, u8 flags,
 }
 EXPORT_SYMBOL(iwl_add_station);
 
-static void iwl_sta_ucode_deactivate(struct iwl_priv *priv, const char *addr)
+static void iwl_sta_ucode_deactivate(struct iwl_priv *priv, const u8 *addr)
 {
 	unsigned long flags;
 	u8 sta_id = iwl_find_station(priv, addr);
@@ -324,7 +324,7 @@ static void iwl_remove_sta_callback(struct iwl_priv *priv,
 {
 	struct iwl_rem_sta_cmd *rm_sta =
 			(struct iwl_rem_sta_cmd *)cmd->cmd.payload;
-	const char *addr = rm_sta->addr;
+	const u8 *addr = rm_sta->addr;
 
 	if (pkt->hdr.flags & IWL_CMD_FAILED_MSK) {
 		IWL_ERR(priv, "Bad return from REPLY_REMOVE_STA (0x%08X)\n",

@@ -376,6 +376,7 @@ struct input_absinfo {
 #define KEY_DISPLAY_OFF		245	/* display device to off state */
 
 #define KEY_WIMAX		246
+#define KEY_RFKILL		247	/* Key that controls all radios */
 
 /* Range 248 - 255 is reserved for special needs of AT keyboard driver */
 
@@ -660,6 +661,7 @@ struct input_absinfo {
 #define ABS_MT_TOOL_TYPE	0x37	/* Type of touching device */
 #define ABS_MT_BLOB_ID		0x38	/* Group a set of packets as a blob */
 #define ABS_MT_TRACKING_ID	0x39	/* Unique ID of initiated contact */
+#define ABS_MT_PRESSURE		0x3a	/* Pressure on contact area */
 
 #define ABS_MAX			0x3f
 #define ABS_CNT			(ABS_MAX+1)

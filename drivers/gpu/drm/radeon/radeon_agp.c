@@ -144,9 +144,19 @@ int radeon_agp_init(struct radeon_device *rdev)
 
 	ret = drm_agp_info(rdev->ddev, &info);
 	if (ret) {
+		drm_agp_release(rdev->ddev);
 		DRM_ERROR("Unable to get AGP info: %d\n", ret);
 		return ret;
 	}
+
+	if (rdev->ddev->agp->agp_info.aper_size < 32) {
+		drm_agp_release(rdev->ddev);
+		dev_warn(rdev->dev, "AGP aperture too small (%zuM) "
+			"need at least 32M, disabling AGP\n",
+			rdev->ddev->agp->agp_info.aper_size);
+		return -EINVAL;
+	}
+
 	mode.mode = info.mode;
 	agp_status = (RREG32(RADEON_AGP_STATUS) | RADEON_AGPv3_MODE) & mode.mode;
 	is_v3 = !!(agp_status & RADEON_AGPv3_MODE);
@@ -221,6 +231,7 @@ int radeon_agp_init(struct radeon_device *rdev)
 	ret = drm_agp_enable(rdev->ddev, mode);
 	if (ret) {
 		DRM_ERROR("Unable to enable AGP (mode = 0x%lx)\n", mode.mode);
+		drm_agp_release(rdev->ddev);
 		return ret;
 	}
 

@@ -107,6 +107,34 @@ static struct fb_ops nouveau_fbcon_ops = {
 	.fb_setcmap = drm_fb_helper_setcmap,
 };
 
+static struct fb_ops nv04_fbcon_ops = {
+	.owner = THIS_MODULE,
+	.fb_check_var = drm_fb_helper_check_var,
+	.fb_set_par = drm_fb_helper_set_par,
+	.fb_setcolreg = drm_fb_helper_setcolreg,
+	.fb_fillrect = nv04_fbcon_fillrect,
+	.fb_copyarea = nv04_fbcon_copyarea,
+	.fb_imageblit = nv04_fbcon_imageblit,
+	.fb_sync = nouveau_fbcon_sync,
+	.fb_pan_display = drm_fb_helper_pan_display,
+	.fb_blank = drm_fb_helper_blank,
+	.fb_setcmap = drm_fb_helper_setcmap,
+};
+
+static struct fb_ops nv50_fbcon_ops = {
+	.owner = THIS_MODULE,
+	.fb_check_var = drm_fb_helper_check_var,
+	.fb_set_par = drm_fb_helper_set_par,
+	.fb_setcolreg = drm_fb_helper_setcolreg,
+	.fb_fillrect = nv50_fbcon_fillrect,
+	.fb_copyarea = nv50_fbcon_copyarea,
+	.fb_imageblit = nv50_fbcon_imageblit,
+	.fb_sync = nouveau_fbcon_sync,
+	.fb_pan_display = drm_fb_helper_pan_display,
+	.fb_blank = drm_fb_helper_blank,
+	.fb_setcmap = drm_fb_helper_setcmap,
+};
+
 static void nouveau_fbcon_gamma_set(struct drm_crtc *crtc, u16 red, u16 green,
 				    u16 blue, int regno)
 {
@@ -267,8 +295,12 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	dev_priv->fbdev_info = info;
 
 	strcpy(info->fix.id, "nouveaufb");
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
-		      FBINFO_HWACCEL_FILLRECT | FBINFO_HWACCEL_IMAGEBLIT;
+	if (nouveau_nofbaccel)
+		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_DISABLED;
+	else
+		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
+			      FBINFO_HWACCEL_FILLRECT |
+			      FBINFO_HWACCEL_IMAGEBLIT;
 	info->fbops = &nouveau_fbcon_ops;
 	info->fix.smem_start = dev->mode_config.fb_base + nvbo->bo.offset -
 			       dev_priv->vm_vram_base;
@@ -316,13 +348,15 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	par->nouveau_fb = nouveau_fb;
 	par->dev = dev;
 
-	if (dev_priv->channel) {
+	if (dev_priv->channel && !nouveau_nofbaccel) {
 		switch (dev_priv->card_type) {
 		case NV_50:
 			nv50_fbcon_accel_init(info);
+			info->fbops = &nv50_fbcon_ops;
 			break;
 		default:
 			nv04_fbcon_accel_init(info);
+			info->fbops = &nv04_fbcon_ops;
 			break;
 		};
 	}

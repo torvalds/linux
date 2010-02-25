@@ -468,5 +468,5 @@ static void __exit alsa_sound_exit(void)
 	unregister_chrdev(major, "alsa");
 }
 
-module_init(alsa_sound_init)
-module_exit(alsa_sound_exit)
+subsys_initcall(alsa_sound_init);
+module_exit(alsa_sound_exit);

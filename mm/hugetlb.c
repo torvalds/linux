@@ -1515,10 +1515,9 @@ static struct attribute_group hstate_attr_group = {
 	.attrs = hstate_attrs,
 };
 
-static int __init hugetlb_sysfs_add_hstate(struct hstate *h,
-				struct kobject *parent,
-				struct kobject **hstate_kobjs,
-				struct attribute_group *hstate_attr_group)
+static int hugetlb_sysfs_add_hstate(struct hstate *h, struct kobject *parent,
+				    struct kobject **hstate_kobjs,
+				    struct attribute_group *hstate_attr_group)
 {
 	int retval;
 	int hi = h - hstates;

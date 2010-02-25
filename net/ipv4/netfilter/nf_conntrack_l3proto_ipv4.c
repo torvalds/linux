@@ -210,7 +210,7 @@ static ctl_table ip_ct_sysctl_table[] = {
 	},
 	{
 		.procname	= "ip_conntrack_buckets",
-		.data		= &nf_conntrack_htable_size,
+		.data		= &init_net.ct.htable_size,
 		.maxlen		= sizeof(unsigned int),
 		.mode		= 0444,
 		.proc_handler	= proc_dointvec,

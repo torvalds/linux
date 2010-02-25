@@ -2079,6 +2079,7 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 			 struct sge_fl *fl, int len, int complete)
 {
 	struct rx_sw_desc *sd = &fl->sdesc[fl->cidx];
+	struct port_info *pi = netdev_priv(qs->netdev);
 	struct sk_buff *skb = NULL;
 	struct cpl_rx_pkt *cpl;
 	struct skb_frag_struct *rx_frag;
@@ -2116,11 +2117,18 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 
 	if (!nr_frags) {
 		offset = 2 + sizeof(struct cpl_rx_pkt);
-		qs->lro_va = sd->pg_chunk.va + 2;
-	}
-	len -= offset;
+		cpl = qs->lro_va = sd->pg_chunk.va + 2;
 
-	prefetch(qs->lro_va);
+		if ((pi->rx_offload & T3_RX_CSUM) &&
+		     cpl->csum_valid && cpl->csum == htons(0xffff)) {
+			skb->ip_summed = CHECKSUM_UNNECESSARY;
+			qs->port_stats[SGE_PSTAT_RX_CSUM_GOOD]++;
+		} else
+			skb->ip_summed = CHECKSUM_NONE;
+	} else
+		cpl = qs->lro_va;
+
+	len -= offset;
 
 	rx_frag += nr_frags;
 	rx_frag->page = sd->pg_chunk.page;
@@ -2136,12 +2144,8 @@ static void lro_add_page(struct adapter *adap, struct sge_qset *qs,
 		return;
 
 	skb_record_rx_queue(skb, qs - &adap->sge.qs[0]);
-	skb->ip_summed = CHECKSUM_UNNECESSARY;
-	cpl = qs->lro_va;
 
 	if (unlikely(cpl->vlan_valid)) {
-		struct net_device *dev = qs->netdev;
-		struct port_info *pi = netdev_priv(dev);
 		struct vlan_group *grp = pi->vlan_grp;
 
 		if (likely(grp != NULL)) {

@@ -3527,7 +3527,10 @@ fc_bsg_job_timeout(struct request *req)
 	if (!done && i->f->bsg_timeout) {
 		/* call LLDD to abort the i/o as it has timed out */
 		err = i->f->bsg_timeout(job);
-		if (err)
+		if (err == -EAGAIN) {
+			job->ref_cnt--;
+			return BLK_EH_RESET_TIMER;
+		} else if (err)
 			printk(KERN_ERR "ERROR: FC BSG request timeout - LLD "
 				"abort failed with status %d\n", err);
 	}

@@ -223,15 +223,31 @@ int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 	return 0;
 }
 
+int rs400_mc_wait_for_idle(struct radeon_device *rdev)
+{
+	unsigned i;
+	uint32_t tmp;
+
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		/* read MC_STATUS */
+		tmp = RREG32(0x0150);
+		if (tmp & (1 << 2)) {
+			return 0;
+		}
+		DRM_UDELAY(1);
+	}
+	return -1;
+}
+
 void rs400_gpu_init(struct radeon_device *rdev)
 {
 	/* FIXME: HDP same place on rs400 ? */
 	r100_hdp_reset(rdev);
 	/* FIXME: is this correct ? */
 	r420_pipes_init(rdev);
-	if (r300_mc_wait_for_idle(rdev)) {
-		printk(KERN_WARNING "Failed to wait MC idle while "
-		       "programming pipes. Bad things might happen.\n");
+	if (rs400_mc_wait_for_idle(rdev)) {
+		printk(KERN_WARNING "rs400: Failed to wait MC idle while "
+		       "programming pipes. Bad things might happen. %08x\n", RREG32(0x150));
 	}
 }
 
@@ -370,8 +386,8 @@ void rs400_mc_program(struct radeon_device *rdev)
 	r100_mc_stop(rdev, &save);
 
 	/* Wait for mc idle */
-	if (r300_mc_wait_for_idle(rdev))
-		dev_warn(rdev->dev, "Wait MC idle timeout before updating MC.\n");
+	if (rs400_mc_wait_for_idle(rdev))
+		dev_warn(rdev->dev, "rs400: Wait MC idle timeout before updating MC.\n");
 	WREG32(R_000148_MC_FB_LOCATION,
 		S_000148_MC_FB_START(rdev->mc.vram_start >> 16) |
 		S_000148_MC_FB_TOP(rdev->mc.vram_end >> 16));
@@ -448,7 +464,6 @@ int rs400_suspend(struct radeon_device *rdev)
 
 void rs400_fini(struct radeon_device *rdev)
 {
-	rs400_suspend(rdev);
 	r100_cp_fini(rdev);
 	r100_wb_fini(rdev);
 	r100_ib_fini(rdev);
@@ -527,7 +542,6 @@ int rs400_init(struct radeon_device *rdev)
 	if (r) {
 		/* Somethings want wront with the accel init stop accel */
 		dev_err(rdev->dev, "Disabling GPU acceleration\n");
-		rs400_suspend(rdev);
 		r100_cp_fini(rdev);
 		r100_wb_fini(rdev);
 		r100_ib_fini(rdev);

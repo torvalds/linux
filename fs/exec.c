@@ -571,6 +571,9 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	struct vm_area_struct *prev = NULL;
 	unsigned long vm_flags;
 	unsigned long stack_base;
+	unsigned long stack_size;
+	unsigned long stack_expand;
+	unsigned long rlim_stack;
 
 #ifdef CONFIG_STACK_GROWSUP
 	/* Limit stack size to 1GB */
@@ -627,10 +630,23 @@ int setup_arg_pages(struct linux_binprm *bprm,
 			goto out_unlock;
 	}
 
+	stack_expand = EXTRA_STACK_VM_PAGES * PAGE_SIZE;
+	stack_size = vma->vm_end - vma->vm_start;
+	/*
+	 * Align this down to a page boundary as expand_stack
+	 * will align it up.
+	 */
+	rlim_stack = rlimit(RLIMIT_STACK) & PAGE_MASK;
 #ifdef CONFIG_STACK_GROWSUP
-	stack_base = vma->vm_end + EXTRA_STACK_VM_PAGES * PAGE_SIZE;
+	if (stack_size + stack_expand > rlim_stack)
+		stack_base = vma->vm_start + rlim_stack;
+	else
+		stack_base = vma->vm_end + stack_expand;
 #else
-	stack_base = vma->vm_start - EXTRA_STACK_VM_PAGES * PAGE_SIZE;
+	if (stack_size + stack_expand > rlim_stack)
+		stack_base = vma->vm_end - rlim_stack;
+	else
+		stack_base = vma->vm_start - stack_expand;
 #endif
 	ret = expand_stack(vma, stack_base);
 	if (ret)
@@ -941,9 +957,7 @@ void set_task_comm(struct task_struct *tsk, char *buf)
 
 int flush_old_exec(struct linux_binprm * bprm)
 {
-	char * name;
-	int i, ch, retval;
-	char tcomm[sizeof(current->comm)];
+	int retval;
 
 	/*
 	 * Make sure we have a private signal table and that
@@ -963,6 +977,25 @@ int flush_old_exec(struct linux_binprm * bprm)
 		goto out;
 
 	bprm->mm = NULL;		/* We're using it now */
+
+	current->flags &= ~PF_RANDOMIZE;
+	flush_thread();
+	current->personality &= ~bprm->per_clear;
+
+	return 0;
+
+out:
+	return retval;
+}
+EXPORT_SYMBOL(flush_old_exec);
+
+void setup_new_exec(struct linux_binprm * bprm)
+{
+	int i, ch;
+	char * name;
+	char tcomm[sizeof(current->comm)];
+
+	arch_pick_mmap_layout(current->mm);
 
 	/* This is the point of no return */
 	current->sas_ss_sp = current->sas_ss_size = 0;
@@ -985,9 +1018,6 @@ int flush_old_exec(struct linux_binprm * bprm)
 	tcomm[i] = '\0';
 	set_task_comm(current, tcomm);
 
-	current->flags &= ~PF_RANDOMIZE;
-	flush_thread();
-
 	/* Set the new mm task size. We have to do that late because it may
 	 * depend on TIF_32BIT which is only updated in flush_thread() on
 	 * some architectures like powerpc
@@ -1003,8 +1033,6 @@ int flush_old_exec(struct linux_binprm * bprm)
 		set_dumpable(current->mm, suid_dumpable);
 	}
 
-	current->personality &= ~bprm->per_clear;
-
 	/*
 	 * Flush performance counters when crossing a
 	 * security domain:
@@ -1019,14 +1047,8 @@ int flush_old_exec(struct linux_binprm * bprm)
 			
 	flush_signal_handlers(current, 0);
 	flush_old_files(current->files);
-
-	return 0;
-
-out:
-	return retval;
 }
-
-EXPORT_SYMBOL(flush_old_exec);
+EXPORT_SYMBOL(setup_new_exec);
 
 /*
  * Prepare credentials and lock ->cred_guard_mutex.

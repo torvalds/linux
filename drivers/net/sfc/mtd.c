@@ -23,7 +23,6 @@
 #include "mcdi_pcol.h"
 
 #define EFX_SPI_VERIFY_BUF_LEN 16
-#define EFX_MCDI_CHUNK_LEN 128
 
 struct efx_mtd_partition {
 	struct mtd_info mtd;
@@ -428,7 +427,7 @@ static int siena_mtd_read(struct mtd_info *mtd, loff_t start,
 	int rc = 0;
 
 	while (offset < end) {
-		chunk = min_t(size_t, end - offset, EFX_MCDI_CHUNK_LEN);
+		chunk = min_t(size_t, end - offset, EFX_MCDI_NVRAM_LEN_MAX);
 		rc = efx_mcdi_nvram_read(efx, part->mcdi.nvram_type, offset,
 					 buffer, chunk);
 		if (rc)
@@ -491,7 +490,7 @@ static int siena_mtd_write(struct mtd_info *mtd, loff_t start,
 	}
 
 	while (offset < end) {
-		chunk = min_t(size_t, end - offset, EFX_MCDI_CHUNK_LEN);
+		chunk = min_t(size_t, end - offset, EFX_MCDI_NVRAM_LEN_MAX);
 		rc = efx_mcdi_nvram_write(efx, part->mcdi.nvram_type, offset,
 					  buffer, chunk);
 		if (rc)

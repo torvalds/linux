@@ -272,7 +272,7 @@ nv50_fifo_create_context(struct nouveau_channel *chan)
 			return ret;
 		ramfc = chan->ramfc->gpuobj;
 
-		ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, 4096, 256,
+		ret = nouveau_gpuobj_new_ref(dev, chan, NULL, 0, 4096, 1024,
 					     0, &chan->cache);
 		if (ret)
 			return ret;
@@ -317,17 +317,20 @@ void
 nv50_fifo_destroy_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
+	struct nouveau_gpuobj_ref *ramfc = chan->ramfc;
 
 	NV_DEBUG(dev, "ch%d\n", chan->id);
 
-	nouveau_gpuobj_ref_del(dev, &chan->ramfc);
-	nouveau_gpuobj_ref_del(dev, &chan->cache);
-
+	/* This will ensure the channel is seen as disabled. */
+	chan->ramfc = NULL;
 	nv50_fifo_channel_disable(dev, chan->id, false);
 
 	/* Dummy channel, also used on ch 127 */
 	if (chan->id == 0)
 		nv50_fifo_channel_disable(dev, 127, false);
+
+	nouveau_gpuobj_ref_del(dev, &ramfc);
+	nouveau_gpuobj_ref_del(dev, &chan->cache);
 }
 
 int
