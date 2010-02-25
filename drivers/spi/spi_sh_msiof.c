@@ -20,12 +20,12 @@
 #include <linux/bitmap.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/err.h>
 
 #include <linux/spi/spi.h>
 #include <linux/spi/spi_bitbang.h>
 #include <linux/spi/sh_msiof.h>
 
-#include <asm/spi.h>
 #include <asm/unaligned.h>
 
 struct sh_msiof_spi_priv {
