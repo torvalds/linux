@@ -388,8 +388,12 @@ config X86_ELAN
 
 config X86_MRST
        bool "Moorestown MID platform"
+	depends on PCI
+	depends on PCI_GOANY
+	depends on PCI_IOAPIC
 	depends on X86_32
 	depends on X86_EXTENDED_PLATFORM
+	depends on X86_IO_APIC
 	select APB_TIMER
 	---help---
 	  Moorestown is Intel's Low Power Intel Architecture (LPIA) based Moblin
