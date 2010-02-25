@@ -3816,9 +3816,9 @@ void lockdep_rcu_dereference(const char *file, const int line)
 
 	if (!debug_locks_off())
 		return;
-	printk("\n==============================================\n");
-	printk(  "[ BUG: Unsafe rcu_dereference_check() usage! ]\n");
-	printk(  "----------------------------------------------\n");
+	printk("\n===================================================\n");
+	printk(  "[ INFO: suspicious rcu_dereference_check() usage. ]\n");
+	printk(  "---------------------------------------------------\n");
 	printk("%s:%d invoked rcu_dereference_check() without protection!\n",
 			file, line);
 	printk("\nother info that might help us debug this:\n\n");
