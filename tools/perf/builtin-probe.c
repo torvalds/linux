@@ -314,7 +314,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			continue;
 
 		lseek(fd, SEEK_SET, 0);
-		ret = find_probepoint(fd, pp);
+		ret = find_probe_point(fd, pp);
 		if (ret > 0)
 			continue;
 		if (ret == 0) {	/* No error but failed to find probe point. */

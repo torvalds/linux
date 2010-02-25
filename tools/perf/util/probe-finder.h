@@ -52,7 +52,7 @@ struct line_range {
 };
 
 #ifndef NO_LIBDWARF
-extern int find_probepoint(int fd, struct probe_point *pp);
+extern int find_probe_point(int fd, struct probe_point *pp);
 extern int find_line_range(int fd, struct line_range *lr);
 
 /* Workaround for undefined _MIPS_SZLONG bug in libdwarf.h: */

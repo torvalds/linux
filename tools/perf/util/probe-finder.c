@@ -524,8 +524,8 @@ static void free_current_frame_base(struct probe_finder *pf)
 }
 
 /* Show a probe point to output buffer */
-static void show_probepoint(Dwarf_Die sp_die, Dwarf_Signed offs,
-			    struct probe_finder *pf)
+static void show_probe_point(Dwarf_Die sp_die, Dwarf_Signed offs,
+			     struct probe_finder *pf)
 {
 	struct probe_point *pp = pf->pp;
 	char *name;
@@ -585,7 +585,7 @@ static int probeaddr_callback(struct die_link *dlink, void *data)
 	/* Check the address is in this subprogram */
 	if (tag == DW_TAG_subprogram &&
 	    die_within_subprogram(dlink->die, pf->addr, &offs)) {
-		show_probepoint(dlink->die, offs, pf);
+		show_probe_point(dlink->die, offs, pf);
 		return 1;
 	}
 	return 0;
@@ -668,7 +668,7 @@ static int probefunc_callback(struct die_link *dlink, void *data)
 			pf->addr = die_get_entrypc(dlink->die);
 			pf->addr += pp->offset;
 			/* TODO: Check the address in this function */
-			show_probepoint(dlink->die, pp->offset, pf);
+			show_probe_point(dlink->die, pp->offset, pf);
 			return 1; /* Exit; no same symbol in this CU. */
 		}
 	} else if (tag == DW_TAG_inlined_subroutine && pf->inl_offs) {
@@ -691,7 +691,7 @@ found:
 			/* Get offset from subprogram */
 			ret = die_within_subprogram(lk->die, pf->addr, &offs);
 			DIE_IF(!ret);
-			show_probepoint(lk->die, offs, pf);
+			show_probe_point(lk->die, offs, pf);
 			/* Continue to search */
 		}
 	}
@@ -704,7 +704,7 @@ static void find_probe_point_by_func(struct probe_finder *pf)
 }
 
 /* Find a probe point */
-int find_probepoint(int fd, struct probe_point *pp)
+int find_probe_point(int fd, struct probe_point *pp)
 {
 	Dwarf_Half addr_size = 0;
 	Dwarf_Unsigned next_cuh = 0;
