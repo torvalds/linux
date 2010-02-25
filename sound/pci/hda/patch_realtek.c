@@ -1254,7 +1254,7 @@ static void alc_init_auto_mic(struct hda_codec *codec)
  */
 static int alc_subsystem_id(struct hda_codec *codec,
 			    hda_nid_t porta, hda_nid_t porte,
-			    hda_nid_t portd)
+			    hda_nid_t portd, hda_nid_t porti)
 {
 	unsigned int ass, tmp, i;
 	unsigned nid;
@@ -1280,7 +1280,7 @@ static int alc_subsystem_id(struct hda_codec *codec,
 	snd_printd("realtek: No valid SSID, "
 		   "checking pincfg 0x%08x for NID 0x%x\n",
 		   ass, nid);
-	if (!(ass & 1) && !(ass & 0x100000))
+	if (!(ass & 1))
 		return 0;
 	if ((ass >> 30) != 1)	/* no physical connection */
 		return 0;
@@ -1340,6 +1340,8 @@ do_sku:
 			nid = porte;
 		else if (tmp == 2)
 			nid = portd;
+		else if (tmp == 3)
+			nid = porti;
 		else
 			return 1;
 		for (i = 0; i < spec->autocfg.line_outs; i++)
@@ -1354,9 +1356,10 @@ do_sku:
 }
 
 static void alc_ssid_check(struct hda_codec *codec,
-			   hda_nid_t porta, hda_nid_t porte, hda_nid_t portd)
+			   hda_nid_t porta, hda_nid_t porte,
+			   hda_nid_t portd, hda_nid_t porti)
 {
-	if (!alc_subsystem_id(codec, porta, porte, portd)) {
+	if (!alc_subsystem_id(codec, porta, porte, portd, porti)) {
 		struct alc_spec *spec = codec->spec;
 		snd_printd("realtek: "
 			   "Enable default setup for auto mode as fallback\n");
@@ -4859,7 +4862,7 @@ static int alc880_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
 
-	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
 
 	return 1;
 }
@@ -6393,7 +6396,7 @@ static int alc260_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
 
-	alc_ssid_check(codec, 0x10, 0x15, 0x0f);
+	alc_ssid_check(codec, 0x10, 0x15, 0x0f, 0);
 
 	return 1;
 }
@@ -10224,7 +10227,7 @@ static int alc882_parse_auto_config(struct hda_codec *codec)
 	spec->num_mux_defs = 1;
 	spec->input_mux = &spec->private_imux[0];
 
-	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
 
 	err = alc_auto_add_mic_boost(codec);
 	if (err < 0)
@@ -11782,7 +11785,7 @@ static int alc262_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	alc_ssid_check(codec, 0x15, 0x14, 0x1b);
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
 
 	return 1;
 }
@@ -12733,7 +12736,6 @@ static int alc268_new_analog_output(struct alc_spec *spec, hda_nid_t nid,
 		dac = 0x02;
 		break;
 	case 0x15:
-	case 0x21:
 		dac = 0x03;
 		break;
 	default:
@@ -12954,7 +12956,7 @@ static int alc268_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
 
 	return 1;
 }
@@ -13845,11 +13847,11 @@ static int alc269_parse_auto_config(struct hda_codec *codec)
 	if ((alc_read_coef_idx(codec, 0) & 0x00f0) == 0x0010) {
 		add_verb(spec, alc269vb_init_verbs);
 		real_capsrc_nids = alc269vb_capsrc_nids[0];
-		alc_ssid_check(codec, 0x21, 0x1b, 0x14);
+		alc_ssid_check(codec, 0, 0x1b, 0x14, 0x21);
 	} else {
 		add_verb(spec, alc269_init_verbs);
 		real_capsrc_nids = alc269_capsrc_nids[0];
-		alc_ssid_check(codec, 0x15, 0x1b, 0x14);
+		alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
 	}
 
 	spec->num_mux_defs = 1;
@@ -15013,7 +15015,7 @@ static int alc861_parse_auto_config(struct hda_codec *codec)
 	spec->num_adc_nids = ARRAY_SIZE(alc861_adc_nids);
 	set_capture_mixer(codec);
 
-	alc_ssid_check(codec, 0x0e, 0x0f, 0x0b);
+	alc_ssid_check(codec, 0x0e, 0x0f, 0x0b, 0);
 
 	return 1;
 }
@@ -15904,7 +15906,7 @@ static struct alc_config_preset alc861vd_presets[] = {
 static int alc861vd_auto_create_input_ctls(struct hda_codec *codec,
 						const struct auto_pin_cfg *cfg)
 {
-	return alc_auto_create_input_ctls(codec, cfg, 0x15, 0x22, 0);
+	return alc_auto_create_input_ctls(codec, cfg, 0x15, 0x09, 0);
 }
 
 
@@ -16140,7 +16142,7 @@ static int alc861vd_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
+	alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
 
 	return 1;
 }
@@ -17627,6 +17629,7 @@ static struct snd_pci_quirk alc662_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x144d, 0xca00, "Samsung NC10", ALC272_SAMSUNG_NC10),
 	SND_PCI_QUIRK(0x1458, 0xa002, "Gigabyte 945GCM-S2L",
 		      ALC662_3ST_6ch_DIG),
+	SND_PCI_QUIRK(0x152d, 0x2304, "Quanta WH1", ALC663_ASUS_H13),
 	SND_PCI_QUIRK(0x1565, 0x820f, "Biostar TA780G M2+", ALC662_3ST_6ch_DIG),
 	SND_PCI_QUIRK(0x1631, 0xc10c, "PB RS65", ALC663_ASUS_M51VA),
 	SND_PCI_QUIRK(0x17aa, 0x101e, "Lenovo", ALC662_LENOVO_101E),
@@ -18257,7 +18260,11 @@ static int alc662_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	alc_ssid_check(codec, 0x15, 0x1b, 0x14);
+	if (codec->vendor_id == 0x10ec0272 || codec->vendor_id == 0x10ec0663 ||
+	    codec->vendor_id == 0x10ec0665 || codec->vendor_id == 0x10ec0670)
+	    alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0x21);
+	else
+	    alc_ssid_check(codec, 0x15, 0x1b, 0x14, 0);
 
 	return 1;
 }
@@ -18407,6 +18414,7 @@ static struct hda_codec_preset snd_hda_preset_realtek[] = {
 	  .patch = patch_alc662 },
 	{ .id = 0x10ec0663, .name = "ALC663", .patch = patch_alc662 },
 	{ .id = 0x10ec0665, .name = "ALC665", .patch = patch_alc662 },
+	{ .id = 0x10ec0670, .name = "ALC670", .patch = patch_alc662 },
 	{ .id = 0x10ec0880, .name = "ALC880", .patch = patch_alc880 },
 	{ .id = 0x10ec0882, .name = "ALC882", .patch = patch_alc882 },
 	{ .id = 0x10ec0883, .name = "ALC883", .patch = patch_alc882 },
