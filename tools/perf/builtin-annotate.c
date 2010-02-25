@@ -53,32 +53,20 @@ struct sym_priv {
 
 static const char *sym_hist_filter;
 
-static int symbol_filter(struct map *map __used, struct symbol *sym)
+static int sym__alloc_hist(struct symbol *self)
 {
-	if (sym_hist_filter == NULL ||
-	    strcmp(sym->name, sym_hist_filter) == 0) {
-		struct sym_priv *priv = symbol__priv(sym);
-		const int size = (sizeof(*priv->hist) +
-				  (sym->end - sym->start) * sizeof(u64));
+	struct sym_priv *priv = symbol__priv(self);
+	const int size = (sizeof(*priv->hist) +
+			  (self->end - self->start) * sizeof(u64));
 
-		priv->hist = malloc(size);
-		if (priv->hist)
-			memset(priv->hist, 0, size);
-		return 0;
-	}
-	/*
-	 * FIXME: We should really filter it out, as we don't want to go thru symbols
-	 * we're not interested, and if a DSO ends up with no symbols, delete it too,
-	 * but right now the kernel loading routines in symbol.c bail out if no symbols
-	 * are found, fix it later.
-	 */
-	return 0;
+	priv->hist = zalloc(size);
+	return priv->hist == NULL ? -1 : 0;
 }
 
 /*
  * collect histogram counts
  */
-static void hist_hit(struct hist_entry *he, u64 ip)
+static int annotate__hist_hit(struct hist_entry *he, u64 ip)
 {
 	unsigned int sym_size, offset;
 	struct symbol *sym = he->sym;
@@ -88,11 +76,11 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 	he->count++;
 
 	if (!sym || !he->map)
-		return;
+		return 0;
 
 	priv = symbol__priv(sym);
-	if (!priv->hist)
-		return;
+	if (priv->hist == NULL && sym__alloc_hist(sym) < 0)
+		return -ENOMEM;
 
 	sym_size = sym->end - sym->start;
 	offset = ip - sym->start;
@@ -100,7 +88,7 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 	pr_debug3("%s: ip=%#Lx\n", __func__, he->map->unmap_ip(he->map, ip));
 
 	if (offset >= sym_size)
-		return;
+		return 0;
 
 	h = priv->hist;
 	h->sum++;
@@ -108,18 +96,31 @@ static void hist_hit(struct hist_entry *he, u64 ip)
 
 	pr_debug3("%#Lx %s: count++ [ip: %#Lx, %#Lx] => %Ld\n", he->sym->start,
 		  he->sym->name, ip, ip - he->sym->start, h->ip[offset]);
+	return 0;
 }
 
 static int perf_session__add_hist_entry(struct perf_session *self,
 					struct addr_location *al, u64 count)
 {
 	bool hit;
-	struct hist_entry *he = __perf_session__add_hist_entry(self, al, NULL,
-							       count, &hit);
+	struct hist_entry *he;
+
+	if (sym_hist_filter != NULL &&
+	    (al->sym == NULL || strcmp(sym_hist_filter, al->sym->name) != 0)) {
+		/* We're only interested in a symbol named sym_hist_filter */
+		if (al->sym != NULL) {
+			rb_erase(&al->sym->rb_node,
+				 &al->map->dso->symbols[al->map->type]);
+			symbol__delete(al->sym);
+		}
+		return 0;
+	}
+
+	he = __perf_session__add_hist_entry(self, al, NULL, count, &hit);
 	if (he == NULL)
 		return -ENOMEM;
-	hist_hit(he, al->addr);
-	return 0;
+
+	return annotate__hist_hit(he, al->addr);
 }
 
 static int process_sample_event(event_t *event, struct perf_session *session)
@@ -129,7 +130,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	dump_printf("(IP, %d): %d: %#Lx\n", event->header.misc,
 		    event->ip.pid, event->ip.ip);
 
-	if (event__preprocess_sample(event, session, &al, symbol_filter) < 0) {
+	if (event__preprocess_sample(event, session, &al, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
 			   event->header.type);
 		return -1;

@@ -144,7 +144,7 @@ static struct symbol *symbol__new(u64 start, u64 len, const char *name)
 	return self;
 }
 
-static void symbol__delete(struct symbol *self)
+void symbol__delete(struct symbol *self)
 {
 	free(((void *)self) - symbol_conf.priv_size);
 }

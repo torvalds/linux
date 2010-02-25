@@ -51,6 +51,8 @@ struct symbol {
 	char		name[0];
 };
 
+void symbol__delete(struct symbol *self);
+
 struct strlist;
 
 struct symbol_conf {
