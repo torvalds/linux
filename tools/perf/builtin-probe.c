@@ -128,7 +128,7 @@ static void evaluate_probe_point(struct probe_point *pp)
 		    pp->function);
 }
 
-#ifndef NO_LIBDWARF
+#ifndef NO_DWARF_SUPPORT
 static int open_vmlinux(void)
 {
 	if (map__load(session.kmaps[MAP__FUNCTION], NULL) < 0) {
@@ -156,7 +156,7 @@ static const char * const probe_usage[] = {
 	"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
 	"perf probe [<options>] --del '[GROUP:]EVENT' ...",
 	"perf probe --list",
-#ifndef NO_LIBDWARF
+#ifndef NO_DWARF_SUPPORT
 	"perf probe --line 'LINEDESC'",
 #endif
 	NULL
@@ -165,7 +165,7 @@ static const char * const probe_usage[] = {
 static const struct option options[] = {
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
-#ifndef NO_LIBDWARF
+#ifndef NO_DWARF_SUPPORT
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 #endif
@@ -174,7 +174,7 @@ static const struct option options[] = {
 	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
 		opt_del_probe_event),
 	OPT_CALLBACK('a', "add", NULL,
-#ifdef NO_LIBDWARF
+#ifdef NO_DWARF_SUPPORT
 		"[EVENT=]FUNC[+OFFS|%return] [ARG ...]",
 #else
 		"[EVENT=]FUNC[+OFFS|%return|:RLN][@SRC]|SRC:ALN [ARG ...]",
@@ -185,7 +185,7 @@ static const struct option options[] = {
 		"\t\tFUNC:\tFunction name\n"
 		"\t\tOFFS:\tOffset from function entry (in byte)\n"
 		"\t\t%return:\tPut the probe at function return\n"
-#ifdef NO_LIBDWARF
+#ifdef NO_DWARF_SUPPORT
 		"\t\tARG:\tProbe argument (only \n"
 #else
 		"\t\tSRC:\tSource code path\n"
@@ -197,7 +197,7 @@ static const struct option options[] = {
 		opt_add_probe_event),
 	OPT_BOOLEAN('f', "force", &session.force_add, "forcibly add events"
 		    " with existing name"),
-#ifndef NO_LIBDWARF
+#ifndef NO_DWARF_SUPPORT
 	OPT_CALLBACK('L', "line", NULL,
 		     "FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]",
 		     "Show source code lines.", opt_show_lines),
@@ -225,7 +225,7 @@ static void init_vmlinux(void)
 int cmd_probe(int argc, const char **argv, const char *prefix __used)
 {
 	int i, ret;
-#ifndef NO_LIBDWARF
+#ifndef NO_DWARF_SUPPORT
 	int fd;
 #endif
 	struct probe_point *pp;
@@ -261,7 +261,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		return 0;
 	}
 
-#ifndef NO_LIBDWARF
+#ifndef NO_DWARF_SUPPORT
 	if (session.show_lines) {
 		if (session.nr_probe != 0 || session.dellist) {
 			pr_warning("  Error: Don't use --line with"
@@ -292,9 +292,9 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	init_vmlinux();
 
 	if (session.need_dwarf)
-#ifdef NO_LIBDWARF
+#ifdef NO_DWARF_SUPPORT
 		die("Debuginfo-analysis is not supported");
-#else	/* !NO_LIBDWARF */
+#else	/* !NO_DWARF_SUPPORT */
 		pr_debug("Some probes require debuginfo.\n");
 
 	fd = open_vmlinux();
@@ -335,7 +335,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	close(fd);
 
 end_dwarf:
-#endif /* !NO_LIBDWARF */
+#endif /* !NO_DWARF_SUPPORT */
 
 	/* Synthesize probes without dwarf */
 	for (i = 0; i < session.nr_probe; i++) {
