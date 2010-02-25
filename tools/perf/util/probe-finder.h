@@ -82,8 +82,6 @@ struct line_finder {
 	const char		*fname;		/* File name */
 	int			lno_s;		/* Start line number */
 	int			lno_e;		/* End line number */
-	Dwarf_Addr		addr_s;		/* Start address */
-	Dwarf_Addr		addr_e;		/* End address */
 	Dwarf_Die		cu_die;		/* Current CU */
 	int			found;
 };
