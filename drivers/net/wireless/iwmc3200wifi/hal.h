@@ -131,7 +131,7 @@ do {									  \
 #define IWM_MAX_WIFI_CMD_BUFF_SIZE	(IWM_SDIO_FW_MAX_CHUNK_SIZE - \
 					 IWM_MAX_WIFI_HEADERS_SIZE)
 
-#define IWM_HAL_CONCATENATE_BUF_SIZE	8192
+#define IWM_HAL_CONCATENATE_BUF_SIZE	(32 * 1024)
 
 struct iwm_wifi_cmd_buff {
 	u16 len;
