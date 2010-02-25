@@ -313,12 +313,18 @@ struct CommandList {
 	void   *scsi_cmd;
 
 /* on 64 bit architectures, to get this to be 32-byte-aligned
- * it so happens we need no padding, on 32 bit systems,
- * we need 8 bytes of padding.   This does that.
+ * it so happens we need PAD_64 bytes of padding, on 32 bit systems,
+ * we need PAD_32 bytes of padding (see below).   This does that.
+ * If it happens that 64 bit and 32 bit systems need different
+ * padding, PAD_32 and PAD_64 can be set independently, and.
+ * the code below will do the right thing.
  */
-#define COMMANDLIST_PAD ((8 - sizeof(long))/4 * 8)
+#define IS_32_BIT ((8 - sizeof(long))/4)
+#define IS_64_BIT (!IS_32_BIT)
+#define PAD_32 (8)
+#define PAD_64 (0)
+#define COMMANDLIST_PAD (IS_32_BIT * PAD_32 + IS_64_BIT * PAD_64)
 	u8 pad[COMMANDLIST_PAD];
-
 };
 
 /* Configuration Table Structure */
