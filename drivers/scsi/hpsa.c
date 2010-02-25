@@ -2982,7 +2982,7 @@ static irqreturn_t do_hpsa_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-/* Send a message CDB to the firmwart. */
+/* Send a message CDB to the firmware. */
 static __devinit int hpsa_message(struct pci_dev *pdev, unsigned char opcode,
 						unsigned char type)
 {
