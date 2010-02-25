@@ -1386,7 +1386,7 @@ static int hpsa_send_reset(struct ctlr_info *h, unsigned char *scsi3addr)
 
 	if (c == NULL) {			/* trouble... */
 		dev_warn(&h->pdev->dev, "cmd_special_alloc returned NULL!\n");
-		return -1;
+		return -ENOMEM;
 	}
 
 	fill_cmd(c, HPSA_DEVICE_RESET_MSG, h, NULL, 0, 0, scsi3addr, TYPE_MSG);
