@@ -1,5 +1,5 @@
 /*
- *  Copyright 2007 Red Hat, Inc.
+ *  Copyright 2007-2010 Red Hat, Inc.
  *  by Peter Jones <pjones@redhat.com>
  *  Copyright 2008 IBM, Inc.
  *  by Konrad Rzeszutek <konradr@linux.vnet.ibm.com>
@@ -18,6 +18,9 @@
  * GNU General Public License for more details.
  *
  * Changelog:
+ *
+ *  06 Jan 2010 - Peter Jones <pjones@redhat.com>
+ *    New changelog entries are in the git log from now on.  Not here.
  *
  *  14 Mar 2008 - Konrad Rzeszutek <ketuzsezr@darnok.org>
  *    Updated comments and copyrights. (v0.4.9)
@@ -78,9 +81,10 @@
 #include <linux/stat.h>
 #include <linux/string.h>
 #include <linux/types.h>
+#include <linux/acpi.h>
 
-#define IBFT_ISCSI_VERSION "0.4.9"
-#define IBFT_ISCSI_DATE "2008-Mar-14"
+#define IBFT_ISCSI_VERSION "0.5.0"
+#define IBFT_ISCSI_DATE "2010-Feb-25"
 
 MODULE_AUTHOR("Peter Jones <pjones@redhat.com> and \
 Konrad Rzeszutek <ketuzsezr@darnok.org>");
@@ -238,7 +242,7 @@ static const char *ibft_initiator_properties[] =
  */
 
 struct ibft_kobject {
-	struct ibft_table_header *header;
+	struct acpi_table_ibft *header;
 	union {
 		struct ibft_initiator *initiator;
 		struct ibft_nic *nic;
@@ -536,12 +540,13 @@ static int __init ibft_check_device(void)
 	u8 *pos;
 	u8 csum = 0;
 
-	len = ibft_addr->length;
+	len = ibft_addr->header.length;
 
 	/* Sanity checking of iBFT. */
-	if (ibft_addr->revision != 1) {
+	if (ibft_addr->header.revision != 1) {
 		printk(KERN_ERR "iBFT module supports only revision 1, " \
-				"while this is %d.\n", ibft_addr->revision);
+				"while this is %d.\n",
+				ibft_addr->header.revision);
 		return -ENOENT;
 	}
 	for (pos = (u8 *)ibft_addr; pos < (u8 *)ibft_addr + len; pos++)
@@ -558,7 +563,7 @@ static int __init ibft_check_device(void)
 /*
  * Helper function for ibft_register_kobjects.
  */
-static int __init ibft_create_kobject(struct ibft_table_header *header,
+static int __init ibft_create_kobject(struct acpi_table_ibft *header,
 				       struct ibft_hdr *hdr,
 				       struct list_head *list)
 {
@@ -596,7 +601,7 @@ static int __init ibft_create_kobject(struct ibft_table_header *header,
 	default:
 		printk(KERN_ERR "iBFT has unknown structure type (%d). " \
 				"Report this bug to %.6s!\n", hdr->id,
-				header->oem_id);
+				header->header.oem_id);
 		rc = 1;
 		break;
 	}
@@ -649,7 +654,7 @@ out_invalid_struct:
  * found add them on the passed-in list. We do not support the other
  * fields at this point, so they are skipped.
  */
-static int __init ibft_register_kobjects(struct ibft_table_header *header,
+static int __init ibft_register_kobjects(struct acpi_table_ibft *header,
 					  struct list_head *list)
 {
 	struct ibft_control *control = NULL;
@@ -660,7 +665,7 @@ static int __init ibft_register_kobjects(struct ibft_table_header *header,
 
 	control = (void *)header + sizeof(*header);
 	end = (void *)control + control->hdr.length;
-	eot_offset = (void *)header + header->length - (void *)control;
+	eot_offset = (void *)header + header->header.length - (void *)control;
 	rc = ibft_verify_hdr("control", (struct ibft_hdr *)control, id_control,
 			     sizeof(*control));
 
@@ -672,7 +677,8 @@ static int __init ibft_register_kobjects(struct ibft_table_header *header,
 	}
 	for (ptr = &control->initiator_off; ptr < end; ptr += sizeof(u16)) {
 		offset = *(u16 *)ptr;
-		if (offset && offset < header->length && offset < eot_offset) {
+		if (offset && offset < header->header.length &&
+						offset < eot_offset) {
 			rc = ibft_create_kobject(header,
 						 (void *)header + offset,
 						 list);
