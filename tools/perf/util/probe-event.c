@@ -716,6 +716,7 @@ void del_trace_kprobe_events(struct strlist *dellist)
 }
 
 #define LINEBUF_SIZE 256
+#define NR_ADDITIONAL_LINES 2
 
 static void show_one_line(FILE *fp, unsigned int l, bool skip, bool show_num)
 {
@@ -776,5 +777,11 @@ void show_line_range(struct line_range *lr)
 			show_one_line(fp, (l++) - lr->offset, false, false);
 		show_one_line(fp, (l++) - lr->offset, false, true);
 	}
+
+	if (lr->end == INT_MAX)
+		lr->end = l + NR_ADDITIONAL_LINES;
+	while (l < lr->end && !feof(fp))
+		show_one_line(fp, (l++) - lr->offset, false, false);
+
 	fclose(fp);
 }
