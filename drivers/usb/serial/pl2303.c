@@ -895,10 +895,23 @@ static int wait_modem_info(struct usb_serial_port *port, unsigned int arg)
 static int pl2303_ioctl(struct tty_struct *tty, struct file *file,
 			unsigned int cmd, unsigned long arg)
 {
+	struct serial_struct ser;
 	struct usb_serial_port *port = tty->driver_data;
 	dbg("%s (%d) cmd = 0x%04x", __func__, port->number, cmd);
 
 	switch (cmd) {
+	case TIOCGSERIAL:
+		memset(&ser, 0, sizeof ser);
+		ser.type = PORT_16654;
+		ser.line = port->serial->minor;
+		ser.port = port->number;
+		ser.baud_base = 460800;
+
+		if (copy_to_user((void __user *)arg, &ser, sizeof ser))
+			return -EFAULT;
+
+		return 0;
+
 	case TIOCMIWAIT:
 		dbg("%s (%d) TIOCMIWAIT", __func__,  port->number);
 		return wait_modem_info(port, arg);
