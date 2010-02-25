@@ -992,8 +992,7 @@ struct ipv6_saddr_dst {
 
 static inline int ipv6_saddr_preferred(int type)
 {
-	if (type & (IPV6_ADDR_MAPPED|IPV6_ADDR_COMPATv4|
-		    IPV6_ADDR_LOOPBACK|IPV6_ADDR_RESERVED))
+	if (type & (IPV6_ADDR_MAPPED|IPV6_ADDR_COMPATv4|IPV6_ADDR_LOOPBACK))
 		return 1;
 	return 0;
 }

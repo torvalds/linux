@@ -73,7 +73,6 @@
 #define IPV6_ADDR_SCOPE_MASK	0x00f0U
 
 #define IPV6_ADDR_MAPPED	0x1000U
-#define IPV6_ADDR_RESERVED	0x2000U	/* reserved address space */
 
 /*
  *	Addr scopes
