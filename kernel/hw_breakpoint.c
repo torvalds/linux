@@ -360,8 +360,8 @@ EXPORT_SYMBOL_GPL(register_user_hw_breakpoint);
 int modify_user_hw_breakpoint(struct perf_event *bp, struct perf_event_attr *attr)
 {
 	u64 old_addr = bp->attr.bp_addr;
+	u64 old_len = bp->attr.bp_len;
 	int old_type = bp->attr.bp_type;
-	int old_len = bp->attr.bp_len;
 	int err = 0;
 
 	perf_event_disable(bp);

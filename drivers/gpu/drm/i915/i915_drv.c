@@ -120,7 +120,7 @@ const static struct intel_device_info intel_gm45_info = {
 
 const static struct intel_device_info intel_pineview_info = {
 	.is_g33 = 1, .is_pineview = 1, .is_mobile = 1, .is_i9xx = 1,
-	.has_pipe_cxsr = 1,
+	.need_gfx_hws = 1,
 	.has_hotplug = 1,
 };
 
@@ -174,12 +174,42 @@ const static struct pci_device_id pciidlist[] = {
 MODULE_DEVICE_TABLE(pci, pciidlist);
 #endif
 
-static int i915_suspend(struct drm_device *dev, pm_message_t state)
+static int i915_drm_freeze(struct drm_device *dev)
+{
+	pci_save_state(dev->pdev);
+
+	/* If KMS is active, we do the leavevt stuff here */
+	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+		int error = i915_gem_idle(dev);
+		if (error) {
+			dev_err(&dev->pdev->dev,
+				"GEM idle failed, resume might fail\n");
+			return error;
+		}
+		drm_irq_uninstall(dev);
+	}
+
+	i915_save_state(dev);
+
+	return 0;
+}
+
+static void i915_drm_suspend(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (!dev || !dev_priv) {
-		DRM_ERROR("dev: %p, dev_priv: %p\n", dev, dev_priv);
+	intel_opregion_free(dev, 1);
+
+	/* Modeset on resume, not lid events */
+	dev_priv->modeset_on_lid = 0;
+}
+
+static int i915_suspend(struct drm_device *dev, pm_message_t state)
+{
+	int error;
+
+	if (!dev || !dev->dev_private) {
+		DRM_ERROR("dev: %p\n", dev);
 		DRM_ERROR("DRM not initialized, aborting suspend.\n");
 		return -ENODEV;
 	}
@@ -187,19 +217,11 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 	if (state.event == PM_EVENT_PRETHAW)
 		return 0;
 
-	pci_save_state(dev->pdev);
+	error = i915_drm_freeze(dev);
+	if (error)
+		return error;
 
-	/* If KMS is active, we do the leavevt stuff here */
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
-		if (i915_gem_idle(dev))
-			dev_err(&dev->pdev->dev,
-				"GEM idle failed, resume may fail\n");
-		drm_irq_uninstall(dev);
-	}
-
-	i915_save_state(dev);
-
-	intel_opregion_free(dev, 1);
+	i915_drm_suspend(dev);
 
 	if (state.event == PM_EVENT_SUSPEND) {
 		/* Shut down the device */
@@ -207,45 +229,45 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 		pci_set_power_state(dev->pdev, PCI_D3hot);
 	}
 
-	/* Modeset on resume, not lid events */
-	dev_priv->modeset_on_lid = 0;
-
 	return 0;
 }
 
-static int i915_resume(struct drm_device *dev)
+static int i915_drm_thaw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
-	int ret = 0;
-
-	if (pci_enable_device(dev->pdev))
-		return -1;
-	pci_set_master(dev->pdev);
-
-	i915_restore_state(dev);
-
-	intel_opregion_init(dev, 1);
+	int error = 0;
 
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
 		mutex_lock(&dev->struct_mutex);
 		dev_priv->mm.suspended = 0;
 
-		ret = i915_gem_init_ringbuffer(dev);
-		if (ret != 0)
-			ret = -1;
+		error = i915_gem_init_ringbuffer(dev);
 		mutex_unlock(&dev->struct_mutex);
 
 		drm_irq_install(dev);
-	}
-	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
+
 		/* Resume the modeset for every activated CRTC */
 		drm_helper_resume_force_mode(dev);
 	}
 
 	dev_priv->modeset_on_lid = 0;
 
-	return ret;
+	return error;
+}
+
+static int i915_resume(struct drm_device *dev)
+{
+	if (pci_enable_device(dev->pdev))
+		return -EIO;
+
+	pci_set_master(dev->pdev);
+
+	i915_restore_state(dev);
+
+	intel_opregion_init(dev, 1);
+
+	return i915_drm_thaw(dev);
 }
 
 /**
@@ -386,57 +408,69 @@ i915_pci_remove(struct pci_dev *pdev)
 	drm_put_dev(dev);
 }
 
-static int
-i915_pci_suspend(struct pci_dev *pdev, pm_message_t state)
+static int i915_pm_suspend(struct device *dev)
 {
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	int error;
 
-	return i915_suspend(dev, state);
-}
+	if (!drm_dev || !drm_dev->dev_private) {
+		dev_err(dev, "DRM not initialized, aborting suspend.\n");
+		return -ENODEV;
+	}
 
-static int
-i915_pci_resume(struct pci_dev *pdev)
-{
-	struct drm_device *dev = pci_get_drvdata(pdev);
+	error = i915_drm_freeze(drm_dev);
+	if (error)
+		return error;
 
-	return i915_resume(dev);
-}
+	i915_drm_suspend(drm_dev);
 
-static int
-i915_pm_suspend(struct device *dev)
-{
-	return i915_pci_suspend(to_pci_dev(dev), PMSG_SUSPEND);
-}
+	pci_disable_device(pdev);
+	pci_set_power_state(pdev, PCI_D3hot);
 
-static int
-i915_pm_resume(struct device *dev)
-{
-	return i915_pci_resume(to_pci_dev(dev));
-}
-
-static int
-i915_pm_freeze(struct device *dev)
-{
-	return i915_pci_suspend(to_pci_dev(dev), PMSG_FREEZE);
-}
-
-static int
-i915_pm_thaw(struct device *dev)
-{
-	/* thaw during hibernate, do nothing! */
 	return 0;
 }
 
-static int
-i915_pm_poweroff(struct device *dev)
+static int i915_pm_resume(struct device *dev)
 {
-	return i915_pci_suspend(to_pci_dev(dev), PMSG_HIBERNATE);
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return i915_resume(drm_dev);
 }
 
-static int
-i915_pm_restore(struct device *dev)
+static int i915_pm_freeze(struct device *dev)
 {
-	return i915_pci_resume(to_pci_dev(dev));
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	if (!drm_dev || !drm_dev->dev_private) {
+		dev_err(dev, "DRM not initialized, aborting suspend.\n");
+		return -ENODEV;
+	}
+
+	return i915_drm_freeze(drm_dev);
+}
+
+static int i915_pm_thaw(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+
+	return i915_drm_thaw(drm_dev);
+}
+
+static int i915_pm_poweroff(struct device *dev)
+{
+	struct pci_dev *pdev = to_pci_dev(dev);
+	struct drm_device *drm_dev = pci_get_drvdata(pdev);
+	int error;
+
+	error = i915_drm_freeze(drm_dev);
+	if (!error)
+		i915_drm_suspend(drm_dev);
+
+	return error;
 }
 
 const struct dev_pm_ops i915_pm_ops = {
@@ -445,7 +479,7 @@ const struct dev_pm_ops i915_pm_ops = {
      .freeze = i915_pm_freeze,
      .thaw = i915_pm_thaw,
      .poweroff = i915_pm_poweroff,
-     .restore = i915_pm_restore,
+     .restore = i915_pm_resume,
 };
 
 static struct vm_operations_struct i915_gem_vm_ops = {

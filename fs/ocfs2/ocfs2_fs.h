@@ -1417,9 +1417,16 @@ static inline int ocfs2_fast_symlink_chars(int blocksize)
 	return blocksize - offsetof(struct ocfs2_dinode, id2.i_symlink);
 }
 
-static inline int ocfs2_max_inline_data(int blocksize)
+static inline int ocfs2_max_inline_data_with_xattr(int blocksize,
+						   struct ocfs2_dinode *di)
 {
-	return blocksize - offsetof(struct ocfs2_dinode, id2.i_data.id_data);
+	if (di && (di->i_dyn_features & OCFS2_INLINE_XATTR_FL))
+		return blocksize -
+			offsetof(struct ocfs2_dinode, id2.i_data.id_data) -
+			di->i_xattr_inline_size;
+	else
+		return blocksize -
+			offsetof(struct ocfs2_dinode, id2.i_data.id_data);
 }
 
 static inline int ocfs2_extent_recs_per_inode(int blocksize)

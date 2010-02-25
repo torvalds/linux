@@ -32,6 +32,12 @@ config MACH_SHEEVAPLUG
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell SheevaPlug Reference Board.
 
+config MACH_ESATA_SHEEVAPLUG
+	bool "Marvell eSATA SheevaPlug Reference Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell eSATA SheevaPlug Reference Board.
+
 config MACH_TS219
 	bool "QNAP TS-110, TS-119, TS-210, TS-219 and TS-219P Turbo NAS"
 	help

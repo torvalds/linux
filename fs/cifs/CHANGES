@@ -1,3 +1,7 @@
+Version 1.62
+------------
+Add sockopt=TCP_NODELAY mount option.
+
 Version 1.61
 ------------
 Fix append problem to Samba servers (files opened with O_APPEND could

@@ -971,8 +971,7 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 			 lvds->native_mode.vdisplay);
 
 		lvds->panel_vcc_delay = RBIOS16(lcd_info + 0x2c);
-		if (lvds->panel_vcc_delay > 2000 || lvds->panel_vcc_delay < 0)
-			lvds->panel_vcc_delay = 2000;
+		lvds->panel_vcc_delay = min_t(u16, lvds->panel_vcc_delay, 2000);
 
 		lvds->panel_pwr_delay = RBIOS8(lcd_info + 0x24);
 		lvds->panel_digon_delay = RBIOS16(lcd_info + 0x38) & 0xf;

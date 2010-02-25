@@ -88,12 +88,13 @@ nouveau_connector_destroy(struct drm_connector *drm_connector)
 {
 	struct nouveau_connector *nv_connector =
 		nouveau_connector(drm_connector);
-	struct drm_device *dev = nv_connector->base.dev;
-
-	NV_DEBUG_KMS(dev, "\n");
+	struct drm_device *dev;
 
 	if (!nv_connector)
 		return;
+
+	dev = nv_connector->base.dev;
+	NV_DEBUG_KMS(dev, "\n");
 
 	kfree(nv_connector->edid);
 	drm_sysfs_connector_remove(drm_connector);
