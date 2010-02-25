@@ -425,6 +425,7 @@ config X86_32_NON_STANDARD
 config X86_NUMAQ
 	bool "NUMAQ (IBM/Sequent)"
 	depends on X86_32_NON_STANDARD
+	depends on PCI
 	select NUMA
 	select X86_MPPARSE
 	---help---
