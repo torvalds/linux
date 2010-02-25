@@ -46,17 +46,6 @@
 
 static unsigned long reset_value[NUM_VIRT_COUNTERS];
 
-/* IbsFetchCtl bits/masks */
-#define IBS_FETCH_RAND_EN		(1ULL<<57)
-#define IBS_FETCH_VAL			(1ULL<<49)
-#define IBS_FETCH_ENABLE		(1ULL<<48)
-#define IBS_FETCH_CNT_MASK		0xFFFF0000ULL
-
-/* IbsOpCtl bits */
-#define IBS_OP_CNT_CTL			(1ULL<<19)
-#define IBS_OP_VAL			(1ULL<<18)
-#define IBS_OP_ENABLE			(1ULL<<17)
-
 #define IBS_FETCH_SIZE			6
 #define IBS_OP_SIZE			12
 
