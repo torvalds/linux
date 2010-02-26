@@ -825,7 +825,7 @@ static int __init flctl_probe(struct platform_device *pdev)
 	nand->select_chip = flctl_select_chip;
 	nand->cmdfunc = flctl_cmdfunc;
 
-	ret = nand_scan_ident(flctl_mtd, 1);
+	ret = nand_scan_ident(flctl_mtd, 1, NULL);
 	if (ret)
 		goto err;
 

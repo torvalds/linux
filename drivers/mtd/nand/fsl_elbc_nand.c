@@ -891,7 +891,7 @@ static int __devinit fsl_elbc_chip_probe(struct fsl_elbc_ctrl *ctrl,
 	if (ret)
 		goto err;
 
-	ret = nand_scan_ident(&priv->mtd, 1);
+	ret = nand_scan_ident(&priv->mtd, 1, NULL);
 	if (ret)
 		goto err;
 

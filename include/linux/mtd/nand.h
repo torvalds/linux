@@ -25,11 +25,13 @@
 #include <linux/mtd/bbm.h>
 
 struct mtd_info;
+struct nand_flash_dev;
 /* Scan and identify a NAND device */
 extern int nand_scan (struct mtd_info *mtd, int max_chips);
 /* Separate phases of nand_scan(), allowing board driver to intervene
  * and override command or ECC setup according to flash type */
-extern int nand_scan_ident(struct mtd_info *mtd, int max_chips);
+extern int nand_scan_ident(struct mtd_info *mtd, int max_chips,
+			   struct nand_flash_dev *table);
 extern int nand_scan_tail(struct mtd_info *mtd);
 
 /* Free resources held by the NAND device */

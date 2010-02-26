@@ -75,7 +75,7 @@ int sm_register_device(struct mtd_info *mtd)
 	chip->options |= NAND_SKIP_BBTSCAN | NAND_SMARTMEDIA;
 
 	/* Scan for card properties */
-	ret = nand_scan_ident(mtd, 1);
+	ret = nand_scan_ident(mtd, 1, NULL);
 
 	if (ret)
 		return ret;

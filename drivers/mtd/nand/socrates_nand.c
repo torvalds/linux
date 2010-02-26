@@ -220,7 +220,7 @@ static int __devinit socrates_nand_probe(struct of_device *ofdev,
 	dev_set_drvdata(&ofdev->dev, host);
 
 	/* first scan to find the device and get the page size */
-	if (nand_scan_ident(mtd, 1)) {
+	if (nand_scan_ident(mtd, 1, NULL)) {
 		res = -ENXIO;
 		goto out;
 	}

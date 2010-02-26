@@ -1013,7 +1013,8 @@ static int s3c24xx_nand_probe(struct platform_device *pdev)
 		s3c2410_nand_init_chip(info, nmtd, sets);
 
 		nmtd->scan_res = nand_scan_ident(&nmtd->mtd,
-						 (sets) ? sets->nr_chips : 1);
+						 (sets) ? sets->nr_chips : 1,
+						 NULL);
 
 		if (nmtd->scan_res == 0) {
 			s3c2410_nand_update_chip(info, nmtd);

@@ -446,7 +446,7 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 	 * layout we'll be using.
 	 */
 
-	err = nand_scan_ident(board_mtd, 1);
+	err = nand_scan_ident(board_mtd, 1, NULL);
 	if (err) {
 		printk(KERN_ERR "nand_scan failed: %d\n", err);
 		iounmap(bcm_umi_io_base);
