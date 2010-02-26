@@ -88,6 +88,7 @@ void dasd_gendisk_free(struct dasd_block *block)
 	if (block->gdp) {
 		del_gendisk(block->gdp);
 		block->gdp->queue = NULL;
+		block->gdp->private_data = NULL;
 		put_disk(block->gdp);
 		block->gdp = NULL;
 	}

@@ -20,6 +20,7 @@
 #include <linux/buffer_head.h>
 #include <linux/hdreg.h>
 #include <linux/async.h>
+#include <linux/mutex.h>
 
 #include <asm/ccwdev.h>
 #include <asm/ebcdic.h>
@@ -112,6 +113,7 @@ struct dasd_device *dasd_alloc_device(void)
 	INIT_WORK(&device->restore_device, do_restore_device);
 	device->state = DASD_STATE_NEW;
 	device->target = DASD_STATE_NEW;
+	mutex_init(&device->state_mutex);
 
 	return device;
 }
@@ -484,10 +486,8 @@ static void dasd_change_state(struct dasd_device *device)
 	if (rc)
 		device->target = device->state;
 
-	if (device->state == device->target) {
+	if (device->state == device->target)
 		wake_up(&dasd_init_waitq);
-		dasd_put_device(device);
-	}
 
 	/* let user-space know that the device status changed */
 	kobject_uevent(&device->cdev->dev.kobj, KOBJ_CHANGE);
@@ -502,7 +502,9 @@ static void dasd_change_state(struct dasd_device *device)
 static void do_kick_device(struct work_struct *work)
 {
 	struct dasd_device *device = container_of(work, struct dasd_device, kick_work);
+	mutex_lock(&device->state_mutex);
 	dasd_change_state(device);
+	mutex_unlock(&device->state_mutex);
 	dasd_schedule_device_bh(device);
 	dasd_put_device(device);
 }
@@ -539,18 +541,19 @@ void dasd_restore_device(struct dasd_device *device)
 void dasd_set_target_state(struct dasd_device *device, int target)
 {
 	dasd_get_device(device);
+	mutex_lock(&device->state_mutex);
 	/* If we are in probeonly mode stop at DASD_STATE_READY. */
 	if (dasd_probeonly && target > DASD_STATE_READY)
 		target = DASD_STATE_READY;
 	if (device->target != target) {
-		if (device->state == target) {
+		if (device->state == target)
 			wake_up(&dasd_init_waitq);
-			dasd_put_device(device);
-		}
 		device->target = target;
 	}
 	if (device->state != device->target)
 		dasd_change_state(device);
+	mutex_unlock(&device->state_mutex);
+	dasd_put_device(device);
 }
 
 /*
@@ -1692,7 +1695,6 @@ int dasd_cancel_req(struct dasd_ccw_req *cqr)
 				cqr, rc);
 		} else {
 			cqr->stopclk = get_clock();
-			rc = 1;
 		}
 		break;
 	default: /* already finished or clear pending - do nothing */
@@ -2170,9 +2172,13 @@ static void dasd_flush_request_queue(struct dasd_block *block)
 static int dasd_open(struct block_device *bdev, fmode_t mode)
 {
 	struct dasd_block *block = bdev->bd_disk->private_data;
-	struct dasd_device *base = block->base;
+	struct dasd_device *base;
 	int rc;
 
+	if (!block)
+		return -ENODEV;
+
+	base = block->base;
 	atomic_inc(&block->open_count);
 	if (test_bit(DASD_FLAG_OFFLINE, &base->flags)) {
 		rc = -ENODEV;
