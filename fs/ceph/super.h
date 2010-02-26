@@ -62,6 +62,7 @@ struct ceph_mount_args {
 	int max_readdir;      /* max readdir size */
 	int congestion_kb;      /* max readdir size */
 	int osd_timeout;
+	int osd_keepalive_timeout;
 	char *snapdir_name;   /* default ".snap" */
 	char *name;
 	char *secret;
@@ -72,6 +73,8 @@ struct ceph_mount_args {
  * defaults
  */
 #define CEPH_MOUNT_TIMEOUT_DEFAULT  60
+#define CEPH_OSD_TIMEOUT_DEFAULT    60  /* seconds */
+#define CEPH_OSD_KEEPALIVE_DEFAULT  5
 #define CEPH_OSD_IDLE_TTL_DEFAULT    60
 #define CEPH_MOUNT_RSIZE_DEFAULT    (512*1024) /* readahead */
 

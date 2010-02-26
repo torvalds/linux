@@ -292,6 +292,7 @@ enum {
 	Opt_wsize,
 	Opt_rsize,
 	Opt_osdtimeout,
+	Opt_osdkeepalivetimeout,
 	Opt_mount_timeout,
 	Opt_osd_idle_ttl,
 	Opt_caps_wanted_delay_min,
@@ -322,6 +323,7 @@ static match_table_t arg_tokens = {
 	{Opt_wsize, "wsize=%d"},
 	{Opt_rsize, "rsize=%d"},
 	{Opt_osdtimeout, "osdtimeout=%d"},
+	{Opt_osdkeepalivetimeout, "osdkeepalive=%d"},
 	{Opt_mount_timeout, "mount_timeout=%d"},
 	{Opt_osd_idle_ttl, "osd_idle_ttl=%d"},
 	{Opt_caps_wanted_delay_min, "caps_wanted_delay_min=%d"},
@@ -367,7 +369,8 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 	/* start with defaults */
 	args->sb_flags = flags;
 	args->flags = CEPH_OPT_DEFAULT;
-	args->osd_timeout = 5;    /* seconds */
+	args->osd_timeout = CEPH_OSD_TIMEOUT_DEFAULT;
+	args->osd_keepalive_timeout = CEPH_OSD_KEEPALIVE_DEFAULT;
 	args->mount_timeout = CEPH_MOUNT_TIMEOUT_DEFAULT; /* seconds */
 	args->osd_idle_ttl = CEPH_OSD_IDLE_TTL_DEFAULT;   /* seconds */
 	args->caps_wanted_delay_min = CEPH_CAPS_WANTED_DELAY_MIN_DEFAULT;
@@ -467,6 +470,9 @@ static struct ceph_mount_args *parse_mount_args(int flags, char *options,
 			break;
 		case Opt_osdtimeout:
 			args->osd_timeout = intval;
+			break;
+		case Opt_osdkeepalivetimeout:
+			args->osd_keepalive_timeout = intval;
 			break;
 		case Opt_mount_timeout:
 			args->mount_timeout = intval;

@@ -36,12 +36,15 @@ struct ceph_osd {
 	void *o_authorizer_buf, *o_authorizer_reply_buf;
 	size_t o_authorizer_buf_len, o_authorizer_reply_buf_len;
 	unsigned long lru_ttl;
+	int o_marked_for_keepalive;
+	struct list_head o_keepalive_item;
 };
 
 /* an in-flight request */
 struct ceph_osd_request {
 	u64             r_tid;              /* unique for this client */
 	struct rb_node  r_node;
+	struct list_head r_req_lru_item;
 	struct list_head r_osd_item;
 	struct ceph_osd *r_osd;
 	struct ceph_pg   r_pgid;
@@ -67,7 +70,7 @@ struct ceph_osd_request {
 
 	char              r_oid[40];          /* object name */
 	int               r_oid_len;
-	unsigned long     r_timeout_stamp;
+	unsigned long     r_sent_stamp;
 	bool              r_resend;           /* msg send failed, needs retry */
 
 	struct ceph_file_layout r_file_layout;
@@ -92,6 +95,7 @@ struct ceph_osd_client {
 	u64                    timeout_tid;   /* tid of timeout triggering rq */
 	u64                    last_tid;      /* tid of last request */
 	struct rb_root         requests;      /* pending requests */
+	struct list_head       req_lru;	      /* pending requests lru */
 	int                    num_requests;
 	struct delayed_work    timeout_work;
 	struct delayed_work    osds_timeout_work;
