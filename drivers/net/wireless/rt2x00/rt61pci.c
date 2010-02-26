@@ -1131,16 +1131,18 @@ dynamic_cca_tune:
  */
 static char *rt61pci_get_firmware_name(struct rt2x00_dev *rt2x00dev)
 {
+	u16 chip;
 	char *fw_name;
 
-	switch (rt2x00dev->chip.rt) {
-	case RT2561:
+	pci_read_config_word(to_pci_dev(rt2x00dev->dev), PCI_DEVICE_ID, &chip);
+	switch (chip) {
+	case RT2561_PCI_ID:
 		fw_name = FIRMWARE_RT2561;
 		break;
-	case RT2561s:
+	case RT2561s_PCI_ID:
 		fw_name = FIRMWARE_RT2561s;
 		break;
-	case RT2661:
+	case RT2661_PCI_ID:
 		fw_name = FIRMWARE_RT2661;
 		break;
 	default:
@@ -2295,8 +2297,8 @@ static int rt61pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2x00pci_register_read(rt2x00dev, MAC_CSR0, &reg);
-	rt2x00_set_chip_rf(rt2x00dev, value, reg);
-	rt2x00_print_chip(rt2x00dev);
+	rt2x00_set_chip(rt2x00dev, rt2x00_get_field32(reg, MAC_CSR0_CHIPSET),
+			value, rt2x00_get_field32(reg, MAC_CSR0_REVISION));
 
 	if (!rt2x00_rf(rt2x00dev, RF5225) &&
 	    !rt2x00_rf(rt2x00dev, RF5325) &&

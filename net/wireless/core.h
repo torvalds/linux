@@ -329,6 +329,15 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 			       const u8 *resp_ie, size_t resp_ie_len,
 			       u16 status, bool wextev,
 			       struct cfg80211_bss *bss);
+int cfg80211_mlme_register_action(struct wireless_dev *wdev, u32 snd_pid,
+				  const u8 *match_data, int match_len);
+void cfg80211_mlme_unregister_actions(struct wireless_dev *wdev, u32 nlpid);
+void cfg80211_mlme_purge_actions(struct wireless_dev *wdev);
+int cfg80211_mlme_action(struct cfg80211_registered_device *rdev,
+			 struct net_device *dev,
+			 struct ieee80211_channel *chan,
+			 enum nl80211_channel_type channel_type,
+			 const u8 *buf, size_t len, u64 *cookie);
 
 /* SME */
 int __cfg80211_connect(struct cfg80211_registered_device *rdev,

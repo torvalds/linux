@@ -40,6 +40,9 @@
 #if defined(CONFIG_RT2X00_LIB_USB) || defined(CONFIG_RT2X00_LIB_USB_MODULE)
 #include "rt2x00usb.h"
 #endif
+#if defined(CONFIG_RT2X00_LIB_PCI) || defined(CONFIG_RT2X00_LIB_PCI_MODULE)
+#include "rt2x00pci.h"
+#endif
 #include "rt2800lib.h"
 #include "rt2800.h"
 #include "rt2800usb.h"
@@ -89,7 +92,7 @@ static void rt2800_bbp_write(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_REGNUM, word);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_BUSY, 1);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_READ_CONTROL, 0);
-		if (rt2x00_intf_is_pci(rt2x00dev))
+		if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev))
 			rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
 
 		rt2800_register_write_lock(rt2x00dev, BBP_CSR_CFG, reg);
@@ -118,7 +121,7 @@ static void rt2800_bbp_read(struct rt2x00_dev *rt2x00dev,
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_REGNUM, word);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_BUSY, 1);
 		rt2x00_set_field32(&reg, BBP_CSR_CFG_READ_CONTROL, 1);
-		if (rt2x00_intf_is_pci(rt2x00dev))
+		if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev))
 			rt2x00_set_field32(&reg, BBP_CSR_CFG_BBP_RW_MODE, 1);
 
 		rt2800_register_write_lock(rt2x00dev, BBP_CSR_CFG, reg);
@@ -218,9 +221,9 @@ void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 	u32 reg;
 
 	/*
-	 * RT2880 and RT3052 don't support MCU requests.
+	 * SOC devices don't support MCU requests.
 	 */
-	if (rt2x00_rt(rt2x00dev, RT2880) || rt2x00_rt(rt2x00dev, RT3052))
+	if (rt2x00_is_soc(rt2x00dev))
 		return;
 
 	mutex_lock(&rt2x00dev->csr_mutex);
@@ -660,7 +663,7 @@ void rt2800_config_ant(struct rt2x00_dev *rt2x00dev, struct antenna_setup *ant)
 	switch ((int)ant->tx) {
 	case 1:
 		rt2x00_set_field8(&r1, BBP1_TX_ANTENNA, 0);
-		if (rt2x00_intf_is_pci(rt2x00dev))
+		if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev))
 			rt2x00_set_field8(&r3, BBP3_RX_ANTENNA, 0);
 		break;
 	case 2:
@@ -895,7 +898,8 @@ static void rt2800_config_channel(struct rt2x00_dev *rt2x00dev,
 	rt2x00_set_field8(&bbp, BBP3_HT40_PLUS, conf_is_ht40_plus(conf));
 	rt2800_bbp_write(rt2x00dev, 3, bbp);
 
-	if (rt2x00_rev(rt2x00dev) == RT2860C_VERSION) {
+	if (rt2x00_rt(rt2x00dev, RT2860) &&
+	    (rt2x00_rev(rt2x00dev) == RT2860C_VERSION)) {
 		if (conf_is_ht40(conf)) {
 			rt2800_bbp_write(rt2x00dev, 69, 0x1a);
 			rt2800_bbp_write(rt2x00dev, 70, 0x0a);
@@ -1057,8 +1061,9 @@ EXPORT_SYMBOL_GPL(rt2800_link_stats);
 static u8 rt2800_get_default_vgc(struct rt2x00_dev *rt2x00dev)
 {
 	if (rt2x00dev->curr_band == IEEE80211_BAND_2GHZ) {
-		if (rt2x00_intf_is_usb(rt2x00dev) &&
-		    rt2x00_rev(rt2x00dev) == RT3070_VERSION)
+		if (rt2x00_is_usb(rt2x00dev) &&
+		    rt2x00_rt(rt2x00dev, RT3070) &&
+		    (rt2x00_rev(rt2x00dev) == RT3070_VERSION))
 			return 0x1c + (2 * rt2x00dev->lna_gain);
 		else
 			return 0x2e + rt2x00dev->lna_gain;
@@ -1089,7 +1094,8 @@ EXPORT_SYMBOL_GPL(rt2800_reset_tuner);
 void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 		       const u32 count)
 {
-	if (rt2x00_rev(rt2x00dev) == RT2860C_VERSION)
+	if (rt2x00_rt(rt2x00dev, RT2860) &&
+	    (rt2x00_rev(rt2x00dev) == RT2860C_VERSION))
 		return;
 
 	/*
@@ -1109,7 +1115,7 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	u32 reg;
 	unsigned int i;
 
-	if (rt2x00_intf_is_usb(rt2x00dev)) {
+	if (rt2x00_is_usb(rt2x00dev)) {
 		/*
 		 * Wait until BBP and RF are ready.
 		 */
@@ -1128,7 +1134,7 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 		rt2800_register_read(rt2x00dev, PBF_SYS_CTRL, &reg);
 		rt2800_register_write(rt2x00dev, PBF_SYS_CTRL,
 				      reg & ~0x00002000);
-	} else if (rt2x00_intf_is_pci(rt2x00dev))
+	} else if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev))
 		rt2800_register_write(rt2x00dev, PWR_PIN_CFG, 0x00000003);
 
 	rt2800_register_read(rt2x00dev, MAC_SYS_CTRL, &reg);
@@ -1136,7 +1142,7 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, MAC_SYS_CTRL_RESET_BBP, 1);
 	rt2800_register_write(rt2x00dev, MAC_SYS_CTRL, reg);
 
-	if (rt2x00_intf_is_usb(rt2x00dev)) {
+	if (rt2x00_is_usb(rt2x00dev)) {
 		rt2800_register_write(rt2x00dev, USB_DMA_CFG, 0x00000000);
 #if defined(CONFIG_RT2X00_LIB_USB) || defined(CONFIG_RT2X00_LIB_USB_MODULE)
 		rt2x00usb_vendor_request_sw(rt2x00dev, USB_DEVICE_MODE, 0,
@@ -1174,8 +1180,9 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, BCN_TIME_CFG_TX_TIME_COMPENSATE, 0);
 	rt2800_register_write(rt2x00dev, BCN_TIME_CFG, reg);
 
-	if (rt2x00_intf_is_usb(rt2x00dev) &&
-	    rt2x00_rev(rt2x00dev) == RT3070_VERSION) {
+	if (rt2x00_is_usb(rt2x00dev) &&
+	    rt2x00_rt(rt2x00dev, RT3070) &&
+	    (rt2x00_rev(rt2x00dev) == RT3070_VERSION)) {
 		rt2800_register_write(rt2x00dev, TX_SW_CFG0, 0x00000400);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG1, 0x00000000);
 		rt2800_register_write(rt2x00dev, TX_SW_CFG2, 0x00000000);
@@ -1202,8 +1209,14 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 
 	rt2800_register_read(rt2x00dev, MAX_LEN_CFG, &reg);
 	rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_MPDU, AGGREGATION_SIZE);
-	if (rt2x00_rev(rt2x00dev) >= RT2880E_VERSION &&
-	    rt2x00_rev(rt2x00dev) < RT3070_VERSION)
+	if ((rt2x00_rt(rt2x00dev, RT2872) &&
+	     (rt2x00_rev(rt2x00dev) >= RT2880E_VERSION)) ||
+	    rt2x00_rt(rt2x00dev, RT2880) ||
+	    rt2x00_rt(rt2x00dev, RT2883) ||
+	    rt2x00_rt(rt2x00dev, RT2890) ||
+	    rt2x00_rt(rt2x00dev, RT3052) ||
+	    (rt2x00_rt(rt2x00dev, RT3070) &&
+	     (rt2x00_rev(rt2x00dev) < RT3070_VERSION)))
 		rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_PSDU, 2);
 	else
 		rt2x00_set_field32(&reg, MAX_LEN_CFG_MAX_PSDU, 1);
@@ -1293,7 +1306,7 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field32(&reg, GF40_PROT_CFG_TX_OP_ALLOW_GF40, 1);
 	rt2800_register_write(rt2x00dev, GF40_PROT_CFG, reg);
 
-	if (rt2x00_intf_is_usb(rt2x00dev)) {
+	if (rt2x00_is_usb(rt2x00dev)) {
 		rt2800_register_write(rt2x00dev, PBF_CFG, 0xf40006);
 
 		rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
@@ -1353,7 +1366,7 @@ int rt2800_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, HW_BEACON_BASE6, 0);
 	rt2800_register_write(rt2x00dev, HW_BEACON_BASE7, 0);
 
-	if (rt2x00_intf_is_usb(rt2x00dev)) {
+	if (rt2x00_is_usb(rt2x00dev)) {
 		rt2800_register_read(rt2x00dev, USB_CYC_CFG, &reg);
 		rt2x00_set_field32(&reg, USB_CYC_CFG_CLOCK_CYCLE, 30);
 		rt2800_register_write(rt2x00dev, USB_CYC_CFG, reg);
@@ -1482,16 +1495,19 @@ int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev)
 	rt2800_bbp_write(rt2x00dev, 103, 0x00);
 	rt2800_bbp_write(rt2x00dev, 105, 0x05);
 
-	if (rt2x00_rev(rt2x00dev) == RT2860C_VERSION) {
+	if (rt2x00_rt(rt2x00dev, RT2860) &&
+	    (rt2x00_rev(rt2x00dev) == RT2860C_VERSION)) {
 		rt2800_bbp_write(rt2x00dev, 69, 0x16);
 		rt2800_bbp_write(rt2x00dev, 73, 0x12);
 	}
 
-	if (rt2x00_rev(rt2x00dev) > RT2860D_VERSION)
+	if (rt2x00_rt(rt2x00dev, RT2860) &&
+	    (rt2x00_rev(rt2x00dev) > RT2860D_VERSION))
 		rt2800_bbp_write(rt2x00dev, 84, 0x19);
 
-	if (rt2x00_intf_is_usb(rt2x00dev) &&
-	    rt2x00_rev(rt2x00dev) == RT3070_VERSION) {
+	if (rt2x00_is_usb(rt2x00dev) &&
+	    rt2x00_rt(rt2x00dev, RT3070) &&
+	    (rt2x00_rev(rt2x00dev) == RT3070_VERSION)) {
 		rt2800_bbp_write(rt2x00dev, 70, 0x0a);
 		rt2800_bbp_write(rt2x00dev, 84, 0x99);
 		rt2800_bbp_write(rt2x00dev, 105, 0x05);
@@ -1582,11 +1598,12 @@ int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	u8 rfcsr;
 	u8 bbp;
 
-	if (rt2x00_intf_is_usb(rt2x00dev) &&
-	    rt2x00_rev(rt2x00dev) != RT3070_VERSION)
+	if (rt2x00_is_usb(rt2x00dev) &&
+	    rt2x00_rt(rt2x00dev, RT3070) &&
+	    (rt2x00_rev(rt2x00dev) != RT3070_VERSION))
 		return 0;
 
-	if (rt2x00_intf_is_pci(rt2x00dev)) {
+	if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev)) {
 		if (!rt2x00_rf(rt2x00dev, RF3020) &&
 		    !rt2x00_rf(rt2x00dev, RF3021) &&
 		    !rt2x00_rf(rt2x00dev, RF3022))
@@ -1603,7 +1620,7 @@ int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field8(&rfcsr, RFCSR30_RF_CALIBRATION, 0);
 	rt2800_rfcsr_write(rt2x00dev, 30, rfcsr);
 
-	if (rt2x00_intf_is_usb(rt2x00dev)) {
+	if (rt2x00_is_usb(rt2x00dev)) {
 		rt2800_rfcsr_write(rt2x00dev, 4, 0x40);
 		rt2800_rfcsr_write(rt2x00dev, 5, 0x03);
 		rt2800_rfcsr_write(rt2x00dev, 6, 0x02);
@@ -1624,7 +1641,7 @@ int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev)
 		rt2800_rfcsr_write(rt2x00dev, 25, 0x01);
 		rt2800_rfcsr_write(rt2x00dev, 27, 0x03);
 		rt2800_rfcsr_write(rt2x00dev, 29, 0x1f);
-	} else if (rt2x00_intf_is_pci(rt2x00dev)) {
+	} else if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev)) {
 		rt2800_rfcsr_write(rt2x00dev, 0, 0x50);
 		rt2800_rfcsr_write(rt2x00dev, 1, 0x01);
 		rt2800_rfcsr_write(rt2x00dev, 2, 0xf7);
@@ -1754,7 +1771,12 @@ int rt2800_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 		rt2x00_set_field16(&word, EEPROM_ANTENNA_RF_TYPE, RF2820);
 		rt2x00_eeprom_write(rt2x00dev, EEPROM_ANTENNA, word);
 		EEPROM(rt2x00dev, "Antenna: 0x%04x\n", word);
-	} else if (rt2x00_rev(rt2x00dev) < RT2883_VERSION) {
+	} else if (rt2x00_rt(rt2x00dev, RT2860) ||
+		   rt2x00_rt(rt2x00dev, RT2870) ||
+		   rt2x00_rt(rt2x00dev, RT2872) ||
+		   rt2x00_rt(rt2x00dev, RT2880) ||
+		   (rt2x00_rt(rt2x00dev, RT2883) &&
+		    (rt2x00_rev(rt2x00dev) < RT2883_VERSION))) {
 		/*
 		 * There is a max of 2 RX streams for RT28x0 series
 		 */
@@ -1853,25 +1875,24 @@ int rt2800_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2800_register_read(rt2x00dev, MAC_CSR0, &reg);
 
-	rt2x00_set_chip_rf(rt2x00dev, value, reg);
+	rt2x00_set_chip(rt2x00dev, rt2x00_get_field32(reg, MAC_CSR0_CHIPSET),
+			value, rt2x00_get_field32(reg, MAC_CSR0_REVISION));
 
-	if (rt2x00_intf_is_usb(rt2x00dev)) {
-		/*
-		 * The check for rt2860 is not a typo, some rt2870 hardware
-		 * identifies itself as rt2860 in the CSR register.
-		 */
-		if (rt2x00_check_rev(rt2x00dev, 0xfff00000, 0x28600000) ||
-		    rt2x00_check_rev(rt2x00dev, 0xfff00000, 0x28700000) ||
-		    rt2x00_check_rev(rt2x00dev, 0xfff00000, 0x28800000)) {
-			rt2x00_set_chip_rt(rt2x00dev, RT2870);
-		} else if (rt2x00_check_rev(rt2x00dev, 0xffff0000, 0x30700000)) {
-			rt2x00_set_chip_rt(rt2x00dev, RT3070);
-		} else {
-			ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
-			return -ENODEV;
-		}
+	if (!rt2x00_rt(rt2x00dev, RT2860) &&
+	    !rt2x00_rt(rt2x00dev, RT2870) &&
+	    !rt2x00_rt(rt2x00dev, RT2872) &&
+	    !rt2x00_rt(rt2x00dev, RT2880) &&
+	    !rt2x00_rt(rt2x00dev, RT2883) &&
+	    !rt2x00_rt(rt2x00dev, RT2890) &&
+	    !rt2x00_rt(rt2x00dev, RT3052) &&
+	    !rt2x00_rt(rt2x00dev, RT3070) &&
+	    !rt2x00_rt(rt2x00dev, RT3071) &&
+	    !rt2x00_rt(rt2x00dev, RT3090) &&
+	    !rt2x00_rt(rt2x00dev, RT3390) &&
+	    !rt2x00_rt(rt2x00dev, RT3572)) {
+		ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
+		return -ENODEV;
 	}
-	rt2x00_print_chip(rt2x00dev);
 
 	if (!rt2x00_rf(rt2x00dev, RF2820) &&
 	    !rt2x00_rf(rt2x00dev, RF2850) &&
@@ -2039,7 +2060,7 @@ int rt2800_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Disable powersaving as default on PCI devices.
 	 */
-	if (rt2x00_intf_is_pci(rt2x00dev))
+	if (rt2x00_is_pci(rt2x00dev) || rt2x00_is_soc(rt2x00dev))
 		rt2x00dev->hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 
 	/*

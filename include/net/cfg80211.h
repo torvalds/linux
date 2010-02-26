@@ -3,7 +3,7 @@
 /*
  * 802.11 device and configuration interface
  *
- * Copyright 2006-2009	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2010	Johannes Berg <johannes@sipsolutions.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -998,6 +998,7 @@ struct cfg80211_pmksa {
  * @cancel_remain_on_channel: Cancel an on-going remain-on-channel operation.
  *	This allows the operation to be terminated prior to timeout based on
  *	the duration value.
+ * @action: Transmit an action frame
  *
  * @testmode_cmd: run a test mode command
  *
@@ -1144,7 +1145,11 @@ struct cfg80211_ops {
 					    struct net_device *dev,
 					    u64 cookie);
 
-	/* some temporary stuff to finish wext */
+	int	(*action)(struct wiphy *wiphy, struct net_device *dev,
+			  struct ieee80211_channel *chan,
+			  enum nl80211_channel_type channel_type,
+			  const u8 *buf, size_t len, u64 *cookie);
+
 	int	(*set_power_mgmt)(struct wiphy *wiphy, struct net_device *dev,
 				  bool enabled, int timeout);
 };
@@ -1445,6 +1450,8 @@ struct cfg80211_cached_keys;
  *	set by driver (if supported) on add_interface BEFORE registering the
  *	netdev and may otherwise be used by driver read-only, will be update
  *	by cfg80211 on change_interface
+ * @action_registrations: list of registrations for action frames
+ * @action_registrations_lock: lock for the list
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
@@ -1453,6 +1460,9 @@ struct wireless_dev {
 	/* the remainder of this struct should be private to cfg80211 */
 	struct list_head list;
 	struct net_device *netdev;
+
+	struct list_head action_registrations;
+	spinlock_t action_registrations_lock;
 
 	struct mutex mtx;
 
@@ -1478,6 +1488,9 @@ struct wireless_dev {
 	struct cfg80211_internal_bss *auth_bsses[MAX_AUTH_BSSES];
 	struct cfg80211_internal_bss *current_bss; /* associated / joined */
 
+	bool ps;
+	int ps_timeout;
+
 #ifdef CONFIG_CFG80211_WEXT
 	/* wext data */
 	struct {
@@ -1489,8 +1502,7 @@ struct wireless_dev {
 		u8 bssid[ETH_ALEN], prev_bssid[ETH_ALEN];
 		u8 ssid[IEEE80211_MAX_SSID_LEN];
 		s8 default_key, default_mgmt_key;
-		bool ps, prev_bssid_valid;
-		int ps_timeout;
+		bool prev_bssid_valid;
 	} wext;
 #endif
 };
@@ -2290,5 +2302,39 @@ void cfg80211_remain_on_channel_expired(struct net_device *dev,
  */
 void cfg80211_new_sta(struct net_device *dev, const u8 *mac_addr,
 		      struct station_info *sinfo, gfp_t gfp);
+
+/**
+ * cfg80211_rx_action - notification of received, unprocessed Action frame
+ * @dev: network device
+ * @freq: Frequency on which the frame was received in MHz
+ * @buf: Action frame (header + body)
+ * @len: length of the frame data
+ * @gfp: context flags
+ * Returns %true if a user space application is responsible for rejecting the
+ *	unrecognized Action frame; %false if no such application is registered
+ *	(i.e., the driver is responsible for rejecting the unrecognized Action
+ *	frame)
+ *
+ * This function is called whenever an Action frame is received for a station
+ * mode interface, but is not processed in kernel.
+ */
+bool cfg80211_rx_action(struct net_device *dev, int freq, const u8 *buf,
+			size_t len, gfp_t gfp);
+
+/**
+ * cfg80211_action_tx_status - notification of TX status for Action frame
+ * @dev: network device
+ * @cookie: Cookie returned by cfg80211_ops::action()
+ * @buf: Action frame (header + body)
+ * @len: length of the frame data
+ * @ack: Whether frame was acknowledged
+ * @gfp: context flags
+ *
+ * This function is called whenever an Action frame was requested to be
+ * transmitted with cfg80211_ops::action() to report the TX status of the
+ * transmission attempt.
+ */
+void cfg80211_action_tx_status(struct net_device *dev, u64 cookie,
+			       const u8 *buf, size_t len, bool ack, gfp_t gfp);
 
 #endif /* __NET_CFG80211_H */

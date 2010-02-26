@@ -1041,18 +1041,12 @@ static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Read EEPROM into buffer
 	 */
-	switch (rt2x00dev->chip.rt) {
-	case RT2880:
-	case RT3052:
+	if (rt2x00_is_soc(rt2x00dev))
 		rt2800pci_read_eeprom_soc(rt2x00dev);
-		break;
-	default:
-		if (rt2800pci_efuse_detect(rt2x00dev))
-			rt2800pci_read_eeprom_efuse(rt2x00dev);
-		else
-			rt2800pci_read_eeprom_pci(rt2x00dev);
-		break;
-	}
+	else if (rt2800pci_efuse_detect(rt2x00dev))
+		rt2800pci_read_eeprom_efuse(rt2x00dev);
+	else
+		rt2800pci_read_eeprom_pci(rt2x00dev);
 
 	return rt2800_validate_eeprom(rt2x00dev);
 }
@@ -1103,7 +1097,7 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * This device requires firmware.
 	 */
-	if (!rt2x00_rt(rt2x00dev, RT2880) && !rt2x00_rt(rt2x00dev, RT3052))
+	if (!rt2x00_is_soc(rt2x00dev))
 		__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags);
@@ -1191,7 +1185,10 @@ static const struct rt2x00_ops rt2800pci_ops = {
  * RT2800pci module information.
  */
 static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
-	{ PCI_DEVICE(0x1462, 0x891a), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x0601), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x0681), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x0701), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x0781), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7708), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7727), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7728), PCI_DEVICE_DATA(&rt2800pci_ops) },
@@ -1199,18 +1196,19 @@ static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
 	{ PCI_DEVICE(0x1432, 0x7748), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7758), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7768), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x0601), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x0681), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x0701), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x0781), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x3060), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x3062), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1a3b, 0x1059), PCI_DEVICE_DATA(&rt2800pci_ops) },
+#ifdef CONFIG_RT2800PCI_RT30XX
 	{ PCI_DEVICE(0x1814, 0x3090), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3091), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3092), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1462, 0x891a), PCI_DEVICE_DATA(&rt2800pci_ops) },
+#endif
+#ifdef CONFIG_RT2800PCI_RT35XX
+	{ PCI_DEVICE(0x1814, 0x3060), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x3062), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3562), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3592), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1a3b, 0x1059), PCI_DEVICE_DATA(&rt2800pci_ops) },
+#endif
 	{ 0, }
 };
 
@@ -1225,11 +1223,10 @@ MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
 MODULE_LICENSE("GPL");
 
 #ifdef CONFIG_RT2800PCI_SOC
-#if defined(CONFIG_RALINK_RT288X)
-__rt2x00soc_probe(RT2880, &rt2800pci_ops);
-#elif defined(CONFIG_RALINK_RT305X)
-__rt2x00soc_probe(RT3052, &rt2800pci_ops);
-#endif
+static int rt2800soc_probe(struct platform_device *pdev)
+{
+	return rt2x00soc_probe(pdev, rt2800pci_ops);
+}
 
 static struct platform_driver rt2800soc_driver = {
 	.driver		= {
@@ -1237,7 +1234,7 @@ static struct platform_driver rt2800soc_driver = {
 		.owner		= THIS_MODULE,
 		.mod_name	= KBUILD_MODNAME,
 	},
-	.probe		= __rt2x00soc_probe,
+	.probe		= rt2800soc_probe,
 	.remove		= __devexit_p(rt2x00soc_remove),
 	.suspend	= rt2x00soc_suspend,
 	.resume		= rt2x00soc_resume,

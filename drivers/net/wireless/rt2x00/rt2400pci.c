@@ -1340,8 +1340,8 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2x00pci_register_read(rt2x00dev, CSR0, &reg);
-	rt2x00_set_chip_rf(rt2x00dev, value, reg);
-	rt2x00_print_chip(rt2x00dev);
+	rt2x00_set_chip(rt2x00dev, RT2460, value,
+			rt2x00_get_field32(reg, CSR0_REVISION));
 
 	if (!rt2x00_rf(rt2x00dev, RF2420) && !rt2x00_rf(rt2x00dev, RF2421)) {
 		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");

@@ -3,7 +3,7 @@
  *
  * Copyright 2002-2005, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
- * Copyright 2007-2008	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -264,6 +264,9 @@ struct ieee80211_bss_conf {
  *	be modified again (no seqno assignment, crypto, etc.)
  * @IEEE80211_TX_INTFL_HAS_RADIOTAP: This frame was injected and still
  *	has a radiotap header at skb->data.
+ * @IEEE80211_TX_INTFL_NL80211_FRAME_TX: Frame was requested through nl80211
+ *	MLME command (internal to mac80211 to figure out whether to send TX
+ *	status to user space)
  */
 enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_REQ_TX_STATUS		= BIT(0),
@@ -286,6 +289,7 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_CTL_MORE_FRAMES		= BIT(18),
 	IEEE80211_TX_INTFL_RETRANSMISSION	= BIT(19),
 	IEEE80211_TX_INTFL_HAS_RADIOTAP		= BIT(20),
+	IEEE80211_TX_INTFL_NL80211_FRAME_TX	= BIT(21),
 };
 
 /**

@@ -530,8 +530,6 @@ static ssize_t iwl_dbgfs_status_read(struct file *file,
 
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_HCMD_ACTIVE:\t %d\n",
 		test_bit(STATUS_HCMD_ACTIVE, &priv->status));
-	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_HCMD_SYNC_ACTIVE: %d\n",
-		test_bit(STATUS_HCMD_SYNC_ACTIVE, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_INT_ENABLED:\t %d\n",
 		test_bit(STATUS_INT_ENABLED, &priv->status));
 	pos += scnprintf(buf + pos, bufsz - pos, "STATUS_RF_KILL_HW:\t %d\n",
@@ -2223,6 +2221,62 @@ static ssize_t iwl_dbgfs_plcp_delta_write(struct file *file,
 	return count;
 }
 
+static ssize_t iwl_dbgfs_force_reset_read(struct file *file,
+					char __user *user_buf,
+					size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = file->private_data;
+	int i, pos = 0;
+	char buf[300];
+	const size_t bufsz = sizeof(buf);
+	struct iwl_force_reset *force_reset;
+
+	for (i = 0; i < IWL_MAX_FORCE_RESET; i++) {
+		force_reset = &priv->force_reset[i];
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"Force reset method %d\n", i);
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"\tnumber of reset request: %d\n",
+				force_reset->reset_request_count);
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"\tnumber of reset request success: %d\n",
+				force_reset->reset_success_count);
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"\tnumber of reset request reject: %d\n",
+				force_reset->reset_reject_count);
+		pos += scnprintf(buf + pos, bufsz - pos,
+				"\treset duration: %lu\n",
+				force_reset->reset_duration);
+	}
+	return simple_read_from_buffer(user_buf, count, ppos, buf, pos);
+}
+
+static ssize_t iwl_dbgfs_force_reset_write(struct file *file,
+					const char __user *user_buf,
+					size_t count, loff_t *ppos) {
+
+	struct iwl_priv *priv = file->private_data;
+	char buf[8];
+	int buf_size;
+	int reset, ret;
+
+	memset(buf, 0, sizeof(buf));
+	buf_size = min(count, sizeof(buf) -  1);
+	if (copy_from_user(buf, user_buf, buf_size))
+		return -EFAULT;
+	if (sscanf(buf, "%d", &reset) != 1)
+		return -EINVAL;
+	switch (reset) {
+	case IWL_RF_RESET:
+	case IWL_FW_RESET:
+		ret = iwl_force_reset(priv, reset);
+		break;
+	default:
+		return -EINVAL;
+	}
+	return ret ? ret : count;
+}
+
 DEBUGFS_READ_FILE_OPS(rx_statistics);
 DEBUGFS_READ_FILE_OPS(tx_statistics);
 DEBUGFS_READ_WRITE_FILE_OPS(traffic_log);
@@ -2243,6 +2297,7 @@ DEBUGFS_READ_FILE_OPS(fh_reg);
 DEBUGFS_READ_WRITE_FILE_OPS(missed_beacon);
 DEBUGFS_WRITE_FILE_OPS(internal_scan);
 DEBUGFS_READ_WRITE_FILE_OPS(plcp_delta);
+DEBUGFS_READ_WRITE_FILE_OPS(force_reset);
 
 /*
  * Create the debugfs files and directories
@@ -2296,6 +2351,7 @@ int iwl_dbgfs_register(struct iwl_priv *priv, const char *name)
 	DEBUGFS_ADD_FILE(missed_beacon, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(internal_scan, dir_debug, S_IWUSR);
 	DEBUGFS_ADD_FILE(plcp_delta, dir_debug, S_IWUSR | S_IRUSR);
+	DEBUGFS_ADD_FILE(force_reset, dir_debug, S_IWUSR | S_IRUSR);
 	if ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) != CSR_HW_REV_TYPE_3945) {
 		DEBUGFS_ADD_FILE(ucode_rx_stats, dir_debug, S_IRUSR);
 		DEBUGFS_ADD_FILE(ucode_tx_stats, dir_debug, S_IRUSR);

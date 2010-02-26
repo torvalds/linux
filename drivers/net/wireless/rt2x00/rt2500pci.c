@@ -1503,8 +1503,8 @@ static int rt2500pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2x00pci_register_read(rt2x00dev, CSR0, &reg);
-	rt2x00_set_chip_rf(rt2x00dev, value, reg);
-	rt2x00_print_chip(rt2x00dev);
+	rt2x00_set_chip(rt2x00dev, RT2560, value,
+			rt2x00_get_field32(reg, CSR0_REVISION));
 
 	if (!rt2x00_rf(rt2x00dev, RF2522) &&
 	    !rt2x00_rf(rt2x00dev, RF2523) &&

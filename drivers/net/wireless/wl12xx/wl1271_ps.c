@@ -24,6 +24,7 @@
 #include "wl1271_reg.h"
 #include "wl1271_ps.h"
 #include "wl1271_spi.h"
+#include "wl1271_io.h"
 
 #define WL1271_WAKEUP_TIMEOUT 500
 
@@ -118,7 +119,8 @@ out:
 	return 0;
 }
 
-int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode)
+int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode,
+		       bool send)
 {
 	int ret;
 
@@ -126,21 +128,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode)
 	case STATION_POWER_SAVE_MODE:
 		wl1271_debug(DEBUG_PSM, "entering psm");
 
-		/* enable beacon filtering */
-		ret = wl1271_acx_beacon_filter_opt(wl, true);
-		if (ret < 0)
-			return ret;
-
-		/* enable beacon early termination */
-		ret = wl1271_acx_bet_enable(wl, true);
-		if (ret < 0)
-			return ret;
-
-		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE);
-		if (ret < 0)
-			return ret;
-
-		wl1271_ps_elp_sleep(wl);
+		ret = wl1271_cmd_ps_mode(wl, STATION_POWER_SAVE_MODE, send);
 		if (ret < 0)
 			return ret;
 
@@ -163,7 +151,7 @@ int wl1271_ps_set_mode(struct wl1271 *wl, enum wl1271_cmd_ps_mode mode)
 		if (ret < 0)
 			return ret;
 
-		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE);
+		ret = wl1271_cmd_ps_mode(wl, STATION_ACTIVE_MODE, send);
 		if (ret < 0)
 			return ret;
 

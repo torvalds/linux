@@ -24,6 +24,7 @@
 #include "wl1271.h"
 #include "wl1271_reg.h"
 #include "wl1271_spi.h"
+#include "wl1271_io.h"
 #include "wl1271_event.h"
 #include "wl1271_ps.h"
 #include "wl12xx_80211.h"
@@ -78,24 +79,61 @@ static int wl1271_event_ps_report(struct wl1271 *wl,
 
 	switch (mbox->ps_status) {
 	case EVENT_ENTER_POWER_SAVE_FAIL:
+		wl1271_debug(DEBUG_PSM, "PSM entry failed");
+
 		if (!test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+			/* remain in active mode */
 			wl->psm_entry_retry = 0;
 			break;
 		}
 
 		if (wl->psm_entry_retry < wl->conf.conn.psm_entry_retries) {
 			wl->psm_entry_retry++;
-			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE);
+			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
+						 true);
 		} else {
 			wl1271_error("PSM entry failed, giving up.\n");
+			/* FIXME: this may need to be reconsidered. for now it
+			   is not possible to indicate to the mac80211
+			   afterwards that PSM entry failed. To maximize
+			   functionality (receiving data and remaining
+			   associated) make sure that we are in sync with the
+			   AP in regard of PSM mode. */
+			ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
+						 false);
 			wl->psm_entry_retry = 0;
 		}
 		break;
 	case EVENT_ENTER_POWER_SAVE_SUCCESS:
 		wl->psm_entry_retry = 0;
+
+		/* enable beacon filtering */
+		ret = wl1271_acx_beacon_filter_opt(wl, true);
+		if (ret < 0)
+			break;
+
+		/* enable beacon early termination */
+		ret = wl1271_acx_bet_enable(wl, true);
+		if (ret < 0)
+			break;
+
+		/* go to extremely low power mode */
+		wl1271_ps_elp_sleep(wl);
+		if (ret < 0)
+			break;
 		break;
 	case EVENT_EXIT_POWER_SAVE_FAIL:
-		wl1271_info("PSM exit failed");
+		wl1271_debug(DEBUG_PSM, "PSM exit failed");
+
+		if (test_bit(WL1271_FLAG_PSM, &wl->flags)) {
+			wl->psm_entry_retry = 0;
+			break;
+		}
+
+		/* make sure the firmware goes to active mode - the frame to
+		   be sent next will indicate to the AP, that we are active. */
+		ret = wl1271_ps_set_mode(wl, STATION_ACTIVE_MODE,
+					 false);
 		break;
 	case EVENT_EXIT_POWER_SAVE_SUCCESS:
 	default:
@@ -177,7 +215,7 @@ int wl1271_event_unmask(struct wl1271 *wl)
 
 void wl1271_event_mbox_config(struct wl1271 *wl)
 {
-	wl->mbox_ptr[0] = wl1271_spi_read32(wl, REG_EVENT_MAILBOX_PTR);
+	wl->mbox_ptr[0] = wl1271_read32(wl, REG_EVENT_MAILBOX_PTR);
 	wl->mbox_ptr[1] = wl->mbox_ptr[0] + sizeof(struct event_mailbox);
 
 	wl1271_debug(DEBUG_EVENT, "MBOX ptrs: 0x%x 0x%x",
@@ -195,8 +233,8 @@ int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num)
 		return -EINVAL;
 
 	/* first we read the mbox descriptor */
-	wl1271_spi_read(wl, wl->mbox_ptr[mbox_num], &mbox,
-			sizeof(struct event_mailbox), false);
+	wl1271_read(wl, wl->mbox_ptr[mbox_num], &mbox,
+		    sizeof(struct event_mailbox), false);
 
 	/* process the descriptor */
 	ret = wl1271_event_process(wl, &mbox);
@@ -204,7 +242,7 @@ int wl1271_event_handle(struct wl1271 *wl, u8 mbox_num)
 		return ret;
 
 	/* then we let the firmware know it can go on...*/
-	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_EVENT_ACK);
+	wl1271_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_EVENT_ACK);
 
 	return 0;
 }

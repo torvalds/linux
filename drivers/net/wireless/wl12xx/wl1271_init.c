@@ -49,7 +49,7 @@ static int wl1271_init_hwenc_config(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_init_templates_config(struct wl1271 *wl)
+int wl1271_init_templates_config(struct wl1271 *wl)
 {
 	int ret;
 
@@ -113,7 +113,7 @@ static int wl1271_init_rx_config(struct wl1271 *wl, u32 config, u32 filter)
 	return 0;
 }
 
-static int wl1271_init_phy_config(struct wl1271 *wl)
+int wl1271_init_phy_config(struct wl1271 *wl)
 {
 	int ret;
 
@@ -156,7 +156,7 @@ static int wl1271_init_beacon_filter(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_init_pta(struct wl1271 *wl)
+int wl1271_init_pta(struct wl1271 *wl)
 {
 	int ret;
 
@@ -171,7 +171,7 @@ static int wl1271_init_pta(struct wl1271 *wl)
 	return 0;
 }
 
-static int wl1271_init_energy_detection(struct wl1271 *wl)
+int wl1271_init_energy_detection(struct wl1271 *wl)
 {
 	int ret;
 
@@ -195,7 +195,9 @@ static int wl1271_init_beacon_broadcast(struct wl1271 *wl)
 
 int wl1271_hw_init(struct wl1271 *wl)
 {
-	int ret;
+	struct conf_tx_ac_category *conf_ac;
+	struct conf_tx_tid *conf_tid;
+	int ret, i;
 
 	ret = wl1271_cmd_general_parms(wl);
 	if (ret < 0)
@@ -274,14 +276,28 @@ int wl1271_hw_init(struct wl1271 *wl)
 		goto out_free_memmap;
 
 	/* Default TID configuration */
-	ret = wl1271_acx_tid_cfg(wl);
-	if (ret < 0)
-		goto out_free_memmap;
+	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
+		conf_tid = &wl->conf.tx.tid_conf[i];
+		ret = wl1271_acx_tid_cfg(wl, conf_tid->queue_id,
+					 conf_tid->channel_type,
+					 conf_tid->tsid,
+					 conf_tid->ps_scheme,
+					 conf_tid->ack_policy,
+					 conf_tid->apsd_conf[0],
+					 conf_tid->apsd_conf[1]);
+		if (ret < 0)
+			goto out_free_memmap;
+	}
 
 	/* Default AC configuration */
-	ret = wl1271_acx_ac_cfg(wl);
-	if (ret < 0)
-		goto out_free_memmap;
+	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
+		conf_ac = &wl->conf.tx.ac_conf[i];
+		ret = wl1271_acx_ac_cfg(wl, conf_ac->ac, conf_ac->cw_min,
+					conf_ac->cw_max, conf_ac->aifsn,
+					conf_ac->tx_op_limit);
+		if (ret < 0)
+			goto out_free_memmap;
+	}
 
 	/* Configure TX rate classes */
 	ret = wl1271_acx_rate_policies(wl);

@@ -201,7 +201,7 @@ typedef union _frameqos {
 static inline u8 Frame_QoSTID(u8 *buf)
 {
 	struct ieee80211_hdr_3addr *hdr = (struct ieee80211_hdr_3addr *)buf;
-	u16 fc = le16_to_cpu(hdr->frame_ctl);
+	u16 fc = le16_to_cpu(hdr->frame_control);
 
 	return (u8)((frameqos *)(buf +
 		(((fc & IEEE80211_FCTL_TODS) &&

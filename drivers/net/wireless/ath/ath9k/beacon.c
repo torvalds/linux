@@ -62,7 +62,7 @@ int ath_beaconq_config(struct ath_softc *sc)
  *  Beacons are always sent out at the lowest rate, and are not retried.
 */
 static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
-			     struct ath_buf *bf)
+			     struct ath_buf *bf, int rateidx)
 {
 	struct sk_buff *skb = bf->bf_mpdu;
 	struct ath_hw *ah = sc->sc_ah;
@@ -96,9 +96,9 @@ static void ath_beacon_setup(struct ath_softc *sc, struct ath_vif *avp,
 	ds->ds_data = bf->bf_buf_addr;
 
 	sband = &sc->sbands[common->hw->conf.channel->band];
-	rate = sband->bitrates[0].hw_value;
+	rate = sband->bitrates[rateidx].hw_value;
 	if (sc->sc_flags & SC_OP_PREAMBLE_SHORT)
-		rate |= sband->bitrates[0].hw_value_short;
+		rate |= sband->bitrates[rateidx].hw_value_short;
 
 	ath9k_hw_set11n_txdesc(ah, ds, skb->len + FCS_LEN,
 			       ATH9K_PKT_TYPE_BEACON,
@@ -206,7 +206,7 @@ static struct ath_buf *ath_beacon_generate(struct ieee80211_hw *hw,
 		}
 	}
 
-	ath_beacon_setup(sc, avp, bf);
+	ath_beacon_setup(sc, avp, bf, info->control.rates[0].idx);
 
 	while (skb) {
 		ath_tx_cabq(hw, skb);
@@ -237,7 +237,7 @@ static void ath_beacon_start_adhoc(struct ath_softc *sc,
 	bf = avp->av_bcbuf;
 	skb = bf->bf_mpdu;
 
-	ath_beacon_setup(sc, avp, bf);
+	ath_beacon_setup(sc, avp, bf, 0);
 
 	/* NB: caller is known to have already stopped tx dma */
 	ath9k_hw_puttxbuf(ah, sc->beacon.beaconq, bf->bf_daddr);
@@ -526,16 +526,13 @@ static void ath_beacon_config_ap(struct ath_softc *sc,
 {
 	u32 nexttbtt, intval;
 
-	/* Configure the timers only when the TSF has to be reset */
-
-	if (!(sc->sc_flags & SC_OP_TSF_RESET))
-		return;
-
 	/* NB: the beacon interval is kept internally in TU's */
 	intval = conf->beacon_interval & ATH9K_BEACON_PERIOD;
 	intval /= ATH_BCBUF;    /* for staggered beacons */
 	nexttbtt = intval;
-	intval |= ATH9K_BEACON_RESET_TSF;
+
+	if (sc->sc_flags & SC_OP_TSF_RESET)
+		intval |= ATH9K_BEACON_RESET_TSF;
 
 	/*
 	 * In AP mode we enable the beacon timers and SWBA interrupts to

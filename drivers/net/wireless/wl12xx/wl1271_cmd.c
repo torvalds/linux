@@ -30,6 +30,7 @@
 #include "wl1271.h"
 #include "wl1271_reg.h"
 #include "wl1271_spi.h"
+#include "wl1271_io.h"
 #include "wl1271_acx.h"
 #include "wl12xx_80211.h"
 #include "wl1271_cmd.h"
@@ -57,13 +58,13 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 
 	WARN_ON(len % 4 != 0);
 
-	wl1271_spi_write(wl, wl->cmd_box_addr, buf, len, false);
+	wl1271_write(wl, wl->cmd_box_addr, buf, len, false);
 
-	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
+	wl1271_write32(wl, ACX_REG_INTERRUPT_TRIG, INTR_TRIG_CMD);
 
 	timeout = jiffies + msecs_to_jiffies(WL1271_COMMAND_TIMEOUT);
 
-	intr = wl1271_spi_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+	intr = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 	while (!(intr & WL1271_ACX_INTR_CMD_COMPLETE)) {
 		if (time_after(jiffies, timeout)) {
 			wl1271_error("command complete timeout");
@@ -73,13 +74,13 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 
 		msleep(1);
 
-		intr = wl1271_spi_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
+		intr = wl1271_read32(wl, ACX_REG_INTERRUPT_NO_CLEAR);
 	}
 
 	/* read back the status code of the command */
 	if (res_len == 0)
 		res_len = sizeof(struct wl1271_cmd_header);
-	wl1271_spi_read(wl, wl->cmd_box_addr, cmd, res_len, false);
+	wl1271_read(wl, wl->cmd_box_addr, cmd, res_len, false);
 
 	status = le16_to_cpu(cmd->status);
 	if (status != CMD_STATUS_SUCCESS) {
@@ -87,8 +88,8 @@ int wl1271_cmd_send(struct wl1271 *wl, u16 id, void *buf, size_t len,
 		ret = -EIO;
 	}
 
-	wl1271_spi_write32(wl, ACX_REG_INTERRUPT_ACK,
-			   WL1271_ACX_INTR_CMD_COMPLETE);
+	wl1271_write32(wl, ACX_REG_INTERRUPT_ACK,
+		       WL1271_ACX_INTR_CMD_COMPLETE);
 
 out:
 	return ret;
@@ -191,8 +192,10 @@ static int wl1271_cmd_cal(struct wl1271 *wl)
 int wl1271_cmd_general_parms(struct wl1271 *wl)
 {
 	struct wl1271_general_parms_cmd *gen_parms;
-	struct conf_general_parms *g = &wl->conf.init.genparam;
 	int ret;
+
+	if (!wl->nvs)
+		return -ENODEV;
 
 	gen_parms = kzalloc(sizeof(*gen_parms), GFP_KERNEL);
 	if (!gen_parms)
@@ -200,34 +203,8 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 
 	gen_parms->test.id = TEST_CMD_INI_FILE_GENERAL_PARAM;
 
-	gen_parms->ref_clk = g->ref_clk;
-	gen_parms->settling_time = g->settling_time;
-	gen_parms->clk_valid_on_wakeup = g->clk_valid_on_wakeup;
-	gen_parms->dc2dcmode = g->dc2dcmode;
-	gen_parms->single_dual_band = g->single_dual_band;
-	gen_parms->tx_bip_fem_autodetect = g->tx_bip_fem_autodetect;
-	gen_parms->tx_bip_fem_manufacturer = g->tx_bip_fem_manufacturer;
-	gen_parms->settings = g->settings;
-
-	gen_parms->sr_state = g->sr_state;
-
-	memcpy(gen_parms->srf1,
-	       g->srf1,
-	       CONF_MAX_SMART_REFLEX_PARAMS);
-	memcpy(gen_parms->srf2,
-	       g->srf2,
-	       CONF_MAX_SMART_REFLEX_PARAMS);
-	memcpy(gen_parms->srf3,
-	       g->srf3,
-	       CONF_MAX_SMART_REFLEX_PARAMS);
-	memcpy(gen_parms->sr_debug_table,
-	       g->sr_debug_table,
-	       CONF_MAX_SMART_REFLEX_PARAMS);
-
-	gen_parms->sr_sen_n_p = g->sr_sen_n_p;
-	gen_parms->sr_sen_n_p_gain = g->sr_sen_n_p_gain;
-	gen_parms->sr_sen_nrn = g->sr_sen_nrn;
-	gen_parms->sr_sen_prn = g->sr_sen_prn;
+	memcpy(gen_parms->params, wl->nvs->general_params,
+	       WL1271_NVS_GENERAL_PARAMS_SIZE);
 
 	ret = wl1271_cmd_test(wl, gen_parms, sizeof(*gen_parms), 0);
 	if (ret < 0)
@@ -240,8 +217,11 @@ int wl1271_cmd_general_parms(struct wl1271 *wl)
 int wl1271_cmd_radio_parms(struct wl1271 *wl)
 {
 	struct wl1271_radio_parms_cmd *radio_parms;
-	struct conf_radio_parms *r = &wl->conf.init.radioparam;
-	int i, ret;
+	struct conf_radio_parms *rparam = &wl->conf.init.radioparam;
+	int ret;
+
+	if (!wl->nvs)
+		return -ENODEV;
 
 	radio_parms = kzalloc(sizeof(*radio_parms), GFP_KERNEL);
 	if (!radio_parms)
@@ -249,73 +229,13 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 
 	radio_parms->test.id = TEST_CMD_INI_FILE_RADIO_PARAM;
 
-	/* Static radio parameters */
-	radio_parms->rx_trace_loss = r->rx_trace_loss;
-	radio_parms->tx_trace_loss = r->tx_trace_loss;
-	memcpy(radio_parms->rx_rssi_and_proc_compens,
-	       r->rx_rssi_and_proc_compens,
-	       CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE);
+	memcpy(radio_parms->stat_radio_params, wl->nvs->stat_radio_params,
+	       WL1271_NVS_STAT_RADIO_PARAMS_SIZE);
+	memcpy(radio_parms->dyn_radio_params,
+	       wl->nvs->dyn_radio_params[rparam->fem],
+	       WL1271_NVS_DYN_RADIO_PARAMS_SIZE);
 
-	memcpy(radio_parms->rx_trace_loss_5, r->rx_trace_loss_5,
-	       CONF_NUMBER_OF_SUB_BANDS_5);
-	memcpy(radio_parms->tx_trace_loss_5, r->tx_trace_loss_5,
-	       CONF_NUMBER_OF_SUB_BANDS_5);
-	memcpy(radio_parms->rx_rssi_and_proc_compens_5,
-	       r->rx_rssi_and_proc_compens_5,
-	       CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE);
-
-	/* Dynamic radio parameters */
-	radio_parms->tx_ref_pd_voltage = cpu_to_le16(r->tx_ref_pd_voltage);
-	radio_parms->tx_ref_power = r->tx_ref_power;
-	radio_parms->tx_offset_db = r->tx_offset_db;
-
-	memcpy(radio_parms->tx_rate_limits_normal, r->tx_rate_limits_normal,
-	       CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_rate_limits_degraded, r->tx_rate_limits_degraded,
-	       CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_rate_limits_extreme, r->tx_rate_limits_extreme,
-	       CONF_NUMBER_OF_RATE_GROUPS);
-
-	memcpy(radio_parms->tx_channel_limits_11b, r->tx_channel_limits_11b,
-	       CONF_NUMBER_OF_CHANNELS_2_4);
-	memcpy(radio_parms->tx_channel_limits_ofdm, r->tx_channel_limits_ofdm,
-	       CONF_NUMBER_OF_CHANNELS_2_4);
-	memcpy(radio_parms->tx_pdv_rate_offsets, r->tx_pdv_rate_offsets,
-	       CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_ibias, r->tx_ibias, CONF_NUMBER_OF_RATE_GROUPS);
-
-	radio_parms->rx_fem_insertion_loss = r->rx_fem_insertion_loss;
-	radio_parms->degraded_low_to_normal_threshold =
-		r->degraded_low_to_normal_threshold;
-	radio_parms->degraded_normal_to_high_threshold =
-		r->degraded_normal_to_high_threshold;
-
-
-	for (i = 0; i < CONF_NUMBER_OF_SUB_BANDS_5; i++)
-		radio_parms->tx_ref_pd_voltage_5[i] =
-			cpu_to_le16(r->tx_ref_pd_voltage_5[i]);
-	memcpy(radio_parms->tx_ref_power_5, r->tx_ref_power_5,
-	       CONF_NUMBER_OF_SUB_BANDS_5);
-	memcpy(radio_parms->tx_offset_db_5, r->tx_offset_db_5,
-	       CONF_NUMBER_OF_SUB_BANDS_5);
-	memcpy(radio_parms->tx_rate_limits_normal_5,
-	       r->tx_rate_limits_normal_5, CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_rate_limits_degraded_5,
-	       r->tx_rate_limits_degraded_5, CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_rate_limits_extreme_5,
-	       r->tx_rate_limits_extreme_5, CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_channel_limits_ofdm_5,
-	       r->tx_channel_limits_ofdm_5, CONF_NUMBER_OF_CHANNELS_5);
-	memcpy(radio_parms->tx_pdv_rate_offsets_5, r->tx_pdv_rate_offsets_5,
-	       CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->tx_ibias_5, r->tx_ibias_5,
-	       CONF_NUMBER_OF_RATE_GROUPS);
-	memcpy(radio_parms->rx_fem_insertion_loss_5,
-	       r->rx_fem_insertion_loss_5, CONF_NUMBER_OF_SUB_BANDS_5);
-	radio_parms->degraded_low_to_normal_threshold_5 =
-		r->degraded_low_to_normal_threshold_5;
-	radio_parms->degraded_normal_to_high_threshold_5 =
-		r->degraded_normal_to_high_threshold_5;
+	/* FIXME: current NVS is missing 5GHz parameters */
 
 	wl1271_dump(DEBUG_CMD, "TEST_CMD_INI_FILE_RADIO_PARAM: ",
 		    radio_parms, sizeof(*radio_parms));
@@ -555,7 +475,7 @@ out:
 	return ret;
 }
 
-int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode)
+int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode, bool send)
 {
 	struct wl1271_cmd_ps_params *ps_params = NULL;
 	int ret = 0;
@@ -576,7 +496,7 @@ int wl1271_cmd_ps_mode(struct wl1271 *wl, u8 ps_mode)
 	}
 
 	ps_params->ps_mode = ps_mode;
-	ps_params->send_null_data = 1;
+	ps_params->send_null_data = send;
 	ps_params->retries = 5;
 	ps_params->hang_over_period = 128;
 	ps_params->null_data_rate = cpu_to_le32(1); /* 1 Mbps */
@@ -1022,7 +942,7 @@ int wl1271_cmd_set_key(struct wl1271 *wl, u16 action, u8 id, u8 key_type,
 	ret = wl1271_cmd_send(wl, CMD_SET_KEYS, cmd, sizeof(*cmd), 0);
 	if (ret < 0) {
 		wl1271_warning("could not set keys");
-		goto out;
+	goto out;
 	}
 
 out:

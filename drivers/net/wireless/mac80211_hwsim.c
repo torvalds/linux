@@ -771,22 +771,40 @@ static void mac80211_hwsim_bss_info_changed(struct ieee80211_hw *hw,
 	}
 }
 
+static int mac80211_hwsim_sta_add(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_sta *sta)
+{
+	hwsim_check_magic(vif);
+	hwsim_set_sta_magic(sta);
+
+	return 0;
+}
+
+static int mac80211_hwsim_sta_remove(struct ieee80211_hw *hw,
+				     struct ieee80211_vif *vif,
+				     struct ieee80211_sta *sta)
+{
+	hwsim_check_magic(vif);
+	hwsim_clear_sta_magic(sta);
+
+	return 0;
+}
+
 static void mac80211_hwsim_sta_notify(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      enum sta_notify_cmd cmd,
 				      struct ieee80211_sta *sta)
 {
 	hwsim_check_magic(vif);
+
 	switch (cmd) {
-	case STA_NOTIFY_ADD:
-		hwsim_set_sta_magic(sta);
-		break;
-	case STA_NOTIFY_REMOVE:
-		hwsim_clear_sta_magic(sta);
-		break;
 	case STA_NOTIFY_SLEEP:
 	case STA_NOTIFY_AWAKE:
 		/* TODO: make good use of these flags */
+		break;
+	default:
+		WARN(1, "Invalid sta notify: %d\n", cmd);
 		break;
 	}
 }
@@ -958,6 +976,8 @@ static struct ieee80211_ops mac80211_hwsim_ops =
 	.config = mac80211_hwsim_config,
 	.configure_filter = mac80211_hwsim_configure_filter,
 	.bss_info_changed = mac80211_hwsim_bss_info_changed,
+	.sta_add = mac80211_hwsim_sta_add,
+	.sta_remove = mac80211_hwsim_sta_remove,
 	.sta_notify = mac80211_hwsim_sta_notify,
 	.set_tim = mac80211_hwsim_set_tim,
 	.conf_tx = mac80211_hwsim_conf_tx,

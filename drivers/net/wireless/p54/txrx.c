@@ -186,7 +186,7 @@ static int p54_tx_qos_accounting_alloc(struct p54_common *priv,
 	struct p54_tx_queue_stats *queue;
 	unsigned long flags;
 
-	if (WARN_ON(p54_queue > P54_QUEUE_NUM))
+	if (WARN_ON(p54_queue >= P54_QUEUE_NUM))
 		return -EINVAL;
 
 	queue = &priv->tx_stats[p54_queue];

@@ -272,7 +272,6 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	struct ieee80211_hw *hw;
 	struct rt2x00_dev *rt2x00dev;
 	int retval;
-	u16 chip;
 
 	retval = pci_request_regions(pci_dev, pci_name(pci_dev));
 	if (retval) {
@@ -314,12 +313,6 @@ int rt2x00pci_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 	rt2x00dev->name = pci_name(pci_dev);
 
 	rt2x00_set_chip_intf(rt2x00dev, RT2X00_CHIP_INTF_PCI);
-
-	/*
-	 * Determine RT chipset by reading PCI header.
-	 */
-	pci_read_config_word(pci_dev, PCI_DEVICE_ID, &chip);
-	rt2x00_set_chip_rt(rt2x00dev, chip);
 
 	retval = rt2x00pci_alloc_reg(rt2x00dev);
 	if (retval)

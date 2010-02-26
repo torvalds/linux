@@ -43,7 +43,7 @@ enum {
 	DEBUG_SPI	= BIT(1),
 	DEBUG_BOOT	= BIT(2),
 	DEBUG_MAILBOX	= BIT(3),
-	DEBUG_NETLINK	= BIT(4),
+	DEBUG_TESTMODE	= BIT(4),
 	DEBUG_EVENT	= BIT(5),
 	DEBUG_TX	= BIT(6),
 	DEBUG_RX	= BIT(7),
@@ -109,7 +109,33 @@ enum {
 
 #define WL1271_FW_NAME "wl1271-fw.bin"
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
-#define WL1271_NVS_LEN  468
+
+/* NVS data structure */
+#define WL1271_NVS_SECTION_SIZE                  468
+
+#define WL1271_NVS_GENERAL_PARAMS_SIZE            57
+#define WL1271_NVS_GENERAL_PARAMS_SIZE_PADDED \
+	(WL1271_NVS_GENERAL_PARAMS_SIZE + 1)
+#define WL1271_NVS_STAT_RADIO_PARAMS_SIZE         17
+#define WL1271_NVS_STAT_RADIO_PARAMS_SIZE_PADDED \
+	(WL1271_NVS_STAT_RADIO_PARAMS_SIZE + 1)
+#define WL1271_NVS_DYN_RADIO_PARAMS_SIZE          65
+#define WL1271_NVS_DYN_RADIO_PARAMS_SIZE_PADDED \
+	(WL1271_NVS_DYN_RADIO_PARAMS_SIZE + 1)
+#define WL1271_NVS_FEM_COUNT                       2
+#define WL1271_NVS_INI_SPARE_SIZE                124
+
+struct wl1271_nvs_file {
+	/* NVS section */
+	u8 nvs[WL1271_NVS_SECTION_SIZE];
+
+	/* INI section */
+	u8 general_params[WL1271_NVS_GENERAL_PARAMS_SIZE_PADDED];
+	u8 stat_radio_params[WL1271_NVS_STAT_RADIO_PARAMS_SIZE_PADDED];
+	u8 dyn_radio_params[WL1271_NVS_FEM_COUNT]
+			   [WL1271_NVS_DYN_RADIO_PARAMS_SIZE_PADDED];
+	u8 ini_spare[WL1271_NVS_INI_SPARE_SIZE];
+} __attribute__ ((packed));
 
 /*
  * Enable/disable 802.11a support for WL1273
@@ -342,8 +368,7 @@ struct wl1271 {
 
 	u8 *fw;
 	size_t fw_len;
-	u8 *nvs;
-	size_t nvs_len;
+	struct wl1271_nvs_file *nvs;
 
 	u8 bssid[ETH_ALEN];
 	u8 mac_addr[ETH_ALEN];
@@ -461,6 +486,7 @@ int wl1271_plt_stop(struct wl1271 *wl);
 
 static inline bool wl1271_11a_enabled(void)
 {
+	/* FIXME: this could be determined based on the NVS-INI file */
 #ifdef WL1271_80211A_ENABLED
 	return true;
 #else

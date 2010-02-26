@@ -74,4 +74,12 @@ void nl80211_send_sta_event(struct cfg80211_registered_device *rdev,
 			    struct net_device *dev, const u8 *mac_addr,
 			    struct station_info *sinfo, gfp_t gfp);
 
+int nl80211_send_action(struct cfg80211_registered_device *rdev,
+			struct net_device *netdev, u32 nlpid, int freq,
+			const u8 *buf, size_t len, gfp_t gfp);
+void nl80211_send_action_tx_status(struct cfg80211_registered_device *rdev,
+				   struct net_device *netdev, u64 cookie,
+				   const u8 *buf, size_t len, bool ack,
+				   gfp_t gfp);
+
 #endif /* __NET_WIRELESS_NL80211_H */

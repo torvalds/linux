@@ -1033,7 +1033,25 @@ struct iwl_event_log {
 #define IWL_MAX_PLCP_ERR_THRESHOLD_MIN	(0)
 #define IWL_MAX_PLCP_ERR_THRESHOLD_DEF	(50)
 #define IWL_MAX_PLCP_ERR_LONG_THRESHOLD_DEF	(100)
+#define IWL_MAX_PLCP_ERR_EXT_LONG_THRESHOLD_DEF	(200)
 #define IWL_MAX_PLCP_ERR_THRESHOLD_MAX	(255)
+
+#define IWL_DELAY_NEXT_FORCE_RF_RESET  (HZ*3)
+#define IWL_DELAY_NEXT_FORCE_FW_RELOAD (HZ*5)
+
+enum iwl_reset {
+	IWL_RF_RESET = 0,
+	IWL_FW_RESET,
+	IWL_MAX_FORCE_RESET,
+};
+
+struct iwl_force_reset {
+	int reset_request_count;
+	int reset_success_count;
+	int reset_reject_count;
+	unsigned long reset_duration;
+	unsigned long last_force_reset_jiffies;
+};
 
 struct iwl_priv {
 
@@ -1066,6 +1084,12 @@ struct iwl_priv {
 	/* storing the jiffies when the plcp error rate is received */
 	unsigned long plcp_jiffies;
 
+	/* reporting the number of tids has AGG on. 0 means no AGGREGATION */
+	u8 agg_tids_count;
+
+	/* force reset */
+	struct iwl_force_reset force_reset[IWL_MAX_FORCE_RESET];
+
 	/* we allocate array of iwl4965_channel_info for NIC's valid channels.
 	 *    Access via channel # using indirect index array */
 	struct iwl_channel_info *channel_info;	/* channel info array */
@@ -1087,7 +1111,6 @@ struct iwl_priv {
 	unsigned long scan_start;
 	unsigned long scan_pass_start;
 	unsigned long scan_start_tsf;
-	unsigned long last_internal_scan_jiffies;
 	void *scan;
 	int scan_bands;
 	struct cfg80211_scan_request *scan_request;
@@ -1100,6 +1123,7 @@ struct iwl_priv {
 	spinlock_t hcmd_lock;	/* protect hcmd */
 	spinlock_t reg_lock;	/* protect hw register access */
 	struct mutex mutex;
+	struct mutex sync_cmd_mutex; /* enable serialization of sync commands */
 
 	/* basic pci-network driver stuff */
 	struct pci_dev *pci_dev;

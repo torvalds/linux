@@ -188,10 +188,6 @@ struct mwl8k_priv {
 	bool sniffer_enabled;
 	bool wmm_enabled;
 
-	struct work_struct sta_notify_worker;
-	spinlock_t sta_notify_list_lock;
-	struct list_head sta_notify_list;
-
 	/* XXX need to convert this to handle multiple interfaces */
 	bool capture_beacon;
 	u8 capture_bssid[ETH_ALEN];
@@ -3706,90 +3702,36 @@ static int mwl8k_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
 	return mwl8k_cmd_set_rts_threshold(hw, value);
 }
 
-struct mwl8k_sta_notify_item
-{
-	struct list_head list;
-	struct ieee80211_vif *vif;
-	enum sta_notify_cmd cmd;
-	struct ieee80211_sta sta;
-};
-
-static void
-mwl8k_do_sta_notify(struct ieee80211_hw *hw, struct mwl8k_sta_notify_item *s)
+static int mwl8k_sta_remove(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta)
 {
 	struct mwl8k_priv *priv = hw->priv;
 
-	/*
-	 * STA firmware uses UPDATE_STADB, AP firmware uses SET_NEW_STN.
-	 */
-	if (!priv->ap_fw && s->cmd == STA_NOTIFY_ADD) {
-		int rc;
+	if (priv->ap_fw)
+		return mwl8k_cmd_set_new_stn_del(hw, vif, sta->addr);
+	else
+		return mwl8k_cmd_update_stadb_del(hw, vif, sta->addr);
+}
 
-		rc = mwl8k_cmd_update_stadb_add(hw, s->vif, &s->sta);
-		if (rc >= 0) {
-			struct ieee80211_sta *sta;
+static int mwl8k_sta_add(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta)
+{
+	struct mwl8k_priv *priv = hw->priv;
+	int ret;
 
-			rcu_read_lock();
-			sta = ieee80211_find_sta(s->vif, s->sta.addr);
-			if (sta != NULL)
-				MWL8K_STA(sta)->peer_id = rc;
-			rcu_read_unlock();
+	if (!priv->ap_fw) {
+		ret = mwl8k_cmd_update_stadb_add(hw, vif, sta);
+		if (ret >= 0) {
+			MWL8K_STA(sta)->peer_id = ret;
+			return 0;
 		}
-	} else if (!priv->ap_fw && s->cmd == STA_NOTIFY_REMOVE) {
-		mwl8k_cmd_update_stadb_del(hw, s->vif, s->sta.addr);
-	} else if (priv->ap_fw && s->cmd == STA_NOTIFY_ADD) {
-		mwl8k_cmd_set_new_stn_add(hw, s->vif, &s->sta);
-	} else if (priv->ap_fw && s->cmd == STA_NOTIFY_REMOVE) {
-		mwl8k_cmd_set_new_stn_del(hw, s->vif, s->sta.addr);
+
+		return ret;
 	}
-}
 
-static void mwl8k_sta_notify_worker(struct work_struct *work)
-{
-	struct mwl8k_priv *priv =
-		container_of(work, struct mwl8k_priv, sta_notify_worker);
-	struct ieee80211_hw *hw = priv->hw;
-
-	spin_lock_bh(&priv->sta_notify_list_lock);
-	while (!list_empty(&priv->sta_notify_list)) {
-		struct mwl8k_sta_notify_item *s;
-
-		s = list_entry(priv->sta_notify_list.next,
-			       struct mwl8k_sta_notify_item, list);
-		list_del(&s->list);
-
-		spin_unlock_bh(&priv->sta_notify_list_lock);
-
-		mwl8k_do_sta_notify(hw, s);
-		kfree(s);
-
-		spin_lock_bh(&priv->sta_notify_list_lock);
-	}
-	spin_unlock_bh(&priv->sta_notify_list_lock);
-}
-
-static void
-mwl8k_sta_notify(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		 enum sta_notify_cmd cmd, struct ieee80211_sta *sta)
-{
-	struct mwl8k_priv *priv = hw->priv;
-	struct mwl8k_sta_notify_item *s;
-
-	if (cmd != STA_NOTIFY_ADD && cmd != STA_NOTIFY_REMOVE)
-		return;
-
-	s = kmalloc(sizeof(*s), GFP_ATOMIC);
-	if (s != NULL) {
-		s->vif = vif;
-		s->cmd = cmd;
-		s->sta = *sta;
-
-		spin_lock(&priv->sta_notify_list_lock);
-		list_add_tail(&s->list, &priv->sta_notify_list);
-		spin_unlock(&priv->sta_notify_list_lock);
-
-		ieee80211_queue_work(hw, &priv->sta_notify_worker);
-	}
+	return mwl8k_cmd_set_new_stn_add(hw, vif, sta);
 }
 
 static int mwl8k_conf_tx(struct ieee80211_hw *hw, u16 queue,
@@ -3849,7 +3791,8 @@ static const struct ieee80211_ops mwl8k_ops = {
 	.prepare_multicast	= mwl8k_prepare_multicast,
 	.configure_filter	= mwl8k_configure_filter,
 	.set_rts_threshold	= mwl8k_set_rts_threshold,
-	.sta_notify		= mwl8k_sta_notify,
+	.sta_add		= mwl8k_sta_add,
+	.sta_remove		= mwl8k_sta_remove,
 	.conf_tx		= mwl8k_conf_tx,
 	.get_stats		= mwl8k_get_stats,
 	.ampdu_action		= mwl8k_ampdu_action,
@@ -4050,11 +3993,6 @@ static int __devinit mwl8k_probe(struct pci_dev *pdev,
 	/* Set default radio state and preamble */
 	priv->radio_on = 0;
 	priv->radio_short_preamble = 0;
-
-	/* Station database handling */
-	INIT_WORK(&priv->sta_notify_worker, mwl8k_sta_notify_worker);
-	spin_lock_init(&priv->sta_notify_list_lock);
-	INIT_LIST_HEAD(&priv->sta_notify_list);
 
 	/* Finalize join worker */
 	INIT_WORK(&priv->finalize_join_worker, mwl8k_finalize_join_worker);

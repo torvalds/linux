@@ -830,12 +830,14 @@ out:
 	return ret;
 }
 
-int wl1271_acx_ac_cfg(struct wl1271 *wl)
+int wl1271_acx_ac_cfg(struct wl1271 *wl, u8 ac, u8 cw_min, u16 cw_max,
+		      u8 aifsn, u16 txop)
 {
 	struct acx_ac_cfg *acx;
-	int i, ret = 0;
+	int ret = 0;
 
-	wl1271_debug(DEBUG_ACX, "acx access category config");
+	wl1271_debug(DEBUG_ACX, "acx ac cfg %d cw_ming %d cw_max %d "
+		     "aifs %d txop %d", ac, cw_min, cw_max, aifsn, txop);
 
 	acx = kzalloc(sizeof(*acx), GFP_KERNEL);
 
@@ -844,21 +846,16 @@ int wl1271_acx_ac_cfg(struct wl1271 *wl)
 		goto out;
 	}
 
-	for (i = 0; i < wl->conf.tx.ac_conf_count; i++) {
-		struct conf_tx_ac_category *c = &(wl->conf.tx.ac_conf[i]);
-		acx->ac = c->ac;
-		acx->cw_min = c->cw_min;
-		acx->cw_max = cpu_to_le16(c->cw_max);
-		acx->aifsn = c->aifsn;
-		acx->reserved = 0;
-		acx->tx_op_limit = cpu_to_le16(c->tx_op_limit);
+	acx->ac = ac;
+	acx->cw_min = cw_min;
+	acx->cw_max = cpu_to_le16(cw_max);
+	acx->aifsn = aifsn;
+	acx->tx_op_limit = cpu_to_le16(txop);
 
-		ret = wl1271_cmd_configure(wl, ACX_AC_CFG, acx, sizeof(*acx));
-		if (ret < 0) {
-			wl1271_warning("Setting of access category "
-				       "config: %d", ret);
-			goto out;
-		}
+	ret = wl1271_cmd_configure(wl, ACX_AC_CFG, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("acx ac cfg failed: %d", ret);
+		goto out;
 	}
 
 out:
@@ -866,10 +863,12 @@ out:
 	return ret;
 }
 
-int wl1271_acx_tid_cfg(struct wl1271 *wl)
+int wl1271_acx_tid_cfg(struct wl1271 *wl, u8 queue_id, u8 channel_type,
+		       u8 tsid, u8 ps_scheme, u8 ack_policy,
+		       u32 apsd_conf0, u32 apsd_conf1)
 {
 	struct acx_tid_config *acx;
-	int i, ret = 0;
+	int ret = 0;
 
 	wl1271_debug(DEBUG_ACX, "acx tid config");
 
@@ -880,21 +879,18 @@ int wl1271_acx_tid_cfg(struct wl1271 *wl)
 		goto out;
 	}
 
-	for (i = 0; i < wl->conf.tx.tid_conf_count; i++) {
-		struct conf_tx_tid *c = &(wl->conf.tx.tid_conf[i]);
-		acx->queue_id = c->queue_id;
-		acx->channel_type = c->channel_type;
-		acx->tsid = c->tsid;
-		acx->ps_scheme = c->ps_scheme;
-		acx->ack_policy = c->ack_policy;
-		acx->apsd_conf[0] = cpu_to_le32(c->apsd_conf[0]);
-		acx->apsd_conf[1] = cpu_to_le32(c->apsd_conf[1]);
+	acx->queue_id = queue_id;
+	acx->channel_type = channel_type;
+	acx->tsid = tsid;
+	acx->ps_scheme = ps_scheme;
+	acx->ack_policy = ack_policy;
+	acx->apsd_conf[0] = cpu_to_le32(apsd_conf0);
+	acx->apsd_conf[1] = cpu_to_le32(apsd_conf1);
 
-		ret = wl1271_cmd_configure(wl, ACX_TID_CFG, acx, sizeof(*acx));
-		if (ret < 0) {
-			wl1271_warning("Setting of tid config failed: %d", ret);
-			goto out;
-		}
+	ret = wl1271_cmd_configure(wl, ACX_TID_CFG, acx, sizeof(*acx));
+	if (ret < 0) {
+		wl1271_warning("Setting of tid config failed: %d", ret);
+		goto out;
 	}
 
 out:

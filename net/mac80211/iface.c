@@ -1031,7 +1031,7 @@ static int netdev_notify(struct notifier_block *nb,
 
 	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 
-	memcpy(sdata->name, sdata->name, IFNAMSIZ);
+	memcpy(sdata->name, dev->name, IFNAMSIZ);
 
 	ieee80211_debugfs_rename_netdev(sdata);
 	return 0;

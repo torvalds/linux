@@ -1684,24 +1684,28 @@ static void ath9k_configure_filter(struct ieee80211_hw *hw,
 		  "Set HW RX filter: 0x%x\n", rfilt);
 }
 
-static void ath9k_sta_notify(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif,
-			     enum sta_notify_cmd cmd,
-			     struct ieee80211_sta *sta)
+static int ath9k_sta_add(struct ieee80211_hw *hw,
+			 struct ieee80211_vif *vif,
+			 struct ieee80211_sta *sta)
 {
 	struct ath_wiphy *aphy = hw->priv;
 	struct ath_softc *sc = aphy->sc;
 
-	switch (cmd) {
-	case STA_NOTIFY_ADD:
-		ath_node_attach(sc, sta);
-		break;
-	case STA_NOTIFY_REMOVE:
-		ath_node_detach(sc, sta);
-		break;
-	default:
-		break;
-	}
+	ath_node_attach(sc, sta);
+
+	return 0;
+}
+
+static int ath9k_sta_remove(struct ieee80211_hw *hw,
+			    struct ieee80211_vif *vif,
+			    struct ieee80211_sta *sta)
+{
+	struct ath_wiphy *aphy = hw->priv;
+	struct ath_softc *sc = aphy->sc;
+
+	ath_node_detach(sc, sta);
+
+	return 0;
 }
 
 static int ath9k_conf_tx(struct ieee80211_hw *hw, u16 queue,
@@ -2045,7 +2049,8 @@ struct ieee80211_ops ath9k_ops = {
 	.remove_interface   = ath9k_remove_interface,
 	.config 	    = ath9k_config,
 	.configure_filter   = ath9k_configure_filter,
-	.sta_notify         = ath9k_sta_notify,
+	.sta_add	    = ath9k_sta_add,
+	.sta_remove	    = ath9k_sta_remove,
 	.conf_tx 	    = ath9k_conf_tx,
 	.bss_info_changed   = ath9k_bss_info_changed,
 	.set_key            = ath9k_set_key,
