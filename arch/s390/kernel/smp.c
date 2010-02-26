@@ -53,7 +53,7 @@
 #include "entry.h"
 
 /* logical cpu to cpu address */
-int __cpu_logical_map[NR_CPUS];
+unsigned short __cpu_logical_map[NR_CPUS];
 
 static struct task_struct *current_set[NR_CPUS];
 
@@ -72,13 +72,13 @@ static int cpu_management;
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
-static void smp_ext_bitcall(int, ec_bit_sig);
+static void smp_ext_bitcall(int, int);
 
-static int cpu_stopped(int cpu)
+static int raw_cpu_stopped(int cpu)
 {
-	__u32 status;
+	u32 status;
 
-	switch (signal_processor_ps(&status, 0, cpu, sigp_sense)) {
+	switch (raw_sigp_ps(&status, 0, cpu, sigp_sense)) {
 	case sigp_status_stored:
 		/* Check for stopped and check stop state */
 		if (status & 0x50)
@@ -88,6 +88,11 @@ static int cpu_stopped(int cpu)
 		break;
 	}
 	return 0;
+}
+
+static inline int cpu_stopped(int cpu)
+{
+	return raw_cpu_stopped(cpu_logical_map(cpu));
 }
 
 void smp_switch_to_ipl_cpu(void (*func)(void *), void *data)
@@ -110,7 +115,7 @@ void smp_switch_to_ipl_cpu(void (*func)(void *), void *data)
 	lc->restart_psw.addr = PSW_ADDR_AMODE | (unsigned long) smp_restart_cpu;
 	if (!cpu_online(0))
 		smp_switch_to_cpu(func, data, 0, stap(), __cpu_logical_map[0]);
-	while (signal_processor(0, sigp_stop_and_store_status) == sigp_busy)
+	while (sigp(0, sigp_stop_and_store_status) == sigp_busy)
 		cpu_relax();
 	sp = lc->panic_stack;
 	sp -= sizeof(struct pt_regs);
@@ -136,7 +141,7 @@ void smp_send_stop(void)
 		if (cpu == smp_processor_id())
 			continue;
 		do {
-			rc = signal_processor(cpu, sigp_stop);
+			rc = sigp(cpu, sigp_stop);
 		} while (rc == sigp_busy);
 
 		while (!cpu_stopped(cpu))
@@ -172,13 +177,13 @@ static void do_ext_call_interrupt(__u16 code)
  * Send an external call sigp to another cpu and return without waiting
  * for its completion.
  */
-static void smp_ext_bitcall(int cpu, ec_bit_sig sig)
+static void smp_ext_bitcall(int cpu, int sig)
 {
 	/*
 	 * Set signaling bit in lowcore of target cpu and kick it
 	 */
 	set_bit(sig, (unsigned long *) &lowcore_ptr[cpu]->ext_call_fast);
-	while (signal_processor(cpu, sigp_emergency_signal) == sigp_busy)
+	while (sigp(cpu, sigp_emergency_signal) == sigp_busy)
 		udelay(10);
 }
 
@@ -272,13 +277,6 @@ void smp_ctl_clear_bit(int cr, int bit)
 }
 EXPORT_SYMBOL(smp_ctl_clear_bit);
 
-/*
- * In early ipl state a temp. logically cpu number is needed, so the sigp
- * functions can be used to sense other cpus. Since NR_CPUS is >= 2 on
- * CONFIG_SMP and the ipl cpu is logical cpu 0, it must be 1.
- */
-#define CPU_INIT_NO	1
-
 #ifdef CONFIG_ZFCPDUMP
 
 static void __init smp_get_save_area(unsigned int cpu, unsigned int phy_cpu)
@@ -291,9 +289,7 @@ static void __init smp_get_save_area(unsigned int cpu, unsigned int phy_cpu)
 		return;
 	}
 	zfcpdump_save_areas[cpu] = kmalloc(sizeof(struct save_area), GFP_KERNEL);
-	__cpu_logical_map[CPU_INIT_NO] = (__u16) phy_cpu;
-	while (signal_processor(CPU_INIT_NO, sigp_stop_and_store_status) ==
-	       sigp_busy)
+	while (raw_sigp(phy_cpu, sigp_stop_and_store_status) == sigp_busy)
 		cpu_relax();
 	memcpy(zfcpdump_save_areas[cpu],
 	       (void *)(unsigned long) store_prefix() + SAVE_AREA_BASE,
@@ -409,8 +405,7 @@ static void __init smp_detect_cpus(void)
 		for (cpu = 0; cpu <= MAX_CPU_ADDRESS; cpu++) {
 			if (cpu == boot_cpu_addr)
 				continue;
-			__cpu_logical_map[CPU_INIT_NO] = cpu;
-			if (!cpu_stopped(CPU_INIT_NO))
+			if (!raw_cpu_stopped(cpu))
 				continue;
 			smp_get_save_area(c_cpus, cpu);
 			c_cpus++;
@@ -433,8 +428,7 @@ static void __init smp_detect_cpus(void)
 		cpu_addr = info->cpu[cpu].address;
 		if (cpu_addr == boot_cpu_addr)
 			continue;
-		__cpu_logical_map[CPU_INIT_NO] = cpu_addr;
-		if (!cpu_stopped(CPU_INIT_NO)) {
+		if (!raw_cpu_stopped(cpu_addr)) {
 			s_cpus++;
 			continue;
 		}
@@ -553,18 +547,18 @@ static void smp_free_lowcore(int cpu)
 /* Upping and downing of CPUs */
 int __cpuinit __cpu_up(unsigned int cpu)
 {
-	struct task_struct *idle;
 	struct _lowcore *cpu_lowcore;
+	struct task_struct *idle;
 	struct stack_frame *sf;
-	sigp_ccode ccode;
 	u32 lowcore;
+	int ccode;
 
 	if (smp_cpu_state[cpu] != CPU_STATE_CONFIGURED)
 		return -EIO;
 	if (smp_alloc_lowcore(cpu))
 		return -ENOMEM;
 	do {
-		ccode = signal_processor(cpu, sigp_initial_cpu_reset);
+		ccode = sigp(cpu, sigp_initial_cpu_reset);
 		if (ccode == sigp_busy)
 			udelay(10);
 		if (ccode == sigp_not_operational)
@@ -572,7 +566,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	} while (ccode == sigp_busy);
 
 	lowcore = (u32)(unsigned long)lowcore_ptr[cpu];
-	while (signal_processor_p(lowcore, cpu, sigp_set_prefix) == sigp_busy)
+	while (sigp_p(lowcore, cpu, sigp_set_prefix) == sigp_busy)
 		udelay(10);
 
 	idle = current_set[cpu];
@@ -598,7 +592,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	cpu_lowcore->ftrace_func = S390_lowcore.ftrace_func;
 	eieio();
 
-	while (signal_processor(cpu, sigp_restart) == sigp_busy)
+	while (sigp(cpu, sigp_restart) == sigp_busy)
 		udelay(10);
 
 	while (!cpu_online(cpu))
@@ -660,7 +654,7 @@ void __cpu_die(unsigned int cpu)
 	/* Wait until target cpu is down */
 	while (!cpu_stopped(cpu))
 		cpu_relax();
-	while (signal_processor_p(0, cpu, sigp_set_prefix) == sigp_busy)
+	while (sigp_p(0, cpu, sigp_set_prefix) == sigp_busy)
 		udelay(10);
 	smp_free_lowcore(cpu);
 	pr_info("Processor %d stopped\n", cpu);
@@ -669,7 +663,7 @@ void __cpu_die(unsigned int cpu)
 void cpu_die(void)
 {
 	idle_task_exit();
-	while (signal_processor(smp_processor_id(), sigp_stop) == sigp_busy)
+	while (sigp(smp_processor_id(), sigp_stop) == sigp_busy)
 		cpu_relax();
 	for (;;);
 }
