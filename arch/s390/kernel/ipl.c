@@ -1592,7 +1592,7 @@ static void vmcmd_run(struct shutdown_trigger *trigger)
 static int vmcmd_init(void)
 {
 	if (!MACHINE_IS_VM)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	vmcmd_kset = kset_create_and_add("vmcmd", NULL, firmware_kobj);
 	if (!vmcmd_kset)
 		return -ENOMEM;

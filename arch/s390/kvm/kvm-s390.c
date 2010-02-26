@@ -543,7 +543,7 @@ rerun_vcpu:
 		rc = -EINTR;
 	}
 
-	if (rc == -ENOTSUPP) {
+	if (rc == -EOPNOTSUPP) {
 		/* intercept cannot be handled in-kernel, prepare kvm-run */
 		kvm_run->exit_reason         = KVM_EXIT_S390_SIEIC;
 		kvm_run->s390_sieic.icptcode = vcpu->arch.sie_block->icptcode;
