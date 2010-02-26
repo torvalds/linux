@@ -63,6 +63,7 @@ void lpfc_linkdown_port(struct lpfc_vport *);
 void lpfc_port_link_failure(struct lpfc_vport *);
 void lpfc_mbx_cmpl_read_la(struct lpfc_hba *, LPFC_MBOXQ_t *);
 void lpfc_init_vpi_cmpl(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_cancel_all_vport_retry_delay_timer(struct lpfc_hba *);
 void lpfc_retry_pport_discovery(struct lpfc_hba *);
 
 void lpfc_mbx_cmpl_reg_login(struct lpfc_hba *, LPFC_MBOXQ_t *);
@@ -222,6 +223,9 @@ void lpfc_unregister_unused_fcf(struct lpfc_hba *);
 int lpfc_sli4_redisc_fcf_table(struct lpfc_hba *);
 void lpfc_fcf_redisc_wait_start_timer(struct lpfc_hba *);
 void lpfc_sli4_fcf_dead_failthrough(struct lpfc_hba *);
+uint16_t lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *);
+int lpfc_sli4_fcf_rr_index_set(struct lpfc_hba *, uint16_t);
+void lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *, uint16_t);
 
 int lpfc_mem_alloc(struct lpfc_hba *, int align);
 void lpfc_mem_free(struct lpfc_hba *);

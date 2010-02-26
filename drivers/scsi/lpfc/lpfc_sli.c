@@ -11996,15 +11996,19 @@ lpfc_sli4_build_dflt_fcf_record(struct lpfc_hba *phba,
 }
 
 /**
- * lpfc_sli4_read_fcf_record - Read the driver's default FCF Record.
+ * lpfc_sli4_fcf_scan_read_fcf_rec - Read hba fcf record for fcf scan.
  * @phba: pointer to lpfc hba data structure.
  * @fcf_index: FCF table entry offset.
  *
- * This routine is invoked to read up to @fcf_num of FCF record from the
- * device starting with the given @fcf_index.
+ * This routine is invoked to scan the entire FCF table by reading FCF
+ * record and processing it one at a time starting from the @fcf_index
+ * for initial FCF discovery or fast FCF failover rediscovery.
+ *
+ * Return 0 if the mailbox command is submitted sucessfully, none 0
+ * otherwise.
  **/
 int
-lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
+lpfc_sli4_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, uint16_t fcf_index)
 {
 	int rc = 0, error;
 	LPFC_MBOXQ_t *mboxq;
@@ -12016,17 +12020,17 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 				"2000 Failed to allocate mbox for "
 				"READ_FCF cmd\n");
 		error = -ENOMEM;
-		goto fail_fcfscan;
+		goto fail_fcf_scan;
 	}
 	/* Construct the read FCF record mailbox command */
-	rc = lpfc_sli4_mbx_read_fcf_record(phba, mboxq, fcf_index);
+	rc = lpfc_sli4_mbx_read_fcf_rec(phba, mboxq, fcf_index);
 	if (rc) {
 		error = -EINVAL;
-		goto fail_fcfscan;
+		goto fail_fcf_scan;
 	}
 	/* Issue the mailbox command asynchronously */
 	mboxq->vport = phba->pport;
-	mboxq->mbox_cmpl = lpfc_mbx_cmpl_read_fcf_record;
+	mboxq->mbox_cmpl = lpfc_mbx_cmpl_fcf_scan_read_fcf_rec;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
 	if (rc == MBX_NOT_FINISHED)
 		error = -EIO;
@@ -12034,9 +12038,13 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 		spin_lock_irq(&phba->hbalock);
 		phba->hba_flag |= FCF_DISC_INPROGRESS;
 		spin_unlock_irq(&phba->hbalock);
+		/* Reset FCF round robin index bmask for new scan */
+		if (fcf_index == LPFC_FCOE_FCF_GET_FIRST)
+			memset(phba->fcf.fcf_rr_bmask, 0,
+			       sizeof(*phba->fcf.fcf_rr_bmask));
 		error = 0;
 	}
-fail_fcfscan:
+fail_fcf_scan:
 	if (error) {
 		if (mboxq)
 			lpfc_sli4_mbox_cmd_free(phba, mboxq);
@@ -12046,6 +12054,181 @@ fail_fcfscan:
 		spin_unlock_irq(&phba->hbalock);
 	}
 	return error;
+}
+
+/**
+ * lpfc_sli4_fcf_rr_read_fcf_rec - Read hba fcf record for round robin fcf.
+ * @phba: pointer to lpfc hba data structure.
+ * @fcf_index: FCF table entry offset.
+ *
+ * This routine is invoked to read an FCF record indicated by @fcf_index
+ * and to use it for FLOGI round robin FCF failover.
+ *
+ * Return 0 if the mailbox command is submitted sucessfully, none 0
+ * otherwise.
+ **/
+int
+lpfc_sli4_fcf_rr_read_fcf_rec(struct lpfc_hba *phba, uint16_t fcf_index)
+{
+	int rc = 0, error;
+	LPFC_MBOXQ_t *mboxq;
+
+	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_INIT,
+				"2763 Failed to allocate mbox for "
+				"READ_FCF cmd\n");
+		error = -ENOMEM;
+		goto fail_fcf_read;
+	}
+	/* Construct the read FCF record mailbox command */
+	rc = lpfc_sli4_mbx_read_fcf_rec(phba, mboxq, fcf_index);
+	if (rc) {
+		error = -EINVAL;
+		goto fail_fcf_read;
+	}
+	/* Issue the mailbox command asynchronously */
+	mboxq->vport = phba->pport;
+	mboxq->mbox_cmpl = lpfc_mbx_cmpl_fcf_rr_read_fcf_rec;
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED)
+		error = -EIO;
+	else
+		error = 0;
+
+fail_fcf_read:
+	if (error && mboxq)
+		lpfc_sli4_mbox_cmd_free(phba, mboxq);
+	return error;
+}
+
+/**
+ * lpfc_sli4_read_fcf_rec - Read hba fcf record for update eligible fcf bmask.
+ * @phba: pointer to lpfc hba data structure.
+ * @fcf_index: FCF table entry offset.
+ *
+ * This routine is invoked to read an FCF record indicated by @fcf_index to
+ * determine whether it's eligible for FLOGI round robin failover list.
+ *
+ * Return 0 if the mailbox command is submitted sucessfully, none 0
+ * otherwise.
+ **/
+int
+lpfc_sli4_read_fcf_rec(struct lpfc_hba *phba, uint16_t fcf_index)
+{
+	int rc = 0, error;
+	LPFC_MBOXQ_t *mboxq;
+
+	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mboxq) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_INIT,
+				"2758 Failed to allocate mbox for "
+				"READ_FCF cmd\n");
+				error = -ENOMEM;
+				goto fail_fcf_read;
+	}
+	/* Construct the read FCF record mailbox command */
+	rc = lpfc_sli4_mbx_read_fcf_rec(phba, mboxq, fcf_index);
+	if (rc) {
+		error = -EINVAL;
+		goto fail_fcf_read;
+	}
+	/* Issue the mailbox command asynchronously */
+	mboxq->vport = phba->pport;
+	mboxq->mbox_cmpl = lpfc_mbx_cmpl_read_fcf_rec;
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED)
+		error = -EIO;
+	else
+		error = 0;
+
+fail_fcf_read:
+	if (error && mboxq)
+		lpfc_sli4_mbox_cmd_free(phba, mboxq);
+	return error;
+}
+
+/**
+ * lpfc_sli4_fcf_rr_next_index_get - Get next eligible fcf record index
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is to get the next eligible FCF record index in a round
+ * robin fashion. If the next eligible FCF record index equals to the
+ * initial round robin FCF record index, LPFC_FCOE_FCF_NEXT_NONE (0xFFFF)
+ * shall be returned, otherwise, the next eligible FCF record's index
+ * shall be returned.
+ **/
+uint16_t
+lpfc_sli4_fcf_rr_next_index_get(struct lpfc_hba *phba)
+{
+	uint16_t next_fcf_index;
+
+	/* Search from the currently registered FCF index */
+	next_fcf_index = find_next_bit(phba->fcf.fcf_rr_bmask,
+				       LPFC_SLI4_FCF_TBL_INDX_MAX,
+				       phba->fcf.current_rec.fcf_indx);
+	/* Wrap around condition on phba->fcf.fcf_rr_bmask */
+	if (next_fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX)
+		next_fcf_index = find_next_bit(phba->fcf.fcf_rr_bmask,
+					       LPFC_SLI4_FCF_TBL_INDX_MAX, 0);
+	/* Round robin failover stop condition */
+	if (next_fcf_index == phba->fcf.fcf_rr_init_indx)
+		return LPFC_FCOE_FCF_NEXT_NONE;
+
+	return next_fcf_index;
+}
+
+/**
+ * lpfc_sli4_fcf_rr_index_set - Set bmask with eligible fcf record index
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine sets the FCF record index in to the eligible bmask for
+ * round robin failover search. It checks to make sure that the index
+ * does not go beyond the range of the driver allocated bmask dimension
+ * before setting the bit.
+ *
+ * Returns 0 if the index bit successfully set, otherwise, it returns
+ * -EINVAL.
+ **/
+int
+lpfc_sli4_fcf_rr_index_set(struct lpfc_hba *phba, uint16_t fcf_index)
+{
+	if (fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+				"2610 HBA FCF index reached driver's "
+				"book keeping dimension: fcf_index:%d, "
+				"driver_bmask_max:%d\n",
+				fcf_index, LPFC_SLI4_FCF_TBL_INDX_MAX);
+		return -EINVAL;
+	}
+	/* Set the eligible FCF record index bmask */
+	set_bit(fcf_index, phba->fcf.fcf_rr_bmask);
+
+	return 0;
+}
+
+/**
+ * lpfc_sli4_fcf_rr_index_set - Clear bmask from eligible fcf record index
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine clears the FCF record index from the eligible bmask for
+ * round robin failover search. It checks to make sure that the index
+ * does not go beyond the range of the driver allocated bmask dimension
+ * before clearing the bit.
+ **/
+void
+lpfc_sli4_fcf_rr_index_clear(struct lpfc_hba *phba, uint16_t fcf_index)
+{
+	if (fcf_index >= LPFC_SLI4_FCF_TBL_INDX_MAX) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
+				"2762 HBA FCF index goes beyond driver's "
+				"book keeping dimension: fcf_index:%d, "
+				"driver_bmask_max:%d\n",
+				fcf_index, LPFC_SLI4_FCF_TBL_INDX_MAX);
+		return;
+	}
+	/* Clear the eligible FCF record index bmask */
+	clear_bit(fcf_index, phba->fcf.fcf_rr_bmask);
 }
 
 /**
@@ -12069,13 +12252,13 @@ lpfc_mbx_cmpl_redisc_fcf_table(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
 			     &redisc_fcf->header.cfg_shdr.response);
 	if (shdr_status || shdr_add_status) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+		lpfc_printf_log(phba, KERN_ERR, LOG_FIP,
 				"2746 Requesting for FCF rediscovery failed "
 				"status x%x add_status x%x\n",
 				shdr_status, shdr_add_status);
-		if (phba->fcf.fcf_flag & FCF_CVL_FOVER) {
+		if (phba->fcf.fcf_flag & FCF_ACVL_DISC) {
 			spin_lock_irq(&phba->hbalock);
-			phba->fcf.fcf_flag &= ~FCF_CVL_FOVER;
+			phba->fcf.fcf_flag &= ~FCF_ACVL_DISC;
 			spin_unlock_irq(&phba->hbalock);
 			/*
 			 * CVL event triggered FCF rediscover request failed,
@@ -12084,7 +12267,7 @@ lpfc_mbx_cmpl_redisc_fcf_table(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 			lpfc_retry_pport_discovery(phba);
 		} else {
 			spin_lock_irq(&phba->hbalock);
-			phba->fcf.fcf_flag &= ~FCF_DEAD_FOVER;
+			phba->fcf.fcf_flag &= ~FCF_DEAD_DISC;
 			spin_unlock_irq(&phba->hbalock);
 			/*
 			 * DEAD FCF event triggered FCF rediscover request
@@ -12093,12 +12276,16 @@ lpfc_mbx_cmpl_redisc_fcf_table(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 			 */
 			lpfc_sli4_fcf_dead_failthrough(phba);
 		}
-	} else
+	} else {
+		lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
+				"2775 Start FCF rediscovery quiescent period "
+				"wait timer before scaning FCF table\n");
 		/*
 		 * Start FCF rediscovery wait timer for pending FCF
 		 * before rescan FCF record table.
 		 */
 		lpfc_fcf_redisc_wait_start_timer(phba);
+	}
 
 	mempool_free(mbox, phba->mbox_mem_pool);
 }
@@ -12116,6 +12303,9 @@ lpfc_sli4_redisc_fcf_table(struct lpfc_hba *phba)
 	LPFC_MBOXQ_t *mbox;
 	struct lpfc_mbx_redisc_fcf_tbl *redisc_fcf;
 	int rc, length;
+
+	/* Cancel retry delay timers to all vports before FCF rediscover */
+	lpfc_cancel_all_vport_retry_delay_timer(phba);
 
 	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
 	if (!mbox) {

@@ -153,16 +153,26 @@ struct lpfc_fcf {
 #define FCF_REGISTERED	0x02 /* FCF registered with FW */
 #define FCF_SCAN_DONE	0x04 /* FCF table scan done */
 #define FCF_IN_USE	0x08 /* Atleast one discovery completed */
-#define FCF_DEAD_FOVER  0x10 /* FCF DEAD triggered fast FCF failover */
-#define FCF_CVL_FOVER	0x20 /* CVL triggered fast FCF failover */
-#define FCF_REDISC_PEND	0x40 /* FCF rediscovery pending */
-#define FCF_REDISC_EVT	0x80 /* FCF rediscovery event to worker thread */
-#define FCF_REDISC_FOV	0x100 /* Post FCF rediscovery fast failover */
+#define FCF_INIT_DISC	0x10 /* Initial FCF discovery */
+#define FCF_DEAD_DISC	0x20 /* FCF DEAD fast FCF failover discovery */
+#define FCF_ACVL_DISC	0x40 /* All CVL fast FCF failover discovery */
+#define FCF_DISCOVERY	(FCF_INIT_DISC | FCF_DEAD_DISC | FCF_ACVL_DISC)
+#define FCF_REDISC_PEND	0x80 /* FCF rediscovery pending */
+#define FCF_REDISC_EVT	0x100 /* FCF rediscovery event to worker thread */
+#define FCF_REDISC_FOV	0x200 /* Post FCF rediscovery fast failover */
 	uint32_t addr_mode;
+	uint16_t fcf_rr_init_indx;
 	struct lpfc_fcf_rec current_rec;
 	struct lpfc_fcf_rec failover_rec;
 	struct timer_list redisc_wait;
+	unsigned long *fcf_rr_bmask; /* Eligible FCF indexes for RR failover */
 };
+
+/*
+ * Maximum FCF table index, it is for driver internal book keeping, it
+ * just needs to be no less than the supported HBA's FCF table size.
+ */
+#define LPFC_SLI4_FCF_TBL_INDX_MAX	32
 
 #define LPFC_REGION23_SIGNATURE "RG23"
 #define LPFC_REGION23_VERSION	1
@@ -472,8 +482,8 @@ void lpfc_sli4_mbox_cmd_free(struct lpfc_hba *, struct lpfcMboxq *);
 void lpfc_sli4_mbx_sge_set(struct lpfcMboxq *, uint32_t, dma_addr_t, uint32_t);
 void lpfc_sli4_mbx_sge_get(struct lpfcMboxq *, uint32_t,
 			   struct lpfc_mbx_sge *);
-int lpfc_sli4_mbx_read_fcf_record(struct lpfc_hba *, struct lpfcMboxq *,
-				  uint16_t);
+int lpfc_sli4_mbx_read_fcf_rec(struct lpfc_hba *, struct lpfcMboxq *,
+			       uint16_t);
 
 void lpfc_sli4_hba_reset(struct lpfc_hba *);
 struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *, uint32_t,
@@ -532,8 +542,13 @@ int lpfc_sli4_init_vpi(struct lpfc_hba *, uint16_t);
 uint32_t lpfc_sli4_cq_release(struct lpfc_queue *, bool);
 uint32_t lpfc_sli4_eq_release(struct lpfc_queue *, bool);
 void lpfc_sli4_fcfi_unreg(struct lpfc_hba *, uint16_t);
-int lpfc_sli4_read_fcf_record(struct lpfc_hba *, uint16_t);
-void lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *, LPFC_MBOXQ_t *);
+int lpfc_sli4_fcf_scan_read_fcf_rec(struct lpfc_hba *, uint16_t);
+int lpfc_sli4_fcf_rr_read_fcf_rec(struct lpfc_hba *, uint16_t);
+int lpfc_sli4_read_fcf_rec(struct lpfc_hba *, uint16_t);
+void lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_mbx_cmpl_fcf_rr_read_fcf_rec(struct lpfc_hba *, LPFC_MBOXQ_t *);
+void lpfc_mbx_cmpl_read_fcf_rec(struct lpfc_hba *, LPFC_MBOXQ_t *);
+int lpfc_sli4_unregister_fcf(struct lpfc_hba *);
 int lpfc_sli4_post_status_check(struct lpfc_hba *);
 uint8_t lpfc_sli4_mbox_opcode_get(struct lpfc_hba *, struct lpfcMboxq *);
 

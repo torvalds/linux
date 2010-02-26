@@ -771,6 +771,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	struct lpfc_nodelist *ndlp = cmdiocb->context1;
 	struct lpfc_dmabuf *pcmd = cmdiocb->context2, *prsp;
 	struct serv_parm *sp;
+	uint16_t fcf_index;
 	int rc;
 
 	/* Check to see if link went down during discovery */
@@ -788,6 +789,54 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		vport->port_state);
 
 	if (irsp->ulpStatus) {
+		/*
+		 * In case of FIP mode, perform round robin FCF failover
+		 * due to new FCF discovery
+		 */
+		if ((phba->hba_flag & HBA_FIP_SUPPORT) &&
+		    (phba->fcf.fcf_flag & FCF_DISCOVERY)) {
+			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP | LOG_ELS,
+					"2611 FLOGI failed on registered "
+					"FCF record fcf_index:%d, trying "
+					"to perform round robin failover\n",
+					phba->fcf.current_rec.fcf_indx);
+			fcf_index = lpfc_sli4_fcf_rr_next_index_get(phba);
+			if (fcf_index == LPFC_FCOE_FCF_NEXT_NONE) {
+				/*
+				 * Exhausted the eligible FCF record list,
+				 * fail through to retry FLOGI on current
+				 * FCF record.
+				 */
+				lpfc_printf_log(phba, KERN_WARNING,
+						LOG_FIP | LOG_ELS,
+						"2760 FLOGI exhausted FCF "
+						"round robin failover list, "
+						"retry FLOGI on the current "
+						"registered FCF index:%d\n",
+						phba->fcf.current_rec.fcf_indx);
+				spin_lock_irq(&phba->hbalock);
+				phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
+				spin_unlock_irq(&phba->hbalock);
+			} else {
+				rc = lpfc_sli4_fcf_rr_read_fcf_rec(phba,
+								   fcf_index);
+				if (rc) {
+					lpfc_printf_log(phba, KERN_WARNING,
+							LOG_FIP | LOG_ELS,
+							"2761 FLOGI round "
+							"robin FCF failover "
+							"read FCF failed "
+							"rc:x%x, fcf_index:"
+							"%d\n", rc,
+						phba->fcf.current_rec.fcf_indx);
+					spin_lock_irq(&phba->hbalock);
+					phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
+					spin_unlock_irq(&phba->hbalock);
+				} else
+					goto out;
+			}
+		}
+
 		/* Check for retry */
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
 			goto out;
@@ -841,8 +890,18 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		else
 			rc = lpfc_cmpl_els_flogi_nport(vport, ndlp, sp);
 
-		if (!rc)
+		if (!rc) {
+			/* Mark the FCF discovery process done */
+			lpfc_printf_vlog(vport, KERN_INFO, LOG_FIP | LOG_ELS,
+					 "2769 FLOGI successful on FCF record: "
+					 "current_fcf_index:x%x, terminate FCF "
+					 "round robin failover process\n",
+					 phba->fcf.current_rec.fcf_indx);
+			spin_lock_irq(&phba->hbalock);
+			phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
+			spin_unlock_irq(&phba->hbalock);
 			goto out;
+		}
 	}
 
 flogifail:
@@ -6075,21 +6134,18 @@ mbox_err_exit:
 }
 
 /**
- * lpfc_retry_pport_discovery - Start timer to retry FLOGI.
+ * lpfc_cancel_all_vport_retry_delay_timer - Cancel all vport retry delay timer
  * @phba: pointer to lpfc hba data structure.
  *
- * This routine abort all pending discovery commands and
- * start a timer to retry FLOGI for the physical port
- * discovery.
+ * This routine cancels the retry delay timers to all the vports.
  **/
 void
-lpfc_retry_pport_discovery(struct lpfc_hba *phba)
+lpfc_cancel_all_vport_retry_delay_timer(struct lpfc_hba *phba)
 {
 	struct lpfc_vport **vports;
 	struct lpfc_nodelist *ndlp;
-	struct Scsi_Host  *shost;
-	int i;
 	uint32_t link_state;
+	int i;
 
 	/* Treat this failure as linkdown for all vports */
 	link_state = phba->link_state;
@@ -6107,12 +6163,29 @@ lpfc_retry_pport_discovery(struct lpfc_hba *phba)
 		}
 		lpfc_destroy_vport_work_array(phba, vports);
 	}
+}
+
+/**
+ * lpfc_retry_pport_discovery - Start timer to retry FLOGI.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine abort all pending discovery commands and
+ * start a timer to retry FLOGI for the physical port
+ * discovery.
+ **/
+void
+lpfc_retry_pport_discovery(struct lpfc_hba *phba)
+{
+	struct lpfc_nodelist *ndlp;
+	struct Scsi_Host  *shost;
+
+	/* Cancel the all vports retry delay retry timers */
+	lpfc_cancel_all_vport_retry_delay_timer(phba);
 
 	/* If fabric require FLOGI, then re-instantiate physical login */
 	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
 	if (!ndlp)
 		return;
-
 
 	shost = lpfc_shost_from_vport(phba->pport);
 	mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
