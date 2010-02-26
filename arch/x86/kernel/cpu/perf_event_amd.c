@@ -1,6 +1,6 @@
 #ifdef CONFIG_CPU_SUP_AMD
 
-static raw_spinlock_t amd_nb_lock;
+static DEFINE_RAW_SPINLOCK(amd_nb_lock);
 
 static __initconst u64 amd_hw_cache_event_ids
 				[PERF_COUNT_HW_CACHE_MAX]
