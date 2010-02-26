@@ -601,7 +601,7 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	struct cfg80211_registered_device *rdev;
 	struct wiphy *wiphy;
 	struct iw_scan_req *wreq = NULL;
-	struct cfg80211_scan_request *creq;
+	struct cfg80211_scan_request *creq = NULL;
 	int i, err, n_channels = 0;
 	enum ieee80211_band band;
 
@@ -694,8 +694,10 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	/* translate "Scan for SSID" request */
 	if (wreq) {
 		if (wrqu->data.flags & IW_SCAN_THIS_ESSID) {
-			if (wreq->essid_len > IEEE80211_MAX_SSID_LEN)
-				return -EINVAL;
+			if (wreq->essid_len > IEEE80211_MAX_SSID_LEN) {
+				err = -EINVAL;
+				goto out;
+			}
 			memcpy(creq->ssids[0].ssid, wreq->essid, wreq->essid_len);
 			creq->ssids[0].ssid_len = wreq->essid_len;
 		}
@@ -707,12 +709,15 @@ int cfg80211_wext_siwscan(struct net_device *dev,
 	err = rdev->ops->scan(wiphy, dev, creq);
 	if (err) {
 		rdev->scan_req = NULL;
-		kfree(creq);
+		/* creq will be freed below */
 	} else {
 		nl80211_send_scan_start(rdev, dev);
+		/* creq now owned by driver */
+		creq = NULL;
 		dev_hold(dev);
 	}
  out:
+	kfree(creq);
 	cfg80211_unlock_rdev(rdev);
 	return err;
 }

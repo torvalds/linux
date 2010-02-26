@@ -334,6 +334,19 @@ extern struct pnp_protocol pnpbios_protocol;
 #define pnp_device_is_pnpbios(dev) 0
 #endif
 
+#ifdef CONFIG_PNPACPI
+extern struct pnp_protocol pnpacpi_protocol;
+
+static inline struct acpi_device *pnp_acpi_device(struct pnp_dev *dev)
+{
+	if (dev->protocol == &pnpacpi_protocol)
+		return dev->data;
+	return NULL;
+}
+#else
+#define pnp_acpi_device(dev) 0
+#endif
+
 /* status */
 #define PNP_READY		0x0000
 #define PNP_ATTACHED		0x0001

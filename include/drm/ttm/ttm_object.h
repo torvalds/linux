@@ -77,7 +77,11 @@ enum ttm_object_type {
 	ttm_buffer_type,
 	ttm_lock_type,
 	ttm_driver_type0 = 256,
-	ttm_driver_type1
+	ttm_driver_type1,
+	ttm_driver_type2,
+	ttm_driver_type3,
+	ttm_driver_type4,
+	ttm_driver_type5
 };
 
 struct ttm_object_file;

@@ -365,18 +365,19 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (qhp->attr.state > IWCH_QP_STATE_RTS) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 	num_wrs = Q_FREECNT(qhp->wq.sq_rptr, qhp->wq.sq_wptr,
 		  qhp->wq.sq_size_log2);
 	if (num_wrs <= 0) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto out;
 	}
 	while (wr) {
 		if (num_wrs == 0) {
 			err = -ENOMEM;
-			*bad_wr = wr;
 			break;
 		}
 		idx = Q_PTR2IDX(qhp->wq.wptr, qhp->wq.size_log2);
@@ -428,10 +429,8 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 			     wr->opcode);
 			err = -EINVAL;
 		}
-		if (err) {
-			*bad_wr = wr;
+		if (err)
 			break;
-		}
 		wqe->send.wrid.id0.hi = qhp->wq.sq_wptr;
 		sqp->wr_id = wr->wr_id;
 		sqp->opcode = wr2opcode(t3_wr_opcode);
@@ -454,6 +453,10 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 	}
 	spin_unlock_irqrestore(&qhp->lock, flag);
 	ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+
+out:
+	if (err)
+		*bad_wr = wr;
 	return err;
 }
 
@@ -471,18 +474,19 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	spin_lock_irqsave(&qhp->lock, flag);
 	if (qhp->attr.state > IWCH_QP_STATE_RTS) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -EINVAL;
+		err = -EINVAL;
+		goto out;
 	}
 	num_wrs = Q_FREECNT(qhp->wq.rq_rptr, qhp->wq.rq_wptr,
 			    qhp->wq.rq_size_log2) - 1;
 	if (!wr) {
 		spin_unlock_irqrestore(&qhp->lock, flag);
-		return -EINVAL;
+		err = -ENOMEM;
+		goto out;
 	}
 	while (wr) {
 		if (wr->num_sge > T3_MAX_SGE) {
 			err = -EINVAL;
-			*bad_wr = wr;
 			break;
 		}
 		idx = Q_PTR2IDX(qhp->wq.wptr, qhp->wq.size_log2);
@@ -494,10 +498,10 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 				err = build_zero_stag_recv(qhp, wqe, wr);
 		else
 			err = -ENOMEM;
-		if (err) {
-			*bad_wr = wr;
+
+		if (err)
 			break;
-		}
+
 		build_fw_riwrh((void *) wqe, T3_WR_RCV, T3_COMPLETION_FLAG,
 			       Q_GENBIT(qhp->wq.wptr, qhp->wq.size_log2),
 			       0, sizeof(struct t3_receive_wr) >> 3, T3_SOPEOP);
@@ -511,6 +515,10 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 	}
 	spin_unlock_irqrestore(&qhp->lock, flag);
 	ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+
+out:
+	if (err)
+		*bad_wr = wr;
 	return err;
 }
 

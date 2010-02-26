@@ -324,6 +324,20 @@ static void realview_pbx_fixup(struct machine_desc *mdesc, struct tag *tags,
 #endif
 }
 
+static void realview_pbx_reset(char mode)
+{
+	void __iomem *reset_ctrl = __io_address(REALVIEW_SYS_RESETCTL);
+	void __iomem *lock_ctrl = __io_address(REALVIEW_SYS_LOCK);
+
+	/*
+	 * To reset, we hit the on-board reset register
+	 * in the system FPGA
+	 */
+	__raw_writel(REALVIEW_SYS_LOCK_VAL, lock_ctrl);
+	__raw_writel(0x00F0, reset_ctrl);
+	__raw_writel(0x00F4, reset_ctrl);
+}
+
 static void __init realview_pbx_init(void)
 {
 	int i;
@@ -358,6 +372,7 @@ static void __init realview_pbx_init(void)
 #ifdef CONFIG_LEDS
 	leds_event = realview_leds_event;
 #endif
+	realview_reset = realview_pbx_reset;
 }
 
 MACHINE_START(REALVIEW_PBX, "ARM-RealView PBX")

@@ -19,7 +19,7 @@
 #define O_NOATIME	0x200000
 #define O_CLOEXEC	0x400000
 /*
- * Before Linux 2.6.32 only O_DSYNC semantics were implemented, but using
+ * Before Linux 2.6.33 only O_DSYNC semantics were implemented, but using
  * the O_SYNC flag.  We continue to use the existing numerical value
  * for O_DSYNC semantics now, but using the correct symbolic name for it.
  * This new value is used to request true Posix O_SYNC semantics.  It is

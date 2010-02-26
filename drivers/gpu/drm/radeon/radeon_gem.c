@@ -66,8 +66,9 @@ int radeon_gem_object_create(struct radeon_device *rdev, int size,
 	}
 	r = radeon_bo_create(rdev, gobj, size, kernel, initial_domain, &robj);
 	if (r) {
-		DRM_ERROR("Failed to allocate GEM object (%d, %d, %u)\n",
-			  size, initial_domain, alignment);
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("Failed to allocate GEM object (%d, %d, %u, %d)\n",
+				  size, initial_domain, alignment, r);
 		mutex_lock(&rdev->ddev->struct_mutex);
 		drm_gem_object_unreference(gobj);
 		mutex_unlock(&rdev->ddev->struct_mutex);
@@ -130,7 +131,6 @@ int radeon_gem_set_domain(struct drm_gem_object *gobj,
 			printk(KERN_ERR "Failed to wait for object !\n");
 			return r;
 		}
-		radeon_hdp_flush(robj->rdev);
 	}
 	return 0;
 }
@@ -308,10 +308,12 @@ int radeon_gem_wait_idle_ioctl(struct drm_device *dev, void *data,
 	}
 	robj = gobj->driver_private;
 	r = radeon_bo_wait(robj, NULL, false);
+	/* callback hw specific functions if any */
+	if (robj->rdev->asic->ioctl_wait_idle)
+		robj->rdev->asic->ioctl_wait_idle(robj->rdev, robj);
 	mutex_lock(&dev->struct_mutex);
 	drm_gem_object_unreference(gobj);
 	mutex_unlock(&dev->struct_mutex);
-	radeon_hdp_flush(robj->rdev);
 	return r;
 }
 
@@ -350,9 +352,10 @@ int radeon_gem_get_tiling_ioctl(struct drm_device *dev, void *data,
 	rbo = gobj->driver_private;
 	r = radeon_bo_reserve(rbo, false);
 	if (unlikely(r != 0))
-		return r;
+		goto out;
 	radeon_bo_get_tiling_flags(rbo, &args->tiling_flags, &args->pitch);
 	radeon_bo_unreserve(rbo);
+out:
 	mutex_lock(&dev->struct_mutex);
 	drm_gem_object_unreference(gobj);
 	mutex_unlock(&dev->struct_mutex);

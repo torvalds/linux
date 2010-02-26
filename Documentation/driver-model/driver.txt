@@ -226,5 +226,5 @@ struct driver_attribute driver_attr_debug;
 This can then be used to add and remove the attribute from the
 driver's directory using:
 
-int driver_create_file(struct device_driver *, struct driver_attribute *);
-void driver_remove_file(struct device_driver *, struct driver_attribute *);
+int driver_create_file(struct device_driver *, const struct driver_attribute *);
+void driver_remove_file(struct device_driver *, const struct driver_attribute *);

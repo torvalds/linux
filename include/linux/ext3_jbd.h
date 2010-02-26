@@ -44,13 +44,13 @@
 
 #define EXT3_DATA_TRANS_BLOCKS(sb)	(EXT3_SINGLEDATA_TRANS_BLOCKS + \
 					 EXT3_XATTR_TRANS_BLOCKS - 2 + \
-					 2*EXT3_QUOTA_TRANS_BLOCKS(sb))
+					 EXT3_MAXQUOTAS_TRANS_BLOCKS(sb))
 
 /* Delete operations potentially hit one directory's namespace plus an
  * entire inode, plus arbitrary amounts of bitmap/indirection data.  Be
  * generous.  We can grow the delete transaction later if necessary. */
 
-#define EXT3_DELETE_TRANS_BLOCKS(sb)	(2 * EXT3_DATA_TRANS_BLOCKS(sb) + 64)
+#define EXT3_DELETE_TRANS_BLOCKS(sb)   (EXT3_MAXQUOTAS_TRANS_BLOCKS(sb) + 64)
 
 /* Define an arbitrary limit for the amount of data we will anticipate
  * writing to any given transaction.  For unbounded transactions such as
@@ -86,6 +86,9 @@
 #define EXT3_QUOTA_INIT_BLOCKS(sb) 0
 #define EXT3_QUOTA_DEL_BLOCKS(sb) 0
 #endif
+#define EXT3_MAXQUOTAS_TRANS_BLOCKS(sb) (MAXQUOTAS*EXT3_QUOTA_TRANS_BLOCKS(sb))
+#define EXT3_MAXQUOTAS_INIT_BLOCKS(sb) (MAXQUOTAS*EXT3_QUOTA_INIT_BLOCKS(sb))
+#define EXT3_MAXQUOTAS_DEL_BLOCKS(sb) (MAXQUOTAS*EXT3_QUOTA_DEL_BLOCKS(sb))
 
 int
 ext3_mark_iloc_dirty(handle_t *handle,

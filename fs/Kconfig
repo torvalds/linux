@@ -6,10 +6,6 @@ menu "File systems"
 
 if BLOCK
 
-config FS_JOURNAL_INFO
-	bool
-	default n
-
 source "fs/ext2/Kconfig"
 source "fs/ext3/Kconfig"
 source "fs/ext4/Kconfig"

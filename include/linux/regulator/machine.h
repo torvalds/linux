@@ -43,16 +43,20 @@ struct regulator;
 /**
  * struct regulator_state - regulator state during low power system states
  *
- * This describes a regulators state during a system wide low power state.
+ * This describes a regulators state during a system wide low power
+ * state.  One of enabled or disabled must be set for the
+ * configuration to be applied.
  *
  * @uV: Operating voltage during suspend.
  * @mode: Operating mode during suspend.
  * @enabled: Enabled during suspend.
+ * @disabled: Disabled during suspend.
  */
 struct regulator_state {
 	int uV;	/* suspend voltage */
 	unsigned int mode; /* suspend regulator operating mode */
 	int enabled; /* is regulator enabled in this suspend state */
+	int disabled; /* is the regulator disbled in this suspend state */
 };
 
 /**

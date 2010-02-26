@@ -368,7 +368,7 @@ void exit_thread(void)
 void flush_thread(void)
 {
 
-	/* Called by fs/exec.c (flush_old_exec) to remove traces of a
+	/* Called by fs/exec.c (setup_new_exec) to remove traces of a
 	 * previously running executable. */
 #ifdef CONFIG_SH_FPU
 	if (last_task_used_math == current) {
@@ -404,7 +404,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 	if (fpvalid) {
 		if (current == last_task_used_math) {
 			enable_fpu();
-			save_fpu(tsk, regs);
+			save_fpu(tsk);
 			disable_fpu();
 			last_task_used_math = 0;
 			regs->sr |= SR_FD;
@@ -431,7 +431,7 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 #ifdef CONFIG_SH_FPU
 	if(last_task_used_math == current) {
 		enable_fpu();
-		save_fpu(current, regs);
+		save_fpu(current);
 		disable_fpu();
 		last_task_used_math = NULL;
 		regs->sr |= SR_FD;

@@ -44,6 +44,19 @@ config MMC_SDHCI_IO_ACCESSORS
 	  This is silent Kconfig symbol that is selected by the drivers that
 	  need to overwrite SDHCI IO memory accessors.
 
+config MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
+	bool
+	select MMC_SDHCI_IO_ACCESSORS
+	help
+	  This option is selected by drivers running on big endian hosts
+	  and performing I/O to a SDHCI controller through a bus that
+	  implements a hardware byte swapper using a 32-bit datum.
+	  This endian mapping mode is called "data invariance" and
+	  has the effect of scrambling the addresses and formats of data
+	  accessed in sizes other than the datum size.
+
+	  This is the case for the Freescale eSDHC and Nintendo Wii SDHCI.
+
 config MMC_SDHCI_PCI
 	tristate "SDHCI support on PCI bus"
 	depends on MMC_SDHCI && PCI
@@ -75,11 +88,29 @@ config MMC_RICOH_MMC
 config MMC_SDHCI_OF
 	tristate "SDHCI support on OpenFirmware platforms"
 	depends on MMC_SDHCI && PPC_OF
-	select MMC_SDHCI_IO_ACCESSORS
 	help
 	  This selects the OF support for Secure Digital Host Controller
-	  Interfaces. So far, only the Freescale eSDHC controller is known
-	  to exist on OF platforms.
+	  Interfaces.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_OF_ESDHC
+	bool "SDHCI OF support for the Freescale eSDHC controller"
+	depends on MMC_SDHCI_OF
+	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
+	help
+	  This selects the Freescale eSDHC controller support.
+
+	  If unsure, say N.
+
+config MMC_SDHCI_OF_HLWD
+	bool "SDHCI OF support for the Nintendo Wii SDHCI controllers"
+	depends on MMC_SDHCI_OF
+	select MMC_SDHCI_BIG_ENDIAN_32BIT_BYTE_SWAPPER
+	help
+	  This selects the Secure Digital Host Controller Interface (SDHCI)
+	  found in the "Hollywood" chipset of the Nintendo Wii video game
+	  console.
 
 	  If unsure, say N.
 

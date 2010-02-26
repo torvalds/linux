@@ -1470,7 +1470,7 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 		return -ENODEV;
 
 	if (!devm_request_mem_region(&pdev->dev, res->start,
-				res->end - res->start, pdev->name))
+				resource_size(res), pdev->name))
 		return -EBUSY;
 
 	adev = kzalloc(sizeof(*adev), GFP_KERNEL);
@@ -1542,7 +1542,7 @@ static int __devinit iop_adma_probe(struct platform_device *pdev)
 	iop_chan->device = adev;
 
 	iop_chan->mmr_base = devm_ioremap(&pdev->dev, res->start,
-					res->end - res->start);
+					resource_size(res));
 	if (!iop_chan->mmr_base) {
 		ret = -ENOMEM;
 		goto err_free_iop_chan;

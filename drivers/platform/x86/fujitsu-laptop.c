@@ -164,7 +164,7 @@ struct fujitsu_hotkey_t {
 	struct input_dev *input;
 	char phys[32];
 	struct platform_device *pf_device;
-	struct kfifo *fifo;
+	struct kfifo fifo;
 	spinlock_t fifo_lock;
 	int rfkill_supported;
 	int rfkill_state;
@@ -376,8 +376,8 @@ static int get_lcd_level(void)
 
 	status =
 	    acpi_evaluate_integer(fujitsu->acpi_handle, "GBLL", NULL, &state);
-	if (status < 0)
-		return status;
+	if (ACPI_FAILURE(status))
+		return 0;
 
 	fujitsu->brightness_level = state & 0x0fffffff;
 
@@ -398,8 +398,8 @@ static int get_max_brightness(void)
 
 	status =
 	    acpi_evaluate_integer(fujitsu->acpi_handle, "RBLL", NULL, &state);
-	if (status < 0)
-		return status;
+	if (ACPI_FAILURE(status))
+		return -1;
 
 	fujitsu->max_brightness = state;
 
@@ -824,12 +824,10 @@ static int acpi_fujitsu_hotkey_add(struct acpi_device *device)
 
 	/* kfifo */
 	spin_lock_init(&fujitsu_hotkey->fifo_lock);
-	fujitsu_hotkey->fifo =
-	    kfifo_alloc(RINGBUFFERSIZE * sizeof(int), GFP_KERNEL,
-			&fujitsu_hotkey->fifo_lock);
-	if (IS_ERR(fujitsu_hotkey->fifo)) {
+	error = kfifo_alloc(&fujitsu_hotkey->fifo, RINGBUFFERSIZE * sizeof(int),
+			GFP_KERNEL);
+	if (error) {
 		printk(KERN_ERR "kfifo_alloc failed\n");
-		error = PTR_ERR(fujitsu_hotkey->fifo);
 		goto err_stop;
 	}
 
@@ -934,7 +932,7 @@ err_unregister_input_dev:
 err_free_input_dev:
 	input_free_device(input);
 err_free_fifo:
-	kfifo_free(fujitsu_hotkey->fifo);
+	kfifo_free(&fujitsu_hotkey->fifo);
 err_stop:
 	return result;
 }
@@ -956,7 +954,7 @@ static int acpi_fujitsu_hotkey_remove(struct acpi_device *device, int type)
 
 	input_free_device(input);
 
-	kfifo_free(fujitsu_hotkey->fifo);
+	kfifo_free(&fujitsu_hotkey->fifo);
 
 	fujitsu_hotkey->acpi_handle = NULL;
 
@@ -1008,9 +1006,10 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 				vdbg_printk(FUJLAPTOP_DBG_TRACE,
 					"Push keycode into ringbuffer [%d]\n",
 					keycode);
-				status = kfifo_put(fujitsu_hotkey->fifo,
+				status = kfifo_in_locked(&fujitsu_hotkey->fifo,
 						   (unsigned char *)&keycode,
-						   sizeof(keycode));
+						   sizeof(keycode),
+						   &fujitsu_hotkey->fifo_lock);
 				if (status != sizeof(keycode)) {
 					vdbg_printk(FUJLAPTOP_DBG_WARN,
 					    "Could not push keycode [0x%x]\n",
@@ -1021,11 +1020,12 @@ static void acpi_fujitsu_hotkey_notify(struct acpi_device *device, u32 event)
 				}
 			} else if (keycode == 0) {
 				while ((status =
-					kfifo_get
-					(fujitsu_hotkey->fifo, (unsigned char *)
-					 &keycode_r,
-					 sizeof
-					 (keycode_r))) == sizeof(keycode_r)) {
+					kfifo_out_locked(
+					 &fujitsu_hotkey->fifo,
+					 (unsigned char *) &keycode_r,
+					 sizeof(keycode_r),
+					 &fujitsu_hotkey->fifo_lock))
+					 == sizeof(keycode_r)) {
 					input_report_key(input, keycode_r, 0);
 					input_sync(input);
 					vdbg_printk(FUJLAPTOP_DBG_TRACE,

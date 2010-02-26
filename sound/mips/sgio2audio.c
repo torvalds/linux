@@ -609,7 +609,7 @@ static int snd_sgio2audio_pcm_hw_params(struct snd_pcm_substream *substream,
 	/* alloc virtual 'dma' area */
 	if (runtime->dma_area)
 		vfree(runtime->dma_area);
-	runtime->dma_area = vmalloc(size);
+	runtime->dma_area = vmalloc_user(size);
 	if (runtime->dma_area == NULL)
 		return -ENOMEM;
 	runtime->dma_bytes = size;

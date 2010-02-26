@@ -3165,10 +3165,9 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		spin_unlock(&tree->buffer_lock);
 		goto free_eb;
 	}
-	spin_unlock(&tree->buffer_lock);
-
 	/* add one reference for the tree */
 	atomic_inc(&eb->refs);
+	spin_unlock(&tree->buffer_lock);
 	return eb;
 
 free_eb:

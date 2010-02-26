@@ -610,7 +610,7 @@ acpi_install_gpe_block(acpi_handle gpe_device,
 		return (status);
 	}
 
-	node = acpi_ns_map_handle_to_node(gpe_device);
+	node = acpi_ns_validate_handle(gpe_device);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;
@@ -698,7 +698,7 @@ acpi_status acpi_remove_gpe_block(acpi_handle gpe_device)
 		return (status);
 	}
 
-	node = acpi_ns_map_handle_to_node(gpe_device);
+	node = acpi_ns_validate_handle(gpe_device);
 	if (!node) {
 		status = AE_BAD_PARAMETER;
 		goto unlock_and_exit;

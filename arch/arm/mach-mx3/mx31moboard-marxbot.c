@@ -294,7 +294,7 @@ static int __init marxbot_usbh1_init(void)
 
 	usbh1_pdata.otg = otg;
 
-	return mxc_register_device(&mx31_usbh1, &usbh1_pdata);
+	return mxc_register_device(&mxc_usbh1, &usbh1_pdata);
 }
 
 /*

@@ -74,7 +74,7 @@ struct ia64_tr_entry {
 extern int ia64_itr_entry(u64 target_mask, u64 va, u64 pte, u64 log_size);
 extern void ia64_ptr_entry(u64 target_mask, int slot);
 
-extern struct ia64_tr_entry __per_cpu_idtrs[NR_CPUS][2][IA64_TR_ALLOC_MAX];
+extern struct ia64_tr_entry *ia64_idtrs[NR_CPUS];
 
 /*
  region register macros

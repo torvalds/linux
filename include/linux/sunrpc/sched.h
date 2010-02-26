@@ -173,7 +173,8 @@ struct rpc_task_setup {
 #define RPC_PRIORITY_LOW	(-1)
 #define RPC_PRIORITY_NORMAL	(0)
 #define RPC_PRIORITY_HIGH	(1)
-#define RPC_NR_PRIORITY		(1 + RPC_PRIORITY_HIGH - RPC_PRIORITY_LOW)
+#define RPC_PRIORITY_PRIVILEGED	(2)
+#define RPC_NR_PRIORITY		(1 + RPC_PRIORITY_PRIVILEGED - RPC_PRIORITY_LOW)
 
 struct rpc_timer {
 	struct timer_list timer;
@@ -229,6 +230,7 @@ void		rpc_wake_up_queued_task(struct rpc_wait_queue *,
 void		rpc_wake_up(struct rpc_wait_queue *);
 struct rpc_task *rpc_wake_up_next(struct rpc_wait_queue *);
 void		rpc_wake_up_status(struct rpc_wait_queue *, int);
+int		rpc_queue_empty(struct rpc_wait_queue *);
 void		rpc_delay(struct rpc_task *, unsigned long);
 void *		rpc_malloc(struct rpc_task *, size_t);
 void		rpc_free(void *);
@@ -252,6 +254,16 @@ static inline void rpc_exit(struct rpc_task *task, int status)
 static inline int rpc_wait_for_completion_task(struct rpc_task *task)
 {
 	return __rpc_wait_for_completion_task(task, NULL);
+}
+
+static inline void rpc_task_set_priority(struct rpc_task *task, unsigned char prio)
+{
+	task->tk_priority = prio - RPC_PRIORITY_LOW;
+}
+
+static inline int rpc_task_has_priority(struct rpc_task *task, unsigned char prio)
+{
+	return (task->tk_priority + RPC_PRIORITY_LOW == prio);
 }
 
 #ifdef RPC_DEBUG

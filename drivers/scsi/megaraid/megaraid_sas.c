@@ -2501,7 +2501,9 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 		instance->base_addr = pci_resource_start(instance->pdev, 0);
 	}
 
-	if (pci_request_regions(instance->pdev, "megasas: LSI")) {
+	if (pci_request_selected_regions(instance->pdev,
+		pci_select_bars(instance->pdev, IORESOURCE_MEM),
+		"megasas: LSI")) {
 		printk(KERN_DEBUG "megasas: IO memory region busy!\n");
 		return -EBUSY;
 	}
@@ -2642,7 +2644,8 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 	iounmap(instance->reg_set);
 
       fail_ioremap:
-	pci_release_regions(instance->pdev);
+	pci_release_selected_regions(instance->pdev,
+		pci_select_bars(instance->pdev, IORESOURCE_MEM));
 
 	return -EINVAL;
 }
@@ -2662,7 +2665,8 @@ static void megasas_release_mfi(struct megasas_instance *instance)
 
 	iounmap(instance->reg_set);
 
-	pci_release_regions(instance->pdev);
+	pci_release_selected_regions(instance->pdev,
+		pci_select_bars(instance->pdev, IORESOURCE_MEM));
 }
 
 /**
@@ -2971,7 +2975,7 @@ megasas_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/*
 	 * PCI prepping: enable device set bus mastering and dma mask
 	 */
-	rval = pci_enable_device(pdev);
+	rval = pci_enable_device_mem(pdev);
 
 	if (rval) {
 		return rval;
@@ -3276,7 +3280,7 @@ megasas_resume(struct pci_dev *pdev)
 	/*
 	 * PCI prepping: enable device set bus mastering and dma mask
 	 */
-	rval = pci_enable_device(pdev);
+	rval = pci_enable_device_mem(pdev);
 
 	if (rval) {
 		printk(KERN_ERR "megasas: Enable device failed\n");
@@ -3777,6 +3781,7 @@ static int megasas_mgmt_compat_ioctl_fw(struct file *file, unsigned long arg)
 	    compat_alloc_user_space(sizeof(struct megasas_iocpacket));
 	int i;
 	int error = 0;
+	compat_uptr_t ptr;
 
 	if (clear_user(ioc, sizeof(*ioc)))
 		return -EFAULT;
@@ -3789,9 +3794,22 @@ static int megasas_mgmt_compat_ioctl_fw(struct file *file, unsigned long arg)
 	    copy_in_user(&ioc->sge_count, &cioc->sge_count, sizeof(u32)))
 		return -EFAULT;
 
-	for (i = 0; i < MAX_IOCTL_SGE; i++) {
-		compat_uptr_t ptr;
+	/*
+	 * The sense_ptr is used in megasas_mgmt_fw_ioctl only when
+	 * sense_len is not null, so prepare the 64bit value under
+	 * the same condition.
+	 */
+	if (ioc->sense_len) {
+		void __user **sense_ioc_ptr =
+			(void __user **)(ioc->frame.raw + ioc->sense_off);
+		compat_uptr_t *sense_cioc_ptr =
+			(compat_uptr_t *)(cioc->frame.raw + cioc->sense_off);
+		if (get_user(ptr, sense_cioc_ptr) ||
+		    put_user(compat_ptr(ptr), sense_ioc_ptr))
+			return -EFAULT;
+	}
 
+	for (i = 0; i < MAX_IOCTL_SGE; i++) {
 		if (get_user(ptr, &cioc->sgl[i].iov_base) ||
 		    put_user(compat_ptr(ptr), &ioc->sgl[i].iov_base) ||
 		    copy_in_user(&ioc->sgl[i].iov_len,
@@ -4042,7 +4060,7 @@ megasas_aen_polling(struct work_struct *work)
 }
 
 
-static DRIVER_ATTR(poll_mode_io, S_IRUGO|S_IWUGO,
+static DRIVER_ATTR(poll_mode_io, S_IRUGO|S_IWUSR,
 		megasas_sysfs_show_poll_mode_io,
 		megasas_sysfs_set_poll_mode_io);
 

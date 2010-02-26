@@ -260,7 +260,6 @@ void __setup_vector_irq(int cpu)
 }
 
 #if defined(CONFIG_SMP) && (defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG))
-#define IA64_IRQ_MOVE_VECTOR	IA64_DEF_FIRST_DEVICE_VECTOR
 
 static enum vector_domain_type {
 	VECTOR_DOMAIN_NONE,
@@ -659,11 +658,8 @@ init_IRQ (void)
 	register_percpu_irq(IA64_SPURIOUS_INT_VECTOR, NULL);
 #ifdef CONFIG_SMP
 #if defined(CONFIG_IA64_GENERIC) || defined(CONFIG_IA64_DIG)
-	if (vector_domain_type != VECTOR_DOMAIN_NONE) {
-		BUG_ON(IA64_FIRST_DEVICE_VECTOR != IA64_IRQ_MOVE_VECTOR);
-		IA64_FIRST_DEVICE_VECTOR++;
+	if (vector_domain_type != VECTOR_DOMAIN_NONE)
 		register_percpu_irq(IA64_IRQ_MOVE_VECTOR, &irq_move_irqaction);
-	}
 #endif
 #endif
 #ifdef CONFIG_PERFMON

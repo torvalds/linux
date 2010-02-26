@@ -95,8 +95,8 @@ typedef union event_union {
 } event_t;
 
 struct events_stats {
-	unsigned long total;
-	unsigned long lost;
+	u64 total;
+	u64 lost;
 };
 
 void event__print_totals(void);
@@ -149,29 +149,35 @@ void map__delete(struct map *self);
 struct map *map__clone(struct map *self);
 int map__overlap(struct map *l, struct map *r);
 size_t map__fprintf(struct map *self, FILE *fp);
-struct symbol *map__find_symbol(struct map *self, u64 addr,
-				symbol_filter_t filter);
+
+struct perf_session;
+
+int map__load(struct map *self, struct perf_session *session,
+	      symbol_filter_t filter);
+struct symbol *map__find_symbol(struct map *self, struct perf_session *session,
+				u64 addr, symbol_filter_t filter);
 struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
+					struct perf_session *session,
 					symbol_filter_t filter);
 void map__fixup_start(struct map *self);
 void map__fixup_end(struct map *self);
 
-int event__synthesize_thread(pid_t pid, int (*process)(event_t *event));
-void event__synthesize_threads(int (*process)(event_t *event));
+int event__synthesize_thread(pid_t pid,
+			     int (*process)(event_t *event,
+					    struct perf_session *session),
+			     struct perf_session *session);
+void event__synthesize_threads(int (*process)(event_t *event,
+					      struct perf_session *session),
+			       struct perf_session *session);
 
-extern char *event__cwd;
-extern int  event__cwdlen;
-extern struct events_stats event__stats;
-extern unsigned long event__total[PERF_RECORD_MAX];
-
-int event__process_comm(event_t *self);
-int event__process_lost(event_t *self);
-int event__process_mmap(event_t *self);
-int event__process_task(event_t *self);
+int event__process_comm(event_t *self, struct perf_session *session);
+int event__process_lost(event_t *self, struct perf_session *session);
+int event__process_mmap(event_t *self, struct perf_session *session);
+int event__process_task(event_t *self, struct perf_session *session);
 
 struct addr_location;
-int event__preprocess_sample(const event_t *self, struct addr_location *al,
-			     symbol_filter_t filter);
+int event__preprocess_sample(const event_t *self, struct perf_session *session,
+			     struct addr_location *al, symbol_filter_t filter);
 int event__parse_sample(event_t *event, u64 type, struct sample_data *data);
 
 #endif /* __PERF_RECORD_H */

@@ -5,6 +5,7 @@
 perf-annotate			mainporcelain common
 perf-bench			mainporcelain common
 perf-buildid-list		mainporcelain common
+perf-diff			mainporcelain common
 perf-list			mainporcelain common
 perf-sched			mainporcelain common
 perf-record			mainporcelain common

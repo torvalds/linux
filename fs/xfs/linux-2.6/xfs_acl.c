@@ -251,8 +251,9 @@ xfs_set_mode(struct inode *inode, mode_t mode)
 	if (mode != inode->i_mode) {
 		struct iattr iattr;
 
-		iattr.ia_valid = ATTR_MODE;
+		iattr.ia_valid = ATTR_MODE | ATTR_CTIME;
 		iattr.ia_mode = mode;
+		iattr.ia_ctime = current_fs_time(inode->i_sb);
 
 		error = -xfs_setattr(XFS_I(inode), &iattr, XFS_ATTR_NOACL);
 	}
@@ -354,37 +355,14 @@ xfs_acl_chmod(struct inode *inode)
 	return error;
 }
 
-/*
- * System xattr handlers.
- *
- * Currently Posix ACLs are the only system namespace extended attribute
- * handlers supported by XFS, so we just implement the handlers here.
- * If we ever support other system extended attributes this will need
- * some refactoring.
- */
-
 static int
-xfs_decode_acl(const char *name)
-{
-	if (strcmp(name, "posix_acl_access") == 0)
-		return ACL_TYPE_ACCESS;
-	else if (strcmp(name, "posix_acl_default") == 0)
-		return ACL_TYPE_DEFAULT;
-	return -EINVAL;
-}
-
-static int
-xfs_xattr_system_get(struct inode *inode, const char *name,
-		void *value, size_t size)
+xfs_xattr_acl_get(struct dentry *dentry, const char *name,
+		void *value, size_t size, int type)
 {
 	struct posix_acl *acl;
-	int type, error;
+	int error;
 
-	type = xfs_decode_acl(name);
-	if (type < 0)
-		return type;
-
-	acl = xfs_get_acl(inode, type);
+	acl = xfs_get_acl(dentry->d_inode, type);
 	if (IS_ERR(acl))
 		return PTR_ERR(acl);
 	if (acl == NULL)
@@ -397,15 +375,13 @@ xfs_xattr_system_get(struct inode *inode, const char *name,
 }
 
 static int
-xfs_xattr_system_set(struct inode *inode, const char *name,
-		const void *value, size_t size, int flags)
+xfs_xattr_acl_set(struct dentry *dentry, const char *name,
+		const void *value, size_t size, int flags, int type)
 {
+	struct inode *inode = dentry->d_inode;
 	struct posix_acl *acl = NULL;
-	int error = 0, type;
+	int error = 0;
 
-	type = xfs_decode_acl(name);
-	if (type < 0)
-		return type;
 	if (flags & XATTR_CREATE)
 		return -EINVAL;
 	if (type == ACL_TYPE_DEFAULT && !S_ISDIR(inode->i_mode))
@@ -462,8 +438,16 @@ xfs_xattr_system_set(struct inode *inode, const char *name,
 	return error;
 }
 
-struct xattr_handler xfs_xattr_system_handler = {
-	.prefix	= XATTR_SYSTEM_PREFIX,
-	.get	= xfs_xattr_system_get,
-	.set	= xfs_xattr_system_set,
+struct xattr_handler xfs_xattr_acl_access_handler = {
+	.prefix	= POSIX_ACL_XATTR_ACCESS,
+	.flags	= ACL_TYPE_ACCESS,
+	.get	= xfs_xattr_acl_get,
+	.set	= xfs_xattr_acl_set,
+};
+
+struct xattr_handler xfs_xattr_acl_default_handler = {
+	.prefix	= POSIX_ACL_XATTR_DEFAULT,
+	.flags	= ACL_TYPE_DEFAULT,
+	.get	= xfs_xattr_acl_get,
+	.set	= xfs_xattr_acl_set,
 };

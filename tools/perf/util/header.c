@@ -8,8 +8,8 @@
 #include "header.h"
 #include "../perf.h"
 #include "trace-event.h"
+#include "session.h"
 #include "symbol.h"
-#include "data_map.h"
 #include "debug.h"
 
 /*

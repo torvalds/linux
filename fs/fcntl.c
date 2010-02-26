@@ -618,58 +618,88 @@ static DEFINE_RWLOCK(fasync_lock);
 static struct kmem_cache *fasync_cache __read_mostly;
 
 /*
- * fasync_helper() is used by almost all character device drivers
- * to set up the fasync queue. It returns negative on error, 0 if it did
- * no changes and positive if it added/deleted the entry.
+ * Remove a fasync entry. If successfully removed, return
+ * positive and clear the FASYNC flag. If no entry exists,
+ * do nothing and return 0.
+ *
+ * NOTE! It is very important that the FASYNC flag always
+ * match the state "is the filp on a fasync list".
+ *
+ * We always take the 'filp->f_lock', in since fasync_lock
+ * needs to be irq-safe.
  */
-int fasync_helper(int fd, struct file * filp, int on, struct fasync_struct **fapp)
+static int fasync_remove_entry(struct file *filp, struct fasync_struct **fapp)
 {
 	struct fasync_struct *fa, **fp;
-	struct fasync_struct *new = NULL;
 	int result = 0;
 
-	if (on) {
-		new = kmem_cache_alloc(fasync_cache, GFP_KERNEL);
-		if (!new)
-			return -ENOMEM;
-	}
-
-	/*
-	 * We need to take f_lock first since it's not an IRQ-safe
-	 * lock.
-	 */
 	spin_lock(&filp->f_lock);
 	write_lock_irq(&fasync_lock);
 	for (fp = fapp; (fa = *fp) != NULL; fp = &fa->fa_next) {
-		if (fa->fa_file == filp) {
-			if(on) {
-				fa->fa_fd = fd;
-				kmem_cache_free(fasync_cache, new);
-			} else {
-				*fp = fa->fa_next;
-				kmem_cache_free(fasync_cache, fa);
-				result = 1;
-			}
-			goto out;
-		}
-	}
-
-	if (on) {
-		new->magic = FASYNC_MAGIC;
-		new->fa_file = filp;
-		new->fa_fd = fd;
-		new->fa_next = *fapp;
-		*fapp = new;
-		result = 1;
-	}
-out:
-	if (on)
-		filp->f_flags |= FASYNC;
-	else
+		if (fa->fa_file != filp)
+			continue;
+		*fp = fa->fa_next;
+		kmem_cache_free(fasync_cache, fa);
 		filp->f_flags &= ~FASYNC;
+		result = 1;
+		break;
+	}
 	write_unlock_irq(&fasync_lock);
 	spin_unlock(&filp->f_lock);
 	return result;
+}
+
+/*
+ * Add a fasync entry. Return negative on error, positive if
+ * added, and zero if did nothing but change an existing one.
+ *
+ * NOTE! It is very important that the FASYNC flag always
+ * match the state "is the filp on a fasync list".
+ */
+static int fasync_add_entry(int fd, struct file *filp, struct fasync_struct **fapp)
+{
+	struct fasync_struct *new, *fa, **fp;
+	int result = 0;
+
+	new = kmem_cache_alloc(fasync_cache, GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+
+	spin_lock(&filp->f_lock);
+	write_lock_irq(&fasync_lock);
+	for (fp = fapp; (fa = *fp) != NULL; fp = &fa->fa_next) {
+		if (fa->fa_file != filp)
+			continue;
+		fa->fa_fd = fd;
+		kmem_cache_free(fasync_cache, new);
+		goto out;
+	}
+
+	new->magic = FASYNC_MAGIC;
+	new->fa_file = filp;
+	new->fa_fd = fd;
+	new->fa_next = *fapp;
+	*fapp = new;
+	result = 1;
+	filp->f_flags |= FASYNC;
+
+out:
+	write_unlock_irq(&fasync_lock);
+	spin_unlock(&filp->f_lock);
+	return result;
+}
+
+/*
+ * fasync_helper() is used by almost all character device drivers
+ * to set up the fasync queue, and for regular files by the file
+ * lease code. It returns negative on error, 0 if it did no changes
+ * and positive if it added/deleted the entry.
+ */
+int fasync_helper(int fd, struct file * filp, int on, struct fasync_struct **fapp)
+{
+	if (!on)
+		return fasync_remove_entry(filp, fapp);
+	return fasync_add_entry(fd, filp, fapp);
 }
 
 EXPORT_SYMBOL(fasync_helper);

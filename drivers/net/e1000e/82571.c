@@ -237,6 +237,8 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	/* Set if manageability features are enabled. */
 	mac->arc_subsystem_valid = (er32(FWSM) & E1000_FWSM_MODE_MASK)
 	                ? true : false;
+	/* Adaptive IFS supported */
+	mac->adaptive_ifs = true;
 
 	/* check for link */
 	switch (hw->phy.media_type) {
@@ -1290,7 +1292,6 @@ static s32 e1000_setup_link_82571(struct e1000_hw *hw)
 static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 {
 	u32 ctrl;
-	u32 led_ctrl;
 	s32 ret_val;
 
 	ctrl = er32(CTRL);
@@ -1305,11 +1306,6 @@ static s32 e1000_setup_copper_link_82571(struct e1000_hw *hw)
 		break;
 	case e1000_phy_igp_2:
 		ret_val = e1000e_copper_link_setup_igp(hw);
-		/* Setup activity LED */
-		led_ctrl = er32(LEDCTL);
-		led_ctrl &= IGP_ACTIVITY_LED_MASK;
-		led_ctrl |= (IGP_ACTIVITY_LED_ENABLE | IGP_LED3_MODE);
-		ew32(LEDCTL, led_ctrl);
 		break;
 	default:
 		return -E1000_ERR_PHY;

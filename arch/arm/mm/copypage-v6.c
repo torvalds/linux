@@ -48,7 +48,7 @@ static void v6_copy_user_highpage_nonaliasing(struct page *to,
 	 */
 	if (page_address(to) != NULL)
 #endif
-		__cpuc_flush_dcache_page(kto);
+		__cpuc_flush_dcache_area(kto, PAGE_SIZE);
 	kunmap_atomic(kto, KM_USER1);
 	kunmap_atomic(kfrom, KM_USER0);
 }

@@ -289,14 +289,6 @@ config MTD_NAND_SHARPSL
 	tristate "Support for NAND Flash on Sharp SL Series (C7xx + others)"
 	depends on ARCH_PXA
 
-config MTD_NAND_BASLER_EXCITE
-	tristate  "Support for NAND Flash on Basler eXcite"
-	depends on BASLER_EXCITE
-	help
-          This enables the driver for the NAND flash device found on the
-          Basler eXcite Smart Camera. If built as a module, the driver
-          will be named excite_nandflash.
-
 config MTD_NAND_CAFE
 	tristate "NAND support for OLPC CAFÉ chip"
 	depends on PCI

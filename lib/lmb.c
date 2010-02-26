@@ -263,7 +263,7 @@ long __init lmb_reserve(u64 base, u64 size)
 	return lmb_add_region(_rgn, base, size);
 }
 
-long __init lmb_overlaps_region(struct lmb_region *rgn, u64 base, u64 size)
+long lmb_overlaps_region(struct lmb_region *rgn, u64 base, u64 size)
 {
 	unsigned long i;
 
@@ -491,6 +491,11 @@ int __init lmb_is_reserved(u64 addr)
 			return 1;
 	}
 	return 0;
+}
+
+int lmb_is_region_reserved(u64 base, u64 size)
+{
+	return lmb_overlaps_region(&lmb.reserved, base, size);
 }
 
 /*

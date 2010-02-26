@@ -93,7 +93,7 @@ static const struct hv_guid VMBUS_SERVICE_ID = {
 	},
 };
 
-#define MAX_NUM_CPUS	1
+#define MAX_NUM_CPUS	32
 
 
 struct hv_input_signal_event_buffer {
@@ -137,8 +137,8 @@ extern u16 HvPostMessage(union hv_connection_id connectionId,
 
 extern u16 HvSignalEvent(void);
 
-extern int HvSynicInit(u32 irqVector);
+extern void HvSynicInit(void *irqarg);
 
-extern void HvSynicCleanup(void);
+extern void HvSynicCleanup(void *arg);
 
 #endif /* __HV_H__ */

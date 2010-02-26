@@ -91,6 +91,7 @@
 #define ATOM_WS_AND_MASK	0x45
 #define ATOM_WS_FB_WINDOW	0x46
 #define ATOM_WS_ATTRIBUTES	0x47
+#define ATOM_WS_REGPTR  	0x48
 
 #define ATOM_IIO_NOP		0
 #define ATOM_IIO_START		1
@@ -120,6 +121,7 @@ struct card_info {
 
 struct atom_context {
 	struct card_info *card;
+	struct mutex mutex;
 	void *bios;
 	uint32_t cmd_table, data_table;
 	uint16_t *iio;

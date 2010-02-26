@@ -2875,7 +2875,7 @@ static unsigned int ata_scsi_pass_thru(struct ata_queued_cmd *qc)
 	 * write indication (used for PIO/DMA setup), result TF is
 	 * copied back and we don't whine too much about its failure.
 	 */
-	tf->flags = ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
+	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	if (scmd->sc_data_direction == DMA_TO_DEVICE)
 		tf->flags |= ATA_TFLAG_WRITE;
 
@@ -3022,7 +3022,7 @@ static inline ata_xlat_func_t ata_get_xlat_func(struct ata_device *dev, u8 cmd)
 	case WRITE_16:
 		return ata_scsi_rw_xlat;
 
-	case 0x93 /*WRITE_SAME_16*/:
+	case WRITE_SAME_16:
 		return ata_scsi_write_same_xlat;
 
 	case SYNCHRONIZE_CACHE:

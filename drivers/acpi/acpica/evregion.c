@@ -718,7 +718,7 @@ acpi_ev_install_handler(acpi_handle obj_handle,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_map_handle_to_node(obj_handle);
+	node = acpi_ns_validate_handle(obj_handle);
 	if (!node) {
 		return (AE_BAD_PARAMETER);
 	}
@@ -1087,7 +1087,7 @@ acpi_ev_reg_run(acpi_handle obj_handle,
 
 	/* Convert and validate the device handle */
 
-	node = acpi_ns_map_handle_to_node(obj_handle);
+	node = acpi_ns_validate_handle(obj_handle);
 	if (!node) {
 		return (AE_BAD_PARAMETER);
 	}

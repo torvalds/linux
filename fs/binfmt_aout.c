@@ -32,7 +32,7 @@
 
 static int load_aout_binary(struct linux_binprm *, struct pt_regs * regs);
 static int load_aout_library(struct file*);
-static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file, unsigned long limit);
+static int aout_core_dump(struct coredump_params *cprm);
 
 static struct linux_binfmt aout_format = {
 	.module		= THIS_MODULE,
@@ -89,8 +89,9 @@ if (file->f_op->llseek) { \
  * dumping of the process results in another error..
  */
 
-static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file, unsigned long limit)
+static int aout_core_dump(struct coredump_params *cprm)
 {
+	struct file *file = cprm->file;
 	mm_segment_t fs;
 	int has_dumped = 0;
 	unsigned long dump_start, dump_size;
@@ -108,16 +109,16 @@ static int aout_core_dump(long signr, struct pt_regs *regs, struct file *file, u
 	current->flags |= PF_DUMPCORE;
        	strncpy(dump.u_comm, current->comm, sizeof(dump.u_comm));
 	dump.u_ar0 = offsetof(struct user, regs);
-	dump.signal = signr;
-	aout_dump_thread(regs, &dump);
+	dump.signal = cprm->signr;
+	aout_dump_thread(cprm->regs, &dump);
 
 /* If the size of the dump file exceeds the rlimit, then see what would happen
    if we wrote the stack, but not the data area.  */
-	if ((dump.u_dsize + dump.u_ssize+1) * PAGE_SIZE > limit)
+	if ((dump.u_dsize + dump.u_ssize+1) * PAGE_SIZE > cprm->limit)
 		dump.u_dsize = 0;
 
 /* Make sure we have enough room to write the stack and data areas. */
-	if ((dump.u_ssize + 1) * PAGE_SIZE > limit)
+	if ((dump.u_ssize + 1) * PAGE_SIZE > cprm->limit)
 		dump.u_ssize = 0;
 
 /* make sure we actually have a data and stack area to dump */
@@ -263,6 +264,7 @@ static int load_aout_binary(struct linux_binprm * bprm, struct pt_regs * regs)
 #else
 	set_personality(PER_LINUX);
 #endif
+	setup_new_exec(bprm);
 
 	current->mm->end_code = ex.a_text +
 		(current->mm->start_code = N_TXTADDR(ex));

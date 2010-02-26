@@ -595,8 +595,7 @@ static void port_release(struct device *dev)
 	usb_free_urb(port->write_urb);
 	usb_free_urb(port->interrupt_in_urb);
 	usb_free_urb(port->interrupt_out_urb);
-	if (!IS_ERR(port->write_fifo) && port->write_fifo)
-		kfifo_free(port->write_fifo);
+	kfifo_free(&port->write_fifo);
 	kfree(port->bulk_in_buffer);
 	kfree(port->bulk_out_buffer);
 	kfree(port->interrupt_in_buffer);
@@ -939,9 +938,7 @@ int usb_serial_probe(struct usb_interface *interface,
 			dev_err(&interface->dev, "No free urbs available\n");
 			goto probe_error;
 		}
-		port->write_fifo = kfifo_alloc(PAGE_SIZE, GFP_KERNEL,
-			&port->lock);
-		if (IS_ERR(port->write_fifo))
+		if (kfifo_alloc(&port->write_fifo, PAGE_SIZE, GFP_KERNEL))
 			goto probe_error;
 		buffer_size = le16_to_cpu(endpoint->wMaxPacketSize);
 		port->bulk_out_size = buffer_size;

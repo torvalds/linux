@@ -50,9 +50,9 @@ struct octeon_ethernet {
 	/* List of outstanding tx buffers per queue */
 	struct sk_buff_head tx_free_list[16];
 	/* Device statistics */
-	struct net_device_stats stats
-;	/* Generic MII info structure */
-	struct mii_if_info mii_info;
+	struct net_device_stats stats;
+	struct phy_device *phydev;
+	unsigned int last_link;
 	/* Last negotiated link state */
 	uint64_t link_info;
 	/* Called periodically to check link status */

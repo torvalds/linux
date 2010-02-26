@@ -21,8 +21,11 @@
 #include <linux/fsnotify.h>
 #include <linux/sysctl.h>
 #include <linux/percpu_counter.h>
+#include <linux/ima.h>
 
 #include <asm/atomic.h>
+
+#include "internal.h"
 
 /* sysctl tunables... */
 struct files_stat_struct files_stat = {
@@ -147,8 +150,6 @@ fail:
 	return NULL;
 }
 
-EXPORT_SYMBOL(get_empty_filp);
-
 /**
  * alloc_file - allocate and initialize a 'struct file'
  * @mnt: the vfsmount on which the file will reside
@@ -164,8 +165,8 @@ EXPORT_SYMBOL(get_empty_filp);
  * If all the callers of init_file() are eliminated, its
  * code should be moved into this function.
  */
-struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
-		fmode_t mode, const struct file_operations *fop)
+struct file *alloc_file(struct path *path, fmode_t mode,
+		const struct file_operations *fop)
 {
 	struct file *file;
 
@@ -173,35 +174,8 @@ struct file *alloc_file(struct vfsmount *mnt, struct dentry *dentry,
 	if (!file)
 		return NULL;
 
-	init_file(file, mnt, dentry, mode, fop);
-	return file;
-}
-EXPORT_SYMBOL(alloc_file);
-
-/**
- * init_file - initialize a 'struct file'
- * @file: the already allocated 'struct file' to initialized
- * @mnt: the vfsmount on which the file resides
- * @dentry: the dentry representing this file
- * @mode: the mode the file is opened with
- * @fop: the 'struct file_operations' for this file
- *
- * Use this instead of setting the members directly.  Doing so
- * avoids making mistakes like forgetting the mntget() or
- * forgetting to take a write on the mnt.
- *
- * Note: This is a crappy interface.  It is here to make
- * merging with the existing users of get_empty_filp()
- * who have complex failure logic easier.  All users
- * of this should be moving to alloc_file().
- */
-int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
-	   fmode_t mode, const struct file_operations *fop)
-{
-	int error = 0;
-	file->f_path.dentry = dentry;
-	file->f_path.mnt = mntget(mnt);
-	file->f_mapping = dentry->d_inode->i_mapping;
+	file->f_path = *path;
+	file->f_mapping = path->dentry->d_inode->i_mapping;
 	file->f_mode = mode;
 	file->f_op = fop;
 
@@ -211,14 +185,14 @@ int init_file(struct file *file, struct vfsmount *mnt, struct dentry *dentry,
 	 * visible.  We do this for consistency, and so
 	 * that we can do debugging checks at __fput()
 	 */
-	if ((mode & FMODE_WRITE) && !special_file(dentry->d_inode->i_mode)) {
+	if ((mode & FMODE_WRITE) && !special_file(path->dentry->d_inode->i_mode)) {
 		file_take_write(file);
-		error = mnt_clone_write(mnt);
-		WARN_ON(error);
+		WARN_ON(mnt_clone_write(path->mnt));
 	}
-	return error;
+	ima_counts_get(file);
+	return file;
 }
-EXPORT_SYMBOL(init_file);
+EXPORT_SYMBOL(alloc_file);
 
 void fput(struct file *file)
 {
@@ -279,6 +253,7 @@ void __fput(struct file *file)
 	if (file->f_op && file->f_op->release)
 		file->f_op->release(inode, file);
 	security_file_free(file);
+	ima_file_free(file);
 	if (unlikely(S_ISCHR(inode->i_mode) && inode->i_cdev != NULL))
 		cdev_put(inode->i_cdev);
 	fops_put(file->f_op);

@@ -91,8 +91,8 @@ struct device_attribute {
 			 const char *buf, size_t count);
 };
 
-int device_create_file(struct device *, struct device_attribute *);
-void device_remove_file(struct device *, struct device_attribute *);
+int device_create_file(struct device *, const struct device_attribute *);
+void device_remove_file(struct device *, const struct device_attribute *);
 
 It also defines this helper for defining device attributes: 
 
@@ -316,8 +316,8 @@ DEVICE_ATTR(_name, _mode, _show, _store);
 
 Creation/Removal:
 
-int device_create_file(struct device *device, struct device_attribute * attr);
-void device_remove_file(struct device * dev, struct device_attribute * attr);
+int device_create_file(struct device *dev, const struct device_attribute * attr);
+void device_remove_file(struct device *dev, const struct device_attribute * attr);
 
 
 - bus drivers (include/linux/device.h)
@@ -358,7 +358,7 @@ DRIVER_ATTR(_name, _mode, _show, _store)
 
 Creation/Removal:
 
-int driver_create_file(struct device_driver *, struct driver_attribute *);
-void driver_remove_file(struct device_driver *, struct driver_attribute *);
+int driver_create_file(struct device_driver *, const struct driver_attribute *);
+void driver_remove_file(struct device_driver *, const struct driver_attribute *);
 
 

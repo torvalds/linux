@@ -12,7 +12,6 @@
 #include "common.h"
 #include "tomoyo.h"
 #include "realpath.h"
-#define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])
 
 /*
  * tomoyo_globally_readable_file_entry is a structure which is used for holding

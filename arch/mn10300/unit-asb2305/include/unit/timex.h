@@ -15,7 +15,7 @@
 #include <linux/irq.h>
 #endif /* __ASSEMBLY__ */
 
-#include <asm/cpu/timer-regs.h>
+#include <asm/timer-regs.h>
 #include <unit/clock.h>
 
 /*

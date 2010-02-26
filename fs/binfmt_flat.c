@@ -87,7 +87,7 @@ static int load_flat_shared_library(int id, struct lib_info *p);
 #endif
 
 static int load_flat_binary(struct linux_binprm *, struct pt_regs * regs);
-static int flat_core_dump(long signr, struct pt_regs *regs, struct file *file, unsigned long limit);
+static int flat_core_dump(struct coredump_params *cprm);
 
 static struct linux_binfmt flat_format = {
 	.module		= THIS_MODULE,
@@ -102,10 +102,10 @@ static struct linux_binfmt flat_format = {
  * Currently only a stub-function.
  */
 
-static int flat_core_dump(long signr, struct pt_regs *regs, struct file *file, unsigned long limit)
+static int flat_core_dump(struct coredump_params *cprm)
 {
 	printk("Process %s:%d received signr %d and should have core dumped\n",
-			current->comm, current->pid, (int) signr);
+			current->comm, current->pid, (int) cprm->signr);
 	return(1);
 }
 
@@ -519,6 +519,7 @@ static int load_flat_file(struct linux_binprm * bprm,
 
 		/* OK, This is the point of no return */
 		set_personality(PER_LINUX_32BIT);
+		setup_new_exec(bprm);
 	}
 
 	/*

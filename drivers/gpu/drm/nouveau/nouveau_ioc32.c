@@ -61,12 +61,10 @@ long nouveau_compat_ioctl(struct file *filp, unsigned int cmd,
 	if (nr < DRM_COMMAND_BASE + DRM_ARRAY_SIZE(mga_compat_ioctls))
 		fn = nouveau_compat_ioctls[nr - DRM_COMMAND_BASE];
 #endif
-	lock_kernel();	  /* XXX for now */
 	if (fn != NULL)
 		ret = (*fn)(filp, cmd, arg);
 	else
-		ret = drm_ioctl(filp->f_dentry->d_inode, filp, cmd, arg);
-	unlock_kernel();
+		ret = drm_ioctl(filp, cmd, arg);
 
 	return ret;
 }

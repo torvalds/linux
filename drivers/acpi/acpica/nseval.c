@@ -381,6 +381,18 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 				    method_obj->method.next_object);
 	type = acpi_ns_get_type(parent_node);
 
+	/*
+	 * Get the region handler and save it in the method object. We may need
+	 * this if an operation region declaration causes a _REG method to be run.
+	 *
+	 * We can't do this in acpi_ps_link_module_code because
+	 * acpi_gbl_root_node->Object is NULL at PASS1.
+	 */
+	if ((type == ACPI_TYPE_DEVICE) && parent_node->object) {
+		method_obj->method.extra.handler =
+		    parent_node->object->device.handler;
+	}
+
 	/* Must clear next_object (acpi_ns_attach_object needs the field) */
 
 	method_obj->method.next_object = NULL;
@@ -414,6 +426,12 @@ acpi_ns_exec_module_code(union acpi_operand_object *method_obj,
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INIT, "Executed module-level code at %p\n",
 			  method_obj->method.aml_start));
+
+	/* Delete a possible implicit return value (in slack mode) */
+
+	if (info->return_object) {
+		acpi_ut_remove_reference(info->return_object);
+	}
 
 	/* Detach the temporary method object */
 

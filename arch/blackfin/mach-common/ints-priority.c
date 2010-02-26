@@ -25,11 +25,20 @@
 #include <asm/blackfin.h>
 #include <asm/gpio.h>
 #include <asm/irq_handler.h>
+#include <asm/dpmc.h>
+#include <asm/bfin5xx_spi.h>
+#include <asm/bfin_sport.h>
 
 #define SIC_SYSIRQ(irq)	(irq - (IRQ_CORETMR + 1))
 
 #ifdef BF537_FAMILY
 # define BF537_GENERIC_ERROR_INT_DEMUX
+# define SPI_ERR_MASK   (BIT_STAT_TXCOL | BIT_STAT_RBSY | BIT_STAT_MODF | BIT_STAT_TXE)	/* SPI_STAT */
+# define SPORT_ERR_MASK (ROVF | RUVF | TOVF | TUVF)	/* SPORT_STAT */
+# define PPI_ERR_MASK   (0xFFFF & ~FLD)	/* PPI_STATUS */
+# define EMAC_ERR_MASK  (PHYINT | MMCINT | RXFSINT | TXFSINT | WAKEDET | RXDMAERR | TXDMAERR | STMDONE)	/* EMAC_SYSTAT */
+# define UART_ERR_MASK  (0x6)	/* UART_IIR */
+# define CAN_ERR_MASK   (EWTIF | EWRIF | EPIF | BOIF | WUIF | UIAIF | AAIF | RMLIF | UCEIF | EXTIF | ADIF)	/* CAN_GIF */
 #else
 # undef BF537_GENERIC_ERROR_INT_DEMUX
 #endif
@@ -324,11 +333,9 @@ static void bfin_demux_error_irq(unsigned int int_err_irq,
 		irq = IRQ_CAN_ERROR;
 	else if (bfin_read_SPI_STAT() & SPI_ERR_MASK)
 		irq = IRQ_SPI_ERROR;
-	else if ((bfin_read_UART0_IIR() & UART_ERR_MASK_STAT1) &&
-		 (bfin_read_UART0_IIR() & UART_ERR_MASK_STAT0))
+	else if ((bfin_read_UART0_IIR() & UART_ERR_MASK) == UART_ERR_MASK)
 		irq = IRQ_UART0_ERROR;
-	else if ((bfin_read_UART1_IIR() & UART_ERR_MASK_STAT1) &&
-		 (bfin_read_UART1_IIR() & UART_ERR_MASK_STAT0))
+	else if ((bfin_read_UART1_IIR() & UART_ERR_MASK) == UART_ERR_MASK)
 		irq = IRQ_UART1_ERROR;
 
 	if (irq) {

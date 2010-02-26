@@ -2,12 +2,10 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include "session.h"
 #include "thread.h"
 #include "util.h"
 #include "debug.h"
-
-static struct rb_root threads;
-static struct thread *last_match;
 
 void map_groups__init(struct map_groups *self)
 {
@@ -122,9 +120,9 @@ static size_t thread__fprintf(struct thread *self, FILE *fp)
 	       map_groups__fprintf(&self->mg, fp);
 }
 
-struct thread *threads__findnew(pid_t pid)
+struct thread *perf_session__findnew(struct perf_session *self, pid_t pid)
 {
-	struct rb_node **p = &threads.rb_node;
+	struct rb_node **p = &self->threads.rb_node;
 	struct rb_node *parent = NULL;
 	struct thread *th;
 
@@ -133,15 +131,15 @@ struct thread *threads__findnew(pid_t pid)
 	 * so most of the time we dont have to look up
 	 * the full rbtree:
 	 */
-	if (last_match && last_match->pid == pid)
-		return last_match;
+	if (self->last_match && self->last_match->pid == pid)
+		return self->last_match;
 
 	while (*p != NULL) {
 		parent = *p;
 		th = rb_entry(parent, struct thread, rb_node);
 
 		if (th->pid == pid) {
-			last_match = th;
+			self->last_match = th;
 			return th;
 		}
 
@@ -154,23 +152,11 @@ struct thread *threads__findnew(pid_t pid)
 	th = thread__new(pid);
 	if (th != NULL) {
 		rb_link_node(&th->rb_node, parent, p);
-		rb_insert_color(&th->rb_node, &threads);
-		last_match = th;
+		rb_insert_color(&th->rb_node, &self->threads);
+		self->last_match = th;
 	}
 
 	return th;
-}
-
-struct thread *register_idle_thread(void)
-{
-	struct thread *thread = threads__findnew(0);
-
-	if (!thread || thread__set_comm(thread, "swapper")) {
-		fprintf(stderr, "problem inserting idle task.\n");
-		exit(-1);
-	}
-
-	return thread;
 }
 
 static void map_groups__remove_overlappings(struct map_groups *self,
@@ -281,12 +267,12 @@ int thread__fork(struct thread *self, struct thread *parent)
 	return 0;
 }
 
-size_t threads__fprintf(FILE *fp)
+size_t perf_session__fprintf(struct perf_session *self, FILE *fp)
 {
 	size_t ret = 0;
 	struct rb_node *nd;
 
-	for (nd = rb_first(&threads); nd; nd = rb_next(nd)) {
+	for (nd = rb_first(&self->threads); nd; nd = rb_next(nd)) {
 		struct thread *pos = rb_entry(nd, struct thread, rb_node);
 
 		ret += thread__fprintf(pos, fp);
@@ -296,13 +282,14 @@ size_t threads__fprintf(FILE *fp)
 }
 
 struct symbol *map_groups__find_symbol(struct map_groups *self,
+				       struct perf_session *session,
 				       enum map_type type, u64 addr,
 				       symbol_filter_t filter)
 {
 	struct map *map = map_groups__find(self, type, addr);
 
 	if (map != NULL)
-		return map__find_symbol(map, map->map_ip(map, addr), filter);
+		return map__find_symbol(map, session, map->map_ip(map, addr), filter);
 
 	return NULL;
 }

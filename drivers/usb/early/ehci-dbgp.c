@@ -613,7 +613,7 @@ err:
 }
 EXPORT_SYMBOL_GPL(dbgp_external_startup);
 
-static int __init ehci_reset_port(int port)
+static int ehci_reset_port(int port)
 {
 	u32 portsc;
 	u32 delay_time, delay;

@@ -40,10 +40,4 @@
 #define OFFSET_SCR              0x1C	/* SCR Scratch Register                 */
 #define OFFSET_GCTL             0x24	/* Global Control Register              */
 
-/* PLL_DIV Masks													*/
-#define CCLK_DIV1 CSEL_DIV1	/*          CCLK = VCO / 1                                  */
-#define CCLK_DIV2 CSEL_DIV2	/*          CCLK = VCO / 2                                  */
-#define CCLK_DIV4 CSEL_DIV4	/*          CCLK = VCO / 4                                  */
-#define CCLK_DIV8 CSEL_DIV8	/*          CCLK = VCO / 8                                  */
-
 #endif

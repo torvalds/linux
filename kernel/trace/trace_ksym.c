@@ -26,11 +26,12 @@
 #include <linux/fs.h>
 
 #include "trace_output.h"
-#include "trace_stat.h"
 #include "trace.h"
 
 #include <linux/hw_breakpoint.h>
 #include <asm/hw_breakpoint.h>
+
+#include <asm/atomic.h>
 
 /*
  * For now, let us restrict the no. of symbols traced simultaneously to number
@@ -44,7 +45,7 @@ struct trace_ksym {
 	struct perf_event	**ksym_hbp;
 	struct perf_event_attr	attr;
 #ifdef CONFIG_PROFILE_KSYM_TRACER
-	unsigned long		counter;
+	atomic64_t		counter;
 #endif
 	struct hlist_node	ksym_hlist;
 };
@@ -69,9 +70,8 @@ void ksym_collect_stats(unsigned long hbp_hit_addr)
 
 	rcu_read_lock();
 	hlist_for_each_entry_rcu(entry, node, &ksym_filter_head, ksym_hlist) {
-		if ((entry->attr.bp_addr == hbp_hit_addr) &&
-		    (entry->counter <= MAX_UL_INT)) {
-			entry->counter++;
+		if (entry->attr.bp_addr == hbp_hit_addr) {
+			atomic64_inc(&entry->counter);
 			break;
 		}
 	}
@@ -197,7 +197,6 @@ int process_new_ksym_entry(char *ksymname, int op, unsigned long addr)
 	entry->attr.bp_addr = addr;
 	entry->attr.bp_len = HW_BREAKPOINT_LEN_4;
 
-	ret = -EAGAIN;
 	entry->ksym_hbp = register_wide_hw_breakpoint(&entry->attr,
 					ksym_hbp_handler);
 
@@ -236,7 +235,8 @@ static ssize_t ksym_trace_filter_read(struct file *filp, char __user *ubuf,
 	mutex_lock(&ksym_tracer_mutex);
 
 	hlist_for_each_entry(entry, node, &ksym_filter_head, ksym_hlist) {
-		ret = trace_seq_printf(s, "%pS:", (void *)entry->attr.bp_addr);
+		ret = trace_seq_printf(s, "%pS:",
+				(void *)(unsigned long)entry->attr.bp_addr);
 		if (entry->attr.bp_type == HW_BREAKPOINT_R)
 			ret = trace_seq_puts(s, "r--\n");
 		else if (entry->attr.bp_type == HW_BREAKPOINT_W)
@@ -278,21 +278,20 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 {
 	struct trace_ksym *entry;
 	struct hlist_node *node;
-	char *input_string, *ksymname = NULL;
+	char *buf, *input_string, *ksymname = NULL;
 	unsigned long ksym_addr = 0;
 	int ret, op, changed = 0;
 
-	input_string = kzalloc(count + 1, GFP_KERNEL);
-	if (!input_string)
+	buf = kzalloc(count + 1, GFP_KERNEL);
+	if (!buf)
 		return -ENOMEM;
 
-	if (copy_from_user(input_string, buffer, count)) {
-		kfree(input_string);
-		return -EFAULT;
-	}
-	input_string[count] = '\0';
+	ret = -EFAULT;
+	if (copy_from_user(buf, buffer, count))
+		goto out;
 
-	strstrip(input_string);
+	buf[count] = '\0';
+	input_string = strstrip(buf);
 
 	/*
 	 * Clear all breakpoints if:
@@ -303,15 +302,13 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 	if (!input_string[0] || !strcmp(input_string, "0") ||
 	    !strcmp(input_string, "*:---")) {
 		__ksym_trace_reset();
-		kfree(input_string);
-		return count;
+		ret = 0;
+		goto out;
 	}
 
 	ret = op = parse_ksym_trace_str(input_string, &ksymname, &ksym_addr);
-	if (ret < 0) {
-		kfree(input_string);
-		return ret;
-	}
+	if (ret < 0)
+		goto out;
 
 	mutex_lock(&ksym_tracer_mutex);
 
@@ -322,7 +319,7 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 			if (entry->attr.bp_type != op)
 				changed = 1;
 			else
-				goto out;
+				goto out_unlock;
 			break;
 		}
 	}
@@ -337,28 +334,24 @@ static ssize_t ksym_trace_filter_write(struct file *file,
 			if (IS_ERR(entry->ksym_hbp))
 				ret = PTR_ERR(entry->ksym_hbp);
 			else
-				goto out;
+				goto out_unlock;
 		}
 		/* Error or "symbol:---" case: drop it */
 		ksym_filter_entry_count--;
 		hlist_del_rcu(&(entry->ksym_hlist));
 		synchronize_rcu();
 		kfree(entry);
-		goto out;
+		goto out_unlock;
 	} else {
 		/* Check for malformed request: (4) */
-		if (op == 0)
-			goto out;
-		ret = process_new_ksym_entry(ksymname, op, ksym_addr);
+		if (op)
+			ret = process_new_ksym_entry(ksymname, op, ksym_addr);
 	}
-out:
+out_unlock:
 	mutex_unlock(&ksym_tracer_mutex);
-
-	kfree(input_string);
-
-	if (!ret)
-		ret = count;
-	return ret;
+out:
+	kfree(buf);
+	return !ret ? count : ret;
 }
 
 static const struct file_operations ksym_tracing_fops = {
@@ -450,102 +443,77 @@ struct tracer ksym_tracer __read_mostly =
 	.print_line	= ksym_trace_output
 };
 
-__init static int init_ksym_trace(void)
-{
-	struct dentry *d_tracer;
-	struct dentry *entry;
-
-	d_tracer = tracing_init_dentry();
-	ksym_filter_entry_count = 0;
-
-	entry = debugfs_create_file("ksym_trace_filter", 0644, d_tracer,
-				    NULL, &ksym_tracing_fops);
-	if (!entry)
-		pr_warning("Could not create debugfs "
-			   "'ksym_trace_filter' file\n");
-
-	return register_tracer(&ksym_tracer);
-}
-device_initcall(init_ksym_trace);
-
-
 #ifdef CONFIG_PROFILE_KSYM_TRACER
-static int ksym_tracer_stat_headers(struct seq_file *m)
+static int ksym_profile_show(struct seq_file *m, void *v)
 {
-	seq_puts(m, "  Access Type ");
-	seq_puts(m, "  Symbol                                       Counter\n");
-	seq_puts(m, "  ----------- ");
-	seq_puts(m, "  ------                                       -------\n");
-	return 0;
-}
-
-static int ksym_tracer_stat_show(struct seq_file *m, void *v)
-{
-	struct hlist_node *stat = v;
+	struct hlist_node *node;
 	struct trace_ksym *entry;
 	int access_type = 0;
 	char fn_name[KSYM_NAME_LEN];
 
-	entry = hlist_entry(stat, struct trace_ksym, ksym_hlist);
+	seq_puts(m, "  Access Type ");
+	seq_puts(m, "  Symbol                                       Counter\n");
+	seq_puts(m, "  ----------- ");
+	seq_puts(m, "  ------                                       -------\n");
 
-	access_type = entry->attr.bp_type;
+	rcu_read_lock();
+	hlist_for_each_entry_rcu(entry, node, &ksym_filter_head, ksym_hlist) {
 
-	switch (access_type) {
-	case HW_BREAKPOINT_R:
-		seq_puts(m, "  R           ");
-		break;
-	case HW_BREAKPOINT_W:
-		seq_puts(m, "  W           ");
-		break;
-	case HW_BREAKPOINT_R | HW_BREAKPOINT_W:
-		seq_puts(m, "  RW          ");
-		break;
-	default:
-		seq_puts(m, "  NA          ");
+		access_type = entry->attr.bp_type;
+
+		switch (access_type) {
+		case HW_BREAKPOINT_R:
+			seq_puts(m, "  R           ");
+			break;
+		case HW_BREAKPOINT_W:
+			seq_puts(m, "  W           ");
+			break;
+		case HW_BREAKPOINT_R | HW_BREAKPOINT_W:
+			seq_puts(m, "  RW          ");
+			break;
+		default:
+			seq_puts(m, "  NA          ");
+		}
+
+		if (lookup_symbol_name(entry->attr.bp_addr, fn_name) >= 0)
+			seq_printf(m, "  %-36s", fn_name);
+		else
+			seq_printf(m, "  %-36s", "<NA>");
+		seq_printf(m, " %15llu\n",
+			   (unsigned long long)atomic64_read(&entry->counter));
 	}
-
-	if (lookup_symbol_name(entry->attr.bp_addr, fn_name) >= 0)
-		seq_printf(m, "  %-36s", fn_name);
-	else
-		seq_printf(m, "  %-36s", "<NA>");
-	seq_printf(m, " %15lu\n", entry->counter);
+	rcu_read_unlock();
 
 	return 0;
 }
 
-static void *ksym_tracer_stat_start(struct tracer_stat *trace)
+static int ksym_profile_open(struct inode *node, struct file *file)
 {
-	return ksym_filter_head.first;
+	return single_open(file, ksym_profile_show, NULL);
 }
 
-static void *
-ksym_tracer_stat_next(void *v, int idx)
-{
-	struct hlist_node *stat = v;
-
-	return stat->next;
-}
-
-static struct tracer_stat ksym_tracer_stats = {
-	.name = "ksym_tracer",
-	.stat_start = ksym_tracer_stat_start,
-	.stat_next = ksym_tracer_stat_next,
-	.stat_headers = ksym_tracer_stat_headers,
-	.stat_show = ksym_tracer_stat_show
+static const struct file_operations ksym_profile_fops = {
+	.open		= ksym_profile_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
 };
-
-__init static int ksym_tracer_stat_init(void)
-{
-	int ret;
-
-	ret = register_stat_tracer(&ksym_tracer_stats);
-	if (ret) {
-		printk(KERN_WARNING "Warning: could not register "
-				    "ksym tracer stats\n");
-		return 1;
-	}
-
-	return 0;
-}
-fs_initcall(ksym_tracer_stat_init);
 #endif /* CONFIG_PROFILE_KSYM_TRACER */
+
+__init static int init_ksym_trace(void)
+{
+	struct dentry *d_tracer;
+
+	d_tracer = tracing_init_dentry();
+
+	trace_create_file("ksym_trace_filter", 0644, d_tracer,
+			  NULL, &ksym_tracing_fops);
+
+#ifdef CONFIG_PROFILE_KSYM_TRACER
+	trace_create_file("ksym_profile", 0444, d_tracer,
+			  NULL, &ksym_profile_fops);
+#endif
+
+	return register_tracer(&ksym_tracer);
+}
+device_initcall(init_ksym_trace);

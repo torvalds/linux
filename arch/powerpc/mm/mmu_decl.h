@@ -104,6 +104,7 @@ extern void setbat(int index, unsigned long virt, phys_addr_t phys,
 		   unsigned int size, int flags);
 
 extern int __map_without_bats;
+extern int __allow_ioremap_reserved;
 extern unsigned long ioremap_base;
 extern unsigned int rtas_data, rtas_size;
 
@@ -125,24 +126,32 @@ extern phys_addr_t total_lowmem;
 extern phys_addr_t memstart_addr;
 extern phys_addr_t lowmem_end_addr;
 
+#ifdef CONFIG_WII
+extern unsigned long wii_hole_start;
+extern unsigned long wii_hole_size;
+
+extern unsigned long wii_mmu_mapin_mem2(unsigned long top);
+extern void wii_memory_fixups(void);
+#endif
+
 /* ...and now those things that may be slightly different between processor
  * architectures.  -- Dan
  */
 #if defined(CONFIG_8xx)
 #define MMU_init_hw()		do { } while(0)
-#define mmu_mapin_ram()		(0UL)
+#define mmu_mapin_ram(top)	(0UL)
 
 #elif defined(CONFIG_4xx)
 extern void MMU_init_hw(void);
-extern unsigned long mmu_mapin_ram(void);
+extern unsigned long mmu_mapin_ram(unsigned long top);
 
 #elif defined(CONFIG_FSL_BOOKE)
 extern void MMU_init_hw(void);
-extern unsigned long mmu_mapin_ram(void);
+extern unsigned long mmu_mapin_ram(unsigned long top);
 extern void adjust_total_lowmem(void);
 
 #elif defined(CONFIG_PPC32)
 /* anything 32-bit except 4xx or 8xx */
 extern void MMU_init_hw(void);
-extern unsigned long mmu_mapin_ram(void);
+extern unsigned long mmu_mapin_ram(unsigned long top);
 #endif

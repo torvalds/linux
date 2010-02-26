@@ -158,6 +158,7 @@ fail:
 
 static int __exit audio_unbind(struct usb_composite_dev *cdev)
 {
+	gaudio_cleanup();
 	return 0;
 }
 

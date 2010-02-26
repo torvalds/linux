@@ -89,15 +89,25 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 
 void __init generate_cplb_tables_all(void)
 {
+	unsigned long uncached_end;
 	int i_d, i_i;
 
 	i_d = 0;
 	/* Normal RAM, including MTD FS.  */
 #ifdef CONFIG_MTD_UCLINUX
-	dcplb_bounds[i_d].eaddr = memory_mtd_start + mtd_size;
+	uncached_end = memory_mtd_start + mtd_size;
 #else
-	dcplb_bounds[i_d].eaddr = memory_end;
+	uncached_end = memory_end;
 #endif
+	/*
+	 * if DMA uncached is less than 1MB, mark the 1MB chunk as uncached
+	 * so that we don't have to use 4kB pages and cause CPLB thrashing
+	 */
+	if ((DMA_UNCACHED_REGION >= 1 * 1024 * 1024) || !DMA_UNCACHED_REGION ||
+	    ((_ramend - uncached_end) >= 1 * 1024 * 1024))
+		dcplb_bounds[i_d].eaddr = uncached_end;
+	else
+		dcplb_bounds[i_d].eaddr = uncached_end & ~(1 * 1024 * 1024);
 	dcplb_bounds[i_d++].data = SDRAM_DGENERIC;
 	/* DMA uncached region.  */
 	if (DMA_UNCACHED_REGION) {
@@ -135,18 +145,15 @@ void __init generate_cplb_tables_all(void)
 
 	i_i = 0;
 	/* Normal RAM, including MTD FS.  */
-#ifdef CONFIG_MTD_UCLINUX
-	icplb_bounds[i_i].eaddr = memory_mtd_start + mtd_size;
-#else
-	icplb_bounds[i_i].eaddr = memory_end;
-#endif
+	icplb_bounds[i_i].eaddr = uncached_end;
 	icplb_bounds[i_i++].data = SDRAM_IGENERIC;
-	/* DMA uncached region.  */
-	if (DMA_UNCACHED_REGION) {
-		icplb_bounds[i_i].eaddr = _ramend;
-		icplb_bounds[i_i++].data = 0;
-	}
 	if (_ramend != physical_mem_end) {
+		/* DMA uncached region.  */
+		if (DMA_UNCACHED_REGION) {
+			/* Normally this hole is caught by the async below.  */
+			icplb_bounds[i_i].eaddr = _ramend;
+			icplb_bounds[i_i++].data = 0;
+		}
 		/* Reserved memory.  */
 		icplb_bounds[i_i].eaddr = physical_mem_end;
 		icplb_bounds[i_i++].data = (reserved_mem_icache_on ?

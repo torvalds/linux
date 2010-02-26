@@ -237,10 +237,10 @@ static void timer_list_show_tickdevices(struct seq_file *m)
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 	print_tickdevice(m, tick_get_broadcast_device(), -1);
 	SEQ_printf(m, "tick_broadcast_mask: %08lx\n",
-		   tick_get_broadcast_mask()->bits[0]);
+		   cpumask_bits(tick_get_broadcast_mask())[0]);
 #ifdef CONFIG_TICK_ONESHOT
 	SEQ_printf(m, "tick_broadcast_oneshot_mask: %08lx\n",
-		   tick_get_broadcast_oneshot_mask()->bits[0]);
+		   cpumask_bits(tick_get_broadcast_oneshot_mask())[0]);
 #endif
 	SEQ_printf(m, "\n");
 #endif

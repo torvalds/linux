@@ -844,6 +844,7 @@
 #define bfin_write_PPI_CONTROL(val)		bfin_write16(PPI_CONTROL, val)
 #define bfin_read_PPI_STATUS()			bfin_read16(PPI_STATUS)
 #define bfin_write_PPI_STATUS(val)		bfin_write16(PPI_STATUS, val)
+#define bfin_clear_PPI_STATUS()			bfin_write_PPI_STATUS(0xFFFF)
 #define bfin_read_PPI_DELAY()			bfin_read16(PPI_DELAY)
 #define bfin_write_PPI_DELAY(val)		bfin_write16(PPI_DELAY, val)
 #define bfin_read_PPI_COUNT()			bfin_read16(PPI_COUNT)
@@ -1062,17 +1063,6 @@
 #define bfin_read_CNT_MIN()			bfin_read32(CNT_MIN)
 #define bfin_write_CNT_MIN(val)			bfin_write32(CNT_MIN, val)
 
-/* OTP/FUSE Registers */
-
-#define bfin_read_OTP_CONTROL()			bfin_read16(OTP_CONTROL)
-#define bfin_write_OTP_CONTROL(val)		bfin_write16(OTP_CONTROL, val)
-#define bfin_read_OTP_BEN()			bfin_read16(OTP_BEN)
-#define bfin_write_OTP_BEN(val)			bfin_write16(OTP_BEN, val)
-#define bfin_read_OTP_STATUS()			bfin_read16(OTP_STATUS)
-#define bfin_write_OTP_STATUS(val)		bfin_write16(OTP_STATUS, val)
-#define bfin_read_OTP_TIMING()			bfin_read32(OTP_TIMING)
-#define bfin_write_OTP_TIMING(val)		bfin_write32(OTP_TIMING, val)
-
 /* Security Registers */
 
 #define bfin_read_SECURE_SYSSWT()		bfin_read32(SECURE_SYSSWT)
@@ -1081,17 +1071,6 @@
 #define bfin_write_SECURE_CONTROL(val)		bfin_write16(SECURE_CONTROL, val)
 #define bfin_read_SECURE_STATUS()		bfin_read16(SECURE_STATUS)
 #define bfin_write_SECURE_STATUS(val)		bfin_write16(SECURE_STATUS, val)
-
-/* OTP Read/Write Data Buffer Registers */
-
-#define bfin_read_OTP_DATA0()			bfin_read32(OTP_DATA0)
-#define bfin_write_OTP_DATA0(val)		bfin_write32(OTP_DATA0, val)
-#define bfin_read_OTP_DATA1()			bfin_read32(OTP_DATA1)
-#define bfin_write_OTP_DATA1(val)		bfin_write32(OTP_DATA1, val)
-#define bfin_read_OTP_DATA2()			bfin_read32(OTP_DATA2)
-#define bfin_write_OTP_DATA2(val)		bfin_write32(OTP_DATA2, val)
-#define bfin_read_OTP_DATA3()			bfin_read32(OTP_DATA3)
-#define bfin_write_OTP_DATA3(val)		bfin_write32(OTP_DATA3, val)
 
 /* NFC Registers */
 

@@ -1343,6 +1343,13 @@ intel_pmu_enable_fixed(struct hw_perf_event *hwc, int __idx)
 		bits |= 0x2;
 	if (hwc->config & ARCH_PERFMON_EVENTSEL_OS)
 		bits |= 0x1;
+
+	/*
+	 * ANY bit is supported in v3 and up
+	 */
+	if (x86_pmu.version > 2 && hwc->config & ARCH_PERFMON_EVENTSEL_ANY)
+		bits |= 0x4;
+
 	bits <<= (idx * 4);
 	mask = 0xfULL << (idx * 4);
 
@@ -2336,6 +2343,7 @@ static const struct stacktrace_ops backtrace_ops = {
 	.warning_symbol		= backtrace_warning_symbol,
 	.stack			= backtrace_stack,
 	.address		= backtrace_address,
+	.walk_stack		= print_context_stack_bp,
 };
 
 #include "../dumpstack.h"
@@ -2346,7 +2354,7 @@ perf_callchain_kernel(struct pt_regs *regs, struct perf_callchain_entry *entry)
 	callchain_store(entry, PERF_CONTEXT_KERNEL);
 	callchain_store(entry, regs->ip);
 
-	dump_trace(NULL, regs, NULL, 0, &backtrace_ops, entry);
+	dump_trace(NULL, regs, NULL, regs->bp, &backtrace_ops, entry);
 }
 
 /*

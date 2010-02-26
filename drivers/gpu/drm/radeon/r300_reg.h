@@ -900,6 +900,7 @@
 #	define R300_TX_FORMAT_FL_I32		    0x1B
 #	define R300_TX_FORMAT_FL_I32A32		    0x1C
 #	define R300_TX_FORMAT_FL_R32G32B32A32	    0x1D
+#	define R300_TX_FORMAT_ATI2N		    0x1F
 	/* alpha modes, convenience mostly */
 	/* if you have alpha, pick constant appropriate to the
 	   number of channels (1 for I8, 2 for I8A8, 4 for R8G8B8A8, etc */

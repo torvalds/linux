@@ -247,6 +247,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 					 struct pci_bus *bus, int devfn)
 {
 	struct dev_archdata *sd;
+	struct pci_slot *slot;
 	struct of_device *op;
 	struct pci_dev *dev;
 	const char *type;
@@ -286,6 +287,11 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->dev.bus = &pci_bus_type;
 	dev->devfn = devfn;
 	dev->multifunction = 0;		/* maybe a lie? */
+	set_pcie_port_type(dev);
+
+	list_for_each_entry(slot, &dev->bus->slots, list)
+		if (PCI_SLOT(dev->devfn) == slot->number)
+			dev->slot = slot;
 
 	dev->vendor = of_getintprop_default(node, "vendor-id", 0xffff);
 	dev->device = of_getintprop_default(node, "device-id", 0xffff);
@@ -322,6 +328,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
+	dev->dma_mask = 0xffffffff;
 
 	if (!strcmp(node->name, "pci")) {
 		/* a PCI-PCI bridge */
@@ -1064,7 +1071,6 @@ int pci64_dma_supported(struct pci_dev *pdev, u64 device_mask)
 
 	return (device_mask & dma_addr_mask) == dma_addr_mask;
 }
-EXPORT_SYMBOL(pci_dma_supported);
 
 void pci_resource_to_user(const struct pci_dev *pdev, int bar,
 			  const struct resource *rp, resource_size_t *start,

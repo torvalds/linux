@@ -183,7 +183,7 @@ static int lp3971_ldo_set_voltage(struct regulator_dev *dev,
 		if (vol_map[val] >= min_vol)
 			break;
 
-	if (vol_map[val] > max_vol)
+	if (val > LDO_VOL_MAX_IDX || vol_map[val] > max_vol)
 		return -EINVAL;
 
 	return lp3971_set_bits(lp3971, LP3971_LDO_VOL_CONTR_REG(ldo),
@@ -272,7 +272,7 @@ static int lp3971_dcdc_set_voltage(struct regulator_dev *dev,
 		if (vol_map[val] >= min_vol)
 			break;
 
-	if (vol_map[val] > max_vol)
+	if (val > BUCK_TARGET_VOL_MAX_IDX || vol_map[val] > max_vol)
 		return -EINVAL;
 
 	ret = lp3971_set_bits(lp3971, LP3971_BUCK_TARGET_VOL1_REG(buck),
@@ -446,8 +446,8 @@ static int setup_regulators(struct lp3971 *lp3971,
 		lp3971->rdev[i] = regulator_register(&regulators[id],
 			lp3971->dev, pdata->regulators[i].initdata, lp3971);
 
-		err = IS_ERR(lp3971->rdev[i]);
-		if (err) {
+		if (IS_ERR(lp3971->rdev[i])) {
+			err = PTR_ERR(lp3971->rdev[i]);
 			dev_err(lp3971->dev, "regulator init failed: %d\n",
 				err);
 			goto error;

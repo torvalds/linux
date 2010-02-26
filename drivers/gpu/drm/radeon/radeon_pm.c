@@ -44,8 +44,11 @@ static int radeon_debugfs_pm_info(struct seq_file *m, void *data)
 	struct drm_device *dev = node->minor->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
-	seq_printf(m, "engine clock: %u0 kHz\n", radeon_get_engine_clock(rdev));
-	seq_printf(m, "memory clock: %u0 kHz\n", radeon_get_memory_clock(rdev));
+	seq_printf(m, "default engine clock: %u0 kHz\n", rdev->clock.default_sclk);
+	seq_printf(m, "current engine clock: %u0 kHz\n", radeon_get_engine_clock(rdev));
+	seq_printf(m, "default memory clock: %u0 kHz\n", rdev->clock.default_mclk);
+	if (rdev->asic->get_memory_clock)
+		seq_printf(m, "current memory clock: %u0 kHz\n", radeon_get_memory_clock(rdev));
 
 	return 0;
 }

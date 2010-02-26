@@ -423,6 +423,9 @@ void __init setup_arch(char **cmdline_p)
 
 	plat_early_device_setup();
 
+	/* Let earlyprintk output early console messages */
+	early_platform_driver_probe("earlyprintk", 1, 1);
+
 	sh_mv_setup();
 
 	/*

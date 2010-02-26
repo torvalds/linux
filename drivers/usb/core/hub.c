@@ -1658,12 +1658,12 @@ static inline void announce_device(struct usb_device *udev) { }
 #endif
 
 /**
- * usb_configure_device_otg - FIXME (usbcore-internal)
+ * usb_enumerate_device_otg - FIXME (usbcore-internal)
  * @udev: newly addressed device (in ADDRESS state)
  *
- * Do configuration for On-The-Go devices
+ * Finish enumeration for On-The-Go devices
  */
-static int usb_configure_device_otg(struct usb_device *udev)
+static int usb_enumerate_device_otg(struct usb_device *udev)
 {
 	int err = 0;
 
@@ -1734,7 +1734,7 @@ fail:
 
 
 /**
- * usb_configure_device - Detect and probe device intfs/otg (usbcore-internal)
+ * usb_enumerate_device - Read device configs/intfs/otg (usbcore-internal)
  * @udev: newly addressed device (in ADDRESS state)
  *
  * This is only called by usb_new_device() and usb_authorize_device()
@@ -1745,7 +1745,7 @@ fail:
  * the string descriptors, as they will be errored out by the device
  * until it has been authorized.
  */
-static int usb_configure_device(struct usb_device *udev)
+static int usb_enumerate_device(struct usb_device *udev)
 {
 	int err;
 
@@ -1769,7 +1769,7 @@ static int usb_configure_device(struct usb_device *udev)
 						      udev->descriptor.iManufacturer);
 		udev->serial = usb_cache_string(udev, udev->descriptor.iSerialNumber);
 	}
-	err = usb_configure_device_otg(udev);
+	err = usb_enumerate_device_otg(udev);
 fail:
 	return err;
 }
@@ -1779,8 +1779,8 @@ fail:
  * usb_new_device - perform initial device setup (usbcore-internal)
  * @udev: newly addressed device (in ADDRESS state)
  *
- * This is called with devices which have been enumerated, but not yet
- * configured.  The device descriptor is available, but not descriptors
+ * This is called with devices which have been detected but not fully
+ * enumerated.  The device descriptor is available, but not descriptors
  * for any device configuration.  The caller must have locked either
  * the parent hub (if udev is a normal device) or else the
  * usb_bus_list_lock (if udev is a root hub).  The parent's pointer to
@@ -1803,8 +1803,8 @@ int usb_new_device(struct usb_device *udev)
 	if (udev->parent)
 		usb_autoresume_device(udev->parent);
 
-	usb_detect_quirks(udev);		/* Determine quirks */
-	err = usb_configure_device(udev);	/* detect & probe dev/intfs */
+	usb_detect_quirks(udev);
+	err = usb_enumerate_device(udev);	/* Read descriptors */
 	if (err < 0)
 		goto fail;
 	dev_dbg(&udev->dev, "udev %d, busnum %d, minor = %d\n",
@@ -1849,21 +1849,23 @@ fail:
  */
 int usb_deauthorize_device(struct usb_device *usb_dev)
 {
-	unsigned cnt;
 	usb_lock_device(usb_dev);
 	if (usb_dev->authorized == 0)
 		goto out_unauthorized;
+
 	usb_dev->authorized = 0;
 	usb_set_configuration(usb_dev, -1);
+
+	kfree(usb_dev->product);
 	usb_dev->product = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+	kfree(usb_dev->manufacturer);
 	usb_dev->manufacturer = kstrdup("n/a (unauthorized)", GFP_KERNEL);
+	kfree(usb_dev->serial);
 	usb_dev->serial = kstrdup("n/a (unauthorized)", GFP_KERNEL);
-	kfree(usb_dev->config);
-	usb_dev->config = NULL;
-	for (cnt = 0; cnt < usb_dev->descriptor.bNumConfigurations; cnt++)
-		kfree(usb_dev->rawdescriptors[cnt]);
+
+	usb_destroy_configuration(usb_dev);
 	usb_dev->descriptor.bNumConfigurations = 0;
-	kfree(usb_dev->rawdescriptors);
+
 out_unauthorized:
 	usb_unlock_device(usb_dev);
 	return 0;
@@ -1873,15 +1875,11 @@ out_unauthorized:
 int usb_authorize_device(struct usb_device *usb_dev)
 {
 	int result = 0, c;
+
 	usb_lock_device(usb_dev);
 	if (usb_dev->authorized == 1)
 		goto out_authorized;
-	kfree(usb_dev->product);
-	usb_dev->product = NULL;
-	kfree(usb_dev->manufacturer);
-	usb_dev->manufacturer = NULL;
-	kfree(usb_dev->serial);
-	usb_dev->serial = NULL;
+
 	result = usb_autoresume_device(usb_dev);
 	if (result < 0) {
 		dev_err(&usb_dev->dev,
@@ -1894,10 +1892,18 @@ int usb_authorize_device(struct usb_device *usb_dev)
 			"authorization: %d\n", result);
 		goto error_device_descriptor;
 	}
+
+	kfree(usb_dev->product);
+	usb_dev->product = NULL;
+	kfree(usb_dev->manufacturer);
+	usb_dev->manufacturer = NULL;
+	kfree(usb_dev->serial);
+	usb_dev->serial = NULL;
+
 	usb_dev->authorized = 1;
-	result = usb_configure_device(usb_dev);
+	result = usb_enumerate_device(usb_dev);
 	if (result < 0)
-		goto error_configure;
+		goto error_enumerate;
 	/* Choose and set the configuration.  This registers the interfaces
 	 * with the driver core and lets interface drivers bind to them.
 	 */
@@ -1912,8 +1918,10 @@ int usb_authorize_device(struct usb_device *usb_dev)
 		}
 	}
 	dev_info(&usb_dev->dev, "authorized to connect\n");
-error_configure:
+
+error_enumerate:
 error_device_descriptor:
+	usb_autosuspend_device(usb_dev);
 error_autoresume:
 out_authorized:
 	usb_unlock_device(usb_dev);	// complements locktree
@@ -3339,6 +3347,9 @@ static void hub_events(void)
 					USB_PORT_FEAT_C_SUSPEND);
 				udev = hdev->children[i-1];
 				if (udev) {
+					/* TRSMRCY = 10 msec */
+					msleep(10);
+
 					usb_lock_device(udev);
 					ret = remote_wakeup(hdev->
 							children[i-1]);
@@ -3684,19 +3695,14 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 			usb_enable_interface(udev, intf, true);
 			ret = 0;
 		} else {
-			/* We've just reset the device, so it will think alt
-			 * setting 0 is installed.  For usb_set_interface() to
-			 * work properly, we need to set the current alternate
-			 * interface setting to 0 (or the first alt setting, if
-			 * the device doesn't have alt setting 0).
+			/* Let the bandwidth allocation function know that this
+			 * device has been reset, and it will have to use
+			 * alternate setting 0 as the current alternate setting.
 			 */
-			intf->cur_altsetting =
-				usb_find_alt_setting(config, i, 0);
-			if (!intf->cur_altsetting)
-				intf->cur_altsetting =
-					&config->intf_cache[i]->altsetting[0];
+			intf->resetting_device = 1;
 			ret = usb_set_interface(udev, desc->bInterfaceNumber,
 					desc->bAlternateSetting);
+			intf->resetting_device = 0;
 		}
 		if (ret < 0) {
 			dev_err(&udev->dev, "failed to restore interface %d "

@@ -1013,7 +1013,7 @@ mpc8xxx_spi_probe(struct device *dev, struct resource *mem, unsigned int irq)
 
 	init_completion(&mpc8xxx_spi->done);
 
-	mpc8xxx_spi->base = ioremap(mem->start, mem->end - mem->start + 1);
+	mpc8xxx_spi->base = ioremap(mem->start, resource_size(mem));
 	if (mpc8xxx_spi->base == NULL) {
 		ret = -ENOMEM;
 		goto err_ioremap;

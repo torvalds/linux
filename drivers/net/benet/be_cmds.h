@@ -155,6 +155,7 @@ struct be_mcc_mailbox {
 
 #define OPCODE_LOWLEVEL_HOST_DDR_DMA                    17
 #define OPCODE_LOWLEVEL_LOOPBACK_TEST                   18
+#define OPCODE_LOWLEVEL_SET_LOOPBACK_MODE		19
 
 struct be_cmd_req_hdr {
 	u8 opcode;		/* dword 0 */
@@ -163,7 +164,8 @@ struct be_cmd_req_hdr {
 	u8 domain;		/* dword 0 */
 	u32 timeout;		/* dword 1 */
 	u32 request_length;	/* dword 2 */
-	u32 rsvd;		/* dword 3 */
+	u8 version;		/* dword 3 */
+	u8 rsvd[3];		/* dword 3 */
 };
 
 #define RESP_HDR_INFO_OPCODE_SHIFT	0	/* bits 0 - 7 */
@@ -821,6 +823,19 @@ struct be_cmd_resp_loopback_test {
 	u32    ticks_compl;
 };
 
+struct be_cmd_req_set_lmode {
+	struct be_cmd_req_hdr hdr;
+	u8 src_port;
+	u8 dest_port;
+	u8 loopback_type;
+	u8 loopback_state;
+};
+
+struct be_cmd_resp_set_lmode {
+	struct be_cmd_resp_hdr resp_hdr;
+	u8 rsvd0[4];
+};
+
 /********************** DDR DMA test *********************/
 struct be_cmd_req_ddrdma_test {
 	struct be_cmd_req_hdr hdr;
@@ -912,3 +927,5 @@ extern int be_cmd_loopback_test(struct be_adapter *adapter, u32 port_num,
 				u32 num_pkts, u64 pattern);
 extern int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
 			u32 byte_cnt, struct be_dma_mem *cmd);
+extern int be_cmd_set_loopback(struct be_adapter *adapter, u8 port_num,
+				u8 loopback_type, u8 enable);

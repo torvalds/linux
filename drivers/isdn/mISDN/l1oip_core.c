@@ -661,7 +661,7 @@ l1oip_socket_thread(void *data)
 	size_t recvbuf_size = 1500;
 	int recvlen;
 	struct socket *socket = NULL;
-	DECLARE_COMPLETION(wait);
+	DECLARE_COMPLETION_ONSTACK(wait);
 
 	/* allocate buffer memory */
 	recvbuf = kmalloc(recvbuf_size, GFP_KERNEL);

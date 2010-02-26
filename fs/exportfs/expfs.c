@@ -6,7 +6,7 @@
  * and for mapping back from file handles to dentries.
  *
  * For details on why we do all the strange and hairy things in here
- * take a look at Documentation/filesystems/Exporting.
+ * take a look at Documentation/filesystems/nfs/Exporting.
  */
 #include <linux/exportfs.h>
 #include <linux/fs.h>

@@ -358,7 +358,7 @@ struct drm_mm_node *drm_mm_search_free(const struct drm_mm *mm,
 		if (entry->size >= size + wasted) {
 			if (!best_match)
 				return entry;
-			if (size < best_size) {
+			if (entry->size < best_size) {
 				best = entry;
 				best_size = entry->size;
 			}
@@ -405,10 +405,11 @@ struct drm_mm_node *drm_mm_search_free_in_range(const struct drm_mm *mm,
 				wasted += alignment - tmp;
 		}
 
-		if (entry->size >= size + wasted) {
+		if (entry->size >= size + wasted &&
+		    (entry->start + wasted + size) <= end) {
 			if (!best_match)
 				return entry;
-			if (size < best_size) {
+			if (entry->size < best_size) {
 				best = entry;
 				best_size = entry->size;
 			}

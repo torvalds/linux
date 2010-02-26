@@ -73,6 +73,7 @@ extern unsigned long mem_cgroup_isolate_pages(unsigned long nr_to_scan,
 extern void mem_cgroup_out_of_memory(struct mem_cgroup *mem, gfp_t gfp_mask);
 int task_in_mem_cgroup(struct task_struct *task, const struct mem_cgroup *mem);
 
+extern struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page);
 extern struct mem_cgroup *mem_cgroup_from_task(struct task_struct *p);
 
 static inline
@@ -84,6 +85,8 @@ int mm_match_cgroup(const struct mm_struct *mm, const struct mem_cgroup *cgroup)
 	rcu_read_unlock();
 	return cgroup == mem;
 }
+
+extern struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem);
 
 extern int
 mem_cgroup_prepare_migration(struct page *page, struct mem_cgroup **ptr);
@@ -202,6 +205,11 @@ mem_cgroup_move_lists(struct page *page, enum lru_list from, enum lru_list to)
 {
 }
 
+static inline struct mem_cgroup *try_get_mem_cgroup_from_page(struct page *page)
+{
+	return NULL;
+}
+
 static inline int mm_match_cgroup(struct mm_struct *mm, struct mem_cgroup *mem)
 {
 	return 1;
@@ -211,6 +219,11 @@ static inline int task_in_mem_cgroup(struct task_struct *task,
 				     const struct mem_cgroup *mem)
 {
 	return 1;
+}
+
+static inline struct cgroup_subsys_state *mem_cgroup_css(struct mem_cgroup *mem)
+{
+	return NULL;
 }
 
 static inline int

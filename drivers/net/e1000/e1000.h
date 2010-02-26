@@ -326,6 +326,8 @@ struct e1000_adapter {
 	/* for ioport free */
 	int bars;
 	int need_ioport;
+
+	bool discarding;
 };
 
 enum e1000_state_t {

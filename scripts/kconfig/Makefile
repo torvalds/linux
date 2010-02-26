@@ -27,6 +27,7 @@ oldconfig: $(obj)/conf
 	$< -o $(Kconfig)
 
 silentoldconfig: $(obj)/conf
+	$(Q)mkdir -p include/generated
 	$< -s $(Kconfig)
 
 localmodconfig: $(obj)/streamline_config.pl $(obj)/conf

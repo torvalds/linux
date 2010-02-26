@@ -39,6 +39,10 @@ void i8042_lock_chip(void);
 void i8042_unlock_chip(void);
 int i8042_command(unsigned char *param, int command);
 bool i8042_check_port_owner(const struct serio *);
+int i8042_install_filter(bool (*filter)(unsigned char data, unsigned char str,
+					struct serio *serio));
+int i8042_remove_filter(bool (*filter)(unsigned char data, unsigned char str,
+				       struct serio *serio));
 
 #else
 
@@ -52,12 +56,24 @@ void i8042_unlock_chip(void)
 
 int i8042_command(unsigned char *param, int command)
 {
-	return -ENOSYS;
+	return -ENODEV;
 }
 
 bool i8042_check_port_owner(const struct serio *serio)
 {
 	return false;
+}
+
+int i8042_install_filter(bool (*filter)(unsigned char data, unsigned char str,
+					struct serio *serio))
+{
+	return -ENODEV;
+}
+
+int i8042_remove_filter(bool (*filter)(unsigned char data, unsigned char str,
+				       struct serio *serio))
+{
+	return -ENODEV;
 }
 
 #endif

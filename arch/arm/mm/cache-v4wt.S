@@ -117,17 +117,18 @@ ENTRY(v4wt_coherent_user_range)
 	mov	pc, lr
 
 /*
- *	flush_kern_dcache_page(void *page)
+ *	flush_kern_dcache_area(void *addr, size_t size)
  *
  *	Ensure no D cache aliasing occurs, either with itself or
  *	the I cache
  *
- *	- addr	- page aligned address
+ *	- addr	- kernel address
+ *	- size	- region size
  */
-ENTRY(v4wt_flush_kern_dcache_page)
+ENTRY(v4wt_flush_kern_dcache_area)
 	mov	r2, #0
 	mcr	p15, 0, r2, c7, c5, 0		@ invalidate I cache
-	add	r1, r0, #PAGE_SZ
+	add	r1, r0, r1
 	/* fallthrough */
 
 /*
@@ -180,7 +181,7 @@ ENTRY(v4wt_cache_fns)
 	.long	v4wt_flush_user_cache_range
 	.long	v4wt_coherent_kern_range
 	.long	v4wt_coherent_user_range
-	.long	v4wt_flush_kern_dcache_page
+	.long	v4wt_flush_kern_dcache_area
 	.long	v4wt_dma_inv_range
 	.long	v4wt_dma_clean_range
 	.long	v4wt_dma_flush_range

@@ -258,9 +258,12 @@ void finish_atomic_sections (struct pt_regs *regs)
 	int __user *up0 = (int __user *)regs->p0;
 
 	switch (regs->pc) {
+	default:
+		/* not in middle of an atomic step, so resume like normal */
+		return;
+
 	case ATOMIC_XCHG32 + 2:
 		put_user(regs->r1, up0);
-		regs->pc = ATOMIC_XCHG32 + 4;
 		break;
 
 	case ATOMIC_CAS32 + 2:
@@ -268,7 +271,6 @@ void finish_atomic_sections (struct pt_regs *regs)
 		if (regs->r0 == regs->r1)
 	case ATOMIC_CAS32 + 6:
 			put_user(regs->r2, up0);
-		regs->pc = ATOMIC_CAS32 + 8;
 		break;
 
 	case ATOMIC_ADD32 + 2:
@@ -276,7 +278,6 @@ void finish_atomic_sections (struct pt_regs *regs)
 		/* fall through */
 	case ATOMIC_ADD32 + 4:
 		put_user(regs->r0, up0);
-		regs->pc = ATOMIC_ADD32 + 6;
 		break;
 
 	case ATOMIC_SUB32 + 2:
@@ -284,7 +285,6 @@ void finish_atomic_sections (struct pt_regs *regs)
 		/* fall through */
 	case ATOMIC_SUB32 + 4:
 		put_user(regs->r0, up0);
-		regs->pc = ATOMIC_SUB32 + 6;
 		break;
 
 	case ATOMIC_IOR32 + 2:
@@ -292,7 +292,6 @@ void finish_atomic_sections (struct pt_regs *regs)
 		/* fall through */
 	case ATOMIC_IOR32 + 4:
 		put_user(regs->r0, up0);
-		regs->pc = ATOMIC_IOR32 + 6;
 		break;
 
 	case ATOMIC_AND32 + 2:
@@ -300,7 +299,6 @@ void finish_atomic_sections (struct pt_regs *regs)
 		/* fall through */
 	case ATOMIC_AND32 + 4:
 		put_user(regs->r0, up0);
-		regs->pc = ATOMIC_AND32 + 6;
 		break;
 
 	case ATOMIC_XOR32 + 2:
@@ -308,9 +306,15 @@ void finish_atomic_sections (struct pt_regs *regs)
 		/* fall through */
 	case ATOMIC_XOR32 + 4:
 		put_user(regs->r0, up0);
-		regs->pc = ATOMIC_XOR32 + 6;
 		break;
 	}
+
+	/*
+	 * We've finished the atomic section, and the only thing left for
+	 * userspace is to do a RTS, so we might as well handle that too
+	 * since we need to update the PC anyways.
+	 */
+	regs->pc = regs->rets;
 }
 
 static inline
@@ -332,12 +336,58 @@ int in_mem_const(unsigned long addr, unsigned long size,
 {
 	return in_mem_const_off(addr, size, 0, const_addr, const_size);
 }
-#define IN_ASYNC(bnum, bctlnum) \
+#define ASYNC_ENABLED(bnum, bctlnum) \
 ({ \
-	(bfin_read_EBIU_AMGCTL() & 0xe) < ((bnum + 1) << 1) ? -EFAULT : \
-	bfin_read_EBIU_AMBCTL##bctlnum() & B##bnum##RDYEN ? -EFAULT : \
-	BFIN_MEM_ACCESS_CORE; \
+	(bfin_read_EBIU_AMGCTL() & 0xe) < ((bnum + 1) << 1) ? 0 : \
+	bfin_read_EBIU_AMBCTL##bctlnum() & B##bnum##RDYEN ? 0 : \
+	1; \
 })
+/*
+ * We can't read EBIU banks that aren't enabled or we end up hanging
+ * on the access to the async space.  Make sure we validate accesses
+ * that cross async banks too.
+ *	0 - found, but unusable
+ *	1 - found & usable
+ *	2 - not found
+ */
+static
+int in_async(unsigned long addr, unsigned long size)
+{
+	if (addr >= ASYNC_BANK0_BASE && addr < ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE) {
+		if (!ASYNC_ENABLED(0, 0))
+			return 0;
+		if (addr + size <= ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE)
+			return 1;
+		size -= ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE - addr;
+		addr = ASYNC_BANK0_BASE + ASYNC_BANK0_SIZE;
+	}
+	if (addr >= ASYNC_BANK1_BASE && addr < ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE) {
+		if (!ASYNC_ENABLED(1, 0))
+			return 0;
+		if (addr + size <= ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE)
+			return 1;
+		size -= ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE - addr;
+		addr = ASYNC_BANK1_BASE + ASYNC_BANK1_SIZE;
+	}
+	if (addr >= ASYNC_BANK2_BASE && addr < ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE) {
+		if (!ASYNC_ENABLED(2, 1))
+			return 0;
+		if (addr + size <= ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE)
+			return 1;
+		size -= ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE - addr;
+		addr = ASYNC_BANK2_BASE + ASYNC_BANK2_SIZE;
+	}
+	if (addr >= ASYNC_BANK3_BASE && addr < ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE) {
+		if (ASYNC_ENABLED(3, 1))
+			return 0;
+		if (addr + size <= ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE)
+			return 1;
+		return 0;
+	}
+
+	/* not within async bounds */
+	return 2;
+}
 
 int bfin_mem_access_type(unsigned long addr, unsigned long size)
 {
@@ -374,17 +424,11 @@ int bfin_mem_access_type(unsigned long addr, unsigned long size)
 	if (addr >= SYSMMR_BASE)
 		return BFIN_MEM_ACCESS_CORE_ONLY;
 
-	/* We can't read EBIU banks that aren't enabled or we end up hanging
-	 * on the access to the async space.
-	 */
-	if (in_mem_const(addr, size, ASYNC_BANK0_BASE, ASYNC_BANK0_SIZE))
-		return IN_ASYNC(0, 0);
-	if (in_mem_const(addr, size, ASYNC_BANK1_BASE, ASYNC_BANK1_SIZE))
-		return IN_ASYNC(1, 0);
-	if (in_mem_const(addr, size, ASYNC_BANK2_BASE, ASYNC_BANK2_SIZE))
-		return IN_ASYNC(2, 1);
-	if (in_mem_const(addr, size, ASYNC_BANK3_BASE, ASYNC_BANK3_SIZE))
-		return IN_ASYNC(3, 1);
+	switch (in_async(addr, size)) {
+	case 0: return -EFAULT;
+	case 1: return BFIN_MEM_ACCESS_CORE;
+	case 2: /* fall through */;
+	}
 
 	if (in_mem_const(addr, size, BOOT_ROM_START, BOOT_ROM_LENGTH))
 		return BFIN_MEM_ACCESS_CORE;
@@ -401,6 +445,8 @@ __attribute__((l1_text))
 /* Return 1 if access to memory range is OK, 0 otherwise */
 int _access_ok(unsigned long addr, unsigned long size)
 {
+	int aret;
+
 	if (size == 0)
 		return 1;
 	/* Check that things do not wrap around */
@@ -450,6 +496,11 @@ int _access_ok(unsigned long addr, unsigned long size)
 	if (in_mem_const(addr, size, COREB_L1_DATA_B_START, COREB_L1_DATA_B_LENGTH))
 		return 1;
 #endif
+
+	aret = in_async(addr, size);
+	if (aret < 2)
+		return aret;
+
 	if (in_mem_const_off(addr, size, _ebss_l2 - _stext_l2, L2_START, L2_LENGTH))
 		return 1;
 

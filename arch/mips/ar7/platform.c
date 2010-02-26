@@ -202,7 +202,7 @@ static struct resource usb_res[] = {
 		.name = "mem",
 		.flags = IORESOURCE_MEM,
 		.start = 0x03400000,
-		.end = 0x034001fff,
+		.end = 0x03401fff,
 	},
 };
 
@@ -505,7 +505,7 @@ static int __init ar7_register_devices(void)
 	int res;
 	u32 *bootcr, val;
 #ifdef CONFIG_SERIAL_8250
-	static struct uart_port uart_port[2];
+	static struct uart_port uart_port[2] __initdata;
 
 	memset(uart_port, 0, sizeof(struct uart_port) * 2);
 

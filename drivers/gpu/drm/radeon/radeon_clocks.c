@@ -56,13 +56,13 @@ uint32_t radeon_legacy_get_engine_clock(struct radeon_device *rdev)
 	else if (post_div == 3)
 		sclk >>= 2;
 	else if (post_div == 4)
-		sclk >>= 4;
+		sclk >>= 3;
 
 	return sclk;
 }
 
 /* 10 khz */
-static uint32_t radeon_legacy_get_memory_clock(struct radeon_device *rdev)
+uint32_t radeon_legacy_get_memory_clock(struct radeon_device *rdev)
 {
 	struct radeon_pll *mpll = &rdev->clock.mpll;
 	uint32_t fb_div, ref_div, post_div, mclk;
@@ -86,7 +86,7 @@ static uint32_t radeon_legacy_get_memory_clock(struct radeon_device *rdev)
 	else if (post_div == 3)
 		mclk >>= 2;
 	else if (post_div == 4)
-		mclk >>= 4;
+		mclk >>= 3;
 
 	return mclk;
 }

@@ -205,6 +205,8 @@ struct nvbios {
 	struct drm_device *dev;
 	struct nouveau_bios_info pub;
 
+	struct mutex lock;
+
 	uint8_t data[NV_PROM_SIZE];
 	unsigned int length;
 	bool execute;
@@ -227,6 +229,7 @@ struct nvbios {
 
 	uint16_t pll_limit_tbl_ptr;
 	uint16_t ram_restrict_tbl_ptr;
+	uint8_t ram_restrict_group_count;
 
 	uint16_t some_script_ptr; /* BIT I + 14 */
 	uint16_t init96_tbl_ptr; /* BIT I + 16 */

@@ -80,7 +80,7 @@ struct iscsi_tcp_task {
 	int			data_offset;
 	struct iscsi_r2t_info	*r2t;		/* in progress solict R2T */
 	struct iscsi_pool	r2tpool;
-	struct kfifo		*r2tqueue;
+	struct kfifo		r2tqueue;
 	void			*dd_data;
 };
 

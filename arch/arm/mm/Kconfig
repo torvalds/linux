@@ -1,9 +1,5 @@
 comment "Processor Type"
 
-config CPU_32
-	bool
-	default y
-
 # Select CPU types depending on the architecture selected.  This selects
 # which CPUs we support in the kernel image, and the compiler instruction
 # optimiser behaviour.

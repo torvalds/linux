@@ -1037,22 +1037,6 @@ static void tty3215_flush_buffer(struct tty_struct *tty)
 }
 
 /*
- * Currently we don't have any io controls for 3215 ttys
- */
-static int tty3215_ioctl(struct tty_struct *tty, struct file * file,
-			 unsigned int cmd, unsigned long arg)
-{
-	if (tty->flags & (1 << TTY_IO_ERROR))
-		return -EIO;
-
-	switch (cmd) {
-	default:
-		return -ENOIOCTLCMD;
-	}
-	return 0;
-}
-
-/*
  * Disable reading from a 3215 tty
  */
 static void tty3215_throttle(struct tty_struct * tty)
@@ -1117,7 +1101,6 @@ static const struct tty_operations tty3215_ops = {
 	.write_room = tty3215_write_room,
 	.chars_in_buffer = tty3215_chars_in_buffer,
 	.flush_buffer = tty3215_flush_buffer,
-	.ioctl = tty3215_ioctl,
 	.throttle = tty3215_throttle,
 	.unthrottle = tty3215_unthrottle,
 	.stop = tty3215_stop,

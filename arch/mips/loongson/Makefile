@@ -9,3 +9,9 @@ obj-$(CONFIG_MACH_LOONGSON) += common/
 #
 
 obj-$(CONFIG_LEMOTE_FULOONG2E)  += fuloong-2e/
+
+#
+# Lemote loongson2f family machines
+#
+
+obj-$(CONFIG_LEMOTE_MACH2F)  += lemote-2f/

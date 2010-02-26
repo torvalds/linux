@@ -2,7 +2,6 @@ config EXT4_FS
 	tristate "The Extended 4 (ext4) filesystem"
 	select JBD2
 	select CRC16
-	select FS_JOURNAL_INFO
 	help
 	  This is the next generation of the ext3 filesystem.
 
@@ -29,6 +28,7 @@ config EXT4_FS
 
 config EXT4_USE_FOR_EXT23
 	bool "Use ext4 for ext2/ext3 file systems"
+	depends on EXT4_FS
 	depends on EXT3_FS=n || EXT2_FS=n
 	default y
 	help

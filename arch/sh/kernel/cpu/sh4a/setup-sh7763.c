@@ -16,6 +16,51 @@
 #include <linux/io.h>
 #include <linux/serial_sci.h>
 
+static struct plat_sci_port scif0_platform_data = {
+	.mapbase	= 0xffe00000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 40, 40, 40, 40 },
+};
+
+static struct platform_device scif0_device = {
+	.name		= "sh-sci",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &scif0_platform_data,
+	},
+};
+
+static struct plat_sci_port scif1_platform_data = {
+	.mapbase	= 0xffe08000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 76, 76, 76, 76 },
+};
+
+static struct platform_device scif1_device = {
+	.name		= "sh-sci",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &scif1_platform_data,
+	},
+};
+
+static struct plat_sci_port scif2_platform_data = {
+	.mapbase	= 0xffe10000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 104, 104, 104, 104 },
+};
+
+static struct platform_device scif2_device = {
+	.name		= "sh-sci",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &scif2_platform_data,
+	},
+};
+
 static struct resource rtc_resources[] = {
 	[0] = {
 		.start	= 0xffe80000,
@@ -34,35 +79,6 @@ static struct platform_device rtc_device = {
 	.id		= -1,
 	.num_resources	= ARRAY_SIZE(rtc_resources),
 	.resource	= rtc_resources,
-};
-
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xffe00000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 40, 40, 40, 40 },
-	}, {
-		.mapbase	= 0xffe08000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 76, 76, 76, 76 },
-	}, {
-		.mapbase	= 0xffe10000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 104, 104, 104, 104 },
-	}, {
-		.flags = 0,
-	}
-};
-
-static struct platform_device sci_device = {
-	.name		= "sh-sci",
-	.id		= -1,
-	.dev		= {
-		.platform_data	= sci_platform_data,
-	},
 };
 
 static struct resource usb_ohci_resources[] = {
@@ -297,6 +313,9 @@ static struct platform_device tmu5_device = {
 };
 
 static struct platform_device *sh7763_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
+	&scif2_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,
@@ -304,7 +323,6 @@ static struct platform_device *sh7763_devices[] __initdata = {
 	&tmu4_device,
 	&tmu5_device,
 	&rtc_device,
-	&sci_device,
 	&usb_ohci_device,
 	&usbf_device,
 };
@@ -317,6 +335,9 @@ static int __init sh7763_devices_setup(void)
 arch_initcall(sh7763_devices_setup);
 
 static struct platform_device *sh7763_early_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
+	&scif2_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,

@@ -1,11 +1,16 @@
 #include <linux/types.h>
 #include "event.h"
 #include "debug.h"
+#include "session.h"
+#include "sort.h"
 #include "string.h"
+#include "strlist.h"
 #include "thread.h"
 
 static pid_t event__synthesize_comm(pid_t pid, int full,
-				    int (*process)(event_t *event))
+				    int (*process)(event_t *event,
+						   struct perf_session *session),
+				    struct perf_session *session)
 {
 	event_t ev;
 	char filename[PATH_MAX];
@@ -54,7 +59,7 @@ out_race:
 	if (!full) {
 		ev.comm.tid = pid;
 
-		process(&ev);
+		process(&ev, session);
 		goto out_fclose;
 	}
 
@@ -72,7 +77,7 @@ out_race:
 
 		ev.comm.tid = pid;
 
-		process(&ev);
+		process(&ev, session);
 	}
 	closedir(tasks);
 
@@ -86,7 +91,9 @@ out_failure:
 }
 
 static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
-					 int (*process)(event_t *event))
+					 int (*process)(event_t *event,
+							struct perf_session *session),
+					 struct perf_session *session)
 {
 	char filename[PATH_MAX];
 	FILE *fp;
@@ -141,7 +148,7 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 			ev.mmap.pid = tgid;
 			ev.mmap.tid = pid;
 
-			process(&ev);
+			process(&ev, session);
 		}
 	}
 
@@ -149,15 +156,20 @@ static int event__synthesize_mmap_events(pid_t pid, pid_t tgid,
 	return 0;
 }
 
-int event__synthesize_thread(pid_t pid, int (*process)(event_t *event))
+int event__synthesize_thread(pid_t pid,
+			     int (*process)(event_t *event,
+					    struct perf_session *session),
+			     struct perf_session *session)
 {
-	pid_t tgid = event__synthesize_comm(pid, 1, process);
+	pid_t tgid = event__synthesize_comm(pid, 1, process, session);
 	if (tgid == -1)
 		return -1;
-	return event__synthesize_mmap_events(pid, tgid, process);
+	return event__synthesize_mmap_events(pid, tgid, process, session);
 }
 
-void event__synthesize_threads(int (*process)(event_t *event))
+void event__synthesize_threads(int (*process)(event_t *event,
+					      struct perf_session *session),
+			       struct perf_session *session)
 {
 	DIR *proc;
 	struct dirent dirent, *next;
@@ -171,24 +183,47 @@ void event__synthesize_threads(int (*process)(event_t *event))
 		if (*end) /* only interested in proper numerical dirents */
 			continue;
 
-		event__synthesize_thread(pid, process);
+		event__synthesize_thread(pid, process, session);
 	}
 
 	closedir(proc);
 }
 
-char *event__cwd;
-int  event__cwdlen;
-
-struct events_stats event__stats;
-
-int event__process_comm(event_t *self)
+static void thread__comm_adjust(struct thread *self)
 {
-	struct thread *thread = threads__findnew(self->comm.pid);
+	char *comm = self->comm;
+
+	if (!symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
+	    (!symbol_conf.comm_list ||
+	     strlist__has_entry(symbol_conf.comm_list, comm))) {
+		unsigned int slen = strlen(comm);
+
+		if (slen > comms__col_width) {
+			comms__col_width = slen;
+			threads__col_width = slen + 6;
+		}
+	}
+}
+
+static int thread__set_comm_adjust(struct thread *self, const char *comm)
+{
+	int ret = thread__set_comm(self, comm);
+
+	if (ret)
+		return ret;
+
+	thread__comm_adjust(self);
+
+	return 0;
+}
+
+int event__process_comm(event_t *self, struct perf_session *session)
+{
+	struct thread *thread = perf_session__findnew(session, self->comm.pid);
 
 	dump_printf(": %s:%d\n", self->comm.comm, self->comm.pid);
 
-	if (thread == NULL || thread__set_comm(thread, self->comm.comm)) {
+	if (thread == NULL || thread__set_comm_adjust(thread, self->comm.comm)) {
 		dump_printf("problem processing PERF_RECORD_COMM, skipping event.\n");
 		return -1;
 	}
@@ -196,18 +231,18 @@ int event__process_comm(event_t *self)
 	return 0;
 }
 
-int event__process_lost(event_t *self)
+int event__process_lost(event_t *self, struct perf_session *session)
 {
 	dump_printf(": id:%Ld: lost:%Ld\n", self->lost.id, self->lost.lost);
-	event__stats.lost += self->lost.lost;
+	session->events_stats.lost += self->lost.lost;
 	return 0;
 }
 
-int event__process_mmap(event_t *self)
+int event__process_mmap(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = threads__findnew(self->mmap.pid);
+	struct thread *thread = perf_session__findnew(session, self->mmap.pid);
 	struct map *map = map__new(&self->mmap, MAP__FUNCTION,
-				   event__cwd, event__cwdlen);
+				   session->cwd, session->cwdlen);
 
 	dump_printf(" %d/%d: [%p(%p) @ %p]: %s\n",
 		    self->mmap.pid, self->mmap.tid,
@@ -224,10 +259,10 @@ int event__process_mmap(event_t *self)
 	return 0;
 }
 
-int event__process_task(event_t *self)
+int event__process_task(event_t *self, struct perf_session *session)
 {
-	struct thread *thread = threads__findnew(self->fork.pid);
-	struct thread *parent = threads__findnew(self->fork.ppid);
+	struct thread *thread = perf_session__findnew(session, self->fork.pid);
+	struct thread *parent = perf_session__findnew(session, self->fork.ppid);
 
 	dump_printf("(%d:%d):(%d:%d)\n", self->fork.pid, self->fork.tid,
 		    self->fork.ppid, self->fork.ptid);
@@ -249,7 +284,8 @@ int event__process_task(event_t *self)
 	return 0;
 }
 
-void thread__find_addr_location(struct thread *self, u8 cpumode,
+void thread__find_addr_location(struct thread *self,
+				struct perf_session *session, u8 cpumode,
 				enum map_type type, u64 addr,
 				struct addr_location *al,
 				symbol_filter_t filter)
@@ -259,10 +295,10 @@ void thread__find_addr_location(struct thread *self, u8 cpumode,
 	al->thread = self;
 	al->addr = addr;
 
-	if (cpumode & PERF_RECORD_MISC_KERNEL) {
+	if (cpumode == PERF_RECORD_MISC_KERNEL) {
 		al->level = 'k';
-		mg = kmaps;
-	} else if (cpumode & PERF_RECORD_MISC_USER)
+		mg = &session->kmaps;
+	} else if (cpumode == PERF_RECORD_MISC_USER)
 		al->level = '.';
 	else {
 		al->level = 'H';
@@ -282,33 +318,73 @@ try_again:
 		 * "[vdso]" dso, but for now lets use the old trick of looking
 		 * in the whole kernel symbol list.
 		 */
-		if ((long long)al->addr < 0 && mg != kmaps) {
-			mg = kmaps;
+		if ((long long)al->addr < 0 && mg != &session->kmaps) {
+			mg = &session->kmaps;
 			goto try_again;
 		}
 		al->sym = NULL;
 	} else {
 		al->addr = al->map->map_ip(al->map, al->addr);
-		al->sym = map__find_symbol(al->map, al->addr, filter);
+		al->sym = map__find_symbol(al->map, session, al->addr, filter);
 	}
 }
 
-int event__preprocess_sample(const event_t *self, struct addr_location *al,
-			     symbol_filter_t filter)
+static void dso__calc_col_width(struct dso *self)
+{
+	if (!symbol_conf.col_width_list_str && !symbol_conf.field_sep &&
+	    (!symbol_conf.dso_list ||
+	     strlist__has_entry(symbol_conf.dso_list, self->name))) {
+		unsigned int slen = strlen(self->name);
+		if (slen > dsos__col_width)
+			dsos__col_width = slen;
+	}
+
+	self->slen_calculated = 1;
+}
+
+int event__preprocess_sample(const event_t *self, struct perf_session *session,
+			     struct addr_location *al, symbol_filter_t filter)
 {
 	u8 cpumode = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
-	struct thread *thread = threads__findnew(self->ip.pid);
+	struct thread *thread = perf_session__findnew(session, self->ip.pid);
 
 	if (thread == NULL)
 		return -1;
 
+	if (symbol_conf.comm_list &&
+	    !strlist__has_entry(symbol_conf.comm_list, thread->comm))
+		goto out_filtered;
+
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	thread__find_addr_location(thread, cpumode, MAP__FUNCTION,
+	thread__find_addr_location(thread, session, cpumode, MAP__FUNCTION,
 				   self->ip.ip, al, filter);
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
+	/*
+	 * We have to do this here as we may have a dso with no symbol hit that
+	 * has a name longer than the ones with symbols sampled.
+	 */
+	if (al->map && !sort_dso.elide && !al->map->dso->slen_calculated)
+		dso__calc_col_width(al->map->dso);
+
+	if (symbol_conf.dso_list &&
+	    (!al->map || !al->map->dso ||
+	     !(strlist__has_entry(symbol_conf.dso_list, al->map->dso->short_name) ||
+	       (al->map->dso->short_name != al->map->dso->long_name &&
+		strlist__has_entry(symbol_conf.dso_list, al->map->dso->long_name)))))
+		goto out_filtered;
+
+	if (symbol_conf.sym_list && al->sym &&
+	    !strlist__has_entry(symbol_conf.sym_list, al->sym->name))
+		goto out_filtered;
+
+	al->filtered = false;
+	return 0;
+
+out_filtered:
+	al->filtered = true;
 	return 0;
 }
 

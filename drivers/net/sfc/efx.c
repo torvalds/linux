@@ -741,13 +741,13 @@ static int efx_probe_port(struct efx_nic *efx)
 
 	EFX_LOG(efx, "create port\n");
 
+	if (phy_flash_cfg)
+		efx->phy_mode = PHY_MODE_SPECIAL;
+
 	/* Connect up MAC/PHY operations table */
 	rc = efx->type->probe_port(efx);
 	if (rc)
 		goto err;
-
-	if (phy_flash_cfg)
-		efx->phy_mode = PHY_MODE_SPECIAL;
 
 	/* Sanity check MAC address */
 	if (is_valid_ether_addr(efx->mac_address)) {
@@ -2284,6 +2284,7 @@ static int __devinit efx_pci_probe(struct pci_dev *pci_dev,
  fail2:
 	efx_fini_struct(efx);
  fail1:
+	WARN_ON(rc > 0);
 	EFX_LOG(efx, "initialisation failed. rc=%d\n", rc);
 	free_netdev(net_dev);
 	return rc;

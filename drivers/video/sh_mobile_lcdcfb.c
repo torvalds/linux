@@ -281,6 +281,7 @@ static void sh_mobile_lcdc_deferred_io(struct fb_info *info,
 				       struct list_head *pagelist)
 {
 	struct sh_mobile_lcdc_chan *ch = info->par;
+	struct sh_mobile_lcdc_board_cfg	*bcfg = &ch->cfg.board_cfg;
 
 	/* enable clocks before accessing hardware */
 	sh_mobile_lcdc_clk_on(ch->lcdc);
@@ -305,10 +306,17 @@ static void sh_mobile_lcdc_deferred_io(struct fb_info *info,
 
 		/* trigger panel update */
 		dma_map_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
+		if (bcfg->start_transfer)
+			bcfg->start_transfer(bcfg->board_data, ch,
+					     &sh_mobile_lcdc_sys_bus_ops);
 		lcdc_write_chan(ch, LDSM2R, 1);
 		dma_unmap_sg(info->dev, ch->sglist, nr_pages, DMA_TO_DEVICE);
-	} else
+	} else {
+		if (bcfg->start_transfer)
+			bcfg->start_transfer(bcfg->board_data, ch,
+					     &sh_mobile_lcdc_sys_bus_ops);
 		lcdc_write_chan(ch, LDSM2R, 1);
+	}
 }
 
 static void sh_mobile_lcdc_deferred_io_touch(struct fb_info *info)

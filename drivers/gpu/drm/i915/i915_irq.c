@@ -274,7 +274,6 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	int ret = IRQ_NONE;
 	u32 de_iir, gt_iir, de_ier, pch_iir;
-	u32 new_de_iir, new_gt_iir, new_pch_iir;
 	struct drm_i915_master_private *master_priv;
 
 	/* disable master interrupt before clearing iir  */
@@ -286,49 +285,58 @@ irqreturn_t ironlake_irq_handler(struct drm_device *dev)
 	gt_iir = I915_READ(GTIIR);
 	pch_iir = I915_READ(SDEIIR);
 
-	for (;;) {
-		if (de_iir == 0 && gt_iir == 0 && pch_iir == 0)
-			break;
+	if (de_iir == 0 && gt_iir == 0 && pch_iir == 0)
+		goto done;
 
-		ret = IRQ_HANDLED;
+	ret = IRQ_HANDLED;
 
-		/* should clear PCH hotplug event before clear CPU irq */
-		I915_WRITE(SDEIIR, pch_iir);
-		new_pch_iir = I915_READ(SDEIIR);
-
-		I915_WRITE(DEIIR, de_iir);
-		new_de_iir = I915_READ(DEIIR);
-		I915_WRITE(GTIIR, gt_iir);
-		new_gt_iir = I915_READ(GTIIR);
-
-		if (dev->primary->master) {
-			master_priv = dev->primary->master->driver_priv;
-			if (master_priv->sarea_priv)
-				master_priv->sarea_priv->last_dispatch =
-					READ_BREADCRUMB(dev_priv);
-		}
-
-		if (gt_iir & GT_USER_INTERRUPT) {
-			u32 seqno = i915_get_gem_seqno(dev);
-			dev_priv->mm.irq_gem_seqno = seqno;
-			trace_i915_gem_request_complete(dev, seqno);
-			DRM_WAKEUP(&dev_priv->irq_queue);
-		}
-
-		if (de_iir & DE_GSE)
-			ironlake_opregion_gse_intr(dev);
-
-		/* check event from PCH */
-		if ((de_iir & DE_PCH_EVENT) &&
-			(pch_iir & SDE_HOTPLUG_MASK)) {
-			queue_work(dev_priv->wq, &dev_priv->hotplug_work);
-		}
-
-		de_iir = new_de_iir;
-		gt_iir = new_gt_iir;
-		pch_iir = new_pch_iir;
+	if (dev->primary->master) {
+		master_priv = dev->primary->master->driver_priv;
+		if (master_priv->sarea_priv)
+			master_priv->sarea_priv->last_dispatch =
+				READ_BREADCRUMB(dev_priv);
 	}
 
+	if (gt_iir & GT_USER_INTERRUPT) {
+		u32 seqno = i915_get_gem_seqno(dev);
+		dev_priv->mm.irq_gem_seqno = seqno;
+		trace_i915_gem_request_complete(dev, seqno);
+		DRM_WAKEUP(&dev_priv->irq_queue);
+		dev_priv->hangcheck_count = 0;
+		mod_timer(&dev_priv->hangcheck_timer, jiffies + DRM_I915_HANGCHECK_PERIOD);
+	}
+
+	if (de_iir & DE_GSE)
+		ironlake_opregion_gse_intr(dev);
+
+	if (de_iir & DE_PLANEA_FLIP_DONE) {
+		intel_prepare_page_flip(dev, 0);
+		intel_finish_page_flip(dev, 0);
+	}
+
+	if (de_iir & DE_PLANEB_FLIP_DONE) {
+		intel_prepare_page_flip(dev, 1);
+		intel_finish_page_flip(dev, 1);
+	}
+
+	if (de_iir & DE_PIPEA_VBLANK)
+		drm_handle_vblank(dev, 0);
+
+	if (de_iir & DE_PIPEB_VBLANK)
+		drm_handle_vblank(dev, 1);
+
+	/* check event from PCH */
+	if ((de_iir & DE_PCH_EVENT) &&
+	    (pch_iir & SDE_HOTPLUG_MASK)) {
+		queue_work(dev_priv->wq, &dev_priv->hotplug_work);
+	}
+
+	/* should clear PCH hotplug event before clear CPU irq */
+	I915_WRITE(SDEIIR, pch_iir);
+	I915_WRITE(GTIIR, gt_iir);
+	I915_WRITE(DEIIR, de_iir);
+
+done:
 	I915_WRITE(DEIER, de_ier);
 	(void)I915_READ(DEIER);
 
@@ -852,11 +860,11 @@ int i915_enable_vblank(struct drm_device *dev, int pipe)
 	if (!(pipeconf & PIPEACONF_ENABLE))
 		return -EINVAL;
 
-	if (IS_IRONLAKE(dev))
-		return 0;
-
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	if (IS_I965G(dev))
+	if (IS_IRONLAKE(dev))
+		ironlake_enable_display_irq(dev_priv, (pipe == 0) ? 
+					    DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
+	else if (IS_I965G(dev))
 		i915_enable_pipestat(dev_priv, pipe,
 				     PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	else
@@ -874,13 +882,14 @@ void i915_disable_vblank(struct drm_device *dev, int pipe)
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	unsigned long irqflags;
 
-	if (IS_IRONLAKE(dev))
-		return;
-
 	spin_lock_irqsave(&dev_priv->user_irq_lock, irqflags);
-	i915_disable_pipestat(dev_priv, pipe,
-			      PIPE_VBLANK_INTERRUPT_ENABLE |
-			      PIPE_START_VBLANK_INTERRUPT_ENABLE);
+	if (IS_IRONLAKE(dev))
+		ironlake_disable_display_irq(dev_priv, (pipe == 0) ? 
+					     DE_PIPEA_VBLANK: DE_PIPEB_VBLANK);
+	else
+		i915_disable_pipestat(dev_priv, pipe,
+				      PIPE_VBLANK_INTERRUPT_ENABLE |
+				      PIPE_START_VBLANK_INTERRUPT_ENABLE);
 	spin_unlock_irqrestore(&dev_priv->user_irq_lock, irqflags);
 }
 
@@ -1023,13 +1032,14 @@ static int ironlake_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
 	/* enable kind of interrupts always enabled */
-	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT;
+	u32 display_mask = DE_MASTER_IRQ_CONTROL | DE_GSE | DE_PCH_EVENT |
+			   DE_PLANEA_FLIP_DONE | DE_PLANEB_FLIP_DONE;
 	u32 render_mask = GT_USER_INTERRUPT;
 	u32 hotplug_mask = SDE_CRT_HOTPLUG | SDE_PORTB_HOTPLUG |
 			   SDE_PORTC_HOTPLUG | SDE_PORTD_HOTPLUG;
 
 	dev_priv->irq_mask_reg = ~display_mask;
-	dev_priv->de_irq_enable_reg = display_mask;
+	dev_priv->de_irq_enable_reg = display_mask | DE_PIPEA_VBLANK | DE_PIPEB_VBLANK;
 
 	/* should always can generate irq */
 	I915_WRITE(DEIIR, I915_READ(DEIIR));
@@ -1084,6 +1094,10 @@ void i915_driver_irq_preinstall(struct drm_device * dev)
 	(void) I915_READ(IER);
 }
 
+/*
+ * Must be called after intel_modeset_init or hotplug interrupts won't be
+ * enabled correctly.
+ */
 int i915_driver_irq_postinstall(struct drm_device *dev)
 {
 	drm_i915_private_t *dev_priv = (drm_i915_private_t *) dev->dev_private;
@@ -1106,19 +1120,23 @@ int i915_driver_irq_postinstall(struct drm_device *dev)
 	if (I915_HAS_HOTPLUG(dev)) {
 		u32 hotplug_en = I915_READ(PORT_HOTPLUG_EN);
 
-		/* Leave other bits alone */
-		hotplug_en |= HOTPLUG_EN_MASK;
+		/* Note HDMI and DP share bits */
+		if (dev_priv->hotplug_supported_mask & HDMIB_HOTPLUG_INT_STATUS)
+			hotplug_en |= HDMIB_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & HDMIC_HOTPLUG_INT_STATUS)
+			hotplug_en |= HDMIC_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & HDMID_HOTPLUG_INT_STATUS)
+			hotplug_en |= HDMID_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & SDVOC_HOTPLUG_INT_STATUS)
+			hotplug_en |= SDVOC_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & SDVOB_HOTPLUG_INT_STATUS)
+			hotplug_en |= SDVOB_HOTPLUG_INT_EN;
+		if (dev_priv->hotplug_supported_mask & CRT_HOTPLUG_INT_STATUS)
+			hotplug_en |= CRT_HOTPLUG_INT_EN;
+		/* Ignore TV since it's buggy */
+
 		I915_WRITE(PORT_HOTPLUG_EN, hotplug_en);
 
-		dev_priv->hotplug_supported_mask = CRT_HOTPLUG_INT_STATUS |
-			TV_HOTPLUG_INT_STATUS | SDVOC_HOTPLUG_INT_STATUS |
-			SDVOB_HOTPLUG_INT_STATUS;
-		if (IS_G4X(dev)) {
-			dev_priv->hotplug_supported_mask |=
-				HDMIB_HOTPLUG_INT_STATUS |
-				HDMIC_HOTPLUG_INT_STATUS |
-				HDMID_HOTPLUG_INT_STATUS;
-		}
 		/* Enable in IER... */
 		enable_mask |= I915_DISPLAY_PORT_INTERRUPT;
 		/* and unmask in IMR */

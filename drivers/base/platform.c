@@ -441,6 +441,7 @@ error:
 	platform_device_put(pdev);
 	return ERR_PTR(retval);
 }
+EXPORT_SYMBOL_GPL(platform_device_register_data);
 
 static int platform_drv_probe(struct device *_dev)
 {

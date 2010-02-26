@@ -17,11 +17,14 @@
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
+#include <linux/module.h>
+
 #include <asm/bootinfo.h>
 
 #include <loongson.h>
 
 unsigned long bus_clock, cpu_clock_freq;
+EXPORT_SYMBOL(cpu_clock_freq);
 unsigned long memsize, highmemsize;
 
 /* pmon passes arguments in 32bit pointers */

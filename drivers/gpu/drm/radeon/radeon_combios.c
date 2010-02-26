@@ -595,6 +595,48 @@ bool radeon_combios_get_clock_info(struct drm_device *dev)
 	return false;
 }
 
+bool radeon_combios_sideport_present(struct radeon_device *rdev)
+{
+	struct drm_device *dev = rdev->ddev;
+	u16 igp_info;
+
+	igp_info = combios_get_table_offset(dev, COMBIOS_INTEGRATED_SYSTEM_INFO_TABLE);
+
+	if (igp_info) {
+		if (RBIOS16(igp_info + 0x4))
+			return true;
+	}
+	return false;
+}
+
+static const uint32_t default_primarydac_adj[CHIP_LAST] = {
+	0x00000808,		/* r100  */
+	0x00000808,		/* rv100 */
+	0x00000808,		/* rs100 */
+	0x00000808,		/* rv200 */
+	0x00000808,		/* rs200 */
+	0x00000808,		/* r200  */
+	0x00000808,		/* rv250 */
+	0x00000000,		/* rs300 */
+	0x00000808,		/* rv280 */
+	0x00000808,		/* r300  */
+	0x00000808,		/* r350  */
+	0x00000808,		/* rv350 */
+	0x00000808,		/* rv380 */
+	0x00000808,		/* r420  */
+	0x00000808,		/* r423  */
+	0x00000808,		/* rv410 */
+	0x00000000,		/* rs400 */
+	0x00000000,		/* rs480 */
+};
+
+static void radeon_legacy_get_primary_dac_info_from_table(struct radeon_device *rdev,
+							  struct radeon_encoder_primary_dac *p_dac)
+{
+	p_dac->ps2_pdac_adj = default_primarydac_adj[rdev->family];
+	return;
+}
+
 struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 								       radeon_encoder
 								       *encoder)
@@ -604,20 +646,20 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 	uint16_t dac_info;
 	uint8_t rev, bg, dac;
 	struct radeon_encoder_primary_dac *p_dac = NULL;
+	int found = 0;
+
+	p_dac = kzalloc(sizeof(struct radeon_encoder_primary_dac),
+			GFP_KERNEL);
+
+	if (!p_dac)
+		return NULL;
 
 	if (rdev->bios == NULL)
-		return NULL;
+		goto out;
 
 	/* check CRT table */
 	dac_info = combios_get_table_offset(dev, COMBIOS_CRT_INFO_TABLE);
 	if (dac_info) {
-		p_dac =
-		    kzalloc(sizeof(struct radeon_encoder_primary_dac),
-			    GFP_KERNEL);
-
-		if (!p_dac)
-			return NULL;
-
 		rev = RBIOS8(dac_info) & 0x3;
 		if (rev < 2) {
 			bg = RBIOS8(dac_info + 0x2) & 0xf;
@@ -628,19 +670,25 @@ struct radeon_encoder_primary_dac *radeon_combios_get_primary_dac_info(struct
 			dac = RBIOS8(dac_info + 0x3) & 0xf;
 			p_dac->ps2_pdac_adj = (bg << 8) | (dac);
 		}
-
+		found = 1;
 	}
+
+out:
+	if (!found) /* fallback to defaults */
+		radeon_legacy_get_primary_dac_info_from_table(rdev, p_dac);
 
 	return p_dac;
 }
 
-static enum radeon_tv_std
-radeon_combios_get_tv_info(struct radeon_encoder *encoder)
+enum radeon_tv_std
+radeon_combios_get_tv_info(struct radeon_device *rdev)
 {
-	struct drm_device *dev = encoder->base.dev;
-	struct radeon_device *rdev = dev->dev_private;
+	struct drm_device *dev = rdev->ddev;
 	uint16_t tv_info;
 	enum radeon_tv_std tv_std = TV_STD_NTSC;
+
+	if (rdev->bios == NULL)
+		return tv_std;
 
 	tv_info = combios_get_table_offset(dev, COMBIOS_TV_INFO_TABLE);
 	if (tv_info) {
@@ -779,7 +827,7 @@ struct radeon_encoder_tv_dac *radeon_combios_get_tv_dac_info(struct
 			tv_dac->ntsc_tvdac_adj = (bg << 16) | (dac << 20);
 			found = 1;
 		}
-		tv_dac->tv_std = radeon_combios_get_tv_info(encoder);
+		tv_dac->tv_std = radeon_combios_get_tv_info(rdev);
 	}
 	if (!found) {
 		/* then check CRT table */
@@ -923,8 +971,7 @@ struct radeon_encoder_lvds *radeon_combios_get_lvds_info(struct radeon_encoder
 			 lvds->native_mode.vdisplay);
 
 		lvds->panel_vcc_delay = RBIOS16(lcd_info + 0x2c);
-		if (lvds->panel_vcc_delay > 2000 || lvds->panel_vcc_delay < 0)
-			lvds->panel_vcc_delay = 2000;
+		lvds->panel_vcc_delay = min_t(u16, lvds->panel_vcc_delay, 2000);
 
 		lvds->panel_pwr_delay = RBIOS8(lcd_info + 0x24);
 		lvds->panel_digon_delay = RBIOS16(lcd_info + 0x38) & 0xf;

@@ -49,6 +49,8 @@ o  oprofile               0.9                     # oprofiled --version
 o  udev                   081                     # udevinfo -V
 o  grub                   0.93                    # grub --version
 o  mcelog		  0.6
+o  iptables               1.4.1                   # iptables -V
+
 
 Kernel compilation
 ==================

@@ -50,7 +50,7 @@ config CAN_TI_HECC
 
 config CAN_MCP251X
 	tristate "Microchip MCP251x SPI CAN controllers"
-	depends on CAN_DEV && SPI
+	depends on CAN_DEV && SPI && HAS_DMA
 	---help---
 	  Driver for the Microchip MCP251x SPI CAN controllers.
 

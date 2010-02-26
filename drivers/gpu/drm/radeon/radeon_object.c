@@ -56,6 +56,13 @@ static void radeon_ttm_bo_destroy(struct ttm_buffer_object *tbo)
 	kfree(bo);
 }
 
+bool radeon_ttm_bo_is_radeon_bo(struct ttm_buffer_object *bo)
+{
+	if (bo->destroy == &radeon_ttm_bo_destroy)
+		return true;
+	return false;
+}
+
 void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 {
 	u32 c = 0;
@@ -70,6 +77,8 @@ void radeon_ttm_placement_from_domain(struct radeon_bo *rbo, u32 domain)
 	if (domain & RADEON_GEM_DOMAIN_GTT)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_TT;
 	if (domain & RADEON_GEM_DOMAIN_CPU)
+		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
+	if (!c)
 		rbo->placements[c++] = TTM_PL_MASK_CACHING | TTM_PL_FLAG_SYSTEM;
 	rbo->placement.num_placement = c;
 	rbo->placement.num_busy_placement = c;
@@ -211,9 +220,11 @@ int radeon_bo_unpin(struct radeon_bo *bo)
 
 int radeon_bo_evict_vram(struct radeon_device *rdev)
 {
-	if (rdev->flags & RADEON_IS_IGP) {
-		/* Useless to evict on IGP chips */
-		return 0;
+	/* late 2.6.33 fix IGP hibernate - we need pm ops to do this correct */
+	if (0 && (rdev->flags & RADEON_IS_IGP)) {
+		if (rdev->mc.igp_sideport_enabled == false)
+			/* Useless to evict on IGP chips */
+			return 0;
 	}
 	return ttm_bo_evict_mm(&rdev->mman.bdev, TTM_PL_VRAM);
 }
@@ -295,11 +306,10 @@ void radeon_bo_list_unreserve(struct list_head *head)
 	}
 }
 
-int radeon_bo_list_validate(struct list_head *head, void *fence)
+int radeon_bo_list_validate(struct list_head *head)
 {
 	struct radeon_bo_list *lobj;
 	struct radeon_bo *bo;
-	struct radeon_fence *old_fence = NULL;
 	int r;
 
 	r = radeon_bo_list_reserve(head);
@@ -323,32 +333,27 @@ int radeon_bo_list_validate(struct list_head *head, void *fence)
 		}
 		lobj->gpu_offset = radeon_bo_gpu_offset(bo);
 		lobj->tiling_flags = bo->tiling_flags;
-		if (fence) {
-			old_fence = (struct radeon_fence *)bo->tbo.sync_obj;
-			bo->tbo.sync_obj = radeon_fence_ref(fence);
-			bo->tbo.sync_obj_arg = NULL;
-		}
-		if (old_fence) {
-			radeon_fence_unref(&old_fence);
-		}
 	}
 	return 0;
 }
 
-void radeon_bo_list_unvalidate(struct list_head *head, void *fence)
+void radeon_bo_list_fence(struct list_head *head, void *fence)
 {
 	struct radeon_bo_list *lobj;
-	struct radeon_fence *old_fence;
+	struct radeon_bo *bo;
+	struct radeon_fence *old_fence = NULL;
 
-	if (fence)
-		list_for_each_entry(lobj, head, list) {
-			old_fence = to_radeon_fence(lobj->bo->tbo.sync_obj);
-			if (old_fence == fence) {
-				lobj->bo->tbo.sync_obj = NULL;
-				radeon_fence_unref(&old_fence);
-			}
+	list_for_each_entry(lobj, head, list) {
+		bo = lobj->bo;
+		spin_lock(&bo->tbo.lock);
+		old_fence = (struct radeon_fence *)bo->tbo.sync_obj;
+		bo->tbo.sync_obj = radeon_fence_ref(fence);
+		bo->tbo.sync_obj_arg = NULL;
+		spin_unlock(&bo->tbo.lock);
+		if (old_fence) {
+			radeon_fence_unref(&old_fence);
 		}
-	radeon_bo_list_unreserve(head);
+	}
 }
 
 int radeon_bo_fbdev_mmap(struct radeon_bo *bo,
@@ -481,14 +486,20 @@ int radeon_bo_check_tiling(struct radeon_bo *bo, bool has_moved,
 }
 
 void radeon_bo_move_notify(struct ttm_buffer_object *bo,
-				struct ttm_mem_reg *mem)
+			   struct ttm_mem_reg *mem)
 {
-	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+	struct radeon_bo *rbo;
+	if (!radeon_ttm_bo_is_radeon_bo(bo))
+		return;
+	rbo = container_of(bo, struct radeon_bo, tbo);
 	radeon_bo_check_tiling(rbo, 0, 1);
 }
 
 void radeon_bo_fault_reserve_notify(struct ttm_buffer_object *bo)
 {
-	struct radeon_bo *rbo = container_of(bo, struct radeon_bo, tbo);
+	struct radeon_bo *rbo;
+	if (!radeon_ttm_bo_is_radeon_bo(bo))
+		return;
+	rbo = container_of(bo, struct radeon_bo, tbo);
 	radeon_bo_check_tiling(rbo, 0, 0);
 }

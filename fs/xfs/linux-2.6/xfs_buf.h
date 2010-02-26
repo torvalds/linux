@@ -55,6 +55,7 @@ typedef enum {
 	XBF_FS_MANAGED = (1 << 8),  /* filesystem controls freeing memory  */
  	XBF_ORDERED = (1 << 11),    /* use ordered writes		   */
 	XBF_READ_AHEAD = (1 << 12), /* asynchronous read-ahead		   */
+	XBF_LOG_BUFFER = (1 << 13), /* this is a buffer used for the log   */
 
 	/* flags used only as arguments to access routines */
 	XBF_LOCK = (1 << 14),       /* lock requested			   */

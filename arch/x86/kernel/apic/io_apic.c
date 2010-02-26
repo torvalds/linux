@@ -2276,26 +2276,28 @@ static void __target_IO_APIC_irq(unsigned int irq, unsigned int dest, struct irq
 
 /*
  * Either sets desc->affinity to a valid value, and returns
- * ->cpu_mask_to_apicid of that, or returns BAD_APICID and
+ * ->cpu_mask_to_apicid of that in dest_id, or returns -1 and
  * leaves desc->affinity untouched.
  */
 unsigned int
-set_desc_affinity(struct irq_desc *desc, const struct cpumask *mask)
+set_desc_affinity(struct irq_desc *desc, const struct cpumask *mask,
+		  unsigned int *dest_id)
 {
 	struct irq_cfg *cfg;
 	unsigned int irq;
 
 	if (!cpumask_intersects(mask, cpu_online_mask))
-		return BAD_APICID;
+		return -1;
 
 	irq = desc->irq;
 	cfg = desc->chip_data;
 	if (assign_irq_vector(irq, cfg, mask))
-		return BAD_APICID;
+		return -1;
 
 	cpumask_copy(desc->affinity, mask);
 
-	return apic->cpu_mask_to_apicid_and(desc->affinity, cfg->domain);
+	*dest_id = apic->cpu_mask_to_apicid_and(desc->affinity, cfg->domain);
+	return 0;
 }
 
 static int
@@ -2311,12 +2313,11 @@ set_ioapic_affinity_irq_desc(struct irq_desc *desc, const struct cpumask *mask)
 	cfg = desc->chip_data;
 
 	spin_lock_irqsave(&ioapic_lock, flags);
-	dest = set_desc_affinity(desc, mask);
-	if (dest != BAD_APICID) {
+	ret = set_desc_affinity(desc, mask, &dest);
+	if (!ret) {
 		/* Only the high 8 bits are valid. */
 		dest = SET_APIC_LOGICAL_ID(dest);
 		__target_IO_APIC_irq(irq, dest, cfg);
-		ret = 0;
 	}
 	spin_unlock_irqrestore(&ioapic_lock, flags);
 
@@ -2432,6 +2433,13 @@ asmlinkage void smp_irq_move_cleanup_interrupt(void)
 
 		cfg = irq_cfg(irq);
 		raw_spin_lock(&desc->lock);
+
+		/*
+		 * Check if the irq migration is in progress. If so, we
+		 * haven't received the cleanup request yet for this irq.
+		 */
+		if (cfg->move_in_progress)
+			goto unlock;
 
 		if (vector == cfg->vector && cpumask_test_cpu(me, cfg->domain))
 			goto unlock;
@@ -3351,8 +3359,7 @@ static int set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
 	struct msi_msg msg;
 	unsigned int dest;
 
-	dest = set_desc_affinity(desc, mask);
-	if (dest == BAD_APICID)
+	if (set_desc_affinity(desc, mask, &dest))
 		return -1;
 
 	cfg = desc->chip_data;
@@ -3384,8 +3391,7 @@ ir_set_msi_irq_affinity(unsigned int irq, const struct cpumask *mask)
 	if (get_irte(irq, &irte))
 		return -1;
 
-	dest = set_desc_affinity(desc, mask);
-	if (dest == BAD_APICID)
+	if (set_desc_affinity(desc, mask, &dest))
 		return -1;
 
 	irte.vector = cfg->vector;
@@ -3567,8 +3573,7 @@ static int dmar_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 	struct msi_msg msg;
 	unsigned int dest;
 
-	dest = set_desc_affinity(desc, mask);
-	if (dest == BAD_APICID)
+	if (set_desc_affinity(desc, mask, &dest))
 		return -1;
 
 	cfg = desc->chip_data;
@@ -3623,8 +3628,7 @@ static int hpet_msi_set_affinity(unsigned int irq, const struct cpumask *mask)
 	struct msi_msg msg;
 	unsigned int dest;
 
-	dest = set_desc_affinity(desc, mask);
-	if (dest == BAD_APICID)
+	if (set_desc_affinity(desc, mask, &dest))
 		return -1;
 
 	cfg = desc->chip_data;
@@ -3730,8 +3734,7 @@ static int set_ht_irq_affinity(unsigned int irq, const struct cpumask *mask)
 	struct irq_cfg *cfg;
 	unsigned int dest;
 
-	dest = set_desc_affinity(desc, mask);
-	if (dest == BAD_APICID)
+	if (set_desc_affinity(desc, mask, &dest))
 		return -1;
 
 	cfg = desc->chip_data;

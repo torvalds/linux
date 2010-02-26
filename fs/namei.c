@@ -35,7 +35,7 @@
 #include <linux/fs_struct.h>
 #include <asm/uaccess.h>
 
-#define ACC_MODE(x) ("\000\004\002\006"[(x)&O_ACCMODE])
+#include "internal.h"
 
 /* [Feb-1997 T. Schoebel-Theuer]
  * Fundamental changes in the pathname lookup mechanisms (namei)
@@ -107,8 +107,6 @@
  * implemented.  Let's see if raised priority of ->s_vfs_rename_mutex gives
  * any extra contention...
  */
-
-static int __link_path_walk(const char *name, struct nameidata *nd);
 
 /* In order to reduce some races, while at the same time doing additional
  * checking and hopefully speeding things up, we copy filenames to the
@@ -234,6 +232,7 @@ int generic_permission(struct inode *inode, int mask,
 	/*
 	 * Searching includes executable on directories, else just read.
 	 */
+	mask &= MAY_READ | MAY_WRITE | MAY_EXEC;
 	if (mask == MAY_READ || (S_ISDIR(inode->i_mode) && !(mask & MAY_WRITE)))
 		if (capable(CAP_DAC_READ_SEARCH))
 			return 0;
@@ -414,36 +413,55 @@ do_revalidate(struct dentry *dentry, struct nameidata *nd)
 }
 
 /*
- * Internal lookup() using the new generic dcache.
- * SMP-safe
+ * force_reval_path - force revalidation of a dentry
+ *
+ * In some situations the path walking code will trust dentries without
+ * revalidating them. This causes problems for filesystems that depend on
+ * d_revalidate to handle file opens (e.g. NFSv4). When FS_REVAL_DOT is set
+ * (which indicates that it's possible for the dentry to go stale), force
+ * a d_revalidate call before proceeding.
+ *
+ * Returns 0 if the revalidation was successful. If the revalidation fails,
+ * either return the error returned by d_revalidate or -ESTALE if the
+ * revalidation it just returned 0. If d_revalidate returns 0, we attempt to
+ * invalidate the dentry. It's up to the caller to handle putting references
+ * to the path if necessary.
  */
-static struct dentry * cached_lookup(struct dentry * parent, struct qstr * name, struct nameidata *nd)
+static int
+force_reval_path(struct path *path, struct nameidata *nd)
 {
-	struct dentry * dentry = __d_lookup(parent, name);
+	int status;
+	struct dentry *dentry = path->dentry;
 
-	/* lockess __d_lookup may fail due to concurrent d_move() 
-	 * in some unrelated directory, so try with d_lookup
+	/*
+	 * only check on filesystems where it's possible for the dentry to
+	 * become stale. It's assumed that if this flag is set then the
+	 * d_revalidate op will also be defined.
 	 */
-	if (!dentry)
-		dentry = d_lookup(parent, name);
+	if (!(dentry->d_sb->s_type->fs_flags & FS_REVAL_DOT))
+		return 0;
 
-	if (dentry && dentry->d_op && dentry->d_op->d_revalidate)
-		dentry = do_revalidate(dentry, nd);
+	status = dentry->d_op->d_revalidate(dentry, nd);
+	if (status > 0)
+		return 0;
 
-	return dentry;
+	if (!status) {
+		d_invalidate(dentry);
+		status = -ESTALE;
+	}
+	return status;
 }
 
 /*
- * Short-cut version of permission(), for calling by
- * path_walk(), when dcache lock is held.  Combines parts
- * of permission() and generic_permission(), and tests ONLY for
- * MAY_EXEC permission.
+ * Short-cut version of permission(), for calling on directories
+ * during pathname resolution.  Combines parts of permission()
+ * and generic_permission(), and tests ONLY for MAY_EXEC permission.
  *
  * If appropriate, check DAC only.  If not appropriate, or
- * short-cut DAC fails, then call permission() to do more
+ * short-cut DAC fails, then call ->permission() to do more
  * complete permission check.
  */
-static int exec_permission_lite(struct inode *inode)
+static int exec_permission(struct inode *inode)
 {
 	int ret;
 
@@ -465,99 +483,6 @@ ok:
 	return security_inode_permission(inode, MAY_EXEC);
 }
 
-/*
- * This is called when everything else fails, and we actually have
- * to go to the low-level filesystem to find out what we should do..
- *
- * We get the directory semaphore, and after getting that we also
- * make sure that nobody added the entry to the dcache in the meantime..
- * SMP-safe
- */
-static struct dentry * real_lookup(struct dentry * parent, struct qstr * name, struct nameidata *nd)
-{
-	struct dentry * result;
-	struct inode *dir = parent->d_inode;
-
-	mutex_lock(&dir->i_mutex);
-	/*
-	 * First re-do the cached lookup just in case it was created
-	 * while we waited for the directory semaphore..
-	 *
-	 * FIXME! This could use version numbering or similar to
-	 * avoid unnecessary cache lookups.
-	 *
-	 * The "dcache_lock" is purely to protect the RCU list walker
-	 * from concurrent renames at this point (we mustn't get false
-	 * negatives from the RCU list walk here, unlike the optimistic
-	 * fast walk).
-	 *
-	 * so doing d_lookup() (with seqlock), instead of lockfree __d_lookup
-	 */
-	result = d_lookup(parent, name);
-	if (!result) {
-		struct dentry *dentry;
-
-		/* Don't create child dentry for a dead directory. */
-		result = ERR_PTR(-ENOENT);
-		if (IS_DEADDIR(dir))
-			goto out_unlock;
-
-		dentry = d_alloc(parent, name);
-		result = ERR_PTR(-ENOMEM);
-		if (dentry) {
-			result = dir->i_op->lookup(dir, dentry, nd);
-			if (result)
-				dput(dentry);
-			else
-				result = dentry;
-		}
-out_unlock:
-		mutex_unlock(&dir->i_mutex);
-		return result;
-	}
-
-	/*
-	 * Uhhuh! Nasty case: the cache was re-populated while
-	 * we waited on the semaphore. Need to revalidate.
-	 */
-	mutex_unlock(&dir->i_mutex);
-	if (result->d_op && result->d_op->d_revalidate) {
-		result = do_revalidate(result, nd);
-		if (!result)
-			result = ERR_PTR(-ENOENT);
-	}
-	return result;
-}
-
-/*
- * Wrapper to retry pathname resolution whenever the underlying
- * file system returns an ESTALE.
- *
- * Retry the whole path once, forcing real lookup requests
- * instead of relying on the dcache.
- */
-static __always_inline int link_path_walk(const char *name, struct nameidata *nd)
-{
-	struct path save = nd->path;
-	int result;
-
-	/* make sure the stuff we saved doesn't go away */
-	path_get(&save);
-
-	result = __link_path_walk(name, nd);
-	if (result == -ESTALE) {
-		/* nd->path had been dropped */
-		nd->path = save;
-		path_get(&nd->path);
-		nd->flags |= LOOKUP_REVAL;
-		result = __link_path_walk(name, nd);
-	}
-
-	path_put(&save);
-
-	return result;
-}
-
 static __always_inline void set_root(struct nameidata *nd)
 {
 	if (!nd->root.mnt) {
@@ -568,6 +493,8 @@ static __always_inline void set_root(struct nameidata *nd)
 		read_unlock(&fs->lock);
 	}
 }
+
+static int link_path_walk(const char *, struct nameidata *);
 
 static __always_inline int __vfs_follow_link(struct nameidata *nd, const char *link)
 {
@@ -634,6 +561,7 @@ static __always_inline int __do_follow_link(struct path *path, struct nameidata 
 		dget(dentry);
 	}
 	mntget(path->mnt);
+	nd->last_type = LAST_BIND;
 	cookie = dentry->d_inode->i_op->follow_link(dentry, nd);
 	error = PTR_ERR(cookie);
 	if (!IS_ERR(cookie)) {
@@ -641,11 +569,14 @@ static __always_inline int __do_follow_link(struct path *path, struct nameidata 
 		error = 0;
 		if (s)
 			error = __vfs_follow_link(nd, s);
+		else if (nd->last_type == LAST_BIND) {
+			error = force_reval_path(&nd->path, nd);
+			if (error)
+				path_put(&nd->path);
+		}
 		if (dentry->d_inode->i_op->put_link)
 			dentry->d_inode->i_op->put_link(dentry, nd, cookie);
 	}
-	path_put(path);
-
 	return error;
 }
 
@@ -672,6 +603,7 @@ static inline int do_follow_link(struct path *path, struct nameidata *nd)
 	current->total_link_count++;
 	nd->depth++;
 	err = __do_follow_link(path, nd);
+	path_put(path);
 	current->link_count--;
 	nd->depth--;
 	return err;
@@ -797,8 +729,19 @@ static int do_lookup(struct nameidata *nd, struct qstr *name,
 		     struct path *path)
 {
 	struct vfsmount *mnt = nd->path.mnt;
-	struct dentry *dentry = __d_lookup(nd->path.dentry, name);
+	struct dentry *dentry, *parent;
+	struct inode *dir;
+	/*
+	 * See if the low-level filesystem might want
+	 * to use its own hash..
+	 */
+	if (nd->path.dentry->d_op && nd->path.dentry->d_op->d_hash) {
+		int err = nd->path.dentry->d_op->d_hash(nd->path.dentry, name);
+		if (err < 0)
+			return err;
+	}
 
+	dentry = __d_lookup(nd->path.dentry, name);
 	if (!dentry)
 		goto need_lookup;
 	if (dentry->d_op && dentry->d_op->d_revalidate)
@@ -810,7 +753,59 @@ done:
 	return 0;
 
 need_lookup:
-	dentry = real_lookup(nd->path.dentry, name, nd);
+	parent = nd->path.dentry;
+	dir = parent->d_inode;
+
+	mutex_lock(&dir->i_mutex);
+	/*
+	 * First re-do the cached lookup just in case it was created
+	 * while we waited for the directory semaphore..
+	 *
+	 * FIXME! This could use version numbering or similar to
+	 * avoid unnecessary cache lookups.
+	 *
+	 * The "dcache_lock" is purely to protect the RCU list walker
+	 * from concurrent renames at this point (we mustn't get false
+	 * negatives from the RCU list walk here, unlike the optimistic
+	 * fast walk).
+	 *
+	 * so doing d_lookup() (with seqlock), instead of lockfree __d_lookup
+	 */
+	dentry = d_lookup(parent, name);
+	if (!dentry) {
+		struct dentry *new;
+
+		/* Don't create child dentry for a dead directory. */
+		dentry = ERR_PTR(-ENOENT);
+		if (IS_DEADDIR(dir))
+			goto out_unlock;
+
+		new = d_alloc(parent, name);
+		dentry = ERR_PTR(-ENOMEM);
+		if (new) {
+			dentry = dir->i_op->lookup(dir, new, nd);
+			if (dentry)
+				dput(new);
+			else
+				dentry = new;
+		}
+out_unlock:
+		mutex_unlock(&dir->i_mutex);
+		if (IS_ERR(dentry))
+			goto fail;
+		goto done;
+	}
+
+	/*
+	 * Uhhuh! Nasty case: the cache was re-populated while
+	 * we waited on the semaphore. Need to revalidate.
+	 */
+	mutex_unlock(&dir->i_mutex);
+	if (dentry->d_op && dentry->d_op->d_revalidate) {
+		dentry = do_revalidate(dentry, nd);
+		if (!dentry)
+			dentry = ERR_PTR(-ENOENT);
+	}
 	if (IS_ERR(dentry))
 		goto fail;
 	goto done;
@@ -828,6 +823,17 @@ fail:
 }
 
 /*
+ * This is a temporary kludge to deal with "automount" symlinks; proper
+ * solution is to trigger them on follow_mount(), so that do_lookup()
+ * would DTRT.  To be killed before 2.6.34-final.
+ */
+static inline int follow_on_final(struct inode *inode, unsigned lookup_flags)
+{
+	return inode && unlikely(inode->i_op->follow_link) &&
+		((lookup_flags & LOOKUP_FOLLOW) || S_ISDIR(inode->i_mode));
+}
+
+/*
  * Name resolution.
  * This is the basic name resolution function, turning a pathname into
  * the final dentry. We expect 'base' to be positive and a directory.
@@ -835,7 +841,7 @@ fail:
  * Returns 0 and nd will have valid dentry and mnt on success.
  * Returns error and drops reference to input namei data on failure.
  */
-static int __link_path_walk(const char *name, struct nameidata *nd)
+static int link_path_walk(const char *name, struct nameidata *nd)
 {
 	struct path next;
 	struct inode *inode;
@@ -858,7 +864,7 @@ static int __link_path_walk(const char *name, struct nameidata *nd)
 		unsigned int c;
 
 		nd->flags |= LOOKUP_CONTINUE;
-		err = exec_permission_lite(inode);
+		err = exec_permission(inode);
  		if (err)
 			break;
 
@@ -897,16 +903,6 @@ static int __link_path_walk(const char *name, struct nameidata *nd)
 				/* fallthrough */
 			case 1:
 				continue;
-		}
-		/*
-		 * See if the low-level filesystem might want
-		 * to use its own hash..
-		 */
-		if (nd->path.dentry->d_op && nd->path.dentry->d_op->d_hash) {
-			err = nd->path.dentry->d_op->d_hash(nd->path.dentry,
-							    &this);
-			if (err < 0)
-				break;
 		}
 		/* This does the actual lookups.. */
 		err = do_lookup(nd, &this, &next);
@@ -953,18 +949,11 @@ last_component:
 			case 1:
 				goto return_reval;
 		}
-		if (nd->path.dentry->d_op && nd->path.dentry->d_op->d_hash) {
-			err = nd->path.dentry->d_op->d_hash(nd->path.dentry,
-							    &this);
-			if (err < 0)
-				break;
-		}
 		err = do_lookup(nd, &this, &next);
 		if (err)
 			break;
 		inode = next.dentry->d_inode;
-		if ((lookup_flags & LOOKUP_FOLLOW)
-		    && inode && inode->i_op->follow_link) {
+		if (follow_on_final(inode, lookup_flags)) {
 			err = do_follow_link(&next, nd);
 			if (err)
 				goto return_err;
@@ -1017,8 +1006,27 @@ return_err:
 
 static int path_walk(const char *name, struct nameidata *nd)
 {
+	struct path save = nd->path;
+	int result;
+
 	current->total_link_count = 0;
-	return link_path_walk(name, nd);
+
+	/* make sure the stuff we saved doesn't go away */
+	path_get(&save);
+
+	result = link_path_walk(name, nd);
+	if (result == -ESTALE) {
+		/* nd->path had been dropped */
+		current->total_link_count = 0;
+		nd->path = save;
+		path_get(&nd->path);
+		nd->flags |= LOOKUP_REVAL;
+		result = link_path_walk(name, nd);
+	}
+
+	path_put(&save);
+
+	return result;
 }
 
 static int path_init(int dfd, const char *name, unsigned int flags, struct nameidata *nd)
@@ -1141,36 +1149,6 @@ int vfs_path_lookup(struct dentry *dentry, struct vfsmount *mnt,
 	return retval;
 }
 
-/**
- * path_lookup_open - lookup a file path with open intent
- * @dfd: the directory to use as base, or AT_FDCWD
- * @name: pointer to file name
- * @lookup_flags: lookup intent flags
- * @nd: pointer to nameidata
- * @open_flags: open intent flags
- */
-static int path_lookup_open(int dfd, const char *name,
-		unsigned int lookup_flags, struct nameidata *nd, int open_flags)
-{
-	struct file *filp = get_empty_filp();
-	int err;
-
-	if (filp == NULL)
-		return -ENFILE;
-	nd->intent.open.file = filp;
-	nd->intent.open.flags = open_flags;
-	nd->intent.open.create_mode = 0;
-	err = do_path_lookup(dfd, name, lookup_flags|LOOKUP_OPEN, nd);
-	if (IS_ERR(nd->intent.open.file)) {
-		if (err == 0) {
-			err = PTR_ERR(nd->intent.open.file);
-			path_put(&nd->path);
-		}
-	} else if (err != 0)
-		release_open_intent(nd);
-	return err;
-}
-
 static struct dentry *__lookup_hash(struct qstr *name,
 		struct dentry *base, struct nameidata *nd)
 {
@@ -1191,7 +1169,17 @@ static struct dentry *__lookup_hash(struct qstr *name,
 			goto out;
 	}
 
-	dentry = cached_lookup(base, name, nd);
+	dentry = __d_lookup(base, name);
+
+	/* lockess __d_lookup may fail due to concurrent d_move()
+	 * in some unrelated directory, so try with d_lookup
+	 */
+	if (!dentry)
+		dentry = d_lookup(base, name);
+
+	if (dentry && dentry->d_op && dentry->d_op->d_revalidate)
+		dentry = do_revalidate(dentry, nd);
+
 	if (!dentry) {
 		struct dentry *new;
 
@@ -1223,7 +1211,7 @@ static struct dentry *lookup_hash(struct nameidata *nd)
 {
 	int err;
 
-	err = inode_permission(nd->path.dentry->d_inode, MAY_EXEC);
+	err = exec_permission(nd->path.dentry->d_inode);
 	if (err)
 		return ERR_PTR(err);
 	return __lookup_hash(&nd->last, nd->path.dentry, nd);
@@ -1273,7 +1261,7 @@ struct dentry *lookup_one_len(const char *name, struct dentry *base, int len)
 	if (err)
 		return ERR_PTR(err);
 
-	err = inode_permission(base->d_inode, MAY_EXEC);
+	err = exec_permission(base->d_inode);
 	if (err)
 		return ERR_PTR(err);
 	return __lookup_hash(&this, base, NULL);
@@ -1511,69 +1499,45 @@ int may_open(struct path *path, int acc_mode, int flag)
 	if (error)
 		return error;
 
-	error = ima_path_check(path, acc_mode ?
-			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC) :
-			       ACC_MODE(flag) & (MAY_READ | MAY_WRITE),
-			       IMA_COUNT_UPDATE);
-
-	if (error)
-		return error;
 	/*
 	 * An append-only file must be opened in append mode for writing.
 	 */
 	if (IS_APPEND(inode)) {
-		error = -EPERM;
 		if  ((flag & FMODE_WRITE) && !(flag & O_APPEND))
-			goto err_out;
+			return -EPERM;
 		if (flag & O_TRUNC)
-			goto err_out;
+			return -EPERM;
 	}
 
 	/* O_NOATIME can only be set by the owner or superuser */
-	if (flag & O_NOATIME)
-		if (!is_owner_or_cap(inode)) {
-			error = -EPERM;
-			goto err_out;
-		}
+	if (flag & O_NOATIME && !is_owner_or_cap(inode))
+		return -EPERM;
 
 	/*
 	 * Ensure there are no outstanding leases on the file.
 	 */
-	error = break_lease(inode, flag);
+	return break_lease(inode, flag);
+}
+
+static int handle_truncate(struct path *path)
+{
+	struct inode *inode = path->dentry->d_inode;
+	int error = get_write_access(inode);
 	if (error)
-		goto err_out;
-
-	if (flag & O_TRUNC) {
-		error = get_write_access(inode);
-		if (error)
-			goto err_out;
-
-		/*
-		 * Refuse to truncate files with mandatory locks held on them.
-		 */
-		error = locks_verify_locked(inode);
-		if (!error)
-			error = security_path_truncate(path, 0,
-					       ATTR_MTIME|ATTR_CTIME|ATTR_OPEN);
-		if (!error) {
-			vfs_dq_init(inode);
-
-			error = do_truncate(dentry, 0,
-					    ATTR_MTIME|ATTR_CTIME|ATTR_OPEN,
-					    NULL);
-		}
-		put_write_access(inode);
-		if (error)
-			goto err_out;
-	} else
-		if (flag & FMODE_WRITE)
-			vfs_dq_init(inode);
-
-	return 0;
-err_out:
-	ima_counts_put(path, acc_mode ?
-		       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC) :
-		       ACC_MODE(flag) & (MAY_READ | MAY_WRITE));
+		return error;
+	/*
+	 * Refuse to truncate files with mandatory locks held on them.
+	 */
+	error = locks_verify_locked(inode);
+	if (!error)
+		error = security_path_truncate(path, 0,
+				       ATTR_MTIME|ATTR_CTIME|ATTR_OPEN);
+	if (!error) {
+		error = do_truncate(path->dentry, 0,
+				    ATTR_MTIME|ATTR_CTIME|ATTR_OPEN,
+				    NULL);
+	}
+	put_write_access(inode);
 	return error;
 }
 
@@ -1628,7 +1592,7 @@ static inline int open_to_namei_flags(int flag)
 	return flag;
 }
 
-static int open_will_write_to_fs(int flag, struct inode *inode)
+static int open_will_truncate(int flag, struct inode *inode)
 {
 	/*
 	 * We'll never write to the fs underlying
@@ -1653,8 +1617,9 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	struct path path;
 	struct dentry *dir;
 	int count = 0;
-	int will_write;
+	int will_truncate;
 	int flag = open_to_namei_flags(open_flag);
+	int force_reval = 0;
 
 	/*
 	 * O_SYNC is implemented as __O_SYNC|O_DSYNC.  As many places only
@@ -1666,7 +1631,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 		open_flag |= O_DSYNC;
 
 	if (!acc_mode)
-		acc_mode = MAY_OPEN | ACC_MODE(flag);
+		acc_mode = MAY_OPEN | ACC_MODE(open_flag);
 
 	/* O_TRUNC implies we need access checks for write permissions */
 	if (flag & O_TRUNC)
@@ -1681,8 +1646,23 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	 * The simplest case - just a plain lookup.
 	 */
 	if (!(flag & O_CREAT)) {
-		error = path_lookup_open(dfd, pathname, lookup_flags(flag),
-					 &nd, flag);
+		filp = get_empty_filp();
+
+		if (filp == NULL)
+			return ERR_PTR(-ENFILE);
+		nd.intent.open.file = filp;
+		filp->f_flags = open_flag;
+		nd.intent.open.flags = flag;
+		nd.intent.open.create_mode = 0;
+		error = do_path_lookup(dfd, pathname,
+					lookup_flags(flag)|LOOKUP_OPEN, &nd);
+		if (IS_ERR(nd.intent.open.file)) {
+			if (error == 0) {
+				error = PTR_ERR(nd.intent.open.file);
+				path_put(&nd.path);
+			}
+		} else if (error)
+			release_open_intent(&nd);
 		if (error)
 			return ERR_PTR(error);
 		goto ok;
@@ -1691,9 +1671,12 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	/*
 	 * Create - we need to know the parent.
 	 */
+reval:
 	error = path_init(dfd, pathname, LOOKUP_PARENT, &nd);
 	if (error)
 		return ERR_PTR(error);
+	if (force_reval)
+		nd.flags |= LOOKUP_REVAL;
 	error = path_walk(pathname, &nd);
 	if (error) {
 		if (nd.root.mnt)
@@ -1717,6 +1700,7 @@ struct file *do_filp_open(int dfd, const char *pathname,
 	if (filp == NULL)
 		goto exit_parent;
 	nd.intent.open.file = filp;
+	filp->f_flags = open_flag;
 	nd.intent.open.flags = flag;
 	nd.intent.open.create_mode = mode;
 	dir = nd.path.dentry;
@@ -1757,14 +1741,17 @@ do_last:
 			mnt_drop_write(nd.path.mnt);
 			goto exit;
 		}
-		filp = nameidata_to_filp(&nd, open_flag);
-		if (IS_ERR(filp))
-			ima_counts_put(&nd.path,
-				       acc_mode & (MAY_READ | MAY_WRITE |
-						   MAY_EXEC));
+		filp = nameidata_to_filp(&nd);
 		mnt_drop_write(nd.path.mnt);
 		if (nd.root.mnt)
 			path_put(&nd.root);
+		if (!IS_ERR(filp)) {
+			error = ima_file_check(filp, acc_mode);
+			if (error) {
+				fput(filp);
+				filp = ERR_PTR(error);
+			}
+		}
 		return filp;
 	}
 
@@ -1792,7 +1779,7 @@ do_last:
 
 	path_to_nameidata(&path, &nd);
 	error = -EISDIR;
-	if (path.dentry->d_inode && S_ISDIR(path.dentry->d_inode->i_mode))
+	if (S_ISDIR(path.dentry->d_inode->i_mode))
 		goto exit;
 ok:
 	/*
@@ -1805,28 +1792,44 @@ ok:
 	 * be avoided. Taking this mnt write here
 	 * ensures that (2) can not occur.
 	 */
-	will_write = open_will_write_to_fs(flag, nd.path.dentry->d_inode);
-	if (will_write) {
+	will_truncate = open_will_truncate(flag, nd.path.dentry->d_inode);
+	if (will_truncate) {
 		error = mnt_want_write(nd.path.mnt);
 		if (error)
 			goto exit;
 	}
 	error = may_open(&nd.path, acc_mode, flag);
 	if (error) {
-		if (will_write)
+		if (will_truncate)
 			mnt_drop_write(nd.path.mnt);
 		goto exit;
 	}
-	filp = nameidata_to_filp(&nd, open_flag);
-	if (IS_ERR(filp))
-		ima_counts_put(&nd.path,
-			       acc_mode & (MAY_READ | MAY_WRITE | MAY_EXEC));
+	filp = nameidata_to_filp(&nd);
+	if (!IS_ERR(filp)) {
+		error = ima_file_check(filp, acc_mode);
+		if (error) {
+			fput(filp);
+			filp = ERR_PTR(error);
+		}
+	}
+	if (!IS_ERR(filp)) {
+		if (acc_mode & MAY_WRITE)
+			vfs_dq_init(nd.path.dentry->d_inode);
+
+		if (will_truncate) {
+			error = handle_truncate(&nd.path);
+			if (error) {
+				fput(filp);
+				filp = ERR_PTR(error);
+			}
+		}
+	}
 	/*
 	 * It is now safe to drop the mnt write
 	 * because the filp has had a write taken
 	 * on its behalf.
 	 */
-	if (will_write)
+	if (will_truncate)
 		mnt_drop_write(nd.path.mnt);
 	if (nd.root.mnt)
 		path_put(&nd.root);
@@ -1864,6 +1867,7 @@ do_link:
 	if (error)
 		goto exit_dput;
 	error = __do_follow_link(&path, &nd);
+	path_put(&path);
 	if (error) {
 		/* Does someone understand code flow here? Or it is only
 		 * me so stupid? Anathema to whoever designed this non-sense
@@ -1872,6 +1876,10 @@ do_link:
 		release_open_intent(&nd);
 		if (nd.root.mnt)
 			path_put(&nd.root);
+		if (error == -ESTALE && !force_reval) {
+			force_reval = 1;
+			goto reval;
+		}
 		return ERR_PTR(error);
 	}
 	nd.flags &= ~LOOKUP_PARENT;

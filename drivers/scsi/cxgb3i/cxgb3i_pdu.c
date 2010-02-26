@@ -388,8 +388,8 @@ int cxgb3i_conn_xmit_pdu(struct iscsi_task *task)
 	if (err > 0) {
 		int pdulen = err;
 
-	cxgb3i_tx_debug("task 0x%p, skb 0x%p, len %u/%u, rv %d.\n",
-			task, skb, skb->len, skb->data_len, err);
+		cxgb3i_tx_debug("task 0x%p, skb 0x%p, len %u/%u, rv %d.\n",
+				task, skb, skb->len, skb->data_len, err);
 
 		if (task->conn->hdrdgst_en)
 			pdulen += ISCSI_DIGEST_SIZE;

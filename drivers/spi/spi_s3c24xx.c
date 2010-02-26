@@ -1,7 +1,7 @@
 /* linux/drivers/spi/spi_s3c24xx.c
  *
  * Copyright (c) 2006 Ben Dooks
- * Copyright (c) 2006 Simtec Electronics
+ * Copyright 2006-2009 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -28,6 +28,11 @@
 #include <plat/regs-spi.h>
 #include <mach/spi.h>
 
+#include <plat/fiq.h>
+#include <asm/fiq.h>
+
+#include "spi_s3c24xx_fiq.h"
+
 /**
  * s3c24xx_spi_devstate - per device data
  * @hz: Last frequency calculated for @sppre field.
@@ -42,6 +47,13 @@ struct s3c24xx_spi_devstate {
 	u8		sppre;
 };
 
+enum spi_fiq_mode {
+	FIQ_MODE_NONE	= 0,
+	FIQ_MODE_TX	= 1,
+	FIQ_MODE_RX	= 2,
+	FIQ_MODE_TXRX	= 3,
+};
+
 struct s3c24xx_spi {
 	/* bitbang has to be first */
 	struct spi_bitbang	 bitbang;
@@ -51,6 +63,11 @@ struct s3c24xx_spi {
 	int			 irq;
 	int			 len;
 	int			 count;
+
+	struct fiq_handler	 fiq_handler;
+	enum spi_fiq_mode	 fiq_mode;
+	unsigned char		 fiq_inuse;
+	unsigned char		 fiq_claimed;
 
 	void			(*set_cs)(struct s3c2410_spi_info *spi,
 					  int cs, int pol);
@@ -66,6 +83,7 @@ struct s3c24xx_spi {
 	struct device		*dev;
 	struct s3c2410_spi_info *pdata;
 };
+
 
 #define SPCON_DEFAULT (S3C2410_SPCON_MSTR | S3C2410_SPCON_SMOD_INT)
 #define SPPIN_DEFAULT (S3C2410_SPPIN_KEEP)
@@ -127,7 +145,7 @@ static int s3c24xx_spi_update_state(struct spi_device *spi,
 	}
 
 	if (spi->mode != cs->mode) {
-		u8 spcon = SPCON_DEFAULT;
+		u8 spcon = SPCON_DEFAULT | S3C2410_SPCON_ENSCK;
 
 		if (spi->mode & SPI_CPHA)
 			spcon |= S3C2410_SPCON_CPHA_FMTB;
@@ -214,12 +232,195 @@ static inline unsigned int hw_txbyte(struct s3c24xx_spi *hw, int count)
 	return hw->tx ? hw->tx[count] : 0;
 }
 
+#ifdef CONFIG_SPI_S3C24XX_FIQ
+/* Support for FIQ based pseudo-DMA to improve the transfer speed.
+ *
+ * This code uses the assembly helper in spi_s3c24xx_spi.S which is
+ * used by the FIQ core to move data between main memory and the peripheral
+ * block. Since this is code running on the processor, there is no problem
+ * with cache coherency of the buffers, so we can use any buffer we like.
+ */
+
+/**
+ * struct spi_fiq_code - FIQ code and header
+ * @length: The length of the code fragment, excluding this header.
+ * @ack_offset: The offset from @data to the word to place the IRQ ACK bit at.
+ * @data: The code itself to install as a FIQ handler.
+ */
+struct spi_fiq_code {
+	u32	length;
+	u32	ack_offset;
+	u8	data[0];
+};
+
+extern struct spi_fiq_code s3c24xx_spi_fiq_txrx;
+extern struct spi_fiq_code s3c24xx_spi_fiq_tx;
+extern struct spi_fiq_code s3c24xx_spi_fiq_rx;
+
+/**
+ * ack_bit - turn IRQ into IRQ acknowledgement bit
+ * @irq: The interrupt number
+ *
+ * Returns the bit to write to the interrupt acknowledge register.
+ */
+static inline u32 ack_bit(unsigned int irq)
+{
+	return 1 << (irq - IRQ_EINT0);
+}
+
+/**
+ * s3c24xx_spi_tryfiq - attempt to claim and setup FIQ for transfer
+ * @hw: The hardware state.
+ *
+ * Claim the FIQ handler (only one can be active at any one time) and
+ * then setup the correct transfer code for this transfer.
+ *
+ * This call updates all the necessary state information if sucessful,
+ * so the caller does not need to do anything more than start the transfer
+ * as normal, since the IRQ will have been re-routed to the FIQ handler.
+*/
+void s3c24xx_spi_tryfiq(struct s3c24xx_spi *hw)
+{
+	struct pt_regs regs;
+	enum spi_fiq_mode mode;
+	struct spi_fiq_code *code;
+	int ret;
+
+	if (!hw->fiq_claimed) {
+		/* try and claim fiq if we haven't got it, and if not
+		 * then return and simply use another transfer method */
+
+		ret = claim_fiq(&hw->fiq_handler);
+		if (ret)
+			return;
+	}
+
+	if (hw->tx && !hw->rx)
+		mode = FIQ_MODE_TX;
+	else if (hw->rx && !hw->tx)
+		mode = FIQ_MODE_RX;
+	else
+		mode = FIQ_MODE_TXRX;
+
+	regs.uregs[fiq_rspi] = (long)hw->regs;
+	regs.uregs[fiq_rrx]  = (long)hw->rx;
+	regs.uregs[fiq_rtx]  = (long)hw->tx + 1;
+	regs.uregs[fiq_rcount] = hw->len - 1;
+	regs.uregs[fiq_rirq] = (long)S3C24XX_VA_IRQ;
+
+	set_fiq_regs(&regs);
+
+	if (hw->fiq_mode != mode) {
+		u32 *ack_ptr;
+
+		hw->fiq_mode = mode;
+
+		switch (mode) {
+		case FIQ_MODE_TX:
+			code = &s3c24xx_spi_fiq_tx;
+			break;
+		case FIQ_MODE_RX:
+			code = &s3c24xx_spi_fiq_rx;
+			break;
+		case FIQ_MODE_TXRX:
+			code = &s3c24xx_spi_fiq_txrx;
+			break;
+		default:
+			code = NULL;
+		}
+
+		BUG_ON(!code);
+
+		ack_ptr = (u32 *)&code->data[code->ack_offset];
+		*ack_ptr = ack_bit(hw->irq);
+
+		set_fiq_handler(&code->data, code->length);
+	}
+
+	s3c24xx_set_fiq(hw->irq, true);
+
+	hw->fiq_mode = mode;
+	hw->fiq_inuse = 1;
+}
+
+/**
+ * s3c24xx_spi_fiqop - FIQ core code callback
+ * @pw: Data registered with the handler
+ * @release: Whether this is a release or a return.
+ *
+ * Called by the FIQ code when another module wants to use the FIQ, so
+ * return whether we are currently using this or not and then update our
+ * internal state.
+ */
+static int s3c24xx_spi_fiqop(void *pw, int release)
+{
+	struct s3c24xx_spi *hw = pw;
+	int ret = 0;
+
+	if (release) {
+		if (hw->fiq_inuse)
+			ret = -EBUSY;
+
+		/* note, we do not need to unroute the FIQ, as the FIQ
+		 * vector code de-routes it to signal the end of transfer */
+
+		hw->fiq_mode = FIQ_MODE_NONE;
+		hw->fiq_claimed = 0;
+	} else {
+		hw->fiq_claimed = 1;
+	}
+
+	return ret;
+}
+
+/**
+ * s3c24xx_spi_initfiq - setup the information for the FIQ core
+ * @hw: The hardware state.
+ *
+ * Setup the fiq_handler block to pass to the FIQ core.
+ */
+static inline void s3c24xx_spi_initfiq(struct s3c24xx_spi *hw)
+{
+	hw->fiq_handler.dev_id = hw;
+	hw->fiq_handler.name = dev_name(hw->dev);
+	hw->fiq_handler.fiq_op = s3c24xx_spi_fiqop;
+}
+
+/**
+ * s3c24xx_spi_usefiq - return if we should be using FIQ.
+ * @hw: The hardware state.
+ *
+ * Return true if the platform data specifies whether this channel is
+ * allowed to use the FIQ.
+ */
+static inline bool s3c24xx_spi_usefiq(struct s3c24xx_spi *hw)
+{
+	return hw->pdata->use_fiq;
+}
+
+/**
+ * s3c24xx_spi_usingfiq - return if channel is using FIQ
+ * @spi: The hardware state.
+ *
+ * Return whether the channel is currently using the FIQ (separate from
+ * whether the FIQ is claimed).
+ */
+static inline bool s3c24xx_spi_usingfiq(struct s3c24xx_spi *spi)
+{
+	return spi->fiq_inuse;
+}
+#else
+
+static inline void s3c24xx_spi_initfiq(struct s3c24xx_spi *s) { }
+static inline void s3c24xx_spi_tryfiq(struct s3c24xx_spi *s) { }
+static inline bool s3c24xx_spi_usefiq(struct s3c24xx_spi *s) { return false; }
+static inline bool s3c24xx_spi_usingfiq(struct s3c24xx_spi *s) { return false; }
+
+#endif /* CONFIG_SPI_S3C24XX_FIQ */
+
 static int s3c24xx_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 {
 	struct s3c24xx_spi *hw = to_hw(spi);
-
-	dev_dbg(&spi->dev, "txrx: tx %p, rx %p, len %d\n",
-		t->tx_buf, t->rx_buf, t->len);
 
 	hw->tx = t->tx_buf;
 	hw->rx = t->rx_buf;
@@ -228,11 +429,14 @@ static int s3c24xx_spi_txrx(struct spi_device *spi, struct spi_transfer *t)
 
 	init_completion(&hw->done);
 
+	hw->fiq_inuse = 0;
+	if (s3c24xx_spi_usefiq(hw) && t->len >= 3)
+		s3c24xx_spi_tryfiq(hw);
+
 	/* send the first byte */
 	writeb(hw_txbyte(hw, 0), hw->regs + S3C2410_SPTDAT);
 
 	wait_for_completion(&hw->done);
-
 	return hw->count;
 }
 
@@ -254,17 +458,27 @@ static irqreturn_t s3c24xx_spi_irq(int irq, void *dev)
 		goto irq_done;
 	}
 
-	hw->count++;
+	if (!s3c24xx_spi_usingfiq(hw)) {
+		hw->count++;
 
-	if (hw->rx)
-		hw->rx[count] = readb(hw->regs + S3C2410_SPRDAT);
+		if (hw->rx)
+			hw->rx[count] = readb(hw->regs + S3C2410_SPRDAT);
 
-	count++;
+		count++;
 
-	if (count < hw->len)
-		writeb(hw_txbyte(hw, count), hw->regs + S3C2410_SPTDAT);
-	else
+		if (count < hw->len)
+			writeb(hw_txbyte(hw, count), hw->regs + S3C2410_SPTDAT);
+		else
+			complete(&hw->done);
+	} else {
+		hw->count = hw->len;
+		hw->fiq_inuse = 0;
+
+		if (hw->rx)
+			hw->rx[hw->len-1] = readb(hw->regs + S3C2410_SPRDAT);
+
 		complete(&hw->done);
+	}
 
  irq_done:
 	return IRQ_HANDLED;
@@ -321,6 +535,10 @@ static int __init s3c24xx_spi_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, hw);
 	init_completion(&hw->done);
+
+	/* initialise fiq handler */
+
+	s3c24xx_spi_initfiq(hw);
 
 	/* setup the master state. */
 

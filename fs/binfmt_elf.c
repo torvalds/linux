@@ -45,7 +45,7 @@ static unsigned long elf_map(struct file *, unsigned long, struct elf_phdr *,
  * don't even try.
  */
 #ifdef CONFIG_ELF_CORE
-static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file, unsigned long limit);
+static int elf_core_dump(struct coredump_params *cprm);
 #else
 #define elf_core_dump	NULL
 #endif
@@ -662,27 +662,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 			if (elf_interpreter[elf_ppnt->p_filesz - 1] != '\0')
 				goto out_free_interp;
 
-			/*
-			 * The early SET_PERSONALITY here is so that the lookup
-			 * for the interpreter happens in the namespace of the 
-			 * to-be-execed image.  SET_PERSONALITY can select an
-			 * alternate root.
-			 *
-			 * However, SET_PERSONALITY is NOT allowed to switch
-			 * this task into the new images's memory mapping
-			 * policy - that is, TASK_SIZE must still evaluate to
-			 * that which is appropriate to the execing application.
-			 * This is because exit_mmap() needs to have TASK_SIZE
-			 * evaluate to the size of the old image.
-			 *
-			 * So if (say) a 64-bit application is execing a 32-bit
-			 * application it is the architecture's responsibility
-			 * to defer changing the value of TASK_SIZE until the
-			 * switch really is going to happen - do this in
-			 * flush_thread().	- akpm
-			 */
-			SET_PERSONALITY(loc->elf_ex);
-
 			interpreter = open_exec(elf_interpreter);
 			retval = PTR_ERR(interpreter);
 			if (IS_ERR(interpreter))
@@ -730,9 +709,6 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 		/* Verify the interpreter has a valid arch */
 		if (!elf_check_arch(&loc->interp_elf_ex))
 			goto out_free_dentry;
-	} else {
-		/* Executables without an interpreter also need a personality  */
-		SET_PERSONALITY(loc->elf_ex);
 	}
 
 	/* Flush all traces of the currently running executable */
@@ -752,7 +728,8 @@ static int load_elf_binary(struct linux_binprm *bprm, struct pt_regs *regs)
 
 	if (!(current->personality & ADDR_NO_RANDOMIZE) && randomize_va_space)
 		current->flags |= PF_RANDOMIZE;
-	arch_pick_mmap_layout(current->mm);
+
+	setup_new_exec(bprm);
 
 	/* Do this so that we can load the interpreter, if need be.  We will
 	   change some of these later */
@@ -1272,8 +1249,9 @@ static int writenote(struct memelfnote *men, struct file *file,
 }
 #undef DUMP_WRITE
 
-#define DUMP_WRITE(addr, nr)	\
-	if ((size += (nr)) > limit || !dump_write(file, (addr), (nr))) \
+#define DUMP_WRITE(addr, nr)				\
+	if ((size += (nr)) > cprm->limit ||		\
+	    !dump_write(cprm->file, (addr), (nr)))	\
 		goto end_coredump;
 
 static void fill_elf_header(struct elfhdr *elf, int segs,
@@ -1901,7 +1879,7 @@ static struct vm_area_struct *next_vma(struct vm_area_struct *this_vma,
  * and then they are actually written out.  If we run out of core limit
  * we just truncate.
  */
-static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file, unsigned long limit)
+static int elf_core_dump(struct coredump_params *cprm)
 {
 	int has_dumped = 0;
 	mm_segment_t fs;
@@ -1947,7 +1925,7 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file, un
 	 * notes.  This also sets up the file header.
 	 */
 	if (!fill_note_info(elf, segs + 1, /* including notes section */
-			    &info, signr, regs))
+			    &info, cprm->signr, cprm->regs))
 		goto cleanup;
 
 	has_dumped = 1;
@@ -2009,14 +1987,14 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file, un
 #endif
 
  	/* write out the notes section */
-	if (!write_note_info(&info, file, &foffset))
+	if (!write_note_info(&info, cprm->file, &foffset))
 		goto end_coredump;
 
-	if (elf_coredump_extra_notes_write(file, &foffset))
+	if (elf_coredump_extra_notes_write(cprm->file, &foffset))
 		goto end_coredump;
 
 	/* Align to page */
-	if (!dump_seek(file, dataoff - foffset))
+	if (!dump_seek(cprm->file, dataoff - foffset))
 		goto end_coredump;
 
 	for (vma = first_vma(current, gate_vma); vma != NULL;
@@ -2033,12 +2011,13 @@ static int elf_core_dump(long signr, struct pt_regs *regs, struct file *file, un
 			page = get_dump_page(addr);
 			if (page) {
 				void *kaddr = kmap(page);
-				stop = ((size += PAGE_SIZE) > limit) ||
-					!dump_write(file, kaddr, PAGE_SIZE);
+				stop = ((size += PAGE_SIZE) > cprm->limit) ||
+					!dump_write(cprm->file, kaddr,
+						    PAGE_SIZE);
 				kunmap(page);
 				page_cache_release(page);
 			} else
-				stop = !dump_seek(file, PAGE_SIZE);
+				stop = !dump_seek(cprm->file, PAGE_SIZE);
 			if (stop)
 				goto end_coredump;
 		}

@@ -36,17 +36,6 @@ MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Evgeniy Polyakov <zbr@ioremap.net>");
 MODULE_DESCRIPTION("Generic userspace <-> kernelspace connector.");
 
-static u32 cn_idx = CN_IDX_CONNECTOR;
-static u32 cn_val = CN_VAL_CONNECTOR;
-
-module_param(cn_idx, uint, 0);
-module_param(cn_val, uint, 0);
-MODULE_PARM_DESC(cn_idx, "Connector's main device idx.");
-MODULE_PARM_DESC(cn_val, "Connector's main device val.");
-
-static DEFINE_MUTEX(notify_lock);
-static LIST_HEAD(notify_list);
-
 static struct cn_dev cdev;
 
 static int cn_already_initialized;
@@ -210,54 +199,6 @@ static void cn_rx_skb(struct sk_buff *__skb)
 }
 
 /*
- * Notification routing.
- *
- * Gets id and checks if there are notification request for it's idx
- * and val.  If there are such requests notify the listeners with the
- * given notify event.
- *
- */
-static void cn_notify(struct cb_id *id, u32 notify_event)
-{
-	struct cn_ctl_entry *ent;
-
-	mutex_lock(&notify_lock);
-	list_for_each_entry(ent, &notify_list, notify_entry) {
-		int i;
-		struct cn_notify_req *req;
-		struct cn_ctl_msg *ctl = ent->msg;
-		int idx_found, val_found;
-
-		idx_found = val_found = 0;
-
-		req = (struct cn_notify_req *)ctl->data;
-		for (i = 0; i < ctl->idx_notify_num; ++i, ++req) {
-			if (id->idx >= req->first &&
-					id->idx < req->first + req->range) {
-				idx_found = 1;
-				break;
-			}
-		}
-
-		for (i = 0; i < ctl->val_notify_num; ++i, ++req) {
-			if (id->val >= req->first &&
-					id->val < req->first + req->range) {
-				val_found = 1;
-				break;
-			}
-		}
-
-		if (idx_found && val_found) {
-			struct cn_msg m = { .ack = notify_event, };
-
-			memcpy(&m.id, id, sizeof(m.id));
-			cn_netlink_send(&m, ctl->group, GFP_KERNEL);
-		}
-	}
-	mutex_unlock(&notify_lock);
-}
-
-/*
  * Callback add routing - adds callback with given ID and name.
  * If there is registered callback with the same ID it will not be added.
  *
@@ -276,8 +217,6 @@ int cn_add_callback(struct cb_id *id, char *name,
 	if (err)
 		return err;
 
-	cn_notify(id, 0);
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(cn_add_callback);
@@ -295,110 +234,8 @@ void cn_del_callback(struct cb_id *id)
 	struct cn_dev *dev = &cdev;
 
 	cn_queue_del_callback(dev->cbdev, id);
-	cn_notify(id, 1);
 }
 EXPORT_SYMBOL_GPL(cn_del_callback);
-
-/*
- * Checks two connector's control messages to be the same.
- * Returns 1 if they are the same or if the first one is corrupted.
- */
-static int cn_ctl_msg_equals(struct cn_ctl_msg *m1, struct cn_ctl_msg *m2)
-{
-	int i;
-	struct cn_notify_req *req1, *req2;
-
-	if (m1->idx_notify_num != m2->idx_notify_num)
-		return 0;
-
-	if (m1->val_notify_num != m2->val_notify_num)
-		return 0;
-
-	if (m1->len != m2->len)
-		return 0;
-
-	if ((m1->idx_notify_num + m1->val_notify_num) * sizeof(*req1) !=
-	    m1->len)
-		return 1;
-
-	req1 = (struct cn_notify_req *)m1->data;
-	req2 = (struct cn_notify_req *)m2->data;
-
-	for (i = 0; i < m1->idx_notify_num; ++i) {
-		if (req1->first != req2->first || req1->range != req2->range)
-			return 0;
-		req1++;
-		req2++;
-	}
-
-	for (i = 0; i < m1->val_notify_num; ++i) {
-		if (req1->first != req2->first || req1->range != req2->range)
-			return 0;
-		req1++;
-		req2++;
-	}
-
-	return 1;
-}
-
-/*
- * Main connector device's callback.
- *
- * Used for notification of a request's processing.
- */
-static void cn_callback(struct cn_msg *msg, struct netlink_skb_parms *nsp)
-{
-	struct cn_ctl_msg *ctl;
-	struct cn_ctl_entry *ent;
-	u32 size;
-
-	if (msg->len < sizeof(*ctl))
-		return;
-
-	ctl = (struct cn_ctl_msg *)msg->data;
-
-	size = (sizeof(*ctl) + ((ctl->idx_notify_num +
-				 ctl->val_notify_num) *
-				sizeof(struct cn_notify_req)));
-
-	if (msg->len != size)
-		return;
-
-	if (ctl->len + sizeof(*ctl) != msg->len)
-		return;
-
-	/*
-	 * Remove notification.
-	 */
-	if (ctl->group == 0) {
-		struct cn_ctl_entry *n;
-
-		mutex_lock(&notify_lock);
-		list_for_each_entry_safe(ent, n, &notify_list, notify_entry) {
-			if (cn_ctl_msg_equals(ent->msg, ctl)) {
-				list_del(&ent->notify_entry);
-				kfree(ent);
-			}
-		}
-		mutex_unlock(&notify_lock);
-
-		return;
-	}
-
-	size += sizeof(*ent);
-
-	ent = kzalloc(size, GFP_KERNEL);
-	if (!ent)
-		return;
-
-	ent->msg = (struct cn_ctl_msg *)(ent + 1);
-
-	memcpy(ent->msg, ctl, size - sizeof(*ent));
-
-	mutex_lock(&notify_lock);
-	list_add(&ent->notify_entry, &notify_list);
-	mutex_unlock(&notify_lock);
-}
 
 static int cn_proc_show(struct seq_file *m, void *v)
 {
@@ -437,11 +274,8 @@ static const struct file_operations cn_file_ops = {
 static int __devinit cn_init(void)
 {
 	struct cn_dev *dev = &cdev;
-	int err;
 
 	dev->input = cn_rx_skb;
-	dev->id.idx = cn_idx;
-	dev->id.val = cn_val;
 
 	dev->nls = netlink_kernel_create(&init_net, NETLINK_CONNECTOR,
 					 CN_NETLINK_USERS + 0xf,
@@ -457,14 +291,6 @@ static int __devinit cn_init(void)
 
 	cn_already_initialized = 1;
 
-	err = cn_add_callback(&dev->id, "connector", &cn_callback);
-	if (err) {
-		cn_already_initialized = 0;
-		cn_queue_free_dev(dev->cbdev);
-		netlink_kernel_release(dev->nls);
-		return -EINVAL;
-	}
-
 	proc_net_fops_create(&init_net, "connector", S_IRUGO, &cn_file_ops);
 
 	return 0;
@@ -478,7 +304,6 @@ static void __devexit cn_fini(void)
 
 	proc_net_remove(&init_net, "connector");
 
-	cn_del_callback(&dev->id);
 	cn_queue_free_dev(dev->cbdev);
 	netlink_kernel_release(dev->nls);
 }

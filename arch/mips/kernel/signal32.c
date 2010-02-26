@@ -35,6 +35,15 @@
 
 #include "signal-common.h"
 
+static int (*save_fp_context32)(struct sigcontext32 __user *sc);
+static int (*restore_fp_context32)(struct sigcontext32 __user *sc);
+
+extern asmlinkage int _save_fp_context32(struct sigcontext32 __user *sc);
+extern asmlinkage int _restore_fp_context32(struct sigcontext32 __user *sc);
+
+extern asmlinkage int fpu_emulator_save_context32(struct sigcontext32 __user *sc);
+extern asmlinkage int fpu_emulator_restore_context32(struct sigcontext32 __user *sc);
+
 /*
  * Including <asm/unistd.h> would give use the 64-bit syscall numbers ...
  */
@@ -828,3 +837,18 @@ SYSCALL_DEFINE5(32_waitid, int, which, compat_pid_t, pid,
 	info.si_code |= __SI_CHLD;
 	return copy_siginfo_to_user32(uinfo, &info);
 }
+
+static int signal32_init(void)
+{
+	if (cpu_has_fpu) {
+		save_fp_context32 = _save_fp_context32;
+		restore_fp_context32 = _restore_fp_context32;
+	} else {
+		save_fp_context32 = fpu_emulator_save_context32;
+		restore_fp_context32 = fpu_emulator_restore_context32;
+	}
+
+	return 0;
+}
+
+arch_initcall(signal32_init);

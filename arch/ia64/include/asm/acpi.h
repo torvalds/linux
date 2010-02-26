@@ -94,6 +94,7 @@ ia64_acpi_release_global_lock (unsigned int *lock)
 #define acpi_noirq 0	/* ACPI always enabled on IA64 */
 #define acpi_pci_disabled 0 /* ACPI PCI always enabled on IA64 */
 #define acpi_strict 1	/* no ACPI spec workarounds on IA64 */
+#define acpi_ht 0	/* no HT-only mode on IA64 */
 #endif
 #define acpi_processor_cstate_check(x) (x) /* no idle limits on IA64 :) */
 static inline void disable_acpi(void) { }
@@ -131,6 +132,12 @@ extern int additional_cpus;
 extern int __devinitdata pxm_to_nid_map[MAX_PXM_DOMAINS];
 extern int __initdata nid_to_pxm_map[MAX_NUMNODES];
 #endif
+
+static inline bool arch_has_acpi_pdc(void) { return true; }
+static inline void arch_acpi_set_pdc_bits(u32 *buf)
+{
+	buf[2] |= ACPI_PDC_EST_CAPABILITY_SMP;
+}
 
 #define acpi_unlazy_tlb(x)
 

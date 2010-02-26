@@ -152,7 +152,7 @@ qla2300_intr_handler(int irq, void *dev_id)
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->u.isp2300.host_status);
 		if (stat & HSR_RISC_PAUSED) {
-			if (pci_channel_offline(ha->pdev))
+			if (unlikely(pci_channel_offline(ha->pdev)))
 				break;
 
 			hccr = RD_REG_WORD(&reg->hccr);
@@ -811,78 +811,6 @@ skip_rio:
 		qla2x00_alert_all_vps(rsp, mb);
 }
 
-static void
-qla2x00_adjust_sdev_qdepth_up(struct scsi_device *sdev, void *data)
-{
-	fc_port_t *fcport = data;
-	struct scsi_qla_host *vha = fcport->vha;
-	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req = NULL;
-
-	if (!ql2xqfulltracking)
-		return;
-
-	req = vha->req;
-	if (!req)
-		return;
-	if (req->max_q_depth <= sdev->queue_depth)
-		return;
-
-	if (sdev->ordered_tags)
-		scsi_adjust_queue_depth(sdev, MSG_ORDERED_TAG,
-		    sdev->queue_depth + 1);
-	else
-		scsi_adjust_queue_depth(sdev, MSG_SIMPLE_TAG,
-		    sdev->queue_depth + 1);
-
-	fcport->last_ramp_up = jiffies;
-
-	DEBUG2(qla_printk(KERN_INFO, ha,
-	    "scsi(%ld:%d:%d:%d): Queue depth adjusted-up to %d.\n",
-	    fcport->vha->host_no, sdev->channel, sdev->id, sdev->lun,
-	    sdev->queue_depth));
-}
-
-static void
-qla2x00_adjust_sdev_qdepth_down(struct scsi_device *sdev, void *data)
-{
-	fc_port_t *fcport = data;
-
-	if (!scsi_track_queue_full(sdev, sdev->queue_depth - 1))
-		return;
-
-	DEBUG2(qla_printk(KERN_INFO, fcport->vha->hw,
-	    "scsi(%ld:%d:%d:%d): Queue depth adjusted-down to %d.\n",
-	    fcport->vha->host_no, sdev->channel, sdev->id, sdev->lun,
-	    sdev->queue_depth));
-}
-
-static inline void
-qla2x00_ramp_up_queue_depth(scsi_qla_host_t *vha, struct req_que *req,
-								srb_t *sp)
-{
-	fc_port_t *fcport;
-	struct scsi_device *sdev;
-
-	if (!ql2xqfulltracking)
-		return;
-
-	sdev = sp->cmd->device;
-	if (sdev->queue_depth >= req->max_q_depth)
-		return;
-
-	fcport = sp->fcport;
-	if (time_before(jiffies,
-	    fcport->last_ramp_up + ql2xqfullrampup * HZ))
-		return;
-	if (time_before(jiffies,
-	    fcport->last_queue_full + ql2xqfullrampup * HZ))
-		return;
-
-	starget_for_each_device(sdev->sdev_target, fcport,
-	    qla2x00_adjust_sdev_qdepth_up);
-}
-
 /**
  * qla2x00_process_completed_request() - Process a Fast Post response.
  * @ha: SCSI driver HA context
@@ -913,8 +841,6 @@ qla2x00_process_completed_request(struct scsi_qla_host *vha,
 
 		/* Save ISP completion status */
 		sp->cmd->result = DID_OK << 16;
-
-		qla2x00_ramp_up_queue_depth(vha, req, sp);
 		qla2x00_sp_compl(ha, sp);
 	} else {
 		DEBUG2(printk("scsi(%ld) Req:%d: Invalid ISP SCSI completion"
@@ -1435,13 +1361,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 			    "scsi(%ld): QUEUE FULL status detected "
 			    "0x%x-0x%x.\n", vha->host_no, comp_status,
 			    scsi_status));
-
-			/* Adjust queue depth for all luns on the port. */
-			if (!ql2xqfulltracking)
-				break;
-			fcport->last_queue_full = jiffies;
-			starget_for_each_device(cp->device->sdev_target,
-			    fcport, qla2x00_adjust_sdev_qdepth_down);
 			break;
 		}
 		if (lscsi_status != SS_CHECK_CONDITION)
@@ -1516,17 +1435,6 @@ qla2x00_status_entry(scsi_qla_host_t *vha, struct rsp_que *rsp, void *pkt)
 				    "scsi(%ld): QUEUE FULL status detected "
 				    "0x%x-0x%x.\n", vha->host_no, comp_status,
 				    scsi_status));
-
-				/*
-				 * Adjust queue depth for all luns on the
-				 * port.
-				 */
-				if (!ql2xqfulltracking)
-					break;
-				fcport->last_queue_full = jiffies;
-				starget_for_each_device(
-				    cp->device->sdev_target, fcport,
-				    qla2x00_adjust_sdev_qdepth_down);
 				break;
 			}
 			if (lscsi_status != SS_CHECK_CONDITION)
@@ -1938,12 +1846,15 @@ qla24xx_intr_handler(int irq, void *dev_id)
 	reg = &ha->iobase->isp24;
 	status = 0;
 
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		return IRQ_HANDLED;
+
 	spin_lock_irqsave(&ha->hardware_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 	for (iter = 50; iter--; ) {
 		stat = RD_REG_DWORD(&reg->host_status);
 		if (stat & HSRX_RISC_PAUSED) {
-			if (pci_channel_offline(ha->pdev))
+			if (unlikely(pci_channel_offline(ha->pdev)))
 				break;
 
 			hccr = RD_REG_DWORD(&reg->hccr);
@@ -2006,6 +1917,7 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	struct rsp_que *rsp;
 	struct device_reg_24xx __iomem *reg;
 	struct scsi_qla_host *vha;
+	unsigned long flags;
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -2016,15 +1928,15 @@ qla24xx_msix_rsp_q(int irq, void *dev_id)
 	ha = rsp->hw;
 	reg = &ha->iobase->isp24;
 
-	spin_lock_irq(&ha->hardware_lock);
+	spin_lock_irqsave(&ha->hardware_lock, flags);
 
-	vha = qla25xx_get_host(rsp);
+	vha = pci_get_drvdata(ha->pdev);
 	qla24xx_process_response_queue(vha, rsp);
-	if (!ha->mqenable) {
+	if (!ha->flags.disable_msix_handshake) {
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 		RD_REG_DWORD_RELAXED(&reg->hccr);
 	}
-	spin_unlock_irq(&ha->hardware_lock);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	return IRQ_HANDLED;
 }
@@ -2034,6 +1946,8 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 {
 	struct qla_hw_data *ha;
 	struct rsp_que *rsp;
+	struct device_reg_24xx __iomem *reg;
+	unsigned long flags;
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -2043,6 +1957,14 @@ qla25xx_msix_rsp_q(int irq, void *dev_id)
 	}
 	ha = rsp->hw;
 
+	/* Clear the interrupt, if enabled, for this response queue */
+	if (rsp->options & ~BIT_6) {
+		reg = &ha->iobase->isp24;
+		spin_lock_irqsave(&ha->hardware_lock, flags);
+		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
+		RD_REG_DWORD_RELAXED(&reg->hccr);
+		spin_unlock_irqrestore(&ha->hardware_lock, flags);
+	}
 	queue_work_on((int) (rsp->id - 1), ha->wq, &rsp->q_work);
 
 	return IRQ_HANDLED;
@@ -2059,6 +1981,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 	uint32_t	stat;
 	uint32_t	hccr;
 	uint16_t	mb[4];
+	unsigned long flags;
 
 	rsp = (struct rsp_que *) dev_id;
 	if (!rsp) {
@@ -2070,12 +1993,12 @@ qla24xx_msix_default(int irq, void *dev_id)
 	reg = &ha->iobase->isp24;
 	status = 0;
 
-	spin_lock_irq(&ha->hardware_lock);
+	spin_lock_irqsave(&ha->hardware_lock, flags);
 	vha = pci_get_drvdata(ha->pdev);
 	do {
 		stat = RD_REG_DWORD(&reg->host_status);
 		if (stat & HSRX_RISC_PAUSED) {
-			if (pci_channel_offline(ha->pdev))
+			if (unlikely(pci_channel_offline(ha->pdev)))
 				break;
 
 			hccr = RD_REG_DWORD(&reg->hccr);
@@ -2119,7 +2042,7 @@ qla24xx_msix_default(int irq, void *dev_id)
 		}
 		WRT_REG_DWORD(&reg->hccr, HCCRX_CLR_RISC_INT);
 	} while (0);
-	spin_unlock_irq(&ha->hardware_lock);
+	spin_unlock_irqrestore(&ha->hardware_lock, flags);
 
 	if (test_bit(MBX_INTR_WAIT, &ha->mbx_cmd_flags) &&
 	    (status & MBX_INTERRUPT) && ha->flags.mbox_int) {
@@ -2356,31 +2279,4 @@ int qla25xx_request_irq(struct rsp_que *rsp)
 	msix->have_irq = 1;
 	msix->rsp = rsp;
 	return ret;
-}
-
-struct scsi_qla_host *
-qla25xx_get_host(struct rsp_que *rsp)
-{
-	srb_t *sp;
-	struct qla_hw_data *ha = rsp->hw;
-	struct scsi_qla_host *vha = NULL;
-	struct sts_entry_24xx *pkt;
-	struct req_que *req;
-	uint16_t que;
-	uint32_t handle;
-
-	pkt = (struct sts_entry_24xx *) rsp->ring_ptr;
-	que = MSW(pkt->handle);
-	handle = (uint32_t) LSW(pkt->handle);
-	req = ha->req_q_map[que];
-	if (handle < MAX_OUTSTANDING_COMMANDS) {
-		sp = req->outstanding_cmds[handle];
-		if (sp)
-			return  sp->fcport->vha;
-		else
-			goto base_que;
-	}
-base_que:
-	vha = pci_get_drvdata(ha->pdev);
-	return vha;
 }

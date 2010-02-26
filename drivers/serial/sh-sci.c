@@ -222,9 +222,9 @@ static inline void sci_init_pins(struct uart_port *port, unsigned int cflag)
 		   Set SCP6MD1,0 = {01} (output)  */
 		__raw_writew((data & 0x0fcf) | 0x1000, SCPCR);
 
-		data = ctrl_inb(SCPDR);
+		data = __raw_readb(SCPDR);
 		/* Set /RTS2 (bit6) = 0 */
-		ctrl_outb(data & 0xbf, SCPDR);
+		__raw_writeb(data & 0xbf, SCPDR);
 	}
 }
 #elif defined(CONFIG_CPU_SUBTYPE_SH7722)
@@ -897,11 +897,21 @@ static void sci_shutdown(struct uart_port *port)
 static void sci_set_termios(struct uart_port *port, struct ktermios *termios,
 			    struct ktermios *old)
 {
-	unsigned int status, baud, smr_val;
+	unsigned int status, baud, smr_val, max_baud;
 	int t = -1;
 
-	baud = uart_get_baud_rate(port, termios, old, 0, port->uartclk/16);
-	if (likely(baud))
+	/*
+	 * earlyprintk comes here early on with port->uartclk set to zero.
+	 * the clock framework is not up and running at this point so here
+	 * we assume that 115200 is the maximum baud rate. please note that
+	 * the baud rate is not programmed during earlyprintk - it is assumed
+	 * that the previous boot loader has enabled required clocks and
+	 * setup the baud rate generator hardware for us already.
+	 */
+	max_baud = port->uartclk ? port->uartclk / 16 : 115200;
+
+	baud = uart_get_baud_rate(port, termios, old, 0, max_baud);
+	if (likely(baud && port->uartclk))
 		t = SCBRR_VALUE(baud, port->uartclk);
 
 	do {
@@ -1042,11 +1052,26 @@ static void __devinit sci_init_single(struct platform_device *dev,
 	sci_port->port.ops	= &sci_uart_ops;
 	sci_port->port.iotype	= UPIO_MEM;
 	sci_port->port.line	= index;
-	sci_port->port.fifosize	= 1;
-	sci_port->iclk		= p->clk ? clk_get(&dev->dev, p->clk) : NULL;
-	sci_port->dclk		= clk_get(&dev->dev, "peripheral_clk");
-	sci_port->enable	= sci_clk_enable;
-	sci_port->disable	= sci_clk_disable;
+
+	switch (p->type) {
+	case PORT_SCIFA:
+		sci_port->port.fifosize = 64;
+		break;
+	case PORT_SCIF:
+		sci_port->port.fifosize = 16;
+		break;
+	default:
+		sci_port->port.fifosize = 1;
+		break;
+	}
+
+	if (dev) {
+		sci_port->iclk = p->clk ? clk_get(&dev->dev, p->clk) : NULL;
+		sci_port->dclk = clk_get(&dev->dev, "peripheral_clk");
+		sci_port->enable = sci_clk_enable;
+		sci_port->disable = sci_clk_disable;
+		sci_port->port.dev = &dev->dev;
+	}
 
 	sci_port->break_timer.data = (unsigned long)sci_port;
 	sci_port->break_timer.function = sci_break_timer;
@@ -1057,7 +1082,6 @@ static void __devinit sci_init_single(struct platform_device *dev,
 
 	sci_port->port.irq	= p->irqs[SCIx_TXI_IRQ];
 	sci_port->port.flags	= p->flags;
-	sci_port->port.dev	= &dev->dev;
 	sci_port->type		= sci_port->port.type = p->type;
 
 	memcpy(&sci_port->irqs, &p->irqs, sizeof(p->irqs));
@@ -1101,7 +1125,7 @@ static void serial_console_write(struct console *co, const char *s,
 		sci_port->disable(port);
 }
 
-static int __init serial_console_setup(struct console *co, char *options)
+static int __devinit serial_console_setup(struct console *co, char *options)
 {
 	struct sci_port *sci_port;
 	struct uart_port *port;
@@ -1119,9 +1143,14 @@ static int __init serial_console_setup(struct console *co, char *options)
 	if (co->index >= SCI_NPORTS)
 		co->index = 0;
 
-	sci_port = &sci_ports[co->index];
-	port = &sci_port->port;
-	co->data = port;
+	if (co->data) {
+		port = co->data;
+		sci_port = to_sci_port(port);
+	} else {
+		sci_port = &sci_ports[co->index];
+		port = &sci_port->port;
+		co->data = port;
+	}
 
 	/*
 	 * Also need to check port->type, we don't actually have any
@@ -1165,6 +1194,15 @@ static int __init sci_console_init(void)
 	return 0;
 }
 console_initcall(sci_console_init);
+
+static struct sci_port early_serial_port;
+static struct console early_serial_console = {
+	.name           = "early_ttySC",
+	.write          = serial_console_write,
+	.flags          = CON_PRINTBUFFER,
+};
+static char early_serial_buf[32];
+
 #endif /* CONFIG_SERIAL_SH_SCI_CONSOLE */
 
 #if defined(CONFIG_SERIAL_SH_SCI_CONSOLE)
@@ -1249,6 +1287,21 @@ static int __devinit sci_probe(struct platform_device *dev)
 	struct plat_sci_port *p = dev->dev.platform_data;
 	struct sh_sci_priv *priv;
 	int i, ret = -EINVAL;
+
+#ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
+	if (is_early_platform_device(dev)) {
+		if (dev->id == -1)
+			return -ENOTSUPP;
+		early_serial_console.index = dev->id;
+		early_serial_console.data = &early_serial_port.port;
+		sci_init_single(NULL, &early_serial_port, dev->id, p);
+		serial_console_setup(&early_serial_console, early_serial_buf);
+		if (!strstr(early_serial_buf, "keep"))
+			early_serial_console.flags |= CON_BOOT;
+		register_console(&early_serial_console);
+		return 0;
+	}
+#endif
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -1349,6 +1402,10 @@ static void __exit sci_exit(void)
 	uart_unregister_driver(&sci_uart_driver);
 }
 
+#ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
+early_platform_init_buffer("earlyprintk", &sci_driver,
+			   early_serial_buf, ARRAY_SIZE(early_serial_buf));
+#endif
 module_init(sci_init);
 module_exit(sci_exit);
 

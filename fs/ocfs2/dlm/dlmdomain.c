@@ -816,7 +816,7 @@ static int dlm_query_join_handler(struct o2net_msg *msg, u32 len, void *data,
 	}
 
 	/* Once the dlm ctxt is marked as leaving then we don't want
-	 * to be put in someone's domain map. 
+	 * to be put in someone's domain map.
 	 * Also, explicitly disallow joining at certain troublesome
 	 * times (ie. during recovery). */
 	if (dlm && dlm->dlm_state != DLM_CTXT_LEAVING) {

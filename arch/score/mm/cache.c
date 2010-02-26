@@ -29,6 +29,7 @@
 #include <linux/mm.h>
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <linux/fs.h>
 
 #include <asm/mmu_context.h>
 
@@ -51,6 +52,27 @@ static void flush_data_cache_page(unsigned long addr)
 	}
 }
 
+void flush_dcache_page(struct page *page)
+{
+	struct address_space *mapping = page_mapping(page);
+	unsigned long addr;
+
+	if (PageHighMem(page))
+		return;
+	if (mapping && !mapping_mapped(mapping)) {
+		set_bit(PG_dcache_dirty, &(page)->flags);
+		return;
+	}
+
+	/*
+	 * We could delay the flush for the !page_mapping case too.  But that
+	 * case is for exec env/arg pages and those are %99 certainly going to
+	 * get faulted into the tlb (and thus flushed) anyways.
+	 */
+	addr = (unsigned long) page_address(page);
+	flush_data_cache_page(addr);
+}
+
 /* called by update_mmu_cache. */
 void __update_cache(struct vm_area_struct *vma, unsigned long address,
 		pte_t pte)
@@ -63,11 +85,11 @@ void __update_cache(struct vm_area_struct *vma, unsigned long address,
 	if (unlikely(!pfn_valid(pfn)))
 		return;
 	page = pfn_to_page(pfn);
-	if (page_mapping(page) && test_bit(PG_arch_1, &page->flags)) {
+	if (page_mapping(page) && test_bit(PG_dcache_dirty, &(page)->flags)) {
 		addr = (unsigned long) page_address(page);
 		if (exec)
 			flush_data_cache_page(addr);
-		clear_bit(PG_arch_1, &page->flags);
+		clear_bit(PG_dcache_dirty, &(page)->flags);
 	}
 }
 

@@ -301,6 +301,12 @@ static int sg_ioctl_trans(unsigned int fd, unsigned int cmd,
 	u32 data;
 	void __user *dxferp;
 	int err;
+	int interface_id;
+
+	if (get_user(interface_id, &sgio32->interface_id))
+		return -EFAULT;
+	if (interface_id != 'S')
+		return sys_ioctl(fd, cmd, (unsigned long)sgio32);
 
 	if (get_user(iovec_count, &sgio32->iovec_count))
 		return -EFAULT;
@@ -936,6 +942,7 @@ COMPATIBLE_IOCTL(TCSETSF)
 COMPATIBLE_IOCTL(TIOCLINUX)
 COMPATIBLE_IOCTL(TIOCSBRK)
 COMPATIBLE_IOCTL(TIOCCBRK)
+COMPATIBLE_IOCTL(TIOCGSID)
 COMPATIBLE_IOCTL(TIOCGICOUNT)
 /* Little t */
 COMPATIBLE_IOCTL(TIOCGETD)
@@ -1005,6 +1012,9 @@ COMPATIBLE_IOCTL(SCSI_IOCTL_SEND_COMMAND)
 COMPATIBLE_IOCTL(SCSI_IOCTL_PROBE_HOST)
 COMPATIBLE_IOCTL(SCSI_IOCTL_GET_PCI)
 #endif
+/* Big V (don't complain on serial console) */
+IGNORE_IOCTL(VT_OPENQRY)
+IGNORE_IOCTL(VT_GETMODE)
 /* Little p (/dev/rtc, /dev/envctrl, etc.) */
 COMPATIBLE_IOCTL(RTC_AIE_ON)
 COMPATIBLE_IOCTL(RTC_AIE_OFF)
@@ -1035,6 +1045,8 @@ COMPATIBLE_IOCTL(FIOQSIZE)
 #ifdef CONFIG_BLOCK
 /* loop */
 IGNORE_IOCTL(LOOP_CLR_FD)
+/* md calls this on random blockdevs */
+IGNORE_IOCTL(RAID_VERSION)
 /* SG stuff */
 COMPATIBLE_IOCTL(SG_SET_TIMEOUT)
 COMPATIBLE_IOCTL(SG_GET_TIMEOUT)
@@ -1600,8 +1612,6 @@ static long do_ioctl_trans(int fd, unsigned int cmd,
 	case KDSKBMETA:
 	case KDSKBLED:
 	case KDSETLED:
-	/* SG stuff */
-	case SG_SET_TRANSFORM:
 	/* AUTOFS */
 	case AUTOFS_IOC_READY:
 	case AUTOFS_IOC_FAIL:

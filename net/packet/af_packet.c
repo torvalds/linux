@@ -415,7 +415,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 {
 	struct sock *sk = sock->sk;
 	struct sockaddr_pkt *saddr = (struct sockaddr_pkt *)msg->msg_name;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
 	struct net_device *dev;
 	__be16 proto = 0;
 	int err;
@@ -437,6 +437,7 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	 */
 
 	saddr->spkt_device[13] = 0;
+retry:
 	rcu_read_lock();
 	dev = dev_get_by_name_rcu(sock_net(sk), saddr->spkt_device);
 	err = -ENODEV;
@@ -456,58 +457,48 @@ static int packet_sendmsg_spkt(struct kiocb *iocb, struct socket *sock,
 	if (len > dev->mtu + dev->hard_header_len)
 		goto out_unlock;
 
-	err = -ENOBUFS;
-	skb = sock_wmalloc(sk, len + LL_RESERVED_SPACE(dev), 0, GFP_KERNEL);
+	if (!skb) {
+		size_t reserved = LL_RESERVED_SPACE(dev);
+		unsigned int hhlen = dev->header_ops ? dev->hard_header_len : 0;
 
-	/*
-	 * If the write buffer is full, then tough. At this level the user
-	 * gets to deal with the problem - do your own algorithmic backoffs.
-	 * That's far more flexible.
-	 */
+		rcu_read_unlock();
+		skb = sock_wmalloc(sk, len + reserved, 0, GFP_KERNEL);
+		if (skb == NULL)
+			return -ENOBUFS;
+		/* FIXME: Save some space for broken drivers that write a hard
+		 * header at transmission time by themselves. PPP is the notable
+		 * one here. This should really be fixed at the driver level.
+		 */
+		skb_reserve(skb, reserved);
+		skb_reset_network_header(skb);
 
-	if (skb == NULL)
-		goto out_unlock;
-
-	/*
-	 *	Fill it in
-	 */
-
-	/* FIXME: Save some space for broken drivers that write a
-	 * hard header at transmission time by themselves. PPP is the
-	 * notable one here. This should really be fixed at the driver level.
-	 */
-	skb_reserve(skb, LL_RESERVED_SPACE(dev));
-	skb_reset_network_header(skb);
-
-	/* Try to align data part correctly */
-	if (dev->header_ops) {
-		skb->data -= dev->hard_header_len;
-		skb->tail -= dev->hard_header_len;
-		if (len < dev->hard_header_len)
-			skb_reset_network_header(skb);
+		/* Try to align data part correctly */
+		if (hhlen) {
+			skb->data -= hhlen;
+			skb->tail -= hhlen;
+			if (len < hhlen)
+				skb_reset_network_header(skb);
+		}
+		err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+		if (err)
+			goto out_free;
+		goto retry;
 	}
 
-	/* Returns -EFAULT on error */
-	err = memcpy_fromiovec(skb_put(skb, len), msg->msg_iov, len);
+
 	skb->protocol = proto;
 	skb->dev = dev;
 	skb->priority = sk->sk_priority;
 	skb->mark = sk->sk_mark;
-	if (err)
-		goto out_free;
-
-	/*
-	 *	Now send it
-	 */
 
 	dev_queue_xmit(skb);
 	rcu_read_unlock();
 	return len;
 
-out_free:
-	kfree_skb(skb);
 out_unlock:
 	rcu_read_unlock();
+out_free:
+	kfree_skb(skb);
 	return err;
 }
 
@@ -1030,8 +1021,20 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 
 		status = TP_STATUS_SEND_REQUEST;
 		err = dev_queue_xmit(skb);
-		if (unlikely(err > 0 && (err = net_xmit_errno(err)) != 0))
-			goto out_xmit;
+		if (unlikely(err > 0)) {
+			err = net_xmit_errno(err);
+			if (err && __packet_get_status(po, ph) ==
+				   TP_STATUS_AVAILABLE) {
+				/* skb was destructed already */
+				skb = NULL;
+				goto out_status;
+			}
+			/*
+			 * skb was dropped but not destructed yet;
+			 * let's treat it like congestion or err < 0
+			 */
+			err = 0;
+		}
 		packet_increment_head(&po->tx_ring);
 		len_sum += tp_len;
 	} while (likely((ph != NULL) ||
@@ -1042,9 +1045,6 @@ static int tpacket_snd(struct packet_sock *po, struct msghdr *msg)
 	err = len_sum;
 	goto out_put;
 
-out_xmit:
-	skb->destructor = sock_wfree;
-	atomic_dec(&po->tx_ring.pending);
 out_status:
 	__packet_set_status(po, ph, status);
 	kfree_skb(skb);

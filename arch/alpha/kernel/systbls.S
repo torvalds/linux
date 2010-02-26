@@ -495,9 +495,23 @@ sys_call_table:
 	.quad sys_epoll_pwait
 	.quad sys_utimensat			/* 475 */
 	.quad sys_signalfd
-	.quad sys_ni_syscall
+	.quad sys_ni_syscall			/* sys_timerfd */
 	.quad sys_eventfd
 	.quad sys_recvmmsg
+	.quad sys_fallocate				/* 480 */
+	.quad sys_timerfd_create
+	.quad sys_timerfd_settime
+	.quad sys_timerfd_gettime
+	.quad sys_signalfd4
+	.quad sys_eventfd2				/* 485 */
+	.quad sys_epoll_create1
+	.quad sys_dup3
+	.quad sys_pipe2
+	.quad sys_inotify_init1
+	.quad sys_preadv				/* 490 */
+	.quad sys_pwritev
+	.quad sys_rt_tgsigqueueinfo
+	.quad sys_perf_event_open
 
 	.size sys_call_table, . - sys_call_table
 	.type sys_call_table, @object

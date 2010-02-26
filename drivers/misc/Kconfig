@@ -203,6 +203,7 @@ config CS5535_MFGPT
 
 config CS5535_MFGPT_DEFAULT_IRQ
 	int
+	depends on CS5535_MFGPT
 	default 7
 	help
 	  MFGPTs on the CS5535 require an interrupt.  The selected IRQ
@@ -247,19 +248,6 @@ config SGI_GRU_DEBUG
 	---help---
 	This option enables addition debugging code for the SGI GRU driver. If
 	you are unsure, say N.
-
-config DELL_LAPTOP
-	tristate "Dell Laptop Extras (EXPERIMENTAL)"
-	depends on X86
-	depends on DCDBAS
-	depends on EXPERIMENTAL
-	depends on BACKLIGHT_CLASS_DEVICE
-	depends on RFKILL
-	depends on POWER_SUPPLY
-	default n
-	---help---
-	This driver adds support for rfkill and backlight control to Dell
-	laptops.
 
 config ISL29003
 	tristate "Intersil ISL29003 ambient light sensor"

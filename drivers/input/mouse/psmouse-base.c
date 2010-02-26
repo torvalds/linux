@@ -627,8 +627,15 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		synaptics_hardware = true;
 
 		if (max_proto > PSMOUSE_IMEX) {
-			if (!set_properties || synaptics_init(psmouse) == 0)
+/*
+ * Try activating protocol, but check if support is enabled first, since
+ * we try detecting Synaptics even when protocol is disabled.
+ */
+			if (synaptics_supported() &&
+			    (!set_properties || synaptics_init(psmouse) == 0)) {
 				return PSMOUSE_SYNAPTICS;
+			}
+
 /*
  * Some Synaptics touchpads can emulate extended protocols (like IMPS/2).
  * Unfortunately Logitech/Genius probes confuse some firmware versions so
@@ -683,19 +690,6 @@ static int psmouse_extensions(struct psmouse *psmouse,
 		max_proto = PSMOUSE_IMEX;
 	}
 
-/*
- * Try Finger Sensing Pad
- */
-	if (max_proto > PSMOUSE_IMEX) {
-		if (fsp_detect(psmouse, set_properties) == 0) {
-			if (!set_properties || fsp_init(psmouse) == 0)
-				return PSMOUSE_FSP;
-/*
- * Init failed, try basic relative protocols
- */
-			max_proto = PSMOUSE_IMEX;
-		}
-	}
 
 	if (max_proto > PSMOUSE_IMEX) {
 		if (genius_detect(psmouse, set_properties) == 0)
@@ -709,6 +703,21 @@ static int psmouse_extensions(struct psmouse *psmouse,
 
 		if (touchkit_ps2_detect(psmouse, set_properties) == 0)
 			return PSMOUSE_TOUCHKIT_PS2;
+	}
+
+/*
+ * Try Finger Sensing Pad. We do it here because its probe upsets
+ * Trackpoint devices (causing TP_READ_ID command to time out).
+ */
+	if (max_proto > PSMOUSE_IMEX) {
+		if (fsp_detect(psmouse, set_properties) == 0) {
+			if (!set_properties || fsp_init(psmouse) == 0)
+				return PSMOUSE_FSP;
+/*
+ * Init failed, try basic relative protocols
+ */
+			max_proto = PSMOUSE_IMEX;
+		}
 	}
 
 /*
@@ -1132,12 +1141,22 @@ static void psmouse_cleanup(struct serio *serio)
 		psmouse_deactivate(parent);
 	}
 
-	psmouse_deactivate(psmouse);
+	psmouse_set_state(psmouse, PSMOUSE_INITIALIZING);
+
+	/*
+	 * Disable stream mode so cleanup routine can proceed undisturbed.
+	 */
+	if (ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_DISABLE))
+		printk(KERN_WARNING "psmouse.c: Failed to disable mouse on %s\n",
+			psmouse->ps2dev.serio->phys);
 
 	if (psmouse->cleanup)
 		psmouse->cleanup(psmouse);
 
-	psmouse_reset(psmouse);
+/*
+ * Reset the mouse to defaults (bare PS/2 protocol).
+ */
+	ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_RESET_DIS);
 
 /*
  * Some boxes, such as HP nx7400, get terribly confused if mouse
@@ -1447,24 +1466,10 @@ ssize_t psmouse_attr_show_helper(struct device *dev, struct device_attribute *de
 	struct serio *serio = to_serio_port(dev);
 	struct psmouse_attribute *attr = to_psmouse_attr(devattr);
 	struct psmouse *psmouse;
-	int retval;
-
-	retval = serio_pin_driver(serio);
-	if (retval)
-		return retval;
-
-	if (serio->drv != &psmouse_drv) {
-		retval = -ENODEV;
-		goto out;
-	}
 
 	psmouse = serio_get_drvdata(serio);
 
-	retval = attr->show(psmouse, attr->data, buf);
-
-out:
-	serio_unpin_driver(serio);
-	return retval;
+	return attr->show(psmouse, attr->data, buf);
 }
 
 ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *devattr,
@@ -1475,18 +1480,9 @@ ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *dev
 	struct psmouse *psmouse, *parent = NULL;
 	int retval;
 
-	retval = serio_pin_driver(serio);
-	if (retval)
-		return retval;
-
-	if (serio->drv != &psmouse_drv) {
-		retval = -ENODEV;
-		goto out_unpin;
-	}
-
 	retval = mutex_lock_interruptible(&psmouse_mutex);
 	if (retval)
-		goto out_unpin;
+		goto out;
 
 	psmouse = serio_get_drvdata(serio);
 
@@ -1516,8 +1512,7 @@ ssize_t psmouse_attr_set_helper(struct device *dev, struct device_attribute *dev
 
  out_unlock:
 	mutex_unlock(&psmouse_mutex);
- out_unpin:
-	serio_unpin_driver(serio);
+ out:
 	return retval;
 }
 
@@ -1579,9 +1574,7 @@ static ssize_t psmouse_attr_set_protocol(struct psmouse *psmouse, void *data, co
 		}
 
 		mutex_unlock(&psmouse_mutex);
-		serio_unpin_driver(serio);
 		serio_unregister_child_port(serio);
-		serio_pin_driver_uninterruptible(serio);
 		mutex_lock(&psmouse_mutex);
 
 		if (serio->drv != &psmouse_drv) {

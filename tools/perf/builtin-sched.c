@@ -12,7 +12,6 @@
 #include "util/trace-event.h"
 
 #include "util/debug.h"
-#include "util/data_map.h"
 
 #include <sys/prctl.h>
 
@@ -21,8 +20,6 @@
 #include <math.h>
 
 static char			const *input_name = "perf.data";
-
-static u64			sample_type;
 
 static char			default_sort_order[] = "avg, max, switch, runtime";
 static char			*sort_order = default_sort_order;
@@ -731,18 +728,21 @@ struct trace_migrate_task_event {
 
 struct trace_sched_handler {
 	void (*switch_event)(struct trace_switch_event *,
+			     struct perf_session *,
 			     struct event *,
 			     int cpu,
 			     u64 timestamp,
 			     struct thread *thread);
 
 	void (*runtime_event)(struct trace_runtime_event *,
+			      struct perf_session *,
 			      struct event *,
 			      int cpu,
 			      u64 timestamp,
 			      struct thread *thread);
 
 	void (*wakeup_event)(struct trace_wakeup_event *,
+			     struct perf_session *,
 			     struct event *,
 			     int cpu,
 			     u64 timestamp,
@@ -755,6 +755,7 @@ struct trace_sched_handler {
 			   struct thread *thread);
 
 	void (*migrate_task_event)(struct trace_migrate_task_event *,
+			   struct perf_session *session,
 			   struct event *,
 			   int cpu,
 			   u64 timestamp,
@@ -764,6 +765,7 @@ struct trace_sched_handler {
 
 static void
 replay_wakeup_event(struct trace_wakeup_event *wakeup_event,
+		    struct perf_session *session __used,
 		    struct event *event,
 		    int cpu __used,
 		    u64 timestamp __used,
@@ -790,6 +792,7 @@ static u64 cpu_last_switched[MAX_CPUS];
 
 static void
 replay_switch_event(struct trace_switch_event *switch_event,
+		    struct perf_session *session __used,
 		    struct event *event,
 		    int cpu,
 		    u64 timestamp,
@@ -1023,6 +1026,7 @@ add_sched_in_event(struct work_atoms *atoms, u64 timestamp)
 
 static void
 latency_switch_event(struct trace_switch_event *switch_event,
+		     struct perf_session *session,
 		     struct event *event __used,
 		     int cpu,
 		     u64 timestamp,
@@ -1046,8 +1050,8 @@ latency_switch_event(struct trace_switch_event *switch_event,
 		die("hm, delta: %Ld < 0 ?\n", delta);
 
 
-	sched_out = threads__findnew(switch_event->prev_pid);
-	sched_in = threads__findnew(switch_event->next_pid);
+	sched_out = perf_session__findnew(session, switch_event->prev_pid);
+	sched_in = perf_session__findnew(session, switch_event->next_pid);
 
 	out_events = thread_atoms_search(&atom_root, sched_out, &cmp_pid);
 	if (!out_events) {
@@ -1075,12 +1079,13 @@ latency_switch_event(struct trace_switch_event *switch_event,
 
 static void
 latency_runtime_event(struct trace_runtime_event *runtime_event,
+		     struct perf_session *session,
 		     struct event *event __used,
 		     int cpu,
 		     u64 timestamp,
 		     struct thread *this_thread __used)
 {
-	struct thread *thread = threads__findnew(runtime_event->pid);
+	struct thread *thread = perf_session__findnew(session, runtime_event->pid);
 	struct work_atoms *atoms = thread_atoms_search(&atom_root, thread, &cmp_pid);
 
 	BUG_ON(cpu >= MAX_CPUS || cpu < 0);
@@ -1097,6 +1102,7 @@ latency_runtime_event(struct trace_runtime_event *runtime_event,
 
 static void
 latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
+		     struct perf_session *session,
 		     struct event *__event __used,
 		     int cpu __used,
 		     u64 timestamp,
@@ -1110,7 +1116,7 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 	if (!wakeup_event->success)
 		return;
 
-	wakee = threads__findnew(wakeup_event->pid);
+	wakee = perf_session__findnew(session, wakeup_event->pid);
 	atoms = thread_atoms_search(&atom_root, wakee, &cmp_pid);
 	if (!atoms) {
 		thread_atoms_insert(wakee);
@@ -1144,6 +1150,7 @@ latency_wakeup_event(struct trace_wakeup_event *wakeup_event,
 
 static void
 latency_migrate_task_event(struct trace_migrate_task_event *migrate_task_event,
+		     struct perf_session *session,
 		     struct event *__event __used,
 		     int cpu __used,
 		     u64 timestamp,
@@ -1159,7 +1166,7 @@ latency_migrate_task_event(struct trace_migrate_task_event *migrate_task_event,
 	if (profile_cpu == -1)
 		return;
 
-	migrant = threads__findnew(migrate_task_event->pid);
+	migrant = perf_session__findnew(session, migrate_task_event->pid);
 	atoms = thread_atoms_search(&atom_root, migrant, &cmp_pid);
 	if (!atoms) {
 		thread_atoms_insert(migrant);
@@ -1354,7 +1361,7 @@ static void sort_lat(void)
 static struct trace_sched_handler *trace_handler;
 
 static void
-process_sched_wakeup_event(void *data,
+process_sched_wakeup_event(void *data, struct perf_session *session,
 			   struct event *event,
 			   int cpu __used,
 			   u64 timestamp __used,
@@ -1371,7 +1378,8 @@ process_sched_wakeup_event(void *data,
 	FILL_FIELD(wakeup_event, cpu, event, data);
 
 	if (trace_handler->wakeup_event)
-		trace_handler->wakeup_event(&wakeup_event, event, cpu, timestamp, thread);
+		trace_handler->wakeup_event(&wakeup_event, session, event,
+					    cpu, timestamp, thread);
 }
 
 /*
@@ -1389,6 +1397,7 @@ static char next_shortname2 = '0';
 
 static void
 map_switch_event(struct trace_switch_event *switch_event,
+		 struct perf_session *session,
 		 struct event *event __used,
 		 int this_cpu,
 		 u64 timestamp,
@@ -1416,8 +1425,8 @@ map_switch_event(struct trace_switch_event *switch_event,
 		die("hm, delta: %Ld < 0 ?\n", delta);
 
 
-	sched_out = threads__findnew(switch_event->prev_pid);
-	sched_in = threads__findnew(switch_event->next_pid);
+	sched_out = perf_session__findnew(session, switch_event->prev_pid);
+	sched_in = perf_session__findnew(session, switch_event->next_pid);
 
 	curr_thread[this_cpu] = sched_in;
 
@@ -1467,7 +1476,7 @@ map_switch_event(struct trace_switch_event *switch_event,
 
 
 static void
-process_sched_switch_event(void *data,
+process_sched_switch_event(void *data, struct perf_session *session,
 			   struct event *event,
 			   int this_cpu,
 			   u64 timestamp __used,
@@ -1494,13 +1503,14 @@ process_sched_switch_event(void *data,
 			nr_context_switch_bugs++;
 	}
 	if (trace_handler->switch_event)
-		trace_handler->switch_event(&switch_event, event, this_cpu, timestamp, thread);
+		trace_handler->switch_event(&switch_event, session, event,
+					    this_cpu, timestamp, thread);
 
 	curr_pid[this_cpu] = switch_event.next_pid;
 }
 
 static void
-process_sched_runtime_event(void *data,
+process_sched_runtime_event(void *data, struct perf_session *session,
 			   struct event *event,
 			   int cpu __used,
 			   u64 timestamp __used,
@@ -1514,7 +1524,7 @@ process_sched_runtime_event(void *data,
 	FILL_FIELD(runtime_event, vruntime, event, data);
 
 	if (trace_handler->runtime_event)
-		trace_handler->runtime_event(&runtime_event, event, cpu, timestamp, thread);
+		trace_handler->runtime_event(&runtime_event, session, event, cpu, timestamp, thread);
 }
 
 static void
@@ -1534,7 +1544,8 @@ process_sched_fork_event(void *data,
 	FILL_FIELD(fork_event, child_pid, event, data);
 
 	if (trace_handler->fork_event)
-		trace_handler->fork_event(&fork_event, event, cpu, timestamp, thread);
+		trace_handler->fork_event(&fork_event, event,
+					  cpu, timestamp, thread);
 }
 
 static void
@@ -1548,7 +1559,7 @@ process_sched_exit_event(struct event *event,
 }
 
 static void
-process_sched_migrate_task_event(void *data,
+process_sched_migrate_task_event(void *data, struct perf_session *session,
 			   struct event *event,
 			   int cpu __used,
 			   u64 timestamp __used,
@@ -1564,12 +1575,13 @@ process_sched_migrate_task_event(void *data,
 	FILL_FIELD(migrate_task_event, cpu, event, data);
 
 	if (trace_handler->migrate_task_event)
-		trace_handler->migrate_task_event(&migrate_task_event, event, cpu, timestamp, thread);
+		trace_handler->migrate_task_event(&migrate_task_event, session,
+						 event, cpu, timestamp, thread);
 }
 
 static void
-process_raw_event(event_t *raw_event __used, void *data,
-		  int cpu, u64 timestamp, struct thread *thread)
+process_raw_event(event_t *raw_event __used, struct perf_session *session,
+		  void *data, int cpu, u64 timestamp, struct thread *thread)
 {
 	struct event *event;
 	int type;
@@ -1579,27 +1591,27 @@ process_raw_event(event_t *raw_event __used, void *data,
 	event = trace_find_event(type);
 
 	if (!strcmp(event->name, "sched_switch"))
-		process_sched_switch_event(data, event, cpu, timestamp, thread);
+		process_sched_switch_event(data, session, event, cpu, timestamp, thread);
 	if (!strcmp(event->name, "sched_stat_runtime"))
-		process_sched_runtime_event(data, event, cpu, timestamp, thread);
+		process_sched_runtime_event(data, session, event, cpu, timestamp, thread);
 	if (!strcmp(event->name, "sched_wakeup"))
-		process_sched_wakeup_event(data, event, cpu, timestamp, thread);
+		process_sched_wakeup_event(data, session, event, cpu, timestamp, thread);
 	if (!strcmp(event->name, "sched_wakeup_new"))
-		process_sched_wakeup_event(data, event, cpu, timestamp, thread);
+		process_sched_wakeup_event(data, session, event, cpu, timestamp, thread);
 	if (!strcmp(event->name, "sched_process_fork"))
 		process_sched_fork_event(data, event, cpu, timestamp, thread);
 	if (!strcmp(event->name, "sched_process_exit"))
 		process_sched_exit_event(event, cpu, timestamp, thread);
 	if (!strcmp(event->name, "sched_migrate_task"))
-		process_sched_migrate_task_event(data, event, cpu, timestamp, thread);
+		process_sched_migrate_task_event(data, session, event, cpu, timestamp, thread);
 }
 
-static int process_sample_event(event_t *event)
+static int process_sample_event(event_t *event, struct perf_session *session)
 {
 	struct sample_data data;
 	struct thread *thread;
 
-	if (!(sample_type & PERF_SAMPLE_RAW))
+	if (!(session->sample_type & PERF_SAMPLE_RAW))
 		return 0;
 
 	memset(&data, 0, sizeof(data));
@@ -1607,7 +1619,7 @@ static int process_sample_event(event_t *event)
 	data.cpu = -1;
 	data.period = -1;
 
-	event__parse_sample(event, sample_type, &data);
+	event__parse_sample(event, session->sample_type, &data);
 
 	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
 		event->header.misc,
@@ -1615,7 +1627,7 @@ static int process_sample_event(event_t *event)
 		(void *)(long)data.ip,
 		(long long)data.period);
 
-	thread = threads__findnew(data.pid);
+	thread = perf_session__findnew(session, data.pid);
 	if (thread == NULL) {
 		pr_debug("problem processing %d event, skipping it.\n",
 			 event->header.type);
@@ -1627,12 +1639,13 @@ static int process_sample_event(event_t *event)
 	if (profile_cpu != -1 && profile_cpu != (int)data.cpu)
 		return 0;
 
-	process_raw_event(event, data.raw_data, data.cpu, data.time, thread);
+	process_raw_event(event, session, data.raw_data, data.cpu, data.time, thread);
 
 	return 0;
 }
 
-static int process_lost_event(event_t *event __used)
+static int process_lost_event(event_t *event __used,
+			      struct perf_session *session __used)
 {
 	nr_lost_chunks++;
 	nr_lost_events += event->lost.lost;
@@ -1640,11 +1653,9 @@ static int process_lost_event(event_t *event __used)
 	return 0;
 }
 
-static int sample_type_check(u64 type)
+static int sample_type_check(struct perf_session *session __used)
 {
-	sample_type = type;
-
-	if (!(sample_type & PERF_SAMPLE_RAW)) {
+	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
 		fprintf(stderr,
 			"No trace sample to read. Did you call perf record "
 			"without -R?");
@@ -1654,7 +1665,7 @@ static int sample_type_check(u64 type)
 	return 0;
 }
 
-static struct perf_file_handler file_handler = {
+static struct perf_event_ops event_ops = {
 	.process_sample_event	= process_sample_event,
 	.process_comm_event	= event__process_comm,
 	.process_lost_event	= process_lost_event,
@@ -1665,14 +1676,10 @@ static int read_events(void)
 {
 	int err;
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
-
 	if (session == NULL)
 		return -ENOMEM;
 
-	register_idle_thread();
-	register_perf_file_handler(&file_handler);
-
-	err = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
+	err = perf_session__process_events(session, &event_ops);
 	perf_session__delete(session);
 	return err;
 }
@@ -1904,7 +1911,7 @@ int cmd_sched(int argc, const char **argv, const char *prefix __used)
 	if (!strcmp(argv[0], "trace"))
 		return cmd_trace(argc, argv, prefix);
 
-	symbol__init(0);
+	symbol__init();
 	if (!strncmp(argv[0], "rec", 3)) {
 		return __cmd_record(argc, argv);
 	} else if (!strncmp(argv[0], "lat", 3)) {

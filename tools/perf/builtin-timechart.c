@@ -30,14 +30,11 @@
 #include "util/parse-options.h"
 #include "util/parse-events.h"
 #include "util/event.h"
-#include "util/data_map.h"
+#include "util/session.h"
 #include "util/svghelper.h"
 
 static char		const *input_name = "perf.data";
 static char		const *output_name = "output.svg";
-
-
-static u64		sample_type;
 
 static unsigned int	numcpus;
 static u64		min_freq;	/* Lowest CPU frequency seen */
@@ -281,21 +278,19 @@ static int cpus_cstate_state[MAX_CPUS];
 static u64 cpus_pstate_start_times[MAX_CPUS];
 static u64 cpus_pstate_state[MAX_CPUS];
 
-static int
-process_comm_event(event_t *event)
+static int process_comm_event(event_t *event, struct perf_session *session __used)
 {
-	pid_set_comm(event->comm.pid, event->comm.comm);
+	pid_set_comm(event->comm.tid, event->comm.comm);
 	return 0;
 }
-static int
-process_fork_event(event_t *event)
+
+static int process_fork_event(event_t *event, struct perf_session *session __used)
 {
 	pid_fork(event->fork.pid, event->fork.ppid, event->fork.time);
 	return 0;
 }
 
-static int
-process_exit_event(event_t *event)
+static int process_exit_event(event_t *event, struct perf_session *session __used)
 {
 	pid_exit(event->fork.pid, event->fork.time);
 	return 0;
@@ -480,17 +475,16 @@ static void sched_switch(int cpu, u64 timestamp, struct trace_entry *te)
 }
 
 
-static int
-process_sample_event(event_t *event)
+static int process_sample_event(event_t *event, struct perf_session *session)
 {
 	struct sample_data data;
 	struct trace_entry *te;
 
 	memset(&data, 0, sizeof(data));
 
-	event__parse_sample(event, sample_type, &data);
+	event__parse_sample(event, session->sample_type, &data);
 
-	if (sample_type & PERF_SAMPLE_TIME) {
+	if (session->sample_type & PERF_SAMPLE_TIME) {
 		if (!first_time || first_time > data.time)
 			first_time = data.time;
 		if (last_time < data.time)
@@ -498,7 +492,7 @@ process_sample_event(event_t *event)
 	}
 
 	te = (void *)data.raw_data;
-	if (sample_type & PERF_SAMPLE_RAW && data.raw_size > 0) {
+	if (session->sample_type & PERF_SAMPLE_RAW && data.raw_size > 0) {
 		char *event_str;
 		struct power_entry *pe;
 
@@ -575,16 +569,16 @@ static void end_sample_processing(void)
 	}
 }
 
-static u64 sample_time(event_t *event)
+static u64 sample_time(event_t *event, const struct perf_session *session)
 {
 	int cursor;
 
 	cursor = 0;
-	if (sample_type & PERF_SAMPLE_IP)
+	if (session->sample_type & PERF_SAMPLE_IP)
 		cursor++;
-	if (sample_type & PERF_SAMPLE_TID)
+	if (session->sample_type & PERF_SAMPLE_TID)
 		cursor++;
-	if (sample_type & PERF_SAMPLE_TIME)
+	if (session->sample_type & PERF_SAMPLE_TIME)
 		return event->sample.array[cursor];
 	return 0;
 }
@@ -594,8 +588,7 @@ static u64 sample_time(event_t *event)
  * We first queue all events, sorted backwards by insertion.
  * The order will get flipped later.
  */
-static int
-queue_sample_event(event_t *event)
+static int queue_sample_event(event_t *event, struct perf_session *session)
 {
 	struct sample_wrapper *copy, *prev;
 	int size;
@@ -609,7 +602,7 @@ queue_sample_event(event_t *event)
 	memset(copy, 0, size);
 
 	copy->next = NULL;
-	copy->timestamp = sample_time(event);
+	copy->timestamp = sample_time(event, session);
 
 	memcpy(&copy->data, event, event->sample.header.size);
 
@@ -1021,7 +1014,7 @@ static void write_svg_file(const char *filename)
 	svg_close();
 }
 
-static void process_samples(void)
+static void process_samples(struct perf_session *session)
 {
 	struct sample_wrapper *cursor;
 	event_t *event;
@@ -1032,15 +1025,13 @@ static void process_samples(void)
 	while (cursor) {
 		event = (void *)&cursor->data;
 		cursor = cursor->next;
-		process_sample_event(event);
+		process_sample_event(event, session);
 	}
 }
 
-static int sample_type_check(u64 type)
+static int sample_type_check(struct perf_session *session)
 {
-	sample_type = type;
-
-	if (!(sample_type & PERF_SAMPLE_RAW)) {
+	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
 		fprintf(stderr, "No trace samples found in the file.\n"
 				"Have you used 'perf timechart record' to record it?\n");
 		return -1;
@@ -1049,7 +1040,7 @@ static int sample_type_check(u64 type)
 	return 0;
 }
 
-static struct perf_file_handler file_handler = {
+static struct perf_event_ops event_ops = {
 	.process_comm_event	= process_comm_event,
 	.process_fork_event	= process_fork_event,
 	.process_exit_event	= process_exit_event,
@@ -1065,13 +1056,11 @@ static int __cmd_timechart(void)
 	if (session == NULL)
 		return -ENOMEM;
 
-	register_perf_file_handler(&file_handler);
-
-	ret = perf_session__process_events(session, 0, &event__cwdlen, &event__cwd);
+	ret = perf_session__process_events(session, &event_ops);
 	if (ret)
 		goto out_delete;
 
-	process_samples();
+	process_samples(session);
 
 	end_sample_processing();
 
@@ -1148,10 +1137,10 @@ static const struct option options[] = {
 
 int cmd_timechart(int argc, const char **argv, const char *prefix __used)
 {
-	symbol__init(0);
-
 	argc = parse_options(argc, argv, options, timechart_usage,
 			PARSE_OPT_STOP_AT_NON_OPTION);
+
+	symbol__init();
 
 	if (argc && !strncmp(argv[0], "rec", 3))
 		return __cmd_record(argc, argv);

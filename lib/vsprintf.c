@@ -903,7 +903,7 @@ static char *uuid_string(char *buf, char *end, const u8 *addr,
  *       IPv6 omits the colons (01020304...0f)
  *       IPv4 uses dot-separated decimal with leading 0's (010.123.045.006)
  * - 'I6c' for IPv6 addresses printed as specified by
- *       http://www.ietf.org/id/draft-kawamura-ipv6-text-representation-03.txt
+ *       http://tools.ietf.org/html/draft-ietf-6man-text-addr-representation-00
  * - 'U' For a 16 byte UUID/GUID, it prints the UUID/GUID in the form
  *       "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
  *       Options for %pU are:
@@ -1179,7 +1179,18 @@ qualifier:
  * %ps output the name of a text symbol without offset
  * %pF output the name of a function pointer with its offset
  * %pf output the name of a function pointer without its offset
- * %pR output the address range in a struct resource
+ * %pR output the address range in a struct resource with decoded flags
+ * %pr output the address range in a struct resource with raw flags
+ * %pM output a 6-byte MAC address with colons
+ * %pm output a 6-byte MAC address without colons
+ * %pI4 print an IPv4 address without leading zeros
+ * %pi4 print an IPv4 address with leading zeros
+ * %pI6 print an IPv6 address with colons
+ * %pi6 print an IPv6 address without colons
+ * %pI6c print an IPv6 address as specified by
+ *   http://tools.ietf.org/html/draft-ietf-6man-text-addr-representation-00
+ * %pU[bBlL] print a UUID/GUID in big or little endian using lower or upper
+ *   case.
  * %n is ignored
  *
  * The return value is the number of characters which would

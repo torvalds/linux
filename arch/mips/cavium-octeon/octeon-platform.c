@@ -159,6 +159,94 @@ out:
 }
 device_initcall(octeon_rng_device_init);
 
+/* Octeon SMI/MDIO interface.  */
+static int __init octeon_mdiobus_device_init(void)
+{
+	struct platform_device *pd;
+	int ret = 0;
+
+	if (octeon_is_simulation())
+		return 0; /* No mdio in the simulator. */
+
+	/* The bus number is the platform_device id.  */
+	pd = platform_device_alloc("mdio-octeon", 0);
+	if (!pd) {
+		ret = -ENOMEM;
+		goto out;
+	}
+
+	ret = platform_device_add(pd);
+	if (ret)
+		goto fail;
+
+	return ret;
+fail:
+	platform_device_put(pd);
+
+out:
+	return ret;
+
+}
+device_initcall(octeon_mdiobus_device_init);
+
+/* Octeon mgmt port Ethernet interface.  */
+static int __init octeon_mgmt_device_init(void)
+{
+	struct platform_device *pd;
+	int ret = 0;
+	int port, num_ports;
+
+	struct resource mgmt_port_resource = {
+		.flags	= IORESOURCE_IRQ,
+		.start	= -1,
+		.end	= -1
+	};
+
+	if (!OCTEON_IS_MODEL(OCTEON_CN56XX) && !OCTEON_IS_MODEL(OCTEON_CN52XX))
+		return 0;
+
+	if (OCTEON_IS_MODEL(OCTEON_CN56XX))
+		num_ports = 1;
+	else
+		num_ports = 2;
+
+	for (port = 0; port < num_ports; port++) {
+		pd = platform_device_alloc("octeon_mgmt", port);
+		if (!pd) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		switch (port) {
+		case 0:
+			mgmt_port_resource.start = OCTEON_IRQ_MII0;
+			break;
+		case 1:
+			mgmt_port_resource.start = OCTEON_IRQ_MII1;
+			break;
+		default:
+			BUG();
+		}
+		mgmt_port_resource.end = mgmt_port_resource.start;
+
+		ret = platform_device_add_resources(pd, &mgmt_port_resource, 1);
+
+		if (ret)
+			goto fail;
+
+		ret = platform_device_add(pd);
+		if (ret)
+			goto fail;
+	}
+	return ret;
+fail:
+	platform_device_put(pd);
+
+out:
+	return ret;
+
+}
+device_initcall(octeon_mgmt_device_init);
+
 MODULE_AUTHOR("David Daney <ddaney@caviumnetworks.com>");
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Platform driver for Octeon SOC");

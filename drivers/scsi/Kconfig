@@ -388,6 +388,16 @@ config BLK_DEV_3W_XXXX_RAID
 	  Please read the comments at the top of
 	  <file:drivers/scsi/3w-xxxx.c>.
 
+config SCSI_HPSA
+	tristate "HP Smart Array SCSI driver"
+	depends on PCI && SCSI
+	help
+	  This driver supports HP Smart Array Controllers (circa 2009).
+	  It is a SCSI alternative to the cciss driver, which is a block
+	  driver.  Anyone wishing to use HP Smart Array controllers who
+	  would prefer the devices be presented to linux as SCSI devices,
+	  rather than as generic block devices should say Y here.
+
 config SCSI_3W_9XXX
 	tristate "3ware 9xxx SATA-RAID support"
 	depends on PCI && SCSI

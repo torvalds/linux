@@ -93,7 +93,7 @@ out:
 	return ret;
 }
 
-static struct backlight_ops jornada_bl_ops = {
+static const struct backlight_ops jornada_bl_ops = {
 	.get_brightness = jornada_bl_get_brightness,
 	.update_status = jornada_bl_update_status,
 	.options = BL_CORE_SUSPENDRESUME,

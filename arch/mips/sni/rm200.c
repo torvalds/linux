@@ -404,7 +404,7 @@ void __init sni_rm200_i8259_irqs(void)
 	if (!rm200_pic_master)
 		return;
 	rm200_pic_slave = ioremap_nocache(0x160000a0, 4);
-	if (!rm200_pic_master) {
+	if (!rm200_pic_slave) {
 		iounmap(rm200_pic_master);
 		return;
 	}
@@ -449,7 +449,7 @@ void end_rm200_irq(unsigned int irq)
 }
 
 static struct irq_chip rm200_irq_type = {
-	.typename = "RM200",
+	.name = "RM200",
 	.ack = disable_rm200_irq,
 	.mask = disable_rm200_irq,
 	.mask_ack = disable_rm200_irq,

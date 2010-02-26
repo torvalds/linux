@@ -13,9 +13,6 @@
 #include <linux/mtd/partitions.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
-#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
-#include <linux/usb/isp1362.h>
-#endif
 #include <linux/irq.h>
 #include <asm/dma.h>
 #include <asm/bfin5xx_spi.h>
@@ -144,45 +141,6 @@ static struct platform_device sl811_hcd_device = {
 	},
 	.num_resources = ARRAY_SIZE(sl811_hcd_resources),
 	.resource = sl811_hcd_resources,
-};
-#endif
-
-#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
-static struct resource isp1362_hcd_resources[] = {
-	{
-		.start = 0x20360000,
-		.end = 0x20360000,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = 0x20360004,
-		.end = 0x20360004,
-		.flags = IORESOURCE_MEM,
-	}, {
-		.start = CONFIG_USB_ISP1362_BFIN_GPIO_IRQ,
-		.end = CONFIG_USB_ISP1362_BFIN_GPIO_IRQ,
-		.flags = IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHLEVEL,
-	},
-};
-
-static struct isp1362_platform_data isp1362_priv = {
-	.sel15Kres = 1,
-	.clknotstop = 0,
-	.oc_enable = 0,
-	.int_act_high = 0,
-	.int_edge_triggered = 0,
-	.remote_wakeup_connected = 0,
-	.no_power_switching = 1,
-	.power_switching_mode = 0,
-};
-
-static struct platform_device isp1362_hcd_device = {
-	.name = "isp1362-hcd",
-	.id = 0,
-	.dev = {
-		.platform_data = &isp1362_priv,
-	},
-	.num_resources = ARRAY_SIZE(isp1362_hcd_resources),
-	.resource = isp1362_hcd_resources,
 };
 #endif
 
@@ -490,10 +448,6 @@ static struct platform_device *stamp_devices[] __initdata = {
 
 #if defined(CONFIG_USB_SL811_HCD) || defined(CONFIG_USB_SL811_HCD_MODULE)
 	&sl811_hcd_device,
-#endif
-
-#if defined(CONFIG_USB_ISP1362_HCD) || defined(CONFIG_USB_ISP1362_HCD_MODULE)
-	&isp1362_hcd_device,
 #endif
 
 #if defined(CONFIG_SMC91X) || defined(CONFIG_SMC91X_MODULE)

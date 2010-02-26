@@ -167,7 +167,7 @@ static void uhci_check_ports(struct uhci_hcd *uhci)
 				/* Port received a wakeup request */
 				set_bit(port, &uhci->resuming_ports);
 				uhci->ports_timeout = jiffies +
-						msecs_to_jiffies(20);
+						msecs_to_jiffies(25);
 
 				/* Make sure we see the port again
 				 * after the resuming period is over. */

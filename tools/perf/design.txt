@@ -21,7 +21,7 @@ There's one file descriptor per virtual counter used.
 The special file descriptor is opened via the perf_event_open()
 system call:
 
-   int sys_perf_event_open(struct perf_event_hw_event *hw_event_uptr,
+   int sys_perf_event_open(struct perf_event_attr *hw_event_uptr,
 			     pid_t pid, int cpu, int group_fd,
 			     unsigned long flags);
 
@@ -32,9 +32,9 @@ can be used to set the blocking mode, etc.
 Multiple counters can be kept open at a time, and the counters
 can be poll()ed.
 
-When creating a new counter fd, 'perf_event_hw_event' is:
+When creating a new counter fd, 'perf_event_attr' is:
 
-struct perf_event_hw_event {
+struct perf_event_attr {
         /*
          * The MSB of the config word signifies if the rest contains cpu
          * specific (raw) counter configuration data, if unset, the next
@@ -399,7 +399,7 @@ Notification of new events is possible through poll()/select()/epoll() and
 fcntl() managing signals.
 
 Normally a notification is generated for every page filled, however one can
-additionally set perf_event_hw_event.wakeup_events to generate one every
+additionally set perf_event_attr.wakeup_events to generate one every
 so many counter overflow events.
 
 Future work will include a splice() interface to the ring-buffer.

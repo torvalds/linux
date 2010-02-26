@@ -12,7 +12,7 @@
  *----------------------------------------------------------------------------*/
 
 #ifndef AAC_DRIVER_BUILD
-# define AAC_DRIVER_BUILD 2461
+# define AAC_DRIVER_BUILD 24702
 # define AAC_DRIVER_BRANCH "-ms"
 #endif
 #define MAXIMUM_NUM_CONTAINERS	32
@@ -1036,6 +1036,9 @@ struct aac_dev
 	u8			printf_enabled;
 	u8			in_reset;
 	u8			msi;
+	int			management_fib_count;
+	spinlock_t		manage_lock;
+
 };
 
 #define aac_adapter_interrupt(dev) \
