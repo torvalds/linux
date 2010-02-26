@@ -208,7 +208,7 @@ struct qdio_dev_perf_stat {
 	unsigned int eqbs_partial;
 	unsigned int sqbs;
 	unsigned int sqbs_partial;
-};
+} ____cacheline_aligned;
 
 struct qdio_queue_perf_stat {
 	/*
@@ -329,12 +329,8 @@ struct qdio_irq {
 	struct qdio_ssqd_desc ssqd_desc;
 	void (*orig_handler) (struct ccw_device *, unsigned long, struct irb *);
 
-	struct qdio_dev_perf_stat perf_stat;
 	int perf_stat_enabled;
-	/*
-	 * Warning: Leave these members together at the end so they won't be
-	 * cleared in qdio_setup_irq.
-	 */
+
 	struct qdr *qdr;
 	unsigned long chsc_page;
 
@@ -343,6 +339,7 @@ struct qdio_irq {
 
 	debug_info_t *debug_area;
 	struct mutex setup_mutex;
+	struct qdio_dev_perf_stat perf_stat;
 };
 
 /* helper functions */
