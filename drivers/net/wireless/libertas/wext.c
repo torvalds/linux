@@ -1440,8 +1440,10 @@ static int lbs_set_encode(struct net_device *dev,
 		set_bit(ASSOC_FLAG_WEP_TX_KEYIDX, &assoc_req->flags);
 
 	if (dwrq->flags & IW_ENCODE_RESTRICTED) {
+		priv->authtype_auto = 0;
 		assoc_req->secinfo.auth_mode = IW_AUTH_ALG_SHARED_KEY;
 	} else if (dwrq->flags & IW_ENCODE_OPEN) {
+		priv->authtype_auto = 0;
 		assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 	}
 
@@ -1620,8 +1622,10 @@ static int lbs_set_encodeext(struct net_device *dev,
 			goto out;
 
 		if (dwrq->flags & IW_ENCODE_RESTRICTED) {
+			priv->authtype_auto = 0;
 			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_SHARED_KEY;
 		} else if (dwrq->flags & IW_ENCODE_OPEN) {
+			priv->authtype_auto = 0;
 			assoc_req->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 		}
 
