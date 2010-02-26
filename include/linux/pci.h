@@ -1375,6 +1375,10 @@ void pci_request_acs(void);
 
 #define PCI_VPD_INFO_FLD_HDR_SIZE	3
 
+#define PCI_VPD_RO_KEYWORD_PARTNO	"PN"
+#define PCI_VPD_RO_KEYWORD_MFR_ID	"MN"
+#define PCI_VPD_RO_KEYWORD_VENDOR0	"V0"
+
 /**
  * pci_vpd_lrdt_size - Extracts the Large Resource Data Type length
  * @lrdt: Pointer to the beginning of the Large Resource Data Type tag
@@ -1419,6 +1423,19 @@ static inline u8 pci_vpd_info_field_size(const u8 *info_field)
  * -ENOENT otherwise.
  */
 int pci_vpd_find_tag(const u8 *buf, unsigned int off, unsigned int len, u8 rdt);
+
+/**
+ * pci_vpd_find_info_keyword - Locates an information field keyword in the VPD
+ * @buf: Pointer to buffered vpd data
+ * @off: The offset into the buffer at which to begin the search
+ * @len: The length of the buffer area, relative to off, in which to search
+ * @kw: The keyword to search for
+ *
+ * Returns the index where the information field keyword was found or
+ * -ENOENT otherwise.
+ */
+int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
+			      unsigned int len, const char *kw);
 
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */

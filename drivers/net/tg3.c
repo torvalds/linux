@@ -12586,39 +12586,33 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 
 	/* Now parse and find the part number. */
 	for (i = 0; i < TG3_NVM_VPD_LEN - 2; ) {
-		unsigned int block_end;
+		unsigned int block_end, rosize;
 
 		i = pci_vpd_find_tag(vpd_data, i, TG3_NVM_VPD_LEN,
 				     PCI_VPD_LRDT_RO_DATA);
 		if (i < 0)
 			break;
 
-		block_end = i + PCI_VPD_LRDT_TAG_SIZE +
-			    pci_vpd_lrdt_size(&vpd_data[i]);
-
+		rosize = pci_vpd_lrdt_size(&vpd_data[i]);
+		block_end = i + PCI_VPD_LRDT_TAG_SIZE + rosize;
 		i += PCI_VPD_LRDT_TAG_SIZE;
 
 		if (block_end > TG3_NVM_VPD_LEN)
 			goto out_not_found;
 
-		while (i < (block_end - 2)) {
-			if (vpd_data[i + 0] == 'P' &&
-			    vpd_data[i + 1] == 'N') {
-				int partno_len = pci_vpd_info_field_size(&vpd_data[i]);
+		i = pci_vpd_find_info_keyword(vpd_data, i, rosize,
+					      PCI_VPD_RO_KEYWORD_PARTNO);
+		if (i > 0) {
+			u8 len = pci_vpd_info_field_size(&vpd_data[i]);
 
-				i += PCI_VPD_INFO_FLD_HDR_SIZE;
-				if (partno_len > TG3_BPN_SIZE ||
-				    (partno_len + i) > TG3_NVM_VPD_LEN)
-					goto out_not_found;
+			i += PCI_VPD_INFO_FLD_HDR_SIZE;
+			if (len > TG3_BPN_SIZE ||
+			    (len + i) > TG3_NVM_VPD_LEN)
+				break;
 
-				memcpy(tp->board_part_number,
-				       &vpd_data[i], partno_len);
+			memcpy(tp->board_part_number, &vpd_data[i], len);
 
-				/* Success. */
-				return;
-			}
-			i += PCI_VPD_INFO_FLD_HDR_SIZE +
-			     pci_vpd_info_field_size(&vpd_data[i]);
+			return;
 		}
 
 		/* Part number not found. */

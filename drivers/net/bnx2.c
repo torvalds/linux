@@ -7769,48 +7769,54 @@ bnx2_read_vpd_fw_ver(struct bnx2 *bp)
 	}
 
 	for (i = 0; i <= BNX2_VPD_LEN - 3; ) {
-		unsigned int block_end;
+		int j;
+		unsigned int block_end, rosize;
 
 		i = pci_vpd_find_tag(data, i, BNX2_VPD_LEN,
 				     PCI_VPD_LRDT_RO_DATA);
 		if (i < 0)
 			break;
 
-		block_end = (i + PCI_VPD_LRDT_TAG_SIZE +
-			    pci_vpd_lrdt_size(&data[i]));
+		rosize = pci_vpd_lrdt_size(&data[i]);
+		block_end = i + PCI_VPD_LRDT_TAG_SIZE + rosize;
 		i += PCI_VPD_LRDT_TAG_SIZE;
 
 		if (block_end > BNX2_VPD_LEN)
 			goto vpd_done;
 
-		while (i < (block_end - 2)) {
-			int len = pci_vpd_info_field_size(&data[i]);
+		j = pci_vpd_find_info_keyword(data, i, rosize,
+					      PCI_VPD_RO_KEYWORD_MFR_ID);
+		if (j > 0) {
+			int len = pci_vpd_info_field_size(&data[j]);
 
-			if (i + PCI_VPD_INFO_FLD_HDR_SIZE + len > block_end)
+			if (j + PCI_VPD_INFO_FLD_HDR_SIZE + len > block_end ||
+			    len != 4 ||
+			    memcmp(&data[j + PCI_VPD_INFO_FLD_HDR_SIZE],
+				   "1028", 4))
 				goto vpd_done;
 
-			if (data[i] == 'M' && data[i + 1] == 'N') {
-				if (len != 4 ||
-				    memcmp(&data[i + PCI_VPD_INFO_FLD_HDR_SIZE],
-					   "1028", 4))
-					goto vpd_done;
-				mn_match = true;
-
-			} else if (data[i] == 'V' && data[i + 1] == '0') {
-				if (len > BNX2_MAX_VER_SLEN)
-					goto vpd_done;
-
-				v0_len = len;
-				v0_str = &data[i + PCI_VPD_INFO_FLD_HDR_SIZE];
-			}
-			i += PCI_VPD_INFO_FLD_HDR_SIZE + len;
-
-			if (mn_match && v0_str) {
-				memcpy(bp->fw_version, v0_str, v0_len);
-				bp->fw_version[v0_len] = ' ';
-				goto vpd_done;
-			}
+			mn_match = true;
 		}
+
+		j = pci_vpd_find_info_keyword(data, i, rosize,
+					      PCI_VPD_RO_KEYWORD_VENDOR0);
+		if (j > 0) {
+			int len = pci_vpd_info_field_size(&data[j]);
+
+			j += PCI_VPD_INFO_FLD_HDR_SIZE;
+			if (j + len > block_end || len > BNX2_MAX_VER_SLEN)
+				goto vpd_done;
+
+			v0_len = len;
+			v0_str = &data[j];
+		}
+
+		if (mn_match && v0_str) {
+			memcpy(bp->fw_version, v0_str, v0_len);
+			bp->fw_version[v0_len] = ' ';
+			goto vpd_done;
+		}
+
 		goto vpd_done;
 	}
 

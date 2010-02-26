@@ -41,3 +41,21 @@ int pci_vpd_find_tag(const u8 *buf, unsigned int off, unsigned int len, u8 rdt)
 	return -ENOENT;
 }
 EXPORT_SYMBOL_GPL(pci_vpd_find_tag);
+
+int pci_vpd_find_info_keyword(const u8 *buf, unsigned int off,
+			      unsigned int len, const char *kw)
+{
+	int i;
+
+	for (i = off; i + PCI_VPD_INFO_FLD_HDR_SIZE <= off + len;) {
+		if (buf[i + 0] == kw[0] &&
+		    buf[i + 1] == kw[1])
+			return i;
+
+		i += PCI_VPD_INFO_FLD_HDR_SIZE +
+		     pci_vpd_info_field_size(&buf[i]);
+	}
+
+	return -ENOENT;
+}
+EXPORT_SYMBOL_GPL(pci_vpd_find_info_keyword);
