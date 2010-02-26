@@ -29,7 +29,7 @@ extern int smp_cpu_polarization[];
 extern void arch_send_call_function_single_ipi(int cpu);
 extern void arch_send_call_function_ipi_mask(const struct cpumask *mask);
 
-extern union save_area *zfcpdump_save_areas[NR_CPUS + 1];
+extern struct save_area *zfcpdump_save_areas[NR_CPUS + 1];
 
 #endif /* CONFIG_SMP */
 

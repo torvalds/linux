@@ -248,15 +248,6 @@ EXPORT_SYMBOL(smp_ctl_clear_bit);
 
 #ifdef CONFIG_ZFCPDUMP
 
-/*
- * zfcpdump_prefix_array holds prefix registers for the following scenario:
- * 64 bit zfcpdump kernel and 31 bit kernel which is to be dumped. We have to
- * save its prefix registers, since they get lost, when switching from 31 bit
- * to 64 bit.
- */
-unsigned int zfcpdump_prefix_array[NR_CPUS + 1] \
-	__attribute__((__section__(".data")));
-
 static void __init smp_get_save_area(unsigned int cpu, unsigned int phy_cpu)
 {
 	if (ipl_info.type != IPL_TYPE_FCP_DUMP)
@@ -266,21 +257,17 @@ static void __init smp_get_save_area(unsigned int cpu, unsigned int phy_cpu)
 			   "the dump\n", cpu, NR_CPUS - 1);
 		return;
 	}
-	zfcpdump_save_areas[cpu] = kmalloc(sizeof(union save_area), GFP_KERNEL);
+	zfcpdump_save_areas[cpu] = kmalloc(sizeof(struct save_area), GFP_KERNEL);
 	__cpu_logical_map[CPU_INIT_NO] = (__u16) phy_cpu;
 	while (signal_processor(CPU_INIT_NO, sigp_stop_and_store_status) ==
 	       sigp_busy)
 		cpu_relax();
 	memcpy(zfcpdump_save_areas[cpu],
 	       (void *)(unsigned long) store_prefix() + SAVE_AREA_BASE,
-	       SAVE_AREA_SIZE);
-#ifdef CONFIG_64BIT
-	/* copy original prefix register */
-	zfcpdump_save_areas[cpu]->s390x.pref_reg = zfcpdump_prefix_array[cpu];
-#endif
+	       sizeof(struct save_area));
 }
 
-union save_area *zfcpdump_save_areas[NR_CPUS + 1];
+struct save_area *zfcpdump_save_areas[NR_CPUS + 1];
 EXPORT_SYMBOL_GPL(zfcpdump_save_areas);
 
 #else

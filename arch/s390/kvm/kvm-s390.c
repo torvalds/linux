@@ -603,45 +603,45 @@ int __kvm_s390_vcpu_store_status(struct kvm_vcpu *vcpu, unsigned long addr)
 	} else
 		prefix = 0;
 
-	if (__guestcopy(vcpu, addr + offsetof(struct save_area_s390x, fp_regs),
+	if (__guestcopy(vcpu, addr + offsetof(struct save_area, fp_regs),
 			vcpu->arch.guest_fpregs.fprs, 128, prefix))
 		return -EFAULT;
 
-	if (__guestcopy(vcpu, addr + offsetof(struct save_area_s390x, gp_regs),
+	if (__guestcopy(vcpu, addr + offsetof(struct save_area, gp_regs),
 			vcpu->arch.guest_gprs, 128, prefix))
 		return -EFAULT;
 
-	if (__guestcopy(vcpu, addr + offsetof(struct save_area_s390x, psw),
+	if (__guestcopy(vcpu, addr + offsetof(struct save_area, psw),
 			&vcpu->arch.sie_block->gpsw, 16, prefix))
 		return -EFAULT;
 
-	if (__guestcopy(vcpu, addr + offsetof(struct save_area_s390x, pref_reg),
+	if (__guestcopy(vcpu, addr + offsetof(struct save_area, pref_reg),
 			&vcpu->arch.sie_block->prefix, 4, prefix))
 		return -EFAULT;
 
 	if (__guestcopy(vcpu,
-			addr + offsetof(struct save_area_s390x, fp_ctrl_reg),
+			addr + offsetof(struct save_area, fp_ctrl_reg),
 			&vcpu->arch.guest_fpregs.fpc, 4, prefix))
 		return -EFAULT;
 
-	if (__guestcopy(vcpu, addr + offsetof(struct save_area_s390x, tod_reg),
+	if (__guestcopy(vcpu, addr + offsetof(struct save_area, tod_reg),
 			&vcpu->arch.sie_block->todpr, 4, prefix))
 		return -EFAULT;
 
-	if (__guestcopy(vcpu, addr + offsetof(struct save_area_s390x, timer),
+	if (__guestcopy(vcpu, addr + offsetof(struct save_area, timer),
 			&vcpu->arch.sie_block->cputm, 8, prefix))
 		return -EFAULT;
 
-	if (__guestcopy(vcpu, addr + offsetof(struct save_area_s390x, clk_cmp),
+	if (__guestcopy(vcpu, addr + offsetof(struct save_area, clk_cmp),
 			&vcpu->arch.sie_block->ckc, 8, prefix))
 		return -EFAULT;
 
-	if (__guestcopy(vcpu, addr + offsetof(struct save_area_s390x, acc_regs),
+	if (__guestcopy(vcpu, addr + offsetof(struct save_area, acc_regs),
 			&vcpu->arch.guest_acrs, 64, prefix))
 		return -EFAULT;
 
 	if (__guestcopy(vcpu,
-			addr + offsetof(struct save_area_s390x, ctrl_regs),
+			addr + offsetof(struct save_area, ctrl_regs),
 			&vcpu->arch.sie_block->gcr, 128, prefix))
 		return -EFAULT;
 	return 0;
