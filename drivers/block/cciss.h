@@ -131,9 +131,7 @@ struct ctlr_info
 	/* Disk structures we need to pass back */
 	struct gendisk   *gendisk[CISS_MAX_LUN];
 #ifdef CONFIG_CISS_SCSI_TAPE
-	void *scsi_ctlr; /* ptr to structure containing scsi related stuff */
-	/* list of block side commands the scsi error handling sucked up */
-	/* and saved for later processing */
+	struct cciss_scsi_adapter_data_t *scsi_ctlr;
 #endif
 	unsigned char alive;
 	struct list_head scan_list;

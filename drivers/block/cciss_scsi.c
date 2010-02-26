@@ -127,11 +127,9 @@ struct cciss_scsi_adapter_data_t {
 };
 
 #define CPQ_TAPE_LOCK(ctlr, flags) spin_lock_irqsave( \
-	&(((struct cciss_scsi_adapter_data_t *) \
-	hba[ctlr]->scsi_ctlr)->lock), flags);
+	&hba[ctlr]->scsi_ctlr->lock, flags);
 #define CPQ_TAPE_UNLOCK(ctlr, flags) spin_unlock_irqrestore( \
-	&(((struct cciss_scsi_adapter_data_t *) \
-	hba[ctlr]->scsi_ctlr)->lock), flags);
+	&hba[ctlr]->scsi_ctlr->lock, flags);
 
 static CommandList_struct *
 scsi_cmd_alloc(ctlr_info_t *h)
@@ -147,7 +145,7 @@ scsi_cmd_alloc(ctlr_info_t *h)
 	struct cciss_scsi_cmd_stack_t *stk;
 	u64bit temp64;
 
-	sa = (struct cciss_scsi_adapter_data_t *) h->scsi_ctlr;
+	sa = h->scsi_ctlr;
 	stk = &sa->cmd_stack; 
 
 	if (stk->top < 0) 
@@ -186,7 +184,7 @@ scsi_cmd_free(ctlr_info_t *h, CommandList_struct *cmd)
 	struct cciss_scsi_adapter_data_t *sa;
 	struct cciss_scsi_cmd_stack_t *stk;
 
-	sa = (struct cciss_scsi_adapter_data_t *) h->scsi_ctlr;
+	sa = h->scsi_ctlr;
 	stk = &sa->cmd_stack; 
 	if (stk->top >= CMD_STACK_SIZE) {
 		printk("cciss: scsi_cmd_free called too many times.\n");
@@ -233,7 +231,7 @@ scsi_cmd_stack_free(int ctlr)
 	struct cciss_scsi_cmd_stack_t *stk;
 	size_t size;
 
-	sa = (struct cciss_scsi_adapter_data_t *) hba[ctlr]->scsi_ctlr;
+	sa = hba[ctlr]->scsi_ctlr;
 	stk = &sa->cmd_stack; 
 	if (stk->top != CMD_STACK_SIZE-1) {
 		printk( "cciss: %d scsi commands are still outstanding.\n",
@@ -534,8 +532,7 @@ adjust_cciss_scsi_table(int ctlr, int hostno,
 	CPQ_TAPE_LOCK(ctlr, flags);
 
 	if (hostno != -1)  /* if it's not the first time... */
-		sh = ((struct cciss_scsi_adapter_data_t *)
-			hba[ctlr]->scsi_ctlr)->scsi_host;
+		sh = hba[ctlr]->scsi_ctlr->scsi_host;
 
 	/* find any devices in ccissscsi[] that are not in 
 	   sd[] and remove them from ccissscsi[] */
@@ -706,7 +703,7 @@ cciss_scsi_setup(int cntl_num)
 		kfree(shba);
 		shba = NULL;
 	}
-	hba[cntl_num]->scsi_ctlr = (void *) shba;
+	hba[cntl_num]->scsi_ctlr = shba;
 	return;
 }
 
@@ -853,7 +850,7 @@ cciss_scsi_detect(int ctlr)
 	sh->this_id = SELF_SCSI_ID;  
 
 	((struct cciss_scsi_adapter_data_t *) 
-		hba[ctlr]->scsi_ctlr)->scsi_host = (void *) sh;
+		hba[ctlr]->scsi_ctlr)->scsi_host = sh;
 	sh->hostdata[0] = (unsigned long) hba[ctlr];
 	sh->irq = hba[ctlr]->intr[SIMPLE_MODE_INT];
 	sh->unique_id = sh->irq;
@@ -1518,7 +1515,7 @@ cciss_unregister_scsi(int ctlr)
 	/* we are being forcibly unloaded, and may not refuse. */
 
 	spin_lock_irqsave(CCISS_LOCK(ctlr), flags);
-	sa = (struct cciss_scsi_adapter_data_t *) hba[ctlr]->scsi_ctlr;
+	sa = hba[ctlr]->scsi_ctlr;
 	stk = &sa->cmd_stack; 
 
 	/* if we weren't ever actually registered, don't unregister */ 
@@ -1545,7 +1542,7 @@ cciss_engage_scsi(int ctlr)
 	unsigned long flags;
 
 	spin_lock_irqsave(CCISS_LOCK(ctlr), flags);
-	sa = (struct cciss_scsi_adapter_data_t *) hba[ctlr]->scsi_ctlr;
+	sa = hba[ctlr]->scsi_ctlr;
 	stk = &sa->cmd_stack; 
 
 	if (sa->registered) {
