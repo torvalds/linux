@@ -3655,13 +3655,19 @@ static void hotkey_notify(struct ibm_struct *ibm, u32 event)
 			break;
 		case 3:
 			/* 0x3000-0x3FFF: bay-related wakeups */
-			if (hkey == TP_HKEY_EV_BAYEJ_ACK) {
+			switch (hkey) {
+			case TP_HKEY_EV_BAYEJ_ACK:
 				hotkey_autosleep_ack = 1;
 				printk(TPACPI_INFO
 				       "bay ejected\n");
 				hotkey_wakeup_hotunplug_complete_notify_change();
 				known_ev = true;
-			} else {
+				break;
+			case TP_HKEY_EV_OPTDRV_EJ:
+				/* FIXME: kick libata if SATA link offline */
+				known_ev = true;
+				break;
+			default:
 				known_ev = false;
 			}
 			break;
