@@ -204,7 +204,7 @@ static int __init init_cpu_info(enum arch_id arch)
 
 static DEFINE_MUTEX(zcore_mutex);
 
-#define DUMP_VERSION	0x3
+#define DUMP_VERSION	0x5
 #define DUMP_MAGIC	0xa8190173618f23fdULL
 #define DUMP_ARCH_S390X	2
 #define DUMP_ARCH_S390	1
@@ -229,7 +229,14 @@ struct zcore_header {
 	u32 volnr;
 	u32 build_arch;
 	u64 rmem_size;
-	char pad2[4016];
+	u8 mvdump;
+	u16 cpu_cnt;
+	u16 real_cpu_cnt;
+	u8 end_pad1[0x200-0x061];
+	u64 mvdump_sign;
+	u64 mvdump_zipl_time;
+	u8 end_pad2[0x800-0x210];
+	u32 lc_vec[512];
 } __attribute__((packed,__aligned__(16)));
 
 static struct zcore_header zcore_header = {
@@ -608,8 +615,9 @@ static int __init get_mem_size(unsigned long *mem)
 
 static int __init zcore_header_init(int arch, struct zcore_header *hdr)
 {
-	int rc;
+	int rc, i;
 	unsigned long memory = 0;
+	u32 prefix;
 
 	if (arch == ARCH_S390X)
 		hdr->arch_id = DUMP_ARCH_S390X;
@@ -624,6 +632,14 @@ static int __init zcore_header_init(int arch, struct zcore_header *hdr)
 	hdr->num_pages = memory / PAGE_SIZE;
 	hdr->tod = get_clock();
 	get_cpu_id(&hdr->cpu_id);
+	for (i = 0; zfcpdump_save_areas[i]; i++) {
+		prefix = zfcpdump_save_areas[i]->pref_reg;
+		hdr->real_cpu_cnt++;
+		if (!prefix)
+			continue;
+		hdr->lc_vec[hdr->cpu_cnt] = prefix;
+		hdr->cpu_cnt++;
+	}
 	return 0;
 }
 
