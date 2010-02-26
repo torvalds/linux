@@ -364,7 +364,7 @@ int iwl_tx_queue_init(struct iwl_priv *priv, struct iwl_tx_queue *txq,
 	for (i = 0; i < actual_slots; i++) {
 		/* only happens for cmd queue */
 		if (i == slots_num)
-			len += IWL_MAX_SCAN_SIZE;
+			len = IWL_MAX_CMD_SIZE;
 
 		txq->cmd[i] = kmalloc(len, GFP_KERNEL);
 		if (!txq->cmd[i])
@@ -1023,9 +1023,12 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 
 	/* If any of the command structures end up being larger than
 	 * the TFD_MAX_PAYLOAD_SIZE, and it sent as a 'small' command then
-	 * we will need to increase the size of the TFD entries */
+	 * we will need to increase the size of the TFD entries
+	 * Also, check to see if command buffer should not exceed the size
+	 * of device_cmd and max_cmd_size. */
 	BUG_ON((fix_size > TFD_MAX_PAYLOAD_SIZE) &&
 	       !(cmd->flags & CMD_SIZE_HUGE));
+	BUG_ON(fix_size > IWL_MAX_CMD_SIZE);
 
 	if (iwl_is_rfkill(priv) || iwl_is_ctkill(priv)) {
 		IWL_WARN(priv, "Not sending command - %s KILL\n",
@@ -1069,8 +1072,8 @@ int iwl_enqueue_hcmd(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	if (cmd->flags & CMD_SIZE_HUGE)
 		out_cmd->hdr.sequence |= SEQ_HUGE_FRAME;
 	len = sizeof(struct iwl_device_cmd);
-	len += (idx == TFD_CMD_SLOTS) ?  IWL_MAX_SCAN_SIZE : 0;
-
+	if (idx == TFD_CMD_SLOTS)
+		len = IWL_MAX_CMD_SIZE;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	switch (out_cmd->hdr.cmd) {
