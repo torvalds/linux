@@ -357,7 +357,10 @@ static int nmi_setup(void)
 	 */
 
 	/* Assume saved/restored counters are the same on all CPUs */
-	model->fill_in_addresses(&per_cpu(cpu_msrs, 0));
+	err = model->fill_in_addresses(&per_cpu(cpu_msrs, 0));
+	if (err)
+		goto fail;
+
 	for_each_possible_cpu(cpu) {
 		if (!cpu)
 			continue;

@@ -404,7 +404,7 @@ static void p4_shutdown(struct op_msrs const * const msrs)
 	}
 }
 
-static void p4_fill_in_addresses(struct op_msrs * const msrs)
+static int p4_fill_in_addresses(struct op_msrs * const msrs)
 {
 	unsigned int i;
 	unsigned int addr, cccraddr, stag;
@@ -486,6 +486,18 @@ static void p4_fill_in_addresses(struct op_msrs * const msrs)
 			msrs->controls[i++].addr = MSR_P4_CRU_ESCR5;
 		}
 	}
+
+	for (i = 0; i < num_counters; ++i) {
+		if (!counter_config[i].enabled)
+			continue;
+		if (msrs->controls[i].addr)
+			continue;
+		op_x86_warn_reserved(i);
+		p4_shutdown(msrs);
+		return -EBUSY;
+	}
+
+	return 0;
 }
 
 

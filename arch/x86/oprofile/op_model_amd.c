@@ -138,21 +138,30 @@ static void op_amd_shutdown(struct op_msrs const * const msrs)
 	}
 }
 
-static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
+static int op_amd_fill_in_addresses(struct op_msrs * const msrs)
 {
 	int i;
 
 	for (i = 0; i < NUM_COUNTERS; i++) {
 		if (!reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
-			continue;
+			goto fail;
 		if (!reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + i)) {
 			release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
-			continue;
+			goto fail;
 		}
 		/* both registers must be reserved */
 		msrs->counters[i].addr = MSR_K7_PERFCTR0 + i;
 		msrs->controls[i].addr = MSR_K7_EVNTSEL0 + i;
+		continue;
+	fail:
+		if (!counter_config[i].enabled)
+			continue;
+		op_x86_warn_reserved(i);
+		op_amd_shutdown(msrs);
+		return -EBUSY;
 	}
+
+	return 0;
 }
 
 static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
@@ -172,15 +181,8 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 
 	/* clear all counters */
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (unlikely(!msrs->controls[i].addr)) {
-			if (counter_config[i].enabled && !smp_processor_id())
-				/*
-				 * counter is reserved, this is on all
-				 * cpus, so report only for cpu #0
-				 */
-				op_x86_warn_reserved(i);
+		if (!msrs->controls[i].addr)
 			continue;
-		}
 		rdmsrl(msrs->controls[i].addr, val);
 		if (val & ARCH_PERFMON_EVENTSEL_ENABLE)
 			op_x86_warn_in_use(i);
