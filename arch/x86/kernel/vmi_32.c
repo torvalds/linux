@@ -267,22 +267,6 @@ static void vmi_nop(void)
 {
 }
 
-#ifdef CONFIG_HIGHPTE
-static void *vmi_kmap_atomic_pte(struct page *page, enum km_type type)
-{
-	void *va = kmap_atomic(page, type);
-
-	/*
-	 * We disable highmem allocations for page tables so we should never
-	 * see any calls to kmap_atomic_pte on a highmem page.
-	 */
-
-	BUG_ON(PageHighmem(page));
-
-	return va;
-}
-#endif
-
 static void vmi_allocate_pte(struct mm_struct *mm, unsigned long pfn)
 {
 	vmi_ops.allocate_page(pfn, VMI_PAGE_L1, 0, 0, 0);
@@ -777,10 +761,6 @@ static inline int __init activate_vmi(void)
 
 	/* Set linear is needed in all cases */
 	vmi_ops.set_linear_mapping = vmi_get_function(VMI_CALL_SetLinearMapping);
-#ifdef CONFIG_HIGHPTE
-	if (vmi_ops.set_linear_mapping)
-		pv_mmu_ops.kmap_atomic_pte = vmi_kmap_atomic_pte;
-#endif
 
 	/*
 	 * These MUST always be patched.  Don't support indirect jumps
