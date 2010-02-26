@@ -270,7 +270,6 @@ void r600_audio_fini(struct radeon_device *rdev)
 		return;
 
 	del_timer(&rdev->audio_timer);
-	WREG32_P(R600_AUDIO_ENABLE, 0x0, ~0x81000000);
 
 	r600_audio_engine_enable(rdev, false);
 }
