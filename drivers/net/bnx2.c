@@ -7784,14 +7784,15 @@ bnx2_read_vpd_fw_ver(struct bnx2 *bp)
 			goto vpd_done;
 
 		while (i < (block_end - 2)) {
-			int len = data[i + 2];
+			int len = pci_vpd_info_field_size(&data[i]);
 
-			if (i + 3 + len > block_end)
+			if (i + PCI_VPD_INFO_FLD_HDR_SIZE + len > block_end)
 				goto vpd_done;
 
 			if (data[i] == 'M' && data[i + 1] == 'N') {
 				if (len != 4 ||
-				    memcmp(&data[i + 3], "1028", 4))
+				    memcmp(&data[i + PCI_VPD_INFO_FLD_HDR_SIZE],
+					   "1028", 4))
 					goto vpd_done;
 				mn_match = true;
 
@@ -7800,9 +7801,9 @@ bnx2_read_vpd_fw_ver(struct bnx2 *bp)
 					goto vpd_done;
 
 				v0_len = len;
-				v0_str = &data[i + 3];
+				v0_str = &data[i + PCI_VPD_INFO_FLD_HDR_SIZE];
 			}
-			i += 3 + len;
+			i += PCI_VPD_INFO_FLD_HDR_SIZE + len;
 
 			if (mn_match && v0_str) {
 				memcpy(bp->fw_version, v0_str, v0_len);

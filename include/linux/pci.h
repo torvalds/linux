@@ -1373,6 +1373,8 @@ void pci_request_acs(void);
 #define PCI_VPD_LRDT_TAG_SIZE		3
 #define PCI_VPD_SRDT_TAG_SIZE		1
 
+#define PCI_VPD_INFO_FLD_HDR_SIZE	3
+
 /**
  * pci_vpd_lrdt_size - Extracts the Large Resource Data Type length
  * @lrdt: Pointer to the beginning of the Large Resource Data Type tag
@@ -1393,6 +1395,17 @@ static inline u16 pci_vpd_lrdt_size(const u8 *lrdt)
 static inline u8 pci_vpd_srdt_size(const u8 *srdt)
 {
 	return (*srdt) & PCI_VPD_SRDT_LEN_MASK;
+}
+
+/**
+ * pci_vpd_info_field_size - Extracts the information field length
+ * @lrdt: Pointer to the beginning of an information field header
+ *
+ * Returns the extracted information field length.
+ */
+static inline u8 pci_vpd_info_field_size(const u8 *info_field)
+{
+	return info_field[2];
 }
 
 /**

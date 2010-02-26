@@ -12604,9 +12604,9 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 		while (i < (block_end - 2)) {
 			if (vpd_data[i + 0] == 'P' &&
 			    vpd_data[i + 1] == 'N') {
-				int partno_len = vpd_data[i + 2];
+				int partno_len = pci_vpd_info_field_size(&vpd_data[i]);
 
-				i += 3;
+				i += PCI_VPD_INFO_FLD_HDR_SIZE;
 				if (partno_len > TG3_BPN_SIZE ||
 				    (partno_len + i) > TG3_NVM_VPD_LEN)
 					goto out_not_found;
@@ -12617,7 +12617,8 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 				/* Success. */
 				return;
 			}
-			i += 3 + vpd_data[i + 2];
+			i += PCI_VPD_INFO_FLD_HDR_SIZE +
+			     pci_vpd_info_field_size(&vpd_data[i]);
 		}
 
 		/* Part number not found. */
