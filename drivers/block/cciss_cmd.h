@@ -168,9 +168,14 @@ typedef struct _SGDescriptor_struct {
 #define CMD_MSG_STALE	0xff
 
 /* This structure needs to be divisible by 8 for new
- * indexing method.
+ * indexing method.  PAD_32 and PAD_64 can be adjusted
+ * independently as needed for 32-bit and 64-bits systems.
  */
-#define PADSIZE (sizeof(long) - 4)
+#define IS_64_BIT ((sizeof(long) - 4)/4)
+#define IS_32_BIT (!IS_64_BIT)
+#define PAD_32 (0)
+#define PAD_64 (4)
+#define PADSIZE (IS_32_BIT * PAD_32 + IS_64_BIT * PAD_64)
 typedef struct _CommandList_struct {
   CommandListHeader_struct Header;
   RequestBlock_struct      Request;
