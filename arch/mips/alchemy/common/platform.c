@@ -357,15 +357,6 @@ static struct resource au1xxx_eth0_resources[] = {
 #endif
 };
 
-static struct resource au1xxx_eth1_resources[] = {
-#if defined(CONFIG_SOC_AU1000)
-	MAC_RES(AU1000_ETH1_BASE, AU1000_MAC1_ENABLE, AU1000_MAC1_DMA_INT),
-#elif defined(CONFIG_SOC_AU1550)
-	MAC_RES(AU1550_ETH1_BASE, AU1550_MAC1_ENABLE, AU1550_MAC1_DMA_INT),
-#elif defined(CONFIG_SOC_AU1500)
-	MAC_RES(AU1500_ETH1_BASE, AU1500_MAC1_ENABLE, AU1500_MAC1_DMA_INT),
-#endif
-};
 
 static struct au1000_eth_platform_data au1xxx_eth0_platform_data = {
 	.phy1_search_mac0 = 1,
@@ -380,6 +371,16 @@ static struct platform_device au1xxx_eth0_device = {
 };
 
 #ifndef CONFIG_SOC_AU1100
+static struct resource au1xxx_eth1_resources[] = {
+#if defined(CONFIG_SOC_AU1000)
+	MAC_RES(AU1000_ETH1_BASE, AU1000_MAC1_ENABLE, AU1000_MAC1_DMA_INT),
+#elif defined(CONFIG_SOC_AU1550)
+	MAC_RES(AU1550_ETH1_BASE, AU1550_MAC1_ENABLE, AU1550_MAC1_DMA_INT),
+#elif defined(CONFIG_SOC_AU1500)
+	MAC_RES(AU1500_ETH1_BASE, AU1500_MAC1_ENABLE, AU1500_MAC1_DMA_INT),
+#endif
+};
+
 static struct au1000_eth_platform_data au1xxx_eth1_platform_data = {
 	.phy1_search_mac0 = 1,
 };
