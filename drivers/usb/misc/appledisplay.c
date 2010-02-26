@@ -179,7 +179,7 @@ static int appledisplay_bl_get_brightness(struct backlight_device *bd)
 		return pdata->msgdata[1];
 }
 
-static struct backlight_ops appledisplay_bl_data = {
+static const struct backlight_ops appledisplay_bl_data = {
 	.get_brightness	= appledisplay_bl_get_brightness,
 	.update_status	= appledisplay_bl_update_status,
 };
@@ -283,6 +283,7 @@ static int appledisplay_probe(struct usb_interface *iface,
 						&appledisplay_bl_data);
 	if (IS_ERR(pdata->bd)) {
 		dev_err(&iface->dev, "Backlight registration failed\n");
+		retval = PTR_ERR(pdata->bd);
 		goto error;
 	}
 
