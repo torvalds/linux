@@ -158,11 +158,16 @@ static int io_subchannel_prepare(struct subchannel *sch)
 	return 0;
 }
 
-static void io_subchannel_settle(void)
+static int io_subchannel_settle(void)
 {
-	wait_event(ccw_device_init_wq,
-		   atomic_read(&ccw_device_init_count) == 0);
+	int ret;
+
+	ret = wait_event_interruptible(ccw_device_init_wq,
+				atomic_read(&ccw_device_init_count) == 0);
+	if (ret)
+		return -EINTR;
 	flush_workqueue(cio_work_q);
+	return 0;
 }
 
 static struct css_driver io_subchannel_driver = {

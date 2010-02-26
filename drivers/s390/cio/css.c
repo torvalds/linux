@@ -1016,19 +1016,22 @@ static int css_settle(struct device_driver *drv, void *unused)
 	struct css_driver *cssdrv = to_cssdriver(drv);
 
 	if (cssdrv->settle)
-		cssdrv->settle();
+		return cssdrv->settle();
 	return 0;
 }
 
-static inline void css_complete_work(void)
+static inline int css_complete_work(void)
 {
 	int ret;
 
 	/* Wait for the evaluation of subchannels to finish. */
-	wait_event(css_eval_wq, atomic_read(&css_eval_scheduled) == 0);
+	ret = wait_event_interruptible(css_eval_wq,
+				       atomic_read(&css_eval_scheduled) == 0);
+	if (ret)
+		return -EINTR;
 	flush_workqueue(cio_work_q);
 	/* Wait for the subchannel type specific initialization to finish */
-	ret = bus_for_each_drv(&css_bus_type, NULL, NULL, css_settle);
+	return bus_for_each_drv(&css_bus_type, NULL, NULL, css_settle);
 }
 
 
@@ -1049,10 +1052,13 @@ subsys_initcall_sync(channel_subsystem_init_sync);
 static ssize_t cio_settle_write(struct file *file, const char __user *buf,
 				size_t count, loff_t *ppos)
 {
+	int ret;
+
 	/* Handle pending CRW's. */
 	crw_wait_for_channel_report();
-	css_complete_work();
-	return count;
+	ret = css_complete_work();
+
+	return ret ? ret : count;
 }
 
 static const struct file_operations cio_settle_proc_fops = {

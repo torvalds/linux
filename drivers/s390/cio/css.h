@@ -95,7 +95,7 @@ struct css_driver {
 	int (*freeze)(struct subchannel *);
 	int (*thaw) (struct subchannel *);
 	int (*restore)(struct subchannel *);
-	void (*settle)(void);
+	int (*settle)(void);
 	const char *name;
 };
 
