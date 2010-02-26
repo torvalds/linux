@@ -291,8 +291,7 @@ EXPORT_SYMBOL_GPL(ubi_open_volume_nm);
  */
 struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 {
-	int error, ubi_num, vol_id;
-	struct ubi_volume_desc *ret;
+	int error, ubi_num, vol_id, mod;
 	struct inode *inode;
 	struct path path;
 
@@ -306,16 +305,16 @@ struct ubi_volume_desc *ubi_open_volume_path(const char *pathname, int mode)
 		return ERR_PTR(error);
 
 	inode = path.dentry->d_inode;
+	mod = inode->i_mode;
 	ubi_num = ubi_major2num(imajor(inode));
 	vol_id = iminor(inode) - 1;
-
-	if (vol_id >= 0 && ubi_num >= 0)
-		ret = ubi_open_volume(ubi_num, vol_id, mode);
-	else
-		ret = ERR_PTR(-ENODEV);
-
 	path_put(&path);
-	return ret;
+
+	if (!S_ISCHR(mod))
+		return ERR_PTR(-EINVAL);
+	if (vol_id >= 0 && ubi_num >= 0)
+		return ubi_open_volume(ubi_num, vol_id, mode);
+	return ERR_PTR(-ENODEV);
 }
 EXPORT_SYMBOL_GPL(ubi_open_volume_path);
 

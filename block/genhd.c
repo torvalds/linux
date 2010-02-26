@@ -867,7 +867,7 @@ static ssize_t disk_discard_alignment_show(struct device *dev,
 {
 	struct gendisk *disk = dev_to_disk(dev);
 
-	return sprintf(buf, "%u\n", queue_discard_alignment(disk->queue));
+	return sprintf(buf, "%d\n", queue_discard_alignment(disk->queue));
 }
 
 static DEVICE_ATTR(range, S_IRUGO, disk_range_show, NULL);

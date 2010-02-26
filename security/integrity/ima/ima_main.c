@@ -14,7 +14,7 @@
  *
  * File: ima_main.c
  *	implements the IMA hooks: ima_bprm_check, ima_file_mmap,
- *	and ima_path_check.
+ *	and ima_file_check.
  */
 #include <linux/module.h>
 #include <linux/file.h>
@@ -84,6 +84,36 @@ out:
 	return found;
 }
 
+/* ima_read_write_check - reflect possible reading/writing errors in the PCR.
+ *
+ * When opening a file for read, if the file is already open for write,
+ * the file could change, resulting in a file measurement error.
+ *
+ * Opening a file for write, if the file is already open for read, results
+ * in a time of measure, time of use (ToMToU) error.
+ *
+ * In either case invalidate the PCR.
+ */
+enum iint_pcr_error { TOMTOU, OPEN_WRITERS };
+static void ima_read_write_check(enum iint_pcr_error error,
+				 struct ima_iint_cache *iint,
+				 struct inode *inode,
+				 const unsigned char *filename)
+{
+	switch (error) {
+	case TOMTOU:
+		if (iint->readcount > 0)
+			ima_add_violation(inode, filename, "invalid_pcr",
+					  "ToMToU");
+		break;
+	case OPEN_WRITERS:
+		if (iint->writecount > 0)
+			ima_add_violation(inode, filename, "invalid_pcr",
+					  "open_writers");
+		break;
+	}
+}
+
 /*
  * Update the counts given an fmode_t
  */
@@ -96,6 +126,47 @@ static void ima_inc_counts(struct ima_iint_cache *iint, fmode_t mode)
 		iint->readcount++;
 	if (mode & FMODE_WRITE)
 		iint->writecount++;
+}
+
+/*
+ * ima_counts_get - increment file counts
+ *
+ * Maintain read/write counters for all files, but only
+ * invalidate the PCR for measured files:
+ * 	- Opening a file for write when already open for read,
+ *	  results in a time of measure, time of use (ToMToU) error.
+ *	- Opening a file for read when already open for write,
+ * 	  could result in a file measurement error.
+ *
+ */
+void ima_counts_get(struct file *file)
+{
+	struct dentry *dentry = file->f_path.dentry;
+	struct inode *inode = dentry->d_inode;
+	fmode_t mode = file->f_mode;
+	struct ima_iint_cache *iint;
+	int rc;
+
+	if (!ima_initialized || !S_ISREG(inode->i_mode))
+		return;
+	iint = ima_iint_find_get(inode);
+	if (!iint)
+		return;
+	mutex_lock(&iint->mutex);
+	rc = ima_must_measure(iint, inode, MAY_READ, FILE_CHECK);
+	if (rc < 0)
+		goto out;
+
+	if (mode & FMODE_WRITE) {
+		ima_read_write_check(TOMTOU, iint, inode, dentry->d_name.name);
+		goto out;
+	}
+	ima_read_write_check(OPEN_WRITERS, iint, inode, dentry->d_name.name);
+out:
+	ima_inc_counts(iint, file->f_mode);
+	mutex_unlock(&iint->mutex);
+
+	kref_put(&iint->refcount, iint_free);
 }
 
 /*
@@ -153,123 +224,6 @@ void ima_file_free(struct file *file)
 	kref_put(&iint->refcount, iint_free);
 }
 
-/* ima_read_write_check - reflect possible reading/writing errors in the PCR.
- *
- * When opening a file for read, if the file is already open for write,
- * the file could change, resulting in a file measurement error.
- *
- * Opening a file for write, if the file is already open for read, results
- * in a time of measure, time of use (ToMToU) error.
- *
- * In either case invalidate the PCR.
- */
-enum iint_pcr_error { TOMTOU, OPEN_WRITERS };
-static void ima_read_write_check(enum iint_pcr_error error,
-				 struct ima_iint_cache *iint,
-				 struct inode *inode,
-				 const unsigned char *filename)
-{
-	switch (error) {
-	case TOMTOU:
-		if (iint->readcount > 0)
-			ima_add_violation(inode, filename, "invalid_pcr",
-					  "ToMToU");
-		break;
-	case OPEN_WRITERS:
-		if (iint->writecount > 0)
-			ima_add_violation(inode, filename, "invalid_pcr",
-					  "open_writers");
-		break;
-	}
-}
-
-static int get_path_measurement(struct ima_iint_cache *iint, struct file *file,
-				const unsigned char *filename)
-{
-	int rc = 0;
-
-	ima_inc_counts(iint, file->f_mode);
-
-	rc = ima_collect_measurement(iint, file);
-	if (!rc)
-		ima_store_measurement(iint, file, filename);
-	return rc;
-}
-
-/**
- * ima_path_check - based on policy, collect/store measurement.
- * @path: contains a pointer to the path to be measured
- * @mask: contains MAY_READ, MAY_WRITE or MAY_EXECUTE
- *
- * Measure the file being open for readonly, based on the
- * ima_must_measure() policy decision.
- *
- * Keep read/write counters for all files, but only
- * invalidate the PCR for measured files:
- * 	- Opening a file for write when already open for read,
- *	  results in a time of measure, time of use (ToMToU) error.
- *	- Opening a file for read when already open for write,
- * 	  could result in a file measurement error.
- *
- * Always return 0 and audit dentry_open failures.
- * (Return code will be based upon measurement appraisal.)
- */
-int ima_path_check(struct path *path, int mask)
-{
-	struct inode *inode = path->dentry->d_inode;
-	struct ima_iint_cache *iint;
-	struct file *file = NULL;
-	int rc;
-
-	if (!ima_initialized || !S_ISREG(inode->i_mode))
-		return 0;
-	iint = ima_iint_find_get(inode);
-	if (!iint)
-		return 0;
-
-	mutex_lock(&iint->mutex);
-
-	rc = ima_must_measure(iint, inode, MAY_READ, PATH_CHECK);
-	if (rc < 0)
-		goto out;
-
-	if ((mask & MAY_WRITE) || (mask == 0))
-		ima_read_write_check(TOMTOU, iint, inode,
-				     path->dentry->d_name.name);
-
-	if ((mask & (MAY_WRITE | MAY_READ | MAY_EXEC)) != MAY_READ)
-		goto out;
-
-	ima_read_write_check(OPEN_WRITERS, iint, inode,
-			     path->dentry->d_name.name);
-	if (!(iint->flags & IMA_MEASURED)) {
-		struct dentry *dentry = dget(path->dentry);
-		struct vfsmount *mnt = mntget(path->mnt);
-
-		file = dentry_open(dentry, mnt, O_RDONLY | O_LARGEFILE,
-				   current_cred());
-		if (IS_ERR(file)) {
-			int audit_info = 0;
-
-			integrity_audit_msg(AUDIT_INTEGRITY_PCR, inode,
-					    dentry->d_name.name,
-					    "add_measurement",
-					    "dentry_open failed",
-					    1, audit_info);
-			file = NULL;
-			goto out;
-		}
-		rc = get_path_measurement(iint, file, dentry->d_name.name);
-	}
-out:
-	mutex_unlock(&iint->mutex);
-	if (file)
-		fput(file);
-	kref_put(&iint->refcount, iint_free);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(ima_path_check);
-
 static int process_measurement(struct file *file, const unsigned char *filename,
 			       int mask, int function)
 {
@@ -296,33 +250,6 @@ out:
 	kref_put(&iint->refcount, iint_free);
 	return rc;
 }
-
-/*
- * ima_counts_get - increment file counts
- *
- * - for IPC shm and shmat file.
- * - for nfsd exported files.
- *
- * Increment the counts for these files to prevent unnecessary
- * imbalance messages.
- */
-void ima_counts_get(struct file *file)
-{
-	struct inode *inode = file->f_dentry->d_inode;
-	struct ima_iint_cache *iint;
-
-	if (!ima_initialized || !S_ISREG(inode->i_mode))
-		return;
-	iint = ima_iint_find_get(inode);
-	if (!iint)
-		return;
-	mutex_lock(&iint->mutex);
-	ima_inc_counts(iint, file->f_mode);
-	mutex_unlock(&iint->mutex);
-
-	kref_put(&iint->refcount, iint_free);
-}
-EXPORT_SYMBOL_GPL(ima_counts_get);
 
 /**
  * ima_file_mmap - based on policy, collect/store measurement.
@@ -369,11 +296,31 @@ int ima_bprm_check(struct linux_binprm *bprm)
 	return 0;
 }
 
+/**
+ * ima_path_check - based on policy, collect/store measurement.
+ * @file: pointer to the file to be measured
+ * @mask: contains MAY_READ, MAY_WRITE or MAY_EXECUTE
+ *
+ * Measure files based on the ima_must_measure() policy decision.
+ *
+ * Always return 0 and audit dentry_open failures.
+ * (Return code will be based upon measurement appraisal.)
+ */
+int ima_file_check(struct file *file, int mask)
+{
+	int rc;
+
+	rc = process_measurement(file, file->f_dentry->d_name.name,
+				 mask & (MAY_READ | MAY_WRITE | MAY_EXEC),
+				 FILE_CHECK);
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ima_file_check);
+
 static int __init init_ima(void)
 {
 	int error;
 
-	ima_iintcache_init();
 	error = ima_init();
 	ima_initialized = 1;
 	return error;

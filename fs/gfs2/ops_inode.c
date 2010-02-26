@@ -1088,7 +1088,8 @@ static void *gfs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 		error = vfs_follow_link(nd, buf);
 		if (buf != array)
 			kfree(buf);
-	}
+	} else
+		path_put(&nd->path);
 
 	return ERR_PTR(error);
 }

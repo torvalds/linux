@@ -544,6 +544,7 @@ void radeon_agp_disable(struct radeon_device *rdev)
 		rdev->asic->gart_tlb_flush = &r100_pci_gart_tlb_flush;
 		rdev->asic->gart_set_page = &r100_pci_gart_set_page;
 	}
+	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
 }
 
 void radeon_check_arguments(struct radeon_device *rdev)

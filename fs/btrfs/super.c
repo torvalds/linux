@@ -66,7 +66,8 @@ enum {
 	Opt_degraded, Opt_subvol, Opt_device, Opt_nodatasum, Opt_nodatacow,
 	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
 	Opt_ssd, Opt_nossd, Opt_ssd_spread, Opt_thread_pool, Opt_noacl,
-	Opt_compress, Opt_notreelog, Opt_ratio, Opt_flushoncommit,
+	Opt_compress, Opt_compress_force, Opt_notreelog, Opt_ratio,
+	Opt_flushoncommit,
 	Opt_discard, Opt_err,
 };
 
@@ -82,6 +83,7 @@ static match_table_t tokens = {
 	{Opt_alloc_start, "alloc_start=%s"},
 	{Opt_thread_pool, "thread_pool=%d"},
 	{Opt_compress, "compress"},
+	{Opt_compress_force, "compress-force"},
 	{Opt_ssd, "ssd"},
 	{Opt_ssd_spread, "ssd_spread"},
 	{Opt_nossd, "nossd"},
@@ -171,6 +173,11 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			break;
 		case Opt_compress:
 			printk(KERN_INFO "btrfs: use compression\n");
+			btrfs_set_opt(info->mount_opt, COMPRESS);
+			break;
+		case Opt_compress_force:
+			printk(KERN_INFO "btrfs: forcing compression\n");
+			btrfs_set_opt(info->mount_opt, FORCE_COMPRESS);
 			btrfs_set_opt(info->mount_opt, COMPRESS);
 			break;
 		case Opt_ssd:

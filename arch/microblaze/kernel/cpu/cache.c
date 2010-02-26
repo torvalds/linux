@@ -172,16 +172,15 @@ do {									\
 /* It is used only first parameter for OP - for wic, wdc */
 #define CACHE_RANGE_LOOP_1(start, end, line_length, op)			\
 do {									\
-	int step = -line_length;					\
-	int count = end - start;					\
-	BUG_ON(count <= 0);						\
+	int volatile temp;						\
+	BUG_ON(end - start <= 0);					\
 									\
-	__asm__ __volatile__ (" 1:	addk	%0, %0, %1;		\
-					" #op " %0, r0;			\
-					bgtid   %1, 1b;			\
-					addk    %1, %1, %2;		\
-					" : : "r" (start), "r" (count),	\
-					"r" (step) : "memory");		\
+	__asm__ __volatile__ (" 1:	" #op " %1, r0;			\
+					cmpu	%0, %1, %2;		\
+					bgtid	%0, 1b;			\
+					addk	%1, %1, %3;		\
+				" : : "r" (temp), "r" (start), "r" (end),\
+					"r" (line_length) : "memory");	\
 } while (0);
 
 static void __flush_icache_range_msr_irq(unsigned long start, unsigned long end)
@@ -313,16 +312,6 @@ static void __invalidate_dcache_all_wb(void)
 	pr_debug("%s\n", __func__);
 	CACHE_ALL_LOOP2(cpuinfo.dcache_size, cpuinfo.dcache_line_length,
 					wdc.clear)
-
-#if 0
-	unsigned int i;
-
-	pr_debug("%s\n", __func__);
-
-	/* Just loop through cache size and invalidate it */
-	for (i = 0; i < cpuinfo.dcache_size; i += cpuinfo.dcache_line_length)
-			__invalidate_dcache(0, i);
-#endif
 }
 
 static void __invalidate_dcache_range_wb(unsigned long start,

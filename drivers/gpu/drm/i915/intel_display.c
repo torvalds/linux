@@ -70,8 +70,6 @@ struct intel_limit {
     intel_p2_t	    p2;
     bool (* find_pll)(const intel_limit_t *, struct drm_crtc *,
 		      int, int, intel_clock_t *);
-    bool (* find_reduced_pll)(const intel_limit_t *, struct drm_crtc *,
-			      int, int, intel_clock_t *);
 };
 
 #define I8XX_DOT_MIN		  25000
@@ -242,40 +240,90 @@ struct intel_limit {
 #define IRONLAKE_DOT_MAX         350000
 #define IRONLAKE_VCO_MIN         1760000
 #define IRONLAKE_VCO_MAX         3510000
-#define IRONLAKE_N_MIN           1
-#define IRONLAKE_N_MAX           5
-#define IRONLAKE_M_MIN           79
-#define IRONLAKE_M_MAX           118
 #define IRONLAKE_M1_MIN          12
-#define IRONLAKE_M1_MAX          23
+#define IRONLAKE_M1_MAX          22
 #define IRONLAKE_M2_MIN          5
 #define IRONLAKE_M2_MAX          9
-#define IRONLAKE_P_SDVO_DAC_MIN  5
-#define IRONLAKE_P_SDVO_DAC_MAX  80
-#define IRONLAKE_P_LVDS_MIN      28
-#define IRONLAKE_P_LVDS_MAX      112
-#define IRONLAKE_P1_MIN          1
-#define IRONLAKE_P1_MAX          8
-#define IRONLAKE_P2_SDVO_DAC_SLOW 10
-#define IRONLAKE_P2_SDVO_DAC_FAST 5
-#define IRONLAKE_P2_LVDS_SLOW    14 /* single channel */
-#define IRONLAKE_P2_LVDS_FAST    7  /* double channel */
 #define IRONLAKE_P2_DOT_LIMIT    225000 /* 225Mhz */
 
-#define IRONLAKE_P_DISPLAY_PORT_MIN	10
-#define IRONLAKE_P_DISPLAY_PORT_MAX	20
-#define IRONLAKE_P2_DISPLAY_PORT_FAST	10
-#define IRONLAKE_P2_DISPLAY_PORT_SLOW	10
-#define IRONLAKE_P2_DISPLAY_PORT_LIMIT	0
-#define IRONLAKE_P1_DISPLAY_PORT_MIN	1
-#define IRONLAKE_P1_DISPLAY_PORT_MAX	2
+/* We have parameter ranges for different type of outputs. */
+
+/* DAC & HDMI Refclk 120Mhz */
+#define IRONLAKE_DAC_N_MIN	1
+#define IRONLAKE_DAC_N_MAX	5
+#define IRONLAKE_DAC_M_MIN	79
+#define IRONLAKE_DAC_M_MAX	127
+#define IRONLAKE_DAC_P_MIN	5
+#define IRONLAKE_DAC_P_MAX	80
+#define IRONLAKE_DAC_P1_MIN	1
+#define IRONLAKE_DAC_P1_MAX	8
+#define IRONLAKE_DAC_P2_SLOW	10
+#define IRONLAKE_DAC_P2_FAST	5
+
+/* LVDS single-channel 120Mhz refclk */
+#define IRONLAKE_LVDS_S_N_MIN	1
+#define IRONLAKE_LVDS_S_N_MAX	3
+#define IRONLAKE_LVDS_S_M_MIN	79
+#define IRONLAKE_LVDS_S_M_MAX	118
+#define IRONLAKE_LVDS_S_P_MIN	28
+#define IRONLAKE_LVDS_S_P_MAX	112
+#define IRONLAKE_LVDS_S_P1_MIN	2
+#define IRONLAKE_LVDS_S_P1_MAX	8
+#define IRONLAKE_LVDS_S_P2_SLOW	14
+#define IRONLAKE_LVDS_S_P2_FAST	14
+
+/* LVDS dual-channel 120Mhz refclk */
+#define IRONLAKE_LVDS_D_N_MIN	1
+#define IRONLAKE_LVDS_D_N_MAX	3
+#define IRONLAKE_LVDS_D_M_MIN	79
+#define IRONLAKE_LVDS_D_M_MAX	127
+#define IRONLAKE_LVDS_D_P_MIN	14
+#define IRONLAKE_LVDS_D_P_MAX	56
+#define IRONLAKE_LVDS_D_P1_MIN	2
+#define IRONLAKE_LVDS_D_P1_MAX	8
+#define IRONLAKE_LVDS_D_P2_SLOW	7
+#define IRONLAKE_LVDS_D_P2_FAST	7
+
+/* LVDS single-channel 100Mhz refclk */
+#define IRONLAKE_LVDS_S_SSC_N_MIN	1
+#define IRONLAKE_LVDS_S_SSC_N_MAX	2
+#define IRONLAKE_LVDS_S_SSC_M_MIN	79
+#define IRONLAKE_LVDS_S_SSC_M_MAX	126
+#define IRONLAKE_LVDS_S_SSC_P_MIN	28
+#define IRONLAKE_LVDS_S_SSC_P_MAX	112
+#define IRONLAKE_LVDS_S_SSC_P1_MIN	2
+#define IRONLAKE_LVDS_S_SSC_P1_MAX	8
+#define IRONLAKE_LVDS_S_SSC_P2_SLOW	14
+#define IRONLAKE_LVDS_S_SSC_P2_FAST	14
+
+/* LVDS dual-channel 100Mhz refclk */
+#define IRONLAKE_LVDS_D_SSC_N_MIN	1
+#define IRONLAKE_LVDS_D_SSC_N_MAX	3
+#define IRONLAKE_LVDS_D_SSC_M_MIN	79
+#define IRONLAKE_LVDS_D_SSC_M_MAX	126
+#define IRONLAKE_LVDS_D_SSC_P_MIN	14
+#define IRONLAKE_LVDS_D_SSC_P_MAX	42
+#define IRONLAKE_LVDS_D_SSC_P1_MIN	2
+#define IRONLAKE_LVDS_D_SSC_P1_MAX	6
+#define IRONLAKE_LVDS_D_SSC_P2_SLOW	7
+#define IRONLAKE_LVDS_D_SSC_P2_FAST	7
+
+/* DisplayPort */
+#define IRONLAKE_DP_N_MIN		1
+#define IRONLAKE_DP_N_MAX		2
+#define IRONLAKE_DP_M_MIN		81
+#define IRONLAKE_DP_M_MAX		90
+#define IRONLAKE_DP_P_MIN		10
+#define IRONLAKE_DP_P_MAX		20
+#define IRONLAKE_DP_P2_FAST		10
+#define IRONLAKE_DP_P2_SLOW		10
+#define IRONLAKE_DP_P2_LIMIT		0
+#define IRONLAKE_DP_P1_MIN		1
+#define IRONLAKE_DP_P1_MAX		2
 
 static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 		    int target, int refclk, intel_clock_t *best_clock);
-static bool
-intel_find_best_reduced_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			    int target, int refclk, intel_clock_t *best_clock);
 static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *best_clock);
@@ -299,7 +347,6 @@ static const intel_limit_t intel_limits_i8xx_dvo = {
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_SLOW,	.p2_fast = I8XX_P2_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
 static const intel_limit_t intel_limits_i8xx_lvds = {
@@ -314,7 +361,6 @@ static const intel_limit_t intel_limits_i8xx_lvds = {
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_LVDS_SLOW,	.p2_fast = I8XX_P2_LVDS_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 	
 static const intel_limit_t intel_limits_i9xx_sdvo = {
@@ -329,7 +375,6 @@ static const intel_limit_t intel_limits_i9xx_sdvo = {
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
 static const intel_limit_t intel_limits_i9xx_lvds = {
@@ -347,7 +392,6 @@ static const intel_limit_t intel_limits_i9xx_lvds = {
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
     /* below parameter and function is for G4X Chipset Family*/
@@ -365,7 +409,6 @@ static const intel_limit_t intel_limits_g4x_sdvo = {
 		 .p2_fast = G4X_P2_SDVO_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_hdmi = {
@@ -382,7 +425,6 @@ static const intel_limit_t intel_limits_g4x_hdmi = {
 		 .p2_fast = G4X_P2_HDMI_DAC_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
@@ -407,7 +449,6 @@ static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
 		 .p2_fast = G4X_P2_SINGLE_CHANNEL_LVDS_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
@@ -432,7 +473,6 @@ static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
 		 .p2_fast = G4X_P2_DUAL_CHANNEL_LVDS_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_display_port = {
@@ -470,7 +510,6 @@ static const intel_limit_t intel_limits_pineview_sdvo = {
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
 static const intel_limit_t intel_limits_pineview_lvds = {
@@ -486,36 +525,80 @@ static const intel_limit_t intel_limits_pineview_lvds = {
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_SLOW },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
-static const intel_limit_t intel_limits_ironlake_sdvo = {
+static const intel_limit_t intel_limits_ironlake_dac = {
 	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
 	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
-	.n   = { .min = IRONLAKE_N_MIN,            .max = IRONLAKE_N_MAX },
-	.m   = { .min = IRONLAKE_M_MIN,            .max = IRONLAKE_M_MAX },
+	.n   = { .min = IRONLAKE_DAC_N_MIN,        .max = IRONLAKE_DAC_N_MAX },
+	.m   = { .min = IRONLAKE_DAC_M_MIN,        .max = IRONLAKE_DAC_M_MAX },
 	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
 	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
-	.p   = { .min = IRONLAKE_P_SDVO_DAC_MIN,   .max = IRONLAKE_P_SDVO_DAC_MAX },
-	.p1  = { .min = IRONLAKE_P1_MIN,           .max = IRONLAKE_P1_MAX },
+	.p   = { .min = IRONLAKE_DAC_P_MIN,	   .max = IRONLAKE_DAC_P_MAX },
+	.p1  = { .min = IRONLAKE_DAC_P1_MIN,       .max = IRONLAKE_DAC_P1_MAX },
 	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
-		 .p2_slow = IRONLAKE_P2_SDVO_DAC_SLOW,
-		 .p2_fast = IRONLAKE_P2_SDVO_DAC_FAST },
+		 .p2_slow = IRONLAKE_DAC_P2_SLOW,
+		 .p2_fast = IRONLAKE_DAC_P2_FAST },
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
-static const intel_limit_t intel_limits_ironlake_lvds = {
+static const intel_limit_t intel_limits_ironlake_single_lvds = {
 	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
 	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
-	.n   = { .min = IRONLAKE_N_MIN,            .max = IRONLAKE_N_MAX },
-	.m   = { .min = IRONLAKE_M_MIN,            .max = IRONLAKE_M_MAX },
+	.n   = { .min = IRONLAKE_LVDS_S_N_MIN,     .max = IRONLAKE_LVDS_S_N_MAX },
+	.m   = { .min = IRONLAKE_LVDS_S_M_MIN,     .max = IRONLAKE_LVDS_S_M_MAX },
 	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
 	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
-	.p   = { .min = IRONLAKE_P_LVDS_MIN,       .max = IRONLAKE_P_LVDS_MAX },
-	.p1  = { .min = IRONLAKE_P1_MIN,           .max = IRONLAKE_P1_MAX },
+	.p   = { .min = IRONLAKE_LVDS_S_P_MIN,     .max = IRONLAKE_LVDS_S_P_MAX },
+	.p1  = { .min = IRONLAKE_LVDS_S_P1_MIN,    .max = IRONLAKE_LVDS_S_P1_MAX },
 	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
-		 .p2_slow = IRONLAKE_P2_LVDS_SLOW,
-		 .p2_fast = IRONLAKE_P2_LVDS_FAST },
+		 .p2_slow = IRONLAKE_LVDS_S_P2_SLOW,
+		 .p2_fast = IRONLAKE_LVDS_S_P2_FAST },
+	.find_pll = intel_g4x_find_best_PLL,
+};
+
+static const intel_limit_t intel_limits_ironlake_dual_lvds = {
+	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
+	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
+	.n   = { .min = IRONLAKE_LVDS_D_N_MIN,     .max = IRONLAKE_LVDS_D_N_MAX },
+	.m   = { .min = IRONLAKE_LVDS_D_M_MIN,     .max = IRONLAKE_LVDS_D_M_MAX },
+	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
+	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
+	.p   = { .min = IRONLAKE_LVDS_D_P_MIN,     .max = IRONLAKE_LVDS_D_P_MAX },
+	.p1  = { .min = IRONLAKE_LVDS_D_P1_MIN,    .max = IRONLAKE_LVDS_D_P1_MAX },
+	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
+		 .p2_slow = IRONLAKE_LVDS_D_P2_SLOW,
+		 .p2_fast = IRONLAKE_LVDS_D_P2_FAST },
+	.find_pll = intel_g4x_find_best_PLL,
+};
+
+static const intel_limit_t intel_limits_ironlake_single_lvds_100m = {
+	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
+	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
+	.n   = { .min = IRONLAKE_LVDS_S_SSC_N_MIN, .max = IRONLAKE_LVDS_S_SSC_N_MAX },
+	.m   = { .min = IRONLAKE_LVDS_S_SSC_M_MIN, .max = IRONLAKE_LVDS_S_SSC_M_MAX },
+	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
+	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
+	.p   = { .min = IRONLAKE_LVDS_S_SSC_P_MIN, .max = IRONLAKE_LVDS_S_SSC_P_MAX },
+	.p1  = { .min = IRONLAKE_LVDS_S_SSC_P1_MIN,.max = IRONLAKE_LVDS_S_SSC_P1_MAX },
+	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
+		 .p2_slow = IRONLAKE_LVDS_S_SSC_P2_SLOW,
+		 .p2_fast = IRONLAKE_LVDS_S_SSC_P2_FAST },
+	.find_pll = intel_g4x_find_best_PLL,
+};
+
+static const intel_limit_t intel_limits_ironlake_dual_lvds_100m = {
+	.dot = { .min = IRONLAKE_DOT_MIN,          .max = IRONLAKE_DOT_MAX },
+	.vco = { .min = IRONLAKE_VCO_MIN,          .max = IRONLAKE_VCO_MAX },
+	.n   = { .min = IRONLAKE_LVDS_D_SSC_N_MIN, .max = IRONLAKE_LVDS_D_SSC_N_MAX },
+	.m   = { .min = IRONLAKE_LVDS_D_SSC_M_MIN, .max = IRONLAKE_LVDS_D_SSC_M_MAX },
+	.m1  = { .min = IRONLAKE_M1_MIN,           .max = IRONLAKE_M1_MAX },
+	.m2  = { .min = IRONLAKE_M2_MIN,           .max = IRONLAKE_M2_MAX },
+	.p   = { .min = IRONLAKE_LVDS_D_SSC_P_MIN, .max = IRONLAKE_LVDS_D_SSC_P_MAX },
+	.p1  = { .min = IRONLAKE_LVDS_D_SSC_P1_MIN,.max = IRONLAKE_LVDS_D_SSC_P1_MAX },
+	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
+		 .p2_slow = IRONLAKE_LVDS_D_SSC_P2_SLOW,
+		 .p2_fast = IRONLAKE_LVDS_D_SSC_P2_FAST },
 	.find_pll = intel_g4x_find_best_PLL,
 };
 
@@ -524,34 +607,53 @@ static const intel_limit_t intel_limits_ironlake_display_port = {
                  .max = IRONLAKE_DOT_MAX },
         .vco = { .min = IRONLAKE_VCO_MIN,
                  .max = IRONLAKE_VCO_MAX},
-        .n   = { .min = IRONLAKE_N_MIN,
-                 .max = IRONLAKE_N_MAX },
-        .m   = { .min = IRONLAKE_M_MIN,
-                 .max = IRONLAKE_M_MAX },
+        .n   = { .min = IRONLAKE_DP_N_MIN,
+                 .max = IRONLAKE_DP_N_MAX },
+        .m   = { .min = IRONLAKE_DP_M_MIN,
+                 .max = IRONLAKE_DP_M_MAX },
         .m1  = { .min = IRONLAKE_M1_MIN,
                  .max = IRONLAKE_M1_MAX },
         .m2  = { .min = IRONLAKE_M2_MIN,
                  .max = IRONLAKE_M2_MAX },
-        .p   = { .min = IRONLAKE_P_DISPLAY_PORT_MIN,
-                 .max = IRONLAKE_P_DISPLAY_PORT_MAX },
-        .p1  = { .min = IRONLAKE_P1_DISPLAY_PORT_MIN,
-                 .max = IRONLAKE_P1_DISPLAY_PORT_MAX},
-        .p2  = { .dot_limit = IRONLAKE_P2_DISPLAY_PORT_LIMIT,
-                 .p2_slow = IRONLAKE_P2_DISPLAY_PORT_SLOW,
-                 .p2_fast = IRONLAKE_P2_DISPLAY_PORT_FAST },
+        .p   = { .min = IRONLAKE_DP_P_MIN,
+                 .max = IRONLAKE_DP_P_MAX },
+        .p1  = { .min = IRONLAKE_DP_P1_MIN,
+                 .max = IRONLAKE_DP_P1_MAX},
+        .p2  = { .dot_limit = IRONLAKE_DP_P2_LIMIT,
+                 .p2_slow = IRONLAKE_DP_P2_SLOW,
+                 .p2_fast = IRONLAKE_DP_P2_FAST },
         .find_pll = intel_find_pll_ironlake_dp,
 };
 
 static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc)
 {
+	struct drm_device *dev = crtc->dev;
+	struct drm_i915_private *dev_priv = dev->dev_private;
 	const intel_limit_t *limit;
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
-		limit = &intel_limits_ironlake_lvds;
-	else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
+	int refclk = 120;
+
+	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
+		if (dev_priv->lvds_use_ssc && dev_priv->lvds_ssc_freq == 100)
+			refclk = 100;
+
+		if ((I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) ==
+		    LVDS_CLKB_POWER_UP) {
+			/* LVDS dual channel */
+			if (refclk == 100)
+				limit = &intel_limits_ironlake_dual_lvds_100m;
+			else
+				limit = &intel_limits_ironlake_dual_lvds;
+		} else {
+			if (refclk == 100)
+				limit = &intel_limits_ironlake_single_lvds_100m;
+			else
+				limit = &intel_limits_ironlake_single_lvds;
+		}
+	} else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
 			HAS_eDP)
 		limit = &intel_limits_ironlake_display_port;
 	else
-		limit = &intel_limits_ironlake_sdvo;
+		limit = &intel_limits_ironlake_dac;
 
 	return limit;
 }
@@ -768,46 +870,6 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	return (err != target);
 }
 
-
-static bool
-intel_find_best_reduced_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			    int target, int refclk, intel_clock_t *best_clock)
-
-{
-	struct drm_device *dev = crtc->dev;
-	intel_clock_t clock;
-	int err = target;
-	bool found = false;
-
-	memcpy(&clock, best_clock, sizeof(intel_clock_t));
-
-	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max; clock.m1++) {
-		for (clock.m2 = limit->m2.min; clock.m2 <= limit->m2.max; clock.m2++) {
-			/* m1 is always 0 in Pineview */
-			if (clock.m2 >= clock.m1 && !IS_PINEVIEW(dev))
-				break;
-			for (clock.n = limit->n.min; clock.n <= limit->n.max;
-			     clock.n++) {
-				int this_err;
-
-				intel_clock(dev, refclk, &clock);
-
-				if (!intel_PLL_is_valid(crtc, &clock))
-					continue;
-
-				this_err = abs(clock.dot - target);
-				if (this_err < err) {
-					*best_clock = clock;
-					err = this_err;
-					found = true;
-				}
-			}
-		}
-	}
-
-	return found;
-}
-
 static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *best_clock)
@@ -969,6 +1031,8 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 
 	/* enable it... */
 	fbc_ctl = FBC_CTL_EN | FBC_CTL_PERIODIC;
+	if (IS_I945GM(dev))
+		fbc_ctl |= FBC_C3_IDLE; /* 945 needs special SR handling */
 	fbc_ctl |= (dev_priv->cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
 	fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
 	if (obj_priv->tiling_mode != I915_TILING_NONE)
@@ -1262,7 +1326,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	ret = i915_gem_object_set_to_gtt_domain(obj, 1);
+	ret = i915_gem_object_set_to_display_plane(obj);
 	if (ret != 0) {
 		i915_gem_object_unpin(obj);
 		mutex_unlock(&dev->struct_mutex);
@@ -1693,6 +1757,7 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 	case DRM_MODE_DPMS_OFF:
 		DRM_DEBUG_KMS("crtc %d dpms off\n", pipe);
 
+		drm_vblank_off(dev, pipe);
 		/* Disable display plane */
 		temp = I915_READ(dspcntr_reg);
 		if ((temp & DISPLAY_PLANE_ENABLE) != 0) {
@@ -2574,6 +2639,10 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 		sr_entries = roundup(sr_entries / cacheline_size, 1);
 		DRM_DEBUG("self-refresh entries: %d\n", sr_entries);
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+	} else {
+		/* Turn off self refresh if both pipes are enabled */
+		I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
+					& ~FW_BLC_SELF_EN);
 	}
 
 	DRM_DEBUG("Setting FIFO watermarks - A: %d, B: %d, SR %d\n",
@@ -2617,6 +2686,10 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 			srwm = 1;
 		srwm &= 0x3f;
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN);
+	} else {
+		/* Turn off self refresh if both pipes are enabled */
+		I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
+					& ~FW_BLC_SELF_EN);
 	}
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - A: 8, B: 8, C: 8, SR %d\n",
@@ -2685,6 +2758,10 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 		if (srwm < 0)
 			srwm = 1;
 		I915_WRITE(FW_BLC_SELF, FW_BLC_SELF_EN | (srwm & 0x3f));
+	} else {
+		/* Turn off self refresh if both pipes are enabled */
+		I915_WRITE(FW_BLC_SELF, I915_READ(FW_BLC_SELF)
+					& ~FW_BLC_SELF_EN);
 	}
 
 	DRM_DEBUG_KMS("Setting FIFO watermarks - A: %d, B: %d, C: %d, SR %d\n",
@@ -2910,10 +2987,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	if (is_lvds && limit->find_reduced_pll &&
-			dev_priv->lvds_downclock_avail) {
-		memcpy(&reduced_clock, &clock, sizeof(intel_clock_t));
-		has_reduced_clock = limit->find_reduced_pll(limit, crtc,
+	if (is_lvds && dev_priv->lvds_downclock_avail) {
+		has_reduced_clock = limit->find_pll(limit, crtc,
 							    dev_priv->lvds_downclock,
 							    refclk,
 							    &reduced_clock);
@@ -2981,6 +3056,21 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 				temp |= PIPE_8BPC;
 			else
 				temp |= PIPE_6BPC;
+		} else if (is_edp) {
+			switch (dev_priv->edp_bpp/3) {
+			case 8:
+				temp |= PIPE_8BPC;
+				break;
+			case 10:
+				temp |= PIPE_10BPC;
+				break;
+			case 6:
+				temp |= PIPE_6BPC;
+				break;
+			case 12:
+				temp |= PIPE_12BPC;
+				break;
+			}
 		} else
 			temp |= PIPE_8BPC;
 		I915_WRITE(pipeconf_reg, temp);
@@ -3991,7 +4081,8 @@ static void intel_crtc_destroy(struct drm_crtc *crtc)
 struct intel_unpin_work {
 	struct work_struct work;
 	struct drm_device *dev;
-	struct drm_gem_object *obj;
+	struct drm_gem_object *old_fb_obj;
+	struct drm_gem_object *pending_flip_obj;
 	struct drm_pending_vblank_event *event;
 	int pending;
 };
@@ -4002,8 +4093,9 @@ static void intel_unpin_work_fn(struct work_struct *__work)
 		container_of(__work, struct intel_unpin_work, work);
 
 	mutex_lock(&work->dev->struct_mutex);
-	i915_gem_object_unpin(work->obj);
-	drm_gem_object_unreference(work->obj);
+	i915_gem_object_unpin(work->old_fb_obj);
+	drm_gem_object_unreference(work->pending_flip_obj);
+	drm_gem_object_unreference(work->old_fb_obj);
 	mutex_unlock(&work->dev->struct_mutex);
 	kfree(work);
 }
@@ -4026,6 +4118,12 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	spin_lock_irqsave(&dev->event_lock, flags);
 	work = intel_crtc->unpin_work;
 	if (work == NULL || !work->pending) {
+		if (work && !work->pending) {
+			obj_priv = work->pending_flip_obj->driver_private;
+			DRM_DEBUG_DRIVER("flip finish: %p (%d) not pending?\n",
+					 obj_priv,
+					 atomic_read(&obj_priv->pending_flip));
+		}
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		return;
 	}
@@ -4046,8 +4144,11 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	obj_priv = work->obj->driver_private;
-	if (atomic_dec_and_test(&obj_priv->pending_flip))
+	obj_priv = work->pending_flip_obj->driver_private;
+
+	/* Initial scanout buffer will have a 0 pending flip count */
+	if ((atomic_read(&obj_priv->pending_flip) == 0) ||
+	    atomic_dec_and_test(&obj_priv->pending_flip))
 		DRM_WAKEUP(&dev_priv->pending_flip_queue);
 	schedule_work(&work->work);
 }
@@ -4060,8 +4161,11 @@ void intel_prepare_page_flip(struct drm_device *dev, int plane)
 	unsigned long flags;
 
 	spin_lock_irqsave(&dev->event_lock, flags);
-	if (intel_crtc->unpin_work)
+	if (intel_crtc->unpin_work) {
 		intel_crtc->unpin_work->pending = 1;
+	} else {
+		DRM_DEBUG_DRIVER("preparing flip with no unpin work?\n");
+	}
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 }
 
@@ -4077,7 +4181,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	struct intel_unpin_work *work;
 	unsigned long flags;
-	int ret;
+	int pipesrc_reg = (intel_crtc->pipe == 0) ? PIPEASRC : PIPEBSRC;
+	int ret, pipesrc;
 	RING_LOCALS;
 
 	work = kzalloc(sizeof *work, GFP_KERNEL);
@@ -4089,12 +4194,13 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	work->event = event;
 	work->dev = crtc->dev;
 	intel_fb = to_intel_framebuffer(crtc->fb);
-	work->obj = intel_fb->obj;
+	work->old_fb_obj = intel_fb->obj;
 	INIT_WORK(&work->work, intel_unpin_work_fn);
 
 	/* We borrow the event spin lock for protecting unpin_work */
 	spin_lock_irqsave(&dev->event_lock, flags);
 	if (intel_crtc->unpin_work) {
+		DRM_DEBUG_DRIVER("flip queue: crtc already busy\n");
 		spin_unlock_irqrestore(&dev->event_lock, flags);
 		kfree(work);
 		mutex_unlock(&dev->struct_mutex);
@@ -4108,19 +4214,24 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 
 	ret = intel_pin_and_fence_fb_obj(dev, obj);
 	if (ret != 0) {
+		DRM_DEBUG_DRIVER("flip queue: %p pin & fence failed\n",
+			  obj->driver_private);
 		kfree(work);
+		intel_crtc->unpin_work = NULL;
 		mutex_unlock(&dev->struct_mutex);
 		return ret;
 	}
 
-	/* Reference the old fb object for the scheduled work. */
-	drm_gem_object_reference(work->obj);
+	/* Reference the objects for the scheduled work. */
+	drm_gem_object_reference(work->old_fb_obj);
+	drm_gem_object_reference(obj);
 
 	crtc->fb = fb;
 	i915_gem_object_flush_write_domain(obj);
 	drm_vblank_get(dev, intel_crtc->pipe);
 	obj_priv = obj->driver_private;
 	atomic_inc(&obj_priv->pending_flip);
+	work->pending_flip_obj = obj;
 
 	BEGIN_LP_RING(4);
 	OUT_RING(MI_DISPLAY_FLIP |
@@ -4128,7 +4239,8 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	OUT_RING(fb->pitch);
 	if (IS_I965G(dev)) {
 		OUT_RING(obj_priv->gtt_offset | obj_priv->tiling_mode);
-		OUT_RING((fb->width << 16) | fb->height);
+		pipesrc = I915_READ(pipesrc_reg); 
+		OUT_RING(pipesrc & 0x0fff0fff);
 	} else {
 		OUT_RING(obj_priv->gtt_offset);
 		OUT_RING(MI_NOOP);

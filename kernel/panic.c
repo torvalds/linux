@@ -75,13 +75,14 @@ NORET_TYPE void panic(const char * fmt, ...)
 	dump_stack();
 #endif
 
-	kmsg_dump(KMSG_DUMP_PANIC);
 	/*
 	 * If we have crashed and we have a crash kernel loaded let it handle
 	 * everything else.
 	 * Do we want to call this before we try to display a message?
 	 */
 	crash_kexec(NULL);
+
+	kmsg_dump(KMSG_DUMP_PANIC);
 
 	/*
 	 * Note smp_send_stop is the usual smp shutdown function, which

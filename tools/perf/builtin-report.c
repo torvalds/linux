@@ -269,7 +269,7 @@ parse_callchain_opt(const struct option *opt __used, const char *arg,
 
 	else if (!strncmp(tok, "none", strlen(arg))) {
 		callchain_param.mode = CHAIN_NONE;
-		symbol_conf.use_callchain = true;
+		symbol_conf.use_callchain = false;
 
 		return 0;
 	}

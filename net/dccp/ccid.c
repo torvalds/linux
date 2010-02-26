@@ -77,34 +77,24 @@ int ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
 	return err;
 }
 
-static struct kmem_cache *ccid_kmem_cache_create(int obj_size, const char *fmt,...)
+static struct kmem_cache *ccid_kmem_cache_create(int obj_size, char *slab_name_fmt, const char *fmt,...)
 {
 	struct kmem_cache *slab;
-	char slab_name_fmt[32], *slab_name;
 	va_list args;
 
 	va_start(args, fmt);
-	vsnprintf(slab_name_fmt, sizeof(slab_name_fmt), fmt, args);
+	vsnprintf(slab_name_fmt, CCID_SLAB_NAME_LENGTH, fmt, args);
 	va_end(args);
 
-	slab_name = kstrdup(slab_name_fmt, GFP_KERNEL);
-	if (slab_name == NULL)
-		return NULL;
-	slab = kmem_cache_create(slab_name, sizeof(struct ccid) + obj_size, 0,
+	slab = kmem_cache_create(slab_name_fmt, sizeof(struct ccid) + obj_size, 0,
 				 SLAB_HWCACHE_ALIGN, NULL);
-	if (slab == NULL)
-		kfree(slab_name);
 	return slab;
 }
 
 static void ccid_kmem_cache_destroy(struct kmem_cache *slab)
 {
-	if (slab != NULL) {
-		const char *name = kmem_cache_name(slab);
-
+	if (slab != NULL)
 		kmem_cache_destroy(slab);
-		kfree(name);
-	}
 }
 
 static int ccid_activate(struct ccid_operations *ccid_ops)
@@ -113,6 +103,7 @@ static int ccid_activate(struct ccid_operations *ccid_ops)
 
 	ccid_ops->ccid_hc_rx_slab =
 			ccid_kmem_cache_create(ccid_ops->ccid_hc_rx_obj_size,
+					       ccid_ops->ccid_hc_rx_slab_name,
 					       "ccid%u_hc_rx_sock",
 					       ccid_ops->ccid_id);
 	if (ccid_ops->ccid_hc_rx_slab == NULL)
@@ -120,6 +111,7 @@ static int ccid_activate(struct ccid_operations *ccid_ops)
 
 	ccid_ops->ccid_hc_tx_slab =
 			ccid_kmem_cache_create(ccid_ops->ccid_hc_tx_obj_size,
+					       ccid_ops->ccid_hc_tx_slab_name,
 					       "ccid%u_hc_tx_sock",
 					       ccid_ops->ccid_id);
 	if (ccid_ops->ccid_hc_tx_slab == NULL)

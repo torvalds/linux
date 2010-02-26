@@ -89,13 +89,17 @@ static long uv_mmtimer_ioctl(struct file *file, unsigned int cmd,
 	switch (cmd) {
 	case MMTIMER_GETOFFSET:	/* offset of the counter */
 		/*
-		 * UV RTC register is on its own page
+		 * Starting with HUB rev 2.0, the UV RTC register is
+		 * replicated across all cachelines of it's own page.
+		 * This allows faster simultaneous reads from a given socket.
+		 *
+		 * The offset returned is in 64 bit units.
 		 */
-		if (PAGE_SIZE <= (1 << 16))
-			ret = ((UV_LOCAL_MMR_BASE | UVH_RTC) & (PAGE_SIZE-1))
-				/ 8;
+		if (uv_get_min_hub_revision_id() == 1)
+			ret = 0;
 		else
-			ret = -ENOSYS;
+			ret = ((uv_blade_processor_id() * L1_CACHE_BYTES) %
+					PAGE_SIZE) / 8;
 		break;
 
 	case MMTIMER_GETRES: /* resolution of the clock in 10^-15 s */
@@ -115,8 +119,8 @@ static long uv_mmtimer_ioctl(struct file *file, unsigned int cmd,
 		ret = hweight64(UVH_RTC_REAL_TIME_CLOCK_MASK);
 		break;
 
-	case MMTIMER_MMAPAVAIL: /* can we mmap the clock into userspace? */
-		ret = (PAGE_SIZE <= (1 << 16)) ? 1 : 0;
+	case MMTIMER_MMAPAVAIL:
+		ret = 1;
 		break;
 
 	case MMTIMER_GETCOUNTER:

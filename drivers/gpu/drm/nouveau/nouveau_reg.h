@@ -99,6 +99,7 @@
  * the card will hang early on in the X init process.
  */
 #    define NV_PMC_ENABLE_UNK13                               (1<<13)
+#define NV40_PMC_GRAPH_UNITS				   0x00001540
 #define NV40_PMC_BACKLIGHT				   0x000015f0
 #	define NV40_PMC_BACKLIGHT_MASK			   0x001f0000
 #define NV40_PMC_1700                                      0x00001700

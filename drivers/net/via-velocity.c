@@ -1877,13 +1877,12 @@ static void velocity_error(struct velocity_info *vptr, int status)
 /**
  *	tx_srv		-	transmit interrupt service
  *	@vptr; Velocity
- *	@status:
  *
  *	Scan the queues looking for transmitted packets that
  *	we can complete and clean up. Update any statistics as
  *	necessary/
  */
-static int velocity_tx_srv(struct velocity_info *vptr, u32 status)
+static int velocity_tx_srv(struct velocity_info *vptr)
 {
 	struct tx_desc *td;
 	int qnum;
@@ -2090,14 +2089,12 @@ static int velocity_receive_frame(struct velocity_info *vptr, int idx)
 /**
  *	velocity_rx_srv		-	service RX interrupt
  *	@vptr: velocity
- *	@status: adapter status (unused)
  *
  *	Walk the receive ring of the velocity adapter and remove
  *	any received packets from the receive queue. Hand the ring
  *	slots back to the adapter for reuse.
  */
-static int velocity_rx_srv(struct velocity_info *vptr, int status,
-		int budget_left)
+static int velocity_rx_srv(struct velocity_info *vptr, int budget_left)
 {
 	struct net_device_stats *stats = &vptr->dev->stats;
 	int rd_curr = vptr->rx.curr;
@@ -2151,32 +2148,24 @@ static int velocity_poll(struct napi_struct *napi, int budget)
 	struct velocity_info *vptr = container_of(napi,
 			struct velocity_info, napi);
 	unsigned int rx_done;
-	u32 isr_status;
+	unsigned long flags;
 
-	spin_lock(&vptr->lock);
-	isr_status = mac_read_isr(vptr->mac_regs);
-
-	/* Ack the interrupt */
-	mac_write_isr(vptr->mac_regs, isr_status);
-	if (isr_status & (~(ISR_PRXI | ISR_PPRXI | ISR_PTXI | ISR_PPTXI)))
-		velocity_error(vptr, isr_status);
-
+	spin_lock_irqsave(&vptr->lock, flags);
 	/*
 	 * Do rx and tx twice for performance (taken from the VIA
 	 * out-of-tree driver).
 	 */
-	rx_done = velocity_rx_srv(vptr, isr_status, budget / 2);
-	velocity_tx_srv(vptr, isr_status);
-	rx_done += velocity_rx_srv(vptr, isr_status, budget - rx_done);
-	velocity_tx_srv(vptr, isr_status);
-
-	spin_unlock(&vptr->lock);
+	rx_done = velocity_rx_srv(vptr, budget / 2);
+	velocity_tx_srv(vptr);
+	rx_done += velocity_rx_srv(vptr, budget - rx_done);
+	velocity_tx_srv(vptr);
 
 	/* If budget not fully consumed, exit the polling mode */
 	if (rx_done < budget) {
 		napi_complete(napi);
 		mac_enable_int(vptr->mac_regs);
 	}
+	spin_unlock_irqrestore(&vptr->lock, flags);
 
 	return rx_done;
 }
@@ -2206,10 +2195,17 @@ static irqreturn_t velocity_intr(int irq, void *dev_instance)
 		return IRQ_NONE;
 	}
 
+	/* Ack the interrupt */
+	mac_write_isr(vptr->mac_regs, isr_status);
+
 	if (likely(napi_schedule_prep(&vptr->napi))) {
 		mac_disable_int(vptr->mac_regs);
 		__napi_schedule(&vptr->napi);
 	}
+
+	if (isr_status & (~(ISR_PRXI | ISR_PPRXI | ISR_PTXI | ISR_PPTXI)))
+		velocity_error(vptr, isr_status);
+
 	spin_unlock(&vptr->lock);
 
 	return IRQ_HANDLED;
@@ -3100,7 +3096,7 @@ static int velocity_resume(struct pci_dev *pdev)
 	velocity_init_registers(vptr, VELOCITY_INIT_WOL);
 	mac_disable_int(vptr->mac_regs);
 
-	velocity_tx_srv(vptr, 0);
+	velocity_tx_srv(vptr);
 
 	for (i = 0; i < vptr->tx.numq; i++) {
 		if (vptr->tx.used[i])
@@ -3344,6 +3340,7 @@ static int velocity_set_coalesce(struct net_device *dev,
 {
 	struct velocity_info *vptr = netdev_priv(dev);
 	int max_us = 0x3f * 64;
+	unsigned long flags;
 
 	/* 6 bits of  */
 	if (ecmd->tx_coalesce_usecs > max_us)
@@ -3365,6 +3362,7 @@ static int velocity_set_coalesce(struct net_device *dev,
 			ecmd->tx_coalesce_usecs);
 
 	/* Setup the interrupt suppression and queue timers */
+	spin_lock_irqsave(&vptr->lock, flags);
 	mac_disable_int(vptr->mac_regs);
 	setup_adaptive_interrupts(vptr);
 	setup_queue_timers(vptr);
@@ -3372,6 +3370,7 @@ static int velocity_set_coalesce(struct net_device *dev,
 	mac_write_int_mask(vptr->int_mask, vptr->mac_regs);
 	mac_clear_isr(vptr->mac_regs);
 	mac_enable_int(vptr->mac_regs);
+	spin_unlock_irqrestore(&vptr->lock, flags);
 
 	return 0;
 }

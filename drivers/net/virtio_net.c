@@ -395,8 +395,7 @@ static void refill_work(struct work_struct *work)
 
 	vi = container_of(work, struct virtnet_info, refill.work);
 	napi_disable(&vi->napi);
-	try_fill_recv(vi, GFP_KERNEL);
-	still_empty = (vi->num == 0);
+	still_empty = !try_fill_recv(vi, GFP_KERNEL);
 	napi_enable(&vi->napi);
 
 	/* In theory, this can happen: if we don't get any buffers in
