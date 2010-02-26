@@ -4,7 +4,7 @@
 #include <asm/ccwdev.h>
 #include <asm/atomic.h>
 #include <linux/wait.h>
-
+#include <linux/notifier.h>
 #include "io_sch.h"
 
 /*

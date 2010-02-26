@@ -1338,7 +1338,7 @@ static enum io_sch_action sch_get_action(struct subchannel *sch)
 		/* Not operational. */
 		if (!cdev)
 			return IO_SCH_UNREG;
-		if (!ccw_device_notify(cdev, CIO_GONE))
+		if (ccw_device_notify(cdev, CIO_GONE) != NOTIFY_OK)
 			return IO_SCH_UNREG;
 		return IO_SCH_ORPH_UNREG;
 	}
@@ -1346,12 +1346,12 @@ static enum io_sch_action sch_get_action(struct subchannel *sch)
 	if (!cdev)
 		return IO_SCH_ATTACH;
 	if (sch->schib.pmcw.dev != cdev->private->dev_id.devno) {
-		if (!ccw_device_notify(cdev, CIO_GONE))
+		if (ccw_device_notify(cdev, CIO_GONE) != NOTIFY_OK)
 			return IO_SCH_UNREG_ATTACH;
 		return IO_SCH_ORPH_ATTACH;
 	}
 	if ((sch->schib.pmcw.pam & sch->opm) == 0) {
-		if (!ccw_device_notify(cdev, CIO_NO_PATH))
+		if (ccw_device_notify(cdev, CIO_NO_PATH) != NOTIFY_OK)
 			return IO_SCH_UNREG;
 		return IO_SCH_DISC;
 	}
@@ -1788,7 +1788,7 @@ out:
 static int resume_handle_boxed(struct ccw_device *cdev)
 {
 	cdev->private->state = DEV_STATE_BOXED;
-	if (ccw_device_notify(cdev, CIO_BOXED))
+	if (ccw_device_notify(cdev, CIO_BOXED) == NOTIFY_OK)
 		return 0;
 	ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 	return -ENODEV;
@@ -1797,7 +1797,7 @@ static int resume_handle_boxed(struct ccw_device *cdev)
 static int resume_handle_disc(struct ccw_device *cdev)
 {
 	cdev->private->state = DEV_STATE_DISCONNECTED;
-	if (ccw_device_notify(cdev, CIO_GONE))
+	if (ccw_device_notify(cdev, CIO_GONE) == NOTIFY_OK)
 		return 0;
 	ccw_device_sched_todo(cdev, CDEV_TODO_UNREG);
 	return -ENODEV;
