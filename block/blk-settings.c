@@ -94,7 +94,7 @@ void blk_set_default_limits(struct queue_limits *lim)
 	lim->max_phys_segments = MAX_PHYS_SEGMENTS;
 	lim->max_hw_segments = MAX_HW_SEGMENTS;
 	lim->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
-	lim->max_segment_size = MAX_SEGMENT_SIZE;
+	lim->max_segment_size = BLK_MAX_SEGMENT_SIZE;
 	lim->max_sectors = BLK_DEF_MAX_SECTORS;
 	lim->max_hw_sectors = INT_MAX;
 	lim->max_discard_sectors = 0;
@@ -154,7 +154,7 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 	q->unplug_timer.data = (unsigned long)q;
 
 	blk_set_default_limits(&q->limits);
-	blk_queue_max_sectors(q, SAFE_MAX_SECTORS);
+	blk_queue_max_sectors(q, BLK_SAFE_MAX_SECTORS);
 
 	/*
 	 * If the caller didn't supply a lock, fall back to our embedded

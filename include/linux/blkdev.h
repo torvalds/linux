@@ -1016,11 +1016,15 @@ extern int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm);
 #define MAX_PHYS_SEGMENTS 128
 #define MAX_HW_SEGMENTS 128
 #define SAFE_MAX_SECTORS 255
-#define BLK_DEF_MAX_SECTORS 1024
-
 #define MAX_SEGMENT_SIZE	65536
 
-#define BLK_SEG_BOUNDARY_MASK	0xFFFFFFFFUL
+enum blk_default_limits {
+	BLK_MAX_SEGMENTS	= 128,
+	BLK_SAFE_MAX_SECTORS	= 255,
+	BLK_DEF_MAX_SECTORS	= 1024,
+	BLK_MAX_SEGMENT_SIZE	= 65536,
+	BLK_SEG_BOUNDARY_MASK	= 0xFFFFFFFFUL,
+};
 
 #define blkdev_entry_to_request(entry) list_entry((entry), struct request, queuelist)
 

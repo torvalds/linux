@@ -753,8 +753,8 @@ static int __devinit ps3vram_probe(struct ps3_system_bus_device *dev)
 	blk_queue_make_request(queue, ps3vram_make_request);
 	blk_queue_max_phys_segments(queue, MAX_PHYS_SEGMENTS);
 	blk_queue_max_hw_segments(queue, MAX_HW_SEGMENTS);
-	blk_queue_max_segment_size(queue, MAX_SEGMENT_SIZE);
-	blk_queue_max_sectors(queue, SAFE_MAX_SECTORS);
+	blk_queue_max_segment_size(queue, BLK_MAX_SEGMENT_SIZE);
+	blk_queue_max_sectors(queue, BLK_SAFE_MAX_SECTORS);
 
 	gendisk = alloc_disk(1);
 	if (!gendisk) {
