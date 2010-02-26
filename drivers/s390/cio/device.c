@@ -136,7 +136,6 @@ static int io_subchannel_sch_event(struct subchannel *, int);
 static int io_subchannel_chp_event(struct subchannel *, struct chp_link *,
 				   int);
 static void recovery_func(unsigned long data);
-struct workqueue_struct *ccw_device_work;
 wait_queue_head_t ccw_device_init_wq;
 atomic_t ccw_device_init_count;
 
@@ -163,7 +162,7 @@ static void io_subchannel_settle(void)
 {
 	wait_event(ccw_device_init_wq,
 		   atomic_read(&ccw_device_init_count) == 0);
-	flush_workqueue(ccw_device_work);
+	flush_workqueue(cio_work_q);
 }
 
 static struct css_driver io_subchannel_driver = {
@@ -188,27 +187,13 @@ int __init io_subchannel_init(void)
 	atomic_set(&ccw_device_init_count, 0);
 	setup_timer(&recovery_timer, recovery_func, 0);
 
-	ccw_device_work = create_singlethread_workqueue("cio");
-	if (!ccw_device_work)
-		return -ENOMEM;
-	slow_path_wq = create_singlethread_workqueue("kslowcrw");
-	if (!slow_path_wq) {
-		ret = -ENOMEM;
-		goto out_err;
-	}
-	if ((ret = bus_register (&ccw_bus_type)))
-		goto out_err;
-
+	ret = bus_register(&ccw_bus_type);
+	if (ret)
+		return ret;
 	ret = css_driver_register(&io_subchannel_driver);
 	if (ret)
-		goto out_err;
+		bus_unregister(&ccw_bus_type);
 
-	return 0;
-out_err:
-	if (ccw_device_work)
-		destroy_workqueue(ccw_device_work);
-	if (slow_path_wq)
-		destroy_workqueue(slow_path_wq);
 	return ret;
 }
 
@@ -2028,7 +2013,7 @@ void ccw_device_sched_todo(struct ccw_device *cdev, enum cdev_todo todo)
 	/* Get workqueue ref. */
 	if (!get_device(&cdev->dev))
 		return;
-	if (!queue_work(slow_path_wq, &cdev->private->todo_work)) {
+	if (!queue_work(cio_work_q, &cdev->private->todo_work)) {
 		/* Already queued, release workqueue ref. */
 		put_device(&cdev->dev);
 	}
@@ -2041,5 +2026,4 @@ EXPORT_SYMBOL(ccw_driver_register);
 EXPORT_SYMBOL(ccw_driver_unregister);
 EXPORT_SYMBOL(get_ccwdev_by_busid);
 EXPORT_SYMBOL(ccw_bus_type);
-EXPORT_SYMBOL(ccw_device_work);
 EXPORT_SYMBOL_GPL(ccw_device_get_subchannel_id);

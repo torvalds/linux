@@ -151,7 +151,7 @@ int sch_is_pseudo_sch(struct subchannel *);
 struct schib;
 int css_sch_is_valid(struct schib *);
 
-extern struct workqueue_struct *slow_path_wq;
+extern struct workqueue_struct *cio_work_q;
 void css_wait_for_slow_path(void);
 void css_sched_sch_todo(struct subchannel *sch, enum sch_todo todo);
 #endif
