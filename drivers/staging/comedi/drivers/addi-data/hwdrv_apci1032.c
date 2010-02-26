@@ -54,7 +54,7 @@ You should also find the complete GPL in the COPYING file accompanying this sour
 #include "hwdrv_apci1032.h"
 #include <linux/delay.h>
 /* Global variables */
-unsigned int ui_InterruptStatus = 0;
+unsigned int ui_InterruptStatus;
 
 /*
 +----------------------------------------------------------------------------+
@@ -108,9 +108,9 @@ int i_APCI1032_ConfigDigitalInput(struct comedi_device *dev, struct comedi_subde
 			ui_TmpValue =
 				inl(devpriv->iobase + APCI1032_DIGITAL_IP_IRQ);
 		}		/* if (data[1] == ADDIDATA_OR) */
-		else {
+		else
 			outl(0x6, devpriv->iobase + APCI1032_DIGITAL_IP_IRQ);
-		}		/* else if(data[1] == ADDIDATA_OR) */
+				/* else if(data[1] == ADDIDATA_OR) */
 	}			/*  if( data[0] == ADDIDATA_ENABLE) */
 	else {
 		ul_Command1 = ul_Command1 & 0xFFFF0000;
@@ -221,9 +221,9 @@ int i_APCI1032_ReadMoreDigitalInput(struct comedi_device *dev, struct comedi_sub
 		}		/* switch(ui_NoOfChannels) */
 	}			/* if(data[1]==0) */
 	else {
-		if (data[1] == 1) {
+		if (data[1] == 1)
 			*data = ui_InterruptStatus;
-		}		/* if(data[1]==1) */
+				/* if(data[1]==1) */
 	}			/* else if(data[1]==0) */
 	return insn->n;
 }
