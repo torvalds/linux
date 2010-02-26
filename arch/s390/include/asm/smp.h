@@ -36,12 +36,36 @@ extern void smp_switch_to_cpu(void (*)(void *), void *, unsigned long sp,
 			      int from, int to);
 extern void smp_restart_cpu(void);
 
+/*
+ * returns 1 if (virtual) cpu is scheduled
+ * returns 0 otherwise
+ */
+static inline int smp_vcpu_scheduled(int cpu)
+{
+	u32 status;
+
+	switch (sigp_ps(&status, 0, cpu, sigp_sense_running)) {
+	case sigp_status_stored:
+		/* Check for running status */
+		if (status & 0x400)
+			return 0;
+		break;
+	case sigp_not_operational:
+		return 0;
+	default:
+		break;
+	}
+	return 1;
+}
+
 #else /* CONFIG_SMP */
 
 static inline void smp_switch_to_ipl_cpu(void (*func)(void *), void *data)
 {
 	func(data);
 }
+
+#define smp_vcpu_scheduled	(1)
 
 #endif /* CONFIG_SMP */
 

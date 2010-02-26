@@ -25,29 +25,28 @@ static inline int cpu_logical_map(int cpu)
 }
 
 enum {
-	sigp_unassigned=0x0,
-	sigp_sense,
-	sigp_external_call,
-	sigp_emergency_signal,
-	sigp_start,
-	sigp_stop,
-	sigp_restart,
-	sigp_unassigned1,
-	sigp_unassigned2,
-	sigp_stop_and_store_status,
-	sigp_unassigned3,
-	sigp_initial_cpu_reset,
-	sigp_cpu_reset,
-	sigp_set_prefix,
-	sigp_store_status_at_address,
-	sigp_store_extended_status_at_address
+	sigp_sense = 1,
+	sigp_external_call = 2,
+	sigp_emergency_signal = 3,
+	sigp_start = 4,
+	sigp_stop = 5,
+	sigp_restart = 6,
+	sigp_stop_and_store_status = 9,
+	sigp_initial_cpu_reset = 11,
+	sigp_cpu_reset = 12,
+	sigp_set_prefix = 13,
+	sigp_store_status_at_address = 14,
+	sigp_store_extended_status_at_address = 15,
+	sigp_set_architecture = 18,
+	sigp_conditional_emergency_signal = 19,
+	sigp_sense_running = 21,
 };
 
 enum {
-        sigp_order_code_accepted=0,
-	sigp_status_stored,
-	sigp_busy,
-	sigp_not_operational
+	sigp_order_code_accepted = 0,
+	sigp_status_stored = 1,
+	sigp_busy = 2,
+	sigp_not_operational = 3,
 };
 
 /*
@@ -57,7 +56,6 @@ enum {
 	ec_schedule = 0,
 	ec_call_function,
 	ec_call_function_single,
-	ec_bit_last
 };
 
 /*
