@@ -1003,12 +1003,20 @@ static void dasd_handle_killed_request(struct ccw_device *cdev,
 		return;
 	}
 
-	device = (struct dasd_device *) cqr->startdev;
-	if (device == NULL ||
-	    device != dasd_device_from_cdev_locked(cdev) ||
-	    strncmp(device->discipline->ebcname, (char *) &cqr->magic, 4)) {
+	device = dasd_device_from_cdev_locked(cdev);
+	if (IS_ERR(device)) {
+		DBF_EVENT_DEVID(DBF_DEBUG, cdev, "%s",
+				"unable to get device from cdev");
+		return;
+	}
+
+	if (!cqr->startdev ||
+	    device != cqr->startdev ||
+	    strncmp(cqr->startdev->discipline->ebcname,
+		    (char *) &cqr->magic, 4)) {
 		DBF_EVENT_DEVID(DBF_DEBUG, cdev, "%s",
 				"invalid device in request");
+		dasd_put_device(device);
 		return;
 	}
 
@@ -2291,11 +2299,6 @@ static void dasd_generic_auto_online(void *data, async_cookie_t cookie)
 	if (ret)
 		pr_warning("%s: Setting the DASD online failed with rc=%d\n",
 			   dev_name(&cdev->dev), ret);
-	else {
-		struct dasd_device *device = dasd_device_from_cdev(cdev);
-		wait_event(dasd_init_waitq, _wait_for_device(device));
-		dasd_put_device(device);
-	}
 }
 
 /*
@@ -2430,6 +2433,9 @@ int dasd_generic_set_online(struct ccw_device *cdev,
 	} else
 		pr_debug("dasd_generic device %s found\n",
 				dev_name(&cdev->dev));
+
+	wait_event(dasd_init_waitq, _wait_for_device(device));
+
 	dasd_put_device(device);
 	return rc;
 }
