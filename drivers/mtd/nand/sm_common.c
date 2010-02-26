@@ -67,15 +67,51 @@ static int sm_block_markbad(struct mtd_info *mtd, loff_t ofs)
 }
 
 
+static struct nand_flash_dev nand_smartmedia_flash_ids[] = {
+
+	/* SmartMedia */
+	{"SmartMedia 1MiB 5V",          0x6e, 256, 1, 0x1000, 0},
+	{"SmartMedia 1MiB 3,3V",        0xe8, 256, 1, 0x1000, 0},
+	{"SmartMedia 1MiB 3,3V",        0xec, 256, 1, 0x1000, 0},
+	{"SmartMedia 2MiB 3,3V",        0xea, 256, 2, 0x1000, 0},
+	{"SmartMedia 2MiB 5V",          0x64, 256, 2, 0x1000, 0},
+	{"SmartMedia 2MiB 3,3V ROM",    0x5d, 512, 2, 0x2000, NAND_ROM},
+	{"SmartMedia 4MiB 3,3V",        0xe3, 512, 4, 0x2000, 0},
+	{"SmartMedia 4MiB 3,3/5V",      0xe5, 512, 4, 0x2000, 0},
+	{"SmartMedia 4MiB 5V",          0x6b, 512, 4, 0x2000, 0},
+	{"SmartMedia 4MiB 3,3V ROM",    0xd5, 512, 4, 0x2000, NAND_ROM},
+	{"SmartMedia 8MiB 3,3V",        0xe6, 512, 8, 0x2000, 0},
+	{"SmartMedia 8MiB 3,3V ROM",    0xd6, 512, 8, 0x2000, NAND_ROM},
+
+#define XD_TYPEM       (NAND_NO_AUTOINCR | NAND_BROKEN_XD)
+	/* xD / SmartMedia */
+	{"SmartMedia/xD 16MiB 3,3V",    0x73, 512, 16, 0x4000, 0},
+	{"SmartMedia 16MiB 3,3V ROM",   0x57, 512, 16, 0x4000, NAND_ROM},
+	{"SmartMedia/xD 32MiB 3,3V",    0x75, 512, 32, 0x4000, 0},
+	{"SmartMedia 32MiB 3,3V ROM",   0x58, 512, 32, 0x4000, NAND_ROM},
+	{"SmartMedia/xD 64MiB 3,3V",    0x76, 512, 64, 0x4000, 0},
+	{"SmartMedia 64MiB 3,3V ROM",   0xd9, 512, 64, 0x4000, NAND_ROM},
+	{"SmartMedia/xD 128MiB 3,3V",   0x79, 512, 128, 0x4000, 0},
+	{"SmartMedia 128MiB 3,3V ROM",  0xda, 512, 128, 0x4000, NAND_ROM},
+	{"SmartMedia/xD 256MiB 3,3V",   0x71, 512, 256, 0x4000, XD_TYPEM},
+	{"SmartMedia 256MiB 3,3V ROM",  0x5b, 512, 256, 0x4000, NAND_ROM},
+
+	/* xD only */
+	{"xD 512MiB 3,3V",              0xDC, 512, 512, 0x4000, XD_TYPEM},
+	{"xD 1GiB 3,3V",                0xD3, 512, 1024, 0x4000, XD_TYPEM},
+	{"xD 2GiB 3,3V",                0xD5, 512, 2048, 0x4000, XD_TYPEM},
+	{NULL,}
+};
+
 int sm_register_device(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = (struct nand_chip *)mtd->priv;
 	int ret;
 
-	chip->options |= NAND_SKIP_BBTSCAN | NAND_SMARTMEDIA;
+	chip->options |= NAND_SKIP_BBTSCAN;
 
 	/* Scan for card properties */
-	ret = nand_scan_ident(mtd, 1, NULL);
+	ret = nand_scan_ident(mtd, 1, nand_smartmedia_flash_ids);
 
 	if (ret)
 		return ret;
