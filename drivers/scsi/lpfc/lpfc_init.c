@@ -2199,8 +2199,10 @@ lpfc_stop_vport_timers(struct lpfc_vport *vport)
 void
 __lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
 {
-	/* Clear pending FCF rediscovery wait timer */
-	phba->fcf.fcf_flag &= ~FCF_REDISC_PEND;
+	/* Clear pending FCF rediscovery wait and failover in progress flags */
+	phba->fcf.fcf_flag &= ~(FCF_REDISC_PEND |
+				FCF_DEAD_FOVER  |
+				FCF_CVL_FOVER);
 	/* Now, try to stop the timer */
 	del_timer(&phba->fcf.redisc_wait);
 }
@@ -3212,6 +3214,68 @@ out_free_pmb:
 }
 
 /**
+ * lpfc_sli4_perform_vport_cvl - Perform clear virtual link on a vport
+ * @vport: pointer to vport data structure.
+ *
+ * This routine is to perform Clear Virtual Link (CVL) on a vport in
+ * response to a CVL event.
+ *
+ * Return the pointer to the ndlp with the vport if successful, otherwise
+ * return NULL.
+ **/
+static struct lpfc_nodelist *
+lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
+{
+	struct lpfc_nodelist *ndlp;
+	struct Scsi_Host *shost;
+	struct lpfc_hba *phba;
+
+	if (!vport)
+		return NULL;
+	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	if (!ndlp)
+		return NULL;
+	phba = vport->phba;
+	if (!phba)
+		return NULL;
+	if (phba->pport->port_state <= LPFC_FLOGI)
+		return NULL;
+	/* If virtual link is not yet instantiated ignore CVL */
+	if (vport->port_state <= LPFC_FDISC)
+		return NULL;
+	shost = lpfc_shost_from_vport(vport);
+	if (!shost)
+		return NULL;
+	lpfc_linkdown_port(vport);
+	lpfc_cleanup_pending_mbox(vport);
+	spin_lock_irq(shost->host_lock);
+	vport->fc_flag |= FC_VPORT_CVL_RCVD;
+	spin_unlock_irq(shost->host_lock);
+
+	return ndlp;
+}
+
+/**
+ * lpfc_sli4_perform_all_vport_cvl - Perform clear virtual link on all vports
+ * @vport: pointer to lpfc hba data structure.
+ *
+ * This routine is to perform Clear Virtual Link (CVL) on all vports in
+ * response to a FCF dead event.
+ **/
+static void
+lpfc_sli4_perform_all_vport_cvl(struct lpfc_hba *phba)
+{
+	struct lpfc_vport **vports;
+	int i;
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports)
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++)
+			lpfc_sli4_perform_vport_cvl(vports[i]);
+	lpfc_destroy_vport_work_array(phba, vports);
+}
+
+/**
  * lpfc_sli4_async_fcoe_evt - Process the asynchronous fcoe event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async fcoe completion queue entry.
@@ -3227,7 +3291,6 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	struct lpfc_vport *vport;
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host  *shost;
-	uint32_t link_state;
 	int active_vlink_present;
 	struct lpfc_vport **vports;
 	int i;
@@ -3284,16 +3347,35 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 		/* If the event is not for currently used fcf do nothing */
 		if (phba->fcf.current_rec.fcf_indx != acqe_fcoe->index)
 			break;
-		/*
-		 * Currently, driver support only one FCF - so treat this as
-		 * a link down, but save the link state because we don't want
-		 * it to be changed to Link Down unless it is already down.
+		/* We request port to rediscover the entire FCF table for
+		 * a fast recovery from case that the current FCF record
+		 * is no longer valid if the last CVL event hasn't already
+		 * triggered process.
 		 */
-		link_state = phba->link_state;
-		lpfc_linkdown(phba);
-		phba->link_state = link_state;
-		/* Unregister FCF if no devices connected to it */
-		lpfc_unregister_unused_fcf(phba);
+		spin_lock_irq(&phba->hbalock);
+		if (phba->fcf.fcf_flag & FCF_CVL_FOVER) {
+			spin_unlock_irq(&phba->hbalock);
+			break;
+		}
+		/* Mark the fast failover process in progress */
+		phba->fcf.fcf_flag |= FCF_DEAD_FOVER;
+		spin_unlock_irq(&phba->hbalock);
+		rc = lpfc_sli4_redisc_fcf_table(phba);
+		if (rc) {
+			spin_lock_irq(&phba->hbalock);
+			phba->fcf.fcf_flag &= ~FCF_DEAD_FOVER;
+			spin_unlock_irq(&phba->hbalock);
+			/*
+			 * Last resort will fail over by treating this
+			 * as a link down to FCF registration.
+			 */
+			lpfc_sli4_fcf_dead_failthrough(phba);
+		} else
+			/* Handling fast FCF failover to a DEAD FCF event
+			 * is considered equalivant to receiving CVL to all
+			 * vports.
+			 */
+			lpfc_sli4_perform_all_vport_cvl(phba);
 		break;
 	case LPFC_FCOE_EVENT_TYPE_CVL:
 		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
@@ -3301,23 +3383,9 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			" tag 0x%x\n", acqe_fcoe->index, acqe_fcoe->event_tag);
 		vport = lpfc_find_vport_by_vpid(phba,
 				acqe_fcoe->index - phba->vpi_base);
-		if (!vport)
-			break;
-		ndlp = lpfc_findnode_did(vport, Fabric_DID);
+		ndlp = lpfc_sli4_perform_vport_cvl(vport);
 		if (!ndlp)
 			break;
-		shost = lpfc_shost_from_vport(vport);
-		if (phba->pport->port_state <= LPFC_FLOGI)
-			break;
-		/* If virtual link is not yet instantiated ignore CVL */
-		if (vport->port_state <= LPFC_FDISC)
-			break;
-
-		lpfc_linkdown_port(vport);
-		lpfc_cleanup_pending_mbox(vport);
-		spin_lock_irq(shost->host_lock);
-		vport->fc_flag |= FC_VPORT_CVL_RCVD;
-		spin_unlock_irq(shost->host_lock);
 		active_vlink_present = 0;
 
 		vports = lpfc_create_vport_work_array(phba);
@@ -3340,6 +3408,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			 * re-instantiate the Vlink using FDISC.
 			 */
 			mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
+			shost = lpfc_shost_from_vport(vport);
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag |= NLP_DELAY_TMO;
 			spin_unlock_irq(shost->host_lock);
@@ -3350,15 +3419,28 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			 * Otherwise, we request port to rediscover
 			 * the entire FCF table for a fast recovery
 			 * from possible case that the current FCF
-			 * is no longer valid.
+			 * is no longer valid if the FCF_DEAD event
+			 * hasn't already triggered process.
 			 */
+			spin_lock_irq(&phba->hbalock);
+			if (phba->fcf.fcf_flag & FCF_DEAD_FOVER) {
+				spin_unlock_irq(&phba->hbalock);
+				break;
+			}
+			/* Mark the fast failover process in progress */
+			phba->fcf.fcf_flag |= FCF_CVL_FOVER;
+			spin_unlock_irq(&phba->hbalock);
 			rc = lpfc_sli4_redisc_fcf_table(phba);
-			if (rc)
+			if (rc) {
+				spin_lock_irq(&phba->hbalock);
+				phba->fcf.fcf_flag &= ~FCF_CVL_FOVER;
+				spin_unlock_irq(&phba->hbalock);
 				/*
 				 * Last resort will be re-try on the
 				 * the current registered FCF entry.
 				 */
 				lpfc_retry_pport_discovery(phba);
+			}
 		}
 		break;
 	default:

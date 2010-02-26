@@ -1504,7 +1504,9 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
 		 */
 		spin_lock_irq(&phba->hbalock);
 		phba->hba_flag &= ~FCF_DISC_INPROGRESS;
-		phba->fcf.fcf_flag &= ~FCF_REDISC_FOV;
+		phba->fcf.fcf_flag &= ~(FCF_REDISC_FOV |
+					FCF_DEAD_FOVER |
+					FCF_CVL_FOVER);
 		spin_unlock_irq(&phba->hbalock);
 	}
 
@@ -1649,7 +1651,9 @@ lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 				__lpfc_sli4_stop_fcf_redisc_wait_timer(phba);
 			else if (phba->fcf.fcf_flag & FCF_REDISC_FOV)
 				/* If in fast failover, mark it's completed */
-				phba->fcf.fcf_flag &= ~FCF_REDISC_FOV;
+				phba->fcf.fcf_flag &= ~(FCF_REDISC_FOV |
+							FCF_DEAD_FOVER |
+							FCF_CVL_FOVER);
 			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			goto out;
 		}
@@ -1669,14 +1673,9 @@ lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	 * Update on failover FCF record only if it's in FCF fast-failover
 	 * period; otherwise, update on current FCF record.
 	 */
-	if (phba->fcf.fcf_flag & FCF_REDISC_FOV) {
-		/* Fast FCF failover only to the same fabric name */
-		if (lpfc_fab_name_match(phba->fcf.current_rec.fabric_name,
-					new_fcf_record))
-			fcf_rec = &phba->fcf.failover_rec;
-		else
-			goto read_next_fcf;
-	} else
+	if (phba->fcf.fcf_flag & FCF_REDISC_FOV)
+		fcf_rec = &phba->fcf.failover_rec;
+	else
 		fcf_rec = &phba->fcf.current_rec;
 
 	if (phba->fcf.fcf_flag & FCF_AVAILABLE) {
@@ -1705,8 +1704,7 @@ lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		 * If the new hba FCF record has lower priority value
 		 * than the driver FCF record, use the new record.
 		 */
-		if (lpfc_fab_name_match(fcf_rec->fabric_name, new_fcf_record) &&
-		    (new_fcf_record->fip_priority < fcf_rec->priority)) {
+		if (new_fcf_record->fip_priority < fcf_rec->priority) {
 			/* Choose this FCF record */
 			__lpfc_update_fcf_record(phba, fcf_rec, new_fcf_record,
 					addr_mode, vlan_id, 0);
@@ -1762,7 +1760,9 @@ read_next_fcf:
 			       sizeof(struct lpfc_fcf_rec));
 			/* mark the FCF fast failover completed */
 			spin_lock_irqsave(&phba->hbalock, iflags);
-			phba->fcf.fcf_flag &= ~FCF_REDISC_FOV;
+			phba->fcf.fcf_flag &= ~(FCF_REDISC_FOV |
+						FCF_DEAD_FOVER |
+						FCF_CVL_FOVER);
 			spin_unlock_irqrestore(&phba->hbalock, iflags);
 			/* Register to the new FCF record */
 			lpfc_register_fcf(phba);
@@ -4760,6 +4760,7 @@ lpfc_unregister_fcf_rescan(struct lpfc_hba *phba)
 		return;
 	/* Reset HBA FCF states after successful unregister FCF */
 	phba->fcf.fcf_flag = 0;
+	phba->fcf.current_rec.flag = 0;
 
 	/*
 	 * If driver is not unloading, check if there is any other

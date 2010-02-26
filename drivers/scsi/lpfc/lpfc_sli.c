@@ -4519,6 +4519,10 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	/* Post receive buffers to the device */
 	lpfc_sli4_rb_setup(phba);
 
+	/* Reset HBA FCF states after HBA reset */
+	phba->fcf.fcf_flag = 0;
+	phba->fcf.current_rec.flag = 0;
+
 	/* Start the ELS watchdog timer */
 	mod_timer(&vport->els_tmofunc,
 		  jiffies + HZ * (phba->fc_ratov * 2));
@@ -12069,11 +12073,26 @@ lpfc_mbx_cmpl_redisc_fcf_table(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
 				"2746 Requesting for FCF rediscovery failed "
 				"status x%x add_status x%x\n",
 				shdr_status, shdr_add_status);
-		/*
-		 * Request failed, last resort to re-try current
-		 * registered FCF entry
-		 */
-		lpfc_retry_pport_discovery(phba);
+		if (phba->fcf.fcf_flag & FCF_CVL_FOVER) {
+			spin_lock_irq(&phba->hbalock);
+			phba->fcf.fcf_flag &= ~FCF_CVL_FOVER;
+			spin_unlock_irq(&phba->hbalock);
+			/*
+			 * CVL event triggered FCF rediscover request failed,
+			 * last resort to re-try current registered FCF entry.
+			 */
+			lpfc_retry_pport_discovery(phba);
+		} else {
+			spin_lock_irq(&phba->hbalock);
+			phba->fcf.fcf_flag &= ~FCF_DEAD_FOVER;
+			spin_unlock_irq(&phba->hbalock);
+			/*
+			 * DEAD FCF event triggered FCF rediscover request
+			 * failed, last resort to fail over as a link down
+			 * to FCF registration.
+			 */
+			lpfc_sli4_fcf_dead_failthrough(phba);
+		}
 	} else
 		/*
 		 * Start FCF rediscovery wait timer for pending FCF
@@ -12126,6 +12145,31 @@ lpfc_sli4_redisc_fcf_table(struct lpfc_hba *phba)
 		return -EIO;
 	}
 	return 0;
+}
+
+/**
+ * lpfc_sli4_fcf_dead_failthrough - Failthrough routine to fcf dead event
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This function is the failover routine as a last resort to the FCF DEAD
+ * event when driver failed to perform fast FCF failover.
+ **/
+void
+lpfc_sli4_fcf_dead_failthrough(struct lpfc_hba *phba)
+{
+	uint32_t link_state;
+
+	/*
+	 * Last resort as FCF DEAD event failover will treat this as
+	 * a link down, but save the link state because we don't want
+	 * it to be changed to Link Down unless it is already down.
+	 */
+	link_state = phba->link_state;
+	lpfc_linkdown(phba);
+	phba->link_state = link_state;
+
+	/* Unregister FCF if no devices connected to it */
+	lpfc_unregister_unused_fcf(phba);
 }
 
 /**

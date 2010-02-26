@@ -6004,7 +6004,12 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			if (phba->sli_rev < LPFC_SLI_REV4)
 				lpfc_issue_fabric_reglogin(vport);
 			else {
-				lpfc_start_fdiscs(phba);
+				/*
+				 * If the physical port is instantiated using
+				 * FDISC, do not start vport discovery.
+				 */
+				if (vport->port_state != LPFC_FDISC)
+					lpfc_start_fdiscs(phba);
 				lpfc_do_scr_ns_plogi(phba, vport);
 			}
 		} else

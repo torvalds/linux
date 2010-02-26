@@ -153,9 +153,11 @@ struct lpfc_fcf {
 #define FCF_REGISTERED	0x02 /* FCF registered with FW */
 #define FCF_SCAN_DONE	0x04 /* FCF table scan done */
 #define FCF_IN_USE	0x08 /* Atleast one discovery completed */
-#define FCF_REDISC_PEND	0x10 /* FCF rediscovery pending */
-#define FCF_REDISC_EVT	0x20 /* FCF rediscovery event to worker thread */
-#define FCF_REDISC_FOV	0x40 /* Post FCF rediscovery fast failover */
+#define FCF_DEAD_FOVER  0x10 /* FCF DEAD triggered fast FCF failover */
+#define FCF_CVL_FOVER	0x20 /* CVL triggered fast FCF failover */
+#define FCF_REDISC_PEND	0x40 /* FCF rediscovery pending */
+#define FCF_REDISC_EVT	0x80 /* FCF rediscovery event to worker thread */
+#define FCF_REDISC_FOV	0x100 /* Post FCF rediscovery fast failover */
 	uint32_t addr_mode;
 	struct lpfc_fcf_rec current_rec;
 	struct lpfc_fcf_rec failover_rec;
