@@ -37,6 +37,9 @@ struct lpfc_sli2_slim;
 					   the NameServer  before giving up. */
 #define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
 #define LPFC_DEFAULT_SG_SEG_CNT 64	/* sg element count per scsi cmnd */
+#define LPFC_DEFAULT_MENLO_SG_SEG_CNT 128	/* sg element count per scsi
+		cmnd for menlo needs nearly twice as for firmware
+		downloads using bsg */
 #define LPFC_DEFAULT_PROT_SG_SEG_CNT 4096 /* sg protection elements count */
 #define LPFC_MAX_SG_SEG_CNT	4096	/* sg element count per scsi cmnd */
 #define LPFC_MAX_PROT_SG_SEG_CNT 4096	/* prot sg element count per scsi cmd*/
@@ -806,6 +809,9 @@ struct lpfc_hba {
 	struct list_head ct_ev_waiters;
 	struct unsol_rcv_ct_ctx ct_ctx[64];
 	uint32_t ctx_idx;
+
+	uint8_t menlo_flag;	/* menlo generic flags */
+#define HBA_MENLO_SUPPORT	0x1 /* HBA supports menlo commands */
 };
 
 static inline struct Scsi_Host *

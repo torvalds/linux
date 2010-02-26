@@ -31,6 +31,8 @@
 #define LPFC_BSG_VENDOR_DIAG_TEST	5
 #define LPFC_BSG_VENDOR_GET_MGMT_REV	6
 #define LPFC_BSG_VENDOR_MBOX		7
+#define LPFC_BSG_VENDOR_MENLO_CMD	8
+#define LPFC_BSG_VENDOR_MENLO_DATA	9
 
 struct set_ct_event {
 	uint32_t command;
@@ -94,5 +96,15 @@ struct dfc_mbox_req {
 	uint32_t inExtWLen;
 	uint32_t outExtWLen;
 	uint8_t mbOffset;
+};
+
+/* Used for menlo command or menlo data. The xri is only used for menlo data */
+struct menlo_command {
+	uint32_t cmd;
+	uint32_t xri;
+};
+
+struct menlo_response {
+	uint32_t xri; /* return the xri of the iocb exchange */
 };
 
