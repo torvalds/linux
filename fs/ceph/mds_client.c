@@ -1899,7 +1899,6 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 	u64 tid = le64_to_cpu(msg->hdr.tid);
 	u32 next_mds;
 	u32 fwd_seq;
-	u8 must_resend;
 	int err = -EINVAL;
 	void *p = msg->front.iov_base;
 	void *end = p + msg->front.iov_len;
@@ -1907,14 +1906,11 @@ static void handle_forward(struct ceph_mds_client *mdsc,
 	ceph_decode_need(&p, end, 2*sizeof(u32), bad);
 	next_mds = ceph_decode_32(&p);
 	fwd_seq = ceph_decode_32(&p);
-	must_resend = ceph_decode_8(&p);
-
-	WARN_ON(must_resend);  /* shouldn't happen. */
 
 	mutex_lock(&mdsc->mutex);
 	req = __lookup_request(mdsc, tid);
 	if (!req) {
-		dout("forward %llu dne\n", tid);
+		dout("forward %llu to mds%d - req dne\n", tid, next_mds);
 		goto out;  /* dup reply? */
 	}
 
