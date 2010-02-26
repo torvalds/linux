@@ -65,6 +65,7 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	/* Sitecom */
 	{USB_DEVICE(0x0df6, 0x000d), .driver_info = DEVICE_RTL8187},
 	{USB_DEVICE(0x0df6, 0x0028), .driver_info = DEVICE_RTL8187B},
+	{USB_DEVICE(0x0df6, 0x0029), .driver_info = DEVICE_RTL8187B},
 	/* Sphairon Access Systems GmbH */
 	{USB_DEVICE(0x114B, 0x0150), .driver_info = DEVICE_RTL8187},
 	/* Dick Smith Electronics */
