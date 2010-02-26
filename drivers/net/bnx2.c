@@ -7772,14 +7772,25 @@ bnx2_read_vpd_fw_ver(struct bnx2 *bp)
 		unsigned char val = data[i];
 		unsigned int block_end;
 
-		if (val == 0x82 || val == 0x91) {
-			i += PCI_VPD_LRDT_TAG_SIZE +
-			     pci_vpd_lrdt_size(&data[i]);
+		if (val & PCI_VPD_LRDT) {
+			if (i + PCI_VPD_LRDT_TAG_SIZE > BNX2_VPD_LEN)
+				break;
+
+			if (val != PCI_VPD_LRDT_RO_DATA) {
+				i += PCI_VPD_LRDT_TAG_SIZE +
+				     pci_vpd_lrdt_size(&data[i]);
+
+				continue;
+			}
+		} else {
+			if ((val & PCI_VPD_SRDT_TIN_MASK) == PCI_VPD_STIN_END)
+				break;
+
+			i += PCI_VPD_SRDT_TAG_SIZE +
+			     pci_vpd_srdt_size(&data[i]);
+
 			continue;
 		}
-
-		if (val != 0x90)
-			goto vpd_done;
 
 		block_end = (i + PCI_VPD_LRDT_TAG_SIZE +
 			    pci_vpd_lrdt_size(&data[i]));

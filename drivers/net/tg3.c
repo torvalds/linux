@@ -12589,14 +12589,25 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 		unsigned char val = vpd_data[i];
 		unsigned int block_end;
 
-		if (val == 0x82 || val == 0x91) {
-			i += PCI_VPD_LRDT_TAG_SIZE +
-			     pci_vpd_lrdt_size(&vpd_data[i]);
+		if (val & PCI_VPD_LRDT) {
+			if (i + PCI_VPD_LRDT_TAG_SIZE > TG3_NVM_VPD_LEN)
+				break;
+
+			if (val != PCI_VPD_LRDT_RO_DATA) {
+				i += PCI_VPD_LRDT_TAG_SIZE +
+				     pci_vpd_lrdt_size(&vpd_data[i]);
+
+				continue;
+			}
+		} else {
+			if ((val & PCI_VPD_SRDT_TIN_MASK) == PCI_VPD_STIN_END)
+				break;
+
+			i += PCI_VPD_SRDT_TAG_SIZE +
+			     pci_vpd_srdt_size(&vpd_data[i]);
+
 			continue;
 		}
-
-		if (val != 0x90)
-			goto out_not_found;
 
 		block_end = i + PCI_VPD_LRDT_TAG_SIZE +
 			    pci_vpd_lrdt_size(&vpd_data[i]);
