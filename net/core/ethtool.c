@@ -224,9 +224,6 @@ static noinline int ethtool_get_drvinfo(struct net_device *dev, void __user *use
 		rc = ops->get_sset_count(dev, ETH_SS_PRIV_FLAGS);
 		if (rc >= 0)
 			info.n_priv_flags = rc;
-		rc = ops->get_sset_count(dev, ETH_SS_NTUPLE_FILTERS);
-		if (rc >= 0)
-			info.n_ntuples = rc;
 	}
 	if (ops->get_regs_len)
 		info.regdump_len = ops->get_regs_len(dev);
