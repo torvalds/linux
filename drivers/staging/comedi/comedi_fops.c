@@ -63,7 +63,7 @@ module_param(comedi_debug, int, 0644);
 int comedi_autoconfig = 1;
 module_param(comedi_autoconfig, bool, 0444);
 
-int comedi_num_legacy_minors = 0;
+int comedi_num_legacy_minors;
 module_param(comedi_num_legacy_minors, int, 0444);
 
 static DEFINE_SPINLOCK(comedi_file_info_table_lock);
@@ -1510,7 +1510,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 }
 
 static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
-			    loff_t * offset)
+				loff_t *offset)
 {
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
@@ -1612,7 +1612,7 @@ done:
 }
 
 static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
-			   loff_t * offset)
+				loff_t *offset)
 {
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
@@ -2004,12 +2004,10 @@ void comedi_event(struct comedi_device *dev, struct comedi_subdevice *s)
 	if (async->cb_mask & s->async->events) {
 		if (comedi_get_subdevice_runflags(s) & SRF_USER) {
 			wake_up_interruptible(&async->wait_head);
-			if (s->subdev_flags & SDF_CMD_READ) {
+			if (s->subdev_flags & SDF_CMD_READ)
 				kill_fasync(&dev->async_queue, SIGIO, POLL_IN);
-			}
-			if (s->subdev_flags & SDF_CMD_WRITE) {
+			if (s->subdev_flags & SDF_CMD_WRITE)
 				kill_fasync(&dev->async_queue, SIGIO, POLL_OUT);
-			}
 		} else {
 			if (async->cb_func)
 				async->cb_func(s->async->events, async->cb_arg);
