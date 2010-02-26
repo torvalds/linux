@@ -13,8 +13,6 @@ use strict;
 ## This software falls under the GNU General Public License.     ##
 ## Please read the COPYING file for more information             ##
 
-# w.o. 03-11-2000: added the '-filelist' option.
-
 # 18/01/2001 - 	Cleanups
 # 		Functions prototyped as foo(void) same as foo()
 # 		Stop eval'ing where we don't need to.
@@ -245,7 +243,7 @@ my $man_date = ('January', 'February', 'March', 'April', 'May', 'June',
 # could cause "use of undefined value" or other bugs.
 my ($function, %function_table, %parametertypes, $declaration_purpose);
 my ($type, $declaration_name, $return_type);
-my ($newsection, $newcontents, $prototype, $filelist, $brcount, %source_map);
+my ($newsection, $newcontents, $prototype, $brcount, %source_map);
 
 if (defined($ENV{'KBUILD_VERBOSE'})) {
 	$verbose = "$ENV{'KBUILD_VERBOSE'}";
@@ -338,8 +336,6 @@ while ($ARGV[0] =~ m/^-(.*)/) {
 	$verbose = 1;
     } elsif (($cmd eq "-h") || ($cmd eq "--help")) {
 	usage();
-    } elsif ($cmd eq '-filelist') {
-	    $filelist = shift @ARGV;
     } elsif ($cmd eq '-no-doc-sections') {
 	    $no_doc_sections = 1;
     }
@@ -1809,14 +1805,6 @@ if (open(SOURCE_MAP, "<.tmp_filelist.txt")) {
 		$source_map{$relname} = $absname;
 	}
 	close(SOURCE_MAP);
-}
-
-if ($filelist) {
-	open(FLIST,"<$filelist") or die "Can't open file list $filelist";
-	while(<FLIST>) {
-		chop;
-		process_file($_);
-	}
 }
 
 foreach (@ARGV) {
