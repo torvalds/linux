@@ -316,6 +316,8 @@ if NETFILTER_XTABLES
 
 # alphabetically ordered list of targets
 
+comment "Xtables targets"
+
 config NETFILTER_XT_TARGET_CLASSIFY
 	tristate '"CLASSIFY" target support'
 	depends on NETFILTER_ADVANCED
@@ -551,6 +553,10 @@ config NETFILTER_XT_TARGET_TCPOPTSTRIP
 	help
 	  This option adds a "TCPOPTSTRIP" target, which allows you to strip
 	  TCP options from TCP packets.
+
+# alphabetically ordered list of matches
+
+comment "Xtables matches"
 
 config NETFILTER_XT_MATCH_CLUSTER
 	tristate '"cluster" match support'
