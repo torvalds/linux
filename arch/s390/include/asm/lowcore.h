@@ -36,6 +36,8 @@
 #define __LC_DUMP_REIPL			0x0e00
 
 #ifndef __s390x__
+#define __LC_RST_NEW_PSW		0x0000
+#define __LC_RST_OLD_PSW		0x0008
 #define __LC_EXT_OLD_PSW		0x0018
 #define __LC_SVC_OLD_PSW		0x0020
 #define __LC_PGM_OLD_PSW		0x0028
@@ -81,12 +83,13 @@
 #define __LC_CREGS_SAVE_AREA		0x01c0
 #else /* __s390x__ */
 #define __LC_LAST_BREAK			0x0110
+#define __LC_RST_OLD_PSW		0x0120
 #define __LC_EXT_OLD_PSW		0x0130
 #define __LC_SVC_OLD_PSW		0x0140
 #define __LC_PGM_OLD_PSW		0x0150
 #define __LC_MCK_OLD_PSW		0x0160
 #define __LC_IO_OLD_PSW			0x0170
-#define __LC_RESTART_PSW		0x01a0
+#define __LC_RST_NEW_PSW		0x01a0
 #define __LC_EXT_NEW_PSW		0x01b0
 #define __LC_SVC_NEW_PSW		0x01c0
 #define __LC_PGM_NEW_PSW		0x01d0
