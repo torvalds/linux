@@ -380,9 +380,11 @@ int add_mtd_blktrans_dev(struct mtd_blktrans_dev *new)
 
 	add_disk(gd);
 
-	if (new->disk_attributes)
-		sysfs_create_group(&disk_to_dev(gd)->kobj,
+	if (new->disk_attributes) {
+		ret = sysfs_create_group(&disk_to_dev(gd)->kobj,
 					new->disk_attributes);
+		WARN_ON(ret);
+	}
 	return 0;
 error4:
 	module_put(tr->owner);

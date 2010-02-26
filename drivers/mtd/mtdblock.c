@@ -354,7 +354,6 @@ static void mtdblock_add_mtd(struct mtd_blktrans_ops *tr, struct mtd_info *mtd)
 
 static void mtdblock_remove_dev(struct mtd_blktrans_dev *dev)
 {
-	struct mtdblk_dev *mtdblk = container_of(dev, struct mtdblk_dev, mbd);
 	del_mtd_blktrans_dev(dev);
 }
 

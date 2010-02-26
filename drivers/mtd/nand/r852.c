@@ -654,7 +654,9 @@ int r852_register_nand_device(struct r852_device *dev)
 	if (sm_register_device(dev->mtd))
 		goto error2;
 
-	device_create_file(&dev->mtd->dev, &dev_attr_media_type);
+	if (device_create_file(&dev->mtd->dev, &dev_attr_media_type))
+		message("can't create media type sysfs attribute");
+
 	dev->card_registred = 1;
 	return 0;
 error2:
@@ -838,7 +840,7 @@ int  r852_probe(struct pci_dev *pci_dev, const struct pci_device_id *id)
 
 	pci_set_master(pci_dev);
 
-	error = pci_set_dma_mask(pci_dev, DMA_32BIT_MASK);
+	error = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
 	if (error)
 		goto error2;
 

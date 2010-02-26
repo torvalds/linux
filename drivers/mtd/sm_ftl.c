@@ -228,7 +228,7 @@ static int sm_read_sector(struct sm_ftl *ftl,
 	struct mtd_info *mtd = ftl->trans->mtd;
 	struct mtd_oob_ops ops;
 	struct sm_oob tmp_oob;
-	int ret;
+	int ret = -EIO;
 	int try = 0;
 
 	/* FTL can contain -1 entries that are by default filled with bits */
@@ -753,6 +753,7 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 	uint16_t block;
 	int lba;
 	int i = 0;
+	int len;
 
 	dbg("initializing zone %d", zone_num);
 
@@ -856,7 +857,9 @@ static int sm_init_zone(struct sm_ftl *ftl, int zone_num)
 	i %= (kfifo_len(&zone->free_sectors) / 2);
 
 	while (i--) {
-		kfifo_out(&zone->free_sectors, (unsigned char *)&block, 2);
+		len = kfifo_out(&zone->free_sectors,
+					(unsigned char *)&block, 2);
+		WARN_ON(len != 2);
 		kfifo_in(&zone->free_sectors, (const unsigned char *)&block, 2);
 	}
 	return 0;
@@ -947,17 +950,17 @@ restart:
 
 	if (ftl->unstable)
 		return -EIO;
-	/* No spare blocks */
-	/* We could still continue by erasing the current block,
+
+	/* If there are no spare blocks, */
+	/* we could still continue by erasing/writing the current block,
 		but for such worn out media it doesn't worth the trouble,
 			and the dangers */
-
-	if (!kfifo_len(&zone->free_sectors)) {
+	if (kfifo_out(&zone->free_sectors,
+				(unsigned char *)&write_sector, 2) != 2) {
 		dbg("no free sectors for write!");
 		return -EIO;
 	}
 
-	kfifo_out(&zone->free_sectors, (unsigned char *)&write_sector, 2);
 
 	if (sm_write_block(ftl, ftl->cache_data, zone_num, write_sector,
 		ftl->cache_block, ftl->cache_data_invalid_bitmap))
