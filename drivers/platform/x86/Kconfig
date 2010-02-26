@@ -291,9 +291,15 @@ config THINKPAD_ACPI_VIDEO
 	  server running, phase of the moon, and the current mood of
 	  Schroedinger's cat.  If you can use X.org's RandR to control
 	  your ThinkPad's video output ports instead of this feature,
-	  don't think twice: do it and say N here to save some memory.
+	  don't think twice: do it and say N here to save memory and avoid
+	  bad interactions with X.org.
 
-	  If you are not sure, say Y here.
+	  NOTE: access to this feature is limited to processes with the
+	  CAP_SYS_ADMIN capability, to avoid local DoS issues in platforms
+	  where it interacts badly with X.org.
+
+	  If you are not sure, say Y here but do try to check if you could
+	  be using X.org RandR instead.
 
 config THINKPAD_ACPI_HOTKEY_POLL
 	bool "Support NVRAM polling for hot keys"
