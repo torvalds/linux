@@ -993,10 +993,9 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	if (size_change && attr->ia_size != i_size_read(inode)) {
-		if (attr->ia_size > sb->s_maxbytes) {
-			status = -EFBIG;
+		status = inode_newsize_ok(inode, attr->ia_size);
+		if (status)
 			goto bail_unlock;
-		}
 
 		if (i_size_read(inode) > attr->ia_size) {
 			if (ocfs2_should_order_data(inode)) {
