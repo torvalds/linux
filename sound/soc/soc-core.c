@@ -454,11 +454,15 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 	pr_debug("asoc: min rate %d max rate %d\n", runtime->hw.rate_min,
 		 runtime->hw.rate_max);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		cpu_dai->playback.active = codec_dai->playback.active = 1;
-	else
-		cpu_dai->capture.active = codec_dai->capture.active = 1;
-	cpu_dai->active = codec_dai->active = 1;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		cpu_dai->playback.active++;
+		codec_dai->playback.active++;
+	} else {
+		cpu_dai->capture.active++;
+		codec_dai->capture.active++;
+	}
+	cpu_dai->active++;
+	codec_dai->active++;
 	card->codec->active++;
 	mutex_unlock(&pcm_mutex);
 	return 0;
@@ -530,15 +534,16 @@ static int soc_codec_close(struct snd_pcm_substream *substream)
 
 	mutex_lock(&pcm_mutex);
 
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		cpu_dai->playback.active = codec_dai->playback.active = 0;
-	else
-		cpu_dai->capture.active = codec_dai->capture.active = 0;
-
-	if (codec_dai->playback.active == 0 &&
-		codec_dai->capture.active == 0) {
-		cpu_dai->active = codec_dai->active = 0;
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+		cpu_dai->playback.active--;
+		codec_dai->playback.active--;
+	} else {
+		cpu_dai->capture.active--;
+		codec_dai->capture.active--;
 	}
+
+	cpu_dai->active--;
+	codec_dai->active--;
 	codec->active--;
 
 	/* Muting the DAC suppresses artifacts caused during digital
