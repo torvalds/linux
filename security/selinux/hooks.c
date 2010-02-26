@@ -3329,7 +3329,7 @@ static int selinux_kernel_create_files_as(struct cred *new, struct inode *inode)
 
 	if (ret == 0)
 		tsec->create_sid = isec->sid;
-	return 0;
+	return ret;
 }
 
 static int selinux_kernel_module_request(char *kmod_name)
