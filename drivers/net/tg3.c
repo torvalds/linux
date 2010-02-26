@@ -12547,7 +12547,7 @@ skip_phy_reset:
 static void __devinit tg3_read_partno(struct tg3 *tp)
 {
 	unsigned char vpd_data[TG3_NVM_VPD_LEN];   /* in little-endian format */
-	unsigned int i;
+	int i;
 	u32 magic;
 
 	if ((tp->tg3_flags3 & TG3_FLG3_NO_NVRAM) ||
@@ -12586,28 +12586,12 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 
 	/* Now parse and find the part number. */
 	for (i = 0; i < TG3_NVM_VPD_LEN - 2; ) {
-		unsigned char val = vpd_data[i];
 		unsigned int block_end;
 
-		if (val & PCI_VPD_LRDT) {
-			if (i + PCI_VPD_LRDT_TAG_SIZE > TG3_NVM_VPD_LEN)
-				break;
-
-			if (val != PCI_VPD_LRDT_RO_DATA) {
-				i += PCI_VPD_LRDT_TAG_SIZE +
-				     pci_vpd_lrdt_size(&vpd_data[i]);
-
-				continue;
-			}
-		} else {
-			if ((val & PCI_VPD_SRDT_TIN_MASK) == PCI_VPD_STIN_END)
-				break;
-
-			i += PCI_VPD_SRDT_TAG_SIZE +
-			     pci_vpd_srdt_size(&vpd_data[i]);
-
-			continue;
-		}
+		i = pci_vpd_find_tag(vpd_data, i, TG3_NVM_VPD_LEN,
+				     PCI_VPD_LRDT_RO_DATA);
+		if (i < 0)
+			break;
 
 		block_end = i + PCI_VPD_LRDT_TAG_SIZE +
 			    pci_vpd_lrdt_size(&vpd_data[i]);
