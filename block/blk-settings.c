@@ -212,26 +212,30 @@ EXPORT_SYMBOL(blk_queue_bounce_limit);
 /**
  * blk_queue_max_sectors - set max sectors for a request for this queue
  * @q:  the request queue for the device
- * @max_sectors:  max sectors in the usual 512b unit
+ * @max_hw_sectors:  max hardware sectors in the usual 512b unit
  *
  * Description:
- *    Enables a low level driver to set an upper limit on the size of
- *    received requests.
+ *    Enables a low level driver to set a hard upper limit,
+ *    max_hw_sectors, on the size of requests.  max_hw_sectors is set by
+ *    the device driver based upon the combined capabilities of I/O
+ *    controller and storage device.
+ *
+ *    max_sectors is a soft limit imposed by the block layer for
+ *    filesystem type requests.  This value can be overridden on a
+ *    per-device basis in /sys/block/<device>/queue/max_sectors_kb.
+ *    The soft limit can not exceed max_hw_sectors.
  **/
-void blk_queue_max_sectors(struct request_queue *q, unsigned int max_sectors)
+void blk_queue_max_sectors(struct request_queue *q, unsigned int max_hw_sectors)
 {
-	if ((max_sectors << 9) < PAGE_CACHE_SIZE) {
-		max_sectors = 1 << (PAGE_CACHE_SHIFT - 9);
+	if ((max_hw_sectors << 9) < PAGE_CACHE_SIZE) {
+		max_hw_sectors = 1 << (PAGE_CACHE_SHIFT - 9);
 		printk(KERN_INFO "%s: set to minimum %d\n",
-		       __func__, max_sectors);
+		       __func__, max_hw_sectors);
 	}
 
-	if (BLK_DEF_MAX_SECTORS > max_sectors)
-		q->limits.max_hw_sectors = q->limits.max_sectors = max_sectors;
-	else {
-		q->limits.max_sectors = BLK_DEF_MAX_SECTORS;
-		q->limits.max_hw_sectors = max_sectors;
-	}
+	q->limits.max_hw_sectors = max_hw_sectors;
+	q->limits.max_sectors = min_t(unsigned int, max_hw_sectors,
+				      BLK_DEF_MAX_SECTORS);
 }
 EXPORT_SYMBOL(blk_queue_max_sectors);
 
