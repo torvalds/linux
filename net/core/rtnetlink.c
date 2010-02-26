@@ -1427,8 +1427,6 @@ static int rtnetlink_event(struct notifier_block *this, unsigned long event, voi
 	switch (event) {
 	case NETDEV_UP:
 	case NETDEV_DOWN:
-		rtmsg_ifinfo(RTM_NEWLINK, dev, IFF_UP|IFF_RUNNING);
-		break;
 	case NETDEV_PRE_UP:
 	case NETDEV_POST_INIT:
 	case NETDEV_REGISTER:

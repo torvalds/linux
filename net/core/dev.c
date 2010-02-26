@@ -1113,31 +1113,12 @@ void dev_load(struct net *net, const char *name)
 }
 EXPORT_SYMBOL(dev_load);
 
-/**
- *	dev_open	- prepare an interface for use.
- *	@dev:	device to open
- *
- *	Takes a device from down to up state. The device's private open
- *	function is invoked and then the multicast lists are loaded. Finally
- *	the device is moved into the up state and a %NETDEV_UP message is
- *	sent to the netdev notifier chain.
- *
- *	Calling this function on an active interface is a nop. On a failure
- *	a negative errno code is returned.
- */
-int dev_open(struct net_device *dev)
+static int __dev_open(struct net_device *dev)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
 	int ret;
 
 	ASSERT_RTNL();
-
-	/*
-	 *	Is it already up?
-	 */
-
-	if (dev->flags & IFF_UP)
-		return 0;
 
 	/*
 	 *	Is it even present?
@@ -1187,35 +1168,56 @@ int dev_open(struct net_device *dev)
 		 *	Wakeup transmit queue engine
 		 */
 		dev_activate(dev);
-
-		/*
-		 *	... and announce new interface.
-		 */
-		call_netdevice_notifiers(NETDEV_UP, dev);
 	}
+
+	return ret;
+}
+
+/**
+ *	dev_open	- prepare an interface for use.
+ *	@dev:	device to open
+ *
+ *	Takes a device from down to up state. The device's private open
+ *	function is invoked and then the multicast lists are loaded. Finally
+ *	the device is moved into the up state and a %NETDEV_UP message is
+ *	sent to the netdev notifier chain.
+ *
+ *	Calling this function on an active interface is a nop. On a failure
+ *	a negative errno code is returned.
+ */
+int dev_open(struct net_device *dev)
+{
+	int ret;
+
+	/*
+	 *	Is it already up?
+	 */
+	if (dev->flags & IFF_UP)
+		return 0;
+
+	/*
+	 *	Open device
+	 */
+	ret = __dev_open(dev);
+	if (ret < 0)
+		return ret;
+
+	/*
+	 *	... and announce new interface.
+	 */
+	rtmsg_ifinfo(RTM_NEWLINK, dev, IFF_UP|IFF_RUNNING);
+	call_netdevice_notifiers(NETDEV_UP, dev);
 
 	return ret;
 }
 EXPORT_SYMBOL(dev_open);
 
-/**
- *	dev_close - shutdown an interface.
- *	@dev: device to shutdown
- *
- *	This function moves an active device into down state. A
- *	%NETDEV_GOING_DOWN is sent to the netdev notifier chain. The device
- *	is then deactivated and finally a %NETDEV_DOWN is sent to the notifier
- *	chain.
- */
-int dev_close(struct net_device *dev)
+static int __dev_close(struct net_device *dev)
 {
 	const struct net_device_ops *ops = dev->netdev_ops;
+
 	ASSERT_RTNL();
-
 	might_sleep();
-
-	if (!(dev->flags & IFF_UP))
-		return 0;
 
 	/*
 	 *	Tell people we are going down, so that they can
@@ -1252,14 +1254,34 @@ int dev_close(struct net_device *dev)
 	dev->flags &= ~IFF_UP;
 
 	/*
-	 * Tell people we are down
-	 */
-	call_netdevice_notifiers(NETDEV_DOWN, dev);
-
-	/*
 	 *	Shutdown NET_DMA
 	 */
 	net_dmaengine_put();
+
+	return 0;
+}
+
+/**
+ *	dev_close - shutdown an interface.
+ *	@dev: device to shutdown
+ *
+ *	This function moves an active device into down state. A
+ *	%NETDEV_GOING_DOWN is sent to the netdev notifier chain. The device
+ *	is then deactivated and finally a %NETDEV_DOWN is sent to the notifier
+ *	chain.
+ */
+int dev_close(struct net_device *dev)
+{
+	if (!(dev->flags & IFF_UP))
+		return 0;
+
+	__dev_close(dev);
+
+	/*
+	 * Tell people we are down
+	 */
+	rtmsg_ifinfo(RTM_NEWLINK, dev, IFF_UP|IFF_RUNNING);
+	call_netdevice_notifiers(NETDEV_DOWN, dev);
 
 	return 0;
 }
@@ -4299,18 +4321,10 @@ unsigned dev_get_flags(const struct net_device *dev)
 }
 EXPORT_SYMBOL(dev_get_flags);
 
-/**
- *	dev_change_flags - change device settings
- *	@dev: device
- *	@flags: device state flags
- *
- *	Change settings on device based state flags. The flags are
- *	in the userspace exported format.
- */
-int dev_change_flags(struct net_device *dev, unsigned flags)
+int __dev_change_flags(struct net_device *dev, unsigned int flags)
 {
-	int ret, changes;
 	int old_flags = dev->flags;
+	int ret;
 
 	ASSERT_RTNL();
 
@@ -4341,16 +4355,11 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 
 	ret = 0;
 	if ((old_flags ^ flags) & IFF_UP) {	/* Bit is different  ? */
-		ret = ((old_flags & IFF_UP) ? dev_close : dev_open)(dev);
+		ret = ((old_flags & IFF_UP) ? __dev_close : __dev_open)(dev);
 
 		if (!ret)
 			dev_set_rx_mode(dev);
 	}
-
-	if (dev->flags & IFF_UP &&
-	    ((old_flags ^ dev->flags) & ~(IFF_UP | IFF_PROMISC | IFF_ALLMULTI |
-					  IFF_VOLATILE)))
-		call_netdevice_notifiers(NETDEV_CHANGE, dev);
 
 	if ((flags ^ dev->gflags) & IFF_PROMISC) {
 		int inc = (flags & IFF_PROMISC) ? 1 : -1;
@@ -4370,11 +4379,47 @@ int dev_change_flags(struct net_device *dev, unsigned flags)
 		dev_set_allmulti(dev, inc);
 	}
 
-	/* Exclude state transition flags, already notified */
-	changes = (old_flags ^ dev->flags) & ~(IFF_UP | IFF_RUNNING);
+	return ret;
+}
+
+void __dev_notify_flags(struct net_device *dev, unsigned int old_flags)
+{
+	unsigned int changes = dev->flags ^ old_flags;
+
+	if (changes & IFF_UP) {
+		if (dev->flags & IFF_UP)
+			call_netdevice_notifiers(NETDEV_UP, dev);
+		else
+			call_netdevice_notifiers(NETDEV_DOWN, dev);
+	}
+
+	if (dev->flags & IFF_UP &&
+	    (changes & ~(IFF_UP | IFF_PROMISC | IFF_ALLMULTI | IFF_VOLATILE)))
+		call_netdevice_notifiers(NETDEV_CHANGE, dev);
+}
+
+/**
+ *	dev_change_flags - change device settings
+ *	@dev: device
+ *	@flags: device state flags
+ *
+ *	Change settings on device based state flags. The flags are
+ *	in the userspace exported format.
+ */
+int dev_change_flags(struct net_device *dev, unsigned flags)
+{
+	int ret, changes;
+	int old_flags = dev->flags;
+
+	ret = __dev_change_flags(dev, flags);
+	if (ret < 0)
+		return ret;
+
+	changes = old_flags ^ dev->flags;
 	if (changes)
 		rtmsg_ifinfo(RTM_NEWLINK, dev, changes);
 
+	__dev_notify_flags(dev, old_flags);
 	return ret;
 }
 EXPORT_SYMBOL(dev_change_flags);
