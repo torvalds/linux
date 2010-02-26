@@ -112,6 +112,7 @@ static __init int test_atomic64(void)
 	r += one;
 	BUG_ON(v.counter != r);
 
+#if defined(CONFIG_X86_32) || defined(CONFIG_MIPS) || defined(CONFIG_PPC) || defined(_ASM_GENERIC_ATOMIC64_H)
 	INIT(onestwos);
 	BUG_ON(atomic64_dec_if_positive(&v) != (onestwos - 1));
 	r -= one;
@@ -124,6 +125,9 @@ static __init int test_atomic64(void)
 	INIT(-one);
 	BUG_ON(atomic64_dec_if_positive(&v) != (-one - one));
 	BUG_ON(v.counter != r);
+#else
+#warning Please implement atomic64_dec_if_positive for your architecture, and add it to the IF above
+#endif
 
 	INIT(onestwos);
 	BUG_ON(atomic64_inc_not_zero(&v));
