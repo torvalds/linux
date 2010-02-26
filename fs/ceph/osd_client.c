@@ -615,7 +615,6 @@ static int __map_osds(struct ceph_osd_client *osdc,
 	struct ceph_pg pgid;
 	int o = -1;
 	int err;
-	struct ceph_osd *newosd = NULL;
 
 	dout("map_osds %p tid %lld\n", req, req->r_tid);
 	err = ceph_calc_object_layout(&reqhead->layout, req->r_oid,
@@ -639,25 +638,15 @@ static int __map_osds(struct ceph_osd_client *osdc,
 	if (req->r_osd) {
 		__cancel_request(req);
 		list_del_init(&req->r_osd_item);
-		if (list_empty(&req->r_osd->o_requests)) {
-			/* try to re-use r_osd if possible */
-			newosd = get_osd(req->r_osd);
-			__remove_osd(osdc, newosd);
-		}
 		req->r_osd = NULL;
 	}
 
 	req->r_osd = __lookup_osd(osdc, o);
 	if (!req->r_osd && o >= 0) {
-		if (newosd) {
-			req->r_osd = newosd;
-			newosd = NULL;
-		} else {
-			err = -ENOMEM;
-			req->r_osd = create_osd(osdc);
-			if (!req->r_osd)
-				goto out;
-		}
+		err = -ENOMEM;
+		req->r_osd = create_osd(osdc);
+		if (!req->r_osd)
+			goto out;
 
 		dout("map_osds osd %p is osd%d\n", req->r_osd, o);
 		req->r_osd->o_osd = o;
@@ -674,8 +663,6 @@ static int __map_osds(struct ceph_osd_client *osdc,
 	err = 1;   /* osd changed */
 
 out:
-	if (newosd)
-		put_osd(newosd);
 	return err;
 }
 
