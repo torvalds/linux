@@ -1,6 +1,6 @@
 /*
  *  Copyright (C) 1997 Cullen Jennings
- *  Copyright (C) 1998 Elmer.Joandi@ut.ee, +37-255-13500	
+ *  Copyright (C) 1998 Elmer.Joandi@ut.ee, +37-255-13500
  *  GNU General Public License applies
  */
 
@@ -20,14 +20,14 @@
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <asm/system.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/errno.h>
 #include <linux/delay.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
 
 
-//#define ARLAN_DEBUGGING 1
+/* #define ARLAN_DEBUGGING 1 */
 
 #define ARLAN_PROC_INTERFACE
 #define MAX_ARLANS 4 /* not more than 4 ! */
@@ -51,8 +51,8 @@ extern int	arlan_debug;
 extern int	arlan_entry_debug;
 extern int	arlan_exit_debug;
 extern int	testMemory;
-extern int     arlan_command(struct net_device * dev, int command);
- 
+extern int     arlan_command(struct net_device *dev, int command);
+
 #define SIDUNKNOWN -1
 #define radioNodeIdUNKNOWN -1
 #define irqUNKNOWN 0
@@ -65,22 +65,21 @@ extern int     arlan_command(struct net_device * dev, int command);
 #define registrationModeUNKNOWN -1
 
 
-#define IFDEBUG( L ) if ( (L) & arlan_debug ) 
-#define ARLAN_FAKE_HDR_LEN 12 
+#define IFDEBUG(L) if ((L) & arlan_debug)
+#define ARLAN_FAKE_HDR_LEN 12
 
 #ifdef ARLAN_DEBUGGING
 	#define DEBUG 1
 	#define ARLAN_ENTRY_EXIT_DEBUGGING 1
-	#define ARLAN_DEBUG(a,b) printk(KERN_DEBUG a, b)
+	#define ARLAN_DEBUG(a, b) printk(KERN_DEBUG a, b)
 #else
-	#define ARLAN_DEBUG(a,b) 
+	#define ARLAN_DEBUG(a, b)
 #endif
 
 #define ARLAN_SHMEM_SIZE	0x2000
 
-struct arlan_shmem
-{
-      /* Header Signature */ 
+struct arlan_shmem {
+      /* Header Signature */
       volatile	char textRegion[48];
       volatile	u_char resetFlag;
       volatile	u_char  diagnosticInfo;
@@ -94,7 +93,7 @@ struct arlan_shmem
       volatile	u_char radioModule;// shows EEPROM, can be overridden at 0x111
       volatile	u_char defaultChannelSet; // shows EEProm, can be overriiden at 0x10A
       volatile	u_char _2[47];
-      
+
       /* Control/Status Block - 0x0080 */
       volatile	u_char interruptInProgress; /* not used by lancpu */
       volatile	u_char cntrlRegImage; /* not used by lancpu */
@@ -113,7 +112,7 @@ struct arlan_shmem
       volatile	u_char rxQuality;
       volatile	u_char scrambled;
       volatile	u_char _4[1];
-      
+
       /* Transmit Status - 0x00b0 */
       volatile	u_char txStatus;
       volatile	u_char txAckQuality;
@@ -151,7 +150,7 @@ struct arlan_shmem
       volatile	u_short routerId;
       volatile	u_char _10[9];
       volatile	u_char txAttenuation;
-      volatile	u_char systemId[4]; 
+      volatile	u_char systemId[4];
       volatile	u_short globalChecksum;
       volatile	u_char _11[4];
       volatile	u_short maxDatagramSize;
@@ -207,19 +206,19 @@ struct arlan_shmem
       volatile	u_char hostcpuLock;
       volatile	u_char lancpuLock;
       volatile	u_char resetTime[18];
-      
+
       volatile	u_char numDatagramsTransmitted[4];
       volatile	u_char numReTransmissions[4];
       volatile	u_char numFramesDiscarded[4];
       volatile	u_char numDatagramsReceived[4];
       volatile	u_char numDuplicateReceivedFrames[4];
       volatile	u_char numDatagramsDiscarded[4];
-      
+
       volatile	u_short maxNumReTransmitDatagram;
       volatile	u_short maxNumReTransmitFrames;
       volatile	u_short maxNumConsecutiveDuplicateFrames;
       /* misaligned here so we have to go to characters */
-     
+
       volatile	u_char numBytesTransmitted[4];
       volatile	u_char numBytesReceived[4];
       volatile	u_char numCRCErrors[4];
@@ -259,7 +258,7 @@ struct arlan_conf_stru {
       int channelNumber;
       int scramblingDisable;
       int txAttenuation;
-      int systemId; 
+      int systemId;
       int maxDatagramSize;
       int maxFrameSize;
       int maxRetries;
@@ -316,8 +315,7 @@ struct arlan_conf_stru {
 
 extern struct arlan_conf_stru arlan_conf[MAX_ARLANS];
 
-struct TxParam
-{
+struct TxParam {
       volatile	short 		offset;
       volatile 	short 		length;
       volatile	u_char 		dest[6];
@@ -330,12 +328,12 @@ struct TxParam
 #define TX_RING_SIZE 2
 /* Information that need to be kept for each board. */
 struct arlan_private {
-      struct arlan_shmem __iomem * card;
-      struct arlan_shmem * conf;
+      struct arlan_shmem __iomem *card;
+      struct arlan_shmem *conf;
 
-      struct arlan_conf_stru * Conf;	     
+      struct arlan_conf_stru *Conf;
       int	bad;
-      int 	reset;
+      int	reset;
       unsigned long lastReset;
       struct timer_list timer;
       struct timer_list tx_delay_timer;
@@ -407,38 +405,38 @@ struct arlan_private {
 
 #define TXBuffStart(dev) offsetof(struct arlan_shmem, txBuffer)
 #define TXBuffEnd(dev) offsetof(struct arlan_shmem, xxBuffer)
- 
-#define READSHM(to,from,atype) {\
+
+#define READSHM(to, from, atype) {\
 	atype tmp;\
-	memcpy_fromio(&(tmp),&(from),sizeof(atype));\
+	memcpy_fromio(&(tmp), &(from), sizeof(atype));\
 	to = tmp;\
 	}
 
-#define READSHMEM(from,atype)\
+#define READSHMEM(from, atype)\
 	atype from; \
 	READSHM(from, arlan->from, atype);
 
-#define WRITESHM(to,from,atype) \
+#define WRITESHM(to, from, atype) \
 	{ atype tmpSHM = from;\
-	memcpy_toio(&(to),&tmpSHM,sizeof(atype));\
+	memcpy_toio(&(to), &tmpSHM, sizeof(atype));\
 	}
 
-#define DEBUGSHM(levelSHM,stringSHM,stuff,atype) \
+#define DEBUGSHM(levelSHM, stringSHM, stuff, atype) \
 	{	atype tmpSHM; \
-		memcpy_fromio(&tmpSHM,&(stuff),sizeof(atype));\
-		IFDEBUG(levelSHM) printk(stringSHM,tmpSHM);\
+		memcpy_fromio(&tmpSHM, &(stuff), sizeof(atype));\
+		IFDEBUG(levelSHM) printk(stringSHM, tmpSHM);\
 	}
 
 #define WRITESHMB(to, val) \
-	writeb(val,&(to))
+	writeb(val, &(to))
 #define READSHMB(to) \
 	readb(&(to))
 #define WRITESHMS(to, val) \
-	writew(val,&(to))
+	writew(val, &(to))
 #define READSHMS(to) \
 	readw(&(to))
 #define WRITESHMI(to, val) \
-	writel(val,&(to))
+	writel(val, &(to))
 #define READSHMI(to) \
 	readl(&(to))
 
@@ -447,51 +445,51 @@ struct arlan_private {
 
 
 #define registrationBad(dev)\
-   ( (   READSHMB(((struct arlan_private *)netdev_priv(dev))->card->registrationMode)    > 0) && \
-     (   READSHMB(((struct arlan_private *)netdev_priv(dev))->card->registrationStatus) == 0)    )
+    ((   READSHMB(((struct arlan_private *)netdev_priv(dev))->card->registrationMode)    > 0) && \
+     (   READSHMB(((struct arlan_private *)netdev_priv(dev))->card->registrationStatus) == 0))
 
 
 #define readControlRegister(dev)\
- 	READSHMB(((struct arlan_private *)netdev_priv(dev))->card->cntrlRegImage)
+	READSHMB(((struct arlan_private *)netdev_priv(dev))->card->cntrlRegImage)
 
-#define writeControlRegister(dev, v){\
-   WRITESHMB(((struct arlan_private *)netdev_priv(dev))->card->cntrlRegImage	,((v) &0xF) );\
-   WRITESHMB(((struct arlan_private *)netdev_priv(dev))->card->controlRegister	,(v) 	);}
+#define writeControlRegister(dev, v) {\
+   WRITESHMB(((struct arlan_private *)netdev_priv(dev))->card->cntrlRegImage, ((v) & 0xF));\
+   WRITESHMB(((struct arlan_private *)netdev_priv(dev))->card->controlRegister, (v)); }
 
 
 #define arlan_interrupt_lancpu(dev) {\
    int cr;   \
    \
    cr = readControlRegister(dev);\
-   if (cr & ARLAN_CHANNEL_ATTENTION){ \
+   if (cr & ARLAN_CHANNEL_ATTENTION) { \
       writeControlRegister(dev, (cr & ~ARLAN_CHANNEL_ATTENTION));\
-   }else  \
+   } else  \
       writeControlRegister(dev, (cr | ARLAN_CHANNEL_ATTENTION));\
 }
 
-#define clearChannelAttention(dev){ \
-   writeControlRegister(dev,readControlRegister(dev) & ~ARLAN_CHANNEL_ATTENTION);}
+#define clearChannelAttention(dev) { \
+   writeControlRegister(dev, readControlRegister(dev) & ~ARLAN_CHANNEL_ATTENTION); }
 #define setHardwareReset(dev) {\
-   writeControlRegister(dev,readControlRegister(dev) | ARLAN_RESET);}
+   writeControlRegister(dev, readControlRegister(dev) | ARLAN_RESET); }
 #define clearHardwareReset(dev) {\
-   writeControlRegister(dev,readControlRegister(dev) & ~ARLAN_RESET);}
-#define setInterruptEnable(dev){\
-   writeControlRegister(dev,readControlRegister(dev) | ARLAN_INTERRUPT_ENABLE)  ;}
-#define clearInterruptEnable(dev){\
-   writeControlRegister(dev,readControlRegister(dev) & ~ARLAN_INTERRUPT_ENABLE)  ;}
-#define setClearInterrupt(dev){\
-   writeControlRegister(dev,readControlRegister(dev) | ARLAN_CLEAR_INTERRUPT)   ;}
-#define clearClearInterrupt(dev){\
-   writeControlRegister(dev,readControlRegister(dev) & ~ARLAN_CLEAR_INTERRUPT);}
-#define setPowerOff(dev){\
-   writeControlRegister(dev,readControlRegister(dev) | (ARLAN_POWER && ARLAN_ACCESS));\
-   writeControlRegister(dev,readControlRegister(dev) & ~ARLAN_ACCESS);}
-#define setPowerOn(dev){\
-   writeControlRegister(dev,readControlRegister(dev) & ~(ARLAN_POWER));   }
-#define arlan_lock_card_access(dev){\
-   writeControlRegister(dev,readControlRegister(dev) & ~ARLAN_ACCESS);}
-#define arlan_unlock_card_access(dev){\
-   writeControlRegister(dev,readControlRegister(dev) | ARLAN_ACCESS ); }  
+   writeControlRegister(dev, readControlRegister(dev) & ~ARLAN_RESET); }
+#define setInterruptEnable(dev) {\
+   writeControlRegister(dev, readControlRegister(dev) | ARLAN_INTERRUPT_ENABLE)  ; }
+#define clearInterruptEnable(dev) {\
+   writeControlRegister(dev, readControlRegister(dev) & ~ARLAN_INTERRUPT_ENABLE)  ; }
+#define setClearInterrupt(dev) {\
+   writeControlRegister(dev, readControlRegister(dev) | ARLAN_CLEAR_INTERRUPT)   ; }
+#define clearClearInterrupt(dev) {\
+   writeControlRegister(dev, readControlRegister(dev) & ~ARLAN_CLEAR_INTERRUPT); }
+#define setPowerOff(dev) {\
+   writeControlRegister(dev, readControlRegister(dev) | (ARLAN_POWER && ARLAN_ACCESS));\
+   writeControlRegister(dev, readControlRegister(dev) & ~ARLAN_ACCESS); }
+#define setPowerOn(dev) {\
+   writeControlRegister(dev, readControlRegister(dev) & ~(ARLAN_POWER)); }
+#define arlan_lock_card_access(dev) {\
+   writeControlRegister(dev, readControlRegister(dev) & ~ARLAN_ACCESS); }
+#define arlan_unlock_card_access(dev) {\
+   writeControlRegister(dev, readControlRegister(dev) | ARLAN_ACCESS); }
 
 
 
@@ -525,7 +523,6 @@ struct arlan_private {
 					| ARLAN_COMMAND_RESET)
 
 
- 
 #define ARLAN_DEBUG_CHAIN_LOCKS		0x00001
 #define ARLAN_DEBUG_RESET		0x00002
 #define ARLAN_DEBUG_TIMING		0x00004
@@ -536,4 +533,3 @@ struct arlan_private {
 #define ARLAN_DEBUG_INTERRUPT		0x00080
 #define ARLAN_DEBUG_STARTUP		0x00100
 #define ARLAN_DEBUG_SHUTDOWN		0x00200
- 
