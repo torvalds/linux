@@ -123,7 +123,12 @@ lpfc_vport_sparm(struct lpfc_hba *phba, struct lpfc_vport *vport)
 	}
 	mb = &pmb->u.mb;
 
-	lpfc_read_sparam(phba, pmb, vport->vpi);
+	rc = lpfc_read_sparam(phba, pmb, vport->vpi);
+	if (rc) {
+		mempool_free(pmb, phba->mbox_mem_pool);
+		return -ENOMEM;
+	}
+
 	/*
 	 * Grab buffer pointer and clear context1 so we can use
 	 * lpfc_sli_issue_box_wait

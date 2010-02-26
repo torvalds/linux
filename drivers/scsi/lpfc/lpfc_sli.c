@@ -4388,7 +4388,13 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Read the port's service parameters. */
-	lpfc_read_sparam(phba, mboxq, vport->vpi);
+	rc = lpfc_read_sparam(phba, mboxq, vport->vpi);
+	if (rc) {
+		phba->link_state = LPFC_HBA_ERROR;
+		rc = -ENOMEM;
+		goto out_free_vpd;
+	}
+
 	mboxq->vport = vport;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
 	mp = (struct lpfc_dmabuf *) mboxq->context1;

@@ -2024,8 +2024,6 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 	int rc;
 	struct fcf_record *fcf_record;
 
-	sparam_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
-
 	spin_lock_irq(&phba->hbalock);
 	switch (la->UlnkSpeed) {
 	case LA_1GHZ_LINK:
@@ -2117,18 +2115,24 @@ lpfc_mbx_process_link_up(struct lpfc_hba *phba, READ_LA_VAR *la)
 	spin_unlock_irq(&phba->hbalock);
 
 	lpfc_linkup(phba);
-	if (sparam_mbox) {
-		lpfc_read_sparam(phba, sparam_mbox, 0);
-		sparam_mbox->vport = vport;
-		sparam_mbox->mbox_cmpl = lpfc_mbx_cmpl_read_sparam;
-		rc = lpfc_sli_issue_mbox(phba, sparam_mbox, MBX_NOWAIT);
-		if (rc == MBX_NOT_FINISHED) {
-			mp = (struct lpfc_dmabuf *) sparam_mbox->context1;
-			lpfc_mbuf_free(phba, mp->virt, mp->phys);
-			kfree(mp);
-			mempool_free(sparam_mbox, phba->mbox_mem_pool);
-			goto out;
-		}
+	sparam_mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!sparam_mbox)
+		goto out;
+
+	rc = lpfc_read_sparam(phba, sparam_mbox, 0);
+	if (rc) {
+		mempool_free(sparam_mbox, phba->mbox_mem_pool);
+		goto out;
+	}
+	sparam_mbox->vport = vport;
+	sparam_mbox->mbox_cmpl = lpfc_mbx_cmpl_read_sparam;
+	rc = lpfc_sli_issue_mbox(phba, sparam_mbox, MBX_NOWAIT);
+	if (rc == MBX_NOT_FINISHED) {
+		mp = (struct lpfc_dmabuf *) sparam_mbox->context1;
+		lpfc_mbuf_free(phba, mp->virt, mp->phys);
+		kfree(mp);
+		mempool_free(sparam_mbox, phba->mbox_mem_pool);
+		goto out;
 	}
 
 	if (!(phba->hba_flag & HBA_FCOE_SUPPORT)) {
