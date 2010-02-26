@@ -3,7 +3,7 @@
 #
 
 config OPROFILE
-	tristate "OProfile system profiling (EXPERIMENTAL)"
+	tristate "OProfile system profiling"
 	depends on PROFILING
 	depends on HAVE_OPROFILE
 	select RING_BUFFER
