@@ -2023,6 +2023,8 @@ sub process_file($) {
 	return;
     }
 
+    $. = 1;
+
     $section_counter = 0;
     while (<IN>) {
 	if ($state == 0) {
