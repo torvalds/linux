@@ -135,21 +135,23 @@ u32 ethtool_op_get_flags(struct net_device *dev)
 int ethtool_op_set_flags(struct net_device *dev, u32 data)
 {
 	const struct ethtool_ops *ops = dev->ethtool_ops;
+	unsigned long features = dev->features;
 
 	if (data & ETH_FLAG_LRO)
-		dev->features |= NETIF_F_LRO;
+		features |= NETIF_F_LRO;
 	else
-		dev->features &= ~NETIF_F_LRO;
+		features &= ~NETIF_F_LRO;
 
 	if (data & ETH_FLAG_NTUPLE) {
 		if (!ops->set_rx_ntuple)
 			return -EOPNOTSUPP;
-		dev->features |= NETIF_F_NTUPLE;
+		features |= NETIF_F_NTUPLE;
 	} else {
 		/* safe to clear regardless */
-		dev->features &= ~NETIF_F_NTUPLE;
+		features &= ~NETIF_F_NTUPLE;
 	}
 
+	dev->features = features;
 	return 0;
 }
 
