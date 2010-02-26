@@ -675,6 +675,23 @@ static struct bfin5xx_spi_chip ad2s120x_spi_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_AD2S1210) || defined(CONFIG_AD2S1210_MODULE)
+unsigned short ad2s1210_platform_data[] = {
+	/* use as SAMPLE, A0, A1 */
+	GPIO_PF7, GPIO_PF8, GPIO_PF9,
+# if defined(CONFIG_AD2S1210_GPIO_INPUT) || defined(CONFIG_AD2S1210_GPIO_OUTPUT)
+	/* the RES0 and RES1 pins */
+	GPIO_PF4, GPIO_PF5,
+# endif
+	0,
+};
+
+static struct bfin5xx_spi_chip ad2s1210_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
+
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 #define MMC_SPI_CARD_DETECT_INT IRQ_PF5
 
@@ -1007,6 +1024,17 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.chip_select = 4,            /* CS, change it for your board */
 		.platform_data = ad2s120x_platform_data,
 		.controller_data = &ad2s120x_spi_chip_info,
+	},
+#endif
+
+#if defined(CONFIG_AD2S1210) || defined(CONFIG_AD2S1210_MODULE)
+	{
+		.modalias = "ad2s1210",
+		.max_speed_hz = 8192000,
+		.bus_num = 0,
+		.chip_select = 4,            /* CS, change it for your board */
+		.platform_data = ad2s1210_platform_data,
+		.controller_data = &ad2s1210_spi_chip_info,
 	},
 #endif
 
