@@ -1250,13 +1250,8 @@ syscall_trace_enter (long arg0, long arg1, long arg2, long arg3,
 		long syscall;
 		int arch;
 
-		if (IS_IA32_PROCESS(&regs)) {
-			syscall = regs.r1;
-			arch = AUDIT_ARCH_I386;
-		} else {
-			syscall = regs.r15;
-			arch = AUDIT_ARCH_IA64;
-		}
+		syscall = regs.r15;
+		arch = AUDIT_ARCH_IA64;
 
 		audit_syscall_entry(arch, syscall, arg0, arg1, arg2, arg3);
 	}
@@ -2172,11 +2167,6 @@ static const struct user_regset_view user_ia64_view = {
 
 const struct user_regset_view *task_user_regset_view(struct task_struct *tsk)
 {
-#ifdef CONFIG_IA32_SUPPORT
-	extern const struct user_regset_view user_ia32_view;
-	if (IS_IA32_PROCESS(task_pt_regs(tsk)))
-		return &user_ia32_view;
-#endif
 	return &user_ia64_view;
 }
 

@@ -33,7 +33,6 @@
 #include <asm/cpu.h>
 #include <asm/delay.h>
 #include <asm/elf.h>
-#include <asm/ia32.h>
 #include <asm/irq.h>
 #include <asm/kexec.h>
 #include <asm/pgalloc.h>
@@ -358,11 +357,6 @@ ia64_save_extra (struct task_struct *task)
 	if (info & PFM_CPUINFO_SYST_WIDE)
 		pfm_syst_wide_update_task(task, info, 0);
 #endif
-
-#ifdef CONFIG_IA32_SUPPORT
-	if (IS_IA32_PROCESS(task_pt_regs(task)))
-		ia32_save_state(task);
-#endif
 }
 
 void
@@ -382,11 +376,6 @@ ia64_load_extra (struct task_struct *task)
 	info = __get_cpu_var(pfm_syst_info);
 	if (info & PFM_CPUINFO_SYST_WIDE) 
 		pfm_syst_wide_update_task(task, info, 1);
-#endif
-
-#ifdef CONFIG_IA32_SUPPORT
-	if (IS_IA32_PROCESS(task_pt_regs(task)))
-		ia32_load_state(task);
 #endif
 }
 
@@ -426,7 +415,7 @@ copy_thread(unsigned long clone_flags,
 	     unsigned long user_stack_base, unsigned long user_stack_size,
 	     struct task_struct *p, struct pt_regs *regs)
 {
-	extern char ia64_ret_from_clone, ia32_ret_from_clone;
+	extern char ia64_ret_from_clone;
 	struct switch_stack *child_stack, *stack;
 	unsigned long rbs, child_rbs, rbs_size;
 	struct pt_regs *child_ptregs;
@@ -457,7 +446,7 @@ copy_thread(unsigned long clone_flags,
 	memcpy((void *) child_rbs, (void *) rbs, rbs_size);
 
 	if (likely(user_mode(child_ptregs))) {
-		if ((clone_flags & CLONE_SETTLS) && !IS_IA32_PROCESS(regs))
+		if (clone_flags & CLONE_SETTLS)
 			child_ptregs->r13 = regs->r16;	/* see sys_clone2() in entry.S */
 		if (user_stack_base) {
 			child_ptregs->r12 = user_stack_base + user_stack_size - 16;
@@ -477,10 +466,7 @@ copy_thread(unsigned long clone_flags,
 		child_ptregs->r13 = (unsigned long) p;		/* set `current' pointer */
 	}
 	child_stack->ar_bspstore = child_rbs + rbs_size;
-	if (IS_IA32_PROCESS(regs))
-		child_stack->b0 = (unsigned long) &ia32_ret_from_clone;
-	else
-		child_stack->b0 = (unsigned long) &ia64_ret_from_clone;
+	child_stack->b0 = (unsigned long) &ia64_ret_from_clone;
 
 	/* copy parts of thread_struct: */
 	p->thread.ksp = (unsigned long) child_stack - 16;
@@ -515,22 +501,6 @@ copy_thread(unsigned long clone_flags,
 	p->thread.flags = ((current->thread.flags & ~THREAD_FLAGS_TO_CLEAR)
 			   | THREAD_FLAGS_TO_SET);
 	ia64_drop_fpu(p);	/* don't pick up stale state from a CPU's fph */
-#ifdef CONFIG_IA32_SUPPORT
-	/*
-	 * If we're cloning an IA32 task then save the IA32 extra
-	 * state from the current task to the new task
-	 */
-	if (IS_IA32_PROCESS(task_pt_regs(current))) {
-		ia32_save_state(p);
-		if (clone_flags & CLONE_SETTLS)
-			retval = ia32_clone_tls(p, child_ptregs);
-
-		/* Copy partially mapped page list */
-		if (!retval)
-			retval = ia32_copy_ia64_partial_page_list(p,
-								clone_flags);
-	}
-#endif
 
 #ifdef CONFIG_PERFMON
 	if (current->thread.pfm_context)
@@ -704,15 +674,6 @@ EXPORT_SYMBOL(kernel_thread);
 int
 kernel_thread_helper (int (*fn)(void *), void *arg)
 {
-#ifdef CONFIG_IA32_SUPPORT
-	if (IS_IA32_PROCESS(task_pt_regs(current))) {
-		/* A kernel thread is always a 64-bit process. */
-		current->thread.map_base  = DEFAULT_MAP_BASE;
-		current->thread.task_size = DEFAULT_TASK_SIZE;
-		ia64_set_kr(IA64_KR_IO_BASE, current->thread.old_iob);
-		ia64_set_kr(IA64_KR_TSSD, current->thread.old_k1);
-	}
-#endif
 	return (*fn)(arg);
 }
 
@@ -725,14 +686,6 @@ flush_thread (void)
 	/* drop floating-point and debug-register state if it exists: */
 	current->thread.flags &= ~(IA64_THREAD_FPH_VALID | IA64_THREAD_DBG_VALID);
 	ia64_drop_fpu(current);
-#ifdef CONFIG_IA32_SUPPORT
-	if (IS_IA32_PROCESS(task_pt_regs(current))) {
-		ia32_drop_ia64_partial_page_list(current);
-		current->thread.task_size = IA32_PAGE_OFFSET;
-		set_fs(USER_DS);
-		memset(current->thread.tls_array, 0, sizeof(current->thread.tls_array));
-	}
-#endif
 }
 
 /*
@@ -753,8 +706,6 @@ exit_thread (void)
 	if (current->thread.flags & IA64_THREAD_DBG_VALID)
 		pfm_release_debug_registers(current);
 #endif
-	if (IS_IA32_PROCESS(task_pt_regs(current)))
-		ia32_drop_ia64_partial_page_list(current);
 }
 
 unsigned long
