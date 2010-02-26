@@ -210,16 +210,25 @@ struct qdio_dev_perf_stat {
 	unsigned int sqbs_partial;
 };
 
+struct qdio_queue_perf_stat {
+	/*
+	 * Sorted into order-2 buckets: 1, 2-3, 4-7, ... 64-127, 128.
+	 * Since max. 127 SBALs are scanned reuse entry for 128 as queue full
+	 * aka 127 SBALs found.
+	 */
+	unsigned int nr_sbals[8];
+	unsigned int nr_sbal_error;
+	unsigned int nr_sbal_nop;
+	unsigned int nr_sbal_total;
+};
+
 struct qdio_input_q {
 	/* input buffer acknowledgement flag */
 	int polling;
-
 	/* first ACK'ed buffer */
 	int ack_start;
-
 	/* how much sbals are acknowledged with qebsm */
 	int ack_count;
-
 	/* last time of noticing incoming data */
 	u64 timestamp;
 };
@@ -227,20 +236,46 @@ struct qdio_input_q {
 struct qdio_output_q {
 	/* PCIs are enabled for the queue */
 	int pci_out_enabled;
-
 	/* IQDIO: output multiple buffers (enhanced SIGA) */
 	int use_enh_siga;
-
 	/* timer to check for more outbound work */
 	struct timer_list timer;
 };
 
+/*
+ * Note on cache alignment: grouped slsb and write mostly data at the beginning
+ * sbal[] is read-only and starts on a new cacheline followed by read mostly.
+ */
 struct qdio_q {
 	struct slsb slsb;
+
 	union {
 		struct qdio_input_q in;
 		struct qdio_output_q out;
 	} u;
+
+	/*
+	 * inbound: next buffer the program should check for
+	 * outbound: next buffer to check if adapter processed it
+	 */
+	int first_to_check;
+
+	/* first_to_check of the last time */
+	int last_move;
+
+	/* beginning position for calling the program */
+	int first_to_kick;
+
+	/* number of buffers in use by the adapter */
+	atomic_t nr_buf_used;
+
+	/* error condition during a data transfer */
+	unsigned int qdio_error;
+
+	struct tasklet_struct tasklet;
+	struct qdio_queue_perf_stat q_stats;
+
+	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q] ____cacheline_aligned;
 
 	/* queue number */
 	int nr;
@@ -257,32 +292,9 @@ struct qdio_q {
 	/* upper-layer program handler */
 	qdio_handler_t (*handler);
 
-	/*
-	 * inbound: next buffer the program should check for
-	 * outbound: next buffer to check for having been processed
-	 * by the card
-	 */
-	int first_to_check;
-
-	/* first_to_check of the last time */
-	int last_move;
-
-	/* beginning position for calling the program */
-	int first_to_kick;
-
-	/* number of buffers in use by the adapter */
-	atomic_t nr_buf_used;
-
-	struct qdio_irq *irq_ptr;
 	struct dentry *debugfs_q;
-	struct tasklet_struct tasklet;
-
-	/* error condition during a data transfer */
-	unsigned int qdio_error;
-
+	struct qdio_irq *irq_ptr;
 	struct sl *sl;
-	struct qdio_buffer *sbal[QDIO_MAX_BUFFERS_PER_Q];
-
 	/*
 	 * Warning: Leave this member at the end so it won't be cleared in
 	 * qdio_fill_qs. A page is allocated under this pointer and used for
@@ -341,9 +353,20 @@ struct qdio_irq {
 	(irq->qib.qfmt == QDIO_IQDIO_QFMT || \
 	 css_general_characteristics.aif_osa)
 
-#define qperf(qdev,attr)	qdev->perf_stat.attr
-#define qperf_inc(q,attr)	if (q->irq_ptr->perf_stat_enabled) \
-					q->irq_ptr->perf_stat.attr++
+#define qperf(__qdev, __attr)	((__qdev)->perf_stat.(__attr))
+
+#define qperf_inc(__q, __attr)						\
+({									\
+	struct qdio_irq *qdev = (__q)->irq_ptr;				\
+	if (qdev->perf_stat_enabled)					\
+		(qdev->perf_stat.__attr)++;				\
+})
+
+static inline void account_sbals_error(struct qdio_q *q, int count)
+{
+	q->q_stats.nr_sbal_error += count;
+	q->q_stats.nr_sbal_total += count;
+}
 
 /* the highest iqdio queue is used for multicast */
 static inline int multicast_outbound(struct qdio_q *q)
