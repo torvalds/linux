@@ -866,8 +866,10 @@ translate_table(struct net *net, struct xt_table_info *newinfo, void *entry0,
 	/* Walk through entries, checking offsets. */
 	xt_entry_foreach(iter, entry0, newinfo->size) {
 		ret = check_entry_size_and_hooks(iter, newinfo, entry0,
-		      entry0 + repl->size, repl->hook_entry, repl->underflow,
-		      repl->valid_hooks);
+						 entry0 + repl->size,
+						 repl->hook_entry,
+						 repl->underflow,
+						 repl->valid_hooks);
 		if (ret != 0)
 			return ret;
 		++i;
@@ -948,7 +950,7 @@ get_counters(const struct xt_table_info *t,
 	i = 0;
 	xt_entry_foreach(iter, t->entries[curcpu], t->size) {
 		SET_COUNTER(counters[i], iter->counters.bcnt,
-			iter->counters.pcnt);
+			    iter->counters.pcnt);
 		++i;
 	}
 
@@ -959,7 +961,7 @@ get_counters(const struct xt_table_info *t,
 		xt_info_wrlock(cpu);
 		xt_entry_foreach(iter, t->entries[cpu], t->size) {
 			ADD_COUNTER(counters[i], iter->counters.bcnt,
-				iter->counters.pcnt);
+				    iter->counters.pcnt);
 			++i;
 		}
 		xt_info_wrunlock(cpu);
@@ -1573,7 +1575,7 @@ check_compat_entry_size_and_hooks(struct compat_ip6t_entry *e,
 	j = 0;
 	xt_ematch_foreach(ematch, e) {
 		ret = compat_find_calc_match(ematch, name,
-		      &e->ipv6, e->comefrom, &off);
+					     &e->ipv6, e->comefrom, &off);
 		if (ret != 0)
 			goto release_matches;
 		++j;
@@ -1734,8 +1736,11 @@ translate_compat_table(struct net *net,
 	/* Walk through entries, checking offsets. */
 	xt_entry_foreach(iter0, entry0, total_size) {
 		ret = check_compat_entry_size_and_hooks(iter0, info, &size,
-		      entry0, entry0 + total_size, hook_entries, underflows,
-		      name);
+							entry0,
+							entry0 + total_size,
+							hook_entries,
+							underflows,
+							name);
 		if (ret != 0)
 			goto out_unlock;
 		++j;
@@ -1779,8 +1784,8 @@ translate_compat_table(struct net *net,
 	pos = entry1;
 	size = total_size;
 	xt_entry_foreach(iter0, entry0, total_size) {
-		ret = compat_copy_entry_from_user(iter0, &pos,
-		      &size, name, newinfo, entry1);
+		ret = compat_copy_entry_from_user(iter0, &pos, &size,
+						  name, newinfo, entry1);
 		if (ret != 0)
 			break;
 	}
@@ -1960,7 +1965,7 @@ compat_copy_entries_to_user(unsigned int total_size, struct xt_table *table,
 	size = total_size;
 	xt_entry_foreach(iter, loc_cpu_entry, total_size) {
 		ret = compat_copy_entry_to_user(iter, &pos,
-		      &size, counters, i++);
+						&size, counters, i++);
 		if (ret != 0)
 			break;
 	}

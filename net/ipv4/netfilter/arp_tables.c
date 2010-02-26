@@ -644,8 +644,10 @@ static int translate_table(struct xt_table_info *newinfo, void *entry0,
 	/* Walk through entries, checking offsets. */
 	xt_entry_foreach(iter, entry0, newinfo->size) {
 		ret = check_entry_size_and_hooks(iter, newinfo, entry0,
-		      entry0 + repl->size, repl->hook_entry, repl->underflow,
-		      repl->valid_hooks);
+						 entry0 + repl->size,
+						 repl->hook_entry,
+						 repl->underflow,
+						 repl->valid_hooks);
 		if (ret != 0)
 			break;
 		++i;
@@ -730,7 +732,7 @@ static void get_counters(const struct xt_table_info *t,
 	i = 0;
 	xt_entry_foreach(iter, t->entries[curcpu], t->size) {
 		SET_COUNTER(counters[i], iter->counters.bcnt,
-			iter->counters.pcnt);
+			    iter->counters.pcnt);
 		++i;
 	}
 
@@ -741,7 +743,7 @@ static void get_counters(const struct xt_table_info *t,
 		xt_info_wrlock(cpu);
 		xt_entry_foreach(iter, t->entries[cpu], t->size) {
 			ADD_COUNTER(counters[i], iter->counters.bcnt,
-				iter->counters.pcnt);
+				    iter->counters.pcnt);
 			++i;
 		}
 		xt_info_wrunlock(cpu);
@@ -1356,8 +1358,11 @@ static int translate_compat_table(const char *name,
 	/* Walk through entries, checking offsets. */
 	xt_entry_foreach(iter0, entry0, total_size) {
 		ret = check_compat_entry_size_and_hooks(iter0, info, &size,
-		      entry0, entry0 + total_size, hook_entries, underflows,
-		      name);
+							entry0,
+							entry0 + total_size,
+							hook_entries,
+							underflows,
+							name);
 		if (ret != 0)
 			goto out_unlock;
 		++j;
@@ -1401,8 +1406,8 @@ static int translate_compat_table(const char *name,
 	pos = entry1;
 	size = total_size;
 	xt_entry_foreach(iter0, entry0, total_size) {
-		ret = compat_copy_entry_from_user(iter0, &pos,
-		      &size, name, newinfo, entry1);
+		ret = compat_copy_entry_from_user(iter0, &pos, &size,
+						  name, newinfo, entry1);
 		if (ret != 0)
 			break;
 	}
@@ -1617,7 +1622,7 @@ static int compat_copy_entries_to_user(unsigned int total_size,
 	size = total_size;
 	xt_entry_foreach(iter, loc_cpu_entry, total_size) {
 		ret = compat_copy_entry_to_user(iter, &pos,
-		      &size, counters, i++);
+						&size, counters, i++);
 		if (ret != 0)
 			break;
 	}
