@@ -342,6 +342,9 @@ void ceph_con_close(struct ceph_connection *con)
 	dout("con_close %p peer %s\n", con, pr_addr(&con->peer_addr.in_addr));
 	set_bit(CLOSED, &con->state);  /* in case there's queued work */
 	clear_bit(STANDBY, &con->state);  /* avoid connect_seq bump */
+	clear_bit(LOSSYTX, &con->state);  /* so we retry next connect */
+	clear_bit(KEEPALIVE_PENDING, &con->state);
+	clear_bit(WRITE_PENDING, &con->state);
 	mutex_lock(&con->mutex);
 	reset_connection(con);
 	cancel_delayed_work(&con->work);

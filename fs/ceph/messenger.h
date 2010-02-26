@@ -119,7 +119,6 @@ struct ceph_msg_pos {
 			    * state with the peer. */
 #define CLOSED		10 /* we've closed the connection */
 #define SOCK_CLOSED	11 /* socket state changed to closed */
-#define REGISTERED      12 /* connection appears in con_tree */
 #define OPENING         13 /* open connection w/ (possibly new) peer */
 #define DEAD            14 /* dead, about to kfree */
 
