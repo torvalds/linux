@@ -6234,7 +6234,8 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_mbx_unreg_vpi(vport);
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-		vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+		if (phba->sli_rev == LPFC_SLI_REV4)
+			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 		spin_unlock_irq(shost->host_lock);
 	}
 
@@ -6812,21 +6813,27 @@ lpfc_sli4_els_xri_aborted(struct lpfc_hba *phba,
 	struct lpfc_sglq *sglq_entry = NULL, *sglq_next = NULL;
 	unsigned long iflag = 0;
 
-	spin_lock_irqsave(&phba->sli4_hba.abts_sgl_list_lock, iflag);
+	spin_lock_irqsave(&phba->hbalock, iflag);
+	spin_lock(&phba->sli4_hba.abts_sgl_list_lock);
 	list_for_each_entry_safe(sglq_entry, sglq_next,
 			&phba->sli4_hba.lpfc_abts_els_sgl_list, list) {
 		if (sglq_entry->sli4_xritag == xri) {
 			list_del(&sglq_entry->list);
-			spin_unlock_irqrestore(
-					&phba->sli4_hba.abts_sgl_list_lock,
-					 iflag);
-			spin_lock_irqsave(&phba->hbalock, iflag);
-
 			list_add_tail(&sglq_entry->list,
 				&phba->sli4_hba.lpfc_sgl_list);
+			sglq_entry->state = SGL_FREED;
+			spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
 			return;
 		}
 	}
-	spin_unlock_irqrestore(&phba->sli4_hba.abts_sgl_list_lock, iflag);
+	spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
+	sglq_entry = __lpfc_get_active_sglq(phba, xri);
+	if (!sglq_entry || (sglq_entry->sli4_xritag != xri)) {
+		spin_unlock_irqrestore(&phba->hbalock, iflag);
+		return;
+	}
+	sglq_entry->state = SGL_XRI_ABORTED;
+	spin_unlock_irqrestore(&phba->hbalock, iflag);
+	return;
 }

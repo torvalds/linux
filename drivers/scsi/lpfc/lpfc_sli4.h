@@ -431,11 +431,18 @@ enum lpfc_sge_type {
 	SCSI_BUFF_TYPE
 };
 
+enum lpfc_sgl_state {
+	SGL_FREED,
+	SGL_ALLOCATED,
+	SGL_XRI_ABORTED
+};
+
 struct lpfc_sglq {
 	/* lpfc_sglqs are used in double linked lists */
 	struct list_head list;
 	struct list_head clist;
 	enum lpfc_sge_type buff_type; /* is this a scsi sgl */
+	enum lpfc_sgl_state state;
 	uint16_t iotag;         /* pre-assigned IO tag */
 	uint16_t sli4_xritag;   /* pre-assigned XRI, (OXID) tag. */
 	struct sli4_sge *sgl;	/* pre-assigned SGL */

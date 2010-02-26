@@ -509,7 +509,6 @@ struct lpfc_hba {
 	int (*lpfc_hba_down_link)
 		(struct lpfc_hba *);
 
-
 	/* SLI4 specific HBA data structure */
 	struct lpfc_sli4_hba sli4_hba;
 

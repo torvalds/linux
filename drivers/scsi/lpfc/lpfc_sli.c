@@ -494,7 +494,7 @@ __lpfc_clear_active_sglq(struct lpfc_hba *phba, uint16_t xritag)
  *
  * Returns sglq ponter = success, NULL = Failure.
  **/
-static struct lpfc_sglq *
+struct lpfc_sglq *
 __lpfc_get_active_sglq(struct lpfc_hba *phba, uint16_t xritag)
 {
 	uint16_t adj_xri;
@@ -526,6 +526,7 @@ __lpfc_sli_get_sglq(struct lpfc_hba *phba)
 		return NULL;
 	adj_xri = sglq->sli4_xritag - phba->sli4_hba.max_cfg_param.xri_base;
 	phba->sli4_hba.lpfc_sglq_active_list[adj_xri] = sglq;
+	sglq->state = SGL_ALLOCATED;
 	return sglq;
 }
 
@@ -580,15 +581,18 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 	else
 		sglq = __lpfc_clear_active_sglq(phba, iocbq->sli4_xritag);
 	if (sglq)  {
-		if (iocbq->iocb_flag & LPFC_EXCHANGE_BUSY) {
+		if ((iocbq->iocb_flag & LPFC_EXCHANGE_BUSY) &&
+			(sglq->state != SGL_XRI_ABORTED)) {
 			spin_lock_irqsave(&phba->sli4_hba.abts_sgl_list_lock,
 					iflag);
 			list_add(&sglq->list,
 				&phba->sli4_hba.lpfc_abts_els_sgl_list);
 			spin_unlock_irqrestore(
 				&phba->sli4_hba.abts_sgl_list_lock, iflag);
-		} else
+		} else {
+			sglq->state = SGL_FREED;
 			list_add(&sglq->list, &phba->sli4_hba.lpfc_sgl_list);
+		}
 	}
 
 
@@ -2258,41 +2262,56 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					spin_unlock_irqrestore(&phba->hbalock,
 							       iflag);
 				}
-				if ((phba->sli_rev == LPFC_SLI_REV4) &&
-				    (saveq->iocb_flag & LPFC_EXCHANGE_BUSY)) {
-					/* Set cmdiocb flag for the exchange
-					 * busy so sgl (xri) will not be
-					 * released until the abort xri is
-					 * received from hba, clear the
-					 * LPFC_DRIVER_ABORTED bit in case
-					 * it was driver initiated abort.
-					 */
-					spin_lock_irqsave(&phba->hbalock,
-							  iflag);
-					cmdiocbp->iocb_flag &=
-						~LPFC_DRIVER_ABORTED;
-					cmdiocbp->iocb_flag |=
-						LPFC_EXCHANGE_BUSY;
-					spin_unlock_irqrestore(&phba->hbalock,
-							       iflag);
-					cmdiocbp->iocb.ulpStatus =
-						IOSTAT_LOCAL_REJECT;
-					cmdiocbp->iocb.un.ulpWord[4] =
-						IOERR_ABORT_REQUESTED;
-					/*
-					 * For SLI4, irsiocb contains NO_XRI
-					 * in sli_xritag, it shall not affect
-					 * releasing sgl (xri) process.
-					 */
-					saveq->iocb.ulpStatus =
-						IOSTAT_LOCAL_REJECT;
-					saveq->iocb.un.ulpWord[4] =
-						IOERR_SLI_ABORTED;
-					spin_lock_irqsave(&phba->hbalock,
-							  iflag);
-					saveq->iocb_flag |= LPFC_DELAY_MEM_FREE;
-					spin_unlock_irqrestore(&phba->hbalock,
-							       iflag);
+				if (phba->sli_rev == LPFC_SLI_REV4) {
+					if (saveq->iocb_flag &
+					    LPFC_EXCHANGE_BUSY) {
+						/* Set cmdiocb flag for the
+						 * exchange busy so sgl (xri)
+						 * will not be released until
+						 * the abort xri is received
+						 * from hba.
+						 */
+						spin_lock_irqsave(
+							&phba->hbalock, iflag);
+						cmdiocbp->iocb_flag |=
+							LPFC_EXCHANGE_BUSY;
+						spin_unlock_irqrestore(
+							&phba->hbalock, iflag);
+					}
+					if (cmdiocbp->iocb_flag &
+					    LPFC_DRIVER_ABORTED) {
+						/*
+						 * Clear LPFC_DRIVER_ABORTED
+						 * bit in case it was driver
+						 * initiated abort.
+						 */
+						spin_lock_irqsave(
+							&phba->hbalock, iflag);
+						cmdiocbp->iocb_flag &=
+							~LPFC_DRIVER_ABORTED;
+						spin_unlock_irqrestore(
+							&phba->hbalock, iflag);
+						cmdiocbp->iocb.ulpStatus =
+							IOSTAT_LOCAL_REJECT;
+						cmdiocbp->iocb.un.ulpWord[4] =
+							IOERR_ABORT_REQUESTED;
+						/*
+						 * For SLI4, irsiocb contains
+						 * NO_XRI in sli_xritag, it
+						 * shall not affect releasing
+						 * sgl (xri) process.
+						 */
+						saveq->iocb.ulpStatus =
+							IOSTAT_LOCAL_REJECT;
+						saveq->iocb.un.ulpWord[4] =
+							IOERR_SLI_ABORTED;
+						spin_lock_irqsave(
+							&phba->hbalock, iflag);
+						saveq->iocb_flag |=
+							LPFC_DELAY_MEM_FREE;
+						spin_unlock_irqrestore(
+							&phba->hbalock, iflag);
+					}
 				}
 			}
 			(cmdiocbp->iocb_cmpl) (phba, cmdiocbp, saveq);
@@ -2515,14 +2534,16 @@ lpfc_sli_handle_fast_ring_event(struct lpfc_hba *phba,
 
 			cmdiocbq = lpfc_sli_iocbq_lookup(phba, pring,
 							 &rspiocbq);
-			if ((cmdiocbq) && (cmdiocbq->iocb_cmpl)) {
-					spin_unlock_irqrestore(&phba->hbalock,
-							       iflag);
-					(cmdiocbq->iocb_cmpl)(phba, cmdiocbq,
-							      &rspiocbq);
-					spin_lock_irqsave(&phba->hbalock,
-							  iflag);
-				}
+			if (unlikely(!cmdiocbq))
+				break;
+			if (cmdiocbq->iocb_flag & LPFC_DRIVER_ABORTED)
+				cmdiocbq->iocb_flag &= ~LPFC_DRIVER_ABORTED;
+			if (cmdiocbq->iocb_cmpl) {
+				spin_unlock_irqrestore(&phba->hbalock, iflag);
+				(cmdiocbq->iocb_cmpl)(phba, cmdiocbq,
+						      &rspiocbq);
+				spin_lock_irqsave(&phba->hbalock, iflag);
+			}
 			break;
 		case LPFC_UNSOL_IOCB:
 			spin_unlock_irqrestore(&phba->hbalock, iflag);
@@ -7451,12 +7472,21 @@ lpfc_sli_wake_iocb_wait(struct lpfc_hba *phba,
 {
 	wait_queue_head_t *pdone_q;
 	unsigned long iflags;
+	struct lpfc_scsi_buf *lpfc_cmd;
 
 	spin_lock_irqsave(&phba->hbalock, iflags);
 	cmdiocbq->iocb_flag |= LPFC_IO_WAKE;
 	if (cmdiocbq->context2 && rspiocbq)
 		memcpy(&((struct lpfc_iocbq *)cmdiocbq->context2)->iocb,
 		       &rspiocbq->iocb, sizeof(IOCB_t));
+
+	/* Set the exchange busy flag for task management commands */
+	if ((cmdiocbq->iocb_flag & LPFC_IO_FCP) &&
+		!(cmdiocbq->iocb_flag & LPFC_IO_LIBDFC)) {
+		lpfc_cmd = container_of(cmdiocbq, struct lpfc_scsi_buf,
+			cur_iocbq);
+		lpfc_cmd->exch_busy = rspiocbq->iocb_flag & LPFC_EXCHANGE_BUSY;
+	}
 
 	pdone_q = cmdiocbq->context_un.wait_queue;
 	if (pdone_q)
@@ -9075,6 +9105,12 @@ lpfc_sli4_fp_handle_fcp_wcqe(struct lpfc_hba *phba,
 
 	/* Fake the irspiocb and copy necessary response information */
 	lpfc_sli4_iocb_param_transfer(phba, &irspiocbq, cmdiocbq, wcqe);
+
+	if (cmdiocbq->iocb_flag & LPFC_DRIVER_ABORTED) {
+		spin_lock_irqsave(&phba->hbalock, iflags);
+		cmdiocbq->iocb_flag &= ~LPFC_DRIVER_ABORTED;
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+	}
 
 	/* Pass the cmd_iocb and the rsp state to the upper layer */
 	(cmdiocbq->iocb_cmpl)(phba, cmdiocbq, &irspiocbq);

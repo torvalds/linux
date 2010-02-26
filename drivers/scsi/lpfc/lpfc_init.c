@@ -822,6 +822,8 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	LIST_HEAD(aborts);
 	int ret;
 	unsigned long iflag = 0;
+	struct lpfc_sglq *sglq_entry = NULL;
+
 	ret = lpfc_hba_down_post_s3(phba);
 	if (ret)
 		return ret;
@@ -837,6 +839,10 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	 * list.
 	 */
 	spin_lock(&phba->sli4_hba.abts_sgl_list_lock);
+	list_for_each_entry(sglq_entry,
+		&phba->sli4_hba.lpfc_abts_els_sgl_list, list)
+		sglq_entry->state = SGL_FREED;
+
 	list_splice_init(&phba->sli4_hba.lpfc_abts_els_sgl_list,
 			&phba->sli4_hba.lpfc_sgl_list);
 	spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
@@ -4412,6 +4418,7 @@ lpfc_init_sgl_list(struct lpfc_hba *phba)
 
 		/* The list order is used by later block SGL registraton */
 		spin_lock_irq(&phba->hbalock);
+		sglq_entry->state = SGL_FREED;
 		list_add_tail(&sglq_entry->list, &phba->sli4_hba.lpfc_sgl_list);
 		phba->sli4_hba.lpfc_els_sgl_array[i] = sglq_entry;
 		phba->sli4_hba.total_sglq_bufs++;
