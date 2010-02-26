@@ -333,19 +333,17 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	struct veth_priv *priv;
 	char ifname[IFNAMSIZ];
 	struct nlattr *peer_tb[IFLA_MAX + 1], **tbp;
+	struct ifinfomsg *ifmp;
 	struct net *net;
 
 	/*
 	 * create and register peer first
-	 *
-	 * struct ifinfomsg is at the head of VETH_INFO_PEER, but we
-	 * skip it since no info from it is useful yet
 	 */
-
 	if (data != NULL && data[VETH_INFO_PEER] != NULL) {
 		struct nlattr *nla_peer;
 
 		nla_peer = data[VETH_INFO_PEER];
+		ifmp = nla_data(nla_peer);
 		err = nla_parse(peer_tb, IFLA_MAX,
 				nla_data(nla_peer) + sizeof(struct ifinfomsg),
 				nla_len(nla_peer) - sizeof(struct ifinfomsg),
@@ -358,8 +356,10 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 			return err;
 
 		tbp = peer_tb;
-	} else
+	} else {
+		ifmp = NULL;
 		tbp = tb;
+	}
 
 	if (tbp[IFLA_IFNAME])
 		nla_strlcpy(ifname, tbp[IFLA_IFNAME], IFNAMSIZ);
@@ -386,6 +386,10 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 		goto err_register_peer;
 
 	netif_carrier_off(peer);
+
+	err = rtnl_configure_link(peer, ifmp);
+	if (err < 0)
+		goto err_configure_peer;
 
 	/*
 	 * register dev last
@@ -428,6 +432,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 err_register_dev:
 	/* nothing to do */
 err_alloc_name:
+err_configure_peer:
 	unregister_netdevice(peer);
 	return err;
 

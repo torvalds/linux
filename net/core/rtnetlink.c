@@ -549,6 +549,19 @@ static void set_operstate(struct net_device *dev, unsigned char transition)
 	}
 }
 
+static unsigned int rtnl_dev_combine_flags(const struct net_device *dev,
+					   const struct ifinfomsg *ifm)
+{
+	unsigned int flags = ifm->ifi_flags;
+
+	/* bugwards compatibility: ifi_change == 0 is treated as ~0 */
+	if (ifm->ifi_change)
+		flags = (flags & ifm->ifi_change) |
+			(dev->flags & ~ifm->ifi_change);
+
+	return flags;
+}
+
 static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 				 const struct net_device_stats *b)
 {
@@ -904,13 +917,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 	}
 
 	if (ifm->ifi_flags || ifm->ifi_change) {
-		unsigned int flags = ifm->ifi_flags;
-
-		/* bugwards compatibility: ifi_change == 0 is treated as ~0 */
-		if (ifm->ifi_change)
-			flags = (flags & ifm->ifi_change) |
-				(dev->flags & ~ifm->ifi_change);
-		err = dev_change_flags(dev, flags);
+		err = dev_change_flags(dev, rtnl_dev_combine_flags(dev, ifm));
 		if (err < 0)
 			goto errout;
 	}
@@ -1053,6 +1060,26 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	return 0;
 }
 
+int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm)
+{
+	unsigned int old_flags;
+	int err;
+
+	old_flags = dev->flags;
+	if (ifm && (ifm->ifi_flags || ifm->ifi_change)) {
+		err = __dev_change_flags(dev, rtnl_dev_combine_flags(dev, ifm));
+		if (err < 0)
+			return err;
+	}
+
+	dev->rtnl_link_state = RTNL_LINK_INITIALIZED;
+	rtmsg_ifinfo(RTM_NEWLINK, dev, ~0U);
+
+	__dev_notify_flags(dev, old_flags);
+	return 0;
+}
+EXPORT_SYMBOL(rtnl_configure_link);
+
 struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 	char *ifname, const struct rtnl_link_ops *ops, struct nlattr *tb[])
 {
@@ -1074,6 +1101,7 @@ struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 
 	dev_net_set(dev, net);
 	dev->rtnl_link_ops = ops;
+	dev->rtnl_link_state = RTNL_LINK_INITIALIZING;
 	dev->real_num_tx_queues = real_num_queues;
 
 	if (strchr(dev->name, '%')) {
@@ -1203,7 +1231,7 @@ replay:
 		if (!(nlh->nlmsg_flags & NLM_F_CREATE))
 			return -ENODEV;
 
-		if (ifm->ifi_index || ifm->ifi_flags || ifm->ifi_change)
+		if (ifm->ifi_index)
 			return -EOPNOTSUPP;
 		if (tb[IFLA_MAP] || tb[IFLA_MASTER] || tb[IFLA_PROTINFO])
 			return -EOPNOTSUPP;
@@ -1234,9 +1262,15 @@ replay:
 			err = ops->newlink(net, dev, tb, data);
 		else
 			err = register_netdevice(dev);
-		if (err < 0 && !IS_ERR(dev))
+		if (err < 0 && !IS_ERR(dev)) {
 			free_netdev(dev);
+			goto out;
+		}
 
+		err = rtnl_configure_link(dev, ifm);
+		if (err < 0)
+			unregister_netdevice(dev);
+out:
 		put_net(dest_net);
 		return err;
 	}
