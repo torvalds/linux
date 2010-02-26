@@ -12590,19 +12590,18 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 		unsigned int block_end;
 
 		if (val == 0x82 || val == 0x91) {
-			i = (i + 3 +
-			     (vpd_data[i + 1] +
-			      (vpd_data[i + 2] << 8)));
+			i += PCI_VPD_LRDT_TAG_SIZE +
+			     pci_vpd_lrdt_size(&vpd_data[i]);
 			continue;
 		}
 
 		if (val != 0x90)
 			goto out_not_found;
 
-		block_end = (i + 3 +
-			     (vpd_data[i + 1] +
-			      (vpd_data[i + 2] << 8)));
-		i += 3;
+		block_end = i + PCI_VPD_LRDT_TAG_SIZE +
+			    pci_vpd_lrdt_size(&vpd_data[i]);
+
+		i += PCI_VPD_LRDT_TAG_SIZE;
 
 		if (block_end > TG3_NVM_VPD_LEN)
 			goto out_not_found;

@@ -1349,5 +1349,19 @@ static inline bool pci_is_pcie(struct pci_dev *dev)
 
 void pci_request_acs(void);
 
+
+#define PCI_VPD_LRDT_TAG_SIZE	3
+
+/**
+ * pci_vpd_lrdt_size - Extracts the Large Resource Data Type length
+ * @lrdt: Pointer to the beginning of the Large Resource Data Type tag
+ *
+ * Returns the extracted Large Resource Data Type length.
+ */
+static inline u16 pci_vpd_lrdt_size(const u8 *lrdt)
+{
+	return (u16)lrdt[1] + ((u16)lrdt[2] << 8);
+}
+
 #endif /* __KERNEL__ */
 #endif /* LINUX_PCI_H */
