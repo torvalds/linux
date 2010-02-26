@@ -35,7 +35,7 @@
  */
 static int r600_audio_chipset_supported(struct radeon_device *rdev)
 {
-	return (rdev->family >= CHIP_R600 && rdev->family < CHIP_RV710)
+	return rdev->family >= CHIP_R600
 		|| rdev->family == CHIP_RS600
 		|| rdev->family == CHIP_RS690
 		|| rdev->family == CHIP_RS740;
