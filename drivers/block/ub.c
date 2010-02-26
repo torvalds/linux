@@ -2320,8 +2320,7 @@ static int ub_probe_lun(struct ub_dev *sc, int lnum)
 	disk->queue = q;
 
 	blk_queue_bounce_limit(q, BLK_BOUNCE_HIGH);
-	blk_queue_max_hw_segments(q, UB_MAX_REQ_SG);
-	blk_queue_max_phys_segments(q, UB_MAX_REQ_SG);
+	blk_queue_max_segments(q, UB_MAX_REQ_SG);
 	blk_queue_segment_boundary(q, 0xffffffff);	/* Dubious. */
 	blk_queue_max_hw_sectors(q, UB_MAX_SECTORS);
 	blk_queue_logical_block_size(q, lun->capacity.bsize);

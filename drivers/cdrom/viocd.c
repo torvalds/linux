@@ -616,8 +616,7 @@ static int viocd_probe(struct vio_dev *vdev, const struct vio_device_id *id)
 	gendisk->first_minor = deviceno;
 	strncpy(gendisk->disk_name, c->name,
 			sizeof(gendisk->disk_name));
-	blk_queue_max_hw_segments(q, 1);
-	blk_queue_max_phys_segments(q, 1);
+	blk_queue_max_segments(q, 1);
 	blk_queue_max_hw_sectors(q, 4096 / 512);
 	gendisk->queue = q;
 	gendisk->fops = &viocd_fops;

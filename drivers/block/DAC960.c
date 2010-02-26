@@ -2534,7 +2534,7 @@ static bool DAC960_RegisterBlockDevice(DAC960_Controller_T *Controller)
   	blk_queue_bounce_limit(RequestQueue, Controller->BounceBufferLimit);
   	RequestQueue->queuedata = Controller;
   	blk_queue_max_hw_segments(RequestQueue, Controller->DriverScatterGatherLimit);
-	blk_queue_max_phys_segments(RequestQueue, Controller->DriverScatterGatherLimit);
+	blk_queue_max_segments(RequestQueue, Controller->DriverScatterGatherLimit);
 	blk_queue_max_hw_sectors(RequestQueue, Controller->MaxBlocksPerCommand);
 	disk->queue = RequestQueue;
 	sprintf(disk->disk_name, "rd/c%dd%d", Controller->ControllerNumber, n);

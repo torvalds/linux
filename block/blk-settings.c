@@ -91,8 +91,7 @@ EXPORT_SYMBOL_GPL(blk_queue_lld_busy);
  */
 void blk_set_default_limits(struct queue_limits *lim)
 {
-	lim->max_phys_segments = MAX_PHYS_SEGMENTS;
-	lim->max_hw_segments = MAX_HW_SEGMENTS;
+	lim->max_segments = BLK_MAX_SEGMENTS;
 	lim->seg_boundary_mask = BLK_SEG_BOUNDARY_MASK;
 	lim->max_segment_size = BLK_MAX_SEGMENT_SIZE;
 	lim->max_sectors = BLK_DEF_MAX_SECTORS;
@@ -252,17 +251,15 @@ void blk_queue_max_discard_sectors(struct request_queue *q,
 EXPORT_SYMBOL(blk_queue_max_discard_sectors);
 
 /**
- * blk_queue_max_phys_segments - set max phys segments for a request for this queue
+ * blk_queue_max_segments - set max hw segments for a request for this queue
  * @q:  the request queue for the device
  * @max_segments:  max number of segments
  *
  * Description:
  *    Enables a low level driver to set an upper limit on the number of
- *    physical data segments in a request.  This would be the largest sized
- *    scatter list the driver could handle.
+ *    hw data segments in a request.
  **/
-void blk_queue_max_phys_segments(struct request_queue *q,
-				 unsigned short max_segments)
+void blk_queue_max_segments(struct request_queue *q, unsigned short max_segments)
 {
 	if (!max_segments) {
 		max_segments = 1;
@@ -270,33 +267,9 @@ void blk_queue_max_phys_segments(struct request_queue *q,
 		       __func__, max_segments);
 	}
 
-	q->limits.max_phys_segments = max_segments;
+	q->limits.max_segments = max_segments;
 }
-EXPORT_SYMBOL(blk_queue_max_phys_segments);
-
-/**
- * blk_queue_max_hw_segments - set max hw segments for a request for this queue
- * @q:  the request queue for the device
- * @max_segments:  max number of segments
- *
- * Description:
- *    Enables a low level driver to set an upper limit on the number of
- *    hw data segments in a request.  This would be the largest number of
- *    address/length pairs the host adapter can actually give at once
- *    to the device.
- **/
-void blk_queue_max_hw_segments(struct request_queue *q,
-			       unsigned short max_segments)
-{
-	if (!max_segments) {
-		max_segments = 1;
-		printk(KERN_INFO "%s: set to minimum %d\n",
-		       __func__, max_segments);
-	}
-
-	q->limits.max_hw_segments = max_segments;
-}
-EXPORT_SYMBOL(blk_queue_max_hw_segments);
+EXPORT_SYMBOL(blk_queue_max_segments);
 
 /**
  * blk_queue_max_segment_size - set max segment size for blk_rq_map_sg
@@ -531,11 +504,7 @@ int blk_stack_limits(struct queue_limits *t, struct queue_limits *b,
 	t->seg_boundary_mask = min_not_zero(t->seg_boundary_mask,
 					    b->seg_boundary_mask);
 
-	t->max_phys_segments = min_not_zero(t->max_phys_segments,
-					    b->max_phys_segments);
-
-	t->max_hw_segments = min_not_zero(t->max_hw_segments,
-					  b->max_hw_segments);
+	t->max_segments = min_not_zero(t->max_segments, b->max_segments);
 
 	t->max_segment_size = min_not_zero(t->max_segment_size,
 					   b->max_segment_size);
@@ -739,22 +708,19 @@ EXPORT_SYMBOL(blk_queue_update_dma_pad);
  * does is adjust the queue so that the buf is always appended
  * silently to the scatterlist.
  *
- * Note: This routine adjusts max_hw_segments to make room for
- * appending the drain buffer.  If you call
- * blk_queue_max_hw_segments() or blk_queue_max_phys_segments() after
- * calling this routine, you must set the limit to one fewer than your
- * device can support otherwise there won't be room for the drain
- * buffer.
+ * Note: This routine adjusts max_hw_segments to make room for appending
+ * the drain buffer.  If you call blk_queue_max_segments() after calling
+ * this routine, you must set the limit to one fewer than your device
+ * can support otherwise there won't be room for the drain buffer.
  */
 int blk_queue_dma_drain(struct request_queue *q,
 			       dma_drain_needed_fn *dma_drain_needed,
 			       void *buf, unsigned int size)
 {
-	if (queue_max_hw_segments(q) < 2 || queue_max_phys_segments(q) < 2)
+	if (queue_max_segments(q) < 2)
 		return -EINVAL;
 	/* make room for appending the drain */
-	blk_queue_max_hw_segments(q, queue_max_hw_segments(q) - 1);
-	blk_queue_max_phys_segments(q, queue_max_phys_segments(q) - 1);
+	blk_queue_max_segments(q, queue_max_segments(q) - 1);
 	q->dma_drain_needed = dma_drain_needed;
 	q->dma_drain_buffer = buf;
 	q->dma_drain_size = size;

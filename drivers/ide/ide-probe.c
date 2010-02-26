@@ -790,8 +790,7 @@ static int ide_init_queue(ide_drive_t *drive)
 		max_sg_entries >>= 1;
 #endif /* CONFIG_PCI */
 
-	blk_queue_max_hw_segments(q, max_sg_entries);
-	blk_queue_max_phys_segments(q, max_sg_entries);
+	blk_queue_max_segments(q, max_sg_entries);
 
 	/* assign drive queue */
 	drive->queue = q;

@@ -482,8 +482,7 @@ static int __devinit ps3disk_probe(struct ps3_system_bus_device *_dev)
 	blk_queue_ordered(queue, QUEUE_ORDERED_DRAIN_FLUSH,
 			  ps3disk_prepare_flush);
 
-	blk_queue_max_phys_segments(queue, -1);
-	blk_queue_max_hw_segments(queue, -1);
+	blk_queue_max_segments(queue, -1);
 	blk_queue_max_segment_size(queue, dev->bounce_size);
 
 	gendisk = alloc_disk(PS3DISK_MINORS);

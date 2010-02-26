@@ -691,8 +691,7 @@ static int probe_disk(struct vdc_port *port)
 
 	port->disk = g;
 
-	blk_queue_max_hw_segments(q, port->ring_cookies);
-	blk_queue_max_phys_segments(q, port->ring_cookies);
+	blk_queue_max_segments(q, port->ring_cookies);
 	blk_queue_max_hw_sectors(q, port->max_xfer_size);
 	g->major = vdc_major;
 	g->first_minor = port->vio.vdev->dev_no << PARTITION_SHIFT;

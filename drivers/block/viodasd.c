@@ -471,8 +471,7 @@ retry:
 	}
 
 	d->disk = g;
-	blk_queue_max_hw_segments(q, VIOMAXBLOCKDMA);
-	blk_queue_max_phys_segments(q, VIOMAXBLOCKDMA);
+	blk_queue_max_segments(q, VIOMAXBLOCKDMA);
 	blk_queue_max_hw_sectors(q, VIODASD_MAXSECTORS);
 	g->major = VIODASD_MAJOR;
 	g->first_minor = dev_no << PARTITION_SHIFT;

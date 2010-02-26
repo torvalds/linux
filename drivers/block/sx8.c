@@ -1518,8 +1518,7 @@ static int carm_init_disks(struct carm_host *host)
 			break;
 		}
 		disk->queue = q;
-		blk_queue_max_hw_segments(q, CARM_MAX_REQ_SG);
-		blk_queue_max_phys_segments(q, CARM_MAX_REQ_SG);
+		blk_queue_max_segments(q, CARM_MAX_REQ_SG);
 		blk_queue_segment_boundary(q, CARM_SG_BOUNDARY);
 
 		q->queuedata = port;

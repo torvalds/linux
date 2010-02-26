@@ -849,7 +849,7 @@ static int ubd_add(int n, char **error_out)
 	}
 	ubd_dev->queue->queuedata = ubd_dev;
 
-	blk_queue_max_hw_segments(ubd_dev->queue, MAX_SG);
+	blk_queue_max_segments(ubd_dev->queue, MAX_SG);
 	err = ubd_disk_register(UBD_MAJOR, ubd_dev->size, n, &ubd_gendisk[n]);
 	if(err){
 		*error_out = "Failed to register device";

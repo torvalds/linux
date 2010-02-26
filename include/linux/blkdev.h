@@ -316,8 +316,7 @@ struct queue_limits {
 	unsigned int		discard_alignment;
 
 	unsigned short		logical_block_size;
-	unsigned short		max_hw_segments;
-	unsigned short		max_phys_segments;
+	unsigned short		max_segments;
 
 	unsigned char		misaligned;
 	unsigned char		discard_misaligned;
@@ -929,8 +928,19 @@ static inline void blk_queue_max_sectors(struct request_queue *q, unsigned int m
 	blk_queue_max_hw_sectors(q, max);
 }
 
-extern void blk_queue_max_phys_segments(struct request_queue *, unsigned short);
-extern void blk_queue_max_hw_segments(struct request_queue *, unsigned short);
+extern void blk_queue_max_segments(struct request_queue *, unsigned short);
+
+static inline void blk_queue_max_phys_segments(struct request_queue *q, unsigned short max)
+{
+	blk_queue_max_segments(q, max);
+}
+
+static inline void blk_queue_max_hw_segments(struct request_queue *q, unsigned short max)
+{
+	blk_queue_max_segments(q, max);
+}
+
+
 extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
 extern void blk_queue_max_discard_sectors(struct request_queue *q,
 		unsigned int max_discard_sectors);
@@ -1055,14 +1065,9 @@ static inline unsigned int queue_max_hw_sectors(struct request_queue *q)
 	return q->limits.max_hw_sectors;
 }
 
-static inline unsigned short queue_max_hw_segments(struct request_queue *q)
+static inline unsigned short queue_max_segments(struct request_queue *q)
 {
-	return q->limits.max_hw_segments;
-}
-
-static inline unsigned short queue_max_phys_segments(struct request_queue *q)
-{
-	return q->limits.max_phys_segments;
+	return q->limits.max_segments;
 }
 
 static inline unsigned int queue_max_segment_size(struct request_queue *q)
