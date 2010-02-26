@@ -173,11 +173,10 @@ int i_AddiHeaderRW_ReadEeprom(int i_NbOfWordsToRead,
 			} while (dw_eeprom_busy == EEPROM_BUSY);
 
 			/* Select the upper address part */
-			if (i_Counter == 0) {
+			if (i_Counter == 0)
 				b_ReadLowByte = pb_ReadByte[0];
-			} else {
+			else
 				b_ReadHighByte = pb_ReadByte[0];
-			}
 
 			/* Sleep */
 			msleep(1);
