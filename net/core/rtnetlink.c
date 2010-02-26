@@ -1425,9 +1425,6 @@ static int rtnetlink_event(struct notifier_block *this, unsigned long event, voi
 	struct net_device *dev = ptr;
 
 	switch (event) {
-	case NETDEV_UNREGISTER:
-		rtmsg_ifinfo(RTM_DELLINK, dev, ~0U);
-		break;
 	case NETDEV_UP:
 	case NETDEV_DOWN:
 		rtmsg_ifinfo(RTM_NEWLINK, dev, IFF_UP|IFF_RUNNING);
@@ -1437,6 +1434,7 @@ static int rtnetlink_event(struct notifier_block *this, unsigned long event, voi
 	case NETDEV_REGISTER:
 	case NETDEV_CHANGE:
 	case NETDEV_GOING_DOWN:
+	case NETDEV_UNREGISTER:
 	case NETDEV_UNREGISTER_BATCH:
 		break;
 	default:

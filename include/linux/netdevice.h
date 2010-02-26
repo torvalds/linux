@@ -924,7 +924,12 @@ struct net_device {
 	       NETREG_UNREGISTERED,	/* completed unregister todo */
 	       NETREG_RELEASED,		/* called free_netdev */
 	       NETREG_DUMMY,		/* dummy device for NAPI poll */
-	} reg_state;
+	} reg_state:16;
+
+	enum {
+		RTNL_LINK_INITIALIZED,
+		RTNL_LINK_INITIALIZING,
+	} rtnl_link_state:16;
 
 	/* Called from unregister, can be used to call free_netdev */
 	void (*destructor)(struct net_device *dev);
