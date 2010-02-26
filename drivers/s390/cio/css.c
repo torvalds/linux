@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/reboot.h>
 #include <linux/suspend.h>
+#include <linux/proc_fs.h>
 #include <asm/isc.h>
 #include <asm/crw.h>
 
@@ -1019,6 +1020,18 @@ static int css_settle(struct device_driver *drv, void *unused)
 	return 0;
 }
 
+static inline void css_complete_work(void)
+{
+	int ret;
+
+	/* Wait for the evaluation of subchannels to finish. */
+	wait_event(css_eval_wq, atomic_read(&css_eval_scheduled) == 0);
+	flush_workqueue(cio_work_q);
+	/* Wait for the subchannel type specific initialization to finish */
+	ret = bus_for_each_drv(&css_bus_type, NULL, NULL, css_settle);
+}
+
+
 /*
  * Wait for the initialization of devices to finish, to make sure we are
  * done with our setup if the search for the root device starts.
@@ -1027,13 +1040,37 @@ static int __init channel_subsystem_init_sync(void)
 {
 	/* Start initial subchannel evaluation. */
 	css_schedule_eval_all();
-	/* Wait for the evaluation of subchannels to finish. */
-	wait_event(css_eval_wq, atomic_read(&css_eval_scheduled) == 0);
-	flush_workqueue(cio_work_q);
-	/* Wait for the subchannel type specific initialization to finish */
-	return bus_for_each_drv(&css_bus_type, NULL, NULL, css_settle);
+	css_complete_work();
+	return 0;
 }
 subsys_initcall_sync(channel_subsystem_init_sync);
+
+#ifdef CONFIG_PROC_FS
+static ssize_t cio_settle_write(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	/* Handle pending CRW's. */
+	crw_wait_for_channel_report();
+	css_complete_work();
+	return count;
+}
+
+static const struct file_operations cio_settle_proc_fops = {
+	.write = cio_settle_write,
+};
+
+static int __init cio_settle_init(void)
+{
+	struct proc_dir_entry *entry;
+
+	entry = proc_create("cio_settle", S_IWUSR, NULL,
+			    &cio_settle_proc_fops);
+	if (!entry)
+		return -ENOMEM;
+	return 0;
+}
+device_initcall(cio_settle_init);
+#endif /*CONFIG_PROC_FS*/
 
 int sch_is_pseudo_sch(struct subchannel *sch)
 {
