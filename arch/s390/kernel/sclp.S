@@ -9,8 +9,10 @@
  */
 
 LC_EXT_NEW_PSW		= 0x58			# addr of ext int handler
+LC_EXT_NEW_PSW_64	= 0x1b0			# addr of ext int handler 64 bit
 LC_EXT_INT_PARAM	= 0x80			# addr of ext int parameter
 LC_EXT_INT_CODE		= 0x86			# addr of ext int code
+LC_AR_MODE_ID		= 0xa3
 
 #
 # Subroutine which waits synchronously until either an external interruption
@@ -30,8 +32,16 @@ _sclp_wait_int:
 .LbaseS1:
 	ahi	%r15,-96			# create stack frame
 	la	%r8,LC_EXT_NEW_PSW		# register int handler
-	mvc	.LoldpswS1-.LbaseS1(8,%r13),0(%r8)
-	mvc	0(8,%r8),.LextpswS1-.LbaseS1(%r13)
+	la	%r9,.LextpswS1-.LbaseS1(%r13)
+#ifdef CONFIG_64BIT
+	tm	LC_AR_MODE_ID,1
+	jno	.Lesa1
+	la	%r8,LC_EXT_NEW_PSW_64		# register int handler 64 bit
+	la	%r9,.LextpswS1_64-.LbaseS1(%r13)
+.Lesa1:
+#endif
+	mvc	.LoldpswS1-.LbaseS1(16,%r13),0(%r8)
+	mvc	0(16,%r8),0(%r9)
 	lhi	%r6,0x0200			# cr mask for ext int (cr0.54)
 	ltr	%r2,%r2
 	jz	.LsetctS1
@@ -64,15 +74,19 @@ _sclp_wait_int:
 .LtimeoutS1:
 	lctl	%c0,%c0,.LctlS1-.LbaseS1(%r13)	# restore interrupt setting
 	# restore old handler
-	mvc	0(8,%r8),.LoldpswS1-.LbaseS1(%r13)
+	mvc	0(16,%r8),.LoldpswS1-.LbaseS1(%r13)
 	lm	%r6,%r15,120(%r15)		# restore registers
 	br	%r14				# return to caller
 
 	.align	8
 .LoldpswS1:
-	.long	0, 0				# old ext int PSW
+	.long	0, 0, 0, 0			# old ext int PSW
 .LextpswS1:
 	.long	0x00080000, 0x80000000+.LwaitS1	# PSW to handle ext int
+#ifdef CONFIG_64BIT
+.LextpswS1_64:
+	.quad	0x0000000180000000, .LwaitS1	# PSW to handle ext int, 64 bit
+#endif
 .LwaitpswS1:
 	.long	0x010a0000, 0x00000000+.LloopS1	# PSW to wait for ext int
 .LtimeS1:
@@ -250,6 +264,13 @@ _sclp_print:
 _sclp_print_early:
 	stm	%r6,%r15,24(%r15)		# save registers
 	ahi	%r15,-96			# create stack frame
+#ifdef CONFIG_64BIT
+	tm	LC_AR_MODE_ID,1
+	jno	.Lesa2
+	ahi	%r15,-80
+	stmh	%r6,%r15,96(%r15)		# store upper register halves
+.Lesa2:
+#endif
 	lr	%r10,%r2			# save string pointer
 	lhi	%r2,0
 	bras	%r14,_sclp_setup		# enable console
@@ -262,6 +283,13 @@ _sclp_print_early:
 	lhi	%r2,1
 	bras	%r14,_sclp_setup		# disable console
 .LendS5:
+#ifdef CONFIG_64BIT
+	tm	LC_AR_MODE_ID,1
+	jno	.Lesa3
+	lmh	%r6,%r15,96(%r15)		# store upper register halves
+	ahi	%r15,80
+.Lesa3:
+#endif
 	lm	%r6,%r15,120(%r15)		# restore registers
 	br	%r14
 

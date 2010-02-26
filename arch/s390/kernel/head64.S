@@ -1,7 +1,7 @@
 /*
  * arch/s390/kernel/head64.S
  *
- * Copyright (C) IBM Corp. 1999,2006
+ * Copyright (C) IBM Corp. 1999,2010
  *
  *   Author(s):	Hartmut Penner <hp@de.ibm.com>
  *		Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -10,18 +10,17 @@
  *
  */
 
-	.org	0x11000
+#include <linux/init.h>
+#include <asm/asm-offsets.h>
+#include <asm/thread_info.h>
+#include <asm/page.h>
 
+__HEAD
+	.globl	startup_continue
 startup_continue:
-	basr	%r13,0			# get base
-.LPG1:	sll	%r13,1			# remove high order bit
-	srl	%r13,1
-	mvi	__LC_AR_MODE_ID,1	# set esame flag
-	slr	%r0,%r0 		# set cpuid to zero
-	lhi	%r1,2			# mode 2 = esame (dump)
-	sigp	%r1,%r0,0x12		# switch to esame mode
-	sam64				# switch to 64 bit mode
-	llgfr	%r13,%r13		# clear high-order half of base reg
+	larl	%r1,sched_clock_base_cc
+	mvc	0(8,%r1),__LC_LAST_UPDATE_CLOCK
+	larl	%r13,.LPG1		# get base
 	lmh	%r0,%r15,.Lzero64-.LPG1(%r13)	# clear high-order half
 	lctlg	%c0,%c15,.Lctl-.LPG1(%r13)	# load control registers
 	lg	%r12,.Lparmaddr-.LPG1(%r13)	# pointer to parameter area
@@ -46,6 +45,7 @@ startup_continue:
 	lpswe	.Lentry-.LPG1(13)	# jump to _stext in primary-space,
 					# virtual and never return ...
 	.align	16
+.LPG1:
 .Lentry:.quad	0x0000000180000000,_stext
 .Lctl:	.quad	0x04350002		# cr0: various things
 	.quad	0			# cr1: primary space segment table
@@ -78,9 +78,9 @@ startup_continue:
 	.long	0x80000000,0,0,0	# invalid access-list entries
 	.endr
 
-	.org	0x12000
 	.globl	_ehead
 _ehead:
+
 #ifdef CONFIG_SHARED_KERNEL
 	.org	0x100000
 #endif
