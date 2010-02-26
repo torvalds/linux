@@ -61,364 +61,11 @@
 #define DBG(fmt...)
 #endif
 
-
-static int __initdata dt_root_addr_cells;
-static int __initdata dt_root_size_cells;
-
 #ifdef CONFIG_PPC64
 int __initdata iommu_is_off;
 int __initdata iommu_force_on;
 unsigned long tce_alloc_start, tce_alloc_end;
 #endif
-
-typedef u32 cell_t;
-
-#if 0
-static struct boot_param_header *initial_boot_params __initdata;
-#else
-struct boot_param_header *initial_boot_params;
-#endif
-
-extern struct device_node *allnodes;	/* temporary while merging */
-
-extern rwlock_t devtree_lock;	/* temporary while merging */
-
-/* export that to outside world */
-struct device_node *of_chosen;
-
-static inline char *find_flat_dt_string(u32 offset)
-{
-	return ((char *)initial_boot_params) +
-		initial_boot_params->off_dt_strings + offset;
-}
-
-/**
- * This function is used to scan the flattened device-tree, it is
- * used to extract the memory informations at boot before we can
- * unflatten the tree
- */
-int __init of_scan_flat_dt(int (*it)(unsigned long node,
-				     const char *uname, int depth,
-				     void *data),
-			   void *data)
-{
-	unsigned long p = ((unsigned long)initial_boot_params) +
-		initial_boot_params->off_dt_struct;
-	int rc = 0;
-	int depth = -1;
-
-	do {
-		u32 tag = *((u32 *)p);
-		char *pathp;
-		
-		p += 4;
-		if (tag == OF_DT_END_NODE) {
-			depth --;
-			continue;
-		}
-		if (tag == OF_DT_NOP)
-			continue;
-		if (tag == OF_DT_END)
-			break;
-		if (tag == OF_DT_PROP) {
-			u32 sz = *((u32 *)p);
-			p += 8;
-			if (initial_boot_params->version < 0x10)
-				p = _ALIGN(p, sz >= 8 ? 8 : 4);
-			p += sz;
-			p = _ALIGN(p, 4);
-			continue;
-		}
-		if (tag != OF_DT_BEGIN_NODE) {
-			printk(KERN_WARNING "Invalid tag %x scanning flattened"
-			       " device tree !\n", tag);
-			return -EINVAL;
-		}
-		depth++;
-		pathp = (char *)p;
-		p = _ALIGN(p + strlen(pathp) + 1, 4);
-		if ((*pathp) == '/') {
-			char *lp, *np;
-			for (lp = NULL, np = pathp; *np; np++)
-				if ((*np) == '/')
-					lp = np+1;
-			if (lp != NULL)
-				pathp = lp;
-		}
-		rc = it(p, pathp, depth, data);
-		if (rc != 0)
-			break;		
-	} while(1);
-
-	return rc;
-}
-
-unsigned long __init of_get_flat_dt_root(void)
-{
-	unsigned long p = ((unsigned long)initial_boot_params) +
-		initial_boot_params->off_dt_struct;
-
-	while(*((u32 *)p) == OF_DT_NOP)
-		p += 4;
-	BUG_ON (*((u32 *)p) != OF_DT_BEGIN_NODE);
-	p += 4;
-	return _ALIGN(p + strlen((char *)p) + 1, 4);
-}
-
-/**
- * This  function can be used within scan_flattened_dt callback to get
- * access to properties
- */
-void* __init of_get_flat_dt_prop(unsigned long node, const char *name,
-				 unsigned long *size)
-{
-	unsigned long p = node;
-
-	do {
-		u32 tag = *((u32 *)p);
-		u32 sz, noff;
-		const char *nstr;
-
-		p += 4;
-		if (tag == OF_DT_NOP)
-			continue;
-		if (tag != OF_DT_PROP)
-			return NULL;
-
-		sz = *((u32 *)p);
-		noff = *((u32 *)(p + 4));
-		p += 8;
-		if (initial_boot_params->version < 0x10)
-			p = _ALIGN(p, sz >= 8 ? 8 : 4);
-
-		nstr = find_flat_dt_string(noff);
-		if (nstr == NULL) {
-			printk(KERN_WARNING "Can't find property index"
-			       " name !\n");
-			return NULL;
-		}
-		if (strcmp(name, nstr) == 0) {
-			if (size)
-				*size = sz;
-			return (void *)p;
-		}
-		p += sz;
-		p = _ALIGN(p, 4);
-	} while(1);
-}
-
-int __init of_flat_dt_is_compatible(unsigned long node, const char *compat)
-{
-	const char* cp;
-	unsigned long cplen, l;
-
-	cp = of_get_flat_dt_prop(node, "compatible", &cplen);
-	if (cp == NULL)
-		return 0;
-	while (cplen > 0) {
-		if (strncasecmp(cp, compat, strlen(compat)) == 0)
-			return 1;
-		l = strlen(cp) + 1;
-		cp += l;
-		cplen -= l;
-	}
-
-	return 0;
-}
-
-static void *__init unflatten_dt_alloc(unsigned long *mem, unsigned long size,
-				       unsigned long align)
-{
-	void *res;
-
-	*mem = _ALIGN(*mem, align);
-	res = (void *)*mem;
-	*mem += size;
-
-	return res;
-}
-
-static unsigned long __init unflatten_dt_node(unsigned long mem,
-					      unsigned long *p,
-					      struct device_node *dad,
-					      struct device_node ***allnextpp,
-					      unsigned long fpsize)
-{
-	struct device_node *np;
-	struct property *pp, **prev_pp = NULL;
-	char *pathp;
-	u32 tag;
-	unsigned int l, allocl;
-	int has_name = 0;
-	int new_format = 0;
-
-	tag = *((u32 *)(*p));
-	if (tag != OF_DT_BEGIN_NODE) {
-		printk("Weird tag at start of node: %x\n", tag);
-		return mem;
-	}
-	*p += 4;
-	pathp = (char *)*p;
-	l = allocl = strlen(pathp) + 1;
-	*p = _ALIGN(*p + l, 4);
-
-	/* version 0x10 has a more compact unit name here instead of the full
-	 * path. we accumulate the full path size using "fpsize", we'll rebuild
-	 * it later. We detect this because the first character of the name is
-	 * not '/'.
-	 */
-	if ((*pathp) != '/') {
-		new_format = 1;
-		if (fpsize == 0) {
-			/* root node: special case. fpsize accounts for path
-			 * plus terminating zero. root node only has '/', so
-			 * fpsize should be 2, but we want to avoid the first
-			 * level nodes to have two '/' so we use fpsize 1 here
-			 */
-			fpsize = 1;
-			allocl = 2;
-		} else {
-			/* account for '/' and path size minus terminal 0
-			 * already in 'l'
-			 */
-			fpsize += l;
-			allocl = fpsize;
-		}
-	}
-
-
-	np = unflatten_dt_alloc(&mem, sizeof(struct device_node) + allocl,
-				__alignof__(struct device_node));
-	if (allnextpp) {
-		memset(np, 0, sizeof(*np));
-		np->full_name = ((char*)np) + sizeof(struct device_node);
-		if (new_format) {
-			char *p = np->full_name;
-			/* rebuild full path for new format */
-			if (dad && dad->parent) {
-				strcpy(p, dad->full_name);
-#ifdef DEBUG
-				if ((strlen(p) + l + 1) != allocl) {
-					DBG("%s: p: %d, l: %d, a: %d\n",
-					    pathp, (int)strlen(p), l, allocl);
-				}
-#endif
-				p += strlen(p);
-			}
-			*(p++) = '/';
-			memcpy(p, pathp, l);
-		} else
-			memcpy(np->full_name, pathp, l);
-		prev_pp = &np->properties;
-		**allnextpp = np;
-		*allnextpp = &np->allnext;
-		if (dad != NULL) {
-			np->parent = dad;
-			/* we temporarily use the next field as `last_child'*/
-			if (dad->next == 0)
-				dad->child = np;
-			else
-				dad->next->sibling = np;
-			dad->next = np;
-		}
-		kref_init(&np->kref);
-	}
-	while(1) {
-		u32 sz, noff;
-		char *pname;
-
-		tag = *((u32 *)(*p));
-		if (tag == OF_DT_NOP) {
-			*p += 4;
-			continue;
-		}
-		if (tag != OF_DT_PROP)
-			break;
-		*p += 4;
-		sz = *((u32 *)(*p));
-		noff = *((u32 *)((*p) + 4));
-		*p += 8;
-		if (initial_boot_params->version < 0x10)
-			*p = _ALIGN(*p, sz >= 8 ? 8 : 4);
-
-		pname = find_flat_dt_string(noff);
-		if (pname == NULL) {
-			printk("Can't find property name in list !\n");
-			break;
-		}
-		if (strcmp(pname, "name") == 0)
-			has_name = 1;
-		l = strlen(pname) + 1;
-		pp = unflatten_dt_alloc(&mem, sizeof(struct property),
-					__alignof__(struct property));
-		if (allnextpp) {
-			if (strcmp(pname, "linux,phandle") == 0) {
-				np->node = *((u32 *)*p);
-				if (np->linux_phandle == 0)
-					np->linux_phandle = np->node;
-			}
-			if (strcmp(pname, "ibm,phandle") == 0)
-				np->linux_phandle = *((u32 *)*p);
-			pp->name = pname;
-			pp->length = sz;
-			pp->value = (void *)*p;
-			*prev_pp = pp;
-			prev_pp = &pp->next;
-		}
-		*p = _ALIGN((*p) + sz, 4);
-	}
-	/* with version 0x10 we may not have the name property, recreate
-	 * it here from the unit name if absent
-	 */
-	if (!has_name) {
-		char *p = pathp, *ps = pathp, *pa = NULL;
-		int sz;
-
-		while (*p) {
-			if ((*p) == '@')
-				pa = p;
-			if ((*p) == '/')
-				ps = p + 1;
-			p++;
-		}
-		if (pa < ps)
-			pa = p;
-		sz = (pa - ps) + 1;
-		pp = unflatten_dt_alloc(&mem, sizeof(struct property) + sz,
-					__alignof__(struct property));
-		if (allnextpp) {
-			pp->name = "name";
-			pp->length = sz;
-			pp->value = pp + 1;
-			*prev_pp = pp;
-			prev_pp = &pp->next;
-			memcpy(pp->value, ps, sz - 1);
-			((char *)pp->value)[sz - 1] = 0;
-			DBG("fixed up name for %s -> %s\n", pathp,
-				(char *)pp->value);
-		}
-	}
-	if (allnextpp) {
-		*prev_pp = NULL;
-		np->name = of_get_property(np, "name", NULL);
-		np->type = of_get_property(np, "device_type", NULL);
-
-		if (!np->name)
-			np->name = "<NULL>";
-		if (!np->type)
-			np->type = "<NULL>";
-	}
-	while (tag == OF_DT_BEGIN_NODE) {
-		mem = unflatten_dt_node(mem, p, np, allnextpp, fpsize);
-		tag = *((u32 *)(*p));
-	}
-	if (tag != OF_DT_END_NODE) {
-		printk("Weird tag at end of node: %x\n", tag);
-		return mem;
-	}
-	*p += 4;
-	return mem;
-}
 
 static int __init early_parse_mem(char *p)
 {
@@ -446,7 +93,7 @@ static void __init move_device_tree(void)
 	DBG("-> move_device_tree\n");
 
 	start = __pa(initial_boot_params);
-	size = initial_boot_params->totalsize;
+	size = be32_to_cpu(initial_boot_params->totalsize);
 
 	if ((memory_limit && (start + size) > memory_limit) ||
 			overlaps_crashkernel(start, size)) {
@@ -457,54 +104,6 @@ static void __init move_device_tree(void)
 	}
 
 	DBG("<- move_device_tree\n");
-}
-
-/**
- * unflattens the device-tree passed by the firmware, creating the
- * tree of struct device_node. It also fills the "name" and "type"
- * pointers of the nodes so the normal device-tree walking functions
- * can be used (this used to be done by finish_device_tree)
- */
-void __init unflatten_device_tree(void)
-{
-	unsigned long start, mem, size;
-	struct device_node **allnextp = &allnodes;
-
-	DBG(" -> unflatten_device_tree()\n");
-
-	/* First pass, scan for size */
-	start = ((unsigned long)initial_boot_params) +
-		initial_boot_params->off_dt_struct;
-	size = unflatten_dt_node(0, &start, NULL, NULL, 0);
-	size = (size | 3) + 1;
-
-	DBG("  size is %lx, allocating...\n", size);
-
-	/* Allocate memory for the expanded device tree */
-	mem = lmb_alloc(size + 4, __alignof__(struct device_node));
-	mem = (unsigned long) __va(mem);
-
-	((u32 *)mem)[size / 4] = 0xdeadbeef;
-
-	DBG("  unflattening %lx...\n", mem);
-
-	/* Second pass, do actual unflattening */
-	start = ((unsigned long)initial_boot_params) +
-		initial_boot_params->off_dt_struct;
-	unflatten_dt_node(mem, &start, NULL, &allnextp, 0);
-	if (*((u32 *)start) != OF_DT_END)
-		printk(KERN_WARNING "Weird tag at end of tree: %08x\n", *((u32 *)start));
-	if (((u32 *)mem)[size / 4] != 0xdeadbeef)
-		printk(KERN_WARNING "End of tree marker overwritten: %08x\n",
-		       ((u32 *)mem)[size / 4] );
-	*allnextp = NULL;
-
-	/* Get pointer to OF "/chosen" node for use everywhere */
-	of_chosen = of_find_node_by_path("/chosen");
-	if (of_chosen == NULL)
-		of_chosen = of_find_node_by_path("/chosen@0");
-
-	DBG(" <- unflatten_device_tree()\n");
 }
 
 /*
@@ -763,48 +362,9 @@ static int __init early_init_dt_scan_cpus(unsigned long node,
 	return 0;
 }
 
-#ifdef CONFIG_BLK_DEV_INITRD
-static void __init early_init_dt_check_for_initrd(unsigned long node)
-{
-	unsigned long l;
-	u32 *prop;
-
-	DBG("Looking for initrd properties... ");
-
-	prop = of_get_flat_dt_prop(node, "linux,initrd-start", &l);
-	if (prop) {
-		initrd_start = (unsigned long)__va(of_read_ulong(prop, l/4));
-
-		prop = of_get_flat_dt_prop(node, "linux,initrd-end", &l);
-		if (prop) {
-			initrd_end = (unsigned long)
-					__va(of_read_ulong(prop, l/4));
-			initrd_below_start_ok = 1;
-		} else {
-			initrd_start = 0;
-		}
-	}
-
-	DBG("initrd_start=0x%lx  initrd_end=0x%lx\n", initrd_start, initrd_end);
-}
-#else
-static inline void early_init_dt_check_for_initrd(unsigned long node)
-{
-}
-#endif /* CONFIG_BLK_DEV_INITRD */
-
-static int __init early_init_dt_scan_chosen(unsigned long node,
-					    const char *uname, int depth, void *data)
+void __init early_init_dt_scan_chosen_arch(unsigned long node)
 {
 	unsigned long *lprop;
-	unsigned long l;
-	char *p;
-
-	DBG("search \"chosen\", depth: %d, uname: %s\n", depth, uname);
-
-	if (depth != 1 ||
-	    (strcmp(uname, "chosen") != 0 && strcmp(uname, "chosen@0") != 0))
-		return 0;
 
 #ifdef CONFIG_PPC64
 	/* check if iommu is forced on or off */
@@ -815,17 +375,17 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 #endif
 
 	/* mem=x on the command line is the preferred mechanism */
- 	lprop = of_get_flat_dt_prop(node, "linux,memory-limit", NULL);
- 	if (lprop)
- 		memory_limit = *lprop;
+	lprop = of_get_flat_dt_prop(node, "linux,memory-limit", NULL);
+	if (lprop)
+		memory_limit = *lprop;
 
 #ifdef CONFIG_PPC64
- 	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-start", NULL);
- 	if (lprop)
- 		tce_alloc_start = *lprop;
- 	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-end", NULL);
- 	if (lprop)
- 		tce_alloc_end = *lprop;
+	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-start", NULL);
+	if (lprop)
+		tce_alloc_start = *lprop;
+	lprop = of_get_flat_dt_prop(node, "linux,tce-alloc-end", NULL);
+	if (lprop)
+		tce_alloc_end = *lprop;
 #endif
 
 #ifdef CONFIG_KEXEC
@@ -837,51 +397,6 @@ static int __init early_init_dt_scan_chosen(unsigned long node,
 	if (lprop)
 		crashk_res.end = crashk_res.start + *lprop - 1;
 #endif
-
-	early_init_dt_check_for_initrd(node);
-
-	/* Retreive command line */
- 	p = of_get_flat_dt_prop(node, "bootargs", &l);
-	if (p != NULL && l > 0)
-		strlcpy(cmd_line, p, min((int)l, COMMAND_LINE_SIZE));
-
-#ifdef CONFIG_CMDLINE
-	if (p == NULL || l == 0 || (l == 1 && (*p) == 0))
-		strlcpy(cmd_line, CONFIG_CMDLINE, COMMAND_LINE_SIZE);
-#endif /* CONFIG_CMDLINE */
-
-	DBG("Command line is: %s\n", cmd_line);
-
-	/* break now */
-	return 1;
-}
-
-static int __init early_init_dt_scan_root(unsigned long node,
-					  const char *uname, int depth, void *data)
-{
-	u32 *prop;
-
-	if (depth != 0)
-		return 0;
-
-	prop = of_get_flat_dt_prop(node, "#size-cells", NULL);
-	dt_root_size_cells = (prop == NULL) ? 1 : *prop;
-	DBG("dt_root_size_cells = %x\n", dt_root_size_cells);
-
-	prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
-	dt_root_addr_cells = (prop == NULL) ? 2 : *prop;
-	DBG("dt_root_addr_cells = %x\n", dt_root_addr_cells);
-	
-	/* break now */
-	return 1;
-}
-
-static u64 __init dt_mem_next_cell(int s, cell_t **cellp)
-{
-	cell_t *p = *cellp;
-
-	*cellp = p + s;
-	return of_read_number(p, s);
 }
 
 #ifdef CONFIG_PPC_PSERIES
@@ -893,22 +408,22 @@ static u64 __init dt_mem_next_cell(int s, cell_t **cellp)
  */
 static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 {
-	cell_t *dm, *ls, *usm;
+	__be32 *dm, *ls, *usm;
 	unsigned long l, n, flags;
 	u64 base, size, lmb_size;
 	unsigned int is_kexec_kdump = 0, rngs;
 
 	ls = of_get_flat_dt_prop(node, "ibm,lmb-size", &l);
-	if (ls == NULL || l < dt_root_size_cells * sizeof(cell_t))
+	if (ls == NULL || l < dt_root_size_cells * sizeof(__be32))
 		return 0;
 	lmb_size = dt_mem_next_cell(dt_root_size_cells, &ls);
 
 	dm = of_get_flat_dt_prop(node, "ibm,dynamic-memory", &l);
-	if (dm == NULL || l < sizeof(cell_t))
+	if (dm == NULL || l < sizeof(__be32))
 		return 0;
 
 	n = *dm++;	/* number of entries */
-	if (l < (n * (dt_root_addr_cells + 4) + 1) * sizeof(cell_t))
+	if (l < (n * (dt_root_addr_cells + 4) + 1) * sizeof(__be32))
 		return 0;
 
 	/* check if this is a kexec/kdump kernel. */
@@ -963,65 +478,47 @@ static int __init early_init_dt_scan_drconf_memory(unsigned long node)
 #define early_init_dt_scan_drconf_memory(node)	0
 #endif /* CONFIG_PPC_PSERIES */
 
-static int __init early_init_dt_scan_memory(unsigned long node,
-					    const char *uname, int depth, void *data)
+static int __init early_init_dt_scan_memory_ppc(unsigned long node,
+						const char *uname,
+						int depth, void *data)
 {
-	char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-	cell_t *reg, *endp;
-	unsigned long l;
-
-	/* Look for the ibm,dynamic-reconfiguration-memory node */
 	if (depth == 1 &&
 	    strcmp(uname, "ibm,dynamic-reconfiguration-memory") == 0)
 		return early_init_dt_scan_drconf_memory(node);
-
-	/* We are scanning "memory" nodes only */
-	if (type == NULL) {
-		/*
-		 * The longtrail doesn't have a device_type on the
-		 * /memory node, so look for the node called /memory@0.
-		 */
-		if (depth != 1 || strcmp(uname, "memory@0") != 0)
-			return 0;
-	} else if (strcmp(type, "memory") != 0)
-		return 0;
-
-	reg = of_get_flat_dt_prop(node, "linux,usable-memory", &l);
-	if (reg == NULL)
-		reg = of_get_flat_dt_prop(node, "reg", &l);
-	if (reg == NULL)
-		return 0;
-
-	endp = reg + (l / sizeof(cell_t));
-
-	DBG("memory scan node %s, reg size %ld, data: %x %x %x %x,\n",
-	    uname, l, reg[0], reg[1], reg[2], reg[3]);
-
-	while ((endp - reg) >= (dt_root_addr_cells + dt_root_size_cells)) {
-		u64 base, size;
-
-		base = dt_mem_next_cell(dt_root_addr_cells, &reg);
-		size = dt_mem_next_cell(dt_root_size_cells, &reg);
-
-		if (size == 0)
-			continue;
-		DBG(" - %llx ,  %llx\n", (unsigned long long)base,
-		    (unsigned long long)size);
-#ifdef CONFIG_PPC64
-		if (iommu_is_off) {
-			if (base >= 0x80000000ul)
-				continue;
-			if ((base + size) > 0x80000000ul)
-				size = 0x80000000ul - base;
-		}
-#endif
-		lmb_add(base, size);
-
-		memstart_addr = min((u64)memstart_addr, base);
-	}
-
-	return 0;
+	
+	return early_init_dt_scan_memory(node, uname, depth, data);
 }
+
+void __init early_init_dt_add_memory_arch(u64 base, u64 size)
+{
+#if defined(CONFIG_PPC64)
+	if (iommu_is_off) {
+		if (base >= 0x80000000ul)
+			return;
+		if ((base + size) > 0x80000000ul)
+			size = 0x80000000ul - base;
+	}
+#endif
+
+	lmb_add(base, size);
+
+	memstart_addr = min((u64)memstart_addr, base);
+}
+
+u64 __init early_init_dt_alloc_memory_arch(u64 size, u64 align)
+{
+	return lmb_alloc(size, align);
+}
+
+#ifdef CONFIG_BLK_DEV_INITRD
+void __init early_init_dt_setup_initrd_arch(unsigned long start,
+		unsigned long end)
+{
+	initrd_start = (unsigned long)__va(start);
+	initrd_end = (unsigned long)__va(end);
+	initrd_below_start_ok = 1;
+}
+#endif
 
 static void __init early_reserve_mem(void)
 {
@@ -1186,7 +683,7 @@ void __init early_init_devtree(void *params)
 	/* Scan memory nodes and rebuild LMBs */
 	lmb_init();
 	of_scan_flat_dt(early_init_dt_scan_root, NULL);
-	of_scan_flat_dt(early_init_dt_scan_memory, NULL);
+	of_scan_flat_dt(early_init_dt_scan_memory_ppc, NULL);
 
 	/* Save command line for /proc/cmdline and then parse parameters */
 	strlcpy(boot_command_line, cmd_line, COMMAND_LINE_SIZE);
@@ -1234,25 +731,6 @@ void __init early_init_devtree(void *params)
 	DBG(" <- early_init_devtree()\n");
 }
 
-
-/**
- * Indicates whether the root node has a given value in its
- * compatible property.
- */
-int machine_is_compatible(const char *compat)
-{
-	struct device_node *root;
-	int rc = 0;
-
-	root = of_find_node_by_path("/");
-	if (root) {
-		rc = of_device_is_compatible(root, compat);
-		of_node_put(root);
-	}
-	return rc;
-}
-EXPORT_SYMBOL(machine_is_compatible);
-
 /*******
  *
  * New implementation of the OF "find" APIs, return a refcounted
@@ -1263,27 +741,6 @@ EXPORT_SYMBOL(machine_is_compatible);
  * this isn't dealt with yet.
  *
  *******/
-
-/**
- *	of_find_node_by_phandle - Find a node given a phandle
- *	@handle:	phandle of the node to find
- *
- *	Returns a node pointer with refcount incremented, use
- *	of_node_put() on it when done.
- */
-struct device_node *of_find_node_by_phandle(phandle handle)
-{
-	struct device_node *np;
-
-	read_lock(&devtree_lock);
-	for (np = allnodes; np != 0; np = np->allnext)
-		if (np->linux_phandle == handle)
-			break;
-	of_node_get(np);
-	read_unlock(&devtree_lock);
-	return np;
-}
-EXPORT_SYMBOL(of_find_node_by_phandle);
 
 /**
  *	of_find_next_cache_node - Find a node's subsidiary cache
@@ -1314,138 +771,6 @@ struct device_node *of_find_next_cache_node(struct device_node *np)
 				return child;
 
 	return NULL;
-}
-
-/**
- *	of_node_get - Increment refcount of a node
- *	@node:	Node to inc refcount, NULL is supported to
- *		simplify writing of callers
- *
- *	Returns node.
- */
-struct device_node *of_node_get(struct device_node *node)
-{
-	if (node)
-		kref_get(&node->kref);
-	return node;
-}
-EXPORT_SYMBOL(of_node_get);
-
-static inline struct device_node * kref_to_device_node(struct kref *kref)
-{
-	return container_of(kref, struct device_node, kref);
-}
-
-/**
- *	of_node_release - release a dynamically allocated node
- *	@kref:  kref element of the node to be released
- *
- *	In of_node_put() this function is passed to kref_put()
- *	as the destructor.
- */
-static void of_node_release(struct kref *kref)
-{
-	struct device_node *node = kref_to_device_node(kref);
-	struct property *prop = node->properties;
-
-	/* We should never be releasing nodes that haven't been detached. */
-	if (!of_node_check_flag(node, OF_DETACHED)) {
-		printk("WARNING: Bad of_node_put() on %s\n", node->full_name);
-		dump_stack();
-		kref_init(&node->kref);
-		return;
-	}
-
-	if (!of_node_check_flag(node, OF_DYNAMIC))
-		return;
-
-	while (prop) {
-		struct property *next = prop->next;
-		kfree(prop->name);
-		kfree(prop->value);
-		kfree(prop);
-		prop = next;
-
-		if (!prop) {
-			prop = node->deadprops;
-			node->deadprops = NULL;
-		}
-	}
-	kfree(node->full_name);
-	kfree(node->data);
-	kfree(node);
-}
-
-/**
- *	of_node_put - Decrement refcount of a node
- *	@node:	Node to dec refcount, NULL is supported to
- *		simplify writing of callers
- *
- */
-void of_node_put(struct device_node *node)
-{
-	if (node)
-		kref_put(&node->kref, of_node_release);
-}
-EXPORT_SYMBOL(of_node_put);
-
-/*
- * Plug a device node into the tree and global list.
- */
-void of_attach_node(struct device_node *np)
-{
-	unsigned long flags;
-
-	write_lock_irqsave(&devtree_lock, flags);
-	np->sibling = np->parent->child;
-	np->allnext = allnodes;
-	np->parent->child = np;
-	allnodes = np;
-	write_unlock_irqrestore(&devtree_lock, flags);
-}
-
-/*
- * "Unplug" a node from the device tree.  The caller must hold
- * a reference to the node.  The memory associated with the node
- * is not freed until its refcount goes to zero.
- */
-void of_detach_node(struct device_node *np)
-{
-	struct device_node *parent;
-	unsigned long flags;
-
-	write_lock_irqsave(&devtree_lock, flags);
-
-	parent = np->parent;
-	if (!parent)
-		goto out_unlock;
-
-	if (allnodes == np)
-		allnodes = np->allnext;
-	else {
-		struct device_node *prev;
-		for (prev = allnodes;
-		     prev->allnext != np;
-		     prev = prev->allnext)
-			;
-		prev->allnext = np->allnext;
-	}
-
-	if (parent->child == np)
-		parent->child = np->sibling;
-	else {
-		struct device_node *prevsib;
-		for (prevsib = np->parent->child;
-		     prevsib->sibling != np;
-		     prevsib = prevsib->sibling)
-			;
-		prevsib->sibling = np->sibling;
-	}
-
-	of_node_set_flag(np, OF_DETACHED);
-
-out_unlock:
-	write_unlock_irqrestore(&devtree_lock, flags);
 }
 
 #ifdef CONFIG_PPC_PSERIES
@@ -1479,9 +804,9 @@ static int of_finish_dynamic_node(struct device_node *node)
 	if (machine_is(powermac))
 		return -ENODEV;
 
-	/* fix up new node's linux_phandle field */
+	/* fix up new node's phandle field */
 	if ((ibm_phandle = of_get_property(node, "ibm,phandle", NULL)))
-		node->linux_phandle = *ibm_phandle;
+		node->phandle = *ibm_phandle;
 
 out:
 	of_node_put(parent);
@@ -1519,120 +844,6 @@ static int __init prom_reconfig_setup(void)
 }
 __initcall(prom_reconfig_setup);
 #endif
-
-/*
- * Add a property to a node
- */
-int prom_add_property(struct device_node* np, struct property* prop)
-{
-	struct property **next;
-	unsigned long flags;
-
-	prop->next = NULL;	
-	write_lock_irqsave(&devtree_lock, flags);
-	next = &np->properties;
-	while (*next) {
-		if (strcmp(prop->name, (*next)->name) == 0) {
-			/* duplicate ! don't insert it */
-			write_unlock_irqrestore(&devtree_lock, flags);
-			return -1;
-		}
-		next = &(*next)->next;
-	}
-	*next = prop;
-	write_unlock_irqrestore(&devtree_lock, flags);
-
-#ifdef CONFIG_PROC_DEVICETREE
-	/* try to add to proc as well if it was initialized */
-	if (np->pde)
-		proc_device_tree_add_prop(np->pde, prop);
-#endif /* CONFIG_PROC_DEVICETREE */
-
-	return 0;
-}
-
-/*
- * Remove a property from a node.  Note that we don't actually
- * remove it, since we have given out who-knows-how-many pointers
- * to the data using get-property.  Instead we just move the property
- * to the "dead properties" list, so it won't be found any more.
- */
-int prom_remove_property(struct device_node *np, struct property *prop)
-{
-	struct property **next;
-	unsigned long flags;
-	int found = 0;
-
-	write_lock_irqsave(&devtree_lock, flags);
-	next = &np->properties;
-	while (*next) {
-		if (*next == prop) {
-			/* found the node */
-			*next = prop->next;
-			prop->next = np->deadprops;
-			np->deadprops = prop;
-			found = 1;
-			break;
-		}
-		next = &(*next)->next;
-	}
-	write_unlock_irqrestore(&devtree_lock, flags);
-
-	if (!found)
-		return -ENODEV;
-
-#ifdef CONFIG_PROC_DEVICETREE
-	/* try to remove the proc node as well */
-	if (np->pde)
-		proc_device_tree_remove_prop(np->pde, prop);
-#endif /* CONFIG_PROC_DEVICETREE */
-
-	return 0;
-}
-
-/*
- * Update a property in a node.  Note that we don't actually
- * remove it, since we have given out who-knows-how-many pointers
- * to the data using get-property.  Instead we just move the property
- * to the "dead properties" list, and add the new property to the
- * property list
- */
-int prom_update_property(struct device_node *np,
-			 struct property *newprop,
-			 struct property *oldprop)
-{
-	struct property **next;
-	unsigned long flags;
-	int found = 0;
-
-	write_lock_irqsave(&devtree_lock, flags);
-	next = &np->properties;
-	while (*next) {
-		if (*next == oldprop) {
-			/* found the node */
-			newprop->next = oldprop->next;
-			*next = newprop;
-			oldprop->next = np->deadprops;
-			np->deadprops = oldprop;
-			found = 1;
-			break;
-		}
-		next = &(*next)->next;
-	}
-	write_unlock_irqrestore(&devtree_lock, flags);
-
-	if (!found)
-		return -ENODEV;
-
-#ifdef CONFIG_PROC_DEVICETREE
-	/* try to add to proc as well if it was initialized */
-	if (np->pde)
-		proc_device_tree_update_prop(np->pde, newprop, oldprop);
-#endif /* CONFIG_PROC_DEVICETREE */
-
-	return 0;
-}
-
 
 /* Find the device node for a given logical cpu number, also returns the cpu
  * local thread number (index in ibm,interrupt-server#s) if relevant and

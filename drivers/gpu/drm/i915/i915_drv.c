@@ -176,6 +176,8 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static int i915_drm_freeze(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	pci_save_state(dev->pdev);
 
 	/* If KMS is active, we do the leavevt stuff here */
@@ -191,17 +193,12 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	i915_save_state(dev);
 
-	return 0;
-}
-
-static void i915_drm_suspend(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	intel_opregion_free(dev, 1);
 
 	/* Modeset on resume, not lid events */
 	dev_priv->modeset_on_lid = 0;
+
+	return 0;
 }
 
 static int i915_suspend(struct drm_device *dev, pm_message_t state)
@@ -221,8 +218,6 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 	if (error)
 		return error;
 
-	i915_drm_suspend(dev);
-
 	if (state.event == PM_EVENT_SUSPEND) {
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
@@ -236,6 +231,10 @@ static int i915_drm_thaw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int error = 0;
+
+	i915_restore_state(dev);
+
+	intel_opregion_init(dev, 1);
 
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -262,10 +261,6 @@ static int i915_resume(struct drm_device *dev)
 		return -EIO;
 
 	pci_set_master(dev->pdev);
-
-	i915_restore_state(dev);
-
-	intel_opregion_init(dev, 1);
 
 	return i915_drm_thaw(dev);
 }
@@ -423,8 +418,6 @@ static int i915_pm_suspend(struct device *dev)
 	if (error)
 		return error;
 
-	i915_drm_suspend(drm_dev);
-
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
 
@@ -464,13 +457,8 @@ static int i915_pm_poweroff(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	int error;
 
-	error = i915_drm_freeze(drm_dev);
-	if (!error)
-		i915_drm_suspend(drm_dev);
-
-	return error;
+	return i915_drm_freeze(drm_dev);
 }
 
 const struct dev_pm_ops i915_pm_ops = {

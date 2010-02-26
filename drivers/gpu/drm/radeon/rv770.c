@@ -549,9 +549,12 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 	gb_tiling_config |= BANK_SWAPS(1);
 
-	backend_map = r700_get_tile_pipe_to_backend_map(rdev->config.rv770.max_tile_pipes,
-							rdev->config.rv770.max_backends,
-							(0xff << rdev->config.rv770.max_backends) & 0xff);
+	if (rdev->family == CHIP_RV740)
+		backend_map = 0x28;
+	else
+		backend_map = r700_get_tile_pipe_to_backend_map(rdev->config.rv770.max_tile_pipes,
+								rdev->config.rv770.max_backends,
+								(0xff << rdev->config.rv770.max_backends) & 0xff);
 	gb_tiling_config |= BACKEND_MAP(backend_map);
 
 	cc_gc_shader_pipe_config =

@@ -199,6 +199,10 @@ and is between 256 and 4096 characters. It is defined in the file
 			acpi_display_output=video
 			See above.
 
+	acpi_early_pdc_eval	[HW,ACPI] Evaluate processor _PDC methods
+				early. Needed on some platforms to properly
+				initialize the EC.
+
 	acpi_irq_balance [HW,ACPI]
 			ACPI will balance active IRQs
 			default in APIC mode
@@ -310,6 +314,11 @@ and is between 256 and 4096 characters. It is defined in the file
 
 	aic79xx=	[HW,SCSI]
 			See Documentation/scsi/aic79xx.txt.
+
+	alignment=	[KNL,ARM]
+			Allow the default userspace alignment fault handler
+			behaviour to be specified.  Bit 0 enables warnings,
+			bit 1 enables fixups, and bit 2 sends a segfault.
 
 	amd_iommu=	[HW,X86-84]
 			Pass parameters to the AMD IOMMU driver in the system.
