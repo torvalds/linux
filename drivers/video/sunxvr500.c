@@ -400,6 +400,7 @@ static void __devexit e3d_pci_unregister(struct pci_dev *pdev)
 
 static struct pci_device_id e3d_pci_table[] = {
 	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x7a0),	},
+	{	PCI_DEVICE(0x1091, 0x7a0),			},
 	{	PCI_DEVICE(PCI_VENDOR_ID_3DLABS, 0x7a2),	},
 	{	.vendor = PCI_VENDOR_ID_3DLABS,
 		.device = PCI_ANY_ID,
