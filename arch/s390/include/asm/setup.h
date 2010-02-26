@@ -14,13 +14,13 @@
 
 #ifdef __KERNEL__
 
-#include <asm/lowcore.h>
-#include <asm/types.h>
-
 #define PARMAREA		0x10400
 #define MEMORY_CHUNKS		256
 
 #ifndef __ASSEMBLY__
+
+#include <asm/lowcore.h>
+#include <asm/types.h>
 
 #ifndef __s390x__
 #define IPL_DEVICE        (*(unsigned long *)  (0x10404))

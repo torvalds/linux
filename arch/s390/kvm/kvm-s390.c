@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/timer.h>
+#include <asm/asm-offsets.h>
 #include <asm/lowcore.h>
 #include <asm/pgtable.h>
 #include <asm/nmi.h>

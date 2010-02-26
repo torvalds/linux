@@ -396,15 +396,12 @@ static void __init
 setup_lowcore(void)
 {
 	struct _lowcore *lc;
-	int lc_pages;
 
 	/*
 	 * Setup lowcore for boot cpu
 	 */
-	lc_pages = sizeof(void *) == 8 ? 2 : 1;
-	lc = (struct _lowcore *)
-		__alloc_bootmem(lc_pages * PAGE_SIZE, lc_pages * PAGE_SIZE, 0);
-	memset(lc, 0, lc_pages * PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
+	lc = __alloc_bootmem(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
 	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;

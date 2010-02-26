@@ -51,7 +51,7 @@ static void chsc_subchannel_irq(struct subchannel *sch)
 {
 	struct chsc_private *private = sch->private;
 	struct chsc_request *request = private->request;
-	struct irb *irb = (struct irb *)__LC_IRB;
+	struct irb *irb = (struct irb *)&S390_lowcore.irb;
 
 	CHSC_LOG(4, "irb");
 	CHSC_LOG_HEX(4, irb, sizeof(*irb));

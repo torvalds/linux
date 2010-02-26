@@ -15,6 +15,7 @@
 #include <linux/init.h>
 #include <linux/miscdevice.h>
 #include <linux/debugfs.h>
+#include <asm/asm-offsets.h>
 #include <asm/ipl.h>
 #include <asm/sclp.h>
 #include <asm/setup.h>

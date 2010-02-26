@@ -6,7 +6,6 @@
  */
 
 #include <asm/asm-offsets.h>
-#include <asm/lowcore.h>
 #include <asm/ptrace.h>
 
 # smp_switch_to_cpu switches to destination cpu and executes the passed function

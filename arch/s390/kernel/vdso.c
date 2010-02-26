@@ -23,6 +23,7 @@
 #include <linux/security.h>
 #include <linux/bootmem.h>
 #include <linux/compat.h>
+#include <asm/asm-offsets.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
 #include <asm/processor.h>

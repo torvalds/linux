@@ -224,8 +224,8 @@ static void ccwreq_log_status(struct ccw_device *cdev, enum io_status status)
  */
 void ccw_request_handler(struct ccw_device *cdev)
 {
+	struct irb *irb = (struct irb *)&S390_lowcore.irb;
 	struct ccw_request *req = &cdev->private->req;
-	struct irb *irb = (struct irb *) __LC_IRB;
 	enum io_status status;
 	int rc = -EOPNOTSUPP;
 
