@@ -1325,7 +1325,7 @@ struct platform_device *__init
 at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 {
 	struct platform_device		*pdev;
-	struct mci_dma_slave		*slave;
+	struct mci_dma_data	        *slave;
 	u32				pioa_mask;
 	u32				piob_mask;
 
@@ -1344,7 +1344,9 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 				ARRAY_SIZE(atmel_mci0_resource)))
 		goto fail;
 
-	slave = kzalloc(sizeof(struct mci_dma_slave), GFP_KERNEL);
+	slave = kzalloc(sizeof(struct mci_dma_data), GFP_KERNEL);
+	if (!slave)
+		goto fail;
 
 	slave->sdata.dma_dev = &dw_dmac0_device.dev;
 	slave->sdata.reg_width = DW_DMA_SLAVE_WIDTH_32BIT;
@@ -1357,7 +1359,7 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 
 	if (platform_device_add_data(pdev, data,
 				sizeof(struct mci_platform_data)))
-		goto fail;
+		goto fail_free;
 
 	/* CLK line is common to both slots */
 	pioa_mask = 1 << 10;
@@ -1381,7 +1383,7 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 		/* Slot is unused */
 		break;
 	default:
-		goto fail;
+		goto fail_free;
 	}
 
 	select_peripheral(PIOA, pioa_mask, PERIPH_A, 0);
@@ -1408,7 +1410,7 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 		break;
 	default:
 		if (!data->slot[0].bus_width)
-			goto fail;
+			goto fail_free;
 
 		data->slot[1].bus_width = 0;
 		break;
@@ -1419,9 +1421,10 @@ at32_add_device_mci(unsigned int id, struct mci_platform_data *data)
 	platform_device_add(pdev);
 	return pdev;
 
+fail_free:
+	kfree(slave);
 fail:
 	data->dma_slave = NULL;
-	kfree(slave);
 	platform_device_put(pdev);
 	return NULL;
 }

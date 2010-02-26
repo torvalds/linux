@@ -1377,6 +1377,9 @@ static void inode_sub_rsv_space(struct inode *inode, qsize_t number)
 static qsize_t inode_get_rsv_space(struct inode *inode)
 {
 	qsize_t ret;
+
+	if (!inode->i_sb->dq_op->get_reserved_space)
+		return 0;
 	spin_lock(&inode->i_lock);
 	ret = *inode_reserved_space(inode);
 	spin_unlock(&inode->i_lock);

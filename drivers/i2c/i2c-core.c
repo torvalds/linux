@@ -248,7 +248,7 @@ static const struct attribute_group *i2c_dev_attr_groups[] = {
 	NULL
 };
 
-const static struct dev_pm_ops i2c_device_pm_ops = {
+static const struct dev_pm_ops i2c_device_pm_ops = {
 	.suspend = i2c_device_pm_suspend,
 	.resume = i2c_device_pm_resume,
 };
@@ -843,6 +843,9 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 				 adap->dev.parent);
 #endif
 
+	/* device name is gone after device_unregister */
+	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
+
 	/* clean up the sysfs representation */
 	init_completion(&adap->dev_released);
 	device_unregister(&adap->dev);
@@ -854,8 +857,6 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	mutex_lock(&core_lock);
 	idr_remove(&i2c_adapter_idr, adap->nr);
 	mutex_unlock(&core_lock);
-
-	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
 
 	/* Clear the device structure in case this adapter is ever going to be
 	   added again */

@@ -183,7 +183,7 @@ static int lp3971_ldo_set_voltage(struct regulator_dev *dev,
 		if (vol_map[val] >= min_vol)
 			break;
 
-	if (vol_map[val] > max_vol)
+	if (val > LDO_VOL_MAX_IDX || vol_map[val] > max_vol)
 		return -EINVAL;
 
 	return lp3971_set_bits(lp3971, LP3971_LDO_VOL_CONTR_REG(ldo),
@@ -272,7 +272,7 @@ static int lp3971_dcdc_set_voltage(struct regulator_dev *dev,
 		if (vol_map[val] >= min_vol)
 			break;
 
-	if (vol_map[val] > max_vol)
+	if (val > BUCK_TARGET_VOL_MAX_IDX || vol_map[val] > max_vol)
 		return -EINVAL;
 
 	ret = lp3971_set_bits(lp3971, LP3971_BUCK_TARGET_VOL1_REG(buck),

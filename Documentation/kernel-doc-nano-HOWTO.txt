@@ -214,11 +214,13 @@ The format of the block comment is like this:
  * (section header: (section description)? )*
 (*)?*/
 
-The short function description ***cannot be multiline***, but the other
-descriptions can be (and they can contain blank lines).  If you continue
-that initial short description onto a second line, that second line will
-appear further down at the beginning of the description section, which is
-almost certainly not what you had in mind.
+All "description" text can span multiple lines, although the
+function_name & its short description are traditionally on a single line.
+Description text may also contain blank lines (i.e., lines that contain
+only a "*").
+
+"section header:" names must be unique per function (or struct,
+union, typedef, enum).
 
 Avoid putting a spurious blank line after the function name, or else the
 description will be repeated!

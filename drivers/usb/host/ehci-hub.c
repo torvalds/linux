@@ -120,8 +120,25 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	del_timer_sync(&ehci->watchdog);
 	del_timer_sync(&ehci->iaa_watchdog);
 
-	port = HCS_N_PORTS (ehci->hcs_params);
 	spin_lock_irq (&ehci->lock);
+
+	/* Once the controller is stopped, port resumes that are already
+	 * in progress won't complete.  Hence if remote wakeup is enabled
+	 * for the root hub and any ports are in the middle of a resume or
+	 * remote wakeup, we must fail the suspend.
+	 */
+	if (hcd->self.root_hub->do_remote_wakeup) {
+		port = HCS_N_PORTS(ehci->hcs_params);
+		while (port--) {
+			if (ehci->reset_done[port] != 0) {
+				spin_unlock_irq(&ehci->lock);
+				ehci_dbg(ehci, "suspend failed because "
+						"port %d is resuming\n",
+						port + 1);
+				return -EBUSY;
+			}
+		}
+	}
 
 	/* stop schedules, clean any completed work */
 	if (HC_IS_RUNNING(hcd->state)) {
@@ -138,6 +155,7 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 	 */
 	ehci->bus_suspended = 0;
 	ehci->owned_ports = 0;
+	port = HCS_N_PORTS(ehci->hcs_params);
 	while (port--) {
 		u32 __iomem	*reg = &ehci->regs->port_status [port];
 		u32		t1 = ehci_readl(ehci, reg) & ~PORT_RWC_BITS;
@@ -178,7 +196,9 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 			if (hostpc_reg) {
 				u32	t3;
 
+				spin_unlock_irq(&ehci->lock);
 				msleep(5);/* 5ms for HCD enter low pwr mode */
+				spin_lock_irq(&ehci->lock);
 				t3 = ehci_readl(ehci, hostpc_reg);
 				ehci_writel(ehci, t3 | HOSTPC_PHCD, hostpc_reg);
 				t3 = ehci_readl(ehci, hostpc_reg);
@@ -886,17 +906,18 @@ static int ehci_hub_control (
 			if ((temp & PORT_PE) == 0
 					|| (temp & PORT_RESET) != 0)
 				goto error;
-			ehci_writel(ehci, temp | PORT_SUSPEND, status_reg);
+
 			/* After above check the port must be connected.
 			 * Set appropriate bit thus could put phy into low power
 			 * mode if we have hostpc feature
 			 */
+			temp &= ~PORT_WKCONN_E;
+			temp |= PORT_WKDISC_E | PORT_WKOC_E;
+			ehci_writel(ehci, temp | PORT_SUSPEND, status_reg);
 			if (hostpc_reg) {
-				temp &= ~PORT_WKCONN_E;
-				temp |= (PORT_WKDISC_E | PORT_WKOC_E);
-				ehci_writel(ehci, temp | PORT_SUSPEND,
-							status_reg);
+				spin_unlock_irqrestore(&ehci->lock, flags);
 				msleep(5);/* 5ms for HCD enter low pwr mode */
+				spin_lock_irqsave(&ehci->lock, flags);
 				temp1 = ehci_readl(ehci, hostpc_reg);
 				ehci_writel(ehci, temp1 | HOSTPC_PHCD,
 					hostpc_reg);

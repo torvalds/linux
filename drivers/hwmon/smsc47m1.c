@@ -488,7 +488,7 @@ static int __init smsc47m1_find(unsigned short *addr,
 }
 
 /* Restore device to its initial state */
-static void __init smsc47m1_restore(const struct smsc47m1_sio_data *sio_data)
+static void smsc47m1_restore(const struct smsc47m1_sio_data *sio_data)
 {
 	if ((sio_data->activate & 0x01) == 0) {
 		superio_enter();

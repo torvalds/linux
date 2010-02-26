@@ -106,8 +106,8 @@ struct affs_sb_info {
 	u32 s_last_bmap;
 	struct buffer_head *s_bmap_bh;
 	char *s_prefix;			/* Prefix for volumes and assigns. */
-	int s_prefix_len;		/* Length of prefix. */
 	char s_volume[32];		/* Volume prefix for absolute symlinks. */
+	spinlock_t symlink_lock;	/* protects the previous two */
 };
 
 #define SF_INTL		0x0001		/* International filesystem. */

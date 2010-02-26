@@ -1870,6 +1870,7 @@ static unsigned int ad1981_jacks_blacklist[] = {
 	0x10140554, /* Thinkpad T42p/R50p */
 	0x10140567, /* Thinkpad T43p 2668-G7U */
 	0x10140581, /* Thinkpad X41-2527 */
+	0x10280160, /* Dell Dimension 2400 */
 	0x104380b0, /* Asus A7V8X-MX */
 	0x11790241, /* Toshiba Satellite A-15 S127 */
 	0x144dc01a, /* Samsung NP-X20C004/SEG */

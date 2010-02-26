@@ -106,9 +106,10 @@
  * 1.29- R500 3D cmd buffer support
  * 1.30- Add support for occlusion queries
  * 1.31- Add support for num Z pipes from GET_PARAM
+ * 1.32- fixes for rv740 setup
  */
 #define DRIVER_MAJOR		1
-#define DRIVER_MINOR		31
+#define DRIVER_MINOR		32
 #define DRIVER_PATCHLEVEL	0
 
 enum radeon_cp_microcode_version {

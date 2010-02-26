@@ -2483,14 +2483,12 @@ static int pmcraid_error_handler(struct pmcraid_cmd *cmd)
 			sense_copied = 1;
 		}
 
-		if (RES_IS_GSCSI(res->cfg_entry)) {
+		if (RES_IS_GSCSI(res->cfg_entry))
 			pmcraid_cancel_all(cmd, sense_copied);
-		} else if (sense_copied) {
+		else if (sense_copied)
 			pmcraid_erp_done(cmd);
-			return 0;
-		} else  {
+		else
 			pmcraid_request_sense(cmd);
-		}
 
 		return 1;
 

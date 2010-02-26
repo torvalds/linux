@@ -24,6 +24,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <asm/unaligned.h>
 
 #define ATOM_DEBUG
 
@@ -212,7 +213,9 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 	case ATOM_ARG_PS:
 		idx = U8(*ptr);
 		(*ptr)++;
-		val = le32_to_cpu(ctx->ps[idx]);
+		/* get_unaligned_le32 avoids unaligned accesses from atombios
+		 * tables, noticed on a DEC Alpha. */
+		val = get_unaligned_le32((u32 *)&ctx->ps[idx]);
 		if (print)
 			DEBUG("PS[0x%02X,0x%04X]", idx, val);
 		break;
@@ -245,6 +248,9 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 			break;
 		case ATOM_WS_ATTRIBUTES:
 			val = gctx->io_attr;
+			break;
+		case ATOM_WS_REGPTR:
+			val = gctx->reg_block;
 			break;
 		default:
 			val = ctx->ws[idx];
@@ -385,6 +391,32 @@ static uint32_t atom_get_src(atom_exec_context *ctx, uint8_t attr, int *ptr)
 	return atom_get_src_int(ctx, attr, ptr, NULL, 1);
 }
 
+static uint32_t atom_get_src_direct(atom_exec_context *ctx, uint8_t align, int *ptr)
+{
+	uint32_t val = 0xCDCDCDCD;
+
+	switch (align) {
+	case ATOM_SRC_DWORD:
+		val = U32(*ptr);
+		(*ptr) += 4;
+		break;
+	case ATOM_SRC_WORD0:
+	case ATOM_SRC_WORD8:
+	case ATOM_SRC_WORD16:
+		val = U16(*ptr);
+		(*ptr) += 2;
+		break;
+	case ATOM_SRC_BYTE0:
+	case ATOM_SRC_BYTE8:
+	case ATOM_SRC_BYTE16:
+	case ATOM_SRC_BYTE24:
+		val = U8(*ptr);
+		(*ptr)++;
+		break;
+	}
+	return val;
+}
+
 static uint32_t atom_get_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 			     int *ptr, uint32_t *saved, int print)
 {
@@ -481,6 +513,9 @@ static void atom_put_dst(atom_exec_context *ctx, int arg, uint8_t attr,
 			break;
 		case ATOM_WS_ATTRIBUTES:
 			gctx->io_attr = val;
+			break;
+		case ATOM_WS_REGPTR:
+			gctx->reg_block = val;
 			break;
 		default:
 			ctx->ws[idx] = val;
@@ -608,7 +643,7 @@ static void atom_op_delay(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t count = U8((*ptr)++);
 	SDEBUG("   count: %d\n", count);
 	if (arg == ATOM_UNIT_MICROSEC)
-		schedule_timeout_uninterruptible(usecs_to_jiffies(count));
+		udelay(count);
 	else
 		schedule_timeout_uninterruptible(msecs_to_jiffies(count));
 }
@@ -677,7 +712,7 @@ static void atom_op_mask(atom_exec_context *ctx, int *ptr, int arg)
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
 	SDEBUG("   src1: ");
-	src1 = atom_get_src(ctx, attr, ptr);
+	src1 = atom_get_src_direct(ctx, ((attr >> 3) & 7), ptr);
 	SDEBUG("   src2: ");
 	src2 = atom_get_src(ctx, attr, ptr);
 	dst &= src1;
@@ -809,6 +844,38 @@ static void atom_op_setregblock(atom_exec_context *ctx, int *ptr, int arg)
 	SDEBUG("   base: 0x%04X\n", ctx->ctx->reg_block);
 }
 
+static void atom_op_shift_left(atom_exec_context *ctx, int *ptr, int arg)
+{
+	uint8_t attr = U8((*ptr)++), shift;
+	uint32_t saved, dst;
+	int dptr = *ptr;
+	attr &= 0x38;
+	attr |= atom_def_dst[attr >> 3] << 6;
+	SDEBUG("   dst: ");
+	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
+	shift = atom_get_src_direct(ctx, ATOM_SRC_BYTE0, ptr);
+	SDEBUG("   shift: %d\n", shift);
+	dst <<= shift;
+	SDEBUG("   dst: ");
+	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
+}
+
+static void atom_op_shift_right(atom_exec_context *ctx, int *ptr, int arg)
+{
+	uint8_t attr = U8((*ptr)++), shift;
+	uint32_t saved, dst;
+	int dptr = *ptr;
+	attr &= 0x38;
+	attr |= atom_def_dst[attr >> 3] << 6;
+	SDEBUG("   dst: ");
+	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
+	shift = atom_get_src_direct(ctx, ATOM_SRC_BYTE0, ptr);
+	SDEBUG("   shift: %d\n", shift);
+	dst >>= shift;
+	SDEBUG("   dst: ");
+	atom_put_dst(ctx, arg, attr, &dptr, dst, saved);
+}
+
 static void atom_op_shl(atom_exec_context *ctx, int *ptr, int arg)
 {
 	uint8_t attr = U8((*ptr)++), shift;
@@ -818,7 +885,7 @@ static void atom_op_shl(atom_exec_context *ctx, int *ptr, int arg)
 	attr |= atom_def_dst[attr >> 3] << 6;
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
-	shift = U8((*ptr)++);
+	shift = atom_get_src(ctx, attr, ptr);
 	SDEBUG("   shift: %d\n", shift);
 	dst <<= shift;
 	SDEBUG("   dst: ");
@@ -834,7 +901,7 @@ static void atom_op_shr(atom_exec_context *ctx, int *ptr, int arg)
 	attr |= atom_def_dst[attr >> 3] << 6;
 	SDEBUG("   dst: ");
 	dst = atom_get_dst(ctx, arg, attr, ptr, &saved, 1);
-	shift = U8((*ptr)++);
+	shift = atom_get_src(ctx, attr, ptr);
 	SDEBUG("   shift: %d\n", shift);
 	dst >>= shift;
 	SDEBUG("   dst: ");
@@ -937,18 +1004,18 @@ static struct {
 	atom_op_or, ATOM_ARG_FB}, {
 	atom_op_or, ATOM_ARG_PLL}, {
 	atom_op_or, ATOM_ARG_MC}, {
-	atom_op_shl, ATOM_ARG_REG}, {
-	atom_op_shl, ATOM_ARG_PS}, {
-	atom_op_shl, ATOM_ARG_WS}, {
-	atom_op_shl, ATOM_ARG_FB}, {
-	atom_op_shl, ATOM_ARG_PLL}, {
-	atom_op_shl, ATOM_ARG_MC}, {
-	atom_op_shr, ATOM_ARG_REG}, {
-	atom_op_shr, ATOM_ARG_PS}, {
-	atom_op_shr, ATOM_ARG_WS}, {
-	atom_op_shr, ATOM_ARG_FB}, {
-	atom_op_shr, ATOM_ARG_PLL}, {
-	atom_op_shr, ATOM_ARG_MC}, {
+	atom_op_shift_left, ATOM_ARG_REG}, {
+	atom_op_shift_left, ATOM_ARG_PS}, {
+	atom_op_shift_left, ATOM_ARG_WS}, {
+	atom_op_shift_left, ATOM_ARG_FB}, {
+	atom_op_shift_left, ATOM_ARG_PLL}, {
+	atom_op_shift_left, ATOM_ARG_MC}, {
+	atom_op_shift_right, ATOM_ARG_REG}, {
+	atom_op_shift_right, ATOM_ARG_PS}, {
+	atom_op_shift_right, ATOM_ARG_WS}, {
+	atom_op_shift_right, ATOM_ARG_FB}, {
+	atom_op_shift_right, ATOM_ARG_PLL}, {
+	atom_op_shift_right, ATOM_ARG_MC}, {
 	atom_op_mul, ATOM_ARG_REG}, {
 	atom_op_mul, ATOM_ARG_PS}, {
 	atom_op_mul, ATOM_ARG_WS}, {
@@ -1058,8 +1125,6 @@ static void atom_execute_table_locked(struct atom_context *ctx, int index, uint3
 
 	SDEBUG(">> execute %04X (len %d, WS %d, PS %d)\n", base, len, ws, ps);
 
-	/* reset reg block */
-	ctx->reg_block = 0;
 	ectx.ctx = ctx;
 	ectx.ps_shift = ps / 4;
 	ectx.start = base;
@@ -1096,6 +1161,12 @@ static void atom_execute_table_locked(struct atom_context *ctx, int index, uint3
 void atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)
 {
 	mutex_lock(&ctx->mutex);
+	/* reset reg block */
+	ctx->reg_block = 0;
+	/* reset fb window */
+	ctx->fb_base = 0;
+	/* reset io mode */
+	ctx->io_mode = ATOM_IO_MM;
 	atom_execute_table_locked(ctx, index, params);
 	mutex_unlock(&ctx->mutex);
 }

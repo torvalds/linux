@@ -232,6 +232,9 @@ qla2x00_sysfs_write_optrom_ctl(struct kobject *kobj,
 	if (off)
 		return 0;
 
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		return 0;
+
 	if (sscanf(buf, "%d:%x:%x", &val, &start, &size) < 1)
 		return -EINVAL;
 	if (start > ha->optrom_size)
@@ -379,6 +382,9 @@ qla2x00_sysfs_read_vpd(struct kobject *kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
 
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		return 0;
+
 	if (!capable(CAP_SYS_ADMIN))
 		return 0;
 
@@ -397,6 +403,9 @@ qla2x00_sysfs_write_vpd(struct kobject *kobj,
 	    struct device, kobj)));
 	struct qla_hw_data *ha = vha->hw;
 	uint8_t *tmp_data;
+
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		return 0;
 
 	if (!capable(CAP_SYS_ADMIN) || off != 0 || count != ha->vpd_size ||
 	    !ha->isp_ops->write_nvram)
@@ -1238,10 +1247,11 @@ qla2x00_fw_state_show(struct device *dev, struct device_attribute *attr,
     char *buf)
 {
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
-	int rval;
+	int rval = QLA_FUNCTION_FAILED;
 	uint16_t state[5];
 
-	rval = qla2x00_get_firmware_state(vha, state);
+	if (!vha->hw->flags.eeh_busy)
+		rval = qla2x00_get_firmware_state(vha, state);
 	if (rval != QLA_SUCCESS)
 		memset(state, -1, sizeof(state));
 
@@ -1452,10 +1462,13 @@ qla2x00_dev_loss_tmo_callbk(struct fc_rport *rport)
 	if (!fcport)
 		return;
 
-	if (unlikely(pci_channel_offline(fcport->vha->hw->pdev)))
+	if (test_bit(ABORT_ISP_ACTIVE, &fcport->vha->dpc_flags))
+		return;
+
+	if (unlikely(pci_channel_offline(fcport->vha->hw->pdev))) {
 		qla2x00_abort_all_cmds(fcport->vha, DID_NO_CONNECT << 16);
-	else
-		qla2x00_abort_fcport_cmds(fcport);
+		return;
+	}
 
 	/*
 	 * Transport has effectively 'deleted' the rport, clear
@@ -1473,6 +1486,9 @@ qla2x00_terminate_rport_io(struct fc_rport *rport)
 	fc_port_t *fcport = *(fc_port_t **)rport->dd_data;
 
 	if (!fcport)
+		return;
+
+	if (test_bit(ABORT_ISP_ACTIVE, &fcport->vha->dpc_flags))
 		return;
 
 	if (unlikely(pci_channel_offline(fcport->vha->hw->pdev))) {
@@ -1514,6 +1530,12 @@ qla2x00_get_fc_host_stats(struct Scsi_Host *shost)
 
 	pfc_host_stat = &ha->fc_host_stat;
 	memset(pfc_host_stat, -1, sizeof(struct fc_host_statistics));
+
+	if (test_bit(UNLOADING, &vha->dpc_flags))
+		goto done;
+
+	if (unlikely(pci_channel_offline(ha->pdev)))
+		goto done;
 
 	stats = dma_pool_alloc(ha->s_dma_pool, GFP_KERNEL, &stats_dma);
 	if (stats == NULL) {

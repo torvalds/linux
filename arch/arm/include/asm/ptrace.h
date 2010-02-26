@@ -97,9 +97,15 @@
  * stack during a system call.  Note that sizeof(struct pt_regs)
  * has to be a multiple of 8.
  */
+#ifndef __KERNEL__
 struct pt_regs {
 	long uregs[18];
 };
+#else /* __KERNEL__ */
+struct pt_regs {
+	unsigned long uregs[18];
+};
+#endif /* __KERNEL__ */
 
 #define ARM_cpsr	uregs[16]
 #define ARM_pc		uregs[15]

@@ -192,6 +192,7 @@ struct gpio_bank {
 	u32 saved_risingdetect;
 #endif
 	u32 level_mask;
+	u32 toggle_mask;
 	spinlock_t lock;
 	struct gpio_chip chip;
 	struct clk *dbck;
@@ -749,6 +750,44 @@ static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio,
 }
 #endif
 
+#ifdef CONFIG_ARCH_OMAP1
+/*
+ * This only applies to chips that can't do both rising and falling edge
+ * detection at once.  For all other chips, this function is a noop.
+ */
+static void _toggle_gpio_edge_triggering(struct gpio_bank *bank, int gpio)
+{
+	void __iomem *reg = bank->base;
+	u32 l = 0;
+
+	switch (bank->method) {
+	case METHOD_MPUIO:
+		reg += OMAP_MPUIO_GPIO_INT_EDGE;
+		break;
+#ifdef CONFIG_ARCH_OMAP15XX
+	case METHOD_GPIO_1510:
+		reg += OMAP1510_GPIO_INT_CONTROL;
+		break;
+#endif
+#if defined(CONFIG_ARCH_OMAP730) || defined(CONFIG_ARCH_OMAP850)
+	case METHOD_GPIO_7XX:
+		reg += OMAP7XX_GPIO_INT_CONTROL;
+		break;
+#endif
+	default:
+		return;
+	}
+
+	l = __raw_readl(reg);
+	if ((l >> gpio) & 1)
+		l &= ~(1 << gpio);
+	else
+		l |= 1 << gpio;
+
+	__raw_writel(l, reg);
+}
+#endif
+
 static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 {
 	void __iomem *reg = bank->base;
@@ -759,6 +798,8 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_MPUIO:
 		reg += OMAP_MPUIO_GPIO_INT_EDGE;
 		l = __raw_readl(reg);
+		if (trigger & IRQ_TYPE_EDGE_BOTH)
+			bank->toggle_mask |= 1 << gpio;
 		if (trigger & IRQ_TYPE_EDGE_RISING)
 			l |= 1 << gpio;
 		else if (trigger & IRQ_TYPE_EDGE_FALLING)
@@ -771,6 +812,8 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_GPIO_1510:
 		reg += OMAP1510_GPIO_INT_CONTROL;
 		l = __raw_readl(reg);
+		if (trigger & IRQ_TYPE_EDGE_BOTH)
+			bank->toggle_mask |= 1 << gpio;
 		if (trigger & IRQ_TYPE_EDGE_RISING)
 			l |= 1 << gpio;
 		else if (trigger & IRQ_TYPE_EDGE_FALLING)
@@ -803,6 +846,8 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 	case METHOD_GPIO_7XX:
 		reg += OMAP7XX_GPIO_INT_CONTROL;
 		l = __raw_readl(reg);
+		if (trigger & IRQ_TYPE_EDGE_BOTH)
+			bank->toggle_mask |= 1 << gpio;
 		if (trigger & IRQ_TYPE_EDGE_RISING)
 			l |= 1 << gpio;
 		else if (trigger & IRQ_TYPE_EDGE_FALLING)
@@ -1072,7 +1117,7 @@ static inline void _set_gpio_irqenable(struct gpio_bank *bank, int gpio, int ena
  */
 static int _set_gpio_wakeup(struct gpio_bank *bank, int gpio, int enable)
 {
-	unsigned long flags;
+	unsigned long uninitialized_var(flags);
 
 	switch (bank->method) {
 #ifdef CONFIG_ARCH_OMAP16XX
@@ -1217,7 +1262,7 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	void __iomem *isr_reg = NULL;
 	u32 isr;
-	unsigned int gpio_irq;
+	unsigned int gpio_irq, gpio_index;
 	struct gpio_bank *bank;
 	u32 retrigger = 0;
 	int unmasked = 0;
@@ -1284,8 +1329,22 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 
 		gpio_irq = bank->virtual_irq_start;
 		for (; isr != 0; isr >>= 1, gpio_irq++) {
+			gpio_index = get_gpio_index(irq_to_gpio(gpio_irq));
+
 			if (!(isr & 1))
 				continue;
+
+#ifdef CONFIG_ARCH_OMAP1
+			/*
+			 * Some chips can't respond to both rising and falling
+			 * at the same time.  If this irq was requested with
+			 * both flags, we need to flip the ICR data for the IRQ
+			 * to respond to the IRQ for the opposite direction.
+			 * This will be indicated in the bank toggle_mask.
+			 */
+			if (bank->toggle_mask & (1 << gpio_index))
+				_toggle_gpio_edge_triggering(bank, gpio_index);
+#endif
 
 			generic_handle_irq(gpio_irq);
 		}

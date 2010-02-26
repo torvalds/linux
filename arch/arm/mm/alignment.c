@@ -11,6 +11,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#include <linux/moduleparam.h>
 #include <linux/compiler.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -76,6 +77,8 @@ static unsigned long ai_word;
 static unsigned long ai_dword;
 static unsigned long ai_multi;
 static int ai_usermode;
+
+core_param(alignment, ai_usermode, int, 0600);
 
 #define UM_WARN		(1 << 0)
 #define UM_FIXUP	(1 << 1)

@@ -376,7 +376,7 @@ int ct_sip_get_header(const struct nf_conn *ct, const char *dptr,
 			dptr += hdr->len;
 		else if (hdr->cname && limit - dptr >= hdr->clen + 1 &&
 			 strnicmp(dptr, hdr->cname, hdr->clen) == 0 &&
-			 !isalpha(*(dptr + hdr->clen + 1)))
+			 !isalpha(*(dptr + hdr->clen)))
 			dptr += hdr->clen;
 		else
 			continue;

@@ -338,6 +338,7 @@
 #define   FBC_CTL_PERIODIC	(1<<30)
 #define   FBC_CTL_INTERVAL_SHIFT (16)
 #define   FBC_CTL_UNCOMPRESSIBLE (1<<14)
+#define   FBC_C3_IDLE		(1<<13)
 #define   FBC_CTL_STRIDE_SHIFT	(5)
 #define   FBC_CTL_FENCENO	(1<<0)
 #define FBC_COMMAND		0x0320c
@@ -879,13 +880,6 @@
 #define CRT_HOTPLUG_DETECT_VOLTAGE_475MV	(1 << 2)
 #define CRT_HOTPLUG_MASK			(0x3fc) /* Bits 9-2 */
 #define CRT_FORCE_HOTPLUG_MASK			0xfffffe1f
-#define HOTPLUG_EN_MASK (HDMIB_HOTPLUG_INT_EN | \
-			 HDMIC_HOTPLUG_INT_EN |	  \
-			 HDMID_HOTPLUG_INT_EN |	  \
-			 SDVOB_HOTPLUG_INT_EN |	  \
-			 SDVOC_HOTPLUG_INT_EN |	  \
-			 CRT_HOTPLUG_INT_EN)
-
 
 #define PORT_HOTPLUG_STAT	0x61114
 #define   HDMIB_HOTPLUG_INT_STATUS		(1 << 29)
@@ -982,6 +976,8 @@
 #define   LVDS_PORT_EN			(1 << 31)
 /* Selects pipe B for LVDS data.  Must be set on pre-965. */
 #define   LVDS_PIPEB_SELECT		(1 << 30)
+/* LVDS dithering flag on 965/g4x platform */
+#define   LVDS_ENABLE_DITHER		(1 << 25)
 /* Enable border for unscaled (or aspect-scaled) display */
 #define   LVDS_BORDER_ENABLE		(1 << 15)
 /*
@@ -1751,6 +1747,8 @@
 
 /* Display & cursor control */
 
+/* dithering flag on Ironlake */
+#define PIPE_ENABLE_DITHER	(1 << 4)
 /* Pipe A */
 #define PIPEADSL		0x70000
 #define PIPEACONF		0x70008
@@ -1818,7 +1816,7 @@
 #define   DSPFW_PLANEB_SHIFT	8
 #define DSPFW2			0x70038
 #define   DSPFW_CURSORA_MASK	0x00003f00
-#define   DSPFW_CURSORA_SHIFT	16
+#define   DSPFW_CURSORA_SHIFT	8
 #define DSPFW3			0x7003c
 #define   DSPFW_HPLL_SR_EN	(1<<31)
 #define   DSPFW_CURSOR_SR_SHIFT	24

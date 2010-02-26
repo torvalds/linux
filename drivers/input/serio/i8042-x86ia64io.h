@@ -524,6 +524,13 @@ static const struct dmi_system_id __initconst i8042_dmi_laptop_table[] = {
  */
 static const struct dmi_system_id __initconst i8042_dmi_dritek_table[] = {
 	{
+		/* Acer Aspire 5610 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5610"),
+		},
+	},
+	{
 		/* Acer Aspire 5630 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),

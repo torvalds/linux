@@ -3,7 +3,7 @@
 #
 
 obj-$(CONFIG_MFD_SM501)		+= sm501.o
-obj-$(CONFIG_MFD_ASIC3)		+= asic3.o
+obj-$(CONFIG_MFD_ASIC3)		+= asic3.o tmio_core.o
 obj-$(CONFIG_MFD_SH_MOBILE_SDHI)		+= sh_mobile_sdhi.o
 
 obj-$(CONFIG_HTC_EGPIO)		+= htc-egpio.o
@@ -11,9 +11,9 @@ obj-$(CONFIG_HTC_PASIC3)	+= htc-pasic3.o
 
 obj-$(CONFIG_MFD_DM355EVM_MSP)	+= dm355evm_msp.o
 
-obj-$(CONFIG_MFD_T7L66XB)	+= t7l66xb.o
-obj-$(CONFIG_MFD_TC6387XB)	+= tc6387xb.o
-obj-$(CONFIG_MFD_TC6393XB)	+= tc6393xb.o
+obj-$(CONFIG_MFD_T7L66XB)	+= t7l66xb.o tmio_core.o
+obj-$(CONFIG_MFD_TC6387XB)	+= tc6387xb.o tmio_core.o
+obj-$(CONFIG_MFD_TC6393XB)	+= tc6393xb.o tmio_core.o
 
 obj-$(CONFIG_MFD_WM8400)	+= wm8400-core.o
 wm831x-objs			:= wm831x-core.o wm831x-irq.o wm831x-otp.o

@@ -192,7 +192,7 @@ static void __nf_conntrack_helper_unregister(struct nf_conntrack_helper *me,
 	/* Get rid of expecteds, set helpers to NULL. */
 	hlist_nulls_for_each_entry(h, nn, &net->ct.unconfirmed, hnnode)
 		unhelp(h, me);
-	for (i = 0; i < nf_conntrack_htable_size; i++) {
+	for (i = 0; i < net->ct.htable_size; i++) {
 		hlist_nulls_for_each_entry(h, nn, &net->ct.hash[i], hnnode)
 			unhelp(h, me);
 	}

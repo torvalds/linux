@@ -195,8 +195,12 @@ sub check_objcopy
     }
 }
 
-if ($arch eq 'x86') {
-    $arch = ($bits == 64) ? 'x86_64' : 'i386';
+if ($arch =~ /(x86(_64)?)|(i386)/) {
+    if ($bits == 64) {
+	$arch = "x86_64";
+    } else {
+	$arch = "i386";
+    }
 }
 
 #

@@ -752,6 +752,8 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 			    flags, current_cred());
 	if (IS_ERR(*filp))
 		host_err = PTR_ERR(*filp);
+	else
+		host_err = ima_file_check(*filp, access);
 out_nfserr:
 	err = nfserrno(host_err);
 out:
@@ -780,12 +782,9 @@ static inline int nfsd_dosync(struct file *filp, struct dentry *dp,
 	int (*fsync) (struct file *, struct dentry *, int);
 	int err;
 
-	err = filemap_fdatawrite(inode->i_mapping);
+	err = filemap_write_and_wait(inode->i_mapping);
 	if (err == 0 && fop && (fsync = fop->fsync))
 		err = fsync(filp, dp, 0);
-	if (err == 0)
-		err = filemap_fdatawait(inode->i_mapping);
-
 	return err;
 }
 
@@ -2130,7 +2129,6 @@ nfsd_permission(struct svc_rqst *rqstp, struct svc_export *exp,
 	 */
 	path.mnt = exp->ex_path.mnt;
 	path.dentry = dentry;
-	err = ima_path_check(&path, acc & (MAY_READ | MAY_WRITE | MAY_EXEC));
 nfsd_out:
 	return err? nfserrno(err) : 0;
 }

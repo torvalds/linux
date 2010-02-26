@@ -3009,6 +3009,10 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 		int l;
 
 		frame = gspca_get_i_frame(gspca_dev);
+		if (frame == NULL) {
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+			return;
+		}
 		l = frame->data_end - frame->data;
 		if (len > frame->v4l2_buf.length - l)
 			len = frame->v4l2_buf.length - l;
