@@ -59,6 +59,10 @@ unsigned long idle_halt;
 EXPORT_SYMBOL(idle_halt);
 unsigned long idle_nomwait;
 EXPORT_SYMBOL(idle_nomwait);
+void (*pm_idle) (void);
+EXPORT_SYMBOL(pm_idle);
+void (*pm_power_off) (void);
+EXPORT_SYMBOL(pm_power_off);
 
 void
 ia64_do_show_stack (struct unw_frame_info *info, void *arg)
