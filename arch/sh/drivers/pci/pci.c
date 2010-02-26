@@ -148,8 +148,8 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
  * addresses to be allocated in the 0x000-0x0ff region
  * modulo 0x400.
  */
-void pcibios_align_resource(void *data, struct resource *res,
-			    resource_size_t size, resource_size_t align)
+resource_size_t pcibios_align_resource(void *data, const struct resource *res,
+				resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;
 	struct pci_channel *chan = dev->sysdata;
@@ -171,7 +171,7 @@ void pcibios_align_resource(void *data, struct resource *res,
 			start = PCIBIOS_MIN_MEM + chan->mem_resource->start;
 	}
 
-	res->start = start;
+	return start;
 }
 
 void pcibios_resource_to_bus(struct pci_dev *dev, struct pci_bus_region *region,

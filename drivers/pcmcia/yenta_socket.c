@@ -649,9 +649,10 @@ static int yenta_search_one_res(struct resource *root, struct resource *res,
 static int yenta_search_res(struct yenta_socket *socket, struct resource *res,
 			    u32 min)
 {
+	struct resource *root;
 	int i;
-	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
-		struct resource *root = socket->dev->bus->resource[i];
+
+	pci_bus_for_each_resource(socket->dev->bus, root, i) {
 		if (!root)
 			continue;
 

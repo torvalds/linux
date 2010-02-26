@@ -1948,8 +1948,12 @@ and is between 256 and 4096 characters. It is defined in the file
 				IRQ routing is enabled.
 		noacpi		[X86] Do not use ACPI for IRQ routing
 				or for PCI scanning.
-		use_crs		[X86] Use _CRS for PCI resource
-				allocation.
+		use_crs		[X86] Use PCI host bridge window information
+				from ACPI.  On BIOSes from 2008 or later, this
+				is enabled by default.  If you need to use this,
+				please report a bug.
+		nocrs		[X86] Ignore PCI host bridge windows from ACPI.
+			        If you need to use this, please report a bug.
 		routeirq	Do IRQ routing for all PCI devices.
 				This is normally done in pci_enable_device(),
 				so this option is a temporary workaround
@@ -1997,6 +2001,14 @@ and is between 256 and 4096 characters. It is defined in the file
 		off	Disable ASPM.
 		force	Enable ASPM even on devices that claim not to support it.
 			WARNING: Forcing ASPM on may cause system lockups.
+
+	pcie_pme=	[PCIE,PM] Native PCIe PME signaling options:
+		off	Do not use native PCIe PME signaling.
+		force	Use native PCIe PME signaling even if the BIOS refuses
+			to allow the kernel to control the relevant PCIe config
+			registers.
+		nomsi	Do not use MSI for native PCIe PME signaling (this makes
+			all PCIe root ports use INTx for everything).
 
 	pcmv=		[HW,PCMCIA] BadgePAD 4
 

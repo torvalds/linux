@@ -76,12 +76,9 @@ acpi_ev_queue_notify_request(struct acpi_namespace_node *node,
  * evgpe - GPE handling and dispatch
  */
 acpi_status
-acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info,
-				u8 type);
+acpi_ev_update_gpe_enable_masks(struct acpi_gpe_event_info *gpe_event_info);
 
-acpi_status
-acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info,
-		   u8 write_to_hardware);
+acpi_status acpi_ev_enable_gpe(struct acpi_gpe_event_info *gpe_event_info);
 
 acpi_status acpi_ev_disable_gpe(struct acpi_gpe_event_info *gpe_event_info);
 
@@ -120,9 +117,6 @@ acpi_ev_gpe_dispatch(struct acpi_gpe_event_info *gpe_event_info,
 		     u32 gpe_number);
 
 u32 acpi_ev_gpe_detect(struct acpi_gpe_xrupt_info *gpe_xrupt_list);
-
-acpi_status
-acpi_ev_set_gpe_type(struct acpi_gpe_event_info *gpe_event_info, u8 type);
 
 acpi_status
 acpi_ev_check_for_wake_only_gpe(struct acpi_gpe_event_info *gpe_event_info);
