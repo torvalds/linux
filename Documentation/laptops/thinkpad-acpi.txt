@@ -650,6 +650,10 @@ LCD, CRT or DVI (if available). The following commands are available:
 	echo expand_toggle > /proc/acpi/ibm/video
 	echo video_switch > /proc/acpi/ibm/video
 
+NOTE: Access to this feature is restricted to processes owning the
+CAP_SYS_ADMIN capability for safety reasons, as it can interact badly
+enough with some versions of X.org to crash it.
+
 Each video output device can be enabled or disabled individually.
 Reading /proc/acpi/ibm/video shows the status of each device.
 
