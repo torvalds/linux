@@ -1625,7 +1625,7 @@ enum armv7_counters {
 /*
  * EVTSEL: Event selection reg
  */
-#define	ARMV7_EVTSEL_MASK	0x7f		/* Mask for writable bits */
+#define	ARMV7_EVTSEL_MASK	0xff		/* Mask for writable bits */
 
 /*
  * SELECT: Counter selection reg
