@@ -596,6 +596,7 @@ struct input_absinfo {
 #define KEY_NUMERIC_POUND	0x20b
 
 #define KEY_CAMERA_FOCUS	0x210
+#define KEY_WPS_BUTTON		0x211	/* WiFi Protected Setup key */
 
 /* We avoid low common keys in module aliases so they don't get huge. */
 #define KEY_MIN_INTERESTING	KEY_MUTE
