@@ -153,16 +153,16 @@ static const unsigned short atkbd_unxlate_table[128] = {
 #define ATKBD_RET_HANGEUL	0xf2
 #define ATKBD_RET_ERR		0xff
 
-#define ATKBD_KEY_UNKNOWN	  0
+#define ATKBD_KEY_UNKNOWN	0
 #define ATKBD_KEY_NULL		255
 
-#define ATKBD_SCR_1		254
-#define ATKBD_SCR_2		253
-#define ATKBD_SCR_4		252
-#define ATKBD_SCR_8		251
-#define ATKBD_SCR_CLICK		250
-#define ATKBD_SCR_LEFT		249
-#define ATKBD_SCR_RIGHT		248
+#define ATKBD_SCR_1		0xfffe
+#define ATKBD_SCR_2		0xfffd
+#define ATKBD_SCR_4		0xfffc
+#define ATKBD_SCR_8		0xfffb
+#define ATKBD_SCR_CLICK		0xfffa
+#define ATKBD_SCR_LEFT		0xfff9
+#define ATKBD_SCR_RIGHT		0xfff8
 
 #define ATKBD_SPECIAL		ATKBD_SCR_RIGHT
 
@@ -177,7 +177,7 @@ static const unsigned short atkbd_unxlate_table[128] = {
 #define ATKBD_XL_HANJA		0x20
 
 static const struct {
-	unsigned char keycode;
+	unsigned short keycode;
 	unsigned char set2;
 } atkbd_scroll_keys[] = {
 	{ ATKBD_SCR_1,     0xc5 },
@@ -1074,9 +1074,13 @@ static void atkbd_set_device_attrs(struct atkbd *atkbd)
 	input_dev->keycodesize = sizeof(unsigned short);
 	input_dev->keycodemax = ARRAY_SIZE(atkbd_set2_keycode);
 
-	for (i = 0; i < ATKBD_KEYMAP_SIZE; i++)
-		if (atkbd->keycode[i] && atkbd->keycode[i] < ATKBD_SPECIAL)
+	for (i = 0; i < ATKBD_KEYMAP_SIZE; i++) {
+		if (atkbd->keycode[i] != KEY_RESERVED &&
+		    atkbd->keycode[i] != ATKBD_KEY_NULL &&
+		    atkbd->keycode[i] < ATKBD_SPECIAL) {
 			__set_bit(atkbd->keycode[i], input_dev->keybit);
+		}
+	}
 }
 
 /*
