@@ -9,6 +9,14 @@
 #include <asm/vdso.h>
 #include <asm/sigp.h>
 
+/*
+ * Make sure that the compiler is new enough. We want a compiler that
+ * is known to work with the "Q" assembler constraint.
+ */
+#if __GNUC__ < 3 || (__GNUC__ == 3 && __GNUC_MINOR__ < 3)
+#error Your compiler is too old; please use version 3.3.3 or newer
+#endif
+
 int main(void)
 {
 	DEFINE(__THREAD_info, offsetof(struct task_struct, stack));
