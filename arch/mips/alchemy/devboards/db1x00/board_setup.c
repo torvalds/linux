@@ -46,18 +46,24 @@ char irq_tab_alchemy[][5] __initdata = {
 	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, AU1500_PCI_INTC, AU1500_PCI_INTD }, /* IDSEL 13 - PCI slot */
 };
 
-static void bosporus_power_off(void)
-{
-	printk(KERN_INFO "It's now safe to turn off power\n");
-	while (1)
-		asm volatile (".set mips3 ; wait ; .set mips0");
-}
-
-const char *get_system_type(void)
-{
-	return "Alchemy Bosporus Gateway Reference";
-}
 #endif
+
+
+#ifdef CONFIG_MIPS_DB1550
+char irq_tab_alchemy[][5] __initdata = {
+	[11] = { -1, AU1550_PCI_INTC, 0xff, 0xff, 0xff }, /* IDSEL 11 - on-board HPT371 */
+	[12] = { -1, AU1550_PCI_INTB, AU1550_PCI_INTC, AU1550_PCI_INTD, AU1550_PCI_INTA }, /* IDSEL 12 - PCI slot 2 (left) */
+	[13] = { -1, AU1550_PCI_INTA, AU1550_PCI_INTB, AU1550_PCI_INTC, AU1550_PCI_INTD }, /* IDSEL 13 - PCI slot 1 (right) */
+};
+#endif
+
+
+#ifdef CONFIG_MIPS_BOSPORUS
+char irq_tab_alchemy[][5] __initdata = {
+	[11] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, 0xff, 0xff }, /* IDSEL 11 - miniPCI  */
+	[12] = { -1, AU1500_PCI_INTA, 0xff, 0xff, 0xff }, /* IDSEL 12 - SN1741   */
+	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, AU1500_PCI_INTC, AU1500_PCI_INTD }, /* IDSEL 13 - PCI slot */
+};
 
 /*
  * Micrel/Kendin 5 port switch attached to MAC0,
@@ -71,15 +77,19 @@ static struct au1000_eth_platform_data eth0_pdata = {
 	.phy_addr		= 5,
 };
 
-#ifdef CONFIG_MIPS_BOSPORUS
-char irq_tab_alchemy[][5] __initdata = {
-	[11] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, 0xff, 0xff }, /* IDSEL 11 - miniPCI  */
-	[12] = { -1, AU1500_PCI_INTA, 0xff, 0xff, 0xff }, /* IDSEL 12 - SN1741   */
-	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, AU1500_PCI_INTC, AU1500_PCI_INTD }, /* IDSEL 13 - PCI slot */
-};
+static void bosporus_power_off(void)
+{
+	printk(KERN_INFO "It's now safe to turn off power\n");
+	while (1)
+		asm volatile (".set mips3 ; wait ; .set mips0");
+}
 
-
+const char *get_system_type(void)
+{
+	return "Alchemy Bosporus Gateway Reference";
+}
 #endif
+
 
 #ifdef CONFIG_MIPS_MIRAGE
 char irq_tab_alchemy[][5] __initdata = {
@@ -99,13 +109,6 @@ const char *get_system_type(void)
 }
 #endif
 
-#ifdef CONFIG_MIPS_DB1550
-char irq_tab_alchemy[][5] __initdata = {
-	[11] = { -1, AU1550_PCI_INTC, 0xff, 0xff, 0xff }, /* IDSEL 11 - on-board HPT371 */
-	[12] = { -1, AU1550_PCI_INTB, AU1550_PCI_INTC, AU1550_PCI_INTD, AU1550_PCI_INTA }, /* IDSEL 12 - PCI slot 2 (left) */
-	[13] = { -1, AU1550_PCI_INTA, AU1550_PCI_INTB, AU1550_PCI_INTC, AU1550_PCI_INTD }, /* IDSEL 13 - PCI slot 1 (right) */
-};
-#endif
 
 #if defined(CONFIG_MIPS_BOSPORUS) || defined(CONFIG_MIPS_MIRAGE)
 static void mips_softreset(void)
@@ -120,6 +123,7 @@ const char *get_system_type(void)
 	return "Alchemy Db1x00";
 }
 #endif
+
 
 void __init board_setup(void)
 {
