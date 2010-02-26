@@ -257,8 +257,7 @@ static void restart(struct net_device *dev)
 
 	r = whack_reset(fep->fec.fecp);
 	if (r != 0)
-		printk(KERN_ERR DRV_MODULE_NAME
-				": %s FEC Reset FAILED!\n", dev->name);
+		dev_err(fep->dev, "FEC Reset FAILED!\n");
 	/*
 	 * Set station address.
 	 */
@@ -355,9 +354,7 @@ static void stop(struct net_device *dev)
 		udelay(1);
 
 	if (i == FEC_RESET_DELAY)
-		printk(KERN_WARNING DRV_MODULE_NAME
-		       ": %s FEC timeout on graceful transmit stop\n",
-		       dev->name);
+		dev_warn(fep->dev, "FEC timeout on graceful transmit stop\n");
 	/*
 	 * Disable FEC. Let only MII interrupts.
 	 */
@@ -433,8 +430,9 @@ static void clear_int_events(struct net_device *dev, u32 int_events)
 
 static void ev_error(struct net_device *dev, u32 int_events)
 {
-	printk(KERN_WARNING DRV_MODULE_NAME
-	       ": %s FEC ERROR(s) 0x%x\n", dev->name, int_events);
+	struct fs_enet_private *fep = netdev_priv(dev);
+
+	dev_warn(fep->dev, "FEC ERROR(s) 0x%x\n", int_events);
 }
 
 static int get_regs(struct net_device *dev, void *p, int *sizep)

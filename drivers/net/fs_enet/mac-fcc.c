@@ -476,8 +476,9 @@ static void clear_int_events(struct net_device *dev, u32 int_events)
 
 static void ev_error(struct net_device *dev, u32 int_events)
 {
-	printk(KERN_WARNING DRV_MODULE_NAME
-	       ": %s FS_ENET ERROR(s) 0x%x\n", dev->name, int_events);
+	struct fs_enet_private *fep = netdev_priv(dev);
+
+	dev_warn(fep->dev, "FS_ENET ERROR(s) 0x%x\n", int_events);
 }
 
 static int get_regs(struct net_device *dev, void *p, int *sizep)

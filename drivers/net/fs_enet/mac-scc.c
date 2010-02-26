@@ -367,9 +367,7 @@ static void stop(struct net_device *dev)
 		udelay(1);
 
 	if (i == SCC_RESET_DELAY)
-		printk(KERN_WARNING DRV_MODULE_NAME
-		       ": %s SCC timeout on graceful transmit stop\n",
-		       dev->name);
+		dev_warn(fep->dev, "SCC timeout on graceful transmit stop\n");
 
 	W16(sccp, scc_sccm, 0);
 	C32(sccp, scc_gsmrl, SCC_GSMRL_ENR | SCC_GSMRL_ENT);
@@ -429,8 +427,9 @@ static void clear_int_events(struct net_device *dev, u32 int_events)
 
 static void ev_error(struct net_device *dev, u32 int_events)
 {
-	printk(KERN_WARNING DRV_MODULE_NAME
-	       ": %s SCC ERROR(s) 0x%x\n", dev->name, int_events);
+	struct fs_enet_private *fep = netdev_priv(dev);
+
+	dev_warn(fep->dev, "SCC ERROR(s) 0x%x\n", int_events);
 }
 
 static int get_regs(struct net_device *dev, void *p, int *sizep)
