@@ -28,9 +28,11 @@
  *         .mbx_offset             = 0x2000,
  *         .int_line               = 0,
  *         .revision               = 1,
+ *         .transceiver_switch     = hecc_phy_control,
  * };
  *
- * Please see include/can/platform/ti_hecc.h for description of above fields
+ * Please see include/linux/can/platform/ti_hecc.h for description of
+ * above fields.
  *
  */
 
@@ -220,6 +222,7 @@ struct ti_hecc_priv {
 	u32 tx_head;
 	u32 tx_tail;
 	u32 rx_next;
+	void (*transceiver_switch)(int);
 };
 
 static inline int get_tx_head_mb(struct ti_hecc_priv *priv)
@@ -315,6 +318,13 @@ static int ti_hecc_set_btc(struct ti_hecc_priv *priv)
 	dev_info(priv->ndev->dev.parent, "setting CANBTC=%#x\n", can_btc);
 
 	return 0;
+}
+
+static void ti_hecc_transceiver_switch(const struct ti_hecc_priv *priv,
+					int on)
+{
+	if (priv->transceiver_switch)
+		priv->transceiver_switch(on);
 }
 
 static void ti_hecc_reset(struct net_device *ndev)
@@ -818,10 +828,13 @@ static int ti_hecc_open(struct net_device *ndev)
 		return err;
 	}
 
+	ti_hecc_transceiver_switch(priv, 1);
+
 	/* Open common can device */
 	err = open_candev(ndev);
 	if (err) {
 		dev_err(ndev->dev.parent, "open_candev() failed %d\n", err);
+		ti_hecc_transceiver_switch(priv, 0);
 		free_irq(ndev->irq, ndev);
 		return err;
 	}
@@ -842,6 +855,7 @@ static int ti_hecc_close(struct net_device *ndev)
 	ti_hecc_stop(ndev);
 	free_irq(ndev->irq, ndev);
 	close_candev(ndev);
+	ti_hecc_transceiver_switch(priv, 0);
 
 	return 0;
 }
@@ -903,6 +917,7 @@ static int ti_hecc_probe(struct platform_device *pdev)
 	priv->hecc_ram_offset = pdata->hecc_ram_offset;
 	priv->mbx_offset = pdata->mbx_offset;
 	priv->int_line = pdata->int_line;
+	priv->transceiver_switch = pdata->transceiver_switch;
 
 	priv->can.bittiming_const = &ti_hecc_bittiming_const;
 	priv->can.do_set_mode = ti_hecc_do_set_mode;
