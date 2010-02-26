@@ -69,4 +69,9 @@ struct inotify_event {
 #define IN_CLOEXEC O_CLOEXEC
 #define IN_NONBLOCK O_NONBLOCK
 
+#ifdef __KERNEL__
+#include <linux/sysctl.h>
+extern struct ctl_table inotify_table[]; /* for sysctl */
+#endif
+
 #endif	/* _LINUX_INOTIFY_H */
