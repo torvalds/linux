@@ -12547,7 +12547,8 @@ skip_phy_reset:
 static void __devinit tg3_read_partno(struct tg3 *tp)
 {
 	unsigned char vpd_data[TG3_NVM_VPD_LEN];   /* in little-endian format */
-	int i;
+	unsigned int block_end, rosize, len;
+	int i = 0;
 	u32 magic;
 
 	if ((tp->tg3_flags3 & TG3_FLG3_NO_NVRAM) ||
@@ -12569,7 +12570,7 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 		}
 	} else {
 		ssize_t cnt;
-		unsigned int pos = 0, i = 0;
+		unsigned int pos = 0;
 
 		for (; pos < TG3_NVM_VPD_LEN && i < 3; i++, pos += cnt) {
 			cnt = pci_read_vpd(tp->pdev, pos,
@@ -12584,40 +12585,33 @@ static void __devinit tg3_read_partno(struct tg3 *tp)
 			goto out_not_found;
 	}
 
-	/* Now parse and find the part number. */
-	for (i = 0; i < TG3_NVM_VPD_LEN - 2; ) {
-		unsigned int block_end, rosize;
-
-		i = pci_vpd_find_tag(vpd_data, i, TG3_NVM_VPD_LEN,
-				     PCI_VPD_LRDT_RO_DATA);
-		if (i < 0)
-			break;
-
-		rosize = pci_vpd_lrdt_size(&vpd_data[i]);
-		block_end = i + PCI_VPD_LRDT_TAG_SIZE + rosize;
-		i += PCI_VPD_LRDT_TAG_SIZE;
-
-		if (block_end > TG3_NVM_VPD_LEN)
-			goto out_not_found;
-
-		i = pci_vpd_find_info_keyword(vpd_data, i, rosize,
-					      PCI_VPD_RO_KEYWORD_PARTNO);
-		if (i > 0) {
-			u8 len = pci_vpd_info_field_size(&vpd_data[i]);
-
-			i += PCI_VPD_INFO_FLD_HDR_SIZE;
-			if (len > TG3_BPN_SIZE ||
-			    (len + i) > TG3_NVM_VPD_LEN)
-				break;
-
-			memcpy(tp->board_part_number, &vpd_data[i], len);
-
-			return;
-		}
-
-		/* Part number not found. */
+	i = pci_vpd_find_tag(vpd_data, 0, TG3_NVM_VPD_LEN,
+			     PCI_VPD_LRDT_RO_DATA);
+	if (i < 0)
 		goto out_not_found;
-	}
+
+	rosize = pci_vpd_lrdt_size(&vpd_data[i]);
+	block_end = i + PCI_VPD_LRDT_TAG_SIZE + rosize;
+	i += PCI_VPD_LRDT_TAG_SIZE;
+
+	if (block_end > TG3_NVM_VPD_LEN)
+		goto out_not_found;
+
+	i = pci_vpd_find_info_keyword(vpd_data, i, rosize,
+				      PCI_VPD_RO_KEYWORD_PARTNO);
+	if (i < 0)
+		goto out_not_found;
+
+	len = pci_vpd_info_field_size(&vpd_data[i]);
+
+	i += PCI_VPD_INFO_FLD_HDR_SIZE;
+	if (len > TG3_BPN_SIZE ||
+	    (len + i) > TG3_NVM_VPD_LEN)
+		goto out_not_found;
+
+	memcpy(tp->board_part_number, &vpd_data[i], len);
+
+	return;
 
 out_not_found:
 	if (GET_ASIC_REV(tp->pci_chip_rev_id) == ASIC_REV_5906)
