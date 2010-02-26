@@ -30,14 +30,32 @@
 
 #ifdef CONFIG_DYNAMIC_FTRACE
 
+/*
+ * modifying_code is set to notify NMIs that they need to use
+ * memory barriers when entering or exiting. But we don't want
+ * to burden NMIs with unnecessary memory barriers when code
+ * modification is not being done (which is most of the time).
+ *
+ * A mutex is already held when ftrace_arch_code_modify_prepare
+ * and post_process are called. No locks need to be taken here.
+ *
+ * Stop machine will make sure currently running NMIs are done
+ * and new NMIs will see the updated variable before we need
+ * to worry about NMIs doing memory barriers.
+ */
+static int modifying_code __read_mostly;
+static DEFINE_PER_CPU(int, save_modifying_code);
+
 int ftrace_arch_code_modify_prepare(void)
 {
 	set_kernel_text_rw();
+	modifying_code = 1;
 	return 0;
 }
 
 int ftrace_arch_code_modify_post_process(void)
 {
+	modifying_code = 0;
 	set_kernel_text_ro();
 	return 0;
 }
@@ -149,6 +167,11 @@ static void ftrace_mod_code(void)
 
 void ftrace_nmi_enter(void)
 {
+	__get_cpu_var(save_modifying_code) = modifying_code;
+
+	if (!__get_cpu_var(save_modifying_code))
+		return;
+
 	if (atomic_inc_return(&nmi_running) & MOD_CODE_WRITE_FLAG) {
 		smp_rmb();
 		ftrace_mod_code();
@@ -160,6 +183,9 @@ void ftrace_nmi_enter(void)
 
 void ftrace_nmi_exit(void)
 {
+	if (!__get_cpu_var(save_modifying_code))
+		return;
+
 	/* Finish all executions before clearing nmi_running */
 	smp_mb();
 	atomic_dec(&nmi_running);
