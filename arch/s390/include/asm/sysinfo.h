@@ -87,7 +87,8 @@ struct sysinfo_2_2_2 {
 
 struct sysinfo_3_2_2 {
 	char reserved_0[31];
-	unsigned char count;
+	unsigned char :4;
+	unsigned char count:4;
 	struct {
 		char reserved_0[4];
 		unsigned short cpus_total;
