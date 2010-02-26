@@ -145,21 +145,58 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
-static int parse_line(FILE *file, struct hist_entry *he, u64 len)
+struct objdump_line {
+	struct list_head node;
+	s64		 offset;
+	char		 *line;
+};
+
+static struct objdump_line *objdump_line__new(s64 offset, char *line)
+{
+	struct objdump_line *self = malloc(sizeof(*self));
+
+	if (self != NULL) {
+		self->offset = offset;
+		self->line = line;
+	}
+
+	return self;
+}
+
+static void objdump_line__free(struct objdump_line *self)
+{
+	free(self->line);
+	free(self);
+}
+
+static void objdump__add_line(struct list_head *head, struct objdump_line *line)
+{
+	list_add_tail(&line->node, head);
+}
+
+static struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
+						      struct objdump_line *pos)
+{
+	list_for_each_entry_continue(pos, head, node)
+		if (pos->offset >= 0)
+			return pos;
+
+	return NULL;
+}
+
+static int parse_line(FILE *file, struct hist_entry *he,
+		      struct list_head *head)
 {
 	struct symbol *sym = he->sym;
+	struct objdump_line *objdump_line;
 	char *line = NULL, *tmp, *tmp2;
-	static const char *prev_line;
-	static const char *prev_color;
-	unsigned int offset;
 	size_t line_len;
-	u64 start;
-	s64 line_ip;
-	int ret;
+	s64 line_ip, offset = -1;
 	char *c;
 
 	if (getline(&line, &line_len, file) < 0)
 		return -1;
+
 	if (!line)
 		return -1;
 
@@ -168,8 +205,6 @@ static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 		*c = 0;
 
 	line_ip = -1;
-	offset = 0;
-	ret = -2;
 
 	/*
 	 * Strip leading spaces:
@@ -190,9 +225,30 @@ static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 			line_ip = -1;
 	}
 
-	start = map__rip_2objdump(he->map, sym->start);
-
 	if (line_ip != -1) {
+		u64 start = map__rip_2objdump(he->map, sym->start);
+		offset = line_ip - start;
+	}
+
+	objdump_line = objdump_line__new(offset, line);
+	if (objdump_line == NULL) {
+		free(line);
+		return -1;
+	}
+	objdump__add_line(head, objdump_line);
+
+	return 0;
+}
+
+static int objdump_line__print(struct objdump_line *self,
+			       struct list_head *head,
+			       struct hist_entry *he, u64 len)
+{
+	struct symbol *sym = he->sym;
+	static const char *prev_line;
+	static const char *prev_color;
+
+	if (self->offset != -1) {
 		const char *path = NULL;
 		unsigned int hits = 0;
 		double percent = 0.0;
@@ -200,15 +256,22 @@ static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 		struct sym_priv *priv = symbol__priv(sym);
 		struct sym_ext *sym_ext = priv->ext;
 		struct sym_hist *h = priv->hist;
+		s64 offset = self->offset;
+		struct objdump_line *next = objdump__get_next_ip_line(head, self);
 
-		offset = line_ip - start;
-		if (offset < len)
-			hits = h->ip[offset];
+		while (offset < (s64)len &&
+		       (next == NULL || offset < next->offset)) {
+			if (sym_ext) {
+				if (path == NULL)
+					path = sym_ext[offset].path;
+				percent += sym_ext[offset].percent;
+			} else
+				hits += h->ip[offset];
 
-		if (offset < len && sym_ext) {
-			path = sym_ext[offset].path;
-			percent = sym_ext[offset].percent;
-		} else if (h->sum)
+			++offset;
+		}
+
+		if (sym_ext == NULL && h->sum)
 			percent = 100.0 * hits / h->sum;
 
 		color = get_percent_color(percent);
@@ -229,12 +292,12 @@ static int parse_line(FILE *file, struct hist_entry *he, u64 len)
 
 		color_fprintf(stdout, color, " %7.2f", percent);
 		printf(" :	");
-		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", line);
+		color_fprintf(stdout, PERF_COLOR_BLUE, "%s\n", self->line);
 	} else {
-		if (!*line)
+		if (!*self->line)
 			printf("         :\n");
 		else
-			printf("         :	%s\n", line);
+			printf("         :	%s\n", self->line);
 	}
 
 	return 0;
@@ -360,6 +423,20 @@ static void print_summary(const char *filename)
 	}
 }
 
+static void hist_entry__print_hits(struct hist_entry *self)
+{
+	struct symbol *sym = self->sym;
+	struct sym_priv *priv = symbol__priv(sym);
+	struct sym_hist *h = priv->hist;
+	u64 len = sym->end - sym->start, offset;
+
+	for (offset = 0; offset < len; ++offset)
+		if (h->ip[offset] != 0)
+			printf("%*Lx: %Lu\n", BITS_PER_LONG / 2,
+			       sym->start + offset, h->ip[offset]);
+	printf("%*s: %Lu\n", BITS_PER_LONG / 2, "h->sum", h->sum);
+}
+
 static void annotate_sym(struct hist_entry *he)
 {
 	struct map *map = he->map;
@@ -369,6 +446,8 @@ static void annotate_sym(struct hist_entry *he)
 	u64 len;
 	char command[PATH_MAX*2];
 	FILE *file;
+	LIST_HEAD(head);
+	struct objdump_line *pos, *n;
 
 	if (!filename)
 		return;
@@ -410,11 +489,21 @@ static void annotate_sym(struct hist_entry *he)
 		return;
 
 	while (!feof(file)) {
-		if (parse_line(file, he, len) < 0)
+		if (parse_line(file, he, &head) < 0)
 			break;
 	}
 
 	pclose(file);
+
+	if (verbose)
+		hist_entry__print_hits(he);
+
+	list_for_each_entry_safe(pos, n, &head, node) {
+		objdump_line__print(pos, &head, he, len);
+		list_del(&pos->node);
+		objdump_line__free(pos);
+	}
+
 	if (print_line)
 		free_source_line(he, len);
 }
