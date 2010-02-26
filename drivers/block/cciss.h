@@ -55,12 +55,6 @@ typedef struct _drive_info_struct
 	char device_initialized;     /* indicates whether dev is initialized */
 } drive_info_struct;
 
-struct Cmd_sg_list {
-	SGDescriptor_struct	*sgchain;
-	dma_addr_t		sg_chain_dma;
-	int			chain_block_size;
-};
-
 struct ctlr_info
 {
 	int	ctlr;
@@ -89,7 +83,7 @@ struct ctlr_info
 	int	maxsgentries;
 	int	chainsize;
 	int	max_cmd_sgentries;
-	struct Cmd_sg_list **cmd_sg_list;
+	SGDescriptor_struct **cmd_sg_list;
 
 #	define DOORBELL_INT	0
 #	define PERF_MODE_INT	1

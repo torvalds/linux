@@ -257,7 +257,7 @@ static inline void removeQ(CommandList_struct *c)
 	hlist_del_init(&c->list);
 }
 
-static void cciss_free_sg_chain_blocks(struct Cmd_sg_list **cmd_sg_list,
+static void cciss_free_sg_chain_blocks(SGDescriptor_struct **cmd_sg_list,
 	int nr_cmds)
 {
 	int i;
@@ -265,20 +265,17 @@ static void cciss_free_sg_chain_blocks(struct Cmd_sg_list **cmd_sg_list,
 	if (!cmd_sg_list)
 		return;
 	for (i = 0; i < nr_cmds; i++) {
-		if (cmd_sg_list[i]) {
-			kfree(cmd_sg_list[i]->sgchain);
-			kfree(cmd_sg_list[i]);
-			cmd_sg_list[i] = NULL;
-		}
+		kfree(cmd_sg_list[i]);
+		cmd_sg_list[i] = NULL;
 	}
 	kfree(cmd_sg_list);
 }
 
-static struct Cmd_sg_list **cciss_allocate_sg_chain_blocks(ctlr_info_t *h,
-	int chainsize, int nr_cmds)
+static SGDescriptor_struct **cciss_allocate_sg_chain_blocks(
+	ctlr_info_t *h, int chainsize, int nr_cmds)
 {
 	int j;
-	struct Cmd_sg_list **cmd_sg_list;
+	SGDescriptor_struct **cmd_sg_list;
 
 	if (chainsize <= 0)
 		return NULL;
@@ -289,16 +286,10 @@ static struct Cmd_sg_list **cciss_allocate_sg_chain_blocks(ctlr_info_t *h,
 
 	/* Build up chain blocks for each command */
 	for (j = 0; j < nr_cmds; j++) {
-		cmd_sg_list[j] = kmalloc(sizeof(*cmd_sg_list[j]), GFP_KERNEL);
-		if (!cmd_sg_list[j]) {
-			dev_err(&h->pdev->dev, "Cannot get memory "
-				"for chain block.\n");
-			goto clean;
-		}
 		/* Need a block of chainsized s/g elements. */
-		cmd_sg_list[j]->sgchain = kmalloc((chainsize *
-			sizeof(SGDescriptor_struct)), GFP_KERNEL);
-		if (!cmd_sg_list[j]->sgchain) {
+		cmd_sg_list[j] = kmalloc((chainsize *
+			sizeof(*cmd_sg_list[j])), GFP_KERNEL);
+		if (!cmd_sg_list[j]) {
 			dev_err(&h->pdev->dev, "Cannot get memory "
 				"for s/g chains.\n");
 			goto clean;
@@ -1731,7 +1722,7 @@ static void cciss_softirq_done(struct request *rq)
 			pci_unmap_single(h->pdev, temp64.val,
 						cmd->SG[i].Len, ddir);
 			/* Point to the next block */
-			curr_sg = h->cmd_sg_list[cmd->cmdindex]->sgchain;
+			curr_sg = h->cmd_sg_list[cmd->cmdindex];
 			sg_index = 0;
 		}
 		temp64.val32.lower = curr_sg[sg_index].Addr.lower;
@@ -3206,7 +3197,7 @@ static void do_cciss_request(struct request_queue *q)
 			curr_sg[sg_index].Ext = CCISS_SG_CHAIN;
 
 			/* Point to next chain block. */
-			curr_sg = h->cmd_sg_list[c->cmdindex]->sgchain;
+			curr_sg = h->cmd_sg_list[c->cmdindex];
 			sg_index = 0;
 			chained = 1;
 		}
@@ -3223,6 +3214,7 @@ static void do_cciss_request(struct request_queue *q)
 
 	if (chained) {
 		int len;
+		dma_addr_t dma_addr;
 		curr_sg = c->SG;
 		sg_index = h->max_cmd_sgentries - 1;
 		len = curr_sg[sg_index].Len;
@@ -3231,16 +3223,11 @@ static void do_cciss_request(struct request_queue *q)
 		 * block with address of next chain block.
 		 */
 		temp64.val = pci_map_single(h->pdev,
-					h->cmd_sg_list[c->cmdindex]->sgchain,
-					len, dir);
-
-		h->cmd_sg_list[c->cmdindex]->sg_chain_dma = temp64.val;
+					h->cmd_sg_list[c->cmdindex], len, dir);
+		dma_addr = temp64.val;
 		curr_sg[sg_index].Addr.lower = temp64.val32.lower;
 		curr_sg[sg_index].Addr.upper = temp64.val32.upper;
-
-		pci_dma_sync_single_for_device(h->pdev,
-				h->cmd_sg_list[c->cmdindex]->sg_chain_dma,
-				len, dir);
+		pci_dma_sync_single_for_device(h->pdev, dma_addr, len, dir);
 	}
 
 	/* track how many SG entries we are using */
