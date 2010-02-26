@@ -323,8 +323,8 @@ static int dasd_state_ready_to_basic(struct dasd_device *device)
 			device->state = DASD_STATE_READY;
 			return rc;
 		}
-		dasd_destroy_partitions(block);
 		dasd_flush_request_queue(block);
+		dasd_destroy_partitions(block);
 		block->blocks = 0;
 		block->bp_block = 0;
 		block->s2b_shift = 0;
