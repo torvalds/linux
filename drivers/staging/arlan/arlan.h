@@ -90,8 +90,8 @@ struct arlan_shmem {
       volatile	u_char hardwareType;
       volatile	u_char majorHardwareVersion;
       volatile	u_char minorHardwareVersion;
-      volatile	u_char radioModule;// shows EEPROM, can be overridden at 0x111
-      volatile	u_char defaultChannelSet; // shows EEProm, can be overriiden at 0x10A
+      volatile	u_char radioModule;/* shows EEPROM, can be overridden at 0x111 */
+      volatile	u_char defaultChannelSet; /* shows EEProm, can be overriiden at 0x10A */
       volatile	u_char _2[47];
 
       /* Control/Status Block - 0x0080 */
