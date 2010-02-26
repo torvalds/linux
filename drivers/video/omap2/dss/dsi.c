@@ -2081,10 +2081,16 @@ int dsi_vc_dcs_write(int channel, u8 *data, int len)
 
 	r = dsi_vc_dcs_write_nosync(channel, data, len);
 	if (r)
-		return r;
+		goto err;
 
 	r = dsi_vc_send_bta_sync(channel);
+	if (r)
+		goto err;
 
+	return 0;
+err:
+	DSSERR("dsi_vc_dcs_write(ch %d, cmd 0x%02x, len %d) failed\n",
+			channel, data[0], len);
 	return r;
 }
 EXPORT_SYMBOL(dsi_vc_dcs_write);
@@ -2115,16 +2121,17 @@ int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen)
 
 	r = dsi_vc_send_short(channel, DSI_DT_DCS_READ, dcs_cmd, 0);
 	if (r)
-		return r;
+		goto err;
 
 	r = dsi_vc_send_bta_sync(channel);
 	if (r)
-		return r;
+		goto err;
 
 	/* RX_FIFO_NOT_EMPTY */
 	if (REG_GET(DSI_VC_CTRL(channel), 20, 20) == 0) {
 		DSSERR("RX fifo empty when trying to read.\n");
-		return -EIO;
+		r = -EIO;
+		goto err;
 	}
 
 	val = dsi_read_reg(DSI_VC_SHORT_PACKET_HEADER(channel));
@@ -2134,15 +2141,18 @@ int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen)
 	if (dt == DSI_DT_RX_ACK_WITH_ERR) {
 		u16 err = FLD_GET(val, 23, 8);
 		dsi_show_rx_ack_with_err(err);
-		return -EIO;
+		r = -EIO;
+		goto err;
 
 	} else if (dt == DSI_DT_RX_SHORT_READ_1) {
 		u8 data = FLD_GET(val, 15, 8);
 		if (dsi.debug_read)
 			DSSDBG("\tDCS short response, 1 byte: %02x\n", data);
 
-		if (buflen < 1)
-			return -EIO;
+		if (buflen < 1) {
+			r = -EIO;
+			goto err;
+		}
 
 		buf[0] = data;
 
@@ -2152,8 +2162,10 @@ int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen)
 		if (dsi.debug_read)
 			DSSDBG("\tDCS short response, 2 byte: %04x\n", data);
 
-		if (buflen < 2)
-			return -EIO;
+		if (buflen < 2) {
+			r = -EIO;
+			goto err;
+		}
 
 		buf[0] = data & 0xff;
 		buf[1] = (data >> 8) & 0xff;
@@ -2165,8 +2177,10 @@ int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen)
 		if (dsi.debug_read)
 			DSSDBG("\tDCS long response, len %d\n", len);
 
-		if (len > buflen)
-			return -EIO;
+		if (len > buflen) {
+			r = -EIO;
+			goto err;
+		}
 
 		/* two byte checksum ends the packet, not included in len */
 		for (w = 0; w < len + 2;) {
@@ -2188,11 +2202,18 @@ int dsi_vc_dcs_read(int channel, u8 dcs_cmd, u8 *buf, int buflen)
 		}
 
 		return len;
-
 	} else {
 		DSSERR("\tunknown datatype 0x%02x\n", dt);
-		return -EIO;
+		r = -EIO;
+		goto err;
 	}
+
+	BUG();
+err:
+	DSSERR("dsi_vc_dcs_read(ch %d, cmd 0x%02x) failed\n",
+			channel, dcs_cmd);
+	return r;
+
 }
 EXPORT_SYMBOL(dsi_vc_dcs_read);
 
