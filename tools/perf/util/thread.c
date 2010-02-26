@@ -31,15 +31,41 @@ static struct thread *thread__new(pid_t pid)
 	return self;
 }
 
+static void map_groups__flush(struct map_groups *self)
+{
+	int type;
+
+	for (type = 0; type < MAP__NR_TYPES; type++) {
+		struct rb_root *root = &self->maps[type];
+		struct rb_node *next = rb_first(root);
+
+		while (next) {
+			struct map *pos = rb_entry(next, struct map, rb_node);
+			next = rb_next(&pos->rb_node);
+			rb_erase(&pos->rb_node, root);
+			/*
+			 * We may have references to this map, for
+			 * instance in some hist_entry instances, so
+			 * just move them to a separate list.
+			 */
+			list_add_tail(&pos->node, &self->removed_maps[pos->type]);
+		}
+	}
+}
+
 int thread__set_comm(struct thread *self, const char *comm)
 {
+	int err;
+
 	if (self->comm)
 		free(self->comm);
 	self->comm = strdup(comm);
-	if (self->comm == NULL)
-		return -ENOMEM;
-	self->comm_set = true;
-	return 0;
+	err = self->comm == NULL ? -ENOMEM : 0;
+	if (!err) {
+		self->comm_set = true;
+		map_groups__flush(&self->mg);
+	}
+	return err;
 }
 
 int thread__comm_len(struct thread *self)
