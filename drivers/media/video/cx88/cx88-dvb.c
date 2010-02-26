@@ -1394,8 +1394,6 @@ static int dvb_register(struct cx8802_dev *dev)
 	case CX88_BOARD_SAMSUNG_SMT_7020:
 		dev->ts_gen_cntrl = 0x08;
 
-		struct cx88_core *core = dev->core;
-
 		cx_set(MO_GP0_IO, 0x0101);
 
 		cx_clear(MO_GP0_IO, 0x01);
