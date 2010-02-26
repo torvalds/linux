@@ -2079,14 +2079,24 @@ lpfc_handle_fcp_err(struct lpfc_vport *vport, struct lpfc_scsi_buf *lpfc_cmd,
 
 	if (resp_info & RSP_LEN_VALID) {
 		rsplen = be32_to_cpu(fcprsp->rspRspLen);
-		if ((rsplen != 0 && rsplen != 4 && rsplen != 8) ||
-		    (fcprsp->rspInfo3 != RSP_NO_FAILURE)) {
+		if (rsplen != 0 && rsplen != 4 && rsplen != 8) {
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
 				 "2719 Invalid response length: "
 				 "tgt x%x lun x%x cmnd x%x rsplen x%x\n",
 				 cmnd->device->id,
 				 cmnd->device->lun, cmnd->cmnd[0],
 				 rsplen);
+			host_status = DID_ERROR;
+			goto out;
+		}
+		if (fcprsp->rspInfo3 != RSP_NO_FAILURE) {
+			lpfc_printf_vlog(vport, KERN_ERR, LOG_FCP,
+				 "2757 Protocol failure detected during "
+				 "processing of FCP I/O op: "
+				 "tgt x%x lun x%x cmnd x%x rspInfo3 x%x\n",
+				 cmnd->device->id,
+				 cmnd->device->lun, cmnd->cmnd[0],
+				 fcprsp->rspInfo3);
 			host_status = DID_ERROR;
 			goto out;
 		}

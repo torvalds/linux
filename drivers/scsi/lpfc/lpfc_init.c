@@ -549,7 +549,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 			mempool_free(pmb, phba->mbox_mem_pool);
 			return -EIO;
 		}
-	} else if (phba->cfg_suppress_link_up == 0) {
+	} else if (phba->cfg_suppress_link_up == LPFC_INITIALIZE_LINK) {
 		lpfc_init_link(phba, pmb, phba->cfg_topology,
 			phba->cfg_link_speed);
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -667,7 +667,7 @@ lpfc_hba_init_link(struct lpfc_hba *phba)
 			mempool_free(pmb, phba->mbox_mem_pool);
 		return -EIO;
 	}
-	phba->cfg_suppress_link_up = 0;
+	phba->cfg_suppress_link_up = LPFC_INITIALIZE_LINK;
 
 	return 0;
 }

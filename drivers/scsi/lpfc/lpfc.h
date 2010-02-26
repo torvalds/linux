@@ -623,6 +623,9 @@ struct lpfc_hba {
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_aer_support;
 	uint32_t cfg_suppress_link_up;
+#define LPFC_INITIALIZE_LINK              0	/* do normal init_link mbox */
+#define LPFC_DELAY_INIT_LINK              1	/* layered driver hold off */
+#define LPFC_DELAY_INIT_LINK_INDEFINITELY 2	/* wait, manual intervention */
 
 	lpfc_vpd_t vpd;		/* vital product data */
 

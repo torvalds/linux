@@ -1939,7 +1939,9 @@ static DEVICE_ATTR(lpfc_enable_npiv, S_IRUGO,
 #            0x2  = never bring up link
 # Default value is 0.
 */
-LPFC_ATTR_R(suppress_link_up, 0, 0, 2, "Suppress Link Up at initialization");
+LPFC_ATTR_R(suppress_link_up, LPFC_INITIALIZE_LINK, LPFC_INITIALIZE_LINK,
+		LPFC_DELAY_INIT_LINK_INDEFINITELY,
+		"Suppress Link Up at initialization");
 
 /*
 # lpfc_nodev_tmo: If set, it will hold all I/O errors on devices that disappear
@@ -1966,8 +1968,7 @@ lpfc_nodev_tmo_show(struct device *dev, struct device_attribute *attr,
 {
 	struct Scsi_Host  *shost = class_to_shost(dev);
 	struct lpfc_vport *vport = (struct lpfc_vport *) shost->hostdata;
-	int val = 0;
-	val = vport->cfg_devloss_tmo;
+
 	return snprintf(buf, PAGE_SIZE, "%d\n",	vport->cfg_devloss_tmo);
 }
 

@@ -3091,6 +3091,12 @@ lpfc_sli_brdready_s3(struct lpfc_hba *phba, uint32_t mask)
 
 	/* Check to see if any errors occurred during init */
 	if ((status & HS_FFERM) || (i >= 20)) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2751 Adapter failed to restart, "
+				"status reg x%x, FW Data: A8 x%x AC x%x\n",
+				status,
+				readl(phba->MBslimaddr + 0xa8),
+				readl(phba->MBslimaddr + 0xac));
 		phba->link_state = LPFC_HBA_ERROR;
 		retval = 1;
 	}
@@ -3278,6 +3284,9 @@ lpfc_sli_brdkill(struct lpfc_hba *phba)
 	if (retval != MBX_SUCCESS) {
 		if (retval != MBX_BUSY)
 			mempool_free(pmb, phba->mbox_mem_pool);
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2752 KILL_BOARD command failed retval %d\n",
+				retval);
 		spin_lock_irq(&phba->hbalock);
 		phba->link_flag &= ~LS_IGNORE_ERATT;
 		spin_unlock_irq(&phba->hbalock);
@@ -4035,7 +4044,7 @@ lpfc_sli_hba_setup(struct lpfc_hba *phba)
 
 lpfc_sli_hba_setup_error:
 	phba->link_state = LPFC_HBA_ERROR;
-	lpfc_printf_log(phba, KERN_INFO, LOG_INIT,
+	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"0445 Firmware initialization failed\n");
 	return rc;
 }
