@@ -127,7 +127,7 @@ static int efx_mcdi_poll(struct efx_nic *efx)
 	efx_dword_t reg;
 
 	/* Check for a reboot atomically with respect to efx_mcdi_copyout() */
-	rc = efx_mcdi_poll_reboot(efx);
+	rc = -efx_mcdi_poll_reboot(efx);
 	if (rc)
 		goto out;
 

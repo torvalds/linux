@@ -1126,10 +1126,10 @@ regen_max_retry - INTEGER
 	Default: 5
 
 max_addresses - INTEGER
-	Number of maximum addresses per interface.  0 disables limitation.
-	It is recommended not set too large value (or 0) because it would
-	be too easy way to crash kernel to allow to create too much of
-	autoconfigured addresses.
+	Maximum number of autoconfigured addresses per interface.  Setting
+	to zero disables the limitation.  It is not recommended to set this
+	value too large (or to zero) because it would be an easy way to
+	crash the kernel by allowing too many addresses to be created.
 	Default: 16
 
 disable_ipv6 - BOOLEAN

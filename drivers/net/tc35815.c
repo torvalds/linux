@@ -1437,7 +1437,6 @@ static int tc35815_do_interrupt(struct net_device *dev, u32 status, int limit)
 		/* Transmit complete. */
 		lp->lstats.tx_ints++;
 		tc35815_txdone(dev);
-		netif_wake_queue(dev);
 		if (ret < 0)
 			ret = 0;
 	}
