@@ -167,10 +167,13 @@ typedef struct _SGDescriptor_struct {
 #define CMD_MSG_TIMEOUT 0x05
 #define CMD_MSG_STALE	0xff
 
-/* This structure needs to be divisible by 8 for new
- * indexing method.  PAD_32 and PAD_64 can be adjusted
- * independently as needed for 32-bit and 64-bits systems.
+/* This structure needs to be divisible by COMMANDLIST_ALIGNMENT
+ * because low bits of the address are used to to indicate that
+ * whether the tag contains an index or an address.  PAD_32 and
+ * PAD_64 can be adjusted independently as needed for 32-bit
+ * and 64-bits systems.
  */
+#define COMMANDLIST_ALIGNMENT (8)
 #define IS_64_BIT ((sizeof(long) - 4)/4)
 #define IS_32_BIT (!IS_64_BIT)
 #define PAD_32 (0)
