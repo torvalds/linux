@@ -71,9 +71,12 @@ extern unsigned int user_mode;
 #define MACHINE_FLAG_KVM	(1UL << 9)
 #define MACHINE_FLAG_HPAGE	(1UL << 10)
 #define MACHINE_FLAG_PFMF	(1UL << 11)
+#define MACHINE_FLAG_LPAR	(1UL << 12)
 
 #define MACHINE_IS_VM		(S390_lowcore.machine_flags & MACHINE_FLAG_VM)
 #define MACHINE_IS_KVM		(S390_lowcore.machine_flags & MACHINE_FLAG_KVM)
+#define MACHINE_IS_LPAR		(S390_lowcore.machine_flags & MACHINE_FLAG_LPAR)
+
 #define MACHINE_HAS_DIAG9C	(S390_lowcore.machine_flags & MACHINE_FLAG_DIAG9C)
 
 #ifndef __s390x__

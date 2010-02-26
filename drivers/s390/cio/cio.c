@@ -661,7 +661,7 @@ void __irq_entry do_IRQ(struct pt_regs *regs)
 		 * We don't do this for VM because a tpi drops the cpu
 		 * out of the sie which costs more cycles than it saves.
 		 */
-	} while (!MACHINE_IS_VM && tpi (NULL) != 0);
+	} while (MACHINE_IS_LPAR && tpi(NULL) != 0);
 	irq_exit();
 	set_irq_regs(old_regs);
 }

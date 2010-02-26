@@ -804,7 +804,7 @@ setup_arch(char **cmdline_p)
 	if (MACHINE_IS_VM)
 		pr_info("Linux is running as a z/VM "
 			"guest operating system in 31-bit mode\n");
-	else
+	else if (MACHINE_IS_LPAR)
 		pr_info("Linux is running natively in 31-bit mode\n");
 	if (MACHINE_HAS_IEEE)
 		pr_info("The hardware system has IEEE compatible "
@@ -818,7 +818,7 @@ setup_arch(char **cmdline_p)
 			"guest operating system in 64-bit mode\n");
 	else if (MACHINE_IS_KVM)
 		pr_info("Linux is running under KVM in 64-bit mode\n");
-	else
+	else if (MACHINE_IS_LPAR)
 		pr_info("Linux is running natively in 64-bit mode\n");
 #endif /* CONFIG_64BIT */
 

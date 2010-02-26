@@ -534,7 +534,7 @@ static int qdio_inbound_q_moved(struct qdio_q *q)
 
 	if ((bufnr != q->last_move) || q->qdio_error) {
 		q->last_move = bufnr;
-		if (!is_thinint_irq(q->irq_ptr) && !MACHINE_IS_VM)
+		if (!is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
 			q->u.in.timestamp = get_usecs();
 		return 1;
 	} else

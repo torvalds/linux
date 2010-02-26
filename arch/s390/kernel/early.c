@@ -214,10 +214,13 @@ static __initdata struct sysinfo_3_2_2 vmms __aligned(PAGE_SIZE);
 
 static noinline __init void detect_machine_type(void)
 {
-	/* No VM information? Looks like LPAR */
-	if (stsi(&vmms, 3, 2, 2) == -ENOSYS)
+	/* Check current-configuration-level */
+	if ((stsi(NULL, 0, 0, 0) >> 28) <= 2) {
+		S390_lowcore.machine_flags |= MACHINE_FLAG_LPAR;
 		return;
-	if (!vmms.count)
+	}
+	/* Get virtual-machine cpu information. */
+	if (stsi(&vmms, 3, 2, 2) == -ENOSYS || !vmms.count)
 		return;
 
 	/* Running under KVM? If not we assume z/VM */
