@@ -3878,7 +3878,7 @@ enum {
 	TP_ACPI_BLUETOOTH_HWPRESENT	= 0x01,	/* Bluetooth hw available */
 	TP_ACPI_BLUETOOTH_RADIOSSW	= 0x02,	/* Bluetooth radio enabled */
 	TP_ACPI_BLUETOOTH_RESUMECTRL	= 0x04,	/* Bluetooth state at resume:
-						   off / last state */
+						   0 = disable, 1 = enable */
 };
 
 enum {
@@ -3924,10 +3924,11 @@ static int bluetooth_set_status(enum tpacpi_rfkill_state state)
 	}
 #endif
 
-	/* We make sure to keep TP_ACPI_BLUETOOTH_RESUMECTRL off */
-	status = TP_ACPI_BLUETOOTH_RESUMECTRL;
 	if (state == TPACPI_RFK_RADIO_ON)
-		status |= TP_ACPI_BLUETOOTH_RADIOSSW;
+		status = TP_ACPI_BLUETOOTH_RADIOSSW
+			  | TP_ACPI_BLUETOOTH_RESUMECTRL;
+	else
+		status = 0;
 
 	if (!acpi_evalf(hkey_handle, NULL, "SBDC", "vd", status))
 		return -EIO;
@@ -4078,7 +4079,7 @@ enum {
 	TP_ACPI_WANCARD_HWPRESENT	= 0x01,	/* Wan hw available */
 	TP_ACPI_WANCARD_RADIOSSW	= 0x02,	/* Wan radio enabled */
 	TP_ACPI_WANCARD_RESUMECTRL	= 0x04,	/* Wan state at resume:
-						   off / last state */
+						   0 = disable, 1 = enable */
 };
 
 #define TPACPI_RFK_WWAN_SW_NAME		"tpacpi_wwan_sw"
@@ -4115,10 +4116,11 @@ static int wan_set_status(enum tpacpi_rfkill_state state)
 	}
 #endif
 
-	/* We make sure to set TP_ACPI_WANCARD_RESUMECTRL */
-	status = TP_ACPI_WANCARD_RESUMECTRL;
 	if (state == TPACPI_RFK_RADIO_ON)
-		status |= TP_ACPI_WANCARD_RADIOSSW;
+		status = TP_ACPI_WANCARD_RADIOSSW
+			 | TP_ACPI_WANCARD_RESUMECTRL;
+	else
+		status = 0;
 
 	if (!acpi_evalf(hkey_handle, NULL, "SWAN", "vd", status))
 		return -EIO;
