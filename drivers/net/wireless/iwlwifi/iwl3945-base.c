@@ -2697,7 +2697,7 @@ static int __iwl3945_up(struct iwl_priv *priv)
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
 		 * prepare to load the "initialize" uCode */
-		priv->cfg->ops->lib->load_ucode(priv);
+		rc = priv->cfg->ops->lib->load_ucode(priv);
 
 		if (rc) {
 			IWL_ERR(priv,
