@@ -2597,16 +2597,11 @@ static int hotkey_inputdev_open(struct input_dev *dev)
 {
 	switch (tpacpi_lifecycle) {
 	case TPACPI_LIFE_INIT:
-		/*
-		 * hotkey_init will call hotkey_poll_setup_safe
-		 * at the appropriate moment
-		 */
-		return 0;
-	case TPACPI_LIFE_EXITING:
-		return -EBUSY;
 	case TPACPI_LIFE_RUNNING:
 		hotkey_poll_setup_safe(false);
 		return 0;
+	case TPACPI_LIFE_EXITING:
+		return -EBUSY;
 	}
 
 	/* Should only happen if tpacpi_lifecycle is corrupt */
@@ -2617,7 +2612,7 @@ static int hotkey_inputdev_open(struct input_dev *dev)
 static void hotkey_inputdev_close(struct input_dev *dev)
 {
 	/* disable hotkey polling when possible */
-	if (tpacpi_lifecycle == TPACPI_LIFE_RUNNING &&
+	if (tpacpi_lifecycle != TPACPI_LIFE_EXITING &&
 	    !(hotkey_source_mask & hotkey_driver_mask))
 		hotkey_poll_setup_safe(false);
 }
@@ -8362,6 +8357,9 @@ static int __init thinkpad_acpi_module_init(void)
 			return ret;
 		}
 	}
+
+	tpacpi_lifecycle = TPACPI_LIFE_RUNNING;
+
 	ret = input_register_device(tpacpi_inputdev);
 	if (ret < 0) {
 		printk(TPACPI_ERR "unable to register input device\n");
@@ -8371,7 +8369,6 @@ static int __init thinkpad_acpi_module_init(void)
 		tp_features.input_device_registered = 1;
 	}
 
-	tpacpi_lifecycle = TPACPI_LIFE_RUNNING;
 	return 0;
 }
 
