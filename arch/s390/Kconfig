@@ -54,6 +54,9 @@ config GENERIC_BUG
 	depends on BUG
 	default y
 
+config GENERIC_BUG_RELATIVE_POINTERS
+	def_bool y
+
 config NO_IOMEM
 	def_bool y
 
