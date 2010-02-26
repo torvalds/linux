@@ -90,6 +90,39 @@ static int cpu_stopped(int cpu)
 	return 0;
 }
 
+void smp_switch_to_ipl_cpu(void (*func)(void *), void *data)
+{
+	struct _lowcore *lc, *current_lc;
+	struct stack_frame *sf;
+	struct pt_regs *regs;
+	unsigned long sp;
+
+	if (smp_processor_id() == 0)
+		func(data);
+	__load_psw_mask(PSW_BASE_BITS | PSW_DEFAULT_KEY);
+	/* Disable lowcore protection */
+	__ctl_clear_bit(0, 28);
+	current_lc = lowcore_ptr[smp_processor_id()];
+	lc = lowcore_ptr[0];
+	if (!lc)
+		lc = current_lc;
+	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
+	lc->restart_psw.addr = PSW_ADDR_AMODE | (unsigned long) smp_restart_cpu;
+	if (!cpu_online(0))
+		smp_switch_to_cpu(func, data, 0, stap(), __cpu_logical_map[0]);
+	while (signal_processor(0, sigp_stop_and_store_status) == sigp_busy)
+		cpu_relax();
+	sp = lc->panic_stack;
+	sp -= sizeof(struct pt_regs);
+	regs = (struct pt_regs *) sp;
+	memcpy(&regs->gprs, &current_lc->gpregs_save_area, sizeof(regs->gprs));
+	memcpy(&regs->psw, &current_lc->st_status_fixed_logout, sizeof(psw_t));
+	sp -= STACK_FRAME_OVERHEAD;
+	sf = (struct stack_frame *) sp;
+	sf->back_chain = regs->gprs[15];
+	smp_switch_to_cpu(func, data, sp, stap(), __cpu_logical_map[0]);
+}
+
 void smp_send_stop(void)
 {
 	int cpu, rc;
@@ -752,7 +785,8 @@ static ssize_t cpu_configure_store(struct sys_device *dev,
 	get_online_cpus();
 	mutex_lock(&smp_cpu_state_mutex);
 	rc = -EBUSY;
-	if (cpu_online(cpu))
+	/* disallow configuration changes of online cpus and cpu 0 */
+	if (cpu_online(cpu) || cpu == 0)
 		goto out;
 	rc = 0;
 	switch (val) {
