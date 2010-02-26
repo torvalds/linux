@@ -1345,7 +1345,8 @@ extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder,
 
 extern void r700_cp_stop(struct radeon_device *rdev);
 extern void r700_cp_fini(struct radeon_device *rdev);
-void evergreen_disable_interrupt_state(struct radeon_device *rdev);
+extern void evergreen_disable_interrupt_state(struct radeon_device *rdev);
+extern int evergreen_irq_set(struct radeon_device *rdev);
 
 /* evergreen */
 struct evergreen_mc_save {

@@ -41,28 +41,180 @@ void evergreen_fini(struct radeon_device *rdev);
 bool evergreen_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
 {
 	bool connected = false;
-	/* XXX */
+
+	switch (hpd) {
+	case RADEON_HPD_1:
+		if (RREG32(DC_HPD1_INT_STATUS) & DC_HPDx_SENSE)
+			connected = true;
+		break;
+	case RADEON_HPD_2:
+		if (RREG32(DC_HPD2_INT_STATUS) & DC_HPDx_SENSE)
+			connected = true;
+		break;
+	case RADEON_HPD_3:
+		if (RREG32(DC_HPD3_INT_STATUS) & DC_HPDx_SENSE)
+			connected = true;
+		break;
+	case RADEON_HPD_4:
+		if (RREG32(DC_HPD4_INT_STATUS) & DC_HPDx_SENSE)
+			connected = true;
+		break;
+	case RADEON_HPD_5:
+		if (RREG32(DC_HPD5_INT_STATUS) & DC_HPDx_SENSE)
+			connected = true;
+		break;
+	case RADEON_HPD_6:
+		if (RREG32(DC_HPD6_INT_STATUS) & DC_HPDx_SENSE)
+			connected = true;
+			break;
+	default:
+		break;
+	}
+
 	return connected;
 }
 
 void evergreen_hpd_set_polarity(struct radeon_device *rdev,
 				enum radeon_hpd_id hpd)
 {
-	/* XXX */
+	u32 tmp;
+	bool connected = evergreen_hpd_sense(rdev, hpd);
+
+	switch (hpd) {
+	case RADEON_HPD_1:
+		tmp = RREG32(DC_HPD1_INT_CONTROL);
+		if (connected)
+			tmp &= ~DC_HPDx_INT_POLARITY;
+		else
+			tmp |= DC_HPDx_INT_POLARITY;
+		WREG32(DC_HPD1_INT_CONTROL, tmp);
+		break;
+	case RADEON_HPD_2:
+		tmp = RREG32(DC_HPD2_INT_CONTROL);
+		if (connected)
+			tmp &= ~DC_HPDx_INT_POLARITY;
+		else
+			tmp |= DC_HPDx_INT_POLARITY;
+		WREG32(DC_HPD2_INT_CONTROL, tmp);
+		break;
+	case RADEON_HPD_3:
+		tmp = RREG32(DC_HPD3_INT_CONTROL);
+		if (connected)
+			tmp &= ~DC_HPDx_INT_POLARITY;
+		else
+			tmp |= DC_HPDx_INT_POLARITY;
+		WREG32(DC_HPD3_INT_CONTROL, tmp);
+		break;
+	case RADEON_HPD_4:
+		tmp = RREG32(DC_HPD4_INT_CONTROL);
+		if (connected)
+			tmp &= ~DC_HPDx_INT_POLARITY;
+		else
+			tmp |= DC_HPDx_INT_POLARITY;
+		WREG32(DC_HPD4_INT_CONTROL, tmp);
+		break;
+	case RADEON_HPD_5:
+		tmp = RREG32(DC_HPD5_INT_CONTROL);
+		if (connected)
+			tmp &= ~DC_HPDx_INT_POLARITY;
+		else
+			tmp |= DC_HPDx_INT_POLARITY;
+		WREG32(DC_HPD5_INT_CONTROL, tmp);
+			break;
+	case RADEON_HPD_6:
+		tmp = RREG32(DC_HPD6_INT_CONTROL);
+		if (connected)
+			tmp &= ~DC_HPDx_INT_POLARITY;
+		else
+			tmp |= DC_HPDx_INT_POLARITY;
+		WREG32(DC_HPD6_INT_CONTROL, tmp);
+		break;
+	default:
+		break;
+	}
 }
 
 void evergreen_hpd_init(struct radeon_device *rdev)
 {
-	/* XXX */
-}
+	struct drm_device *dev = rdev->ddev;
+	struct drm_connector *connector;
+	u32 tmp = DC_HPDx_CONNECTION_TIMER(0x9c4) |
+		DC_HPDx_RX_INT_TIMER(0xfa) | DC_HPDx_EN;
 
-
-void evergreen_bandwidth_update(struct radeon_device *rdev)
-{
-	/* XXX */
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		switch (radeon_connector->hpd.hpd) {
+		case RADEON_HPD_1:
+			WREG32(DC_HPD1_CONTROL, tmp);
+			rdev->irq.hpd[0] = true;
+			break;
+		case RADEON_HPD_2:
+			WREG32(DC_HPD2_CONTROL, tmp);
+			rdev->irq.hpd[1] = true;
+			break;
+		case RADEON_HPD_3:
+			WREG32(DC_HPD3_CONTROL, tmp);
+			rdev->irq.hpd[2] = true;
+			break;
+		case RADEON_HPD_4:
+			WREG32(DC_HPD4_CONTROL, tmp);
+			rdev->irq.hpd[3] = true;
+			break;
+		case RADEON_HPD_5:
+			WREG32(DC_HPD5_CONTROL, tmp);
+			rdev->irq.hpd[4] = true;
+			break;
+		case RADEON_HPD_6:
+			WREG32(DC_HPD6_CONTROL, tmp);
+			rdev->irq.hpd[5] = true;
+			break;
+		default:
+			break;
+		}
+	}
+	if (rdev->irq.installed)
+		evergreen_irq_set(rdev);
 }
 
 void evergreen_hpd_fini(struct radeon_device *rdev)
+{
+	struct drm_device *dev = rdev->ddev;
+	struct drm_connector *connector;
+
+	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
+		struct radeon_connector *radeon_connector = to_radeon_connector(connector);
+		switch (radeon_connector->hpd.hpd) {
+		case RADEON_HPD_1:
+			WREG32(DC_HPD1_CONTROL, 0);
+			rdev->irq.hpd[0] = false;
+			break;
+		case RADEON_HPD_2:
+			WREG32(DC_HPD2_CONTROL, 0);
+			rdev->irq.hpd[1] = false;
+			break;
+		case RADEON_HPD_3:
+			WREG32(DC_HPD3_CONTROL, 0);
+			rdev->irq.hpd[2] = false;
+			break;
+		case RADEON_HPD_4:
+			WREG32(DC_HPD4_CONTROL, 0);
+			rdev->irq.hpd[3] = false;
+			break;
+		case RADEON_HPD_5:
+			WREG32(DC_HPD5_CONTROL, 0);
+			rdev->irq.hpd[4] = false;
+			break;
+		case RADEON_HPD_6:
+			WREG32(DC_HPD6_CONTROL, 0);
+			rdev->irq.hpd[5] = false;
+			break;
+		default:
+			break;
+		}
+	}
+}
+
+void evergreen_bandwidth_update(struct radeon_device *rdev)
 {
 	/* XXX */
 }
