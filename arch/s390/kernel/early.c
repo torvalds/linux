@@ -405,8 +405,19 @@ static void __init append_to_cmdline(size_t (*ipl_data)(char *, size_t))
 
 static void __init setup_boot_command_line(void)
 {
+	int i;
+
+	/* convert arch command line to ascii */
+	for (i = 0; i < ARCH_COMMAND_LINE_SIZE; i++)
+		if (COMMAND_LINE[i] & 0x80)
+			break;
+	if (i < ARCH_COMMAND_LINE_SIZE)
+		EBCASC(COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
+	COMMAND_LINE[ARCH_COMMAND_LINE_SIZE-1] = 0;
+
 	/* copy arch command line */
-	strlcpy(boot_command_line, COMMAND_LINE, ARCH_COMMAND_LINE_SIZE);
+	strlcpy(boot_command_line, strstrip(COMMAND_LINE),
+		ARCH_COMMAND_LINE_SIZE);
 
 	/* append IPL PARM data to the boot command line */
 	if (MACHINE_IS_VM)
