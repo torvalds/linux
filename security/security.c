@@ -110,7 +110,7 @@ int __init security_module_enable(struct security_operations *ops)
  * If there is already a security module registered with the kernel,
  * an error will be returned.  Otherwise %0 is returned on success.
  */
-int register_security(struct security_operations *ops)
+int __init register_security(struct security_operations *ops)
 {
 	if (verify(ops)) {
 		printk(KERN_DEBUG "%s could not verify "
