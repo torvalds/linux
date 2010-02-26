@@ -160,10 +160,10 @@ static void r600_audio_engine_enable(struct radeon_device *rdev, bool enable)
  */
 int r600_audio_init(struct radeon_device *rdev)
 {
-	if (!r600_audio_chipset_supported(rdev))
+	if (!radeon_audio || !r600_audio_chipset_supported(rdev))
 		return 0;
 
-	r600_audio_engine_enable(rdev, radeon_audio);
+	r600_audio_engine_enable(rdev, true);
 
 	rdev->audio_channels = -1;
 	rdev->audio_rate = -1;
@@ -266,7 +266,7 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
  */
 void r600_audio_fini(struct radeon_device *rdev)
 {
-	if (!r600_audio_chipset_supported(rdev))
+	if (!radeon_audio || !r600_audio_chipset_supported(rdev))
 		return;
 
 	del_timer(&rdev->audio_timer);
