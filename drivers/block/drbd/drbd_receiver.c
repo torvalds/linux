@@ -2513,6 +2513,10 @@ static enum drbd_conns drbd_sync_handshake(struct drbd_conf *mdev, enum drbd_rol
 	}
 
 	if (hg == -100) {
+		/* FIXME this log message is not correct if we end up here
+		 * after an attempted attach on a diskless node.
+		 * We just refuse to attach -- well, we drop the "connection"
+		 * to that disk, in a way... */
 		dev_alert(DEV, "Split-Brain detected, dropping connection!\n");
 		drbd_khelper(mdev, "split-brain");
 		return C_MASK;
@@ -3134,12 +3138,13 @@ static int receive_state(struct drbd_conf *mdev, struct p_header *h)
 
 		put_ldev(mdev);
 		if (nconn == C_MASK) {
+			nconn = C_CONNECTED;
 			if (mdev->state.disk == D_NEGOTIATING) {
 				drbd_force_state(mdev, NS(disk, D_DISKLESS));
-				nconn = C_CONNECTED;
 			} else if (peer_state.disk == D_NEGOTIATING) {
 				dev_err(DEV, "Disk attach process on the peer node was aborted.\n");
 				peer_state.disk = D_DISKLESS;
+				real_peer_disk = D_DISKLESS;
 			} else {
 				if (test_and_clear_bit(CONN_DRY_RUN, &mdev->flags))
 					return FALSE;
