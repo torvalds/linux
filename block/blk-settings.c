@@ -239,15 +239,6 @@ void blk_queue_max_sectors(struct request_queue *q, unsigned int max_hw_sectors)
 }
 EXPORT_SYMBOL(blk_queue_max_sectors);
 
-void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_sectors)
-{
-	if (BLK_DEF_MAX_SECTORS > max_sectors)
-		q->limits.max_hw_sectors = BLK_DEF_MAX_SECTORS;
-	else
-		q->limits.max_hw_sectors = max_sectors;
-}
-EXPORT_SYMBOL(blk_queue_max_hw_sectors);
-
 /**
  * blk_queue_max_discard_sectors - set max sectors for a single discard
  * @q:  the request queue for the device
