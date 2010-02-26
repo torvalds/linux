@@ -869,6 +869,7 @@ static void ieee80211_work_work(struct work_struct *work)
 			break;
 		case IEEE80211_WORK_ABORT:
 			rma = WORK_ACT_TIMEOUT;
+			break;
 		case IEEE80211_WORK_DIRECT_PROBE:
 			rma = ieee80211_direct_probe(wk);
 			break;
