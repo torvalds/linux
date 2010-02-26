@@ -1066,7 +1066,7 @@ static int i2o_block_probe(struct device *dev)
 	queue->queuedata = i2o_blk_dev;
 
 	blk_queue_max_phys_segments(queue, I2O_MAX_PHYS_SEGMENTS);
-	blk_queue_max_sectors(queue, max_sectors);
+	blk_queue_max_hw_sectors(queue, max_sectors);
 	blk_queue_max_hw_segments(queue, i2o_sg_tablesize(c, body_size));
 
 	osm_debug("max sectors = %d\n", queue->max_sectors);

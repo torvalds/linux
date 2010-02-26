@@ -747,7 +747,7 @@ static int ubd_open_dev(struct ubd *ubd_dev)
 	ubd_dev->fd = fd;
 
 	if(ubd_dev->cow.file != NULL){
-		blk_queue_max_sectors(ubd_dev->queue, 8 * sizeof(long));
+		blk_queue_max_hw_sectors(ubd_dev->queue, 8 * sizeof(long));
 
 		err = -ENOMEM;
 		ubd_dev->cow.bitmap = vmalloc(ubd_dev->cow.bitmap_len);

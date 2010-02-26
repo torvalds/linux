@@ -2312,7 +2312,7 @@ static int pkt_open_dev(struct pktcdvd_device *pd, fmode_t write)
 		 * even if the size is a multiple of the packet size.
 		 */
 		spin_lock_irq(q->queue_lock);
-		blk_queue_max_sectors(q, pd->settings.size);
+		blk_queue_max_hw_sectors(q, pd->settings.size);
 		spin_unlock_irq(q->queue_lock);
 		set_bit(PACKET_WRITABLE, &pd->flags);
 	} else {
@@ -2613,7 +2613,7 @@ static void pkt_init_queue(struct pktcdvd_device *pd)
 
 	blk_queue_make_request(q, pkt_make_request);
 	blk_queue_logical_block_size(q, CD_FRAMESIZE);
-	blk_queue_max_sectors(q, PACKET_MAX_SECTORS);
+	blk_queue_max_hw_sectors(q, PACKET_MAX_SECTORS);
 	blk_queue_merge_bvec(q, pkt_merge_bvec);
 	q->queuedata = pd;
 }

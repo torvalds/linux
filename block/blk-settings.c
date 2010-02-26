@@ -154,7 +154,7 @@ void blk_queue_make_request(struct request_queue *q, make_request_fn *mfn)
 	q->unplug_timer.data = (unsigned long)q;
 
 	blk_set_default_limits(&q->limits);
-	blk_queue_max_sectors(q, BLK_SAFE_MAX_SECTORS);
+	blk_queue_max_hw_sectors(q, BLK_SAFE_MAX_SECTORS);
 
 	/*
 	 * If the caller didn't supply a lock, fall back to our embedded
@@ -210,7 +210,7 @@ void blk_queue_bounce_limit(struct request_queue *q, u64 dma_mask)
 EXPORT_SYMBOL(blk_queue_bounce_limit);
 
 /**
- * blk_queue_max_sectors - set max sectors for a request for this queue
+ * blk_queue_max_hw_sectors - set max sectors for a request for this queue
  * @q:  the request queue for the device
  * @max_hw_sectors:  max hardware sectors in the usual 512b unit
  *
@@ -225,7 +225,7 @@ EXPORT_SYMBOL(blk_queue_bounce_limit);
  *    per-device basis in /sys/block/<device>/queue/max_sectors_kb.
  *    The soft limit can not exceed max_hw_sectors.
  **/
-void blk_queue_max_sectors(struct request_queue *q, unsigned int max_hw_sectors)
+void blk_queue_max_hw_sectors(struct request_queue *q, unsigned int max_hw_sectors)
 {
 	if ((max_hw_sectors << 9) < PAGE_CACHE_SIZE) {
 		max_hw_sectors = 1 << (PAGE_CACHE_SHIFT - 9);
@@ -237,7 +237,7 @@ void blk_queue_max_sectors(struct request_queue *q, unsigned int max_hw_sectors)
 	q->limits.max_sectors = min_t(unsigned int, max_hw_sectors,
 				      BLK_DEF_MAX_SECTORS);
 }
-EXPORT_SYMBOL(blk_queue_max_sectors);
+EXPORT_SYMBOL(blk_queue_max_hw_sectors);
 
 /**
  * blk_queue_max_discard_sectors - set max sectors for a single discard

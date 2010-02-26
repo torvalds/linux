@@ -709,7 +709,7 @@ void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int max_seg_s) __mu
 
 	max_seg_s = min(queue_max_sectors(b) * queue_logical_block_size(b), max_seg_s);
 
-	blk_queue_max_sectors(q, max_seg_s >> 9);
+	blk_queue_max_hw_sectors(q, max_seg_s >> 9);
 	blk_queue_max_phys_segments(q, max_segments ? max_segments : MAX_PHYS_SEGMENTS);
 	blk_queue_max_hw_segments(q, max_segments ? max_segments : MAX_HW_SEGMENTS);
 	blk_queue_max_segment_size(q, max_seg_s);

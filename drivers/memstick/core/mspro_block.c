@@ -1226,7 +1226,7 @@ static int mspro_block_init_disk(struct memstick_dev *card)
 	blk_queue_prep_rq(msb->queue, mspro_block_prepare_req);
 
 	blk_queue_bounce_limit(msb->queue, limit);
-	blk_queue_max_sectors(msb->queue, MSPRO_BLOCK_MAX_PAGES);
+	blk_queue_max_hw_sectors(msb->queue, MSPRO_BLOCK_MAX_PAGES);
 	blk_queue_max_phys_segments(msb->queue, MSPRO_BLOCK_MAX_SEGS);
 	blk_queue_max_hw_segments(msb->queue, MSPRO_BLOCK_MAX_SEGS);
 	blk_queue_max_segment_size(msb->queue,

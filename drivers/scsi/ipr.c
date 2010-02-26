@@ -3674,7 +3674,7 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 		if (ipr_is_vset_device(res)) {
 			blk_queue_rq_timeout(sdev->request_queue,
 					     IPR_VSET_RW_TIMEOUT);
-			blk_queue_max_sectors(sdev->request_queue, IPR_VSET_MAX_SECTORS);
+			blk_queue_max_hw_sectors(sdev->request_queue, IPR_VSET_MAX_SECTORS);
 		}
 		if (ipr_is_vset_device(res) || ipr_is_scsi_disk(res))
 			sdev->allow_restart = 1;

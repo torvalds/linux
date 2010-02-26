@@ -474,7 +474,7 @@ static int __devinit ps3disk_probe(struct ps3_system_bus_device *_dev)
 
 	blk_queue_bounce_limit(queue, BLK_BOUNCE_HIGH);
 
-	blk_queue_max_sectors(queue, dev->bounce_size >> 9);
+	blk_queue_max_hw_sectors(queue, dev->bounce_size >> 9);
 	blk_queue_segment_boundary(queue, -1UL);
 	blk_queue_dma_alignment(queue, dev->blk_size-1);
 	blk_queue_logical_block_size(queue, dev->blk_size);
