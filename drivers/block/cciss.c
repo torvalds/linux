@@ -1717,10 +1717,8 @@ static void cciss_softirq_done(struct request *rq)
 		if (curr_sg[sg_index].Ext == CCISS_SG_CHAIN) {
 			temp64.val32.lower = cmd->SG[i].Addr.lower;
 			temp64.val32.upper = cmd->SG[i].Addr.upper;
-			pci_dma_sync_single_for_cpu(h->pdev, temp64.val,
-						cmd->SG[i].Len, ddir);
 			pci_unmap_single(h->pdev, temp64.val,
-						cmd->SG[i].Len, ddir);
+				cmd->SG[i].Len, PCI_DMA_TODEVICE);
 			/* Point to the next block */
 			curr_sg = h->cmd_sg_list[cmd->cmdindex];
 			sg_index = 0;
@@ -3223,11 +3221,11 @@ static void do_cciss_request(struct request_queue *q)
 		 * block with address of next chain block.
 		 */
 		temp64.val = pci_map_single(h->pdev,
-					h->cmd_sg_list[c->cmdindex], len, dir);
+					h->cmd_sg_list[c->cmdindex], len,
+					PCI_DMA_TODEVICE);
 		dma_addr = temp64.val;
 		curr_sg[sg_index].Addr.lower = temp64.val32.lower;
 		curr_sg[sg_index].Addr.upper = temp64.val32.upper;
-		pci_dma_sync_single_for_device(h->pdev, dma_addr, len, dir);
 	}
 
 	/* track how many SG entries we are using */
