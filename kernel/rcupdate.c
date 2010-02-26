@@ -64,6 +64,7 @@ EXPORT_SYMBOL_GPL(rcu_sched_lock_map);
 #endif
 
 int rcu_scheduler_active __read_mostly;
+EXPORT_SYMBOL_GPL(rcu_scheduler_active);
 
 /*
  * This function is invoked towards the end of the scheduler's initialization
