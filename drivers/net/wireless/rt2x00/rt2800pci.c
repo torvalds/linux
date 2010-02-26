@@ -907,14 +907,12 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 {
 	struct data_queue *queue;
 	struct queue_entry *entry;
-	struct queue_entry *entry_done;
-	struct queue_entry_priv_pci *entry_priv;
+	__le32 *txwi;
 	struct txdone_entry_desc txdesc;
 	u32 word;
 	u32 reg;
 	u32 old_reg;
-	unsigned int type;
-	unsigned int index;
+	int wcid, ack, pid, tx_wcid, tx_ack, tx_pid;
 	u16 mcs, real_mcs;
 
 	/*
@@ -936,47 +934,41 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 			break;
 		old_reg = reg;
 
+		wcid    = rt2x00_get_field32(reg, TX_STA_FIFO_WCID);
+		ack     = rt2x00_get_field32(reg, TX_STA_FIFO_TX_ACK_REQUIRED);
+		pid     = rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE);
+
 		/*
 		 * Skip this entry when it contains an invalid
 		 * queue identication number.
 		 */
-		type = rt2x00_get_field32(reg, TX_STA_FIFO_PID_TYPE) - 1;
-		if (type >= QID_RX)
+		if (pid <= 0 || pid > QID_RX)
 			continue;
 
-		queue = rt2x00queue_get_queue(rt2x00dev, type);
+		queue = rt2x00queue_get_queue(rt2x00dev, pid - 1);
 		if (unlikely(!queue))
 			continue;
 
 		/*
-		 * Skip this entry when it contains an invalid
-		 * index number.
+		 * Inside each queue, we process each entry in a chronological
+		 * order. We first check that the queue is not empty.
 		 */
-		index = rt2x00_get_field32(reg, TX_STA_FIFO_WCID) - 1;
-		if (unlikely(index >= queue->limit))
+		if (rt2x00queue_empty(queue))
 			continue;
+		entry = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
 
-		entry = &queue->entries[index];
-		entry_priv = entry->priv_data;
-		rt2x00_desc_read((__le32 *)entry->skb->data, 0, &word);
+		/* Check if we got a match by looking at WCID/ACK/PID
+		 * fields */
+		txwi = (__le32 *)(entry->skb->data -
+				  rt2x00dev->ops->extra_tx_headroom);
 
-		entry_done = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		while (entry != entry_done) {
-			/*
-			 * Catch up.
-			 * Just report any entries we missed as failed.
-			 */
-			WARNING(rt2x00dev,
-				"TX status report missed for entry %d\n",
-				entry_done->entry_idx);
+		rt2x00_desc_read(txwi, 1, &word);
+		tx_wcid = rt2x00_get_field32(word, TXWI_W1_WIRELESS_CLI_ID);
+		tx_ack  = rt2x00_get_field32(word, TXWI_W1_ACK);
+		tx_pid  = rt2x00_get_field32(word, TXWI_W1_PACKETID);
 
-			txdesc.flags = 0;
-			__set_bit(TXDONE_UNKNOWN, &txdesc.flags);
-			txdesc.retry = 0;
-
-			rt2x00lib_txdone(entry_done, &txdesc);
-			entry_done = rt2x00queue_get_entry(queue, Q_INDEX_DONE);
-		}
+		if ((wcid != tx_wcid) || (ack != tx_ack) || (pid != tx_pid))
+			WARNING(rt2x00dev, "invalid TX_STA_FIFO content\n");
 
 		/*
 		 * Obtain the status about this packet.
@@ -997,6 +989,7 @@ static void rt2800pci_txdone(struct rt2x00_dev *rt2x00dev)
 		 * we have mcs = tx_mcs - 1. So the number of
 		 * retry is (tx_mcs - mcs).
 		 */
+		rt2x00_desc_read(txwi, 0, &word);
 		mcs = rt2x00_get_field32(word, TXWI_W0_MCS);
 		real_mcs = rt2x00_get_field32(reg, TX_STA_FIFO_MCS);
 		__set_bit(TXDONE_FALLBACK, &txdesc.flags);
