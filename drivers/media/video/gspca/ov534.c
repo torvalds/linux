@@ -756,8 +756,8 @@ static void setsharpness(struct gspca_dev *gspca_dev)
 	u8 val;
 
 	val = sd->sharpness;
-	sccb_reg_write(gspca_dev, 0x91, val);	/* vga noise */
-	sccb_reg_write(gspca_dev, 0x8e, val);	/* qvga noise */
+	sccb_reg_write(gspca_dev, 0x91, val);	/* Auto de-noise threshold */
+	sccb_reg_write(gspca_dev, 0x8e, val);	/* De-noise threshold */
 }
 
 static void sethflip(struct gspca_dev *gspca_dev)
@@ -814,9 +814,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 #endif
 	sd->awb = AWB_DEF;
 	sd->aec = AEC_DEF;
-#if SHARPNESS_DEF != 0
 	sd->sharpness = SHARPNESS_DEF;
-#endif
 #if HFLIP_DEF != 0
 	sd->hflip = HFLIP_DEF;
 #endif
