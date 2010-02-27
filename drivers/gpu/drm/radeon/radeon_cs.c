@@ -86,7 +86,7 @@ int radeon_cs_parser_relocs(struct radeon_cs_parser *p)
 						&p->validated);
 		}
 	}
-	return radeon_bo_list_validate(&p->validated, p->ib->fence);
+	return radeon_bo_list_validate(&p->validated);
 }
 
 int radeon_cs_parser_init(struct radeon_cs_parser *p, void *data)
@@ -189,12 +189,10 @@ static void radeon_cs_parser_fini(struct radeon_cs_parser *parser, int error)
 {
 	unsigned i;
 
-	if (error) {
-		radeon_bo_list_unvalidate(&parser->validated,
-						parser->ib->fence);
-	} else {
-		radeon_bo_list_unreserve(&parser->validated);
+	if (!error && parser->ib) {
+		radeon_bo_list_fence(&parser->validated, parser->ib->fence);
 	}
+	radeon_bo_list_unreserve(&parser->validated);
 	for (i = 0; i < parser->nrelocs; i++) {
 		if (parser->relocs[i].gobj) {
 			mutex_lock(&parser->rdev->ddev->struct_mutex);

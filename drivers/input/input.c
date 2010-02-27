@@ -46,6 +46,7 @@ static unsigned int input_abs_bypass_init_data[] __initdata = {
 	ABS_MT_TOOL_TYPE,
 	ABS_MT_BLOB_ID,
 	ABS_MT_TRACKING_ID,
+	ABS_MT_PRESSURE,
 	0
 };
 static unsigned long input_abs_bypass[BITS_TO_LONGS(ABS_CNT)];

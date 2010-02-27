@@ -65,8 +65,10 @@ nouveau_bo_fixup_align(struct drm_device *dev,
 
 	/*
 	 * Some of the tile_flags have a periodic structure of N*4096 bytes,
-	 * align to to that as well as the page size. Overallocate memory to
-	 * avoid corruption of other buffer objects.
+	 * align to to that as well as the page size. Align the size to the
+	 * appropriate boundaries. This does imply that sizes are rounded up
+	 * 3-7 pages, so be aware of this and do not waste memory by allocating
+	 * many small buffers.
 	 */
 	if (dev_priv->card_type == NV_50) {
 		uint32_t block_size = nouveau_mem_fb_amount(dev) >> 15;
@@ -77,22 +79,20 @@ nouveau_bo_fixup_align(struct drm_device *dev,
 		case 0x2800:
 		case 0x4800:
 		case 0x7a00:
-			*size = roundup(*size, block_size);
 			if (is_power_of_2(block_size)) {
-				*size += 3 * block_size;
 				for (i = 1; i < 10; i++) {
 					*align = 12 * i * block_size;
 					if (!(*align % 65536))
 						break;
 				}
 			} else {
-				*size += 6 * block_size;
 				for (i = 1; i < 10; i++) {
 					*align = 8 * i * block_size;
 					if (!(*align % 65536))
 						break;
 				}
 			}
+			*size = roundup(*size, *align);
 			break;
 		default:
 			break;

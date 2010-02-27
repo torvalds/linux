@@ -191,11 +191,7 @@ static int get_irq_server(unsigned int virq, cpumask_t cpumask,
 	return default_server;
 }
 #else
-static int get_irq_server(unsigned int virq, cpumask_t cpumask,
-			  unsigned int strict_check)
-{
-	return default_server;
-}
+#define get_irq_server(virq, cpumask, strict_check) (default_server)
 #endif
 
 static void xics_unmask_irq(unsigned int virq)
@@ -788,9 +784,13 @@ static void xics_set_cpu_priority(unsigned char cppr)
 {
 	struct xics_cppr *os_cppr = &__get_cpu_var(xics_cppr);
 
-	BUG_ON(os_cppr->index != 0);
+	/*
+	 * we only really want to set the priority when there's
+	 * just one cppr value on the stack
+	 */
+	WARN_ON(os_cppr->index != 0);
 
-	os_cppr->stack[os_cppr->index] = cppr;
+	os_cppr->stack[0] = cppr;
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		lpar_cppr_info(cppr);
@@ -825,8 +825,14 @@ void xics_setup_cpu(void)
 
 void xics_teardown_cpu(void)
 {
+	struct xics_cppr *os_cppr = &__get_cpu_var(xics_cppr);
 	int cpu = smp_processor_id();
 
+	/*
+	 * we have to reset the cppr index to 0 because we're
+	 * not going to return from the IPI
+	 */
+	os_cppr->index = 0;
 	xics_set_cpu_priority(0);
 
 	/* Clear any pending IPI request */

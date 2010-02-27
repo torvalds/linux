@@ -310,6 +310,7 @@ int synthesize_perf_probe_point(struct probe_point *pp)
 	int ret;
 
 	pp->probes[0] = buf = zalloc(MAX_CMDLEN);
+	pp->found = 1;
 	if (!buf)
 		die("Failed to allocate memory by zalloc.");
 	if (pp->offset) {
@@ -332,6 +333,7 @@ int synthesize_perf_probe_point(struct probe_point *pp)
 error:
 		free(pp->probes[0]);
 		pp->probes[0] = NULL;
+		pp->found = 0;
 	}
 	return ret;
 }
@@ -494,6 +496,7 @@ void show_perf_probe_events(void)
 	struct str_node *ent;
 
 	setup_pager();
+	memset(&pp, 0, sizeof(pp));
 
 	fd = open_kprobe_events(O_RDONLY, 0);
 	rawlist = get_trace_kprobe_event_rawlist(fd);

@@ -678,7 +678,7 @@ static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
 	} else if (n == 6) {
 		val = thread->debugreg6;
 	 } else if (n == 7) {
-		val = ptrace_get_dr7(thread->ptrace_bps);
+		val = thread->ptrace_dr7;
 	}
 	return val;
 }
@@ -754,8 +754,11 @@ int ptrace_set_debugreg(struct task_struct *tsk, int n, unsigned long val)
 			return rc;
 	}
 	/* All that's left is DR7 */
-	if (n == 7)
+	if (n == 7) {
 		rc = ptrace_write_dr7(tsk, val);
+		if (!rc)
+			thread->ptrace_dr7 = val;
+	}
 
 ret_path:
 	return rc;

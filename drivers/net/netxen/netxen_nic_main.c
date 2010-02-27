@@ -1941,7 +1941,7 @@ static void netxen_tx_timeout_task(struct work_struct *work)
 		netif_wake_queue(adapter->netdev);
 
 		clear_bit(__NX_RESETTING, &adapter->state);
-
+		return;
 	} else {
 		clear_bit(__NX_RESETTING, &adapter->state);
 		if (!netxen_nic_reset_context(adapter)) {
@@ -2240,7 +2240,9 @@ netxen_detach_work(struct work_struct *work)
 
 	netxen_nic_down(adapter, netdev);
 
+	rtnl_lock();
 	netxen_nic_detach(adapter);
+	rtnl_unlock();
 
 	status = NXRD32(adapter, NETXEN_PEG_HALT_STATUS1);
 

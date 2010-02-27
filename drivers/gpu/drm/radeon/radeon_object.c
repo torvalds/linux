@@ -306,11 +306,10 @@ void radeon_bo_list_unreserve(struct list_head *head)
 	}
 }
 
-int radeon_bo_list_validate(struct list_head *head, void *fence)
+int radeon_bo_list_validate(struct list_head *head)
 {
 	struct radeon_bo_list *lobj;
 	struct radeon_bo *bo;
-	struct radeon_fence *old_fence = NULL;
 	int r;
 
 	r = radeon_bo_list_reserve(head);
@@ -334,32 +333,27 @@ int radeon_bo_list_validate(struct list_head *head, void *fence)
 		}
 		lobj->gpu_offset = radeon_bo_gpu_offset(bo);
 		lobj->tiling_flags = bo->tiling_flags;
-		if (fence) {
-			old_fence = (struct radeon_fence *)bo->tbo.sync_obj;
-			bo->tbo.sync_obj = radeon_fence_ref(fence);
-			bo->tbo.sync_obj_arg = NULL;
-		}
-		if (old_fence) {
-			radeon_fence_unref(&old_fence);
-		}
 	}
 	return 0;
 }
 
-void radeon_bo_list_unvalidate(struct list_head *head, void *fence)
+void radeon_bo_list_fence(struct list_head *head, void *fence)
 {
 	struct radeon_bo_list *lobj;
-	struct radeon_fence *old_fence;
+	struct radeon_bo *bo;
+	struct radeon_fence *old_fence = NULL;
 
-	if (fence)
-		list_for_each_entry(lobj, head, list) {
-			old_fence = to_radeon_fence(lobj->bo->tbo.sync_obj);
-			if (old_fence == fence) {
-				lobj->bo->tbo.sync_obj = NULL;
-				radeon_fence_unref(&old_fence);
-			}
+	list_for_each_entry(lobj, head, list) {
+		bo = lobj->bo;
+		spin_lock(&bo->tbo.lock);
+		old_fence = (struct radeon_fence *)bo->tbo.sync_obj;
+		bo->tbo.sync_obj = radeon_fence_ref(fence);
+		bo->tbo.sync_obj_arg = NULL;
+		spin_unlock(&bo->tbo.lock);
+		if (old_fence) {
+			radeon_fence_unref(&old_fence);
 		}
-	radeon_bo_list_unreserve(head);
+	}
 }
 
 int radeon_bo_fbdev_mmap(struct radeon_bo *bo,

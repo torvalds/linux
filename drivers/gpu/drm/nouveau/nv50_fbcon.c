@@ -3,7 +3,7 @@
 #include "nouveau_dma.h"
 #include "nouveau_fbcon.h"
 
-static void
+void
 nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct nouveau_fbcon_par *par = info->par;
@@ -46,7 +46,7 @@ nv50_fbcon_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 	FIRE_RING(chan);
 }
 
-static void
+void
 nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 {
 	struct nouveau_fbcon_par *par = info->par;
@@ -81,7 +81,7 @@ nv50_fbcon_copyarea(struct fb_info *info, const struct fb_copyarea *region)
 	FIRE_RING(chan);
 }
 
-static void
+void
 nv50_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct nouveau_fbcon_par *par = info->par;
@@ -262,9 +262,6 @@ nv50_fbcon_accel_init(struct fb_info *info)
 	OUT_RING(chan, info->fix.smem_start - dev_priv->fb_phys +
 			 dev_priv->vm_vram_base);
 
-	info->fbops->fb_fillrect = nv50_fbcon_fillrect;
-	info->fbops->fb_copyarea = nv50_fbcon_copyarea;
-	info->fbops->fb_imageblit = nv50_fbcon_imageblit;
 	return 0;
 }
 

@@ -3,7 +3,7 @@
 #
 
 obj-$(CONFIG_MFD_SM501)		+= sm501.o
-obj-$(CONFIG_MFD_ASIC3)		+= asic3.o
+obj-$(CONFIG_MFD_ASIC3)		+= asic3.o tmio_core.o
 obj-$(CONFIG_MFD_SH_MOBILE_SDHI)		+= sh_mobile_sdhi.o
 
 obj-$(CONFIG_HTC_EGPIO)		+= htc-egpio.o

@@ -1428,9 +1428,12 @@ static void r700_gfx_init(struct drm_device *dev,
 
 	gb_tiling_config |= R600_BANK_SWAPS(1);
 
-	backend_map = r700_get_tile_pipe_to_backend_map(dev_priv->r600_max_tile_pipes,
-							dev_priv->r600_max_backends,
-							(0xff << dev_priv->r600_max_backends) & 0xff);
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) == CHIP_RV740)
+		backend_map = 0x28;
+	else
+		backend_map = r700_get_tile_pipe_to_backend_map(dev_priv->r600_max_tile_pipes,
+								dev_priv->r600_max_backends,
+								(0xff << dev_priv->r600_max_backends) & 0xff);
 	gb_tiling_config |= R600_BACKEND_MAP(backend_map);
 
 	cc_gc_shader_pipe_config =

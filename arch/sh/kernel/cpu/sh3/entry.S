@@ -132,7 +132,6 @@ ENTRY(tlb_protection_violation_store)
 	 mov	#1, r5
 
 call_handle_tlbmiss:
-	setup_frame_reg
 	mov.l	1f, r0
 	mov	r5, r8
 	mov.l	@r0, r6
@@ -365,6 +364,8 @@ handle_exception:
 	 mov.l	@k2, k2		! read out vector and keep in k2
 
 handle_exception_special:
+	setup_frame_reg
+
 	! Setup return address and jump to exception handler
 	mov.l	7f, r9		! fetch return address
 	stc	r2_bank, r0	! k2 (vector)

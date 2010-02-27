@@ -442,10 +442,10 @@ void thread__find_addr_map(struct thread *self,
 	al->thread = self;
 	al->addr = addr;
 
-	if (cpumode & PERF_RECORD_MISC_KERNEL) {
+	if (cpumode == PERF_RECORD_MISC_KERNEL) {
 		al->level = 'k';
 		mg = &session->kmaps;
-	} else if (cpumode & PERF_RECORD_MISC_USER)
+	} else if (cpumode == PERF_RECORD_MISC_USER)
 		al->level = '.';
 	else {
 		al->level = 'H';

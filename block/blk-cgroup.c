@@ -147,16 +147,16 @@ blkiocg_weight_write(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 		return -EINVAL;
 
 	blkcg = cgroup_to_blkio_cgroup(cgroup);
+	spin_lock(&blkio_list_lock);
 	spin_lock_irq(&blkcg->lock);
 	blkcg->weight = (unsigned int)val;
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
-		spin_lock(&blkio_list_lock);
 		list_for_each_entry(blkiop, &blkio_list, list)
 			blkiop->ops.blkio_update_group_weight_fn(blkg,
 					blkcg->weight);
-		spin_unlock(&blkio_list_lock);
 	}
 	spin_unlock_irq(&blkcg->lock);
+	spin_unlock(&blkio_list_lock);
 	return 0;
 }
 

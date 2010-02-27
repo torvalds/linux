@@ -2117,6 +2117,7 @@ static inline int igbvf_tx_map_adv(struct igbvf_adapter *adapter,
 	/* set time_stamp *before* dma to help avoid a possible race */
 	buffer_info->time_stamp = jiffies;
 	buffer_info->next_to_watch = i;
+	buffer_info->mapped_as_page = false;
 	buffer_info->dma = pci_map_single(pdev, skb->data, len,
 					  PCI_DMA_TODEVICE);
 	if (pci_dma_mapping_error(pdev, buffer_info->dma))

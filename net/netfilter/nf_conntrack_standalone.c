@@ -51,7 +51,7 @@ static struct hlist_nulls_node *ct_get_first(struct seq_file *seq)
 	struct hlist_nulls_node *n;
 
 	for (st->bucket = 0;
-	     st->bucket < nf_conntrack_htable_size;
+	     st->bucket < net->ct.htable_size;
 	     st->bucket++) {
 		n = rcu_dereference(net->ct.hash[st->bucket].first);
 		if (!is_a_nulls(n))
@@ -69,7 +69,7 @@ static struct hlist_nulls_node *ct_get_next(struct seq_file *seq,
 	head = rcu_dereference(head->next);
 	while (is_a_nulls(head)) {
 		if (likely(get_nulls_value(head) == st->bucket)) {
-			if (++st->bucket >= nf_conntrack_htable_size)
+			if (++st->bucket >= net->ct.htable_size)
 				return NULL;
 		}
 		head = rcu_dereference(net->ct.hash[st->bucket].first);
@@ -355,7 +355,7 @@ static ctl_table nf_ct_sysctl_table[] = {
 	},
 	{
 		.procname       = "nf_conntrack_buckets",
-		.data           = &nf_conntrack_htable_size,
+		.data           = &init_net.ct.htable_size,
 		.maxlen         = sizeof(unsigned int),
 		.mode           = 0444,
 		.proc_handler   = proc_dointvec,
@@ -421,6 +421,7 @@ static int nf_conntrack_standalone_init_sysctl(struct net *net)
 		goto out_kmemdup;
 
 	table[1].data = &net->ct.count;
+	table[2].data = &net->ct.htable_size;
 	table[3].data = &net->ct.sysctl_checksum;
 	table[4].data = &net->ct.sysctl_log_invalid;
 

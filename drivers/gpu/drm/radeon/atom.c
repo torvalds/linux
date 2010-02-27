@@ -24,6 +24,7 @@
 
 #include <linux/module.h>
 #include <linux/sched.h>
+#include <asm/unaligned.h>
 
 #define ATOM_DEBUG
 
@@ -212,7 +213,9 @@ static uint32_t atom_get_src_int(atom_exec_context *ctx, uint8_t attr,
 	case ATOM_ARG_PS:
 		idx = U8(*ptr);
 		(*ptr)++;
-		val = le32_to_cpu(ctx->ps[idx]);
+		/* get_unaligned_le32 avoids unaligned accesses from atombios
+		 * tables, noticed on a DEC Alpha. */
+		val = get_unaligned_le32((u32 *)&ctx->ps[idx]);
 		if (print)
 			DEBUG("PS[0x%02X,0x%04X]", idx, val);
 		break;
@@ -640,7 +643,7 @@ static void atom_op_delay(atom_exec_context *ctx, int *ptr, int arg)
 	uint8_t count = U8((*ptr)++);
 	SDEBUG("   count: %d\n", count);
 	if (arg == ATOM_UNIT_MICROSEC)
-		schedule_timeout_uninterruptible(usecs_to_jiffies(count));
+		udelay(count);
 	else
 		schedule_timeout_uninterruptible(msecs_to_jiffies(count));
 }

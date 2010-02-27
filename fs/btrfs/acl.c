@@ -244,6 +244,7 @@ int btrfs_init_acl(struct btrfs_trans_handle *trans,
 						    ACL_TYPE_ACCESS);
 			}
 		}
+		posix_acl_release(clone);
 	}
 failed:
 	posix_acl_release(acl);

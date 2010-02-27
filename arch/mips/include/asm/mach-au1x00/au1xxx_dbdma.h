@@ -305,6 +305,7 @@ typedef struct dbdma_chan_config {
 	dbdev_tab_t		*chan_dest;
 	au1x_dma_chan_t		*chan_ptr;
 	au1x_ddma_desc_t	*chan_desc_base;
+	u32			cdb_membase; /* kmalloc base of above */
 	au1x_ddma_desc_t	*get_ptr, *put_ptr, *cur_ptr;
 	void			*chan_callparam;
 	void			(*chan_callback)(int, void *);

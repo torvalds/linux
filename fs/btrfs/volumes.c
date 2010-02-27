@@ -1135,7 +1135,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 		root->fs_info->avail_metadata_alloc_bits;
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID10) &&
-	    root->fs_info->fs_devices->rw_devices <= 4) {
+	    root->fs_info->fs_devices->num_devices <= 4) {
 		printk(KERN_ERR "btrfs: unable to go below four devices "
 		       "on raid10\n");
 		ret = -EINVAL;
@@ -1143,7 +1143,7 @@ int btrfs_rm_device(struct btrfs_root *root, char *device_path)
 	}
 
 	if ((all_avail & BTRFS_BLOCK_GROUP_RAID1) &&
-	    root->fs_info->fs_devices->rw_devices <= 2) {
+	    root->fs_info->fs_devices->num_devices <= 2) {
 		printk(KERN_ERR "btrfs: unable to go below two "
 		       "devices on raid1\n");
 		ret = -EINVAL;
@@ -1434,8 +1434,8 @@ int btrfs_init_new_device(struct btrfs_root *root, char *device_path)
 		return -EINVAL;
 
 	bdev = open_bdev_exclusive(device_path, 0, root->fs_info->bdev_holder);
-	if (!bdev)
-		return -EIO;
+	if (IS_ERR(bdev))
+		return PTR_ERR(bdev);
 
 	if (root->fs_info->fs_devices->seeding) {
 		seeding_dev = 1;
@@ -2537,6 +2537,11 @@ int btrfs_chunk_readonly(struct btrfs_root *root, u64 chunk_offset)
 	read_unlock(&map_tree->map_tree.lock);
 	if (!em)
 		return 1;
+
+	if (btrfs_test_opt(root, DEGRADED)) {
+		free_extent_map(em);
+		return 0;
+	}
 
 	map = (struct map_lookup *)em->bdev;
 	for (i = 0; i < map->num_stripes; i++) {

@@ -96,6 +96,7 @@ extern int radeon_audio;
  * symbol;
  */
 #define RADEON_MAX_USEC_TIMEOUT		100000	/* 100 ms */
+/* RADEON_IB_POOL_SIZE must be a power of 2 */
 #define RADEON_IB_POOL_SIZE		16
 #define RADEON_DEBUGFS_MAX_NUM_FILES	32
 #define RADEONFB_CONN_LIMIT		4
@@ -363,11 +364,12 @@ void radeon_irq_kms_sw_irq_put(struct radeon_device *rdev);
  */
 struct radeon_ib {
 	struct list_head	list;
-	unsigned long		idx;
+	unsigned		idx;
 	uint64_t		gpu_addr;
 	struct radeon_fence	*fence;
-	uint32_t	*ptr;
+	uint32_t		*ptr;
 	uint32_t		length_dw;
+	bool			free;
 };
 
 /*
@@ -377,10 +379,9 @@ struct radeon_ib {
 struct radeon_ib_pool {
 	struct mutex		mutex;
 	struct radeon_bo	*robj;
-	struct list_head	scheduled_ibs;
 	struct radeon_ib	ibs[RADEON_IB_POOL_SIZE];
 	bool			ready;
-	DECLARE_BITMAP(alloc_bm, RADEON_IB_POOL_SIZE);
+	unsigned		head_id;
 };
 
 struct radeon_cp {
@@ -416,6 +417,7 @@ struct r600_ih {
 };
 
 struct r600_blit {
+	struct mutex		mutex;
 	struct radeon_bo	*shader_obj;
 	u64 shader_gpu_addr;
 	u32 vs_offset, ps_offset;
@@ -660,6 +662,13 @@ struct radeon_asic {
 	void (*hpd_fini)(struct radeon_device *rdev);
 	bool (*hpd_sense)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 	void (*hpd_set_polarity)(struct radeon_device *rdev, enum radeon_hpd_id hpd);
+	/* ioctl hw specific callback. Some hw might want to perform special
+	 * operation on specific ioctl. For instance on wait idle some hw
+	 * might want to perform and HDP flush through MMIO as it seems that
+	 * some R6XX/R7XX hw doesn't take HDP flush into account if programmed
+	 * through ring.
+	 */
+	void (*ioctl_wait_idle)(struct radeon_device *rdev, struct radeon_bo *bo);
 };
 
 /*
@@ -1142,6 +1151,7 @@ extern bool r600_card_posted(struct radeon_device *rdev);
 extern void r600_cp_stop(struct radeon_device *rdev);
 extern void r600_ring_init(struct radeon_device *rdev, unsigned ring_size);
 extern int r600_cp_resume(struct radeon_device *rdev);
+extern void r600_cp_fini(struct radeon_device *rdev);
 extern int r600_count_pipe_bits(uint32_t val);
 extern int r600_gart_clear_page(struct radeon_device *rdev, int i);
 extern int r600_mc_wait_for_idle(struct radeon_device *rdev);

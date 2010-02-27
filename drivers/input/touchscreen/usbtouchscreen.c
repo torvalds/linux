@@ -618,8 +618,8 @@ static int idealtek_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 #ifdef CONFIG_TOUCHSCREEN_USB_GENERAL_TOUCH
 static int general_touch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 {
-	dev->x = ((pkt[2] & 0x0F) << 8) | pkt[1] ;
-	dev->y = ((pkt[4] & 0x0F) << 8) | pkt[3] ;
+	dev->x = (pkt[2] << 8) | pkt[1];
+	dev->y = (pkt[4] << 8) | pkt[3];
 	dev->press = pkt[5] & 0xff;
 	dev->touch = pkt[0] & 0x01;
 
@@ -809,9 +809,9 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_GENERAL_TOUCH
 	[DEVTYPE_GENERAL_TOUCH] = {
 		.min_xc		= 0x0,
-		.max_xc		= 0x0500,
+		.max_xc		= 0x7fff,
 		.min_yc		= 0x0,
-		.max_yc		= 0x0500,
+		.max_yc		= 0x7fff,
 		.rept_size	= 7,
 		.read_data	= general_touch_read_data,
 	},

@@ -337,6 +337,9 @@ static int cciss_seq_show(struct seq_file *seq, void *v)
 	if (*pos > h->highest_lun)
 		return 0;
 
+	if (drv == NULL) /* it's possible for h->drv[] to have holes. */
+		return 0;
+
 	if (drv->heads == 0)
 		return 0;
 

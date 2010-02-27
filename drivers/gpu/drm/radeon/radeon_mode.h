@@ -299,7 +299,7 @@ struct radeon_atom_ss {
 struct radeon_encoder_atom_dig {
 	/* atom dig */
 	bool coherent_mode;
-	int dig_block;
+	int dig_encoder; /* -1 disabled, 0 DIGA, 1 DIGB */
 	/* atom lvds */
 	uint32_t lvds_misc;
 	uint16_t panel_pwr_delay;

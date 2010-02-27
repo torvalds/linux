@@ -29,6 +29,15 @@
 #define FALCON_BOARD_SFN4111T 0x51
 #define FALCON_BOARD_SFN4112F 0x52
 
+/* Board temperature is about 15°C above ambient when air flow is
+ * limited. */
+#define FALCON_BOARD_TEMP_BIAS	15
+
+/* SFC4000 datasheet says: 'The maximum permitted junction temperature
+ * is 125°C; the thermal design of the environment for the SFC4000
+ * should aim to keep this well below 100°C.' */
+#define FALCON_JUNC_TEMP_MAX	90
+
 /*****************************************************************************
  * Support for LM87 sensor chip used on several boards
  */
@@ -548,16 +557,16 @@ fail_hwmon:
 static u8 sfe4002_lm87_channel = 0x03; /* use AIN not FAN inputs */
 
 static const u8 sfe4002_lm87_regs[] = {
-	LM87_IN_LIMITS(0, 0x83, 0x91),		/* 2.5V:  1.8V +/- 5% */
-	LM87_IN_LIMITS(1, 0x51, 0x5a),		/* Vccp1: 1.2V +/- 5% */
-	LM87_IN_LIMITS(2, 0xb6, 0xca),		/* 3.3V:  3.3V +/- 5% */
-	LM87_IN_LIMITS(3, 0xb0, 0xc9),		/* 5V:    4.6-5.2V */
-	LM87_IN_LIMITS(4, 0xb0, 0xe0),		/* 12V:   11-14V */
-	LM87_IN_LIMITS(5, 0x44, 0x4b),		/* Vccp2: 1.0V +/- 5% */
-	LM87_AIN_LIMITS(0, 0xa0, 0xb2),		/* AIN1:  1.66V +/- 5% */
-	LM87_AIN_LIMITS(1, 0x91, 0xa1),		/* AIN2:  1.5V +/- 5% */
-	LM87_TEMP_INT_LIMITS(10, 60),		/* board */
-	LM87_TEMP_EXT1_LIMITS(10, 70),		/* Falcon */
+	LM87_IN_LIMITS(0, 0x7c, 0x99),		/* 2.5V:  1.8V +/- 10% */
+	LM87_IN_LIMITS(1, 0x4c, 0x5e),		/* Vccp1: 1.2V +/- 10% */
+	LM87_IN_LIMITS(2, 0xac, 0xd4),		/* 3.3V:  3.3V +/- 10% */
+	LM87_IN_LIMITS(3, 0xac, 0xd4),		/* 5V:    5.0V +/- 10% */
+	LM87_IN_LIMITS(4, 0xac, 0xe0),		/* 12V:   10.8-14V */
+	LM87_IN_LIMITS(5, 0x3f, 0x4f),		/* Vccp2: 1.0V +/- 10% */
+	LM87_AIN_LIMITS(0, 0x98, 0xbb),		/* AIN1:  1.66V +/- 10% */
+	LM87_AIN_LIMITS(1, 0x8a, 0xa9),		/* AIN2:  1.5V +/- 10% */
+	LM87_TEMP_INT_LIMITS(0, 80 + FALCON_BOARD_TEMP_BIAS),
+	LM87_TEMP_EXT1_LIMITS(0, FALCON_JUNC_TEMP_MAX),
 	0
 };
 
@@ -619,14 +628,14 @@ static int sfe4002_init(struct efx_nic *efx)
 static u8 sfn4112f_lm87_channel = 0x03; /* use AIN not FAN inputs */
 
 static const u8 sfn4112f_lm87_regs[] = {
-	LM87_IN_LIMITS(0, 0x83, 0x91),		/* 2.5V:  1.8V +/- 5% */
-	LM87_IN_LIMITS(1, 0x51, 0x5a),		/* Vccp1: 1.2V +/- 5% */
-	LM87_IN_LIMITS(2, 0xb6, 0xca),		/* 3.3V:  3.3V +/- 5% */
-	LM87_IN_LIMITS(4, 0xb0, 0xe0),		/* 12V:   11-14V */
-	LM87_IN_LIMITS(5, 0x44, 0x4b),		/* Vccp2: 1.0V +/- 5% */
-	LM87_AIN_LIMITS(1, 0x91, 0xa1),		/* AIN2:  1.5V +/- 5% */
-	LM87_TEMP_INT_LIMITS(10, 60),		/* board */
-	LM87_TEMP_EXT1_LIMITS(10, 70),		/* Falcon */
+	LM87_IN_LIMITS(0, 0x7c, 0x99),		/* 2.5V:  1.8V +/- 10% */
+	LM87_IN_LIMITS(1, 0x4c, 0x5e),		/* Vccp1: 1.2V +/- 10% */
+	LM87_IN_LIMITS(2, 0xac, 0xd4),		/* 3.3V:  3.3V +/- 10% */
+	LM87_IN_LIMITS(4, 0xac, 0xe0),		/* 12V:   10.8-14V */
+	LM87_IN_LIMITS(5, 0x3f, 0x4f),		/* Vccp2: 1.0V +/- 10% */
+	LM87_AIN_LIMITS(1, 0x8a, 0xa9),		/* AIN2:  1.5V +/- 10% */
+	LM87_TEMP_INT_LIMITS(0, 60 + FALCON_BOARD_TEMP_BIAS),
+	LM87_TEMP_EXT1_LIMITS(0, FALCON_JUNC_TEMP_MAX),
 	0
 };
 

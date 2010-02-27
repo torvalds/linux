@@ -559,6 +559,9 @@ int vmw_fb_init(struct vmw_private *vmw_priv)
 	info->pixmap.scan_align = 1;
 #endif
 
+	info->aperture_base = vmw_priv->vram_start;
+	info->aperture_size = vmw_priv->vram_size;
+
 	/*
 	 * Dirty & Deferred IO
 	 */

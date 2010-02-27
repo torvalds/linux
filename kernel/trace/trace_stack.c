@@ -157,6 +157,7 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 	unsigned long val, flags;
 	char buf[64];
 	int ret;
+	int cpu;
 
 	if (count >= sizeof(buf))
 		return -EINVAL;
@@ -171,9 +172,20 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 		return ret;
 
 	local_irq_save(flags);
+
+	/*
+	 * In case we trace inside arch_spin_lock() or after (NMI),
+	 * we will cause circular lock, so we also need to increase
+	 * the percpu trace_active here.
+	 */
+	cpu = smp_processor_id();
+	per_cpu(trace_active, cpu)++;
+
 	arch_spin_lock(&max_stack_lock);
 	*ptr = val;
 	arch_spin_unlock(&max_stack_lock);
+
+	per_cpu(trace_active, cpu)--;
 	local_irq_restore(flags);
 
 	return count;
@@ -206,7 +218,13 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
+	int cpu;
+
 	local_irq_disable();
+
+	cpu = smp_processor_id();
+	per_cpu(trace_active, cpu)++;
+
 	arch_spin_lock(&max_stack_lock);
 
 	if (*pos == 0)
@@ -217,7 +235,13 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 
 static void t_stop(struct seq_file *m, void *p)
 {
+	int cpu;
+
 	arch_spin_unlock(&max_stack_lock);
+
+	cpu = smp_processor_id();
+	per_cpu(trace_active, cpu)--;
+
 	local_irq_enable();
 }
 

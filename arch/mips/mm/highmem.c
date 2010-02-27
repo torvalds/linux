@@ -1,5 +1,6 @@
 #include <linux/module.h>
 #include <linux/highmem.h>
+#include <linux/sched.h>
 #include <linux/smp.h>
 #include <asm/fixmap.h>
 #include <asm/tlbflush.h>

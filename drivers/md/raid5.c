@@ -5136,9 +5136,8 @@ static int stop(mddev_t *mddev)
 	mddev->thread = NULL;
 	mddev->queue->backing_dev_info.congested_fn = NULL;
 	blk_sync_queue(mddev->queue); /* the unplug fn references 'conf'*/
-	sysfs_remove_group(&mddev->kobj, &raid5_attrs_group);
 	free_conf(conf);
-	mddev->private = NULL;
+	mddev->private = &raid5_attrs_group;
 	return 0;
 }
 
@@ -5464,11 +5463,11 @@ static int raid5_start_reshape(mddev_t *mddev)
 		    !test_bit(Faulty, &rdev->flags)) {
 			if (raid5_add_disk(mddev, rdev) == 0) {
 				char nm[20];
-				if (rdev->raid_disk >= conf->previous_raid_disks)
+				if (rdev->raid_disk >= conf->previous_raid_disks) {
 					set_bit(In_sync, &rdev->flags);
-				else
+					added_devices++;
+				} else
 					rdev->recovery_offset = 0;
-				added_devices++;
 				sprintf(nm, "rd%d", rdev->raid_disk);
 				if (sysfs_create_link(&mddev->kobj,
 						      &rdev->kobj, nm))
@@ -5480,9 +5479,12 @@ static int raid5_start_reshape(mddev_t *mddev)
 				break;
 		}
 
+	/* When a reshape changes the number of devices, ->degraded
+	 * is measured against the large of the pre and post number of
+	 * devices.*/
 	if (mddev->delta_disks > 0) {
 		spin_lock_irqsave(&conf->device_lock, flags);
-		mddev->degraded = (conf->raid_disks - conf->previous_raid_disks)
+		mddev->degraded += (conf->raid_disks - conf->previous_raid_disks)
 			- added_devices;
 		spin_unlock_irqrestore(&conf->device_lock, flags);
 	}

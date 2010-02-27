@@ -110,7 +110,7 @@ static int stripe_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	}
 
 	stripes = simple_strtoul(argv[0], &end, 10);
-	if (*end) {
+	if (!stripes || *end) {
 		ti->error = "Invalid stripe count";
 		return -EINVAL;
 	}

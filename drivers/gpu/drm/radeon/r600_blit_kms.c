@@ -449,6 +449,7 @@ int r600_blit_init(struct radeon_device *rdev)
 	u32 packet2s[16];
 	int num_packet2s = 0;
 
+	mutex_init(&rdev->r600_blit.mutex);
 	rdev->r600_blit.state_offset = 0;
 
 	if (rdev->family >= CHIP_RV770)
@@ -542,9 +543,6 @@ int r600_vb_ib_get(struct radeon_device *rdev)
 void r600_vb_ib_put(struct radeon_device *rdev)
 {
 	radeon_fence_emit(rdev, rdev->r600_blit.vb_ib->fence);
-	mutex_lock(&rdev->ib_pool.mutex);
-	list_add_tail(&rdev->r600_blit.vb_ib->list, &rdev->ib_pool.scheduled_ibs);
-	mutex_unlock(&rdev->ib_pool.mutex);
 	radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
 }
 
@@ -557,7 +555,8 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	int dwords_per_loop = 76, num_loops;
 
 	r = r600_vb_ib_get(rdev);
-	WARN_ON(r);
+	if (r)
+		return r;
 
 	/* set_render_target emits 2 extra dwords on rv6xx */
 	if (rdev->family > CHIP_R600 && rdev->family < CHIP_RV770)
@@ -583,7 +582,8 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	ring_size += 5; /* done copy */
 	ring_size += 7; /* fence emit for done copy */
 	r = radeon_ring_lock(rdev, ring_size);
-	WARN_ON(r);
+	if (r)
+		return r;
 
 	set_default_state(rdev); /* 14 */
 	set_shaders(rdev); /* 26 */

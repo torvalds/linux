@@ -176,7 +176,7 @@ int v9fs_uflags2omode(int uflags, int extended)
  *
  */
 
-static void
+void
 v9fs_blank_wstat(struct p9_wstat *wstat)
 {
 	wstat->type = ~0;

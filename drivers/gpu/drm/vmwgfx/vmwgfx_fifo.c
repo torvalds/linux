@@ -29,6 +29,25 @@
 #include "drmP.h"
 #include "ttm/ttm_placement.h"
 
+bool vmw_fifo_have_3d(struct vmw_private *dev_priv)
+{
+	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
+	uint32_t fifo_min, hwversion;
+
+	fifo_min = ioread32(fifo_mem  + SVGA_FIFO_MIN);
+	if (fifo_min <= SVGA_FIFO_3D_HWVERSION * sizeof(unsigned int))
+		return false;
+
+	hwversion = ioread32(fifo_mem + SVGA_FIFO_3D_HWVERSION);
+	if (hwversion == 0)
+		return false;
+
+	if (hwversion < SVGA3D_HWVERSION_WS65_B1)
+		return false;
+
+	return true;
+}
+
 int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 {
 	__le32 __iomem *fifo_mem = dev_priv->mmio_virt;
@@ -55,6 +74,7 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 	fifo->reserved_size = 0;
 	fifo->using_bounce_buffer = false;
 
+	mutex_init(&fifo->fifo_mutex);
 	init_rwsem(&fifo->rwsem);
 
 	/*
@@ -98,7 +118,7 @@ int vmw_fifo_init(struct vmw_private *dev_priv, struct vmw_fifo_state *fifo)
 		 (unsigned int) min,
 		 (unsigned int) fifo->capabilities);
 
-	dev_priv->fence_seq = dev_priv->last_read_sequence;
+	atomic_set(&dev_priv->fence_seq, dev_priv->last_read_sequence);
 	iowrite32(dev_priv->last_read_sequence, fifo_mem + SVGA_FIFO_FENCE);
 
 	return vmw_fifo_send_fence(dev_priv, &dummy);
@@ -264,7 +284,7 @@ void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes)
 	uint32_t reserveable = fifo_state->capabilities & SVGA_FIFO_CAP_RESERVE;
 	int ret;
 
-	down_write(&fifo_state->rwsem);
+	mutex_lock(&fifo_state->fifo_mutex);
 	max = ioread32(fifo_mem + SVGA_FIFO_MAX);
 	min = ioread32(fifo_mem + SVGA_FIFO_MIN);
 	next_cmd = ioread32(fifo_mem + SVGA_FIFO_NEXT_CMD);
@@ -332,7 +352,7 @@ void *vmw_fifo_reserve(struct vmw_private *dev_priv, uint32_t bytes)
 	}
 out_err:
 	fifo_state->reserved_size = 0;
-	up_write(&fifo_state->rwsem);
+	mutex_unlock(&fifo_state->fifo_mutex);
 	return NULL;
 }
 
@@ -407,6 +427,7 @@ void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)
 
 	}
 
+	down_write(&fifo_state->rwsem);
 	if (fifo_state->using_bounce_buffer || reserveable) {
 		next_cmd += bytes;
 		if (next_cmd >= max)
@@ -418,8 +439,9 @@ void vmw_fifo_commit(struct vmw_private *dev_priv, uint32_t bytes)
 	if (reserveable)
 		iowrite32(0, fifo_mem + SVGA_FIFO_RESERVED);
 	mb();
-	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
 	up_write(&fifo_state->rwsem);
+	vmw_fifo_ping_host(dev_priv, SVGA_SYNC_GENERIC);
+	mutex_unlock(&fifo_state->fifo_mutex);
 }
 
 int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *sequence)
@@ -432,9 +454,7 @@ int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *sequence)
 
 	fm = vmw_fifo_reserve(dev_priv, bytes);
 	if (unlikely(fm == NULL)) {
-		down_write(&fifo_state->rwsem);
-		*sequence = dev_priv->fence_seq;
-		up_write(&fifo_state->rwsem);
+		*sequence = atomic_read(&dev_priv->fence_seq);
 		ret = -ENOMEM;
 		(void)vmw_fallback_wait(dev_priv, false, true, *sequence,
 					false, 3*HZ);
@@ -442,7 +462,7 @@ int vmw_fifo_send_fence(struct vmw_private *dev_priv, uint32_t *sequence)
 	}
 
 	do {
-		*sequence = dev_priv->fence_seq++;
+		*sequence = atomic_add_return(1, &dev_priv->fence_seq);
 	} while (*sequence == 0);
 
 	if (!(fifo_state->capabilities & SVGA_FIFO_CAP_FENCE)) {

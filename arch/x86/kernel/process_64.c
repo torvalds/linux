@@ -521,6 +521,18 @@ void set_personality_64bit(void)
 	current->personality &= ~READ_IMPLIES_EXEC;
 }
 
+void set_personality_ia32(void)
+{
+	/* inherit personality from parent */
+
+	/* Make sure to be in 32bit mode */
+	set_thread_flag(TIF_IA32);
+	current->personality |= force_personality32;
+
+	/* Prepare the first "return" to user space */
+	current_thread_info()->status |= TS_COMPAT;
+}
+
 unsigned long get_wchan(struct task_struct *p)
 {
 	unsigned long stack;

@@ -5179,7 +5179,7 @@ dma_error:
 		ixgbe_unmap_and_free_tx_resource(adapter, tx_buffer_info);
 	}
 
-	return count;
+	return 0;
 }
 
 static void ixgbe_tx_queue(struct ixgbe_adapter *adapter,
@@ -5329,8 +5329,11 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 	struct ixgbe_adapter *adapter = netdev_priv(dev);
 	int txq = smp_processor_id();
 
-	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE)
+	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE) {
+		while (unlikely(txq >= dev->real_num_tx_queues))
+			txq -= dev->real_num_tx_queues;
 		return txq;
+	}
 
 #ifdef IXGBE_FCOE
 	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
@@ -5759,6 +5762,10 @@ static int __devinit ixgbe_probe(struct pci_dev *pdev,
 	err = ixgbe_sw_init(adapter);
 	if (err)
 		goto err_sw_init;
+
+	/* Make it possible the adapter to be woken up via WOL */
+	if (adapter->hw.mac.type == ixgbe_mac_82599EB)
+		IXGBE_WRITE_REG(&adapter->hw, IXGBE_WUS, ~0);
 
 	/*
 	 * If there is a fan on this device and it has failed log the

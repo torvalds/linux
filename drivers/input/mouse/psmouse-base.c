@@ -1141,7 +1141,14 @@ static void psmouse_cleanup(struct serio *serio)
 		psmouse_deactivate(parent);
 	}
 
-	psmouse_deactivate(psmouse);
+	psmouse_set_state(psmouse, PSMOUSE_INITIALIZING);
+
+	/*
+	 * Disable stream mode so cleanup routine can proceed undisturbed.
+	 */
+	if (ps2_command(&psmouse->ps2dev, NULL, PSMOUSE_CMD_DISABLE))
+		printk(KERN_WARNING "psmouse.c: Failed to disable mouse on %s\n",
+			psmouse->ps2dev.serio->phys);
 
 	if (psmouse->cleanup)
 		psmouse->cleanup(psmouse);

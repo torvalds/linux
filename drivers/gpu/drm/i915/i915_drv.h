@@ -493,6 +493,15 @@ typedef struct drm_i915_private {
 		struct list_head flushing_list;
 
 		/**
+		 * List of objects currently pending a GPU write flush.
+		 *
+		 * All elements on this list will belong to either the
+		 * active_list or flushing_list, last_rendering_seqno can
+		 * be used to differentiate between the two elements.
+		 */
+		struct list_head gpu_write_list;
+
+		/**
 		 * LRU list of objects which are not in the ringbuffer and
 		 * are ready to unbind, but are still in the GTT.
 		 *
@@ -592,6 +601,8 @@ struct drm_i915_gem_object {
 
 	/** This object's place on the active/flushing/inactive lists */
 	struct list_head list;
+	/** This object's place on GPU write list */
+	struct list_head gpu_write_list;
 
 	/** This object's place on the fenced object LRU */
 	struct list_head fence_list;
@@ -872,7 +883,7 @@ int i915_gem_attach_phys_object(struct drm_device *dev,
 void i915_gem_detach_phys_object(struct drm_device *dev,
 				 struct drm_gem_object *obj);
 void i915_gem_free_all_phys_object(struct drm_device *dev);
-int i915_gem_object_get_pages(struct drm_gem_object *obj);
+int i915_gem_object_get_pages(struct drm_gem_object *obj, gfp_t gfpmask);
 void i915_gem_object_put_pages(struct drm_gem_object *obj);
 void i915_gem_release(struct drm_device * dev, struct drm_file *file_priv);
 void i915_gem_object_flush_write_domain(struct drm_gem_object *obj);

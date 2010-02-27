@@ -268,10 +268,8 @@ static int irq_choose_cpu(unsigned int virt_irq, const struct cpumask *affinity)
 	return cpuid;
 }
 #else
-static int irq_choose_cpu(unsigned int virt_irq, const struct cpumask *affinity)
-{
-	return real_hard_smp_processor_id();
-}
+#define irq_choose_cpu(virt_irq, affinity)	\
+	real_hard_smp_processor_id()
 #endif
 
 static void sun4u_irq_enable(unsigned int virt_irq)
