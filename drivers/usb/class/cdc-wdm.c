@@ -794,14 +794,17 @@ static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 	dev_dbg(&desc->intf->dev, "wdm%d_suspend\n", intf->minor);
 
 	mutex_lock(&desc->lock);
+	spin_lock_irq(&desc->iuspin);
 #ifdef CONFIG_PM
 	if ((message.event & PM_EVENT_AUTO) &&
 			(test_bit(WDM_IN_USE, &desc->flags)
 			|| test_bit(WDM_RESPONDING, &desc->flags))) {
+		spin_unlock_irq(&desc->iuspin);
 		rv = -EBUSY;
 	} else {
 #endif
 		set_bit(WDM_SUSPENDING, &desc->flags);
+		spin_unlock_irq(&desc->iuspin);
 		cancel_work_sync(&desc->rxwork);
 		kill_urbs(desc);
 #ifdef CONFIG_PM
@@ -831,8 +834,8 @@ static int wdm_resume(struct usb_interface *intf)
 
 	dev_dbg(&desc->intf->dev, "wdm%d_resume\n", intf->minor);
 	mutex_lock(&desc->lock);
-	rv = recover_from_urb_loss(desc);
 	clear_bit(WDM_SUSPENDING, &desc->flags);
+	rv = recover_from_urb_loss(desc);
 	mutex_unlock(&desc->lock);
 	return rv;
 }
