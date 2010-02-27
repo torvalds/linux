@@ -155,6 +155,22 @@ static void b43_nphy_tx_power_fix(struct b43_wldev *dev)
 	//TODO
 }
 
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/Radio/2055Setup */
+static void b43_radio_2055_setup(struct b43_wldev *dev,
+				const struct b43_nphy_channeltab_entry *e)
+{
+	B43_WARN_ON(dev->phy.rev >= 3);
+
+	b43_chantab_radio_upload(dev, e);
+	udelay(50);
+	b43_radio_write(dev, B2055_VCO_CAL10, 5);
+	b43_radio_write(dev, B2055_VCO_CAL10, 45);
+	b43_read32(dev, B43_MMIO_MACCTL); /* flush writes */
+	b43_radio_write(dev, B2055_VCO_CAL10, 65);
+	udelay(300);
+}
+
 /* Tune the hardware to a new channel. */
 static int nphy_channel_switch(struct b43_wldev *dev, unsigned int channel)
 {
@@ -169,12 +185,7 @@ static int nphy_channel_switch(struct b43_wldev *dev, unsigned int channel)
 		b43_radio_maskset(dev, B2055_MASTER1, 0xFF8F, 0x20);
 	else
 		b43_radio_maskset(dev, B2055_MASTER1, 0xFF8F, 0x50);
-	b43_chantab_radio_upload(dev, tabent);
-	udelay(50);
-	b43_radio_write16(dev, B2055_VCO_CAL10, 5);
-	b43_radio_write16(dev, B2055_VCO_CAL10, 45);
-	b43_radio_write16(dev, B2055_VCO_CAL10, 65);
-	udelay(300);
+	b43_radio_2055_setup(dev, tabent);
 	if (0 /*FIXME 5Ghz*/)
 		b43_phy_set(dev, B43_NPHY_BANDCTL, B43_NPHY_BANDCTL_5GHZ);
 	else
