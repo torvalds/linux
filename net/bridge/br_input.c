@@ -41,6 +41,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	struct net_bridge_port *p = rcu_dereference(skb->dev->br_port);
 	struct net_bridge *br;
 	struct net_bridge_fdb_entry *dst;
+	struct net_bridge_mdb_entry *mdst;
 	struct sk_buff *skb2;
 
 	if (!p || p->state == BR_STATE_DISABLED)
@@ -49,6 +50,10 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	/* insert into forwarding database after filtering to avoid spoofing */
 	br = p->br;
 	br_fdb_update(br, p, eth_hdr(skb)->h_source);
+
+	if (is_multicast_ether_addr(dest) &&
+	    br_multicast_rcv(br, p, skb))
+		goto drop;
 
 	if (p->state == BR_STATE_LEARNING)
 		goto drop;
@@ -64,8 +69,19 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	dst = NULL;
 
 	if (is_multicast_ether_addr(dest)) {
+		mdst = br_mdb_get(br, skb);
+		if (mdst || BR_INPUT_SKB_CB(skb)->mrouters_only) {
+			if ((mdst && !hlist_unhashed(&mdst->mglist)) ||
+			    br_multicast_is_router(br))
+				skb2 = skb;
+			br_multicast_forward(mdst, skb, skb2);
+			skb = NULL;
+			if (!skb2)
+				goto out;
+		} else
+			skb2 = skb;
+
 		br->dev->stats.multicast++;
-		skb2 = skb;
 	} else if ((dst = __br_fdb_get(br, dest)) && dst->is_local) {
 		skb2 = skb;
 		/* Do not forward the packet since it's local. */
