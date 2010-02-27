@@ -195,7 +195,7 @@ config BOUNCE
 config NR_QUICK
 	int
 	depends on QUICKLIST
-	default "2" if SUPERH || AVR32
+	default "2" if AVR32
 	default "1"
 
 config VIRT_TO_BUS

@@ -337,12 +337,39 @@ static int pinmux_config_gpio(struct pinmux_info *gpioc, unsigned gpio,
 		if (!enum_id)
 			break;
 
+		/* first check if this is a function enum */
 		in_range = enum_in_range(enum_id, &gpioc->function);
-		if (!in_range && range) {
-			in_range = enum_in_range(enum_id, range);
+		if (!in_range) {
+			/* not a function enum */
+			if (range) {
+				/*
+				 * other range exists, so this pin is
+				 * a regular GPIO pin that now is being
+				 * bound to a specific direction.
+				 *
+				 * for this case we only allow function enums
+				 * and the enums that match the other range.
+				 */
+				in_range = enum_in_range(enum_id, range);
 
-			if (in_range && enum_id == range->force)
-				continue;
+				/*
+				 * special case pass through for fixed
+				 * input-only or output-only pins without
+				 * function enum register association.
+				 */
+				if (in_range && enum_id == range->force)
+					continue;
+			} else {
+				/*
+				 * no other range exists, so this pin
+				 * must then be of the function type.
+				 *
+				 * allow function type pins to select
+				 * any combination of function/in/out
+				 * in their MARK lists.
+				 */
+				in_range = 1;
+			}
 		}
 
 		if (!in_range)
