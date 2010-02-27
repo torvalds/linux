@@ -52,6 +52,7 @@ MODULE_DEVICE_TABLE (usb, wdm_ids);
 #define WDM_READ		4
 #define WDM_INT_STALL		5
 #define WDM_POLL_RUNNING	6
+#define WDM_RESPONDING		7
 
 
 #define WDM_MAX			16
@@ -115,21 +116,22 @@ static void wdm_in_callback(struct urb *urb)
 	int status = urb->status;
 
 	spin_lock(&desc->iuspin);
+	clear_bit(WDM_RESPONDING, &desc->flags);
 
 	if (status) {
 		switch (status) {
 		case -ENOENT:
 			dev_dbg(&desc->intf->dev,
 				"nonzero urb status received: -ENOENT");
-			break;
+			goto skip_error;
 		case -ECONNRESET:
 			dev_dbg(&desc->intf->dev,
 				"nonzero urb status received: -ECONNRESET");
-			break;
+			goto skip_error;
 		case -ESHUTDOWN:
 			dev_dbg(&desc->intf->dev,
 				"nonzero urb status received: -ESHUTDOWN");
-			break;
+			goto skip_error;
 		case -EPIPE:
 			dev_err(&desc->intf->dev,
 				"nonzero urb status received: -EPIPE\n");
@@ -145,6 +147,7 @@ static void wdm_in_callback(struct urb *urb)
 	desc->reslength = urb->actual_length;
 	memmove(desc->ubuf + desc->length, desc->inbuf, desc->reslength);
 	desc->length += desc->reslength;
+skip_error:
 	wake_up(&desc->wait);
 
 	set_bit(WDM_READ, &desc->flags);
@@ -227,6 +230,7 @@ static void wdm_int_callback(struct urb *urb)
 	desc->response->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	spin_lock(&desc->iuspin);
 	clear_bit(WDM_READ, &desc->flags);
+	set_bit(WDM_RESPONDING, &desc->flags);
 	if (!test_bit(WDM_DISCONNECTING, &desc->flags)) {
 		rv = usb_submit_urb(desc->response, GFP_ATOMIC);
 		dev_dbg(&desc->intf->dev, "%s: usb_submit_urb %d",
@@ -234,6 +238,7 @@ static void wdm_int_callback(struct urb *urb)
 	}
 	spin_unlock(&desc->iuspin);
 	if (rv < 0) {
+		clear_bit(WDM_RESPONDING, &desc->flags);
 		if (rv == -EPERM)
 			return;
 		if (rv == -ENOMEM) {
@@ -795,7 +800,8 @@ static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 	mutex_lock(&desc->lock);
 #ifdef CONFIG_PM
 	if ((message.event & PM_EVENT_AUTO) &&
-			test_bit(WDM_IN_USE, &desc->flags)) {
+			(test_bit(WDM_IN_USE, &desc->flags)
+			|| test_bit(WDM_RESPONDING, &desc->flags))) {
 		rv = -EBUSY;
 	} else {
 #endif
