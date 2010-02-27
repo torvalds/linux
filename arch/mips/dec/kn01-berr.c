@@ -46,7 +46,7 @@
  * There is no default value -- it has to be initialized.
  */
 u16 cached_kn01_csr;
-static DEFINE_SPINLOCK(kn01_lock);
+static DEFINE_RAW_SPINLOCK(kn01_lock);
 
 
 static inline void dec_kn01_be_ack(void)
@@ -54,12 +54,12 @@ static inline void dec_kn01_be_ack(void)
 	volatile u16 *csr = (void *)CKSEG1ADDR(KN01_SLOT_BASE + KN01_CSR);
 	unsigned long flags;
 
-	spin_lock_irqsave(&kn01_lock, flags);
+	raw_spin_lock_irqsave(&kn01_lock, flags);
 
 	*csr = cached_kn01_csr | KN01_CSR_MEMERR;	/* Clear bus IRQ. */
 	iob();
 
-	spin_unlock_irqrestore(&kn01_lock, flags);
+	raw_spin_unlock_irqrestore(&kn01_lock, flags);
 }
 
 static int dec_kn01_be_backend(struct pt_regs *regs, int is_fixup, int invoker)
@@ -182,7 +182,7 @@ void __init dec_kn01_be_init(void)
 	volatile u16 *csr = (void *)CKSEG1ADDR(KN01_SLOT_BASE + KN01_CSR);
 	unsigned long flags;
 
-	spin_lock_irqsave(&kn01_lock, flags);
+	raw_spin_lock_irqsave(&kn01_lock, flags);
 
 	/* Preset write-only bits of the Control Register cache. */
 	cached_kn01_csr = *csr;
@@ -194,7 +194,7 @@ void __init dec_kn01_be_init(void)
 	*csr = cached_kn01_csr;
 	iob();
 
-	spin_unlock_irqrestore(&kn01_lock, flags);
+	raw_spin_unlock_irqrestore(&kn01_lock, flags);
 
 	/* Clear any leftover errors from the firmware. */
 	dec_kn01_be_ack();
