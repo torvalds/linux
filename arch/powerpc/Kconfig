@@ -58,7 +58,7 @@ config IRQ_PER_CPU
 
 config NR_IRQS
 	int "Number of virtual interrupt numbers"
-	range 32 512
+	range 32 32768
 	default "512"
 	help
 	  This defines the number of virtual interrupt numbers the kernel
@@ -240,6 +240,33 @@ config PPC_OF_PLATFORM_PCI
 
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
+
+config PPC_ADV_DEBUG_REGS
+	bool
+	depends on 40x || BOOKE
+	default y
+
+config PPC_ADV_DEBUG_IACS
+	int
+	depends on PPC_ADV_DEBUG_REGS
+	default 4 if 44x
+	default 2
+
+config PPC_ADV_DEBUG_DACS
+	int
+	depends on PPC_ADV_DEBUG_REGS
+	default 2
+
+config PPC_ADV_DEBUG_DVCS
+	int
+	depends on PPC_ADV_DEBUG_REGS
+	default 2 if 44x
+	default 0
+
+config PPC_ADV_DEBUG_DAC_RANGE
+	bool
+	depends on PPC_ADV_DEBUG_REGS && 44x
+	default y
 
 source "init/Kconfig"
 

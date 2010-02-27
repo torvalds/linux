@@ -56,7 +56,7 @@ static unsigned int next_context, nr_free_contexts;
 static unsigned long *context_map;
 static unsigned long *stale_map[NR_CPUS];
 static struct mm_struct **context_mm;
-static DEFINE_SPINLOCK(context_lock);
+static DEFINE_RAW_SPINLOCK(context_lock);
 
 #define CTX_MAP_SIZE	\
 	(sizeof(unsigned long) * (last_context / BITS_PER_LONG + 1))
@@ -121,9 +121,9 @@ static unsigned int steal_context_smp(unsigned int id)
 	/* This will happen if you have more CPUs than available contexts,
 	 * all we can do here is wait a bit and try again
 	 */
-	spin_unlock(&context_lock);
+	raw_spin_unlock(&context_lock);
 	cpu_relax();
-	spin_lock(&context_lock);
+	raw_spin_lock(&context_lock);
 
 	/* This will cause the caller to try again */
 	return MMU_NO_CONTEXT;
@@ -194,7 +194,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 	unsigned long *map;
 
 	/* No lockless fast path .. yet */
-	spin_lock(&context_lock);
+	raw_spin_lock(&context_lock);
 
 	pr_hard("[%d] activating context for mm @%p, active=%d, id=%d",
 		cpu, next, next->context.active, next->context.id);
@@ -278,7 +278,7 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next)
 	/* Flick the MMU and release lock */
 	pr_hardcont(" -> %d\n", id);
 	set_context(id, next->pgd);
-	spin_unlock(&context_lock);
+	raw_spin_unlock(&context_lock);
 }
 
 /*
@@ -307,7 +307,7 @@ void destroy_context(struct mm_struct *mm)
 
 	WARN_ON(mm->context.active != 0);
 
-	spin_lock_irqsave(&context_lock, flags);
+	raw_spin_lock_irqsave(&context_lock, flags);
 	id = mm->context.id;
 	if (id != MMU_NO_CONTEXT) {
 		__clear_bit(id, context_map);
@@ -318,7 +318,7 @@ void destroy_context(struct mm_struct *mm)
 		context_mm[id] = NULL;
 		nr_free_contexts++;
 	}
-	spin_unlock_irqrestore(&context_lock, flags);
+	raw_spin_unlock_irqrestore(&context_lock, flags);
 }
 
 #ifdef CONFIG_SMP

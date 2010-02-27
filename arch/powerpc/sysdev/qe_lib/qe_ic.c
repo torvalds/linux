@@ -237,7 +237,7 @@ static void qe_ic_mask_irq(unsigned int virq)
 }
 
 static struct irq_chip qe_ic_irq_chip = {
-	.name = " QEIC  ",
+	.name = "QEIC",
 	.unmask = qe_ic_unmask_irq,
 	.mask = qe_ic_mask_irq,
 	.mask_ack = qe_ic_mask_irq,
@@ -256,7 +256,7 @@ static int qe_ic_host_map(struct irq_host *h, unsigned int virq,
 	struct irq_chip *chip;
 
 	if (qe_ic_info[hw].mask == 0) {
-		printk(KERN_ERR "Can't map reserved IRQ \n");
+		printk(KERN_ERR "Can't map reserved IRQ\n");
 		return -EINVAL;
 	}
 	/* Default chip */
