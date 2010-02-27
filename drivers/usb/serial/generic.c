@@ -500,22 +500,17 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 		if (port->urbs_in_flight < 0)
 			port->urbs_in_flight = 0;
 		spin_unlock_irqrestore(&port->lock, flags);
-
-		if (status) {
-			dbg("%s - nonzero multi-urb write bulk status "
-				"received: %d", __func__, status);
-			return;
-		}
 	} else {
 		port->write_urb_busy = 0;
 
-		if (status) {
-			dbg("%s - nonzero multi-urb write bulk status "
-				"received: %d", __func__, status);
+		if (status)
 			kfifo_reset_out(&port->write_fifo);
-		} else
+		else
 			usb_serial_generic_write_start(port);
 	}
+
+	if (status)
+		dbg("%s - non-zero urb status: %d", __func__, status);
 
 	usb_serial_port_softint(port);
 }
