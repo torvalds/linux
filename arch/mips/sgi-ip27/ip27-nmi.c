@@ -20,7 +20,7 @@
 
 typedef unsigned long machreg_t;
 
-static DEFINE_SPINLOCK(nmi_lock);
+static arch_spinlock_t nmi_lock = __ARCH_SPIN_LOCK_UNLOCKED;
 
 /*
  * Lets see what else we need to do here. Set up sp, gp?
@@ -194,7 +194,7 @@ cont_nmi_dump(void)
 	/*
 	 * Only allow 1 cpu to proceed
 	 */
-	spin_lock(&nmi_lock);
+	arch_spin_lock(&nmi_lock);
 
 #ifdef REAL_NMI_SIGNAL
 	/*
