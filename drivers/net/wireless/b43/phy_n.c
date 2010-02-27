@@ -3282,6 +3282,68 @@ int b43_phy_initn(struct b43_wldev *dev)
 	return 0;
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/ChanspecSetup */
+static void b43_nphy_chanspec_setup(struct b43_wldev *dev,
+				const struct b43_nphy_channeltab_entry *e,
+				struct b43_chanspec chanspec)
+{
+	struct b43_phy *phy = &dev->phy;
+	struct b43_phy_n *nphy = dev->phy.n;
+
+	u16 tmp;
+	u32 tmp32;
+
+	tmp = b43_phy_read(dev, B43_NPHY_BANDCTL) & B43_NPHY_BANDCTL_5GHZ;
+	if (chanspec.b_freq == 1 && tmp == 0) {
+		tmp32 = b43_read32(dev, B43_MMIO_PSM_PHY_HDR);
+		b43_write32(dev, B43_MMIO_PSM_PHY_HDR, tmp32 | 4);
+		b43_phy_set(dev, B43_PHY_B_BBCFG, 0xC000);
+		b43_write32(dev, B43_MMIO_PSM_PHY_HDR, tmp32);
+		b43_phy_set(dev, B43_NPHY_BANDCTL, B43_NPHY_BANDCTL_5GHZ);
+	} else if (chanspec.b_freq == 1) {
+		b43_phy_mask(dev, B43_NPHY_BANDCTL, ~B43_NPHY_BANDCTL_5GHZ);
+		tmp32 = b43_read32(dev, B43_MMIO_PSM_PHY_HDR);
+		b43_write32(dev, B43_MMIO_PSM_PHY_HDR, tmp32 | 4);
+		b43_phy_mask(dev, B43_PHY_B_BBCFG, (u16)~0xC000);
+		b43_write32(dev, B43_MMIO_PSM_PHY_HDR, tmp32);
+	}
+
+	b43_chantab_phy_upload(dev, e);
+
+	tmp = chanspec.channel;
+	if (chanspec.b_freq == 1)
+		tmp |= 0x0100;
+	if (chanspec.b_width == 3)
+		tmp |= 0x0200;
+	b43_shm_write16(dev, B43_SHM_SHARED, 0xA0, tmp);
+
+	if (nphy->radio_chanspec.channel == 14) {
+		b43_nphy_classifier(dev, 2, 0);
+		b43_phy_set(dev, B43_PHY_B_TEST, 0x0800);
+	} else {
+		b43_nphy_classifier(dev, 2, 2);
+		if (chanspec.b_freq == 2)
+			b43_phy_mask(dev, B43_PHY_B_TEST, ~0x840);
+	}
+
+	if (nphy->txpwrctrl)
+		b43_nphy_tx_power_fix(dev);
+
+	if (dev->phy.rev < 3)
+		b43_nphy_adjust_lna_gain_table(dev);
+
+	b43_nphy_tx_lp_fbw(dev);
+
+	if (dev->phy.rev >= 3 && 0) {
+		/* TODO */
+	}
+
+	b43_phy_write(dev, B43_NPHY_NDATAT_DUP40, 0x3830);
+
+	if (phy->rev >= 3)
+		b43_nphy_spur_workaround(dev);
+}
+
 static int b43_nphy_op_allocate(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy;
