@@ -373,5 +373,6 @@ static int rcu_preempt_needs_cpu(int cpu);
 static void __cpuinit rcu_preempt_init_percpu_data(int cpu);
 static void rcu_preempt_send_cbs_to_orphanage(void);
 static void __init __rcu_init_preempt(void);
+static void rcu_needs_cpu_flush(void);
 
 #endif /* #ifndef RCU_TREE_NONCORE */

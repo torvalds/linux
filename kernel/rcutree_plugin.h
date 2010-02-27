@@ -973,9 +973,19 @@ int rcu_needs_cpu(int cpu)
 	return rcu_needs_cpu_quick_check(cpu);
 }
 
+/*
+ * Check to see if we need to continue a callback-flush operations to
+ * allow the last CPU to enter dyntick-idle mode.  But fast dyntick-idle
+ * entry is not configured, so we never do need to.
+ */
+static void rcu_needs_cpu_flush(void)
+{
+}
+
 #else /* #if !defined(CONFIG_RCU_FAST_NO_HZ) */
 
 #define RCU_NEEDS_CPU_FLUSHES 5
+static DEFINE_PER_CPU(int, rcu_dyntick_drain);
 
 /*
  * Check to see if any future RCU-related work will need to be done
@@ -988,39 +998,62 @@ int rcu_needs_cpu(int cpu)
  * only if all other CPUs are already in dynticks-idle mode.  This will
  * allow the CPU cores to be powered down immediately, as opposed to after
  * waiting many milliseconds for grace periods to elapse.
+ *
+ * Because it is not legal to invoke rcu_process_callbacks() with irqs
+ * disabled, we do one pass of force_quiescent_state(), then do a
+ * raise_softirq() to cause rcu_process_callbacks() to be invoked later.
+ * The per-cpu rcu_dyntick_drain variable controls the sequencing.
  */
 int rcu_needs_cpu(int cpu)
 {
-	int c = 1;
-	int i;
+	int c = 0;
 	int thatcpu;
 
 	/* Don't bother unless we are the last non-dyntick-idle CPU. */
 	for_each_cpu_not(thatcpu, nohz_cpu_mask)
-		if (thatcpu != cpu)
+		if (thatcpu != cpu) {
+			per_cpu(rcu_dyntick_drain, cpu) = 0;
 			return rcu_needs_cpu_quick_check(cpu);
+		}
 
-	/* Try to push remaining RCU-sched and RCU-bh callbacks through. */
-	for (i = 0; i < RCU_NEEDS_CPU_FLUSHES && c; i++) {
-		c = 0;
-		if (per_cpu(rcu_sched_data, cpu).nxtlist) {
-			rcu_sched_qs(cpu);
-			force_quiescent_state(&rcu_sched_state, 0);
-			__rcu_process_callbacks(&rcu_sched_state,
-						&per_cpu(rcu_sched_data, cpu));
-			c = !!per_cpu(rcu_sched_data, cpu).nxtlist;
-		}
-		if (per_cpu(rcu_bh_data, cpu).nxtlist) {
-			rcu_bh_qs(cpu);
-			force_quiescent_state(&rcu_bh_state, 0);
-			__rcu_process_callbacks(&rcu_bh_state,
-						&per_cpu(rcu_bh_data, cpu));
-			c = !!per_cpu(rcu_bh_data, cpu).nxtlist;
-		}
+	/* Check and update the rcu_dyntick_drain sequencing. */
+	if (per_cpu(rcu_dyntick_drain, cpu) <= 0) {
+		/* First time through, initialize the counter. */
+		per_cpu(rcu_dyntick_drain, cpu) = RCU_NEEDS_CPU_FLUSHES;
+	} else if (--per_cpu(rcu_dyntick_drain, cpu) <= 0) {
+		/* We have hit the limit, so time to give up. */
+		return rcu_needs_cpu_quick_check(cpu);
+	}
+
+	/* Do one step pushing remaining RCU callbacks through. */
+	if (per_cpu(rcu_sched_data, cpu).nxtlist) {
+		rcu_sched_qs(cpu);
+		force_quiescent_state(&rcu_sched_state, 0);
+		c = c || per_cpu(rcu_sched_data, cpu).nxtlist;
+	}
+	if (per_cpu(rcu_bh_data, cpu).nxtlist) {
+		rcu_bh_qs(cpu);
+		force_quiescent_state(&rcu_bh_state, 0);
+		c = c || per_cpu(rcu_bh_data, cpu).nxtlist;
 	}
 
 	/* If RCU callbacks are still pending, RCU still needs this CPU. */
+	if (c)
+		raise_softirq(RCU_SOFTIRQ);
 	return c;
+}
+
+/*
+ * Check to see if we need to continue a callback-flush operations to
+ * allow the last CPU to enter dyntick-idle mode.
+ */
+static void rcu_needs_cpu_flush(void)
+{
+	int cpu = smp_processor_id();
+
+	if (per_cpu(rcu_dyntick_drain, cpu) <= 0)
+		return;
+	(void)rcu_needs_cpu(cpu);
 }
 
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
