@@ -90,28 +90,38 @@ static enum b43_txpwr_result b43_nphy_op_recalc_txpower(struct b43_wldev *dev,
 static void b43_chantab_radio_upload(struct b43_wldev *dev,
 				     const struct b43_nphy_channeltab_entry *e)
 {
-	b43_radio_write16(dev, B2055_PLL_REF, e->radio_pll_ref);
-	b43_radio_write16(dev, B2055_RF_PLLMOD0, e->radio_rf_pllmod0);
-	b43_radio_write16(dev, B2055_RF_PLLMOD1, e->radio_rf_pllmod1);
-	b43_radio_write16(dev, B2055_VCO_CAPTAIL, e->radio_vco_captail);
-	b43_radio_write16(dev, B2055_VCO_CAL1, e->radio_vco_cal1);
-	b43_radio_write16(dev, B2055_VCO_CAL2, e->radio_vco_cal2);
-	b43_radio_write16(dev, B2055_PLL_LFC1, e->radio_pll_lfc1);
-	b43_radio_write16(dev, B2055_PLL_LFR1, e->radio_pll_lfr1);
-	b43_radio_write16(dev, B2055_PLL_LFC2, e->radio_pll_lfc2);
-	b43_radio_write16(dev, B2055_LGBUF_CENBUF, e->radio_lgbuf_cenbuf);
-	b43_radio_write16(dev, B2055_LGEN_TUNE1, e->radio_lgen_tune1);
-	b43_radio_write16(dev, B2055_LGEN_TUNE2, e->radio_lgen_tune2);
-	b43_radio_write16(dev, B2055_C1_LGBUF_ATUNE, e->radio_c1_lgbuf_atune);
-	b43_radio_write16(dev, B2055_C1_LGBUF_GTUNE, e->radio_c1_lgbuf_gtune);
-	b43_radio_write16(dev, B2055_C1_RX_RFR1, e->radio_c1_rx_rfr1);
-	b43_radio_write16(dev, B2055_C1_TX_PGAPADTN, e->radio_c1_tx_pgapadtn);
-	b43_radio_write16(dev, B2055_C1_TX_MXBGTRIM, e->radio_c1_tx_mxbgtrim);
-	b43_radio_write16(dev, B2055_C2_LGBUF_ATUNE, e->radio_c2_lgbuf_atune);
-	b43_radio_write16(dev, B2055_C2_LGBUF_GTUNE, e->radio_c2_lgbuf_gtune);
-	b43_radio_write16(dev, B2055_C2_RX_RFR1, e->radio_c2_rx_rfr1);
-	b43_radio_write16(dev, B2055_C2_TX_PGAPADTN, e->radio_c2_tx_pgapadtn);
-	b43_radio_write16(dev, B2055_C2_TX_MXBGTRIM, e->radio_c2_tx_mxbgtrim);
+	b43_radio_write(dev, B2055_PLL_REF, e->radio_pll_ref);
+	b43_radio_write(dev, B2055_RF_PLLMOD0, e->radio_rf_pllmod0);
+	b43_radio_write(dev, B2055_RF_PLLMOD1, e->radio_rf_pllmod1);
+	b43_radio_write(dev, B2055_VCO_CAPTAIL, e->radio_vco_captail);
+	b43_read32(dev, B43_MMIO_MACCTL); /* flush writes */
+
+	b43_radio_write(dev, B2055_VCO_CAL1, e->radio_vco_cal1);
+	b43_radio_write(dev, B2055_VCO_CAL2, e->radio_vco_cal2);
+	b43_radio_write(dev, B2055_PLL_LFC1, e->radio_pll_lfc1);
+	b43_radio_write(dev, B2055_PLL_LFR1, e->radio_pll_lfr1);
+	b43_read32(dev, B43_MMIO_MACCTL); /* flush writes */
+
+	b43_radio_write(dev, B2055_PLL_LFC2, e->radio_pll_lfc2);
+	b43_radio_write(dev, B2055_LGBUF_CENBUF, e->radio_lgbuf_cenbuf);
+	b43_radio_write(dev, B2055_LGEN_TUNE1, e->radio_lgen_tune1);
+	b43_radio_write(dev, B2055_LGEN_TUNE2, e->radio_lgen_tune2);
+	b43_read32(dev, B43_MMIO_MACCTL); /* flush writes */
+
+	b43_radio_write(dev, B2055_C1_LGBUF_ATUNE, e->radio_c1_lgbuf_atune);
+	b43_radio_write(dev, B2055_C1_LGBUF_GTUNE, e->radio_c1_lgbuf_gtune);
+	b43_radio_write(dev, B2055_C1_RX_RFR1, e->radio_c1_rx_rfr1);
+	b43_radio_write(dev, B2055_C1_TX_PGAPADTN, e->radio_c1_tx_pgapadtn);
+	b43_read32(dev, B43_MMIO_MACCTL); /* flush writes */
+
+	b43_radio_write(dev, B2055_C1_TX_MXBGTRIM, e->radio_c1_tx_mxbgtrim);
+	b43_radio_write(dev, B2055_C2_LGBUF_ATUNE, e->radio_c2_lgbuf_atune);
+	b43_radio_write(dev, B2055_C2_LGBUF_GTUNE, e->radio_c2_lgbuf_gtune);
+	b43_radio_write(dev, B2055_C2_RX_RFR1, e->radio_c2_rx_rfr1);
+	b43_read32(dev, B43_MMIO_MACCTL); /* flush writes */
+
+	b43_radio_write(dev, B2055_C2_TX_PGAPADTN, e->radio_c2_tx_pgapadtn);
+	b43_radio_write(dev, B2055_C2_TX_MXBGTRIM, e->radio_c2_tx_mxbgtrim);
 }
 
 static void b43_chantab_phy_upload(struct b43_wldev *dev,
