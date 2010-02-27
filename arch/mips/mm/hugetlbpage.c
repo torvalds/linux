@@ -97,4 +97,3 @@ follow_huge_pmd(struct mm_struct *mm, unsigned long address,
 		page += ((address & ~HPAGE_MASK) >> PAGE_SHIFT);
 	return page;
 }
-

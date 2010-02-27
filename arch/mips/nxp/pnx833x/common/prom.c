@@ -67,4 +67,3 @@ char * __init prom_getcmdline(void)
 {
 	return arcs_cmdline;
 }
-

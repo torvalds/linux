@@ -305,4 +305,3 @@ asmlinkage void cache_parity_error_octeon_non_recoverable(void)
 {
 	cache_parity_error_octeon(1);
 }
-

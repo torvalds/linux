@@ -377,4 +377,3 @@ void __init plat_time_init(void)
 
 	mips_hpt_frequency *= 500000;
 }
-
