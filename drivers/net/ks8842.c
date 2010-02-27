@@ -20,6 +20,8 @@
  * The Micrel KS8842 behind the timberdale FPGA
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
@@ -525,8 +527,7 @@ static int ks8842_open(struct net_device *netdev)
 	err = request_irq(adapter->irq, ks8842_irq, IRQF_SHARED, DRV_NAME,
 		adapter);
 	if (err) {
-		printk(KERN_ERR "Failed to request IRQ: %d: %d\n",
-			adapter->irq, err);
+		pr_err("Failed to request IRQ: %d: %d\n", adapter->irq, err);
 		return err;
 	}
 
@@ -668,8 +669,7 @@ static int __devinit ks8842_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, netdev);
 
-	printk(KERN_INFO DRV_NAME
-		" Found chip, family: 0x%x, id: 0x%x, rev: 0x%x\n",
+	pr_info("Found chip, family: 0x%x, id: 0x%x, rev: 0x%x\n",
 		(id >> 8) & 0xff, (id >> 4) & 0xf, (id >> 1) & 0x7);
 
 	return 0;

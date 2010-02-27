@@ -21,6 +21,8 @@
  * KS8851 16bit MLL chip from Micrel Inc.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
@@ -458,11 +460,6 @@ struct ks_net {
 
 static int msg_enable;
 
-#define ks_info(_ks, _msg...) dev_info(&(_ks)->pdev->dev, _msg)
-#define ks_warn(_ks, _msg...) dev_warn(&(_ks)->pdev->dev, _msg)
-#define ks_dbg(_ks, _msg...) dev_dbg(&(_ks)->pdev->dev, _msg)
-#define ks_err(_ks, _msg...) dev_err(&(_ks)->pdev->dev, _msg)
-
 #define BE3             0x8000      /* Byte Enable 3 */
 #define BE2             0x4000      /* Byte Enable 2 */
 #define BE1             0x2000      /* Byte Enable 1 */
@@ -624,8 +621,7 @@ static void ks_set_powermode(struct ks_net *ks, unsigned pwrmode)
 {
 	unsigned pmecr;
 
-	if (netif_msg_hw(ks))
-		ks_dbg(ks, "setting power mode %d\n", pwrmode);
+	netif_dbg(ks, hw, ks->netdev, "setting power mode %d\n", pwrmode);
 
 	ks_rdreg16(ks, KS_GRR);
 	pmecr = ks_rdreg16(ks, KS_PMECR);
@@ -809,7 +805,7 @@ static void ks_rcv(struct ks_net *ks, struct net_device *netdev)
 			skb->protocol = eth_type_trans(skb, netdev);
 			netif_rx(skb);
 		} else {
-			printk(KERN_ERR "%s: err:skb alloc\n", __func__);
+			pr_err("%s: err:skb alloc\n", __func__);
 			ks_wrreg16(ks, KS_RXQCR, (ks->rc_rxqcr | RXQCR_RRXEF));
 			if (skb)
 				dev_kfree_skb_irq(skb);
@@ -836,9 +832,8 @@ static void ks_update_link_status(struct net_device *netdev, struct ks_net *ks)
 		netif_carrier_off(netdev);
 		link_up_status = false;
 	}
-	if (netif_msg_link(ks))
-		ks_dbg(ks, "%s: %s\n",
-			__func__, link_up_status ? "UP" : "DOWN");
+	netif_dbg(ks, link, ks->netdev,
+		  "%s: %s\n", __func__, link_up_status ? "UP" : "DOWN");
 }
 
 /**
@@ -908,15 +903,13 @@ static int ks_net_open(struct net_device *netdev)
 	 * else at the moment.
 	 */
 
-	if (netif_msg_ifup(ks))
-		ks_dbg(ks, "%s - entry\n", __func__);
+	netif_dbg(ks, ifup, ks->netdev, "%s - entry\n", __func__);
 
 	/* reset the HW */
 	err = request_irq(ks->irq, ks_irq, KS_INT_FLAGS, DRV_NAME, netdev);
 
 	if (err) {
-		printk(KERN_ERR "Failed to request IRQ: %d: %d\n",
-			ks->irq, err);
+		pr_err("Failed to request IRQ: %d: %d\n", ks->irq, err);
 		return err;
 	}
 
@@ -929,8 +922,7 @@ static int ks_net_open(struct net_device *netdev)
 	ks_enable_qmu(ks);
 	netif_start_queue(ks->netdev);
 
-	if (netif_msg_ifup(ks))
-		ks_dbg(ks, "network device %s up\n", netdev->name);
+	netif_dbg(ks, ifup, ks->netdev, "network device up\n");
 
 	return 0;
 }
@@ -947,8 +939,7 @@ static int ks_net_stop(struct net_device *netdev)
 {
 	struct ks_net *ks = netdev_priv(netdev);
 
-	if (netif_msg_ifdown(ks))
-		ks_info(ks, "%s: shutting down\n", netdev->name);
+	netif_info(ks, ifdown, netdev, "shutting down\n");
 
 	netif_stop_queue(netdev);
 
@@ -1429,21 +1420,21 @@ static int ks_read_selftest(struct ks_net *ks)
 	rd = ks_rdreg16(ks, KS_MBIR);
 
 	if ((rd & both_done) != both_done) {
-		ks_warn(ks, "Memory selftest not finished\n");
+		netdev_warn(ks->netdev, "Memory selftest not finished\n");
 		return 0;
 	}
 
 	if (rd & MBIR_TXMBFA) {
-		ks_err(ks, "TX memory selftest fails\n");
+		netdev_err(ks->netdev, "TX memory selftest fails\n");
 		ret |= 1;
 	}
 
 	if (rd & MBIR_RXMBFA) {
-		ks_err(ks, "RX memory selftest fails\n");
+		netdev_err(ks->netdev, "RX memory selftest fails\n");
 		ret |= 2;
 	}
 
-	ks_info(ks, "the selftest passes\n");
+	netdev_info(ks->netdev, "the selftest passes\n");
 	return ret;
 }
 
@@ -1514,7 +1505,7 @@ static int ks_hw_init(struct ks_net *ks)
 	ks->frame_head_info = (struct type_frame_head *) \
 		kmalloc(MHEADER_SIZE, GFP_KERNEL);
 	if (!ks->frame_head_info) {
-		printk(KERN_ERR "Error: Fail to allocate frame memory\n");
+		pr_err("Error: Fail to allocate frame memory\n");
 		return false;
 	}
 
@@ -1580,7 +1571,7 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 	ks->mii.mdio_read       = ks_phy_read;
 	ks->mii.mdio_write      = ks_phy_write;
 
-	ks_info(ks, "message enable is %d\n", msg_enable);
+	netdev_info(netdev, "message enable is %d\n", msg_enable);
 	/* set the default message enable */
 	ks->msg_enable = netif_msg_init(msg_enable, (NETIF_MSG_DRV |
 						     NETIF_MSG_PROBE |
@@ -1589,13 +1580,13 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 
 	/* simple check for a valid chip being connected to the bus */
 	if ((ks_rdreg16(ks, KS_CIDER) & ~CIDER_REV_MASK) != CIDER_ID) {
-		ks_err(ks, "failed to read device ID\n");
+		netdev_err(netdev, "failed to read device ID\n");
 		err = -ENODEV;
 		goto err_register;
 	}
 
 	if (ks_read_selftest(ks)) {
-		ks_err(ks, "failed to read device ID\n");
+		netdev_err(netdev, "failed to read device ID\n");
 		err = -ENODEV;
 		goto err_register;
 	}
@@ -1626,9 +1617,8 @@ static int __devinit ks8851_probe(struct platform_device *pdev)
 
 	id = ks_rdreg16(ks, KS_CIDER);
 
-	printk(KERN_INFO DRV_NAME
-		" Found chip, family: 0x%x, id: 0x%x, rev: 0x%x\n",
-		(id >> 8) & 0xff, (id >> 4) & 0xf, (id >> 1) & 0x7);
+	netdev_info(netdev, "Found chip, family: 0x%x, id: 0x%x, rev: 0x%x\n",
+		    (id >> 8) & 0xff, (id >> 4) & 0xf, (id >> 1) & 0x7);
 	return 0;
 
 err_register:

@@ -14,6 +14,8 @@
  * GNU General Public License for more details.
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -1482,11 +1484,6 @@ struct dev_priv {
 	int multicast;
 	int promiscuous;
 };
-
-#define ks_info(_ks, _msg...) dev_info(&(_ks)->pdev->dev, _msg)
-#define ks_warn(_ks, _msg...) dev_warn(&(_ks)->pdev->dev, _msg)
-#define ks_dbg(_ks, _msg...) dev_dbg(&(_ks)->pdev->dev, _msg)
-#define ks_err(_ks, _msg...) dev_err(&(_ks)->pdev->dev, _msg)
 
 #define DRV_NAME		"KSZ884X PCI"
 #define DEVICE_NAME		"KSZ884x PCI"
@@ -3834,7 +3831,7 @@ static void ksz_check_desc_num(struct ksz_desc_info *info)
 		alloc >>= 1;
 	}
 	if (alloc != 1 || shift < MIN_DESC_SHIFT) {
-		printk(KERN_ALERT "Hardware descriptor numbers not right!\n");
+		pr_alert("Hardware descriptor numbers not right!\n");
 		while (alloc) {
 			shift++;
 			alloc >>= 1;
@@ -4545,8 +4542,7 @@ static int ksz_alloc_mem(struct dev_info *adapter)
 		(((sizeof(struct ksz_hw_desc) + DESC_ALIGNMENT - 1) /
 		DESC_ALIGNMENT) * DESC_ALIGNMENT);
 	if (hw->rx_desc_info.size != sizeof(struct ksz_hw_desc))
-		printk(KERN_ALERT
-			"Hardware descriptor size not right!\n");
+		pr_alert("Hardware descriptor size not right!\n");
 	ksz_check_desc_num(&hw->rx_desc_info);
 	ksz_check_desc_num(&hw->tx_desc_info);
 
@@ -5319,10 +5315,10 @@ static irqreturn_t netdev_intr(int irq, void *dev_id)
 			u32 data;
 
 			hw->intr_mask &= ~KS884X_INT_TX_STOPPED;
-			printk(KERN_INFO "Tx stopped\n");
+			pr_info("Tx stopped\n");
 			data = readl(hw->io + KS_DMA_TX_CTRL);
 			if (!(data & DMA_TX_ENABLE))
-				printk(KERN_INFO "Tx disabled\n");
+				pr_info("Tx disabled\n");
 			break;
 		}
 	} while (0);
@@ -5495,6 +5491,18 @@ static int prepare_hardware(struct net_device *dev)
 	return 0;
 }
 
+static void set_media_state(struct net_device *dev, int media_state)
+{
+	struct dev_priv *priv = netdev_priv(dev);
+
+	if (media_state == priv->media_state)
+		netif_carrier_on(dev);
+	else
+		netif_carrier_off(dev);
+	netif_info(priv, link, dev, "link %s\n",
+		   media_state == priv->media_state ? "on" : "off");
+}
+
 /**
  * netdev_open - open network device
  * @dev:	Network device.
@@ -5584,15 +5592,7 @@ static int netdev_open(struct net_device *dev)
 
 	priv->media_state = port->linked->state;
 
-	if (media_connected == priv->media_state)
-		netif_carrier_on(dev);
-	else
-		netif_carrier_off(dev);
-	if (netif_msg_link(priv))
-		printk(KERN_INFO "%s link %s\n", dev->name,
-			(media_connected == priv->media_state ?
-			"on" : "off"));
-
+	set_media_state(dev, media_connected);
 	netif_start_queue(dev);
 
 	return 0;
@@ -6682,16 +6682,8 @@ static void update_link(struct net_device *dev, struct dev_priv *priv,
 {
 	if (priv->media_state != port->linked->state) {
 		priv->media_state = port->linked->state;
-		if (netif_running(dev)) {
-			if (media_connected == priv->media_state)
-				netif_carrier_on(dev);
-			else
-				netif_carrier_off(dev);
-			if (netif_msg_link(priv))
-				printk(KERN_INFO "%s link %s\n", dev->name,
-					(media_connected == priv->media_state ?
-					"on" : "off"));
-		}
+		if (netif_running(dev))
+			set_media_state(dev, media_connected);
 	}
 }
 
@@ -6985,7 +6977,7 @@ static int __init pcidev_init(struct pci_dev *pdev,
 	int pi;
 	int port_count;
 	int result;
-	char banner[80];
+	char banner[sizeof(version)];
 	struct ksz_switch *sw = NULL;
 
 	result = pci_enable_device(pdev);
@@ -7009,10 +7001,9 @@ static int __init pcidev_init(struct pci_dev *pdev,
 
 	result = -ENOMEM;
 
-	info = kmalloc(sizeof(struct platform_info), GFP_KERNEL);
+	info = kzalloc(sizeof(struct platform_info), GFP_KERNEL);
 	if (!info)
 		goto pcidev_init_dev_err;
-	memset(info, 0, sizeof(struct platform_info));
 
 	hw_priv = &info->dev_info;
 	hw_priv->pdev = pdev;
@@ -7026,15 +7017,15 @@ static int __init pcidev_init(struct pci_dev *pdev,
 	cnt = hw_init(hw);
 	if (!cnt) {
 		if (msg_enable & NETIF_MSG_PROBE)
-			printk(KERN_ALERT "chip not detected\n");
+			pr_alert("chip not detected\n");
 		result = -ENODEV;
 		goto pcidev_init_alloc_err;
 	}
 
-	sprintf(banner,	"%s\n", version);
-	banner[13] = cnt + '0';
-	ks_info(hw_priv, "%s", banner);
-	ks_dbg(hw_priv, "Mem = %p; IRQ = %d\n", hw->io, pdev->irq);
+	snprintf(banner, sizeof(banner), "%s", version);
+	banner[13] = cnt + '0';		/* Replace x in "Micrel KSZ884x" */
+	dev_info(&hw_priv->pdev->dev, "%s\n", banner);
+	dev_dbg(&hw_priv->pdev->dev, "Mem = %p; IRQ = %d\n", hw->io, pdev->irq);
 
 	/* Assume device is KSZ8841. */
 	hw->dev_count = 1;
