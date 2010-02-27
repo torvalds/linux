@@ -17,7 +17,6 @@
 #endif
 
 #define CNODEID_NONE (cnodeid_t)-1
-#define enter_panic_mode()	spin_lock(&nmi_lock)
 
 typedef unsigned long machreg_t;
 
@@ -193,9 +192,9 @@ cont_nmi_dump(void)
 	atomic_inc(&nmied_cpus);
 #endif
 	/*
-	 * Use enter_panic_mode to allow only 1 cpu to proceed
+	 * Only allow 1 cpu to proceed
 	 */
-	enter_panic_mode();
+	spin_lock(&nmi_lock);
 
 #ifdef REAL_NMI_SIGNAL
 	/*
