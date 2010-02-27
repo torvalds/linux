@@ -374,6 +374,15 @@ UNUSUAL_DEV(  0x04ce, 0x0002, 0x0074, 0x0074,
 		US_SC_DEVICE, US_PR_DEVICE, NULL,
 		US_FL_FIX_INQUIRY),
 
+/* Reported by Ondrej Zary <linux@rainbow-software.org>
+ * The device reports one sector more and breaks when that sector is accessed
+ */
+UNUSUAL_DEV(  0x04ce, 0x0002, 0x026c, 0x026c,
+		"ScanLogic",
+		"SL11R-IDE",
+		US_SC_DEVICE, US_PR_DEVICE, NULL,
+		US_FL_FIX_CAPACITY),
+
 /* Reported by Kriston Fincher <kriston@airmail.net>
  * Patch submitted by Sean Millichamp <sean@bruenor.org>
  * This is to support the Panasonic PalmCam PV-SD4090
