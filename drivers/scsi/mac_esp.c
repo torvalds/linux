@@ -22,7 +22,6 @@
 
 #include <asm/irq.h>
 #include <asm/dma.h>
-
 #include <asm/macints.h>
 #include <asm/macintosh.h>
 
@@ -279,24 +278,27 @@ static void mac_esp_send_pdma_cmd(struct esp *esp, u32 addr, u32 esp_count,
  * Programmed IO routines follow.
  */
 
-static inline int mac_esp_wait_for_fifo(struct esp *esp)
+static inline unsigned int mac_esp_wait_for_fifo(struct esp *esp)
 {
 	int i = 500000;
 
 	do {
-		if (esp_read8(ESP_FFLAGS) & ESP_FF_FBYTES)
-			return 0;
+		unsigned int fbytes = esp_read8(ESP_FFLAGS) & ESP_FF_FBYTES;
+
+		if (fbytes)
+			return fbytes;
 
 		udelay(2);
 	} while (--i);
 
 	printk(KERN_ERR PFX "FIFO is empty (sreg %02x)\n",
 	       esp_read8(ESP_STATUS));
-	return 1;
+	return 0;
 }
 
 static inline int mac_esp_wait_for_intr(struct esp *esp)
 {
+	struct mac_esp_priv *mep = MAC_ESP_GET_PRIV(esp);
 	int i = 500000;
 
 	do {
@@ -308,6 +310,7 @@ static inline int mac_esp_wait_for_intr(struct esp *esp)
 	} while (--i);
 
 	printk(KERN_ERR PFX "IRQ timeout (sreg %02x)\n", esp->sreg);
+	mep->error = 1;
 	return 1;
 }
 
@@ -347,11 +350,10 @@ static inline int mac_esp_wait_for_intr(struct esp *esp)
 static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 				 u32 dma_count, int write, u8 cmd)
 {
-	unsigned long flags;
 	struct mac_esp_priv *mep = MAC_ESP_GET_PRIV(esp);
 	u8 *fifo = esp->regs + ESP_FDATA * 16;
 
-	local_irq_save(flags);
+	disable_irq(esp->host->irq);
 
 	cmd &= ~ESP_CMD_DMA;
 	mep->error = 0;
@@ -359,11 +361,35 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 	if (write) {
 		scsi_esp_cmd(esp, cmd);
 
-		if (!mac_esp_wait_for_intr(esp)) {
-			if (mac_esp_wait_for_fifo(esp))
-				esp_count = 0;
-		} else {
-			esp_count = 0;
+		while (1) {
+			unsigned int n;
+
+			n = mac_esp_wait_for_fifo(esp);
+			if (!n)
+				break;
+
+			if (n > esp_count)
+				n = esp_count;
+			esp_count -= n;
+
+			MAC_ESP_PIO_LOOP("%2@,%0@+", n);
+
+			if (!esp_count)
+				break;
+
+			if (mac_esp_wait_for_intr(esp))
+				break;
+
+			if (((esp->sreg & ESP_STAT_PMASK) != ESP_DIP) &&
+			    ((esp->sreg & ESP_STAT_PMASK) != ESP_MIP))
+				break;
+
+			esp->ireg = esp_read8(ESP_INTRPT);
+			if ((esp->ireg & (ESP_INTR_DC | ESP_INTR_BSERV)) !=
+			    ESP_INTR_BSERV)
+				break;
+
+			scsi_esp_cmd(esp, ESP_CMD_TI);
 		}
 	} else {
 		scsi_esp_cmd(esp, ESP_CMD_FLUSH);
@@ -374,47 +400,24 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 			MAC_ESP_PIO_LOOP("%0@+,%2@", esp_count);
 
 		scsi_esp_cmd(esp, cmd);
-	}
 
-	while (esp_count) {
-		unsigned int n;
+		while (esp_count) {
+			unsigned int n;
 
-		if (mac_esp_wait_for_intr(esp)) {
-			mep->error = 1;
-			break;
-		}
-
-		if (esp->sreg & ESP_STAT_SPAM) {
-			printk(KERN_ERR PFX "gross error\n");
-			mep->error = 1;
-			break;
-		}
-
-		n = esp_read8(ESP_FFLAGS) & ESP_FF_FBYTES;
-
-		if (write) {
-			if (n > esp_count)
-				n = esp_count;
-			esp_count -= n;
-
-			MAC_ESP_PIO_LOOP("%2@,%0@+", n);
-
-			if ((esp->sreg & ESP_STAT_PMASK) == ESP_STATP)
+			if (mac_esp_wait_for_intr(esp))
 				break;
 
-			if (esp_count) {
-				esp->ireg = esp_read8(ESP_INTRPT);
-				if (esp->ireg & ESP_INTR_DC)
-					break;
+			if (((esp->sreg & ESP_STAT_PMASK) != ESP_DOP) &&
+			    ((esp->sreg & ESP_STAT_PMASK) != ESP_MOP))
+				break;
 
-				scsi_esp_cmd(esp, ESP_CMD_TI);
-			}
-		} else {
 			esp->ireg = esp_read8(ESP_INTRPT);
-			if (esp->ireg & ESP_INTR_DC)
+			if ((esp->ireg & (ESP_INTR_DC | ESP_INTR_BSERV)) !=
+			    ESP_INTR_BSERV)
 				break;
 
-			n = MAC_ESP_FIFO_SIZE - n;
+			n = MAC_ESP_FIFO_SIZE -
+			    (esp_read8(ESP_FFLAGS) & ESP_FF_FBYTES);
 			if (n > esp_count)
 				n = esp_count;
 
@@ -429,7 +432,7 @@ static void mac_esp_send_pio_cmd(struct esp *esp, u32 addr, u32 esp_count,
 		}
 	}
 
-	local_irq_restore(flags);
+	enable_irq(esp->host->irq);
 }
 
 static int mac_esp_irq_pending(struct esp *esp)

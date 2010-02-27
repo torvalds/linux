@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -40,31 +40,29 @@
 #define DRV_DESC		BE_NAME " " "Driver"
 
 #define BE_VENDOR_ID 		0x19A2
+/* DEVICE ID's for BE2 */
 #define BE_DEVICE_ID1		0x212
 #define OC_DEVICE_ID1		0x702
 #define OC_DEVICE_ID2		0x703
-#define OC_DEVICE_ID3		0x712
-#define OC_DEVICE_ID4		0x222
 
-#define BE2_MAX_SESSIONS	64
+/* DEVICE ID's for BE3 */
+#define BE_DEVICE_ID2		0x222
+#define OC_DEVICE_ID3		0x712
+
+#define BE2_IO_DEPTH		1024
+#define BE2_MAX_SESSIONS	256
 #define BE2_CMDS_PER_CXN	128
-#define BE2_LOGOUTS		BE2_MAX_SESSIONS
 #define BE2_TMFS		16
 #define BE2_NOPOUT_REQ		16
-#define BE2_ASYNCPDUS		BE2_MAX_SESSIONS
-#define BE2_MAX_ICDS		2048
 #define BE2_SGE			32
 #define BE2_DEFPDU_HDR_SZ	64
 #define BE2_DEFPDU_DATA_SZ	8192
-#define BE2_IO_DEPTH \
-	(BE2_MAX_ICDS / 2 - (BE2_LOGOUTS + BE2_TMFS + BE2_NOPOUT_REQ))
 
 #define MAX_CPUS		31
-#define BEISCSI_SGLIST_ELEMENTS	BE2_SGE
+#define BEISCSI_SGLIST_ELEMENTS	30
 
-#define BEISCSI_MAX_CMNDS	1024	/* Max IO's per Ctrlr sht->can_queue */
 #define BEISCSI_CMD_PER_LUN	128	/* scsi_host->cmd_per_lun */
-#define BEISCSI_MAX_SECTORS	2048	/* scsi_host->max_sectors */
+#define BEISCSI_MAX_SECTORS	256	/* scsi_host->max_sectors */
 
 #define BEISCSI_MAX_CMD_LEN	16	/* scsi_host->max_cmd_len */
 #define BEISCSI_NUM_MAX_LUN	256	/* scsi_host->max_lun */
@@ -330,6 +328,7 @@ struct beiscsi_hba {
 	struct workqueue_struct *wq;	/* The actuak work queue */
 	struct work_struct work_cqs;	/* The work being queued */
 	struct be_ctrl_info ctrl;
+	unsigned int generation;
 };
 
 struct beiscsi_session {
@@ -656,10 +655,11 @@ struct amap_iscsi_wrb {
 
 } __packed;
 
-struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid,
-				    int index);
+struct wrb_handle *alloc_wrb_handle(struct beiscsi_hba *phba, unsigned int cid);
 void
 free_mgmt_sgl_handle(struct beiscsi_hba *phba, struct sgl_handle *psgl_handle);
+
+void beiscsi_process_all_cqs(struct work_struct *work);
 
 struct pdu_nop_out {
 	u32 dw[12];
@@ -802,7 +802,6 @@ struct hwi_controller {
 	struct be_ring default_pdu_hdr;
 	struct be_ring default_pdu_data;
 	struct hwi_context_memory *phwi_ctxt;
-	unsigned short cq_errors[CXN_KILLED_CMND_DATA_NOT_ON_SAME_CONN];
 };
 
 enum hwh_type_enum {

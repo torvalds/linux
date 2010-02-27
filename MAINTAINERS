@@ -2141,6 +2141,17 @@ S:	Supported
 F:	Documentation/fault-injection/
 F:	lib/fault-inject.c
 
+FCOE SUBSYSTEM (libfc, libfcoe, fcoe)
+M:	Robert Love <robert.w.love@intel.com>
+L:	devel@open-fcoe.org
+W:	www.Open-FCoE.org
+S:	Supported
+F:	drivers/scsi/libfc/
+F:	drivers/scsi/fcoe/
+F:	include/scsi/fc/
+F:	include/scsi/libfc.h
+F:	include/scsi/libfcoe.h
+
 FILE LOCKING (flock() and fcntl()/lockf())
 M:	Matthew Wilcox <matthew@wil.cx>
 L:	linux-fsdevel@vger.kernel.org
