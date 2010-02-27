@@ -345,6 +345,24 @@ static ssize_t store_flush(struct device *d,
 }
 static DEVICE_ATTR(flush, S_IWUSR, NULL, store_flush);
 
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+static ssize_t show_multicast_router(struct device *d,
+				     struct device_attribute *attr, char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%d\n", br->multicast_router);
+}
+
+static ssize_t store_multicast_router(struct device *d,
+				      struct device_attribute *attr,
+				      const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, br_multicast_set_router);
+}
+static DEVICE_ATTR(multicast_router, S_IRUGO | S_IWUSR, show_multicast_router,
+		   store_multicast_router);
+#endif
+
 static struct attribute *bridge_attrs[] = {
 	&dev_attr_forward_delay.attr,
 	&dev_attr_hello_time.attr,
@@ -364,6 +382,9 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_gc_timer.attr,
 	&dev_attr_group_addr.attr,
 	&dev_attr_flush.attr,
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	&dev_attr_multicast_router.attr,
+#endif
 	NULL
 };
 

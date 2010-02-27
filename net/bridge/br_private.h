@@ -297,6 +297,9 @@ extern void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
 				 struct sk_buff *skb);
 extern void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
 				 struct sk_buff *skb, struct sk_buff *skb2);
+extern int br_multicast_set_router(struct net_bridge *br, unsigned long val);
+extern int br_multicast_set_port_router(struct net_bridge_port *p,
+					unsigned long val);
 #else
 static inline int br_multicast_rcv(struct net_bridge *br,
 				   struct net_bridge_port *port,

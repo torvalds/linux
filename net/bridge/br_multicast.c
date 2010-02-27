@@ -746,12 +746,30 @@ static int br_multicast_igmp3_report(struct net_bridge *br,
 	return err;
 }
 
+static void br_multicast_add_router(struct net_bridge *br,
+				    struct net_bridge_port *port)
+{
+	struct hlist_node *p;
+	struct hlist_node **h;
+
+	for (h = &br->router_list.first;
+	     (p = *h) &&
+	     (unsigned long)container_of(p, struct net_bridge_port, rlist) >
+	     (unsigned long)port;
+	     h = &p->next)
+		;
+
+	port->rlist.pprev = h;
+	port->rlist.next = p;
+	rcu_assign_pointer(*h, &port->rlist);
+	if (p)
+		p->pprev = &port->rlist.next;
+}
+
 static void br_multicast_mark_router(struct net_bridge *br,
 				     struct net_bridge_port *port)
 {
 	unsigned long now = jiffies;
-	struct hlist_node *p;
-	struct hlist_node **h;
 
 	if (!port) {
 		if (br->multicast_router == 1)
@@ -766,18 +784,7 @@ static void br_multicast_mark_router(struct net_bridge *br,
 	if (!hlist_unhashed(&port->rlist))
 		goto timer;
 
-	for (h = &br->router_list.first;
-	     (p = *h) &&
-	     (unsigned long)container_of(p, struct net_bridge_port, rlist) >
-	     (unsigned long)port;
-	     h = &p->next)
-		;
-
-	port->rlist.pprev = h;
-	port->rlist.next = p;
-	rcu_assign_pointer(*h, &port->rlist);
-	if (p)
-		p->pprev = &port->rlist.next;
+	br_multicast_add_router(br, port);
 
 timer:
 	mod_timer(&port->multicast_router_timer,
@@ -1132,4 +1139,74 @@ void br_multicast_stop(struct net_bridge *br)
 
 out:
 	spin_unlock_bh(&br->multicast_lock);
+}
+
+int br_multicast_set_router(struct net_bridge *br, unsigned long val)
+{
+	int err = -ENOENT;
+
+	spin_lock_bh(&br->multicast_lock);
+	if (!netif_running(br->dev))
+		goto unlock;
+
+	switch (val) {
+	case 0:
+	case 2:
+		del_timer(&br->multicast_router_timer);
+		/* fall through */
+	case 1:
+		br->multicast_router = val;
+		err = 0;
+		break;
+
+	default:
+		err = -EINVAL;
+		break;
+	}
+
+unlock:
+	spin_unlock_bh(&br->multicast_lock);
+
+	return err;
+}
+
+int br_multicast_set_port_router(struct net_bridge_port *p, unsigned long val)
+{
+	struct net_bridge *br = p->br;
+	int err = -ENOENT;
+
+	spin_lock(&br->multicast_lock);
+	if (!netif_running(br->dev) || p->state == BR_STATE_DISABLED)
+		goto unlock;
+
+	switch (val) {
+	case 0:
+	case 1:
+	case 2:
+		p->multicast_router = val;
+		err = 0;
+
+		if (val < 2 && !hlist_unhashed(&p->rlist))
+			hlist_del_init_rcu(&p->rlist);
+
+		if (val == 1)
+			break;
+
+		del_timer(&p->multicast_router_timer);
+
+		if (val == 0)
+			break;
+
+		br_multicast_add_router(br, p);
+		break;
+
+	default:
+		err = -EINVAL;
+		break;
+	}
+
+unlock:
+	spin_unlock(&br->multicast_lock);
+
+	return err;
 }
