@@ -5639,8 +5639,14 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 		return txq;
 	}
 #endif
-	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED)
-		return (skb->vlan_tci & IXGBE_TX_FLAGS_VLAN_PRIO_MASK) >> 13;
+	if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
+		if (skb->priority == TC_PRIO_CONTROL)
+			txq = adapter->ring_feature[RING_F_DCB].indices-1;
+		else
+			txq = (skb->vlan_tci & IXGBE_TX_FLAGS_VLAN_PRIO_MASK)
+			       >> 13;
+		return txq;
+	}
 
 	return skb_tx_hash(dev, skb);
 }
@@ -5667,14 +5673,9 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
 		tx_flags |= IXGBE_TX_FLAGS_VLAN;
 	} else if (adapter->flags & IXGBE_FLAG_DCB_ENABLED) {
-		if (skb->priority != TC_PRIO_CONTROL) {
-			tx_flags |= ((skb->queue_mapping & 0x7) << 13);
-			tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
-			tx_flags |= IXGBE_TX_FLAGS_VLAN;
-		} else {
-			skb->queue_mapping =
-				adapter->ring_feature[RING_F_DCB].indices-1;
-		}
+		tx_flags |= ((skb->queue_mapping & 0x7) << 13);
+		tx_flags <<= IXGBE_TX_FLAGS_VLAN_SHIFT;
+		tx_flags |= IXGBE_TX_FLAGS_VLAN;
 	}
 
 	tx_ring = adapter->tx_ring[skb->queue_mapping];
