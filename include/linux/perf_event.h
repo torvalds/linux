@@ -487,9 +487,8 @@ struct hw_perf_event {
 			struct hrtimer	hrtimer;
 		};
 #ifdef CONFIG_HAVE_HW_BREAKPOINT
-		union { /* breakpoint */
-			struct arch_hw_breakpoint	info;
-		};
+		/* breakpoint */
+		struct arch_hw_breakpoint	info;
 #endif
 	};
 	atomic64_t			prev_count;
