@@ -53,7 +53,7 @@ MODULE_DEVICE_TABLE (usb, wdm_ids);
 #define WDM_INT_STALL		5
 #define WDM_POLL_RUNNING	6
 #define WDM_RESPONDING		7
-
+#define WDM_SUSPENDING		8
 
 #define WDM_MAX			16
 
@@ -231,7 +231,8 @@ static void wdm_int_callback(struct urb *urb)
 	spin_lock(&desc->iuspin);
 	clear_bit(WDM_READ, &desc->flags);
 	set_bit(WDM_RESPONDING, &desc->flags);
-	if (!test_bit(WDM_DISCONNECTING, &desc->flags)) {
+	if (!test_bit(WDM_DISCONNECTING, &desc->flags)
+		&& !test_bit(WDM_SUSPENDING, &desc->flags)) {
 		rv = usb_submit_urb(desc->response, GFP_ATOMIC);
 		dev_dbg(&desc->intf->dev, "%s: usb_submit_urb %d",
 			__func__, rv);
@@ -800,6 +801,7 @@ static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 		rv = -EBUSY;
 	} else {
 #endif
+		set_bit(WDM_SUSPENDING, &desc->flags);
 		cancel_work_sync(&desc->rxwork);
 		kill_urbs(desc);
 #ifdef CONFIG_PM
@@ -830,6 +832,7 @@ static int wdm_resume(struct usb_interface *intf)
 	dev_dbg(&desc->intf->dev, "wdm%d_resume\n", intf->minor);
 	mutex_lock(&desc->lock);
 	rv = recover_from_urb_loss(desc);
+	clear_bit(WDM_SUSPENDING, &desc->flags);
 	mutex_unlock(&desc->lock);
 	return rv;
 }
