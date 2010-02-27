@@ -105,8 +105,9 @@ void br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 
 /* called under bridge lock */
 static void br_flood(struct net_bridge *br, struct sk_buff *skb,
-	void (*__packet_hook)(const struct net_bridge_port *p,
-			      struct sk_buff *skb))
+		     struct sk_buff *skb0,
+		     void (*__packet_hook)(const struct net_bridge_port *p,
+					   struct sk_buff *skb))
 {
 	struct net_bridge_port *p;
 	struct net_bridge_port *prev;
@@ -120,8 +121,7 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 
 				if ((skb2 = skb_clone(skb, GFP_ATOMIC)) == NULL) {
 					br->dev->stats.tx_dropped++;
-					kfree_skb(skb);
-					return;
+					goto out;
 				}
 
 				__packet_hook(prev, skb2);
@@ -131,23 +131,34 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		}
 	}
 
-	if (prev != NULL) {
-		__packet_hook(prev, skb);
-		return;
-	}
+	if (!prev)
+		goto out;
 
-	kfree_skb(skb);
+	if (skb0) {
+		skb = skb_clone(skb, GFP_ATOMIC);
+		if (!skb) {
+			br->dev->stats.tx_dropped++;
+			goto out;
+		}
+	}
+	__packet_hook(prev, skb);
+	return;
+
+out:
+	if (!skb0)
+		kfree_skb(skb);
 }
 
 
 /* called with rcu_read_lock */
 void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb)
 {
-	br_flood(br, skb, __br_deliver);
+	br_flood(br, skb, NULL, __br_deliver);
 }
 
 /* called under bridge lock */
-void br_flood_forward(struct net_bridge *br, struct sk_buff *skb)
+void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
+		      struct sk_buff *skb2)
 {
-	br_flood(br, skb, __br_forward);
+	br_flood(br, skb, skb2, __br_forward);
 }

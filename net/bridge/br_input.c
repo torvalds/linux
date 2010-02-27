@@ -72,14 +72,11 @@ int br_handle_frame_finish(struct sk_buff *skb)
 		skb = NULL;
 	}
 
-	if (skb2 == skb)
-		skb2 = skb_clone(skb, GFP_ATOMIC);
-
 	if (skb) {
 		if (dst)
 			br_forward(dst->dst, skb);
 		else
-			br_flood_forward(br, skb);
+			br_flood_forward(br, skb, skb2);
 	}
 
 	if (skb2)

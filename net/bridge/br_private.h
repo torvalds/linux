@@ -180,7 +180,8 @@ extern void br_forward(const struct net_bridge_port *to,
 		struct sk_buff *skb);
 extern int br_forward_finish(struct sk_buff *skb);
 extern void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb);
-extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb);
+extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
+			     struct sk_buff *skb2);
 
 /* br_if.c */
 extern void br_port_carrier_check(struct net_bridge_port *p);
