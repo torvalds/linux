@@ -121,6 +121,14 @@ config HAVE_DMA_ATTRS
 config USE_GENERIC_SMP_HELPERS
 	bool
 
+config HAVE_REGS_AND_STACK_ACCESS_API
+	bool
+	help
+	  This symbol should be selected by an architecure if it supports
+	  the API needed to access registers and stack entries from pt_regs,
+	  declared in asm/ptrace.h
+	  For example the kprobes-based event tracer needs this API.
+
 config HAVE_CLK
 	bool
 	help
