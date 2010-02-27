@@ -73,14 +73,14 @@ static struct irq_chip bcm1480_irq_type = {
 /* Store the CPU id (not the logical number) */
 int bcm1480_irq_owner[BCM1480_NR_IRQS];
 
-static DEFINE_SPINLOCK(bcm1480_imr_lock);
+static DEFINE_RAW_SPINLOCK(bcm1480_imr_lock);
 
 void bcm1480_mask_irq(int cpu, int irq)
 {
 	unsigned long flags, hl_spacing;
 	u64 cur_ints;
 
-	spin_lock_irqsave(&bcm1480_imr_lock, flags);
+	raw_spin_lock_irqsave(&bcm1480_imr_lock, flags);
 	hl_spacing = 0;
 	if ((irq >= BCM1480_NR_IRQS_HALF) && (irq <= BCM1480_NR_IRQS)) {
 		hl_spacing = BCM1480_IMR_HL_SPACING;
@@ -89,7 +89,7 @@ void bcm1480_mask_irq(int cpu, int irq)
 	cur_ints = ____raw_readq(IOADDR(A_BCM1480_IMR_MAPPER(cpu) + R_BCM1480_IMR_INTERRUPT_MASK_H + hl_spacing));
 	cur_ints |= (((u64) 1) << irq);
 	____raw_writeq(cur_ints, IOADDR(A_BCM1480_IMR_MAPPER(cpu) + R_BCM1480_IMR_INTERRUPT_MASK_H + hl_spacing));
-	spin_unlock_irqrestore(&bcm1480_imr_lock, flags);
+	raw_spin_unlock_irqrestore(&bcm1480_imr_lock, flags);
 }
 
 void bcm1480_unmask_irq(int cpu, int irq)
@@ -97,7 +97,7 @@ void bcm1480_unmask_irq(int cpu, int irq)
 	unsigned long flags, hl_spacing;
 	u64 cur_ints;
 
-	spin_lock_irqsave(&bcm1480_imr_lock, flags);
+	raw_spin_lock_irqsave(&bcm1480_imr_lock, flags);
 	hl_spacing = 0;
 	if ((irq >= BCM1480_NR_IRQS_HALF) && (irq <= BCM1480_NR_IRQS)) {
 		hl_spacing = BCM1480_IMR_HL_SPACING;
@@ -106,7 +106,7 @@ void bcm1480_unmask_irq(int cpu, int irq)
 	cur_ints = ____raw_readq(IOADDR(A_BCM1480_IMR_MAPPER(cpu) + R_BCM1480_IMR_INTERRUPT_MASK_H + hl_spacing));
 	cur_ints &= ~(((u64) 1) << irq);
 	____raw_writeq(cur_ints, IOADDR(A_BCM1480_IMR_MAPPER(cpu) + R_BCM1480_IMR_INTERRUPT_MASK_H + hl_spacing));
-	spin_unlock_irqrestore(&bcm1480_imr_lock, flags);
+	raw_spin_unlock_irqrestore(&bcm1480_imr_lock, flags);
 }
 
 #ifdef CONFIG_SMP
@@ -123,7 +123,7 @@ static int bcm1480_set_affinity(unsigned int irq, const struct cpumask *mask)
 	cpu = cpu_logical_map(i);
 
 	/* Protect against other affinity changers and IMR manipulation */
-	spin_lock_irqsave(&bcm1480_imr_lock, flags);
+	raw_spin_lock_irqsave(&bcm1480_imr_lock, flags);
 
 	/* Swizzle each CPU's IMR (but leave the IP selection alone) */
 	old_cpu = bcm1480_irq_owner[irq];
@@ -148,7 +148,7 @@ static int bcm1480_set_affinity(unsigned int irq, const struct cpumask *mask)
 			____raw_writeq(cur_ints, IOADDR(A_BCM1480_IMR_MAPPER(cpu) + R_BCM1480_IMR_INTERRUPT_MASK_H + (k*BCM1480_IMR_HL_SPACING)));
 		}
 	}
-	spin_unlock_irqrestore(&bcm1480_imr_lock, flags);
+	raw_spin_unlock_irqrestore(&bcm1480_imr_lock, flags);
 
 	return 0;
 }
