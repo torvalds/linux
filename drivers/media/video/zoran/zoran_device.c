@@ -1196,7 +1196,8 @@ zoran_reap_stat_com (struct zoran *zr)
 static void zoran_restart(struct zoran *zr)
 {
 	/* Now the stat_comm buffer is ready for restart */
-	int status = 0, mode;
+	unsigned int status = 0;
+	int mode;
 
 	if (zr->codec_mode == BUZ_MODE_MOTION_COMPRESS) {
 		decoder_call(zr, video, g_input_status, &status);
@@ -1228,7 +1229,7 @@ error_handler (struct zoran *zr,
 	       u32           astat,
 	       u32           stat)
 {
-	int i, j;
+	int i;
 
 	/* This is JPEG error handling part */
 	if (zr->codec_mode != BUZ_MODE_MOTION_COMPRESS &&
@@ -1279,6 +1280,7 @@ error_handler (struct zoran *zr,
 	/* Report error */
 	if (zr36067_debug > 1 && zr->num_errors <= 8) {
 		long frame;
+		int j;
 
 		frame = zr->jpg_pend[zr->jpg_dma_tail & BUZ_MASK_FRAME];
 		printk(KERN_ERR

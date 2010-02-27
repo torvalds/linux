@@ -90,13 +90,14 @@ static inline struct node_entry *node_of(struct firedtv *fdtv)
 	return container_of(fdtv->device, struct unit_directory, device)->ne;
 }
 
-static int node_lock(struct firedtv *fdtv, u64 addr, __be32 data[])
+static int node_lock(struct firedtv *fdtv, u64 addr, void *data)
 {
+	quadlet_t *d = data;
 	int ret;
 
-	ret = hpsb_node_lock(node_of(fdtv), addr, EXTCODE_COMPARE_SWAP,
-		(__force quadlet_t *)&data[1], (__force quadlet_t)data[0]);
-	data[0] = data[1];
+	ret = hpsb_node_lock(node_of(fdtv), addr,
+			     EXTCODE_COMPARE_SWAP, &d[1], d[0]);
+	d[0] = d[1];
 
 	return ret;
 }
@@ -192,9 +193,13 @@ static int node_probe(struct device *dev)
 	int kv_len, err;
 	void *kv_str;
 
-	kv_len = (ud->model_name_kv->value.leaf.len - 2) * sizeof(quadlet_t);
-	kv_str = CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(ud->model_name_kv);
-
+	if (ud->model_name_kv) {
+		kv_len = (ud->model_name_kv->value.leaf.len - 2) * 4;
+		kv_str = CSR1212_TEXTUAL_DESCRIPTOR_LEAF_DATA(ud->model_name_kv);
+	} else {
+		kv_len = 0;
+		kv_str = NULL;
+	}
 	fdtv = fdtv_alloc(dev, &fdtv_1394_backend, kv_str, kv_len);
 	if (!fdtv)
 		return -ENOMEM;

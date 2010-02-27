@@ -170,6 +170,19 @@ static int is_locked(struct atbm_state *priv, u8 *locked)
 	return 0;
 }
 
+static int set_agc_config(struct atbm_state *priv,
+	u8 min, u8 max, u8 hold_loop)
+{
+	/* no effect if both min and max are zero */
+	if (!min && !max)
+	    return 0;
+
+	atbm8830_write_reg(priv, REG_AGC_MIN, min);
+	atbm8830_write_reg(priv, REG_AGC_MAX, max);
+	atbm8830_write_reg(priv, REG_AGC_HOLD_LOOP, hold_loop);
+
+	return 0;
+}
 
 static int set_static_channel_mode(struct atbm_state *priv)
 {
@@ -227,6 +240,9 @@ static int atbm8830_init(struct dvb_frontend *fe)
 	/*Set IF frequency*/
 	set_if_freq(priv, cfg->if_freq);
 
+	/*Set AGC Config*/
+	set_agc_config(priv, cfg->agc_min, cfg->agc_max,
+		cfg->agc_hold_loop);
 
 	/*Set static channel mode*/
 	set_static_channel_mode(priv);

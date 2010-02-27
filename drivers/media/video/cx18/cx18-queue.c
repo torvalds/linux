@@ -419,6 +419,9 @@ void cx18_stream_free(struct cx18_stream *s)
 {
 	struct cx18_mdl *mdl;
 	struct cx18_buffer *buf;
+	struct cx18 *cx = s->cx;
+
+	CX18_DEBUG_INFO("Deallocating buffers for %s stream\n", s->name);
 
 	/* move all buffers to buf_pool and all MDLs to q_idle */
 	cx18_unload_queues(s);
