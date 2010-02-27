@@ -20,9 +20,9 @@
 /* Bridge group multicast address 802.1d (pg 51). */
 const u8 br_group_address[ETH_ALEN] = { 0x01, 0x80, 0xc2, 0x00, 0x00, 0x00 };
 
-static void br_pass_frame_up(struct net_bridge *br, struct sk_buff *skb)
+static int br_pass_frame_up(struct sk_buff *skb)
 {
-	struct net_device *indev, *brdev = br->dev;
+	struct net_device *indev, *brdev = BR_INPUT_SKB_CB(skb)->brdev;
 
 	brdev->stats.rx_packets++;
 	brdev->stats.rx_bytes += skb->len;
@@ -30,8 +30,8 @@ static void br_pass_frame_up(struct net_bridge *br, struct sk_buff *skb)
 	indev = skb->dev;
 	skb->dev = brdev;
 
-	NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, indev, NULL,
-		netif_receive_skb);
+	return NF_HOOK(PF_BRIDGE, NF_BR_LOCAL_IN, skb, indev, NULL,
+		       netif_receive_skb);
 }
 
 /* note: already called with rcu_read_lock (preempt_disabled) */
@@ -52,6 +52,8 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 	if (p->state == BR_STATE_LEARNING)
 		goto drop;
+
+	BR_INPUT_SKB_CB(skb)->brdev = br->dev;
 
 	/* The packet skb2 goes to the local host (NULL to skip). */
 	skb2 = NULL;
@@ -81,7 +83,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 	}
 
 	if (skb2)
-		br_pass_frame_up(br, skb2);
+		return br_pass_frame_up(skb2);
 
 out:
 	return 0;

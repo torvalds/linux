@@ -131,6 +131,12 @@ struct net_bridge
 	struct kobject			*ifobj;
 };
 
+struct br_input_skb_cb {
+	struct net_device *brdev;
+};
+
+#define BR_INPUT_SKB_CB(__skb)	((struct br_input_skb_cb *)(__skb)->cb)
+
 extern struct notifier_block br_device_notifier;
 extern const u8 br_group_address[ETH_ALEN];
 
