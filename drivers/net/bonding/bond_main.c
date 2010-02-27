@@ -4946,6 +4946,8 @@ int bond_create(struct net *net, const char *name)
 	}
 
 	res = register_netdevice(bond_dev);
+	if (res < 0)
+		goto out_netdev;
 
 out:
 	rtnl_unlock();
