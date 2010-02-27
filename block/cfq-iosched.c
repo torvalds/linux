@@ -46,8 +46,8 @@ static const int cfq_hist_divisor = 4;
 #define CFQ_HW_QUEUE_MIN	(5)
 #define CFQ_SERVICE_SHIFT       12
 
-#define CFQQ_SEEK_THR		8 * 1024
-#define CFQQ_SEEKY(cfqq)	((cfqq)->seek_mean > CFQQ_SEEK_THR)
+#define CFQQ_SEEK_THR		(sector_t)(8 * 100)
+#define CFQQ_SEEKY(cfqq)	(hweight32(cfqq->seek_history) > 32/8)
 
 #define RQ_CIC(rq)		\
 	((struct cfq_io_context *) (rq)->elevator_private)
@@ -132,9 +132,7 @@ struct cfq_queue {
 
 	pid_t pid;
 
-	unsigned int seek_samples;
-	u64 seek_total;
-	sector_t seek_mean;
+	u32 seek_history;
 	sector_t last_request_pos;
 
 	struct cfq_rb_root *service_tree;
@@ -1668,16 +1666,7 @@ static inline sector_t cfq_dist_from_last(struct cfq_data *cfqd,
 static inline int cfq_rq_close(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			       struct request *rq, bool for_preempt)
 {
-	sector_t sdist = cfqq->seek_mean;
-
-	if (!sample_valid(cfqq->seek_samples))
-		sdist = CFQQ_SEEK_THR;
-
-	/* if seek_mean is big, using it as close criteria is meaningless */
-	if (sdist > CFQQ_SEEK_THR && !for_preempt)
-		sdist = CFQQ_SEEK_THR;
-
-	return cfq_dist_from_last(cfqd, rq) <= sdist;
+	return cfq_dist_from_last(cfqd, rq) <= CFQQ_SEEK_THR;
 }
 
 static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
@@ -2975,30 +2964,16 @@ static void
 cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		       struct request *rq)
 {
-	sector_t sdist;
-	u64 total;
+	sector_t sdist = 0;
+	if (cfqq->last_request_pos) {
+		if (cfqq->last_request_pos < blk_rq_pos(rq))
+			sdist = blk_rq_pos(rq) - cfqq->last_request_pos;
+		else
+			sdist = cfqq->last_request_pos - blk_rq_pos(rq);
+	}
 
-	if (!cfqq->last_request_pos)
-		sdist = 0;
-	else if (cfqq->last_request_pos < blk_rq_pos(rq))
-		sdist = blk_rq_pos(rq) - cfqq->last_request_pos;
-	else
-		sdist = cfqq->last_request_pos - blk_rq_pos(rq);
-
-	/*
-	 * Don't allow the seek distance to get too large from the
-	 * odd fragment, pagein, etc
-	 */
-	if (cfqq->seek_samples <= 60) /* second&third seek */
-		sdist = min(sdist, (cfqq->seek_mean * 4) + 2*1024*1024);
-	else
-		sdist = min(sdist, (cfqq->seek_mean * 4) + 2*1024*64);
-
-	cfqq->seek_samples = (7*cfqq->seek_samples + 256) / 8;
-	cfqq->seek_total = (7*cfqq->seek_total + (u64)256*sdist) / 8;
-	total = cfqq->seek_total + (cfqq->seek_samples/2);
-	do_div(total, cfqq->seek_samples);
-	cfqq->seek_mean = (sector_t)total;
+	cfqq->seek_history <<= 1;
+	cfqq->seek_history |= (sdist > CFQQ_SEEK_THR);
 }
 
 /*
@@ -3023,8 +2998,7 @@ cfq_update_idle_window(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		cfq_mark_cfqq_deep(cfqq);
 
 	if (!atomic_read(&cic->ioc->nr_tasks) || !cfqd->cfq_slice_idle ||
-	    (!cfq_cfqq_deep(cfqq) && sample_valid(cfqq->seek_samples)
-	     && CFQQ_SEEKY(cfqq)))
+	    (!cfq_cfqq_deep(cfqq) && CFQQ_SEEKY(cfqq)))
 		enable_idle = 0;
 	else if (sample_valid(cic->ttime_samples)) {
 		if (cic->ttime_mean > cfqd->cfq_slice_idle)
