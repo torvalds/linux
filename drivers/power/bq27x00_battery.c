@@ -125,7 +125,7 @@ static int bq27x00_battery_voltage(struct bq27x00_device_info *di)
 		return ret;
 	}
 
-	return volt;
+	return volt * 1000;
 }
 
 /*
@@ -156,11 +156,11 @@ static int bq27x00_battery_current(struct bq27x00_device_info *di)
 		}
 		if (flags & BQ27000_FLAG_CHGS) {
 			dev_dbg(di->dev, "negative current!\n");
-			return -curr;
+			curr = -curr;
 		}
 	}
 
-	return curr;
+	return curr * 1000;
 }
 
 /*
