@@ -26,6 +26,8 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	const unsigned char *dest = skb->data;
 	struct net_bridge_fdb_entry *dst;
 
+	BR_INPUT_SKB_CB(skb)->brdev = dev;
+
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 

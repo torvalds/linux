@@ -111,6 +111,7 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 {
 	struct net_bridge_port *p;
 	struct net_bridge_port *prev;
+	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
 
 	prev = NULL;
 
@@ -120,7 +121,7 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 				struct sk_buff *skb2;
 
 				if ((skb2 = skb_clone(skb, GFP_ATOMIC)) == NULL) {
-					br->dev->stats.tx_dropped++;
+					dev->stats.tx_dropped++;
 					goto out;
 				}
 
@@ -137,7 +138,7 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 	if (skb0) {
 		skb = skb_clone(skb, GFP_ATOMIC);
 		if (!skb) {
-			br->dev->stats.tx_dropped++;
+			dev->stats.tx_dropped++;
 			goto out;
 		}
 	}
