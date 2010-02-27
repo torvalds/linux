@@ -439,6 +439,7 @@ void __init sparse_mem_maps_populate_node(struct page **map_map,
 }
 #endif /* !CONFIG_SPARSEMEM_VMEMMAP */
 
+#ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
 static void __init sparse_early_mem_maps_alloc_node(struct page **map_map,
 				 unsigned long pnum_begin,
 				 unsigned long pnum_end,
@@ -447,8 +448,7 @@ static void __init sparse_early_mem_maps_alloc_node(struct page **map_map,
 	sparse_mem_maps_populate_node(map_map, pnum_begin, pnum_end,
 					 map_count, nodeid);
 }
-
-#ifndef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+#else
 static struct page __init *sparse_early_mem_map_alloc(unsigned long pnum)
 {
 	struct page *map;
@@ -478,14 +478,17 @@ void __init sparse_init(void)
 {
 	unsigned long pnum;
 	struct page *map;
-	struct page **map_map;
 	unsigned long *usemap;
 	unsigned long **usemap_map;
-	int size, size2;
+	int size;
 	int nodeid_begin = 0;
 	unsigned long pnum_begin = 0;
 	unsigned long usemap_count;
+#ifdef CONFIG_SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
 	unsigned long map_count;
+	int size2;
+	struct page **map_map;
+#endif
 
 	/*
 	 * map is using big page (aka 2M in x86 64 bit)
