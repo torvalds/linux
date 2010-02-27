@@ -72,6 +72,7 @@ static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
 						u16 value, u8 core, bool off);
 static void b43_nphy_rf_control_intc_override(struct b43_wldev *dev, u8 field,
 						u16 value, u8 core);
+static int nphy_channel_switch(struct b43_wldev *dev, unsigned int channel);
 
 static inline bool b43_empty_chanspec(struct b43_chanspec *chanspec)
 {
@@ -169,31 +170,6 @@ static void b43_radio_2055_setup(struct b43_wldev *dev,
 	b43_read32(dev, B43_MMIO_MACCTL); /* flush writes */
 	b43_radio_write(dev, B2055_VCO_CAL10, 65);
 	udelay(300);
-}
-
-/* Tune the hardware to a new channel. */
-static int nphy_channel_switch(struct b43_wldev *dev, unsigned int channel)
-{
-	const struct b43_nphy_channeltab_entry *tabent;
-
-	tabent = b43_nphy_get_chantabent(dev, channel);
-	if (!tabent)
-		return -ESRCH;
-
-	//FIXME enable/disable band select upper20 in RXCTL
-	if (0 /*FIXME 5Ghz*/)
-		b43_radio_maskset(dev, B2055_MASTER1, 0xFF8F, 0x20);
-	else
-		b43_radio_maskset(dev, B2055_MASTER1, 0xFF8F, 0x50);
-	b43_radio_2055_setup(dev, tabent);
-	if (0 /*FIXME 5Ghz*/)
-		b43_phy_set(dev, B43_NPHY_BANDCTL, B43_NPHY_BANDCTL_5GHZ);
-	else
-		b43_phy_mask(dev, B43_NPHY_BANDCTL, ~B43_NPHY_BANDCTL_5GHZ);
-	b43_chantab_phy_upload(dev, tabent);
-	b43_nphy_tx_power_fix(dev);
-
-	return 0;
 }
 
 static void b43_radio_init2055_pre(struct b43_wldev *dev)
@@ -3342,6 +3318,67 @@ static void b43_nphy_chanspec_setup(struct b43_wldev *dev,
 
 	if (phy->rev >= 3)
 		b43_nphy_spur_workaround(dev);
+}
+
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SetChanspec */
+static int b43_nphy_set_chanspec(struct b43_wldev *dev,
+					struct b43_chanspec chanspec)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+
+	const struct b43_nphy_channeltab_entry *tabent;
+
+	u8 tmp;
+	u8 channel = chanspec.channel;
+
+	if (dev->phy.rev >= 3) {
+		/* TODO */
+	}
+
+	nphy->radio_chanspec = chanspec;
+
+	if (chanspec.b_width != nphy->b_width)
+		; /* TODO: BMAC BW Set (chanspec.b_width) */
+
+	/* TODO: use defines */
+	if (chanspec.b_width == 3) {
+		if (chanspec.sideband == 2)
+			b43_phy_set(dev, B43_NPHY_RXCTL,
+					B43_NPHY_RXCTL_BSELU20);
+		else
+			b43_phy_mask(dev, B43_NPHY_RXCTL,
+					~B43_NPHY_RXCTL_BSELU20);
+	}
+
+	if (dev->phy.rev >= 3) {
+		tmp = (chanspec.b_freq == 1) ? 4 : 0;
+		b43_radio_maskset(dev, 0x08, 0xFFFB, tmp);
+		/* TODO: PHY Radio2056 Setup (chan_info_ptr[i]) */
+		/* TODO: N PHY Chanspec Setup (chan_info_ptr[i]) */
+	} else {
+		tabent = b43_nphy_get_chantabent(dev, channel);
+		if (!tabent)
+			return -ESRCH;
+
+		tmp = (chanspec.b_freq == 1) ? 0x0020 : 0x0050;
+		b43_radio_maskset(dev, B2055_MASTER1, 0xFF8F, tmp);
+		b43_radio_2055_setup(dev, tabent);
+		b43_nphy_chanspec_setup(dev, tabent, chanspec);
+	}
+
+	return 0;
+}
+
+/* Tune the hardware to a new channel */
+static int nphy_channel_switch(struct b43_wldev *dev, unsigned int channel)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+
+	struct b43_chanspec chanspec;
+	chanspec = nphy->radio_chanspec;
+	chanspec.channel = channel;
+
+	return b43_nphy_set_chanspec(dev, chanspec);
 }
 
 static int b43_nphy_op_allocate(struct b43_wldev *dev)

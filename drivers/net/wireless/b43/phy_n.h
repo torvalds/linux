@@ -984,6 +984,7 @@ struct b43_phy_n {
 	u16 papd_epsilon_offset[2];
 	s32 preamble_override;
 	u32 bb_mult_save;
+	u8 b_width;
 	struct b43_chanspec radio_chanspec;
 
 	bool gain_boost;
