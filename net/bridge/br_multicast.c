@@ -656,6 +656,15 @@ void br_multicast_del_port(struct net_bridge_port *port)
 	del_timer_sync(&port->multicast_router_timer);
 }
 
+static void __br_multicast_enable_port(struct net_bridge_port *port)
+{
+	port->multicast_startup_queries_sent = 0;
+
+	if (try_to_del_timer_sync(&port->multicast_query_timer) >= 0 ||
+	    del_timer(&port->multicast_query_timer))
+		mod_timer(&port->multicast_query_timer, jiffies);
+}
+
 void br_multicast_enable_port(struct net_bridge_port *port)
 {
 	struct net_bridge *br = port->br;
@@ -664,11 +673,7 @@ void br_multicast_enable_port(struct net_bridge_port *port)
 	if (br->multicast_disabled || !netif_running(br->dev))
 		goto out;
 
-	port->multicast_startup_queries_sent = 0;
-
-	if (try_to_del_timer_sync(&port->multicast_query_timer) >= 0 ||
-	    del_timer(&port->multicast_query_timer))
-		mod_timer(&port->multicast_query_timer, jiffies);
+	__br_multicast_enable_port(port);
 
 out:
 	spin_unlock(&br->multicast_lock);
@@ -1203,6 +1208,52 @@ int br_multicast_set_port_router(struct net_bridge_port *p, unsigned long val)
 	default:
 		err = -EINVAL;
 		break;
+	}
+
+unlock:
+	spin_unlock(&br->multicast_lock);
+
+	return err;
+}
+
+int br_multicast_toggle(struct net_bridge *br, unsigned long val)
+{
+	struct net_bridge_port *port;
+	int err = -ENOENT;
+
+	spin_lock(&br->multicast_lock);
+	if (!netif_running(br->dev))
+		goto unlock;
+
+	err = 0;
+	if (br->multicast_disabled == !val)
+		goto unlock;
+
+	br->multicast_disabled = !val;
+	if (br->multicast_disabled)
+		goto unlock;
+
+	if (br->mdb) {
+		if (br->mdb->old) {
+			err = -EEXIST;
+rollback:
+			br->multicast_disabled = !!val;
+			goto unlock;
+		}
+
+		err = br_mdb_rehash(&br->mdb, br->mdb->max,
+				    br->hash_elasticity);
+		if (err)
+			goto rollback;
+	}
+
+	br_multicast_open(br);
+	list_for_each_entry(port, &br->port_list, list) {
+		if (port->state == BR_STATE_DISABLED ||
+		    port->state == BR_STATE_BLOCKING)
+			continue;
+
+		__br_multicast_enable_port(port);
 	}
 
 unlock:

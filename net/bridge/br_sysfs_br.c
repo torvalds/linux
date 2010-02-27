@@ -361,6 +361,23 @@ static ssize_t store_multicast_router(struct device *d,
 }
 static DEVICE_ATTR(multicast_router, S_IRUGO | S_IWUSR, show_multicast_router,
 		   store_multicast_router);
+
+static ssize_t show_multicast_snooping(struct device *d,
+				       struct device_attribute *attr,
+				       char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%d\n", !br->multicast_disabled);
+}
+
+static ssize_t store_multicast_snooping(struct device *d,
+					struct device_attribute *attr,
+					const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, br_multicast_toggle);
+}
+static DEVICE_ATTR(multicast_snooping, S_IRUGO | S_IWUSR,
+		   show_multicast_snooping, store_multicast_snooping);
 #endif
 
 static struct attribute *bridge_attrs[] = {
@@ -384,6 +401,7 @@ static struct attribute *bridge_attrs[] = {
 	&dev_attr_flush.attr,
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	&dev_attr_multicast_router.attr,
+	&dev_attr_multicast_snooping.attr,
 #endif
 	NULL
 };
