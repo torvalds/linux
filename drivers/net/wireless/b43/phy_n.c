@@ -73,6 +73,21 @@ static void b43_nphy_rf_control_override(struct b43_wldev *dev, u16 field,
 static void b43_nphy_rf_control_intc_override(struct b43_wldev *dev, u8 field,
 						u16 value, u8 core);
 
+static inline bool b43_empty_chanspec(struct b43_chanspec *chanspec)
+{
+	return !chanspec->channel && !chanspec->sideband &&
+		!chanspec->b_width && !chanspec->b_freq;
+}
+
+static inline bool b43_eq_chanspecs(struct b43_chanspec *chanspec1,
+					struct b43_chanspec *chanspec2)
+{
+	return (chanspec1->channel == chanspec2->channel &&
+		chanspec1->sideband == chanspec2->sideband &&
+		chanspec1->b_width == chanspec2->b_width &&
+		chanspec1->b_freq == chanspec2->b_freq);
+}
+
 void b43_nphy_set_rxantenna(struct b43_wldev *dev, int antenna)
 {//TODO
 }
@@ -768,7 +783,7 @@ static void b43_nphy_spur_workaround(struct b43_wldev *dev)
 {
 	struct b43_phy_n *nphy = dev->phy.n;
 
-	unsigned int channel;
+	u8 channel = nphy->radio_chanspec.channel;
 	int tone[2] = { 57, 58 };
 	u32 noise[2] = { 0x3FF, 0x3FF };
 
@@ -776,8 +791,6 @@ static void b43_nphy_spur_workaround(struct b43_wldev *dev)
 
 	if (nphy->hang_avoid)
 		b43_nphy_stay_in_carrier_search(dev, 1);
-
-	/* FIXME: channel = radio_chanspec */
 
 	if (nphy->gband_spurwar_en) {
 		/* TODO: N PHY Adjust Analog Pfbw (7) */
@@ -2015,12 +2028,12 @@ static void b43_nphy_restore_rssi_cal(struct b43_wldev *dev)
 	u16 *rssical_phy_regs = NULL;
 
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
-		if (!nphy->rssical_chanspec_2G)
+		if (b43_empty_chanspec(&nphy->rssical_chanspec_2G))
 			return;
 		rssical_radio_regs = nphy->rssical_cache.rssical_radio_regs_2G;
 		rssical_phy_regs = nphy->rssical_cache.rssical_phy_regs_2G;
 	} else {
-		if (!nphy->rssical_chanspec_5G)
+		if (b43_empty_chanspec(&nphy->rssical_chanspec_5G))
 			return;
 		rssical_radio_regs = nphy->rssical_cache.rssical_radio_regs_5G;
 		rssical_phy_regs = nphy->rssical_cache.rssical_phy_regs_5G;
@@ -2440,7 +2453,7 @@ static void b43_nphy_save_cal(struct b43_wldev *dev)
 
 	struct b43_phy_n_iq_comp *rxcal_coeffs = NULL;
 	u16 *txcal_radio_regs = NULL;
-	u8 *iqcal_chanspec;
+	struct b43_chanspec *iqcal_chanspec;
 	u16 *table = NULL;
 
 	if (nphy->hang_avoid)
@@ -2496,12 +2509,12 @@ static void b43_nphy_restore_cal(struct b43_wldev *dev)
 	struct b43_phy_n_iq_comp *rxcal_coeffs = NULL;
 
 	if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
-		if (nphy->iqcal_chanspec_2G == 0)
+		if (b43_empty_chanspec(&nphy->iqcal_chanspec_2G))
 			return;
 		table = nphy->cal_cache.txcal_coeffs_2G;
 		loft = &nphy->cal_cache.txcal_coeffs_2G[5];
 	} else {
-		if (nphy->iqcal_chanspec_5G == 0)
+		if (b43_empty_chanspec(&nphy->iqcal_chanspec_5G))
 			return;
 		table = nphy->cal_cache.txcal_coeffs_5G;
 		loft = &nphy->cal_cache.txcal_coeffs_5G[5];
@@ -2746,8 +2759,7 @@ static int b43_nphy_cal_tx_iq_lo(struct b43_wldev *dev,
 			b43_ntab_read_bulk(dev, B43_NTAB16(15, 96), length,
 						nphy->txiqlocal_bestc);
 			nphy->txiqlocal_coeffsvalid = true;
-			/* TODO: Set nphy->txiqlocal_chanspec to
-				the current channel */
+			nphy->txiqlocal_chanspec = nphy->radio_chanspec;
 		} else {
 			length = 11;
 			if (dev->phy.rev < 3)
@@ -2782,7 +2794,8 @@ static void b43_nphy_reapply_tx_cal_coeffs(struct b43_wldev *dev)
 	u16 buffer[7];
 	bool equal = true;
 
-	if (!nphy->txiqlocal_coeffsvalid || 1 /* FIXME */)
+	if (!nphy->txiqlocal_coeffsvalid ||
+	    b43_eq_chanspecs(&nphy->txiqlocal_chanspec, &nphy->radio_chanspec))
 		return;
 
 	b43_ntab_read_bulk(dev, B43_NTAB16(15, 80), 7, buffer);
@@ -3137,9 +3150,11 @@ int b43_phy_initn(struct b43_wldev *dev)
 	do_rssi_cal = false;
 	if (phy->rev >= 3) {
 		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
-			do_rssi_cal = (nphy->rssical_chanspec_2G == 0);
+			do_rssi_cal =
+				b43_empty_chanspec(&nphy->rssical_chanspec_2G);
 		else
-			do_rssi_cal = (nphy->rssical_chanspec_5G == 0);
+			do_rssi_cal =
+				b43_empty_chanspec(&nphy->rssical_chanspec_5G);
 
 		if (do_rssi_cal)
 			b43_nphy_rssi_cal(dev);
@@ -3151,9 +3166,9 @@ int b43_phy_initn(struct b43_wldev *dev)
 
 	if (!((nphy->measure_hold & 0x6) != 0)) {
 		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ)
-			do_cal = (nphy->iqcal_chanspec_2G == 0);
+			do_cal = b43_empty_chanspec(&nphy->iqcal_chanspec_2G);
 		else
-			do_cal = (nphy->iqcal_chanspec_5G == 0);
+			do_cal = b43_empty_chanspec(&nphy->iqcal_chanspec_5G);
 
 		if (nphy->mute)
 			do_cal = false;

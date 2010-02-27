@@ -984,7 +984,7 @@ struct b43_phy_n {
 	u16 papd_epsilon_offset[2];
 	s32 preamble_override;
 	u32 bb_mult_save;
-	u16 radio_chanspec;
+	struct b43_chanspec radio_chanspec;
 
 	bool gain_boost;
 	bool elna_gain_config;
@@ -1000,6 +1000,7 @@ struct b43_phy_n {
 	u16 txiqlocal_bestc[11];
 	bool txiqlocal_coeffsvalid;
 	struct b43_phy_n_txpwrindex txpwrindex[2];
+	struct b43_chanspec txiqlocal_chanspec;
 
 	u8 txrx_chain;
 	u16 tx_rx_cal_phy_saveregs[11];
@@ -1015,12 +1016,12 @@ struct b43_phy_n {
 	bool gband_spurwar_en;
 
 	bool ipa2g_on;
-	u8 iqcal_chanspec_2G;
-	u8 rssical_chanspec_2G;
+	struct b43_chanspec iqcal_chanspec_2G;
+	struct b43_chanspec rssical_chanspec_2G;
 
 	bool ipa5g_on;
-	u8 iqcal_chanspec_5G;
-	u8 rssical_chanspec_5G;
+	struct b43_chanspec iqcal_chanspec_5G;
+	struct b43_chanspec rssical_chanspec_5G;
 
 	struct b43_phy_n_rssical_cache rssical_cache;
 	struct b43_phy_n_cal_cache cal_cache;
