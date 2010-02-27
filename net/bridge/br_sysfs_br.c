@@ -378,6 +378,43 @@ static ssize_t store_multicast_snooping(struct device *d,
 }
 static DEVICE_ATTR(multicast_snooping, S_IRUGO | S_IWUSR,
 		   show_multicast_snooping, store_multicast_snooping);
+
+static ssize_t show_hash_elasticity(struct device *d,
+				    struct device_attribute *attr, char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%u\n", br->hash_elasticity);
+}
+
+static int set_elasticity(struct net_bridge *br, unsigned long val)
+{
+	br->hash_elasticity = val;
+	return 0;
+}
+
+static ssize_t store_hash_elasticity(struct device *d,
+				     struct device_attribute *attr,
+				     const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, set_elasticity);
+}
+static DEVICE_ATTR(hash_elasticity, S_IRUGO | S_IWUSR, show_hash_elasticity,
+		   store_hash_elasticity);
+
+static ssize_t show_hash_max(struct device *d, struct device_attribute *attr,
+			     char *buf)
+{
+	struct net_bridge *br = to_bridge(d);
+	return sprintf(buf, "%u\n", br->hash_max);
+}
+
+static ssize_t store_hash_max(struct device *d, struct device_attribute *attr,
+			      const char *buf, size_t len)
+{
+	return store_bridge_parm(d, buf, len, br_multicast_set_hash_max);
+}
+static DEVICE_ATTR(hash_max, S_IRUGO | S_IWUSR, show_hash_max,
+		   store_hash_max);
 #endif
 
 static struct attribute *bridge_attrs[] = {
@@ -402,6 +439,8 @@ static struct attribute *bridge_attrs[] = {
 #ifdef CONFIG_BRIDGE_IGMP_SNOOPING
 	&dev_attr_multicast_router.attr,
 	&dev_attr_multicast_snooping.attr,
+	&dev_attr_hash_elasticity.attr,
+	&dev_attr_hash_max.attr,
 #endif
 	NULL
 };
