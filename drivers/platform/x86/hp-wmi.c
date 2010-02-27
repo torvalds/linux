@@ -89,6 +89,7 @@ static struct key_entry hp_wmi_keymap[] = {
 	{KE_KEY, 0x20e6, KEY_PROG1},
 	{KE_KEY, 0x2142, KEY_MEDIA},
 	{KE_KEY, 0x213b, KEY_INFO},
+	{KE_KEY, 0x2169, KEY_DIRECTION},
 	{KE_KEY, 0x231b, KEY_HELP},
 	{KE_END, 0}
 };

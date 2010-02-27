@@ -221,6 +221,7 @@ F:	drivers/net/acenic*
 
 ACER ASPIRE ONE TEMPERATURE AND FAN DRIVER
 M:	Peter Feuerer <peter@piie.net>
+L:	platform-driver-x86@vger.kernel.org
 W:	http://piie.net/?section=acerhdf
 S:	Maintained
 F:	drivers/platform/x86/acerhdf.c
@@ -228,6 +229,7 @@ F:	drivers/platform/x86/acerhdf.c
 ACER WMI LAPTOP EXTRAS
 M:	Carlos Corbacho <carlos@strangeworlds.co.uk>
 L:	aceracpi@googlegroups.com (subscribers-only)
+L:	platform-driver-x86@vger.kernel.org
 W:	http://code.google.com/p/aceracpi
 S:	Maintained
 F:	drivers/platform/x86/acer-wmi.c
@@ -288,7 +290,7 @@ F:	drivers/acpi/video.c
 
 ACPI WMI DRIVER
 M:	Carlos Corbacho <carlos@strangeworlds.co.uk>
-L:	linux-acpi@vger.kernel.org
+L:	platform-driver-x86@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
 S:	Maintained
 F:	drivers/platform/x86/wmi.c
@@ -968,6 +970,7 @@ ASUS ACPI EXTRAS DRIVER
 M:	Corentin Chary <corentincj@iksaif.net>
 M:	Karol Kozimor <sziwan@users.sourceforge.net>
 L:	acpi4asus-user@lists.sourceforge.net
+L:	platform-driver-x86@vger.kernel.org
 W:	http://acpi4asus.sf.net
 S:	Maintained
 F:	drivers/platform/x86/asus_acpi.c
@@ -981,6 +984,7 @@ F:	drivers/hwmon/asb100.c
 ASUS LAPTOP EXTRAS DRIVER
 M:	Corentin Chary <corentincj@iksaif.net>
 L:	acpi4asus-user@lists.sourceforge.net
+L:	platform-driver-x86@vger.kernel.org
 W:	http://acpi4asus.sf.net
 S:	Maintained
 F:	drivers/platform/x86/asus-laptop.c
@@ -1473,6 +1477,7 @@ F:	drivers/scsi/fnic/
 CMPC ACPI DRIVER
 M:	Thadeu Lima de Souza Cascardo <cascardo@holoscopio.com>
 M:	Daniel Oliveira Nascimento <don@syst.com.br>
+L:	platform-driver-x86@vger.kernel.org
 S:	Supported
 F:	drivers/platform/x86/classmate-laptop.c
 
@@ -1516,6 +1521,7 @@ F:	drivers/pci/hotplug/cpcihp_generic.c
 
 COMPAL LAPTOP SUPPORT
 M:	Cezary Jackiewicz <cezary.jackiewicz@gmail.com>
+L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/compal-laptop.c
 
@@ -1746,6 +1752,7 @@ F:	drivers/net/defxx.*
 
 DELL LAPTOP DRIVER
 M:	Matthew Garrett <mjg59@srcf.ucam.org>
+L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/dell-laptop.c
 
@@ -2028,6 +2035,7 @@ F:	drivers/edac/r82600_edac.c
 EEEPC LAPTOP EXTRAS DRIVER
 M:	Corentin Chary <corentincj@iksaif.net>
 L:	acpi4asus-user@lists.sourceforge.net
+L:	platform-driver-x86@vger.kernel.org
 W:	http://acpi4asus.sf.net
 S:	Maintained
 F:	drivers/platform/x86/eeepc-laptop.c
@@ -2306,7 +2314,7 @@ F:	arch/frv/
 
 FUJITSU LAPTOP EXTRAS
 M:	Jonathan Woithe <jwoithe@physics.adelaide.edu.au>
-L:	linux-acpi@vger.kernel.org
+L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/fujitsu-laptop.c
 
@@ -2584,6 +2592,7 @@ F:	drivers/net/wireless/hostap/
 
 HP COMPAQ TC1100 TABLET WMI EXTRAS DRIVER
 M:	Carlos Corbacho <carlos@strangeworlds.co.uk>
+L:	platform-driver-x86@vger.kernel.org
 S:	Odd Fixes
 F:	drivers/platform/x86/tc1100-wmi.c
 
@@ -2794,7 +2803,7 @@ F:	drivers/video/i810/
 
 INTEL MENLOW THERMAL DRIVER
 M:	Sujith Thomas <sujith.thomas@intel.com>
-L:	linux-acpi@vger.kernel.org
+L:	platform-driver-x86@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
 S:	Supported
 F:	drivers/platform/x86/intel_menlow.c
@@ -3660,6 +3669,7 @@ F:	drivers/char/mxser.*
 
 MSI LAPTOP SUPPORT
 M:	Lennart Poettering <mzxreary@0pointer.de>
+L:	platform-driver-x86@vger.kernel.org
 W:	https://tango.0pointer.de/mailman/listinfo/s270-linux
 W:	http://0pointer.de/lennart/tchibo.html
 S:	Maintained
@@ -3667,6 +3677,7 @@ F:	drivers/platform/x86/msi-laptop.c
 
 MSI WMI SUPPORT
 M:	Anisse Astier <anisse@astier.eu>
+L:	platform-driver-x86@vger.kernel.org
 S:	Supported
 F:	drivers/platform/x86/msi-wmi.c
 
@@ -4119,6 +4130,7 @@ F:	drivers/i2c/busses/i2c-pasemi.c
 
 PANASONIC LAPTOP ACPI EXTRAS DRIVER
 M:	Harald Welte <laforge@gnumonks.org>
+L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/panasonic-laptop.c
 
@@ -5064,7 +5076,7 @@ F:	include/linux/ssb/
 
 SONY VAIO CONTROL DEVICE DRIVER
 M:	Mattia Dongili <malattia@linux.it>
-L:	linux-acpi@vger.kernel.org
+L:	platform-driver-x86@vger.kernel.org
 W:	http://www.linux.it/~malattia/wiki/index.php/Sony_drivers
 S:	Maintained
 F:	Documentation/laptops/sony-laptop.txt
@@ -5270,6 +5282,7 @@ F:	arch/xtensa/
 THINKPAD ACPI EXTRAS DRIVER
 M:	Henrique de Moraes Holschuh <ibm-acpi@hmh.eng.br>
 L:	ibm-acpi-devel@lists.sourceforge.net
+L:	platform-driver-x86@vger.kernel.org
 W:	http://ibm-acpi.sourceforge.net
 W:	http://thinkwiki.org/wiki/Ibm-acpi
 T:	git git://repo.or.cz/linux-2.6/linux-acpi-2.6/ibm-acpi-2.6.git
@@ -5323,10 +5336,12 @@ F:	security/tomoyo/
 
 TOPSTAR LAPTOP EXTRAS DRIVER
 M:	Herton Ronaldo Krzesinski <herton@mandriva.com.br>
+L:	platform-driver-x86@vger.kernel.org
 S:	Maintained
 F:	drivers/platform/x86/topstar-laptop.c
 
 TOSHIBA ACPI EXTRAS DRIVER
+L:	platform-driver-x86@vger.kernel.org
 S:	Orphan
 F:	drivers/platform/x86/toshiba_acpi.c
 
@@ -6053,6 +6068,12 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/x86/linux-2.6-x86.git
 S:	Maintained
 F:	Documentation/x86/
 F:	arch/x86/
+
+X86 PLATFORM DRIVERS
+M:	Matthew Garrett <mjg@redhat.com>
+L:	platform-driver-x86@vger.kernel.org
+S:	Maintained
+F:	drivers/platform/x86
 
 XEN HYPERVISOR INTERFACE
 M:	Jeremy Fitzhardinge <jeremy@xensource.com>
