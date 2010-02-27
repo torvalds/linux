@@ -6541,7 +6541,8 @@ static int volume_set_status(const u8 status)
 	return volume_set_status_ec(status);
 }
 
-static int volume_set_mute_ec(const bool mute)
+/* returns < 0 on error, 0 on no change, 1 on change */
+static int __volume_set_mute_ec(const bool mute)
 {
 	int rc;
 	u8 s, n;
@@ -6556,22 +6557,37 @@ static int volume_set_mute_ec(const bool mute)
 	n = (mute) ? s | TP_EC_AUDIO_MUTESW_MSK :
 		     s & ~TP_EC_AUDIO_MUTESW_MSK;
 
-	if (n != s)
+	if (n != s) {
 		rc = volume_set_status_ec(n);
+		if (!rc)
+			rc = 1;
+	}
 
 unlock:
 	mutex_unlock(&volume_mutex);
 	return rc;
 }
 
-static int volume_set_mute(const bool mute)
+static int volume_alsa_set_mute(const bool mute)
 {
-	dbg_printk(TPACPI_DBG_MIXER, "trying to %smute\n",
+	dbg_printk(TPACPI_DBG_MIXER, "ALSA: trying to %smute\n",
 		   (mute) ? "" : "un");
-	return volume_set_mute_ec(mute);
+	return __volume_set_mute_ec(mute);
 }
 
-static int volume_set_volume_ec(const u8 vol)
+static int volume_set_mute(const bool mute)
+{
+	int rc;
+
+	dbg_printk(TPACPI_DBG_MIXER, "trying to %smute\n",
+		   (mute) ? "" : "un");
+
+	rc = __volume_set_mute_ec(mute);
+	return (rc < 0) ? rc : 0;
+}
+
+/* returns < 0 on error, 0 on no change, 1 on change */
+static int __volume_set_volume_ec(const u8 vol)
 {
 	int rc;
 	u8 s, n;
@@ -6588,19 +6604,22 @@ static int volume_set_volume_ec(const u8 vol)
 
 	n = (s & ~TP_EC_AUDIO_LVL_MSK) | vol;
 
-	if (n != s)
+	if (n != s) {
 		rc = volume_set_status_ec(n);
+		if (!rc)
+			rc = 1;
+	}
 
 unlock:
 	mutex_unlock(&volume_mutex);
 	return rc;
 }
 
-static int volume_set_volume(const u8 vol)
+static int volume_alsa_set_volume(const u8 vol)
 {
 	dbg_printk(TPACPI_DBG_MIXER,
-		   "trying to set volume level to %hu\n", vol);
-	return volume_set_volume_ec(vol);
+		   "ALSA: trying to set volume level to %hu\n", vol);
+	return __volume_set_volume_ec(vol);
 }
 
 static void volume_alsa_notify_change(void)
@@ -6647,7 +6666,7 @@ static int volume_alsa_vol_get(struct snd_kcontrol *kcontrol,
 static int volume_alsa_vol_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	return volume_set_volume(ucontrol->value.integer.value[0]);
+	return volume_alsa_set_volume(ucontrol->value.integer.value[0]);
 }
 
 #define volume_alsa_mute_info snd_ctl_boolean_mono_info
@@ -6670,7 +6689,7 @@ static int volume_alsa_mute_get(struct snd_kcontrol *kcontrol,
 static int volume_alsa_mute_put(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
 {
-	return volume_set_mute(!ucontrol->value.integer.value[0]);
+	return volume_alsa_set_mute(!ucontrol->value.integer.value[0]);
 }
 
 static struct snd_kcontrol_new volume_alsa_control_vol __devinitdata = {
