@@ -73,7 +73,7 @@ static struct irq_chip bcm1480_irq_type = {
 /* Store the CPU id (not the logical number) */
 int bcm1480_irq_owner[BCM1480_NR_IRQS];
 
-DEFINE_SPINLOCK(bcm1480_imr_lock);
+static DEFINE_SPINLOCK(bcm1480_imr_lock);
 
 void bcm1480_mask_irq(int cpu, int irq)
 {

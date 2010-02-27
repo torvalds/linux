@@ -72,7 +72,7 @@ static struct irq_chip sb1250_irq_type = {
 /* Store the CPU id (not the logical number) */
 int sb1250_irq_owner[SB1250_NR_IRQS];
 
-DEFINE_SPINLOCK(sb1250_imr_lock);
+static DEFINE_SPINLOCK(sb1250_imr_lock);
 
 void sb1250_mask_irq(int cpu, int irq)
 {

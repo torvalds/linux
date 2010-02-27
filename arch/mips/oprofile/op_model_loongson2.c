@@ -47,7 +47,7 @@ static struct loongson2_register_config {
 	int cnt1_enabled, cnt2_enabled;
 } reg;
 
-DEFINE_SPINLOCK(sample_lock);
+static DEFINE_SPINLOCK(sample_lock);
 
 static char *oprofid = "LoongsonPerf";
 static irqreturn_t loongson2_perfcount_handler(int irq, void *dev_id);

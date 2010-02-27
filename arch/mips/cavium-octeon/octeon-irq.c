@@ -15,7 +15,6 @@
 
 DEFINE_RWLOCK(octeon_irq_ciu0_rwlock);
 DEFINE_RWLOCK(octeon_irq_ciu1_rwlock);
-DEFINE_SPINLOCK(octeon_irq_msi_lock);
 
 static int octeon_coreid_for_cpu(int cpu)
 {
@@ -544,6 +543,8 @@ static struct irq_chip octeon_irq_chip_ciu1 = {
 };
 
 #ifdef CONFIG_PCI_MSI
+
+static DEFINE_SPINLOCK(octeon_irq_msi_lock);
 
 static void octeon_irq_msi_ack(unsigned int irq)
 {

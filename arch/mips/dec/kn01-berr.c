@@ -46,7 +46,7 @@
  * There is no default value -- it has to be initialized.
  */
 u16 cached_kn01_csr;
-DEFINE_SPINLOCK(kn01_lock);
+static DEFINE_SPINLOCK(kn01_lock);
 
 
 static inline void dec_kn01_be_ack(void)

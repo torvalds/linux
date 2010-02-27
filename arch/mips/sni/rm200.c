@@ -132,7 +132,7 @@ device_initcall(snirm_setup_devinit);
  * readb/writeb to access them
  */
 
-DEFINE_SPINLOCK(sni_rm200_i8259A_lock);
+static DEFINE_SPINLOCK(sni_rm200_i8259A_lock);
 #define PIC_CMD    0x00
 #define PIC_IMR    0x01
 #define PIC_ISR    PIC_CMD
