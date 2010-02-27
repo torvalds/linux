@@ -769,7 +769,7 @@ static void sethflip(struct gspca_dev *gspca_dev)
 				sccb_reg_read(gspca_dev, 0x0c) | 0x40);
 	else
 		sccb_reg_write(gspca_dev, 0x0c,
-				sccb_reg_read(gspca_dev, 0x0c) & 0xbf);
+				sccb_reg_read(gspca_dev, 0x0c) & ~0x40);
 }
 
 static void setvflip(struct gspca_dev *gspca_dev)
@@ -781,7 +781,7 @@ static void setvflip(struct gspca_dev *gspca_dev)
 				sccb_reg_read(gspca_dev, 0x0c) | 0x80);
 	else
 		sccb_reg_write(gspca_dev, 0x0c,
-				sccb_reg_read(gspca_dev, 0x0c) & 0x7f);
+				sccb_reg_read(gspca_dev, 0x0c) & ~0x80);
 }
 
 /* this function is called at probe time */
@@ -815,12 +815,8 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->awb = AWB_DEF;
 	sd->aec = AEC_DEF;
 	sd->sharpness = SHARPNESS_DEF;
-#if HFLIP_DEF != 0
 	sd->hflip = HFLIP_DEF;
-#endif
-#if VFLIP_DEF != 0
 	sd->vflip = VFLIP_DEF;
-#endif
 
 	return 0;
 }
