@@ -558,8 +558,12 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 
 	debugfs_hw_add(local);
 
+	/*
+	 * if the driver doesn't specify a max listen interval we
+	 * use 5 which should be a safe default
+	 */
 	if (local->hw.max_listen_interval == 0)
-		local->hw.max_listen_interval = 1;
+		local->hw.max_listen_interval = 5;
 
 	local->hw.conf.listen_interval = local->hw.max_listen_interval;
 

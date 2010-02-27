@@ -702,6 +702,7 @@ struct b43_wldev {
 	bool radio_hw_enable;	/* saved state of radio hardware enabled state */
 	bool qos_enabled;		/* TRUE, if QoS is used. */
 	bool hwcrypto_enabled;		/* TRUE, if HW crypto acceleration is enabled. */
+	bool use_pio;			/* TRUE if next init should use PIO */
 
 	/* PHY/Radio device. */
 	struct b43_phy phy;
@@ -885,6 +886,12 @@ static inline bool b43_using_pio_transfers(struct b43_wldev *dev)
 {
 	return dev->__using_pio_transfers;
 }
+
+#ifdef CONFIG_B43_FORCE_PIO
+# define B43_PIO_DEFAULT 1
+#else
+# define B43_PIO_DEFAULT 0
+#endif
 
 /* Message printing */
 void b43info(struct b43_wl *wl, const char *fmt, ...)

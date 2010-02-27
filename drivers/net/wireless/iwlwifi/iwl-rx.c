@@ -616,11 +616,6 @@ static void iwl_accumulative_statistics(struct iwl_priv *priv,
 
 #define REG_RECALIB_PERIOD (60)
 
-/* the threshold ratio of actual_ack_cnt to expected_ack_cnt in percent */
-#define ACK_CNT_RATIO (50)
-#define BA_TIMEOUT_CNT (5)
-#define BA_TIMEOUT_MAX (16)
-
 #define PLCP_MSG "plcp_err exceeded %u, %u, %u, %u, %u, %d, %u mSecs\n"
 void iwl_rx_statistics(struct iwl_priv *priv,
 			      struct iwl_rx_mem_buffer *rxb)
@@ -630,9 +625,6 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 	int combined_plcp_delta;
 	unsigned int plcp_msec;
 	unsigned long plcp_received_jiffies;
-	int actual_ack_cnt_delta;
-	int expected_ack_cnt_delta;
-	int ba_timeout_delta;
 
 	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
 		     (int)sizeof(priv->statistics),
@@ -647,44 +639,6 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 #ifdef CONFIG_IWLWIFI_DEBUG
 	iwl_accumulative_statistics(priv, (__le32 *)&pkt->u.stats);
 #endif
-	actual_ack_cnt_delta = le32_to_cpu(pkt->u.stats.tx.actual_ack_cnt) -
-		le32_to_cpu(priv->statistics.tx.actual_ack_cnt);
-	expected_ack_cnt_delta = le32_to_cpu(
-			pkt->u.stats.tx.expected_ack_cnt) -
-		le32_to_cpu(priv->statistics.tx.expected_ack_cnt);
-	ba_timeout_delta = le32_to_cpu(
-			pkt->u.stats.tx.agg.ba_timeout) -
-		le32_to_cpu(priv->statistics.tx.agg.ba_timeout);
-	if ((priv->agg_tids_count > 0) &&
-		(expected_ack_cnt_delta > 0) &&
-		(((actual_ack_cnt_delta * 100) / expected_ack_cnt_delta) <
-			ACK_CNT_RATIO) &&
-		(ba_timeout_delta > BA_TIMEOUT_CNT)) {
-		IWL_DEBUG_RADIO(priv,
-			"actual_ack_cnt delta = %d, expected_ack_cnt = %d\n",
-			actual_ack_cnt_delta, expected_ack_cnt_delta);
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-		IWL_DEBUG_RADIO(priv, "rx_detected_cnt delta = %d\n",
-			priv->delta_statistics.tx.rx_detected_cnt);
-		IWL_DEBUG_RADIO(priv,
-			"ack_or_ba_timeout_collision delta = %d\n",
-			priv->delta_statistics.tx.ack_or_ba_timeout_collision);
-#endif
-		IWL_DEBUG_RADIO(priv, "agg ba_timeout delta = %d\n",
-			ba_timeout_delta);
-		if ((actual_ack_cnt_delta == 0) &&
-			(ba_timeout_delta >=
-				BA_TIMEOUT_MAX)) {
-			IWL_DEBUG_RADIO(priv,
-				"call iwl_force_reset(IWL_FW_RESET)\n");
-			iwl_force_reset(priv, IWL_FW_RESET);
-		} else {
-			IWL_DEBUG_RADIO(priv,
-				"call iwl_force_reset(IWL_RF_RESET)\n");
-			iwl_force_reset(priv, IWL_RF_RESET);
-		}
-	}
 	/*
 	 * check for plcp_err and trigger radio reset if it exceeds
 	 * the plcp error threshold plcp_delta.

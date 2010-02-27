@@ -3,7 +3,6 @@ config B43
 	depends on SSB_POSSIBLE && MAC80211 && HAS_DMA
 	select SSB
 	select FW_LOADER
-	select SSB_BLOCKIO
 	---help---
 	  b43 is a driver for the Broadcom 43xx series wireless devices.
 
@@ -79,6 +78,14 @@ config B43_SDIO
 
 	  If unsure, say N.
 
+#Data transfers to the device via PIO. We want it as a fallback even
+# if we can do DMA.
+config B43_PIO
+	bool
+	depends on B43
+	select SSB_BLOCKIO
+	default y
+
 config B43_NPHY
 	bool "Pre IEEE 802.11n support (BROKEN)"
 	depends on B43 && EXPERIMENTAL && BROKEN
@@ -130,4 +137,12 @@ config B43_DEBUG
 	  for production use.
 	  Only say Y, if you are debugging a problem in the b43 driver sourcecode.
 
+config B43_FORCE_PIO
+	bool "Force usage of PIO instead of DMA"
+	depends on B43 && B43_DEBUG
+	---help---
+	  This will disable DMA and always enable PIO instead.
 
+	  Say N!
+	  This is only for debugging the PIO engine code. You do
+	  _NOT_ want to enable this.
