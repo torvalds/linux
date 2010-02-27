@@ -249,9 +249,9 @@ static const __u16 Pb100_2map8300[][2] = {
 };
 
 static const __u16 spca561_161rev12A_data1[][2] = {
-	{0x29, 0x8118},		/* white balance - was 21 */
-	{0x08, 0x8114},		/* white balance - was 01 */
-	{0x0e, 0x8112},		/* white balance - was 00 */
+	{0x29, 0x8118},		/* Control register (various enable bits) */
+	{0x08, 0x8114},		/* GPIO: Led off */
+	{0x0e, 0x8112},		/* 0x0e stream off 0x3e stream on */
 	{0x00, 0x8102},		/* white balance - new */
 	{0x92, 0x8804},
 	{0x04, 0x8802},		/* windows uses 08 */
@@ -263,14 +263,10 @@ static const __u16 spca561_161rev12A_data2[][2] = {
 	{0x07, 0x8601},
 	{0x07, 0x8602},
 	{0x04, 0x8501},
-	{0x21, 0x8118},
 
 	{0x07, 0x8201},		/* windows uses 02 */
 	{0x08, 0x8200},
 	{0x01, 0x8200},
-
-	{0x00, 0x8114},
-	{0x01, 0x8114},		/* windows uses 00 */
 
 	{0x90, 0x8604},
 	{0x00, 0x8605},
@@ -302,6 +298,9 @@ static const __u16 spca561_161rev12A_data2[][2] = {
 	{0xf0, 0x8505},
 	{0x32, 0x850a},
 /*	{0x99, 0x8700},		 * - white balance - new (removed) */
+	/* HDG we used to do this in stop0, making the init state and the state
+	   after a start / stop different, so do this here instead. */
+	{0x29, 0x8118},
 	{}
 };
 
@@ -645,6 +644,9 @@ static int sd_start_12a(struct gspca_dev *gspca_dev)
 	setwhite(gspca_dev);
 	setgain(gspca_dev);
 	setexposure(gspca_dev);
+
+	/* Led ON (bit 3 -> 0 */
+	reg_w_val(gspca_dev->dev, 0x8114, 0x00);
 	return 0;
 }
 static int sd_start_72a(struct gspca_dev *gspca_dev)
@@ -691,24 +693,12 @@ static void sd_stopN(struct gspca_dev *gspca_dev)
 
 	if (sd->chip_revision == Rev012A) {
 		reg_w_val(gspca_dev->dev, 0x8112, 0x0e);
+		/* Led Off (bit 3 -> 1 */
+		reg_w_val(gspca_dev->dev, 0x8114, 0x08);
 	} else {
 		reg_w_val(gspca_dev->dev, 0x8112, 0x20);
 /*		reg_w_val(gspca_dev->dev, 0x8102, 0x00); ?? */
 	}
-}
-
-/* called on streamoff with alt 0 and on disconnect */
-static void sd_stop0(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	if (!gspca_dev->present)
-		return;
-	if (sd->chip_revision == Rev012A) {
-		reg_w_val(gspca_dev->dev, 0x8118, 0x29);
-		reg_w_val(gspca_dev->dev, 0x8114, 0x08);
-	}
-/*	reg_w_val(gspca_dev->dev, 0x8114, 0); */
 }
 
 static void do_autogain(struct gspca_dev *gspca_dev)
@@ -1028,7 +1018,6 @@ static const struct sd_desc sd_desc_12a = {
 	.init = sd_init_12a,
 	.start = sd_start_12a,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 };
 static const struct sd_desc sd_desc_72a = {
@@ -1039,7 +1028,6 @@ static const struct sd_desc sd_desc_72a = {
 	.init = sd_init_72a,
 	.start = sd_start_72a,
 	.stopN = sd_stopN,
-	.stop0 = sd_stop0,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
 };
