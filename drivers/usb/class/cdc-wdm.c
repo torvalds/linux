@@ -776,9 +776,9 @@ static void wdm_disconnect(struct usb_interface *intf)
 	/* to terminate pending flushes */
 	clear_bit(WDM_IN_USE, &desc->flags);
 	spin_unlock_irqrestore(&desc->iuspin, flags);
-	cancel_work_sync(&desc->rxwork);
 	mutex_lock(&desc->lock);
 	kill_urbs(desc);
+	cancel_work_sync(&desc->rxwork);
 	mutex_unlock(&desc->lock);
 	wake_up_all(&desc->wait);
 	if (!desc->count)
@@ -786,6 +786,7 @@ static void wdm_disconnect(struct usb_interface *intf)
 	mutex_unlock(&wdm_mutex);
 }
 
+#ifdef CONFIG_PM
 static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct wdm_device *desc = usb_get_intfdata(intf);
@@ -793,27 +794,30 @@ static int wdm_suspend(struct usb_interface *intf, pm_message_t message)
 
 	dev_dbg(&desc->intf->dev, "wdm%d_suspend\n", intf->minor);
 
-	mutex_lock(&desc->lock);
+	/* if this is an autosuspend the caller does the locking */
+	if (!(message.event & PM_EVENT_AUTO))
+		mutex_lock(&desc->lock);
 	spin_lock_irq(&desc->iuspin);
-#ifdef CONFIG_PM
+
 	if ((message.event & PM_EVENT_AUTO) &&
 			(test_bit(WDM_IN_USE, &desc->flags)
 			|| test_bit(WDM_RESPONDING, &desc->flags))) {
 		spin_unlock_irq(&desc->iuspin);
 		rv = -EBUSY;
 	} else {
-#endif
+
 		set_bit(WDM_SUSPENDING, &desc->flags);
 		spin_unlock_irq(&desc->iuspin);
-		cancel_work_sync(&desc->rxwork);
+		/* callback submits work - order is essential */
 		kill_urbs(desc);
-#ifdef CONFIG_PM
+		cancel_work_sync(&desc->rxwork);
 	}
-#endif
-	mutex_unlock(&desc->lock);
+	if (!(message.event & PM_EVENT_AUTO))
+		mutex_unlock(&desc->lock);
 
 	return rv;
 }
+#endif
 
 static int recover_from_urb_loss(struct wdm_device *desc)
 {
@@ -827,6 +831,8 @@ static int recover_from_urb_loss(struct wdm_device *desc)
 	}
 	return rv;
 }
+
+#ifdef CONFIG_PM
 static int wdm_resume(struct usb_interface *intf)
 {
 	struct wdm_device *desc = usb_get_intfdata(intf);
@@ -839,6 +845,7 @@ static int wdm_resume(struct usb_interface *intf)
 	mutex_unlock(&desc->lock);
 	return rv;
 }
+#endif
 
 static int wdm_pre_reset(struct usb_interface *intf)
 {
@@ -862,9 +869,11 @@ static struct usb_driver wdm_driver = {
 	.name =		"cdc_wdm",
 	.probe =	wdm_probe,
 	.disconnect =	wdm_disconnect,
+#ifdef CONFIG_PM
 	.suspend =	wdm_suspend,
 	.resume =	wdm_resume,
 	.reset_resume =	wdm_resume,
+#endif
 	.pre_reset =	wdm_pre_reset,
 	.post_reset =	wdm_post_reset,
 	.id_table =	wdm_ids,
