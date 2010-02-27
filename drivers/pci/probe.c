@@ -1436,6 +1436,7 @@ struct pci_bus * pci_create_bus(struct device *parent,
 	if (error)
 		goto dev_reg_err;
 	b->bridge = get_device(dev);
+	device_enable_async_suspend(b->bridge);
 
 	if (!parent)
 		set_dev_node(b->bridge, pcibus_to_node(b));
