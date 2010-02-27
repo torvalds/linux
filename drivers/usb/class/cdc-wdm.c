@@ -435,11 +435,8 @@ retry:
 		spin_lock_irq(&desc->iuspin);
 
 		if (desc->rerr) { /* read completed, error happened */
-			int t = desc->rerr;
 			desc->rerr = 0;
 			spin_unlock_irq(&desc->iuspin);
-			dev_err(&desc->intf->dev,
-				"reading had resulted in %d\n", t);
 			rv = -EIO;
 			goto err;
 		}
@@ -477,8 +474,6 @@ retry:
 
 err:
 	mutex_unlock(&desc->lock);
-	if (rv < 0 && rv != -EAGAIN)
-		dev_err(&desc->intf->dev, "wdm_read: exit error\n");
 	return rv;
 }
 
