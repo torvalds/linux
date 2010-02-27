@@ -839,10 +839,10 @@ static int wdm_resume(struct usb_interface *intf)
 	int rv;
 
 	dev_dbg(&desc->intf->dev, "wdm%d_resume\n", intf->minor);
-	mutex_lock(&desc->lock);
+
 	clear_bit(WDM_SUSPENDING, &desc->flags);
 	rv = recover_from_urb_loss(desc);
-	mutex_unlock(&desc->lock);
+
 	return rv;
 }
 #endif
