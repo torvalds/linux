@@ -237,7 +237,7 @@ u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
        void (*callback)(int, void *), void *callparam)
 {
 	unsigned long   flags;
-	u32		used, chan, rv;
+	u32		used, chan;
 	u32		dcp;
 	int		i;
 	dbdev_tab_t	*stp, *dtp;
@@ -260,7 +260,6 @@ u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 		return 0;
 
 	used = 0;
-	rv = 0;
 
 	/* Check to see if we can get both channels. */
 	spin_lock_irqsave(&au1xxx_dbdma_spin_lock, flags);
@@ -281,63 +280,65 @@ u32 au1xxx_dbdma_chan_alloc(u32 srcid, u32 destid,
 		used++;
 	spin_unlock_irqrestore(&au1xxx_dbdma_spin_lock, flags);
 
-	if (!used) {
-		/* Let's see if we can allocate a channel for it. */
-		ctp = NULL;
-		chan = 0;
-		spin_lock_irqsave(&au1xxx_dbdma_spin_lock, flags);
-		for (i = 0; i < NUM_DBDMA_CHANS; i++)
-			if (chan_tab_ptr[i] == NULL) {
-				/*
-				 * If kmalloc fails, it is caught below same
-				 * as a channel not available.
-				 */
-				ctp = kmalloc(sizeof(chan_tab_t), GFP_ATOMIC);
-				chan_tab_ptr[i] = ctp;
-				break;
-			}
-		spin_unlock_irqrestore(&au1xxx_dbdma_spin_lock, flags);
+	if (used)
+		return 0;
 
-		if (ctp != NULL) {
-			memset(ctp, 0, sizeof(chan_tab_t));
-			ctp->chan_index = chan = i;
-			dcp = DDMA_CHANNEL_BASE;
-			dcp += (0x0100 * chan);
-			ctp->chan_ptr = (au1x_dma_chan_t *)dcp;
-			cp = (au1x_dma_chan_t *)dcp;
-			ctp->chan_src = stp;
-			ctp->chan_dest = dtp;
-			ctp->chan_callback = callback;
-			ctp->chan_callparam = callparam;
-
-			/* Initialize channel configuration. */
-			i = 0;
-			if (stp->dev_intlevel)
-				i |= DDMA_CFG_SED;
-			if (stp->dev_intpolarity)
-				i |= DDMA_CFG_SP;
-			if (dtp->dev_intlevel)
-				i |= DDMA_CFG_DED;
-			if (dtp->dev_intpolarity)
-				i |= DDMA_CFG_DP;
-			if ((stp->dev_flags & DEV_FLAGS_SYNC) ||
-				(dtp->dev_flags & DEV_FLAGS_SYNC))
-					i |= DDMA_CFG_SYNC;
-			cp->ddma_cfg = i;
-			au_sync();
-
-			/* Return a non-zero value that can be used to
-			 * find the channel information in subsequent
-			 * operations.
+	/* Let's see if we can allocate a channel for it. */
+	ctp = NULL;
+	chan = 0;
+	spin_lock_irqsave(&au1xxx_dbdma_spin_lock, flags);
+	for (i = 0; i < NUM_DBDMA_CHANS; i++)
+		if (chan_tab_ptr[i] == NULL) {
+			/*
+			 * If kmalloc fails, it is caught below same
+			 * as a channel not available.
 			 */
-			rv = (u32)(&chan_tab_ptr[chan]);
-		} else {
-			/* Release devices */
-			stp->dev_flags &= ~DEV_FLAGS_INUSE;
-			dtp->dev_flags &= ~DEV_FLAGS_INUSE;
+			ctp = kmalloc(sizeof(chan_tab_t), GFP_ATOMIC);
+			chan_tab_ptr[i] = ctp;
+			break;
 		}
+	spin_unlock_irqrestore(&au1xxx_dbdma_spin_lock, flags);
+
+	if (ctp != NULL) {
+		memset(ctp, 0, sizeof(chan_tab_t));
+		ctp->chan_index = chan = i;
+		dcp = DDMA_CHANNEL_BASE;
+		dcp += (0x0100 * chan);
+		ctp->chan_ptr = (au1x_dma_chan_t *)dcp;
+		cp = (au1x_dma_chan_t *)dcp;
+		ctp->chan_src = stp;
+		ctp->chan_dest = dtp;
+		ctp->chan_callback = callback;
+		ctp->chan_callparam = callparam;
+
+		/* Initialize channel configuration. */
+		i = 0;
+		if (stp->dev_intlevel)
+			i |= DDMA_CFG_SED;
+		if (stp->dev_intpolarity)
+			i |= DDMA_CFG_SP;
+		if (dtp->dev_intlevel)
+			i |= DDMA_CFG_DED;
+		if (dtp->dev_intpolarity)
+			i |= DDMA_CFG_DP;
+		if ((stp->dev_flags & DEV_FLAGS_SYNC) ||
+			(dtp->dev_flags & DEV_FLAGS_SYNC))
+				i |= DDMA_CFG_SYNC;
+		cp->ddma_cfg = i;
+		au_sync();
+
+		/*
+		 * Return a non-zero value that can be used to find the channel
+		 * information in subsequent operations.
+		 */
+		return (u32)(&chan_tab_ptr[chan]);
 	}
-	return rv;
+
+	/* Release devices */
+	stp->dev_flags &= ~DEV_FLAGS_INUSE;
+	dtp->dev_flags &= ~DEV_FLAGS_INUSE;
+
+	return 0;
 }
 EXPORT_SYMBOL(au1xxx_dbdma_chan_alloc);
 
