@@ -27,12 +27,12 @@
 
 
 /****** local copies of board's 32 bit registers ******/
-u64 even_dma_start_r;	/*  bit 0 should always be 0 */
-u64 odd_dma_start_r;	/*               .. */
-u64 even_dma_stride_r;	/*  bits 0&1 should always be 0 */
-u64 odd_dma_stride_r;	/*               .. */
-u64 even_pixel_fmt_r;
-u64 odd_pixel_fmt_r;
+u32 even_dma_start_r;	/*  bit 0 should always be 0 */
+u32 odd_dma_start_r;	/*               .. */
+u32 even_dma_stride_r;	/*  bits 0&1 should always be 0 */
+u32 odd_dma_stride_r;	/*               .. */
+u32 even_pixel_fmt_r;
+u32 odd_pixel_fmt_r;
 
 FIFO_TRIGGER_R		fifo_trigger_r;
 XFER_MODE_R		xfer_mode_r;
@@ -40,8 +40,8 @@ CSR1_R			csr1_r;
 RETRY_WAIT_CNT_R	retry_wait_cnt_r;
 INT_CSR_R		int_csr_r;
 
-u64 even_fld_mask_r;
-u64 odd_fld_mask_r;
+u32 even_fld_mask_r;
+u32 odd_fld_mask_r;
 
 MASK_LENGTH_R		mask_length_r;
 FIFO_FLAG_CNT_R		fifo_flag_cnt_r;

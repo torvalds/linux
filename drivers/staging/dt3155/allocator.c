@@ -195,7 +195,7 @@ int allocator_free_dma(unsigned long address)
  * On cleanup everything is released. If the list is not empty, that a
  * problem of our clients
  */
-int allocator_init(u64 *allocator_max)
+int allocator_init(u32 *allocator_max)
 {
 	/* check how much free memory is there */
 	void *remapped;

@@ -24,5 +24,5 @@
 
 void allocator_free_dma(unsigned long address);
 unsigned long allocator_allocate_dma(unsigned long kilobytes, int priority);
-int allocator_init(u64 *);
+int allocator_init(u32 *);
 void allocator_cleanup(void);

@@ -220,7 +220,7 @@ inline void printques( int m )
  *  the start address up to the beginning of the
  *  next 4MB chunk (assuming bufsize < 4MB).
  *****************************************************/
-u64 adjust_4MB (u64 buf_addr, u64 bufsize) {
+u32 adjust_4MB (u32 buf_addr, u32 bufsize) {
   if (((buf_addr+bufsize) & UPPER_10_BITS) != (buf_addr & UPPER_10_BITS))
     return (buf_addr+bufsize) & UPPER_10_BITS;
   else
@@ -235,26 +235,26 @@ u64 adjust_4MB (u64 buf_addr, u64 bufsize) {
  *  buffers.  If there is not enough free space
  *  try for less memory.
  *****************************************************/
-void allocate_buffers (u64 *buf_addr, u64* total_size_kbs,
-		       u64 bufsize)
+void allocate_buffers (u32 *buf_addr, u32* total_size_kbs,
+		       u32 bufsize)
 {
   /* Compute the minimum amount of memory guaranteed to hold all
      MAXBUFFERS such that no buffer crosses the 4MB boundary.
      Store this value in the variable "full_size" */
 
-  u64 allocator_max;
-  u64 bufs_per_chunk = (FOUR_MB / bufsize);
-  u64 filled_chunks = (MAXBUFFERS-1) / bufs_per_chunk;
-  u64 leftover_bufs = MAXBUFFERS - filled_chunks * bufs_per_chunk;
+  u32 allocator_max;
+  u32 bufs_per_chunk = (FOUR_MB / bufsize);
+  u32 filled_chunks = (MAXBUFFERS-1) / bufs_per_chunk;
+  u32 leftover_bufs = MAXBUFFERS - filled_chunks * bufs_per_chunk;
 
-  u64 full_size = bufsize      /* possibly unusable part of 1st chunk */
+  u32 full_size = bufsize      /* possibly unusable part of 1st chunk */
     + filled_chunks * FOUR_MB   /* max # of completely filled 4mb chunks */
     + leftover_bufs * bufsize;  /* these buffs will be in a partly filled
 				   chunk at beginning or end */
 
-  u64 full_size_kbs = 1 + (full_size-1) / 1024;
-  u64 min_size_kbs = 2*ndevices*bufsize / 1024;
-  u64 size_kbs;
+  u32 full_size_kbs = 1 + (full_size-1) / 1024;
+  u32 min_size_kbs = 2*ndevices*bufsize / 1024;
+  u32 size_kbs;
 
   /* Now, try to allocate full_size.  If this fails, keep trying for
      less & less memory until it succeeds. */
@@ -264,13 +264,13 @@ void allocate_buffers (u64 *buf_addr, u64* total_size_kbs,
 #endif
   size_kbs = full_size_kbs;
   *buf_addr = 0;
-  printk ("DT3155: We would like to get: %d KB\n", (u32)(full_size_kbs));
-  printk ("DT3155: ...but need at least: %d KB\n", (u32)(min_size_kbs));
-  printk ("DT3155: ...the allocator has: %d KB\n", (u32)(allocator_max));
+  printk("DT3155: We would like to get: %d KB\n", full_size_kbs);
+  printk("DT3155: ...but need at least: %d KB\n", min_size_kbs);
+  printk("DT3155: ...the allocator has: %d KB\n", allocator_max);
   size_kbs = (full_size_kbs <= allocator_max ? full_size_kbs : allocator_max);
   if (size_kbs > min_size_kbs) {
     if ((*buf_addr = allocator_allocate_dma (size_kbs, GFP_KERNEL)) != 0) {
-      printk ("DT3155:  Managed to allocate: %d KB\n", (u32)size_kbs);
+      printk("DT3155:  Managed to allocate: %d KB\n", size_kbs);
       *total_size_kbs = size_kbs;
       return;
     }
@@ -298,17 +298,17 @@ void allocate_buffers (u64 *buf_addr, u64* total_size_kbs,
  * 4MB boundary.  Also, add error checking.  This
  * function will return -ENOMEM when not enough memory.
  *****************************************************/
-u64 dt3155_setup_buffers(u64 *allocatorAddr)
+u32 dt3155_setup_buffers(u32 *allocatorAddr)
 
 {
-  u64 index;
-  u64 rambuff_addr; /* start of allocation */
-  u64 rambuff_size; /* total size allocated to driver */
-  u64 rambuff_acm;  /* accumlator, keep track of how much
+  u32 index;
+  u32 rambuff_addr; /* start of allocation */
+  u32 rambuff_size; /* total size allocated to driver */
+  u32 rambuff_acm;  /* accumlator, keep track of how much
 			  is left after being split up*/
-  u64 rambuff_end;  /* end of rambuff */
-  u64 numbufs;      /* number of useful buffers allocated (per device) */
-  u64 bufsize      = DT3155_MAX_ROWS * DT3155_MAX_COLS;
+  u32 rambuff_end;  /* end of rambuff */
+  u32 numbufs;      /* number of useful buffers allocated (per device) */
+  u32 bufsize      = DT3155_MAX_ROWS * DT3155_MAX_COLS;
   int m;               /* minor # of device, looped for all devs */
 
   /* zero the fbuffer status and address structure */
@@ -326,9 +326,9 @@ u64 dt3155_setup_buffers(u64 *allocatorAddr)
 
   /* allocate a large contiguous chunk of RAM */
   allocate_buffers (&rambuff_addr, &rambuff_size, bufsize);
-  printk( "DT3155: mem info\n" );
-  printk( "  - rambuf_addr = 0x%x \n", (u32)rambuff_addr );
-  printk( "  - length (kb) = %u \n",  (u32)rambuff_size );
+  printk("DT3155: mem info\n");
+  printk("  - rambuf_addr = 0x%x \n", rambuff_addr);
+  printk("  - length (kb) = %u \n", rambuff_size);
   if( rambuff_addr == 0 )
     {
       printk( KERN_INFO
@@ -350,7 +350,7 @@ u64 dt3155_setup_buffers(u64 *allocatorAddr)
   /* Following line is OK, will waste buffers if index
    * not evenly divisible by ndevices -NJC*/
   numbufs = index / ndevices;
-  printk ("  - numbufs = %u\n", (u32) numbufs);
+  printk("  - numbufs = %u\n", numbufs);
   if (numbufs < 2) {
     printk( KERN_INFO
 	    "DT3155: Error setup_buffers() couldn't allocate 2 bufs/board\n" );

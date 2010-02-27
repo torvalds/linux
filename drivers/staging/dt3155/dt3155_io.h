@@ -36,8 +36,8 @@ MA 02111-1307 USA
 
 /* macros to access registers */
 
-#define WriteMReg(Address, Data)	(*((u64 *)(Address)) = Data)
-#define ReadMReg(Address, Data)		(Data = *((u64 *)(Address)))
+#define WriteMReg(Address, Data)	(*((u32 *)(Address)) = Data)
+#define ReadMReg(Address, Data)		(Data = *((u32 *)(Address)))
 
 /***************** 32 bit register globals  **************/
 
@@ -71,114 +71,114 @@ MA 02111-1307 USA
 /******** Assignments and Typedefs for 32 bit Memory Mapped Registers ********/
 
 typedef union fifo_trigger_tag {
-	u64   reg;
+	u32   reg;
 	struct {
-		u64 PACKED:6;
-		u64       :9;
-		u64 PLANER:7;
-		u64       :9;
+		u32 PACKED:6;
+		u32       :9;
+		u32 PLANER:7;
+		u32       :9;
 	} fld;
 } FIFO_TRIGGER_R;
 
 typedef union xfer_mode_tag {
-	u64   reg;
+	u32   reg;
 	struct {
-		u64             :2;
-		u64 FIELD_TOGGLE:1;
-		u64             :5;
-		u64             :2;
-		u64             :22;
+		u32             :2;
+		u32 FIELD_TOGGLE:1;
+		u32             :5;
+		u32             :2;
+		u32             :22;
 	} fld;
 } XFER_MODE_R;
 
 typedef union csr1_tag {
-	u64   reg;
+	u32   reg;
 	struct {
-		u64 CAP_CONT_EVE:1;
-		u64 CAP_CONT_ODD:1;
-		u64 CAP_SNGL_EVE:1;
-		u64 CAP_SNGL_ODD:1;
-		u64 FLD_DN_EVE  :1;
-		u64 FLD_DN_ODD  :1;
-		u64 SRST        :1;
-		u64 FIFO_EN     :1;
-		u64 FLD_CRPT_EVE:1;
-		u64 FLD_CRPT_ODD:1;
-		u64 ADDR_ERR_EVE:1;
-		u64 ADDR_ERR_ODD:1;
-		u64 CRPT_DIS    :1;
-		u64 RANGE_EN    :1;
-		u64             :16;
+		u32 CAP_CONT_EVE:1;
+		u32 CAP_CONT_ODD:1;
+		u32 CAP_SNGL_EVE:1;
+		u32 CAP_SNGL_ODD:1;
+		u32 FLD_DN_EVE  :1;
+		u32 FLD_DN_ODD  :1;
+		u32 SRST        :1;
+		u32 FIFO_EN     :1;
+		u32 FLD_CRPT_EVE:1;
+		u32 FLD_CRPT_ODD:1;
+		u32 ADDR_ERR_EVE:1;
+		u32 ADDR_ERR_ODD:1;
+		u32 CRPT_DIS    :1;
+		u32 RANGE_EN    :1;
+		u32             :16;
 	} fld;
 } CSR1_R;
 
 typedef union retry_wait_cnt_tag {
-	u64   reg;
+	u32   reg;
 	struct {
-		u64 RTRY_WAIT_CNT:8;
-		u64              :24;
+		u32 RTRY_WAIT_CNT:8;
+		u32              :24;
 	} fld;
 } RETRY_WAIT_CNT_R;
 
 typedef union int_csr_tag {
-	u64   reg;
+	u32   reg;
 	struct {
-		u64 FLD_END_EVE   :1;
-		u64 FLD_END_ODD   :1;
-		u64 FLD_START     :1;
-		u64               :5;
-		u64 FLD_END_EVE_EN:1;
-		u64 FLD_END_ODD_EN:1;
-		u64 FLD_START_EN  :1;
-		u64               :21;
+		u32 FLD_END_EVE   :1;
+		u32 FLD_END_ODD   :1;
+		u32 FLD_START     :1;
+		u32               :5;
+		u32 FLD_END_EVE_EN:1;
+		u32 FLD_END_ODD_EN:1;
+		u32 FLD_START_EN  :1;
+		u32               :21;
 	} fld;
 } INT_CSR_R;
 
 typedef union mask_length_tag {
-	u64   reg;
+	u32   reg;
 	struct {
-		u64 MASK_LEN_EVE:5;
-		u64             :11;
-		u64 MASK_LEN_ODD:5;
-		u64             :11;
+		u32 MASK_LEN_EVE:5;
+		u32             :11;
+		u32 MASK_LEN_ODD:5;
+		u32             :11;
 	} fld;
 } MASK_LENGTH_R;
 
 typedef union fifo_flag_cnt_tag {
-	u64   reg;
+	u32   reg;
 	struct {
-		u64 AF_COUNT:7;
-		u64         :9;
-		u64 AE_COUNT:7;
-		u64         :9;
+		u32 AF_COUNT:7;
+		u32         :9;
+		u32 AE_COUNT:7;
+		u32         :9;
 	} fld;
 } FIFO_FLAG_CNT_R;
 
 typedef union iic_clk_dur {
-	u64   reg;
+	u32   reg;
 	struct {
-		u64 PHASE_1:8;
-		u64 PHASE_2:8;
-		u64 PHASE_3:8;
-		u64 PHASE_4:8;
+		u32 PHASE_1:8;
+		u32 PHASE_2:8;
+		u32 PHASE_3:8;
+		u32 PHASE_4:8;
 	} fld;
 } IIC_CLK_DUR_R;
 
 typedef union iic_csr1_tag {
-	u64   reg;
+	u32   reg;
 	struct {
-		u64 AUTO_EN     :1;
-		u64 BYPASS      :1;
-		u64 SDA_OUT     :1;
-		u64 SCL_OUT     :1;
-		u64             :4;
-		u64 AUTO_ABORT  :1;
-		u64 DIRECT_ABORT:1;
-		u64 SDA_IN      :1;
-		u64 SCL_IN      :1;
-		u64             :4;
-		u64 AUTO_ADDR   :8;
-		u64 RD_DATA     :8;
+		u32 AUTO_EN     :1;
+		u32 BYPASS      :1;
+		u32 SDA_OUT     :1;
+		u32 SCL_OUT     :1;
+		u32             :4;
+		u32 AUTO_ABORT  :1;
+		u32 DIRECT_ABORT:1;
+		u32 SDA_IN      :1;
+		u32 SCL_IN      :1;
+		u32             :4;
+		u32 AUTO_ADDR   :8;
+		u32 RD_DATA     :8;
 	} fld;
 } IIC_CSR1_R;
 
@@ -186,14 +186,14 @@ typedef union iic_csr1_tag {
  * iic_csr2_tag
  */
 typedef union iic_csr2_tag {
-	u64   reg;
+	u32   reg;
 	struct {
-		u64 DIR_WR_DATA :8;
-		u64 DIR_SUB_ADDR:8;
-		u64 DIR_RD      :1;
-		u64 DIR_ADDR    :7;
-		u64 NEW_CYCLE   :1;
-		u64             :7;
+		u32 DIR_WR_DATA :8;
+		u32 DIR_SUB_ADDR:8;
+		u32 DIR_RD      :1;
+		u32 DIR_ADDR    :7;
+		u32 NEW_CYCLE   :1;
+		u32             :7;
 	} fld;
 }  IIC_CSR2_R;
 
@@ -203,10 +203,10 @@ typedef union iic_csr2_tag {
  * dma_upper_lmt_tag
  */
 typedef union dma_upper_lmt_tag   {
-	u64 reg;
+	u32 reg;
 	struct {
-		u64 DMA_UPPER_LMT_VAL:24;
-		u64                  :8;
+		u32 DMA_UPPER_LMT_VAL:24;
+		u32                  :8;
 	} fld;
 } DMA_UPPER_LMT_R;
 
@@ -214,12 +214,12 @@ typedef union dma_upper_lmt_tag   {
 /*
  * Global declarations of local copies of boards' 32 bit registers
  */
-extern u64 even_dma_start_r;		/*  bit 0 should always be 0 */
-extern u64 odd_dma_start_r;		/*               ..          */
-extern u64 even_dma_stride_r;	/*  bits 0&1 should always be 0 */
-extern u64 odd_dma_stride_r;		/*               ..             */
-extern u64 even_pixel_fmt_r;
-extern u64 odd_pixel_fmt_r;
+extern u32 even_dma_start_r;		/*  bit 0 should always be 0 */
+extern u32 odd_dma_start_r;		/*               ..          */
+extern u32 even_dma_stride_r;	/*  bits 0&1 should always be 0 */
+extern u32 odd_dma_stride_r;		/*               ..             */
+extern u32 even_pixel_fmt_r;
+extern u32 odd_pixel_fmt_r;
 
 extern FIFO_TRIGGER_R		fifo_trigger_r;
 extern XFER_MODE_R		xfer_mode_r;
@@ -227,8 +227,8 @@ extern CSR1_R			csr1_r;
 extern RETRY_WAIT_CNT_R		retry_wait_cnt_r;
 extern INT_CSR_R		int_csr_r;
 
-extern u64 even_fld_mask_r;
-extern u64 odd_fld_mask_r;
+extern u32 even_fld_mask_r;
+extern u32 odd_fld_mask_r;
 
 extern MASK_LENGTH_R		mask_length_r;
 extern FIFO_FLAG_CNT_R		fifo_flag_cnt_r;

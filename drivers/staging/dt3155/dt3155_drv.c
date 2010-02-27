@@ -137,7 +137,7 @@ u32  dt3155_dev_open[ MAXBOARDS ] = {0
 };
 
 u32  ndevices = 0;
-u64 unique_tag = 0;;
+u32 unique_tag = 0;;
 
 
 /*
@@ -180,7 +180,7 @@ static inline void dt3155_isr( int irq, void *dev_id, struct pt_regs *regs )
   int    minor = -1;
   int    index;
   unsigned long flags;
-  u64 buffer_addr;
+  u32 buffer_addr;
 
   /* find out who issued the interrupt */
   for ( index = 0; index < ndevices; index++ ) {
@@ -249,7 +249,7 @@ static inline void dt3155_isr( int irq, void *dev_id, struct pt_regs *regs )
 	{
 	  /* GCS (Aug 2, 2002) -- In field mode, dma the odd field
 	     into the lower half of the buffer */
-	  const u64 stride =  dt3155_status[ minor ].config.cols;
+	  const u32 stride =  dt3155_status[ minor ].config.cols;
 	  buffer_addr = dt3155_fbuffer[ minor ]->
 	    frame_info[ dt3155_fbuffer[ minor ]->active_buf ].addr
 	    + (DT3155_MAX_ROWS / 2) * stride;
@@ -312,7 +312,7 @@ static inline void dt3155_isr( int irq, void *dev_id, struct pt_regs *regs )
 	      dt3155_fbuffer[ minor ]->even_stopped = 0;
 
 	      printk(KERN_DEBUG "dt3155:  state is now %x\n",
-		     (u32)dt3155_status[minor].state);
+		     dt3155_status[minor].state);
 	    }
 	  else
 	    {
@@ -428,7 +428,7 @@ static inline void dt3155_isr( int irq, void *dev_id, struct pt_regs *regs )
  *****************************************************/
 static void dt3155_init_isr(int minor)
 {
-  const u64 stride =  dt3155_status[ minor ].config.cols;
+  const u32 stride =  dt3155_status[ minor ].config.cols;
 
   switch (dt3155_status[ minor ].state & DT3155_STATE_MODE)
     {
@@ -706,7 +706,7 @@ static int dt3155_open( struct inode* inode, struct file* filep)
 
   if (dt3155_status[ minor ].state != DT3155_STATE_IDLE) {
     printk ("DT3155:  Not in idle state (state = %x)\n",
-	    (u32)dt3155_status[ minor ].state);
+	    dt3155_status[ minor ].state);
     return -EBUSY;
   }
 
@@ -762,7 +762,7 @@ static ssize_t dt3155_read(struct file *filep, char __user *buf,
 {
   /* which device are we reading from? */
   int		minor = MINOR(filep->f_dentry->d_inode->i_rdev);
-  u64		offset;
+  u32		offset;
   int		frame_index;
   frame_info_t	*frame_info_p;
 
@@ -820,11 +820,11 @@ static ssize_t dt3155_read(struct file *filep, char __user *buf,
   offset = frame_info_p->addr - dt3155_status[minor].mem_addr;
 
   put_user(offset, (unsigned int *) buf);
-  buf += sizeof(u64);
+  buf += sizeof(u32);
   put_user( dt3155_status[minor].fbuffer.frame_count, (unsigned int *) buf);
-  buf += sizeof(u64);
+  buf += sizeof(u32);
   put_user(dt3155_status[minor].state, (unsigned int *) buf);
-  buf += sizeof(u64);
+  buf += sizeof(u32);
   if (copy_to_user(buf, frame_info_p, sizeof(frame_info_t)))
       return -EFAULT;
 
@@ -931,7 +931,7 @@ static int find_PCI (void)
       dt3155_status[ pci_index-1 ].device_installed = 1;
       printk("DT3155: Installing device %d w/irq %d and address %p\n",
 	     pci_index,
-	     (u32)dt3155_status[pci_index-1].irq,
+	     dt3155_status[pci_index-1].irq,
 	     dt3155_lbase[pci_index-1]);
 
     }
@@ -944,7 +944,7 @@ err:
   return DT_3155_FAILURE;
 }
 
-u64 allocatorAddr = 0;
+u32 allocatorAddr = 0;
 
 /*****************************************************
  * init_module()
@@ -1024,9 +1024,9 @@ int init_module(void)
 	     dt3155_status[ index ].config.rows);
       printk("DT3155: m_addr = 0x%x; m_size = %ld; "
 	     "state = %d; device_installed = %d\n",
-	     (u32)dt3155_status[ index ].mem_addr,
+	     dt3155_status[ index ].mem_addr,
 	     (long int)dt3155_status[ index ].mem_size,
-	     (u32)dt3155_status[ index ].state,
+	     dt3155_status[ index ].state,
 	     dt3155_status[ index ].device_installed);
     }
 
