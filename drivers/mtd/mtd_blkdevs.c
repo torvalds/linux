@@ -32,6 +32,7 @@ void blktrans_dev_release(struct kref *kref)
 		container_of(kref, struct mtd_blktrans_dev, ref);
 
 	dev->disk->private_data = NULL;
+	blk_cleanup_queue(dev->rq);
 	put_disk(dev->disk);
 	list_del(&dev->list);
 	kfree(dev);
@@ -423,7 +424,6 @@ int del_mtd_blktrans_dev(struct mtd_blktrans_dev *old)
 	old->rq->queuedata = NULL;
 	blk_start_queue(old->rq);
 	spin_unlock_irqrestore(&old->queue_lock, flags);
-	blk_cleanup_queue(old->rq);
 
 	/* Ask trans driver for release to the mtd device */
 	mutex_lock(&old->lock);
