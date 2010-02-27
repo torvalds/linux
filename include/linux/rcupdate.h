@@ -166,7 +166,7 @@ static inline int rcu_read_lock_bh_held(void)
 
 static inline int rcu_read_lock_sched_held(void)
 {
-	return preempt_count() != 0;
+	return preempt_count() != 0 || !rcu_scheduler_active;
 }
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
