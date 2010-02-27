@@ -218,7 +218,10 @@ static void b43_radio_init2055_post(struct b43_wldev *dev)
 	b43_radio_write16(dev, B2055_C2_RX_BB_MIDACHP, 0x83);
 }
 
-/* Initialize a Broadcom 2055 N-radio */
+/*
+ * Initialize a Broadcom 2055 N-radio
+ * http://bcm-v4.sipsolutions.net/802.11/Radio/2055/Init
+ */
 static void b43_radio_init2055(struct b43_wldev *dev)
 {
 	b43_radio_init2055_pre(dev);
@@ -227,17 +230,6 @@ static void b43_radio_init2055(struct b43_wldev *dev)
 	else
 		b2055_upload_inittab(dev, 0/*FIXME on 5ghz band*/, 0);
 	b43_radio_init2055_post(dev);
-}
-
-void b43_nphy_radio_turn_on(struct b43_wldev *dev)
-{
-	b43_radio_init2055(dev);
-}
-
-void b43_nphy_radio_turn_off(struct b43_wldev *dev)
-{
-	b43_phy_mask(dev, B43_NPHY_RFCTL_CMD,
-		     ~B43_NPHY_RFCTL_CMD_EN);
 }
 
 /*
@@ -3277,9 +3269,41 @@ static void b43_nphy_op_radio_write(struct b43_wldev *dev, u16 reg, u16 value)
 	b43_write16(dev, B43_MMIO_RADIO_DATA_LOW, value);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/Radio/Switch%20Radio */
 static void b43_nphy_op_software_rfkill(struct b43_wldev *dev,
 					bool blocked)
-{//TODO
+{
+	if (b43_read32(dev, B43_MMIO_MACCTL) & B43_MACCTL_ENABLED)
+		b43err(dev->wl, "MAC not suspended\n");
+
+	if (blocked) {
+		b43_phy_mask(dev, B43_NPHY_RFCTL_CMD,
+				~B43_NPHY_RFCTL_CMD_CHIP0PU);
+		if (dev->phy.rev >= 3) {
+			b43_radio_mask(dev, 0x09, ~0x2);
+
+			b43_radio_write(dev, 0x204D, 0);
+			b43_radio_write(dev, 0x2053, 0);
+			b43_radio_write(dev, 0x2058, 0);
+			b43_radio_write(dev, 0x205E, 0);
+			b43_radio_mask(dev, 0x2062, ~0xF0);
+			b43_radio_write(dev, 0x2064, 0);
+
+			b43_radio_write(dev, 0x304D, 0);
+			b43_radio_write(dev, 0x3053, 0);
+			b43_radio_write(dev, 0x3058, 0);
+			b43_radio_write(dev, 0x305E, 0);
+			b43_radio_mask(dev, 0x3062, ~0xF0);
+			b43_radio_write(dev, 0x3064, 0);
+		}
+	} else {
+		if (dev->phy.rev >= 3) {
+			/* TODO: b43_radio_init2056(dev); */
+			/* TODO: PHY Set Channel Spec (dev, radio_chanspec) */
+		} else {
+			b43_radio_init2055(dev);
+		}
+	}
 }
 
 static void b43_nphy_op_switch_analog(struct b43_wldev *dev, bool on)
