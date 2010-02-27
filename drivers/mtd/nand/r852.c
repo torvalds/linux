@@ -96,13 +96,20 @@ static void r852_dma_enable(struct r852_device *dev)
 	if (dev->dma_dir)
 		dma_reg |= R852_DMA_READ;
 
-	if (dev->dma_state == DMA_INTERNAL)
+	if (dev->dma_state == DMA_INTERNAL) {
 		dma_reg |= R852_DMA_INTERNAL;
-	else {
+		/* Precaution to make sure HW doesn't write */
+			/* to random kernel memory */
+		r852_write_reg_dword(dev, R852_DMA_ADDR,
+			cpu_to_le32(dev->phys_bounce_buffer));
+	} else {
 		dma_reg |= R852_DMA_MEMORY;
 		r852_write_reg_dword(dev, R852_DMA_ADDR,
 			cpu_to_le32(dev->phys_dma_addr));
 	}
+
+	/* Precaution: make sure write reached the device */
+	r852_read_reg_dword(dev, R852_DMA_ADDR);
 
 	r852_write_reg_dword(dev, R852_DMA_SETTINGS, dma_reg);
 
@@ -128,6 +135,11 @@ static void r852_dma_done(struct r852_device *dev, int error)
 
 	r852_write_reg_dword(dev, R852_DMA_SETTINGS, 0);
 	r852_write_reg_dword(dev, R852_DMA_IRQ_ENABLE, 0);
+
+	/* Precaution to make sure HW doesn't write to random kernel memory */
+	r852_write_reg_dword(dev, R852_DMA_ADDR,
+		cpu_to_le32(dev->phys_bounce_buffer));
+	r852_read_reg_dword(dev, R852_DMA_ADDR);
 
 	dev->dma_error = error;
 	dev->dma_stage = 0;
@@ -579,6 +591,7 @@ void r852_card_update_present(struct r852_device *dev)
 void r852_update_card_detect(struct r852_device *dev)
 {
 	int card_detect_reg = r852_read_reg(dev, R852_CARD_IRQ_ENABLE);
+	dev->card_unstable = 0;
 
 	card_detect_reg &= ~(R852_CARD_IRQ_REMOVE | R852_CARD_IRQ_INSERT);
 	card_detect_reg |= R852_CARD_IRQ_GENABLE;
@@ -690,10 +703,10 @@ void r852_card_detect_work(struct work_struct *work)
 	struct r852_device *dev =
 		container_of(work, struct r852_device, card_detect_work.work);
 
-	r852_update_card_detect(dev);
+	r852_card_update_present(dev);
 	dev->card_unstable = 0;
 
-	/* false alarm */
+	/* False alarm */
 	if (dev->card_detected == dev->card_registred)
 		goto exit;
 
