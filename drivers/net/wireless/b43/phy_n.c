@@ -183,49 +183,58 @@ static void b43_radio_init2055_pre(struct b43_wldev *dev)
 
 static void b43_radio_init2055_post(struct b43_wldev *dev)
 {
+	struct b43_phy_n *nphy = dev->phy.n;
 	struct ssb_sprom *sprom = &(dev->dev->bus->sprom);
 	struct ssb_boardinfo *binfo = &(dev->dev->bus->boardinfo);
 	int i;
 	u16 val;
+	bool workaround = false;
+
+	if (sprom->revision < 4)
+		workaround = (binfo->vendor != PCI_VENDOR_ID_BROADCOM ||
+				binfo->type != 0x46D ||
+				binfo->rev < 0x41);
+	else
+		workaround = ((sprom->boardflags_hi & B43_BFH_NOPA) == 0);
 
 	b43_radio_mask(dev, B2055_MASTER1, 0xFFF3);
-	msleep(1);
-	if ((sprom->revision != 4) ||
-	   !(sprom->boardflags_hi & B43_BFH_RSSIINV)) {
-		if ((binfo->vendor != PCI_VENDOR_ID_BROADCOM) ||
-		    (binfo->type != 0x46D) ||
-		    (binfo->rev < 0x41)) {
-			b43_radio_mask(dev, B2055_C1_RX_BB_REG, 0x7F);
-			b43_radio_mask(dev, B2055_C1_RX_BB_REG, 0x7F);
-			msleep(1);
-		}
+	if (workaround) {
+		b43_radio_mask(dev, B2055_C1_RX_BB_REG, 0x7F);
+		b43_radio_mask(dev, B2055_C2_RX_BB_REG, 0x7F);
 	}
-	b43_radio_maskset(dev, B2055_RRCCAL_NOPTSEL, 0x3F, 0x2C);
-	msleep(1);
-	b43_radio_write16(dev, B2055_CAL_MISC, 0x3C);
-	msleep(1);
+	b43_radio_maskset(dev, B2055_RRCCAL_NOPTSEL, 0xFFC0, 0x2C);
+	b43_radio_write(dev, B2055_CAL_MISC, 0x3C);
 	b43_radio_mask(dev, B2055_CAL_MISC, 0xFFBE);
-	msleep(1);
 	b43_radio_set(dev, B2055_CAL_LPOCTL, 0x80);
-	msleep(1);
 	b43_radio_set(dev, B2055_CAL_MISC, 0x1);
 	msleep(1);
 	b43_radio_set(dev, B2055_CAL_MISC, 0x40);
-	msleep(1);
-	for (i = 0; i < 100; i++) {
-		val = b43_radio_read16(dev, B2055_CAL_COUT2);
-		if (val & 0x80)
+	for (i = 0; i < 200; i++) {
+		val = b43_radio_read(dev, B2055_CAL_COUT2);
+		if (val & 0x80) {
+			i = 0;
 			break;
+		}
 		udelay(10);
 	}
-	msleep(1);
+	if (i)
+		b43err(dev->wl, "radio post init timeout\n");
 	b43_radio_mask(dev, B2055_CAL_LPOCTL, 0xFF7F);
-	msleep(1);
 	nphy_channel_switch(dev, dev->phy.channel);
-	b43_radio_write16(dev, B2055_C1_RX_BB_LPF, 0x9);
-	b43_radio_write16(dev, B2055_C2_RX_BB_LPF, 0x9);
-	b43_radio_write16(dev, B2055_C1_RX_BB_MIDACHP, 0x83);
-	b43_radio_write16(dev, B2055_C2_RX_BB_MIDACHP, 0x83);
+	b43_radio_write(dev, B2055_C1_RX_BB_LPF, 0x9);
+	b43_radio_write(dev, B2055_C2_RX_BB_LPF, 0x9);
+	b43_radio_write(dev, B2055_C1_RX_BB_MIDACHP, 0x83);
+	b43_radio_write(dev, B2055_C2_RX_BB_MIDACHP, 0x83);
+	b43_radio_maskset(dev, B2055_C1_LNA_GAINBST, 0xFFF8, 0x6);
+	b43_radio_maskset(dev, B2055_C2_LNA_GAINBST, 0xFFF8, 0x6);
+	if (!nphy->gain_boost) {
+		b43_radio_set(dev, B2055_C1_RX_RFSPC1, 0x2);
+		b43_radio_set(dev, B2055_C2_RX_RFSPC1, 0x2);
+	} else {
+		b43_radio_mask(dev, B2055_C1_RX_RFSPC1, 0xFFFD);
+		b43_radio_mask(dev, B2055_C2_RX_RFSPC1, 0xFFFD);
+	}
+	udelay(2);
 }
 
 /*
