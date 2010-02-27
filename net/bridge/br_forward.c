@@ -11,6 +11,7 @@
  *	2 of the License, or (at your option) any later version.
  */
 
+#include <linux/err.h>
 #include <linux/kernel.h>
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
@@ -103,6 +104,44 @@ void br_forward(const struct net_bridge_port *to, struct sk_buff *skb)
 	kfree_skb(skb);
 }
 
+static int deliver_clone(struct net_bridge_port *prev, struct sk_buff *skb,
+			 void (*__packet_hook)(const struct net_bridge_port *p,
+					       struct sk_buff *skb))
+{
+	skb = skb_clone(skb, GFP_ATOMIC);
+	if (!skb) {
+		struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
+
+		dev->stats.tx_dropped++;
+		return -ENOMEM;
+	}
+
+	__packet_hook(prev, skb);
+	return 0;
+}
+
+static struct net_bridge_port *maybe_deliver(
+	struct net_bridge_port *prev, struct net_bridge_port *p,
+	struct sk_buff *skb,
+	void (*__packet_hook)(const struct net_bridge_port *p,
+			      struct sk_buff *skb))
+{
+	int err;
+
+	if (!should_deliver(p, skb))
+		return prev;
+
+	if (!prev)
+		goto out;
+
+	err = deliver_clone(prev, skb, __packet_hook);
+	if (err)
+		return ERR_PTR(err);
+
+out:
+	return p;
+}
+
 /* called under bridge lock */
 static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 		     struct sk_buff *skb0,
@@ -111,38 +150,22 @@ static void br_flood(struct net_bridge *br, struct sk_buff *skb,
 {
 	struct net_bridge_port *p;
 	struct net_bridge_port *prev;
-	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
 
 	prev = NULL;
 
 	list_for_each_entry_rcu(p, &br->port_list, list) {
-		if (should_deliver(p, skb)) {
-			if (prev != NULL) {
-				struct sk_buff *skb2;
-
-				if ((skb2 = skb_clone(skb, GFP_ATOMIC)) == NULL) {
-					dev->stats.tx_dropped++;
-					goto out;
-				}
-
-				__packet_hook(prev, skb2);
-			}
-
-			prev = p;
-		}
+		prev = maybe_deliver(prev, p, skb, __packet_hook);
+		if (IS_ERR(prev))
+			goto out;
 	}
 
 	if (!prev)
 		goto out;
 
-	if (skb0) {
-		skb = skb_clone(skb, GFP_ATOMIC);
-		if (!skb) {
-			dev->stats.tx_dropped++;
-			goto out;
-		}
-	}
-	__packet_hook(prev, skb);
+	if (skb0)
+		deliver_clone(prev, skb, __packet_hook);
+	else
+		__packet_hook(prev, skb);
 	return;
 
 out:
