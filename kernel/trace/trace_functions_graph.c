@@ -18,6 +18,7 @@ struct fgraph_cpu_data {
 	pid_t		last_pid;
 	int		depth;
 	int		ignore;
+	unsigned long	enter_funcs[FTRACE_RETFUNC_DEPTH];
 };
 
 struct fgraph_data {
@@ -670,15 +671,21 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 	duration = graph_ret->rettime - graph_ret->calltime;
 
 	if (data) {
+		struct fgraph_cpu_data *cpu_data;
 		int cpu = iter->cpu;
-		int *depth = &(per_cpu_ptr(data->cpu_data, cpu)->depth);
+
+		cpu_data = per_cpu_ptr(data->cpu_data, cpu);
 
 		/*
 		 * Comments display at + 1 to depth. Since
 		 * this is a leaf function, keep the comments
 		 * equal to this depth.
 		 */
-		*depth = call->depth - 1;
+		cpu_data->depth = call->depth - 1;
+
+		/* No need to keep this function around for this depth */
+		if (call->depth < FTRACE_RETFUNC_DEPTH)
+			cpu_data->enter_funcs[call->depth] = 0;
 	}
 
 	/* Overhead */
@@ -718,10 +725,15 @@ print_graph_entry_nested(struct trace_iterator *iter,
 	int i;
 
 	if (data) {
+		struct fgraph_cpu_data *cpu_data;
 		int cpu = iter->cpu;
-		int *depth = &(per_cpu_ptr(data->cpu_data, cpu)->depth);
 
-		*depth = call->depth;
+		cpu_data = per_cpu_ptr(data->cpu_data, cpu);
+		cpu_data->depth = call->depth;
+
+		/* Save this function pointer to see if the exit matches */
+		if (call->depth < FTRACE_RETFUNC_DEPTH)
+			cpu_data->enter_funcs[call->depth] = call->func;
 	}
 
 	/* No overhead */
@@ -851,18 +863,28 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 	struct fgraph_data *data = iter->private;
 	pid_t pid = ent->pid;
 	int cpu = iter->cpu;
+	int func_match = 1;
 	int ret;
 	int i;
 
 	if (data) {
-		int *depth = &(per_cpu_ptr(data->cpu_data, cpu)->depth);
+		struct fgraph_cpu_data *cpu_data;
+		int cpu = iter->cpu;
+
+		cpu_data = per_cpu_ptr(data->cpu_data, cpu);
 
 		/*
 		 * Comments display at + 1 to depth. This is the
 		 * return from a function, we now want the comments
 		 * to display at the same level of the bracket.
 		 */
-		*depth = trace->depth - 1;
+		cpu_data->depth = trace->depth - 1;
+
+		if (trace->depth < FTRACE_RETFUNC_DEPTH) {
+			if (cpu_data->enter_funcs[trace->depth] != trace->func)
+				func_match = 0;
+			cpu_data->enter_funcs[trace->depth] = 0;
+		}
 	}
 
 	if (print_graph_prologue(iter, s, 0, 0))
@@ -887,9 +909,21 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
 
-	ret = trace_seq_printf(s, "}\n");
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
+	/*
+	 * If the return function does not have a matching entry,
+	 * then the entry was lost. Instead of just printing
+	 * the '}' and letting the user guess what function this
+	 * belongs to, write out the function name.
+	 */
+	if (func_match) {
+		ret = trace_seq_printf(s, "}\n");
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	} else {
+		ret = trace_seq_printf(s, "} (%ps)\n", (void *)trace->func);
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
 
 	/* Overrun */
 	if (tracer_flags.val & TRACE_GRAPH_PRINT_OVERRUN) {
