@@ -415,11 +415,13 @@ void usb_serial_generic_resubmit_read_urb(struct usb_serial_port *port,
 			   ((serial->type->read_bulk_callback) ?
 			     serial->type->read_bulk_callback :
 			     usb_serial_generic_read_bulk_callback), port);
+
 	result = usb_submit_urb(urb, mem_flags);
-	if (result)
+	if (result && result != -EPERM) {
 		dev_err(&port->dev,
 			"%s - failed resubmitting read urb, error %d\n",
 							__func__, result);
+	}
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_resubmit_read_urb);
 
