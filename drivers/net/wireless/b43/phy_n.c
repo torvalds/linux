@@ -837,6 +837,62 @@ static void b43_nphy_spur_workaround(struct b43_wldev *dev)
 		b43_nphy_stay_in_carrier_search(dev, 0);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/AdjustLnaGainTbl */
+static void b43_nphy_adjust_lna_gain_table(struct b43_wldev *dev)
+{
+	struct b43_phy_n *nphy = dev->phy.n;
+
+	u8 i;
+	s16 tmp;
+	u16 data[4];
+	s16 gain[2];
+	u16 minmax[2];
+	u16 lna_gain[4] = { -2, 10, 19, 25 };
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, 1);
+
+	if (nphy->gain_boost) {
+		if (b43_current_band(dev->wl) == IEEE80211_BAND_2GHZ) {
+			gain[0] = 6;
+			gain[1] = 6;
+		} else {
+			tmp = 40370 - 315 * nphy->radio_chanspec.channel;
+			gain[0] = ((tmp >> 13) + ((tmp >> 12) & 1));
+			tmp = 23242 - 224 * nphy->radio_chanspec.channel;
+			gain[1] = ((tmp >> 13) + ((tmp >> 12) & 1));
+		}
+	} else {
+		gain[0] = 0;
+		gain[1] = 0;
+	}
+
+	for (i = 0; i < 2; i++) {
+		if (nphy->elna_gain_config) {
+			data[0] = 19 + gain[i];
+			data[1] = 25 + gain[i];
+			data[2] = 25 + gain[i];
+			data[3] = 25 + gain[i];
+		} else {
+			data[0] = lna_gain[0] + gain[i];
+			data[1] = lna_gain[1] + gain[i];
+			data[2] = lna_gain[2] + gain[i];
+			data[3] = lna_gain[3] + gain[i];
+		}
+		b43_ntab_write_bulk(dev, B43_NTAB16(10, 8), 4, data);
+
+		minmax[i] = 23 + gain[i];
+	}
+
+	b43_phy_maskset(dev, B43_NPHY_C1_MINMAX_GAIN, ~B43_NPHY_C1_MINGAIN,
+				minmax[0] << B43_NPHY_C1_MINGAIN_SHIFT);
+	b43_phy_maskset(dev, B43_NPHY_C2_MINMAX_GAIN, ~B43_NPHY_C2_MINGAIN,
+				minmax[1] << B43_NPHY_C2_MINGAIN_SHIFT);
+
+	if (nphy->hang_avoid)
+		b43_nphy_stay_in_carrier_search(dev, 0);
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/WorkaroundsGainCtrl */
 static void b43_nphy_gain_crtl_workarounds(struct b43_wldev *dev)
 {
@@ -921,7 +977,7 @@ static void b43_nphy_gain_crtl_workarounds(struct b43_wldev *dev)
 		b43_phy_write(dev, B43_NPHY_TABLE_DATALO,
 					(code << 8 | 0x7C));
 
-		/* TODO: b43_nphy_adjust_lna_gain_table(dev); */
+		b43_nphy_adjust_lna_gain_table(dev);
 
 		if (nphy->elna_gain_config) {
 			b43_phy_write(dev, B43_NPHY_TABLE_ADDR, 0x0808);
