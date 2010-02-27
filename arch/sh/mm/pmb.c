@@ -23,7 +23,6 @@
 #include <linux/err.h>
 #include <linux/io.h>
 #include <linux/spinlock.h>
-#include <linux/rwlock.h>
 #include <asm/sizes.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
