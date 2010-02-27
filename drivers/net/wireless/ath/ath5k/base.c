@@ -307,7 +307,7 @@ static int 	ath5k_rxbuf_setup(struct ath5k_softc *sc,
 				struct ath5k_buf *bf);
 static int 	ath5k_txbuf_setup(struct ath5k_softc *sc,
 				struct ath5k_buf *bf,
-				struct ath5k_txq *txq);
+				struct ath5k_txq *txq, int padsize);
 static inline void ath5k_txbuf_free(struct ath5k_softc *sc,
 				struct ath5k_buf *bf)
 {
@@ -1271,7 +1271,7 @@ static enum ath5k_pkt_type get_hw_packet_type(struct sk_buff *skb)
 
 static int
 ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
-		  struct ath5k_txq *txq)
+		  struct ath5k_txq *txq, int padsize)
 {
 	struct ath5k_hw *ah = sc->ah;
 	struct ath5k_desc *ds = bf->desc;
@@ -1323,7 +1323,7 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 			sc->vif, pktlen, info));
 	}
 	ret = ah->ah_setup_tx_desc(ah, ds, pktlen,
-		ieee80211_get_hdrlen_from_skb(skb),
+		ieee80211_get_hdrlen_from_skb(skb), padsize,
 		get_hw_packet_type(skb),
 		(sc->power_level * 2),
 		hw_rate,
@@ -1805,6 +1805,67 @@ ath5k_check_ibss_tsf(struct ath5k_softc *sc, struct sk_buff *skb,
 	}
 }
 
+/*
+ * Compute padding position. skb must contains an IEEE 802.11 frame
+ */
+static int ath5k_common_padpos(struct sk_buff *skb)
+{
+	struct ieee80211_hdr * hdr = (struct ieee80211_hdr *)skb->data;
+	__le16 frame_control = hdr->frame_control;
+	int padpos = 24;
+
+	if (ieee80211_has_a4(frame_control)) {
+		padpos += ETH_ALEN;
+	}
+	if (ieee80211_is_data_qos(frame_control)) {
+		padpos += IEEE80211_QOS_CTL_LEN;
+	}
+
+	return padpos;
+}
+
+/*
+ * This function expects a 802.11 frame and returns the number of
+ * bytes added, or -1 if we don't have enought header room.
+ */
+
+static int ath5k_add_padding(struct sk_buff *skb)
+{
+	int padpos = ath5k_common_padpos(skb);
+	int padsize = padpos & 3;
+
+	if (padsize && skb->len>padpos) {
+
+		if (skb_headroom(skb) < padsize)
+			return -1;
+
+		skb_push(skb, padsize);
+		memmove(skb->data, skb->data+padsize, padpos);
+		return padsize;
+	}
+
+	return 0;
+}
+
+/*
+ * This function expects a 802.11 frame and returns the number of
+ * bytes removed
+ */
+
+static int ath5k_remove_padding(struct sk_buff *skb)
+{
+	int padpos = ath5k_common_padpos(skb);
+	int padsize = padpos & 3;
+
+	if (padsize && skb->len>=padpos+padsize) {
+		memmove(skb->data + padsize, skb->data, padpos);
+		skb_pull(skb, padsize);
+		return padsize;
+	}
+
+	return 0;
+}
+
 static void
 ath5k_tasklet_rx(unsigned long data)
 {
@@ -1818,8 +1879,6 @@ ath5k_tasklet_rx(unsigned long data)
 	struct ath5k_buf *bf;
 	struct ath5k_desc *ds;
 	int ret;
-	int hdrlen;
-	int padsize;
 	int rx_flag;
 
 	spin_lock(&sc->rxbuflock);
@@ -1904,12 +1963,8 @@ accept:
 		 * bytes and we can optimize this a bit. In addition, we must
 		 * not try to remove padding from short control frames that do
 		 * not have payload. */
-		hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-		padsize = ath5k_pad_size(hdrlen);
-		if (padsize) {
-			memmove(skb->data + padsize, skb->data, hdrlen);
-			skb_pull(skb, padsize);
-		}
+		ath5k_remove_padding(skb);
+
 		rxs = IEEE80211_SKB_RXCB(skb);
 
 		/*
@@ -2029,6 +2084,12 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 			info->status.ack_signal = ts.ts_rssi;
 		}
 
+		/*
+		 * Remove MAC header padding before giving the frame
+		 * back to mac80211.
+		 */
+		ath5k_remove_padding(skb);
+
 		ieee80211_tx_status(sc->hw, skb);
 
 		spin_lock(&sc->txbuflock);
@@ -2072,6 +2133,7 @@ ath5k_beacon_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	int ret = 0;
 	u8 antenna;
 	u32 flags;
+	const int padsize = 0;
 
 	bf->skbaddr = pci_map_single(sc->pdev, skb->data, skb->len,
 			PCI_DMA_TODEVICE);
@@ -2119,7 +2181,7 @@ ath5k_beacon_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	 * from tx power (value is in dB units already) */
 	ds->ds_data = bf->skbaddr;
 	ret = ah->ah_setup_tx_desc(ah, ds, skb->len,
-			ieee80211_get_hdrlen_from_skb(skb),
+			ieee80211_get_hdrlen_from_skb(skb), padsize,
 			AR5K_PKT_TYPE_BEACON, (sc->power_level * 2),
 			ieee80211_get_tx_rate(sc->hw, info)->hw_value,
 			1, AR5K_TXKEYIX_INVALID,
@@ -2679,7 +2741,6 @@ static int ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 	struct ath5k_softc *sc = hw->priv;
 	struct ath5k_buf *bf;
 	unsigned long flags;
-	int hdrlen;
 	int padsize;
 
 	ath5k_debug_dump_skb(sc, skb, "TX  ", 1);
@@ -2691,17 +2752,11 @@ static int ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 	 * the hardware expects the header padded to 4 byte boundaries
 	 * if this is not the case we add the padding after the header
 	 */
-	hdrlen = ieee80211_get_hdrlen_from_skb(skb);
-	padsize = ath5k_pad_size(hdrlen);
-	if (padsize) {
-
-		if (skb_headroom(skb) < padsize) {
-			ATH5K_ERR(sc, "tx hdrlen not %%4: %d not enough"
-				  " headroom to pad %d\n", hdrlen, padsize);
-			goto drop_packet;
-		}
-		skb_push(skb, padsize);
-		memmove(skb->data, skb->data+padsize, hdrlen);
+	padsize = ath5k_add_padding(skb);
+	if (padsize < 0) {
+		ATH5K_ERR(sc, "tx hdrlen not %%4: not enough"
+			  " headroom to pad");
+		goto drop_packet;
 	}
 
 	spin_lock_irqsave(&sc->txbuflock, flags);
@@ -2720,7 +2775,7 @@ static int ath5k_tx_queue(struct ieee80211_hw *hw, struct sk_buff *skb,
 
 	bf->skb = skb;
 
-	if (ath5k_txbuf_setup(sc, bf, txq)) {
+	if (ath5k_txbuf_setup(sc, bf, txq, padsize)) {
 		bf->skb = NULL;
 		spin_lock_irqsave(&sc->txbuflock, flags);
 		list_add_tail(&bf->list, &sc->txbuf);

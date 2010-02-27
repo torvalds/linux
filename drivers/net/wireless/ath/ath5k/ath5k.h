@@ -1141,9 +1141,9 @@ struct ath5k_hw {
 	int (*ah_setup_rx_desc)(struct ath5k_hw *ah, struct ath5k_desc *desc,
 				u32 size, unsigned int flags);
 	int (*ah_setup_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
-		unsigned int, unsigned int, enum ath5k_pkt_type, unsigned int,
+		unsigned int, unsigned int, int, enum ath5k_pkt_type,
 		unsigned int, unsigned int, unsigned int, unsigned int,
-		unsigned int, unsigned int, unsigned int);
+		unsigned int, unsigned int, unsigned int, unsigned int);
 	int (*ah_setup_mrr_tx_desc)(struct ath5k_hw *, struct ath5k_desc *,
 		unsigned int, unsigned int, unsigned int, unsigned int,
 		unsigned int, unsigned int);
@@ -1340,11 +1340,6 @@ static inline u32 ath5k_hw_bitswap(u32 val, unsigned int bits)
 	}
 
 	return retval;
-}
-
-static inline int ath5k_pad_size(int hdrlen)
-{
-	return (hdrlen < 24) ? 0 : hdrlen & 3;
 }
 
 #endif
