@@ -646,6 +646,41 @@ static void b43_nphy_read_clip_detection(struct b43_wldev *dev, u16 *clip_st)
 	clip_st[1] = b43_phy_read(dev, B43_NPHY_C2_CLIP1THRES);
 }
 
+/* http://bcm-v4.sipsolutions.net/802.11/PHY/N/SuperSwitchInit */
+static void b43_nphy_superswitch_init(struct b43_wldev *dev, bool init)
+{
+	if (dev->phy.rev >= 3) {
+		if (!init)
+			return;
+		if (0 /* FIXME */) {
+			b43_ntab_write(dev, B43_NTAB16(9, 2), 0x211);
+			b43_ntab_write(dev, B43_NTAB16(9, 3), 0x222);
+			b43_ntab_write(dev, B43_NTAB16(9, 8), 0x144);
+			b43_ntab_write(dev, B43_NTAB16(9, 12), 0x188);
+		}
+	} else {
+		b43_phy_write(dev, B43_NPHY_GPIO_LOOEN, 0);
+		b43_phy_write(dev, B43_NPHY_GPIO_HIOEN, 0);
+
+		ssb_chipco_gpio_control(&dev->dev->bus->chipco, 0xFC00,
+					0xFC00);
+		b43_write32(dev, B43_MMIO_MACCTL,
+			b43_read32(dev, B43_MMIO_MACCTL) &
+			~B43_MACCTL_GPOUTSMSK);
+		b43_write16(dev, B43_MMIO_GPIO_MASK,
+			b43_read16(dev, B43_MMIO_GPIO_MASK) | 0xFC00);
+		b43_write16(dev, B43_MMIO_GPIO_CONTROL,
+			b43_read16(dev, B43_MMIO_GPIO_CONTROL) & ~0xFC00);
+
+		if (init) {
+			b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_LO1, 0x2D8);
+			b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_UP1, 0x301);
+			b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_LO2, 0x2D8);
+			b43_phy_write(dev, B43_NPHY_RFCTL_LUT_TRSW_UP2, 0x301);
+		}
+	}
+}
+
 /* http://bcm-v4.sipsolutions.net/802.11/PHY/N/classifier */
 static u16 b43_nphy_classifier(struct b43_wldev *dev, u16 mask, u16 val)
 {
@@ -3116,7 +3151,7 @@ int b43_phy_initn(struct b43_wldev *dev)
 			target = b43_nphy_get_tx_gains(dev);
 
 			if (nphy->antsel_type == 2)
-				;/*TODO NPHY Superswitch Init with argument 1*/
+				b43_nphy_superswitch_init(dev, true);
 			if (nphy->perical != 2) {
 				b43_nphy_rssi_cal(dev);
 				if (phy->rev >= 3) {
