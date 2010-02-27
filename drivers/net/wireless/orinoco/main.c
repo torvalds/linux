@@ -1676,8 +1676,7 @@ __orinoco_set_multicast_list(struct net_device *dev)
 		mc_count = netdev_mc_count(dev);
 	}
 
-	err = __orinoco_hw_set_multicast_list(priv, dev->mc_list, mc_count,
-					      promisc);
+	err = __orinoco_hw_set_multicast_list(priv, dev, mc_count, promisc);
 
 	return err;
 }

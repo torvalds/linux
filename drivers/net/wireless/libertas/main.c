@@ -319,15 +319,18 @@ static int lbs_add_mcast_addrs(struct cmd_ds_mac_multicast_adr *cmd,
 {
 	int i = nr_addrs;
 	struct dev_mc_list *mc_list;
+	int cnt;
 
 	if ((dev->flags & (IFF_UP|IFF_MULTICAST)) != (IFF_UP|IFF_MULTICAST))
 		return nr_addrs;
 
 	netif_addr_lock_bh(dev);
-	for (mc_list = dev->mc_list; mc_list; mc_list = mc_list->next) {
+	cnt = netdev_mc_count(dev);
+	netdev_for_each_mc_addr(mc_list, dev) {
 		if (mac_in_list(cmd->maclist, nr_addrs, mc_list->dmi_addr)) {
 			lbs_deb_net("mcast address %s:%pM skipped\n", dev->name,
 				    mc_list->dmi_addr);
+			cnt--;
 			continue;
 		}
 
@@ -337,9 +340,10 @@ static int lbs_add_mcast_addrs(struct cmd_ds_mac_multicast_adr *cmd,
 		lbs_deb_net("mcast address %s:%pM added to filter\n", dev->name,
 			    mc_list->dmi_addr);
 		i++;
+		cnt--;
 	}
 	netif_addr_unlock_bh(dev);
-	if (mc_list)
+	if (cnt)
 		return -EOVERFLOW;
 
 	return i;

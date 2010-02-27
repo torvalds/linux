@@ -1502,6 +1502,7 @@ static void set_multicast_list(struct usbnet *usbdev)
 
 	filter = RNDIS_PACKET_TYPE_DIRECTED | RNDIS_PACKET_TYPE_BROADCAST;
 
+	netif_addr_lock_bh(usbdev->net);
 	if (usbdev->net->flags & IFF_PROMISC) {
 		filter |= RNDIS_PACKET_TYPE_PROMISCUOUS |
 			RNDIS_PACKET_TYPE_ALL_LOCAL;
@@ -1515,16 +1516,15 @@ static void set_multicast_list(struct usbnet *usbdev)
 			netdev_warn(usbdev->net,
 				    "couldn't alloc %d bytes of memory\n",
 				    size * ETH_ALEN);
+			netif_addr_unlock_bh(usbdev->net);
 			return;
 		}
 
-		mclist = usbdev->net->mc_list;
-		for (i = 0; i < size && mclist; mclist = mclist->next) {
-			if (mclist->dmi_addrlen != ETH_ALEN)
-				continue;
-
-			memcpy(buf + i * ETH_ALEN, mclist->dmi_addr, ETH_ALEN);
-			i++;
+		i = 0;
+		netdev_for_each_mc_addr(mclist, usbdev->net) {
+			if (i == size)
+				break;
+			memcpy(buf + i++ * ETH_ALEN, mclist->dmi_addr, ETH_ALEN);
 		}
 
 		ret = rndis_set_oid(usbdev, OID_802_3_MULTICAST_LIST, buf,
@@ -1539,6 +1539,7 @@ static void set_multicast_list(struct usbnet *usbdev)
 
 		kfree(buf);
 	}
+	netif_addr_unlock_bh(usbdev->net);
 
 	ret = rndis_set_oid(usbdev, OID_GEN_CURRENT_PACKET_FILTER, &filter,
 							sizeof(filter));
