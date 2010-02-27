@@ -711,6 +711,8 @@
 #define B43_NPHY_PAPD_EN1			B43_PHY_N(0x29B) /* PAPD Enable1 TBD */
 #define B43_NPHY_EPS_TABLE_ADJ1			B43_PHY_N(0x29C) /* EPS Table Adj1 TBD */
 
+#define B43_PHY_B_BBCFG				B43_PHY_N_BMODE(0x001) /* BB config */
+#define B43_PHY_B_TEST				B43_PHY_N_BMODE(0x00A)
 
 
 /* Broadcom 2055 radio registers */
@@ -923,6 +925,13 @@
 
 
 struct b43_wldev;
+
+struct b43_chanspec {
+	u8 channel;
+	u8 sideband;
+	u8 b_width;
+	u8 b_freq;
+};
 
 struct b43_phy_n_iq_comp {
 	s16 a0;

@@ -4,6 +4,15 @@
 #include <linux/types.h>
 
 
+struct b43_phy_n_sfo_cfg {
+	u16 phy_bw1a;
+	u16 phy_bw2;
+	u16 phy_bw3;
+	u16 phy_bw4;
+	u16 phy_bw5;
+	u16 phy_bw6;
+};
+
 struct b43_nphy_channeltab_entry {
 	/* The channel number */
 	u8 channel;
