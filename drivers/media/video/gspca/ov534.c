@@ -171,7 +171,7 @@ static const struct ctrl sd_ctrls[] = {
 		.minimum = 0,
 		.maximum = 1,
 		.step    = 1,
-#define AWB_DEF 0
+#define AWB_DEF 1
 		.default_value = AWB_DEF,
 	},
 	.set = sd_setawb,
@@ -723,10 +723,17 @@ static void setawb(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	if (sd->awb)
-		sccb_reg_write(gspca_dev, 0x63, 0xe0);	/* AWB on */
-	else
-		sccb_reg_write(gspca_dev, 0x63, 0xaa);	/* AWB off */
+	if (sd->awb) {
+		sccb_reg_write(gspca_dev, 0x13,
+				sccb_reg_read(gspca_dev, 0x13) | 0x02);
+		sccb_reg_write(gspca_dev, 0x63,
+				sccb_reg_read(gspca_dev, 0x63) | 0xc0);
+	} else {
+		sccb_reg_write(gspca_dev, 0x13,
+				sccb_reg_read(gspca_dev, 0x13) & ~0x02);
+		sccb_reg_write(gspca_dev, 0x63,
+				sccb_reg_read(gspca_dev, 0x63) & ~0xc0);
+	}
 }
 
 static void setaec(struct gspca_dev *gspca_dev)
@@ -805,9 +812,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 #else
 	gspca_dev->ctrl_inac |= (1 << AWB_IDX);
 #endif
-#if AWB_DEF != 0
-	sd->awb = AWB_DEF
-#endif
+	sd->awb = AWB_DEF;
 	sd->aec = AEC_DEF;
 #if SHARPNESS_DEF != 0
 	sd->sharpness = SHARPNESS_DEF;
