@@ -186,3 +186,70 @@ void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
 {
 	br_flood(br, skb, skb2, __br_forward);
 }
+
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+/* called with rcu_read_lock */
+static void br_multicast_flood(struct net_bridge_mdb_entry *mdst,
+			       struct sk_buff *skb, struct sk_buff *skb0,
+			       void (*__packet_hook)(
+					const struct net_bridge_port *p,
+					struct sk_buff *skb))
+{
+	struct net_device *dev = BR_INPUT_SKB_CB(skb)->brdev;
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_bridge_port *port;
+	struct net_bridge_port *lport, *rport;
+	struct net_bridge_port *prev;
+	struct net_bridge_port_group *p;
+	struct hlist_node *rp;
+
+	prev = NULL;
+
+	rp = br->router_list.first;
+	p = mdst ? mdst->ports : NULL;
+	while (p || rp) {
+		lport = p ? p->port : NULL;
+		rport = rp ? hlist_entry(rp, struct net_bridge_port, rlist) :
+			     NULL;
+
+		port = (unsigned long)lport > (unsigned long)rport ?
+		       lport : rport;
+
+		prev = maybe_deliver(prev, port, skb, __packet_hook);
+		if (IS_ERR(prev))
+			goto out;
+
+		if ((unsigned long)lport >= (unsigned long)port)
+			p = p->next;
+		if ((unsigned long)rport >= (unsigned long)port)
+			rp = rp->next;
+	}
+
+	if (!prev)
+		goto out;
+
+	if (skb0)
+		deliver_clone(prev, skb, __packet_hook);
+	else
+		__packet_hook(prev, skb);
+	return;
+
+out:
+	if (!skb0)
+		kfree_skb(skb);
+}
+
+/* called with rcu_read_lock */
+void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
+			  struct sk_buff *skb)
+{
+	br_multicast_flood(mdst, skb, NULL, __br_deliver);
+}
+
+/* called with rcu_read_lock */
+void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
+			  struct sk_buff *skb, struct sk_buff *skb2)
+{
+	br_multicast_flood(mdst, skb, skb2, __br_forward);
+}
+#endif

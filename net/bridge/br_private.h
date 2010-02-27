@@ -293,6 +293,10 @@ extern void br_multicast_disable_port(struct net_bridge_port *port);
 extern void br_multicast_init(struct net_bridge *br);
 extern void br_multicast_open(struct net_bridge *br);
 extern void br_multicast_stop(struct net_bridge *br);
+extern void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
+				 struct sk_buff *skb);
+extern void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
+				 struct sk_buff *skb, struct sk_buff *skb2);
 #else
 static inline int br_multicast_rcv(struct net_bridge *br,
 				   struct net_bridge_port *port,
@@ -332,6 +336,17 @@ static inline void br_multicast_open(struct net_bridge *br)
 }
 
 static inline void br_multicast_stop(struct net_bridge *br)
+{
+}
+
+static inline void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
+					struct sk_buff *skb)
+{
+}
+
+static inline void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
+					struct sk_buff *skb,
+					struct sk_buff *skb2)
 {
 }
 #endif
