@@ -256,7 +256,7 @@ xfs_setattr(
 		    iattr->ia_size > ip->i_d.di_size) {
 			code = xfs_flush_pages(ip,
 					ip->i_d.di_size, iattr->ia_size,
-					XFS_B_ASYNC, FI_NONE);
+					XBF_ASYNC, FI_NONE);
 		}
 
 		/* wait for all I/O to complete */
@@ -597,7 +597,7 @@ xfs_fsync(
 {
 	xfs_trans_t	*tp;
 	int		error = 0;
-	int		log_flushed = 0, changed = 1;
+	int		log_flushed = 0;
 
 	xfs_itrace_entry(ip);
 
@@ -627,19 +627,16 @@ xfs_fsync(
 		 * disk yet, the inode will be still be pinned.  If it is,
 		 * force the log.
 		 */
-
 		xfs_iunlock(ip, XFS_ILOCK_SHARED);
-
 		if (xfs_ipincount(ip)) {
-			error = _xfs_log_force(ip->i_mount, (xfs_lsn_t)0,
-				      XFS_LOG_FORCE | XFS_LOG_SYNC,
-				      &log_flushed);
-		} else {
-			/*
-			 * If the inode is not pinned and nothing has changed
-			 * we don't need to flush the cache.
-			 */
-			changed = 0;
+			if (ip->i_itemp->ili_last_lsn) {
+				error = _xfs_log_force_lsn(ip->i_mount,
+						ip->i_itemp->ili_last_lsn,
+						XFS_LOG_SYNC, &log_flushed);
+			} else {
+				error = _xfs_log_force(ip->i_mount,
+						XFS_LOG_SYNC, &log_flushed);
+			}
 		}
 	} else	{
 		/*
@@ -674,7 +671,7 @@ xfs_fsync(
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	}
 
-	if ((ip->i_mount->m_flags & XFS_MOUNT_BARRIER) && changed) {
+	if (ip->i_mount->m_flags & XFS_MOUNT_BARRIER) {
 		/*
 		 * If the log write didn't issue an ordered tag we need
 		 * to flush the disk cache for the data device now.
@@ -1096,7 +1093,7 @@ xfs_release(
 		 */
 		truncated = xfs_iflags_test_and_clear(ip, XFS_ITRUNCATED);
 		if (truncated && VN_DIRTY(VFS_I(ip)) && ip->i_delayed_blks > 0)
-			xfs_flush_pages(ip, 0, -1, XFS_B_ASYNC, FI_NONE);
+			xfs_flush_pages(ip, 0, -1, XBF_ASYNC, FI_NONE);
 	}
 
 	if (ip->i_d.di_nlink != 0) {
@@ -2199,7 +2196,8 @@ xfs_symlink(
 	if (DM_EVENT_ENABLED(dp, DM_EVENT_SYMLINK)) {
 		error = XFS_SEND_NAMESP(mp, DM_EVENT_SYMLINK, dp,
 					DM_RIGHT_NULL, NULL, DM_RIGHT_NULL,
-					link_name->name, target_path, 0, 0, 0);
+					link_name->name,
+					(unsigned char *)target_path, 0, 0, 0);
 		if (error)
 			return error;
 	}
@@ -2395,7 +2393,8 @@ std_return:
 					dp, DM_RIGHT_NULL,
 					error ? NULL : ip,
 					DM_RIGHT_NULL, link_name->name,
-					target_path, 0, error, 0);
+					(unsigned char *)target_path,
+					0, error, 0);
 	}
 
 	if (!error)

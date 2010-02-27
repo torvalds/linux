@@ -43,11 +43,11 @@ int xfs_change_file_space(struct xfs_inode *ip, int cmd,
 int xfs_rename(struct xfs_inode *src_dp, struct xfs_name *src_name,
 		struct xfs_inode *src_ip, struct xfs_inode *target_dp,
 		struct xfs_name *target_name, struct xfs_inode *target_ip);
-int xfs_attr_get(struct xfs_inode *ip, const char *name, char *value,
-		int *valuelenp, int flags);
-int xfs_attr_set(struct xfs_inode *dp, const char *name, char *value,
-		int valuelen, int flags);
-int xfs_attr_remove(struct xfs_inode *dp, const char *name, int flags);
+int xfs_attr_get(struct xfs_inode *ip, const unsigned char *name,
+		unsigned char *value, int *valuelenp, int flags);
+int xfs_attr_set(struct xfs_inode *dp, const unsigned char *name,
+		unsigned char *value, int valuelen, int flags);
+int xfs_attr_remove(struct xfs_inode *dp, const unsigned char *name, int flags);
 int xfs_attr_list(struct xfs_inode *dp, char *buffer, int bufsize,
 		int flags, struct attrlist_cursor_kern *cursor);
 ssize_t xfs_read(struct xfs_inode *ip, struct kiocb *iocb,

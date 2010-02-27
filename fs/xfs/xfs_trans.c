@@ -981,9 +981,8 @@ shut_us_down:
 	 */
 	if (sync) {
 		if (!error) {
-			error = _xfs_log_force(mp, commit_lsn,
-				      XFS_LOG_FORCE | XFS_LOG_SYNC,
-				      log_flushed);
+			error = _xfs_log_force_lsn(mp, commit_lsn,
+				      XFS_LOG_SYNC, log_flushed);
 		}
 		XFS_STATS_INC(xs_trans_sync);
 	} else {
@@ -1121,7 +1120,7 @@ xfs_trans_fill_vecs(
 	tp->t_header.th_num_items = nitems;
 	log_vector->i_addr = (xfs_caddr_t)&tp->t_header;
 	log_vector->i_len = sizeof(xfs_trans_header_t);
-	XLOG_VEC_SET_TYPE(log_vector, XLOG_REG_TYPE_TRANSHDR);
+	log_vector->i_type = XLOG_REG_TYPE_TRANSHDR;
 }
 
 

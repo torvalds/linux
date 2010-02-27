@@ -877,12 +877,11 @@ xfsaild(
 {
 	struct xfs_ail	*ailp = data;
 	xfs_lsn_t	last_pushed_lsn = 0;
-	long		tout = 0;
+	long		tout = 0; /* milliseconds */
 
 	while (!kthread_should_stop()) {
-		if (tout)
-			schedule_timeout_interruptible(msecs_to_jiffies(tout));
-		tout = 1000;
+		schedule_timeout_interruptible(tout ?
+				msecs_to_jiffies(tout) : MAX_SCHEDULE_TIMEOUT);
 
 		/* swsusp */
 		try_to_freeze();
@@ -1022,12 +1021,45 @@ xfs_fs_dirty_inode(
 	XFS_I(inode)->i_update_core = 1;
 }
 
-/*
- * Attempt to flush the inode, this will actually fail
- * if the inode is pinned, but we dirty the inode again
- * at the point when it is unpinned after a log write,
- * since this is when the inode itself becomes flushable.
- */
+STATIC int
+xfs_log_inode(
+	struct xfs_inode	*ip)
+{
+	struct xfs_mount	*mp = ip->i_mount;
+	struct xfs_trans	*tp;
+	int			error;
+
+	xfs_iunlock(ip, XFS_ILOCK_SHARED);
+	tp = xfs_trans_alloc(mp, XFS_TRANS_FSYNC_TS);
+	error = xfs_trans_reserve(tp, 0, XFS_FSYNC_TS_LOG_RES(mp), 0, 0, 0);
+
+	if (error) {
+		xfs_trans_cancel(tp, 0);
+		/* we need to return with the lock hold shared */
+		xfs_ilock(ip, XFS_ILOCK_SHARED);
+		return error;
+	}
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+
+	/*
+	 * Note - it's possible that we might have pushed ourselves out of the
+	 * way during trans_reserve which would flush the inode.  But there's
+	 * no guarantee that the inode buffer has actually gone out yet (it's
+	 * delwri).  Plus the buffer could be pinned anyway if it's part of
+	 * an inode in another recent transaction.  So we play it safe and
+	 * fire off the transaction anyway.
+	 */
+	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
+	xfs_trans_ihold(tp, ip);
+	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
+	xfs_trans_set_sync(tp);
+	error = xfs_trans_commit(tp, 0);
+	xfs_ilock_demote(ip, XFS_ILOCK_EXCL);
+
+	return error;
+}
+
 STATIC int
 xfs_fs_write_inode(
 	struct inode		*inode,
@@ -1035,7 +1067,7 @@ xfs_fs_write_inode(
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
-	int			error = 0;
+	int			error = EAGAIN;
 
 	xfs_itrace_entry(ip);
 
@@ -1046,35 +1078,55 @@ xfs_fs_write_inode(
 		error = xfs_wait_on_pages(ip, 0, -1);
 		if (error)
 			goto out;
-	}
 
-	/*
-	 * Bypass inodes which have already been cleaned by
-	 * the inode flush clustering code inside xfs_iflush
-	 */
-	if (xfs_inode_clean(ip))
-		goto out;
-
-	/*
-	 * We make this non-blocking if the inode is contended, return
-	 * EAGAIN to indicate to the caller that they did not succeed.
-	 * This prevents the flush path from blocking on inodes inside
-	 * another operation right now, they get caught later by xfs_sync.
-	 */
-	if (sync) {
+		/*
+		 * Make sure the inode has hit stable storage.  By using the
+		 * log and the fsync transactions we reduce the IOs we have
+		 * to do here from two (log and inode) to just the log.
+		 *
+		 * Note: We still need to do a delwri write of the inode after
+		 * this to flush it to the backing buffer so that bulkstat
+		 * works properly if this is the first time the inode has been
+		 * written.  Because we hold the ilock atomically over the
+		 * transaction commit and the inode flush we are guaranteed
+		 * that the inode is not pinned when it returns. If the flush
+		 * lock is already held, then the inode has already been
+		 * flushed once and we don't need to flush it again.  Hence
+		 * the code will only flush the inode if it isn't already
+		 * being flushed.
+		 */
 		xfs_ilock(ip, XFS_ILOCK_SHARED);
-		xfs_iflock(ip);
-
-		error = xfs_iflush(ip, XFS_IFLUSH_SYNC);
+		if (ip->i_update_core) {
+			error = xfs_log_inode(ip);
+			if (error)
+				goto out_unlock;
+		}
 	} else {
-		error = EAGAIN;
+		/*
+		 * We make this non-blocking if the inode is contended, return
+		 * EAGAIN to indicate to the caller that they did not succeed.
+		 * This prevents the flush path from blocking on inodes inside
+		 * another operation right now, they get caught later by xfs_sync.
+		 */
 		if (!xfs_ilock_nowait(ip, XFS_ILOCK_SHARED))
 			goto out;
-		if (xfs_ipincount(ip) || !xfs_iflock_nowait(ip))
-			goto out_unlock;
-
-		error = xfs_iflush(ip, XFS_IFLUSH_ASYNC_NOBLOCK);
 	}
+
+	if (xfs_ipincount(ip) || !xfs_iflock_nowait(ip))
+		goto out_unlock;
+
+	/*
+	 * Now we have the flush lock and the inode is not pinned, we can check
+	 * if the inode is really clean as we know that there are no pending
+	 * transaction completions, it is not waiting on the delayed write
+	 * queue and there is no IO in progress.
+	 */
+	if (xfs_inode_clean(ip)) {
+		xfs_ifunlock(ip);
+		error = 0;
+		goto out_unlock;
+	}
+	error = xfs_iflush(ip, 0);
 
  out_unlock:
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
@@ -1257,6 +1309,29 @@ xfs_fs_statfs(
 	return 0;
 }
 
+STATIC void
+xfs_save_resvblks(struct xfs_mount *mp)
+{
+	__uint64_t resblks = 0;
+
+	mp->m_resblks_save = mp->m_resblks;
+	xfs_reserve_blocks(mp, &resblks, NULL);
+}
+
+STATIC void
+xfs_restore_resvblks(struct xfs_mount *mp)
+{
+	__uint64_t resblks;
+
+	if (mp->m_resblks_save) {
+		resblks = mp->m_resblks_save;
+		mp->m_resblks_save = 0;
+	} else
+		resblks = xfs_default_resblks(mp);
+
+	xfs_reserve_blocks(mp, &resblks, NULL);
+}
+
 STATIC int
 xfs_fs_remount(
 	struct super_block	*sb,
@@ -1336,11 +1411,27 @@ xfs_fs_remount(
 			}
 			mp->m_update_flags = 0;
 		}
+
+		/*
+		 * Fill out the reserve pool if it is empty. Use the stashed
+		 * value if it is non-zero, otherwise go with the default.
+		 */
+		xfs_restore_resvblks(mp);
 	}
 
 	/* rw -> ro */
 	if (!(mp->m_flags & XFS_MOUNT_RDONLY) && (*flags & MS_RDONLY)) {
+		/*
+		 * After we have synced the data but before we sync the
+		 * metadata, we need to free up the reserve block pool so that
+		 * the used block count in the superblock on disk is correct at
+		 * the end of the remount. Stash the current reserve pool size
+		 * so that if we get remounted rw, we can return it to the same
+		 * size.
+		 */
+
 		xfs_quiesce_data(mp);
+		xfs_save_resvblks(mp);
 		xfs_quiesce_attr(mp);
 		mp->m_flags |= XFS_MOUNT_RDONLY;
 	}
@@ -1359,8 +1450,19 @@ xfs_fs_freeze(
 {
 	struct xfs_mount	*mp = XFS_M(sb);
 
+	xfs_save_resvblks(mp);
 	xfs_quiesce_attr(mp);
 	return -xfs_fs_log_dummy(mp);
+}
+
+STATIC int
+xfs_fs_unfreeze(
+	struct super_block	*sb)
+{
+	struct xfs_mount	*mp = XFS_M(sb);
+
+	xfs_restore_resvblks(mp);
+	return 0;
 }
 
 STATIC int
@@ -1585,6 +1687,7 @@ static const struct super_operations xfs_super_operations = {
 	.put_super		= xfs_fs_put_super,
 	.sync_fs		= xfs_fs_sync_fs,
 	.freeze_fs		= xfs_fs_freeze,
+	.unfreeze_fs		= xfs_fs_unfreeze,
 	.statfs			= xfs_fs_statfs,
 	.remount_fs		= xfs_fs_remount,
 	.show_options		= xfs_fs_show_options,
