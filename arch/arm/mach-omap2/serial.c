@@ -664,6 +664,12 @@ void __init omap_serial_early_init(void)
 		struct device *dev = &pdev->dev;
 		struct plat_serial8250_port *p = dev->platform_data;
 
+		/* Don't map zero-based physical address */
+		if (p->mapbase == 0) {
+			printk(KERN_WARNING "omap serial: No physical address"
+			       " for uart#%d, so skipping early_init...\n", i);
+			continue;
+		}
 		/*
 		 * Module 4KB + L4 interconnect 4KB
 		 * Static mapping, never released
@@ -726,6 +732,13 @@ void __init omap_serial_init_port(int port)
 	uart = &omap_uart[port];
 	pdev = &uart->pdev;
 	dev = &pdev->dev;
+
+	/* Don't proceed if there's no clocks available */
+	if (unlikely(!uart->ick || !uart->fck)) {
+		WARN(1, "%s: can't init uart%d, no clocks available\n",
+		     kobject_name(&dev->kobj), port);
+		return;
+	}
 
 	omap_uart_enable_clocks(uart);
 
