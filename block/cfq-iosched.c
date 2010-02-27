@@ -47,6 +47,7 @@ static const int cfq_hist_divisor = 4;
 #define CFQ_SERVICE_SHIFT       12
 
 #define CFQQ_SEEK_THR		(sector_t)(8 * 100)
+#define CFQQ_SECT_THR_NONROT	(sector_t)(2 * 32)
 #define CFQQ_SEEKY(cfqq)	(hweight32(cfqq->seek_history) > 32/8)
 
 #define RQ_CIC(rq)		\
@@ -2965,6 +2966,7 @@ cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 		       struct request *rq)
 {
 	sector_t sdist = 0;
+	sector_t n_sec = blk_rq_sectors(rq);
 	if (cfqq->last_request_pos) {
 		if (cfqq->last_request_pos < blk_rq_pos(rq))
 			sdist = blk_rq_pos(rq) - cfqq->last_request_pos;
@@ -2973,7 +2975,10 @@ cfq_update_io_seektime(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	}
 
 	cfqq->seek_history <<= 1;
-	cfqq->seek_history |= (sdist > CFQQ_SEEK_THR);
+	if (blk_queue_nonrot(cfqd->queue))
+		cfqq->seek_history |= (n_sec < CFQQ_SECT_THR_NONROT);
+	else
+		cfqq->seek_history |= (sdist > CFQQ_SEEK_THR);
 }
 
 /*
