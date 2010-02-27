@@ -60,8 +60,6 @@ struct sd {
 	u8 contrast;
 	u8 gain;
 	u8 exposure;
-	u8 redblc;
-	u8 blueblc;
 	u8 hue;
 	u8 autogain;
 	u8 awb;
@@ -76,10 +74,6 @@ static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setredblc(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getredblc(struct gspca_dev *gspca_dev, __s32 *val);
-static int sd_setblueblc(struct gspca_dev *gspca_dev, __s32 val);
-static int sd_getblueblc(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setautogain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setsharpness(struct gspca_dev *gspca_dev, __s32 val);
@@ -156,34 +150,6 @@ static const struct ctrl sd_ctrls[] = {
     },
     {							/* 4 */
 	{
-	    .id      = V4L2_CID_RED_BALANCE,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Red Balance",
-	    .minimum = 0,
-	    .maximum = 255,
-	    .step    = 1,
-#define RED_BALANCE_DEF 128
-	    .default_value = RED_BALANCE_DEF,
-	},
-	.set = sd_setredblc,
-	.get = sd_getredblc,
-    },
-    {							/* 5 */
-	{
-	    .id      = V4L2_CID_BLUE_BALANCE,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Blue Balance",
-	    .minimum = 0,
-	    .maximum = 255,
-	    .step    = 1,
-#define BLUE_BALANCE_DEF 128
-	    .default_value = BLUE_BALANCE_DEF,
-	},
-	.set = sd_setblueblc,
-	.get = sd_getblueblc,
-    },
-    {							/* 6 */
-	{
 		.id      = V4L2_CID_HUE,
 		.type    = V4L2_CTRL_TYPE_INTEGER,
 		.name    = "Hue",
@@ -196,7 +162,7 @@ static const struct ctrl sd_ctrls[] = {
 	.set = sd_sethue,
 	.get = sd_gethue,
     },
-    {							/* 7 */
+    {							/* 5 */
 	{
 	    .id      = V4L2_CID_AUTOGAIN,
 	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
@@ -210,8 +176,8 @@ static const struct ctrl sd_ctrls[] = {
 	.set = sd_setautogain,
 	.get = sd_getautogain,
     },
-#define AWB_IDX 8
-    {							/* 8 */
+#define AWB_IDX 6
+    {							/* 6 */
 	{
 		.id      = V4L2_CID_AUTO_WHITE_BALANCE,
 		.type    = V4L2_CTRL_TYPE_BOOLEAN,
@@ -225,7 +191,7 @@ static const struct ctrl sd_ctrls[] = {
 	.set = sd_setawb,
 	.get = sd_getawb,
     },
-    {							/* 9 */
+    {							/* 7 */
 	{
 	    .id      = V4L2_CID_SHARPNESS,
 	    .type    = V4L2_CTRL_TYPE_INTEGER,
@@ -239,7 +205,7 @@ static const struct ctrl sd_ctrls[] = {
 	.set = sd_setsharpness,
 	.get = sd_getsharpness,
     },
-    {							/* 10 */
+    {							/* 8 */
 	{
 	    .id      = V4L2_CID_HFLIP,
 	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
@@ -253,7 +219,7 @@ static const struct ctrl sd_ctrls[] = {
 	.set = sd_sethflip,
 	.get = sd_gethflip,
     },
-    {							/* 11 */
+    {							/* 9 */
 	{
 	    .id      = V4L2_CID_VFLIP,
 	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
@@ -722,20 +688,6 @@ static void setexposure(struct gspca_dev *gspca_dev)
 	sccb_reg_write(gspca_dev, 0x10, val << 1);
 }
 
-static void setredblc(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sccb_reg_write(gspca_dev, 0x43, sd->redblc);
-}
-
-static void setblueblc(struct gspca_dev *gspca_dev)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sccb_reg_write(gspca_dev, 0x42, sd->blueblc);
-}
-
 static void sethue(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -825,8 +777,6 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->contrast = CONTRAST_DEF;
 	sd->gain = GAIN_DEF;
 	sd->exposure = EXPO_DEF;
-	sd->redblc = RED_BALANCE_DEF;
-	sd->blueblc = BLUE_BALANCE_DEF;
 	sd->hue = HUE_DEF;
 #if AUTOGAIN_DEF != 0
 	sd->autogain = AUTOGAIN_DEF;
@@ -907,8 +857,6 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setautogain(gspca_dev);
 	setawb(gspca_dev);
 	setgain(gspca_dev);
-	setredblc(gspca_dev);
-	setblueblc(gspca_dev);
 	sethue(gspca_dev);
 	setexposure(gspca_dev);
 	setbrightness(gspca_dev);
@@ -1089,42 +1037,6 @@ static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->contrast;
-	return 0;
-}
-
-static int sd_setredblc(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->redblc = val;
-	if (gspca_dev->streaming)
-		setredblc(gspca_dev);
-	return 0;
-}
-
-static int sd_getredblc(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->redblc;
-	return 0;
-}
-
-static int sd_setblueblc(struct gspca_dev *gspca_dev, __s32 val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	sd->blueblc = val;
-	if (gspca_dev->streaming)
-		setblueblc(gspca_dev);
-	return 0;
-}
-
-static int sd_getblueblc(struct gspca_dev *gspca_dev, __s32 *val)
-{
-	struct sd *sd = (struct sd *) gspca_dev;
-
-	*val = sd->blueblc;
 	return 0;
 }
 
