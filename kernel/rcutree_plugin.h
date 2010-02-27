@@ -986,6 +986,7 @@ static void rcu_needs_cpu_flush(void)
 
 #define RCU_NEEDS_CPU_FLUSHES 5
 static DEFINE_PER_CPU(int, rcu_dyntick_drain);
+static DEFINE_PER_CPU(unsigned long, rcu_dyntick_holdoff);
 
 /*
  * Check to see if any future RCU-related work will need to be done
@@ -1013,6 +1014,7 @@ int rcu_needs_cpu(int cpu)
 	for_each_cpu_not(thatcpu, nohz_cpu_mask)
 		if (thatcpu != cpu) {
 			per_cpu(rcu_dyntick_drain, cpu) = 0;
+			per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
 			return rcu_needs_cpu_quick_check(cpu);
 		}
 
@@ -1022,6 +1024,7 @@ int rcu_needs_cpu(int cpu)
 		per_cpu(rcu_dyntick_drain, cpu) = RCU_NEEDS_CPU_FLUSHES;
 	} else if (--per_cpu(rcu_dyntick_drain, cpu) <= 0) {
 		/* We have hit the limit, so time to give up. */
+		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
 		return rcu_needs_cpu_quick_check(cpu);
 	}
 
@@ -1038,8 +1041,10 @@ int rcu_needs_cpu(int cpu)
 	}
 
 	/* If RCU callbacks are still pending, RCU still needs this CPU. */
-	if (c)
+	if (c) {
 		raise_softirq(RCU_SOFTIRQ);
+		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
+	}
 	return c;
 }
 
@@ -1050,10 +1055,13 @@ int rcu_needs_cpu(int cpu)
 static void rcu_needs_cpu_flush(void)
 {
 	int cpu = smp_processor_id();
+	unsigned long flags;
 
 	if (per_cpu(rcu_dyntick_drain, cpu) <= 0)
 		return;
+	local_irq_save(flags);
 	(void)rcu_needs_cpu(cpu);
+	local_irq_restore(flags);
 }
 
 #endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */
