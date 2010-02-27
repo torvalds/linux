@@ -10,8 +10,8 @@
  * https://jim.sh/svn/jim/devl/playstation/ps3/eye/test/
  *
  * PS3 Eye camera enhanced by Richard Kaswy http://kaswy.free.fr
- * PS3 Eye camera, brightness, contrast, hue, AWB control added
- *	by Max Thrun <bear24rw@gmail.com>
+ * PS3 Eye camera - brightness, contrast, awb, agc, aec controls
+ *                  added by Max Thrun <bear24rw@gmail.com>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
