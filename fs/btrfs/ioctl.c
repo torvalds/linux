@@ -776,7 +776,7 @@ static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
 			mod = 1;
 			sizestr++;
 		}
-		new_size = btrfs_parse_size(sizestr);
+		new_size = memparse(sizestr, NULL);
 		if (new_size == 0) {
 			ret = -EINVAL;
 			goto out_unlock;

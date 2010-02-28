@@ -96,31 +96,6 @@ static match_table_t tokens = {
 	{Opt_err, NULL},
 };
 
-u64 btrfs_parse_size(char *str)
-{
-	u64 res;
-	int mult = 1;
-	char *end;
-	char last;
-
-	res = simple_strtoul(str, &end, 10);
-
-	last = end[0];
-	if (isalpha(last)) {
-		last = tolower(last);
-		switch (last) {
-		case 'g':
-			mult *= 1024;
-		case 'm':
-			mult *= 1024;
-		case 'k':
-			mult *= 1024;
-		}
-		res = res * mult;
-	}
-	return res;
-}
-
 /*
  * Regular mount options parser.  Everything that is needed only when
  * reading in a new superblock is parsed here.
@@ -216,7 +191,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_max_extent:
 			num = match_strdup(&args[0]);
 			if (num) {
-				info->max_extent = btrfs_parse_size(num);
+				info->max_extent = memparse(num, NULL);
 				kfree(num);
 
 				info->max_extent = max_t(u64,
@@ -228,7 +203,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_max_inline:
 			num = match_strdup(&args[0]);
 			if (num) {
-				info->max_inline = btrfs_parse_size(num);
+				info->max_inline = memparse(num, NULL);
 				kfree(num);
 
 				if (info->max_inline) {
@@ -243,7 +218,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_alloc_start:
 			num = match_strdup(&args[0]);
 			if (num) {
-				info->alloc_start = btrfs_parse_size(num);
+				info->alloc_start = memparse(num, NULL);
 				kfree(num);
 				printk(KERN_INFO
 					"btrfs: allocations start at %llu\n",
