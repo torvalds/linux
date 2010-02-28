@@ -35,7 +35,7 @@
 
 MODULE_AUTHOR("Patrick McHardy <kaber@trash.net>");
 MODULE_AUTHOR("Jan Engelhardt <jengelh@medozas.de>");
-MODULE_DESCRIPTION("Xtables: \"recently-seen\" host matching for IPv4");
+MODULE_DESCRIPTION("Xtables: \"recently-seen\" host matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_recent");
 MODULE_ALIAS("ip6t_recent");
