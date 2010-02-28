@@ -176,7 +176,7 @@ pgm_check_entry:
 	cgr	%r1,%r2
 	je	restore_registers		/* r1 = r2 -> nothing to do */
 	larl	%r4,.Lrestart_suspend_psw	/* Set new restart PSW */
-	mvc	__LC_RESTART_PSW(16,%r0),0(%r4)
+	mvc	__LC_RST_NEW_PSW(16,%r0),0(%r4)
 3:
 	sigp	%r9,%r1,__SIGP_INITIAL_CPU_RESET
 	brc	8,4f	/* accepted */

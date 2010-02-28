@@ -60,7 +60,7 @@ static int qstat_show(struct seq_file *m, void *v)
 	seq_printf(m, "ftc: %d  last_move: %d\n", q->first_to_check, q->last_move);
 	seq_printf(m, "polling: %d  ack start: %d  ack count: %d\n",
 		   q->u.in.polling, q->u.in.ack_start, q->u.in.ack_count);
-	seq_printf(m, "slsb buffer states:\n");
+	seq_printf(m, "SBAL states:\n");
 	seq_printf(m, "|0      |8      |16     |24     |32     |40     |48     |56  63|\n");
 
 	for (i = 0; i < QDIO_MAX_BUFFERS_PER_Q; i++) {
@@ -97,6 +97,20 @@ static int qstat_show(struct seq_file *m, void *v)
 	}
 	seq_printf(m, "\n");
 	seq_printf(m, "|64     |72     |80     |88     |96     |104    |112    |   127|\n");
+
+	seq_printf(m, "\nSBAL statistics:");
+	if (!q->irq_ptr->perf_stat_enabled) {
+		seq_printf(m, " disabled\n");
+		return 0;
+	}
+
+	seq_printf(m, "\n1          2..        4..        8..        "
+		   "16..       32..       64..       127\n");
+	for (i = 0; i < ARRAY_SIZE(q->q_stats.nr_sbals); i++)
+		seq_printf(m, "%-10u ", q->q_stats.nr_sbals[i]);
+	seq_printf(m, "\nError      NOP        Total\n%-10u %-10u %-10u\n\n",
+		   q->q_stats.nr_sbal_error, q->q_stats.nr_sbal_nop,
+		   q->q_stats.nr_sbal_total);
 	return 0;
 }
 
@@ -181,9 +195,10 @@ static ssize_t qperf_seq_write(struct file *file, const char __user *ubuf,
 {
 	struct seq_file *seq = file->private_data;
 	struct qdio_irq *irq_ptr = seq->private;
+	struct qdio_q *q;
 	unsigned long val;
 	char buf[8];
-	int ret;
+	int ret, i;
 
 	if (!irq_ptr)
 		return 0;
@@ -201,6 +216,10 @@ static ssize_t qperf_seq_write(struct file *file, const char __user *ubuf,
 	case 0:
 		irq_ptr->perf_stat_enabled = 0;
 		memset(&irq_ptr->perf_stat, 0, sizeof(irq_ptr->perf_stat));
+		for_each_input_queue(irq_ptr, q, i)
+			memset(&q->q_stats, 0, sizeof(q->q_stats));
+		for_each_output_queue(irq_ptr, q, i)
+			memset(&q->q_stats, 0, sizeof(q->q_stats));
 		break;
 	case 1:
 		irq_ptr->perf_stat_enabled = 1;
