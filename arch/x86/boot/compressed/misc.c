@@ -180,11 +180,9 @@ static void __putstr(int error, const char *s)
 		return;
 #endif
 
-#ifdef CONFIG_X86_32
 	if (real_mode->screen_info.orig_video_mode == 0 &&
 	    lines == 0 && cols == 0)
 		return;
-#endif
 
 	x = real_mode->screen_info.orig_x;
 	y = real_mode->screen_info.orig_y;
