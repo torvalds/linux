@@ -92,6 +92,7 @@ obj-$(CONFIG_MACH_E800)		+= e800.o
 obj-$(CONFIG_MACH_RAUMFELD_RC)		+= raumfeld.o
 obj-$(CONFIG_MACH_RAUMFELD_CONNECTOR)	+= raumfeld.o
 obj-$(CONFIG_MACH_RAUMFELD_SPEAKER)	+= raumfeld.o
+obj-$(CONFIG_MACH_ZIPIT2)	+= z2.o
 
 # Support for blinky lights
 led-y := leds.o
