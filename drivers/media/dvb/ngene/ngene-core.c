@@ -819,7 +819,7 @@ static int ngene_i2c_master_xfer(struct i2c_adapter *adapter,
 					     msg[0].buf, msg[0].len))
 			goto done;
 	if (num == 1 && (msg[0].flags & I2C_M_RD))
-		if (!ngene_command_i2c_read(dev, msg[0].addr, 0, 0,
+		if (!ngene_command_i2c_read(dev, msg[0].addr, NULL, 0,
 					    msg[0].buf, msg[0].len, 0))
 			goto done;
 
@@ -882,7 +882,7 @@ static void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
 	if (chan->users > 0)
 #endif
 		dvb_dmx_swfilter(&chan->demux, buf, len);
-	return 0;
+	return NULL;
 }
 
 u8 fill_ts[188] = { 0x47, 0x1f, 0xff, 0x10 };
@@ -970,7 +970,7 @@ static void set_transfer(struct ngene_channel *chan, int state)
 		       state);
 	if (!state) {
 		spin_lock_irq(&chan->state_lock);
-		chan->pBufferExchange = 0;
+		chan->pBufferExchange = NULL;
 		dvb_ringbuffer_flush(&dev->tsout_rbuf);
 		spin_unlock_irq(&chan->state_lock);
 	}
@@ -1020,7 +1020,7 @@ static int my_dvb_dmx_ts_card_init(struct dvb_demux *dvbdemux, char *id,
 	dvbdemux->feednum = 256;
 	dvbdemux->start_feed = start_feed;
 	dvbdemux->stop_feed = stop_feed;
-	dvbdemux->write_to_decoder = 0;
+	dvbdemux->write_to_decoder = NULL;
 	dvbdemux->dmx.capabilities = (DMX_TS_FILTERING |
 				      DMX_SECTION_FILTERING |
 				      DMX_MEMORY_BASED_FILTERING);
@@ -1094,8 +1094,8 @@ static void free_idlebuffer(struct ngene *dev,
 		return;
 	free_ringbuffer(dev, rb);
 	for (j = 0; j < tb->NumBuffers; j++, Cur = Cur->Next) {
-		Cur->Buffer2 = 0;
-		Cur->scList2 = 0;
+		Cur->Buffer2 = NULL;
+		Cur->scList2 = NULL;
 		Cur->ngeneBuffer.Address_of_first_entry_2 = 0;
 		Cur->ngeneBuffer.Number_of_entries_2 = 0;
 	}
@@ -1141,7 +1141,7 @@ static int create_ring_buffer(struct pci_dev *pci_dev,
 	u64 PARingBufferNext;
 	struct SBufferHeader *Cur, *Next;
 
-	descr->Head = 0;
+	descr->Head = NULL;
 	descr->MemSize = 0;
 	descr->PAHead = 0;
 	descr->NumBuffers = 0;
@@ -1719,7 +1719,7 @@ static void release_channel(struct ngene_channel *chan)
 		if (chan->fe) {
 			dvb_unregister_frontend(chan->fe);
 			dvb_frontend_detach(chan->fe);
-			chan->fe = 0;
+			chan->fe = NULL;
 		}
 		dvbdemux->dmx.close(&dvbdemux->dmx);
 		dvbdemux->dmx.remove_frontend(&dvbdemux->dmx,
@@ -1820,7 +1820,7 @@ static void __devexit ngene_remove(struct pci_dev *pdev)
 		release_channel(&dev->channel[i]);
 	ngene_stop(dev);
 	ngene_release_buffers(dev);
-	pci_set_drvdata(pdev, 0);
+	pci_set_drvdata(pdev, NULL);
 	pci_disable_device(pdev);
 }
 
@@ -1868,7 +1868,7 @@ fail1:
 	ngene_release_buffers(dev);
 fail0:
 	pci_disable_device(pci_dev);
-	pci_set_drvdata(pci_dev, 0);
+	pci_set_drvdata(pci_dev, NULL);
 	return stat;
 }
 
