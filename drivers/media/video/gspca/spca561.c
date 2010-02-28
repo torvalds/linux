@@ -22,6 +22,7 @@
 
 #define MODULE_NAME "spca561"
 
+#include <linux/input.h>
 #include "gspca.h"
 
 MODULE_AUTHOR("Michel Xhaard <mxhaard@users.sourceforge.net>");
@@ -778,6 +779,23 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 	switch (*data++) {			/* sequence number */
 	case 0:					/* start of frame */
 		gspca_frame_add(gspca_dev, LAST_PACKET, NULL, 0);
+
+		/* This should never happen */
+		if (len < 2) {
+			PDEBUG(D_ERR, "Short SOF packet, ignoring");
+			gspca_dev->last_packet_type = DISCARD_PACKET;
+			return;
+		}
+
+#ifdef CONFIG_INPUT
+		if (data[0] & 0x20) {
+			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
+			input_sync(gspca_dev->input_dev);
+			input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+			input_sync(gspca_dev->input_dev);
+		}
+#endif
+
 		if (data[1] & 0x10) {
 			/* compressed bayer */
 			gspca_frame_add(gspca_dev, FIRST_PACKET, data, len);
@@ -1019,6 +1037,9 @@ static const struct sd_desc sd_desc_12a = {
 	.start = sd_start_12a,
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
+#ifdef CONFIG_INPUT
+	.other_input = 1,
+#endif
 };
 static const struct sd_desc sd_desc_72a = {
 	.name = MODULE_NAME,
@@ -1030,6 +1051,9 @@ static const struct sd_desc sd_desc_72a = {
 	.stopN = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
 	.dq_callback = do_autogain,
+#ifdef CONFIG_INPUT
+	.other_input = 1,
+#endif
 };
 static const struct sd_desc *sd_desc[2] = {
 	&sd_desc_12a,
