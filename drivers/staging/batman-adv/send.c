@@ -134,7 +134,8 @@ static void send_packet_to_if(struct forw_packet *forw_packet,
 	if (batman_if->if_active != IF_ACTIVE)
 		return;
 
-	packet_num = buff_pos = 0;
+	packet_num = 0;
+	buff_pos = 0;
 	batman_packet = (struct batman_packet *)
 		(forw_packet->packet_buff);
 
