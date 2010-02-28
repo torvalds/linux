@@ -12,8 +12,10 @@
 #include "pd-common.h"
 #include "vendorcmds.h"
 
+#ifdef CONFIG_PM
 static int pm_video_suspend(struct poseidon *pd);
 static int pm_video_resume(struct poseidon *pd);
+#endif
 static void iso_bubble_handler(struct work_struct *w);
 
 int usb_transfer_mode;
