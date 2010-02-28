@@ -761,4 +761,8 @@ sys_call_table:
 	.long sys_pwritev		/* 330 */
 	.long sys_rt_tgsigqueueinfo
 	.long sys_perf_event_open
+	.long sys_get_thread_area
+	.long sys_set_thread_area
+	.long sys_atomic_cmpxchg_32	/* 335 */
+	.long sys_atomic_barrier
 

@@ -52,7 +52,6 @@ struct mac_esp_priv {
 	void __iomem *pdma_io;
 	int error;
 };
-static struct platform_device *internal_pdev, *external_pdev;
 static struct esp *esp_chips[2];
 
 #define MAC_ESP_GET_PRIV(esp) ((struct mac_esp_priv *) \
@@ -495,29 +494,12 @@ static int __devinit esp_mac_probe(struct platform_device *dev)
 	struct Scsi_Host *host;
 	struct esp *esp;
 	int err;
-	int chips_present;
 	struct mac_esp_priv *mep;
 
 	if (!MACH_IS_MAC)
 		return -ENODEV;
 
-	switch (macintosh_config->scsi_type) {
-	case MAC_SCSI_QUADRA:
-	case MAC_SCSI_QUADRA3:
-		chips_present = 1;
-		break;
-	case MAC_SCSI_QUADRA2:
-		if ((macintosh_config->ident == MAC_MODEL_Q900) ||
-		    (macintosh_config->ident == MAC_MODEL_Q950))
-			chips_present = 2;
-		else
-			chips_present = 1;
-		break;
-	default:
-		chips_present = 0;
-	}
-
-	if (dev->id + 1 > chips_present)
+	if (dev->id > 1)
 		return -ENODEV;
 
 	host = scsi_host_alloc(tpnt, sizeof(struct esp));
@@ -642,55 +624,26 @@ static struct platform_driver esp_mac_driver = {
 	.probe    = esp_mac_probe,
 	.remove   = __devexit_p(esp_mac_remove),
 	.driver   = {
-		.name     = DRV_MODULE_NAME,
+		.name	= DRV_MODULE_NAME,
+		.owner	= THIS_MODULE,
 	},
 };
 
 static int __init mac_esp_init(void)
 {
-	int err;
-
-	err = platform_driver_register(&esp_mac_driver);
-	if (err)
-		return err;
-
-	internal_pdev = platform_device_alloc(DRV_MODULE_NAME, 0);
-	if (internal_pdev && platform_device_add(internal_pdev)) {
-		platform_device_put(internal_pdev);
-		internal_pdev = NULL;
-	}
-	external_pdev = platform_device_alloc(DRV_MODULE_NAME, 1);
-	if (external_pdev && platform_device_add(external_pdev)) {
-		platform_device_put(external_pdev);
-		external_pdev = NULL;
-	}
-
-	if (internal_pdev || external_pdev) {
-		return 0;
-	} else {
-		platform_driver_unregister(&esp_mac_driver);
-		return -ENOMEM;
-	}
+	return platform_driver_register(&esp_mac_driver);
 }
 
 static void __exit mac_esp_exit(void)
 {
 	platform_driver_unregister(&esp_mac_driver);
-
-	if (internal_pdev) {
-		platform_device_unregister(internal_pdev);
-		internal_pdev = NULL;
-	}
-	if (external_pdev) {
-		platform_device_unregister(external_pdev);
-		external_pdev = NULL;
-	}
 }
 
 MODULE_DESCRIPTION("Mac ESP SCSI driver");
 MODULE_AUTHOR("Finn Thain <fthain@telegraphics.com.au>");
 MODULE_LICENSE("GPL v2");
 MODULE_VERSION(DRV_VERSION);
+MODULE_ALIAS("platform:" DRV_MODULE_NAME);
 
 module_init(mac_esp_init);
 module_exit(mac_esp_exit);
