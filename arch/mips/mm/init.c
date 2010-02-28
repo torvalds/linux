@@ -298,7 +298,7 @@ void __init fixrange_init(unsigned long start, unsigned long end,
 }
 
 #ifndef CONFIG_NEED_MULTIPLE_NODES
-static int __init page_is_ram(unsigned long pagenr)
+int page_is_ram(unsigned long pagenr)
 {
 	int i;
 

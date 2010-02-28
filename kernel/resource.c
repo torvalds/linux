@@ -327,6 +327,19 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 
 #endif
 
+static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
+{
+	return 1;
+}
+/*
+ * This generic page_is_ram() returns true if specified address is
+ * registered as "System RAM" in iomem_resource list.
+ */
+int __weak page_is_ram(unsigned long pfn)
+{
+	return walk_system_ram_range(pfn, 1, NULL, __is_ram) == 1;
+}
+
 /*
  * Find empty slot in the resource tree given range and alignment.
  */
