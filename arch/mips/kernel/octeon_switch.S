@@ -500,4 +500,3 @@ done_restore:
 	 nop
 	END(octeon_mult_restore)
 	.set pop
-

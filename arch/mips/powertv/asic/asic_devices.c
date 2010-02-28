@@ -340,10 +340,6 @@ static void __init platform_configure_usb(void)
 
 	switch (asic) {
 	case ASIC_ZEUS:
-		fs_update(0x0000, 0x11, 0x02, 0);
-		bcm1_usb2_ctl = 0x803;
-		break;
-
 	case ASIC_CRONUS:
 	case ASIC_CRONUSLITE:
 		fs_update(0x0000, 0x11, 0x02, 0);
