@@ -1,7 +1,6 @@
 /*
  *	xt_time
  *	Copyright © CC Computer Consultants GmbH, 2007
- *	Contact: <jengelh@computergmbh.de>
  *
  *	based on ipt_time by Fabrice MARIE <fabrice@netfilter.org>
  *	This is a module which is used for time matching
@@ -264,7 +263,7 @@ static void __exit time_mt_exit(void)
 
 module_init(time_mt_init);
 module_exit(time_mt_exit);
-MODULE_AUTHOR("Jan Engelhardt <jengelh@computergmbh.de>");
+MODULE_AUTHOR("Jan Engelhardt <jengelh@medozas.de>");
 MODULE_DESCRIPTION("Xtables: time-based matching");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_time");

@@ -3,7 +3,6 @@
  *
  * Copyright (C) 2007 Sven Schnelle <svens@bitebene.org>
  * Copyright © CC Computer Consultants GmbH, 2007
- * Contact: Jan Engelhardt <jengelh@computergmbh.de>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -136,7 +135,7 @@ static void __exit tcpoptstrip_tg_exit(void)
 
 module_init(tcpoptstrip_tg_init);
 module_exit(tcpoptstrip_tg_exit);
-MODULE_AUTHOR("Sven Schnelle <svens@bitebene.org>, Jan Engelhardt <jengelh@computergmbh.de>");
+MODULE_AUTHOR("Sven Schnelle <svens@bitebene.org>, Jan Engelhardt <jengelh@medozas.de>");
 MODULE_DESCRIPTION("Xtables: TCP option stripping");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("ipt_TCPOPTSTRIP");

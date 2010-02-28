@@ -4,7 +4,7 @@
  *	Authors:
  *	Manohar Castelino <manohar.r.castelino@intel.com>
  *	Kuo-Lang Tseng <kuo-lang.tseng@intel.com>
- *	Jan Engelhardt <jengelh@computergmbh.de>
+ *	Jan Engelhardt <jengelh@medozas.de>
  *
  * Summary:
  * This is just a modification of the IPv4 code written by
