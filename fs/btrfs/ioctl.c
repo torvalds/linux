@@ -744,16 +744,206 @@ out:
 	return ret;
 }
 
+static noinline int key_in_sk(struct btrfs_key *key,
+			      struct btrfs_ioctl_search_key *sk)
+{
+	if (key->objectid < sk->min_objectid)
+		return 0;
+	if (key->offset < sk->min_offset)
+		return 0;
+	if (key->type < sk->min_type)
+		return 0;
+	if (key->objectid > sk->max_objectid)
+		return 0;
+	if (key->type > sk->max_type)
+		return 0;
+	if (key->offset > sk->max_offset)
+		return 0;
+	return 1;
+}
+
+static noinline int copy_to_sk(struct btrfs_root *root,
+			       struct btrfs_path *path,
+			       struct btrfs_key *key,
+			       struct btrfs_ioctl_search_key *sk,
+			       char *buf,
+			       unsigned long *sk_offset,
+			       int *num_found)
+{
+	u64 found_transid;
+	struct extent_buffer *leaf;
+	struct btrfs_ioctl_search_header sh;
+	unsigned long item_off;
+	unsigned long item_len;
+	int nritems;
+	int i;
+	int slot;
+	int found = 0;
+	int ret = 0;
+
+	leaf = path->nodes[0];
+	slot = path->slots[0];
+	nritems = btrfs_header_nritems(leaf);
+
+	if (btrfs_header_generation(leaf) > sk->max_transid) {
+		i = nritems;
+		goto advance_key;
+	}
+	found_transid = btrfs_header_generation(leaf);
+
+	for (i = slot; i < nritems; i++) {
+		item_off = btrfs_item_ptr_offset(leaf, i);
+		item_len = btrfs_item_size_nr(leaf, i);
+
+		if (item_len > BTRFS_SEARCH_ARGS_BUFSIZE)
+			item_len = 0;
+
+		if (sizeof(sh) + item_len + *sk_offset >
+		    BTRFS_SEARCH_ARGS_BUFSIZE) {
+			ret = 1;
+			goto overflow;
+		}
+
+		btrfs_item_key_to_cpu(leaf, key, i);
+		if (!key_in_sk(key, sk))
+			continue;
+
+		sh.objectid = key->objectid;
+		sh.offset = key->offset;
+		sh.type = key->type;
+		sh.len = item_len;
+		sh.transid = found_transid;
+
+		/* copy search result header */
+		memcpy(buf + *sk_offset, &sh, sizeof(sh));
+		*sk_offset += sizeof(sh);
+
+		if (item_len) {
+			char *p = buf + *sk_offset;
+			/* copy the item */
+			read_extent_buffer(leaf, p,
+					   item_off, item_len);
+			*sk_offset += item_len;
+			found++;
+		}
+
+		if (*num_found >= sk->nr_items)
+			break;
+	}
+advance_key:
+	if (key->offset < (u64)-1)
+		key->offset++;
+	else if (key->type < (u64)-1)
+		key->type++;
+	else if (key->objectid < (u64)-1)
+		key->objectid++;
+	ret = 0;
+overflow:
+	*num_found += found;
+	return ret;
+}
+
+static noinline int search_ioctl(struct inode *inode,
+				 struct btrfs_ioctl_search_args *args)
+{
+	struct btrfs_root *root;
+	struct btrfs_key key;
+	struct btrfs_key max_key;
+	struct btrfs_path *path;
+	struct btrfs_ioctl_search_key *sk = &args->key;
+	struct btrfs_fs_info *info = BTRFS_I(inode)->root->fs_info;
+	int ret;
+	int num_found = 0;
+	unsigned long sk_offset = 0;
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return -ENOMEM;
+
+	if (sk->tree_id == 0) {
+		/* search the root of the inode that was passed */
+		root = BTRFS_I(inode)->root;
+	} else {
+		key.objectid = sk->tree_id;
+		key.type = BTRFS_ROOT_ITEM_KEY;
+		key.offset = (u64)-1;
+		root = btrfs_read_fs_root_no_name(info, &key);
+		if (IS_ERR(root)) {
+			printk(KERN_ERR "could not find root %llu\n",
+			       sk->tree_id);
+			btrfs_free_path(path);
+			return -ENOENT;
+		}
+	}
+
+	key.objectid = sk->min_objectid;
+	key.type = sk->min_type;
+	key.offset = sk->min_offset;
+
+	max_key.objectid = sk->max_objectid;
+	max_key.type = sk->max_type;
+	max_key.offset = sk->max_offset;
+
+	path->keep_locks = 1;
+
+	while(1) {
+		ret = btrfs_search_forward(root, &key, &max_key, path, 0,
+					   sk->min_transid);
+		if (ret != 0) {
+			if (ret > 0)
+				ret = 0;
+			goto err;
+		}
+		ret = copy_to_sk(root, path, &key, sk, args->buf,
+				 &sk_offset, &num_found);
+		btrfs_release_path(root, path);
+		if (ret || num_found >= sk->nr_items)
+			break;
+
+	}
+	ret = 0;
+err:
+	sk->nr_items = num_found;
+	btrfs_free_path(path);
+	return ret;
+}
+
+static noinline int btrfs_ioctl_tree_search(struct file *file,
+					   void __user *argp)
+{
+	 struct btrfs_ioctl_search_args *args;
+	 struct inode *inode;
+	 int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	args = kmalloc(sizeof(*args), GFP_KERNEL);
+	if (!args)
+		return -ENOMEM;
+
+	if (copy_from_user(args, argp, sizeof(*args))) {
+		kfree(args);
+		return -EFAULT;
+	}
+	inode = fdentry(file)->d_inode;
+	ret = search_ioctl(inode, args);
+	if (ret == 0 && copy_to_user(argp, args, sizeof(*args)))
+		ret = -EFAULT;
+	kfree(args);
+	return ret;
+}
+
 /*
-  Search INODE_REFs to identify path name of 'dirid' directory
-  in a 'tree_id' tree. and sets path name to 'name'.
-*/
+ * Search INODE_REFs to identify path name of 'dirid' directory
+ * in a 'tree_id' tree. and sets path name to 'name'.
+ */
 static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 				u64 tree_id, u64 dirid, char *name)
 {
 	struct btrfs_root *root;
 	struct btrfs_key key;
-	char *name_stack, *ptr;
+	char *ptr;
 	int ret = -1;
 	int slot;
 	int len;
@@ -771,13 +961,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 	if (!path)
 		return -ENOMEM;
 
-	name_stack = kzalloc(BTRFS_PATH_NAME_MAX+1, GFP_NOFS);
-	if (!name_stack) {
-		btrfs_free_path(path);
-		return -ENOMEM;
-	}
-
-	ptr = &name_stack[BTRFS_PATH_NAME_MAX];
+	ptr = &name[BTRFS_INO_LOOKUP_PATH_MAX];
 
 	key.objectid = tree_id;
 	key.type = BTRFS_ROOT_ITEM_KEY;
@@ -802,14 +986,16 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 		btrfs_item_key_to_cpu(l, &key, slot);
 
 		if (ret > 0 && (key.objectid != dirid ||
-					key.type != BTRFS_INODE_REF_KEY))
+				key.type != BTRFS_INODE_REF_KEY)) {
+			ret = -ENOENT;
 			goto out;
+		}
 
 		iref = btrfs_item_ptr(l, slot, struct btrfs_inode_ref);
 		len = btrfs_inode_ref_name_len(l, iref);
 		ptr -= len + 1;
 		total_len += len + 1;
-		if (ptr < name_stack)
+		if (ptr < name)
 			goto out;
 
 		*(ptr + len) = '/';
@@ -824,14 +1010,41 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 		dirid = key.objectid;
 
 	}
-	if (ptr < name_stack)
+	if (ptr < name)
 		goto out;
-	strncpy(name, ptr, total_len);
+	memcpy(name, ptr, total_len);
 	name[total_len]='\0';
 	ret = 0;
 out:
 	btrfs_free_path(path);
-	kfree(name_stack);
+	return ret;
+}
+
+static noinline int btrfs_ioctl_ino_lookup(struct file *file,
+					   void __user *argp)
+{
+	 struct btrfs_ioctl_ino_lookup_args *args;
+	 struct inode *inode;
+	 int ret;
+
+	if (!capable(CAP_SYS_ADMIN))
+		return -EPERM;
+
+	args = kmalloc(sizeof(*args), GFP_KERNEL);
+	if (copy_from_user(args, argp, sizeof(*args))) {
+		kfree(args);
+		return -EFAULT;
+	}
+	inode = fdentry(file)->d_inode;
+
+	ret = btrfs_search_path_in_tree(BTRFS_I(inode)->root->fs_info,
+					args->treeid, args->objectid,
+					args->name);
+
+	if (ret == 0 && copy_to_user(argp, args, sizeof(*args)))
+		ret = -EFAULT;
+
+	kfree(args);
 	return ret;
 }
 
@@ -1430,6 +1643,10 @@ long btrfs_ioctl(struct file *file, unsigned int
 		return btrfs_ioctl_trans_start(file);
 	case BTRFS_IOC_TRANS_END:
 		return btrfs_ioctl_trans_end(file);
+	case BTRFS_IOC_TREE_SEARCH:
+		return btrfs_ioctl_tree_search(file, argp);
+	case BTRFS_IOC_INO_LOOKUP:
+		return btrfs_ioctl_ino_lookup(file, argp);
 	case BTRFS_IOC_SYNC:
 		btrfs_sync_fs(file->f_dentry->d_sb, 1);
 		return 0;

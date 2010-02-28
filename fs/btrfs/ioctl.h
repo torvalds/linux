@@ -30,6 +30,68 @@ struct btrfs_ioctl_vol_args {
 	char name[BTRFS_PATH_NAME_MAX + 1];
 };
 
+#define BTRFS_INO_LOOKUP_PATH_MAX 4080
+struct btrfs_ioctl_ino_lookup_args {
+	__u64 treeid;
+	__u64 objectid;
+	char name[BTRFS_INO_LOOKUP_PATH_MAX];
+};
+
+struct btrfs_ioctl_search_key {
+	/* which root are we searching.  0 is the tree of tree roots */
+	__u64 tree_id;
+
+	/* keys returned will be >= min and <= max */
+	__u64 min_objectid;
+	__u64 max_objectid;
+
+	/* keys returned will be >= min and <= max */
+	__u64 min_offset;
+	__u64 max_offset;
+
+	/* max and min transids to search for */
+	__u64 min_transid;
+	__u64 max_transid;
+
+	/* keys returned will be >= min and <= max */
+	__u32 min_type;
+	__u32 max_type;
+
+	/*
+	 * how many items did userland ask for, and how many are we
+	 * returning
+	 */
+	__u32 nr_items;
+
+	/* align to 64 bits */
+	__u32 unused;
+
+	/* some extra for later */
+	__u64 unused1;
+	__u64 unused2;
+	__u64 unused3;
+	__u64 unused4;
+};
+
+struct btrfs_ioctl_search_header {
+	__u64 transid;
+	__u64 objectid;
+	__u64 offset;
+	__u32 type;
+	__u32 len;
+};
+
+#define BTRFS_SEARCH_ARGS_BUFSIZE (4096 - sizeof(struct btrfs_ioctl_search_key))
+/*
+ * the buf is an array of search headers where
+ * each header is followed by the actual item
+ * the type field is expanded to 32 bits for alignment
+ */
+struct btrfs_ioctl_search_args {
+	struct btrfs_ioctl_search_key key;
+	char buf[BTRFS_SEARCH_ARGS_BUFSIZE];
+};
+
 struct btrfs_ioctl_clone_range_args {
   __s64 src_fd;
   __u64 src_offset, src_length;
@@ -67,4 +129,8 @@ struct btrfs_ioctl_clone_range_args {
 				   struct btrfs_ioctl_vol_args)
 #define BTRFS_IOC_SNAP_DESTROY _IOW(BTRFS_IOCTL_MAGIC, 15, \
 				struct btrfs_ioctl_vol_args)
+#define BTRFS_IOC_TREE_SEARCH _IOWR(BTRFS_IOCTL_MAGIC, 17, \
+				   struct btrfs_ioctl_search_args)
+#define BTRFS_IOC_INO_LOOKUP _IOWR(BTRFS_IOCTL_MAGIC, 18, \
+				   struct btrfs_ioctl_ino_lookup_args)
 #endif
