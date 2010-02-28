@@ -946,16 +946,33 @@ static inline void finish_lock_switch(struct rq *rq, struct task_struct *prev)
 #endif /* __ARCH_WANT_UNLOCKED_CTXSW */
 
 /*
+ * Check whether the task is waking, we use this to synchronize against
+ * ttwu() so that task_cpu() reports a stable number.
+ *
+ * We need to make an exception for PF_STARTING tasks because the fork
+ * path might require task_rq_lock() to work, eg. it can call
+ * set_cpus_allowed_ptr() from the cpuset clone_ns code.
+ */
+static inline int task_is_waking(struct task_struct *p)
+{
+	return unlikely((p->state == TASK_WAKING) && !(p->flags & PF_STARTING));
+}
+
+/*
  * __task_rq_lock - lock the runqueue a given task resides on.
  * Must be called interrupts disabled.
  */
 static inline struct rq *__task_rq_lock(struct task_struct *p)
 	__acquires(rq->lock)
 {
+	struct rq *rq;
+
 	for (;;) {
-		struct rq *rq = task_rq(p);
+		while (task_is_waking(p))
+			cpu_relax();
+		rq = task_rq(p);
 		raw_spin_lock(&rq->lock);
-		if (likely(rq == task_rq(p)))
+		if (likely(rq == task_rq(p) && !task_is_waking(p)))
 			return rq;
 		raw_spin_unlock(&rq->lock);
 	}
@@ -972,10 +989,12 @@ static struct rq *task_rq_lock(struct task_struct *p, unsigned long *flags)
 	struct rq *rq;
 
 	for (;;) {
+		while (task_is_waking(p))
+			cpu_relax();
 		local_irq_save(*flags);
 		rq = task_rq(p);
 		raw_spin_lock(&rq->lock);
-		if (likely(rq == task_rq(p)))
+		if (likely(rq == task_rq(p) && !task_is_waking(p)))
 			return rq;
 		raw_spin_unlock_irqrestore(&rq->lock, *flags);
 	}
@@ -2413,14 +2432,27 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 	__task_rq_unlock(rq);
 
 	cpu = select_task_rq(p, SD_BALANCE_WAKE, wake_flags);
-	if (cpu != orig_cpu)
+	if (cpu != orig_cpu) {
+		/*
+		 * Since we migrate the task without holding any rq->lock,
+		 * we need to be careful with task_rq_lock(), since that
+		 * might end up locking an invalid rq.
+		 */
 		set_task_cpu(p, cpu);
+	}
 
-	rq = __task_rq_lock(p);
+	rq = cpu_rq(cpu);
+	raw_spin_lock(&rq->lock);
 	update_rq_clock(rq);
 
+	/*
+	 * We migrated the task without holding either rq->lock, however
+	 * since the task is not on the task list itself, nobody else
+	 * will try and migrate the task, hence the rq should match the
+	 * cpu we just moved it to.
+	 */
+	WARN_ON(task_cpu(p) != cpu);
 	WARN_ON(p->state != TASK_WAKING);
-	cpu = task_cpu(p);
 
 #ifdef CONFIG_SCHEDSTATS
 	schedstat_inc(rq, ttwu_count);
@@ -2668,7 +2700,13 @@ void wake_up_new_task(struct task_struct *p, unsigned long clone_flags)
 	set_task_cpu(p, cpu);
 #endif
 
-	rq = task_rq_lock(p, &flags);
+	/*
+	 * Since the task is not on the rq and we still have TASK_WAKING set
+	 * nobody else will migrate this task.
+	 */
+	rq = cpu_rq(cpu);
+	raw_spin_lock_irqsave(&rq->lock, flags);
+
 	BUG_ON(p->state != TASK_WAKING);
 	p->state = TASK_RUNNING;
 	update_rq_clock(rq);
@@ -4130,11 +4168,22 @@ find_busiest_queue(struct sched_group *group, enum cpu_idle_type idle,
 			continue;
 
 		rq = cpu_rq(i);
-		wl = weighted_cpuload(i) * SCHED_LOAD_SCALE;
-		wl /= power;
+		wl = weighted_cpuload(i);
 
+		/*
+		 * When comparing with imbalance, use weighted_cpuload()
+		 * which is not scaled with the cpu power.
+		 */
 		if (capacity && rq->nr_running == 1 && wl > imbalance)
 			continue;
+
+		/*
+		 * For the load comparisons with the other cpu's, consider
+		 * the weighted_cpuload() scaled with the cpu power, so that
+		 * the load can be moved away from the cpu that is potentially
+		 * running at a lower capacity.
+		 */
+		wl = (wl * SCHED_LOAD_SCALE) / power;
 
 		if (wl > max_load) {
 			max_load = wl;
@@ -7156,26 +7205,7 @@ int set_cpus_allowed_ptr(struct task_struct *p, const struct cpumask *new_mask)
 	struct rq *rq;
 	int ret = 0;
 
-	/*
-	 * Since we rely on wake-ups to migrate sleeping tasks, don't change
-	 * the ->cpus_allowed mask from under waking tasks, which would be
-	 * possible when we change rq->lock in ttwu(), so synchronize against
-	 * TASK_WAKING to avoid that.
-	 *
-	 * Make an exception for freshly cloned tasks, since cpuset namespaces
-	 * might move the task about, we have to validate the target in
-	 * wake_up_new_task() anyway since the cpu might have gone away.
-	 */
-again:
-	while (p->state == TASK_WAKING && !(p->flags & PF_STARTING))
-		cpu_relax();
-
 	rq = task_rq_lock(p, &flags);
-
-	if (p->state == TASK_WAKING && !(p->flags & PF_STARTING)) {
-		task_rq_unlock(rq, &flags);
-		goto again;
-	}
 
 	if (!cpumask_intersects(new_mask, cpu_active_mask)) {
 		ret = -EINVAL;
