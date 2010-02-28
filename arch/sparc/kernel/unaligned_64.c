@@ -21,6 +21,7 @@
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/perf_event.h>
+#include <linux/ratelimit.h>
 #include <asm/fpumacro.h>
 
 enum direction {
@@ -274,13 +275,9 @@ static void kernel_mna_trap_fault(int fixup_tstate_asi)
 
 static void log_unaligned(struct pt_regs *regs)
 {
-	static unsigned long count, last_time;
+	static DEFINE_RATELIMIT_STATE(ratelimit, 5 * HZ, 5);
 
-	if (time_after(jiffies, last_time + 5 * HZ))
-		count = 0;
-	if (count < 5) {
-		last_time = jiffies;
-		count++;
+	if (__ratelimit(&ratelimit)) {
 		printk("Kernel unaligned access at TPC[%lx] %pS\n",
 		       regs->tpc, (void *) regs->tpc);
 	}
