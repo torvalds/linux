@@ -871,4 +871,4 @@ const u32_t zcFwImage[] = {
 0x00000000, 0x00000000, 0x00000000, 0x00000000,
 0x00000000, 0x00000000, };
 
-const u32_t zcFwImageSize=13656;
+const u32_t zcFwImageSize = 13656;
