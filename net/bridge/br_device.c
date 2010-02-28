@@ -51,6 +51,7 @@ static int br_dev_open(struct net_device *dev)
 	br_features_recompute(br);
 	netif_start_queue(dev);
 	br_stp_enable_bridge(br);
+	br_multicast_open(br);
 
 	return 0;
 }
@@ -61,7 +62,10 @@ static void br_dev_set_multicast_list(struct net_device *dev)
 
 static int br_dev_stop(struct net_device *dev)
 {
-	br_stp_disable_bridge(netdev_priv(dev));
+	struct net_bridge *br = netdev_priv(dev);
+
+	br_stp_disable_bridge(br);
+	br_multicast_stop(br);
 
 	netif_stop_queue(dev);
 
