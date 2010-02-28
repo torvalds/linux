@@ -101,9 +101,17 @@ static void __assign_resources_sorted(struct resource_list *head,
 	for (list = head->next; list;) {
 		res = list->res;
 		idx = res - &list->dev->resource[0];
+
 		if (pci_assign_resource(list->dev, idx)) {
-			if (fail_head && !pci_is_root_bus(list->dev->bus))
-				add_to_failed_list(fail_head, list->dev, res);
+			if (fail_head && !pci_is_root_bus(list->dev->bus)) {
+				/*
+				 * if the failed res is for ROM BAR, and it will
+				 * be enabled later, don't add it to the list
+				 */
+				if (!((idx == PCI_ROM_RESOURCE) &&
+				      (!(res->flags & IORESOURCE_ROM_ENABLE))))
+					add_to_failed_list(fail_head, list->dev, res);
+			}
 			res->start = 0;
 			res->end = 0;
 			res->flags = 0;
