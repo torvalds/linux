@@ -367,7 +367,7 @@ struct task_struct *pid_task(struct pid *pid, enum pid_type type)
 	struct task_struct *result = NULL;
 	if (pid) {
 		struct hlist_node *first;
-		first = rcu_dereference(pid->tasks[type].first);
+		first = rcu_dereference_check(pid->tasks[type].first, rcu_read_lock_held() || lockdep_is_held(&tasklist_lock));
 		if (first)
 			result = hlist_entry(first, struct task_struct, pids[(type)].node);
 	}

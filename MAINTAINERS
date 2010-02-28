@@ -4544,7 +4544,7 @@ F:	drivers/net/wireless/ray*
 RCUTORTURE MODULE
 M:	Josh Triplett <josh@freedesktop.org>
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
-S:	Maintained
+S:	Supported
 F:	Documentation/RCU/torture.txt
 F:	kernel/rcutorture.c
 
@@ -4569,11 +4569,12 @@ M:	Dipankar Sarma <dipankar@in.ibm.com>
 M:	"Paul E. McKenney" <paulmck@linux.vnet.ibm.com>
 W:	http://www.rdrop.com/users/paulmck/rclock/
 S:	Supported
-F:	Documentation/RCU/rcu.txt
-F:	Documentation/RCU/rcuref.txt
-F:	include/linux/rcupdate.h
-F:	include/linux/srcu.h
-F:	kernel/rcupdate.c
+F:	Documentation/RCU/
+F:	include/linux/rcu*
+F:	include/linux/srcu*
+F:	kernel/rcu*
+F:	kernel/srcu*
+X:	kernel/rcutorture.c
 
 REAL TIME CLOCK DRIVER
 M:	Paul Gortmaker <p_gortmaker@yahoo.com>
