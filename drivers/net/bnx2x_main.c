@@ -57,8 +57,8 @@
 #include "bnx2x_init_ops.h"
 #include "bnx2x_dump.h"
 
-#define DRV_MODULE_VERSION	"1.52.1-6"
-#define DRV_MODULE_RELDATE	"2010/02/16"
+#define DRV_MODULE_VERSION	"1.52.1-7"
+#define DRV_MODULE_RELDATE	"2010/02/28"
 #define BNX2X_BC_VER		0x040200
 
 #include <linux/firmware.h>
@@ -957,21 +957,34 @@ static int bnx2x_tx_int(struct bnx2x_fastpath *fp)
 	fp->tx_pkt_cons = sw_cons;
 	fp->tx_bd_cons = bd_cons;
 
+	/* Need to make the tx_bd_cons update visible to start_xmit()
+	 * before checking for netif_tx_queue_stopped().  Without the
+	 * memory barrier, there is a small possibility that
+	 * start_xmit() will miss it and cause the queue to be stopped
+	 * forever.
+	 */
+	smp_wmb();
+
 	/* TBD need a thresh? */
 	if (unlikely(netif_tx_queue_stopped(txq))) {
-
-		/* Need to make the tx_bd_cons update visible to start_xmit()
-		 * before checking for netif_tx_queue_stopped().  Without the
-		 * memory barrier, there is a small possibility that
-		 * start_xmit() will miss it and cause the queue to be stopped
-		 * forever.
+		/* Taking tx_lock() is needed to prevent reenabling the queue
+		 * while it's empty. This could have happen if rx_action() gets
+		 * suspended in bnx2x_tx_int() after the condition before
+		 * netif_tx_wake_queue(), while tx_action (bnx2x_start_xmit()):
+		 *
+		 * stops the queue->sees fresh tx_bd_cons->releases the queue->
+		 * sends some packets consuming the whole queue again->
+		 * stops the queue
 		 */
-		smp_mb();
+
+		__netif_tx_lock(txq, smp_processor_id());
 
 		if ((netif_tx_queue_stopped(txq)) &&
 		    (bp->state == BNX2X_STATE_OPEN) &&
 		    (bnx2x_tx_avail(fp) >= MAX_SKB_FRAGS + 3))
 			netif_tx_wake_queue(txq);
+
+		__netif_tx_unlock(txq);
 	}
 	return 0;
 }
