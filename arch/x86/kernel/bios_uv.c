@@ -15,8 +15,8 @@
  *  along with this program; if not, write to the Free Software
  *  Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  *
- *  Copyright (c) 2008 Silicon Graphics, Inc.  All Rights Reserved.
- *  Copyright (c) Russ Anderson
+ *  Copyright (c) 2008-2009 Silicon Graphics, Inc.  All Rights Reserved.
+ *  Copyright (c) Russ Anderson <rja@sgi.com>
  */
 
 #include <linux/efi.h>
@@ -30,6 +30,7 @@ static struct uv_systab uv_systab;
 s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5)
 {
 	struct uv_systab *tab = &uv_systab;
+	s64 ret;
 
 	if (!tab->function)
 		/*
@@ -37,9 +38,11 @@ s64 uv_bios_call(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3, u64 a4, u64 a5)
 		 */
 		return BIOS_STATUS_UNIMPLEMENTED;
 
-	return efi_call6((void *)__va(tab->function),
-					(u64)which, a1, a2, a3, a4, a5);
+	ret = efi_call6((void *)__va(tab->function), (u64)which,
+			a1, a2, a3, a4, a5);
+	return ret;
 }
+EXPORT_SYMBOL_GPL(uv_bios_call);
 
 s64 uv_bios_call_irqsave(enum uv_bios_cmd which, u64 a1, u64 a2, u64 a3,
 					u64 a4, u64 a5)
@@ -73,11 +76,14 @@ long sn_coherency_id;
 EXPORT_SYMBOL_GPL(sn_coherency_id);
 long sn_region_size;
 EXPORT_SYMBOL_GPL(sn_region_size);
+long system_serial_number;
+EXPORT_SYMBOL_GPL(system_serial_number);
 int uv_type;
+EXPORT_SYMBOL_GPL(uv_type);
 
 
 s64 uv_bios_get_sn_info(int fc, int *uvtype, long *partid, long *coher,
-		long *region)
+		long *region, long *ssn)
 {
 	s64 ret;
 	u64 v0, v1;
@@ -97,8 +103,11 @@ s64 uv_bios_get_sn_info(int fc, int *uvtype, long *partid, long *coher,
 		*coher = part.coherence_id;
 	if (region)
 		*region = part.region_size;
+	if (ssn)
+		*ssn = v1;
 	return ret;
 }
+EXPORT_SYMBOL_GPL(uv_bios_get_sn_info);
 
 int
 uv_bios_mq_watchlist_alloc(unsigned long addr, unsigned int mq_size,
@@ -204,4 +213,3 @@ void uv_bios_init(void)
 
 void uv_bios_init(void) { }
 #endif
-
