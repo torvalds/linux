@@ -22,7 +22,6 @@
 #include <linux/hardirq.h>
 #include <linux/kthread.h>
 #include <linux/uaccess.h>
-#include <linux/kprobes.h>
 #include <linux/ftrace.h>
 #include <linux/sysctl.h>
 #include <linux/ctype.h>
@@ -898,36 +897,6 @@ static struct dyn_ftrace *ftrace_free_records;
 		}				\
 	}
 
-#ifdef CONFIG_KPROBES
-
-static int frozen_record_count;
-
-static inline void freeze_record(struct dyn_ftrace *rec)
-{
-	if (!(rec->flags & FTRACE_FL_FROZEN)) {
-		rec->flags |= FTRACE_FL_FROZEN;
-		frozen_record_count++;
-	}
-}
-
-static inline void unfreeze_record(struct dyn_ftrace *rec)
-{
-	if (rec->flags & FTRACE_FL_FROZEN) {
-		rec->flags &= ~FTRACE_FL_FROZEN;
-		frozen_record_count--;
-	}
-}
-
-static inline int record_frozen(struct dyn_ftrace *rec)
-{
-	return rec->flags & FTRACE_FL_FROZEN;
-}
-#else
-# define freeze_record(rec)			({ 0; })
-# define unfreeze_record(rec)			({ 0; })
-# define record_frozen(rec)			({ 0; })
-#endif /* CONFIG_KPROBES */
-
 static void ftrace_free_rec(struct dyn_ftrace *rec)
 {
 	rec->freelist = ftrace_free_records;
@@ -1025,6 +994,21 @@ static void ftrace_bug(int failed, unsigned long ip)
 }
 
 
+/* Return 1 if the address range is reserved for ftrace */
+int ftrace_text_reserved(void *start, void *end)
+{
+	struct dyn_ftrace *rec;
+	struct ftrace_page *pg;
+
+	do_for_each_ftrace_rec(pg, rec) {
+		if (rec->ip <= (unsigned long)end &&
+		    rec->ip + MCOUNT_INSN_SIZE > (unsigned long)start)
+			return 1;
+	} while_for_each_ftrace_rec();
+	return 0;
+}
+
+
 static int
 __ftrace_replace_code(struct dyn_ftrace *rec, int enable)
 {
@@ -1075,14 +1059,6 @@ static void ftrace_replace_code(int enable)
 		    rec->flags & FTRACE_FL_FAILED ||
 		    !(rec->flags & FTRACE_FL_CONVERTED))
 			continue;
-
-		/* ignore updates to this record's mcount site */
-		if (get_kprobe((void *)rec->ip)) {
-			freeze_record(rec);
-			continue;
-		} else {
-			unfreeze_record(rec);
-		}
 
 		failed = __ftrace_replace_code(rec, enable);
 		if (failed) {

@@ -5,6 +5,11 @@
 #include <stdio.h>
 #include "debug.h"
 
+const char *map_type__name[MAP__NR_TYPES] = {
+	[MAP__FUNCTION] = "Functions",
+	[MAP__VARIABLE] = "Variables",
+};
+
 static inline int is_anon_memory(const char *filename)
 {
 	return strcmp(filename, "//anon") == 0;
@@ -68,8 +73,13 @@ struct map *map__new(struct mmap_event *event, enum map_type type,
 		map__init(self, type, event->start, event->start + event->len,
 			  event->pgoff, dso);
 
-		if (self->dso == vdso || anon)
+		if (anon) {
+set_identity:
 			self->map_ip = self->unmap_ip = identity__map_ip;
+		} else if (strcmp(filename, "[vdso]") == 0) {
+			dso__set_loaded(dso, self->type);
+			goto set_identity;
+		}
 	}
 	return self;
 out_delete:
@@ -104,8 +114,7 @@ void map__fixup_end(struct map *self)
 
 #define DSO__DELETED "(deleted)"
 
-int map__load(struct map *self, struct perf_session *session,
-	      symbol_filter_t filter)
+int map__load(struct map *self, symbol_filter_t filter)
 {
 	const char *name = self->dso->long_name;
 	int nr;
@@ -113,7 +122,7 @@ int map__load(struct map *self, struct perf_session *session,
 	if (dso__loaded(self->dso, self->type))
 		return 0;
 
-	nr = dso__load(self->dso, self, session, filter);
+	nr = dso__load(self->dso, self, filter);
 	if (nr < 0) {
 		if (self->dso->has_build_id) {
 			char sbuild_id[BUILD_ID_SIZE * 2 + 1];
@@ -144,24 +153,29 @@ int map__load(struct map *self, struct perf_session *session,
 
 		return -1;
 	}
+	/*
+	 * Only applies to the kernel, as its symtabs aren't relative like the
+	 * module ones.
+	 */
+	if (self->dso->kernel)
+		map__reloc_vmlinux(self);
 
 	return 0;
 }
 
-struct symbol *map__find_symbol(struct map *self, struct perf_session *session,
-				u64 addr, symbol_filter_t filter)
+struct symbol *map__find_symbol(struct map *self, u64 addr,
+				symbol_filter_t filter)
 {
-	if (map__load(self, session, filter) < 0)
+	if (map__load(self, filter) < 0)
 		return NULL;
 
 	return dso__find_symbol(self->dso, self->type, addr);
 }
 
 struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
-					struct perf_session *session,
 					symbol_filter_t filter)
 {
-	if (map__load(self, session, filter) < 0)
+	if (map__load(self, filter) < 0)
 		return NULL;
 
 	if (!dso__sorted_by_name(self->dso, self->type))
@@ -200,4 +214,24 @@ size_t map__fprintf(struct map *self, FILE *fp)
 {
 	return fprintf(fp, " %Lx-%Lx %Lx %s\n",
 		       self->start, self->end, self->pgoff, self->dso->name);
+}
+
+/*
+ * objdump wants/reports absolute IPs for ET_EXEC, and RIPs for ET_DYN.
+ * map->dso->adjust_symbols==1 for ET_EXEC-like cases.
+ */
+u64 map__rip_2objdump(struct map *map, u64 rip)
+{
+	u64 addr = map->dso->adjust_symbols ?
+			map->unmap_ip(map, rip) :	/* RIP -> IP */
+			rip;
+	return addr;
+}
+
+u64 map__objdump_2ip(struct map *map, u64 addr)
+{
+	u64 ip = map->dso->adjust_symbols ?
+			addr :
+			map->unmap_ip(map, addr);	/* RIP -> IP */
+	return ip;
 }

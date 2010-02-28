@@ -3,13 +3,13 @@
 
 #include "event.h"
 #include "header.h"
+#include "symbol.h"
 #include "thread.h"
 #include <linux/rbtree.h>
 #include "../../../include/linux/perf_event.h"
 
 struct ip_callchain;
 struct thread;
-struct symbol;
 
 struct perf_session {
 	struct perf_header	header;
@@ -18,10 +18,13 @@ struct perf_session {
 	struct map_groups	kmaps;
 	struct rb_root		threads;
 	struct thread		*last_match;
+	struct map		*vmlinux_maps[MAP__NR_TYPES];
 	struct events_stats	events_stats;
 	unsigned long		event_total[PERF_RECORD_MAX];
+	unsigned long		unknown_events;
 	struct rb_root		hists;
 	u64			sample_type;
+	struct ref_reloc_sym	ref_reloc_sym;
 	int			fd;
 	int			cwdlen;
 	char			*cwd;
@@ -31,23 +34,25 @@ struct perf_session {
 typedef int (*event_op)(event_t *self, struct perf_session *session);
 
 struct perf_event_ops {
-	event_op	process_sample_event;
-	event_op	process_mmap_event;
-	event_op	process_comm_event;
-	event_op	process_fork_event;
-	event_op	process_exit_event;
-	event_op	process_lost_event;
-	event_op	process_read_event;
-	event_op	process_throttle_event;
-	event_op	process_unthrottle_event;
-	int		(*sample_type_check)(struct perf_session *session);
-	unsigned long	total_unknown;
-	bool		full_paths;
+	event_op sample,
+		 mmap,
+		 comm,
+		 fork,
+		 exit,
+		 lost,
+		 read,
+		 throttle,
+		 unthrottle;
 };
 
 struct perf_session *perf_session__new(const char *filename, int mode, bool force);
 void perf_session__delete(struct perf_session *self);
 
+void perf_event_header__bswap(struct perf_event_header *self);
+
+int __perf_session__process_events(struct perf_session *self,
+				   u64 data_offset, u64 data_size, u64 size,
+				   struct perf_event_ops *ops);
 int perf_session__process_events(struct perf_session *self,
 				 struct perf_event_ops *event_ops);
 
@@ -56,6 +61,28 @@ struct symbol **perf_session__resolve_callchain(struct perf_session *self,
 						struct ip_callchain *chain,
 						struct symbol **parent);
 
-int perf_header__read_build_ids(int input, u64 offset, u64 file_size);
+bool perf_session__has_traces(struct perf_session *self, const char *msg);
 
+int perf_header__read_build_ids(struct perf_header *self, int input,
+				u64 offset, u64 file_size);
+
+int perf_session__set_kallsyms_ref_reloc_sym(struct perf_session *self,
+					     const char *symbol_name,
+					     u64 addr);
+
+void mem_bswap_64(void *src, int byte_size);
+
+static inline int __perf_session__create_kernel_maps(struct perf_session *self,
+						struct dso *kernel)
+{
+	return __map_groups__create_kernel_maps(&self->kmaps,
+						self->vmlinux_maps, kernel);
+}
+
+static inline struct map *
+	perf_session__new_module_map(struct perf_session *self,
+				     u64 start, const char *filename)
+{
+	return map_groups__new_module(&self->kmaps, start, filename);
+}
 #endif /* __PERF_SESSION_H */

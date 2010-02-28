@@ -1371,7 +1371,7 @@ out_unlock:
 	return err;
 }
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 
 void ftrace_profile_free_filter(struct perf_event *event)
 {
@@ -1439,5 +1439,5 @@ out_unlock:
 	return err;
 }
 
-#endif /* CONFIG_EVENT_PROFILE */
+#endif /* CONFIG_PERF_EVENTS */
 

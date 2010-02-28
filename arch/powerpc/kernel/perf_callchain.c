@@ -495,9 +495,6 @@ struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 
 	entry->nr = 0;
 
-	if (current->pid == 0)		/* idle task? */
-		return entry;
-
 	if (!user_mode(regs)) {
 		perf_callchain_kernel(regs, entry);
 		if (current->mm)
