@@ -172,11 +172,11 @@ void RTUSBInitRxDesc(struct rt_rtmp_adapter *pAd, struct rt_rx_context *pRxConte
 */
 
 #define BULK_OUT_LOCK(pLock, IrqFlags)	\
-		if(1 /*!(in_interrupt() & 0xffff0000)*/)	\
+		if (1 /*!(in_interrupt() & 0xffff0000)*/)	\
 			RTMP_IRQ_LOCK((pLock), IrqFlags);
 
 #define BULK_OUT_UNLOCK(pLock, IrqFlags)	\
-		if(1 /*!(in_interrupt() & 0xffff0000)*/)	\
+		if (1 /*!(in_interrupt() & 0xffff0000)*/)	\
 			RTMP_IRQ_UNLOCK((pLock), IrqFlags);
 
 void RTUSBBulkOutDataPacket(struct rt_rtmp_adapter *pAd,
@@ -187,7 +187,7 @@ void RTUSBBulkOutDataPacket(struct rt_rtmp_adapter *pAd,
 	PURB pUrb;
 	int ret = 0;
 	struct rt_txinfo *pTxInfo, *pLastTxInfo = NULL;
-	struct rt_txwi * pTxWI;
+	struct rt_txwi *pTxWI;
 	unsigned long TmpBulkEndPos, ThisBulkSize;
 	unsigned long IrqFlags = 0, IrqFlags2 = 0;
 	u8 *pWirelessPkt, *pAppendant;
@@ -273,9 +273,9 @@ void RTUSBBulkOutDataPacket(struct rt_rtmp_adapter *pAd,
 	}
 
 	do {
-		pTxInfo = (struct rt_txinfo *)& pWirelessPkt[TmpBulkEndPos];
+		pTxInfo = (struct rt_txinfo *)&pWirelessPkt[TmpBulkEndPos];
 		pTxWI =
-		    (struct rt_txwi *) & pWirelessPkt[TmpBulkEndPos + TXINFO_SIZE];
+			(struct rt_txwi *)&pWirelessPkt[TmpBulkEndPos + TXINFO_SIZE];
 
 		if (pAd->bForcePrintTX == TRUE)
 			DBGPRINT(RT_DEBUG_TRACE,
@@ -310,7 +310,7 @@ void RTUSBBulkOutDataPacket(struct rt_rtmp_adapter *pAd,
 				pHTTXContext->ENextBulkOutPosition =
 				    TmpBulkEndPos;
 				break;
-			} else if (((pAd->BulkOutMaxPacketSize < 512) && ((ThisBulkSize & 0xfffff800) != 0)) /*|| ( (ThisBulkSize != 0)  && (pTxWI->AMPDU == 0)) */ ) {	/* For USB 1.1 or peer which didn't support AMPDU, limit the BulkOut size. */
+			} else if (((pAd->BulkOutMaxPacketSize < 512) && ((ThisBulkSize & 0xfffff800) != 0)) /*|| ( (ThisBulkSize != 0)  && (pTxWI->AMPDU == 0)) */) {	/* For USB 1.1 or peer which didn't support AMPDU, limit the BulkOut size. */
 				/* For performence in b/g mode, now just check for USB 1.1 and didn't care about the APMDU or not! 2008/06/04. */
 				pHTTXContext->ENextBulkOutPosition =
 				    TmpBulkEndPos;
@@ -326,7 +326,7 @@ void RTUSBBulkOutDataPacket(struct rt_rtmp_adapter *pAd,
 		if (pTxInfo->QSEL != FIFO_EDCA) {
 			DBGPRINT(RT_DEBUG_ERROR,
 				 ("%s(): ====> pTxInfo->QueueSel(%d)!= FIFO_EDCA!!!!\n",
-				  __FUNCTION__, pTxInfo->QSEL));
+				  __func__, pTxInfo->QSEL));
 			DBGPRINT(RT_DEBUG_ERROR,
 				 ("\tCWPos=%ld, NBPos=%ld, ENBPos=%ld, bCopy=%d!\n",
 				  pHTTXContext->CurWritePosition,
@@ -334,7 +334,7 @@ void RTUSBBulkOutDataPacket(struct rt_rtmp_adapter *pAd,
 				  pHTTXContext->ENextBulkOutPosition,
 				  pHTTXContext->bCopySavePad));
 			hex_dump("Wrong QSel Pkt:",
-				 (u8 *)& pWirelessPkt[TmpBulkEndPos],
+				 (u8 *)&pWirelessPkt[TmpBulkEndPos],
 				 (pHTTXContext->CurWritePosition -
 				  pHTTXContext->NextBulkOutPosition));
 		}
@@ -401,9 +401,8 @@ void RTUSBBulkOutDataPacket(struct rt_rtmp_adapter *pAd,
 	} while (TRUE);
 
 	/* adjust the pTxInfo->USBDMANextVLD value of last pTxInfo. */
-	if (pLastTxInfo) {
+	if (pLastTxInfo)
 		pLastTxInfo->USBDMANextVLD = 0;
-	}
 
 	/*
 	   We need to copy SavedPad when following condition matched!
@@ -949,9 +948,8 @@ void RTUSBKickBulkOut(struct rt_rtmp_adapter *pAd)
 	if (!RTMP_TEST_FLAG(pAd, fRTMP_ADAPTER_NEED_STOP_TX)
 	    ) {
 		/* 2. PS-Poll frame is next */
-		if (RTUSB_TEST_BULK_FLAG(pAd, fRTUSB_BULK_OUT_PSPOLL)) {
+		if (RTUSB_TEST_BULK_FLAG(pAd, fRTUSB_BULK_OUT_PSPOLL))
 			RTUSBBulkOutPsPoll(pAd);
-		}
 		/* 5. Mlme frame is next */
 		else if ((RTUSB_TEST_BULK_FLAG(pAd, fRTUSB_BULK_OUT_MLME)) ||
 			 (pAd->MgmtRing.TxSwFreeIdx < MGMT_RING_SIZE)) {
@@ -1014,9 +1012,8 @@ void RTUSBKickBulkOut(struct rt_rtmp_adapter *pAd)
 			}
 		}
 		/* 8. No data avaliable */
-		else {
-
-		}
+		else
+			;
 	}
 }
 
