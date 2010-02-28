@@ -114,8 +114,12 @@ static void handle_tx(struct vhost_net *net)
 		return;
 
 	wmem = atomic_read(&sock->sk->sk_wmem_alloc);
-	if (wmem >= sock->sk->sk_sndbuf)
+	if (wmem >= sock->sk->sk_sndbuf) {
+		mutex_lock(&vq->mutex);
+		tx_poll_start(net, sock);
+		mutex_unlock(&vq->mutex);
 		return;
+	}
 
 	use_mm(net->dev.mm);
 	mutex_lock(&vq->mutex);
