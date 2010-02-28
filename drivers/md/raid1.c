@@ -1158,7 +1158,7 @@ static int raid1_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 			 */
 			if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
 			    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
-				blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
+				blk_queue_max_hw_sectors(mddev->queue, PAGE_SIZE>>9);
 
 			p->head_position = 0;
 			rdev->raid_disk = mirror;
@@ -2103,7 +2103,7 @@ static int run(mddev_t *mddev)
 		 */
 		if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
 		    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
-			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
+			blk_queue_max_hw_sectors(mddev->queue, PAGE_SIZE>>9);
 	}
 
 	mddev->degraded = 0;

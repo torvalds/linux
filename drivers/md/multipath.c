@@ -308,7 +308,7 @@ static int multipath_add_disk(mddev_t *mddev, mdk_rdev_t *rdev)
 		 */
 			if (q->merge_bvec_fn &&
 			    queue_max_sectors(q) > (PAGE_SIZE>>9))
-				blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
+				blk_queue_max_hw_sectors(mddev->queue, PAGE_SIZE>>9);
 
 			conf->working_disks++;
 			mddev->degraded--;
@@ -478,7 +478,7 @@ static int multipath_run (mddev_t *mddev)
 		 * a merge_bvec_fn to be involved in multipath */
 		if (rdev->bdev->bd_disk->queue->merge_bvec_fn &&
 		    queue_max_sectors(mddev->queue) > (PAGE_SIZE>>9))
-			blk_queue_max_sectors(mddev->queue, PAGE_SIZE>>9);
+			blk_queue_max_hw_sectors(mddev->queue, PAGE_SIZE>>9);
 
 		if (!test_bit(Faulty, &rdev->flags))
 			conf->working_disks++;
