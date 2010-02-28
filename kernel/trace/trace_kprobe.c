@@ -651,12 +651,12 @@ static int create_trace_probe(int argc, char **argv)
 			event = strchr(group, '/') + 1;
 			event[-1] = '\0';
 			if (strlen(group) == 0) {
-				pr_info("Group name is not specifiled\n");
+				pr_info("Group name is not specified\n");
 				return -EINVAL;
 			}
 		}
 		if (strlen(event) == 0) {
-			pr_info("Event name is not specifiled\n");
+			pr_info("Event name is not specified\n");
 			return -EINVAL;
 		}
 	}
@@ -1174,80 +1174,60 @@ static int kretprobe_event_define_fields(struct ftrace_event_call *event_call)
 	return 0;
 }
 
-static int __probe_event_show_format(struct trace_seq *s,
-				     struct trace_probe *tp, const char *fmt,
-				     const char *arg)
+static int __set_print_fmt(struct trace_probe *tp, char *buf, int len)
 {
 	int i;
+	int pos = 0;
 
-	/* Show format */
-	if (!trace_seq_printf(s, "\nprint fmt: \"%s", fmt))
-		return 0;
+	const char *fmt, *arg;
 
-	for (i = 0; i < tp->nr_args; i++)
-		if (!trace_seq_printf(s, " %s=%%lx", tp->args[i].name))
-			return 0;
+	if (!probe_is_return(tp)) {
+		fmt = "(%lx)";
+		arg = "REC->" FIELD_STRING_IP;
+	} else {
+		fmt = "(%lx <- %lx)";
+		arg = "REC->" FIELD_STRING_FUNC ", REC->" FIELD_STRING_RETIP;
+	}
 
-	if (!trace_seq_printf(s, "\", %s", arg))
-		return 0;
+	/* When len=0, we just calculate the needed length */
+#define LEN_OR_ZERO (len ? len - pos : 0)
 
-	for (i = 0; i < tp->nr_args; i++)
-		if (!trace_seq_printf(s, ", REC->%s", tp->args[i].name))
-			return 0;
+	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"%s", fmt);
 
-	return trace_seq_puts(s, "\n");
+	for (i = 0; i < tp->nr_args; i++) {
+		pos += snprintf(buf + pos, LEN_OR_ZERO, " %s=%%lx",
+				tp->args[i].name);
+	}
+
+	pos += snprintf(buf + pos, LEN_OR_ZERO, "\", %s", arg);
+
+	for (i = 0; i < tp->nr_args; i++) {
+		pos += snprintf(buf + pos, LEN_OR_ZERO, ", REC->%s",
+				tp->args[i].name);
+	}
+
+#undef LEN_OR_ZERO
+
+	/* return the length of print_fmt */
+	return pos;
 }
 
-#undef SHOW_FIELD
-#define SHOW_FIELD(type, item, name)					\
-	do {								\
-		ret = trace_seq_printf(s, "\tfield:" #type " %s;\t"	\
-				"offset:%u;\tsize:%u;\tsigned:%d;\n", name,\
-				(unsigned int)offsetof(typeof(field), item),\
-				(unsigned int)sizeof(type),		\
-				is_signed_type(type));			\
-		if (!ret)						\
-			return 0;					\
-	} while (0)
-
-static int kprobe_event_show_format(struct ftrace_event_call *call,
-				    struct trace_seq *s)
+static int set_print_fmt(struct trace_probe *tp)
 {
-	struct kprobe_trace_entry field __attribute__((unused));
-	int ret, i;
-	struct trace_probe *tp = (struct trace_probe *)call->data;
+	int len;
+	char *print_fmt;
 
-	SHOW_FIELD(unsigned long, ip, FIELD_STRING_IP);
-	SHOW_FIELD(int, nargs, FIELD_STRING_NARGS);
+	/* First: called with 0 length to calculate the needed length */
+	len = __set_print_fmt(tp, NULL, 0);
+	print_fmt = kmalloc(len + 1, GFP_KERNEL);
+	if (!print_fmt)
+		return -ENOMEM;
 
-	/* Show fields */
-	for (i = 0; i < tp->nr_args; i++)
-		SHOW_FIELD(unsigned long, args[i], tp->args[i].name);
-	trace_seq_puts(s, "\n");
+	/* Second: actually write the @print_fmt */
+	__set_print_fmt(tp, print_fmt, len + 1);
+	tp->call.print_fmt = print_fmt;
 
-	return __probe_event_show_format(s, tp, "(%lx)",
-					 "REC->" FIELD_STRING_IP);
-}
-
-static int kretprobe_event_show_format(struct ftrace_event_call *call,
-				       struct trace_seq *s)
-{
-	struct kretprobe_trace_entry field __attribute__((unused));
-	int ret, i;
-	struct trace_probe *tp = (struct trace_probe *)call->data;
-
-	SHOW_FIELD(unsigned long, func, FIELD_STRING_FUNC);
-	SHOW_FIELD(unsigned long, ret_ip, FIELD_STRING_RETIP);
-	SHOW_FIELD(int, nargs, FIELD_STRING_NARGS);
-
-	/* Show fields */
-	for (i = 0; i < tp->nr_args; i++)
-		SHOW_FIELD(unsigned long, args[i], tp->args[i].name);
-	trace_seq_puts(s, "\n");
-
-	return __probe_event_show_format(s, tp, "(%lx <- %lx)",
-					 "REC->" FIELD_STRING_FUNC
-					 ", REC->" FIELD_STRING_RETIP);
+	return 0;
 }
 
 #ifdef CONFIG_EVENT_PROFILE
@@ -1448,18 +1428,20 @@ static int register_probe_event(struct trace_probe *tp)
 	if (probe_is_return(tp)) {
 		tp->event.trace = print_kretprobe_event;
 		call->raw_init = probe_event_raw_init;
-		call->show_format = kretprobe_event_show_format;
 		call->define_fields = kretprobe_event_define_fields;
 	} else {
 		tp->event.trace = print_kprobe_event;
 		call->raw_init = probe_event_raw_init;
-		call->show_format = kprobe_event_show_format;
 		call->define_fields = kprobe_event_define_fields;
 	}
+	if (set_print_fmt(tp) < 0)
+		return -ENOMEM;
 	call->event = &tp->event;
 	call->id = register_ftrace_event(&tp->event);
-	if (!call->id)
+	if (!call->id) {
+		kfree(call->print_fmt);
 		return -ENODEV;
+	}
 	call->enabled = 0;
 	call->regfunc = probe_event_enable;
 	call->unregfunc = probe_event_disable;
@@ -1472,6 +1454,7 @@ static int register_probe_event(struct trace_probe *tp)
 	ret = trace_add_event_call(call);
 	if (ret) {
 		pr_info("Failed to register kprobe event: %s\n", call->name);
+		kfree(call->print_fmt);
 		unregister_ftrace_event(&tp->event);
 	}
 	return ret;
@@ -1481,6 +1464,7 @@ static void unregister_probe_event(struct trace_probe *tp)
 {
 	/* tp->event is unregistered in trace_remove_event_call() */
 	trace_remove_event_call(&tp->call);
+	kfree(tp->call.print_fmt);
 }
 
 /* Make a debugfs interface for controling probe points */

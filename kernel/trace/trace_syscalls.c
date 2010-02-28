@@ -143,70 +143,65 @@ extern char *__bad_type_size(void);
 		#type, #name, offsetof(typeof(trace), name),		\
 		sizeof(trace.name), is_signed_type(type)
 
-int syscall_enter_format(struct ftrace_event_call *call, struct trace_seq *s)
+static
+int  __set_enter_print_fmt(struct syscall_metadata *entry, char *buf, int len)
 {
 	int i;
-	int ret;
-	struct syscall_metadata *entry = call->data;
-	struct syscall_trace_enter trace;
-	int offset = offsetof(struct syscall_trace_enter, args);
+	int pos = 0;
 
-	ret = trace_seq_printf(s, "\tfield:%s %s;\toffset:%zu;\tsize:%zu;"
-			       "\tsigned:%u;\n",
-			       SYSCALL_FIELD(int, nr));
-	if (!ret)
-		return 0;
+	/* When len=0, we just calculate the needed length */
+#define LEN_OR_ZERO (len ? len - pos : 0)
+
+	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"");
+	for (i = 0; i < entry->nb_args; i++) {
+		pos += snprintf(buf + pos, LEN_OR_ZERO, "%s: 0x%%0%zulx%s",
+				entry->args[i], sizeof(unsigned long),
+				i == entry->nb_args - 1 ? "" : ", ");
+	}
+	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"");
 
 	for (i = 0; i < entry->nb_args; i++) {
-		ret = trace_seq_printf(s, "\tfield:%s %s;", entry->types[i],
-				        entry->args[i]);
-		if (!ret)
-			return 0;
-		ret = trace_seq_printf(s, "\toffset:%d;\tsize:%zu;"
-				       "\tsigned:%u;\n", offset,
-				       sizeof(unsigned long),
-				       is_signed_type(unsigned long));
-		if (!ret)
-			return 0;
-		offset += sizeof(unsigned long);
+		pos += snprintf(buf + pos, LEN_OR_ZERO,
+				", ((unsigned long)(REC->%s))", entry->args[i]);
 	}
 
-	trace_seq_puts(s, "\nprint fmt: \"");
-	for (i = 0; i < entry->nb_args; i++) {
-		ret = trace_seq_printf(s, "%s: 0x%%0%zulx%s", entry->args[i],
-				        sizeof(unsigned long),
-					i == entry->nb_args - 1 ? "" : ", ");
-		if (!ret)
-			return 0;
-	}
-	trace_seq_putc(s, '"');
+#undef LEN_OR_ZERO
 
-	for (i = 0; i < entry->nb_args; i++) {
-		ret = trace_seq_printf(s, ", ((unsigned long)(REC->%s))",
-				       entry->args[i]);
-		if (!ret)
-			return 0;
-	}
-
-	return trace_seq_putc(s, '\n');
+	/* return the length of print_fmt */
+	return pos;
 }
 
-int syscall_exit_format(struct ftrace_event_call *call, struct trace_seq *s)
+static int set_syscall_print_fmt(struct ftrace_event_call *call)
 {
-	int ret;
-	struct syscall_trace_exit trace;
+	char *print_fmt;
+	int len;
+	struct syscall_metadata *entry = call->data;
 
-	ret = trace_seq_printf(s,
-			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;"
-			       "\tsigned:%u;\n"
-			       "\tfield:%s %s;\toffset:%zu;\tsize:%zu;"
-			       "\tsigned:%u;\n",
-			       SYSCALL_FIELD(int, nr),
-			       SYSCALL_FIELD(long, ret));
-	if (!ret)
+	if (entry->enter_event != call) {
+		call->print_fmt = "\"0x%lx\", REC->ret";
 		return 0;
+	}
 
-	return trace_seq_printf(s, "\nprint fmt: \"0x%%lx\", REC->ret\n");
+	/* First: called with 0 length to calculate the needed length */
+	len = __set_enter_print_fmt(entry, NULL, 0);
+
+	print_fmt = kmalloc(len + 1, GFP_KERNEL);
+	if (!print_fmt)
+		return -ENOMEM;
+
+	/* Second: actually write the @print_fmt */
+	__set_enter_print_fmt(entry, print_fmt, len + 1);
+	call->print_fmt = print_fmt;
+
+	return 0;
+}
+
+static void free_syscall_print_fmt(struct ftrace_event_call *call)
+{
+	struct syscall_metadata *entry = call->data;
+
+	if (entry->enter_event == call)
+		kfree(call->print_fmt);
 }
 
 int syscall_enter_define_fields(struct ftrace_event_call *call)
@@ -386,12 +381,22 @@ int init_syscall_trace(struct ftrace_event_call *call)
 {
 	int id;
 
-	id = register_ftrace_event(call->event);
-	if (!id)
-		return -ENODEV;
-	call->id = id;
-	INIT_LIST_HEAD(&call->fields);
-	return 0;
+	if (set_syscall_print_fmt(call) < 0)
+		return -ENOMEM;
+
+	id = trace_event_raw_init(call);
+
+	if (id < 0) {
+		free_syscall_print_fmt(call);
+		return id;
+	}
+
+	return id;
+}
+
+unsigned long __init arch_syscall_addr(int nr)
+{
+	return (unsigned long)sys_call_table[nr];
 }
 
 int __init init_ftrace_syscalls(void)
@@ -603,7 +608,7 @@ int prof_sysexit_enable(struct ftrace_event_call *call)
 		ret = register_trace_sys_exit(prof_syscall_exit);
 	if (ret) {
 		pr_info("event trace: Could not activate"
-				"syscall entry trace point");
+				"syscall exit trace point");
 	} else {
 		set_bit(num, enabled_prof_exit_syscalls);
 		sys_prof_refcount_exit++;
