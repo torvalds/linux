@@ -173,7 +173,6 @@ config DETECT_SOFTLOCKUP
 config NMI_WATCHDOG
 	bool "Detect Hard Lockups with an NMI Watchdog"
 	depends on DEBUG_KERNEL && PERF_EVENTS && PERF_EVENTS_NMI
-	default y
 	help
 	  Say Y here to enable the kernel to use the NMI as a watchdog
 	  to detect hard lockups.  This is useful when a cpu hangs for no
