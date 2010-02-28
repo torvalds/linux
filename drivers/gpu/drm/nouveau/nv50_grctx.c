@@ -64,6 +64,9 @@
 #define CP_FLAG_ALWAYS                ((2 * 32) + 13)
 #define CP_FLAG_ALWAYS_FALSE          0
 #define CP_FLAG_ALWAYS_TRUE           1
+#define CP_FLAG_INTR                  ((2 * 32) + 15)
+#define CP_FLAG_INTR_NOT_PENDING      0
+#define CP_FLAG_INTR_PENDING          1
 
 #define CP_CTX                   0x00100000
 #define CP_CTX_COUNT             0x000f0000
@@ -214,6 +217,8 @@ nv50_grctx_init(struct nouveau_grctx *ctx)
 	cp_name(ctx, cp_setup_save);
 	cp_set (ctx, UNK1D, SET);
 	cp_wait(ctx, STATUS, BUSY);
+	cp_wait(ctx, INTR, PENDING);
+	cp_bra (ctx, STATUS, BUSY, cp_setup_save);
 	cp_set (ctx, UNK01, SET);
 	cp_set (ctx, SWAP_DIRECTION, SAVE);
 
