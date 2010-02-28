@@ -489,5 +489,4 @@ struct pmu perf_ops_bp = {
 	.enable		= arch_install_hw_breakpoint,
 	.disable	= arch_uninstall_hw_breakpoint,
 	.read		= hw_breakpoint_pmu_read,
-	.unthrottle	= hw_breakpoint_pmu_unthrottle
 };
