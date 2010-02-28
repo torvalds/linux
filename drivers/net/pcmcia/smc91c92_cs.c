@@ -453,8 +453,7 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->irq.Attributes =
-	IRQ_TYPE_DYNAMIC_SHARING;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->io.IOAddrLines = 16;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
@@ -652,8 +651,7 @@ static int osi_config(struct pcmcia_device *link)
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->irq.Attributes =
-	IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->io.NumPorts1 = 64;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;

@@ -84,7 +84,7 @@ config YENTA
 	tristate "CardBus yenta-compatible bridge support"
 	depends on PCI
 	select CARDBUS if !EMBEDDED
-	select PCCARD_NONSTATIC
+	select PCCARD_NONSTATIC if PCMCIA != n
 	---help---
 	  This option enables support for CardBus host bridges.  Virtually
 	  all modern PCMCIA bridges are CardBus compatible.  A "bridge" is
@@ -161,9 +161,8 @@ config TCIC
 
 config PCMCIA_M8XX
 	tristate "MPC8xx PCMCIA support"
-	depends on PCMCIA && PPC && 8xx
-	select PCCARD_IODYN
-	select PCCARD_NONSTATIC
+	depends on PCCARD && PPC && 8xx
+	select PCCARD_IODYN if PCMCIA != n
 	help
 	  Say Y here to include support for PowerPC 8xx series PCMCIA
 	  controller.
@@ -238,14 +237,12 @@ config PCMCIA_PROBE
 config M32R_PCC
 	bool "M32R PCMCIA I/F"
 	depends on M32R && CHIP_M32700 && PCMCIA
-	select PCCARD_NONSTATIC
 	help
 	  Say Y here to use the M32R PCMCIA controller.
 
 config M32R_CFC
 	bool "M32R CF I/F Controller"
 	depends on M32R && (PLAT_USRV || PLAT_M32700UT || PLAT_MAPPI2 || PLAT_MAPPI3 || PLAT_OPSPUT)
-	select PCCARD_NONSTATIC
 	help
 	  Say Y here to use the M32R CompactFlash controller.
 

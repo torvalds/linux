@@ -37,6 +37,11 @@ static int pwr_irqs_off;
 module_param(pwr_irqs_off, bool, 0644);
 MODULE_PARM_DESC(pwr_irqs_off, "Force IRQs off during power-on of slot. Use only when seeing IRQ storms!");
 
+static char o2_speedup[] = "default";
+module_param_string(o2_speedup, o2_speedup, sizeof(o2_speedup), 0444);
+MODULE_PARM_DESC(o2_speedup, "Use prefetch/burst for O2-bridges: 'on', 'off' "
+	"or 'default' (uses recommended behaviour for the detected bridge)");
+
 #define debug(x, s, args...) dev_dbg(&s->dev->dev, x, ##args)
 
 /* Don't ask.. */
