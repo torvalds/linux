@@ -1812,7 +1812,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   Module snd-ua101
   ----------------
 
-    Module for the Edirol UA-101 audio/MIDI interface.
+    Module for the Edirol UA-101/UA-1000 audio/MIDI interfaces.
 
     This module supports multiple devices, autoprobe and hotplugging.
 
