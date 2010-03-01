@@ -2974,13 +2974,12 @@ sisusb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	struct sisusb_usb_data *sisusb;
 	struct sisusb_info x;
 	struct sisusb_command y;
-	int	retval = 0;
+	long retval = 0;
 	u32 __user *argp = (u32 __user *)arg;
 
 	if (!(sisusb = (struct sisusb_usb_data *)file->private_data))
 		return -ENODEV;
 
-	lock_kernel();
 	mutex_lock(&sisusb->lock);
 
 	/* Sanity check */
@@ -3039,7 +3038,6 @@ sisusb_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 err_out:
 	mutex_unlock(&sisusb->lock);
-	unlock_kernel();
 	return retval;
 }
 
