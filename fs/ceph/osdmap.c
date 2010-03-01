@@ -529,8 +529,8 @@ struct ceph_osdmap *osdmap_decode(void **p, void *end)
 		ceph_decode_copy(p, &pi->v, sizeof(pi->v));
 		__insert_pg_pool(&map->pg_pools, pi);
 		calc_pg_masks(pi);
-		p += le32_to_cpu(pi->v.num_snaps) * sizeof(u64);
-		p += le32_to_cpu(pi->v.num_removed_snap_intervals)
+		*p += le32_to_cpu(pi->v.num_snaps) * sizeof(u64);
+		*p += le32_to_cpu(pi->v.num_removed_snap_intervals)
 			* sizeof(u64) * 2;
 	}
 	ceph_decode_32_safe(p, end, map->pool_max, bad);
