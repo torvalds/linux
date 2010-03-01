@@ -53,8 +53,7 @@ struct rds_ib_connect_private {
 };
 
 struct rds_ib_send_work {
-	struct rds_message	*s_rm;
-	struct rm_rdma_op	*s_op;
+	void			*s_op;
 	struct ib_send_wr	s_wr;
 	struct ib_sge		s_sge[RDS_IB_MAX_SGE];
 	unsigned long		s_queued;
@@ -92,7 +91,7 @@ struct rds_ib_connection {
 
 	/* tx */
 	struct rds_ib_work_ring	i_send_ring;
-	struct rds_message	*i_rm;
+	struct rm_data_op	*i_data_op;
 	struct rds_header	*i_send_hdrs;
 	u64			i_send_hdrs_dma;
 	struct rds_ib_send_work *i_sends;
@@ -336,7 +335,7 @@ void rds_ib_send_add_credits(struct rds_connection *conn, unsigned int credits);
 void rds_ib_advertise_credits(struct rds_connection *conn, unsigned int posted);
 int rds_ib_send_grab_credits(struct rds_ib_connection *ic, u32 wanted,
 			     u32 *adv_credits, int need_posted, int max_posted);
-int rds_ib_xmit_atomic(struct rds_connection *conn, struct rds_message *rm);
+int rds_ib_xmit_atomic(struct rds_connection *conn, struct rm_atomic_op *op);
 
 /* ib_stats.c */
 DECLARE_PER_CPU(struct rds_ib_statistics, rds_ib_stats);

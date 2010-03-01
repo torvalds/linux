@@ -673,9 +673,12 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 	BUG_ON(ic->rds_ibdev);
 
 	/* Clear pending transmit */
-	if (ic->i_rm) {
-		rds_message_put(ic->i_rm);
-		ic->i_rm = NULL;
+	if (ic->i_data_op) {
+		struct rds_message *rm;
+
+		rm = container_of(ic->i_data_op, struct rds_message, data);
+		rds_message_put(rm);
+		ic->i_data_op = NULL;
 	}
 
 	/* Clear the ACK state */

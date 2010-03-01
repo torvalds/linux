@@ -308,6 +308,8 @@ struct rds_message {
 	unsigned int		m_used_sgs;
 	unsigned int		m_total_sgs;
 
+	void			*m_final_op;
+
 	struct {
 		struct rm_atomic_op {
 			int			op_type;
@@ -421,7 +423,7 @@ struct rds_transport {
 	int (*xmit_cong_map)(struct rds_connection *conn,
 			     struct rds_cong_map *map, unsigned long offset);
 	int (*xmit_rdma)(struct rds_connection *conn, struct rm_rdma_op *op);
-	int (*xmit_atomic)(struct rds_connection *conn, struct rds_message *rm);
+	int (*xmit_atomic)(struct rds_connection *conn, struct rm_atomic_op *op);
 	int (*recv)(struct rds_connection *conn);
 	int (*inc_copy_to_user)(struct rds_incoming *inc, struct iovec *iov,
 				size_t size);

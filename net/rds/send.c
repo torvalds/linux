@@ -252,6 +252,7 @@ int rds_send_xmit(struct rds_connection *conn)
 
 		/* The transport either sends the whole rdma or none of it */
 		if (rm->rdma.op_active && !conn->c_xmit_rdma_sent) {
+			rm->m_final_op = &rm->rdma;
 			ret = conn->c_trans->xmit_rdma(conn, &rm->rdma);
 			if (ret)
 				break;
@@ -263,10 +264,12 @@ int rds_send_xmit(struct rds_connection *conn)
 		}
 
 		if (rm->atomic.op_active && !conn->c_xmit_atomic_sent) {
-			ret = conn->c_trans->xmit_atomic(conn, rm);
+			rm->m_final_op = &rm->atomic;
+			ret = conn->c_trans->xmit_atomic(conn, &rm->atomic);
 			if (ret)
 				break;
 			conn->c_xmit_atomic_sent = 1;
+
 			/* The transport owns the mapped memory for now.
 			 * You can't unmap it while it's on the send queue */
 			set_bit(RDS_MSG_MAPPED, &rm->m_flags);
@@ -295,6 +298,7 @@ int rds_send_xmit(struct rds_connection *conn)
 		}
 
 		if (rm->data.op_active && !conn->c_xmit_data_sent) {
+			rm->m_final_op = &rm->data;
 			ret = conn->c_trans->xmit(conn, rm,
 						  conn->c_xmit_hdr_off,
 						  conn->c_xmit_sg,
