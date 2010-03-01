@@ -172,7 +172,6 @@ struct ath_rate_priv {
 
 #define ATH_TX_INFO_FRAME_TYPE_INTERNAL	(1 << 0)
 #define ATH_TX_INFO_FRAME_TYPE_PAUSE	(1 << 1)
-#define ATH_TX_INFO_UPDATE_RC		(1 << 2)
 #define ATH_TX_INFO_XRETRY		(1 << 3)
 #define ATH_TX_INFO_UNDERRUN		(1 << 4)
 

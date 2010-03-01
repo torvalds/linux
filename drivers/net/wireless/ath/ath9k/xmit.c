@@ -1947,10 +1947,10 @@ static void ath_tx_rc_status(struct ath_buf *bf, struct ath_desc *ds,
 	tx_rateindex = ds->ds_txstat.ts_rateindex;
 	WARN_ON(tx_rateindex >= hw->max_rates);
 
-	if (update_rc)
-		tx_info->pad[0] |= ATH_TX_INFO_UPDATE_RC;
 	if (ds->ds_txstat.ts_status & ATH9K_TXERR_FILT)
 		tx_info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
+	if ((tx_info->flags & IEEE80211_TX_CTL_AMPDU) && update_rc)
+		tx_info->flags |= IEEE80211_TX_STAT_AMPDU;
 
 	if ((ds->ds_txstat.ts_status & ATH9K_TXERR_FILT) == 0 &&
 	    (bf->bf_flags & ATH9K_TXDESC_NOACK) == 0 && update_rc) {
