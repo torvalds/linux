@@ -347,7 +347,7 @@ static int dmatest_func(void *data)
 		else if (thread->type == DMA_XOR)
 			tx = dev->device_prep_dma_xor(chan,
 						      dma_dsts[0] + dst_off,
-						      dma_srcs, xor_sources,
+						      dma_srcs, src_cnt,
 						      len, flags);
 		else if (thread->type == DMA_PQ) {
 			dma_addr_t dma_pq[dst_cnt];
