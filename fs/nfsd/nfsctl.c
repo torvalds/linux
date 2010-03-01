@@ -1203,8 +1203,6 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 }
 
 #ifdef CONFIG_NFSD_V4
-extern time_t nfs4_leasetime(void);
-
 static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
 {
 	/* if size > 10 seconds, call
@@ -1224,8 +1222,7 @@ static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
 		nfs4_reset_lease(lease);
 	}
 
-	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%ld\n",
-							nfs4_lease_time());
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%ld\n", nfsd4_lease);
 }
 
 /**

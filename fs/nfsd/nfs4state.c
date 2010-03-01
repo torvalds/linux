@@ -44,7 +44,7 @@
 #define NFSDDBG_FACILITY                NFSDDBG_PROC
 
 /* Globals */
-static time_t lease_time = 90;     /* default lease time */
+time_t nfsd4_lease = 90;     /* default lease time */
 static time_t user_lease_time = 90;
 static time_t boot_time;
 static u32 current_ownerid = 1;
@@ -2560,9 +2560,9 @@ nfs4_laundromat(void)
 	struct nfs4_stateowner *sop;
 	struct nfs4_delegation *dp;
 	struct list_head *pos, *next, reaplist;
-	time_t cutoff = get_seconds() - NFSD_LEASE_TIME;
-	time_t t, clientid_val = NFSD_LEASE_TIME;
-	time_t u, test_val = NFSD_LEASE_TIME;
+	time_t cutoff = get_seconds() - nfsd4_lease;
+	time_t t, clientid_val = nfsd4_lease;
+	time_t u, test_val = nfsd4_lease;
 
 	nfs4_lock_state();
 
@@ -2602,7 +2602,7 @@ nfs4_laundromat(void)
 		list_del_init(&dp->dl_recall_lru);
 		unhash_delegation(dp);
 	}
-	test_val = NFSD_LEASE_TIME;
+	test_val = nfsd4_lease;
 	list_for_each_safe(pos, next, &close_lru) {
 		sop = list_entry(pos, struct nfs4_stateowner, so_close_lru);
 		if (time_after((unsigned long)sop->so_time, (unsigned long)cutoff)) {
@@ -2672,7 +2672,7 @@ EXPIRED_STATEID(stateid_t *stateid)
 {
 	if (time_before((unsigned long)boot_time,
 			((unsigned long)stateid->si_boot)) &&
-	    time_before((unsigned long)(stateid->si_boot + lease_time), get_seconds())) {
+	    time_before((unsigned long)(stateid->si_boot + nfsd4_lease), get_seconds())) {
 		dprintk("NFSD: expired stateid " STATEID_FMT "!\n",
 			STATEID_VAL(stateid));
 		return 1;
@@ -3976,7 +3976,7 @@ nfsd4_load_reboot_recovery_data(void)
 unsigned long
 get_nfs4_grace_period(void)
 {
-	return max(user_lease_time, lease_time) * HZ;
+	return max(user_lease_time, nfsd4_lease) * HZ;
 }
 
 /*
@@ -4009,7 +4009,7 @@ __nfs4_state_start(void)
 
 	boot_time = get_seconds();
 	grace_time = get_nfs4_grace_period();
-	lease_time = user_lease_time;
+	nfsd4_lease = user_lease_time;
 	locks_start_grace(&nfsd4_manager);
 	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
 	       grace_time/HZ);
@@ -4034,12 +4034,6 @@ nfs4_state_start(void)
 		return ret;
 	nfs4_init = 1;
 	return 0;
-}
-
-time_t
-nfs4_lease_time(void)
-{
-	return lease_time;
 }
 
 static void

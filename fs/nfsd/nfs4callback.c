@@ -455,7 +455,7 @@ static struct rpc_program cb_program = {
 
 static int max_cb_time(void)
 {
-	return max(NFSD_LEASE_TIME/10, (time_t)1) * HZ;
+	return max(nfsd4_lease/10, (time_t)1) * HZ;
 }
 
 /* Reference counting, callback cleanup, etc., all look racy as heck.
