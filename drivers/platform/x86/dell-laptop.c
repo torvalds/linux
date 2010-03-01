@@ -132,8 +132,8 @@ static struct dmi_system_id __devinitdata dell_blacklist[] = {
 };
 
 static struct calling_interface_buffer *buffer;
-struct page *bufferpage;
-DEFINE_MUTEX(buffer_mutex);
+static struct page *bufferpage;
+static DEFINE_MUTEX(buffer_mutex);
 
 static int hwswitch_state;
 
