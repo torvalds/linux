@@ -92,147 +92,147 @@ static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
 
 static const struct ctrl sd_ctrls[] = {
-    {							/* 0 */
-	{
-		.id      = V4L2_CID_BRIGHTNESS,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Brightness",
-		.minimum = 0,
-		.maximum = 255,
-		.step    = 1,
+	{	/* 0 */
+		{
+			.id      = V4L2_CID_BRIGHTNESS,
+			.type    = V4L2_CTRL_TYPE_INTEGER,
+			.name    = "Brightness",
+			.minimum = 0,
+			.maximum = 255,
+			.step    = 1,
 #define BRIGHTNESS_DEF 0
-		.default_value = BRIGHTNESS_DEF,
+			.default_value = BRIGHTNESS_DEF,
+		},
+		.set = sd_setbrightness,
+		.get = sd_getbrightness,
 	},
-	.set = sd_setbrightness,
-	.get = sd_getbrightness,
-    },
-    {							/* 1 */
-	{
-		.id      = V4L2_CID_CONTRAST,
-		.type    = V4L2_CTRL_TYPE_INTEGER,
-		.name    = "Contrast",
-		.minimum = 0,
-		.maximum = 255,
-		.step    = 1,
+	{	/* 1 */
+		{
+			.id      = V4L2_CID_CONTRAST,
+			.type    = V4L2_CTRL_TYPE_INTEGER,
+			.name    = "Contrast",
+			.minimum = 0,
+			.maximum = 255,
+			.step    = 1,
 #define CONTRAST_DEF 32
-		.default_value = CONTRAST_DEF,
+			.default_value = CONTRAST_DEF,
+		},
+		.set = sd_setcontrast,
+		.get = sd_getcontrast,
 	},
-	.set = sd_setcontrast,
-	.get = sd_getcontrast,
-    },
-    {							/* 2 */
-	{
-	    .id      = V4L2_CID_GAIN,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Main Gain",
-	    .minimum = 0,
-	    .maximum = 63,
-	    .step    = 1,
+	{	/* 2 */
+		{
+			.id      = V4L2_CID_GAIN,
+			.type    = V4L2_CTRL_TYPE_INTEGER,
+			.name    = "Main Gain",
+			.minimum = 0,
+			.maximum = 63,
+			.step    = 1,
 #define GAIN_DEF 20
-	    .default_value = GAIN_DEF,
+			.default_value = GAIN_DEF,
+		},
+		.set = sd_setgain,
+		.get = sd_getgain,
 	},
-	.set = sd_setgain,
-	.get = sd_getgain,
-    },
-    {							/* 3 */
-	{
-	    .id      = V4L2_CID_EXPOSURE,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Exposure",
-	    .minimum = 0,
-	    .maximum = 255,
-	    .step    = 1,
+	{	/* 3 */
+		{
+			.id      = V4L2_CID_EXPOSURE,
+			.type    = V4L2_CTRL_TYPE_INTEGER,
+			.name    = "Exposure",
+			.minimum = 0,
+			.maximum = 255,
+			.step    = 1,
 #define EXPO_DEF 120
-	    .default_value = EXPO_DEF,
+			.default_value = EXPO_DEF,
+		},
+		.set = sd_setexposure,
+		.get = sd_getexposure,
 	},
-	.set = sd_setexposure,
-	.get = sd_getexposure,
-    },
-    {							/* 4 */
-	{
-	    .id      = V4L2_CID_AUTOGAIN,
-	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
-	    .name    = "Auto Gain",
-	    .minimum = 0,
-	    .maximum = 1,
-	    .step    = 1,
+	{	/* 4 */
+		{
+			.id      = V4L2_CID_AUTOGAIN,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "Auto Gain",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
 #define AGC_DEF 1
-	    .default_value = AGC_DEF,
+			.default_value = AGC_DEF,
+		},
+		.set = sd_setagc,
+		.get = sd_getagc,
 	},
-	.set = sd_setagc,
-	.get = sd_getagc,
-    },
 #define AWB_IDX 5
-    {							/* 5 */
-	{
-		.id      = V4L2_CID_AUTO_WHITE_BALANCE,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Auto White Balance",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
+	{	/* 5 */
+		{
+			.id      = V4L2_CID_AUTO_WHITE_BALANCE,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "Auto White Balance",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
 #define AWB_DEF 1
-		.default_value = AWB_DEF,
+			.default_value = AWB_DEF,
+		},
+		.set = sd_setawb,
+		.get = sd_getawb,
 	},
-	.set = sd_setawb,
-	.get = sd_getawb,
-    },
-    {							/* 6 */
-	{
-		.id      = V4L2_CID_EXPOSURE_AUTO,
-		.type    = V4L2_CTRL_TYPE_BOOLEAN,
-		.name    = "Auto Exposure",
-		.minimum = 0,
-		.maximum = 1,
-		.step    = 1,
+	{	/* 6 */
+		{
+			.id      = V4L2_CID_EXPOSURE_AUTO,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "Auto Exposure",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
 #define AEC_DEF 1
-		.default_value = AEC_DEF,
+			.default_value = AEC_DEF,
+		},
+		.set = sd_setaec,
+		.get = sd_getaec,
 	},
-	.set = sd_setaec,
-	.get = sd_getaec,
-    },
-    {							/* 7 */
-	{
-	    .id      = V4L2_CID_SHARPNESS,
-	    .type    = V4L2_CTRL_TYPE_INTEGER,
-	    .name    = "Sharpness",
-	    .minimum = 0,
-	    .maximum = 63,
-	    .step    = 1,
+	{	/* 7 */
+		{
+			.id      = V4L2_CID_SHARPNESS,
+			.type    = V4L2_CTRL_TYPE_INTEGER,
+			.name    = "Sharpness",
+			.minimum = 0,
+			.maximum = 63,
+			.step    = 1,
 #define SHARPNESS_DEF 0
-	    .default_value = SHARPNESS_DEF,
+			.default_value = SHARPNESS_DEF,
+		},
+		.set = sd_setsharpness,
+		.get = sd_getsharpness,
 	},
-	.set = sd_setsharpness,
-	.get = sd_getsharpness,
-    },
-    {							/* 8 */
-	{
-	    .id      = V4L2_CID_HFLIP,
-	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
-	    .name    = "HFlip",
-	    .minimum = 0,
-	    .maximum = 1,
-	    .step    = 1,
+	{	/* 8 */
+		{
+			.id      = V4L2_CID_HFLIP,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "HFlip",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
 #define HFLIP_DEF 0
-	    .default_value = HFLIP_DEF,
+			.default_value = HFLIP_DEF,
+		},
+		.set = sd_sethflip,
+		.get = sd_gethflip,
 	},
-	.set = sd_sethflip,
-	.get = sd_gethflip,
-    },
-    {							/* 9 */
-	{
-	    .id      = V4L2_CID_VFLIP,
-	    .type    = V4L2_CTRL_TYPE_BOOLEAN,
-	    .name    = "VFlip",
-	    .minimum = 0,
-	    .maximum = 1,
-	    .step    = 1,
+	{	/* 9 */
+		{
+			.id      = V4L2_CID_VFLIP,
+			.type    = V4L2_CTRL_TYPE_BOOLEAN,
+			.name    = "VFlip",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
 #define VFLIP_DEF 0
-	    .default_value = VFLIP_DEF,
+			.default_value = VFLIP_DEF,
+		},
+		.set = sd_setvflip,
+		.get = sd_getvflip,
 	},
-	.set = sd_setvflip,
-	.get = sd_getvflip,
-    },
 };
 
 static const struct v4l2_pix_format ov772x_mode[] = {
@@ -641,14 +641,14 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sccb_reg_write(gspca_dev, 0x9B, sd->brightness);
+	sccb_reg_write(gspca_dev, 0x9b, sd->brightness);
 }
 
 static void setcontrast(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 
-	sccb_reg_write(gspca_dev, 0x9C, sd->contrast);
+	sccb_reg_write(gspca_dev, 0x9c, sd->contrast);
 }
 
 static void setgain(struct gspca_dev *gspca_dev)
