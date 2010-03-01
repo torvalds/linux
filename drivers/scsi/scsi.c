@@ -1018,6 +1018,8 @@ static int scsi_vpd_inquiry(struct scsi_device *sdev, unsigned char *buffer,
  * scsi_get_vpd_page - Get Vital Product Data from a SCSI device
  * @sdev: The device to ask
  * @page: Which Vital Product Data to return
+ * @buf: where to store the VPD
+ * @buf_len: number of bytes in the VPD buffer area
  *
  * SCSI devices may optionally supply Vital Product Data.  Each 'page'
  * of VPD is defined in the appropriate SCSI document (eg SPC, SBC).
