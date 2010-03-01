@@ -144,14 +144,16 @@ static __init int test_atomic64(void)
 	BUG_ON(v.counter != r);
 
 #ifdef CONFIG_X86
-	printk(KERN_INFO "atomic64 test passed for %s+ platform %s CX8 and %s SSE\n",
-#ifdef CONFIG_X86_CMPXCHG64
-			"586",
+	printk(KERN_INFO "atomic64 test passed for %s platform %s CX8 and %s SSE\n",
+#ifdef CONFIG_X86_64
+	       "x86-64",
+#elif defined(CONFIG_X86_CMPXCHG64)
+	       "i586+",
 #else
-			"386",
+	       "i386+",
 #endif
-			boot_cpu_has(X86_FEATURE_CX8) ? "with" : "without",
-			boot_cpu_has(X86_FEATURE_XMM) ? "with" : "without");
+	       boot_cpu_has(X86_FEATURE_CX8) ? "with" : "without",
+	       boot_cpu_has(X86_FEATURE_XMM) ? "with" : "without");
 #else
 	printk(KERN_INFO "atomic64 test passed\n");
 #endif
