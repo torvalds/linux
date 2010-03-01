@@ -1424,7 +1424,6 @@ static bool tomoyo_print_single_path_acl(struct tomoyo_io_buffer *head,
 {
 	int pos;
 	u8 bit;
-	const char *atmark = "";
 	const char *filename;
 	const u16 perm = ptr->perm;
 
@@ -1441,8 +1440,7 @@ static bool tomoyo_print_single_path_acl(struct tomoyo_io_buffer *head,
 			continue;
 		msg = tomoyo_sp2keyword(bit);
 		pos = head->read_avail;
-		if (!tomoyo_io_printf(head, "allow_%s %s%s\n", msg,
-				      atmark, filename))
+		if (!tomoyo_io_printf(head, "allow_%s %s\n", msg, filename))
 			goto out;
 	}
 	head->read_bit = 0;
@@ -1466,8 +1464,6 @@ static bool tomoyo_print_double_path_acl(struct tomoyo_io_buffer *head,
 					 ptr)
 {
 	int pos;
-	const char *atmark1 = "";
-	const char *atmark2 = "";
 	const char *filename1;
 	const char *filename2;
 	const u8 perm = ptr->perm;
@@ -1482,8 +1478,8 @@ static bool tomoyo_print_double_path_acl(struct tomoyo_io_buffer *head,
 			continue;
 		msg = tomoyo_dp2keyword(bit);
 		pos = head->read_avail;
-		if (!tomoyo_io_printf(head, "allow_%s %s%s %s%s\n", msg,
-				      atmark1, filename1, atmark2, filename2))
+		if (!tomoyo_io_printf(head, "allow_%s %s %s\n", msg,
+				      filename1, filename2))
 			goto out;
 	}
 	head->read_bit = 0;
