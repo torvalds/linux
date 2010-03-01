@@ -79,6 +79,7 @@ struct nested_state {
 
 	/* gpa pointers to the real vectors */
 	u64 vmcb_msrpm;
+	u64 vmcb_iopm;
 
 	/* A VMEXIT is required but not yet emulated */
 	bool exit_required;
@@ -1658,6 +1659,26 @@ static void nested_svm_unmap(struct page *page)
 	kvm_release_page_dirty(page);
 }
 
+static int nested_svm_intercept_ioio(struct vcpu_svm *svm)
+{
+	unsigned port;
+	u8 val, bit;
+	u64 gpa;
+
+	if (!(svm->nested.intercept & (1ULL << INTERCEPT_IOIO_PROT)))
+		return NESTED_EXIT_HOST;
+
+	port = svm->vmcb->control.exit_info_1 >> 16;
+	gpa  = svm->nested.vmcb_iopm + (port / 8);
+	bit  = port % 8;
+	val  = 0;
+
+	if (kvm_read_guest(svm->vcpu.kvm, gpa, &val, 1))
+		val &= (1 << bit);
+
+	return val ? NESTED_EXIT_DONE : NESTED_EXIT_HOST;
+}
+
 static int nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 {
 	u32 offset, msr, value;
@@ -1722,6 +1743,9 @@ static int nested_svm_intercept(struct vcpu_svm *svm)
 	switch (exit_code) {
 	case SVM_EXIT_MSR:
 		vmexit = nested_svm_exit_handled_msr(svm);
+		break;
+	case SVM_EXIT_IOIO:
+		vmexit = nested_svm_intercept_ioio(svm);
 		break;
 	case SVM_EXIT_READ_CR0 ... SVM_EXIT_READ_CR8: {
 		u32 cr_bits = 1 << (exit_code - SVM_EXIT_READ_CR0);
@@ -2047,6 +2071,7 @@ static bool nested_svm_vmrun(struct vcpu_svm *svm)
 	svm->vmcb->save.cpl = nested_vmcb->save.cpl;
 
 	svm->nested.vmcb_msrpm = nested_vmcb->control.msrpm_base_pa;
+	svm->nested.vmcb_iopm  = nested_vmcb->control.iopm_base_pa  & ~0x0fffULL;
 
 	/* cache intercepts */
 	svm->nested.intercept_cr_read    = nested_vmcb->control.intercept_cr_read;
