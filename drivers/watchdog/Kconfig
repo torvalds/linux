@@ -861,10 +861,10 @@ config TXX9_WDT
 # POWERPC Architecture
 
 config GEF_WDT
-	tristate "GE Fanuc Watchdog Timer"
+	tristate "GE Watchdog Timer"
 	depends on GEF_SBC610 || GEF_SBC310 || GEF_PPC9A
 	---help---
-	  Watchdog timer found in a number of GE Fanuc single board computers.
+	  Watchdog timer found in a number of GE single board computers.
 
 config MPC5200_WDT
 	bool "MPC52xx Watchdog Timer"
