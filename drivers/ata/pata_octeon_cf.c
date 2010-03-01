@@ -853,7 +853,7 @@ static int __devinit octeon_cf_probe(struct platform_device *pdev)
 			return -EINVAL;
 
 		cs1 = devm_ioremap_nocache(&pdev->dev, res_cs1->start,
-					   res_cs0->end - res_cs1->start + 1);
+					   resource_size(res_cs1));
 
 		if (!cs1)
 			return -ENOMEM;

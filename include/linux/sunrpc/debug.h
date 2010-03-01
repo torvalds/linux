@@ -28,9 +28,6 @@
 
 #ifdef __KERNEL__
 
-#include <linux/timer.h>
-#include <linux/workqueue.h>
-
 /*
  * Enable RPC debugging/profiling.
  */

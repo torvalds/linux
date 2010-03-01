@@ -24,32 +24,48 @@
  * silicon in the first place, we just refuse to deal with the port at
  * all rather than adding infrastructure to hack around it.
  */
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xffc30000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 40, 41, 43, 42 },
-	}, {
-		.mapbase	= 0xffc40000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 44, 45, 47, 46 },
-	}, {
-		.mapbase	= 0xffc60000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 52, 53, 55, 54 },
-	}, {
-		.flags = 0,
-	}
+static struct plat_sci_port scif0_platform_data = {
+	.mapbase	= 0xffc30000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 40, 41, 43, 42 },
 };
 
-static struct platform_device sci_device = {
+static struct platform_device scif0_device = {
 	.name		= "sh-sci",
-	.id		= -1,
+	.id		= 0,
 	.dev		= {
-		.platform_data	= sci_platform_data,
+		.platform_data	= &scif0_platform_data,
+	},
+};
+
+static struct plat_sci_port scif1_platform_data = {
+	.mapbase	= 0xffc40000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 44, 45, 47, 46 },
+};
+
+static struct platform_device scif1_device = {
+	.name		= "sh-sci",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &scif1_platform_data,
+	},
+};
+
+static struct plat_sci_port scif2_platform_data = {
+	.mapbase	= 0xffc60000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 52, 53, 55, 54 },
+};
+
+static struct platform_device scif2_device = {
+	.name		= "sh-sci",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &scif2_platform_data,
 	},
 };
 
@@ -236,6 +252,9 @@ static struct platform_device tmu5_device = {
 };
 
 static struct platform_device *shx3_early_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
+	&scif2_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,
@@ -244,21 +263,10 @@ static struct platform_device *shx3_early_devices[] __initdata = {
 	&tmu5_device,
 };
 
-static struct platform_device *shx3_devices[] __initdata = {
-	&sci_device,
-};
-
 static int __init shx3_devices_setup(void)
 {
-	int ret;
-
-	ret = platform_add_devices(shx3_early_devices,
+	return platform_add_devices(shx3_early_devices,
 				   ARRAY_SIZE(shx3_early_devices));
-	if (unlikely(ret != 0))
-		return ret;
-
-	return platform_add_devices(shx3_devices,
-				    ARRAY_SIZE(shx3_devices));
 }
 arch_initcall(shx3_devices_setup);
 

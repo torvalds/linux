@@ -205,10 +205,7 @@ libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
 
 BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.srec uImage.bin \
 	       zImage vmlinux.srec romImage
-PHONY += maketools $(BOOT_TARGETS) FORCE
-
-maketools:  include/linux/version.h FORCE
-	$(Q)$(MAKE) $(build)=arch/sh/tools include/asm-sh/machtypes.h
+PHONY += $(BOOT_TARGETS)
 
 all: $(KBUILD_IMAGE)
 
@@ -217,7 +214,8 @@ $(BOOT_TARGETS): vmlinux
 
 compressed: zImage
 
-archprepare: maketools
+archprepare:
+	$(Q)$(MAKE) $(build)=arch/sh/tools include/generated/machtypes.h
 
 archclean:
 	$(Q)$(MAKE) $(clean)=$(boot)
@@ -234,5 +232,3 @@ define archhelp
 	@echo '  uImage.bz2	           - Kernel-only image for U-Boot (bzip2)'
 	@echo '  uImage.lzma	           - Kernel-only image for U-Boot (lzma)'
 endef
-
-CLEAN_FILES += include/asm-sh/machtypes.h

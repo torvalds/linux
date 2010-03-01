@@ -361,12 +361,11 @@ static int smaps_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 		if (!pte_present(ptent))
 			continue;
 
-		mss->resident += PAGE_SIZE;
-
 		page = vm_normal_page(vma, addr, ptent);
 		if (!page)
 			continue;
 
+		mss->resident += PAGE_SIZE;
 		/* Accumulate the size in pages that have been accessed. */
 		if (pte_young(ptent) || PageReferenced(page))
 			mss->referenced += PAGE_SIZE;
@@ -650,6 +649,50 @@ static int pagemap_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
 	return err;
 }
 
+static u64 huge_pte_to_pagemap_entry(pte_t pte, int offset)
+{
+	u64 pme = 0;
+	if (pte_present(pte))
+		pme = PM_PFRAME(pte_pfn(pte) + offset)
+			| PM_PSHIFT(PAGE_SHIFT) | PM_PRESENT;
+	return pme;
+}
+
+static int pagemap_hugetlb_range(pte_t *pte, unsigned long addr,
+				 unsigned long end, struct mm_walk *walk)
+{
+	struct vm_area_struct *vma;
+	struct pagemapread *pm = walk->private;
+	struct hstate *hs = NULL;
+	int err = 0;
+
+	vma = find_vma(walk->mm, addr);
+	if (vma)
+		hs = hstate_vma(vma);
+	for (; addr != end; addr += PAGE_SIZE) {
+		u64 pfn = PM_NOT_PRESENT;
+
+		if (vma && (addr >= vma->vm_end)) {
+			vma = find_vma(walk->mm, addr);
+			if (vma)
+				hs = hstate_vma(vma);
+		}
+
+		if (vma && (vma->vm_start <= addr) && is_vm_hugetlb_page(vma)) {
+			/* calculate pfn of the "raw" page in the hugepage. */
+			int offset = (addr & ~huge_page_mask(hs)) >> PAGE_SHIFT;
+			pfn = huge_pte_to_pagemap_entry(*pte, offset);
+		}
+		err = add_to_pagemap(addr, pfn, pm);
+		if (err)
+			return err;
+	}
+
+	cond_resched();
+
+	return err;
+}
+
 /*
  * /proc/pid/pagemap - an array mapping virtual pages to pfns
  *
@@ -742,6 +785,7 @@ static ssize_t pagemap_read(struct file *file, char __user *buf,
 
 	pagemap_walk.pmd_entry = pagemap_pte_range;
 	pagemap_walk.pte_hole = pagemap_pte_hole;
+	pagemap_walk.hugetlb_entry = pagemap_hugetlb_range;
 	pagemap_walk.mm = mm;
 	pagemap_walk.private = &pm;
 

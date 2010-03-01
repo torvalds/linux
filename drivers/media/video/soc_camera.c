@@ -31,6 +31,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-dev.h>
 #include <media/videobuf-core.h>
+#include <media/soc_mediabus.h>
 
 /* Default to VGA resolution */
 #define DEFAULT_WIDTH	640
@@ -39,18 +40,6 @@
 static LIST_HEAD(hosts);
 static LIST_HEAD(devices);
 static DEFINE_MUTEX(list_lock);		/* Protects the list of hosts */
-
-const struct soc_camera_data_format *soc_camera_format_by_fourcc(
-	struct soc_camera_device *icd, unsigned int fourcc)
-{
-	unsigned int i;
-
-	for (i = 0; i < icd->num_formats; i++)
-		if (icd->formats[i].fourcc == fourcc)
-			return icd->formats + i;
-	return NULL;
-}
-EXPORT_SYMBOL(soc_camera_format_by_fourcc);
 
 const struct soc_camera_format_xlate *soc_camera_xlate_by_fourcc(
 	struct soc_camera_device *icd, unsigned int fourcc)
@@ -207,21 +196,26 @@ static int soc_camera_dqbuf(struct file *file, void *priv,
 /* Always entered with .video_lock held */
 static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 {
+	struct v4l2_subdev *sd = soc_camera_to_subdev(icd);
 	struct soc_camera_host *ici = to_soc_camera_host(icd->dev.parent);
-	int i, fmts = 0, ret;
+	int i, fmts = 0, raw_fmts = 0, ret;
+	enum v4l2_mbus_pixelcode code;
+
+	while (!v4l2_subdev_call(sd, video, enum_mbus_fmt, raw_fmts, &code))
+		raw_fmts++;
 
 	if (!ici->ops->get_formats)
 		/*
 		 * Fallback mode - the host will have to serve all
 		 * sensor-provided formats one-to-one to the user
 		 */
-		fmts = icd->num_formats;
+		fmts = raw_fmts;
 	else
 		/*
 		 * First pass - only count formats this host-sensor
 		 * configuration can provide
 		 */
-		for (i = 0; i < icd->num_formats; i++) {
+		for (i = 0; i < raw_fmts; i++) {
 			ret = ici->ops->get_formats(icd, i, NULL);
 			if (ret < 0)
 				return ret;
@@ -242,11 +236,12 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 
 	/* Second pass - actually fill data formats */
 	fmts = 0;
-	for (i = 0; i < icd->num_formats; i++)
+	for (i = 0; i < raw_fmts; i++)
 		if (!ici->ops->get_formats) {
-			icd->user_formats[i].host_fmt = icd->formats + i;
-			icd->user_formats[i].cam_fmt = icd->formats + i;
-			icd->user_formats[i].buswidth = icd->formats[i].depth;
+			v4l2_subdev_call(sd, video, enum_mbus_fmt, i, &code);
+			icd->user_formats[i].host_fmt =
+				soc_mbus_get_fmtdesc(code);
+			icd->user_formats[i].code = code;
 		} else {
 			ret = ici->ops->get_formats(icd, i,
 						    &icd->user_formats[fmts]);
@@ -255,7 +250,7 @@ static int soc_camera_init_user_formats(struct soc_camera_device *icd)
 			fmts += ret;
 		}
 
-	icd->current_fmt = icd->user_formats[0].host_fmt;
+	icd->current_fmt = &icd->user_formats[0];
 
 	return 0;
 
@@ -281,7 +276,7 @@ static void soc_camera_free_user_formats(struct soc_camera_device *icd)
 #define pixfmtstr(x) (x) & 0xff, ((x) >> 8) & 0xff, ((x) >> 16) & 0xff, \
 	((x) >> 24) & 0xff
 
-/* Called with .vb_lock held */
+/* Called with .vb_lock held, or from the first open(2), see comment there */
 static int soc_camera_set_fmt(struct soc_camera_file *icf,
 			      struct v4l2_format *f)
 {
@@ -302,7 +297,7 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 	if (ret < 0) {
 		return ret;
 	} else if (!icd->current_fmt ||
-		   icd->current_fmt->fourcc != pix->pixelformat) {
+		   icd->current_fmt->host_fmt->fourcc != pix->pixelformat) {
 		dev_err(&icd->dev,
 			"Host driver hasn't set up current format correctly!\n");
 		return -EINVAL;
@@ -310,6 +305,7 @@ static int soc_camera_set_fmt(struct soc_camera_file *icf,
 
 	icd->user_width		= pix->width;
 	icd->user_height	= pix->height;
+	icd->colorspace		= pix->colorspace;
 	icf->vb_vidq.field	=
 		icd->field	= pix->field;
 
@@ -369,8 +365,9 @@ static int soc_camera_open(struct file *file)
 				.width		= icd->user_width,
 				.height		= icd->user_height,
 				.field		= icd->field,
-				.pixelformat	= icd->current_fmt->fourcc,
-				.colorspace	= icd->current_fmt->colorspace,
+				.colorspace	= icd->colorspace,
+				.pixelformat	=
+					icd->current_fmt->host_fmt->fourcc,
 			},
 		};
 
@@ -390,7 +387,12 @@ static int soc_camera_open(struct file *file)
 			goto eiciadd;
 		}
 
-		/* Try to configure with default parameters */
+		/*
+		 * Try to configure with default parameters. Notice: this is the
+		 * very first open, so, we cannot race against other calls,
+		 * apart from someone else calling open() simultaneously, but
+		 * .video_lock is protecting us against it.
+		 */
 		ret = soc_camera_set_fmt(icf, &f);
 		if (ret < 0)
 			goto esfmt;
@@ -534,7 +536,7 @@ static int soc_camera_enum_fmt_vid_cap(struct file *file, void  *priv,
 {
 	struct soc_camera_file *icf = file->private_data;
 	struct soc_camera_device *icd = icf->icd;
-	const struct soc_camera_data_format *format;
+	const struct soc_mbus_pixelfmt *format;
 
 	WARN_ON(priv != file->private_data);
 
@@ -543,7 +545,8 @@ static int soc_camera_enum_fmt_vid_cap(struct file *file, void  *priv,
 
 	format = icd->user_formats[f->index].host_fmt;
 
-	strlcpy(f->description, format->name, sizeof(f->description));
+	if (format->name)
+		strlcpy(f->description, format->name, sizeof(f->description));
 	f->pixelformat = format->fourcc;
 	return 0;
 }
@@ -560,12 +563,15 @@ static int soc_camera_g_fmt_vid_cap(struct file *file, void *priv,
 	pix->width		= icd->user_width;
 	pix->height		= icd->user_height;
 	pix->field		= icf->vb_vidq.field;
-	pix->pixelformat	= icd->current_fmt->fourcc;
-	pix->bytesperline	= pix->width *
-		DIV_ROUND_UP(icd->current_fmt->depth, 8);
+	pix->pixelformat	= icd->current_fmt->host_fmt->fourcc;
+	pix->bytesperline	= soc_mbus_bytes_per_line(pix->width,
+						icd->current_fmt->host_fmt);
+	pix->colorspace		= icd->colorspace;
+	if (pix->bytesperline < 0)
+		return pix->bytesperline;
 	pix->sizeimage		= pix->height * pix->bytesperline;
 	dev_dbg(&icd->dev, "current_fmt->fourcc: 0x%08x\n",
-		icd->current_fmt->fourcc);
+		icd->current_fmt->host_fmt->fourcc);
 	return 0;
 }
 
@@ -621,8 +627,10 @@ static int soc_camera_streamoff(struct file *file, void *priv,
 
 	mutex_lock(&icd->video_lock);
 
-	/* This calls buf_release from host driver's videobuf_queue_ops for all
-	 * remaining buffers. When the last buffer is freed, stop capture */
+	/*
+	 * This calls buf_release from host driver's videobuf_queue_ops for all
+	 * remaining buffers. When the last buffer is freed, stop capture
+	 */
 	videobuf_streamoff(&icf->vb_vidq);
 
 	v4l2_subdev_call(sd, video, s_stream, 0);
@@ -892,7 +900,7 @@ static int soc_camera_probe(struct device *dev)
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	struct device *control = NULL;
 	struct v4l2_subdev *sd;
-	struct v4l2_format f = {.type = V4L2_BUF_TYPE_VIDEO_CAPTURE};
+	struct v4l2_mbus_framefmt mf;
 	int ret;
 
 	dev_info(dev, "Probing %s\n", dev_name(dev));
@@ -963,9 +971,11 @@ static int soc_camera_probe(struct device *dev)
 
 	/* Try to improve our guess of a reasonable window format */
 	sd = soc_camera_to_subdev(icd);
-	if (!v4l2_subdev_call(sd, video, g_fmt, &f)) {
-		icd->user_width		= f.fmt.pix.width;
-		icd->user_height	= f.fmt.pix.height;
+	if (!v4l2_subdev_call(sd, video, g_mbus_fmt, &mf)) {
+		icd->user_width		= mf.width;
+		icd->user_height	= mf.height;
+		icd->colorspace		= mf.colorspace;
+		icd->field		= mf.field;
 	}
 
 	/* Do we have to sysfs_remove_link() before device_unregister()? */
@@ -1004,8 +1014,10 @@ epower:
 	return ret;
 }
 
-/* This is called on device_unregister, which only means we have to disconnect
- * from the host, but not remove ourselves from the device list */
+/*
+ * This is called on device_unregister, which only means we have to disconnect
+ * from the host, but not remove ourselves from the device list
+ */
 static int soc_camera_remove(struct device *dev)
 {
 	struct soc_camera_device *icd = to_soc_camera_dev(dev);
@@ -1205,8 +1217,10 @@ static int soc_camera_device_register(struct soc_camera_device *icd)
 	}
 
 	if (num < 0)
-		/* ok, we have 256 cameras on this host...
-		 * man, stay reasonable... */
+		/*
+		 * ok, we have 256 cameras on this host...
+		 * man, stay reasonable...
+		 */
 		return -ENOMEM;
 
 	icd->devnum		= num;
@@ -1268,7 +1282,6 @@ static int video_dev_create(struct soc_camera_device *icd)
 	vdev->fops		= &soc_camera_fops;
 	vdev->ioctl_ops		= &soc_camera_ioctl_ops;
 	vdev->release		= video_device_release;
-	vdev->minor		= -1;
 	vdev->tvnorms		= V4L2_STD_UNKNOWN;
 
 	icd->vdev = vdev;
@@ -1291,8 +1304,7 @@ static int soc_camera_video_start(struct soc_camera_device *icd)
 	    !icd->ops->set_bus_param)
 		return -EINVAL;
 
-	ret = video_register_device(icd->vdev, VFL_TYPE_GRABBER,
-				    icd->vdev->minor);
+	ret = video_register_device(icd->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret < 0) {
 		dev_err(&icd->dev, "video_register_device failed: %d\n", ret);
 		return ret;
@@ -1335,9 +1347,11 @@ escdevreg:
 	return ret;
 }
 
-/* Only called on rmmod for each platform device, since they are not
+/*
+ * Only called on rmmod for each platform device, since they are not
  * hot-pluggable. Now we know, that all our users - hosts and devices have
- * been unloaded already */
+ * been unloaded already
+ */
 static int __devexit soc_camera_pdrv_remove(struct platform_device *pdev)
 {
 	struct soc_camera_device *icd = platform_get_drvdata(pdev);

@@ -1126,7 +1126,7 @@ static int iwm_ntf_stop_resume_tx(struct iwm_priv *iwm, u8 *buf,
 
 		if (!stop) {
 			struct iwm_tx_queue *txq;
-			u16 queue = iwm_tid_to_queue(bit);
+			int queue = iwm_tid_to_queue(bit);
 
 			if (queue < 0)
 				continue;

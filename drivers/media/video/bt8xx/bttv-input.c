@@ -368,7 +368,7 @@ int bttv_input_init(struct bttv *btv)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(btv->c.pci));
 
-	err = ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	err = ir_input_init(input_dev, &ir->ir, ir_type);
 	if (err < 0)
 		goto err_out_free;
 
@@ -389,7 +389,7 @@ int bttv_input_init(struct bttv *btv)
 	bttv_ir_start(btv, ir);
 
 	/* all done */
-	err = input_register_device(btv->remote->dev);
+	err = ir_input_register(btv->remote->dev, ir_codes);
 	if (err)
 		goto err_out_stop;
 
@@ -403,8 +403,6 @@ int bttv_input_init(struct bttv *btv)
 	bttv_ir_stop(btv);
 	btv->remote = NULL;
  err_out_free:
-	ir_input_free(input_dev);
-	input_free_device(input_dev);
 	kfree(ir);
 	return err;
 }
@@ -415,8 +413,7 @@ void bttv_input_fini(struct bttv *btv)
 		return;
 
 	bttv_ir_stop(btv);
-	ir_input_free(btv->remote->dev);
-	input_unregister_device(btv->remote->dev);
+	ir_input_unregister(btv->remote->dev);
 	kfree(btv->remote);
 	btv->remote = NULL;
 }

@@ -161,7 +161,7 @@ MODULE_PARM_DESC(overridesize,   "Specifies the NAND Flash size overriding the I
 MODULE_PARM_DESC(cache_file,     "File to use to cache nand pages instead of memory");
 
 /* The largest possible page size */
-#define NS_LARGEST_PAGE_SIZE	2048
+#define NS_LARGEST_PAGE_SIZE	4096
 
 /* The prefix for simulator output */
 #define NS_OUTPUT_PREFIX "[nandsim]"
@@ -259,7 +259,8 @@ MODULE_PARM_DESC(cache_file,     "File to use to cache nand pages instead of mem
 #define OPT_SMARTMEDIA   0x00000010 /* SmartMedia technology chips */
 #define OPT_AUTOINCR     0x00000020 /* page number auto inctimentation is possible */
 #define OPT_PAGE512_8BIT 0x00000040 /* 512-byte page chips with 8-bit bus width */
-#define OPT_LARGEPAGE    (OPT_PAGE2048) /* 2048-byte page chips */
+#define OPT_PAGE4096     0x00000080 /* 4096-byte page chips */
+#define OPT_LARGEPAGE    (OPT_PAGE2048 | OPT_PAGE4096) /* 2048 & 4096-byte page chips */
 #define OPT_SMALLPAGE    (OPT_PAGE256  | OPT_PAGE512)  /* 256 and 512-byte page chips */
 
 /* Remove action bits ftom state */
@@ -588,6 +589,8 @@ static int init_nandsim(struct mtd_info *mtd)
 			ns->options |= OPT_PAGE512_8BIT;
 	} else if (ns->geom.pgsz == 2048) {
 		ns->options |= OPT_PAGE2048;
+	} else if (ns->geom.pgsz == 4096) {
+		ns->options |= OPT_PAGE4096;
 	} else {
 		NS_ERR("init_nandsim: unknown page size %u\n", ns->geom.pgsz);
 		return -EIO;

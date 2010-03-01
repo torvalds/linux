@@ -796,7 +796,6 @@ static const struct v4l2_file_operations vicam_fops = {
 static struct video_device vicam_template = {
 	.name 		= "ViCam-based USB Camera",
 	.fops 		= &vicam_fops,
-	.minor 		= -1,
 	.release 	= video_device_release_empty,
 };
 
@@ -873,8 +872,8 @@ vicam_probe( struct usb_interface *intf, const struct usb_device_id *id)
 		return -EIO;
 	}
 
-	printk(KERN_INFO "ViCam webcam driver now controlling video device %d\n",
-			cam->vdev.num);
+	printk(KERN_INFO "ViCam webcam driver now controlling device %s\n",
+		video_device_node_name(&cam->vdev));
 
 	usb_set_intfdata (intf, cam);
 

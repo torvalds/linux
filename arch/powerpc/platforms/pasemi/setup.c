@@ -71,7 +71,7 @@ static void pas_restart(char *cmd)
 }
 
 #ifdef CONFIG_SMP
-static raw_spinlock_t timebase_lock;
+static arch_spinlock_t timebase_lock;
 static unsigned long timebase;
 
 static void __devinit pas_give_timebase(void)
@@ -80,11 +80,11 @@ static void __devinit pas_give_timebase(void)
 
 	local_irq_save(flags);
 	hard_irq_disable();
-	__raw_spin_lock(&timebase_lock);
+	arch_spin_lock(&timebase_lock);
 	mtspr(SPRN_TBCTL, TBCTL_FREEZE);
 	isync();
 	timebase = get_tb();
-	__raw_spin_unlock(&timebase_lock);
+	arch_spin_unlock(&timebase_lock);
 
 	while (timebase)
 		barrier();
@@ -97,10 +97,10 @@ static void __devinit pas_take_timebase(void)
 	while (!timebase)
 		smp_rmb();
 
-	__raw_spin_lock(&timebase_lock);
+	arch_spin_lock(&timebase_lock);
 	set_tb(timebase >> 32, timebase & 0xffffffff);
 	timebase = 0;
-	__raw_spin_unlock(&timebase_lock);
+	arch_spin_unlock(&timebase_lock);
 }
 
 struct smp_ops_t pas_smp_ops = {

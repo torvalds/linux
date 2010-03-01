@@ -1294,7 +1294,7 @@ static int __init bfin_spi_probe(struct platform_device *pdev)
 		goto out_error_get_res;
 	}
 
-	drv_data->regs_base = ioremap(res->start, (res->end - res->start + 1));
+	drv_data->regs_base = ioremap(res->start, resource_size(res));
 	if (drv_data->regs_base == NULL) {
 		dev_err(dev, "Cannot map IO\n");
 		status = -ENXIO;

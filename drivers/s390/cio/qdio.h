@@ -182,6 +182,34 @@ struct scssc_area {
 	u32:32;
 } __attribute__ ((packed));
 
+struct qdio_dev_perf_stat {
+	unsigned int adapter_int;
+	unsigned int qdio_int;
+	unsigned int pci_request_int;
+
+	unsigned int tasklet_inbound;
+	unsigned int tasklet_inbound_resched;
+	unsigned int tasklet_inbound_resched2;
+	unsigned int tasklet_outbound;
+
+	unsigned int siga_read;
+	unsigned int siga_write;
+	unsigned int siga_sync;
+
+	unsigned int inbound_call;
+	unsigned int inbound_handler;
+	unsigned int stop_polling;
+	unsigned int inbound_queue_full;
+	unsigned int outbound_call;
+	unsigned int outbound_handler;
+	unsigned int fast_requeue;
+	unsigned int target_full;
+	unsigned int eqbs;
+	unsigned int eqbs_partial;
+	unsigned int sqbs;
+	unsigned int sqbs_partial;
+};
+
 struct qdio_input_q {
 	/* input buffer acknowledgement flag */
 	int polling;
@@ -269,6 +297,7 @@ struct qdio_irq {
 	u32 *dsci;		/* address of device state change indicator */
 	struct ccw_device *cdev;
 	struct dentry *debugfs_dev;
+	struct dentry *debugfs_perf;
 
 	unsigned long int_parm;
 	struct subchannel_id schid;
@@ -286,9 +315,10 @@ struct qdio_irq {
 	struct ciw aqueue;
 
 	struct qdio_ssqd_desc ssqd_desc;
-
 	void (*orig_handler) (struct ccw_device *, unsigned long, struct irb *);
 
+	struct qdio_dev_perf_stat perf_stat;
+	int perf_stat_enabled;
 	/*
 	 * Warning: Leave these members together at the end so they won't be
 	 * cleared in qdio_setup_irq.
@@ -310,6 +340,10 @@ struct qdio_irq {
 #define is_thinint_irq(irq) \
 	(irq->qib.qfmt == QDIO_IQDIO_QFMT || \
 	 css_general_characteristics.aif_osa)
+
+#define qperf(qdev,attr)	qdev->perf_stat.attr
+#define qperf_inc(q,attr)	if (q->irq_ptr->perf_stat_enabled) \
+					q->irq_ptr->perf_stat.attr++
 
 /* the highest iqdio queue is used for multicast */
 static inline int multicast_outbound(struct qdio_q *q)

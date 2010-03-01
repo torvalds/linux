@@ -67,7 +67,7 @@ MODULE_DESCRIPTION("GSPCA/Mars-Semi MR97310A USB Camera Driver");
 MODULE_LICENSE("GPL");
 
 /* global parameters */
-int force_sensor_type = -1;
+static int force_sensor_type = -1;
 module_param(force_sensor_type, int, 0644);
 MODULE_PARM_DESC(force_sensor_type, "Force sensor type (-1 (auto), 0 or 1)");
 

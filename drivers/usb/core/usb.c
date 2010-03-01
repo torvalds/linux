@@ -66,9 +66,9 @@ MODULE_PARM_DESC(autosuspend, "default autosuspend delay");
 /**
  * usb_find_alt_setting() - Given a configuration, find the alternate setting
  * for the given interface.
- * @config - the configuration to search (not necessarily the current config).
- * @iface_num - interface number to search in
- * @alt_num - alternate interface setting number to search for.
+ * @config: the configuration to search (not necessarily the current config).
+ * @iface_num: interface number to search in
+ * @alt_num: alternate interface setting number to search for.
  *
  * Search the configuration's interface cache for the given alt setting.
  */
@@ -167,18 +167,23 @@ struct usb_host_interface *usb_altnum_to_altsetting(
 }
 EXPORT_SYMBOL_GPL(usb_altnum_to_altsetting);
 
+struct find_interface_arg {
+	int minor;
+	struct device_driver *drv;
+};
+
 static int __find_interface(struct device *dev, void *data)
 {
-	int *minor = data;
+	struct find_interface_arg *arg = data;
 	struct usb_interface *intf;
 
 	if (!is_usb_interface(dev))
 		return 0;
 
+	if (dev->driver != arg->drv)
+		return 0;
 	intf = to_usb_interface(dev);
-	if (intf->minor != -1 && intf->minor == *minor)
-		return 1;
-	return 0;
+	return intf->minor == arg->minor;
 }
 
 /**
@@ -187,14 +192,18 @@ static int __find_interface(struct device *dev, void *data)
  * @minor: the minor number of the desired device
  *
  * This walks the bus device list and returns a pointer to the interface
- * with the matching minor.  Note, this only works for devices that share the
- * USB major number.
+ * with the matching minor and driver.  Note, this only works for devices
+ * that share the USB major number.
  */
 struct usb_interface *usb_find_interface(struct usb_driver *drv, int minor)
 {
+	struct find_interface_arg argb;
 	struct device *dev;
 
-	dev = bus_find_device(&usb_bus_type, NULL, &minor, __find_interface);
+	argb.minor = minor;
+	argb.drv = &drv->drvwrap.driver;
+
+	dev = bus_find_device(&usb_bus_type, NULL, &argb, __find_interface);
 
 	/* Drop reference count from bus_find_device */
 	put_device(dev);
@@ -320,7 +329,7 @@ static int usb_dev_restore(struct device *dev)
 	return usb_resume(dev, PMSG_RESTORE);
 }
 
-static struct dev_pm_ops usb_device_pm_ops = {
+static const struct dev_pm_ops usb_device_pm_ops = {
 	.prepare =	usb_dev_prepare,
 	.complete =	usb_dev_complete,
 	.suspend =	usb_dev_suspend,

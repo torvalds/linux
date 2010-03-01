@@ -619,6 +619,8 @@ err_revision:
 	}
 	/* This should go away (END) */
 
+	mc13783_unlock(mc13783);
+
 	if (pdata->flags & MC13783_USE_ADC)
 		mc13783_add_subdevice(mc13783, "mc13783-adc");
 
@@ -640,8 +642,6 @@ err_revision:
 
 	if (pdata->flags & MC13783_USE_TOUCHSCREEN)
 		mc13783_add_subdevice(mc13783, "mc13783-ts");
-
-	mc13783_unlock(mc13783);
 
 	return 0;
 }

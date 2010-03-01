@@ -530,7 +530,7 @@ err_corrupt_attr:
  * the ntfs inode.
  *
  * Q: What locks are held when the function is called?
- * A: i_state has I_LOCK set, hence the inode is locked, also
+ * A: i_state has I_NEW set, hence the inode is locked, also
  *    i_count is set to 1, so it is not going to go away
  *    i_flags is set to 0 and we have no business touching it.  Only an ioctl()
  *    is allowed to write to them. We should of course be honouring them but
@@ -1207,7 +1207,7 @@ err_out:
  * necessary fields in @vi as well as initializing the ntfs inode.
  *
  * Q: What locks are held when the function is called?
- * A: i_state has I_LOCK set, hence the inode is locked, also
+ * A: i_state has I_NEW set, hence the inode is locked, also
  *    i_count is set to 1, so it is not going to go away
  *
  * Return 0 on success and -errno on error.  In the error case, the inode will
@@ -1474,7 +1474,7 @@ err_out:
  * normal directory inodes.
  *
  * Q: What locks are held when the function is called?
- * A: i_state has I_LOCK set, hence the inode is locked, also
+ * A: i_state has I_NEW set, hence the inode is locked, also
  *    i_count is set to 1, so it is not going to go away
  *
  * Return 0 on success and -errno on error.  In the error case, the inode will

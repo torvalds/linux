@@ -19,6 +19,7 @@
  */
 
 #include <linux/time.h>
+#include <linux/pagemap.h>
 #include "ext2.h"
 #include "xattr.h"
 #include "acl.h"
@@ -38,6 +39,22 @@ static int ext2_release_file (struct inode * inode, struct file * filp)
 	return 0;
 }
 
+int ext2_fsync(struct file *file, struct dentry *dentry, int datasync)
+{
+	int ret;
+	struct super_block *sb = dentry->d_inode->i_sb;
+	struct address_space *mapping = sb->s_bdev->bd_inode->i_mapping;
+
+	ret = simple_fsync(file, dentry, datasync);
+	if (ret == -EIO || test_and_clear_bit(AS_EIO, &mapping->flags)) {
+		/* We don't really know where the IO error happened... */
+		ext2_error(sb, __func__,
+			   "detected IO error when writing metadata buffers");
+		ret = -EIO;
+	}
+	return ret;
+}
+
 /*
  * We have mostly NULL's here: the current defaults are ok for
  * the ext2 filesystem.
@@ -55,7 +72,7 @@ const struct file_operations ext2_file_operations = {
 	.mmap		= generic_file_mmap,
 	.open		= generic_file_open,
 	.release	= ext2_release_file,
-	.fsync		= simple_fsync,
+	.fsync		= ext2_fsync,
 	.splice_read	= generic_file_splice_read,
 	.splice_write	= generic_file_splice_write,
 };
@@ -72,7 +89,7 @@ const struct file_operations ext2_xip_file_operations = {
 	.mmap		= xip_file_mmap,
 	.open		= generic_file_open,
 	.release	= ext2_release_file,
-	.fsync		= simple_fsync,
+	.fsync		= ext2_fsync,
 };
 #endif
 

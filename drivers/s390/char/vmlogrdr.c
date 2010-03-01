@@ -675,7 +675,7 @@ static int vmlogrdr_pm_prepare(struct device *dev)
 }
 
 
-static struct dev_pm_ops vmlogrdr_pm_ops = {
+static const struct dev_pm_ops vmlogrdr_pm_ops = {
 	.prepare = vmlogrdr_pm_prepare,
 };
 

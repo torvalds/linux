@@ -604,7 +604,7 @@ void ieee80211_query_seqnum(struct ieee80211_device*ieee, struct sk_buff* skb, u
 	}
 }
 
-int ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
+int ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2,5,0))
 	struct ieee80211_device *ieee = netdev_priv(dev);

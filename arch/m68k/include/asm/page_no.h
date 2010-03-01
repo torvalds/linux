@@ -56,8 +56,8 @@ extern unsigned long memory_end;
 
 #ifndef __ASSEMBLY__
 
-#define __pa(vaddr)		virt_to_phys((void *)(vaddr))
-#define __va(paddr)		phys_to_virt((unsigned long)(paddr))
+#define __pa(vaddr)		((unsigned long)(vaddr))
+#define __va(paddr)		((void *)(paddr))
 
 #define virt_to_pfn(kaddr)	(__pa(kaddr) >> PAGE_SHIFT)
 #define pfn_to_virt(pfn)	__va((pfn) << PAGE_SHIFT)

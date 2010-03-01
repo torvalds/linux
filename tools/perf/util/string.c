@@ -226,3 +226,28 @@ fail:
 	argv_free(argv);
 	return NULL;
 }
+
+/* Glob expression pattern matching */
+bool strglobmatch(const char *str, const char *pat)
+{
+	while (*str && *pat && *pat != '*') {
+		if (*pat == '?') {
+			str++;
+			pat++;
+		} else
+			if (*str++ != *pat++)
+				return false;
+	}
+	/* Check wild card */
+	if (*pat == '*') {
+		while (*pat == '*')
+			pat++;
+		if (!*pat)	/* Tail wild card matches all */
+			return true;
+		while (*str)
+			if (strglobmatch(str++, pat))
+				return true;
+	}
+	return !*str && !*pat;
+}
+

@@ -34,6 +34,7 @@
 
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/kfifo.h>
 
 #include "t3_cpl.h"
 #include "t3cdev.h"
@@ -75,13 +76,13 @@ struct cxio_hal_ctrl_qp {
 };
 
 struct cxio_hal_resource {
-	struct kfifo *tpt_fifo;
+	struct kfifo tpt_fifo;
 	spinlock_t tpt_fifo_lock;
-	struct kfifo *qpid_fifo;
+	struct kfifo qpid_fifo;
 	spinlock_t qpid_fifo_lock;
-	struct kfifo *cqid_fifo;
+	struct kfifo cqid_fifo;
 	spinlock_t cqid_fifo_lock;
-	struct kfifo *pdid_fifo;
+	struct kfifo pdid_fifo;
 	spinlock_t pdid_fifo_lock;
 };
 

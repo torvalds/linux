@@ -39,30 +39,10 @@ SECTIONS
 		__tagtable_begin = .;
 			*(.taglist.init)
 		__tagtable_end = .;
-			INIT_DATA
-		. = ALIGN(16);
-		__setup_start = .;
-			*(.init.setup)
-		__setup_end = .;
-		. = ALIGN(4);
-		__initcall_start = .;
-			INITCALLS
-		__initcall_end = .;
-		__con_initcall_start = .;
-			*(.con_initcall.init)
-		__con_initcall_end = .;
-		__security_initcall_start = .;
-			*(.security_initcall.init)
-		__security_initcall_end = .;
-#ifdef CONFIG_BLK_DEV_INITRD
-		. = ALIGN(32);
-		__initramfs_start = .;
-			*(.init.ramfs)
-		__initramfs_end = .;
-#endif
-		. = ALIGN(PAGE_SIZE);
-		__init_end = .;
 	}
+	INIT_DATA_SECTION(16)
+	. = ALIGN(PAGE_SIZE);
+	__init_end = .;
 
 	.text		: AT(ADDR(.text) - LOAD_OFFSET) {
 		_evba = .;
@@ -78,34 +58,16 @@ SECTIONS
 		_etext = .;
 	} = 0xd703d703
 
-	. = ALIGN(4);
-	__ex_table	: AT(ADDR(__ex_table) - LOAD_OFFSET) {
-		__start___ex_table = .;
-		*(__ex_table)
-		__stop___ex_table = .;
-	}
-
+	EXCEPTION_TABLE(4)
 	RODATA
-
-	. = ALIGN(THREAD_SIZE);
 
 	.data		: AT(ADDR(.data) - LOAD_OFFSET) {
 		_data = .;
 		_sdata = .;
-		/*
-		 * First, the init task union, aligned to an 8K boundary.
-		 */
-		*(.data.init_task)
 
-		/* Then, the page-aligned data */
-		. = ALIGN(PAGE_SIZE);
-		*(.data.page_aligned)
-
-		/* Then, the cacheline aligned data */
-		. = ALIGN(L1_CACHE_BYTES);
-		*(.data.cacheline_aligned)
-
-		/* And the rest... */
+		INIT_TASK_DATA(THREAD_SIZE)
+		PAGE_ALIGNED_DATA(PAGE_SIZE);
+		CACHELINE_ALIGNED_DATA(L1_CACHE_BYTES)
 		*(.data.rel*)
 		DATA_DATA
 		CONSTRUCTORS
@@ -113,16 +75,8 @@ SECTIONS
 		_edata = .;
 	}
 
-
-	. = ALIGN(8);
-	.bss    	: AT(ADDR(.bss) - LOAD_OFFSET) {
-		__bss_start = .;
-		*(.bss)
-		*(COMMON)
-		. = ALIGN(8);
-		__bss_stop = .;
-		_end = .;
-	}
+	BSS_SECTION(0, 8, 8)
+	_end = .;
 
 	DWARF_DEBUG
 

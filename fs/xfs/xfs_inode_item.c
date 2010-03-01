@@ -41,6 +41,7 @@
 #include "xfs_ialloc.h"
 #include "xfs_rw.h"
 #include "xfs_error.h"
+#include "xfs_trace.h"
 
 
 kmem_zone_t	*xfs_ili_zone;		/* inode log item zone */
@@ -800,7 +801,9 @@ xfs_inode_item_pushbuf(
 				  !completion_done(&ip->i_flush));
 			iip->ili_pushbuf_flag = 0;
 			xfs_iunlock(ip, XFS_ILOCK_SHARED);
-			xfs_buftrace("INODE ITEM PUSH", bp);
+
+			trace_xfs_inode_item_push(bp, _RET_IP_);
+
 			if (XFS_BUF_ISPINNED(bp)) {
 				xfs_log_force(mp, (xfs_lsn_t)0,
 					      XFS_LOG_FORCE);

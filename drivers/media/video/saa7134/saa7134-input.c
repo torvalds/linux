@@ -127,6 +127,61 @@ static int build_key(struct saa7134_dev *dev)
 
 /* --------------------- Chip specific I2C key builders ----------------- */
 
+static int get_key_flydvb_trio(struct IR_i2c *ir, u32 *ir_key, u32 *ir_raw)
+{
+	int gpio;
+	int attempt = 0;
+	unsigned char b;
+
+	/* We need this to access GPI Used by the saa_readl macro. */
+	struct saa7134_dev *dev = ir->c->adapter->algo_data;
+
+	if (dev == NULL) {
+		dprintk("get_key_flydvb_trio: "
+			 "gir->c->adapter->algo_data is NULL!\n");
+		return -EIO;
+	}
+
+	/* rising SAA7134_GPIGPRESCAN reads the status */
+	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+
+	gpio = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2);
+
+	if (0x40000 & ~gpio)
+		return 0; /* No button press */
+
+	/* No button press - only before first key pressed */
+	if (b == 0xFF)
+		return 0;
+
+	/* poll IR chip */
+	/* weak up the IR chip */
+	b = 0;
+
+	while (1 != i2c_master_send(ir->c, &b, 1)) {
+		if ((attempt++) < 10) {
+			/*
+			 * wait a bit for next attempt -
+			 * I don't know how make it better
+			 */
+			msleep(10);
+			continue;
+		}
+		i2cdprintk("send wake up byte to pic16C505 (IR chip)"
+			   "failed %dx\n", attempt);
+		return -EIO;
+	}
+	if (1 != i2c_master_recv(ir->c, &b, 1)) {
+		i2cdprintk("read error\n");
+		return -EIO;
+	}
+
+	*ir_key = b;
+	*ir_raw = b;
+	return 1;
+}
+
 static int get_key_msi_tvanywhere_plus(struct IR_i2c *ir, u32 *ir_key,
 				       u32 *ir_raw)
 {
@@ -622,6 +677,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		mask_keyup   = 0x020000;
 		polling      = 50; /* ms */
 		break;
+	break;
 	}
 	if (NULL == ir_codes) {
 		printk("%s: Oops: IR config error [card=%d]\n",
@@ -652,7 +708,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(dev->pci));
 
-	err = ir_input_init(input_dev, &ir->ir, ir_type, ir_codes);
+	err = ir_input_init(input_dev, &ir->ir, ir_type);
 	if (err < 0)
 		goto err_out_free;
 
@@ -672,7 +728,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	dev->remote = ir;
 	saa7134_ir_start(dev, ir);
 
-	err = input_register_device(ir->dev);
+	err = ir_input_register(ir->dev, ir_codes);
 	if (err)
 		goto err_out_stop;
 
@@ -686,8 +742,6 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	saa7134_ir_stop(dev);
 	dev->remote = NULL;
  err_out_free:
-	ir_input_free(input_dev);
-	input_free_device(input_dev);
 	kfree(ir);
 	return err;
 }
@@ -698,8 +752,7 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 		return;
 
 	saa7134_ir_stop(dev);
-	ir_input_free(dev->remote->dev);
-	input_unregister_device(dev->remote->dev);
+	ir_input_unregister(dev->remote->dev);
 	kfree(dev->remote);
 	dev->remote = NULL;
 }
@@ -787,6 +840,12 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_501:
 	case SAA7134_BOARD_AVERMEDIA_CARDBUS_506:
 		info.addr = 0x40;
+		break;
+	case SAA7134_BOARD_FLYDVB_TRIO:
+		dev->init_data.name = "FlyDVB Trio";
+		dev->init_data.get_key = get_key_flydvb_trio;
+		dev->init_data.ir_codes = &ir_codes_flydvb_table;
+		info.addr = 0x0b;
 		break;
 	default:
 		dprintk("No I2C IR support for board %x\n", dev->board);

@@ -97,7 +97,7 @@ struct fid {
  * @get_name:       find the name for a given inode in a given directory
  * @get_parent:     find the parent of a given directory
  *
- * See Documentation/filesystems/Exporting for details on how to use
+ * See Documentation/filesystems/nfs/Exporting for details on how to use
  * this interface correctly.
  *
  * encode_fh:

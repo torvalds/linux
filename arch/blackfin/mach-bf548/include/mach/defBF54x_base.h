@@ -1609,44 +1609,6 @@
 #define                 PINT2  0x40000000 /* Pin Interrupt 2 */
 #define                 PINT3  0x80000000 /* Pin Interrupt 3 */
 
-/* Bit masks for DMAx_CONFIG, MDMA_Sx_CONFIG, MDMA_Dx_CONFIG */
-
-#define                     DMAEN  0x1        /* DMA Channel Enable */
-#define                       WNR  0x2        /* DMA Direction */
-#define                  WDSIZE_8  0x0        /* Transfer Word Size = 8 */
-#define                 WDSIZE_16  0x4        /* Transfer Word Size = 16 */
-#define                 WDSIZE_32  0x8        /* Transfer Word Size = 32 */
-#define                     DMA2D  0x10       /* DMA Mode */
-#define                   RESTART  0x20       /* Work Unit Transitions */
-#define                    DI_SEL  0x40       /* Data Interrupt Timing Select */
-#define                     DI_EN  0x80       /* Data Interrupt Enable */
-
-#define                    NDSIZE  0xf00      /* Flex Descriptor Size */
-#define                  NDSIZE_0 0x0000      /* Next Descriptor Size = 0 (Stop/Autobuffer) */
-#define                  NDSIZE_1 0x0100      /* Next Descriptor Size = 1 */
-#define                  NDSIZE_2 0x0200      /* Next Descriptor Size = 2 */
-#define                  NDSIZE_3 0x0300      /* Next Descriptor Size = 3 */
-#define                  NDSIZE_4 0x0400      /* Next Descriptor Size = 4 */
-#define                  NDSIZE_5 0x0500      /* Next Descriptor Size = 5 */
-#define                  NDSIZE_6 0x0600      /* Next Descriptor Size = 6 */
-#define                  NDSIZE_7 0x0700      /* Next Descriptor Size = 7 */
-#define                  NDSIZE_8 0x0800      /* Next Descriptor Size = 8 */
-#define                  NDSIZE_9 0x0900      /* Next Descriptor Size = 9 */
-
-#define                   DMAFLOW  0xf000     /* Next Operation */
-#define              DMAFLOW_STOP  0x0000     /* Stop Mode */
-#define              DMAFLOW_AUTO  0x1000     /* Autobuffer Mode */
-#define             DMAFLOW_ARRAY  0x4000     /* Descriptor Array Mode */
-#define             DMAFLOW_SMALL  0x6000     /* Small Model Descriptor List Mode */
-#define             DMAFLOW_LARGE  0x7000     /* Large Model Descriptor List Mode */
-
-/* Bit masks for DMAx_IRQ_STATUS, MDMA_Sx_IRQ_STATUS, MDMA_Dx_IRQ_STATUS */
-
-#define                  DMA_DONE  0x1        /* DMA Completion Interrupt Status */
-#define                   DMA_ERR  0x2        /* DMA Error Interrupt Status */
-#define                    DFETCH  0x4        /* DMA Descriptor Fetch */
-#define                   DMA_RUN  0x8        /* DMA Channel Running */
-
 /* Bit masks for DMAx_PERIPHERAL_MAP, MDMA_Sx_IRQ_STATUS, MDMA_Dx_IRQ_STATUS */
 
 #define                     CTYPE  0x40       /* DMA Channel Type */
@@ -1815,10 +1777,6 @@
 #define               DEB3_MERROR  0x40       /* DEB3 Error (2nd) */
 #define               CORE_MERROR  0x80       /* Core Error (2nd) */
 
-/* Bit masks for EBIU_ERRADD */
-
-#define             ERROR_ADDRESS  0xffffffff /* Error Address */
-
 /* Bit masks for EBIU_RSTCTL */
 
 #define                 DDRSRESET  0x1        /* DDR soft reset */
@@ -1826,98 +1784,6 @@
 #define                     SRREQ  0x8        /* Self-refresh request */
 #define                     SRACK  0x10       /* Self-refresh acknowledge */
 #define                MDDRENABLE  0x20       /* Mobile DDR enable */
-
-/* Bit masks for EBIU_DDRBRC0 */
-
-#define                      BRC0  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC1 */
-
-#define                      BRC1  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC2 */
-
-#define                      BRC2  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC3 */
-
-#define                      BRC3  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC4 */
-
-#define                      BRC4  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC5 */
-
-#define                      BRC5  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC6 */
-
-#define                      BRC6  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBRC7 */
-
-#define                      BRC7  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC0 */
-
-#define                      BWC0  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC1 */
-
-#define                      BWC1  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC2 */
-
-#define                      BWC2  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC3 */
-
-#define                      BWC3  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC4 */
-
-#define                      BWC4  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC5 */
-
-#define                      BWC5  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC6 */
-
-#define                      BWC6  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRBWC7 */
-
-#define                      BWC7  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRACCT */
-
-#define                      ACCT  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRTACT */
-
-#define                      TECT  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRARCT */
-
-#define                      ARCT  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRGC0 */
-
-#define                       GC0  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRGC1 */
-
-#define                       GC1  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRGC2 */
-
-#define                       GC2  0xffffffff /* Count */
-
-/* Bit masks for EBIU_DDRGC3 */
-
-#define                       GC3  0xffffffff /* Count */
 
 /* Bit masks for EBIU_DDRMCEN */
 
@@ -2092,12 +1958,6 @@
 #define                     TRUN6  0x40000000 /* Timer 6 Slave Enable Status */
 #define                     TRUN7  0x80000000 /* Timer 7 Slave Enable Status */
 
-/* Bit masks for WDOG_CTL */
-
-#define                      WDEV  0x6        /* Watchdog Event */
-#define                      WDEN  0xff0      /* Watchdog Enable */
-#define                      WDRO  0x8000     /* Watchdog Rolled Over */
-
 /* Bit masks for CNT_CONFIG */
 
 #define                      CNTE  0x1        /* Counter Enable */
@@ -2149,81 +2009,6 @@
 
 #define                 DPRESCALE  0xf        /* Load Counter Register */
 
-/* Bit masks for RTC_STAT */
-
-#define                   SECONDS  0x3f       /* Seconds */
-#define                   MINUTES  0xfc0      /* Minutes */
-#define                     HOURS  0x1f000    /* Hours */
-#define               DAY_COUNTER  0xfffe0000 /* Day Counter */
-
-/* Bit masks for RTC_ICTL */
-
-#define STOPWATCH_INTERRUPT_ENABLE  0x1        /* Stopwatch Interrupt Enable */
-#define    ALARM_INTERRUPT_ENABLE  0x2        /* Alarm Interrupt Enable */
-#define  SECONDS_INTERRUPT_ENABLE  0x4        /* Seconds Interrupt Enable */
-#define  MINUTES_INTERRUPT_ENABLE  0x8        /* Minutes Interrupt Enable */
-#define    HOURS_INTERRUPT_ENABLE  0x10       /* Hours Interrupt Enable */
-#define TWENTY_FOUR_HOURS_INTERRUPT_ENABLE  0x20       /* 24 Hours Interrupt Enable */
-#define DAY_ALARM_INTERRUPT_ENABLE  0x40       /* Day Alarm Interrupt Enable */
-#define WRITE_COMPLETE_INTERRUPT_ENABLE  0x8000     /* Write Complete Interrupt Enable */
-
-/* Bit masks for RTC_ISTAT */
-
-#define      STOPWATCH_EVENT_FLAG  0x1        /* Stopwatch Event Flag */
-#define          ALARM_EVENT_FLAG  0x2        /* Alarm Event Flag */
-#define        SECONDS_EVENT_FLAG  0x4        /* Seconds Event Flag */
-#define        MINUTES_EVENT_FLAG  0x8        /* Minutes Event Flag */
-#define          HOURS_EVENT_FLAG  0x10       /* Hours Event Flag */
-#define TWENTY_FOUR_HOURS_EVENT_FLAG  0x20       /* 24 Hours Event Flag */
-#define      DAY_ALARM_EVENT_FLAG  0x40       /* Day Alarm Event Flag */
-#define     WRITE_PENDING__STATUS  0x4000     /* Write Pending  Status */
-#define            WRITE_COMPLETE  0x8000     /* Write Complete */
-
-/* Bit masks for RTC_SWCNT */
-
-#define           STOPWATCH_COUNT  0xffff     /* Stopwatch Count */
-
-/* Bit masks for RTC_ALARM */
-
-#define                   SECONDS  0x3f       /* Seconds */
-#define                   MINUTES  0xfc0      /* Minutes */
-#define                     HOURS  0x1f000    /* Hours */
-#define                       DAY  0xfffe0000 /* Day */
-
-/* Bit masks for RTC_PREN */
-
-#define                      PREN  0x1        /* Prescaler Enable */
-
-/* Bit masks for OTP_CONTROL */
-
-#define                FUSE_FADDR  0x1ff      /* OTP/Fuse Address */
-#define                      FIEN  0x800      /* OTP/Fuse Interrupt Enable */
-#define                  FTESTDEC  0x1000     /* OTP/Fuse Test Decoder */
-#define                   FWRTEST  0x2000     /* OTP/Fuse Write Test */
-#define                     FRDEN  0x4000     /* OTP/Fuse Read Enable */
-#define                     FWREN  0x8000     /* OTP/Fuse Write Enable */
-
-/* Bit masks for OTP_BEN */
-
-#define                      FBEN  0xffff     /* OTP/Fuse Byte Enable */
-
-/* Bit masks for OTP_STATUS */
-
-#define                     FCOMP  0x1        /* OTP/Fuse Access Complete */
-#define                    FERROR  0x2        /* OTP/Fuse Access Error */
-#define                  MMRGLOAD  0x10       /* Memory Mapped Register Gasket Load */
-#define                  MMRGLOCK  0x20       /* Memory Mapped Register Gasket Lock */
-#define                    FPGMEN  0x40       /* OTP/Fuse Program Enable */
-
-/* Bit masks for OTP_TIMING */
-
-#define                   USECDIV  0xff       /* Micro Second Divider */
-#define                   READACC  0x7f00     /* Read Access Time */
-#define                   CPUMPRL  0x38000    /* Charge Pump Release Time */
-#define                   CPUMPSU  0xc0000    /* Charge Pump Setup Time */
-#define                   CPUMPHD  0xf00000   /* Charge Pump Hold Time */
-#define                   PGMTIME  0xff000000 /* Program Time */
-
 /* Bit masks for SECURE_SYSSWT */
 
 #define                   EMUDABL  0x1        /* Emulation Disable. */
@@ -2252,78 +2037,12 @@
 #define                    AFEXIT  0x10       /* Authentication Firmware Exit */
 #define                   SECSTAT  0xe0       /* Secure Status */
 
-/* Bit masks for PLL_DIV */
-
-#define                      CSEL  0x30       /* Core Select */
-#define                      SSEL  0xf        /* System Select */
-#define			CSEL_DIV1	0x0000	/* CCLK = VCO / 1 */
-#define			CSEL_DIV2	0x0010	/* CCLK = VCO / 2 */
-#define			CSEL_DIV4	0x0020	/* CCLK = VCO / 4 */
-#define			CSEL_DIV8	0x0030	/* CCLK = VCO / 8 */
-
-/* Bit masks for PLL_CTL */
-
-#define                      MSEL  0x7e00     /* Multiplier Select */
-#define                    BYPASS  0x100      /* PLL Bypass Enable */
-#define              OUTPUT_DELAY  0x80       /* External Memory Output Delay Enable */
-#define               INPUT_DELAY  0x40       /* External Memory Input Delay Enable */
-#define                      PDWN  0x20       /* Power Down */
-#define                    STOPCK  0x8        /* Stop Clock */
-#define                   PLL_OFF  0x2        /* Disable PLL */
-#define                        DF  0x1        /* Divide Frequency */
-
 /* SWRST Masks */
 #define              SYSTEM_RESET 0x0007       /* Initiates A System Software Reset */
 #define              DOUBLE_FAULT 0x0008       /* Core Double Fault Causes Reset */
 #define              RESET_DOUBLE 0x2000       /* SW Reset Generated By Core Double-Fault */
 #define                RESET_WDOG 0x4000       /* SW Reset Generated By Watchdog Timer */
 #define            RESET_SOFTWARE 0x8000       /* SW Reset Occurred Since Last Read Of SWRST */
-
-/* Bit masks for PLL_STAT */
-
-#define                PLL_LOCKED  0x20       /* PLL Locked Status */
-#define        ACTIVE_PLLDISABLED  0x4        /* Active Mode With PLL Disabled */
-#define                   FULL_ON  0x2        /* Full-On Mode */
-#define         ACTIVE_PLLENABLED  0x1        /* Active Mode With PLL Enabled */
-#define                     RTCWS  0x400      /* RTC/Reset Wake-Up Status */
-#define                     CANWS  0x800      /* CAN Wake-Up Status */
-#define                     USBWS  0x2000     /* USB Wake-Up Status */
-#define                    KPADWS  0x4000     /* Keypad Wake-Up Status */
-#define                     ROTWS  0x8000     /* Rotary Wake-Up Status */
-#define                      GPWS  0x1000     /* General-Purpose Wake-Up Status */
-
-/* Bit masks for VR_CTL */
-
-#define                      FREQ  0x3        /* Regulator Switching Frequency */
-#define                      GAIN  0xc        /* Voltage Output Level Gain */
-#define                      VLEV  0xf0       /* Internal Voltage Level */
-#define                   SCKELOW  0x8000     /* Drive SCKE Low During Reset Enable */
-#define                      WAKE  0x100      /* RTC/Reset Wake-Up Enable */
-#define                     CANWE  0x200      /* CAN0/1 Wake-Up Enable */
-#define                      GPWE  0x400      /* General-Purpose Wake-Up Enable */
-#define                     USBWE  0x800      /* USB Wake-Up Enable */
-#define                    KPADWE  0x1000     /* Keypad Wake-Up Enable */
-#define                     ROTWE  0x2000     /* Rotary Wake-Up Enable */
-
-#define	FREQ_333		0x0001	/* Switching Frequency Is 333 kHz */
-#define	FREQ_667		0x0002	/* Switching Frequency Is 667 kHz */
-#define	FREQ_1000		0x0003	/* Switching Frequency Is 1 MHz */
-
-#define	GAIN_5			0x0000	/* GAIN = 5*/
-#define	GAIN_10			0x0004	/* GAIN = 1*/
-#define	GAIN_20			0x0008	/* GAIN = 2*/
-#define	GAIN_50			0x000C	/* GAIN = 5*/
-
-#define	VLEV_085 		0x0060	/* VLEV = 0.85 V (-5% - +10% Accuracy) */
-#define	VLEV_090		0x0070	/* VLEV = 0.90 V (-5% - +10% Accuracy) */
-#define	VLEV_095		0x0080	/* VLEV = 0.95 V (-5% - +10% Accuracy) */
-#define	VLEV_100		0x0090	/* VLEV = 1.00 V (-5% - +10% Accuracy) */
-#define	VLEV_105		0x00A0	/* VLEV = 1.05 V (-5% - +10% Accuracy) */
-#define	VLEV_110		0x00B0	/* VLEV = 1.10 V (-5% - +10% Accuracy) */
-#define	VLEV_115		0x00C0	/* VLEV = 1.15 V (-5% - +10% Accuracy) */
-#define	VLEV_120		0x00D0	/* VLEV = 1.20 V (-5% - +10% Accuracy) */
-#define	VLEV_125		0x00E0	/* VLEV = 1.25 V (-5% - +10% Accuracy) */
-#define	VLEV_130		0x00F0	/* VLEV = 1.30 V (-5% - +10% Accuracy) */
 
 /* Bit masks for NFC_CTL */
 
@@ -2488,14 +2207,6 @@
 #define                      UCRC  0x20       /* Universal Counter Reload/Clear */
 #define                      UCCT  0x40       /* Universal Counter CAN Trigger */
 #define                       UCE  0x80       /* Universal Counter Enable */
-
-/* Bit masks for CAN0_UCCNT */
-
-#define                     UCCNT  0xffff     /* Universal Counter Count Value */
-
-/* Bit masks for CAN0_UCRC */
-
-#define                     UCVAL  0xffff     /* Universal Counter Reload/Capture Value */
 
 /* Bit masks for CAN0_CEC */
 

@@ -88,9 +88,21 @@ int ext4_sync_file(struct file *file, struct dentry *dentry, int datasync)
 		return ext4_force_commit(inode->i_sb);
 
 	commit_tid = datasync ? ei->i_datasync_tid : ei->i_sync_tid;
-	if (jbd2_log_start_commit(journal, commit_tid))
+	if (jbd2_log_start_commit(journal, commit_tid)) {
+		/*
+		 * When the journal is on a different device than the
+		 * fs data disk, we need to issue the barrier in
+		 * writeback mode.  (In ordered mode, the jbd2 layer
+		 * will take care of issuing the barrier.  In
+		 * data=journal, all of the data blocks are written to
+		 * the journal device.)
+		 */
+		if (ext4_should_writeback_data(inode) &&
+		    (journal->j_fs_dev != journal->j_dev) &&
+		    (journal->j_flags & JBD2_BARRIER))
+			blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
 		jbd2_log_wait_commit(journal, commit_tid);
-	else if (journal->j_flags & JBD2_BARRIER)
+	} else if (journal->j_flags & JBD2_BARRIER)
 		blkdev_issue_flush(inode->i_sb->s_bdev, NULL);
 	return ret;
 }

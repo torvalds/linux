@@ -45,7 +45,7 @@
  *
  * Similarly, @i_mutex is not always locked in 'ubifs_readpage()', e.g., the
  * read-ahead path does not lock it ("sys_read -> generic_file_aio_read ->
- * ondemand_readahead -> readpage"). In case of readahead, @I_LOCK flag is not
+ * ondemand_readahead -> readpage"). In case of readahead, @I_SYNC flag is not
  * set as well. However, UBIFS disables readahead.
  */
 

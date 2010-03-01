@@ -293,7 +293,7 @@ static int fpga_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops fpga_dev_pm_ops = {
+static const struct dev_pm_ops fpga_dev_pm_ops = {
 	.suspend_noirq = fpga_suspend_noirq,
 	.resume_noirq = fpga_resume_noirq,
 };

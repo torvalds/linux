@@ -295,7 +295,7 @@ static int pnx833x_set_type_gpio_irq(unsigned int irq, unsigned int flow_type)
 }
 
 static struct irq_chip pnx833x_pic_irq_type = {
-	.typename = "PNX-PIC",
+	.name = "PNX-PIC",
 	.startup = pnx833x_startup_pic_irq,
 	.shutdown = pnx833x_shutdown_pic_irq,
 	.enable = pnx833x_enable_pic_irq,
@@ -305,7 +305,7 @@ static struct irq_chip pnx833x_pic_irq_type = {
 };
 
 static struct irq_chip pnx833x_gpio_irq_type = {
-	.typename = "PNX-GPIO",
+	.name = "PNX-GPIO",
 	.startup = pnx833x_startup_gpio_irq,
 	.shutdown = pnx833x_disable_gpio_irq,
 	.enable = pnx833x_enable_gpio_irq,

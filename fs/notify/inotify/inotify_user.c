@@ -552,7 +552,7 @@ retry:
 
 	spin_lock(&group->inotify_data.idr_lock);
 	ret = idr_get_new_above(&group->inotify_data.idr, &tmp_ientry->fsn_entry,
-				group->inotify_data.last_wd,
+				group->inotify_data.last_wd+1,
 				&tmp_ientry->wd);
 	spin_unlock(&group->inotify_data.idr_lock);
 	if (ret) {
@@ -632,7 +632,7 @@ static struct fsnotify_group *inotify_new_group(struct user_struct *user, unsign
 
 	spin_lock_init(&group->inotify_data.idr_lock);
 	idr_init(&group->inotify_data.idr);
-	group->inotify_data.last_wd = 1;
+	group->inotify_data.last_wd = 0;
 	group->inotify_data.user = user;
 	group->inotify_data.fa = NULL;
 
@@ -646,6 +646,7 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 	struct fsnotify_group *group;
 	struct user_struct *user;
 	struct file *filp;
+	struct path path;
 	int fd, ret;
 
 	/* Check the IN_* constants for consistency.  */
@@ -658,12 +659,6 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 	fd = get_unused_fd_flags(flags & O_CLOEXEC);
 	if (fd < 0)
 		return fd;
-
-	filp = get_empty_filp();
-	if (!filp) {
-		ret = -ENFILE;
-		goto out_put_fd;
-	}
 
 	user = get_current_user();
 	if (unlikely(atomic_read(&user->inotify_devs) >=
@@ -679,24 +674,28 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 		goto out_free_uid;
 	}
 
-	filp->f_op = &inotify_fops;
-	filp->f_path.mnt = mntget(inotify_mnt);
-	filp->f_path.dentry = dget(inotify_mnt->mnt_root);
-	filp->f_mapping = filp->f_path.dentry->d_inode->i_mapping;
-	filp->f_mode = FMODE_READ;
+	atomic_inc(&user->inotify_devs);
+
+	path.mnt = inotify_mnt;
+	path.dentry = inotify_mnt->mnt_root;
+	path_get(&path);
+	filp = alloc_file(&path, FMODE_READ, &inotify_fops);
+	if (!filp)
+		goto Enfile;
+
 	filp->f_flags = O_RDONLY | (flags & O_NONBLOCK);
 	filp->private_data = group;
-
-	atomic_inc(&user->inotify_devs);
 
 	fd_install(fd, filp);
 
 	return fd;
 
+Enfile:
+	ret = -ENFILE;
+	path_put(&path);
+	atomic_dec(&user->inotify_devs);
 out_free_uid:
 	free_uid(user);
-	put_filp(filp);
-out_put_fd:
 	put_unused_fd(fd);
 	return ret;
 }

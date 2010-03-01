@@ -296,6 +296,11 @@ acpi_ns_complex_repairs(struct acpi_predefined_data *data,
 			acpi_status validate_status,
 			union acpi_operand_object **return_object_ptr);
 
+void
+acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
+			     u8 package_type,
+			     union acpi_operand_object *obj_desc);
+
 /*
  * nssearch - Namespace searching and entry
  */
@@ -354,9 +359,7 @@ acpi_ns_externalize_name(u32 internal_name_length,
 			 const char *internal_name,
 			 u32 * converted_name_length, char **converted_name);
 
-struct acpi_namespace_node *acpi_ns_map_handle_to_node(acpi_handle handle);
-
-acpi_handle acpi_ns_convert_entry_to_handle(struct acpi_namespace_node *node);
+struct acpi_namespace_node *acpi_ns_validate_handle(acpi_handle handle);
 
 void acpi_ns_terminate(void);
 

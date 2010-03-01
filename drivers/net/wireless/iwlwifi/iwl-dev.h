@@ -711,7 +711,7 @@ extern void iwl_txq_ctx_stop(struct iwl_priv *priv);
 extern int iwl_queue_space(const struct iwl_queue *q);
 static inline int iwl_queue_used(const struct iwl_queue *q, int i)
 {
-	return q->write_ptr > q->read_ptr ?
+	return q->write_ptr >= q->read_ptr ?
 		(i >= q->read_ptr && i < q->write_ptr) :
 		!(i < q->read_ptr && i >= q->write_ptr);
 }
@@ -1168,7 +1168,7 @@ struct iwl_priv {
 	u32 last_beacon_time;
 	u64 last_tsf;
 
-	/* eeprom */
+	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
 	int    nvm_device_type;
 	struct iwl_eeprom_calib_info *calib_info;
@@ -1353,4 +1353,15 @@ static inline int is_channel_ibss(const struct iwl_channel_info *ch)
 	return ((ch->flags & EEPROM_CHANNEL_IBSS)) ? 1 : 0;
 }
 
+static inline void __iwl_free_pages(struct iwl_priv *priv, struct page *page)
+{
+	__free_pages(page, priv->hw_params.rx_page_order);
+	priv->alloc_rxb_page--;
+}
+
+static inline void iwl_free_pages(struct iwl_priv *priv, unsigned long page)
+{
+	free_pages(page, priv->hw_params.rx_page_order);
+	priv->alloc_rxb_page--;
+}
 #endif				/* __iwl_dev_h__ */

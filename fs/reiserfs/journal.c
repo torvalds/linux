@@ -2009,9 +2009,10 @@ static int do_journal_release(struct reiserfs_transaction_handle *th,
 		destroy_workqueue(commit_wq);
 		commit_wq = NULL;
 	}
-	reiserfs_write_lock(sb);
 
 	free_journal_ram(sb);
+
+	reiserfs_write_lock(sb);
 
 	return 0;
 }
@@ -2758,11 +2759,18 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 	struct reiserfs_journal *journal;
 	struct reiserfs_journal_list *jl;
 	char b[BDEVNAME_SIZE];
+	int ret;
 
+	/*
+	 * Unlock here to avoid various RECLAIM-FS-ON <-> IN-RECLAIM-FS
+	 * dependency inversion warnings.
+	 */
+	reiserfs_write_unlock(sb);
 	journal = SB_JOURNAL(sb) = vmalloc(sizeof(struct reiserfs_journal));
 	if (!journal) {
 		reiserfs_warning(sb, "journal-1256",
 				 "unable to get memory for journal structure");
+		reiserfs_write_lock(sb);
 		return 1;
 	}
 	memset(journal, 0, sizeof(struct reiserfs_journal));
@@ -2771,10 +2779,12 @@ int journal_init(struct super_block *sb, const char *j_dev_name,
 	INIT_LIST_HEAD(&journal->j_working_list);
 	INIT_LIST_HEAD(&journal->j_journal_list);
 	journal->j_persistent_trans = 0;
-	if (reiserfs_allocate_list_bitmaps(sb,
-					   journal->j_list_bitmap,
-					   reiserfs_bmap_count(sb)))
+	ret = reiserfs_allocate_list_bitmaps(sb, journal->j_list_bitmap,
+					   reiserfs_bmap_count(sb));
+	reiserfs_write_lock(sb);
+	if (ret)
 		goto free_and_return;
+
 	allocate_bitmap_nodes(sb);
 
 	/* reserved for journal area support */

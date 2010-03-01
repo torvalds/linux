@@ -96,9 +96,6 @@ struct acer_quirks {
 MODULE_ALIAS("wmi:67C3371D-95A3-4C37-BB61-DD47B491DAAB");
 MODULE_ALIAS("wmi:6AF4F258-B401-42fd-BE91-3D4AC2D7C0D3");
 
-/* Temporary workaround until the WMI sysfs interface goes in */
-MODULE_ALIAS("dmi:*:*Acer*:*:");
-
 /*
  * Interface capability flags
  */

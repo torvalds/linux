@@ -219,7 +219,7 @@ struct dev_pm_ops {
  * to RAM and hibernation.
  */
 #define SIMPLE_DEV_PM_OPS(name, suspend_fn, resume_fn) \
-struct dev_pm_ops name = { \
+const struct dev_pm_ops name = { \
 	.suspend = suspend_fn, \
 	.resume = resume_fn, \
 	.freeze = suspend_fn, \

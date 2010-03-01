@@ -429,11 +429,10 @@ static int __exit txx9ndfmc_remove(struct platform_device *dev)
 		chip = mtd->priv;
 		txx9_priv = chip->priv;
 
+		nand_release(mtd);
 #ifdef CONFIG_MTD_PARTITIONS
-		del_mtd_partitions(mtd);
 		kfree(drvdata->parts[i]);
 #endif
-		del_mtd_device(mtd);
 		kfree(txx9_priv->mtdname);
 		kfree(txx9_priv);
 	}

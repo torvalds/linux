@@ -28,6 +28,7 @@
 #include <linux/mutex.h>
 #include <linux/timer.h>
 #include <linux/workqueue.h>
+#include <linux/kfifo.h>
 #include <scsi/iscsi_proto.h>
 #include <scsi/iscsi_if.h>
 #include <scsi/scsi_transport_iscsi.h>
@@ -231,7 +232,7 @@ struct iscsi_conn {
 };
 
 struct iscsi_pool {
-	struct kfifo		*queue;		/* FIFO Queue */
+	struct kfifo		queue;		/* FIFO Queue */
 	void			**pool;		/* Pool of elements */
 	int			max;		/* Max number of elements */
 };

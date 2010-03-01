@@ -2200,7 +2200,7 @@ pfm_alloc_file(pfm_context_t *ctx)
 {
 	struct file *file;
 	struct inode *inode;
-	struct dentry *dentry;
+	struct path path;
 	char name[32];
 	struct qstr this;
 
@@ -2225,18 +2225,19 @@ pfm_alloc_file(pfm_context_t *ctx)
 	/*
 	 * allocate a new dcache entry
 	 */
-	dentry = d_alloc(pfmfs_mnt->mnt_sb->s_root, &this);
-	if (!dentry) {
+	path.dentry = d_alloc(pfmfs_mnt->mnt_sb->s_root, &this);
+	if (!path.dentry) {
 		iput(inode);
 		return ERR_PTR(-ENOMEM);
 	}
+	path.mnt = mntget(pfmfs_mnt);
 
-	dentry->d_op = &pfmfs_dentry_operations;
-	d_add(dentry, inode);
+	path.dentry->d_op = &pfmfs_dentry_operations;
+	d_add(path.dentry, inode);
 
-	file = alloc_file(pfmfs_mnt, dentry, FMODE_READ, &pfm_file_ops);
+	file = alloc_file(&path, FMODE_READ, &pfm_file_ops);
 	if (!file) {
-		dput(dentry);
+		path_put(&path);
 		return ERR_PTR(-ENFILE);
 	}
 
@@ -2292,7 +2293,7 @@ pfm_smpl_buffer_alloc(struct task_struct *task, struct file *filp, pfm_context_t
 	 * if ((mm->total_vm << PAGE_SHIFT) + len> task->rlim[RLIMIT_AS].rlim_cur)
 	 * 	return -ENOMEM;
 	 */
-	if (size > task->signal->rlim[RLIMIT_MEMLOCK].rlim_cur)
+	if (size > task_rlimit(task, RLIMIT_MEMLOCK))
 		return -ENOMEM;
 
 	/*

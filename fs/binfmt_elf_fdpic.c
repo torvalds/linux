@@ -75,14 +75,14 @@ static int elf_fdpic_map_file_constdisp_on_uclinux(struct elf_fdpic_params *,
 static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *,
 					     struct file *, struct mm_struct *);
 
-#if defined(USE_ELF_CORE_DUMP) && defined(CONFIG_ELF_CORE)
-static int elf_fdpic_core_dump(long, struct pt_regs *, struct file *, unsigned long limit);
+#ifdef CONFIG_ELF_CORE
+static int elf_fdpic_core_dump(struct coredump_params *cprm);
 #endif
 
 static struct linux_binfmt elf_fdpic_format = {
 	.module		= THIS_MODULE,
 	.load_binary	= load_elf_fdpic_binary,
-#if defined(USE_ELF_CORE_DUMP) && defined(CONFIG_ELF_CORE)
+#ifdef CONFIG_ELF_CORE
 	.core_dump	= elf_fdpic_core_dump,
 #endif
 	.min_coredump	= ELF_EXEC_PAGESIZE,
@@ -170,6 +170,9 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 	unsigned long stack_size, entryaddr;
 #ifdef ELF_FDPIC_PLAT_INIT
 	unsigned long dynaddr;
+#endif
+#ifndef CONFIG_MMU
+	unsigned long stack_prot;
 #endif
 	struct file *interpreter = NULL; /* to shut gcc up */
 	char *interpreter_name = NULL;
@@ -316,6 +319,8 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 	 * defunct, deceased, etc. after this point we have to exit via
 	 * error_kill */
 	set_personality(PER_LINUX_FDPIC);
+	if (elf_read_implies_exec(&exec_params.hdr, executable_stack))
+		current->personality |= READ_IMPLIES_EXEC;
 	set_binfmt(&elf_fdpic_format);
 
 	current->mm->start_code = 0;
@@ -377,10 +382,15 @@ static int load_elf_fdpic_binary(struct linux_binprm *bprm,
 	if (stack_size < PAGE_SIZE * 2)
 		stack_size = PAGE_SIZE * 2;
 
+	stack_prot = PROT_READ | PROT_WRITE;
+	if (executable_stack == EXSTACK_ENABLE_X ||
+	    (executable_stack == EXSTACK_DEFAULT && VM_STACK_FLAGS & VM_EXEC))
+		stack_prot |= PROT_EXEC;
+
 	down_write(&current->mm->mmap_sem);
-	current->mm->start_brk = do_mmap(NULL, 0, stack_size,
-					 PROT_READ | PROT_WRITE | PROT_EXEC,
-					 MAP_PRIVATE | MAP_ANONYMOUS | MAP_GROWSDOWN,
+	current->mm->start_brk = do_mmap(NULL, 0, stack_size, stack_prot,
+					 MAP_PRIVATE | MAP_ANONYMOUS |
+					 MAP_UNINITIALIZED | MAP_GROWSDOWN,
 					 0);
 
 	if (IS_ERR_VALUE(current->mm->start_brk)) {
@@ -1200,7 +1210,7 @@ static int elf_fdpic_map_file_by_direct_mmap(struct elf_fdpic_params *params,
  *
  * Modelled on fs/binfmt_elf.c core dumper
  */
-#if defined(USE_ELF_CORE_DUMP) && defined(CONFIG_ELF_CORE)
+#ifdef CONFIG_ELF_CORE
 
 /*
  * These are the only things you should do on a core-file: use only these
@@ -1325,8 +1335,9 @@ static int writenote(struct memelfnote *men, struct file *file)
 #undef DUMP_WRITE
 #undef DUMP_SEEK
 
-#define DUMP_WRITE(addr, nr)	\
-	if ((size += (nr)) > limit || !dump_write(file, (addr), (nr))) \
+#define DUMP_WRITE(addr, nr)				\
+	if ((size += (nr)) > cprm->limit ||		\
+	    !dump_write(cprm->file, (addr), (nr)))	\
 		goto end_coredump;
 
 static inline void fill_elf_fdpic_header(struct elfhdr *elf, int segs)
@@ -1581,8 +1592,7 @@ static int elf_fdpic_dump_segments(struct file *file, size_t *size,
  * and then they are actually written out.  If we run out of core limit
  * we just truncate.
  */
-static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
-			       struct file *file, unsigned long limit)
+static int elf_fdpic_core_dump(struct coredump_params *cprm)
 {
 #define	NUM_NOTES	6
 	int has_dumped = 0;
@@ -1641,7 +1651,7 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 		goto cleanup;
 #endif
 
-	if (signr) {
+	if (cprm->signr) {
 		struct core_thread *ct;
 		struct elf_thread_status *tmp;
 
@@ -1660,14 +1670,14 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 			int sz;
 
 			tmp = list_entry(t, struct elf_thread_status, list);
-			sz = elf_dump_thread_status(signr, tmp);
+			sz = elf_dump_thread_status(cprm->signr, tmp);
 			thread_status_size += sz;
 		}
 	}
 
 	/* now collect the dump for the current */
-	fill_prstatus(prstatus, current, signr);
-	elf_core_copy_regs(&prstatus->pr_reg, regs);
+	fill_prstatus(prstatus, current, cprm->signr);
+	elf_core_copy_regs(&prstatus->pr_reg, cprm->regs);
 
 	segs = current->mm->map_count;
 #ifdef ELF_CORE_EXTRA_PHDRS
@@ -1702,7 +1712,7 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 
   	/* Try to dump the FPU. */
 	if ((prstatus->pr_fpvalid =
-	     elf_core_copy_task_fpregs(current, regs, fpu)))
+	     elf_core_copy_task_fpregs(current, cprm->regs, fpu)))
 		fill_note(notes + numnote++,
 			  "CORE", NT_PRFPREG, sizeof(*fpu), fpu);
 #ifdef ELF_CORE_COPY_XFPREGS
@@ -1773,7 +1783,7 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 
  	/* write out the notes section */
 	for (i = 0; i < numnote; i++)
-		if (!writenote(notes + i, file))
+		if (!writenote(notes + i, cprm->file))
 			goto end_coredump;
 
 	/* write out the thread status notes section */
@@ -1782,25 +1792,26 @@ static int elf_fdpic_core_dump(long signr, struct pt_regs *regs,
 				list_entry(t, struct elf_thread_status, list);
 
 		for (i = 0; i < tmp->num_notes; i++)
-			if (!writenote(&tmp->notes[i], file))
+			if (!writenote(&tmp->notes[i], cprm->file))
 				goto end_coredump;
 	}
 
-	if (!dump_seek(file, dataoff))
+	if (!dump_seek(cprm->file, dataoff))
 		goto end_coredump;
 
-	if (elf_fdpic_dump_segments(file, &size, &limit, mm_flags) < 0)
+	if (elf_fdpic_dump_segments(cprm->file, &size, &cprm->limit,
+				    mm_flags) < 0)
 		goto end_coredump;
 
 #ifdef ELF_CORE_WRITE_EXTRA_DATA
 	ELF_CORE_WRITE_EXTRA_DATA;
 #endif
 
-	if (file->f_pos != offset) {
+	if (cprm->file->f_pos != offset) {
 		/* Sanity check */
 		printk(KERN_WARNING
 		       "elf_core_dump: file->f_pos (%lld) != offset (%lld)\n",
-		       file->f_pos, offset);
+		       cprm->file->f_pos, offset);
 	}
 
 end_coredump:
@@ -1825,4 +1836,4 @@ cleanup:
 #undef NUM_NOTES
 }
 
-#endif		/* USE_ELF_CORE_DUMP */
+#endif		/* CONFIG_ELF_CORE */

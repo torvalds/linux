@@ -401,82 +401,10 @@ void prepare_ftrace_return(unsigned long *parent, unsigned long self_addr)
 #endif /* CONFIG_FUNCTION_GRAPH_TRACER */
 
 #ifdef CONFIG_FTRACE_SYSCALLS
-
-extern unsigned long __start_syscalls_metadata[];
-extern unsigned long __stop_syscalls_metadata[];
 extern unsigned long *sys_call_table;
 
-static struct syscall_metadata **syscalls_metadata;
-
-static struct syscall_metadata *find_syscall_meta(unsigned long *syscall)
+unsigned long __init arch_syscall_addr(int nr)
 {
-	struct syscall_metadata *start;
-	struct syscall_metadata *stop;
-	char str[KSYM_SYMBOL_LEN];
-
-
-	start = (struct syscall_metadata *)__start_syscalls_metadata;
-	stop = (struct syscall_metadata *)__stop_syscalls_metadata;
-	kallsyms_lookup((unsigned long) syscall, NULL, NULL, NULL, str);
-
-	for ( ; start < stop; start++) {
-		if (start->name && !strcmp(start->name, str))
-			return start;
-	}
-
-	return NULL;
+	return (unsigned long)sys_call_table[nr];
 }
-
-struct syscall_metadata *syscall_nr_to_meta(int nr)
-{
-	if (!syscalls_metadata || nr >= FTRACE_SYSCALL_MAX || nr < 0)
-		return NULL;
-
-	return syscalls_metadata[nr];
-}
-
-int syscall_name_to_nr(char *name)
-{
-	int i;
-
-	if (!syscalls_metadata)
-		return -1;
-	for (i = 0; i < NR_syscalls; i++)
-		if (syscalls_metadata[i])
-			if (!strcmp(syscalls_metadata[i]->name, name))
-				return i;
-	return -1;
-}
-
-void set_syscall_enter_id(int num, int id)
-{
-	syscalls_metadata[num]->enter_id = id;
-}
-
-void set_syscall_exit_id(int num, int id)
-{
-	syscalls_metadata[num]->exit_id = id;
-}
-
-static int __init arch_init_ftrace_syscalls(void)
-{
-	int i;
-	struct syscall_metadata *meta;
-	unsigned long **psys_syscall_table = &sys_call_table;
-
-	syscalls_metadata = kzalloc(sizeof(*syscalls_metadata) *
-					FTRACE_SYSCALL_MAX, GFP_KERNEL);
-	if (!syscalls_metadata) {
-		WARN_ON(1);
-		return -ENOMEM;
-	}
-
-	for (i = 0; i < FTRACE_SYSCALL_MAX; i++) {
-		meta = find_syscall_meta(psys_syscall_table[i]);
-		syscalls_metadata[i] = meta;
-	}
-
-	return 0;
-}
-arch_initcall(arch_init_ftrace_syscalls);
 #endif /* CONFIG_FTRACE_SYSCALLS */

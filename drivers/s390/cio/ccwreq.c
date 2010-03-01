@@ -49,7 +49,6 @@ static u16 ccwreq_next_path(struct ccw_device *cdev)
  */
 static void ccwreq_stop(struct ccw_device *cdev, int rc)
 {
-	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct ccw_request *req = &cdev->private->req;
 
 	if (req->done)
@@ -57,7 +56,6 @@ static void ccwreq_stop(struct ccw_device *cdev, int rc)
 	req->done = 1;
 	ccw_device_set_timeout(cdev, 0);
 	memset(&cdev->private->irb, 0, sizeof(struct irb));
-	sch->lpm = sch->schib.pmcw.pam;
 	if (rc && rc != -ENODEV && req->drc)
 		rc = req->drc;
 	req->callback(cdev, req->data, rc);
@@ -80,7 +78,6 @@ static void ccwreq_do(struct ccw_device *cdev)
 			continue;
 		}
 		/* Perform start function. */
-		sch->lpm = 0xff;
 		memset(&cdev->private->irb, 0, sizeof(struct irb));
 		rc = cio_start(sch, cp, (u8) req->mask);
 		if (rc == 0) {

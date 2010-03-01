@@ -1185,11 +1185,6 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 
 	rep = (down == 2);
 
-#ifdef CONFIG_MAC_EMUMOUSEBTN
-	if (mac_hid_mouse_emulate_buttons(1, keycode, down))
-		return;
-#endif /* CONFIG_MAC_EMUMOUSEBTN */
-
 	if ((raw_mode = (kbd->kbdmode == VC_RAW)) && !hw_raw)
 		if (emulate_raw(vc, keycode, !down << 7))
 			if (keycode < BTN_MISC && printk_ratelimit())
@@ -1328,6 +1323,21 @@ static void kbd_event(struct input_handle *handle, unsigned int event_type,
 	schedule_console_callback();
 }
 
+static bool kbd_match(struct input_handler *handler, struct input_dev *dev)
+{
+	int i;
+
+	if (test_bit(EV_SND, dev->evbit))
+		return true;
+
+	if (test_bit(EV_KEY, dev->evbit))
+		for (i = KEY_RESERVED; i < BTN_MISC; i++)
+			if (test_bit(i, dev->keybit))
+				return true;
+
+	return false;
+}
+
 /*
  * When a keyboard (or other input device) is found, the kbd_connect
  * function is called. The function then looks at the device, and if it
@@ -1339,14 +1349,6 @@ static int kbd_connect(struct input_handler *handler, struct input_dev *dev,
 {
 	struct input_handle *handle;
 	int error;
-	int i;
-
-	for (i = KEY_RESERVED; i < BTN_MISC; i++)
-		if (test_bit(i, dev->keybit))
-			break;
-
-	if (i == BTN_MISC && !test_bit(EV_SND, dev->evbit))
-		return -ENODEV;
 
 	handle = kzalloc(sizeof(struct input_handle), GFP_KERNEL);
 	if (!handle)
@@ -1412,6 +1414,7 @@ MODULE_DEVICE_TABLE(input, kbd_ids);
 
 static struct input_handler kbd_handler = {
 	.event		= kbd_event,
+	.match		= kbd_match,
 	.connect	= kbd_connect,
 	.disconnect	= kbd_disconnect,
 	.start		= kbd_start,

@@ -216,7 +216,7 @@ bool drm_helper_crtc_in_use(struct drm_crtc *crtc)
 EXPORT_SYMBOL(drm_helper_crtc_in_use);
 
 /**
- * drm_disable_unused_functions - disable unused objects
+ * drm_helper_disable_unused_functions - disable unused objects
  * @dev: DRM device
  *
  * LOCKING:
@@ -702,7 +702,7 @@ bool drm_crtc_helper_set_mode(struct drm_crtc *crtc,
 		if (encoder->crtc != crtc)
 			continue;
 
-		DRM_INFO("%s: set mode %s %x\n", drm_get_encoder_name(encoder),
+		DRM_DEBUG("%s: set mode %s %x\n", drm_get_encoder_name(encoder),
 			 mode->name, mode->base.id);
 		encoder_funcs = encoder->helper_private;
 		encoder_funcs->mode_set(encoder, mode, adjusted_mode);
@@ -1032,7 +1032,8 @@ bool drm_helper_initial_config(struct drm_device *dev)
 	/*
 	 * we shouldn't end up with no modes here.
 	 */
-	WARN(!count, "No connectors reported connected with modes\n");
+	if (count == 0)
+		printk(KERN_INFO "No connectors reported connected with modes\n");
 
 	drm_setup_crtcs(dev);
 
@@ -1162,6 +1163,9 @@ EXPORT_SYMBOL(drm_helper_mode_fill_fb_struct);
 int drm_helper_resume_force_mode(struct drm_device *dev)
 {
 	struct drm_crtc *crtc;
+	struct drm_encoder *encoder;
+	struct drm_encoder_helper_funcs *encoder_funcs;
+	struct drm_crtc_helper_funcs *crtc_funcs;
 	int ret;
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
@@ -1174,6 +1178,25 @@ int drm_helper_resume_force_mode(struct drm_device *dev)
 
 		if (ret == false)
 			DRM_ERROR("failed to set mode on crtc %p\n", crtc);
+
+		/* Turn off outputs that were already powered off */
+		if (drm_helper_choose_crtc_dpms(crtc)) {
+			list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+
+				if(encoder->crtc != crtc)
+					continue;
+
+				encoder_funcs = encoder->helper_private;
+				if (encoder_funcs->dpms)
+					(*encoder_funcs->dpms) (encoder,
+								drm_helper_choose_encoder_dpms(encoder));
+
+				crtc_funcs = crtc->helper_private;
+				if (crtc_funcs->dpms)
+					(*crtc_funcs->dpms) (crtc,
+							     drm_helper_choose_crtc_dpms(crtc));
+			}
+		}
 	}
 	/* disable the unused connectors while restoring the modesetting */
 	drm_helper_disable_unused_functions(dev);

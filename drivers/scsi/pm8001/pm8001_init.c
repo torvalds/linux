@@ -200,8 +200,13 @@ static int __devinit pm8001_alloc(struct pm8001_hba_info *pm8001_ha)
 {
 	int i;
 	spin_lock_init(&pm8001_ha->lock);
-	for (i = 0; i < pm8001_ha->chip->n_phy; i++)
+	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
 		pm8001_phy_init(pm8001_ha, i);
+		pm8001_ha->port[i].wide_port_phymap = 0;
+		pm8001_ha->port[i].port_attached = 0;
+		pm8001_ha->port[i].port_state = 0;
+		INIT_LIST_HEAD(&pm8001_ha->port[i].list);
+	}
 
 	pm8001_ha->tags = kzalloc(PM8001_MAX_CCB, GFP_KERNEL);
 	if (!pm8001_ha->tags)
@@ -511,19 +516,23 @@ static void pm8001_init_sas_add(struct pm8001_hba_info *pm8001_ha)
 	u8 i;
 #ifdef PM8001_READ_VPD
 	DECLARE_COMPLETION_ONSTACK(completion);
+	struct pm8001_ioctl_payload payload;
 	pm8001_ha->nvmd_completion = &completion;
-	PM8001_CHIP_DISP->get_nvmd_req(pm8001_ha, 0, 0);
+	payload.minor_function = 0;
+	payload.length = 128;
+	payload.func_specific = kzalloc(128, GFP_KERNEL);
+	PM8001_CHIP_DISP->get_nvmd_req(pm8001_ha, &payload);
 	wait_for_completion(&completion);
 	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
 		memcpy(&pm8001_ha->phy[i].dev_sas_addr, pm8001_ha->sas_addr,
 			SAS_ADDR_SIZE);
 		PM8001_INIT_DBG(pm8001_ha,
-			pm8001_printk("phy %d sas_addr = %x \n", i,
-			(u64)pm8001_ha->phy[i].dev_sas_addr));
+			pm8001_printk("phy %d sas_addr = %016llx \n", i,
+			pm8001_ha->phy[i].dev_sas_addr));
 	}
 #else
 	for (i = 0; i < pm8001_ha->chip->n_phy; i++) {
-		pm8001_ha->phy[i].dev_sas_addr = 0x500e004010000004ULL;
+		pm8001_ha->phy[i].dev_sas_addr = 0x50010c600047f9d0ULL;
 		pm8001_ha->phy[i].dev_sas_addr =
 			cpu_to_be64((u64)
 				(*(u64 *)&pm8001_ha->phy[i].dev_sas_addr));

@@ -203,8 +203,6 @@ static void drop_futex_key_refs(union futex_key *key)
  * @uaddr:	virtual address of the futex
  * @fshared:	0 for a PROCESS_PRIVATE futex, 1 for PROCESS_SHARED
  * @key:	address where result is stored.
- * @rw:		mapping needs to be read/write (values: VERIFY_READ,
- * 		VERIFY_WRITE)
  *
  * Returns a negative error code or 0
  * The key words are stored in *key on success.
@@ -216,7 +214,7 @@ static void drop_futex_key_refs(union futex_key *key)
  * lock_page() might sleep, the caller should not hold a spinlock.
  */
 static int
-get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
+get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key)
 {
 	unsigned long address = (unsigned long)uaddr;
 	struct mm_struct *mm = current->mm;
@@ -239,7 +237,7 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
 	 *        but access_ok() should be faster than find_vma()
 	 */
 	if (!fshared) {
-		if (unlikely(!access_ok(rw, uaddr, sizeof(u32))))
+		if (unlikely(!access_ok(VERIFY_WRITE, uaddr, sizeof(u32))))
 			return -EFAULT;
 		key->private.mm = mm;
 		key->private.address = address;
@@ -248,7 +246,7 @@ get_futex_key(u32 __user *uaddr, int fshared, union futex_key *key, int rw)
 	}
 
 again:
-	err = get_user_pages_fast(address, 1, rw == VERIFY_WRITE, &page);
+	err = get_user_pages_fast(address, 1, 1, &page);
 	if (err < 0)
 		return err;
 
@@ -403,9 +401,9 @@ static void free_pi_state(struct futex_pi_state *pi_state)
 	 * and has cleaned up the pi_state already
 	 */
 	if (pi_state->owner) {
-		spin_lock_irq(&pi_state->owner->pi_lock);
+		raw_spin_lock_irq(&pi_state->owner->pi_lock);
 		list_del_init(&pi_state->list);
-		spin_unlock_irq(&pi_state->owner->pi_lock);
+		raw_spin_unlock_irq(&pi_state->owner->pi_lock);
 
 		rt_mutex_proxy_unlock(&pi_state->pi_mutex, pi_state->owner);
 	}
@@ -470,18 +468,18 @@ void exit_pi_state_list(struct task_struct *curr)
 	 * pi_state_list anymore, but we have to be careful
 	 * versus waiters unqueueing themselves:
 	 */
-	spin_lock_irq(&curr->pi_lock);
+	raw_spin_lock_irq(&curr->pi_lock);
 	while (!list_empty(head)) {
 
 		next = head->next;
 		pi_state = list_entry(next, struct futex_pi_state, list);
 		key = pi_state->key;
 		hb = hash_futex(&key);
-		spin_unlock_irq(&curr->pi_lock);
+		raw_spin_unlock_irq(&curr->pi_lock);
 
 		spin_lock(&hb->lock);
 
-		spin_lock_irq(&curr->pi_lock);
+		raw_spin_lock_irq(&curr->pi_lock);
 		/*
 		 * We dropped the pi-lock, so re-check whether this
 		 * task still owns the PI-state:
@@ -495,15 +493,15 @@ void exit_pi_state_list(struct task_struct *curr)
 		WARN_ON(list_empty(&pi_state->list));
 		list_del_init(&pi_state->list);
 		pi_state->owner = NULL;
-		spin_unlock_irq(&curr->pi_lock);
+		raw_spin_unlock_irq(&curr->pi_lock);
 
 		rt_mutex_unlock(&pi_state->pi_mutex);
 
 		spin_unlock(&hb->lock);
 
-		spin_lock_irq(&curr->pi_lock);
+		raw_spin_lock_irq(&curr->pi_lock);
 	}
-	spin_unlock_irq(&curr->pi_lock);
+	raw_spin_unlock_irq(&curr->pi_lock);
 }
 
 static int
@@ -558,7 +556,7 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb,
 	 * change of the task flags, we do this protected by
 	 * p->pi_lock:
 	 */
-	spin_lock_irq(&p->pi_lock);
+	raw_spin_lock_irq(&p->pi_lock);
 	if (unlikely(p->flags & PF_EXITING)) {
 		/*
 		 * The task is on the way out. When PF_EXITPIDONE is
@@ -567,7 +565,7 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb,
 		 */
 		int ret = (p->flags & PF_EXITPIDONE) ? -ESRCH : -EAGAIN;
 
-		spin_unlock_irq(&p->pi_lock);
+		raw_spin_unlock_irq(&p->pi_lock);
 		put_task_struct(p);
 		return ret;
 	}
@@ -586,7 +584,7 @@ lookup_pi_state(u32 uval, struct futex_hash_bucket *hb,
 	WARN_ON(!list_empty(&pi_state->list));
 	list_add(&pi_state->list, &p->pi_state_list);
 	pi_state->owner = p;
-	spin_unlock_irq(&p->pi_lock);
+	raw_spin_unlock_irq(&p->pi_lock);
 
 	put_task_struct(p);
 
@@ -760,7 +758,7 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 	if (!pi_state)
 		return -EINVAL;
 
-	spin_lock(&pi_state->pi_mutex.wait_lock);
+	raw_spin_lock(&pi_state->pi_mutex.wait_lock);
 	new_owner = rt_mutex_next_owner(&pi_state->pi_mutex);
 
 	/*
@@ -789,23 +787,23 @@ static int wake_futex_pi(u32 __user *uaddr, u32 uval, struct futex_q *this)
 		else if (curval != uval)
 			ret = -EINVAL;
 		if (ret) {
-			spin_unlock(&pi_state->pi_mutex.wait_lock);
+			raw_spin_unlock(&pi_state->pi_mutex.wait_lock);
 			return ret;
 		}
 	}
 
-	spin_lock_irq(&pi_state->owner->pi_lock);
+	raw_spin_lock_irq(&pi_state->owner->pi_lock);
 	WARN_ON(list_empty(&pi_state->list));
 	list_del_init(&pi_state->list);
-	spin_unlock_irq(&pi_state->owner->pi_lock);
+	raw_spin_unlock_irq(&pi_state->owner->pi_lock);
 
-	spin_lock_irq(&new_owner->pi_lock);
+	raw_spin_lock_irq(&new_owner->pi_lock);
 	WARN_ON(!list_empty(&pi_state->list));
 	list_add(&pi_state->list, &new_owner->pi_state_list);
 	pi_state->owner = new_owner;
-	spin_unlock_irq(&new_owner->pi_lock);
+	raw_spin_unlock_irq(&new_owner->pi_lock);
 
-	spin_unlock(&pi_state->pi_mutex.wait_lock);
+	raw_spin_unlock(&pi_state->pi_mutex.wait_lock);
 	rt_mutex_unlock(&pi_state->pi_mutex);
 
 	return 0;
@@ -867,7 +865,7 @@ static int futex_wake(u32 __user *uaddr, int fshared, int nr_wake, u32 bitset)
 	if (!bitset)
 		return -EINVAL;
 
-	ret = get_futex_key(uaddr, fshared, &key, VERIFY_READ);
+	ret = get_futex_key(uaddr, fshared, &key);
 	if (unlikely(ret != 0))
 		goto out;
 
@@ -913,10 +911,10 @@ futex_wake_op(u32 __user *uaddr1, int fshared, u32 __user *uaddr2,
 	int ret, op_ret;
 
 retry:
-	ret = get_futex_key(uaddr1, fshared, &key1, VERIFY_READ);
+	ret = get_futex_key(uaddr1, fshared, &key1);
 	if (unlikely(ret != 0))
 		goto out;
-	ret = get_futex_key(uaddr2, fshared, &key2, VERIFY_WRITE);
+	ret = get_futex_key(uaddr2, fshared, &key2);
 	if (unlikely(ret != 0))
 		goto out_put_key1;
 
@@ -1010,7 +1008,7 @@ void requeue_futex(struct futex_q *q, struct futex_hash_bucket *hb1,
 		plist_add(&q->list, &hb2->chain);
 		q->lock_ptr = &hb2->lock;
 #ifdef CONFIG_DEBUG_PI_LIST
-		q->list.plist.lock = &hb2->lock;
+		q->list.plist.spinlock = &hb2->lock;
 #endif
 	}
 	get_futex_key_refs(key2);
@@ -1046,7 +1044,7 @@ void requeue_pi_wake_futex(struct futex_q *q, union futex_key *key,
 
 	q->lock_ptr = &hb->lock;
 #ifdef CONFIG_DEBUG_PI_LIST
-	q->list.plist.lock = &hb->lock;
+	q->list.plist.spinlock = &hb->lock;
 #endif
 
 	wake_up_state(q->task, TASK_NORMAL);
@@ -1175,11 +1173,10 @@ retry:
 		pi_state = NULL;
 	}
 
-	ret = get_futex_key(uaddr1, fshared, &key1, VERIFY_READ);
+	ret = get_futex_key(uaddr1, fshared, &key1);
 	if (unlikely(ret != 0))
 		goto out;
-	ret = get_futex_key(uaddr2, fshared, &key2,
-			    requeue_pi ? VERIFY_WRITE : VERIFY_READ);
+	ret = get_futex_key(uaddr2, fshared, &key2);
 	if (unlikely(ret != 0))
 		goto out_put_key1;
 
@@ -1394,7 +1391,7 @@ static inline void queue_me(struct futex_q *q, struct futex_hash_bucket *hb)
 
 	plist_node_init(&q->list, prio);
 #ifdef CONFIG_DEBUG_PI_LIST
-	q->list.plist.lock = &hb->lock;
+	q->list.plist.spinlock = &hb->lock;
 #endif
 	plist_add(&q->list, &hb->chain);
 	q->task = current;
@@ -1529,18 +1526,18 @@ retry:
 	 * itself.
 	 */
 	if (pi_state->owner != NULL) {
-		spin_lock_irq(&pi_state->owner->pi_lock);
+		raw_spin_lock_irq(&pi_state->owner->pi_lock);
 		WARN_ON(list_empty(&pi_state->list));
 		list_del_init(&pi_state->list);
-		spin_unlock_irq(&pi_state->owner->pi_lock);
+		raw_spin_unlock_irq(&pi_state->owner->pi_lock);
 	}
 
 	pi_state->owner = newowner;
 
-	spin_lock_irq(&newowner->pi_lock);
+	raw_spin_lock_irq(&newowner->pi_lock);
 	WARN_ON(!list_empty(&pi_state->list));
 	list_add(&pi_state->list, &newowner->pi_state_list);
-	spin_unlock_irq(&newowner->pi_lock);
+	raw_spin_unlock_irq(&newowner->pi_lock);
 	return 0;
 
 	/*
@@ -1738,7 +1735,7 @@ static int futex_wait_setup(u32 __user *uaddr, u32 val, int fshared,
 	 */
 retry:
 	q->key = FUTEX_KEY_INIT;
-	ret = get_futex_key(uaddr, fshared, &q->key, VERIFY_READ);
+	ret = get_futex_key(uaddr, fshared, &q->key);
 	if (unlikely(ret != 0))
 		return ret;
 
@@ -1904,7 +1901,7 @@ static int futex_lock_pi(u32 __user *uaddr, int fshared,
 	q.requeue_pi_key = NULL;
 retry:
 	q.key = FUTEX_KEY_INIT;
-	ret = get_futex_key(uaddr, fshared, &q.key, VERIFY_WRITE);
+	ret = get_futex_key(uaddr, fshared, &q.key);
 	if (unlikely(ret != 0))
 		goto out;
 
@@ -2023,7 +2020,7 @@ retry:
 	if ((uval & FUTEX_TID_MASK) != task_pid_vnr(current))
 		return -EPERM;
 
-	ret = get_futex_key(uaddr, fshared, &key, VERIFY_WRITE);
+	ret = get_futex_key(uaddr, fshared, &key);
 	if (unlikely(ret != 0))
 		goto out;
 
@@ -2215,7 +2212,7 @@ static int futex_wait_requeue_pi(u32 __user *uaddr, int fshared,
 	rt_waiter.task = NULL;
 
 	key2 = FUTEX_KEY_INIT;
-	ret = get_futex_key(uaddr2, fshared, &key2, VERIFY_WRITE);
+	ret = get_futex_key(uaddr2, fshared, &key2);
 	if (unlikely(ret != 0))
 		goto out;
 

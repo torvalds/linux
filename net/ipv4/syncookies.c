@@ -277,6 +277,13 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 
 	NET_INC_STATS_BH(sock_net(sk), LINUX_MIB_SYNCOOKIESRECV);
 
+	/* check for timestamp cookie support */
+	memset(&tcp_opt, 0, sizeof(tcp_opt));
+	tcp_parse_options(skb, &tcp_opt, &hash_location, 0);
+
+	if (tcp_opt.saw_tstamp)
+		cookie_check_timestamp(&tcp_opt);
+
 	ret = NULL;
 	req = inet_reqsk_alloc(&tcp_request_sock_ops); /* for safety */
 	if (!req)
@@ -292,6 +299,12 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 	ireq->loc_addr		= ip_hdr(skb)->daddr;
 	ireq->rmt_addr		= ip_hdr(skb)->saddr;
 	ireq->ecn_ok		= 0;
+	ireq->snd_wscale	= tcp_opt.snd_wscale;
+	ireq->rcv_wscale	= tcp_opt.rcv_wscale;
+	ireq->sack_ok		= tcp_opt.sack_ok;
+	ireq->wscale_ok		= tcp_opt.wscale_ok;
+	ireq->tstamp_ok		= tcp_opt.saw_tstamp;
+	req->ts_recent		= tcp_opt.saw_tstamp ? tcp_opt.rcv_tsval : 0;
 
 	/* We throwed the options of the initial SYN away, so we hope
 	 * the ACK carries the same options again (see RFC1122 4.2.3.8)
@@ -339,20 +352,6 @@ struct sock *cookie_v4_check(struct sock *sk, struct sk_buff *skb,
 			goto out;
 		}
 	}
-
-	/* check for timestamp cookie support */
-	memset(&tcp_opt, 0, sizeof(tcp_opt));
-	tcp_parse_options(skb, &tcp_opt, &hash_location, 0, &rt->u.dst);
-
-	if (tcp_opt.saw_tstamp)
-		cookie_check_timestamp(&tcp_opt);
-
-	ireq->snd_wscale        = tcp_opt.snd_wscale;
-	ireq->rcv_wscale        = tcp_opt.rcv_wscale;
-	ireq->sack_ok           = tcp_opt.sack_ok;
-	ireq->wscale_ok         = tcp_opt.wscale_ok;
-	ireq->tstamp_ok         = tcp_opt.saw_tstamp;
-	req->ts_recent          = tcp_opt.saw_tstamp ? tcp_opt.rcv_tsval : 0;
 
 	/* Try to redo what tcp_v4_send_synack did. */
 	req->window_clamp = tp->window_clamp ? :dst_metric(&rt->u.dst, RTAX_WINDOW);

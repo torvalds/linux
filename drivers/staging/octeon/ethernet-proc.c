@@ -25,7 +25,6 @@
  * Contact Cavium Networks for more information
 **********************************************************************/
 #include <linux/kernel.h>
-#include <linux/mii.h>
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
 #include <net/dst.h>
@@ -37,112 +36,6 @@
 
 #include "cvmx-helper.h"
 #include "cvmx-pip.h"
-
-static unsigned long long cvm_oct_stats_read_switch(struct net_device *dev,
-						    int phy_id, int offset)
-{
-	struct octeon_ethernet *priv = netdev_priv(dev);
-
-	priv->mii_info.mdio_write(dev, phy_id, 0x1d, 0xcc00 | offset);
-	return ((uint64_t) priv->mii_info.
-		mdio_read(dev, phy_id,
-			  0x1e) << 16) | (uint64_t) priv->mii_info.
-	    mdio_read(dev, phy_id, 0x1f);
-}
-
-static int cvm_oct_stats_switch_show(struct seq_file *m, void *v)
-{
-	static const int ports[] = { 0, 1, 2, 3, 9, -1 };
-	struct net_device *dev = cvm_oct_device[0];
-	int index = 0;
-
-	while (ports[index] != -1) {
-
-		/* Latch port */
-		struct octeon_ethernet *priv = netdev_priv(dev);
-
-		priv->mii_info.mdio_write(dev, 0x1b, 0x1d,
-					  0xdc00 | ports[index]);
-		seq_printf(m, "\nSwitch Port %d\n", ports[index]);
-		seq_printf(m, "InGoodOctets:   %12llu\t"
-			   "OutOctets:      %12llu\t"
-			   "64 Octets:      %12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b,
-						     0x00) |
-			   (cvm_oct_stats_read_switch(dev, 0x1b, 0x01) << 32),
-			   cvm_oct_stats_read_switch(dev, 0x1b,
-						     0x0E) |
-			   (cvm_oct_stats_read_switch(dev, 0x1b, 0x0F) << 32),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x08));
-
-		seq_printf(m, "InBadOctets:    %12llu\t"
-			   "OutUnicast:     %12llu\t"
-			   "65-127 Octets:  %12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x02),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x10),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x09));
-
-		seq_printf(m, "InUnicast:      %12llu\t"
-			   "OutBroadcasts:  %12llu\t"
-			   "128-255 Octets: %12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x04),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x13),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x0A));
-
-		seq_printf(m, "InBroadcasts:   %12llu\t"
-			   "OutMulticasts:  %12llu\t"
-			   "256-511 Octets: %12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x06),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x12),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x0B));
-
-		seq_printf(m, "InMulticasts:   %12llu\t"
-			   "OutPause:       %12llu\t"
-			   "512-1023 Octets:%12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x07),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x15),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x0C));
-
-		seq_printf(m, "InPause:        %12llu\t"
-			   "Excessive:      %12llu\t"
-			   "1024-Max Octets:%12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x16),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x11),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x0D));
-
-		seq_printf(m, "InUndersize:    %12llu\t"
-			   "Collisions:     %12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x18),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x1E));
-
-		seq_printf(m, "InFragments:    %12llu\t"
-			   "Deferred:       %12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x19),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x05));
-
-		seq_printf(m, "InOversize:     %12llu\t"
-			   "Single:         %12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x1A),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x14));
-
-		seq_printf(m, "InJabber:       %12llu\t"
-			   "Multiple:       %12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x1B),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x17));
-
-		seq_printf(m, "In RxErr:       %12llu\t"
-			   "OutFCSErr:      %12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x1C),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x03));
-
-		seq_printf(m, "InFCSErr:       %12llu\t"
-			   "Late:           %12llu\n",
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x1D),
-			   cvm_oct_stats_read_switch(dev, 0x1b, 0x1F));
-		index++;
-	}
-	return 0;
-}
 
 /**
  * User is reading /proc/octeon_ethernet_stats
@@ -215,11 +108,6 @@ static int cvm_oct_stats_show(struct seq_file *m, void *v)
 		}
 	}
 
-	if (cvm_oct_device[0]) {
-		priv = netdev_priv(cvm_oct_device[0]);
-		if (priv->imode == CVMX_HELPER_INTERFACE_MODE_GMII)
-			cvm_oct_stats_switch_show(m, v);
-	}
 	return 0;
 }
 

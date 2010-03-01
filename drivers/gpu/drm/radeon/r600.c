@@ -285,7 +285,8 @@ void r600_hpd_init(struct radeon_device *rdev)
 			}
 		}
 	}
-	r600_irq_set(rdev);
+	if (rdev->irq.installed)
+		r600_irq_set(rdev);
 }
 
 void r600_hpd_fini(struct radeon_device *rdev)
@@ -726,6 +727,10 @@ int r600_mc_init(struct radeon_device *rdev)
 	a.full = rfixed_const(100);
 	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
 	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+
+	if (rdev->flags & RADEON_IS_IGP)
+		rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+
 	return 0;
 }
 
@@ -1384,11 +1389,6 @@ void r600_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 	(void)RREG32(PCIE_PORT_DATA);
 }
 
-void r600_hdp_flush(struct radeon_device *rdev)
-{
-	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
-}
-
 /*
  * CP & Ring
  */
@@ -1785,6 +1785,8 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
 	radeon_ring_write(rdev, ((rdev->fence_drv.scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
 	radeon_ring_write(rdev, fence->seq);
+	radeon_ring_write(rdev, PACKET0(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0));
+	radeon_ring_write(rdev, 1);
 	/* CP_INTERRUPT packet 3 no longer exists, use packet 0 */
 	radeon_ring_write(rdev, PACKET0(CP_INT_STATUS, 0));
 	radeon_ring_write(rdev, RB_INT_STAT);
@@ -1862,6 +1864,14 @@ int r600_startup(struct radeon_device *rdev)
 			return r;
 	}
 	r600_gpu_init(rdev);
+
+	if (!rdev->r600_blit.shader_obj) {
+		r = r600_blit_init(rdev);
+		if (r) {
+			DRM_ERROR("radeon: failed blitter (%d).\n", r);
+			return r;
+		}
+	}
 
 	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
 	if (unlikely(r != 0))
@@ -2038,12 +2048,6 @@ int r600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r600_blit_init(rdev);
-	if (r) {
-		DRM_ERROR("radeon: failed blitter (%d).\n", r);
-		return r;
-	}
-
 	rdev->accel_working = true;
 	r = r600_startup(rdev);
 	if (r) {
@@ -2065,6 +2069,10 @@ int r600_init(struct radeon_device *rdev)
 			rdev->accel_working = false;
 		}
 	}
+
+	r = r600_audio_init(rdev);
+	if (r)
+		return r; /* TODO error handling */
 	return 0;
 }
 
@@ -2073,6 +2081,7 @@ void r600_fini(struct radeon_device *rdev)
 	/* Suspend operations */
 	r600_suspend(rdev);
 
+	r600_audio_fini(rdev);
 	r600_blit_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_irq_kms_fini(rdev);
@@ -2082,8 +2091,7 @@ void r600_fini(struct radeon_device *rdev)
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_clocks_fini(rdev);
-	if (rdev->flags & RADEON_IS_AGP)
-		radeon_agp_fini(rdev);
+	radeon_agp_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
@@ -2454,6 +2462,10 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 mode_int = 0;
 	u32 hpd1, hpd2, hpd3, hpd4 = 0, hpd5 = 0, hpd6 = 0;
 
+	if (!rdev->irq.installed) {
+		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
+		return -EINVAL;
+	}
 	/* don't enable anything if the ih is disabled */
 	if (!rdev->ih.enabled)
 		return 0;
@@ -2717,7 +2729,7 @@ restart_ih:
 				}
 				break;
 			default:
-				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
 			break;
@@ -2737,7 +2749,7 @@ restart_ih:
 				}
 				break;
 			default:
-				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
 			break;
@@ -2786,7 +2798,7 @@ restart_ih:
 				}
 				break;
 			default:
-				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
 			break;
@@ -2800,7 +2812,7 @@ restart_ih:
 			DRM_DEBUG("IH: CP EOP\n");
 			break;
 		default:
-			DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+			DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 			break;
 		}
 

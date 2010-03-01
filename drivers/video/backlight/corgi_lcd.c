@@ -451,7 +451,7 @@ void corgi_lcd_limit_intensity(int limit)
 }
 EXPORT_SYMBOL(corgi_lcd_limit_intensity);
 
-static struct backlight_ops corgi_bl_ops = {
+static const struct backlight_ops corgi_bl_ops = {
 	.get_brightness	= corgi_bl_get_intensity,
 	.update_status  = corgi_bl_update_status,
 };

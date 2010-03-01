@@ -72,8 +72,6 @@ extern int ql2xloginretrycount;
 extern int ql2xfdmienable;
 extern int ql2xallocfwdump;
 extern int ql2xextended_error_logging;
-extern int ql2xqfullrampup;
-extern int ql2xqfulltracking;
 extern int ql2xiidmaenable;
 extern int ql2xmaxqueues;
 extern int ql2xmultique_tag;
@@ -326,6 +324,7 @@ qla2x00_read_ram_word(scsi_qla_host_t *, uint32_t, uint32_t *);
 extern int
 qla2x00_write_ram_word(scsi_qla_host_t *, uint32_t, uint32_t);
 
+extern int qla2x00_get_data_rate(scsi_qla_host_t *);
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */

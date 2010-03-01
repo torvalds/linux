@@ -1313,7 +1313,7 @@ static int txx9dmac_resume_noirq(struct device *dev)
 
 }
 
-static struct dev_pm_ops txx9dmac_dev_pm_ops = {
+static const struct dev_pm_ops txx9dmac_dev_pm_ops = {
 	.suspend_noirq = txx9dmac_suspend_noirq,
 	.resume_noirq = txx9dmac_resume_noirq,
 };

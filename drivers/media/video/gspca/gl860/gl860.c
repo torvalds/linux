@@ -40,7 +40,7 @@ static void sd_pkt_scan(struct gspca_dev *gspca_dev,
 static void sd_callback(struct gspca_dev *gspca_dev);
 
 static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
-				s32 vendor_id, s32 product_id);
+				u16 vendor_id, u16 product_id);
 
 /*============================ driver options ==============================*/
 
@@ -326,11 +326,11 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
-	s32 vendor_id, product_id;
+	u16 vendor_id, product_id;
 
 	/* Get USB VendorID and ProductID */
-	vendor_id  = le16_to_cpu(id->idVendor);
-	product_id = le16_to_cpu(id->idProduct);
+	vendor_id  = id->idVendor;
+	product_id = id->idProduct;
 
 	sd->nbRightUp = 1;
 	sd->nbIm = -1;
@@ -534,8 +534,8 @@ static int sd_probe(struct usb_interface *intf,
 		gspca_dev = usb_get_intfdata(intf);
 
 		PDEBUG(D_PROBE,
-			"Camera is now controlling video device /dev/video%d",
-			gspca_dev->vdev.minor);
+			"Camera is now controlling video device %s",
+			video_device_node_name(&gspca_dev->vdev));
 	}
 
 	return ret;
@@ -673,7 +673,7 @@ void fetch_idxdata(struct gspca_dev *gspca_dev, struct idxdata *tbl, int len)
 }
 
 static int gl860_guess_sensor(struct gspca_dev *gspca_dev,
-				s32 vendor_id, s32 product_id)
+				u16 vendor_id, u16 product_id)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	u8 probe, nb26, nb96, nOV, ntry;

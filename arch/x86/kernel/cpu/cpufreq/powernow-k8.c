@@ -1136,7 +1136,7 @@ static int powernowk8_target(struct cpufreq_policy *pol,
 	if (!alloc_cpumask_var(&oldmask, GFP_KERNEL))
 		return -ENOMEM;
 
-	cpumask_copy(oldmask, tsk_cpumask(current));
+	cpumask_copy(oldmask, tsk_cpus_allowed(current));
 	set_cpus_allowed_ptr(current, cpumask_of(pol->cpu));
 
 	if (smp_processor_id() != pol->cpu) {

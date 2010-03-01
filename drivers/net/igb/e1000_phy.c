@@ -457,15 +457,6 @@ s32 igb_copper_link_setup_82580(struct e1000_hw *hw)
 	phy_data |= I82580_CFG_ENABLE_DOWNSHIFT;
 
 	ret_val = phy->ops.write_reg(hw, I82580_CFG_REG, phy_data);
-	if (ret_val)
-		goto out;
-
-	/* Set number of link attempts before downshift */
-	ret_val = phy->ops.read_reg(hw, I82580_CTRL_REG, &phy_data);
-	if (ret_val)
-		goto out;
-	phy_data &= ~I82580_CTRL_DOWNSHIFT_MASK;
-	ret_val = phy->ops.write_reg(hw, I82580_CTRL_REG, phy_data);
 
 out:
 	return ret_val;

@@ -1,9 +1,7 @@
 /*
  * linux/drivers/s390/cio/thinint_qdio.c
  *
- * thin interrupt support for qdio
- *
- * Copyright 2000-2008 IBM Corp.
+ * Copyright 2000,2009 IBM Corp.
  * Author(s): Utz Bacher <utz.bacher@de.ibm.com>
  *	      Cornelia Huck <cornelia.huck@de.ibm.com>
  *	      Jan Glauber <jang@linux.vnet.ibm.com>
@@ -19,7 +17,6 @@
 #include "ioasm.h"
 #include "qdio.h"
 #include "qdio_debug.h"
-#include "qdio_perf.h"
 
 /*
  * Restriction: only 63 iqdio subchannels would have its own indicator,
@@ -132,8 +129,6 @@ static void tiqdio_thinint_handler(void *ind, void *drv_data)
 {
 	struct qdio_q *q;
 
-	qdio_perf_stat_inc(&perf_stats.thin_int);
-
 	/*
 	 * SVS only when needed: issue SVS to benefit from iqdio interrupt
 	 * avoidance (SVS clears adapter interrupt suppression overwrite)
@@ -154,6 +149,7 @@ static void tiqdio_thinint_handler(void *ind, void *drv_data)
 	list_for_each_entry_rcu(q, &tiq_list, entry)
 		/* only process queues from changed sets */
 		if (*q->irq_ptr->dsci) {
+			qperf_inc(q, adapter_int);
 
 			/* only clear it if the indicator is non-shared */
 			if (!shared_ind(q->irq_ptr))

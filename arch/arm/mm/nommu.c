@@ -61,7 +61,7 @@ void setup_mm_for_reboot(char mode)
 
 void flush_dcache_page(struct page *page)
 {
-	__cpuc_flush_dcache_page(page_address(page));
+	__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
 }
 EXPORT_SYMBOL(flush_dcache_page);
 

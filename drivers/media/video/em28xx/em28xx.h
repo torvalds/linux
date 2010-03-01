@@ -643,6 +643,8 @@ int em28xx_write_regs_req(struct em28xx *dev, u8 req, u16 reg, char *buf,
 			  int len);
 int em28xx_write_regs(struct em28xx *dev, u16 reg, char *buf, int len);
 int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val);
+int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
+				 u8 bitmask);
 
 int em28xx_read_ac97(struct em28xx *dev, u8 reg);
 int em28xx_write_ac97(struct em28xx *dev, u8 reg, u16 val);
@@ -666,9 +668,6 @@ int em28xx_gpio_set(struct em28xx *dev, struct em28xx_reg_seq *gpio);
 void em28xx_wake_i2c(struct em28xx *dev);
 void em28xx_remove_from_devlist(struct em28xx *dev);
 void em28xx_add_into_devlist(struct em28xx *dev);
-struct em28xx *em28xx_get_device(int minor,
-				 enum v4l2_buf_type *fh_type,
-				 int *has_radio);
 int em28xx_register_extension(struct em28xx_ops *dev);
 void em28xx_unregister_extension(struct em28xx_ops *dev);
 void em28xx_init_extension(struct em28xx *dev);

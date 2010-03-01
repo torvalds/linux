@@ -15,6 +15,7 @@
  * along with this program; if not, write the Free Software Foundation,
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
+
 #include "xfs.h"
 #include "xfs_bit.h"
 #include "xfs_log.h"
@@ -52,11 +53,11 @@
 #include "xfs_trans_priv.h"
 #include "xfs_filestream.h"
 #include "xfs_da_btree.h"
-#include "xfs_dir2_trace.h"
 #include "xfs_extfree_item.h"
 #include "xfs_mru_cache.h"
 #include "xfs_inode_item.h"
 #include "xfs_sync.h"
+#include "xfs_trace.h"
 
 #include <linux/namei.h>
 #include <linux/init.h>
@@ -953,16 +954,14 @@ xfs_fs_destroy_inode(
 	ASSERT_ALWAYS(!xfs_iflags_test(ip, XFS_IRECLAIM));
 
 	/*
-	 * If we have nothing to flush with this inode then complete the
-	 * teardown now, otherwise delay the flush operation.
+	 * We always use background reclaim here because even if the
+	 * inode is clean, it still may be under IO and hence we have
+	 * to take the flush lock. The background reclaim path handles
+	 * this more efficiently than we can here, so simply let background
+	 * reclaim tear down all inodes.
 	 */
-	if (!xfs_inode_clean(ip)) {
-		xfs_inode_set_reclaim_tag(ip);
-		return;
-	}
-
 out_reclaim:
-	xfs_ireclaim(ip);
+	xfs_inode_set_reclaim_tag(ip);
 }
 
 /*
@@ -1525,8 +1524,6 @@ xfs_fs_fill_super(
 		goto fail_vnrele;
 
 	kfree(mtpt);
-
-	xfs_itrace_exit(XFS_I(sb->s_root->d_inode));
 	return 0;
 
  out_filestream_unmount:
@@ -1600,94 +1597,6 @@ static struct file_system_type xfs_fs_type = {
 	.kill_sb		= kill_block_super,
 	.fs_flags		= FS_REQUIRES_DEV,
 };
-
-STATIC int __init
-xfs_alloc_trace_bufs(void)
-{
-#ifdef XFS_ALLOC_TRACE
-	xfs_alloc_trace_buf = ktrace_alloc(XFS_ALLOC_TRACE_SIZE, KM_MAYFAIL);
-	if (!xfs_alloc_trace_buf)
-		goto out;
-#endif
-#ifdef XFS_BMAP_TRACE
-	xfs_bmap_trace_buf = ktrace_alloc(XFS_BMAP_TRACE_SIZE, KM_MAYFAIL);
-	if (!xfs_bmap_trace_buf)
-		goto out_free_alloc_trace;
-#endif
-#ifdef XFS_BTREE_TRACE
-	xfs_allocbt_trace_buf = ktrace_alloc(XFS_ALLOCBT_TRACE_SIZE,
-					     KM_MAYFAIL);
-	if (!xfs_allocbt_trace_buf)
-		goto out_free_bmap_trace;
-
-	xfs_inobt_trace_buf = ktrace_alloc(XFS_INOBT_TRACE_SIZE, KM_MAYFAIL);
-	if (!xfs_inobt_trace_buf)
-		goto out_free_allocbt_trace;
-
-	xfs_bmbt_trace_buf = ktrace_alloc(XFS_BMBT_TRACE_SIZE, KM_MAYFAIL);
-	if (!xfs_bmbt_trace_buf)
-		goto out_free_inobt_trace;
-#endif
-#ifdef XFS_ATTR_TRACE
-	xfs_attr_trace_buf = ktrace_alloc(XFS_ATTR_TRACE_SIZE, KM_MAYFAIL);
-	if (!xfs_attr_trace_buf)
-		goto out_free_bmbt_trace;
-#endif
-#ifdef XFS_DIR2_TRACE
-	xfs_dir2_trace_buf = ktrace_alloc(XFS_DIR2_GTRACE_SIZE, KM_MAYFAIL);
-	if (!xfs_dir2_trace_buf)
-		goto out_free_attr_trace;
-#endif
-
-	return 0;
-
-#ifdef XFS_DIR2_TRACE
- out_free_attr_trace:
-#endif
-#ifdef XFS_ATTR_TRACE
-	ktrace_free(xfs_attr_trace_buf);
- out_free_bmbt_trace:
-#endif
-#ifdef XFS_BTREE_TRACE
-	ktrace_free(xfs_bmbt_trace_buf);
- out_free_inobt_trace:
-	ktrace_free(xfs_inobt_trace_buf);
- out_free_allocbt_trace:
-	ktrace_free(xfs_allocbt_trace_buf);
- out_free_bmap_trace:
-#endif
-#ifdef XFS_BMAP_TRACE
-	ktrace_free(xfs_bmap_trace_buf);
- out_free_alloc_trace:
-#endif
-#ifdef XFS_ALLOC_TRACE
-	ktrace_free(xfs_alloc_trace_buf);
- out:
-#endif
-	return -ENOMEM;
-}
-
-STATIC void
-xfs_free_trace_bufs(void)
-{
-#ifdef XFS_DIR2_TRACE
-	ktrace_free(xfs_dir2_trace_buf);
-#endif
-#ifdef XFS_ATTR_TRACE
-	ktrace_free(xfs_attr_trace_buf);
-#endif
-#ifdef XFS_BTREE_TRACE
-	ktrace_free(xfs_bmbt_trace_buf);
-	ktrace_free(xfs_inobt_trace_buf);
-	ktrace_free(xfs_allocbt_trace_buf);
-#endif
-#ifdef XFS_BMAP_TRACE
-	ktrace_free(xfs_bmap_trace_buf);
-#endif
-#ifdef XFS_ALLOC_TRACE
-	ktrace_free(xfs_alloc_trace_buf);
-#endif
-}
 
 STATIC int __init
 xfs_init_zones(void)
@@ -1830,7 +1739,6 @@ init_xfs_fs(void)
 	printk(KERN_INFO XFS_VERSION_STRING " with "
 			 XFS_BUILD_OPTIONS " enabled\n");
 
-	ktrace_init(64);
 	xfs_ioend_init();
 	xfs_dir_startup();
 
@@ -1838,13 +1746,9 @@ init_xfs_fs(void)
 	if (error)
 		goto out;
 
-	error = xfs_alloc_trace_bufs();
-	if (error)
-		goto out_destroy_zones;
-
 	error = xfs_mru_cache_init();
 	if (error)
-		goto out_free_trace_buffers;
+		goto out_destroy_zones;
 
 	error = xfs_filestream_init();
 	if (error)
@@ -1879,8 +1783,6 @@ init_xfs_fs(void)
 	xfs_filestream_uninit();
  out_mru_cache_uninit:
 	xfs_mru_cache_uninit();
- out_free_trace_buffers:
-	xfs_free_trace_bufs();
  out_destroy_zones:
 	xfs_destroy_zones();
  out:
@@ -1897,9 +1799,7 @@ exit_xfs_fs(void)
 	xfs_buf_terminate();
 	xfs_filestream_uninit();
 	xfs_mru_cache_uninit();
-	xfs_free_trace_bufs();
 	xfs_destroy_zones();
-	ktrace_uninit();
 }
 
 module_init(init_xfs_fs);

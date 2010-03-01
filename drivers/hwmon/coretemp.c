@@ -33,6 +33,7 @@
 #include <linux/list.h>
 #include <linux/platform_device.h>
 #include <linux/cpu.h>
+#include <linux/pci.h>
 #include <asm/msr.h>
 #include <asm/processor.h>
 
@@ -161,6 +162,7 @@ static int __devinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *
 	int usemsr_ee = 1;
 	int err;
 	u32 eax, edx;
+	struct pci_dev *host_bridge;
 
 	/* Early chips have no MSR for TjMax */
 
@@ -168,11 +170,21 @@ static int __devinit adjust_tjmax(struct cpuinfo_x86 *c, u32 id, struct device *
 		usemsr_ee = 0;
 	}
 
-	/* Atoms seems to have TjMax at 90C */
+	/* Atom CPUs */
 
 	if (c->x86_model == 0x1c) {
 		usemsr_ee = 0;
-		tjmax = 90000;
+
+		host_bridge = pci_get_bus_and_slot(0, PCI_DEVFN(0, 0));
+
+		if (host_bridge && host_bridge->vendor == PCI_VENDOR_ID_INTEL
+		    && (host_bridge->device == 0xa000	/* NM10 based nettop */
+		    || host_bridge->device == 0xa010))	/* NM10 based netbook */
+			tjmax = 100000;
+		else
+			tjmax = 90000;
+
+		pci_dev_put(host_bridge);
 	}
 
 	if ((c->x86_model > 0xe) && (usemsr_ee)) {

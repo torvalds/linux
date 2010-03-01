@@ -226,16 +226,17 @@ ENTRY(feroceon_coherent_user_range)
 	mov	pc, lr
 
 /*
- *	flush_kern_dcache_page(void *page)
+ *	flush_kern_dcache_area(void *addr, size_t size)
  *
  *	Ensure no D cache aliasing occurs, either with itself or
  *	the I cache
  *
- *	- addr	- page aligned address
+ *	- addr	- kernel address
+ *	- size	- region size
  */
 	.align	5
-ENTRY(feroceon_flush_kern_dcache_page)
-	add	r1, r0, #PAGE_SZ
+ENTRY(feroceon_flush_kern_dcache_area)
+	add	r1, r0, r1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean+invalidate D entry
 	add	r0, r0, #CACHE_DLINESIZE
 	cmp	r0, r1
@@ -246,7 +247,7 @@ ENTRY(feroceon_flush_kern_dcache_page)
 	mov	pc, lr
 
 	.align	5
-ENTRY(feroceon_range_flush_kern_dcache_page)
+ENTRY(feroceon_range_flush_kern_dcache_area)
 	mrs	r2, cpsr
 	add	r1, r0, #PAGE_SZ - CACHE_DLINESIZE	@ top addr is inclusive
 	orr	r3, r2, #PSR_I_BIT
@@ -372,7 +373,7 @@ ENTRY(feroceon_cache_fns)
 	.long	feroceon_flush_user_cache_range
 	.long	feroceon_coherent_kern_range
 	.long	feroceon_coherent_user_range
-	.long	feroceon_flush_kern_dcache_page
+	.long	feroceon_flush_kern_dcache_area
 	.long	feroceon_dma_inv_range
 	.long	feroceon_dma_clean_range
 	.long	feroceon_dma_flush_range
@@ -383,7 +384,7 @@ ENTRY(feroceon_range_cache_fns)
 	.long	feroceon_flush_user_cache_range
 	.long	feroceon_coherent_kern_range
 	.long	feroceon_coherent_user_range
-	.long	feroceon_range_flush_kern_dcache_page
+	.long	feroceon_range_flush_kern_dcache_area
 	.long	feroceon_range_dma_inv_range
 	.long	feroceon_range_dma_clean_range
 	.long	feroceon_range_dma_flush_range

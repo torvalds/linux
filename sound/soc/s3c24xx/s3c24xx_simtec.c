@@ -312,7 +312,7 @@ int simtec_audio_resume(struct device *dev)
 	return 0;
 }
 
-struct dev_pm_ops simtec_audio_pmops = {
+const struct dev_pm_ops simtec_audio_pmops = {
 	.resume	= simtec_audio_resume,
 };
 EXPORT_SYMBOL_GPL(simtec_audio_pmops);

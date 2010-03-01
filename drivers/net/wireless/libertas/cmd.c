@@ -1365,7 +1365,7 @@ static void lbs_send_confirmsleep(struct lbs_private *priv)
 	priv->dnld_sent = DNLD_RES_RECEIVED;
 
 	/* If nothing to do, go back to sleep (?) */
-	if (!__kfifo_len(priv->event_fifo) && !priv->resp_len[priv->resp_idx])
+	if (!kfifo_len(&priv->event_fifo) && !priv->resp_len[priv->resp_idx])
 		priv->psstate = PS_STATE_SLEEP;
 
 	spin_unlock_irqrestore(&priv->driver_lock, flags);
@@ -1439,7 +1439,7 @@ void lbs_ps_confirm_sleep(struct lbs_private *priv)
 	}
 
 	/* Pending events or command responses? */
-	if (__kfifo_len(priv->event_fifo) || priv->resp_len[priv->resp_idx]) {
+	if (kfifo_len(&priv->event_fifo) || priv->resp_len[priv->resp_idx]) {
 		allowed = 0;
 		lbs_deb_host("pending events or command responses\n");
 	}

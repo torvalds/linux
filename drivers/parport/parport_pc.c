@@ -3403,7 +3403,7 @@ static int __init parport_parse_param(const char *s, int *val,
 		*val = automatic;
 	else if (!strncmp(s, "none", 4))
 		*val = none;
-	else if (nofifo && !strncmp(s, "nofifo", 4))
+	else if (nofifo && !strncmp(s, "nofifo", 6))
 		*val = nofifo;
 	else {
 		char *ep;

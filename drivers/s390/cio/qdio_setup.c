@@ -48,7 +48,6 @@ static void set_impl_params(struct qdio_irq *irq_ptr,
 	if (!irq_ptr)
 		return;
 
-	WARN_ON((unsigned long)&irq_ptr->qib & 0xff);
 	irq_ptr->qib.pfmt = qib_param_field_format;
 	if (qib_param_field)
 		memcpy(irq_ptr->qib.parm, qib_param_field,
@@ -82,14 +81,12 @@ static int __qdio_allocate_qs(struct qdio_q **irq_ptr_qs, int nr_queues)
 		q = kmem_cache_alloc(qdio_q_cache, GFP_KERNEL);
 		if (!q)
 			return -ENOMEM;
-		WARN_ON((unsigned long)q & 0xff);
 
 		q->slib = (struct slib *) __get_free_page(GFP_KERNEL);
 		if (!q->slib) {
 			kmem_cache_free(qdio_q_cache, q);
 			return -ENOMEM;
 		}
-		WARN_ON((unsigned long)q->slib & 0x7ff);
 		irq_ptr_qs[i] = q;
 	}
 	return 0;
@@ -131,7 +128,7 @@ static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	/* fill in sbal */
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++) {
 		q->sbal[j] = *sbals_array++;
-		WARN_ON((unsigned long)q->sbal[j] & 0xff);
+		BUG_ON((unsigned long)q->sbal[j] & 0xff);
 	}
 
 	/* fill in slib */
@@ -147,11 +144,6 @@ static void setup_storage_lists(struct qdio_q *q, struct qdio_irq *irq_ptr,
 	/* fill in sl */
 	for (j = 0; j < QDIO_MAX_BUFFERS_PER_Q; j++)
 		q->sl->element[j].sbal = (unsigned long)q->sbal[j];
-
-	DBF_EVENT("sl-slsb-sbal");
-	DBF_HEX(q->sl, sizeof(void *));
-	DBF_HEX(&q->slsb, sizeof(void *));
-	DBF_HEX(q->sbal, sizeof(void *));
 }
 
 static void setup_queues(struct qdio_irq *irq_ptr,

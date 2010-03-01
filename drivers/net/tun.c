@@ -849,13 +849,13 @@ static void tun_sock_write_space(struct sock *sk)
 	if (sk->sk_sleep && waitqueue_active(sk->sk_sleep))
 		wake_up_interruptible_sync(sk->sk_sleep);
 
-	tun = container_of(sk, struct tun_sock, sk)->tun;
+	tun = tun_sk(sk)->tun;
 	kill_fasync(&tun->fasync, SIGIO, POLL_OUT);
 }
 
 static void tun_sock_destruct(struct sock *sk)
 {
-	free_netdev(container_of(sk, struct tun_sock, sk)->tun->dev);
+	free_netdev(tun_sk(sk)->tun->dev);
 }
 
 static struct proto tun_proto = {
@@ -990,7 +990,7 @@ static int tun_set_iff(struct net *net, struct file *file, struct ifreq *ifr)
 		sk->sk_write_space = tun_sock_write_space;
 		sk->sk_sndbuf = INT_MAX;
 
-		container_of(sk, struct tun_sock, sk)->tun = tun;
+		tun_sk(sk)->tun = tun;
 
 		security_tun_dev_post_create(sk);
 

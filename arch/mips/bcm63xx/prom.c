@@ -40,9 +40,6 @@ void __init prom_init(void)
 	reg &= ~mask;
 	bcm_perf_writel(reg, PERF_CKCTL_REG);
 
-	/* assign command line from kernel config */
-	strcpy(arcs_cmdline, CONFIG_CMDLINE);
-
 	/* register gpiochip */
 	bcm63xx_gpio_init();
 

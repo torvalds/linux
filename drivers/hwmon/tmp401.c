@@ -42,8 +42,7 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x4c, I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(tmp401, tmp411);
+enum chips { tmp401, tmp411 };
 
 /*
  * The TMP401 registers, note some registers have different addresses for
@@ -98,7 +97,7 @@ static const u8 TMP411_TEMP_HIGHEST_LSB[2]		= { 0x33, 0x37 };
 
 static int tmp401_probe(struct i2c_client *client,
 			const struct i2c_device_id *id);
-static int tmp401_detect(struct i2c_client *client, int kind,
+static int tmp401_detect(struct i2c_client *client,
 			 struct i2c_board_info *info);
 static int tmp401_remove(struct i2c_client *client);
 static struct tmp401_data *tmp401_update_device(struct device *dev);
@@ -123,7 +122,7 @@ static struct i2c_driver tmp401_driver = {
 	.remove		= tmp401_remove,
 	.id_table	= tmp401_id,
 	.detect		= tmp401_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -488,7 +487,7 @@ static void tmp401_init_client(struct i2c_client *client)
 		i2c_smbus_write_byte_data(client, TMP401_CONFIG_WRITE, config);
 }
 
-static int tmp401_detect(struct i2c_client *client, int _kind,
+static int tmp401_detect(struct i2c_client *client,
 			 struct i2c_board_info *info)
 {
 	enum chips kind;

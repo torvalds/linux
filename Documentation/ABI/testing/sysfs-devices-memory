@@ -60,6 +60,19 @@ Description:
 Users:		hotplug memory remove tools
 		https://w3.opensource.ibm.com/projects/powerpc-utils/
 
+
+What:		/sys/devices/system/memoryX/nodeY
+Date:		October 2009
+Contact:	Linux Memory Management list <linux-mm@kvack.org>
+Description:
+		When CONFIG_NUMA is enabled, a symbolic link that
+		points to the corresponding NUMA node directory.
+
+		For example, the following symbolic link is created for
+		memory section 9 on node0:
+		/sys/devices/system/memory/memory9/node0 -> ../../node/node0
+
+
 What:		/sys/devices/system/node/nodeX/memoryY
 Date:		September 2008
 Contact:	Gary Hade <garyhade@us.ibm.com>
@@ -70,4 +83,3 @@ Description:
 		memory section directory.  For example, the following symbolic
 		link is created for memory section 9 on node0.
 		/sys/devices/system/node/node0/memory9 -> ../../memory/memory9
-

@@ -58,6 +58,7 @@ typedef struct {
 } atom_exec_context;
 
 int atom_debug = 0;
+static void atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t * params);
 void atom_execute_table(struct atom_context *ctx, int index, uint32_t * params);
 
 static uint32_t atom_arg_mask[8] =
@@ -573,7 +574,7 @@ static void atom_op_calltable(atom_exec_context *ctx, int *ptr, int arg)
 	else
 		SDEBUG("   table: %d\n", idx);
 	if (U16(ctx->ctx->cmd_table + 4 + 2 * idx))
-		atom_execute_table(ctx->ctx, idx, ctx->ps + ctx->ps_shift);
+		atom_execute_table_locked(ctx->ctx, idx, ctx->ps + ctx->ps_shift);
 }
 
 static void atom_op_clear(atom_exec_context *ctx, int *ptr, int arg)
@@ -1040,7 +1041,7 @@ static struct {
 	atom_op_shr, ATOM_ARG_MC}, {
 atom_op_debug, 0},};
 
-void atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)
+static void atom_execute_table_locked(struct atom_context *ctx, int index, uint32_t * params)
 {
 	int base = CU16(ctx->cmd_table + 4 + 2 * index);
 	int len, ws, ps, ptr;
@@ -1090,6 +1091,13 @@ void atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)
 
 	if (ws)
 		kfree(ectx.ws);
+}
+
+void atom_execute_table(struct atom_context *ctx, int index, uint32_t * params)
+{
+	mutex_lock(&ctx->mutex);
+	atom_execute_table_locked(ctx, index, params);
+	mutex_unlock(&ctx->mutex);
 }
 
 static int atom_iio_len[] = { 1, 2, 3, 3, 3, 3, 4, 4, 4, 3 };

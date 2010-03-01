@@ -142,8 +142,8 @@
 
 /* ST - www.st.com */
 #define M29F800AB	0x0058
-#define M29W800DT	0x00D7
-#define M29W800DB	0x005B
+#define M29W800DT	0x22D7
+#define M29W800DB	0x225B
 #define M29W400DT	0x00EE
 #define M29W400DB	0x00EF
 #define M29W160DT	0x22C4
@@ -1575,7 +1575,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= M29W800DT,
 		.name		= "ST M29W800DT",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x5555_0x2AAA,	/* ???? */
+		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,
@@ -1590,7 +1590,7 @@ static const struct amd_flash_info jedec_table[] = {
 		.dev_id		= M29W800DB,
 		.name		= "ST M29W800DB",
 		.devtypes	= CFI_DEVICETYPE_X16|CFI_DEVICETYPE_X8,
-		.uaddr		= MTD_UADDR_0x5555_0x2AAA,	/* ???? */
+		.uaddr		= MTD_UADDR_0x0AAA_0x0555,
 		.dev_size	= SIZE_1MiB,
 		.cmd_set	= P_ID_AMD_STD,
 		.nr_regions	= 4,

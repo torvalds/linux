@@ -4,8 +4,6 @@
  * Licensed under the GPL-2 or later
  */
 
-#define VMLINUX_SYMBOL(_sym_) _##_sym_
-
 #include <asm-generic/vmlinux.lds.h>
 #include <asm/mem_map.h>
 #include <asm/page.h>
@@ -123,8 +121,6 @@ SECTIONS
 		EXIT_DATA
 	}
 
-	__l1_lma_start = .;
-
 	.text_l1 L1_CODE_START : AT(LOADADDR(.exit.data) + SIZEOF(.exit.data))
 	{
 		. = ALIGN(4);
@@ -136,9 +132,11 @@ SECTIONS
 		. = ALIGN(4);
 		__etext_l1 = .;
 	}
-	ASSERT (SIZEOF(.text_l1) <= L1_CODE_LENGTH, "L1 text overflow!")
+	__text_l1_lma = LOADADDR(.text_l1);
+	__text_l1_len = SIZEOF(.text_l1);
+	ASSERT (__text_l1_len <= L1_CODE_LENGTH, "L1 text overflow!")
 
-	.data_l1 L1_DATA_A_START : AT(LOADADDR(.text_l1) + SIZEOF(.text_l1))
+	.data_l1 L1_DATA_A_START : AT(__text_l1_lma + __text_l1_len)
 	{
 		. = ALIGN(4);
 		__sdata_l1 = .;
@@ -154,9 +152,11 @@ SECTIONS
 		. = ALIGN(4);
 		__ebss_l1 = .;
 	}
-	ASSERT (SIZEOF(.data_l1) <= L1_DATA_A_LENGTH, "L1 data A overflow!")
+	__data_l1_lma = LOADADDR(.data_l1);
+	__data_l1_len = SIZEOF(.data_l1);
+	ASSERT (__data_l1_len <= L1_DATA_A_LENGTH, "L1 data A overflow!")
 
-	.data_b_l1 L1_DATA_B_START : AT(LOADADDR(.data_l1) + SIZEOF(.data_l1))
+	.data_b_l1 L1_DATA_B_START : AT(__data_l1_lma + __data_l1_len)
 	{
 		. = ALIGN(4);
 		__sdata_b_l1 = .;
@@ -169,11 +169,11 @@ SECTIONS
 		. = ALIGN(4);
 		__ebss_b_l1 = .;
 	}
-	ASSERT (SIZEOF(.data_b_l1) <= L1_DATA_B_LENGTH, "L1 data B overflow!")
+	__data_b_l1_lma = LOADADDR(.data_b_l1);
+	__data_b_l1_len = SIZEOF(.data_b_l1);
+	ASSERT (__data_b_l1_len <= L1_DATA_B_LENGTH, "L1 data B overflow!")
 
-	__l2_lma_start = LOADADDR(.data_b_l1) + SIZEOF(.data_b_l1);
-
-	.text_data_l2 L2_START : AT(LOADADDR(.data_b_l1) + SIZEOF(.data_b_l1))
+	.text_data_l2 L2_START : AT(__data_b_l1_lma + __data_b_l1_len)
 	{
 		. = ALIGN(4);
 		__stext_l2 = .;
@@ -195,12 +195,14 @@ SECTIONS
 		. = ALIGN(4);
 		__ebss_l2 = .;
 	}
-	ASSERT (SIZEOF(.text_data_l2) <= L2_LENGTH, "L2 overflow!")
+	__l2_lma = LOADADDR(.text_data_l2);
+	__l2_len = SIZEOF(.text_data_l2);
+	ASSERT (__l2_len <= L2_LENGTH, "L2 overflow!")
 
 	/* Force trailing alignment of our init section so that when we
 	 * free our init memory, we don't leave behind a partial page.
 	 */
-	. = LOADADDR(.text_data_l2) + SIZEOF(.text_data_l2);
+	. = __l2_lma + __l2_len;
 	. = ALIGN(PAGE_SIZE);
 	___init_end = .;
 

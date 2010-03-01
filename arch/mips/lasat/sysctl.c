@@ -204,7 +204,7 @@ static ctl_table lasat_table[] = {
 		.maxlen		= sizeof(int),
 		.mode		= 0644,
 		.proc_handler	= proc_lasat_prid,
-.	},
+	},
 #ifdef CONFIG_INET
 	{
 		.procname	= "ipaddr",

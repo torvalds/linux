@@ -44,6 +44,7 @@
 #include <linux/serial.h>
 #include <linux/usb/serial.h>
 #include "ftdi_sio.h"
+#include "ftdi_sio_ids.h"
 
 /*
  * Version Information

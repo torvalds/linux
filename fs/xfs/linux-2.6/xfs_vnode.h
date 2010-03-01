@@ -39,6 +39,10 @@ struct attrlist_cursor_kern;
 #define IO_ISDIRECT	0x00004		/* bypass page cache */
 #define IO_INVIS	0x00020		/* don't update inode timestamps */
 
+#define XFS_IO_FLAGS \
+	{ IO_ISDIRECT,	"DIRECT" }, \
+	{ IO_INVIS,	"INVIS"}
+
 /*
  * Flush/Invalidate options for vop_toss/flush/flushinval_pages.
  */

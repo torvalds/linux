@@ -2275,7 +2275,7 @@ void ata_sff_drain_fifo(struct ata_queued_cmd *qc)
 	ap = qc->ap;
 	/* Drain up to 64K of data before we give up this recovery method */
 	for (count = 0; (ap->ops->sff_check_status(ap) & ATA_DRQ)
-						&& count < 32768; count++)
+						&& count < 65536; count += 2)
 		ioread16(ap->ioaddr.data_addr);
 
 	/* Can become DEBUG later */

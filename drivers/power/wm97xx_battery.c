@@ -157,7 +157,7 @@ static int wm97xx_bat_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops wm97xx_bat_pm_ops = {
+static const struct dev_pm_ops wm97xx_bat_pm_ops = {
 	.suspend	= wm97xx_bat_suspend,
 	.resume		= wm97xx_bat_resume,
 };

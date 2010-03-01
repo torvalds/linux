@@ -485,7 +485,7 @@ static int __devexit wm831x_rtc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static struct dev_pm_ops wm831x_rtc_pm_ops = {
+static const struct dev_pm_ops wm831x_rtc_pm_ops = {
 	.suspend = wm831x_rtc_suspend,
 	.resume = wm831x_rtc_resume,
 

@@ -27,8 +27,8 @@ static struct stack_trace max_stack_trace = {
 };
 
 static unsigned long max_stack_size;
-static raw_spinlock_t max_stack_lock =
-	(raw_spinlock_t)__RAW_SPIN_LOCK_UNLOCKED;
+static arch_spinlock_t max_stack_lock =
+	(arch_spinlock_t)__ARCH_SPIN_LOCK_UNLOCKED;
 
 static int stack_trace_disabled __read_mostly;
 static DEFINE_PER_CPU(int, trace_active);
@@ -54,7 +54,7 @@ static inline void check_stack(void)
 		return;
 
 	local_irq_save(flags);
-	__raw_spin_lock(&max_stack_lock);
+	arch_spin_lock(&max_stack_lock);
 
 	/* a race could have already updated it */
 	if (this_size <= max_stack_size)
@@ -103,7 +103,7 @@ static inline void check_stack(void)
 	}
 
  out:
-	__raw_spin_unlock(&max_stack_lock);
+	arch_spin_unlock(&max_stack_lock);
 	local_irq_restore(flags);
 }
 
@@ -171,9 +171,9 @@ stack_max_size_write(struct file *filp, const char __user *ubuf,
 		return ret;
 
 	local_irq_save(flags);
-	__raw_spin_lock(&max_stack_lock);
+	arch_spin_lock(&max_stack_lock);
 	*ptr = val;
-	__raw_spin_unlock(&max_stack_lock);
+	arch_spin_unlock(&max_stack_lock);
 	local_irq_restore(flags);
 
 	return count;
@@ -207,7 +207,7 @@ t_next(struct seq_file *m, void *v, loff_t *pos)
 static void *t_start(struct seq_file *m, loff_t *pos)
 {
 	local_irq_disable();
-	__raw_spin_lock(&max_stack_lock);
+	arch_spin_lock(&max_stack_lock);
 
 	if (*pos == 0)
 		return SEQ_START_TOKEN;
@@ -217,7 +217,7 @@ static void *t_start(struct seq_file *m, loff_t *pos)
 
 static void t_stop(struct seq_file *m, void *p)
 {
-	__raw_spin_unlock(&max_stack_lock);
+	arch_spin_unlock(&max_stack_lock);
 	local_irq_enable();
 }
 

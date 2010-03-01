@@ -514,6 +514,27 @@ nv20_graph_rdi(struct drm_device *dev)
 	nouveau_wait_for_idle(dev);
 }
 
+void
+nv20_graph_set_region_tiling(struct drm_device *dev, int i, uint32_t addr,
+			     uint32_t size, uint32_t pitch)
+{
+	uint32_t limit = max(1u, addr + size) - 1;
+
+	if (pitch)
+		addr |= 1;
+
+	nv_wr32(dev, NV20_PGRAPH_TLIMIT(i), limit);
+	nv_wr32(dev, NV20_PGRAPH_TSIZE(i), pitch);
+	nv_wr32(dev, NV20_PGRAPH_TILE(i), addr);
+
+	nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0030 + 4 * i);
+	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, limit);
+	nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0050 + 4 * i);
+	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, pitch);
+	nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0010 + 4 * i);
+	nv_wr32(dev, NV10_PGRAPH_RDI_DATA, addr);
+}
+
 int
 nv20_graph_init(struct drm_device *dev)
 {
@@ -572,27 +593,10 @@ nv20_graph_init(struct drm_device *dev)
 		nv_wr32(dev, NV10_PGRAPH_RDI_DATA , 0x00000030);
 	}
 
-	/* copy tile info from PFB */
-	for (i = 0; i < NV10_PFB_TILE__SIZE; i++) {
-		nv_wr32(dev, 0x00400904 + i * 0x10,
-					nv_rd32(dev, NV10_PFB_TLIMIT(i)));
-			/* which is NV40_PGRAPH_TLIMIT0(i) ?? */
-		nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0030 + i * 4);
-		nv_wr32(dev, NV10_PGRAPH_RDI_DATA,
-					nv_rd32(dev, NV10_PFB_TLIMIT(i)));
-		nv_wr32(dev, 0x00400908 + i * 0x10,
-					nv_rd32(dev, NV10_PFB_TSIZE(i)));
-			/* which is NV40_PGRAPH_TSIZE0(i) ?? */
-		nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0050 + i * 4);
-		nv_wr32(dev, NV10_PGRAPH_RDI_DATA,
-					nv_rd32(dev, NV10_PFB_TSIZE(i)));
-		nv_wr32(dev, 0x00400900 + i * 0x10,
-					nv_rd32(dev, NV10_PFB_TILE(i)));
-			/* which is NV40_PGRAPH_TILE0(i) ?? */
-		nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0010 + i * 4);
-		nv_wr32(dev, NV10_PGRAPH_RDI_DATA,
-					nv_rd32(dev, NV10_PFB_TILE(i)));
-	}
+	/* Turn all the tiling regions off. */
+	for (i = 0; i < NV10_PFB_TILE__SIZE; i++)
+		nv20_graph_set_region_tiling(dev, i, 0, 0, 0);
+
 	for (i = 0; i < 8; i++) {
 		nv_wr32(dev, 0x400980 + i * 4, nv_rd32(dev, 0x100300 + i * 4));
 		nv_wr32(dev, NV10_PGRAPH_RDI_INDEX, 0x00EA0090 + i * 4);
@@ -704,18 +708,9 @@ nv30_graph_init(struct drm_device *dev)
 
 	nv_wr32(dev, 0x4000c0, 0x00000016);
 
-	/* copy tile info from PFB */
-	for (i = 0; i < NV10_PFB_TILE__SIZE; i++) {
-		nv_wr32(dev, 0x00400904 + i * 0x10,
-					nv_rd32(dev, NV10_PFB_TLIMIT(i)));
-			/* which is NV40_PGRAPH_TLIMIT0(i) ?? */
-		nv_wr32(dev, 0x00400908 + i * 0x10,
-					nv_rd32(dev, NV10_PFB_TSIZE(i)));
-			/* which is NV40_PGRAPH_TSIZE0(i) ?? */
-		nv_wr32(dev, 0x00400900 + i * 0x10,
-					nv_rd32(dev, NV10_PFB_TILE(i)));
-			/* which is NV40_PGRAPH_TILE0(i) ?? */
-	}
+	/* Turn all the tiling regions off. */
+	for (i = 0; i < NV10_PFB_TILE__SIZE; i++)
+		nv20_graph_set_region_tiling(dev, i, 0, 0, 0);
 
 	nv_wr32(dev, NV10_PGRAPH_CTX_CONTROL, 0x10000100);
 	nv_wr32(dev, NV10_PGRAPH_STATE      , 0xFFFFFFFF);

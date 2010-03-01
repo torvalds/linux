@@ -30,7 +30,7 @@ static LIST_HEAD(clockevents_released);
 static RAW_NOTIFIER_HEAD(clockevents_chain);
 
 /* Protection for the above */
-static DEFINE_SPINLOCK(clockevents_lock);
+static DEFINE_RAW_SPINLOCK(clockevents_lock);
 
 /**
  * clockevents_delta2ns - Convert a latch value (device ticks) to nanoseconds
@@ -141,9 +141,9 @@ int clockevents_register_notifier(struct notifier_block *nb)
 	unsigned long flags;
 	int ret;
 
-	spin_lock_irqsave(&clockevents_lock, flags);
+	raw_spin_lock_irqsave(&clockevents_lock, flags);
 	ret = raw_notifier_chain_register(&clockevents_chain, nb);
-	spin_unlock_irqrestore(&clockevents_lock, flags);
+	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
 
 	return ret;
 }
@@ -185,13 +185,13 @@ void clockevents_register_device(struct clock_event_device *dev)
 	BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
 	BUG_ON(!dev->cpumask);
 
-	spin_lock_irqsave(&clockevents_lock, flags);
+	raw_spin_lock_irqsave(&clockevents_lock, flags);
 
 	list_add(&dev->list, &clockevent_devices);
 	clockevents_do_notify(CLOCK_EVT_NOTIFY_ADD, dev);
 	clockevents_notify_released();
 
-	spin_unlock_irqrestore(&clockevents_lock, flags);
+	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
 }
 EXPORT_SYMBOL_GPL(clockevents_register_device);
 
@@ -238,10 +238,11 @@ void clockevents_exchange_device(struct clock_event_device *old,
  */
 void clockevents_notify(unsigned long reason, void *arg)
 {
-	struct list_head *node, *tmp;
+	struct clock_event_device *dev, *tmp;
 	unsigned long flags;
+	int cpu;
 
-	spin_lock_irqsave(&clockevents_lock, flags);
+	raw_spin_lock_irqsave(&clockevents_lock, flags);
 	clockevents_do_notify(reason, arg);
 
 	switch (reason) {
@@ -250,13 +251,24 @@ void clockevents_notify(unsigned long reason, void *arg)
 		 * Unregister the clock event devices which were
 		 * released from the users in the notify chain.
 		 */
-		list_for_each_safe(node, tmp, &clockevents_released)
-			list_del(node);
+		list_for_each_entry_safe(dev, tmp, &clockevents_released, list)
+			list_del(&dev->list);
+		/*
+		 * Now check whether the CPU has left unused per cpu devices
+		 */
+		cpu = *((int *)arg);
+		list_for_each_entry_safe(dev, tmp, &clockevent_devices, list) {
+			if (cpumask_test_cpu(cpu, dev->cpumask) &&
+			    cpumask_weight(dev->cpumask) == 1) {
+				BUG_ON(dev->mode != CLOCK_EVT_MODE_UNUSED);
+				list_del(&dev->list);
+			}
+		}
 		break;
 	default:
 		break;
 	}
-	spin_unlock_irqrestore(&clockevents_lock, flags);
+	raw_spin_unlock_irqrestore(&clockevents_lock, flags);
 }
 EXPORT_SYMBOL_GPL(clockevents_notify);
 #endif

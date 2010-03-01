@@ -22,8 +22,10 @@
 
 struct pwm_bl_data {
 	struct pwm_device	*pwm;
+	struct device		*dev;
 	unsigned int		period;
-	int			(*notify)(int brightness);
+	int			(*notify)(struct device *,
+					  int brightness);
 };
 
 static int pwm_backlight_update_status(struct backlight_device *bl)
@@ -39,7 +41,7 @@ static int pwm_backlight_update_status(struct backlight_device *bl)
 		brightness = 0;
 
 	if (pb->notify)
-		brightness = pb->notify(brightness);
+		brightness = pb->notify(pb->dev, brightness);
 
 	if (brightness == 0) {
 		pwm_config(pb->pwm, 0, pb->period);
@@ -56,7 +58,7 @@ static int pwm_backlight_get_brightness(struct backlight_device *bl)
 	return bl->props.brightness;
 }
 
-static struct backlight_ops pwm_backlight_ops = {
+static const struct backlight_ops pwm_backlight_ops = {
 	.update_status	= pwm_backlight_update_status,
 	.get_brightness	= pwm_backlight_get_brightness,
 };
@@ -88,6 +90,7 @@ static int pwm_backlight_probe(struct platform_device *pdev)
 
 	pb->period = data->pwm_period_ns;
 	pb->notify = data->notify;
+	pb->dev = &pdev->dev;
 
 	pb->pwm = pwm_request(data->pwm_id, "backlight");
 	if (IS_ERR(pb->pwm)) {
@@ -146,7 +149,7 @@ static int pwm_backlight_suspend(struct platform_device *pdev,
 	struct pwm_bl_data *pb = dev_get_drvdata(&bl->dev);
 
 	if (pb->notify)
-		pb->notify(0);
+		pb->notify(pb->dev, 0);
 	pwm_config(pb->pwm, 0, pb->period);
 	pwm_disable(pb->pwm);
 	return 0;

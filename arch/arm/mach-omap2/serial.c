@@ -125,6 +125,13 @@ static struct plat_serial8250_port serial_platform_data3[] = {
 	}
 };
 #endif
+static inline unsigned int __serial_read_reg(struct uart_port *up,
+					   int offset)
+{
+	offset <<= up->regshift;
+	return (unsigned int)__raw_readb(up->membase + offset);
+}
+
 static inline unsigned int serial_read_reg(struct plat_serial8250_port *up,
 					   int offset)
 {
@@ -583,11 +590,12 @@ static unsigned int serial_in_override(struct uart_port *up, int offset)
 {
 	if (UART_RX == offset) {
 		unsigned int lsr;
-		lsr = serial_read_reg(omap_uart[up->line].p, UART_LSR);
+		lsr = __serial_read_reg(up, UART_LSR);
 		if (!(lsr & UART_LSR_DR))
 			return -EPERM;
 	}
-	return serial_read_reg(omap_uart[up->line].p, offset);
+
+	return __serial_read_reg(up, offset);
 }
 
 void __init omap_serial_early_init(void)
@@ -640,12 +648,9 @@ void __init omap_serial_early_init(void)
 		uart->num = i;
 		p->private_data = uart;
 		uart->p = p;
-		list_add_tail(&uart->node, &uart_list);
 
 		if (cpu_is_omap44xx())
 			p->irq += 32;
-
-		omap_uart_enable_clocks(uart);
 	}
 }
 
@@ -673,8 +678,12 @@ void __init omap_serial_init_port(int port)
 	pdev = &uart->pdev;
 	dev = &pdev->dev;
 
+	omap_uart_enable_clocks(uart);
+
 	omap_uart_reset(uart);
 	omap_uart_idle_init(uart);
+
+	list_add_tail(&uart->node, &uart_list);
 
 	if (WARN_ON(platform_device_register(pdev)))
 		return;

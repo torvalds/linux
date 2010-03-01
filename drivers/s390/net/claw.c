@@ -3398,7 +3398,7 @@ claw_init(void)
 		goto out_err;
 	}
 	CLAW_DBF_TEXT(2, setup, "init_mod");
-	claw_root_dev = root_device_register("qeth");
+	claw_root_dev = root_device_register("claw");
 	ret = IS_ERR(claw_root_dev) ? PTR_ERR(claw_root_dev) : 0;
 	if (ret)
 		goto register_err;

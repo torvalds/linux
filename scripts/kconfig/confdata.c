@@ -677,7 +677,7 @@ int conf_write_autoconf(void)
 	struct symbol *sym;
 	const char *str;
 	const char *name;
-	FILE *out, *out_h;
+	FILE *out, *tristate, *out_h;
 	time_t now;
 	int i, l;
 
@@ -692,9 +692,16 @@ int conf_write_autoconf(void)
 	if (!out)
 		return 1;
 
+	tristate = fopen(".tmpconfig_tristate", "w");
+	if (!tristate) {
+		fclose(out);
+		return 1;
+	}
+
 	out_h = fopen(".tmpconfig.h", "w");
 	if (!out_h) {
 		fclose(out);
+		fclose(tristate);
 		return 1;
 	}
 
@@ -707,6 +714,9 @@ int conf_write_autoconf(void)
 		     "# %s"
 		     "#\n",
 		     sym_get_string_value(sym), ctime(&now));
+	fprintf(tristate, "#\n"
+			  "# Automatically generated - do not edit\n"
+			  "\n");
 	fprintf(out_h, "/*\n"
 		       " * Automatically generated C config: don't edit\n"
 		       " * Linux kernel version: %s\n"
@@ -727,10 +737,14 @@ int conf_write_autoconf(void)
 				break;
 			case mod:
 				fprintf(out, "CONFIG_%s=m\n", sym->name);
+				fprintf(tristate, "CONFIG_%s=M\n", sym->name);
 				fprintf(out_h, "#define CONFIG_%s_MODULE 1\n", sym->name);
 				break;
 			case yes:
 				fprintf(out, "CONFIG_%s=y\n", sym->name);
+				if (sym->type == S_TRISTATE)
+					fprintf(tristate, "CONFIG_%s=Y\n",
+							sym->name);
 				fprintf(out_h, "#define CONFIG_%s 1\n", sym->name);
 				break;
 			}
@@ -772,12 +786,18 @@ int conf_write_autoconf(void)
 		}
 	}
 	fclose(out);
+	fclose(tristate);
 	fclose(out_h);
 
 	name = getenv("KCONFIG_AUTOHEADER");
 	if (!name)
-		name = "include/linux/autoconf.h";
+		name = "include/generated/autoconf.h";
 	if (rename(".tmpconfig.h", name))
+		return 1;
+	name = getenv("KCONFIG_TRISTATE");
+	if (!name)
+		name = "include/config/tristate.conf";
+	if (rename(".tmpconfig_tristate", name))
 		return 1;
 	name = conf_get_autoconfig_name();
 	/*

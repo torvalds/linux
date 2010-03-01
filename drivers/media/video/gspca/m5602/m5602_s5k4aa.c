@@ -48,6 +48,12 @@ static
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xa 2528")
 		}
 	}, {
+		.ident = "Fujitsu-Siemens Amilo Xi 2428",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 2428")
+		}
+	}, {
 		.ident = "Fujitsu-Siemens Amilo Xi 2528",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
@@ -525,7 +531,10 @@ static int s5k4aa_set_vflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_read_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	if (err < 0)
 		return err;
-	data = (data & 0xfe) | !val;
+	if (val)
+		data &= 0xfe;
+	else
+		data |= 0x01;
 	err = m5602_write_sensor(sd, S5K4AA_ROWSTART_LO, &data, 1);
 	return err;
 }
@@ -570,7 +579,10 @@ static int s5k4aa_set_hflip(struct gspca_dev *gspca_dev, __s32 val)
 	err = m5602_read_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	if (err < 0)
 		return err;
-	data = (data & 0xfe) | !val;
+	if (val)
+		data &= 0xfe;
+	else
+		data |= 0x01;
 	err = m5602_write_sensor(sd, S5K4AA_COLSTART_LO, &data, 1);
 	return err;
 }

@@ -21,6 +21,7 @@
 #include <linux/mount.h>
 #include <linux/statfs.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/fs_struct.h>
 #include "internal.h"
 
@@ -257,8 +258,7 @@ static ssize_t cachefiles_daemon_write(struct file *file,
 		if (args == data)
 			goto error;
 		*args = '\0';
-		for (args++; isspace(*args); args++)
-			continue;
+		args = skip_spaces(++args);
 	}
 
 	/* run the appropriate command handler */

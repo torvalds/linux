@@ -142,8 +142,9 @@ static int efx_mcdi_poll(struct efx_nic *efx)
 		if (spins != 0) {
 			--spins;
 			udelay(1);
-		} else
-			schedule();
+		} else {
+			schedule_timeout_uninterruptible(1);
+		}
 
 		time = get_seconds();
 

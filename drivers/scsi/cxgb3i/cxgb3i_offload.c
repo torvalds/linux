@@ -291,7 +291,7 @@ static void act_open_req_arp_failure(struct t3cdev *dev, struct sk_buff *skb)
 	c3cn_hold(c3cn);
 	spin_lock_bh(&c3cn->lock);
 	if (c3cn->state == C3CN_STATE_CONNECTING)
-		fail_act_open(c3cn, EHOSTUNREACH);
+		fail_act_open(c3cn, -EHOSTUNREACH);
 	spin_unlock_bh(&c3cn->lock);
 	c3cn_put(c3cn);
 	__kfree_skb(skb);
@@ -792,18 +792,18 @@ static int act_open_rpl_status_to_errno(int status)
 {
 	switch (status) {
 	case CPL_ERR_CONN_RESET:
-		return ECONNREFUSED;
+		return -ECONNREFUSED;
 	case CPL_ERR_ARP_MISS:
-		return EHOSTUNREACH;
+		return -EHOSTUNREACH;
 	case CPL_ERR_CONN_TIMEDOUT:
-		return ETIMEDOUT;
+		return -ETIMEDOUT;
 	case CPL_ERR_TCAM_FULL:
-		return ENOMEM;
+		return -ENOMEM;
 	case CPL_ERR_CONN_EXIST:
 		cxgb3i_log_error("ACTIVE_OPEN_RPL: 4-tuple in use\n");
-		return EADDRINUSE;
+		return -EADDRINUSE;
 	default:
-		return EIO;
+		return -EIO;
 	}
 }
 
@@ -817,7 +817,7 @@ static void act_open_retry_timer(unsigned long data)
 	spin_lock_bh(&c3cn->lock);
 	skb = alloc_skb(sizeof(struct cpl_act_open_req), GFP_ATOMIC);
 	if (!skb)
-		fail_act_open(c3cn, ENOMEM);
+		fail_act_open(c3cn, -ENOMEM);
 	else {
 		skb->sk = (struct sock *)c3cn;
 		set_arp_failure_handler(skb, act_open_req_arp_failure);
@@ -966,14 +966,14 @@ static int abort_status_to_errno(struct s3_conn *c3cn, int abort_reason,
 	case CPL_ERR_BAD_SYN: /* fall through */
 	case CPL_ERR_CONN_RESET:
 		return c3cn->state > C3CN_STATE_ESTABLISHED ?
-			EPIPE : ECONNRESET;
+			-EPIPE : -ECONNRESET;
 	case CPL_ERR_XMIT_TIMEDOUT:
 	case CPL_ERR_PERSIST_TIMEDOUT:
 	case CPL_ERR_FINWAIT2_TIMEDOUT:
 	case CPL_ERR_KEEPALIVE_TIMEDOUT:
-		return ETIMEDOUT;
+		return -ETIMEDOUT;
 	default:
-		return EIO;
+		return -EIO;
 	}
 }
 
@@ -1440,6 +1440,10 @@ void cxgb3i_c3cn_release(struct s3_conn *c3cn)
 static int is_cxgb3_dev(struct net_device *dev)
 {
 	struct cxgb3i_sdev_data *cdata;
+	struct net_device *ndev = dev;
+
+	if (dev->priv_flags & IFF_802_1Q_VLAN)
+		ndev = vlan_dev_real_dev(dev);
 
 	write_lock(&cdata_rwlock);
 	list_for_each_entry(cdata, &cdata_list, list) {
@@ -1447,7 +1451,7 @@ static int is_cxgb3_dev(struct net_device *dev)
 		int i;
 
 		for (i = 0; i < ports->nports; i++)
-			if (dev == ports->lldevs[i]) {
+			if (ndev == ports->lldevs[i]) {
 				write_unlock(&cdata_rwlock);
 				return 1;
 			}
@@ -1563,9 +1567,29 @@ free_tid:
 	s3_free_atid(cdev, c3cn->tid);
 	c3cn->tid = 0;
 out_err:
-	return -1;
+	return -EINVAL;
 }
 
+/**
+ * cxgb3i_find_dev - find the interface associated with the given address
+ * @ipaddr: ip address
+ */
+static struct net_device *
+cxgb3i_find_dev(struct net_device *dev, __be32 ipaddr)
+{
+	struct flowi fl;
+	int err;
+	struct rtable *rt;
+
+	memset(&fl, 0, sizeof(fl));
+	fl.nl_u.ip4_u.daddr = ipaddr;
+
+	err = ip_route_output_key(dev ? dev_net(dev) : &init_net, &rt, &fl);
+	if (!err)
+		return (&rt->u.dst)->dev;
+
+	return NULL;
+}
 
 /**
  * cxgb3i_c3cn_connect - initiates an iscsi tcp connection to a given address
@@ -1581,6 +1605,7 @@ int cxgb3i_c3cn_connect(struct net_device *dev, struct s3_conn *c3cn,
 	struct cxgb3i_sdev_data *cdata;
 	struct t3cdev *cdev;
 	__be32 sipv4;
+	struct net_device *dstdev;
 	int err;
 
 	c3cn_conn_debug("c3cn 0x%p, dev 0x%p.\n", c3cn, dev);
@@ -1590,6 +1615,13 @@ int cxgb3i_c3cn_connect(struct net_device *dev, struct s3_conn *c3cn,
 
 	c3cn->daddr.sin_port = usin->sin_port;
 	c3cn->daddr.sin_addr.s_addr = usin->sin_addr.s_addr;
+
+	dstdev = cxgb3i_find_dev(dev, usin->sin_addr.s_addr);
+	if (!dstdev || !is_cxgb3_dev(dstdev))
+		return -ENETUNREACH;
+
+	if (dstdev->priv_flags & IFF_802_1Q_VLAN)
+		dev = dstdev;
 
 	rt = find_route(dev, c3cn->saddr.sin_addr.s_addr,
 			c3cn->daddr.sin_addr.s_addr,

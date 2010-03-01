@@ -92,7 +92,7 @@ static struct buffer_head *ext4_xattr_cache_find(struct inode *,
 						 struct mb_cache_entry **);
 static void ext4_xattr_rehash(struct ext4_xattr_header *,
 			      struct ext4_xattr_entry *);
-static int ext4_xattr_list(struct inode *inode, char *buffer,
+static int ext4_xattr_list(struct dentry *dentry, char *buffer,
 			   size_t buffer_size);
 
 static struct mb_cache *ext4_xattr_cache;
@@ -140,7 +140,7 @@ ext4_xattr_handler(int name_index)
 ssize_t
 ext4_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
-	return ext4_xattr_list(dentry->d_inode, buffer, size);
+	return ext4_xattr_list(dentry, buffer, size);
 }
 
 static int
@@ -325,7 +325,7 @@ ext4_xattr_get(struct inode *inode, int name_index, const char *name,
 }
 
 static int
-ext4_xattr_list_entries(struct inode *inode, struct ext4_xattr_entry *entry,
+ext4_xattr_list_entries(struct dentry *dentry, struct ext4_xattr_entry *entry,
 			char *buffer, size_t buffer_size)
 {
 	size_t rest = buffer_size;
@@ -335,9 +335,10 @@ ext4_xattr_list_entries(struct inode *inode, struct ext4_xattr_entry *entry,
 			ext4_xattr_handler(entry->e_name_index);
 
 		if (handler) {
-			size_t size = handler->list(inode, buffer, rest,
+			size_t size = handler->list(dentry, buffer, rest,
 						    entry->e_name,
-						    entry->e_name_len);
+						    entry->e_name_len,
+						    handler->flags);
 			if (buffer) {
 				if (size > rest)
 					return -ERANGE;
@@ -350,8 +351,9 @@ ext4_xattr_list_entries(struct inode *inode, struct ext4_xattr_entry *entry,
 }
 
 static int
-ext4_xattr_block_list(struct inode *inode, char *buffer, size_t buffer_size)
+ext4_xattr_block_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
+	struct inode *inode = dentry->d_inode;
 	struct buffer_head *bh = NULL;
 	int error;
 
@@ -376,7 +378,7 @@ ext4_xattr_block_list(struct inode *inode, char *buffer, size_t buffer_size)
 		goto cleanup;
 	}
 	ext4_xattr_cache_insert(bh);
-	error = ext4_xattr_list_entries(inode, BFIRST(bh), buffer, buffer_size);
+	error = ext4_xattr_list_entries(dentry, BFIRST(bh), buffer, buffer_size);
 
 cleanup:
 	brelse(bh);
@@ -385,8 +387,9 @@ cleanup:
 }
 
 static int
-ext4_xattr_ibody_list(struct inode *inode, char *buffer, size_t buffer_size)
+ext4_xattr_ibody_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
+	struct inode *inode = dentry->d_inode;
 	struct ext4_xattr_ibody_header *header;
 	struct ext4_inode *raw_inode;
 	struct ext4_iloc iloc;
@@ -404,7 +407,7 @@ ext4_xattr_ibody_list(struct inode *inode, char *buffer, size_t buffer_size)
 	error = ext4_xattr_check_names(IFIRST(header), end);
 	if (error)
 		goto cleanup;
-	error = ext4_xattr_list_entries(inode, IFIRST(header),
+	error = ext4_xattr_list_entries(dentry, IFIRST(header),
 					buffer, buffer_size);
 
 cleanup:
@@ -423,12 +426,12 @@ cleanup:
  * used / required on success.
  */
 static int
-ext4_xattr_list(struct inode *inode, char *buffer, size_t buffer_size)
+ext4_xattr_list(struct dentry *dentry, char *buffer, size_t buffer_size)
 {
 	int i_error, b_error;
 
-	down_read(&EXT4_I(inode)->xattr_sem);
-	i_error = ext4_xattr_ibody_list(inode, buffer, buffer_size);
+	down_read(&EXT4_I(dentry->d_inode)->xattr_sem);
+	i_error = ext4_xattr_ibody_list(dentry, buffer, buffer_size);
 	if (i_error < 0) {
 		b_error = 0;
 	} else {
@@ -436,11 +439,11 @@ ext4_xattr_list(struct inode *inode, char *buffer, size_t buffer_size)
 			buffer += i_error;
 			buffer_size -= i_error;
 		}
-		b_error = ext4_xattr_block_list(inode, buffer, buffer_size);
+		b_error = ext4_xattr_block_list(dentry, buffer, buffer_size);
 		if (b_error < 0)
 			i_error = 0;
 	}
-	up_read(&EXT4_I(inode)->xattr_sem);
+	up_read(&EXT4_I(dentry->d_inode)->xattr_sem);
 	return i_error + b_error;
 }
 
@@ -1329,6 +1332,8 @@ retry:
 			goto cleanup;
 		kfree(b_entry_name);
 		kfree(buffer);
+		b_entry_name = NULL;
+		buffer = NULL;
 		brelse(is->iloc.bh);
 		kfree(is);
 		kfree(bs);

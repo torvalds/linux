@@ -1148,7 +1148,8 @@ static int vivi_open(struct file *file)
 		return -EBUSY;
 	}
 
-	dprintk(dev, 1, "open /dev/video%d type=%s users=%d\n", dev->vfd->num,
+	dprintk(dev, 1, "open %s type=%s users=%d\n",
+		video_device_node_name(dev->vfd),
 		v4l2_type_names[V4L2_BUF_TYPE_VIDEO_CAPTURE], dev->users);
 
 	/* allocate + initialize per filehandle data */
@@ -1221,8 +1222,7 @@ static int vivi_close(struct file *file)
 	struct vivi_fh         *fh = file->private_data;
 	struct vivi_dev *dev       = fh->dev;
 	struct vivi_dmaqueue *vidq = &dev->vidq;
-
-	int minor = video_devdata(file)->minor;
+	struct video_device  *vdev = video_devdata(file);
 
 	vivi_stop_thread(vidq);
 	videobuf_stop(&fh->vb_vidq);
@@ -1234,8 +1234,8 @@ static int vivi_close(struct file *file)
 	dev->users--;
 	mutex_unlock(&dev->mutex);
 
-	dprintk(dev, 1, "close called (minor=%d, users=%d)\n",
-		minor, dev->users);
+	dprintk(dev, 1, "close called (dev=%s, users=%d)\n",
+		video_device_node_name(vdev), dev->users);
 
 	return 0;
 }
@@ -1296,7 +1296,6 @@ static struct video_device vivi_template = {
 	.name		= "vivi",
 	.fops           = &vivi_fops,
 	.ioctl_ops 	= &vivi_ioctl_ops,
-	.minor		= -1,
 	.release	= video_device_release,
 
 	.tvnorms              = V4L2_STD_525_60,
@@ -1317,8 +1316,8 @@ static int vivi_release(void)
 		list_del(list);
 		dev = list_entry(list, struct vivi_dev, vivi_devlist);
 
-		v4l2_info(&dev->v4l2_dev, "unregistering /dev/video%d\n",
-			dev->vfd->num);
+		v4l2_info(&dev->v4l2_dev, "unregistering %s\n",
+			video_device_node_name(dev->vfd));
 		video_unregister_device(dev->vfd);
 		v4l2_device_unregister(&dev->v4l2_dev);
 		kfree(dev);
@@ -1372,15 +1371,12 @@ static int __init vivi_create_instance(int inst)
 	/* Now that everything is fine, let's add it to device list */
 	list_add_tail(&dev->vivi_devlist, &vivi_devlist);
 
-	snprintf(vfd->name, sizeof(vfd->name), "%s (%i)",
-			vivi_template.name, vfd->num);
-
 	if (video_nr >= 0)
 		video_nr++;
 
 	dev->vfd = vfd;
-	v4l2_info(&dev->v4l2_dev, "V4L2 device registered as /dev/video%d\n",
-			vfd->num);
+	v4l2_info(&dev->v4l2_dev, "V4L2 device registered as %s\n",
+		  video_device_node_name(vfd));
 	return 0;
 
 rel_vdev:

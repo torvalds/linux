@@ -145,7 +145,6 @@
 static const unsigned short normal_i2c[] = { 0x2c, 0x2d, 0x2e, I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm93);
 
 static int disable_block;
 module_param(disable_block, bool, 0);
@@ -2501,8 +2500,7 @@ static void lm93_init_client(struct i2c_client *client)
 }
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm93_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info)
+static int lm93_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	int mfr, ver;
@@ -2603,7 +2601,7 @@ static int lm93_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id lm93_id[] = {
-	{ "lm93", lm93 },
+	{ "lm93", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm93_id);
@@ -2617,7 +2615,7 @@ static struct i2c_driver lm93_driver = {
 	.remove		= lm93_remove,
 	.id_table	= lm93_id,
 	.detect		= lm93_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static int __init lm93_init(void)

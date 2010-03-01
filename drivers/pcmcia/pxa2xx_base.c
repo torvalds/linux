@@ -291,7 +291,7 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 		skt->nr = ops->first + i;
 		skt->ops = ops;
 		skt->socket.owner = ops->owner;
-		skt->socket.dev.parent = dev;
+		skt->socket.dev.parent = &dev->dev;
 		skt->socket.pci_irq = NO_IRQ;
 
 		ret = pxa2xx_drv_pcmcia_add_one(skt);
@@ -304,8 +304,8 @@ static int pxa2xx_drv_pcmcia_probe(struct platform_device *dev)
 			soc_pcmcia_remove_one(&sinfo->skt[i]);
 		kfree(sinfo);
 	} else {
-		pxa2xx_configure_sockets(dev);
-		dev_set_drvdata(dev, sinfo);
+		pxa2xx_configure_sockets(&dev->dev);
+		dev_set_drvdata(&dev->dev, sinfo);
 	}
 
 	return ret;
@@ -336,7 +336,7 @@ static int pxa2xx_drv_pcmcia_resume(struct device *dev)
 	return pcmcia_socket_dev_resume(dev);
 }
 
-static struct dev_pm_ops  pxa2xx_drv_pcmcia_pm_ops = {
+static const struct dev_pm_ops pxa2xx_drv_pcmcia_pm_ops = {
 	.suspend	= pxa2xx_drv_pcmcia_suspend,
 	.resume		= pxa2xx_drv_pcmcia_resume,
 };

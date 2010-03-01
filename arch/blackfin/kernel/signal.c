@@ -12,6 +12,7 @@
 #include <linux/binfmts.h>
 #include <linux/freezer.h>
 #include <linux/uaccess.h>
+#include <linux/tracehook.h>
 
 #include <asm/cacheflush.h>
 #include <asm/ucontext.h>
@@ -332,3 +333,20 @@ asmlinkage void do_signal(struct pt_regs *regs)
 		sigprocmask(SIG_SETMASK, &current->saved_sigmask, NULL);
 	}
 }
+
+/*
+ * notification of userspace execution resumption
+ */
+asmlinkage void do_notify_resume(struct pt_regs *regs)
+{
+	if (test_thread_flag(TIF_SIGPENDING) || test_thread_flag(TIF_RESTORE_SIGMASK))
+		do_signal(regs);
+
+	if (test_thread_flag(TIF_NOTIFY_RESUME)) {
+		clear_thread_flag(TIF_NOTIFY_RESUME);
+		tracehook_notify_resume(regs);
+		if (current->replacement_session_keyring)
+			key_replace_session_keyring();
+	}
+}
+

@@ -439,7 +439,7 @@ int ov9650_start(struct sd *sd)
 			err = m5602_write_bridge(sd, res_init_ov9650[i][1],
 				res_init_ov9650[i][2]);
 		else if (res_init_ov9650[i][0] == SENSOR) {
-			u8 data = res_init_ov9650[i][2];
+			data = res_init_ov9650[i][2];
 			err = m5602_write_sensor(sd,
 				res_init_ov9650[i][1], &data, 1);
 		}

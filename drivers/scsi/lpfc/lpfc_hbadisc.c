@@ -747,6 +747,10 @@ lpfc_linkdown(struct lpfc_hba *phba)
 
 	if (phba->link_state == LPFC_LINK_DOWN)
 		return 0;
+
+	/* Block all SCSI stack I/Os */
+	lpfc_scsi_dev_block(phba);
+
 	spin_lock_irq(&phba->hbalock);
 	phba->fcf.fcf_flag &= ~(FCF_AVAILABLE | FCF_DISCOVERED);
 	if (phba->link_state > LPFC_LINK_DOWN) {
@@ -1555,10 +1559,16 @@ lpfc_mbx_cmpl_read_fcf_record(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	 * to book keeping the FCFIs can be used.
 	 */
 	if (shdr_status || shdr_add_status) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"2521 READ_FCF_RECORD mailbox failed "
-				"with status x%x add_status x%x, mbx\n",
-				shdr_status, shdr_add_status);
+		if (shdr_status == STATUS_FCF_TABLE_EMPTY) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2726 READ_FCF_RECORD Indicates empty "
+					"FCF table.\n");
+		} else {
+			lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+					"2521 READ_FCF_RECORD mailbox failed "
+					"with status x%x add_status x%x, mbx\n",
+					shdr_status, shdr_add_status);
+		}
 		goto out;
 	}
 	/* Interpreting the returned information of FCF records */
@@ -1698,7 +1708,9 @@ lpfc_init_vpi_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		lpfc_vport_set_state(vport, FC_VPORT_FAILED);
 		return;
 	}
+	spin_lock_irq(&phba->hbalock);
 	vport->fc_flag &= ~FC_VPORT_NEEDS_INIT_VPI;
+	spin_unlock_irq(&phba->hbalock);
 
 	if (phba->link_flag & LS_NPIV_FAB_SUPPORTED)
 		lpfc_initial_fdisc(vport);
@@ -2259,7 +2271,10 @@ lpfc_mbx_cmpl_unreg_vpi(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 				 mb->mbxStatus);
 		break;
 	}
+	spin_lock_irq(&phba->hbalock);
 	vport->vpi_state &= ~LPFC_VPI_REGISTERED;
+	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+	spin_unlock_irq(&phba->hbalock);
 	vport->unreg_vpi_cmpl = VPORT_OK;
 	mempool_free(pmb, phba->mbox_mem_pool);
 	/*
@@ -4475,8 +4490,10 @@ lpfc_unregister_unused_fcf(struct lpfc_hba *phba)
 		(phba->sli3_options & LPFC_SLI3_NPIV_ENABLED))
 		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
 			lpfc_mbx_unreg_vpi(vports[i]);
+			spin_lock_irq(&phba->hbalock);
 			vports[i]->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 			vports[i]->vpi_state &= ~LPFC_VPI_REGISTERED;
+			spin_unlock_irq(&phba->hbalock);
 		}
 	lpfc_destroy_vport_work_array(phba, vports);
 

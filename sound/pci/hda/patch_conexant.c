@@ -29,6 +29,7 @@
 
 #include "hda_codec.h"
 #include "hda_local.h"
+#include "hda_beep.h"
 
 #define CXT_PIN_DIR_IN              0x00
 #define CXT_PIN_DIR_OUT             0x01
@@ -111,6 +112,7 @@ struct conexant_spec {
 	unsigned int dell_automute;
 	unsigned int port_d_mode;
 	unsigned char ext_mic_bias;
+	unsigned int dell_vostro;
 };
 
 static int conexant_playback_pcm_open(struct hda_pcm_stream *hinfo,
@@ -476,6 +478,7 @@ static void conexant_free(struct hda_codec *codec)
 		snd_array_free(&spec->jacks);
 	}
 #endif
+	snd_hda_detach_beep_device(codec);
 	kfree(codec->spec);
 }
 
@@ -2109,9 +2112,12 @@ static int cxt5066_mic_boost_mux_enum_get(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	int val;
+	hda_nid_t nid = kcontrol->private_value & 0xff;
+	int inout = (kcontrol->private_value & 0x100) ?
+		AC_AMP_GET_INPUT : AC_AMP_GET_OUTPUT;
 
-	val = snd_hda_codec_read(codec, 0x17, 0,
-		AC_VERB_GET_AMP_GAIN_MUTE, AC_AMP_GET_OUTPUT);
+	val = snd_hda_codec_read(codec, nid, 0,
+		AC_VERB_GET_AMP_GAIN_MUTE, inout);
 
 	ucontrol->value.enumerated.item[0] = val & AC_AMP_GAIN;
 	return 0;
@@ -2123,6 +2129,9 @@ static int cxt5066_mic_boost_mux_enum_put(struct snd_kcontrol *kcontrol,
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	const struct hda_input_mux *imux = &cxt5066_analog_mic_boost;
 	unsigned int idx;
+	hda_nid_t nid = kcontrol->private_value & 0xff;
+	int inout = (kcontrol->private_value & 0x100) ?
+		AC_AMP_SET_INPUT : AC_AMP_SET_OUTPUT;
 
 	if (!imux->num_items)
 		return 0;
@@ -2130,9 +2139,9 @@ static int cxt5066_mic_boost_mux_enum_put(struct snd_kcontrol *kcontrol,
 	if (idx >= imux->num_items)
 		idx = imux->num_items - 1;
 
-	snd_hda_codec_write_cache(codec, 0x17, 0,
+	snd_hda_codec_write_cache(codec, nid, 0,
 		AC_VERB_SET_AMP_GAIN_MUTE,
-		AC_AMP_SET_RIGHT | AC_AMP_SET_LEFT | AC_AMP_SET_OUTPUT |
+		AC_AMP_SET_RIGHT | AC_AMP_SET_LEFT | inout |
 			imux->items[idx].index);
 
 	return 1;
@@ -2201,14 +2210,28 @@ static struct snd_kcontrol_new cxt5066_mixers[] = {
 
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
-		.name = "Analog Mic Boost Capture Enum",
+		.name = "Ext Mic Boost Capture Enum",
 		.info = cxt5066_mic_boost_mux_enum_info,
 		.get = cxt5066_mic_boost_mux_enum_get,
 		.put = cxt5066_mic_boost_mux_enum_put,
+		.private_value = 0x17,
 	},
 
 	HDA_BIND_VOL("Capture Volume", &cxt5066_bind_capture_vol_others),
 	HDA_BIND_SW("Capture Switch", &cxt5066_bind_capture_sw_others),
+	{}
+};
+
+static struct snd_kcontrol_new cxt5066_vostro_mixers[] = {
+	{
+		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+		.name = "Int Mic Boost Capture Enum",
+		.info = cxt5066_mic_boost_mux_enum_info,
+		.get = cxt5066_mic_boost_mux_enum_get,
+		.put = cxt5066_mic_boost_mux_enum_put,
+		.private_value = 0x23 | 0x100,
+	},
+	HDA_CODEC_VOLUME_MONO("Beep Playback Volume", 0x13, 1, 0x0, HDA_OUTPUT),
 	{}
 };
 
@@ -2397,11 +2420,16 @@ static struct hda_verb cxt5066_init_verbs_portd_lo[] = {
 /* initialize jack-sensing, too */
 static int cxt5066_init(struct hda_codec *codec)
 {
+	struct conexant_spec *spec = codec->spec;
+
 	snd_printdd("CXT5066: init\n");
 	conexant_init(codec);
 	if (codec->patch_ops.unsol_event) {
 		cxt5066_hp_automute(codec);
-		cxt5066_automic(codec);
+		if (spec->dell_vostro)
+			cxt5066_vostro_automic(codec);
+		else
+			cxt5066_automic(codec);
 	}
 	return 0;
 }
@@ -2500,7 +2528,10 @@ static int patch_cxt5066(struct hda_codec *codec)
 		spec->init_verbs[0] = cxt5066_init_verbs_vostro;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixer_master_olpc;
 		spec->mixers[spec->num_mixers++] = cxt5066_mixers;
+		spec->mixers[spec->num_mixers++] = cxt5066_vostro_mixers;
 		spec->port_d_mode = 0;
+		spec->dell_vostro = 1;
+		snd_hda_attach_beep_device(codec, 0x13);
 
 		/* no S/PDIF out */
 		spec->multiout.dig_out_nid = 0;

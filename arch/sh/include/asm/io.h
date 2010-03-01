@@ -233,9 +233,15 @@ unsigned long long poke_real_address_q(unsigned long long addr,
  * doesn't exist, so everything must go through page tables.
  */
 #ifdef CONFIG_MMU
-void __iomem *__ioremap(unsigned long offset, unsigned long size,
-			unsigned long flags);
+void __iomem *__ioremap_caller(unsigned long offset, unsigned long size,
+			       unsigned long flags, void *caller);
 void __iounmap(void __iomem *addr);
+
+static inline void __iomem *
+__ioremap(unsigned long offset, unsigned long size, unsigned long flags)
+{
+	return __ioremap_caller(offset, size, flags, __builtin_return_address(0));
+}
 
 static inline void __iomem *
 __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
@@ -271,6 +277,7 @@ __ioremap_mode(unsigned long offset, unsigned long size, unsigned long flags)
 	return __ioremap(offset, size, flags);
 }
 #else
+#define __ioremap(offset, size, flags)		((void __iomem *)(offset))
 #define __ioremap_mode(offset, size, flags)	((void __iomem *)(offset))
 #define __iounmap(addr)				do { } while (0)
 #endif /* CONFIG_MMU */

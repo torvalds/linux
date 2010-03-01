@@ -164,7 +164,7 @@ static void lapic_timer_check_state(int state, struct acpi_processor *pr,
 		pr->power.timer_broadcast_on_state = state;
 }
 
-static void lapic_timer_propagate_broadcast(void *arg)
+static void __lapic_timer_propagate_broadcast(void *arg)
 {
 	struct acpi_processor *pr = (struct acpi_processor *) arg;
 	unsigned long reason;
@@ -173,6 +173,12 @@ static void lapic_timer_propagate_broadcast(void *arg)
 		CLOCK_EVT_NOTIFY_BROADCAST_ON : CLOCK_EVT_NOTIFY_BROADCAST_OFF;
 
 	clockevents_notify(reason, &pr->id);
+}
+
+static void lapic_timer_propagate_broadcast(struct acpi_processor *pr)
+{
+	smp_call_function_single(pr->id, __lapic_timer_propagate_broadcast,
+				 (void *)pr, 1);
 }
 
 /* Power(C) State timer broadcast control */
@@ -298,6 +304,28 @@ static int acpi_processor_get_power_info_fadt(struct acpi_processor *pr)
 	/* determine latencies from FADT */
 	pr->power.states[ACPI_STATE_C2].latency = acpi_gbl_FADT.C2latency;
 	pr->power.states[ACPI_STATE_C3].latency = acpi_gbl_FADT.C3latency;
+
+	/*
+	 * FADT specified C2 latency must be less than or equal to
+	 * 100 microseconds.
+	 */
+	if (acpi_gbl_FADT.C2latency > ACPI_PROCESSOR_MAX_C2_LATENCY) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			"C2 latency too large [%d]\n", acpi_gbl_FADT.C2latency));
+		/* invalidate C2 */
+		pr->power.states[ACPI_STATE_C2].address = 0;
+	}
+
+	/*
+	 * FADT supplied C3 latency must be less than or equal to
+	 * 1000 microseconds.
+	 */
+	if (acpi_gbl_FADT.C3latency > ACPI_PROCESSOR_MAX_C3_LATENCY) {
+		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+			"C3 latency too large [%d]\n", acpi_gbl_FADT.C3latency));
+		/* invalidate C3 */
+		pr->power.states[ACPI_STATE_C3].address = 0;
+	}
 
 	ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 			  "lvl2[0x%08x] lvl3[0x%08x]\n",
@@ -488,33 +516,6 @@ static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 	return status;
 }
 
-static void acpi_processor_power_verify_c2(struct acpi_processor_cx *cx)
-{
-
-	if (!cx->address)
-		return;
-
-	/*
-	 * C2 latency must be less than or equal to 100
-	 * microseconds.
-	 */
-	else if (cx->latency > ACPI_PROCESSOR_MAX_C2_LATENCY) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "latency too large [%d]\n", cx->latency));
-		return;
-	}
-
-	/*
-	 * Otherwise we've met all of our C2 requirements.
-	 * Normalize the C2 latency to expidite policy
-	 */
-	cx->valid = 1;
-
-	cx->latency_ticks = cx->latency;
-
-	return;
-}
-
 static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 					   struct acpi_processor_cx *cx)
 {
@@ -524,16 +525,6 @@ static void acpi_processor_power_verify_c3(struct acpi_processor *pr,
 
 	if (!cx->address)
 		return;
-
-	/*
-	 * C3 latency must be less than or equal to 1000
-	 * microseconds.
-	 */
-	else if (cx->latency > ACPI_PROCESSOR_MAX_C3_LATENCY) {
-		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-				  "latency too large [%d]\n", cx->latency));
-		return;
-	}
 
 	/*
 	 * PIIX4 Erratum #18: We don't support C3 when Type-F (fast)
@@ -623,7 +614,10 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 			break;
 
 		case ACPI_STATE_C2:
-			acpi_processor_power_verify_c2(cx);
+			if (!cx->address)
+				break;
+			cx->valid = 1; 
+			cx->latency_ticks = cx->latency; /* Normalize latency */
 			break;
 
 		case ACPI_STATE_C3:
@@ -638,8 +632,7 @@ static int acpi_processor_power_verify(struct acpi_processor *pr)
 		working++;
 	}
 
-	smp_call_function_single(pr->id, lapic_timer_propagate_broadcast,
-				 pr, 1);
+	lapic_timer_propagate_broadcast(pr);
 
 	return (working);
 }

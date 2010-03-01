@@ -2,6 +2,8 @@ config PPC_PSERIES
 	depends on PPC64 && PPC_BOOK3S
 	bool "IBM pSeries & new (POWER5-based) iSeries"
 	select MPIC
+	select PCI_MSI
+	select XICS
 	select PPC_I8259
 	select PPC_RTAS
 	select PPC_RTAS_DAEMON

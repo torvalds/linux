@@ -296,6 +296,7 @@ typedef int drm_ioctl_compat_t(struct file *filp, unsigned int cmd,
 #define	DRM_MASTER	0x2
 #define DRM_ROOT_ONLY	0x4
 #define DRM_CONTROL_ALLOW 0x8
+#define DRM_UNLOCKED	0x10
 
 struct drm_ioctl_desc {
 	unsigned int cmd;
@@ -1128,8 +1129,8 @@ static inline int drm_mtrr_del(int handle, unsigned long offset,
 				/* Driver support (drm_drv.h) */
 extern int drm_init(struct drm_driver *driver);
 extern void drm_exit(struct drm_driver *driver);
-extern int drm_ioctl(struct inode *inode, struct file *filp,
-		     unsigned int cmd, unsigned long arg);
+extern long drm_ioctl(struct file *filp,
+		      unsigned int cmd, unsigned long arg);
 extern long drm_compat_ioctl(struct file *filp,
 			     unsigned int cmd, unsigned long arg);
 extern int drm_lastclose(struct drm_device *dev);
@@ -1407,7 +1408,7 @@ extern int drm_ati_pcigart_cleanup(struct drm_device *dev,
 				   struct drm_ati_pcigart_info * gart_info);
 
 extern drm_dma_handle_t *drm_pci_alloc(struct drm_device *dev, size_t size,
-				       size_t align, dma_addr_t maxaddr);
+				       size_t align);
 extern void __drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 extern void drm_pci_free(struct drm_device *dev, drm_dma_handle_t * dmah);
 

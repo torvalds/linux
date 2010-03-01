@@ -6,7 +6,6 @@
 #define TICK_DO_TIMER_BOOT	-2
 
 DECLARE_PER_CPU(struct tick_device, tick_cpu_device);
-extern spinlock_t tick_device_lock;
 extern ktime_t tick_next_period;
 extern ktime_t tick_period;
 extern int tick_do_timer_cpu __read_mostly;

@@ -1787,7 +1787,6 @@ static const struct v4l2_ioctl_ops video_ioctl_ops = {
 static struct video_device go7007_template = {
 	.name		= "go7007",
 	.fops		= &go7007_fops,
-	.minor		= -1,
 	.release	= go7007_vfl_release,
 	.ioctl_ops	= &video_ioctl_ops,
 	.tvnorms	= V4L2_STD_ALL,
@@ -1817,8 +1816,8 @@ int go7007_v4l2_init(struct go7007 *go)
 	}
 	video_set_drvdata(go->video_dev, go);
 	++go->ref_count;
-	printk(KERN_INFO "%s: registered device video%d [v4l2]\n",
-	       go->video_dev->name, go->video_dev->num);
+	printk(KERN_INFO "%s: registered device %s [v4l2]\n",
+	       go->video_dev->name, video_device_node_name(go->video_dev));
 
 	return 0;
 }

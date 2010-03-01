@@ -192,7 +192,7 @@ struct irq_desc {
 	unsigned int		irq_count;	/* For detecting broken IRQs */
 	unsigned long		last_unhandled;	/* Aging timer for unhandled count */
 	unsigned int		irqs_unhandled;
-	spinlock_t		lock;
+	raw_spinlock_t		lock;
 #ifdef CONFIG_SMP
 	cpumask_var_t		affinity;
 	unsigned int		node;

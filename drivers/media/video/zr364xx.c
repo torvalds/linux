@@ -1455,7 +1455,6 @@ static struct video_device zr364xx_template = {
 	.fops = &zr364xx_fops,
 	.ioctl_ops = &zr364xx_ioctl_ops,
 	.release = video_device_release,
-	.minor = -1,
 };
 
 
@@ -1635,8 +1634,8 @@ static int zr364xx_probe(struct usb_interface *intf,
 
 	spin_lock_init(&cam->slock);
 
-	dev_info(&udev->dev, DRIVER_DESC " controlling video device %d\n",
-		 cam->vdev->num);
+	dev_info(&udev->dev, DRIVER_DESC " controlling device %s\n",
+		 video_device_node_name(cam->vdev));
 	return 0;
 }
 

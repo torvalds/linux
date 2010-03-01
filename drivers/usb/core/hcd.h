@@ -330,7 +330,7 @@ extern void usb_hcd_pci_remove(struct pci_dev *dev);
 extern void usb_hcd_pci_shutdown(struct pci_dev *dev);
 
 #ifdef CONFIG_PM_SLEEP
-extern struct dev_pm_ops	usb_hcd_pci_pm_ops;
+extern const struct dev_pm_ops usb_hcd_pci_pm_ops;
 #endif
 #endif /* CONFIG_PCI */
 

@@ -207,9 +207,8 @@ void __init check_writebuffer_bugs(void)
 	page = alloc_page(GFP_KERNEL);
 	if (page) {
 		unsigned long *p1, *p2;
-		pgprot_t prot = __pgprot(L_PTE_PRESENT|L_PTE_YOUNG|
-					 L_PTE_DIRTY|L_PTE_WRITE|
-					 L_PTE_MT_BUFFERABLE);
+		pgprot_t prot = __pgprot_modify(PAGE_KERNEL,
+					L_PTE_MT_MASK, L_PTE_MT_BUFFERABLE);
 
 		p1 = vmap(&page, 1, VM_IOREMAP, prot);
 		p2 = vmap(&page, 1, VM_IOREMAP, prot);

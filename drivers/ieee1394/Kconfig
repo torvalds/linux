@@ -1,8 +1,3 @@
-menu "IEEE 1394 (FireWire) support"
-	depends on PCI || BROKEN
-
-source "drivers/firewire/Kconfig"
-
 config IEEE1394
 	tristate "Legacy alternative FireWire driver stack"
 	depends on PCI || BROKEN
@@ -16,8 +11,13 @@ config IEEE1394
 	  is the core support only, you will also need to select a driver for
 	  your IEEE 1394 adapter.
 
-	  To compile this driver as a module, say M here: the
-	  module will be called ieee1394.
+	  To compile this driver as a module, say M here: the module will be
+	  called ieee1394.
+
+	  NOTE:
+	  ieee1394 is superseded by the newer firewire-core driver.  See
+	  http://ieee1394.wiki.kernel.org/index.php/Juju_Migration for
+	  further information on how to switch to the new FireWire drivers.
 
 config IEEE1394_OHCI1394
 	tristate "OHCI-1394 controllers"
@@ -29,19 +29,23 @@ config IEEE1394_OHCI1394
 	  use one of these chipsets.  It should work with any OHCI-1394
 	  compliant card, however.
 
-	  To compile this driver as a module, say M here: the
-	  module will be called ohci1394.
+	  To compile this driver as a module, say M here: the module will be
+	  called ohci1394.
 
 	  NOTE:
+	  ohci1394 is superseded by the newer firewire-ohci driver.  See
+	  http://ieee1394.wiki.kernel.org/index.php/Juju_Migration for
+	  further information on how to switch to the new FireWire drivers.
+
 	  If you want to install firewire-ohci and ohci1394 together, you
 	  should configure them only as modules and blacklist the driver(s)
 	  which you don't want to have auto-loaded.  Add either
 
-	      blacklist firewire-ohci
-	  or
 	      blacklist ohci1394
 	      blacklist video1394
 	      blacklist dv1394
+	  or
+	      blacklist firewire-ohci
 
 	  to /etc/modprobe.conf or /etc/modprobe.d/* and update modprobe.conf
 	  depending on your distribution.
@@ -58,8 +62,8 @@ config IEEE1394_PCILYNX
 	  Instruments PCILynx chip.  Note: this driver is written for revision
 	  2 of this chip and may not work with revision 0.
 
-	  To compile this driver as a module, say M here: the
-	  module will be called pcilynx.
+	  To compile this driver as a module, say M here: the module will be
+	  called pcilynx.
 
 	  Only some old and now very rare PCI and CardBus cards and
 	  PowerMacs G3 B&W contain the PCILynx controller.  Therefore
@@ -78,6 +82,14 @@ config IEEE1394_SBP2
 
 	  You should also enable support for disks, CD-ROMs, etc. in the SCSI
 	  configuration section.
+
+	  To compile this driver as a module, say M here: the module will be
+	  called sbp2.
+
+	  NOTE:
+	  sbp2 is superseded by the newer firewire-sbp2 driver. See
+	  http://ieee1394.wiki.kernel.org/index.php/Juju_Migration for
+	  further information on how to switch to the new FireWire drivers.
 
 config IEEE1394_SBP2_PHYS_DMA
 	bool "Enable replacement for physical DMA in SBP2"
@@ -111,6 +123,11 @@ config IEEE1394_ETH1394
 
 	  The module is called eth1394 although it does not emulate Ethernet.
 
+	  NOTE:
+	  eth1394 is superseded by the newer firewire-net driver. See
+	  http://ieee1394.wiki.kernel.org/index.php/Juju_Migration for
+	  further information on how to switch to the new FireWire drivers.
+
 config IEEE1394_RAWIO
 	tristate "raw1394 userspace interface"
 	depends on IEEE1394
@@ -122,6 +139,11 @@ config IEEE1394_RAWIO
 
 	  To compile this driver as a module, say M here: the module will be
 	  called raw1394.
+
+	  NOTE:
+	  raw1394 is superseded by the newer firewire-core driver. See
+	  http://ieee1394.wiki.kernel.org/index.php/Juju_Migration for
+	  further information on how to switch to the new FireWire drivers.
 
 config IEEE1394_VIDEO1394
 	tristate "video1394 userspace interface"
@@ -136,13 +158,18 @@ config IEEE1394_VIDEO1394
 	  To compile this driver as a module, say M here: the module will be
 	  called video1394.
 
+	  NOTE:
+	  video1394 is superseded by the newer firewire-core driver. See
+	  http://ieee1394.wiki.kernel.org/index.php/Juju_Migration for
+	  further information on how to switch to the new FireWire drivers.
+
 config IEEE1394_DV1394
 	tristate "dv1394 userspace interface (deprecated)"
 	depends on IEEE1394 && IEEE1394_OHCI1394
 	help
 	  The dv1394 driver is unsupported and may be removed from Linux in a
-	  future release.  Its functionality is now provided by raw1394 together
-	  with libraries such as libiec61883.
+	  future release.  Its functionality is now provided by either
+	  raw1394 or firewire-core together with libraries such as libiec61883.
 
 config IEEE1394_VERBOSEDEBUG
 	bool "Excessive debugging output"
@@ -153,5 +180,3 @@ config IEEE1394_VERBOSEDEBUG
 	  will quickly result in large amounts of data sent to the system log.
 
 	  Say Y if you really need the debugging output.  Everyone else says N.
-
-endmenu

@@ -303,7 +303,6 @@ struct cx23885_tsport {
 };
 
 struct cx23885_dev {
-	struct list_head           devlist;
 	atomic_t                   refcount;
 	struct v4l2_device 	   v4l2_dev;
 
@@ -398,8 +397,6 @@ static inline struct cx23885_dev *to_cx23885(struct v4l2_device *v4l2_dev)
 	v4l2_device_call_all(&dev->v4l2_dev, grpid, o, f, ##args)
 
 extern struct v4l2_subdev *cx23885_find_hw(struct cx23885_dev *dev, u32 hw);
-
-extern struct list_head cx23885_devlist;
 
 #define SRAM_CH01  0 /* Video A */
 #define SRAM_CH02  1 /* VBI A */

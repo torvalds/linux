@@ -1721,13 +1721,13 @@ extern int ieee80211_encrypt_fragment(
 	struct sk_buff *frag,
 	int hdr_len);
 
-extern int rtl8192_ieee80211_xmit(struct sk_buff *skb,
+extern int rtl8192_ieee80211_rtl_xmit(struct sk_buff *skb,
 			  struct net_device *dev);
 extern void ieee80211_txb_free(struct ieee80211_txb *);
 
 
 /* ieee80211_rx.c */
-extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
+extern int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats);
 extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 			     struct ieee80211_hdr_4addr *header,
@@ -1783,8 +1783,8 @@ extern void ieee80211_stop_protocol(struct ieee80211_device *ieee);
 extern void ieee80211_softmac_start_protocol(struct ieee80211_device *ieee);
 extern void ieee80211_softmac_stop_protocol(struct ieee80211_device *ieee);
 extern void ieee80211_reset_queue(struct ieee80211_device *ieee);
-extern void ieee80211_wake_queue(struct ieee80211_device *ieee);
-extern void ieee80211_stop_queue(struct ieee80211_device *ieee);
+extern void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee);
+extern void ieee80211_rtl_stop_queue(struct ieee80211_device *ieee);
 extern struct sk_buff *ieee80211_get_beacon(struct ieee80211_device *ieee);
 extern void ieee80211_start_send_beacons(struct ieee80211_device *ieee);
 extern void ieee80211_stop_send_beacons(struct ieee80211_device *ieee);

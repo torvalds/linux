@@ -85,7 +85,8 @@
 #define ACPI_LV_INIT                0x00000001
 #define ACPI_LV_DEBUG_OBJECT        0x00000002
 #define ACPI_LV_INFO                0x00000004
-#define ACPI_LV_ALL_EXCEPTIONS      0x00000007
+#define ACPI_LV_REPAIR              0x00000008
+#define ACPI_LV_ALL_EXCEPTIONS      0x0000000F
 
 /* Trace verbosity level 1 [Standard Trace Level] */
 
@@ -143,6 +144,7 @@
 #define ACPI_DB_INIT                ACPI_DEBUG_LEVEL (ACPI_LV_INIT)
 #define ACPI_DB_DEBUG_OBJECT        ACPI_DEBUG_LEVEL (ACPI_LV_DEBUG_OBJECT)
 #define ACPI_DB_INFO                ACPI_DEBUG_LEVEL (ACPI_LV_INFO)
+#define ACPI_DB_REPAIR              ACPI_DEBUG_LEVEL (ACPI_LV_REPAIR)
 #define ACPI_DB_ALL_EXCEPTIONS      ACPI_DEBUG_LEVEL (ACPI_LV_ALL_EXCEPTIONS)
 
 /* Trace level -- also used in the global "DebugLevel" */
@@ -174,8 +176,8 @@
 
 /* Defaults for debug_level, debug and normal */
 
-#define ACPI_DEBUG_DEFAULT          (ACPI_LV_INFO)
-#define ACPI_NORMAL_DEFAULT         (ACPI_LV_INIT | ACPI_LV_DEBUG_OBJECT)
+#define ACPI_DEBUG_DEFAULT          (ACPI_LV_INFO | ACPI_LV_REPAIR)
+#define ACPI_NORMAL_DEFAULT         (ACPI_LV_INIT | ACPI_LV_DEBUG_OBJECT | ACPI_LV_REPAIR)
 #define ACPI_DEBUG_ALL              (ACPI_LV_AML_DISASSEMBLE | ACPI_LV_ALL_EXCEPTIONS | ACPI_LV_ALL)
 
 #if defined (ACPI_DEBUG_OUTPUT) || !defined (ACPI_NO_ERROR_MESSAGES)

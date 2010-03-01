@@ -574,11 +574,11 @@ void ioc3_unregister_submodule(struct ioc3_submodule *is)
  * Device management *
  *********************/
 
-static char *
+static char * __devinitdata
 ioc3_class_names[]={"unknown", "IP27 BaseIO", "IP30 system", "MENET 1/2/3",
 			"MENET 4", "CADduo", "Altix Serial"};
 
-static int ioc3_class(struct ioc3_driver_data *idd)
+static int __devinit ioc3_class(struct ioc3_driver_data *idd)
 {
 	int res = IOC3_CLASS_NONE;
 	/* NIC-based logic */
@@ -601,7 +601,8 @@ static int ioc3_class(struct ioc3_driver_data *idd)
 	return res;
 }
 /* Adds a new instance of an IOC3 card */
-static int ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
+static int __devinit
+ioc3_probe(struct pci_dev *pdev, const struct pci_device_id *pci_id)
 {
 	struct ioc3_driver_data *idd;
 	uint32_t pcmd;
@@ -753,7 +754,7 @@ out:
 }
 
 /* Removes a particular instance of an IOC3 card. */
-static void ioc3_remove(struct pci_dev *pdev)
+static void __devexit ioc3_remove(struct pci_dev *pdev)
 {
 	int id;
 	struct ioc3_driver_data *idd;
@@ -805,7 +806,7 @@ static struct pci_driver ioc3_driver = {
 	.name = "IOC3",
 	.id_table = ioc3_id_table,
 	.probe = ioc3_probe,
-	.remove = ioc3_remove,
+	.remove = __devexit_p(ioc3_remove),
 };
 
 MODULE_DEVICE_TABLE(pci, ioc3_id_table);
@@ -815,15 +816,15 @@ MODULE_DEVICE_TABLE(pci, ioc3_id_table);
  *********************/
 
 /* Module load */
-static int __devinit ioc3_init(void)
+static int __init ioc3_init(void)
 {
 	if (ia64_platform_is("sn2"))
 		return pci_register_driver(&ioc3_driver);
-	return 0;
+	return -ENODEV;
 }
 
 /* Module unload */
-static void __devexit ioc3_exit(void)
+static void __exit ioc3_exit(void)
 {
 	pci_unregister_driver(&ioc3_driver);
 }

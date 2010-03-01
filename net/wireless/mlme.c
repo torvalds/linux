@@ -93,7 +93,18 @@ void cfg80211_send_rx_assoc(struct net_device *dev, const u8 *buf, size_t len)
 			}
 		}
 
-		WARN_ON(!bss);
+		/*
+		 * We might be coming here because the driver reported
+		 * a successful association at the same time as the
+		 * user requested a deauth. In that case, we will have
+		 * removed the BSS from the auth_bsses list due to the
+		 * deauth request when the assoc response makes it. If
+		 * the two code paths acquire the lock the other way
+		 * around, that's just the standard situation of a
+		 * deauth being requested while connected.
+		 */
+		if (!bss)
+			goto out;
 	} else if (wdev->conn) {
 		cfg80211_sme_failed_assoc(wdev);
 		/*

@@ -1953,6 +1953,8 @@ config BCM63XX_ENET
 
 source "drivers/net/fs_enet/Kconfig"
 
+source "drivers/net/octeon/Kconfig"
+
 endif # NET_ETHERNET
 
 #
@@ -2344,6 +2346,7 @@ config GELIC_NET
 
 config GELIC_WIRELESS
 	bool "PS3 Wireless support"
+	depends on WLAN
 	depends on GELIC_NET
 	select WIRELESS_EXT
 	help
@@ -2356,6 +2359,7 @@ config GELIC_WIRELESS
 config GELIC_WIRELESS_OLD_PSK_INTERFACE
        bool "PS3 Wireless private PSK interface (OBSOLETE)"
        depends on GELIC_WIRELESS
+       select WEXT_PRIV
        help
           This option retains the obsolete private interface to pass
           the PSK from user space programs to the driver.  The PSK

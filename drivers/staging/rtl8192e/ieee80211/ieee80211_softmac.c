@@ -684,7 +684,7 @@ void ieee80211_stop_scan(struct ieee80211_device *ieee)
 }
 
 /* called with ieee->lock held */
-void ieee80211_start_scan(struct ieee80211_device *ieee)
+void ieee80211_rtl_start_scan(struct ieee80211_device *ieee)
 {
 #ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(ieee) )
@@ -1430,7 +1430,7 @@ void ieee80211_associate_step1(struct ieee80211_device *ieee)
 	}
 }
 
-void ieee80211_auth_challenge(struct ieee80211_device *ieee, u8 *challenge, int chlen)
+void ieee80211_rtl_auth_challenge(struct ieee80211_device *ieee, u8 *challenge, int chlen)
 {
 	u8 *c;
 	struct sk_buff *skb;
@@ -2262,7 +2262,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 								ieee80211_associate_step2(ieee);
 							}else{
-								ieee80211_auth_challenge(ieee, challenge, chlen);
+								ieee80211_rtl_auth_challenge(ieee, challenge, chlen);
 							}
 						}else{
 							ieee->softmac_stats.rx_auth_rs_err++;
@@ -2376,7 +2376,7 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 			 * to check it any more.
 			 * */
 			//printk("error:no descriptor left@queue_index %d\n", queue_index);
-			//ieee80211_stop_queue(ieee);
+			//ieee80211_rtl_stop_queue(ieee);
 #ifdef USB_TX_DRIVER_AGGREGATION_ENABLE
 			skb_queue_tail(&ieee->skb_drv_aggQ[queue_index], txb->fragments[i]);
 #else
@@ -2440,7 +2440,7 @@ void ieee80211_reset_queue(struct ieee80211_device *ieee)
 
 }
 
-void ieee80211_wake_queue(struct ieee80211_device *ieee)
+void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee)
 {
 
 	unsigned long flags;
@@ -2481,7 +2481,7 @@ exit :
 }
 
 
-void ieee80211_stop_queue(struct ieee80211_device *ieee)
+void ieee80211_rtl_stop_queue(struct ieee80211_device *ieee)
 {
 	//unsigned long flags;
 	//spin_lock_irqsave(&ieee->lock,flags);
@@ -2706,7 +2706,7 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 
 	if (ieee->state == IEEE80211_NOLINK){
 		ieee->actscanning = true;
-		ieee80211_start_scan(ieee);
+		ieee80211_rtl_start_scan(ieee);
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
@@ -2775,7 +2775,7 @@ void ieee80211_associate_retry_wq(struct ieee80211_device *ieee)
 	{
 		ieee->is_roaming= false;
 		ieee->actscanning = true;
-		ieee80211_start_scan(ieee);
+		ieee80211_rtl_start_scan(ieee);
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 
@@ -3497,8 +3497,8 @@ void notify_wx_assoc_event(struct ieee80211_device *ieee)
 
 #if (LINUX_VERSION_CODE > KERNEL_VERSION(2,5,0))
 //EXPORT_SYMBOL(ieee80211_get_beacon);
-//EXPORT_SYMBOL(ieee80211_wake_queue);
-//EXPORT_SYMBOL(ieee80211_stop_queue);
+//EXPORT_SYMBOL(ieee80211_rtl_wake_queue);
+//EXPORT_SYMBOL(ieee80211_rtl_stop_queue);
 //EXPORT_SYMBOL(ieee80211_reset_queue);
 //EXPORT_SYMBOL(ieee80211_softmac_stop_protocol);
 //EXPORT_SYMBOL(ieee80211_softmac_start_protocol);
@@ -3518,8 +3518,8 @@ void notify_wx_assoc_event(struct ieee80211_device *ieee)
 //EXPORT_SYMBOL(ieee80211_start_scan_syncro);
 #else
 EXPORT_SYMBOL_NOVERS(ieee80211_get_beacon);
-EXPORT_SYMBOL_NOVERS(ieee80211_wake_queue);
-EXPORT_SYMBOL_NOVERS(ieee80211_stop_queue);
+EXPORT_SYMBOL_NOVERS(ieee80211_rtl_wake_queue);
+EXPORT_SYMBOL_NOVERS(ieee80211_rtl_stop_queue);
 EXPORT_SYMBOL_NOVERS(ieee80211_reset_queue);
 EXPORT_SYMBOL_NOVERS(ieee80211_softmac_stop_protocol);
 EXPORT_SYMBOL_NOVERS(ieee80211_softmac_start_protocol);

@@ -1306,13 +1306,8 @@ void igb_reset(struct igb_adapter *adapter)
 	hwm = min(((pba << 10) * 9 / 10),
 			((pba << 10) - 2 * adapter->max_frame_size));
 
-	if (mac->type < e1000_82576) {
-		fc->high_water = hwm & 0xFFF8;	/* 8-byte granularity */
-		fc->low_water = fc->high_water - 8;
-	} else {
-		fc->high_water = hwm & 0xFFF0;	/* 16-byte granularity */
-		fc->low_water = fc->high_water - 16;
-	}
+	fc->high_water = hwm & 0xFFF0;	/* 16-byte granularity */
+	fc->low_water = fc->high_water - 16;
 	fc->pause_time = 0xFFFF;
 	fc->send_xon = 1;
 	fc->current_mode = fc->requested_mode;

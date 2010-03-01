@@ -5345,9 +5345,6 @@ static const struct usb_action tas5130cxx_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0x01, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xa0, 0x01, ZC3XX_R001_SYSTEMOPERATING},
 	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
-	{0xa0, 0x07, ZC3XX_R0A5_EXPOSUREGAIN},
-	{0xa0, 0x02, ZC3XX_R0A6_EXPOSUREBLACKLVL},
-
 	{0xa0, 0x02, ZC3XX_R003_FRAMEWIDTHHIGH},
 	{0xa0, 0x80, ZC3XX_R004_FRAMEWIDTHLOW},
 	{0xa0, 0x01, ZC3XX_R005_FRAMEHEIGHTHIGH},
@@ -5364,27 +5361,27 @@ static const struct usb_action tas5130cxx_InitialScale[] = {	/* 320x240 */
 	{0xa0, 0xf7, ZC3XX_R101_SENSORCORRECTION},
 	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
 	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},
-	{0xa0, 0x95, ZC3XX_R18D_YTARGET},
+	{0xa0, 0x70, ZC3XX_R18D_YTARGET},
 	{0xa0, 0x50, ZC3XX_R1A8_DIGITALGAIN},
 	{0xa0, 0x00, 0x01ad},
 	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
 	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
 	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
 	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
+	{0xa0, 0x07, ZC3XX_R0A5_EXPOSUREGAIN},
+	{0xa0, 0x02, ZC3XX_R0A6_EXPOSUREBLACKLVL},
 	{}
 };
 static const struct usb_action tas5130cxx_Initial[] = {	/* 640x480 */
 	{0xa0, 0x01, ZC3XX_R000_SYSTEMCONTROL},
 	{0xa0, 0x40, ZC3XX_R002_CLOCKSELECT},
-	{0xa0, 0x03, ZC3XX_R008_CLOCKSETTING},
+	{0xa0, 0x00, ZC3XX_R008_CLOCKSETTING},
 	{0xa0, 0x02, ZC3XX_R010_CMOSSENSORSELECT},
 	{0xa0, 0x01, ZC3XX_R001_SYSTEMOPERATING},
 	{0xa0, 0x00, ZC3XX_R001_SYSTEMOPERATING},
 	{0xa0, 0x01, ZC3XX_R012_VIDEOCONTROLFUNC},
 	{0xa0, 0x01, ZC3XX_R001_SYSTEMOPERATING},
 	{0xa0, 0x05, ZC3XX_R012_VIDEOCONTROLFUNC},
-	{0xa0, 0x07, ZC3XX_R0A5_EXPOSUREGAIN},
-	{0xa0, 0x02, ZC3XX_R0A6_EXPOSUREBLACKLVL},
 	{0xa0, 0x02, ZC3XX_R003_FRAMEWIDTHHIGH},
 	{0xa0, 0x80, ZC3XX_R004_FRAMEWIDTHLOW},
 	{0xa0, 0x01, ZC3XX_R005_FRAMEHEIGHTHIGH},
@@ -5400,13 +5397,15 @@ static const struct usb_action tas5130cxx_Initial[] = {	/* 640x480 */
 	{0xa0, 0x37, ZC3XX_R101_SENSORCORRECTION},
 	{0xa0, 0x0d, ZC3XX_R100_OPERATIONMODE},
 	{0xa0, 0x06, ZC3XX_R189_AWBSTATUS},
-	{0xa0, 0x95, ZC3XX_R18D_YTARGET},
+	{0xa0, 0x70, ZC3XX_R18D_YTARGET},
 	{0xa0, 0x50, ZC3XX_R1A8_DIGITALGAIN},
 	{0xa0, 0x00, 0x01ad},
 	{0xa0, 0x03, ZC3XX_R1C5_SHARPNESSMODE},
 	{0xa0, 0x13, ZC3XX_R1CB_SHARPNESS05},
 	{0xa0, 0x08, ZC3XX_R250_DEADPIXELSMODE},
 	{0xa0, 0x08, ZC3XX_R301_EEPROMACCESS},
+	{0xa0, 0x07, ZC3XX_R0A5_EXPOSUREGAIN},
+	{0xa0, 0x02, ZC3XX_R0A6_EXPOSUREBLACKLVL},
 	{}
 };
 static const struct usb_action tas5130cxx_50HZ[] = {
@@ -6424,11 +6423,11 @@ static int vga_2wr_probe(struct gspca_dev *gspca_dev)
 	if (retword != 0)
 		return 0x0e;			/* PAS202BCB */
 
-	start_2wr_probe(dev, 0x02);		/* ?? */
+	start_2wr_probe(dev, 0x02);		/* TAS5130C */
 	i2c_write(gspca_dev, 0x01, 0xaa, 0x00);
 	retword = i2c_read(gspca_dev, 0x01);
 	if (retword != 0)
-		return 0x02;			/* ?? */
+		return 0x02;			/* TAS5130C */
 ov_check:
 	reg_r(gspca_dev, 0x0010);		/* ?? */
 	reg_r(gspca_dev, 0x0010);
@@ -6505,6 +6504,8 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	reg_r(gspca_dev, 0x0010);
 	/* value 0x4001 is meaningless */
 	if (retword != 0x4001) {
+		if ((retword & 0xff00) == 0x6400)
+			return 0x02;		/* TAS5130C */
 		for (i = 0; i < ARRAY_SIZE(chipset_revision_sensor); i++) {
 			if (chipset_revision_sensor[i].revision == retword) {
 				sd->chip_revision = retword;
@@ -6515,7 +6516,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 		}
 	}
 
-	reg_w(dev, 0x01, 0x0000);	/* check ?? */
+	reg_w(dev, 0x01, 0x0000);	/* check PB0330 */
 	reg_w(dev, 0x01, 0x0001);
 	reg_w(dev, 0xdd, 0x008b);
 	reg_w(dev, 0x0a, 0x0010);
@@ -6524,7 +6525,7 @@ static int vga_3wr_probe(struct gspca_dev *gspca_dev)
 	retword = i2c_read(gspca_dev, 0x00);
 	if (retword != 0) {
 		PDEBUG(D_PROBE, "probe 3wr vga type 0a ?");
-		return 0x0a;			/* ?? */
+		return 0x0a;			/* PB0330 */
 	}
 
 	reg_w(dev, 0x01, 0x0000);
@@ -6672,6 +6673,10 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		case 0:
 			PDEBUG(D_PROBE, "Find Sensor HV7131B");
 			sd->sensor = SENSOR_HV7131B;
+			break;
+		case 0x02:
+			PDEBUG(D_PROBE, "Sensor TAS5130C");
+			sd->sensor = SENSOR_TAS5130CXX;
 			break;
 		case 0x04:
 			PDEBUG(D_PROBE, "Find Sensor CS2102");
@@ -6866,11 +6871,14 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	case SENSOR_GC0305:
 	case SENSOR_OV7620:
 	case SENSOR_PO2030:
+	case SENSOR_TAS5130CXX:
 	case SENSOR_TAS5130C_VF0250:
 /*		msleep(100);			 * ?? */
 		reg_r(gspca_dev, 0x0002);	/* --> 0x40 */
 		reg_w(dev, 0x09, 0x01ad);	/* (from win traces) */
 		reg_w(dev, 0x15, 0x01ae);
+		if (sd->sensor == SENSOR_TAS5130CXX)
+			break;
 		reg_w(dev, 0x0d, 0x003a);
 		reg_w(dev, 0x02, 0x003b);
 		reg_w(dev, 0x00, 0x0038);
@@ -6887,6 +6895,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		break;
 	case SENSOR_PAS202B:
 	case SENSOR_GC0305:
+	case SENSOR_TAS5130CXX:
 		reg_r(gspca_dev, 0x0008);
 		/* fall thru */
 	case SENSOR_PO2030:
@@ -6928,6 +6937,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		reg_w(dev, 0x40, 0x0117);
 		break;
 	case SENSOR_GC0305:
+	case SENSOR_TAS5130CXX:
 		reg_w(dev, 0x09, 0x01ad);	/* (from win traces) */
 		reg_w(dev, 0x15, 0x01ae);
 		/* fall thru */
@@ -7220,7 +7230,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0ac8, 0x0302), .driver_info = SENSOR_PAS106},
 	{USB_DEVICE(0x0ac8, 0x301b)},
 	{USB_DEVICE(0x0ac8, 0x303b)},
-	{USB_DEVICE(0x0ac8, 0x305b), .driver_info = SENSOR_TAS5130C_VF0250},
+	{USB_DEVICE(0x0ac8, 0x305b)},
 	{USB_DEVICE(0x0ac8, 0x307b)},
 	{USB_DEVICE(0x10fd, 0x0128)},
 	{USB_DEVICE(0x10fd, 0x804d)},

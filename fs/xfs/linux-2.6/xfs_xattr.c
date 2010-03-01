@@ -30,10 +30,10 @@
 
 
 static int
-__xfs_xattr_get(struct inode *inode, const char *name,
+xfs_xattr_get(struct dentry *dentry, const char *name,
 		void *value, size_t size, int xflags)
 {
-	struct xfs_inode *ip = XFS_I(inode);
+	struct xfs_inode *ip = XFS_I(dentry->d_inode);
 	int error, asize = size;
 
 	if (strcmp(name, "") == 0)
@@ -52,10 +52,10 @@ __xfs_xattr_get(struct inode *inode, const char *name,
 }
 
 static int
-__xfs_xattr_set(struct inode *inode, const char *name, const void *value,
+xfs_xattr_set(struct dentry *dentry, const char *name, const void *value,
 		size_t size, int flags, int xflags)
 {
-	struct xfs_inode *ip = XFS_I(inode);
+	struct xfs_inode *ip = XFS_I(dentry->d_inode);
 
 	if (strcmp(name, "") == 0)
 		return -EINVAL;
@@ -71,75 +71,34 @@ __xfs_xattr_set(struct inode *inode, const char *name, const void *value,
 	return -xfs_attr_set(ip, name, (void *)value, size, xflags);
 }
 
-static int
-xfs_xattr_user_get(struct inode *inode, const char *name,
-		void *value, size_t size)
-{
-	return __xfs_xattr_get(inode, name, value, size, 0);
-}
-
-static int
-xfs_xattr_user_set(struct inode *inode, const char *name,
-		const void *value, size_t size, int flags)
-{
-	return __xfs_xattr_set(inode, name, value, size, flags, 0);
-}
-
 static struct xattr_handler xfs_xattr_user_handler = {
 	.prefix	= XATTR_USER_PREFIX,
-	.get	= xfs_xattr_user_get,
-	.set	= xfs_xattr_user_set,
+	.flags	= 0, /* no flags implies user namespace */
+	.get	= xfs_xattr_get,
+	.set	= xfs_xattr_set,
 };
-
-
-static int
-xfs_xattr_trusted_get(struct inode *inode, const char *name,
-		void *value, size_t size)
-{
-	return __xfs_xattr_get(inode, name, value, size, ATTR_ROOT);
-}
-
-static int
-xfs_xattr_trusted_set(struct inode *inode, const char *name,
-		const void *value, size_t size, int flags)
-{
-	return __xfs_xattr_set(inode, name, value, size, flags, ATTR_ROOT);
-}
 
 static struct xattr_handler xfs_xattr_trusted_handler = {
 	.prefix	= XATTR_TRUSTED_PREFIX,
-	.get	= xfs_xattr_trusted_get,
-	.set	= xfs_xattr_trusted_set,
+	.flags	= ATTR_ROOT,
+	.get	= xfs_xattr_get,
+	.set	= xfs_xattr_set,
 };
-
-
-static int
-xfs_xattr_secure_get(struct inode *inode, const char *name,
-		void *value, size_t size)
-{
-	return __xfs_xattr_get(inode, name, value, size, ATTR_SECURE);
-}
-
-static int
-xfs_xattr_secure_set(struct inode *inode, const char *name,
-		const void *value, size_t size, int flags)
-{
-	return __xfs_xattr_set(inode, name, value, size, flags, ATTR_SECURE);
-}
 
 static struct xattr_handler xfs_xattr_security_handler = {
 	.prefix	= XATTR_SECURITY_PREFIX,
-	.get	= xfs_xattr_secure_get,
-	.set	= xfs_xattr_secure_set,
+	.flags	= ATTR_SECURE,
+	.get	= xfs_xattr_get,
+	.set	= xfs_xattr_set,
 };
-
 
 struct xattr_handler *xfs_xattr_handlers[] = {
 	&xfs_xattr_user_handler,
 	&xfs_xattr_trusted_handler,
 	&xfs_xattr_security_handler,
 #ifdef CONFIG_XFS_POSIX_ACL
-	&xfs_xattr_system_handler,
+	&xfs_xattr_acl_access_handler,
+	&xfs_xattr_acl_default_handler,
 #endif
 	NULL
 };

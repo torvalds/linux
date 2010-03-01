@@ -60,11 +60,10 @@
         .globl  __bzero_begin
 __bzero_begin:
 
-	.globl	__bzero, __memset, 
+	.globl	__bzero
 	.globl	memset
 	.globl	__memset_start, __memset_end
 __memset_start:
-__memset:
 memset:
 	and	%o1, 0xff, %g3
 	sll	%g3, 8, %g2

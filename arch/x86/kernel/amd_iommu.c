@@ -19,7 +19,7 @@
 
 #include <linux/pci.h>
 #include <linux/gfp.h>
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/debugfs.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
@@ -1162,7 +1162,7 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 
 	address = (address % APERTURE_RANGE_SIZE) >> PAGE_SHIFT;
 
-	iommu_area_free(range->bitmap, address, pages);
+	bitmap_clear(range->bitmap, address, pages);
 
 }
 

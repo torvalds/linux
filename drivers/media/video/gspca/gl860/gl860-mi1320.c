@@ -345,7 +345,7 @@ static int mi1320_configure_alt(struct gspca_dev *gspca_dev)
 	return 0;
 }
 
-int mi1320_camera_settings(struct gspca_dev *gspca_dev)
+static int mi1320_camera_settings(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 

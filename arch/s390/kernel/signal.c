@@ -500,18 +500,10 @@ void do_signal(struct pt_regs *regs)
 				clear_thread_flag(TIF_RESTORE_SIGMASK);
 
 			/*
-			 * If we would have taken a single-step trap
-			 * for a normal instruction, act like we took
-			 * one for the handler setup.
-			 */
-			if (current->thread.per_info.single_step)
-				set_thread_flag(TIF_SINGLE_STEP);
-
-			/*
 			 * Let tracing know that we've done the handler setup.
 			 */
 			tracehook_signal_handler(signr, &info, &ka, regs,
-					 test_thread_flag(TIF_SINGLE_STEP));
+					current->thread.per_info.single_step);
 		}
 		return;
 	}

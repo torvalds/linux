@@ -14,6 +14,7 @@
 #include <linux/magic.h>
 #include <linux/sched.h>
 #include <linux/smp_lock.h>
+#include <linux/bitmap.h>
 
 /* Mark the filesystem dirty, so that chkdsk checks it when os/2 booted */
 
@@ -115,15 +116,13 @@ static void hpfs_put_super(struct super_block *s)
 unsigned hpfs_count_one_bitmap(struct super_block *s, secno secno)
 {
 	struct quad_buffer_head qbh;
-	unsigned *bits;
-	unsigned i, count;
-	if (!(bits = hpfs_map_4sectors(s, secno, &qbh, 4))) return 0;
-	count = 0;
-	for (i = 0; i < 2048 / sizeof(unsigned); i++) {
-		unsigned b; 
-		if (!bits[i]) continue;
-		for (b = bits[i]; b; b>>=1) count += b & 1;
-	}
+	unsigned long *bits;
+	unsigned count;
+
+	bits = hpfs_map_4sectors(s, secno, &qbh, 4);
+	if (!bits)
+		return 0;
+	count = bitmap_weight(bits, 2048 * BITS_PER_BYTE);
 	hpfs_brelse4(&qbh);
 	return count;
 }

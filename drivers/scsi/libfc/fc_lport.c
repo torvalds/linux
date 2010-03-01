@@ -537,7 +537,9 @@ int fc_fabric_login(struct fc_lport *lport)
 	int rc = -1;
 
 	mutex_lock(&lport->lp_mutex);
-	if (lport->state == LPORT_ST_DISABLED) {
+	if (lport->state == LPORT_ST_DISABLED ||
+	    lport->state == LPORT_ST_LOGO) {
+		fc_lport_state_enter(lport, LPORT_ST_RESET);
 		fc_lport_enter_reset(lport);
 		rc = 0;
 	}
@@ -966,6 +968,9 @@ static void fc_lport_enter_reset(struct fc_lport *lport)
 {
 	FC_LPORT_DBG(lport, "Entered RESET state from %s state\n",
 		     fc_lport_state(lport));
+
+	if (lport->state == LPORT_ST_DISABLED || lport->state == LPORT_ST_LOGO)
+		return;
 
 	if (lport->vport) {
 		if (lport->link_up)

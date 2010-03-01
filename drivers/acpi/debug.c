@@ -8,6 +8,7 @@
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/moduleparam.h>
+#include <linux/debugfs.h>
 #include <asm/uaccess.h>
 #include <acpi/acpi_drivers.h>
 
@@ -196,6 +197,80 @@ module_param_call(trace_state, param_set_trace_state, param_get_trace_state,
 		  NULL, 0644);
 
 /* --------------------------------------------------------------------------
+				DebugFS Interface
+   -------------------------------------------------------------------------- */
+
+static ssize_t cm_write(struct file *file, const char __user *user_buf,
+			size_t count, loff_t *ppos)
+{
+	static char *buf;
+	static int uncopied_bytes;
+	struct acpi_table_header table;
+	acpi_status status;
+
+	if (!(*ppos)) {
+		/* parse the table header to get the table length */
+		if (count <= sizeof(struct acpi_table_header))
+			return -EINVAL;
+		if (copy_from_user(&table, user_buf,
+			sizeof(struct acpi_table_header)))
+			return -EFAULT;
+		uncopied_bytes = table.length;
+		buf = kzalloc(uncopied_bytes, GFP_KERNEL);
+		if (!buf)
+			return -ENOMEM;
+	}
+
+	if (uncopied_bytes < count) {
+		kfree(buf);
+		return -EINVAL;
+	}
+
+	if (copy_from_user(buf + (*ppos), user_buf, count)) {
+		kfree(buf);
+		return -EFAULT;
+	}
+
+	uncopied_bytes -= count;
+	*ppos += count;
+
+	if (!uncopied_bytes) {
+		status = acpi_install_method(buf);
+		kfree(buf);
+		if (ACPI_FAILURE(status))
+			return -EINVAL;
+		add_taint(TAINT_OVERRIDDEN_ACPI_TABLE);
+	}
+
+	return count;
+}
+
+static const struct file_operations cm_fops = {
+	.write = cm_write,
+};
+
+static int acpi_debugfs_init(void)
+{
+	struct dentry *acpi_dir, *cm_dentry;
+
+	acpi_dir = debugfs_create_dir("acpi", NULL);
+	if (!acpi_dir)
+		goto err;
+
+	cm_dentry = debugfs_create_file("custom_method", S_IWUGO,
+					acpi_dir, NULL, &cm_fops);
+	if (!cm_dentry)
+		goto err;
+
+	return 0;
+
+err:
+	if (acpi_dir)
+		debugfs_remove(acpi_dir);
+	return -EINVAL;
+}
+
+/* --------------------------------------------------------------------------
                               FS Interface (/proc)
    -------------------------------------------------------------------------- */
 #ifdef CONFIG_ACPI_PROCFS
@@ -286,7 +361,7 @@ static const struct file_operations acpi_system_debug_proc_fops = {
 };
 #endif
 
-int __init acpi_debug_init(void)
+int __init acpi_procfs_init(void)
 {
 #ifdef CONFIG_ACPI_PROCFS
 	struct proc_dir_entry *entry;
@@ -320,4 +395,11 @@ int __init acpi_debug_init(void)
 #else
 	return 0;
 #endif
+}
+
+int __init acpi_debug_init(void)
+{
+	acpi_debugfs_init();
+	acpi_procfs_init();
+	return 0;
 }

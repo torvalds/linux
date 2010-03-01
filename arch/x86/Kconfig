@@ -49,7 +49,10 @@ config X86
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
 	select HAVE_HW_BREAKPOINT
+	select PERF_EVENTS
+	select ANON_INODES
 	select HAVE_ARCH_KMEMCHECK
 	select HAVE_USER_RETURN_NOTIFIER
 
@@ -1244,6 +1247,11 @@ config ARCH_MEMORY_PROBE
 	def_bool X86_64
 	depends on MEMORY_HOTPLUG
 
+config ILLEGAL_POINTER_VALUE
+       hex
+       default 0 if X86_32
+       default 0xdead000000000000 if X86_64
+
 source "mm/Kconfig"
 
 config HIGHPTE
@@ -2012,18 +2020,9 @@ config SCx200HR_TIMER
 	  processor goes idle (as is done by the scheduler).  The
 	  other workaround is idle=poll boot option.
 
-config GEODE_MFGPT_TIMER
-	def_bool y
-	prompt "Geode Multi-Function General Purpose Timer (MFGPT) events"
-	depends on MGEODE_LX && GENERIC_TIME && GENERIC_CLOCKEVENTS
-	---help---
-	  This driver provides a clock event source based on the MFGPT
-	  timer(s) in the CS5535 and CS5536 companion chip for the geode.
-	  MFGPTs have a better resolution and max interval than the
-	  generic PIT, and are suitable for use as high-res timers.
-
 config OLPC
 	bool "One Laptop Per Child support"
+	select GPIOLIB
 	default n
 	---help---
 	  Add support for detecting the unique features of the OLPC

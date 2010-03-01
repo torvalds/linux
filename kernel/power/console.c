@@ -6,7 +6,7 @@
 
 #include <linux/vt_kern.h>
 #include <linux/kbd_kern.h>
-#include <linux/console.h>
+#include <linux/vt.h>
 #include <linux/module.h>
 #include "power.h"
 
@@ -21,8 +21,7 @@ int pm_prepare_console(void)
 	if (orig_fgconsole < 0)
 		return 1;
 
-	orig_kmsg = kmsg_redirect;
-	kmsg_redirect = SUSPEND_CONSOLE;
+	orig_kmsg = vt_kmsg_redirect(SUSPEND_CONSOLE);
 	return 0;
 }
 
@@ -30,7 +29,7 @@ void pm_restore_console(void)
 {
 	if (orig_fgconsole >= 0) {
 		vt_move_to_console(orig_fgconsole, 0);
-		kmsg_redirect = orig_kmsg;
+		vt_kmsg_redirect(orig_kmsg);
 	}
 }
 #endif

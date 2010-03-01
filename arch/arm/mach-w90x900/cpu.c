@@ -96,6 +96,7 @@ static struct clk_lookup nuc900_clkregs[] = {
 
 struct plat_serial8250_port nuc900_uart_data[] = {
 	NUC900_8250PORT(UART0),
+	{},
 };
 
 struct platform_device nuc900_serial_device = {

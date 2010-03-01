@@ -456,7 +456,7 @@ static int pxa_rtc_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops pxa_rtc_pm_ops = {
+static const struct dev_pm_ops pxa_rtc_pm_ops = {
 	.suspend	= pxa_rtc_suspend,
 	.resume		= pxa_rtc_resume,
 };

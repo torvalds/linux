@@ -287,7 +287,8 @@ acpi_status acpi_ps_execute_method(struct acpi_evaluate_info *info)
 	/* Invoke an internal method if necessary */
 
 	if (info->obj_desc->method.method_flags & AML_METHOD_INTERNAL_ONLY) {
-		status = info->obj_desc->method.implementation(walk_state);
+		status =
+		    info->obj_desc->method.extra.implementation(walk_state);
 		info->return_object = walk_state->return_desc;
 
 		/* Cleanup states */

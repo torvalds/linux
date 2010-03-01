@@ -66,32 +66,6 @@ MODULE_PARM_DESC(alt, "alternate setting to use for video endpoint");
 static LIST_HEAD(cx231xx_devlist);
 static DEFINE_MUTEX(cx231xx_devlist_mutex);
 
-struct cx231xx *cx231xx_get_device(int minor,
-				   enum v4l2_buf_type *fh_type, int *has_radio)
-{
-	struct cx231xx *h, *dev = NULL;
-
-	*fh_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	*has_radio = 0;
-
-	mutex_lock(&cx231xx_devlist_mutex);
-	list_for_each_entry(h, &cx231xx_devlist, devlist) {
-		if (h->vdev->minor == minor)
-			dev = h;
-		if (h->vbi_dev->minor == minor) {
-			dev = h;
-			*fh_type = V4L2_BUF_TYPE_VBI_CAPTURE;
-		}
-		if (h->radio_dev && h->radio_dev->minor == minor) {
-			dev = h;
-			*has_radio = 1;
-		}
-	}
-	mutex_unlock(&cx231xx_devlist_mutex);
-
-	return dev;
-}
-
 /*
  * cx231xx_realease_resources()
  * unregisters the v4l2,i2c and usb devices

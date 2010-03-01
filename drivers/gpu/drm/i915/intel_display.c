@@ -70,8 +70,6 @@ struct intel_limit {
     intel_p2_t	    p2;
     bool (* find_pll)(const intel_limit_t *, struct drm_crtc *,
 		      int, int, intel_clock_t *);
-    bool (* find_reduced_pll)(const intel_limit_t *, struct drm_crtc *,
-			      int, int, intel_clock_t *);
 };
 
 #define I8XX_DOT_MIN		  25000
@@ -243,11 +241,11 @@ struct intel_limit {
 #define IRONLAKE_VCO_MIN         1760000
 #define IRONLAKE_VCO_MAX         3510000
 #define IRONLAKE_N_MIN           1
-#define IRONLAKE_N_MAX           5
+#define IRONLAKE_N_MAX           6
 #define IRONLAKE_M_MIN           79
-#define IRONLAKE_M_MAX           118
+#define IRONLAKE_M_MAX           127
 #define IRONLAKE_M1_MIN          12
-#define IRONLAKE_M1_MAX          23
+#define IRONLAKE_M1_MAX          22
 #define IRONLAKE_M2_MIN          5
 #define IRONLAKE_M2_MAX          9
 #define IRONLAKE_P_SDVO_DAC_MIN  5
@@ -262,18 +260,20 @@ struct intel_limit {
 #define IRONLAKE_P2_LVDS_FAST    7  /* double channel */
 #define IRONLAKE_P2_DOT_LIMIT    225000 /* 225Mhz */
 
+#define IRONLAKE_P_DISPLAY_PORT_MIN	10
+#define IRONLAKE_P_DISPLAY_PORT_MAX	20
+#define IRONLAKE_P2_DISPLAY_PORT_FAST	10
+#define IRONLAKE_P2_DISPLAY_PORT_SLOW	10
+#define IRONLAKE_P2_DISPLAY_PORT_LIMIT	0
+#define IRONLAKE_P1_DISPLAY_PORT_MIN	1
+#define IRONLAKE_P1_DISPLAY_PORT_MAX	2
+
 static bool
 intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 		    int target, int refclk, intel_clock_t *best_clock);
 static bool
-intel_find_best_reduced_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			    int target, int refclk, intel_clock_t *best_clock);
-static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *best_clock);
-static bool
-intel_ironlake_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			     int target, int refclk, intel_clock_t *best_clock);
 
 static bool
 intel_find_pll_g4x_dp(const intel_limit_t *, struct drm_crtc *crtc,
@@ -294,7 +294,6 @@ static const intel_limit_t intel_limits_i8xx_dvo = {
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_SLOW,	.p2_fast = I8XX_P2_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
 static const intel_limit_t intel_limits_i8xx_lvds = {
@@ -309,7 +308,6 @@ static const intel_limit_t intel_limits_i8xx_lvds = {
 	.p2  = { .dot_limit = I8XX_P2_SLOW_LIMIT,
 		 .p2_slow = I8XX_P2_LVDS_SLOW,	.p2_fast = I8XX_P2_LVDS_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 	
 static const intel_limit_t intel_limits_i9xx_sdvo = {
@@ -324,7 +322,6 @@ static const intel_limit_t intel_limits_i9xx_sdvo = {
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
 static const intel_limit_t intel_limits_i9xx_lvds = {
@@ -342,7 +339,6 @@ static const intel_limit_t intel_limits_i9xx_lvds = {
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
     /* below parameter and function is for G4X Chipset Family*/
@@ -360,7 +356,6 @@ static const intel_limit_t intel_limits_g4x_sdvo = {
 		 .p2_fast = G4X_P2_SDVO_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_hdmi = {
@@ -377,7 +372,6 @@ static const intel_limit_t intel_limits_g4x_hdmi = {
 		 .p2_fast = G4X_P2_HDMI_DAC_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
@@ -402,7 +396,6 @@ static const intel_limit_t intel_limits_g4x_single_channel_lvds = {
 		 .p2_fast = G4X_P2_SINGLE_CHANNEL_LVDS_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
@@ -427,7 +420,6 @@ static const intel_limit_t intel_limits_g4x_dual_channel_lvds = {
 		 .p2_fast = G4X_P2_DUAL_CHANNEL_LVDS_FAST
 	},
 	.find_pll = intel_g4x_find_best_PLL,
-	.find_reduced_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_g4x_display_port = {
@@ -465,7 +457,6 @@ static const intel_limit_t intel_limits_pineview_sdvo = {
 	.p2  = { .dot_limit = I9XX_P2_SDVO_DAC_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_SDVO_DAC_SLOW,	.p2_fast = I9XX_P2_SDVO_DAC_FAST },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
 static const intel_limit_t intel_limits_pineview_lvds = {
@@ -481,7 +472,6 @@ static const intel_limit_t intel_limits_pineview_lvds = {
 	.p2  = { .dot_limit = I9XX_P2_LVDS_SLOW_LIMIT,
 		 .p2_slow = I9XX_P2_LVDS_SLOW,	.p2_fast = I9XX_P2_LVDS_SLOW },
 	.find_pll = intel_find_best_PLL,
-	.find_reduced_pll = intel_find_best_reduced_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_sdvo = {
@@ -496,7 +486,7 @@ static const intel_limit_t intel_limits_ironlake_sdvo = {
 	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
 		 .p2_slow = IRONLAKE_P2_SDVO_DAC_SLOW,
 		 .p2_fast = IRONLAKE_P2_SDVO_DAC_FAST },
-	.find_pll = intel_ironlake_find_best_PLL,
+	.find_pll = intel_g4x_find_best_PLL,
 };
 
 static const intel_limit_t intel_limits_ironlake_lvds = {
@@ -511,7 +501,30 @@ static const intel_limit_t intel_limits_ironlake_lvds = {
 	.p2  = { .dot_limit = IRONLAKE_P2_DOT_LIMIT,
 		 .p2_slow = IRONLAKE_P2_LVDS_SLOW,
 		 .p2_fast = IRONLAKE_P2_LVDS_FAST },
-	.find_pll = intel_ironlake_find_best_PLL,
+	.find_pll = intel_g4x_find_best_PLL,
+};
+
+static const intel_limit_t intel_limits_ironlake_display_port = {
+        .dot = { .min = IRONLAKE_DOT_MIN,
+                 .max = IRONLAKE_DOT_MAX },
+        .vco = { .min = IRONLAKE_VCO_MIN,
+                 .max = IRONLAKE_VCO_MAX},
+        .n   = { .min = IRONLAKE_N_MIN,
+                 .max = IRONLAKE_N_MAX },
+        .m   = { .min = IRONLAKE_M_MIN,
+                 .max = IRONLAKE_M_MAX },
+        .m1  = { .min = IRONLAKE_M1_MIN,
+                 .max = IRONLAKE_M1_MAX },
+        .m2  = { .min = IRONLAKE_M2_MIN,
+                 .max = IRONLAKE_M2_MAX },
+        .p   = { .min = IRONLAKE_P_DISPLAY_PORT_MIN,
+                 .max = IRONLAKE_P_DISPLAY_PORT_MAX },
+        .p1  = { .min = IRONLAKE_P1_DISPLAY_PORT_MIN,
+                 .max = IRONLAKE_P1_DISPLAY_PORT_MAX},
+        .p2  = { .dot_limit = IRONLAKE_P2_DISPLAY_PORT_LIMIT,
+                 .p2_slow = IRONLAKE_P2_DISPLAY_PORT_SLOW,
+                 .p2_fast = IRONLAKE_P2_DISPLAY_PORT_FAST },
+        .find_pll = intel_find_pll_ironlake_dp,
 };
 
 static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc)
@@ -519,6 +532,9 @@ static const intel_limit_t *intel_ironlake_limit(struct drm_crtc *crtc)
 	const intel_limit_t *limit;
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS))
 		limit = &intel_limits_ironlake_lvds;
+	else if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT) ||
+			HAS_eDP)
+		limit = &intel_limits_ironlake_display_port;
 	else
 		limit = &intel_limits_ironlake_sdvo;
 
@@ -737,46 +753,6 @@ intel_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	return (err != target);
 }
 
-
-static bool
-intel_find_best_reduced_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			    int target, int refclk, intel_clock_t *best_clock)
-
-{
-	struct drm_device *dev = crtc->dev;
-	intel_clock_t clock;
-	int err = target;
-	bool found = false;
-
-	memcpy(&clock, best_clock, sizeof(intel_clock_t));
-
-	for (clock.m1 = limit->m1.min; clock.m1 <= limit->m1.max; clock.m1++) {
-		for (clock.m2 = limit->m2.min; clock.m2 <= limit->m2.max; clock.m2++) {
-			/* m1 is always 0 in Pineview */
-			if (clock.m2 >= clock.m1 && !IS_PINEVIEW(dev))
-				break;
-			for (clock.n = limit->n.min; clock.n <= limit->n.max;
-			     clock.n++) {
-				int this_err;
-
-				intel_clock(dev, refclk, &clock);
-
-				if (!intel_PLL_is_valid(crtc, &clock))
-					continue;
-
-				this_err = abs(clock.dot - target);
-				if (this_err < err) {
-					*best_clock = clock;
-					err = this_err;
-					found = true;
-				}
-			}
-		}
-	}
-
-	return found;
-}
-
 static bool
 intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 			int target, int refclk, intel_clock_t *best_clock)
@@ -791,7 +767,13 @@ intel_g4x_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
 	found = false;
 
 	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		if ((I915_READ(LVDS) & LVDS_CLKB_POWER_MASK) ==
+		int lvds_reg;
+
+		if (IS_IRONLAKE(dev))
+			lvds_reg = PCH_LVDS;
+		else
+			lvds_reg = LVDS;
+		if ((I915_READ(lvds_reg) & LVDS_CLKB_POWER_MASK) ==
 		    LVDS_CLKB_POWER_UP)
 			clock.p2 = limit->p2.p2_fast;
 		else
@@ -839,6 +821,11 @@ intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	intel_clock_t clock;
+
+	/* return directly when it is eDP */
+	if (HAS_eDP)
+		return true;
+
 	if (target < 200000) {
 		clock.n = 1;
 		clock.p1 = 2;
@@ -854,68 +841,6 @@ intel_find_pll_ironlake_dp(const intel_limit_t *limit, struct drm_crtc *crtc,
 	}
 	intel_clock(dev, refclk, &clock);
 	memcpy(best_clock, &clock, sizeof(intel_clock_t));
-	return true;
-}
-
-static bool
-intel_ironlake_find_best_PLL(const intel_limit_t *limit, struct drm_crtc *crtc,
-			     int target, int refclk, intel_clock_t *best_clock)
-{
-	struct drm_device *dev = crtc->dev;
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	intel_clock_t clock;
-	int err_most = 47;
-	int err_min = 10000;
-
-	/* eDP has only 2 clock choice, no n/m/p setting */
-	if (HAS_eDP)
-		return true;
-
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_DISPLAYPORT))
-		return intel_find_pll_ironlake_dp(limit, crtc, target,
-					       refclk, best_clock);
-
-	if (intel_pipe_has_type(crtc, INTEL_OUTPUT_LVDS)) {
-		if ((I915_READ(PCH_LVDS) & LVDS_CLKB_POWER_MASK) ==
-		    LVDS_CLKB_POWER_UP)
-			clock.p2 = limit->p2.p2_fast;
-		else
-			clock.p2 = limit->p2.p2_slow;
-	} else {
-		if (target < limit->p2.dot_limit)
-			clock.p2 = limit->p2.p2_slow;
-		else
-			clock.p2 = limit->p2.p2_fast;
-	}
-
-	memset(best_clock, 0, sizeof(*best_clock));
-	for (clock.p1 = limit->p1.max; clock.p1 >= limit->p1.min; clock.p1--) {
-		/* based on hardware requriment prefer smaller n to precision */
-		for (clock.n = limit->n.min; clock.n <= limit->n.max; clock.n++) {
-			/* based on hardware requirment prefere larger m1,m2 */
-			for (clock.m1 = limit->m1.max;
-			     clock.m1 >= limit->m1.min; clock.m1--) {
-				for (clock.m2 = limit->m2.max;
-				     clock.m2 >= limit->m2.min; clock.m2--) {
-					int this_err;
-
-					intel_clock(dev, refclk, &clock);
-					if (!intel_PLL_is_valid(crtc, &clock))
-						continue;
-					this_err = abs((10000 - (target*10000/clock.dot)));
-					if (this_err < err_most) {
-						*best_clock = clock;
-						/* found on first matching */
-						goto out;
-					} else if (this_err < err_min) {
-						*best_clock = clock;
-						err_min = this_err;
-					}
-				}
-			}
-		}
-	}
-out:
 	return true;
 }
 
@@ -1282,7 +1207,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 		return ret;
 	}
 
-	ret = i915_gem_object_set_to_gtt_domain(obj, 1);
+	ret = i915_gem_object_set_to_display_plane(obj);
 	if (ret != 0) {
 		i915_gem_object_unpin(obj);
 		mutex_unlock(&dev->struct_mutex);
@@ -1493,6 +1418,10 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 	int trans_vsync_reg = (pipe == 0) ? TRANS_VSYNC_A : TRANS_VSYNC_B;
 	u32 temp;
 	int tries = 5, j, n;
+	u32 pipe_bpc;
+
+	temp = I915_READ(pipeconf_reg);
+	pipe_bpc = temp & PIPE_BPC_MASK;
 
 	/* XXX: When our outputs are all unaware of DPMS modes other than off
 	 * and on, we should map those modes to DRM_MODE_DPMS_OFF in the CRTC.
@@ -1524,6 +1453,12 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 			/* enable PCH FDI RX PLL, wait warmup plus DMI latency */
 			temp = I915_READ(fdi_rx_reg);
+			/*
+			 * make the BPC in FDI Rx be consistent with that in
+			 * pipeconf reg.
+			 */
+			temp &= ~(0x7 << 16);
+			temp |= (pipe_bpc << 11);
 			I915_WRITE(fdi_rx_reg, temp | FDI_RX_PLL_ENABLE |
 					FDI_SEL_PCDCLK |
 					FDI_DP_PORT_WIDTH_X4); /* default 4 lanes */
@@ -1666,6 +1601,12 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 
 			/* enable PCH transcoder */
 			temp = I915_READ(transconf_reg);
+			/*
+			 * make the BPC in transcoder be consistent with
+			 * that in pipeconf reg.
+			 */
+			temp &= ~PIPE_BPC_MASK;
+			temp |= pipe_bpc;
 			I915_WRITE(transconf_reg, temp | TRANS_ENABLE);
 			I915_READ(transconf_reg);
 
@@ -1745,6 +1686,9 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 		I915_READ(fdi_tx_reg);
 
 		temp = I915_READ(fdi_rx_reg);
+		/* BPC in FDI rx is consistent with that in pipeconf */
+		temp &= ~(0x07 << 16);
+		temp |= (pipe_bpc << 11);
 		I915_WRITE(fdi_rx_reg, temp & ~FDI_RX_ENABLE);
 		I915_READ(fdi_rx_reg);
 
@@ -1789,7 +1733,12 @@ static void ironlake_crtc_dpms(struct drm_crtc *crtc, int mode)
 				}
 			}
 		}
-
+		temp = I915_READ(transconf_reg);
+		/* BPC in transcoder is consistent with that in pipeconf */
+		temp &= ~PIPE_BPC_MASK;
+		temp |= pipe_bpc;
+		I915_WRITE(transconf_reg, temp);
+		I915_READ(transconf_reg);
 		udelay(100);
 
 		/* disable PCH DPLL */
@@ -2448,7 +2397,7 @@ static void pineview_enable_cxsr(struct drm_device *dev, unsigned long clock,
  * A value of 5us seems to be a good balance; safe for very low end
  * platforms but not overly aggressive on lower latency configs.
  */
-const static int latency_ns = 5000;
+static const int latency_ns = 5000;
 
 static int i9xx_get_fifo_size(struct drm_device *dev, int plane)
 {
@@ -2559,7 +2508,7 @@ static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
 	/* Calc sr entries for one plane configs */
 	if (sr_hdisplay && (!planea_clock || !planeb_clock)) {
 		/* self-refresh has much higher latency */
-		const static int sr_latency_ns = 12000;
+		static const int sr_latency_ns = 12000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
 		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
@@ -2598,7 +2547,7 @@ static void i965_update_wm(struct drm_device *dev, int planea_clock,
 	/* Calc sr entries for one plane configs */
 	if (sr_hdisplay && (!planea_clock || !planeb_clock)) {
 		/* self-refresh has much higher latency */
-		const static int sr_latency_ns = 12000;
+		static const int sr_latency_ns = 12000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
 		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
@@ -2667,7 +2616,7 @@ static void i9xx_update_wm(struct drm_device *dev, int planea_clock,
 	if (HAS_FW_BLC(dev) && sr_hdisplay &&
 	    (!planea_clock || !planeb_clock)) {
 		/* self-refresh has much higher latency */
-		const static int sr_latency_ns = 6000;
+		static const int sr_latency_ns = 6000;
 
 		sr_clock = planea_clock ? planea_clock : planeb_clock;
 		line_time_us = ((sr_hdisplay * 1000) / sr_clock);
@@ -2906,10 +2855,8 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		return -EINVAL;
 	}
 
-	if (is_lvds && limit->find_reduced_pll &&
-			dev_priv->lvds_downclock_avail) {
-		memcpy(&reduced_clock, &clock, sizeof(intel_clock_t));
-		has_reduced_clock = limit->find_reduced_pll(limit, crtc,
+	if (is_lvds && dev_priv->lvds_downclock_avail) {
+		has_reduced_clock = limit->find_pll(limit, crtc,
 							    dev_priv->lvds_downclock,
 							    refclk,
 							    &reduced_clock);
@@ -2969,6 +2916,33 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 
 		/* determine panel color depth */
 		temp = I915_READ(pipeconf_reg);
+		temp &= ~PIPE_BPC_MASK;
+		if (is_lvds) {
+			int lvds_reg = I915_READ(PCH_LVDS);
+			/* the BPC will be 6 if it is 18-bit LVDS panel */
+			if ((lvds_reg & LVDS_A3_POWER_MASK) == LVDS_A3_POWER_UP)
+				temp |= PIPE_8BPC;
+			else
+				temp |= PIPE_6BPC;
+		} else if (is_edp) {
+			switch (dev_priv->edp_bpp/3) {
+			case 8:
+				temp |= PIPE_8BPC;
+				break;
+			case 10:
+				temp |= PIPE_10BPC;
+				break;
+			case 6:
+				temp |= PIPE_6BPC;
+				break;
+			case 12:
+				temp |= PIPE_12BPC;
+				break;
+			}
+		} else
+			temp |= PIPE_8BPC;
+		I915_WRITE(pipeconf_reg, temp);
+		I915_READ(pipeconf_reg);
 
 		switch (temp & PIPE_BPC_MASK) {
 		case PIPE_8BPC:
@@ -3195,7 +3169,20 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		 * appropriately here, but we need to look more thoroughly into how
 		 * panels behave in the two modes.
 		 */
-
+		/* set the dithering flag */
+		if (IS_I965G(dev)) {
+			if (dev_priv->lvds_dither) {
+				if (IS_IRONLAKE(dev))
+					pipeconf |= PIPE_ENABLE_DITHER;
+				else
+					lvds |= LVDS_ENABLE_DITHER;
+			} else {
+				if (IS_IRONLAKE(dev))
+					pipeconf &= ~PIPE_ENABLE_DITHER;
+				else
+					lvds &= ~LVDS_ENABLE_DITHER;
+			}
+		}
 		I915_WRITE(lvds_reg, lvds);
 		I915_READ(lvds_reg);
 	}
@@ -3385,7 +3372,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 
 	/* we only need to pin inside GTT if cursor is non-phy */
 	mutex_lock(&dev->struct_mutex);
-	if (!dev_priv->cursor_needs_physical) {
+	if (!dev_priv->info->cursor_needs_physical) {
 		ret = i915_gem_object_pin(bo, PAGE_SIZE);
 		if (ret) {
 			DRM_ERROR("failed to pin cursor bo\n");
@@ -3420,7 +3407,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	I915_WRITE(base, addr);
 
 	if (intel_crtc->cursor_bo) {
-		if (dev_priv->cursor_needs_physical) {
+		if (dev_priv->info->cursor_needs_physical) {
 			if (intel_crtc->cursor_bo != bo)
 				i915_gem_detach_phys_object(dev, intel_crtc->cursor_bo);
 		} else
@@ -3779,125 +3766,6 @@ static void intel_gpu_idle_timer(unsigned long arg)
 	queue_work(dev_priv->wq, &dev_priv->idle_work);
 }
 
-void intel_increase_renderclock(struct drm_device *dev, bool schedule)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	if (IS_IRONLAKE(dev))
-		return;
-
-	if (!dev_priv->render_reclock_avail) {
-		DRM_DEBUG_DRIVER("not reclocking render clock\n");
-		return;
-	}
-
-	/* Restore render clock frequency to original value */
-	if (IS_G4X(dev) || IS_I9XX(dev))
-		pci_write_config_word(dev->pdev, GCFGC, dev_priv->orig_clock);
-	else if (IS_I85X(dev))
-		pci_write_config_word(dev->pdev, HPLLCC, dev_priv->orig_clock);
-	DRM_DEBUG_DRIVER("increasing render clock frequency\n");
-
-	/* Schedule downclock */
-	if (schedule)
-		mod_timer(&dev_priv->idle_timer, jiffies +
-			  msecs_to_jiffies(GPU_IDLE_TIMEOUT));
-}
-
-void intel_decrease_renderclock(struct drm_device *dev)
-{
-	drm_i915_private_t *dev_priv = dev->dev_private;
-
-	if (IS_IRONLAKE(dev))
-		return;
-
-	if (!dev_priv->render_reclock_avail) {
-		DRM_DEBUG_DRIVER("not reclocking render clock\n");
-		return;
-	}
-
-	if (IS_G4X(dev)) {
-		u16 gcfgc;
-
-		/* Adjust render clock... */
-		pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
-
-		/* Down to minimum... */
-		gcfgc &= ~GM45_GC_RENDER_CLOCK_MASK;
-		gcfgc |= GM45_GC_RENDER_CLOCK_266_MHZ;
-
-		pci_write_config_word(dev->pdev, GCFGC, gcfgc);
-	} else if (IS_I965G(dev)) {
-		u16 gcfgc;
-
-		/* Adjust render clock... */
-		pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
-
-		/* Down to minimum... */
-		gcfgc &= ~I965_GC_RENDER_CLOCK_MASK;
-		gcfgc |= I965_GC_RENDER_CLOCK_267_MHZ;
-
-		pci_write_config_word(dev->pdev, GCFGC, gcfgc);
-	} else if (IS_I945G(dev) || IS_I945GM(dev)) {
-		u16 gcfgc;
-
-		/* Adjust render clock... */
-		pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
-
-		/* Down to minimum... */
-		gcfgc &= ~I945_GC_RENDER_CLOCK_MASK;
-		gcfgc |= I945_GC_RENDER_CLOCK_166_MHZ;
-
-		pci_write_config_word(dev->pdev, GCFGC, gcfgc);
-	} else if (IS_I915G(dev)) {
-		u16 gcfgc;
-
-		/* Adjust render clock... */
-		pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
-
-		/* Down to minimum... */
-		gcfgc &= ~I915_GC_RENDER_CLOCK_MASK;
-		gcfgc |= I915_GC_RENDER_CLOCK_166_MHZ;
-
-		pci_write_config_word(dev->pdev, GCFGC, gcfgc);
-	} else if (IS_I85X(dev)) {
-		u16 hpllcc;
-
-		/* Adjust render clock... */
-		pci_read_config_word(dev->pdev, HPLLCC, &hpllcc);
-
-		/* Up to maximum... */
-		hpllcc &= ~GC_CLOCK_CONTROL_MASK;
-		hpllcc |= GC_CLOCK_133_200;
-
-		pci_write_config_word(dev->pdev, HPLLCC, hpllcc);
-	}
-	DRM_DEBUG_DRIVER("decreasing render clock frequency\n");
-}
-
-/* Note that no increase function is needed for this - increase_renderclock()
- *  will also rewrite these bits
- */
-void intel_decrease_displayclock(struct drm_device *dev)
-{
-	if (IS_IRONLAKE(dev))
-		return;
-
-	if (IS_I945G(dev) || IS_I945GM(dev) || IS_I915G(dev) ||
-	    IS_I915GM(dev)) {
-		u16 gcfgc;
-
-		/* Adjust render clock... */
-		pci_read_config_word(dev->pdev, GCFGC, &gcfgc);
-
-		/* Down to minimum... */
-		gcfgc &= ~0xf0;
-		gcfgc |= 0x80;
-
-		pci_write_config_word(dev->pdev, GCFGC, gcfgc);
-	}
-}
-
 #define CRTC_IDLE_TIMEOUT 1000 /* ms */
 
 static void intel_crtc_idle_timer(unsigned long arg)
@@ -4011,12 +3879,6 @@ static void intel_idle_update(struct work_struct *work)
 
 	mutex_lock(&dev->struct_mutex);
 
-	/* GPU isn't processing, downclock it. */
-	if (!dev_priv->busy) {
-		intel_decrease_renderclock(dev);
-		intel_decrease_displayclock(dev);
-	}
-
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		/* Skip inactive CRTCs */
 		if (!crtc->fb)
@@ -4050,13 +3912,11 @@ void intel_mark_busy(struct drm_device *dev, struct drm_gem_object *obj)
 	if (!drm_core_check_feature(dev, DRIVER_MODESET))
 		return;
 
-	if (!dev_priv->busy) {
+	if (!dev_priv->busy)
 		dev_priv->busy = true;
-		intel_increase_renderclock(dev, true);
-	} else {
+	else
 		mod_timer(&dev_priv->idle_timer, jiffies +
 			  msecs_to_jiffies(GPU_IDLE_TIMEOUT));
-	}
 
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		if (!crtc->fb)
@@ -4400,29 +4260,43 @@ static void intel_setup_outputs(struct drm_device *dev)
 		bool found = false;
 
 		if (I915_READ(SDVOB) & SDVO_DETECTED) {
+			DRM_DEBUG_KMS("probing SDVOB\n");
 			found = intel_sdvo_init(dev, SDVOB);
-			if (!found && SUPPORTS_INTEGRATED_HDMI(dev))
+			if (!found && SUPPORTS_INTEGRATED_HDMI(dev)) {
+				DRM_DEBUG_KMS("probing HDMI on SDVOB\n");
 				intel_hdmi_init(dev, SDVOB);
+			}
 
-			if (!found && SUPPORTS_INTEGRATED_DP(dev))
+			if (!found && SUPPORTS_INTEGRATED_DP(dev)) {
+				DRM_DEBUG_KMS("probing DP_B\n");
 				intel_dp_init(dev, DP_B);
+			}
 		}
 
 		/* Before G4X SDVOC doesn't have its own detect register */
 
-		if (I915_READ(SDVOB) & SDVO_DETECTED)
+		if (I915_READ(SDVOB) & SDVO_DETECTED) {
+			DRM_DEBUG_KMS("probing SDVOC\n");
 			found = intel_sdvo_init(dev, SDVOC);
+		}
 
 		if (!found && (I915_READ(SDVOC) & SDVO_DETECTED)) {
 
-			if (SUPPORTS_INTEGRATED_HDMI(dev))
+			if (SUPPORTS_INTEGRATED_HDMI(dev)) {
+				DRM_DEBUG_KMS("probing HDMI on SDVOC\n");
 				intel_hdmi_init(dev, SDVOC);
-			if (SUPPORTS_INTEGRATED_DP(dev))
+			}
+			if (SUPPORTS_INTEGRATED_DP(dev)) {
+				DRM_DEBUG_KMS("probing DP_C\n");
 				intel_dp_init(dev, DP_C);
+			}
 		}
 
-		if (SUPPORTS_INTEGRATED_DP(dev) && (I915_READ(DP_D) & DP_DETECTED))
+		if (SUPPORTS_INTEGRATED_DP(dev) &&
+		    (I915_READ(DP_D) & DP_DETECTED)) {
+			DRM_DEBUG_KMS("probing DP_D\n");
 			intel_dp_init(dev, DP_D);
+		}
 	} else if (IS_I8XX(dev))
 		intel_dvo_init(dev);
 
@@ -4527,6 +4401,42 @@ static const struct drm_mode_config_funcs intel_mode_funcs = {
 	.fb_changed = intelfb_probe,
 };
 
+static struct drm_gem_object *
+intel_alloc_power_context(struct drm_device *dev)
+{
+	struct drm_gem_object *pwrctx;
+	int ret;
+
+	pwrctx = drm_gem_object_alloc(dev, 4096);
+	if (!pwrctx) {
+		DRM_DEBUG("failed to alloc power context, RC6 disabled\n");
+		return NULL;
+	}
+
+	mutex_lock(&dev->struct_mutex);
+	ret = i915_gem_object_pin(pwrctx, 4096);
+	if (ret) {
+		DRM_ERROR("failed to pin power context: %d\n", ret);
+		goto err_unref;
+	}
+
+	ret = i915_gem_object_set_to_gtt_domain(pwrctx, 1);
+	if (ret) {
+		DRM_ERROR("failed to set-domain on power context: %d\n", ret);
+		goto err_unpin;
+	}
+	mutex_unlock(&dev->struct_mutex);
+
+	return pwrctx;
+
+err_unpin:
+	i915_gem_object_unpin(pwrctx);
+err_unref:
+	drm_gem_object_unreference(pwrctx);
+	mutex_unlock(&dev->struct_mutex);
+	return NULL;
+}
+
 void intel_init_clock_gating(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
@@ -4579,42 +4489,27 @@ void intel_init_clock_gating(struct drm_device *dev)
 	 * GPU can automatically power down the render unit if given a page
 	 * to save state.
 	 */
-	if (I915_HAS_RC6(dev)) {
-		struct drm_gem_object *pwrctx;
-		struct drm_i915_gem_object *obj_priv;
-		int ret;
+	if (I915_HAS_RC6(dev) && drm_core_check_feature(dev, DRIVER_MODESET)) {
+		struct drm_i915_gem_object *obj_priv = NULL;
 
 		if (dev_priv->pwrctx) {
 			obj_priv = dev_priv->pwrctx->driver_private;
 		} else {
-			pwrctx = drm_gem_object_alloc(dev, 4096);
-			if (!pwrctx) {
-				DRM_DEBUG("failed to alloc power context, "
-					  "RC6 disabled\n");
-				goto out;
+			struct drm_gem_object *pwrctx;
+
+			pwrctx = intel_alloc_power_context(dev);
+			if (pwrctx) {
+				dev_priv->pwrctx = pwrctx;
+				obj_priv = pwrctx->driver_private;
 			}
-
-			ret = i915_gem_object_pin(pwrctx, 4096);
-			if (ret) {
-				DRM_ERROR("failed to pin power context: %d\n",
-					  ret);
-				drm_gem_object_unreference(pwrctx);
-				goto out;
-			}
-
-			i915_gem_object_set_to_gtt_domain(pwrctx, 1);
-
-			dev_priv->pwrctx = pwrctx;
-			obj_priv = pwrctx->driver_private;
 		}
 
-		I915_WRITE(PWRCTXA, obj_priv->gtt_offset | PWRCTX_EN);
-		I915_WRITE(MCHBAR_RENDER_STANDBY,
-			   I915_READ(MCHBAR_RENDER_STANDBY) & ~RCX_SW_EXIT);
+		if (obj_priv) {
+			I915_WRITE(PWRCTXA, obj_priv->gtt_offset | PWRCTX_EN);
+			I915_WRITE(MCHBAR_RENDER_STANDBY,
+				   I915_READ(MCHBAR_RENDER_STANDBY) & ~RCX_SW_EXIT);
+		}
 	}
-
-out:
-	return;
 }
 
 /* Set up chip specific display functions */
@@ -4770,7 +4665,6 @@ void intel_modeset_cleanup(struct drm_device *dev)
 		del_timer_sync(&intel_crtc->idle_timer);
 	}
 
-	intel_increase_renderclock(dev, false);
 	del_timer_sync(&dev_priv->idle_timer);
 
 	if (dev_priv->display.disable_fbc)

@@ -809,6 +809,9 @@ static struct resource wm831x_wdt_resources[] = {
 
 static struct mfd_cell wm8310_devs[] = {
 	{
+		.name = "wm831x-backup",
+	},
+	{
 		.name = "wm831x-buckv",
 		.id = 1,
 		.num_resources = ARRAY_SIZE(wm831x_dcdc1_resources),
@@ -962,6 +965,9 @@ static struct mfd_cell wm8310_devs[] = {
 
 static struct mfd_cell wm8311_devs[] = {
 	{
+		.name = "wm831x-backup",
+	},
+	{
 		.name = "wm831x-buckv",
 		.id = 1,
 		.num_resources = ARRAY_SIZE(wm831x_dcdc1_resources),
@@ -1095,6 +1101,9 @@ static struct mfd_cell wm8311_devs[] = {
 };
 
 static struct mfd_cell wm8312_devs[] = {
+	{
+		.name = "wm831x-backup",
+	},
 	{
 		.name = "wm831x-buckv",
 		.id = 1,

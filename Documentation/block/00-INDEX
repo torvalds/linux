@@ -1,7 +1,5 @@
 00-INDEX
 	- This file
-as-iosched.txt
-	- Anticipatory IO scheduler
 barrier.txt
 	- I/O Barriers
 biodoc.txt

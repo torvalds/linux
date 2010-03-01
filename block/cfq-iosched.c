@@ -208,8 +208,6 @@ struct cfq_data {
 	/* Root service tree for cfq_groups */
 	struct cfq_rb_root grp_service_tree;
 	struct cfq_group root_group;
-	/* Number of active cfq groups on group service tree */
-	int nr_groups;
 
 	/*
 	 * The priority currently being served
@@ -283,7 +281,7 @@ struct cfq_data {
 	 */
 	struct cfq_queue oom_cfqq;
 
-	unsigned long last_end_sync_rq;
+	unsigned long last_delayed_sync;
 
 	/* List of cfq groups being managed on this device*/
 	struct hlist_head cfqg_list;
@@ -294,8 +292,7 @@ static struct cfq_group *cfq_get_next_cfqg(struct cfq_data *cfqd);
 
 static struct cfq_rb_root *service_tree_for(struct cfq_group *cfqg,
 					    enum wl_prio_t prio,
-					    enum wl_type_t type,
-					    struct cfq_data *cfqd)
+					    enum wl_type_t type)
 {
 	if (!cfqg)
 		return NULL;
@@ -319,7 +316,6 @@ enum cfqq_state_flags {
 	CFQ_CFQQ_FLAG_coop,		/* cfqq is shared */
 	CFQ_CFQQ_FLAG_deep,		/* sync cfqq experienced large depth */
 	CFQ_CFQQ_FLAG_wait_busy,	/* Waiting for next request */
-	CFQ_CFQQ_FLAG_wait_busy_done,	/* Got new request. Expire the queue */
 };
 
 #define CFQ_CFQQ_FNS(name)						\
@@ -348,7 +344,6 @@ CFQ_CFQQ_FNS(sync);
 CFQ_CFQQ_FNS(coop);
 CFQ_CFQQ_FNS(deep);
 CFQ_CFQQ_FNS(wait_busy);
-CFQ_CFQQ_FNS(wait_busy_done);
 #undef CFQ_CFQQ_FNS
 
 #ifdef CONFIG_DEBUG_CFQ_IOSCHED
@@ -844,7 +839,6 @@ cfq_group_service_tree_add(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 	__cfq_group_service_tree_add(st, cfqg);
 	cfqg->on_st = true;
-	cfqd->nr_groups++;
 	st->total_weight += cfqg->weight;
 }
 
@@ -865,7 +859,6 @@ cfq_group_service_tree_del(struct cfq_data *cfqd, struct cfq_group *cfqg)
 
 	cfq_log_cfqg(cfqd, cfqg, "del_from_rr group");
 	cfqg->on_st = false;
-	cfqd->nr_groups--;
 	st->total_weight -= cfqg->weight;
 	if (!RB_EMPTY_NODE(&cfqg->rb_node))
 		cfq_rb_erase(&cfqg->rb_node, st);
@@ -1152,7 +1145,7 @@ static void cfq_service_tree_add(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 #endif
 
 	service_tree = service_tree_for(cfqq->cfqg, cfqq_prio(cfqq),
-						cfqq_type(cfqq), cfqd);
+						cfqq_type(cfqq));
 	if (cfq_class_idle(cfqq)) {
 		rb_key = CFQ_IDLE_DELAY;
 		parent = rb_last(&service_tree->rb);
@@ -1515,9 +1508,6 @@ static int cfq_allow_merge(struct request_queue *q, struct request *rq,
 	struct cfq_io_context *cic;
 	struct cfq_queue *cfqq;
 
-	/* Deny merge if bio and rq don't belong to same cfq group */
-	if ((RQ_CFQQ(rq))->cfqg != cfq_get_cfqg(cfqd, 0))
-		return false;
 	/*
 	 * Disallow merge of a sync bio into an async request.
 	 */
@@ -1574,7 +1564,6 @@ __cfq_slice_expired(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 
 	cfq_clear_cfqq_wait_request(cfqq);
 	cfq_clear_cfqq_wait_busy(cfqq);
-	cfq_clear_cfqq_wait_busy_done(cfqq);
 
 	/*
 	 * store what was left of this slice, if the queue idled/timed out
@@ -1619,7 +1608,7 @@ static struct cfq_queue *cfq_get_next_queue(struct cfq_data *cfqd)
 {
 	struct cfq_rb_root *service_tree =
 		service_tree_for(cfqd->serving_group, cfqd->serving_prio,
-					cfqd->serving_type, cfqd);
+					cfqd->serving_type);
 
 	if (!cfqd->rq_queued)
 		return NULL;
@@ -1678,11 +1667,15 @@ static inline sector_t cfq_dist_from_last(struct cfq_data *cfqd,
 #define CFQQ_SEEKY(cfqq)	((cfqq)->seek_mean > CFQQ_SEEK_THR)
 
 static inline int cfq_rq_close(struct cfq_data *cfqd, struct cfq_queue *cfqq,
-			       struct request *rq)
+			       struct request *rq, bool for_preempt)
 {
 	sector_t sdist = cfqq->seek_mean;
 
 	if (!sample_valid(cfqq->seek_samples))
+		sdist = CFQQ_SEEK_THR;
+
+	/* if seek_mean is big, using it as close criteria is meaningless */
+	if (sdist > CFQQ_SEEK_THR && !for_preempt)
 		sdist = CFQQ_SEEK_THR;
 
 	return cfq_dist_from_last(cfqd, rq) <= sdist;
@@ -1712,7 +1705,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 	 * will contain the closest sector.
 	 */
 	__cfqq = rb_entry(parent, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq, false))
 		return __cfqq;
 
 	if (blk_rq_pos(__cfqq->next_rq) < sector)
@@ -1723,7 +1716,7 @@ static struct cfq_queue *cfqq_close(struct cfq_data *cfqd,
 		return NULL;
 
 	__cfqq = rb_entry(node, struct cfq_queue, p_node);
-	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq))
+	if (cfq_rq_close(cfqd, cur_cfqq, __cfqq->next_rq, false))
 		return __cfqq;
 
 	return NULL;
@@ -1747,6 +1740,12 @@ static struct cfq_queue *cfq_close_cooperator(struct cfq_data *cfqd,
 	if (!cfq_cfqq_sync(cur_cfqq))
 		return NULL;
 	if (CFQQ_SEEKY(cur_cfqq))
+		return NULL;
+
+	/*
+	 * Don't search priority tree if it's the only queue in the group.
+	 */
+	if (cur_cfqq->cfqg->nr_cfqq == 1)
 		return NULL;
 
 	/*
@@ -1960,8 +1959,7 @@ static void cfq_setup_merge(struct cfq_queue *cfqq, struct cfq_queue *new_cfqq)
 }
 
 static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
-				struct cfq_group *cfqg, enum wl_prio_t prio,
-				bool prio_changed)
+				struct cfq_group *cfqg, enum wl_prio_t prio)
 {
 	struct cfq_queue *queue;
 	int i;
@@ -1969,24 +1967,9 @@ static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
 	unsigned long lowest_key = 0;
 	enum wl_type_t cur_best = SYNC_NOIDLE_WORKLOAD;
 
-	if (prio_changed) {
-		/*
-		 * When priorities switched, we prefer starting
-		 * from SYNC_NOIDLE (first choice), or just SYNC
-		 * over ASYNC
-		 */
-		if (service_tree_for(cfqg, prio, cur_best, cfqd)->count)
-			return cur_best;
-		cur_best = SYNC_WORKLOAD;
-		if (service_tree_for(cfqg, prio, cur_best, cfqd)->count)
-			return cur_best;
-
-		return ASYNC_WORKLOAD;
-	}
-
-	for (i = 0; i < 3; ++i) {
-		/* otherwise, select the one with lowest rb_key */
-		queue = cfq_rb_first(service_tree_for(cfqg, prio, i, cfqd));
+	for (i = 0; i <= SYNC_WORKLOAD; ++i) {
+		/* select the one with lowest rb_key */
+		queue = cfq_rb_first(service_tree_for(cfqg, prio, i));
 		if (queue &&
 		    (!key_valid || time_before(queue->rb_key, lowest_key))) {
 			lowest_key = queue->rb_key;
@@ -2000,8 +1983,6 @@ static enum wl_type_t cfq_choose_wl(struct cfq_data *cfqd,
 
 static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 {
-	enum wl_prio_t previous_prio = cfqd->serving_prio;
-	bool prio_changed;
 	unsigned slice;
 	unsigned count;
 	struct cfq_rb_root *st;
@@ -2029,24 +2010,19 @@ static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 	 * (SYNC, SYNC_NOIDLE, ASYNC), and to compute a workload
 	 * expiration time
 	 */
-	prio_changed = (cfqd->serving_prio != previous_prio);
-	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type,
-				cfqd);
+	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type);
 	count = st->count;
 
 	/*
-	 * If priority didn't change, check workload expiration,
-	 * and that we still have other queues ready
+	 * check workload expiration, and that we still have other queues ready
 	 */
-	if (!prio_changed && count &&
-	    !time_after(jiffies, cfqd->workload_expires))
+	if (count && !time_after(jiffies, cfqd->workload_expires))
 		return;
 
 	/* otherwise select new workload type */
 	cfqd->serving_type =
-		cfq_choose_wl(cfqd, cfqg, cfqd->serving_prio, prio_changed);
-	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type,
-				cfqd);
+		cfq_choose_wl(cfqd, cfqg, cfqd->serving_prio);
+	st = service_tree_for(cfqg, cfqd->serving_prio, cfqd->serving_type);
 	count = st->count;
 
 	/*
@@ -2110,7 +2086,9 @@ static void cfq_choose_cfqg(struct cfq_data *cfqd)
 		cfqd->workload_expires = jiffies + cfqg->saved_workload_slice;
 		cfqd->serving_type = cfqg->saved_workload;
 		cfqd->serving_prio = cfqg->saved_serving_prio;
-	}
+	} else
+		cfqd->workload_expires = jiffies - 1;
+
 	choose_service_tree(cfqd, cfqg);
 }
 
@@ -2128,12 +2106,33 @@ static struct cfq_queue *cfq_select_queue(struct cfq_data *cfqd)
 
 	if (!cfqd->rq_queued)
 		return NULL;
+
+	/*
+	 * We were waiting for group to get backlogged. Expire the queue
+	 */
+	if (cfq_cfqq_wait_busy(cfqq) && !RB_EMPTY_ROOT(&cfqq->sort_list))
+		goto expire;
+
 	/*
 	 * The active queue has run out of time, expire it and select new.
 	 */
-	if ((cfq_slice_used(cfqq) || cfq_cfqq_wait_busy_done(cfqq))
-	     && !cfq_cfqq_must_dispatch(cfqq))
-		goto expire;
+	if (cfq_slice_used(cfqq) && !cfq_cfqq_must_dispatch(cfqq)) {
+		/*
+		 * If slice had not expired at the completion of last request
+		 * we might not have turned on wait_busy flag. Don't expire
+		 * the queue yet. Allow the group to get backlogged.
+		 *
+		 * The very fact that we have used the slice, that means we
+		 * have been idling all along on this queue and it should be
+		 * ok to wait for this request to complete.
+		 */
+		if (cfqq->cfqg->nr_cfqq == 1 && RB_EMPTY_ROOT(&cfqq->sort_list)
+		    && cfqq->dispatched && cfq_should_idle(cfqd, cfqq)) {
+			cfqq = NULL;
+			goto keep_queue;
+		} else
+			goto expire;
+	}
 
 	/*
 	 * The active queue has requests and isn't expired, allow it to
@@ -2264,7 +2263,7 @@ static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * based on the last sync IO we serviced
 	 */
 	if (!cfq_cfqq_sync(cfqq) && cfqd->cfq_latency) {
-		unsigned long last_sync = jiffies - cfqd->last_end_sync_rq;
+		unsigned long last_sync = jiffies - cfqd->last_delayed_sync;
 		unsigned int depth;
 
 		depth = last_sync / cfqd->cfq_slice[1];
@@ -3078,6 +3077,12 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 		return true;
 
 	/*
+	 * Don't allow a non-RT request to preempt an ongoing RT cfqq timeslice.
+	 */
+	if (cfq_class_rt(cfqq) && !cfq_class_rt(new_cfqq))
+		return false;
+
+	/*
 	 * if the new request is sync, but the currently running queue is
 	 * not, let the sync request have priority.
 	 */
@@ -3117,7 +3122,7 @@ cfq_should_preempt(struct cfq_data *cfqd, struct cfq_queue *new_cfqq,
 	 * if this request is as-good as one we would expect from the
 	 * current cfqq, let it preempt
 	 */
-	if (cfq_rq_close(cfqd, cfqq, rq))
+	if (cfq_rq_close(cfqd, cfqq, rq, true))
 		return true;
 
 	return false;
@@ -3165,10 +3170,6 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 	cfqq->last_request_pos = blk_rq_pos(rq) + blk_rq_sectors(rq);
 
 	if (cfqq == cfqd->active_queue) {
-		if (cfq_cfqq_wait_busy(cfqq)) {
-			cfq_clear_cfqq_wait_busy(cfqq);
-			cfq_mark_cfqq_wait_busy_done(cfqq);
-		}
 		/*
 		 * Remember that we saw a request from this process, but
 		 * don't start queuing just yet. Otherwise we risk seeing lots
@@ -3183,6 +3184,7 @@ cfq_rq_enqueued(struct cfq_data *cfqd, struct cfq_queue *cfqq,
 			if (blk_rq_bytes(rq) > PAGE_CACHE_SIZE ||
 			    cfqd->busy_queues > 1) {
 				del_timer(&cfqd->idle_slice_timer);
+				cfq_clear_cfqq_wait_request(cfqq);
 				__blk_run_queue(cfqd->queue);
 			} else
 				cfq_mark_cfqq_must_dispatch(cfqq);
@@ -3251,6 +3253,35 @@ static void cfq_update_hw_tag(struct cfq_data *cfqd)
 		cfqd->hw_tag = 0;
 }
 
+static bool cfq_should_wait_busy(struct cfq_data *cfqd, struct cfq_queue *cfqq)
+{
+	struct cfq_io_context *cic = cfqd->active_cic;
+
+	/* If there are other queues in the group, don't wait */
+	if (cfqq->cfqg->nr_cfqq > 1)
+		return false;
+
+	if (cfq_slice_used(cfqq))
+		return true;
+
+	/* if slice left is less than think time, wait busy */
+	if (cic && sample_valid(cic->ttime_samples)
+	    && (cfqq->slice_end - jiffies < cic->ttime_mean))
+		return true;
+
+	/*
+	 * If think times is less than a jiffy than ttime_mean=0 and above
+	 * will not be true. It might happen that slice has not expired yet
+	 * but will expire soon (4-5 ns) during select_queue(). To cover the
+	 * case where think time is less than a jiffy, mark the queue wait
+	 * busy if only 1 jiffy is left in the slice.
+	 */
+	if (cfqq->slice_end - jiffies == 1)
+		return true;
+
+	return false;
+}
+
 static void cfq_completed_request(struct request_queue *q, struct request *rq)
 {
 	struct cfq_queue *cfqq = RQ_CFQQ(rq);
@@ -3273,7 +3304,8 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 
 	if (sync) {
 		RQ_CIC(rq)->last_end_request = now;
-		cfqd->last_end_sync_rq = now;
+		if (!time_after(rq->start_time + cfqd->cfq_fifo_expire[1], now))
+			cfqd->last_delayed_sync = now;
 	}
 
 	/*
@@ -3289,11 +3321,10 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 		}
 
 		/*
-		 * If this queue consumed its slice and this is last queue
-		 * in the group, wait for next request before we expire
-		 * the queue
+		 * Should we wait for next request to come in before we expire
+		 * the queue.
 		 */
-		if (cfq_slice_used(cfqq) && cfqq->cfqg->nr_cfqq == 1) {
+		if (cfq_should_wait_busy(cfqd, cfqq)) {
 			cfqq->slice_end = jiffies + cfqd->cfq_slice_idle;
 			cfq_mark_cfqq_wait_busy(cfqq);
 		}
@@ -3711,7 +3742,11 @@ static void *cfq_init_queue(struct request_queue *q)
 	cfqd->cfq_latency = 1;
 	cfqd->cfq_group_isolation = 0;
 	cfqd->hw_tag = -1;
-	cfqd->last_end_sync_rq = jiffies;
+	/*
+	 * we optimistically start assuming sync ops weren't delayed in last
+	 * second, in order to have larger depth for async operations.
+	 */
+	cfqd->last_delayed_sync = jiffies - HZ;
 	INIT_RCU_HEAD(&cfqd->rcu);
 	return cfqd;
 }

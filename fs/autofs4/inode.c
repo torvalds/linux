@@ -49,6 +49,8 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 		ino->dentry = NULL;
 		ino->size = 0;
 		INIT_LIST_HEAD(&ino->active);
+		INIT_LIST_HEAD(&ino->rehash_list);
+		ino->active_count = 0;
 		INIT_LIST_HEAD(&ino->expiring);
 		atomic_set(&ino->count, 0);
 	}

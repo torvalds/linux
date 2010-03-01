@@ -310,6 +310,7 @@ static void fc_rport_work(struct work_struct *work)
 				restart = 1;
 			else
 				list_del(&rdata->peers);
+			rdata->event = RPORT_EV_NONE;
 			mutex_unlock(&rdata->rp_mutex);
 			mutex_unlock(&lport->disc.disc_mutex);
 		}

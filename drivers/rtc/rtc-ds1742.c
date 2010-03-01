@@ -21,7 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 
-#define DRV_VERSION "0.3"
+#define DRV_VERSION "0.4"
 
 #define RTC_SIZE		8
 
@@ -55,7 +55,6 @@ struct rtc_plat_data {
 	void __iomem *ioaddr_rtc;
 	size_t size_nvram;
 	size_t size;
-	resource_size_t baseaddr;
 	unsigned long last_jiffies;
 	struct bin_attribute nvram_attr;
 };
@@ -132,8 +131,8 @@ static ssize_t ds1742_nvram_read(struct kobject *kobj,
 				 struct bin_attribute *bin_attr,
 				 char *buf, loff_t pos, size_t size)
 {
-	struct platform_device *pdev =
-		to_platform_device(container_of(kobj, struct device, kobj));
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct platform_device *pdev = to_platform_device(dev);
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 	void __iomem *ioaddr = pdata->ioaddr_nvram;
 	ssize_t count;
@@ -147,8 +146,8 @@ static ssize_t ds1742_nvram_write(struct kobject *kobj,
 				  struct bin_attribute *bin_attr,
 				  char *buf, loff_t pos, size_t size)
 {
-	struct platform_device *pdev =
-		to_platform_device(container_of(kobj, struct device, kobj));
+	struct device *dev = container_of(kobj, struct device, kobj);
+	struct platform_device *pdev = to_platform_device(dev);
 	struct rtc_plat_data *pdata = platform_get_drvdata(pdev);
 	void __iomem *ioaddr = pdata->ioaddr_nvram;
 	ssize_t count;
@@ -163,27 +162,24 @@ static int __devinit ds1742_rtc_probe(struct platform_device *pdev)
 	struct rtc_device *rtc;
 	struct resource *res;
 	unsigned int cen, sec;
-	struct rtc_plat_data *pdata = NULL;
-	void __iomem *ioaddr = NULL;
+	struct rtc_plat_data *pdata;
+	void __iomem *ioaddr;
 	int ret = 0;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
-	pdata = kzalloc(sizeof(*pdata), GFP_KERNEL);
+	pdata = devm_kzalloc(&pdev->dev, sizeof(*pdata), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
 	pdata->size = res->end - res->start + 1;
-	if (!request_mem_region(res->start, pdata->size, pdev->name)) {
-		ret = -EBUSY;
-		goto out;
-	}
-	pdata->baseaddr = res->start;
-	ioaddr = ioremap(pdata->baseaddr, pdata->size);
-	if (!ioaddr) {
-		ret = -ENOMEM;
-		goto out;
-	}
+	if (!devm_request_mem_region(&pdev->dev, res->start, pdata->size,
+		pdev->name))
+		return -EBUSY;
+	ioaddr = devm_ioremap(&pdev->dev, res->start, pdata->size);
+	if (!ioaddr)
+		return -ENOMEM;
+
 	pdata->ioaddr_nvram = ioaddr;
 	pdata->size_nvram = pdata->size - RTC_SIZE;
 	pdata->ioaddr_rtc = ioaddr + pdata->size_nvram;
@@ -207,31 +203,19 @@ static int __devinit ds1742_rtc_probe(struct platform_device *pdev)
 	if (!(readb(ioaddr + RTC_DAY) & RTC_BATT_FLAG))
 		dev_warn(&pdev->dev, "voltage-low detected.\n");
 
-	rtc = rtc_device_register(pdev->name, &pdev->dev,
-				  &ds1742_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		ret = PTR_ERR(rtc);
-		goto out;
-	}
-	pdata->rtc = rtc;
 	pdata->last_jiffies = jiffies;
 	platform_set_drvdata(pdev, pdata);
+	rtc = rtc_device_register(pdev->name, &pdev->dev,
+				  &ds1742_rtc_ops, THIS_MODULE);
+	if (IS_ERR(rtc))
+		return PTR_ERR(rtc);
+	pdata->rtc = rtc;
 
 	ret = sysfs_create_bin_file(&pdev->dev.kobj, &pdata->nvram_attr);
 	if (ret) {
 		dev_err(&pdev->dev, "creating nvram file in sysfs failed\n");
-		goto out;
+		rtc_device_unregister(rtc);
 	}
-
-	return 0;
- out:
-	if (pdata->rtc)
-		rtc_device_unregister(pdata->rtc);
-	if (pdata->ioaddr_nvram)
-		iounmap(pdata->ioaddr_nvram);
-	if (pdata->baseaddr)
-		release_mem_region(pdata->baseaddr, pdata->size);
-	kfree(pdata);
 	return ret;
 }
 
@@ -241,9 +225,6 @@ static int __devexit ds1742_rtc_remove(struct platform_device *pdev)
 
 	sysfs_remove_bin_file(&pdev->dev.kobj, &pdata->nvram_attr);
 	rtc_device_unregister(pdata->rtc);
-	iounmap(pdata->ioaddr_nvram);
-	release_mem_region(pdata->baseaddr, pdata->size);
-	kfree(pdata);
 	return 0;
 }
 

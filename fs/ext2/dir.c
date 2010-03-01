@@ -721,5 +721,5 @@ const struct file_operations ext2_dir_operations = {
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= ext2_compat_ioctl,
 #endif
-	.fsync		= simple_fsync,
+	.fsync		= ext2_fsync,
 };

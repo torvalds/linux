@@ -40,6 +40,12 @@
 #include "gru_instructions.h"
 #include <asm/uv/uv_hub.h>
 
+/* Return codes for vtop functions */
+#define VTOP_SUCCESS               0
+#define VTOP_INVALID               -1
+#define VTOP_RETRY                 -2
+
+
 /*
  * Test if a physical address is a valid GRU GSEG address
  */
@@ -90,19 +96,22 @@ static struct gru_thread_state *gru_alloc_locked_gts(unsigned long vaddr)
 {
 	struct mm_struct *mm = current->mm;
 	struct vm_area_struct *vma;
-	struct gru_thread_state *gts = NULL;
+	struct gru_thread_state *gts = ERR_PTR(-EINVAL);
 
 	down_write(&mm->mmap_sem);
 	vma = gru_find_vma(vaddr);
-	if (vma)
-		gts = gru_alloc_thread_state(vma, TSID(vaddr, vma));
-	if (gts) {
-		mutex_lock(&gts->ts_ctxlock);
-		downgrade_write(&mm->mmap_sem);
-	} else {
-		up_write(&mm->mmap_sem);
-	}
+	if (!vma)
+		goto err;
 
+	gts = gru_alloc_thread_state(vma, TSID(vaddr, vma));
+	if (IS_ERR(gts))
+		goto err;
+	mutex_lock(&gts->ts_ctxlock);
+	downgrade_write(&mm->mmap_sem);
+	return gts;
+
+err:
+	up_write(&mm->mmap_sem);
 	return gts;
 }
 
@@ -122,36 +131,12 @@ static void gru_unlock_gts(struct gru_thread_state *gts)
  * is necessary to prevent the user from seeing a stale cb.istatus that will
  * change as soon as the TFH restart is complete. Races may cause an
  * occasional failure to clear the cb.istatus, but that is ok.
- *
- * If the cb address is not valid (should not happen, but...), nothing
- * bad will happen.. The get_user()/put_user() will fail but there
- * are no bad side-effects.
  */
-static void gru_cb_set_istatus_active(unsigned long __user *cb)
+static void gru_cb_set_istatus_active(struct gru_instruction_bits *cbk)
 {
-	union {
-		struct gru_instruction_bits bits;
-		unsigned long dw;
-	} u;
-
-	if (cb) {
-		get_user(u.dw, cb);
-		u.bits.istatus = CBS_ACTIVE;
-		put_user(u.dw, cb);
+	if (cbk) {
+		cbk->istatus = CBS_ACTIVE;
 	}
-}
-
-/*
- * Convert a interrupt IRQ to a pointer to the GRU GTS that caused the
- * interrupt. Interrupts are always sent to a cpu on the blade that contains the
- * GRU (except for headless blades which are not currently supported). A blade
- * has N grus; a block of N consecutive IRQs is assigned to the GRUs. The IRQ
- * number uniquely identifies the GRU chiplet on the local blade that caused the
- * interrupt. Always called in interrupt context.
- */
-static inline struct gru_state *irq_to_gru(int irq)
-{
-	return &gru_base[uv_numa_blade_id()]->bs_grus[irq - IRQ_GRU];
 }
 
 /*
@@ -207,10 +192,11 @@ static int non_atomic_pte_lookup(struct vm_area_struct *vma,
 {
 	struct page *page;
 
-	/* ZZZ Need to handle HUGE pages */
-	if (is_vm_hugetlb_page(vma))
-		return -EFAULT;
+#ifdef CONFIG_HUGETLB_PAGE
+	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
+#else
 	*pageshift = PAGE_SHIFT;
+#endif
 	if (get_user_pages
 	    (current, current->mm, vaddr, 1, write, 0, &page, NULL) <= 0)
 		return -EFAULT;
@@ -268,7 +254,6 @@ static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
 	return 0;
 
 err:
-	local_irq_enable();
 	return 1;
 }
 
@@ -301,14 +286,69 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
 	paddr = paddr & ~((1UL << ps) - 1);
 	*gpa = uv_soc_phys_ram_to_gpa(paddr);
 	*pageshift = ps;
-	return 0;
+	return VTOP_SUCCESS;
 
 inval:
-	return -1;
+	return VTOP_INVALID;
 upm:
-	return -2;
+	return VTOP_RETRY;
 }
 
+
+/*
+ * Flush a CBE from cache. The CBE is clean in the cache. Dirty the
+ * CBE cacheline so that the line will be written back to home agent.
+ * Otherwise the line may be silently dropped. This has no impact
+ * except on performance.
+ */
+static void gru_flush_cache_cbe(struct gru_control_block_extended *cbe)
+{
+	if (unlikely(cbe)) {
+		cbe->cbrexecstatus = 0;         /* make CL dirty */
+		gru_flush_cache(cbe);
+	}
+}
+
+/*
+ * Preload the TLB with entries that may be required. Currently, preloading
+ * is implemented only for BCOPY. Preload  <tlb_preload_count> pages OR to
+ * the end of the bcopy tranfer, whichever is smaller.
+ */
+static void gru_preload_tlb(struct gru_state *gru,
+			struct gru_thread_state *gts, int atomic,
+			unsigned long fault_vaddr, int asid, int write,
+			unsigned char tlb_preload_count,
+			struct gru_tlb_fault_handle *tfh,
+			struct gru_control_block_extended *cbe)
+{
+	unsigned long vaddr = 0, gpa;
+	int ret, pageshift;
+
+	if (cbe->opccpy != OP_BCOPY)
+		return;
+
+	if (fault_vaddr == cbe->cbe_baddr0)
+		vaddr = fault_vaddr + GRU_CACHE_LINE_BYTES * cbe->cbe_src_cl - 1;
+	else if (fault_vaddr == cbe->cbe_baddr1)
+		vaddr = fault_vaddr + (1 << cbe->xtypecpy) * cbe->cbe_nelemcur - 1;
+
+	fault_vaddr &= PAGE_MASK;
+	vaddr &= PAGE_MASK;
+	vaddr = min(vaddr, fault_vaddr + tlb_preload_count * PAGE_SIZE);
+
+	while (vaddr > fault_vaddr) {
+		ret = gru_vtop(gts, vaddr, write, atomic, &gpa, &pageshift);
+		if (ret || tfh_write_only(tfh, gpa, GAA_RAM, vaddr, asid, write,
+					  GRU_PAGESIZE(pageshift)))
+			return;
+		gru_dbg(grudev,
+			"%s: gid %d, gts 0x%p, tfh 0x%p, vaddr 0x%lx, asid 0x%x, rw %d, ps %d, gpa 0x%lx\n",
+			atomic ? "atomic" : "non-atomic", gru->gs_gid, gts, tfh,
+			vaddr, asid, write, pageshift, gpa);
+		vaddr -= PAGE_SIZE;
+		STAT(tlb_preload_page);
+	}
+}
 
 /*
  * Drop a TLB entry into the GRU. The fault is described by info in an TFH.
@@ -320,11 +360,14 @@ upm:
  * 		< 0 = error code
  *
  */
-static int gru_try_dropin(struct gru_thread_state *gts,
+static int gru_try_dropin(struct gru_state *gru,
+			  struct gru_thread_state *gts,
 			  struct gru_tlb_fault_handle *tfh,
-			  unsigned long __user *cb)
+			  struct gru_instruction_bits *cbk)
 {
-	int pageshift = 0, asid, write, ret, atomic = !cb;
+	struct gru_control_block_extended *cbe = NULL;
+	unsigned char tlb_preload_count = gts->ts_tlb_preload_count;
+	int pageshift = 0, asid, write, ret, atomic = !cbk, indexway;
 	unsigned long gpa = 0, vaddr = 0;
 
 	/*
@@ -335,24 +378,34 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 	 */
 
 	/*
+	 * Prefetch the CBE if doing TLB preloading
+	 */
+	if (unlikely(tlb_preload_count)) {
+		cbe = gru_tfh_to_cbe(tfh);
+		prefetchw(cbe);
+	}
+
+	/*
 	 * Error if TFH state is IDLE or FMM mode & the user issuing a UPM call.
 	 * Might be a hardware race OR a stupid user. Ignore FMM because FMM
 	 * is a transient state.
 	 */
 	if (tfh->status != TFHSTATUS_EXCEPTION) {
 		gru_flush_cache(tfh);
+		sync_core();
 		if (tfh->status != TFHSTATUS_EXCEPTION)
 			goto failnoexception;
 		STAT(tfh_stale_on_fault);
 	}
 	if (tfh->state == TFHSTATE_IDLE)
 		goto failidle;
-	if (tfh->state == TFHSTATE_MISS_FMM && cb)
+	if (tfh->state == TFHSTATE_MISS_FMM && cbk)
 		goto failfmm;
 
 	write = (tfh->cause & TFHCAUSE_TLB_MOD) != 0;
 	vaddr = tfh->missvaddr;
 	asid = tfh->missasid;
+	indexway = tfh->indexway;
 	if (asid == 0)
 		goto failnoasid;
 
@@ -366,41 +419,51 @@ static int gru_try_dropin(struct gru_thread_state *gts,
 		goto failactive;
 
 	ret = gru_vtop(gts, vaddr, write, atomic, &gpa, &pageshift);
-	if (ret == -1)
+	if (ret == VTOP_INVALID)
 		goto failinval;
-	if (ret == -2)
+	if (ret == VTOP_RETRY)
 		goto failupm;
 
 	if (!(gts->ts_sizeavail & GRU_SIZEAVAIL(pageshift))) {
 		gts->ts_sizeavail |= GRU_SIZEAVAIL(pageshift);
-		if (atomic || !gru_update_cch(gts, 0)) {
+		if (atomic || !gru_update_cch(gts)) {
 			gts->ts_force_cch_reload = 1;
 			goto failupm;
 		}
 	}
-	gru_cb_set_istatus_active(cb);
+
+	if (unlikely(cbe) && pageshift == PAGE_SHIFT) {
+		gru_preload_tlb(gru, gts, atomic, vaddr, asid, write, tlb_preload_count, tfh, cbe);
+		gru_flush_cache_cbe(cbe);
+	}
+
+	gru_cb_set_istatus_active(cbk);
+	gts->ustats.tlbdropin++;
 	tfh_write_restart(tfh, gpa, GAA_RAM, vaddr, asid, write,
 			  GRU_PAGESIZE(pageshift));
-	STAT(tlb_dropin);
 	gru_dbg(grudev,
-		"%s: tfh 0x%p, vaddr 0x%lx, asid 0x%x, ps %d, gpa 0x%lx\n",
-		ret ? "non-atomic" : "atomic", tfh, vaddr, asid,
-		pageshift, gpa);
+		"%s: gid %d, gts 0x%p, tfh 0x%p, vaddr 0x%lx, asid 0x%x, indexway 0x%x,"
+		" rw %d, ps %d, gpa 0x%lx\n",
+		atomic ? "atomic" : "non-atomic", gru->gs_gid, gts, tfh, vaddr, asid,
+		indexway, write, pageshift, gpa);
+	STAT(tlb_dropin);
 	return 0;
 
 failnoasid:
 	/* No asid (delayed unload). */
 	STAT(tlb_dropin_fail_no_asid);
 	gru_dbg(grudev, "FAILED no_asid tfh: 0x%p, vaddr 0x%lx\n", tfh, vaddr);
-	if (!cb)
+	if (!cbk)
 		tfh_user_polling_mode(tfh);
 	else
 		gru_flush_cache(tfh);
+	gru_flush_cache_cbe(cbe);
 	return -EAGAIN;
 
 failupm:
 	/* Atomic failure switch CBR to UPM */
 	tfh_user_polling_mode(tfh);
+	gru_flush_cache_cbe(cbe);
 	STAT(tlb_dropin_fail_upm);
 	gru_dbg(grudev, "FAILED upm tfh: 0x%p, vaddr 0x%lx\n", tfh, vaddr);
 	return 1;
@@ -408,6 +471,7 @@ failupm:
 failfmm:
 	/* FMM state on UPM call */
 	gru_flush_cache(tfh);
+	gru_flush_cache_cbe(cbe);
 	STAT(tlb_dropin_fail_fmm);
 	gru_dbg(grudev, "FAILED fmm tfh: 0x%p, state %d\n", tfh, tfh->state);
 	return 0;
@@ -415,17 +479,20 @@ failfmm:
 failnoexception:
 	/* TFH status did not show exception pending */
 	gru_flush_cache(tfh);
-	if (cb)
-		gru_flush_cache(cb);
+	gru_flush_cache_cbe(cbe);
+	if (cbk)
+		gru_flush_cache(cbk);
 	STAT(tlb_dropin_fail_no_exception);
-	gru_dbg(grudev, "FAILED non-exception tfh: 0x%p, status %d, state %d\n", tfh, tfh->status, tfh->state);
+	gru_dbg(grudev, "FAILED non-exception tfh: 0x%p, status %d, state %d\n",
+		tfh, tfh->status, tfh->state);
 	return 0;
 
 failidle:
 	/* TFH state was idle  - no miss pending */
 	gru_flush_cache(tfh);
-	if (cb)
-		gru_flush_cache(cb);
+	gru_flush_cache_cbe(cbe);
+	if (cbk)
+		gru_flush_cache(cbk);
 	STAT(tlb_dropin_fail_idle);
 	gru_dbg(grudev, "FAILED idle tfh: 0x%p, state %d\n", tfh, tfh->state);
 	return 0;
@@ -433,16 +500,18 @@ failidle:
 failinval:
 	/* All errors (atomic & non-atomic) switch CBR to EXCEPTION state */
 	tfh_exception(tfh);
+	gru_flush_cache_cbe(cbe);
 	STAT(tlb_dropin_fail_invalid);
 	gru_dbg(grudev, "FAILED inval tfh: 0x%p, vaddr 0x%lx\n", tfh, vaddr);
 	return -EFAULT;
 
 failactive:
 	/* Range invalidate active. Switch to UPM iff atomic */
-	if (!cb)
+	if (!cbk)
 		tfh_user_polling_mode(tfh);
 	else
 		gru_flush_cache(tfh);
+	gru_flush_cache_cbe(cbe);
 	STAT(tlb_dropin_fail_range_active);
 	gru_dbg(grudev, "FAILED range active: tfh 0x%p, vaddr 0x%lx\n",
 		tfh, vaddr);
@@ -455,31 +524,41 @@ failactive:
  * Note that this is the interrupt handler that is registered with linux
  * interrupt handlers.
  */
-irqreturn_t gru_intr(int irq, void *dev_id)
+static irqreturn_t gru_intr(int chiplet, int blade)
 {
 	struct gru_state *gru;
 	struct gru_tlb_fault_map imap, dmap;
 	struct gru_thread_state *gts;
 	struct gru_tlb_fault_handle *tfh = NULL;
+	struct completion *cmp;
 	int cbrnum, ctxnum;
 
 	STAT(intr);
 
-	gru = irq_to_gru(irq);
+	gru = &gru_base[blade]->bs_grus[chiplet];
 	if (!gru) {
-		dev_err(grudev, "GRU: invalid interrupt: cpu %d, irq %d\n",
-			raw_smp_processor_id(), irq);
+		dev_err(grudev, "GRU: invalid interrupt: cpu %d, chiplet %d\n",
+			raw_smp_processor_id(), chiplet);
 		return IRQ_NONE;
 	}
 	get_clear_fault_map(gru, &imap, &dmap);
+	gru_dbg(grudev,
+		"cpu %d, chiplet %d, gid %d, imap %016lx %016lx, dmap %016lx %016lx\n",
+		smp_processor_id(), chiplet, gru->gs_gid,
+		imap.fault_bits[0], imap.fault_bits[1],
+		dmap.fault_bits[0], dmap.fault_bits[1]);
 
 	for_each_cbr_in_tfm(cbrnum, dmap.fault_bits) {
-		complete(gru->gs_blade->bs_async_wq);
+		STAT(intr_cbr);
+		cmp = gru->gs_blade->bs_async_wq;
+		if (cmp)
+			complete(cmp);
 		gru_dbg(grudev, "gid %d, cbr_done %d, done %d\n",
-			gru->gs_gid, cbrnum, gru->gs_blade->bs_async_wq->done);
+			gru->gs_gid, cbrnum, cmp ? cmp->done : -1);
 	}
 
 	for_each_cbr_in_tfm(cbrnum, imap.fault_bits) {
+		STAT(intr_tfh);
 		tfh = get_tfh_by_index(gru, cbrnum);
 		prefetchw(tfh);	/* Helps on hdw, required for emulator */
 
@@ -492,14 +571,20 @@ irqreturn_t gru_intr(int irq, void *dev_id)
 		ctxnum = tfh->ctxnum;
 		gts = gru->gs_gts[ctxnum];
 
+		/* Spurious interrupts can cause this. Ignore. */
+		if (!gts) {
+			STAT(intr_spurious);
+			continue;
+		}
+
 		/*
 		 * This is running in interrupt context. Trylock the mmap_sem.
 		 * If it fails, retry the fault in user context.
 		 */
+		gts->ustats.fmm_tlbmiss++;
 		if (!gts->ts_force_cch_reload &&
 					down_read_trylock(&gts->ts_mm->mmap_sem)) {
-			gts->ustats.fmm_tlbdropin++;
-			gru_try_dropin(gts, tfh, NULL);
+			gru_try_dropin(gru, gts, tfh, NULL);
 			up_read(&gts->ts_mm->mmap_sem);
 		} else {
 			tfh_user_polling_mode(tfh);
@@ -509,20 +594,43 @@ irqreturn_t gru_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
+irqreturn_t gru0_intr(int irq, void *dev_id)
+{
+	return gru_intr(0, uv_numa_blade_id());
+}
+
+irqreturn_t gru1_intr(int irq, void *dev_id)
+{
+	return gru_intr(1, uv_numa_blade_id());
+}
+
+irqreturn_t gru_intr_mblade(int irq, void *dev_id)
+{
+	int blade;
+
+	for_each_possible_blade(blade) {
+		if (uv_blade_nr_possible_cpus(blade))
+			continue;
+		 gru_intr(0, blade);
+		 gru_intr(1, blade);
+	}
+	return IRQ_HANDLED;
+}
+
 
 static int gru_user_dropin(struct gru_thread_state *gts,
 			   struct gru_tlb_fault_handle *tfh,
-			   unsigned long __user *cb)
+			   void *cb)
 {
 	struct gru_mm_struct *gms = gts->ts_gms;
 	int ret;
 
-	gts->ustats.upm_tlbdropin++;
+	gts->ustats.upm_tlbmiss++;
 	while (1) {
 		wait_event(gms->ms_wait_queue,
 			   atomic_read(&gms->ms_range_active) == 0);
 		prefetchw(tfh);	/* Helps on hdw, required for emulator */
-		ret = gru_try_dropin(gts, tfh, cb);
+		ret = gru_try_dropin(gts->ts_gru, gts, tfh, cb);
 		if (ret <= 0)
 			return ret;
 		STAT(call_os_wait_queue);
@@ -538,52 +646,41 @@ int gru_handle_user_call_os(unsigned long cb)
 {
 	struct gru_tlb_fault_handle *tfh;
 	struct gru_thread_state *gts;
-	unsigned long __user *cbp;
+	void *cbk;
 	int ucbnum, cbrnum, ret = -EINVAL;
 
 	STAT(call_os);
-	gru_dbg(grudev, "address 0x%lx\n", cb);
 
 	/* sanity check the cb pointer */
 	ucbnum = get_cb_number((void *)cb);
 	if ((cb & (GRU_HANDLE_STRIDE - 1)) || ucbnum >= GRU_NUM_CB)
 		return -EINVAL;
-	cbp = (unsigned long *)cb;
 
 	gts = gru_find_lock_gts(cb);
 	if (!gts)
 		return -EINVAL;
+	gru_dbg(grudev, "address 0x%lx, gid %d, gts 0x%p\n", cb, gts->ts_gru ? gts->ts_gru->gs_gid : -1, gts);
 
 	if (ucbnum >= gts->ts_cbr_au_count * GRU_CBR_AU_SIZE)
 		goto exit;
 
-	/*
-	 * If force_unload is set, the UPM TLB fault is phony. The task
-	 * has migrated to another node and the GSEG must be moved. Just
-	 * unload the context. The task will page fault and assign a new
-	 * context.
-	 */
-	if (gts->ts_tgid_owner == current->tgid && gts->ts_blade >= 0 &&
-				gts->ts_blade != uv_numa_blade_id()) {
-		STAT(call_os_offnode_reference);
-		gts->ts_force_unload = 1;
-	}
+	gru_check_context_placement(gts);
 
 	/*
 	 * CCH may contain stale data if ts_force_cch_reload is set.
 	 */
 	if (gts->ts_gru && gts->ts_force_cch_reload) {
 		gts->ts_force_cch_reload = 0;
-		gru_update_cch(gts, 0);
+		gru_update_cch(gts);
 	}
 
 	ret = -EAGAIN;
 	cbrnum = thread_cbr_number(gts, ucbnum);
-	if (gts->ts_force_unload) {
-		gru_unload_context(gts, 1);
-	} else if (gts->ts_gru) {
+	if (gts->ts_gru) {
 		tfh = get_tfh_by_index(gts->ts_gru, cbrnum);
-		ret = gru_user_dropin(gts, tfh, cbp);
+		cbk = get_gseg_base_address_cb(gts->ts_gru->gs_gru_base_vaddr,
+				gts->ts_ctxnum, ucbnum);
+		ret = gru_user_dropin(gts, tfh, cbk);
 	}
 exit:
 	gru_unlock_gts(gts);
@@ -605,11 +702,11 @@ int gru_get_exception_detail(unsigned long arg)
 	if (copy_from_user(&excdet, (void __user *)arg, sizeof(excdet)))
 		return -EFAULT;
 
-	gru_dbg(grudev, "address 0x%lx\n", excdet.cb);
 	gts = gru_find_lock_gts(excdet.cb);
 	if (!gts)
 		return -EINVAL;
 
+	gru_dbg(grudev, "address 0x%lx, gid %d, gts 0x%p\n", excdet.cb, gts->ts_gru ? gts->ts_gru->gs_gid : -1, gts);
 	ucbnum = get_cb_number((void *)excdet.cb);
 	if (ucbnum >= gts->ts_cbr_au_count * GRU_CBR_AU_SIZE) {
 		ret = -EINVAL;
@@ -617,6 +714,7 @@ int gru_get_exception_detail(unsigned long arg)
 		cbrnum = thread_cbr_number(gts, ucbnum);
 		cbe = get_cbe_by_index(gts->ts_gru, cbrnum);
 		gru_flush_cache(cbe);	/* CBE not coherent */
+		sync_core();		/* make sure we are have current data */
 		excdet.opc = cbe->opccpy;
 		excdet.exopc = cbe->exopccpy;
 		excdet.ecause = cbe->ecause;
@@ -624,7 +722,7 @@ int gru_get_exception_detail(unsigned long arg)
 		excdet.exceptdet1 = cbe->idef3upd;
 		excdet.cbrstate = cbe->cbrstate;
 		excdet.cbrexecstatus = cbe->cbrexecstatus;
-		gru_flush_cache(cbe);
+		gru_flush_cache_cbe(cbe);
 		ret = 0;
 	} else {
 		ret = -EAGAIN;
@@ -733,6 +831,11 @@ long gru_get_gseg_statistics(unsigned long arg)
 	if (copy_from_user(&req, (void __user *)arg, sizeof(req)))
 		return -EFAULT;
 
+	/*
+	 * The library creates arrays of contexts for threaded programs.
+	 * If no gts exists in the array, the context has never been used & all
+	 * statistics are implicitly 0.
+	 */
 	gts = gru_find_lock_gts(req.gseg);
 	if (gts) {
 		memcpy(&req.stats, &gts->ustats, sizeof(gts->ustats));
@@ -762,11 +865,25 @@ int gru_set_context_option(unsigned long arg)
 		return -EFAULT;
 	gru_dbg(grudev, "op %d, gseg 0x%lx, value1 0x%lx\n", req.op, req.gseg, req.val1);
 
-	gts = gru_alloc_locked_gts(req.gseg);
-	if (!gts)
-		return -EINVAL;
+	gts = gru_find_lock_gts(req.gseg);
+	if (!gts) {
+		gts = gru_alloc_locked_gts(req.gseg);
+		if (IS_ERR(gts))
+			return PTR_ERR(gts);
+	}
 
 	switch (req.op) {
+	case sco_blade_chiplet:
+		/* Select blade/chiplet for GRU context */
+		if (req.val1 < -1 || req.val1 >= GRU_MAX_BLADES || !gru_base[req.val1] ||
+		    req.val0 < -1 || req.val0 >= GRU_CHIPLETS_PER_HUB) {
+			ret = -EINVAL;
+		} else {
+			gts->ts_user_blade_id = req.val1;
+			gts->ts_user_chiplet_id = req.val0;
+			gru_check_context_placement(gts);
+		}
+		break;
 	case sco_gseg_owner:
  		/* Register the current task as the GSEG owner */
 		gts->ts_tgid_owner = current->tgid;

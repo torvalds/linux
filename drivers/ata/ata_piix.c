@@ -329,7 +329,7 @@ static struct ata_port_operations ich_pata_ops = {
 };
 
 static struct ata_port_operations piix_sata_ops = {
-	.inherits		= &ata_bmdma_port_ops,
+	.inherits		= &ata_bmdma32_port_ops,
 };
 
 static struct ata_port_operations piix_sidpr_sata_ops = {

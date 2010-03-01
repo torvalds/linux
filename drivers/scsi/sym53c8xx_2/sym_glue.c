@@ -984,7 +984,7 @@ static void sym_exec_user_command (struct sym_hcb *np, struct sym_usrcmd *uc)
 	}
 }
 
-static int skip_spaces(char *ptr, int len)
+static int sym_skip_spaces(char *ptr, int len)
 {
 	int cnt, c;
 
@@ -1012,7 +1012,7 @@ static int is_keyword(char *ptr, int len, char *verb)
 }
 
 #define SKIP_SPACES(ptr, len)						\
-	if ((arg_len = skip_spaces(ptr, len)) < 1)			\
+	if ((arg_len = sym_skip_spaces(ptr, len)) < 1)			\
 		return -EINVAL;						\
 	ptr += arg_len; len -= arg_len;
 

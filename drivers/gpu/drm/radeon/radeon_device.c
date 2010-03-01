@@ -391,6 +391,12 @@ int radeon_asic_init(struct radeon_device *rdev)
 		/* FIXME: not supported yet */
 		return -EINVAL;
 	}
+
+	if (rdev->flags & RADEON_IS_IGP) {
+		rdev->asic->get_memory_clock = NULL;
+		rdev->asic->set_memory_clock = NULL;
+	}
+
 	return 0;
 }
 
@@ -481,6 +487,7 @@ int radeon_atombios_init(struct radeon_device *rdev)
 	atom_card_info->pll_write = cail_pll_write;
 
 	rdev->mode_info.atom_context = atom_parse(atom_card_info, rdev->bios);
+	mutex_init(&rdev->mode_info.atom_context->mutex);
 	radeon_atom_initialize_bios_scratch_regs(rdev->ddev);
 	atom_allocate_fb_scratch(rdev->mode_info.atom_context);
 	return 0;
@@ -539,9 +546,72 @@ void radeon_agp_disable(struct radeon_device *rdev)
 	}
 }
 
-/*
- * Radeon device.
- */
+void radeon_check_arguments(struct radeon_device *rdev)
+{
+	/* vramlimit must be a power of two */
+	switch (radeon_vram_limit) {
+	case 0:
+	case 4:
+	case 8:
+	case 16:
+	case 32:
+	case 64:
+	case 128:
+	case 256:
+	case 512:
+	case 1024:
+	case 2048:
+	case 4096:
+		break;
+	default:
+		dev_warn(rdev->dev, "vram limit (%d) must be a power of 2\n",
+				radeon_vram_limit);
+		radeon_vram_limit = 0;
+		break;
+	}
+	radeon_vram_limit = radeon_vram_limit << 20;
+	/* gtt size must be power of two and greater or equal to 32M */
+	switch (radeon_gart_size) {
+	case 4:
+	case 8:
+	case 16:
+		dev_warn(rdev->dev, "gart size (%d) too small forcing to 512M\n",
+				radeon_gart_size);
+		radeon_gart_size = 512;
+		break;
+	case 32:
+	case 64:
+	case 128:
+	case 256:
+	case 512:
+	case 1024:
+	case 2048:
+	case 4096:
+		break;
+	default:
+		dev_warn(rdev->dev, "gart size (%d) must be a power of 2\n",
+				radeon_gart_size);
+		radeon_gart_size = 512;
+		break;
+	}
+	rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
+	/* AGP mode can only be -1, 1, 2, 4, 8 */
+	switch (radeon_agpmode) {
+	case -1:
+	case 0:
+	case 1:
+	case 2:
+	case 4:
+	case 8:
+		break;
+	default:
+		dev_warn(rdev->dev, "invalid AGP mode %d (valid mode: "
+				"-1, 0, 1, 2, 4, 8)\n", radeon_agpmode);
+		radeon_agpmode = 0;
+		break;
+	}
+}
+
 int radeon_device_init(struct radeon_device *rdev,
 		       struct drm_device *ddev,
 		       struct pci_dev *pdev,
@@ -580,9 +650,9 @@ int radeon_device_init(struct radeon_device *rdev,
 
 	/* Set asic functions */
 	r = radeon_asic_init(rdev);
-	if (r) {
+	if (r)
 		return r;
-	}
+	radeon_check_arguments(rdev);
 
 	if (rdev->flags & RADEON_IS_AGP && radeon_agpmode == -1) {
 		radeon_agp_disable(rdev);
@@ -663,16 +733,18 @@ void radeon_device_fini(struct radeon_device *rdev)
  */
 int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 {
-	struct radeon_device *rdev = dev->dev_private;
+	struct radeon_device *rdev;
 	struct drm_crtc *crtc;
 	int r;
 
-	if (dev == NULL || rdev == NULL) {
+	if (dev == NULL || dev->dev_private == NULL) {
 		return -ENODEV;
 	}
 	if (state.event == PM_EVENT_PRETHAW) {
 		return 0;
 	}
+	rdev = dev->dev_private;
+
 	/* unpin the front buffers */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct radeon_framebuffer *rfb = to_radeon_framebuffer(crtc->fb);

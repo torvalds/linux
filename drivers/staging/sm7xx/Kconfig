@@ -1,0 +1,15 @@
+config FB_SM7XX
+	tristate "Silicon Motion SM7XX Frame Buffer Support"
+	depends on FB
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  Frame Buffer driver for the Silicon Motion SM7XX serial graphic card.
+
+config FB_SM7XX_ACCEL
+	bool "Siliconmotion Acceleration functions (EXPERIMENTAL)"
+	depends on FB_SM7XX && EXPERIMENTAL
+	help
+	  This will compile the Trident frame buffer device with
+	  acceleration functions.

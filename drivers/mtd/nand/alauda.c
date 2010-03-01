@@ -372,15 +372,6 @@ static int alauda_read_oob(struct mtd_info *mtd, loff_t from, void *oob)
 	return __alauda_read_page(mtd, from, ignore_buf, oob);
 }
 
-static int popcount8(u8 c)
-{
-	int ret = 0;
-
-	for ( ; c; c>>=1)
-		ret += c & 1;
-	return ret;
-}
-
 static int alauda_isbad(struct mtd_info *mtd, loff_t ofs)
 {
 	u8 oob[16];
@@ -391,7 +382,7 @@ static int alauda_isbad(struct mtd_info *mtd, loff_t ofs)
 		return err;
 
 	/* A block is marked bad if two or more bits are zero */
-	return popcount8(oob[5]) >= 7 ? 0 : 1;
+	return hweight8(oob[5]) >= 7 ? 0 : 1;
 }
 
 static int alauda_bounce_read(struct mtd_info *mtd, loff_t from, size_t len,

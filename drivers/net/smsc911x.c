@@ -2154,7 +2154,7 @@ static int smsc911x_resume(struct device *dev)
 	return (to == 0) ? -EIO : 0;
 }
 
-static struct dev_pm_ops smsc911x_pm_ops = {
+static const struct dev_pm_ops smsc911x_pm_ops = {
 	.suspend	= smsc911x_suspend,
 	.resume		= smsc911x_resume,
 };

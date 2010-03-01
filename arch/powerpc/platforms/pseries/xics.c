@@ -163,14 +163,13 @@ static inline void lpar_qirr_info(int n_cpu , u8 value)
 /* Interface to generic irq subsystem */
 
 #ifdef CONFIG_SMP
-static int get_irq_server(unsigned int virq, unsigned int strict_check)
+static int get_irq_server(unsigned int virq, cpumask_t cpumask,
+			  unsigned int strict_check)
 {
 	int server;
 	/* For the moment only implement delivery to all cpus or one cpu */
-	cpumask_t cpumask;
 	cpumask_t tmp = CPU_MASK_NONE;
 
-	cpumask_copy(&cpumask, irq_to_desc(virq)->affinity);
 	if (!distribute_irqs)
 		return default_server;
 
@@ -192,7 +191,8 @@ static int get_irq_server(unsigned int virq, unsigned int strict_check)
 	return default_server;
 }
 #else
-static int get_irq_server(unsigned int virq, unsigned int strict_check)
+static int get_irq_server(unsigned int virq, cpumask_t cpumask,
+			  unsigned int strict_check)
 {
 	return default_server;
 }
@@ -211,7 +211,7 @@ static void xics_unmask_irq(unsigned int virq)
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 		return;
 
-	server = get_irq_server(virq, 0);
+	server = get_irq_server(virq, *(irq_to_desc(virq)->affinity), 0);
 
 	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq, server,
 				DEFAULT_PRIORITY);
@@ -405,7 +405,7 @@ static int xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 	 * For the moment only implement delivery to all cpus or one cpu.
 	 * Get current irq_server for the given irq
 	 */
-	irq_server = get_irq_server(virq, 1);
+	irq_server = get_irq_server(virq, *cpumask, 1);
 	if (irq_server == -1) {
 		char cpulist[128];
 		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);
@@ -906,7 +906,7 @@ void xics_migrate_irqs_away(void)
 		    || desc->chip->set_affinity == NULL)
 			continue;
 
-		spin_lock_irqsave(&desc->lock, flags);
+		raw_spin_lock_irqsave(&desc->lock, flags);
 
 		status = rtas_call(ibm_get_xive, 1, 3, xics_status, irq);
 		if (status) {
@@ -930,7 +930,7 @@ void xics_migrate_irqs_away(void)
 		cpumask_setall(irq_to_desc(virq)->affinity);
 		desc->chip->set_affinity(virq, cpu_all_mask);
 unlock:
-		spin_unlock_irqrestore(&desc->lock, flags);
+		raw_spin_unlock_irqrestore(&desc->lock, flags);
 	}
 }
 #endif

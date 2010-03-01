@@ -12,7 +12,7 @@
 
 #include <linux/types.h>
 #include <linux/time.h>
-#include <asm/machtypes.h>
+#include <generated/machtypes.h>
 
 struct sh_machine_vector {
 	void (*mv_setup)(char **cmdline_p);

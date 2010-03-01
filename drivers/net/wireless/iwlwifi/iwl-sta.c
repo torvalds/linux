@@ -164,9 +164,7 @@ int iwl_send_add_sta(struct iwl_priv *priv,
 			break;
 		}
 	}
-
-	priv->alloc_rxb_page--;
-	free_pages(cmd.reply_page, priv->hw_params.rx_page_order);
+	iwl_free_pages(priv, cmd.reply_page);
 
 	return ret;
 }
@@ -391,9 +389,7 @@ static int iwl_send_remove_station(struct iwl_priv *priv, const u8 *addr,
 			break;
 		}
 	}
-
-	priv->alloc_rxb_page--;
-	free_pages(cmd.reply_page, priv->hw_params.rx_page_order);
+	iwl_free_pages(priv, cmd.reply_page);
 
 	return ret;
 }

@@ -134,7 +134,7 @@ static int kb3886bl_get_intensity(struct backlight_device *bd)
 	return kb3886bl_intensity;
 }
 
-static struct backlight_ops kb3886bl_ops = {
+static const struct backlight_ops kb3886bl_ops = {
 	.get_brightness = kb3886bl_get_intensity,
 	.update_status  = kb3886bl_send_intensity,
 };

@@ -8,14 +8,24 @@ BEGIN {
 	od_sver = 19;
 }
 
-/^GNU/ {
-	split($4, ver, ".");
+/^GNU objdump/ {
+	verstr = ""
+	for (i = 3; i <= NF; i++)
+		if (match($(i), "^[0-9]")) {
+			verstr = $(i);
+			break;
+		}
+	if (verstr == "") {
+		printf("Warning: Failed to find objdump version number.\n");
+		exit 0;
+	}
+	split(verstr, ver, ".");
 	if (ver[1] > od_ver ||
 	    (ver[1] == od_ver && ver[2] >= od_sver)) {
 		exit 1;
 	} else {
 		printf("Warning: objdump version %s is older than %d.%d\n",
-		       $4, od_ver, od_sver);
+		       verstr, od_ver, od_sver);
 		print("Warning: Skipping posttest.");
 		# Logic is inverted, because we just skip test without error.
 		exit 0;

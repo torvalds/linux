@@ -1064,7 +1064,6 @@ int pci64_dma_supported(struct pci_dev *pdev, u64 device_mask)
 
 	return (device_mask & dma_addr_mask) == dma_addr_mask;
 }
-EXPORT_SYMBOL(pci_dma_supported);
 
 void pci_resource_to_user(const struct pci_dev *pdev, int bar,
 			  const struct resource *rp, resource_size_t *start,

@@ -1646,7 +1646,7 @@ dm9000_drv_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops dm9000_drv_pm_ops = {
+static const struct dev_pm_ops dm9000_drv_pm_ops = {
 	.suspend	= dm9000_drv_suspend,
 	.resume		= dm9000_drv_resume,
 };

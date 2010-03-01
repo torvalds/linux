@@ -81,7 +81,7 @@ int m5602_write_bridge(struct sd *sd, const u8 address, const u8 i2c_data)
 	return (err < 0) ? err : 0;
 }
 
-int m5602_wait_for_i2c(struct sd *sd)
+static int m5602_wait_for_i2c(struct sd *sd)
 {
 	int err;
 	u8 data;
@@ -388,7 +388,7 @@ static int m5602_probe(struct usb_interface *intf,
 			       THIS_MODULE);
 }
 
-void m5602_disconnect(struct usb_interface *intf)
+static void m5602_disconnect(struct usb_interface *intf)
 {
 	struct gspca_dev *gspca_dev = usb_get_intfdata(intf);
 	struct sd *sd = (struct sd *) gspca_dev;

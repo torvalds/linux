@@ -277,7 +277,7 @@ static void untag_chunk(struct node *p)
 		owner->root = NULL;
 	}
 
-	for (i = j = 0; i < size; i++, j++) {
+	for (i = j = 0; j <= size; i++, j++) {
 		struct audit_tree *s;
 		if (&chunk->owners[j] == p) {
 			list_del_init(&p->list);
@@ -290,7 +290,7 @@ static void untag_chunk(struct node *p)
 		if (!s) /* result of earlier fallback */
 			continue;
 		get_tree(s);
-		list_replace_init(&chunk->owners[i].list, &new->owners[j].list);
+		list_replace_init(&chunk->owners[j].list, &new->owners[i].list);
 	}
 
 	list_replace_rcu(&chunk->hash, &new->hash);
@@ -373,15 +373,17 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	for (n = 0; n < old->count; n++) {
 		if (old->owners[n].owner == tree) {
 			spin_unlock(&hash_lock);
-			put_inotify_watch(watch);
+			put_inotify_watch(&old->watch);
 			return 0;
 		}
 	}
 	spin_unlock(&hash_lock);
 
 	chunk = alloc_chunk(old->count + 1);
-	if (!chunk)
+	if (!chunk) {
+		put_inotify_watch(&old->watch);
 		return -ENOMEM;
+	}
 
 	mutex_lock(&inode->inotify_mutex);
 	if (inotify_clone_watch(&old->watch, &chunk->watch) < 0) {
@@ -425,7 +427,8 @@ static int tag_chunk(struct inode *inode, struct audit_tree *tree)
 	spin_unlock(&hash_lock);
 	inotify_evict_watch(&old->watch);
 	mutex_unlock(&inode->inotify_mutex);
-	put_inotify_watch(&old->watch);
+	put_inotify_watch(&old->watch); /* pair to inotify_find_watch */
+	put_inotify_watch(&old->watch); /* and kill it */
 	return 0;
 }
 

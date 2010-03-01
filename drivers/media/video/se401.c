@@ -1428,8 +1428,8 @@ static int se401_probe(struct usb_interface *intf,
 		err("video_register_device failed");
 		return -EIO;
 	}
-	dev_info(&intf->dev, "registered new video device: video%d\n",
-		 se401->vdev.num);
+	dev_info(&intf->dev, "registered new video device: %s\n",
+		 video_device_node_name(&se401->vdev));
 
 	usb_set_intfdata(intf, se401);
 	return 0;

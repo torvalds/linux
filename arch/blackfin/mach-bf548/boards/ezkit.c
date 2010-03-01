@@ -62,7 +62,7 @@ static struct isp1760_platform_data isp1760_priv = {
 };
 
 static struct platform_device bfin_isp1760_device = {
-	.name           = "isp1760-hcd",
+	.name           = "isp1760",
 	.id             = 0,
 	.dev = {
 		.platform_data = &isp1760_priv,
@@ -154,7 +154,7 @@ static struct platform_device bf54x_kpad_device = {
 };
 #endif
 
-#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+#if defined(CONFIG_INPUT_BFIN_ROTARY) || defined(CONFIG_INPUT_BFIN_ROTARY_MODULE)
 #include <asm/bfin_rotary.h>
 
 static struct bfin_rotary_platform_data bfin_rotary_data = {
@@ -186,7 +186,7 @@ static struct platform_device bfin_rotary_device = {
 #endif
 
 #if defined(CONFIG_INPUT_ADXL34X) || defined(CONFIG_INPUT_ADXL34X_MODULE)
-#include <linux/spi/adxl34x.h>
+#include <linux/input/adxl34x.h>
 static const struct adxl34x_platform_data adxl34x_info = {
 	.x_axis_offset = 0,
 	.y_axis_offset = 0,
@@ -210,14 +210,17 @@ static const struct adxl34x_platform_data adxl34x_info = {
 	.ev_code_y = ABS_Y,		/* EV_REL */
 	.ev_code_z = ABS_Z,		/* EV_REL */
 
-	.ev_code_tap_x = BTN_TOUCH,		/* EV_KEY */
-	.ev_code_tap_y = BTN_TOUCH,		/* EV_KEY */
-	.ev_code_tap_z = BTN_TOUCH,		/* EV_KEY */
+	.ev_code_tap = {BTN_TOUCH, BTN_TOUCH, BTN_TOUCH}, /* EV_KEY x,y,z */
 
 /*	.ev_code_ff = KEY_F,*/		/* EV_KEY */
 /*	.ev_code_act_inactivity = KEY_A,*/	/* EV_KEY */
 	.power_mode = ADXL_AUTO_SLEEP | ADXL_LINK,
 	.fifo_mode = ADXL_FIFO_STREAM,
+	.orientation_enable = ADXL_EN_ORIENTATION_3D,
+	.deadzone_angle = ADXL_DEADZONE_ANGLE_10p8,
+	.divisor_length = ADXL_LP_FILTER_DIVISOR_16,
+	/* EV_KEY {+Z, +Y, +X, -X, -Y, -Z} */
+	.ev_codes_orient_3d = {BTN_Z, BTN_Y, BTN_X, BTN_A, BTN_B, BTN_C},
 };
 #endif
 
@@ -458,6 +461,44 @@ static struct platform_device musb_device = {
 	},
 	.num_resources	= ARRAY_SIZE(musb_resources),
 	.resource	= musb_resources,
+};
+#endif
+
+#if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
+unsigned short bfin_can_peripherals[] = {
+	P_CAN0_RX, P_CAN0_TX, 0
+};
+
+static struct resource bfin_can_resources[] = {
+	{
+		.start = 0xFFC02A00,
+		.end = 0xFFC02FFF,
+		.flags = IORESOURCE_MEM,
+	},
+	{
+		.start = IRQ_CAN0_RX,
+		.end = IRQ_CAN0_RX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_CAN0_TX,
+		.end = IRQ_CAN0_TX,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.start = IRQ_CAN0_ERROR,
+		.end = IRQ_CAN0_ERROR,
+		.flags = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device bfin_can_device = {
+	.name = "bfin_can",
+	.num_resources = ARRAY_SIZE(bfin_can_resources),
+	.resource = bfin_can_resources,
+	.dev = {
+		.platform_data = &bfin_can_peripherals, /* Passed to driver */
+	},
 };
 #endif
 
@@ -953,6 +994,10 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bfin_isp1760_device,
 #endif
 
+#if defined(CONFIG_CAN_BFIN) || defined(CONFIG_CAN_BFIN_MODULE)
+	&bfin_can_device,
+#endif
+
 #if defined(CONFIG_PATA_BF54X) || defined(CONFIG_PATA_BF54X_MODULE)
 	&bfin_atapi_device,
 #endif
@@ -974,7 +1019,7 @@ static struct platform_device *ezkit_devices[] __initdata = {
 	&bf54x_kpad_device,
 #endif
 
-#if defined(CONFIG_JOYSTICK_BFIN_ROTARY) || defined(CONFIG_JOYSTICK_BFIN_ROTARY_MODULE)
+#if defined(CONFIG_INPUT_BFIN_ROTARY) || defined(CONFIG_INPUT_BFIN_ROTARY_MODULE)
 	&bfin_rotary_device,
 #endif
 

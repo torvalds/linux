@@ -45,7 +45,7 @@ nv50_crtc_lut_load(struct drm_crtc *crtc)
 	void __iomem *lut = nvbo_kmap_obj_iovirtual(nv_crtc->lut.nvbo);
 	int i;
 
-	NV_DEBUG(crtc->dev, "\n");
+	NV_DEBUG_KMS(crtc->dev, "\n");
 
 	for (i = 0; i < 256; i++) {
 		writew(nv_crtc->lut.r[i] >> 2, lut + 8*i + 0);
@@ -68,8 +68,8 @@ nv50_crtc_blank(struct nouveau_crtc *nv_crtc, bool blanked)
 	struct nouveau_channel *evo = dev_priv->evo;
 	int index = nv_crtc->index, ret;
 
-	NV_DEBUG(dev, "index %d\n", nv_crtc->index);
-	NV_DEBUG(dev, "%s\n", blanked ? "blanked" : "unblanked");
+	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
+	NV_DEBUG_KMS(dev, "%s\n", blanked ? "blanked" : "unblanked");
 
 	if (blanked) {
 		nv_crtc->cursor.hide(nv_crtc, false);
@@ -139,7 +139,7 @@ nv50_crtc_set_dither(struct nouveau_crtc *nv_crtc, bool on, bool update)
 	struct nouveau_channel *evo = dev_priv->evo;
 	int ret;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	ret = RING_SPACE(evo, 2 + (update ? 2 : 0));
 	if (ret) {
@@ -193,7 +193,7 @@ nv50_crtc_set_scale(struct nouveau_crtc *nv_crtc, int scaling_mode, bool update)
 	uint32_t outX, outY, horiz, vert;
 	int ret;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	switch (scaling_mode) {
 	case DRM_MODE_SCALE_NONE:
@@ -301,7 +301,7 @@ nv50_crtc_destroy(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	if (!crtc)
 		return;
@@ -433,7 +433,7 @@ nv50_crtc_prepare(struct drm_crtc *crtc)
 	struct drm_device *dev = crtc->dev;
 	struct drm_encoder *encoder;
 
-	NV_DEBUG(dev, "index %d\n", nv_crtc->index);
+	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
 
 	/* Disconnect all unused encoders. */
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
@@ -458,7 +458,7 @@ nv50_crtc_commit(struct drm_crtc *crtc)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	int ret;
 
-	NV_DEBUG(dev, "index %d\n", nv_crtc->index);
+	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
 
 	nv50_crtc_blank(nv_crtc, false);
 
@@ -497,7 +497,7 @@ nv50_crtc_do_mode_set_base(struct drm_crtc *crtc, int x, int y,
 	struct nouveau_framebuffer *fb = nouveau_framebuffer(drm_fb);
 	int ret, format;
 
-	NV_DEBUG(dev, "index %d\n", nv_crtc->index);
+	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
 
 	switch (drm_fb->depth) {
 	case  8:
@@ -612,7 +612,7 @@ nv50_crtc_mode_set(struct drm_crtc *crtc, struct drm_display_mode *mode,
 
 	*nv_crtc->mode = *adjusted_mode;
 
-	NV_DEBUG(dev, "index %d\n", nv_crtc->index);
+	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
 
 	hsync_dur = adjusted_mode->hsync_end - adjusted_mode->hsync_start;
 	vsync_dur = adjusted_mode->vsync_end - adjusted_mode->vsync_start;
@@ -706,7 +706,7 @@ nv50_crtc_create(struct drm_device *dev, int index)
 	struct nouveau_crtc *nv_crtc = NULL;
 	int ret, i;
 
-	NV_DEBUG(dev, "\n");
+	NV_DEBUG_KMS(dev, "\n");
 
 	nv_crtc = kzalloc(sizeof(*nv_crtc), GFP_KERNEL);
 	if (!nv_crtc)

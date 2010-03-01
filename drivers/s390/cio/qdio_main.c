@@ -22,7 +22,6 @@
 #include "device.h"
 #include "qdio.h"
 #include "qdio_debug.h"
-#include "qdio_perf.h"
 
 MODULE_AUTHOR("Utz Bacher <utz.bacher@de.ibm.com>,"\
 	"Jan Glauber <jang@linux.vnet.ibm.com>");
@@ -126,7 +125,7 @@ static int qdio_do_eqbs(struct qdio_q *q, unsigned char *state,
 	int rc;
 
 	BUG_ON(!q->irq_ptr->sch_token);
-	qdio_perf_stat_inc(&perf_stats.debug_eqbs_all);
+	qperf_inc(q, eqbs);
 
 	if (!q->is_input_q)
 		nr += q->irq_ptr->nr_input_qs;
@@ -139,7 +138,7 @@ again:
 	 * buffers later.
 	 */
 	if ((ccq == 96) && (count != tmp_count)) {
-		qdio_perf_stat_inc(&perf_stats.debug_eqbs_incomplete);
+		qperf_inc(q, eqbs_partial);
 		return (count - tmp_count);
 	}
 
@@ -182,7 +181,7 @@ static int qdio_do_sqbs(struct qdio_q *q, unsigned char state, int start,
 		return 0;
 
 	BUG_ON(!q->irq_ptr->sch_token);
-	qdio_perf_stat_inc(&perf_stats.debug_sqbs_all);
+	qperf_inc(q, sqbs);
 
 	if (!q->is_input_q)
 		nr += q->irq_ptr->nr_input_qs;
@@ -191,7 +190,7 @@ again:
 	rc = qdio_check_ccq(q, ccq);
 	if (rc == 1) {
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "SQBS again:%2d", ccq);
-		qdio_perf_stat_inc(&perf_stats.debug_sqbs_incomplete);
+		qperf_inc(q, sqbs_partial);
 		goto again;
 	}
 	if (rc < 0) {
@@ -285,7 +284,7 @@ static inline int qdio_siga_sync(struct qdio_q *q, unsigned int output,
 		return 0;
 
 	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-s:%1d", q->nr);
-	qdio_perf_stat_inc(&perf_stats.siga_sync);
+	qperf_inc(q, siga_sync);
 
 	cc = do_siga_sync(q->irq_ptr->schid, output, input);
 	if (cc)
@@ -350,7 +349,7 @@ static inline int qdio_siga_input(struct qdio_q *q)
 	int cc;
 
 	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-r:%1d", q->nr);
-	qdio_perf_stat_inc(&perf_stats.siga_in);
+	qperf_inc(q, siga_read);
 
 	cc = do_siga_input(q->irq_ptr->schid, q->mask);
 	if (cc)
@@ -382,7 +381,7 @@ static inline void qdio_stop_polling(struct qdio_q *q)
 		return;
 
 	q->u.in.polling = 0;
-	qdio_perf_stat_inc(&perf_stats.debug_stop_polling);
+	qperf_inc(q, stop_polling);
 
 	/* show the card that we are not polling anymore */
 	if (is_qebsm(q)) {
@@ -400,7 +399,7 @@ static void announce_buffer_error(struct qdio_q *q, int count)
 	/* special handling for no target buffer empty */
 	if ((!q->is_input_q &&
 	    (q->sbal[q->first_to_check]->element[15].flags & 0xff) == 0x10)) {
-		qdio_perf_stat_inc(&perf_stats.outbound_target_full);
+		qperf_inc(q, target_full);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "OUTFULL FTC:%02x",
 			      q->first_to_check);
 		return;
@@ -486,7 +485,8 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 	case SLSB_P_INPUT_PRIMED:
 		inbound_primed(q, count);
 		q->first_to_check = add_buf(q->first_to_check, count);
-		atomic_sub(count, &q->nr_buf_used);
+		if (atomic_sub(count, &q->nr_buf_used) == 0)
+			qperf_inc(q, inbound_queue_full);
 		break;
 	case SLSB_P_INPUT_ERROR:
 		announce_buffer_error(q, count);
@@ -566,9 +566,10 @@ static void qdio_kick_handler(struct qdio_q *q)
 	count = sub_buf(end, start);
 
 	if (q->is_input_q) {
-		qdio_perf_stat_inc(&perf_stats.inbound_handler);
+		qperf_inc(q, inbound_handler);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "kih s:%02x c:%02x", start, count);
 	} else
+		qperf_inc(q, outbound_handler);
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "koh: s:%02x c:%02x",
 			      start, count);
 
@@ -582,24 +583,28 @@ static void qdio_kick_handler(struct qdio_q *q)
 
 static void __qdio_inbound_processing(struct qdio_q *q)
 {
-	qdio_perf_stat_inc(&perf_stats.tasklet_inbound);
+	qperf_inc(q, tasklet_inbound);
 again:
 	if (!qdio_inbound_q_moved(q))
 		return;
 
 	qdio_kick_handler(q);
 
-	if (!qdio_inbound_q_done(q))
+	if (!qdio_inbound_q_done(q)) {
 		/* means poll time is not yet over */
+		qperf_inc(q, tasklet_inbound_resched);
 		goto again;
+	}
 
 	qdio_stop_polling(q);
 	/*
 	 * We need to check again to not lose initiative after
 	 * resetting the ACK state.
 	 */
-	if (!qdio_inbound_q_done(q))
+	if (!qdio_inbound_q_done(q)) {
+		qperf_inc(q, tasklet_inbound_resched2);
 		goto again;
+	}
 }
 
 void qdio_inbound_processing(unsigned long data)
@@ -687,7 +692,7 @@ static int qdio_kick_outbound_q(struct qdio_q *q)
 		return 0;
 
 	DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "siga-w:%1d", q->nr);
-	qdio_perf_stat_inc(&perf_stats.siga_out);
+	qperf_inc(q, siga_write);
 
 	cc = qdio_siga_output(q, &busy_bit);
 	switch (cc) {
@@ -710,7 +715,7 @@ static int qdio_kick_outbound_q(struct qdio_q *q)
 
 static void __qdio_outbound_processing(struct qdio_q *q)
 {
-	qdio_perf_stat_inc(&perf_stats.tasklet_outbound);
+	qperf_inc(q, tasklet_outbound);
 	BUG_ON(atomic_read(&q->nr_buf_used) < 0);
 
 	if (qdio_outbound_q_moved(q))
@@ -738,12 +743,9 @@ static void __qdio_outbound_processing(struct qdio_q *q)
 	 */
 	if (qdio_outbound_q_done(q))
 		del_timer(&q->u.out.timer);
-	else {
-		if (!timer_pending(&q->u.out.timer)) {
+	else
+		if (!timer_pending(&q->u.out.timer))
 			mod_timer(&q->u.out.timer, jiffies + 10 * HZ);
-			qdio_perf_stat_inc(&perf_stats.debug_tl_out_timer);
-		}
-	}
 	return;
 
 sched:
@@ -783,7 +785,7 @@ static inline void qdio_check_outbound_after_thinint(struct qdio_q *q)
 
 static void __tiqdio_inbound_processing(struct qdio_q *q)
 {
-	qdio_perf_stat_inc(&perf_stats.thinint_inbound);
+	qperf_inc(q, tasklet_inbound);
 	qdio_sync_after_thinint(q);
 
 	/*
@@ -798,7 +800,7 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 	qdio_kick_handler(q);
 
 	if (!qdio_inbound_q_done(q)) {
-		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop);
+		qperf_inc(q, tasklet_inbound_resched);
 		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED)) {
 			tasklet_schedule(&q->tasklet);
 			return;
@@ -811,7 +813,7 @@ static void __tiqdio_inbound_processing(struct qdio_q *q)
 	 * resetting the ACK state.
 	 */
 	if (!qdio_inbound_q_done(q)) {
-		qdio_perf_stat_inc(&perf_stats.thinint_inbound_loop2);
+		qperf_inc(q, tasklet_inbound_resched2);
 		if (likely(q->irq_ptr->state != QDIO_IRQ_STATE_STOPPED))
 			tasklet_schedule(&q->tasklet);
 	}
@@ -849,8 +851,6 @@ static void qdio_int_handler_pci(struct qdio_irq *irq_ptr)
 
 	if (unlikely(irq_ptr->state == QDIO_IRQ_STATE_STOPPED))
 		return;
-
-	qdio_perf_stat_inc(&perf_stats.pci_int);
 
 	for_each_input_queue(irq_ptr, q, i)
 		tasklet_schedule(&q->tasklet);
@@ -921,8 +921,6 @@ void qdio_int_handler(struct ccw_device *cdev, unsigned long intparm,
 {
 	struct qdio_irq *irq_ptr = cdev->private->qdio_data;
 	int cstat, dstat;
-
-	qdio_perf_stat_inc(&perf_stats.qdio_int);
 
 	if (!intparm || !irq_ptr) {
 		DBF_ERROR("qint:%4x", cdev->private->schid.sch_no);
@@ -1382,6 +1380,8 @@ static int handle_inbound(struct qdio_q *q, unsigned int callflags,
 {
 	int used, diff;
 
+	qperf_inc(q, inbound_call);
+
 	if (!q->u.in.polling)
 		goto set;
 
@@ -1437,14 +1437,16 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 	unsigned char state;
 	int used, rc = 0;
 
-	qdio_perf_stat_inc(&perf_stats.outbound_handler);
+	qperf_inc(q, outbound_call);
 
 	count = set_buf_states(q, bufnr, SLSB_CU_OUTPUT_PRIMED, count);
 	used = atomic_add_return(count, &q->nr_buf_used);
 	BUG_ON(used > QDIO_MAX_BUFFERS_PER_Q);
 
-	if (callflags & QDIO_FLAG_PCI_OUT)
+	if (callflags & QDIO_FLAG_PCI_OUT) {
 		q->u.out.pci_out_enabled = 1;
+		qperf_inc(q, pci_request_int);
+	}
 	else
 		q->u.out.pci_out_enabled = 0;
 
@@ -1483,7 +1485,7 @@ static int handle_outbound(struct qdio_q *q, unsigned int callflags,
 	if (state != SLSB_CU_OUTPUT_PRIMED)
 		rc = qdio_kick_outbound_q(q);
 	else
-		qdio_perf_stat_inc(&perf_stats.fast_requeue);
+		qperf_inc(q, fast_requeue);
 
 out:
 	tasklet_schedule(&q->tasklet);
@@ -1539,16 +1541,11 @@ static int __init init_QDIO(void)
 	rc = qdio_debug_init();
 	if (rc)
 		goto out_ti;
-	rc = qdio_setup_perf_stats();
-	if (rc)
-		goto out_debug;
 	rc = tiqdio_register_thinints();
 	if (rc)
-		goto out_perf;
+		goto out_debug;
 	return 0;
 
-out_perf:
-	qdio_remove_perf_stats();
 out_debug:
 	qdio_debug_exit();
 out_ti:
@@ -1562,7 +1559,6 @@ static void __exit exit_QDIO(void)
 {
 	tiqdio_unregister_thinints();
 	tiqdio_free_memory();
-	qdio_remove_perf_stats();
 	qdio_debug_exit();
 	qdio_setup_exit();
 }

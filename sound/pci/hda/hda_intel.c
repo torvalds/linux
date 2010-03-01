@@ -356,6 +356,7 @@ struct azx_dev {
 					 */
 	unsigned char stream_tag;	/* assigned stream */
 	unsigned char index;		/* stream index */
+	int device;			/* last device number assigned to */
 
 	unsigned int opened :1;
 	unsigned int running :1;
@@ -1441,10 +1442,13 @@ static int __devinit azx_codec_configure(struct azx *chip)
  */
 
 /* assign a stream for the PCM */
-static inline struct azx_dev *azx_assign_device(struct azx *chip, int stream)
+static inline struct azx_dev *
+azx_assign_device(struct azx *chip, struct snd_pcm_substream *substream)
 {
 	int dev, i, nums;
-	if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
+	struct azx_dev *res = NULL;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		dev = chip->playback_index_offset;
 		nums = chip->playback_streams;
 	} else {
@@ -1453,10 +1457,15 @@ static inline struct azx_dev *azx_assign_device(struct azx *chip, int stream)
 	}
 	for (i = 0; i < nums; i++, dev++)
 		if (!chip->azx_dev[dev].opened) {
-			chip->azx_dev[dev].opened = 1;
-			return &chip->azx_dev[dev];
+			res = &chip->azx_dev[dev];
+			if (res->device == substream->pcm->device)
+				break;
 		}
-	return NULL;
+	if (res) {
+		res->opened = 1;
+		res->device = substream->pcm->device;
+	}
+	return res;
 }
 
 /* release the assigned stream */
@@ -1505,7 +1514,7 @@ static int azx_pcm_open(struct snd_pcm_substream *substream)
 	int err;
 
 	mutex_lock(&chip->open_mutex);
-	azx_dev = azx_assign_device(chip, substream->stream);
+	azx_dev = azx_assign_device(chip, substream);
 	if (azx_dev == NULL) {
 		mutex_unlock(&chip->open_mutex);
 		return -EBUSY;
@@ -2322,6 +2331,7 @@ static void __devinit check_probe_mask(struct azx *chip, int dev)
  * white/black-list for enable_msi
  */
 static struct snd_pci_quirk msi_black_list[] __devinitdata = {
+	SND_PCI_QUIRK(0x1043, 0x81f2, "ASUS", 0), /* Athlon64 X2 + nvidia */
 	{}
 };
 
@@ -2713,6 +2723,9 @@ static struct pci_device_id azx_ids[] = {
 	{ PCI_DEVICE(0x10de, 0x0ac1), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0ac2), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0ac3), .driver_data = AZX_DRIVER_NVIDIA },
+	{ PCI_DEVICE(0x10de, 0x0be2), .driver_data = AZX_DRIVER_NVIDIA },
+	{ PCI_DEVICE(0x10de, 0x0be3), .driver_data = AZX_DRIVER_NVIDIA },
+	{ PCI_DEVICE(0x10de, 0x0be4), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0d94), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0d95), .driver_data = AZX_DRIVER_NVIDIA },
 	{ PCI_DEVICE(0x10de, 0x0d96), .driver_data = AZX_DRIVER_NVIDIA },

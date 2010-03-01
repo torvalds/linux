@@ -101,7 +101,7 @@ static ssize_t lcd_store_power(struct device *dev,
 	int power = simple_strtoul(buf, &endp, 0);
 	size_t size = endp - buf;
 
-	if (*endp && isspace(*endp))
+	if (isspace(*endp))
 		size++;
 	if (size != count)
 		return -EINVAL;
@@ -140,7 +140,7 @@ static ssize_t lcd_store_contrast(struct device *dev,
 	int contrast = simple_strtoul(buf, &endp, 0);
 	size_t size = endp - buf;
 
-	if (*endp && isspace(*endp))
+	if (isspace(*endp))
 		size++;
 	if (size != count)
 		return -EINVAL;

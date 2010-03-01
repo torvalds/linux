@@ -176,7 +176,7 @@ int show_interrupts(struct seq_file *p, void *v)
 	}
 
 	if (i < NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 		action = irq_desc[i].action;
 		if (!action)
 			goto skip;
@@ -195,7 +195,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 skip:
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 	} else if (i == NR_IRQS) {
 		seq_printf(p, "NMI: ");
 		for_each_online_cpu(j)
@@ -785,14 +785,14 @@ void fixup_irqs(void)
 	for (irq = 0; irq < NR_IRQS; irq++) {
 		unsigned long flags;
 
-		spin_lock_irqsave(&irq_desc[irq].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[irq].lock, flags);
 		if (irq_desc[irq].action &&
 		    !(irq_desc[irq].status & IRQ_PER_CPU)) {
 			if (irq_desc[irq].chip->set_affinity)
 				irq_desc[irq].chip->set_affinity(irq,
 					irq_desc[irq].affinity);
 		}
-		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
 	}
 
 	tick_ops->disable_irq();

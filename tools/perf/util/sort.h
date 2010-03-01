@@ -49,9 +49,13 @@ struct hist_entry {
 	struct symbol		*sym;
 	u64			ip;
 	char			level;
-	struct symbol		*parent;
+	struct symbol	  *parent;
 	struct callchain_node	callchain;
-	struct rb_root		sorted_chain;
+	union {
+		unsigned long	  position;
+		struct hist_entry *pair;
+		struct rb_root	  sorted_chain;
+	};
 };
 
 enum sort_type {
@@ -81,6 +85,8 @@ struct sort_entry {
 extern struct sort_entry sort_thread;
 extern struct list_head hist_entry__sort_list;
 
+void setup_sorting(const char * const usagestr[], const struct option *opts);
+
 extern int repsep_fprintf(FILE *fp, const char *fmt, ...);
 extern size_t sort__thread_print(FILE *, struct hist_entry *, unsigned int);
 extern size_t sort__comm_print(FILE *, struct hist_entry *, unsigned int);
@@ -95,5 +101,7 @@ extern int64_t sort__sym_cmp(struct hist_entry *, struct hist_entry *);
 extern int64_t sort__parent_cmp(struct hist_entry *, struct hist_entry *);
 extern size_t sort__parent_print(FILE *, struct hist_entry *, unsigned int);
 extern int sort_dimension__add(const char *);
+void sort_entry__setup_elide(struct sort_entry *self, struct strlist *list,
+			     const char *list_name, FILE *fp);
 
 #endif	/* __PERF_SORT_H */

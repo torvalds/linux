@@ -108,6 +108,10 @@ enum {
 	NFS_OWNER_RECLAIM_NOGRACE
 };
 
+#define NFS_LOCK_NEW		0
+#define NFS_LOCK_RECLAIM	1
+#define NFS_LOCK_EXPIRED	2
+
 /*
  * struct nfs4_state maintains the client-side state for a given
  * (state_owner,inode) tuple (OPEN) or state_owner (LOCK).
@@ -282,6 +286,7 @@ extern struct nfs_seqid *nfs_alloc_seqid(struct nfs_seqid_counter *counter);
 extern int nfs_wait_on_sequence(struct nfs_seqid *seqid, struct rpc_task *task);
 extern void nfs_increment_open_seqid(int status, struct nfs_seqid *seqid);
 extern void nfs_increment_lock_seqid(int status, struct nfs_seqid *seqid);
+extern void nfs_release_seqid(struct nfs_seqid *seqid);
 extern void nfs_free_seqid(struct nfs_seqid *seqid);
 
 extern const nfs4_stateid zero_stateid;

@@ -221,6 +221,7 @@ config JOYSTICK_DB9
 config JOYSTICK_GAMECON
 	tristate "Multisystem, NES, SNES, N64, PSX joysticks and gamepads"
 	depends on PARPORT
+	select INPUT_FF_MEMLESS
 	---help---
 	  Say Y here if you have a Nintendo Entertainment System gamepad,
 	  Super Nintendo Entertainment System gamepad, Nintendo 64 gamepad,

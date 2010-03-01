@@ -75,7 +75,8 @@ static ssize_t local_cpus_show(struct device *dev,
 	int len;
 
 #ifdef CONFIG_NUMA
-	mask = cpumask_of_node(dev_to_node(dev));
+	mask = (dev_to_node(dev) == -1) ? cpu_online_mask :
+					  cpumask_of_node(dev_to_node(dev));
 #else
 	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
 #endif
@@ -93,7 +94,8 @@ static ssize_t local_cpulist_show(struct device *dev,
 	int len;
 
 #ifdef CONFIG_NUMA
-	mask = cpumask_of_node(dev_to_node(dev));
+	mask = (dev_to_node(dev) == -1) ? cpu_online_mask :
+					  cpumask_of_node(dev_to_node(dev));
 #else
 	mask = cpumask_of_pcibus(to_pci_dev(dev)->bus);
 #endif

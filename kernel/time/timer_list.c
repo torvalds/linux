@@ -84,7 +84,7 @@ print_active_timers(struct seq_file *m, struct hrtimer_clock_base *base,
 
 next_one:
 	i = 0;
-	spin_lock_irqsave(&base->cpu_base->lock, flags);
+	raw_spin_lock_irqsave(&base->cpu_base->lock, flags);
 
 	curr = base->first;
 	/*
@@ -100,13 +100,13 @@ next_one:
 
 		timer = rb_entry(curr, struct hrtimer, node);
 		tmp = *timer;
-		spin_unlock_irqrestore(&base->cpu_base->lock, flags);
+		raw_spin_unlock_irqrestore(&base->cpu_base->lock, flags);
 
 		print_timer(m, timer, &tmp, i, now);
 		next++;
 		goto next_one;
 	}
-	spin_unlock_irqrestore(&base->cpu_base->lock, flags);
+	raw_spin_unlock_irqrestore(&base->cpu_base->lock, flags);
 }
 
 static void
@@ -237,10 +237,10 @@ static void timer_list_show_tickdevices(struct seq_file *m)
 #ifdef CONFIG_GENERIC_CLOCKEVENTS_BROADCAST
 	print_tickdevice(m, tick_get_broadcast_device(), -1);
 	SEQ_printf(m, "tick_broadcast_mask: %08lx\n",
-		   tick_get_broadcast_mask()->bits[0]);
+		   cpumask_bits(tick_get_broadcast_mask())[0]);
 #ifdef CONFIG_TICK_ONESHOT
 	SEQ_printf(m, "tick_broadcast_oneshot_mask: %08lx\n",
-		   tick_get_broadcast_oneshot_mask()->bits[0]);
+		   cpumask_bits(tick_get_broadcast_oneshot_mask())[0]);
 #endif
 	SEQ_printf(m, "\n");
 #endif

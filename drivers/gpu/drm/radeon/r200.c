@@ -401,7 +401,6 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		case R200_TXFORMAT_Y8:
 			track->textures[i].cpp = 1;
 			break;
-		case R200_TXFORMAT_DXT1:
 		case R200_TXFORMAT_AI88:
 		case R200_TXFORMAT_ARGB1555:
 		case R200_TXFORMAT_RGB565:
@@ -418,9 +417,16 @@ int r200_packet0_check(struct radeon_cs_parser *p,
 		case R200_TXFORMAT_ABGR8888:
 		case R200_TXFORMAT_BGR111110:
 		case R200_TXFORMAT_LDVDU8888:
+			track->textures[i].cpp = 4;
+			break;
+		case R200_TXFORMAT_DXT1:
+			track->textures[i].cpp = 1;
+			track->textures[i].compress_format = R100_TRACK_COMP_DXT1;
+			break;
 		case R200_TXFORMAT_DXT23:
 		case R200_TXFORMAT_DXT45:
-			track->textures[i].cpp = 4;
+			track->textures[i].cpp = 1;
+			track->textures[i].compress_format = R100_TRACK_COMP_DXT1;
 			break;
 		}
 		track->textures[i].cube_info[4].width = 1 << ((idx_value >> 16) & 0xf);

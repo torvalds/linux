@@ -14,8 +14,8 @@
 
 void mach_prepare_reboot(void)
 {
-	BONITO_BONGENCFG &= ~(1 << 2);
-	BONITO_BONGENCFG |= (1 << 2);
+	LOONGSON_GENCFG &= ~(1 << 2);
+	LOONGSON_GENCFG |= (1 << 2);
 }
 
 void mach_prepare_shutdown(void)

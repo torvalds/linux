@@ -27,9 +27,11 @@
 #ifdef CONFIG_IA64
 #include <asm/processor.h>
 #define GRU_OPERATION_TIMEOUT	(((cycles_t) local_cpu_data->itc_freq)*10)
+#define CLKS2NSEC(c)		((c) *1000000000 / local_cpu_data->itc_freq)
 #else
 #include <asm/tsc.h>
 #define GRU_OPERATION_TIMEOUT	((cycles_t) tsc_khz*10*1000)
+#define CLKS2NSEC(c)		((c) * 1000000 / tsc_khz)
 #endif
 
 /* Extract the status field from a kernel handle */
@@ -39,19 +41,37 @@ struct mcs_op_statistic mcs_op_statistics[mcsop_last];
 
 static void update_mcs_stats(enum mcs_op op, unsigned long clks)
 {
+	unsigned long nsec;
+
+	nsec = CLKS2NSEC(clks);
 	atomic_long_inc(&mcs_op_statistics[op].count);
-	atomic_long_add(clks, &mcs_op_statistics[op].total);
-	if (mcs_op_statistics[op].max < clks)
-		mcs_op_statistics[op].max = clks;
+	atomic_long_add(nsec, &mcs_op_statistics[op].total);
+	if (mcs_op_statistics[op].max < nsec)
+		mcs_op_statistics[op].max = nsec;
 }
 
 static void start_instruction(void *h)
 {
 	unsigned long *w0 = h;
 
-	wmb();		/* setting CMD bit must be last */
-	*w0 = *w0 | 1;
+	wmb();		/* setting CMD/STATUS bits must be last */
+	*w0 = *w0 | 0x20001;
 	gru_flush_cache(h);
+}
+
+static void report_instruction_timeout(void *h)
+{
+	unsigned long goff = GSEGPOFF((unsigned long)h);
+	char *id = "???";
+
+	if (TYPE_IS(CCH, goff))
+		id = "CCH";
+	else if (TYPE_IS(TGH, goff))
+		id = "TGH";
+	else if (TYPE_IS(TFH, goff))
+		id = "TFH";
+
+	panic(KERN_ALERT "GRU %p (%s) is malfunctioning\n", h, id);
 }
 
 static int wait_instruction_complete(void *h, enum mcs_op opc)
@@ -64,9 +84,10 @@ static int wait_instruction_complete(void *h, enum mcs_op opc)
 		status = GET_MSEG_HANDLE_STATUS(h);
 		if (status != CCHSTATUS_ACTIVE)
 			break;
-		if (GRU_OPERATION_TIMEOUT < (get_cycles() - start_time))
-			panic("GRU %p is malfunctioning: start %ld, end %ld\n",
-			      h, start_time, (unsigned long)get_cycles());
+		if (GRU_OPERATION_TIMEOUT < (get_cycles() - start_time)) {
+			report_instruction_timeout(h);
+			start_time = get_cycles();
+		}
 	}
 	if (gru_options & OPT_STATS)
 		update_mcs_stats(opc, get_cycles() - start_time);
@@ -75,9 +96,18 @@ static int wait_instruction_complete(void *h, enum mcs_op opc)
 
 int cch_allocate(struct gru_context_configuration_handle *cch)
 {
+	int ret;
+
 	cch->opc = CCHOP_ALLOCATE;
 	start_instruction(cch);
-	return wait_instruction_complete(cch, cchop_allocate);
+	ret = wait_instruction_complete(cch, cchop_allocate);
+
+	/*
+	 * Stop speculation into the GSEG being mapped by the previous ALLOCATE.
+	 * The GSEG memory does not exist until the ALLOCATE completes.
+	 */
+	sync_core();
+	return ret;
 }
 
 int cch_start(struct gru_context_configuration_handle *cch)
@@ -96,9 +126,18 @@ int cch_interrupt(struct gru_context_configuration_handle *cch)
 
 int cch_deallocate(struct gru_context_configuration_handle *cch)
 {
+	int ret;
+
 	cch->opc = CCHOP_DEALLOCATE;
 	start_instruction(cch);
-	return wait_instruction_complete(cch, cchop_deallocate);
+	ret = wait_instruction_complete(cch, cchop_deallocate);
+
+	/*
+	 * Stop speculation into the GSEG being unmapped by the previous
+	 * DEALLOCATE.
+	 */
+	sync_core();
+	return ret;
 }
 
 int cch_interrupt_sync(struct gru_context_configuration_handle
@@ -126,17 +165,20 @@ int tgh_invalidate(struct gru_tlb_global_handle *tgh,
 	return wait_instruction_complete(tgh, tghop_invalidate);
 }
 
-void tfh_write_only(struct gru_tlb_fault_handle *tfh,
-				  unsigned long pfn, unsigned long vaddr,
-				  int asid, int dirty, int pagesize)
+int tfh_write_only(struct gru_tlb_fault_handle *tfh,
+				  unsigned long paddr, int gaa,
+				  unsigned long vaddr, int asid, int dirty,
+				  int pagesize)
 {
 	tfh->fillasid = asid;
 	tfh->fillvaddr = vaddr;
-	tfh->pfn = pfn;
+	tfh->pfn = paddr >> GRU_PADDR_SHIFT;
+	tfh->gaa = gaa;
 	tfh->dirty = dirty;
 	tfh->pagesize = pagesize;
 	tfh->opc = TFHOP_WRITE_ONLY;
 	start_instruction(tfh);
+	return wait_instruction_complete(tfh, tfhop_write_only);
 }
 
 void tfh_write_restart(struct gru_tlb_fault_handle *tfh,

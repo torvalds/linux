@@ -32,7 +32,7 @@
 #include <linux/suspend.h>
 #include <linux/init.h>
 #include <linux/pci.h>
-#include <asm/geode.h>
+#include <linux/cs5535.h>
 
 #include "gxfb.h"
 

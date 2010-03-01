@@ -1,7 +1,7 @@
 /*
  *  linux/include/linux/mtd/onenand.h
  *
- *  Copyright (C) 2005-2007 Samsung Electronics
+ *  Copyright © 2005-2009 Samsung Electronics
  *  Kyungmin Park <kyungmin.park@samsung.com>
  *
  * This program is free software; you can redistribute it and/or modify
@@ -14,6 +14,7 @@
 
 #include <linux/spinlock.h>
 #include <linux/completion.h>
+#include <linux/mtd/flashchip.h>
 #include <linux/mtd/onenand_regs.h>
 #include <linux/mtd/bbm.h>
 
@@ -24,22 +25,6 @@
 extern int onenand_scan(struct mtd_info *mtd, int max_chips);
 /* Free resources held by the OneNAND device */
 extern void onenand_release(struct mtd_info *mtd);
-
-/*
- * onenand_state_t - chip states
- * Enumeration for OneNAND flash chip state
- */
-typedef enum {
-	FL_READY,
-	FL_READING,
-	FL_WRITING,
-	FL_ERASING,
-	FL_SYNCING,
-	FL_LOCKING,
-	FL_RESETING,
-	FL_OTPING,
-	FL_PM_SUSPENDED,
-} onenand_state_t;
 
 /**
  * struct onenand_bufferram - OneNAND BufferRAM Data
@@ -137,7 +122,7 @@ struct onenand_chip {
 
 	spinlock_t		chip_lock;
 	wait_queue_head_t	wq;
-	onenand_state_t		state;
+	flstate_t		state;
 	unsigned char		*page_buf;
 	unsigned char		*oob_buf;
 
@@ -152,6 +137,8 @@ struct onenand_chip {
 /*
  * Helper macros
  */
+#define ONENAND_PAGES_PER_BLOCK        (1<<6)
+
 #define ONENAND_CURRENT_BUFFERRAM(this)		(this->bufferram_index)
 #define ONENAND_NEXT_BUFFERRAM(this)		(this->bufferram_index ^ 1)
 #define ONENAND_SET_NEXT_BUFFERRAM(this)	(this->bufferram_index ^= 1)

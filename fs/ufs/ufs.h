@@ -86,9 +86,9 @@ extern void ufs_put_cylinder (struct super_block *, unsigned);
 /* dir.c */
 extern const struct inode_operations ufs_dir_inode_operations;
 extern int ufs_add_link (struct dentry *, struct inode *);
-extern ino_t ufs_inode_by_name(struct inode *, struct dentry *);
+extern ino_t ufs_inode_by_name(struct inode *, struct qstr *);
 extern int ufs_make_empty(struct inode *, struct inode *);
-extern struct ufs_dir_entry *ufs_find_entry(struct inode *, struct dentry *, struct page **);
+extern struct ufs_dir_entry *ufs_find_entry(struct inode *, struct qstr *, struct page **);
 extern int ufs_delete_entry(struct inode *, struct ufs_dir_entry *, struct page *);
 extern int ufs_empty_dir (struct inode *);
 extern struct ufs_dir_entry *ufs_dotdot(struct inode *, struct page **);

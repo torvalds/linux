@@ -428,6 +428,28 @@ static int nand_block_checkbad(struct mtd_info *mtd, loff_t ofs, int getchip,
 	return nand_isbad_bbt(mtd, ofs, allowbbt);
 }
 
+/**
+ * panic_nand_wait_ready - [GENERIC] Wait for the ready pin after commands.
+ * @mtd:	MTD device structure
+ * @timeo:	Timeout
+ *
+ * Helper function for nand_wait_ready used when needing to wait in interrupt
+ * context.
+ */
+static void panic_nand_wait_ready(struct mtd_info *mtd, unsigned long timeo)
+{
+	struct nand_chip *chip = mtd->priv;
+	int i;
+
+	/* Wait for the device to get ready */
+	for (i = 0; i < timeo; i++) {
+		if (chip->dev_ready(mtd))
+			break;
+		touch_softlockup_watchdog();
+		mdelay(1);
+	}
+}
+
 /*
  * Wait for the ready pin, after a command
  * The timeout is catched later.
@@ -436,6 +458,10 @@ void nand_wait_ready(struct mtd_info *mtd)
 {
 	struct nand_chip *chip = mtd->priv;
 	unsigned long timeo = jiffies + 2;
+
+	/* 400ms timeout */
+	if (in_interrupt() || oops_in_progress)
+		return panic_nand_wait_ready(mtd, 400);
 
 	led_trigger_event(nand_led_trigger, LED_FULL);
 	/* wait until command is processed or timeout occures */
@@ -672,6 +698,22 @@ static void nand_command_lp(struct mtd_info *mtd, unsigned int command,
 }
 
 /**
+ * panic_nand_get_device - [GENERIC] Get chip for selected access
+ * @chip:	the nand chip descriptor
+ * @mtd:	MTD device structure
+ * @new_state:	the state which is requested
+ *
+ * Used when in panic, no locks are taken.
+ */
+static void panic_nand_get_device(struct nand_chip *chip,
+		      struct mtd_info *mtd, int new_state)
+{
+	/* Hardware controller shared among independend devices */
+	chip->controller->active = chip;
+	chip->state = new_state;
+}
+
+/**
  * nand_get_device - [GENERIC] Get chip for selected access
  * @chip:	the nand chip descriptor
  * @mtd:	MTD device structure
@@ -698,8 +740,14 @@ nand_get_device(struct nand_chip *chip, struct mtd_info *mtd, int new_state)
 		return 0;
 	}
 	if (new_state == FL_PM_SUSPENDED) {
-		spin_unlock(lock);
-		return (chip->state == FL_PM_SUSPENDED) ? 0 : -EAGAIN;
+		if (chip->controller->active->state == FL_PM_SUSPENDED) {
+			chip->state = FL_PM_SUSPENDED;
+			spin_unlock(lock);
+			return 0;
+		} else {
+			spin_unlock(lock);
+			return -EAGAIN;
+		}
 	}
 	set_current_state(TASK_UNINTERRUPTIBLE);
 	add_wait_queue(wq, &wait);
@@ -707,6 +755,32 @@ nand_get_device(struct nand_chip *chip, struct mtd_info *mtd, int new_state)
 	schedule();
 	remove_wait_queue(wq, &wait);
 	goto retry;
+}
+
+/**
+ * panic_nand_wait - [GENERIC]  wait until the command is done
+ * @mtd:	MTD device structure
+ * @chip:	NAND chip structure
+ * @timeo:	Timeout
+ *
+ * Wait for command done. This is a helper function for nand_wait used when
+ * we are in interrupt context. May happen when in panic and trying to write
+ * an oops trough mtdoops.
+ */
+static void panic_nand_wait(struct mtd_info *mtd, struct nand_chip *chip,
+			    unsigned long timeo)
+{
+	int i;
+	for (i = 0; i < timeo; i++) {
+		if (chip->dev_ready) {
+			if (chip->dev_ready(mtd))
+				break;
+		} else {
+			if (chip->read_byte(mtd) & NAND_STATUS_READY)
+				break;
+		}
+		mdelay(1);
+        }
 }
 
 /**
@@ -740,15 +814,19 @@ static int nand_wait(struct mtd_info *mtd, struct nand_chip *chip)
 	else
 		chip->cmdfunc(mtd, NAND_CMD_STATUS, -1, -1);
 
-	while (time_before(jiffies, timeo)) {
-		if (chip->dev_ready) {
-			if (chip->dev_ready(mtd))
-				break;
-		} else {
-			if (chip->read_byte(mtd) & NAND_STATUS_READY)
-				break;
+	if (in_interrupt() || oops_in_progress)
+		panic_nand_wait(mtd, chip, timeo);
+	else {
+		while (time_before(jiffies, timeo)) {
+			if (chip->dev_ready) {
+				if (chip->dev_ready(mtd))
+					break;
+			} else {
+				if (chip->read_byte(mtd) & NAND_STATUS_READY)
+					break;
+			}
+			cond_resched();
 		}
-		cond_resched();
 	}
 	led_trigger_event(nand_led_trigger, LED_OFF);
 
@@ -1949,6 +2027,45 @@ static int nand_do_write_ops(struct mtd_info *mtd, loff_t to,
 }
 
 /**
+ * panic_nand_write - [MTD Interface] NAND write with ECC
+ * @mtd:	MTD device structure
+ * @to:		offset to write to
+ * @len:	number of bytes to write
+ * @retlen:	pointer to variable to store the number of written bytes
+ * @buf:	the data to write
+ *
+ * NAND write with ECC. Used when performing writes in interrupt context, this
+ * may for example be called by mtdoops when writing an oops while in panic.
+ */
+static int panic_nand_write(struct mtd_info *mtd, loff_t to, size_t len,
+			    size_t *retlen, const uint8_t *buf)
+{
+	struct nand_chip *chip = mtd->priv;
+	int ret;
+
+	/* Do not allow reads past end of device */
+	if ((to + len) > mtd->size)
+		return -EINVAL;
+	if (!len)
+		return 0;
+
+	/* Wait for the device to get ready.  */
+	panic_nand_wait(mtd, chip, 400);
+
+	/* Grab the device.  */
+	panic_nand_get_device(chip, mtd, FL_WRITING);
+
+	chip->ops.len = len;
+	chip->ops.datbuf = (uint8_t *)buf;
+	chip->ops.oobbuf = NULL;
+
+	ret = nand_do_write_ops(mtd, to, &chip->ops);
+
+	*retlen = chip->ops.retlen;
+	return ret;
+}
+
+/**
  * nand_write - [MTD Interface] NAND write with ECC
  * @mtd:	MTD device structure
  * @to:		offset to write to
@@ -2645,7 +2762,8 @@ int nand_scan_ident(struct mtd_info *mtd, int maxchips)
 	type = nand_get_flash_type(mtd, chip, busw, &nand_maf_id);
 
 	if (IS_ERR(type)) {
-		printk(KERN_WARNING "No NAND device found!!!\n");
+		if (!(chip->options & NAND_SCAN_SILENT_NODEV))
+			printk(KERN_WARNING "No NAND device found.\n");
 		chip->select_chip(mtd, -1);
 		return PTR_ERR(type);
 	}
@@ -2877,6 +2995,7 @@ int nand_scan_tail(struct mtd_info *mtd)
 	mtd->unpoint = NULL;
 	mtd->read = nand_read;
 	mtd->write = nand_write;
+	mtd->panic_write = panic_nand_write;
 	mtd->read_oob = nand_read_oob;
 	mtd->write_oob = nand_write_oob;
 	mtd->sync = nand_sync;
