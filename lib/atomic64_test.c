@@ -104,11 +104,11 @@ static __init int test_atomic64(void)
 	BUG_ON(v.counter != r);
 
 	INIT(v0);
-	BUG_ON(!atomic64_add_unless(&v, one, v0));
+	BUG_ON(atomic64_add_unless(&v, one, v0));
 	BUG_ON(v.counter != r);
 
 	INIT(v0);
-	BUG_ON(atomic64_add_unless(&v, one, v1));
+	BUG_ON(!atomic64_add_unless(&v, one, v1));
 	r += one;
 	BUG_ON(v.counter != r);
 
