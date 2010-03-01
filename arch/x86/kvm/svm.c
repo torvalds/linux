@@ -93,6 +93,9 @@ struct nested_state {
 
 };
 
+#define MSRPM_OFFSETS	16
+static u32 msrpm_offsets[MSRPM_OFFSETS] __read_mostly;
+
 struct vcpu_svm {
 	struct kvm_vcpu vcpu;
 	struct vmcb *vmcb;
@@ -510,6 +513,49 @@ static void svm_vcpu_init_msrpm(u32 *msrpm)
 	}
 }
 
+static void add_msr_offset(u32 offset)
+{
+	int i;
+
+	for (i = 0; i < MSRPM_OFFSETS; ++i) {
+
+		/* Offset already in list? */
+		if (msrpm_offsets[i] == offset)
+			return;
+
+		/* Slot used by another offset? */
+		if (msrpm_offsets[i] != MSR_INVALID)
+			continue;
+
+		/* Add offset to list */
+		msrpm_offsets[i] = offset;
+
+		return;
+	}
+
+	/*
+	 * If this BUG triggers the msrpm_offsets table has an overflow. Just
+	 * increase MSRPM_OFFSETS in this case.
+	 */
+	BUG();
+}
+
+static void init_msrpm_offsets(void)
+{
+	int i;
+
+	memset(msrpm_offsets, 0xff, sizeof(msrpm_offsets));
+
+	for (i = 0; direct_access_msrs[i].index != MSR_INVALID; i++) {
+		u32 offset;
+
+		offset = svm_msrpm_offset(direct_access_msrs[i].index);
+		BUG_ON(offset == MSR_INVALID);
+
+		add_msr_offset(offset);
+	}
+}
+
 static void svm_enable_lbrv(struct vcpu_svm *svm)
 {
 	u32 *msrpm = svm->msrpm;
@@ -547,6 +593,8 @@ static __init int svm_hardware_setup(void)
 	iopm_va = page_address(iopm_pages);
 	memset(iopm_va, 0xff, PAGE_SIZE * (1 << IOPM_ALLOC_ORDER));
 	iopm_base = page_to_pfn(iopm_pages) << PAGE_SHIFT;
+
+	init_msrpm_offsets();
 
 	if (boot_cpu_has(X86_FEATURE_NX))
 		kvm_enable_efer_bits(EFER_NX);
@@ -811,6 +859,7 @@ static struct kvm_vcpu *svm_create_vcpu(struct kvm *kvm, unsigned int id)
 	svm_vcpu_init_msrpm(svm->msrpm);
 
 	svm->nested.msrpm = page_address(nested_msrpm_pages);
+	svm_vcpu_init_msrpm(svm->nested.msrpm);
 
 	svm->vmcb = page_address(page);
 	clear_page(svm->vmcb);
@@ -1888,20 +1937,33 @@ static int nested_svm_vmexit(struct vcpu_svm *svm)
 
 static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 {
-	u32 *nested_msrpm;
-	struct page *page;
+	/*
+	 * This function merges the msr permission bitmaps of kvm and the
+	 * nested vmcb. It is omptimized in that it only merges the parts where
+	 * the kvm msr permission bitmap may contain zero bits
+	 */
 	int i;
 
-	nested_msrpm = nested_svm_map(svm, svm->nested.vmcb_msrpm, &page);
-	if (!nested_msrpm)
-		return false;
+	if (!(svm->nested.intercept & (1ULL << INTERCEPT_MSR_PROT)))
+		return true;
 
-	for (i = 0; i < PAGE_SIZE * (1 << MSRPM_ALLOC_ORDER) / 4; i++)
-		svm->nested.msrpm[i] = svm->msrpm[i] | nested_msrpm[i];
+	for (i = 0; i < MSRPM_OFFSETS; i++) {
+		u32 value, p;
+		u64 offset;
+
+		if (msrpm_offsets[i] == 0xffffffff)
+			break;
+
+		offset = svm->nested.vmcb_msrpm + msrpm_offsets[i];
+		p      = msrpm_offsets[i] / 4;
+
+		if (kvm_read_guest(svm->vcpu.kvm, offset, &value, 4))
+			return false;
+
+		svm->nested.msrpm[p] = svm->msrpm[p] | value;
+	}
 
 	svm->vmcb->control.msrpm_base_pa = __pa(svm->nested.msrpm);
-
-	nested_svm_unmap(page);
 
 	return true;
 }
