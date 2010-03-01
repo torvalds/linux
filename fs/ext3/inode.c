@@ -1785,8 +1785,9 @@ retry:
 		handle = ext3_journal_start(inode, 2);
 		if (IS_ERR(handle)) {
 			/* This is really bad luck. We've written the data
-			 * but cannot extend i_size. Bail out and pretend
-			 * the write failed... */
+			 * but cannot extend i_size. Truncate allocated blocks
+			 * and pretend the write failed... */
+			ext3_truncate(inode);
 			ret = PTR_ERR(handle);
 			goto out;
 		}
