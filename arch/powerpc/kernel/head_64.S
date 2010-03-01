@@ -617,6 +617,17 @@ _GLOBAL(start_secondary_prolog)
 	std	r3,0(r1)		/* Zero the stack frame pointer	*/
 	bl	.start_secondary
 	b	.
+/*
+ * Reset stack pointer and call start_secondary
+ * to continue with online operation when woken up
+ * from cede in cpu offline.
+ */
+_GLOBAL(start_secondary_resume)
+	ld	r1,PACAKSAVE(r13)	/* Reload kernel stack pointer */
+	li	r3,0
+	std	r3,0(r1)		/* Zero the stack frame pointer	*/
+	bl	.start_secondary
+	b	.
 #endif
 
 /*

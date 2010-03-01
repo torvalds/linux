@@ -146,12 +146,11 @@ static void pseries_mach_cpu_die(void)
 		unregister_slb_shadow(hwcpu, __pa(get_slb_shadow()));
 
 		/*
-		 * NOTE: Calling start_secondary() here for now to
-		 * start new context.
-		 * However, need to do it cleanly by resetting the
-		 * stack pointer.
+		 * Call to start_secondary_resume() will not return.
+		 * Kernel stack will be reset and start_secondary()
+		 * will be called to continue the online operation.
 		 */
-		start_secondary();
+		start_secondary_resume();
 
 	} else if (get_preferred_offline_state(cpu) == CPU_STATE_OFFLINE) {
 
