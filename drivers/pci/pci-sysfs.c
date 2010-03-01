@@ -642,7 +642,7 @@ void pci_create_legacy_files(struct pci_bus *b)
 	if (!b->legacy_io)
 		goto kzalloc_err;
 
-	sysfs_bin_attr_init(&b->legacy_io);
+	sysfs_bin_attr_init(b->legacy_io);
 	b->legacy_io->attr.name = "legacy_io";
 	b->legacy_io->size = 0xffff;
 	b->legacy_io->attr.mode = S_IRUSR | S_IWUSR;
@@ -655,7 +655,7 @@ void pci_create_legacy_files(struct pci_bus *b)
 		goto legacy_io_err;
 
 	/* Allocated above after the legacy_io struct */
-	sysfs_bin_attr_init(&b->legacy_mem);
+	sysfs_bin_attr_init(b->legacy_mem);
 	b->legacy_mem = b->legacy_io + 1;
 	b->legacy_mem->attr.name = "legacy_mem";
 	b->legacy_mem->size = 1024*1024;

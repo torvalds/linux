@@ -110,7 +110,7 @@ struct bin_attribute {
  *	enabled.  Lockdep gives a nice error when your attribute is
  *	added to sysfs if you don't have this.
  */
-#define sysfs_bin_attr_init(bin_attr) sysfs_attr_init(&bin_attr->attr)
+#define sysfs_bin_attr_init(bin_attr) sysfs_attr_init(&(bin_attr)->attr)
 
 struct sysfs_ops {
 	ssize_t	(*show)(struct kobject *, struct attribute *,char *);
