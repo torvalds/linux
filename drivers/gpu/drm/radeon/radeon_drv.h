@@ -462,6 +462,9 @@ extern void r600_blit_swap(struct drm_device *dev,
 			   int sx, int sy, int dx, int dy,
 			   int w, int h, int src_pitch, int dst_pitch, int cpp);
 
+/* atpx handler */
+void radeon_register_atpx_handler(void);
+void radeon_unregister_atpx_handler(void);
 /* Flags for stats.boxes
  */
 #define RADEON_BOX_DMA_IDLE      0x1

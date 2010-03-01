@@ -30,6 +30,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/radeon_drm.h>
 #include <linux/vgaarb.h>
+#include <linux/vga_switcheroo.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "radeon_asic.h"
@@ -655,6 +656,36 @@ void radeon_check_arguments(struct radeon_device *rdev)
 	}
 }
 
+static void radeon_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	struct radeon_device *rdev = dev->dev_private;
+	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
+	if (state == VGA_SWITCHEROO_ON) {
+		printk(KERN_INFO "radeon: switched on\n");
+		/* don't suspend or resume card normally */
+		rdev->powered_down = false;
+		radeon_resume_kms(dev);
+	} else {
+		printk(KERN_INFO "radeon: switched off\n");
+		radeon_suspend_kms(dev, pmm);
+		/* don't suspend or resume card normally */
+		rdev->powered_down = true;
+	}
+}
+
+static bool radeon_switcheroo_can_switch(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	bool can_switch;
+
+	spin_lock(&dev->count_lock);
+	can_switch = (dev->open_count == 0);
+	spin_unlock(&dev->count_lock);
+	return can_switch;
+}
+
+
 int radeon_device_init(struct radeon_device *rdev,
 		       struct drm_device *ddev,
 		       struct pci_dev *pdev,
@@ -737,6 +768,9 @@ int radeon_device_init(struct radeon_device *rdev,
 	/* this will fail for cards that aren't VGA class devices, just
 	 * ignore it */
 	vga_client_register(rdev->pdev, rdev, NULL, radeon_vga_set_decode);
+	vga_switcheroo_register_client(rdev->pdev,
+				       radeon_switcheroo_set_state,
+				       radeon_switcheroo_can_switch);
 
 	r = radeon_init(rdev);
 	if (r)
@@ -768,6 +802,7 @@ void radeon_device_fini(struct radeon_device *rdev)
 	rdev->shutdown = true;
 	radeon_fini(rdev);
 	destroy_workqueue(rdev->wq);
+	vga_switcheroo_unregister_client(rdev->pdev);
 	vga_client_register(rdev->pdev, NULL, NULL, NULL);
 	iounmap(rdev->rmmio);
 	rdev->rmmio = NULL;
@@ -791,6 +826,8 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 	}
 	rdev = dev->dev_private;
 
+	if (rdev->powered_down)
+		return 0;
 	/* unpin the front buffers */
 	list_for_each_entry(crtc, &dev->mode_config.crtc_list, head) {
 		struct radeon_framebuffer *rfb = to_radeon_framebuffer(crtc->fb);
@@ -835,6 +872,9 @@ int radeon_suspend_kms(struct drm_device *dev, pm_message_t state)
 int radeon_resume_kms(struct drm_device *dev)
 {
 	struct radeon_device *rdev = dev->dev_private;
+
+	if (rdev->powered_down)
+		return 0;
 
 	acquire_console_sem();
 	pci_set_power_state(dev->pdev, PCI_D0);

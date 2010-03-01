@@ -343,6 +343,7 @@ static int __init radeon_init(void)
 		driver = &kms_driver;
 		driver->driver_features |= DRIVER_MODESET;
 		driver->num_ioctls = radeon_max_kms_ioctl;
+		radeon_register_atpx_handler();
 	}
 	/* if the vga console setting is enabled still
 	 * let modprobe override it */
@@ -352,6 +353,7 @@ static int __init radeon_init(void)
 static void __exit radeon_exit(void)
 {
 	drm_exit(driver);
+	radeon_unregister_atpx_handler();
 }
 
 module_init(radeon_init);

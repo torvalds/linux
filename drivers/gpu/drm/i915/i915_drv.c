@@ -214,7 +214,7 @@ static int i915_drm_freeze(struct drm_device *dev)
 	return 0;
 }
 
-static int i915_suspend(struct drm_device *dev, pm_message_t state)
+int i915_suspend(struct drm_device *dev, pm_message_t state)
 {
 	int error;
 
@@ -268,7 +268,7 @@ static int i915_drm_thaw(struct drm_device *dev)
 	return error;
 }
 
-static int i915_resume(struct drm_device *dev)
+int i915_resume(struct drm_device *dev)
 {
 	if (pci_enable_device(dev->pdev))
 		return -EIO;
