@@ -1019,6 +1019,7 @@ void r852_shutdown(struct pci_dev *pci_dev)
 	pci_disable_device(pci_dev);
 }
 
+#ifdef CONFIG_PM
 int r852_suspend(struct device *device)
 {
 	struct r852_device *dev = pci_get_drvdata(to_pci_dev(device));
@@ -1093,6 +1094,10 @@ int r852_resume(struct device *device)
 	r852_update_card_detect(dev);
 	return 0;
 }
+#else
+#define r852_suspend	NULL
+#define r852_resume	NULL
+#endif
 
 static const struct pci_device_id r852_pci_id_tbl[] = {
 
