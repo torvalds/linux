@@ -20,4 +20,7 @@ extern void u8500_init_irq(void);
 /* We re-use nomadik_timer for this platform */
 extern void nmdk_timer_init(void);
 
+struct sys_timer;
+extern struct sys_timer u8500_timer;
+
 #endif /*  __ASM_ARCH_SETUP_H */

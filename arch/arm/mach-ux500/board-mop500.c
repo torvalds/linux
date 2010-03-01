@@ -17,11 +17,9 @@
 #include <linux/amba/pl022.h>
 #include <linux/spi/spi.h>
 
-#include <asm/localtimer.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <plat/mtu.h>
 #include <plat/i2c.h>
 
 #include <mach/hardware.h>
@@ -199,22 +197,6 @@ static struct platform_device *platform_devs[] __initdata = {
 	&i2c_controller1,
 	&i2c_controller2,
 	&i2c_controller3,
-};
-
-static void __init u8500_timer_init(void)
-{
-#ifdef CONFIG_LOCAL_TIMERS
-	/* Setup the local timer base */
-	twd_base = __io_address(U8500_TWD_BASE);
-#endif
-	/* Setup the MTU base */
-	mtu_base = __io_address(U8500_MTU0_BASE);
-
-	nmdk_timer_init();
-}
-
-static struct sys_timer u8500_timer = {
-	.init	= u8500_timer_init,
 };
 
 static void __init u8500_init_machine(void)
