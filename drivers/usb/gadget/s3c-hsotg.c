@@ -30,7 +30,7 @@
 
 #include <plat/regs-usb-hsotg-phy.h>
 #include <plat/regs-usb-hsotg.h>
-#include <plat/regs-sys.h>
+#include <mach/regs-sys.h>
 #include <plat/udc-hs.h>
 
 #define DMA_ADDR_INVALID (~((dma_addr_t)0))
