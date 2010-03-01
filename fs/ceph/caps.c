@@ -2608,6 +2608,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	u64 size, max_size;
 	u64 tid;
 	int check_caps = 0;
+	void *snaptrace;
 	int r;
 
 	dout("handle_caps from mds%d\n", mds);
@@ -2617,6 +2618,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	if (msg->front.iov_len < sizeof(*h))
 		goto bad;
 	h = msg->front.iov_base;
+	snaptrace = h + 1;
 	op = le32_to_cpu(h->op);
 	vino.ino = le64_to_cpu(h->ino);
 	vino.snap = CEPH_NOSNAP;
@@ -2651,8 +2653,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 
 	case CEPH_CAP_OP_IMPORT:
 		handle_cap_import(mdsc, inode, h, session,
-				  msg->middle,
-				  le32_to_cpu(h->snap_trace_len));
+				  snaptrace, le32_to_cpu(h->snap_trace_len));
 		check_caps = 1; /* we may have sent a RELEASE to the old auth */
 		goto done;
 	}
