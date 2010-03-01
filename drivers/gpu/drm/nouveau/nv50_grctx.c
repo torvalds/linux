@@ -274,7 +274,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 	int offset, base;
 	uint32_t units = nv_rd32 (ctx->dev, 0x1540);
 
-	/* 0800 */
+	/* 0800: DISPATCH */
 	cp_ctx(ctx, 0x400808, 7);
 	gr_def(ctx, 0x400814, 0x00000030);
 	cp_ctx(ctx, 0x400834, 0x32);
@@ -305,7 +305,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 		gr_def(ctx, 0x400b20, 0x0001629d);
 	}
 
-	/* 0C00 */
+	/* 0C00: VFETCH */
 	cp_ctx(ctx, 0x400c08, 0x2);
 	gr_def(ctx, 0x400c08, 0x0000fe0c);
 
@@ -331,7 +331,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 	cp_ctx(ctx, 0x401540, 0x5);
 	gr_def(ctx, 0x401550, 0x00001018);
 
-	/* 1800 */
+	/* 1800: STREAMOUT */
 	cp_ctx(ctx, 0x401814, 0x1);
 	gr_def(ctx, 0x401814, 0x000000ff);
 	if (dev_priv->chipset == 0x50) {
@@ -646,7 +646,7 @@ nv50_graph_construct_mmio(struct nouveau_grctx *ctx)
 	if (dev_priv->chipset == 0x50)
 		cp_ctx(ctx, 0x4063e0, 0x1);
 
-	/* 6800 */
+	/* 6800: M2MF */
 	if (dev_priv->chipset < 0x90) {
 		cp_ctx(ctx, 0x406814, 0x2b);
 		gr_def(ctx, 0x406818, 0x00000f80);
