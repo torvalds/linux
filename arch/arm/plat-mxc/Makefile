@@ -13,3 +13,7 @@ obj-$(CONFIG_USB_EHCI_MXC) += ehci.o
 obj-$(CONFIG_MXC_ULPI) += ulpi.o
 obj-$(CONFIG_ARCH_MXC_AUDMUX_V1) += audmux-v1.o
 obj-$(CONFIG_ARCH_MXC_AUDMUX_V2) += audmux-v2.o
+ifdef CONFIG_SND_IMX_SOC
+obj-y += ssi-fiq.o
+obj-y += ssi-fiq-ksym.o
+endif

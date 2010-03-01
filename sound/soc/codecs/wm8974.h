@@ -57,17 +57,7 @@
 /* Clock divider Id's */
 #define WM8974_OPCLKDIV		0
 #define WM8974_MCLKDIV		1
-#define WM8974_ADCCLK		2
-#define WM8974_DACCLK		3
-#define WM8974_BCLKDIV		4
-
-/* DAC clock dividers */
-#define WM8974_DACCLK_F2	(1 << 3)
-#define WM8974_DACCLK_F4	(0 << 3)
-
-/* ADC clock dividers */
-#define WM8974_ADCCLK_F2	(1 << 3)
-#define WM8974_ADCCLK_F4	(0 << 3)
+#define WM8974_BCLKDIV		2
 
 /* PLL Out dividers */
 #define WM8974_OPCLKDIV_1	(0 << 4)
