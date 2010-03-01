@@ -122,20 +122,9 @@ static void pseries_mach_cpu_die(void)
 		if (!get_lppaca()->shared_proc)
 			get_lppaca()->donate_dedicated_cpu = 1;
 
-		printk(KERN_INFO
-			"cpu %u (hwid %u) ceding for offline with hint %d\n",
-			cpu, hwcpu, cede_latency_hint);
 		while (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
 			extended_cede_processor(cede_latency_hint);
-			printk(KERN_INFO "cpu %u (hwid %u) returned from cede.\n",
-				cpu, hwcpu);
-			printk(KERN_INFO
-			"Decrementer value = %x Timebase value = %llx\n",
-			get_dec(), get_tb());
 		}
-
-		printk(KERN_INFO "cpu %u (hwid %u) got prodded to go online\n",
-			cpu, hwcpu);
 
 		if (!get_lppaca()->shared_proc)
 			get_lppaca()->donate_dedicated_cpu = 0;
