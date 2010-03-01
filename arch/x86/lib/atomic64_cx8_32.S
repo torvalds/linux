@@ -180,7 +180,7 @@ ENTRY(atomic64_add_unless_cx8)
 	cmpxchg8b (%ebp)
 	jne 1b
 
-	xorl %eax, %eax
+	movl $1, %eax
 3:
 	addl $8, %esp
 	CFI_ADJUST_CFA_OFFSET -8
@@ -190,7 +190,7 @@ ENTRY(atomic64_add_unless_cx8)
 4:
 	cmpl %edx, 4(%esp)
 	jne 2b
-	movl $1, %eax
+	xorl %eax, %eax
 	jmp 3b
 	CFI_ENDPROC
 ENDPROC(atomic64_add_unless_cx8)

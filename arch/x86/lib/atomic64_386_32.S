@@ -133,13 +133,13 @@ BEGIN add_unless %ecx
 1:
 	movl %eax,  ($v)
 	movl %edx, 4($v)
-	xorl %eax, %eax
+	movl $1, %eax
 2:
 RETURN
 3:
 	cmpl %edx, %edi
 	jne 1b
-	movl $1, %eax
+	xorl %eax, %eax
 	jmp 2b
 END_
 
