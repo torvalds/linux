@@ -132,6 +132,20 @@ MODULE_PARM_DESC(debug, "Verbose logging (none = 0"
 	", FCP payloads = "		__stringify(AVC_DEBUG_FCP_PAYLOADS)
 	", or a combination, or all = -1)");
 
+/*
+ * This is a workaround since there is no vendor specific command to retrieve
+ * ca_info using AVC. If this parameter is not used, ca_system_id will be
+ * filled with application_manufacturer from ca_app_info.
+ * Digital Everywhere have said that adding ca_info is on their TODO list.
+ */
+static unsigned int num_fake_ca_system_ids;
+static int fake_ca_system_ids[4] = { -1, -1, -1, -1 };
+module_param_array(fake_ca_system_ids, int, &num_fake_ca_system_ids, 0644);
+MODULE_PARM_DESC(fake_ca_system_ids, "If your CAM application manufacturer "
+		 "does not have the same ca_system_id as your CAS, you can "
+		 "override what ca_system_ids are presented to the "
+		 "application by setting this field to an array of ids.");
+
 static const char *debug_fcp_ctype(unsigned int ctype)
 {
 	static const char *ctypes[] = {
@@ -999,7 +1013,7 @@ int avc_ca_info(struct firedtv *fdtv, char *app_info, unsigned int *len)
 {
 	struct avc_command_frame *c = (void *)fdtv->avc_data;
 	struct avc_response_frame *r = (void *)fdtv->avc_data;
-	int pos, ret;
+	int i, pos, ret;
 
 	mutex_lock(&fdtv->avc_mutex);
 
@@ -1026,9 +1040,18 @@ int avc_ca_info(struct firedtv *fdtv, char *app_info, unsigned int *len)
 	app_info[0] = (EN50221_TAG_CA_INFO >> 16) & 0xff;
 	app_info[1] = (EN50221_TAG_CA_INFO >>  8) & 0xff;
 	app_info[2] = (EN50221_TAG_CA_INFO >>  0) & 0xff;
-	app_info[3] = 2;
-	app_info[4] = r->operand[pos + 0];
-	app_info[5] = r->operand[pos + 1];
+	if (num_fake_ca_system_ids == 0) {
+		app_info[3] = 2;
+		app_info[4] = r->operand[pos + 0];
+		app_info[5] = r->operand[pos + 1];
+	} else {
+		app_info[3] = num_fake_ca_system_ids * 2;
+		for (i = 0; i < num_fake_ca_system_ids; i++) {
+			app_info[4 + i * 2] =
+				(fake_ca_system_ids[i] >> 8) & 0xff;
+			app_info[5 + i * 2] = fake_ca_system_ids[i] & 0xff;
+		}
+	}
 	*len = app_info[3] + 4;
 out:
 	mutex_unlock(&fdtv->avc_mutex);
