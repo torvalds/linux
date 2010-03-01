@@ -2767,7 +2767,8 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	snd_hda_codec_read(codec, fg, 0, AC_VERB_SET_POWER_STATE,
 			    power_state);
 	/* partial workaround for "azx_get_response timeout" */
-	if (power_state == AC_PWRST_D0)
+	if (power_state == AC_PWRST_D0 &&
+	    (codec->vendor_id & 0xffff0000) == 0x14f10000)
 		msleep(10);
 
 	nid = codec->start_nid;
@@ -2801,7 +2802,6 @@ static void hda_set_power_state(struct hda_codec *codec, hda_nid_t fg,
 	if (power_state == AC_PWRST_D0) {
 		unsigned long end_time;
 		int state;
-		msleep(10);
 		/* wait until the codec reachs to D0 */
 		end_time = jiffies + msecs_to_jiffies(500);
 		do {
@@ -3275,6 +3275,8 @@ const char *snd_hda_pcm_type_name[HDA_PCM_NTYPES] = {
 
 /*
  * get the empty PCM device number to assign
+ *
+ * note the max device number is limited by HDA_MAX_PCMS, currently 10
  */
 static int get_empty_pcm_device(struct hda_bus *bus, int type)
 {

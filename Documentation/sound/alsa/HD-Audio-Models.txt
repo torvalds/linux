@@ -124,6 +124,8 @@ ALC882/883/885/888/889
   asus-a7m	ASUS A7M
   macpro	MacPro support
   mb5		Macbook 5,1
+  macmini3	Macmini 3,1
+  mba21		Macbook Air 2,1
   mbp3		Macbook Pro rev3
   imac24	iMac 24'' with jack detection
   imac91	iMac 9,1
@@ -279,13 +281,16 @@ Conexant 5051
   laptop	Basic Laptop config (default)
   hp		HP Spartan laptop
   hp-dv6736	HP dv6736
+  hp-f700	HP Compaq Presario F700
   lenovo-x200	Lenovo X200 laptop
+  toshiba	Toshiba Satellite M300
 
 Conexant 5066
 =============
   laptop	Basic Laptop config (default)
   dell-laptop	Dell laptops
   olpc-xo-1_5	OLPC XO 1.5
+  ideapad       Lenovo IdeaPad U150
 
 STAC9200
 ========
