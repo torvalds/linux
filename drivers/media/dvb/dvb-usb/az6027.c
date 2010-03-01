@@ -976,17 +976,14 @@ static int az6027_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[], int n
 				i++;
 			} else {
 
-				if (msg[i].addr == 0xd0) {
-					/* demod 16bit addr */
-					req = 0xBD;
-					index = (((msg[i].buf[0] << 8) & 0xff00) | (msg[i].buf[1] & 0x00ff));
-					value = msg[i].addr + (2 << 8);
-					length = msg[i].len - 2;
-					len = msg[i].len - 2;
-					for (j = 0; j < len; j++)
-						data[j] = msg[i].buf[j + 2];
-
-				}
+				/* demod 16bit addr */
+				req = 0xBD;
+				index = (((msg[i].buf[0] << 8) & 0xff00) | (msg[i].buf[1] & 0x00ff));
+				value = msg[i].addr + (2 << 8);
+				length = msg[i].len - 2;
+				len = msg[i].len - 2;
+				for (j = 0; j < len; j++)
+					data[j] = msg[i].buf[j + 2];
 				az6027_usb_out_op(d, req, value, index, data, length);
 			}
 		}
