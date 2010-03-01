@@ -117,6 +117,8 @@ struct vcpu_svm {
 	unsigned long int3_rip;
 };
 
+#define MSR_INVALID			0xffffffffU
+
 /* enable NPT for AMD64 and X86 with PAE */
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
 static bool npt_enabled = true;
@@ -199,6 +201,27 @@ static u32 msrpm_ranges[] = {0, 0xc0000000, 0xc0010000};
 #define NUM_MSR_MAPS ARRAY_SIZE(msrpm_ranges)
 #define MSRS_RANGE_SIZE 2048
 #define MSRS_IN_RANGE (MSRS_RANGE_SIZE * 8 / 2)
+
+static u32 svm_msrpm_offset(u32 msr)
+{
+	u32 offset;
+	int i;
+
+	for (i = 0; i < NUM_MSR_MAPS; i++) {
+		if (msr < msrpm_ranges[i] ||
+		    msr >= msrpm_ranges[i] + MSRS_IN_RANGE)
+			continue;
+
+		offset  = (msr - msrpm_ranges[i]) / 4; /* 4 msrs per u8 */
+		offset += (i * MSRS_RANGE_SIZE);       /* add range offset */
+
+		/* Now we have the u8 offset - but need the u32 offset */
+		return offset / 4;
+	}
+
+	/* MSR not in any range */
+	return MSR_INVALID;
+}
 
 #define MAX_INST_SIZE 15
 
@@ -418,23 +441,21 @@ err_1:
 static void set_msr_interception(u32 *msrpm, unsigned msr,
 				 int read, int write)
 {
-	int i;
+	u8 bit_read, bit_write;
+	unsigned long tmp;
+	u32 offset;
 
-	for (i = 0; i < NUM_MSR_MAPS; i++) {
-		if (msr >= msrpm_ranges[i] &&
-		    msr < msrpm_ranges[i] + MSRS_IN_RANGE) {
-			u32 msr_offset = (i * MSRS_IN_RANGE + msr -
-					  msrpm_ranges[i]) * 2;
+	offset    = svm_msrpm_offset(msr);
+	bit_read  = 2 * (msr & 0x0f);
+	bit_write = 2 * (msr & 0x0f) + 1;
+	tmp       = msrpm[offset];
 
-			u32 *base = msrpm + (msr_offset / 32);
-			u32 msr_shift = msr_offset % 32;
-			u32 mask = ((write) ? 0 : 2) | ((read) ? 0 : 1);
-			*base = (*base & ~(0x3 << msr_shift)) |
-				(mask << msr_shift);
-			return;
-		}
-	}
-	BUG();
+	BUG_ON(offset == MSR_INVALID);
+
+	read  ? clear_bit(bit_read,  &tmp) : set_bit(bit_read,  &tmp);
+	write ? clear_bit(bit_write, &tmp) : set_bit(bit_write, &tmp);
+
+	msrpm[offset] = tmp;
 }
 
 static void svm_vcpu_init_msrpm(u32 *msrpm)
