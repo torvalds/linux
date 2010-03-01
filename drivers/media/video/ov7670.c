@@ -410,16 +410,33 @@ static struct regval_list ov7670_fmt_raw[] = {
 /*
  * Low-level register I/O.
  */
-
 static int ov7670_read(struct v4l2_subdev *sd, unsigned char reg,
 		unsigned char *value)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	u8 data = reg;
+	struct i2c_msg msg;
 	int ret;
 
-	ret = i2c_smbus_read_byte_data(client, reg);
+	/*
+	 * Send out the register address...
+	 */
+	msg.addr = client->addr;
+	msg.flags = 0;
+	msg.len = 1;
+	msg.buf = &data;
+	ret = i2c_transfer(client->adapter, &msg, 1);
+	if (ret < 0) {
+		printk(KERN_ERR "Error %d on register write\n", ret);
+		return ret;
+	}
+	/*
+	 * ...then read back the result.
+	 */
+	msg.flags = I2C_M_RD;
+	ret = i2c_transfer(client->adapter, &msg, 1);
 	if (ret >= 0) {
-		*value = (unsigned char)ret;
+		*value = data;
 		ret = 0;
 	}
 	return ret;
@@ -430,8 +447,17 @@ static int ov7670_write(struct v4l2_subdev *sd, unsigned char reg,
 		unsigned char value)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	int ret = i2c_smbus_write_byte_data(client, reg, value);
+	struct i2c_msg msg;
+	unsigned char data[2] = { reg, value };
+	int ret;
 
+	msg.addr = client->addr;
+	msg.flags = 0;
+	msg.len = 2;
+	msg.buf = data;
+	ret = i2c_transfer(client->adapter, &msg, 1);
+	if (ret > 0)
+		ret = 0;
 	if (reg == REG_COM7 && (value & COM7_RESET))
 		msleep(5);  /* Wait for reset to run */
 	return ret;
