@@ -110,8 +110,8 @@ struct ath_rate_table {
 	int rate_cnt;
 	int mcs_start;
 	struct {
-		int valid;
-		int valid_single_stream;
+		u8 valid;
+		u8 valid_single_stream;
 		u8 phy;
 		u32 ratekbps;
 		u32 user_ratekbps;
