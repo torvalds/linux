@@ -21,93 +21,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-
-/*
- */
-
-#define USB_SUBCLASS_AUDIO_CONTROL	0x01
-#define USB_SUBCLASS_AUDIO_STREAMING	0x02
-#define USB_SUBCLASS_MIDI_STREAMING	0x03
-#define USB_SUBCLASS_VENDOR_SPEC	0xff
-
-#define HEADER				0x01
-#define INPUT_TERMINAL			0x02
-#define OUTPUT_TERMINAL			0x03
-#define MIXER_UNIT			0x04
-#define SELECTOR_UNIT			0x05
-#define FEATURE_UNIT			0x06
-#define PROCESSING_UNIT			0x07
-#define EXTENSION_UNIT			0x08
-
-#define AS_GENERAL			0x01
-#define FORMAT_TYPE			0x02
-#define FORMAT_SPECIFIC			0x03
-
-#define EP_GENERAL			0x01
-
-#define MS_GENERAL			0x01
-#define MIDI_IN_JACK			0x02
-#define MIDI_OUT_JACK			0x03
-
-/* endpoint attributes */
-#define EP_ATTR_MASK			0x0c
-#define EP_ATTR_ASYNC			0x04
-#define EP_ATTR_ADAPTIVE		0x08
-#define EP_ATTR_SYNC			0x0c
-
-/* cs endpoint attributes */
-#define EP_CS_ATTR_SAMPLE_RATE		0x01
-#define EP_CS_ATTR_PITCH_CONTROL	0x02
-#define EP_CS_ATTR_FILL_MAX		0x80
-
-/* Audio Class specific Request Codes */
-
-#define SET_CUR    0x01
-#define GET_CUR    0x81
-#define SET_MIN    0x02
-#define GET_MIN    0x82
-#define SET_MAX    0x03
-#define GET_MAX    0x83
-#define SET_RES    0x04
-#define GET_RES    0x84
-#define SET_MEM    0x05
-#define GET_MEM    0x85
-#define GET_STAT   0xff
-
-/* Terminal Control Selectors */
-
-#define COPY_PROTECT_CONTROL       0x01
-
-/* Endpoint Control Selectors */
-
-#define SAMPLING_FREQ_CONTROL      0x01
-#define PITCH_CONTROL              0x02
-
-/* Format Types */
-#define USB_FORMAT_TYPE_I	0x01
-#define USB_FORMAT_TYPE_II	0x02
-#define USB_FORMAT_TYPE_III	0x03
-
-/* type I */
-#define USB_AUDIO_FORMAT_PCM	0x01
-#define USB_AUDIO_FORMAT_PCM8	0x02
-#define USB_AUDIO_FORMAT_IEEE_FLOAT	0x03
-#define USB_AUDIO_FORMAT_ALAW	0x04
-#define USB_AUDIO_FORMAT_MU_LAW	0x05
-
-/* type II */
-#define USB_AUDIO_FORMAT_MPEG	0x1001
-#define USB_AUDIO_FORMAT_AC3	0x1002
-
-/* type III */
-#define USB_AUDIO_FORMAT_IEC1937_AC3	0x2001
-#define USB_AUDIO_FORMAT_IEC1937_MPEG1_LAYER1	0x2002
-#define USB_AUDIO_FORMAT_IEC1937_MPEG2_NOEXT	0x2003
-#define USB_AUDIO_FORMAT_IEC1937_MPEG2_EXT	0x2004
-#define USB_AUDIO_FORMAT_IEC1937_MPEG2_LAYER1_LS	0x2005
-#define USB_AUDIO_FORMAT_IEC1937_MPEG2_LAYER23_LS	0x2006
-
-
 /* maximum number of endpoints per interface */
 #define MIDI_MAX_ENDPOINTS 2
 
@@ -125,8 +38,12 @@ struct snd_usb_audio {
 	struct snd_card *card;
 	u32 usb_id;
 	int shutdown;
+	unsigned int txfr_quirk:1; /* Subframe boundaries on transfers */
 	int num_interfaces;
 	int num_suspended_intf;
+
+	/* for audio class v2 */
+	int clock_id;
 
 	struct list_head pcm_list;	/* list of pcm streams */
 	int pcm_devs;
@@ -159,8 +76,8 @@ enum quirk_type {
 	QUIRK_AUDIO_STANDARD_INTERFACE,
 	QUIRK_AUDIO_FIXED_ENDPOINT,
 	QUIRK_AUDIO_EDIROL_UA1000,
-	QUIRK_AUDIO_EDIROL_UA101,
 	QUIRK_AUDIO_EDIROL_UAXX,
+	QUIRK_AUDIO_ALIGN_TRANSFER,
 
 	QUIRK_TYPE_COUNT
 };
@@ -209,6 +126,16 @@ struct snd_usb_midi_endpoint_info {
 /*
  */
 
+/*E-mu USB samplerate control quirk*/
+enum {
+	EMU_QUIRK_SR_44100HZ = 0,
+	EMU_QUIRK_SR_48000HZ,
+	EMU_QUIRK_SR_88200HZ,
+	EMU_QUIRK_SR_96000HZ,
+	EMU_QUIRK_SR_176400HZ,
+	EMU_QUIRK_SR_192000HZ
+};
+
 #define combine_word(s)    ((*(s)) | ((unsigned int)(s)[1] << 8))
 #define combine_triple(s)  (combine_word(s) | ((unsigned int)(s)[2] << 16))
 #define combine_quad(s)    (combine_triple(s) | ((unsigned int)(s)[3] << 24))
@@ -233,6 +160,9 @@ int snd_usbmidi_create(struct snd_card *card,
 void snd_usbmidi_input_stop(struct list_head* p);
 void snd_usbmidi_input_start(struct list_head* p);
 void snd_usbmidi_disconnect(struct list_head *p);
+
+void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
+			unsigned char samplerate_id);
 
 /*
  * retrieve usb_interface descriptor from the host interface

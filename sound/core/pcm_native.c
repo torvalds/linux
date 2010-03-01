@@ -27,6 +27,7 @@
 #include <linux/pm_qos_params.h>
 #include <linux/uio.h>
 #include <linux/dma-mapping.h>
+#include <linux/math64.h>
 #include <sound/core.h>
 #include <sound/control.h>
 #include <sound/info.h>
@@ -366,6 +367,38 @@ static int period_to_usecs(struct snd_pcm_runtime *runtime)
 	return usecs;
 }
 
+static int calc_boundary(struct snd_pcm_runtime *runtime)
+{
+	u_int64_t boundary;
+
+	boundary = (u_int64_t)runtime->buffer_size *
+		   (u_int64_t)runtime->period_size;
+#if BITS_PER_LONG < 64
+	/* try to find lowest common multiple for buffer and period */
+	if (boundary > LONG_MAX - runtime->buffer_size) {
+		u_int32_t remainder = -1;
+		u_int32_t divident = runtime->buffer_size;
+		u_int32_t divisor = runtime->period_size;
+		while (remainder) {
+			remainder = divident % divisor;
+			if (remainder) {
+				divident = divisor;
+				divisor = remainder;
+			}
+		}
+		boundary = div_u64(boundary, divisor);
+		if (boundary > LONG_MAX - runtime->buffer_size)
+			return -ERANGE;
+	}
+#endif
+	if (boundary == 0)
+		return -ERANGE;
+	runtime->boundary = boundary;
+	while (runtime->boundary * 2 <= LONG_MAX - runtime->buffer_size)
+		runtime->boundary *= 2;
+	return 0;
+}
+
 static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_hw_params *params)
 {
@@ -441,9 +474,9 @@ static int snd_pcm_hw_params(struct snd_pcm_substream *substream,
 	runtime->stop_threshold = runtime->buffer_size;
 	runtime->silence_threshold = 0;
 	runtime->silence_size = 0;
-	runtime->boundary = runtime->buffer_size;
-	while (runtime->boundary * 2 <= LONG_MAX - runtime->buffer_size)
-		runtime->boundary *= 2;
+	err = calc_boundary(runtime);
+	if (err < 0)
+		goto _error;
 
 	snd_pcm_timer_resolution_change(substream);
 	runtime->status->state = SNDRV_PCM_STATE_SETUP;
@@ -516,6 +549,7 @@ static int snd_pcm_sw_params(struct snd_pcm_substream *substream,
 			     struct snd_pcm_sw_params *params)
 {
 	struct snd_pcm_runtime *runtime;
+	int err;
 
 	if (PCM_RUNTIME_CHECK(substream))
 		return -ENXIO;
@@ -540,6 +574,7 @@ static int snd_pcm_sw_params(struct snd_pcm_substream *substream,
 		if (params->silence_threshold > runtime->buffer_size)
 			return -EINVAL;
 	}
+	err = 0;
 	snd_pcm_stream_lock_irq(substream);
 	runtime->tstamp_mode = params->tstamp_mode;
 	runtime->period_step = params->period_step;
@@ -553,10 +588,10 @@ static int snd_pcm_sw_params(struct snd_pcm_substream *substream,
 		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK &&
 		    runtime->silence_size > 0)
 			snd_pcm_playback_silence(substream, ULONG_MAX);
-		wake_up(&runtime->sleep);
+		err = snd_pcm_update_state(substream, runtime);
 	}
 	snd_pcm_stream_unlock_irq(substream);
-	return 0;
+	return err;
 }
 
 static int snd_pcm_sw_params_user(struct snd_pcm_substream *substream,
@@ -917,6 +952,7 @@ static void snd_pcm_post_stop(struct snd_pcm_substream *substream, int state)
 		runtime->status->state = state;
 	}
 	wake_up(&runtime->sleep);
+	wake_up(&runtime->tsleep);
 }
 
 static struct action_ops snd_pcm_action_stop = {
@@ -1002,6 +1038,7 @@ static void snd_pcm_post_pause(struct snd_pcm_substream *substream, int push)
 					 SNDRV_TIMER_EVENT_MPAUSE,
 					 &runtime->trigger_tstamp);
 		wake_up(&runtime->sleep);
+		wake_up(&runtime->tsleep);
 	} else {
 		runtime->status->state = SNDRV_PCM_STATE_RUNNING;
 		if (substream->timer)
@@ -1059,6 +1096,7 @@ static void snd_pcm_post_suspend(struct snd_pcm_substream *substream, int state)
 	runtime->status->suspended_state = runtime->status->state;
 	runtime->status->state = SNDRV_PCM_STATE_SUSPENDED;
 	wake_up(&runtime->sleep);
+	wake_up(&runtime->tsleep);
 }
 
 static struct action_ops snd_pcm_action_suspend = {
@@ -3162,9 +3200,7 @@ int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream,
 	long size;
 	unsigned long offset;
 
-#ifdef pgprot_noncached
 	area->vm_page_prot = pgprot_noncached(area->vm_page_prot);
-#endif
 	area->vm_flags |= VM_IO;
 	size = area->vm_end - area->vm_start;
 	offset = area->vm_pgoff << PAGE_SHIFT;
@@ -3177,6 +3213,15 @@ int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream,
 
 EXPORT_SYMBOL(snd_pcm_lib_mmap_iomem);
 #endif /* SNDRV_PCM_INFO_MMAP */
+
+/* mmap callback with pgprot_noncached */
+int snd_pcm_lib_mmap_noncached(struct snd_pcm_substream *substream,
+			       struct vm_area_struct *area)
+{
+	area->vm_page_prot = pgprot_noncached(area->vm_page_prot);
+	return snd_pcm_default_mmap(substream, area);
+}
+EXPORT_SYMBOL(snd_pcm_lib_mmap_noncached);
 
 /*
  * mmap DMA buffer

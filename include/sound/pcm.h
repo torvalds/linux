@@ -262,6 +262,8 @@ struct snd_pcm_hw_constraint_list {
 	unsigned int mask;
 };
 
+struct snd_pcm_hwptr_log;
+
 struct snd_pcm_runtime {
 	/* -- Status -- */
 	struct snd_pcm_substream *trigger_master;
@@ -310,7 +312,9 @@ struct snd_pcm_runtime {
 	struct snd_pcm_mmap_control *control;
 
 	/* -- locking / scheduling -- */
-	wait_queue_head_t sleep;
+	unsigned int twake: 1;		/* do transfer (!poll) wakeup */
+	wait_queue_head_t sleep;	/* poll sleep */
+	wait_queue_head_t tsleep;	/* transfer sleep */
 	struct fasync_struct *fasync;
 
 	/* -- private section -- */
@@ -339,6 +343,10 @@ struct snd_pcm_runtime {
 #if defined(CONFIG_SND_PCM_OSS) || defined(CONFIG_SND_PCM_OSS_MODULE)
 	/* -- OSS things -- */
 	struct snd_pcm_oss_runtime oss;
+#endif
+
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+	struct snd_pcm_hwptr_log *hwptr_log;
 #endif
 };
 
@@ -834,6 +842,8 @@ void snd_pcm_set_sync(struct snd_pcm_substream *substream);
 int snd_pcm_lib_interleave_len(struct snd_pcm_substream *substream);
 int snd_pcm_lib_ioctl(struct snd_pcm_substream *substream,
 		      unsigned int cmd, void *arg);                      
+int snd_pcm_update_state(struct snd_pcm_substream *substream,
+			 struct snd_pcm_runtime *runtime);
 int snd_pcm_update_hw_ptr(struct snd_pcm_substream *substream);
 int snd_pcm_playback_xrun_check(struct snd_pcm_substream *substream);
 int snd_pcm_capture_xrun_check(struct snd_pcm_substream *substream);
@@ -905,6 +915,44 @@ int snd_pcm_lib_preallocate_pages_for_all(struct snd_pcm *pcm,
 int snd_pcm_lib_malloc_pages(struct snd_pcm_substream *substream, size_t size);
 int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream);
 
+int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,
+				      size_t size, gfp_t gfp_flags);
+int snd_pcm_lib_free_vmalloc_buffer(struct snd_pcm_substream *substream);
+struct page *snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream,
+					  unsigned long offset);
+#if 0 /* for kernel-doc */
+/**
+ * snd_pcm_lib_alloc_vmalloc_buffer - allocate virtual DMA buffer
+ * @substream: the substream to allocate the buffer to
+ * @size: the requested buffer size, in bytes
+ *
+ * Allocates the PCM substream buffer using vmalloc(), i.e., the memory is
+ * contiguous in kernel virtual space, but not in physical memory.  Use this
+ * if the buffer is accessed by kernel code but not by device DMA.
+ *
+ * Returns 1 if the buffer was changed, 0 if not changed, or a negative error
+ * code.
+ */
+static int snd_pcm_lib_alloc_vmalloc_buffer
+			(struct snd_pcm_substream *substream, size_t size);
+/**
+ * snd_pcm_lib_alloc_vmalloc_32_buffer - allocate 32-bit-addressable buffer
+ * @substream: the substream to allocate the buffer to
+ * @size: the requested buffer size, in bytes
+ *
+ * This function works like snd_pcm_lib_alloc_vmalloc_buffer(), but uses
+ * vmalloc_32(), i.e., the pages are allocated from 32-bit-addressable memory.
+ */
+static int snd_pcm_lib_alloc_vmalloc_32_buffer
+			(struct snd_pcm_substream *substream, size_t size);
+#endif
+#define snd_pcm_lib_alloc_vmalloc_buffer(subs, size) \
+	_snd_pcm_lib_alloc_vmalloc_buffer \
+			(subs, size, GFP_KERNEL | __GFP_HIGHMEM | __GFP_ZERO)
+#define snd_pcm_lib_alloc_vmalloc_32_buffer(subs, size) \
+	_snd_pcm_lib_alloc_vmalloc_buffer \
+			(subs, size, GFP_KERNEL | GFP_DMA32 | __GFP_ZERO)
+
 #ifdef CONFIG_SND_DMA_SGBUF
 /*
  * SG-buffer handling
@@ -974,6 +1022,10 @@ int snd_pcm_lib_mmap_iomem(struct snd_pcm_substream *substream, struct vm_area_s
 #define SNDRV_PCM_INFO_MMAP_IOMEM	0
 #define snd_pcm_lib_mmap_iomem	NULL
 #endif
+
+int snd_pcm_lib_mmap_noncached(struct snd_pcm_substream *substream,
+			       struct vm_area_struct *area);
+#define snd_pcm_lib_mmap_vmalloc	snd_pcm_lib_mmap_noncached
 
 static inline void snd_pcm_limit_isa_dma_size(int dma, size_t *max)
 {
