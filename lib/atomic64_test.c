@@ -130,16 +130,16 @@ static __init int test_atomic64(void)
 #endif
 
 	INIT(onestwos);
-	BUG_ON(atomic64_inc_not_zero(&v));
+	BUG_ON(!atomic64_inc_not_zero(&v));
 	r += one;
 	BUG_ON(v.counter != r);
 
 	INIT(0);
-	BUG_ON(!atomic64_inc_not_zero(&v));
+	BUG_ON(atomic64_inc_not_zero(&v));
 	BUG_ON(v.counter != r);
 
 	INIT(-one);
-	BUG_ON(atomic64_inc_not_zero(&v));
+	BUG_ON(!atomic64_inc_not_zero(&v));
 	r += one;
 	BUG_ON(v.counter != r);
 
