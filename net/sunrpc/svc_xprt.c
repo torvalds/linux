@@ -743,8 +743,10 @@ int svc_recv(struct svc_rqst *rqstp, long timeout)
 		if (rqstp->rq_deferred) {
 			svc_xprt_received(xprt);
 			len = svc_deferred_recv(rqstp);
-		} else
+		} else {
 			len = xprt->xpt_ops->xpo_recvfrom(rqstp);
+			svc_xprt_received(xprt);
+		}
 		dprintk("svc: got len=%d\n", len);
 	}
 
