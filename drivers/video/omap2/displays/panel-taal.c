@@ -1055,8 +1055,11 @@ static void taal_esd_work(struct work_struct *work)
 	}
 	/* Self-diagnostics result is also shown on TE GPIO line. We need
 	 * to re-enable TE after self diagnostics */
-	if (td->use_ext_te && td->te_enabled)
-		taal_enable_te(dssdev, true);
+	if (td->use_ext_te && td->te_enabled) {
+		r = taal_dcs_write_1(DCS_TEAR_ON, 0);
+		if (r)
+			goto err;
+	}
 
 	dsi_bus_unlock();
 
