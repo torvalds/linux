@@ -25,10 +25,10 @@ to be referencing the data structure.  However, this mechanism was not
 optimized for modern computer systems, which is not surprising given
 that these overheads were not so expensive in the mid-80s.  Nonetheless,
 passive serialization appears to be the first deferred-destruction
-mechanism to be used in production.  Furthermore, the relevant patent has
-lapsed, so this approach may be used in non-GPL software, if desired.
-(In contrast, use of RCU is permitted only in software licensed under
-GPL.  Sorry!!!)
+mechanism to be used in production.  Furthermore, the relevant patent
+has lapsed, so this approach may be used in non-GPL software, if desired.
+(In contrast, implementation of RCU is permitted only in software licensed
+under either GPL or LGPL.  Sorry!!!)
 
 In 1990, Pugh [Pugh90] noted that explicitly tracking which threads
 were reading a given data structure permitted deferred free to operate
@@ -149,6 +149,18 @@ QRCU [PaulEMcKenney2007QRCUspin], a design document describing
 preemptible RCU [PaulEMcKenney2007PreemptibleRCU], and the three-part
 LWN "What is RCU?" series [PaulEMcKenney2007WhatIsRCUFundamentally,
 PaulEMcKenney2008WhatIsRCUUsage, and PaulEMcKenney2008WhatIsRCUAPI].
+
+2008 saw a journal paper on real-time RCU [DinakarGuniguntala2008IBMSysJ],
+a history of how Linux changed RCU more than RCU changed Linux
+[PaulEMcKenney2008RCUOSR], and a design overview of hierarchical RCU
+[PaulEMcKenney2008HierarchicalRCU].
+
+2009 introduced user-level RCU algorithms [PaulEMcKenney2009MaliciousURCU],
+which Mathieu Desnoyers is now maintaining [MathieuDesnoyers2009URCU]
+[MathieuDesnoyersPhD].  TINY_RCU [PaulEMcKenney2009BloatWatchRCU] made
+its appearance, as did expedited RCU [PaulEMcKenney2009expeditedRCU].
+The problem of resizeable RCU-protected hash tables may now be on a path
+to a solution [JoshTriplett2009RPHash].
 
 Bibtex Entries
 
@@ -730,6 +742,11 @@ Revised:
 "
 }
 
+#
+#	"What is RCU?" LWN series.
+#
+########################################################################
+
 @article{DinakarGuniguntala2008IBMSysJ
 ,author="D. Guniguntala and P. E. McKenney and J. Triplett and J. Walpole"
 ,title="The read-copy-update mechanism for supporting real-time applications on shared-memory multiprocessor systems with {Linux}"
@@ -819,4 +836,40 @@ Revised:
 ,annotation="
 	Uniprocessor assumptions allow simplified RCU implementation.
 "
+}
+
+@unpublished{PaulEMcKenney2009expeditedRCU
+,Author="Paul E. McKenney"
+,Title="[{PATCH} -tip 0/3] expedited 'big hammer' {RCU} grace periods"
+,month="June"
+,day="25"
+,year="2009"
+,note="Available:
+\url{http://lkml.org/lkml/2009/6/25/306}
+[Viewed August 16, 2009]"
+,annotation="
+	First posting of expedited RCU to be accepted into -tip.
+"
+}
+
+@unpublished{JoshTriplett2009RPHash
+,Author="Josh Triplett"
+,Title="Scalable concurrent hash tables via relativistic programming"
+,month="September"
+,year="2009"
+,note="Linux Plumbers Conference presentation"
+,annotation="
+	RP fun with hash tables.
+"
+}
+
+@phdthesis{MathieuDesnoyersPhD
+, title  = "Low-Impact Operating System Tracing"
+, author = "Mathieu Desnoyers"
+, school = "Ecole Polytechnique de Montr\'{e}al"
+, month  = "December"
+, year   = 2009
+,note="Available:
+\url{http://www.lttng.org/pub/thesis/desnoyers-dissertation-2009-12.pdf}
+[Viewed December 9, 2009]"
 }

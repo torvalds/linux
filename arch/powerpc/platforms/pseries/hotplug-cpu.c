@@ -387,24 +387,12 @@ static char cede_parameters[CEDE_LATENCY_PARAM_MAX_LENGTH];
 
 static int parse_cede_parameters(void)
 {
-	int call_status;
-
 	memset(cede_parameters, 0, CEDE_LATENCY_PARAM_MAX_LENGTH);
-	call_status = rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
-				NULL,
-				CEDE_LATENCY_TOKEN,
-				__pa(cede_parameters),
-				CEDE_LATENCY_PARAM_MAX_LENGTH);
-
-	if (call_status != 0)
-		printk(KERN_INFO "CEDE_LATENCY: \
-			%s %s Error calling get-system-parameter(0x%x)\n",
-			__FILE__, __func__, call_status);
-	else
-		printk(KERN_INFO "CEDE_LATENCY: \
-			get-system-parameter successful.\n");
-
-	return call_status;
+	return rtas_call(rtas_token("ibm,get-system-parameter"), 3, 1,
+			 NULL,
+			 CEDE_LATENCY_TOKEN,
+			 __pa(cede_parameters),
+			 CEDE_LATENCY_PARAM_MAX_LENGTH);
 }
 
 static int __init pseries_cpu_hotplug_init(void)

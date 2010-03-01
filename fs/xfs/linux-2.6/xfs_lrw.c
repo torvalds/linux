@@ -630,18 +630,9 @@ start:
 	 * by root.  This keeps people from modifying setuid and
 	 * setgid binaries.
 	 */
-
-	if (((xip->i_d.di_mode & S_ISUID) ||
-	    ((xip->i_d.di_mode & (S_ISGID | S_IXGRP)) ==
-		(S_ISGID | S_IXGRP))) &&
-	     !capable(CAP_FSETID)) {
-		error = xfs_write_clear_setuid(xip);
-		if (likely(!error))
-			error = -file_remove_suid(file);
-		if (unlikely(error)) {
-			goto out_unlock_internal;
-		}
-	}
+	error = -file_remove_suid(file);
+	if (unlikely(error))
+		goto out_unlock_internal;
 
 	/* We can write back this queue in page reclaim */
 	current->backing_dev_info = mapping->backing_dev_info;
@@ -781,53 +772,6 @@ write_retry:
 	if (need_i_mutex)
 		mutex_unlock(&inode->i_mutex);
 	return -error;
-}
-
-/*
- * All xfs metadata buffers except log state machine buffers
- * get this attached as their b_bdstrat callback function.
- * This is so that we can catch a buffer
- * after prematurely unpinning it to forcibly shutdown the filesystem.
- */
-int
-xfs_bdstrat_cb(struct xfs_buf *bp)
-{
-	if (XFS_FORCED_SHUTDOWN(bp->b_mount)) {
-		trace_xfs_bdstrat_shut(bp, _RET_IP_);
-		/*
-		 * Metadata write that didn't get logged but
-		 * written delayed anyway. These aren't associated
-		 * with a transaction, and can be ignored.
-		 */
-		if (XFS_BUF_IODONE_FUNC(bp) == NULL &&
-		    (XFS_BUF_ISREAD(bp)) == 0)
-			return (xfs_bioerror_relse(bp));
-		else
-			return (xfs_bioerror(bp));
-	}
-
-	xfs_buf_iorequest(bp);
-	return 0;
-}
-
-/*
- * Wrapper around bdstrat so that we can stop data from going to disk in case
- * we are shutting down the filesystem.  Typically user data goes thru this
- * path; one of the exceptions is the superblock.
- */
-void
-xfsbdstrat(
-	struct xfs_mount	*mp,
-	struct xfs_buf		*bp)
-{
-	ASSERT(mp);
-	if (!XFS_FORCED_SHUTDOWN(mp)) {
-		xfs_buf_iorequest(bp);
-		return;
-	}
-
-	trace_xfs_bdstrat_shut(bp, _RET_IP_);
-	xfs_bioerror_relse(bp);
 }
 
 /*

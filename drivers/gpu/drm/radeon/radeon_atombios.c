@@ -206,6 +206,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
 	}
 
+	/* Asrock RS600 board lists the DVI port as HDMI */
+	if ((dev->pdev->device == 0x7941) &&
+	    (dev->pdev->subsystem_vendor == 0x1849) &&
+	    (dev->pdev->subsystem_device == 0x7941)) {
+		if ((*connector_type == DRM_MODE_CONNECTOR_HDMIA) &&
+		    (supported_device == ATOM_DEVICE_DFP3_SUPPORT))
+			*connector_type = DRM_MODE_CONNECTOR_DVID;
+	}
+
 	/* a-bit f-i90hd - ciaranm on #radeonhd - this board has no DVI */
 	if ((dev->pdev->device == 0x7941) &&
 	    (dev->pdev->subsystem_vendor == 0x147b) &&

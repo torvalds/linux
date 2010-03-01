@@ -368,6 +368,7 @@ struct dasd_device {
 
 	/* Device state and target state. */
 	int state, target;
+	struct mutex state_mutex;
 	int stopped;		/* device (ccw_device_start) was stopped */
 
 	/* reference count. */

@@ -20,10 +20,9 @@
 #include <asm/system.h>
 #include <asm/atomic.h>
 
-static int hlt_counter;
 void (*pm_idle)(void) = NULL;
-void (*pm_power_off)(void);
-EXPORT_SYMBOL(pm_power_off);
+
+static int hlt_counter;
 
 static int __init nohlt_setup(char *__unused)
 {
@@ -129,6 +128,15 @@ void __cpuinit select_idle_routine(void)
 
 static void do_nothing(void *unused)
 {
+}
+
+void stop_this_cpu(void *unused)
+{
+	local_irq_disable();
+	cpu_clear(smp_processor_id(), cpu_online_map);
+
+	for (;;)
+		cpu_sleep();
 }
 
 /*

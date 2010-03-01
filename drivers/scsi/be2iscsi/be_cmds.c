@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -19,7 +19,7 @@
 #include "be_mgmt.h"
 #include "be_main.h"
 
-static void be_mcc_notify(struct beiscsi_hba *phba)
+void be_mcc_notify(struct beiscsi_hba *phba)
 {
 	struct be_queue_info *mccq = &phba->ctrl.mcc_obj.q;
 	u32 val = 0;
@@ -27,6 +27,52 @@ static void be_mcc_notify(struct beiscsi_hba *phba)
 	val |= mccq->id & DB_MCCQ_RING_ID_MASK;
 	val |= 1 << DB_MCCQ_NUM_POSTED_SHIFT;
 	iowrite32(val, phba->db_va + DB_MCCQ_OFFSET);
+}
+
+unsigned int alloc_mcc_tag(struct beiscsi_hba *phba)
+{
+	unsigned int tag = 0;
+	unsigned int num = 0;
+
+mcc_tag_rdy:
+	if (phba->ctrl.mcc_tag_available) {
+		tag = phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index];
+		phba->ctrl.mcc_tag[phba->ctrl.mcc_alloc_index] = 0;
+		phba->ctrl.mcc_numtag[tag] = 0;
+	} else {
+		udelay(100);
+		num++;
+		if (num < mcc_timeout)
+			goto mcc_tag_rdy;
+	}
+	if (tag) {
+		phba->ctrl.mcc_tag_available--;
+		if (phba->ctrl.mcc_alloc_index == (MAX_MCC_CMD - 1))
+			phba->ctrl.mcc_alloc_index = 0;
+		else
+			phba->ctrl.mcc_alloc_index++;
+	}
+	return tag;
+}
+
+void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag)
+{
+	spin_lock(&ctrl->mbox_lock);
+	tag = tag & 0x000000FF;
+	ctrl->mcc_tag[ctrl->mcc_free_index] = tag;
+	if (ctrl->mcc_free_index == (MAX_MCC_CMD - 1))
+		ctrl->mcc_free_index = 0;
+	else
+		ctrl->mcc_free_index++;
+	ctrl->mcc_tag_available++;
+	spin_unlock(&ctrl->mbox_lock);
+}
+
+bool is_link_state_evt(u32 trailer)
+{
+	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
+		  ASYNC_TRAILER_EVENT_CODE_MASK) ==
+		  ASYNC_EVENT_CODE_LINK_STATE);
 }
 
 static inline bool be_mcc_compl_is_new(struct be_mcc_compl *compl)
@@ -64,12 +110,30 @@ static int be_mcc_compl_process(struct be_ctrl_info *ctrl,
 	return 0;
 }
 
-
-static inline bool is_link_state_evt(u32 trailer)
+int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
+				    struct be_mcc_compl *compl)
 {
-	return (((trailer >> ASYNC_TRAILER_EVENT_CODE_SHIFT) &
-		  ASYNC_TRAILER_EVENT_CODE_MASK) ==
-		  ASYNC_EVENT_CODE_LINK_STATE);
+	u16 compl_status, extd_status;
+	unsigned short tag;
+
+	be_dws_le_to_cpu(compl, 4);
+
+	compl_status = (compl->status >> CQE_STATUS_COMPL_SHIFT) &
+					CQE_STATUS_COMPL_MASK;
+	/* The ctrl.mcc_numtag[tag] is filled with
+	 * [31] = valid, [30:24] = Rsvd, [23:16] = wrb, [15:8] = extd_status,
+	 * [7:0] = compl_status
+	 */
+	tag = (compl->tag0 & 0x000000FF);
+	extd_status = (compl->status >> CQE_STATUS_EXTD_SHIFT) &
+					CQE_STATUS_EXTD_MASK;
+
+	ctrl->mcc_numtag[tag]  = 0x80000000;
+	ctrl->mcc_numtag[tag] |= (compl->tag0 & 0x00FF0000);
+	ctrl->mcc_numtag[tag] |= (extd_status & 0x000000FF) << 8;
+	ctrl->mcc_numtag[tag] |= (compl_status & 0x000000FF);
+	wake_up_interruptible(&ctrl->mcc_wait[tag]);
+	return 0;
 }
 
 static struct be_mcc_compl *be_mcc_compl_get(struct beiscsi_hba *phba)
@@ -89,7 +153,7 @@ static void be2iscsi_fail_session(struct iscsi_cls_session *cls_session)
 	iscsi_session_failure(cls_session->dd_data, ISCSI_ERR_CONN_FAILED);
 }
 
-static void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
+void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 		struct be_async_event_link_state *evt)
 {
 	switch (evt->port_link_status) {
@@ -97,13 +161,13 @@ static void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
 		SE_DEBUG(DBG_LVL_1, "Link Down on Physical Port %d \n",
 						evt->physical_port);
 		phba->state |= BE_ADAPTER_LINK_DOWN;
+		iscsi_host_for_each_session(phba->shost,
+					    be2iscsi_fail_session);
 		break;
 	case ASYNC_EVENT_LINK_UP:
 		phba->state = BE_ADAPTER_UP;
 		SE_DEBUG(DBG_LVL_1, "Link UP on Physical Port %d \n",
 						evt->physical_port);
-		iscsi_host_for_each_session(phba->shost,
-					    be2iscsi_fail_session);
 		break;
 	default:
 		SE_DEBUG(DBG_LVL_1, "Unexpected Async Notification %d on"
@@ -162,7 +226,6 @@ int beiscsi_process_mcc(struct beiscsi_hba *phba)
 /* Wait till no more pending mcc requests are present */
 static int be_mcc_wait_compl(struct beiscsi_hba *phba)
 {
-#define mcc_timeout		120000 /* 5s timeout */
 	int i, status;
 	for (i = 0; i < mcc_timeout; i++) {
 		status = beiscsi_process_mcc(phba);
@@ -372,9 +435,10 @@ struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba)
 
 	BUG_ON(atomic_read(&mccq->used) >= mccq->len);
 	wrb = queue_head_node(mccq);
+	memset(wrb, 0, sizeof(*wrb));
+	wrb->tag0 = (mccq->head & 0x000000FF) << 16;
 	queue_head_inc(mccq);
 	atomic_inc(&mccq->used);
-	memset(wrb, 0, sizeof(*wrb));
 	return wrb;
 }
 

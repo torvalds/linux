@@ -54,23 +54,23 @@ I/O. Memory mapped buffers are located in device memory and must be
 allocated with this ioctl before they can be mapped into the
 application's address space. User buffers are allocated by
 applications themselves, and this ioctl is merely used to switch the
-driver into user pointer I/O mode.</para>
+driver into user pointer I/O mode and to setup some internal structures.</para>
 
-    <para>To allocate device buffers applications initialize three
-fields of a <structname>v4l2_requestbuffers</structname> structure.
+    <para>To allocate device buffers applications initialize all
+fields of the <structname>v4l2_requestbuffers</structname> structure.
 They set the <structfield>type</structfield> field to the respective
 stream or buffer type, the <structfield>count</structfield> field to
-the desired number of buffers, and <structfield>memory</structfield>
-must be set to <constant>V4L2_MEMORY_MMAP</constant>. When the ioctl
-is called with a pointer to this structure the driver attempts to
-allocate the requested number of buffers and stores the actual number
+the desired number of buffers, <structfield>memory</structfield>
+must be set to the requested I/O method and the reserved array
+must be zeroed. When the ioctl
+is called with a pointer to this structure the driver will attempt to allocate
+the requested number of buffers and it stores the actual number
 allocated in the <structfield>count</structfield> field. It can be
 smaller than the number requested, even zero, when the driver runs out
-of free memory. A larger number is possible when the driver requires
-more buffers to function correctly.<footnote>
-	<para>For example video output requires at least two buffers,
+of free memory. A larger number is also possible when the driver requires
+more buffers to function correctly. For example video output requires at least two buffers,
 one displayed and one filled by the application.</para>
-	</footnote> When memory mapping I/O is not supported the ioctl
+    <para>When the I/O method is not supported the ioctl
 returns an &EINVAL;.</para>
 
     <para>Applications can call <constant>VIDIOC_REQBUFS</constant>
@@ -81,14 +81,6 @@ in progress, an implicit &VIDIOC-STREAMOFF;. <!-- mhs: I see no
 reason why munmap()ping one or even all buffers must imply
 streamoff.--></para>
 
-    <para>To negotiate user pointer I/O, applications initialize only
-the <structfield>type</structfield> field and set
-<structfield>memory</structfield> to
-<constant>V4L2_MEMORY_USERPTR</constant>. When the ioctl is called
-with a pointer to this structure the driver prepares for user pointer
-I/O, when this I/O method is not supported the ioctl returns an
-&EINVAL;.</para>
-
     <table pgwide="1" frame="none" id="v4l2-requestbuffers">
       <title>struct <structname>v4l2_requestbuffers</structname></title>
       <tgroup cols="3">
@@ -97,9 +89,7 @@ I/O, when this I/O method is not supported the ioctl returns an
 	  <row>
 	    <entry>__u32</entry>
 	    <entry><structfield>count</structfield></entry>
-	    <entry>The number of buffers requested or granted. This
-field is only used when <structfield>memory</structfield> is set to
-<constant>V4L2_MEMORY_MMAP</constant>.</entry>
+	    <entry>The number of buffers requested or granted.</entry>
 	  </row>
 	  <row>
 	    <entry>&v4l2-buf-type;</entry>
@@ -120,7 +110,7 @@ as the &v4l2-format; <structfield>type</structfield> field. See <xref
 	    <entry><structfield>reserved</structfield>[2]</entry>
 	    <entry>A place holder for future extensions and custom
 (driver defined) buffer types <constant>V4L2_BUF_TYPE_PRIVATE</constant> and
-higher.</entry>
+higher. This array should be zeroed by applications.</entry>
 	  </row>
 	</tbody>
       </tgroup>

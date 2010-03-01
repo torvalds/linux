@@ -206,7 +206,7 @@ static int __devinit mace_probe(struct macio_dev *mdev, const struct of_device_i
 		mp->port_aaui = port_aaui;
 	else {
 		/* Apple Network Server uses the AAUI port */
-		if (machine_is_compatible("AAPL,ShinerESB"))
+		if (of_machine_is_compatible("AAPL,ShinerESB"))
 			mp->port_aaui = 1;
 		else {
 #ifdef CONFIG_MACE_AAUI_PORT

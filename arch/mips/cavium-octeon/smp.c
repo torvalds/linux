@@ -327,7 +327,7 @@ static void octeon_cpu_die(unsigned int cpu)
 				   avail_coremask);
 	}
 
-	pr_info("Reset core %d. Available Coremask = %x \n", coreid,
+	pr_info("Reset core %d. Available Coremask = %x\n", coreid,
 		avail_coremask);
 	cvmx_write_csr(CVMX_CIU_PP_RST, 1 << coreid);
 	cvmx_write_csr(CVMX_CIU_PP_RST, 0);

@@ -78,6 +78,33 @@ DECLARE_EVENT_CLASS(xfs_attr_list_class,
 	)
 )
 
+#define DEFINE_PERAG_REF_EVENT(name) \
+TRACE_EVENT(name, \
+	TP_PROTO(struct xfs_mount *mp, xfs_agnumber_t agno, int refcount, \
+		 unsigned long caller_ip), \
+	TP_ARGS(mp, agno, refcount, caller_ip), \
+	TP_STRUCT__entry( \
+		__field(dev_t, dev) \
+		__field(xfs_agnumber_t, agno) \
+		__field(int, refcount) \
+		__field(unsigned long, caller_ip) \
+	), \
+	TP_fast_assign( \
+		__entry->dev = mp->m_super->s_dev; \
+		__entry->agno = agno; \
+		__entry->refcount = refcount; \
+		__entry->caller_ip = caller_ip; \
+	), \
+	TP_printk("dev %d:%d agno %u refcount %d caller %pf", \
+		  MAJOR(__entry->dev), MINOR(__entry->dev), \
+		  __entry->agno, \
+		  __entry->refcount, \
+		  (char *)__entry->caller_ip) \
+);
+
+DEFINE_PERAG_REF_EVENT(xfs_perag_get)
+DEFINE_PERAG_REF_EVENT(xfs_perag_put)
+
 #define DEFINE_ATTR_LIST_EVENT(name) \
 DEFINE_EVENT(xfs_attr_list_class, name, \
 	TP_PROTO(struct xfs_attr_list_context *ctx), \
@@ -456,6 +483,7 @@ DEFINE_BUF_ITEM_EVENT(xfs_buf_item_unlock);
 DEFINE_BUF_ITEM_EVENT(xfs_buf_item_unlock_stale);
 DEFINE_BUF_ITEM_EVENT(xfs_buf_item_committed);
 DEFINE_BUF_ITEM_EVENT(xfs_buf_item_push);
+DEFINE_BUF_ITEM_EVENT(xfs_buf_item_pushbuf);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_get_buf);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_get_buf_recur);
 DEFINE_BUF_ITEM_EVENT(xfs_trans_getsb);
@@ -1413,6 +1441,59 @@ TRACE_EVENT(xfs_dir2_leafn_moveents,
 		  __entry->dst_idx,
 		  __entry->count)
 );
+
+#define XFS_SWAPEXT_INODES \
+	{ 0,	"target" }, \
+	{ 1,	"temp" }
+
+#define XFS_INODE_FORMAT_STR \
+	{ 0,	"invalid" }, \
+	{ 1,	"local" }, \
+	{ 2,	"extent" }, \
+	{ 3,	"btree" }
+
+DECLARE_EVENT_CLASS(xfs_swap_extent_class,
+	TP_PROTO(struct xfs_inode *ip, int which),
+	TP_ARGS(ip, which),
+	TP_STRUCT__entry(
+		__field(dev_t, dev)
+		__field(int, which)
+		__field(xfs_ino_t, ino)
+		__field(int, format)
+		__field(int, nex)
+		__field(int, max_nex)
+		__field(int, broot_size)
+		__field(int, fork_off)
+	),
+	TP_fast_assign(
+		__entry->dev = VFS_I(ip)->i_sb->s_dev;
+		__entry->which = which;
+		__entry->ino = ip->i_ino;
+		__entry->format = ip->i_d.di_format;
+		__entry->nex = ip->i_d.di_nextents;
+		__entry->max_nex = ip->i_df.if_ext_max;
+		__entry->broot_size = ip->i_df.if_broot_bytes;
+		__entry->fork_off = XFS_IFORK_BOFF(ip);
+	),
+	TP_printk("dev %d:%d ino 0x%llx (%s), %s format, num_extents %d, "
+		  "Max in-fork extents %d, broot size %d, fork offset %d",
+		  MAJOR(__entry->dev), MINOR(__entry->dev),
+		  __entry->ino,
+		  __print_symbolic(__entry->which, XFS_SWAPEXT_INODES),
+		  __print_symbolic(__entry->format, XFS_INODE_FORMAT_STR),
+		  __entry->nex,
+		  __entry->max_nex,
+		  __entry->broot_size,
+		  __entry->fork_off)
+)
+
+#define DEFINE_SWAPEXT_EVENT(name) \
+DEFINE_EVENT(xfs_swap_extent_class, name, \
+	TP_PROTO(struct xfs_inode *ip, int which), \
+	TP_ARGS(ip, which))
+
+DEFINE_SWAPEXT_EVENT(xfs_swap_extent_before);
+DEFINE_SWAPEXT_EVENT(xfs_swap_extent_after);
 
 #endif /* _TRACE_XFS_H */
 

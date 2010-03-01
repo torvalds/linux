@@ -247,6 +247,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 					 struct pci_bus *bus, int devfn)
 {
 	struct dev_archdata *sd;
+	struct pci_slot *slot;
 	struct of_device *op;
 	struct pci_dev *dev;
 	const char *type;
@@ -286,6 +287,11 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 	dev->dev.bus = &pci_bus_type;
 	dev->devfn = devfn;
 	dev->multifunction = 0;		/* maybe a lie? */
+	set_pcie_port_type(dev);
+
+	list_for_each_entry(slot, &dev->bus->slots, list)
+		if (PCI_SLOT(dev->devfn) == slot->number)
+			dev->slot = slot;
 
 	dev->vendor = of_getintprop_default(node, "vendor-id", 0xffff);
 	dev->device = of_getintprop_default(node, "device-id", 0xffff);
@@ -322,6 +328,7 @@ static struct pci_dev *of_create_pci_dev(struct pci_pbm_info *pbm,
 
 	dev->current_state = 4;		/* unknown power state */
 	dev->error_state = pci_channel_io_normal;
+	dev->dma_mask = 0xffffffff;
 
 	if (!strcmp(node->name, "pci")) {
 		/* a PCI-PCI bridge */
@@ -715,9 +722,10 @@ void pcibios_update_irq(struct pci_dev *pdev, int irq)
 {
 }
 
-void pcibios_align_resource(void *data, struct resource *res,
-			    resource_size_t size, resource_size_t align)
+resource_size_t pcibios_align_resource(void *data, const struct resource *res,
+				resource_size_t size, resource_size_t align)
 {
+	return res->start;
 }
 
 int pcibios_enable_device(struct pci_dev *dev, int mask)

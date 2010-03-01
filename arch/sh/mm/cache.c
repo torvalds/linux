@@ -2,7 +2,7 @@
  * arch/sh/mm/cache.c
  *
  * Copyright (C) 1999, 2000, 2002  Niibe Yutaka
- * Copyright (C) 2002 - 2009  Paul Mundt
+ * Copyright (C) 2002 - 2010  Paul Mundt
  *
  * Released under the terms of the GNU GPL v2.0.
  */
@@ -41,8 +41,17 @@ static inline void cacheop_on_each_cpu(void (*func) (void *info), void *info,
                                    int wait)
 {
 	preempt_disable();
-	smp_call_function(func, info, wait);
+
+	/*
+	 * It's possible that this gets called early on when IRQs are
+	 * still disabled due to ioremapping by the boot CPU, so don't
+	 * even attempt IPIs unless there are other CPUs online.
+	 */
+	if (num_online_cpus() > 1)
+		smp_call_function(func, info, wait);
+
 	func(info);
+
 	preempt_enable();
 }
 

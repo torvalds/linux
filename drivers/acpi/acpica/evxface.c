@@ -218,6 +218,72 @@ ACPI_EXPORT_SYMBOL(acpi_remove_fixed_event_handler)
 
 /*******************************************************************************
  *
+ * FUNCTION:    acpi_populate_handler_object
+ *
+ * PARAMETERS:  handler_obj        - Handler object to populate
+ *              handler_type       - The type of handler:
+ *                                  ACPI_SYSTEM_NOTIFY: system_handler (00-7f)
+ *                                  ACPI_DEVICE_NOTIFY: driver_handler (80-ff)
+ *                                  ACPI_ALL_NOTIFY:  both system and device
+ *              handler            - Address of the handler
+ *              context            - Value passed to the handler on each GPE
+ *              next               - Address of a handler object to link to
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Populate a handler object.
+ *
+ ******************************************************************************/
+static void
+acpi_populate_handler_object(struct acpi_object_notify_handler *handler_obj,
+			     u32 handler_type,
+			     acpi_notify_handler handler, void *context,
+			     struct acpi_object_notify_handler *next)
+{
+	handler_obj->handler_type = handler_type;
+	handler_obj->handler = handler;
+	handler_obj->context = context;
+	handler_obj->next = next;
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_add_handler_object
+ *
+ * PARAMETERS:  parent_obj         - Parent of the new object
+ *              handler            - Address of the handler
+ *              context            - Value passed to the handler on each GPE
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: Create a new handler object and populate it.
+ *
+ ******************************************************************************/
+static acpi_status
+acpi_add_handler_object(struct acpi_object_notify_handler *parent_obj,
+			acpi_notify_handler handler, void *context)
+{
+	struct acpi_object_notify_handler *handler_obj;
+
+	/* The parent must not be a defice notify handler object. */
+	if (parent_obj->handler_type & ACPI_DEVICE_NOTIFY)
+		return AE_BAD_PARAMETER;
+
+	handler_obj = ACPI_ALLOCATE_ZEROED(sizeof(*handler_obj));
+	if (!handler_obj)
+		return AE_NO_MEMORY;
+
+	acpi_populate_handler_object(handler_obj,
+					ACPI_SYSTEM_NOTIFY,
+					handler, context,
+					parent_obj->next);
+	parent_obj->next = handler_obj;
+
+	return AE_OK;
+}
+
+/*******************************************************************************
+ *
  * FUNCTION:    acpi_install_notify_handler
  *
  * PARAMETERS:  Device          - The device for which notifies will be handled
@@ -316,13 +382,30 @@ acpi_install_notify_handler(acpi_handle device,
 		obj_desc = acpi_ns_get_attached_object(node);
 		if (obj_desc) {
 
-			/* Object exists - make sure there's no handler */
+			/* Object exists. */
 
-			if (((handler_type & ACPI_SYSTEM_NOTIFY) &&
-			     obj_desc->common_notify.system_notify) ||
-			    ((handler_type & ACPI_DEVICE_NOTIFY) &&
-			     obj_desc->common_notify.device_notify)) {
+			/* For a device notify, make sure there's no handler. */
+			if ((handler_type & ACPI_DEVICE_NOTIFY) &&
+			     obj_desc->common_notify.device_notify) {
 				status = AE_ALREADY_EXISTS;
+				goto unlock_and_exit;
+			}
+
+			/* System notifies may have more handlers installed. */
+			notify_obj = obj_desc->common_notify.system_notify;
+
+			if ((handler_type & ACPI_SYSTEM_NOTIFY) && notify_obj) {
+				struct acpi_object_notify_handler *parent_obj;
+
+				if (handler_type & ACPI_DEVICE_NOTIFY) {
+					status = AE_ALREADY_EXISTS;
+					goto unlock_and_exit;
+				}
+
+				parent_obj = &notify_obj->notify;
+				status = acpi_add_handler_object(parent_obj,
+								 handler,
+								 context);
 				goto unlock_and_exit;
 			}
 		} else {
@@ -356,9 +439,10 @@ acpi_install_notify_handler(acpi_handle device,
 			goto unlock_and_exit;
 		}
 
-		notify_obj->notify.node = node;
-		notify_obj->notify.handler = handler;
-		notify_obj->notify.context = context;
+		acpi_populate_handler_object(&notify_obj->notify,
+						handler_type,
+						handler, context,
+						NULL);
 
 		if (handler_type & ACPI_SYSTEM_NOTIFY) {
 			obj_desc->common_notify.system_notify = notify_obj;
@@ -418,6 +502,10 @@ acpi_remove_notify_handler(acpi_handle device,
 		goto exit;
 	}
 
+
+	/* Make sure all deferred tasks are completed */
+	acpi_os_wait_events_complete(NULL);
+
 	status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
 	if (ACPI_FAILURE(status)) {
 		goto exit;
@@ -443,15 +531,6 @@ acpi_remove_notify_handler(acpi_handle device,
 		     !acpi_gbl_device_notify.handler)) {
 			status = AE_NOT_EXIST;
 			goto unlock_and_exit;
-		}
-
-		/* Make sure all deferred tasks are completed */
-
-		(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-		acpi_os_wait_events_complete(NULL);
-		status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-		if (ACPI_FAILURE(status)) {
-			goto exit;
 		}
 
 		if (handler_type & ACPI_SYSTEM_NOTIFY) {
@@ -488,28 +567,60 @@ acpi_remove_notify_handler(acpi_handle device,
 		/* Object exists - make sure there's an existing handler */
 
 		if (handler_type & ACPI_SYSTEM_NOTIFY) {
+			struct acpi_object_notify_handler *handler_obj;
+			struct acpi_object_notify_handler *parent_obj;
+
 			notify_obj = obj_desc->common_notify.system_notify;
 			if (!notify_obj) {
 				status = AE_NOT_EXIST;
 				goto unlock_and_exit;
 			}
 
-			if (notify_obj->notify.handler != handler) {
+			handler_obj = &notify_obj->notify;
+			parent_obj = NULL;
+			while (handler_obj->handler != handler) {
+				if (handler_obj->next) {
+					parent_obj = handler_obj;
+					handler_obj = handler_obj->next;
+				} else {
+					break;
+				}
+			}
+
+			if (handler_obj->handler != handler) {
 				status = AE_BAD_PARAMETER;
 				goto unlock_and_exit;
 			}
-			/* Make sure all deferred tasks are completed */
 
-			(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-			acpi_os_wait_events_complete(NULL);
-			status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-			if (ACPI_FAILURE(status)) {
-				goto exit;
+			/*
+			 * Remove the handler.  There are three possible cases.
+			 * First, we may need to remove a non-embedded object.
+			 * Second, we may need to remove the embedded object's
+			 * handler data, while non-embedded objects exist.
+			 * Finally, we may need to remove the embedded object
+			 * entirely along with its container.
+			 */
+			if (parent_obj) {
+				/* Non-embedded object is being removed. */
+				parent_obj->next = handler_obj->next;
+				ACPI_FREE(handler_obj);
+			} else if (notify_obj->notify.next) {
+				/*
+				 * The handler matches the embedded object, but
+				 * there are more handler objects in the list.
+				 * Replace the embedded object's data with the
+				 * first next object's data and remove that
+				 * object.
+				 */
+				parent_obj = &notify_obj->notify;
+				handler_obj = notify_obj->notify.next;
+				*parent_obj = *handler_obj;
+				ACPI_FREE(handler_obj);
+			} else {
+				/* No more handler objects in the list. */
+				obj_desc->common_notify.system_notify = NULL;
+				acpi_ut_remove_reference(notify_obj);
 			}
-
-			/* Remove the handler */
-			obj_desc->common_notify.system_notify = NULL;
-			acpi_ut_remove_reference(notify_obj);
 		}
 
 		if (handler_type & ACPI_DEVICE_NOTIFY) {
@@ -522,14 +633,6 @@ acpi_remove_notify_handler(acpi_handle device,
 			if (notify_obj->notify.handler != handler) {
 				status = AE_BAD_PARAMETER;
 				goto unlock_and_exit;
-			}
-			/* Make sure all deferred tasks are completed */
-
-			(void)acpi_ut_release_mutex(ACPI_MTX_NAMESPACE);
-			acpi_os_wait_events_complete(NULL);
-			status = acpi_ut_acquire_mutex(ACPI_MTX_NAMESPACE);
-			if (ACPI_FAILURE(status)) {
-				goto exit;
 			}
 
 			/* Remove the handler */
@@ -617,13 +720,6 @@ acpi_install_gpe_handler(acpi_handle gpe_device,
 	handler->context = context;
 	handler->method_node = gpe_event_info->dispatch.method_node;
 
-	/* Disable the GPE before installing the handler */
-
-	status = acpi_ev_disable_gpe(gpe_event_info);
-	if (ACPI_FAILURE(status)) {
-		goto unlock_and_exit;
-	}
-
 	/* Install the handler */
 
 	flags = acpi_os_acquire_lock(acpi_gbl_gpe_lock);
@@ -704,13 +800,6 @@ acpi_remove_gpe_handler(acpi_handle gpe_device,
 
 	if (gpe_event_info->dispatch.handler->address != address) {
 		status = AE_BAD_PARAMETER;
-		goto unlock_and_exit;
-	}
-
-	/* Disable the GPE before removing the handler */
-
-	status = acpi_ev_disable_gpe(gpe_event_info);
-	if (ACPI_FAILURE(status)) {
 		goto unlock_and_exit;
 	}
 

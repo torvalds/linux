@@ -62,6 +62,8 @@ extern int sched_expedited_torture_stats(char *page);
 
 /* Internal to kernel */
 extern void rcu_init(void);
+extern int rcu_scheduler_active;
+extern void rcu_scheduler_starting(void);
 
 #if defined(CONFIG_TREE_RCU) || defined(CONFIG_TREE_PREEMPT_RCU)
 #include <linux/rcutree.h>
@@ -78,14 +80,120 @@ extern void rcu_init(void);
 } while (0)
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
+
 extern struct lockdep_map rcu_lock_map;
-# define rcu_read_acquire()	\
-			lock_acquire(&rcu_lock_map, 0, 0, 2, 1, NULL, _THIS_IP_)
+# define rcu_read_acquire() \
+		lock_acquire(&rcu_lock_map, 0, 0, 2, 1, NULL, _THIS_IP_)
 # define rcu_read_release()	lock_release(&rcu_lock_map, 1, _THIS_IP_)
-#else
-# define rcu_read_acquire()	do { } while (0)
-# define rcu_read_release()	do { } while (0)
-#endif
+
+extern struct lockdep_map rcu_bh_lock_map;
+# define rcu_read_acquire_bh() \
+		lock_acquire(&rcu_bh_lock_map, 0, 0, 2, 1, NULL, _THIS_IP_)
+# define rcu_read_release_bh()	lock_release(&rcu_bh_lock_map, 1, _THIS_IP_)
+
+extern struct lockdep_map rcu_sched_lock_map;
+# define rcu_read_acquire_sched() \
+		lock_acquire(&rcu_sched_lock_map, 0, 0, 2, 1, NULL, _THIS_IP_)
+# define rcu_read_release_sched() \
+		lock_release(&rcu_sched_lock_map, 1, _THIS_IP_)
+
+/**
+ * rcu_read_lock_held - might we be in RCU read-side critical section?
+ *
+ * If CONFIG_PROVE_LOCKING is selected and enabled, returns nonzero iff in
+ * an RCU read-side critical section.  In absence of CONFIG_PROVE_LOCKING,
+ * this assumes we are in an RCU read-side critical section unless it can
+ * prove otherwise.
+ */
+static inline int rcu_read_lock_held(void)
+{
+	if (debug_locks)
+		return lock_is_held(&rcu_lock_map);
+	return 1;
+}
+
+/**
+ * rcu_read_lock_bh_held - might we be in RCU-bh read-side critical section?
+ *
+ * If CONFIG_PROVE_LOCKING is selected and enabled, returns nonzero iff in
+ * an RCU-bh read-side critical section.  In absence of CONFIG_PROVE_LOCKING,
+ * this assumes we are in an RCU-bh read-side critical section unless it can
+ * prove otherwise.
+ */
+static inline int rcu_read_lock_bh_held(void)
+{
+	if (debug_locks)
+		return lock_is_held(&rcu_bh_lock_map);
+	return 1;
+}
+
+/**
+ * rcu_read_lock_sched_held - might we be in RCU-sched read-side critical section?
+ *
+ * If CONFIG_PROVE_LOCKING is selected and enabled, returns nonzero iff in an
+ * RCU-sched read-side critical section.  In absence of CONFIG_PROVE_LOCKING,
+ * this assumes we are in an RCU-sched read-side critical section unless it
+ * can prove otherwise.  Note that disabling of preemption (including
+ * disabling irqs) counts as an RCU-sched read-side critical section.
+ */
+static inline int rcu_read_lock_sched_held(void)
+{
+	int lockdep_opinion = 0;
+
+	if (debug_locks)
+		lockdep_opinion = lock_is_held(&rcu_sched_lock_map);
+	return lockdep_opinion || preempt_count() != 0 || !rcu_scheduler_active;
+}
+
+#else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+
+# define rcu_read_acquire()		do { } while (0)
+# define rcu_read_release()		do { } while (0)
+# define rcu_read_acquire_bh()		do { } while (0)
+# define rcu_read_release_bh()		do { } while (0)
+# define rcu_read_acquire_sched()	do { } while (0)
+# define rcu_read_release_sched()	do { } while (0)
+
+static inline int rcu_read_lock_held(void)
+{
+	return 1;
+}
+
+static inline int rcu_read_lock_bh_held(void)
+{
+	return 1;
+}
+
+static inline int rcu_read_lock_sched_held(void)
+{
+	return preempt_count() != 0 || !rcu_scheduler_active;
+}
+
+#endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
+
+#ifdef CONFIG_PROVE_RCU
+
+/**
+ * rcu_dereference_check - rcu_dereference with debug checking
+ *
+ * Do an rcu_dereference(), but check that the context is correct.
+ * For example, rcu_dereference_check(gp, rcu_read_lock_held()) to
+ * ensure that the rcu_dereference_check() executes within an RCU
+ * read-side critical section.  It is also possible to check for
+ * locks being held, for example, by using lockdep_is_held().
+ */
+#define rcu_dereference_check(p, c) \
+	({ \
+		if (debug_locks && !(c)) \
+			lockdep_rcu_dereference(__FILE__, __LINE__); \
+		rcu_dereference_raw(p); \
+	})
+
+#else /* #ifdef CONFIG_PROVE_RCU */
+
+#define rcu_dereference_check(p, c)	rcu_dereference_raw(p)
+
+#endif /* #else #ifdef CONFIG_PROVE_RCU */
 
 /**
  * rcu_read_lock - mark the beginning of an RCU read-side critical section.
@@ -160,7 +268,7 @@ static inline void rcu_read_lock_bh(void)
 {
 	__rcu_read_lock_bh();
 	__acquire(RCU_BH);
-	rcu_read_acquire();
+	rcu_read_acquire_bh();
 }
 
 /*
@@ -170,7 +278,7 @@ static inline void rcu_read_lock_bh(void)
  */
 static inline void rcu_read_unlock_bh(void)
 {
-	rcu_read_release();
+	rcu_read_release_bh();
 	__release(RCU_BH);
 	__rcu_read_unlock_bh();
 }
@@ -188,7 +296,7 @@ static inline void rcu_read_lock_sched(void)
 {
 	preempt_disable();
 	__acquire(RCU_SCHED);
-	rcu_read_acquire();
+	rcu_read_acquire_sched();
 }
 
 /* Used by lockdep and tracing: cannot be traced, cannot call lockdep. */
@@ -205,7 +313,7 @@ static inline notrace void rcu_read_lock_sched_notrace(void)
  */
 static inline void rcu_read_unlock_sched(void)
 {
-	rcu_read_release();
+	rcu_read_release_sched();
 	__release(RCU_SCHED);
 	preempt_enable();
 }
@@ -219,20 +327,47 @@ static inline notrace void rcu_read_unlock_sched_notrace(void)
 
 
 /**
- * rcu_dereference - fetch an RCU-protected pointer in an
- * RCU read-side critical section.  This pointer may later
- * be safely dereferenced.
+ * rcu_dereference_raw - fetch an RCU-protected pointer
+ *
+ * The caller must be within some flavor of RCU read-side critical
+ * section, or must be otherwise preventing the pointer from changing,
+ * for example, by holding an appropriate lock.  This pointer may later
+ * be safely dereferenced.  It is the caller's responsibility to have
+ * done the right thing, as this primitive does no checking of any kind.
  *
  * Inserts memory barriers on architectures that require them
  * (currently only the Alpha), and, more importantly, documents
  * exactly which pointers are protected by RCU.
  */
-
-#define rcu_dereference(p)     ({ \
+#define rcu_dereference_raw(p)	({ \
 				typeof(p) _________p1 = ACCESS_ONCE(p); \
 				smp_read_barrier_depends(); \
 				(_________p1); \
 				})
+
+/**
+ * rcu_dereference - fetch an RCU-protected pointer, checking for RCU
+ *
+ * Makes rcu_dereference_check() do the dirty work.
+ */
+#define rcu_dereference(p) \
+	rcu_dereference_check(p, rcu_read_lock_held())
+
+/**
+ * rcu_dereference_bh - fetch an RCU-protected pointer, checking for RCU-bh
+ *
+ * Makes rcu_dereference_check() do the dirty work.
+ */
+#define rcu_dereference_bh(p) \
+		rcu_dereference_check(p, rcu_read_lock_bh_held())
+
+/**
+ * rcu_dereference_sched - fetch RCU-protected pointer, checking for RCU-sched
+ *
+ * Makes rcu_dereference_check() do the dirty work.
+ */
+#define rcu_dereference_sched(p) \
+		rcu_dereference_check(p, rcu_read_lock_sched_held())
 
 /**
  * rcu_assign_pointer - assign (publicize) a pointer to a newly

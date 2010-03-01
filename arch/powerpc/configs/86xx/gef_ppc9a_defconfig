@@ -1557,7 +1557,52 @@ CONFIG_RTC_DRV_RX8581=y
 #
 # TI VLYNQ
 #
-# CONFIG_STAGING is not set
+CONFIG_STAGING=y
+# CONFIG_STAGING_EXCLUDE_BUILD is not set
+# CONFIG_ET131X is not set
+# CONFIG_ME4000 is not set
+# CONFIG_MEILHAUS is not set
+# CONFIG_USB_IP_COMMON is not set
+# CONFIG_ECHO is not set
+# CONFIG_COMEDI is not set
+# CONFIG_ASUS_OLED is not set
+# CONFIG_ALTERA_PCIE_CHDMA is not set
+# CONFIG_INPUT_MIMIO is not set
+# CONFIG_TRANZPORT is not set
+
+#
+# Android
+#
+# CONFIG_ANDROID is not set
+# CONFIG_DST is not set
+# CONFIG_POHMELFS is not set
+# CONFIG_B3DFG is not set
+# CONFIG_IDE_PHISON is not set
+# CONFIG_PLAN9AUTH is not set
+# CONFIG_HECI is not set
+# CONFIG_USB_CPC is not set
+
+#
+# Qualcomm MSM Camera And Video
+#
+
+#
+# Camera Sensor Selection
+#
+# CONFIG_HYPERV_STORAGE is not set
+# CONFIG_HYPERV_BLOCK is not set
+# CONFIG_HYPERV_NET is not set
+CONFIG_VME_BUS=y
+
+#
+# VME Bridge Drivers
+#
+CONFIG_VME_TSI148=y
+
+#
+# VME Device Drivers
+#
+# CONFIG_VME_USER is not set
 
 #
 # File systems

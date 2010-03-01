@@ -283,7 +283,7 @@ static int dib0090_sleep(struct dvb_frontend *fe)
 	return 0;
 }
 
-extern void dib0090_dcc_freq(struct dvb_frontend *fe, u8 fast)
+void dib0090_dcc_freq(struct dvb_frontend *fe, u8 fast)
 {
 	struct dib0090_state *state = fe->tuner_priv;
 	if (fast)

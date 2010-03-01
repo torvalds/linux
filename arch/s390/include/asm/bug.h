@@ -5,12 +5,6 @@
 
 #ifdef CONFIG_BUG
 
-#ifdef CONFIG_64BIT
-#define S390_LONG ".quad"
-#else
-#define S390_LONG ".long"
-#endif
-
 #ifdef CONFIG_DEBUG_BUGVERBOSE
 
 #define __EMIT_BUG(x) do {					\
@@ -21,7 +15,7 @@
 		"2:	.asciz	\""__FILE__"\"\n"		\
 		".previous\n"					\
 		".section __bug_table,\"a\"\n"			\
-		"3:\t"	S390_LONG "\t1b,2b\n"			\
+		"3:	.long	1b-3b,2b-3b\n"			\
 		"	.short	%0,%1\n"			\
 		"	.org	3b+%2\n"			\
 		".previous\n"					\
@@ -37,7 +31,7 @@
 		"0:	j	0b+2\n"			\
 		"1:\n"					\
 		".section __bug_table,\"a\"\n"		\
-		"2:\t"	S390_LONG "\t1b\n"		\
+		"2:	.long	1b-2b\n"		\
 		"	.short	%0\n"			\
 		"	.org	2b+%1\n"		\
 		".previous\n"				\

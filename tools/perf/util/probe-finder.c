@@ -140,6 +140,31 @@ static Dwarf_Unsigned cu_find_fileno(Dwarf_Die cu_die, const char *fname)
 	return found;
 }
 
+static int cu_get_filename(Dwarf_Die cu_die, Dwarf_Unsigned fno, char **buf)
+{
+	Dwarf_Signed cnt, i;
+	char **srcs;
+	int ret = 0;
+
+	if (!buf || !fno)
+		return -EINVAL;
+
+	ret = dwarf_srcfiles(cu_die, &srcs, &cnt, &__dw_error);
+	if (ret == DW_DLV_OK) {
+		if ((Dwarf_Unsigned)cnt > fno - 1) {
+			*buf = strdup(srcs[fno - 1]);
+			ret = 0;
+			pr_debug("found filename: %s\n", *buf);
+		} else
+			ret = -ENOENT;
+		for (i = 0; i < cnt; i++)
+			dwarf_dealloc(__dw_debug, srcs[i], DW_DLA_STRING);
+		dwarf_dealloc(__dw_debug, srcs, DW_DLA_LIST);
+	} else
+		ret = -EINVAL;
+	return ret;
+}
+
 /* Compare diename and tname */
 static int die_compare_name(Dwarf_Die dw_die, const char *tname)
 {
@@ -402,11 +427,11 @@ static void show_location(Dwarf_Loc *loc, struct probe_finder *pf)
 	} else if (op == DW_OP_regx) {
 		regn = loc->lr_number;
 	} else
-		die("Dwarf_OP %d is not supported.\n", op);
+		die("Dwarf_OP %d is not supported.", op);
 
 	regs = get_arch_regstr(regn);
 	if (!regs)
-		die("%lld exceeds max register number.\n", regn);
+		die("%lld exceeds max register number.", regn);
 
 	if (deref)
 		ret = snprintf(pf->buf, pf->len,
@@ -438,7 +463,7 @@ static void show_variable(Dwarf_Die vr_die, struct probe_finder *pf)
 	return ;
 error:
 	die("Failed to find the location of %s at this address.\n"
-	    " Perhaps, it has been optimized out.\n", pf->var);
+	    " Perhaps, it has been optimized out.", pf->var);
 }
 
 static int variable_callback(struct die_link *dlink, void *data)
@@ -476,7 +501,7 @@ static void find_variable(Dwarf_Die sp_die, struct probe_finder *pf)
 	/* Search child die for local variables and parameters. */
 	ret = search_die_from_children(sp_die, variable_callback, pf);
 	if (!ret)
-		die("Failed to find '%s' in this function.\n", pf->var);
+		die("Failed to find '%s' in this function.", pf->var);
 }
 
 /* Get a frame base on the address */
@@ -567,7 +592,7 @@ static int probeaddr_callback(struct die_link *dlink, void *data)
 }
 
 /* Find probe point from its line number */
-static void find_by_line(struct probe_finder *pf)
+static void find_probe_point_by_line(struct probe_finder *pf)
 {
 	Dwarf_Signed cnt, i, clm;
 	Dwarf_Line *lines;
@@ -602,7 +627,7 @@ static void find_by_line(struct probe_finder *pf)
 		ret = search_die_from_children(pf->cu_die,
 					       probeaddr_callback, pf);
 		if (ret == 0)
-			die("Probe point is not found in subprograms.\n");
+			die("Probe point is not found in subprograms.");
 		/* Continuing, because target line might be inlined. */
 	}
 	dwarf_srclines_dealloc(__dw_debug, lines, cnt);
@@ -626,7 +651,7 @@ static int probefunc_callback(struct die_link *dlink, void *data)
 				pf->fno = die_get_decl_file(dlink->die);
 				pf->lno = die_get_decl_line(dlink->die)
 					 + pp->line;
-				find_by_line(pf);
+				find_probe_point_by_line(pf);
 				return 1;
 			}
 			if (die_inlined_subprogram(dlink->die)) {
@@ -661,7 +686,7 @@ static int probefunc_callback(struct die_link *dlink, void *data)
 				    !die_inlined_subprogram(lk->die))
 					goto found;
 			}
-			die("Failed to find real subprogram.\n");
+			die("Failed to find real subprogram.");
 found:
 			/* Get offset from subprogram */
 			ret = die_within_subprogram(lk->die, pf->addr, &offs);
@@ -673,7 +698,7 @@ found:
 	return 0;
 }
 
-static void find_by_func(struct probe_finder *pf)
+static void find_probe_point_by_func(struct probe_finder *pf)
 {
 	search_die_from_children(pf->cu_die, probefunc_callback, pf);
 }
@@ -714,10 +739,10 @@ int find_probepoint(int fd, struct probe_point *pp)
 			if (ret == DW_DLV_NO_ENTRY)
 				pf.cu_base = 0;
 			if (pp->function)
-				find_by_func(&pf);
+				find_probe_point_by_func(&pf);
 			else {
 				pf.lno = pp->line;
-				find_by_line(&pf);
+				find_probe_point_by_line(&pf);
 			}
 		}
 		dwarf_dealloc(__dw_debug, pf.cu_die, DW_DLA_DIE);
@@ -726,5 +751,161 @@ int find_probepoint(int fd, struct probe_point *pp)
 	DIE_IF(ret != DW_DLV_OK);
 
 	return pp->found;
+}
+
+
+static void line_range_add_line(struct line_range *lr, unsigned int line)
+{
+	struct line_node *ln;
+	struct list_head *p;
+
+	/* Reverse search, because new line will be the last one */
+	list_for_each_entry_reverse(ln, &lr->line_list, list) {
+		if (ln->line < line) {
+			p = &ln->list;
+			goto found;
+		} else if (ln->line == line)	/* Already exist */
+			return ;
+	}
+	/* List is empty, or the smallest entry */
+	p = &lr->line_list;
+found:
+	pr_debug("Debug: add a line %u\n", line);
+	ln = zalloc(sizeof(struct line_node));
+	DIE_IF(ln == NULL);
+	ln->line = line;
+	INIT_LIST_HEAD(&ln->list);
+	list_add(&ln->list, p);
+}
+
+/* Find line range from its line number */
+static void find_line_range_by_line(struct line_finder *lf)
+{
+	Dwarf_Signed cnt, i;
+	Dwarf_Line *lines;
+	Dwarf_Unsigned lineno = 0;
+	Dwarf_Unsigned fno;
+	Dwarf_Addr addr;
+	int ret;
+
+	ret = dwarf_srclines(lf->cu_die, &lines, &cnt, &__dw_error);
+	DIE_IF(ret != DW_DLV_OK);
+
+	for (i = 0; i < cnt; i++) {
+		ret = dwarf_line_srcfileno(lines[i], &fno, &__dw_error);
+		DIE_IF(ret != DW_DLV_OK);
+		if (fno != lf->fno)
+			continue;
+
+		ret = dwarf_lineno(lines[i], &lineno, &__dw_error);
+		DIE_IF(ret != DW_DLV_OK);
+		if (lf->lno_s > lineno || lf->lno_e < lineno)
+			continue;
+
+		/* Filter line in the function address range */
+		if (lf->addr_s && lf->addr_e) {
+			ret = dwarf_lineaddr(lines[i], &addr, &__dw_error);
+			DIE_IF(ret != DW_DLV_OK);
+			if (lf->addr_s > addr || lf->addr_e <= addr)
+				continue;
+		}
+		line_range_add_line(lf->lr, (unsigned int)lineno);
+	}
+	dwarf_srclines_dealloc(__dw_debug, lines, cnt);
+	if (!list_empty(&lf->lr->line_list))
+		lf->found = 1;
+}
+
+/* Search function from function name */
+static int linefunc_callback(struct die_link *dlink, void *data)
+{
+	struct line_finder *lf = (struct line_finder *)data;
+	struct line_range *lr = lf->lr;
+	Dwarf_Half tag;
+	int ret;
+
+	ret = dwarf_tag(dlink->die, &tag, &__dw_error);
+	DIE_IF(ret == DW_DLV_ERROR);
+	if (tag == DW_TAG_subprogram &&
+	    die_compare_name(dlink->die, lr->function) == 0) {
+		/* Get the address range of this function */
+		ret = dwarf_highpc(dlink->die, &lf->addr_e, &__dw_error);
+		if (ret == DW_DLV_OK)
+			ret = dwarf_lowpc(dlink->die, &lf->addr_s, &__dw_error);
+		DIE_IF(ret == DW_DLV_ERROR);
+		if (ret == DW_DLV_NO_ENTRY) {
+			lf->addr_s = 0;
+			lf->addr_e = 0;
+		}
+
+		lf->fno = die_get_decl_file(dlink->die);
+		lr->offset = die_get_decl_line(dlink->die);;
+		lf->lno_s = lr->offset + lr->start;
+		if (!lr->end)
+			lf->lno_e = (Dwarf_Unsigned)-1;
+		else
+			lf->lno_e = lr->offset + lr->end;
+		lr->start = lf->lno_s;
+		lr->end = lf->lno_e;
+		find_line_range_by_line(lf);
+		/* If we find a target function, this should be end. */
+		lf->found = 1;
+		return 1;
+	}
+	return 0;
+}
+
+static void find_line_range_by_func(struct line_finder *lf)
+{
+	search_die_from_children(lf->cu_die, linefunc_callback, lf);
+}
+
+int find_line_range(int fd, struct line_range *lr)
+{
+	Dwarf_Half addr_size = 0;
+	Dwarf_Unsigned next_cuh = 0;
+	int ret;
+	struct line_finder lf = {.lr = lr};
+
+	ret = dwarf_init(fd, DW_DLC_READ, 0, 0, &__dw_debug, &__dw_error);
+	if (ret != DW_DLV_OK)
+		return -ENOENT;
+
+	while (!lf.found) {
+		/* Search CU (Compilation Unit) */
+		ret = dwarf_next_cu_header(__dw_debug, NULL, NULL, NULL,
+			&addr_size, &next_cuh, &__dw_error);
+		DIE_IF(ret == DW_DLV_ERROR);
+		if (ret == DW_DLV_NO_ENTRY)
+			break;
+
+		/* Get the DIE(Debugging Information Entry) of this CU */
+		ret = dwarf_siblingof(__dw_debug, 0, &lf.cu_die, &__dw_error);
+		DIE_IF(ret != DW_DLV_OK);
+
+		/* Check if target file is included. */
+		if (lr->file)
+			lf.fno = cu_find_fileno(lf.cu_die, lr->file);
+
+		if (!lr->file || lf.fno) {
+			if (lr->function)
+				find_line_range_by_func(&lf);
+			else {
+				lf.lno_s = lr->start;
+				if (!lr->end)
+					lf.lno_e = (Dwarf_Unsigned)-1;
+				else
+					lf.lno_e = lr->end;
+				find_line_range_by_line(&lf);
+			}
+			/* Get the real file path */
+			if (lf.found)
+				cu_get_filename(lf.cu_die, lf.fno, &lr->path);
+		}
+		dwarf_dealloc(__dw_debug, lf.cu_die, DW_DLA_DIE);
+	}
+	ret = dwarf_finish(__dw_debug, &__dw_error);
+	DIE_IF(ret != DW_DLV_OK);
+	return lf.found;
 }
 

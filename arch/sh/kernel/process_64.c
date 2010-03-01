@@ -32,30 +32,7 @@
 
 struct task_struct *last_task_used_math = NULL;
 
-void machine_restart(char * __unused)
-{
-	extern void phys_stext(void);
-
-	phys_stext();
-}
-
-void machine_halt(void)
-{
-	for (;;);
-}
-
-void machine_power_off(void)
-{
-	__asm__ __volatile__ (
-		"sleep\n\t"
-		"synci\n\t"
-		"nop;nop;nop;nop\n\t"
-	);
-
-	panic("Unexpected wakeup!\n");
-}
-
-void show_regs(struct pt_regs * regs)
+void show_regs(struct pt_regs *regs)
 {
 	unsigned long long ah, al, bh, bl, ch, cl;
 
@@ -410,7 +387,7 @@ int dump_fpu(struct pt_regs *regs, elf_fpregset_t *fpu)
 			regs->sr |= SR_FD;
 		}
 
-		memcpy(fpu, &tsk->thread.fpu.hard, sizeof(*fpu));
+		memcpy(fpu, &tsk->thread.xstate->hardfpu, sizeof(*fpu));
 	}
 
 	return fpvalid;

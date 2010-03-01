@@ -657,31 +657,31 @@ static int __init pmac_cpufreq_setup(void)
 	cur_freq = (*value) / 1000;
 
 	/*  Check for 7447A based MacRISC3 */
-	if (machine_is_compatible("MacRISC3") &&
+	if (of_machine_is_compatible("MacRISC3") &&
 	    of_get_property(cpunode, "dynamic-power-step", NULL) &&
 	    PVR_VER(mfspr(SPRN_PVR)) == 0x8003) {
 		pmac_cpufreq_init_7447A(cpunode);
 	/* Check for other MacRISC3 machines */
-	} else if (machine_is_compatible("PowerBook3,4") ||
-		   machine_is_compatible("PowerBook3,5") ||
-		   machine_is_compatible("MacRISC3")) {
+	} else if (of_machine_is_compatible("PowerBook3,4") ||
+		   of_machine_is_compatible("PowerBook3,5") ||
+		   of_machine_is_compatible("MacRISC3")) {
 		pmac_cpufreq_init_MacRISC3(cpunode);
 	/* Else check for iBook2 500/600 */
-	} else if (machine_is_compatible("PowerBook4,1")) {
+	} else if (of_machine_is_compatible("PowerBook4,1")) {
 		hi_freq = cur_freq;
 		low_freq = 400000;
 		set_speed_proc = pmu_set_cpu_speed;
 		is_pmu_based = 1;
 	}
 	/* Else check for TiPb 550 */
-	else if (machine_is_compatible("PowerBook3,3") && cur_freq == 550000) {
+	else if (of_machine_is_compatible("PowerBook3,3") && cur_freq == 550000) {
 		hi_freq = cur_freq;
 		low_freq = 500000;
 		set_speed_proc = pmu_set_cpu_speed;
 		is_pmu_based = 1;
 	}
 	/* Else check for TiPb 400 & 500 */
-	else if (machine_is_compatible("PowerBook3,2")) {
+	else if (of_machine_is_compatible("PowerBook3,2")) {
 		/* We only know about the 400 MHz and the 500Mhz model
 		 * they both have 300 MHz as low frequency
 		 */

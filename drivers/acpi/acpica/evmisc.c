@@ -259,9 +259,15 @@ static void ACPI_SYSTEM_XFACE acpi_ev_notify_dispatch(void *context)
 
 	handler_obj = notify_info->notify.handler_obj;
 	if (handler_obj) {
-		handler_obj->notify.handler(notify_info->notify.node,
-					    notify_info->notify.value,
-					    handler_obj->notify.context);
+		struct acpi_object_notify_handler *notifier;
+
+		notifier = &handler_obj->notify;
+		while (notifier) {
+			notifier->handler(notify_info->notify.node,
+					  notify_info->notify.value,
+					  notifier->context);
+			notifier = notifier->next;
+		}
 	}
 
 	/* All done with the info object */

@@ -3,7 +3,7 @@
  * Copyright (c) 2009 Philippe Vachon <philippe@cowpig.ca>
  *
  * Copyright (C) 2009 Lemote Inc.
- * Author: Wu Zhangjin, wuzj@lemote.com
+ * Author: Wu Zhangjin, wuzhangjin@gmail.com
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the

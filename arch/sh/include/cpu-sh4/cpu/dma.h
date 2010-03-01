@@ -6,8 +6,6 @@
 #ifdef CONFIG_CPU_SH4A
 
 #define DMAOR_INIT	(DMAOR_DME)
-#define CHCR_TS_MASK	0x18
-#define CHCR_TS_SHIFT	3
 
 #include <cpu/dma-sh4a.h>
 #else /* CONFIG_CPU_SH4A */
@@ -29,8 +27,10 @@
 #define TS_32		0x00000030
 #define TS_64		0x00000000
 
-#define CHCR_TS_MASK	0x70
-#define CHCR_TS_SHIFT	4
+#define CHCR_TS_LOW_MASK	0x70
+#define CHCR_TS_LOW_SHIFT	4
+#define CHCR_TS_HIGH_MASK	0
+#define CHCR_TS_HIGH_SHIFT	0
 
 #define DMAOR_COD	0x00000008
 
@@ -41,23 +41,26 @@
  * Defaults to a 64-bit transfer size.
  */
 enum {
-	XMIT_SZ_64BIT,
-	XMIT_SZ_8BIT,
-	XMIT_SZ_16BIT,
-	XMIT_SZ_32BIT,
-	XMIT_SZ_256BIT,
+	XMIT_SZ_8BIT	= 1,
+	XMIT_SZ_16BIT	= 2,
+	XMIT_SZ_32BIT	= 3,
+	XMIT_SZ_64BIT	= 0,
+	XMIT_SZ_256BIT	= 4,
 };
 
 /*
  * The DMA count is defined as the number of bytes to transfer.
  */
-static unsigned int ts_shift[] __maybe_unused = {
-	[XMIT_SZ_64BIT]		= 3,
-	[XMIT_SZ_8BIT]		= 0,
-	[XMIT_SZ_16BIT]		= 1,
-	[XMIT_SZ_32BIT]		= 2,
-	[XMIT_SZ_256BIT]	= 5,
-};
+#define TS_SHIFT {			\
+	[XMIT_SZ_8BIT]		= 0,	\
+	[XMIT_SZ_16BIT]		= 1,	\
+	[XMIT_SZ_32BIT]		= 2,	\
+	[XMIT_SZ_64BIT]		= 3,	\
+	[XMIT_SZ_256BIT]	= 5,	\
+}
+
+#define TS_INDEX2VAL(i)	(((i) & 7) << CHCR_TS_LOW_SHIFT)
+
 #endif
 
 #endif /* __ASM_CPU_SH4_DMA_H */

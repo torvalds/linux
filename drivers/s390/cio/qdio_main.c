@@ -392,6 +392,20 @@ static inline void qdio_stop_polling(struct qdio_q *q)
 		set_buf_state(q, q->u.in.ack_start, SLSB_P_INPUT_NOT_INIT);
 }
 
+static inline void account_sbals(struct qdio_q *q, int count)
+{
+	int pos = 0;
+
+	q->q_stats.nr_sbal_total += count;
+	if (count == QDIO_MAX_BUFFERS_MASK) {
+		q->q_stats.nr_sbals[7]++;
+		return;
+	}
+	while (count >>= 1)
+		pos++;
+	q->q_stats.nr_sbals[pos]++;
+}
+
 static void announce_buffer_error(struct qdio_q *q, int count)
 {
 	q->qdio_error |= QDIO_ERROR_SLSB_STATE;
@@ -487,16 +501,22 @@ static int get_inbound_buffer_frontier(struct qdio_q *q)
 		q->first_to_check = add_buf(q->first_to_check, count);
 		if (atomic_sub(count, &q->nr_buf_used) == 0)
 			qperf_inc(q, inbound_queue_full);
+		if (q->irq_ptr->perf_stat_enabled)
+			account_sbals(q, count);
 		break;
 	case SLSB_P_INPUT_ERROR:
 		announce_buffer_error(q, count);
 		/* process the buffer, the upper layer will take care of it */
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
+		if (q->irq_ptr->perf_stat_enabled)
+			account_sbals_error(q, count);
 		break;
 	case SLSB_CU_INPUT_EMPTY:
 	case SLSB_P_INPUT_NOT_INIT:
 	case SLSB_P_INPUT_ACK:
+		if (q->irq_ptr->perf_stat_enabled)
+			q->q_stats.nr_sbal_nop++;
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "in nop");
 		break;
 	default:
@@ -514,7 +534,7 @@ static int qdio_inbound_q_moved(struct qdio_q *q)
 
 	if ((bufnr != q->last_move) || q->qdio_error) {
 		q->last_move = bufnr;
-		if (!is_thinint_irq(q->irq_ptr) && !MACHINE_IS_VM)
+		if (!is_thinint_irq(q->irq_ptr) && MACHINE_IS_LPAR)
 			q->u.in.timestamp = get_usecs();
 		return 1;
 	} else
@@ -643,15 +663,21 @@ static int get_outbound_buffer_frontier(struct qdio_q *q)
 
 		atomic_sub(count, &q->nr_buf_used);
 		q->first_to_check = add_buf(q->first_to_check, count);
+		if (q->irq_ptr->perf_stat_enabled)
+			account_sbals(q, count);
 		break;
 	case SLSB_P_OUTPUT_ERROR:
 		announce_buffer_error(q, count);
 		/* process the buffer, the upper layer will take care of it */
 		q->first_to_check = add_buf(q->first_to_check, count);
 		atomic_sub(count, &q->nr_buf_used);
+		if (q->irq_ptr->perf_stat_enabled)
+			account_sbals_error(q, count);
 		break;
 	case SLSB_CU_OUTPUT_PRIMED:
 		/* the adapter has not fetched the output yet */
+		if (q->irq_ptr->perf_stat_enabled)
+			q->q_stats.nr_sbal_nop++;
 		DBF_DEV_EVENT(DBF_INFO, q->irq_ptr, "out primed:%1d", q->nr);
 		break;
 	case SLSB_P_OUTPUT_NOT_INIT:

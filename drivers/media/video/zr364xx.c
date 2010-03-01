@@ -78,6 +78,7 @@
 #define METHOD0 0
 #define METHOD1 1
 #define METHOD2 2
+#define METHOD3 3
 
 
 /* Module parameters */
@@ -114,7 +115,7 @@ static struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x06d6, 0x003b), .driver_info = METHOD0 },
 	{USB_DEVICE(0x0a17, 0x004e), .driver_info = METHOD2 },
 	{USB_DEVICE(0x041e, 0x405d), .driver_info = METHOD2 },
-	{USB_DEVICE(0x08ca, 0x2102), .driver_info = METHOD2 },
+	{USB_DEVICE(0x08ca, 0x2102), .driver_info = METHOD3 },
 	{USB_DEVICE(0x06d6, 0x003d), .driver_info = METHOD0 },
 	{}			/* Terminating entry */
 };
@@ -302,7 +303,7 @@ static message m2[] = {
 };
 
 /* init table */
-static message *init[3] = { m0, m1, m2 };
+static message *init[4] = { m0, m1, m2, m2 };
 
 
 /* JPEG static data in header (Huffman table, etc) */
@@ -967,6 +968,22 @@ static int zr364xx_vidioc_s_fmt_vid_cap(struct file *file, void *priv,
 	m0d1[0] = mode;
 	m1[2].value = 0xf000 + mode;
 	m2[1].value = 0xf000 + mode;
+
+	/* special case for METHOD3, the modes are different */
+	if (cam->method == METHOD3) {
+		switch (mode) {
+		case 1:
+			m2[1].value = 0xf000 + 4;
+			break;
+		case 2:
+			m2[1].value = 0xf000 + 0;
+			break;
+		default:
+			m2[1].value = 0xf000 + 1;
+			break;
+		}
+	}
+
 	header2[437] = cam->height / 256;
 	header2[438] = cam->height % 256;
 	header2[439] = cam->width / 256;
@@ -1582,6 +1599,22 @@ static int zr364xx_probe(struct usb_interface *intf,
 	m0d1[0] = mode;
 	m1[2].value = 0xf000 + mode;
 	m2[1].value = 0xf000 + mode;
+
+	/* special case for METHOD3, the modes are different */
+	if (cam->method == METHOD3) {
+		switch (mode) {
+		case 1:
+			m2[1].value = 0xf000 + 4;
+			break;
+		case 2:
+			m2[1].value = 0xf000 + 0;
+			break;
+		default:
+			m2[1].value = 0xf000 + 1;
+			break;
+		}
+	}
+
 	header2[437] = cam->height / 256;
 	header2[438] = cam->height % 256;
 	header2[439] = cam->width / 256;

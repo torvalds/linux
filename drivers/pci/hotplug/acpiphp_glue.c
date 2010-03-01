@@ -720,12 +720,6 @@ static int acpiphp_bus_add(struct acpiphp_func *func)
 			-ret_val);
 		goto acpiphp_bus_add_out;
 	}
-	/*
-	 * try to start anyway.  We could have failed to add
-	 * simply because this bus had previously been added
-	 * on another add.  Don't bother with the return value
-	 * we just keep going.
-	 */
 	ret_val = acpi_bus_start(device);
 
 acpiphp_bus_add_out:

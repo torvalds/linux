@@ -42,7 +42,6 @@ struct dib0700_state {
 	u16 mt2060_if1[2];
 	u8 rc_toggle;
 	u8 rc_counter;
-	u8 rc_func_version;
 	u8 is_dib7000pc;
 	u8 fw_use_new_i2c_api;
 	u8 disable_streaming_master_mode;

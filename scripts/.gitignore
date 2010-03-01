@@ -6,5 +6,4 @@ kallsyms
 pnmtologo
 bin2c
 unifdef
-binoffset
 ihex2fw

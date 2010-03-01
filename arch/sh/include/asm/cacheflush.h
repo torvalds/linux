@@ -63,6 +63,14 @@ static inline void flush_anon_page(struct vm_area_struct *vma,
 	if (boot_cpu_data.dcache.n_aliases && PageAnon(page))
 		__flush_anon_page(page, vmaddr);
 }
+static inline void flush_kernel_vmap_range(void *addr, int size)
+{
+	__flush_wback_region(addr, size);
+}
+static inline void invalidate_kernel_vmap_range(void *addr, int size)
+{
+	__flush_invalidate_region(addr, size);
+}
 
 #define ARCH_HAS_FLUSH_KERNEL_DCACHE_PAGE
 static inline void flush_kernel_dcache_page(struct page *page)

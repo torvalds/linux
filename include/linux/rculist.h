@@ -208,7 +208,7 @@ static inline void list_splice_init_rcu(struct list_head *list,
  * primitives such as list_add_rcu() as long as it's guarded by rcu_read_lock().
  */
 #define list_entry_rcu(ptr, type, member) \
-	container_of(rcu_dereference(ptr), type, member)
+	container_of(rcu_dereference_raw(ptr), type, member)
 
 /**
  * list_first_entry_rcu - get the first element from a list
@@ -225,9 +225,9 @@ static inline void list_splice_init_rcu(struct list_head *list,
 	list_entry_rcu((ptr)->next, type, member)
 
 #define __list_for_each_rcu(pos, head) \
-	for (pos = rcu_dereference((head)->next); \
+	for (pos = rcu_dereference_raw((head)->next); \
 		pos != (head); \
-		pos = rcu_dereference(pos->next))
+		pos = rcu_dereference_raw(pos->next))
 
 /**
  * list_for_each_entry_rcu	-	iterate over rcu list of given type
@@ -257,9 +257,9 @@ static inline void list_splice_init_rcu(struct list_head *list,
  * as long as the traversal is guarded by rcu_read_lock().
  */
 #define list_for_each_continue_rcu(pos, head) \
-	for ((pos) = rcu_dereference((pos)->next); \
+	for ((pos) = rcu_dereference_raw((pos)->next); \
 		prefetch((pos)->next), (pos) != (head); \
-		(pos) = rcu_dereference((pos)->next))
+		(pos) = rcu_dereference_raw((pos)->next))
 
 /**
  * list_for_each_entry_continue_rcu - continue iteration over list of given type
@@ -423,10 +423,10 @@ static inline void hlist_add_after_rcu(struct hlist_node *prev,
  * as long as the traversal is guarded by rcu_read_lock().
  */
 #define hlist_for_each_entry_rcu(tpos, pos, head, member)		 \
-	for (pos = rcu_dereference((head)->first);			 \
+	for (pos = rcu_dereference_raw((head)->first);			 \
 		pos && ({ prefetch(pos->next); 1; }) &&			 \
 		({ tpos = hlist_entry(pos, typeof(*tpos), member); 1; }); \
-		pos = rcu_dereference(pos->next))
+		pos = rcu_dereference_raw(pos->next))
 
 #endif	/* __KERNEL__ */
 #endif

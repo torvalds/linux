@@ -64,6 +64,7 @@ module_param(cis_width, int, 0444);
 
 void release_cis_mem(struct pcmcia_socket *s)
 {
+    mutex_lock(&s->ops_mutex);
     if (s->cis_mem.flags & MAP_ACTIVE) {
 	s->cis_mem.flags &= ~MAP_ACTIVE;
 	s->ops->set_mem_map(s, &s->cis_mem);
@@ -75,13 +76,15 @@ void release_cis_mem(struct pcmcia_socket *s)
 	iounmap(s->cis_virt);
 	s->cis_virt = NULL;
     }
+    mutex_unlock(&s->ops_mutex);
 }
-EXPORT_SYMBOL(release_cis_mem);
 
 /*
  * Map the card memory at "card_offset" into virtual space.
  * If flags & MAP_ATTRIB, map the attribute space, otherwise
  * map the memory space.
+ *
+ * Must be called with ops_mutex held.
  */
 static void __iomem *
 set_cis_map(struct pcmcia_socket *s, unsigned int card_offset, unsigned int flags)
@@ -140,6 +143,7 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 
     dev_dbg(&s->dev, "pcmcia_read_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
+    mutex_lock(&s->ops_mutex);
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
 	   locations in common memory */
@@ -151,7 +155,9 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 
 	sys = set_cis_map(s, 0, MAP_ACTIVE | ((cis_width) ? MAP_16BIT : 0));
 	if (!sys) {
+	    dev_dbg(&s->dev, "could not map memory\n");
 	    memset(ptr, 0xff, len);
+	    mutex_unlock(&s->ops_mutex);
 	    return -1;
 	}
 
@@ -165,6 +171,9 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
     } else {
 	u_int inc = 1, card_offset, flags;
 
+	if (addr > CISTPL_MAX_CIS_SIZE)
+		dev_dbg(&s->dev, "attempt to read CIS mem at addr %#x", addr);
+
 	flags = MAP_ACTIVE | ((cis_width) ? MAP_16BIT : 0);
 	if (attr) {
 	    flags |= MAP_ATTRIB;
@@ -176,7 +185,9 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	while (len) {
 	    sys = set_cis_map(s, card_offset, flags);
 	    if (!sys) {
+		dev_dbg(&s->dev, "could not map memory\n");
 		memset(ptr, 0xff, len);
+		mutex_unlock(&s->ops_mutex);
 		return -1;
 	    }
 	    end = sys + s->map_size;
@@ -190,12 +201,12 @@ int pcmcia_read_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	    addr = 0;
 	}
     }
+    mutex_unlock(&s->ops_mutex);
     dev_dbg(&s->dev, "  %#2.2x %#2.2x %#2.2x %#2.2x ...\n",
 	  *(u_char *)(ptr+0), *(u_char *)(ptr+1),
 	  *(u_char *)(ptr+2), *(u_char *)(ptr+3));
     return 0;
 }
-EXPORT_SYMBOL(pcmcia_read_cis_mem);
 
 
 void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
@@ -206,6 +217,7 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 
     dev_dbg(&s->dev, "pcmcia_write_cis_mem(%d, %#x, %u)\n", attr, addr, len);
 
+    mutex_lock(&s->ops_mutex);
     if (attr & IS_INDIRECT) {
 	/* Indirect accesses use a bunch of special registers at fixed
 	   locations in common memory */
@@ -216,8 +228,11 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	}
 
 	sys = set_cis_map(s, 0, MAP_ACTIVE | ((cis_width) ? MAP_16BIT : 0));
-	if (!sys)
+	if (!sys) {
+		dev_dbg(&s->dev, "could not map memory\n");
+		mutex_unlock(&s->ops_mutex);
 		return; /* FIXME: Error */
+	}
 
 	writeb(flags, sys+CISREG_ICTRL0);
 	writeb(addr & 0xff, sys+CISREG_IADDR0);
@@ -239,8 +254,11 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	card_offset = addr & ~(s->map_size-1);
 	while (len) {
 	    sys = set_cis_map(s, card_offset, flags);
-	    if (!sys)
+	    if (!sys) {
+		dev_dbg(&s->dev, "could not map memory\n");
+		mutex_unlock(&s->ops_mutex);
 		return; /* FIXME: error */
+	    }
 
 	    end = sys + s->map_size;
 	    sys = sys + (addr & (s->map_size-1));
@@ -253,8 +271,8 @@ void pcmcia_write_cis_mem(struct pcmcia_socket *s, int attr, u_int addr,
 	    addr = 0;
 	}
     }
+    mutex_unlock(&s->ops_mutex);
 }
-EXPORT_SYMBOL(pcmcia_write_cis_mem);
 
 
 /*======================================================================
@@ -265,32 +283,36 @@ EXPORT_SYMBOL(pcmcia_write_cis_mem);
 
 ======================================================================*/
 
-static void read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
-			   size_t len, void *ptr)
+static int read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
+			size_t len, void *ptr)
 {
-    struct cis_cache_entry *cis;
-    int ret;
+	struct cis_cache_entry *cis;
+	int ret = 0;
 
-    if (s->fake_cis) {
-	if (s->fake_cis_len >= addr+len)
-	    memcpy(ptr, s->fake_cis+addr, len);
-	else
-	    memset(ptr, 0xff, len);
-	return;
-    }
+	if (s->state & SOCKET_CARDBUS)
+		return -EINVAL;
 
-    list_for_each_entry(cis, &s->cis_cache, node) {
-	if (cis->addr == addr && cis->len == len && cis->attr == attr) {
-	    memcpy(ptr, cis->cache, len);
-	    return;
+	mutex_lock(&s->ops_mutex);
+	if (s->fake_cis) {
+		if (s->fake_cis_len >= addr+len)
+			memcpy(ptr, s->fake_cis+addr, len);
+		else {
+			memset(ptr, 0xff, len);
+			ret = -EINVAL;
+		}
+		mutex_unlock(&s->ops_mutex);
+		return ret;
 	}
-    }
 
-#ifdef CONFIG_CARDBUS
-    if (s->state & SOCKET_CARDBUS)
-	ret = read_cb_mem(s, attr, addr, len, ptr);
-    else
-#endif
+	list_for_each_entry(cis, &s->cis_cache, node) {
+		if (cis->addr == addr && cis->len == len && cis->attr == attr) {
+			memcpy(ptr, cis->cache, len);
+			mutex_unlock(&s->ops_mutex);
+			return 0;
+		}
+	}
+	mutex_unlock(&s->ops_mutex);
+
 	ret = pcmcia_read_cis_mem(s, attr, addr, len, ptr);
 
 	if (ret == 0) {
@@ -301,9 +323,12 @@ static void read_cis_cache(struct pcmcia_socket *s, int attr, u_int addr,
 			cis->len = len;
 			cis->attr = attr;
 			memcpy(cis->cache, ptr, len);
+			mutex_lock(&s->ops_mutex);
 			list_add(&cis->node, &s->cis_cache);
+			mutex_unlock(&s->ops_mutex);
 		}
 	}
+	return ret;
 }
 
 static void
@@ -311,32 +336,35 @@ remove_cis_cache(struct pcmcia_socket *s, int attr, u_int addr, u_int len)
 {
 	struct cis_cache_entry *cis;
 
+	mutex_lock(&s->ops_mutex);
 	list_for_each_entry(cis, &s->cis_cache, node)
 		if (cis->addr == addr && cis->len == len && cis->attr == attr) {
 			list_del(&cis->node);
 			kfree(cis);
 			break;
 		}
+	mutex_unlock(&s->ops_mutex);
 }
+
+/**
+ * destroy_cis_cache() - destroy the CIS cache
+ * @s:		pcmcia_socket for which CIS cache shall be destroyed
+ *
+ * This destroys the CIS cache but keeps any fake CIS alive. Must be
+ * called with ops_mutex held.
+ */
 
 void destroy_cis_cache(struct pcmcia_socket *s)
 {
 	struct list_head *l, *n;
+	struct cis_cache_entry *cis;
 
 	list_for_each_safe(l, n, &s->cis_cache) {
-		struct cis_cache_entry *cis = list_entry(l, struct cis_cache_entry, node);
-
+		cis = list_entry(l, struct cis_cache_entry, node);
 		list_del(&cis->node);
 		kfree(cis);
 	}
-
-	/*
-	 * If there was a fake CIS, destroy that as well.
-	 */
-	kfree(s->fake_cis);
-	s->fake_cis = NULL;
 }
-EXPORT_SYMBOL(destroy_cis_cache);
 
 /*======================================================================
 
@@ -349,6 +377,10 @@ int verify_cis_cache(struct pcmcia_socket *s)
 {
 	struct cis_cache_entry *cis;
 	char *buf;
+	int ret;
+
+	if (s->state & SOCKET_CARDBUS)
+		return -EINVAL;
 
 	buf = kmalloc(256, GFP_KERNEL);
 	if (buf == NULL) {
@@ -361,14 +393,9 @@ int verify_cis_cache(struct pcmcia_socket *s)
 
 		if (len > 256)
 			len = 256;
-#ifdef CONFIG_CARDBUS
-		if (s->state & SOCKET_CARDBUS)
-			read_cb_mem(s, cis->attr, cis->addr, len, buf);
-		else
-#endif
-			pcmcia_read_cis_mem(s, cis->attr, cis->addr, len, buf);
 
-		if (memcmp(buf, cis->cache, len) != 0) {
+		ret = pcmcia_read_cis_mem(s, cis->attr, cis->addr, len, buf);
+		if (ret || memcmp(buf, cis->cache, len) != 0) {
 			kfree(buf);
 			return -1;
 		}
@@ -391,17 +418,20 @@ int pcmcia_replace_cis(struct pcmcia_socket *s,
 		dev_printk(KERN_WARNING, &s->dev, "replacement CIS too big\n");
 		return -EINVAL;
 	}
+	mutex_lock(&s->ops_mutex);
 	kfree(s->fake_cis);
 	s->fake_cis = kmalloc(len, GFP_KERNEL);
 	if (s->fake_cis == NULL) {
 		dev_printk(KERN_WARNING, &s->dev, "no memory to replace CIS\n");
+		mutex_unlock(&s->ops_mutex);
 		return -ENOMEM;
 	}
 	s->fake_cis_len = len;
 	memcpy(s->fake_cis, data, len);
+	dev_info(&s->dev, "Using replacement CIS\n");
+	mutex_unlock(&s->ops_mutex);
 	return 0;
 }
-EXPORT_SYMBOL(pcmcia_replace_cis);
 
 /*======================================================================
 
@@ -425,25 +455,16 @@ int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function, tuple
 {
     if (!s)
 	return -EINVAL;
-    if (!(s->state & SOCKET_PRESENT))
+
+    if (!(s->state & SOCKET_PRESENT) || (s->state & SOCKET_CARDBUS))
 	return -ENODEV;
     tuple->TupleLink = tuple->Flags = 0;
-#ifdef CONFIG_CARDBUS
-    if (s->state & SOCKET_CARDBUS) {
-	struct pci_dev *dev = s->cb_dev;
-	u_int ptr;
-	pci_bus_read_config_dword(dev->subordinate, 0, PCI_CARDBUS_CIS, &ptr);
-	tuple->CISOffset = ptr & ~7;
-	SPACE(tuple->Flags) = (ptr & 7);
-    } else
-#endif
-    {
-	/* Assume presence of a LONGLINK_C to address 0 */
-	tuple->CISOffset = tuple->LinkOffset = 0;
-	SPACE(tuple->Flags) = HAS_LINK(tuple->Flags) = 1;
-    }
-    if (!(s->state & SOCKET_CARDBUS) && (s->functions > 1) &&
-	!(tuple->Attributes & TUPLE_RETURN_COMMON)) {
+
+    /* Assume presence of a LONGLINK_C to address 0 */
+    tuple->CISOffset = tuple->LinkOffset = 0;
+    SPACE(tuple->Flags) = HAS_LINK(tuple->Flags) = 1;
+
+    if ((s->functions > 1) && !(tuple->Attributes & TUPLE_RETURN_COMMON)) {
 	cisdata_t req = tuple->DesiredTuple;
 	tuple->DesiredTuple = CISTPL_LONGLINK_MFC;
 	if (pccard_get_next_tuple(s, function, tuple) == 0) {
@@ -456,17 +477,19 @@ int pccard_get_first_tuple(struct pcmcia_socket *s, unsigned int function, tuple
     }
     return pccard_get_next_tuple(s, function, tuple);
 }
-EXPORT_SYMBOL(pccard_get_first_tuple);
 
 static int follow_link(struct pcmcia_socket *s, tuple_t *tuple)
 {
     u_char link[5];
     u_int ofs;
+    int ret;
 
     if (MFC_FN(tuple->Flags)) {
 	/* Get indirect link from the MFC tuple */
-	read_cis_cache(s, LINK_SPACE(tuple->Flags),
+	ret = read_cis_cache(s, LINK_SPACE(tuple->Flags),
 		       tuple->LinkOffset, 5, link);
+	if (ret)
+		return -1;
 	ofs = get_unaligned_le32(link + 1);
 	SPACE(tuple->Flags) = (link[0] == CISTPL_MFC_ATTR);
 	/* Move to the next indirect link */
@@ -479,10 +502,12 @@ static int follow_link(struct pcmcia_socket *s, tuple_t *tuple)
     } else {
 	return -1;
     }
-    if (!(s->state & SOCKET_CARDBUS) && SPACE(tuple->Flags)) {
+    if (SPACE(tuple->Flags)) {
 	/* This is ugly, but a common CIS error is to code the long
 	   link offset incorrectly, so we check the right spot... */
-	read_cis_cache(s, SPACE(tuple->Flags), ofs, 5, link);
+	ret = read_cis_cache(s, SPACE(tuple->Flags), ofs, 5, link);
+	if (ret)
+		return -1;
 	if ((link[0] == CISTPL_LINKTARGET) && (link[1] >= 3) &&
 	    (strncmp(link+2, "CIS", 3) == 0))
 	    return ofs;
@@ -490,7 +515,9 @@ static int follow_link(struct pcmcia_socket *s, tuple_t *tuple)
 	/* Then, we try the wrong spot... */
 	ofs = ofs >> 1;
     }
-    read_cis_cache(s, SPACE(tuple->Flags), ofs, 5, link);
+    ret = read_cis_cache(s, SPACE(tuple->Flags), ofs, 5, link);
+    if (ret)
+	    return -1;
     if ((link[0] == CISTPL_LINKTARGET) && (link[1] >= 3) &&
 	(strncmp(link+2, "CIS", 3) == 0))
 	return ofs;
@@ -502,10 +529,11 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 {
     u_char link[2], tmp;
     int ofs, i, attr;
+    int ret;
 
     if (!s)
 	return -EINVAL;
-    if (!(s->state & SOCKET_PRESENT))
+    if (!(s->state & SOCKET_PRESENT) || (s->state & SOCKET_CARDBUS))
 	return -ENODEV;
 
     link[1] = tuple->TupleLink;
@@ -516,7 +544,9 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 	if (link[1] == 0xff) {
 	    link[0] = CISTPL_END;
 	} else {
-	    read_cis_cache(s, attr, ofs, 2, link);
+	    ret = read_cis_cache(s, attr, ofs, 2, link);
+	    if (ret)
+		    return -1;
 	    if (link[0] == CISTPL_NULL) {
 		ofs++; continue;
 	    }
@@ -528,7 +558,9 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 	    if (ofs < 0)
 		return -ENOSPC;
 	    attr = SPACE(tuple->Flags);
-	    read_cis_cache(s, attr, ofs, 2, link);
+	    ret = read_cis_cache(s, attr, ofs, 2, link);
+	    if (ret)
+		    return -1;
 	}
 
 	/* Is this a link tuple?  Make a note of it */
@@ -542,12 +574,16 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 	    case CISTPL_LONGLINK_A:
 		HAS_LINK(tuple->Flags) = 1;
 		LINK_SPACE(tuple->Flags) = attr | IS_ATTR;
-		read_cis_cache(s, attr, ofs+2, 4, &tuple->LinkOffset);
+		ret = read_cis_cache(s, attr, ofs+2, 4, &tuple->LinkOffset);
+		if (ret)
+			return -1;
 		break;
 	    case CISTPL_LONGLINK_C:
 		HAS_LINK(tuple->Flags) = 1;
 		LINK_SPACE(tuple->Flags) = attr & ~IS_ATTR;
-		read_cis_cache(s, attr, ofs+2, 4, &tuple->LinkOffset);
+		ret = read_cis_cache(s, attr, ofs+2, 4, &tuple->LinkOffset);
+		if (ret)
+			return -1;
 		break;
 	    case CISTPL_INDIRECT:
 		HAS_LINK(tuple->Flags) = 1;
@@ -559,7 +595,9 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
 		LINK_SPACE(tuple->Flags) = attr;
 		if (function == BIND_FN_ALL) {
 		    /* Follow all the MFC links */
-		    read_cis_cache(s, attr, ofs+2, 1, &tmp);
+		    ret = read_cis_cache(s, attr, ofs+2, 1, &tmp);
+		    if (ret)
+			    return -1;
 		    MFC_FN(tuple->Flags) = tmp;
 		} else {
 		    /* Follow exactly one of the links */
@@ -592,7 +630,6 @@ int pccard_get_next_tuple(struct pcmcia_socket *s, unsigned int function, tuple_
     tuple->CISOffset = ofs + 2;
     return 0;
 }
-EXPORT_SYMBOL(pccard_get_next_tuple);
 
 /*====================================================================*/
 
@@ -601,6 +638,7 @@ EXPORT_SYMBOL(pccard_get_next_tuple);
 int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple)
 {
     u_int len;
+    int ret;
 
     if (!s)
 	return -EINVAL;
@@ -611,12 +649,13 @@ int pccard_get_tuple_data(struct pcmcia_socket *s, tuple_t *tuple)
     tuple->TupleDataLen = tuple->TupleLink;
     if (len == 0)
 	return 0;
-    read_cis_cache(s, SPACE(tuple->Flags),
+    ret = read_cis_cache(s, SPACE(tuple->Flags),
 		   tuple->CISOffset + tuple->TupleOffset,
 		   _MIN(len, tuple->TupleDataMax), tuple->TupleData);
+    if (ret)
+	    return -1;
     return 0;
 }
-EXPORT_SYMBOL(pccard_get_tuple_data);
 
 
 /*======================================================================
@@ -1190,119 +1229,6 @@ static int parse_cftable_entry(tuple_t *tuple,
 
 /*====================================================================*/
 
-#ifdef CONFIG_CARDBUS
-
-static int parse_bar(tuple_t *tuple, cistpl_bar_t *bar)
-{
-    u_char *p;
-    if (tuple->TupleDataLen < 6)
-	return -EINVAL;
-    p = (u_char *)tuple->TupleData;
-    bar->attr = *p;
-    p += 2;
-    bar->size = get_unaligned_le32(p);
-    return 0;
-}
-
-static int parse_config_cb(tuple_t *tuple, cistpl_config_t *config)
-{
-    u_char *p;
-
-    p = (u_char *)tuple->TupleData;
-    if ((*p != 3) || (tuple->TupleDataLen < 6))
-	return -EINVAL;
-    config->last_idx = *(++p);
-    p++;
-    config->base = get_unaligned_le32(p);
-    config->subtuples = tuple->TupleDataLen - 6;
-    return 0;
-}
-
-static int parse_cftable_entry_cb(tuple_t *tuple,
-				  cistpl_cftable_entry_cb_t *entry)
-{
-    u_char *p, *q, features;
-
-    p = tuple->TupleData;
-    q = p + tuple->TupleDataLen;
-    entry->index = *p & 0x3f;
-    entry->flags = 0;
-    if (*p & 0x40)
-	entry->flags |= CISTPL_CFTABLE_DEFAULT;
-
-    /* Process optional features */
-    if (++p == q)
-	    return -EINVAL;
-    features = *p; p++;
-
-    /* Power options */
-    if ((features & 3) > 0) {
-	p = parse_power(p, q, &entry->vcc);
-	if (p == NULL)
-		return -EINVAL;
-    } else
-	entry->vcc.present = 0;
-    if ((features & 3) > 1) {
-	p = parse_power(p, q, &entry->vpp1);
-	if (p == NULL)
-		return -EINVAL;
-    } else
-	entry->vpp1.present = 0;
-    if ((features & 3) > 2) {
-	p = parse_power(p, q, &entry->vpp2);
-	if (p == NULL)
-		return -EINVAL;
-    } else
-	entry->vpp2.present = 0;
-
-    /* I/O window options */
-    if (features & 0x08) {
-	if (p == q)
-		return -EINVAL;
-	entry->io = *p; p++;
-    } else
-	entry->io = 0;
-
-    /* Interrupt options */
-    if (features & 0x10) {
-	p = parse_irq(p, q, &entry->irq);
-	if (p == NULL)
-		return -EINVAL;
-    } else
-	entry->irq.IRQInfo1 = 0;
-
-    if (features & 0x20) {
-	if (p == q)
-		return -EINVAL;
-	entry->mem = *p; p++;
-    } else
-	entry->mem = 0;
-
-    /* Misc features */
-    if (features & 0x80) {
-	if (p == q)
-		return -EINVAL;
-	entry->flags |= (*p << 8);
-	if (*p & 0x80) {
-	    if (++p == q)
-		    return -EINVAL;
-	    entry->flags |= (*p << 16);
-	}
-	while (*p & 0x80)
-	    if (++p == q)
-		    return -EINVAL;
-	p++;
-    }
-
-    entry->subtuples = q-p;
-
-    return 0;
-}
-
-#endif
-
-/*====================================================================*/
-
 static int parse_device_geo(tuple_t *tuple, cistpl_device_geo_t *geo)
 {
     u_char *p, *q;
@@ -1404,17 +1330,6 @@ int pcmcia_parse_tuple(tuple_t *tuple, cisparse_t *parse)
     case CISTPL_DEVICE_A:
 	ret = parse_device(tuple, &parse->device);
 	break;
-#ifdef CONFIG_CARDBUS
-    case CISTPL_BAR:
-	ret = parse_bar(tuple, &parse->bar);
-	break;
-    case CISTPL_CONFIG_CB:
-	ret = parse_config_cb(tuple, &parse->config);
-	break;
-    case CISTPL_CFTABLE_ENTRY_CB:
-	ret = parse_cftable_entry_cb(tuple, &parse->cftable_entry_cb);
-	break;
-#endif
     case CISTPL_CHECKSUM:
 	ret = parse_checksum(tuple, &parse->checksum);
 	break;
@@ -1513,7 +1428,6 @@ done:
     kfree(buf);
     return ret;
 }
-EXPORT_SYMBOL(pccard_read_tuple);
 
 
 /**
@@ -1573,84 +1487,238 @@ next_entry:
 	kfree(buf);
 	return ret;
 }
-EXPORT_SYMBOL(pccard_loop_tuple);
 
 
-/*======================================================================
-
-    This tries to determine if a card has a sensible CIS.  It returns
-    the number of tuples in the CIS, or 0 if the CIS looks bad.  The
-    checks include making sure several critical tuples are present and
-    valid; seeing if the total number of tuples is reasonable; and
-    looking for tuples that use reserved codes.
-
-======================================================================*/
-
+/**
+ * pccard_validate_cis() - check whether card has a sensible CIS
+ * @s:		the struct pcmcia_socket we are to check
+ * @info:	returns the number of tuples in the (valid) CIS, or 0
+ *
+ * This tries to determine if a card has a sensible CIS.  In @info, it
+ * returns the number of tuples in the CIS, or 0 if the CIS looks bad. The
+ * checks include making sure several critical tuples are present and
+ * valid; seeing if the total number of tuples is reasonable; and
+ * looking for tuples that use reserved codes.
+ *
+ * The function returns 0 on success.
+ */
 int pccard_validate_cis(struct pcmcia_socket *s, unsigned int *info)
 {
-    tuple_t *tuple;
-    cisparse_t *p;
-    unsigned int count = 0;
-    int ret, reserved, dev_ok = 0, ident_ok = 0;
+	tuple_t *tuple;
+	cisparse_t *p;
+	unsigned int count = 0;
+	int ret, reserved, dev_ok = 0, ident_ok = 0;
 
-    if (!s)
-	return -EINVAL;
+	if (!s)
+		return -EINVAL;
 
-    tuple = kmalloc(sizeof(*tuple), GFP_KERNEL);
-    if (tuple == NULL) {
-	    dev_printk(KERN_WARNING, &s->dev, "no memory to validate CIS\n");
-	    return -ENOMEM;
-    }
-    p = kmalloc(sizeof(*p), GFP_KERNEL);
-    if (p == NULL) {
-	    kfree(tuple);
-	    dev_printk(KERN_WARNING, &s->dev, "no memory to validate CIS\n");
-	    return -ENOMEM;
-    }
+	/* We do not want to validate the CIS cache... */
+	mutex_lock(&s->ops_mutex);
+	destroy_cis_cache(s);
+	mutex_unlock(&s->ops_mutex);
 
-    count = reserved = 0;
-    tuple->DesiredTuple = RETURN_FIRST_TUPLE;
-    tuple->Attributes = TUPLE_RETURN_COMMON;
-    ret = pccard_get_first_tuple(s, BIND_FN_ALL, tuple);
-    if (ret != 0)
-	goto done;
+	tuple = kmalloc(sizeof(*tuple), GFP_KERNEL);
+	if (tuple == NULL) {
+		dev_warn(&s->dev, "no memory to validate CIS\n");
+		return -ENOMEM;
+	}
+	p = kmalloc(sizeof(*p), GFP_KERNEL);
+	if (p == NULL) {
+		kfree(tuple);
+		dev_warn(&s->dev, "no memory to validate CIS\n");
+		return -ENOMEM;
+	}
 
-    /* First tuple should be DEVICE; we should really have either that
-       or a CFTABLE_ENTRY of some sort */
-    if ((tuple->TupleCode == CISTPL_DEVICE) ||
-	(pccard_read_tuple(s, BIND_FN_ALL, CISTPL_CFTABLE_ENTRY, p) == 0) ||
-	(pccard_read_tuple(s, BIND_FN_ALL, CISTPL_CFTABLE_ENTRY_CB, p) == 0))
-	dev_ok++;
-
-    /* All cards should have a MANFID tuple, and/or a VERS_1 or VERS_2
-       tuple, for card identification.  Certain old D-Link and Linksys
-       cards have only a broken VERS_2 tuple; hence the bogus test. */
-    if ((pccard_read_tuple(s, BIND_FN_ALL, CISTPL_MANFID, p) == 0) ||
-	(pccard_read_tuple(s, BIND_FN_ALL, CISTPL_VERS_1, p) == 0) ||
-	(pccard_read_tuple(s, BIND_FN_ALL, CISTPL_VERS_2, p) != -ENOSPC))
-	ident_ok++;
-
-    if (!dev_ok && !ident_ok)
-	goto done;
-
-    for (count = 1; count < MAX_TUPLES; count++) {
-	ret = pccard_get_next_tuple(s, BIND_FN_ALL, tuple);
+	count = reserved = 0;
+	tuple->DesiredTuple = RETURN_FIRST_TUPLE;
+	tuple->Attributes = TUPLE_RETURN_COMMON;
+	ret = pccard_get_first_tuple(s, BIND_FN_ALL, tuple);
 	if (ret != 0)
-		break;
-	if (((tuple->TupleCode > 0x23) && (tuple->TupleCode < 0x40)) ||
-	    ((tuple->TupleCode > 0x47) && (tuple->TupleCode < 0x80)) ||
-	    ((tuple->TupleCode > 0x90) && (tuple->TupleCode < 0xff)))
-	    reserved++;
-    }
-    if ((count == MAX_TUPLES) || (reserved > 5) ||
-	((!dev_ok || !ident_ok) && (count > 10)))
-	count = 0;
+		goto done;
+
+	/* First tuple should be DEVICE; we should really have either that
+	   or a CFTABLE_ENTRY of some sort */
+	if ((tuple->TupleCode == CISTPL_DEVICE) ||
+	    (!pccard_read_tuple(s, BIND_FN_ALL, CISTPL_CFTABLE_ENTRY, p)) ||
+	    (!pccard_read_tuple(s, BIND_FN_ALL, CISTPL_CFTABLE_ENTRY_CB, p)))
+		dev_ok++;
+
+	/* All cards should have a MANFID tuple, and/or a VERS_1 or VERS_2
+	   tuple, for card identification.  Certain old D-Link and Linksys
+	   cards have only a broken VERS_2 tuple; hence the bogus test. */
+	if ((pccard_read_tuple(s, BIND_FN_ALL, CISTPL_MANFID, p) == 0) ||
+	    (pccard_read_tuple(s, BIND_FN_ALL, CISTPL_VERS_1, p) == 0) ||
+	    (pccard_read_tuple(s, BIND_FN_ALL, CISTPL_VERS_2, p) != -ENOSPC))
+		ident_ok++;
+
+	if (!dev_ok && !ident_ok)
+		goto done;
+
+	for (count = 1; count < MAX_TUPLES; count++) {
+		ret = pccard_get_next_tuple(s, BIND_FN_ALL, tuple);
+		if (ret != 0)
+			break;
+		if (((tuple->TupleCode > 0x23) && (tuple->TupleCode < 0x40)) ||
+		    ((tuple->TupleCode > 0x47) && (tuple->TupleCode < 0x80)) ||
+		    ((tuple->TupleCode > 0x90) && (tuple->TupleCode < 0xff)))
+			reserved++;
+	}
+	if ((count == MAX_TUPLES) || (reserved > 5) ||
+		((!dev_ok || !ident_ok) && (count > 10)))
+		count = 0;
+
+	ret = 0;
 
 done:
-    if (info)
-	    *info = count;
-    kfree(tuple);
-    kfree(p);
-    return 0;
+	/* invalidate CIS cache on failure */
+	if (!dev_ok || !ident_ok || !count) {
+		mutex_lock(&s->ops_mutex);
+		destroy_cis_cache(s);
+		mutex_unlock(&s->ops_mutex);
+		ret = -EIO;
+	}
+
+	if (info)
+		*info = count;
+	kfree(tuple);
+	kfree(p);
+	return ret;
 }
-EXPORT_SYMBOL(pccard_validate_cis);
+
+
+#define to_socket(_dev) container_of(_dev, struct pcmcia_socket, dev)
+
+static ssize_t pccard_extract_cis(struct pcmcia_socket *s, char *buf,
+				  loff_t off, size_t count)
+{
+	tuple_t tuple;
+	int status, i;
+	loff_t pointer = 0;
+	ssize_t ret = 0;
+	u_char *tuplebuffer;
+	u_char *tempbuffer;
+
+	tuplebuffer = kmalloc(sizeof(u_char) * 256, GFP_KERNEL);
+	if (!tuplebuffer)
+		return -ENOMEM;
+
+	tempbuffer = kmalloc(sizeof(u_char) * 258, GFP_KERNEL);
+	if (!tempbuffer) {
+		ret = -ENOMEM;
+		goto free_tuple;
+	}
+
+	memset(&tuple, 0, sizeof(tuple_t));
+
+	tuple.Attributes = TUPLE_RETURN_LINK | TUPLE_RETURN_COMMON;
+	tuple.DesiredTuple = RETURN_FIRST_TUPLE;
+	tuple.TupleOffset = 0;
+
+	status = pccard_get_first_tuple(s, BIND_FN_ALL, &tuple);
+	while (!status) {
+		tuple.TupleData = tuplebuffer;
+		tuple.TupleDataMax = 255;
+		memset(tuplebuffer, 0, sizeof(u_char) * 255);
+
+		status = pccard_get_tuple_data(s, &tuple);
+		if (status)
+			break;
+
+		if (off < (pointer + 2 + tuple.TupleDataLen)) {
+			tempbuffer[0] = tuple.TupleCode & 0xff;
+			tempbuffer[1] = tuple.TupleLink & 0xff;
+			for (i = 0; i < tuple.TupleDataLen; i++)
+				tempbuffer[i + 2] = tuplebuffer[i] & 0xff;
+
+			for (i = 0; i < (2 + tuple.TupleDataLen); i++) {
+				if (((i + pointer) >= off) &&
+				    (i + pointer) < (off + count)) {
+					buf[ret] = tempbuffer[i];
+					ret++;
+				}
+			}
+		}
+
+		pointer += 2 + tuple.TupleDataLen;
+
+		if (pointer >= (off + count))
+			break;
+
+		if (tuple.TupleCode == CISTPL_END)
+			break;
+		status = pccard_get_next_tuple(s, BIND_FN_ALL, &tuple);
+	}
+
+	kfree(tempbuffer);
+ free_tuple:
+	kfree(tuplebuffer);
+
+	return ret;
+}
+
+
+static ssize_t pccard_show_cis(struct kobject *kobj,
+			       struct bin_attribute *bin_attr,
+			       char *buf, loff_t off, size_t count)
+{
+	unsigned int size = 0x200;
+
+	if (off >= size)
+		count = 0;
+	else {
+		struct pcmcia_socket *s;
+		unsigned int chains;
+
+		if (off + count > size)
+			count = size - off;
+
+		s = to_socket(container_of(kobj, struct device, kobj));
+
+		if (!(s->state & SOCKET_PRESENT))
+			return -ENODEV;
+		if (pccard_validate_cis(s, &chains))
+			return -EIO;
+		if (!chains)
+			return -ENODATA;
+
+		count = pccard_extract_cis(s, buf, off, count);
+	}
+
+	return count;
+}
+
+
+static ssize_t pccard_store_cis(struct kobject *kobj,
+				struct bin_attribute *bin_attr,
+				char *buf, loff_t off, size_t count)
+{
+	struct pcmcia_socket *s;
+	int error;
+
+	s = to_socket(container_of(kobj, struct device, kobj));
+
+	if (off)
+		return -EINVAL;
+
+	if (count >= CISTPL_MAX_CIS_SIZE)
+		return -EINVAL;
+
+	if (!(s->state & SOCKET_PRESENT))
+		return -ENODEV;
+
+	error = pcmcia_replace_cis(s, buf, count);
+	if (error)
+		return -EIO;
+
+	pcmcia_parse_uevents(s, PCMCIA_UEVENT_REQUERY);
+
+	return count;
+}
+
+
+struct bin_attribute pccard_cis_attr = {
+	.attr = { .name = "cis", .mode = S_IRUGO | S_IWUSR },
+	.size = 0x200,
+	.read = pccard_show_cis,
+	.write = pccard_store_cis,
+};

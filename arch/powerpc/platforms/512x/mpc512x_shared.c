@@ -21,8 +21,37 @@
 #include <asm/ipic.h>
 #include <asm/prom.h>
 #include <asm/time.h>
+#include <asm/mpc5121.h>
 
 #include "mpc512x.h"
+
+static struct mpc512x_reset_module __iomem *reset_module_base;
+
+static void __init mpc512x_restart_init(void)
+{
+	struct device_node *np;
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-reset");
+	if (!np)
+		return;
+
+	reset_module_base = of_iomap(np, 0);
+	of_node_put(np);
+}
+
+void mpc512x_restart(char *cmd)
+{
+	if (reset_module_base) {
+		/* Enable software reset "RSTE" */
+		out_be32(&reset_module_base->rpr, 0x52535445);
+		/* Set software hard reset */
+		out_be32(&reset_module_base->rcr, 0x2);
+	} else {
+		pr_err("Restart module not mapped.\n");
+	}
+	for (;;)
+		;
+}
 
 void __init mpc512x_init_IRQ(void)
 {
@@ -53,8 +82,22 @@ static struct of_device_id __initdata of_bus_ids[] = {
 
 void __init mpc512x_declare_of_platform_devices(void)
 {
+	struct device_node *np;
+
 	if (of_platform_bus_probe(NULL, of_bus_ids, NULL))
 		printk(KERN_ERR __FILE__ ": "
 			"Error while probing of_platform bus\n");
+
+	np = of_find_compatible_node(NULL, NULL, "fsl,mpc5121-nfc");
+	if (np) {
+		of_platform_device_create(np, NULL, NULL);
+		of_node_put(np);
+	}
 }
 
+void __init mpc512x_init(void)
+{
+	mpc512x_declare_of_platform_devices();
+	mpc5121_clk_init();
+	mpc512x_restart_init();
+}

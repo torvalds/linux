@@ -543,9 +543,6 @@ int r600_vb_ib_get(struct radeon_device *rdev)
 void r600_vb_ib_put(struct radeon_device *rdev)
 {
 	radeon_fence_emit(rdev, rdev->r600_blit.vb_ib->fence);
-	mutex_lock(&rdev->ib_pool.mutex);
-	list_add_tail(&rdev->r600_blit.vb_ib->list, &rdev->ib_pool.scheduled_ibs);
-	mutex_unlock(&rdev->ib_pool.mutex);
 	radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
 }
 

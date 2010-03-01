@@ -21,60 +21,12 @@
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
 
-
-int pcmcia_validate_mem(struct pcmcia_socket *s)
-{
-	if (s->resource_ops->validate_mem)
-		return s->resource_ops->validate_mem(s);
-	/* if there is no callback, we can assume that everything is OK */
-	return 0;
-}
-EXPORT_SYMBOL(pcmcia_validate_mem);
-
-int pcmcia_adjust_io_region(struct resource *res, unsigned long r_start,
-		     unsigned long r_end, struct pcmcia_socket *s)
-{
-	if (s->resource_ops->adjust_io_region)
-		return s->resource_ops->adjust_io_region(res, r_start, r_end, s);
-	return -ENOMEM;
-}
-EXPORT_SYMBOL(pcmcia_adjust_io_region);
-
-struct resource *pcmcia_find_io_region(unsigned long base, int num,
-		   unsigned long align, struct pcmcia_socket *s)
-{
-	if (s->resource_ops->find_io)
-		return s->resource_ops->find_io(base, num, align, s);
-	return NULL;
-}
-EXPORT_SYMBOL(pcmcia_find_io_region);
-
-struct resource *pcmcia_find_mem_region(u_long base, u_long num, u_long align,
-				 int low, struct pcmcia_socket *s)
-{
-	if (s->resource_ops->find_mem)
-		return s->resource_ops->find_mem(base, num, align, low, s);
-	return NULL;
-}
-EXPORT_SYMBOL(pcmcia_find_mem_region);
-
-void release_resource_db(struct pcmcia_socket *s)
-{
-	if (s->resource_ops->exit)
-		s->resource_ops->exit(s);
-}
-
-
 static int static_init(struct pcmcia_socket *s)
 {
-	unsigned long flags;
-
 	/* the good thing about SS_CAP_STATIC_MAP sockets is
 	 * that they don't need a resource database */
 
-	spin_lock_irqsave(&s->lock, flags);
 	s->resource_setup_done = 1;
-	spin_unlock_irqrestore(&s->lock, flags);
 
 	return 0;
 }
@@ -114,22 +66,21 @@ struct pcmcia_align_data {
 	unsigned long	offset;
 };
 
-static void pcmcia_align(void *align_data, struct resource *res,
-			unsigned long size, unsigned long align)
+static resource_size_t pcmcia_align(void *align_data,
+				const struct resource *res,
+				resource_size_t size, resource_size_t align)
 {
 	struct pcmcia_align_data *data = align_data;
-	unsigned long start;
+	resource_size_t start;
 
 	start = (res->start & ~data->mask) + data->offset;
 	if (start < res->start)
 		start += data->mask + 1;
-	res->start = start;
 
 #ifdef CONFIG_X86
 	if (res->flags & IORESOURCE_IO) {
 		if (start & 0x300) {
 			start = (start + 0x3ff) & ~0x3ff;
-			res->start = start;
 		}
 	}
 #endif
@@ -137,9 +88,11 @@ static void pcmcia_align(void *align_data, struct resource *res,
 #ifdef CONFIG_M68K
 	if (res->flags & IORESOURCE_IO) {
 		if ((res->start + size - 1) >= 1024)
-			res->start = res->end;
+			start = res->end;
 	}
 #endif
+
+	return start;
 }
 
 

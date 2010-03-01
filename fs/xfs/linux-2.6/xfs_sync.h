@@ -37,7 +37,6 @@ void xfs_syncd_stop(struct xfs_mount *mp);
 
 int xfs_sync_attr(struct xfs_mount *mp, int flags);
 int xfs_sync_data(struct xfs_mount *mp, int flags);
-int xfs_sync_fsdata(struct xfs_mount *mp, int flags);
 
 int xfs_quiesce_data(struct xfs_mount *mp);
 void xfs_quiesce_attr(struct xfs_mount *mp);

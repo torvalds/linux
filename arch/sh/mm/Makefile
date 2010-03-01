@@ -2,7 +2,7 @@
 # Makefile for the Linux SuperH-specific parts of the memory manager.
 #
 
-obj-y			:= cache.o init.o consistent.o mmap.o
+obj-y			:= alignment.o cache.o init.o consistent.o mmap.o
 
 cacheops-$(CONFIG_CPU_SH2)		:= cache-sh2.o
 cacheops-$(CONFIG_CPU_SH2A)		:= cache-sh2a.o
@@ -15,7 +15,7 @@ obj-y			+= $(cacheops-y)
 
 mmu-y			:= nommu.o extable_32.o
 mmu-$(CONFIG_MMU)	:= extable_$(BITS).o fault_$(BITS).o \
-			   ioremap_$(BITS).o kmap.o tlbflush_$(BITS).o
+			   ioremap.o kmap.o pgtable.o tlbflush_$(BITS).o
 
 obj-y			+= $(mmu-y)
 obj-$(CONFIG_DEBUG_FS)	+= asids-debugfs.o
@@ -26,15 +26,17 @@ endif
 
 ifdef CONFIG_MMU
 tlb-$(CONFIG_CPU_SH3)		:= tlb-sh3.o
-tlb-$(CONFIG_CPU_SH4)		:= tlb-sh4.o
+tlb-$(CONFIG_CPU_SH4)		:= tlb-sh4.o tlb-urb.o
 tlb-$(CONFIG_CPU_SH5)		:= tlb-sh5.o
-tlb-$(CONFIG_CPU_HAS_PTEAEX)	:= tlb-pteaex.o
+tlb-$(CONFIG_CPU_HAS_PTEAEX)	:= tlb-pteaex.o tlb-urb.o
 obj-y				+= $(tlb-y)
 endif
 
 obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
-obj-$(CONFIG_PMB_ENABLE)	+= pmb.o
+obj-$(CONFIG_PMB)		+= pmb.o
 obj-$(CONFIG_NUMA)		+= numa.o
+obj-$(CONFIG_IOREMAP_FIXED)	+= ioremap_fixed.o
+obj-$(CONFIG_UNCACHED_MAPPING)	+= uncached.o
 
 # Special flags for fault_64.o.  This puts restrictions on the number of
 # caller-save registers that the compiler can target when building this file.

@@ -24,6 +24,12 @@
  * 2 of the License, or (at your option) any later version.
  */
 
+#ifdef __KERNEL__
+#include <linux/types.h>
+#else
+#include <stdint.h>
+#endif
+
 #ifndef __ASSEMBLY__
 
 struct pt_regs {
@@ -293,5 +299,76 @@ extern void user_disable_single_step(struct task_struct *);
 #define PPC_PTRACE_POKEUSR_3264  0x90
 
 #define PTRACE_SINGLEBLOCK	0x100	/* resume execution until next branch */
+
+#define PPC_PTRACE_GETHWDBGINFO	0x89
+#define PPC_PTRACE_SETHWDEBUG	0x88
+#define PPC_PTRACE_DELHWDEBUG	0x87
+
+#ifndef __ASSEMBLY__
+
+struct ppc_debug_info {
+	uint32_t version;		/* Only version 1 exists to date */
+	uint32_t num_instruction_bps;
+	uint32_t num_data_bps;
+	uint32_t num_condition_regs;
+	uint32_t data_bp_alignment;
+	uint32_t sizeof_condition;	/* size of the DVC register */
+	uint64_t features;
+};
+
+#endif /* __ASSEMBLY__ */
+
+/*
+ * features will have bits indication whether there is support for:
+ */
+#define PPC_DEBUG_FEATURE_INSN_BP_RANGE		0x0000000000000001
+#define PPC_DEBUG_FEATURE_INSN_BP_MASK		0x0000000000000002
+#define PPC_DEBUG_FEATURE_DATA_BP_RANGE		0x0000000000000004
+#define PPC_DEBUG_FEATURE_DATA_BP_MASK		0x0000000000000008
+
+#ifndef __ASSEMBLY__
+
+struct ppc_hw_breakpoint {
+	uint32_t version;		/* currently, version must be 1 */
+	uint32_t trigger_type;		/* only some combinations allowed */
+	uint32_t addr_mode;		/* address match mode */
+	uint32_t condition_mode;	/* break/watchpoint condition flags */
+	uint64_t addr;			/* break/watchpoint address */
+	uint64_t addr2;			/* range end or mask */
+	uint64_t condition_value;	/* contents of the DVC register */
+};
+
+#endif /* __ASSEMBLY__ */
+
+/*
+ * Trigger Type
+ */
+#define PPC_BREAKPOINT_TRIGGER_EXECUTE	0x00000001
+#define PPC_BREAKPOINT_TRIGGER_READ	0x00000002
+#define PPC_BREAKPOINT_TRIGGER_WRITE	0x00000004
+#define PPC_BREAKPOINT_TRIGGER_RW	\
+	(PPC_BREAKPOINT_TRIGGER_READ | PPC_BREAKPOINT_TRIGGER_WRITE)
+
+/*
+ * Address Mode
+ */
+#define PPC_BREAKPOINT_MODE_EXACT		0x00000000
+#define PPC_BREAKPOINT_MODE_RANGE_INCLUSIVE	0x00000001
+#define PPC_BREAKPOINT_MODE_RANGE_EXCLUSIVE	0x00000002
+#define PPC_BREAKPOINT_MODE_MASK		0x00000003
+
+/*
+ * Condition Mode
+ */
+#define PPC_BREAKPOINT_CONDITION_MODE	0x00000003
+#define PPC_BREAKPOINT_CONDITION_NONE	0x00000000
+#define PPC_BREAKPOINT_CONDITION_AND	0x00000001
+#define PPC_BREAKPOINT_CONDITION_EXACT	PPC_BREAKPOINT_CONDITION_AND
+#define PPC_BREAKPOINT_CONDITION_OR	0x00000002
+#define PPC_BREAKPOINT_CONDITION_AND_OR	0x00000003
+#define PPC_BREAKPOINT_CONDITION_BE_ALL	0x00ff0000
+#define PPC_BREAKPOINT_CONDITION_BE_SHIFT	16
+#define PPC_BREAKPOINT_CONDITION_BE(n)	\
+	(1<<((n)+PPC_BREAKPOINT_CONDITION_BE_SHIFT))
 
 #endif /* _ASM_POWERPC_PTRACE_H */
