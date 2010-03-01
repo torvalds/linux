@@ -78,11 +78,12 @@ struct cfq_rb_root {
 	struct rb_root rb;
 	struct rb_node *left;
 	unsigned count;
+	unsigned total_weight;
 	u64 min_vdisktime;
 	struct rb_node *active;
-	unsigned total_weight;
 };
-#define CFQ_RB_ROOT	(struct cfq_rb_root) { RB_ROOT, NULL, 0, 0, }
+#define CFQ_RB_ROOT	(struct cfq_rb_root) { .rb = RB_ROOT, .left = NULL, \
+			.count = 0, .min_vdisktime = 0, }
 
 /*
  * Per process-grouping structure
