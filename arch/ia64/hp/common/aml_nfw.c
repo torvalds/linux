@@ -77,7 +77,7 @@ static void aml_nfw_execute(struct ia64_nfw_context *c)
 		     c->arg[4], c->arg[5], c->arg[6], c->arg[7]);
 }
 
-static void aml_nfw_read_arg(u8 *offset, u32 bit_width, acpi_integer *value)
+static void aml_nfw_read_arg(u8 *offset, u32 bit_width, u64 *value)
 {
 	switch (bit_width) {
 	case 8:
@@ -95,7 +95,7 @@ static void aml_nfw_read_arg(u8 *offset, u32 bit_width, acpi_integer *value)
 	}
 }
 
-static void aml_nfw_write_arg(u8 *offset, u32 bit_width, acpi_integer *value)
+static void aml_nfw_write_arg(u8 *offset, u32 bit_width, u64 *value)
 {
 	switch (bit_width) {
 	case 8:
@@ -114,7 +114,7 @@ static void aml_nfw_write_arg(u8 *offset, u32 bit_width, acpi_integer *value)
 }
 
 static acpi_status aml_nfw_handler(u32 function, acpi_physical_address address,
-	u32 bit_width, acpi_integer *value, void *handler_context,
+	u32 bit_width, u64 *value, void *handler_context,
 	void *region_context)
 {
 	struct ia64_nfw_context *context = handler_context;

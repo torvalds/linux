@@ -324,8 +324,8 @@ static int extract_package(struct acpi_battery *battery,
 				strncpy(ptr, element->string.pointer, 32);
 			else if (element->type == ACPI_TYPE_INTEGER) {
 				strncpy(ptr, (u8 *)&element->integer.value,
-					sizeof(acpi_integer));
-				ptr[sizeof(acpi_integer)] = 0;
+					sizeof(u64));
+				ptr[sizeof(u64)] = 0;
 			} else
 				*ptr = 0; /* don't have value */
 		} else {

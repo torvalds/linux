@@ -252,8 +252,8 @@ struct acpi_device_wakeup_state {
 
 struct acpi_device_wakeup {
 	acpi_handle gpe_device;
-	acpi_integer gpe_number;
-	acpi_integer sleep_state;
+	u64 gpe_number;
+	u64 sleep_state;
 	struct acpi_handle_list resources;
 	struct acpi_device_wakeup_state state;
 	struct acpi_device_wakeup_flags flags;
@@ -383,7 +383,7 @@ struct acpi_pci_root {
 };
 
 /* helper */
-acpi_handle acpi_get_child(acpi_handle, acpi_integer);
+acpi_handle acpi_get_child(acpi_handle, u64);
 int acpi_is_root_bridge(acpi_handle);
 acpi_handle acpi_get_pci_rootbridge_handle(unsigned int, unsigned int);
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);

@@ -597,7 +597,7 @@ static u32 acpi_ec_gpe_handler(void *data)
 
 static acpi_status
 acpi_ec_space_handler(u32 function, acpi_physical_address address,
-		      u32 bits, acpi_integer *value,
+		      u32 bits, u64 *value,
 		      void *handler_context, void *region_context)
 {
 	struct acpi_ec *ec = handler_context;
@@ -628,7 +628,7 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 		++address;
 		if (function == ACPI_READ) {
 			result = acpi_ec_read(ec, address, &temp);
-			(*value) |= ((acpi_integer)temp) << i;
+			(*value) |= ((u64)temp) << i;
 		} else {
 			temp = 0xff & ((*value) >> i);
 			result = acpi_ec_write(ec, address, temp);

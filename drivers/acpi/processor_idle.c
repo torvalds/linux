@@ -360,7 +360,7 @@ static int acpi_processor_get_power_info_default(struct acpi_processor *pr)
 static int acpi_processor_get_power_info_cst(struct acpi_processor *pr)
 {
 	acpi_status status = 0;
-	acpi_integer count;
+	u64 count;
 	int current_count;
 	int i;
 	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };

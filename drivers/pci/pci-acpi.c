@@ -354,7 +354,7 @@ static struct pci_platform_pm_ops acpi_pci_platform_pm = {
 static int acpi_pci_find_device(struct device *dev, acpi_handle *handle)
 {
 	struct pci_dev * pci_dev;
-	acpi_integer	addr;
+	u64	addr;
 
 	pci_dev = to_pci_dev(dev);
 	/* Please ref to ACPI spec for the syntax of _ADR */
