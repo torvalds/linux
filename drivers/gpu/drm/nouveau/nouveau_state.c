@@ -391,6 +391,7 @@ nouveau_card_init(struct drm_device *dev)
 		goto out;
 	engine = &dev_priv->engine;
 	dev_priv->init_state = NOUVEAU_CARD_INIT_FAILED;
+	spin_lock_init(&dev_priv->context_switch_lock);
 
 	/* Parse BIOS tables / Run init tables if card not POSTed */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -774,13 +775,6 @@ int nouveau_unload(struct drm_device *dev)
 	kfree(dev_priv);
 	dev->dev_private = NULL;
 	return 0;
-}
-
-int
-nouveau_ioctl_card_init(struct drm_device *dev, void *data,
-			struct drm_file *file_priv)
-{
-	return nouveau_card_init(dev);
 }
 
 int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
