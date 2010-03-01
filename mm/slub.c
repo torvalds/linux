@@ -2075,7 +2075,7 @@ static inline int alloc_kmem_cache_cpus(struct kmem_cache *s, gfp_t flags)
 		 * Boot time creation of the kmalloc array. Use static per cpu data
 		 * since the per cpu allocator is not available yet.
 		 */
-		s->cpu_slab = per_cpu_var(kmalloc_percpu) + (s - kmalloc_caches);
+		s->cpu_slab = kmalloc_percpu + (s - kmalloc_caches);
 	else
 		s->cpu_slab =  alloc_percpu(struct kmem_cache_cpu);
 
