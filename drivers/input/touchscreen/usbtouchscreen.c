@@ -15,6 +15,7 @@
  *  - GoTop Super_Q2/GogoPen/PenPower tablets
  *  - JASTEC USB touch controller/DigiTech DTR-02U
  *  - Zytronic capacitive touchscreen
+ *  - NEXIO/iNexio
  *
  * Copyright (C) 2004-2007 by Daniel Ritz <daniel.ritz@gmx.ch>
  * Copyright (C) by Todd E. Johnson (mtouchusb.c)
@@ -95,6 +96,7 @@ struct usbtouch_device_info {
 
 	int  (*read_data)   (struct usbtouch_usb *usbtouch, unsigned char *pkt);
 	int  (*init)        (struct usbtouch_usb *usbtouch);
+	void (*exit)	    (struct usbtouch_usb *usbtouch);
 };
 
 /* a usbtouch device */
@@ -104,11 +106,12 @@ struct usbtouch_usb {
 	unsigned char *buffer;
 	int buf_len;
 	struct urb *irq;
-	struct usb_device *udev;
+	struct usb_interface *interface;
 	struct input_dev *input;
 	struct usbtouch_device_info *type;
 	char name[128];
 	char phys[64];
+	void *priv;
 
 	int x, y;
 	int touch, press;
@@ -133,6 +136,7 @@ enum {
 	DEVTYPE_E2I,
 	DEVTYPE_ZYTRONIC,
 	DEVTYPE_TC5UH,
+	DEVTYPE_NEXIO,
 };
 
 #define USB_DEVICE_HID_CLASS(vend, prod) \
@@ -144,7 +148,7 @@ enum {
 	.bInterfaceClass = USB_INTERFACE_CLASS_HID, \
 	.bInterfaceProtocol = USB_INTERFACE_PROTOCOL_MOUSE
 
-static struct usb_device_id usbtouch_devices[] = {
+static const struct usb_device_id usbtouch_devices[] = {
 #ifdef CONFIG_TOUCHSCREEN_USB_EGALAX
 	/* ignore the HID capable devices, handled by usbhid */
 	{USB_DEVICE_HID_CLASS(0x0eef, 0x0001), .driver_info = DEVTYPE_IGNORE},
@@ -222,6 +226,14 @@ static struct usb_device_id usbtouch_devices[] = {
 	{USB_DEVICE(0x0664, 0x0309), .driver_info = DEVTYPE_TC5UH},
 #endif
 
+#ifdef CONFIG_TOUCHSCREEN_USB_NEXIO
+	/* data interface only */
+	{USB_DEVICE_AND_INTERFACE_INFO(0x10f0, 0x2002, 0x0a, 0x00, 0x00),
+		.driver_info = DEVTYPE_NEXIO},
+	{USB_DEVICE_AND_INTERFACE_INFO(0x1870, 0x0001, 0x0a, 0x00, 0x00),
+		.driver_info = DEVTYPE_NEXIO},
+#endif
+
 	{}
 };
 
@@ -234,8 +246,9 @@ static struct usb_device_id usbtouch_devices[] = {
 static int e2i_init(struct usbtouch_usb *usbtouch)
 {
 	int ret;
+	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
 
-	ret = usb_control_msg(usbtouch->udev, usb_rcvctrlpipe(usbtouch->udev, 0),
+	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 	                      0x01, 0x02, 0x0000, 0x0081,
 	                      NULL, 0, USB_CTRL_SET_TIMEOUT);
 
@@ -344,8 +357,9 @@ static int mtouch_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 static int mtouch_init(struct usbtouch_usb *usbtouch)
 {
 	int ret, i;
+	struct usb_device *udev = interface_to_usbdev(usbtouch->interface);
 
-	ret = usb_control_msg(usbtouch->udev, usb_rcvctrlpipe(usbtouch->udev, 0),
+	ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 	                      MTOUCHUSB_RESET,
 	                      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 	                      1, 0, NULL, 0, USB_CTRL_SET_TIMEOUT);
@@ -356,7 +370,7 @@ static int mtouch_init(struct usbtouch_usb *usbtouch)
 	msleep(150);
 
 	for (i = 0; i < 3; i++) {
-		ret = usb_control_msg(usbtouch->udev, usb_rcvctrlpipe(usbtouch->udev, 0),
+		ret = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				      MTOUCHUSB_ASYNC_REPORT,
 				      USB_DIR_OUT | USB_TYPE_VENDOR | USB_RECIP_DEVICE,
 				      1, 1, NULL, 0, USB_CTRL_SET_TIMEOUT);
@@ -489,7 +503,7 @@ static int gunze_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 
 static int dmc_tsc10_init(struct usbtouch_usb *usbtouch)
 {
-	struct usb_device *dev = usbtouch->udev;
+	struct usb_device *dev = interface_to_usbdev(usbtouch->interface);
 	int ret = -ENOMEM;
 	unsigned char *buf;
 
@@ -690,6 +704,229 @@ static int zytronic_read_data(struct usbtouch_usb *dev, unsigned char *pkt)
 #endif
 
 /*****************************************************************************
+ * NEXIO Part
+ */
+#ifdef CONFIG_TOUCHSCREEN_USB_NEXIO
+
+#define NEXIO_TIMEOUT	5000
+#define NEXIO_BUFSIZE	1024
+#define NEXIO_THRESHOLD	50
+
+struct nexio_priv {
+	struct urb *ack;
+	unsigned char *ack_buf;
+};
+
+struct nexio_touch_packet {
+	u8	flags;		/* 0xe1 = touch, 0xe1 = release */
+	__be16	data_len;	/* total bytes of touch data */
+	__be16	x_len;		/* bytes for X axis */
+	__be16	y_len;		/* bytes for Y axis */
+	u8	data[];
+} __attribute__ ((packed));
+
+static unsigned char nexio_ack_pkt[2] = { 0xaa, 0x02 };
+static unsigned char nexio_init_pkt[4] = { 0x82, 0x04, 0x0a, 0x0f };
+
+static void nexio_ack_complete(struct urb *urb)
+{
+}
+
+static int nexio_init(struct usbtouch_usb *usbtouch)
+{
+	struct usb_device *dev = interface_to_usbdev(usbtouch->interface);
+	struct usb_host_interface *interface = usbtouch->interface->cur_altsetting;
+	struct nexio_priv *priv;
+	int ret = -ENOMEM;
+	int actual_len, i;
+	unsigned char *buf;
+	char *firmware_ver = NULL, *device_name = NULL;
+	int input_ep = 0, output_ep = 0;
+
+	/* find first input and output endpoint */
+	for (i = 0; i < interface->desc.bNumEndpoints; i++) {
+		if (!input_ep &&
+		    usb_endpoint_dir_in(&interface->endpoint[i].desc))
+			input_ep = interface->endpoint[i].desc.bEndpointAddress;
+		if (!output_ep &&
+		    usb_endpoint_dir_out(&interface->endpoint[i].desc))
+			output_ep = interface->endpoint[i].desc.bEndpointAddress;
+	}
+	if (!input_ep || !output_ep)
+		return -ENXIO;
+
+	buf = kmalloc(NEXIO_BUFSIZE, GFP_KERNEL);
+	if (!buf)
+		goto out_buf;
+
+	/* two empty reads */
+	for (i = 0; i < 2; i++) {
+		ret = usb_bulk_msg(dev, usb_rcvbulkpipe(dev, input_ep),
+				   buf, NEXIO_BUFSIZE, &actual_len,
+				   NEXIO_TIMEOUT);
+		if (ret < 0)
+			goto out_buf;
+	}
+
+	/* send init command */
+	memcpy(buf, nexio_init_pkt, sizeof(nexio_init_pkt));
+	ret = usb_bulk_msg(dev, usb_sndbulkpipe(dev, output_ep),
+			   buf, sizeof(nexio_init_pkt), &actual_len,
+			   NEXIO_TIMEOUT);
+	if (ret < 0)
+		goto out_buf;
+
+	/* read replies */
+	for (i = 0; i < 3; i++) {
+		memset(buf, 0, NEXIO_BUFSIZE);
+		ret = usb_bulk_msg(dev, usb_rcvbulkpipe(dev, input_ep),
+				   buf, NEXIO_BUFSIZE, &actual_len,
+				   NEXIO_TIMEOUT);
+		if (ret < 0 || actual_len < 1 || buf[1] != actual_len)
+			continue;
+		switch (buf[0]) {
+		case 0x83:	/* firmware version */
+			if (!firmware_ver)
+				firmware_ver = kstrdup(&buf[2], GFP_KERNEL);
+			break;
+		case 0x84:	/* device name */
+			if (!device_name)
+				device_name = kstrdup(&buf[2], GFP_KERNEL);
+			break;
+		}
+	}
+
+	printk(KERN_INFO "Nexio device: %s, firmware version: %s\n",
+	       device_name, firmware_ver);
+
+	kfree(firmware_ver);
+	kfree(device_name);
+
+	/* prepare ACK URB */
+	ret = -ENOMEM;
+
+	usbtouch->priv = kmalloc(sizeof(struct nexio_priv), GFP_KERNEL);
+	if (!usbtouch->priv)
+		goto out_buf;
+
+	priv = usbtouch->priv;
+
+	priv->ack_buf = kmalloc(sizeof(nexio_ack_pkt), GFP_KERNEL);
+	if (!priv->ack_buf)
+		goto err_priv;
+
+	memcpy(priv->ack_buf, nexio_ack_pkt, sizeof(nexio_ack_pkt));
+
+	priv->ack = usb_alloc_urb(0, GFP_KERNEL);
+	if (!priv->ack) {
+		dbg("%s - usb_alloc_urb failed: usbtouch->ack", __func__);
+		goto err_ack_buf;
+	}
+
+	usb_fill_bulk_urb(priv->ack, dev, usb_sndbulkpipe(dev, output_ep),
+			  priv->ack_buf, sizeof(nexio_ack_pkt),
+			  nexio_ack_complete, usbtouch);
+	ret = 0;
+	goto out_buf;
+
+err_ack_buf:
+	kfree(priv->ack_buf);
+err_priv:
+	kfree(priv);
+out_buf:
+	kfree(buf);
+	return ret;
+}
+
+static void nexio_exit(struct usbtouch_usb *usbtouch)
+{
+	struct nexio_priv *priv = usbtouch->priv;
+
+	usb_kill_urb(priv->ack);
+	usb_free_urb(priv->ack);
+	kfree(priv->ack_buf);
+	kfree(priv);
+}
+
+static int nexio_read_data(struct usbtouch_usb *usbtouch, unsigned char *pkt)
+{
+	int x, y, begin_x, begin_y, end_x, end_y, w, h, ret;
+	struct nexio_touch_packet *packet = (void *) pkt;
+	struct nexio_priv *priv = usbtouch->priv;
+
+	/* got touch data? */
+	if ((pkt[0] & 0xe0) != 0xe0)
+		return 0;
+
+	/* send ACK */
+	ret = usb_submit_urb(priv->ack, GFP_ATOMIC);
+
+	if (!usbtouch->type->max_xc) {
+		usbtouch->type->max_xc = 2 * be16_to_cpu(packet->x_len);
+		input_set_abs_params(usbtouch->input, ABS_X, 0,
+				     2 * be16_to_cpu(packet->x_len), 0, 0);
+		usbtouch->type->max_yc = 2 * be16_to_cpu(packet->y_len);
+		input_set_abs_params(usbtouch->input, ABS_Y, 0,
+				     2 * be16_to_cpu(packet->y_len), 0, 0);
+	}
+	/*
+	 * The device reports state of IR sensors on X and Y axes.
+	 * Each byte represents "darkness" percentage (0-100) of one element.
+	 * 17" touchscreen reports only 64 x 52 bytes so the resolution is low.
+	 * This also means that there's a limited multi-touch capability but
+	 * it's disabled (and untested) here as there's no X driver for that.
+	 */
+	begin_x = end_x = begin_y = end_y = -1;
+	for (x = 0; x < be16_to_cpu(packet->x_len); x++) {
+		if (begin_x == -1 && packet->data[x] > NEXIO_THRESHOLD) {
+			begin_x = x;
+			continue;
+		}
+		if (end_x == -1 && begin_x != -1 && packet->data[x] < NEXIO_THRESHOLD) {
+			end_x = x - 1;
+			for (y = be16_to_cpu(packet->x_len);
+			     y < be16_to_cpu(packet->data_len); y++) {
+				if (begin_y == -1 && packet->data[y] > NEXIO_THRESHOLD) {
+					begin_y = y - be16_to_cpu(packet->x_len);
+					continue;
+				}
+				if (end_y == -1 &&
+				    begin_y != -1 && packet->data[y] < NEXIO_THRESHOLD) {
+					end_y = y - 1 - be16_to_cpu(packet->x_len);
+					w = end_x - begin_x;
+					h = end_y - begin_y;
+#if 0
+					/* multi-touch */
+					input_report_abs(usbtouch->input,
+						    ABS_MT_TOUCH_MAJOR, max(w,h));
+					input_report_abs(usbtouch->input,
+						    ABS_MT_TOUCH_MINOR, min(x,h));
+					input_report_abs(usbtouch->input,
+						    ABS_MT_POSITION_X, 2*begin_x+w);
+					input_report_abs(usbtouch->input,
+						    ABS_MT_POSITION_Y, 2*begin_y+h);
+					input_report_abs(usbtouch->input,
+						    ABS_MT_ORIENTATION, w > h);
+					input_mt_sync(usbtouch->input);
+#endif
+					/* single touch */
+					usbtouch->x = 2 * begin_x + w;
+					usbtouch->y = 2 * begin_y + h;
+					usbtouch->touch = packet->flags & 0x01;
+					begin_y = end_y = -1;
+					return 1;
+				}
+			}
+			begin_x = end_x = -1;
+		}
+
+	}
+	return 0;
+}
+#endif
+
+
+/*****************************************************************************
  * the different device descriptors
  */
 #ifdef MULTI_PACKET
@@ -873,6 +1110,16 @@ static struct usbtouch_device_info usbtouch_dev_info[] = {
 		.read_data	= tc5uh_read_data,
 	},
 #endif
+
+#ifdef CONFIG_TOUCHSCREEN_USB_NEXIO
+	[DEVTYPE_NEXIO] = {
+		.rept_size	= 128,
+		.irq_always	= true,
+		.read_data	= nexio_read_data,
+		.init		= nexio_init,
+		.exit		= nexio_exit,
+	},
+#endif
 };
 
 
@@ -998,6 +1245,7 @@ static void usbtouch_irq(struct urb *urb)
 	case -ECONNRESET:
 	case -ENOENT:
 	case -ESHUTDOWN:
+	case -EPIPE:
 		/* this urb is terminated, clean up */
 		dbg("%s - urb shutting down with status: %d",
 		    __func__, urb->status);
@@ -1021,7 +1269,7 @@ static int usbtouch_open(struct input_dev *input)
 {
 	struct usbtouch_usb *usbtouch = input_get_drvdata(input);
 
-	usbtouch->irq->dev = usbtouch->udev;
+	usbtouch->irq->dev = interface_to_usbdev(usbtouch->interface);
 
 	if (!usbtouch->type->irq_always) {
 		if (usb_submit_urb(usbtouch->irq, GFP_KERNEL))
@@ -1048,13 +1296,23 @@ static void usbtouch_free_buffers(struct usb_device *udev,
 	kfree(usbtouch->buffer);
 }
 
+static struct usb_endpoint_descriptor *
+usbtouch_get_input_endpoint(struct usb_host_interface *interface)
+{
+	int i;
+
+	for (i = 0; i < interface->desc.bNumEndpoints; i++)
+		if (usb_endpoint_dir_in(&interface->endpoint[i].desc))
+			return &interface->endpoint[i].desc;
+
+	return NULL;
+}
 
 static int usbtouch_probe(struct usb_interface *intf,
 			  const struct usb_device_id *id)
 {
 	struct usbtouch_usb *usbtouch;
 	struct input_dev *input_dev;
-	struct usb_host_interface *interface;
 	struct usb_endpoint_descriptor *endpoint;
 	struct usb_device *udev = interface_to_usbdev(intf);
 	struct usbtouch_device_info *type;
@@ -1064,8 +1322,9 @@ static int usbtouch_probe(struct usb_interface *intf,
 	if (id->driver_info == DEVTYPE_IGNORE)
 		return -ENODEV;
 
-	interface = intf->cur_altsetting;
-	endpoint = &interface->endpoint[0].desc;
+	endpoint = usbtouch_get_input_endpoint(intf->cur_altsetting);
+	if (!endpoint)
+		return -ENXIO;
 
 	usbtouch = kzalloc(sizeof(struct usbtouch_usb), GFP_KERNEL);
 	input_dev = input_allocate_device();
@@ -1094,7 +1353,7 @@ static int usbtouch_probe(struct usb_interface *intf,
 		goto out_free_buffers;
 	}
 
-	usbtouch->udev = udev;
+	usbtouch->interface = intf;
 	usbtouch->input = input_dev;
 
 	if (udev->manufacturer)
@@ -1133,12 +1392,18 @@ static int usbtouch_probe(struct usb_interface *intf,
 		input_set_abs_params(input_dev, ABS_PRESSURE, type->min_press,
 		                     type->max_press, 0, 0);
 
-	usb_fill_int_urb(usbtouch->irq, usbtouch->udev,
-			 usb_rcvintpipe(usbtouch->udev, endpoint->bEndpointAddress),
+	if (usb_endpoint_type(endpoint) == USB_ENDPOINT_XFER_INT)
+		usb_fill_int_urb(usbtouch->irq, udev,
+			 usb_rcvintpipe(udev, endpoint->bEndpointAddress),
 			 usbtouch->data, type->rept_size,
 			 usbtouch_irq, usbtouch, endpoint->bInterval);
+	else
+		usb_fill_bulk_urb(usbtouch->irq, udev,
+			 usb_rcvbulkpipe(udev, endpoint->bEndpointAddress),
+			 usbtouch->data, type->rept_size,
+			 usbtouch_irq, usbtouch);
 
-	usbtouch->irq->dev = usbtouch->udev;
+	usbtouch->irq->dev = udev;
 	usbtouch->irq->transfer_dma = usbtouch->data_dma;
 	usbtouch->irq->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
@@ -1147,23 +1412,37 @@ static int usbtouch_probe(struct usb_interface *intf,
 		err = type->init(usbtouch);
 		if (err) {
 			dbg("%s - type->init() failed, err: %d", __func__, err);
-			goto out_free_buffers;
+			goto out_free_urb;
 		}
 	}
 
 	err = input_register_device(usbtouch->input);
 	if (err) {
 		dbg("%s - input_register_device failed, err: %d", __func__, err);
-		goto out_free_buffers;
+		goto out_do_exit;
 	}
 
 	usb_set_intfdata(intf, usbtouch);
 
-	if (usbtouch->type->irq_always)
-		usb_submit_urb(usbtouch->irq, GFP_KERNEL);
+	if (usbtouch->type->irq_always) {
+		err = usb_submit_urb(usbtouch->irq, GFP_KERNEL);
+		if (err) {
+			err("%s - usb_submit_urb failed with result: %d",
+			    __func__, err);
+			goto out_unregister_input;
+		}
+	}
 
 	return 0;
 
+out_unregister_input:
+	input_unregister_device(input_dev);
+	input_dev = NULL;
+out_do_exit:
+	if (type->exit)
+		type->exit(usbtouch);
+out_free_urb:
+	usb_free_urb(usbtouch->irq);
 out_free_buffers:
 	usbtouch_free_buffers(udev, usbtouch);
 out_free:
@@ -1186,6 +1465,8 @@ static void usbtouch_disconnect(struct usb_interface *intf)
 	/* this will stop IO via close */
 	input_unregister_device(usbtouch->input);
 	usb_free_urb(usbtouch->irq);
+	if (usbtouch->type->exit)
+		usbtouch->type->exit(usbtouch);
 	usbtouch_free_buffers(interface_to_usbdev(intf), usbtouch);
 	kfree(usbtouch);
 }

@@ -5,6 +5,8 @@
 #ifndef __ASM_ARCH_EP93XX_KEYPAD_H
 #define __ASM_ARCH_EP93XX_KEYPAD_H
 
+struct matrix_keymap_data;
+
 /* flags for the ep93xx_keypad driver */
 #define EP93XX_KEYPAD_DISABLE_3_KEY	(1<<0)	/* disable 3-key reset */
 #define EP93XX_KEYPAD_DIAG_MODE		(1<<1)	/* diagnostic mode */
@@ -15,15 +17,13 @@
 
 /**
  * struct ep93xx_keypad_platform_data - platform specific device structure
- * @matrix_key_map:		array of keycodes defining the keypad matrix
- * @matrix_key_map_size:	ARRAY_SIZE(matrix_key_map)
- * @debounce:			debounce start count; terminal count is 0xff
- * @prescale:			row/column counter pre-scaler load value
- * @flags:			see above
+ * @keymap_data:	pointer to &matrix_keymap_data
+ * @debounce:		debounce start count; terminal count is 0xff
+ * @prescale:		row/column counter pre-scaler load value
+ * @flags:		see above
  */
 struct ep93xx_keypad_platform_data {
-	unsigned int	*matrix_key_map;
-	int		matrix_key_map_size;
+	struct matrix_keymap_data *keymap_data;
 	unsigned int	debounce;
 	unsigned int	prescale;
 	unsigned int	flags;

@@ -538,3 +538,26 @@ Why:	Duplicate functionality with the gspca_zc3xx driver, zc0301 only
 	sensors) wich are also supported by the gspca_zc3xx driver
 	(which supports 53 USB-ID's in total)
 Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	corgikbd, spitzkbd, tosakbd driver
+When:	2.6.35
+Files:	drivers/input/keyboard/{corgi,spitz,tosa}kbd.c
+Why:	We now have a generic GPIO based matrix keyboard driver that
+	are fully capable of handling all the keys on these devices.
+	The original drivers manipulate the GPIO registers directly
+	and so are difficult to maintain.
+Who:	Eric Miao <eric.y.miao@gmail.com>
+
+----------------------------
+
+What:	corgi_ssp and corgi_ts driver
+When:	2.6.35
+Files:	arch/arm/mach-pxa/corgi_ssp.c, drivers/input/touchscreen/corgi_ts.c
+Why:	The corgi touchscreen is now deprecated in favour of the generic
+	ads7846.c driver. The noise reduction technique used in corgi_ts.c,
+	that's to wait till vsync before ADC sampling, is also integrated into
+	ads7846 driver now. Provided that the original driver is not generic
+	and is difficult to maintain, it will be removed later.
+Who:	Eric Miao <eric.y.miao@gmail.com>

@@ -211,7 +211,8 @@ void input_dev_g(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_RUBBER) |
 		BIT_MASK(BTN_TOOL_PEN) | BIT_MASK(BTN_STYLUS) |
 		BIT_MASK(BTN_TOOL_MOUSE) | BIT_MASK(BTN_STYLUS2);
-	input_set_abs_params(input_dev, ABS_DISTANCE, 0, wacom_wac->features->distance_max, 0, 0);
+	input_set_abs_params(input_dev, ABS_DISTANCE,
+			     0, wacom_wac->features.distance_max, 0, 0);
 }
 
 void input_dev_i3s(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
@@ -261,7 +262,8 @@ void input_dev_i(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 		BIT_MASK(BTN_TOOL_MOUSE) | BIT_MASK(BTN_TOOL_BRUSH) |
 		BIT_MASK(BTN_TOOL_PENCIL) | BIT_MASK(BTN_TOOL_AIRBRUSH) |
 		BIT_MASK(BTN_TOOL_LENS) | BIT_MASK(BTN_STYLUS2);
-	input_set_abs_params(input_dev, ABS_DISTANCE, 0, wacom_wac->features->distance_max, 0, 0);
+	input_set_abs_params(input_dev, ABS_DISTANCE,
+			     0, wacom_wac->features.distance_max, 0, 0);
 	input_set_abs_params(input_dev, ABS_WHEEL, 0, 1023, 0, 0);
 	input_set_abs_params(input_dev, ABS_TILT_X, 0, 127, 0, 0);
 	input_set_abs_params(input_dev, ABS_TILT_Y, 0, 127, 0, 0);
@@ -282,17 +284,19 @@ void input_dev_pt(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 
 void input_dev_tpc(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
-	if (wacom_wac->features->device_type == BTN_TOOL_DOUBLETAP ||
-	    wacom_wac->features->device_type == BTN_TOOL_TRIPLETAP) {
-		input_set_abs_params(input_dev, ABS_RX, 0, wacom_wac->features->x_phy, 0, 0);
-		input_set_abs_params(input_dev, ABS_RY, 0, wacom_wac->features->y_phy, 0, 0);
-		input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_DOUBLETAP);
+	struct wacom_features *features = &wacom_wac->features;
+
+	if (features->device_type == BTN_TOOL_DOUBLETAP ||
+	    features->device_type == BTN_TOOL_TRIPLETAP) {
+		input_set_abs_params(input_dev, ABS_RX, 0, features->x_phy, 0, 0);
+		input_set_abs_params(input_dev, ABS_RY, 0, features->y_phy, 0, 0);
+		__set_bit(BTN_TOOL_DOUBLETAP, input_dev->keybit);
 	}
 }
 
 void input_dev_tpc2fg(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
-	if (wacom_wac->features->device_type == BTN_TOOL_TRIPLETAP) {
+	if (wacom_wac->features.device_type == BTN_TOOL_TRIPLETAP) {
 		input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOOL_TRIPLETAP);
 		input_dev->evbit[0] |= BIT_MASK(EV_MSC);
 		input_dev->mscbit[0] |= BIT_MASK(MSC_SERIAL);
@@ -532,21 +536,38 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	struct wacom_wac *wacom_wac;
 	struct wacom_features *features;
 	struct input_dev *input_dev;
-	int error = -ENOMEM;
+	int error;
+
+	if (!id->driver_info)
+		return -EINVAL;
 
 	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
 	wacom_wac = kzalloc(sizeof(struct wacom_wac), GFP_KERNEL);
 	input_dev = input_allocate_device();
-	if (!wacom || !input_dev || !wacom_wac)
+	if (!wacom || !input_dev || !wacom_wac) {
+		error = -ENOMEM;
 		goto fail1;
+	}
 
-	wacom_wac->data = usb_buffer_alloc(dev, WACOM_PKGLEN_MAX, GFP_KERNEL, &wacom->data_dma);
-	if (!wacom_wac->data)
+	wacom_wac->features = *((struct wacom_features *)id->driver_info);
+	features = &wacom_wac->features;
+	if (features->pktlen > WACOM_PKGLEN_MAX) {
+		error = -EINVAL;
 		goto fail1;
+	}
+
+	wacom_wac->data = usb_buffer_alloc(dev, WACOM_PKGLEN_MAX,
+					   GFP_KERNEL, &wacom->data_dma);
+	if (!wacom_wac->data) {
+		error = -ENOMEM;
+		goto fail1;
+	}
 
 	wacom->irq = usb_alloc_urb(0, GFP_KERNEL);
-	if (!wacom->irq)
+	if (!wacom->irq) {
+		error = -ENOMEM;
 		goto fail2;
+	}
 
 	wacom->usbdev = dev;
 	wacom->dev = input_dev;
@@ -555,11 +576,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	usb_make_path(dev, wacom->phys, sizeof(wacom->phys));
 	strlcat(wacom->phys, "/input0", sizeof(wacom->phys));
 
-	wacom_wac->features = features = get_wacom_feature(id);
-	BUG_ON(features->pktlen > WACOM_PKGLEN_MAX);
-
-	input_dev->name = wacom_wac->features->name;
-	wacom->wacom_wac = wacom_wac;
 	usb_to_input_id(dev, &input_dev->id);
 
 	input_dev->dev.parent = &intf->dev;
@@ -575,6 +591,19 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	error = wacom_retrieve_hid_descriptor(intf, features);
 	if (error)
 		goto fail2;
+
+	strlcpy(wacom_wac->name, features->name, sizeof(wacom_wac->name));
+
+	if (features->type == TABLETPC || features->type == TABLETPC2FG) {
+		/* Append the device type to the name */
+		strlcat(wacom_wac->name,
+			features->device_type == BTN_TOOL_PEN ?
+				" Pen" : " Finger",
+			sizeof(wacom_wac->name));
+	}
+
+	input_dev->name = wacom_wac->name;
+	wacom->wacom_wac = wacom_wac;
 
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOUCH);
@@ -640,7 +669,7 @@ static int wacom_suspend(struct usb_interface *intf, pm_message_t message)
 static int wacom_resume(struct usb_interface *intf)
 {
 	struct wacom *wacom = usb_get_intfdata(intf);
-	struct wacom_features *features = wacom->wacom_wac->features;
+	struct wacom_features *features = &wacom->wacom_wac->features;
 	int rv;
 
 	mutex_lock(&wacom->lock);
@@ -663,6 +692,7 @@ static int wacom_reset_resume(struct usb_interface *intf)
 
 static struct usb_driver wacom_driver = {
 	.name =		"wacom",
+	.id_table =	wacom_ids,
 	.probe =	wacom_probe,
 	.disconnect =	wacom_disconnect,
 	.suspend =	wacom_suspend,
@@ -674,7 +704,7 @@ static struct usb_driver wacom_driver = {
 static int __init wacom_init(void)
 {
 	int result;
-	wacom_driver.id_table = get_device_table();
+
 	result = usb_register(&wacom_driver);
 	if (result == 0)
 		printk(KERN_INFO KBUILD_MODNAME ": " DRIVER_VERSION ":"

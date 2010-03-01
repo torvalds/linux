@@ -68,10 +68,6 @@ module_param(post_interrupt_delay, int, 0644);
 MODULE_PARM_DESC(post_interrupt_delay,
 	"delay (ms) before recal after recal interrupt detected");
 
-static int autorecal = 1;
-module_param(autorecal, int, 0644);
-MODULE_PARM_DESC(autorecal, "enable recalibration in the driver");
-
 /*
  * When the touchpad gets ultra-sensitive, one can keep their finger 1/2"
  * above the pad and still have it send packets.  This causes a jump cursor

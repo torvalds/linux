@@ -278,6 +278,8 @@ static int evdev_open(struct inode *inode, struct file *file)
 		goto err_free_client;
 
 	file->private_data = client;
+	nonseekable_open(inode, file);
+
 	return 0;
 
  err_free_client:
