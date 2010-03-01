@@ -119,6 +119,27 @@ struct vcpu_svm {
 
 #define MSR_INVALID			0xffffffffU
 
+static struct svm_direct_access_msrs {
+	u32 index;   /* Index of the MSR */
+	bool always; /* True if intercept is always on */
+} direct_access_msrs[] = {
+	{ .index = MSR_K6_STAR,				.always = true  },
+	{ .index = MSR_IA32_SYSENTER_CS,		.always = true  },
+#ifdef CONFIG_X86_64
+	{ .index = MSR_GS_BASE,				.always = true  },
+	{ .index = MSR_FS_BASE,				.always = true  },
+	{ .index = MSR_KERNEL_GS_BASE,			.always = true  },
+	{ .index = MSR_LSTAR,				.always = true  },
+	{ .index = MSR_CSTAR,				.always = true  },
+	{ .index = MSR_SYSCALL_MASK,			.always = true  },
+#endif
+	{ .index = MSR_IA32_LASTBRANCHFROMIP,		.always = false },
+	{ .index = MSR_IA32_LASTBRANCHTOIP,		.always = false },
+	{ .index = MSR_IA32_LASTINTFROMIP,		.always = false },
+	{ .index = MSR_IA32_LASTINTTOIP,		.always = false },
+	{ .index = MSR_INVALID,				.always = false },
+};
+
 /* enable NPT for AMD64 and X86 with PAE */
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_PAE)
 static bool npt_enabled = true;
@@ -438,12 +459,29 @@ err_1:
 
 }
 
+static bool valid_msr_intercept(u32 index)
+{
+	int i;
+
+	for (i = 0; direct_access_msrs[i].index != MSR_INVALID; i++)
+		if (direct_access_msrs[i].index == index)
+			return true;
+
+	return false;
+}
+
 static void set_msr_interception(u32 *msrpm, unsigned msr,
 				 int read, int write)
 {
 	u8 bit_read, bit_write;
 	unsigned long tmp;
 	u32 offset;
+
+	/*
+	 * If this warning triggers extend the direct_access_msrs list at the
+	 * beginning of the file
+	 */
+	WARN_ON(!valid_msr_intercept(msr));
 
 	offset    = svm_msrpm_offset(msr);
 	bit_read  = 2 * (msr & 0x0f);
@@ -460,18 +498,16 @@ static void set_msr_interception(u32 *msrpm, unsigned msr,
 
 static void svm_vcpu_init_msrpm(u32 *msrpm)
 {
+	int i;
+
 	memset(msrpm, 0xff, PAGE_SIZE * (1 << MSRPM_ALLOC_ORDER));
 
-#ifdef CONFIG_X86_64
-	set_msr_interception(msrpm, MSR_GS_BASE, 1, 1);
-	set_msr_interception(msrpm, MSR_FS_BASE, 1, 1);
-	set_msr_interception(msrpm, MSR_KERNEL_GS_BASE, 1, 1);
-	set_msr_interception(msrpm, MSR_LSTAR, 1, 1);
-	set_msr_interception(msrpm, MSR_CSTAR, 1, 1);
-	set_msr_interception(msrpm, MSR_SYSCALL_MASK, 1, 1);
-#endif
-	set_msr_interception(msrpm, MSR_K6_STAR, 1, 1);
-	set_msr_interception(msrpm, MSR_IA32_SYSENTER_CS, 1, 1);
+	for (i = 0; direct_access_msrs[i].index != MSR_INVALID; i++) {
+		if (!direct_access_msrs[i].always)
+			continue;
+
+		set_msr_interception(msrpm, direct_access_msrs[i].index, 1, 1);
+	}
 }
 
 static void svm_enable_lbrv(struct vcpu_svm *svm)
