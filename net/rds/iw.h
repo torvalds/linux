@@ -70,7 +70,7 @@ struct rds_iw_send_work {
 	struct rds_message	*s_rm;
 
 	/* We should really put these into a union: */
-	struct rds_rdma_op	*s_op;
+	struct rm_rdma_op	*s_op;
 	struct rds_iw_mapping	*s_mapping;
 	struct ib_mr		*s_mr;
 	struct ib_fast_reg_page_list *s_page_list;
@@ -357,7 +357,7 @@ int rds_iw_xmit(struct rds_connection *conn, struct rds_message *rm,
 void rds_iw_send_cq_comp_handler(struct ib_cq *cq, void *context);
 void rds_iw_send_init_ring(struct rds_iw_connection *ic);
 void rds_iw_send_clear_ring(struct rds_iw_connection *ic);
-int rds_iw_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op);
+int rds_iw_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op);
 void rds_iw_send_add_credits(struct rds_connection *conn, unsigned int credits);
 void rds_iw_advertise_credits(struct rds_connection *conn, unsigned int posted);
 int rds_iw_send_grab_credits(struct rds_iw_connection *ic, u32 wanted,

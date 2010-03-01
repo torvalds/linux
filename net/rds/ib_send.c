@@ -79,14 +79,14 @@ static void rds_ib_send_unmap_rm(struct rds_ib_connection *ic,
 			rm->data.m_sg, rm->data.m_nents,
 			DMA_TO_DEVICE);
 
-	if (rm->rdma.m_rdma_op.r_active) {
-		struct rds_rdma_op *op = &rm->rdma.m_rdma_op;
+	if (rm->rdma.op_active) {
+		struct rm_rdma_op *op = &rm->rdma;
 
-		if (op->r_mapped) {
+		if (op->op_mapped) {
 			ib_dma_unmap_sg(ic->i_cm_id->device,
-					op->r_sg, op->r_nents,
-					op->r_write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
-			op->r_mapped = 0;
+					op->op_sg, op->op_nents,
+					op->op_write ? DMA_TO_DEVICE : DMA_FROM_DEVICE);
+			op->op_mapped = 0;
 		}
 
 		/* If the user asked for a completion notification on this
@@ -111,10 +111,10 @@ static void rds_ib_send_unmap_rm(struct rds_ib_connection *ic,
 		 */
 		rds_ib_send_complete(rm, wc_status, rds_rdma_send_complete);
 
-		if (rm->rdma.m_rdma_op.r_write)
-			rds_stats_add(s_send_rdma_bytes, rm->rdma.m_rdma_op.r_bytes);
+		if (rm->rdma.op_write)
+			rds_stats_add(s_send_rdma_bytes, rm->rdma.op_bytes);
 		else
-			rds_stats_add(s_recv_rdma_bytes, rm->rdma.m_rdma_op.r_bytes);
+			rds_stats_add(s_recv_rdma_bytes, rm->rdma.op_bytes);
 	}
 
 	if (rm->atomic.op_active) {
@@ -540,10 +540,10 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 
 		/* If it has a RDMA op, tell the peer we did it. This is
 		 * used by the peer to release use-once RDMA MRs. */
-		if (rm->rdma.m_rdma_op.r_active) {
+		if (rm->rdma.op_active) {
 			struct rds_ext_header_rdma ext_hdr;
 
-			ext_hdr.h_rdma_rkey = cpu_to_be32(rm->rdma.m_rdma_op.r_key);
+			ext_hdr.h_rdma_rkey = cpu_to_be32(rm->rdma.op_rkey);
 			rds_message_add_extension(&rm->m_inc.i_hdr,
 					RDS_EXTHDR_RDMA, &ext_hdr, sizeof(ext_hdr));
 		}
@@ -576,7 +576,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	 * or when requested by the user. Right now, we let
 	 * the application choose.
 	 */
-	if (rm->rdma.m_rdma_op.r_active && rm->rdma.m_rdma_op.r_fence)
+	if (rm->rdma.op_active && rm->rdma.op_fence)
 		send_flags = IB_SEND_FENCE;
 
 	/* Each frag gets a header. Msgs may be 0 bytes */
@@ -746,7 +746,7 @@ int rds_ib_xmit_atomic(struct rds_connection *conn, struct rds_message *rm)
 	 * we must fill in s_rm ourselves, so we properly clean up
 	 * on completion.
 	 */
-	if (!rm->rdma.m_rdma_op.r_active && !rm->data.op_active)
+	if (!rm->rdma.op_active && !rm->data.op_active)
 		send->s_rm = rm;
 
 	/* map 8 byte retval buffer to the device */
@@ -788,7 +788,7 @@ out:
 	return ret;
 }
 
-int rds_ib_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
+int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op)
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct rds_ib_send_work *send = NULL;
@@ -798,7 +798,7 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 	struct rds_ib_device *rds_ibdev;
 	struct scatterlist *scat;
 	unsigned long len;
-	u64 remote_addr = op->r_remote_addr;
+	u64 remote_addr = op->op_remote_addr;
 	u32 pos;
 	u32 work_alloc;
 	u32 i;
@@ -810,25 +810,25 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 	rds_ibdev = ib_get_client_data(ic->i_cm_id->device, &rds_ib_client);
 
 	/* map the message the first time we see it */
-	if (!op->r_mapped) {
-		op->r_count = ib_dma_map_sg(ic->i_cm_id->device,
-					op->r_sg, op->r_nents, (op->r_write) ?
-					DMA_TO_DEVICE : DMA_FROM_DEVICE);
-		rdsdebug("ic %p mapping op %p: %d\n", ic, op, op->r_count);
-		if (op->r_count == 0) {
+	if (!op->op_mapped) {
+		op->op_count = ib_dma_map_sg(ic->i_cm_id->device,
+					     op->op_sg, op->op_nents, (op->op_write) ?
+					     DMA_TO_DEVICE : DMA_FROM_DEVICE);
+		rdsdebug("ic %p mapping op %p: %d\n", ic, op, op->op_count);
+		if (op->op_count == 0) {
 			rds_ib_stats_inc(s_ib_tx_sg_mapping_failure);
 			ret = -ENOMEM; /* XXX ? */
 			goto out;
 		}
 
-		op->r_mapped = 1;
+		op->op_mapped = 1;
 	}
 
 	/*
 	 * Instead of knowing how to return a partial rdma read/write we insist that there
 	 * be enough work requests to send the entire message.
 	 */
-	i = ceil(op->r_count, rds_ibdev->max_sge);
+	i = ceil(op->op_count, rds_ibdev->max_sge);
 
 	work_alloc = rds_ib_ring_alloc(&ic->i_send_ring, i, &pos);
 	if (work_alloc != i) {
@@ -841,19 +841,19 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 	send = &ic->i_sends[pos];
 	first = send;
 	prev = NULL;
-	scat = &op->r_sg[0];
+	scat = &op->op_sg[0];
 	sent = 0;
-	num_sge = op->r_count;
+	num_sge = op->op_count;
 
-	for (i = 0; i < work_alloc && scat != &op->r_sg[op->r_count]; i++) {
+	for (i = 0; i < work_alloc && scat != &op->op_sg[op->op_count]; i++) {
 		send->s_wr.send_flags = 0;
 		send->s_queued = jiffies;
 
-		rds_ib_set_wr_signal_state(ic, send, op->r_notify);
+		rds_ib_set_wr_signal_state(ic, send, op->op_notify);
 
-		send->s_wr.opcode = op->r_write ? IB_WR_RDMA_WRITE : IB_WR_RDMA_READ;
+		send->s_wr.opcode = op->op_write ? IB_WR_RDMA_WRITE : IB_WR_RDMA_READ;
 		send->s_wr.wr.rdma.remote_addr = remote_addr;
-		send->s_wr.wr.rdma.rkey = op->r_key;
+		send->s_wr.wr.rdma.rkey = op->op_rkey;
 		send->s_op = op;
 
 		if (num_sge > rds_ibdev->max_sge) {
@@ -868,7 +868,7 @@ int rds_ib_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op)
 		if (prev)
 			prev->s_wr.next = &send->s_wr;
 
-		for (j = 0; j < send->s_wr.num_sge && scat != &op->r_sg[op->r_count]; j++) {
+		for (j = 0; j < send->s_wr.num_sge && scat != &op->op_sg[op->op_count]; j++) {
 			len = ib_sg_dma_len(ic->i_cm_id->device, scat);
 			send->s_sge[j].addr =
 				 ib_sg_dma_address(ic->i_cm_id->device, scat);

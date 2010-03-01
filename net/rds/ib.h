@@ -54,7 +54,7 @@ struct rds_ib_connect_private {
 
 struct rds_ib_send_work {
 	struct rds_message	*s_rm;
-	struct rds_rdma_op	*s_op;
+	struct rm_rdma_op	*s_op;
 	struct ib_send_wr	s_wr;
 	struct ib_sge		s_sge[RDS_IB_MAX_SGE];
 	unsigned long		s_queued;
@@ -331,7 +331,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context);
 void rds_ib_send_init_ring(struct rds_ib_connection *ic);
 void rds_ib_send_clear_ring(struct rds_ib_connection *ic);
-int rds_ib_xmit_rdma(struct rds_connection *conn, struct rds_rdma_op *op);
+int rds_ib_xmit_rdma(struct rds_connection *conn, struct rm_rdma_op *op);
 void rds_ib_send_add_credits(struct rds_connection *conn, unsigned int credits);
 void rds_ib_advertise_credits(struct rds_connection *conn, unsigned int posted);
 int rds_ib_send_grab_credits(struct rds_ib_connection *ic, u32 wanted,

@@ -440,26 +440,26 @@ void rds_rdma_unuse(struct rds_sock *rs, u32 r_key, int force)
 	rds_mr_put(mr);
 }
 
-void rds_rdma_free_op(struct rds_rdma_op *ro)
+void rds_rdma_free_op(struct rm_rdma_op *ro)
 {
 	unsigned int i;
 
-	for (i = 0; i < ro->r_nents; i++) {
-		struct page *page = sg_page(&ro->r_sg[i]);
+	for (i = 0; i < ro->op_nents; i++) {
+		struct page *page = sg_page(&ro->op_sg[i]);
 
 		/* Mark page dirty if it was possibly modified, which
 		 * is the case for a RDMA_READ which copies from remote
 		 * to local memory */
-		if (!ro->r_write) {
+		if (!ro->op_write) {
 			BUG_ON(irqs_disabled());
 			set_page_dirty(page);
 		}
 		put_page(page);
 	}
 
-	kfree(ro->r_notifier);
-	ro->r_notifier = NULL;
-	ro->r_active = 0;
+	kfree(ro->op_notifier);
+	ro->op_notifier = NULL;
+	ro->op_active = 0;
 }
 
 void rds_atomic_free_op(struct rm_atomic_op *ao)
@@ -521,7 +521,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 {
 	struct rds_rdma_args *args;
 	struct rds_iovec vec;
-	struct rds_rdma_op *op = &rm->rdma.m_rdma_op;
+	struct rm_rdma_op *op = &rm->rdma;
 	unsigned int nr_pages;
 	unsigned int nr_bytes;
 	struct page **pages = NULL;
@@ -531,7 +531,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	int ret = 0;
 
 	if (cmsg->cmsg_len < CMSG_LEN(sizeof(struct rds_rdma_args))
-	    || rm->rdma.m_rdma_op.r_active)
+	    || rm->rdma.op_active)
 		return -EINVAL;
 
 	args = CMSG_DATA(cmsg);
@@ -556,27 +556,27 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		goto out;
 	}
 
-	op->r_write = !!(args->flags & RDS_RDMA_READWRITE);
-	op->r_fence = !!(args->flags & RDS_RDMA_FENCE);
-	op->r_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
-	op->r_active = 1;
-	op->r_recverr = rs->rs_recverr;
+	op->op_write = !!(args->flags & RDS_RDMA_READWRITE);
+	op->op_fence = !!(args->flags & RDS_RDMA_FENCE);
+	op->op_notify = !!(args->flags & RDS_RDMA_NOTIFY_ME);
+	op->op_active = 1;
+	op->op_recverr = rs->rs_recverr;
 	WARN_ON(!nr_pages);
-	op->r_sg = rds_message_alloc_sgs(rm, nr_pages);
+	op->op_sg = rds_message_alloc_sgs(rm, nr_pages);
 
-	if (op->r_notify || op->r_recverr) {
+	if (op->op_notify || op->op_recverr) {
 		/* We allocate an uninitialized notifier here, because
 		 * we don't want to do that in the completion handler. We
 		 * would have to use GFP_ATOMIC there, and don't want to deal
 		 * with failed allocations.
 		 */
-		op->r_notifier = kmalloc(sizeof(struct rds_notifier), GFP_KERNEL);
-		if (!op->r_notifier) {
+		op->op_notifier = kmalloc(sizeof(struct rds_notifier), GFP_KERNEL);
+		if (!op->op_notifier) {
 			ret = -ENOMEM;
 			goto out;
 		}
-		op->r_notifier->n_user_token = args->user_token;
-		op->r_notifier->n_status = RDS_RDMA_SUCCESS;
+		op->op_notifier->n_user_token = args->user_token;
+		op->op_notifier->n_status = RDS_RDMA_SUCCESS;
 	}
 
 	/* The cookie contains the R_Key of the remote memory region, and
@@ -586,15 +586,15 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 	 * destination address (which is really an offset into the MR)
 	 * FIXME: We may want to move this into ib_rdma.c
 	 */
-	op->r_key = rds_rdma_cookie_key(args->cookie);
-	op->r_remote_addr = args->remote_vec.addr + rds_rdma_cookie_offset(args->cookie);
+	op->op_rkey = rds_rdma_cookie_key(args->cookie);
+	op->op_remote_addr = args->remote_vec.addr + rds_rdma_cookie_offset(args->cookie);
 
 	nr_bytes = 0;
 
 	rdsdebug("RDS: rdma prepare nr_local %llu rva %llx rkey %x\n",
 	       (unsigned long long)args->nr_local,
 	       (unsigned long long)args->remote_vec.addr,
-	       op->r_key);
+	       op->op_rkey);
 
 	local_vec = (struct rds_iovec __user *)(unsigned long) args->local_vec_addr;
 
@@ -617,7 +617,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		/* If it's a WRITE operation, we want to pin the pages for reading.
 		 * If it's a READ operation, we need to pin the pages for writing.
 		 */
-		ret = rds_pin_pages(vec.addr, nr, pages, !op->r_write);
+		ret = rds_pin_pages(vec.addr, nr, pages, !op->op_write);
 		if (ret < 0)
 			goto out;
 
@@ -630,7 +630,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 			unsigned int offset = vec.addr & ~PAGE_MASK;
 			struct scatterlist *sg;
 
-			sg = &op->r_sg[op->r_nents + j];
+			sg = &op->op_sg[op->op_nents + j];
 			sg_set_page(sg, pages[j],
 					min_t(unsigned int, vec.bytes, PAGE_SIZE - offset),
 					offset);
@@ -642,7 +642,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 			vec.bytes -= sg->length;
 		}
 
-		op->r_nents += nr;
+		op->op_nents += nr;
 	}
 
 	if (nr_bytes > args->remote_vec.bytes) {
@@ -652,7 +652,7 @@ int rds_cmsg_rdma_args(struct rds_sock *rs, struct rds_message *rm,
 		ret = -EINVAL;
 		goto out;
 	}
-	op->r_bytes = nr_bytes;
+	op->op_bytes = nr_bytes;
 
 	ret = 0;
 out:
@@ -700,7 +700,7 @@ int rds_cmsg_rdma_dest(struct rds_sock *rs, struct rds_message *rm,
 
 	if (mr) {
 		mr->r_trans->sync_mr(mr->r_trans_private, DMA_TO_DEVICE);
-		rm->rdma.m_rdma_mr = mr;
+		rm->rdma.op_rdma_mr = mr;
 	}
 	return err;
 }
@@ -718,7 +718,7 @@ int rds_cmsg_rdma_map(struct rds_sock *rs, struct rds_message *rm,
 	    rm->m_rdma_cookie != 0)
 		return -EINVAL;
 
-	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie, &rm->rdma.m_rdma_mr);
+	return __rds_rdma_map(rs, CMSG_DATA(cmsg), &rm->m_rdma_cookie, &rm->rdma.op_rdma_mr);
 }
 
 /*

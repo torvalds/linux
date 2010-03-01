@@ -69,10 +69,10 @@ static void rds_message_purge(struct rds_message *rm)
 	}
 	rm->data.m_nents = 0;
 
-	if (rm->rdma.m_rdma_op.r_active)
-		rds_rdma_free_op(&rm->rdma.m_rdma_op);
-	if (rm->rdma.m_rdma_mr)
-		rds_mr_put(rm->rdma.m_rdma_mr);
+	if (rm->rdma.op_active)
+		rds_rdma_free_op(&rm->rdma);
+	if (rm->rdma.op_rdma_mr)
+		rds_mr_put(rm->rdma.op_rdma_mr);
 
 	if (rm->atomic.op_active)
 		rds_atomic_free_op(&rm->atomic);

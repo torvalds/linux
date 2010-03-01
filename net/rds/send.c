@@ -237,7 +237,7 @@ int rds_send_xmit(struct rds_connection *conn)
 			 * connection.
 			 * Therefore, we never retransmit messages with RDMA ops.
 			 */
-			if (rm->rdma.m_rdma_op.r_active &&
+			if (rm->rdma.op_active &&
 			    test_bit(RDS_MSG_RETRANSMITTED, &rm->m_flags)) {
 				spin_lock_irqsave(&conn->c_lock, flags);
 				if (test_and_clear_bit(RDS_MSG_ON_CONN, &rm->m_flags))
@@ -280,8 +280,8 @@ int rds_send_xmit(struct rds_connection *conn)
 		 * keep this simple and require that the transport either
 		 * send the whole rdma or none of it.
 		 */
-		if (rm->rdma.m_rdma_op.r_active && !conn->c_xmit_rdma_sent) {
-			ret = conn->c_trans->xmit_rdma(conn, &rm->rdma.m_rdma_op);
+		if (rm->rdma.op_active && !conn->c_xmit_rdma_sent) {
+			ret = conn->c_trans->xmit_rdma(conn, &rm->rdma);
 			if (ret)
 				break;
 			conn->c_xmit_rdma_sent = 1;
@@ -430,16 +430,16 @@ int rds_send_acked_before(struct rds_connection *conn, u64 seq)
 void rds_rdma_send_complete(struct rds_message *rm, int status)
 {
 	struct rds_sock *rs = NULL;
-	struct rds_rdma_op *ro;
+	struct rm_rdma_op *ro;
 	struct rds_notifier *notifier;
 	unsigned long flags;
 
 	spin_lock_irqsave(&rm->m_rs_lock, flags);
 
-	ro = &rm->rdma.m_rdma_op;
+	ro = &rm->rdma;
 	if (test_bit(RDS_MSG_ON_SOCK, &rm->m_flags) &&
-	    ro->r_active && ro->r_notify && ro->r_notifier) {
-		notifier = ro->r_notifier;
+	    ro->op_active && ro->op_notify && ro->op_notifier) {
+		notifier = ro->op_notifier;
 		rs = rm->m_rs;
 		sock_hold(rds_rs_to_sk(rs));
 
@@ -448,7 +448,7 @@ void rds_rdma_send_complete(struct rds_message *rm, int status)
 		list_add_tail(&notifier->n_list, &rs->rs_notify_queue);
 		spin_unlock(&rs->rs_lock);
 
-		ro->r_notifier = NULL;
+		ro->op_notifier = NULL;
 	}
 
 	spin_unlock_irqrestore(&rm->m_rs_lock, flags);
@@ -503,13 +503,13 @@ EXPORT_SYMBOL_GPL(rds_atomic_send_complete);
 static inline void
 __rds_rdma_send_complete(struct rds_sock *rs, struct rds_message *rm, int status)
 {
-	struct rds_rdma_op *ro;
+	struct rm_rdma_op *ro;
 
-	ro = &rm->rdma.m_rdma_op;
-	if (ro->r_active && ro->r_notify && ro->r_notifier) {
-		ro->r_notifier->n_status = status;
-		list_add_tail(&ro->r_notifier->n_list, &rs->rs_notify_queue);
-		ro->r_notifier = NULL;
+	ro = &rm->rdma;
+	if (ro->op_active && ro->op_notify && ro->op_notifier) {
+		ro->op_notifier->n_status = status;
+		list_add_tail(&ro->op_notifier->n_list, &rs->rs_notify_queue);
+		ro->op_notifier = NULL;
 	}
 
 	/* No need to wake the app - caller does this */
@@ -521,7 +521,7 @@ __rds_rdma_send_complete(struct rds_sock *rs, struct rds_message *rm, int status
  * So speed is not an issue here.
  */
 struct rds_message *rds_send_get_message(struct rds_connection *conn,
-					 struct rds_rdma_op *op)
+					 struct rm_rdma_op *op)
 {
 	struct rds_message *rm, *tmp, *found = NULL;
 	unsigned long flags;
@@ -529,7 +529,7 @@ struct rds_message *rds_send_get_message(struct rds_connection *conn,
 	spin_lock_irqsave(&conn->c_lock, flags);
 
 	list_for_each_entry_safe(rm, tmp, &conn->c_retrans, m_conn_item) {
-		if (&rm->rdma.m_rdma_op == op) {
+		if (&rm->rdma == op) {
 			atomic_inc(&rm->m_refcount);
 			found = rm;
 			goto out;
@@ -537,7 +537,7 @@ struct rds_message *rds_send_get_message(struct rds_connection *conn,
 	}
 
 	list_for_each_entry_safe(rm, tmp, &conn->c_send_queue, m_conn_item) {
-		if (&rm->rdma.m_rdma_op == op) {
+		if (&rm->rdma == op) {
 			atomic_inc(&rm->m_refcount);
 			found = rm;
 			break;
@@ -597,20 +597,20 @@ void rds_send_remove_from_sock(struct list_head *messages, int status)
 		spin_lock(&rs->rs_lock);
 
 		if (test_and_clear_bit(RDS_MSG_ON_SOCK, &rm->m_flags)) {
-			struct rds_rdma_op *ro = &rm->rdma.m_rdma_op;
+			struct rm_rdma_op *ro = &rm->rdma;
 			struct rds_notifier *notifier;
 
 			list_del_init(&rm->m_sock_item);
 			rds_send_sndbuf_remove(rs, rm);
 
-			if (ro->r_active && ro->r_notifier &&
-			    (ro->r_notify || (ro->r_recverr && status))) {
-				notifier = ro->r_notifier;
+			if (ro->op_active && ro->op_notifier &&
+			       (ro->op_notify || (ro->op_recverr && status))) {
+				notifier = ro->op_notifier;
 				list_add_tail(&notifier->n_list,
 						&rs->rs_notify_queue);
 				if (!notifier->n_status)
 					notifier->n_status = status;
-				rm->rdma.m_rdma_op.r_notifier = NULL;
+				rm->rdma.op_notifier = NULL;
 			}
 			was_on_sock = 1;
 			rm->m_rs = NULL;
@@ -987,11 +987,11 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	if (ret)
 		goto out;
 
-	if ((rm->m_rdma_cookie || rm->rdma.m_rdma_op.r_active) &&
-	       !conn->c_trans->xmit_rdma) {
+	if ((rm->m_rdma_cookie || rm->rdma.op_active) &&
+	    !conn->c_trans->xmit_rdma) {
 		if (printk_ratelimit())
 			printk(KERN_NOTICE "rdma_op %p conn xmit_rdma %p\n",
-			       &rm->rdma.m_rdma_op, conn->c_trans->xmit_rdma);
+			       &rm->rdma, conn->c_trans->xmit_rdma);
 		ret = -EOPNOTSUPP;
 		goto out;
 	}
