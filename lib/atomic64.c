@@ -162,12 +162,12 @@ int atomic64_add_unless(atomic64_t *v, long long a, long long u)
 {
 	unsigned long flags;
 	spinlock_t *lock = lock_addr(v);
-	int ret = 1;
+	int ret = 0;
 
 	spin_lock_irqsave(lock, flags);
 	if (v->counter != u) {
 		v->counter += a;
-		ret = 0;
+		ret = 1;
 	}
 	spin_unlock_irqrestore(lock, flags);
 	return ret;
