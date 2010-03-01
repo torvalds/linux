@@ -19,7 +19,7 @@
  * tunables
  */
 /* max queue in one round of service */
-static const int cfq_quantum = 4;
+static const int cfq_quantum = 8;
 static const int cfq_fifo_expire[2] = { HZ / 4, HZ / 8 };
 /* maximum backwards seek, in KiB */
 static const int cfq_back_max = 16 * 1024;
@@ -2197,6 +2197,19 @@ static int cfq_forced_dispatch(struct cfq_data *cfqd)
 	return dispatched;
 }
 
+static inline bool cfq_slice_used_soon(struct cfq_data *cfqd,
+	struct cfq_queue *cfqq)
+{
+	/* the queue hasn't finished any request, can't estimate */
+	if (cfq_cfqq_slice_new(cfqq))
+		return 1;
+	if (time_after(jiffies + cfqd->cfq_slice_idle * cfqq->dispatched,
+		cfqq->slice_end))
+		return 1;
+
+	return 0;
+}
+
 static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 {
 	unsigned int max_dispatch;
@@ -2213,7 +2226,7 @@ static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	if (cfqd->rq_in_flight[BLK_RW_SYNC] && !cfq_cfqq_sync(cfqq))
 		return false;
 
-	max_dispatch = cfqd->cfq_quantum;
+	max_dispatch = max_t(unsigned int, cfqd->cfq_quantum / 2, 1);
 	if (cfq_class_idle(cfqq))
 		max_dispatch = 1;
 
@@ -2230,13 +2243,22 @@ static bool cfq_may_dispatch(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 		/*
 		 * We have other queues, don't allow more IO from this one
 		 */
-		if (cfqd->busy_queues > 1)
+		if (cfqd->busy_queues > 1 && cfq_slice_used_soon(cfqd, cfqq))
 			return false;
 
 		/*
 		 * Sole queue user, no limit
 		 */
-		max_dispatch = -1;
+		if (cfqd->busy_queues == 1)
+			max_dispatch = -1;
+		else
+			/*
+			 * Normally we start throttling cfqq when cfq_quantum/2
+			 * requests have been dispatched. But we can drive
+			 * deeper queue depths at the beginning of slice
+			 * subjected to upper limit of cfq_quantum.
+			 * */
+			max_dispatch = cfqd->cfq_quantum;
 	}
 
 	/*
