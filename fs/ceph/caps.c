@@ -1923,14 +1923,17 @@ static int try_get_cap_refs(struct ceph_inode_info *ci, int need, int want,
 	struct inode *inode = &ci->vfs_inode;
 	int ret = 0;
 	int have, implemented;
+	int file_wanted;
 
 	dout("get_cap_refs %p need %s want %s\n", inode,
 	     ceph_cap_string(need), ceph_cap_string(want));
 	spin_lock(&inode->i_lock);
 
-	/* make sure we _have_ some caps! */
-	if (!__ceph_is_any_caps(ci)) {
-		dout("get_cap_refs %p no real caps\n", inode);
+	/* make sure file is actually open */
+	file_wanted = __ceph_caps_file_wanted(ci);
+	if ((file_wanted & need) == 0) {
+		dout("try_get_cap_refs need %s file_wanted %s, EBADF\n",
+		     ceph_cap_string(need), ceph_cap_string(file_wanted));
 		*err = -EBADF;
 		ret = 1;
 		goto out;
