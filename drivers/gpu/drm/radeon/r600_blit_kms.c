@@ -403,8 +403,6 @@ set_default_state(struct radeon_device *rdev)
 	radeon_ring_write(rdev, upper_32_bits(gpu_addr) & 0xFF);
 	radeon_ring_write(rdev, dwords);
 
-	radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE, 0));
-	radeon_ring_write(rdev, CACHE_FLUSH_AND_INV_EVENT);
 	/* SQ config */
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 6));
 	radeon_ring_write(rdev, (SQ_CONFIG - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
@@ -578,9 +576,9 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 	ring_size = num_loops * dwords_per_loop;
 	/* set default  + shaders */
 	ring_size += 40; /* shaders + def state */
-	ring_size += 7; /* fence emit for VB IB */
+	ring_size += 10; /* fence emit for VB IB */
 	ring_size += 5; /* done copy */
-	ring_size += 7; /* fence emit for done copy */
+	ring_size += 10; /* fence emit for done copy */
 	r = radeon_ring_lock(rdev, ring_size);
 	if (r)
 		return r;
@@ -593,13 +591,6 @@ int r600_blit_prepare_copy(struct radeon_device *rdev, int size_bytes)
 void r600_blit_done_copy(struct radeon_device *rdev, struct radeon_fence *fence)
 {
 	int r;
-
-	radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE, 0));
-	radeon_ring_write(rdev, CACHE_FLUSH_AND_INV_EVENT);
-	/* wait for 3D idle clean */
-	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
-	radeon_ring_write(rdev, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
-	radeon_ring_write(rdev, WAIT_3D_IDLE_bit | WAIT_3D_IDLECLEAN_bit);
 
 	if (rdev->r600_blit.vb_ib)
 		r600_vb_ib_put(rdev);

@@ -295,6 +295,9 @@ typedef struct drm_radeon_private {
 	int r700_sc_prim_fifo_size;
 	int r700_sc_hiz_tile_fifo_size;
 	int r700_sc_earlyz_tile_fifo_fize;
+	int r600_group_size;
+	int r600_npipes;
+	int r600_nbanks;
 
 	struct mutex cs_mutex;
 	u32 cs_id_scnt;
@@ -310,9 +313,11 @@ typedef struct drm_radeon_buf_priv {
 	u32 age;
 } drm_radeon_buf_priv_t;
 
+struct drm_buffer;
+
 typedef struct drm_radeon_kcmd_buffer {
 	int bufsz;
-	char *buf;
+	struct drm_buffer *buffer;
 	int nbox;
 	struct drm_clip_rect __user *boxes;
 } drm_radeon_kcmd_buffer_t;
@@ -2121,5 +2126,33 @@ extern void radeon_commit_ring(drm_radeon_private_t *dev_priv);
 	}							\
 	write &= mask;						\
 } while (0)
+
+/**
+ * Copy given number of dwords from drm buffer to the ring buffer.
+ */
+#define OUT_RING_DRM_BUFFER(buf, sz) do {				\
+	int _size = (sz) * 4;						\
+	struct drm_buffer *_buf = (buf);				\
+	int _part_size;							\
+	while (_size > 0) {						\
+		_part_size = _size;					\
+									\
+		if (write + _part_size/4 > mask)			\
+			_part_size = ((mask + 1) - write)*4;		\
+									\
+		if (drm_buffer_index(_buf) + _part_size > PAGE_SIZE)	\
+			_part_size = PAGE_SIZE - drm_buffer_index(_buf);\
+									\
+									\
+									\
+		memcpy(ring + write, &_buf->data[drm_buffer_page(_buf)]	\
+			[drm_buffer_index(_buf)], _part_size);		\
+									\
+		_size -= _part_size;					\
+		write = (write + _part_size/4) & mask;			\
+		drm_buffer_advance(_buf, _part_size);			\
+	}								\
+} while (0)
+
 
 #endif				/* __RADEON_DRV_H__ */

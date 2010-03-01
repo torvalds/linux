@@ -178,7 +178,6 @@ int radeon_bo_pin(struct radeon_bo *bo, u32 domain, u64 *gpu_addr)
 {
 	int r, i;
 
-	radeon_ttm_placement_from_domain(bo, domain);
 	if (bo->pin_count) {
 		bo->pin_count++;
 		if (gpu_addr)
@@ -186,6 +185,8 @@ int radeon_bo_pin(struct radeon_bo *bo, u32 domain, u64 *gpu_addr)
 		return 0;
 	}
 	radeon_ttm_placement_from_domain(bo, domain);
+	/* force to pin into visible video ram */
+	bo->placement.lpfn = bo->rdev->mc.visible_vram_size >> PAGE_SHIFT;
 	for (i = 0; i < bo->placement.num_placement; i++)
 		bo->placements[i] |= TTM_PL_FLAG_NO_EVICT;
 	r = ttm_bo_validate(&bo->tbo, &bo->placement, false, false);

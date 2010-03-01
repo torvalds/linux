@@ -411,6 +411,12 @@ bool radeon_get_bios(struct radeon_device *rdev)
 		goto free_bios;
 	}
 
+	tmp = RBIOS16(0x18);
+	if (RBIOS8(tmp + 0x14) != 0x0) {
+		DRM_INFO("Not an x86 BIOS ROM, not using.\n");
+		goto free_bios;
+	}
+
 	rdev->bios_header_start = RBIOS16(0x48);
 	if (!rdev->bios_header_start) {
 		goto free_bios;
