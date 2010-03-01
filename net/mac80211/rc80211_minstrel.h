@@ -80,6 +80,11 @@ struct minstrel_priv {
 	unsigned int lookaround_rate_mrr;
 };
 
+struct minstrel_debugfs_info {
+	size_t len;
+	char buf[];
+};
+
 void minstrel_add_sta_debugfs(void *priv, void *priv_sta, struct dentry *dir);
 void minstrel_remove_sta_debugfs(void *priv, void *priv_sta);
 
