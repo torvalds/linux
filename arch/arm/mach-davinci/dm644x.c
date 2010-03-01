@@ -277,7 +277,7 @@ static struct clk timer2_clk = {
 	.usecount = 1,              /* REVISIT: why cant' this be disabled? */
 };
 
-struct davinci_clk dm644x_clks[] = {
+struct clk_lookup dm644x_clks[] = {
 	CLK(NULL, "ref", &ref_clk),
 	CLK(NULL, "pll1", &pll1_clk),
 	CLK(NULL, "pll1_sysclk1", &pll1_sysclk1),
@@ -479,15 +479,6 @@ static u8 dm644x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 
 /*----------------------------------------------------------------------*/
 
-static const s8 dma_chan_dm644x_no_event[] = {
-	 0,  1, 12, 13, 14,
-	15, 25, 30, 31, 45,
-	46, 47, 55, 56, 57,
-	58, 59, 60, 61, 62,
-	63,
-	-1
-};
-
 static const s8
 queue_tc_mapping[][2] = {
 	/* {event queue no, TC no} */
@@ -511,7 +502,6 @@ static struct edma_soc_info dm644x_edma_info[] = {
 		.n_slot			= 128,
 		.n_tc			= 2,
 		.n_cc			= 1,
-		.noevent		= dma_chan_dm644x_no_event,
 		.queue_tc_mapping	= queue_tc_mapping,
 		.queue_priority_mapping	= queue_priority_mapping,
 	},

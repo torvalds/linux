@@ -1,5 +1,5 @@
 /*
- * TI DaVinci cpuidle platform support
+ * TI CDCE949 off-chip clock synthesizer support
  *
  * 2009 (C) Texas Instruments, Inc. http://www.ti.com/
  *
@@ -7,12 +7,13 @@
  * version 2. This program is licensed "as is" without any warranty of any
  * kind, whether express or implied.
  */
-#ifndef _MACH_DAVINCI_CPUIDLE_H
-#define _MACH_DAVINCI_CPUIDLE_H
+#ifndef _MACH_DAVINCI_CDCE949_H
+#define _MACH_DAVINCI_CDCE949_H
 
-struct davinci_cpuidle_config {
-	u32 ddr2_pdown;
-	void __iomem *ddr2_ctlr_base;
-};
+#include <linux/clk.h>
+
+#include <mach/clock.h>
+
+int cdce_set_rate(struct clk *clk, unsigned long rate);
 
 #endif

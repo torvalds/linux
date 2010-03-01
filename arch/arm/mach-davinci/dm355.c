@@ -29,6 +29,7 @@
 #include <mach/serial.h>
 #include <mach/common.h>
 #include <mach/asp.h>
+#include <mach/spi.h>
 
 #include "clock.h"
 #include "mux.h"
@@ -334,7 +335,7 @@ static struct clk usb_clk = {
 	.lpsc = DAVINCI_LPSC_USB,
 };
 
-static struct davinci_clk dm355_clks[] = {
+static struct clk_lookup dm355_clks[] = {
 	CLK(NULL, "ref", &ref_clk),
 	CLK(NULL, "pll1", &pll1_clk),
 	CLK(NULL, "pll1_sysclk1", &pll1_sysclk1),
@@ -362,9 +363,9 @@ static struct davinci_clk dm355_clks[] = {
 	CLK("davinci-asp.1", NULL, &asp1_clk),
 	CLK("davinci_mmc.0", NULL, &mmcsd0_clk),
 	CLK("davinci_mmc.1", NULL, &mmcsd1_clk),
-	CLK(NULL, "spi0", &spi0_clk),
-	CLK(NULL, "spi1", &spi1_clk),
-	CLK(NULL, "spi2", &spi2_clk),
+	CLK("spi_davinci.0", NULL, &spi0_clk),
+	CLK("spi_davinci.1", NULL, &spi1_clk),
+	CLK("spi_davinci.2", NULL, &spi2_clk),
 	CLK(NULL, "gpio", &gpio_clk),
 	CLK(NULL, "aemif", &aemif_clk),
 	CLK(NULL, "pwm0", &pwm0_clk),
@@ -391,24 +392,40 @@ static struct resource dm355_spi0_resources[] = {
 		.flags = IORESOURCE_MEM,
 	},
 	{
-		.start = IRQ_DM355_SPINT0_1,
+		.start = IRQ_DM355_SPINT0_0,
 		.flags = IORESOURCE_IRQ,
 	},
-	/* Not yet used, so not included:
-	 * IORESOURCE_IRQ:
-	 *  - IRQ_DM355_SPINT0_0
-	 * IORESOURCE_DMA:
-	 *  - DAVINCI_DMA_SPI_SPIX
-	 *  - DAVINCI_DMA_SPI_SPIR
-	 */
+	{
+		.start = 17,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = 16,
+		.flags = IORESOURCE_DMA,
+	},
+	{
+		.start = EVENTQ_1,
+		.flags = IORESOURCE_DMA,
+	},
 };
 
+static struct davinci_spi_platform_data dm355_spi0_pdata = {
+	.version 	= SPI_VERSION_1,
+	.num_chipselect = 2,
+	.clk_internal	= 1,
+	.cs_hold	= 1,
+	.intr_level	= 0,
+	.poll_mode	= 1,	/* 0 -> interrupt mode 1-> polling mode */
+	.c2tdelay	= 0,
+	.t2cdelay	= 0,
+};
 static struct platform_device dm355_spi0_device = {
 	.name = "spi_davinci",
 	.id = 0,
 	.dev = {
 		.dma_mask = &dm355_spi0_dma_mask,
 		.coherent_dma_mask = DMA_BIT_MASK(32),
+		.platform_data = &dm355_spi0_pdata,
 	},
 	.num_resources = ARRAY_SIZE(dm355_spi0_resources),
 	.resource = dm355_spi0_resources,
@@ -563,13 +580,6 @@ static u8 dm355_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 
 /*----------------------------------------------------------------------*/
 
-static const s8 dma_chan_dm355_no_event[] = {
-	12, 13, 24, 56, 57,
-	58, 59, 60, 61, 62,
-	63,
-	-1
-};
-
 static const s8
 queue_tc_mapping[][2] = {
 	/* {event queue no, TC no} */
@@ -593,7 +603,6 @@ static struct edma_soc_info dm355_edma_info[] = {
 		.n_slot			= 128,
 		.n_tc			= 2,
 		.n_cc			= 1,
-		.noevent		= dma_chan_dm355_no_event,
 		.queue_tc_mapping	= queue_tc_mapping,
 		.queue_priority_mapping	= queue_priority_mapping,
 	},

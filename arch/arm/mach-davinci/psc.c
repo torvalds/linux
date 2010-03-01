@@ -25,17 +25,6 @@
 #include <mach/cputype.h>
 #include <mach/psc.h>
 
-/* PSC register offsets */
-#define EPCPR		0x070
-#define PTCMD		0x120
-#define PTSTAT		0x128
-#define PDSTAT		0x200
-#define PDCTL1		0x304
-#define MDSTAT		0x800
-#define MDCTL		0xA00
-
-#define MDSTAT_STATE_MASK 0x1f
-
 /* Return nonzero iff the domain's clock is active */
 int __init davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id)
 {
