@@ -819,8 +819,11 @@ static void fsl_dma_update_completed_cookie(struct fsldma_chan *chan)
 	desc = to_fsl_desc(chan->ld_running.prev);
 	if (dma_is_idle(chan))
 		cookie = desc->async_tx.cookie;
-	else
+	else {
 		cookie = desc->async_tx.cookie - 1;
+		if (unlikely(cookie < DMA_MIN_COOKIE))
+			cookie = DMA_MAX_COOKIE;
+	}
 
 	chan->completed_cookie = cookie;
 
