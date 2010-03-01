@@ -169,17 +169,13 @@ int radeon_crtc_cursor_set(struct drm_crtc *crtc,
 unpin:
 	if (radeon_crtc->cursor_bo) {
 		radeon_gem_object_unpin(radeon_crtc->cursor_bo);
-		mutex_lock(&crtc->dev->struct_mutex);
-		drm_gem_object_unreference(radeon_crtc->cursor_bo);
-		mutex_unlock(&crtc->dev->struct_mutex);
+		drm_gem_object_unreference_unlocked(radeon_crtc->cursor_bo);
 	}
 
 	radeon_crtc->cursor_bo = obj;
 	return 0;
 fail:
-	mutex_lock(&crtc->dev->struct_mutex);
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&crtc->dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 
 	return 0;
 }
