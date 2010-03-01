@@ -619,7 +619,7 @@ static void qeth_l2_set_multicast_list(struct net_device *dev)
 		return;
 	qeth_l2_del_all_mc(card);
 	spin_lock_bh(&card->mclock);
-	for (dm = dev->mc_list; dm; dm = dm->next)
+	netdev_for_each_mc_addr(dm, dev)
 		qeth_l2_add_mc(card, dm->da_addr, 0);
 
 	netdev_for_each_uc_addr(ha, dev)

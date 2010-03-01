@@ -1140,7 +1140,6 @@ static void wq_set_multicast_list (struct work_struct *work)
 		dprintk("%s: allmulti mode\n", dev->name);
 		priv->rx_mode = RX_MODE_ALL_MULTI;
 	} else if (!netdev_mc_empty(dev)) {
-		int mci;
 		struct dev_mc_list *mc;
 
 		dprintk("%s: set_mc_list, %d entries\n",
@@ -1149,11 +1148,8 @@ static void wq_set_multicast_list (struct work_struct *work)
 		priv->rx_mode = RX_MODE_MULTI;
 		priv->multi_num = 0;
 
-		for (mci = 0, mc=dev->mc_list;
-		     mci < netdev_mc_count(dev);
-		     mc = mc->next, mci++) {
+		netdev_for_each_mc_addr(mc, dev)
 			dvb_set_mc_filter(dev, mc);
-		}
 	}
 
 	netif_addr_unlock_bh(dev);
