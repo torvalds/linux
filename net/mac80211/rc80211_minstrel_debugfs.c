@@ -52,7 +52,7 @@
 #include <net/mac80211.h>
 #include "rc80211_minstrel.h"
 
-static int
+int
 minstrel_stats_open(struct inode *inode, struct file *file)
 {
 	struct minstrel_sta_info *mi = inode->i_private;
@@ -100,7 +100,7 @@ minstrel_stats_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static ssize_t
+ssize_t
 minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppos)
 {
 	struct minstrel_debugfs_info *ms;
@@ -109,7 +109,7 @@ minstrel_stats_read(struct file *file, char __user *buf, size_t len, loff_t *ppo
 	return simple_read_from_buffer(buf, len, ppos, ms->buf, ms->len);
 }
 
-static int
+int
 minstrel_stats_release(struct inode *inode, struct file *file)
 {
 	kfree(file->private_data);
