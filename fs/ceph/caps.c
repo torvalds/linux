@@ -655,7 +655,7 @@ static int __cap_is_valid(struct ceph_cap *cap)
  */
 int __ceph_caps_issued(struct ceph_inode_info *ci, int *implemented)
 {
-	int have = ci->i_snap_caps;
+	int have = ci->i_snap_caps | ci->i_cap_exporting_issued;
 	struct ceph_cap *cap;
 	struct rb_node *p;
 
