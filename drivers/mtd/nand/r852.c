@@ -13,15 +13,16 @@
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/pci_ids.h>
+#include <linux/delay.h>
 #include <asm/byteorder.h>
 #include <linux/sched.h>
 #include "sm_common.h"
 #include "r852.h"
 
 
-static int enable_dma = 1;
-module_param(enable_dma, bool, S_IRUGO);
-MODULE_PARM_DESC(enable_dma, "Enable usage of the DMA (default)");
+static int r852_enable_dma = 1;
+module_param(r852_enable_dma, bool, S_IRUGO);
+MODULE_PARM_DESC(r852_enable_dma, "Enable usage of the DMA (default)");
 
 static int debug;
 module_param(debug, int, S_IRUGO | S_IWUSR);
@@ -75,7 +76,7 @@ static void r852_dma_test(struct r852_device *dev)
 	if (!dev->dma_usable)
 		message("Non dma capable device detected, dma disabled");
 
-	if (!enable_dma) {
+	if (!r852_enable_dma) {
 		message("disabling dma on user request");
 		dev->dma_usable = 0;
 	}
