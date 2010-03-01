@@ -166,6 +166,10 @@ void ceph_msgpool_put(struct ceph_msgpool *pool, struct ceph_msg *msg)
 {
 	spin_lock(&pool->lock);
 	if (pool->num < pool->min) {
+		/* reset msg front_len; user may have changed it */
+		msg->front.iov_len = pool->front_len;
+		msg->hdr.front_len = cpu_to_le32(pool->front_len);
+
 		kref_set(&msg->kref, 1);  /* retake a single ref */
 		list_add(&msg->list_head, &pool->msgs);
 		pool->num++;

@@ -1954,6 +1954,8 @@ void ceph_con_send(struct ceph_connection *con, struct ceph_msg *msg)
 	msg->hdr.src.addr = con->msgr->my_enc_addr;
 	msg->hdr.orig_src = msg->hdr.src;
 
+	BUG_ON(msg->front.iov_len != le32_to_cpu(msg->hdr.front_len));
+
 	/* queue */
 	mutex_lock(&con->mutex);
 	BUG_ON(!list_empty(&msg->list_head));
