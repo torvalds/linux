@@ -53,7 +53,6 @@ struct ceph_osd_request {
 	int               r_flags;     /* any additional flags for the osd */
 	u32               r_sent;      /* >0 if r_request is sending/sent */
 	int               r_got_reply;
-	int		  r_num_prealloc_reply;
 
 	struct ceph_osd_client *r_osdc;
 	struct kref       r_kref;
@@ -77,9 +76,6 @@ struct ceph_osd_request {
 	struct page     **r_pages;            /* pages for data payload */
 	int               r_pages_from_pool;
 	int               r_own_pages;        /* if true, i own page list */
-
-	struct ceph_msg   *replies[2];
-	int		  cur_reply;
 };
 
 struct ceph_osd_client {
@@ -106,6 +102,7 @@ struct ceph_osd_client {
 	mempool_t              *req_mempool;
 
 	struct ceph_msgpool	msgpool_op;
+	struct ceph_msgpool	msgpool_op_reply;
 };
 
 extern int ceph_osdc_init(struct ceph_osd_client *osdc,
