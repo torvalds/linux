@@ -7,7 +7,6 @@
  * vga_switcheroo.h - Support for laptop with dual GPU using one set of outputs
  */
 
-#include <acpi/acpi.h>
 #include <linux/fb.h>
 
 enum vga_switcheroo_state {

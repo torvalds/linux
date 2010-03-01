@@ -121,8 +121,19 @@ struct radeon_device;
  */
 #define ATRM_BIOS_PAGE 4096
 
+#if defined(CONFIG_VGA_SWITCHEROO)
 bool radeon_atrm_supported(struct pci_dev *pdev);
 int radeon_atrm_get_bios_chunk(uint8_t *bios, int offset, int len);
+#else
+static inline bool radeon_atrm_supported(struct pci_dev *pdev)
+{
+	return false;
+}
+
+static inline int radeon_atrm_get_bios_chunk(uint8_t *bios, int offset, int len){
+	return -EINVAL;
+}
+#endif
 bool radeon_get_bios(struct radeon_device *rdev);
 
 

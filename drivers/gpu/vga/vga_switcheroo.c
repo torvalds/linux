@@ -25,9 +25,6 @@
 #include <linux/debugfs.h>
 #include <linux/fb.h>
 
-#include <acpi/acpi.h>
-#include <acpi/acpi_bus.h>
-
 #include <linux/pci.h>
 #include <linux/vga_switcheroo.h>
 

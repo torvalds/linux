@@ -6,7 +6,6 @@
  *
  * ATPX support for both Intel/ATI
  */
-
 #include <linux/vga_switcheroo.h>
 #include <acpi/acpi.h>
 #include <acpi/acpi_bus.h>

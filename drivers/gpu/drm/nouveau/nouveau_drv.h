@@ -852,8 +852,13 @@ extern int  nouveau_dma_init(struct nouveau_channel *);
 extern int  nouveau_dma_wait(struct nouveau_channel *, int slots, int size);
 
 /* nouveau_acpi.c */
+#if defined(CONFIG_VGA_SWITCHEROO)
 void nouveau_register_dsm_handler(void);
 void nouveau_unregister_dsm_handler(void);
+#else
+static inline void nouveau_register_dsm_handler(void) {}
+static inline void nouveau_unregister_dsm_handler(void) {}
+#endif
 
 /* nouveau_backlight.c */
 #ifdef CONFIG_DRM_NOUVEAU_BACKLIGHT
