@@ -289,6 +289,7 @@ struct ceph_inode_xattrs_info {
 #define CEPH_I_COMPLETE  1  /* we have complete directory cached */
 #define CEPH_I_NODELAY   4  /* do not delay cap release */
 #define CEPH_I_FLUSH     8  /* do not delay flush of dirty metadata */
+#define CEPH_I_NOFLUSH  16  /* do not flush dirty caps */
 
 struct ceph_inode_info {
 	struct ceph_vino i_vino;   /* ceph ino + snap */

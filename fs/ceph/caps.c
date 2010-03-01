@@ -1573,6 +1573,11 @@ retry_locked:
 		}
 
 ack:
+		if (ci->i_ceph_flags & CEPH_I_NOFLUSH) {
+			dout(" skipping %p I_NOFLUSH set\n", inode);
+			continue;
+		}
+
 		if (session && session != cap->session) {
 			dout("oops, wrong session %p mutex\n", session);
 			mutex_unlock(&session->s_mutex);
@@ -1652,6 +1657,10 @@ static int try_flush_caps(struct inode *inode, struct ceph_mds_session *session,
 
 retry:
 	spin_lock(&inode->i_lock);
+	if (ci->i_ceph_flags & CEPH_I_NOFLUSH) {
+		dout("try_flush_caps skipping %p I_NOFLUSH set\n", inode);
+		goto out;
+	}
 	if (ci->i_dirty_caps && ci->i_auth_cap) {
 		struct ceph_cap *cap = ci->i_auth_cap;
 		int used = __ceph_caps_used(ci);
@@ -2747,16 +2756,38 @@ void ceph_check_delayed_caps(struct ceph_mds_client *mdsc)
  */
 void ceph_flush_dirty_caps(struct ceph_mds_client *mdsc)
 {
-	struct ceph_inode_info *ci;
-	struct inode *inode;
+	struct ceph_inode_info *ci, *nci = NULL;
+	struct inode *inode, *ninode = NULL;
+	struct list_head *p, *n;
 
 	dout("flush_dirty_caps\n");
 	spin_lock(&mdsc->cap_dirty_lock);
-	while (!list_empty(&mdsc->cap_dirty)) {
-		ci = list_first_entry(&mdsc->cap_dirty,
-				      struct ceph_inode_info,
-				      i_dirty_item);
-		inode = igrab(&ci->vfs_inode);
+	list_for_each_safe(p, n, &mdsc->cap_dirty) {
+		if (nci) {
+			ci = nci;
+			inode = ninode;
+			ci->i_ceph_flags &= ~CEPH_I_NOFLUSH;
+			dout("flush_dirty_caps inode %p (was next inode)\n",
+			     inode);
+		} else {
+			ci = list_entry(p, struct ceph_inode_info,
+					i_dirty_item);
+			inode = igrab(&ci->vfs_inode);
+			BUG_ON(!inode);
+			dout("flush_dirty_caps inode %p\n", inode);
+		}
+		if (n != &mdsc->cap_dirty) {
+			nci = list_entry(n, struct ceph_inode_info,
+					 i_dirty_item);
+			ninode = igrab(&nci->vfs_inode);
+			BUG_ON(!ninode);
+			nci->i_ceph_flags |= CEPH_I_NOFLUSH;
+			dout("flush_dirty_caps next inode %p, noflush\n",
+			     ninode);
+		} else {
+			nci = NULL;
+			ninode = NULL;
+		}
 		spin_unlock(&mdsc->cap_dirty_lock);
 		if (inode) {
 			ceph_check_caps(ci, CHECK_CAPS_NODELAY|CHECK_CAPS_FLUSH,
