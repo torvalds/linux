@@ -105,6 +105,7 @@ static __inline__ int radeon_check_and_fixup_packets(drm_radeon_private_t *
 			DRM_ERROR("Invalid depth buffer offset\n");
 			return -EINVAL;
 		}
+		dev_priv->have_z_offset = 1;
 		break;
 
 	case RADEON_EMIT_PP_CNTL:
@@ -897,6 +898,11 @@ static void radeon_cp_dispatch_clear(struct drm_device * dev,
 			flags |= RADEON_BACK;
 		if (tmp & RADEON_BACK)
 			flags |= RADEON_FRONT;
+	}
+	if (flags & (RADEON_DEPTH|RADEON_STENCIL)) {
+		if (!dev_priv->have_z_offset)
+			printk_once(KERN_ERR "radeon: illegal depth clear request. Buggy mesa detected - please update.\n");
+		flags &= ~(RADEON_DEPTH | RADEON_STENCIL);
 	}
 
 	if (flags & (RADEON_FRONT | RADEON_BACK)) {
