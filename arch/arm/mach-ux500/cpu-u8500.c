@@ -43,10 +43,17 @@ static struct map_desc u8500_io_desc[] __initdata = {
 	__IO_DEV_DESC(U8500_TWD_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_SCU_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_BACKUPRAM0_BASE, SZ_8K),
+	__IO_DEV_DESC(U8500_PRCMU_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_CLKRST1_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_CLKRST2_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_CLKRST3_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_CLKRST5_BASE, SZ_4K),
+	__IO_DEV_DESC(U8500_CLKRST6_BASE, SZ_4K),
 };
 
 static struct map_desc u8500ed_io_desc[] __initdata = {
 	__IO_DEV_DESC(U8500_MTU0_BASE_ED, SZ_4K),
+	__IO_DEV_DESC(U8500_CLKRST7_BASE_ED, SZ_8K),
 };
 
 static struct map_desc u8500v1_io_desc[] __initdata = {

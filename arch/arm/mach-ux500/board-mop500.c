@@ -94,7 +94,7 @@ static struct pl022_ssp_controller ssp0_platform_data = {
 static struct amba_device pl022_device = {
 	.dev = {
 		.coherent_dma_mask = ~0,
-		.init_name = "pl022",
+		.init_name = "ssp0",
 		.platform_data = &ssp0_platform_data,
 	},
 	.res = {
