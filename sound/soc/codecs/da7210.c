@@ -74,15 +74,14 @@
 /* INMIX_R bit fields */
 #define DA7210_IN_R_EN			(1 << 7)
 
-/* ADC_HPF bit fields */
-#define DA7210_ADC_VOICE_EN		(1 << 7)
-
 /* ADC bit fields */
 #define DA7210_ADC_L_EN			(1 << 3)
 #define DA7210_ADC_R_EN			(1 << 7)
 
-/* DAC_HPF fields */
-#define DA7210_DAC_VOICE_EN		(1 << 7)
+/* DAC/ADC HPF fields */
+#define DA7210_VOICE_F0_MASK		(0x7 << 4)
+#define DA7210_VOICE_F0_25		(1 << 4)
+#define DA7210_VOICE_EN			(1 << 7)
 
 /* DAC_SEL bit fields */
 #define DA7210_DAC_L_SRC_DAI_L		(4 << 0)
@@ -123,7 +122,15 @@
 #define DA7210_PLL_BYP			(1 << 6)
 
 /* PLL bit fields */
-#define DA7210_PLL_FS_48000		(11 << 0)
+#define DA7210_PLL_FS_MASK		(0xF << 0)
+#define DA7210_PLL_FS_8000		(0x1 << 0)
+#define DA7210_PLL_FS_12000		(0x3 << 0)
+#define DA7210_PLL_FS_16000		(0x5 << 0)
+#define DA7210_PLL_FS_24000		(0x7 << 0)
+#define DA7210_PLL_FS_32000		(0x9 << 0)
+#define DA7210_PLL_FS_48000		(0xB << 0)
+#define DA7210_PLL_FS_96000		(0xF << 0)
+
 
 #define DA7210_VERSION "0.0.1"
 
@@ -241,7 +248,8 @@ static int da7210_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_device *socdev = rtd->socdev;
 	struct snd_soc_codec *codec = socdev->card->codec;
 	u32 dai_cfg1;
-	u32 reg, mask;
+	u32 hpf_reg, hpf_mask, hpf_value;
+	u32 fs;
 
 	/* set DAI source to Left and Right ADC */
 	da7210_write(codec, DA7210_DAI_SRC_SEL,
@@ -265,25 +273,46 @@ static int da7210_hw_params(struct snd_pcm_substream *substream,
 
 	da7210_write(codec, DA7210_DAI_CFG1, dai_cfg1);
 
-	/* FIXME
-	 *
-	 * It support 48K only now
-	 */
+	hpf_reg = (SNDRV_PCM_STREAM_PLAYBACK == substream->stream) ?
+		DA7210_DAC_HPF : DA7210_ADC_HPF;
+
 	switch (params_rate(params)) {
+	case 8000:
+		fs		= DA7210_PLL_FS_8000;
+		hpf_mask	= DA7210_VOICE_F0_MASK	| DA7210_VOICE_EN;
+		hpf_value	= DA7210_VOICE_F0_25	| DA7210_VOICE_EN;
+		break;
+	case 12000:
+		fs		= DA7210_PLL_FS_12000;
+		hpf_mask	= DA7210_VOICE_F0_MASK	| DA7210_VOICE_EN;
+		hpf_value	= DA7210_VOICE_F0_25	| DA7210_VOICE_EN;
+		break;
+	case 16000:
+		fs		= DA7210_PLL_FS_16000;
+		hpf_mask	= DA7210_VOICE_F0_MASK	| DA7210_VOICE_EN;
+		hpf_value	= DA7210_VOICE_F0_25	| DA7210_VOICE_EN;
+		break;
+	case 32000:
+		fs		= DA7210_PLL_FS_32000;
+		hpf_mask	= DA7210_VOICE_EN;
+		hpf_value	= 0;
+		break;
 	case 48000:
-		if (SNDRV_PCM_STREAM_PLAYBACK == substream->stream) {
-			reg  = DA7210_DAC_HPF;
-			mask = DA7210_DAC_VOICE_EN;
-		} else {
-			reg  = DA7210_ADC_HPF;
-			mask = DA7210_ADC_VOICE_EN;
-		}
+		fs		= DA7210_PLL_FS_48000;
+		hpf_mask	= DA7210_VOICE_EN;
+		hpf_value	= 0;
+		break;
+	case 96000:
+		fs		= DA7210_PLL_FS_96000;
+		hpf_mask	= DA7210_VOICE_EN;
+		hpf_value	= 0;
 		break;
 	default:
 		return -EINVAL;
 	}
 
-	snd_soc_update_bits(codec, reg, mask, 0);
+	snd_soc_update_bits(codec, hpf_reg, hpf_mask, hpf_value);
+	snd_soc_update_bits(codec, DA7210_PLL, DA7210_PLL_FS_MASK, fs);
 
 	return 0;
 }
