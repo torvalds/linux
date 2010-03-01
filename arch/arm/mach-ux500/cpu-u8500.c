@@ -40,15 +40,27 @@ static struct map_desc u8500_io_desc[] __initdata = {
 	__IO_DEV_DESC(U8500_UART2_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GIC_CPU_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_GIC_DIST_BASE, SZ_4K),
-	__IO_DEV_DESC(U8500_MTU0_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_TWD_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_SCU_BASE, SZ_4K),
 	__IO_DEV_DESC(U8500_BACKUPRAM0_BASE, SZ_8K),
 };
 
+static struct map_desc u8500ed_io_desc[] __initdata = {
+	__IO_DEV_DESC(U8500_MTU0_BASE_ED, SZ_4K),
+};
+
+static struct map_desc u8500v1_io_desc[] __initdata = {
+	__IO_DEV_DESC(U8500_MTU0_BASE_V1, SZ_4K),
+};
+
 void __init u8500_map_io(void)
 {
 	iotable_init(u8500_io_desc, ARRAY_SIZE(u8500_io_desc));
+
+	if (cpu_is_u8500ed())
+		iotable_init(u8500ed_io_desc, ARRAY_SIZE(u8500ed_io_desc));
+	else
+		iotable_init(u8500v1_io_desc, ARRAY_SIZE(u8500v1_io_desc));
 }
 
 void __init u8500_init_irq(void)
@@ -75,7 +87,10 @@ static void __init u8500_timer_init(void)
 	twd_base = __io_address(U8500_TWD_BASE);
 #endif
 	/* Setup the MTU base */
-	mtu_base = __io_address(U8500_MTU0_BASE);
+	if (cpu_is_u8500ed())
+		mtu_base = __io_address(U8500_MTU0_BASE_ED);
+	else
+		mtu_base = __io_address(U8500_MTU0_BASE_V1);
 
 	nmdk_timer_init();
 }

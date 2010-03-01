@@ -56,16 +56,19 @@
 #define U8500_TWD_SIZE		0x100
 
 /* per7 base addressess */
-#define U8500_CR_BASE		(U8500_PER7_BASE + 0x8000)
-#define U8500_MTU0_BASE		(U8500_PER7_BASE + 0xa000)
-#define U8500_MTU1_BASE		(U8500_PER7_BASE + 0xb000)
-#define U8500_TZPC0_BASE	(U8500_PER7_BASE + 0xc000)
-#define U8500_CLKRST7_BASE	(U8500_PER7_BASE + 0xf000)
+#define U8500_CR_BASE_ED	(U8500_PER7_BASE + 0x8000)
+#define U8500_MTU0_BASE_ED	(U8500_PER7_BASE + 0xa000)
+#define U8500_MTU1_BASE_ED	(U8500_PER7_BASE + 0xb000)
+#define U8500_TZPC0_BASE_ED	(U8500_PER7_BASE + 0xc000)
+#define U8500_CLKRST7_BASE_ED	(U8500_PER7_BASE + 0xf000)
 
 /* per6 base addressess */
 #define U8500_RNG_BASE		(U8500_PER6_BASE + 0x0000)
 #define U8500_PKA_BASE		(U8500_PER6_BASE + 0x1000)
 #define U8500_PKAM_BASE		(U8500_PER6_BASE + 0x2000)
+#define U8500_MTU0_BASE_V1	(U8500_PER6_BASE + 0x6000)
+#define U8500_MTU1_BASE_V1	(U8500_PER6_BASE + 0x7000)
+#define U8500_CR_BASE_V1	(U8500_PER6_BASE + 0x8000)
 #define U8500_CRYPTO0_BASE	(U8500_PER6_BASE + 0xa000)
 #define U8500_CRYPTO1_BASE	(U8500_PER6_BASE + 0xb000)
 #define U8500_CLKRST6_BASE	(U8500_PER6_BASE + 0xf000)
@@ -127,5 +130,21 @@
 
 /* ST-Ericsson modified pl022 id */
 #define SSP_PER_ID		0x01080022
+
+#ifndef __ASSEMBLY__
+
+#include <asm/cputype.h>
+
+static inline bool cpu_is_u8500ed(void)
+{
+	return (read_cpuid_id() & 15) == 0;
+}
+
+static inline bool cpu_is_u8500v1(void)
+{
+	return (read_cpuid_id() & 15) == 1;
+}
+
+#endif
 
 #endif				/* __MACH_HARDWARE_H */
