@@ -242,6 +242,8 @@ struct acpi_device_perf {
 struct acpi_device_wakeup_flags {
 	u8 valid:1;		/* Can successfully enable wakeup? */
 	u8 run_wake:1;		/* Run-Wake GPE devices */
+	u8 always_enabled:1;	/* Run-wake devices that are always enabled */
+	u8 notifier_present:1;  /* Wake-up notify handler has been installed */
 };
 
 struct acpi_device_wakeup_state {
@@ -256,6 +258,7 @@ struct acpi_device_wakeup {
 	struct acpi_device_wakeup_state state;
 	struct acpi_device_wakeup_flags flags;
 	int prepare_count;
+	int run_wake_count;
 };
 
 /* Device */
@@ -385,6 +388,9 @@ int acpi_is_root_bridge(acpi_handle);
 acpi_handle acpi_get_pci_rootbridge_handle(unsigned int, unsigned int);
 struct acpi_pci_root *acpi_pci_find_root(acpi_handle handle);
 #define DEVICE_ACPI_HANDLE(dev) ((acpi_handle)((dev)->archdata.acpi_handle))
+
+int acpi_enable_wakeup_device_power(struct acpi_device *dev, int state);
+int acpi_disable_wakeup_device_power(struct acpi_device *dev);
 
 #ifdef CONFIG_PM_SLEEP
 int acpi_pm_device_sleep_state(struct device *, int *);

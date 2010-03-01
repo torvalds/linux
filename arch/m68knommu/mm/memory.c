@@ -24,7 +24,6 @@
 
 /*
  * Map some physical address range into the kernel address space.
- * The code is copied and adapted from map_chunk().
  */
 
 unsigned long kernel_map(unsigned long paddr, unsigned long size,

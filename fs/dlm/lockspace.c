@@ -191,6 +191,18 @@ static int do_uevent(struct dlm_ls *ls, int in)
 	return error;
 }
 
+static int dlm_uevent(struct kset *kset, struct kobject *kobj,
+		      struct kobj_uevent_env *env)
+{
+	struct dlm_ls *ls = container_of(kobj, struct dlm_ls, ls_kobj);
+
+	add_uevent_var(env, "LOCKSPACE=%s", ls->ls_name);
+	return 0;
+}
+
+static struct kset_uevent_ops dlm_uevent_ops = {
+	.uevent = dlm_uevent,
+};
 
 int __init dlm_lockspace_init(void)
 {
@@ -199,7 +211,7 @@ int __init dlm_lockspace_init(void)
 	INIT_LIST_HEAD(&lslist);
 	spin_lock_init(&lslist_lock);
 
-	dlm_kset = kset_create_and_add("dlm", NULL, kernel_kobj);
+	dlm_kset = kset_create_and_add("dlm", &dlm_uevent_ops, kernel_kobj);
 	if (!dlm_kset) {
 		printk(KERN_WARNING "%s: can not create kset\n", __func__);
 		return -ENOMEM;

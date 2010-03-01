@@ -447,12 +447,12 @@ xfs_attrlist_by_handle(
 int
 xfs_attrmulti_attr_get(
 	struct inode		*inode,
-	char			*name,
-	char			__user *ubuf,
+	unsigned char		*name,
+	unsigned char		__user *ubuf,
 	__uint32_t		*len,
 	__uint32_t		flags)
 {
-	char			*kbuf;
+	unsigned char		*kbuf;
 	int			error = EFAULT;
 
 	if (*len > XATTR_SIZE_MAX)
@@ -476,12 +476,12 @@ xfs_attrmulti_attr_get(
 int
 xfs_attrmulti_attr_set(
 	struct inode		*inode,
-	char			*name,
-	const char		__user *ubuf,
+	unsigned char		*name,
+	const unsigned char	__user *ubuf,
 	__uint32_t		len,
 	__uint32_t		flags)
 {
-	char			*kbuf;
+	unsigned char		*kbuf;
 	int			error = EFAULT;
 
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
@@ -501,7 +501,7 @@ xfs_attrmulti_attr_set(
 int
 xfs_attrmulti_attr_remove(
 	struct inode		*inode,
-	char			*name,
+	unsigned char		*name,
 	__uint32_t		flags)
 {
 	if (IS_IMMUTABLE(inode) || IS_APPEND(inode))
@@ -519,7 +519,7 @@ xfs_attrmulti_by_handle(
 	xfs_fsop_attrmulti_handlereq_t am_hreq;
 	struct dentry		*dentry;
 	unsigned int		i, size;
-	char			*attr_name;
+	unsigned char		*attr_name;
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -XFS_ERROR(EPERM);
@@ -547,7 +547,7 @@ xfs_attrmulti_by_handle(
 
 	error = 0;
 	for (i = 0; i < am_hreq.opcount; i++) {
-		ops[i].am_error = strncpy_from_user(attr_name,
+		ops[i].am_error = strncpy_from_user((char *)attr_name,
 				ops[i].am_attrname, MAXNAMELEN);
 		if (ops[i].am_error == 0 || ops[i].am_error == MAXNAMELEN)
 			error = -ERANGE;
@@ -1430,6 +1430,9 @@ xfs_file_ioctl(
 
 		if (!capable(CAP_SYS_ADMIN))
 			return -EPERM;
+
+		if (mp->m_flags & XFS_MOUNT_RDONLY)
+			return -XFS_ERROR(EROFS);
 
 		if (copy_from_user(&inout, arg, sizeof(inout)))
 			return -XFS_ERROR(EFAULT);

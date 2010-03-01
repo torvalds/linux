@@ -41,7 +41,7 @@ struct bar1_index_state {
 };
 
 #ifdef CONFIG_PCI
-static DEFINE_SPINLOCK(bar1_lock);
+static DEFINE_RAW_SPINLOCK(bar1_lock);
 static struct bar1_index_state bar1_state[32];
 #endif
 
@@ -198,7 +198,7 @@ dma_addr_t octeon_map_dma_mem(struct device *dev, void *ptr, size_t size)
 		start_index = 31;
 
 	/* Only one processor can access the Bar register at once */
-	spin_lock_irqsave(&bar1_lock, flags);
+	raw_spin_lock_irqsave(&bar1_lock, flags);
 
 	/* Look through Bar1 for existing mapping that will work */
 	for (index = start_index; index >= 0; index--) {
@@ -250,7 +250,7 @@ dma_addr_t octeon_map_dma_mem(struct device *dev, void *ptr, size_t size)
 	       (unsigned long long) physical);
 
 done_unlock:
-	spin_unlock_irqrestore(&bar1_lock, flags);
+	raw_spin_unlock_irqrestore(&bar1_lock, flags);
 done:
 	pr_debug("dma_map_single 0x%llx->0x%llx\n", physical, result);
 	return result;
@@ -324,14 +324,14 @@ void octeon_unmap_dma_mem(struct device *dev, dma_addr_t dma_addr)
 		      "Attempt to unmap an invalid address (0x%llx)\n",
 		      dma_addr);
 
-	spin_lock_irqsave(&bar1_lock, flags);
+	raw_spin_lock_irqsave(&bar1_lock, flags);
 	bar1_state[index].ref_count--;
 	if (bar1_state[index].ref_count == 0)
 		octeon_npi_write32(CVMX_NPI_PCI_BAR1_INDEXX(index), 0);
 	else if (unlikely(bar1_state[index].ref_count < 0))
 		panic("dma_unmap_single: Bar1[%u] reference count < 0\n",
 		      (int) index);
-	spin_unlock_irqrestore(&bar1_lock, flags);
+	raw_spin_unlock_irqrestore(&bar1_lock, flags);
 done:
 	pr_debug("dma_unmap_single 0x%llx\n", dma_addr);
 	return;

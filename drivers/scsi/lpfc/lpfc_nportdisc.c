@@ -62,7 +62,7 @@ lpfc_check_adisc(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 int
 lpfc_check_sparm(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
-		 struct serv_parm * sp, uint32_t class)
+		 struct serv_parm *sp, uint32_t class, int flogi)
 {
 	volatile struct serv_parm *hsp = &vport->fc_sparam;
 	uint16_t hsp_value, ssp_value = 0;
@@ -75,49 +75,56 @@ lpfc_check_sparm(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	 * correcting the byte values.
 	 */
 	if (sp->cls1.classValid) {
-		hsp_value = (hsp->cls1.rcvDataSizeMsb << 8) |
-				hsp->cls1.rcvDataSizeLsb;
-		ssp_value = (sp->cls1.rcvDataSizeMsb << 8) |
-				sp->cls1.rcvDataSizeLsb;
-		if (!ssp_value)
-			goto bad_service_param;
-		if (ssp_value > hsp_value) {
-			sp->cls1.rcvDataSizeLsb = hsp->cls1.rcvDataSizeLsb;
-			sp->cls1.rcvDataSizeMsb = hsp->cls1.rcvDataSizeMsb;
+		if (!flogi) {
+			hsp_value = ((hsp->cls1.rcvDataSizeMsb << 8) |
+				     hsp->cls1.rcvDataSizeLsb);
+			ssp_value = ((sp->cls1.rcvDataSizeMsb << 8) |
+				     sp->cls1.rcvDataSizeLsb);
+			if (!ssp_value)
+				goto bad_service_param;
+			if (ssp_value > hsp_value) {
+				sp->cls1.rcvDataSizeLsb =
+					hsp->cls1.rcvDataSizeLsb;
+				sp->cls1.rcvDataSizeMsb =
+					hsp->cls1.rcvDataSizeMsb;
+			}
 		}
-	} else if (class == CLASS1) {
+	} else if (class == CLASS1)
 		goto bad_service_param;
-	}
-
 	if (sp->cls2.classValid) {
-		hsp_value = (hsp->cls2.rcvDataSizeMsb << 8) |
-				hsp->cls2.rcvDataSizeLsb;
-		ssp_value = (sp->cls2.rcvDataSizeMsb << 8) |
-				sp->cls2.rcvDataSizeLsb;
-		if (!ssp_value)
-			goto bad_service_param;
-		if (ssp_value > hsp_value) {
-			sp->cls2.rcvDataSizeLsb = hsp->cls2.rcvDataSizeLsb;
-			sp->cls2.rcvDataSizeMsb = hsp->cls2.rcvDataSizeMsb;
+		if (!flogi) {
+			hsp_value = ((hsp->cls2.rcvDataSizeMsb << 8) |
+				     hsp->cls2.rcvDataSizeLsb);
+			ssp_value = ((sp->cls2.rcvDataSizeMsb << 8) |
+				     sp->cls2.rcvDataSizeLsb);
+			if (!ssp_value)
+				goto bad_service_param;
+			if (ssp_value > hsp_value) {
+				sp->cls2.rcvDataSizeLsb =
+					hsp->cls2.rcvDataSizeLsb;
+				sp->cls2.rcvDataSizeMsb =
+					hsp->cls2.rcvDataSizeMsb;
+			}
 		}
-	} else if (class == CLASS2) {
+	} else if (class == CLASS2)
 		goto bad_service_param;
-	}
-
 	if (sp->cls3.classValid) {
-		hsp_value = (hsp->cls3.rcvDataSizeMsb << 8) |
-				hsp->cls3.rcvDataSizeLsb;
-		ssp_value = (sp->cls3.rcvDataSizeMsb << 8) |
-				sp->cls3.rcvDataSizeLsb;
-		if (!ssp_value)
-			goto bad_service_param;
-		if (ssp_value > hsp_value) {
-			sp->cls3.rcvDataSizeLsb = hsp->cls3.rcvDataSizeLsb;
-			sp->cls3.rcvDataSizeMsb = hsp->cls3.rcvDataSizeMsb;
+		if (!flogi) {
+			hsp_value = ((hsp->cls3.rcvDataSizeMsb << 8) |
+				     hsp->cls3.rcvDataSizeLsb);
+			ssp_value = ((sp->cls3.rcvDataSizeMsb << 8) |
+				     sp->cls3.rcvDataSizeLsb);
+			if (!ssp_value)
+				goto bad_service_param;
+			if (ssp_value > hsp_value) {
+				sp->cls3.rcvDataSizeLsb =
+					hsp->cls3.rcvDataSizeLsb;
+				sp->cls3.rcvDataSizeMsb =
+					hsp->cls3.rcvDataSizeMsb;
+			}
 		}
-	} else if (class == CLASS3) {
+	} else if (class == CLASS3)
 		goto bad_service_param;
-	}
 
 	/*
 	 * Preserve the upper four bits of the MSB from the PLOGI response.
@@ -247,7 +254,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	int rc;
 
 	memset(&stat, 0, sizeof (struct ls_rjt));
-	if (vport->port_state <= LPFC_FLOGI) {
+	if (vport->port_state <= LPFC_FDISC) {
 		/* Before responding to PLOGI, check for pt2pt mode.
 		 * If we are pt2pt, with an outstanding FLOGI, abort
 		 * the FLOGI and resend it first.
@@ -295,7 +302,7 @@ lpfc_rcv_plogi(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			NULL);
 		return 0;
 	}
-	if ((lpfc_check_sparm(vport, ndlp, sp, CLASS3) == 0)) {
+	if ((lpfc_check_sparm(vport, ndlp, sp, CLASS3, 0) == 0)) {
 		/* Reject this request because invalid parameters */
 		stat.un.b.lsRjtRsnCode = LSRJT_UNABLE_TPC;
 		stat.un.b.lsRjtRsnCodeExp = LSEXP_SPARM_OPTIONS;
@@ -831,7 +838,7 @@ lpfc_cmpl_plogi_plogi_issue(struct lpfc_vport *vport,
 				 "0142 PLOGI RSP: Invalid WWN.\n");
 		goto out;
 	}
-	if (!lpfc_check_sparm(vport, ndlp, sp, CLASS3))
+	if (!lpfc_check_sparm(vport, ndlp, sp, CLASS3, 0))
 		goto out;
 	/* PLOGI chkparm OK */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,

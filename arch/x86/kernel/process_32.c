@@ -174,12 +174,6 @@ void __show_regs(struct pt_regs *regs, int all)
 			d6, d7);
 }
 
-void show_regs(struct pt_regs *regs)
-{
-	show_registers(regs);
-	show_trace(NULL, regs, &regs->sp, regs->bp);
-}
-
 void release_thread(struct task_struct *dead_task)
 {
 	BUG_ON(dead_task->mm);

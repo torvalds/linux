@@ -79,6 +79,7 @@ config DELL_LAPTOP
 	depends on BACKLIGHT_CLASS_DEVICE
 	depends on RFKILL || RFKILL = n
 	depends on POWER_SUPPLY
+	depends on SERIO_I8042
 	default n
 	---help---
 	This driver adds support for rfkill and backlight control to Dell

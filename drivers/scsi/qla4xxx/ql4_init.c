@@ -844,10 +844,10 @@ static int qla4xxx_config_nvram(struct scsi_qla_host *ha)
 	DEBUG2(printk("scsi%ld: %s: Get EEProm parameters \n", ha->host_no,
 		      __func__));
 	if (ql4xxx_lock_flash(ha) != QLA_SUCCESS)
-		return (QLA_ERROR);
+		return QLA_ERROR;
 	if (ql4xxx_lock_nvram(ha) != QLA_SUCCESS) {
 		ql4xxx_unlock_flash(ha);
-		return (QLA_ERROR);
+		return QLA_ERROR;
 	}
 
 	/* Get EEPRom Parameters from NVRAM and validate */
@@ -858,20 +858,18 @@ static int qla4xxx_config_nvram(struct scsi_qla_host *ha)
 			rd_nvram_word(ha, eeprom_ext_hw_conf_offset(ha));
 		spin_unlock_irqrestore(&ha->hardware_lock, flags);
 	} else {
-		/*
-		 * QLogic adapters should always have a valid NVRAM.
-		 * If not valid, do not load.
-		 */
 		dev_warn(&ha->pdev->dev,
 			   "scsi%ld: %s: EEProm checksum invalid.  "
 			   "Please update your EEPROM\n", ha->host_no,
 			   __func__);
 
-		/* set defaults */
+		/* Attempt to set defaults */
 		if (is_qla4010(ha))
 			extHwConfig.Asuint32_t = 0x1912;
 		else if (is_qla4022(ha) | is_qla4032(ha))
 			extHwConfig.Asuint32_t = 0x0023;
+		else
+			return QLA_ERROR;
 	}
 	DEBUG(printk("scsi%ld: %s: Setting extHwConfig to 0xFFFF%04x\n",
 		     ha->host_no, __func__, extHwConfig.Asuint32_t));
@@ -884,7 +882,7 @@ static int qla4xxx_config_nvram(struct scsi_qla_host *ha)
 	ql4xxx_unlock_nvram(ha);
 	ql4xxx_unlock_flash(ha);
 
-	return (QLA_SUCCESS);
+	return QLA_SUCCESS;
 }
 
 static void qla4x00_pci_config(struct scsi_qla_host *ha)

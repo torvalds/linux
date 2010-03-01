@@ -225,7 +225,7 @@ static void __init smp_read_mpc_oem(struct mpc_table *mpc)
 
 	mpc_record = 0;
 	printk(KERN_INFO
-		"Found an OEM MPC table at %8p - parsing it ... \n", oemtable);
+		"Found an OEM MPC table at %8p - parsing it...\n", oemtable);
 
 	if (memcmp(oemtable->signature, MPC_OEM_SIGNATURE, 4)) {
 		printk(KERN_WARNING

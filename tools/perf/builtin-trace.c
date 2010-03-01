@@ -44,6 +44,7 @@ static void setup_scripting(void)
 	perf_set_argv_exec_path(perf_exec_path());
 
 	setup_perl_scripting();
+	setup_python_scripting();
 
 	scripting_ops = &default_scripting_ops;
 }
@@ -75,11 +76,8 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	event__parse_sample(event, session->sample_type, &data);
 
-	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
-		event->header.misc,
-		data.pid, data.tid,
-		(void *)(long)data.ip,
-		(long long)data.period);
+	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
+		    data.pid, data.tid, data.ip, data.period);
 
 	thread = perf_session__findnew(session, event->ip.pid);
 	if (thread == NULL) {
@@ -103,22 +101,9 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 	return 0;
 }
 
-static int sample_type_check(struct perf_session *session)
-{
-	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
-		fprintf(stderr,
-			"No trace sample to read. Did you call perf record "
-			"without -R?");
-		return -1;
-	}
-
-	return 0;
-}
-
 static struct perf_event_ops event_ops = {
-	.process_sample_event	= process_sample_event,
-	.process_comm_event	= event__process_comm,
-	.sample_type_check	= sample_type_check,
+	.sample	= process_sample_event,
+	.comm	= event__process_comm,
 };
 
 static int __cmd_trace(struct perf_session *session)
@@ -235,9 +220,9 @@ static int parse_scriptname(const struct option *opt __used,
 	const char *script, *ext;
 	int len;
 
-	if (strcmp(str, "list") == 0) {
+	if (strcmp(str, "lang") == 0) {
 		list_available_languages();
-		return 0;
+		exit(0);
 	}
 
 	script = strchr(str, ':');
@@ -531,6 +516,8 @@ static const struct option options[] = {
 		     parse_scriptname),
 	OPT_STRING('g', "gen-script", &generate_script_lang, "lang",
 		   "generate perf-trace.xx script in specified language"),
+	OPT_STRING('i', "input", &input_name, "file",
+		    "input file name"),
 
 	OPT_END()
 };
@@ -591,6 +578,9 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 	session = perf_session__new(input_name, O_RDONLY, 0);
 	if (session == NULL)
 		return -ENOMEM;
+
+	if (!perf_session__has_traces(session, "record -R"))
+		return -EINVAL;
 
 	if (generate_script_lang) {
 		struct stat perf_stat;

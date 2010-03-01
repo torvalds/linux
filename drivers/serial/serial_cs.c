@@ -696,11 +696,11 @@ static int serial_config(struct pcmcia_device * link)
 		info->multi = info->quirk->multi;
 
 	if (info->multi > 1)
-		multi_config(link);
+		i = multi_config(link);
 	else
-		simple_config(link);
+		i = simple_config(link);
 
-	if (info->ndev == 0)
+	if (i || info->ndev == 0)
 		goto failed;
 
 	/*
@@ -715,6 +715,7 @@ static int serial_config(struct pcmcia_device * link)
 	return 0;
 
 failed:
+	dev_warn(&link->dev, "serial_cs: failed to initialize\n");
 	serial_remove(link);
 	return -ENODEV;
 }

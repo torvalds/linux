@@ -15,6 +15,8 @@ or
 'perf probe' [options] --del='[GROUP:]EVENT' [...]
 or
 'perf probe' --list
+or
+'perf probe' --line='FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]'
 
 DESCRIPTION
 -----------
@@ -45,6 +47,11 @@ OPTIONS
 --list::
 	List up current probe events.
 
+-L::
+--line=::
+	Show source code lines which can be probed. This needs an argument
+	which specifies a range of the source code.
+
 PROBE SYNTAX
 ------------
 Probe points are defined by following syntax.
@@ -55,6 +62,19 @@ Probe points are defined by following syntax.
 'FUNC' specifies a probed function name, and it may have one of the following options; '+OFFS' is the offset from function entry address in bytes, 'RLN' is the relative-line number from function entry line, and '%return' means that it probes function return. In addition, 'SRC' specifies a source file which has that function.
 It is also possible to specify a probe point by the source line number by using 'SRC:ALN' syntax, where 'SRC' is the source file path and 'ALN' is the line number.
 'ARG' specifies the arguments of this probe point. You can use the name of local variable, or kprobe-tracer argument format (e.g. $retval, %ax, etc).
+
+LINE SYNTAX
+-----------
+Line range is descripted by following syntax.
+
+ "FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]"
+
+FUNC specifies the function name of showing lines. 'RLN' is the start line
+number from function entry line, and 'RLN2' is the end line number. As same as
+probe syntax, 'SRC' means the source file path, 'ALN' is start line number,
+and 'ALN2' is end line number in the file. It is also possible to specify how
+many lines to show by using 'NUM'.
+So, "source.c:100-120" shows lines between 100th to l20th in source.c file. And "func:10+20" shows 20 lines from 10th line of func function.
 
 SEE ALSO
 --------

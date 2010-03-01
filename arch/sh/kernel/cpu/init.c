@@ -24,22 +24,32 @@
 #include <asm/elf.h>
 #include <asm/io.h>
 #include <asm/smp.h>
-#ifdef CONFIG_SUPERH32
-#include <asm/ubc.h>
+#include <asm/sh_bios.h>
+
+#ifdef CONFIG_SH_FPU
+#define cpu_has_fpu	1
+#else
+#define cpu_has_fpu	0
+#endif
+
+#ifdef CONFIG_SH_DSP
+#define cpu_has_dsp	1
+#else
+#define cpu_has_dsp	0
 #endif
 
 /*
  * Generic wrapper for command line arguments to disable on-chip
  * peripherals (nofpu, nodsp, and so forth).
  */
-#define onchip_setup(x)				\
-static int x##_disabled __initdata = 0;		\
-						\
-static int __init x##_setup(char *opts)		\
-{						\
-	x##_disabled = 1;			\
-	return 1;				\
-}						\
+#define onchip_setup(x)					\
+static int x##_disabled __initdata = !cpu_has_##x;	\
+							\
+static int __init x##_setup(char *opts)			\
+{							\
+	x##_disabled = 1;				\
+	return 1;					\
+}							\
 __setup("no" __stringify(x), x##_setup);
 
 onchip_setup(fpu);
@@ -52,10 +62,10 @@ onchip_setup(dsp);
 static void __init speculative_execution_init(void)
 {
 	/* Clear RABD */
-	ctrl_outl(ctrl_inl(CPUOPM) & ~CPUOPM_RABD, CPUOPM);
+	__raw_writel(__raw_readl(CPUOPM) & ~CPUOPM_RABD, CPUOPM);
 
 	/* Flush the update */
-	(void)ctrl_inl(CPUOPM);
+	(void)__raw_readl(CPUOPM);
 	ctrl_barrier();
 }
 #else
@@ -89,7 +99,7 @@ static void __init expmask_init(void)
 #endif
 
 /* 2nd-level cache init */
-void __uses_jump_to_uncached __attribute__ ((weak)) l2_cache_init(void)
+void __attribute__ ((weak)) l2_cache_init(void)
 {
 }
 
@@ -97,12 +107,12 @@ void __uses_jump_to_uncached __attribute__ ((weak)) l2_cache_init(void)
  * Generic first-level cache init
  */
 #ifdef CONFIG_SUPERH32
-static void __uses_jump_to_uncached cache_init(void)
+static void cache_init(void)
 {
 	unsigned long ccr, flags;
 
 	jump_to_uncached();
-	ccr = ctrl_inl(CCR);
+	ccr = __raw_readl(CCR);
 
 	/*
 	 * At this point we don't know whether the cache is enabled or not - a
@@ -146,7 +156,7 @@ static void __uses_jump_to_uncached cache_init(void)
 			for (addr = addrstart;
 			     addr < addrstart + waysize;
 			     addr += current_cpu_data.dcache.linesz)
-				ctrl_outl(0, addr);
+				__raw_writel(0, addr);
 
 			addrstart += current_cpu_data.dcache.way_incr;
 		} while (--ways);
@@ -179,7 +189,7 @@ static void __uses_jump_to_uncached cache_init(void)
 
 	l2_cache_init();
 
-	ctrl_outl(flags, CCR);
+	__raw_writel(flags, CCR);
 	back_to_cached();
 }
 #else
@@ -205,6 +215,18 @@ static void detect_cache_shape(void)
 		l2_cache_shape = CACHE_DESC_SHAPE(current_cpu_data.scache);
 	else
 		l2_cache_shape = -1; /* No S-cache */
+}
+
+static void __init fpu_init(void)
+{
+	/* Disable the FPU */
+	if (fpu_disabled && (current_cpu_data.flags & CPU_HAS_FPU)) {
+		printk("FPU Disabled\n");
+		current_cpu_data.flags &= ~CPU_HAS_FPU;
+	}
+
+	disable_fpu();
+	clear_used_math();
 }
 
 #ifdef CONFIG_SH_DSP
@@ -244,28 +266,35 @@ static void __init dsp_init(void)
 	if (sr & SR_DSP)
 		current_cpu_data.flags |= CPU_HAS_DSP;
 
+	/* Disable the DSP */
+	if (dsp_disabled && (current_cpu_data.flags & CPU_HAS_DSP)) {
+		printk("DSP Disabled\n");
+		current_cpu_data.flags &= ~CPU_HAS_DSP;
+	}
+
 	/* Now that we've determined the DSP status, clear the DSP bit. */
 	release_dsp();
 }
+#else
+static inline void __init dsp_init(void) { }
 #endif /* CONFIG_SH_DSP */
 
 /**
  * sh_cpu_init
  *
- * This is our initial entry point for each CPU, and is invoked on the boot
- * CPU prior to calling start_kernel(). For SMP, a combination of this and
- * start_secondary() will bring up each processor to a ready state prior
- * to hand forking the idle loop.
+ * This is our initial entry point for each CPU, and is invoked on the
+ * boot CPU prior to calling start_kernel(). For SMP, a combination of
+ * this and start_secondary() will bring up each processor to a ready
+ * state prior to hand forking the idle loop.
  *
- * We do all of the basic processor init here, including setting up the
- * caches, FPU, DSP, kicking the UBC, etc. By the time start_kernel() is
- * hit (and subsequently platform_setup()) things like determining the
- * CPU subtype and initial configuration will all be done.
+ * We do all of the basic processor init here, including setting up
+ * the caches, FPU, DSP, etc. By the time start_kernel() is hit (and
+ * subsequently platform_setup()) things like determining the CPU
+ * subtype and initial configuration will all be done.
  *
  * Each processor family is still responsible for doing its own probing
  * and cache configuration in detect_cpu_and_cache_system().
  */
-
 asmlinkage void __init sh_cpu_init(void)
 {
 	current_thread_info()->cpu = hard_smp_processor_id();
@@ -302,18 +331,8 @@ asmlinkage void __init sh_cpu_init(void)
 		detect_cache_shape();
 	}
 
-	/* Disable the FPU */
-	if (fpu_disabled) {
-		printk("FPU Disabled\n");
-		current_cpu_data.flags &= ~CPU_HAS_FPU;
-	}
-
-	/* FPU initialization */
-	disable_fpu();
-	if ((current_cpu_data.flags & CPU_HAS_FPU)) {
-		current_thread_info()->status &= ~TS_USEDFPU;
-		clear_used_math();
-	}
+	fpu_init();
+	dsp_init();
 
 	/*
 	 * Initialize the per-CPU ASID cache very early, since the
@@ -321,18 +340,24 @@ asmlinkage void __init sh_cpu_init(void)
 	 */
 	current_cpu_data.asid_cache = NO_CONTEXT;
 
-#ifdef CONFIG_SH_DSP
-	/* Probe for DSP */
-	dsp_init();
-
-	/* Disable the DSP */
-	if (dsp_disabled) {
-		printk("DSP Disabled\n");
-		current_cpu_data.flags &= ~CPU_HAS_DSP;
-		release_dsp();
-	}
-#endif
-
 	speculative_execution_init();
 	expmask_init();
+
+	/* Do the rest of the boot processor setup */
+	if (raw_smp_processor_id() == 0) {
+		/* Save off the BIOS VBR, if there is one */
+		sh_bios_vbr_init();
+
+		/*
+		 * Setup VBR for boot CPU. Secondary CPUs do this through
+		 * start_secondary().
+		 */
+		per_cpu_trap_init();
+
+		/*
+		 * Boot processor to setup the FP and extended state
+		 * context info.
+		 */
+		init_thread_xstate();
+	}
 }

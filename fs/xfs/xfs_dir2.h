@@ -100,7 +100,7 @@ extern int xfs_dir2_isleaf(struct xfs_trans *tp, struct xfs_inode *dp,
 extern int xfs_dir2_shrink_inode(struct xfs_da_args *args, xfs_dir2_db_t db,
 				struct xfs_dabuf *bp);
 
-extern int xfs_dir_cilookup_result(struct xfs_da_args *args, const char *name,
-				int len);
+extern int xfs_dir_cilookup_result(struct xfs_da_args *args,
+				const unsigned char *name, int len);
 
 #endif	/* __XFS_DIR2_H__ */

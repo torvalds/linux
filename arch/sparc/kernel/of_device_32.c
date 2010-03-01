@@ -433,7 +433,7 @@ build_resources:
 	if (!parent)
 		dev_set_name(&op->dev, "root");
 	else
-		dev_set_name(&op->dev, "%08x", dp->node);
+		dev_set_name(&op->dev, "%08x", dp->phandle);
 
 	if (of_device_register(op)) {
 		printk("%s: Could not register of device.\n",

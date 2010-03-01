@@ -922,7 +922,7 @@ static int hvc_iucv_pm_restore_thaw(struct device *dev)
 
 
 /* HVC operations */
-static struct hv_ops hvc_iucv_ops = {
+static const struct hv_ops hvc_iucv_ops = {
 	.get_chars = hvc_iucv_get_chars,
 	.put_chars = hvc_iucv_put_chars,
 	.notifier_add = hvc_iucv_notifier_add,

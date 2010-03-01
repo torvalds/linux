@@ -581,7 +581,7 @@ calibrate_by_pmtimer(long deltapm, long *delta, long *deltatsc)
 		res = (((u64)(*deltatsc)) * pm_100ms);
 		do_div(res, deltapm);
 		apic_printk(APIC_VERBOSE, "TSC delta adjusted to "
-					  "PM-Timer: %lu (%ld) \n",
+					  "PM-Timer: %lu (%ld)\n",
 					(unsigned long)res, *deltatsc);
 		*deltatsc = (long)res;
 	}

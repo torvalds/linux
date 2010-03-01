@@ -582,7 +582,7 @@ static int snd_pmac_burgundy_detect_headphone(struct snd_pmac *chip)
 static void snd_pmac_burgundy_update_automute(struct snd_pmac *chip, int do_notify)
 {
 	if (chip->auto_mute) {
-		int imac = machine_is_compatible("iMac");
+		int imac = of_machine_is_compatible("iMac");
 		int reg, oreg;
 		reg = oreg = snd_pmac_burgundy_rcb(chip,
 				MASK_ADDR_BURGUNDY_MORE_OUTPUTENABLES);
@@ -620,7 +620,7 @@ static void snd_pmac_burgundy_update_automute(struct snd_pmac *chip, int do_noti
  */
 int __devinit snd_pmac_burgundy_init(struct snd_pmac *chip)
 {
-	int imac = machine_is_compatible("iMac");
+	int imac = of_machine_is_compatible("iMac");
 	int i, err;
 
 	/* Checks to see the chip is alive and kicking */

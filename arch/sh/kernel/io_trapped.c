@@ -184,31 +184,31 @@ static unsigned long long copy_word(unsigned long src_addr, int src_len,
 
 	switch (src_len) {
 	case 1:
-		tmp = ctrl_inb(src_addr);
+		tmp = __raw_readb(src_addr);
 		break;
 	case 2:
-		tmp = ctrl_inw(src_addr);
+		tmp = __raw_readw(src_addr);
 		break;
 	case 4:
-		tmp = ctrl_inl(src_addr);
+		tmp = __raw_readl(src_addr);
 		break;
 	case 8:
-		tmp = ctrl_inq(src_addr);
+		tmp = __raw_readq(src_addr);
 		break;
 	}
 
 	switch (dst_len) {
 	case 1:
-		ctrl_outb(tmp, dst_addr);
+		__raw_writeb(tmp, dst_addr);
 		break;
 	case 2:
-		ctrl_outw(tmp, dst_addr);
+		__raw_writew(tmp, dst_addr);
 		break;
 	case 4:
-		ctrl_outl(tmp, dst_addr);
+		__raw_writel(tmp, dst_addr);
 		break;
 	case 8:
-		ctrl_outq(tmp, dst_addr);
+		__raw_writeq(tmp, dst_addr);
 		break;
 	}
 
@@ -271,6 +271,8 @@ int handle_trapped_io(struct pt_regs *regs, unsigned long address)
 	insn_size_t instruction;
 	int tmp;
 
+	if (trapped_io_disable)
+		return 0;
 	if (!lookup_tiop(address))
 		return 0;
 

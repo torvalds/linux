@@ -751,8 +751,8 @@ static void snd_pmac_awacs_suspend(struct snd_pmac *chip)
 
 static void snd_pmac_awacs_resume(struct snd_pmac *chip)
 {
-	if (machine_is_compatible("PowerBook3,1")
-	    || machine_is_compatible("PowerBook3,2")) {
+	if (of_machine_is_compatible("PowerBook3,1")
+	    || of_machine_is_compatible("PowerBook3,2")) {
 		msleep(100);
 		snd_pmac_awacs_write_reg(chip, 1,
 			chip->awacs_reg[1] & ~MASK_PAROUT);
@@ -780,16 +780,16 @@ static void snd_pmac_awacs_resume(struct snd_pmac *chip)
 }
 #endif /* CONFIG_PM */
 
-#define IS_PM7500 (machine_is_compatible("AAPL,7500") \
-		|| machine_is_compatible("AAPL,8500") \
-		|| machine_is_compatible("AAPL,9500"))
-#define IS_PM5500 (machine_is_compatible("AAPL,e411"))
-#define IS_BEIGE (machine_is_compatible("AAPL,Gossamer"))
-#define IS_IMAC1 (machine_is_compatible("PowerMac2,1"))
-#define IS_IMAC2 (machine_is_compatible("PowerMac2,2") \
-		|| machine_is_compatible("PowerMac4,1"))
-#define IS_G4AGP (machine_is_compatible("PowerMac3,1"))
-#define IS_LOMBARD (machine_is_compatible("PowerBook1,1"))
+#define IS_PM7500 (of_machine_is_compatible("AAPL,7500") \
+		|| of_machine_is_compatible("AAPL,8500") \
+		|| of_machine_is_compatible("AAPL,9500"))
+#define IS_PM5500 (of_machine_is_compatible("AAPL,e411"))
+#define IS_BEIGE (of_machine_is_compatible("AAPL,Gossamer"))
+#define IS_IMAC1 (of_machine_is_compatible("PowerMac2,1"))
+#define IS_IMAC2 (of_machine_is_compatible("PowerMac2,2") \
+		|| of_machine_is_compatible("PowerMac4,1"))
+#define IS_G4AGP (of_machine_is_compatible("PowerMac3,1"))
+#define IS_LOMBARD (of_machine_is_compatible("PowerBook1,1"))
 
 static int imac1, imac2;
 

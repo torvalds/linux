@@ -41,14 +41,14 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
 
 	/* Set PTEH register */
 	vpn = (address & MMU_VPN_MASK) | get_asid();
-	ctrl_outl(vpn, MMU_PTEH);
+	__raw_writel(vpn, MMU_PTEH);
 
 	pteval = pte_val(pte);
 
 	/* Set PTEL register */
 	pteval &= _PAGE_FLAGS_HARDWARE_MASK; /* drop software flags */
 	/* conveniently, we want all the software flags to be 0 anyway */
-	ctrl_outl(pteval, MMU_PTEL);
+	__raw_writel(pteval, MMU_PTEL);
 
 	/* Load the TLB */
 	asm volatile("ldtlb": /* no output */ : /* no input */ : "memory");
@@ -75,5 +75,5 @@ void local_flush_tlb_one(unsigned long asid, unsigned long page)
 	}
 
 	for (i = 0; i < ways; i++)
-		ctrl_outl(data, addr + (i << 8));
+		__raw_writel(data, addr + (i << 8));
 }

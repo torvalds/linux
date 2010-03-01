@@ -668,15 +668,16 @@ typedef u32 acpi_event_status;
 
 /*
  * GPE info flags - Per GPE
- * +-+-+-+---+---+-+
- * |7|6|5|4:3|2:1|0|
- * +-+-+-+---+---+-+
- *  | | |  |   |  |
- *  | | |  |   |  +--- Interrupt type: Edge or Level Triggered
- *  | | |  |   +--- Type: Wake-only, Runtime-only, or wake/runtime
+ * +-+-+-+---+-+-+-+
+ * |7|6|5|4:3|2|1|0|
+ * +-+-+-+---+-+-+-+
+ *  | | |  |  | | |
+ *  | | |  |  | | +--- Interrupt type: Edge or Level Triggered
+ *  | | |  |  | +--- GPE can wake the system
+ *  | | |  |  +--- Unused
  *  | | |  +--- Type of dispatch -- to method, handler, or none
- *  | | +--- Enabled for runtime?
- *  | +--- Enabled for wake?
+ *  | | +--- Unused
+ *  | +--- Unused
  *  +--- Unused
  */
 #define ACPI_GPE_XRUPT_TYPE_MASK        (u8) 0x01
@@ -687,21 +688,12 @@ typedef u32 acpi_event_status;
 #define ACPI_GPE_TYPE_WAKE_RUN          (u8) 0x06
 #define ACPI_GPE_TYPE_WAKE              (u8) 0x02
 #define ACPI_GPE_TYPE_RUNTIME           (u8) 0x04	/* Default */
+#define ACPI_GPE_CAN_WAKE		(u8) 0x02
 
 #define ACPI_GPE_DISPATCH_MASK          (u8) 0x18
 #define ACPI_GPE_DISPATCH_HANDLER       (u8) 0x08
 #define ACPI_GPE_DISPATCH_METHOD        (u8) 0x10
 #define ACPI_GPE_DISPATCH_NOT_USED      (u8) 0x00	/* Default */
-
-#define ACPI_GPE_RUN_ENABLE_MASK        (u8) 0x20
-#define ACPI_GPE_RUN_ENABLED            (u8) 0x20
-#define ACPI_GPE_RUN_DISABLED           (u8) 0x00	/* Default */
-
-#define ACPI_GPE_WAKE_ENABLE_MASK       (u8) 0x40
-#define ACPI_GPE_WAKE_ENABLED           (u8) 0x40
-#define ACPI_GPE_WAKE_DISABLED          (u8) 0x00	/* Default */
-
-#define ACPI_GPE_ENABLE_MASK            (u8) 0x60	/* Both run/wake */
 
 /*
  * Flags for GPE and Lock interfaces

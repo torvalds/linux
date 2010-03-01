@@ -188,6 +188,7 @@ void saa7146_buffer_timeout(unsigned long data);
 void saa7146_dma_free(struct saa7146_dev* dev,struct videobuf_queue *q,
 						struct saa7146_buf *buf);
 
+int saa7146_vv_devinit(struct saa7146_dev *dev);
 int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv);
 int saa7146_vv_release(struct saa7146_dev* dev);
 

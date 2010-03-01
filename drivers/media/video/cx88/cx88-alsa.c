@@ -583,16 +583,18 @@ static int snd_cx88_volume_put(struct snd_kcontrol *kcontrol,
 {
 	snd_cx88_card_t *chip = snd_kcontrol_chip(kcontrol);
 	struct cx88_core *core=chip->core;
-	int v, b;
+	int left, right, v, b;
 	int changed = 0;
 	u32 old;
 
-	b = value->value.integer.value[1] - value->value.integer.value[0];
+	left = value->value.integer.value[0] & 0x3f;
+	right = value->value.integer.value[1] & 0x3f;
+	b = right - left;
 	if (b < 0) {
-	    v = 0x3f - value->value.integer.value[0];
+	    v = 0x3f - left;
 	    b = (-b) | 0x40;
 	} else {
-	    v = 0x3f - value->value.integer.value[1];
+	    v = 0x3f - right;
 	}
 	/* Do we really know this will always be called with IRQs on? */
 	spin_lock_irq(&chip->reg_lock);

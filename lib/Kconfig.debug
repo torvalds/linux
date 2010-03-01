@@ -355,7 +355,7 @@ config SLUB_STATS
 config DEBUG_KMEMLEAK
 	bool "Kernel memory leak detector"
 	depends on DEBUG_KERNEL && EXPERIMENTAL && !MEMORY_HOTPLUG && \
-		(X86 || ARM || PPC || S390)
+		(X86 || ARM || PPC || S390 || SUPERH)
 
 	select DEBUG_FS if SYSFS
 	select STACKTRACE if STACKTRACE_SUPPORT

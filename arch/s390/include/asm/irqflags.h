@@ -8,8 +8,6 @@
 
 #include <linux/types.h>
 
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
-
 /* store then or system mask. */
 #define __raw_local_irq_stosm(__or)					\
 ({									\
@@ -35,40 +33,6 @@
 ({									\
 	asm volatile("ssm   %0" : : "Q" (__mask) : "memory");		\
 })
-
-#else /* __GNUC__ */
-
-/* store then or system mask. */
-#define __raw_local_irq_stosm(__or)					\
-({									\
-	unsigned long __mask;						\
-	asm volatile(							\
-		"	stosm	0(%1),%2"				\
-		: "=m" (__mask)						\
-		: "a" (&__mask), "i" (__or) : "memory");		\
-	__mask;								\
-})
-
-/* store then and system mask. */
-#define __raw_local_irq_stnsm(__and)					\
-({									\
-	unsigned long __mask;						\
-	asm volatile(							\
-		"	stnsm	0(%1),%2"				\
-		: "=m" (__mask)						\
-		: "a" (&__mask), "i" (__and) : "memory");		\
-	__mask;								\
-})
-
-/* set system mask. */
-#define __raw_local_irq_ssm(__mask)					\
-({									\
-	asm volatile(							\
-		"	ssm	0(%0)"					\
-		: : "a" (&__mask), "m" (__mask) : "memory");		\
-})
-
-#endif /* __GNUC__ */
 
 /* interrupt control.. */
 static inline unsigned long raw_local_irq_enable(void)

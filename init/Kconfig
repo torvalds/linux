@@ -461,57 +461,6 @@ config LOG_BUF_SHIFT
 config HAVE_UNSTABLE_SCHED_CLOCK
 	bool
 
-config GROUP_SCHED
-	bool "Group CPU scheduler"
-	depends on EXPERIMENTAL
-	default n
-	help
-	  This feature lets CPU scheduler recognize task groups and control CPU
-	  bandwidth allocation to such task groups.
-	  In order to create a group from arbitrary set of processes, use
-	  CONFIG_CGROUPS. (See Control Group support.)
-
-config FAIR_GROUP_SCHED
-	bool "Group scheduling for SCHED_OTHER"
-	depends on GROUP_SCHED
-	default GROUP_SCHED
-
-config RT_GROUP_SCHED
-	bool "Group scheduling for SCHED_RR/FIFO"
-	depends on EXPERIMENTAL
-	depends on GROUP_SCHED
-	default n
-	help
-	  This feature lets you explicitly allocate real CPU bandwidth
-	  to users or control groups (depending on the "Basis for grouping tasks"
-	  setting below. If enabled, it will also make it impossible to
-	  schedule realtime tasks for non-root users until you allocate
-	  realtime bandwidth for them.
-	  See Documentation/scheduler/sched-rt-group.txt for more information.
-
-choice
-	depends on GROUP_SCHED
-	prompt "Basis for grouping tasks"
-	default USER_SCHED
-
-config USER_SCHED
-	bool "user id"
-	help
-	  This option will choose userid as the basis for grouping
-	  tasks, thus providing equal CPU bandwidth to each user.
-
-config CGROUP_SCHED
-	bool "Control groups"
- 	depends on CGROUPS
- 	help
-	  This option allows you to create arbitrary task groups
-	  using the "cgroup" pseudo filesystem and control
-	  the cpu bandwidth allocated to each such task group.
-	  Refer to Documentation/cgroups/cgroups.txt for more
-	  information on "cgroup" pseudo filesystem.
-
-endchoice
-
 menuconfig CGROUPS
 	boolean "Control Group support"
 	help
@@ -631,6 +580,36 @@ config CGROUP_MEM_RES_CTLR_SWAP
 	  if boot option "noswapaccount" is set, swap will not be accounted.
 	  Now, memory usage of swap_cgroup is 2 bytes per entry. If swap page
 	  size is 4096bytes, 512k per 1Gbytes of swap.
+
+menuconfig CGROUP_SCHED
+	bool "Group CPU scheduler"
+	depends on EXPERIMENTAL && CGROUPS
+	default n
+	help
+	  This feature lets CPU scheduler recognize task groups and control CPU
+	  bandwidth allocation to such task groups. It uses cgroups to group
+	  tasks.
+
+if CGROUP_SCHED
+config FAIR_GROUP_SCHED
+	bool "Group scheduling for SCHED_OTHER"
+	depends on CGROUP_SCHED
+	default CGROUP_SCHED
+
+config RT_GROUP_SCHED
+	bool "Group scheduling for SCHED_RR/FIFO"
+	depends on EXPERIMENTAL
+	depends on CGROUP_SCHED
+	default n
+	help
+	  This feature lets you explicitly allocate real CPU bandwidth
+	  to users or control groups (depending on the "Basis for grouping tasks"
+	  setting below. If enabled, it will also make it impossible to
+	  schedule realtime tasks for non-root users until you allocate
+	  realtime bandwidth for them.
+	  See Documentation/scheduler/sched-rt-group.txt for more information.
+
+endif #CGROUP_SCHED
 
 endif # CGROUPS
 
@@ -992,19 +971,6 @@ config PERF_EVENTS
 
 	  Say Y if unsure.
 
-config EVENT_PROFILE
-	bool "Tracepoint profiling sources"
-	depends on PERF_EVENTS && EVENT_TRACING
-	default y
-	help
-	 Allow the use of tracepoints as software performance events.
-
-	 When this is enabled, you can create perf events based on
-	 tracepoints using PERF_TYPE_TRACEPOINT and the tracepoint ID
-	 found in debugfs://tracing/events/*/*/id. (The -e/--events
-	 option to the perf tool can parse and interpret symbolic
-	 tracepoints, in the subsystem:tracepoint_name format.)
-
 config PERF_COUNTERS
 	bool "Kernel performance counters (old config option)"
 	depends on HAVE_PERF_EVENTS
@@ -1128,7 +1094,7 @@ config MMAP_ALLOW_UNINITIALIZED
 	  See Documentation/nommu-mmap.txt for more information.
 
 config PROFILING
-	bool "Profiling support (EXPERIMENTAL)"
+	bool "Profiling support"
 	help
 	  Say Y here to enable the extended profiling support mechanisms used
 	  by profilers such as OProfile.
@@ -1276,6 +1242,10 @@ config STOP_MACHINE
 source "block/Kconfig"
 
 config PREEMPT_NOTIFIERS
+	bool
+
+config PADATA
+	depends on SMP
 	bool
 
 source "kernel/Kconfig.locks"

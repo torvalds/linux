@@ -53,17 +53,17 @@ static void pm_enter(void)
 	sh_wdt_write_cnt(0);
 
 	/* disable PLL1 */
-	frqcr = ctrl_inw(FRQCR);
+	frqcr = __raw_readw(FRQCR);
 	frqcr &= ~(FRQCR_PLLEN | FRQCR_PSTBY);
-	ctrl_outw(frqcr, FRQCR);
+	__raw_writew(frqcr, FRQCR);
 
 	/* enable standby */
-	stbcr = ctrl_inb(STBCR);
-	ctrl_outb(stbcr | STBCR_STBY | STBCR_MSTP2, STBCR);
+	stbcr = __raw_readb(STBCR);
+	__raw_writeb(stbcr | STBCR_STBY | STBCR_MSTP2, STBCR);
 
 	/* set self-refresh */
-	mcr = ctrl_inw(MCR);
-	ctrl_outw(mcr & ~MCR_RFSH, MCR);
+	mcr = __raw_readw(MCR);
+	__raw_writew(mcr & ~MCR_RFSH, MCR);
 
 	/* set interrupt handler */
 	asm volatile("stc vbr, %0" : "=r" (vbr_old));
@@ -73,8 +73,8 @@ static void pm_enter(void)
 	       &wakeup_start, &wakeup_end - &wakeup_start);
 	asm volatile("ldc %0, vbr" : : "r" (vbr_new));
 
-	ctrl_outw(0, RTCNT);
-	ctrl_outw(mcr | MCR_RFSH | MCR_RMODE, MCR);
+	__raw_writew(0, RTCNT);
+	__raw_writew(mcr | MCR_RFSH | MCR_RMODE, MCR);
 
 	cpu_sleep();
 
@@ -83,14 +83,14 @@ static void pm_enter(void)
 	free_page(vbr_new);
 
 	/* enable PLL1 */
-	frqcr = ctrl_inw(FRQCR);
+	frqcr = __raw_readw(FRQCR);
 	frqcr |= FRQCR_PSTBY;
-	ctrl_outw(frqcr, FRQCR);
+	__raw_writew(frqcr, FRQCR);
 	udelay(50);
 	frqcr |= FRQCR_PLLEN;
-	ctrl_outw(frqcr, FRQCR);
+	__raw_writew(frqcr, FRQCR);
 
-	ctrl_outb(stbcr, STBCR);
+	__raw_writeb(stbcr, STBCR);
 
 	clear_bl_bit();
 }
@@ -115,21 +115,21 @@ static int hp6x0_pm_enter(suspend_state_t state)
 	outw(hd64461_stbcr, HD64461_STBCR);
 #endif
 
-	ctrl_outb(0x1f, DACR);
+	__raw_writeb(0x1f, DACR);
 
-	stbcr = ctrl_inb(STBCR);
-	ctrl_outb(0x01, STBCR);
+	stbcr = __raw_readb(STBCR);
+	__raw_writeb(0x01, STBCR);
 
-	stbcr2 = ctrl_inb(STBCR2);
-	ctrl_outb(0x7f , STBCR2);
+	stbcr2 = __raw_readb(STBCR2);
+	__raw_writeb(0x7f , STBCR2);
 
 	outw(0xf07f, HD64461_SCPUCR);
 
 	pm_enter();
 
 	outw(0, HD64461_SCPUCR);
-	ctrl_outb(stbcr, STBCR);
-	ctrl_outb(stbcr2, STBCR2);
+	__raw_writeb(stbcr, STBCR);
+	__raw_writeb(stbcr2, STBCR2);
 
 #ifdef CONFIG_HD64461_ENABLER
 	hd64461_stbcr = inw(HD64461_STBCR);

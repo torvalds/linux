@@ -1022,6 +1022,14 @@ static int usb_resume_device(struct usb_device *udev, pm_message_t msg)
 		goto done;
 	}
 
+	/* Non-root devices on a full/low-speed bus must wait for their
+	 * companion high-speed root hub, in case a handoff is needed.
+	 */
+	if (!(msg.event & PM_EVENT_AUTO) && udev->parent &&
+			udev->bus->hs_companion)
+		device_pm_wait_for_dev(&udev->dev,
+				&udev->bus->hs_companion->root_hub->dev);
+
 	if (udev->quirks & USB_QUIRK_RESET_RESUME)
 		udev->reset_resume = 1;
 

@@ -14,6 +14,7 @@
 #include <asm/page.h>
 #include <asm/types.h>
 #include <asm/ptrace.h>
+#include <asm/hw_breakpoint.h>
 
 /*
  * Default implementation of macro that returns current
@@ -90,9 +91,9 @@ struct sh_fpu_soft_struct {
 	unsigned long entry_pc;
 };
 
-union sh_fpu_union {
-	struct sh_fpu_hard_struct hard;
-	struct sh_fpu_soft_struct soft;
+union thread_xstate {
+	struct sh_fpu_hard_struct hardfpu;
+	struct sh_fpu_soft_struct softfpu;
 };
 
 struct thread_struct {
@@ -100,38 +101,30 @@ struct thread_struct {
 	unsigned long sp;
 	unsigned long pc;
 
-	/* Hardware debugging registers */
-	unsigned long ubc_pc;
+	/* Various thread flags, see SH_THREAD_xxx */
+	unsigned long flags;
 
-	/* floating point info */
-	union sh_fpu_union fpu;
+	/* Save middle states of ptrace breakpoints */
+	struct perf_event *ptrace_bps[HBP_NUM];
 
 #ifdef CONFIG_SH_DSP
 	/* Dsp status information */
 	struct sh_dsp_struct dsp_status;
 #endif
-};
 
-/* Count of active tasks with UBC settings */
-extern int ubc_usercnt;
+	/* Extended processor state */
+	union thread_xstate *xstate;
+};
 
 #define INIT_THREAD  {						\
 	.sp = sizeof(init_stack) + (long) &init_stack,		\
+	.flags = 0,						\
 }
-
-/*
- * Do necessary setup to start up a newly executed thread.
- */
-#define start_thread(_regs, new_pc, new_sp)	 \
-	set_fs(USER_DS);			 \
-	_regs->pr = 0;				 \
-	_regs->sr = SR_FD;	/* User mode. */ \
-	_regs->pc = new_pc;			 \
-	_regs->regs[15] = new_sp
 
 /* Forward declaration, a strange C thing */
 struct task_struct;
-struct mm_struct;
+
+extern void start_thread(struct pt_regs *regs, unsigned long new_pc, unsigned long new_sp);
 
 /* Free all resources held by a thread. */
 extern void release_thread(struct task_struct *);

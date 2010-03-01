@@ -43,7 +43,7 @@ int pci_fixup_pcic(struct pci_channel *chan)
 {
 	unsigned long bcr1, mcr;
 
-	bcr1 = ctrl_inl(SH7751_BCR1);
+	bcr1 = __raw_readl(SH7751_BCR1);
 	bcr1 |= 0x40080000;	/* Enable Bit 19 BREQEN, set PCIC to slave */
 	pci_write_reg(chan, bcr1, SH4_PCIBCR1);
 
@@ -54,7 +54,7 @@ int pci_fixup_pcic(struct pci_channel *chan)
 	pci_write_reg(chan, 0xfb900047, SH7751_PCICONF1);
 	pci_write_reg(chan, 0xab000001, SH7751_PCICONF4);
 
-	mcr = ctrl_inl(SH7751_MCR);
+	mcr = __raw_readl(SH7751_MCR);
 	mcr = (mcr & PCIMCR_MRSET_OFF) & PCIMCR_RFSH_OFF;
 	pci_write_reg(chan, mcr, SH4_PCIMCR);
 

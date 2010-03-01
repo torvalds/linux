@@ -25,7 +25,11 @@
 #include <asm/types.h>
 
 /* Max number of PSCs */
+#ifdef CONFIG_PPC_MPC512x
+#define MPC52xx_PSC_MAXNUM     12
+#else
 #define MPC52xx_PSC_MAXNUM	6
+#endif
 
 /* Programmable Serial Controller (PSC) status register bits */
 #define MPC52xx_PSC_SR_UNEX_RX	0x0001

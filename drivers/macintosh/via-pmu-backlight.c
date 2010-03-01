@@ -150,13 +150,13 @@ void __init pmu_backlight_init()
 
 	/* Special case for the old PowerBook since I can't test on it */
 	autosave =
-		machine_is_compatible("AAPL,3400/2400") ||
-		machine_is_compatible("AAPL,3500");
+		of_machine_is_compatible("AAPL,3400/2400") ||
+		of_machine_is_compatible("AAPL,3500");
 
 	if (!autosave &&
 	    !pmac_has_backlight_type("pmu") &&
-	    !machine_is_compatible("AAPL,PowerBook1998") &&
-	    !machine_is_compatible("PowerBook1,1"))
+	    !of_machine_is_compatible("AAPL,PowerBook1998") &&
+	    !of_machine_is_compatible("PowerBook1,1"))
 		return;
 
 	snprintf(name, sizeof(name), "pmubl");

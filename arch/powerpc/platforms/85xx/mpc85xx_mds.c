@@ -302,11 +302,14 @@ static struct of_device_id mpc85xx_ids[] = {
 	{ .compatible = "gianfar", },
 	{ .compatible = "fsl,rapidio-delta", },
 	{ .compatible = "fsl,mpc8548-guts", },
+	{ .compatible = "gpio-leds", },
 	{},
 };
 
 static int __init mpc85xx_publish_devices(void)
 {
+	if (machine_is(mpc8568_mds))
+		simple_gpiochip_init("fsl,mpc8568mds-bcsr-gpio");
 	if (machine_is(mpc8569_mds))
 		simple_gpiochip_init("fsl,mpc8569mds-bcsr-gpio");
 

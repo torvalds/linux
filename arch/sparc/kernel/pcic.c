@@ -768,9 +768,10 @@ char * __devinit pcibios_setup(char *str)
 	return str;
 }
 
-void pcibios_align_resource(void *data, struct resource *res,
-			    resource_size_t size, resource_size_t align)
+resource_size_t pcibios_align_resource(void *data, const struct resource *res,
+				resource_size_t size, resource_size_t align)
 {
+	return res->start;
 }
 
 int pcibios_enable_device(struct pci_dev *pdev, int mask)

@@ -181,7 +181,7 @@ static const struct i2c_reg_value saa7127_init_config_common[] = {
 #define SAA7127_60HZ_DAC_CONTROL 0x15
 static const struct i2c_reg_value saa7127_init_config_60hz[] = {
 	{ SAA7127_REG_BURST_START, 			0x19 },
-	/* BURST_END is also used as a chip ID in saa7127_detect_client */
+	/* BURST_END is also used as a chip ID in saa7127_probe */
 	{ SAA7127_REG_BURST_END, 			0x1d },
 	{ SAA7127_REG_CHROMA_PHASE, 			0xa3 },
 	{ SAA7127_REG_GAINU, 				0x98 },
@@ -200,10 +200,10 @@ static const struct i2c_reg_value saa7127_init_config_60hz[] = {
 	{ 0, 0 }
 };
 
-#define SAA7127_50HZ_DAC_CONTROL 0x02
-static struct i2c_reg_value saa7127_init_config_50hz[] = {
+#define SAA7127_50HZ_PAL_DAC_CONTROL 0x02
+static struct i2c_reg_value saa7127_init_config_50hz_pal[] = {
 	{ SAA7127_REG_BURST_START, 			0x21 },
-	/* BURST_END is also used as a chip ID in saa7127_detect_client */
+	/* BURST_END is also used as a chip ID in saa7127_probe */
 	{ SAA7127_REG_BURST_END, 			0x1d },
 	{ SAA7127_REG_CHROMA_PHASE, 			0x3f },
 	{ SAA7127_REG_GAINU, 				0x7d },
@@ -218,6 +218,28 @@ static struct i2c_reg_value saa7127_init_config_50hz[] = {
 	{ SAA7127_REG_SUBC1, 				0x09 },
 	{ SAA7127_REG_SUBC0, 				0x2a },
 	{ SAA7127_REG_MULTI, 				0xa0 },
+	{ SAA7127_REG_CLOSED_CAPTION, 			0x00 },
+	{ 0, 0 }
+};
+
+#define SAA7127_50HZ_SECAM_DAC_CONTROL 0x08
+static struct i2c_reg_value saa7127_init_config_50hz_secam[] = {
+	{ SAA7127_REG_BURST_START, 			0x21 },
+	/* BURST_END is also used as a chip ID in saa7127_probe */
+	{ SAA7127_REG_BURST_END, 			0x1d },
+	{ SAA7127_REG_CHROMA_PHASE, 			0x3f },
+	{ SAA7127_REG_GAINU, 				0x6a },
+	{ SAA7127_REG_GAINV, 				0x81 },
+	{ SAA7127_REG_BLACK_LEVEL, 			0x33 },
+	{ SAA7127_REG_BLANKING_LEVEL, 			0x35 },
+	{ SAA7127_REG_VBI_BLANKING, 			0x35 },
+	{ SAA7127_REG_DAC_CONTROL, 			0x08 },
+	{ SAA7127_REG_BURST_AMP, 			0x2f },
+	{ SAA7127_REG_SUBC3, 				0xb2 },
+	{ SAA7127_REG_SUBC2, 				0x3b },
+	{ SAA7127_REG_SUBC1, 				0xa3 },
+	{ SAA7127_REG_SUBC0, 				0x28 },
+	{ SAA7127_REG_MULTI, 				0x90 },
 	{ SAA7127_REG_CLOSED_CAPTION, 			0x00 },
 	{ 0, 0 }
 };
@@ -463,10 +485,21 @@ static int saa7127_set_std(struct v4l2_subdev *sd, v4l2_std_id std)
 		v4l2_dbg(1, debug, sd, "Selecting 60 Hz video Standard\n");
 		inittab = saa7127_init_config_60hz;
 		state->reg_61 = SAA7127_60HZ_DAC_CONTROL;
+
+	} else if (state->ident == V4L2_IDENT_SAA7129 &&
+		   (std & V4L2_STD_SECAM) &&
+		   !(std & (V4L2_STD_625_50 & ~V4L2_STD_SECAM))) {
+
+		/* If and only if SECAM, with a SAA712[89] */
+		v4l2_dbg(1, debug, sd,
+			 "Selecting 50 Hz SECAM video Standard\n");
+		inittab = saa7127_init_config_50hz_secam;
+		state->reg_61 = SAA7127_50HZ_SECAM_DAC_CONTROL;
+
 	} else {
-		v4l2_dbg(1, debug, sd, "Selecting 50 Hz video Standard\n");
-		inittab = saa7127_init_config_50hz;
-		state->reg_61 = SAA7127_50HZ_DAC_CONTROL;
+		v4l2_dbg(1, debug, sd, "Selecting 50 Hz PAL video Standard\n");
+		inittab = saa7127_init_config_50hz_pal;
+		state->reg_61 = SAA7127_50HZ_PAL_DAC_CONTROL;
 	}
 
 	/* Write Table */

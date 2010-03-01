@@ -201,6 +201,38 @@ xfs_uuid_unmount(
 
 
 /*
+ * Reference counting access wrappers to the perag structures.
+ */
+struct xfs_perag *
+xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno)
+{
+	struct xfs_perag	*pag;
+	int			ref = 0;
+
+	spin_lock(&mp->m_perag_lock);
+	pag = radix_tree_lookup(&mp->m_perag_tree, agno);
+	if (pag) {
+		ASSERT(atomic_read(&pag->pag_ref) >= 0);
+		/* catch leaks in the positive direction during testing */
+		ASSERT(atomic_read(&pag->pag_ref) < 1000);
+		ref = atomic_inc_return(&pag->pag_ref);
+	}
+	spin_unlock(&mp->m_perag_lock);
+	trace_xfs_perag_get(mp, agno, ref, _RET_IP_);
+	return pag;
+}
+
+void
+xfs_perag_put(struct xfs_perag *pag)
+{
+	int	ref;
+
+	ASSERT(atomic_read(&pag->pag_ref) > 0);
+	ref = atomic_dec_return(&pag->pag_ref);
+	trace_xfs_perag_put(pag->pag_mount, pag->pag_agno, ref, _RET_IP_);
+}
+
+/*
  * Free up the resources associated with a mount structure.  Assume that
  * the structure was initially zeroed, so we can tell which fields got
  * initialized.
@@ -209,13 +241,16 @@ STATIC void
 xfs_free_perag(
 	xfs_mount_t	*mp)
 {
-	if (mp->m_perag) {
-		int	agno;
+	xfs_agnumber_t	agno;
+	struct xfs_perag *pag;
 
-		for (agno = 0; agno < mp->m_maxagi; agno++)
-			if (mp->m_perag[agno].pagb_list)
-				kmem_free(mp->m_perag[agno].pagb_list);
-		kmem_free(mp->m_perag);
+	for (agno = 0; agno < mp->m_sb.sb_agcount; agno++) {
+		spin_lock(&mp->m_perag_lock);
+		pag = radix_tree_delete(&mp->m_perag_tree, agno);
+		ASSERT(pag);
+		ASSERT(atomic_read(&pag->pag_ref) == 0);
+		spin_unlock(&mp->m_perag_lock);
+		kmem_free(pag);
 	}
 }
 
@@ -389,21 +424,56 @@ xfs_initialize_perag_icache(
 	}
 }
 
-xfs_agnumber_t
+int
 xfs_initialize_perag(
 	xfs_mount_t	*mp,
-	xfs_agnumber_t	agcount)
+	xfs_agnumber_t	agcount,
+	xfs_agnumber_t	*maxagi)
 {
 	xfs_agnumber_t	index, max_metadata;
+	xfs_agnumber_t	first_initialised = 0;
 	xfs_perag_t	*pag;
 	xfs_agino_t	agino;
 	xfs_ino_t	ino;
 	xfs_sb_t	*sbp = &mp->m_sb;
 	xfs_ino_t	max_inum = XFS_MAXINUMBER_32;
+	int		error = -ENOMEM;
 
 	/* Check to see if the filesystem can overflow 32 bit inodes */
 	agino = XFS_OFFBNO_TO_AGINO(mp, sbp->sb_agblocks - 1, 0);
 	ino = XFS_AGINO_TO_INO(mp, agcount - 1, agino);
+
+	/*
+	 * Walk the current per-ag tree so we don't try to initialise AGs
+	 * that already exist (growfs case). Allocate and insert all the
+	 * AGs we don't find ready for initialisation.
+	 */
+	for (index = 0; index < agcount; index++) {
+		pag = xfs_perag_get(mp, index);
+		if (pag) {
+			xfs_perag_put(pag);
+			continue;
+		}
+		if (!first_initialised)
+			first_initialised = index;
+		pag = kmem_zalloc(sizeof(*pag), KM_MAYFAIL);
+		if (!pag)
+			goto out_unwind;
+		if (radix_tree_preload(GFP_NOFS))
+			goto out_unwind;
+		spin_lock(&mp->m_perag_lock);
+		if (radix_tree_insert(&mp->m_perag_tree, index, pag)) {
+			BUG();
+			spin_unlock(&mp->m_perag_lock);
+			radix_tree_preload_end();
+			error = -EEXIST;
+			goto out_unwind;
+		}
+		pag->pag_agno = index;
+		pag->pag_mount = mp;
+		spin_unlock(&mp->m_perag_lock);
+		radix_tree_preload_end();
+	}
 
 	/* Clear the mount flag if no inode can overflow 32 bits
 	 * on this filesystem, or if specifically requested..
@@ -438,21 +508,33 @@ xfs_initialize_perag(
 			}
 
 			/* This ag is preferred for inodes */
-			pag = &mp->m_perag[index];
+			pag = xfs_perag_get(mp, index);
 			pag->pagi_inodeok = 1;
 			if (index < max_metadata)
 				pag->pagf_metadata = 1;
 			xfs_initialize_perag_icache(pag);
+			xfs_perag_put(pag);
 		}
 	} else {
 		/* Setup default behavior for smaller filesystems */
 		for (index = 0; index < agcount; index++) {
-			pag = &mp->m_perag[index];
+			pag = xfs_perag_get(mp, index);
 			pag->pagi_inodeok = 1;
 			xfs_initialize_perag_icache(pag);
+			xfs_perag_put(pag);
 		}
 	}
-	return index;
+	if (maxagi)
+		*maxagi = index;
+	return 0;
+
+out_unwind:
+	kmem_free(pag);
+	for (; index > first_initialised; index--) {
+		pag = radix_tree_delete(&mp->m_perag_tree, index);
+		kmem_free(pag);
+	}
+	return error;
 }
 
 void
@@ -583,7 +665,7 @@ xfs_readsb(xfs_mount_t *mp, int flags)
 	 * access to the superblock.
 	 */
 	sector_size = xfs_getsize_buftarg(mp->m_ddev_targp);
-	extra_flags = XFS_BUF_LOCK | XFS_BUF_MANAGE | XFS_BUF_MAPPED;
+	extra_flags = XBF_LOCK | XBF_FS_MANAGED | XBF_MAPPED;
 
 	bp = xfs_buf_read(mp->m_ddev_targp, XFS_SB_DADDR, BTOBB(sector_size),
 			  extra_flags);
@@ -731,12 +813,13 @@ xfs_initialize_perag_data(xfs_mount_t *mp, xfs_agnumber_t agcount)
 		error = xfs_ialloc_pagi_init(mp, NULL, index);
 		if (error)
 			return error;
-		pag = &mp->m_perag[index];
+		pag = xfs_perag_get(mp, index);
 		ifree += pag->pagi_freecount;
 		ialloc += pag->pagi_count;
 		bfree += pag->pagf_freeblks;
 		bfreelst += pag->pagf_flcount;
 		btree += pag->pagf_btreeblks;
+		xfs_perag_put(pag);
 	}
 	/*
 	 * Overwrite incore superblock counters with just-read data
@@ -1008,6 +1091,22 @@ xfs_mount_reset_sbqflags(
 	return xfs_trans_commit(tp, 0);
 }
 
+__uint64_t
+xfs_default_resblks(xfs_mount_t *mp)
+{
+	__uint64_t resblks;
+
+	/*
+	 * We default to 5% or 1024 fsbs of space reserved, whichever is smaller.
+	 * This may drive us straight to ENOSPC on mount, but that implies
+	 * we were already there on the last unmount. Warn if this occurs.
+	 */
+	resblks = mp->m_sb.sb_dblocks;
+	do_div(resblks, 20);
+	resblks = min_t(__uint64_t, resblks, 1024);
+	return resblks;
+}
+
 /*
  * This function does the following on an initial mount of a file system:
  *	- reads the superblock from disk and init the mount struct
@@ -1152,13 +1251,13 @@ xfs_mountfs(
 	/*
 	 * Allocate and initialize the per-ag data.
 	 */
-	init_rwsem(&mp->m_peraglock);
-	mp->m_perag = kmem_zalloc(sbp->sb_agcount * sizeof(xfs_perag_t),
-				  KM_MAYFAIL);
-	if (!mp->m_perag)
+	spin_lock_init(&mp->m_perag_lock);
+	INIT_RADIX_TREE(&mp->m_perag_tree, GFP_NOFS);
+	error = xfs_initialize_perag(mp, sbp->sb_agcount, &mp->m_maxagi);
+	if (error) {
+		cmn_err(CE_WARN, "XFS: Failed per-ag init: %d", error);
 		goto out_remove_uuid;
-
-	mp->m_maxagi = xfs_initialize_perag(mp, sbp->sb_agcount);
+	}
 
 	if (!sbp->sb_logblocks) {
 		cmn_err(CE_WARN, "XFS: no log defined");
@@ -1318,18 +1417,14 @@ xfs_mountfs(
 	 * when at ENOSPC. This is needed for operations like create with
 	 * attr, unwritten extent conversion at ENOSPC, etc. Data allocations
 	 * are not allowed to use this reserved space.
-	 *
-	 * We default to 5% or 1024 fsbs of space reserved, whichever is smaller.
-	 * This may drive us straight to ENOSPC on mount, but that implies
-	 * we were already there on the last unmount. Warn if this occurs.
 	 */
-	resblks = mp->m_sb.sb_dblocks;
-	do_div(resblks, 20);
-	resblks = min_t(__uint64_t, resblks, 1024);
-	error = xfs_reserve_blocks(mp, &resblks, NULL);
-	if (error)
-		cmn_err(CE_WARN, "XFS: Unable to allocate reserve blocks. "
-				"Continuing without a reserve pool.");
+	if (!(mp->m_flags & XFS_MOUNT_RDONLY)) {
+		resblks = xfs_default_resblks(mp);
+		error = xfs_reserve_blocks(mp, &resblks, NULL);
+		if (error)
+			cmn_err(CE_WARN, "XFS: Unable to allocate reserve "
+				"blocks. Continuing without a reserve pool.");
+	}
 
 	return 0;
 
@@ -1372,8 +1467,19 @@ xfs_unmountfs(
 	 * push out the iclog we will never get that unlocked. hence we
 	 * need to force the log first.
 	 */
-	xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE | XFS_LOG_SYNC);
-	xfs_reclaim_inodes(mp, XFS_IFLUSH_ASYNC);
+	xfs_log_force(mp, XFS_LOG_SYNC);
+
+	/*
+	 * Do a delwri reclaim pass first so that as many dirty inodes are
+	 * queued up for IO as possible. Then flush the buffers before making
+	 * a synchronous path to catch all the remaining inodes are reclaimed.
+	 * This makes the reclaim process as quick as possible by avoiding
+	 * synchronous writeout and blocking on inodes already in the delwri
+	 * state as much as possible.
+	 */
+	xfs_reclaim_inodes(mp, 0);
+	XFS_bflush(mp->m_ddev_targp);
+	xfs_reclaim_inodes(mp, SYNC_WAIT);
 
 	xfs_qm_unmount(mp);
 
@@ -1382,7 +1488,7 @@ xfs_unmountfs(
 	 * that nothing is pinned.  This is important because bflush()
 	 * will skip pinned buffers.
 	 */
-	xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE | XFS_LOG_SYNC);
+	xfs_log_force(mp, XFS_LOG_SYNC);
 
 	xfs_binval(mp->m_ddev_targp);
 	if (mp->m_rtdev_targp) {
@@ -1548,14 +1654,13 @@ xfs_mod_sb(xfs_trans_t *tp, __int64_t fields)
 	xfs_sb_to_disk(XFS_BUF_TO_SBP(bp), &mp->m_sb, fields);
 
 	/* find modified range */
+	f = (xfs_sb_field_t)xfs_highbit64((__uint64_t)fields);
+	ASSERT((1LL << f) & XFS_SB_MOD_BITS);
+	last = xfs_sb_info[f + 1].offset - 1;
 
 	f = (xfs_sb_field_t)xfs_lowbit64((__uint64_t)fields);
 	ASSERT((1LL << f) & XFS_SB_MOD_BITS);
 	first = xfs_sb_info[f].offset;
-
-	f = (xfs_sb_field_t)xfs_highbit64((__uint64_t)fields);
-	ASSERT((1LL << f) & XFS_SB_MOD_BITS);
-	last = xfs_sb_info[f + 1].offset - 1;
 
 	xfs_trans_log_buf(tp, bp, first, last);
 }
@@ -1887,7 +1992,7 @@ xfs_getsb(
 
 	ASSERT(mp->m_sb_bp != NULL);
 	bp = mp->m_sb_bp;
-	if (flags & XFS_BUF_TRYLOCK) {
+	if (flags & XBF_TRYLOCK) {
 		if (!XFS_BUF_CPSEMA(bp)) {
 			return NULL;
 		}

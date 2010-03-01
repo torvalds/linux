@@ -2,7 +2,7 @@
  * the read/write interfaces for Virtual Support Module(VSM)
  *
  * Copyright (C) 2009 Lemote, Inc.
- * Author: Wu Zhangjin <wuzj@lemote.com>
+ * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  */
 
 #ifndef	_CS5536_VSM_H

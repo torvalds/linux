@@ -44,7 +44,7 @@ sub nsecs_secs {
 sub nsecs_nsecs {
     my ($nsecs) = @_;
 
-    return $nsecs - nsecs_secs($nsecs);
+    return $nsecs % $NSECS_PER_SEC;
 }
 
 sub nsecs_str {

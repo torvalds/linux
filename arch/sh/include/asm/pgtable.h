@@ -12,7 +12,11 @@
 #ifndef __ASM_SH_PGTABLE_H
 #define __ASM_SH_PGTABLE_H
 
-#include <asm-generic/pgtable-nopmd.h>
+#ifdef CONFIG_X2TLB
+#include <asm/pgtable-3level.h>
+#else
+#include <asm/pgtable-2level.h>
+#endif
 #include <asm/page.h>
 
 #ifndef __ASSEMBLY__
@@ -51,28 +55,12 @@ static inline unsigned long long neff_sign_extend(unsigned long val)
 #define	NPHYS_SIGN	(1LL << (NPHYS - 1))
 #define	NPHYS_MASK	(-1LL << NPHYS)
 
-/*
- * traditional two-level paging structure
- */
-/* PTE bits */
-#if defined(CONFIG_X2TLB) || defined(CONFIG_SUPERH64)
-# define PTE_MAGNITUDE	3	/* 64-bit PTEs on extended mode SH-X2 TLB */
-#else
-# define PTE_MAGNITUDE	2	/* 32-bit PTEs */
-#endif
-#define PTE_SHIFT	PAGE_SHIFT
-#define PTE_BITS	(PTE_SHIFT - PTE_MAGNITUDE)
-
-/* PGD bits */
-#define PGDIR_SHIFT	(PTE_SHIFT + PTE_BITS)
 #define PGDIR_SIZE	(1UL << PGDIR_SHIFT)
 #define PGDIR_MASK	(~(PGDIR_SIZE-1))
 
 /* Entries per level */
 #define PTRS_PER_PTE	(PAGE_SIZE / (1 << PTE_MAGNITUDE))
-#define PTRS_PER_PGD	(PAGE_SIZE / sizeof(pgd_t))
 
-#define USER_PTRS_PER_PGD	(TASK_SIZE/PGDIR_SIZE)
 #define FIRST_USER_ADDRESS	0
 
 #define PHYS_ADDR_MASK29		0x1fffffff
@@ -153,9 +141,9 @@ typedef pte_t *pte_addr_t;
 #define pte_pfn(x)		((unsigned long)(((x).pte_low >> PAGE_SHIFT)))
 
 /*
- * No page table caches to initialise
+ * Initialise the page table caches
  */
-#define pgtable_cache_init()	do { } while (0)
+extern void pgtable_cache_init(void);
 
 struct vm_area_struct;
 

@@ -397,7 +397,7 @@ static struct resource sdhi_cn9_resources[] = {
 		.flags	= IORESOURCE_MEM,
 	},
 	[1] = {
-		.start	= 101,
+		.start	= 100,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -431,7 +431,7 @@ static struct i2c_board_info migor_i2c_camera[] = {
 };
 
 static struct ov772x_camera_info ov7725_info = {
-	.buswidth	= SOCAM_DATAWIDTH_8,
+	.flags		= OV772X_FLAG_8BIT,
 };
 
 static struct soc_camera_link ov7725_link = {
@@ -496,28 +496,16 @@ static int __init migor_devices_setup(void)
 					&migor_sdram_enter_end,
 					&migor_sdram_leave_start,
 					&migor_sdram_leave_end);
-#ifdef CONFIG_PM
 	/* Let D11 LED show STATUS0 */
 	gpio_request(GPIO_FN_STATUS0, NULL);
 
 	/* Lit D12 LED show PDSTATUS */
 	gpio_request(GPIO_FN_PDSTATUS, NULL);
-#else
-	/* Lit D11 LED */
-	gpio_request(GPIO_PTJ7, NULL);
-	gpio_direction_output(GPIO_PTJ7, 1);
-	gpio_export(GPIO_PTJ7, 0);
-
-	/* Lit D12 LED */
-	gpio_request(GPIO_PTJ5, NULL);
-	gpio_direction_output(GPIO_PTJ5, 1);
-	gpio_export(GPIO_PTJ5, 0);
-#endif
 
 	/* SMC91C111 - Enable IRQ0, Setup CS4 for 16-bit fast access */
 	gpio_request(GPIO_FN_IRQ0, NULL);
-	ctrl_outl(0x00003400, BSC_CS4BCR);
-	ctrl_outl(0x00110080, BSC_CS4WCR);
+	__raw_writel(0x00003400, BSC_CS4BCR);
+	__raw_writel(0x00110080, BSC_CS4WCR);
 
 	/* KEYSC */
 	gpio_request(GPIO_FN_KEYOUT0, NULL);
@@ -533,7 +521,7 @@ static int __init migor_devices_setup(void)
 
 	/* NAND Flash */
 	gpio_request(GPIO_FN_CS6A_CE2B, NULL);
-	ctrl_outl((ctrl_inl(BSC_CS6ABCR) & ~0x0600) | 0x0200, BSC_CS6ABCR);
+	__raw_writel((__raw_readl(BSC_CS6ABCR) & ~0x0600) | 0x0200, BSC_CS6ABCR);
 	gpio_request(GPIO_PTA1, NULL);
 	gpio_direction_input(GPIO_PTA1);
 
@@ -627,7 +615,7 @@ static int __init migor_devices_setup(void)
 #else
 	gpio_direction_output(GPIO_PTT0, 1);
 #endif
-	ctrl_outw(ctrl_inw(PORT_MSELCRB) | 0x2000, PORT_MSELCRB); /* D15->D8 */
+	__raw_writew(__raw_readw(PORT_MSELCRB) | 0x2000, PORT_MSELCRB); /* D15->D8 */
 
 	platform_resource_setup_memory(&migor_ceu_device, "ceu", 4 << 20);
 

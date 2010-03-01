@@ -16,65 +16,15 @@
 #include <linux/module.h>
 #include <linux/mm.h>
 #include <linux/elfcore.h>
-#include <linux/pm.h>
 #include <linux/kallsyms.h>
-#include <linux/kexec.h>
-#include <linux/kdebug.h>
-#include <linux/tick.h>
-#include <linux/reboot.h>
 #include <linux/fs.h>
 #include <linux/ftrace.h>
-#include <linux/preempt.h>
+#include <linux/hw_breakpoint.h>
 #include <asm/uaccess.h>
 #include <asm/mmu_context.h>
-#include <asm/pgalloc.h>
 #include <asm/system.h>
-#include <asm/ubc.h>
 #include <asm/fpu.h>
 #include <asm/syscalls.h>
-#include <asm/watchdog.h>
-
-int ubc_usercnt = 0;
-
-#ifdef CONFIG_32BIT
-static void watchdog_trigger_immediate(void)
-{
-	sh_wdt_write_cnt(0xFF);
-	sh_wdt_write_csr(0xC2);
-}
-
-void machine_restart(char * __unused)
-{
-	local_irq_disable();
-
-	/* Use watchdog timer to trigger reset */
-	watchdog_trigger_immediate();
-
-	while (1)
-		cpu_sleep();
-}
-#else
-void machine_restart(char * __unused)
-{
-	/* SR.BL=1 and invoke address error to let CPU reset (manual reset) */
-	asm volatile("ldc %0, sr\n\t"
-		     "mov.l @%1, %0" : : "r" (0x10000000), "r" (0x80000001));
-}
-#endif
-
-void machine_halt(void)
-{
-	local_irq_disable();
-
-	while (1)
-		cpu_sleep();
-}
-
-void machine_power_off(void)
-{
-	if (pm_power_off)
-		pm_power_off();
-}
 
 void show_regs(struct pt_regs * regs)
 {
@@ -91,7 +41,7 @@ void show_regs(struct pt_regs * regs)
 	printk("PC  : %08lx SP  : %08lx SR  : %08lx ",
 	       regs->pc, regs->regs[15], regs->sr);
 #ifdef CONFIG_MMU
-	printk("TEA : %08x\n", ctrl_inl(MMU_TEA));
+	printk("TEA : %08x\n", __raw_readl(MMU_TEA));
 #else
 	printk("\n");
 #endif
@@ -147,21 +97,34 @@ int kernel_thread(int (*fn)(void *), void * arg, unsigned long flags)
 }
 EXPORT_SYMBOL(kernel_thread);
 
+void start_thread(struct pt_regs *regs, unsigned long new_pc,
+		  unsigned long new_sp)
+{
+	set_fs(USER_DS);
+
+	regs->pr = 0;
+	regs->sr = SR_FD;
+	regs->pc = new_pc;
+	regs->regs[15] = new_sp;
+
+	free_thread_xstate(current);
+}
+EXPORT_SYMBOL(start_thread);
+
 /*
  * Free current thread data structures etc..
  */
 void exit_thread(void)
 {
-	if (current->thread.ubc_pc) {
-		current->thread.ubc_pc = 0;
-		ubc_usercnt -= 1;
-	}
 }
 
 void flush_thread(void)
 {
-#if defined(CONFIG_SH_FPU)
 	struct task_struct *tsk = current;
+
+	flush_ptrace_hw_breakpoint(tsk);
+
+#if defined(CONFIG_SH_FPU)
 	/* Forget lazy FPU state */
 	clear_fpu(tsk, task_pt_regs(tsk));
 	clear_used_math();
@@ -209,11 +172,10 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 {
 	struct thread_info *ti = task_thread_info(p);
 	struct pt_regs *childregs;
-#if defined(CONFIG_SH_DSP)
-	struct task_struct *tsk = current;
-#endif
 
 #if defined(CONFIG_SH_DSP)
+	struct task_struct *tsk = current;
+
 	if (is_dsp_enabled(tsk)) {
 		/* We can use the __save_dsp or just copy the struct:
 		 * __save_dsp(p);
@@ -244,51 +206,9 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->thread.sp = (unsigned long) childregs;
 	p->thread.pc = (unsigned long) ret_from_fork;
 
-	p->thread.ubc_pc = 0;
+	memset(p->thread.ptrace_bps, 0, sizeof(p->thread.ptrace_bps));
 
 	return 0;
-}
-
-/* Tracing by user break controller.  */
-static void ubc_set_tracing(int asid, unsigned long pc)
-{
-#if defined(CONFIG_CPU_SH4A)
-	unsigned long val;
-
-	val = (UBC_CBR_ID_INST | UBC_CBR_RW_READ | UBC_CBR_CE);
-	val |= (UBC_CBR_AIE | UBC_CBR_AIV_SET(asid));
-
-	ctrl_outl(val, UBC_CBR0);
-	ctrl_outl(pc,  UBC_CAR0);
-	ctrl_outl(0x0, UBC_CAMR0);
-	ctrl_outl(0x0, UBC_CBCR);
-
-	val = (UBC_CRR_RES | UBC_CRR_PCB | UBC_CRR_BIE);
-	ctrl_outl(val, UBC_CRR0);
-
-	/* Read UBC register that we wrote last, for checking update */
-	val = ctrl_inl(UBC_CRR0);
-
-#else	/* CONFIG_CPU_SH4A */
-	ctrl_outl(pc, UBC_BARA);
-
-#ifdef CONFIG_MMU
-	ctrl_outb(asid, UBC_BASRA);
-#endif
-
-	ctrl_outl(0, UBC_BAMRA);
-
-	if (current_cpu_data.type == CPU_SH7729 ||
-	    current_cpu_data.type == CPU_SH7710 ||
-	    current_cpu_data.type == CPU_SH7712 ||
-	    current_cpu_data.type == CPU_SH7203){
-		ctrl_outw(BBR_INST | BBR_READ | BBR_CPU, UBC_BBRA);
-		ctrl_outl(BRCR_PCBA | BRCR_PCTE, UBC_BRCR);
-	} else {
-		ctrl_outw(BBR_INST | BBR_READ, UBC_BBRA);
-		ctrl_outw(BRCR_PCBA, UBC_BRCR);
-	}
-#endif	/* CONFIG_CPU_SH4A */
 }
 
 /*
@@ -304,7 +224,7 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 
 	/* we're going to use this soon, after a few expensive things */
 	if (next->fpu_counter > 5)
-		prefetch(&next_t->fpu.hard);
+		prefetch(next_t->xstate);
 
 #ifdef CONFIG_MMU
 	/*
@@ -316,32 +236,13 @@ __switch_to(struct task_struct *prev, struct task_struct *next)
 		     : "r" (task_thread_info(next)));
 #endif
 
-	/* If no tasks are using the UBC, we're done */
-	if (ubc_usercnt == 0)
-		/* If no tasks are using the UBC, we're done */;
-	else if (next->thread.ubc_pc && next->mm) {
-		int asid = 0;
-#ifdef CONFIG_MMU
-		asid |= cpu_asid(smp_processor_id(), next->mm);
-#endif
-		ubc_set_tracing(asid, next->thread.ubc_pc);
-	} else {
-#if defined(CONFIG_CPU_SH4A)
-		ctrl_outl(UBC_CBR_INIT, UBC_CBR0);
-		ctrl_outl(UBC_CRR_INIT, UBC_CRR0);
-#else
-		ctrl_outw(0, UBC_BBRA);
-		ctrl_outw(0, UBC_BBRB);
-#endif
-	}
-
 	/*
 	 * If the task has used fpu the last 5 timeslices, just do a full
 	 * restore of the math state immediately to avoid the trap; the
 	 * chances of needing FPU soon are obviously high now
 	 */
 	if (next->fpu_counter > 5)
-		fpu_state_restore(task_pt_regs(next));
+		__fpu_state_restore();
 
 	return prev;
 }
@@ -433,21 +334,4 @@ unsigned long get_wchan(struct task_struct *p)
 #endif
 
 	return pc;
-}
-
-asmlinkage void break_point_trap(void)
-{
-	/* Clear tracing.  */
-#if defined(CONFIG_CPU_SH4A)
-	ctrl_outl(UBC_CBR_INIT, UBC_CBR0);
-	ctrl_outl(UBC_CRR_INIT, UBC_CRR0);
-#else
-	ctrl_outw(0, UBC_BBRA);
-	ctrl_outw(0, UBC_BBRB);
-	ctrl_outl(0, UBC_BRCR);
-#endif
-	current->thread.ubc_pc = 0;
-	ubc_usercnt -= 1;
-
-	force_sig(SIGTRAP, current);
 }

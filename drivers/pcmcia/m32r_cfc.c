@@ -764,7 +764,7 @@ static int __init init_m32r_pcc(void)
 	for (i = 0 ; i < pcc_sockets ; i++) {
 		socket[i].socket.dev.parent = &pcc_device.dev;
 		socket[i].socket.ops = &pcc_operations;
-		socket[i].socket.resource_ops = &pccard_nonstatic_ops;
+		socket[i].socket.resource_ops = &pccard_static_ops;
 		socket[i].socket.owner = THIS_MODULE;
 		socket[i].number = i;
 		ret = pcmcia_register_socket(&socket[i].socket);

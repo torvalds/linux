@@ -75,13 +75,14 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 	xfs_buf_log_item_t	*bip;
 
 	if (flags == 0)
-		flags = XFS_BUF_LOCK | XFS_BUF_MAPPED;
+		flags = XBF_LOCK | XBF_MAPPED;
 
 	/*
 	 * Default to a normal get_buf() call if the tp is NULL.
 	 */
 	if (tp == NULL)
-		return xfs_buf_get(target_dev, blkno, len, flags | BUF_BUSY);
+		return xfs_buf_get(target_dev, blkno, len,
+				   flags | XBF_DONT_BLOCK);
 
 	/*
 	 * If we find the buffer in the cache with this transaction
@@ -117,14 +118,14 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 	}
 
 	/*
-	 * We always specify the BUF_BUSY flag within a transaction so
-	 * that get_buf does not try to push out a delayed write buffer
+	 * We always specify the XBF_DONT_BLOCK flag within a transaction
+	 * so that get_buf does not try to push out a delayed write buffer
 	 * which might cause another transaction to take place (if the
 	 * buffer was delayed alloc).  Such recursive transactions can
 	 * easily deadlock with our current transaction as well as cause
 	 * us to run out of stack space.
 	 */
-	bp = xfs_buf_get(target_dev, blkno, len, flags | BUF_BUSY);
+	bp = xfs_buf_get(target_dev, blkno, len, flags | XBF_DONT_BLOCK);
 	if (bp == NULL) {
 		return NULL;
 	}
@@ -290,15 +291,15 @@ xfs_trans_read_buf(
 	int			error;
 
 	if (flags == 0)
-		flags = XFS_BUF_LOCK | XFS_BUF_MAPPED;
+		flags = XBF_LOCK | XBF_MAPPED;
 
 	/*
 	 * Default to a normal get_buf() call if the tp is NULL.
 	 */
 	if (tp == NULL) {
-		bp = xfs_buf_read(target, blkno, len, flags | BUF_BUSY);
+		bp = xfs_buf_read(target, blkno, len, flags | XBF_DONT_BLOCK);
 		if (!bp)
-			return (flags & XFS_BUF_TRYLOCK) ?
+			return (flags & XBF_TRYLOCK) ?
 					EAGAIN : XFS_ERROR(ENOMEM);
 
 		if (XFS_BUF_GETERROR(bp) != 0) {
@@ -385,14 +386,14 @@ xfs_trans_read_buf(
 	}
 
 	/*
-	 * We always specify the BUF_BUSY flag within a transaction so
-	 * that get_buf does not try to push out a delayed write buffer
+	 * We always specify the XBF_DONT_BLOCK flag within a transaction
+	 * so that get_buf does not try to push out a delayed write buffer
 	 * which might cause another transaction to take place (if the
 	 * buffer was delayed alloc).  Such recursive transactions can
 	 * easily deadlock with our current transaction as well as cause
 	 * us to run out of stack space.
 	 */
-	bp = xfs_buf_read(target, blkno, len, flags | BUF_BUSY);
+	bp = xfs_buf_read(target, blkno, len, flags | XBF_DONT_BLOCK);
 	if (bp == NULL) {
 		*bpp = NULL;
 		return 0;
@@ -472,8 +473,8 @@ shutdown_abort:
 	if (XFS_BUF_ISSTALE(bp) && XFS_BUF_ISDELAYWRITE(bp))
 		cmn_err(CE_NOTE, "about to pop assert, bp == 0x%p", bp);
 #endif
-	ASSERT((XFS_BUF_BFLAGS(bp) & (XFS_B_STALE|XFS_B_DELWRI)) !=
-						(XFS_B_STALE|XFS_B_DELWRI));
+	ASSERT((XFS_BUF_BFLAGS(bp) & (XBF_STALE|XBF_DELWRI)) !=
+				     (XBF_STALE|XBF_DELWRI));
 
 	trace_xfs_trans_read_buf_shut(bp, _RET_IP_);
 	xfs_buf_relse(bp);

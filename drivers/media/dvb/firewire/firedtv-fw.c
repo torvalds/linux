@@ -41,7 +41,7 @@ static int node_req(struct firedtv *fdtv, u64 addr, void *data, size_t len,
 	return rcode != RCODE_COMPLETE ? -EIO : 0;
 }
 
-static int node_lock(struct firedtv *fdtv, u64 addr, __be32 data[])
+static int node_lock(struct firedtv *fdtv, u64 addr, void *data)
 {
 	return node_req(fdtv, addr, data, 8, TCODE_LOCK_COMPARE_SWAP);
 }
