@@ -39,17 +39,17 @@ struct sm_oob {
 extern int sm_register_device(struct mtd_info *mtd);
 
 
-inline int sm_sector_valid(struct sm_oob *oob)
+static inline int sm_sector_valid(struct sm_oob *oob)
 {
 	return hweight16(oob->data_status) >= 5;
 }
 
-inline int sm_block_valid(struct sm_oob *oob)
+static inline int sm_block_valid(struct sm_oob *oob)
 {
 	return hweight16(oob->block_status) >= 7;
 }
 
-inline int sm_block_erased(struct sm_oob *oob)
+static inline int sm_block_erased(struct sm_oob *oob)
 {
 	static const uint32_t erased_pattern[4] = {
 		0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF };
