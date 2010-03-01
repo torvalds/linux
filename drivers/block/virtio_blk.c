@@ -435,7 +435,7 @@ static void __devexit virtblk_remove(struct virtio_device *vdev)
 	kfree(vblk);
 }
 
-static struct virtio_device_id id_table[] = {
+static const struct virtio_device_id id_table[] = {
 	{ VIRTIO_ID_BLOCK, VIRTIO_DEV_ANY_ID },
 	{ 0 },
 };
