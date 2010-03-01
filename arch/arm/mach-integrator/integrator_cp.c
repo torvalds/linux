@@ -293,10 +293,16 @@ static void cp_auxvco_set(struct clk *clk, struct icst_vco vco)
 	writel(0, CM_LOCK);
 }
 
+static const struct clk_ops cp_auxclk_ops = {
+	.round	= icst_clk_round,
+	.set	= icst_clk_set,
+	.setvco	= cp_auxvco_set,
+};
+
 static struct clk cp_auxclk = {
+	.ops	= &cp_auxclk_ops,
 	.params	= &cp_auxvco_params,
 	.vcoreg	= CM_AUXOSC,
-	.setvco = cp_auxvco_set,
 };
 
 static struct clk_lookup cp_lookups[] = {

@@ -281,9 +281,15 @@ static void realview_oscvco_set(struct clk *clk, struct icst_vco vco)
 	writel(0, sys_lock);
 }
 
+static const struct clk_ops oscvco_clk_ops = {
+	.round	= icst_clk_round,
+	.set	= icst_clk_set,
+	.setvco	= realview_oscvco_set,
+};
+
 static struct clk oscvco_clk = {
+	.ops	= &oscvco_clk_ops,
 	.params	= &realview_oscvco_params,
-	.setvco = realview_oscvco_set,
 };
 
 /*

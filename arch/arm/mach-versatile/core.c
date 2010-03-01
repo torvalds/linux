@@ -381,9 +381,15 @@ static void versatile_oscvco_set(struct clk *clk, struct icst_vco vco)
 	writel(0, sys_lock);
 }
 
-static struct clk osc4_clk = {
-	.params	= &versatile_oscvco_params,
+static const struct clk_ops osc4_clk_ops = {
+	.round	= icst_clk_round,
+	.set	= icst_clk_set,
 	.setvco	= versatile_oscvco_set,
+};
+
+static struct clk osc4_clk = {
+	.ops	= &osc4_clk_ops,
+	.params	= &versatile_oscvco_params,
 };
 
 /*

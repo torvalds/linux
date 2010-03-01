@@ -71,6 +71,12 @@ static void impd1_setvco(struct clk *clk, struct icst_vco vco)
 #endif
 }
 
+static const struct clk_ops impd1_clk_ops = {
+	.round	= icst_clk_round,
+	.set	= icst_clk_set,
+	.setvco	= impd1_setvco,
+};
+
 void impd1_tweak_control(struct device *dev, u32 mask, u32 val)
 {
 	struct impd1_module *impd1 = dev_get_drvdata(dev);
@@ -366,10 +372,10 @@ static int impd1_probe(struct lm_device *dev)
 		(unsigned long)dev->resource.start);
 
 	for (i = 0; i < ARRAY_SIZE(impd1->vcos); i++) {
+		impd1->vcos[i].ops = &impd1_clk_ops,
 		impd1->vcos[i].owner = THIS_MODULE,
 		impd1->vcos[i].params = &impd1_vco_params,
-		impd1->vcos[i].data = impd1,
-		impd1->vcos[i].setvco = impd1_setvco;
+		impd1->vcos[i].data = impd1;
 	}
 	impd1->vcos[0].vcoreg = impd1->base + IMPD1_OSC1;
 	impd1->vcos[1].vcoreg = impd1->base + IMPD1_OSC2;
