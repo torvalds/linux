@@ -1,7 +1,7 @@
 /*
- * GE Fanuc PPC9A Device Tree Source
+ * GE PPC9A Device Tree Source
  *
- * Copyright 2008 GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+ * Copyright 2008 GE Intelligent Platforms Embedded Systems, Inc.
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the

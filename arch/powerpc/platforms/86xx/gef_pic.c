@@ -1,9 +1,9 @@
 /*
- * Interrupt handling for GE Fanuc's FPGA based PIC
+ * Interrupt handling for GE FPGA based PIC
  *
- * Author: Martyn Welch <martyn.welch@gefanuc.com>
+ * Author: Martyn Welch <martyn.welch@ge.com>
  *
- * 2008 (c) GE Fanuc Intelligent Platforms Embedded Systems, Inc.
+ * 2008 (c) GE Intelligent Platforms Embedded Systems, Inc.
  *
  * This file is licensed under the terms of the GNU General Public License
  * version 2.  This program is licensed "as is" without any warranty of any
