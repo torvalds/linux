@@ -751,7 +751,7 @@ static int __devinit ps3vram_probe(struct ps3_system_bus_device *dev)
 	priv->queue = queue;
 	queue->queuedata = dev;
 	blk_queue_make_request(queue, ps3vram_make_request);
-	blk_queue_max_segments(queue, BLK_MAX_HW_SEGMENTS);
+	blk_queue_max_segments(queue, BLK_MAX_SEGMENTS);
 	blk_queue_max_segment_size(queue, BLK_MAX_SEGMENT_SIZE);
 	blk_queue_max_hw_sectors(queue, BLK_SAFE_MAX_SECTORS);
 
