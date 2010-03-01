@@ -1,0 +1,60 @@
+#
+# linux/arch/s390/boot/compressed/Makefile
+#
+# create a compressed vmlinux image from the original vmlinux
+#
+
+BITS := $(if $(CONFIG_64BIT),64,31)
+
+targets	:= vmlinux.lds vmlinux vmlinux.bin vmlinux.bin.gz vmlinux.bin.bz2 \
+	   vmlinux.bin.lzma misc.o piggy.o sizes.h head$(BITS).o
+
+KBUILD_CFLAGS := -m$(BITS) -D__KERNEL__ $(LINUX_INCLUDE) -O2
+KBUILD_CFLAGS += $(cflags-y)
+KBUILD_CFLAGS += $(call cc-option,-mpacked-stack)
+KBUILD_CFLAGS += $(call cc-option,-ffreestanding)
+
+GCOV_PROFILE := n
+
+OBJECTS := $(addprefix $(objtree)/arch/s390/kernel/, head.o sclp.o ebcdic.o)
+OBJECTS += $(obj)/head$(BITS).o $(obj)/misc.o $(obj)/piggy.o
+
+LDFLAGS_vmlinux := --oformat $(LD_BFD) -e startup -T
+$(obj)/vmlinux: $(obj)/vmlinux.lds $(OBJECTS)
+	$(call if_changed,ld)
+	@:
+
+sed-sizes := -e 's/^\([0-9a-fA-F]*\) . \(__bss_start\|_end\)$$/\#define SZ\2 0x\1/p'
+
+quiet_cmd_sizes = GEN $@
+      cmd_sizes = $(NM) $< | sed -n $(sed-sizes) > $@
+
+$(obj)/sizes.h: vmlinux
+	$(call if_changed,sizes)
+
+AFLAGS_head$(BITS).o += -I$(obj)
+$(obj)/head$(BITS).o: $(obj)/sizes.h
+
+CFLAGS_misc.o += -I$(obj)
+$(obj)/misc.o: $(obj)/sizes.h
+
+OBJCOPYFLAGS_vmlinux.bin :=  -R .comment -S
+$(obj)/vmlinux.bin: vmlinux
+	$(call if_changed,objcopy)
+
+vmlinux.bin.all-y := $(obj)/vmlinux.bin
+
+suffix-$(CONFIG_KERNEL_GZIP)  := gz
+suffix-$(CONFIG_KERNEL_BZIP2) := bz2
+suffix-$(CONFIG_KERNEL_LZMA)  := lzma
+
+$(obj)/vmlinux.bin.gz: $(vmlinux.bin.all-y)
+	$(call if_changed,gzip)
+$(obj)/vmlinux.bin.bz2: $(vmlinux.bin.all-y)
+	$(call if_changed,bzip2)
+$(obj)/vmlinux.bin.lzma: $(vmlinux.bin.all-y)
+	$(call if_changed,lzma)
+
+LDFLAGS_piggy.o := -r --format binary --oformat $(LD_BFD) -T
+$(obj)/piggy.o: $(obj)/vmlinux.scr $(obj)/vmlinux.bin.$(suffix-y)
+	$(call if_changed,ld)

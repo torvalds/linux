@@ -494,13 +494,13 @@ EXPORT_SYMBOL(flush_icache_user_range);
  * This must always be called with the pte lock held.
  */
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
-		      pte_t pte)
+		      pte_t *ptep)
 {
 #ifdef CONFIG_PPC_STD_MMU
 	unsigned long access = 0, trap;
 
 	/* We only want HPTEs for linux PTEs that have _PAGE_ACCESSED set */
-	if (!pte_young(pte) || address >= TASK_SIZE)
+	if (!pte_young(*ptep) || address >= TASK_SIZE)
 		return;
 
 	/* We try to figure out if we are coming from an instruction

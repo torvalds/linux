@@ -1352,8 +1352,7 @@ static int dst_get_tuna(struct dst_state *state)
 		return retval;
 	}
 	if ((state->type_flags & DST_TYPE_HAS_VLF) &&
-		!(state->dst_type == DST_TYPE_IS_CABLE) &&
-		!(state->dst_type == DST_TYPE_IS_ATSC)) {
+	   !(state->dst_type == DST_TYPE_IS_ATSC)) {
 
 		if (state->rx_tuna[9] != dst_check_sum(&state->rx_tuna[0], 9)) {
 			dprintk(verbose, DST_INFO, 1, "checksum failure ? ");
@@ -1820,8 +1819,13 @@ static struct dvb_frontend_ops dst_dvbc_ops = {
 		.frequency_max = 858000000,
 		.symbol_rate_min = 1000000,
 		.symbol_rate_max = 45000000,
-	/*     . symbol_rate_tolerance	=	???,*/
-		.caps = FE_CAN_FEC_AUTO | FE_CAN_QAM_AUTO
+		.caps = FE_CAN_FEC_AUTO |
+			FE_CAN_QAM_AUTO |
+			FE_CAN_QAM_16	|
+			FE_CAN_QAM_32	|
+			FE_CAN_QAM_64	|
+			FE_CAN_QAM_128	|
+			FE_CAN_QAM_256
 	},
 
 	.release = dst_release,

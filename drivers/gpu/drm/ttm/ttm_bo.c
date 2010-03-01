@@ -1020,6 +1020,12 @@ static int ttm_bo_mem_compat(struct ttm_placement *placement,
 			     struct ttm_mem_reg *mem)
 {
 	int i;
+	struct drm_mm_node *node = mem->mm_node;
+
+	if (node && placement->lpfn != 0 &&
+	    (node->start < placement->fpfn ||
+	     node->start + node->size > placement->lpfn))
+		return -1;
 
 	for (i = 0; i < placement->num_placement; i++) {
 		if ((placement->placement[i] & mem->placement &

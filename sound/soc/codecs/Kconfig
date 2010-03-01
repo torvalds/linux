@@ -23,6 +23,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_AK4671 if I2C
 	select SND_SOC_CS4270 if I2C
 	select SND_SOC_MAX9877 if I2C
+	select SND_SOC_DA7210 if I2C
 	select SND_SOC_PCM3008
 	select SND_SOC_SPDIF
 	select SND_SOC_SSM2602 if I2C
@@ -35,6 +36,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TWL4030 if TWL4030_CORE
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
+	select SND_SOC_WM2000 if I2C
 	select SND_SOC_WM8350 if MFD_WM8350
 	select SND_SOC_WM8400 if MFD_WM8400
 	select SND_SOC_WM8510 if SND_SOC_I2C_AND_SPI
@@ -49,14 +51,18 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_WM8776 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8900 if I2C
 	select SND_SOC_WM8903 if I2C
+	select SND_SOC_WM8904 if I2C
 	select SND_SOC_WM8940 if I2C
+	select SND_SOC_WM8955 if I2C
 	select SND_SOC_WM8960 if I2C
 	select SND_SOC_WM8961 if I2C
 	select SND_SOC_WM8971 if I2C
 	select SND_SOC_WM8974 if I2C
+	select SND_SOC_WM8978 if I2C
 	select SND_SOC_WM8988 if SND_SOC_I2C_AND_SPI
 	select SND_SOC_WM8990 if I2C
 	select SND_SOC_WM8993 if I2C
+	select SND_SOC_WM8994 if MFD_WM8994
 	select SND_SOC_WM9081 if I2C
 	select SND_SOC_WM9705 if SND_SOC_AC97_BUS
 	select SND_SOC_WM9712 if SND_SOC_AC97_BUS
@@ -111,6 +117,9 @@ config SND_SOC_AK4671
 # Cirrus Logic CS4270 Codec
 config SND_SOC_CS4270
 	tristate
+
+config SND_SOC_DA7210
+        tristate
 
 # Cirrus Logic CS4270 Codec VD = 3.3V Errata
 # Select if you are affected by the errata where the part will not function
@@ -203,8 +212,14 @@ config SND_SOC_WM8900
 config SND_SOC_WM8903
 	tristate
 
+config SND_SOC_WM8904
+	tristate
+
 config SND_SOC_WM8940
         tristate
+
+config SND_SOC_WM8955
+	tristate
 
 config SND_SOC_WM8960
 	tristate
@@ -218,6 +233,9 @@ config SND_SOC_WM8971
 config SND_SOC_WM8974
 	tristate
 
+config SND_SOC_WM8978
+	tristate
+
 config SND_SOC_WM8988
 	tristate
 
@@ -225,6 +243,9 @@ config SND_SOC_WM8990
 	tristate
 
 config SND_SOC_WM8993
+	tristate
+
+config SND_SOC_WM8994
 	tristate
 
 config SND_SOC_WM9081
@@ -244,4 +265,7 @@ config SND_SOC_MAX9877
 	tristate
 
 config SND_SOC_TPA6130A2
+	tristate
+
+config SND_SOC_WM2000
 	tristate

@@ -41,7 +41,7 @@ config AR7
 	select SYS_SUPPORTS_32BIT_KERNEL
 	select SYS_SUPPORTS_LITTLE_ENDIAN
 	select SYS_SUPPORTS_ZBOOT_UART16550
-	select GENERIC_GPIO
+	select ARCH_REQUIRE_GPIOLIB
 	select GCD
 	select VLYNQ
 	help
@@ -180,7 +180,7 @@ config LASAT
 
 config MACH_LOONGSON
 	bool "Loongson family of machines"
-	select SYS_SUPPORTS_ZBOOT_UART16550
+	select SYS_SUPPORTS_ZBOOT
 	help
 	  This enables the support of Loongson family of machines.
 
@@ -1295,7 +1295,6 @@ config CPU_CAVIUM_OCTEON
 	select SYS_SUPPORTS_SMP
 	select NR_CPUS_DEFAULT_16
 	select WEAK_ORDERING
-	select WEAK_REORDERING_BEYOND_LLSC
 	select CPU_SUPPORTS_HIGHMEM
 	select CPU_SUPPORTS_HUGEPAGES
 	help
@@ -1725,6 +1724,9 @@ config SB1_PASS_2_1_WORKAROUNDS
 
 config 64BIT_PHYS_ADDR
 	bool
+
+config ARCH_PHYS_ADDR_T_64BIT
+       def_bool 64BIT_PHYS_ADDR
 
 config CPU_HAS_SMARTMIPS
 	depends on SYS_SUPPORTS_SMARTMIPS

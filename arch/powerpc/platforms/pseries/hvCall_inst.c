@@ -124,8 +124,8 @@ static void probe_hcall_exit(unsigned long opcode, unsigned long retval,
 
 	h = &__get_cpu_var(hcall_stats)[opcode / 4];
 	h->num_calls++;
-	h->tb_total = mftb() - h->tb_start;
-	h->purr_total = mfspr(SPRN_PURR) - h->purr_start;
+	h->tb_total += mftb() - h->tb_start;
+	h->purr_total += mfspr(SPRN_PURR) - h->purr_start;
 
 	put_cpu_var(hcall_stats);
 }

@@ -6,21 +6,6 @@ be removed from this file.
 
 ---------------------------
 
-What:	USER_SCHED
-When:	2.6.34
-
-Why:	USER_SCHED was implemented as a proof of concept for group scheduling.
-	The effect of USER_SCHED can already be achieved from userspace with
-	the help of libcgroup. The removal of USER_SCHED will also simplify
-	the scheduler code with the removal of one major ifdef. There are also
-	issues USER_SCHED has with USER_NS. A decision was taken not to fix
-	those and instead remove USER_SCHED. Also new group scheduling
-	features will not be implemented for USER_SCHED.
-
-Who:	Dhaval Giani <dhaval@linux.vnet.ibm.com>
-
----------------------------
-
 What:	PRISM54
 When:	2.6.34
 
@@ -61,6 +46,17 @@ Why:	Many of IRQF_SAMPLE_RANDOM users are technically bogus as entropy
 	additional add_*_randomness functions in drivers/char/random.c
 
 Who:	Robin Getz <rgetz@blackfin.uclinux.org> & Matt Mackall <mpm@selenic.com>
+
+---------------------------
+
+What:	Deprecated snapshot ioctls
+When:	2.6.36
+
+Why:	The ioctls in kernel/power/user.c were marked as deprecated long time
+	ago. Now they notify users about that so that they need to replace
+	their userspace. After some more time, remove them completely.
+
+Who:	Jiri Slaby <jirislaby@gmail.com>
 
 ---------------------------
 

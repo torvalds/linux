@@ -44,7 +44,7 @@ static inline __u8 sh_wdt_read_rstcsr(void)
 	/*
 	 * Same read/write brain-damage as for WTCNT here..
 	 */
-	return ctrl_inb(RSTCSR_R);
+	return __raw_readb(RSTCSR_R);
 }
 
 /**
@@ -62,7 +62,7 @@ static inline void sh_wdt_write_rstcsr(__u8 val)
 	 * we can't presently touch the WOVF bit, since the upper byte
 	 * has to be swapped for this. So just leave it alone..
 	 */
-	ctrl_outw((WTCNT_HIGH << 8) | (__u16)val, RSTCSR);
+	__raw_writeb((WTCNT_HIGH << 8) | (__u16)val, RSTCSR);
 }
 
 #endif /* __ASM_CPU_SH2_WATCHDOG_H */

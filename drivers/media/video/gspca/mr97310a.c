@@ -57,6 +57,14 @@
 #define MR97310A_GAIN_MAX		31
 #define MR97310A_GAIN_DEFAULT		25
 
+#define MR97310A_CONTRAST_MIN		0
+#define MR97310A_CONTRAST_MAX		31
+#define MR97310A_CONTRAST_DEFAULT	23
+
+#define MR97310A_CS_GAIN_MIN		0
+#define MR97310A_CS_GAIN_MAX		0x7ff
+#define MR97310A_CS_GAIN_DEFAULT	0x110
+
 #define MR97310A_MIN_CLOCKDIV_MIN	3
 #define MR97310A_MIN_CLOCKDIV_MAX	8
 #define MR97310A_MIN_CLOCKDIV_DEFAULT	3
@@ -82,7 +90,8 @@ struct sd {
 
 	int brightness;
 	u16 exposure;
-	u8 gain;
+	u32 gain;
+	u8 contrast;
 	u8 min_clockdiv;
 };
 
@@ -98,6 +107,8 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setexposure(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getexposure(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setmin_clockdiv(struct gspca_dev *gspca_dev, __s32 val);
@@ -105,11 +116,13 @@ static int sd_getmin_clockdiv(struct gspca_dev *gspca_dev, __s32 *val);
 static void setbrightness(struct gspca_dev *gspca_dev);
 static void setexposure(struct gspca_dev *gspca_dev);
 static void setgain(struct gspca_dev *gspca_dev);
+static void setcontrast(struct gspca_dev *gspca_dev);
 
 /* V4L2 controls supported by the driver */
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 /* Separate brightness control description for Argus QuickClix as it has
-   different limits from the other mr97310a cameras */
+ * different limits from the other mr97310a cameras, and separate gain
+ * control for Sakar CyberPix camera. */
 	{
 #define NORM_BRIGHTNESS_IDX 0
 		{
@@ -171,7 +184,37 @@ static struct ctrl sd_ctrls[] = {
 		.get = sd_getgain,
 	},
 	{
-#define MIN_CLOCKDIV_IDX 4
+#define SAKAR_CS_GAIN_IDX 4
+		{
+			.id = V4L2_CID_GAIN,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "Gain",
+			.minimum = MR97310A_CS_GAIN_MIN,
+			.maximum = MR97310A_CS_GAIN_MAX,
+			.step = 1,
+			.default_value = MR97310A_CS_GAIN_DEFAULT,
+			.flags = 0,
+		},
+		.set = sd_setgain,
+		.get = sd_getgain,
+	},
+	{
+#define CONTRAST_IDX 5
+		{
+			.id = V4L2_CID_CONTRAST,
+			.type = V4L2_CTRL_TYPE_INTEGER,
+			.name = "Contrast",
+			.minimum = MR97310A_CONTRAST_MIN,
+			.maximum = MR97310A_CONTRAST_MAX,
+			.step = 1,
+			.default_value = MR97310A_CONTRAST_DEFAULT,
+			.flags = 0,
+		},
+		.set = sd_setcontrast,
+		.get = sd_getcontrast,
+	},
+	{
+#define MIN_CLOCKDIV_IDX 6
 		{
 			.id = V4L2_CID_PRIVATE_BASE,
 			.type = V4L2_CTRL_TYPE_INTEGER,
@@ -327,7 +370,6 @@ static int zero_the_pointer(struct gspca_dev *gspca_dev)
 	if (err_code < 0)
 		return err_code;
 
-	err_code = mr_write(gspca_dev, 1);
 	data[0] = 0x19;
 	data[1] = 0x51;
 	err_code = mr_write(gspca_dev, 2);
@@ -437,6 +479,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 {
 	struct sd *sd = (struct sd *) gspca_dev;
 	struct cam *cam;
+	int gain_default = MR97310A_GAIN_DEFAULT;
 	int err_code;
 
 	cam = &gspca_dev->cam;
@@ -460,12 +503,14 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	if (err_code < 0)
 		return err_code;
 
+	/* Now, the query for sensor type. */
+	err_code = cam_get_response16(gspca_dev, 0x07, 1);
+	if (err_code < 0)
+		return err_code;
+
 	if (id->idProduct == 0x0110 || id->idProduct == 0x010e) {
 		sd->cam_type = CAM_TYPE_CIF;
 		cam->nmodes--;
-		err_code = cam_get_response16(gspca_dev, 0x06, 1);
-		if (err_code < 0)
-			return err_code;
 		/*
 		 * All but one of the known CIF cameras share the same USB ID,
 		 * but two different init routines are in use, and the control
@@ -473,12 +518,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		 * of the two known varieties is connected!
 		 *
 		 * A list of known CIF cameras follows. They all report either
-		 * 0002 for type 0 or 0003 for type 1.
+		 * 0200 for type 0 or 0300 for type 1.
 		 * If you have another to report, please do
 		 *
 		 * Name		sd->sensor_type		reported by
 		 *
-		 * Sakar Spy-shot	0		T. Kilgore
+		 * Sakar 56379 Spy-shot	0		T. Kilgore
 		 * Innovage		0		T. Kilgore
 		 * Vivitar Mini		0		H. De Goede
 		 * Vivitar Mini		0		E. Rodriguez
@@ -487,7 +532,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		 * Philips dig. keych.	1		T. Kilgore
 		 * Trust Spyc@m 100	1		A. Jacobs
 		 */
-		switch (gspca_dev->usb_buf[1]) {
+		switch (gspca_dev->usb_buf[0]) {
 		case 2:
 			sd->sensor_type = 0;
 			break;
@@ -504,20 +549,19 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	} else {
 		sd->cam_type = CAM_TYPE_VGA;
 
-		err_code = cam_get_response16(gspca_dev, 0x07, 1);
-		if (err_code < 0)
-			return err_code;
-
 		/*
-		 * Here is a table of the responses to the previous command
-		 * from the known MR97310A VGA cameras.
+		 * Here is a table of the responses to the query for sensor
+		 * type, from the known MR97310A VGA cameras. Six different
+		 * cameras of which five share the same USB ID.
 		 *
 		 * Name			gspca_dev->usb_buf[]	sd->sensor_type
 		 *				sd->do_lcd_stop
 		 * Aiptek Pencam VGA+	0300		0		1
-		 * ION digital		0350		0		1
+		 * ION digital		0300		0		1
 		 * Argus DC-1620	0450		1		0
 		 * Argus QuickClix	0420		1		1
+		 * Sakar 77379 Digital	0350		0		1
+		 * Sakar 1638x CyberPix	0120		0		2
 		 *
 		 * Based upon these results, we assume default settings
 		 * and then correct as necessary, as follows.
@@ -527,10 +571,12 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		sd->sensor_type = 1;
 		sd->do_lcd_stop = 0;
 		sd->adj_colors = 0;
-		if ((gspca_dev->usb_buf[0] != 0x03) &&
+		if (gspca_dev->usb_buf[0] == 0x01) {
+			sd->sensor_type = 2;
+		} else if ((gspca_dev->usb_buf[0] != 0x03) &&
 					(gspca_dev->usb_buf[0] != 0x04)) {
 			PDEBUG(D_ERR, "Unknown VGA Sensor id Byte 0: %02x",
-					gspca_dev->usb_buf[1]);
+					gspca_dev->usb_buf[0]);
 			PDEBUG(D_ERR, "Defaults assumed, may not work");
 			PDEBUG(D_ERR, "Please report this");
 		}
@@ -560,7 +606,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		PDEBUG(D_PROBE, "MR97310A VGA camera detected, sensor: %d",
 		       sd->sensor_type);
 	}
-	/* Stop streaming as we've started it to probe the sensor type. */
+	/* Stop streaming as we've started it only to probe the sensor type. */
 	sd_stopN(gspca_dev);
 
 	if (force_sensor_type != -1) {
@@ -574,9 +620,13 @@ static int sd_config(struct gspca_dev *gspca_dev,
 		/* No brightness for sensor_type 0 */
 		if (sd->sensor_type == 0)
 			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX) |
-					      (1 << ARGUS_QC_BRIGHTNESS_IDX);
+					      (1 << ARGUS_QC_BRIGHTNESS_IDX) |
+					      (1 << CONTRAST_IDX) |
+					      (1 << SAKAR_CS_GAIN_IDX);
 		else
 			gspca_dev->ctrl_dis = (1 << ARGUS_QC_BRIGHTNESS_IDX) |
+					      (1 << CONTRAST_IDX) |
+					      (1 << SAKAR_CS_GAIN_IDX) |
 					      (1 << MIN_CLOCKDIV_IDX);
 	} else {
 		/* All controls need to be disabled if VGA sensor_type is 0 */
@@ -585,17 +635,30 @@ static int sd_config(struct gspca_dev *gspca_dev,
 					      (1 << ARGUS_QC_BRIGHTNESS_IDX) |
 					      (1 << EXPOSURE_IDX) |
 					      (1 << GAIN_IDX) |
+					      (1 << CONTRAST_IDX) |
+					      (1 << SAKAR_CS_GAIN_IDX) |
 					      (1 << MIN_CLOCKDIV_IDX);
-		else if (sd->do_lcd_stop)
+		else if (sd->sensor_type == 2) {
+			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX) |
+					      (1 << ARGUS_QC_BRIGHTNESS_IDX) |
+					      (1 << GAIN_IDX) |
+					      (1 << MIN_CLOCKDIV_IDX);
+			gain_default = MR97310A_CS_GAIN_DEFAULT;
+		} else if (sd->do_lcd_stop)
 			/* Argus QuickClix has different brightness limits */
-			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX);
+			gspca_dev->ctrl_dis = (1 << NORM_BRIGHTNESS_IDX) |
+					      (1 << CONTRAST_IDX) |
+					      (1 << SAKAR_CS_GAIN_IDX);
 		else
-			gspca_dev->ctrl_dis = (1 << ARGUS_QC_BRIGHTNESS_IDX);
+			gspca_dev->ctrl_dis = (1 << ARGUS_QC_BRIGHTNESS_IDX) |
+					      (1 << CONTRAST_IDX) |
+					      (1 << SAKAR_CS_GAIN_IDX);
 	}
 
 	sd->brightness = MR97310A_BRIGHTNESS_DEFAULT;
 	sd->exposure = MR97310A_EXPOSURE_DEFAULT;
-	sd->gain = MR97310A_GAIN_DEFAULT;
+	sd->gain = gain_default;
+	sd->contrast = MR97310A_CONTRAST_DEFAULT;
 	sd->min_clockdiv = MR97310A_MIN_CLOCKDIV_DEFAULT;
 
 	return 0;
@@ -697,6 +760,12 @@ static int start_cif_cam(struct gspca_dev *gspca_dev)
 			{0x13, 0x00, {0x01}, 1},
 			{0, 0, {0}, 0}
 		};
+		/* Without this command the cam won't work with USB-UHCI */
+		gspca_dev->usb_buf[0] = 0x0a;
+		gspca_dev->usb_buf[1] = 0x00;
+		err_code = mr_write(gspca_dev, 2);
+		if (err_code < 0)
+			return err_code;
 		err_code = sensor_write_regs(gspca_dev, cif_sensor1_init_data,
 					 ARRAY_SIZE(cif_sensor1_init_data));
 	}
@@ -717,6 +786,10 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		data[5]  = 0x00;
 		data[10] = 0x91;
 	}
+	if (sd->sensor_type == 2) {
+		data[5]  = 0x00;
+		data[10] = 0x18;
+	}
 
 	switch (gspca_dev->width) {
 	case 160:
@@ -731,6 +804,10 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		data[4] = 0x78;  /* reg 3, V size/4 */
 		data[6] = 0x04;  /* reg 5, H start */
 		data[8] = 0x03;  /* reg 7, V start */
+		if (sd->sensor_type == 2) {
+			data[6] = 2;
+			data[8] = 1;
+		}
 		if (sd->do_lcd_stop)
 			data[8] = 0x04;  /* Bayer tile shifted */
 		break;
@@ -753,7 +830,6 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		return err_code;
 
 	if (!sd->sensor_type) {
-		/* The only known sensor_type 0 cam is the Argus DC-1620 */
 		const struct sensor_w_data vga_sensor0_init_data[] = {
 			{0x01, 0x00, {0x0c, 0x00, 0x04}, 3},
 			{0x14, 0x00, {0x01, 0xe4, 0x02, 0x84}, 4},
@@ -764,7 +840,7 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 		};
 		err_code = sensor_write_regs(gspca_dev, vga_sensor0_init_data,
 					 ARRAY_SIZE(vga_sensor0_init_data));
-	} else {	/* sd->sensor_type = 1 */
+	} else if (sd->sensor_type == 1) {
 		const struct sensor_w_data color_adj[] = {
 			{0x02, 0x00, {0x06, 0x59, 0x0c, 0x16, 0x00,
 				/* adjusted blue, green, red gain correct
@@ -802,6 +878,48 @@ static int start_vga_cam(struct gspca_dev *gspca_dev)
 
 		err_code = sensor_write_regs(gspca_dev, vga_sensor1_init_data,
 					 ARRAY_SIZE(vga_sensor1_init_data));
+	} else {	/* sensor type == 2 */
+		const struct sensor_w_data vga_sensor2_init_data[] = {
+
+			{0x01, 0x00, {0x48}, 1},
+			{0x02, 0x00, {0x22}, 1},
+			/* Reg 3 msb and 4 is lsb of the exposure setting*/
+			{0x05, 0x00, {0x10}, 1},
+			{0x06, 0x00, {0x00}, 1},
+			{0x07, 0x00, {0x00}, 1},
+			{0x08, 0x00, {0x00}, 1},
+			{0x09, 0x00, {0x00}, 1},
+			/* The following are used in the gain control
+			 * which is BTW completely borked in the OEM driver
+			 * The values for each color go from 0 to 0x7ff
+			 *{0x0a, 0x00, {0x01}, 1},  green1 gain msb
+			 *{0x0b, 0x00, {0x10}, 1},  green1 gain lsb
+			 *{0x0c, 0x00, {0x01}, 1},  red gain msb
+			 *{0x0d, 0x00, {0x10}, 1},  red gain lsb
+			 *{0x0e, 0x00, {0x01}, 1},  blue gain msb
+			 *{0x0f, 0x00, {0x10}, 1},  blue gain lsb
+			 *{0x10, 0x00, {0x01}, 1}, green2 gain msb
+			 *{0x11, 0x00, {0x10}, 1}, green2 gain lsb
+			 */
+			{0x12, 0x00, {0x00}, 1},
+			{0x13, 0x00, {0x04}, 1}, /* weird effect on colors */
+			{0x14, 0x00, {0x00}, 1},
+			{0x15, 0x00, {0x06}, 1},
+			{0x16, 0x00, {0x01}, 1},
+			{0x17, 0x00, {0xe2}, 1}, /* vertical alignment */
+			{0x18, 0x00, {0x02}, 1},
+			{0x19, 0x00, {0x82}, 1}, /* don't mess with */
+			{0x1a, 0x00, {0x00}, 1},
+			{0x1b, 0x00, {0x20}, 1},
+			/* {0x1c, 0x00, {0x17}, 1}, contrast control */
+			{0x1d, 0x00, {0x80}, 1}, /* moving causes a mess */
+			{0x1e, 0x00, {0x08}, 1}, /* moving jams the camera */
+			{0x1f, 0x00, {0x0c}, 1},
+			{0x20, 0x00, {0x00}, 1},
+			{0, 0, {0}, 0}
+		};
+		err_code = sensor_write_regs(gspca_dev, vga_sensor2_init_data,
+					 ARRAY_SIZE(vga_sensor2_init_data));
 	}
 	return err_code;
 }
@@ -834,6 +952,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 		return err_code;
 
 	setbrightness(gspca_dev);
+	setcontrast(gspca_dev);
 	setexposure(gspca_dev);
 	setgain(gspca_dev);
 
@@ -893,7 +1012,7 @@ static void setbrightness(struct gspca_dev *gspca_dev)
 static void setexposure(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
-	int exposure;
+	int exposure = MR97310A_EXPOSURE_DEFAULT;
 	u8 buf[2];
 
 	if (gspca_dev->ctrl_dis & (1 << EXPOSURE_IDX))
@@ -905,6 +1024,11 @@ static void setexposure(struct gspca_dev *gspca_dev)
 		exposure = (sd->exposure * 9267) / 10000 + 300;
 		sensor_write1(gspca_dev, 3, exposure >> 4);
 		sensor_write1(gspca_dev, 4, exposure & 0x0f);
+	} else if (sd->sensor_type == 2) {
+		exposure = sd->exposure;
+		exposure >>= 3;
+		sensor_write1(gspca_dev, 3, exposure >> 8);
+		sensor_write1(gspca_dev, 4, exposure & 0xff);
 	} else {
 		/* We have both a clock divider and an exposure register.
 		   We first calculate the clock divider, as that determines
@@ -943,16 +1067,33 @@ static void setexposure(struct gspca_dev *gspca_dev)
 static void setgain(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
+	u8 gainreg;
 
-	if (gspca_dev->ctrl_dis & (1 << GAIN_IDX))
+	if ((gspca_dev->ctrl_dis & (1 << GAIN_IDX)) &&
+	    (gspca_dev->ctrl_dis & (1 << SAKAR_CS_GAIN_IDX)))
 		return;
 
-	if (sd->cam_type == CAM_TYPE_CIF && sd->sensor_type == 1) {
+	if (sd->cam_type == CAM_TYPE_CIF && sd->sensor_type == 1)
 		sensor_write1(gspca_dev, 0x0e, sd->gain);
-	} else {
+	else if (sd->cam_type == CAM_TYPE_VGA && sd->sensor_type == 2)
+		for (gainreg = 0x0a; gainreg < 0x11; gainreg += 2) {
+			sensor_write1(gspca_dev, gainreg, sd->gain >> 8);
+			sensor_write1(gspca_dev, gainreg + 1, sd->gain & 0xff);
+		}
+	else
 		sensor_write1(gspca_dev, 0x10, sd->gain);
-	}
 }
+
+static void setcontrast(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (gspca_dev->ctrl_dis & (1 << CONTRAST_IDX))
+		return;
+
+	sensor_write1(gspca_dev, 0x1c, sd->contrast);
+}
+
 
 static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val)
 {
@@ -1005,6 +1146,25 @@ static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
 	struct sd *sd = (struct sd *) gspca_dev;
 
 	*val = sd->gain;
+	return 0;
+}
+
+static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->contrast = val;
+	if (gspca_dev->streaming)
+		setcontrast(gspca_dev);
+	return 0;
+}
+
+
+static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->contrast;
 	return 0;
 }
 

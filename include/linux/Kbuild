@@ -43,6 +43,7 @@ header-y += blkpg.h
 header-y += bpqether.h
 header-y += bsg.h
 header-y += can.h
+header-y += cciss_defs.h
 header-y += cdk.h
 header-y += chio.h
 header-y += coda_psdev.h

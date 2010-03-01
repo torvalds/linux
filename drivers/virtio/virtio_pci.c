@@ -702,7 +702,7 @@ static struct pci_driver virtio_pci_driver = {
 	.name		= "virtio-pci",
 	.id_table	= virtio_pci_id_table,
 	.probe		= virtio_pci_probe,
-	.remove		= virtio_pci_remove,
+	.remove		= __devexit_p(virtio_pci_remove),
 #ifdef CONFIG_PM
 	.suspend	= virtio_pci_suspend,
 	.resume		= virtio_pci_resume,

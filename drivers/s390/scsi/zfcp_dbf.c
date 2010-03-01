@@ -140,9 +140,9 @@ void _zfcp_dbf_hba_fsf_response(const char *tag2, int level,
 	memcpy(response->fsf_status_qual,
 	       fsf_status_qual, FSF_STATUS_QUALIFIER_SIZE);
 	response->fsf_req_status = fsf_req->status;
-	response->sbal_first = fsf_req->queue_req.sbal_first;
-	response->sbal_last = fsf_req->queue_req.sbal_last;
-	response->sbal_response = fsf_req->queue_req.sbal_response;
+	response->sbal_first = fsf_req->qdio_req.sbal_first;
+	response->sbal_last = fsf_req->qdio_req.sbal_last;
+	response->sbal_response = fsf_req->qdio_req.sbal_response;
 	response->pool = fsf_req->pool != NULL;
 	response->erp_action = (unsigned long)fsf_req->erp_action;
 
@@ -576,7 +576,8 @@ void zfcp_dbf_rec_adapter(char *id, void *ref, struct zfcp_dbf *dbf)
 	struct zfcp_adapter *adapter = dbf->adapter;
 
 	zfcp_dbf_rec_target(id, ref, dbf, &adapter->status,
-				  &adapter->erp_counter, 0, 0, 0);
+			    &adapter->erp_counter, 0, 0,
+			    ZFCP_DBF_INVALID_LUN);
 }
 
 /**
@@ -590,8 +591,8 @@ void zfcp_dbf_rec_port(char *id, void *ref, struct zfcp_port *port)
 	struct zfcp_dbf *dbf = port->adapter->dbf;
 
 	zfcp_dbf_rec_target(id, ref, dbf, &port->status,
-				  &port->erp_counter, port->wwpn, port->d_id,
-				  0);
+			    &port->erp_counter, port->wwpn, port->d_id,
+			    ZFCP_DBF_INVALID_LUN);
 }
 
 /**
@@ -642,10 +643,9 @@ void zfcp_dbf_rec_trigger(char *id2, void *ref, u8 want, u8 need, void *action,
 		r->u.trigger.ps = atomic_read(&port->status);
 		r->u.trigger.wwpn = port->wwpn;
 	}
-	if (unit) {
+	if (unit)
 		r->u.trigger.us = atomic_read(&unit->status);
-		r->u.trigger.fcp_lun = unit->fcp_lun;
-	}
+	r->u.trigger.fcp_lun = unit ? unit->fcp_lun : ZFCP_DBF_INVALID_LUN;
 	debug_event(dbf->rec, action ? 1 : 4, r, sizeof(*r));
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
 }
@@ -668,7 +668,7 @@ void zfcp_dbf_rec_action(char *id2, struct zfcp_erp_action *erp_action)
 	r->u.action.action = (unsigned long)erp_action;
 	r->u.action.status = erp_action->status;
 	r->u.action.step = erp_action->step;
-	r->u.action.fsf_req = (unsigned long)erp_action->fsf_req;
+	r->u.action.fsf_req = erp_action->fsf_req_id;
 	debug_event(dbf->rec, 5, r, sizeof(*r));
 	spin_unlock_irqrestore(&dbf->rec_lock, flags);
 }

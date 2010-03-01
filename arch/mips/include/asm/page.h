@@ -107,18 +107,6 @@ typedef struct { unsigned long pte; } pte_t;
 typedef struct page *pgtable_t;
 
 /*
- * For 3-level pagetables we defines these ourselves, for 2-level the
- * definitions are supplied by <asm-generic/pgtable-nopmd.h>.
- */
-#ifdef CONFIG_64BIT
-
-typedef struct { unsigned long pmd; } pmd_t;
-#define pmd_val(x)	((x).pmd)
-#define __pmd(x)	((pmd_t) { (x) } )
-
-#endif
-
-/*
  * Right now we don't support 4-level pagetables, so all pud-related
  * definitions come from <asm-generic/pgtable-nopud.h>.
  */

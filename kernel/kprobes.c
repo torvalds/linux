@@ -44,6 +44,7 @@
 #include <linux/debugfs.h>
 #include <linux/kdebug.h>
 #include <linux/memory.h>
+#include <linux/ftrace.h>
 
 #include <asm-generic/sections.h>
 #include <asm/cacheflush.h>
@@ -93,6 +94,7 @@ static struct kprobe_blackpoint kprobe_blacklist[] = {
 	{"native_get_debugreg",},
 	{"irq_entries_start",},
 	{"common_interrupt",},
+	{"mcount",},	/* mcount can be called from everywhere */
 	{NULL}    /* Terminator */
 };
 
@@ -123,30 +125,6 @@ static DEFINE_MUTEX(kprobe_insn_mutex);	/* Protects kprobe_insn_pages */
 static LIST_HEAD(kprobe_insn_pages);
 static int kprobe_garbage_slots;
 static int collect_garbage_slots(void);
-
-static int __kprobes check_safety(void)
-{
-	int ret = 0;
-#if defined(CONFIG_PREEMPT) && defined(CONFIG_FREEZER)
-	ret = freeze_processes();
-	if (ret == 0) {
-		struct task_struct *p, *q;
-		do_each_thread(p, q) {
-			if (p != current && p->state == TASK_RUNNING &&
-			    p->pid != 0) {
-				printk("Check failed: %s is running\n",p->comm);
-				ret = -1;
-				goto loop_end;
-			}
-		} while_each_thread(p, q);
-	}
-loop_end:
-	thaw_processes();
-#else
-	synchronize_sched();
-#endif
-	return ret;
-}
 
 /**
  * __get_insn_slot() - Find a slot on an executable page for an instruction.
@@ -235,9 +213,8 @@ static int __kprobes collect_garbage_slots(void)
 {
 	struct kprobe_insn_page *kip, *next;
 
-	/* Ensure no-one is preepmted on the garbages */
-	if (check_safety())
-		return -EAGAIN;
+	/* Ensure no-one is interrupted on the garbages */
+	synchronize_sched();
 
 	list_for_each_entry_safe(kip, next, &kprobe_insn_pages, list) {
 		int i;
@@ -728,7 +705,8 @@ int __kprobes register_kprobe(struct kprobe *p)
 
 	preempt_disable();
 	if (!kernel_text_address((unsigned long) p->addr) ||
-	    in_kprobes_functions((unsigned long) p->addr)) {
+	    in_kprobes_functions((unsigned long) p->addr) ||
+	    ftrace_text_reserved(p->addr, p->addr)) {
 		preempt_enable();
 		return -EINVAL;
 	}

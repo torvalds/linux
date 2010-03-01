@@ -19,3 +19,14 @@ config VIDEO_CX18
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called cx18.
+
+config VIDEO_CX18_ALSA
+	tristate "Conexant 23418 DMA audio support"
+	depends on VIDEO_CX18 && SND && EXPERIMENTAL
+	select SND_PCM
+	---help---
+	  This is a video4linux driver for direct (DMA) audio on
+	  Conexant 23418 based TV cards using ALSA.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called cx18-alsa.

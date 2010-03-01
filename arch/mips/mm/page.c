@@ -35,7 +35,7 @@
 #include <asm/sibyte/sb1250_dma.h>
 #endif
 
-#include "uasm.h"
+#include <asm/uasm.h>
 
 /* Registers used in the assembled routines. */
 #define ZERO 0

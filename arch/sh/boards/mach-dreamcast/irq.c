@@ -135,3 +135,30 @@ int systemasic_irq_demux(int irq)
 	/* Not reached */
 	return irq;
 }
+
+void systemasic_irq_init(void)
+{
+	int i, nid = cpu_to_node(boot_cpu_data);
+
+	/* Assign all virtual IRQs to the System ASIC int. handler */
+	for (i = HW_EVENT_IRQ_BASE; i < HW_EVENT_IRQ_MAX; i++) {
+		unsigned int irq;
+
+		irq = create_irq_nr(i, nid);
+		if (unlikely(irq == 0)) {
+			pr_err("%s: failed hooking irq %d for systemasic\n",
+			       __func__, i);
+			return;
+		}
+
+		if (unlikely(irq != i)) {
+			pr_err("%s: got irq %d but wanted %d, bailing.\n",
+			       __func__, irq, i);
+			destroy_irq(irq);
+			return;
+		}
+
+		set_irq_chip_and_handler(i, &systemasic_int,
+					 handle_level_irq);
+	}
+}

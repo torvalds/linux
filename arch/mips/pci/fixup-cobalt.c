@@ -51,6 +51,67 @@ static void qube_raq_galileo_early_fixup(struct pci_dev *dev)
 DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_MARVELL, PCI_DEVICE_ID_MARVELL_GT64111,
 	 qube_raq_galileo_early_fixup);
 
+static void __devinit cobalt_legacy_ide_resource_fixup(struct pci_dev *dev,
+						       struct resource *res)
+{
+	struct pci_controller *hose = (struct pci_controller *)dev->sysdata;
+	unsigned long offset = hose->io_offset;
+	struct resource orig = *res;
+
+	if (!(res->flags & IORESOURCE_IO) ||
+	    !(res->flags & IORESOURCE_PCI_FIXED))
+		return;
+
+	res->start -= offset;
+	res->end -= offset;
+	dev_printk(KERN_DEBUG, &dev->dev, "converted legacy %pR to bus %pR\n",
+		   &orig, res);
+}
+
+static void __devinit cobalt_legacy_ide_fixup(struct pci_dev *dev)
+{
+	u32 class;
+	u8 progif;
+
+	/*
+	 * If the IDE controller is in legacy mode, pci_setup_device() fills in
+	 * the resources with the legacy addresses that normally appear on the
+	 * PCI bus, just as if we had read them from a BAR.
+	 *
+	 * However, with the GT-64111, those legacy addresses, e.g., 0x1f0,
+	 * will never appear on the PCI bus because it converts memory accesses
+	 * in the PCI I/O region (which is never at address zero) into I/O port
+	 * accesses with no address translation.
+	 *
+	 * For example, if GT_DEF_PCI0_IO_BASE is 0x10000000, a load or store
+	 * to physical address 0x100001f0 will become a PCI access to I/O port
+	 * 0x100001f0.  There's no way to generate an access to I/O port 0x1f0,
+	 * but the VT82C586 IDE controller does respond at 0x100001f0 because
+	 * it only decodes the low 24 bits of the address.
+	 *
+	 * When this quirk runs, the pci_dev resources should contain bus
+	 * addresses, not Linux I/O port numbers, so convert legacy addresses
+	 * like 0x1f0 to bus addresses like 0x100001f0.  Later, we'll convert
+	 * them back with pcibios_fixup_bus() or pcibios_bus_to_resource().
+	 */
+	class = dev->class >> 8;
+	if (class != PCI_CLASS_STORAGE_IDE)
+		return;
+
+	pci_read_config_byte(dev, PCI_CLASS_PROG, &progif);
+	if ((progif & 1) == 0) {
+		cobalt_legacy_ide_resource_fixup(dev, &dev->resource[0]);
+		cobalt_legacy_ide_resource_fixup(dev, &dev->resource[1]);
+	}
+	if ((progif & 4) == 0) {
+		cobalt_legacy_ide_resource_fixup(dev, &dev->resource[2]);
+		cobalt_legacy_ide_resource_fixup(dev, &dev->resource[3]);
+	}
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_82C586_1,
+	  cobalt_legacy_ide_fixup);
+
 static void qube_raq_via_bmIDE_fixup(struct pci_dev *dev)
 {
 	unsigned short cfgword;

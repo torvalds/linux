@@ -333,8 +333,6 @@ struct hpc_ops {
 	int (*set_attention_status)(struct slot *slot, u8 status);
 	int (*get_latch_status)(struct slot *slot, u8 *status);
 	int (*get_adapter_status)(struct slot *slot, u8 *status);
-	int (*get_max_bus_speed)(struct slot *slot, enum pci_bus_speed *speed);
-	int (*get_cur_bus_speed)(struct slot *slot, enum pci_bus_speed *speed);
 	int (*get_adapter_speed)(struct slot *slot, enum pci_bus_speed *speed);
 	int (*get_mode1_ECC_cap)(struct slot *slot, u8 *mode);
 	int (*get_prog_int)(struct slot *slot, u8 *prog_int);

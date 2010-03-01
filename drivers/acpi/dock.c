@@ -935,6 +935,7 @@ static int dock_add(acpi_handle handle)
 	struct platform_device *dd;
 
 	id = dock_station_count;
+	memset(&ds, 0, sizeof(ds));
 	dd = platform_device_register_data(NULL, "dock", id, &ds, sizeof(ds));
 	if (IS_ERR(dd))
 		return PTR_ERR(dd);

@@ -622,6 +622,7 @@ static int timekeeping_suspend(struct sys_device *dev, pm_message_t state)
 	write_sequnlock_irqrestore(&xtime_lock, flags);
 
 	clockevents_notify(CLOCK_EVT_NOTIFY_SUSPEND, NULL);
+	clocksource_suspend();
 
 	return 0;
 }

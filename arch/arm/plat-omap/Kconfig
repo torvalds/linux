@@ -31,6 +31,7 @@ config ARCH_OMAP3
 	depends on ARCH_OMAP2PLUS
 	select CPU_V7
 	select USB_ARCH_HAS_EHCI
+	select ARM_L1_CACHE_SHIFT_6
 
 config ARCH_OMAP4
 	bool "TI OMAP4"

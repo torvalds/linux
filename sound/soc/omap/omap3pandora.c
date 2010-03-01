@@ -23,6 +23,7 @@
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <linux/delay.h>
+#include <linux/regulator/consumer.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -39,6 +40,8 @@
 #define OMAP3_PANDORA_AMP_POWER_GPIO	14
 
 #define PREFIX "ASoC omap3pandora: "
+
+static struct regulator *omap3pandora_dac_reg;
 
 static int omap3pandora_cmn_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params, unsigned int fmt)
@@ -106,17 +109,33 @@ static int omap3pandora_in_hw_params(struct snd_pcm_substream *substream,
 					  SND_SOC_DAIFMT_CBS_CFS);
 }
 
+static int omap3pandora_dac_event(struct snd_soc_dapm_widget *w,
+	struct snd_kcontrol *k, int event)
+{
+	/*
+	 * The PCM1773 DAC datasheet requires 1ms delay between switching
+	 * VCC power on/off and /PD pin high/low
+	 */
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		regulator_enable(omap3pandora_dac_reg);
+		mdelay(1);
+		gpio_set_value(OMAP3_PANDORA_DAC_POWER_GPIO, 1);
+	} else {
+		gpio_set_value(OMAP3_PANDORA_DAC_POWER_GPIO, 0);
+		mdelay(1);
+		regulator_disable(omap3pandora_dac_reg);
+	}
+
+	return 0;
+}
+
 static int omap3pandora_hp_event(struct snd_soc_dapm_widget *w,
 	struct snd_kcontrol *k, int event)
 {
-	if (SND_SOC_DAPM_EVENT_ON(event)) {
-		gpio_set_value(OMAP3_PANDORA_DAC_POWER_GPIO, 1);
+	if (SND_SOC_DAPM_EVENT_ON(event))
 		gpio_set_value(OMAP3_PANDORA_AMP_POWER_GPIO, 1);
-	} else {
+	else
 		gpio_set_value(OMAP3_PANDORA_AMP_POWER_GPIO, 0);
-		mdelay(1);
-		gpio_set_value(OMAP3_PANDORA_DAC_POWER_GPIO, 0);
-	}
 
 	return 0;
 }
@@ -130,7 +149,9 @@ static int omap3pandora_hp_event(struct snd_soc_dapm_widget *w,
  *  |P| <--- TWL4030 <--------- Line In and MICs
  */
 static const struct snd_soc_dapm_widget omap3pandora_out_dapm_widgets[] = {
-	SND_SOC_DAPM_DAC("PCM DAC", "HiFi Playback", SND_SOC_NOPM, 0, 0),
+	SND_SOC_DAPM_DAC_E("PCM DAC", "HiFi Playback", SND_SOC_NOPM,
+			   0, 0, omap3pandora_dac_event,
+			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
 	SND_SOC_DAPM_PGA_E("Headphone Amplifier", SND_SOC_NOPM,
 			   0, 0, NULL, 0, omap3pandora_hp_event,
 			   SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
@@ -306,8 +327,18 @@ static int __init omap3pandora_soc_init(void)
 		goto fail2;
 	}
 
+	omap3pandora_dac_reg = regulator_get(&omap3pandora_snd_device->dev, "vcc");
+	if (IS_ERR(omap3pandora_dac_reg)) {
+		pr_err(PREFIX "Failed to get DAC regulator from %s: %ld\n",
+			dev_name(&omap3pandora_snd_device->dev),
+			PTR_ERR(omap3pandora_dac_reg));
+		goto fail3;
+	}
+
 	return 0;
 
+fail3:
+	platform_device_del(omap3pandora_snd_device);
 fail2:
 	platform_device_put(omap3pandora_snd_device);
 fail1:
@@ -320,6 +351,7 @@ module_init(omap3pandora_soc_init);
 
 static void __exit omap3pandora_soc_exit(void)
 {
+	regulator_put(omap3pandora_dac_reg);
 	platform_device_unregister(omap3pandora_snd_device);
 	gpio_free(OMAP3_PANDORA_AMP_POWER_GPIO);
 	gpio_free(OMAP3_PANDORA_DAC_POWER_GPIO);

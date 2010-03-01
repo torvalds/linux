@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -48,6 +48,14 @@ unsigned char mgmt_get_fw_config(struct be_ctrl_info *ctrl,
 					pfw_cfg->ulp[0].sq_base;
 		phba->fw_config.iscsi_cid_count =
 					pfw_cfg->ulp[0].sq_count;
+		if (phba->fw_config.iscsi_cid_count > (BE2_MAX_SESSIONS / 2)) {
+			SE_DEBUG(DBG_LVL_8,
+				"FW reported MAX CXNS as %d \t"
+				"Max Supported = %d.\n",
+				phba->fw_config.iscsi_cid_count,
+				BE2_MAX_SESSIONS);
+			phba->fw_config.iscsi_cid_count = BE2_MAX_SESSIONS / 2;
+		}
 	} else {
 		shost_printk(KERN_WARNING, phba->shost,
 			     "Failed in mgmt_get_fw_config \n");
@@ -77,6 +85,7 @@ unsigned char mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 	}
 	nonemb_cmd.size = sizeof(struct be_mgmt_controller_attributes);
 	req = nonemb_cmd.va;
+	memset(req, 0, sizeof(*req));
 	spin_lock(&ctrl->mbox_lock);
 	memset(wrb, 0, sizeof(*wrb));
 	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
@@ -140,10 +149,17 @@ unsigned char mgmt_invalidate_icds(struct beiscsi_hba *phba,
 {
 	struct be_dma_mem nonemb_cmd;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
-	struct be_sge *sge = nonembedded_sgl(wrb);
+	struct be_mcc_wrb *wrb;
+	struct be_sge *sge;
 	struct invalidate_commands_params_in *req;
-	int status = 0;
+	unsigned int tag = 0;
+
+	spin_lock(&ctrl->mbox_lock);
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return tag;
+	}
 
 	nonemb_cmd.va = pci_alloc_consistent(ctrl->pdev,
 				sizeof(struct invalidate_commands_params_in),
@@ -156,8 +172,10 @@ unsigned char mgmt_invalidate_icds(struct beiscsi_hba *phba,
 	}
 	nonemb_cmd.size = sizeof(struct invalidate_commands_params_in);
 	req = nonemb_cmd.va;
-	spin_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
+	memset(req, 0, sizeof(*req));
+	wrb = wrb_from_mccq(phba);
+	sge = nonembedded_sgl(wrb);
+	wrb->tag0 |= tag;
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
@@ -172,14 +190,12 @@ unsigned char mgmt_invalidate_icds(struct beiscsi_hba *phba,
 	sge->pa_lo = cpu_to_le32(nonemb_cmd.dma & 0xFFFFFFFF);
 	sge->len = cpu_to_le32(nonemb_cmd.size);
 
-	status = be_mcc_notify_wait(phba);
-	if (status)
-		SE_DEBUG(DBG_LVL_1, "ICDS Invalidation Failed\n");
+	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
 	if (nonemb_cmd.va)
 		pci_free_consistent(ctrl->pdev, nonemb_cmd.size,
 				    nonemb_cmd.va, nonemb_cmd.dma);
-	return status;
+	return tag;
 }
 
 unsigned char mgmt_invalidate_connection(struct beiscsi_hba *phba,
@@ -189,13 +205,19 @@ unsigned char mgmt_invalidate_connection(struct beiscsi_hba *phba,
 					 unsigned short savecfg_flag)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
-	struct iscsi_invalidate_connection_params_in *req =
-						embedded_payload(wrb);
-	int status = 0;
+	struct be_mcc_wrb *wrb;
+	struct iscsi_invalidate_connection_params_in *req;
+	unsigned int tag = 0;
 
 	spin_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return tag;
+	}
+	wrb = wrb_from_mccq(phba);
+	wrb->tag0 |= tag;
+	req = embedded_payload(wrb);
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI_INI,
@@ -208,35 +230,37 @@ unsigned char mgmt_invalidate_connection(struct beiscsi_hba *phba,
 	else
 		req->cleanup_type = CMD_ISCSI_CONNECTION_INVALIDATE;
 	req->save_cfg = savecfg_flag;
-	status =  be_mcc_notify_wait(phba);
-	if (status)
-		SE_DEBUG(DBG_LVL_1, "Invalidation Failed\n");
-
+	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
-	return status;
+	return tag;
 }
 
 unsigned char mgmt_upload_connection(struct beiscsi_hba *phba,
 				unsigned short cid, unsigned int upload_flag)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
-	struct tcp_upload_params_in *req = embedded_payload(wrb);
-	int status = 0;
+	struct be_mcc_wrb *wrb;
+	struct tcp_upload_params_in *req;
+	unsigned int tag = 0;
 
 	spin_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return tag;
+	}
+	wrb = wrb_from_mccq(phba);
+	req = embedded_payload(wrb);
+	wrb->tag0 |= tag;
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_COMMON_TCP_UPLOAD,
 			   OPCODE_COMMON_TCP_UPLOAD, sizeof(*req));
 	req->id = (unsigned short)cid;
 	req->upload_type = (unsigned char)upload_flag;
-	status = be_mcc_notify_wait(phba);
-	if (status)
-		SE_DEBUG(DBG_LVL_1, "mgmt_upload_connection Failed\n");
+	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
-	return status;
+	return tag;
 }
 
 int mgmt_open_connection(struct beiscsi_hba *phba,
@@ -248,13 +272,13 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	struct sockaddr_in *daddr_in = (struct sockaddr_in *)dst_addr;
 	struct sockaddr_in6 *daddr_in6 = (struct sockaddr_in6 *)dst_addr;
 	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
-	struct tcp_connect_and_offload_in *req = embedded_payload(wrb);
+	struct be_mcc_wrb *wrb;
+	struct tcp_connect_and_offload_in *req;
 	unsigned short def_hdr_id;
 	unsigned short def_data_id;
 	struct phys_addr template_address = { 0, 0 };
 	struct phys_addr *ptemplate_address;
-	int status = 0;
+	unsigned int tag = 0;
 	unsigned int i;
 	unsigned short cid = beiscsi_ep->ep_cid;
 
@@ -266,7 +290,14 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	ptemplate_address = &template_address;
 	ISCSI_GET_PDU_TEMPLATE_ADDRESS(phba, ptemplate_address);
 	spin_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return tag;
+	}
+	wrb = wrb_from_mccq(phba);
+	req = embedded_payload(wrb);
+	wrb->tag0 |= tag;
 
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
@@ -311,46 +342,36 @@ int mgmt_open_connection(struct beiscsi_hba *phba,
 	req->do_offload = 1;
 	req->dataout_template_pa.lo = ptemplate_address->lo;
 	req->dataout_template_pa.hi = ptemplate_address->hi;
-	status = be_mcc_notify_wait(phba);
-	if (!status) {
-		struct iscsi_endpoint *ep;
-		struct tcp_connect_and_offload_out *ptcpcnct_out =
-							embedded_payload(wrb);
-
-		ep = phba->ep_array[ptcpcnct_out->cid];
-		beiscsi_ep = ep->dd_data;
-		beiscsi_ep->fw_handle = ptcpcnct_out->connection_handle;
-		beiscsi_ep->cid_vld = 1;
-		SE_DEBUG(DBG_LVL_8, "mgmt_open_connection Success\n");
-	} else
-		SE_DEBUG(DBG_LVL_1, "mgmt_open_connection Failed\n");
+	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
-	return status;
+	return tag;
 }
 
-int be_cmd_get_mac_addr(struct beiscsi_hba *phba, u8 *mac_addr)
+unsigned int be_cmd_get_mac_addr(struct beiscsi_hba *phba)
 {
 	struct be_ctrl_info *ctrl = &phba->ctrl;
-	struct be_mcc_wrb *wrb = wrb_from_mccq(phba);
-	struct be_cmd_req_get_mac_addr *req = embedded_payload(wrb);
-	int status;
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_get_mac_addr *req;
+	unsigned int tag = 0;
 
 	SE_DEBUG(DBG_LVL_8, "In be_cmd_get_mac_addr\n");
 	spin_lock(&ctrl->mbox_lock);
-	memset(wrb, 0, sizeof(*wrb));
+	tag = alloc_mcc_tag(phba);
+	if (!tag) {
+		spin_unlock(&ctrl->mbox_lock);
+		return tag;
+	}
+
+	wrb = wrb_from_mccq(phba);
+	req = embedded_payload(wrb);
+	wrb->tag0 |= tag;
 	be_wrb_hdr_prepare(wrb, sizeof(*req), true, 0);
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_ISCSI,
 			   OPCODE_COMMON_ISCSI_NTWK_GET_NIC_CONFIG,
 			   sizeof(*req));
 
-	status = be_mcc_notify_wait(phba);
-	if (!status) {
-		struct be_cmd_resp_get_mac_addr *resp = embedded_payload(wrb);
-
-		memcpy(mac_addr, resp->mac_address, ETH_ALEN);
-	}
-
+	be_mcc_notify(phba);
 	spin_unlock(&ctrl->mbox_lock);
-	return status;
+	return tag;
 }
 

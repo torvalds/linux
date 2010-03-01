@@ -216,7 +216,7 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	cx231xx_ir_start(ir);
 
 	/* all done */
-	err = ir_input_register(ir->input, dev->board.ir_codes);
+	err = ir_input_register(ir->input, dev->board.ir_codes, NULL);
 	if (err)
 		goto err_out_stop;
 

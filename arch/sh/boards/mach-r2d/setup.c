@@ -70,7 +70,7 @@ static struct spi_board_info spi_bus[] = {
 static void r2d_chip_select(struct sh_spi_info *spi, int cs, int state)
 {
 	BUG_ON(cs != 0);  /* Single Epson RTC-9701JE attached on CS0 */
-	ctrl_outw(state == BITBANG_CS_ACTIVE, PA_RTCCE);
+	__raw_writew(state == BITBANG_CS_ACTIVE, PA_RTCCE);
 }
 
 static struct sh_spi_info spi_info = {
@@ -262,7 +262,7 @@ __initcall(rts7751r2d_devices_setup);
 
 static void rts7751r2d_power_off(void)
 {
-	ctrl_outw(0x0001, PA_POWOFF);
+	__raw_writew(0x0001, PA_POWOFF);
 }
 
 /*
@@ -271,14 +271,14 @@ static void rts7751r2d_power_off(void)
 static void __init rts7751r2d_setup(char **cmdline_p)
 {
 	void __iomem *sm501_reg;
-	u16 ver = ctrl_inw(PA_VERREG);
+	u16 ver = __raw_readw(PA_VERREG);
 
 	printk(KERN_INFO "Renesas Technology Sales RTS7751R2D support.\n");
 
 	printk(KERN_INFO "FPGA version:%d (revision:%d)\n",
 					(ver >> 4) & 0xf, ver & 0xf);
 
-	ctrl_outw(0x0000, PA_OUTPORT);
+	__raw_writew(0x0000, PA_OUTPORT);
 	pm_power_off = rts7751r2d_power_off;
 
 	/* sm501 dram configuration:

@@ -33,7 +33,7 @@ static int ov7660_set_hflip(struct gspca_dev *gspca_dev, __s32 val);
 static int ov7660_get_vflip(struct gspca_dev *gspca_dev, __s32 *val);
 static int ov7660_set_vflip(struct gspca_dev *gspca_dev, __s32 val);
 
-const static struct ctrl ov7660_ctrls[] = {
+static const struct ctrl ov7660_ctrls[] = {
 #define GAIN_IDX 1
 	{
 		{

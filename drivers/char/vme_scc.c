@@ -136,7 +136,7 @@ static const struct tty_port_operations scc_port_ops = {
  * vme_scc_init() and support functions
  *---------------------------------------------------------------------------*/
 
-static int scc_init_drivers(void)
+static int __init scc_init_drivers(void)
 {
 	int error;
 
@@ -172,7 +172,7 @@ static int scc_init_drivers(void)
 /* ports[] array is indexed by line no (i.e. [0] for ttyS0, [1] for ttyS1).
  */
 
-static void scc_init_portstructs(void)
+static void __init scc_init_portstructs(void)
 {
 	struct scc_port *port;
 	int i;
@@ -195,7 +195,7 @@ static void scc_init_portstructs(void)
 
 
 #ifdef CONFIG_MVME147_SCC
-static int mvme147_scc_init(void)
+static int __init mvme147_scc_init(void)
 {
 	struct scc_port *port;
 	int error;
@@ -298,7 +298,7 @@ fail:
 
 
 #ifdef CONFIG_MVME162_SCC
-static int mvme162_scc_init(void)
+static int __init mvme162_scc_init(void)
 {
 	struct scc_port *port;
 	int error;
@@ -404,7 +404,7 @@ fail:
 
 
 #ifdef CONFIG_BVME6000_SCC
-static int bvme6000_scc_init(void)
+static int __init bvme6000_scc_init(void)
 {
 	struct scc_port *port;
 	int error;
@@ -503,7 +503,7 @@ fail_free_b_rx:
 #endif
 
 
-static int vme_scc_init(void)
+static int __init vme_scc_init(void)
 {
 	int res = -ENODEV;
 

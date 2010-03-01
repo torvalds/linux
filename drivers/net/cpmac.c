@@ -36,6 +36,7 @@
 #include <linux/phy_fixed.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/clk.h>
 #include <asm/gpio.h>
 #include <asm/atomic.h>
 
@@ -294,9 +295,16 @@ static int cpmac_mdio_write(struct mii_bus *bus, int phy_id,
 
 static int cpmac_mdio_reset(struct mii_bus *bus)
 {
+	struct clk *cpmac_clk;
+
+	cpmac_clk = clk_get(&bus->dev, "cpmac");
+	if (IS_ERR(cpmac_clk)) {
+		printk(KERN_ERR "unable to get cpmac clock\n");
+		return -1;
+	}
 	ar7_device_reset(AR7_RESET_BIT_MDIO);
 	cpmac_write(bus->priv, CPMAC_MDIO_CONTROL, MDIOC_ENABLE |
-		    MDIOC_CLKDIV(ar7_cpmac_freq() / 2200000 - 1));
+		    MDIOC_CLKDIV(clk_get_rate(cpmac_clk) / 2200000 - 1));
 	return 0;
 }
 

@@ -922,7 +922,7 @@ static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val)
 }
 
 /* control tables */
-static struct ctrl sd_ctrls_12a[] = {
+static const struct ctrl sd_ctrls_12a[] = {
 	{
 	    {
 		.id = V4L2_CID_HUE,
@@ -964,7 +964,7 @@ static struct ctrl sd_ctrls_12a[] = {
 	},
 };
 
-static struct ctrl sd_ctrls_72a[] = {
+static const struct ctrl sd_ctrls_72a[] = {
 	{
 	    {
 		.id = V4L2_CID_HUE,

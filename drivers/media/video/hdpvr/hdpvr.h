@@ -30,6 +30,7 @@
 #define HD_PVR_PRODUCT_ID	0x4900
 #define HD_PVR_PRODUCT_ID1	0x4901
 #define HD_PVR_PRODUCT_ID2	0x4902
+#define HD_PVR_PRODUCT_ID3	0x4982
 
 #define UNSET    (-1U)
 

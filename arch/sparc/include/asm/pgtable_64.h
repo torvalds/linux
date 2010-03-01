@@ -706,7 +706,7 @@ extern unsigned long find_ecache_flush_span(unsigned long size);
 #define mmu_unlockarea(vaddr, len)		do { } while(0)
 
 struct vm_area_struct;
-extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t);
+extern void update_mmu_cache(struct vm_area_struct *, unsigned long, pte_t *);
 
 /* Encode and de-code a swap entry */
 #define __swp_type(entry)	(((entry).val >> PAGE_SHIFT) & 0xffUL)

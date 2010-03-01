@@ -378,7 +378,7 @@ asmlinkage void do_sun4c_fault(struct pt_regs *regs, int text_fault, int write,
 			       unsigned long address)
 {
 	extern void sun4c_update_mmu_cache(struct vm_area_struct *,
-					   unsigned long,pte_t);
+					   unsigned long,pte_t *);
 	extern pte_t *sun4c_pte_offset_kernel(pmd_t *,unsigned long);
 	struct task_struct *tsk = current;
 	struct mm_struct *mm = tsk->mm;
@@ -455,7 +455,7 @@ asmlinkage void do_sun4c_fault(struct pt_regs *regs, int text_fault, int write,
 		 *       on the CPU and doing a shrink_mmap() on this vma.
 		 */
 		sun4c_update_mmu_cache (find_vma(current->mm, address), address,
-					*ptep);
+					ptep);
 	else
 		do_sparc_fault(regs, text_fault, write, address);
 }

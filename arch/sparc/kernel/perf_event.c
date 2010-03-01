@@ -980,10 +980,10 @@ static int collect_events(struct perf_event *group, int max_count,
 	return n;
 }
 
-static void event_sched_in(struct perf_event *event, int cpu)
+static void event_sched_in(struct perf_event *event)
 {
 	event->state = PERF_EVENT_STATE_ACTIVE;
-	event->oncpu = cpu;
+	event->oncpu = smp_processor_id();
 	event->tstamp_running += event->ctx->time - event->tstamp_stopped;
 	if (is_software_event(event))
 		event->pmu->enable(event);
@@ -991,7 +991,7 @@ static void event_sched_in(struct perf_event *event, int cpu)
 
 int hw_perf_group_sched_in(struct perf_event *group_leader,
 			   struct perf_cpu_context *cpuctx,
-			   struct perf_event_context *ctx, int cpu)
+			   struct perf_event_context *ctx)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	struct perf_event *sub;
@@ -1015,10 +1015,10 @@ int hw_perf_group_sched_in(struct perf_event *group_leader,
 
 	cpuctx->active_oncpu += n;
 	n = 1;
-	event_sched_in(group_leader, cpu);
+	event_sched_in(group_leader);
 	list_for_each_entry(sub, &group_leader->sibling_list, group_entry) {
 		if (sub->state != PERF_EVENT_STATE_OFF) {
-			event_sched_in(sub, cpu);
+			event_sched_in(sub);
 			n++;
 		}
 	}
