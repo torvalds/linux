@@ -43,7 +43,7 @@ extern void vmem_map_init(void);
  * The S390 doesn't have any external MMU info: the kernel page
  * tables contain all the necessary information.
  */
-#define update_mmu_cache(vma, address, pte)     do { } while (0)
+#define update_mmu_cache(vma, address, ptep)     do { } while (0)
 
 /*
  * ZERO_PAGE is a global shared page that is always zero: used

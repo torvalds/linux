@@ -12,6 +12,7 @@ config ARM
 	select HAVE_IDE
 	select RTC_LIB
 	select SYS_SUPPORTS_APM_EMULATION
+	select GENERIC_ATOMIC64 if (!CPU_32v6K)
 	select HAVE_OPROFILE
 	select HAVE_ARCH_KGDB
 	select HAVE_KPROBES if (!XIP_KERNEL)
@@ -20,6 +21,8 @@ config ARM
 	select HAVE_GENERIC_DMA_COHERENT
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZO
+	select HAVE_PERF_EVENTS
+	select PERF_USE_VMALLOC
 	help
 	  The ARM series is a line of low-power-consumption RISC chip designs
 	  licensed by ARM Ltd and targeted at embedded applications and
@@ -51,6 +54,9 @@ config GENERIC_CLOCKEVENTS_BROADCAST
 config HAVE_TCM
 	bool
 	select GENERIC_ALLOCATOR
+
+config HAVE_PROC_CPU
+	bool
 
 config NO_IOPORT
 	bool
@@ -160,6 +166,11 @@ config ARCH_MTD_XIP
 
 config GENERIC_HARDIRQS_NO__DO_IRQ
 	def_bool y
+
+config ARM_L1_CACHE_SHIFT_6
+	bool
+	help
+	  Setting ARM L1 cache line size to 64 Bytes.
 
 if OPROFILE
 
@@ -550,10 +561,20 @@ config ARCH_W90X900
 	  <http://www.nuvoton.com/hq/enu/ProductAndSales/ProductLines/
 		ConsumerElectronicsIC/ARMMicrocontroller/ARMMicrocontroller>
 
+config ARCH_NUC93X
+	bool "Nuvoton NUC93X CPU"
+	select CPU_ARM926T
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	help
+	  Support for Nuvoton (Winbond logic dept.) NUC93X MCU,The NUC93X is a
+	  low-power and high performance MPEG-4/JPEG multimedia controller chip.
+
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	select CPU_ARM926T
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	help
 	  This enables support for Philips PNX4008 mobile platform.
 
@@ -638,6 +659,7 @@ config ARCH_S5PC1XX
 	select GENERIC_GPIO
 	select HAVE_CLK
 	select CPU_V7
+	select ARM_L1_CACHE_SHIFT_6
 	help
 	  Samsung S5PC1XX series based systems
 
@@ -785,6 +807,8 @@ source "arch/arm/plat-nomadik/Kconfig"
 
 source "arch/arm/mach-ns9xxx/Kconfig"
 
+source "arch/arm/mach-nuc93x/Kconfig"
+
 source "arch/arm/plat-omap/Kconfig"
 
 source "arch/arm/mach-omap1/Kconfig"
@@ -867,6 +891,11 @@ config XSCALE_PMU
 	depends on CPU_XSCALE && !XSCALE_PMU_TIMER
 	default y
 
+config CPU_HAS_PMU
+	depends on CPU_V6 || CPU_V7 || XSCALE_PMU
+	default y
+	bool
+
 if !MMU
 source "arch/arm/Kconfig-nommu"
 endif
@@ -921,6 +950,19 @@ config ARM_ERRATA_460075
 	  ACTLR register. Note that setting specific bits in the ACTLR register
 	  may not be available in non-secure mode.
 
+config PL310_ERRATA_588369
+	bool "Clean & Invalidate maintenance operations do not invalidate clean lines"
+	depends on CACHE_L2X0 && ARCH_OMAP4
+	help
+	   The PL310 L2 cache controller implements three types of Clean &
+	   Invalidate maintenance operations: by Physical Address
+	   (offset 0x7F0), by Index/Way (0x7F8) and by Way (0x7FC).
+	   They are architecturally defined to behave as the execution of a
+	   clean operation followed immediately by an invalidate operation,
+	   both performing to the same memory location. This functionality
+	   is not correctly implemented in PL310 as clean lines are not
+	   invalidated as a result of these operations. Note that this errata
+	   uses Texas Instrument's secure monitor api.
 endmenu
 
 source "arch/arm/common/Kconfig"
@@ -1171,6 +1213,14 @@ config HIGHPTE
 	depends on HIGHMEM
 	depends on !OUTER_CACHE
 
+config HW_PERF_EVENTS
+	bool "Enable hardware performance counter support for perf events"
+	depends on PERF_EVENTS && CPU_HAS_PMU && (CPU_V6 || CPU_V7)
+	default y
+	help
+	  Enable hardware performance counter support for perf events. If
+	  disabled, perf events will use software events only.
+
 source "mm/Kconfig"
 
 config LEDS
@@ -1230,6 +1280,7 @@ config ALIGNMENT_TRAP
 	bool
 	depends on CPU_CP15_MMU
 	default y if !ARCH_EBSA110
+	select HAVE_PROC_CPU if PROC_FS
 	help
 	  ARM processors cannot fetch/store information which is not
 	  naturally aligned on the bus, i.e., a 4 byte fetch must start at an

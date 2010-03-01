@@ -52,7 +52,7 @@
 #define UART_PADDR	MXC91231_UART2_BASE_ADDR
 #define UART_VADDR	MXC91231_AIPS1_IO_ADDRESS(MXC91231_UART2_BASE_ADDR)
 #endif
-		.macro	addruart,rx
+		.macro	addruart, rx, tmp
 		mrc	p15, 0, \rx, c1, c0
 		tst	\rx, #1			@ MMU enabled?
 		ldreq	\rx, =UART_PADDR	@ physical

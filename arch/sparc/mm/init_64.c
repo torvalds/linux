@@ -289,12 +289,13 @@ static void flush_dcache(unsigned long pfn)
 	}
 }
 
-void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	struct mm_struct *mm;
 	struct tsb *tsb;
 	unsigned long tag, flags;
 	unsigned long tsb_index, tsb_hash_shift;
+	pte_t pte = *ptep;
 
 	if (tlb_type != hypervisor) {
 		unsigned long pfn = pte_pfn(pte);

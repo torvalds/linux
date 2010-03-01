@@ -88,12 +88,12 @@ changes occur:
 	This is used primarily during fault processing.
 
 5) void update_mmu_cache(struct vm_area_struct *vma,
-			 unsigned long address, pte_t pte)
+			 unsigned long address, pte_t *ptep)
 
 	At the end of every page fault, this routine is invoked to
 	tell the architecture specific code that a translation
-	described by "pte" now exists at virtual address "address"
-	for address space "vma->vm_mm", in the software page tables.
+	now exists at virtual address "address" for address space
+	"vma->vm_mm", in the software page tables.
 
 	A port may use this information in any way it so chooses.
 	For example, it could use this event to pre-load TLB

@@ -22,6 +22,7 @@ config ARCH_OMAP3
 	bool "TI OMAP3"
 	select CPU_V7
 	select COMMON_CLKDEV
+	select ARM_L1_CACHE_SHIFT_6
 
 config ARCH_OMAP4
 	bool "TI OMAP4"

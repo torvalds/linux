@@ -197,21 +197,6 @@
  *	DMA Cache Coherency
  *	===================
  *
- *	dma_inv_range(start, end)
- *
- *		Invalidate (discard) the specified virtual address range.
- *		May not write back any entries.  If 'start' or 'end'
- *		are not cache line aligned, those lines must be written
- *		back.
- *		- start  - virtual start address
- *		- end    - virtual end address
- *
- *	dma_clean_range(start, end)
- *
- *		Clean (write back) the specified virtual address range.
- *		- start  - virtual start address
- *		- end    - virtual end address
- *
  *	dma_flush_range(start, end)
  *
  *		Clean and invalidate the specified virtual address range.
@@ -228,8 +213,9 @@ struct cpu_cache_fns {
 	void (*coherent_user_range)(unsigned long, unsigned long);
 	void (*flush_kern_dcache_area)(void *, size_t);
 
-	void (*dma_inv_range)(const void *, const void *);
-	void (*dma_clean_range)(const void *, const void *);
+	void (*dma_map_area)(const void *, size_t, int);
+	void (*dma_unmap_area)(const void *, size_t, int);
+
 	void (*dma_flush_range)(const void *, const void *);
 };
 
@@ -259,8 +245,8 @@ extern struct cpu_cache_fns cpu_cache;
  * is visible to DMA, or data written by DMA to system memory is
  * visible to the CPU.
  */
-#define dmac_inv_range			cpu_cache.dma_inv_range
-#define dmac_clean_range		cpu_cache.dma_clean_range
+#define dmac_map_area			cpu_cache.dma_map_area
+#define dmac_unmap_area		cpu_cache.dma_unmap_area
 #define dmac_flush_range		cpu_cache.dma_flush_range
 
 #else
@@ -285,12 +271,12 @@ extern void __cpuc_flush_dcache_area(void *, size_t);
  * is visible to DMA, or data written by DMA to system memory is
  * visible to the CPU.
  */
-#define dmac_inv_range			__glue(_CACHE,_dma_inv_range)
-#define dmac_clean_range		__glue(_CACHE,_dma_clean_range)
+#define dmac_map_area			__glue(_CACHE,_dma_map_area)
+#define dmac_unmap_area		__glue(_CACHE,_dma_unmap_area)
 #define dmac_flush_range		__glue(_CACHE,_dma_flush_range)
 
-extern void dmac_inv_range(const void *, const void *);
-extern void dmac_clean_range(const void *, const void *);
+extern void dmac_map_area(const void *, size_t, int);
+extern void dmac_unmap_area(const void *, size_t, int);
 extern void dmac_flush_range(const void *, const void *);
 
 #endif
@@ -331,12 +317,8 @@ static inline void outer_flush_range(unsigned long start, unsigned long end)
  * processes address space.  Really, we want to allow our "user
  * space" model to handle this.
  */
-#define copy_to_user_page(vma, page, vaddr, dst, src, len) \
-	do {							\
-		memcpy(dst, src, len);				\
-		flush_ptrace_access(vma, page, vaddr, dst, len, 1);\
-	} while (0)
-
+extern void copy_to_user_page(struct vm_area_struct *, struct page *,
+	unsigned long, void *, const void *, unsigned long);
 #define copy_from_user_page(vma, page, vaddr, dst, src, len) \
 	do {							\
 		memcpy(dst, src, len);				\
@@ -370,17 +352,6 @@ vivt_flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsig
 	}
 }
 
-static inline void
-vivt_flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
-			 unsigned long uaddr, void *kaddr,
-			 unsigned long len, int write)
-{
-	if (cpumask_test_cpu(smp_processor_id(), mm_cpumask(vma->vm_mm))) {
-		unsigned long addr = (unsigned long)kaddr;
-		__cpuc_coherent_kern_range(addr, addr + len);
-	}
-}
-
 #ifndef CONFIG_CPU_CACHE_VIPT
 #define flush_cache_mm(mm) \
 		vivt_flush_cache_mm(mm)
@@ -388,15 +359,10 @@ vivt_flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
 		vivt_flush_cache_range(vma,start,end)
 #define flush_cache_page(vma,addr,pfn) \
 		vivt_flush_cache_page(vma,addr,pfn)
-#define flush_ptrace_access(vma,page,ua,ka,len,write) \
-		vivt_flush_ptrace_access(vma,page,ua,ka,len,write)
 #else
 extern void flush_cache_mm(struct mm_struct *mm);
 extern void flush_cache_range(struct vm_area_struct *vma, unsigned long start, unsigned long end);
 extern void flush_cache_page(struct vm_area_struct *vma, unsigned long user_addr, unsigned long pfn);
-extern void flush_ptrace_access(struct vm_area_struct *vma, struct page *page,
-				unsigned long uaddr, void *kaddr,
-				unsigned long len, int write);
 #endif
 
 #define flush_cache_dup_mm(mm) flush_cache_mm(mm)

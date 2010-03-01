@@ -128,7 +128,7 @@ void __iomem *omap_ioremap(unsigned long p, size_t size, unsigned int type)
 			return XLATE(p, L4_EMU_44XX_PHYS, L4_EMU_44XX_VIRT);
 	}
 #endif
-	return __arm_ioremap(p, size, type);
+	return __arm_ioremap_caller(p, size, type, __builtin_return_address(0));
 }
 EXPORT_SYMBOL(omap_ioremap);
 

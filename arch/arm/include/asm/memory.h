@@ -76,6 +76,17 @@
  */
 #define IOREMAP_MAX_ORDER	24
 
+/*
+ * Size of DMA-consistent memory region.  Must be multiple of 2M,
+ * between 2MB and 14MB inclusive.
+ */
+#ifndef CONSISTENT_DMA_SIZE
+#define CONSISTENT_DMA_SIZE 	SZ_2M
+#endif
+
+#define CONSISTENT_END		(0xffe00000UL)
+#define CONSISTENT_BASE		(CONSISTENT_END - CONSISTENT_DMA_SIZE)
+
 #else /* CONFIG_MMU */
 
 /*
@@ -93,11 +104,11 @@
 #endif
 
 #ifndef PHYS_OFFSET
-#define PHYS_OFFSET 		(CONFIG_DRAM_BASE)
+#define PHYS_OFFSET 		UL(CONFIG_DRAM_BASE)
 #endif
 
 #ifndef END_MEM
-#define END_MEM     		(CONFIG_DRAM_BASE + CONFIG_DRAM_SIZE)
+#define END_MEM     		(UL(CONFIG_DRAM_BASE) + CONFIG_DRAM_SIZE)
 #endif
 
 #ifndef PAGE_OFFSET
@@ -111,14 +122,6 @@
 #define MODULES_VADDR		(PHYS_OFFSET)
 
 #endif /* !CONFIG_MMU */
-
-/*
- * Size of DMA-consistent memory region.  Must be multiple of 2M,
- * between 2MB and 14MB inclusive.
- */
-#ifndef CONSISTENT_DMA_SIZE
-#define CONSISTENT_DMA_SIZE SZ_2M
-#endif
 
 /*
  * Physical vs virtual RAM address space conversion.  These are

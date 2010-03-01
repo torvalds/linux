@@ -39,7 +39,7 @@
 int arm11_setup_pmu(void);
 int arm11_start_pmu(void);
 int arm11_stop_pmu(void);
-int arm11_request_interrupts(int *, int);
-void arm11_release_interrupts(int *, int);
+int arm11_request_interrupts(const int *, int);
+void arm11_release_interrupts(const int *, int);
 
 #endif
