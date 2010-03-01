@@ -1660,40 +1660,27 @@ static void nested_svm_unmap(struct page *page)
 
 static int nested_svm_exit_handled_msr(struct vcpu_svm *svm)
 {
-	u32 param = svm->vmcb->control.exit_info_1 & 1;
-	u32 msr = svm->vcpu.arch.regs[VCPU_REGS_RCX];
-	u32 t0, t1;
-	int ret;
-	u8 val;
+	u32 offset, msr, value;
+	int write, mask;
 
 	if (!(svm->nested.intercept & (1ULL << INTERCEPT_MSR_PROT)))
 		return NESTED_EXIT_HOST;
 
-	switch (msr) {
-	case 0 ... 0x1fff:
-		t0 = (msr * 2) % 8;
-		t1 = msr / 8;
-		break;
-	case 0xc0000000 ... 0xc0001fff:
-		t0 = (8192 + msr - 0xc0000000) * 2;
-		t1 = (t0 / 8);
-		t0 %= 8;
-		break;
-	case 0xc0010000 ... 0xc0011fff:
-		t0 = (16384 + msr - 0xc0010000) * 2;
-		t1 = (t0 / 8);
-		t0 %= 8;
-		break;
-	default:
-		ret = NESTED_EXIT_DONE;
-		goto out;
-	}
+	msr    = svm->vcpu.arch.regs[VCPU_REGS_RCX];
+	offset = svm_msrpm_offset(msr);
+	write  = svm->vmcb->control.exit_info_1 & 1;
+	mask   = 1 << ((2 * (msr & 0xf)) + write);
 
-	if (!kvm_read_guest(svm->vcpu.kvm, svm->nested.vmcb_msrpm + t1, &val, 1))
-		ret = val & ((1 << param) << t0) ? NESTED_EXIT_DONE : NESTED_EXIT_HOST;
+	if (offset == MSR_INVALID)
+		return NESTED_EXIT_DONE;
 
-out:
-	return ret;
+	/* Offset is in 32 bit units but need in 8 bit units */
+	offset *= 4;
+
+	if (kvm_read_guest(svm->vcpu.kvm, svm->nested.vmcb_msrpm + offset, &value, 4))
+		return NESTED_EXIT_DONE;
+
+	return (value & mask) ? NESTED_EXIT_DONE : NESTED_EXIT_HOST;
 }
 
 static int nested_svm_exit_special(struct vcpu_svm *svm)
@@ -1954,8 +1941,8 @@ static bool nested_svm_vmrun_msrpm(struct vcpu_svm *svm)
 		if (msrpm_offsets[i] == 0xffffffff)
 			break;
 
-		offset = svm->nested.vmcb_msrpm + msrpm_offsets[i];
-		p      = msrpm_offsets[i] / 4;
+		p      = msrpm_offsets[i];
+		offset = svm->nested.vmcb_msrpm + (p * 4);
 
 		if (kvm_read_guest(svm->vcpu.kvm, offset, &value, 4))
 			return false;
