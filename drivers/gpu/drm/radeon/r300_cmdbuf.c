@@ -767,7 +767,7 @@ static __inline__ int r300_emit_packet3(drm_radeon_private_t *dev_priv,
 		default:
 			DRM_ERROR("bad packet3 type %i at byte %d\n",
 				  header.packet3.packet,
-				  cmdbuf->buffer->iterator - sizeof(header));
+				  cmdbuf->buffer->iterator - (int)sizeof(header));
 			return -EINVAL;
 		}
 
@@ -1153,7 +1153,7 @@ int r300_do_cp_cmdbuf(struct drm_device *dev,
 		default:
 			DRM_ERROR("bad cmd_type %i at byte %d\n",
 				  header->header.cmd_type,
-				  cmdbuf->buffer->iterator - sizeof(*header));
+				  cmdbuf->buffer->iterator - (int)sizeof(*header));
 			ret = -EINVAL;
 			goto cleanup;
 		}
