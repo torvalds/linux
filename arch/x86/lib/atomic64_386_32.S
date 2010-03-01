@@ -153,13 +153,12 @@ BEGIN inc_not_zero %esi
 	adcl $0, %edx
 	movl %eax,  ($v)
 	movl %edx, 4($v)
-	xorl %eax, %eax
+	movl $1, %eax
 2:
 RETURN
 3:
 	testl %edx, %edx
 	jne 1b
-	movl $1, %eax
 	jmp 2b
 END_
 

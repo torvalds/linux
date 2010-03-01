@@ -212,14 +212,13 @@ ENTRY(atomic64_inc_not_zero_cx8)
 	cmpxchg8b (%esi)
 	jne 1b
 
-	xorl %eax, %eax
+	movl $1, %eax
 3:
 	RESTORE ebx
 	ret
 4:
 	testl %edx, %edx
 	jne 2b
-	movl $1, %eax
 	jmp 3b
 	CFI_ENDPROC
 ENDPROC(atomic64_inc_not_zero_cx8)
