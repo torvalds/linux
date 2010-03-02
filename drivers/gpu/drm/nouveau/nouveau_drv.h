@@ -852,7 +852,7 @@ extern int  nouveau_dma_init(struct nouveau_channel *);
 extern int  nouveau_dma_wait(struct nouveau_channel *, int slots, int size);
 
 /* nouveau_acpi.c */
-#if defined(CONFIG_VGA_SWITCHEROO)
+#if defined(CONFIG_ACPI)
 void nouveau_register_dsm_handler(void);
 void nouveau_unregister_dsm_handler(void);
 #else
