@@ -708,7 +708,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 #ifdef CONFIG_QUOTA
 	ei->i_reserved_quota = 0;
 #endif
-	INIT_LIST_HEAD(&ei->i_aio_dio_complete_list);
+	INIT_LIST_HEAD(&ei->i_completed_io_list);
 	ei->cur_aio_dio = NULL;
 	ei->i_sync_tid = 0;
 	ei->i_datasync_tid = 0;

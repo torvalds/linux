@@ -133,7 +133,7 @@ struct mpage_da_data {
 	int pages_written;
 	int retval;
 };
-#define	DIO_AIO_UNWRITTEN	0x1
+#define	EXT4_IO_UNWRITTEN	0x1
 typedef struct ext4_io_end {
 	struct list_head	list;		/* per-file finished AIO list */
 	struct inode		*inode;		/* file being written to */
@@ -355,13 +355,13 @@ struct ext4_new_group_data {
 	/* caller is from the direct IO path, request to creation of an
 	unitialized extents if not allocated, split the uninitialized
 	extent if blocks has been preallocated already*/
-#define EXT4_GET_BLOCKS_DIO			0x0008
+#define EXT4_GET_BLOCKS_PRE_IO			0x0008
 #define EXT4_GET_BLOCKS_CONVERT			0x0010
-#define EXT4_GET_BLOCKS_DIO_CREATE_EXT		(EXT4_GET_BLOCKS_DIO|\
+#define EXT4_GET_BLOCKS_IO_CREATE_EXT		(EXT4_GET_BLOCKS_PRE_IO|\
 					 EXT4_GET_BLOCKS_CREATE_UNINIT_EXT)
-	/* Convert extent to initialized after direct IO complete */
-#define EXT4_GET_BLOCKS_DIO_CONVERT_EXT		(EXT4_GET_BLOCKS_CONVERT|\
-					 EXT4_GET_BLOCKS_DIO_CREATE_EXT)
+	/* Convert extent to initialized after IO complete */
+#define EXT4_GET_BLOCKS_IO_CONVERT_EXT		(EXT4_GET_BLOCKS_CONVERT|\
+					 EXT4_GET_BLOCKS_IO_CREATE_EXT)
 
 /*
  * Flags used by ext4_free_blocks
@@ -700,8 +700,8 @@ struct ext4_inode_info {
 	qsize_t i_reserved_quota;
 #endif
 
-	/* completed async DIOs that might need unwritten extents handling */
-	struct list_head i_aio_dio_complete_list;
+	/* completed IOs that might need unwritten extents handling */
+	struct list_head i_completed_io_list;
 	/* current io_end structure for async DIO write*/
 	ext4_io_end_t *cur_aio_dio;
 
@@ -1461,7 +1461,7 @@ extern int ext4_block_truncate_page(handle_t *handle,
 		struct address_space *mapping, loff_t from);
 extern int ext4_page_mkwrite(struct vm_area_struct *vma, struct vm_fault *vmf);
 extern qsize_t *ext4_get_reserved_space(struct inode *inode);
-extern int flush_aio_dio_completed_IO(struct inode *inode);
+extern int flush_completed_IO(struct inode *inode);
 extern void ext4_da_update_reserve_space(struct inode *inode,
 					int used, int quota_claim);
 /* ioctl.c */
