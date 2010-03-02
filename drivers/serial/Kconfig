@@ -1003,7 +1003,7 @@ config SERIAL_IP22_ZILOG_CONSOLE
 
 config SERIAL_SH_SCI
 	tristate "SuperH SCI(F) serial port support"
-	depends on HAVE_CLK && (SUPERH || H8300)
+	depends on HAVE_CLK && (SUPERH || H8300 || ARCH_SHMOBILE)
 	select SERIAL_CORE
 
 config SERIAL_SH_SCI_NR_UARTS

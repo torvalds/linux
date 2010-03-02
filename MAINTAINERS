@@ -941,6 +941,16 @@ W:	http://www.fluff.org/ben/linux/
 S:	Maintained
 F:	arch/arm/mach-s3c6410/
 
+ARM/SHMOBILE ARM ARCHITECTURE
+M:	Paul Mundt <lethal@linux-sh.org>
+M:	Magnus Damm <magnus.damm@gmail.com>
+L:	linux-sh@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/genesis-2.6.git
+W:	http://oss.renesas.com
+S:	Supported
+F:	arch/arm/mach-shmobile/
+F:	drivers/sh/
+
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
