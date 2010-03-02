@@ -244,6 +244,8 @@ static int __init spawn_nmi_watchdog_task(void)
 	if (nonmi_watchdog)
 		return 0;
 
+	printk(KERN_INFO "NMI watchdog enabled, takes one hw-pmu counter.\n");
+
 	err = cpu_callback(&cpu_nfb, CPU_UP_PREPARE, cpu);
 	if (err == NOTIFY_BAD) {
 		BUG();
