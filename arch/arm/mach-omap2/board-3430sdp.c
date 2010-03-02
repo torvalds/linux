@@ -542,10 +542,6 @@ static struct regulator_init_data sdp3430_vdac = {
 /* VPLL2 for digital video outputs */
 static struct regulator_consumer_supply sdp3430_vpll2_supplies[] = {
 	{
-		.supply		= "vdvi",
-		.dev		= &sdp3430_lcd_device.dev,
-	},
-	{
 		.supply		= "vdds_dsi",
 		.dev		= &sdp3430_dss_device.dev,
 	}
