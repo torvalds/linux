@@ -1926,6 +1926,11 @@ static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
 	case -EALREADY:
 		xprt_clear_connecting(xprt);
 		return;
+	case -EINVAL:
+		/* Happens, for instance, if the user specified a link
+		 * local IPv6 address without a scope-id.
+		 */
+		goto out;
 	}
 out_eagain:
 	status = -EAGAIN;
