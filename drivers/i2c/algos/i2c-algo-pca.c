@@ -453,8 +453,6 @@ static int pca_init(struct i2c_adapter *adap)
 		 */
 		int raise_fall_time;
 
-		struct i2c_algo_pca_data *pca_data = adap->algo_data;
-
 		/* Ignore the reset function from the module,
 		 * we can use the parallel bus reset
 		 */
