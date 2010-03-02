@@ -687,6 +687,7 @@ struct radeon_pm {
 	bool 			downclocked;
 	int			active_crtcs;
 	int			req_vblank;
+	bool			vblank_sync;
 	fixed20_12		max_bandwidth;
 	fixed20_12		igp_sideport_mclk;
 	fixed20_12		igp_system_mclk;

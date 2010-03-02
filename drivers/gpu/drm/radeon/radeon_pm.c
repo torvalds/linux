@@ -353,10 +353,12 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 		rdev->pm.req_vblank |= (1 << 1);
 		drm_vblank_get(rdev->ddev, 1);
 	}
-	if (rdev->pm.active_crtcs)
-		wait_event_interruptible_timeout(
-			rdev->irq.vblank_queue, 0,
+	if (rdev->pm.active_crtcs) {
+		rdev->pm.vblank_sync = false;
+		wait_event_timeout(
+			rdev->irq.vblank_queue, rdev->pm.vblank_sync,
 			msecs_to_jiffies(RADEON_WAIT_VBLANK_TIMEOUT));
+	}
 	if (rdev->pm.req_vblank & (1 << 0)) {
 		rdev->pm.req_vblank &= ~(1 << 0);
 		drm_vblank_put(rdev->ddev, 0);
