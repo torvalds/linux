@@ -800,6 +800,7 @@ enum {
 	RESIZE_PENDING,		/* Size change detected locally, waiting for the response from
 				 * the peer, if it changed there as well. */
 	CONN_DRY_RUN,		/* Expect disconnect after resync handshake. */
+	GOT_PING_ACK,		/* set when we receive a ping_ack packet, misc wait gets woken */
 };
 
 struct drbd_bitmap; /* opaque for drbd_conf */

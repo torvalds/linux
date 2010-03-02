@@ -1289,6 +1289,14 @@ int drbd_alter_sa(struct drbd_conf *mdev, int na)
 	return retcode;
 }
 
+static void ping_peer(struct drbd_conf *mdev)
+{
+	clear_bit(GOT_PING_ACK, &mdev->flags);
+	request_ping(mdev);
+	wait_event(mdev->misc_wait,
+		   test_bit(GOT_PING_ACK, &mdev->flags) || mdev->state.conn < C_CONNECTED);
+}
+
 /**
  * drbd_start_resync() - Start the resync process
  * @mdev:	DRBD device.
@@ -1383,9 +1391,7 @@ void drbd_start_resync(struct drbd_conf *mdev, enum drbd_conns side)
 
 		if (mdev->rs_total == 0) {
 			/* Peer still reachable? Beware of failing before-resync-target handlers! */
-			request_ping(mdev);
-			__set_current_state(TASK_INTERRUPTIBLE);
-			schedule_timeout(mdev->net_conf->ping_timeo*HZ/9); /* 9 instead 10 */
+			ping_peer(mdev);
 			drbd_resync_finished(mdev);
 			return;
 		}

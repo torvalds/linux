@@ -4074,6 +4074,8 @@ static int got_PingAck(struct drbd_conf *mdev, struct p_header *h)
 {
 	/* restore idle timeout */
 	mdev->meta.socket->sk->sk_rcvtimeo = mdev->net_conf->ping_int*HZ;
+	if (!test_and_set_bit(GOT_PING_ACK, &mdev->flags))
+		wake_up(&mdev->misc_wait);
 
 	return TRUE;
 }
