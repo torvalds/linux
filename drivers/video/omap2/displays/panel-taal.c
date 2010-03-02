@@ -63,6 +63,8 @@
 /* #define TAAL_USE_ESD_CHECK */
 #define TAAL_ESD_CHECK_PERIOD	msecs_to_jiffies(5000)
 
+static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable);
+
 struct taal_data {
 	struct backlight_device *bldev;
 
@@ -666,6 +668,10 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 
 	taal_dcs_write_0(DCS_DISPLAY_ON);
 
+	r = _taal_enable_te(dssdev, td->te_enabled);
+	if (r)
+		goto err;
+
 #ifdef TAAL_USE_ESD_CHECK
 	queue_delayed_work(td->esd_wq, &td->esd_work, TAAL_ESD_CHECK_PERIOD);
 #endif
@@ -828,12 +834,10 @@ static int taal_sync(struct omap_dss_device *dssdev)
 	return 0;
 }
 
-static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
+static int _taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 {
 	struct taal_data *td = dev_get_drvdata(&dssdev->dev);
 	int r;
-
-	dsi_bus_lock();
 
 	td->te_enabled = enable;
 
@@ -847,6 +851,17 @@ static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
 	/* XXX for some reason, DSI TE breaks if we don't wait here.
 	 * Panel bug? Needs more studying */
 	msleep(100);
+
+	return r;
+}
+
+static int taal_enable_te(struct omap_dss_device *dssdev, bool enable)
+{
+	int r;
+
+	dsi_bus_lock();
+
+	r = _taal_enable_te(dssdev, enable);
 
 	dsi_bus_unlock();
 
