@@ -285,6 +285,11 @@ struct sis190_private {
 	struct list_head first_phy;
 	u32 features;
 	u32 negotiated_lpa;
+	enum {
+		LNK_OFF,
+		LNK_ON,
+		LNK_AUTONEG,
+	} link_status;
 };
 
 struct sis190_phy {
@@ -750,6 +755,7 @@ static irqreturn_t sis190_interrupt(int irq, void *__dev)
 
 	if (status & LinkChange) {
 		netif_info(tp, intr, dev, "link change\n");
+		del_timer(&tp->timer);
 		schedule_work(&tp->phy_task);
 	}
 
@@ -922,12 +928,15 @@ static void sis190_phy_task(struct work_struct *work)
 	if (val & BMCR_RESET) {
 		// FIXME: needlessly high ?  -- FR 02/07/2005
 		mod_timer(&tp->timer, jiffies + HZ/10);
-	} else if (!(mdio_read_latched(ioaddr, phy_id, MII_BMSR) &
-		     BMSR_ANEGCOMPLETE)) {
+		goto out_unlock;
+	}
+
+	val = mdio_read_latched(ioaddr, phy_id, MII_BMSR);
+	if (!(val & BMSR_ANEGCOMPLETE) && tp->link_status != LNK_AUTONEG) {
 		netif_carrier_off(dev);
 		netif_warn(tp, link, dev, "auto-negotiating...\n");
-		mod_timer(&tp->timer, jiffies + SIS190_PHY_TIMEOUT);
-	} else {
+		tp->link_status = LNK_AUTONEG;
+	} else if ((val & BMSR_LSTATUS) && tp->link_status != LNK_ON) {
 		/* Rejoice ! */
 		struct {
 			int val;
@@ -1000,7 +1009,10 @@ static void sis190_phy_task(struct work_struct *work)
 
 		netif_info(tp, link, dev, "link on %s mode\n", p->msg);
 		netif_carrier_on(dev);
-	}
+		tp->link_status = LNK_ON;
+	} else if (!(val & BMSR_LSTATUS) && tp->link_status != LNK_AUTONEG)
+		tp->link_status = LNK_OFF;
+	mod_timer(&tp->timer, jiffies + SIS190_PHY_TIMEOUT);
 
 out_unlock:
 	rtnl_unlock();
@@ -1513,6 +1525,7 @@ static struct net_device * __devinit sis190_init_board(struct pci_dev *pdev)
 
 	tp->pci_dev = pdev;
 	tp->mmio_addr = ioaddr;
+	tp->link_status = LNK_OFF;
 
 	sis190_irq_mask_and_ack(ioaddr);
 
