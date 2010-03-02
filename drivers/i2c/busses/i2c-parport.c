@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/parport.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
@@ -185,8 +186,11 @@ static void i2c_parport_attach (struct parport *port)
 	parport_setsda(port, 1);
 	parport_setscl(port, 1);
 	/* Other init if needed (power on...) */
-	if (adapter_parm[type].init.val)
+	if (adapter_parm[type].init.val) {
 		line_set(port, 1, &adapter_parm[type].init);
+		/* Give powered devices some time to settle */
+		msleep(100);
+	}
 
 	if (i2c_bit_add_bus(&adapter->adapter) < 0) {
 		printk(KERN_ERR "i2c-parport: Unable to register with I2C\n");

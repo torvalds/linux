@@ -27,6 +27,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/ioport.h>
 #include <linux/i2c.h>
@@ -127,8 +128,11 @@ static int __devinit i2c_parport_probe(struct platform_device *pdev)
 	parport_setsda(NULL, 1);
 	parport_setscl(NULL, 1);
 	/* Other init if needed (power on...) */
-	if (adapter_parm[type].init.val)
+	if (adapter_parm[type].init.val) {
 		line_set(1, &adapter_parm[type].init);
+		/* Give powered devices some time to settle */
+		msleep(100);
+	}
 
 	parport_adapter.dev.parent = &pdev->dev;
 	err = i2c_bit_add_bus(&parport_adapter);
