@@ -234,6 +234,7 @@ static struct shash_alg alg = {
 	.export		=	md5_export,
 	.import		=	md5_import,
 	.descsize	=	sizeof(struct md5_state),
+	.statesize	=	sizeof(struct md5_state),
 	.base		=	{
 		.cra_name	=	"md5",
 		.cra_flags	=	CRYPTO_ALG_TYPE_SHASH,
