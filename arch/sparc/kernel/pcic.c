@@ -585,8 +585,6 @@ pcic_fill_irq(struct linux_pcic *pcic, struct pci_dev *dev, int node)
 			writew(ivec, pcic->pcic_regs+PCI_INT_SELECT_LO);
 		}
  	}
-
-	return;
 }
 
 /*

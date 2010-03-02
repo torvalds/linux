@@ -143,6 +143,4 @@ void __init device_scan(void)
 
 	if (ARCH_SUN4C)
 		sun4c_probe_memerr_reg();
-
-	return;
 }

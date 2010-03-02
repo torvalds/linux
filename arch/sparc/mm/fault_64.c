@@ -32,6 +32,8 @@
 #include <asm/sections.h>
 #include <asm/mmu_context.h>
 
+int show_unhandled_signals = 1;
+
 static inline __kprobes int notify_page_fault(struct pt_regs *regs)
 {
 	int ret = 0;
@@ -128,22 +130,48 @@ outret:
 	return insn;
 }
 
+static inline void
+show_signal_msg(struct pt_regs *regs, int sig, int code,
+		unsigned long address, struct task_struct *tsk)
+{
+	if (!unhandled_signal(tsk, sig))
+		return;
+
+	if (!printk_ratelimit())
+		return;
+
+	printk("%s%s[%d]: segfault at %lx ip %p (rpc %p) sp %p error %x",
+	       task_pid_nr(tsk) > 1 ? KERN_INFO : KERN_EMERG,
+	       tsk->comm, task_pid_nr(tsk), address,
+	       (void *)regs->tpc, (void *)regs->u_regs[UREG_I7],
+	       (void *)regs->u_regs[UREG_FP], code);
+
+	print_vma_addr(KERN_CONT " in ", regs->tpc);
+
+	printk(KERN_CONT "\n");
+}
+
 extern unsigned long compute_effective_address(struct pt_regs *, unsigned int, unsigned int);
 
 static void do_fault_siginfo(int code, int sig, struct pt_regs *regs,
 			     unsigned int insn, int fault_code)
 {
+	unsigned long addr;
 	siginfo_t info;
 
 	info.si_code = code;
 	info.si_signo = sig;
 	info.si_errno = 0;
 	if (fault_code & FAULT_CODE_ITLB)
-		info.si_addr = (void __user *) regs->tpc;
+		addr = regs->tpc;
 	else
-		info.si_addr = (void __user *)
-			compute_effective_address(regs, insn, 0);
+		addr = compute_effective_address(regs, insn, 0);
+	info.si_addr = (void __user *) addr;
 	info.si_trapno = 0;
+
+	if (unlikely(show_unhandled_signals))
+		show_signal_msg(regs, sig, code, addr, current);
+
 	force_sig_info(sig, &info, current);
 }
 
