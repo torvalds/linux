@@ -30,9 +30,6 @@ MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_LICENSE("GPL v2");
 MODULE_SUPPORTED_DEVICE("{{Edirol,UA-101},{Edirol,UA-1000}}");
 
-/* I use my UA-1A for testing because I don't have a UA-101 ... */
-#define UA1A_HACK
-
 /*
  * Should not be lower than the minimum scheduling delay of the host
  * controller.  Some Intel controllers need more than one frame; as long as
@@ -132,9 +129,6 @@ struct ua101 {
 			dma_addr_t dma;
 		} buffers[MAX_MEMORY_BUFFERS];
 	} capture, playback;
-
-	unsigned int fps[10];
-	unsigned int frame_counter;
 };
 
 static DEFINE_MUTEX(devices_mutex);
@@ -424,16 +418,6 @@ static void capture_urb_complete(struct urb *urb)
 	if (do_period_elapsed)
 		snd_pcm_period_elapsed(stream->substream);
 
-	/* for debugging: measure the sample rate relative to the USB clock */
-	ua->fps[ua->frame_counter++ / ua->packets_per_second] += frames;
-	if (ua->frame_counter >= ARRAY_SIZE(ua->fps) * ua->packets_per_second) {
-		printk(KERN_DEBUG "capture rate:");
-		for (frames = 0; frames < ARRAY_SIZE(ua->fps); ++frames)
-			printk(KERN_CONT " %u", ua->fps[frames]);
-		printk(KERN_CONT "\n");
-		memset(ua->fps, 0, sizeof(ua->fps));
-		ua->frame_counter = 0;
-	}
 	return;
 
 stream_stopped:
@@ -1256,15 +1240,6 @@ static int ua101_probe(struct usb_interface *interface,
 	init_waitqueue_head(&ua->rate_feedback_wait);
 	init_waitqueue_head(&ua->alsa_playback_wait);
 
-#ifdef UA1A_HACK
-	if (ua->dev->descriptor.idProduct == cpu_to_le16(0x0018)) {
-		ua->intf[2] = interface;
-		ua->intf[0] = usb_ifnum_to_if(ua->dev, 1);
-		ua->intf[1] = usb_ifnum_to_if(ua->dev, 2);
-		usb_driver_claim_interface(&ua101_driver, ua->intf[0], ua);
-		usb_driver_claim_interface(&ua101_driver, ua->intf[1], ua);
-	} else {
-#endif
 	ua->intf[0] = interface;
 	for (i = 1; i < ARRAY_SIZE(ua->intf); ++i) {
 		ua->intf[i] = usb_ifnum_to_if(ua->dev,
@@ -1283,33 +1258,12 @@ static int ua101_probe(struct usb_interface *interface,
 			goto probe_error;
 		}
 	}
-#ifdef UA1A_HACK
-	}
-#endif
 
 	snd_card_set_dev(card, &interface->dev);
 
-#ifdef UA1A_HACK
-	if (ua->dev->descriptor.idProduct == cpu_to_le16(0x0018)) {
-		ua->format_bit = SNDRV_PCM_FMTBIT_S16_LE;
-		ua->rate = 44100;
-		ua->packets_per_second = 1000;
-		ua->capture.channels = 2;
-		ua->playback.channels = 2;
-		ua->capture.frame_bytes = 4;
-		ua->playback.frame_bytes = 4;
-		ua->capture.usb_pipe = usb_rcvisocpipe(ua->dev, 2);
-		ua->playback.usb_pipe = usb_sndisocpipe(ua->dev, 1);
-		ua->capture.max_packet_bytes = 192;
-		ua->playback.max_packet_bytes = 192;
-	} else {
-#endif
 	err = detect_usb_format(ua);
 	if (err < 0)
 		goto probe_error;
-#ifdef UA1A_HACK
-	}
-#endif
 
 	name = usb_id->idProduct == 0x0044 ? "UA-1000" : "UA-101";
 	strcpy(card->driver, "UA-101");
@@ -1342,16 +1296,10 @@ static int ua101_probe(struct usb_interface *interface,
 	snd_pcm_set_ops(ua->pcm, SNDRV_PCM_STREAM_PLAYBACK, &playback_pcm_ops);
 	snd_pcm_set_ops(ua->pcm, SNDRV_PCM_STREAM_CAPTURE, &capture_pcm_ops);
 
-#ifdef UA1A_HACK
-	if (ua->dev->descriptor.idProduct != cpu_to_le16(0x0018)) {
-#endif
 	err = snd_usbmidi_create(card, ua->intf[INTF_MIDI],
 				 &ua->midi_list, &midi_quirk);
 	if (err < 0)
 		goto probe_error;
-#ifdef UA1A_HACK
-	}
-#endif
 
 	err = snd_card_register(card);
 	if (err < 0)
@@ -1406,9 +1354,6 @@ static void ua101_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_device_id ua101_ids[] = {
-#ifdef UA1A_HACK
-	{ USB_DEVICE(0x0582, 0x0018) },
-#endif
 	{ USB_DEVICE(0x0582, 0x0044) }, /* UA-1000 high speed */
 	{ USB_DEVICE(0x0582, 0x007d) }, /* UA-101 high speed */
 	{ USB_DEVICE(0x0582, 0x008d) }, /* UA-101 full speed */
