@@ -605,6 +605,7 @@ config I2C_PARPORT
 config I2C_PARPORT_LIGHT
 	tristate "Parallel port adapter (light)"
 	select I2C_ALGOBIT
+	select I2C_SMBUS
 	help
 	  This supports parallel port I2C adapters such as the ones made by
 	  Philips or Velleman, Analog Devices evaluation boards, and more.
