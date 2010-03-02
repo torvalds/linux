@@ -548,9 +548,9 @@ static inline void intel_pmu_ack_status(u64 ack)
 }
 
 static inline void
-intel_pmu_disable_fixed(struct hw_perf_event *hwc, int __idx)
+intel_pmu_disable_fixed(struct hw_perf_event *hwc)
 {
-	int idx = __idx - X86_PMC_IDX_FIXED;
+	int idx = hwc->idx - X86_PMC_IDX_FIXED;
 	u64 ctrl_val, mask;
 
 	mask = 0xfULL << (idx * 4);
@@ -621,26 +621,28 @@ static void intel_pmu_drain_bts_buffer(void)
 }
 
 static inline void
-intel_pmu_disable_event(struct hw_perf_event *hwc, int idx)
+intel_pmu_disable_event(struct perf_event *event)
 {
-	if (unlikely(idx == X86_PMC_IDX_FIXED_BTS)) {
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (unlikely(hwc->idx == X86_PMC_IDX_FIXED_BTS)) {
 		intel_pmu_disable_bts();
 		intel_pmu_drain_bts_buffer();
 		return;
 	}
 
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL)) {
-		intel_pmu_disable_fixed(hwc, idx);
+		intel_pmu_disable_fixed(hwc);
 		return;
 	}
 
-	x86_pmu_disable_event(hwc, idx);
+	x86_pmu_disable_event(event);
 }
 
 static inline void
-intel_pmu_enable_fixed(struct hw_perf_event *hwc, int __idx)
+intel_pmu_enable_fixed(struct hw_perf_event *hwc)
 {
-	int idx = __idx - X86_PMC_IDX_FIXED;
+	int idx = hwc->idx - X86_PMC_IDX_FIXED;
 	u64 ctrl_val, bits, mask;
 	int err;
 
@@ -670,9 +672,11 @@ intel_pmu_enable_fixed(struct hw_perf_event *hwc, int __idx)
 	err = checking_wrmsrl(hwc->config_base, ctrl_val);
 }
 
-static void intel_pmu_enable_event(struct hw_perf_event *hwc, int idx)
+static void intel_pmu_enable_event(struct perf_event *event)
 {
-	if (unlikely(idx == X86_PMC_IDX_FIXED_BTS)) {
+	struct hw_perf_event *hwc = &event->hw;
+
+	if (unlikely(hwc->idx == X86_PMC_IDX_FIXED_BTS)) {
 		if (!__get_cpu_var(cpu_hw_events).enabled)
 			return;
 
@@ -681,11 +685,11 @@ static void intel_pmu_enable_event(struct hw_perf_event *hwc, int idx)
 	}
 
 	if (unlikely(hwc->config_base == MSR_ARCH_PERFMON_FIXED_CTR_CTRL)) {
-		intel_pmu_enable_fixed(hwc, idx);
+		intel_pmu_enable_fixed(hwc);
 		return;
 	}
 
-	__x86_pmu_enable_event(hwc, idx);
+	__x86_pmu_enable_event(hwc);
 }
 
 /*
@@ -771,7 +775,7 @@ again:
 		data.period = event->hw.last_period;
 
 		if (perf_event_overflow(event, 1, &data, regs))
-			intel_pmu_disable_event(&event->hw, bit);
+			intel_pmu_disable_event(event);
 	}
 
 	intel_pmu_ack_status(ack);

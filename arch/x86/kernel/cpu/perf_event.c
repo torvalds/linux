@@ -133,8 +133,8 @@ struct x86_pmu {
 	int		(*handle_irq)(struct pt_regs *);
 	void		(*disable_all)(void);
 	void		(*enable_all)(void);
-	void		(*enable)(struct hw_perf_event *, int);
-	void		(*disable)(struct hw_perf_event *, int);
+	void		(*enable)(struct perf_event *);
+	void		(*disable)(struct perf_event *);
 	unsigned	eventsel;
 	unsigned	perfctr;
 	u64		(*event_map)(int);
@@ -845,7 +845,7 @@ void hw_perf_enable(void)
 			set_bit(hwc->idx, cpuc->active_mask);
 			cpuc->events[hwc->idx] = event;
 
-			x86_pmu.enable(hwc, hwc->idx);
+			x86_pmu.enable(event);
 			perf_event_update_userpage(event);
 		}
 		cpuc->n_added = 0;
@@ -858,15 +858,16 @@ void hw_perf_enable(void)
 	x86_pmu.enable_all();
 }
 
-static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc, int idx)
+static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc)
 {
-	(void)checking_wrmsrl(hwc->config_base + idx,
+	(void)checking_wrmsrl(hwc->config_base + hwc->idx,
 			      hwc->config | ARCH_PERFMON_EVENTSEL_ENABLE);
 }
 
-static inline void x86_pmu_disable_event(struct hw_perf_event *hwc, int idx)
+static inline void x86_pmu_disable_event(struct perf_event *event)
 {
-	(void)checking_wrmsrl(hwc->config_base + idx, hwc->config);
+	struct hw_perf_event *hwc = &event->hw;
+	(void)checking_wrmsrl(hwc->config_base + hwc->idx, hwc->config);
 }
 
 static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
@@ -927,11 +928,11 @@ x86_perf_event_set_period(struct perf_event *event)
 	return ret;
 }
 
-static void x86_pmu_enable_event(struct hw_perf_event *hwc, int idx)
+static void x86_pmu_enable_event(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	if (cpuc->enabled)
-		__x86_pmu_enable_event(hwc, idx);
+		__x86_pmu_enable_event(&event->hw);
 }
 
 /*
@@ -974,13 +975,11 @@ static int x86_pmu_enable(struct perf_event *event)
 
 static int x86_pmu_start(struct perf_event *event)
 {
-	struct hw_perf_event *hwc = &event->hw;
-
-	if (hwc->idx == -1)
+	if (event->hw.idx == -1)
 		return -EAGAIN;
 
 	x86_perf_event_set_period(event);
-	x86_pmu.enable(hwc, hwc->idx);
+	x86_pmu.enable(event);
 
 	return 0;
 }
@@ -994,7 +993,7 @@ static void x86_pmu_unthrottle(struct perf_event *event)
 				cpuc->events[hwc->idx] != event))
 		return;
 
-	x86_pmu.enable(hwc, hwc->idx);
+	x86_pmu.enable(event);
 }
 
 void perf_event_print_debug(void)
@@ -1059,7 +1058,7 @@ static void x86_pmu_stop(struct perf_event *event)
 	 * could reenable again:
 	 */
 	clear_bit(idx, cpuc->active_mask);
-	x86_pmu.disable(hwc, idx);
+	x86_pmu.disable(event);
 
 	/*
 	 * Drain the remaining delta count out of a event
@@ -1127,7 +1126,7 @@ static int x86_pmu_handle_irq(struct pt_regs *regs)
 			continue;
 
 		if (perf_event_overflow(event, 1, &data, regs))
-			x86_pmu.disable(hwc, idx);
+			x86_pmu.disable(event);
 	}
 
 	if (handled)
