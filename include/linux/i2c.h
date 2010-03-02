@@ -152,6 +152,13 @@ struct i2c_driver {
 	int (*suspend)(struct i2c_client *, pm_message_t mesg);
 	int (*resume)(struct i2c_client *);
 
+	/* Alert callback, for example for the SMBus alert protocol.
+	 * The format and meaning of the data value depends on the protocol.
+	 * For the SMBus alert protocol, there is a single bit of data passed
+	 * as the alert response's low bit ("event flag").
+	 */
+	void (*alert)(struct i2c_client *, unsigned int data);
+
 	/* a ioctl like command that can be used to perform specific functions
 	 * with the device.
 	 */
