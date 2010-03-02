@@ -1183,7 +1183,7 @@ EXPORT_SYMBOL(i2c_transfer);
  * i2c_master_send - issue a single I2C message in master transmit mode
  * @client: Handle to slave device
  * @buf: Data that will be written to the slave
- * @count: How many bytes to write
+ * @count: How many bytes to write, must be less than 64k since msg.len is u16
  *
  * Returns negative errno, or else the number of bytes written.
  */
@@ -1210,7 +1210,7 @@ EXPORT_SYMBOL(i2c_master_send);
  * i2c_master_recv - issue a single I2C message in master receive mode
  * @client: Handle to slave device
  * @buf: Where to store data read from slave
- * @count: How many bytes to read
+ * @count: How many bytes to read, must be less than 64k since msg.len is u16
  *
  * Returns negative errno, or else the number of bytes read.
  */

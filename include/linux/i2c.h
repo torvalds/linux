@@ -53,6 +53,7 @@ struct i2c_board_info;
  * on a bus (or read from them). Apart from two basic transfer functions to
  * transmit one message at a time, a more complex version can be used to
  * transmit an arbitrary number of messages without interruption.
+ * @count must be be less than 64k since msg.len is u16.
  */
 extern int i2c_master_send(struct i2c_client *client, const char *buf,
 			   int count);
