@@ -42,6 +42,7 @@
 
 #include "ocfs2_fs.h"
 #include "ocfs2_lockid.h"
+#include "ocfs2_ioctl.h"
 
 /* For struct ocfs2_blockcheck_stats */
 #include "blockcheck.h"
