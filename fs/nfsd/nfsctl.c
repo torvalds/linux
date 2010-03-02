@@ -1208,9 +1208,6 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 #ifdef CONFIG_NFSD_V4
 static ssize_t __nfsd4_write_time(struct file *file, char *buf, size_t size, time_t *time)
 {
-	/* if size > 10 seconds, call
-	 * nfs4_reset_lease() then write out the new lease (seconds) as reply
-	 */
 	char *mesg = buf;
 	int rv, i;
 
@@ -1220,6 +1217,18 @@ static ssize_t __nfsd4_write_time(struct file *file, char *buf, size_t size, tim
 		rv = get_int(&mesg, &i);
 		if (rv)
 			return rv;
+		/*
+		 * Some sanity checking.  We don't have a reason for
+		 * these particular numbers, but problems with the
+		 * extremes are:
+		 *	- Too short: the briefest network outage may
+		 *	  cause clients to lose all their locks.  Also,
+		 *	  the frequent polling may be wasteful.
+		 *	- Too long: do you really want reboot recovery
+		 *	  to take more than an hour?  Or to make other
+		 *	  clients wait an hour before being able to
+		 *	  revoke a dead client's locks?
+		 */
 		if (i < 10 || i > 3600)
 			return -EINVAL;
 		*time = i;
