@@ -1880,8 +1880,9 @@ static int be_flash_data(struct be_adapter *adapter,
 	const u8 *p = fw->data;
 	struct be_cmd_write_flashrom *req = flash_cmd->va;
 	struct flash_comp *pflashcomp;
+	int num_comp;
 
-	struct flash_comp gen3_flash_types[8] = {
+	struct flash_comp gen3_flash_types[9] = {
 		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g3, IMG_TYPE_ISCSI_ACTIVE,
 			FLASH_IMAGE_MAX_SIZE_g3},
 		{ FLASH_REDBOOT_START_g3, IMG_TYPE_REDBOOT,
@@ -1897,7 +1898,9 @@ static int be_flash_data(struct be_adapter *adapter,
 		{ FLASH_FCoE_PRIMARY_IMAGE_START_g3, IMG_TYPE_FCOE_FW_ACTIVE,
 			FLASH_IMAGE_MAX_SIZE_g3},
 		{ FLASH_FCoE_BACKUP_IMAGE_START_g3, IMG_TYPE_FCOE_FW_BACKUP,
-			FLASH_IMAGE_MAX_SIZE_g3}
+			FLASH_IMAGE_MAX_SIZE_g3},
+		{ FLASH_NCSI_START_g3, IMG_TYPE_NCSI_FW,
+			FLASH_NCSI_IMAGE_MAX_SIZE_g3}
 	};
 	struct flash_comp gen2_flash_types[8] = {
 		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g2, IMG_TYPE_ISCSI_ACTIVE,
@@ -1921,11 +1924,16 @@ static int be_flash_data(struct be_adapter *adapter,
 	if (adapter->generation == BE_GEN3) {
 		pflashcomp = gen3_flash_types;
 		filehdr_size = sizeof(struct flash_file_hdr_g3);
+		num_comp = 9;
 	} else {
 		pflashcomp = gen2_flash_types;
 		filehdr_size = sizeof(struct flash_file_hdr_g2);
+		num_comp = 8;
 	}
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < num_comp; i++) {
+		if ((pflashcomp[i].optype == IMG_TYPE_NCSI_FW) &&
+				memcmp(adapter->fw_ver, "3.102.148.0", 11) < 0)
+			continue;
 		if ((pflashcomp[i].optype == IMG_TYPE_REDBOOT) &&
 			(!be_flash_redboot(adapter, fw->data,
 			 pflashcomp[i].offset, pflashcomp[i].size,
