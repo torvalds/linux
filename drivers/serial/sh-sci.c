@@ -685,7 +685,7 @@ static irqreturn_t sci_rx_interrupt(int irq, void *ptr)
 		/* Calculate delay for 1.5 DMA buffers */
 		tout = (port->timeout - HZ / 50) * s->buf_len_rx * 3 /
 			port->fifosize / 2;
-		dev_dbg(port->dev, "Rx IRQ: setup timeout in %u ms\n",
+		dev_dbg(port->dev, "Rx IRQ: setup timeout in %lu ms\n",
 			tout * 1000 / HZ);
 		if (tout < 2)
 			tout = 2;
@@ -999,7 +999,6 @@ static void sci_rx_dma_release(struct sci_port *s, bool enable_pio)
 {
 	struct dma_chan *chan = s->chan_rx;
 	struct uart_port *port = &s->port;
-	unsigned long flags;
 
 	s->chan_rx = NULL;
 	s->cookie_rx[0] = s->cookie_rx[1] = -EINVAL;
@@ -1014,7 +1013,6 @@ static void sci_tx_dma_release(struct sci_port *s, bool enable_pio)
 {
 	struct dma_chan *chan = s->chan_tx;
 	struct uart_port *port = &s->port;
-	unsigned long flags;
 
 	s->chan_tx = NULL;
 	s->cookie_tx = -EINVAL;
