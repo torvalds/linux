@@ -250,6 +250,18 @@ int rds_send_xmit(struct rds_connection *conn)
 			conn->c_xmit_rm = rm;
 		}
 
+		/* The transport either sends the whole rdma or none of it */
+		if (rm->rdma.op_active && !conn->c_xmit_rdma_sent) {
+			ret = conn->c_trans->xmit_rdma(conn, &rm->rdma);
+			if (ret)
+				break;
+			conn->c_xmit_rdma_sent = 1;
+
+			/* The transport owns the mapped memory for now.
+			 * You can't unmap it while it's on the send queue */
+			set_bit(RDS_MSG_MAPPED, &rm->m_flags);
+		}
+
 		if (rm->atomic.op_active && !conn->c_xmit_atomic_sent) {
 			ret = conn->c_trans->xmit_atomic(conn, rm);
 			if (ret)
@@ -258,32 +270,28 @@ int rds_send_xmit(struct rds_connection *conn)
 			/* The transport owns the mapped memory for now.
 			 * You can't unmap it while it's on the send queue */
 			set_bit(RDS_MSG_MAPPED, &rm->m_flags);
-
-			/*
-			 * This is evil, muahaha.
-			 * We permit 0-byte sends. (rds-ping depends on this.)
-			 * BUT if there is an atomic op and no sent data,
-			 * we turn off sending the header, to achieve
-			 * "silent" atomics.
-			 * But see below; RDMA op might toggle this back on!
-			 */
-			if (rm->data.op_nents == 0)
-				rm->data.op_active = 0;
 		}
 
-		/* The transport either sends the whole rdma or none of it */
-		if (rm->rdma.op_active && !conn->c_xmit_rdma_sent) {
-			ret = conn->c_trans->xmit_rdma(conn, &rm->rdma);
-			if (ret)
-				break;
-			conn->c_xmit_rdma_sent = 1;
+		/*
+		 * A number of cases require an RDS header to be sent
+		 * even if there is no data.
+		 * We permit 0-byte sends; rds-ping depends on this.
+		 * However, if there are exclusively attached silent ops,
+		 * we skip the hdr/data send, to enable silent operation.
+		 */
+		if (rm->data.op_nents == 0) {
+			int ops_present;
+			int all_ops_are_silent = 1;
 
-			/* rdmas need data sent, even if just the header */
-			rm->data.op_active = 1;
+			ops_present = (rm->atomic.op_active || rm->rdma.op_active);
+			if (rm->atomic.op_active && !rm->atomic.op_silent)
+				all_ops_are_silent = 0;
+			if (rm->rdma.op_active && !rm->rdma.op_silent)
+				all_ops_are_silent = 0;
 
-			/* The transport owns the mapped memory for now.
-			 * You can't unmap it while it's on the send queue */
-			set_bit(RDS_MSG_MAPPED, &rm->m_flags);
+			if (ops_present && all_ops_are_silent
+			    && !rm->m_rdma_cookie)
+				rm->data.op_active = 0;
 		}
 
 		if (rm->data.op_active && !conn->c_xmit_data_sent) {
@@ -1009,8 +1017,7 @@ int rds_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	if (ret)
 		goto out;
 
-	if ((rm->m_rdma_cookie || rm->rdma.op_active) &&
-	    !conn->c_trans->xmit_rdma) {
+	if (rm->rdma.op_active && !conn->c_trans->xmit_rdma) {
 		if (printk_ratelimit())
 			printk(KERN_NOTICE "rdma_op %p conn xmit_rdma %p\n",
 			       &rm->rdma, conn->c_trans->xmit_rdma);

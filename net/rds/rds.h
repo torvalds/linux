@@ -319,6 +319,7 @@ struct rds_message {
 			unsigned int		op_notify:1;
 			unsigned int		op_recverr:1;
 			unsigned int		op_mapped:1;
+			unsigned int		op_silent:1;
 			unsigned int		op_active:1;
 			struct scatterlist	*op_sg;
 			struct rds_notifier	*op_notifier;
@@ -333,6 +334,7 @@ struct rds_message {
 			unsigned int		op_notify:1;
 			unsigned int		op_recverr:1;
 			unsigned int		op_mapped:1;
+			unsigned int		op_silent:1;
 			unsigned int		op_active:1;
 			unsigned int		op_bytes;
 			unsigned int		op_nents;

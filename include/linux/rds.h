@@ -276,5 +276,6 @@ struct rds_rdma_notify {
 #define RDS_RDMA_USE_ONCE	0x0008	/* free MR after use */
 #define RDS_RDMA_DONTWAIT	0x0010	/* Don't wait in SET_BARRIER */
 #define RDS_RDMA_NOTIFY_ME	0x0020	/* Notify when operation completes */
+#define RDS_RDMA_SILENT		0x0040	/* Do not interrupt remote */
 
 #endif /* IB_RDS_H */
