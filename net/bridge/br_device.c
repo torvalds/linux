@@ -26,11 +26,12 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	const unsigned char *dest = skb->data;
 	struct net_bridge_fdb_entry *dst;
 	struct net_bridge_mdb_entry *mdst;
+	struct br_cpu_netstats *brstats = this_cpu_ptr(br->stats);
+
+	brstats->tx_packets++;
+	brstats->tx_bytes += skb->len;
 
 	BR_INPUT_SKB_CB(skb)->brdev = dev;
-
-	dev->stats.tx_packets++;
-	dev->stats.tx_bytes += skb->len;
 
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
@@ -79,6 +80,31 @@ static int br_dev_stop(struct net_device *dev)
 	netif_stop_queue(dev);
 
 	return 0;
+}
+
+static struct net_device_stats *br_get_stats(struct net_device *dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+	struct net_device_stats *stats = &dev->stats;
+	struct br_cpu_netstats sum = { 0 };
+	unsigned int cpu;
+
+	for_each_possible_cpu(cpu) {
+		const struct br_cpu_netstats *bstats
+			= per_cpu_ptr(br->stats, cpu);
+
+		sum.tx_bytes   += bstats->tx_bytes;
+		sum.tx_packets += bstats->tx_packets;
+		sum.rx_bytes   += bstats->rx_bytes;
+		sum.rx_packets += bstats->rx_packets;
+	}
+
+	stats->tx_bytes   = sum.tx_bytes;
+	stats->tx_packets = sum.tx_packets;
+	stats->rx_bytes   = sum.rx_bytes;
+	stats->rx_packets = sum.rx_packets;
+
+	return stats;
 }
 
 static int br_change_mtu(struct net_device *dev, int new_mtu)
@@ -180,11 +206,20 @@ static const struct net_device_ops br_netdev_ops = {
 	.ndo_open		 = br_dev_open,
 	.ndo_stop		 = br_dev_stop,
 	.ndo_start_xmit		 = br_dev_xmit,
+	.ndo_get_stats		 = br_get_stats,
 	.ndo_set_mac_address	 = br_set_mac_address,
 	.ndo_set_multicast_list	 = br_dev_set_multicast_list,
 	.ndo_change_mtu		 = br_change_mtu,
 	.ndo_do_ioctl		 = br_dev_ioctl,
 };
+
+static void br_dev_free(struct net_device *dev)
+{
+	struct net_bridge *br = netdev_priv(dev);
+
+	free_percpu(br->stats);
+	free_netdev(dev);
+}
 
 void br_dev_setup(struct net_device *dev)
 {
@@ -192,7 +227,7 @@ void br_dev_setup(struct net_device *dev)
 	ether_setup(dev);
 
 	dev->netdev_ops = &br_netdev_ops;
-	dev->destructor = free_netdev;
+	dev->destructor = br_dev_free;
 	SET_ETHTOOL_OPS(dev, &br_ethtool_ops);
 	dev->tx_queue_len = 0;
 	dev->priv_flags = IFF_EBRIDGE;

@@ -185,6 +185,12 @@ static struct net_device *new_bridge_dev(struct net *net, const char *name)
 	br = netdev_priv(dev);
 	br->dev = dev;
 
+	br->stats = alloc_percpu(struct br_cpu_netstats);
+	if (!br->stats) {
+		free_netdev(dev);
+		return NULL;
+	}
+
 	spin_lock_init(&br->lock);
 	INIT_LIST_HEAD(&br->port_list);
 	spin_lock_init(&br->hash_lock);
