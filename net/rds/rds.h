@@ -301,7 +301,13 @@ struct rds_message {
 	 */
 	spinlock_t		m_rs_lock;
 	struct rds_sock		*m_rs;
+
+	/* cookie to send to remote, in rds header */
 	rds_rdma_cookie_t	m_rdma_cookie;
+
+	unsigned int		m_used_sgs;
+	unsigned int		m_total_sgs;
+
 	struct {
 		struct rm_atomic_op {
 			int			op_type;
@@ -343,8 +349,6 @@ struct rds_message {
 			struct scatterlist	*op_sg;
 		} data;
 	};
-	unsigned int		m_used_sgs;
-	unsigned int		m_total_sgs;
 };
 
 /*
