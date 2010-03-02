@@ -17,7 +17,7 @@ ignore="( -name SCCS -o -name BitKeeper -o -name .svn -o \
           -name .git )                                   \
           -prune -o"
 
-# Do not use full path is we do not use O=.. builds
+# Do not use full path if we do not use O=.. builds
 if [ "${KBUILD_SRC}" = "" ]; then
 	tree=
 else
