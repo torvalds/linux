@@ -34,6 +34,7 @@
 #include <linux/hardirq.h>
 #include <linux/irqflags.h>
 #include <linux/rwsem.h>
+#include <linux/pm_runtime.h>
 #include <asm/uaccess.h>
 
 #include "i2c-core.h"
@@ -184,6 +185,52 @@ static int i2c_device_pm_resume(struct device *dev)
 #define i2c_device_pm_resume	NULL
 #endif
 
+#ifdef CONFIG_PM_RUNTIME
+static int i2c_device_runtime_suspend(struct device *dev)
+{
+	const struct dev_pm_ops *pm;
+
+	if (!dev->driver)
+		return 0;
+	pm = dev->driver->pm;
+	if (!pm || !pm->runtime_suspend)
+		return 0;
+	return pm->runtime_suspend(dev);
+}
+
+static int i2c_device_runtime_resume(struct device *dev)
+{
+	const struct dev_pm_ops *pm;
+
+	if (!dev->driver)
+		return 0;
+	pm = dev->driver->pm;
+	if (!pm || !pm->runtime_resume)
+		return 0;
+	return pm->runtime_resume(dev);
+}
+
+static int i2c_device_runtime_idle(struct device *dev)
+{
+	const struct dev_pm_ops *pm = NULL;
+	int ret;
+
+	if (dev->driver)
+		pm = dev->driver->pm;
+	if (pm && pm->runtime_idle) {
+		ret = pm->runtime_idle(dev);
+		if (ret)
+			return ret;
+	}
+
+	return pm_runtime_suspend(dev);
+}
+#else
+#define i2c_device_runtime_suspend	NULL
+#define i2c_device_runtime_resume	NULL
+#define i2c_device_runtime_idle		NULL
+#endif
+
 static int i2c_device_suspend(struct device *dev, pm_message_t mesg)
 {
 	struct i2c_client *client = i2c_verify_client(dev);
@@ -251,6 +298,9 @@ static const struct attribute_group *i2c_dev_attr_groups[] = {
 static const struct dev_pm_ops i2c_device_pm_ops = {
 	.suspend = i2c_device_pm_suspend,
 	.resume = i2c_device_pm_resume,
+	.runtime_suspend = i2c_device_runtime_suspend,
+	.runtime_resume = i2c_device_runtime_resume,
+	.runtime_idle = i2c_device_runtime_idle,
 };
 
 struct bus_type i2c_bus_type = {
