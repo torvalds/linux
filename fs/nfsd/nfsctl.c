@@ -45,6 +45,7 @@ enum {
 	 */
 #ifdef CONFIG_NFSD_V4
 	NFSD_Leasetime,
+	NFSD_Gracetime,
 	NFSD_RecoveryDir,
 #endif
 };
@@ -69,6 +70,7 @@ static ssize_t write_ports(struct file *file, char *buf, size_t size);
 static ssize_t write_maxblksize(struct file *file, char *buf, size_t size);
 #ifdef CONFIG_NFSD_V4
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size);
+static ssize_t write_gracetime(struct file *file, char *buf, size_t size);
 static ssize_t write_recoverydir(struct file *file, char *buf, size_t size);
 #endif
 
@@ -90,6 +92,7 @@ static ssize_t (*write_op[])(struct file *, char *, size_t) = {
 	[NFSD_MaxBlkSize] = write_maxblksize,
 #ifdef CONFIG_NFSD_V4
 	[NFSD_Leasetime] = write_leasetime,
+	[NFSD_Gracetime] = write_gracetime,
 	[NFSD_RecoveryDir] = write_recoverydir,
 #endif
 };
@@ -1261,6 +1264,21 @@ static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
 	return nfsd4_write_time(file, buf, size, &nfsd4_lease);
 }
 
+/**
+ * write_gracetime - Set or report current NFSv4 grace period time
+ *
+ * As above, but sets the time of the NFSv4 grace period.
+ *
+ * Note this should never be set to less than the *previous*
+ * lease-period time, but we don't try to enforce this.  (In the common
+ * case (a new boot), we don't know what the previous lease time was
+ * anyway.)
+ */
+static ssize_t write_gracetime(struct file *file, char *buf, size_t size)
+{
+	return nfsd4_write_time(file, buf, size, &nfsd4_grace);
+}
+
 extern char *nfs4_recoverydir(void);
 
 static ssize_t __write_recoverydir(struct file *file, char *buf, size_t size)
@@ -1352,6 +1370,7 @@ static int nfsd_fill_super(struct super_block * sb, void * data, int silent)
 		[NFSD_MaxBlkSize] = {"max_block_size", &transaction_ops, S_IWUSR|S_IRUGO},
 #ifdef CONFIG_NFSD_V4
 		[NFSD_Leasetime] = {"nfsv4leasetime", &transaction_ops, S_IWUSR|S_IRUSR},
+		[NFSD_Gracetime] = {"nfsv4gracetime", &transaction_ops, S_IWUSR|S_IRUSR},
 		[NFSD_RecoveryDir] = {"nfsv4recoverydir", &transaction_ops, S_IWUSR|S_IRUSR},
 #endif
 		/* last one */ {""}

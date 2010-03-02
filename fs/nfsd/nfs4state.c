@@ -45,7 +45,7 @@
 
 /* Globals */
 time_t nfsd4_lease = 90;     /* default lease time */
-static time_t nfsd4_grace = 90;
+time_t nfsd4_grace = 90;
 static time_t boot_time;
 static u32 current_ownerid = 1;
 static u32 current_fileid = 1;
