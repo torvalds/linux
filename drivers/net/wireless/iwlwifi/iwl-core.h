@@ -191,6 +191,8 @@ struct iwl_lib_ops {
 	struct iwl_temp_ops temp_ops;
 	/* station management */
 	void (*add_bcast_station)(struct iwl_priv *priv);
+	/* recover from tx queue stall */
+	void (*recover_from_tx_stall)(unsigned long data);
 };
 
 struct iwl_led_ops {
@@ -295,6 +297,8 @@ struct iwl_cfg {
 	const bool support_wimax_coexist;
 	u8 plcp_delta_threshold;
 	s32 chain_noise_scale;
+	/* timer period for monitor the driver queues */
+	u32 monitor_recover_period;
 };
 
 /***************************
@@ -568,6 +572,9 @@ static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 	pci_read_config_word(priv->pci_dev, pos + PCI_EXP_LNKCTL, &pci_lnk_ctl);
 	return pci_lnk_ctl;
 }
+
+void iwl_bg_monitor_recover(unsigned long data);
+
 #ifdef CONFIG_PM
 int iwl_pci_suspend(struct pci_dev *pdev, pm_message_t state);
 int iwl_pci_resume(struct pci_dev *pdev);

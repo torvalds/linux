@@ -183,6 +183,10 @@ struct iwl_queue {
 	int n_bd;              /* number of BDs in this queue */
 	int write_ptr;       /* 1-st empty entry (index) host_w*/
 	int read_ptr;         /* last used entry (index) host_r*/
+	/* use for monitoring and recovering the stuck queue */
+	int last_read_ptr;      /* storing the last read_ptr */
+	/* number of time read_ptr and last_read_ptr are the same */
+	u8 repeat_same_read_ptr;
 	dma_addr_t dma_addr;   /* physical addr for BD's */
 	int n_window;	       /* safe queue window */
 	u32 id;
@@ -1044,6 +1048,11 @@ struct iwl_event_log {
 #define IWL_DELAY_NEXT_FORCE_RF_RESET  (HZ*3)
 #define IWL_DELAY_NEXT_FORCE_FW_RELOAD (HZ*5)
 
+/* timer constants use to monitor and recover stuck tx queues in mSecs */
+#define IWL_MONITORING_PERIOD  (1000)
+#define IWL_ONE_HUNDRED_MSECS   (100)
+#define IWL_SIXTY_SECS          (60000)
+
 enum iwl_reset {
 	IWL_RF_RESET = 0,
 	IWL_FW_RESET,
@@ -1354,6 +1363,7 @@ struct iwl_priv {
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
 	struct timer_list ucode_trace;
+	struct timer_list monitor_recover;
 	bool hw_ready;
 
 	struct iwl_event_log event_log;
