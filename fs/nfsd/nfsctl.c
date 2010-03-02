@@ -1219,7 +1219,7 @@ static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
 			return rv;
 		if (lease < 10 || lease > 3600)
 			return -EINVAL;
-		nfs4_reset_lease(lease);
+		nfsd4_lease = lease;
 	}
 
 	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%ld\n", nfsd4_lease);

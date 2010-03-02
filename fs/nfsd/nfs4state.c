@@ -4115,15 +4115,3 @@ nfs4_recoverydir(void)
 {
 	return user_recovery_dirname;
 }
-
-/*
- * Called when leasetime is changed.
- *
- * nfsd4_lease is protected by nfsd_mutex since it's only really accessed
- * when nfsd is starting
- */
-void
-nfs4_reset_lease(time_t leasetime)
-{
-	nfsd4_lease = leasetime;
-}
