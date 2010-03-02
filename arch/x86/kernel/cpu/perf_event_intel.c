@@ -694,14 +694,8 @@ static void intel_pmu_enable_event(struct hw_perf_event *hwc, int idx)
  */
 static int intel_pmu_save_and_restart(struct perf_event *event)
 {
-	struct hw_perf_event *hwc = &event->hw;
-	int idx = hwc->idx;
-	int ret;
-
-	x86_perf_event_update(event, hwc, idx);
-	ret = x86_perf_event_set_period(event);
-
-	return ret;
+	x86_perf_event_update(event);
+	return x86_perf_event_set_period(event);
 }
 
 static void intel_pmu_reset(void)

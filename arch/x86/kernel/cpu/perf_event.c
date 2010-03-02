@@ -193,11 +193,12 @@ static u64 __read_mostly hw_cache_event_ids
  * Returns the delta events processed.
  */
 static u64
-x86_perf_event_update(struct perf_event *event,
-			struct hw_perf_event *hwc, int idx)
+x86_perf_event_update(struct perf_event *event)
 {
+	struct hw_perf_event *hwc = &event->hw;
 	int shift = 64 - x86_pmu.event_bits;
 	u64 prev_raw_count, new_raw_count;
+	int idx = hwc->idx;
 	s64 delta;
 
 	if (idx == X86_PMC_IDX_FIXED_BTS)
@@ -1064,7 +1065,7 @@ static void x86_pmu_stop(struct perf_event *event)
 	 * Drain the remaining delta count out of a event
 	 * that we are disabling:
 	 */
-	x86_perf_event_update(event, hwc, idx);
+	x86_perf_event_update(event);
 
 	cpuc->events[idx] = NULL;
 }
@@ -1112,7 +1113,7 @@ static int x86_pmu_handle_irq(struct pt_regs *regs)
 		event = cpuc->events[idx];
 		hwc = &event->hw;
 
-		val = x86_perf_event_update(event, hwc, idx);
+		val = x86_perf_event_update(event);
 		if (val & (1ULL << (x86_pmu.event_bits - 1)))
 			continue;
 
@@ -1458,7 +1459,7 @@ void __init init_hw_perf_events(void)
 
 static inline void x86_pmu_read(struct perf_event *event)
 {
-	x86_perf_event_update(event, &event->hw, event->hw.idx);
+	x86_perf_event_update(event);
 }
 
 static const struct pmu pmu = {
