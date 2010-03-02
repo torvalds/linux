@@ -583,7 +583,7 @@ static void be_set_multicast_list(struct net_device *netdev)
 	}
 
 	be_cmd_multicast_set(adapter, adapter->if_handle, netdev,
-			&adapter->mc_cmd_mem);
+		&adapter->mc_cmd_mem);
 done:
 	return;
 }
@@ -1469,23 +1469,38 @@ int be_poll_rx(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-void be_process_tx(struct be_adapter *adapter)
+/* As TX and MCC share the same EQ check for both TX and MCC completions.
+ * For TX/MCC we don't honour budget; consume everything
+ */
+static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 {
+	struct be_eq_obj *tx_eq = container_of(napi, struct be_eq_obj, napi);
+	struct be_adapter *adapter =
+		container_of(tx_eq, struct be_adapter, tx_eq);
 	struct be_queue_info *txq = &adapter->tx_obj.q;
 	struct be_queue_info *tx_cq = &adapter->tx_obj.cq;
 	struct be_eth_tx_compl *txcp;
-	u32 num_cmpl = 0;
+	int tx_compl = 0, mcc_compl, status = 0;
 	u16 end_idx;
 
 	while ((txcp = be_tx_compl_get(tx_cq))) {
 		end_idx = AMAP_GET_BITS(struct amap_eth_tx_compl,
-					wrb_index, txcp);
+				wrb_index, txcp);
 		be_tx_compl_process(adapter, end_idx);
-		num_cmpl++;
+		tx_compl++;
 	}
 
-	if (num_cmpl) {
-		be_cq_notify(adapter, tx_cq->id, true, num_cmpl);
+	mcc_compl = be_process_mcc(adapter, &status);
+
+	napi_complete(napi);
+
+	if (mcc_compl) {
+		struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
+		be_cq_notify(adapter, mcc_obj->cq.id, true, mcc_compl);
+	}
+
+	if (tx_compl) {
+		be_cq_notify(adapter, adapter->tx_obj.cq.id, true, tx_compl);
 
 		/* As Tx wrbs have been freed up, wake up netdev queue if
 		 * it was stopped due to lack of tx wrbs.
@@ -1496,24 +1511,8 @@ void be_process_tx(struct be_adapter *adapter)
 		}
 
 		drvr_stats(adapter)->be_tx_events++;
-		drvr_stats(adapter)->be_tx_compl += num_cmpl;
+		drvr_stats(adapter)->be_tx_compl += tx_compl;
 	}
-}
-
-/* As TX and MCC share the same EQ check for both TX and MCC completions.
- * For TX/MCC we don't honour budget; consume everything
- */
-static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
-{
-	struct be_eq_obj *tx_eq = container_of(napi, struct be_eq_obj, napi);
-	struct be_adapter *adapter =
-		container_of(tx_eq, struct be_adapter, tx_eq);
-
-	napi_complete(napi);
-
-	be_process_tx(adapter);
-
-	be_process_mcc(adapter);
 
 	return 1;
 }

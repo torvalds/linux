@@ -920,7 +920,7 @@ extern int be_cmd_get_flow_control(struct be_adapter *adapter,
 extern int be_cmd_query_fw_cfg(struct be_adapter *adapter,
 			u32 *port_num, u32 *cap);
 extern int be_cmd_reset_function(struct be_adapter *adapter);
-extern int be_process_mcc(struct be_adapter *adapter);
+extern int be_process_mcc(struct be_adapter *adapter, int *status);
 extern int be_cmd_set_beacon_state(struct be_adapter *adapter,
 			u8 port_num, u8 beacon, u8 status, u8 state);
 extern int be_cmd_get_beacon_state(struct be_adapter *adapter,
