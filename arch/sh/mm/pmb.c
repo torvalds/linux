@@ -68,6 +68,8 @@ static DEFINE_RWLOCK(pmb_rwlock);
 static struct pmb_entry pmb_entry_list[NR_PMB_ENTRIES];
 static DECLARE_BITMAP(pmb_map, NR_PMB_ENTRIES);
 
+static unsigned int pmb_iomapping_enabled;
+
 static __always_inline unsigned long mk_pmb_entry(unsigned int entry)
 {
 	return (entry & PMB_E_MASK) << PMB_E_SHIFT;
@@ -283,6 +285,9 @@ void __iomem *pmb_remap_caller(phys_addr_t phys, unsigned long size,
 	phys_addr_t align_mask;
 	unsigned long aligned;
 	struct vm_struct *area;
+
+	if (!pmb_iomapping_enabled)
+		return NULL;
 
 	/*
 	 * Small mappings need to go through the TLB.
@@ -683,6 +688,18 @@ static void __init pmb_resize(void)
 	read_lock(&pmb_rwlock);
 }
 #endif
+
+static int __init early_pmb(char *p)
+{
+	if (!p)
+		return 0;
+
+	if (strstr(p, "iomap"))
+		pmb_iomapping_enabled = 1;
+
+	return 0;
+}
+early_param("pmb", early_pmb);
 
 void __init pmb_init(void)
 {
