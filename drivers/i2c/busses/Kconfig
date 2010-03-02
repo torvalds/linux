@@ -77,7 +77,7 @@ config I2C_AMD8111
 	  will be called i2c-amd8111.
 
 config I2C_I801
-	tristate "Intel 82801 (ICH)"
+	tristate "Intel 82801 (ICH/PCH)"
 	depends on PCI
 	help
 	  If you say yes to this option, support will be included for the Intel
@@ -97,7 +97,8 @@ config I2C_I801
 	    ICH9
 	    Tolapai
 	    ICH10
-	    PCH
+	    3400/5 Series (PCH)
+	    Cougar Point (PCH)
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-i801.
