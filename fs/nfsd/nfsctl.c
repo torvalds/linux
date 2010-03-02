@@ -1203,26 +1203,36 @@ static ssize_t write_maxblksize(struct file *file, char *buf, size_t size)
 }
 
 #ifdef CONFIG_NFSD_V4
-static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
+static ssize_t __nfsd4_write_time(struct file *file, char *buf, size_t size, time_t *time)
 {
 	/* if size > 10 seconds, call
 	 * nfs4_reset_lease() then write out the new lease (seconds) as reply
 	 */
 	char *mesg = buf;
-	int rv, lease;
+	int rv, i;
 
 	if (size > 0) {
 		if (nfsd_serv)
 			return -EBUSY;
-		rv = get_int(&mesg, &lease);
+		rv = get_int(&mesg, &i);
 		if (rv)
 			return rv;
-		if (lease < 10 || lease > 3600)
+		if (i < 10 || i > 3600)
 			return -EINVAL;
-		nfsd4_lease = lease;
+		*time = i;
 	}
 
-	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%ld\n", nfsd4_lease);
+	return scnprintf(buf, SIMPLE_TRANSACTION_LIMIT, "%ld\n", *time);
+}
+
+static ssize_t nfsd4_write_time(struct file *file, char *buf, size_t size, time_t *time)
+{
+	ssize_t rv;
+
+	mutex_lock(&nfsd_mutex);
+	rv = __nfsd4_write_time(file, buf, size, time);
+	mutex_unlock(&nfsd_mutex);
+	return rv;
 }
 
 /**
@@ -1248,12 +1258,7 @@ static ssize_t __write_leasetime(struct file *file, char *buf, size_t size)
  */
 static ssize_t write_leasetime(struct file *file, char *buf, size_t size)
 {
-	ssize_t rv;
-
-	mutex_lock(&nfsd_mutex);
-	rv = __write_leasetime(file, buf, size);
-	mutex_unlock(&nfsd_mutex);
-	return rv;
+	return nfsd4_write_time(file, buf, size, &nfsd4_lease);
 }
 
 extern char *nfs4_recoverydir(void);
