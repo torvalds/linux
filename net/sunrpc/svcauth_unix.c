@@ -624,7 +624,7 @@ static int unix_gid_show(struct seq_file *m,
 	else
 		glen = 0;
 
-	seq_printf(m, "%d %d:", ug->uid, glen);
+	seq_printf(m, "%u %d:", ug->uid, glen);
 	for (i = 0; i < glen; i++)
 		seq_printf(m, " %d", GROUP_AT(ug->gi, i));
 	seq_printf(m, "\n");
