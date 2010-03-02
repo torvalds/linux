@@ -775,7 +775,6 @@ static void virtnet_set_rx_mode(struct net_device *dev)
 	mac_data = (void *)&mac_data->macs[uc_count][0];
 
 	mac_data->entries = mc_count;
-	addr = dev->mc_list;
 	i = 0;
 	netdev_for_each_mc_addr(addr, dev)
 		memcpy(&mac_data->macs[i++][0], addr->da_addr, ETH_ALEN);
