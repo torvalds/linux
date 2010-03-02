@@ -166,8 +166,7 @@ coh901318_lli_fill_memcpy(struct coh901318_pool *pool,
 	lli->src_addr = src;
 	lli->dst_addr = dst;
 
-	/* One irq per single transfer */
-	return 1;
+	return 0;
 }
 
 int
@@ -223,8 +222,7 @@ coh901318_lli_fill_single(struct coh901318_pool *pool,
 	lli->src_addr = src;
 	lli->dst_addr = dst;
 
-	/* One irq per single transfer */
-	return 1;
+	return 0;
 }
 
 int
@@ -240,7 +238,6 @@ coh901318_lli_fill_sg(struct coh901318_pool *pool,
 	u32 ctrl_sg;
 	dma_addr_t src = 0;
 	dma_addr_t dst = 0;
-	int nbr_of_irq = 0;
 	u32 bytes_to_transfer;
 	u32 elem_size;
 
@@ -268,9 +265,6 @@ coh901318_lli_fill_sg(struct coh901318_pool *pool,
 		else
 			ctrl_sg = ctrl ? ctrl : ctrl_last;
 
-
-		if ((ctrl_sg & ctrl_irq_mask))
-			nbr_of_irq++;
 
 		if (dir == DMA_TO_DEVICE)
 			/* increment source address */
@@ -310,8 +304,7 @@ coh901318_lli_fill_sg(struct coh901318_pool *pool,
 	}
 	spin_unlock(&pool->lock);
 
-	/* There can be many IRQs per sg transfer */
-	return nbr_of_irq;
+	return 0;
  err:
 	spin_unlock(&pool->lock);
 	return -EINVAL;

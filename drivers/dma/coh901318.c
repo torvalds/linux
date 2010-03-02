@@ -39,7 +39,6 @@ struct coh901318_desc {
 	unsigned int sg_len;
 	struct coh901318_lli *data;
 	enum dma_data_direction dir;
-	int pending_irqs;
 	unsigned long flags;
 };
 
@@ -72,7 +71,6 @@ struct coh901318_chan {
 
 	unsigned long nbr_active_done;
 	unsigned long busy;
-	int pending_irqs;
 
 	struct coh901318_base *base;
 };
@@ -368,10 +366,6 @@ static void
 coh901318_desc_submit(struct coh901318_chan *cohc, struct coh901318_desc *desc)
 {
 	list_add_tail(&desc->node, &cohc->active);
-
-	BUG_ON(cohc->pending_irqs != 0);
-
-	cohc->pending_irqs = desc->pending_irqs;
 }
 
 static struct coh901318_desc *
@@ -617,36 +611,30 @@ static void dma_tasklet(unsigned long data)
 	/* get first active descriptor entry from list */
 	cohd_fin = coh901318_first_active_get(cohc);
 
-	BUG_ON(cohd_fin->pending_irqs == 0);
-
 	if (cohd_fin == NULL)
 		goto err;
 
-	cohd_fin->pending_irqs--;
-	cohc->completed = cohd_fin->desc.cookie;
-
-	if (cohc->nbr_active_done == 0)
-		return;
-
-	if (!cohd_fin->pending_irqs) {
-		/* release the lli allocation*/
-		coh901318_lli_free(&cohc->base->pool, &cohd_fin->data);
-	}
-
-	dev_vdbg(COHC_2_DEV(cohc), "[%s] chan_id %d pending_irqs %d"
-		 " nbr_active_done %ld\n", __func__,
-		 cohc->id, cohc->pending_irqs, cohc->nbr_active_done);
-
-	/* callback to client */
+	/* locate callback to client */
 	callback = cohd_fin->desc.callback;
 	callback_param = cohd_fin->desc.callback_param;
 
-	if (!cohd_fin->pending_irqs) {
-		coh901318_desc_remove(cohd_fin);
+	/* sign this job as completed on the channel */
+	cohc->completed = cohd_fin->desc.cookie;
 
-		/* return desc to free-list */
-		coh901318_desc_free(cohc, cohd_fin);
-	}
+	/* release the lli allocation and remove the descriptor */
+	coh901318_lli_free(&cohc->base->pool, &cohd_fin->data);
+
+	/* return desc to free-list */
+	coh901318_desc_remove(cohd_fin);
+	coh901318_desc_free(cohc, cohd_fin);
+
+	spin_unlock_irqrestore(&cohc->lock, flags);
+
+	/* Call the callback when we're done */
+	if (callback)
+		callback(callback_param);
+
+	spin_lock_irqsave(&cohc->lock, flags);
 
 	/*
 	 * If another interrupt fired while the tasklet was scheduling,
@@ -655,9 +643,7 @@ static void dma_tasklet(unsigned long data)
 	 * be handled for this channel. If there happen to be more than
 	 * one IRQ to be ack:ed, we simply schedule this tasklet again.
 	 */
-	if (cohc->nbr_active_done)
-		cohc->nbr_active_done--;
-
+	cohc->nbr_active_done--;
 	if (cohc->nbr_active_done) {
 		dev_dbg(COHC_2_DEV(cohc), "scheduling tasklet again, new IRQs "
 			"came in while we were scheduling this tasklet\n");
@@ -666,10 +652,8 @@ static void dma_tasklet(unsigned long data)
 		else
 			tasklet_schedule(&cohc->tasklet);
 	}
-	spin_unlock_irqrestore(&cohc->lock, flags);
 
-	if (callback)
-		callback(callback_param);
+	spin_unlock_irqrestore(&cohc->lock, flags);
 
 	return;
 
@@ -688,15 +672,16 @@ static void dma_tc_handle(struct coh901318_chan *cohc)
 	if (!cohc->allocated)
 		return;
 
-	BUG_ON(cohc->pending_irqs == 0);
+	spin_lock(&cohc->lock);
 
-	cohc->pending_irqs--;
 	cohc->nbr_active_done++;
 
-	if (cohc->pending_irqs == 0 && coh901318_queue_start(cohc) == NULL)
+	if (coh901318_queue_start(cohc) == NULL)
 		cohc->busy = 0;
 
 	BUG_ON(list_empty(&cohc->active));
+
+	spin_unlock(&cohc->lock);
 
 	if (cohc_chan_conf(cohc)->priority_high)
 		tasklet_hi_schedule(&cohc->tasklet);
@@ -951,6 +936,7 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	u32 ctrl = cohc_chan_param(cohc)->ctrl_lli;
 	u32 ctrl_last = cohc_chan_param(cohc)->ctrl_lli_last;
 	unsigned long flg;
+	int ret;
 
 	if (!sgl)
 		goto out;
@@ -1010,13 +996,14 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		goto err_dma_alloc;
 
 	/* initiate allocated data list */
-	cohd->pending_irqs =
-		coh901318_lli_fill_sg(&cohc->base->pool, data, sgl, sg_len,
-				      cohc_dev_addr(cohc),
-				      ctrl_chained,
-				      ctrl,
-				      ctrl_last,
-				      direction, COH901318_CX_CTRL_TC_IRQ_ENABLE);
+	ret = coh901318_lli_fill_sg(&cohc->base->pool, data, sgl, sg_len,
+				    cohc_dev_addr(cohc),
+				    ctrl_chained,
+				    ctrl,
+				    ctrl_last,
+				    direction, COH901318_CX_CTRL_TC_IRQ_ENABLE);
+	if (ret)
+		goto err_lli_fill;
 
 	COH_DBG(coh901318_list_print(cohc, data));
 
@@ -1030,6 +1017,7 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 	spin_unlock_irqrestore(&cohc->lock, flg);
 
 	return &cohd->desc;
+ err_lli_fill:
  err_dma_alloc:
  err_direction:
 	spin_unlock_irqrestore(&cohc->lock, flg);
@@ -1121,7 +1109,6 @@ coh901318_terminate_all(struct dma_chan *chan)
 
 	cohc->nbr_active_done = 0;
 	cohc->busy = 0;
-	cohc->pending_irqs = 0;
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
 }
@@ -1148,7 +1135,6 @@ void coh901318_base_init(struct dma_device *dma, const int *pick_chans,
 
 			spin_lock_init(&cohc->lock);
 
-			cohc->pending_irqs = 0;
 			cohc->nbr_active_done = 0;
 			cohc->busy = 0;
 			INIT_LIST_HEAD(&cohc->free);
