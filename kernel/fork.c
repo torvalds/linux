@@ -1442,7 +1442,7 @@ static struct task_struct *copy_process(unsigned long clone_flags,
 
 		if (thread_group_leader(p)) {
 			if (is_child_reaper(pid))
-				p->nsproxy->pid_ns->child_reaper = p;
+				ns_of_pid(pid)->child_reaper = p;
 
 			p->signal->leader_pid = pid;
 			p->signal->tty = tty_kref_get(current->signal->tty);

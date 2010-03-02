@@ -106,7 +106,7 @@ static struct dentry *proc_mount(struct file_system_type *fs_type,
 		ns = (struct pid_namespace *)data;
 		options = NULL;
 	} else {
-		ns = current->nsproxy->pid_ns;
+		ns = task_active_pid_ns(current);
 		options = data;
 	}
 
