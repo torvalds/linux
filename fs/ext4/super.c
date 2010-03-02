@@ -1205,6 +1205,8 @@ static ext4_fsblk_t get_sb_block(void **data)
 }
 
 #define DEFAULT_JOURNAL_IOPRIO (IOPRIO_PRIO_VALUE(IOPRIO_CLASS_BE, 3))
+static char deprecated_msg[] = "Mount option \"%s\" will be removed by %s\n"
+	"Contact linux-ext4@vger.kernel.org if you think we should keep it.\n";
 
 #ifdef CONFIG_QUOTA
 static int set_qf_name(struct super_block *sb, int qtype, substring_t *args)
@@ -1294,16 +1296,23 @@ static int parse_options(char *options, struct super_block *sb,
 		token = match_token(p, tokens, args);
 		switch (token) {
 		case Opt_bsd_df:
+			ext4_msg(sb, KERN_WARNING, deprecated_msg, p, "2.6.38");
 			clear_opt(sbi->s_mount_opt, MINIX_DF);
 			break;
 		case Opt_minix_df:
+			ext4_msg(sb, KERN_WARNING, deprecated_msg, p, "2.6.38");
 			set_opt(sbi->s_mount_opt, MINIX_DF);
+
 			break;
 		case Opt_grpid:
+			ext4_msg(sb, KERN_WARNING, deprecated_msg, p, "2.6.38");
 			set_opt(sbi->s_mount_opt, GRPID);
+
 			break;
 		case Opt_nogrpid:
+			ext4_msg(sb, KERN_WARNING, deprecated_msg, p, "2.6.38");
 			clear_opt(sbi->s_mount_opt, GRPID);
+
 			break;
 		case Opt_resuid:
 			if (match_int(&args[0], &option))
@@ -2449,8 +2458,11 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	def_mount_opts = le32_to_cpu(es->s_default_mount_opts);
 	if (def_mount_opts & EXT4_DEFM_DEBUG)
 		set_opt(sbi->s_mount_opt, DEBUG);
-	if (def_mount_opts & EXT4_DEFM_BSDGROUPS)
+	if (def_mount_opts & EXT4_DEFM_BSDGROUPS) {
+		ext4_msg(sb, KERN_WARNING, deprecated_msg, "bsdgroups",
+			"2.6.38");
 		set_opt(sbi->s_mount_opt, GRPID);
+	}
 	if (def_mount_opts & EXT4_DEFM_UID16)
 		set_opt(sbi->s_mount_opt, NO_UID32);
 #ifdef CONFIG_EXT4_FS_XATTR
