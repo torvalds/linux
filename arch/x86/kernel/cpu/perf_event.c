@@ -643,7 +643,7 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 		if (test_bit(hwc->idx, used_mask))
 			break;
 
-		set_bit(hwc->idx, used_mask);
+		__set_bit(hwc->idx, used_mask);
 		if (assign)
 			assign[i] = hwc->idx;
 	}
@@ -692,7 +692,7 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 			if (j == X86_PMC_IDX_MAX)
 				break;
 
-			set_bit(j, used_mask);
+			__set_bit(j, used_mask);
 
 			if (assign)
 				assign[i] = j;
@@ -842,7 +842,7 @@ void hw_perf_enable(void)
 			 * clear active_mask and events[] yet it preserves
 			 * idx
 			 */
-			set_bit(hwc->idx, cpuc->active_mask);
+			__set_bit(hwc->idx, cpuc->active_mask);
 			cpuc->events[hwc->idx] = event;
 
 			x86_pmu.enable(event);
@@ -1057,7 +1057,7 @@ static void x86_pmu_stop(struct perf_event *event)
 	 * Must be done before we disable, otherwise the nmi handler
 	 * could reenable again:
 	 */
-	clear_bit(idx, cpuc->active_mask);
+	__clear_bit(idx, cpuc->active_mask);
 	x86_pmu.disable(event);
 
 	/*

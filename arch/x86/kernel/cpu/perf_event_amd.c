@@ -287,7 +287,7 @@ static struct amd_nb *amd_alloc_nb(int cpu, int nb_id)
 	 * initialize all possible NB constraints
 	 */
 	for (i = 0; i < x86_pmu.num_events; i++) {
-		set_bit(i, nb->event_constraints[i].idxmsk);
+		__set_bit(i, nb->event_constraints[i].idxmsk);
 		nb->event_constraints[i].weight = 1;
 	}
 	return nb;

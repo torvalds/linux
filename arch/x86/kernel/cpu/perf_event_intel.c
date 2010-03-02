@@ -765,7 +765,6 @@ again:
 	for_each_set_bit(bit, (unsigned long *)&status, X86_PMC_IDX_MAX) {
 		struct perf_event *event = cpuc->events[bit];
 
-		clear_bit(bit, (unsigned long *) &status);
 		if (!test_bit(bit, cpuc->active_mask))
 			continue;
 
