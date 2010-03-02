@@ -53,6 +53,12 @@
 #define ext4_debug(f, a...)	do {} while (0)
 #endif
 
+#define EXT4_ERROR_INODE(inode, fmt, a...) \
+	ext4_error_inode(__func__, (inode), (fmt), ## a);
+
+#define EXT4_ERROR_FILE(file, fmt, a...)	\
+	ext4_error_file(__func__, (file), (fmt), ## a);
+
 /* data type for block offset of block group */
 typedef int ext4_grpblk_t;
 
@@ -1492,6 +1498,10 @@ extern int ext4_group_extend(struct super_block *sb,
 extern void __ext4_error(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));
 #define ext4_error(sb, message...)	__ext4_error(sb, __func__, ## message)
+extern void ext4_error_inode(const char *, struct inode *, const char *, ...)
+	__attribute__ ((format (printf, 3, 4)));
+extern void ext4_error_file(const char *, struct file *, const char *, ...)
+	__attribute__ ((format (printf, 3, 4)));
 extern void __ext4_std_error(struct super_block *, const char *, int);
 extern void ext4_abort(struct super_block *, const char *, const char *, ...)
 	__attribute__ ((format (printf, 3, 4)));

@@ -607,7 +607,14 @@ static int ext4_alloc_blocks(handle_t *handle, struct inode *inode,
 		if (*err)
 			goto failed_out;
 
-		BUG_ON(current_block + count > EXT4_MAX_BLOCK_FILE_PHYS);
+		if (unlikely(current_block + count > EXT4_MAX_BLOCK_FILE_PHYS)) {
+			EXT4_ERROR_INODE(inode,
+					 "current_block %llu + count %lu > %d!",
+					 current_block, count,
+					 EXT4_MAX_BLOCK_FILE_PHYS);
+			*err = -EIO;
+			goto failed_out;
+		}
 
 		target -= count;
 		/* allocate blocks for indirect blocks */
@@ -643,7 +650,14 @@ static int ext4_alloc_blocks(handle_t *handle, struct inode *inode,
 		ar.flags = EXT4_MB_HINT_DATA;
 
 	current_block = ext4_mb_new_blocks(handle, &ar, err);
-	BUG_ON(current_block + ar.len > EXT4_MAX_BLOCK_FILE_PHYS);
+	if (unlikely(current_block + ar.len > EXT4_MAX_BLOCK_FILE_PHYS)) {
+		EXT4_ERROR_INODE(inode,
+				 "current_block %llu + ar.len %d > %d!",
+				 current_block, ar.len,
+				 EXT4_MAX_BLOCK_FILE_PHYS);
+		*err = -EIO;
+		goto failed_out;
+	}
 
 	if (*err && (target == blks)) {
 		/*

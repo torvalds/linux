@@ -347,6 +347,42 @@ void __ext4_error(struct super_block *sb, const char *function,
 	ext4_handle_error(sb);
 }
 
+void ext4_error_inode(const char *function, struct inode *inode,
+		      const char *fmt, ...)
+{
+	va_list args;
+
+	va_start(args, fmt);
+	printk(KERN_CRIT "EXT4-fs error (device %s): %s: inode #%lu: (comm %s) ",
+	       inode->i_sb->s_id, function, inode->i_ino, current->comm);
+	vprintk(fmt, args);
+	printk("\n");
+	va_end(args);
+
+	ext4_handle_error(inode->i_sb);
+}
+
+void ext4_error_file(const char *function, struct file *file,
+		     const char *fmt, ...)
+{
+	va_list args;
+	struct inode *inode = file->f_dentry->d_inode;
+	char pathname[80], *path;
+
+	va_start(args, fmt);
+	path = d_path(&(file->f_path), pathname, sizeof(pathname));
+	if (!path)
+		path = "(unknown)";
+	printk(KERN_CRIT
+	       "EXT4-fs error (device %s): %s: inode #%lu (comm %s path %s): ",
+	       inode->i_sb->s_id, function, inode->i_ino, current->comm, path);
+	vprintk(fmt, args);
+	printk("\n");
+	va_end(args);
+
+	ext4_handle_error(inode->i_sb);
+}
+
 static const char *ext4_decode_error(struct super_block *sb, int errno,
 				     char nbuf[16])
 {
