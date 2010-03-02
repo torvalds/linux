@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------------ *
  * i2c-parport.c I2C bus over parallel port                                 *
  * ------------------------------------------------------------------------ *
-   Copyright (C) 2003-2007 Jean Delvare <khali@linux-fr.org>
+   Copyright (C) 2003-2010 Jean Delvare <khali@linux-fr.org>
    
    Based on older i2c-philips-par.c driver
    Copyright (C) 1995-2000 Simon G. Vogl
@@ -31,6 +31,7 @@
 #include <linux/parport.h>
 #include <linux/i2c.h>
 #include <linux/i2c-algo-bit.h>
+#include <linux/i2c-smbus.h>
 #include "i2c-parport.h"
 
 /* ----- Device list ------------------------------------------------------ */
@@ -39,6 +40,8 @@ struct i2c_par {
 	struct pardevice *pdev;
 	struct i2c_adapter adapter;
 	struct i2c_algo_bit_data algo_data;
+	struct i2c_smbus_alert_setup alert_data;
+	struct i2c_client *ara;
 	struct i2c_par *next;
 };
 
@@ -144,6 +147,19 @@ static struct i2c_algo_bit_data parport_algo_data = {
 
 /* ----- I2c and parallel port call-back functions and structures --------- */
 
+void i2c_parport_irq(void *data)
+{
+	struct i2c_par *adapter = data;
+	struct i2c_client *ara = adapter->ara;
+
+	if (ara) {
+		dev_dbg(&ara->dev, "SMBus alert received\n");
+		i2c_handle_smbus_alert(ara);
+	} else
+		dev_dbg(&adapter->adapter.dev,
+			"SMBus alert received but no ARA client!\n");
+}
+
 static void i2c_parport_attach (struct parport *port)
 {
 	struct i2c_par *adapter;
@@ -155,8 +171,9 @@ static void i2c_parport_attach (struct parport *port)
 	}
 
 	pr_debug("i2c-parport: attaching to %s\n", port->name);
+	parport_disable_irq(port);
 	adapter->pdev = parport_register_device(port, "i2c-parport",
-		NULL, NULL, NULL, PARPORT_FLAG_EXCL, NULL);
+		NULL, NULL, i2c_parport_irq, PARPORT_FLAG_EXCL, adapter);
 	if (!adapter->pdev) {
 		printk(KERN_ERR "i2c-parport: Unable to register with parport\n");
 		goto ERROR0;
@@ -197,6 +214,18 @@ static void i2c_parport_attach (struct parport *port)
 		goto ERROR1;
 	}
 
+	/* Setup SMBus alert if supported */
+	if (adapter_parm[type].smbus_alert) {
+		adapter->alert_data.alert_edge_triggered = 1;
+		adapter->ara = i2c_setup_smbus_alert(&adapter->adapter,
+						     &adapter->alert_data);
+		if (adapter->ara)
+			parport_enable_irq(port);
+		else
+			printk(KERN_WARNING "i2c-parport: Failed to register "
+			       "ARA client\n");
+	}
+
 	/* Add the new adapter to the list */
 	adapter->next = adapter_list;
 	adapter_list = adapter;
@@ -217,6 +246,10 @@ static void i2c_parport_detach (struct parport *port)
 	for (prev = NULL, adapter = adapter_list; adapter;
 	     prev = adapter, adapter = adapter->next) {
 		if (adapter->pdev->port == port) {
+			if (adapter->ara) {
+				parport_disable_irq(port);
+				i2c_unregister_device(adapter->ara);
+			}
 			i2c_del_adapter(&adapter->adapter);
 
 			/* Un-init if needed (power off...) */

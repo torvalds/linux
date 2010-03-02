@@ -581,6 +581,7 @@ config I2C_PARPORT
 	tristate "Parallel port adapter"
 	depends on PARPORT
 	select I2C_ALGOBIT
+	select I2C_SMBUS
 	help
 	  This supports parallel port I2C adapters such as the ones made by
 	  Philips or Velleman, Analog Devices evaluation boards, and more.
