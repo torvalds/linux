@@ -335,16 +335,22 @@ coh901318_desc_get(struct coh901318_chan *cohc)
 		 * TODO: alloc a pile of descs instead of just one,
 		 * avoid many small allocations.
 		 */
-		desc = kmalloc(sizeof(struct coh901318_desc), GFP_NOWAIT);
+		desc = kzalloc(sizeof(struct coh901318_desc), GFP_NOWAIT);
 		if (desc == NULL)
 			goto out;
 		INIT_LIST_HEAD(&desc->node);
+		dma_async_tx_descriptor_init(&desc->desc, &cohc->chan);
 	} else {
 		/* Reuse an old desc. */
 		desc = list_first_entry(&cohc->free,
 					struct coh901318_desc,
 					node);
 		list_del(&desc->node);
+		/* Initialize it a bit so it's not insane */
+		desc->sg = NULL;
+		desc->sg_len = 0;
+		desc->desc.callback = NULL;
+		desc->desc.callback_param = NULL;
 	}
 
  out:
@@ -885,6 +891,7 @@ coh901318_prep_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	struct coh901318_chan *cohc = to_coh901318_chan(chan);
 	int lli_len;
 	u32 ctrl_last = cohc_chan_param(cohc)->ctrl_lli_last;
+	int ret;
 
 	spin_lock_irqsave(&cohc->lock, flg);
 
@@ -905,22 +912,19 @@ coh901318_prep_memcpy(struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 	if (data == NULL)
 		goto err;
 
-	cohd = coh901318_desc_get(cohc);
-	cohd->sg = NULL;
-	cohd->sg_len = 0;
-	cohd->data = data;
-
-	cohd->pending_irqs =
-		coh901318_lli_fill_memcpy(
-				&cohc->base->pool, data, src, size, dest,
-				cohc_chan_param(cohc)->ctrl_lli_chained,
-				ctrl_last);
-	cohd->flags = flags;
+	ret = coh901318_lli_fill_memcpy(
+		&cohc->base->pool, data, src, size, dest,
+		cohc_chan_param(cohc)->ctrl_lli_chained,
+		ctrl_last);
+	if (ret)
+		goto err;
 
 	COH_DBG(coh901318_list_print(cohc, data));
 
-	dma_async_tx_descriptor_init(&cohd->desc, chan);
-
+	/* Pick a descriptor to handle this transfer */
+	cohd = coh901318_desc_get(cohc);
+	cohd->data = data;
+	cohd->flags = flags;
 	cohd->desc.tx_submit = coh901318_tx_submit;
 
 	spin_unlock_irqrestore(&cohc->lock, flg);
@@ -962,11 +966,6 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		/* Trigger interrupt after last lli */
 		ctrl_last |= COH901318_CX_CTRL_TC_IRQ_ENABLE;
 
-	cohd = coh901318_desc_get(cohc);
-	cohd->sg = NULL;
-	cohd->sg_len = 0;
-	cohd->dir = direction;
-
 	if (direction == DMA_TO_DEVICE) {
 		u32 tx_flags = COH901318_CX_CTRL_PRDD_SOURCE |
 			COH901318_CX_CTRL_SRC_ADDR_INC_ENABLE;
@@ -983,11 +982,6 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 		ctrl |= rx_flags;
 	} else
 		goto err_direction;
-
-	dma_async_tx_descriptor_init(&cohd->desc, chan);
-
-	cohd->desc.tx_submit = coh901318_tx_submit;
-
 
 	/* The dma only supports transmitting packages up to
 	 * MAX_DMA_PACKET_SIZE. Calculate to total number of
@@ -1023,19 +1017,21 @@ coh901318_prep_slave_sg(struct dma_chan *chan, struct scatterlist *sgl,
 				      ctrl,
 				      ctrl_last,
 				      direction, COH901318_CX_CTRL_TC_IRQ_ENABLE);
-	cohd->data = data;
-
-	cohd->flags = flags;
 
 	COH_DBG(coh901318_list_print(cohc, data));
+
+	/* Pick a descriptor to handle this transfer */
+	cohd = coh901318_desc_get(cohc);
+	cohd->dir = direction;
+	cohd->flags = flags;
+	cohd->desc.tx_submit = coh901318_tx_submit;
+	cohd->data = data;
 
 	spin_unlock_irqrestore(&cohc->lock, flg);
 
 	return &cohd->desc;
  err_dma_alloc:
  err_direction:
-	coh901318_desc_remove(cohd);
-	coh901318_desc_free(cohc, cohd);
 	spin_unlock_irqrestore(&cohc->lock, flg);
  out:
 	return NULL;
