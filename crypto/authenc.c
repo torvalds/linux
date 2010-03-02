@@ -454,7 +454,7 @@ static int crypto_authenc_verify(struct aead_request *req,
 	unsigned int authsize;
 
 	areq_ctx->complete = authenc_verify_ahash_done;
-	areq_ctx->complete = authenc_verify_ahash_update_done;
+	areq_ctx->update_complete = authenc_verify_ahash_update_done;
 
 	ohash = authenc_ahash_fn(req, CRYPTO_TFM_REQ_MAY_SLEEP);
 	if (IS_ERR(ohash))
