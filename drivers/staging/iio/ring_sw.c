@@ -14,20 +14,23 @@
 #include <linux/workqueue.h>
 #include "ring_sw.h"
 
-static inline int __iio_init_sw_ring_buffer(struct iio_sw_ring_buffer *ring,
-					    int bytes_per_datum, int length)
+static inline int __iio_allocate_sw_ring_buffer(struct iio_sw_ring_buffer *ring,
+						int bytes_per_datum, int length)
 {
 	if ((length == 0) || (bytes_per_datum == 0))
 		return -EINVAL;
-
-	__iio_init_ring_buffer(&ring->buf, bytes_per_datum, length);
-	spin_lock_init(&ring->use_lock);
+	__iio_update_ring_buffer(&ring->buf, bytes_per_datum, length);
 	ring->data = kmalloc(length*ring->buf.bpd, GFP_KERNEL);
 	ring->read_p = 0;
 	ring->write_p = 0;
 	ring->last_written_p = 0;
 	ring->half_p = 0;
 	return ring->data ? 0 : -ENOMEM;
+}
+
+static inline void __iio_init_sw_ring_buffer(struct iio_sw_ring_buffer *ring)
+{
+	spin_lock_init(&ring->use_lock);
 }
 
 static inline void __iio_free_sw_ring_buffer(struct iio_sw_ring_buffer *ring)
@@ -320,7 +323,8 @@ int iio_request_update_sw_rb(struct iio_ring_buffer *r)
 		goto error_ret;
 	}
 	__iio_free_sw_ring_buffer(ring);
-	ret = __iio_init_sw_ring_buffer(ring, ring->buf.bpd, ring->buf.length);
+	ret = __iio_allocate_sw_ring_buffer(ring, ring->buf.bpd,
+					    ring->buf.length);
 error_ret:
 	spin_unlock(&ring->use_lock);
 	return ret;
@@ -411,8 +415,8 @@ struct iio_ring_buffer *iio_sw_rb_allocate(struct iio_dev *indio_dev)
 	if (!ring)
 		return 0;
 	buf = &ring->buf;
-
 	iio_ring_buffer_init(buf, indio_dev);
+	__iio_init_sw_ring_buffer(ring);
 	buf->dev.type = &iio_sw_ring_type;
 	device_initialize(&buf->dev);
 	buf->dev.parent = &indio_dev->dev;

@@ -134,19 +134,17 @@ void iio_ring_buffer_init(struct iio_ring_buffer *ring,
 			  struct iio_dev *dev_info);
 
 /**
- * __iio_init_ring_buffer() - initialize common elements of ring buffers
+ * __iio_update_ring_buffer() - update common elements of ring buffers
  * @ring:		ring buffer that is the event source
  * @bytes_per_datum:	size of individual datum including timestamp
  * @length:		number of datums in ring
  **/
-static inline void __iio_init_ring_buffer(struct iio_ring_buffer *ring,
-				 int bytes_per_datum, int length)
+static inline void __iio_update_ring_buffer(struct iio_ring_buffer *ring,
+					    int bytes_per_datum, int length)
 {
 	ring->bpd = bytes_per_datum;
 	ring->length = length;
 	ring->loopcount = 0;
-	ring->shared_ev_pointer.ev_p = 0;
-	spin_lock_init(&ring->shared_ev_pointer.lock);
 }
 
 /**
