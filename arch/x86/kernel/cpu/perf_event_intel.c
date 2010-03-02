@@ -699,7 +699,7 @@ static int intel_pmu_save_and_restart(struct perf_event *event)
 	int ret;
 
 	x86_perf_event_update(event, hwc, idx);
-	ret = x86_perf_event_set_period(event, hwc, idx);
+	ret = x86_perf_event_set_period(event);
 
 	return ret;
 }

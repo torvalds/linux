@@ -170,8 +170,7 @@ static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events) = {
 	.enabled = 1,
 };
 
-static int x86_perf_event_set_period(struct perf_event *event,
-			     struct hw_perf_event *hwc, int idx);
+static int x86_perf_event_set_period(struct perf_event *event);
 
 /*
  * Generalized hw caching related hw_event table, filled
@@ -835,7 +834,7 @@ void hw_perf_enable(void)
 
 			if (hwc->idx == -1) {
 				x86_assign_hw_event(event, cpuc, i);
-				x86_perf_event_set_period(event, hwc, hwc->idx);
+				x86_perf_event_set_period(event);
 			}
 			/*
 			 * need to mark as active because x86_pmu_disable()
@@ -876,12 +875,12 @@ static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
  * To be called with the event disabled in hw:
  */
 static int
-x86_perf_event_set_period(struct perf_event *event,
-			     struct hw_perf_event *hwc, int idx)
+x86_perf_event_set_period(struct perf_event *event)
 {
+	struct hw_perf_event *hwc = &event->hw;
 	s64 left = atomic64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
-	int err, ret = 0;
+	int err, ret = 0, idx = hwc->idx;
 
 	if (idx == X86_PMC_IDX_FIXED_BTS)
 		return 0;
@@ -979,7 +978,7 @@ static int x86_pmu_start(struct perf_event *event)
 	if (hwc->idx == -1)
 		return -EAGAIN;
 
-	x86_perf_event_set_period(event, hwc, hwc->idx);
+	x86_perf_event_set_period(event);
 	x86_pmu.enable(hwc, hwc->idx);
 
 	return 0;
@@ -1123,7 +1122,7 @@ static int x86_pmu_handle_irq(struct pt_regs *regs)
 		handled		= 1;
 		data.period	= event->hw.last_period;
 
-		if (!x86_perf_event_set_period(event, hwc, idx))
+		if (!x86_perf_event_set_period(event))
 			continue;
 
 		if (perf_event_overflow(event, 1, &data, regs))
