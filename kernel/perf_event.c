@@ -56,21 +56,6 @@ static atomic_t nr_task_events __read_mostly;
  */
 int sysctl_perf_event_paranoid __read_mostly = 1;
 
-static inline bool perf_paranoid_tracepoint_raw(void)
-{
-	return sysctl_perf_event_paranoid > -1;
-}
-
-static inline bool perf_paranoid_cpu(void)
-{
-	return sysctl_perf_event_paranoid > 0;
-}
-
-static inline bool perf_paranoid_kernel(void)
-{
-	return sysctl_perf_event_paranoid > 1;
-}
-
 int sysctl_perf_event_mlock __read_mostly = 512; /* 'free' kb per user */
 
 /*

@@ -857,6 +857,21 @@ extern int sysctl_perf_event_paranoid;
 extern int sysctl_perf_event_mlock;
 extern int sysctl_perf_event_sample_rate;
 
+static inline bool perf_paranoid_tracepoint_raw(void)
+{
+	return sysctl_perf_event_paranoid > -1;
+}
+
+static inline bool perf_paranoid_cpu(void)
+{
+	return sysctl_perf_event_paranoid > 0;
+}
+
+static inline bool perf_paranoid_kernel(void)
+{
+	return sysctl_perf_event_paranoid > 1;
+}
+
 extern void perf_event_init(void);
 extern void perf_tp_event(int event_id, u64 addr, u64 count, void *record, int entry_size);
 extern void perf_bp_event(struct perf_event *event, void *data);

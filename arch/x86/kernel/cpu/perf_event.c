@@ -503,6 +503,9 @@ static int __hw_perf_event_init(struct perf_event *event)
 	 */
 	if (attr->type == PERF_TYPE_RAW) {
 		hwc->config |= x86_pmu.raw_event(attr->config);
+		if ((hwc->config & ARCH_PERFMON_EVENTSEL_ANY) &&
+		    perf_paranoid_cpu() && !capable(CAP_SYS_ADMIN))
+			return -EACCES;
 		return 0;
 	}
 
