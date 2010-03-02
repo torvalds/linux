@@ -555,7 +555,7 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 					.bi_rw = bio->bi_rw,
 				};
 
-				if (q->merge_bvec_fn(q, &bvm, prev) != prev->bv_len) {
+				if (q->merge_bvec_fn(q, &bvm, prev) < len) {
 					prev->bv_len -= len;
 					return 0;
 				}
@@ -608,7 +608,7 @@ static int __bio_add_page(struct request_queue *q, struct bio *bio, struct page
 		 * merge_bvec_fn() returns number of bytes it can accept
 		 * at this offset
 		 */
-		if (q->merge_bvec_fn(q, &bvm, bvec) != bvec->bv_len) {
+		if (q->merge_bvec_fn(q, &bvm, bvec) < len) {
 			bvec->bv_page = NULL;
 			bvec->bv_len = 0;
 			bvec->bv_offset = 0;
