@@ -14,9 +14,8 @@
 #include <linux/mnt_namespace.h>
 #include <linux/fs_struct.h>
 #include <linux/hash.h>
-
+#include <linux/magic.h>
 #include "common.h"
-#include "realpath.h"
 
 /**
  * tomoyo_encode: Convert binary string to ascii string.
@@ -112,7 +111,7 @@ int tomoyo_realpath_from_path2(struct path *path, char *newname,
 		path_put(&ns_root);
 		/* Prepend "/proc" prefix if using internal proc vfs mount. */
 		if (!IS_ERR(sp) && (path->mnt->mnt_parent == path->mnt) &&
-		    (strcmp(path->mnt->mnt_sb->s_type->name, "proc") == 0)) {
+		    (path->mnt->mnt_sb->s_magic == PROC_SUPER_MAGIC)) {
 			sp -= 5;
 			if (sp >= newname)
 				memcpy(sp, "/proc", 5);
@@ -149,12 +148,12 @@ int tomoyo_realpath_from_path2(struct path *path, char *newname,
  *
  * Returns the realpath of the given @path on success, NULL otherwise.
  *
- * These functions use tomoyo_alloc(), so the caller must call tomoyo_free()
+ * These functions use kzalloc(), so the caller must call kfree()
  * if these functions didn't return NULL.
  */
 char *tomoyo_realpath_from_path(struct path *path)
 {
-	char *buf = tomoyo_alloc(sizeof(struct tomoyo_page_buffer));
+	char *buf = kzalloc(sizeof(struct tomoyo_page_buffer), GFP_KERNEL);
 
 	BUILD_BUG_ON(sizeof(struct tomoyo_page_buffer)
 		     <= TOMOYO_MAX_PATHNAME_LEN - 1);
@@ -163,7 +162,7 @@ char *tomoyo_realpath_from_path(struct path *path)
 	if (tomoyo_realpath_from_path2(path, buf,
 				       TOMOYO_MAX_PATHNAME_LEN - 1) == 0)
 		return buf;
-	tomoyo_free(buf);
+	kfree(buf);
 	return NULL;
 }
 
@@ -206,98 +205,47 @@ char *tomoyo_realpath_nofollow(const char *pathname)
 }
 
 /* Memory allocated for non-string data. */
-static unsigned int tomoyo_allocated_memory_for_elements;
-/* Quota for holding non-string data. */
-static unsigned int tomoyo_quota_for_elements;
+static atomic_t tomoyo_policy_memory_size;
+/* Quota for holding policy. */
+static unsigned int tomoyo_quota_for_policy;
 
 /**
- * tomoyo_alloc_element - Allocate permanent memory for structures.
+ * tomoyo_memory_ok - Check memory quota.
  *
- * @size: Size in bytes.
+ * @ptr: Pointer to allocated memory.
  *
- * Returns pointer to allocated memory on success, NULL otherwise.
+ * Returns true on success, false otherwise.
  *
- * Memory has to be zeroed.
- * The RAM is chunked, so NEVER try to kfree() the returned pointer.
+ * Caller holds tomoyo_policy_lock.
+ * Memory pointed by @ptr will be zeroed on success.
  */
-void *tomoyo_alloc_element(const unsigned int size)
+bool tomoyo_memory_ok(void *ptr)
 {
-	static char *buf;
-	static DEFINE_MUTEX(lock);
-	static unsigned int buf_used_len = PATH_MAX;
-	char *ptr = NULL;
-	/*Assumes sizeof(void *) >= sizeof(long) is true. */
-	const unsigned int word_aligned_size
-		= roundup(size, max(sizeof(void *), sizeof(long)));
-	if (word_aligned_size > PATH_MAX)
-		return NULL;
-	mutex_lock(&lock);
-	if (buf_used_len + word_aligned_size > PATH_MAX) {
-		if (!tomoyo_quota_for_elements ||
-		    tomoyo_allocated_memory_for_elements
-		    + PATH_MAX <= tomoyo_quota_for_elements)
-			ptr = kzalloc(PATH_MAX, GFP_KERNEL);
-		if (!ptr) {
-			printk(KERN_WARNING "ERROR: Out of memory "
-			       "for tomoyo_alloc_element().\n");
-			if (!tomoyo_policy_loaded)
-				panic("MAC Initialization failed.\n");
-		} else {
-			buf = ptr;
-			tomoyo_allocated_memory_for_elements += PATH_MAX;
-			buf_used_len = word_aligned_size;
-			ptr = buf;
-		}
-	} else if (word_aligned_size) {
-		int i;
-		ptr = buf + buf_used_len;
-		buf_used_len += word_aligned_size;
-		for (i = 0; i < word_aligned_size; i++) {
-			if (!ptr[i])
-				continue;
-			printk(KERN_ERR "WARNING: Reserved memory was tainted! "
-			       "The system might go wrong.\n");
-			ptr[i] = '\0';
-		}
+	int allocated_len = ptr ? ksize(ptr) : 0;
+	atomic_add(allocated_len, &tomoyo_policy_memory_size);
+	if (ptr && (!tomoyo_quota_for_policy ||
+		    atomic_read(&tomoyo_policy_memory_size)
+		    <= tomoyo_quota_for_policy)) {
+		memset(ptr, 0, allocated_len);
+		return true;
 	}
-	mutex_unlock(&lock);
-	return ptr;
+	printk(KERN_WARNING "ERROR: Out of memory "
+	       "for tomoyo_alloc_element().\n");
+	if (!tomoyo_policy_loaded)
+		panic("MAC Initialization failed.\n");
+	return false;
 }
 
-/* Memory allocated for string data in bytes. */
-static unsigned int tomoyo_allocated_memory_for_savename;
-/* Quota for holding string data in bytes. */
-static unsigned int tomoyo_quota_for_savename;
-
-/*
- * TOMOYO uses this hash only when appending a string into the string
- * table. Frequency of appending strings is very low. So we don't need
- * large (e.g. 64k) hash size. 256 will be sufficient.
- */
-#define TOMOYO_HASH_BITS  8
-#define TOMOYO_MAX_HASH (1u<<TOMOYO_HASH_BITS)
-
-/*
- * tomoyo_name_entry is a structure which is used for linking
- * "struct tomoyo_path_info" into tomoyo_name_list .
+/**
+ * tomoyo_memory_free - Free memory for elements.
  *
- * Since tomoyo_name_list manages a list of strings which are shared by
- * multiple processes (whereas "struct tomoyo_path_info" inside
- * "struct tomoyo_path_info_with_data" is not shared), a reference counter will
- * be added to "struct tomoyo_name_entry" rather than "struct tomoyo_path_info"
- * when TOMOYO starts supporting garbage collector.
+ * @ptr:  Pointer to allocated memory.
  */
-struct tomoyo_name_entry {
-	struct list_head list;
-	struct tomoyo_path_info entry;
-};
-
-/* Structure for available memory region. */
-struct tomoyo_free_memory_block_list {
-	struct list_head list;
-	char *ptr;             /* Pointer to a free area. */
-	int len;               /* Length of the area.     */
-};
+void tomoyo_memory_free(void *ptr)
+{
+	atomic_sub(ksize(ptr), &tomoyo_policy_memory_size);
+	kfree(ptr);
+}
 
 /*
  * tomoyo_name_list is used for holding string data used by TOMOYO.
@@ -305,87 +253,58 @@ struct tomoyo_free_memory_block_list {
  * "/lib/libc-2.5.so"), TOMOYO shares string data in the form of
  * "const struct tomoyo_path_info *".
  */
-static struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
+struct list_head tomoyo_name_list[TOMOYO_MAX_HASH];
+/* Lock for protecting tomoyo_name_list . */
+DEFINE_MUTEX(tomoyo_name_list_lock);
 
 /**
- * tomoyo_save_name - Allocate permanent memory for string data.
+ * tomoyo_get_name - Allocate permanent memory for string data.
  *
  * @name: The string to store into the permernent memory.
  *
  * Returns pointer to "struct tomoyo_path_info" on success, NULL otherwise.
- *
- * The RAM is shared, so NEVER try to modify or kfree() the returned name.
  */
-const struct tomoyo_path_info *tomoyo_save_name(const char *name)
+const struct tomoyo_path_info *tomoyo_get_name(const char *name)
 {
-	static LIST_HEAD(fmb_list);
-	static DEFINE_MUTEX(lock);
 	struct tomoyo_name_entry *ptr;
 	unsigned int hash;
-	/* fmb contains available size in bytes.
-	   fmb is removed from the fmb_list when fmb->len becomes 0. */
-	struct tomoyo_free_memory_block_list *fmb;
 	int len;
-	char *cp;
+	int allocated_len;
 	struct list_head *head;
 
 	if (!name)
 		return NULL;
 	len = strlen(name) + 1;
-	if (len > TOMOYO_MAX_PATHNAME_LEN) {
-		printk(KERN_WARNING "ERROR: Name too long "
-		       "for tomoyo_save_name().\n");
-		return NULL;
-	}
 	hash = full_name_hash((const unsigned char *) name, len - 1);
 	head = &tomoyo_name_list[hash_long(hash, TOMOYO_HASH_BITS)];
-
-	mutex_lock(&lock);
+	mutex_lock(&tomoyo_name_list_lock);
 	list_for_each_entry(ptr, head, list) {
-		if (hash == ptr->entry.hash && !strcmp(name, ptr->entry.name))
-			goto out;
+		if (hash != ptr->entry.hash || strcmp(name, ptr->entry.name))
+			continue;
+		atomic_inc(&ptr->users);
+		goto out;
 	}
-	list_for_each_entry(fmb, &fmb_list, list) {
-		if (len <= fmb->len)
-			goto ready;
-	}
-	if (!tomoyo_quota_for_savename ||
-	    tomoyo_allocated_memory_for_savename + PATH_MAX
-	    <= tomoyo_quota_for_savename)
-		cp = kzalloc(PATH_MAX, GFP_KERNEL);
-	else
-		cp = NULL;
-	fmb = kzalloc(sizeof(*fmb), GFP_KERNEL);
-	if (!cp || !fmb) {
-		kfree(cp);
-		kfree(fmb);
+	ptr = kzalloc(sizeof(*ptr) + len, GFP_KERNEL);
+	allocated_len = ptr ? ksize(ptr) : 0;
+	if (!ptr || (tomoyo_quota_for_policy &&
+		     atomic_read(&tomoyo_policy_memory_size) + allocated_len
+		     > tomoyo_quota_for_policy)) {
+		kfree(ptr);
 		printk(KERN_WARNING "ERROR: Out of memory "
-		       "for tomoyo_save_name().\n");
+		       "for tomoyo_get_name().\n");
 		if (!tomoyo_policy_loaded)
 			panic("MAC Initialization failed.\n");
 		ptr = NULL;
 		goto out;
 	}
-	tomoyo_allocated_memory_for_savename += PATH_MAX;
-	list_add(&fmb->list, &fmb_list);
-	fmb->ptr = cp;
-	fmb->len = PATH_MAX;
- ready:
-	ptr = tomoyo_alloc_element(sizeof(*ptr));
-	if (!ptr)
-		goto out;
-	ptr->entry.name = fmb->ptr;
-	memmove(fmb->ptr, name, len);
+	atomic_add(allocated_len, &tomoyo_policy_memory_size);
+	ptr->entry.name = ((char *) ptr) + sizeof(*ptr);
+	memmove((char *) ptr->entry.name, name, len);
+	atomic_set(&ptr->users, 1);
 	tomoyo_fill_path_info(&ptr->entry);
-	fmb->ptr += len;
-	fmb->len -= len;
 	list_add_tail(&ptr->list, head);
-	if (fmb->len == 0) {
-		list_del(&fmb->list);
-		kfree(fmb);
-	}
  out:
-	mutex_unlock(&lock);
+	mutex_unlock(&tomoyo_name_list_lock);
 	return ptr ? &ptr->entry : NULL;
 }
 
@@ -400,45 +319,14 @@ void __init tomoyo_realpath_init(void)
 	for (i = 0; i < TOMOYO_MAX_HASH; i++)
 		INIT_LIST_HEAD(&tomoyo_name_list[i]);
 	INIT_LIST_HEAD(&tomoyo_kernel_domain.acl_info_list);
-	tomoyo_kernel_domain.domainname = tomoyo_save_name(TOMOYO_ROOT_NAME);
-	list_add_tail(&tomoyo_kernel_domain.list, &tomoyo_domain_list);
-	down_read(&tomoyo_domain_list_lock);
+	tomoyo_kernel_domain.domainname = tomoyo_get_name(TOMOYO_ROOT_NAME);
+	/*
+	 * tomoyo_read_lock() is not needed because this function is
+	 * called before the first "delete" request.
+	 */
+	list_add_tail_rcu(&tomoyo_kernel_domain.list, &tomoyo_domain_list);
 	if (tomoyo_find_domain(TOMOYO_ROOT_NAME) != &tomoyo_kernel_domain)
 		panic("Can't register tomoyo_kernel_domain");
-	up_read(&tomoyo_domain_list_lock);
-}
-
-/* Memory allocated for temporary purpose. */
-static atomic_t tomoyo_dynamic_memory_size;
-
-/**
- * tomoyo_alloc - Allocate memory for temporary purpose.
- *
- * @size: Size in bytes.
- *
- * Returns pointer to allocated memory on success, NULL otherwise.
- */
-void *tomoyo_alloc(const size_t size)
-{
-	void *p = kzalloc(size, GFP_KERNEL);
-	if (p)
-		atomic_add(ksize(p), &tomoyo_dynamic_memory_size);
-	return p;
-}
-
-/**
- * tomoyo_free - Release memory allocated by tomoyo_alloc().
- *
- * @p: Pointer returned by tomoyo_alloc(). May be NULL.
- *
- * Returns nothing.
- */
-void tomoyo_free(const void *p)
-{
-	if (p) {
-		atomic_sub(ksize(p), &tomoyo_dynamic_memory_size);
-		kfree(p);
-	}
 }
 
 /**
@@ -451,32 +339,19 @@ void tomoyo_free(const void *p)
 int tomoyo_read_memory_counter(struct tomoyo_io_buffer *head)
 {
 	if (!head->read_eof) {
-		const unsigned int shared
-			= tomoyo_allocated_memory_for_savename;
-		const unsigned int private
-			= tomoyo_allocated_memory_for_elements;
-		const unsigned int dynamic
-			= atomic_read(&tomoyo_dynamic_memory_size);
+		const unsigned int policy
+			= atomic_read(&tomoyo_policy_memory_size);
 		char buffer[64];
 
 		memset(buffer, 0, sizeof(buffer));
-		if (tomoyo_quota_for_savename)
+		if (tomoyo_quota_for_policy)
 			snprintf(buffer, sizeof(buffer) - 1,
 				 "   (Quota: %10u)",
-				 tomoyo_quota_for_savename);
+				 tomoyo_quota_for_policy);
 		else
 			buffer[0] = '\0';
-		tomoyo_io_printf(head, "Shared:  %10u%s\n", shared, buffer);
-		if (tomoyo_quota_for_elements)
-			snprintf(buffer, sizeof(buffer) - 1,
-				 "   (Quota: %10u)",
-				 tomoyo_quota_for_elements);
-		else
-			buffer[0] = '\0';
-		tomoyo_io_printf(head, "Private: %10u%s\n", private, buffer);
-		tomoyo_io_printf(head, "Dynamic: %10u\n", dynamic);
-		tomoyo_io_printf(head, "Total:   %10u\n",
-				 shared + private + dynamic);
+		tomoyo_io_printf(head, "Policy:  %10u%s\n", policy, buffer);
+		tomoyo_io_printf(head, "Total:   %10u\n", policy);
 		head->read_eof = true;
 	}
 	return 0;
@@ -494,9 +369,7 @@ int tomoyo_write_memory_quota(struct tomoyo_io_buffer *head)
 	char *data = head->write_buf;
 	unsigned int size;
 
-	if (sscanf(data, "Shared: %u", &size) == 1)
-		tomoyo_quota_for_savename = size;
-	else if (sscanf(data, "Private: %u", &size) == 1)
-		tomoyo_quota_for_elements = size;
+	if (sscanf(data, "Policy: %u", &size) == 1)
+		tomoyo_quota_for_policy = size;
 	return 0;
 }
