@@ -310,10 +310,9 @@ config ARCH_MXC
 	bool "Freescale MXC/iMX-based"
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	select ARCH_MTD_XIP
-	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select HAVE_CLK
+	select COMMON_CLKDEV
 	help
 	  Support for Freescale MXC/iMX-based family of processors
 
