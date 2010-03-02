@@ -137,7 +137,7 @@ static const struct i2c_algorithm usb_algorithm = {
  * Future Technology Devices International Ltd., later a pair was
  * bought from EZPrototypes
  */
-static struct usb_device_id i2c_tiny_usb_table [] = {
+static const struct usb_device_id i2c_tiny_usb_table[] = {
 	{ USB_DEVICE(0x0403, 0xc631) },   /* FTDI */
 	{ USB_DEVICE(0x1c40, 0x0534) },   /* EZPrototypes */
 	{ }                               /* Terminating entry */
