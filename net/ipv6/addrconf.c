@@ -2739,28 +2739,29 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 static void addrconf_rs_timer(unsigned long data)
 {
 	struct inet6_ifaddr *ifp = (struct inet6_ifaddr *) data;
+	struct inet6_dev *idev = ifp->idev;
 
-	if (ifp->idev->cnf.forwarding)
+	read_lock(&idev->lock);
+	if (idev->dead || !(idev->if_flags & IF_READY))
 		goto out;
 
-	if (ifp->idev->if_flags & IF_RA_RCVD) {
-		/*
-		 *	Announcement received after solicitation
-		 *	was sent
-		 */
+	if (idev->cnf.forwarding)
 		goto out;
-	}
+
+	/* Announcement received after solicitation was sent */
+	if (idev->if_flags & IF_RA_RCVD)
+		goto out;
 
 	spin_lock(&ifp->lock);
-	if (ifp->probes++ < ifp->idev->cnf.rtr_solicits) {
+	if (ifp->probes++ < idev->cnf.rtr_solicits) {
 		/* The wait after the last probe can be shorter */
 		addrconf_mod_timer(ifp, AC_RS,
-				   (ifp->probes == ifp->idev->cnf.rtr_solicits) ?
-				   ifp->idev->cnf.rtr_solicit_delay :
-				   ifp->idev->cnf.rtr_solicit_interval);
+				   (ifp->probes == idev->cnf.rtr_solicits) ?
+				   idev->cnf.rtr_solicit_delay :
+				   idev->cnf.rtr_solicit_interval);
 		spin_unlock(&ifp->lock);
 
-		ndisc_send_rs(ifp->idev->dev, &ifp->addr, &in6addr_linklocal_allrouters);
+		ndisc_send_rs(idev->dev, &ifp->addr, &in6addr_linklocal_allrouters);
 	} else {
 		spin_unlock(&ifp->lock);
 		/*
@@ -2768,10 +2769,11 @@ static void addrconf_rs_timer(unsigned long data)
 		 * assumption any longer.
 		 */
 		printk(KERN_DEBUG "%s: no IPv6 routers present\n",
-		       ifp->idev->dev->name);
+		       idev->dev->name);
 	}
 
 out:
+	read_unlock(&idev->lock);
 	in6_ifa_put(ifp);
 }
 
