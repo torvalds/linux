@@ -4519,7 +4519,7 @@ int nfs4_proc_exchange_id(struct nfs_client *clp, struct rpc_cred *cred)
 
 		status = rpc_call_sync(clp->cl_rpcclient, &msg, 0);
 
-		if (status != NFS4ERR_CLID_INUSE)
+		if (status != -NFS4ERR_CLID_INUSE)
 			break;
 
 		if (signalled())
