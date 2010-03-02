@@ -343,17 +343,14 @@ InstructionTLBMiss:
 	cmpwi	cr0, r11, _PAGE_ACCESSED | _PAGE_PRESENT
 	bne-	cr0, 2f
 
-	/* Clear PP lsb, 0x400 */
-	rlwinm 	r10, r10, 0, 22, 20
-
 	/* The Linux PTE won't go exactly into the MMU TLB.
-	 * Software indicator bits 22 and 28 must be clear.
+	 * Software indicator bits 21 and 28 must be clear.
 	 * Software indicator bits 24, 25, 26, and 27 must be
 	 * set.  All other Linux PTE bits control the behavior
 	 * of the MMU.
 	 */
 	li	r11, 0x00f0
-	rlwimi	r10, r11, 0, 24, 28	/* Set 24-27, clear 28 */
+	rlwimi	r10, r11, 0, 0x07f8	/* Set 24-27, clear 21-23,28 */
 	DO_8xx_CPU6(0x2d80, r3)
 	mtspr	SPRN_MI_RPN, r10	/* Update TLB entry */
 
@@ -444,9 +441,7 @@ DataStoreTLBMiss:
 
 	/* Honour kernel RO, User NA */
 	/* 0x200 == Extended encoding, bit 22 */
-	/* r11 =  (r10 & _PAGE_USER) >> 2 */
-	rlwinm	r11, r10, 32-2, 0x200
-	or	r10, r11, r10
+	rlwimi	r10, r10, 32-2, 0x200 /* Copy USER to bit 22, 0x200 */
 	/* r11 =  (r10 & _PAGE_RW) >> 1 */
 	rlwinm	r11, r10, 32-1, 0x200
 	or	r10, r11, r10
