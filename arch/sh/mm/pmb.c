@@ -271,59 +271,18 @@ static void set_pmb_entry(struct pmb_entry *pmbe)
 int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 		     unsigned long size, pgprot_t prot)
 {
-	return 0;
-}
-
-void __iomem *pmb_remap_caller(phys_addr_t phys, unsigned long size,
-			       pgprot_t prot, void *caller)
-{
 	struct pmb_entry *pmbp, *pmbe;
 	unsigned long pmb_flags;
 	int i, mapped;
-	unsigned long orig_addr, vaddr;
-	phys_addr_t offset, last_addr;
-	phys_addr_t align_mask;
-	unsigned long aligned;
-	struct vm_struct *area;
 
-	if (!pmb_iomapping_enabled)
-		return NULL;
+	if (!pmb_addr_valid(vaddr, size))
+		return -EFAULT;
 
-	/*
-	 * Small mappings need to go through the TLB.
-	 */
-	if (size < SZ_16M)
-		return ERR_PTR(-EINVAL);
-	if (!pmb_prot_valid(prot))
-		return ERR_PTR(-EINVAL);
-
-	pmbp = NULL;
 	pmb_flags = pgprot_to_pmb_flags(prot);
-	mapped = 0;
-
-	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++)
-		if (size >= pmb_sizes[i].size)
-			break;
-
-	last_addr = phys + size;
-	align_mask = ~(pmb_sizes[i].size - 1);
-	offset = phys & ~align_mask;
-	phys &= align_mask;
-	aligned = ALIGN(last_addr, pmb_sizes[i].size) - phys;
-
-	area = __get_vm_area_caller(aligned, VM_IOREMAP, uncached_end,
-				    P3SEG, caller);
-	if (!area)
-		return NULL;
-
-	area->phys_addr = phys;
-	orig_addr = vaddr = (unsigned long)area->addr;
-
-	if (!pmb_addr_valid(vaddr, aligned))
-		return ERR_PTR(-EFAULT);
+	pmbp = NULL;
 
 again:
-	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++) {
+	for (i = mapped = 0; i < ARRAY_SIZE(pmb_sizes); i++) {
 		unsigned long flags;
 
 		if (size < pmb_sizes[i].size)
@@ -333,7 +292,7 @@ again:
 				 PMB_NO_ENTRY);
 		if (IS_ERR(pmbe)) {
 			pmb_unmap_entry(pmbp, mapped);
-			return pmbe;
+			return PTR_ERR(pmbe);
 		}
 
 		spin_lock_irqsave(&pmbe->lock, flags);
@@ -371,6 +330,52 @@ again:
 
 	if (size >= SZ_16M)
 		goto again;
+
+	return 0;
+}
+
+void __iomem *pmb_remap_caller(phys_addr_t phys, unsigned long size,
+			       pgprot_t prot, void *caller)
+{
+	unsigned long orig_addr, vaddr;
+	phys_addr_t offset, last_addr;
+	phys_addr_t align_mask;
+	unsigned long aligned;
+	struct vm_struct *area;
+	int i, ret;
+
+	if (!pmb_iomapping_enabled)
+		return NULL;
+
+	/*
+	 * Small mappings need to go through the TLB.
+	 */
+	if (size < SZ_16M)
+		return ERR_PTR(-EINVAL);
+	if (!pmb_prot_valid(prot))
+		return ERR_PTR(-EINVAL);
+
+	for (i = 0; i < ARRAY_SIZE(pmb_sizes); i++)
+		if (size >= pmb_sizes[i].size)
+			break;
+
+	last_addr = phys + size;
+	align_mask = ~(pmb_sizes[i].size - 1);
+	offset = phys & ~align_mask;
+	phys &= align_mask;
+	aligned = ALIGN(last_addr, pmb_sizes[i].size) - phys;
+
+	area = __get_vm_area_caller(aligned, VM_IOREMAP, uncached_end,
+				    P3SEG, caller);
+	if (!area)
+		return NULL;
+
+	area->phys_addr = phys;
+	orig_addr = vaddr = (unsigned long)area->addr;
+
+	ret = pmb_bolt_mapping(vaddr, phys, size, prot);
+	if (ret != 0)
+		return ERR_PTR(ret);
 
 	return (void __iomem *)(offset + (char *)orig_addr);
 }
