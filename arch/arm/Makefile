@@ -160,11 +160,13 @@ machine-$(CONFIG_ARCH_PNX4008)		:= pnx4008
 machine-$(CONFIG_ARCH_PXA)		:= pxa
 machine-$(CONFIG_ARCH_REALVIEW)		:= realview
 machine-$(CONFIG_ARCH_RPC)		:= rpc
-machine-$(CONFIG_ARCH_S3C2410)		:= s3c2410 s3c2400 s3c2412 s3c2440 s3c2442 s3c2443
+machine-$(CONFIG_ARCH_S3C2410)		:= s3c2410 s3c2400 s3c2412 s3c2440 s3c2443
 machine-$(CONFIG_ARCH_S3C24A0)		:= s3c24a0
-machine-$(CONFIG_ARCH_S3C64XX)		:= s3c6400 s3c6410
+machine-$(CONFIG_ARCH_S3C64XX)		:= s3c64xx
 machine-$(CONFIG_ARCH_S5P6440)		:= s5p6440
+machine-$(CONFIG_ARCH_S5P6442)		:= s5p6442
 machine-$(CONFIG_ARCH_S5PC1XX)		:= s5pc100
+machine-$(CONFIG_ARCH_S5PV210)		:= s5pv210
 machine-$(CONFIG_ARCH_SA1100)		:= sa1100
 machine-$(CONFIG_ARCH_SHARK)		:= shark
 machine-$(CONFIG_ARCH_SHMOBILE) 	:= shmobile
@@ -180,15 +182,15 @@ machine-$(CONFIG_FOOTBRIDGE)		:= footbridge
 # by CONFIG_* macro name.
 plat-$(CONFIG_ARCH_MXC)		:= mxc
 plat-$(CONFIG_ARCH_OMAP)	:= omap
+plat-$(CONFIG_ARCH_S3C64XX)	:= samsung
 plat-$(CONFIG_ARCH_STMP3XXX)	:= stmp3xxx
 plat-$(CONFIG_PLAT_IOP)		:= iop
 plat-$(CONFIG_PLAT_NOMADIK)	:= nomadik
 plat-$(CONFIG_PLAT_ORION)	:= orion
 plat-$(CONFIG_PLAT_PXA)		:= pxa
-plat-$(CONFIG_PLAT_S3C24XX)	:= s3c24xx s3c samsung
-plat-$(CONFIG_PLAT_S3C64XX)	:= s3c64xx s3c samsung
-plat-$(CONFIG_PLAT_S5PC1XX)	:= s5pc1xx s3c samsung
-plat-$(CONFIG_PLAT_S5P)		:= s5p samsung s3c
+plat-$(CONFIG_PLAT_S3C24XX)	:= s3c24xx samsung
+plat-$(CONFIG_PLAT_S5PC1XX)	:= s5pc1xx samsung
+plat-$(CONFIG_PLAT_S5P)		:= s5p samsung
 
 ifeq ($(CONFIG_ARCH_EBSA110),y)
 # This is what happens if you forget the IOCS16 line.

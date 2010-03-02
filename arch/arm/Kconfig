@@ -631,9 +631,24 @@ config ARCH_S3C2410
 
 config ARCH_S3C64XX
 	bool "Samsung S3C64XX"
+	select PLAT_SAMSUNG
+	select CPU_V6
 	select GENERIC_GPIO
+	select ARM_VIC
 	select HAVE_CLK
+	select NO_IOPORT
 	select ARCH_HAS_CPUFREQ
+	select ARCH_REQUIRE_GPIOLIB
+	select SAMSUNG_CLKSRC
+	select SAMSUNG_IRQ_VIC_TIMER
+	select SAMSUNG_IRQ_UART
+	select S3C_GPIO_TRACK
+	select S3C_GPIO_PULL_UPDOWN
+	select S3C_GPIO_CFG_S3C24XX
+	select S3C_GPIO_CFG_S3C64XX
+	select S3C_DEV_NAND
+	select USB_ARCH_HAS_OHCI
+	select SAMSUNG_GPIOLIB_4BIT
 	help
 	  Samsung S3C64XX series based systems
 
@@ -645,6 +660,14 @@ config ARCH_S5P6440
 	help
 	  Samsung S5P6440 CPU based systems
 
+config ARCH_S5P6442
+	bool "Samsung S5P6442"
+	select CPU_V6
+	select GENERIC_GPIO
+	select HAVE_CLK
+	help
+	  Samsung S5P6442 CPU based systems
+
 config ARCH_S5PC1XX
 	bool "Samsung S5PC1XX"
 	select GENERIC_GPIO
@@ -652,6 +675,15 @@ config ARCH_S5PC1XX
 	select CPU_V7
 	help
 	  Samsung S5PC1XX series based systems
+
+config ARCH_S5PV210
+	bool "Samsung S5PV210/S5PC110"
+	select CPU_V7
+	select GENERIC_GPIO
+	select HAVE_CLK
+	select ARM_L1_CACHE_SHIFT_6
+	help
+	  Samsung S5PV210/S5PC110 series based systems
 
 config ARCH_SHARK
 	bool "Shark"
@@ -816,8 +848,6 @@ source "arch/arm/mach-sa1100/Kconfig"
 
 source "arch/arm/plat-samsung/Kconfig"
 source "arch/arm/plat-s3c24xx/Kconfig"
-source "arch/arm/plat-s3c64xx/Kconfig"
-source "arch/arm/plat-s3c/Kconfig"
 source "arch/arm/plat-s5p/Kconfig"
 source "arch/arm/plat-s5pc1xx/Kconfig"
 
@@ -826,24 +856,26 @@ source "arch/arm/mach-s3c2400/Kconfig"
 source "arch/arm/mach-s3c2410/Kconfig"
 source "arch/arm/mach-s3c2412/Kconfig"
 source "arch/arm/mach-s3c2440/Kconfig"
-source "arch/arm/mach-s3c2442/Kconfig"
 source "arch/arm/mach-s3c2443/Kconfig"
 endif
 
 if ARCH_S3C64XX
-source "arch/arm/mach-s3c6400/Kconfig"
-source "arch/arm/mach-s3c6410/Kconfig"
+source "arch/arm/mach-s3c64xx/Kconfig"
 endif
 
 source "arch/arm/mach-s5p6440/Kconfig"
 
-source "arch/arm/mach-shmobile/Kconfig"
-
-source "arch/arm/plat-stmp3xxx/Kconfig"
+source "arch/arm/mach-s5p6442/Kconfig"
 
 if ARCH_S5PC1XX
 source "arch/arm/mach-s5pc100/Kconfig"
 endif
+
+source "arch/arm/mach-s5pv210/Kconfig"
+
+source "arch/arm/mach-shmobile/Kconfig"
+
+source "arch/arm/plat-stmp3xxx/Kconfig"
 
 source "arch/arm/mach-u300/Kconfig"
 
@@ -1092,7 +1124,7 @@ source kernel/Kconfig.preempt
 config HZ
 	int
 	default 128 if ARCH_L7200
-	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P6440
+	default 200 if ARCH_EBSA110 || ARCH_S3C2410 || ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PV210
 	default OMAP_32K_TIMER_HZ if ARCH_OMAP && OMAP_32K_TIMER
 	default AT91_TIMER_HZ if ARCH_AT91
 	default 100

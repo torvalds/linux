@@ -406,31 +406,31 @@
 #define S3C2443_GPE5_SD1_CLK   (0x02 << 10)
 #define S3C2400_GPE5_EINT5     (0x02 << 10)
 #define S3C2400_GPE5_TCLK1     (0x03 << 10)
+#define S3C2443_GPE5_AC_BITCLK (0x03 << 10)
 
 #define S3C2410_GPE6_SDCMD     (0x02 << 12)
 #define S3C2443_GPE6_SD1_CMD   (0x02 << 12)
-#define S3C2443_GPE6_AC_BITCLK (0x03 << 12)
+#define S3C2443_GPE6_AC_SDI    (0x03 << 12)
 #define S3C2400_GPE6_EINT6     (0x02 << 12)
 
 #define S3C2410_GPE7_SDDAT0    (0x02 << 14)
 #define S3C2443_GPE5_SD1_DAT0  (0x02 << 14)
-#define S3C2443_GPE7_AC_SDI    (0x03 << 14)
+#define S3C2443_GPE7_AC_SDO    (0x03 << 14)
 #define S3C2400_GPE7_EINT7     (0x02 << 14)
 
 #define S3C2410_GPE8_SDDAT1    (0x02 << 16)
 #define S3C2443_GPE8_SD1_DAT1  (0x02 << 16)
-#define S3C2443_GPE8_AC_SDO    (0x03 << 16)
+#define S3C2443_GPE8_AC_SYNC   (0x03 << 16)
 #define S3C2400_GPE8_nXDACK0   (0x02 << 16)
 
 #define S3C2410_GPE9_SDDAT2    (0x02 << 18)
 #define S3C2443_GPE9_SD1_DAT2  (0x02 << 18)
-#define S3C2443_GPE9_AC_SYNC   (0x03 << 18)
+#define S3C2443_GPE9_AC_nRESET (0x03 << 18)
 #define S3C2400_GPE9_nXDACK1   (0x02 << 18)
 #define S3C2400_GPE9_nXBACK    (0x03 << 18)
 
 #define S3C2410_GPE10_SDDAT3   (0x02 << 20)
 #define S3C2443_GPE10_SD1_DAT3 (0x02 << 20)
-#define S3C2443_GPE10_AC_nRESET (0x03 << 20)
 #define S3C2400_GPE10_nXDREQ0  (0x02 << 20)
 
 #define S3C2410_GPE11_SPIMISO0 (0x02 << 22)

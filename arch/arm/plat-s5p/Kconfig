@@ -7,9 +7,8 @@
 
 config PLAT_S5P
 	bool
-	depends on ARCH_S5P6440
+	depends on (ARCH_S5P6440 || ARCH_S5P6442 || ARCH_S5PV210)
 	default y
-	select PLAT_S3C
 	select ARM_VIC
 	select NO_IOPORT
 	select ARCH_REQUIRE_GPIOLIB
@@ -24,19 +23,3 @@ config PLAT_S5P
 	select SAMSUNG_IRQ_UART
 	help
 	  Base platform code for Samsung's S5P series SoC.
-
-if (PLAT_S5P && ARCH_S5P6440)
-
-# Configuration options shared by all S5P64XX implementations
-
-config CPU_S5P6440_INIT
-	bool
-	help
-	 Initialisation code for the S5P6440.
-
-config CPU_S5P6440_CLOCK
-	bool
-	help
-	  Clock support code for the S5P6440.
-
-endif

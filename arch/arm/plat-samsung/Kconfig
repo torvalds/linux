@@ -7,11 +7,49 @@
 config PLAT_SAMSUNG
 	bool
 	depends on ARCH_S3C2410 || ARCH_S3C24A0 || ARCH_S3C64XX || ARCH_S5PC1XX
+	select NO_IOPORT
 	default y
 	help
 	  Base platform code for all Samsung SoC based systems
 
 if PLAT_SAMSUNG
+
+# boot configurations
+
+comment "Boot options"
+
+config S3C_BOOT_WATCHDOG
+	bool "S3C Initialisation watchdog"
+	depends on S3C2410_WATCHDOG
+	help
+	  Say y to enable the watchdog during the kernel decompression
+	  stage. If the kernel fails to uncompress, then the watchdog
+	  will trigger a reset and the system should restart.
+
+config S3C_BOOT_ERROR_RESET
+	bool "S3C Reboot on decompression error"
+	help
+	  Say y here to use the watchdog to reset the system if the
+	  kernel decompressor detects an error during decompression.
+
+config S3C_BOOT_UART_FORCE_FIFO
+       bool "Force UART FIFO on during boot process"
+       default y
+       help
+         Say Y here to force the UART FIFOs on during the kernel
+	 uncompressor
+
+
+config S3C_LOWLEVEL_UART_PORT
+	int "S3C UART to use for low-level messages"
+	default 0
+	help
+	  Choice of which UART port to use for the low-level messages,
+	  such as the `Uncompressing...` at start time. The value of
+	  this configuration should be between zero and two. The port
+	  must have been initialised by the boot-loader before use.
+
+# clock options
 
 config SAMSUNG_CLKSRC
 	bool
@@ -81,6 +119,21 @@ config SAMSUNG_GPIO_EXTRA
 	  provides. This allows expanding the GPIO space for use with
 	  GPIO expanders.
 
+config S3C_GPIO_SPACE
+	int "Space between gpio banks"
+	default 0
+	help
+	  Add a number of spare GPIO entries between each bank for debugging
+	  purposes. This allows any problems where an counter overflows from
+	  one bank to another to be caught, at the expense of using a little
+	  more memory.
+
+config S3C_GPIO_TRACK
+	bool
+	help
+	  Internal configuration option to enable the s3c specific gpio
+	  chip tracking if the platform requires it.
+
 # ADC driver
 
 config S3C_ADC
@@ -131,6 +184,19 @@ config S3C_DEV_NAND
 	bool
 	help
 	  Compile in platform device definition for NAND controller
+
+config S3C64XX_DEV_SPI
+	bool
+	help
+	  Compile in platform device definitions for S3C64XX's type
+	  SPI controllers.
+
+# DMA
+
+config S3C_DMA
+	bool
+	help
+	  Internal configuration for S3C DMA core
 
 comment "Power management"
 

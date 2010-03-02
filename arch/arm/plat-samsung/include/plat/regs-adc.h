@@ -25,6 +25,7 @@
 
 
 /* ADCCON Register Bits */
+#define S3C64XX_ADCCON_RESSEL		(1<<16)
 #define S3C2410_ADCCON_ECFLG		(1<<15)
 #define S3C2410_ADCCON_PRSCEN		(1<<14)
 #define S3C2410_ADCCON_PRSCVL(x)	(((x)&0xFF)<<6)

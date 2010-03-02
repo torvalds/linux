@@ -25,9 +25,6 @@
 #include <plat/irq-vic-timer.h>
 #include <plat/irq-uart.h>
 
-#define VIC_VAADDR(no)	(S5P_VA_VIC0   + ((no)*0x10000))
-#define VIC_BASE(no)	(S5P_VIC0_BASE + ((no)*32))
-
 /*
  * Note, we make use of the fact that the parent IRQs, IRQ_UART[0..3]
  * are consecutive when looking up the interrupt in the demux routines.
@@ -48,11 +45,13 @@ static struct s3c_uart_irq uart_irqs[] = {
 		.base_irq	= IRQ_S5P_UART_BASE2,
 		.parent_irq	= IRQ_UART2,
 	},
+#if CONFIG_SERIAL_SAMSUNG_UARTS > 3
 	[3] = {
 		.regs		= S5P_VA_UART3,
 		.base_irq	= IRQ_S5P_UART_BASE3,
 		.parent_irq	= IRQ_UART3,
 	},
+#endif
 };
 
 void __init s5p_init_irq(u32 *vic, u32 num_vic)
@@ -61,7 +60,7 @@ void __init s5p_init_irq(u32 *vic, u32 num_vic)
 
 	/* initialize the VICs */
 	for (irq = 0; irq < num_vic; irq++)
-		vic_init(VIC_VAADDR(irq), VIC_BASE(irq), vic[irq], 0);
+		vic_init(VA_VIC(irq), VIC_BASE(irq), vic[irq], 0);
 
 	s3c_init_vic_timer_irq(IRQ_TIMER0_VIC, IRQ_TIMER0);
 	s3c_init_vic_timer_irq(IRQ_TIMER1_VIC, IRQ_TIMER1);

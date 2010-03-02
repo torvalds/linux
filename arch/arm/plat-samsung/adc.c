@@ -262,6 +262,7 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 {
 	struct adc_device *adc = pw;
 	struct s3c_adc_client *client = adc->cur;
+	enum s3c_cpu_type cpu = platform_get_device_id(adc->pdev)->driver_data;
 	unsigned long flags;
 	unsigned data0, data1;
 
@@ -276,9 +277,17 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 
 	client->nr_samples--;
 
+	if (cpu == TYPE_S3C64XX) {
+		/* S3C64XX ADC resolution is 12-bit */
+		data0 &= 0xfff;
+		data1 &= 0xfff;
+	} else {
+		data0 &= 0x3ff;
+		data1 &= 0x3ff;
+	}
+
 	if (client->convert_cb)
-		(client->convert_cb)(client, data0 & 0x3ff, data1 & 0x3ff,
-				     &client->nr_samples);
+		(client->convert_cb)(client, data0, data1, &client->nr_samples);
 
 	if (client->nr_samples > 0) {
 		/* fire another conversion for this */
@@ -295,7 +304,7 @@ static irqreturn_t s3c_adc_irq(int irq, void *pw)
 	}
 
 exit:
-	if (platform_get_device_id(adc->pdev)->driver_data == TYPE_S3C64XX) {
+	if (cpu == TYPE_S3C64XX) {
 		/* Clear ADC interrupt */
 		writel(0, adc->regs + S3C64XX_ADCCLRINT);
 	}
@@ -308,6 +317,7 @@ static int s3c_adc_probe(struct platform_device *pdev)
 	struct adc_device *adc;
 	struct resource *regs;
 	int ret;
+	unsigned tmp;
 
 	adc = kzalloc(sizeof(struct adc_device), GFP_KERNEL);
 	if (adc == NULL) {
@@ -354,8 +364,12 @@ static int s3c_adc_probe(struct platform_device *pdev)
 
 	clk_enable(adc->clk);
 
-	writel(adc->prescale | S3C2410_ADCCON_PRSCEN,
-	       adc->regs + S3C2410_ADCCON);
+	tmp = adc->prescale | S3C2410_ADCCON_PRSCEN;
+	if (platform_get_device_id(pdev)->driver_data == TYPE_S3C64XX) {
+		/* Enable 12-bit ADC resolution */
+		tmp |= S3C64XX_ADCCON_RESSEL;
+	}
+	writel(tmp, adc->regs + S3C2410_ADCCON);
 
 	dev_info(dev, "attached adc driver\n");
 
@@ -398,6 +412,7 @@ static int s3c_adc_suspend(struct platform_device *pdev, pm_message_t state)
 	con |= S3C2410_ADCCON_STDBM;
 	writel(con, adc->regs + S3C2410_ADCCON);
 
+	disable_irq(adc->irq);
 	clk_disable(adc->clk);
 
 	return 0;
@@ -408,6 +423,7 @@ static int s3c_adc_resume(struct platform_device *pdev)
 	struct adc_device *adc = platform_get_drvdata(pdev);
 
 	clk_enable(adc->clk);
+	enable_irq(adc->irq);
 
 	writel(adc->prescale | S3C2410_ADCCON_PRSCEN,
 	       adc->regs + S3C2410_ADCCON);
