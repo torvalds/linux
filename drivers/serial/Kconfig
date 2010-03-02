@@ -1009,6 +1009,10 @@ config SERIAL_SH_SCI_CONSOLE
 	depends on SERIAL_SH_SCI=y
 	select SERIAL_CORE_CONSOLE
 
+config SERIAL_SH_SCI_DMA
+	bool "DMA support"
+	depends on SERIAL_SH_SCI && SH_DMAE && EXPERIMENTAL
+
 config SERIAL_PNX8XXX
 	bool "Enable PNX8XXX SoCs' UART Support"
 	depends on MIPS && (SOC_PNX8550 || SOC_PNX833X)
