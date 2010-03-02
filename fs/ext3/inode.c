@@ -1528,6 +1528,7 @@ static int ext3_ordered_writepage(struct page *page,
 	int err;
 
 	J_ASSERT(PageLocked(page));
+	WARN_ON_ONCE(IS_RDONLY(inode));
 
 	/*
 	 * We give up here if we're reentered, because it might be for a
@@ -1600,6 +1601,9 @@ static int ext3_writeback_writepage(struct page *page,
 	int ret = 0;
 	int err;
 
+	J_ASSERT(PageLocked(page));
+	WARN_ON_ONCE(IS_RDONLY(inode));
+
 	if (ext3_journal_current_handle())
 		goto out_fail;
 
@@ -1641,6 +1645,9 @@ static int ext3_journalled_writepage(struct page *page,
 	handle_t *handle = NULL;
 	int ret = 0;
 	int err;
+
+	J_ASSERT(PageLocked(page));
+	WARN_ON_ONCE(IS_RDONLY(inode));
 
 	if (ext3_journal_current_handle())
 		goto no_write;
