@@ -6,7 +6,7 @@
 #if defined(CONFIG_MMC)
 
 #define MXM_8X10_SD_nCD (72)
-#define MXM_8x10_SD_WP (84)
+#define MXM_8X10_SD_WP (84)
 
 extern void mxm_8x10_mmc_init(void);
 #else
