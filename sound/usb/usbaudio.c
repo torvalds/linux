@@ -3386,58 +3386,6 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 	return 0;
 }
 
-/*
- * Create a stream for an Edirol UA-1000 interface.
- */
-static int create_ua1000_quirk(struct snd_usb_audio *chip,
-			       struct usb_interface *iface,
-			       const struct snd_usb_audio_quirk *quirk)
-{
-	static const struct audioformat ua1000_format = {
-		.format = SNDRV_PCM_FORMAT_S32_LE,
-		.fmt_type = UAC_FORMAT_TYPE_I,
-		.altsetting = 1,
-		.altset_idx = 1,
-		.attributes = 0,
-		.rates = SNDRV_PCM_RATE_CONTINUOUS,
-	};
-	struct usb_host_interface *alts;
-	struct usb_interface_descriptor *altsd;
-	struct audioformat *fp;
-	int stream, err;
-
-	if (iface->num_altsetting != 2)
-		return -ENXIO;
-	alts = &iface->altsetting[1];
-	altsd = get_iface_desc(alts);
-	if (alts->extralen != 11 || alts->extra[1] != USB_DT_CS_INTERFACE ||
-	    altsd->bNumEndpoints != 1)
-		return -ENXIO;
-
-	fp = kmemdup(&ua1000_format, sizeof(*fp), GFP_KERNEL);
-	if (!fp)
-		return -ENOMEM;
-
-	fp->channels = alts->extra[4];
-	fp->iface = altsd->bInterfaceNumber;
-	fp->endpoint = get_endpoint(alts, 0)->bEndpointAddress;
-	fp->ep_attr = get_endpoint(alts, 0)->bmAttributes;
-	fp->datainterval = parse_datainterval(chip, alts);
-	fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
-	fp->rate_max = fp->rate_min = combine_triple(&alts->extra[8]);
-
-	stream = (fp->endpoint & USB_DIR_IN)
-		? SNDRV_PCM_STREAM_CAPTURE : SNDRV_PCM_STREAM_PLAYBACK;
-	err = add_audio_endpoint(chip, stream, fp);
-	if (err < 0) {
-		kfree(fp);
-		return err;
-	}
-	/* FIXME: playback must be synchronized to capture */
-	usb_set_interface(chip->dev, fp->iface, 0);
-	return 0;
-}
-
 static int snd_usb_create_quirk(struct snd_usb_audio *chip,
 				struct usb_interface *iface,
 				const struct snd_usb_audio_quirk *quirk);
@@ -3686,7 +3634,6 @@ static int snd_usb_create_quirk(struct snd_usb_audio *chip,
 		[QUIRK_MIDI_CME] = create_any_midi_quirk,
 		[QUIRK_AUDIO_STANDARD_INTERFACE] = create_standard_audio_quirk,
 		[QUIRK_AUDIO_FIXED_ENDPOINT] = create_fixed_stream_quirk,
-		[QUIRK_AUDIO_EDIROL_UA1000] = create_ua1000_quirk,
 		[QUIRK_AUDIO_EDIROL_UAXX] = create_uaxx_quirk,
 		[QUIRK_AUDIO_ALIGN_TRANSFER] = create_align_transfer_quirk
 	};
