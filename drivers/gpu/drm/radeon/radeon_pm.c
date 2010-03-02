@@ -28,6 +28,7 @@
 #define RADEON_RECLOCK_DELAY_MS 200
 #define RADEON_WAIT_VBLANK_TIMEOUT 200
 
+static bool radeon_pm_debug_check_in_vbl(struct radeon_device *rdev, bool finish);
 static void radeon_pm_set_clocks_locked(struct radeon_device *rdev);
 static void radeon_pm_set_clocks(struct radeon_device *rdev);
 static void radeon_pm_idle_work_handler(struct work_struct *work);
@@ -179,6 +180,16 @@ static void radeon_get_power_state(struct radeon_device *rdev,
 		 rdev->pm.requested_power_state->non_clock_info.pcie_lanes);
 }
 
+static inline void radeon_sync_with_vblank(struct radeon_device *rdev)
+{
+	if (rdev->pm.active_crtcs) {
+		rdev->pm.vblank_sync = false;
+		wait_event_timeout(
+			rdev->irq.vblank_queue, rdev->pm.vblank_sync,
+			msecs_to_jiffies(RADEON_WAIT_VBLANK_TIMEOUT));
+	}
+}
+
 static void radeon_set_power_state(struct radeon_device *rdev)
 {
 	/* if *_clock_mode are the same, *_power_state are as well */
@@ -189,11 +200,28 @@ static void radeon_set_power_state(struct radeon_device *rdev)
 		 rdev->pm.requested_clock_mode->sclk,
 		 rdev->pm.requested_clock_mode->mclk,
 		 rdev->pm.requested_power_state->non_clock_info.pcie_lanes);
+
 	/* set pcie lanes */
+	/* TODO */
+
 	/* set voltage */
+	/* TODO */
+
 	/* set engine clock */
+	radeon_sync_with_vblank(rdev);
+	radeon_pm_debug_check_in_vbl(rdev, false);
 	radeon_set_engine_clock(rdev, rdev->pm.requested_clock_mode->sclk);
+	radeon_pm_debug_check_in_vbl(rdev, true);
+
+#if 0
 	/* set memory clock */
+	if (rdev->asic->set_memory_clock) {
+		radeon_sync_with_vblank(rdev);
+		radeon_pm_debug_check_in_vbl(rdev, false);
+		radeon_set_memory_clock(rdev, rdev->pm.requested_clock_mode->mclk);
+		radeon_pm_debug_check_in_vbl(rdev, true);
+	}
+#endif
 
 	rdev->pm.current_power_state = rdev->pm.requested_power_state;
 	rdev->pm.current_clock_mode = rdev->pm.requested_clock_mode;
@@ -333,10 +361,7 @@ static void radeon_pm_set_clocks_locked(struct radeon_device *rdev)
 		break;
 	}
 
-	/* check if we are in vblank */
-	radeon_pm_debug_check_in_vbl(rdev, false);
 	radeon_set_power_state(rdev);
-	radeon_pm_debug_check_in_vbl(rdev, true);
 	rdev->pm.planned_action = PM_ACTION_NONE;
 }
 
@@ -353,12 +378,7 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 		rdev->pm.req_vblank |= (1 << 1);
 		drm_vblank_get(rdev->ddev, 1);
 	}
-	if (rdev->pm.active_crtcs) {
-		rdev->pm.vblank_sync = false;
-		wait_event_timeout(
-			rdev->irq.vblank_queue, rdev->pm.vblank_sync,
-			msecs_to_jiffies(RADEON_WAIT_VBLANK_TIMEOUT));
-	}
+	radeon_pm_set_clocks_locked(rdev);
 	if (rdev->pm.req_vblank & (1 << 0)) {
 		rdev->pm.req_vblank &= ~(1 << 0);
 		drm_vblank_put(rdev->ddev, 0);
@@ -368,7 +388,6 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 		drm_vblank_put(rdev->ddev, 1);
 	}
 
-	radeon_pm_set_clocks_locked(rdev);
 	mutex_unlock(&rdev->cp.mutex);
 }
 
