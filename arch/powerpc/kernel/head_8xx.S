@@ -318,12 +318,16 @@ InstructionTLBMiss:
 	/* If we are faulting a kernel address, we have to use the
 	 * kernel page tables.
 	 */
+#ifdef CONFIG_MODULES
+	/* Only modules will cause ITLB Misses as we always
+	 * pin the first 8MB of kernel memory */
 	andi.	r11, r10, 0x0800	/* Address >= 0x80000000 */
 	beq	3f
 	lis	r11, swapper_pg_dir@h
 	ori	r11, r11, swapper_pg_dir@l
 	rlwimi	r10, r11, 0, 2, 19
 3:
+#endif
 	lwz	r11, 0(r10)	/* Get the level 1 entry */
 	rlwinm.	r10, r11,0,0,19	/* Extract page descriptor page address */
 	beq	2f		/* If zero, don't try to find a pte */
