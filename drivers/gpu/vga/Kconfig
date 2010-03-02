@@ -11,7 +11,6 @@ config VGA_ARB
 
 config VGA_SWITCHEROO
 	bool "Laptop Hybrid Grapics - GPU switching support"
-	default y
 	depends on X86
 	depends on ACPI
 	help
