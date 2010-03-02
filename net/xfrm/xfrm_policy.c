@@ -1372,7 +1372,8 @@ static inline int xfrm_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 	return err;
 }
 
-static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
+static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
+				struct flowi *fl)
 {
 	struct xfrm_policy_afinfo *afinfo =
 		xfrm_policy_get_afinfo(xdst->u.dst.ops->family);
@@ -1381,7 +1382,7 @@ static inline int xfrm_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
 	if (!afinfo)
 		return -EINVAL;
 
-	err = afinfo->fill_dst(xdst, dev);
+	err = afinfo->fill_dst(xdst, dev, fl);
 
 	xfrm_policy_put_afinfo(afinfo);
 
@@ -1486,7 +1487,7 @@ static struct dst_entry *xfrm_bundle_create(struct xfrm_policy *policy,
 	for (dst_prev = dst0; dst_prev != dst; dst_prev = dst_prev->child) {
 		struct xfrm_dst *xdst = (struct xfrm_dst *)dst_prev;
 
-		err = xfrm_fill_dst(xdst, dev);
+		err = xfrm_fill_dst(xdst, dev, fl);
 		if (err)
 			goto free_dst;
 
