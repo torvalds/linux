@@ -13561,6 +13561,8 @@ static void alc269_lifebook_unsol_event(struct hda_codec *codec,
 static void alc269_quanta_fl1_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->ext_mic.pin = 0x18;
 	spec->ext_mic.mux_idx = 0;
 	spec->int_mic.pin = 0x19;
@@ -13656,6 +13658,8 @@ static void alc269_laptop_unsol_event(struct hda_codec *codec,
 static void alc269_laptop_dmic_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->ext_mic.pin = 0x18;
 	spec->ext_mic.mux_idx = 0;
 	spec->int_mic.pin = 0x12;
@@ -13666,6 +13670,8 @@ static void alc269_laptop_dmic_setup(struct hda_codec *codec)
 static void alc269vb_laptop_dmic_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->ext_mic.pin = 0x18;
 	spec->ext_mic.mux_idx = 0;
 	spec->int_mic.pin = 0x12;
@@ -13676,6 +13682,8 @@ static void alc269vb_laptop_dmic_setup(struct hda_codec *codec)
 static void alc269_laptop_amic_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->ext_mic.pin = 0x18;
 	spec->ext_mic.mux_idx = 0;
 	spec->int_mic.pin = 0x19;
