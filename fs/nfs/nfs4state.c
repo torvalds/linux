@@ -1255,26 +1255,59 @@ void nfs41_handle_recall_slot(struct nfs_client *clp)
 	nfs4_schedule_state_recovery(clp);
 }
 
+static void nfs4_reset_all_state(struct nfs_client *clp)
+{
+	if (test_and_set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0) {
+		clp->cl_boot_time = CURRENT_TIME;
+		nfs4_state_start_reclaim_nograce(clp);
+		nfs4_schedule_state_recovery(clp);
+	}
+}
+
+static void nfs41_handle_server_reboot(struct nfs_client *clp)
+{
+	if (test_and_set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0) {
+		nfs4_state_start_reclaim_reboot(clp);
+		nfs4_schedule_state_recovery(clp);
+	}
+}
+
+static void nfs41_handle_state_revoked(struct nfs_client *clp)
+{
+	/* Temporary */
+	nfs4_reset_all_state(clp);
+}
+
+static void nfs41_handle_recallable_state_revoked(struct nfs_client *clp)
+{
+	/* This will need to handle layouts too */
+	nfs_expire_all_delegations(clp);
+}
+
+static void nfs41_handle_cb_path_down(struct nfs_client *clp)
+{
+	nfs_expire_all_delegations(clp);
+	if (test_and_set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state) == 0)
+		nfs4_schedule_state_recovery(clp);
+}
+
 void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags)
 {
 	if (!flags)
 		return;
-	else if (flags & SEQ4_STATUS_RESTART_RECLAIM_NEEDED) {
-		set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-		nfs4_state_start_reclaim_reboot(clp);
-		nfs4_schedule_state_recovery(clp);
-	} else if (flags & (SEQ4_STATUS_EXPIRED_ALL_STATE_REVOKED |
+	else if (flags & SEQ4_STATUS_RESTART_RECLAIM_NEEDED)
+		nfs41_handle_server_reboot(clp);
+	else if (flags & (SEQ4_STATUS_EXPIRED_ALL_STATE_REVOKED |
 			    SEQ4_STATUS_EXPIRED_SOME_STATE_REVOKED |
 			    SEQ4_STATUS_ADMIN_STATE_REVOKED |
-			    SEQ4_STATUS_RECALLABLE_STATE_REVOKED |
-			    SEQ4_STATUS_LEASE_MOVED)) {
-		set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-		nfs4_state_start_reclaim_nograce(clp);
-		nfs4_schedule_state_recovery(clp);
-	} else if (flags & (SEQ4_STATUS_CB_PATH_DOWN |
+			    SEQ4_STATUS_LEASE_MOVED))
+		nfs41_handle_state_revoked(clp);
+	else if (flags & SEQ4_STATUS_RECALLABLE_STATE_REVOKED)
+		nfs41_handle_recallable_state_revoked(clp);
+	else if (flags & (SEQ4_STATUS_CB_PATH_DOWN |
 			    SEQ4_STATUS_BACKCHANNEL_FAULT |
 			    SEQ4_STATUS_CB_PATH_DOWN_SESSION))
-		nfs_expire_all_delegations(clp);
+		nfs41_handle_cb_path_down(clp);
 }
 
 static int nfs4_reset_session(struct nfs_client *clp)
