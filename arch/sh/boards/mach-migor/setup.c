@@ -633,7 +633,7 @@ static int __init migor_devices_setup(void)
 	 * The original driver sets SIUB OLR/OBT, ILR/IBT, and SIUA OLR/OBT to
 	 * output. Need only SIUB, set to output for master mode (table 34.2)
 	 */
-	ctrl_outw(ctrl_inw(PORT_MSELCRA) | 1, PORT_MSELCRA);
+	__raw_writew(__raw_readw(PORT_MSELCRA) | 1, PORT_MSELCRA);
 
 	i2c_register_board_info(0, migor_i2c_devices,
 				ARRAY_SIZE(migor_i2c_devices));
