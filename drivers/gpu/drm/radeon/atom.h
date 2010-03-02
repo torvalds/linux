@@ -140,7 +140,7 @@ struct atom_context {
 extern int atom_debug;
 
 struct atom_context *atom_parse(struct card_info *, void *);
-void atom_execute_table(struct atom_context *, int, uint32_t *);
+int atom_execute_table(struct atom_context *, int, uint32_t *);
 int atom_asic_init(struct atom_context *);
 void atom_destroy(struct atom_context *);
 void atom_parse_data_header(struct atom_context *ctx, int index, uint16_t *size, uint8_t *frev, uint8_t *crev, uint16_t *data_start);
