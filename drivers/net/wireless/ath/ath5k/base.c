@@ -83,7 +83,7 @@ MODULE_VERSION("0.6.0 (EXPERIMENTAL)");
 
 
 /* Known PCI ids */
-static const struct pci_device_id ath5k_pci_id_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(ath5k_pci_id_table) = {
 	{ PCI_VDEVICE(ATHEROS, 0x0207) }, /* 5210 early */
 	{ PCI_VDEVICE(ATHEROS, 0x0007) }, /* 5210 */
 	{ PCI_VDEVICE(ATHEROS, 0x0011) }, /* 5311 - this is on AHB bus !*/
@@ -225,9 +225,9 @@ static int ath5k_reset_wake(struct ath5k_softc *sc);
 static int ath5k_start(struct ieee80211_hw *hw);
 static void ath5k_stop(struct ieee80211_hw *hw);
 static int ath5k_add_interface(struct ieee80211_hw *hw,
-		struct ieee80211_if_init_conf *conf);
+		struct ieee80211_vif *vif);
 static void ath5k_remove_interface(struct ieee80211_hw *hw,
-		struct ieee80211_if_init_conf *conf);
+		struct ieee80211_vif *vif);
 static int ath5k_config(struct ieee80211_hw *hw, u32 changed);
 static u64 ath5k_prepare_multicast(struct ieee80211_hw *hw,
 				   int mc_count, struct dev_addr_list *mc_list);
@@ -241,8 +241,6 @@ static int ath5k_set_key(struct ieee80211_hw *hw,
 		struct ieee80211_key_conf *key);
 static int ath5k_get_stats(struct ieee80211_hw *hw,
 		struct ieee80211_low_level_stats *stats);
-static int ath5k_get_tx_stats(struct ieee80211_hw *hw,
-		struct ieee80211_tx_queue_stats *stats);
 static u64 ath5k_get_tsf(struct ieee80211_hw *hw);
 static void ath5k_set_tsf(struct ieee80211_hw *hw, u64 tsf);
 static void ath5k_reset_tsf(struct ieee80211_hw *hw);
@@ -254,6 +252,8 @@ static void ath5k_bss_info_changed(struct ieee80211_hw *hw,
 		u32 changes);
 static void ath5k_sw_scan_start(struct ieee80211_hw *hw);
 static void ath5k_sw_scan_complete(struct ieee80211_hw *hw);
+static void ath5k_set_coverage_class(struct ieee80211_hw *hw,
+		u8 coverage_class);
 
 static const struct ieee80211_ops ath5k_hw_ops = {
 	.tx 		= ath5k_tx,
@@ -267,13 +267,13 @@ static const struct ieee80211_ops ath5k_hw_ops = {
 	.set_key 	= ath5k_set_key,
 	.get_stats 	= ath5k_get_stats,
 	.conf_tx 	= NULL,
-	.get_tx_stats 	= ath5k_get_tx_stats,
 	.get_tsf 	= ath5k_get_tsf,
 	.set_tsf 	= ath5k_set_tsf,
 	.reset_tsf 	= ath5k_reset_tsf,
 	.bss_info_changed = ath5k_bss_info_changed,
 	.sw_scan_start	= ath5k_sw_scan_start,
 	.sw_scan_complete = ath5k_sw_scan_complete,
+	.set_coverage_class = ath5k_set_coverage_class,
 };
 
 /*
@@ -1246,6 +1246,29 @@ ath5k_rxbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf)
 	return 0;
 }
 
+static enum ath5k_pkt_type get_hw_packet_type(struct sk_buff *skb)
+{
+	struct ieee80211_hdr *hdr;
+	enum ath5k_pkt_type htype;
+	__le16 fc;
+
+	hdr = (struct ieee80211_hdr *)skb->data;
+	fc = hdr->frame_control;
+
+	if (ieee80211_is_beacon(fc))
+		htype = AR5K_PKT_TYPE_BEACON;
+	else if (ieee80211_is_probe_resp(fc))
+		htype = AR5K_PKT_TYPE_PROBE_RESP;
+	else if (ieee80211_is_atim(fc))
+		htype = AR5K_PKT_TYPE_ATIM;
+	else if (ieee80211_is_pspoll(fc))
+		htype = AR5K_PKT_TYPE_PSPOLL;
+	else
+		htype = AR5K_PKT_TYPE_NORMAL;
+
+	return htype;
+}
+
 static int
 ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 		  struct ath5k_txq *txq)
@@ -1300,7 +1323,8 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 			sc->vif, pktlen, info));
 	}
 	ret = ah->ah_setup_tx_desc(ah, ds, pktlen,
-		ieee80211_get_hdrlen_from_skb(skb), AR5K_PKT_TYPE_NORMAL,
+		ieee80211_get_hdrlen_from_skb(skb),
+		get_hw_packet_type(skb),
 		(sc->power_level * 2),
 		hw_rate,
 		info->control.rates[0].count, keyidx, ah->ah_tx_ant, flags,
@@ -1329,7 +1353,6 @@ ath5k_txbuf_setup(struct ath5k_softc *sc, struct ath5k_buf *bf,
 
 	spin_lock_bh(&txq->lock);
 	list_add_tail(&bf->list, &txq->q);
-	sc->tx_stats[txq->qnum].len++;
 	if (txq->link == NULL) /* is this first packet? */
 		ath5k_hw_set_txdp(ah, txq->qnum, bf->daddr);
 	else /* no, so only link it */
@@ -1513,7 +1536,8 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 
 	ret = ath5k_hw_get_tx_queueprops(ah, sc->bhalq, &qi);
 	if (ret)
-		return ret;
+		goto err;
+
 	if (sc->opmode == NL80211_IFTYPE_AP ||
 		sc->opmode == NL80211_IFTYPE_MESH_POINT) {
 		/*
@@ -1540,10 +1564,25 @@ ath5k_beaconq_config(struct ath5k_softc *sc)
 	if (ret) {
 		ATH5K_ERR(sc, "%s: unable to update parameters for beacon "
 			"hardware queue!\n", __func__);
-		return ret;
+		goto err;
 	}
+	ret = ath5k_hw_reset_tx_queue(ah, sc->bhalq); /* push to h/w */
+	if (ret)
+		goto err;
 
-	return ath5k_hw_reset_tx_queue(ah, sc->bhalq); /* push to h/w */;
+	/* reconfigure cabq with ready time to 80% of beacon_interval */
+	ret = ath5k_hw_get_tx_queueprops(ah, AR5K_TX_QUEUE_ID_CAB, &qi);
+	if (ret)
+		goto err;
+
+	qi.tqi_ready_time = (sc->bintval * 80) / 100;
+	ret = ath5k_hw_set_tx_queueprops(ah, AR5K_TX_QUEUE_ID_CAB, &qi);
+	if (ret)
+		goto err;
+
+	ret = ath5k_hw_reset_tx_queue(ah, AR5K_TX_QUEUE_ID_CAB);
+err:
+	return ret;
 }
 
 static void
@@ -1562,7 +1601,6 @@ ath5k_txq_drainq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		ath5k_txbuf_free(sc, bf);
 
 		spin_lock_bh(&sc->txbuflock);
-		sc->tx_stats[txq->qnum].len--;
 		list_move_tail(&bf->list, &sc->txbuf);
 		sc->txbuf_len++;
 		spin_unlock_bh(&sc->txbuflock);
@@ -1992,10 +2030,8 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		}
 
 		ieee80211_tx_status(sc->hw, skb);
-		sc->tx_stats[txq->qnum].count++;
 
 		spin_lock(&sc->txbuflock);
-		sc->tx_stats[txq->qnum].len--;
 		list_move_tail(&bf->list, &sc->txbuf);
 		sc->txbuf_len++;
 		spin_unlock(&sc->txbuflock);
@@ -2773,7 +2809,7 @@ static void ath5k_stop(struct ieee80211_hw *hw)
 }
 
 static int ath5k_add_interface(struct ieee80211_hw *hw,
-		struct ieee80211_if_init_conf *conf)
+		struct ieee80211_vif *vif)
 {
 	struct ath5k_softc *sc = hw->priv;
 	int ret;
@@ -2784,22 +2820,22 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 		goto end;
 	}
 
-	sc->vif = conf->vif;
+	sc->vif = vif;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_MONITOR:
-		sc->opmode = conf->type;
+		sc->opmode = vif->type;
 		break;
 	default:
 		ret = -EOPNOTSUPP;
 		goto end;
 	}
 
-	ath5k_hw_set_lladdr(sc->ah, conf->mac_addr);
+	ath5k_hw_set_lladdr(sc->ah, vif->addr);
 	ath5k_mode_setup(sc);
 
 	ret = 0;
@@ -2810,13 +2846,13 @@ end:
 
 static void
 ath5k_remove_interface(struct ieee80211_hw *hw,
-			struct ieee80211_if_init_conf *conf)
+			struct ieee80211_vif *vif)
 {
 	struct ath5k_softc *sc = hw->priv;
 	u8 mac[ETH_ALEN] = {};
 
 	mutex_lock(&sc->lock);
-	if (sc->vif != conf->vif)
+	if (sc->vif != vif)
 		goto end;
 
 	ath5k_hw_set_lladdr(sc->ah, mac);
@@ -3097,17 +3133,6 @@ ath5k_get_stats(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int
-ath5k_get_tx_stats(struct ieee80211_hw *hw,
-		struct ieee80211_tx_queue_stats *stats)
-{
-	struct ath5k_softc *sc = hw->priv;
-
-	memcpy(stats, &sc->tx_stats, sizeof(sc->tx_stats));
-
-	return 0;
-}
-
 static u64
 ath5k_get_tsf(struct ieee80211_hw *hw)
 {
@@ -3261,4 +3286,23 @@ static void ath5k_sw_scan_complete(struct ieee80211_hw *hw)
 	struct ath5k_softc *sc = hw->priv;
 	ath5k_hw_set_ledstate(sc->ah, sc->assoc ?
 		AR5K_LED_ASSOC : AR5K_LED_INIT);
+}
+
+/**
+ * ath5k_set_coverage_class - Set IEEE 802.11 coverage class
+ *
+ * @hw: struct ieee80211_hw pointer
+ * @coverage_class: IEEE 802.11 coverage class number
+ *
+ * Mac80211 callback. Sets slot time, ACK timeout and CTS timeout for given
+ * coverage class. The values are persistent, they are restored after device
+ * reset.
+ */
+static void ath5k_set_coverage_class(struct ieee80211_hw *hw, u8 coverage_class)
+{
+	struct ath5k_softc *sc = hw->priv;
+
+	mutex_lock(&sc->lock);
+	ath5k_hw_set_coverage_class(sc->ah, coverage_class);
+	mutex_unlock(&sc->lock);
 }

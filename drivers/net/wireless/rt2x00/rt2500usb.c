@@ -565,8 +565,7 @@ static void rt2500usb_config_ant(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * RT2525E and RT5222 need to flip TX I/Q
 	 */
-	if (rt2x00_rf(&rt2x00dev->chip, RF2525E) ||
-	    rt2x00_rf(&rt2x00dev->chip, RF5222)) {
+	if (rt2x00_rf(rt2x00dev, RF2525E) || rt2x00_rf(rt2x00dev, RF5222)) {
 		rt2x00_set_field8(&r2, BBP_R2_TX_IQ_FLIP, 1);
 		rt2x00_set_field16(&csr5, PHY_CSR5_CCK_FLIP, 1);
 		rt2x00_set_field16(&csr6, PHY_CSR6_OFDM_FLIP, 1);
@@ -574,7 +573,7 @@ static void rt2500usb_config_ant(struct rt2x00_dev *rt2x00dev,
 		/*
 		 * RT2525E does not need RX I/Q Flip.
 		 */
-		if (rt2x00_rf(&rt2x00dev->chip, RF2525E))
+		if (rt2x00_rf(rt2x00dev, RF2525E))
 			rt2x00_set_field8(&r14, BBP_R14_RX_IQ_FLIP, 0);
 	} else {
 		rt2x00_set_field16(&csr5, PHY_CSR5_CCK_FLIP, 0);
@@ -598,7 +597,7 @@ static void rt2500usb_config_channel(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * For RT2525E we should first set the channel to half band higher.
 	 */
-	if (rt2x00_rf(&rt2x00dev->chip, RF2525E)) {
+	if (rt2x00_rf(rt2x00dev, RF2525E)) {
 		static const u32 vals[] = {
 			0x000008aa, 0x000008ae, 0x000008ae, 0x000008b2,
 			0x000008b2, 0x000008b6, 0x000008b6, 0x000008ba,
@@ -793,7 +792,7 @@ static int rt2500usb_init_registers(struct rt2x00_dev *rt2x00dev)
 	rt2x00_set_field16(&reg, MAC_CSR1_HOST_READY, 1);
 	rt2500usb_register_write(rt2x00dev, MAC_CSR1, reg);
 
-	if (rt2x00_rev(&rt2x00dev->chip) >= RT2570_VERSION_C) {
+	if (rt2x00_rev(rt2x00dev) >= RT2570_VERSION_C) {
 		rt2500usb_register_read(rt2x00dev, PHY_CSR2, &reg);
 		rt2x00_set_field16(&reg, PHY_CSR2_LNA, 0);
 	} else {
@@ -1409,21 +1408,18 @@ static int rt2500usb_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2500usb_register_read(rt2x00dev, MAC_CSR0, &reg);
 	rt2x00_set_chip(rt2x00dev, RT2570, value, reg);
-	rt2x00_print_chip(rt2x00dev);
 
-	if (!rt2x00_check_rev(&rt2x00dev->chip, 0x000ffff0, 0) ||
-	    rt2x00_check_rev(&rt2x00dev->chip, 0x0000000f, 0)) {
-
+	if (((reg & 0xfff0) != 0) || ((reg & 0x0000000f) == 0)) {
 		ERROR(rt2x00dev, "Invalid RT chipset detected.\n");
 		return -ENODEV;
 	}
 
-	if (!rt2x00_rf(&rt2x00dev->chip, RF2522) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2523) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2524) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2525) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2525E) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF5222)) {
+	if (!rt2x00_rf(rt2x00dev, RF2522) &&
+	    !rt2x00_rf(rt2x00dev, RF2523) &&
+	    !rt2x00_rf(rt2x00dev, RF2524) &&
+	    !rt2x00_rf(rt2x00dev, RF2525) &&
+	    !rt2x00_rf(rt2x00dev, RF2525E) &&
+	    !rt2x00_rf(rt2x00dev, RF5222)) {
 		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
 		return -ENODEV;
 	}
@@ -1667,22 +1663,22 @@ static int rt2500usb_probe_hw_mode(struct rt2x00_dev *rt2x00dev)
 	spec->supported_bands = SUPPORT_BAND_2GHZ;
 	spec->supported_rates = SUPPORT_RATE_CCK | SUPPORT_RATE_OFDM;
 
-	if (rt2x00_rf(&rt2x00dev->chip, RF2522)) {
+	if (rt2x00_rf(rt2x00dev, RF2522)) {
 		spec->num_channels = ARRAY_SIZE(rf_vals_bg_2522);
 		spec->channels = rf_vals_bg_2522;
-	} else if (rt2x00_rf(&rt2x00dev->chip, RF2523)) {
+	} else if (rt2x00_rf(rt2x00dev, RF2523)) {
 		spec->num_channels = ARRAY_SIZE(rf_vals_bg_2523);
 		spec->channels = rf_vals_bg_2523;
-	} else if (rt2x00_rf(&rt2x00dev->chip, RF2524)) {
+	} else if (rt2x00_rf(rt2x00dev, RF2524)) {
 		spec->num_channels = ARRAY_SIZE(rf_vals_bg_2524);
 		spec->channels = rf_vals_bg_2524;
-	} else if (rt2x00_rf(&rt2x00dev->chip, RF2525)) {
+	} else if (rt2x00_rf(rt2x00dev, RF2525)) {
 		spec->num_channels = ARRAY_SIZE(rf_vals_bg_2525);
 		spec->channels = rf_vals_bg_2525;
-	} else if (rt2x00_rf(&rt2x00dev->chip, RF2525E)) {
+	} else if (rt2x00_rf(rt2x00dev, RF2525E)) {
 		spec->num_channels = ARRAY_SIZE(rf_vals_bg_2525e);
 		spec->channels = rf_vals_bg_2525e;
-	} else if (rt2x00_rf(&rt2x00dev->chip, RF5222)) {
+	} else if (rt2x00_rf(rt2x00dev, RF5222)) {
 		spec->supported_bands |= SUPPORT_BAND_5GHZ;
 		spec->num_channels = ARRAY_SIZE(rf_vals_5222);
 		spec->channels = rf_vals_5222;
@@ -1763,7 +1759,6 @@ static const struct ieee80211_ops rt2500usb_mac80211_ops = {
 	.get_stats		= rt2x00mac_get_stats,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2x00mac_conf_tx,
-	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
 };
 

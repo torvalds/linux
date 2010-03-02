@@ -536,8 +536,7 @@ static inline void skb_entail(struct sock *sk, struct sk_buff *skb)
 		tp->nonagle &= ~TCP_NAGLE_PUSH;
 }
 
-static inline void tcp_mark_urg(struct tcp_sock *tp, int flags,
-				struct sk_buff *skb)
+static inline void tcp_mark_urg(struct tcp_sock *tp, int flags)
 {
 	if (flags & MSG_OOB)
 		tp->snd_up = tp->write_seq;
@@ -546,13 +545,13 @@ static inline void tcp_mark_urg(struct tcp_sock *tp, int flags,
 static inline void tcp_push(struct sock *sk, int flags, int mss_now,
 			    int nonagle)
 {
-	struct tcp_sock *tp = tcp_sk(sk);
-
 	if (tcp_send_head(sk)) {
-		struct sk_buff *skb = tcp_write_queue_tail(sk);
+		struct tcp_sock *tp = tcp_sk(sk);
+
 		if (!(flags & MSG_MORE) || forced_push(tp))
-			tcp_mark_push(tp, skb);
-		tcp_mark_urg(tp, flags, skb);
+			tcp_mark_push(tp, tcp_write_queue_tail(sk));
+
+		tcp_mark_urg(tp, flags);
 		__tcp_push_pending_frames(sk, mss_now,
 					  (flags & MSG_MORE) ? TCP_NAGLE_CORK : nonagle);
 	}
@@ -877,12 +876,12 @@ ssize_t tcp_sendpage(struct socket *sock, struct page *page, int offset,
 #define TCP_PAGE(sk)	(sk->sk_sndmsg_page)
 #define TCP_OFF(sk)	(sk->sk_sndmsg_off)
 
-static inline int select_size(struct sock *sk)
+static inline int select_size(struct sock *sk, int sg)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	int tmp = tp->mss_cache;
 
-	if (sk->sk_route_caps & NETIF_F_SG) {
+	if (sg) {
 		if (sk_can_gso(sk))
 			tmp = 0;
 		else {
@@ -906,7 +905,7 @@ int tcp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	struct sk_buff *skb;
 	int iovlen, flags;
 	int mss_now, size_goal;
-	int err, copied;
+	int sg, err, copied;
 	long timeo;
 
 	lock_sock(sk);
@@ -934,6 +933,8 @@ int tcp_sendmsg(struct kiocb *iocb, struct socket *sock, struct msghdr *msg,
 	if (sk->sk_err || (sk->sk_shutdown & SEND_SHUTDOWN))
 		goto out_err;
 
+	sg = sk->sk_route_caps & NETIF_F_SG;
+
 	while (--iovlen >= 0) {
 		int seglen = iov->iov_len;
 		unsigned char __user *from = iov->iov_base;
@@ -959,8 +960,9 @@ new_segment:
 				if (!sk_stream_memory_free(sk))
 					goto wait_for_sndbuf;
 
-				skb = sk_stream_alloc_skb(sk, select_size(sk),
-						sk->sk_allocation);
+				skb = sk_stream_alloc_skb(sk,
+							  select_size(sk, sg),
+							  sk->sk_allocation);
 				if (!skb)
 					goto wait_for_memory;
 
@@ -997,9 +999,7 @@ new_segment:
 					/* We can extend the last page
 					 * fragment. */
 					merge = 1;
-				} else if (i == MAX_SKB_FRAGS ||
-					   (!i &&
-					   !(sk->sk_route_caps & NETIF_F_SG))) {
+				} else if (i == MAX_SKB_FRAGS || !sg) {
 					/* Need to add new fragment and cannot
 					 * do this because interface is non-SG,
 					 * or because all the page slots are
@@ -2229,6 +2229,20 @@ static int do_tcp_setsockopt(struct sock *sk, int level,
 		}
 		break;
 
+	case TCP_THIN_LINEAR_TIMEOUTS:
+		if (val < 0 || val > 1)
+			err = -EINVAL;
+		else
+			tp->thin_lto = val;
+		break;
+
+	case TCP_THIN_DUPACK:
+		if (val < 0 || val > 1)
+			err = -EINVAL;
+		else
+			tp->thin_dupack = val;
+		break;
+
 	case TCP_CORK:
 		/* When set indicates to always queue non-full frames.
 		 * Later the user clears this option and we transmit
@@ -2788,10 +2802,10 @@ EXPORT_SYMBOL(tcp_gro_complete);
 
 #ifdef CONFIG_TCP_MD5SIG
 static unsigned long tcp_md5sig_users;
-static struct tcp_md5sig_pool **tcp_md5sig_pool;
+static struct tcp_md5sig_pool * __percpu *tcp_md5sig_pool;
 static DEFINE_SPINLOCK(tcp_md5sig_pool_lock);
 
-static void __tcp_free_md5sig_pool(struct tcp_md5sig_pool **pool)
+static void __tcp_free_md5sig_pool(struct tcp_md5sig_pool * __percpu *pool)
 {
 	int cpu;
 	for_each_possible_cpu(cpu) {
@@ -2808,7 +2822,7 @@ static void __tcp_free_md5sig_pool(struct tcp_md5sig_pool **pool)
 
 void tcp_free_md5sig_pool(void)
 {
-	struct tcp_md5sig_pool **pool = NULL;
+	struct tcp_md5sig_pool * __percpu *pool = NULL;
 
 	spin_lock_bh(&tcp_md5sig_pool_lock);
 	if (--tcp_md5sig_users == 0) {
@@ -2822,10 +2836,11 @@ void tcp_free_md5sig_pool(void)
 
 EXPORT_SYMBOL(tcp_free_md5sig_pool);
 
-static struct tcp_md5sig_pool **__tcp_alloc_md5sig_pool(struct sock *sk)
+static struct tcp_md5sig_pool * __percpu *
+__tcp_alloc_md5sig_pool(struct sock *sk)
 {
 	int cpu;
-	struct tcp_md5sig_pool **pool;
+	struct tcp_md5sig_pool * __percpu *pool;
 
 	pool = alloc_percpu(struct tcp_md5sig_pool *);
 	if (!pool)
@@ -2852,9 +2867,9 @@ out_free:
 	return NULL;
 }
 
-struct tcp_md5sig_pool **tcp_alloc_md5sig_pool(struct sock *sk)
+struct tcp_md5sig_pool * __percpu *tcp_alloc_md5sig_pool(struct sock *sk)
 {
-	struct tcp_md5sig_pool **pool;
+	struct tcp_md5sig_pool * __percpu *pool;
 	int alloc = 0;
 
 retry:
@@ -2873,7 +2888,9 @@ retry:
 
 	if (alloc) {
 		/* we cannot hold spinlock here because this may sleep. */
-		struct tcp_md5sig_pool **p = __tcp_alloc_md5sig_pool(sk);
+		struct tcp_md5sig_pool * __percpu *p;
+
+		p = __tcp_alloc_md5sig_pool(sk);
 		spin_lock_bh(&tcp_md5sig_pool_lock);
 		if (!p) {
 			tcp_md5sig_users--;
@@ -2897,7 +2914,7 @@ EXPORT_SYMBOL(tcp_alloc_md5sig_pool);
 
 struct tcp_md5sig_pool *__tcp_get_md5sig_pool(int cpu)
 {
-	struct tcp_md5sig_pool **p;
+	struct tcp_md5sig_pool * __percpu *p;
 	spin_lock_bh(&tcp_md5sig_pool_lock);
 	p = tcp_md5sig_pool;
 	if (p)

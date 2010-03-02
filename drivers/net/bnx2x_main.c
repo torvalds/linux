@@ -1,6 +1,6 @@
 /* bnx2x_main.c: Broadcom Everest network driver.
  *
- * Copyright (c) 2007-2009 Broadcom Corporation
+ * Copyright (c) 2007-2010 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -57,8 +57,8 @@
 #include "bnx2x_init_ops.h"
 #include "bnx2x_dump.h"
 
-#define DRV_MODULE_VERSION	"1.52.1-5"
-#define DRV_MODULE_RELDATE	"2009/11/09"
+#define DRV_MODULE_VERSION	"1.52.1-7"
+#define DRV_MODULE_RELDATE	"2010/02/28"
 #define BNX2X_BC_VER		0x040200
 
 #include <linux/firmware.h>
@@ -140,7 +140,7 @@ static struct {
 };
 
 
-static const struct pci_device_id bnx2x_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(bnx2x_pci_tbl) = {
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57710), BCM57710 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711), BCM57711 },
 	{ PCI_VDEVICE(BROADCOM, PCI_DEVICE_ID_NX2_57711E), BCM57711E },
@@ -514,24 +514,24 @@ static void bnx2x_fw_dump(struct bnx2x *bp)
 
 	mark = REG_RD(bp, MCP_REG_MCPR_SCRATCH + 0xf104);
 	mark = ((mark + 0x3) & ~0x3);
-	printk(KERN_ERR PFX "begin fw dump (mark 0x%x)\n", mark);
+	pr_err("begin fw dump (mark 0x%x)\n", mark);
 
-	printk(KERN_ERR PFX);
+	pr_err("");
 	for (offset = mark - 0x08000000; offset <= 0xF900; offset += 0x8*4) {
 		for (word = 0; word < 8; word++)
 			data[word] = htonl(REG_RD(bp, MCP_REG_MCPR_SCRATCH +
 						  offset + 4*word));
 		data[8] = 0x0;
-		printk(KERN_CONT "%s", (char *)data);
+		pr_cont("%s", (char *)data);
 	}
 	for (offset = 0xF108; offset <= mark - 0x08000000; offset += 0x8*4) {
 		for (word = 0; word < 8; word++)
 			data[word] = htonl(REG_RD(bp, MCP_REG_MCPR_SCRATCH +
 						  offset + 4*word));
 		data[8] = 0x0;
-		printk(KERN_CONT "%s", (char *)data);
+		pr_cont("%s", (char *)data);
 	}
-	printk(KERN_ERR PFX "end of fw dump\n");
+	pr_err("end of fw dump\n");
 }
 
 static void bnx2x_panic_dump(struct bnx2x *bp)
@@ -957,21 +957,34 @@ static int bnx2x_tx_int(struct bnx2x_fastpath *fp)
 	fp->tx_pkt_cons = sw_cons;
 	fp->tx_bd_cons = bd_cons;
 
+	/* Need to make the tx_bd_cons update visible to start_xmit()
+	 * before checking for netif_tx_queue_stopped().  Without the
+	 * memory barrier, there is a small possibility that
+	 * start_xmit() will miss it and cause the queue to be stopped
+	 * forever.
+	 */
+	smp_wmb();
+
 	/* TBD need a thresh? */
 	if (unlikely(netif_tx_queue_stopped(txq))) {
-
-		/* Need to make the tx_bd_cons update visible to start_xmit()
-		 * before checking for netif_tx_queue_stopped().  Without the
-		 * memory barrier, there is a small possibility that
-		 * start_xmit() will miss it and cause the queue to be stopped
-		 * forever.
+		/* Taking tx_lock() is needed to prevent reenabling the queue
+		 * while it's empty. This could have happen if rx_action() gets
+		 * suspended in bnx2x_tx_int() after the condition before
+		 * netif_tx_wake_queue(), while tx_action (bnx2x_start_xmit()):
+		 *
+		 * stops the queue->sees fresh tx_bd_cons->releases the queue->
+		 * sends some packets consuming the whole queue again->
+		 * stops the queue
 		 */
-		smp_mb();
+
+		__netif_tx_lock(txq, smp_processor_id());
 
 		if ((netif_tx_queue_stopped(txq)) &&
 		    (bp->state == BNX2X_STATE_OPEN) &&
 		    (bnx2x_tx_avail(fp) >= MAX_SKB_FRAGS + 3))
 			netif_tx_wake_queue(txq);
+
+		__netif_tx_unlock(txq);
 	}
 	return 0;
 }
@@ -2136,7 +2149,7 @@ static void bnx2x_link_report(struct bnx2x *bp)
 {
 	if (bp->flags & MF_FUNC_DIS) {
 		netif_carrier_off(bp->dev);
-		printk(KERN_ERR PFX "%s NIC Link is Down\n", bp->dev->name);
+		netdev_err(bp->dev, "NIC Link is Down\n");
 		return;
 	}
 
@@ -2145,7 +2158,7 @@ static void bnx2x_link_report(struct bnx2x *bp)
 
 		if (bp->state == BNX2X_STATE_OPEN)
 			netif_carrier_on(bp->dev);
-		printk(KERN_INFO PFX "%s NIC Link is Up, ", bp->dev->name);
+		netdev_info(bp->dev, "NIC Link is Up, ");
 
 		line_speed = bp->link_vars.line_speed;
 		if (IS_E1HMF(bp)) {
@@ -2157,29 +2170,29 @@ static void bnx2x_link_report(struct bnx2x *bp)
 			if (vn_max_rate < line_speed)
 				line_speed = vn_max_rate;
 		}
-		printk("%d Mbps ", line_speed);
+		pr_cont("%d Mbps ", line_speed);
 
 		if (bp->link_vars.duplex == DUPLEX_FULL)
-			printk("full duplex");
+			pr_cont("full duplex");
 		else
-			printk("half duplex");
+			pr_cont("half duplex");
 
 		if (bp->link_vars.flow_ctrl != BNX2X_FLOW_CTRL_NONE) {
 			if (bp->link_vars.flow_ctrl & BNX2X_FLOW_CTRL_RX) {
-				printk(", receive ");
+				pr_cont(", receive ");
 				if (bp->link_vars.flow_ctrl &
 				    BNX2X_FLOW_CTRL_TX)
-					printk("& transmit ");
+					pr_cont("& transmit ");
 			} else {
-				printk(", transmit ");
+				pr_cont(", transmit ");
 			}
-			printk("flow control ON");
+			pr_cont("flow control ON");
 		}
-		printk("\n");
+		pr_cont("\n");
 
 	} else { /* link_down */
 		netif_carrier_off(bp->dev);
-		printk(KERN_ERR PFX "%s NIC Link is Down\n", bp->dev->name);
+		netdev_err(bp->dev, "NIC Link is Down\n");
 	}
 }
 
@@ -2898,10 +2911,8 @@ static inline void bnx2x_fan_failure(struct bnx2x *bp)
 		 bp->link_params.ext_phy_config);
 
 	/* log the failure */
-	printk(KERN_ERR PFX "Fan Failure on Network Controller %s has caused"
-	       " the driver to shutdown the card to prevent permanent"
-	       " damage.  Please contact Dell Support for assistance\n",
-	       bp->dev->name);
+	netdev_err(bp->dev, "Fan Failure on Network Controller has caused the driver to shutdown the card to prevent permanent damage.\n"
+		   "Please contact Dell Support for assistance.\n");
 }
 
 static inline void bnx2x_attn_int_deasserted0(struct bnx2x *bp, u32 attn)
@@ -4296,7 +4307,7 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 	bnx2x_net_stats_update(bp);
 	bnx2x_drv_stats_update(bp);
 
-	if (bp->msglevel & NETIF_MSG_TIMER) {
+	if (netif_msg_timer(bp)) {
 		struct bnx2x_fastpath *fp0_rx = bp->fp;
 		struct bnx2x_fastpath *fp0_tx = bp->fp;
 		struct tstorm_per_client_stats *old_tclient =
@@ -4306,7 +4317,7 @@ static void bnx2x_stats_update(struct bnx2x *bp)
 		struct net_device_stats *nstats = &bp->dev->stats;
 		int i;
 
-		printk(KERN_DEBUG "%s:\n", bp->dev->name);
+		netdev_printk(KERN_DEBUG, bp->dev, "\n");
 		printk(KERN_DEBUG "  tx avail (%4x)  tx hc idx (%x)"
 				  "  tx pkt (%lx)\n",
 		       bnx2x_tx_avail(fp0_tx),
@@ -4464,7 +4475,7 @@ static void bnx2x_stats_handle(struct bnx2x *bp, enum bnx2x_stats_event event)
 	/* Make sure the state has been "changed" */
 	smp_wmb();
 
-	if ((event != STATS_EVENT_UPDATE) || (bp->msglevel & NETIF_MSG_TIMER))
+	if ((event != STATS_EVENT_UPDATE) || netif_msg_timer(bp))
 		DP(BNX2X_MSG_STATS, "state %d -> event %d -> state %d\n",
 		   state, event, bp->stats_state);
 }
@@ -5674,8 +5685,7 @@ gunzip_nomem2:
 	bp->gunzip_buf = NULL;
 
 gunzip_nomem1:
-	printk(KERN_ERR PFX "%s: Cannot allocate firmware buffer for"
-	       " un-compression\n", bp->dev->name);
+	netdev_err(bp->dev, "Cannot allocate firmware buffer for un-compression\n");
 	return -ENOMEM;
 }
 
@@ -5721,14 +5731,13 @@ static int bnx2x_gunzip(struct bnx2x *bp, const u8 *zbuf, int len)
 
 	rc = zlib_inflate(bp->strm, Z_FINISH);
 	if ((rc != Z_OK) && (rc != Z_STREAM_END))
-		printk(KERN_ERR PFX "%s: Firmware decompression error: %s\n",
-		       bp->dev->name, bp->strm->msg);
+		netdev_err(bp->dev, "Firmware decompression error: %s\n",
+			   bp->strm->msg);
 
 	bp->gunzip_outlen = (FW_BUF_SIZE - bp->strm->avail_out);
 	if (bp->gunzip_outlen & 0x3)
-		printk(KERN_ERR PFX "%s: Firmware decompression error:"
-				    " gunzip_outlen (%d) not aligned\n",
-		       bp->dev->name, bp->gunzip_outlen);
+		netdev_err(bp->dev, "Firmware decompression error: gunzip_outlen (%d) not aligned\n",
+			   bp->gunzip_outlen);
 	bp->gunzip_outlen >>= 2;
 
 	zlib_inflateEnd(bp->strm);
@@ -6213,8 +6222,8 @@ static int bnx2x_init_common(struct bnx2x *bp)
 
 	if (sizeof(union cdu_context) != 1024)
 		/* we currently assume that a context is 1024 bytes */
-		printk(KERN_ALERT PFX "please adjust the size of"
-		       " cdu_context(%ld)\n", (long)sizeof(union cdu_context));
+		pr_alert("please adjust the size of cdu_context(%ld)\n",
+			 (long)sizeof(union cdu_context));
 
 	bnx2x_init_block(bp, CDU_BLOCK, COMMON_STAGE);
 	val = (4 << 24) + (0 << 12) + 1024;
@@ -6938,19 +6947,21 @@ static void bnx2x_free_msix_irqs(struct bnx2x *bp)
 	}
 }
 
-static void bnx2x_free_irq(struct bnx2x *bp)
+static void bnx2x_free_irq(struct bnx2x *bp, bool disable_only)
 {
 	if (bp->flags & USING_MSIX_FLAG) {
-		bnx2x_free_msix_irqs(bp);
+		if (!disable_only)
+			bnx2x_free_msix_irqs(bp);
 		pci_disable_msix(bp->pdev);
 		bp->flags &= ~USING_MSIX_FLAG;
 
 	} else if (bp->flags & USING_MSI_FLAG) {
-		free_irq(bp->pdev->irq, bp->dev);
+		if (!disable_only)
+			free_irq(bp->pdev->irq, bp->dev);
 		pci_disable_msi(bp->pdev);
 		bp->flags &= ~USING_MSI_FLAG;
 
-	} else
+	} else if (!disable_only)
 		free_irq(bp->pdev->irq, bp->dev);
 }
 
@@ -7018,11 +7029,10 @@ static int bnx2x_req_msix_irqs(struct bnx2x *bp)
 	}
 
 	i = BNX2X_NUM_QUEUES(bp);
-	printk(KERN_INFO PFX "%s: using MSI-X  IRQs: sp %d  fp[%d] %d"
-	       " ... fp[%d] %d\n",
-	       bp->dev->name, bp->msix_table[0].vector,
-	       0, bp->msix_table[offset].vector,
-	       i - 1, bp->msix_table[offset + i - 1].vector);
+	netdev_info(bp->dev, "using MSI-X  IRQs: sp %d  fp[%d] %d ... fp[%d] %d\n",
+		    bp->msix_table[0].vector,
+		    0, bp->msix_table[offset].vector,
+		    i - 1, bp->msix_table[offset + i - 1].vector);
 
 	return 0;
 }
@@ -7443,8 +7453,10 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 
 	rc = bnx2x_set_num_queues(bp);
 
-	if (bnx2x_alloc_mem(bp))
+	if (bnx2x_alloc_mem(bp)) {
+		bnx2x_free_irq(bp, true);
 		return -ENOMEM;
+	}
 
 	for_each_queue(bp, i)
 		bnx2x_fp(bp, i, disable_tpa) =
@@ -7459,7 +7471,7 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	if (bp->flags & USING_MSIX_FLAG) {
 		rc = bnx2x_req_msix_irqs(bp);
 		if (rc) {
-			pci_disable_msix(bp->pdev);
+			bnx2x_free_irq(bp, true);
 			goto load_error1;
 		}
 	} else {
@@ -7471,14 +7483,13 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 		rc = bnx2x_req_irq(bp);
 		if (rc) {
 			BNX2X_ERR("IRQ request failed  rc %d, aborting\n", rc);
-			if (bp->flags & USING_MSI_FLAG)
-				pci_disable_msi(bp->pdev);
+			bnx2x_free_irq(bp, true);
 			goto load_error1;
 		}
 		if (bp->flags & USING_MSI_FLAG) {
 			bp->dev->irq = bp->pdev->irq;
-			printk(KERN_INFO PFX "%s: using MSI  IRQ %d\n",
-			       bp->dev->name, bp->pdev->irq);
+			netdev_info(bp->dev, "using MSI  IRQ %d\n",
+				    bp->pdev->irq);
 		}
 	}
 
@@ -7527,6 +7538,9 @@ static int bnx2x_nic_load(struct bnx2x *bp, int load_mode)
 	rc = bnx2x_init_hw(bp, load_code);
 	if (rc) {
 		BNX2X_ERR("HW init failed, aborting\n");
+		bnx2x_fw_command(bp, DRV_MSG_CODE_LOAD_DONE);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_REQ_WOL_MCP);
+		bnx2x_fw_command(bp, DRV_MSG_CODE_UNLOAD_DONE);
 		goto load_error2;
 	}
 
@@ -7664,7 +7678,7 @@ load_error3:
 		bnx2x_free_rx_sge_range(bp, bp->fp + i, NUM_RX_SGE);
 load_error2:
 	/* Release IRQs */
-	bnx2x_free_irq(bp);
+	bnx2x_free_irq(bp, false);
 load_error1:
 	bnx2x_napi_disable(bp);
 	for_each_queue(bp, i)
@@ -7855,7 +7869,7 @@ static int bnx2x_nic_unload(struct bnx2x *bp, int unload_mode)
 	bnx2x_stats_handle(bp, STATS_EVENT_STOP);
 
 	/* Release IRQs */
-	bnx2x_free_irq(bp);
+	bnx2x_free_irq(bp, false);
 
 	/* Wait until tx fastpath tasks complete */
 	for_each_queue(bp, i) {
@@ -8297,8 +8311,7 @@ static void __devinit bnx2x_get_common_hwinfo(struct bnx2x *bp)
 	val3 = SHMEM_RD(bp, dev_info.shared_hw_config.part_num[8]);
 	val4 = SHMEM_RD(bp, dev_info.shared_hw_config.part_num[12]);
 
-	printk(KERN_INFO PFX "part number %X-%X-%X-%X\n",
-	       val, val2, val3, val4);
+	pr_info("part number %X-%X-%X-%X\n", val, val2, val3, val4);
 }
 
 static void __devinit bnx2x_link_settings_supported(struct bnx2x *bp,
@@ -8909,17 +8922,15 @@ static int __devinit bnx2x_init_bp(struct bnx2x *bp)
 		bnx2x_undi_unload(bp);
 
 	if (CHIP_REV_IS_FPGA(bp))
-		printk(KERN_ERR PFX "FPGA detected\n");
+		pr_err("FPGA detected\n");
 
 	if (BP_NOMCP(bp) && (func == 0))
-		printk(KERN_ERR PFX
-		       "MCP disabled, must load devices in order!\n");
+		pr_err("MCP disabled, must load devices in order!\n");
 
 	/* Set multi queue mode */
 	if ((multi_mode != ETH_RSS_MODE_DISABLED) &&
 	    ((int_mode == INT_MODE_INTx) || (int_mode == INT_MODE_MSI))) {
-		printk(KERN_ERR PFX
-		      "Multi disabled since int_mode requested is not MSI-X\n");
+		pr_err("Multi disabled since int_mode requested is not MSI-X\n");
 		multi_mode = ETH_RSS_MODE_DISABLED;
 	}
 	bp->multi_mode = multi_mode;
@@ -9345,7 +9356,7 @@ static u32 bnx2x_get_msglevel(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
 
-	return bp->msglevel;
+	return bp->msg_enable;
 }
 
 static void bnx2x_set_msglevel(struct net_device *dev, u32 level)
@@ -9353,7 +9364,7 @@ static void bnx2x_set_msglevel(struct net_device *dev, u32 level)
 	struct bnx2x *bp = netdev_priv(dev);
 
 	if (capable(CAP_NET_ADMIN))
-		bp->msglevel = level;
+		bp->msg_enable = level;
 }
 
 static int bnx2x_nway_reset(struct net_device *dev)
@@ -9962,12 +9973,14 @@ static int bnx2x_set_flags(struct net_device *dev, u32 data)
 
 	/* TPA requires Rx CSUM offloading */
 	if ((data & ETH_FLAG_LRO) && bp->rx_csum) {
-		if (!(dev->features & NETIF_F_LRO)) {
-			dev->features |= NETIF_F_LRO;
-			bp->flags |= TPA_ENABLE_FLAG;
-			changed = 1;
-		}
-
+		if (!disable_tpa) {
+			if (!(dev->features & NETIF_F_LRO)) {
+				dev->features |= NETIF_F_LRO;
+				bp->flags |= TPA_ENABLE_FLAG;
+				changed = 1;
+			}
+		} else
+			rc = -EINVAL;
 	} else if (dev->features & NETIF_F_LRO) {
 		dev->features &= ~NETIF_F_LRO;
 		bp->flags &= ~TPA_ENABLE_FLAG;
@@ -10425,7 +10438,8 @@ static int bnx2x_test_intr(struct bnx2x *bp)
 
 	config->hdr.length = 0;
 	if (CHIP_IS_E1(bp))
-		config->hdr.offset = (BP_PORT(bp) ? 32 : 0);
+		/* use last unicast entries */
+		config->hdr.offset = (BP_PORT(bp) ? 63 : 31);
 	else
 		config->hdr.offset = BP_FUNC(bp);
 	config->hdr.client_id = bp->fp->cl_id;
@@ -10644,7 +10658,7 @@ static const struct {
 	((bnx2x_stats_arr[i].flags & STATS_FLAGS_BOTH) == STATS_FLAGS_PORT)
 #define IS_FUNC_STAT(i)		(bnx2x_stats_arr[i].flags & STATS_FLAGS_FUNC)
 #define IS_E1HMF_MODE_STAT(bp) \
-			(IS_E1HMF(bp) && !(bp->msglevel & BNX2X_MSG_STATS))
+			(IS_E1HMF(bp) && !(bp->msg_enable & BNX2X_MSG_STATS))
 
 static int bnx2x_get_sset_count(struct net_device *dev, int stringset)
 {
@@ -11471,7 +11485,8 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 		rx_mode = BNX2X_RX_MODE_PROMISC;
 
 	else if ((dev->flags & IFF_ALLMULTI) ||
-		 ((dev->mc_count > BNX2X_MAX_MULTICAST) && CHIP_IS_E1(bp)))
+		 ((netdev_mc_count(dev) > BNX2X_MAX_MULTICAST) &&
+		  CHIP_IS_E1(bp)))
 		rx_mode = BNX2X_RX_MODE_ALLMULTI;
 
 	else { /* some multicasts */
@@ -11481,10 +11496,8 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 			struct mac_configuration_cmd *config =
 						bnx2x_sp(bp, mcast_config);
 
-			for (i = 0, mclist = dev->mc_list;
-			     mclist && (i < dev->mc_count);
-			     i++, mclist = mclist->next) {
-
+			i = 0;
+			netdev_for_each_mc_addr(mclist, dev) {
 				config->config_table[i].
 					cam_entry.msb_mac_addr =
 					swab16(*(u16 *)&mclist->dmi_addr[0]);
@@ -11512,6 +11525,7 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 						cam_entry.middle_mac_addr,
 				   config->config_table[i].
 						cam_entry.lsb_mac_addr);
+				i++;
 			}
 			old = config->hdr.length;
 			if (old > i) {
@@ -11553,10 +11567,7 @@ static void bnx2x_set_rx_mode(struct net_device *dev)
 
 			memset(mc_filter, 0, 4 * MC_HASH_SIZE);
 
-			for (i = 0, mclist = dev->mc_list;
-			     mclist && (i < dev->mc_count);
-			     i++, mclist = mclist->next) {
-
+			netdev_for_each_mc_addr(mclist, dev) {
 				DP(NETIF_MSG_IFUP, "Adding mcast MAC: %pM\n",
 				   mclist->dmi_addr);
 
@@ -11731,7 +11742,7 @@ static void bnx2x_vlan_rx_register(struct net_device *dev,
 
 #endif
 
-#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
+#ifdef CONFIG_NET_POLL_CONTROLLER
 static void poll_bnx2x(struct net_device *dev)
 {
 	struct bnx2x *bp = netdev_priv(dev);
@@ -11755,7 +11766,7 @@ static const struct net_device_ops bnx2x_netdev_ops = {
 #ifdef BCM_VLAN
 	.ndo_vlan_rx_register	= bnx2x_vlan_rx_register,
 #endif
-#if defined(HAVE_POLL_CONTROLLER) || defined(CONFIG_NET_POLL_CONTROLLER)
+#ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller	= poll_bnx2x,
 #endif
 };
@@ -11776,20 +11787,18 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 
 	rc = pci_enable_device(pdev);
 	if (rc) {
-		printk(KERN_ERR PFX "Cannot enable PCI device, aborting\n");
+		pr_err("Cannot enable PCI device, aborting\n");
 		goto err_out;
 	}
 
 	if (!(pci_resource_flags(pdev, 0) & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX "Cannot find PCI device base address,"
-		       " aborting\n");
+		pr_err("Cannot find PCI device base address, aborting\n");
 		rc = -ENODEV;
 		goto err_out_disable;
 	}
 
 	if (!(pci_resource_flags(pdev, 2) & IORESOURCE_MEM)) {
-		printk(KERN_ERR PFX "Cannot find second PCI device"
-		       " base address, aborting\n");
+		pr_err("Cannot find second PCI device base address, aborting\n");
 		rc = -ENODEV;
 		goto err_out_disable;
 	}
@@ -11797,8 +11806,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	if (atomic_read(&pdev->enable_cnt) == 1) {
 		rc = pci_request_regions(pdev, DRV_MODULE_NAME);
 		if (rc) {
-			printk(KERN_ERR PFX "Cannot obtain PCI resources,"
-			       " aborting\n");
+			pr_err("Cannot obtain PCI resources, aborting\n");
 			goto err_out_disable;
 		}
 
@@ -11808,16 +11816,14 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 
 	bp->pm_cap = pci_find_capability(pdev, PCI_CAP_ID_PM);
 	if (bp->pm_cap == 0) {
-		printk(KERN_ERR PFX "Cannot find power management"
-		       " capability, aborting\n");
+		pr_err("Cannot find power management capability, aborting\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
 
 	bp->pcie_cap = pci_find_capability(pdev, PCI_CAP_ID_EXP);
 	if (bp->pcie_cap == 0) {
-		printk(KERN_ERR PFX "Cannot find PCI Express capability,"
-		       " aborting\n");
+		pr_err("Cannot find PCI Express capability, aborting\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
@@ -11825,15 +11831,13 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 	if (pci_set_dma_mask(pdev, DMA_BIT_MASK(64)) == 0) {
 		bp->flags |= USING_DAC_FLAG;
 		if (pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)) != 0) {
-			printk(KERN_ERR PFX "pci_set_consistent_dma_mask"
-			       " failed, aborting\n");
+			pr_err("pci_set_consistent_dma_mask failed, aborting\n");
 			rc = -EIO;
 			goto err_out_release;
 		}
 
 	} else if (pci_set_dma_mask(pdev, DMA_BIT_MASK(32)) != 0) {
-		printk(KERN_ERR PFX "System does not support DMA,"
-		       " aborting\n");
+		pr_err("System does not support DMA, aborting\n");
 		rc = -EIO;
 		goto err_out_release;
 	}
@@ -11846,7 +11850,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 
 	bp->regview = pci_ioremap_bar(pdev, 0);
 	if (!bp->regview) {
-		printk(KERN_ERR PFX "Cannot map register space, aborting\n");
+		pr_err("Cannot map register space, aborting\n");
 		rc = -ENOMEM;
 		goto err_out_release;
 	}
@@ -11855,7 +11859,7 @@ static int __devinit bnx2x_init_dev(struct pci_dev *pdev,
 					min_t(u64, BNX2X_DB_SIZE,
 					      pci_resource_len(pdev, 2)));
 	if (!bp->doorbells) {
-		printk(KERN_ERR PFX "Cannot map doorbell space, aborting\n");
+		pr_err("Cannot map doorbell space, aborting\n");
 		rc = -ENOMEM;
 		goto err_out_unmap;
 	}
@@ -11957,8 +11961,7 @@ static int __devinit bnx2x_check_firmware(struct bnx2x *bp)
 		offset = be32_to_cpu(sections[i].offset);
 		len = be32_to_cpu(sections[i].len);
 		if (offset + len > firmware->size) {
-			printk(KERN_ERR PFX "Section %d length is out of "
-					    "bounds\n", i);
+			pr_err("Section %d length is out of bounds\n", i);
 			return -EINVAL;
 		}
 	}
@@ -11970,8 +11973,7 @@ static int __devinit bnx2x_check_firmware(struct bnx2x *bp)
 
 	for (i = 0; i < be32_to_cpu(fw_hdr->init_ops_offsets.len) / 2; i++) {
 		if (be16_to_cpu(ops_offsets[i]) > num_ops) {
-			printk(KERN_ERR PFX "Section offset %d is out of "
-					    "bounds\n", i);
+			pr_err("Section offset %d is out of bounds\n", i);
 			return -EINVAL;
 		}
 	}
@@ -11983,8 +11985,7 @@ static int __devinit bnx2x_check_firmware(struct bnx2x *bp)
 	    (fw_ver[1] != BCM_5710_FW_MINOR_VERSION) ||
 	    (fw_ver[2] != BCM_5710_FW_REVISION_VERSION) ||
 	    (fw_ver[3] != BCM_5710_FW_ENGINEERING_VERSION)) {
-		printk(KERN_ERR PFX "Bad FW version:%d.%d.%d.%d."
-				    " Should be %d.%d.%d.%d\n",
+		pr_err("Bad FW version:%d.%d.%d.%d. Should be %d.%d.%d.%d\n",
 		       fw_ver[0], fw_ver[1], fw_ver[2],
 		       fw_ver[3], BCM_5710_FW_MAJOR_VERSION,
 		       BCM_5710_FW_MINOR_VERSION,
@@ -12034,18 +12035,17 @@ static inline void be16_to_cpu_n(const u8 *_source, u8 *_target, u32 n)
 		target[i] = be16_to_cpu(source[i]);
 }
 
-#define BNX2X_ALLOC_AND_SET(arr, lbl, func) \
-	do { \
-		u32 len = be32_to_cpu(fw_hdr->arr.len); \
-		bp->arr = kmalloc(len, GFP_KERNEL); \
-		if (!bp->arr) { \
-			printk(KERN_ERR PFX "Failed to allocate %d bytes " \
-					    "for "#arr"\n", len); \
-			goto lbl; \
-		} \
-		func(bp->firmware->data + be32_to_cpu(fw_hdr->arr.offset), \
-		     (u8 *)bp->arr, len); \
-	} while (0)
+#define BNX2X_ALLOC_AND_SET(arr, lbl, func)				\
+do {									\
+	u32 len = be32_to_cpu(fw_hdr->arr.len);				\
+	bp->arr = kmalloc(len, GFP_KERNEL);				\
+	if (!bp->arr) {							\
+		pr_err("Failed to allocate %d bytes for "#arr"\n", len); \
+		goto lbl;						\
+	}								\
+	func(bp->firmware->data + be32_to_cpu(fw_hdr->arr.offset),	\
+	     (u8 *)bp->arr, len);					\
+} while (0)
 
 static int __devinit bnx2x_init_firmware(struct bnx2x *bp, struct device *dev)
 {
@@ -12058,18 +12058,17 @@ static int __devinit bnx2x_init_firmware(struct bnx2x *bp, struct device *dev)
 	else
 		fw_file_name = FW_FILE_NAME_E1H;
 
-	printk(KERN_INFO PFX "Loading %s\n", fw_file_name);
+	pr_info("Loading %s\n", fw_file_name);
 
 	rc = request_firmware(&bp->firmware, fw_file_name, dev);
 	if (rc) {
-		printk(KERN_ERR PFX "Can't load firmware file %s\n",
-		       fw_file_name);
+		pr_err("Can't load firmware file %s\n", fw_file_name);
 		goto request_firmware_exit;
 	}
 
 	rc = bnx2x_check_firmware(bp);
 	if (rc) {
-		printk(KERN_ERR PFX "Corrupt firmware file %s\n", fw_file_name);
+		pr_err("Corrupt firmware file %s\n", fw_file_name);
 		goto request_firmware_exit;
 	}
 
@@ -12128,12 +12127,12 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	/* dev zeroed in init_etherdev */
 	dev = alloc_etherdev_mq(sizeof(*bp), MAX_CONTEXT);
 	if (!dev) {
-		printk(KERN_ERR PFX "Cannot allocate net device\n");
+		pr_err("Cannot allocate net device\n");
 		return -ENOMEM;
 	}
 
 	bp = netdev_priv(dev);
-	bp->msglevel = debug;
+	bp->msg_enable = debug;
 
 	pci_set_drvdata(pdev, dev);
 
@@ -12150,7 +12149,7 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	/* Set init arrays */
 	rc = bnx2x_init_firmware(bp, &pdev->dev);
 	if (rc) {
-		printk(KERN_ERR PFX "Error loading firmware\n");
+		pr_err("Error loading firmware\n");
 		goto init_one_exit;
 	}
 
@@ -12161,12 +12160,11 @@ static int __devinit bnx2x_init_one(struct pci_dev *pdev,
 	}
 
 	bnx2x_get_pcie_width_speed(bp, &pcie_width, &pcie_speed);
-	printk(KERN_INFO "%s: %s (%c%d) PCI-E x%d %s found at mem %lx,"
-	       " IRQ %d, ", dev->name, board_info[ent->driver_data].name,
-	       (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
-	       pcie_width, (pcie_speed == 2) ? "5GHz (Gen2)" : "2.5GHz",
-	       dev->base_addr, bp->pdev->irq);
-	printk(KERN_CONT "node addr %pM\n", dev->dev_addr);
+	netdev_info(dev, "%s (%c%d) PCI-E x%d %s found at mem %lx, IRQ %d, node addr %pM\n",
+		    board_info[ent->driver_data].name,
+		    (CHIP_REV(bp) >> 12) + 'A', (CHIP_METAL(bp) >> 4),
+		    pcie_width, (pcie_speed == 2) ? "5GHz (Gen2)" : "2.5GHz",
+		    dev->base_addr, bp->pdev->irq, dev->dev_addr);
 
 	return 0;
 
@@ -12194,7 +12192,7 @@ static void __devexit bnx2x_remove_one(struct pci_dev *pdev)
 	struct bnx2x *bp;
 
 	if (!dev) {
-		printk(KERN_ERR PFX "BAD net device from bnx2x_init_one\n");
+		pr_err("BAD net device from bnx2x_init_one\n");
 		return;
 	}
 	bp = netdev_priv(dev);
@@ -12227,7 +12225,7 @@ static int bnx2x_suspend(struct pci_dev *pdev, pm_message_t state)
 	struct bnx2x *bp;
 
 	if (!dev) {
-		printk(KERN_ERR PFX "BAD net device from bnx2x_init_one\n");
+		pr_err("BAD net device from bnx2x_init_one\n");
 		return -ENODEV;
 	}
 	bp = netdev_priv(dev);
@@ -12259,7 +12257,7 @@ static int bnx2x_resume(struct pci_dev *pdev)
 	int rc;
 
 	if (!dev) {
-		printk(KERN_ERR PFX "BAD net device from bnx2x_init_one\n");
+		pr_err("BAD net device from bnx2x_init_one\n");
 		return -ENODEV;
 	}
 	bp = netdev_priv(dev);
@@ -12298,7 +12296,7 @@ static int bnx2x_eeh_nic_unload(struct bnx2x *bp)
 	DP(BNX2X_MSG_STATS, "stats_state - DISABLED\n");
 
 	/* Release IRQs */
-	bnx2x_free_irq(bp);
+	bnx2x_free_irq(bp, false);
 
 	if (CHIP_IS_E1(bp)) {
 		struct mac_configuration_cmd *config =
@@ -12462,17 +12460,17 @@ static int __init bnx2x_init(void)
 {
 	int ret;
 
-	printk(KERN_INFO "%s", version);
+	pr_info("%s", version);
 
 	bnx2x_wq = create_singlethread_workqueue("bnx2x");
 	if (bnx2x_wq == NULL) {
-		printk(KERN_ERR PFX "Cannot create workqueue\n");
+		pr_err("Cannot create workqueue\n");
 		return -ENOMEM;
 	}
 
 	ret = pci_register_driver(&bnx2x_pci_driver);
 	if (ret) {
-		printk(KERN_ERR PFX "Cannot register driver\n");
+		pr_err("Cannot register driver\n");
 		destroy_workqueue(bnx2x_wq);
 	}
 	return ret;

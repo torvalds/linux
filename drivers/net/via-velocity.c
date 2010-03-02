@@ -361,7 +361,7 @@ static struct velocity_info_tbl chip_info_table[] = {
  *	Describe the PCI device identifiers that we support in this
  *	device driver. Used for hotplug autoloading.
  */
-static const struct pci_device_id velocity_id_table[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(velocity_id_table) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_612X) },
 	{ }
 };
@@ -1132,7 +1132,7 @@ static void velocity_set_multi(struct net_device *dev)
 		writel(0xffffffff, &regs->MARCAM[0]);
 		writel(0xffffffff, &regs->MARCAM[4]);
 		rx_mode = (RCR_AM | RCR_AB | RCR_PROM);
-	} else if ((dev->mc_count > vptr->multicast_limit) ||
+	} else if ((netdev_mc_count(dev) > vptr->multicast_limit) ||
 		   (dev->flags & IFF_ALLMULTI)) {
 		writel(0xffffffff, &regs->MARCAM[0]);
 		writel(0xffffffff, &regs->MARCAM[4]);
@@ -1141,9 +1141,11 @@ static void velocity_set_multi(struct net_device *dev)
 		int offset = MCAM_SIZE - vptr->multicast_limit;
 		mac_get_cam_mask(regs, vptr->mCAMmask);
 
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count; i++, mclist = mclist->next) {
+		i = 0;
+		netdev_for_each_mc_addr(mclist, dev) {
 			mac_set_cam(regs, i + offset, mclist->dmi_addr);
 			vptr->mCAMmask[(offset + i) / 8] |= 1 << ((offset + i) & 7);
+			i++;
 		}
 
 		mac_set_cam_mask(regs, vptr->mCAMmask);
@@ -2698,10 +2700,8 @@ static void __devinit velocity_print_info(struct velocity_info *vptr)
 	struct net_device *dev = vptr->dev;
 
 	printk(KERN_INFO "%s: %s\n", dev->name, get_chip_name(vptr->chip_id));
-	printk(KERN_INFO "%s: Ethernet Address: %2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X\n",
-		dev->name,
-		dev->dev_addr[0], dev->dev_addr[1], dev->dev_addr[2],
-		dev->dev_addr[3], dev->dev_addr[4], dev->dev_addr[5]);
+	printk(KERN_INFO "%s: Ethernet Address: %pM\n",
+		dev->name, dev->dev_addr);
 }
 
 static u32 velocity_get_link(struct net_device *dev)
@@ -2825,7 +2825,7 @@ static int __devinit velocity_found1(struct pci_dev *pdev, const struct pci_devi
 	netif_napi_add(dev, &vptr->napi, velocity_poll, VELOCITY_NAPI_WEIGHT);
 
 	dev->features |= NETIF_F_HW_VLAN_TX | NETIF_F_HW_VLAN_FILTER |
-		NETIF_F_HW_VLAN_RX | NETIF_F_IP_CSUM;
+		NETIF_F_HW_VLAN_RX | NETIF_F_IP_CSUM | NETIF_F_SG;
 
 	ret = register_netdev(dev);
 	if (ret < 0)

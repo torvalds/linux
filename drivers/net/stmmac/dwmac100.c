@@ -26,23 +26,23 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
-#include <linux/netdevice.h>
 #include <linux/crc32.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
 
 #include "common.h"
-#include "mac100.h"
+#include "dwmac100.h"
+#include "dwmac_dma.h"
 
-#undef MAC100_DEBUG
-/*#define MAC100_DEBUG*/
-#ifdef MAC100_DEBUG
+#undef DWMAC100_DEBUG
+/*#define DWMAC100_DEBUG*/
+#ifdef DWMAC100_DEBUG
 #define DBG(fmt, args...)  printk(fmt, ## args)
 #else
 #define DBG(fmt, args...)  do { } while (0)
 #endif
 
-static void mac100_core_init(unsigned long ioaddr)
+static void dwmac100_core_init(unsigned long ioaddr)
 {
 	u32 value = readl(ioaddr + MAC_CONTROL);
 
@@ -54,43 +54,43 @@ static void mac100_core_init(unsigned long ioaddr)
 	return;
 }
 
-static void mac100_dump_mac_regs(unsigned long ioaddr)
+static void dwmac100_dump_mac_regs(unsigned long ioaddr)
 {
 	pr_info("\t----------------------------------------------\n"
-	       "\t  MAC100 CSR (base addr = 0x%8x)\n"
-	       "\t----------------------------------------------\n",
-	       (unsigned int)ioaddr);
+		"\t  DWMAC 100 CSR (base addr = 0x%8x)\n"
+		"\t----------------------------------------------\n",
+		(unsigned int)ioaddr);
 	pr_info("\tcontrol reg (offset 0x%x): 0x%08x\n", MAC_CONTROL,
-	       readl(ioaddr + MAC_CONTROL));
+		readl(ioaddr + MAC_CONTROL));
 	pr_info("\taddr HI (offset 0x%x): 0x%08x\n ", MAC_ADDR_HIGH,
-	       readl(ioaddr + MAC_ADDR_HIGH));
+		readl(ioaddr + MAC_ADDR_HIGH));
 	pr_info("\taddr LO (offset 0x%x): 0x%08x\n", MAC_ADDR_LOW,
-	       readl(ioaddr + MAC_ADDR_LOW));
+		readl(ioaddr + MAC_ADDR_LOW));
 	pr_info("\tmulticast hash HI (offset 0x%x): 0x%08x\n",
-			MAC_HASH_HIGH, readl(ioaddr + MAC_HASH_HIGH));
+		MAC_HASH_HIGH, readl(ioaddr + MAC_HASH_HIGH));
 	pr_info("\tmulticast hash LO (offset 0x%x): 0x%08x\n",
-			MAC_HASH_LOW, readl(ioaddr + MAC_HASH_LOW));
+		MAC_HASH_LOW, readl(ioaddr + MAC_HASH_LOW));
 	pr_info("\tflow control (offset 0x%x): 0x%08x\n",
 		MAC_FLOW_CTRL, readl(ioaddr + MAC_FLOW_CTRL));
 	pr_info("\tVLAN1 tag (offset 0x%x): 0x%08x\n", MAC_VLAN1,
-	       readl(ioaddr + MAC_VLAN1));
+		readl(ioaddr + MAC_VLAN1));
 	pr_info("\tVLAN2 tag (offset 0x%x): 0x%08x\n", MAC_VLAN2,
-	       readl(ioaddr + MAC_VLAN2));
+		readl(ioaddr + MAC_VLAN2));
 	pr_info("\n\tMAC management counter registers\n");
 	pr_info("\t MMC crtl (offset 0x%x): 0x%08x\n",
-	       MMC_CONTROL, readl(ioaddr + MMC_CONTROL));
+		MMC_CONTROL, readl(ioaddr + MMC_CONTROL));
 	pr_info("\t MMC High Interrupt (offset 0x%x): 0x%08x\n",
-	       MMC_HIGH_INTR, readl(ioaddr + MMC_HIGH_INTR));
+		MMC_HIGH_INTR, readl(ioaddr + MMC_HIGH_INTR));
 	pr_info("\t MMC Low Interrupt (offset 0x%x): 0x%08x\n",
-	       MMC_LOW_INTR, readl(ioaddr + MMC_LOW_INTR));
+		MMC_LOW_INTR, readl(ioaddr + MMC_LOW_INTR));
 	pr_info("\t MMC High Interrupt Mask (offset 0x%x): 0x%08x\n",
-	       MMC_HIGH_INTR_MASK, readl(ioaddr + MMC_HIGH_INTR_MASK));
+		MMC_HIGH_INTR_MASK, readl(ioaddr + MMC_HIGH_INTR_MASK));
 	pr_info("\t MMC Low Interrupt Mask (offset 0x%x): 0x%08x\n",
-	       MMC_LOW_INTR_MASK, readl(ioaddr + MMC_LOW_INTR_MASK));
+		MMC_LOW_INTR_MASK, readl(ioaddr + MMC_LOW_INTR_MASK));
 	return;
 }
 
-static int mac100_dma_init(unsigned long ioaddr, int pbl, u32 dma_tx,
+static int dwmac100_dma_init(unsigned long ioaddr, int pbl, u32 dma_tx,
 			   u32 dma_rx)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
@@ -117,7 +117,7 @@ static int mac100_dma_init(unsigned long ioaddr, int pbl, u32 dma_tx,
 /* Store and Forward capability is not used at all..
  * The transmit threshold can be programmed by
  * setting the TTC bits in the DMA control register.*/
-static void mac100_dma_operation_mode(unsigned long ioaddr, int txmode,
+static void dwmac100_dma_operation_mode(unsigned long ioaddr, int txmode,
 				      int rxmode)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
@@ -134,11 +134,11 @@ static void mac100_dma_operation_mode(unsigned long ioaddr, int txmode,
 	return;
 }
 
-static void mac100_dump_dma_regs(unsigned long ioaddr)
+static void dwmac100_dump_dma_regs(unsigned long ioaddr)
 {
 	int i;
 
-	DBG(KERN_DEBUG "MAC100 DMA CSR \n");
+	DBG(KERN_DEBUG "DWMAC 100 DMA CSR \n");
 	for (i = 0; i < 9; i++)
 		pr_debug("\t CSR%d (offset 0x%x): 0x%08x\n", i,
 		       (DMA_BUS_MODE + i * 4),
@@ -151,8 +151,9 @@ static void mac100_dump_dma_regs(unsigned long ioaddr)
 }
 
 /* DMA controller has two counters to track the number of
-   the receive missed frames. */
-static void mac100_dma_diagnostic_fr(void *data, struct stmmac_extra_stats *x,
+ * the receive missed frames. */
+static void dwmac100_dma_diagnostic_fr(void *data,
+				     struct stmmac_extra_stats *x,
 				     unsigned long ioaddr)
 {
 	struct net_device_stats *stats = (struct net_device_stats *)data;
@@ -181,7 +182,8 @@ static void mac100_dma_diagnostic_fr(void *data, struct stmmac_extra_stats *x,
 	return;
 }
 
-static int mac100_get_tx_frame_status(void *data, struct stmmac_extra_stats *x,
+static int dwmac100_get_tx_frame_status(void *data,
+				      struct stmmac_extra_stats *x,
 				      struct dma_desc *p, unsigned long ioaddr)
 {
 	int ret = 0;
@@ -217,7 +219,7 @@ static int mac100_get_tx_frame_status(void *data, struct stmmac_extra_stats *x,
 	return ret;
 }
 
-static int mac100_get_tx_len(struct dma_desc *p)
+static int dwmac100_get_tx_len(struct dma_desc *p)
 {
 	return p->des01.tx.buffer1_size;
 }
@@ -226,14 +228,15 @@ static int mac100_get_tx_len(struct dma_desc *p)
  * and, if required, updates the multicast statistics.
  * In case of success, it returns csum_none becasue the device
  * is not able to compute the csum in HW. */
-static int mac100_get_rx_frame_status(void *data, struct stmmac_extra_stats *x,
+static int dwmac100_get_rx_frame_status(void *data,
+				      struct stmmac_extra_stats *x,
 				      struct dma_desc *p)
 {
 	int ret = csum_none;
 	struct net_device_stats *stats = (struct net_device_stats *)data;
 
 	if (unlikely(p->des01.rx.last_descriptor == 0)) {
-		pr_warning("mac100 Error: Oversized Ethernet "
+		pr_warning("dwmac100 Error: Oversized Ethernet "
 			   "frame spanned multiple buffers\n");
 		stats->rx_length_errors++;
 		return discard_frame;
@@ -262,7 +265,7 @@ static int mac100_get_rx_frame_status(void *data, struct stmmac_extra_stats *x,
 		ret = discard_frame;
 
 	if (unlikely(p->des01.rx.length_error)) {
-		x->rx_lenght++;
+		x->rx_length++;
 		ret = discard_frame;
 	}
 	if (unlikely(p->des01.rx.mii_error)) {
@@ -276,24 +279,24 @@ static int mac100_get_rx_frame_status(void *data, struct stmmac_extra_stats *x,
 	return ret;
 }
 
-static void mac100_irq_status(unsigned long ioaddr)
+static void dwmac100_irq_status(unsigned long ioaddr)
 {
 	return;
 }
 
-static void mac100_set_umac_addr(unsigned long ioaddr, unsigned char *addr,
+static void dwmac100_set_umac_addr(unsigned long ioaddr, unsigned char *addr,
 			  unsigned int reg_n)
 {
 	stmmac_set_mac_addr(ioaddr, addr, MAC_ADDR_HIGH, MAC_ADDR_LOW);
 }
 
-static void mac100_get_umac_addr(unsigned long ioaddr, unsigned char *addr,
+static void dwmac100_get_umac_addr(unsigned long ioaddr, unsigned char *addr,
 			  unsigned int reg_n)
 {
 	stmmac_get_mac_addr(ioaddr, addr, MAC_ADDR_HIGH, MAC_ADDR_LOW);
 }
 
-static void mac100_set_filter(struct net_device *dev)
+static void dwmac100_set_filter(struct net_device *dev)
 {
 	unsigned long ioaddr = dev->base_addr;
 	u32 value = readl(ioaddr + MAC_CONTROL);
@@ -302,29 +305,27 @@ static void mac100_set_filter(struct net_device *dev)
 		value |= MAC_CONTROL_PR;
 		value &= ~(MAC_CONTROL_PM | MAC_CONTROL_IF | MAC_CONTROL_HO |
 			   MAC_CONTROL_HP);
-	} else if ((dev->mc_count > HASH_TABLE_SIZE)
+	} else if ((netdev_mc_count(dev) > HASH_TABLE_SIZE)
 		   || (dev->flags & IFF_ALLMULTI)) {
 		value |= MAC_CONTROL_PM;
 		value &= ~(MAC_CONTROL_PR | MAC_CONTROL_IF | MAC_CONTROL_HO);
 		writel(0xffffffff, ioaddr + MAC_HASH_HIGH);
 		writel(0xffffffff, ioaddr + MAC_HASH_LOW);
-	} else if (dev->mc_count == 0) {	/* no multicast */
+	} else if (netdev_mc_empty(dev)) {	/* no multicast */
 		value &= ~(MAC_CONTROL_PM | MAC_CONTROL_PR | MAC_CONTROL_IF |
 			   MAC_CONTROL_HO | MAC_CONTROL_HP);
 	} else {
-		int i;
 		u32 mc_filter[2];
 		struct dev_mc_list *mclist;
 
 		/* Perfect filter mode for physical address and Hash
 		   filter for multicast */
 		value |= MAC_CONTROL_HP;
-		value &= ~(MAC_CONTROL_PM | MAC_CONTROL_PR | MAC_CONTROL_IF
-			   | MAC_CONTROL_HO);
+		value &= ~(MAC_CONTROL_PM | MAC_CONTROL_PR |
+			   MAC_CONTROL_IF | MAC_CONTROL_HO);
 
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list;
-		     mclist && i < dev->mc_count; i++, mclist = mclist->next) {
+		netdev_for_each_mc_addr(mclist, dev) {
 			/* The upper 6 bits of the calculated CRC are used to
 			 * index the contens of the hash table */
 			int bit_nr =
@@ -347,7 +348,7 @@ static void mac100_set_filter(struct net_device *dev)
 	return;
 }
 
-static void mac100_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
+static void dwmac100_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
 			     unsigned int fc, unsigned int pause_time)
 {
 	unsigned int flow = MAC_FLOW_CTRL_ENABLE;
@@ -359,13 +360,15 @@ static void mac100_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
 	return;
 }
 
-/* No PMT module supported in our SoC  for the Ethernet Controller. */
-static void mac100_pmt(unsigned long ioaddr, unsigned long mode)
+/* No PMT module supported for this Ethernet Controller.
+ * Tested on ST platforms only.
+ */
+static void dwmac100_pmt(unsigned long ioaddr, unsigned long mode)
 {
 	return;
 }
 
-static void mac100_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
+static void dwmac100_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
 				int disable_rx_ic)
 {
 	int i;
@@ -381,7 +384,7 @@ static void mac100_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
 	return;
 }
 
-static void mac100_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
+static void dwmac100_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
 {
 	int i;
 	for (i = 0; i < ring_size; i++) {
@@ -393,32 +396,32 @@ static void mac100_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
 	return;
 }
 
-static int mac100_get_tx_owner(struct dma_desc *p)
+static int dwmac100_get_tx_owner(struct dma_desc *p)
 {
 	return p->des01.tx.own;
 }
 
-static int mac100_get_rx_owner(struct dma_desc *p)
+static int dwmac100_get_rx_owner(struct dma_desc *p)
 {
 	return p->des01.rx.own;
 }
 
-static void mac100_set_tx_owner(struct dma_desc *p)
+static void dwmac100_set_tx_owner(struct dma_desc *p)
 {
 	p->des01.tx.own = 1;
 }
 
-static void mac100_set_rx_owner(struct dma_desc *p)
+static void dwmac100_set_rx_owner(struct dma_desc *p)
 {
 	p->des01.rx.own = 1;
 }
 
-static int mac100_get_tx_ls(struct dma_desc *p)
+static int dwmac100_get_tx_ls(struct dma_desc *p)
 {
 	return p->des01.tx.last_segment;
 }
 
-static void mac100_release_tx_desc(struct dma_desc *p)
+static void dwmac100_release_tx_desc(struct dma_desc *p)
 {
 	int ter = p->des01.tx.end_ring;
 
@@ -444,74 +447,91 @@ static void mac100_release_tx_desc(struct dma_desc *p)
 	return;
 }
 
-static void mac100_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
+static void dwmac100_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				   int csum_flag)
 {
 	p->des01.tx.first_segment = is_fs;
 	p->des01.tx.buffer1_size = len;
 }
 
-static void mac100_clear_tx_ic(struct dma_desc *p)
+static void dwmac100_clear_tx_ic(struct dma_desc *p)
 {
 	p->des01.tx.interrupt = 0;
 }
 
-static void mac100_close_tx_desc(struct dma_desc *p)
+static void dwmac100_close_tx_desc(struct dma_desc *p)
 {
 	p->des01.tx.last_segment = 1;
 	p->des01.tx.interrupt = 1;
 }
 
-static int mac100_get_rx_frame_len(struct dma_desc *p)
+static int dwmac100_get_rx_frame_len(struct dma_desc *p)
 {
 	return p->des01.rx.frame_length;
 }
 
-struct stmmac_ops mac100_driver = {
-	.core_init = mac100_core_init,
-	.dump_mac_regs = mac100_dump_mac_regs,
-	.dma_init = mac100_dma_init,
-	.dump_dma_regs = mac100_dump_dma_regs,
-	.dma_mode = mac100_dma_operation_mode,
-	.dma_diagnostic_fr = mac100_dma_diagnostic_fr,
-	.tx_status = mac100_get_tx_frame_status,
-	.rx_status = mac100_get_rx_frame_status,
-	.get_tx_len = mac100_get_tx_len,
-	.set_filter = mac100_set_filter,
-	.flow_ctrl = mac100_flow_ctrl,
-	.pmt = mac100_pmt,
-	.init_rx_desc = mac100_init_rx_desc,
-	.init_tx_desc = mac100_init_tx_desc,
-	.get_tx_owner = mac100_get_tx_owner,
-	.get_rx_owner = mac100_get_rx_owner,
-	.release_tx_desc = mac100_release_tx_desc,
-	.prepare_tx_desc = mac100_prepare_tx_desc,
-	.clear_tx_ic = mac100_clear_tx_ic,
-	.close_tx_desc = mac100_close_tx_desc,
-	.get_tx_ls = mac100_get_tx_ls,
-	.set_tx_owner = mac100_set_tx_owner,
-	.set_rx_owner = mac100_set_rx_owner,
-	.get_rx_frame_len = mac100_get_rx_frame_len,
-	.host_irq_status = mac100_irq_status,
-	.set_umac_addr = mac100_set_umac_addr,
-	.get_umac_addr = mac100_get_umac_addr,
+struct stmmac_ops dwmac100_ops = {
+	.core_init = dwmac100_core_init,
+	.dump_regs = dwmac100_dump_mac_regs,
+	.host_irq_status = dwmac100_irq_status,
+	.set_filter = dwmac100_set_filter,
+	.flow_ctrl = dwmac100_flow_ctrl,
+	.pmt = dwmac100_pmt,
+	.set_umac_addr = dwmac100_set_umac_addr,
+	.get_umac_addr = dwmac100_get_umac_addr,
 };
 
-struct mac_device_info *mac100_setup(unsigned long ioaddr)
+struct stmmac_dma_ops dwmac100_dma_ops = {
+	.init = dwmac100_dma_init,
+	.dump_regs = dwmac100_dump_dma_regs,
+	.dma_mode = dwmac100_dma_operation_mode,
+	.dma_diagnostic_fr = dwmac100_dma_diagnostic_fr,
+	.enable_dma_transmission = dwmac_enable_dma_transmission,
+	.enable_dma_irq = dwmac_enable_dma_irq,
+	.disable_dma_irq = dwmac_disable_dma_irq,
+	.start_tx = dwmac_dma_start_tx,
+	.stop_tx = dwmac_dma_stop_tx,
+	.start_rx = dwmac_dma_start_rx,
+	.stop_rx = dwmac_dma_stop_rx,
+	.dma_interrupt = dwmac_dma_interrupt,
+};
+
+struct stmmac_desc_ops dwmac100_desc_ops = {
+	.tx_status = dwmac100_get_tx_frame_status,
+	.rx_status = dwmac100_get_rx_frame_status,
+	.get_tx_len = dwmac100_get_tx_len,
+	.init_rx_desc = dwmac100_init_rx_desc,
+	.init_tx_desc = dwmac100_init_tx_desc,
+	.get_tx_owner = dwmac100_get_tx_owner,
+	.get_rx_owner = dwmac100_get_rx_owner,
+	.release_tx_desc = dwmac100_release_tx_desc,
+	.prepare_tx_desc = dwmac100_prepare_tx_desc,
+	.clear_tx_ic = dwmac100_clear_tx_ic,
+	.close_tx_desc = dwmac100_close_tx_desc,
+	.get_tx_ls = dwmac100_get_tx_ls,
+	.set_tx_owner = dwmac100_set_tx_owner,
+	.set_rx_owner = dwmac100_set_rx_owner,
+	.get_rx_frame_len = dwmac100_get_rx_frame_len,
+};
+
+struct mac_device_info *dwmac100_setup(unsigned long ioaddr)
 {
 	struct mac_device_info *mac;
 
 	mac = kzalloc(sizeof(const struct mac_device_info), GFP_KERNEL);
 
-	pr_info("\tMAC 10/100\n");
+	pr_info("\tDWMAC100\n");
 
-	mac->ops = &mac100_driver;
-	mac->hw.pmt = PMT_NOT_SUPPORTED;
-	mac->hw.link.port = MAC_CONTROL_PS;
-	mac->hw.link.duplex = MAC_CONTROL_F;
-	mac->hw.link.speed = 0;
-	mac->hw.mii.addr = MAC_MII_ADDR;
-	mac->hw.mii.data = MAC_MII_DATA;
+	mac->mac = &dwmac100_ops;
+	mac->desc = &dwmac100_desc_ops;
+	mac->dma = &dwmac100_dma_ops;
+
+	mac->pmt = PMT_NOT_SUPPORTED;
+	mac->link.port = MAC_CONTROL_PS;
+	mac->link.duplex = MAC_CONTROL_F;
+	mac->link.speed = 0;
+	mac->mii.addr = MAC_MII_ADDR;
+	mac->mii.data = MAC_MII_DATA;
 
 	return mac;
 }

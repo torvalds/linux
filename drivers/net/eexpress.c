@@ -1578,7 +1578,7 @@ static void eexp_setup_filter(struct net_device *dev)
 {
 	struct dev_mc_list *dmi;
 	unsigned short ioaddr = dev->base_addr;
-	int count = dev->mc_count;
+	int count = netdev_mc_count(dev);
 	int i;
 	if (count > 8) {
 		printk(KERN_INFO "%s: too many multicast addresses (%d)\n",
@@ -1588,23 +1588,19 @@ static void eexp_setup_filter(struct net_device *dev)
 
 	outw(CONF_NR_MULTICAST & ~31, ioaddr+SM_PTR);
 	outw(6*count, ioaddr+SHADOW(CONF_NR_MULTICAST));
-	for (i = 0, dmi = dev->mc_list; i < count; i++, dmi = dmi->next) {
-		unsigned short *data;
-		if (!dmi) {
-			printk(KERN_INFO "%s: too few multicast addresses\n", dev->name);
+	i = 0;
+	netdev_for_each_mc_addr(dmi, dev) {
+		unsigned short *data = (unsigned short *) dmi->dmi_addr;
+
+		if (i == count)
 			break;
-		}
-		if (dmi->dmi_addrlen != ETH_ALEN) {
-			printk(KERN_INFO "%s: invalid multicast address length given.\n", dev->name);
-			continue;
-		}
-		data = (unsigned short *)dmi->dmi_addr;
 		outw((CONF_MULTICAST+(6*i)) & ~31, ioaddr+SM_PTR);
 		outw(data[0], ioaddr+SHADOW(CONF_MULTICAST+(6*i)));
 		outw((CONF_MULTICAST+(6*i)+2) & ~31, ioaddr+SM_PTR);
 		outw(data[1], ioaddr+SHADOW(CONF_MULTICAST+(6*i)+2));
 		outw((CONF_MULTICAST+(6*i)+4) & ~31, ioaddr+SM_PTR);
 		outw(data[2], ioaddr+SHADOW(CONF_MULTICAST+(6*i)+4));
+		i++;
 	}
 }
 
@@ -1627,9 +1623,9 @@ eexp_set_multicast(struct net_device *dev)
         }
         if (!(dev->flags & IFF_PROMISC)) {
                 eexp_setup_filter(dev);
-                if (lp->old_mc_count != dev->mc_count) {
+                if (lp->old_mc_count != netdev_mc_count(dev)) {
                         kick = 1;
-                        lp->old_mc_count = dev->mc_count;
+                        lp->old_mc_count = netdev_mc_count(dev);
                 }
         }
         if (kick) {

@@ -65,7 +65,7 @@ static const struct {
 	{ "TOSHIBA TC35815/TX4939" },
 };
 
-static const struct pci_device_id tc35815_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(tc35815_pci_tbl) = {
 	{PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC35815CF), .driver_data = TC35815CF },
 	{PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC35815_NWU), .driver_data = TC35815_NWU },
 	{PCI_DEVICE(PCI_VENDOR_ID_TOSHIBA_2, PCI_DEVICE_ID_TOSHIBA_TC35815_TX4939), .driver_data = TC35815_TX4939 },
@@ -402,6 +402,7 @@ struct tc35815_local {
 	 * by this lock as well.
 	 */
 	spinlock_t lock;
+	spinlock_t rx_lock;
 
 	struct mii_bus *mii_bus;
 	struct phy_device *phy_dev;
@@ -835,6 +836,7 @@ static int __devinit tc35815_init_one(struct pci_dev *pdev,
 
 	INIT_WORK(&lp->restart_work, tc35815_restart_work);
 	spin_lock_init(&lp->lock);
+	spin_lock_init(&lp->rx_lock);
 	lp->pci_dev = pdev;
 	lp->chiptype = ent->driver_data;
 
@@ -1186,6 +1188,7 @@ static void tc35815_restart(struct net_device *dev)
 			printk(KERN_ERR "%s: BMCR reset failed.\n", dev->name);
 	}
 
+	spin_lock_bh(&lp->rx_lock);
 	spin_lock_irq(&lp->lock);
 	tc35815_chip_reset(dev);
 	tc35815_clear_queues(dev);
@@ -1193,6 +1196,7 @@ static void tc35815_restart(struct net_device *dev)
 	/* Reconfigure CAM again since tc35815_chip_init() initialize it. */
 	tc35815_set_multicast_list(dev);
 	spin_unlock_irq(&lp->lock);
+	spin_unlock_bh(&lp->rx_lock);
 
 	netif_wake_queue(dev);
 }
@@ -1211,11 +1215,14 @@ static void tc35815_schedule_restart(struct net_device *dev)
 	struct tc35815_local *lp = netdev_priv(dev);
 	struct tc35815_regs __iomem *tr =
 		(struct tc35815_regs __iomem *)dev->base_addr;
+	unsigned long flags;
 
 	/* disable interrupts */
+	spin_lock_irqsave(&lp->lock, flags);
 	tc_writel(0, &tr->Int_En);
 	tc_writel(tc_readl(&tr->DMA_Ctl) | DMA_IntMask, &tr->DMA_Ctl);
 	schedule_work(&lp->restart_work);
+	spin_unlock_irqrestore(&lp->lock, flags);
 }
 
 static void tc35815_tx_timeout(struct net_device *dev)
@@ -1436,7 +1443,9 @@ static int tc35815_do_interrupt(struct net_device *dev, u32 status, int limit)
 	if (status & Int_IntMacTx) {
 		/* Transmit complete. */
 		lp->lstats.tx_ints++;
+		spin_lock_irq(&lp->lock);
 		tc35815_txdone(dev);
+		spin_unlock_irq(&lp->lock);
 		if (ret < 0)
 			ret = 0;
 	}
@@ -1649,7 +1658,7 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 	int received = 0, handled;
 	u32 status;
 
-	spin_lock(&lp->lock);
+	spin_lock(&lp->rx_lock);
 	status = tc_readl(&tr->Int_Src);
 	do {
 		/* BLEx, FDAEx will be cleared later */
@@ -1667,7 +1676,7 @@ static int tc35815_poll(struct napi_struct *napi, int budget)
 		}
 		status = tc_readl(&tr->Int_Src);
 	} while (status);
-	spin_unlock(&lp->lock);
+	spin_unlock(&lp->rx_lock);
 
 	if (received < budget) {
 		napi_complete(napi);
@@ -1940,23 +1949,23 @@ tc35815_set_multicast_list(struct net_device *dev)
 		/* Enable promiscuous mode */
 		tc_writel(CAM_CompEn | CAM_BroadAcc | CAM_GroupAcc | CAM_StationAcc, &tr->CAM_Ctl);
 	} else if ((dev->flags & IFF_ALLMULTI) ||
-		  dev->mc_count > CAM_ENTRY_MAX - 3) {
+		  netdev_mc_count(dev) > CAM_ENTRY_MAX - 3) {
 		/* CAM 0, 1, 20 are reserved. */
 		/* Disable promiscuous mode, use normal mode. */
 		tc_writel(CAM_CompEn | CAM_BroadAcc | CAM_GroupAcc, &tr->CAM_Ctl);
-	} else if (dev->mc_count) {
-		struct dev_mc_list *cur_addr = dev->mc_list;
+	} else if (!netdev_mc_empty(dev)) {
+		struct dev_mc_list *cur_addr;
 		int i;
 		int ena_bits = CAM_Ena_Bit(CAM_ENTRY_SOURCE);
 
 		tc_writel(0, &tr->CAM_Ctl);
 		/* Walk the address list, and load the filter */
-		for (i = 0; i < dev->mc_count; i++, cur_addr = cur_addr->next) {
-			if (!cur_addr)
-				break;
+		i = 0;
+		netdev_for_each_mc_addr(cur_addr, dev) {
 			/* entry 0,1 is reserved. */
 			tc35815_set_cam_entry(dev, i + 2, cur_addr->dmi_addr);
 			ena_bits |= CAM_Ena_Bit(i + 2);
+			i++;
 		}
 		tc_writel(ena_bits, &tr->CAM_Ena);
 		tc_writel(CAM_CompEn | CAM_BroadAcc, &tr->CAM_Ctl);

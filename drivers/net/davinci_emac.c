@@ -957,19 +957,18 @@ static void emac_dev_mcast_set(struct net_device *ndev)
 	} else {
 		mbp_enable = (mbp_enable & ~EMAC_MBP_RXPROMISC);
 		if ((ndev->flags & IFF_ALLMULTI) ||
-		    (ndev->mc_count > EMAC_DEF_MAX_MULTICAST_ADDRESSES)) {
+		    netdev_mc_count(ndev) > EMAC_DEF_MAX_MULTICAST_ADDRESSES) {
 			mbp_enable = (mbp_enable | EMAC_MBP_RXMCAST);
 			emac_add_mcast(priv, EMAC_ALL_MULTI_SET, NULL);
 		}
-		if (ndev->mc_count > 0) {
+		if (!netdev_mc_empty(ndev)) {
 			struct dev_mc_list *mc_ptr;
 			mbp_enable = (mbp_enable | EMAC_MBP_RXMCAST);
 			emac_add_mcast(priv, EMAC_ALL_MULTI_CLR, NULL);
 			/* program multicast address list into EMAC hardware */
-			for (mc_ptr = ndev->mc_list; mc_ptr;
-			     mc_ptr = mc_ptr->next) {
+			netdev_for_each_mc_addr(mc_ptr, ndev) {
 				emac_add_mcast(priv, EMAC_MULTICAST_ADD,
-					       (u8 *)mc_ptr->dmi_addr);
+					       (u8 *) mc_ptr->dmi_addr);
 			}
 		} else {
 			mbp_enable = (mbp_enable & ~EMAC_MBP_RXMCAST);
@@ -2683,8 +2682,7 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 	priv->emac_base_phys = res->start + pdata->ctrl_reg_offset;
 	size = res->end - res->start + 1;
 	if (!request_mem_region(res->start, size, ndev->name)) {
-		dev_err(emac_dev, "DaVinci EMAC: failed request_mem_region() \
-					 for regs\n");
+		dev_err(emac_dev, "DaVinci EMAC: failed request_mem_region() for regs\n");
 		rc = -ENXIO;
 		goto probe_quit;
 	}

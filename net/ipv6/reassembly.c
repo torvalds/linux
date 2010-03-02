@@ -228,7 +228,7 @@ static void ip6_frag_expire(unsigned long data)
 	   pointer directly, device might already disappeared.
 	 */
 	fq->q.fragments->dev = dev;
-	icmpv6_send(fq->q.fragments, ICMPV6_TIME_EXCEED, ICMPV6_EXC_FRAGTIME, 0, dev);
+	icmpv6_send(fq->q.fragments, ICMPV6_TIME_EXCEED, ICMPV6_EXC_FRAGTIME, 0);
 out_rcu_unlock:
 	rcu_read_unlock();
 out:
@@ -237,8 +237,7 @@ out:
 }
 
 static __inline__ struct frag_queue *
-fq_find(struct net *net, __be32 id, struct in6_addr *src, struct in6_addr *dst,
-	struct inet6_dev *idev)
+fq_find(struct net *net, __be32 id, struct in6_addr *src, struct in6_addr *dst)
 {
 	struct inet_frag_queue *q;
 	struct ip6_create_arg arg;
@@ -254,13 +253,9 @@ fq_find(struct net *net, __be32 id, struct in6_addr *src, struct in6_addr *dst,
 
 	q = inet_frag_find(&net->ipv6.frags, &ip6_frags, &arg, hash);
 	if (q == NULL)
-		goto oom;
+		return NULL;
 
 	return container_of(q, struct frag_queue, q);
-
-oom:
-	IP6_INC_STATS_BH(net, idev, IPSTATS_MIB_REASMFAILS);
-	return NULL;
 }
 
 static int ip6_frag_queue(struct frag_queue *fq, struct sk_buff *skb,
@@ -606,8 +601,8 @@ static int ipv6_frag_rcv(struct sk_buff *skb)
 	if (atomic_read(&net->ipv6.frags.mem) > net->ipv6.frags.high_thresh)
 		ip6_evictor(net, ip6_dst_idev(skb_dst(skb)));
 
-	if ((fq = fq_find(net, fhdr->identification, &hdr->saddr, &hdr->daddr,
-			  ip6_dst_idev(skb_dst(skb)))) != NULL) {
+	fq = fq_find(net, fhdr->identification, &hdr->saddr, &hdr->daddr);
+	if (fq != NULL) {
 		int ret;
 
 		spin_lock(&fq->q.lock);
@@ -672,7 +667,7 @@ static struct ctl_table ip6_frags_ctl_table[] = {
 	{ }
 };
 
-static int ip6_frags_ns_sysctl_register(struct net *net)
+static int __net_init ip6_frags_ns_sysctl_register(struct net *net)
 {
 	struct ctl_table *table;
 	struct ctl_table_header *hdr;
@@ -702,7 +697,7 @@ err_alloc:
 	return -ENOMEM;
 }
 
-static void ip6_frags_ns_sysctl_unregister(struct net *net)
+static void __net_exit ip6_frags_ns_sysctl_unregister(struct net *net)
 {
 	struct ctl_table *table;
 
@@ -745,10 +740,10 @@ static inline void ip6_frags_sysctl_unregister(void)
 }
 #endif
 
-static int ipv6_frags_init_net(struct net *net)
+static int __net_init ipv6_frags_init_net(struct net *net)
 {
-	net->ipv6.frags.high_thresh = 256 * 1024;
-	net->ipv6.frags.low_thresh = 192 * 1024;
+	net->ipv6.frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
+	net->ipv6.frags.low_thresh = IPV6_FRAG_LOW_THRESH;
 	net->ipv6.frags.timeout = IPV6_FRAG_TIMEOUT;
 
 	inet_frags_init_net(&net->ipv6.frags);
@@ -756,7 +751,7 @@ static int ipv6_frags_init_net(struct net *net)
 	return ip6_frags_ns_sysctl_register(net);
 }
 
-static void ipv6_frags_exit_net(struct net *net)
+static void __net_exit ipv6_frags_exit_net(struct net *net)
 {
 	ip6_frags_ns_sysctl_unregister(net);
 	inet_frags_exit_net(&net->ipv6.frags, &ip6_frags);

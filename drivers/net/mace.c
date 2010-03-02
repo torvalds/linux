@@ -588,7 +588,7 @@ static void mace_set_multicast(struct net_device *dev)
 {
     struct mace_data *mp = netdev_priv(dev);
     volatile struct mace __iomem *mb = mp->mace;
-    int i, j;
+    int i;
     u32 crc;
     unsigned long flags;
 
@@ -598,7 +598,7 @@ static void mace_set_multicast(struct net_device *dev)
 	mp->maccc |= PROM;
     } else {
 	unsigned char multicast_filter[8];
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 
 	if (dev->flags & IFF_ALLMULTI) {
 	    for (i = 0; i < 8; i++)
@@ -606,11 +606,10 @@ static void mace_set_multicast(struct net_device *dev)
 	} else {
 	    for (i = 0; i < 8; i++)
 		multicast_filter[i] = 0;
-	    for (i = 0; i < dev->mc_count; i++) {
+	    netdev_for_each_mc_addr(dmi, dev) {
 	        crc = ether_crc_le(6, dmi->dmi_addr);
-		j = crc >> 26;	/* bit number in multicast_filter */
-		multicast_filter[j >> 3] |= 1 << (j & 7);
-		dmi = dmi->next;
+		i = crc >> 26;	/* bit number in multicast_filter */
+		multicast_filter[i >> 3] |= 1 << (i & 7);
 	    }
 	}
 #if 0

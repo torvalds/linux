@@ -3,6 +3,8 @@
   DWC Ether MAC 10/100/1000 Universal version 3.41a  has been used for
   developing this code.
 
+  This contains the functions to handle the dma and descriptors.
+
   Copyright (C) 2007-2009  STMicroelectronics Ltd
 
   This program is free software; you can redistribute it and/or modify it
@@ -24,41 +26,11 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
-#include <linux/netdevice.h>
-#include <linux/crc32.h>
-#include <linux/mii.h>
-#include <linux/phy.h>
+#include "dwmac1000.h"
+#include "dwmac_dma.h"
 
-#include "stmmac.h"
-#include "gmac.h"
-
-#undef GMAC_DEBUG
-/*#define GMAC_DEBUG*/
-#undef FRAME_FILTER_DEBUG
-/*#define FRAME_FILTER_DEBUG*/
-#ifdef GMAC_DEBUG
-#define DBG(fmt, args...)  printk(fmt, ## args)
-#else
-#define DBG(fmt, args...)  do { } while (0)
-#endif
-
-static void gmac_dump_regs(unsigned long ioaddr)
-{
-	int i;
-	pr_info("\t----------------------------------------------\n"
-	       "\t  GMAC registers (base addr = 0x%8x)\n"
-	       "\t----------------------------------------------\n",
-	       (unsigned int)ioaddr);
-
-	for (i = 0; i < 55; i++) {
-		int offset = i * 4;
-		pr_info("\tReg No. %d (offset 0x%x): 0x%08x\n", i,
-		       offset, readl(ioaddr + offset));
-	}
-	return;
-}
-
-static int gmac_dma_init(unsigned long ioaddr, int pbl, u32 dma_tx, u32 dma_rx)
+static int dwmac1000_dma_init(unsigned long ioaddr, int pbl, u32 dma_tx,
+			      u32 dma_rx)
 {
 	u32 value = readl(ioaddr + DMA_BUS_MODE);
 	/* DMA SW reset */
@@ -87,7 +59,7 @@ static int gmac_dma_init(unsigned long ioaddr, int pbl, u32 dma_tx, u32 dma_rx)
 }
 
 /* Transmit FIFO flush operation */
-static void gmac_flush_tx_fifo(unsigned long ioaddr)
+static void dwmac1000_flush_tx_fifo(unsigned long ioaddr)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
 	writel((csr6 | DMA_CONTROL_FTF), ioaddr + DMA_CONTROL);
@@ -95,7 +67,7 @@ static void gmac_flush_tx_fifo(unsigned long ioaddr)
 	do {} while ((readl(ioaddr + DMA_CONTROL) & DMA_CONTROL_FTF));
 }
 
-static void gmac_dma_operation_mode(unsigned long ioaddr, int txmode,
+static void dwmac1000_dma_operation_mode(unsigned long ioaddr, int txmode,
 				    int rxmode)
 {
 	u32 csr6 = readl(ioaddr + DMA_CONTROL);
@@ -148,13 +120,13 @@ static void gmac_dma_operation_mode(unsigned long ioaddr, int txmode,
 }
 
 /* Not yet implemented --- no RMON module */
-static void gmac_dma_diagnostic_fr(void *data, struct stmmac_extra_stats *x,
-				   unsigned long ioaddr)
+static void dwmac1000_dma_diagnostic_fr(void *data,
+		  struct stmmac_extra_stats *x, unsigned long ioaddr)
 {
 	return;
 }
 
-static void gmac_dump_dma_regs(unsigned long ioaddr)
+static void dwmac1000_dump_dma_regs(unsigned long ioaddr)
 {
 	int i;
 	pr_info(" DMA registers\n");
@@ -169,8 +141,9 @@ static void gmac_dump_dma_regs(unsigned long ioaddr)
 	return;
 }
 
-static int gmac_get_tx_frame_status(void *data, struct stmmac_extra_stats *x,
-				    struct dma_desc *p, unsigned long ioaddr)
+static int dwmac1000_get_tx_frame_status(void *data,
+				struct stmmac_extra_stats *x,
+				struct dma_desc *p, unsigned long ioaddr)
 {
 	int ret = 0;
 	struct net_device_stats *stats = (struct net_device_stats *)data;
@@ -185,7 +158,7 @@ static int gmac_get_tx_frame_status(void *data, struct stmmac_extra_stats *x,
 		if (unlikely(p->des01.etx.frame_flushed)) {
 			DBG(KERN_ERR "\tframe_flushed error\n");
 			x->tx_frame_flushed++;
-			gmac_flush_tx_fifo(ioaddr);
+			dwmac1000_flush_tx_fifo(ioaddr);
 		}
 
 		if (unlikely(p->des01.etx.loss_carrier)) {
@@ -213,7 +186,7 @@ static int gmac_get_tx_frame_status(void *data, struct stmmac_extra_stats *x,
 
 		if (unlikely(p->des01.etx.underflow_error)) {
 			DBG(KERN_ERR "\tunderflow error\n");
-			gmac_flush_tx_fifo(ioaddr);
+			dwmac1000_flush_tx_fifo(ioaddr);
 			x->tx_underflow++;
 		}
 
@@ -225,7 +198,7 @@ static int gmac_get_tx_frame_status(void *data, struct stmmac_extra_stats *x,
 		if (unlikely(p->des01.etx.payload_error)) {
 			DBG(KERN_ERR "\tAddr/Payload csum error\n");
 			x->tx_payload_error++;
-			gmac_flush_tx_fifo(ioaddr);
+			dwmac1000_flush_tx_fifo(ioaddr);
 		}
 
 		ret = -1;
@@ -245,19 +218,19 @@ static int gmac_get_tx_frame_status(void *data, struct stmmac_extra_stats *x,
 	return ret;
 }
 
-static int gmac_get_tx_len(struct dma_desc *p)
+static int dwmac1000_get_tx_len(struct dma_desc *p)
 {
 	return p->des01.etx.buffer1_size;
 }
 
-static int gmac_coe_rdes0(int ipc_err, int type, int payload_err)
+static int dwmac1000_coe_rdes0(int ipc_err, int type, int payload_err)
 {
 	int ret = good_frame;
 	u32 status = (type << 2 | ipc_err << 1 | payload_err) & 0x7;
 
 	/* bits 5 7 0 | Frame status
 	 * ----------------------------------------------------------
-	 *      0 0 0 | IEEE 802.3 Type frame (lenght < 1536 octects)
+	 *      0 0 0 | IEEE 802.3 Type frame (length < 1536 octects)
 	 *      1 0 0 | IPv4/6 No CSUM errorS.
 	 *      1 0 1 | IPv4/6 CSUM PAYLOAD error
 	 *      1 1 0 | IPv4/6 CSUM IP HR error
@@ -293,8 +266,8 @@ static int gmac_coe_rdes0(int ipc_err, int type, int payload_err)
 	return ret;
 }
 
-static int gmac_get_rx_frame_status(void *data, struct stmmac_extra_stats *x,
-				    struct dma_desc *p)
+static int dwmac1000_get_rx_frame_status(void *data,
+			struct stmmac_extra_stats *x, struct dma_desc *p)
 {
 	int ret = good_frame;
 	struct net_device_stats *stats = (struct net_device_stats *)data;
@@ -339,7 +312,7 @@ static int gmac_get_rx_frame_status(void *data, struct stmmac_extra_stats *x,
 	 * It doesn't match with the information reported into the databook.
 	 * At any rate, we need to understand if the CSUM hw computation is ok
 	 * and report this info to the upper layers. */
-	ret = gmac_coe_rdes0(p->des01.erx.ipc_csum_error,
+	ret = dwmac1000_coe_rdes0(p->des01.erx.ipc_csum_error,
 		p->des01.erx.frame_type, p->des01.erx.payload_csum_error);
 
 	if (unlikely(p->des01.erx.dribbling)) {
@@ -358,7 +331,7 @@ static int gmac_get_rx_frame_status(void *data, struct stmmac_extra_stats *x,
 	}
 	if (unlikely(p->des01.erx.length_error)) {
 		DBG(KERN_ERR "GMAC RX: length_error error\n");
-		x->rx_lenght++;
+		x->rx_length++;
 		ret = discard_frame;
 	}
 #ifdef STMMAC_VLAN_TAG_USED
@@ -370,181 +343,7 @@ static int gmac_get_rx_frame_status(void *data, struct stmmac_extra_stats *x,
 	return ret;
 }
 
-static void gmac_irq_status(unsigned long ioaddr)
-{
-	u32 intr_status = readl(ioaddr + GMAC_INT_STATUS);
-
-	/* Not used events (e.g. MMC interrupts) are not handled. */
-	if ((intr_status & mmc_tx_irq))
-		DBG(KERN_DEBUG "GMAC: MMC tx interrupt: 0x%08x\n",
-		    readl(ioaddr + GMAC_MMC_TX_INTR));
-	if (unlikely(intr_status & mmc_rx_irq))
-		DBG(KERN_DEBUG "GMAC: MMC rx interrupt: 0x%08x\n",
-		    readl(ioaddr + GMAC_MMC_RX_INTR));
-	if (unlikely(intr_status & mmc_rx_csum_offload_irq))
-		DBG(KERN_DEBUG "GMAC: MMC rx csum offload: 0x%08x\n",
-		    readl(ioaddr + GMAC_MMC_RX_CSUM_OFFLOAD));
-	if (unlikely(intr_status & pmt_irq)) {
-		DBG(KERN_DEBUG "GMAC: received Magic frame\n");
-		/* clear the PMT bits 5 and 6 by reading the PMT
-		 * status register. */
-		readl(ioaddr + GMAC_PMT);
-	}
-
-	return;
-}
-
-static void gmac_core_init(unsigned long ioaddr)
-{
-	u32 value = readl(ioaddr + GMAC_CONTROL);
-	value |= GMAC_CORE_INIT;
-	writel(value, ioaddr + GMAC_CONTROL);
-
-	/* STBus Bridge Configuration */
-	/*writel(0xc5608, ioaddr + 0x00007000);*/
-
-	/* Freeze MMC counters */
-	writel(0x8, ioaddr + GMAC_MMC_CTRL);
-	/* Mask GMAC interrupts */
-	writel(0x207, ioaddr + GMAC_INT_MASK);
-
-#ifdef STMMAC_VLAN_TAG_USED
-	/* Tag detection without filtering */
-	writel(0x0, ioaddr + GMAC_VLAN_TAG);
-#endif
-	return;
-}
-
-static void gmac_set_umac_addr(unsigned long ioaddr, unsigned char *addr,
-				unsigned int reg_n)
-{
-	stmmac_set_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
-				GMAC_ADDR_LOW(reg_n));
-}
-
-static void gmac_get_umac_addr(unsigned long ioaddr, unsigned char *addr,
-				unsigned int reg_n)
-{
-	stmmac_get_mac_addr(ioaddr, addr, GMAC_ADDR_HIGH(reg_n),
-				GMAC_ADDR_LOW(reg_n));
-}
-
-static void gmac_set_filter(struct net_device *dev)
-{
-	unsigned long ioaddr = dev->base_addr;
-	unsigned int value = 0;
-
-	DBG(KERN_INFO "%s: # mcasts %d, # unicast %d\n",
-	    __func__, dev->mc_count, dev->uc_count);
-
-	if (dev->flags & IFF_PROMISC)
-		value = GMAC_FRAME_FILTER_PR;
-	else if ((dev->mc_count > HASH_TABLE_SIZE)
-		   || (dev->flags & IFF_ALLMULTI)) {
-		value = GMAC_FRAME_FILTER_PM;	/* pass all multi */
-		writel(0xffffffff, ioaddr + GMAC_HASH_HIGH);
-		writel(0xffffffff, ioaddr + GMAC_HASH_LOW);
-	} else if (dev->mc_count > 0) {
-		int i;
-		u32 mc_filter[2];
-		struct dev_mc_list *mclist;
-
-		/* Hash filter for multicast */
-		value = GMAC_FRAME_FILTER_HMC;
-
-		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list;
-		     mclist && i < dev->mc_count; i++, mclist = mclist->next) {
-			/* The upper 6 bits of the calculated CRC are used to
-			   index the contens of the hash table */
-			int bit_nr =
-			    bitrev32(~crc32_le(~0, mclist->dmi_addr, 6)) >> 26;
-			/* The most significant bit determines the register to
-			 * use (H/L) while the other 5 bits determine the bit
-			 * within the register. */
-			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);
-		}
-		writel(mc_filter[0], ioaddr + GMAC_HASH_LOW);
-		writel(mc_filter[1], ioaddr + GMAC_HASH_HIGH);
-	}
-
-	/* Handle multiple unicast addresses (perfect filtering)*/
-	if (dev->uc_count > GMAC_MAX_UNICAST_ADDRESSES)
-		/* Switch to promiscuous mode is more than 16 addrs
-		   are required */
-		value |= GMAC_FRAME_FILTER_PR;
-	else {
-		int i;
-		struct dev_addr_list *uc_ptr = dev->uc_list;
-
-			for (i = 0; i < dev->uc_count; i++) {
-				gmac_set_umac_addr(ioaddr, uc_ptr->da_addr,
-						i + 1);
-
-				DBG(KERN_INFO "\t%d "
-				"- Unicast addr %02x:%02x:%02x:%02x:%02x:"
-				"%02x\n", i + 1,
-				uc_ptr->da_addr[0], uc_ptr->da_addr[1],
-				uc_ptr->da_addr[2], uc_ptr->da_addr[3],
-				uc_ptr->da_addr[4], uc_ptr->da_addr[5]);
-				uc_ptr = uc_ptr->next;
-		}
-	}
-
-#ifdef FRAME_FILTER_DEBUG
-	/* Enable Receive all mode (to debug filtering_fail errors) */
-	value |= GMAC_FRAME_FILTER_RA;
-#endif
-	writel(value, ioaddr + GMAC_FRAME_FILTER);
-
-	DBG(KERN_INFO "\tFrame Filter reg: 0x%08x\n\tHash regs: "
-	    "HI 0x%08x, LO 0x%08x\n", readl(ioaddr + GMAC_FRAME_FILTER),
-	    readl(ioaddr + GMAC_HASH_HIGH), readl(ioaddr + GMAC_HASH_LOW));
-
-	return;
-}
-
-static void gmac_flow_ctrl(unsigned long ioaddr, unsigned int duplex,
-			   unsigned int fc, unsigned int pause_time)
-{
-	unsigned int flow = 0;
-
-	DBG(KERN_DEBUG "GMAC Flow-Control:\n");
-	if (fc & FLOW_RX) {
-		DBG(KERN_DEBUG "\tReceive Flow-Control ON\n");
-		flow |= GMAC_FLOW_CTRL_RFE;
-	}
-	if (fc & FLOW_TX) {
-		DBG(KERN_DEBUG "\tTransmit Flow-Control ON\n");
-		flow |= GMAC_FLOW_CTRL_TFE;
-	}
-
-	if (duplex) {
-		DBG(KERN_DEBUG "\tduplex mode: pause time: %d\n", pause_time);
-		flow |= (pause_time << GMAC_FLOW_CTRL_PT_SHIFT);
-	}
-
-	writel(flow, ioaddr + GMAC_FLOW_CTRL);
-	return;
-}
-
-static void gmac_pmt(unsigned long ioaddr, unsigned long mode)
-{
-	unsigned int pmt = 0;
-
-	if (mode == WAKE_MAGIC) {
-		DBG(KERN_DEBUG "GMAC: WOL Magic frame\n");
-		pmt |= power_down | magic_pkt_en;
-	} else if (mode == WAKE_UCAST) {
-		DBG(KERN_DEBUG "GMAC: WOL on global unicast\n");
-		pmt |= global_unicast;
-	}
-
-	writel(pmt, ioaddr + GMAC_PMT);
-	return;
-}
-
-static void gmac_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
+static void dwmac1000_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
 				int disable_rx_ic)
 {
 	int i;
@@ -562,7 +361,7 @@ static void gmac_init_rx_desc(struct dma_desc *p, unsigned int ring_size,
 	return;
 }
 
-static void gmac_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
+static void dwmac1000_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
 {
 	int i;
 
@@ -576,32 +375,32 @@ static void gmac_init_tx_desc(struct dma_desc *p, unsigned int ring_size)
 	return;
 }
 
-static int gmac_get_tx_owner(struct dma_desc *p)
+static int dwmac1000_get_tx_owner(struct dma_desc *p)
 {
 	return p->des01.etx.own;
 }
 
-static int gmac_get_rx_owner(struct dma_desc *p)
+static int dwmac1000_get_rx_owner(struct dma_desc *p)
 {
 	return p->des01.erx.own;
 }
 
-static void gmac_set_tx_owner(struct dma_desc *p)
+static void dwmac1000_set_tx_owner(struct dma_desc *p)
 {
 	p->des01.etx.own = 1;
 }
 
-static void gmac_set_rx_owner(struct dma_desc *p)
+static void dwmac1000_set_rx_owner(struct dma_desc *p)
 {
 	p->des01.erx.own = 1;
 }
 
-static int gmac_get_tx_ls(struct dma_desc *p)
+static int dwmac1000_get_tx_ls(struct dma_desc *p)
 {
 	return p->des01.etx.last_segment;
 }
 
-static void gmac_release_tx_desc(struct dma_desc *p)
+static void dwmac1000_release_tx_desc(struct dma_desc *p)
 {
 	int ter = p->des01.etx.end_ring;
 
@@ -611,7 +410,7 @@ static void gmac_release_tx_desc(struct dma_desc *p)
 	return;
 }
 
-static void gmac_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
+static void dwmac1000_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 				 int csum_flag)
 {
 	p->des01.etx.first_segment = is_fs;
@@ -625,69 +424,51 @@ static void gmac_prepare_tx_desc(struct dma_desc *p, int is_fs, int len,
 		p->des01.etx.checksum_insertion = cic_full;
 }
 
-static void gmac_clear_tx_ic(struct dma_desc *p)
+static void dwmac1000_clear_tx_ic(struct dma_desc *p)
 {
 	p->des01.etx.interrupt = 0;
 }
 
-static void gmac_close_tx_desc(struct dma_desc *p)
+static void dwmac1000_close_tx_desc(struct dma_desc *p)
 {
 	p->des01.etx.last_segment = 1;
 	p->des01.etx.interrupt = 1;
 }
 
-static int gmac_get_rx_frame_len(struct dma_desc *p)
+static int dwmac1000_get_rx_frame_len(struct dma_desc *p)
 {
 	return p->des01.erx.frame_length;
 }
 
-struct stmmac_ops gmac_driver = {
-	.core_init = gmac_core_init,
-	.dump_mac_regs = gmac_dump_regs,
-	.dma_init = gmac_dma_init,
-	.dump_dma_regs = gmac_dump_dma_regs,
-	.dma_mode = gmac_dma_operation_mode,
-	.dma_diagnostic_fr = gmac_dma_diagnostic_fr,
-	.tx_status = gmac_get_tx_frame_status,
-	.rx_status = gmac_get_rx_frame_status,
-	.get_tx_len = gmac_get_tx_len,
-	.set_filter = gmac_set_filter,
-	.flow_ctrl = gmac_flow_ctrl,
-	.pmt = gmac_pmt,
-	.init_rx_desc = gmac_init_rx_desc,
-	.init_tx_desc = gmac_init_tx_desc,
-	.get_tx_owner = gmac_get_tx_owner,
-	.get_rx_owner = gmac_get_rx_owner,
-	.release_tx_desc = gmac_release_tx_desc,
-	.prepare_tx_desc = gmac_prepare_tx_desc,
-	.clear_tx_ic = gmac_clear_tx_ic,
-	.close_tx_desc = gmac_close_tx_desc,
-	.get_tx_ls = gmac_get_tx_ls,
-	.set_tx_owner = gmac_set_tx_owner,
-	.set_rx_owner = gmac_set_rx_owner,
-	.get_rx_frame_len = gmac_get_rx_frame_len,
-	.host_irq_status = gmac_irq_status,
-	.set_umac_addr = gmac_set_umac_addr,
-	.get_umac_addr = gmac_get_umac_addr,
+struct stmmac_dma_ops dwmac1000_dma_ops = {
+	.init = dwmac1000_dma_init,
+	.dump_regs = dwmac1000_dump_dma_regs,
+	.dma_mode = dwmac1000_dma_operation_mode,
+	.dma_diagnostic_fr = dwmac1000_dma_diagnostic_fr,
+	.enable_dma_transmission = dwmac_enable_dma_transmission,
+	.enable_dma_irq = dwmac_enable_dma_irq,
+	.disable_dma_irq = dwmac_disable_dma_irq,
+	.start_tx = dwmac_dma_start_tx,
+	.stop_tx = dwmac_dma_stop_tx,
+	.start_rx = dwmac_dma_start_rx,
+	.stop_rx = dwmac_dma_stop_rx,
+	.dma_interrupt = dwmac_dma_interrupt,
 };
 
-struct mac_device_info *gmac_setup(unsigned long ioaddr)
-{
-	struct mac_device_info *mac;
-	u32 uid = readl(ioaddr + GMAC_VERSION);
-
-	pr_info("\tGMAC - user ID: 0x%x, Synopsys ID: 0x%x\n",
-	       ((uid & 0x0000ff00) >> 8), (uid & 0x000000ff));
-
-	mac = kzalloc(sizeof(const struct mac_device_info), GFP_KERNEL);
-
-	mac->ops = &gmac_driver;
-	mac->hw.pmt = PMT_SUPPORTED;
-	mac->hw.link.port = GMAC_CONTROL_PS;
-	mac->hw.link.duplex = GMAC_CONTROL_DM;
-	mac->hw.link.speed = GMAC_CONTROL_FES;
-	mac->hw.mii.addr = GMAC_MII_ADDR;
-	mac->hw.mii.data = GMAC_MII_DATA;
-
-	return mac;
-}
+struct stmmac_desc_ops dwmac1000_desc_ops = {
+	.tx_status = dwmac1000_get_tx_frame_status,
+	.rx_status = dwmac1000_get_rx_frame_status,
+	.get_tx_len = dwmac1000_get_tx_len,
+	.init_rx_desc = dwmac1000_init_rx_desc,
+	.init_tx_desc = dwmac1000_init_tx_desc,
+	.get_tx_owner = dwmac1000_get_tx_owner,
+	.get_rx_owner = dwmac1000_get_rx_owner,
+	.release_tx_desc = dwmac1000_release_tx_desc,
+	.prepare_tx_desc = dwmac1000_prepare_tx_desc,
+	.clear_tx_ic = dwmac1000_clear_tx_ic,
+	.close_tx_desc = dwmac1000_close_tx_desc,
+	.get_tx_ls = dwmac1000_get_tx_ls,
+	.set_tx_owner = dwmac1000_set_tx_owner,
+	.set_rx_owner = dwmac1000_set_rx_owner,
+	.get_rx_frame_len = dwmac1000_get_rx_frame_len,
+};

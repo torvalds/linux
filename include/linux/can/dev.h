@@ -38,6 +38,7 @@ struct can_priv {
 
 	enum can_state state;
 	u32 ctrlmode;
+	u32 ctrlmode_supported;
 
 	int restart_ms;
 	struct timer_list restart_timer;
@@ -46,6 +47,8 @@ struct can_priv {
 	int (*do_set_mode)(struct net_device *dev, enum can_mode mode);
 	int (*do_get_state)(const struct net_device *dev,
 			    enum can_state *state);
+	int (*do_get_berr_counter)(const struct net_device *dev,
+				   struct can_berr_counter *bec);
 
 	unsigned int echo_skb_max;
 	struct sk_buff **echo_skb;
@@ -59,6 +62,21 @@ struct can_priv {
  * ISO 11898-1 Chapter 8.4.2.3 (DLC field)
  */
 #define get_can_dlc(i)	(min_t(__u8, (i), 8))
+
+/* Drop a given socketbuffer if it does not contain a valid CAN frame. */
+static inline int can_dropped_invalid_skb(struct net_device *dev,
+					  struct sk_buff *skb)
+{
+	const struct can_frame *cf = (struct can_frame *)skb->data;
+
+	if (unlikely(skb->len != sizeof(*cf) || cf->can_dlc > 8)) {
+		kfree_skb(skb);
+		dev->stats.tx_dropped++;
+		return 1;
+	}
+
+	return 0;
+}
 
 struct net_device *alloc_candev(int sizeof_priv, unsigned int echo_skb_max);
 void free_candev(struct net_device *dev);

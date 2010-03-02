@@ -467,7 +467,6 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 {
 	struct octeon_mgmt *p = netdev_priv(netdev);
 	int port = p->port;
-	int i;
 	union cvmx_agl_gmx_rxx_adr_ctl adr_ctl;
 	union cvmx_agl_gmx_prtx_cfg agl_gmx_prtx;
 	unsigned long flags;
@@ -493,8 +492,8 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 	}
 
 	if (netdev->flags & IFF_MULTICAST) {
-		if (cam_mode == 0 || (netdev->flags & IFF_ALLMULTI)
-		    || netdev->mc_count  > available_cam_entries)
+		if (cam_mode == 0 || (netdev->flags & IFF_ALLMULTI) ||
+		    netdev_mc_count(netdev) > available_cam_entries)
 			multicast_mode = 2; /* 1 - Accept all multicast.  */
 		else
 			multicast_mode = 0; /* 0 - Use CAM.  */
@@ -511,12 +510,8 @@ static void octeon_mgmt_set_rx_filtering(struct net_device *netdev)
 		}
 	}
 	if (multicast_mode == 0) {
-		i = netdev->mc_count;
-		list = netdev->mc_list;
-		while (i--) {
+		netdev_for_each_mc_addr(list, netdev)
 			octeon_mgmt_cam_state_add(&cam_state, list->da_addr);
-			list = list->next;
-		}
 	}
 
 
@@ -1119,11 +1114,8 @@ static int __init octeon_mgmt_probe(struct platform_device *pdev)
 
 	if (p->port >= octeon_bootinfo->mac_addr_count)
 		dev_err(&pdev->dev,
-			"Error %s: Using MAC outside of the assigned range: "
-			"%02x:%02x:%02x:%02x:%02x:%02x\n", netdev->name,
-			netdev->dev_addr[0], netdev->dev_addr[1],
-			netdev->dev_addr[2], netdev->dev_addr[3],
-			netdev->dev_addr[4], netdev->dev_addr[5]);
+			"Error %s: Using MAC outside of the assigned range: %pM\n",
+			netdev->name, netdev->dev_addr);
 
 	if (register_netdev(netdev))
 		goto err;

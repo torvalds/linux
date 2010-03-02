@@ -1,6 +1,6 @@
 /******************************************************************************
  *
- * Copyright(c) 2003 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2003 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of version 2 of the GNU General Public License as
@@ -45,8 +45,8 @@
 #include "iwl-sta.h"
 #include "iwl-3945.h"
 #include "iwl-eeprom.h"
-#include "iwl-helpers.h"
 #include "iwl-core.h"
+#include "iwl-helpers.h"
 #include "iwl-led.h"
 #include "iwl-3945-led.h"
 
@@ -1951,11 +1951,7 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 	}
 
 	/* Add the broadcast address so we can send broadcast frames */
-	if (iwl_add_station(priv, iwl_bcast_addr, false, CMD_SYNC, NULL) ==
-	    IWL_INVALID_STATION) {
-		IWL_ERR(priv, "Error adding BROADCAST address for transmit.\n");
-		return -EIO;
-	}
+	priv->cfg->ops->lib->add_bcast_station(priv);
 
 	/* If we have set the ASSOC_MSK and we are in BSS mode then
 	 * add the IWL_AP_ID to the station rate table */
@@ -2474,11 +2470,9 @@ int iwl3945_hw_set_hw_params(struct iwl_priv *priv)
 	memset((void *)&priv->hw_params, 0,
 	       sizeof(struct iwl_hw_params));
 
-	priv->shared_virt =
-	    pci_alloc_consistent(priv->pci_dev,
-				 sizeof(struct iwl3945_shared),
-				 &priv->shared_phys);
-
+	priv->shared_virt = dma_alloc_coherent(&priv->pci_dev->dev,
+					       sizeof(struct iwl3945_shared),
+					       &priv->shared_phys, GFP_KERNEL);
 	if (!priv->shared_virt) {
 		IWL_ERR(priv, "failed to allocate pci memory\n");
 		mutex_unlock(&priv->mutex);
@@ -2796,6 +2790,7 @@ static struct iwl_lib_ops iwl3945_lib = {
 	.post_associate = iwl3945_post_associate,
 	.isr = iwl_isr_legacy,
 	.config_ap = iwl3945_config_ap,
+	.add_bcast_station = iwl3945_add_bcast_station,
 };
 
 static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
@@ -2804,7 +2799,7 @@ static struct iwl_hcmd_utils_ops iwl3945_hcmd_utils = {
 	.rts_tx_cmd_flag = iwlcore_rts_tx_cmd_flag,
 };
 
-static struct iwl_ops iwl3945_ops = {
+static const struct iwl_ops iwl3945_ops = {
 	.ucode = &iwl3945_ucode,
 	.lib = &iwl3945_lib,
 	.hcmd = &iwl3945_hcmd,
@@ -2830,6 +2825,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.ht_greenfield_support = false,
 	.led_compensation = 64,
 	.broken_powersave = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2847,9 +2843,10 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.ht_greenfield_support = false,
 	.led_compensation = 64,
 	.broken_powersave = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 };
 
-struct pci_device_id iwl3945_hw_card_ids[] = {
+DEFINE_PCI_DEVICE_TABLE(iwl3945_hw_card_ids) = {
 	{IWL_PCI_DEVICE(0x4222, 0x1005, iwl3945_bg_cfg)},
 	{IWL_PCI_DEVICE(0x4222, 0x1034, iwl3945_bg_cfg)},
 	{IWL_PCI_DEVICE(0x4222, 0x1044, iwl3945_bg_cfg)},

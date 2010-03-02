@@ -2391,6 +2391,12 @@ F:	Documentation/isdn/README.gigaset
 F:	drivers/isdn/gigaset/
 F:	include/linux/gigaset_dev.h
 
+GRETH 10/100/1G Ethernet MAC device driver
+M:	Kristoffer Glembo <kristoffer@gaisler.com>
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/net/greth*
+
 HARD DRIVE ACTIVE PROTECTION SYSTEM (HDAPS) DRIVER
 M:	Frank Seidel <frank@f-seidel.de>
 L:	lm-sensors@lm-sensors.org
@@ -3528,9 +3534,9 @@ F:	drivers/net/mv643xx_eth.*
 F:	include/linux/mv643xx.h
 
 MARVELL MWL8K WIRELESS DRIVER
-M:	Lennert Buytenhek <buytenh@marvell.com>
+M:	Lennert Buytenhek <buytenh@wantstofly.org>
 L:	linux-wireless@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/wireless/mwl8k.c
 
 MARVELL SOC MMC/SD/SDIO CONTROLLER DRIVER
@@ -4480,6 +4486,13 @@ S:	Supported
 F:	Documentation/networking/LICENSE.qla3xxx
 F:	drivers/net/qla3xxx.*
 
+QLOGIC QLCNIC (1/10)Gb ETHERNET DRIVER
+M:	Amit Kumar Salecha <amit.salecha@qlogic.com>
+M:	linux-driver@qlogic.com
+L:	netdev@vger.kernel.org
+S:	Supported
+F:	drivers/net/qlcnic/
+
 QLOGIC QLGE 10Gb ETHERNET DRIVER
 M:	Ron Mercer <ron.mercer@qlogic.com>
 M:	linux-driver@qlogic.com
@@ -4874,6 +4887,8 @@ F:	drivers/scsi/be2iscsi/
 SERVER ENGINES 10Gbps NIC - BladeEngine 2 DRIVER
 M:	Sathya Perla <sathyap@serverengines.com>
 M:	Subbu Seetharaman <subbus@serverengines.com>
+M:	Sarveshwar Bandi <sarveshwarb@serverengines.com>
+M:	Ajit Khaparde <ajitk@serverengines.com>
 L:	netdev@vger.kernel.org
 W:	http://www.serverengines.com
 S:	Supported
@@ -5842,6 +5857,15 @@ S:	Maintained
 F:	Documentation/filesystems/vfat.txt
 F:	fs/fat/
 
+VIRTIO HOST (VHOST)
+M:	"Michael S. Tsirkin" <mst@redhat.com>
+L:	kvm@vger.kernel.org
+L:	virtualization@lists.osdl.org
+L:	netdev@vger.kernel.org
+S:	Maintained
+F:	drivers/vhost/
+F:	include/linux/vhost.h
+
 VIA RHINE NETWORK DRIVER
 M:	Roger Luethi <rl@hellgate.ch>
 S:	Maintained
@@ -6000,7 +6024,7 @@ S:	Maintained
 F:	drivers/input/misc/wistron_btns.c
 
 WL1251 WIRELESS DRIVER
-M:	Kalle Valo <kalle.valo@nokia.com>
+M:	Kalle Valo <kalle.valo@iki.fi>
 L:	linux-wireless@vger.kernel.org
 W:	http://wireless.kernel.org
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-testing.git

@@ -90,6 +90,18 @@ config MACVLAN
 	  To compile this driver as a module, choose M here: the module
 	  will be called macvlan.
 
+config MACVTAP
+	tristate "MAC-VLAN based tap driver (EXPERIMENTAL)"
+	depends on MACVLAN
+	help
+	  This adds a specialized tap character device driver that is based
+	  on the MAC-VLAN network interface, called macvtap. A macvtap device
+	  can be added in the same way as a macvlan device, using 'type
+	  macvlan', and then be accessed through the tap user space interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called macvtap.
+
 config EQUALIZER
 	tristate "EQL (serial line load balancing) support"
 	---help---
@@ -868,8 +880,8 @@ config BFIN_RX_DESC_NUM
 	  Set the number of buffer packets used in driver.
 
 config BFIN_MAC_RMII
-	bool "RMII PHY Interface (EXPERIMENTAL)"
-	depends on BFIN_MAC && EXPERIMENTAL
+	bool "RMII PHY Interface"
+	depends on BFIN_MAC
 	default y if BFIN527_EZKIT
 	default n if BFIN537_STAMP
 	help
@@ -982,6 +994,14 @@ config ETHOC
 	select BITREVERSE
 	help
 	  Say Y here if you want to use the OpenCores 10/100 Mbps Ethernet MAC.
+
+config GRETH
+	tristate "Aeroflex Gaisler GRETH Ethernet MAC support"
+	depends on SPARC
+	select PHYLIB
+	select CRC32
+	help
+	  Say Y here if you want to use the Aeroflex Gaisler GRETH Ethernet MAC.
 
 config SMC911X
 	tristate "SMSC LAN911[5678] support"
@@ -1367,6 +1387,17 @@ config AC3200
 
 	  To compile this driver as a module, choose M here. The module
 	  will be called ac3200.
+
+config KSZ884X_PCI
+	tristate "Micrel KSZ8841/2 PCI"
+	depends on NET_PCI && PCI
+	select MII
+	select CRC32
+	help
+	  This PCI driver is for Micrel KSZ8841/KSZ8842 PCI Ethernet chip.
+
+	  To compile this driver as a module, choose M here. The module
+	  will be called ksz884x.
 
 config APRICOT
 	tristate "Apricot Xen-II on board Ethernet"
@@ -1883,7 +1914,8 @@ config 68360_ENET
 
 config FEC
 	bool "FEC ethernet controller (of ColdFire and some i.MX CPUs)"
-	depends on M523x || M527x || M5272 || M528x || M520x || M532x || MACH_MX27 || ARCH_MX35 || ARCH_MX25
+	depends on M523x || M527x || M5272 || M528x || M520x || M532x || \
+		MACH_MX27 || ARCH_MX35 || ARCH_MX25 || ARCH_MX5
 	help
 	  Say Y here if you want to use the built-in 10/100 Fast ethernet
 	  controller on some Motorola ColdFire and Freescale i.MX processors.
@@ -1939,6 +1971,7 @@ config ATL2
 config XILINX_EMACLITE
 	tristate "Xilinx 10/100 Ethernet Lite support"
 	depends on PPC32 || MICROBLAZE
+	select PHYLIB
 	help
 	  This driver supports the 10/100 Ethernet Lite from Xilinx.
 
@@ -2356,20 +2389,6 @@ config GELIC_WIRELESS
 	  the driver automatically distinguishes the models, you can
 	  safely enable this option even if you have a wireless-less model.
 
-config GELIC_WIRELESS_OLD_PSK_INTERFACE
-       bool "PS3 Wireless private PSK interface (OBSOLETE)"
-       depends on GELIC_WIRELESS
-       select WEXT_PRIV
-       help
-          This option retains the obsolete private interface to pass
-          the PSK from user space programs to the driver.  The PSK
-          stands for 'Pre Shared Key' and is used for WPA[2]-PSK
-          (WPA-Personal) environment.
-          If WPA[2]-PSK is used and you need to use old programs that
-          support only this old interface, say Y.  Otherwise N.
-
-          If unsure, say N.
-
 config FSL_PQ_MDIO
 	tristate "Freescale PQ MDIO"
 	depends on FSL_SOC
@@ -2618,6 +2637,28 @@ config IXGBE_DCB
 
 	  If unsure, say N.
 
+config IXGBEVF
+       tristate "Intel(R) 82599 Virtual Function Ethernet support"
+       depends on PCI_MSI
+       ---help---
+         This driver supports Intel(R) 82599 virtual functions.  For more
+         information on how to identify your adapter, go to the Adapter &
+         Driver ID Guide at:
+
+         <http://support.intel.com/support/network/sb/CS-008441.htm>
+
+         For general information and support, go to the Intel support
+         website at:
+
+         <http://support.intel.com>
+
+         More specific information on configuring the driver is in
+         <file:Documentation/networking/ixgbevf.txt>.
+
+         To compile this driver as a module, choose M here. The module
+         will be called ixgbevf.  MSI-X interrupt support is required
+         for this driver to work correctly.
+
 config IXGB
 	tristate "Intel(R) PRO/10GbE support"
 	depends on PCI
@@ -2755,6 +2796,13 @@ config BNX2X
 	  This driver supports Broadcom NetXtremeII 10 gigabit Ethernet cards.
 	  To compile this driver as a module, choose M here: the module
 	  will be called bnx2x.  This is recommended.
+
+config QLCNIC
+	tristate "QLOGIC QLCNIC 1/10Gb Converged Ethernet NIC Support"
+	depends on PCI
+	help
+	  This driver supports QLogic QLE8240 and QLE8242 Converged Ethernet
+	  devices.
 
 config QLGE
 	tristate "QLogic QLGE 10Gb Ethernet Driver Support"

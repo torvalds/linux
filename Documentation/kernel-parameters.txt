@@ -54,6 +54,7 @@ parameter is applicable:
 	IMA     Integrity measurement architecture is enabled.
 	IOSCHED	More than one I/O scheduler is enabled.
 	IP_PNP	IP DHCP, BOOTP, or RARP is enabled.
+	IPV6	IPv6 support is enabled.
 	ISAPNP	ISA PnP code is enabled.
 	ISDN	Appropriate ISDN support is enabled.
 	JOY	Appropriate joystick support is enabled.
@@ -356,6 +357,9 @@ and is between 256 and 4096 characters. It is defined in the file
 			Change the amount of debugging information output
 			when initialising the APIC and IO-APIC components.
 
+	autoconf=	[IPV6]
+			See Documentation/networking/ipv6.txt.
+
 	show_lapic=	[APIC,X86] Advanced Programmable Interrupt Controller
 			Limit apic dumping. The parameter defines the maximal
 			number of local apics being dumped. Also it is possible
@@ -637,6 +641,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	digiepca=	[HW,SERIAL]
 			See drivers/char/README.epca and
 			Documentation/serial/digiepca.txt.
+
+	disable=	[IPV6]
+			See Documentation/networking/ipv6.txt.
+
+	disable_ipv6=	[IPV6]
+			See Documentation/networking/ipv6.txt.
 
 	disable_mtrr_cleanup [X86]
 			The kernel tries to adjust MTRR layout from continuous

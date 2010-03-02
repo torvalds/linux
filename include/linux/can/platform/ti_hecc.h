@@ -1,3 +1,6 @@
+#ifndef __CAN_PLATFORM_TI_HECC_H__
+#define __CAN_PLATFORM_TI_HECC_H__
+
 /*
  * TI HECC (High End CAN Controller) driver platform header
  *
@@ -23,6 +26,7 @@
  * @mbx_offset:		Mailbox RAM offset
  * @int_line:		Interrupt line to use - 0 or 1
  * @version:		version for future use
+ * @transceiver_switch:	platform specific callback fn for transceiver control
  *
  * Platform data structure to get all platform specific settings.
  * this structure also accounts the fact that the IP may have different
@@ -35,6 +39,6 @@ struct ti_hecc_platform_data {
 	u32 mbx_offset;
 	u32 int_line;
 	u32 version;
+	void (*transceiver_switch) (int);
 };
-
-
+#endif

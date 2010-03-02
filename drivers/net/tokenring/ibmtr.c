@@ -995,13 +995,11 @@ static void tok_set_multicast_list(struct net_device *dev)
 	/*BMS ifconfig tr down or hot unplug a PCMCIA card ??hownowbrowncow*/
 	if (/*BMSHELPdev->start == 0 ||*/ ti->open_status != OPEN) return;
 	address[0] = address[1] = address[2] = address[3] = 0;
-	mclist = dev->mc_list;
-	for (i = 0; i < dev->mc_count; i++) {
+	netdev_for_each_mc_addr(mclist, dev) {
 		address[0] |= mclist->dmi_addr[2];
 		address[1] |= mclist->dmi_addr[3];
 		address[2] |= mclist->dmi_addr[4];
 		address[3] |= mclist->dmi_addr[5];
-		mclist = mclist->next;
 	}
 	SET_PAGE(ti->srb_page);
 	for (i = 0; i < sizeof(struct srb_set_funct_addr); i++)

@@ -35,6 +35,7 @@
 #include <linux/security.h>
 #include <linux/mutex.h>
 #include <linux/if_addr.h>
+#include <linux/pci.h>
 
 #include <asm/uaccess.h>
 #include <asm/system.h>
@@ -556,6 +557,19 @@ static void set_operstate(struct net_device *dev, unsigned char transition)
 	}
 }
 
+static unsigned int rtnl_dev_combine_flags(const struct net_device *dev,
+					   const struct ifinfomsg *ifm)
+{
+	unsigned int flags = ifm->ifi_flags;
+
+	/* bugwards compatibility: ifi_change == 0 is treated as ~0 */
+	if (ifm->ifi_change)
+		flags = (flags & ifm->ifi_change) |
+			(dev->flags & ~ifm->ifi_change);
+
+	return flags;
+}
+
 static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 				 const struct net_device_stats *b)
 {
@@ -588,6 +602,15 @@ static void copy_rtnl_link_stats(struct rtnl_link_stats *a,
 	a->tx_compressed = b->tx_compressed;
 };
 
+static inline int rtnl_vfinfo_size(const struct net_device *dev)
+{
+	if (dev->dev.parent && dev_is_pci(dev->dev.parent))
+		return dev_num_vf(dev->dev.parent) *
+			sizeof(struct ifla_vf_info);
+	else
+		return 0;
+}
+
 static inline size_t if_nlmsg_size(const struct net_device *dev)
 {
 	return NLMSG_ALIGN(sizeof(struct ifinfomsg))
@@ -605,6 +628,8 @@ static inline size_t if_nlmsg_size(const struct net_device *dev)
 	       + nla_total_size(4) /* IFLA_MASTER */
 	       + nla_total_size(1) /* IFLA_OPERSTATE */
 	       + nla_total_size(1) /* IFLA_LINKMODE */
+	       + nla_total_size(4) /* IFLA_NUM_VF */
+	       + nla_total_size(rtnl_vfinfo_size(dev)) /* IFLA_VFINFO */
 	       + rtnl_link_get_size(dev); /* IFLA_LINKINFO */
 }
 
@@ -673,6 +698,17 @@ static int rtnl_fill_ifinfo(struct sk_buff *skb, struct net_device *dev,
 	stats = dev_get_stats(dev);
 	copy_rtnl_link_stats(nla_data(attr), stats);
 
+	if (dev->netdev_ops->ndo_get_vf_config && dev->dev.parent) {
+		int i;
+		struct ifla_vf_info ivi;
+
+		NLA_PUT_U32(skb, IFLA_NUM_VF, dev_num_vf(dev->dev.parent));
+		for (i = 0; i < dev_num_vf(dev->dev.parent); i++) {
+			if (dev->netdev_ops->ndo_get_vf_config(dev, i, &ivi))
+				break;
+			NLA_PUT(skb, IFLA_VFINFO, sizeof(ivi), &ivi);
+		}
+	}
 	if (dev->rtnl_link_ops) {
 		if (rtnl_link_fill(skb, dev) < 0)
 			goto nla_put_failure;
@@ -733,6 +769,12 @@ const struct nla_policy ifla_policy[IFLA_MAX+1] = {
 	[IFLA_LINKINFO]		= { .type = NLA_NESTED },
 	[IFLA_NET_NS_PID]	= { .type = NLA_U32 },
 	[IFLA_IFALIAS]	        = { .type = NLA_STRING, .len = IFALIASZ-1 },
+	[IFLA_VF_MAC]		= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_mac) },
+	[IFLA_VF_VLAN]		= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_vlan) },
+	[IFLA_VF_TX_RATE]	= { .type = NLA_BINARY,
+				    .len = sizeof(struct ifla_vf_tx_rate) },
 };
 EXPORT_SYMBOL(ifla_policy);
 
@@ -883,13 +925,7 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 	}
 
 	if (ifm->ifi_flags || ifm->ifi_change) {
-		unsigned int flags = ifm->ifi_flags;
-
-		/* bugwards compatibility: ifi_change == 0 is treated as ~0 */
-		if (ifm->ifi_change)
-			flags = (flags & ifm->ifi_change) |
-				(dev->flags & ~ifm->ifi_change);
-		err = dev_change_flags(dev, flags);
+		err = dev_change_flags(dev, rtnl_dev_combine_flags(dev, ifm));
 		if (err < 0)
 			goto errout;
 	}
@@ -906,6 +942,41 @@ static int do_setlink(struct net_device *dev, struct ifinfomsg *ifm,
 		write_unlock_bh(&dev_base_lock);
 	}
 
+	if (tb[IFLA_VF_MAC]) {
+		struct ifla_vf_mac *ivm;
+		ivm = nla_data(tb[IFLA_VF_MAC]);
+		err = -EOPNOTSUPP;
+		if (ops->ndo_set_vf_mac)
+			err = ops->ndo_set_vf_mac(dev, ivm->vf, ivm->mac);
+		if (err < 0)
+			goto errout;
+		modified = 1;
+	}
+
+	if (tb[IFLA_VF_VLAN]) {
+		struct ifla_vf_vlan *ivv;
+		ivv = nla_data(tb[IFLA_VF_VLAN]);
+		err = -EOPNOTSUPP;
+		if (ops->ndo_set_vf_vlan)
+			err = ops->ndo_set_vf_vlan(dev, ivv->vf,
+						   ivv->vlan,
+						   ivv->qos);
+		if (err < 0)
+			goto errout;
+		modified = 1;
+	}
+	err = 0;
+
+	if (tb[IFLA_VF_TX_RATE]) {
+		struct ifla_vf_tx_rate *ivt;
+		ivt = nla_data(tb[IFLA_VF_TX_RATE]);
+		err = -EOPNOTSUPP;
+		if (ops->ndo_set_vf_tx_rate)
+			err = ops->ndo_set_vf_tx_rate(dev, ivt->vf, ivt->rate);
+		if (err < 0)
+			goto errout;
+		modified = 1;
+	}
 	err = 0;
 
 errout:
@@ -997,6 +1068,26 @@ static int rtnl_dellink(struct sk_buff *skb, struct nlmsghdr *nlh, void *arg)
 	return 0;
 }
 
+int rtnl_configure_link(struct net_device *dev, const struct ifinfomsg *ifm)
+{
+	unsigned int old_flags;
+	int err;
+
+	old_flags = dev->flags;
+	if (ifm && (ifm->ifi_flags || ifm->ifi_change)) {
+		err = __dev_change_flags(dev, rtnl_dev_combine_flags(dev, ifm));
+		if (err < 0)
+			return err;
+	}
+
+	dev->rtnl_link_state = RTNL_LINK_INITIALIZED;
+	rtmsg_ifinfo(RTM_NEWLINK, dev, ~0U);
+
+	__dev_notify_flags(dev, old_flags);
+	return 0;
+}
+EXPORT_SYMBOL(rtnl_configure_link);
+
 struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 	char *ifname, const struct rtnl_link_ops *ops, struct nlattr *tb[])
 {
@@ -1018,6 +1109,7 @@ struct net_device *rtnl_create_link(struct net *src_net, struct net *net,
 
 	dev_net_set(dev, net);
 	dev->rtnl_link_ops = ops;
+	dev->rtnl_link_state = RTNL_LINK_INITIALIZING;
 	dev->real_num_tx_queues = real_num_queues;
 
 	if (strchr(dev->name, '%')) {
@@ -1147,7 +1239,7 @@ replay:
 		if (!(nlh->nlmsg_flags & NLM_F_CREATE))
 			return -ENODEV;
 
-		if (ifm->ifi_index || ifm->ifi_flags || ifm->ifi_change)
+		if (ifm->ifi_index)
 			return -EOPNOTSUPP;
 		if (tb[IFLA_MAP] || tb[IFLA_MASTER] || tb[IFLA_PROTINFO])
 			return -EOPNOTSUPP;
@@ -1178,9 +1270,15 @@ replay:
 			err = ops->newlink(net, dev, tb, data);
 		else
 			err = register_netdevice(dev);
-		if (err < 0 && !IS_ERR(dev))
+		if (err < 0 && !IS_ERR(dev)) {
 			free_netdev(dev);
+			goto out;
+		}
 
+		err = rtnl_configure_link(dev, ifm);
+		if (err < 0)
+			unregister_netdevice(dev);
+out:
 		put_net(dest_net);
 		return err;
 	}
@@ -1369,17 +1467,14 @@ static int rtnetlink_event(struct notifier_block *this, unsigned long event, voi
 	struct net_device *dev = ptr;
 
 	switch (event) {
-	case NETDEV_UNREGISTER:
-		rtmsg_ifinfo(RTM_DELLINK, dev, ~0U);
-		break;
 	case NETDEV_UP:
 	case NETDEV_DOWN:
-		rtmsg_ifinfo(RTM_NEWLINK, dev, IFF_UP|IFF_RUNNING);
-		break;
+	case NETDEV_PRE_UP:
 	case NETDEV_POST_INIT:
 	case NETDEV_REGISTER:
 	case NETDEV_CHANGE:
 	case NETDEV_GOING_DOWN:
+	case NETDEV_UNREGISTER:
 	case NETDEV_UNREGISTER_BATCH:
 		break;
 	default:
@@ -1394,7 +1489,7 @@ static struct notifier_block rtnetlink_dev_notifier = {
 };
 
 
-static int rtnetlink_net_init(struct net *net)
+static int __net_init rtnetlink_net_init(struct net *net)
 {
 	struct sock *sk;
 	sk = netlink_kernel_create(net, NETLINK_ROUTE, RTNLGRP_MAX,
@@ -1405,7 +1500,7 @@ static int rtnetlink_net_init(struct net *net)
 	return 0;
 }
 
-static void rtnetlink_net_exit(struct net *net)
+static void __net_exit rtnetlink_net_exit(struct net *net)
 {
 	netlink_kernel_release(net->rtnl);
 	net->rtnl = NULL;

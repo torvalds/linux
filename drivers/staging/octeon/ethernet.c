@@ -350,7 +350,7 @@ static void cvm_oct_common_set_multicast_list(struct net_device *dev)
 		control.u64 = 0;
 		control.s.bcst = 1;	/* Allow broadcast MAC addresses */
 
-		if (dev->mc_list || (dev->flags & IFF_ALLMULTI) ||
+		if (!netdev_mc_empty(dev) || (dev->flags & IFF_ALLMULTI) ||
 		    (dev->flags & IFF_PROMISC))
 			/* Force accept multicast packets */
 			control.s.mcst = 2;

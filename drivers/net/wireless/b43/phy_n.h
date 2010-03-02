@@ -231,6 +231,7 @@
 #define B43_NPHY_C2_TXIQ_COMP_OFF		B43_PHY_N(0x088) /* Core 2 TX I/Q comp offset */
 #define B43_NPHY_C1_TXCTL			B43_PHY_N(0x08B) /* Core 1 TX control */
 #define B43_NPHY_C2_TXCTL			B43_PHY_N(0x08C) /* Core 2 TX control */
+#define B43_NPHY_AFECTL_OVER1			B43_PHY_N(0x08F) /* AFE control override 1 */
 #define B43_NPHY_SCRAM_SIGCTL			B43_PHY_N(0x090) /* Scram signal control */
 #define  B43_NPHY_SCRAM_SIGCTL_INITST		0x007F /* Initial state value */
 #define  B43_NPHY_SCRAM_SIGCTL_INITST_SHIFT	0
@@ -705,6 +706,10 @@
 #define B43_NPHY_TXPCTL_INIT			B43_PHY_N(0x222) /* TX power controll init */
 #define  B43_NPHY_TXPCTL_INIT_PIDXI1		0x00FF /* Power index init 1 */
 #define  B43_NPHY_TXPCTL_INIT_PIDXI1_SHIFT	0
+#define B43_NPHY_PAPD_EN0			B43_PHY_N(0x297) /* PAPD Enable0 TBD */
+#define B43_NPHY_EPS_TABLE_ADJ0			B43_PHY_N(0x298) /* EPS Table Adj0 TBD */
+#define B43_NPHY_PAPD_EN1			B43_PHY_N(0x29B) /* PAPD Enable1 TBD */
+#define B43_NPHY_EPS_TABLE_ADJ1			B43_PHY_N(0x29C) /* EPS Table Adj1 TBD */
 
 
 
@@ -919,8 +924,99 @@
 
 struct b43_wldev;
 
+struct b43_phy_n_iq_comp {
+	s16 a0;
+	s16 b0;
+	s16 a1;
+	s16 b1;
+};
+
+struct b43_phy_n_rssical_cache {
+	u16 rssical_radio_regs_2G[2];
+	u16 rssical_phy_regs_2G[12];
+
+	u16 rssical_radio_regs_5G[2];
+	u16 rssical_phy_regs_5G[12];
+};
+
+struct b43_phy_n_cal_cache {
+	u16 txcal_radio_regs_2G[8];
+	u16 txcal_coeffs_2G[8];
+	struct b43_phy_n_iq_comp rxcal_coeffs_2G;
+
+	u16 txcal_radio_regs_5G[8];
+	u16 txcal_coeffs_5G[8];
+	struct b43_phy_n_iq_comp rxcal_coeffs_5G;
+};
+
+struct b43_phy_n_txpwrindex {
+	s8 index;
+	s8 index_internal;
+	s8 index_internal_save;
+	u16 AfectrlOverride;
+	u16 AfeCtrlDacGain;
+	u16 rad_gain;
+	u8 bbmult;
+	u16 iqcomp_a;
+	u16 iqcomp_b;
+	u16 locomp;
+};
+
 struct b43_phy_n {
-	//TODO lots of missing stuff
+	u8 antsel_type;
+	u8 cal_orig_pwr_idx[2];
+	u8 measure_hold;
+	u8 phyrxchain;
+	u8 perical;
+	u32 deaf_count;
+	u32 rxcalparams;
+	bool hang_avoid;
+	bool mute;
+	u16 papd_epsilon_offset[2];
+	s32 preamble_override;
+	u32 bb_mult_save;
+	u16 radio_chanspec;
+
+	bool gain_boost;
+	bool elna_gain_config;
+	bool band5g_pwrgain;
+
+	u8 mphase_cal_phase_id;
+	u16 mphase_txcal_cmdidx;
+	u16 mphase_txcal_numcmds;
+	u16 mphase_txcal_bestcoeffs[11];
+
+	u8 txpwrctrl;
+	u16 txcal_bbmult;
+	u16 txiqlocal_bestc[11];
+	bool txiqlocal_coeffsvalid;
+	struct b43_phy_n_txpwrindex txpwrindex[2];
+
+	u8 txrx_chain;
+	u16 tx_rx_cal_phy_saveregs[11];
+	u16 tx_rx_cal_radio_saveregs[22];
+
+	u16 rfctrl_intc1_save;
+	u16 rfctrl_intc2_save;
+
+	u16 classifier_state;
+	u16 clip_state[2];
+
+	bool aband_spurwar_en;
+	bool gband_spurwar_en;
+
+	bool ipa2g_on;
+	u8 iqcal_chanspec_2G;
+	u8 rssical_chanspec_2G;
+
+	bool ipa5g_on;
+	u8 iqcal_chanspec_5G;
+	u8 rssical_chanspec_5G;
+
+	struct b43_phy_n_rssical_cache rssical_cache;
+	struct b43_phy_n_cal_cache cal_cache;
+	bool crsminpwr_adjusted;
+	bool noisevars_adjusted;
 };
 
 

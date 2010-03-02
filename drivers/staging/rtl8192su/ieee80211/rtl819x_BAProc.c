@@ -136,7 +136,7 @@ static struct sk_buff* ieee80211_ADDBA(struct ieee80211_device* ieee, u8* Dst, P
 
 	memcpy(BAReq->addr3, ieee->current_network.bssid, ETH_ALEN);
 
-	BAReq->frame_ctl = cpu_to_le16(IEEE80211_STYPE_MANAGE_ACT); //action frame
+	BAReq->frame_control = cpu_to_le16(IEEE80211_STYPE_MANAGE_ACT); //action frame
 
 	//tag += sizeof( struct ieee80211_hdr_3addr); //move to action field
 	tag = (u8*)skb_put(skb, 9);
@@ -221,7 +221,7 @@ static struct sk_buff* ieee80211_DELBA(
 	memcpy(Delba->addr1, dst, ETH_ALEN);
 	memcpy(Delba->addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy(Delba->addr3, ieee->current_network.bssid, ETH_ALEN);
-	Delba->frame_ctl = cpu_to_le16(IEEE80211_STYPE_MANAGE_ACT); //action frame
+	Delba->frame_control = cpu_to_le16(IEEE80211_STYPE_MANAGE_ACT); //action frame
 
 	tag = (u8*)skb_put(skb, 6);
 

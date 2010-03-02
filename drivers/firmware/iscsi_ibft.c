@@ -380,7 +380,6 @@ static ssize_t ibft_attr_show_nic(struct ibft_kobject *entry,
 	struct ibft_nic *nic = entry->nic;
 	void *ibft_loc = entry->header;
 	char *str = buf;
-	char *mac;
 	__be32 val;
 
 	if (!nic)
@@ -419,10 +418,7 @@ static ssize_t ibft_attr_show_nic(struct ibft_kobject *entry,
 		str += sprintf(str, "%d\n", nic->vlan);
 		break;
 	case ibft_eth_mac:
-		mac = nic->mac;
-		str += sprintf(str, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			       (u8)mac[0], (u8)mac[1], (u8)mac[2],
-			       (u8)mac[3], (u8)mac[4], (u8)mac[5]);
+		str += sprintf(str, "%pM\n", nic->mac);
 		break;
 	case ibft_eth_hostname:
 		str += sprintf_string(str, nic->hostname_len,

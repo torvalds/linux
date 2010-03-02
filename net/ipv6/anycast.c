@@ -538,7 +538,7 @@ static const struct file_operations ac6_seq_fops = {
 	.release	=	seq_release_net,
 };
 
-int ac6_proc_init(struct net *net)
+int __net_init ac6_proc_init(struct net *net)
 {
 	if (!proc_net_fops_create(net, "anycast6", S_IRUGO, &ac6_seq_fops))
 		return -ENOMEM;

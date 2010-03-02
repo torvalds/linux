@@ -635,7 +635,7 @@ out:
 	if (priv->connect_status == LBS_CONNECTED && !priv->tx_pending_len)
 		netif_wake_queue(priv->dev);
 
-	if (priv->mesh_dev && (priv->mesh_connect_status == LBS_CONNECTED) &&
+	if (priv->mesh_dev && lbs_mesh_connected(priv) &&
 	    !priv->tx_pending_len)
 		netif_wake_queue(priv->mesh_dev);
 

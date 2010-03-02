@@ -20,6 +20,9 @@
   Author: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
+#include <linux/phy.h>
+#include "common.h"
+
 #define GMAC_CONTROL		0x00000000	/* Configuration */
 #define GMAC_FRAME_FILTER	0x00000004	/* Frame Filter */
 #define GMAC_HASH_HIGH		0x00000008	/* Multicast Hash Table High */
@@ -32,7 +35,7 @@
 #define GMAC_WAKEUP_FILTER	0x00000028	/* Wake-up Frame Filter */
 
 #define GMAC_INT_STATUS		0x00000038	/* interrupt status register */
-enum gmac_irq_status {
+enum dwmac1000_irq_status {
 	time_stamp_irq = 0x0200,
 	mmc_rx_csum_offload_irq = 0x0080,
 	mmc_tx_irq = 0x0040,
@@ -202,3 +205,16 @@ enum rtc_control {
 #define GMAC_MMC_RX_INTR   0x104
 #define GMAC_MMC_TX_INTR   0x108
 #define GMAC_MMC_RX_CSUM_OFFLOAD   0x208
+
+#undef DWMAC1000_DEBUG
+/* #define DWMAC1000__DEBUG */
+#undef FRAME_FILTER_DEBUG
+/* #define FRAME_FILTER_DEBUG */
+#ifdef DWMAC1000__DEBUG
+#define DBG(fmt, args...)  printk(fmt, ## args)
+#else
+#define DBG(fmt, args...)  do { } while (0)
+#endif
+
+extern struct stmmac_dma_ops dwmac1000_dma_ops;
+extern struct stmmac_desc_ops dwmac1000_desc_ops;

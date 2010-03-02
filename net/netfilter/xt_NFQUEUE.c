@@ -28,6 +28,7 @@ MODULE_ALIAS("ip6t_NFQUEUE");
 MODULE_ALIAS("arpt_NFQUEUE");
 
 static u32 jhash_initval __read_mostly;
+static bool rnd_inited __read_mostly;
 
 static unsigned int
 nfqueue_tg(struct sk_buff *skb, const struct xt_target_param *par)
@@ -90,6 +91,10 @@ static bool nfqueue_tg_v1_check(const struct xt_tgchk_param *par)
 	const struct xt_NFQ_info_v1 *info = par->targinfo;
 	u32 maxid;
 
+	if (unlikely(!rnd_inited)) {
+		get_random_bytes(&jhash_initval, sizeof(jhash_initval));
+		rnd_inited = true;
+	}
 	if (info->queues_total == 0) {
 		pr_err("NFQUEUE: number of total queues is 0\n");
 		return false;
@@ -135,7 +140,6 @@ static struct xt_target nfqueue_tg_reg[] __read_mostly = {
 
 static int __init nfqueue_tg_init(void)
 {
-	get_random_bytes(&jhash_initval, sizeof(jhash_initval));
 	return xt_register_targets(nfqueue_tg_reg, ARRAY_SIZE(nfqueue_tg_reg));
 }
 

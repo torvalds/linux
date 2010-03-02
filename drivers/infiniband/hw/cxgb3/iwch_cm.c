@@ -1371,15 +1371,8 @@ static int pass_accept_req(struct t3cdev *tdev, struct sk_buff *skb, void *ctx)
 	tim.mac_addr = req->dst_mac;
 	tim.vlan_tag = ntohs(req->vlan_tag);
 	if (tdev->ctl(tdev, GET_IFF_FROM_MAC, &tim) < 0 || !tim.dev) {
-		printk(KERN_ERR
-			"%s bad dst mac %02x %02x %02x %02x %02x %02x\n",
-			__func__,
-			req->dst_mac[0],
-			req->dst_mac[1],
-			req->dst_mac[2],
-			req->dst_mac[3],
-			req->dst_mac[4],
-			req->dst_mac[5]);
+		printk(KERN_ERR "%s bad dst mac %pM\n",
+			__func__, req->dst_mac);
 		goto reject;
 	}
 
