@@ -82,6 +82,9 @@ static ssize_t display_upd_mode_store(struct device *dev,
 	int val, r;
 	enum omap_dss_update_mode mode;
 
+	if (!dssdev->driver->set_update_mode)
+		return -EINVAL;
+
 	val = simple_strtoul(buf, NULL, 10);
 
 	switch (val) {
