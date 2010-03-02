@@ -31,45 +31,6 @@
 
 static u64 perf_event_mask __read_mostly;
 
-/* The maximal number of PEBS events: */
-#define MAX_PEBS_EVENTS	4
-
-/* The size of a BTS record in bytes: */
-#define BTS_RECORD_SIZE		24
-
-/* The size of a per-cpu BTS buffer in bytes: */
-#define BTS_BUFFER_SIZE		(BTS_RECORD_SIZE * 2048)
-
-/* The BTS overflow threshold in bytes from the end of the buffer: */
-#define BTS_OVFL_TH		(BTS_RECORD_SIZE * 128)
-
-
-/*
- * Bits in the debugctlmsr controlling branch tracing.
- */
-#define X86_DEBUGCTL_TR			(1 << 6)
-#define X86_DEBUGCTL_BTS		(1 << 7)
-#define X86_DEBUGCTL_BTINT		(1 << 8)
-#define X86_DEBUGCTL_BTS_OFF_OS		(1 << 9)
-#define X86_DEBUGCTL_BTS_OFF_USR	(1 << 10)
-
-/*
- * A debug store configuration.
- *
- * We only support architectures that use 64bit fields.
- */
-struct debug_store {
-	u64	bts_buffer_base;
-	u64	bts_index;
-	u64	bts_absolute_maximum;
-	u64	bts_interrupt_threshold;
-	u64	pebs_buffer_base;
-	u64	pebs_index;
-	u64	pebs_absolute_maximum;
-	u64	pebs_interrupt_threshold;
-	u64	pebs_event_reset[MAX_PEBS_EVENTS];
-};
-
 struct event_constraint {
 	union {
 		unsigned long	idxmsk[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
@@ -88,17 +49,29 @@ struct amd_nb {
 };
 
 struct cpu_hw_events {
+	/*
+	 * Generic x86 PMC bits
+	 */
 	struct perf_event	*events[X86_PMC_IDX_MAX]; /* in counter order */
 	unsigned long		active_mask[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
 	unsigned long		interrupts;
 	int			enabled;
-	struct debug_store	*ds;
 
 	int			n_events;
 	int			n_added;
 	int			assign[X86_PMC_IDX_MAX]; /* event to counter assignment */
 	u64			tags[X86_PMC_IDX_MAX];
 	struct perf_event	*event_list[X86_PMC_IDX_MAX]; /* in enabled order */
+
+	/*
+	 * Intel DebugStore bits
+	 */
+	struct debug_store	*ds;
+	u64			pebs_enabled;
+
+	/*
+	 * AMD specific bits
+	 */
 	struct amd_nb		*amd_nb;
 };
 
@@ -112,11 +85,23 @@ struct cpu_hw_events {
 #define EVENT_CONSTRAINT(c, n, m)	\
 	__EVENT_CONSTRAINT(c, n, m, HWEIGHT(n))
 
+/*
+ * Constraint on the Event code.
+ */
 #define INTEL_EVENT_CONSTRAINT(c, n)	\
 	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVTSEL_MASK)
 
+/*
+ * Constraint on the Event code + UMask + fixed-mask
+ */
 #define FIXED_EVENT_CONSTRAINT(c, n)	\
 	EVENT_CONSTRAINT(c, (1ULL << (32+n)), INTEL_ARCH_FIXED_MASK)
+
+/*
+ * Constraint on the Event code + UMask
+ */
+#define PEBS_EVENT_CONSTRAINT(c, n)	\
+	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVENT_MASK)
 
 #define EVENT_CONSTRAINT_END		\
 	EVENT_CONSTRAINT(0, 0, 0)
@@ -128,6 +113,9 @@ struct cpu_hw_events {
  * struct x86_pmu - generic x86 pmu
  */
 struct x86_pmu {
+	/*
+	 * Generic x86 PMC bits
+	 */
 	const char	*name;
 	int		version;
 	int		(*handle_irq)(struct pt_regs *);
@@ -146,10 +134,6 @@ struct x86_pmu {
 	u64		event_mask;
 	int		apic;
 	u64		max_period;
-	u64		intel_ctrl;
-	void		(*enable_bts)(u64 config);
-	void		(*disable_bts)(void);
-
 	struct event_constraint *
 			(*get_event_constraints)(struct cpu_hw_events *cpuc,
 						 struct perf_event *event);
@@ -162,6 +146,19 @@ struct x86_pmu {
 	void		(*cpu_starting)(int cpu);
 	void		(*cpu_dying)(int cpu);
 	void		(*cpu_dead)(int cpu);
+
+	/*
+	 * Intel Arch Perfmon v2+
+	 */
+	u64		intel_ctrl;
+
+	/*
+	 * Intel DebugStore bits
+	 */
+	int		bts, pebs;
+	int		pebs_record_size;
+	void		(*drain_pebs)(struct pt_regs *regs);
+	struct event_constraint *pebs_constraints;
 };
 
 static struct x86_pmu x86_pmu __read_mostly;
@@ -293,110 +290,14 @@ static void release_pmc_hardware(void)
 #endif
 }
 
-static inline bool bts_available(void)
-{
-	return x86_pmu.enable_bts != NULL;
-}
-
-static void init_debug_store_on_cpu(int cpu)
-{
-	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-
-	if (!ds)
-		return;
-
-	wrmsr_on_cpu(cpu, MSR_IA32_DS_AREA,
-		     (u32)((u64)(unsigned long)ds),
-		     (u32)((u64)(unsigned long)ds >> 32));
-}
-
-static void fini_debug_store_on_cpu(int cpu)
-{
-	if (!per_cpu(cpu_hw_events, cpu).ds)
-		return;
-
-	wrmsr_on_cpu(cpu, MSR_IA32_DS_AREA, 0, 0);
-}
-
-static void release_bts_hardware(void)
-{
-	int cpu;
-
-	if (!bts_available())
-		return;
-
-	get_online_cpus();
-
-	for_each_online_cpu(cpu)
-		fini_debug_store_on_cpu(cpu);
-
-	for_each_possible_cpu(cpu) {
-		struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
-
-		if (!ds)
-			continue;
-
-		per_cpu(cpu_hw_events, cpu).ds = NULL;
-
-		kfree((void *)(unsigned long)ds->bts_buffer_base);
-		kfree(ds);
-	}
-
-	put_online_cpus();
-}
-
-static int reserve_bts_hardware(void)
-{
-	int cpu, err = 0;
-
-	if (!bts_available())
-		return 0;
-
-	get_online_cpus();
-
-	for_each_possible_cpu(cpu) {
-		struct debug_store *ds;
-		void *buffer;
-
-		err = -ENOMEM;
-		buffer = kzalloc(BTS_BUFFER_SIZE, GFP_KERNEL);
-		if (unlikely(!buffer))
-			break;
-
-		ds = kzalloc(sizeof(*ds), GFP_KERNEL);
-		if (unlikely(!ds)) {
-			kfree(buffer);
-			break;
-		}
-
-		ds->bts_buffer_base = (u64)(unsigned long)buffer;
-		ds->bts_index = ds->bts_buffer_base;
-		ds->bts_absolute_maximum =
-			ds->bts_buffer_base + BTS_BUFFER_SIZE;
-		ds->bts_interrupt_threshold =
-			ds->bts_absolute_maximum - BTS_OVFL_TH;
-
-		per_cpu(cpu_hw_events, cpu).ds = ds;
-		err = 0;
-	}
-
-	if (err)
-		release_bts_hardware();
-	else {
-		for_each_online_cpu(cpu)
-			init_debug_store_on_cpu(cpu);
-	}
-
-	put_online_cpus();
-
-	return err;
-}
+static int reserve_ds_buffers(void);
+static void release_ds_buffers(void);
 
 static void hw_perf_event_destroy(struct perf_event *event)
 {
 	if (atomic_dec_and_mutex_lock(&active_events, &pmc_reserve_mutex)) {
 		release_pmc_hardware();
-		release_bts_hardware();
+		release_ds_buffers();
 		mutex_unlock(&pmc_reserve_mutex);
 	}
 }
@@ -459,7 +360,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 			if (!reserve_pmc_hardware())
 				err = -EBUSY;
 			else
-				err = reserve_bts_hardware();
+				err = reserve_ds_buffers();
 		}
 		if (!err)
 			atomic_inc(&active_events);
@@ -537,7 +438,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 	if ((attr->config == PERF_COUNT_HW_BRANCH_INSTRUCTIONS) &&
 	    (hwc->sample_period == 1)) {
 		/* BTS is not supported by this architecture. */
-		if (!bts_available())
+		if (!x86_pmu.bts)
 			return -EOPNOTSUPP;
 
 		/* BTS is currently only allowed for user-mode. */
@@ -995,6 +896,7 @@ static void x86_pmu_unthrottle(struct perf_event *event)
 void perf_event_print_debug(void)
 {
 	u64 ctrl, status, overflow, pmc_ctrl, pmc_count, prev_left, fixed;
+	u64 pebs;
 	struct cpu_hw_events *cpuc;
 	unsigned long flags;
 	int cpu, idx;
@@ -1012,12 +914,14 @@ void perf_event_print_debug(void)
 		rdmsrl(MSR_CORE_PERF_GLOBAL_STATUS, status);
 		rdmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, overflow);
 		rdmsrl(MSR_ARCH_PERFMON_FIXED_CTR_CTRL, fixed);
+		rdmsrl(MSR_IA32_PEBS_ENABLE, pebs);
 
 		pr_info("\n");
 		pr_info("CPU#%d: ctrl:       %016llx\n", cpu, ctrl);
 		pr_info("CPU#%d: status:     %016llx\n", cpu, status);
 		pr_info("CPU#%d: overflow:   %016llx\n", cpu, overflow);
 		pr_info("CPU#%d: fixed:      %016llx\n", cpu, fixed);
+		pr_info("CPU#%d: pebs:       %016llx\n", cpu, pebs);
 	}
 	pr_info("CPU#%d: active:       %016llx\n", cpu, *(u64 *)cpuc->active_mask);
 
@@ -1333,6 +1237,7 @@ undo:
 
 #include "perf_event_amd.c"
 #include "perf_event_p6.c"
+#include "perf_event_intel_ds.c"
 #include "perf_event_intel.c"
 
 static int __cpuinit
@@ -1465,6 +1370,32 @@ static const struct pmu pmu = {
 };
 
 /*
+ * validate that we can schedule this event
+ */
+static int validate_event(struct perf_event *event)
+{
+	struct cpu_hw_events *fake_cpuc;
+	struct event_constraint *c;
+	int ret = 0;
+
+	fake_cpuc = kmalloc(sizeof(*fake_cpuc), GFP_KERNEL | __GFP_ZERO);
+	if (!fake_cpuc)
+		return -ENOMEM;
+
+	c = x86_pmu.get_event_constraints(fake_cpuc, event);
+
+	if (!c || !c->weight)
+		ret = -ENOSPC;
+
+	if (x86_pmu.put_event_constraints)
+		x86_pmu.put_event_constraints(fake_cpuc, event);
+
+	kfree(fake_cpuc);
+
+	return ret;
+}
+
+/*
  * validate a single event group
  *
  * validation include:
@@ -1529,6 +1460,8 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
 
 		if (event->group_leader != event)
 			err = validate_group(event);
+		else
+			err = validate_event(event);
 
 		event->pmu = tmp;
 	}

@@ -470,42 +470,6 @@ static u64 intel_pmu_raw_event(u64 hw_event)
 	return hw_event & CORE_EVNTSEL_MASK;
 }
 
-static void intel_pmu_enable_bts(u64 config)
-{
-	unsigned long debugctlmsr;
-
-	debugctlmsr = get_debugctlmsr();
-
-	debugctlmsr |= X86_DEBUGCTL_TR;
-	debugctlmsr |= X86_DEBUGCTL_BTS;
-	debugctlmsr |= X86_DEBUGCTL_BTINT;
-
-	if (!(config & ARCH_PERFMON_EVENTSEL_OS))
-		debugctlmsr |= X86_DEBUGCTL_BTS_OFF_OS;
-
-	if (!(config & ARCH_PERFMON_EVENTSEL_USR))
-		debugctlmsr |= X86_DEBUGCTL_BTS_OFF_USR;
-
-	update_debugctlmsr(debugctlmsr);
-}
-
-static void intel_pmu_disable_bts(void)
-{
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	unsigned long debugctlmsr;
-
-	if (!cpuc->ds)
-		return;
-
-	debugctlmsr = get_debugctlmsr();
-
-	debugctlmsr &=
-		~(X86_DEBUGCTL_TR | X86_DEBUGCTL_BTS | X86_DEBUGCTL_BTINT |
-		  X86_DEBUGCTL_BTS_OFF_OS | X86_DEBUGCTL_BTS_OFF_USR);
-
-	update_debugctlmsr(debugctlmsr);
-}
-
 static void intel_pmu_disable_all(void)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
@@ -514,6 +478,8 @@ static void intel_pmu_disable_all(void)
 
 	if (test_bit(X86_PMC_IDX_FIXED_BTS, cpuc->active_mask))
 		intel_pmu_disable_bts();
+
+	intel_pmu_pebs_disable_all();
 }
 
 static void intel_pmu_enable_all(void)
@@ -531,6 +497,8 @@ static void intel_pmu_enable_all(void)
 
 		intel_pmu_enable_bts(event->hw.config);
 	}
+
+	intel_pmu_pebs_enable_all();
 }
 
 static inline u64 intel_pmu_get_status(void)
@@ -547,8 +515,7 @@ static inline void intel_pmu_ack_status(u64 ack)
 	wrmsrl(MSR_CORE_PERF_GLOBAL_OVF_CTRL, ack);
 }
 
-static inline void
-intel_pmu_disable_fixed(struct hw_perf_event *hwc)
+static void intel_pmu_disable_fixed(struct hw_perf_event *hwc)
 {
 	int idx = hwc->idx - X86_PMC_IDX_FIXED;
 	u64 ctrl_val, mask;
@@ -560,68 +527,7 @@ intel_pmu_disable_fixed(struct hw_perf_event *hwc)
 	(void)checking_wrmsrl(hwc->config_base, ctrl_val);
 }
 
-static void intel_pmu_drain_bts_buffer(void)
-{
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	struct debug_store *ds = cpuc->ds;
-	struct bts_record {
-		u64	from;
-		u64	to;
-		u64	flags;
-	};
-	struct perf_event *event = cpuc->events[X86_PMC_IDX_FIXED_BTS];
-	struct bts_record *at, *top;
-	struct perf_output_handle handle;
-	struct perf_event_header header;
-	struct perf_sample_data data;
-	struct pt_regs regs;
-
-	if (!event)
-		return;
-
-	if (!ds)
-		return;
-
-	at  = (struct bts_record *)(unsigned long)ds->bts_buffer_base;
-	top = (struct bts_record *)(unsigned long)ds->bts_index;
-
-	if (top <= at)
-		return;
-
-	ds->bts_index = ds->bts_buffer_base;
-
-	perf_sample_data_init(&data, 0);
-
-	data.period	= event->hw.last_period;
-	regs.ip		= 0;
-
-	/*
-	 * Prepare a generic sample, i.e. fill in the invariant fields.
-	 * We will overwrite the from and to address before we output
-	 * the sample.
-	 */
-	perf_prepare_sample(&header, &data, event, &regs);
-
-	if (perf_output_begin(&handle, event,
-			      header.size * (top - at), 1, 1))
-		return;
-
-	for (; at < top; at++) {
-		data.ip		= at->from;
-		data.addr	= at->to;
-
-		perf_output_sample(&handle, &header, &data, event);
-	}
-
-	perf_output_end(&handle);
-
-	/* There's new data available. */
-	event->hw.interrupts++;
-	event->pending_kill = POLL_IN;
-}
-
-static inline void
-intel_pmu_disable_event(struct perf_event *event)
+static void intel_pmu_disable_event(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
 
@@ -637,10 +543,12 @@ intel_pmu_disable_event(struct perf_event *event)
 	}
 
 	x86_pmu_disable_event(event);
+
+	if (unlikely(event->attr.precise))
+		intel_pmu_pebs_disable(hwc);
 }
 
-static inline void
-intel_pmu_enable_fixed(struct hw_perf_event *hwc)
+static void intel_pmu_enable_fixed(struct hw_perf_event *hwc)
 {
 	int idx = hwc->idx - X86_PMC_IDX_FIXED;
 	u64 ctrl_val, bits, mask;
@@ -688,6 +596,9 @@ static void intel_pmu_enable_event(struct perf_event *event)
 		intel_pmu_enable_fixed(hwc);
 		return;
 	}
+
+	if (unlikely(event->attr.precise))
+		intel_pmu_pebs_enable(hwc);
 
 	__x86_pmu_enable_event(hwc);
 }
@@ -762,6 +673,13 @@ again:
 
 	inc_irq_stat(apic_perf_irqs);
 	ack = status;
+
+	/*
+	 * PEBS overflow sets bit 62 in the global status register
+	 */
+	if (__test_and_clear_bit(62, (unsigned long *)&status))
+		x86_pmu.drain_pebs(regs);
+
 	for_each_set_bit(bit, (unsigned long *)&status, X86_PMC_IDX_MAX) {
 		struct perf_event *event = cpuc->events[bit];
 
@@ -791,22 +709,18 @@ done:
 	return 1;
 }
 
-static struct event_constraint bts_constraint =
-	EVENT_CONSTRAINT(0, 1ULL << X86_PMC_IDX_FIXED_BTS, 0);
-
 static struct event_constraint *
-intel_special_constraints(struct perf_event *event)
+intel_bts_constraints(struct perf_event *event)
 {
-	unsigned int hw_event;
+	struct hw_perf_event *hwc = &event->hw;
+	unsigned int hw_event, bts_event;
 
-	hw_event = event->hw.config & INTEL_ARCH_EVENT_MASK;
+	hw_event = hwc->config & INTEL_ARCH_EVENT_MASK;
+	bts_event = x86_pmu.event_map(PERF_COUNT_HW_BRANCH_INSTRUCTIONS);
 
-	if (unlikely((hw_event ==
-		      x86_pmu.event_map(PERF_COUNT_HW_BRANCH_INSTRUCTIONS)) &&
-		     (event->hw.sample_period == 1))) {
-
+	if (unlikely(hw_event == bts_event && hwc->sample_period == 1))
 		return &bts_constraint;
-	}
+
 	return NULL;
 }
 
@@ -815,7 +729,11 @@ intel_get_event_constraints(struct cpu_hw_events *cpuc, struct perf_event *event
 {
 	struct event_constraint *c;
 
-	c = intel_special_constraints(event);
+	c = intel_bts_constraints(event);
+	if (c)
+		return c;
+
+	c = intel_pebs_constraints(event);
 	if (c)
 		return c;
 
@@ -864,8 +782,6 @@ static __initconst struct x86_pmu intel_pmu = {
 	 * the generic event period:
 	 */
 	.max_period		= (1ULL << 31) - 1,
-	.enable_bts		= intel_pmu_enable_bts,
-	.disable_bts		= intel_pmu_disable_bts,
 	.get_event_constraints	= intel_get_event_constraints,
 
 	.cpu_starting		= init_debug_store_on_cpu,
@@ -914,6 +830,8 @@ static __init int intel_pmu_init(void)
 	 */
 	if (version > 1)
 		x86_pmu.num_events_fixed = max((int)edx.split.num_events_fixed, 3);
+
+	intel_ds_init();
 
 	/*
 	 * Install the hw-cache-events table:
