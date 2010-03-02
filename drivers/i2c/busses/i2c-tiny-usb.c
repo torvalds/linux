@@ -31,11 +31,13 @@
 #define CMD_I2C_IO_BEGIN	(1<<0)
 #define CMD_I2C_IO_END		(1<<1)
 
-/* i2c bit delay, default is 10us -> 100kHz */
+/* i2c bit delay, default is 10us -> 100kHz max
+   (in practice, due to additional delays in the i2c bitbanging
+   code this results in a i2c clock of about 50kHz) */
 static unsigned short delay = 10;
 module_param(delay, ushort, 0);
-MODULE_PARM_DESC(delay, "bit delay in microseconds, "
-		 "e.g. 10 for 100kHz (default is 100kHz)");
+MODULE_PARM_DESC(delay, "bit delay in microseconds "
+		 "(default is 10us for 100kHz max)");
 
 static int usb_read(struct i2c_adapter *adapter, int cmd,
 		    int value, int index, void *data, int len);
