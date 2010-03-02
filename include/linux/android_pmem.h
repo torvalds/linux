@@ -33,6 +33,7 @@
  * struct (with offset set to 0). 
  */
 #define PMEM_GET_TOTAL_SIZE	_IOW(PMEM_IOCTL_MAGIC, 7, unsigned int)
+#define PMEM_CACHE_FLUSH	_IOW(PMEM_IOCTL_MAGIC, 8, unsigned int)
 
 struct android_pmem_platform_data
 {
