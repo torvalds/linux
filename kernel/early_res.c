@@ -79,9 +79,19 @@ static void __init drop_range_partial(int i, u64 start, u64 end)
 		/* make head segment */
 		early_res[i].end = common_start;
 		if (old_end > common_end) {
+			char name[15];
+
+			/*
+			 * Save a local copy of the name, since the
+			 * early_res array could get resized inside
+			 * reserve_early_without_check() ->
+			 * __check_and_double_early_res(), which would
+			 * make the current name pointer invalid.
+			 */
+			strncpy(name, early_res[i].name,
+					 sizeof(early_res[i].name) - 1);
 			/* add another for left over on tail */
-			reserve_early_without_check(common_end, old_end,
-					 early_res[i].name);
+			reserve_early_without_check(common_end, old_end, name);
 		}
 		return;
 	} else {
