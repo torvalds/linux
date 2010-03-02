@@ -75,7 +75,7 @@ void omap_mux_write_array(struct omap_board_mux *board_mux)
 	}
 }
 
-#if defined(CONFIG_ARCH_OMAP24XX) && defined(CONFIG_OMAP_MUX)
+#if defined(CONFIG_ARCH_OMAP2) && defined(CONFIG_OMAP_MUX)
 
 static struct omap_mux_cfg arch_mux_cfg;
 
@@ -369,7 +369,7 @@ int __init omap2_mux_init(void)
 
 /*----------------------------------------------------------------------------*/
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 static LIST_HEAD(muxmodes);
 static DEFINE_MUTEX(muxmode_mutex);
 
@@ -983,6 +983,38 @@ static void __init omap_mux_init_list(struct omap_mux *superset)
 	}
 }
 
+#ifdef CONFIG_OMAP_MUX
+
+static void omap_mux_init_package(struct omap_mux *superset,
+				  struct omap_mux *package_subset,
+				  struct omap_ball *package_balls)
+{
+	if (package_subset)
+		omap_mux_package_fixup(package_subset, superset);
+	if (package_balls)
+		omap_mux_package_init_balls(package_balls, superset);
+}
+
+static void omap_mux_init_signals(struct omap_board_mux *board_mux)
+{
+	omap_mux_set_cmdline_signals();
+	omap_mux_write_array(board_mux);
+}
+
+#else
+
+static void omap_mux_init_package(struct omap_mux *superset,
+				  struct omap_mux *package_subset,
+				  struct omap_ball *package_balls)
+{
+}
+
+static void omap_mux_init_signals(struct omap_board_mux *board_mux)
+{
+}
+
+#endif
+
 int __init omap_mux_init(u32 mux_pbase, u32 mux_size,
 				struct omap_mux *superset,
 				struct omap_mux *package_subset,
@@ -999,22 +1031,12 @@ int __init omap_mux_init(u32 mux_pbase, u32 mux_size,
 		return -ENODEV;
 	}
 
-#ifdef CONFIG_OMAP_MUX
-	if (package_subset)
-		omap_mux_package_fixup(package_subset, superset);
-	if (package_balls)
-		omap_mux_package_init_balls(package_balls, superset);
-#endif
-
+	omap_mux_init_package(superset, package_subset, package_balls);
 	omap_mux_init_list(superset);
-
-#ifdef CONFIG_OMAP_MUX
-	omap_mux_set_cmdline_signals();
-	omap_mux_write_array(board_mux);
-#endif
+	omap_mux_init_signals(board_mux);
 
 	return 0;
 }
 
-#endif	/* CONFIG_ARCH_OMAP34XX */
+#endif	/* CONFIG_ARCH_OMAP3 */
 

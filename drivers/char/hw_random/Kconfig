@@ -114,7 +114,7 @@ config HW_RANDOM_IXP4XX
 
 config HW_RANDOM_OMAP
 	tristate "OMAP Random Number Generator support"
-	depends on HW_RANDOM && (ARCH_OMAP16XX || ARCH_OMAP24XX)
+	depends on HW_RANDOM && (ARCH_OMAP16XX || ARCH_OMAP2)
 	default HW_RANDOM
  	---help---
  	  This driver provides kernel-side support for the Random Number

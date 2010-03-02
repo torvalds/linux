@@ -50,7 +50,7 @@
 #include <plat/timer-gp.h>
 
 #include "mux.h"
-#include "mmc-twl4030.h"
+#include "hsmmc.h"
 
 #include <asm/setup.h>
 
@@ -122,7 +122,7 @@ static struct platform_device omap3touchbook_nand_device = {
 
 #include "sdram-micron-mt46h32m32lf-6.h"
 
-static struct twl4030_hsmmc_info mmc[] = {
+static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
 		.wires		= 8,
@@ -161,7 +161,7 @@ static int touchbook_twl_gpio_setup(struct device *dev,
 	}
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
-	twl4030_mmc_init(mmc);
+	omap2_hsmmc_init(mmc);
 
 	/* link regulators to MMC adapters */
 	touchbook_vmmc1_supply.dev = mmc[0].dev;
@@ -527,6 +527,12 @@ static void __init early_touchbook_revision(char **p)
 }
 __early_param("tbr=", early_touchbook_revision);
 
+static struct omap_musb_board_data musb_board_data = {
+	.interface_type		= MUSB_INTERFACE_ULPI,
+	.mode			= MUSB_OTG,
+	.power			= 100,
+};
+
 static void __init omap3_touchbook_init(void)
 {
 	pm_power_off = omap3_touchbook_poweroff;
@@ -545,7 +551,7 @@ static void __init omap3_touchbook_init(void)
 	spi_register_board_info(omap3_ads7846_spi_board_info,
 				ARRAY_SIZE(omap3_ads7846_spi_board_info));
 	omap3_ads7846_init();
-	usb_musb_init();
+	usb_musb_init(&musb_board_data);
 	usb_ehci_init(&ehci_pdata);
 	omap3touchbook_flash_init();
 
@@ -557,7 +563,7 @@ static void __init omap3_touchbook_init(void)
 static void __init omap3_touchbook_map_io(void)
 {
 	omap2_set_globals_343x();
-	omap2_map_common_io();
+	omap34xx_map_common_io();
 }
 
 MACHINE_START(TOUCHBOOK, "OMAP3 touchbook Board")

@@ -32,6 +32,9 @@
 #include <linux/i2c/twl.h>
 #include <linux/regulator/machine.h>
 
+#include <linux/spi/spi.h>
+#include <linux/spi/tdo24m.h>
+
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
@@ -41,12 +44,13 @@
 #include <plat/nand.h>
 #include <plat/gpmc.h>
 #include <plat/usb.h>
+#include <plat/display.h>
 
 #include <mach/hardware.h>
 
 #include "mux.h"
 #include "sdram-micron-mt46h32m32lf-6.h"
-#include "mmc-twl4030.h"
+#include "hsmmc.h"
 
 #define CM_T35_GPIO_PENDOWN	57
 
@@ -248,7 +252,6 @@ static inline void cm_t35_init_nand(void) {}
 
 #if defined(CONFIG_TOUCHSCREEN_ADS7846) || \
 	defined(CONFIG_TOUCHSCREEN_ADS7846_MODULE)
-#include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
 
 #include <plat/mcspi.h>
@@ -304,12 +307,209 @@ static void __init cm_t35_init_ads7846(void)
 static inline void cm_t35_init_ads7846(void) {}
 #endif
 
+#define CM_T35_LCD_EN_GPIO 157
+#define CM_T35_LCD_BL_GPIO 58
+#define CM_T35_DVI_EN_GPIO 54
+
+static int lcd_bl_gpio;
+static int lcd_en_gpio;
+static int dvi_en_gpio;
+
+static int lcd_enabled;
+static int dvi_enabled;
+
+static int cm_t35_panel_enable_lcd(struct omap_dss_device *dssdev)
+{
+	if (dvi_enabled) {
+		printk(KERN_ERR "cannot enable LCD, DVI is enabled\n");
+		return -EINVAL;
+	}
+
+	gpio_set_value(lcd_en_gpio, 1);
+	gpio_set_value(lcd_bl_gpio, 1);
+
+	lcd_enabled = 1;
+
+	return 0;
+}
+
+static void cm_t35_panel_disable_lcd(struct omap_dss_device *dssdev)
+{
+	lcd_enabled = 0;
+
+	gpio_set_value(lcd_bl_gpio, 0);
+	gpio_set_value(lcd_en_gpio, 0);
+}
+
+static int cm_t35_panel_enable_dvi(struct omap_dss_device *dssdev)
+{
+	if (lcd_enabled) {
+		printk(KERN_ERR "cannot enable DVI, LCD is enabled\n");
+		return -EINVAL;
+	}
+
+	gpio_set_value(dvi_en_gpio, 0);
+	dvi_enabled = 1;
+
+	return 0;
+}
+
+static void cm_t35_panel_disable_dvi(struct omap_dss_device *dssdev)
+{
+	gpio_set_value(dvi_en_gpio, 1);
+	dvi_enabled = 0;
+}
+
+static int cm_t35_panel_enable_tv(struct omap_dss_device *dssdev)
+{
+	return 0;
+}
+
+static void cm_t35_panel_disable_tv(struct omap_dss_device *dssdev)
+{
+}
+
+static struct omap_dss_device cm_t35_lcd_device = {
+	.name			= "lcd",
+	.driver_name		= "toppoly_tdo35s_panel",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.phy.dpi.data_lines	= 18,
+	.platform_enable	= cm_t35_panel_enable_lcd,
+	.platform_disable	= cm_t35_panel_disable_lcd,
+};
+
+static struct omap_dss_device cm_t35_dvi_device = {
+	.name			= "dvi",
+	.driver_name		= "generic_panel",
+	.type			= OMAP_DISPLAY_TYPE_DPI,
+	.phy.dpi.data_lines	= 24,
+	.platform_enable	= cm_t35_panel_enable_dvi,
+	.platform_disable	= cm_t35_panel_disable_dvi,
+};
+
+static struct omap_dss_device cm_t35_tv_device = {
+	.name			= "tv",
+	.driver_name		= "venc",
+	.type			= OMAP_DISPLAY_TYPE_VENC,
+	.phy.venc.type		= OMAP_DSS_VENC_TYPE_SVIDEO,
+	.platform_enable	= cm_t35_panel_enable_tv,
+	.platform_disable	= cm_t35_panel_disable_tv,
+};
+
+static struct omap_dss_device *cm_t35_dss_devices[] = {
+	&cm_t35_lcd_device,
+	&cm_t35_dvi_device,
+	&cm_t35_tv_device,
+};
+
+static struct omap_dss_board_info cm_t35_dss_data = {
+	.num_devices	= ARRAY_SIZE(cm_t35_dss_devices),
+	.devices	= cm_t35_dss_devices,
+	.default_device	= &cm_t35_dvi_device,
+};
+
+static struct platform_device cm_t35_dss_device = {
+	.name		= "omapdss",
+	.id		= -1,
+	.dev		= {
+		.platform_data = &cm_t35_dss_data,
+	},
+};
+
+static struct omap2_mcspi_device_config tdo24m_mcspi_config = {
+	.turbo_mode	= 0,
+	.single_channel	= 1,	/* 0: slave, 1: master */
+};
+
+static struct tdo24m_platform_data tdo24m_config = {
+	.model = TDO35S,
+};
+
+static struct spi_board_info cm_t35_lcd_spi_board_info[] __initdata = {
+	{
+		.modalias		= "tdo24m",
+		.bus_num		= 4,
+		.chip_select		= 0,
+		.max_speed_hz		= 1000000,
+		.controller_data	= &tdo24m_mcspi_config,
+		.platform_data		= &tdo24m_config,
+	},
+};
+
+static void __init cm_t35_init_display(void)
+{
+	int err;
+
+	lcd_en_gpio = CM_T35_LCD_EN_GPIO;
+	lcd_bl_gpio = CM_T35_LCD_BL_GPIO;
+	dvi_en_gpio = CM_T35_DVI_EN_GPIO;
+
+	spi_register_board_info(cm_t35_lcd_spi_board_info,
+				ARRAY_SIZE(cm_t35_lcd_spi_board_info));
+
+	err = gpio_request(lcd_en_gpio, "LCD RST");
+	if (err) {
+		pr_err("CM-T35: failed to get LCD reset GPIO\n");
+		goto out;
+	}
+
+	err = gpio_request(lcd_bl_gpio, "LCD BL");
+	if (err) {
+		pr_err("CM-T35: failed to get LCD backlight control GPIO\n");
+		goto err_lcd_bl;
+	}
+
+	err = gpio_request(dvi_en_gpio, "DVI EN");
+	if (err) {
+		pr_err("CM-T35: failed to get DVI reset GPIO\n");
+		goto err_dvi_en;
+	}
+
+	gpio_export(lcd_en_gpio, 0);
+	gpio_export(lcd_bl_gpio, 0);
+	gpio_export(dvi_en_gpio, 0);
+	gpio_direction_output(lcd_en_gpio, 0);
+	gpio_direction_output(lcd_bl_gpio, 0);
+	gpio_direction_output(dvi_en_gpio, 1);
+
+	msleep(50);
+	gpio_set_value(lcd_en_gpio, 1);
+
+	err = platform_device_register(&cm_t35_dss_device);
+	if (err) {
+		pr_err("CM-T35: failed to register DSS device\n");
+		goto err_dev_reg;
+	}
+
+	return;
+
+err_dev_reg:
+	gpio_free(dvi_en_gpio);
+err_dvi_en:
+	gpio_free(lcd_bl_gpio);
+err_lcd_bl:
+	gpio_free(lcd_en_gpio);
+out:
+
+	return;
+}
+
 static struct regulator_consumer_supply cm_t35_vmmc1_supply = {
 	.supply			= "vmmc",
 };
 
 static struct regulator_consumer_supply cm_t35_vsim_supply = {
 	.supply			= "vmmc_aux",
+};
+
+static struct regulator_consumer_supply cm_t35_vdac_supply = {
+	.supply		= "vdda_dac",
+	.dev		= &cm_t35_dss_device.dev,
+};
+
+static struct regulator_consumer_supply cm_t35_vdvi_supply = {
+	.supply		= "vdvi",
+	.dev		= &cm_t35_dss_device.dev,
 };
 
 /* VMMC1 for MMC1 pins CMD, CLK, DAT0..DAT3 (20 mA, plus card == max 220 mA) */
@@ -342,6 +542,35 @@ static struct regulator_init_data cm_t35_vsim = {
 	.consumer_supplies	= &cm_t35_vsim_supply,
 };
 
+/* VDAC for DSS driving S-Video (8 mA unloaded, max 65 mA) */
+static struct regulator_init_data cm_t35_vdac = {
+	.constraints = {
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &cm_t35_vdac_supply,
+};
+
+/* VPLL2 for digital video outputs */
+static struct regulator_init_data cm_t35_vpll2 = {
+	.constraints = {
+		.name			= "VDVI",
+		.min_uV			= 1800000,
+		.max_uV			= 1800000,
+		.valid_modes_mask	= REGULATOR_MODE_NORMAL
+					| REGULATOR_MODE_STANDBY,
+		.valid_ops_mask		= REGULATOR_CHANGE_MODE
+					| REGULATOR_CHANGE_STATUS,
+	},
+	.num_consumer_supplies	= 1,
+	.consumer_supplies	= &cm_t35_vdvi_supply,
+};
+
 static struct twl4030_usb_data cm_t35_usb_data = {
 	.usb_mode	= T2_USB_MODE_ULPI,
 };
@@ -364,7 +593,7 @@ static struct twl4030_keypad_data cm_t35_kp_data = {
 	.rep		= 1,
 };
 
-static struct twl4030_hsmmc_info mmc[] = {
+static struct omap2_hsmmc_info mmc[] = {
 	{
 		.mmc		= 1,
 		.wires		= 4,
@@ -413,7 +642,7 @@ static int cm_t35_twl_gpio_setup(struct device *dev, unsigned gpio,
 
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
-	twl4030_mmc_init(mmc);
+	omap2_hsmmc_init(mmc);
 
 	/* link regulators to MMC adapters */
 	cm_t35_vmmc1_supply.dev = mmc[0].dev;
@@ -445,6 +674,8 @@ static struct twl4030_platform_data cm_t35_twldata = {
 	.gpio		= &cm_t35_gpio_data,
 	.vmmc1		= &cm_t35_vmmc1,
 	.vsim		= &cm_t35_vsim,
+	.vdac		= &cm_t35_vdac,
+	.vpll2		= &cm_t35_vpll2,
 };
 
 static struct i2c_board_info __initdata cm_t35_i2c_boardinfo[] = {
@@ -479,7 +710,7 @@ static void __init cm_t35_init_irq(void)
 static void __init cm_t35_map_io(void)
 {
 	omap2_set_globals_343x();
-	omap2_map_common_io();
+	omap34xx_map_common_io();
 }
 
 static struct omap_board_mux board_mux[] __initdata = {
@@ -568,11 +799,22 @@ static struct omap_board_mux board_mux[] __initdata = {
 	OMAP3_MUX(DSS_DATA22, OMAP_MUX_MODE0 | OMAP_PIN_OUTPUT),
 	OMAP3_MUX(DSS_DATA23, OMAP_MUX_MODE0 | OMAP_PIN_OUTPUT),
 
+	/* display controls */
+	OMAP3_MUX(MCBSP1_FSR, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+	OMAP3_MUX(GPMC_NCS7, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+	OMAP3_MUX(GPMC_NCS3, OMAP_MUX_MODE4 | OMAP_PIN_OUTPUT),
+
 	/* TPS IRQ */
 	OMAP3_MUX(SYS_NIRQ, OMAP_MUX_MODE0 | OMAP_WAKEUP_EN | \
 		  OMAP_PIN_INPUT_PULLUP),
 
 	{ .reg_offset = OMAP_MUX_TERMINATOR },
+};
+
+static struct omap_musb_board_data musb_board_data = {
+	.interface_type		= MUSB_INTERFACE_ULPI,
+	.mode			= MUSB_OTG,
+	.power			= 100,
 };
 
 static void __init cm_t35_init(void)
@@ -584,8 +826,9 @@ static void __init cm_t35_init(void)
 	cm_t35_init_ads7846();
 	cm_t35_init_ethernet();
 	cm_t35_init_led();
+	cm_t35_init_display();
 
-	usb_musb_init();
+	usb_musb_init(&musb_board_data);
 }
 
 MACHINE_START(CM_T35, "Compulab CM-T35")

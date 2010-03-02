@@ -1,11 +1,14 @@
 /*
  * OMAP3/4 - specific DPLL control functions
  *
- * Copyright (C) 2009 Texas Instruments, Inc.
- * Copyright (C) 2009 Nokia Corporation
+ * Copyright (C) 2009-2010 Texas Instruments, Inc.
+ * Copyright (C) 2009-2010 Nokia Corporation
  *
  * Written by Paul Walmsley
- * Testing and integration fixes by Jouni HÃ¶gander
+ * Testing and integration fixes by Jouni Högander
+ *
+ * 36xx support added by Vishwanath BS, Richard Woodruff, and Nishanth
+ * Menon
  *
  * Parts of this code are based on code written by
  * Richard Woodruff, Tony Lindgren, Tuukka Tikkanen, Karthik Dasu
@@ -15,7 +18,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/device.h>
 #include <linux/list.h>
@@ -23,13 +25,10 @@
 #include <linux/delay.h>
 #include <linux/clk.h>
 #include <linux/io.h>
-#include <linux/limits.h>
 #include <linux/bitops.h>
 
 #include <plat/cpu.h>
 #include <plat/clock.h>
-#include <plat/sram.h>
-#include <asm/div64.h>
 #include <asm/clkdev.h>
 
 #include "clock.h"
@@ -44,17 +43,7 @@
 
 #define MAX_DPLL_WAIT_TRIES		1000000
 
-
-/**
- * omap3_dpll_recalc - recalculate DPLL rate
- * @clk: DPLL struct clk
- *
- * Recalculate and propagate the DPLL rate.
- */
-unsigned long omap3_dpll_recalc(struct clk *clk)
-{
-	return omap2_get_dpll_rate(clk);
-}
+/* Private functions */
 
 /* _omap3_dpll_write_clken - write clken_bits arg to a DPLL's enable bits */
 static void _omap3_dpll_write_clken(struct clk *clk, u8 clken_bits)
@@ -135,8 +124,6 @@ static u16 _omap3_dpll_compute_freqsel(struct clk *clk, u8 n)
 
 	return f;
 }
-
-/* Non-CORE DPLL (e.g., DPLLs that do not control SDRC) clock functions */
 
 /*
  * _omap3_noncore_dpll_lock - instruct a DPLL to lock and wait for readiness
@@ -238,6 +225,122 @@ static int _omap3_noncore_dpll_stop(struct clk *clk)
 }
 
 /**
+ * lookup_dco_sddiv -  Set j-type DPLL4 compensation variables
+ * @clk: pointer to a DPLL struct clk
+ * @dco: digital control oscillator selector
+ * @sd_div: target sigma-delta divider
+ * @m: DPLL multiplier to set
+ * @n: DPLL divider to set
+ *
+ * See 36xx TRM section 3.5.3.3.3.2 "Type B DPLL (Low-Jitter)"
+ *
+ * XXX This code is not needed for 3430/AM35xx; can it be optimized
+ * out in non-multi-OMAP builds for those chips?
+ */
+static void lookup_dco_sddiv(struct clk *clk, u8 *dco, u8 *sd_div, u16 m,
+			     u8 n)
+{
+	unsigned long fint, clkinp, sd; /* watch out for overflow */
+	int mod1, mod2;
+
+	clkinp = clk->parent->rate;
+	fint = (clkinp / n) * m;
+
+	if (fint < 1000000000)
+		*dco = 2;
+	else
+		*dco = 4;
+	/*
+	 * target sigma-delta to near 250MHz
+	 * sd = ceil[(m/(n+1)) * (clkinp_MHz / 250)]
+	 */
+	clkinp /= 100000; /* shift from MHz to 10*Hz for 38.4 and 19.2 */
+	mod1 = (clkinp * m) % (250 * n);
+	sd = (clkinp * m) / (250 * n);
+	mod2 = sd % 10;
+	sd /= 10;
+
+	if (mod1 || mod2)
+		sd++;
+	*sd_div = sd;
+}
+
+/*
+ * _omap3_noncore_dpll_program - set non-core DPLL M,N values directly
+ * @clk: struct clk * of DPLL to set
+ * @m: DPLL multiplier to set
+ * @n: DPLL divider to set
+ * @freqsel: FREQSEL value to set
+ *
+ * Program the DPLL with the supplied M, N values, and wait for the DPLL to
+ * lock..  Returns -EINVAL upon error, or 0 upon success.
+ */
+static int omap3_noncore_dpll_program(struct clk *clk, u16 m, u8 n, u16 freqsel)
+{
+	struct dpll_data *dd = clk->dpll_data;
+	u32 v;
+
+	/* 3430 ES2 TRM: 4.7.6.9 DPLL Programming Sequence */
+	_omap3_noncore_dpll_bypass(clk);
+
+	/*
+	 * Set jitter correction. No jitter correction for OMAP4 and 3630
+	 * since freqsel field is no longer present
+	 */
+	if (!cpu_is_omap44xx() && !cpu_is_omap3630()) {
+		v = __raw_readl(dd->control_reg);
+		v &= ~dd->freqsel_mask;
+		v |= freqsel << __ffs(dd->freqsel_mask);
+		__raw_writel(v, dd->control_reg);
+	}
+
+	/* Set DPLL multiplier, divider */
+	v = __raw_readl(dd->mult_div1_reg);
+	v &= ~(dd->mult_mask | dd->div1_mask);
+	v |= m << __ffs(dd->mult_mask);
+	v |= (n - 1) << __ffs(dd->div1_mask);
+
+	/*
+	 * XXX This code is not needed for 3430/AM35XX; can it be optimized
+	 * out in non-multi-OMAP builds for those chips?
+	 */
+	if ((dd->flags & DPLL_J_TYPE) && !(dd->flags & DPLL_NO_DCO_SEL)) {
+		u8 dco, sd_div;
+		lookup_dco_sddiv(clk, &dco, &sd_div, m, n);
+		/* XXX This probably will need revision for OMAP4 */
+		v &= ~(OMAP3630_PERIPH_DPLL_DCO_SEL_MASK
+			| OMAP3630_PERIPH_DPLL_SD_DIV_MASK);
+		v |= dco << __ffs(OMAP3630_PERIPH_DPLL_DCO_SEL_MASK);
+		v |= sd_div << __ffs(OMAP3630_PERIPH_DPLL_SD_DIV_MASK);
+	}
+
+	__raw_writel(v, dd->mult_div1_reg);
+
+	/* We let the clock framework set the other output dividers later */
+
+	/* REVISIT: Set ramp-up delay? */
+
+	_omap3_noncore_dpll_lock(clk);
+
+	return 0;
+}
+
+/* Public functions */
+
+/**
+ * omap3_dpll_recalc - recalculate DPLL rate
+ * @clk: DPLL struct clk
+ *
+ * Recalculate and propagate the DPLL rate.
+ */
+unsigned long omap3_dpll_recalc(struct clk *clk)
+{
+	return omap2_get_dpll_rate(clk);
+}
+
+/* Non-CORE DPLL (e.g., DPLLs that do not control SDRC) clock functions */
+
+/**
  * omap3_noncore_dpll_enable - instruct a DPLL to enter bypass or lock mode
  * @clk: pointer to a DPLL struct clk
  *
@@ -292,48 +395,6 @@ void omap3_noncore_dpll_disable(struct clk *clk)
 
 /* Non-CORE DPLL rate set code */
 
-/*
- * omap3_noncore_dpll_program - set non-core DPLL M,N values directly
- * @clk: struct clk * of DPLL to set
- * @m: DPLL multiplier to set
- * @n: DPLL divider to set
- * @freqsel: FREQSEL value to set
- *
- * Program the DPLL with the supplied M, N values, and wait for the DPLL to
- * lock..  Returns -EINVAL upon error, or 0 upon success.
- */
-int omap3_noncore_dpll_program(struct clk *clk, u16 m, u8 n, u16 freqsel)
-{
-	struct dpll_data *dd = clk->dpll_data;
-	u32 v;
-
-	/* 3430 ES2 TRM: 4.7.6.9 DPLL Programming Sequence */
-	_omap3_noncore_dpll_bypass(clk);
-
-	/* Set jitter correction */
-	if (!cpu_is_omap44xx()) {
-		v = __raw_readl(dd->control_reg);
-		v &= ~dd->freqsel_mask;
-		v |= freqsel << __ffs(dd->freqsel_mask);
-		__raw_writel(v, dd->control_reg);
-	}
-
-	/* Set DPLL multiplier, divider */
-	v = __raw_readl(dd->mult_div1_reg);
-	v &= ~(dd->mult_mask | dd->div1_mask);
-	v |= m << __ffs(dd->mult_mask);
-	v |= (n - 1) << __ffs(dd->div1_mask);
-	__raw_writel(v, dd->mult_div1_reg);
-
-	/* We let the clock framework set the other output dividers later */
-
-	/* REVISIT: Set ramp-up delay? */
-
-	_omap3_noncore_dpll_lock(clk);
-
-	return 0;
-}
-
 /**
  * omap3_noncore_dpll_set_rate - set non-core DPLL rate
  * @clk: struct clk * of DPLL to set
@@ -384,8 +445,8 @@ int omap3_noncore_dpll_set_rate(struct clk *clk, unsigned long rate)
 		if (dd->last_rounded_rate == 0)
 			return -EINVAL;
 
-		/* No freqsel on OMAP4 */
-		if (!cpu_is_omap44xx()) {
+		/* No freqsel on OMAP4 and OMAP3630 */
+		if (!cpu_is_omap44xx() && !cpu_is_omap3630()) {
 			freqsel = _omap3_dpll_compute_freqsel(clk,
 						dd->last_rounded_n);
 			if (!freqsel)
@@ -530,7 +591,7 @@ unsigned long omap3_clkoutx2_recalc(struct clk *clk)
 
 	v = __raw_readl(dd->control_reg) & dd->enable_mask;
 	v >>= __ffs(dd->enable_mask);
-	if (v != OMAP3XXX_EN_DPLL_LOCKED)
+	if ((v != OMAP3XXX_EN_DPLL_LOCKED) || (dd->flags & DPLL_J_TYPE))
 		rate = clk->parent->rate;
 	else
 		rate = clk->parent->rate * 2;

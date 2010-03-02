@@ -49,6 +49,9 @@
 
 #define OMAP34XX_MCBSP1_BASE	0x48074000
 #define OMAP34XX_MCBSP2_BASE	0x49022000
+#define OMAP34XX_MCBSP2_ST_BASE	0x49028000
+#define OMAP34XX_MCBSP3_BASE	0x49024000
+#define OMAP34XX_MCBSP3_ST_BASE	0x4902A000
 #define OMAP34XX_MCBSP3_BASE	0x49024000
 #define OMAP34XX_MCBSP4_BASE	0x49026000
 #define OMAP34XX_MCBSP5_BASE	0x48096000
@@ -103,8 +106,7 @@
 #define AUDIO_DMA_TX		OMAP_DMA_MCBSP1_TX
 #define AUDIO_DMA_RX		OMAP_DMA_MCBSP1_RX
 
-#elif defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX) || \
-	defined(CONFIG_ARCH_OMAP4)
+#else
 
 #define OMAP_MCBSP_REG_DRR2	0x00
 #define OMAP_MCBSP_REG_DRR1	0x04
@@ -147,6 +149,15 @@
 #define OMAP_MCBSP_REG_WAKEUPEN	0xA8
 #define OMAP_MCBSP_REG_XCCR	0xAC
 #define OMAP_MCBSP_REG_RCCR	0xB0
+#define OMAP_MCBSP_REG_SSELCR	0xBC
+
+#define OMAP_ST_REG_REV		0x00
+#define OMAP_ST_REG_SYSCONFIG	0x10
+#define OMAP_ST_REG_IRQSTATUS	0x18
+#define OMAP_ST_REG_IRQENABLE	0x1C
+#define OMAP_ST_REG_SGAINCR	0x24
+#define OMAP_ST_REG_SFIRCR	0x28
+#define OMAP_ST_REG_SSELCR	0x2C
 
 #define AUDIO_MCBSP_DATAWRITE	(OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DXR1)
 #define AUDIO_MCBSP_DATAREAD	(OMAP24XX_MCBSP2_BASE + OMAP_MCBSP_REG_DRR1)
@@ -265,6 +276,24 @@
 #define ENAWAKEUP		0x0004
 #define SOFTRST			0x0002
 
+/********************** McBSP SSELCR bit definitions ***********************/
+#define SIDETONEEN		0x0400
+
+/********************** McBSP Sidetone SYSCONFIG bit definitions ***********/
+#define ST_AUTOIDLE		0x0001
+
+/********************** McBSP Sidetone SGAINCR bit definitions *************/
+#define ST_CH1GAIN(value)	((value<<16))	/* Bits 16:31 */
+#define ST_CH0GAIN(value)	(value)		/* Bits 0:15 */
+
+/********************** McBSP Sidetone SFIRCR bit definitions **************/
+#define ST_FIRCOEFF(value)	(value)		/* Bits 0:15 */
+
+/********************** McBSP Sidetone SSELCR bit definitions **************/
+#define ST_COEFFWRDONE		0x0004
+#define ST_COEFFWREN		0x0002
+#define ST_SIDETONEEN		0x0001
+
 /********************** McBSP DMA operating modes **************************/
 #define MCBSP_DMA_MODE_ELEMENT		0
 #define MCBSP_DMA_MODE_THRESHOLD	1
@@ -374,9 +403,21 @@ struct omap_mcbsp_platform_data {
 	u8 dma_rx_sync, dma_tx_sync;
 	u16 rx_irq, tx_irq;
 	struct omap_mcbsp_ops *ops;
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
+	/* Sidetone block for McBSP 2 and 3 */
+	unsigned long phys_base_st;
 	u16 buffer_size;
 #endif
+};
+
+struct omap_mcbsp_st_data {
+	void __iomem *io_base_st;
+	bool running;
+	bool enabled;
+	s16 taps[128];	/* Sidetone filter coefficients */
+	int nr_taps;	/* Number of filter coefficients in use */
+	s16 ch0gain;
+	s16 ch1gain;
 };
 
 struct omap_mcbsp {
@@ -410,20 +451,22 @@ struct omap_mcbsp {
 	struct omap_mcbsp_platform_data *pdata;
 	struct clk *iclk;
 	struct clk *fclk;
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
+	struct omap_mcbsp_st_data *st_data;
 	int dma_op_mode;
 	u16 max_tx_thres;
 	u16 max_rx_thres;
 #endif
+	void *reg_cache;
 };
 extern struct omap_mcbsp **mcbsp_ptr;
-extern int omap_mcbsp_count;
+extern int omap_mcbsp_count, omap_mcbsp_cache_size;
 
 int omap_mcbsp_init(void);
 void omap_mcbsp_register_board_cfg(struct omap_mcbsp_platform_data *config,
 					int size);
 void omap_mcbsp_config(unsigned int id, const struct omap_mcbsp_reg_cfg * config);
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 void omap_mcbsp_set_tx_threshold(unsigned int id, u16 threshold);
 void omap_mcbsp_set_rx_threshold(unsigned int id, u16 threshold);
 u16 omap_mcbsp_get_max_tx_threshold(unsigned int id);
@@ -458,5 +501,22 @@ void omap_mcbsp_set_spi_mode(unsigned int id, const struct omap_mcbsp_spi_cfg * 
 int omap_mcbsp_pollread(unsigned int id, u16 * buf);
 int omap_mcbsp_pollwrite(unsigned int id, u16 buf);
 int omap_mcbsp_set_io_type(unsigned int id, omap_mcbsp_io_type_t io_type);
+
+#ifdef CONFIG_ARCH_OMAP3
+/* Sidetone specific API */
+int omap_st_set_chgain(unsigned int id, int channel, s16 chgain);
+int omap_st_get_chgain(unsigned int id, int channel, s16 *chgain);
+int omap_st_enable(unsigned int id);
+int omap_st_disable(unsigned int id);
+int omap_st_is_enabled(unsigned int id);
+#else
+static inline int omap_st_set_chgain(unsigned int id, int channel,
+				     s16 chgain) { return 0; }
+static inline int omap_st_get_chgain(unsigned int id, int channel,
+				     s16 *chgain) { return 0; }
+static inline int omap_st_enable(unsigned int id) { return 0; }
+static inline int omap_st_disable(unsigned int id) { return 0; }
+static inline int omap_st_is_enabled(unsigned int id) {  return 0; }
+#endif
 
 #endif
