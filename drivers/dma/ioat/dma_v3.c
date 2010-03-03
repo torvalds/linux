@@ -341,16 +341,8 @@ static void ioat3_restart_channel(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
 	unsigned long phys_complete;
-	u32 status;
 
-	status = ioat_chansts(chan);
-	if (is_ioat_active(status) || is_ioat_idle(status))
-		ioat_suspend(chan);
-	while (is_ioat_active(status) || is_ioat_idle(status)) {
-		status = ioat_chansts(chan);
-		cpu_relax();
-	}
-
+	ioat2_quiesce(chan, 0);
 	if (ioat_cleanup_preamble(chan, &phys_complete))
 		__cleanup(ioat, phys_complete);
 
