@@ -670,6 +670,9 @@ static void fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
 		? (1 << (ep_index(ep) + 16))
 		: (1 << (ep_index(ep)));
 
+	/* Flush all the dTD structs out to memory */
+	wmb();
+
 	/* check if the pipe is empty */
 	if (!(list_empty(&ep->queue))) {
 		/* Add td to the end */
@@ -677,6 +680,7 @@ static void fsl_queue_td(struct fsl_ep *ep, struct fsl_req *req)
 		lastreq = list_entry(ep->queue.prev, struct fsl_req, queue);
 		lastreq->tail->next_td_ptr =
 			cpu_to_le32(req->head->td_dma & DTD_ADDR_MASK);
+		wmb();
 		/* Read prime bit, if 1 goto done */
 		if (fsl_readl(&dr_regs->endpointprime) & bitmask)
 			goto out;
