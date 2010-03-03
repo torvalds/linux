@@ -11,7 +11,6 @@
  */
 #include <linux/types.h>
 #include <linux/kernel.h>
-#include <linux/skbuff.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include <linux/if.h>
