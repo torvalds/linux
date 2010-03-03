@@ -211,10 +211,18 @@ static struct irq_chip nmk_gpio_irq_chip = {
 static void nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 {
 	struct nmk_gpio_chip *nmk_chip;
-	struct irq_chip *host_chip;
+	struct irq_chip *host_chip = get_irq_chip(irq);
 	unsigned int gpio_irq;
 	u32 pending;
 	unsigned int first_irq;
+
+	if (host_chip->mask_ack)
+		host_chip->mask_ack(irq);
+	else {
+		host_chip->mask(irq);
+		if (host_chip->ack)
+			host_chip->ack(irq);
+	}
 
 	nmk_chip = get_irq_data(irq);
 	first_irq = NOMADIK_GPIO_TO_IRQ(nmk_chip->chip.base);
@@ -222,10 +230,8 @@ static void nmk_gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 		gpio_irq = first_irq + __ffs(pending);
 		generic_handle_irq(gpio_irq);
 	}
-	if (0) {/* don't ack parent irq, as ack == disable */
-		host_chip = get_irq_chip(irq);
-		host_chip->ack(irq);
-	}
+
+	host_chip->unmask(irq);
 }
 
 static int nmk_gpio_init_irq(struct nmk_gpio_chip *nmk_chip)
