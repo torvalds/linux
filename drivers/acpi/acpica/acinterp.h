@@ -121,6 +121,13 @@ acpi_ex_convert_to_target_type(acpi_object_type destination_type,
 			       struct acpi_walk_state *walk_state);
 
 /*
+ * exdebug - AML debug object
+ */
+void
+acpi_ex_do_debug_object(union acpi_operand_object *source_desc,
+			u32 level, u32 index);
+
+/*
  * exfield - ACPI AML (p-code) execution - field manipulation
  */
 acpi_status
