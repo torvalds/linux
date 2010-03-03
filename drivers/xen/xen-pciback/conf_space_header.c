@@ -18,6 +18,25 @@ struct pci_bar_info {
 #define is_enable_cmd(value) ((value)&(PCI_COMMAND_MEMORY|PCI_COMMAND_IO))
 #define is_master_cmd(value) ((value)&PCI_COMMAND_MASTER)
 
+static int command_read(struct pci_dev *dev, int offset, u16 *value, void *data)
+{
+	int i;
+	int ret;
+
+	ret = pciback_read_config_word(dev, offset, value, data);
+	if (!atomic_read(&dev->enable_cnt))
+		return ret;
+
+	for (i = 0; i < PCI_ROM_RESOURCE; i++) {
+		if (dev->resource[i].flags & IORESOURCE_IO)
+			*value |= PCI_COMMAND_IO;
+		if (dev->resource[i].flags & IORESOURCE_MEM)
+			*value |= PCI_COMMAND_MEMORY;
+	}
+
+	return ret;
+}
+
 static int command_write(struct pci_dev *dev, int offset, u16 value, void *data)
 {
 	int err;
@@ -142,10 +161,26 @@ static inline void read_dev_bar(struct pci_dev *dev,
 				struct pci_bar_info *bar_info, int offset,
 				u32 len_mask)
 {
-	pci_read_config_dword(dev, offset, &bar_info->val);
-	pci_write_config_dword(dev, offset, len_mask);
-	pci_read_config_dword(dev, offset, &bar_info->len_val);
-	pci_write_config_dword(dev, offset, bar_info->val);
+	int	pos;
+	struct resource	*res = dev->resource;
+
+	if (offset == PCI_ROM_ADDRESS || offset == PCI_ROM_ADDRESS1)
+		pos = PCI_ROM_RESOURCE;
+	else {
+		pos = (offset - PCI_BASE_ADDRESS_0) / 4;
+		if (pos && ((res[pos - 1].flags & (PCI_BASE_ADDRESS_SPACE |
+				PCI_BASE_ADDRESS_MEM_TYPE_MASK)) ==
+			   (PCI_BASE_ADDRESS_SPACE_MEMORY |
+				PCI_BASE_ADDRESS_MEM_TYPE_64))) {
+			bar_info->val = res[pos - 1].start >> 32;
+			bar_info->len_val = res[pos - 1].end >> 32;
+			return;
+		}
+	}
+
+	bar_info->val = res[pos].start |
+			(res[pos].flags & PCI_REGION_FLAG_MASK);
+	bar_info->len_val = res[pos].end - res[pos].start + 1;
 }
 
 static void *bar_init(struct pci_dev *dev, int offset)
@@ -186,6 +221,22 @@ static void bar_release(struct pci_dev *dev, int offset, void *data)
 	kfree(data);
 }
 
+static int pciback_read_vendor(struct pci_dev *dev, int offset,
+			       u16 *value, void *data)
+{
+	*value = dev->vendor;
+
+	return 0;
+}
+
+static int pciback_read_device(struct pci_dev *dev, int offset,
+			       u16 *value, void *data)
+{
+	*value = dev->device;
+
+	return 0;
+}
+
 static int interrupt_read(struct pci_dev *dev, int offset, u8 * value,
 			  void *data)
 {
@@ -213,9 +264,19 @@ out:
 
 static const struct config_field header_common[] = {
 	{
+	 .offset    = PCI_VENDOR_ID,
+	 .size      = 2,
+	 .u.w.read  = pciback_read_vendor,
+	},
+	{
+	 .offset    = PCI_DEVICE_ID,
+	 .size      = 2,
+	 .u.w.read  = pciback_read_device,
+	},
+	{
 	 .offset    = PCI_COMMAND,
 	 .size      = 2,
-	 .u.w.read  = pciback_read_config_word,
+	 .u.w.read  = command_read,
 	 .u.w.write = command_write,
 	},
 	{
