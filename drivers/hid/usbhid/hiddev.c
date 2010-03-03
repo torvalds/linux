@@ -265,9 +265,10 @@ static int hiddev_release(struct inode * inode, struct file * file)
 static int hiddev_open(struct inode *inode, struct file *file)
 {
 	struct hiddev_list *list;
-	int res;
+	int res, i;
 
-	int i = iminor(inode) - HIDDEV_MINOR_BASE;
+	lock_kernel();
+	i = iminor(inode) - HIDDEV_MINOR_BASE;
 
 	if (i >= HIDDEV_MINORS || i < 0 || !hiddev_table[i])
 		return -ENODEV;
@@ -313,10 +314,12 @@ static int hiddev_open(struct inode *inode, struct file *file)
 			usbhid_open(hid);
 		}
 
+	unlock_kernel();
 	return 0;
 bail:
 	file->private_data = NULL;
 	kfree(list);
+	unlock_kernel();
 	return res;
 }
 

@@ -122,7 +122,6 @@ enum usb_interface_condition {
  *	number from the USB core by calling usb_register_dev().
  * @condition: binding state of the interface: not bound, binding
  *	(in probe()), bound to a driver, or unbinding (in disconnect())
- * @is_active: flag set when the interface is bound and not suspended.
  * @sysfs_files_created: sysfs attributes exist
  * @ep_devs_created: endpoint child pseudo-devices exist
  * @unregistering: flag set when the interface is being unregistered
@@ -135,8 +134,7 @@ enum usb_interface_condition {
  * @dev: driver model's view of this device
  * @usb_dev: if an interface is bound to the USB major, this will point
  *	to the sysfs representation for that device.
- * @pm_usage_cnt: PM usage counter for this interface; autosuspend is not
- *	allowed unless the counter is 0.
+ * @pm_usage_cnt: PM usage counter for this interface
  * @reset_ws: Used for scheduling resets from atomic context.
  * @reset_running: set to 1 if the interface is currently running a
  *      queued reset so that usb_cancel_queued_reset() doesn't try to
@@ -184,7 +182,6 @@ struct usb_interface {
 	int minor;			/* minor number this interface is
 					 * bound to */
 	enum usb_interface_condition condition;		/* state of binding */
-	unsigned is_active:1;		/* the interface is not suspended */
 	unsigned sysfs_files_created:1;	/* the sysfs attributes exist */
 	unsigned ep_devs_created:1;	/* endpoint "devices" exist */
 	unsigned unregistering:1;	/* unregistration is in progress */
@@ -401,7 +398,6 @@ struct usb_tt;
  * @portnum: parent port number (origin 1)
  * @level: number of USB hub ancestors
  * @can_submit: URBs may be submitted
- * @discon_suspended: disconnected while suspended
  * @persist_enabled:  USB_PERSIST enabled for this device
  * @have_langid: whether string_langid is valid
  * @authorized: policy has said we can use it;
@@ -421,20 +417,15 @@ struct usb_tt;
  * @usbfs_dentry: usbfs dentry entry for the device
  * @maxchild: number of ports if hub
  * @children: child devices - USB devices that are attached to this hub
- * @pm_usage_cnt: usage counter for autosuspend
  * @quirks: quirks of the whole device
  * @urbnum: number of URBs submitted for the whole device
  * @active_duration: total time device is not suspended
- * @autosuspend: for delayed autosuspends
- * @autoresume: for autoresumes requested while in_interrupt
- * @pm_mutex: protects PM operations
  * @last_busy: time of last use
  * @autosuspend_delay: in jiffies
  * @connect_time: time device was first connected
  * @do_remote_wakeup:  remote wakeup should be enabled
  * @reset_resume: needs reset instead of resume
  * @autosuspend_disabled: autosuspend disabled by the user
- * @skip_sys_resume: skip the next system resume
  * @wusb_dev: if this is a Wireless USB device, link to the WUSB
  *	specific data for the device.
  * @slot_id: Slot ID assigned by xHCI
@@ -475,7 +466,6 @@ struct usb_device {
 	u8 level;
 
 	unsigned can_submit:1;
-	unsigned discon_suspended:1;
 	unsigned persist_enabled:1;
 	unsigned have_langid:1;
 	unsigned authorized:1;
@@ -499,17 +489,12 @@ struct usb_device {
 	int maxchild;
 	struct usb_device *children[USB_MAXCHILDREN];
 
-	int pm_usage_cnt;
 	u32 quirks;
 	atomic_t urbnum;
 
 	unsigned long active_duration;
 
 #ifdef CONFIG_PM
-	struct delayed_work autosuspend;
-	struct work_struct autoresume;
-	struct mutex pm_mutex;
-
 	unsigned long last_busy;
 	int autosuspend_delay;
 	unsigned long connect_time;
@@ -517,7 +502,6 @@ struct usb_device {
 	unsigned do_remote_wakeup:1;
 	unsigned reset_resume:1;
 	unsigned autosuspend_disabled:1;
-	unsigned skip_sys_resume:1;
 #endif
 	struct wusb_dev *wusb_dev;
 	int slot_id;
@@ -542,21 +526,15 @@ extern struct usb_device *usb_find_device(u16 vendor_id, u16 product_id);
 
 /* USB autosuspend and autoresume */
 #ifdef CONFIG_USB_SUSPEND
+extern int usb_enable_autosuspend(struct usb_device *udev);
+extern int usb_disable_autosuspend(struct usb_device *udev);
+
 extern int usb_autopm_get_interface(struct usb_interface *intf);
 extern void usb_autopm_put_interface(struct usb_interface *intf);
 extern int usb_autopm_get_interface_async(struct usb_interface *intf);
 extern void usb_autopm_put_interface_async(struct usb_interface *intf);
-
-static inline void usb_autopm_get_interface_no_resume(
-		struct usb_interface *intf)
-{
-	atomic_inc(&intf->pm_usage_cnt);
-}
-static inline void usb_autopm_put_interface_no_suspend(
-		struct usb_interface *intf)
-{
-	atomic_dec(&intf->pm_usage_cnt);
-}
+extern void usb_autopm_get_interface_no_resume(struct usb_interface *intf);
+extern void usb_autopm_put_interface_no_suspend(struct usb_interface *intf);
 
 static inline void usb_mark_last_busy(struct usb_device *udev)
 {
@@ -564,6 +542,11 @@ static inline void usb_mark_last_busy(struct usb_device *udev)
 }
 
 #else
+
+static inline int usb_enable_autosuspend(struct usb_device *udev)
+{ return 0; }
+static inline int usb_disable_autosuspend(struct usb_device *udev)
+{ return 0; }
 
 static inline int usb_autopm_get_interface(struct usb_interface *intf)
 { return 0; }
@@ -1583,14 +1566,18 @@ extern void usb_register_notify(struct notifier_block *nb);
 extern void usb_unregister_notify(struct notifier_block *nb);
 
 #ifdef DEBUG
-#define dbg(format, arg...) printk(KERN_DEBUG "%s: " format "\n" , \
-	__FILE__ , ## arg)
+#define dbg(format, arg...)						\
+	printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg)
 #else
-#define dbg(format, arg...) do {} while (0)
+#define dbg(format, arg...)						\
+do {									\
+	if (0)								\
+		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg); \
+} while (0)
 #endif
 
-#define err(format, arg...) printk(KERN_ERR KBUILD_MODNAME ": " \
-	format "\n" , ## arg)
+#define err(format, arg...)					\
+	printk(KERN_ERR KBUILD_MODNAME ": " format "\n", ##arg)
 
 /* debugfs stuff */
 extern struct dentry *usb_debug_root;

@@ -618,11 +618,6 @@ gmidi_set_config(struct gmidi_device *dev, unsigned number, gfp_t gfp_flags)
 	}
 #endif
 
-	if (gadget_is_sa1100(gadget) && dev->config) {
-		/* tx fifo is full, but we can't clear it...*/
-		ERROR(dev, "can't change configurations\n");
-		return -ESPIPE;
-	}
 	gmidi_reset_config(dev);
 
 	switch (number) {

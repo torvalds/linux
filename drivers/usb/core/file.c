@@ -34,7 +34,6 @@ static int usb_open(struct inode * inode, struct file * file)
 	int err = -ENODEV;
 	const struct file_operations *old_fops, *new_fops = NULL;
 
-	lock_kernel();
 	down_read(&minor_rwsem);
 	c = usb_minors[minor];
 
@@ -53,7 +52,6 @@ static int usb_open(struct inode * inode, struct file * file)
 	fops_put(old_fops);
  done:
 	up_read(&minor_rwsem);
-	unlock_kernel();
 	return err;
 }
 

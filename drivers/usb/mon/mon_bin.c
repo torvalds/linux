@@ -460,8 +460,8 @@ static void mon_bin_event(struct mon_reader_bin *rp, struct urb *urb,
     char ev_type, int status)
 {
 	const struct usb_endpoint_descriptor *epd = &urb->ep->desc;
-	unsigned long flags;
 	struct timeval ts;
+	unsigned long flags;
 	unsigned int urb_length;
 	unsigned int offset;
 	unsigned int length;
@@ -600,9 +600,12 @@ static void mon_bin_complete(void *data, struct urb *urb, int status)
 static void mon_bin_error(void *data, struct urb *urb, int error)
 {
 	struct mon_reader_bin *rp = data;
+	struct timeval ts;
 	unsigned long flags;
 	unsigned int offset;
 	struct mon_bin_hdr *ep;
+
+	do_gettimeofday(&ts);
 
 	spin_lock_irqsave(&rp->b_lock, flags);
 
@@ -623,6 +626,8 @@ static void mon_bin_error(void *data, struct urb *urb, int error)
 	ep->devnum = urb->dev->devnum;
 	ep->busnum = urb->dev->bus->busnum;
 	ep->id = (unsigned long) urb;
+	ep->ts_sec = ts.tv_sec;
+	ep->ts_usec = ts.tv_usec;
 	ep->status = error;
 
 	ep->flag_setup = '-';

@@ -43,7 +43,7 @@ static int debug;
 #define DRIVER_VERSION "v0.11"
 #define DRIVER_DESC "Infinity USB Unlimited Phoenix driver"
 
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	{USB_DEVICE(IUU_USB_VENDOR_ID, IUU_USB_PRODUCT_ID)},
 	{}			/* Terminating entry */
 };

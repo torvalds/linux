@@ -125,7 +125,7 @@ struct keyspan_pda_private {
 #define ENTREGRA_VENDOR_ID		0x1645
 #define ENTREGRA_FAKE_ID		0x8093
 
-static struct usb_device_id id_table_combined [] = {
+static const struct usb_device_id id_table_combined[] = {
 #ifdef KEYSPAN
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, KEYSPAN_PDA_FAKE_ID) },
 #endif
@@ -147,20 +147,20 @@ static struct usb_driver keyspan_pda_driver = {
 	.no_dynamic_id = 	1,
 };
 
-static struct usb_device_id id_table_std [] = {
+static const struct usb_device_id id_table_std[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, KEYSPAN_PDA_ID) },
 	{ }						/* Terminating entry */
 };
 
 #ifdef KEYSPAN
-static struct usb_device_id id_table_fake [] = {
+static const struct usb_device_id id_table_fake[] = {
 	{ USB_DEVICE(KEYSPAN_VENDOR_ID, KEYSPAN_PDA_FAKE_ID) },
 	{ }						/* Terminating entry */
 };
 #endif
 
 #ifdef XIRCOM
-static struct usb_device_id id_table_fake_xircom [] = {
+static const struct usb_device_id id_table_fake_xircom[] = {
 	{ USB_DEVICE(XIRCOM_VENDOR_ID, XIRCOM_FAKE_ID) },
 	{ USB_DEVICE(ENTREGRA_VENDOR_ID, ENTREGRA_FAKE_ID) },
 	{ }
@@ -429,13 +429,20 @@ static int keyspan_pda_get_modem_info(struct usb_serial *serial,
 				      unsigned char *value)
 {
 	int rc;
-	unsigned char data;
+	u8 *data;
+
+	data = kmalloc(1, GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	rc = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			     3, /* get pins */
 			     USB_TYPE_VENDOR|USB_RECIP_INTERFACE|USB_DIR_IN,
-			     0, 0, &data, 1, 2000);
+			     0, 0, data, 1, 2000);
 	if (rc >= 0)
-		*value = data;
+		*value = *data;
+
+	kfree(data);
 	return rc;
 }
 
@@ -543,7 +550,14 @@ static int keyspan_pda_write(struct tty_struct *tty,
 	   device how much room it really has.  This is done only on
 	   scheduler time, since usb_control_msg() sleeps. */
 	if (count > priv->tx_room && !in_interrupt()) {
-		unsigned char room;
+		u8 *room;
+
+		room = kmalloc(1, GFP_KERNEL);
+		if (!room) {
+			rc = -ENOMEM;
+			goto exit;
+		}
+
 		rc = usb_control_msg(serial->dev,
 				     usb_rcvctrlpipe(serial->dev, 0),
 				     6, /* write_room */
@@ -551,9 +565,14 @@ static int keyspan_pda_write(struct tty_struct *tty,
 				     | USB_DIR_IN,
 				     0, /* value: 0 means "remaining room" */
 				     0, /* index */
-				     &room,
+				     room,
 				     1,
 				     2000);
+		if (rc > 0) {
+			dbg(" roomquery says %d", *room);
+			priv->tx_room = *room;
+		}
+		kfree(room);
 		if (rc < 0) {
 			dbg(" roomquery failed");
 			goto exit;
@@ -563,8 +582,6 @@ static int keyspan_pda_write(struct tty_struct *tty,
 			rc = -EIO; /* device didn't return any data */
 			goto exit;
 		}
-		dbg(" roomquery says %d", room);
-		priv->tx_room = room;
 	}
 	if (count > priv->tx_room) {
 		/* we're about to completely fill the Tx buffer, so
@@ -684,18 +701,22 @@ static int keyspan_pda_open(struct tty_struct *tty,
 					struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
-	unsigned char room;
+	u8 *room;
 	int rc = 0;
 	struct keyspan_pda_private *priv;
 
 	/* find out how much room is in the Tx ring */
+	room = kmalloc(1, GFP_KERNEL);
+	if (!room)
+		return -ENOMEM;
+
 	rc = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			     6, /* write_room */
 			     USB_TYPE_VENDOR | USB_RECIP_INTERFACE
 			     | USB_DIR_IN,
 			     0, /* value */
 			     0, /* index */
-			     &room,
+			     room,
 			     1,
 			     2000);
 	if (rc < 0) {
@@ -708,8 +729,8 @@ static int keyspan_pda_open(struct tty_struct *tty,
 		goto error;
 	}
 	priv = usb_get_serial_port_data(port);
-	priv->tx_room = room;
-	priv->tx_throttled = room ? 0 : 1;
+	priv->tx_room = *room;
+	priv->tx_throttled = *room ? 0 : 1;
 
 	/*Start reading from the device*/
 	port->interrupt_in_urb->dev = serial->dev;
@@ -718,8 +739,8 @@ static int keyspan_pda_open(struct tty_struct *tty,
 		dbg("%s - usb_submit_urb(read int) failed", __func__);
 		goto error;
 	}
-
 error:
+	kfree(room);
 	return rc;
 }
 static void keyspan_pda_close(struct usb_serial_port *port)
