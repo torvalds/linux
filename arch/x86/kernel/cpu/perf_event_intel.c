@@ -480,6 +480,7 @@ static void intel_pmu_disable_all(void)
 		intel_pmu_disable_bts();
 
 	intel_pmu_pebs_disable_all();
+	intel_pmu_lbr_disable_all();
 }
 
 static void intel_pmu_enable_all(void)
@@ -499,6 +500,7 @@ static void intel_pmu_enable_all(void)
 	}
 
 	intel_pmu_pebs_enable_all();
+	intel_pmu_lbr_enable_all();
 }
 
 static inline u64 intel_pmu_get_status(void)
@@ -674,6 +676,8 @@ again:
 	inc_irq_stat(apic_perf_irqs);
 	ack = status;
 
+	intel_pmu_lbr_read();
+
 	/*
 	 * PEBS overflow sets bit 62 in the global status register
 	 */
@@ -848,6 +852,8 @@ static __init int intel_pmu_init(void)
 		memcpy(hw_cache_event_ids, core2_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 
+		intel_pmu_lbr_init_core();
+
 		x86_pmu.event_constraints = intel_core2_event_constraints;
 		pr_cont("Core2 events, ");
 		break;
@@ -857,12 +863,17 @@ static __init int intel_pmu_init(void)
 		memcpy(hw_cache_event_ids, nehalem_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
 
+		intel_pmu_lbr_init_nhm();
+
 		x86_pmu.event_constraints = intel_nehalem_event_constraints;
 		pr_cont("Nehalem/Corei7 events, ");
 		break;
+
 	case 28: /* Atom */
 		memcpy(hw_cache_event_ids, atom_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
+
+		intel_pmu_lbr_init_atom();
 
 		x86_pmu.event_constraints = intel_gen_event_constraints;
 		pr_cont("Atom events, ");
@@ -872,6 +883,8 @@ static __init int intel_pmu_init(void)
 	case 44: /* 32 nm nehalem, "Gulftown" */
 		memcpy(hw_cache_event_ids, westmere_hw_cache_event_ids,
 		       sizeof(hw_cache_event_ids));
+
+		intel_pmu_lbr_init_nhm();
 
 		x86_pmu.event_constraints = intel_westmere_event_constraints;
 		pr_cont("Westmere events, ");

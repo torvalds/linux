@@ -467,6 +467,17 @@ struct perf_raw_record {
 	void				*data;
 };
 
+struct perf_branch_entry {
+	__u64				from;
+	__u64				to;
+	__u64				flags;
+};
+
+struct perf_branch_stack {
+	__u64				nr;
+	struct perf_branch_entry	entries[0];
+};
+
 struct task_struct;
 
 /**
