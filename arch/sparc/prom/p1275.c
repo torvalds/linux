@@ -32,8 +32,7 @@ extern void prom_cif_interface(void);
 extern void prom_cif_callback(void);
 
 /*
- * This provides SMP safety on the p1275buf. prom_callback() drops this lock
- * to allow recursuve acquisition.
+ * This provides SMP safety on the p1275buf.
  */
 DEFINE_SPINLOCK(prom_entry_lock);
 
@@ -47,7 +46,9 @@ long p1275_cmd(const char *service, long fmt, ...)
 	
 	p = p1275buf.prom_buffer;
 
-	spin_lock_irqsave(&prom_entry_lock, flags);
+	raw_local_save_flags(flags);
+	raw_local_irq_restore(PIL_NMI);
+	spin_lock(&prom_entry_lock);
 
 	p1275buf.prom_args[0] = (unsigned long)p;		/* service */
 	strcpy (p, service);
@@ -139,7 +140,8 @@ long p1275_cmd(const char *service, long fmt, ...)
 	va_end(list);
 	x = p1275buf.prom_args [nargs + 3];
 
-	spin_unlock_irqrestore(&prom_entry_lock, flags);
+	spin_unlock(&prom_entry_lock);
+	raw_local_irq_restore(flags);
 
 	return x;
 }
