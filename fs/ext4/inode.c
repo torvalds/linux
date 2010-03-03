@@ -2157,17 +2157,16 @@ static void ext4_da_block_invalidatepages(struct mpage_da_data *mpd,
 			break;
 		for (i = 0; i < nr_pages; i++) {
 			struct page *page = pvec.pages[i];
-			index = page->index;
-			if (index > end)
+			if (page->index > end)
 				break;
-			index++;
-
 			BUG_ON(!PageLocked(page));
 			BUG_ON(PageWriteback(page));
 			block_invalidatepage(page, 0);
 			ClearPageUptodate(page);
 			unlock_page(page);
 		}
+		index = pvec.pages[nr_pages - 1]->index + 1;
+		pagevec_release(&pvec);
 	}
 	return;
 }
