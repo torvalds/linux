@@ -2845,15 +2845,12 @@ static int ahci_configure_dma_masks(struct pci_dev *pdev, int using_dac)
 	return 0;
 }
 
-static void ahci_print_info(struct ata_host *host)
+static void ahci_print_info(struct ata_host *host, const char *scc_s)
 {
 	struct ahci_host_priv *hpriv = host->private_data;
-	struct pci_dev *pdev = to_pci_dev(host->dev);
 	void __iomem *mmio = hpriv->mmio;
 	u32 vers, cap, cap2, impl, speed;
 	const char *speed_s;
-	u16 cc;
-	const char *scc_s;
 
 	vers = readl(mmio + HOST_VERSION);
 	cap = hpriv->cap;
@@ -2870,17 +2867,7 @@ static void ahci_print_info(struct ata_host *host)
 	else
 		speed_s = "?";
 
-	pci_read_config_word(pdev, 0x0a, &cc);
-	if (cc == PCI_CLASS_STORAGE_IDE)
-		scc_s = "IDE";
-	else if (cc == PCI_CLASS_STORAGE_SATA)
-		scc_s = "SATA";
-	else if (cc == PCI_CLASS_STORAGE_RAID)
-		scc_s = "RAID";
-	else
-		scc_s = "unknown";
-
-	dev_printk(KERN_INFO, &pdev->dev,
+	dev_info(host->dev,
 		"AHCI %02x%02x.%02x%02x "
 		"%u slots %u ports %s Gbps 0x%x impl %s mode\n"
 		,
@@ -2896,7 +2883,7 @@ static void ahci_print_info(struct ata_host *host)
 		impl,
 		scc_s);
 
-	dev_printk(KERN_INFO, &pdev->dev,
+	dev_info(host->dev,
 		"flags: "
 		"%s%s%s%s%s%s%s"
 		"%s%s%s%s%s%s%s"
@@ -2924,6 +2911,25 @@ static void ahci_print_info(struct ata_host *host)
 		cap2 & HOST_CAP2_NVMHCI ? "nvmp " : "",
 		cap2 & HOST_CAP2_BOH ? "boh " : ""
 		);
+}
+
+static void ahci_pci_print_info(struct ata_host *host)
+{
+	struct pci_dev *pdev = to_pci_dev(host->dev);
+	u16 cc;
+	const char *scc_s;
+
+	pci_read_config_word(pdev, 0x0a, &cc);
+	if (cc == PCI_CLASS_STORAGE_IDE)
+		scc_s = "IDE";
+	else if (cc == PCI_CLASS_STORAGE_SATA)
+		scc_s = "SATA";
+	else if (cc == PCI_CLASS_STORAGE_RAID)
+		scc_s = "RAID";
+	else
+		scc_s = "unknown";
+
+	ahci_print_info(host, scc_s);
 }
 
 /* On ASUS P5W DH Deluxe, the second port of PCI device 00:1f.2 is
@@ -3459,7 +3465,7 @@ static int ahci_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 		return rc;
 
 	ahci_pci_init_controller(host);
-	ahci_print_info(host);
+	ahci_pci_print_info(host);
 
 	pci_set_master(pdev);
 	return ata_host_activate(host, pdev->irq, ahci_interrupt, IRQF_SHARED,
