@@ -764,6 +764,7 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 	struct ftrace_raw_##call *entry;				\
 	u64 __addr = 0, __count = 1;					\
 	unsigned long irq_flags;					\
+	struct pt_regs *__regs;						\
 	int __entry_size;						\
 	int __data_size;						\
 	int rctx;							\
@@ -784,8 +785,11 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 									\
 	{ assign; }							\
 									\
+	__regs = &__get_cpu_var(perf_trace_regs);			\
+	perf_fetch_caller_regs(__regs, 2);				\
+									\
 	ftrace_perf_buf_submit(entry, __entry_size, rctx, __addr,	\
-			       __count, irq_flags);			\
+			       __count, irq_flags, __regs);		\
 }
 
 #undef DEFINE_EVENT

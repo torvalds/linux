@@ -187,6 +187,9 @@ do {									\
 
 #ifdef CONFIG_PERF_EVENTS
 struct perf_event;
+
+DECLARE_PER_CPU(struct pt_regs, perf_trace_regs);
+
 extern int ftrace_profile_enable(int event_id);
 extern void ftrace_profile_disable(int event_id);
 extern int ftrace_profile_set_filter(struct perf_event *event, int event_id,
@@ -198,11 +201,11 @@ ftrace_perf_buf_prepare(int size, unsigned short type, int *rctxp,
 
 static inline void
 ftrace_perf_buf_submit(void *raw_data, int size, int rctx, u64 addr,
-		       u64 count, unsigned long irq_flags)
+		       u64 count, unsigned long irq_flags, struct pt_regs *regs)
 {
 	struct trace_entry *entry = raw_data;
 
-	perf_tp_event(entry->type, addr, count, raw_data, size);
+	perf_tp_event(entry->type, addr, count, raw_data, size, regs);
 	perf_swevent_put_recursion_context(rctx);
 	local_irq_restore(irq_flags);
 }

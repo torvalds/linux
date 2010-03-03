@@ -467,7 +467,7 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	rec->nr = syscall_nr;
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args,
 			       (unsigned long *)&rec->args);
-	ftrace_perf_buf_submit(rec, size, rctx, 0, 1, flags);
+	ftrace_perf_buf_submit(rec, size, rctx, 0, 1, flags, regs);
 }
 
 int prof_sysenter_enable(struct ftrace_event_call *call)
@@ -542,7 +542,7 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	rec->nr = syscall_nr;
 	rec->ret = syscall_get_return_value(current, regs);
 
-	ftrace_perf_buf_submit(rec, size, rctx, 0, 1, flags);
+	ftrace_perf_buf_submit(rec, size, rctx, 0, 1, flags, regs);
 }
 
 int prof_sysexit_enable(struct ftrace_event_call *call)

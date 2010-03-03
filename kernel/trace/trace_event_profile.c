@@ -2,13 +2,14 @@
  * trace event based perf counter profiling
  *
  * Copyright (C) 2009 Red Hat Inc, Peter Zijlstra <pzijlstr@redhat.com>
- *
+ * Copyright (C) 2009-2010 Frederic Weisbecker <fweisbec@gmail.com>
  */
 
 #include <linux/module.h>
 #include <linux/kprobes.h>
 #include "trace.h"
 
+DEFINE_PER_CPU(struct pt_regs, perf_trace_regs);
 
 static char *perf_trace_buf;
 static char *perf_trace_buf_nmi;
