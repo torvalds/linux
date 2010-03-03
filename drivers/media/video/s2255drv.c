@@ -1,7 +1,7 @@
 /*
  *  s2255drv.c - a driver for the Sensoray 2255 USB video capture device
  *
- *   Copyright (C) 2007-2008 by Sensoray Company Inc.
+ *   Copyright (C) 2007-2010 by Sensoray Company Inc.
  *                              Dean Anderson
  *
  * Some video buffer code based on vivi driver:
@@ -76,11 +76,13 @@
 #define S2255_LOAD_TIMEOUT      (5000 + S2255_DSP_BOOTTIME)
 #define S2255_DEF_BUFS          16
 #define S2255_SETMODE_TIMEOUT   500
+#define S2255_VIDSTATUS_TIMEOUT 350
 #define MAX_CHANNELS		4
 #define S2255_MARKER_FRAME	0x2255DA4AL
 #define S2255_MARKER_RESPONSE	0x2255ACACL
 #define S2255_RESPONSE_SETMODE  0x01
 #define S2255_RESPONSE_FW       0x10
+#define S2255_RESPONSE_STATUS   0x20
 #define S2255_USB_XFER_SIZE	(16 * 1024)
 #define MAX_CHANNELS		4
 #define MAX_PIPE_BUFFERS	1
@@ -261,9 +263,16 @@ struct s2255_dev {
 	int                     chn_configured[MAX_CHANNELS];
 	wait_queue_head_t       wait_setmode[MAX_CHANNELS];
 	int                     setmode_ready[MAX_CHANNELS];
+	/* video status items */
+	int                     vidstatus[MAX_CHANNELS];
+	wait_queue_head_t       wait_vidstatus[MAX_CHANNELS];
+	int                     vidstatus_ready[MAX_CHANNELS];
+
 	int                     chn_ready;
 	struct kref		kref;
 	spinlock_t              slock;
+	/* dsp firmware version (f2255usb.bin) */
+	int                     dsp_fw_ver;
 };
 #define to_s2255_dev(d) container_of(d, struct s2255_dev, kref)
 
@@ -296,8 +305,12 @@ struct s2255_fh {
 
 /* current cypress EEPROM firmware version */
 #define S2255_CUR_USB_FWVER	((3 << 8) | 6)
+/* current DSP FW version */
+#define S2255_CUR_DSP_FWVER     5
+/* Need DSP version 5+ for video status feature */
+#define S2255_MIN_DSP_STATUS    5
 #define S2255_MAJOR_VERSION	1
-#define S2255_MINOR_VERSION	14
+#define S2255_MINOR_VERSION	15
 #define S2255_RELEASE		0
 #define S2255_VERSION		KERNEL_VERSION(S2255_MAJOR_VERSION, \
 					       S2255_MINOR_VERSION, \
@@ -1261,6 +1274,42 @@ static int s2255_set_mode(struct s2255_dev *dev, unsigned long chn,
 	return res;
 }
 
+static int s2255_cmd_status(struct s2255_dev *dev, unsigned long chn,
+			    u32 *pstatus)
+{
+	int res;
+	u32 *buffer;
+	u32 chn_rev;
+	mutex_lock(&dev->lock);
+	chn_rev = G_chnmap[chn];
+	dprintk(4, "%s chan %d\n", __func__, chn_rev);
+	buffer = kzalloc(512, GFP_KERNEL);
+	if (buffer == NULL) {
+		dev_err(&dev->udev->dev, "out of mem\n");
+		mutex_unlock(&dev->lock);
+		return -ENOMEM;
+	}
+	/* form the get vid status command */
+	buffer[0] = IN_DATA_TOKEN;
+	buffer[1] = chn_rev;
+	buffer[2] = CMD_STATUS;
+	*pstatus = 0;
+	dev->vidstatus_ready[chn] = 0;
+	res = s2255_write_config(dev->udev, (unsigned char *)buffer, 512);
+	kfree(buffer);
+	wait_event_timeout(dev->wait_vidstatus[chn],
+			   (dev->vidstatus_ready[chn] != 0),
+			   msecs_to_jiffies(S2255_VIDSTATUS_TIMEOUT));
+	if (dev->vidstatus_ready[chn] != 1) {
+		printk(KERN_DEBUG "s2255: no vidstatus response\n");
+		res = -EFAULT;
+	}
+	*pstatus = dev->vidstatus[chn];
+	dprintk(4, "%s, vid status %d\n", __func__, *pstatus);
+	mutex_unlock(&dev->lock);
+	return res;
+}
+
 static int vidioc_streamon(struct file *file, void *priv, enum v4l2_buf_type i)
 {
 	int res;
@@ -1386,11 +1435,24 @@ out_s_std:
 static int vidioc_enum_input(struct file *file, void *priv,
 			     struct v4l2_input *inp)
 {
+	struct s2255_fh *fh = priv;
+	struct s2255_dev *dev = fh->dev;
+	u32 status = 0;
+
 	if (inp->index != 0)
 		return -EINVAL;
 
 	inp->type = V4L2_INPUT_TYPE_CAMERA;
 	inp->std = S2255_NORMS;
+	inp->status = 0;
+	if (dev->dsp_fw_ver >= S2255_MIN_DSP_STATUS) {
+		int rc;
+		rc = s2255_cmd_status(dev, fh->channel, &status);
+		dprintk(4, "s2255_cmd_status rc: %d status %x\n", rc, status);
+		if (rc == 0)
+			inp->status =  (status & 0x01) ? 0
+				: V4L2_IN_ST_NO_SIGNAL;
+	}
 	strlcpy(inp->name, "Camera", sizeof(inp->name));
 	return 0;
 }
@@ -1700,6 +1762,8 @@ static void s2255_destroy(struct kref *kref)
 	for (i = 0; i < MAX_CHANNELS; i++) {
 		dev->setmode_ready[i] = 1;
 		wake_up(&dev->wait_setmode[i]);
+		dev->vidstatus_ready[i] = 1;
+		wake_up(&dev->wait_vidstatus[i]);
 	}
 	mutex_lock(&dev->open_lock);
 	/* reset the DSP so firmware can be reload next time */
@@ -1964,6 +2028,13 @@ static int save_frame(struct s2255_dev *dev, struct s2255_pipeinfo *pipe_info)
 					atomic_set(&dev->fw_data->fw_state,
 						   S2255_FW_SUCCESS);
 					wake_up(&dev->fw_data->wait_fw);
+					break;
+				case S2255_RESPONSE_STATUS:
+					dev->vidstatus[cc] = pdword[3];
+					dev->vidstatus_ready[cc] = 1;
+					wake_up(&dev->wait_vidstatus[cc]);
+					dprintk(5, "got vidstatus %x chan %d\n",
+						pdword[3], cc);
 					break;
 				default:
 					printk(KERN_INFO "s2255 unknown resp\n");
@@ -2527,9 +2598,10 @@ static int s2255_probe(struct usb_interface *interface,
 	dev->timer.data = (unsigned long)dev->fw_data;
 
 	init_waitqueue_head(&dev->fw_data->wait_fw);
-	for (i = 0; i < MAX_CHANNELS; i++)
+	for (i = 0; i < MAX_CHANNELS; i++) {
 		init_waitqueue_head(&dev->wait_setmode[i]);
-
+		init_waitqueue_head(&dev->wait_vidstatus[i]);
+	}
 
 	dev->fw_data->fw_urb = usb_alloc_urb(0, GFP_KERNEL);
 
@@ -2561,6 +2633,9 @@ static int s2255_probe(struct usb_interface *interface,
 		__le32 *pRel;
 		pRel = (__le32 *) &dev->fw_data->fw->data[fw_size - 4];
 		printk(KERN_INFO "s2255 dsp fw version %x\n", *pRel);
+		dev->dsp_fw_ver = *pRel;
+		if (*pRel < S2255_CUR_DSP_FWVER)
+			printk(KERN_INFO "s2255: f2255usb.bin out of date.\n");
 	}
 	/* loads v4l specific */
 	s2255_probe_v4l(dev);
@@ -2597,6 +2672,8 @@ static void s2255_disconnect(struct usb_interface *interface)
 	for (i = 0; i < MAX_CHANNELS; i++) {
 		dev->setmode_ready[i] = 1;
 		wake_up(&dev->wait_setmode[i]);
+		dev->vidstatus_ready[i] = 1;
+		wake_up(&dev->wait_vidstatus[i]);
 	}
 
 	mutex_lock(&dev->open_lock);
