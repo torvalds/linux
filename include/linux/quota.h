@@ -297,8 +297,6 @@ struct quota_format_ops {
 struct dquot_operations {
 	int (*initialize) (struct inode *, int);
 	int (*drop) (struct inode *);
-	int (*alloc_inode) (const struct inode *, qsize_t);
-	int (*free_inode) (const struct inode *, qsize_t);
 	int (*transfer) (struct inode *, qid_t *, unsigned long);
 	int (*write_dquot) (struct dquot *);		/* Ordinary dquot write */
 	struct dquot *(*alloc_dquot)(struct super_block *, int);	/* Allocate memory for new dquot */

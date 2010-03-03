@@ -1531,15 +1531,15 @@ EXPORT_SYMBOL(__dquot_alloc_space);
 /*
  * This operation can block, but only after everything is updated
  */
-int dquot_alloc_inode(const struct inode *inode, qsize_t number)
+int dquot_alloc_inode(const struct inode *inode)
 {
-	int cnt, ret = NO_QUOTA;
+	int cnt, ret = -EDQUOT;
 	char warntype[MAXQUOTAS];
 
 	/* First test before acquiring mutex - solves deadlocks when we
          * re-enter the quota code and are already holding the mutex */
-	if (IS_NOQUOTA(inode))
-		return QUOTA_OK;
+	if (!sb_any_quota_active(inode->i_sb) || IS_NOQUOTA(inode))
+		return 0;
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
 		warntype[cnt] = QUOTA_NL_NOWARN;
 	down_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
@@ -1547,7 +1547,7 @@ int dquot_alloc_inode(const struct inode *inode, qsize_t number)
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (!inode->i_dquot[cnt])
 			continue;
-		if (check_idq(inode->i_dquot[cnt], number, warntype+cnt)
+		if (check_idq(inode->i_dquot[cnt], 1, warntype+cnt)
 		    == NO_QUOTA)
 			goto warn_put_all;
 	}
@@ -1555,12 +1555,12 @@ int dquot_alloc_inode(const struct inode *inode, qsize_t number)
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (!inode->i_dquot[cnt])
 			continue;
-		dquot_incr_inodes(inode->i_dquot[cnt], number);
+		dquot_incr_inodes(inode->i_dquot[cnt], 1);
 	}
-	ret = QUOTA_OK;
+	ret = 0;
 warn_put_all:
 	spin_unlock(&dq_data_lock);
-	if (ret == QUOTA_OK)
+	if (ret == 0)
 		mark_all_dquot_dirty(inode->i_dquot);
 	flush_warnings(inode->i_dquot, warntype);
 	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
@@ -1638,29 +1638,28 @@ EXPORT_SYMBOL(__dquot_free_space);
 /*
  * This operation can block, but only after everything is updated
  */
-int dquot_free_inode(const struct inode *inode, qsize_t number)
+void dquot_free_inode(const struct inode *inode)
 {
 	unsigned int cnt;
 	char warntype[MAXQUOTAS];
 
 	/* First test before acquiring mutex - solves deadlocks when we
          * re-enter the quota code and are already holding the mutex */
-	if (IS_NOQUOTA(inode))
-		return QUOTA_OK;
+	if (!sb_any_quota_active(inode->i_sb) || IS_NOQUOTA(inode))
+		return;
 
 	down_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
 	spin_lock(&dq_data_lock);
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (!inode->i_dquot[cnt])
 			continue;
-		warntype[cnt] = info_idq_free(inode->i_dquot[cnt], number);
-		dquot_decr_inodes(inode->i_dquot[cnt], number);
+		warntype[cnt] = info_idq_free(inode->i_dquot[cnt], 1);
+		dquot_decr_inodes(inode->i_dquot[cnt], 1);
 	}
 	spin_unlock(&dq_data_lock);
 	mark_all_dquot_dirty(inode->i_dquot);
 	flush_warnings(inode->i_dquot, warntype);
 	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
-	return QUOTA_OK;
 }
 EXPORT_SYMBOL(dquot_free_inode);
 
@@ -1815,8 +1814,6 @@ EXPORT_SYMBOL(dquot_commit_info);
 const struct dquot_operations dquot_operations = {
 	.initialize	= dquot_initialize,
 	.drop		= dquot_drop,
-	.alloc_inode	= dquot_alloc_inode,
-	.free_inode	= dquot_free_inode,
 	.transfer	= dquot_transfer,
 	.write_dquot	= dquot_commit,
 	.acquire_dquot	= dquot_acquire,

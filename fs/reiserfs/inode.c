@@ -54,7 +54,7 @@ void reiserfs_delete_inode(struct inode *inode)
 		 * after delete_object so that quota updates go into the same transaction as
 		 * stat data deletion */
 		if (!err) 
-			vfs_dq_free_inode(inode);
+			dquot_free_inode(inode);
 
 		if (journal_end(&th, inode->i_sb, jbegin_count))
 			goto out;
@@ -1765,10 +1765,10 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 
 	BUG_ON(!th->t_trans_id);
 
-	if (vfs_dq_alloc_inode(inode)) {
-		err = -EDQUOT;
+	vfs_dq_init(inode);
+	err = dquot_alloc_inode(inode);
+	if (err)
 		goto out_end_trans;
-	}
 	if (!dir->i_nlink) {
 		err = -EPERM;
 		goto out_bad_inode;
@@ -1959,7 +1959,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	INODE_PKEY(inode)->k_objectid = 0;
 
 	/* Quota change must be inside a transaction for journaling */
-	vfs_dq_free_inode(inode);
+	dquot_free_inode(inode);
 
       out_end_trans:
 	journal_end(th, th->t_super, th->t_blocks_allocated);

@@ -116,10 +116,10 @@ struct inode *ialloc(struct inode *parent, umode_t mode)
 	/*
 	 * Allocate inode to quota.
 	 */
-	if (vfs_dq_alloc_inode(inode)) {
-		rc = -EDQUOT;
+	vfs_dq_init(inode);
+	rc = dquot_alloc_inode(inode);
+	if (rc)
 		goto fail_drop;
-	}
 
 	inode->i_mode = mode;
 	/* inherit flags from parent */

@@ -1017,8 +1017,6 @@ static const struct dquot_operations ext4_quota_operations = {
 #ifdef CONFIG_QUOTA
 	.get_reserved_space = ext4_get_reserved_space,
 #endif
-	.alloc_inode	= dquot_alloc_inode,
-	.free_inode	= dquot_free_inode,
 	.transfer	= dquot_transfer,
 	.write_dquot	= ext4_write_dquot,
 	.acquire_dquot	= ext4_acquire_dquot,

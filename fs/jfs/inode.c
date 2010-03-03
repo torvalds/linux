@@ -159,7 +159,7 @@ void jfs_delete_inode(struct inode *inode)
 		 * Free the inode from the quota allocation.
 		 */
 		vfs_dq_init(inode);
-		vfs_dq_free_inode(inode);
+		dquot_free_inode(inode);
 		vfs_dq_drop(inode);
 	}
 

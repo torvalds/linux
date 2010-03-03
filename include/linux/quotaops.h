@@ -37,10 +37,10 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number,
 		int warn, int reserve);
 void __dquot_free_space(struct inode *inode, qsize_t number, int reserve);
 
-int dquot_alloc_inode(const struct inode *inode, qsize_t number);
+int dquot_alloc_inode(const struct inode *inode);
 
 int dquot_claim_space_nodirty(struct inode *inode, qsize_t number);
-int dquot_free_inode(const struct inode *inode, qsize_t number);
+void dquot_free_inode(const struct inode *inode);
 
 int dquot_transfer(struct inode *inode, qid_t *chid, unsigned long mask);
 int dquot_commit(struct dquot *dquot);
@@ -148,22 +148,6 @@ static inline void vfs_dq_init(struct inode *inode)
 		inode->i_sb->dq_op->initialize(inode, -1);
 }
 
-static inline int vfs_dq_alloc_inode(struct inode *inode)
-{
-	if (sb_any_quota_active(inode->i_sb)) {
-		vfs_dq_init(inode);
-		if (inode->i_sb->dq_op->alloc_inode(inode, 1) == NO_QUOTA)
-			return 1;
-	}
-	return 0;
-}
-
-static inline void vfs_dq_free_inode(struct inode *inode)
-{
-	if (sb_any_quota_active(inode->i_sb))
-		inode->i_sb->dq_op->free_inode(inode, 1);
-}
-
 /* Cannot be called inside a transaction */
 static inline int vfs_dq_off(struct super_block *sb, int remount)
 {
@@ -231,12 +215,12 @@ static inline void vfs_dq_drop(struct inode *inode)
 {
 }
 
-static inline int vfs_dq_alloc_inode(struct inode *inode)
+static inline int dquot_alloc_inode(const struct inode *inode)
 {
 	return 0;
 }
 
-static inline void vfs_dq_free_inode(struct inode *inode)
+static inline void dquot_free_inode(const struct inode *inode)
 {
 }
 

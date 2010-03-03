@@ -752,8 +752,6 @@ static ssize_t ext3_quota_write(struct super_block *sb, int type,
 static const struct dquot_operations ext3_quota_operations = {
 	.initialize	= dquot_initialize,
 	.drop		= dquot_drop,
-	.alloc_inode	= dquot_alloc_inode,
-	.free_inode	= dquot_free_inode,
 	.transfer	= dquot_transfer,
 	.write_dquot	= ext3_write_dquot,
 	.acquire_dquot	= ext3_acquire_dquot,
