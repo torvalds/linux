@@ -342,7 +342,8 @@ static void intel_pmu_pebs_enable(struct perf_event *event)
 	val |= 1ULL << hwc->idx;
 	wrmsrl(MSR_IA32_PEBS_ENABLE, val);
 
-	intel_pmu_lbr_enable(event);
+	if (x86_pmu.intel_cap.pebs_trap)
+		intel_pmu_lbr_enable(event);
 }
 
 static void intel_pmu_pebs_disable(struct perf_event *event)
@@ -356,7 +357,8 @@ static void intel_pmu_pebs_disable(struct perf_event *event)
 
 	hwc->config |= ARCH_PERFMON_EVENTSEL_INT;
 
-	intel_pmu_lbr_disable(event);
+	if (x86_pmu.intel_cap.pebs_trap)
+		intel_pmu_lbr_disable(event);
 }
 
 static void intel_pmu_pebs_enable_all(void)
@@ -394,6 +396,12 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 	unsigned long from = cpuc->lbr_entries[0].from;
 	unsigned long old_to, to = cpuc->lbr_entries[0].to;
 	unsigned long ip = regs->ip;
+
+	/*
+	 * We don't need to fixup if the PEBS assist is fault like
+	 */
+	if (!x86_pmu.intel_cap.pebs_trap)
+		return 1;
 
 	if (!cpuc->lbr_stack.nr || !from || !to)
 		return 0;
@@ -589,34 +597,26 @@ static void intel_ds_init(void)
 	x86_pmu.bts  = boot_cpu_has(X86_FEATURE_BTS);
 	x86_pmu.pebs = boot_cpu_has(X86_FEATURE_PEBS);
 	if (x86_pmu.pebs) {
-		int format = 0;
-
-		if (x86_pmu.version > 1) {
-			u64 capabilities;
-			/*
-			 * v2+ has a PEBS format field
-			 */
-			rdmsrl(MSR_IA32_PERF_CAPABILITIES, capabilities);
-			format = (capabilities >> 8) & 0xf;
-		}
+		char pebs_type = x86_pmu.intel_cap.pebs_trap ?  '+' : '-';
+		int format = x86_pmu.intel_cap.pebs_format;
 
 		switch (format) {
 		case 0:
-			printk(KERN_CONT "PEBS v0, ");
+			printk(KERN_CONT "PEBS fmt0%c, ", pebs_type);
 			x86_pmu.pebs_record_size = sizeof(struct pebs_record_core);
 			x86_pmu.drain_pebs = intel_pmu_drain_pebs_core;
 			x86_pmu.pebs_constraints = intel_core_pebs_events;
 			break;
 
 		case 1:
-			printk(KERN_CONT "PEBS v1, ");
+			printk(KERN_CONT "PEBS fmt1%c, ", pebs_type);
 			x86_pmu.pebs_record_size = sizeof(struct pebs_record_nhm);
 			x86_pmu.drain_pebs = intel_pmu_drain_pebs_nhm;
 			x86_pmu.pebs_constraints = intel_nehalem_pebs_events;
 			break;
 
 		default:
-			printk(KERN_CONT "PEBS unknown format: %d, ", format);
+			printk(KERN_CONT "no PEBS fmt%d%c, ", format, pebs_type);
 			x86_pmu.pebs = 0;
 			break;
 		}

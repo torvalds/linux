@@ -835,6 +835,16 @@ static __init int intel_pmu_init(void)
 	if (version > 1)
 		x86_pmu.num_events_fixed = max((int)edx.split.num_events_fixed, 3);
 
+	/*
+	 * v2 and above have a perf capabilities MSR
+	 */
+	if (version > 1) {
+		u64 capabilities;
+
+		rdmsrl(MSR_IA32_PERF_CAPABILITIES, capabilities);
+		x86_pmu.intel_cap.capabilities = capabilities;
+	}
+
 	intel_ds_init();
 
 	/*

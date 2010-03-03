@@ -53,7 +53,7 @@ static void intel_pmu_lbr_reset_64(void)
 
 static void intel_pmu_lbr_reset(void)
 {
-	if (x86_pmu.lbr_format == LBR_FORMAT_32)
+	if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_32)
 		intel_pmu_lbr_reset_32();
 	else
 		intel_pmu_lbr_reset_64();
@@ -155,6 +155,7 @@ static void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc)
 static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 {
 	unsigned long mask = x86_pmu.lbr_nr - 1;
+	int lbr_format = x86_pmu.intel_cap.lbr_format;
 	u64 tos = intel_pmu_lbr_tos();
 	int i;
 
@@ -165,7 +166,7 @@ static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 		rdmsrl(x86_pmu.lbr_from + lbr_idx, from);
 		rdmsrl(x86_pmu.lbr_to   + lbr_idx, to);
 
-		if (x86_pmu.lbr_format == LBR_FORMAT_EIP_FLAGS) {
+		if (lbr_format == LBR_FORMAT_EIP_FLAGS) {
 			flags = !!(from & LBR_FROM_FLAG_MISPRED);
 			from = (u64)((((s64)from) << 1) >> 1);
 		}
@@ -184,23 +185,14 @@ static void intel_pmu_lbr_read(void)
 	if (!cpuc->lbr_users)
 		return;
 
-	if (x86_pmu.lbr_format == LBR_FORMAT_32)
+	if (x86_pmu.intel_cap.lbr_format == LBR_FORMAT_32)
 		intel_pmu_lbr_read_32(cpuc);
 	else
 		intel_pmu_lbr_read_64(cpuc);
 }
 
-static int intel_pmu_lbr_format(void)
-{
-	u64 capabilities;
-
-	rdmsrl(MSR_IA32_PERF_CAPABILITIES, capabilities);
-	return capabilities & 0x1f;
-}
-
 static void intel_pmu_lbr_init_core(void)
 {
-	x86_pmu.lbr_format = intel_pmu_lbr_format();
 	x86_pmu.lbr_nr     = 4;
 	x86_pmu.lbr_tos    = 0x01c9;
 	x86_pmu.lbr_from   = 0x40;
@@ -209,7 +201,6 @@ static void intel_pmu_lbr_init_core(void)
 
 static void intel_pmu_lbr_init_nhm(void)
 {
-	x86_pmu.lbr_format = intel_pmu_lbr_format();
 	x86_pmu.lbr_nr     = 16;
 	x86_pmu.lbr_tos    = 0x01c9;
 	x86_pmu.lbr_from   = 0x680;
@@ -218,7 +209,6 @@ static void intel_pmu_lbr_init_nhm(void)
 
 static void intel_pmu_lbr_init_atom(void)
 {
-	x86_pmu.lbr_format = intel_pmu_lbr_format();
 	x86_pmu.lbr_nr	   = 8;
 	x86_pmu.lbr_tos    = 0x01c9;
 	x86_pmu.lbr_from   = 0x40;

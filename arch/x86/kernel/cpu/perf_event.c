@@ -154,6 +154,17 @@ struct cpu_hw_events {
 #define for_each_event_constraint(e, c)	\
 	for ((e) = (c); (e)->cmask; (e)++)
 
+union perf_capabilities {
+	struct {
+		u64	lbr_format    : 6;
+		u64	pebs_trap     : 1;
+		u64	pebs_arch_reg : 1;
+		u64	pebs_format   : 4;
+		u64	smm_freeze    : 1;
+	};
+	u64	capabilities;
+};
+
 /*
  * struct x86_pmu - generic x86 pmu
  */
@@ -195,7 +206,8 @@ struct x86_pmu {
 	/*
 	 * Intel Arch Perfmon v2+
 	 */
-	u64		intel_ctrl;
+	u64			intel_ctrl;
+	union perf_capabilities intel_cap;
 
 	/*
 	 * Intel DebugStore bits
@@ -210,7 +222,6 @@ struct x86_pmu {
 	 */
 	unsigned long	lbr_tos, lbr_from, lbr_to; /* MSR base regs       */
 	int		lbr_nr;			   /* hardware stack size */
-	int		lbr_format;		   /* hardware format     */
 };
 
 static struct x86_pmu x86_pmu __read_mostly;
