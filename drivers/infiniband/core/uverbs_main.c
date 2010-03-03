@@ -42,8 +42,8 @@
 #include <linux/poll.h>
 #include <linux/sched.h>
 #include <linux/file.h>
-#include <linux/mount.h>
 #include <linux/cdev.h>
+#include <linux/anon_inodes.h>
 
 #include <asm/uaccess.h>
 
@@ -52,8 +52,6 @@
 MODULE_AUTHOR("Roland Dreier");
 MODULE_DESCRIPTION("InfiniBand userspace verbs access");
 MODULE_LICENSE("Dual BSD/GPL");
-
-#define INFINIBANDEVENTFS_MAGIC	0x49426576	/* "IBev" */
 
 enum {
 	IB_UVERBS_MAJOR       = 231,
@@ -75,43 +73,40 @@ DEFINE_IDR(ib_uverbs_qp_idr);
 DEFINE_IDR(ib_uverbs_srq_idr);
 
 static DEFINE_SPINLOCK(map_lock);
-static struct ib_uverbs_device *dev_table[IB_UVERBS_MAX_DEVICES];
 static DECLARE_BITMAP(dev_map, IB_UVERBS_MAX_DEVICES);
 
 static ssize_t (*uverbs_cmd_table[])(struct ib_uverbs_file *file,
 				     const char __user *buf, int in_len,
 				     int out_len) = {
-	[IB_USER_VERBS_CMD_GET_CONTEXT]   	= ib_uverbs_get_context,
-	[IB_USER_VERBS_CMD_QUERY_DEVICE]  	= ib_uverbs_query_device,
-	[IB_USER_VERBS_CMD_QUERY_PORT]    	= ib_uverbs_query_port,
-	[IB_USER_VERBS_CMD_ALLOC_PD]      	= ib_uverbs_alloc_pd,
-	[IB_USER_VERBS_CMD_DEALLOC_PD]    	= ib_uverbs_dealloc_pd,
-	[IB_USER_VERBS_CMD_REG_MR]        	= ib_uverbs_reg_mr,
-	[IB_USER_VERBS_CMD_DEREG_MR]      	= ib_uverbs_dereg_mr,
+	[IB_USER_VERBS_CMD_GET_CONTEXT]		= ib_uverbs_get_context,
+	[IB_USER_VERBS_CMD_QUERY_DEVICE]	= ib_uverbs_query_device,
+	[IB_USER_VERBS_CMD_QUERY_PORT]		= ib_uverbs_query_port,
+	[IB_USER_VERBS_CMD_ALLOC_PD]		= ib_uverbs_alloc_pd,
+	[IB_USER_VERBS_CMD_DEALLOC_PD]		= ib_uverbs_dealloc_pd,
+	[IB_USER_VERBS_CMD_REG_MR]		= ib_uverbs_reg_mr,
+	[IB_USER_VERBS_CMD_DEREG_MR]		= ib_uverbs_dereg_mr,
 	[IB_USER_VERBS_CMD_CREATE_COMP_CHANNEL] = ib_uverbs_create_comp_channel,
-	[IB_USER_VERBS_CMD_CREATE_CQ]     	= ib_uverbs_create_cq,
-	[IB_USER_VERBS_CMD_RESIZE_CQ]     	= ib_uverbs_resize_cq,
-	[IB_USER_VERBS_CMD_POLL_CQ]     	= ib_uverbs_poll_cq,
-	[IB_USER_VERBS_CMD_REQ_NOTIFY_CQ]     	= ib_uverbs_req_notify_cq,
-	[IB_USER_VERBS_CMD_DESTROY_CQ]    	= ib_uverbs_destroy_cq,
-	[IB_USER_VERBS_CMD_CREATE_QP]     	= ib_uverbs_create_qp,
-	[IB_USER_VERBS_CMD_QUERY_QP]     	= ib_uverbs_query_qp,
-	[IB_USER_VERBS_CMD_MODIFY_QP]     	= ib_uverbs_modify_qp,
-	[IB_USER_VERBS_CMD_DESTROY_QP]    	= ib_uverbs_destroy_qp,
-	[IB_USER_VERBS_CMD_POST_SEND]    	= ib_uverbs_post_send,
-	[IB_USER_VERBS_CMD_POST_RECV]    	= ib_uverbs_post_recv,
-	[IB_USER_VERBS_CMD_POST_SRQ_RECV]    	= ib_uverbs_post_srq_recv,
-	[IB_USER_VERBS_CMD_CREATE_AH]    	= ib_uverbs_create_ah,
-	[IB_USER_VERBS_CMD_DESTROY_AH]    	= ib_uverbs_destroy_ah,
-	[IB_USER_VERBS_CMD_ATTACH_MCAST]  	= ib_uverbs_attach_mcast,
-	[IB_USER_VERBS_CMD_DETACH_MCAST]  	= ib_uverbs_detach_mcast,
-	[IB_USER_VERBS_CMD_CREATE_SRQ]    	= ib_uverbs_create_srq,
-	[IB_USER_VERBS_CMD_MODIFY_SRQ]    	= ib_uverbs_modify_srq,
-	[IB_USER_VERBS_CMD_QUERY_SRQ]     	= ib_uverbs_query_srq,
-	[IB_USER_VERBS_CMD_DESTROY_SRQ]   	= ib_uverbs_destroy_srq,
+	[IB_USER_VERBS_CMD_CREATE_CQ]		= ib_uverbs_create_cq,
+	[IB_USER_VERBS_CMD_RESIZE_CQ]		= ib_uverbs_resize_cq,
+	[IB_USER_VERBS_CMD_POLL_CQ]		= ib_uverbs_poll_cq,
+	[IB_USER_VERBS_CMD_REQ_NOTIFY_CQ]	= ib_uverbs_req_notify_cq,
+	[IB_USER_VERBS_CMD_DESTROY_CQ]		= ib_uverbs_destroy_cq,
+	[IB_USER_VERBS_CMD_CREATE_QP]		= ib_uverbs_create_qp,
+	[IB_USER_VERBS_CMD_QUERY_QP]		= ib_uverbs_query_qp,
+	[IB_USER_VERBS_CMD_MODIFY_QP]		= ib_uverbs_modify_qp,
+	[IB_USER_VERBS_CMD_DESTROY_QP]		= ib_uverbs_destroy_qp,
+	[IB_USER_VERBS_CMD_POST_SEND]		= ib_uverbs_post_send,
+	[IB_USER_VERBS_CMD_POST_RECV]		= ib_uverbs_post_recv,
+	[IB_USER_VERBS_CMD_POST_SRQ_RECV]	= ib_uverbs_post_srq_recv,
+	[IB_USER_VERBS_CMD_CREATE_AH]		= ib_uverbs_create_ah,
+	[IB_USER_VERBS_CMD_DESTROY_AH]		= ib_uverbs_destroy_ah,
+	[IB_USER_VERBS_CMD_ATTACH_MCAST]	= ib_uverbs_attach_mcast,
+	[IB_USER_VERBS_CMD_DETACH_MCAST]	= ib_uverbs_detach_mcast,
+	[IB_USER_VERBS_CMD_CREATE_SRQ]		= ib_uverbs_create_srq,
+	[IB_USER_VERBS_CMD_MODIFY_SRQ]		= ib_uverbs_modify_srq,
+	[IB_USER_VERBS_CMD_QUERY_SRQ]		= ib_uverbs_query_srq,
+	[IB_USER_VERBS_CMD_DESTROY_SRQ]		= ib_uverbs_destroy_srq,
 };
-
-static struct vfsmount *uverbs_event_mnt;
 
 static void ib_uverbs_add_one(struct ib_device *device);
 static void ib_uverbs_remove_one(struct ib_device *device);
@@ -370,7 +365,7 @@ static int ib_uverbs_event_close(struct inode *inode, struct file *filp)
 
 static const struct file_operations uverbs_event_fops = {
 	.owner	 = THIS_MODULE,
-	.read 	 = ib_uverbs_event_read,
+	.read	 = ib_uverbs_event_read,
 	.poll    = ib_uverbs_event_poll,
 	.release = ib_uverbs_event_close,
 	.fasync  = ib_uverbs_event_fasync
@@ -492,7 +487,6 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 					int is_async, int *fd)
 {
 	struct ib_uverbs_event_file *ev_file;
-	struct path path;
 	struct file *filp;
 	int ret;
 
@@ -515,27 +509,16 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 		goto err;
 	}
 
-	/*
-	 * fops_get() can't fail here, because we're coming from a
-	 * system call on a uverbs file, which will already have a
-	 * module reference.
-	 */
-	path.mnt = uverbs_event_mnt;
-	path.dentry = uverbs_event_mnt->mnt_root;
-	path_get(&path);
-	filp = alloc_file(&path, FMODE_READ, fops_get(&uverbs_event_fops));
+	filp = anon_inode_getfile("[uverbs-event]", &uverbs_event_fops,
+				  ev_file, O_RDONLY);
 	if (!filp) {
 		ret = -ENFILE;
 		goto err_fd;
 	}
 
-	filp->private_data = ev_file;
-
 	return filp;
 
 err_fd:
-	fops_put(&uverbs_event_fops);
-	path_put(&path);
 	put_unused_fd(*fd);
 
 err:
@@ -617,14 +600,12 @@ static int ib_uverbs_mmap(struct file *filp, struct vm_area_struct *vma)
 /*
  * ib_uverbs_open() does not need the BKL:
  *
- *  - dev_table[] accesses are protected by map_lock, the
- *    ib_uverbs_device structures are properly reference counted, and
+ *  - the ib_uverbs_device structures are properly reference counted and
  *    everything else is purely local to the file being created, so
  *    races against other open calls are not a problem;
  *  - there is no ioctl method to race against;
- *  - the device is added to dev_table[] as the last part of module
- *    initialization, the open method will either immediately run
- *    -ENXIO, or all required initialization will be done.
+ *  - the open method will either immediately run -ENXIO, or all
+ *    required initialization will be done.
  */
 static int ib_uverbs_open(struct inode *inode, struct file *filp)
 {
@@ -632,13 +613,10 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
 	struct ib_uverbs_file *file;
 	int ret;
 
-	spin_lock(&map_lock);
-	dev = dev_table[iminor(inode) - IB_UVERBS_BASE_MINOR];
+	dev = container_of(inode->i_cdev, struct ib_uverbs_device, cdev);
 	if (dev)
 		kref_get(&dev->ref);
-	spin_unlock(&map_lock);
-
-	if (!dev)
+	else
 		return -ENXIO;
 
 	if (!try_module_get(dev->ib_dev->owner)) {
@@ -685,17 +663,17 @@ static int ib_uverbs_close(struct inode *inode, struct file *filp)
 }
 
 static const struct file_operations uverbs_fops = {
-	.owner 	 = THIS_MODULE,
-	.write 	 = ib_uverbs_write,
-	.open 	 = ib_uverbs_open,
+	.owner	 = THIS_MODULE,
+	.write	 = ib_uverbs_write,
+	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close
 };
 
 static const struct file_operations uverbs_mmap_fops = {
-	.owner 	 = THIS_MODULE,
-	.write 	 = ib_uverbs_write,
+	.owner	 = THIS_MODULE,
+	.write	 = ib_uverbs_write,
 	.mmap    = ib_uverbs_mmap,
-	.open 	 = ib_uverbs_open,
+	.open	 = ib_uverbs_open,
 	.release = ib_uverbs_close
 };
 
@@ -735,8 +713,38 @@ static ssize_t show_abi_version(struct class *class, char *buf)
 }
 static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
 
+static dev_t overflow_maj;
+static DECLARE_BITMAP(overflow_map, IB_UVERBS_MAX_DEVICES);
+
+/*
+ * If we have more than IB_UVERBS_MAX_DEVICES, dynamically overflow by
+ * requesting a new major number and doubling the number of max devices we
+ * support. It's stupid, but simple.
+ */
+static int find_overflow_devnum(void)
+{
+	int ret;
+
+	if (!overflow_maj) {
+		ret = alloc_chrdev_region(&overflow_maj, 0, IB_UVERBS_MAX_DEVICES,
+					  "infiniband_verbs");
+		if (ret) {
+			printk(KERN_ERR "user_verbs: couldn't register dynamic device number\n");
+			return ret;
+		}
+	}
+
+	ret = find_first_zero_bit(overflow_map, IB_UVERBS_MAX_DEVICES);
+	if (ret >= IB_UVERBS_MAX_DEVICES)
+		return -1;
+
+	return ret;
+}
+
 static void ib_uverbs_add_one(struct ib_device *device)
 {
+	int devnum;
+	dev_t base;
 	struct ib_uverbs_device *uverbs_dev;
 
 	if (!device->alloc_ucontext)
@@ -750,28 +758,36 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	init_completion(&uverbs_dev->comp);
 
 	spin_lock(&map_lock);
-	uverbs_dev->devnum = find_first_zero_bit(dev_map, IB_UVERBS_MAX_DEVICES);
-	if (uverbs_dev->devnum >= IB_UVERBS_MAX_DEVICES) {
+	devnum = find_first_zero_bit(dev_map, IB_UVERBS_MAX_DEVICES);
+	if (devnum >= IB_UVERBS_MAX_DEVICES) {
 		spin_unlock(&map_lock);
-		goto err;
+		devnum = find_overflow_devnum();
+		if (devnum < 0)
+			goto err;
+
+		spin_lock(&map_lock);
+		uverbs_dev->devnum = devnum + IB_UVERBS_MAX_DEVICES;
+		base = devnum + overflow_maj;
+		set_bit(devnum, overflow_map);
+	} else {
+		uverbs_dev->devnum = devnum;
+		base = devnum + IB_UVERBS_BASE_DEV;
+		set_bit(devnum, dev_map);
 	}
-	set_bit(uverbs_dev->devnum, dev_map);
 	spin_unlock(&map_lock);
 
 	uverbs_dev->ib_dev           = device;
 	uverbs_dev->num_comp_vectors = device->num_comp_vectors;
 
-	uverbs_dev->cdev = cdev_alloc();
-	if (!uverbs_dev->cdev)
-		goto err;
-	uverbs_dev->cdev->owner = THIS_MODULE;
-	uverbs_dev->cdev->ops = device->mmap ? &uverbs_mmap_fops : &uverbs_fops;
-	kobject_set_name(&uverbs_dev->cdev->kobj, "uverbs%d", uverbs_dev->devnum);
-	if (cdev_add(uverbs_dev->cdev, IB_UVERBS_BASE_DEV + uverbs_dev->devnum, 1))
+	cdev_init(&uverbs_dev->cdev, NULL);
+	uverbs_dev->cdev.owner = THIS_MODULE;
+	uverbs_dev->cdev.ops = device->mmap ? &uverbs_mmap_fops : &uverbs_fops;
+	kobject_set_name(&uverbs_dev->cdev.kobj, "uverbs%d", uverbs_dev->devnum);
+	if (cdev_add(&uverbs_dev->cdev, base, 1))
 		goto err_cdev;
 
 	uverbs_dev->dev = device_create(uverbs_class, device->dma_device,
-					uverbs_dev->cdev->dev, uverbs_dev,
+					uverbs_dev->cdev.dev, uverbs_dev,
 					"uverbs%d", uverbs_dev->devnum);
 	if (IS_ERR(uverbs_dev->dev))
 		goto err_cdev;
@@ -781,20 +797,19 @@ static void ib_uverbs_add_one(struct ib_device *device)
 	if (device_create_file(uverbs_dev->dev, &dev_attr_abi_version))
 		goto err_class;
 
-	spin_lock(&map_lock);
-	dev_table[uverbs_dev->devnum] = uverbs_dev;
-	spin_unlock(&map_lock);
-
 	ib_set_client_data(device, &uverbs_client, uverbs_dev);
 
 	return;
 
 err_class:
-	device_destroy(uverbs_class, uverbs_dev->cdev->dev);
+	device_destroy(uverbs_class, uverbs_dev->cdev.dev);
 
 err_cdev:
-	cdev_del(uverbs_dev->cdev);
-	clear_bit(uverbs_dev->devnum, dev_map);
+	cdev_del(&uverbs_dev->cdev);
+	if (uverbs_dev->devnum < IB_UVERBS_MAX_DEVICES)
+		clear_bit(devnum, dev_map);
+	else
+		clear_bit(devnum, overflow_map);
 
 err:
 	kref_put(&uverbs_dev->ref, ib_uverbs_release_dev);
@@ -811,34 +826,18 @@ static void ib_uverbs_remove_one(struct ib_device *device)
 		return;
 
 	dev_set_drvdata(uverbs_dev->dev, NULL);
-	device_destroy(uverbs_class, uverbs_dev->cdev->dev);
-	cdev_del(uverbs_dev->cdev);
+	device_destroy(uverbs_class, uverbs_dev->cdev.dev);
+	cdev_del(&uverbs_dev->cdev);
 
-	spin_lock(&map_lock);
-	dev_table[uverbs_dev->devnum] = NULL;
-	spin_unlock(&map_lock);
-
-	clear_bit(uverbs_dev->devnum, dev_map);
+	if (uverbs_dev->devnum < IB_UVERBS_MAX_DEVICES)
+		clear_bit(uverbs_dev->devnum, dev_map);
+	else
+		clear_bit(uverbs_dev->devnum - IB_UVERBS_MAX_DEVICES, overflow_map);
 
 	kref_put(&uverbs_dev->ref, ib_uverbs_release_dev);
 	wait_for_completion(&uverbs_dev->comp);
 	kfree(uverbs_dev);
 }
-
-static int uverbs_event_get_sb(struct file_system_type *fs_type, int flags,
-			       const char *dev_name, void *data,
-			       struct vfsmount *mnt)
-{
-	return get_sb_pseudo(fs_type, "infinibandevent:", NULL,
-			     INFINIBANDEVENTFS_MAGIC, mnt);
-}
-
-static struct file_system_type uverbs_event_fs = {
-	/* No owner field so module can be unloaded */
-	.name    = "infinibandeventfs",
-	.get_sb  = uverbs_event_get_sb,
-	.kill_sb = kill_litter_super
-};
 
 static int __init ib_uverbs_init(void)
 {
@@ -864,32 +863,13 @@ static int __init ib_uverbs_init(void)
 		goto out_class;
 	}
 
-	ret = register_filesystem(&uverbs_event_fs);
-	if (ret) {
-		printk(KERN_ERR "user_verbs: couldn't register infinibandeventfs\n");
-		goto out_class;
-	}
-
-	uverbs_event_mnt = kern_mount(&uverbs_event_fs);
-	if (IS_ERR(uverbs_event_mnt)) {
-		ret = PTR_ERR(uverbs_event_mnt);
-		printk(KERN_ERR "user_verbs: couldn't mount infinibandeventfs\n");
-		goto out_fs;
-	}
-
 	ret = ib_register_client(&uverbs_client);
 	if (ret) {
 		printk(KERN_ERR "user_verbs: couldn't register client\n");
-		goto out_mnt;
+		goto out_class;
 	}
 
 	return 0;
-
-out_mnt:
-	mntput(uverbs_event_mnt);
-
-out_fs:
-	unregister_filesystem(&uverbs_event_fs);
 
 out_class:
 	class_destroy(uverbs_class);
@@ -904,10 +884,10 @@ out:
 static void __exit ib_uverbs_cleanup(void)
 {
 	ib_unregister_client(&uverbs_client);
-	mntput(uverbs_event_mnt);
-	unregister_filesystem(&uverbs_event_fs);
 	class_destroy(uverbs_class);
 	unregister_chrdev_region(IB_UVERBS_BASE_DEV, IB_UVERBS_MAX_DEVICES);
+	if (overflow_maj)
+		unregister_chrdev_region(overflow_maj, IB_UVERBS_MAX_DEVICES);
 	idr_destroy(&ib_uverbs_pd_idr);
 	idr_destroy(&ib_uverbs_mr_idr);
 	idr_destroy(&ib_uverbs_mw_idr);
