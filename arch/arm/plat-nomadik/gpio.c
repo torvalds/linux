@@ -36,7 +36,7 @@ struct nmk_gpio_chip {
 	struct gpio_chip chip;
 	void __iomem *addr;
 	unsigned int parent_irq;
-	spinlock_t *lock;
+	spinlock_t lock;
 	/* Keep track of configured edges */
 	u32 edge_rising;
 	u32 edge_falling;
@@ -321,6 +321,7 @@ static int __init nmk_gpio_probe(struct amba_device *dev, struct amba_id *id)
 	nmk_chip->addr = io_p2v(dev->res.start);
 	nmk_chip->chip = nmk_gpio_template;
 	nmk_chip->parent_irq = pdata->parent_irq;
+	spin_lock_init(&nmk_chip->lock);
 
 	chip = &nmk_chip->chip;
 	chip->base = pdata->first_gpio;
