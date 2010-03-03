@@ -10,7 +10,8 @@ obj-y     = sched.o fork.o exec_domain.o panic.o printk.o \
 	    kthread.o wait.o kfifo.o sys_ni.o posix-cpu-timers.o mutex.o \
 	    hrtimer.o rwsem.o nsproxy.o srcu.o semaphore.o \
 	    notifier.o ksysfs.o pm_qos_params.o sched_clock.o cred.o \
-	    async.o
+	    async.o range.o
+obj-$(CONFIG_HAVE_EARLY_RES) += early_res.o
 obj-y += groups.o
 
 ifdef CONFIG_FUNCTION_TRACER

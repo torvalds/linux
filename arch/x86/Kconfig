@@ -184,6 +184,9 @@ config ARCH_SUPPORTS_OPTIMIZED_INLINING
 config ARCH_SUPPORTS_DEBUG_PAGEALLOC
 	def_bool y
 
+config HAVE_EARLY_RES
+	def_bool y
+
 config HAVE_INTEL_TXT
 	def_bool y
 	depends on EXPERIMENTAL && DMAR && ACPI
@@ -568,6 +571,18 @@ config PARAVIRT_DEBUG
 	---help---
 	  Enable to debug paravirt_ops internals.  Specifically, BUG if
 	  a paravirt_op is missing when it is called.
+
+config NO_BOOTMEM
+	default y
+	bool "Disable Bootmem code"
+	---help---
+	  Use early_res directly instead of bootmem before slab is ready.
+		- allocator (buddy) [generic]
+		- early allocator (bootmem) [generic]
+		- very early allocator (reserve_early*()) [x86]
+		- very very early allocator (early brk model) [x86]
+	  So reduce one layer between early allocator to final allocator
+
 
 config MEMTEST
 	bool "Memtest"
