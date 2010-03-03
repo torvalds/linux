@@ -128,11 +128,65 @@ static inline unsigned long pgprot_to_pmb_flags(pgprot_t prot)
 	return pmb_flags;
 }
 
-static bool pmb_can_merge(struct pmb_entry *a, struct pmb_entry *b)
+static inline bool pmb_can_merge(struct pmb_entry *a, struct pmb_entry *b)
 {
 	return (b->vpn == (a->vpn + a->size)) &&
 	       (b->ppn == (a->ppn + a->size)) &&
 	       (b->flags == a->flags);
+}
+
+static bool pmb_mapping_exists(unsigned long vaddr, phys_addr_t phys,
+			       unsigned long size)
+{
+	int i;
+
+	read_lock(&pmb_rwlock);
+
+	for (i = 0; i < ARRAY_SIZE(pmb_entry_list); i++) {
+		struct pmb_entry *pmbe, *iter;
+		unsigned long span;
+
+		if (!test_bit(i, pmb_map))
+			continue;
+
+		pmbe = &pmb_entry_list[i];
+
+		/*
+		 * See if VPN and PPN are bounded by an existing mapping.
+		 */
+		if ((vaddr < pmbe->vpn) || (vaddr >= (pmbe->vpn + pmbe->size)))
+			continue;
+		if ((phys < pmbe->ppn) || (phys >= (pmbe->ppn + pmbe->size)))
+			continue;
+
+		/*
+		 * Now see if we're in range of a simple mapping.
+		 */
+		if (size <= pmbe->size) {
+			read_unlock(&pmb_rwlock);
+			return true;
+		}
+
+		span = pmbe->size;
+
+		/*
+		 * Finally for sizes that involve compound mappings, walk
+		 * the chain.
+		 */
+		for (iter = pmbe->link; iter; iter = iter->link)
+			span += iter->size;
+
+		/*
+		 * Nothing else to do if the range requirements are met.
+		 */
+		if (size <= span) {
+			read_unlock(&pmb_rwlock);
+			return true;
+		}
+	}
+
+	read_unlock(&pmb_rwlock);
+	return false;
 }
 
 static bool pmb_size_valid(unsigned long size)
@@ -272,64 +326,62 @@ int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 		     unsigned long size, pgprot_t prot)
 {
 	struct pmb_entry *pmbp, *pmbe;
-	unsigned long pmb_flags;
+	unsigned long flags, pmb_flags;
 	int i, mapped;
 
 	if (!pmb_addr_valid(vaddr, size))
 		return -EFAULT;
+	if (pmb_mapping_exists(vaddr, phys, size))
+		return 0;
 
 	pmb_flags = pgprot_to_pmb_flags(prot);
 	pmbp = NULL;
 
-again:
-	for (i = mapped = 0; i < ARRAY_SIZE(pmb_sizes); i++) {
-		unsigned long flags;
+	do {
+		for (i = mapped = 0; i < ARRAY_SIZE(pmb_sizes); i++) {
+			if (size < pmb_sizes[i].size)
+				continue;
 
-		if (size < pmb_sizes[i].size)
-			continue;
+			pmbe = pmb_alloc(vaddr, phys, pmb_flags |
+					 pmb_sizes[i].flag, PMB_NO_ENTRY);
+			if (IS_ERR(pmbe)) {
+				pmb_unmap_entry(pmbp, mapped);
+				return PTR_ERR(pmbe);
+			}
 
-		pmbe = pmb_alloc(vaddr, phys, pmb_flags | pmb_sizes[i].flag,
-				 PMB_NO_ENTRY);
-		if (IS_ERR(pmbe)) {
-			pmb_unmap_entry(pmbp, mapped);
-			return PTR_ERR(pmbe);
+			spin_lock_irqsave(&pmbe->lock, flags);
+
+			pmbe->size = pmb_sizes[i].size;
+
+			__set_pmb_entry(pmbe);
+
+			phys	+= pmbe->size;
+			vaddr	+= pmbe->size;
+			size	-= pmbe->size;
+
+			/*
+			 * Link adjacent entries that span multiple PMB
+			 * entries for easier tear-down.
+			 */
+			if (likely(pmbp)) {
+				spin_lock(&pmbp->lock);
+				pmbp->link = pmbe;
+				spin_unlock(&pmbp->lock);
+			}
+
+			pmbp = pmbe;
+
+			/*
+			 * Instead of trying smaller sizes on every
+			 * iteration (even if we succeed in allocating
+			 * space), try using pmb_sizes[i].size again.
+			 */
+			i--;
+			mapped++;
+
+			spin_unlock_irqrestore(&pmbe->lock, flags);
 		}
-
-		spin_lock_irqsave(&pmbe->lock, flags);
-
-		pmbe->size = pmb_sizes[i].size;
-
-		__set_pmb_entry(pmbe);
-
-		phys	+= pmbe->size;
-		vaddr	+= pmbe->size;
-		size	-= pmbe->size;
-
-		/*
-		 * Link adjacent entries that span multiple PMB entries
-		 * for easier tear-down.
-		 */
-		if (likely(pmbp)) {
-			spin_lock(&pmbp->lock);
-			pmbp->link = pmbe;
-			spin_unlock(&pmbp->lock);
-		}
-
-		pmbp = pmbe;
-
-		/*
-		 * Instead of trying smaller sizes on every iteration
-		 * (even if we succeed in allocating space), try using
-		 * pmb_sizes[i].size again.
-		 */
-		i--;
-		mapped++;
-
-		spin_unlock_irqrestore(&pmbe->lock, flags);
-	}
-
-	if (size >= SZ_16M)
-		goto again;
+	} while (size >= SZ_16M);
 
 	return 0;
 }
@@ -374,7 +426,7 @@ void __iomem *pmb_remap_caller(phys_addr_t phys, unsigned long size,
 	orig_addr = vaddr = (unsigned long)area->addr;
 
 	ret = pmb_bolt_mapping(vaddr, phys, size, prot);
-	if (ret != 0)
+	if (unlikely(ret != 0))
 		return ERR_PTR(ret);
 
 	return (void __iomem *)(offset + (char *)orig_addr);
