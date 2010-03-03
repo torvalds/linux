@@ -304,7 +304,7 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 		void *arg, int (*func)(unsigned long, unsigned long, void *))
 {
 	struct resource res;
-	unsigned long pfn, len;
+	unsigned long pfn, end_pfn;
 	u64 orig_end;
 	int ret = -1;
 
@@ -314,9 +314,10 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 	orig_end = res.end;
 	while ((res.start < res.end) &&
 		(find_next_system_ram(&res, "System RAM") >= 0)) {
-		pfn = (unsigned long)(res.start >> PAGE_SHIFT);
-		len = (unsigned long)((res.end + 1 - res.start) >> PAGE_SHIFT);
-		ret = (*func)(pfn, len, arg);
+		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		end_pfn = (res.end + 1) >> PAGE_SHIFT;
+		if (end_pfn > pfn)
+			ret = (*func)(pfn, end_pfn - pfn, arg);
 		if (ret)
 			break;
 		res.start = res.end + 1;
