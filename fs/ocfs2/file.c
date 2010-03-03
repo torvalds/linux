@@ -1020,7 +1020,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 		/*
 		 * Gather pointers to quota structures so that allocation /
 		 * freeing of quota structures happens here and not inside
-		 * vfs_dq_transfer() where we have problems with lock ordering
+		 * dquot_transfer() where we have problems with lock ordering
 		 */
 		if (attr->ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid
 		    && OCFS2_HAS_RO_COMPAT_FEATURE(sb,
@@ -1053,7 +1053,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 			mlog_errno(status);
 			goto bail_unlock;
 		}
-		status = vfs_dq_transfer(inode, attr) ? -EDQUOT : 0;
+		status = dquot_transfer(inode, attr);
 		if (status < 0)
 			goto bail_commit;
 	} else {

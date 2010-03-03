@@ -42,7 +42,6 @@ int dquot_alloc_inode(const struct inode *inode);
 int dquot_claim_space_nodirty(struct inode *inode, qsize_t number);
 void dquot_free_inode(const struct inode *inode);
 
-int dquot_transfer(struct inode *inode, qid_t *chid, unsigned long mask);
 int dquot_commit(struct dquot *dquot);
 int dquot_acquire(struct dquot *dquot);
 int dquot_release(struct dquot *dquot);
@@ -66,7 +65,7 @@ int vfs_get_dqblk(struct super_block *sb, int type, qid_t id, struct if_dqblk *d
 int vfs_set_dqblk(struct super_block *sb, int type, qid_t id, struct if_dqblk *di);
 
 void vfs_dq_drop(struct inode *inode);
-int vfs_dq_transfer(struct inode *inode, struct iattr *iattr);
+int dquot_transfer(struct inode *inode, struct iattr *iattr);
 int vfs_dq_quota_on_remount(struct super_block *sb);
 
 static inline struct mem_dqinfo *sb_dqinfo(struct super_block *sb, int type)
@@ -234,7 +233,7 @@ static inline int vfs_dq_quota_on_remount(struct super_block *sb)
 	return 0;
 }
 
-static inline int vfs_dq_transfer(struct inode *inode, struct iattr *iattr)
+static inline int dquot_transfer(struct inode *inode, struct iattr *iattr)
 {
 	return 0;
 }

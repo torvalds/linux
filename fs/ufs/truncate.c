@@ -520,7 +520,7 @@ static int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
 	    (ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
-		error = vfs_dq_transfer(inode, attr) ? -EDQUOT : 0;
+		error = dquot_transfer(inode, attr);
 		if (error)
 			return error;
 	}

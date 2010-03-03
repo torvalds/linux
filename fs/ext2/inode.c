@@ -1459,7 +1459,7 @@ int ext2_setattr(struct dentry *dentry, struct iattr *iattr)
 		return error;
 	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
 	    (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
-		error = vfs_dq_transfer(inode, iattr) ? -EDQUOT : 0;
+		error = dquot_transfer(inode, iattr);
 		if (error)
 			return error;
 	}

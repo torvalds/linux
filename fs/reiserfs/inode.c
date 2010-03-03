@@ -3134,8 +3134,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 						  jbegin_count);
 				if (error)
 					goto out;
-				error =
-				    vfs_dq_transfer(inode, attr) ? -EDQUOT : 0;
+				error = dquot_transfer(inode, attr);
 				if (error) {
 					journal_end(&th, inode->i_sb,
 						    jbegin_count);

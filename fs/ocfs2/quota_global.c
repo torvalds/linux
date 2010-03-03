@@ -853,7 +853,6 @@ static void ocfs2_destroy_dquot(struct dquot *dquot)
 const struct dquot_operations ocfs2_quota_operations = {
 	.initialize	= dquot_initialize,
 	.drop		= dquot_drop,
-	.transfer	= dquot_transfer,
 	.write_dquot	= ocfs2_write_dquot,
 	.acquire_dquot	= ocfs2_acquire_dquot,
 	.release_dquot	= ocfs2_release_dquot,

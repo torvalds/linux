@@ -1669,7 +1669,7 @@ EXPORT_SYMBOL(dquot_free_inode);
  * This operation can block, but only after everything is updated
  * A transaction must be started when entering this function.
  */
-int dquot_transfer(struct inode *inode, qid_t *chid, unsigned long mask)
+static int __dquot_transfer(struct inode *inode, qid_t *chid, unsigned long mask)
 {
 	qsize_t space, cur_space;
 	qsize_t rsv_space = 0;
@@ -1766,12 +1766,11 @@ over_quota:
 	ret = NO_QUOTA;
 	goto warn_put_all;
 }
-EXPORT_SYMBOL(dquot_transfer);
 
 /* Wrapper for transferring ownership of an inode for uid/gid only
  * Called from FSXXX_setattr()
  */
-int vfs_dq_transfer(struct inode *inode, struct iattr *iattr)
+int dquot_transfer(struct inode *inode, struct iattr *iattr)
 {
 	qid_t chid[MAXQUOTAS];
 	unsigned long mask = 0;
@@ -1786,12 +1785,12 @@ int vfs_dq_transfer(struct inode *inode, struct iattr *iattr)
 	}
 	if (sb_any_quota_active(inode->i_sb) && !IS_NOQUOTA(inode)) {
 		vfs_dq_init(inode);
-		if (inode->i_sb->dq_op->transfer(inode, chid, mask) == NO_QUOTA)
-			return 1;
+		if (__dquot_transfer(inode, chid, mask) == NO_QUOTA)
+			return -EDQUOT;
 	}
 	return 0;
 }
-EXPORT_SYMBOL(vfs_dq_transfer);
+EXPORT_SYMBOL(dquot_transfer);
 
 /*
  * Write info of quota file to disk
@@ -1814,7 +1813,6 @@ EXPORT_SYMBOL(dquot_commit_info);
 const struct dquot_operations dquot_operations = {
 	.initialize	= dquot_initialize,
 	.drop		= dquot_drop,
-	.transfer	= dquot_transfer,
 	.write_dquot	= dquot_commit,
 	.acquire_dquot	= dquot_acquire,
 	.release_dquot	= dquot_release,

@@ -3160,7 +3160,7 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 			error = PTR_ERR(handle);
 			goto err_out;
 		}
-		error = vfs_dq_transfer(inode, attr) ? -EDQUOT : 0;
+		error = dquot_transfer(inode, attr);
 		if (error) {
 			ext3_journal_stop(handle);
 			return error;

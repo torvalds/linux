@@ -618,7 +618,6 @@ static int reiserfs_quota_on(struct super_block *, int, int, char *, int);
 static const struct dquot_operations reiserfs_quota_operations = {
 	.initialize = dquot_initialize,
 	.drop = dquot_drop,
-	.transfer = dquot_transfer,
 	.write_dquot = reiserfs_write_dquot,
 	.acquire_dquot = reiserfs_acquire_dquot,
 	.release_dquot = reiserfs_release_dquot,
