@@ -2483,7 +2483,6 @@ static int parse_audio_format_i_type(struct snd_usb_audio *chip,
 				   sample_width, sample_bytes);
 		}
 		/* check the format byte size */
-		printk(" XXXXX SAMPLE BYTES %d\n", sample_bytes);
 		switch (sample_bytes) {
 		case 1:
 			pcm_format = SNDRV_PCM_FORMAT_S8;
