@@ -606,7 +606,7 @@ static void cmd640_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 }
 #endif /* CONFIG_BLK_DEV_CMD640_ENHANCED */
 
-static void cmd640_init_dev(ide_drive_t *drive)
+static void __init cmd640_init_dev(ide_drive_t *drive)
 {
 	unsigned int i = drive->hwif->channel * 2 + (drive->dn & 1);
 

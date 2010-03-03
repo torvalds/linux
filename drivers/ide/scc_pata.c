@@ -872,20 +872,18 @@ static struct pci_driver scc_pci_driver = {
 	.remove = __devexit_p(scc_remove),
 };
 
-static int scc_ide_init(void)
+static int __init scc_ide_init(void)
 {
 	return ide_pci_register_driver(&scc_pci_driver);
 }
 
-module_init(scc_ide_init);
-/* -- No exit code?
-static void scc_ide_exit(void)
+static void __exit scc_ide_exit(void)
 {
-	ide_pci_unregister_driver(&scc_pci_driver);
+	pci_unregister_driver(&scc_pci_driver);
 }
-module_exit(scc_ide_exit);
- */
 
+module_init(scc_ide_init);
+module_exit(scc_ide_exit);
 
 MODULE_DESCRIPTION("PCI driver module for Toshiba SCC IDE");
 MODULE_LICENSE("GPL");
