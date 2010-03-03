@@ -198,6 +198,7 @@ alloc_init_deleg(struct nfs4_client *clp, struct nfs4_stateid *stp, struct svc_f
 	atomic_set(&dp->dl_count, 1);
 	list_add(&dp->dl_perfile, &fp->fi_delegations);
 	list_add(&dp->dl_perclnt, &clp->cl_delegations);
+	INIT_WORK(&dp->dl_recall.cb_work, nfsd4_do_callback_rpc);
 	return dp;
 }
 
@@ -679,21 +680,6 @@ static struct nfs4_client *alloc_client(struct xdr_netobj name)
 	return clp;
 }
 
-static void
-shutdown_callback_client(struct nfs4_client *clp)
-{
-	struct rpc_clnt *clnt = clp->cl_cb_conn.cb_client;
-
-	if (clnt) {
-		/*
-		 * Callback threads take a reference on the client, so there
-		 * should be no outstanding callbacks at this point.
-		 */
-		clp->cl_cb_conn.cb_client = NULL;
-		rpc_shutdown_client(clnt);
-	}
-}
-
 static inline void
 free_client(struct nfs4_client *clp)
 {
@@ -746,7 +732,7 @@ expire_client(struct nfs4_client *clp)
 				 se_perclnt);
 		release_session(ses);
 	}
-	shutdown_callback_client(clp);
+	nfsd4_set_callback_client(clp, NULL);
 	if (clp->cl_cb_xprt)
 		svc_xprt_put(clp->cl_cb_xprt);
 	put_nfs4_client(clp);
@@ -1392,7 +1378,7 @@ nfsd4_destroy_session(struct svc_rqst *r,
 	spin_unlock(&sessionid_lock);
 
 	/* wait for callbacks */
-	shutdown_callback_client(ses->se_client);
+	nfsd4_set_callback_client(ses->se_client, NULL);
 	nfsd4_put_session(ses);
 	status = nfs_ok;
 out:
@@ -4004,16 +3990,27 @@ set_max_delegations(void)
 static int
 __nfs4_state_start(void)
 {
+	int ret;
+
 	boot_time = get_seconds();
 	locks_start_grace(&nfsd4_manager);
 	printk(KERN_INFO "NFSD: starting %ld-second grace period\n",
 	       nfsd4_grace);
+	ret = set_callback_cred();
+	if (ret)
+		return -ENOMEM;
 	laundry_wq = create_singlethread_workqueue("nfsd4");
 	if (laundry_wq == NULL)
 		return -ENOMEM;
+	ret = nfsd4_create_callback_queue();
+	if (ret)
+		goto out_free_laundry;
 	queue_delayed_work(laundry_wq, &laundromat_work, nfsd4_grace * HZ);
 	set_max_delegations();
-	return set_callback_cred();
+	return 0;
+out_free_laundry:
+	destroy_workqueue(laundry_wq);
+	return ret;
 }
 
 int
@@ -4075,6 +4072,7 @@ nfs4_state_shutdown(void)
 	nfs4_lock_state();
 	nfs4_release_reclaim();
 	__nfs4_state_shutdown();
+	nfsd4_destroy_callback_queue();
 	nfs4_unlock_state();
 }
 

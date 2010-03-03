@@ -77,6 +77,7 @@ struct nfs4_rpc_args {
 
 struct nfsd4_callback {
 	struct nfs4_rpc_args cb_args;
+	struct work_struct cb_work;
 };
 
 struct nfs4_delegation {
@@ -391,7 +392,11 @@ extern void put_nfs4_client(struct nfs4_client *clp);
 extern void nfs4_free_stateowner(struct kref *kref);
 extern int set_callback_cred(void);
 extern void nfsd4_probe_callback(struct nfs4_client *clp);
+extern void nfsd4_do_callback_rpc(struct work_struct *);
 extern void nfsd4_cb_recall(struct nfs4_delegation *dp);
+extern int nfsd4_create_callback_queue(void);
+extern void nfsd4_destroy_callback_queue(void);
+extern void nfsd4_set_callback_client(struct nfs4_client *, struct rpc_clnt *);
 extern void nfs4_put_delegation(struct nfs4_delegation *dp);
 extern __be32 nfs4_make_rec_clidname(char *clidname, struct xdr_netobj *clname);
 extern void nfsd4_init_recdir(char *recdir_name);

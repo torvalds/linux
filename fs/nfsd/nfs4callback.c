@@ -32,6 +32,7 @@
  */
 
 #include <linux/sunrpc/clnt.h>
+#include <linux/sunrpc/svc_xprt.h>
 #include "nfsd.h"
 #include "state.h"
 
@@ -692,11 +693,41 @@ static const struct rpc_call_ops nfsd4_cb_recall_ops = {
 	.rpc_release = nfsd4_cb_recall_release,
 };
 
+static struct workqueue_struct *callback_wq;
+
+int nfsd4_create_callback_queue(void)
+{
+	callback_wq = create_singlethread_workqueue("nfsd4_callbacks");
+	if (!callback_wq)
+		return -ENOMEM;
+	return 0;
+}
+
+void nfsd4_destroy_callback_queue(void)
+{
+	destroy_workqueue(callback_wq);
+}
+
+void nfsd4_set_callback_client(struct nfs4_client *clp, struct rpc_clnt
+*new)
+{
+	struct rpc_clnt *old = clp->cl_cb_conn.cb_client;
+
+	clp->cl_cb_conn.cb_client = new;
+	/*
+	 * After this, any work that saw the old value of cb_client will
+	 * be gone:
+	 */
+	flush_workqueue(callback_wq);
+	/* So we can safely shut it down: */
+	if (old)
+		rpc_shutdown_client(old);
+}
+
 /*
  * called with dp->dl_count inc'ed.
  */
-void
-nfsd4_cb_recall(struct nfs4_delegation *dp)
+static void _nfsd4_cb_recall(struct nfs4_delegation *dp)
 {
 	struct nfs4_client *clp = dp->dl_client;
 	struct rpc_clnt *clnt = clp->cl_cb_conn.cb_client;
@@ -707,6 +738,9 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 	};
 	int status;
 
+	if (clnt == NULL)
+		return; /* Client is shutting down; give up. */
+
 	args->args_op = dp;
 	msg.rpc_argp = args;
 	dp->dl_retries = 1;
@@ -716,4 +750,20 @@ nfsd4_cb_recall(struct nfs4_delegation *dp)
 		put_nfs4_client(clp);
 		nfs4_put_delegation(dp);
 	}
+}
+
+void nfsd4_do_callback_rpc(struct work_struct *w)
+{
+	/* XXX: for now, just send off delegation recall. */
+	/* In future, generalize to handle any sort of callback. */
+	struct nfsd4_callback *c = container_of(w, struct nfsd4_callback, cb_work);
+	struct nfs4_delegation *dp = container_of(c, struct nfs4_delegation, dl_recall);
+
+	_nfsd4_cb_recall(dp);
+}
+
+
+void nfsd4_cb_recall(struct nfs4_delegation *dp)
+{
+	queue_work(callback_wq, &dp->dl_recall.cb_work);
 }
