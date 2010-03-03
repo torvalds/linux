@@ -246,18 +246,6 @@ static void octeon_halt(void)
 	octeon_kill_core(NULL);
 }
 
-#if 0
-/**
- * Platform time init specifics.
- * Returns
- */
-void __init plat_time_init(void)
-{
-	/* Nothing special here, but we are required to have one */
-}
-
-#endif
-
 /**
  * Handle all the error condition interrupts that might occur.
  *
