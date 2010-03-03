@@ -559,7 +559,7 @@ static irqreturn_t piix4_master_intr(int irq, void *dev_id)
 	struct irq_desc *desc;
 	unsigned long flags;
 
-	spin_lock_irqsave(&i8259A_lock, flags);
+	raw_spin_lock_irqsave(&i8259A_lock, flags);
 
 	/* Find out what's interrupting in the PIIX4 master 8259 */
 	outb(0x0c, 0x20);		/* OCW3 Poll command */
@@ -596,7 +596,7 @@ static irqreturn_t piix4_master_intr(int irq, void *dev_id)
 		outb(0x60 + realirq, 0x20);
 	}
 
-	spin_unlock_irqrestore(&i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 
 	desc = irq_to_desc(realirq);
 
@@ -614,7 +614,7 @@ static irqreturn_t piix4_master_intr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 
 out_unlock:
-	spin_unlock_irqrestore(&i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&i8259A_lock, flags);
 	return IRQ_NONE;
 }
 

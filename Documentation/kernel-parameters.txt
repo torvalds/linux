@@ -1794,6 +1794,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			purges which is reported from either PAL_VM_SUMMARY or
 			SAL PALO.
 
+	nr_cpus=	[SMP] Maximum number of processors that	an SMP kernel
+			could support.  nr_cpus=n : n >= 1 limits the kernel to
+			supporting 'n' processors. Later in runtime you can not
+			use hotplug cpu feature to put more cpu back to online.
+			just like you compile the kernel NR_CPUS=n
+
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
 	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
