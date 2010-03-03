@@ -74,6 +74,9 @@ norecovery		Disable recovery of the filesystem on mount.
 			This disables every write access on the device for
 			read-only mounts or snapshots.  This option will fail
 			for r/w mounts on an unclean volume.
+discard			Issue discard/TRIM commands to the underlying block
+			device when blocks are freed.  This is useful for SSD
+			devices and sparse/thinly-provisioned LUNs.
 
 NILFS2 usage
 ============
