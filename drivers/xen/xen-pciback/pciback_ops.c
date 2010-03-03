@@ -23,6 +23,14 @@ void pciback_reset_device(struct pci_dev *dev)
 
 	/* Disable devices (but not bridges) */
 	if (dev->hdr_type == PCI_HEADER_TYPE_NORMAL) {
+#ifdef CONFIG_PCI_MSI
+		/* The guest could have been abruptly killed without
+		 * disabling MSI/MSI-X interrupts.*/
+		if (dev->msix_enabled)
+			pci_disable_msix(dev);
+		if (dev->msi_enabled)
+			pci_disable_msi(dev);
+#endif
 		pci_disable_device(dev);
 
 		pci_write_config_word(dev, PCI_COMMAND, 0);
