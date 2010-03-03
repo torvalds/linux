@@ -578,6 +578,11 @@ out:
 	reiserfs_write_unlock_once(inode->i_sb, lock_depth);
 }
 
+static void reiserfs_clear_inode(struct inode *inode)
+{
+	vfs_dq_drop(inode);
+}
+
 #ifdef CONFIG_QUOTA
 static ssize_t reiserfs_quota_write(struct super_block *, int, const char *,
 				    size_t, loff_t);
@@ -590,6 +595,7 @@ static const struct super_operations reiserfs_sops = {
 	.destroy_inode = reiserfs_destroy_inode,
 	.write_inode = reiserfs_write_inode,
 	.dirty_inode = reiserfs_dirty_inode,
+	.clear_inode = reiserfs_clear_inode,
 	.delete_inode = reiserfs_delete_inode,
 	.put_super = reiserfs_put_super,
 	.write_super = reiserfs_write_super,

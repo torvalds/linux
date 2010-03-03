@@ -1087,6 +1087,8 @@ void ocfs2_clear_inode(struct inode *inode)
 	mlog_bug_on_msg(OCFS2_SB(inode->i_sb) == NULL,
 			"Inode=%lu\n", inode->i_ino);
 
+	vfs_dq_drop(inode);
+
 	/* To preven remote deletes we hold open lock before, now it
 	 * is time to unlock PR and EX open locks. */
 	ocfs2_open_unlock(inode);

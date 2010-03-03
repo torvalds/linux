@@ -528,6 +528,8 @@ static void destroy_inodecache(void)
 static void ext3_clear_inode(struct inode *inode)
 {
 	struct ext3_block_alloc_info *rsv = EXT3_I(inode)->i_block_alloc_info;
+
+	vfs_dq_drop(inode);
 	ext3_discard_reservation(inode);
 	EXT3_I(inode)->i_block_alloc_info = NULL;
 	if (unlikely(rsv))
