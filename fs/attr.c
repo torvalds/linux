@@ -12,7 +12,6 @@
 #include <linux/capability.h>
 #include <linux/fsnotify.h>
 #include <linux/fcntl.h>
-#include <linux/quotaops.h>
 #include <linux/security.h>
 
 /* Taken over from the old code... */
@@ -212,14 +211,8 @@ int notify_change(struct dentry * dentry, struct iattr * attr)
 		error = inode->i_op->setattr(dentry, attr);
 	} else {
 		error = inode_change_ok(inode, attr);
-		if (!error) {
-			if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
-			    (ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid))
-				error = vfs_dq_transfer(inode, attr) ?
-					-EDQUOT : 0;
-			if (!error)
-				error = inode_setattr(inode, attr);
-		}
+		if (!error)
+			error = inode_setattr(inode, attr);
 	}
 
 	if (ia_valid & ATTR_SIZE)

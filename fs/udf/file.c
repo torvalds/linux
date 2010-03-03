@@ -34,6 +34,7 @@
 #include <linux/errno.h>
 #include <linux/smp_lock.h>
 #include <linux/pagemap.h>
+#include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/aio.h>
 
@@ -217,6 +218,26 @@ const struct file_operations udf_file_operations = {
 	.llseek			= generic_file_llseek,
 };
 
+static int udf_setattr(struct dentry *dentry, struct iattr *iattr)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	error = inode_change_ok(inode, iattr);
+	if (error)
+		return error;
+
+	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
+            (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
+		error = vfs_dq_transfer(inode, iattr) ? -EDQUOT : 0;
+		if (error)
+			return error;
+	}
+
+	return inode_setattr(inode, iattr);
+}
+
 const struct inode_operations udf_file_inode_operations = {
-	.truncate = udf_truncate,
+	.truncate		= udf_truncate,
+	.setattr		= udf_setattr,
 };
