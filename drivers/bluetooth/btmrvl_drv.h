@@ -126,6 +126,7 @@ struct btmrvl_event {
 
 /* Prototype of global function */
 
+int btmrvl_register_hdev(struct btmrvl_private *priv);
 struct btmrvl_private *btmrvl_add_card(void *card);
 int btmrvl_remove_card(struct btmrvl_private *priv);
 

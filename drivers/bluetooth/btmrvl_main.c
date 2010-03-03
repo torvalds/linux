@@ -524,11 +524,60 @@ static int btmrvl_service_main_thread(void *data)
 	return 0;
 }
 
-struct btmrvl_private *btmrvl_add_card(void *card)
+int btmrvl_register_hdev(struct btmrvl_private *priv)
 {
 	struct hci_dev *hdev = NULL;
-	struct btmrvl_private *priv;
 	int ret;
+
+	hdev = hci_alloc_dev();
+	if (!hdev) {
+		BT_ERR("Can not allocate HCI device");
+		goto err_hdev;
+	}
+
+	priv->btmrvl_dev.hcidev = hdev;
+	hdev->driver_data = priv;
+
+	hdev->bus = HCI_SDIO;
+	hdev->open = btmrvl_open;
+	hdev->close = btmrvl_close;
+	hdev->flush = btmrvl_flush;
+	hdev->send = btmrvl_send_frame;
+	hdev->destruct = btmrvl_destruct;
+	hdev->ioctl = btmrvl_ioctl;
+	hdev->owner = THIS_MODULE;
+
+	btmrvl_send_module_cfg_cmd(priv, MODULE_BRINGUP_REQ);
+
+	ret = hci_register_dev(hdev);
+	if (ret < 0) {
+		BT_ERR("Can not register HCI device");
+		goto err_hci_register_dev;
+	}
+
+#ifdef CONFIG_DEBUG_FS
+	btmrvl_debugfs_init(hdev);
+#endif
+
+	return 0;
+
+err_hci_register_dev:
+	hci_free_dev(hdev);
+
+err_hdev:
+	/* Stop the thread servicing the interrupts */
+	kthread_stop(priv->main_thread.task);
+
+	btmrvl_free_adapter(priv);
+	kfree(priv);
+
+	return -ENOMEM;
+}
+EXPORT_SYMBOL_GPL(btmrvl_register_hdev);
+
+struct btmrvl_private *btmrvl_add_card(void *card)
+{
+	struct btmrvl_private *priv;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv) {
@@ -544,12 +593,6 @@ struct btmrvl_private *btmrvl_add_card(void *card)
 
 	btmrvl_init_adapter(priv);
 
-	hdev = hci_alloc_dev();
-	if (!hdev) {
-		BT_ERR("Can not allocate HCI device");
-		goto err_hdev;
-	}
-
 	BT_DBG("Starting kthread...");
 	priv->main_thread.priv = priv;
 	spin_lock_init(&priv->driver_lock);
@@ -558,42 +601,10 @@ struct btmrvl_private *btmrvl_add_card(void *card)
 	priv->main_thread.task = kthread_run(btmrvl_service_main_thread,
 				&priv->main_thread, "btmrvl_main_service");
 
-	priv->btmrvl_dev.hcidev = hdev;
 	priv->btmrvl_dev.card = card;
-
-	hdev->driver_data = priv;
-
 	priv->btmrvl_dev.tx_dnld_rdy = true;
 
-	hdev->bus = HCI_SDIO;
-	hdev->open = btmrvl_open;
-	hdev->close = btmrvl_close;
-	hdev->flush = btmrvl_flush;
-	hdev->send = btmrvl_send_frame;
-	hdev->destruct = btmrvl_destruct;
-	hdev->ioctl = btmrvl_ioctl;
-	hdev->owner = THIS_MODULE;
-
-	ret = hci_register_dev(hdev);
-	if (ret < 0) {
-		BT_ERR("Can not register HCI device");
-		goto err_hci_register_dev;
-	}
-
-#ifdef CONFIG_DEBUG_FS
-	btmrvl_debugfs_init(hdev);
-#endif
-
 	return priv;
-
-err_hci_register_dev:
-	/* Stop the thread servicing the interrupts */
-	kthread_stop(priv->main_thread.task);
-
-	hci_free_dev(hdev);
-
-err_hdev:
-	btmrvl_free_adapter(priv);
 
 err_adapter:
 	kfree(priv);
