@@ -42,6 +42,8 @@ struct btmrvl_device {
 	void *card;
 	struct hci_dev *hcidev;
 
+	u8 dev_type;
+
 	u8 tx_dnld_rdy;
 
 	u8 psmode;
