@@ -547,7 +547,7 @@ static void intel_pmu_disable_event(struct perf_event *event)
 	x86_pmu_disable_event(event);
 
 	if (unlikely(event->attr.precise))
-		intel_pmu_pebs_disable(hwc);
+		intel_pmu_pebs_disable(event);
 }
 
 static void intel_pmu_enable_fixed(struct hw_perf_event *hwc)
@@ -600,7 +600,7 @@ static void intel_pmu_enable_event(struct perf_event *event)
 	}
 
 	if (unlikely(event->attr.precise))
-		intel_pmu_pebs_enable(hwc);
+		intel_pmu_pebs_enable(event);
 
 	__x86_pmu_enable_event(hwc);
 }

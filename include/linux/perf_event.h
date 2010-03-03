@@ -294,6 +294,12 @@ struct perf_event_mmap_page {
 #define PERF_RECORD_MISC_USER			(2 << 0)
 #define PERF_RECORD_MISC_HYPERVISOR		(3 << 0)
 
+#define PERF_RECORD_MISC_EXACT			(1 << 14)
+/*
+ * Reserve the last bit to indicate some extended misc field
+ */
+#define PERF_RECORD_MISC_EXT_RESERVED		(1 << 15)
+
 struct perf_event_header {
 	__u32	type;
 	__u16	misc;

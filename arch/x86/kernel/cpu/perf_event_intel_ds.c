@@ -331,26 +331,32 @@ intel_pebs_constraints(struct perf_event *event)
 	return &emptyconstraint;
 }
 
-static void intel_pmu_pebs_enable(struct hw_perf_event *hwc)
+static void intel_pmu_pebs_enable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct hw_perf_event *hwc = &event->hw;
 	u64 val = cpuc->pebs_enabled;
 
 	hwc->config &= ~ARCH_PERFMON_EVENTSEL_INT;
 
 	val |= 1ULL << hwc->idx;
 	wrmsrl(MSR_IA32_PEBS_ENABLE, val);
+
+	intel_pmu_lbr_enable(event);
 }
 
-static void intel_pmu_pebs_disable(struct hw_perf_event *hwc)
+static void intel_pmu_pebs_disable(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	struct hw_perf_event *hwc = &event->hw;
 	u64 val = cpuc->pebs_enabled;
 
 	val &= ~(1ULL << hwc->idx);
 	wrmsrl(MSR_IA32_PEBS_ENABLE, val);
 
 	hwc->config |= ARCH_PERFMON_EVENTSEL_INT;
+
+	intel_pmu_lbr_disable(event);
 }
 
 static void intel_pmu_pebs_enable_all(void)
@@ -367,6 +373,70 @@ static void intel_pmu_pebs_disable_all(void)
 
 	if (cpuc->pebs_enabled)
 		wrmsrl(MSR_IA32_PEBS_ENABLE, 0);
+}
+
+#include <asm/insn.h>
+
+#define MAX_INSN_SIZE	16
+
+static inline bool kernel_ip(unsigned long ip)
+{
+#ifdef CONFIG_X86_32
+	return ip > PAGE_OFFSET;
+#else
+	return (long)ip < 0;
+#endif
+}
+
+static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
+{
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	unsigned long from = cpuc->lbr_entries[0].from;
+	unsigned long old_to, to = cpuc->lbr_entries[0].to;
+	unsigned long ip = regs->ip;
+
+	if (!cpuc->lbr_stack.nr || !from || !to)
+		return 0;
+
+	if (ip < to)
+		return 0;
+
+	/*
+	 * We sampled a branch insn, rewind using the LBR stack
+	 */
+	if (ip == to) {
+		regs->ip = from;
+		return 1;
+	}
+
+	do {
+		struct insn insn;
+		u8 buf[MAX_INSN_SIZE];
+		void *kaddr;
+
+		old_to = to;
+		if (!kernel_ip(ip)) {
+			int bytes, size = min_t(int, MAX_INSN_SIZE, ip - to);
+
+			bytes = copy_from_user_nmi(buf, (void __user *)to, size);
+			if (bytes != size)
+				return 0;
+
+			kaddr = buf;
+		} else
+			kaddr = (void *)to;
+
+		kernel_insn_init(&insn, kaddr);
+		insn_get_length(&insn);
+		to += insn.length;
+	} while (to < ip);
+
+	if (to == ip) {
+		regs->ip = old_to;
+		return 1;
+	}
+
+	return 0;
 }
 
 static int intel_pmu_save_and_restart(struct perf_event *event);
@@ -423,6 +493,11 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 	regs.ip = at->ip;
 	regs.bp = at->bp;
 	regs.sp = at->sp;
+
+	if (intel_pmu_pebs_fixup_ip(&regs))
+		regs.flags |= PERF_EFLAGS_EXACT;
+	else
+		regs.flags &= ~PERF_EFLAGS_EXACT;
 
 	if (perf_event_overflow(event, 1, &data, &regs))
 		intel_pmu_disable_event(event);
@@ -486,6 +561,11 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 		regs.ip = at->ip;
 		regs.bp = at->bp;
 		regs.sp = at->sp;
+
+		if (intel_pmu_pebs_fixup_ip(&regs))
+			regs.flags |= PERF_EFLAGS_EXACT;
+		else
+			regs.flags &= ~PERF_EFLAGS_EXACT;
 
 		if (perf_event_overflow(event, 1, &data, &regs))
 			intel_pmu_disable_event(event);

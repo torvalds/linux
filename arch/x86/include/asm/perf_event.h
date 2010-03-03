@@ -136,6 +136,25 @@ extern void perf_events_lapic_init(void);
 
 #define PERF_EVENT_INDEX_OFFSET			0
 
+/*
+ * Abuse bit 3 of the cpu eflags register to indicate proper PEBS IP fixups.
+ * This flag is otherwise unused and ABI specified to be 0, so nobody should
+ * care what we do with it.
+ */
+#define PERF_EFLAGS_EXACT	(1UL << 3)
+
+#define perf_misc_flags(regs)				\
+({	int misc = 0;					\
+	if (user_mode(regs))				\
+		misc |= PERF_RECORD_MISC_USER;		\
+	else						\
+		misc |= PERF_RECORD_MISC_KERNEL;	\
+	if (regs->flags & PERF_EFLAGS_EXACT)		\
+		misc |= PERF_RECORD_MISC_EXACT;		\
+	misc; })
+
+#define perf_instruction_pointer(regs)	((regs)->ip)
+
 #else
 static inline void init_hw_perf_events(void)		{ }
 static inline void perf_events_lapic_init(void)	{ }
