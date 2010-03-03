@@ -1974,9 +1974,9 @@ snd_riptide_proc_read(struct snd_info_entry *entry,
 	}
 	snd_iprintf(buffer, "Paths:\n");
 	i = getpaths(cif, p);
-	while (i--) {
-		snd_iprintf(buffer, "%x->%x ", p[i - 1], p[i]);
-		i--;
+	while (i >= 2) {
+		i -= 2;
+		snd_iprintf(buffer, "%x->%x ", p[i], p[i + 1]);
 	}
 	snd_iprintf(buffer, "\n");
 }
