@@ -580,7 +580,7 @@ out:
 
 static void reiserfs_clear_inode(struct inode *inode)
 {
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 }
 
 #ifdef CONFIG_QUOTA
@@ -623,7 +623,6 @@ static int reiserfs_quota_on(struct super_block *, int, int, char *, int);
 
 static const struct dquot_operations reiserfs_quota_operations = {
 	.initialize = dquot_initialize,
-	.drop = dquot_drop,
 	.write_dquot = reiserfs_write_dquot,
 	.acquire_dquot = reiserfs_acquire_dquot,
 	.release_dquot = reiserfs_release_dquot,

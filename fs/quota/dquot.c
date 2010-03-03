@@ -1358,7 +1358,7 @@ EXPORT_SYMBOL(dquot_initialize);
 /*
  * 	Release all quotas referenced by inode
  */
-int dquot_drop(struct inode *inode)
+static void __dquot_drop(struct inode *inode)
 {
 	int cnt;
 	struct dquot *put[MAXQUOTAS];
@@ -1370,32 +1370,31 @@ int dquot_drop(struct inode *inode)
 	}
 	up_write(&sb_dqopt(inode->i_sb)->dqptr_sem);
 	dqput_all(put);
-	return 0;
+}
+
+void dquot_drop(struct inode *inode)
+{
+	int cnt;
+
+	if (IS_NOQUOTA(inode))
+		return;
+
+	/*
+	 * Test before calling to rule out calls from proc and such
+	 * where we are not allowed to block. Note that this is
+	 * actually reliable test even without the lock - the caller
+	 * must assure that nobody can come after the DQUOT_DROP and
+	 * add quota pointers back anyway.
+	 */
+	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
+		if (inode->i_dquot[cnt])
+			break;
+	}
+
+	if (cnt < MAXQUOTAS)
+		__dquot_drop(inode);
 }
 EXPORT_SYMBOL(dquot_drop);
-
-/* Wrapper to remove references to quota structures from inode */
-void vfs_dq_drop(struct inode *inode)
-{
-	/* Here we can get arbitrary inode from clear_inode() so we have
-	 * to be careful. OTOH we don't need locking as quota operations
-	 * are allowed to change only at mount time */
-	if (!IS_NOQUOTA(inode) && inode->i_sb && inode->i_sb->dq_op
-	    && inode->i_sb->dq_op->drop) {
-		int cnt;
-		/* Test before calling to rule out calls from proc and such
-                 * where we are not allowed to block. Note that this is
-		 * actually reliable test even without the lock - the caller
-		 * must assure that nobody can come after the DQUOT_DROP and
-		 * add quota pointers back anyway */
-		for (cnt = 0; cnt < MAXQUOTAS; cnt++)
-			if (inode->i_dquot[cnt])
-				break;
-		if (cnt < MAXQUOTAS)
-			inode->i_sb->dq_op->drop(inode);
-	}
-}
-EXPORT_SYMBOL(vfs_dq_drop);
 
 /*
  * inode_reserved_space is managed internally by quota, and protected by
@@ -1812,7 +1811,6 @@ EXPORT_SYMBOL(dquot_commit_info);
  */
 const struct dquot_operations dquot_operations = {
 	.initialize	= dquot_initialize,
-	.drop		= dquot_drop,
 	.write_dquot	= dquot_commit,
 	.acquire_dquot	= dquot_acquire,
 	.release_dquot	= dquot_release,
@@ -2029,7 +2027,7 @@ static int vfs_load_quota_inode(struct inode *inode, int type, int format_id,
 		 * When S_NOQUOTA is set, remove dquot references as no more
 		 * references can be added
 		 */
-		sb->dq_op->drop(inode);
+		__dquot_drop(inode);
 	}
 
 	error = -EIO;

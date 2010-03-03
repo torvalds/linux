@@ -122,7 +122,7 @@ void ext2_free_inode (struct inode * inode)
 		/* Quota is already initialized in iput() */
 		ext2_xattr_delete_inode(inode);
 		dquot_free_inode(inode);
-		vfs_dq_drop(inode);
+		dquot_drop(inode);
 	}
 
 	es = EXT2_SB(sb)->s_es;
@@ -608,7 +608,7 @@ fail_free_drop:
 	dquot_free_inode(inode);
 
 fail_drop:
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
 	unlock_new_inode(inode);

@@ -761,7 +761,7 @@ static void destroy_inodecache(void)
 
 static void ext4_clear_inode(struct inode *inode)
 {
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 	ext4_discard_preallocations(inode);
 	if (EXT4_JOURNAL(inode))
 		jbd2_journal_release_jbd_inode(EXT4_SB(inode->i_sb)->s_journal,
@@ -1014,7 +1014,6 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 
 static const struct dquot_operations ext4_quota_operations = {
 	.initialize	= dquot_initialize,
-	.drop		= dquot_drop,
 #ifdef CONFIG_QUOTA
 	.get_reserved_space = ext4_get_reserved_space,
 #endif

@@ -109,7 +109,7 @@ void udf_clear_inode(struct inode *inode)
 			(unsigned long long)iinfo->i_lenExtents);
 	}
 
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 	kfree(iinfo->i_ext.i_data);
 	iinfo->i_ext.i_data = NULL;
 }

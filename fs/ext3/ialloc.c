@@ -126,7 +126,7 @@ void ext3_free_inode (handle_t *handle, struct inode * inode)
 	vfs_dq_init(inode);
 	ext3_xattr_delete_inode(handle, inode);
 	dquot_free_inode(inode);
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 
 	is_directory = S_ISDIR(inode->i_mode);
 
@@ -622,7 +622,7 @@ fail_free_drop:
 	dquot_free_inode(inode);
 
 fail_drop:
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 	inode->i_flags |= S_NOQUOTA;
 	inode->i_nlink = 0;
 	unlock_new_inode(inode);

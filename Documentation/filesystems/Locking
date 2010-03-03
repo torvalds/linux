@@ -461,7 +461,6 @@ in sys_read() and friends.
 --------------------------- dquot_operations -------------------------------
 prototypes:
 	int (*initialize) (struct inode *, int);
-	int (*drop) (struct inode *);
 	int (*write_dquot) (struct dquot *);
 	int (*acquire_dquot) (struct dquot *);
 	int (*release_dquot) (struct dquot *);
@@ -475,7 +474,6 @@ What filesystem should expect from the generic quota functions:
 
 		FS recursion	Held locks when called
 initialize:	yes		maybe dqonoff_sem
-drop:		yes		-
 write_dquot:	yes		dqonoff_sem or dqptr_sem
 acquire_dquot:	yes		dqonoff_sem or dqptr_sem
 release_dquot:	yes		dqonoff_sem or dqptr_sem

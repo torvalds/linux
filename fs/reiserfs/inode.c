@@ -1964,7 +1964,7 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
       out_end_trans:
 	journal_end(th, th->t_super, th->t_blocks_allocated);
 	/* Drop can be outside and it needs more credits so it's better to have it outside */
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 	inode->i_flags |= S_NOQUOTA;
 	make_bad_inode(inode);
 

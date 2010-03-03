@@ -1434,7 +1434,7 @@ static void destroy_inodecache(void)
 
 static void ufs_clear_inode(struct inode *inode)
 {
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 }
 
 #ifdef CONFIG_QUOTA

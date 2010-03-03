@@ -160,7 +160,7 @@ void jfs_delete_inode(struct inode *inode)
 		 */
 		vfs_dq_init(inode);
 		dquot_free_inode(inode);
-		vfs_dq_drop(inode);
+		dquot_drop(inode);
 	}
 
 	clear_inode(inode);

@@ -546,7 +546,7 @@ static int reiserfs_add_entry(struct reiserfs_transaction_handle *th,
 */
 static int drop_new_inode(struct inode *inode)
 {
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 	make_bad_inode(inode);
 	inode->i_flags |= S_NOQUOTA;
 	iput(inode);

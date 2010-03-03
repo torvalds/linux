@@ -133,7 +133,7 @@ static void jfs_destroy_inode(struct inode *inode)
 
 static void jfs_clear_inode(struct inode *inode)
 {
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 }
 
 static int jfs_statfs(struct dentry *dentry, struct kstatfs *buf)

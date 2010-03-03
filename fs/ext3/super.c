@@ -529,7 +529,7 @@ static void ext3_clear_inode(struct inode *inode)
 {
 	struct ext3_block_alloc_info *rsv = EXT3_I(inode)->i_block_alloc_info;
 
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 	ext3_discard_reservation(inode);
 	EXT3_I(inode)->i_block_alloc_info = NULL;
 	if (unlikely(rsv))
@@ -753,7 +753,6 @@ static ssize_t ext3_quota_write(struct super_block *sb, int type,
 
 static const struct dquot_operations ext3_quota_operations = {
 	.initialize	= dquot_initialize,
-	.drop		= dquot_drop,
 	.write_dquot	= ext3_write_dquot,
 	.acquire_dquot	= ext3_acquire_dquot,
 	.release_dquot	= ext3_release_dquot,

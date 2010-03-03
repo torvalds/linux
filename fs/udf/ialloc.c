@@ -37,7 +37,7 @@ void udf_free_inode(struct inode *inode)
 	 * as writing the quota to disk may need the lock as well.
 	 */
 	dquot_free_inode(inode);
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 
 	clear_inode(inode);
 
@@ -156,7 +156,7 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	vfs_dq_init(inode);
 	ret = dquot_alloc_inode(inode);
 	if (ret) {
-		vfs_dq_drop(inode);
+		dquot_drop(inode);
 		inode->i_flags |= S_NOQUOTA;
 		inode->i_nlink = 0;
 		iput(inode);
