@@ -23,6 +23,8 @@
 
 /* typesafe io address */
 #define __io_address(n)		__io(IO_ADDRESS(n))
+/* used by some plat-nomadik code */
+#define io_p2v(n)		__io_address(n)
 
 /*
  * Base address definitions for U8500 Onchip IPs. All the
@@ -127,6 +129,16 @@
 #define U8500_SLIM0_BASE	(U8500_PER1_BASE + 0xa000)
 #define U8500_GPIO1_BASE	(U8500_PER1_BASE + 0xe000)
 #define U8500_CLKRST1_BASE	(U8500_PER1_BASE + 0xf000)
+
+#define U8500_GPIOBANK0_BASE	U8500_GPIO1_BASE
+#define U8500_GPIOBANK1_BASE	(U8500_GPIO1_BASE + 0x80)
+#define U8500_GPIOBANK2_BASE	U8500_GPIO3_BASE
+#define U8500_GPIOBANK3_BASE	(U8500_GPIO3_BASE + 0x80)
+#define U8500_GPIOBANK4_BASE	(U8500_GPIO3_BASE + 0x100)
+#define U8500_GPIOBANK5_BASE	(U8500_GPIO3_BASE + 0x180)
+#define U8500_GPIOBANK6_BASE	U8500_GPIO2_BASE
+#define U8500_GPIOBANK7_BASE	(U8500_GPIO2_BASE + 0x80)
+#define U8500_GPIOBANK8_BASE	U8500_GPIO5_BASE
 
 /* ST-Ericsson modified pl022 id */
 #define SSP_PER_ID		0x01080022

@@ -8,6 +8,7 @@ config MACH_U8500_MOP
 	default y
 	select ARM_GIC
 	select HAS_MTU
+	select NOMADIK_GPIO
 	help
 	  Include support for mop500 development platform
 	  based on U8500 architecture. The platform is based

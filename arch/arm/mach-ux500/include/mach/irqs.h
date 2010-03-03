@@ -66,6 +66,12 @@
 /* There are 128 shared peripheral interrupts assigned to
  * INTID[160:32]. The first 32 interrupts are reserved.
  */
-#define NR_IRQS			161
+#define U8500_SOC_NR_IRQS		161
+
+/* After chip-specific IRQ numbers we have the GPIO ones */
+#define NOMADIK_NR_GPIO			288
+#define NOMADIK_GPIO_TO_IRQ(gpio)	((gpio) + U8500_SOC_NR_IRQS)
+#define NOMADIK_IRQ_TO_GPIO(irq)	((irq) - U8500_SOC_NR_IRQS)
+#define NR_IRQS				NOMADIK_GPIO_TO_IRQ(NOMADIK_NR_GPIO)
 
 #endif /*ASM_ARCH_IRQS_H*/
