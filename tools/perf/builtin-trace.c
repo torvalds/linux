@@ -573,7 +573,8 @@ int cmd_trace(int argc, const char **argv, const char *prefix __used)
 
 	if (symbol__init() < 0)
 		return -1;
-	setup_pager();
+	if (!script_name)
+		setup_pager();
 
 	session = perf_session__new(input_name, O_RDONLY, 0);
 	if (session == NULL)
