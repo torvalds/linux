@@ -153,7 +153,7 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
 
-	vfs_dq_init(inode);
+	dquot_initialize(inode);
 	ret = dquot_alloc_inode(inode);
 	if (ret) {
 		dquot_drop(inode);

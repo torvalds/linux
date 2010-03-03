@@ -59,7 +59,7 @@ static inline int ext2_inode_is_fast_symlink(struct inode *inode)
 void ext2_delete_inode (struct inode * inode)
 {
 	if (!is_bad_inode(inode))
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 	truncate_inode_pages(&inode->i_data, 0);
 
 	if (is_bad_inode(inode))
@@ -1461,7 +1461,7 @@ int ext2_setattr(struct dentry *dentry, struct iattr *iattr)
 		return error;
 
 	if (iattr->ia_valid & ATTR_SIZE)
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
 	    (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
 		error = dquot_transfer(inode, iattr);

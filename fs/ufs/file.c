@@ -24,6 +24,7 @@
  */
 
 #include <linux/fs.h>
+#include <linux/quotaops.h>
 
 #include "ufs_fs.h"
 #include "ufs.h"

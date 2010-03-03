@@ -554,7 +554,7 @@ static int drop_new_inode(struct inode *inode)
 }
 
 /* utility function that does setup for reiserfs_new_inode.
-** vfs_dq_init needs lots of credits so it's better to have it
+** dquot_initialize needs lots of credits so it's better to have it
 ** outside of a transaction, so we had to pull some bits of
 ** reiserfs_new_inode out into this func.
 */
@@ -577,7 +577,7 @@ static int new_inode_init(struct inode *inode, struct inode *dir, int mode)
 	} else {
 		inode->i_gid = current_fsgid();
 	}
-	vfs_dq_init(inode);
+	dquot_initialize(inode);
 	return 0;
 }
 
@@ -594,7 +594,7 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	struct reiserfs_transaction_handle th;
 	struct reiserfs_security_handle security;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	if (!(inode = new_inode(dir->i_sb))) {
 		return -ENOMEM;
@@ -668,7 +668,7 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	if (!(inode = new_inode(dir->i_sb))) {
 		return -ENOMEM;
@@ -743,7 +743,7 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb));
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 #ifdef DISPLACE_NEW_PACKING_LOCALITIES
 	/* set flag that new packing locality created and new blocks for the content     * of that directory are not displaced yet */
@@ -848,7 +848,7 @@ static int reiserfs_rmdir(struct inode *dir, struct dentry *dentry)
 	    JOURNAL_PER_BALANCE_CNT * 2 + 2 +
 	    4 * REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb);
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	reiserfs_write_lock(dir->i_sb);
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
@@ -931,7 +931,7 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	unsigned long savelink;
 	int depth;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	inode = dentry->d_inode;
 
@@ -1034,7 +1034,7 @@ static int reiserfs_symlink(struct inode *parent_dir,
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(parent_dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(parent_dir->i_sb));
 
-	vfs_dq_init(parent_dir);
+	dquot_initialize(parent_dir);
 
 	if (!(inode = new_inode(parent_dir->i_sb))) {
 		return -ENOMEM;
@@ -1123,7 +1123,7 @@ static int reiserfs_link(struct dentry *old_dentry, struct inode *dir,
 	    JOURNAL_PER_BALANCE_CNT * 3 +
 	    2 * REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb);
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	reiserfs_write_lock(dir->i_sb);
 	if (inode->i_nlink >= REISERFS_LINK_MAX) {
@@ -1249,8 +1249,8 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	    JOURNAL_PER_BALANCE_CNT * 3 + 5 +
 	    4 * REISERFS_QUOTA_TRANS_BLOCKS(old_dir->i_sb);
 
-	vfs_dq_init(old_dir);
-	vfs_dq_init(new_dir);
+	dquot_initialize(old_dir);
+	dquot_initialize(new_dir);
 
 	old_inode = old_dentry->d_inode;
 	new_dentry_inode = new_dentry->d_inode;

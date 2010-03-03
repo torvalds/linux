@@ -23,7 +23,7 @@ void inode_add_rsv_space(struct inode *inode, qsize_t number);
 void inode_claim_rsv_space(struct inode *inode, qsize_t number);
 void inode_sub_rsv_space(struct inode *inode, qsize_t number);
 
-int dquot_initialize(struct inode *inode, int type);
+void dquot_initialize(struct inode *inode);
 void dquot_drop(struct inode *inode);
 struct dquot *dqget(struct super_block *sb, unsigned int id, int type);
 void dqput(struct dquot *dquot);
@@ -139,15 +139,6 @@ extern const struct quotactl_ops vfs_quotactl_ops;
 #define sb_dquot_ops (&dquot_operations)
 #define sb_quotactl_ops (&vfs_quotactl_ops)
 
-/* It is better to call this function outside of any transaction as it might
- * need a lot of space in journal for dquot structure allocation. */
-static inline void vfs_dq_init(struct inode *inode)
-{
-	BUG_ON(!inode->i_sb);
-	if (sb_any_quota_active(inode->i_sb) && !IS_NOQUOTA(inode))
-		inode->i_sb->dq_op->initialize(inode, -1);
-}
-
 /* Cannot be called inside a transaction */
 static inline int vfs_dq_off(struct super_block *sb, int remount)
 {
@@ -207,7 +198,7 @@ static inline int sb_any_quota_active(struct super_block *sb)
 #define sb_dquot_ops				(NULL)
 #define sb_quotactl_ops				(NULL)
 
-static inline void vfs_dq_init(struct inode *inode)
+static inline void dquot_initialize(struct inode *inode)
 {
 }
 
@@ -259,6 +250,8 @@ static inline int dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 	inode_add_bytes(inode, number);
 	return 0;
 }
+
+#define dquot_file_open		generic_file_open
 
 #endif /* CONFIG_QUOTA */
 
@@ -343,7 +336,5 @@ static inline void dquot_release_reservation_block(struct inode *inode,
 {
 	__dquot_free_space(inode, nr << inode->i_blkbits, 1);
 }
-
-#define dquot_file_open		generic_file_open
 
 #endif /* _LINUX_QUOTAOPS_ */

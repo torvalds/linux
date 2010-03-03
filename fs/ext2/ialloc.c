@@ -586,7 +586,7 @@ got:
 		goto fail_drop;
 	}
 
-	vfs_dq_init(inode);
+	dquot_initialize(inode);
 	err = dquot_alloc_inode(inode);
 	if (err)
 		goto fail_drop;

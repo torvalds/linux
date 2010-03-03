@@ -123,7 +123,7 @@ void ext3_free_inode (handle_t *handle, struct inode * inode)
 	 * Note: we must free any quota before locking the superblock,
 	 * as writing the quota to disk may need the lock as well.
 	 */
-	vfs_dq_init(inode);
+	dquot_initialize(inode);
 	ext3_xattr_delete_inode(handle, inode);
 	dquot_free_inode(inode);
 	dquot_drop(inode);
@@ -588,7 +588,7 @@ got:
 		sizeof(struct ext3_inode) - EXT3_GOOD_OLD_INODE_SIZE : 0;
 
 	ret = inode;
-	vfs_dq_init(inode);
+	dquot_initialize(inode);
 	err = dquot_alloc_inode(inode);
 	if (err)
 		goto fail_drop;

@@ -355,7 +355,7 @@ cg_found:
 
 	unlock_super (sb);
 
-	vfs_dq_init(inode);
+	dquot_initialize(inode);
 	err = dquot_alloc_inode(inode);
 	if (err) {
 		dquot_drop(inode);

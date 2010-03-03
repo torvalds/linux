@@ -72,7 +72,7 @@ static int udf_get_block(struct inode *, sector_t, struct buffer_head *, int);
 void udf_delete_inode(struct inode *inode)
 {
 	if (!is_bad_inode(inode))
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 
 	truncate_inode_pages(&inode->i_data, 0);
 

@@ -563,7 +563,7 @@ static int udf_create(struct inode *dir, struct dentry *dentry, int mode,
 	int err;
 	struct udf_inode_info *iinfo;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	lock_kernel();
 	inode = udf_new_inode(dir, mode, &err);
@@ -618,7 +618,7 @@ static int udf_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	if (!old_valid_dev(rdev))
 		return -EINVAL;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	lock_kernel();
 	err = -EIO;
@@ -666,7 +666,7 @@ static int udf_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	struct udf_inode_info *dinfo = UDF_I(dir);
 	struct udf_inode_info *iinfo;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	lock_kernel();
 	err = -EMLINK;
@@ -805,7 +805,7 @@ static int udf_rmdir(struct inode *dir, struct dentry *dentry)
 	struct fileIdentDesc *fi, cfi;
 	struct kernel_lb_addr tloc;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	retval = -ENOENT;
 	lock_kernel();
@@ -853,7 +853,7 @@ static int udf_unlink(struct inode *dir, struct dentry *dentry)
 	struct fileIdentDesc cfi;
 	struct kernel_lb_addr tloc;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	retval = -ENOENT;
 	lock_kernel();
@@ -909,7 +909,7 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 	struct buffer_head *bh;
 	struct udf_inode_info *iinfo;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	lock_kernel();
 	inode = udf_new_inode(dir, S_IFLNK, &err);
@@ -1081,7 +1081,7 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
 	int err;
 	struct buffer_head *bh;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	lock_kernel();
 	if (inode->i_nlink >= (256 << sizeof(inode->i_nlink)) - 1) {
@@ -1145,8 +1145,8 @@ static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct kernel_lb_addr tloc;
 	struct udf_inode_info *old_iinfo = UDF_I(old_inode);
 
-	vfs_dq_init(old_dir);
-	vfs_dq_init(new_dir);
+	dquot_initialize(old_dir);
+	dquot_initialize(new_dir);
 
 	lock_kernel();
 	ofi = udf_find_entry(old_dir, &old_dentry->d_name, &ofibh, &ocfi);

@@ -230,6 +230,7 @@ struct dqstats dqstats;
 EXPORT_SYMBOL(dqstats);
 
 static qsize_t inode_get_rsv_space(struct inode *inode);
+static void __dquot_initialize(struct inode *inode, int type);
 
 static inline unsigned int
 hashfn(const struct super_block *sb, unsigned int id, int type)
@@ -890,7 +891,7 @@ static void add_dquot_ref(struct super_block *sb, int type)
 		spin_unlock(&inode_lock);
 
 		iput(old_inode);
-		sb->dq_op->initialize(inode, type);
+		__dquot_initialize(inode, type);
 		/* We hold a reference to 'inode' so it couldn't have been
 		 * removed from s_inodes list while we dropped the inode_lock.
 		 * We cannot iput the inode now as we can be holding the last
@@ -1293,22 +1294,26 @@ static int info_bdq_free(struct dquot *dquot, qsize_t space)
 }
 
 /*
- *	Initialize quota pointers in inode
- *	We do things in a bit complicated way but by that we avoid calling
- *	dqget() and thus filesystem callbacks under dqptr_sem.
+ * Initialize quota pointers in inode
+ *
+ * We do things in a bit complicated way but by that we avoid calling
+ * dqget() and thus filesystem callbacks under dqptr_sem.
+ *
+ * It is better to call this function outside of any transaction as it
+ * might need a lot of space in journal for dquot structure allocation.
  */
-int dquot_initialize(struct inode *inode, int type)
+static void __dquot_initialize(struct inode *inode, int type)
 {
 	unsigned int id = 0;
-	int cnt, ret = 0;
+	int cnt;
 	struct dquot *got[MAXQUOTAS];
 	struct super_block *sb = inode->i_sb;
 	qsize_t rsv;
 
 	/* First test before acquiring mutex - solves deadlocks when we
          * re-enter the quota code and are already holding the mutex */
-	if (IS_NOQUOTA(inode))
-		return 0;
+	if (!sb_any_quota_active(inode->i_sb) || IS_NOQUOTA(inode))
+		return;
 
 	/* First get references to structures we might need. */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
@@ -1351,7 +1356,11 @@ out_err:
 	up_write(&sb_dqopt(sb)->dqptr_sem);
 	/* Drop unused references */
 	dqput_all(got);
-	return ret;
+}
+
+void dquot_initialize(struct inode *inode)
+{
+	__dquot_initialize(inode, -1);
 }
 EXPORT_SYMBOL(dquot_initialize);
 
@@ -1783,7 +1792,7 @@ int dquot_transfer(struct inode *inode, struct iattr *iattr)
 		chid[GRPQUOTA] = iattr->ia_gid;
 	}
 	if (sb_any_quota_active(inode->i_sb) && !IS_NOQUOTA(inode)) {
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 		if (__dquot_transfer(inode, chid, mask) == NO_QUOTA)
 			return -EDQUOT;
 	}
@@ -1810,7 +1819,6 @@ EXPORT_SYMBOL(dquot_commit_info);
  * Definitions of diskquota operations.
  */
 const struct dquot_operations dquot_operations = {
-	.initialize	= dquot_initialize,
 	.write_dquot	= dquot_commit,
 	.acquire_dquot	= dquot_acquire,
 	.release_dquot	= dquot_release,
@@ -1829,7 +1837,7 @@ int dquot_file_open(struct inode *inode, struct file *file)
 
 	error = generic_file_open(inode, file);
 	if (!error && (file->f_mode & FMODE_WRITE))
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 	return error;
 }
 EXPORT_SYMBOL(dquot_file_open);

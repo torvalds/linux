@@ -217,7 +217,7 @@ void ext4_free_inode(handle_t *handle, struct inode *inode)
 	 * Note: we must free any quota before locking the superblock,
 	 * as writing the quota to disk may need the lock as well.
 	 */
-	vfs_dq_init(inode);
+	dquot_initialize(inode);
 	ext4_xattr_delete_inode(handle, inode);
 	dquot_free_inode(inode);
 	dquot_drop(inode);
@@ -1034,7 +1034,7 @@ got:
 	ei->i_extra_isize = EXT4_SB(sb)->s_want_extra_isize;
 
 	ret = inode;
-	vfs_dq_init(inode);
+	dquot_initialize(inode);
 	err = dquot_alloc_inode(inode);
 	if (err)
 		goto fail_drop;

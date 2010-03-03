@@ -108,7 +108,7 @@ static int ocfs2_file_open(struct inode *inode, struct file *file)
 		   file->f_path.dentry->d_name.len, file->f_path.dentry->d_name.name);
 
 	if (file->f_mode & FMODE_WRITE)
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 
 	spin_lock(&oi->ip_lock);
 
@@ -980,7 +980,7 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 
 	size_change = S_ISREG(inode->i_mode) && attr->ia_valid & ATTR_SIZE;
 	if (size_change) {
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 
 		status = ocfs2_rw_lock(inode, 1);
 		if (status < 0) {

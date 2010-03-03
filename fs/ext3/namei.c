@@ -1696,7 +1696,7 @@ static int ext3_create (struct inode * dir, struct dentry * dentry, int mode,
 	struct inode * inode;
 	int err, retries = 0;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 retry:
 	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
@@ -1732,7 +1732,7 @@ static int ext3_mknod (struct inode * dir, struct dentry *dentry,
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 retry:
 	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
@@ -1770,7 +1770,7 @@ static int ext3_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 	if (dir->i_nlink >= EXT3_LINK_MAX)
 		return -EMLINK;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 retry:
 	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
@@ -2066,8 +2066,8 @@ static int ext3_rmdir (struct inode * dir, struct dentry *dentry)
 
 	/* Initialize quotas before so that eventual writes go in
 	 * separate transaction */
-	vfs_dq_init(dir);
-	vfs_dq_init(dentry->d_inode);
+	dquot_initialize(dir);
+	dquot_initialize(dentry->d_inode);
 
 	handle = ext3_journal_start(dir, EXT3_DELETE_TRANS_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
@@ -2127,8 +2127,8 @@ static int ext3_unlink(struct inode * dir, struct dentry *dentry)
 
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
-	vfs_dq_init(dir);
-	vfs_dq_init(dentry->d_inode);
+	dquot_initialize(dir);
+	dquot_initialize(dentry->d_inode);
 
 	handle = ext3_journal_start(dir, EXT3_DELETE_TRANS_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
@@ -2184,7 +2184,7 @@ static int ext3_symlink (struct inode * dir,
 	if (l > dir->i_sb->s_blocksize)
 		return -ENAMETOOLONG;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 retry:
 	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
@@ -2241,7 +2241,7 @@ static int ext3_link (struct dentry * old_dentry,
 	if (inode->i_nlink >= EXT3_LINK_MAX)
 		return -EMLINK;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	/*
 	 * Return -ENOENT if we've raced with unlink and i_nlink is 0.  Doing
@@ -2293,15 +2293,15 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 	struct ext3_dir_entry_2 * old_de, * new_de;
 	int retval, flush_file = 0;
 
-	vfs_dq_init(old_dir);
-	vfs_dq_init(new_dir);
+	dquot_initialize(old_dir);
+	dquot_initialize(new_dir);
 
 	old_bh = new_bh = dir_bh = NULL;
 
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
 	if (new_dentry->d_inode)
-		vfs_dq_init(new_dentry->d_inode);
+		dquot_initialize(new_dentry->d_inode);
 	handle = ext3_journal_start(old_dir, 2 *
 					EXT3_DATA_TRANS_BLOCKS(old_dir->i_sb) +
 					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 2);

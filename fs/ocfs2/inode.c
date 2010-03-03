@@ -971,7 +971,7 @@ void ocfs2_delete_inode(struct inode *inode)
 		goto bail;
 	}
 
-	vfs_dq_init(inode);
+	dquot_initialize(inode);
 
 	if (!ocfs2_inode_is_valid_to_delete(inode)) {
 		/* It's probably not necessary to truncate_inode_pages

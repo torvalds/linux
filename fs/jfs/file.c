@@ -99,7 +99,7 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 		return rc;
 
 	if (iattr->ia_valid & ATTR_SIZE)
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
 	    (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
 		rc = dquot_transfer(inode, iattr);

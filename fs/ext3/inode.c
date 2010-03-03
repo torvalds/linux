@@ -197,7 +197,7 @@ void ext3_delete_inode (struct inode * inode)
 	handle_t *handle;
 
 	if (!is_bad_inode(inode))
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 
 	truncate_inode_pages(&inode->i_data, 0);
 
@@ -3152,7 +3152,7 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 		return error;
 
 	if (ia_valid & ATTR_SIZE)
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 	if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
 		(ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
 		handle_t *handle;
@@ -3250,7 +3250,7 @@ static int ext3_writepage_trans_blocks(struct inode *inode)
 		ret = 2 * (bpp + indirects) + 2;
 
 #ifdef CONFIG_QUOTA
-	/* We know that structure was already allocated during vfs_dq_init so
+	/* We know that structure was already allocated during dquot_initialize so
 	 * we will be updating only the data blocks + inodes */
 	ret += EXT3_MAXQUOTAS_TRANS_BLOCKS(inode->i_sb);
 #endif

@@ -246,7 +246,7 @@ static int finish_unfinished(struct super_block *s)
 			retval = remove_save_link_only(s, &save_link_key, 0);
 			continue;
 		}
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 
 		if (truncate && S_ISDIR(inode->i_mode)) {
 			/* We got a truncate request for a dir which is impossible.
@@ -622,7 +622,6 @@ static int reiserfs_write_info(struct super_block *, int);
 static int reiserfs_quota_on(struct super_block *, int, int, char *, int);
 
 static const struct dquot_operations reiserfs_quota_operations = {
-	.initialize = dquot_initialize,
 	.write_dquot = reiserfs_write_dquot,
 	.acquire_dquot = reiserfs_acquire_dquot,
 	.release_dquot = reiserfs_release_dquot,

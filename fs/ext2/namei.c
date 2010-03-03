@@ -102,7 +102,7 @@ static int ext2_create (struct inode * dir, struct dentry * dentry, int mode, st
 {
 	struct inode *inode;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	inode = ext2_new_inode(dir, mode);
 	if (IS_ERR(inode))
@@ -131,7 +131,7 @@ static int ext2_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	inode = ext2_new_inode (dir, mode);
 	err = PTR_ERR(inode);
@@ -157,7 +157,7 @@ static int ext2_symlink (struct inode * dir, struct dentry * dentry,
 	if (l > sb->s_blocksize)
 		goto out;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	inode = ext2_new_inode (dir, S_IFLNK | S_IRWXUGO);
 	err = PTR_ERR(inode);
@@ -202,7 +202,7 @@ static int ext2_link (struct dentry * old_dentry, struct inode * dir,
 	if (inode->i_nlink >= EXT2_LINK_MAX)
 		return -EMLINK;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	inode->i_ctime = CURRENT_TIME_SEC;
 	inode_inc_link_count(inode);
@@ -226,7 +226,7 @@ static int ext2_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 	if (dir->i_nlink >= EXT2_LINK_MAX)
 		goto out;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	inode_inc_link_count(dir);
 
@@ -274,7 +274,7 @@ static int ext2_unlink(struct inode * dir, struct dentry *dentry)
 	struct page * page;
 	int err = -ENOENT;
 
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 
 	de = ext2_find_entry (dir, &dentry->d_name, &page);
 	if (!de)
@@ -318,8 +318,8 @@ static int ext2_rename (struct inode * old_dir, struct dentry * old_dentry,
 	struct ext2_dir_entry_2 * old_de;
 	int err = -ENOENT;
 
-	vfs_dq_init(old_dir);
-	vfs_dq_init(new_dir);
+	dquot_initialize(old_dir);
+	dquot_initialize(new_dir);
 
 	old_de = ext2_find_entry (old_dir, &old_dentry->d_name, &old_page);
 	if (!old_de)

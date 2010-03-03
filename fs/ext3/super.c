@@ -752,7 +752,6 @@ static ssize_t ext3_quota_write(struct super_block *sb, int type,
 				const char *data, size_t len, loff_t off);
 
 static const struct dquot_operations ext3_quota_operations = {
-	.initialize	= dquot_initialize,
 	.write_dquot	= ext3_write_dquot,
 	.acquire_dquot	= ext3_acquire_dquot,
 	.release_dquot	= ext3_release_dquot,
@@ -1480,7 +1479,7 @@ static void ext3_orphan_cleanup (struct super_block * sb,
 		}
 
 		list_add(&EXT3_I(inode)->i_orphan, &EXT3_SB(sb)->s_orphan);
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 		if (inode->i_nlink) {
 			printk(KERN_DEBUG
 				"%s: truncating inode %lu to %Ld bytes\n",
@@ -2736,7 +2735,7 @@ static int ext3_statfs (struct dentry * dentry, struct kstatfs * buf)
  * Process 1                         Process 2
  * ext3_create()                     quota_sync()
  *   journal_start()                   write_dquot()
- *   vfs_dq_init()                       down(dqio_mutex)
+ *   dquot_initialize()                       down(dqio_mutex)
  *     down(dqio_mutex)                    journal_start()
  *
  */
