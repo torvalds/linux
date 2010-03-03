@@ -17,7 +17,7 @@ snd-hda-codec-cirrus-objs :=	patch_cirrus.o
 snd-hda-codec-ca0110-objs :=	patch_ca0110.o
 snd-hda-codec-conexant-objs :=	patch_conexant.o
 snd-hda-codec-via-objs :=	patch_via.o
-snd-hda-codec-nvhdmi-objs :=	patch_nvhdmi.o
+snd-hda-codec-nvhdmi-objs :=	patch_nvhdmi.o hda_eld.o
 snd-hda-codec-intelhdmi-objs :=	patch_intelhdmi.o hda_eld.o
 
 # common driver
