@@ -362,9 +362,9 @@ static u32 group_table[] = {
 
 static u32 group2_table[] = {
 	[Group7*8] =
-	SrcNone | ModRM | Priv, 0, 0, SrcNone | ModRM,
+	SrcNone | ModRM | Priv, 0, 0, SrcNone | ModRM | Priv,
 	SrcNone | ModRM | DstMem | Mov, 0,
-	SrcMem16 | ModRM | Mov, 0,
+	SrcMem16 | ModRM | Mov | Priv, 0,
 	[Group9*8] =
 	0, 0, 0, 0, 0, 0, 0, 0,
 };
