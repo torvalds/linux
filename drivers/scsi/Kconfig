@@ -1,9 +1,15 @@
 menu "SCSI device support"
 
+config SCSI_MOD
+       tristate
+       default y if SCSI=n || SCSI=y
+       default m if SCSI=m
+
 config RAID_ATTRS
 	tristate "RAID Transport Class"
 	default n
 	depends on BLOCK
+	depends on SCSI_MOD
 	---help---
 	  Provides RAID
 
