@@ -470,6 +470,13 @@ struct snd_soc_platform {
 		struct snd_pcm *);
 	void (*pcm_free)(struct snd_pcm *);
 
+	/*
+	 * For platform caused delay reporting.
+	 * Optional.
+	 */
+	snd_pcm_sframes_t (*delay)(struct snd_pcm_substream *,
+		struct snd_soc_dai *);
+
 	/* platform stream ops */
 	struct snd_pcm_ops *pcm_ops;
 };
