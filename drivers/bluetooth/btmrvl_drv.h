@@ -88,8 +88,11 @@ struct btmrvl_private {
 #define BT_CMD_HOST_SLEEP_ENABLE	0x5A
 #define BT_CMD_MODULE_CFG_REQ		0x5B
 
-/* Sub-commands: Module Bringup/Shutdown Request */
+/* Sub-commands: Module Bringup/Shutdown Request/Response */
 #define MODULE_BRINGUP_REQ		0xF1
+#define MODULE_BROUGHT_UP		0x00
+#define MODULE_ALREADY_UP		0x0C
+
 #define MODULE_SHUTDOWN_REQ		0xF2
 
 #define BT_EVENT_POWER_STATE		0x20

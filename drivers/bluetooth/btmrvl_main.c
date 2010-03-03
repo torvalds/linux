@@ -112,8 +112,10 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 	case BT_CMD_MODULE_CFG_REQ:
 		if (priv->btmrvl_dev.sendcmdflag &&
 				event->data[1] == MODULE_BRINGUP_REQ) {
-			BT_DBG("EVENT:%s", (event->data[2]) ?
-				"Bring-up failed" : "Bring-up succeed");
+			BT_DBG("EVENT:%s",
+				((event->data[2] == MODULE_BROUGHT_UP) ||
+				(event->data[2] == MODULE_ALREADY_UP)) ?
+				"Bring-up succeed" : "Bring-up failed");
 		} else if (priv->btmrvl_dev.sendcmdflag &&
 				event->data[1] == MODULE_SHUTDOWN_REQ) {
 			BT_DBG("EVENT:%s", (event->data[2]) ?
