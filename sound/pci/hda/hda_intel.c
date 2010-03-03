@@ -267,7 +267,8 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define RIRB_INT_MASK		0x05
 
 /* STATESTS int mask: S3,SD2,SD1,SD0 */
-#define AZX_MAX_CODECS		4
+#define AZX_MAX_CODECS		8
+#define AZX_DEFAULT_CODECS	4
 #define STATESTS_INT_MASK	((1 << AZX_MAX_CODECS) - 1)
 
 /* SD_CTL bits */
@@ -1367,6 +1368,7 @@ static void azx_bus_reset(struct hda_bus *bus)
 
 /* number of codec slots for each chipset: 0 = default slots (i.e. 4) */
 static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] __devinitdata = {
+	[AZX_DRIVER_NVIDIA] = 8,
 	[AZX_DRIVER_TERA] = 1,
 };
 
@@ -1399,7 +1401,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 	codecs = 0;
 	max_slots = azx_max_codecs[chip->driver_type];
 	if (!max_slots)
-		max_slots = AZX_MAX_CODECS;
+		max_slots = AZX_DEFAULT_CODECS;
 
 	/* First try to probe all given codec slots */
 	for (c = 0; c < max_slots; c++) {
