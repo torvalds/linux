@@ -297,9 +297,7 @@ struct quota_format_ops {
 struct dquot_operations {
 	int (*initialize) (struct inode *, int);
 	int (*drop) (struct inode *);
-	int (*alloc_space) (struct inode *, qsize_t, int);
 	int (*alloc_inode) (const struct inode *, qsize_t);
-	int (*free_space) (struct inode *, qsize_t);
 	int (*free_inode) (const struct inode *, qsize_t);
 	int (*transfer) (struct inode *, qid_t *, unsigned long);
 	int (*write_dquot) (struct dquot *);		/* Ordinary dquot write */
@@ -309,12 +307,6 @@ struct dquot_operations {
 	int (*release_dquot) (struct dquot *);		/* Quota is going to be deleted from disk */
 	int (*mark_dirty) (struct dquot *);		/* Dquot is marked dirty */
 	int (*write_info) (struct super_block *, int);	/* Write of quota "superblock" */
-	/* reserve quota for delayed block allocation */
-	int (*reserve_space) (struct inode *, qsize_t, int);
-	/* claim reserved quota for delayed alloc */
-	int (*claim_space) (struct inode *, qsize_t);
-	/* release rsved quota for delayed alloc */
-	void (*release_rsv) (struct inode *, qsize_t);
 	/* get reserved quota for delayed alloc, value returned is managed by
 	 * quota code only */
 	qsize_t *(*get_reserved_space) (struct inode *);

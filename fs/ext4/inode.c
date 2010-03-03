@@ -1093,9 +1093,9 @@ void ext4_da_update_reserve_space(struct inode *inode,
 
 	/* Update quota subsystem */
 	if (quota_claim) {
-		vfs_dq_claim_block(inode, used);
+		dquot_claim_block(inode, used);
 		if (mdb_free)
-			vfs_dq_release_reservation_block(inode, mdb_free);
+			dquot_release_reservation_block(inode, mdb_free);
 	} else {
 		/*
 		 * We did fallocate with an offset that is already delayed
@@ -1106,8 +1106,8 @@ void ext4_da_update_reserve_space(struct inode *inode,
 		 * that
 		 */
 		if (allocated_meta_blocks)
-			vfs_dq_claim_block(inode, allocated_meta_blocks);
-		vfs_dq_release_reservation_block(inode, mdb_free + used);
+			dquot_claim_block(inode, allocated_meta_blocks);
+		dquot_release_reservation_block(inode, mdb_free + used);
 	}
 
 	/*
@@ -1836,6 +1836,7 @@ static int ext4_da_reserve_space(struct inode *inode, sector_t lblock)
 	struct ext4_sb_info *sbi = EXT4_SB(inode->i_sb);
 	struct ext4_inode_info *ei = EXT4_I(inode);
 	unsigned long md_needed, md_reserved;
+	int ret;
 
 	/*
 	 * recalculate the amount of metadata blocks to reserve
@@ -1853,11 +1854,12 @@ repeat:
 	 * later. Real quota accounting is done at pages writeout
 	 * time.
 	 */
-	if (vfs_dq_reserve_block(inode, md_needed + 1))
-		return -EDQUOT;
+	ret = dquot_reserve_block(inode, md_needed + 1);
+	if (ret)
+		return ret;
 
 	if (ext4_claim_free_blocks(sbi, md_needed + 1)) {
-		vfs_dq_release_reservation_block(inode, md_needed + 1);
+		dquot_release_reservation_block(inode, md_needed + 1);
 		if (ext4_should_retry_alloc(inode->i_sb, &retries)) {
 			yield();
 			goto repeat;
@@ -1914,7 +1916,7 @@ static void ext4_da_release_space(struct inode *inode, int to_free)
 
 	spin_unlock(&EXT4_I(inode)->i_block_reservation_lock);
 
-	vfs_dq_release_reservation_block(inode, to_free);
+	dquot_release_reservation_block(inode, to_free);
 }
 
 static void ext4_da_page_release_reservation(struct page *page,
@@ -5641,7 +5643,7 @@ int ext4_mark_inode_dirty(handle_t *handle, struct inode *inode)
  * i_size has been changed by generic_commit_write() and we thus need
  * to include the updated inode in the current transaction.
  *
- * Also, vfs_dq_alloc_block() will always dirty the inode when blocks
+ * Also, dquot_alloc_block() will always dirty the inode when blocks
  * are allocated to the file.
  *
  * If the inode is marked synchronous, we don't honour that here - doing

@@ -208,7 +208,7 @@ static void udf_bitmap_free_blocks(struct super_block *sb,
 					((char *)bh->b_data)[(bit + i) >> 3]);
 			} else {
 				if (inode)
-					vfs_dq_free_block(inode, 1);
+					dquot_free_block(inode, 1);
 				udf_add_free_space(sb, sbi->s_partition, 1);
 			}
 		}
@@ -260,11 +260,11 @@ static int udf_bitmap_prealloc_blocks(struct super_block *sb,
 		while (bit < (sb->s_blocksize << 3) && block_count > 0) {
 			if (!udf_test_bit(bit, bh->b_data))
 				goto out;
-			else if (vfs_dq_prealloc_block(inode, 1))
+			else if (dquot_prealloc_block(inode, 1))
 				goto out;
 			else if (!udf_clear_bit(bit, bh->b_data)) {
 				udf_debug("bit already cleared for block %d\n", bit);
-				vfs_dq_free_block(inode, 1);
+				dquot_free_block(inode, 1);
 				goto out;
 			}
 			block_count--;
@@ -390,10 +390,14 @@ got_block:
 	/*
 	 * Check quota for allocation of this block.
 	 */
-	if (inode && vfs_dq_alloc_block(inode, 1)) {
-		mutex_unlock(&sbi->s_alloc_mutex);
-		*err = -EDQUOT;
-		return 0;
+	if (inode) {
+		int ret = dquot_alloc_block(inode, 1);
+
+		if (ret) {
+			mutex_unlock(&sbi->s_alloc_mutex);
+			*err = ret;
+			return 0;
+		}
 	}
 
 	newblock = bit + (block_group << (sb->s_blocksize_bits + 3)) -
@@ -449,7 +453,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 	/* We do this up front - There are some error conditions that
 	   could occure, but.. oh well */
 	if (inode)
-		vfs_dq_free_block(inode, count);
+		dquot_free_block(inode, count);
 	udf_add_free_space(sb, sbi->s_partition, count);
 
 	start = bloc->logicalBlockNum + offset;
@@ -694,7 +698,7 @@ static int udf_table_prealloc_blocks(struct super_block *sb,
 		epos.offset -= adsize;
 
 		alloc_count = (elen >> sb->s_blocksize_bits);
-		if (inode && vfs_dq_prealloc_block(inode,
+		if (inode && dquot_prealloc_block(inode,
 			alloc_count > block_count ? block_count : alloc_count))
 			alloc_count = 0;
 		else if (alloc_count > block_count) {
@@ -797,12 +801,13 @@ static int udf_table_new_block(struct super_block *sb,
 	newblock = goal_eloc.logicalBlockNum;
 	goal_eloc.logicalBlockNum++;
 	goal_elen -= sb->s_blocksize;
-
-	if (inode && vfs_dq_alloc_block(inode, 1)) {
-		brelse(goal_epos.bh);
-		mutex_unlock(&sbi->s_alloc_mutex);
-		*err = -EDQUOT;
-		return 0;
+	if (inode) {
+		*err = dquot_alloc_block(inode, 1);
+		if (*err) {
+			brelse(goal_epos.bh);
+			mutex_unlock(&sbi->s_alloc_mutex);
+			return 0;
+		}
 	}
 
 	if (goal_elen)

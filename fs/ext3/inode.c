@@ -3336,7 +3336,7 @@ int ext3_mark_inode_dirty(handle_t *handle, struct inode *inode)
  * i_size has been changed by generic_commit_write() and we thus need
  * to include the updated inode in the current transaction.
  *
- * Also, vfs_dq_alloc_space() will always dirty the inode when blocks
+ * Also, dquot_alloc_space() will always dirty the inode when blocks
  * are allocated to the file.
  *
  * If the inode is marked synchronous, we don't honour that here - doing

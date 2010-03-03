@@ -1014,15 +1014,10 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 static const struct dquot_operations ext4_quota_operations = {
 	.initialize	= dquot_initialize,
 	.drop		= dquot_drop,
-	.alloc_space	= dquot_alloc_space,
-	.reserve_space	= dquot_reserve_space,
-	.claim_space	= dquot_claim_space,
-	.release_rsv	= dquot_release_reserved_space,
 #ifdef CONFIG_QUOTA
 	.get_reserved_space = ext4_get_reserved_space,
 #endif
 	.alloc_inode	= dquot_alloc_inode,
-	.free_space	= dquot_free_space,
 	.free_inode	= dquot_free_inode,
 	.transfer	= dquot_transfer,
 	.write_dquot	= ext4_write_dquot,

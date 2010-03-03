@@ -1464,28 +1464,29 @@ static void inode_decr_space(struct inode *inode, qsize_t number, int reserve)
 }
 
 /*
- * Following four functions update i_blocks+i_bytes fields and
- * quota information (together with appropriate checks)
- * NOTE: We absolutely rely on the fact that caller dirties
- * the inode (usually macros in quotaops.h care about this) and
- * holds a handle for the current transaction so that dquot write and
- * inode write go into the same transaction.
+ * This functions updates i_blocks+i_bytes fields and quota information
+ * (together with appropriate checks).
+ *
+ * NOTE: We absolutely rely on the fact that caller dirties the inode
+ * (usually helpers in quotaops.h care about this) and holds a handle for
+ * the current transaction so that dquot write and inode write go into the
+ * same transaction.
  */
 
 /*
  * This operation can block, but only after everything is updated
  */
 int __dquot_alloc_space(struct inode *inode, qsize_t number,
-			int warn, int reserve)
+		int warn, int reserve)
 {
-	int cnt, ret = QUOTA_OK;
+	int cnt, ret = 0;
 	char warntype[MAXQUOTAS];
 
 	/*
 	 * First test before acquiring mutex - solves deadlocks when we
 	 * re-enter the quota code and are already holding the mutex
 	 */
-	if (IS_NOQUOTA(inode)) {
+	if (!sb_any_quota_active(inode->i_sb) || IS_NOQUOTA(inode)) {
 		inode_incr_space(inode, number, reserve);
 		goto out;
 	}
@@ -1498,9 +1499,9 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number,
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (!inode->i_dquot[cnt])
 			continue;
-		if (check_bdq(inode->i_dquot[cnt], number, warn, warntype+cnt)
-		    == NO_QUOTA) {
-			ret = NO_QUOTA;
+		if (check_bdq(inode->i_dquot[cnt], number, !warn, warntype+cnt)
+				== NO_QUOTA) {
+			ret = -EDQUOT;
 			spin_unlock(&dq_data_lock);
 			goto out_flush_warn;
 		}
@@ -1525,18 +1526,7 @@ out_flush_warn:
 out:
 	return ret;
 }
-
-int dquot_alloc_space(struct inode *inode, qsize_t number, int warn)
-{
-	return __dquot_alloc_space(inode, number, warn, 0);
-}
-EXPORT_SYMBOL(dquot_alloc_space);
-
-int dquot_reserve_space(struct inode *inode, qsize_t number, int warn)
-{
-	return __dquot_alloc_space(inode, number, warn, 1);
-}
-EXPORT_SYMBOL(dquot_reserve_space);
+EXPORT_SYMBOL(__dquot_alloc_space);
 
 /*
  * This operation can block, but only after everything is updated
@@ -1578,14 +1568,16 @@ warn_put_all:
 }
 EXPORT_SYMBOL(dquot_alloc_inode);
 
-int dquot_claim_space(struct inode *inode, qsize_t number)
+/*
+ * Convert in-memory reserved quotas to real consumed quotas
+ */
+int dquot_claim_space_nodirty(struct inode *inode, qsize_t number)
 {
 	int cnt;
-	int ret = QUOTA_OK;
 
-	if (IS_NOQUOTA(inode)) {
+	if (!sb_any_quota_active(inode->i_sb) || IS_NOQUOTA(inode)) {
 		inode_claim_rsv_space(inode, number);
-		goto out;
+		return 0;
 	}
 
 	down_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
@@ -1601,24 +1593,23 @@ int dquot_claim_space(struct inode *inode, qsize_t number)
 	spin_unlock(&dq_data_lock);
 	mark_all_dquot_dirty(inode->i_dquot);
 	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
-out:
-	return ret;
+	return 0;
 }
-EXPORT_SYMBOL(dquot_claim_space);
+EXPORT_SYMBOL(dquot_claim_space_nodirty);
 
 /*
  * This operation can block, but only after everything is updated
  */
-int __dquot_free_space(struct inode *inode, qsize_t number, int reserve)
+void __dquot_free_space(struct inode *inode, qsize_t number, int reserve)
 {
 	unsigned int cnt;
 	char warntype[MAXQUOTAS];
 
 	/* First test before acquiring mutex - solves deadlocks when we
          * re-enter the quota code and are already holding the mutex */
-	if (IS_NOQUOTA(inode)) {
+	if (!sb_any_quota_active(inode->i_sb) || IS_NOQUOTA(inode)) {
 		inode_decr_space(inode, number, reserve);
-		return QUOTA_OK;
+		return;
 	}
 
 	down_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
@@ -1641,24 +1632,8 @@ int __dquot_free_space(struct inode *inode, qsize_t number, int reserve)
 out_unlock:
 	flush_warnings(inode->i_dquot, warntype);
 	up_read(&sb_dqopt(inode->i_sb)->dqptr_sem);
-	return QUOTA_OK;
 }
-
-int dquot_free_space(struct inode *inode, qsize_t number)
-{
-	return  __dquot_free_space(inode, number, 0);
-}
-EXPORT_SYMBOL(dquot_free_space);
-
-/*
- * Release reserved quota space
- */
-void dquot_release_reserved_space(struct inode *inode, qsize_t number)
-{
-	__dquot_free_space(inode, number, 1);
-
-}
-EXPORT_SYMBOL(dquot_release_reserved_space);
+EXPORT_SYMBOL(__dquot_free_space);
 
 /*
  * This operation can block, but only after everything is updated
@@ -1840,9 +1815,7 @@ EXPORT_SYMBOL(dquot_commit_info);
 const struct dquot_operations dquot_operations = {
 	.initialize	= dquot_initialize,
 	.drop		= dquot_drop,
-	.alloc_space	= dquot_alloc_space,
 	.alloc_inode	= dquot_alloc_inode,
-	.free_space	= dquot_free_space,
 	.free_inode	= dquot_free_inode,
 	.transfer	= dquot_transfer,
 	.write_dquot	= dquot_commit,
