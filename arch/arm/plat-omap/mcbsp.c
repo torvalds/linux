@@ -561,6 +561,61 @@ u16 omap_mcbsp_get_max_rx_threshold(unsigned int id)
 }
 EXPORT_SYMBOL(omap_mcbsp_get_max_rx_threshold);
 
+#define MCBSP2_FIFO_SIZE	0x500 /* 1024 + 256 locations */
+#define MCBSP1345_FIFO_SIZE	0x80  /* 128 locations */
+/*
+ * omap_mcbsp_get_tx_delay returns the number of used slots in the McBSP FIFO
+ */
+u16 omap_mcbsp_get_tx_delay(unsigned int id)
+{
+	struct omap_mcbsp *mcbsp;
+	u16 buffstat;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return -ENODEV;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	/* Returns the number of free locations in the buffer */
+	buffstat = MCBSP_READ(mcbsp, XBUFFSTAT);
+
+	/* Number of slots are different in McBSP ports */
+	if (mcbsp->id == 2)
+		return MCBSP2_FIFO_SIZE - buffstat;
+	else
+		return MCBSP1345_FIFO_SIZE - buffstat;
+}
+EXPORT_SYMBOL(omap_mcbsp_get_tx_delay);
+
+/*
+ * omap_mcbsp_get_rx_delay returns the number of free slots in the McBSP FIFO
+ * to reach the threshold value (when the DMA will be triggered to read it)
+ */
+u16 omap_mcbsp_get_rx_delay(unsigned int id)
+{
+	struct omap_mcbsp *mcbsp;
+	u16 buffstat, threshold;
+
+	if (!omap_mcbsp_check_valid_id(id)) {
+		printk(KERN_ERR "%s: Invalid id (%d)\n", __func__, id + 1);
+		return -ENODEV;
+	}
+	mcbsp = id_to_mcbsp_ptr(id);
+
+	/* Returns the number of used locations in the buffer */
+	buffstat = MCBSP_READ(mcbsp, RBUFFSTAT);
+	/* RX threshold */
+	threshold = MCBSP_READ(mcbsp, THRSH1);
+
+	/* Return the number of location till we reach the threshold limit */
+	if (threshold <= buffstat)
+		return 0;
+	else
+		return threshold - buffstat;
+}
+EXPORT_SYMBOL(omap_mcbsp_get_rx_delay);
+
 /*
  * omap_mcbsp_get_dma_op_mode just return the current configured
  * operating mode for the mcbsp channel
