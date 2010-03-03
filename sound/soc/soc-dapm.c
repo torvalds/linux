@@ -97,7 +97,6 @@ static void pop_dbg(u32 pop_time, const char *fmt, ...)
 
 	if (pop_time) {
 		vprintk(fmt, args);
-		pop_wait(pop_time);
 	}
 
 	va_end(args);
@@ -314,8 +313,8 @@ static int dapm_update_bits(struct snd_soc_dapm_widget *widget)
 		pop_dbg(codec->pop_time, "pop test %s : %s in %d ms\n",
 			widget->name, widget->power ? "on" : "off",
 			codec->pop_time);
-		snd_soc_write(codec, widget->reg, new);
 		pop_wait(codec->pop_time);
+		snd_soc_write(codec, widget->reg, new);
 	}
 	pr_debug("reg %x old %x new %x change %d\n", widget->reg,
 		 old, new, change);
@@ -1075,6 +1074,7 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 
 	pop_dbg(codec->pop_time, "DAPM sequencing finished, waiting %dms\n",
 		codec->pop_time);
+	pop_wait(codec->pop_time);
 
 	return 0;
 }
