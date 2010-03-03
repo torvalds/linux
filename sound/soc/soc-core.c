@@ -315,7 +315,7 @@ static int soc_pcm_apply_symmetry(struct snd_pcm_substream *substream)
 
 	if (codec_dai->symmetric_rates || cpu_dai->symmetric_rates ||
 	    machine->symmetric_rates) {
-		dev_dbg(card->dev, "Symmetry forces %dHz rate\n", 
+		dev_dbg(card->dev, "Symmetry forces %dHz rate\n",
 			machine->rate);
 
 		ret = snd_pcm_hw_constraint_minmax(substream->runtime,
