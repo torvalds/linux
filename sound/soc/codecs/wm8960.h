@@ -114,14 +114,4 @@
 extern struct snd_soc_dai wm8960_dai;
 extern struct snd_soc_codec_device soc_codec_dev_wm8960;
 
-#define WM8960_DRES_400R 0
-#define WM8960_DRES_200R 1
-#define WM8960_DRES_600R 2
-#define WM8960_DRES_150R 3
-#define WM8960_DRES_MAX  3
-
-struct wm8960_data {
-	int dres;
-};
-
 #endif

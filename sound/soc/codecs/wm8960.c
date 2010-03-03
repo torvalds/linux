@@ -22,6 +22,7 @@
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
 #include <sound/tlv.h>
+#include <sound/wm8960.h>
 
 #include "wm8960.h"
 
