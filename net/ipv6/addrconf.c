@@ -2615,7 +2615,7 @@ static void addrconf_bonding_change(struct net_device *dev, unsigned long event)
 static int addrconf_ifdown(struct net_device *dev, int how)
 {
 	struct inet6_dev *idev;
-	struct inet6_ifaddr *ifa, **bifa;
+	struct inet6_ifaddr *ifa, *keep_list, **bifa;
 	struct net *net = dev_net(dev);
 	int i;
 
@@ -2689,8 +2689,12 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 		write_lock_bh(&idev->lock);
 	}
 #endif
-	bifa = &idev->addr_list;
-	while ((ifa = *bifa) != NULL) {
+	keep_list = NULL;
+	bifa = &keep_list;
+	while ((ifa = idev->addr_list) != NULL) {
+		idev->addr_list = ifa->if_next;
+		ifa->if_next = NULL;
+
 		addrconf_del_timer(ifa);
 
 		/* If just doing link down, and address is permanent
@@ -2698,6 +2702,9 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 		if (how == 0 &&
 		    (ifa->flags&IFA_F_PERMANENT) &&
 		    !(ipv6_addr_type(&ifa->addr) & IPV6_ADDR_LINKLOCAL)) {
+
+			/* Move to holding list */
+			*bifa = ifa;
 			bifa = &ifa->if_next;
 
 			/* If not doing DAD on this address, just keep it. */
@@ -2714,8 +2721,6 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 			ifa->flags |= IFA_F_TENTATIVE;
 			in6_ifa_hold(ifa);
 		} else {
-			*bifa = ifa->if_next;
-			ifa->if_next = NULL;
 			ifa->dead = 1;
 		}
 		write_unlock_bh(&idev->lock);
@@ -2726,6 +2731,9 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 		write_lock_bh(&idev->lock);
 	}
+
+	idev->addr_list = keep_list;
+
 	write_unlock_bh(&idev->lock);
 
 	/* Step 5: Discard multicast list */
