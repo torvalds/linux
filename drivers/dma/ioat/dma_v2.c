@@ -51,48 +51,40 @@ MODULE_PARM_DESC(ioat_ring_max_alloc_order,
 
 void __ioat2_issue_pending(struct ioat2_dma_chan *ioat)
 {
-	void * __iomem reg_base = ioat->base.reg_base;
+	struct ioat_chan_common *chan = &ioat->base;
 
-	ioat->pending = 0;
 	ioat->dmacount += ioat2_ring_pending(ioat);
 	ioat->issued = ioat->head;
 	/* make descriptor updates globally visible before notifying channel */
 	wmb();
-	writew(ioat->dmacount, reg_base + IOAT_CHAN_DMACOUNT_OFFSET);
-	dev_dbg(to_dev(&ioat->base),
+	writew(ioat->dmacount, chan->reg_base + IOAT_CHAN_DMACOUNT_OFFSET);
+	dev_dbg(to_dev(chan),
 		"%s: head: %#x tail: %#x issued: %#x count: %#x\n",
 		__func__, ioat->head, ioat->tail, ioat->issued, ioat->dmacount);
 }
 
-void ioat2_issue_pending(struct dma_chan *chan)
+void ioat2_issue_pending(struct dma_chan *c)
 {
-	struct ioat2_dma_chan *ioat = to_ioat2_chan(chan);
+	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
 
-	spin_lock_bh(&ioat->ring_lock);
-	if (ioat->pending == 1)
+	if (ioat2_ring_pending(ioat)) {
+		spin_lock_bh(&ioat->ring_lock);
 		__ioat2_issue_pending(ioat);
-	spin_unlock_bh(&ioat->ring_lock);
+		spin_unlock_bh(&ioat->ring_lock);
+	}
 }
 
 /**
  * ioat2_update_pending - log pending descriptors
  * @ioat: ioat2+ channel
  *
- * set pending to '1' unless pending is already set to '2', pending == 2
- * indicates that submission is temporarily blocked due to an in-flight
- * reset.  If we are already above the ioat_pending_level threshold then
- * just issue pending.
- *
- * called with ring_lock held
+ * Check if the number of unsubmitted descriptors has exceeded the
+ * watermark.  Called with ring_lock held
  */
 static void ioat2_update_pending(struct ioat2_dma_chan *ioat)
 {
-	if (unlikely(ioat->pending == 2))
-		return;
-	else if (ioat2_ring_pending(ioat) > ioat_pending_level)
+	if (ioat2_ring_pending(ioat) > ioat_pending_level)
 		__ioat2_issue_pending(ioat);
-	else
-		ioat->pending = 1;
 }
 
 static void __ioat2_start_null_desc(struct ioat2_dma_chan *ioat)
@@ -546,7 +538,6 @@ int ioat2_alloc_chan_resources(struct dma_chan *c)
 	ioat->head = 0;
 	ioat->issued = 0;
 	ioat->tail = 0;
-	ioat->pending = 0;
 	ioat->alloc_order = order;
 	spin_unlock_bh(&ioat->ring_lock);
 
@@ -815,7 +806,6 @@ void ioat2_free_chan_resources(struct dma_chan *c)
 
 	chan->last_completion = 0;
 	chan->completion_dma = 0;
-	ioat->pending = 0;
 	ioat->dmacount = 0;
 }
 
