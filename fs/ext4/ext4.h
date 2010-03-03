@@ -1014,7 +1014,7 @@ struct ext4_sb_info {
 	atomic_t s_lock_busy;
 
 	/* locality groups */
-	struct ext4_locality_group *s_locality_groups;
+	struct ext4_locality_group __percpu *s_locality_groups;
 
 	/* for write statistics */
 	unsigned long s_sectors_written_start;

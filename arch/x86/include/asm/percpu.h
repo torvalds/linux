@@ -25,19 +25,18 @@
  */
 #ifdef CONFIG_SMP
 #define PER_CPU(var, reg)						\
-	__percpu_mov_op %__percpu_seg:per_cpu__this_cpu_off, reg;	\
-	lea per_cpu__##var(reg), reg
-#define PER_CPU_VAR(var)	%__percpu_seg:per_cpu__##var
+	__percpu_mov_op %__percpu_seg:this_cpu_off, reg;		\
+	lea var(reg), reg
+#define PER_CPU_VAR(var)	%__percpu_seg:var
 #else /* ! SMP */
-#define PER_CPU(var, reg)						\
-	__percpu_mov_op $per_cpu__##var, reg
-#define PER_CPU_VAR(var)	per_cpu__##var
+#define PER_CPU(var, reg)	__percpu_mov_op $var, reg
+#define PER_CPU_VAR(var)	var
 #endif	/* SMP */
 
 #ifdef CONFIG_X86_64_SMP
 #define INIT_PER_CPU_VAR(var)  init_per_cpu__##var
 #else
-#define INIT_PER_CPU_VAR(var)  per_cpu__##var
+#define INIT_PER_CPU_VAR(var)  var
 #endif
 
 #else /* ...!ASSEMBLY */
@@ -60,12 +59,12 @@
  * There also must be an entry in vmlinux_64.lds.S
  */
 #define DECLARE_INIT_PER_CPU(var) \
-       extern typeof(per_cpu_var(var)) init_per_cpu_var(var)
+       extern typeof(var) init_per_cpu_var(var)
 
 #ifdef CONFIG_X86_64_SMP
 #define init_per_cpu_var(var)  init_per_cpu__##var
 #else
-#define init_per_cpu_var(var)  per_cpu_var(var)
+#define init_per_cpu_var(var)  var
 #endif
 
 /* For arch-specific code, we can use direct single-insn ops (they
@@ -102,6 +101,64 @@ do {							\
 		break;					\
 	default: __bad_percpu_size();			\
 	}						\
+} while (0)
+
+/*
+ * Generate a percpu add to memory instruction and optimize code
+ * if a one is added or subtracted.
+ */
+#define percpu_add_op(var, val)						\
+do {									\
+	typedef typeof(var) pao_T__;					\
+	const int pao_ID__ = (__builtin_constant_p(val) &&		\
+			      ((val) == 1 || (val) == -1)) ? (val) : 0;	\
+	if (0) {							\
+		pao_T__ pao_tmp__;					\
+		pao_tmp__ = (val);					\
+	}								\
+	switch (sizeof(var)) {						\
+	case 1:								\
+		if (pao_ID__ == 1)					\
+			asm("incb "__percpu_arg(0) : "+m" (var));	\
+		else if (pao_ID__ == -1)				\
+			asm("decb "__percpu_arg(0) : "+m" (var));	\
+		else							\
+			asm("addb %1, "__percpu_arg(0)			\
+			    : "+m" (var)				\
+			    : "qi" ((pao_T__)(val)));			\
+		break;							\
+	case 2:								\
+		if (pao_ID__ == 1)					\
+			asm("incw "__percpu_arg(0) : "+m" (var));	\
+		else if (pao_ID__ == -1)				\
+			asm("decw "__percpu_arg(0) : "+m" (var));	\
+		else							\
+			asm("addw %1, "__percpu_arg(0)			\
+			    : "+m" (var)				\
+			    : "ri" ((pao_T__)(val)));			\
+		break;							\
+	case 4:								\
+		if (pao_ID__ == 1)					\
+			asm("incl "__percpu_arg(0) : "+m" (var));	\
+		else if (pao_ID__ == -1)				\
+			asm("decl "__percpu_arg(0) : "+m" (var));	\
+		else							\
+			asm("addl %1, "__percpu_arg(0)			\
+			    : "+m" (var)				\
+			    : "ri" ((pao_T__)(val)));			\
+		break;							\
+	case 8:								\
+		if (pao_ID__ == 1)					\
+			asm("incq "__percpu_arg(0) : "+m" (var));	\
+		else if (pao_ID__ == -1)				\
+			asm("decq "__percpu_arg(0) : "+m" (var));	\
+		else							\
+			asm("addq %1, "__percpu_arg(0)			\
+			    : "+m" (var)				\
+			    : "re" ((pao_T__)(val)));			\
+		break;							\
+	default: __bad_percpu_size();					\
+	}								\
 } while (0)
 
 #define percpu_from_op(op, var, constraint)		\
@@ -142,16 +199,14 @@ do {							\
  * per-thread variables implemented as per-cpu variables and thus
  * stable for the duration of the respective task.
  */
-#define percpu_read(var)	percpu_from_op("mov", per_cpu__##var,	\
-					       "m" (per_cpu__##var))
-#define percpu_read_stable(var)	percpu_from_op("mov", per_cpu__##var,	\
-					       "p" (&per_cpu__##var))
-#define percpu_write(var, val)	percpu_to_op("mov", per_cpu__##var, val)
-#define percpu_add(var, val)	percpu_to_op("add", per_cpu__##var, val)
-#define percpu_sub(var, val)	percpu_to_op("sub", per_cpu__##var, val)
-#define percpu_and(var, val)	percpu_to_op("and", per_cpu__##var, val)
-#define percpu_or(var, val)	percpu_to_op("or", per_cpu__##var, val)
-#define percpu_xor(var, val)	percpu_to_op("xor", per_cpu__##var, val)
+#define percpu_read(var)		percpu_from_op("mov", var, "m" (var))
+#define percpu_read_stable(var)		percpu_from_op("mov", var, "p" (&(var)))
+#define percpu_write(var, val)		percpu_to_op("mov", var, val)
+#define percpu_add(var, val)		percpu_add_op(var, val)
+#define percpu_sub(var, val)		percpu_add_op(var, -(val))
+#define percpu_and(var, val)		percpu_to_op("and", var, val)
+#define percpu_or(var, val)		percpu_to_op("or", var, val)
+#define percpu_xor(var, val)		percpu_to_op("xor", var, val)
 
 #define __this_cpu_read_1(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
 #define __this_cpu_read_2(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
@@ -160,9 +215,9 @@ do {							\
 #define __this_cpu_write_1(pcp, val)	percpu_to_op("mov", (pcp), val)
 #define __this_cpu_write_2(pcp, val)	percpu_to_op("mov", (pcp), val)
 #define __this_cpu_write_4(pcp, val)	percpu_to_op("mov", (pcp), val)
-#define __this_cpu_add_1(pcp, val)	percpu_to_op("add", (pcp), val)
-#define __this_cpu_add_2(pcp, val)	percpu_to_op("add", (pcp), val)
-#define __this_cpu_add_4(pcp, val)	percpu_to_op("add", (pcp), val)
+#define __this_cpu_add_1(pcp, val)	percpu_add_op((pcp), val)
+#define __this_cpu_add_2(pcp, val)	percpu_add_op((pcp), val)
+#define __this_cpu_add_4(pcp, val)	percpu_add_op((pcp), val)
 #define __this_cpu_and_1(pcp, val)	percpu_to_op("and", (pcp), val)
 #define __this_cpu_and_2(pcp, val)	percpu_to_op("and", (pcp), val)
 #define __this_cpu_and_4(pcp, val)	percpu_to_op("and", (pcp), val)
@@ -179,9 +234,9 @@ do {							\
 #define this_cpu_write_1(pcp, val)	percpu_to_op("mov", (pcp), val)
 #define this_cpu_write_2(pcp, val)	percpu_to_op("mov", (pcp), val)
 #define this_cpu_write_4(pcp, val)	percpu_to_op("mov", (pcp), val)
-#define this_cpu_add_1(pcp, val)	percpu_to_op("add", (pcp), val)
-#define this_cpu_add_2(pcp, val)	percpu_to_op("add", (pcp), val)
-#define this_cpu_add_4(pcp, val)	percpu_to_op("add", (pcp), val)
+#define this_cpu_add_1(pcp, val)	percpu_add_op((pcp), val)
+#define this_cpu_add_2(pcp, val)	percpu_add_op((pcp), val)
+#define this_cpu_add_4(pcp, val)	percpu_add_op((pcp), val)
 #define this_cpu_and_1(pcp, val)	percpu_to_op("and", (pcp), val)
 #define this_cpu_and_2(pcp, val)	percpu_to_op("and", (pcp), val)
 #define this_cpu_and_4(pcp, val)	percpu_to_op("and", (pcp), val)
@@ -192,9 +247,9 @@ do {							\
 #define this_cpu_xor_2(pcp, val)	percpu_to_op("xor", (pcp), val)
 #define this_cpu_xor_4(pcp, val)	percpu_to_op("xor", (pcp), val)
 
-#define irqsafe_cpu_add_1(pcp, val)	percpu_to_op("add", (pcp), val)
-#define irqsafe_cpu_add_2(pcp, val)	percpu_to_op("add", (pcp), val)
-#define irqsafe_cpu_add_4(pcp, val)	percpu_to_op("add", (pcp), val)
+#define irqsafe_cpu_add_1(pcp, val)	percpu_add_op((pcp), val)
+#define irqsafe_cpu_add_2(pcp, val)	percpu_add_op((pcp), val)
+#define irqsafe_cpu_add_4(pcp, val)	percpu_add_op((pcp), val)
 #define irqsafe_cpu_and_1(pcp, val)	percpu_to_op("and", (pcp), val)
 #define irqsafe_cpu_and_2(pcp, val)	percpu_to_op("and", (pcp), val)
 #define irqsafe_cpu_and_4(pcp, val)	percpu_to_op("and", (pcp), val)
@@ -212,19 +267,19 @@ do {							\
 #ifdef CONFIG_X86_64
 #define __this_cpu_read_8(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
 #define __this_cpu_write_8(pcp, val)	percpu_to_op("mov", (pcp), val)
-#define __this_cpu_add_8(pcp, val)	percpu_to_op("add", (pcp), val)
+#define __this_cpu_add_8(pcp, val)	percpu_add_op((pcp), val)
 #define __this_cpu_and_8(pcp, val)	percpu_to_op("and", (pcp), val)
 #define __this_cpu_or_8(pcp, val)	percpu_to_op("or", (pcp), val)
 #define __this_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
 
 #define this_cpu_read_8(pcp)		percpu_from_op("mov", (pcp), "m"(pcp))
 #define this_cpu_write_8(pcp, val)	percpu_to_op("mov", (pcp), val)
-#define this_cpu_add_8(pcp, val)	percpu_to_op("add", (pcp), val)
+#define this_cpu_add_8(pcp, val)	percpu_add_op((pcp), val)
 #define this_cpu_and_8(pcp, val)	percpu_to_op("and", (pcp), val)
 #define this_cpu_or_8(pcp, val)		percpu_to_op("or", (pcp), val)
 #define this_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
 
-#define irqsafe_cpu_add_8(pcp, val)	percpu_to_op("add", (pcp), val)
+#define irqsafe_cpu_add_8(pcp, val)	percpu_add_op((pcp), val)
 #define irqsafe_cpu_and_8(pcp, val)	percpu_to_op("and", (pcp), val)
 #define irqsafe_cpu_or_8(pcp, val)	percpu_to_op("or", (pcp), val)
 #define irqsafe_cpu_xor_8(pcp, val)	percpu_to_op("xor", (pcp), val)
@@ -236,7 +291,7 @@ do {							\
 ({									\
 	int old__;							\
 	asm volatile("btr %2,"__percpu_arg(1)"\n\tsbbl %0,%0"		\
-		     : "=r" (old__), "+m" (per_cpu__##var)		\
+		     : "=r" (old__), "+m" (var)				\
 		     : "dIr" (bit));					\
 	old__;								\
 })

@@ -66,7 +66,7 @@ struct vfsmount {
 	int mnt_pinned;
 	int mnt_ghosts;
 #ifdef CONFIG_SMP
-	int *mnt_writers;
+	int __percpu *mnt_writers;
 #else
 	int mnt_writers;
 #endif

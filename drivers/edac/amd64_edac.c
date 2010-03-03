@@ -13,7 +13,7 @@ module_param(report_gart_errors, int, 0644);
 static int ecc_enable_override;
 module_param(ecc_enable_override, int, 0644);
 
-static struct msr *msrs;
+static struct msr __percpu *msrs;
 
 /* Lookup table for all possible MC control instances */
 struct amd64_pvt;

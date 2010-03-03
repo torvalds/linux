@@ -188,7 +188,7 @@ static int __trace_graph_entry(struct trace_array *tr,
 	struct ring_buffer *buffer = tr->buffer;
 	struct ftrace_graph_ent_entry *entry;
 
-	if (unlikely(__this_cpu_read(per_cpu_var(ftrace_cpu_disabled))))
+	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
 		return 0;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_ENT,
@@ -247,7 +247,7 @@ static void __trace_graph_return(struct trace_array *tr,
 	struct ring_buffer *buffer = tr->buffer;
 	struct ftrace_graph_ret_entry *entry;
 
-	if (unlikely(__this_cpu_read(per_cpu_var(ftrace_cpu_disabled))))
+	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
 		return;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_RET,

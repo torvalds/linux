@@ -149,11 +149,11 @@ rtrap_nmi:	ldx			[%sp + PTREGS_OFF + PT_V9_TSTATE], %l1
 rtrap_irq:
 rtrap:
 #ifndef CONFIG_SMP
-		sethi			%hi(per_cpu____cpu_data), %l0
-		lduw			[%l0 + %lo(per_cpu____cpu_data)], %l1
+		sethi			%hi(__cpu_data), %l0
+		lduw			[%l0 + %lo(__cpu_data)], %l1
 #else
-		sethi			%hi(per_cpu____cpu_data), %l0
-		or			%l0, %lo(per_cpu____cpu_data), %l0
+		sethi			%hi(__cpu_data), %l0
+		or			%l0, %lo(__cpu_data), %l0
 		lduw			[%l0 + %g5], %l1
 #endif
 		cmp			%l1, 0

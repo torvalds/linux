@@ -30,9 +30,9 @@ EXPORT_SYMBOL(max_low_pfn);	/* defined by bootmem.c, but not exported by generic
 #endif
 
 #include <asm/processor.h>
-EXPORT_SYMBOL(per_cpu__ia64_cpu_info);
+EXPORT_SYMBOL(ia64_cpu_info);
 #ifdef CONFIG_SMP
-EXPORT_SYMBOL(per_cpu__local_per_cpu_offset);
+EXPORT_SYMBOL(local_per_cpu_offset);
 #endif
 
 #include <asm/uaccess.h>

@@ -4680,7 +4680,7 @@ static int raid5_alloc_percpu(raid5_conf_t *conf)
 {
 	unsigned long cpu;
 	struct page *spare_page;
-	struct raid5_percpu *allcpus;
+	struct raid5_percpu __percpu *allcpus;
 	void *scribble;
 	int err;
 

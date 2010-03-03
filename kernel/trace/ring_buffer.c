@@ -20,6 +20,7 @@
 #include <linux/cpu.h>
 #include <linux/fs.h>
 
+#include <asm/local.h>
 #include "trace.h"
 
 /*
