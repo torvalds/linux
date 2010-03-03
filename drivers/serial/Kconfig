@@ -1418,42 +1418,37 @@ config SERIAL_BFIN_SPORT
 	  To compile this driver as a module, choose M here: the
 	  module will be called bfin_sport_uart.
 
-choice
-	prompt "Baud rate for Blackfin SPORT UART"
-	depends on SERIAL_BFIN_SPORT
-	default SERIAL_SPORT_BAUD_RATE_57600
+config SERIAL_BFIN_SPORT_CONSOLE
+	bool "Console on Blackfin sport emulated uart"
+	depends on SERIAL_BFIN_SPORT=y
+	select SERIAL_CORE_CONSOLE
+
+config SERIAL_BFIN_SPORT0_UART
+	bool "Enable UART over SPORT0"
+	depends on SERIAL_BFIN_SPORT && !(BF542 || BF542M || BF544 || BF544M)
 	help
-	  Choose a baud rate for the SPORT UART, other uart settings are
-	  8 bit, 1 stop bit, no parity, no flow control.
+	  Enable UART over SPORT0
 
-config SERIAL_SPORT_BAUD_RATE_115200
-	bool "115200"
-
-config SERIAL_SPORT_BAUD_RATE_57600
-	bool "57600"
-
-config SERIAL_SPORT_BAUD_RATE_38400
-	bool "38400"
-
-config SERIAL_SPORT_BAUD_RATE_19200
-	bool "19200"
-
-config SERIAL_SPORT_BAUD_RATE_9600
-	bool "9600"
-endchoice
-
-config SPORT_BAUD_RATE
-	int
+config SERIAL_BFIN_SPORT1_UART
+	bool "Enable UART over SPORT1"
 	depends on SERIAL_BFIN_SPORT
-	default 115200 if (SERIAL_SPORT_BAUD_RATE_115200)
-	default 57600 if (SERIAL_SPORT_BAUD_RATE_57600)
-	default 38400 if (SERIAL_SPORT_BAUD_RATE_38400)
-	default 19200 if (SERIAL_SPORT_BAUD_RATE_19200)
-	default 9600 if (SERIAL_SPORT_BAUD_RATE_9600)
+	help
+	  Enable UART over SPORT1
+
+config SERIAL_BFIN_SPORT2_UART
+	bool "Enable UART over SPORT2"
+	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
+	help
+	  Enable UART over SPORT2
+
+config SERIAL_BFIN_SPORT3_UART
+	bool "Enable UART over SPORT3"
+	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
+	help
+	  Enable UART over SPORT3
 
 config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"
-	depends on MFD_TIMBERDALE
 	select SERIAL_CORE
 	---help---
 	Add support for UART controller on timberdale.

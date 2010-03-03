@@ -789,6 +789,13 @@ static int keyspan_pda_fake_startup(struct usb_serial *serial)
 	return 1;
 }
 
+#ifdef KEYSPAN
+MODULE_FIRMWARE("keyspan_pda/keyspan_pda.fw");
+#endif
+#ifdef XIRCOM
+MODULE_FIRMWARE("keyspan_pda/xircom_pgs.fw");
+#endif
+
 static int keyspan_pda_startup(struct usb_serial *serial)
 {
 
