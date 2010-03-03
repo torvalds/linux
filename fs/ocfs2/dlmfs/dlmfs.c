@@ -43,24 +43,17 @@
 #include <linux/init.h>
 #include <linux/string.h>
 #include <linux/backing-dev.h>
+#include <linux/poll.h>
 
 #include <asm/uaccess.h>
 
-
-#include "cluster/nodemanager.h"
-#include "cluster/heartbeat.h"
-#include "cluster/tcp.h"
-
-#include "dlmapi.h"
-
+#include "stackglue.h"
 #include "userdlm.h"
-
 #include "dlmfsver.h"
 
 #define MLOG_MASK_PREFIX ML_DLMFS
 #include "cluster/masklog.h"
 
-#include "ocfs2_lockingver.h"
 
 static const struct super_operations dlmfs_ops;
 static const struct file_operations dlmfs_file_operations;
@@ -71,15 +64,46 @@ static struct kmem_cache *dlmfs_inode_cache;
 
 struct workqueue_struct *user_dlm_worker;
 
+
+
 /*
- * This is the userdlmfs locking protocol version.
+ * These are the ABI capabilities of dlmfs.
  *
- * See fs/ocfs2/dlmglue.c for more details on locking versions.
+ * Over time, dlmfs has added some features that were not part of the
+ * initial ABI.  Unfortunately, some of these features are not detectable
+ * via standard usage.  For example, Linux's default poll always returns
+ * POLLIN, so there is no way for a caller of poll(2) to know when dlmfs
+ * added poll support.  Instead, we provide this list of new capabilities.
+ *
+ * Capabilities is a read-only attribute.  We do it as a module parameter
+ * so we can discover it whether dlmfs is built in, loaded, or even not
+ * loaded.
+ *
+ * The ABI features are local to this machine's dlmfs mount.  This is
+ * distinct from the locking protocol, which is concerned with inter-node
+ * interaction.
+ *
+ * Capabilities:
+ * - bast	: POLLIN against the file descriptor of a held lock
+ *		  signifies a bast fired on the lock.
  */
-static const struct dlm_protocol_version user_locking_protocol = {
-	.pv_major = OCFS2_LOCKING_PROTOCOL_MAJOR,
-	.pv_minor = OCFS2_LOCKING_PROTOCOL_MINOR,
-};
+#define DLMFS_CAPABILITIES "bast stackglue"
+extern int param_set_dlmfs_capabilities(const char *val,
+					struct kernel_param *kp)
+{
+	printk(KERN_ERR "%s: readonly parameter\n", kp->name);
+	return -EINVAL;
+}
+static int param_get_dlmfs_capabilities(char *buffer,
+					struct kernel_param *kp)
+{
+	return strlcpy(buffer, DLMFS_CAPABILITIES,
+		       strlen(DLMFS_CAPABILITIES) + 1);
+}
+module_param_call(capabilities, param_set_dlmfs_capabilities,
+		  param_get_dlmfs_capabilities, NULL, 0444);
+MODULE_PARM_DESC(capabilities, DLMFS_CAPABILITIES);
+
 
 /*
  * decodes a set of open flags into a valid lock level and a set of flags.
@@ -179,13 +203,46 @@ static int dlmfs_file_release(struct inode *inode,
 	return 0;
 }
 
+/*
+ * We do ->setattr() just to override size changes.  Our size is the size
+ * of the LVB and nothing else.
+ */
+static int dlmfs_file_setattr(struct dentry *dentry, struct iattr *attr)
+{
+	int error;
+	struct inode *inode = dentry->d_inode;
+
+	attr->ia_valid &= ~ATTR_SIZE;
+	error = inode_change_ok(inode, attr);
+	if (!error)
+		error = inode_setattr(inode, attr);
+
+	return error;
+}
+
+static unsigned int dlmfs_file_poll(struct file *file, poll_table *wait)
+{
+	int event = 0;
+	struct inode *inode = file->f_path.dentry->d_inode;
+	struct dlmfs_inode_private *ip = DLMFS_I(inode);
+
+	poll_wait(file, &ip->ip_lockres.l_event, wait);
+
+	spin_lock(&ip->ip_lockres.l_lock);
+	if (ip->ip_lockres.l_flags & USER_LOCK_BLOCKED)
+		event = POLLIN | POLLRDNORM;
+	spin_unlock(&ip->ip_lockres.l_lock);
+
+	return event;
+}
+
 static ssize_t dlmfs_file_read(struct file *filp,
 			       char __user *buf,
 			       size_t count,
 			       loff_t *ppos)
 {
 	int bytes_left;
-	ssize_t readlen;
+	ssize_t readlen, got;
 	char *lvb_buf;
 	struct inode *inode = filp->f_path.dentry->d_inode;
 
@@ -211,9 +268,13 @@ static ssize_t dlmfs_file_read(struct file *filp,
 	if (!lvb_buf)
 		return -ENOMEM;
 
-	user_dlm_read_lvb(inode, lvb_buf, readlen);
-	bytes_left = __copy_to_user(buf, lvb_buf, readlen);
-	readlen -= bytes_left;
+	got = user_dlm_read_lvb(inode, lvb_buf, readlen);
+	if (got) {
+		BUG_ON(got != readlen);
+		bytes_left = __copy_to_user(buf, lvb_buf, readlen);
+		readlen -= bytes_left;
+	} else
+		readlen = 0;
 
 	kfree(lvb_buf);
 
@@ -272,7 +333,7 @@ static void dlmfs_init_once(void *foo)
 	struct dlmfs_inode_private *ip =
 		(struct dlmfs_inode_private *) foo;
 
-	ip->ip_dlm = NULL;
+	ip->ip_conn = NULL;
 	ip->ip_parent = NULL;
 
 	inode_init_once(&ip->ip_vfs_inode);
@@ -314,14 +375,14 @@ static void dlmfs_clear_inode(struct inode *inode)
 		goto clear_fields;
 	}
 
-	mlog(0, "we're a directory, ip->ip_dlm = 0x%p\n", ip->ip_dlm);
+	mlog(0, "we're a directory, ip->ip_conn = 0x%p\n", ip->ip_conn);
 	/* we must be a directory. If required, lets unregister the
 	 * dlm context now. */
-	if (ip->ip_dlm)
-		user_dlm_unregister_context(ip->ip_dlm);
+	if (ip->ip_conn)
+		user_dlm_unregister(ip->ip_conn);
 clear_fields:
 	ip->ip_parent = NULL;
-	ip->ip_dlm = NULL;
+	ip->ip_conn = NULL;
 }
 
 static struct backing_dev_info dlmfs_backing_dev_info = {
@@ -371,7 +432,7 @@ static struct inode *dlmfs_get_inode(struct inode *parent,
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
 
 	ip = DLMFS_I(inode);
-	ip->ip_dlm = DLMFS_I(parent)->ip_dlm;
+	ip->ip_conn = DLMFS_I(parent)->ip_conn;
 
 	switch (mode & S_IFMT) {
 	default:
@@ -425,13 +486,12 @@ static int dlmfs_mkdir(struct inode * dir,
 	struct inode *inode = NULL;
 	struct qstr *domain = &dentry->d_name;
 	struct dlmfs_inode_private *ip;
-	struct dlm_ctxt *dlm;
-	struct dlm_protocol_version proto = user_locking_protocol;
+	struct ocfs2_cluster_connection *conn;
 
 	mlog(0, "mkdir %.*s\n", domain->len, domain->name);
 
 	/* verify that we have a proper domain */
-	if (domain->len >= O2NM_MAX_NAME_LEN) {
+	if (domain->len >= GROUP_NAME_MAX) {
 		status = -EINVAL;
 		mlog(ML_ERROR, "invalid domain name for directory.\n");
 		goto bail;
@@ -446,14 +506,14 @@ static int dlmfs_mkdir(struct inode * dir,
 
 	ip = DLMFS_I(inode);
 
-	dlm = user_dlm_register_context(domain, &proto);
-	if (IS_ERR(dlm)) {
-		status = PTR_ERR(dlm);
+	conn = user_dlm_register(domain);
+	if (IS_ERR(conn)) {
+		status = PTR_ERR(conn);
 		mlog(ML_ERROR, "Error %d could not register domain \"%.*s\"\n",
 		     status, domain->len, domain->name);
 		goto bail;
 	}
-	ip->ip_dlm = dlm;
+	ip->ip_conn = conn;
 
 	inc_nlink(dir);
 	d_instantiate(dentry, inode);
@@ -549,6 +609,7 @@ static int dlmfs_fill_super(struct super_block * sb,
 static const struct file_operations dlmfs_file_operations = {
 	.open		= dlmfs_file_open,
 	.release	= dlmfs_file_release,
+	.poll		= dlmfs_file_poll,
 	.read		= dlmfs_file_read,
 	.write		= dlmfs_file_write,
 };
@@ -576,6 +637,7 @@ static const struct super_operations dlmfs_ops = {
 
 static const struct inode_operations dlmfs_file_inode_operations = {
 	.getattr	= simple_getattr,
+	.setattr	= dlmfs_file_setattr,
 };
 
 static int dlmfs_get_sb(struct file_system_type *fs_type,
@@ -620,6 +682,7 @@ static int __init init_dlmfs_fs(void)
 	}
 	cleanup_worker = 1;
 
+	user_dlm_set_locking_protocol();
 	status = register_filesystem(&dlmfs_fs_type);
 bail:
 	if (status) {

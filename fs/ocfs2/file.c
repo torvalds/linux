@@ -993,10 +993,9 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 	}
 
 	if (size_change && attr->ia_size != i_size_read(inode)) {
-		if (attr->ia_size > sb->s_maxbytes) {
-			status = -EFBIG;
+		status = inode_newsize_ok(inode, attr->ia_size);
+		if (status)
 			goto bail_unlock;
-		}
 
 		if (i_size_read(inode) > attr->ia_size) {
 			if (ocfs2_should_order_data(inode)) {
@@ -1836,6 +1835,8 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 							       &meta_level);
 			if (has_refcount)
 				*has_refcount = 1;
+			if (direct_io)
+				*direct_io = 0;
 		}
 
 		if (ret < 0) {
@@ -1859,10 +1860,6 @@ static int ocfs2_prepare_inode_for_write(struct dentry *dentry,
 			break;
 		}
 
-		if (has_refcount && *has_refcount == 1) {
-			*direct_io = 0;
-			break;
-		}
 		/*
 		 * Allowing concurrent direct writes means
 		 * i_size changes wouldn't be synchronized, so
@@ -2043,7 +2040,7 @@ out_dio:
 	 * async dio is going to do it in the future or an end_io after an
 	 * error has already done it.
 	 */
-	if (ret == -EIOCBQUEUED || !ocfs2_iocb_is_rw_locked(iocb)) {
+	if ((ret == -EIOCBQUEUED) || (!ocfs2_iocb_is_rw_locked(iocb))) {
 		rw_level = -1;
 		have_alloc_sem = 0;
 	}

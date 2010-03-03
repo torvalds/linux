@@ -57,7 +57,7 @@ struct user_lock_res {
 	int                      l_level;
 	unsigned int             l_ro_holders;
 	unsigned int             l_ex_holders;
-	struct dlm_lockstatus    l_lksb;
+	struct ocfs2_dlm_lksb    l_lksb;
 
 	int                      l_requested;
 	int                      l_blocking;
@@ -80,15 +80,15 @@ void user_dlm_cluster_unlock(struct user_lock_res *lockres,
 void user_dlm_write_lvb(struct inode *inode,
 			const char *val,
 			unsigned int len);
-void user_dlm_read_lvb(struct inode *inode,
-		       char *val,
-		       unsigned int len);
-struct dlm_ctxt *user_dlm_register_context(struct qstr *name,
-					   struct dlm_protocol_version *proto);
-void user_dlm_unregister_context(struct dlm_ctxt *dlm);
+ssize_t user_dlm_read_lvb(struct inode *inode,
+			  char *val,
+			  unsigned int len);
+struct ocfs2_cluster_connection *user_dlm_register(struct qstr *name);
+void user_dlm_unregister(struct ocfs2_cluster_connection *conn);
+void user_dlm_set_locking_protocol(void);
 
 struct dlmfs_inode_private {
-	struct dlm_ctxt             *ip_dlm;
+	struct ocfs2_cluster_connection	*ip_conn;
 
 	struct user_lock_res ip_lockres; /* unused for directories. */
 	struct inode         *ip_parent;
