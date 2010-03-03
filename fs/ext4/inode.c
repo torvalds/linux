@@ -170,6 +170,9 @@ void ext4_delete_inode(struct inode *inode)
 	handle_t *handle;
 	int err;
 
+	if (!is_bad_inode(inode))
+		vfs_dq_init(inode);
+
 	if (ext4_should_order_data(inode))
 		ext4_begin_ordered_truncate(inode, 0);
 	truncate_inode_pages(&inode->i_data, 0);
@@ -5251,6 +5254,8 @@ int ext4_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		return error;
 
+	if (ia_valid & ATTR_SIZE)
+		vfs_dq_init(inode);
 	if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
 		(ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
 		handle_t *handle;

@@ -48,7 +48,7 @@ static int jfs_open(struct inode *inode, struct file *file)
 {
 	int rc;
 
-	if ((rc = generic_file_open(inode, file)))
+	if ((rc = dquot_file_open(inode, file)))
 		return rc;
 
 	/*
@@ -98,6 +98,8 @@ int jfs_setattr(struct dentry *dentry, struct iattr *iattr)
 	if (rc)
 		return rc;
 
+	if (iattr->ia_valid & ATTR_SIZE)
+		vfs_dq_init(inode);
 	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
 	    (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
 		rc = dquot_transfer(inode, iattr);

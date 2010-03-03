@@ -20,7 +20,6 @@
 #include <linux/fcntl.h>
 #include <linux/namei.h>
 #include <linux/delay.h>
-#include <linux/quotaops.h>
 #include <linux/fsnotify.h>
 #include <linux/posix_acl_xattr.h>
 #include <linux/xattr.h>
@@ -377,7 +376,6 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 			put_write_access(inode);
 			goto out_nfserr;
 		}
-		vfs_dq_init(inode);
 	}
 
 	/* sanitize the mode change */
@@ -745,8 +743,6 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 			flags = O_RDWR|O_LARGEFILE;
 		else
 			flags = O_WRONLY|O_LARGEFILE;
-
-		vfs_dq_init(inode);
 	}
 	*filp = dentry_open(dget(dentry), mntget(fhp->fh_export->ex_path.mnt),
 			    flags, current_cred());

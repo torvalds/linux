@@ -34,6 +34,9 @@ void reiserfs_delete_inode(struct inode *inode)
 	int depth;
 	int err;
 
+	if (!is_bad_inode(inode))
+		vfs_dq_init(inode);
+
 	truncate_inode_pages(&inode->i_data, 0);
 
 	depth = reiserfs_write_lock_once(inode->i_sb);
@@ -3073,6 +3076,8 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	depth = reiserfs_write_lock_once(inode->i_sb);
 	if (attr->ia_valid & ATTR_SIZE) {
+		vfs_dq_init(inode);
+
 		/* version 2 items will be caught by the s_maxbytes check
 		 ** done for us in vmtruncate
 		 */

@@ -196,6 +196,9 @@ void ext3_delete_inode (struct inode * inode)
 {
 	handle_t *handle;
 
+	if (!is_bad_inode(inode))
+		vfs_dq_init(inode);
+
 	truncate_inode_pages(&inode->i_data, 0);
 
 	if (is_bad_inode(inode))
@@ -3148,6 +3151,8 @@ int ext3_setattr(struct dentry *dentry, struct iattr *attr)
 	if (error)
 		return error;
 
+	if (ia_valid & ATTR_SIZE)
+		vfs_dq_init(inode);
 	if ((ia_valid & ATTR_UID && attr->ia_uid != inode->i_uid) ||
 		(ia_valid & ATTR_GID && attr->ia_gid != inode->i_gid)) {
 		handle_t *handle;

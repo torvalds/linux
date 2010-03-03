@@ -594,6 +594,8 @@ static int reiserfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	struct reiserfs_transaction_handle th;
 	struct reiserfs_security_handle security;
 
+	vfs_dq_init(dir);
+
 	if (!(inode = new_inode(dir->i_sb))) {
 		return -ENOMEM;
 	}
@@ -665,6 +667,8 @@ static int reiserfs_mknod(struct inode *dir, struct dentry *dentry, int mode,
 
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
+
+	vfs_dq_init(dir);
 
 	if (!(inode = new_inode(dir->i_sb))) {
 		return -ENOMEM;
@@ -738,6 +742,8 @@ static int reiserfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	    JOURNAL_PER_BALANCE_CNT * 3 +
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb));
+
+	vfs_dq_init(dir);
 
 #ifdef DISPLACE_NEW_PACKING_LOCALITIES
 	/* set flag that new packing locality created and new blocks for the content     * of that directory are not displaced yet */
@@ -842,6 +848,8 @@ static int reiserfs_rmdir(struct inode *dir, struct dentry *dentry)
 	    JOURNAL_PER_BALANCE_CNT * 2 + 2 +
 	    4 * REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb);
 
+	vfs_dq_init(dir);
+
 	reiserfs_write_lock(dir->i_sb);
 	retval = journal_begin(&th, dir->i_sb, jbegin_count);
 	if (retval)
@@ -922,6 +930,8 @@ static int reiserfs_unlink(struct inode *dir, struct dentry *dentry)
 	int jbegin_count;
 	unsigned long savelink;
 	int depth;
+
+	vfs_dq_init(dir);
 
 	inode = dentry->d_inode;
 
@@ -1024,6 +1034,8 @@ static int reiserfs_symlink(struct inode *parent_dir,
 	    2 * (REISERFS_QUOTA_INIT_BLOCKS(parent_dir->i_sb) +
 		 REISERFS_QUOTA_TRANS_BLOCKS(parent_dir->i_sb));
 
+	vfs_dq_init(parent_dir);
+
 	if (!(inode = new_inode(parent_dir->i_sb))) {
 		return -ENOMEM;
 	}
@@ -1110,6 +1122,8 @@ static int reiserfs_link(struct dentry *old_dentry, struct inode *dir,
 	int jbegin_count =
 	    JOURNAL_PER_BALANCE_CNT * 3 +
 	    2 * REISERFS_QUOTA_TRANS_BLOCKS(dir->i_sb);
+
+	vfs_dq_init(dir);
 
 	reiserfs_write_lock(dir->i_sb);
 	if (inode->i_nlink >= REISERFS_LINK_MAX) {
@@ -1234,6 +1248,9 @@ static int reiserfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	jbegin_count =
 	    JOURNAL_PER_BALANCE_CNT * 3 + 5 +
 	    4 * REISERFS_QUOTA_TRANS_BLOCKS(old_dir->i_sb);
+
+	vfs_dq_init(old_dir);
+	vfs_dq_init(new_dir);
 
 	old_inode = old_dentry->d_inode;
 	new_dentry_inode = new_dentry->d_inode;

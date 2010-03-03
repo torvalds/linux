@@ -107,6 +107,9 @@ static int ocfs2_file_open(struct inode *inode, struct file *file)
 	mlog_entry("(0x%p, 0x%p, '%.*s')\n", inode, file,
 		   file->f_path.dentry->d_name.len, file->f_path.dentry->d_name.name);
 
+	if (file->f_mode & FMODE_WRITE)
+		vfs_dq_init(inode);
+
 	spin_lock(&oi->ip_lock);
 
 	/* Check that the inode hasn't been wiped from disk by another
@@ -977,6 +980,8 @@ int ocfs2_setattr(struct dentry *dentry, struct iattr *attr)
 
 	size_change = S_ISREG(inode->i_mode) && attr->ia_valid & ATTR_SIZE;
 	if (size_change) {
+		vfs_dq_init(inode);
+
 		status = ocfs2_rw_lock(inode, 1);
 		if (status < 0) {
 			mlog_errno(status);

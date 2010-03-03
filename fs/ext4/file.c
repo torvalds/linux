@@ -127,7 +127,7 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 			sb->s_dirt = 1;
 		}
 	}
-	return generic_file_open(inode, filp);
+	return dquot_file_open(inode, filp);
 }
 
 const struct file_operations ext4_file_operations = {

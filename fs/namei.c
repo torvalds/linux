@@ -19,7 +19,6 @@
 #include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/namei.h>
-#include <linux/quotaops.h>
 #include <linux/pagemap.h>
 #include <linux/fsnotify.h>
 #include <linux/personality.h>
@@ -1461,7 +1460,6 @@ int vfs_create(struct inode *dir, struct dentry *dentry, int mode,
 	error = security_inode_create(dir, dentry, mode);
 	if (error)
 		return error;
-	vfs_dq_init(dir);
 	error = dir->i_op->create(dir, dentry, mode, nd);
 	if (!error)
 		fsnotify_create(dir, dentry);
@@ -1813,9 +1811,6 @@ ok:
 		}
 	}
 	if (!IS_ERR(filp)) {
-		if (acc_mode & MAY_WRITE)
-			vfs_dq_init(nd.path.dentry->d_inode);
-
 		if (will_truncate) {
 			error = handle_truncate(&nd.path);
 			if (error) {
@@ -1996,7 +1991,6 @@ int vfs_mknod(struct inode *dir, struct dentry *dentry, int mode, dev_t dev)
 	if (error)
 		return error;
 
-	vfs_dq_init(dir);
 	error = dir->i_op->mknod(dir, dentry, mode, dev);
 	if (!error)
 		fsnotify_create(dir, dentry);
@@ -2095,7 +2089,6 @@ int vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	if (error)
 		return error;
 
-	vfs_dq_init(dir);
 	error = dir->i_op->mkdir(dir, dentry, mode);
 	if (!error)
 		fsnotify_mkdir(dir, dentry);
@@ -2181,8 +2174,6 @@ int vfs_rmdir(struct inode *dir, struct dentry *dentry)
 	if (!dir->i_op->rmdir)
 		return -EPERM;
 
-	vfs_dq_init(dir);
-
 	mutex_lock(&dentry->d_inode->i_mutex);
 	dentry_unhash(dentry);
 	if (d_mountpoint(dentry))
@@ -2267,8 +2258,6 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 
 	if (!dir->i_op->unlink)
 		return -EPERM;
-
-	vfs_dq_init(dir);
 
 	mutex_lock(&dentry->d_inode->i_mutex);
 	if (d_mountpoint(dentry))
@@ -2379,7 +2368,6 @@ int vfs_symlink(struct inode *dir, struct dentry *dentry, const char *oldname)
 	if (error)
 		return error;
 
-	vfs_dq_init(dir);
 	error = dir->i_op->symlink(dir, dentry, oldname);
 	if (!error)
 		fsnotify_create(dir, dentry);
@@ -2463,7 +2451,6 @@ int vfs_link(struct dentry *old_dentry, struct inode *dir, struct dentry *new_de
 		return error;
 
 	mutex_lock(&inode->i_mutex);
-	vfs_dq_init(dir);
 	error = dir->i_op->link(old_dentry, dir, new_dentry);
 	mutex_unlock(&inode->i_mutex);
 	if (!error)
@@ -2661,9 +2648,6 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	if (!old_dir->i_op->rename)
 		return -EPERM;
-
-	vfs_dq_init(old_dir);
-	vfs_dq_init(new_dir);
 
 	old_name = fsnotify_oldname_init(old_dentry->d_name.name);
 

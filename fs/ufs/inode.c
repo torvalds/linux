@@ -36,6 +36,7 @@
 #include <linux/mm.h>
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
+#include <linux/quotaops.h>
 
 #include "ufs_fs.h"
 #include "ufs.h"
@@ -907,6 +908,9 @@ int ufs_sync_inode (struct inode *inode)
 void ufs_delete_inode (struct inode * inode)
 {
 	loff_t old_i_size;
+
+	if (!is_bad_inode(inode))
+		vfs_dq_init(inode);
 
 	truncate_inode_pages(&inode->i_data, 0);
 	if (is_bad_inode(inode))

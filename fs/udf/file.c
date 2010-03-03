@@ -208,7 +208,7 @@ const struct file_operations udf_file_operations = {
 	.read			= do_sync_read,
 	.aio_read		= generic_file_aio_read,
 	.ioctl			= udf_ioctl,
-	.open			= generic_file_open,
+	.open			= dquot_file_open,
 	.mmap			= generic_file_mmap,
 	.write			= do_sync_write,
 	.aio_write		= udf_file_aio_write,
@@ -226,6 +226,9 @@ static int udf_setattr(struct dentry *dentry, struct iattr *iattr)
 	error = inode_change_ok(inode, iattr);
 	if (error)
 		return error;
+
+	if (iattr->ia_valid & ATTR_SIZE)
+		vfs_dq_init(inode);
 
 	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
             (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {

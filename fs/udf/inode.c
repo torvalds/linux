@@ -36,6 +36,7 @@
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
+#include <linux/quotaops.h>
 #include <linux/slab.h>
 #include <linux/crc-itu-t.h>
 
@@ -70,6 +71,9 @@ static int udf_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
 void udf_delete_inode(struct inode *inode)
 {
+	if (!is_bad_inode(inode))
+		vfs_dq_init(inode);
+
 	truncate_inode_pages(&inode->i_data, 0);
 
 	if (is_bad_inode(inode))

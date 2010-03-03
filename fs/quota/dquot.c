@@ -1821,6 +1821,20 @@ const struct dquot_operations dquot_operations = {
 };
 
 /*
+ * Generic helper for ->open on filesystems supporting disk quotas.
+ */
+int dquot_file_open(struct inode *inode, struct file *file)
+{
+	int error;
+
+	error = generic_file_open(inode, file);
+	if (!error && (file->f_mode & FMODE_WRITE))
+		vfs_dq_init(inode);
+	return error;
+}
+EXPORT_SYMBOL(dquot_file_open);
+
+/*
  * Turn quota off on a device. type == -1 ==> quotaoff for all types (umount)
  */
 int vfs_quota_disable(struct super_block *sb, int type, unsigned int flags)

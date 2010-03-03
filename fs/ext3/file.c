@@ -62,7 +62,7 @@ const struct file_operations ext3_file_operations = {
 	.compat_ioctl	= ext3_compat_ioctl,
 #endif
 	.mmap		= generic_file_mmap,
-	.open		= generic_file_open,
+	.open		= dquot_file_open,
 	.release	= ext3_release_file,
 	.fsync		= ext3_sync_file,
 	.splice_read	= generic_file_splice_read,

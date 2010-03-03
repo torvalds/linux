@@ -85,6 +85,8 @@ static int jfs_create(struct inode *dip, struct dentry *dentry, int mode,
 
 	jfs_info("jfs_create: dip:0x%p name:%s", dip, dentry->d_name.name);
 
+	vfs_dq_init(dip);
+
 	/*
 	 * search parent directory for entry/freespace
 	 * (dtSearch() returns parent directory page pinned)
@@ -214,6 +216,8 @@ static int jfs_mkdir(struct inode *dip, struct dentry *dentry, int mode)
 	struct tblock *tblk;
 
 	jfs_info("jfs_mkdir: dip:0x%p name:%s", dip, dentry->d_name.name);
+
+	vfs_dq_init(dip);
 
 	/* link count overflow on parent directory ? */
 	if (dip->i_nlink == JFS_LINK_MAX) {
@@ -356,6 +360,7 @@ static int jfs_rmdir(struct inode *dip, struct dentry *dentry)
 	jfs_info("jfs_rmdir: dip:0x%p name:%s", dip, dentry->d_name.name);
 
 	/* Init inode for quota operations. */
+	vfs_dq_init(dip);
 	vfs_dq_init(ip);
 
 	/* directory must be empty to be removed */
@@ -483,6 +488,7 @@ static int jfs_unlink(struct inode *dip, struct dentry *dentry)
 	jfs_info("jfs_unlink: dip:0x%p name:%s", dip, dentry->d_name.name);
 
 	/* Init inode for quota operations. */
+	vfs_dq_init(dip);
 	vfs_dq_init(ip);
 
 	if ((rc = get_UCSname(&dname, dentry)))
@@ -805,6 +811,8 @@ static int jfs_link(struct dentry *old_dentry,
 	if (ip->i_nlink == 0)
 		return -ENOENT;
 
+	vfs_dq_init(dir);
+
 	tid = txBegin(ip->i_sb, 0);
 
 	mutex_lock_nested(&JFS_IP(dir)->commit_mutex, COMMIT_MUTEX_PARENT);
@@ -895,6 +903,8 @@ static int jfs_symlink(struct inode *dip, struct dentry *dentry,
 	struct inode *iplist[2];
 
 	jfs_info("jfs_symlink: dip:0x%p name:%s", dip, name);
+
+	vfs_dq_init(dip);
 
 	ssize = strlen(name) + 1;
 
@@ -1086,6 +1096,9 @@ static int jfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 	jfs_info("jfs_rename: %s %s", old_dentry->d_name.name,
 		 new_dentry->d_name.name);
+
+	vfs_dq_init(old_dir);
+	vfs_dq_init(new_dir);
 
 	old_ip = old_dentry->d_inode;
 	new_ip = new_dentry->d_inode;
@@ -1359,6 +1372,8 @@ static int jfs_mknod(struct inode *dir, struct dentry *dentry,
 		return -EINVAL;
 
 	jfs_info("jfs_mknod: %s", dentry->d_name.name);
+
+	vfs_dq_init(dir);
 
 	if ((rc = get_UCSname(&dname, dentry)))
 		goto out;

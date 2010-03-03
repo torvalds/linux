@@ -244,6 +244,8 @@ static int ocfs2_mknod(struct inode *dir,
 		   (unsigned long)dev, dentry->d_name.len,
 		   dentry->d_name.name);
 
+	vfs_dq_init(dir);
+
 	/* get our super block */
 	osb = OCFS2_SB(dir->i_sb);
 
@@ -632,6 +634,8 @@ static int ocfs2_link(struct dentry *old_dentry,
 	if (S_ISDIR(inode->i_mode))
 		return -EPERM;
 
+	vfs_dq_init(dir);
+
 	err = ocfs2_inode_lock_nested(dir, &parent_fe_bh, 1, OI_LS_PARENT);
 	if (err < 0) {
 		if (err != -ENOENT)
@@ -786,6 +790,8 @@ static int ocfs2_unlink(struct inode *dir,
 
 	mlog_entry("(0x%p, 0x%p, '%.*s')\n", dir, dentry,
 		   dentry->d_name.len, dentry->d_name.name);
+
+	vfs_dq_init(dir);
 
 	BUG_ON(dentry->d_parent->d_inode != dir);
 
@@ -1046,6 +1052,9 @@ static int ocfs2_rename(struct inode *old_dir,
 		   old_dir, old_dentry, new_dir, new_dentry,
 		   old_dentry->d_name.len, old_dentry->d_name.name,
 		   new_dentry->d_name.len, new_dentry->d_name.name);
+
+	vfs_dq_init(old_dir);
+	vfs_dq_init(new_dir);
 
 	osb = OCFS2_SB(old_dir->i_sb);
 
@@ -1594,6 +1603,8 @@ static int ocfs2_symlink(struct inode *dir,
 
 	mlog_entry("(0x%p, 0x%p, symname='%s' actual='%.*s')\n", dir,
 		   dentry, symname, dentry->d_name.len, dentry->d_name.name);
+
+	vfs_dq_init(dir);
 
 	sb = dir->i_sb;
 	osb = OCFS2_SB(sb);

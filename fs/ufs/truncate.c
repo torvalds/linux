@@ -527,6 +527,9 @@ static int ufs_setattr(struct dentry *dentry, struct iattr *attr)
 	if (ia_valid & ATTR_SIZE &&
 	    attr->ia_size != i_size_read(inode)) {
 		loff_t old_i_size = inode->i_size;
+
+		vfs_dq_init(inode);
+
 		error = vmtruncate(inode, attr->ia_size);
 		if (error)
 			return error;

@@ -48,6 +48,8 @@ int dquot_release(struct dquot *dquot);
 int dquot_commit_info(struct super_block *sb, int type);
 int dquot_mark_dquot_dirty(struct dquot *dquot);
 
+int dquot_file_open(struct inode *inode, struct file *file);
+
 int vfs_quota_on(struct super_block *sb, int type, int format_id,
  	char *path, int remount);
 int vfs_quota_enable(struct inode *inode, int type, int format_id,
@@ -341,5 +343,7 @@ static inline void dquot_release_reservation_block(struct inode *inode,
 {
 	__dquot_free_space(inode, nr << inode->i_blkbits, 1);
 }
+
+#define dquot_file_open		generic_file_open
 
 #endif /* _LINUX_QUOTAOPS_ */
