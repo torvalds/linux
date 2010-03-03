@@ -2227,11 +2227,6 @@ i915_gem_evict_something(struct drm_device *dev, int min_size)
 				seqno = i915_add_request(dev, NULL, obj->write_domain);
 				if (seqno == 0)
 					return -ENOMEM;
-
-				ret = i915_wait_request(dev, seqno);
-				if (ret)
-					return ret;
-
 				continue;
 			}
 		}
