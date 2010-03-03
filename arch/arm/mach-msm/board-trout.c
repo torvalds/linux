@@ -1,4 +1,4 @@
-/* linux/arch/arm/mach-msm/board-dream.c
+/* linux/arch/arm/mach-msm/board-trout.c
  *
  * Copyright (C) 2009 Google, Inc.
  * Author: Brian Swetland <swetland@google.com>
@@ -28,7 +28,7 @@
 #include <mach/msm_iomap.h>
 
 #include "devices.h"
-#include "board-dream.h"
+#include "board-trout.h"
 
 static struct platform_device *devices[] __initdata = {
 	&msm_device_uart3,
