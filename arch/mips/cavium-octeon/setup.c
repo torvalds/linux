@@ -45,9 +45,6 @@ extern struct plat_smp_ops octeon_smp_ops;
 extern void pci_console_init(const char *arg);
 #endif
 
-#ifdef CONFIG_CAVIUM_RESERVE32
-extern uint64_t octeon_reserve32_memory;
-#endif
 static unsigned long long MAX_MEMORY = 512ull << 20;
 
 struct octeon_boot_descriptor *octeon_boot_desc_ptr;
