@@ -1181,13 +1181,13 @@ static int check_idq(struct dquot *dquot, qsize_t inodes, char *warntype)
 	*warntype = QUOTA_NL_NOWARN;
 	if (!sb_has_quota_limits_enabled(dquot->dq_sb, dquot->dq_type) ||
 	    test_bit(DQ_FAKE_B, &dquot->dq_flags))
-		return QUOTA_OK;
+		return 0;
 
 	if (dquot->dq_dqb.dqb_ihardlimit &&
 	    newinodes > dquot->dq_dqb.dqb_ihardlimit &&
             !ignore_hardlimit(dquot)) {
 		*warntype = QUOTA_NL_IHARDWARN;
-		return NO_QUOTA;
+		return -EDQUOT;
 	}
 
 	if (dquot->dq_dqb.dqb_isoftlimit &&
@@ -1196,7 +1196,7 @@ static int check_idq(struct dquot *dquot, qsize_t inodes, char *warntype)
 	    get_seconds() >= dquot->dq_dqb.dqb_itime &&
             !ignore_hardlimit(dquot)) {
 		*warntype = QUOTA_NL_ISOFTLONGWARN;
-		return NO_QUOTA;
+		return -EDQUOT;
 	}
 
 	if (dquot->dq_dqb.dqb_isoftlimit &&
@@ -1207,7 +1207,7 @@ static int check_idq(struct dquot *dquot, qsize_t inodes, char *warntype)
 		    sb_dqopt(dquot->dq_sb)->info[dquot->dq_type].dqi_igrace;
 	}
 
-	return QUOTA_OK;
+	return 0;
 }
 
 /* needs dq_data_lock */
@@ -1219,7 +1219,7 @@ static int check_bdq(struct dquot *dquot, qsize_t space, int prealloc, char *war
 	*warntype = QUOTA_NL_NOWARN;
 	if (!sb_has_quota_limits_enabled(sb, dquot->dq_type) ||
 	    test_bit(DQ_FAKE_B, &dquot->dq_flags))
-		return QUOTA_OK;
+		return 0;
 
 	tspace = dquot->dq_dqb.dqb_curspace + dquot->dq_dqb.dqb_rsvspace
 		+ space;
@@ -1229,7 +1229,7 @@ static int check_bdq(struct dquot *dquot, qsize_t space, int prealloc, char *war
             !ignore_hardlimit(dquot)) {
 		if (!prealloc)
 			*warntype = QUOTA_NL_BHARDWARN;
-		return NO_QUOTA;
+		return -EDQUOT;
 	}
 
 	if (dquot->dq_dqb.dqb_bsoftlimit &&
@@ -1239,7 +1239,7 @@ static int check_bdq(struct dquot *dquot, qsize_t space, int prealloc, char *war
             !ignore_hardlimit(dquot)) {
 		if (!prealloc)
 			*warntype = QUOTA_NL_BSOFTLONGWARN;
-		return NO_QUOTA;
+		return -EDQUOT;
 	}
 
 	if (dquot->dq_dqb.dqb_bsoftlimit &&
@@ -1255,10 +1255,10 @@ static int check_bdq(struct dquot *dquot, qsize_t space, int prealloc, char *war
 			 * We don't allow preallocation to exceed softlimit so exceeding will
 			 * be always printed
 			 */
-			return NO_QUOTA;
+			return -EDQUOT;
 	}
 
-	return QUOTA_OK;
+	return 0;
 }
 
 static int info_idq_free(struct dquot *dquot, qsize_t inodes)
@@ -1507,9 +1507,9 @@ int __dquot_alloc_space(struct inode *inode, qsize_t number,
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (!inode->i_dquot[cnt])
 			continue;
-		if (check_bdq(inode->i_dquot[cnt], number, !warn, warntype+cnt)
-				== NO_QUOTA) {
-			ret = -EDQUOT;
+		ret = check_bdq(inode->i_dquot[cnt], number, !warn,
+				warntype+cnt);
+		if (ret) {
 			spin_unlock(&dq_data_lock);
 			goto out_flush_warn;
 		}
@@ -1541,7 +1541,7 @@ EXPORT_SYMBOL(__dquot_alloc_space);
  */
 int dquot_alloc_inode(const struct inode *inode)
 {
-	int cnt, ret = -EDQUOT;
+	int cnt, ret = 0;
 	char warntype[MAXQUOTAS];
 
 	/* First test before acquiring mutex - solves deadlocks when we
@@ -1555,8 +1555,8 @@ int dquot_alloc_inode(const struct inode *inode)
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		if (!inode->i_dquot[cnt])
 			continue;
-		if (check_idq(inode->i_dquot[cnt], 1, warntype+cnt)
-		    == NO_QUOTA)
+		ret = check_idq(inode->i_dquot[cnt], 1, warntype + cnt);
+		if (ret)
 			goto warn_put_all;
 	}
 
@@ -1565,7 +1565,7 @@ int dquot_alloc_inode(const struct inode *inode)
 			continue;
 		dquot_incr_inodes(inode->i_dquot[cnt], 1);
 	}
-	ret = 0;
+
 warn_put_all:
 	spin_unlock(&dq_data_lock);
 	if (ret == 0)
@@ -1683,14 +1683,14 @@ static int __dquot_transfer(struct inode *inode, qid_t *chid, unsigned long mask
 	qsize_t rsv_space = 0;
 	struct dquot *transfer_from[MAXQUOTAS];
 	struct dquot *transfer_to[MAXQUOTAS];
-	int cnt, ret = QUOTA_OK;
+	int cnt, ret = 0;
 	char warntype_to[MAXQUOTAS];
 	char warntype_from_inodes[MAXQUOTAS], warntype_from_space[MAXQUOTAS];
 
 	/* First test before acquiring mutex - solves deadlocks when we
          * re-enter the quota code and are already holding the mutex */
 	if (IS_NOQUOTA(inode))
-		return QUOTA_OK;
+		return 0;
 	/* Initialize the arrays */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++) {
 		transfer_from[cnt] = NULL;
@@ -1715,9 +1715,11 @@ static int __dquot_transfer(struct inode *inode, qid_t *chid, unsigned long mask
 		if (!transfer_to[cnt])
 			continue;
 		transfer_from[cnt] = inode->i_dquot[cnt];
-		if (check_idq(transfer_to[cnt], 1, warntype_to + cnt) ==
-		    NO_QUOTA || check_bdq(transfer_to[cnt], space, 0,
-		    warntype_to + cnt) == NO_QUOTA)
+		ret = check_idq(transfer_to[cnt], 1, warntype_to + cnt);
+		if (ret)
+			goto over_quota;
+		ret = check_bdq(transfer_to[cnt], space, 0, warntype_to + cnt);
+		if (ret)
 			goto over_quota;
 	}
 
@@ -1771,7 +1773,6 @@ over_quota:
 	/* Clear dquot pointers we don't want to dqput() */
 	for (cnt = 0; cnt < MAXQUOTAS; cnt++)
 		transfer_from[cnt] = NULL;
-	ret = NO_QUOTA;
 	goto warn_put_all;
 }
 
@@ -1793,8 +1794,7 @@ int dquot_transfer(struct inode *inode, struct iattr *iattr)
 	}
 	if (sb_any_quota_active(inode->i_sb) && !IS_NOQUOTA(inode)) {
 		dquot_initialize(inode);
-		if (__dquot_transfer(inode, chid, mask) == NO_QUOTA)
-			return -EDQUOT;
+		return __dquot_transfer(inode, chid, mask);
 	}
 	return 0;
 }

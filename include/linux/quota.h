@@ -279,9 +279,6 @@ struct dquot {
 	struct mem_dqblk dq_dqb;	/* Diskquota usage */
 };
 
-#define QUOTA_OK          0
-#define NO_QUOTA          1
-
 /* Operations which must be implemented by each quota format */
 struct quota_format_ops {
 	int (*check_quota_file)(struct super_block *sb, int type);	/* Detect whether file is in our format */
