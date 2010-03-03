@@ -185,7 +185,7 @@ struct nfs_inode {
 	struct nfs4_cached_acl	*nfs4_acl;
         /* NFSv4 state */
 	struct list_head	open_states;
-	struct nfs_delegation	*delegation;
+	struct nfs_delegation __rcu *delegation;
 	fmode_t			 delegation_state;
 	struct rw_semaphore	rwsem;
 #endif /* CONFIG_NFS_V4*/
