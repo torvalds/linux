@@ -3617,10 +3617,7 @@ static void drbd_disconnect(struct drbd_conf *mdev)
 
 	/* asender does not clean up anything. it must not interfere, either */
 	drbd_thread_stop(&mdev->asender);
-
-	mutex_lock(&mdev->data.mutex);
 	drbd_free_sock(mdev);
-	mutex_unlock(&mdev->data.mutex);
 
 	spin_lock_irq(&mdev->req_lock);
 	_drbd_wait_ee_list_empty(mdev, &mdev->active_ee);
