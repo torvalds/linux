@@ -1014,7 +1014,8 @@ static int sbp2_add_logical_unit(struct sbp2_target *tgt, int lun_entry)
 	return 0;
 }
 
-static int sbp2_scan_logical_unit_dir(struct sbp2_target *tgt, u32 *directory)
+static int sbp2_scan_logical_unit_dir(struct sbp2_target *tgt,
+				      const u32 *directory)
 {
 	struct fw_csr_iterator ci;
 	int key, value;
@@ -1027,7 +1028,7 @@ static int sbp2_scan_logical_unit_dir(struct sbp2_target *tgt, u32 *directory)
 	return 0;
 }
 
-static int sbp2_scan_unit_dir(struct sbp2_target *tgt, u32 *directory,
+static int sbp2_scan_unit_dir(struct sbp2_target *tgt, const u32 *directory,
 			      u32 *model, u32 *firmware_revision)
 {
 	struct fw_csr_iterator ci;
