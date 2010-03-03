@@ -29,14 +29,12 @@
 #include <linux/init.h> /* module_init */
 #include <linux/inotify.h>
 #include <linux/kernel.h> /* roundup() */
-#include <linux/magic.h> /* superblock magic number */
-#include <linux/mount.h> /* mntget */
 #include <linux/namei.h> /* LOOKUP_FOLLOW */
-#include <linux/path.h> /* struct path */
 #include <linux/sched.h> /* struct user */
 #include <linux/slab.h> /* struct kmem_cache */
 #include <linux/syscalls.h>
 #include <linux/types.h>
+#include <linux/anon_inodes.h>
 #include <linux/uaccess.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
@@ -44,8 +42,6 @@
 #include "inotify.h"
 
 #include <asm/ioctls.h>
-
-static struct vfsmount *inotify_mnt __read_mostly;
 
 /* these are configurable via /proc/sys/fs/inotify/ */
 static int inotify_max_user_instances __read_mostly;
@@ -645,9 +641,7 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 {
 	struct fsnotify_group *group;
 	struct user_struct *user;
-	struct file *filp;
-	struct path path;
-	int fd, ret;
+	int ret;
 
 	/* Check the IN_* constants for consistency.  */
 	BUILD_BUG_ON(IN_CLOEXEC != O_CLOEXEC);
@@ -655,10 +649,6 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 
 	if (flags & ~(IN_CLOEXEC | IN_NONBLOCK))
 		return -EINVAL;
-
-	fd = get_unused_fd_flags(flags & O_CLOEXEC);
-	if (fd < 0)
-		return fd;
 
 	user = get_current_user();
 	if (unlikely(atomic_read(&user->inotify_devs) >=
@@ -676,27 +666,14 @@ SYSCALL_DEFINE1(inotify_init1, int, flags)
 
 	atomic_inc(&user->inotify_devs);
 
-	path.mnt = inotify_mnt;
-	path.dentry = inotify_mnt->mnt_root;
-	path_get(&path);
-	filp = alloc_file(&path, FMODE_READ, &inotify_fops);
-	if (!filp)
-		goto Enfile;
+	ret = anon_inode_getfd("inotify", &inotify_fops, group,
+				  O_RDONLY | flags);
+	if (ret >= 0)
+		return ret;
 
-	filp->f_flags = O_RDONLY | (flags & O_NONBLOCK);
-	filp->private_data = group;
-
-	fd_install(fd, filp);
-
-	return fd;
-
-Enfile:
-	ret = -ENFILE;
-	path_put(&path);
 	atomic_dec(&user->inotify_devs);
 out_free_uid:
 	free_uid(user);
-	put_unused_fd(fd);
 	return ret;
 }
 
@@ -783,20 +760,6 @@ out:
 	return ret;
 }
 
-static int
-inotify_get_sb(struct file_system_type *fs_type, int flags,
-	       const char *dev_name, void *data, struct vfsmount *mnt)
-{
-	return get_sb_pseudo(fs_type, "inotify", NULL,
-			INOTIFYFS_SUPER_MAGIC, mnt);
-}
-
-static struct file_system_type inotify_fs_type = {
-    .name	= "inotifyfs",
-    .get_sb	= inotify_get_sb,
-    .kill_sb	= kill_anon_super,
-};
-
 /*
  * inotify_user_setup - Our initialization function.  Note that we cannnot return
  * error because we have compiled-in VFS hooks.  So an (unlikely) failure here
@@ -804,16 +767,6 @@ static struct file_system_type inotify_fs_type = {
  */
 static int __init inotify_user_setup(void)
 {
-	int ret;
-
-	ret = register_filesystem(&inotify_fs_type);
-	if (unlikely(ret))
-		panic("inotify: register_filesystem returned %d!\n", ret);
-
-	inotify_mnt = kern_mount(&inotify_fs_type);
-	if (IS_ERR(inotify_mnt))
-		panic("inotify: kern_mount ret %ld!\n", PTR_ERR(inotify_mnt));
-
 	inotify_inode_mark_cachep = KMEM_CACHE(inotify_inode_mark_entry, SLAB_PANIC);
 	event_priv_cachep = KMEM_CACHE(inotify_event_private_data, SLAB_PANIC);
 
