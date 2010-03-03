@@ -13,7 +13,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/amba/bus.h>
+#include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/spinlock.h>
@@ -303,30 +303,48 @@ static struct gpio_chip nmk_gpio_template = {
 	.can_sleep		= 0,
 };
 
-static int __init nmk_gpio_probe(struct amba_device *dev, struct amba_id *id)
+static int __init nmk_gpio_probe(struct platform_device *dev)
 {
-	struct nmk_gpio_platform_data *pdata;
+	struct nmk_gpio_platform_data *pdata = dev->dev.platform_data;
 	struct nmk_gpio_chip *nmk_chip;
 	struct gpio_chip *chip;
+	struct resource *res;
+	int irq;
 	int ret;
 
-	pdata = dev->dev.platform_data;
-	ret = amba_request_regions(dev, pdata->name);
-	if (ret)
-		return ret;
+	if (!pdata)
+		return -ENODEV;
+
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+	if (!res) {
+		ret = -ENOENT;
+		goto out;
+	}
+
+	irq = platform_get_irq(dev, 0);
+	if (irq < 0) {
+		ret = irq;
+		goto out;
+	}
+
+	if (request_mem_region(res->start, resource_size(res),
+			       dev_name(&dev->dev)) == NULL) {
+		ret = -EBUSY;
+		goto out;
+	}
 
 	nmk_chip = kzalloc(sizeof(*nmk_chip), GFP_KERNEL);
 	if (!nmk_chip) {
 		ret = -ENOMEM;
-		goto out_amba;
+		goto out_release;
 	}
 	/*
 	 * The virt address in nmk_chip->addr is in the nomadik register space,
 	 * so we can simply convert the resource address, without remapping
 	 */
-	nmk_chip->addr = io_p2v(dev->res.start);
+	nmk_chip->addr = io_p2v(res->start);
 	nmk_chip->chip = nmk_gpio_template;
-	nmk_chip->parent_irq = pdata->parent_irq;
+	nmk_chip->parent_irq = irq;
 	spin_lock_init(&nmk_chip->lock);
 
 	chip = &nmk_chip->chip;
@@ -339,7 +357,7 @@ static int __init nmk_gpio_probe(struct amba_device *dev, struct amba_id *id)
 	if (ret)
 		goto out_free;
 
-	amba_set_drvdata(dev, nmk_chip);
+	platform_set_drvdata(dev, nmk_chip);
 
 	nmk_gpio_init_irq(nmk_chip);
 
@@ -347,51 +365,45 @@ static int __init nmk_gpio_probe(struct amba_device *dev, struct amba_id *id)
 		 nmk_chip->chip.base, nmk_chip->chip.base+31, nmk_chip->addr);
 	return 0;
 
- out_free:
+out_free:
 	kfree(nmk_chip);
- out_amba:
-	amba_release_regions(dev);
+out_release:
+	release_mem_region(res->start, resource_size(res));
+out:
 	dev_err(&dev->dev, "Failure %i for GPIO %i-%i\n", ret,
 		  pdata->first_gpio, pdata->first_gpio+31);
 	return ret;
 }
 
-static int nmk_gpio_remove(struct amba_device *dev)
+static int __exit nmk_gpio_remove(struct platform_device *dev)
 {
 	struct nmk_gpio_chip *nmk_chip;
+	struct resource *res;
 
-	nmk_chip = amba_get_drvdata(dev);
+	res = platform_get_resource(dev, IORESOURCE_MEM, 0);
+
+	nmk_chip = platform_get_drvdata(dev);
 	gpiochip_remove(&nmk_chip->chip);
 	kfree(nmk_chip);
-	amba_release_regions(dev);
+	release_mem_region(res->start, resource_size(res));
 	return 0;
 }
 
 
-/* We have 0x1f080060 and 0x1f180060, accept both using the mask */
-static struct amba_id nmk_gpio_ids[] = {
-	{
-		.id	= 0x1f080060,
-		.mask	= 0xffefffff,
-	},
-	{0, 0},
-};
-
-static struct amba_driver nmk_gpio_driver = {
-	.drv = {
+static struct platform_driver nmk_gpio_driver = {
+	.driver = {
 		.owner = THIS_MODULE,
 		.name = "gpio",
 		},
 	.probe = nmk_gpio_probe,
-	.remove = nmk_gpio_remove,
+	.remove = __exit_p(nmk_gpio_remove),
 	.suspend = NULL, /* to be done */
 	.resume = NULL,
-	.id_table = nmk_gpio_ids,
 };
 
 static int __init nmk_gpio_init(void)
 {
-	return amba_driver_register(&nmk_gpio_driver);
+	return platform_driver_register(&nmk_gpio_driver);
 }
 
 arch_initcall(nmk_gpio_init);
