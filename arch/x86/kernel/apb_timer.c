@@ -84,9 +84,10 @@ struct apbt_dev {
 
 int disable_apbt_percpu __cpuinitdata;
 
+static DEFINE_PER_CPU(struct apbt_dev, cpu_apbt_dev);
+
 #ifdef CONFIG_SMP
 static unsigned int apbt_num_timers_used;
-static DEFINE_PER_CPU(struct apbt_dev, cpu_apbt_dev);
 static struct apbt_dev *apbt_devs;
 #endif
 
@@ -302,6 +303,7 @@ static void apbt_disable_int(int n)
 static int __init apbt_clockevent_register(void)
 {
        struct sfi_timer_table_entry *mtmr;
+       struct apbt_dev *adev = &__get_cpu_var(cpu_apbt_dev);
 
        mtmr = sfi_get_mtmr(APBT_CLOCKEVENT0_NUM);
        if (mtmr == NULL) {
@@ -329,22 +331,24 @@ static int __init apbt_clockevent_register(void)
         * global if not used for per cpu timer.
         */
        apbt_clockevent.cpumask = cpumask_of(smp_processor_id());
+       adev->num = smp_processor_id();
+       memcpy(&adev->evt, &apbt_clockevent, sizeof(struct clock_event_device));
 
        if (disable_apbt_percpu) {
                apbt_clockevent.rating = APBT_CLOCKEVENT_RATING - 100;
-               global_clock_event = &apbt_clockevent;
+		global_clock_event = &adev->evt;
                printk(KERN_DEBUG "%s clockevent registered as global\n",
                        global_clock_event->name);
        }
 
        if (request_irq(apbt_clockevent.irq, apbt_interrupt_handler,
                IRQF_TIMER | IRQF_DISABLED | IRQF_NOBALANCING,
-               apbt_clockevent.name, &apbt_clockevent)) {
+		apbt_clockevent.name, adev)) {
                printk(KERN_ERR "Failed request IRQ for APBT%d\n",
                        apbt_clockevent.irq);
        }
 
-       clockevents_register_device(&apbt_clockevent);
+       clockevents_register_device(&adev->evt);
        /* Start APBT 0 interrupts */
        apbt_enable_int(APBT_CLOCKEVENT0_NUM);
 
