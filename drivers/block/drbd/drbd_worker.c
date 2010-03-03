@@ -938,7 +938,8 @@ int w_e_end_csum_rs_req(struct drbd_conf *mdev, struct drbd_work *w, int cancel)
 
 		if (eq) {
 			drbd_set_in_sync(mdev, e->sector, e->size);
-			mdev->rs_same_csum++;
+			/* rs_same_csums unit is BM_BLOCK_SIZE */
+			mdev->rs_same_csum += e->size >> BM_BLOCK_SHIFT;
 			ok = drbd_send_ack(mdev, P_RS_IS_IN_SYNC, e);
 		} else {
 			inc_rs_pending(mdev);
