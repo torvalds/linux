@@ -42,6 +42,7 @@
 #include <linux/usb.h>
 #include <linux/firmware.h>
 #include <linux/etherdevice.h>
+#include <linux/device.h>
 #include <net/mac80211.h>
 #include "ar9170.h"
 #include "cmd.h"
@@ -739,10 +740,10 @@ static void ar9170_usb_firmware_failed(struct ar9170_usb *aru)
 
 	/* unbind anything failed */
 	if (parent)
-		down(&parent->sem);
+		device_lock(parent);
 	device_release_driver(&aru->udev->dev);
 	if (parent)
-		up(&parent->sem);
+		device_unlock(parent);
 }
 
 static void ar9170_usb_firmware_finish(const struct firmware *fw, void *context)
