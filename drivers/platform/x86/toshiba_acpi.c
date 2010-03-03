@@ -814,21 +814,23 @@ static void toshiba_acpi_notify(acpi_handle handle, u32 event, void *context)
 		if (hci_result == HCI_SUCCESS) {
 			if (value == 0x100)
 				continue;
-			else if (value & 0x80) {
-				key = toshiba_acpi_get_entry_by_scancode
-					(value & ~0x80);
-				if (!key) {
-					printk(MY_INFO "Unknown key %x\n",
-					       value & ~0x80);
-					continue;
-				}
-				input_report_key(toshiba_acpi.hotkey_dev,
-						 key->keycode, 1);
-				input_sync(toshiba_acpi.hotkey_dev);
-				input_report_key(toshiba_acpi.hotkey_dev,
-						 key->keycode, 0);
-				input_sync(toshiba_acpi.hotkey_dev);
+			/* act on key press; ignore key release */
+			if (value & 0x80)
+				continue;
+
+			key = toshiba_acpi_get_entry_by_scancode
+				(value);
+			if (!key) {
+				printk(MY_INFO "Unknown key %x\n",
+				       value);
+				continue;
 			}
+			input_report_key(toshiba_acpi.hotkey_dev,
+					 key->keycode, 1);
+			input_sync(toshiba_acpi.hotkey_dev);
+			input_report_key(toshiba_acpi.hotkey_dev,
+					 key->keycode, 0);
+			input_sync(toshiba_acpi.hotkey_dev);
 		} else if (hci_result == HCI_NOT_SUPPORTED) {
 			/* This is a workaround for an unresolved issue on
 			 * some machines where system events sporadically

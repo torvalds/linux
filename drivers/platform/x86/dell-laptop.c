@@ -132,8 +132,8 @@ static struct dmi_system_id __devinitdata dell_blacklist[] = {
 };
 
 static struct calling_interface_buffer *buffer;
-struct page *bufferpage;
-DEFINE_MUTEX(buffer_mutex);
+static struct page *bufferpage;
+static DEFINE_MUTEX(buffer_mutex);
 
 static int hwswitch_state;
 
@@ -580,6 +580,7 @@ static int __init dell_init(void)
 
 fail_backlight:
 	i8042_remove_filter(dell_laptop_i8042_filter);
+	cancel_delayed_work_sync(&dell_rfkill_work);
 fail_filter:
 	dell_cleanup_rfkill();
 fail_rfkill:
@@ -597,12 +598,12 @@ fail_platform_driver:
 
 static void __exit dell_exit(void)
 {
-	cancel_delayed_work_sync(&dell_rfkill_work);
 	i8042_remove_filter(dell_laptop_i8042_filter);
+	cancel_delayed_work_sync(&dell_rfkill_work);
 	backlight_device_unregister(dell_backlight_device);
 	dell_cleanup_rfkill();
 	if (platform_device) {
-		platform_device_del(platform_device);
+		platform_device_unregister(platform_device);
 		platform_driver_unregister(&platform_driver);
 	}
 	kfree(da_tokens);

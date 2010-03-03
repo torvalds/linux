@@ -6097,6 +6097,7 @@ F:	arch/x86/
 X86 PLATFORM DRIVERS
 M:	Matthew Garrett <mjg@redhat.com>
 L:	platform-driver-x86@vger.kernel.org
+T:      git git://git.kernel.org/pub/scm/linux/kernel/git/mjg59/platform-drivers-x86.git
 S:	Maintained
 F:	drivers/platform/x86
 
