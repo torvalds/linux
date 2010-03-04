@@ -295,15 +295,23 @@ static void __cleanup(struct ioat2_dma_chan *ioat, unsigned long phys_complete)
 	ioat->tail += i;
 	BUG_ON(active && !seen_current); /* no active descs have written a completion? */
 	chan->last_completion = phys_complete;
-	if (ioat->head == ioat->tail) {
+
+	active = ioat2_ring_active(ioat);
+	if (active == 0) {
 		dev_dbg(to_dev(chan), "%s: cancel completion timeout\n",
 			__func__);
 		clear_bit(IOAT_COMPLETION_PENDING, &chan->state);
 		mod_timer(&chan->timer, jiffies + IDLE_TIMEOUT);
 	}
+	/* 5 microsecond delay per pending descriptor */
+	writew(min((5 * active), IOAT_INTRDELAY_MASK),
+	       chan->device->reg_base + IOAT_INTRDELAY_OFFSET);
 }
 
-static void ioat3_cleanup(struct ioat2_dma_chan *ioat)
+/* try to cleanup, but yield (via spin_trylock) to incoming submissions
+ * with the expectation that we will immediately poll again shortly
+ */
+static void ioat3_cleanup_poll(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
 	unsigned long phys_complete;
@@ -329,11 +337,32 @@ static void ioat3_cleanup(struct ioat2_dma_chan *ioat)
 	spin_unlock_bh(&chan->cleanup_lock);
 }
 
+/* run cleanup now because we already delayed the interrupt via INTRDELAY */
+static void ioat3_cleanup_sync(struct ioat2_dma_chan *ioat)
+{
+	struct ioat_chan_common *chan = &ioat->base;
+	unsigned long phys_complete;
+
+	prefetch(chan->completion);
+
+	spin_lock_bh(&chan->cleanup_lock);
+	if (!ioat_cleanup_preamble(chan, &phys_complete)) {
+		spin_unlock_bh(&chan->cleanup_lock);
+		return;
+	}
+	spin_lock_bh(&ioat->ring_lock);
+
+	__cleanup(ioat, phys_complete);
+
+	spin_unlock_bh(&ioat->ring_lock);
+	spin_unlock_bh(&chan->cleanup_lock);
+}
+
 static void ioat3_cleanup_tasklet(unsigned long data)
 {
 	struct ioat2_dma_chan *ioat = (void *) data;
 
-	ioat3_cleanup(ioat);
+	ioat3_cleanup_sync(ioat);
 	writew(IOAT_CHANCTRL_RUN, ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
 }
 
@@ -417,7 +446,7 @@ ioat3_is_complete(struct dma_chan *c, dma_cookie_t cookie,
 	if (ioat_is_complete(c, cookie, done, used) == DMA_SUCCESS)
 		return DMA_SUCCESS;
 
-	ioat3_cleanup(ioat);
+	ioat3_cleanup_poll(ioat);
 
 	return ioat_is_complete(c, cookie, done, used);
 }
