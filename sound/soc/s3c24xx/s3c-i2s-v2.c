@@ -550,6 +550,21 @@ static int s3c2412_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
+static snd_pcm_sframes_t s3c2412_i2s_delay(struct snd_pcm_substream *substream,
+					   struct snd_soc_dai *dai)
+{
+	struct s3c_i2sv2_info *i2s = to_info(dai);
+	u32 reg = readl(i2s->regs + S3C2412_IISFIC);
+	snd_pcm_sframes_t delay;
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		delay = S3C2412_IISFIC_TXCOUNT(reg);
+	else
+		delay = S3C2412_IISFIC_RXCOUNT(reg);
+
+	return delay;
+}
+
 /* default table of all avaialable root fs divisors */
 static unsigned int iis_fs_tab[] = { 256, 512, 384, 768 };
 
@@ -735,6 +750,10 @@ int s3c_i2sv2_register_dai(struct snd_soc_dai *dai)
 	ops->hw_params = s3c2412_i2s_hw_params;
 	ops->set_fmt = s3c2412_i2s_set_fmt;
 	ops->set_clkdiv = s3c2412_i2s_set_clkdiv;
+
+	/* Allow overriding by (for example) IISv4 */
+	if (!ops->delay)
+		ops->delay = s3c2412_i2s_delay,
 
 	dai->suspend = s3c2412_i2s_suspend;
 	dai->resume = s3c2412_i2s_resume;
