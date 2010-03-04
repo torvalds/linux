@@ -159,42 +159,7 @@ two arguments:  the CDROM device, and the slot number to which you wish
 to change.  If the slot number is -1, the drive is unloaded.
 
 
-4. Compilation options
-----------------------
-
-There are a few additional options which can be set when compiling the
-driver.  Most people should not need to mess with any of these; they
-are listed here simply for completeness.  A compilation option can be
-enabled by adding a line of the form `#define <option> 1' to the top
-of ide-cd.c.  All these options are disabled by default.
-
-VERBOSE_IDE_CD_ERRORS
-  If this is set, ATAPI error codes will be translated into textual
-  descriptions.  In addition, a dump is made of the command which
-  provoked the error.  This is off by default to save the memory used
-  by the (somewhat long) table of error descriptions.  
-
-STANDARD_ATAPI
-  If this is set, the code needed to deal with certain drives which do
-  not properly implement the ATAPI spec will be disabled.  If you know
-  your drive implements ATAPI properly, you can turn this on to get a
-  slightly smaller kernel.
-
-NO_DOOR_LOCKING
-  If this is set, the driver will never attempt to lock the door of
-  the drive.
-
-CDROM_NBLOCKS_BUFFER
-  This sets the size of the buffer to be used for a CDROMREADAUDIO
-  ioctl.  The default is 8.
-
-TEST
-  This currently enables an additional ioctl which enables a user-mode
-  program to execute an arbitrary packet command.  See the source for
-  details.  This should be left off unless you know what you're doing.
-
-
-5. Common problems
+4. Common problems
 ------------------
 
 This section discusses some common problems encountered when trying to
@@ -371,7 +336,7 @@ f. Data corruption.
     expense of low system performance.
 
 
-6. cdchange.c
+5. cdchange.c
 -------------
 
 /*

@@ -1,7 +1,7 @@
 /*
  *  Copyright (C) 1998-2002		Andre Hedrick <andre@linux-ide.org>
  *  Copyright (C) 2006-2007, 2009	MontaVista Software, Inc.
- *  Copyright (C) 2007			Bartlomiej Zolnierkiewicz
+ *  Copyright (C) 2007-2010		Bartlomiej Zolnierkiewicz
  *
  *  Portions Copyright (C) 1999 Promise Technology, Inc.
  *  Author: Frank Tiernan (frankt@promise.com)
@@ -21,22 +21,14 @@
 
 #define DRV_NAME "pdc202xx_old"
 
-static void pdc_old_disable_66MHz_clock(ide_hwif_t *);
-
-static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
+static void pdc202xx_set_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 drive_pci		= 0x60 + (drive->dn << 2);
+	const u8 speed		= drive->dma_mode;
 
 	u8			AP = 0, BP = 0, CP = 0;
 	u8			TA = 0, TB = 0, TC = 0;
-
-	/*
-	 * TODO: do this once per channel
-	 */
-	if (dev->device != PCI_DEVICE_ID_PROMISE_20246)
-		pdc_old_disable_66MHz_clock(hwif);
 
 	pci_read_config_byte(dev, drive_pci,     &AP);
 	pci_read_config_byte(dev, drive_pci + 1, &BP);
@@ -84,9 +76,10 @@ static void pdc202xx_set_mode(ide_drive_t *drive, const u8 speed)
 	}
 }
 
-static void pdc202xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void pdc202xx_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	pdc202xx_set_mode(drive, XFER_PIO_0 + pio);
+	drive->dma_mode = drive->pio_mode;
+	pdc202xx_set_mode(hwif, drive);
 }
 
 static int pdc202xx_test_irq(ide_hwif_t *hwif)
@@ -100,13 +93,13 @@ static int pdc202xx_test_irq(ide_hwif_t *hwif)
 		 * bit 7: error, bit 6: interrupting,
 		 * bit 5: FIFO full, bit 4: FIFO empty
 		 */
-		return ((sc1d & 0x50) == 0x40) ? 1 : 0;
+		return ((sc1d & 0x50) == 0x50) ? 1 : 0;
 	} else	{
 		/*
 		 * bit 3: error, bit 2: interrupting,
 		 * bit 1: FIFO full, bit 0: FIFO empty
 		 */
-		return ((sc1d & 0x05) == 0x04) ? 1 : 0;
+		return ((sc1d & 0x05) == 0x05) ? 1 : 0;
 	}
 }
 
@@ -143,6 +136,11 @@ static void pdc_old_disable_66MHz_clock(ide_hwif_t *hwif)
 	u8 clock = inb(clock_reg);
 
 	outb(clock & ~(hwif->channel ? 0x08 : 0x02), clock_reg);
+}
+
+static void pdc2026x_init_hwif(ide_hwif_t *hwif)
+{
+	pdc_old_disable_66MHz_clock(hwif);
 }
 
 static void pdc202xx_dma_start(ide_drive_t *drive)
@@ -261,6 +259,7 @@ static const struct ide_dma_ops pdc2026x_dma_ops = {
 	{ \
 		.name		= DRV_NAME, \
 		.init_chipset	= init_chipset_pdc202xx, \
+		.init_hwif	= pdc2026x_init_hwif, \
 		.port_ops	= &pdc2026x_port_ops, \
 		.dma_ops	= &pdc2026x_dma_ops, \
 		.host_flags	= IDE_HFLAGS_PDC202XX, \
@@ -356,6 +355,6 @@ static void __exit pdc202xx_ide_exit(void)
 module_init(pdc202xx_ide_init);
 module_exit(pdc202xx_ide_exit);
 
-MODULE_AUTHOR("Andre Hedrick, Frank Tiernan");
+MODULE_AUTHOR("Andre Hedrick, Frank Tiernan, Bartlomiej Zolnierkiewicz");
 MODULE_DESCRIPTION("PCI driver module for older Promise IDE");
 MODULE_LICENSE("GPL");

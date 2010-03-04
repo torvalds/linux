@@ -99,12 +99,11 @@ static void au1xxx_output_data(ide_drive_t *drive, struct ide_cmd *cmd,
 }
 #endif
 
-static void au1xxx_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void au1xxx_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	int mem_sttime = 0, mem_stcfg = au_readl(MEM_STCFG2);
 
-	/* set pio mode! */
-	switch(pio) {
+	switch (drive->pio_mode - XFER_PIO_0) {
 	case 0:
 		mem_sttime = SBC_IDE_TIMING(PIO0);
 
@@ -161,11 +160,11 @@ static void au1xxx_set_pio_mode(ide_drive_t *drive, const u8 pio)
 	au_writel(mem_stcfg,MEM_STCFG2);
 }
 
-static void auide_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void auide_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	int mem_sttime = 0, mem_stcfg = au_readl(MEM_STCFG2);
 
-	switch(speed) {
+	switch (drive->dma_mode) {
 #ifdef CONFIG_BLK_DEV_IDE_AU1XXX_MDMA2_DBDMA
 	case XFER_MW_DMA_2:
 		mem_sttime = SBC_IDE_TIMING(MDMA2);
@@ -297,8 +296,8 @@ static int auide_dma_test_irq(ide_drive_t *drive)
 	 */
 	drive->waiting_for_dma++;
 	if (drive->waiting_for_dma >= DMA_WAIT_TIMEOUT) {
-		printk(KERN_WARNING "%s: timeout waiting for ddma to \
-                                     complete\n", drive->name);
+		printk(KERN_WARNING "%s: timeout waiting for ddma to complete\n",
+		       drive->name);
 		return 1;
 	}
 	udelay(10);

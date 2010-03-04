@@ -1042,6 +1042,8 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
 			drive->dev_flags |= IDE_DFLAG_NO_UNMASK;
 
+		drive->pio_mode = XFER_PIO_0;
+
 		if (port_ops && port_ops->init_dev)
 			port_ops->init_dev(drive);
 	}
