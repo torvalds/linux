@@ -70,7 +70,7 @@ struct vreg *vreg_get(struct device *dev, const char *id)
 		if (!strcmp(vregs[n].name, id))
 			return vregs + n;
 	}
-	return 0;
+	return ERR_PTR(-ENOENT);
 }
 
 void vreg_put(struct vreg *vreg)
