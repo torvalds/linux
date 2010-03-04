@@ -16,6 +16,12 @@
  * Boston, MA  02110-1301, USA.
  */
 
+/*
+ * This machine is known as:
+ *  - i.MX25 3-Stack Development System
+ *  - i.MX25 Platform Development Kit (i.MX25 PDK)
+ */
+
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/delay.h>
