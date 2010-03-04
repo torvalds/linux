@@ -1,5 +1,5 @@
 /*
- * Copyright IBM Corp. 1999,2009
+ * Copyright IBM Corp. 1999,2010
  *
  *    Author(s): Hartmut Penner <hp@de.ibm.com>
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -22,12 +22,9 @@
  */
 
 #include <linux/init.h>
-#include <asm/setup.h>
-#include <asm/lowcore.h>
 #include <asm/asm-offsets.h>
 #include <asm/thread_info.h>
 #include <asm/page.h>
-#include <asm/cpu.h>
 
 #ifdef CONFIG_64BIT
 #define ARCH_OFFSET	4
@@ -288,19 +285,7 @@ iplstart:
 	bz	.Lagain1		# skip dateset trailer
 	la	%r5,0(%r4,%r2)
 	lr	%r3,%r2
-.Lidebc:
-	tm	0(%r5),0x80		# high order bit set ?
-	bo	.Ldocv			#  yes -> convert from EBCDIC
-	ahi	%r5,-1
-	bct	%r3,.Lidebc
-	b	.Lnocv
-.Ldocv:
-	l	%r3,.Lcvtab
-	tr	0(256,%r4),0(%r3)	# convert parameters to ascii
-	tr	256(256,%r4),0(%r3)
-	tr	512(256,%r4),0(%r3)
-	tr	768(122,%r4),0(%r3)
-.Lnocv: la	%r3,COMMAND_LINE-PARMAREA(%r12) # load adr. of command line
+	la	%r3,COMMAND_LINE-PARMAREA(%r12) # load adr. of command line
 	mvc	0(256,%r3),0(%r4)
 	mvc	256(256,%r3),256(%r4)
 	mvc	512(256,%r3),512(%r4)
@@ -384,7 +369,6 @@ iplstart:
 .Linitrd:.long _end + 0x400000		# default address of initrd
 .Lparm:	.long  PARMAREA
 .Lstartup: .long startup
-.Lcvtab:.long	_ebcasc 		# ebcdic to ascii table
 .Lreset:.byte	0xc3,0xc8,0xc1,0xd5,0xc7,0xc5,0x40,0xd9,0xc4,0xd9,0x40
 	.byte	0xc1,0xd3,0xd3,0x40,0xd2,0xc5,0xc5,0xd7,0x40,0xd5,0xd6
 	.byte	0xc8,0xd6,0xd3,0xc4	# "change rdr all keep nohold"
@@ -417,13 +401,10 @@ start:
 .sk8x8:
 	mvc	0(240,%r8),0(%r9)	# copy iplparms into buffer
 .gotr:
-	l	%r10,.tbl		# EBCDIC to ASCII table
-	tr	0(240,%r8),0(%r10)
 	slr	%r0,%r0
 	st	%r0,INITRD_SIZE+ARCH_OFFSET-PARMAREA(%r11)
 	st	%r0,INITRD_START+ARCH_OFFSET-PARMAREA(%r11)
 	j	startup 		# continue with startup
-.tbl:	.long	_ebcasc			# translate table
 .cmd:	.long	COMMAND_LINE		# address of command line buffer
 .parm:	.long	PARMAREA
 .lowcase:
@@ -467,16 +448,15 @@ start:
 # or linload or SALIPL
 #
 	.org	0x10000
-startup:basr	%r13,0			# get base
+	.globl	startup
+startup:
+	basr	%r13,0			# get base
 .LPG0:
 	xc	0x200(256),0x200	# partially clear lowcore
 	xc	0x300(256),0x300
-	l	%r1,5f-.LPG0(%r13)
-	stck	0(%r1)
-	spt	6f-.LPG0(%r13)
-	mvc	__LC_LAST_UPDATE_CLOCK(8),0(%r1)
-	mvc	__LC_LAST_UPDATE_TIMER(8),6f-.LPG0(%r13)
-	mvc	__LC_EXIT_TIMER(8),5f-.LPG0(%r13)
+	stck	__LC_LAST_UPDATE_CLOCK
+	spt	5f-.LPG0(%r13)
+	mvc	__LC_LAST_UPDATE_TIMER(8),5f-.LPG0(%r13)
 #ifndef CONFIG_MARCH_G5
 	# check capabilities against MARCH_{G5,Z900,Z990,Z9_109,Z10}
 	xc	__LC_STFL_FAC_LIST(8),__LC_STFL_FAC_LIST
@@ -494,7 +474,6 @@ startup:basr	%r13,0			# get base
 	cl	%r0,2f+12-.LPG0(%r13)
 	je	3f
 1:	l	%r15,.Lstack-.LPG0(%r13)
-	ahi	%r15,1<<(PAGE_SHIFT+THREAD_ORDER) # init_task_union+THREAD_SIZE
 	ahi	%r15,-96
 	la	%r2,.Lals_string-.LPG0(%r13)
 	l	%r3,.Lsclp_print-.LPG0(%r13)
@@ -505,7 +484,7 @@ startup:basr	%r13,0			# get base
 .Lsclp_print:
 	.long	_sclp_print_early
 .Lstack:
-	.long	init_thread_union
+	.long	0x8000 + (1<<(PAGE_SHIFT+THREAD_ORDER))
 	.align 16
 2:	.long	0x000a0000,0x8badcccc
 #if defined(CONFIG_64BIT)
@@ -532,13 +511,22 @@ startup:basr	%r13,0			# get base
 3:
 #endif
 
+#ifdef CONFIG_64BIT
+	mvi	__LC_AR_MODE_ID,1	# set esame flag
+	slr	%r0,%r0 		# set cpuid to zero
+	lhi	%r1,2			# mode 2 = esame (dump)
+	sigp	%r1,%r0,0x12		# switch to esame mode
+	sam64				# switch to 64 bit mode
+	jg	startup_continue
+#else
+	mvi	__LC_AR_MODE_ID,0	# set ESA flag (mode 0)
 	l	%r13,4f-.LPG0(%r13)
 	b	0(%r13)
-	.align	4
-4:	.long	startup_continue
-5:	.long	sched_clock_base_cc
 	.align	8
-6:	.long	0x7fffffff,0xffffffff
+4:	.long	startup_continue
+#endif
+	.align	8
+5:	.long	0x7fffffff,0xffffffff
 
 #
 # params at 10400 (setup.h)
@@ -552,8 +540,4 @@ startup:basr	%r13,0			# get base
 	.byte	"root=/dev/ram0 ro"
 	.byte	0
 
-#ifdef CONFIG_64BIT
-#include "head64.S"
-#else
-#include "head31.S"
-#endif
+	.org	0x11000

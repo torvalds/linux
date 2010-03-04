@@ -78,7 +78,7 @@ rpc_timeout_upcall_queue(struct work_struct *work)
 }
 
 /**
- * rpc_queue_upcall
+ * rpc_queue_upcall - queue an upcall message to userspace
  * @inode: inode of upcall pipe on which to queue given message
  * @msg: message to queue
  *

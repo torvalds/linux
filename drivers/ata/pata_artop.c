@@ -421,7 +421,7 @@ static int artop_init_one (struct pci_dev *pdev, const struct pci_device_id *id)
 
 	BUG_ON(ppi[0] == NULL);
 
-	return ata_pci_sff_init_one(pdev, ppi, &artop_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &artop_sht, NULL, 0);
 }
 
 static const struct pci_device_id artop_pci_tbl[] = {

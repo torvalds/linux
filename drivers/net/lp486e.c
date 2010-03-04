@@ -1253,21 +1253,22 @@ static void set_multicast_list(struct net_device *dev) {
 
 	if (i596_debug > 1)
 		printk ("%s: set multicast list %d\n",
-			dev->name, dev->mc_count);
+			dev->name, netdev_mc_count(dev));
 
-	if (dev->mc_count > 0) {
+	if (!netdev_mc_empty(dev)) {
 		struct dev_mc_list *dmi;
 		char *cp;
-		cmd = kmalloc(sizeof(struct i596_cmd)+2+dev->mc_count*6, GFP_ATOMIC);
+		cmd = kmalloc(sizeof(struct i596_cmd) + 2 +
+			      netdev_mc_count(dev) * 6, GFP_ATOMIC);
 		if (cmd == NULL) {
 			printk (KERN_ERR "%s: set_multicast Memory squeeze.\n", dev->name);
 			return;
 		}
 		cmd->command = CmdMulticastList;
-		*((unsigned short *) (cmd + 1)) = dev->mc_count * 6;
+		*((unsigned short *) (cmd + 1)) = netdev_mc_count(dev) * 6;
 		cp = ((char *)(cmd + 1))+2;
-		for (dmi = dev->mc_list; dmi != NULL; dmi = dmi->next) {
-			memcpy(cp, dmi,6);
+		netdev_for_each_mc_addr(dmi, dev) {
+			memcpy(cp, dmi->dmi_addr, 6);
 			cp += 6;
 		}
 		if (i596_debug & LOG_SRCDST)
@@ -1277,7 +1278,8 @@ static void set_multicast_list(struct net_device *dev) {
 		if (lp->set_conf.pa_next != I596_NULL) {
 			return;
 		}
-		if (dev->mc_count == 0 && !(dev->flags & (IFF_PROMISC | IFF_ALLMULTI))) {
+		if (netdev_mc_empty(dev) &&
+		    !(dev->flags & (IFF_PROMISC | IFF_ALLMULTI))) {
 			lp->i596_config[8] &= ~0x01;
 		} else {
 			lp->i596_config[8] |= 0x01;

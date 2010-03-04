@@ -54,6 +54,9 @@ config GENERIC_BUG
 	depends on BUG
 	default y
 
+config GENERIC_BUG_RELATIVE_POINTERS
+	def_bool y
+
 config NO_IOMEM
 	def_bool y
 
@@ -96,6 +99,9 @@ config S390
 	select HAVE_ARCH_TRACEHOOK
 	select INIT_ALL_POSSIBLE
 	select HAVE_PERF_EVENTS
+	select HAVE_KERNEL_GZIP
+	select HAVE_KERNEL_BZIP2
+	select HAVE_KERNEL_LZMA
 	select ARCH_INLINE_SPIN_TRYLOCK
 	select ARCH_INLINE_SPIN_TRYLOCK_BH
 	select ARCH_INLINE_SPIN_LOCK

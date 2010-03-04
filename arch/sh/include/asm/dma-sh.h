@@ -20,14 +20,14 @@
     defined(CONFIG_CPU_SUBTYPE_SH7780)	|| \
     defined(CONFIG_CPU_SUBTYPE_SH7785)
 #define dmaor_read_reg(n) \
-    (n ? ctrl_inw(SH_DMAC_BASE1 + DMAOR) \
-	: ctrl_inw(SH_DMAC_BASE0 + DMAOR))
+    (n ? __raw_readw(SH_DMAC_BASE1 + DMAOR) \
+	: __raw_readw(SH_DMAC_BASE0 + DMAOR))
 #define dmaor_write_reg(n, data) \
-    (n ? ctrl_outw(data, SH_DMAC_BASE1 + DMAOR) \
-    : ctrl_outw(data, SH_DMAC_BASE0 + DMAOR))
+    (n ? __raw_writew(data, SH_DMAC_BASE1 + DMAOR) \
+    : __raw_writew(data, SH_DMAC_BASE0 + DMAOR))
 #else /* Other CPU */
-#define dmaor_read_reg(n) ctrl_inw(SH_DMAC_BASE0 + DMAOR)
-#define dmaor_write_reg(n, data) ctrl_outw(data, SH_DMAC_BASE0 + DMAOR)
+#define dmaor_read_reg(n) __raw_readw(SH_DMAC_BASE0 + DMAOR)
+#define dmaor_write_reg(n, data) __raw_writew(data, SH_DMAC_BASE0 + DMAOR)
 #endif
 
 static int dmte_irq_map[] __maybe_unused = {
@@ -64,8 +64,10 @@ static int dmte_irq_map[] __maybe_unused = {
 #define ACK_L	0x00010000
 #define DM_INC	0x00004000
 #define DM_DEC	0x00008000
+#define DM_FIX	0x0000c000
 #define SM_INC	0x00001000
 #define SM_DEC	0x00002000
+#define SM_FIX	0x00003000
 #define RS_IN	0x00000200
 #define RS_OUT	0x00000300
 #define TS_BLK	0x00000040
@@ -83,7 +85,7 @@ static int dmte_irq_map[] __maybe_unused = {
  * Define the default configuration for dual address memory-memory transfer.
  * The 0x400 value represents auto-request, external->external.
  */
-#define RS_DUAL	(DM_INC | SM_INC | 0x400 | TS_32)
+#define RS_DUAL	(DM_INC | SM_INC | 0x400 | TS_INDEX2VAL(XMIT_SZ_32BIT))
 
 /* DMA base address */
 static u32 dma_base_addr[] __maybe_unused = {
@@ -123,10 +125,47 @@ static u32 dma_base_addr[] __maybe_unused = {
  */
 #define SHDMA_MIX_IRQ	(1 << 1)
 #define SHDMA_DMAOR1	(1 << 2)
-#define SHDMA_DMAE1		(1 << 3)
+#define SHDMA_DMAE1	(1 << 3)
+
+enum sh_dmae_slave_chan_id {
+	SHDMA_SLAVE_SCIF0_TX,
+	SHDMA_SLAVE_SCIF0_RX,
+	SHDMA_SLAVE_SCIF1_TX,
+	SHDMA_SLAVE_SCIF1_RX,
+	SHDMA_SLAVE_SCIF2_TX,
+	SHDMA_SLAVE_SCIF2_RX,
+	SHDMA_SLAVE_SCIF3_TX,
+	SHDMA_SLAVE_SCIF3_RX,
+	SHDMA_SLAVE_SCIF4_TX,
+	SHDMA_SLAVE_SCIF4_RX,
+	SHDMA_SLAVE_SCIF5_TX,
+	SHDMA_SLAVE_SCIF5_RX,
+	SHDMA_SLAVE_SIUA_TX,
+	SHDMA_SLAVE_SIUA_RX,
+	SHDMA_SLAVE_SIUB_TX,
+	SHDMA_SLAVE_SIUB_RX,
+	SHDMA_SLAVE_NUMBER,	/* Must stay last */
+};
+
+struct sh_dmae_slave_config {
+	enum sh_dmae_slave_chan_id	slave_id;
+	dma_addr_t			addr;
+	u32				chcr;
+	char				mid_rid;
+};
 
 struct sh_dmae_pdata {
 	unsigned int mode;
+	struct sh_dmae_slave_config *config;
+	int config_num;
+};
+
+struct device;
+
+struct sh_dmae_slave {
+	enum sh_dmae_slave_chan_id	slave_id; /* Set by the platform */
+	struct device			*dma_dev; /* Set by the platform */
+	struct sh_dmae_slave_config	*config;  /* Set by the driver */
 };
 
 #endif /* __DMA_SH_H */

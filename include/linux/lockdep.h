@@ -534,4 +534,8 @@ do {									\
 # define might_lock_read(lock) do { } while (0)
 #endif
 
+#ifdef CONFIG_PROVE_RCU
+extern void lockdep_rcu_dereference(const char *file, const int line);
+#endif
+
 #endif /* __LINUX_LOCKDEP_H */

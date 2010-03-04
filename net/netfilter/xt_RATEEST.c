@@ -23,6 +23,7 @@ static DEFINE_MUTEX(xt_rateest_mutex);
 #define RATEEST_HSIZE	16
 static struct hlist_head rateest_hash[RATEEST_HSIZE] __read_mostly;
 static unsigned int jhash_rnd __read_mostly;
+static bool rnd_inited __read_mostly;
 
 static unsigned int xt_rateest_hash(const char *name)
 {
@@ -92,6 +93,11 @@ static bool xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 		struct nlattr		opt;
 		struct gnet_estimator	est;
 	} cfg;
+
+	if (unlikely(!rnd_inited)) {
+		get_random_bytes(&jhash_rnd, sizeof(jhash_rnd));
+		rnd_inited = true;
+	}
 
 	est = xt_rateest_lookup(info->name);
 	if (est) {
@@ -164,7 +170,6 @@ static int __init xt_rateest_tg_init(void)
 	for (i = 0; i < ARRAY_SIZE(rateest_hash); i++)
 		INIT_HLIST_HEAD(&rateest_hash[i]);
 
-	get_random_bytes(&jhash_rnd, sizeof(jhash_rnd));
 	return xt_register_target(&xt_rateest_tg_reg);
 }
 

@@ -25,31 +25,35 @@
 
 #include <linux/gpio.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/pm.h>
 
+#include <asm/reboot.h>
 #include <asm/mach-au1x00/au1000.h>
 
 #include <prom.h>
 
-void board_reset(void)
+static void xxs1500_reset(char *c)
 {
 	/* Hit BCSR.SYSTEM_CONTROL[SW_RST] */
 	au_writel(0x00000000, 0xAE00001C);
+}
+
+static void xxs1500_power_off(void)
+{
+	printk(KERN_ALERT "It's now safe to remove power\n");
+	while (1)
+		asm volatile (".set mips3 ; wait ; .set mips1");
 }
 
 void __init board_setup(void)
 {
 	u32 pin_func;
 
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	char *argptr;
-	argptr = prom_getcmdline();
-	argptr = strstr(argptr, "console=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " console=ttyS0,115200");
-	}
-#endif
+	pm_power_off = xxs1500_power_off;
+	_machine_halt = xxs1500_power_off;
+	_machine_restart = xxs1500_reset;
 
 	alchemy_gpio1_input_enable();
 	alchemy_gpio2_enable();
@@ -68,22 +72,6 @@ void __init board_setup(void)
 	/* Enable DTR = USB power up */
 	au_writel(0x01, UART3_ADDR + UART_MCR); /* UART_MCR_DTR is 0x01??? */
 
-#ifdef CONFIG_PCMCIA_XXS1500
-	/* GPIO 0, 1, and 4 are inputs */
-	alchemy_gpio_direction_input(0);
-	alchemy_gpio_direction_input(1);
-	alchemy_gpio_direction_input(4);
-
-	/* GPIO2 208/9/10/11 are inputs */
-	alchemy_gpio_direction_input(208);
-	alchemy_gpio_direction_input(209);
-	alchemy_gpio_direction_input(210);
-	alchemy_gpio_direction_input(211);
-
-	/* Turn off power */
-	alchemy_gpio_direction_output(214, 0);
-#endif
-
 #ifdef CONFIG_PCI
 #if defined(__MIPSEB__)
 	au_writel(0xf | (2 << 6) | (1 << 4), Au1500_PCI_CFG);
@@ -92,3 +80,23 @@ void __init board_setup(void)
 #endif
 #endif
 }
+
+static int __init xxs1500_init_irq(void)
+{
+	set_irq_type(AU1500_GPIO204_INT, IRQF_TRIGGER_HIGH);
+	set_irq_type(AU1500_GPIO201_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO202_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO203_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO205_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO207_INT, IRQF_TRIGGER_LOW);
+
+	set_irq_type(AU1500_GPIO0_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO1_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO2_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO3_INT, IRQF_TRIGGER_LOW);
+	set_irq_type(AU1500_GPIO4_INT, IRQF_TRIGGER_LOW); /* CF irq */
+	set_irq_type(AU1500_GPIO5_INT, IRQF_TRIGGER_LOW);
+
+	return 0;
+}
+arch_initcall(xxs1500_init_irq);

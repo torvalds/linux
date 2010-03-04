@@ -20,12 +20,11 @@
 /*
  * memcpy_c() - fast string ops (REP MOVSQ) based variant.
  *
- * Calls to this get patched into the kernel image via the
+ * This gets patched over the unrolled variant (below) via the
  * alternative instructions framework:
  */
-	ALIGN
-memcpy_c:
-	CFI_STARTPROC
+	.section .altinstr_replacement, "ax", @progbits
+.Lmemcpy_c:
 	movq %rdi, %rax
 
 	movl %edx, %ecx
@@ -35,8 +34,8 @@ memcpy_c:
 	movl %edx, %ecx
 	rep movsb
 	ret
-	CFI_ENDPROC
-ENDPROC(memcpy_c)
+.Lmemcpy_e:
+	.previous
 
 ENTRY(__memcpy)
 ENTRY(memcpy)
@@ -128,16 +127,10 @@ ENDPROC(__memcpy)
 	 * It is also a lot simpler. Use this when possible:
 	 */
 
-	.section .altinstr_replacement, "ax"
-1:	.byte 0xeb				/* jmp <disp8> */
-	.byte (memcpy_c - memcpy) - (2f - 1b)	/* offset */
-2:
-	.previous
-
 	.section .altinstructions, "a"
 	.align 8
 	.quad memcpy
-	.quad 1b
+	.quad .Lmemcpy_c
 	.byte X86_FEATURE_REP_GOOD
 
 	/*
@@ -145,6 +138,6 @@ ENDPROC(__memcpy)
 	 * so it is silly to overwrite itself with nops - reboot is the
 	 * only outcome...
 	 */
-	.byte 2b - 1b
-	.byte 2b - 1b
+	.byte .Lmemcpy_e - .Lmemcpy_c
+	.byte .Lmemcpy_e - .Lmemcpy_c
 	.previous

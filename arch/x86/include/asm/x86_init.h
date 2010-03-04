@@ -126,6 +126,7 @@ struct x86_cpuinit_ops {
  * @get_wallclock:		get time from HW clock like RTC etc.
  * @set_wallclock:		set time back to HW clock
  * @is_untracked_pat_range	exclude from PAT logic
+ * @nmi_init			enable NMI on cpus
  */
 struct x86_platform_ops {
 	unsigned long (*calibrate_tsc)(void);
@@ -133,6 +134,7 @@ struct x86_platform_ops {
 	int (*set_wallclock)(unsigned long nowtime);
 	void (*iommu_shutdown)(void);
 	bool (*is_untracked_pat_range)(u64 start, u64 end);
+	void (*nmi_init)(void);
 };
 
 extern struct x86_init_ops x86_init;

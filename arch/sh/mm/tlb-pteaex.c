@@ -68,8 +68,7 @@ void __update_tlb(struct vm_area_struct *vma, unsigned long address, pte_t pte)
  * in extended mode, the legacy 8-bit ASID field in address array 1 has
  * undefined behaviour.
  */
-void __uses_jump_to_uncached local_flush_tlb_one(unsigned long asid,
-						 unsigned long page)
+void local_flush_tlb_one(unsigned long asid, unsigned long page)
 {
 	jump_to_uncached();
 	__raw_writel(page, MMU_UTLB_ADDRESS_ARRAY | MMU_PAGE_ASSOC_BIT);

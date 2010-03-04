@@ -1364,47 +1364,63 @@ do_start_xmit(struct sk_buff *skb, struct net_device *dev)
     return NETDEV_TX_OK;
 }
 
+struct set_address_info {
+	int reg_nr;
+	int page_nr;
+	int mohawk;
+	unsigned int ioaddr;
+};
+
+static void set_address(struct set_address_info *sa_info, char *addr)
+{
+	unsigned int ioaddr = sa_info->ioaddr;
+	int i;
+
+	for (i = 0; i < 6; i++) {
+		if (sa_info->reg_nr > 15) {
+			sa_info->reg_nr = 8;
+			sa_info->page_nr++;
+			SelectPage(sa_info->page_nr);
+		}
+		if (sa_info->mohawk)
+			PutByte(sa_info->reg_nr++, addr[5 - i]);
+		else
+			PutByte(sa_info->reg_nr++, addr[i]);
+	}
+}
+
 /****************
  * Set all addresses: This first one is the individual address,
  * the next 9 addresses are taken from the multicast list and
  * the rest is filled with the individual address.
  */
-static void
-set_addresses(struct net_device *dev)
+static void set_addresses(struct net_device *dev)
 {
-    unsigned int ioaddr = dev->base_addr;
-    local_info_t *lp = netdev_priv(dev);
-    struct dev_mc_list *dmi = dev->mc_list;
-    unsigned char *addr;
-    int i,j,k,n;
+	unsigned int ioaddr = dev->base_addr;
+	local_info_t *lp = netdev_priv(dev);
+	struct dev_mc_list *dmi;
+	struct set_address_info sa_info;
+	int i;
 
-    SelectPage(k=0x50);
-    for (i=0,j=8,n=0; ; i++, j++) {
-	if (i > 5) {
-	    if (++n > 9)
-		break;
-	    i = 0;
-	    if (n > 1 && n <= dev->mc_count && dmi) {
-	   	 dmi = dmi->next;
-	    }
+	/*
+	 * Setup the info structure so that by first set_address call it will do
+	 * SelectPage with the right page number. Hence these ones here.
+	 */
+	sa_info.reg_nr = 15 + 1;
+	sa_info.page_nr = 0x50 - 1;
+	sa_info.mohawk = lp->mohawk;
+	sa_info.ioaddr = ioaddr;
+
+	set_address(&sa_info, dev->dev_addr);
+	i = 0;
+	netdev_for_each_mc_addr(dmi, dev) {
+		if (i++ == 9)
+			break;
+		set_address(&sa_info, dmi->dmi_addr);
 	}
-	if (j > 15) {
-	    j = 8;
-	    k++;
-	    SelectPage(k);
-	}
-
-	if (n && n <= dev->mc_count && dmi)
-	    addr = dmi->dmi_addr;
-	else
-	    addr = dev->dev_addr;
-
-	if (lp->mohawk)
-	    PutByte(j, addr[5-i]);
-	else
-	    PutByte(j, addr[i]);
-    }
-    SelectPage(0);
+	while (i++ < 9)
+		set_address(&sa_info, dev->dev_addr);
+	SelectPage(0);
 }
 
 /****************
@@ -1424,9 +1440,9 @@ set_multicast_list(struct net_device *dev)
 
     if (dev->flags & IFF_PROMISC) { /* snoop */
 	PutByte(XIRCREG42_SWC1, value | 0x06); /* set MPE and PME */
-    } else if (dev->mc_count > 9 || (dev->flags & IFF_ALLMULTI)) {
+    } else if (netdev_mc_count(dev) > 9 || (dev->flags & IFF_ALLMULTI)) {
 	PutByte(XIRCREG42_SWC1, value | 0x02); /* set MPE */
-    } else if (dev->mc_count) {
+    } else if (!netdev_mc_empty(dev)) {
 	/* the chip can filter 9 addresses perfectly */
 	PutByte(XIRCREG42_SWC1, value | 0x01);
 	SelectPage(0x40);

@@ -183,7 +183,8 @@ static inline void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
  */
 void tcp_select_initial_window(int __space, __u32 mss,
 			       __u32 *rcv_wnd, __u32 *window_clamp,
-			       int wscale_ok, __u8 *rcv_wscale)
+			       int wscale_ok, __u8 *rcv_wscale,
+			       __u32 init_rcv_wnd)
 {
 	unsigned int space = (__space < 0 ? 0 : __space);
 
@@ -232,7 +233,13 @@ void tcp_select_initial_window(int __space, __u32 mss,
 			init_cwnd = 2;
 		else if (mss > 1460)
 			init_cwnd = 3;
-		if (*rcv_wnd > init_cwnd * mss)
+		/* when initializing use the value from init_rcv_wnd
+		 * rather than the default from above
+		 */
+		if (init_rcv_wnd &&
+		    (*rcv_wnd > init_rcv_wnd * mss))
+			*rcv_wnd = init_rcv_wnd * mss;
+		else if (*rcv_wnd > init_cwnd * mss)
 			*rcv_wnd = init_cwnd * mss;
 	}
 
@@ -1794,11 +1801,6 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
 			       int nonagle)
 {
-	struct sk_buff *skb = tcp_send_head(sk);
-
-	if (!skb)
-		return;
-
 	/* If we are closed, the bytes will have to remain here.
 	 * In time closedown will finish, we empty the write queue and
 	 * all will be happy.
@@ -2422,7 +2424,8 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 			&req->rcv_wnd,
 			&req->window_clamp,
 			ireq->wscale_ok,
-			&rcv_wscale);
+			&rcv_wscale,
+			dst_metric(dst, RTAX_INITRWND));
 		ireq->rcv_wscale = rcv_wscale;
 	}
 
@@ -2549,7 +2552,8 @@ static void tcp_connect_init(struct sock *sk)
 				  &tp->rcv_wnd,
 				  &tp->window_clamp,
 				  sysctl_tcp_window_scaling,
-				  &rcv_wscale);
+				  &rcv_wscale,
+				  dst_metric(dst, RTAX_INITRWND));
 
 	tp->rx_opt.rcv_wscale = rcv_wscale;
 	tp->rcv_ssthresh = tp->rcv_wnd;

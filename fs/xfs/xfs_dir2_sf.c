@@ -782,7 +782,7 @@ xfs_dir2_sf_getdents(
 		}
 
 		ino = xfs_dir2_sf_get_inumber(sfp, xfs_dir2_sf_inumberp(sfep));
-		if (filldir(dirent, sfep->name, sfep->namelen,
+		if (filldir(dirent, (char *)sfep->name, sfep->namelen,
 			    off & 0x7fffffff, ino, DT_UNKNOWN)) {
 			*offset = off & 0x7fffffff;
 			return 0;

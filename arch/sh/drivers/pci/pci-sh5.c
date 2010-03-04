@@ -89,14 +89,13 @@ static irqreturn_t pcish5_serr_irq(int irq, void *dev_id)
 	return IRQ_NONE;
 }
 
-static struct resource sh5_io_resource = { /* place holder */ };
-static struct resource sh5_mem_resource = { /* place holder */ };
+static struct resource sh5_pci_resources[2];
 
 static struct pci_channel sh5pci_controller = {
 	.pci_ops		= &sh5_pci_ops,
-	.mem_resource		= &sh5_mem_resource,
+	.resources		= sh5_pci_resources,
+	.nr_resources		= ARRAY_SIZE(sh5_pci_resources),
 	.mem_offset		= 0x00000000,
-	.io_resource		= &sh5_io_resource,
 	.io_offset		= 0x00000000,
 };
 
@@ -210,14 +209,12 @@ static int __init sh5pci_init(void)
         SH5PCI_WRITE(AINTM, ~0);
         SH5PCI_WRITE(PINTM, ~0);
 
-	sh5_io_resource.start = PCI_IO_AREA;
-	sh5_io_resource.end = PCI_IO_AREA + 0x10000;
+	sh5_pci_resources[0].start = PCI_IO_AREA;
+	sh5_pci_resources[0].end = PCI_IO_AREA + 0x10000;
 
-	sh5_mem_resource.start = memStart;
-	sh5_mem_resource.end = memStart + memSize;
+	sh5_pci_resources[1].start = memStart;
+	sh5_pci_resources[1].end = memStart + memSize;
 
-	register_pci_controller(&sh5pci_controller);
-
-	return 0;
+	return register_pci_controller(&sh5pci_controller);
 }
 arch_initcall(sh5pci_init);

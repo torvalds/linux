@@ -42,13 +42,14 @@ static ssize_t show_atmaddress(struct device *cdev,
 
 	spin_lock_irqsave(&adev->lock, flags);
 	list_for_each_entry(aaddr, &adev->local, entry) {
-		for(i = 0, j = 0; i < ATM_ESA_LEN; ++i, ++j) {
+		for (i = 0, j = 0; i < ATM_ESA_LEN; ++i, ++j) {
 			if (j == *fmt) {
 				pos += sprintf(pos, ".");
 				++fmt;
 				j = 0;
 			}
-			pos += sprintf(pos, "%02x", aaddr->addr.sas_addr.prv[i]);
+			pos += sprintf(pos, "%02x",
+				       aaddr->addr.sas_addr.prv[i]);
 		}
 		pos += sprintf(pos, "\n");
 	}
@@ -78,17 +79,17 @@ static ssize_t show_link_rate(struct device *cdev,
 
 	/* show the link rate, not the data rate */
 	switch (adev->link_rate) {
-		case ATM_OC3_PCR:
-			link_rate = 155520000;
-			break;
-		case ATM_OC12_PCR:
-			link_rate = 622080000;
-			break;
-		case ATM_25_PCR:
-			link_rate = 25600000;
-			break;
-		default:
-			link_rate = adev->link_rate * 8 * 53;
+	case ATM_OC3_PCR:
+		link_rate = 155520000;
+		break;
+	case ATM_OC12_PCR:
+		link_rate = 622080000;
+		break;
+	case ATM_25_PCR:
+		link_rate = 25600000;
+		break;
+	default:
+		link_rate = adev->link_rate * 8 * 53;
 	}
 	pos += sprintf(pos, "%d\n", link_rate);
 

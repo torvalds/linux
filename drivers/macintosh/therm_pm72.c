@@ -1899,7 +1899,7 @@ static int create_control_loops(void)
 	 */
 	if (rackmac)
 		cpu_pid_type = CPU_PID_TYPE_RACKMAC;
-	else if (machine_is_compatible("PowerMac7,3")
+	else if (of_machine_is_compatible("PowerMac7,3")
 	    && (cpu_count > 1)
 	    && fcu_fans[CPUA_PUMP_RPM_INDEX].id != FCU_FAN_ABSENT_ID
 	    && fcu_fans[CPUB_PUMP_RPM_INDEX].id != FCU_FAN_ABSENT_ID) {
@@ -2234,10 +2234,10 @@ static int __init therm_pm72_init(void)
 {
 	struct device_node *np;
 
-	rackmac = machine_is_compatible("RackMac3,1");
+	rackmac = of_machine_is_compatible("RackMac3,1");
 
-	if (!machine_is_compatible("PowerMac7,2") &&
-	    !machine_is_compatible("PowerMac7,3") &&
+	if (!of_machine_is_compatible("PowerMac7,2") &&
+	    !of_machine_is_compatible("PowerMac7,3") &&
 	    !rackmac)
 	    	return -ENODEV;
 

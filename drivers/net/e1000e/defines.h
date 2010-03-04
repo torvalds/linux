@@ -460,6 +460,8 @@
  */
 #define E1000_RAR_ENTRIES     15
 #define E1000_RAH_AV  0x80000000        /* Receive descriptor valid */
+#define E1000_RAL_MAC_ADDR_LEN 4
+#define E1000_RAH_MAC_ADDR_LEN 2
 
 /* Error Codes */
 #define E1000_ERR_NVM      1

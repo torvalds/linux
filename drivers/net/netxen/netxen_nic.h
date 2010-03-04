@@ -19,7 +19,7 @@
  * MA  02111-1307, USA.
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.
+ * in the file called "COPYING".
  *
  */
 
@@ -420,7 +420,7 @@ struct status_desc {
 } __attribute__ ((aligned(16)));
 
 /* UNIFIED ROMIMAGE *************************/
-#define NX_UNI_FW_MIN_SIZE		0x3eb000
+#define NX_UNI_FW_MIN_SIZE		0xc8000
 #define NX_UNI_DIR_SECT_PRODUCT_TBL	0x0
 #define NX_UNI_DIR_SECT_BOOTLD		0x6
 #define NX_UNI_DIR_SECT_FW		0x7
@@ -1427,8 +1427,8 @@ static inline u32 netxen_tx_avail(struct nx_host_tx_ring *tx_ring)
 
 }
 
-int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
-int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, __le64 *mac);
+int netxen_get_flash_mac_addr(struct netxen_adapter *adapter, u64 *mac);
+int netxen_p3_get_mac_addr(struct netxen_adapter *adapter, u64 *mac);
 extern void netxen_change_ringparam(struct netxen_adapter *adapter);
 extern int netxen_rom_fast_read(struct netxen_adapter *adapter, int addr,
 				int *valp);

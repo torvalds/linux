@@ -210,7 +210,7 @@ MODULE_DEVICE_TABLE(eisa, hp100_eisa_tbl);
 #endif
 
 #ifdef CONFIG_PCI
-static struct pci_device_id hp100_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(hp100_pci_tbl) = {
 	{PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_J2585A, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_J2585B, PCI_ANY_ID, PCI_ANY_ID,},
 	{PCI_VENDOR_ID_HP, PCI_DEVICE_ID_HP_J2970A, PCI_ANY_ID, PCI_ANY_ID,},
@@ -2090,7 +2090,7 @@ static void hp100_set_multicast_list(struct net_device *dev)
 		lp->mac2_mode = HP100_MAC2MODE6;	/* promiscuous mode = get all good */
 		lp->mac1_mode = HP100_MAC1MODE6;	/* packets on the net */
 		memset(&lp->hash_bytes, 0xff, 8);
-	} else if (dev->mc_count || (dev->flags & IFF_ALLMULTI)) {
+	} else if (!netdev_mc_empty(dev) || (dev->flags & IFF_ALLMULTI)) {
 		lp->mac2_mode = HP100_MAC2MODE5;	/* multicast mode = get packets for */
 		lp->mac1_mode = HP100_MAC1MODE5;	/* me, broadcasts and all multicasts */
 #ifdef HP100_MULTICAST_FILTER	/* doesn't work!!! */
@@ -2098,22 +2098,23 @@ static void hp100_set_multicast_list(struct net_device *dev)
 			/* set hash filter to receive all multicast packets */
 			memset(&lp->hash_bytes, 0xff, 8);
 		} else {
-			int i, j, idx;
+			int i, idx;
 			u_char *addrs;
 			struct dev_mc_list *dmi;
 
 			memset(&lp->hash_bytes, 0x00, 8);
 #ifdef HP100_DEBUG
-			printk("hp100: %s: computing hash filter - mc_count = %i\n", dev->name, dev->mc_count);
+			printk("hp100: %s: computing hash filter - mc_count = %i\n",
+			       dev->name, netdev_mc_count(dev));
 #endif
-			for (i = 0, dmi = dev->mc_list; i < dev->mc_count; i++, dmi = dmi->next) {
+			netdev_for_each_mc_addr(dmi, dev) {
 				addrs = dmi->dmi_addr;
 				if ((*addrs & 0x01) == 0x01) {	/* multicast address? */
 #ifdef HP100_DEBUG
 					printk("hp100: %s: multicast = %pM, ",
 						     dev->name, addrs);
 #endif
-					for (j = idx = 0; j < 6; j++) {
+					for (i = idx = 0; i < 6; i++) {
 						idx ^= *addrs++ & 0x3f;
 						printk(":%02x:", idx);
 					}

@@ -473,7 +473,8 @@ static void vp_del_vqs(struct virtio_device *vdev)
 
 	list_for_each_entry_safe(vq, n, &vdev->vqs, list) {
 		info = vq->priv;
-		if (vp_dev->per_vq_vectors)
+		if (vp_dev->per_vq_vectors &&
+			info->msix_vector != VIRTIO_MSI_NO_VECTOR)
 			free_irq(vp_dev->msix_entries[info->msix_vector].vector,
 				 vq);
 		vp_del_vq(vq);
@@ -702,7 +703,7 @@ static struct pci_driver virtio_pci_driver = {
 	.name		= "virtio-pci",
 	.id_table	= virtio_pci_id_table,
 	.probe		= virtio_pci_probe,
-	.remove		= virtio_pci_remove,
+	.remove		= __devexit_p(virtio_pci_remove),
 #ifdef CONFIG_PM
 	.suspend	= virtio_pci_suspend,
 	.resume		= virtio_pci_resume,

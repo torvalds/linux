@@ -257,10 +257,10 @@ EXPORT_SYMBOL(pcibios_bus_to_resource);
  * Since we are just checking candidates, don't use any fields other
  * than res->start.
  */
-void pcibios_align_resource(void *data, struct resource *res,
+resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				resource_size_t size, resource_size_t alignment)
 {
-	resource_size_t mask, align;
+	resource_size_t mask, align, start = res->start;
 
 	DBG_RES("pcibios_align_resource(%s, (%p) [%lx,%lx]/%x, 0x%lx, 0x%lx)\n",
 		pci_name(((struct pci_dev *) data)),
@@ -272,10 +272,10 @@ void pcibios_align_resource(void *data, struct resource *res,
 
 	/* Align to largest of MIN or input size */
 	mask = max(alignment, align) - 1;
-	res->start += mask;
-	res->start &= ~mask;
+	start += mask;
+	start &= ~mask;
 
-	/* The caller updates the end field, we don't.  */
+	return start;
 }
 
 

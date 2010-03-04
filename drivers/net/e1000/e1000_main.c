@@ -42,7 +42,7 @@ static const char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation
  * Macro expands to...
  *   {PCI_DEVICE(PCI_VENDOR_ID_INTEL, device_id)}
  */
-static struct pci_device_id e1000_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(e1000_pci_tbl) = {
 	INTEL_E1000_ETHERNET_DEVICE(0x1000),
 	INTEL_E1000_ETHERNET_DEVICE(0x1001),
 	INTEL_E1000_ETHERNET_DEVICE(0x1004),
@@ -847,6 +847,9 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		goto err_pci_reg;
 
 	pci_set_master(pdev);
+	err = pci_save_state(pdev);
+	if (err)
+		goto err_alloc_etherdev;
 
 	err = -ENOMEM;
 	netdev = alloc_etherdev(sizeof(struct e1000_adapter));
@@ -2127,7 +2130,7 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 			rctl |= E1000_RCTL_VFE;
 	}
 
-	if (netdev->uc.count > rar_entries - 1) {
+	if (netdev_uc_count(netdev) > rar_entries - 1) {
 		rctl |= E1000_RCTL_UPE;
 	} else if (!(netdev->flags & IFF_PROMISC)) {
 		rctl &= ~E1000_RCTL_UPE;
@@ -2150,7 +2153,7 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 	 */
 	i = 1;
 	if (use_uc)
-		list_for_each_entry(ha, &netdev->uc.list, list) {
+		netdev_for_each_uc_addr(ha, netdev) {
 			if (i == rar_entries)
 				break;
 			e1000_rar_set(hw, ha->addr, i++);
@@ -2158,29 +2161,25 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 
 	WARN_ON(i == rar_entries);
 
-	mc_ptr = netdev->mc_list;
-
-	for (; i < rar_entries; i++) {
-		if (mc_ptr) {
-			e1000_rar_set(hw, mc_ptr->da_addr, i);
-			mc_ptr = mc_ptr->next;
+	netdev_for_each_mc_addr(mc_ptr, netdev) {
+		if (i == rar_entries) {
+			/* load any remaining addresses into the hash table */
+			u32 hash_reg, hash_bit, mta;
+			hash_value = e1000_hash_mc_addr(hw, mc_ptr->da_addr);
+			hash_reg = (hash_value >> 5) & 0x7F;
+			hash_bit = hash_value & 0x1F;
+			mta = (1 << hash_bit);
+			mcarray[hash_reg] |= mta;
 		} else {
-			E1000_WRITE_REG_ARRAY(hw, RA, i << 1, 0);
-			E1000_WRITE_FLUSH();
-			E1000_WRITE_REG_ARRAY(hw, RA, (i << 1) + 1, 0);
-			E1000_WRITE_FLUSH();
+			e1000_rar_set(hw, mc_ptr->da_addr, i++);
 		}
 	}
 
-	/* load any remaining addresses into the hash table */
-
-	for (; mc_ptr; mc_ptr = mc_ptr->next) {
-		u32 hash_reg, hash_bit, mta;
-		hash_value = e1000_hash_mc_addr(hw, mc_ptr->da_addr);
-		hash_reg = (hash_value >> 5) & 0x7F;
-		hash_bit = hash_value & 0x1F;
-		mta = (1 << hash_bit);
-		mcarray[hash_reg] |= mta;
+	for (; i < rar_entries; i++) {
+		E1000_WRITE_REG_ARRAY(hw, RA, i << 1, 0);
+		E1000_WRITE_FLUSH();
+		E1000_WRITE_REG_ARRAY(hw, RA, (i << 1) + 1, 0);
+		E1000_WRITE_FLUSH();
 	}
 
 	/* write the hash table completely, write from bottom to avoid
@@ -2246,7 +2245,7 @@ static void e1000_82547_tx_fifo_stall(unsigned long data)
 	}
 }
 
-static bool e1000_has_link(struct e1000_adapter *adapter)
+bool e1000_has_link(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	bool link_active = false;
@@ -4613,6 +4612,7 @@ static int e1000_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
+	pci_save_state(pdev);
 
 	if (adapter->need_ioport)
 		err = pci_enable_device(pdev);

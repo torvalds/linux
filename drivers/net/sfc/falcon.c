@@ -909,6 +909,8 @@ static int falcon_probe_port(struct efx_nic *efx)
 		efx->wanted_fc = EFX_FC_RX | EFX_FC_TX;
 	else
 		efx->wanted_fc = EFX_FC_RX;
+	if (efx->mdio.mmds & MDIO_DEVS_AN)
+		efx->wanted_fc |= EFX_FC_AUTO;
 
 	/* Allocate buffer for stats */
 	rc = efx_nic_alloc_buffer(efx, &efx->stats_buffer,
@@ -1006,7 +1008,7 @@ static int falcon_test_nvram(struct efx_nic *efx)
 
 static const struct efx_nic_register_test falcon_b0_register_tests[] = {
 	{ FR_AZ_ADR_REGION,
-	  EFX_OWORD32(0x0001FFFF, 0x0001FFFF, 0x0001FFFF, 0x0001FFFF) },
+	  EFX_OWORD32(0x0003FFFF, 0x0003FFFF, 0x0003FFFF, 0x0003FFFF) },
 	{ FR_AZ_RX_CFG,
 	  EFX_OWORD32(0xFFFFFFFE, 0x00017FFF, 0x00000000, 0x00000000) },
 	{ FR_AZ_TX_CFG,
@@ -1728,7 +1730,7 @@ static int falcon_set_wol(struct efx_nic *efx, u32 type)
 
 /**************************************************************************
  *
- * Revision-dependent attributes used by efx.c
+ * Revision-dependent attributes used by efx.c and nic.c
  *
  **************************************************************************
  */

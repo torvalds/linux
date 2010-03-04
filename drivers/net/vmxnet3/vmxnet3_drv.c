@@ -35,7 +35,7 @@ char vmxnet3_driver_name[] = "vmxnet3";
  * PCI Device ID Table
  * Last entry must be all 0s
  */
-static const struct pci_device_id vmxnet3_pciid_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(vmxnet3_pciid_table) = {
 	{PCI_VDEVICE(VMWARE, PCI_DEVICE_ID_VMWARE_VMXNET3)},
 	{0}
 };
@@ -1668,22 +1668,19 @@ static u8 *
 vmxnet3_copy_mc(struct net_device *netdev)
 {
 	u8 *buf = NULL;
-	u32 sz = netdev->mc_count * ETH_ALEN;
+	u32 sz = netdev_mc_count(netdev) * ETH_ALEN;
 
 	/* struct Vmxnet3_RxFilterConf.mfTableLen is u16. */
 	if (sz <= 0xffff) {
 		/* We may be called with BH disabled */
 		buf = kmalloc(sz, GFP_ATOMIC);
 		if (buf) {
-			int i;
-			struct dev_mc_list *mc = netdev->mc_list;
+			struct dev_mc_list *mc;
+			int i = 0;
 
-			for (i = 0; i < netdev->mc_count; i++) {
-				BUG_ON(!mc);
-				memcpy(buf + i * ETH_ALEN, mc->dmi_addr,
+			netdev_for_each_mc_addr(mc, netdev)
+				memcpy(buf + i++ * ETH_ALEN, mc->dmi_addr,
 				       ETH_ALEN);
-				mc = mc->next;
-			}
 		}
 	}
 	return buf;
@@ -1708,12 +1705,12 @@ vmxnet3_set_mc(struct net_device *netdev)
 	if (netdev->flags & IFF_ALLMULTI)
 		new_mode |= VMXNET3_RXM_ALL_MULTI;
 	else
-		if (netdev->mc_count > 0) {
+		if (!netdev_mc_empty(netdev)) {
 			new_table = vmxnet3_copy_mc(netdev);
 			if (new_table) {
 				new_mode |= VMXNET3_RXM_MCAST;
 				rxConf->mfTableLen = cpu_to_le16(
-						netdev->mc_count * ETH_ALEN);
+					netdev_mc_count(netdev) * ETH_ALEN);
 				rxConf->mfTablePA = cpu_to_le64(virt_to_phys(
 						    new_table));
 			} else {

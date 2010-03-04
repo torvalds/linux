@@ -679,11 +679,11 @@ Found in hex form in kernel source.
 
 Driver: bnx2x: Broadcom Everest
 
-File: bnx2x-e1-5.2.7.0.fw.ihex
-File: bnx2x-e1h-5.2.7.0.fw.ihex
+File: bnx2x-e1-5.2.13.0.fw
+File: bnx2x-e1h-5.2.13.0.fw
 
 License:
-  Copyright (c) 2007-2009 Broadcom Corporation
+  Copyright (c) 2007-2010 Broadcom Corporation
 
   This file contains firmware data derived from proprietary unpublished
   source code, Copyright (c) 2007-2009 Broadcom Corporation.

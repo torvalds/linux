@@ -520,6 +520,9 @@ char * __devinit  pcibios_setup(char *str)
 	} else if (!strcmp(str, "use_crs")) {
 		pci_probe |= PCI_USE__CRS;
 		return NULL;
+	} else if (!strcmp(str, "nocrs")) {
+		pci_probe |= PCI_ROOT_NO_CRS;
+		return NULL;
 	} else if (!strcmp(str, "earlydump")) {
 		pci_early_dump_regs = 1;
 		return NULL;

@@ -4234,7 +4234,7 @@ static int __init floppy_init(void)
 		err = -ENOMEM;
 		goto out_unreg_driver;
 	}
-	blk_queue_max_sectors(floppy_queue, 64);
+	blk_queue_max_hw_sectors(floppy_queue, 64);
 
 	blk_register_region(MKDEV(FLOPPY_MAJOR, 0), 256, THIS_MODULE,
 			    floppy_find, NULL, NULL);

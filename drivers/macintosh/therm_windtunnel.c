@@ -490,7 +490,7 @@ g4fan_init( void )
 	info = of_get_property(np, "thermal-info", NULL);
 	of_node_put(np);
 
-	if( !info || !machine_is_compatible("PowerMac3,6") )
+	if( !info || !of_machine_is_compatible("PowerMac3,6") )
 		return -ENODEV;
 
 	if( info->id != 3 ) {

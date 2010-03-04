@@ -164,7 +164,7 @@ MODULE_PARM_DESC(id, "ID string for the Audiowerk2 soundcard.");
 module_param_array(enable, bool, NULL, 0444);
 MODULE_PARM_DESC(enable, "Enable Audiowerk2 soundcard.");
 
-static struct pci_device_id snd_aw2_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_aw2_ids) = {
 	{PCI_VENDOR_ID_SAA7146, PCI_DEVICE_ID_SAA7146, 0, 0,
 	 0, 0, 0},
 	{0}

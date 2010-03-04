@@ -1189,7 +1189,7 @@ static struct inet_protosw dccp_v6_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
-static int dccp_v6_init_net(struct net *net)
+static int __net_init dccp_v6_init_net(struct net *net)
 {
 	int err;
 
@@ -1198,7 +1198,7 @@ static int dccp_v6_init_net(struct net *net)
 	return err;
 }
 
-static void dccp_v6_exit_net(struct net *net)
+static void __net_exit dccp_v6_exit_net(struct net *net)
 {
 	inet_ctl_sock_destroy(net->dccp.v6_ctl_sk);
 }

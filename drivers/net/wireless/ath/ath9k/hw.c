@@ -52,28 +52,6 @@ module_exit(ath9k_exit);
 /* Helper Functions */
 /********************/
 
-static u32 ath9k_hw_mac_usec(struct ath_hw *ah, u32 clks)
-{
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
-
-	if (!ah->curchan) /* should really check for CCK instead */
-		return clks / ATH9K_CLOCK_RATE_CCK;
-	if (conf->channel->band == IEEE80211_BAND_2GHZ)
-		return clks / ATH9K_CLOCK_RATE_2GHZ_OFDM;
-
-	return clks / ATH9K_CLOCK_RATE_5GHZ_OFDM;
-}
-
-static u32 ath9k_hw_mac_to_usec(struct ath_hw *ah, u32 clks)
-{
-	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
-
-	if (conf_is_ht40(conf))
-		return ath9k_hw_mac_usec(ah, clks) / 2;
-	else
-		return ath9k_hw_mac_usec(ah, clks);
-}
-
 static u32 ath9k_hw_mac_clks(struct ath_hw *ah, u32 usecs)
 {
 	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
@@ -343,30 +321,6 @@ static bool ath9k_hw_chip_test(struct ath_hw *ah)
 	return true;
 }
 
-static const char *ath9k_hw_devname(u16 devid)
-{
-	switch (devid) {
-	case AR5416_DEVID_PCI:
-		return "Atheros 5416";
-	case AR5416_DEVID_PCIE:
-		return "Atheros 5418";
-	case AR9160_DEVID_PCI:
-		return "Atheros 9160";
-	case AR5416_AR9100_DEVID:
-		return "Atheros 9100";
-	case AR9280_DEVID_PCI:
-	case AR9280_DEVID_PCIE:
-		return "Atheros 9280";
-	case AR9285_DEVID_PCIE:
-		return "Atheros 9285";
-	case AR5416_DEVID_AR9287_PCI:
-	case AR5416_DEVID_AR9287_PCIE:
-		return "Atheros 9287";
-	}
-
-	return NULL;
-}
-
 static void ath9k_hw_init_config(struct ath_hw *ah)
 {
 	int i;
@@ -380,7 +334,6 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 	ah->config.pcie_clock_req = 0;
 	ah->config.pcie_waen = 0;
 	ah->config.analog_shiftreg = 1;
-	ah->config.ht_enable = 1;
 	ah->config.ofdm_trig_low = 200;
 	ah->config.ofdm_trig_high = 500;
 	ah->config.cck_trig_high = 200;
@@ -392,7 +345,12 @@ static void ath9k_hw_init_config(struct ath_hw *ah)
 		ah->config.spurchans[i][1] = AR_NO_SPUR;
 	}
 
-	ah->config.intr_mitigation = true;
+	if (ah->hw_version.devid != AR2427_DEVID_PCIE)
+		ah->config.ht_enable = 1;
+	else
+		ah->config.ht_enable = 0;
+
+	ah->config.rx_intr_mitigation = true;
 
 	/*
 	 * We need this for PCI devices only (Cardbus, PCI, miniPCI)
@@ -437,8 +395,6 @@ static void ath9k_hw_init_defaults(struct ath_hw *ah)
 	ah->beacon_interval = 100;
 	ah->enable_32kHz_clock = DONT_USE_32KHZ;
 	ah->slottime = (u32) -1;
-	ah->acktimeout = (u32) -1;
-	ah->ctstimeout = (u32) -1;
 	ah->globaltxtimeout = (u32) -1;
 	ah->power_mode = ATH9K_PM_UNDEFINED;
 }
@@ -590,6 +546,7 @@ static bool ath9k_hw_devid_supported(u16 devid)
 	case AR5416_DEVID_AR9287_PCI:
 	case AR5416_DEVID_AR9287_PCIE:
 	case AR9271_USB:
+	case AR2427_DEVID_PCIE:
 		return true;
 	default:
 		break;
@@ -1183,7 +1140,7 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 		AR_IMR_RXORN |
 		AR_IMR_BCNMISC;
 
-	if (ah->config.intr_mitigation)
+	if (ah->config.rx_intr_mitigation)
 		ah->mask_reg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
 	else
 		ah->mask_reg |= AR_IMR_RXOK;
@@ -1203,34 +1160,25 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 	}
 }
 
-static bool ath9k_hw_set_ack_timeout(struct ath_hw *ah, u32 us)
+static void ath9k_hw_setslottime(struct ath_hw *ah, u32 us)
 {
-	if (us > ath9k_hw_mac_to_usec(ah, MS(0xffffffff, AR_TIME_OUT_ACK))) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_RESET,
-			  "bad ack timeout %u\n", us);
-		ah->acktimeout = (u32) -1;
-		return false;
-	} else {
-		REG_RMW_FIELD(ah, AR_TIME_OUT,
-			      AR_TIME_OUT_ACK, ath9k_hw_mac_to_clks(ah, us));
-		ah->acktimeout = us;
-		return true;
-	}
+	u32 val = ath9k_hw_mac_to_clks(ah, us);
+	val = min(val, (u32) 0xFFFF);
+	REG_WRITE(ah, AR_D_GBL_IFS_SLOT, val);
 }
 
-static bool ath9k_hw_set_cts_timeout(struct ath_hw *ah, u32 us)
+static void ath9k_hw_set_ack_timeout(struct ath_hw *ah, u32 us)
 {
-	if (us > ath9k_hw_mac_to_usec(ah, MS(0xffffffff, AR_TIME_OUT_CTS))) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_RESET,
-			  "bad cts timeout %u\n", us);
-		ah->ctstimeout = (u32) -1;
-		return false;
-	} else {
-		REG_RMW_FIELD(ah, AR_TIME_OUT,
-			      AR_TIME_OUT_CTS, ath9k_hw_mac_to_clks(ah, us));
-		ah->ctstimeout = us;
-		return true;
-	}
+	u32 val = ath9k_hw_mac_to_clks(ah, us);
+	val = min(val, (u32) MS(0xFFFFFFFF, AR_TIME_OUT_ACK));
+	REG_RMW_FIELD(ah, AR_TIME_OUT, AR_TIME_OUT_ACK, val);
+}
+
+static void ath9k_hw_set_cts_timeout(struct ath_hw *ah, u32 us)
+{
+	u32 val = ath9k_hw_mac_to_clks(ah, us);
+	val = min(val, (u32) MS(0xFFFFFFFF, AR_TIME_OUT_CTS));
+	REG_RMW_FIELD(ah, AR_TIME_OUT, AR_TIME_OUT_CTS, val);
 }
 
 static bool ath9k_hw_set_global_txtimeout(struct ath_hw *ah, u32 tu)
@@ -1247,31 +1195,48 @@ static bool ath9k_hw_set_global_txtimeout(struct ath_hw *ah, u32 tu)
 	}
 }
 
-static void ath9k_hw_init_user_settings(struct ath_hw *ah)
+void ath9k_hw_init_global_settings(struct ath_hw *ah)
 {
+	struct ieee80211_conf *conf = &ath9k_hw_common(ah)->hw->conf;
+	int acktimeout;
+	int slottime;
+	int sifstime;
+
 	ath_print(ath9k_hw_common(ah), ATH_DBG_RESET, "ah->misc_mode 0x%x\n",
 		  ah->misc_mode);
 
 	if (ah->misc_mode != 0)
 		REG_WRITE(ah, AR_PCU_MISC,
 			  REG_READ(ah, AR_PCU_MISC) | ah->misc_mode);
-	if (ah->slottime != (u32) -1)
-		ath9k_hw_setslottime(ah, ah->slottime);
-	if (ah->acktimeout != (u32) -1)
-		ath9k_hw_set_ack_timeout(ah, ah->acktimeout);
-	if (ah->ctstimeout != (u32) -1)
-		ath9k_hw_set_cts_timeout(ah, ah->ctstimeout);
+
+	if (conf->channel && conf->channel->band == IEEE80211_BAND_5GHZ)
+		sifstime = 16;
+	else
+		sifstime = 10;
+
+	/* As defined by IEEE 802.11-2007 17.3.8.6 */
+	slottime = ah->slottime + 3 * ah->coverage_class;
+	acktimeout = slottime + sifstime;
+
+	/*
+	 * Workaround for early ACK timeouts, add an offset to match the
+	 * initval's 64us ack timeout value.
+	 * This was initially only meant to work around an issue with delayed
+	 * BA frames in some implementations, but it has been found to fix ACK
+	 * timeout issues in other cases as well.
+	 */
+	if (conf->channel && conf->channel->band == IEEE80211_BAND_2GHZ)
+		acktimeout += 64 - sifstime - ah->slottime;
+
+	ath9k_hw_setslottime(ah, slottime);
+	ath9k_hw_set_ack_timeout(ah, acktimeout);
+	ath9k_hw_set_cts_timeout(ah, acktimeout);
 	if (ah->globaltxtimeout != (u32) -1)
 		ath9k_hw_set_global_txtimeout(ah, ah->globaltxtimeout);
 }
+EXPORT_SYMBOL(ath9k_hw_init_global_settings);
 
-const char *ath9k_hw_probe(u16 vendorid, u16 devid)
-{
-	return vendorid == ATHEROS_VENDOR_ID ?
-		ath9k_hw_devname(devid) : NULL;
-}
-
-void ath9k_hw_detach(struct ath_hw *ah)
+void ath9k_hw_deinit(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 
@@ -1289,7 +1254,7 @@ free_hw:
 	kfree(ah);
 	ah = NULL;
 }
-EXPORT_SYMBOL(ath9k_hw_detach);
+EXPORT_SYMBOL(ath9k_hw_deinit);
 
 /*******/
 /* INI */
@@ -1345,6 +1310,16 @@ static void ath9k_hw_override_ini(struct ath_hw *ah,
 	 * Necessary to avoid issues on AR5416 2.0
 	 */
 	REG_WRITE(ah, 0x9800 + (651 << 2), 0x11);
+
+	/*
+	 * Disable RIFS search on some chips to avoid baseband
+	 * hang issues.
+	 */
+	if (AR_SREV_9100(ah) || AR_SREV_9160(ah)) {
+		val = REG_READ(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS);
+		val &= ~AR_PHY_RIFS_INIT_DELAY;
+		REG_WRITE(ah, AR_PHY_HEAVY_CLIP_FACTOR_RIFS, val);
+	}
 }
 
 static u32 ath9k_hw_def_ini_fixup(struct ath_hw *ah,
@@ -2090,7 +2065,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 	if (ah->caps.hw_caps & ATH9K_HW_CAP_RFSILENT)
 		ath9k_enable_rfkill(ah);
 
-	ath9k_hw_init_user_settings(ah);
+	ath9k_hw_init_global_settings(ah);
 
 	if (AR_SREV_9287_12_OR_LATER(ah)) {
 		REG_WRITE(ah, AR_D_GBL_IFS_SIFS,
@@ -2120,7 +2095,7 @@ int ath9k_hw_reset(struct ath_hw *ah, struct ath9k_channel *chan,
 
 	REG_WRITE(ah, AR_OBS, 8);
 
-	if (ah->config.intr_mitigation) {
+	if (ah->config.rx_intr_mitigation) {
 		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_LAST, 500);
 		REG_RMW_FIELD(ah, AR_RIMT, AR_RIMT_FIRST, 2000);
 	}
@@ -2780,7 +2755,7 @@ bool ath9k_hw_getisr(struct ath_hw *ah, enum ath9k_int *masked)
 
 		*masked = isr & ATH9K_INT_COMMON;
 
-		if (ah->config.intr_mitigation) {
+		if (ah->config.rx_intr_mitigation) {
 			if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM))
 				*masked |= ATH9K_INT_RX;
 		}
@@ -2913,7 +2888,7 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 	}
 	if (ints & ATH9K_INT_RX) {
 		mask |= AR_IMR_RXERR;
-		if (ah->config.intr_mitigation)
+		if (ah->config.rx_intr_mitigation)
 			mask |= AR_IMR_RXMINTR | AR_IMR_RXINTM;
 		else
 			mask |= AR_IMR_RXOK | AR_IMR_RXDESC;
@@ -3686,21 +3661,6 @@ u64 ath9k_hw_extend_tsf(struct ath_hw *ah, u32 rstamp)
 	return (tsf & ~0x7fff) | rstamp;
 }
 EXPORT_SYMBOL(ath9k_hw_extend_tsf);
-
-bool ath9k_hw_setslottime(struct ath_hw *ah, u32 us)
-{
-	if (us < ATH9K_SLOT_TIME_9 || us > ath9k_hw_mac_to_usec(ah, 0xffff)) {
-		ath_print(ath9k_hw_common(ah), ATH_DBG_RESET,
-			  "bad slot time %u\n", us);
-		ah->slottime = (u32) -1;
-		return false;
-	} else {
-		REG_WRITE(ah, AR_D_GBL_IFS_SLOT, ath9k_hw_mac_to_clks(ah, us));
-		ah->slottime = us;
-		return true;
-	}
-}
-EXPORT_SYMBOL(ath9k_hw_setslottime);
 
 void ath9k_hw_set11nmac2040(struct ath_hw *ah)
 {

@@ -564,6 +564,16 @@ config I2C_VERSATILE
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-versatile.
 
+config I2C_OCTEON
+	tristate "Cavium OCTEON I2C bus support"
+	depends on CPU_CAVIUM_OCTEON
+	help
+	  Say yes if you want to support the I2C serial bus on Cavium
+	  OCTEON SOC.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called i2c-octeon.
+
 comment "External I2C/SMBus adapter drivers"
 
 config I2C_PARPORT

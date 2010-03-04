@@ -185,6 +185,15 @@ libs-$(CONFIG_SNIPROM)		+= arch/mips/fw/sni/
 libs-y				+= arch/mips/fw/lib/
 
 #
+# Kernel compression
+#
+ifdef SYS_SUPPORTS_ZBOOT
+COMPRESSION_FNAME		= vmlinuz
+else
+COMPRESSION_FNAME		= vmlinux
+endif
+
+#
 # Board-dependent options and extra files
 #
 
@@ -332,11 +341,11 @@ load-$(CONFIG_WR_PPMC)		+= 0xffffffff80100000
 #
 # Loongson family
 #
-core-$(CONFIG_MACH_LOONGSON) +=arch/mips/loongson/
+core-$(CONFIG_MACH_LOONGSON) += arch/mips/loongson/
 cflags-$(CONFIG_MACH_LOONGSON) += -I$(srctree)/arch/mips/include/asm/mach-loongson \
                     -mno-branch-likely
-load-$(CONFIG_LEMOTE_FULOONG2E) +=0xffffffff80100000
-load-$(CONFIG_LEMOTE_MACH2F) +=0xffffffff80200000
+load-$(CONFIG_LEMOTE_FULOONG2E) += 0xffffffff80100000
+load-$(CONFIG_LEMOTE_MACH2F) += 0xffffffff80200000
 
 #
 # MIPS Malta board
@@ -344,7 +353,7 @@ load-$(CONFIG_LEMOTE_MACH2F) +=0xffffffff80200000
 core-$(CONFIG_MIPS_MALTA)	+= arch/mips/mti-malta/
 cflags-$(CONFIG_MIPS_MALTA)	+= -I$(srctree)/arch/mips/include/asm/mach-malta
 load-$(CONFIG_MIPS_MALTA)	+= 0xffffffff80100000
-all-$(CONFIG_MIPS_MALTA)	:= vmlinuz.bin
+all-$(CONFIG_MIPS_MALTA)	:= $(COMPRESSION_FNAME).bin
 
 #
 # MIPS SIM
@@ -594,7 +603,7 @@ load-$(CONFIG_SNI_RM)		+= 0xffffffff80600000
 else
 load-$(CONFIG_SNI_RM)		+= 0xffffffff80030000
 endif
-all-$(CONFIG_SNI_RM)		:= vmlinuz.ecoff
+all-$(CONFIG_SNI_RM)		:= $(COMPRESSION_FNAME).ecoff
 
 #
 # Common TXx9

@@ -129,6 +129,7 @@
 #define TUNER_PARTSNIC_PTI_5NF05	81
 #define TUNER_PHILIPS_CU1216L           82
 #define TUNER_NXP_TDA18271		83
+#define TUNER_SONY_BTF_PXN01Z		84
 
 /* tv card specific */
 #define TDA9887_PRESENT 		(1<<0)

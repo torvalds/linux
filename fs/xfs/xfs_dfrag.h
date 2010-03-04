@@ -48,9 +48,6 @@ typedef struct xfs_swapext
  */
 int	xfs_swapext(struct xfs_swapext *sx);
 
-int	xfs_swap_extents(struct xfs_inode *ip, struct xfs_inode *tip,
-		struct xfs_swapext *sxp);
-
 #endif	/* __KERNEL__ */
 
 #endif	/* __XFS_DFRAG_H__ */

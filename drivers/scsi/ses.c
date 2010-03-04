@@ -448,13 +448,17 @@ static void ses_match_to_enclosure(struct enclosure_device *edev,
 		.addr = 0,
 	};
 
-	buf = scsi_get_vpd_page(sdev, 0x83);
-	if (!buf)
-		return;
+	buf = kmalloc(INIT_ALLOC_SIZE, GFP_KERNEL);
+	if (!buf || scsi_get_vpd_page(sdev, 0x83, buf, INIT_ALLOC_SIZE))
+		goto free;
 
 	ses_enclosure_data_process(edev, to_scsi_device(edev->edev.parent), 0);
 
 	vpd_len = ((buf[2] << 8) | buf[3]) + 4;
+	kfree(buf);
+	buf = kmalloc(vpd_len, GFP_KERNEL);
+	if (!buf ||scsi_get_vpd_page(sdev, 0x83, buf, vpd_len))
+		goto free;
 
 	desc = buf + 4;
 	while (desc < buf + vpd_len) {

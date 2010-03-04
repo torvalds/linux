@@ -50,9 +50,6 @@ static int lpfc_issue_els_fdisc(struct lpfc_vport *vport,
 				struct lpfc_nodelist *ndlp, uint8_t retry);
 static int lpfc_issue_fabric_iocb(struct lpfc_hba *phba,
 				  struct lpfc_iocbq *iocb);
-static void lpfc_register_new_vport(struct lpfc_hba *phba,
-				    struct lpfc_vport *vport,
-				    struct lpfc_nodelist *ndlp);
 
 static int lpfc_max_els_tries = 3;
 
@@ -592,6 +589,15 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 			spin_unlock_irq(shost->host_lock);
 		}
+		/*
+		 * If VPI is unreged, driver need to do INIT_VPI
+		 * before re-registering
+		 */
+		if (phba->sli_rev == LPFC_SLI_REV4) {
+			spin_lock_irq(shost->host_lock);
+			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+			spin_unlock_irq(shost->host_lock);
+		}
 	}
 
 	if (phba->sli_rev < LPFC_SLI_REV4) {
@@ -604,10 +610,13 @@ lpfc_cmpl_els_flogi_fabric(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	} else {
 		ndlp->nlp_type |= NLP_FABRIC;
 		lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
-		if (vport->vpi_state & LPFC_VPI_REGISTERED) {
+		if ((!(vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)) &&
+			(vport->vpi_state & LPFC_VPI_REGISTERED)) {
 			lpfc_start_fdiscs(phba);
 			lpfc_do_scr_ns_plogi(phba, vport);
-		} else
+		} else if (vport->fc_flag & FC_VFI_REGISTERED)
+			lpfc_issue_init_vpi(vport);
+		else
 			lpfc_issue_reg_vfi(vport);
 	}
 	return 0;
@@ -804,6 +813,9 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 				 irsp->ulpTimeout);
 		goto flogifail;
 	}
+	spin_lock_irq(shost->host_lock);
+	vport->fc_flag &= ~FC_VPORT_CVL_RCVD;
+	spin_unlock_irq(shost->host_lock);
 
 	/*
 	 * The FLogI succeeded.  Sync the data for the CPU before
@@ -2720,7 +2732,7 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	if (did == FDMI_DID)
 		retry = 1;
 
-	if ((cmd == ELS_CMD_FLOGI) &&
+	if (((cmd == ELS_CMD_FLOGI) || (cmd == ELS_CMD_FDISC)) &&
 	    (phba->fc_topology != TOPOLOGY_LOOP) &&
 	    !lpfc_error_lost_link(irsp)) {
 		/* FLOGI retry policy */
@@ -4385,7 +4397,7 @@ lpfc_els_rcv_flogi(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	did = Fabric_DID;
 
-	if ((lpfc_check_sparm(vport, ndlp, sp, CLASS3))) {
+	if ((lpfc_check_sparm(vport, ndlp, sp, CLASS3, 1))) {
 		/* For a FLOGI we accept, then if our portname is greater
 		 * then the remote portname we initiate Nport login.
 		 */
@@ -5915,6 +5927,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct Scsi_Host  *shost = lpfc_shost_from_vport(vport);
 	struct lpfc_nodelist *ndlp = (struct lpfc_nodelist *) pmb->context2;
 	MAILBOX_t *mb = &pmb->u.mb;
+	int rc;
 
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;
@@ -5936,6 +5949,26 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			spin_unlock_irq(shost->host_lock);
 			lpfc_can_disctmo(vport);
 			break;
+		/* If reg_vpi fail with invalid VPI status, re-init VPI */
+		case 0x20:
+			spin_lock_irq(shost->host_lock);
+			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+			spin_unlock_irq(shost->host_lock);
+			lpfc_init_vpi(phba, pmb, vport->vpi);
+			pmb->vport = vport;
+			pmb->mbox_cmpl = lpfc_init_vpi_cmpl;
+			rc = lpfc_sli_issue_mbox(phba, pmb,
+				MBX_NOWAIT);
+			if (rc == MBX_NOT_FINISHED) {
+				lpfc_printf_vlog(vport,
+					KERN_ERR, LOG_MBOX,
+					"2732 Failed to issue INIT_VPI"
+					" mailbox command\n");
+			} else {
+				lpfc_nlp_put(ndlp);
+				return;
+			}
+
 		default:
 			/* Try to recover from this error */
 			lpfc_mbx_unreg_vpi(vport);
@@ -5949,13 +5982,17 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			break;
 		}
 	} else {
+		spin_lock_irq(shost->host_lock);
 		vport->vpi_state |= LPFC_VPI_REGISTERED;
-		if (vport == phba->pport)
+		spin_unlock_irq(shost->host_lock);
+		if (vport == phba->pport) {
 			if (phba->sli_rev < LPFC_SLI_REV4)
 				lpfc_issue_fabric_reglogin(vport);
-			else
-				lpfc_issue_reg_vfi(vport);
-		else
+			else {
+				lpfc_start_fdiscs(phba);
+				lpfc_do_scr_ns_plogi(phba, vport);
+			}
+		} else
 			lpfc_do_scr_ns_plogi(phba, vport);
 	}
 
@@ -5977,7 +6014,7 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
  * This routine registers the @vport as a new virtual port with a HBA.
  * It is done through a registering vpi mailbox command.
  **/
-static void
+void
 lpfc_register_new_vport(struct lpfc_hba *phba, struct lpfc_vport *vport,
 			struct lpfc_nodelist *ndlp)
 {
@@ -6015,6 +6052,78 @@ mbox_err_exit:
 	vport->fc_flag &= ~FC_VPORT_NEEDS_REG_VPI;
 	spin_unlock_irq(shost->host_lock);
 	return;
+}
+
+/**
+ * lpfc_retry_pport_discovery - Start timer to retry FLOGI.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine abort all pending discovery commands and
+ * start a timer to retry FLOGI for the physical port
+ * discovery.
+ **/
+void
+lpfc_retry_pport_discovery(struct lpfc_hba *phba)
+{
+	struct lpfc_vport **vports;
+	struct lpfc_nodelist *ndlp;
+	struct Scsi_Host  *shost;
+	int i;
+	uint32_t link_state;
+
+	/* Treat this failure as linkdown for all vports */
+	link_state = phba->link_state;
+	lpfc_linkdown(phba);
+	phba->link_state = link_state;
+
+	vports = lpfc_create_vport_work_array(phba);
+
+	if (vports) {
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++) {
+			ndlp = lpfc_findnode_did(vports[i], Fabric_DID);
+			if (ndlp)
+				lpfc_cancel_retry_delay_tmo(vports[i], ndlp);
+			lpfc_els_flush_cmd(vports[i]);
+		}
+		lpfc_destroy_vport_work_array(phba, vports);
+	}
+
+	/* If fabric require FLOGI, then re-instantiate physical login */
+	ndlp = lpfc_findnode_did(phba->pport, Fabric_DID);
+	if (!ndlp)
+		return;
+
+
+	shost = lpfc_shost_from_vport(phba->pport);
+	mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
+	spin_lock_irq(shost->host_lock);
+	ndlp->nlp_flag |= NLP_DELAY_TMO;
+	spin_unlock_irq(shost->host_lock);
+	ndlp->nlp_last_elscmd = ELS_CMD_FLOGI;
+	phba->pport->port_state = LPFC_FLOGI;
+	return;
+}
+
+/**
+ * lpfc_fabric_login_reqd - Check if FLOGI required.
+ * @phba: pointer to lpfc hba data structure.
+ * @cmdiocb: pointer to FDISC command iocb.
+ * @rspiocb: pointer to FDISC response iocb.
+ *
+ * This routine checks if a FLOGI is reguired for FDISC
+ * to succeed.
+ **/
+static int
+lpfc_fabric_login_reqd(struct lpfc_hba *phba,
+		struct lpfc_iocbq *cmdiocb,
+		struct lpfc_iocbq *rspiocb)
+{
+
+	if ((rspiocb->iocb.ulpStatus != IOSTAT_FABRIC_RJT) ||
+		(rspiocb->iocb.un.ulpWord[4] != RJT_LOGIN_REQUIRED))
+		return 0;
+	else
+		return 1;
 }
 
 /**
@@ -6066,6 +6175,12 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		irsp->ulpStatus, irsp->un.ulpWord[4], vport->fc_prevDID);
 
 	if (irsp->ulpStatus) {
+
+		if (lpfc_fabric_login_reqd(phba, cmdiocb, rspiocb)) {
+			lpfc_retry_pport_discovery(phba);
+			goto out;
+		}
+
 		/* Check for retry */
 		if (lpfc_els_retry(phba, cmdiocb, rspiocb))
 			goto out;
@@ -6076,6 +6191,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		goto fdisc_failed;
 	}
 	spin_lock_irq(shost->host_lock);
+	vport->fc_flag &= ~FC_VPORT_CVL_RCVD;
 	vport->fc_flag |= FC_FABRIC;
 	if (vport->phba->fc_topology == TOPOLOGY_LOOP)
 		vport->fc_flag |=  FC_PUBLIC_LOOP;
@@ -6103,10 +6219,13 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		lpfc_mbx_unreg_vpi(vport);
 		spin_lock_irq(shost->host_lock);
 		vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
+		vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
 		spin_unlock_irq(shost->host_lock);
 	}
 
-	if (vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)
+	if (vport->fc_flag & FC_VPORT_NEEDS_INIT_VPI)
+		lpfc_issue_init_vpi(vport);
+	else if (vport->fc_flag & FC_VPORT_NEEDS_REG_VPI)
 		lpfc_register_new_vport(phba, vport, ndlp);
 	else
 		lpfc_do_scr_ns_plogi(phba, vport);

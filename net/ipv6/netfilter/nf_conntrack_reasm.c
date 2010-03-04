@@ -45,9 +45,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 
-#define NF_CT_FRAG6_HIGH_THRESH 262144 /* == 256*1024 */
-#define NF_CT_FRAG6_LOW_THRESH 196608  /* == 192*1024 */
-#define NF_CT_FRAG6_TIMEOUT IPV6_FRAG_TIMEOUT
 
 struct nf_ct_frag6_skb_cb
 {
@@ -472,7 +469,7 @@ nf_ct_frag6_reasm(struct nf_ct_frag6_queue *fq, struct net_device *dev)
 
 	/* all original skbs are linked into the NFCT_FRAG6_CB(head).orig */
 	fp = skb_shinfo(head)->frag_list;
-	if (NFCT_FRAG6_CB(fp)->orig == NULL)
+	if (fp && NFCT_FRAG6_CB(fp)->orig == NULL)
 		/* at above code, head skb is divided into two skbs. */
 		fp = fp->next;
 
@@ -598,12 +595,6 @@ struct sk_buff *nf_ct_frag6_gather(struct sk_buff *skb, u32 user)
 	hdr = ipv6_hdr(clone);
 	fhdr = (struct frag_hdr *)skb_transport_header(clone);
 
-	if (!(fhdr->frag_off & htons(0xFFF9))) {
-		pr_debug("Invalid fragment offset\n");
-		/* It is not a fragmented frame */
-		goto ret_orig;
-	}
-
 	if (atomic_read(&nf_init_frags.mem) > nf_init_frags.high_thresh)
 		nf_ct_frag6_evictor();
 
@@ -670,8 +661,8 @@ int nf_ct_frag6_init(void)
 	nf_frags.frag_expire = nf_ct_frag6_expire;
 	nf_frags.secret_interval = 10 * 60 * HZ;
 	nf_init_frags.timeout = IPV6_FRAG_TIMEOUT;
-	nf_init_frags.high_thresh = 256 * 1024;
-	nf_init_frags.low_thresh = 192 * 1024;
+	nf_init_frags.high_thresh = IPV6_FRAG_HIGH_THRESH;
+	nf_init_frags.low_thresh = IPV6_FRAG_LOW_THRESH;
 	inet_frags_init_net(&nf_init_frags);
 	inet_frags_init(&nf_frags);
 

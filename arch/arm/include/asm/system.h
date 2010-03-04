@@ -73,8 +73,7 @@ extern unsigned int mem_fclk_21285;
 
 struct pt_regs;
 
-void die(const char *msg, struct pt_regs *regs, int err)
-		__attribute__((noreturn));
+void die(const char *msg, struct pt_regs *regs, int err);
 
 struct siginfo;
 void arm_notify_die(const char *str, struct pt_regs *regs, struct siginfo *info,

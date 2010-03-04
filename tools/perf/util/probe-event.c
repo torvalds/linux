@@ -37,6 +37,8 @@
 #include "string.h"
 #include "strlist.h"
 #include "debug.h"
+#include "cache.h"
+#include "color.h"
 #include "parse-events.h"  /* For debugfs_path */
 #include "probe-event.h"
 
@@ -60,6 +62,42 @@ static int e_snprintf(char *str, size_t size, const char *format, ...)
 	if (ret >= (int)size)
 		ret = -E2BIG;
 	return ret;
+}
+
+void parse_line_range_desc(const char *arg, struct line_range *lr)
+{
+	const char *ptr;
+	char *tmp;
+	/*
+	 * <Syntax>
+	 * SRC:SLN[+NUM|-ELN]
+	 * FUNC[:SLN[+NUM|-ELN]]
+	 */
+	ptr = strchr(arg, ':');
+	if (ptr) {
+		lr->start = (unsigned int)strtoul(ptr + 1, &tmp, 0);
+		if (*tmp == '+')
+			lr->end = lr->start + (unsigned int)strtoul(tmp + 1,
+								    &tmp, 0);
+		else if (*tmp == '-')
+			lr->end = (unsigned int)strtoul(tmp + 1, &tmp, 0);
+		else
+			lr->end = 0;
+		pr_debug("Line range is %u to %u\n", lr->start, lr->end);
+		if (lr->end && lr->start > lr->end)
+			semantic_error("Start line must be smaller"
+				       " than end line.");
+		if (*tmp != '\0')
+			semantic_error("Tailing with invalid character '%d'.",
+				       *tmp);
+		tmp = strndup(arg, (ptr - arg));
+	} else
+		tmp = strdup(arg);
+
+	if (strchr(tmp, '.'))
+		lr->file = tmp;
+	else
+		lr->function = tmp;
 }
 
 /* Check the name is good for event/group */
@@ -370,7 +408,7 @@ static int open_kprobe_events(int flags, int mode)
 	if (ret < 0) {
 		if (errno == ENOENT)
 			die("kprobe_events file does not exist -"
-			    " please rebuild with CONFIG_KPROBE_TRACER.");
+			    " please rebuild with CONFIG_KPROBE_EVENT.");
 		else
 			die("Could not open kprobe_events file: %s",
 			    strerror(errno));
@@ -456,6 +494,8 @@ void show_perf_probe_events(void)
 	struct probe_point pp;
 	struct strlist *rawlist;
 	struct str_node *ent;
+
+	setup_pager();
 
 	memset(&pp, 0, sizeof(pp));
 	fd = open_kprobe_events(O_RDONLY, 0);
@@ -678,3 +718,66 @@ void del_trace_kprobe_events(struct strlist *dellist)
 	close(fd);
 }
 
+#define LINEBUF_SIZE 256
+
+static void show_one_line(FILE *fp, unsigned int l, bool skip, bool show_num)
+{
+	char buf[LINEBUF_SIZE];
+	const char *color = PERF_COLOR_BLUE;
+
+	if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
+		goto error;
+	if (!skip) {
+		if (show_num)
+			fprintf(stdout, "%7u  %s", l, buf);
+		else
+			color_fprintf(stdout, color, "         %s", buf);
+	}
+
+	while (strlen(buf) == LINEBUF_SIZE - 1 &&
+	       buf[LINEBUF_SIZE - 2] != '\n') {
+		if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
+			goto error;
+		if (!skip) {
+			if (show_num)
+				fprintf(stdout, "%s", buf);
+			else
+				color_fprintf(stdout, color, "%s", buf);
+		}
+	}
+	return;
+error:
+	if (feof(fp))
+		die("Source file is shorter than expected.");
+	else
+		die("File read error: %s", strerror(errno));
+}
+
+void show_line_range(struct line_range *lr)
+{
+	unsigned int l = 1;
+	struct line_node *ln;
+	FILE *fp;
+
+	setup_pager();
+
+	if (lr->function)
+		fprintf(stdout, "<%s:%d>\n", lr->function,
+			lr->start - lr->offset);
+	else
+		fprintf(stdout, "<%s:%d>\n", lr->file, lr->start);
+
+	fp = fopen(lr->path, "r");
+	if (fp == NULL)
+		die("Failed to open %s: %s", lr->path, strerror(errno));
+	/* Skip to starting line number */
+	while (l < lr->start)
+		show_one_line(fp, l++, true, false);
+
+	list_for_each_entry(ln, &lr->line_list, list) {
+		while (ln->line > l)
+			show_one_line(fp, (l++) - lr->offset, false, false);
+		show_one_line(fp, (l++) - lr->offset, false, true);
+	}
+	fclose(fp);
+}

@@ -80,7 +80,7 @@ enum {
 #define CH_DEVICE(devid, idx) \
 	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, PCI_ANY_ID, 0, 0, idx }
 
-static const struct pci_device_id cxgb3_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(cxgb3_pci_tbl) = {
 	CH_DEVICE(0x20, 0),	/* PE9000 */
 	CH_DEVICE(0x21, 1),	/* T302E */
 	CH_DEVICE(0x22, 2),	/* T310E */
@@ -324,11 +324,9 @@ void t3_os_phymod_changed(struct adapter *adap, int port_id)
 
 static void cxgb_set_rxmode(struct net_device *dev)
 {
-	struct t3_rx_mode rm;
 	struct port_info *pi = netdev_priv(dev);
 
-	init_rx_mode(&rm, dev, dev->mc_list);
-	t3_mac_set_rx_mode(&pi->mac, &rm);
+	t3_mac_set_rx_mode(&pi->mac, dev);
 }
 
 /**
@@ -339,17 +337,15 @@ static void cxgb_set_rxmode(struct net_device *dev)
  */
 static void link_start(struct net_device *dev)
 {
-	struct t3_rx_mode rm;
 	struct port_info *pi = netdev_priv(dev);
 	struct cmac *mac = &pi->mac;
 
-	init_rx_mode(&rm, dev, dev->mc_list);
 	t3_mac_reset(mac);
 	t3_mac_set_num_ucast(mac, MAX_MAC_IDX);
 	t3_mac_set_mtu(mac, dev->mtu);
 	t3_mac_set_address(mac, LAN_MAC_IDX, dev->dev_addr);
 	t3_mac_set_address(mac, SAN_MAC_IDX, pi->iscsic.mac_addr);
-	t3_mac_set_rx_mode(mac, &rm);
+	t3_mac_set_rx_mode(mac, dev);
 	t3_link_start(&pi->phy, mac, &pi->link_config);
 	t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
 }

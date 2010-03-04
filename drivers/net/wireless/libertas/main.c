@@ -123,7 +123,7 @@ static ssize_t lbs_rtap_set(struct device *dev,
 		if (priv->monitormode == monitor_mode)
 			return strlen(buf);
 		if (!priv->monitormode) {
-			if (priv->infra_open || priv->mesh_open)
+			if (priv->infra_open || lbs_mesh_open(priv))
 				return -EBUSY;
 			if (priv->mode == IW_MODE_INFRA)
 				lbs_cmd_80211_deauthenticate(priv,
@@ -319,15 +319,18 @@ static int lbs_add_mcast_addrs(struct cmd_ds_mac_multicast_adr *cmd,
 {
 	int i = nr_addrs;
 	struct dev_mc_list *mc_list;
+	int cnt;
 
 	if ((dev->flags & (IFF_UP|IFF_MULTICAST)) != (IFF_UP|IFF_MULTICAST))
 		return nr_addrs;
 
 	netif_addr_lock_bh(dev);
-	for (mc_list = dev->mc_list; mc_list; mc_list = mc_list->next) {
+	cnt = netdev_mc_count(dev);
+	netdev_for_each_mc_addr(mc_list, dev) {
 		if (mac_in_list(cmd->maclist, nr_addrs, mc_list->dmi_addr)) {
 			lbs_deb_net("mcast address %s:%pM skipped\n", dev->name,
 				    mc_list->dmi_addr);
+			cnt--;
 			continue;
 		}
 
@@ -337,9 +340,10 @@ static int lbs_add_mcast_addrs(struct cmd_ds_mac_multicast_adr *cmd,
 		lbs_deb_net("mcast address %s:%pM added to filter\n", dev->name,
 			    mc_list->dmi_addr);
 		i++;
+		cnt--;
 	}
 	netif_addr_unlock_bh(dev);
-	if (mc_list)
+	if (cnt)
 		return -EOVERFLOW;
 
 	return i;
@@ -536,30 +540,13 @@ static int lbs_thread(void *data)
 		if (priv->cmd_timed_out && priv->cur_cmd) {
 			struct cmd_ctrl_node *cmdnode = priv->cur_cmd;
 
-			if (++priv->nr_retries > 3) {
-				lbs_pr_info("Excessive timeouts submitting "
-					"command 0x%04x\n",
-					le16_to_cpu(cmdnode->cmdbuf->command));
-				lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
-				priv->nr_retries = 0;
-				if (priv->reset_card)
-					priv->reset_card(priv);
-			} else {
-				priv->cur_cmd = NULL;
-				priv->dnld_sent = DNLD_RES_RECEIVED;
-				lbs_pr_info("requeueing command 0x%04x due "
-					"to timeout (#%d)\n",
-					le16_to_cpu(cmdnode->cmdbuf->command),
-					priv->nr_retries);
-
-				/* Stick it back at the _top_ of the pending queue
-				   for immediate resubmission */
-				list_add(&cmdnode->list, &priv->cmdpendingq);
-			}
+			lbs_pr_info("Timeout submitting command 0x%04x\n",
+				le16_to_cpu(cmdnode->cmdbuf->command));
+			lbs_complete_command(priv, cmdnode, -ETIMEDOUT);
+			if (priv->reset_card)
+				priv->reset_card(priv);
 		}
 		priv->cmd_timed_out = 0;
-
-
 
 		if (!priv->fw_ready)
 			continue;
@@ -622,7 +609,7 @@ static int lbs_thread(void *data)
 				if (priv->connect_status == LBS_CONNECTED)
 					netif_wake_queue(priv->dev);
 				if (priv->mesh_dev &&
-				    priv->mesh_connect_status == LBS_CONNECTED)
+				    lbs_mesh_connected(priv))
 					netif_wake_queue(priv->mesh_dev);
 			}
 		}
@@ -732,7 +719,7 @@ done:
  *  This function handles the timeout of command sending.
  *  It will re-send the same command again.
  */
-static void command_timer_fn(unsigned long data)
+static void lbs_cmd_timeout_handler(unsigned long data)
 {
 	struct lbs_private *priv = (struct lbs_private *)data;
 	unsigned long flags;
@@ -809,18 +796,6 @@ int lbs_exit_auto_deep_sleep(struct lbs_private *priv)
 	return 0;
 }
 
-static void lbs_sync_channel_worker(struct work_struct *work)
-{
-	struct lbs_private *priv = container_of(work, struct lbs_private,
-		sync_channel);
-
-	lbs_deb_enter(LBS_DEB_MAIN);
-	if (lbs_update_channel(priv))
-		lbs_pr_info("Channel synchronization failed.");
-	lbs_deb_leave(LBS_DEB_MAIN);
-}
-
-
 static int lbs_init_adapter(struct lbs_private *priv)
 {
 	size_t bufsize;
@@ -848,14 +823,12 @@ static int lbs_init_adapter(struct lbs_private *priv)
 	memset(priv->current_addr, 0xff, ETH_ALEN);
 
 	priv->connect_status = LBS_DISCONNECTED;
-	priv->mesh_connect_status = LBS_DISCONNECTED;
 	priv->secinfo.auth_mode = IW_AUTH_ALG_OPEN_SYSTEM;
 	priv->mode = IW_MODE_INFRA;
 	priv->channel = DEFAULT_AD_HOC_CHANNEL;
 	priv->mac_control = CMD_ACT_MAC_RX_ON | CMD_ACT_MAC_TX_ON;
 	priv->radio_on = 1;
 	priv->enablehwauto = 1;
-	priv->capability = WLAN_CAPABILITY_SHORT_PREAMBLE;
 	priv->psmode = LBS802_11POWERMODECAM;
 	priv->psstate = PS_STATE_FULL_POWER;
 	priv->is_deep_sleep = 0;
@@ -865,7 +838,7 @@ static int lbs_init_adapter(struct lbs_private *priv)
 
 	mutex_init(&priv->lock);
 
-	setup_timer(&priv->command_timer, command_timer_fn,
+	setup_timer(&priv->command_timer, lbs_cmd_timeout_handler,
 		(unsigned long)priv);
 	setup_timer(&priv->auto_deepsleep_timer, auto_deepsleep_timer_fn,
 			(unsigned long)priv);
@@ -998,11 +971,6 @@ struct lbs_private *lbs_add_card(void *card, struct device *dmdev)
 	INIT_DELAYED_WORK(&priv->assoc_work, lbs_association_worker);
 	INIT_DELAYED_WORK(&priv->scan_work, lbs_scan_worker);
 	INIT_WORK(&priv->mcast_work, lbs_set_mcast_worker);
-	INIT_WORK(&priv->sync_channel, lbs_sync_channel_worker);
-
-	priv->mesh_open = 0;
-	sprintf(priv->mesh_ssid, "mesh");
-	priv->mesh_ssid_len = 4;
 
 	priv->wol_criteria = 0xffffffff;
 	priv->wol_gpio = 0xff;
@@ -1076,6 +1044,17 @@ void lbs_remove_card(struct lbs_private *priv)
 EXPORT_SYMBOL_GPL(lbs_remove_card);
 
 
+static int lbs_rtap_supported(struct lbs_private *priv)
+{
+	if (MRVL_FW_MAJOR_REV(priv->fwrelease) == MRVL_FW_V5)
+		return 1;
+
+	/* newer firmware use a capability mask */
+	return ((MRVL_FW_MAJOR_REV(priv->fwrelease) >= MRVL_FW_V10) &&
+		(priv->fwcapinfo & MESH_CAPINFO_ENABLE_MASK));
+}
+
+
 int lbs_start_card(struct lbs_private *priv)
 {
 	struct net_device *dev = priv->dev;
@@ -1095,12 +1074,14 @@ int lbs_start_card(struct lbs_private *priv)
 
 	lbs_update_channel(priv);
 
+	lbs_init_mesh(priv);
+
 	/*
 	 * While rtap isn't related to mesh, only mesh-enabled
 	 * firmware implements the rtap functionality via
 	 * CMD_802_11_MONITOR_MODE.
 	 */
-	if (lbs_init_mesh(priv)) {
+	if (lbs_rtap_supported(priv)) {
 		if (device_create_file(&dev->dev, &dev_attr_lbs_rtap))
 			lbs_pr_err("cannot register lbs_rtap attribute\n");
 	}
@@ -1134,7 +1115,9 @@ void lbs_stop_card(struct lbs_private *priv)
 	netif_carrier_off(dev);
 
 	lbs_debugfs_remove_one(priv);
-	if (lbs_deinit_mesh(priv))
+	lbs_deinit_mesh(priv);
+
+	if (lbs_rtap_supported(priv))
 		device_remove_file(&dev->dev, &dev_attr_lbs_rtap);
 
 	/* Delete the timeout of the currently processing command */

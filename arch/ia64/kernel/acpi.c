@@ -60,11 +60,6 @@
 
 #define PREFIX			"ACPI: "
 
-void (*pm_idle) (void);
-EXPORT_SYMBOL(pm_idle);
-void (*pm_power_off) (void);
-EXPORT_SYMBOL(pm_power_off);
-
 u32 acpi_rsdt_forced;
 unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
@@ -83,12 +78,10 @@ static unsigned long __init acpi_find_rsdp(void)
 		       "v1.0/r0.71 tables no longer supported\n");
 	return rsdp_phys;
 }
-#endif
 
 const char __init *
 acpi_get_sysname(void)
 {
-#ifdef CONFIG_IA64_GENERIC
 	unsigned long rsdp_phys;
 	struct acpi_table_rsdp *rsdp;
 	struct acpi_table_xsdt *xsdt;
@@ -143,30 +136,8 @@ acpi_get_sysname(void)
 #endif
 
 	return "dig";
-#else
-# if defined (CONFIG_IA64_HP_SIM)
-	return "hpsim";
-# elif defined (CONFIG_IA64_HP_ZX1)
-	return "hpzx1";
-# elif defined (CONFIG_IA64_HP_ZX1_SWIOTLB)
-	return "hpzx1_swiotlb";
-# elif defined (CONFIG_IA64_SGI_SN2)
-	return "sn2";
-# elif defined (CONFIG_IA64_SGI_UV)
-	return "uv";
-# elif defined (CONFIG_IA64_DIG)
-	return "dig";
-# elif defined (CONFIG_IA64_XEN_GUEST)
-	return "xen";
-# elif defined(CONFIG_IA64_DIG_VTD)
-	return "dig_vtd";
-# else
-#	error Unknown platform.  Fix acpi.c.
-# endif
-#endif
 }
-
-#ifdef CONFIG_ACPI
+#endif /* CONFIG_IA64_GENERIC */
 
 #define ACPI_MAX_PLATFORM_INTERRUPTS	256
 
@@ -1060,5 +1031,3 @@ void acpi_restore_state_mem(void) {}
  * do_suspend_lowlevel()
  */
 void do_suspend_lowlevel(void) {}
-
-#endif				/* CONFIG_ACPI */

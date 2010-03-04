@@ -62,7 +62,6 @@
 #define HASH_SIZE  16
 #define HASH(addr) (((__force u32)addr^((__force u32)addr>>4))&0xF)
 
-static void ipip6_fb_tunnel_init(struct net_device *dev);
 static void ipip6_tunnel_init(struct net_device *dev);
 static void ipip6_tunnel_setup(struct net_device *dev);
 
@@ -364,7 +363,6 @@ ipip6_tunnel_add_prl(struct ip_tunnel *t, struct ip_tunnel_prl *a, int chg)
 		goto out;
 	}
 
-	INIT_RCU_HEAD(&p->rcu_head);
 	p->next = t->prl;
 	p->addr = a->addr;
 	p->flags = a->flags;
@@ -745,7 +743,7 @@ static netdev_tx_t ipip6_tunnel_xmit(struct sk_buff *skb,
 			skb_dst(skb)->ops->update_pmtu(skb_dst(skb), mtu);
 
 		if (skb->len > mtu) {
-			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, dev);
+			icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 			ip_rt_put(rt);
 			goto tx_error;
 		}
@@ -1120,7 +1118,7 @@ static void ipip6_tunnel_init(struct net_device *dev)
 	ipip6_tunnel_bind_dev(dev);
 }
 
-static void ipip6_fb_tunnel_init(struct net_device *dev)
+static void __net_init ipip6_fb_tunnel_init(struct net_device *dev)
 {
 	struct ip_tunnel *tunnel = netdev_priv(dev);
 	struct iphdr *iph = &tunnel->parms.iph;
@@ -1145,7 +1143,7 @@ static struct xfrm_tunnel sit_handler = {
 	.priority	=	1,
 };
 
-static void sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
+static void __net_exit sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
 {
 	int prio;
 
@@ -1162,7 +1160,7 @@ static void sit_destroy_tunnels(struct sit_net *sitn, struct list_head *head)
 	}
 }
 
-static int sit_init_net(struct net *net)
+static int __net_init sit_init_net(struct net *net)
 {
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 	int err;
@@ -1195,7 +1193,7 @@ err_alloc_dev:
 	return err;
 }
 
-static void sit_exit_net(struct net *net)
+static void __net_exit sit_exit_net(struct net *net)
 {
 	struct sit_net *sitn = net_generic(net, sit_net_id);
 	LIST_HEAD(list);
@@ -1228,15 +1226,14 @@ static int __init sit_init(void)
 
 	printk(KERN_INFO "IPv6 over IPv4 tunneling driver\n");
 
-	if (xfrm4_tunnel_register(&sit_handler, AF_INET6) < 0) {
-		printk(KERN_INFO "sit init: Can't add protocol\n");
-		return -EAGAIN;
-	}
-
 	err = register_pernet_device(&sit_net_ops);
 	if (err < 0)
-		xfrm4_tunnel_deregister(&sit_handler, AF_INET6);
-
+		return err;
+	err = xfrm4_tunnel_register(&sit_handler, AF_INET6);
+	if (err < 0) {
+		unregister_pernet_device(&sit_net_ops);
+		printk(KERN_INFO "sit init: Can't add protocol\n");
+	}
 	return err;
 }
 

@@ -88,11 +88,3 @@ unsigned long clk_get_rate(struct clk *clk)
 	return rate;
 }
 EXPORT_SYMBOL(clk_get_rate);
-
-void clks_register(struct clk_lookup *clks, size_t num)
-{
-	int i;
-
-	for (i = 0; i < num; i++)
-		clkdev_add(&clks[i]);
-}

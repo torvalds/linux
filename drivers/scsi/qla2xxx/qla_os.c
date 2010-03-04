@@ -107,6 +107,12 @@ MODULE_PARM_DESC(ql2xfwloadbin,
 		" 1 -- load firmware from flash.\n"
 		" 0 -- use default semantics.\n");
 
+int ql2xetsenable;
+module_param(ql2xetsenable, int, S_IRUGO|S_IRUSR);
+MODULE_PARM_DESC(ql2xetsenable,
+		"Enables firmware ETS burst."
+		"Default is 0 - skip ETS enablement.");
+
 /*
  * SCSI host template entry points
  */
@@ -682,44 +688,6 @@ qla2x00_wait_for_loop_ready(scsi_qla_host_t *vha)
 	return (return_status);
 }
 
-void
-qla2x00_abort_fcport_cmds(fc_port_t *fcport)
-{
-	int cnt;
-	unsigned long flags;
-	srb_t *sp;
-	scsi_qla_host_t *vha = fcport->vha;
-	struct qla_hw_data *ha = vha->hw;
-	struct req_que *req;
-
-	spin_lock_irqsave(&ha->hardware_lock, flags);
-	req = vha->req;
-	for (cnt = 1; cnt < MAX_OUTSTANDING_COMMANDS; cnt++) {
-		sp = req->outstanding_cmds[cnt];
-		if (!sp)
-			continue;
-		if (sp->fcport != fcport)
-			continue;
-		if (sp->ctx)
-			continue;
-
-		spin_unlock_irqrestore(&ha->hardware_lock, flags);
-		if (ha->isp_ops->abort_command(sp)) {
-			DEBUG2(qla_printk(KERN_WARNING, ha,
-			"Abort failed --  %lx\n",
-			sp->cmd->serial_number));
-		} else {
-			if (qla2x00_eh_wait_on_command(sp->cmd) !=
-				QLA_SUCCESS)
-				DEBUG2(qla_printk(KERN_WARNING, ha,
-				"Abort failed while waiting --  %lx\n",
-				sp->cmd->serial_number));
-		}
-		spin_lock_irqsave(&ha->hardware_lock, flags);
-	}
-	spin_unlock_irqrestore(&ha->hardware_lock, flags);
-}
-
 /**************************************************************************
 * qla2xxx_eh_abort
 *
@@ -1095,6 +1063,20 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 	struct fc_port *fcport;
 	struct qla_hw_data *ha = vha->hw;
 
+	if (ha->flags.enable_target_reset) {
+		list_for_each_entry(fcport, &vha->vp_fcports, list) {
+			if (fcport->port_type != FCT_TARGET)
+				continue;
+
+			ret = ha->isp_ops->target_reset(fcport, 0, 0);
+			if (ret != QLA_SUCCESS) {
+				DEBUG2_3(printk("%s(%ld): bus_reset failed: "
+				    "target_reset=%d d_id=%x.\n", __func__,
+				    vha->host_no, ret, fcport->d_id.b24));
+			}
+		}
+	}
+
 	if (ha->flags.enable_lip_full_login && !IS_QLA81XX(ha)) {
 		ret = qla2x00_full_login_lip(vha);
 		if (ret != QLA_SUCCESS) {
@@ -1117,19 +1099,6 @@ qla2x00_loop_reset(scsi_qla_host_t *vha)
 			qla2x00_wait_for_loop_ready(vha);
 	}
 
-	if (ha->flags.enable_target_reset) {
-		list_for_each_entry(fcport, &vha->vp_fcports, list) {
-			if (fcport->port_type != FCT_TARGET)
-				continue;
-
-			ret = ha->isp_ops->target_reset(fcport, 0, 0);
-			if (ret != QLA_SUCCESS) {
-				DEBUG2_3(printk("%s(%ld): bus_reset failed: "
-				    "target_reset=%d d_id=%x.\n", __func__,
-				    vha->host_no, ret, fcport->d_id.b24));
-			}
-		}
-	}
 	/* Issue marker command only when we are going to start the I/O */
 	vha->marker_needed = 1;
 
@@ -1160,8 +1129,19 @@ qla2x00_abort_all_cmds(scsi_qla_host_t *vha, int res)
 					qla2x00_sp_compl(ha, sp);
 				} else {
 					ctx = sp->ctx;
-					del_timer_sync(&ctx->timer);
-					ctx->free(sp);
+					if (ctx->type == SRB_LOGIN_CMD || ctx->type == SRB_LOGOUT_CMD) {
+						del_timer_sync(&ctx->timer);
+						ctx->free(sp);
+					} else {
+						struct srb_bsg* sp_bsg = (struct srb_bsg*)sp->ctx;
+						if (sp_bsg->bsg_job->request->msgcode == FC_BSG_HST_CT)
+							kfree(sp->fcport);
+						sp_bsg->bsg_job->req->errors = 0;
+						sp_bsg->bsg_job->reply->result = res;
+						sp_bsg->bsg_job->job_done(sp_bsg->bsg_job);
+						kfree(sp->ctx);
+						mempool_free(sp, ha->srb_mempool);
+					}
 				}
 			}
 		}
@@ -1258,7 +1238,7 @@ qla2x00_change_queue_depth(struct scsi_device *sdev, int qdepth, int reason)
 		qla2x00_adjust_sdev_qdepth_up(sdev, qdepth);
 		break;
 	default:
-		return EOPNOTSUPP;
+		return -EOPNOTSUPP;
 	}
 
 	return sdev->queue_depth;
@@ -1818,7 +1798,6 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	/* Set EEH reset type to fundamental if required by hba */
 	if ( IS_QLA24XX(ha) || IS_QLA25XX(ha) || IS_QLA81XX(ha)) {
 		pdev->needs_freset = 1;
-		pci_save_state(pdev);
 	}
 
 	/* Configure PCI I/O space */
@@ -1970,11 +1949,15 @@ qla2x00_probe_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	host->max_channel = MAX_BUSES - 1;
 	host->max_lun = MAX_LUNS;
 	host->transportt = qla2xxx_transport_template;
+	sht->vendor_id = (SCSI_NL_VID_TYPE_PCI | PCI_VENDOR_ID_QLOGIC);
 
 	/* Set up the irqs */
 	ret = qla2x00_request_irqs(ha, rsp);
 	if (ret)
 		goto probe_init_failed;
+
+	pci_save_state(pdev);
+
 	/* Alloc arrays of request and response ring ptrs */
 que_init:
 	if (!qla2x00_alloc_queues(ha)) {
@@ -2175,6 +2158,8 @@ qla2x00_remove_one(struct pci_dev *pdev)
 	pci_release_selected_regions(ha->pdev, ha->bars);
 	kfree(ha);
 	ha = NULL;
+
+	pci_disable_pcie_error_reporting(pdev);
 
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
@@ -3310,6 +3295,7 @@ qla2xxx_pci_error_detected(struct pci_dev *pdev, pci_channel_state_t state)
 		return PCI_ERS_RESULT_CAN_RECOVER;
 	case pci_channel_io_frozen:
 		ha->flags.eeh_busy = 1;
+		qla2x00_free_irqs(vha);
 		pci_disable_device(pdev);
 		return PCI_ERS_RESULT_NEED_RESET;
 	case pci_channel_io_perm_failure:
@@ -3363,9 +3349,23 @@ qla2xxx_pci_slot_reset(struct pci_dev *pdev)
 	pci_ers_result_t ret = PCI_ERS_RESULT_DISCONNECT;
 	scsi_qla_host_t *base_vha = pci_get_drvdata(pdev);
 	struct qla_hw_data *ha = base_vha->hw;
-	int rc;
+	struct rsp_que *rsp;
+	int rc, retries = 10;
 
 	DEBUG17(qla_printk(KERN_WARNING, ha, "slot_reset\n"));
+
+	/* Workaround: qla2xxx driver which access hardware earlier
+	 * needs error state to be pci_channel_io_online.
+	 * Otherwise mailbox command timesout.
+	 */
+	pdev->error_state = pci_channel_io_normal;
+
+	pci_restore_state(pdev);
+
+	/* pci_restore_state() clears the saved_state flag of the device
+	 * save restored state which resets saved_state flag
+	 */
+	pci_save_state(pdev);
 
 	if (ha->mem_only)
 		rc = pci_enable_device_mem(pdev);
@@ -3378,26 +3378,22 @@ qla2xxx_pci_slot_reset(struct pci_dev *pdev)
 		return ret;
 	}
 
+	rsp = ha->rsp_q_map[0];
+	if (qla2x00_request_irqs(ha, rsp))
+		return ret;
+
 	if (ha->isp_ops->pci_config(base_vha))
 		return ret;
 
-#ifdef QL_DEBUG_LEVEL_17
-	{
-		uint8_t b;
-		uint32_t i;
+	while (ha->flags.mbox_busy && retries--)
+		msleep(1000);
 
-		printk("slot_reset_1: ");
-		for (i = 0; i < 256; i++) {
-			pci_read_config_byte(ha->pdev, i, &b);
-			printk("%s%02x", (i%16) ? " " : "\n", b);
-		}
-		printk("\n");
-	}
-#endif
 	set_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags);
 	if (qla2x00_abort_isp(base_vha) == QLA_SUCCESS)
 		ret =  PCI_ERS_RESULT_RECOVERED;
 	clear_bit(ABORT_ISP_ACTIVE, &base_vha->dpc_flags);
+
+	pci_cleanup_aer_uncorrect_error_status(pdev);
 
 	DEBUG17(qla_printk(KERN_WARNING, ha,
 	    "slot_reset-return:ret=%x\n", ret));
@@ -3422,8 +3418,6 @@ qla2xxx_pci_resume(struct pci_dev *pdev)
 	}
 
 	ha->flags.eeh_busy = 0;
-
-	pci_cleanup_aer_uncorrect_error_status(pdev);
 }
 
 static struct pci_error_handlers qla2xxx_err_handler = {
@@ -3536,4 +3530,3 @@ MODULE_FIRMWARE(FW_FILE_ISP2300);
 MODULE_FIRMWARE(FW_FILE_ISP2322);
 MODULE_FIRMWARE(FW_FILE_ISP24XX);
 MODULE_FIRMWARE(FW_FILE_ISP25XX);
-MODULE_FIRMWARE(FW_FILE_ISP81XX);

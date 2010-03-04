@@ -1095,8 +1095,12 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 	if (!capable(CAP_AUDIT_CONTROL))
 		return -EPERM;
 
-	if (current != pid_task(proc_pid(inode), PIDTYPE_PID))
+	rcu_read_lock();
+	if (current != pid_task(proc_pid(inode), PIDTYPE_PID)) {
+		rcu_read_unlock();
 		return -EPERM;
+	}
+	rcu_read_unlock();
 
 	if (count >= PAGE_SIZE)
 		count = PAGE_SIZE - 1;

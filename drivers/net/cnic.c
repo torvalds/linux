@@ -1,6 +1,6 @@
 /* cnic.c: Broadcom CNIC core network driver.
  *
- * Copyright (c) 2006-2009 Broadcom Corporation
+ * Copyright (c) 2006-2010 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -9,6 +9,8 @@
  * Original skeleton written by: John(Zongxi) Chen (zongxi@broadcom.com)
  * Modified and maintained by: Michael Chan <mchan@broadcom.com>
  */
+
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
 #include <linux/module.h>
 
@@ -47,7 +49,6 @@
 #include "cnic_defs.h"
 
 #define DRV_MODULE_NAME		"cnic"
-#define PFX DRV_MODULE_NAME	": "
 
 static char version[] __devinitdata =
 	"Broadcom NetXtreme II CNIC Driver " DRV_MODULE_NAME " v" CNIC_MODULE_VERSION " (" CNIC_MODULE_RELDATE ")\n";
@@ -326,6 +327,12 @@ static int cnic_iscsi_nl_msg_recv(struct cnic_dev *dev, u32 msg_type,
 		if (l5_cid >= MAX_CM_SK_TBL_SZ)
 			break;
 
+		rcu_read_lock();
+		if (!rcu_dereference(cp->ulp_ops[CNIC_ULP_L4])) {
+			rc = -ENODEV;
+			rcu_read_unlock();
+			break;
+		}
 		csk = &cp->csk_tbl[l5_cid];
 		csk_hold(csk);
 		if (cnic_in_use(csk)) {
@@ -340,6 +347,7 @@ static int cnic_iscsi_nl_msg_recv(struct cnic_dev *dev, u32 msg_type,
 				cnic_cm_set_pg(csk);
 		}
 		csk_put(csk);
+		rcu_read_unlock();
 		rc = 0;
 	}
 	}
@@ -409,14 +417,13 @@ int cnic_register_driver(int ulp_type, struct cnic_ulp_ops *ulp_ops)
 	struct cnic_dev *dev;
 
 	if (ulp_type < 0 || ulp_type >= MAX_CNIC_ULP_TYPE) {
-		printk(KERN_ERR PFX "cnic_register_driver: Bad type %d\n",
-		       ulp_type);
+		pr_err("%s: Bad type %d\n", __func__, ulp_type);
 		return -EINVAL;
 	}
 	mutex_lock(&cnic_lock);
 	if (cnic_ulp_tbl[ulp_type]) {
-		printk(KERN_ERR PFX "cnic_register_driver: Type %d has already "
-				    "been registered\n", ulp_type);
+		pr_err("%s: Type %d has already been registered\n",
+		       __func__, ulp_type);
 		mutex_unlock(&cnic_lock);
 		return -EBUSY;
 	}
@@ -455,15 +462,14 @@ int cnic_unregister_driver(int ulp_type)
 	int i = 0;
 
 	if (ulp_type < 0 || ulp_type >= MAX_CNIC_ULP_TYPE) {
-		printk(KERN_ERR PFX "cnic_unregister_driver: Bad type %d\n",
-		       ulp_type);
+		pr_err("%s: Bad type %d\n", __func__, ulp_type);
 		return -EINVAL;
 	}
 	mutex_lock(&cnic_lock);
 	ulp_ops = cnic_ulp_tbl[ulp_type];
 	if (!ulp_ops) {
-		printk(KERN_ERR PFX "cnic_unregister_driver: Type %d has not "
-				    "been registered\n", ulp_type);
+		pr_err("%s: Type %d has not been registered\n",
+		       __func__, ulp_type);
 		goto out_unlock;
 	}
 	read_lock(&cnic_dev_lock);
@@ -471,8 +477,8 @@ int cnic_unregister_driver(int ulp_type)
 		struct cnic_local *cp = dev->cnic_priv;
 
 		if (rcu_dereference(cp->ulp_ops[ulp_type])) {
-			printk(KERN_ERR PFX "cnic_unregister_driver: Type %d "
-			       "still has devices registered\n", ulp_type);
+			pr_err("%s: Type %d still has devices registered\n",
+			       __func__, ulp_type);
 			read_unlock(&cnic_dev_lock);
 			goto out_unlock;
 		}
@@ -492,8 +498,7 @@ int cnic_unregister_driver(int ulp_type)
 	}
 
 	if (atomic_read(&ulp_ops->ref_count) != 0)
-		printk(KERN_WARNING PFX "%s: Failed waiting for ref count to go"
-					" to zero.\n", dev->netdev->name);
+		netdev_warn(dev->netdev, "Failed waiting for ref count to go to zero\n");
 	return 0;
 
 out_unlock:
@@ -511,20 +516,19 @@ static int cnic_register_device(struct cnic_dev *dev, int ulp_type,
 	struct cnic_ulp_ops *ulp_ops;
 
 	if (ulp_type < 0 || ulp_type >= MAX_CNIC_ULP_TYPE) {
-		printk(KERN_ERR PFX "cnic_register_device: Bad type %d\n",
-		       ulp_type);
+		pr_err("%s: Bad type %d\n", __func__, ulp_type);
 		return -EINVAL;
 	}
 	mutex_lock(&cnic_lock);
 	if (cnic_ulp_tbl[ulp_type] == NULL) {
-		printk(KERN_ERR PFX "cnic_register_device: Driver with type %d "
-				    "has not been registered\n", ulp_type);
+		pr_err("%s: Driver with type %d has not been registered\n",
+		       __func__, ulp_type);
 		mutex_unlock(&cnic_lock);
 		return -EAGAIN;
 	}
 	if (rcu_dereference(cp->ulp_ops[ulp_type])) {
-		printk(KERN_ERR PFX "cnic_register_device: Type %d has already "
-		       "been registered to this device\n", ulp_type);
+		pr_err("%s: Type %d has already been registered to this device\n",
+		       __func__, ulp_type);
 		mutex_unlock(&cnic_lock);
 		return -EBUSY;
 	}
@@ -552,8 +556,7 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 	int i = 0;
 
 	if (ulp_type < 0 || ulp_type >= MAX_CNIC_ULP_TYPE) {
-		printk(KERN_ERR PFX "cnic_unregister_device: Bad type %d\n",
-		       ulp_type);
+		pr_err("%s: Bad type %d\n", __func__, ulp_type);
 		return -EINVAL;
 	}
 	mutex_lock(&cnic_lock);
@@ -561,8 +564,8 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 		rcu_assign_pointer(cp->ulp_ops[ulp_type], NULL);
 		cnic_put(dev);
 	} else {
-		printk(KERN_ERR PFX "cnic_unregister_device: device not "
-		       "registered to this ulp type %d\n", ulp_type);
+		pr_err("%s: device not registered to this ulp type %d\n",
+		       __func__, ulp_type);
 		mutex_unlock(&cnic_lock);
 		return -EINVAL;
 	}
@@ -576,8 +579,7 @@ static int cnic_unregister_device(struct cnic_dev *dev, int ulp_type)
 		i++;
 	}
 	if (test_bit(ULP_F_CALL_PENDING, &cp->ulp_flags[ulp_type]))
-		printk(KERN_WARNING PFX "%s: Failed waiting for ULP up call"
-					" to complete.\n", dev->netdev->name);
+		netdev_warn(dev->netdev, "Failed waiting for ULP up call to complete\n");
 
 	return 0;
 }
@@ -898,7 +900,8 @@ static int cnic_alloc_uio(struct cnic_dev *dev) {
 	uinfo->mem[0].memtype = UIO_MEM_PHYS;
 
 	if (test_bit(CNIC_F_BNX2_CLASS, &dev->flags)) {
-		uinfo->mem[1].addr = (unsigned long) cp->status_blk & PAGE_MASK;
+		uinfo->mem[1].addr = (unsigned long) cp->status_blk.gen &
+			PAGE_MASK;
 		if (cp->ethdev->drv_state & CNIC_DRV_STATE_USING_MSIX)
 			uinfo->mem[1].size = BNX2_SBLK_MSIX_ALIGN_SIZE * 9;
 		else
@@ -1101,10 +1104,9 @@ static int cnic_alloc_bnx2x_resc(struct cnic_dev *dev)
 	if (ret)
 		goto error;
 
-	cp->bnx2x_status_blk = cp->status_blk;
 	cp->bnx2x_def_status_blk = cp->ethdev->irq_arr[1].status_blk;
 
-	memset(cp->bnx2x_status_blk, 0, sizeof(struct host_status_block));
+	memset(cp->status_blk.bnx2x, 0, sizeof(*cp->status_blk.bnx2x));
 
 	cp->l2_rx_ring_size = 15;
 
@@ -1865,8 +1867,7 @@ static int cnic_bnx2x_connect(struct cnic_dev *dev, struct kwqe *wqes[],
 	}
 
 	if (sizeof(*conn_buf) > CNIC_KWQ16_DATA_SIZE) {
-		printk(KERN_ERR PFX "%s: conn_buf size too big\n",
-			       dev->netdev->name);
+		netdev_err(dev->netdev, "conn_buf size too big\n");
 		return -ENOMEM;
 	}
 	conn_buf = cnic_get_kwqe_16_data(cp, l5_cid, &l5_data);
@@ -2026,13 +2027,13 @@ static int cnic_submit_bnx2x_kwqes(struct cnic_dev *dev, struct kwqe *wqes[],
 			break;
 		default:
 			ret = 0;
-			printk(KERN_ERR PFX "%s: Unknown type of KWQE(0x%x)\n",
-			       dev->netdev->name, opcode);
+			netdev_err(dev->netdev, "Unknown type of KWQE(0x%x)\n",
+				   opcode);
 			break;
 		}
 		if (ret < 0)
-			printk(KERN_ERR PFX "%s: KWQE(0x%x) failed\n",
-			       dev->netdev->name, opcode);
+			netdev_err(dev->netdev, "KWQE(0x%x) failed\n",
+				   opcode);
 		i += work;
 	}
 	return 0;
@@ -2074,8 +2075,8 @@ static void service_kcqes(struct cnic_dev *dev, int num_cqes)
 		else if (kcqe_layer == KCQE_FLAGS_LAYER_MASK_L2)
 			goto end;
 		else {
-			printk(KERN_ERR PFX "%s: Unknown type of KCQE(0x%x)\n",
-			       dev->netdev->name, kcqe_op_flag);
+			netdev_err(dev->netdev, "Unknown type of KCQE(0x%x)\n",
+				   kcqe_op_flag);
 			goto end;
 		}
 
@@ -2204,7 +2205,7 @@ static void cnic_service_bnx2_msix(unsigned long data)
 {
 	struct cnic_dev *dev = (struct cnic_dev *) data;
 	struct cnic_local *cp = dev->cnic_priv;
-	struct status_block_msix *status_blk = cp->bnx2_status_blk;
+	struct status_block_msix *status_blk = cp->status_blk.bnx2;
 	u32 status_idx = status_blk->status_idx;
 	u16 hw_prod, sw_prod;
 	int kcqe_cnt;
@@ -2250,7 +2251,7 @@ static irqreturn_t cnic_irq(int irq, void *dev_instance)
 	if (cp->ack_int)
 		cp->ack_int(dev);
 
-	prefetch(cp->status_blk);
+	prefetch(cp->status_blk.gen);
 	prefetch(&cp->kcq[KCQ_PG(prod)][KCQ_IDX(prod)]);
 
 	if (likely(test_bit(CNIC_F_CNIC_UP, &dev->flags)))
@@ -2291,7 +2292,7 @@ static void cnic_service_bnx2x_bh(unsigned long data)
 	struct cnic_local *cp = dev->cnic_priv;
 	u16 hw_prod, sw_prod;
 	struct cstorm_status_block_c *sblk =
-		&cp->bnx2x_status_blk->c_status_block;
+		&cp->status_blk.bnx2x->c_status_block;
 	u32 status_idx = sblk->status_block_index;
 	int kcqe_cnt;
 
@@ -2333,7 +2334,7 @@ static int cnic_service_bnx2x(void *data, void *status_blk)
 	struct cnic_local *cp = dev->cnic_priv;
 	u16 prod = cp->kcq_prod_idx & MAX_KCQ_IDX;
 
-	prefetch(cp->status_blk);
+	prefetch(cp->status_blk.bnx2x);
 	prefetch(&cp->kcq[KCQ_PG(prod)][KCQ_IDX(prod)]);
 
 	if (likely(test_bit(CNIC_F_CNIC_UP, &dev->flags)))
@@ -2513,7 +2514,7 @@ static int cnic_cm_offload_pg(struct cnic_sock *csk)
 	l4kwqe->sa5 = dev->mac_addr[5];
 
 	l4kwqe->etype = ETH_P_IP;
-	l4kwqe->ipid_count = DEF_IPID_COUNT;
+	l4kwqe->ipid_start = DEF_IPID_START;
 	l4kwqe->host_opaque = csk->l5_cid;
 
 	if (csk->vlan_id) {
@@ -2859,8 +2860,8 @@ static int cnic_get_route(struct cnic_sock *csk, struct cnic_sockaddr *saddr)
 {
 	struct cnic_dev *dev = csk->dev;
 	struct cnic_local *cp = dev->cnic_priv;
-	int is_v6, err, rc = -ENETUNREACH;
-	struct dst_entry *dst;
+	int is_v6, rc = 0;
+	struct dst_entry *dst = NULL;
 	struct net_device *realdev;
 	u32 local_port;
 
@@ -2876,39 +2877,31 @@ static int cnic_get_route(struct cnic_sock *csk, struct cnic_sockaddr *saddr)
 	clear_bit(SK_F_IPV6, &csk->flags);
 
 	if (is_v6) {
-#if defined(CONFIG_IPV6) || (defined(CONFIG_IPV6_MODULE) && defined(MODULE))
 		set_bit(SK_F_IPV6, &csk->flags);
-		err = cnic_get_v6_route(&saddr->remote.v6, &dst);
-		if (err)
-			return err;
-
-		if (!dst || dst->error || !dst->dev)
-			goto err_out;
+		cnic_get_v6_route(&saddr->remote.v6, &dst);
 
 		memcpy(&csk->dst_ip[0], &saddr->remote.v6.sin6_addr,
 		       sizeof(struct in6_addr));
 		csk->dst_port = saddr->remote.v6.sin6_port;
 		local_port = saddr->local.v6.sin6_port;
-#else
-		return rc;
-#endif
 
 	} else {
-		err = cnic_get_v4_route(&saddr->remote.v4, &dst);
-		if (err)
-			return err;
-
-		if (!dst || dst->error || !dst->dev)
-			goto err_out;
+		cnic_get_v4_route(&saddr->remote.v4, &dst);
 
 		csk->dst_ip[0] = saddr->remote.v4.sin_addr.s_addr;
 		csk->dst_port = saddr->remote.v4.sin_port;
 		local_port = saddr->local.v4.sin_port;
 	}
 
-	csk->vlan_id = cnic_get_vlan(dst->dev, &realdev);
-	if (realdev != dev->netdev)
-		goto err_out;
+	csk->vlan_id = 0;
+	csk->mtu = dev->netdev->mtu;
+	if (dst && dst->dev) {
+		u16 vlan = cnic_get_vlan(dst->dev, &realdev);
+		if (realdev == dev->netdev) {
+			csk->vlan_id = vlan;
+			csk->mtu = dst_mtu(dst);
+		}
+	}
 
 	if (local_port >= CNIC_LOCAL_PORT_MIN &&
 	    local_port < CNIC_LOCAL_PORT_MAX) {
@@ -2925,9 +2918,6 @@ static int cnic_get_route(struct cnic_sock *csk, struct cnic_sockaddr *saddr)
 		}
 	}
 	csk->src_port = local_port;
-
-	csk->mtu = dst_mtu(dst);
-	rc = 0;
 
 err_out:
 	dst_release(dst);
@@ -3052,6 +3042,14 @@ static void cnic_cm_process_offld_pg(struct cnic_dev *dev, struct l4_kcq *kcqe)
 		clear_bit(SK_F_OFFLD_SCHED, &csk->flags);
 		goto done;
 	}
+	/* Possible PG kcqe status:  SUCCESS, OFFLOADED_PG, or CTX_ALLOC_FAIL */
+	if (kcqe->status == L4_KCQE_COMPLETION_STATUS_CTX_ALLOC_FAIL) {
+		clear_bit(SK_F_OFFLD_SCHED, &csk->flags);
+		cnic_cm_upcall(cp, csk,
+			       L4_KCQE_OPCODE_VALUE_CONNECT_COMPLETE);
+		goto done;
+	}
+
 	csk->pg_cid = kcqe->pg_cid;
 	set_bit(SK_F_PG_OFFLD_COMPLETE, &csk->flags);
 	cnic_cm_conn_req(csk);
@@ -3089,6 +3087,13 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 	}
 
 	switch (opcode) {
+	case L5CM_RAMROD_CMD_ID_TCP_CONNECT:
+		if (l4kcqe->status != 0) {
+			clear_bit(SK_F_OFFLD_SCHED, &csk->flags);
+			cnic_cm_upcall(cp, csk,
+				       L4_KCQE_OPCODE_VALUE_CONNECT_COMPLETE);
+		}
+		break;
 	case L4_KCQE_OPCODE_VALUE_CONNECT_COMPLETE:
 		if (l4kcqe->status == 0)
 			set_bit(SK_F_OFFLD_COMPLETE, &csk->flags);
@@ -3099,7 +3104,10 @@ static void cnic_cm_process_kcqe(struct cnic_dev *dev, struct kcqe *kcqe)
 		break;
 
 	case L4_KCQE_OPCODE_VALUE_RESET_RECEIVED:
-		if (test_and_clear_bit(SK_F_OFFLD_COMPLETE, &csk->flags))
+		if (test_bit(CNIC_F_BNX2_CLASS, &dev->flags)) {
+			cnic_cm_upcall(cp, csk, opcode);
+			break;
+		} else if (test_and_clear_bit(SK_F_OFFLD_COMPLETE, &csk->flags))
 			csk->state = opcode;
 		/* fall through */
 	case L4_KCQE_OPCODE_VALUE_CLOSE_COMP:
@@ -3163,6 +3171,16 @@ static int cnic_ready_to_close(struct cnic_sock *csk, u32 opcode)
 		if (!test_and_set_bit(SK_F_CLOSING, &csk->flags))
 			return 1;
 	}
+	/* 57710+ only  workaround to handle unsolicited RESET_COMP
+	 * which will be treated like a RESET RCVD notification
+	 * which triggers the clean up procedure
+	 */
+	else if (opcode == L4_KCQE_OPCODE_VALUE_RESET_COMP) {
+		if (!test_and_set_bit(SK_F_CLOSING, &csk->flags)) {
+			csk->state = L4_KCQE_OPCODE_VALUE_RESET_RECEIVED;
+			return 1;
+		}
+	}
 	return 0;
 }
 
@@ -3172,10 +3190,8 @@ static void cnic_close_bnx2_conn(struct cnic_sock *csk, u32 opcode)
 	struct cnic_local *cp = dev->cnic_priv;
 
 	clear_bit(SK_F_CONNECT_START, &csk->flags);
-	if (cnic_ready_to_close(csk, opcode)) {
-		cnic_close_conn(csk);
-		cnic_cm_upcall(cp, csk, opcode);
-	}
+	cnic_close_conn(csk);
+	cnic_cm_upcall(cp, csk, opcode);
 }
 
 static void cnic_cm_stop_bnx2_hw(struct cnic_dev *dev)
@@ -3393,8 +3409,7 @@ static int cnic_init_bnx2_irq(struct cnic_dev *dev)
 		CNIC_WR(dev, base + BNX2_HC_COM_TICKS_OFF, (64 << 16) | 220);
 		CNIC_WR(dev, base + BNX2_HC_CMD_TICKS_OFF, (64 << 16) | 220);
 
-		cp->bnx2_status_blk = cp->status_blk;
-		cp->last_status_idx = cp->bnx2_status_blk->status_idx;
+		cp->last_status_idx = cp->status_blk.bnx2->status_idx;
 		tasklet_init(&cp->cnic_irq_task, cnic_service_bnx2_msix,
 			     (unsigned long) dev);
 		err = request_irq(ethdev->irq_arr[0].vector, cnic_irq, 0,
@@ -3403,7 +3418,7 @@ static int cnic_init_bnx2_irq(struct cnic_dev *dev)
 			tasklet_disable(&cp->cnic_irq_task);
 			return err;
 		}
-		while (cp->bnx2_status_blk->status_completion_producer_index &&
+		while (cp->status_blk.bnx2->status_completion_producer_index &&
 		       i < 10) {
 			CNIC_WR(dev, BNX2_HC_COALESCE_NOW,
 				1 << (11 + sblk_num));
@@ -3411,13 +3426,13 @@ static int cnic_init_bnx2_irq(struct cnic_dev *dev)
 			i++;
 			barrier();
 		}
-		if (cp->bnx2_status_blk->status_completion_producer_index) {
+		if (cp->status_blk.bnx2->status_completion_producer_index) {
 			cnic_free_irq(dev);
 			goto failed;
 		}
 
 	} else {
-		struct status_block *sblk = cp->status_blk;
+		struct status_block *sblk = cp->status_blk.gen;
 		u32 hc_cmd = CNIC_RD(dev, BNX2_HC_COMMAND);
 		int i = 0;
 
@@ -3435,8 +3450,7 @@ static int cnic_init_bnx2_irq(struct cnic_dev *dev)
 	return 0;
 
 failed:
-	printk(KERN_ERR PFX "%s: " "KCQ index not resetting to 0.\n",
-	       dev->netdev->name);
+	netdev_err(dev->netdev, "KCQ index not resetting to 0\n");
 	return -EBUSY;
 }
 
@@ -3475,7 +3489,7 @@ static void cnic_init_bnx2_tx_ring(struct cnic_dev *dev)
 	int i;
 	struct tx_bd *txbd;
 	dma_addr_t buf_map;
-	struct status_block *s_blk = cp->status_blk;
+	struct status_block *s_blk = cp->status_blk.gen;
 
 	sb_id = cp->status_blk_num;
 	tx_cid = 20;
@@ -3483,7 +3497,7 @@ static void cnic_init_bnx2_tx_ring(struct cnic_dev *dev)
 	cnic_init_context(dev, tx_cid + 1);
 	cp->tx_cons_ptr = &s_blk->status_tx_quick_consumer_index2;
 	if (ethdev->drv_state & CNIC_DRV_STATE_USING_MSIX) {
-		struct status_block_msix *sblk = cp->status_blk;
+		struct status_block_msix *sblk = cp->status_blk.bnx2;
 
 		tx_cid = TX_TSS_CID + sb_id - 1;
 		cnic_init_context(dev, tx_cid);
@@ -3539,7 +3553,7 @@ static void cnic_init_bnx2_rx_ring(struct cnic_dev *dev)
 	u32 cid_addr, sb_id, val, coal_reg, coal_val;
 	int i;
 	struct rx_bd *rxbd;
-	struct status_block *s_blk = cp->status_blk;
+	struct status_block *s_blk = cp->status_blk.gen;
 
 	sb_id = cp->status_blk_num;
 	cnic_init_context(dev, 2);
@@ -3547,7 +3561,7 @@ static void cnic_init_bnx2_rx_ring(struct cnic_dev *dev)
 	coal_reg = BNX2_HC_COMMAND;
 	coal_val = CNIC_RD(dev, coal_reg);
 	if (ethdev->drv_state & CNIC_DRV_STATE_USING_MSIX) {
-		struct status_block_msix *sblk = cp->status_blk;
+		struct status_block_msix *sblk = cp->status_blk.bnx2;
 
 		cp->rx_cons_ptr = &sblk->status_rx_quick_consumer_index;
 		coal_reg = BNX2_HC_COALESCE_NOW;
@@ -3646,7 +3660,7 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 {
 	struct cnic_local *cp = dev->cnic_priv;
 	struct cnic_eth_dev *ethdev = cp->ethdev;
-	struct status_block *sblk = cp->status_blk;
+	struct status_block *sblk = cp->status_blk.gen;
 	u32 val;
 	int err;
 
@@ -3758,8 +3772,7 @@ static int cnic_start_bnx2_hw(struct cnic_dev *dev)
 
 	err = cnic_init_bnx2_irq(dev);
 	if (err) {
-		printk(KERN_ERR PFX "%s: cnic_init_irq failed\n",
-		       dev->netdev->name);
+		netdev_err(dev->netdev, "cnic_init_irq failed\n");
 		cnic_reg_wr_ind(dev, BNX2_CP_SCRATCH + 0x20, 0);
 		cnic_reg_wr_ind(dev, BNX2_COM_SCRATCH + 0x20, 0);
 		return err;
@@ -4122,8 +4135,7 @@ static int cnic_start_bnx2x_hw(struct cnic_dev *dev)
 			   offsetof(struct cstorm_status_block_c,
 				    index_values[HC_INDEX_C_ISCSI_EQ_CONS]));
 	if (eq_idx != 0) {
-		printk(KERN_ERR PFX "%s: EQ cons index %x != 0\n",
-		       dev->netdev->name, eq_idx);
+		netdev_err(dev->netdev, "EQ cons index %x != 0\n", eq_idx);
 		return -EBUSY;
 	}
 	ret = cnic_init_bnx2x_irq(dev);
@@ -4208,8 +4220,7 @@ static int cnic_register_netdev(struct cnic_dev *dev)
 
 	err = ethdev->drv_register_cnic(dev->netdev, cp->cnic_ops, dev);
 	if (err)
-		printk(KERN_ERR PFX "%s: register_cnic failed\n",
-		       dev->netdev->name);
+		netdev_err(dev->netdev, "register_cnic failed\n");
 
 	return err;
 }
@@ -4238,13 +4249,12 @@ static int cnic_start_hw(struct cnic_dev *dev)
 	cp->chip_id = ethdev->chip_id;
 	pci_dev_get(dev->pcidev);
 	cp->func = PCI_FUNC(dev->pcidev->devfn);
-	cp->status_blk = ethdev->irq_arr[0].status_blk;
+	cp->status_blk.gen = ethdev->irq_arr[0].status_blk;
 	cp->status_blk_num = ethdev->irq_arr[0].status_blk_num;
 
 	err = cp->alloc_resc(dev);
 	if (err) {
-		printk(KERN_ERR PFX "%s: allocate resource failure\n",
-		       dev->netdev->name);
+		netdev_err(dev->netdev, "allocate resource failure\n");
 		goto err1;
 	}
 
@@ -4326,10 +4336,9 @@ static void cnic_free_dev(struct cnic_dev *dev)
 		i++;
 	}
 	if (atomic_read(&dev->ref_count) != 0)
-		printk(KERN_ERR PFX "%s: Failed waiting for ref count to go"
-				    " to zero.\n", dev->netdev->name);
+		netdev_err(dev->netdev, "Failed waiting for ref count to go to zero\n");
 
-	printk(KERN_INFO PFX "Removed CNIC device: %s\n", dev->netdev->name);
+	netdev_info(dev->netdev, "Removed CNIC device\n");
 	dev_put(dev->netdev);
 	kfree(dev);
 }
@@ -4345,8 +4354,7 @@ static struct cnic_dev *cnic_alloc_dev(struct net_device *dev,
 
 	cdev = kzalloc(alloc_size , GFP_KERNEL);
 	if (cdev == NULL) {
-		printk(KERN_ERR PFX "%s: allocate dev struct failure\n",
-		       dev->name);
+		netdev_err(dev, "allocate dev struct failure\n");
 		return NULL;
 	}
 
@@ -4364,7 +4372,7 @@ static struct cnic_dev *cnic_alloc_dev(struct net_device *dev,
 
 	spin_lock_init(&cp->cnic_ulp_lock);
 
-	printk(KERN_INFO PFX "Added CNIC device: %s\n", dev->name);
+	netdev_info(dev, "Added CNIC device\n");
 
 	return cdev;
 }
@@ -4605,7 +4613,7 @@ static int __init cnic_init(void)
 {
 	int rc = 0;
 
-	printk(KERN_INFO "%s", version);
+	pr_info("%s", version);
 
 	rc = register_netdevice_notifier(&cnic_netdev_notifier);
 	if (rc) {

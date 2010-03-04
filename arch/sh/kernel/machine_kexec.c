@@ -21,6 +21,8 @@
 #include <asm/mmu_context.h>
 #include <asm/io.h>
 #include <asm/cacheflush.h>
+#include <asm/sh_bios.h>
+#include <asm/reboot.h>
 
 typedef void (*relocate_new_kernel_t)(unsigned long indirection_page,
 				      unsigned long reboot_code_buffer,
@@ -28,15 +30,11 @@ typedef void (*relocate_new_kernel_t)(unsigned long indirection_page,
 
 extern const unsigned char relocate_new_kernel[];
 extern const unsigned int relocate_new_kernel_size;
-extern void *gdb_vbr_vector;
 extern void *vbr_base;
 
-void machine_shutdown(void)
+void native_machine_crash_shutdown(struct pt_regs *regs)
 {
-}
-
-void machine_crash_shutdown(struct pt_regs *regs)
-{
+	/* Nothing to do for UP, but definitely broken for SMP.. */
 }
 
 /*
@@ -117,11 +115,7 @@ void machine_kexec(struct kimage *image)
 	kexec_info(image);
 	flush_cache_all();
 
-#if defined(CONFIG_SH_STANDARD_BIOS)
-	asm volatile("ldc %0, vbr" :
-		     : "r" (((unsigned long) gdb_vbr_vector) - 0x100)
-		     : "memory");
-#endif
+	sh_bios_vbr_reload();
 
 	/* now call it */
 	rnk = (relocate_new_kernel_t) reboot_code_buffer;

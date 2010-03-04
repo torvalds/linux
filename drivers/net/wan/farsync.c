@@ -528,7 +528,7 @@ static int fst_debug_mask = { FST_DEBUG };
 /*
  *      PCI ID lookup table
  */
-static struct pci_device_id fst_pci_dev_id[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(fst_pci_dev_id) = {
 	{PCI_VENDOR_ID_FARSITE, PCI_DEVICE_ID_FARSITE_T2P, PCI_ANY_ID, 
 	 PCI_ANY_ID, 0, 0, FST_TYPE_T2P},
 

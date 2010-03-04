@@ -29,6 +29,7 @@
 #include "cx18-mailbox.h"
 #include "cx18-queue.h"
 #include "cx18-streams.h"
+#include "cx18-alsa-pcm.h" /* FIXME make configurable */
 
 static const char *rpu_str[] = { "APU", "CPU", "EPU", "HPU" };
 
@@ -157,6 +158,34 @@ static void cx18_mdl_send_to_dvb(struct cx18_stream *s, struct cx18_mdl *mdl)
 	}
 }
 
+
+static void cx18_mdl_send_to_alsa(struct cx18 *cx, struct cx18_stream *s,
+				  struct cx18_mdl *mdl)
+{
+	struct cx18_buffer *buf;
+
+	if (mdl->bytesused == 0)
+		return;
+
+	/* We ignore mdl and buf readpos accounting here - it doesn't matter */
+
+	/* The likely case */
+	if (list_is_singular(&mdl->buf_list)) {
+		buf = list_first_entry(&mdl->buf_list, struct cx18_buffer,
+				       list);
+		if (buf->bytesused)
+			cx->pcm_announce_callback(cx->alsa, buf->buf,
+						  buf->bytesused);
+		return;
+	}
+
+	list_for_each_entry(buf, &mdl->buf_list, list) {
+		if (buf->bytesused == 0)
+			break;
+		cx->pcm_announce_callback(cx->alsa, buf->buf, buf->bytesused);
+	}
+}
+
 static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 {
 	u32 handle, mdl_ack_count, id;
@@ -223,11 +252,21 @@ static void epu_dma_done(struct cx18 *cx, struct cx18_in_work_order *order)
 		CX18_DEBUG_HI_DMA("%s recv bytesused = %d\n",
 				  s->name, mdl->bytesused);
 
-		if (s->type != CX18_ENC_STREAM_TYPE_TS)
-			cx18_enqueue(s, mdl, &s->q_full);
-		else {
+		if (s->type == CX18_ENC_STREAM_TYPE_TS) {
 			cx18_mdl_send_to_dvb(s, mdl);
 			cx18_enqueue(s, mdl, &s->q_free);
+		} else if (s->type == CX18_ENC_STREAM_TYPE_PCM) {
+			/* Pass the data to cx18-alsa */
+			if (cx->pcm_announce_callback != NULL) {
+				cx18_mdl_send_to_alsa(cx, s, mdl);
+				cx18_enqueue(s, mdl, &s->q_free);
+			} else {
+				cx18_enqueue(s, mdl, &s->q_full);
+			}
+		} else {
+			cx18_enqueue(s, mdl, &s->q_full);
+			if (s->type == CX18_ENC_STREAM_TYPE_IDX)
+				cx18_stream_rotate_idx_mdls(cx);
 		}
 	}
 	/* Put as many MDLs as possible back into fw use */

@@ -13,7 +13,8 @@
 #include <asm/cio.h>
 #include <asm/ccwdev.h>
 
-#define QDIO_MAX_QUEUES_PER_IRQ		32
+/* only use 4 queues to save some cachelines */
+#define QDIO_MAX_QUEUES_PER_IRQ		4
 #define QDIO_MAX_BUFFERS_PER_Q		128
 #define QDIO_MAX_BUFFERS_MASK		(QDIO_MAX_BUFFERS_PER_Q - 1)
 #define QDIO_MAX_ELEMENTS_PER_BUFFER	16

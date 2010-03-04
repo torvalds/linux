@@ -19,7 +19,7 @@
  * MA  02111-1307, USA.
  *
  * The full GNU General Public License is included in this distribution
- * in the file called LICENSE.
+ * in the file called "COPYING".
  *
  */
 
@@ -969,7 +969,8 @@ enum {
 #define NX_DEV_READY		3
 #define NX_DEV_NEED_RESET	4
 #define NX_DEV_NEED_QUISCENT	5
-#define NX_DEV_FAILED		6
+#define NX_DEV_NEED_AER 	6
+#define NX_DEV_FAILED		7
 
 #define NX_RCODE_DRIVER_INFO		0x20000000
 #define NX_RCODE_DRIVER_CAN_RELOAD	0x40000000

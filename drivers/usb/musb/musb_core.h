@@ -562,7 +562,7 @@ extern void musb_hnp_stop(struct musb *musb);
 extern int musb_platform_set_mode(struct musb *musb, u8 musb_mode);
 
 #if defined(CONFIG_USB_TUSB6010) || defined(CONFIG_BLACKFIN) || \
-	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP34XX)
+	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3)
 extern void musb_platform_try_idle(struct musb *musb, unsigned long timeout);
 #else
 #define musb_platform_try_idle(x, y)		do {} while (0)

@@ -218,10 +218,7 @@ static struct clk_lookup lookups[] = {
 
 int __init mx25_clocks_init(void)
 {
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	/* Turn off all clocks except the ones we need to survive, namely:
 	 * EMI, GPIO1-3 (CCM_CGCR1[18:16]), GPT1, IOMUXC (CCM_CGCR1[27]), IIM,

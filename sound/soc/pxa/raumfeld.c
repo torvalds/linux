@@ -41,7 +41,9 @@ static struct i2c_board_info max9486_hwmon_info = {
 };
 
 #define MAX9485_MCLK_FREQ_112896 0x22
-#define	MAX9485_MCLK_FREQ_122880 0x23
+#define MAX9485_MCLK_FREQ_122880 0x23
+#define MAX9485_MCLK_FREQ_225792 0x32
+#define MAX9485_MCLK_FREQ_245760 0x33
 
 static void set_max9485_clk(char clk)
 {
@@ -71,9 +73,17 @@ static int raumfeld_cs4270_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
 
-	set_max9485_clk(MAX9485_MCLK_FREQ_112896);
+	/* set freq to 0 to enable all possible codec sample rates */
+	return snd_soc_dai_set_sysclk(codec_dai, 0, 0, 0);
+}
 
-	return snd_soc_dai_set_sysclk(codec_dai, 0, 11289600, 0);
+static void raumfeld_cs4270_shutdown(struct snd_pcm_substream *substream)
+{
+	struct snd_soc_pcm_runtime *rtd = substream->private_data;
+	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+
+	/* set freq to 0 to enable all possible codec sample rates */
+	snd_soc_dai_set_sysclk(codec_dai, 0, 0, 0);
 }
 
 static int raumfeld_cs4270_hw_params(struct snd_pcm_substream *substream,
@@ -86,20 +96,24 @@ static int raumfeld_cs4270_hw_params(struct snd_pcm_substream *substream,
 	int ret = 0;
 
 	switch (params_rate(params)) {
-	case 8000:
-	case 16000:
-	case 48000:
-	case 96000:
-		set_max9485_clk(MAX9485_MCLK_FREQ_122880);
-		clk = 12288000;
-		break;
-	case 11025:
-	case 22050:
 	case 44100:
-	case 88200:
 		set_max9485_clk(MAX9485_MCLK_FREQ_112896);
 		clk = 11289600;
 		break;
+	case 48000:
+		set_max9485_clk(MAX9485_MCLK_FREQ_122880);
+		clk = 12288000;
+		break;
+	case 88200:
+		set_max9485_clk(MAX9485_MCLK_FREQ_225792);
+		clk = 22579200;
+		break;
+	case 96000:
+		set_max9485_clk(MAX9485_MCLK_FREQ_245760);
+		clk = 24576000;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	fmt = SND_SOC_DAIFMT_I2S |
@@ -128,7 +142,7 @@ static int raumfeld_cs4270_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_sysclk(cpu_dai, PXA_SSP_CLK_EXT, 0, 1);
+	ret = snd_soc_dai_set_sysclk(cpu_dai, PXA_SSP_CLK_EXT, clk, 1);
 	if (ret < 0)
 		return ret;
 
@@ -137,6 +151,7 @@ static int raumfeld_cs4270_hw_params(struct snd_pcm_substream *substream,
 
 static struct snd_soc_ops raumfeld_cs4270_ops = {
 	.startup = raumfeld_cs4270_startup,
+	.shutdown = raumfeld_cs4270_shutdown,
 	.hw_params = raumfeld_cs4270_hw_params,
 };
 
@@ -181,20 +196,24 @@ static int raumfeld_ak4104_hw_params(struct snd_pcm_substream *substream,
 	int fmt, ret = 0, clk = 0;
 
 	switch (params_rate(params)) {
-	case 8000:
-	case 16000:
-	case 48000:
-	case 96000:
-		set_max9485_clk(MAX9485_MCLK_FREQ_122880);
-		clk = 12288000;
-		break;
-	case 11025:
-	case 22050:
 	case 44100:
-	case 88200:
 		set_max9485_clk(MAX9485_MCLK_FREQ_112896);
 		clk = 11289600;
 		break;
+	case 48000:
+		set_max9485_clk(MAX9485_MCLK_FREQ_122880);
+		clk = 12288000;
+		break;
+	case 88200:
+		set_max9485_clk(MAX9485_MCLK_FREQ_225792);
+		clk = 22579200;
+		break;
+	case 96000:
+		set_max9485_clk(MAX9485_MCLK_FREQ_245760);
+		clk = 24576000;
+		break;
+	default:
+		return -EINVAL;
 	}
 
 	fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF;
@@ -217,7 +236,7 @@ static int raumfeld_ak4104_hw_params(struct snd_pcm_substream *substream,
 	if (ret < 0)
 		return ret;
 
-	ret = snd_soc_dai_set_sysclk(cpu_dai, PXA_SSP_CLK_EXT, 0, 1);
+	ret = snd_soc_dai_set_sysclk(cpu_dai, PXA_SSP_CLK_EXT, clk, 1);
 	if (ret < 0)
 		return ret;
 

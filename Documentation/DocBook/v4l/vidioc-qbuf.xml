@@ -54,12 +54,10 @@ to enqueue an empty (capturing) or filled (output) buffer in the
 driver's incoming queue. The semantics depend on the selected I/O
 method.</para>
 
-    <para>To enqueue a <link linkend="mmap">memory mapped</link>
-buffer applications set the <structfield>type</structfield> field of a
-&v4l2-buffer; to the same buffer type as previously &v4l2-format;
-<structfield>type</structfield> and &v4l2-requestbuffers;
-<structfield>type</structfield>, the <structfield>memory</structfield>
-field to <constant>V4L2_MEMORY_MMAP</constant> and the
+    <para>To enqueue a buffer applications set the <structfield>type</structfield>
+field of a &v4l2-buffer; to the same buffer type as was previously used
+with &v4l2-format; <structfield>type</structfield> and &v4l2-requestbuffers;
+<structfield>type</structfield>. Applications must also set the
 <structfield>index</structfield> field. Valid index numbers range from
 zero to the number of buffers allocated with &VIDIOC-REQBUFS;
 (&v4l2-requestbuffers; <structfield>count</structfield>) minus one. The
@@ -70,8 +68,19 @@ intended for output (<structfield>type</structfield> is
 <constant>V4L2_BUF_TYPE_VBI_OUTPUT</constant>) applications must also
 initialize the <structfield>bytesused</structfield>,
 <structfield>field</structfield> and
-<structfield>timestamp</structfield> fields. See <xref
-	linkend="buffer" /> for details. When
+<structfield>timestamp</structfield> fields, see <xref
+linkend="buffer" /> for details.
+Applications must also set <structfield>flags</structfield> to 0. If a driver
+supports capturing from specific video inputs and you want to specify a video
+input, then <structfield>flags</structfield> should be set to
+<constant>V4L2_BUF_FLAG_INPUT</constant> and the field
+<structfield>input</structfield> must be initialized to the desired input.
+The <structfield>reserved</structfield> field must be set to 0.
+</para>
+
+    <para>To enqueue a <link linkend="mmap">memory mapped</link>
+buffer applications set the <structfield>memory</structfield>
+field to <constant>V4L2_MEMORY_MMAP</constant>. When
 <constant>VIDIOC_QBUF</constant> is called with a pointer to this
 structure the driver sets the
 <constant>V4L2_BUF_FLAG_MAPPED</constant> and
@@ -81,14 +90,10 @@ structure the driver sets the
 &EINVAL;.</para>
 
     <para>To enqueue a <link linkend="userp">user pointer</link>
-buffer applications set the <structfield>type</structfield> field of a
-&v4l2-buffer; to the same buffer type as previously &v4l2-format;
-<structfield>type</structfield> and &v4l2-requestbuffers;
-<structfield>type</structfield>, the <structfield>memory</structfield>
-field to <constant>V4L2_MEMORY_USERPTR</constant> and the
+buffer applications set the <structfield>memory</structfield>
+field to <constant>V4L2_MEMORY_USERPTR</constant>, the
 <structfield>m.userptr</structfield> field to the address of the
-buffer and <structfield>length</structfield> to its size. When the
-buffer is intended for output additional fields must be set as above.
+buffer and <structfield>length</structfield> to its size.
 When <constant>VIDIOC_QBUF</constant> is called with a pointer to this
 structure the driver sets the <constant>V4L2_BUF_FLAG_QUEUED</constant>
 flag and clears the <constant>V4L2_BUF_FLAG_MAPPED</constant> and
@@ -96,13 +101,14 @@ flag and clears the <constant>V4L2_BUF_FLAG_MAPPED</constant> and
 <structfield>flags</structfield> field, or it returns an error code.
 This ioctl locks the memory pages of the buffer in physical memory,
 they cannot be swapped out to disk. Buffers remain locked until
-dequeued, until the &VIDIOC-STREAMOFF; or &VIDIOC-REQBUFS; ioctl are
+dequeued, until the &VIDIOC-STREAMOFF; or &VIDIOC-REQBUFS; ioctl is
 called, or until the device is closed.</para>
 
     <para>Applications call the <constant>VIDIOC_DQBUF</constant>
 ioctl to dequeue a filled (capturing) or displayed (output) buffer
 from the driver's outgoing queue. They just set the
-<structfield>type</structfield> and <structfield>memory</structfield>
+<structfield>type</structfield>, <structfield>memory</structfield>
+and <structfield>reserved</structfield>
 fields of a &v4l2-buffer; as above, when <constant>VIDIOC_DQBUF</constant>
 is called with a pointer to this structure the driver fills the
 remaining fields or returns an error code.</para>

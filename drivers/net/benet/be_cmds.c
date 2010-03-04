@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -104,10 +104,26 @@ static struct be_mcc_compl *be_mcc_compl_get(struct be_adapter *adapter)
 	return NULL;
 }
 
-int be_process_mcc(struct be_adapter *adapter)
+void be_async_mcc_enable(struct be_adapter *adapter)
+{
+	spin_lock_bh(&adapter->mcc_cq_lock);
+
+	be_cq_notify(adapter, adapter->mcc_obj.cq.id, true, 0);
+	adapter->mcc_obj.rearm_cq = true;
+
+	spin_unlock_bh(&adapter->mcc_cq_lock);
+}
+
+void be_async_mcc_disable(struct be_adapter *adapter)
+{
+	adapter->mcc_obj.rearm_cq = false;
+}
+
+int be_process_mcc(struct be_adapter *adapter, int *status)
 {
 	struct be_mcc_compl *compl;
-	int num = 0, status = 0;
+	int num = 0;
+	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 
 	spin_lock_bh(&adapter->mcc_cq_lock);
 	while ((compl = be_mcc_compl_get(adapter))) {
@@ -119,31 +135,31 @@ int be_process_mcc(struct be_adapter *adapter)
 			be_async_link_state_process(adapter,
 				(struct be_async_event_link_state *) compl);
 		} else if (compl->flags & CQE_FLAGS_COMPLETED_MASK) {
-				status = be_mcc_compl_process(adapter, compl);
-				atomic_dec(&adapter->mcc_obj.q.used);
+				*status = be_mcc_compl_process(adapter, compl);
+				atomic_dec(&mcc_obj->q.used);
 		}
 		be_mcc_compl_use(compl);
 		num++;
 	}
 
-	if (num)
-		be_cq_notify(adapter, adapter->mcc_obj.cq.id, true, num);
-
 	spin_unlock_bh(&adapter->mcc_cq_lock);
-	return status;
+	return num;
 }
 
 /* Wait till no more pending mcc requests are present */
 static int be_mcc_wait_compl(struct be_adapter *adapter)
 {
 #define mcc_timeout		120000 /* 12s timeout */
-	int i, status;
-	for (i = 0; i < mcc_timeout; i++) {
-		status = be_process_mcc(adapter);
-		if (status)
-			return status;
+	int i, num, status = 0;
+	struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
 
-		if (atomic_read(&adapter->mcc_obj.q.used) == 0)
+	for (i = 0; i < mcc_timeout; i++) {
+		num = be_process_mcc(adapter, &status);
+		if (num)
+			be_cq_notify(adapter, mcc_obj->cq.id,
+				mcc_obj->rearm_cq, num);
+
+		if (atomic_read(&mcc_obj->q.used) == 0)
 			break;
 		udelay(100);
 	}
@@ -151,7 +167,7 @@ static int be_mcc_wait_compl(struct be_adapter *adapter)
 		dev_err(&adapter->pdev->dev, "mccq poll timed out\n");
 		return -1;
 	}
-	return 0;
+	return status;
 }
 
 /* Notify MCC requests and wait for completion */
@@ -167,7 +183,14 @@ static int be_mbox_db_ready_wait(struct be_adapter *adapter, void __iomem *db)
 	u32 ready;
 
 	do {
-		ready = ioread32(db) & MPU_MAILBOX_DB_RDY_MASK;
+		ready = ioread32(db);
+		if (ready == 0xffffffff) {
+			dev_err(&adapter->pdev->dev,
+				"pci slot disconnected\n");
+			return -1;
+		}
+
+		ready &= MPU_MAILBOX_DB_RDY_MASK;
 		if (ready)
 			break;
 
@@ -197,6 +220,11 @@ static int be_mbox_notify_wait(struct be_adapter *adapter)
 	struct be_dma_mem *mbox_mem = &adapter->mbox_mem;
 	struct be_mcc_mailbox *mbox = mbox_mem->va;
 	struct be_mcc_compl *compl = &mbox->compl;
+
+	/* wait for ready to be set */
+	status = be_mbox_db_ready_wait(adapter, db);
+	if (status != 0)
+		return status;
 
 	val |= MPU_MAILBOX_DB_HI_MASK;
 	/* at bits 2 - 31 place mbox dma addr msb bits 34 - 63 */
@@ -396,6 +424,9 @@ int be_cmd_fw_clean(struct be_adapter *adapter)
 {
 	u8 *wrb;
 	int status;
+
+	if (adapter->eeh_err)
+		return -EIO;
 
 	spin_lock(&adapter->mbox_lock);
 
@@ -769,6 +800,9 @@ int be_cmd_q_destroy(struct be_adapter *adapter, struct be_queue_info *q,
 	u8 subsys = 0, opcode = 0;
 	int status;
 
+	if (adapter->eeh_err)
+		return -EIO;
+
 	spin_lock(&adapter->mbox_lock);
 
 	wrb = wrb_from_mbox(adapter);
@@ -856,6 +890,9 @@ int be_cmd_if_destroy(struct be_adapter *adapter, u32 interface_id)
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_if_destroy *req;
 	int status;
+
+	if (adapter->eeh_err)
+		return -EIO;
 
 	spin_lock(&adapter->mbox_lock);
 
@@ -1097,8 +1134,7 @@ err:
  * (mc == NULL) => multicast promiscous
  */
 int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
-		struct dev_mc_list *mc_list, u32 mc_count,
-		struct be_dma_mem *mem)
+		struct net_device *netdev, struct be_dma_mem *mem)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_req_mcast_mac_config *req = mem->va;
@@ -1125,13 +1161,14 @@ int be_cmd_multicast_set(struct be_adapter *adapter, u32 if_id,
 		OPCODE_COMMON_NTWK_MULTICAST_SET, sizeof(*req));
 
 	req->interface_id = if_id;
-	if (mc_list) {
+	if (netdev) {
 		int i;
 		struct dev_mc_list *mc;
 
-		req->num_mac = cpu_to_le16(mc_count);
+		req->num_mac = cpu_to_le16(netdev_mc_count(netdev));
 
-		for (mc = mc_list, i = 0; mc; mc = mc->next, i++)
+		i = 0;
+		netdev_for_each_mc_addr(mc, netdev)
 			memcpy(req->mac[i].byte, mc->dmi_addr, ETH_ALEN);
 	} else {
 		req->promiscuous = 1;
@@ -1375,7 +1412,7 @@ int be_cmd_write_flashrom(struct be_adapter *adapter, struct be_dma_mem *cmd,
 			u32 flash_type, u32 flash_opcode, u32 buf_size)
 {
 	struct be_mcc_wrb *wrb;
-	struct be_cmd_write_flashrom *req = cmd->va;
+	struct be_cmd_write_flashrom *req;
 	struct be_sge *sge;
 	int status;
 
@@ -1409,7 +1446,8 @@ err:
 	return status;
 }
 
-int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc)
+int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc,
+			 int offset)
 {
 	struct be_mcc_wrb *wrb;
 	struct be_cmd_write_flashrom *req;
@@ -1430,9 +1468,9 @@ int be_cmd_get_flash_crc(struct be_adapter *adapter, u8 *flashed_crc)
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 		OPCODE_COMMON_READ_FLASHROM, sizeof(*req)+4);
 
-	req->params.op_type = cpu_to_le32(FLASHROM_TYPE_REDBOOT);
+	req->params.op_type = cpu_to_le32(IMG_TYPE_REDBOOT);
 	req->params.op_code = cpu_to_le32(FLASHROM_OPER_REPORT);
-	req->params.offset = 0x3FFFC;
+	req->params.offset = offset;
 	req->params.data_buf_size = 0x4;
 
 	status = be_mcc_notify_wait(adapter);
@@ -1605,6 +1643,36 @@ int be_cmd_ddr_dma_test(struct be_adapter *adapter, u64 pattern,
 	}
 
 err:
+	spin_unlock_bh(&adapter->mcc_lock);
+	return status;
+}
+
+extern int be_cmd_get_seeprom_data(struct be_adapter *adapter,
+				struct be_dma_mem *nonemb_cmd)
+{
+	struct be_mcc_wrb *wrb;
+	struct be_cmd_req_seeprom_read *req;
+	struct be_sge *sge;
+	int status;
+
+	spin_lock_bh(&adapter->mcc_lock);
+
+	wrb = wrb_from_mccq(adapter);
+	req = nonemb_cmd->va;
+	sge = nonembedded_sgl(wrb);
+
+	be_wrb_hdr_prepare(wrb, sizeof(*req), false, 1,
+			OPCODE_COMMON_SEEPROM_READ);
+
+	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
+			OPCODE_COMMON_SEEPROM_READ, sizeof(*req));
+
+	sge->pa_hi = cpu_to_le32(upper_32_bits(nonemb_cmd->dma));
+	sge->pa_lo = cpu_to_le32(nonemb_cmd->dma & 0xFFFFFFFF);
+	sge->len = cpu_to_le32(nonemb_cmd->size);
+
+	status = be_mcc_notify_wait(adapter);
+
 	spin_unlock_bh(&adapter->mcc_lock);
 	return status;
 }

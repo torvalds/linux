@@ -208,7 +208,7 @@ MODULE_PARM_DESC(use_io, "Force use of i/o access mode");
 #define INTEL_8255X_ETHERNET_DEVICE(device_id, ich) {\
 	PCI_VENDOR_ID_INTEL, device_id, PCI_ANY_ID, PCI_ANY_ID, \
 	PCI_CLASS_NETWORK_ETHERNET << 8, 0xFFFF00, ich }
-static struct pci_device_id e100_id_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(e100_id_table) = {
 	INTEL_8255X_ETHERNET_DEVICE(0x1029, 0),
 	INTEL_8255X_ETHERNET_DEVICE(0x1030, 0),
 	INTEL_8255X_ETHERNET_DEVICE(0x1031, 3),
@@ -1537,14 +1537,18 @@ static int e100_hw_init(struct nic *nic)
 static void e100_multi(struct nic *nic, struct cb *cb, struct sk_buff *skb)
 {
 	struct net_device *netdev = nic->netdev;
-	struct dev_mc_list *list = netdev->mc_list;
-	u16 i, count = min(netdev->mc_count, E100_MAX_MULTICAST_ADDRS);
+	struct dev_mc_list *list;
+	u16 i, count = min(netdev_mc_count(netdev), E100_MAX_MULTICAST_ADDRS);
 
 	cb->command = cpu_to_le16(cb_multi);
 	cb->u.multi.count = cpu_to_le16(count * ETH_ALEN);
-	for (i = 0; list && i < count; i++, list = list->next)
-		memcpy(&cb->u.multi.addr[i*ETH_ALEN], &list->dmi_addr,
+	i = 0;
+	netdev_for_each_mc_addr(list, netdev) {
+		if (i == count)
+			break;
+		memcpy(&cb->u.multi.addr[i++ * ETH_ALEN], &list->dmi_addr,
 			ETH_ALEN);
+	}
 }
 
 static void e100_set_multicast_list(struct net_device *netdev)
@@ -1552,7 +1556,7 @@ static void e100_set_multicast_list(struct net_device *netdev)
 	struct nic *nic = netdev_priv(netdev);
 
 	DPRINTK(HW, DEBUG, "mc_count=%d, flags=0x%04X\n",
-		netdev->mc_count, netdev->flags);
+		netdev_mc_count(netdev), netdev->flags);
 
 	if (netdev->flags & IFF_PROMISC)
 		nic->flags |= promiscuous;
@@ -1560,7 +1564,7 @@ static void e100_set_multicast_list(struct net_device *netdev)
 		nic->flags &= ~promiscuous;
 
 	if (netdev->flags & IFF_ALLMULTI ||
-		netdev->mc_count > E100_MAX_MULTICAST_ADDRS)
+		netdev_mc_count(netdev) > E100_MAX_MULTICAST_ADDRS)
 		nic->flags |= multicast_all;
 	else
 		nic->flags &= ~multicast_all;

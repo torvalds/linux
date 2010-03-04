@@ -685,10 +685,10 @@ static void __init omap3_iva_idle(void)
 	prm_write_mod_reg(OMAP3430_RST1_IVA2 |
 			  OMAP3430_RST2_IVA2 |
 			  OMAP3430_RST3_IVA2,
-			  OMAP3430_IVA2_MOD, RM_RSTCTRL);
+			  OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 
 	/* Enable IVA2 clock */
-	cm_write_mod_reg(OMAP3430_CM_FCLKEN_IVA2_EN_IVA2,
+	cm_write_mod_reg(OMAP3430_CM_FCLKEN_IVA2_EN_IVA2_MASK,
 			 OMAP3430_IVA2_MOD, CM_FCLKEN);
 
 	/* Set IVA2 boot mode to 'idle' */
@@ -696,7 +696,7 @@ static void __init omap3_iva_idle(void)
 			 OMAP343X_CONTROL_IVA2_BOOTMOD);
 
 	/* Un-reset IVA2 */
-	prm_write_mod_reg(0, OMAP3430_IVA2_MOD, RM_RSTCTRL);
+	prm_write_mod_reg(0, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 
 	/* Disable IVA2 clock */
 	cm_write_mod_reg(0, OMAP3430_IVA2_MOD, CM_FCLKEN);
@@ -705,7 +705,7 @@ static void __init omap3_iva_idle(void)
 	prm_write_mod_reg(OMAP3430_RST1_IVA2 |
 			  OMAP3430_RST2_IVA2 |
 			  OMAP3430_RST3_IVA2,
-			  OMAP3430_IVA2_MOD, RM_RSTCTRL);
+			  OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 }
 
 static void __init omap3_d2d_idle(void)
@@ -728,8 +728,8 @@ static void __init omap3_d2d_idle(void)
 	/* reset modem */
 	prm_write_mod_reg(OMAP3430_RM_RSTCTRL_CORE_MODEM_SW_RSTPWRON |
 			  OMAP3430_RM_RSTCTRL_CORE_MODEM_SW_RST,
-			  CORE_MOD, RM_RSTCTRL);
-	prm_write_mod_reg(0, CORE_MOD, RM_RSTCTRL);
+			  CORE_MOD, OMAP2_RM_RSTCTRL);
+	prm_write_mod_reg(0, CORE_MOD, OMAP2_RM_RSTCTRL);
 }
 
 static void __init prcm_setup_regs(void)
@@ -916,13 +916,13 @@ static void __init prcm_setup_regs(void)
 	prm_write_mod_reg(0, OMAP3430_PER_MOD, OMAP3430_PM_IVAGRPSEL);
 
 	/* Clear any pending 'reset' flags */
-	prm_write_mod_reg(0xffffffff, MPU_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, CORE_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_PER_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_EMU_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_NEON_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_DSS_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430ES2_USBHOST_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, MPU_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, CORE_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_PER_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_EMU_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_NEON_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_DSS_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430ES2_USBHOST_MOD, OMAP2_RM_RSTST);
 
 	/* Clear any pending PRCM interrupts */
 	prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
@@ -940,6 +940,10 @@ void omap3_pm_off_mode_enable(int enable)
 		state = PWRDM_POWER_OFF;
 	else
 		state = PWRDM_POWER_RET;
+
+#ifdef CONFIG_CPU_IDLE
+	omap3_cpuidle_update_states();
+#endif
 
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		pwrst->next_state = state;
@@ -998,6 +1002,9 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
  */
 static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 {
+	clkdm_clear_all_wkdeps(clkdm);
+	clkdm_clear_all_sleepdeps(clkdm);
+
 	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
 		omap2_clkdm_allow_idle(clkdm);
 	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
@@ -1018,6 +1025,7 @@ void omap_push_sram_idle(void)
 static int __init omap3_pm_init(void)
 {
 	struct power_state *pwrst, *tmp;
+	struct clockdomain *neon_clkdm, *per_clkdm, *mpu_clkdm, *core_clkdm;
 	int ret;
 
 	if (!cpu_is_omap34xx())
@@ -1057,6 +1065,11 @@ static int __init omap3_pm_init(void)
 	core_pwrdm = pwrdm_lookup("core_pwrdm");
 	cam_pwrdm = pwrdm_lookup("cam_pwrdm");
 
+	neon_clkdm = clkdm_lookup("neon_clkdm");
+	mpu_clkdm = clkdm_lookup("mpu_clkdm");
+	per_clkdm = clkdm_lookup("per_clkdm");
+	core_clkdm = clkdm_lookup("core_clkdm");
+
 	omap_push_sram_idle();
 #ifdef CONFIG_SUSPEND
 	suspend_set_ops(&omap_pm_ops);
@@ -1065,14 +1078,14 @@ static int __init omap3_pm_init(void)
 	pm_idle = omap3_pm_idle;
 	omap3_idle_init();
 
-	pwrdm_add_wkdep(neon_pwrdm, mpu_pwrdm);
+	clkdm_add_wkdep(neon_clkdm, mpu_clkdm);
 	/*
 	 * REVISIT: This wkdep is only necessary when GPIO2-6 are enabled for
 	 * IO-pad wakeup.  Otherwise it will unnecessarily waste power
 	 * waking up PER with every CORE wakeup - see
 	 * http://marc.info/?l=linux-omap&m=121852150710062&w=2
 	*/
-	pwrdm_add_wkdep(per_pwrdm, core_pwrdm);
+	clkdm_add_wkdep(per_clkdm, core_clkdm);
 
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP) {
 		omap3_secure_ram_storage =

@@ -17,46 +17,134 @@
 
 #include <plat/omap24xx.h>
 #include <plat/omap34xx.h>
-
-/* REVISIT: This should be set dynamically if CONFIG_MULTI_OMAP2 is selected */
-#if defined(CONFIG_ARCH_OMAP2420) || defined(CONFIG_ARCH_OMAP2430)
-#define OMAP2_VA_IC_BASE		OMAP2_L4_IO_ADDRESS(OMAP24XX_IC_BASE)
-#elif defined(CONFIG_ARCH_OMAP34XX)
-#define OMAP2_VA_IC_BASE		OMAP2_L4_IO_ADDRESS(OMAP34XX_IC_BASE)
-#endif
-#if defined(CONFIG_ARCH_OMAP4)
 #include <plat/omap44xx.h>
-#endif
-#define INTCPS_SIR_IRQ_OFFSET	0x0040		/* Active interrupt offset */
-#define	ACTIVEIRQ_MASK		0x7f		/* Active interrupt bits */
+
+#include <plat/multi.h>
+
+#define OMAP2_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP24XX_IC_BASE)
+#define OMAP3_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP34XX_IC_BASE)
+#define OMAP4_IRQ_BASE		OMAP2_L4_IO_ADDRESS(OMAP44XX_GIC_CPU_BASE)
+#define INTCPS_SIR_IRQ_OFFSET	0x0040	/* omap2/3 active interrupt offset */
+#define	ACTIVEIRQ_MASK		0x7f	/* omap2/3 active interrupt bits */
 
 		.macro	disable_fiq
-		.endm
-
-		.macro  get_irqnr_preamble, base, tmp
 		.endm
 
 		.macro  arch_ret_to_user, tmp1, tmp2
 		.endm
 
-#ifndef CONFIG_ARCH_OMAP4
+/*
+ * Unoptimized irq functions for multi-omap2, 3 and 4
+ */
+
+#ifdef MULTI_OMAP2
+		.pushsection .data
+omap_irq_base:	.word	0
+		.popsection
+
+		/* Configure the interrupt base on the first interrupt */
+		.macro  get_irqnr_preamble, base, tmp
+9:
+		ldr	\base, =omap_irq_base	@ irq base address
+		ldr	\base, [\base, #0]	@ irq base value
+		cmp	\base, #0		@ already configured?
+		bne	9997f			@ nothing to do
+
+		mrc	p15, 0, \tmp, c0, c0, 0	@ get processor revision
+		and	\tmp, \tmp, #0x000f0000	@ only check architecture
+		cmp	\tmp, #0x00060000	@ is v6?
+		beq	2400f			@ found v6 so it's omap24xx
+		mrc	p15, 0, \tmp, c0, c0, 0	@ get processor revision
+		and	\tmp, \tmp, #0x000000f0	@ check cortex 8 or 9
+		cmp	\tmp, #0x00000080	@ cortex A-8?
+		beq	3400f			@ found A-8 so it's omap34xx
+		cmp	\tmp, #0x00000090	@ cortex A-9?
+		beq	4400f			@ found A-9 so it's omap44xx
+2400:		ldr	\base, =OMAP2_IRQ_BASE
+		ldr	\tmp, =omap_irq_base
+		str	\base, [\tmp, #0]
+		b	9b
+3400:		ldr	\base, =OMAP3_IRQ_BASE
+		ldr	\tmp, =omap_irq_base
+		str	\base, [\tmp, #0]
+		b	9b
+4400:		ldr	\base, =OMAP4_IRQ_BASE
+		ldr	\tmp, =omap_irq_base
+		str	\base, [\tmp, #0]
+		b	9b
+9997:
+		.endm
+
+		/* Check the pending interrupts. Note that base already set */
 		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
-		ldr	\base, =OMAP2_VA_IC_BASE
+		tst	\base, #0x100		@ gic address?
+		bne	4401f			@ found gic
+
+		/* Handle omap2 and omap3 */
 		ldr	\irqnr, [\base, #0x98] /* IRQ pending reg 1 */
 		cmp	\irqnr, #0x0
-		bne	2222f
+		bne	9998f
 		ldr	\irqnr, [\base, #0xb8] /* IRQ pending reg 2 */
 		cmp	\irqnr, #0x0
-		bne	2222f
+		bne	9998f
 		ldr	\irqnr, [\base, #0xd8] /* IRQ pending reg 3 */
 		cmp	\irqnr, #0x0
-2222:
+9998:
+		ldrne	\irqnr, [\base, #INTCPS_SIR_IRQ_OFFSET]
+		and	\irqnr, \irqnr, #ACTIVEIRQ_MASK /* Clear spurious bits */
+		b	9999f
+
+		/* Handle omap4 */
+4401:		ldr     \irqstat, [\base, #GIC_CPU_INTACK]
+		ldr     \tmp, =1021
+		bic     \irqnr, \irqstat, #0x1c00
+		cmp     \irqnr, #29
+		cmpcc   \irqnr, \irqnr
+		cmpne   \irqnr, \tmp
+		cmpcs   \irqnr, \irqnr
+9999:
+		.endm
+
+
+#else	/* MULTI_OMAP2 */
+
+
+/*
+ * Optimized irq functions for omap2, 3 and 4
+ */
+
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
+		.macro  get_irqnr_preamble, base, tmp
+#ifdef CONFIG_ARCH_OMAP2
+		ldr	\base, =OMAP2_IRQ_BASE
+#else
+		ldr	\base, =OMAP3_IRQ_BASE
+#endif
+		.endm
+
+		/* Check the pending interrupts. Note that base already set */
+		.macro	get_irqnr_and_base, irqnr, irqstat, base, tmp
+		ldr	\irqnr, [\base, #0x98] /* IRQ pending reg 1 */
+		cmp	\irqnr, #0x0
+		bne	9999f
+		ldr	\irqnr, [\base, #0xb8] /* IRQ pending reg 2 */
+		cmp	\irqnr, #0x0
+		bne	9999f
+		ldr	\irqnr, [\base, #0xd8] /* IRQ pending reg 3 */
+		cmp	\irqnr, #0x0
+9999:
 		ldrne	\irqnr, [\base, #INTCPS_SIR_IRQ_OFFSET]
 		and	\irqnr, \irqnr, #ACTIVEIRQ_MASK /* Clear spurious bits */
 
 		.endm
-#else
-#define OMAP44XX_VA_GIC_CPU_BASE	OMAP2_L4_IO_ADDRESS(OMAP44XX_GIC_CPU_BASE)
+#endif
+
+
+#ifdef CONFIG_ARCH_OMAP4
+
+		.macro  get_irqnr_preamble, base, tmp
+		ldr     \base, =OMAP4_IRQ_BASE
+		.endm
 
 		/*
 		 * The interrupt numbering scheme is defined in the
@@ -78,7 +166,6 @@
 		 * valid range for an IRQ (30-1020 inclusive).
 		 */
 		.macro  get_irqnr_and_base, irqnr, irqstat, base, tmp
-		ldr     \base, =OMAP44XX_VA_GIC_CPU_BASE
 		ldr     \irqstat, [\base, #GIC_CPU_INTACK]
 
 		ldr     \tmp, =1021
@@ -119,6 +206,7 @@
 		cmp	\tmp, #0
 		.endm
 #endif
+#endif	/* MULTI_OMAP2 */
 
 		.macro	irq_prio_table
 		.endm

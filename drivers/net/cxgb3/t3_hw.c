@@ -1262,7 +1262,8 @@ void t3_link_changed(struct adapter *adapter, int port_id)
 		lc->fc = fc;
 	}
 
-	t3_os_link_changed(adapter, port_id, link_ok, speed, duplex, fc);
+	t3_os_link_changed(adapter, port_id, link_ok && !pi->link_fault,
+			   speed, duplex, fc);
 }
 
 void t3_link_fault(struct adapter *adapter, int port_id)

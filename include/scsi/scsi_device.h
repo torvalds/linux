@@ -348,7 +348,8 @@ extern int scsi_mode_select(struct scsi_device *sdev, int pf, int sp,
 			    struct scsi_sense_hdr *);
 extern int scsi_test_unit_ready(struct scsi_device *sdev, int timeout,
 				int retries, struct scsi_sense_hdr *sshdr);
-extern unsigned char *scsi_get_vpd_page(struct scsi_device *, u8 page);
+extern int scsi_get_vpd_page(struct scsi_device *, u8 page, unsigned char *buf,
+			     int buf_len);
 extern int scsi_device_set_state(struct scsi_device *sdev,
 				 enum scsi_device_state state);
 extern struct scsi_event *sdev_evt_alloc(enum scsi_device_event evt_type,

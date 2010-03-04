@@ -714,14 +714,17 @@ void __init plat_early_device_setup(void)
 #define RAMCR_CACHE_L2FC	0x0002
 #define RAMCR_CACHE_L2E		0x0001
 #define L2_CACHE_ENABLE		(RAMCR_CACHE_L2E|RAMCR_CACHE_L2FC)
-void __uses_jump_to_uncached l2_cache_init(void)
+
+void l2_cache_init(void)
 {
 	/* Enable L2 cache */
-	ctrl_outl(L2_CACHE_ENABLE, RAMCR);
+	__raw_writel(L2_CACHE_ENABLE, RAMCR);
 }
 
 enum {
 	UNUSED = 0,
+	ENABLED,
+	DISABLED,
 
 	/* interrupt sources */
 	IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7,
@@ -750,14 +753,12 @@ enum {
 	ETHI,
 	I2C1_ALI, I2C1_TACKI, I2C1_WAITI, I2C1_DTEI,
 	I2C0_ALI, I2C0_TACKI, I2C0_WAITI, I2C0_DTEI,
-	SDHI0_SDHII0, SDHI0_SDHII1, SDHI0_SDHII2, SDHI0_SDHII3,
 	CMT,
 	TSIF,
 	FSI,
 	SCIFA5,
 	TMU0_TUNI0, TMU0_TUNI1, TMU0_TUNI2,
 	IRDA,
-	SDHI1_SDHII0, SDHI1_SDHII1, SDHI1_SDHII2,
 	JPU,
 	_2DDMAC,
 	MMC_MMC2I, MMC_MMC3I,
@@ -839,10 +840,10 @@ static struct intc_vect vectors[] __initdata = {
 	INTC_VECT(I2C0_WAITI, 0xE40),
 	INTC_VECT(I2C0_DTEI, 0xE60),
 
-	INTC_VECT(SDHI0_SDHII0, 0xE80),
-	INTC_VECT(SDHI0_SDHII1, 0xEA0),
-	INTC_VECT(SDHI0_SDHII2, 0xEC0),
-	INTC_VECT(SDHI0_SDHII3, 0xEE0),
+	INTC_VECT(SDHI0, 0xE80),
+	INTC_VECT(SDHI0, 0xEA0),
+	INTC_VECT(SDHI0, 0xEC0),
+	INTC_VECT(SDHI0, 0xEE0),
 
 	INTC_VECT(CMT,    0xF00),
 	INTC_VECT(TSIF,   0xF20),
@@ -855,9 +856,9 @@ static struct intc_vect vectors[] __initdata = {
 
 	INTC_VECT(IRDA,    0x480),
 
-	INTC_VECT(SDHI1_SDHII0, 0x4E0),
-	INTC_VECT(SDHI1_SDHII1, 0x500),
-	INTC_VECT(SDHI1_SDHII2, 0x520),
+	INTC_VECT(SDHI1, 0x4E0),
+	INTC_VECT(SDHI1, 0x500),
+	INTC_VECT(SDHI1, 0x520),
 
 	INTC_VECT(JPU, 0x560),
 	INTC_VECT(_2DDMAC, 0x4A0),
@@ -883,8 +884,6 @@ static struct intc_group groups[] __initdata = {
 	INTC_GROUP(DMAC0B, DMAC0B_DEI4, DMAC0B_DEI5, DMAC0B_DADERR),
 	INTC_GROUP(I2C0, I2C0_ALI, I2C0_TACKI, I2C0_WAITI, I2C0_DTEI),
 	INTC_GROUP(I2C1, I2C1_ALI, I2C1_TACKI, I2C1_WAITI, I2C1_DTEI),
-	INTC_GROUP(SDHI0, SDHI0_SDHII0, SDHI0_SDHII1, SDHI0_SDHII2, SDHI0_SDHII3),
-	INTC_GROUP(SDHI1, SDHI1_SDHII0, SDHI1_SDHII1, SDHI1_SDHII2),
 	INTC_GROUP(SPU, SPU_SPUI0, SPU_SPUI1),
 	INTC_GROUP(MMCIF, MMC_MMC2I, MMC_MMC3I),
 };
@@ -892,7 +891,7 @@ static struct intc_group groups[] __initdata = {
 static struct intc_mask_reg mask_registers[] __initdata = {
 	{ 0xa4080080, 0xa40800c0, 8, /* IMR0 / IMCR0 */
 	  { 0, TMU1_TUNI2, TMU1_TUNI1, TMU1_TUNI0,
-	    0, SDHI1_SDHII2, SDHI1_SDHII1, SDHI1_SDHII0 } },
+	    0, DISABLED, ENABLED, ENABLED } },
 	{ 0xa4080084, 0xa40800c4, 8, /* IMR1 / IMCR1 */
 	  { VIO_VOU, VIO_VEU1, VIO_BEU0, VIO_CEU0,
 	    DMAC0A_DEI3, DMAC0A_DEI2, DMAC0A_DEI1, DMAC0A_DEI0 } },
@@ -914,7 +913,7 @@ static struct intc_mask_reg mask_registers[] __initdata = {
 	  { I2C0_DTEI, I2C0_WAITI, I2C0_TACKI, I2C0_ALI,
 	    I2C1_DTEI, I2C1_WAITI, I2C1_TACKI, I2C1_ALI } },
 	{ 0xa40800a0, 0xa40800e0, 8, /* IMR8 / IMCR8 */
-	  { SDHI0_SDHII3, SDHI0_SDHII2, SDHI0_SDHII1, SDHI0_SDHII0,
+	  { DISABLED, DISABLED, ENABLED, ENABLED,
 	    0, 0, SCIFA5, FSI } },
 	{ 0xa40800a4, 0xa40800e4, 8, /* IMR9 / IMCR9 */
 	  { 0, 0, 0, CMT, 0, USB1, USB0, 0 } },
@@ -961,9 +960,13 @@ static struct intc_mask_reg ack_registers[] __initdata = {
 	  { IRQ0, IRQ1, IRQ2, IRQ3, IRQ4, IRQ5, IRQ6, IRQ7 } },
 };
 
-static DECLARE_INTC_DESC_ACK(intc_desc, "sh7724", vectors, groups,
-			     mask_registers, prio_registers, sense_registers,
-			     ack_registers);
+static struct intc_desc intc_desc __initdata = {
+	.name = "sh7724",
+	.force_enable = ENABLED,
+	.force_disable = DISABLED,
+	.hw = INTC_HW_DESC(vectors, groups, mask_registers,
+			   prio_registers, sense_registers, ack_registers),
+};
 
 void __init plat_irq_setup(void)
 {

@@ -1890,7 +1890,7 @@ rate)
 	struct r8180_priv *priv = (struct r8180_priv *)ieee80211_priv(dev);
 	int mode;
 	struct ieee80211_hdr_3addr  *h = (struct ieee80211_hdr_3addr  *) skb->data;
-	short morefrag = (h->frame_ctl) & IEEE80211_FCTL_MOREFRAGS;
+	short morefrag = (h->frame_control) & IEEE80211_FCTL_MOREFRAGS;
 	unsigned long flags;
 	int priority;
 
@@ -2158,7 +2158,7 @@ short rtl8180_tx(struct net_device *dev, u8* txbuf, int len, int priority,
 				TxDescDuration = ThisFrameTime + aSifsTime + AckTime;
 			}
 
-			if(!(frag_hdr->frame_ctl & IEEE80211_FCTL_MOREFRAGS)) { //no more fragment
+			if (!(frag_hdr->frame_control & IEEE80211_FCTL_MOREFRAGS)) {
 				// ThisFrame-ACK.
 				Duration = aSifsTime + AckTime;
 			} else { // One or more fragments remained.

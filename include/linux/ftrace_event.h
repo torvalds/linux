@@ -5,6 +5,7 @@
 #include <linux/trace_seq.h>
 #include <linux/percpu.h>
 #include <linux/hardirq.h>
+#include <linux/perf_event.h>
 
 struct trace_array;
 struct tracer;
@@ -137,9 +138,6 @@ struct ftrace_event_call {
 
 #define FTRACE_MAX_PROFILE_SIZE	2048
 
-extern char *perf_trace_buf;
-extern char *perf_trace_buf_nmi;
-
 #define MAX_FILTER_PRED		32
 #define MAX_FILTER_STR_VAL	256	/* Should handle KSYM_SYMBOL_LEN */
 
@@ -187,13 +185,27 @@ do {									\
 		__trace_printk(ip, fmt, ##args);			\
 } while (0)
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 struct perf_event;
 extern int ftrace_profile_enable(int event_id);
 extern void ftrace_profile_disable(int event_id);
 extern int ftrace_profile_set_filter(struct perf_event *event, int event_id,
 				     char *filter_str);
 extern void ftrace_profile_free_filter(struct perf_event *event);
+extern void *
+ftrace_perf_buf_prepare(int size, unsigned short type, int *rctxp,
+			 unsigned long *irq_flags);
+
+static inline void
+ftrace_perf_buf_submit(void *raw_data, int size, int rctx, u64 addr,
+		       u64 count, unsigned long irq_flags)
+{
+	struct trace_entry *entry = raw_data;
+
+	perf_tp_event(entry->type, addr, count, raw_data, size);
+	perf_swevent_put_recursion_context(rctx);
+	local_irq_restore(irq_flags);
+}
 #endif
 
 #endif /* _LINUX_FTRACE_EVENT_H */

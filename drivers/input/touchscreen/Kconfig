@@ -90,7 +90,6 @@ config TOUCHSCREEN_CORGI
 	tristate "SharpSL (Corgi and Spitz series) touchscreen driver (DEPRECATED)"
 	depends on PXA_SHARPSL
 	select CORGI_SSP_DEPRECATED
-	default y
 	help
 	  Say Y here to enable the driver for the touchscreen on the
 	  Sharp SL-C7xx and SL-Cxx00 series of PDAs.
@@ -535,6 +534,11 @@ config TOUCHSCREEN_USB_ZYTRONIC
 config TOUCHSCREEN_USB_ETT_TC5UH
 	default y
 	bool "ET&T TC5UH touchscreen controler support" if EMBEDDED
+	depends on TOUCHSCREEN_USB_COMPOSITE
+
+config TOUCHSCREEN_USB_NEXIO
+	default y
+	bool "NEXIO/iNexio device support" if EMBEDDED
 	depends on TOUCHSCREEN_USB_COMPOSITE
 
 config TOUCHSCREEN_TOUCHIT213

@@ -861,8 +861,7 @@ typedef struct xfs_item_ops {
 #define	XFS_ITEM_SUCCESS	0
 #define	XFS_ITEM_PINNED		1
 #define	XFS_ITEM_LOCKED		2
-#define	XFS_ITEM_FLUSHING	3
-#define XFS_ITEM_PUSHBUF	4
+#define XFS_ITEM_PUSHBUF	3
 
 /*
  * This structure is used to maintain a list of block ranges that have been

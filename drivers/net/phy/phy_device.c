@@ -277,6 +277,22 @@ int phy_device_register(struct phy_device *phydev)
 EXPORT_SYMBOL(phy_device_register);
 
 /**
+ * phy_find_first - finds the first PHY device on the bus
+ * @bus: the target MII bus
+ */
+struct phy_device *phy_find_first(struct mii_bus *bus)
+{
+	int addr;
+
+	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
+		if (bus->phy_map[addr])
+			return bus->phy_map[addr];
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(phy_find_first);
+
+/**
  * phy_prepare_link - prepares the PHY layer to monitor link status
  * @phydev: target phy_device struct
  * @handler: callback function for link status change notifications

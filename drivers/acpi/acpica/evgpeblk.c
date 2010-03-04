@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -258,7 +258,6 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 	u32 gpe_number;
 	char name[ACPI_NAME_SIZE + 1];
 	u8 type;
-	acpi_status status;
 
 	ACPI_FUNCTION_TRACE(ev_save_method_info);
 
@@ -325,26 +324,20 @@ acpi_ev_save_method_info(acpi_handle obj_handle,
 
 	/*
 	 * Now we can add this information to the gpe_event_info block for use
-	 * during dispatch of this GPE. Default type is RUNTIME, although this may
-	 * change when the _PRW methods are executed later.
+	 * during dispatch of this GPE.
 	 */
 	gpe_event_info =
 	    &gpe_block->event_info[gpe_number - gpe_block->block_base_number];
 
-	gpe_event_info->flags = (u8)
-	    (type | ACPI_GPE_DISPATCH_METHOD | ACPI_GPE_TYPE_RUNTIME);
+	gpe_event_info->flags = (u8) (type | ACPI_GPE_DISPATCH_METHOD);
 
 	gpe_event_info->dispatch.method_node =
 	    (struct acpi_namespace_node *)obj_handle;
 
-	/* Update enable mask, but don't enable the HW GPE as of yet */
-
-	status = acpi_ev_enable_gpe(gpe_event_info, FALSE);
-
 	ACPI_DEBUG_PRINT((ACPI_DB_LOAD,
 			  "Registered GPE method %s as GPE number 0x%.2X\n",
 			  name, gpe_number));
-	return_ACPI_STATUS(status);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************
@@ -454,20 +447,7 @@ acpi_ev_match_prw_and_gpe(acpi_handle obj_handle,
 							gpe_block->
 							block_base_number];
 
-		/* Mark GPE for WAKE-ONLY but WAKE_DISABLED */
-
-		gpe_event_info->flags &=
-		    ~(ACPI_GPE_WAKE_ENABLED | ACPI_GPE_RUN_ENABLED);
-
-		status =
-		    acpi_ev_set_gpe_type(gpe_event_info, ACPI_GPE_TYPE_WAKE);
-		if (ACPI_FAILURE(status)) {
-			goto cleanup;
-		}
-
-		status =
-		    acpi_ev_update_gpe_enable_masks(gpe_event_info,
-						    ACPI_GPE_DISABLE);
+		gpe_event_info->flags |= ACPI_GPE_CAN_WAKE;
 	}
 
       cleanup:
@@ -989,7 +969,6 @@ acpi_status
 acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 			     struct acpi_gpe_block_info *gpe_block)
 {
-	acpi_status status;
 	struct acpi_gpe_event_info *gpe_event_info;
 	struct acpi_gpe_walk_info gpe_info;
 	u32 wake_gpe_count;
@@ -1019,42 +998,50 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 		gpe_info.gpe_block = gpe_block;
 		gpe_info.gpe_device = gpe_device;
 
-		status =
-		    acpi_ns_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
+		acpi_ns_walk_namespace(ACPI_TYPE_DEVICE, ACPI_ROOT_OBJECT,
 					   ACPI_UINT32_MAX, ACPI_NS_WALK_UNLOCK,
 					   acpi_ev_match_prw_and_gpe, NULL,
 					   &gpe_info, NULL);
 	}
 
 	/*
-	 * Enable all GPEs in this block that have these attributes:
-	 * 1) are "runtime" or "run/wake" GPEs, and
-	 * 2) have a corresponding _Lxx or _Exx method
-	 *
-	 * Any other GPEs within this block must be enabled via the
-	 * acpi_enable_gpe() external interface.
+	 * Enable all GPEs that have a corresponding method and aren't
+	 * capable of generating wakeups. Any other GPEs within this block
+	 * must be enabled via the acpi_enable_gpe() interface.
 	 */
 	wake_gpe_count = 0;
 	gpe_enabled_count = 0;
+	if (gpe_device == acpi_gbl_fadt_gpe_device)
+		gpe_device = NULL;
 
 	for (i = 0; i < gpe_block->register_count; i++) {
-		for (j = 0; j < 8; j++) {
+		for (j = 0; j < ACPI_GPE_REGISTER_WIDTH; j++) {
+			acpi_status status;
+			acpi_size gpe_index;
+			int gpe_number;
 
 			/* Get the info block for this particular GPE */
+			gpe_index = (acpi_size)i * ACPI_GPE_REGISTER_WIDTH + j;
+			gpe_event_info = &gpe_block->event_info[gpe_index];
 
-			gpe_event_info = &gpe_block->event_info[((acpi_size) i *
-								 ACPI_GPE_REGISTER_WIDTH)
-								+ j];
-
-			if (((gpe_event_info->flags & ACPI_GPE_DISPATCH_MASK) ==
-			     ACPI_GPE_DISPATCH_METHOD) &&
-			    (gpe_event_info->flags & ACPI_GPE_TYPE_RUNTIME)) {
-				gpe_enabled_count++;
-			}
-
-			if (gpe_event_info->flags & ACPI_GPE_TYPE_WAKE) {
+			if (gpe_event_info->flags & ACPI_GPE_CAN_WAKE) {
 				wake_gpe_count++;
+				if (acpi_gbl_leave_wake_gpes_disabled)
+					continue;
 			}
+
+			if (!(gpe_event_info->flags & ACPI_GPE_DISPATCH_METHOD))
+				continue;
+
+			gpe_number = gpe_index + gpe_block->block_base_number;
+			status = acpi_enable_gpe(gpe_device, gpe_number,
+						ACPI_GPE_TYPE_RUNTIME);
+			if (ACPI_FAILURE(status))
+				ACPI_ERROR((AE_INFO,
+						"Failed to enable GPE %02X\n",
+						gpe_number));
+			else
+				gpe_enabled_count++;
 		}
 	}
 
@@ -1062,15 +1049,7 @@ acpi_ev_initialize_gpe_block(struct acpi_namespace_node *gpe_device,
 			  "Found %u Wake, Enabled %u Runtime GPEs in this block\n",
 			  wake_gpe_count, gpe_enabled_count));
 
-	/* Enable all valid runtime GPEs found above */
-
-	status = acpi_hw_enable_runtime_gpe_block(NULL, gpe_block, NULL);
-	if (ACPI_FAILURE(status)) {
-		ACPI_ERROR((AE_INFO, "Could not enable GPEs in GpeBlock %p",
-			    gpe_block));
-	}
-
-	return_ACPI_STATUS(status);
+	return_ACPI_STATUS(AE_OK);
 }
 
 /*******************************************************************************

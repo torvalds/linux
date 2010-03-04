@@ -29,6 +29,7 @@ struct sh_desc {
 	struct sh_dmae_regs hw;
 	struct list_head node;
 	struct dma_async_tx_descriptor async_tx;
+	enum dma_data_direction direction;
 	dma_cookie_t cookie;
 	int chunks;
 	int mark;
@@ -45,13 +46,9 @@ struct sh_dmae_chan {
 	struct device *dev;		/* Channel device */
 	struct tasklet_struct tasklet;	/* Tasklet */
 	int descs_allocated;		/* desc count */
+	int xmit_shift;			/* log_2(bytes_per_xfer) */
 	int id;				/* Raw id of this channel */
 	char dev_id[16];		/* unique name per DMAC of channel */
-
-	/* Set chcr */
-	int (*set_chcr)(struct sh_dmae_chan *sh_chan, u32 regs);
-	/* Set DMA resource */
-	int (*set_dmars)(struct sh_dmae_chan *sh_chan, u16 res);
 };
 
 struct sh_dmae_device {

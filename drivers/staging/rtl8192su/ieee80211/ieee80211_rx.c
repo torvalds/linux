@@ -744,7 +744,7 @@ u8 parse_subframe(struct sk_buff *skb,
 		  struct ieee80211_rxb *rxb,u8* src,u8* dst)
 {
 	struct ieee80211_hdr_3addr  *hdr = (struct ieee80211_hdr_3addr* )skb->data;
-	u16		fc = le16_to_cpu(hdr->frame_ctl);
+	u16		fc = le16_to_cpu(hdr->frame_control);
 
 	u16		LLCOffset= sizeof(struct ieee80211_hdr_3addr);
 	u16		ChkLength;
@@ -756,7 +756,7 @@ u8 parse_subframe(struct sk_buff *skb,
 	struct sk_buff *sub_skb;
 	u8             *data_ptr;
 	/* just for debug purpose */
-	SeqNum = WLAN_GET_SEQ_SEQ(le16_to_cpu(hdr->seq_ctl));
+	SeqNum = WLAN_GET_SEQ_SEQ(le16_to_cpu(hdr->seq_ctrl));
 
 	if((IEEE80211_QOS_HAS_SEQ(fc))&&\
 			(((frameqos *)(skb->data + IEEE80211_3ADDR_LEN))->field.reserved)) {
@@ -2370,7 +2370,7 @@ static inline void ieee80211_process_probe_response(
 				     escape_essid(info_element->data,
 						  info_element->len),
 				     MAC_ARG(beacon->header.addr3),
-				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
+				     WLAN_FC_GET_STYPE(beacon->header.frame_control) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 		return;
@@ -2387,7 +2387,7 @@ static inline void ieee80211_process_probe_response(
 		return;
 	if(ieee->bGlobalDomain)
 	{
-		if (WLAN_FC_GET_STYPE(beacon->header.frame_ctl) == IEEE80211_STYPE_PROBE_RESP)
+		if (WLAN_FC_GET_STYPE(beacon->header.frame_control) == IEEE80211_STYPE_PROBE_RESP)
 		{
 			// Case 1: Country code
 			if(IS_COUNTRY_IE_VALID(ieee) )
@@ -2454,7 +2454,7 @@ static inline void ieee80211_process_probe_response(
 		else
 			ieee->current_network.buseprotection = false;
 		}
-		if(is_beacon(beacon->header.frame_ctl))
+		if(is_beacon(beacon->header.frame_control))
 		{
 			if(ieee->state == IEEE80211_LINKED)
 				ieee->LinkDetectInfo.NumRecvBcnInPeriod++;
@@ -2496,7 +2496,7 @@ static inline void ieee80211_process_probe_response(
 				     escape_essid(network.ssid,
 						  network.ssid_len),
 				     MAC_ARG(network.bssid),
-				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
+				     WLAN_FC_GET_STYPE(beacon->header.frame_control) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 #endif
@@ -2509,7 +2509,7 @@ static inline void ieee80211_process_probe_response(
 				     escape_essid(target->ssid,
 						  target->ssid_len),
 				     MAC_ARG(target->bssid),
-				     WLAN_FC_GET_STYPE(beacon->header.frame_ctl) ==
+				     WLAN_FC_GET_STYPE(beacon->header.frame_control) ==
 				     IEEE80211_STYPE_PROBE_RESP ?
 				     "PROBE RESPONSE" : "BEACON");
 
@@ -2519,7 +2519,7 @@ static inline void ieee80211_process_probe_response(
 		 */
 		renew = !time_after(target->last_scanned + ieee->scan_age, jiffies);
 		//YJ,add,080819,for hidden ap
-		if(is_beacon(beacon->header.frame_ctl) == 0)
+		if(is_beacon(beacon->header.frame_control) == 0)
 			network.flags = (~NETWORK_EMPTY_ESSID & network.flags)|(NETWORK_EMPTY_ESSID & target->flags);
 		//if(strncmp(network.ssid, "linksys-c",9) == 0)
 		//	printk("====>2 network.ssid=%s FLAG=%d target.ssid=%s FLAG=%d\n", network.ssid, network.flags, target->ssid, target->flags);
@@ -2535,7 +2535,7 @@ static inline void ieee80211_process_probe_response(
 	}
 
 	spin_unlock_irqrestore(&ieee->lock, flags);
-	if (is_beacon(beacon->header.frame_ctl)&&is_same_network(&ieee->current_network, &network, ieee)&&\
+	if (is_beacon(beacon->header.frame_control)&&is_same_network(&ieee->current_network, &network, ieee)&&\
 		(ieee->state == IEEE80211_LINKED)) {
 		if(ieee->handle_beacon != NULL) {
 			ieee->handle_beacon(ieee->dev,beacon,&ieee->current_network);

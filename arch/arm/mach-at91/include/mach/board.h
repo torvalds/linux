@@ -87,7 +87,7 @@ struct at91_eth_data {
 extern void __init at91_add_device_eth(struct at91_eth_data *data);
 
 #if defined(CONFIG_ARCH_AT91SAM9260) || defined(CONFIG_ARCH_AT91SAM9263) || defined(CONFIG_ARCH_AT91SAM9G20) || defined(CONFIG_ARCH_AT91CAP9) \
-	|| defined(CONFIG_ARCH_AT91SAM9G45)
+	|| defined(CONFIG_ARCH_AT91SAM9G45) || defined(CONFIG_ARCH_AT572D940HF)
 #define eth_platform_data	at91_eth_data
 #endif
 
@@ -204,6 +204,9 @@ extern void __init at91_add_device_can(struct at91_can_data *data);
 extern void __init at91_init_leds(u8 cpu_led, u8 timer_led);
 extern void __init at91_gpio_leds(struct gpio_led *leds, int nr);
 extern void __init at91_pwm_leds(struct gpio_led *leds, int nr);
+
+ /* AT572D940HF DSP */
+extern void __init at91_add_device_mAgic(void);
 
 /* FIXME: this needs a better location, but gets stuff building again */
 extern int at91_suspend_entering_slow_clock(void);

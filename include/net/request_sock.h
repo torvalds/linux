@@ -45,6 +45,8 @@ struct request_sock_ops {
 	void		(*send_reset)(struct sock *sk,
 				      struct sk_buff *skb);
 	void		(*destructor)(struct request_sock *req);
+	void		(*syn_ack_timeout)(struct sock *sk,
+					   struct request_sock *req);
 };
 
 /* struct request_sock - mini sock to represent a connection request

@@ -1373,7 +1373,7 @@ wavelan_set_multicast_list(struct net_device *	dev)
 
 #ifdef DEBUG_IOCTL_INFO
   printk(KERN_DEBUG "%s: wavelan_set_multicast_list(): setting Rx mode %02X to %d addresses.\n",
-	 dev->name, dev->flags, dev->mc_count);
+	 dev->name, dev->flags, netdev_mc_count(dev));
 #endif
 
   if(dev->flags & IFF_PROMISC)
@@ -1394,7 +1394,7 @@ wavelan_set_multicast_list(struct net_device *	dev)
     /* If all multicast addresses
      * or too much multicast addresses for the hardware filter */
     if((dev->flags & IFF_ALLMULTI) ||
-       (dev->mc_count > I82593_MAX_MULTICAST_ADDRESSES))
+       (netdev_mc_count(dev) > I82593_MAX_MULTICAST_ADDRESSES))
       {
 	/*
 	 * Disable promiscuous mode, but active the all multicast mode
@@ -1410,20 +1410,19 @@ wavelan_set_multicast_list(struct net_device *	dev)
       }
     else
       /* If there is some multicast addresses to send */
-      if(dev->mc_list != (struct dev_mc_list *) NULL)
-	{
+      if (!netdev_mc_empty(dev)) {
 	  /*
 	   * Disable promiscuous mode, but receive all packets
 	   * in multicast list
 	   */
 #ifdef MULTICAST_AVOID
 	  if(lp->promiscuous || lp->allmulticast ||
-	     (dev->mc_count != lp->mc_count))
+	     (netdev_mc_count(dev) != lp->mc_count))
 #endif
 	    {
 	      lp->promiscuous = 0;
 	      lp->allmulticast = 0;
-	      lp->mc_count = dev->mc_count;
+	      lp->mc_count = netdev_mc_count(dev);
 
 	      wv_82593_reconfig(dev);
 	    }
@@ -3598,13 +3597,13 @@ wv_82593_config(struct net_device *	dev)
   /* If any multicast address to set */
   if(lp->mc_count)
     {
-      struct dev_mc_list *	dmi;
+      struct dev_mc_list *dmi;
       int			addrs_len = WAVELAN_ADDR_SIZE * lp->mc_count;
 
 #ifdef DEBUG_CONFIG_INFO
       printk(KERN_DEBUG "%s: wv_hw_config(): set %d multicast addresses:\n",
 	     dev->name, lp->mc_count);
-      for(dmi=dev->mc_list; dmi; dmi=dmi->next)
+      netdev_for_each_mc_addr(dmi, dev)
 	printk(KERN_DEBUG " %pM\n", dmi->dmi_addr);
 #endif
 
@@ -3613,7 +3612,7 @@ wv_82593_config(struct net_device *	dev)
       outb(((TX_BASE >> 8) & PIORH_MASK) | PIORH_SEL_TX, PIORH(base));
       outb(addrs_len & 0xff, PIOP(base));	/* byte count lsb */
       outb((addrs_len >> 8), PIOP(base));	/* byte count msb */
-      for(dmi=dev->mc_list; dmi; dmi=dmi->next)
+      netdev_for_each_mc_addr(dmi, dev)
 	outsb(PIOP(base), dmi->dmi_addr, dmi->dmi_addrlen);
 
       /* reset transmit DMA pointer */
@@ -3622,7 +3621,8 @@ wv_82593_config(struct net_device *	dev)
       if(!wv_82593_cmd(dev, "wv_82593_config(): mc-setup",
 		       OP0_MC_SETUP, SR0_MC_SETUP_DONE))
 	ret = FALSE;
-      lp->mc_count = dev->mc_count;	/* remember to avoid repeated reset */
+      /* remember to avoid repeated reset */
+      lp->mc_count = netdev_mc_count(dev);
     }
 
   /* Job done, clear the flag */

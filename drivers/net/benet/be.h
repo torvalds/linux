@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -32,28 +32,26 @@
 
 #include "be_hw.h"
 
-#define DRV_VER			"2.101.346u"
+#define DRV_VER			"2.102.147u"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
 #define BE3_NAME		"ServerEngines BladeEngine3 10Gbps NIC"
 #define OC_NAME			"Emulex OneConnect 10Gbps NIC"
 #define OC_NAME1		"Emulex OneConnect 10Gbps NIC (be3)"
-#define DRV_DESC		BE_NAME "Driver"
+#define DRV_DESC		"ServerEngines BladeEngine 10Gbps NIC Driver"
 
 #define BE_VENDOR_ID 		0x19a2
 #define BE_DEVICE_ID1		0x211
 #define BE_DEVICE_ID2		0x221
 #define OC_DEVICE_ID1		0x700
-#define OC_DEVICE_ID2		0x701
-#define OC_DEVICE_ID3		0x710
+#define OC_DEVICE_ID2		0x710
 
 static inline char *nic_name(struct pci_dev *pdev)
 {
 	switch (pdev->device) {
 	case OC_DEVICE_ID1:
-	case OC_DEVICE_ID2:
 		return OC_NAME;
-	case OC_DEVICE_ID3:
+	case OC_DEVICE_ID2:
 		return OC_NAME1;
 	case BE_DEVICE_ID2:
 		return BE3_NAME;
@@ -153,6 +151,7 @@ struct be_eq_obj {
 struct be_mcc_obj {
 	struct be_queue_info q;
 	struct be_queue_info cq;
+	bool rearm_cq;
 };
 
 struct be_drvr_stats {
@@ -165,6 +164,7 @@ struct be_drvr_stats {
 	ulong be_tx_jiffies;
 	u64 be_tx_bytes;
 	u64 be_tx_bytes_prev;
+	u64 be_tx_pkts;
 	u32 be_tx_rate;
 
 	u32 cache_barrier[16];
@@ -176,6 +176,7 @@ struct be_drvr_stats {
 	ulong be_rx_jiffies;
 	u64 be_rx_bytes;
 	u64 be_rx_bytes_prev;
+	u64 be_rx_pkts;
 	u32 be_rx_rate;
 	/* number of non ether type II frames dropped where
 	 * frame len > length field of Mac Hdr */
@@ -252,7 +253,8 @@ struct be_adapter {
 	bool rx_post_starved;	/* Zero rx frags have been posted to BE */
 
 	struct vlan_group *vlan_grp;
-	u16 num_vlans;
+	u16 vlans_added;
+	u16 max_vlans;	/* Number of vlans supported */
 	u8 vlan_tag[VLAN_GROUP_ARRAY_LEN];
 	struct be_dma_mem mc_cmd_mem;
 
@@ -266,6 +268,7 @@ struct be_adapter {
 	u32 if_handle;		/* Used to configure filtering */
 	u32 pmac_id;		/* MAC addr handle used by BE card */
 
+	bool eeh_err;
 	bool link_up;
 	u32 port_num;
 	bool promiscuous;

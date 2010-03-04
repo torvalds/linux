@@ -6,21 +6,6 @@ be removed from this file.
 
 ---------------------------
 
-What:	USER_SCHED
-When:	2.6.34
-
-Why:	USER_SCHED was implemented as a proof of concept for group scheduling.
-	The effect of USER_SCHED can already be achieved from userspace with
-	the help of libcgroup. The removal of USER_SCHED will also simplify
-	the scheduler code with the removal of one major ifdef. There are also
-	issues USER_SCHED has with USER_NS. A decision was taken not to fix
-	those and instead remove USER_SCHED. Also new group scheduling
-	features will not be implemented for USER_SCHED.
-
-Who:	Dhaval Giani <dhaval@linux.vnet.ibm.com>
-
----------------------------
-
 What:	PRISM54
 When:	2.6.34
 
@@ -64,6 +49,17 @@ Who:	Robin Getz <rgetz@blackfin.uclinux.org> & Matt Mackall <mpm@selenic.com>
 
 ---------------------------
 
+What:	Deprecated snapshot ioctls
+When:	2.6.36
+
+Why:	The ioctls in kernel/power/user.c were marked as deprecated long time
+	ago. Now they notify users about that so that they need to replace
+	their userspace. After some more time, remove them completely.
+
+Who:	Jiri Slaby <jirislaby@gmail.com>
+
+---------------------------
+
 What:	The ieee80211_regdom module parameter
 When:	March 2010 / desktop catchup
 
@@ -83,27 +79,6 @@ Why:	This was inherited by the CONFIG_WIRELESS_OLD_REGULATORY code,
 	this we will no longer need this module parameter. This entry hopes that
 	by the super-futuristically looking date of "March 2010" we will have
 	such replacements widely available.
-
-Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
-
----------------------------
-
-What:	CONFIG_WIRELESS_OLD_REGULATORY - old static regulatory information
-When:	March 2010 / desktop catchup
-
-Why:	The old regulatory infrastructure has been replaced with a new one
-	which does not require statically defined regulatory domains. We do
-	not want to keep static regulatory domains in the kernel due to the
-	the dynamic nature of regulatory law and localization. We kept around
-	the old static definitions for the regulatory domains of:
-
-		* US
-		* JP
-		* EU
-
-	and used by default the US when CONFIG_WIRELESS_OLD_REGULATORY was
-	set. We will remove this option once the standard Linux desktop catches
-	up with the new userspace APIs we have implemented.
 
 Who:	Luis R. Rodriguez <lrodriguez@atheros.com>
 
@@ -542,3 +517,36 @@ Why:	Duplicate functionality with the gspca_zc3xx driver, zc0301 only
 	sensors) wich are also supported by the gspca_zc3xx driver
 	(which supports 53 USB-ID's in total)
 Who:	Hans de Goede <hdegoede@redhat.com>
+
+----------------------------
+
+What:	corgikbd, spitzkbd, tosakbd driver
+When:	2.6.35
+Files:	drivers/input/keyboard/{corgi,spitz,tosa}kbd.c
+Why:	We now have a generic GPIO based matrix keyboard driver that
+	are fully capable of handling all the keys on these devices.
+	The original drivers manipulate the GPIO registers directly
+	and so are difficult to maintain.
+Who:	Eric Miao <eric.y.miao@gmail.com>
+
+----------------------------
+
+What:	corgi_ssp and corgi_ts driver
+When:	2.6.35
+Files:	arch/arm/mach-pxa/corgi_ssp.c, drivers/input/touchscreen/corgi_ts.c
+Why:	The corgi touchscreen is now deprecated in favour of the generic
+	ads7846.c driver. The noise reduction technique used in corgi_ts.c,
+	that's to wait till vsync before ADC sampling, is also integrated into
+	ads7846 driver now. Provided that the original driver is not generic
+	and is difficult to maintain, it will be removed later.
+Who:	Eric Miao <eric.y.miao@gmail.com>
+
+----------------------------
+
+What:	capifs
+When:	February 2011
+Files:	drivers/isdn/capi/capifs.*
+Why:	udev fully replaces this special file system that only contains CAPI
+	NCCI TTY device nodes. User space (pppdcapiplugin) works without
+	noticing the difference.
+Who:	Jan Kiszka <jan.kiszka@web.de>

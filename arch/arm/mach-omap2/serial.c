@@ -23,6 +23,7 @@
 #include <linux/serial_reg.h>
 #include <linux/clk.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 
 #include <plat/common.h>
 #include <plat/board.h>
@@ -80,7 +81,6 @@ static LIST_HEAD(uart_list);
 
 static struct plat_serial8250_port serial_platform_data0[] = {
 	{
-		.mapbase	= OMAP_UART1_BASE,
 		.irq		= 72,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -93,7 +93,6 @@ static struct plat_serial8250_port serial_platform_data0[] = {
 
 static struct plat_serial8250_port serial_platform_data1[] = {
 	{
-		.mapbase	= OMAP_UART2_BASE,
 		.irq		= 73,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -106,7 +105,6 @@ static struct plat_serial8250_port serial_platform_data1[] = {
 
 static struct plat_serial8250_port serial_platform_data2[] = {
 	{
-		.mapbase	= OMAP_UART3_BASE,
 		.irq		= 74,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -117,10 +115,9 @@ static struct plat_serial8250_port serial_platform_data2[] = {
 	}
 };
 
-#ifdef CONFIG_ARCH_OMAP4
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 static struct plat_serial8250_port serial_platform_data3[] = {
 	{
-		.mapbase	= OMAP_UART4_BASE,
 		.irq		= 70,
 		.flags		= UPF_BOOT_AUTOCONF,
 		.iotype		= UPIO_MEM,
@@ -130,7 +127,26 @@ static struct plat_serial8250_port serial_platform_data3[] = {
 		.flags		= 0
 	}
 };
+
+static inline void omap2_set_globals_uart4(struct omap_globals *omap2_globals)
+{
+	serial_platform_data3[0].mapbase = omap2_globals->uart4_phys;
+}
+#else
+static inline void omap2_set_globals_uart4(struct omap_globals *omap2_globals)
+{
+}
 #endif
+
+void __init omap2_set_globals_uart(struct omap_globals *omap2_globals)
+{
+	serial_platform_data0[0].mapbase = omap2_globals->uart1_phys;
+	serial_platform_data1[0].mapbase = omap2_globals->uart2_phys;
+	serial_platform_data2[0].mapbase = omap2_globals->uart3_phys;
+	if (cpu_is_omap3630() || cpu_is_omap44xx())
+		omap2_set_globals_uart4(omap2_globals);
+}
+
 static inline unsigned int __serial_read_reg(struct uart_port *up,
 					   int offset)
 {
@@ -143,6 +159,13 @@ static inline unsigned int serial_read_reg(struct plat_serial8250_port *up,
 {
 	offset <<= up->regshift;
 	return (unsigned int)__raw_readb(up->membase + offset);
+}
+
+static inline void __serial_write_reg(struct uart_port *up, int offset,
+		int value)
+{
+	offset <<= up->regshift;
+	__raw_writeb(value, up->membase + offset);
 }
 
 static inline void serial_write_reg(struct plat_serial8250_port *p, int offset,
@@ -574,7 +597,7 @@ static struct omap_uart_state omap_uart[] = {
 			},
 		},
 	},
-#ifdef CONFIG_ARCH_OMAP4
+#if defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4)
 	{
 		.pdev = {
 			.name			= "serial8250",
@@ -605,6 +628,20 @@ static unsigned int serial_in_override(struct uart_port *up, int offset)
 	return __serial_read_reg(up, offset);
 }
 
+static void serial_out_override(struct uart_port *up, int offset, int value)
+{
+	unsigned int status, tmout = 10000;
+
+	status = __serial_read_reg(up, UART_LSR);
+	while (!(status & UART_LSR_THRE)) {
+		/* Wait up to 10ms for the character(s) to be sent. */
+		if (--tmout == 0)
+			break;
+		udelay(1);
+		status = __serial_read_reg(up, UART_LSR);
+	}
+	__serial_write_reg(up, offset, value);
+}
 void __init omap_serial_early_init(void)
 {
 	int i;
@@ -701,15 +738,19 @@ void __init omap_serial_init_port(int port)
 		DEV_CREATE_FILE(dev, &dev_attr_sleep_timeout);
 	}
 
-		/* omap44xx: Never read empty UART fifo
-		 * omap3xxx: Never read empty UART fifo on UARTs
-		 * with IP rev >=0x52
-		 */
-		if (cpu_is_omap44xx())
-			uart->p->serial_in = serial_in_override;
-		else if ((serial_read_reg(uart->p, UART_OMAP_MVER) & 0xFF)
-				>= UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV)
-			uart->p->serial_in = serial_in_override;
+	/*
+	 * omap44xx: Never read empty UART fifo
+	 * omap3xxx: Never read empty UART fifo on UARTs
+	 * with IP rev >=0x52
+	 */
+	if (cpu_is_omap44xx()) {
+		uart->p->serial_in = serial_in_override;
+		uart->p->serial_out = serial_out_override;
+	} else if ((serial_read_reg(uart->p, UART_OMAP_MVER) & 0xFF)
+			>= UART_OMAP_NO_EMPTY_FIFO_READ_IP_REV) {
+		uart->p->serial_in = serial_in_override;
+		uart->p->serial_out = serial_out_override;
+	}
 }
 
 /**
@@ -721,8 +762,13 @@ void __init omap_serial_init_port(int port)
  */
 void __init omap_serial_init(void)
 {
-	int i;
+	int i, nr_ports;
 
-	for (i = 0; i < ARRAY_SIZE(omap_uart); i++)
+	if (!(cpu_is_omap3630() || cpu_is_omap4430()))
+		nr_ports = 3;
+	else
+		nr_ports = ARRAY_SIZE(omap_uart);
+
+	for (i = 0; i < nr_ports; i++)
 		omap_serial_init_port(i);
 }

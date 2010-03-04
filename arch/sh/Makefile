@@ -83,6 +83,7 @@ defaultimage-$(CONFIG_SH_AP325RXA)		:= uImage
 defaultimage-$(CONFIG_SH_7724_SOLUTION_ENGINE)	:= uImage
 defaultimage-$(CONFIG_SH_7206_SOLUTION_ENGINE)	:= vmlinux
 defaultimage-$(CONFIG_SH_7619_SOLUTION_ENGINE)	:= vmlinux
+defaultimage-$(CONFIG_SH_SDK7786)		:= vmlinux.bin
 
 # Set some sensible Kbuild defaults
 KBUILD_IMAGE		:= $(defaultimage-y)
@@ -143,11 +144,11 @@ machdir-$(CONFIG_SH_AP325RXA)			+= mach-ap325rxa
 machdir-$(CONFIG_SH_KFR2R09)			+= mach-kfr2r09
 machdir-$(CONFIG_SH_ECOVEC)			+= mach-ecovec24
 machdir-$(CONFIG_SH_SDK7780)			+= mach-sdk7780
+machdir-$(CONFIG_SH_SDK7786)			+= mach-sdk7786
 machdir-$(CONFIG_SH_X3PROTO)			+= mach-x3proto
 machdir-$(CONFIG_SH_SH7763RDP)			+= mach-sh7763rdp
 machdir-$(CONFIG_SH_SH4202_MICRODEV)		+= mach-microdev
 machdir-$(CONFIG_SH_LANDISK)			+= mach-landisk
-machdir-$(CONFIG_SH_TITAN)			+= mach-titan
 machdir-$(CONFIG_SH_LBOX_RE2)			+= mach-lboxre2
 machdir-$(CONFIG_SH_CAYMAN)			+= mach-cayman
 machdir-$(CONFIG_SH_RSK)			+= mach-rsk
@@ -203,8 +204,9 @@ endif
 libs-$(CONFIG_SUPERH32)		:= arch/sh/lib/	$(libs-y)
 libs-$(CONFIG_SUPERH64)		:= arch/sh/lib64/ $(libs-y)
 
-BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.srec uImage.bin \
-	       zImage vmlinux.srec romImage
+BOOT_TARGETS = uImage uImage.bz2 uImage.gz uImage.lzma uImage.lzo \
+	       uImage.srec uImage.bin zImage vmlinux.bin vmlinux.srec \
+	       romImage
 PHONY += $(BOOT_TARGETS)
 
 all: $(KBUILD_IMAGE)
@@ -225,10 +227,12 @@ define archhelp
 	@echo '  zImage 	           - Compressed kernel image'
 	@echo '  romImage	           - Compressed ROM image, if supported'
 	@echo '  vmlinux.srec	           - Create an ELF S-record'
+	@echo '  vmlinux.bin	           - Create an uncompressed binary image'
 	@echo '* uImage  	           - Alias to bootable U-Boot image'
 	@echo '  uImage.srec	           - Create an S-record for U-Boot'
 	@echo '  uImage.bin	           - Kernel-only image for U-Boot (bin)'
 	@echo '* uImage.gz	           - Kernel-only image for U-Boot (gzip)'
 	@echo '  uImage.bz2	           - Kernel-only image for U-Boot (bzip2)'
 	@echo '  uImage.lzma	           - Kernel-only image for U-Boot (lzma)'
+	@echo '  uImage.lzo	           - Kernel-only image for U-Boot (lzo)'
 endef

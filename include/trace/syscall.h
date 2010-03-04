@@ -45,12 +45,12 @@ ftrace_format_syscall(struct ftrace_event_call *call, struct trace_seq *s);
 enum print_line_t print_syscall_enter(struct trace_iterator *iter, int flags);
 enum print_line_t print_syscall_exit(struct trace_iterator *iter, int flags);
 #endif
-#ifdef CONFIG_EVENT_PROFILE
+
+#ifdef CONFIG_PERF_EVENTS
 int prof_sysenter_enable(struct ftrace_event_call *call);
 void prof_sysenter_disable(struct ftrace_event_call *call);
 int prof_sysexit_enable(struct ftrace_event_call *call);
 void prof_sysexit_disable(struct ftrace_event_call *call);
-
 #endif
 
 #endif /* _TRACE_SYSCALL_H */

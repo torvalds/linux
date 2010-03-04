@@ -666,6 +666,14 @@ config VIRTIO_CONSOLE
 	help
 	  Virtio console for use with lguest and other hypervisors.
 
+	  Also serves as a general-purpose serial device for data
+	  transfer between the guest and host.  Character devices at
+	  /dev/vportNpn will be created when corresponding ports are
+	  found, where N is the device number and n is the port number
+	  within that device.  If specified by the host, a sysfs
+	  attribute called 'name' will be populated with a name for
+	  the port which can be used by udev scripts to create a
+	  symlink to the device.
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"

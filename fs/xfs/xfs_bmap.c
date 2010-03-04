@@ -2629,13 +2629,12 @@ xfs_bmap_btalloc(
 		if (startag == NULLAGNUMBER)
 			startag = ag = 0;
 		notinit = 0;
-		down_read(&mp->m_peraglock);
+		pag = xfs_perag_get(mp, ag);
 		while (blen < ap->alen) {
-			pag = &mp->m_perag[ag];
 			if (!pag->pagf_init &&
 			    (error = xfs_alloc_pagf_init(mp, args.tp,
 				    ag, XFS_ALLOC_FLAG_TRYLOCK))) {
-				up_read(&mp->m_peraglock);
+				xfs_perag_put(pag);
 				return error;
 			}
 			/*
@@ -2667,13 +2666,13 @@ xfs_bmap_btalloc(
 						break;
 
 					error = xfs_filestream_new_ag(ap, &ag);
-					if (error) {
-						up_read(&mp->m_peraglock);
+					xfs_perag_put(pag);
+					if (error)
 						return error;
-					}
 
 					/* loop again to set 'blen'*/
 					startag = NULLAGNUMBER;
+					pag = xfs_perag_get(mp, ag);
 					continue;
 				}
 			}
@@ -2681,8 +2680,10 @@ xfs_bmap_btalloc(
 				ag = 0;
 			if (ag == startag)
 				break;
+			xfs_perag_put(pag);
+			pag = xfs_perag_get(mp, ag);
 		}
-		up_read(&mp->m_peraglock);
+		xfs_perag_put(pag);
 		/*
 		 * Since the above loop did a BUF_TRYLOCK, it is
 		 * possible that there is space for this request.
@@ -4470,7 +4471,7 @@ xfs_bmapi(
 	xfs_fsblock_t	abno;		/* allocated block number */
 	xfs_extlen_t	alen;		/* allocated extent length */
 	xfs_fileoff_t	aoff;		/* allocated file offset */
-	xfs_bmalloca_t	bma;		/* args for xfs_bmap_alloc */
+	xfs_bmalloca_t	bma = { 0 };	/* args for xfs_bmap_alloc */
 	xfs_btree_cur_t	*cur;		/* bmap btree cursor */
 	xfs_fileoff_t	end;		/* end of mapped file region */
 	int		eof;		/* we've hit the end of extents */

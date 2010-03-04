@@ -60,7 +60,7 @@ s32 ixgbe_update_mc_addr_list_generic(struct ixgbe_hw *hw, u8 *mc_addr_list,
                                       u32 mc_addr_count,
                                       ixgbe_mc_addr_itr func);
 s32 ixgbe_update_uc_addr_list_generic(struct ixgbe_hw *hw,
-				      struct list_head *uc_list);
+				      struct net_device *netdev);
 s32 ixgbe_enable_mc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_disable_mc_generic(struct ixgbe_hw *hw);
 s32 ixgbe_enable_rx_dma_generic(struct ixgbe_hw *hw, u32 regval);

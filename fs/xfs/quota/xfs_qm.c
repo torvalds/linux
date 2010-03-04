@@ -118,9 +118,14 @@ xfs_Gqm_init(void)
 	 */
 	udqhash = kmem_zalloc_greedy(&hsize,
 				     XFS_QM_HASHSIZE_LOW * sizeof(xfs_dqhash_t),
-				     XFS_QM_HASHSIZE_HIGH * sizeof(xfs_dqhash_t),
-				     KM_SLEEP | KM_MAYFAIL | KM_LARGE);
-	gdqhash = kmem_zalloc(hsize, KM_SLEEP | KM_LARGE);
+				     XFS_QM_HASHSIZE_HIGH * sizeof(xfs_dqhash_t));
+	if (!udqhash)
+		goto out;
+
+	gdqhash = kmem_zalloc_large(hsize);
+	if (!gdqhash)
+		goto out_free_udqhash;
+
 	hsize /= sizeof(xfs_dqhash_t);
 	ndquot = hsize << 8;
 
@@ -170,6 +175,11 @@ xfs_Gqm_init(void)
 	mutex_init(&qcheck_lock);
 #endif
 	return xqm;
+
+ out_free_udqhash:
+	kmem_free_large(udqhash);
+ out:
+	return NULL;
 }
 
 /*
@@ -189,8 +199,8 @@ xfs_qm_destroy(
 		xfs_qm_list_destroy(&(xqm->qm_usr_dqhtable[i]));
 		xfs_qm_list_destroy(&(xqm->qm_grp_dqhtable[i]));
 	}
-	kmem_free(xqm->qm_usr_dqhtable);
-	kmem_free(xqm->qm_grp_dqhtable);
+	kmem_free_large(xqm->qm_usr_dqhtable);
+	kmem_free_large(xqm->qm_grp_dqhtable);
 	xqm->qm_usr_dqhtable = NULL;
 	xqm->qm_grp_dqhtable = NULL;
 	xqm->qm_dqhashmask = 0;
@@ -219,8 +229,12 @@ xfs_qm_hold_quotafs_ref(
 	 */
 	mutex_lock(&xfs_Gqm_lock);
 
-	if (xfs_Gqm == NULL)
+	if (!xfs_Gqm) {
 		xfs_Gqm = xfs_Gqm_init();
+		if (!xfs_Gqm)
+			return ENOMEM;
+	}
+
 	/*
 	 * We can keep a list of all filesystems with quotas mounted for
 	 * debugging and statistical purposes, but ...
@@ -436,7 +450,7 @@ xfs_qm_unmount_quotas(
 STATIC int
 xfs_qm_dqflush_all(
 	xfs_mount_t	*mp,
-	int		flags)
+	int		sync_mode)
 {
 	int		recl;
 	xfs_dquot_t	*dqp;
@@ -472,7 +486,7 @@ again:
 		 * across a disk write.
 		 */
 		xfs_qm_mplist_unlock(mp);
-		error = xfs_qm_dqflush(dqp, flags);
+		error = xfs_qm_dqflush(dqp, sync_mode);
 		xfs_dqunlock(dqp);
 		if (error)
 			return error;
@@ -912,13 +926,11 @@ xfs_qm_sync(
 {
 	int		recl, restarts;
 	xfs_dquot_t	*dqp;
-	uint		flush_flags;
 	int		error;
 
 	if (!XFS_IS_QUOTA_RUNNING(mp) || !XFS_IS_QUOTA_ON(mp))
 		return 0;
 
-	flush_flags = (flags & SYNC_WAIT) ? XFS_QMOPT_SYNC : XFS_QMOPT_DELWRI;
 	restarts = 0;
 
   again:
@@ -978,7 +990,7 @@ xfs_qm_sync(
 		 * across a disk write
 		 */
 		xfs_qm_mplist_unlock(mp);
-		error = xfs_qm_dqflush(dqp, flush_flags);
+		error = xfs_qm_dqflush(dqp, flags);
 		xfs_dqunlock(dqp);
 		if (error && XFS_FORCED_SHUTDOWN(mp))
 			return 0;	/* Need to prevent umount failure */
@@ -1782,7 +1794,7 @@ xfs_qm_quotacheck(
 	 * successfully.
 	 */
 	if (!error)
-		error = xfs_qm_dqflush_all(mp, XFS_QMOPT_DELWRI);
+		error = xfs_qm_dqflush_all(mp, 0);
 
 	/*
 	 * We can get this error if we couldn't do a dquot allocation inside
@@ -2004,7 +2016,7 @@ xfs_qm_shake_freelist(
 			 * We flush it delayed write, so don't bother
 			 * releasing the mplock.
 			 */
-			error = xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			error = xfs_qm_dqflush(dqp, 0);
 			if (error) {
 				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
 			"xfs_qm_dqflush_all: dquot %p flush failed", dqp);
@@ -2187,7 +2199,7 @@ xfs_qm_dqreclaim_one(void)
 			 * We flush it delayed write, so don't bother
 			 * releasing the freelist lock.
 			 */
-			error = xfs_qm_dqflush(dqp, XFS_QMOPT_DELWRI);
+			error = xfs_qm_dqflush(dqp, 0);
 			if (error) {
 				xfs_fs_cmn_err(CE_WARN, dqp->q_mount,
 			"xfs_qm_dqreclaim: dquot %p flush failed", dqp);

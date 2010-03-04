@@ -56,8 +56,8 @@ static inline void auide_insw(unsigned long port, void *addr, u32 count)
 	chan_tab_t *ctp;
 	au1x_ddma_desc_t *dp;
 
-	if(!put_dest_flags(ahwif->rx_chan, (void*)addr, count << 1, 
-			   DDMA_FLAGS_NOIE)) {
+	if (!au1xxx_dbdma_put_dest(ahwif->rx_chan, virt_to_phys(addr),
+				   count << 1, DDMA_FLAGS_NOIE)) {
 		printk(KERN_ERR "%s failed %d\n", __func__, __LINE__);
 		return;
 	}
@@ -74,8 +74,8 @@ static inline void auide_outsw(unsigned long port, void *addr, u32 count)
 	chan_tab_t *ctp;
 	au1x_ddma_desc_t *dp;
 
-	if(!put_source_flags(ahwif->tx_chan, (void*)addr,
-			     count << 1, DDMA_FLAGS_NOIE)) {
+	if (!au1xxx_dbdma_put_source(ahwif->tx_chan, virt_to_phys(addr),
+				     count << 1, DDMA_FLAGS_NOIE)) {
 		printk(KERN_ERR "%s failed %d\n", __func__, __LINE__);
 		return;
 	}
@@ -246,17 +246,14 @@ static int auide_build_dmatable(ide_drive_t *drive, struct ide_cmd *cmd)
 				flags = DDMA_FLAGS_NOIE;
 
 			if (iswrite) {
-				if(!put_source_flags(ahwif->tx_chan, 
-						     (void*) sg_virt(sg),
-						     tc, flags)) { 
+				if (!au1xxx_dbdma_put_source(ahwif->tx_chan,
+					sg_phys(sg), tc, flags)) {
 					printk(KERN_ERR "%s failed %d\n", 
 					       __func__, __LINE__);
 				}
-			} else 
-			{
-				if(!put_dest_flags(ahwif->rx_chan, 
-						   (void*) sg_virt(sg),
-						   tc, flags)) { 
+			} else  {
+				if (!au1xxx_dbdma_put_dest(ahwif->rx_chan,
+					sg_phys(sg), tc, flags)) {
 					printk(KERN_ERR "%s failed %d\n", 
 					       __func__, __LINE__);
 				}

@@ -863,33 +863,13 @@ int nr_route_frame(struct sk_buff *skb, ax25_cb *ax25)
 
 static void *nr_node_start(struct seq_file *seq, loff_t *pos)
 {
-	struct nr_node *nr_node;
-	struct hlist_node *node;
-	int i = 1;
-
 	spin_lock_bh(&nr_node_list_lock);
-	if (*pos == 0)
-		return SEQ_START_TOKEN;
-
-	nr_node_for_each(nr_node, node, &nr_node_list) {
-		if (i == *pos)
-			return nr_node;
-		++i;
-	}
-
-	return NULL;
+	return seq_hlist_start_head(&nr_node_list, *pos);
 }
 
 static void *nr_node_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct hlist_node *node;
-	++*pos;
-
-	node = (v == SEQ_START_TOKEN)
-		? nr_node_list.first
-		: ((struct nr_node *)v)->node_node.next;
-
-	return hlist_entry(node, struct nr_node, node_node);
+	return seq_hlist_next(v, &nr_node_list, pos);
 }
 
 static void nr_node_stop(struct seq_file *seq, void *v)
@@ -906,7 +886,9 @@ static int nr_node_show(struct seq_file *seq, void *v)
 		seq_puts(seq,
 			 "callsign  mnemonic w n qual obs neigh qual obs neigh qual obs neigh\n");
 	else {
-		struct nr_node *nr_node = v;
+		struct nr_node *nr_node = hlist_entry(v, struct nr_node,
+						      node_node);
+
 		nr_node_lock(nr_node);
 		seq_printf(seq, "%-9s %-7s  %d %d",
 			ax2asc(buf, &nr_node->callsign),
@@ -949,31 +931,13 @@ const struct file_operations nr_nodes_fops = {
 
 static void *nr_neigh_start(struct seq_file *seq, loff_t *pos)
 {
-	struct nr_neigh *nr_neigh;
-	struct hlist_node *node;
-	int i = 1;
-
 	spin_lock_bh(&nr_neigh_list_lock);
-	if (*pos == 0)
-		return SEQ_START_TOKEN;
-
-	nr_neigh_for_each(nr_neigh, node, &nr_neigh_list) {
-		if (i == *pos)
-			return nr_neigh;
-	}
-	return NULL;
+	return seq_hlist_start_head(&nr_neigh_list, *pos);
 }
 
 static void *nr_neigh_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	struct hlist_node *node;
-	++*pos;
-
-	node = (v == SEQ_START_TOKEN)
-		? nr_neigh_list.first
-		: ((struct nr_neigh *)v)->neigh_node.next;
-
-	return hlist_entry(node, struct nr_neigh, neigh_node);
+	return seq_hlist_next(v, &nr_neigh_list, pos);
 }
 
 static void nr_neigh_stop(struct seq_file *seq, void *v)
@@ -989,8 +953,9 @@ static int nr_neigh_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq, "addr  callsign  dev  qual lock count failed digipeaters\n");
 	else {
-		struct nr_neigh *nr_neigh = v;
+		struct nr_neigh *nr_neigh;
 
+		nr_neigh = hlist_entry(v, struct nr_neigh, neigh_node);
 		seq_printf(seq, "%05d %-9s %-4s  %3d    %d   %3d    %3d",
 			nr_neigh->number,
 			ax2asc(buf, &nr_neigh->callsign),

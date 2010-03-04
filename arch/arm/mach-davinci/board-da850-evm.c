@@ -46,8 +46,20 @@
 
 static struct mtd_partition da850_evm_norflash_partition[] = {
 	{
-		.name           = "NOR filesystem",
+		.name           = "bootloaders + env",
 		.offset         = 0,
+		.size           = SZ_512K,
+		.mask_flags     = MTD_WRITEABLE,
+	},
+	{
+		.name           = "kernel",
+		.offset         = MTDPART_OFS_APPEND,
+		.size           = SZ_2M,
+		.mask_flags     = 0,
+	},
+	{
+		.name           = "filesystem",
+		.offset         = MTDPART_OFS_APPEND,
 		.size           = MTDPART_SIZ_FULL,
 		.mask_flags     = 0,
 	},
@@ -75,6 +87,18 @@ static struct platform_device da850_evm_norflash_device = {
 	},
 	.num_resources	= 1,
 	.resource	= da850_evm_norflash_resource,
+};
+
+static struct davinci_pm_config da850_pm_pdata = {
+	.sleepcount = 128,
+};
+
+static struct platform_device da850_pm_device = {
+	.name           = "pm-davinci",
+	.dev = {
+		.platform_data	= &da850_pm_pdata,
+	},
+	.id             = -1,
 };
 
 /* DA850/OMAP-L138 EVM includes a 512 MByte large-page NAND flash
@@ -119,6 +143,7 @@ static struct davinci_nand_pdata da850_evm_nandflash_data = {
 	.parts		= da850_evm_nandflash_partition,
 	.nr_parts	= ARRAY_SIZE(da850_evm_nandflash_partition),
 	.ecc_mode	= NAND_ECC_HW,
+	.ecc_bits	= 4,
 	.options	= NAND_USE_FLASH_BBT,
 };
 
@@ -537,7 +562,7 @@ static int __init da850_evm_config_emac(void)
 	if (!machine_is_davinci_da850_evm())
 		return 0;
 
-	cfg_chip3_base = DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP3_REG);
+	cfg_chip3_base = DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP3_REG);
 
 	val = __raw_readl(cfg_chip3_base);
 
@@ -695,6 +720,11 @@ static __init void da850_evm_init(void)
 	ret = da8xx_register_cpuidle();
 	if (ret)
 		pr_warning("da850_evm_init: cpuidle registration failed: %d\n",
+				ret);
+
+	ret = da850_register_pm(&da850_pm_device);
+	if (ret)
+		pr_warning("da850_evm_init: suspend registration failed: %d\n",
 				ret);
 }
 

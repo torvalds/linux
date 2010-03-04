@@ -24,9 +24,6 @@
 #include "nic.h"
 #include "selftest.h"
 #include "workarounds.h"
-#include "spi.h"
-#include "io.h"
-#include "mdio_10g.h"
 
 /*
  * Loopback test packet structure
@@ -76,42 +73,15 @@ struct efx_loopback_state {
  *
  **************************************************************************/
 
-static int efx_test_mdio(struct efx_nic *efx, struct efx_self_tests *tests)
+static int efx_test_phy_alive(struct efx_nic *efx, struct efx_self_tests *tests)
 {
 	int rc = 0;
-	int devad;
-	u16 physid1, physid2;
 
-	if (efx->mdio.mode_support & MDIO_SUPPORTS_C45)
-		devad = __ffs(efx->mdio.mmds);
-	else if (efx->mdio.mode_support & MDIO_SUPPORTS_C22)
-		devad = MDIO_DEVAD_NONE;
-	else
-		return 0;
-
-	mutex_lock(&efx->mac_lock);
-	tests->mdio = -1;
-
-	physid1 = efx_mdio_read(efx, devad, MDIO_DEVID1);
-	physid2 = efx_mdio_read(efx, devad, MDIO_DEVID2);
-
-	if ((physid1 == 0x0000) || (physid1 == 0xffff) ||
-	    (physid2 == 0x0000) || (physid2 == 0xffff)) {
-		EFX_ERR(efx, "no MDIO PHY present with ID %d\n",
-			efx->mdio.prtad);
-		rc = -EINVAL;
-		goto out;
+	if (efx->phy_op->test_alive) {
+		rc = efx->phy_op->test_alive(efx);
+		tests->phy_alive = rc ? -1 : 1;
 	}
 
-	if (EFX_IS10G(efx)) {
-		rc = efx_mdio_check_mmds(efx, efx->mdio.mmds, 0);
-		if (rc)
-			goto out;
-	}
-
-out:
-	mutex_unlock(&efx->mac_lock);
-	tests->mdio = rc ? -1 : 1;
 	return rc;
 }
 
@@ -258,7 +228,7 @@ static int efx_test_phy(struct efx_nic *efx, struct efx_self_tests *tests,
 		return 0;
 
 	mutex_lock(&efx->mac_lock);
-	rc = efx->phy_op->run_tests(efx, tests->phy, flags);
+	rc = efx->phy_op->run_tests(efx, tests->phy_ext, flags);
 	mutex_unlock(&efx->mac_lock);
 	return rc;
 }
@@ -684,7 +654,7 @@ int efx_selftest(struct efx_nic *efx, struct efx_self_tests *tests,
 	/* Online (i.e. non-disruptive) testing
 	 * This checks interrupt generation, event delivery and PHY presence. */
 
-	rc = efx_test_mdio(efx, tests);
+	rc = efx_test_phy_alive(efx, tests);
 	if (rc && !rc_test)
 		rc_test = rc;
 

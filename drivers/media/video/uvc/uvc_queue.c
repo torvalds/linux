@@ -502,7 +502,6 @@ struct uvc_buffer *uvc_queue_next_buffer(struct uvc_video_queue *queue,
 	spin_unlock_irqrestore(&queue->irqlock, flags);
 
 	buf->buf.sequence = queue->sequence++;
-	do_gettimeofday(&buf->buf.timestamp);
 
 	wake_up(&buf->wait);
 	return nextbuf;

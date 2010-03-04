@@ -46,12 +46,4 @@ struct sys_timer {
 extern struct sys_timer *system_timer;
 extern void timer_tick(void);
 
-/*
- * Kernel time keeping support.
- */
-struct timespec;
-extern int (*set_rtc)(void);
-extern void save_time_delta(struct timespec *delta, struct timespec *rtc);
-extern void restore_time_delta(struct timespec *delta, struct timespec *rtc);
-
 #endif

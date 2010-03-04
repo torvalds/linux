@@ -44,6 +44,7 @@
 #include "util/parse-events.h"
 #include "util/event.h"
 #include "util/debug.h"
+#include "util/header.h"
 
 #include <sys/prctl.h>
 #include <math.h>
@@ -78,6 +79,8 @@ static int			null_run			=  0;
 static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static int			event_scaled[MAX_COUNTERS];
+
+static volatile int done = 0;
 
 struct stats
 {
@@ -247,60 +250,63 @@ static int run_perf_stat(int argc __used, const char **argv)
 	unsigned long long t0, t1;
 	int status = 0;
 	int counter;
-	int pid;
+	int pid = target_pid;
 	int child_ready_pipe[2], go_pipe[2];
+	const bool forks = (target_pid == -1 && argc > 0);
 	char buf;
 
 	if (!system_wide)
 		nr_cpus = 1;
 
-	if (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0) {
+	if (forks && (pipe(child_ready_pipe) < 0 || pipe(go_pipe) < 0)) {
 		perror("failed to create pipes");
 		exit(1);
 	}
 
-	if ((pid = fork()) < 0)
-		perror("failed to fork");
+	if (forks) {
+		if ((pid = fork()) < 0)
+			perror("failed to fork");
 
-	if (!pid) {
-		close(child_ready_pipe[0]);
-		close(go_pipe[1]);
-		fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
+		if (!pid) {
+			close(child_ready_pipe[0]);
+			close(go_pipe[1]);
+			fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
+
+			/*
+			 * Do a dummy execvp to get the PLT entry resolved,
+			 * so we avoid the resolver overhead on the real
+			 * execvp call.
+			 */
+			execvp("", (char **)argv);
+
+			/*
+			 * Tell the parent we're ready to go
+			 */
+			close(child_ready_pipe[1]);
+
+			/*
+			 * Wait until the parent tells us to go.
+			 */
+			if (read(go_pipe[0], &buf, 1) == -1)
+				perror("unable to read pipe");
+
+			execvp(argv[0], (char **)argv);
+
+			perror(argv[0]);
+			exit(-1);
+		}
+
+		child_pid = pid;
 
 		/*
-		 * Do a dummy execvp to get the PLT entry resolved,
-		 * so we avoid the resolver overhead on the real
-		 * execvp call.
-		 */
-		execvp("", (char **)argv);
-
-		/*
-		 * Tell the parent we're ready to go
+		 * Wait for the child to be ready to exec.
 		 */
 		close(child_ready_pipe[1]);
-
-		/*
-		 * Wait until the parent tells us to go.
-		 */
-		if (read(go_pipe[0], &buf, 1) == -1)
+		close(go_pipe[0]);
+		if (read(child_ready_pipe[0], &buf, 1) == -1)
 			perror("unable to read pipe");
-
-		execvp(argv[0], (char **)argv);
-
-		perror(argv[0]);
-		exit(-1);
+		close(child_ready_pipe[0]);
 	}
-
-	child_pid = pid;
-
-	/*
-	 * Wait for the child to be ready to exec.
-	 */
-	close(child_ready_pipe[1]);
-	close(go_pipe[0]);
-	if (read(child_ready_pipe[0], &buf, 1) == -1)
-		perror("unable to read pipe");
-	close(child_ready_pipe[0]);
 
 	for (counter = 0; counter < nr_counters; counter++)
 		create_perf_stat_counter(counter, pid);
@@ -310,8 +316,12 @@ static int run_perf_stat(int argc __used, const char **argv)
 	 */
 	t0 = rdclock();
 
-	close(go_pipe[1]);
-	wait(&status);
+	if (forks) {
+		close(go_pipe[1]);
+		wait(&status);
+	} else {
+		while(!done);
+	}
 
 	t1 = rdclock();
 
@@ -417,10 +427,13 @@ static void print_stat(int argc, const char **argv)
 	fflush(stdout);
 
 	fprintf(stderr, "\n");
-	fprintf(stderr, " Performance counter stats for \'%s", argv[0]);
-
-	for (i = 1; i < argc; i++)
-		fprintf(stderr, " %s", argv[i]);
+	fprintf(stderr, " Performance counter stats for ");
+	if(target_pid == -1) {
+		fprintf(stderr, "\'%s", argv[0]);
+		for (i = 1; i < argc; i++)
+			fprintf(stderr, " %s", argv[i]);
+	}else
+		fprintf(stderr, "task pid \'%d", target_pid);
 
 	fprintf(stderr, "\'");
 	if (run_count > 1)
@@ -445,6 +458,9 @@ static volatile int signr = -1;
 
 static void skip_signal(int signo)
 {
+	if(target_pid != -1)
+		done = 1;
+
 	signr = signo;
 }
 
@@ -461,7 +477,7 @@ static void sig_atexit(void)
 }
 
 static const char * const stat_usage[] = {
-	"perf stat [<options>] <command>",
+	"perf stat [<options>] [<command>]",
 	NULL
 };
 
@@ -492,7 +508,7 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 
 	argc = parse_options(argc, argv, options, stat_usage,
 		PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc)
+	if (!argc && target_pid == -1)
 		usage_with_options(stat_usage, options);
 	if (run_count <= 0)
 		usage_with_options(stat_usage, options);
