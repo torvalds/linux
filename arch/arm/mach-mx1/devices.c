@@ -21,6 +21,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <mach/irqs.h>
@@ -34,20 +35,20 @@ static struct resource imx_csi_resources[] = {
 		.end    = 0x00224010,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = CSI_INT,
-		.end    = CSI_INT,
+		.start  = MX1_CSI_INT,
+		.end    = MX1_CSI_INT,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
 
-static u64 imx_csi_dmamask = 0xffffffffUL;
+static u64 imx_csi_dmamask = DMA_BIT_MASK(32);
 
 struct platform_device imx_csi_device = {
 	.name           = "mx1-camera",
 	.id             = 0, /* This is used to put cameras on this interface */
 	.dev		= {
 		.dma_mask = &imx_csi_dmamask,
-		.coherent_dma_mask = 0xffffffff,
+		.coherent_dma_mask = DMA_BIT_MASK(32),
 	},
 	.resource       = imx_csi_resources,
 	.num_resources  = ARRAY_SIZE(imx_csi_resources),
@@ -59,8 +60,8 @@ static struct resource imx_i2c_resources[] = {
 		.end    = 0x00217010,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = I2C_INT,
-		.end    = I2C_INT,
+		.start  = MX1_I2C_INT,
+		.end    = MX1_I2C_INT,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -74,21 +75,21 @@ struct platform_device imx_i2c_device = {
 
 static struct resource imx_uart1_resources[] = {
 	{
-		.start	= UART1_BASE_ADDR,
-		.end	= UART1_BASE_ADDR + 0xD0,
-		.flags	= IORESOURCE_MEM,
+		.start = MX1_UART1_BASE_ADDR,
+		.end = MX1_UART1_BASE_ADDR + 0xD0,
+		.flags = IORESOURCE_MEM,
 	}, {
-		.start	= UART1_MINT_RX,
-		.end	= UART1_MINT_RX,
-		.flags	= IORESOURCE_IRQ,
+		.start = MX1_UART1_MINT_RX,
+		.end = MX1_UART1_MINT_RX,
+		.flags = IORESOURCE_IRQ,
 	}, {
-		.start	= UART1_MINT_TX,
-		.end	= UART1_MINT_TX,
-		.flags	= IORESOURCE_IRQ,
+		.start = MX1_UART1_MINT_TX,
+		.end = MX1_UART1_MINT_TX,
+		.flags = IORESOURCE_IRQ,
 	}, {
-		.start	= UART1_MINT_RTS,
-		.end	= UART1_MINT_RTS,
-		.flags	= IORESOURCE_IRQ,
+		.start = MX1_UART1_MINT_RTS,
+		.end = MX1_UART1_MINT_RTS,
+		.flags = IORESOURCE_IRQ,
 	},
 };
 
@@ -101,21 +102,21 @@ struct platform_device imx_uart1_device = {
 
 static struct resource imx_uart2_resources[] = {
 	{
-		.start	= UART2_BASE_ADDR,
-		.end	= UART2_BASE_ADDR + 0xD0,
-		.flags	= IORESOURCE_MEM,
+		.start = MX1_UART2_BASE_ADDR,
+		.end = MX1_UART2_BASE_ADDR + 0xD0,
+		.flags = IORESOURCE_MEM,
 	}, {
-		.start	= UART2_MINT_RX,
-		.end	= UART2_MINT_RX,
-		.flags	= IORESOURCE_IRQ,
+		.start = MX1_UART2_MINT_RX,
+		.end = MX1_UART2_MINT_RX,
+		.flags = IORESOURCE_IRQ,
 	}, {
-		.start	= UART2_MINT_TX,
-		.end	= UART2_MINT_TX,
-		.flags	= IORESOURCE_IRQ,
+		.start = MX1_UART2_MINT_TX,
+		.end = MX1_UART2_MINT_TX,
+		.flags = IORESOURCE_IRQ,
 	}, {
-		.start	= UART2_MINT_RTS,
-		.end	= UART2_MINT_RTS,
-		.flags	= IORESOURCE_IRQ,
+		.start = MX1_UART2_MINT_RTS,
+		.end = MX1_UART2_MINT_RTS,
+		.flags = IORESOURCE_IRQ,
 	},
 };
 
@@ -132,12 +133,12 @@ static struct resource imx_rtc_resources[] = {
 		.end    = 0x00204024,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = RTC_INT,
-		.end    = RTC_INT,
+		.start  = MX1_RTC_INT,
+		.end    = MX1_RTC_INT,
 		.flags  = IORESOURCE_IRQ,
 	}, {
-		.start  = RTC_SAMINT,
-		.end    = RTC_SAMINT,
+		.start  = MX1_RTC_SAMINT,
+		.end    = MX1_RTC_SAMINT,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -155,8 +156,8 @@ static struct resource imx_wdt_resources[] = {
 		.end    = 0x00201008,
 		.flags  = IORESOURCE_MEM,
 	}, {
-		.start  = WDT_INT,
-		.end    = WDT_INT,
+		.start  = MX1_WDT_INT,
+		.end    = MX1_WDT_INT,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -174,32 +175,32 @@ static struct resource imx_usb_resources[] = {
 		.end	= 0x00212148,
 		.flags	= IORESOURCE_MEM,
 	}, {
-		.start	= USBD_INT0,
-		.end	= USBD_INT0,
+		.start	= MX1_USBD_INT0,
+		.end	= MX1_USBD_INT0,
 		.flags	= IORESOURCE_IRQ,
 	}, {
-		.start	= USBD_INT1,
-		.end	= USBD_INT1,
+		.start	= MX1_USBD_INT1,
+		.end	= MX1_USBD_INT1,
 		.flags	= IORESOURCE_IRQ,
 	}, {
-		.start	= USBD_INT2,
-		.end	= USBD_INT2,
+		.start	= MX1_USBD_INT2,
+		.end	= MX1_USBD_INT2,
 		.flags	= IORESOURCE_IRQ,
 	}, {
-		.start	= USBD_INT3,
-		.end	= USBD_INT3,
+		.start	= MX1_USBD_INT3,
+		.end	= MX1_USBD_INT3,
 		.flags	= IORESOURCE_IRQ,
 	}, {
-		.start	= USBD_INT4,
-		.end	= USBD_INT4,
+		.start	= MX1_USBD_INT4,
+		.end	= MX1_USBD_INT4,
 		.flags	= IORESOURCE_IRQ,
 	}, {
-		.start	= USBD_INT5,
-		.end	= USBD_INT5,
+		.start	= MX1_USBD_INT5,
+		.end	= MX1_USBD_INT5,
 		.flags	= IORESOURCE_IRQ,
 	}, {
-		.start	= USBD_INT6,
-		.end	= USBD_INT6,
+		.start	= MX1_USBD_INT6,
+		.end	= MX1_USBD_INT6,
 		.flags	= IORESOURCE_IRQ,
 	},
 };
@@ -215,23 +216,23 @@ struct platform_device imx_usb_device = {
 static struct mxc_gpio_port imx_gpio_ports[] = {
 	{
 		.chip.label = "gpio-0",
-		.base = (void __iomem *)IO_ADDRESS(GPIO_BASE_ADDR),
-		.irq = GPIO_INT_PORTA,
+		.base = (void __iomem *)MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR),
+		.irq = MX1_GPIO_INT_PORTA,
 		.virtual_irq_start = MXC_GPIO_IRQ_START,
 	}, {
 		.chip.label = "gpio-1",
-		.base = (void __iomem *)IO_ADDRESS(GPIO_BASE_ADDR + 0x100),
-		.irq = GPIO_INT_PORTB,
+		.base = (void __iomem *)MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR + 0x100),
+		.irq = MX1_GPIO_INT_PORTB,
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 32,
 	}, {
 		.chip.label = "gpio-2",
-		.base = (void __iomem *)IO_ADDRESS(GPIO_BASE_ADDR + 0x200),
-		.irq = GPIO_INT_PORTC,
+		.base = (void __iomem *)MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR + 0x200),
+		.irq = MX1_GPIO_INT_PORTC,
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 64,
 	}, {
 		.chip.label = "gpio-3",
-		.base = (void __iomem *)IO_ADDRESS(GPIO_BASE_ADDR + 0x300),
-		.irq = GPIO_INT_PORTD,
+		.base = (void __iomem *)MX1_IO_ADDRESS(MX1_GPIO_BASE_ADDR + 0x300),
+		.irq = MX1_GPIO_INT_PORTD,
 		.virtual_irq_start = MXC_GPIO_IRQ_START + 96,
 	}
 };

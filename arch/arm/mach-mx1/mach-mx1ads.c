@@ -75,8 +75,8 @@ static struct physmap_flash_data mx1ads_flash_data = {
 };
 
 static struct resource flash_resource = {
-	.start	= IMX_CS0_PHYS,
-	.end	= IMX_CS0_PHYS + SZ_32M - 1,
+	.start	= MX1_CS0_PHYS,
+	.end	= MX1_CS0_PHYS + SZ_32M - 1,
 	.flags	= IORESOURCE_MEM,
 };
 
@@ -145,8 +145,8 @@ struct sys_timer mx1ads_timer = {
 
 MACHINE_START(MX1ADS, "Freescale MX1ADS")
 	/* Maintainer: Sascha Hauer, Pengutronix */
-	.phys_io	= IMX_IO_PHYS,
-	.io_pg_offst	= (IMX_IO_BASE >> 18) & 0xfffc,
+	.phys_io	= MX1_IO_BASE_ADDR,
+	.io_pg_offst	= (MX1_IO_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params	= MX1_PHYS_OFFSET + 0x100,
 	.map_io		= mx1_map_io,
 	.init_irq	= mx1_init_irq,
@@ -155,8 +155,8 @@ MACHINE_START(MX1ADS, "Freescale MX1ADS")
 MACHINE_END
 
 MACHINE_START(MXLADS, "Freescale MXLADS")
-	.phys_io	= IMX_IO_PHYS,
-	.io_pg_offst	= (IMX_IO_BASE >> 18) & 0xfffc,
+	.phys_io	= MX1_IO_BASE_ADDR,
+	.io_pg_offst	= (MX1_IO_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params	= MX1_PHYS_OFFSET + 0x100,
 	.map_io		= mx1_map_io,
 	.init_irq	= mx1_init_irq,
