@@ -476,13 +476,7 @@ struct rndis_wlan_private {
 	/* encryption stuff */
 	int  encr_tx_key_index;
 	struct rndis_wlan_encr_key encr_keys[4];
-	enum nl80211_auth_type wpa_auth_type;
 	int  wpa_version;
-	int  wpa_keymgmt;
-	int  wpa_ie_len;
-	u8  *wpa_ie;
-	int  wpa_cipher_pair;
-	int  wpa_cipher_group;
 
 	u8 command_buffer[COMMAND_BUFFER_SIZE];
 };
@@ -1116,8 +1110,6 @@ static int set_auth_mode(struct usbnet *usbdev, u32 wpa_version,
 	}
 
 	priv->wpa_version = wpa_version;
-	priv->wpa_auth_type = auth_type;
-	priv->wpa_keymgmt = keymgmt;
 
 	return 0;
 }
@@ -1142,7 +1134,6 @@ static int set_priv_filter(struct usbnet *usbdev)
 
 static int set_encr_mode(struct usbnet *usbdev, int pairwise, int groupwise)
 {
-	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	__le32 tmp;
 	int encr_mode, ret;
 
@@ -1171,8 +1162,6 @@ static int set_encr_mode(struct usbnet *usbdev, int pairwise, int groupwise)
 		return ret;
 	}
 
-	priv->wpa_cipher_pair = pairwise;
-	priv->wpa_cipher_group = groupwise;
 	return 0;
 }
 
@@ -2870,9 +2859,6 @@ static void rndis_wlan_unbind(struct usbnet *usbdev, struct usb_interface *intf)
 	cancel_work_sync(&priv->work);
 	flush_workqueue(priv->workqueue);
 	destroy_workqueue(priv->workqueue);
-
-	if (priv && priv->wpa_ie_len)
-		kfree(priv->wpa_ie);
 
 	rndis_unbind(usbdev, intf);
 
