@@ -229,7 +229,9 @@ bfad_im_get_host_speed(struct Scsi_Host *shost)
 			(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;
 	struct bfa_pport_attr_s attr;
+	unsigned long   flags;
 
+	spin_lock_irqsave(shost->host_lock, flags);
 	bfa_pport_get_attr(&bfad->bfa, &attr);
 	switch (attr.speed) {
 	case BFA_PPORT_SPEED_8GBPS:
@@ -248,6 +250,7 @@ bfad_im_get_host_speed(struct Scsi_Host *shost)
 		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 		break;
 	}
+	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
 /**
