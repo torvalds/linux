@@ -62,7 +62,9 @@
 #define BFAD_HAL_START_DONE			0x00000010
 #define BFAD_PORT_ONLINE			0x00000020
 #define BFAD_RPORT_ONLINE			0x00000040
-
+#define BFAD_FCS_INIT_DONE                      0x00000080
+#define BFAD_HAL_INIT_FAIL                      0x00000100
+#define BFAD_FC4_PROBE_DONE                     0x00000200
 #define BFAD_PORT_DELETE			0x00000001
 
 /*
@@ -168,6 +170,7 @@ struct bfad_s {
 	u32        inst_no;	/* BFAD instance number */
 	u32        bfad_flags;
 	spinlock_t      bfad_lock;
+	struct task_struct *bfad_tsk;
 	struct bfad_cfg_param_s cfg_data;
 	struct bfad_msix_s msix_tab[MAX_MSIX_ENTRY];
 	int             nvec;
@@ -258,6 +261,7 @@ bfa_status_t    bfad_vf_create(struct bfad_s *bfad, u16 vf_id,
 			       struct bfa_port_cfg_s *port_cfg);
 bfa_status_t    bfad_cfg_pport(struct bfad_s *bfad, enum bfa_port_role role);
 bfa_status_t    bfad_drv_init(struct bfad_s *bfad);
+bfa_status_t	bfad_start_ops(struct bfad_s *bfad);
 void            bfad_drv_start(struct bfad_s *bfad);
 void            bfad_uncfg_pport(struct bfad_s *bfad);
 void            bfad_drv_stop(struct bfad_s *bfad);
@@ -279,6 +283,12 @@ void		bfad_drv_uninit(struct bfad_s *bfad);
 void		bfad_drv_log_level_set(struct bfad_s *bfad);
 bfa_status_t	bfad_fc4_module_init(void);
 void		bfad_fc4_module_exit(void);
+
+bfa_status_t	bfad_os_kthread_create(struct bfad_s *bfad);
+void		bfad_os_kthread_stop(struct bfad_s *bfad);
+void		bfad_os_kthread_wakeup(struct bfad_s *bfad);
+int		bfad_os_kthread_should_stop(void);
+int		bfad_worker (void *ptr);
 
 void bfad_pci_remove(struct pci_dev *pdev);
 int bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid);

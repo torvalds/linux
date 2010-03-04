@@ -662,7 +662,8 @@ bfa_fcs_vport_create(struct bfa_fcs_vport_s *vport, struct bfa_fcs_s *fcs,
 	vport->vport_drv = vport_drv;
 	bfa_sm_set_state(vport, bfa_fcs_vport_sm_uninit);
 
-	bfa_fcs_lport_init(&vport->lport, fcs, vf_id, vport_cfg, vport);
+	bfa_fcs_lport_attach(&vport->lport, fcs, vf_id, vport);
+	bfa_fcs_lport_init(&vport->lport, vport_cfg);
 
 	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_CREATE);
 

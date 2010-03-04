@@ -336,8 +336,10 @@ bfa_iocfc_init_cb(void *bfa_arg, bfa_boolean_t complete)
 			bfa_cb_init(bfa->bfad, BFA_STATUS_OK);
 		else
 			bfa_cb_init(bfa->bfad, BFA_STATUS_FAILED);
-	} else
-		bfa->iocfc.action = BFA_IOCFC_ACT_NONE;
+	} else {
+		if (bfa->iocfc.cfgdone)
+			bfa->iocfc.action = BFA_IOCFC_ACT_NONE;
+	}
 }
 
 static void

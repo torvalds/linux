@@ -873,35 +873,45 @@ bfa_fcs_port_is_online(struct bfa_fcs_port_s *port)
 }
 
 /**
- * Logical port initialization of base or virtual port.
- * Called by fabric for base port or by vport for virtual ports.
+ * Attach time initialization of logical ports.
  */
 void
-bfa_fcs_lport_init(struct bfa_fcs_port_s *lport, struct bfa_fcs_s *fcs,
-		   u16 vf_id, struct bfa_port_cfg_s *port_cfg,
-		   struct bfa_fcs_vport_s *vport)
+bfa_fcs_lport_attach(struct bfa_fcs_port_s *lport, struct bfa_fcs_s *fcs,
+		uint16_t vf_id, struct bfa_fcs_vport_s *vport)
 {
 	lport->fcs = fcs;
 	lport->fabric = bfa_fcs_vf_lookup(fcs, vf_id);
-	bfa_os_assign(lport->port_cfg, *port_cfg);
 	lport->vport = vport;
 	lport->lp_tag = (vport) ? bfa_lps_get_tag(vport->lps) :
 			 bfa_lps_get_tag(lport->fabric->lps);
 
 	INIT_LIST_HEAD(&lport->rport_q);
 	lport->num_rports = 0;
+}
 
-	lport->bfad_port =
-		bfa_fcb_port_new(fcs->bfad, lport, lport->port_cfg.roles,
+/**
+ * Logical port initialization of base or virtual port.
+ * Called by fabric for base port or by vport for virtual ports.
+ */
+
+void
+bfa_fcs_lport_init(struct bfa_fcs_port_s *lport,
+		struct bfa_port_cfg_s *port_cfg)
+{
+	struct bfa_fcs_vport_s *vport = lport->vport;
+
+	bfa_os_assign(lport->port_cfg, *port_cfg);
+
+	lport->bfad_port = bfa_fcb_port_new(lport->fcs->bfad, lport,
+				lport->port_cfg.roles,
 				lport->fabric->vf_drv,
 				vport ? vport->vport_drv : NULL);
+
 	bfa_fcs_port_aen_post(lport, BFA_LPORT_AEN_NEW);
 
 	bfa_sm_set_state(lport, bfa_fcs_port_sm_uninit);
 	bfa_sm_send_event(lport, BFA_FCS_PORT_SM_CREATE);
 }
-
-
 
 /**
  *  fcs_lport_api

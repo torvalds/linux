@@ -20,6 +20,7 @@
  */
 
 #include <linux/module.h>
+#include <linux/kthread.h>
 #include "bfad_drv.h"
 #include "bfad_im.h"
 #include "bfad_tm.h"
@@ -97,6 +98,8 @@ bfad_fc4_probe(struct bfad_s *bfad)
 
 	if (ipfc_enable)
 		bfad_ipfc_probe(bfad);
+
+	bfad->bfad_flags |= BFAD_FC4_PROBE_DONE;
 ext:
 	return rc;
 }
@@ -108,6 +111,7 @@ bfad_fc4_probe_undo(struct bfad_s *bfad)
 	bfad_tm_probe_undo(bfad);
 	if (ipfc_enable)
 		bfad_ipfc_probe_undo(bfad);
+	bfad->bfad_flags &= ~BFAD_FC4_PROBE_DONE;
 }
 
 static void
@@ -175,8 +179,18 @@ bfa_cb_init(void *drv, bfa_status_t init_status)
 {
 	struct bfad_s  *bfad = drv;
 
-	if (init_status == BFA_STATUS_OK)
+	if (init_status == BFA_STATUS_OK) {
 		bfad->bfad_flags |= BFAD_HAL_INIT_DONE;
+
+		/* If BFAD_HAL_INIT_FAIL flag is set:
+		 * Wake up the kernel thread to start
+		 * the bfad operations after HAL init done
+		 */
+		if ((bfad->bfad_flags & BFAD_HAL_INIT_FAIL)) {
+			bfad->bfad_flags &= ~BFAD_HAL_INIT_FAIL;
+			wake_up_process(bfad->bfad_tsk);
+		}
+	}
 
 	complete(&bfad->comp);
 }
@@ -749,7 +763,13 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfa_fcs_trc_init(&bfad->bfa_fcs, bfad->trcmod);
 	bfa_fcs_aen_init(&bfad->bfa_fcs, bfad->aen);
 	bfa_fcs_attach(&bfad->bfa_fcs, &bfad->bfa, bfad, BFA_FALSE);
-	bfa_fcs_init(&bfad->bfa_fcs);
+
+	/* Do FCS init only when HAL init is done */
+	if ((bfad->bfad_flags & BFAD_HAL_INIT_DONE)) {
+		bfa_fcs_init(&bfad->bfa_fcs);
+		bfad->bfad_flags |= BFAD_FCS_INIT_DONE;
+	}
+
 	bfa_fcs_driver_info_init(&bfad->bfa_fcs, &driver_info);
 	bfa_fcs_set_fdmi_param(&bfad->bfa_fcs, fdmi_enable);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -767,12 +787,22 @@ out_hal_mem_alloc_failure:
 void
 bfad_drv_uninit(struct bfad_s *bfad)
 {
+	unsigned long   flags;
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	init_completion(&bfad->comp);
+	bfa_stop(&bfad->bfa);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	wait_for_completion(&bfad->comp);
+
 	del_timer_sync(&bfad->hal_tmo);
 	bfa_isr_disable(&bfad->bfa);
 	bfa_detach(&bfad->bfa);
 	bfad_remove_intr(bfad);
 	bfa_assert(list_empty(&bfad->file_q));
 	bfad_hal_mem_release(bfad);
+
+	bfad->bfad_flags &= ~BFAD_DRV_INIT_DONE;
 }
 
 void
@@ -863,6 +893,86 @@ bfad_drv_log_level_set(struct bfad_s *bfad)
 		bfa_log_set_level_all(&bfad->log_data, log_level);
 }
 
+bfa_status_t
+bfad_start_ops(struct bfad_s *bfad)
+{
+	int retval;
+
+	/* PPORT FCS config */
+	bfad_fcs_port_cfg(bfad);
+
+	retval = bfad_cfg_pport(bfad, BFA_PORT_ROLE_FCP_IM);
+	if (retval != BFA_STATUS_OK)
+		goto out_cfg_pport_failure;
+
+	/* BFAD level FC4 (IM/TM/IPFC) specific resource allocation */
+	retval = bfad_fc4_probe(bfad);
+	if (retval != BFA_STATUS_OK) {
+		printk(KERN_WARNING "bfad_fc4_probe failed\n");
+		goto out_fc4_probe_failure;
+	}
+
+	bfad_drv_start(bfad);
+
+	/*
+	 * If bfa_linkup_delay is set to -1 default; try to retrive the
+	 * value using the bfad_os_get_linkup_delay(); else use the
+	 * passed in module param value as the bfa_linkup_delay.
+	 */
+	if (bfa_linkup_delay < 0) {
+
+		bfa_linkup_delay = bfad_os_get_linkup_delay(bfad);
+		bfad_os_rport_online_wait(bfad);
+		bfa_linkup_delay = -1;
+
+	} else {
+		bfad_os_rport_online_wait(bfad);
+	}
+
+	bfa_log(bfad->logmod, BFA_LOG_LINUX_DEVICE_CLAIMED, bfad->pci_name);
+
+	return BFA_STATUS_OK;
+
+out_fc4_probe_failure:
+	bfad_fc4_probe_undo(bfad);
+	bfad_uncfg_pport(bfad);
+out_cfg_pport_failure:
+	return BFA_STATUS_FAILED;
+}
+
+int
+bfad_worker (void *ptr)
+{
+	struct bfad_s *bfad;
+	unsigned long   flags;
+
+	bfad = (struct bfad_s *)ptr;
+
+	while (!kthread_should_stop()) {
+
+		/* Check if the FCS init is done from bfad_drv_init;
+		 * if not done do FCS init and set the flag.
+		 */
+		if (!(bfad->bfad_flags & BFAD_FCS_INIT_DONE)) {
+			spin_lock_irqsave(&bfad->bfad_lock, flags);
+			bfa_fcs_init(&bfad->bfa_fcs);
+			bfad->bfad_flags |= BFAD_FCS_INIT_DONE;
+			spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		}
+
+		/* Start the bfad operations after HAL init done */
+		bfad_start_ops(bfad);
+
+		spin_lock_irqsave(&bfad->bfad_lock, flags);
+		bfad->bfad_tsk = NULL;
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+		break;
+	}
+
+	return 0;
+}
+
  /*
   *  PCI_entry PCI driver entries * {
   */
@@ -937,57 +1047,39 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	bfad->ref_count = 0;
 	bfad->pport.bfad = bfad;
 
+	bfad->bfad_tsk = kthread_create(bfad_worker, (void *) bfad, "%s",
+					"bfad_worker");
+	if (IS_ERR(bfad->bfad_tsk)) {
+		printk(KERN_INFO "bfad[%d]: Kernel thread"
+			" creation failed!\n",
+			bfad->inst_no);
+		goto out_kthread_create_failure;
+	}
+
 	retval = bfad_drv_init(bfad);
 	if (retval != BFA_STATUS_OK)
 		goto out_drv_init_failure;
 	if (!(bfad->bfad_flags & BFAD_HAL_INIT_DONE)) {
+		bfad->bfad_flags |= BFAD_HAL_INIT_FAIL;
 		printk(KERN_WARNING "bfad%d: hal init failed\n", bfad->inst_no);
 		goto ok;
 	}
 
-	/*
-	 * PPORT FCS config
-	 */
-	bfad_fcs_port_cfg(bfad);
-
-	retval = bfad_cfg_pport(bfad, BFA_PORT_ROLE_FCP_IM);
+	retval = bfad_start_ops(bfad);
 	if (retval != BFA_STATUS_OK)
-		goto out_cfg_pport_failure;
+		goto out_start_ops_failure;
 
-	/*
-	 * BFAD level FC4 (IM/TM/IPFC) specific resource allocation
-	 */
-	retval = bfad_fc4_probe(bfad);
-	if (retval != BFA_STATUS_OK) {
-		printk(KERN_WARNING "bfad_fc4_probe failed\n");
-		goto out_fc4_probe_failure;
-	}
+	kthread_stop(bfad->bfad_tsk);
+	bfad->bfad_tsk = NULL;
 
-	bfad_drv_start(bfad);
-
-	/*
-	 * If bfa_linkup_delay is set to -1 default; try to retrive the
-	 * value using the bfad_os_get_linkup_delay(); else use the
-	 * passed in module param value as the bfa_linkup_delay.
-	 */
-	if (bfa_linkup_delay < 0) {
-		bfa_linkup_delay = bfad_os_get_linkup_delay(bfad);
-		bfad_os_rport_online_wait(bfad);
-		bfa_linkup_delay = -1;
-	} else {
-		bfad_os_rport_online_wait(bfad);
-	}
-
-	bfa_log(bfad->logmod, BFA_LOG_LINUX_DEVICE_CLAIMED, bfad->pci_name);
 ok:
 	return 0;
 
-out_fc4_probe_failure:
-	bfad_fc4_probe_undo(bfad);
-	bfad_uncfg_pport(bfad);
-out_cfg_pport_failure:
+out_start_ops_failure:
 	bfad_drv_uninit(bfad);
 out_drv_init_failure:
+	kthread_stop(bfad->bfad_tsk);
+out_kthread_create_failure:
 	mutex_lock(&bfad_mutex);
 	bfad_inst--;
 	list_del(&bfad->list_entry);
@@ -1012,6 +1104,11 @@ bfad_pci_remove(struct pci_dev *pdev)
 
 	bfa_trc(bfad, bfad->inst_no);
 
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	if (bfad->bfad_tsk != NULL)
+		kthread_stop(bfad->bfad_tsk);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
 	if ((bfad->bfad_flags & BFAD_DRV_INIT_DONE)
 	    && !(bfad->bfad_flags & BFAD_HAL_INIT_DONE)) {
 
@@ -1028,13 +1125,25 @@ bfad_pci_remove(struct pci_dev *pdev)
 		goto remove_sysfs;
 	}
 
-	if (bfad->bfad_flags & BFAD_HAL_START_DONE)
+	if (bfad->bfad_flags & BFAD_HAL_START_DONE) {
 		bfad_drv_stop(bfad);
+	} else if (bfad->bfad_flags & BFAD_DRV_INIT_DONE) {
+		/* Invoking bfa_stop() before bfa_detach
+		 * when HAL and DRV init are success
+		 * but HAL start did not occur.
+		 */
+		spin_lock_irqsave(&bfad->bfad_lock, flags);
+		init_completion(&bfad->comp);
+		bfa_stop(&bfad->bfa);
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+		wait_for_completion(&bfad->comp);
+	}
 
 	bfad_remove_intr(bfad);
-
 	del_timer_sync(&bfad->hal_tmo);
-	bfad_fc4_probe_undo(bfad);
+
+	if (bfad->bfad_flags & BFAD_FC4_PROBE_DONE)
+		bfad_fc4_probe_undo(bfad);
 
 	if (bfad->bfad_flags & BFAD_CFG_PPORT_DONE)
 		bfad_uncfg_pport(bfad);
