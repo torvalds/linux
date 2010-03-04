@@ -177,7 +177,7 @@ static const struct option options[] = {
 #ifdef NO_DWARF_SUPPORT
 		"[EVENT=]FUNC[+OFF|%return] [ARG ...]",
 #else
-		"[EVENT=]FUNC[+OFF|%return|:RL|;PT][@SRC]|SRC:AL|SRC;PT"
+		"[EVENT=]FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT"
 		" [ARG ...]",
 #endif
 		"probe point definition, where\n"
