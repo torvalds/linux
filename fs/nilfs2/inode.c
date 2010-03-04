@@ -280,16 +280,7 @@ struct inode *nilfs_new_inode(struct inode *dir, int mode)
 	/* reference count of i_bh inherits from nilfs_mdt_read_block() */
 
 	atomic_inc(&sbi->s_inodes_count);
-
-	inode->i_uid = current_fsuid();
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			mode |= S_ISGID;
-	} else
-		inode->i_gid = current_fsgid();
-
-	inode->i_mode = mode;
+	inode_init_owner(inode, dir, mode);
 	inode->i_ino = ino;
 	inode->i_mtime = inode->i_atime = inode->i_ctime = CURRENT_TIME;
 
