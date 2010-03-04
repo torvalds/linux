@@ -48,23 +48,13 @@ MODULE_AUTHOR("Jun Komuro <komurojun-mbn@nifty.com>");
  *     Specifies the interrupt delivery mode.  The default (1) is to use PCI
  *     interrupts; a value of 0 selects ISA interrupts. This must be set for
  *     correct operation of PCI card readers.
- *
- *  irq_list=i,j,...
- *     This list limits the set of interrupts that can be used by PCMCIA
- *     cards.
- *     The default list is 3,4,5,7,9,10,11.
- *     (irq_list parameter is not used, if irq_mode = 1)
  */
 
 static int irq_mode = 1; /* 0 = ISA interrupt, 1 = PCI interrupt */
-static int irq_list[16];
-static unsigned int irq_list_count = 0;
 
 module_param(irq_mode, int, 0444);
-module_param_array(irq_list, int, &irq_list_count, 0444);
 MODULE_PARM_DESC(irq_mode,
 		"interrupt delivery mode. 0 = ISA, 1 = PCI. default is 1");
-MODULE_PARM_DESC(irq_list, "interrupts that can be used by PCMCIA cards");
 
 static DEFINE_SPINLOCK(port_lock);
 
@@ -605,13 +595,7 @@ static u_int __devinit pd6729_isa_scan(void)
 		return 0;
 	}
 
-	if (irq_list_count == 0)
-		mask0 = 0xffff;
-	else
-		for (i = mask0 = 0; i < irq_list_count; i++)
-			mask0 |= (1<<irq_list[i]);
-
-	mask0 &= PD67_MASK;
+	mask0 = PD67_MASK;
 
 	/* just find interrupts that aren't in use */
 	for (i = 0; i < 16; i++)

@@ -218,11 +218,7 @@ static int __devinit xxs1500_pcmcia_probe(struct platform_device *pdev)
 
 	ret = -ENODEV;
 
-	/*
-	 * pseudo-attr:  The 32bit address of the PCMCIA attribute space
-	 * for this socket (usually the 36bit address shifted 4 to the
-	 * right).
-	 */
+	/* 36bit PCMCIA Attribute area address */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-attr");
 	if (!r) {
 		dev_err(&pdev->dev, "missing 'pcmcia-attr' resource!\n");
@@ -230,10 +226,7 @@ static int __devinit xxs1500_pcmcia_probe(struct platform_device *pdev)
 	}
 	sock->phys_attr = r->start;
 
-	/*
-	 * pseudo-mem:  The 32bit address of the PCMCIA memory space for
-	 * this socket (usually the 36bit address shifted 4 to the right)
-	 */
+	/* 36bit PCMCIA Memory area address */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-mem");
 	if (!r) {
 		dev_err(&pdev->dev, "missing 'pcmcia-mem' resource!\n");
@@ -241,10 +234,7 @@ static int __devinit xxs1500_pcmcia_probe(struct platform_device *pdev)
 	}
 	sock->phys_mem = r->start;
 
-	/*
-	 * pseudo-io:  The 32bit address of the PCMCIA IO space for this
-	 * socket (usually the 36bit address shifted 4 to the right).
-	 */
+	/* 36bit PCMCIA IO area address */
 	r = platform_get_resource_byname(pdev, IORESOURCE_MEM, "pcmcia-io");
 	if (!r) {
 		dev_err(&pdev->dev, "missing 'pcmcia-io' resource!\n");
