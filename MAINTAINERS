@@ -2095,6 +2095,7 @@ F:	drivers/net/eexpress.*
 ETHERNET BRIDGE
 M:	Stephen Hemminger <shemminger@linux-foundation.org>
 L:	bridge@lists.linux-foundation.org
+L:	netdev@vger.kernel.org
 W:	http://www.linux-foundation.org/en/Net:Bridge
 S:	Maintained
 F:	include/linux/netfilter_bridge/
