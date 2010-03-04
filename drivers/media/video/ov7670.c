@@ -1131,6 +1131,67 @@ static int ov7670_s_vflip(struct v4l2_subdev *sd, int value)
 	return ret;
 }
 
+/*
+ * GAIN is split between REG_GAIN and REG_VREF[7:6].  If one believes
+ * the data sheet, the VREF parts should be the most significant, but
+ * experience shows otherwise.  There seems to be little value in
+ * messing with the VREF bits, so we leave them alone.
+ */
+static int ov7670_g_gain(struct v4l2_subdev *sd, __s32 *value)
+{
+	int ret;
+	unsigned char gain;
+
+	ret = ov7670_read(sd, REG_GAIN, &gain);
+	*value = gain;
+	return ret;
+}
+
+static int ov7670_s_gain(struct v4l2_subdev *sd, int value)
+{
+	int ret;
+	unsigned char com8;
+
+	ret = ov7670_write(sd, REG_GAIN, value & 0xff);
+	/* Have to turn off AGC as well */
+	if (ret == 0) {
+		ret = ov7670_read(sd, REG_COM8, &com8);
+		ret = ov7670_write(sd, REG_COM8, com8 & ~COM8_AGC);
+	}
+	return ret;
+}
+
+/*
+ * Tweak autogain.
+ */
+static int ov7670_g_autogain(struct v4l2_subdev *sd, __s32 *value)
+{
+	int ret;
+	unsigned char com8;
+
+	ret = ov7670_read(sd, REG_COM8, &com8);
+	*value = (com8 & COM8_AGC) != 0;
+	return ret;
+}
+
+static int ov7670_s_autogain(struct v4l2_subdev *sd, int value)
+{
+	int ret;
+	unsigned char com8;
+
+	ret = ov7670_read(sd, REG_COM8, &com8);
+	if (ret == 0) {
+		if (value)
+			com8 |= COM8_AGC;
+		else
+			com8 &= ~COM8_AGC;
+		ret = ov7670_write(sd, REG_COM8, com8);
+	}
+	return ret;
+}
+
+
+
 static int ov7670_queryctrl(struct v4l2_subdev *sd,
 		struct v4l2_queryctrl *qc)
 {
@@ -1147,6 +1208,10 @@ static int ov7670_queryctrl(struct v4l2_subdev *sd,
 		return v4l2_ctrl_query_fill(qc, 0, 256, 1, 128);
 	case V4L2_CID_HUE:
 		return v4l2_ctrl_query_fill(qc, -180, 180, 5, 0);
+	case V4L2_CID_GAIN:
+		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
+	case V4L2_CID_AUTOGAIN:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
 	}
 	return -EINVAL;
 }
@@ -1166,6 +1231,10 @@ static int ov7670_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		return ov7670_g_vflip(sd, &ctrl->value);
 	case V4L2_CID_HFLIP:
 		return ov7670_g_hflip(sd, &ctrl->value);
+	case V4L2_CID_GAIN:
+		return ov7670_g_gain(sd, &ctrl->value);
+	case V4L2_CID_AUTOGAIN:
+		return ov7670_g_autogain(sd, &ctrl->value);
 	}
 	return -EINVAL;
 }
@@ -1185,6 +1254,10 @@ static int ov7670_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		return ov7670_s_vflip(sd, ctrl->value);
 	case V4L2_CID_HFLIP:
 		return ov7670_s_hflip(sd, ctrl->value);
+	case V4L2_CID_GAIN:
+		return ov7670_s_gain(sd, ctrl->value);
+	case V4L2_CID_AUTOGAIN:
+		return ov7670_s_autogain(sd, ctrl->value);
 	}
 	return -EINVAL;
 }
