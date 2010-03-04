@@ -1,7 +1,6 @@
 TODO:
 	- fix remaining checkpatch warnings and errors
 	- use of /** when it is not a kerneldoc header
-	- remove RingBuffer.c to us in-kernel ringbuffer functions instead.
 	- audit the vmbus to verify it is working properly with the
 	  driver model
 	- convert vmbus driver interface function pointer tables
