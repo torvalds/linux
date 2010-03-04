@@ -1888,6 +1888,8 @@ static inline void set_bitmap_uptodate(struct buffer_head *bh)
 	set_bit(BH_BITMAP_UPTODATE, &(bh)->b_state);
 }
 
+#define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
+
 #endif	/* __KERNEL__ */
 
 #endif	/* _EXT4_H */
