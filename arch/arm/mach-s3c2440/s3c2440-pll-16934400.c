@@ -1,4 +1,4 @@
-/* arch/arm/plat-s3c24xx/s3c2440-pll-16934400.c
+/* arch/arm/mach-s3c2440/s3c2440-pll-16934400.c
  *
  * Copyright (c) 2006-2008 Simtec Electronics
  *	http://armlinux.simtec.co.uk/
