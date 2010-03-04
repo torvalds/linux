@@ -42,8 +42,8 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 	struct addr_location al;
 	struct sample_data data = { .period = 1, };
 
-	dump_printf("(IP, %d): %d: %p\n", event->header.misc,
-		    event->ip.pid, (void *)(long)event->ip.ip);
+	dump_printf("(IP, %d): %d: %#Lx\n", event->header.misc,
+		    event->ip.pid, event->ip.ip);
 
 	if (event__preprocess_sample(event, session, &al, NULL) < 0) {
 		pr_warning("problem processing %d event, skipping it.\n",
@@ -51,12 +51,12 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 		return -1;
 	}
 
-	if (al.filtered)
+	if (al.filtered || al.sym == NULL)
 		return 0;
 
 	event__parse_sample(event, session->sample_type, &data);
 
-	if (al.sym && perf_session__add_hist_entry(session, &al, data.period)) {
+	if (perf_session__add_hist_entry(session, &al, data.period)) {
 		pr_warning("problem incrementing symbol count, skipping event\n");
 		return -1;
 	}
@@ -66,12 +66,12 @@ static int diff__process_sample_event(event_t *event, struct perf_session *sessi
 }
 
 static struct perf_event_ops event_ops = {
-	.process_sample_event = diff__process_sample_event,
-	.process_mmap_event   = event__process_mmap,
-	.process_comm_event   = event__process_comm,
-	.process_exit_event   = event__process_task,
-	.process_fork_event   = event__process_task,
-	.process_lost_event   = event__process_lost,
+	.sample	= diff__process_sample_event,
+	.mmap	= event__process_mmap,
+	.comm	= event__process_comm,
+	.exit	= event__process_task,
+	.fork	= event__process_task,
+	.lost	= event__process_lost,
 };
 
 static void perf_session__insert_hist_entry_by_name(struct rb_root *root,
@@ -82,29 +82,19 @@ static void perf_session__insert_hist_entry_by_name(struct rb_root *root,
 	struct hist_entry *iter;
 
 	while (*p != NULL) {
-		int cmp;
 		parent = *p;
 		iter = rb_entry(parent, struct hist_entry, rb_node);
-
-		cmp = strcmp(he->map->dso->name, iter->map->dso->name);
-		if (cmp > 0)
+		if (hist_entry__cmp(he, iter) < 0)
 			p = &(*p)->rb_left;
-		else if (cmp < 0)
+		else
 			p = &(*p)->rb_right;
-		else {
-			cmp = strcmp(he->sym->name, iter->sym->name);
-			if (cmp > 0)
-				p = &(*p)->rb_left;
-			else
-				p = &(*p)->rb_right;
-		}
 	}
 
 	rb_link_node(&he->rb_node, parent, p);
 	rb_insert_color(&he->rb_node, root);
 }
 
-static void perf_session__resort_by_name(struct perf_session *self)
+static void perf_session__resort_hist_entries(struct perf_session *self)
 {
 	unsigned long position = 1;
 	struct rb_root tmp = RB_ROOT;
@@ -122,29 +112,28 @@ static void perf_session__resort_by_name(struct perf_session *self)
 	self->hists = tmp;
 }
 
+static void perf_session__set_hist_entries_positions(struct perf_session *self)
+{
+	perf_session__output_resort(self, self->events_stats.total);
+	perf_session__resort_hist_entries(self);
+}
+
 static struct hist_entry *
-perf_session__find_hist_entry_by_name(struct perf_session *self,
-				      struct hist_entry *he)
+perf_session__find_hist_entry(struct perf_session *self,
+			      struct hist_entry *he)
 {
 	struct rb_node *n = self->hists.rb_node;
 
 	while (n) {
 		struct hist_entry *iter = rb_entry(n, struct hist_entry, rb_node);
-		int cmp = strcmp(he->map->dso->name, iter->map->dso->name);
+		int64_t cmp = hist_entry__cmp(he, iter);
 
-		if (cmp > 0)
+		if (cmp < 0)
 			n = n->rb_left;
-		else if (cmp < 0)
+		else if (cmp > 0)
 			n = n->rb_right;
-		else {
-			cmp = strcmp(he->sym->name, iter->sym->name);
-			if (cmp > 0)
-				n = n->rb_left;
-			else if (cmp < 0)
-				n = n->rb_right;
-			else
-				return iter;
-		}
+		else 
+			return iter;
 	}
 
 	return NULL;
@@ -155,11 +144,9 @@ static void perf_session__match_hists(struct perf_session *old_session,
 {
 	struct rb_node *nd;
 
-	perf_session__resort_by_name(old_session);
-
 	for (nd = rb_first(&new_session->hists); nd; nd = rb_next(nd)) {
 		struct hist_entry *pos = rb_entry(nd, struct hist_entry, rb_node);
-		pos->pair = perf_session__find_hist_entry_by_name(old_session, pos);
+		pos->pair = perf_session__find_hist_entry(old_session, pos);
 	}
 }
 
@@ -177,8 +164,11 @@ static int __cmd_diff(void)
 		ret = perf_session__process_events(session[i], &event_ops);
 		if (ret)
 			goto out_delete;
-		perf_session__output_resort(session[i], session[i]->events_stats.total);
 	}
+
+	perf_session__output_resort(session[1], session[1]->events_stats.total);
+	if (show_displacement)
+		perf_session__set_hist_entries_positions(session[0]);
 
 	perf_session__match_hists(session[0], session[1]);
 	perf_session__fprintf_hists(session[1], session[0],
@@ -204,7 +194,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN('f', "force", &force, "don't complain, do it"),
 	OPT_BOOLEAN('m', "modules", &symbol_conf.use_modules,
 		    "load module symbols - WARNING: use only with -k and LIVE kernel"),
-	OPT_BOOLEAN('P', "full-paths", &event_ops.full_paths,
+	OPT_BOOLEAN('P', "full-paths", &symbol_conf.full_paths,
 		    "Don't shorten the pathnames taking into account the cwd"),
 	OPT_STRING('d', "dsos", &symbol_conf.dso_list_str, "dso[,dso...]",
 		   "only consider symbols in these dsos"),

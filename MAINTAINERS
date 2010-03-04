@@ -616,10 +616,10 @@ M:	Richard Purdie <rpurdie@rpsys.net>
 S:	Maintained
 
 ARM/CORTINA SYSTEMS GEMINI ARM ARCHITECTURE
-M:	Paulius Zaleckas <paulius.zaleckas@teltonika.lt>
+M:	Paulius Zaleckas <paulius.zaleckas@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://gitorious.org/linux-gemini/mainline.git
-S:	Maintained
+S:	Odd Fixes
 F:	arch/arm/mach-gemini/
 
 ARM/EBSA110 MACHINE SUPPORT
@@ -641,9 +641,9 @@ T:	topgit git://git.openezx.org/openezx.git
 F:	arch/arm/mach-pxa/ezx.c
 
 ARM/FARADAY FA526 PORT
-M:	Paulius Zaleckas <paulius.zaleckas@teltonika.lt>
+M:	Paulius Zaleckas <paulius.zaleckas@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
-S:	Maintained
+S:	Odd Fixes
 F:	arch/arm/mm/*-fa*
 
 ARM/FOOTBRIDGE ARCHITECTURE
@@ -1733,10 +1733,9 @@ F:	include/linux/tfrc.h
 F:	net/dccp/
 
 DECnet NETWORK LAYER
-M:	Christine Caulfield <christine.caulfield@googlemail.com>
 W:	http://linux-decnet.sourceforge.net
 L:	linux-decnet-user@lists.sourceforge.net
-S:	Maintained
+S:	Orphan
 F:	Documentation/networking/decnet.txt
 F:	net/decnet/
 
@@ -3411,8 +3410,10 @@ S:	Maintained
 F:	drivers/scsi/sym53c8xx_2/
 
 LTP (Linux Test Project)
-M:	Subrata Modak <subrata@linux.vnet.ibm.com>
-M:	Mike Frysinger <vapier@gentoo.org>
+M:	Rishikesh K Rajak <risrajak@linux.vnet.ibm.com>
+M:	Garrett Cooper <yanegomi@gmail.com>
+M:     Mike Frysinger <vapier@gentoo.org>
+M:     Subrata Modak <subrata@linux.vnet.ibm.com>
 L:	ltp-list@lists.sourceforge.net (subscribers-only)
 W:	http://ltp.sourceforge.net/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/galak/ltp.git
@@ -3488,9 +3489,9 @@ S:	Maintained
 F:	drivers/net/wireless/libertas/
 
 MARVELL MV643XX ETHERNET DRIVER
-M:	Lennert Buytenhek <buytenh@marvell.com>
+M:	Lennert Buytenhek <buytenh@wantstofly.org>
 L:	netdev@vger.kernel.org
-S:	Supported
+S:	Maintained
 F:	drivers/net/mv643xx_eth.*
 F:	include/linux/mv643xx.h
 
@@ -3836,6 +3837,7 @@ NETWORKING DRIVERS
 L:	netdev@vger.kernel.org
 W:	http://www.linuxfoundation.org/en/Net
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/net-next-2.6.git
 S:	Odd Fixes
 F:	drivers/net/
 F:	include/linux/if_*

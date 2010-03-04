@@ -25,10 +25,16 @@
 #include <ctype.h>
 #include <errno.h>
 
-#include "../perf.h"
-#include "util.h"
-#include "trace-event.h"
-#include "trace-event-perl.h"
+#include "../../perf.h"
+#include "../util.h"
+#include "../trace-event.h"
+
+#include <EXTERN.h>
+#include <perl.h>
+
+void boot_Perf__Trace__Context(pTHX_ CV *cv);
+void boot_DynaLoader(pTHX_ CV *cv);
+typedef PerlInterpreter * INTERP;
 
 void xs_init(pTHX);
 
@@ -49,7 +55,7 @@ INTERP my_perl;
 
 struct event *events[FTRACE_MAX_EVENT];
 
-static struct scripting_context *scripting_context;
+extern struct scripting_context *scripting_context;
 
 static char *cur_field_name;
 static int zero_flag_atom;
@@ -237,33 +243,6 @@ static inline struct event *find_cache_event(int type)
 	define_event_symbols(event, ev_name, event->print_fmt.args);
 
 	return event;
-}
-
-int common_pc(struct scripting_context *context)
-{
-	int pc;
-
-	pc = parse_common_pc(context->event_data);
-
-	return pc;
-}
-
-int common_flags(struct scripting_context *context)
-{
-	int flags;
-
-	flags = parse_common_flags(context->event_data);
-
-	return flags;
-}
-
-int common_lock_depth(struct scripting_context *context)
-{
-	int lock_depth;
-
-	lock_depth = parse_common_lock_depth(context->event_data);
-
-	return lock_depth;
 }
 
 static void perl_process_event(int cpu, void *data,
@@ -587,75 +566,3 @@ struct scripting_ops perl_scripting_ops = {
 	.process_event = perl_process_event,
 	.generate_script = perl_generate_script,
 };
-
-static void print_unsupported_msg(void)
-{
-	fprintf(stderr, "Perl scripting not supported."
-		"  Install libperl and rebuild perf to enable it.\n"
-		"For example:\n  # apt-get install libperl-dev (ubuntu)"
-		"\n  # yum install perl-ExtUtils-Embed (Fedora)"
-		"\n  etc.\n");
-}
-
-static int perl_start_script_unsupported(const char *script __unused,
-					 int argc __unused,
-					 const char **argv __unused)
-{
-	print_unsupported_msg();
-
-	return -1;
-}
-
-static int perl_stop_script_unsupported(void)
-{
-	return 0;
-}
-
-static void perl_process_event_unsupported(int cpu __unused,
-					   void *data __unused,
-					   int size __unused,
-					   unsigned long long nsecs __unused,
-					   char *comm __unused)
-{
-}
-
-static int perl_generate_script_unsupported(const char *outfile __unused)
-{
-	print_unsupported_msg();
-
-	return -1;
-}
-
-struct scripting_ops perl_scripting_unsupported_ops = {
-	.name = "Perl",
-	.start_script = perl_start_script_unsupported,
-	.stop_script = perl_stop_script_unsupported,
-	.process_event = perl_process_event_unsupported,
-	.generate_script = perl_generate_script_unsupported,
-};
-
-static void register_perl_scripting(struct scripting_ops *scripting_ops)
-{
-	int err;
-	err = script_spec_register("Perl", scripting_ops);
-	if (err)
-		die("error registering Perl script extension");
-
-	err = script_spec_register("pl", scripting_ops);
-	if (err)
-		die("error registering pl script extension");
-
-	scripting_context = malloc(sizeof(struct scripting_context));
-}
-
-#ifdef NO_LIBPERL
-void setup_perl_scripting(void)
-{
-	register_perl_scripting(&perl_scripting_unsupported_ops);
-}
-#else
-void setup_perl_scripting(void)
-{
-	register_perl_scripting(&perl_scripting_ops);
-}
-#endif

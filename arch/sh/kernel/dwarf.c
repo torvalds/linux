@@ -540,6 +540,8 @@ void dwarf_free_frame(struct dwarf_frame *frame)
 	mempool_free(frame, dwarf_frame_pool);
 }
 
+extern void ret_from_irq(void);
+
 /**
  *	dwarf_unwind_stack - unwind the stack
  *
@@ -677,6 +679,24 @@ struct dwarf_frame * dwarf_unwind_stack(unsigned long pc,
 
 	addr = frame->cfa + reg->addr;
 	frame->return_addr = __raw_readl(addr);
+
+	/*
+	 * Ah, the joys of unwinding through interrupts.
+	 *
+	 * Interrupts are tricky - the DWARF info needs to be _really_
+	 * accurate and unfortunately I'm seeing a lot of bogus DWARF
+	 * info. For example, I've seen interrupts occur in epilogues
+	 * just after the frame pointer (r14) had been restored. The
+	 * problem was that the DWARF info claimed that the CFA could be
+	 * reached by using the value of the frame pointer before it was
+	 * restored.
+	 *
+	 * So until the compiler can be trusted to produce reliable
+	 * DWARF info when it really matters, let's stop unwinding once
+	 * we've calculated the function that was interrupted.
+	 */
+	if (prev && prev->pc == (unsigned long)ret_from_irq)
+		frame->return_addr = 0;
 
 	return frame;
 

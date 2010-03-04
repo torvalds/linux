@@ -337,6 +337,9 @@ static void __kprobes arch_copy_kprobe(struct kprobe *p)
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
+	if (alternatives_text_reserved(p->addr, p->addr))
+		return -EINVAL;
+
 	if (!can_probe((unsigned long)p->addr))
 		return -EILSEQ;
 	/* insn: must be on special executable page on x86. */
@@ -429,7 +432,7 @@ void __kprobes arch_prepare_kretprobe(struct kretprobe_instance *ri,
 static void __kprobes setup_singlestep(struct kprobe *p, struct pt_regs *regs,
 				       struct kprobe_ctlblk *kcb)
 {
-#if !defined(CONFIG_PREEMPT) || defined(CONFIG_FREEZER)
+#if !defined(CONFIG_PREEMPT)
 	if (p->ainsn.boostable == 1 && !p->post_handler) {
 		/* Boost up -- we can execute copied instructions directly */
 		reset_current_kprobe();

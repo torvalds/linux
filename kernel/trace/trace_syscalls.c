@@ -421,7 +421,7 @@ int __init init_ftrace_syscalls(void)
 }
 core_initcall(init_ftrace_syscalls);
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 
 static DECLARE_BITMAP(enabled_prof_enter_syscalls, NR_syscalls);
 static DECLARE_BITMAP(enabled_prof_exit_syscalls, NR_syscalls);
@@ -433,12 +433,9 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	struct syscall_metadata *sys_data;
 	struct syscall_trace_enter *rec;
 	unsigned long flags;
-	char *trace_buf;
-	char *raw_data;
 	int syscall_nr;
 	int rctx;
 	int size;
-	int cpu;
 
 	syscall_nr = syscall_get_nr(current, regs);
 	if (!test_bit(syscall_nr, enabled_prof_enter_syscalls))
@@ -457,37 +454,15 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 		      "profile buffer not large enough"))
 		return;
 
-	/* Protect the per cpu buffer, begin the rcu read side */
-	local_irq_save(flags);
+	rec = (struct syscall_trace_enter *)ftrace_perf_buf_prepare(size,
+				sys_data->enter_event->id, &rctx, &flags);
+	if (!rec)
+		return;
 
-	rctx = perf_swevent_get_recursion_context();
-	if (rctx < 0)
-		goto end_recursion;
-
-	cpu = smp_processor_id();
-
-	trace_buf = rcu_dereference(perf_trace_buf);
-
-	if (!trace_buf)
-		goto end;
-
-	raw_data = per_cpu_ptr(trace_buf, cpu);
-
-	/* zero the dead bytes from align to not leak stack to user */
-	*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
-
-	rec = (struct syscall_trace_enter *) raw_data;
-	tracing_generic_entry_update(&rec->ent, 0, 0);
-	rec->ent.type = sys_data->enter_event->id;
 	rec->nr = syscall_nr;
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args,
 			       (unsigned long *)&rec->args);
-	perf_tp_event(sys_data->enter_event->id, 0, 1, rec, size);
-
-end:
-	perf_swevent_put_recursion_context(rctx);
-end_recursion:
-	local_irq_restore(flags);
+	ftrace_perf_buf_submit(rec, size, rctx, 0, 1, flags);
 }
 
 int prof_sysenter_enable(struct ftrace_event_call *call)
@@ -531,11 +506,8 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	struct syscall_trace_exit *rec;
 	unsigned long flags;
 	int syscall_nr;
-	char *trace_buf;
-	char *raw_data;
 	int rctx;
 	int size;
-	int cpu;
 
 	syscall_nr = syscall_get_nr(current, regs);
 	if (!test_bit(syscall_nr, enabled_prof_exit_syscalls))
@@ -557,38 +529,15 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 		"exit event has grown above profile buffer size"))
 		return;
 
-	/* Protect the per cpu buffer, begin the rcu read side */
-	local_irq_save(flags);
+	rec = (struct syscall_trace_exit *)ftrace_perf_buf_prepare(size,
+				sys_data->exit_event->id, &rctx, &flags);
+	if (!rec)
+		return;
 
-	rctx = perf_swevent_get_recursion_context();
-	if (rctx < 0)
-		goto end_recursion;
-
-	cpu = smp_processor_id();
-
-	trace_buf = rcu_dereference(perf_trace_buf);
-
-	if (!trace_buf)
-		goto end;
-
-	raw_data = per_cpu_ptr(trace_buf, cpu);
-
-	/* zero the dead bytes from align to not leak stack to user */
-	*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
-
-	rec = (struct syscall_trace_exit *)raw_data;
-
-	tracing_generic_entry_update(&rec->ent, 0, 0);
-	rec->ent.type = sys_data->exit_event->id;
 	rec->nr = syscall_nr;
 	rec->ret = syscall_get_return_value(current, regs);
 
-	perf_tp_event(sys_data->exit_event->id, 0, 1, rec, size);
-
-end:
-	perf_swevent_put_recursion_context(rctx);
-end_recursion:
-	local_irq_restore(flags);
+	ftrace_perf_buf_submit(rec, size, rctx, 0, 1, flags);
 }
 
 int prof_sysexit_enable(struct ftrace_event_call *call)
@@ -626,6 +575,5 @@ void prof_sysexit_disable(struct ftrace_event_call *call)
 	mutex_unlock(&syscall_trace_lock);
 }
 
-#endif
-
+#endif /* CONFIG_PERF_EVENTS */
 

@@ -1621,11 +1621,8 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	event__parse_sample(event, session->sample_type, &data);
 
-	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
-		event->header.misc,
-		data.pid, data.tid,
-		(void *)(long)data.ip,
-		(long long)data.period);
+	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
+		    data.pid, data.tid, data.ip, data.period);
 
 	thread = perf_session__findnew(session, data.pid);
 	if (thread == NULL) {
@@ -1653,33 +1650,22 @@ static int process_lost_event(event_t *event __used,
 	return 0;
 }
 
-static int sample_type_check(struct perf_session *session __used)
-{
-	if (!(session->sample_type & PERF_SAMPLE_RAW)) {
-		fprintf(stderr,
-			"No trace sample to read. Did you call perf record "
-			"without -R?");
-		return -1;
-	}
-
-	return 0;
-}
-
 static struct perf_event_ops event_ops = {
-	.process_sample_event	= process_sample_event,
-	.process_comm_event	= event__process_comm,
-	.process_lost_event	= process_lost_event,
-	.sample_type_check	= sample_type_check,
+	.sample	= process_sample_event,
+	.comm	= event__process_comm,
+	.lost	= process_lost_event,
 };
 
 static int read_events(void)
 {
-	int err;
+	int err = -EINVAL;
 	struct perf_session *session = perf_session__new(input_name, O_RDONLY, 0);
 	if (session == NULL)
 		return -ENOMEM;
 
-	err = perf_session__process_events(session, &event_ops);
+	if (perf_session__has_traces(session, "record -R"))
+		err = perf_session__process_events(session, &event_ops);
+
 	perf_session__delete(session);
 	return err;
 }

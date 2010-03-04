@@ -3764,7 +3764,8 @@ out:
 				       BTRFS_DATA_RELOC_TREE_OBJECTID);
 		if (IS_ERR(fs_root))
 			err = PTR_ERR(fs_root);
-		btrfs_orphan_cleanup(fs_root);
+		else
+			btrfs_orphan_cleanup(fs_root);
 	}
 	return err;
 }

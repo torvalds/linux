@@ -976,19 +976,6 @@ config PERF_EVENTS
 
 	  Say Y if unsure.
 
-config EVENT_PROFILE
-	bool "Tracepoint profiling sources"
-	depends on PERF_EVENTS && EVENT_TRACING
-	default y
-	help
-	 Allow the use of tracepoints as software performance events.
-
-	 When this is enabled, you can create perf events based on
-	 tracepoints using PERF_TYPE_TRACEPOINT and the tracepoint ID
-	 found in debugfs://tracing/events/*/*/id. (The -e/--events
-	 option to the perf tool can parse and interpret symbolic
-	 tracepoints, in the subsystem:tracepoint_name format.)
-
 config PERF_COUNTERS
 	bool "Kernel performance counters (old config option)"
 	depends on HAVE_PERF_EVENTS
@@ -1112,7 +1099,7 @@ config MMAP_ALLOW_UNINITIALIZED
 	  See Documentation/nommu-mmap.txt for more information.
 
 config PROFILING
-	bool "Profiling support (EXPERIMENTAL)"
+	bool "Profiling support"
 	help
 	  Say Y here to enable the extended profiling support mechanisms used
 	  by profilers such as OProfile.

@@ -115,17 +115,6 @@ int avail_to_resrv_perfctr_nmi_bit(unsigned int counter)
 
 	return !test_bit(counter, perfctr_nmi_owner);
 }
-
-/* checks the an msr for availability */
-int avail_to_resrv_perfctr_nmi(unsigned int msr)
-{
-	unsigned int counter;
-
-	counter = nmi_perfctr_msr_to_bit(msr);
-	BUG_ON(counter > NMI_MAX_COUNTER_BITS);
-
-	return !test_bit(counter, perfctr_nmi_owner);
-}
 EXPORT_SYMBOL(avail_to_resrv_perfctr_nmi_bit);
 
 int reserve_perfctr_nmi(unsigned int msr)
@@ -691,7 +680,7 @@ static int setup_intel_arch_watchdog(unsigned nmi_hz)
 	cpu_nmi_set_wd_enabled();
 
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
-	evntsel |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+	evntsel |= ARCH_PERFMON_EVENTSEL_ENABLE;
 	wrmsr(evntsel_msr, evntsel, 0);
 	intel_arch_wd_ops.checkbit = 1ULL << (eax.split.bit_width - 1);
 	return 1;

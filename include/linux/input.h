@@ -376,6 +376,7 @@ struct input_absinfo {
 #define KEY_DISPLAY_OFF		245	/* display device to off state */
 
 #define KEY_WIMAX		246
+#define KEY_RFKILL		247	/* Key that controls all radios */
 
 /* Range 248 - 255 is reserved for special needs of AT keyboard driver */
 

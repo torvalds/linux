@@ -549,9 +549,12 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 	gb_tiling_config |= BANK_SWAPS(1);
 
-	backend_map = r700_get_tile_pipe_to_backend_map(rdev->config.rv770.max_tile_pipes,
-							rdev->config.rv770.max_backends,
-							(0xff << rdev->config.rv770.max_backends) & 0xff);
+	if (rdev->family == CHIP_RV740)
+		backend_map = 0x28;
+	else
+		backend_map = r700_get_tile_pipe_to_backend_map(rdev->config.rv770.max_tile_pipes,
+								rdev->config.rv770.max_backends,
+								(0xff << rdev->config.rv770.max_backends) & 0xff);
 	gb_tiling_config |= BACKEND_MAP(backend_map);
 
 	cc_gc_shader_pipe_config =
@@ -887,6 +890,12 @@ static int rv770_startup(struct radeon_device *rdev)
 			return r;
 	}
 	rv770_gpu_init(rdev);
+	r = r600_blit_init(rdev);
+	if (r) {
+		r600_blit_fini(rdev);
+		rdev->asic->copy = NULL;
+		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
+	}
 	/* pin copy shader into vram */
 	if (rdev->r600_blit.shader_obj) {
 		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
@@ -1055,19 +1064,15 @@ int rv770_init(struct radeon_device *rdev)
 	r = r600_pcie_gart_init(rdev);
 	if (r)
 		return r;
-	r = r600_blit_init(rdev);
-	if (r) {
-		r600_blit_fini(rdev);
-		rdev->asic->copy = NULL;
-		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
-	}
 
 	rdev->accel_working = true;
 	r = rv770_startup(rdev);
 	if (r) {
-		rv770_suspend(rdev);
+		dev_err(rdev->dev, "disabling GPU acceleration\n");
+		r600_cp_fini(rdev);
 		r600_wb_fini(rdev);
-		radeon_ring_fini(rdev);
+		r600_irq_fini(rdev);
+		radeon_irq_kms_fini(rdev);
 		rv770_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
 	}
@@ -1089,13 +1094,11 @@ int rv770_init(struct radeon_device *rdev)
 
 void rv770_fini(struct radeon_device *rdev)
 {
-	rv770_suspend(rdev);
-
 	r600_blit_fini(rdev);
+	r600_cp_fini(rdev);
+	r600_wb_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_irq_kms_fini(rdev);
-	radeon_ring_fini(rdev);
-	r600_wb_fini(rdev);
 	rv770_pcie_gart_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);

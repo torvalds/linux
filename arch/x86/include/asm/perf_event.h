@@ -18,7 +18,7 @@
 #define MSR_ARCH_PERFMON_EVENTSEL0			     0x186
 #define MSR_ARCH_PERFMON_EVENTSEL1			     0x187
 
-#define ARCH_PERFMON_EVENTSEL0_ENABLE			  (1 << 22)
+#define ARCH_PERFMON_EVENTSEL_ENABLE			  (1 << 22)
 #define ARCH_PERFMON_EVENTSEL_ANY			  (1 << 21)
 #define ARCH_PERFMON_EVENTSEL_INT			  (1 << 20)
 #define ARCH_PERFMON_EVENTSEL_OS			  (1 << 17)
@@ -27,7 +27,14 @@
 /*
  * Includes eventsel and unit mask as well:
  */
-#define ARCH_PERFMON_EVENT_MASK				    0xffff
+
+
+#define INTEL_ARCH_EVTSEL_MASK		0x000000FFULL
+#define INTEL_ARCH_UNIT_MASK		0x0000FF00ULL
+#define INTEL_ARCH_EDGE_MASK		0x00040000ULL
+#define INTEL_ARCH_INV_MASK		0x00800000ULL
+#define INTEL_ARCH_CNT_MASK		0xFF000000ULL
+#define INTEL_ARCH_EVENT_MASK	(INTEL_ARCH_UNIT_MASK|INTEL_ARCH_EVTSEL_MASK)
 
 /*
  * filter mask to validate fixed counter events.
@@ -38,7 +45,12 @@
  *  The other filters are supported by fixed counters.
  *  The any-thread option is supported starting with v3.
  */
-#define ARCH_PERFMON_EVENT_FILTER_MASK			0xff840000
+#define INTEL_ARCH_FIXED_MASK \
+	(INTEL_ARCH_CNT_MASK| \
+	 INTEL_ARCH_INV_MASK| \
+	 INTEL_ARCH_EDGE_MASK|\
+	 INTEL_ARCH_UNIT_MASK|\
+	 INTEL_ARCH_EVENT_MASK)
 
 #define ARCH_PERFMON_UNHALTED_CORE_CYCLES_SEL		      0x3c
 #define ARCH_PERFMON_UNHALTED_CORE_CYCLES_UMASK		(0x00 << 8)
@@ -105,6 +117,18 @@ union cpuid10_edx {
  */
 #define X86_PMC_IDX_FIXED_BTS				(X86_PMC_IDX_FIXED + 16)
 
+/* IbsFetchCtl bits/masks */
+#define IBS_FETCH_RAND_EN		(1ULL<<57)
+#define IBS_FETCH_VAL			(1ULL<<49)
+#define IBS_FETCH_ENABLE		(1ULL<<48)
+#define IBS_FETCH_CNT			0xFFFF0000ULL
+#define IBS_FETCH_MAX_CNT		0x0000FFFFULL
+
+/* IbsOpCtl bits */
+#define IBS_OP_CNT_CTL			(1ULL<<19)
+#define IBS_OP_VAL			(1ULL<<18)
+#define IBS_OP_ENABLE			(1ULL<<17)
+#define IBS_OP_MAX_CNT			0x0000FFFFULL
 
 #ifdef CONFIG_PERF_EVENTS
 extern void init_hw_perf_events(void);

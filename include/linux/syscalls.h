@@ -99,7 +99,7 @@ struct perf_event_attr;
 #define __SC_TEST5(t5, a5, ...)	__SC_TEST(t5); __SC_TEST4(__VA_ARGS__)
 #define __SC_TEST6(t6, a6, ...)	__SC_TEST(t6); __SC_TEST5(__VA_ARGS__)
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 
 #define TRACE_SYS_ENTER_PROFILE_INIT(sname)				       \
 	.profile_enable = prof_sysenter_enable,				       \
@@ -113,7 +113,7 @@ struct perf_event_attr;
 #define TRACE_SYS_ENTER_PROFILE_INIT(sname)
 #define TRACE_SYS_EXIT_PROFILE(sname)
 #define TRACE_SYS_EXIT_PROFILE_INIT(sname)
-#endif
+#endif /* CONFIG_PERF_EVENTS */
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 #define __SC_STR_ADECL1(t, a)		#a

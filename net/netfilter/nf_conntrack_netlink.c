@@ -594,7 +594,7 @@ ctnetlink_dump_table(struct sk_buff *skb, struct netlink_callback *cb)
 
 	rcu_read_lock();
 	last = (struct nf_conn *)cb->args[1];
-	for (; cb->args[0] < nf_conntrack_htable_size; cb->args[0]++) {
+	for (; cb->args[0] < init_net.ct.htable_size; cb->args[0]++) {
 restart:
 		hlist_nulls_for_each_entry_rcu(h, n, &init_net.ct.hash[cb->args[0]],
 					 hnnode) {
