@@ -353,8 +353,7 @@ void musb_hnp_stop(struct musb *musb)
 	 * which cause occasional OPT A "Did not receive reset after connect"
 	 * errors.
 	 */
-	musb->port1_status &=
-		~(1 << USB_PORT_FEAT_C_CONNECTION);
+	musb->port1_status &= ~(USB_PORT_STAT_C_CONNECTION << 16);
 }
 
 #endif
@@ -530,8 +529,8 @@ static irqreturn_t musb_stage0_irq(struct musb *musb, u8 int_usb,
 				musb_writeb(mbase, MUSB_DEVCTL, devctl);
 			} else {
 				musb->port1_status |=
-					  (1 << USB_PORT_FEAT_OVER_CURRENT)
-					| (1 << USB_PORT_FEAT_C_OVER_CURRENT);
+					  USB_PORT_STAT_OVERCURRENT
+					| (USB_PORT_STAT_C_OVERCURRENT << 16);
 			}
 			break;
 		default:

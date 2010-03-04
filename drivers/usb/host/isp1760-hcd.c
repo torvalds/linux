@@ -1923,7 +1923,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		 * Even if OWNER is set, so the port is owned by the
 		 * companion controller, khubd needs to be able to clear
 		 * the port-change status bits (especially
-		 * USB_PORT_FEAT_C_CONNECTION).
+		 * USB_PORT_STAT_C_CONNECTION).
 		 */
 
 		switch (wValue) {
@@ -1987,7 +1987,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 
 		/* wPortChange bits */
 		if (temp & PORT_CSC)
-			status |= 1 << USB_PORT_FEAT_C_CONNECTION;
+			status |= USB_PORT_STAT_C_CONNECTION << 16;
 
 
 		/* whoever resumes must GetPortStatus to complete it!! */
@@ -2007,7 +2007,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			/* resume completed? */
 			else if (time_after_eq(jiffies,
 					priv->reset_done)) {
-				status |= 1 << USB_PORT_FEAT_C_SUSPEND;
+				status |= USB_PORT_STAT_C_SUSPEND << 16;
 				priv->reset_done = 0;
 
 				/* stop resume signaling */
@@ -2031,7 +2031,7 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 		if ((temp & PORT_RESET)
 				&& time_after_eq(jiffies,
 					priv->reset_done)) {
-			status |= 1 << USB_PORT_FEAT_C_RESET;
+			status |= USB_PORT_STAT_C_RESET << 16;
 			priv->reset_done = 0;
 
 			/* force reset to complete */
@@ -2062,18 +2062,18 @@ static int isp1760_hub_control(struct usb_hcd *hcd, u16 typeReq,
 			printk(KERN_ERR "Warning: PORT_OWNER is set\n");
 
 		if (temp & PORT_CONNECT) {
-			status |= 1 << USB_PORT_FEAT_CONNECTION;
+			status |= USB_PORT_STAT_CONNECTION;
 			/* status may be from integrated TT */
 			status |= ehci_port_speed(priv, temp);
 		}
 		if (temp & PORT_PE)
-			status |= 1 << USB_PORT_FEAT_ENABLE;
+			status |= USB_PORT_STAT_ENABLE;
 		if (temp & (PORT_SUSPEND|PORT_RESUME))
-			status |= 1 << USB_PORT_FEAT_SUSPEND;
+			status |= USB_PORT_STAT_SUSPEND;
 		if (temp & PORT_RESET)
-			status |= 1 << USB_PORT_FEAT_RESET;
+			status |= USB_PORT_STAT_RESET;
 		if (temp & PORT_POWER)
-			status |= 1 << USB_PORT_FEAT_POWER;
+			status |= USB_PORT_STAT_POWER;
 
 		put_unaligned(cpu_to_le32(status), (__le32 *) buf);
 		break;
