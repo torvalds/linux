@@ -477,7 +477,6 @@ mext_leaf_block(handle_t *handle, struct inode *orig_inode,
 	struct ext4_extent *oext, *o_start, *o_end, *prev_ext;
 	struct ext4_extent new_ext, start_ext, end_ext;
 	ext4_lblk_t new_ext_end;
-	ext4_fsblk_t new_phys_end;
 	int oext_alen, new_ext_alen, end_ext_alen;
 	int depth = ext_depth(orig_inode);
 	int ret;
@@ -491,7 +490,6 @@ mext_leaf_block(handle_t *handle, struct inode *orig_inode,
 	new_ext.ee_len = dext->ee_len;
 	new_ext_alen = ext4_ext_get_actual_len(&new_ext);
 	new_ext_end = le32_to_cpu(new_ext.ee_block) + new_ext_alen - 1;
-	new_phys_end = ext_pblock(&new_ext) + new_ext_alen - 1;
 
 	/*
 	 * Case: original extent is first
@@ -932,7 +930,7 @@ out2:
 }
 
 /**
- * mext_check_argumants - Check whether move extent can be done
+ * mext_check_arguments - Check whether move extent can be done
  *
  * @orig_inode:		original inode
  * @donor_inode:	donor inode
