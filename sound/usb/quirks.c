@@ -159,8 +159,8 @@ static int create_fixed_stream_quirk(struct snd_usb_audio *chip,
 	fp->datainterval = snd_usb_parse_datainterval(chip, alts);
 	fp->maxpacksize = le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize);
 	usb_set_interface(chip->dev, fp->iface, 0);
-	snd_usb_init_pitch(chip->dev, fp->iface, alts, fp);
-	snd_usb_init_sample_rate(chip->dev, fp->iface, alts, fp, fp->rate_max);
+	snd_usb_init_pitch(chip, fp->iface, alts, fp);
+	snd_usb_init_sample_rate(chip, fp->iface, alts, fp, fp->rate_max);
 	return 0;
 }
 

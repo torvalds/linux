@@ -3,11 +3,11 @@
 
 void snd_usb_set_pcm_ops(struct snd_pcm *pcm, int stream);
 
-int snd_usb_init_pitch(struct usb_device *dev, int iface,
+int snd_usb_init_pitch(struct snd_usb_audio *chip, int iface,
 		       struct usb_host_interface *alts,
 		       struct audioformat *fmt);
 
-int snd_usb_init_sample_rate(struct usb_device *dev, int iface,
+int snd_usb_init_sample_rate(struct snd_usb_audio *chip, int iface,
 			     struct usb_host_interface *alts,
 			     struct audioformat *fmt, int rate);
 
