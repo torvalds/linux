@@ -24,7 +24,7 @@
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include "../usbaudio.h"
-#include "../usbmidi.h"
+#include "../midi.h"
 
 MODULE_DESCRIPTION("Edirol UA-101/1000 driver");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");

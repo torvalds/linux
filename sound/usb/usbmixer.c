@@ -42,6 +42,7 @@
 
 #include "usbaudio.h"
 #include "usbmixer.h"
+#include "helper.h"
 
 /*
  */

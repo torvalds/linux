@@ -1,7 +1,7 @@
 #ifndef USBUSX2Y_H
 #define USBUSX2Y_H
 #include "../usbaudio.h"
-#include "../usbmidi.h"
+#include "../midi.h"
 #include "usbus428ctldefs.h" 
 
 #define NRURBS	        2	

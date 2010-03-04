@@ -27,6 +27,7 @@
 #define USB_ID_PRODUCT(id) ((u16)(id))
 
 /*
+ *
  */
 
 struct snd_usb_audio {
@@ -48,6 +49,10 @@ struct snd_usb_audio {
 	struct list_head midi_list;	/* list of midi interfaces */
 
 	struct list_head mixer_list;	/* list of mixer interfaces */
+
+	int setup;			/* from the 'device_setup' module param */
+	int nrpacks;			/* from the 'nrpacks' module param */
+	int async_unlink;		/* from the 'async_unlink' module param */
 };
 
 /*
@@ -86,45 +91,8 @@ struct snd_usb_audio_quirk {
 	const void *data;
 };
 
-/*
- */
-
-/*E-mu USB samplerate control quirk*/
-enum {
-	EMU_QUIRK_SR_44100HZ = 0,
-	EMU_QUIRK_SR_48000HZ,
-	EMU_QUIRK_SR_88200HZ,
-	EMU_QUIRK_SR_96000HZ,
-	EMU_QUIRK_SR_176400HZ,
-	EMU_QUIRK_SR_192000HZ
-};
-
 #define combine_word(s)    ((*(s)) | ((unsigned int)(s)[1] << 8))
 #define combine_triple(s)  (combine_word(s) | ((unsigned int)(s)[2] << 16))
 #define combine_quad(s)    (combine_triple(s) | ((unsigned int)(s)[3] << 24))
-
-unsigned int snd_usb_combine_bytes(unsigned char *bytes, int size);
-
-void *snd_usb_find_desc(void *descstart, int desclen, void *after, u8 dtype);
-void *snd_usb_find_csint_desc(void *descstart, int desclen, void *after, u8 dsubtype);
-
-int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe,
-		    __u8 request, __u8 requesttype, __u16 value, __u16 index,
-		    void *data, __u16 size, int timeout);
-
-/*
- * retrieve usb_interface descriptor from the host interface
- * (conditional for compatibility with the older API)
- */
-#ifndef get_iface_desc
-#define get_iface_desc(iface)	(&(iface)->desc)
-#define get_endpoint(alt,ep)	(&(alt)->endpoint[ep].desc)
-#define get_ep_desc(ep)		(&(ep)->desc)
-#define get_cfg_desc(cfg)	(&(cfg)->desc)
-#endif
-
-#ifndef snd_usb_get_speed
-#define snd_usb_get_speed(dev) ((dev)->speed)
-#endif
 
 #endif /* __USBAUDIO_H */

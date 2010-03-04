@@ -2,8 +2,17 @@
 # Makefile for ALSA
 #
 
-snd-usb-audio-objs := usbaudio.o usbmixer.o
-snd-usbmidi-lib-objs := usbmidi.o
+snd-usb-audio-objs := 	card.o \
+			usbmixer.o \
+			proc.o \
+			quirks.o \
+			format.o \
+			endpoint.o \
+			urb.o \
+			pcm.o \
+			helper.o
+
+snd-usbmidi-lib-objs := midi.o
 
 # Toplevel Module Dependency
 obj-$(CONFIG_SND_USB_AUDIO) += snd-usb-audio.o snd-usbmidi-lib.o
