@@ -167,27 +167,91 @@ static void bdev_writeseg(struct super_block *sb, u64 ofs, size_t len)
 	generic_unplug_device(bdev_get_queue(logfs_super(sb)->s_bdev));
 }
 
-static int bdev_erase(struct super_block *sb, loff_t to, size_t len)
+
+static void erase_end_io(struct bio *bio, int err) 
+{ 
+	const int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags); 
+	struct super_block *sb = bio->bi_private; 
+	struct logfs_super *super = logfs_super(sb); 
+
+	BUG_ON(!uptodate); /* FIXME: Retry io or write elsewhere */ 
+	BUG_ON(err); 
+	BUG_ON(bio->bi_vcnt == 0); 
+	bio_put(bio); 
+	if (atomic_dec_and_test(&super->s_pending_writes))
+		wake_up(&wq); 
+} 
+
+static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
+		size_t nr_pages)
 {
 	struct logfs_super *super = logfs_super(sb);
-	struct address_space *mapping = super->s_mapping_inode->i_mapping;
-	struct page *page;
-	pgoff_t index = to >> PAGE_SHIFT;
-	int i, nr_pages = len >> PAGE_SHIFT;
+	struct bio *bio;
+	struct request_queue *q = bdev_get_queue(sb->s_bdev);
+	unsigned int max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
+	int i;
+
+	bio = bio_alloc(GFP_NOFS, max_pages);
+	BUG_ON(!bio); /* FIXME: handle this */
+
+	for (i = 0; i < nr_pages; i++) {
+		if (i >= max_pages) {
+			/* Block layer cannot split bios :( */
+			bio->bi_vcnt = i;
+			bio->bi_idx = 0;
+			bio->bi_size = i * PAGE_SIZE;
+			bio->bi_bdev = super->s_bdev;
+			bio->bi_sector = ofs >> 9;
+			bio->bi_private = sb;
+			bio->bi_end_io = erase_end_io;
+			atomic_inc(&super->s_pending_writes);
+			submit_bio(WRITE, bio);
+
+			ofs += i * PAGE_SIZE;
+			index += i;
+			nr_pages -= i;
+			i = 0;
+
+			bio = bio_alloc(GFP_NOFS, max_pages);
+			BUG_ON(!bio);
+		}
+		bio->bi_io_vec[i].bv_page = super->s_erase_page;
+		bio->bi_io_vec[i].bv_len = PAGE_SIZE;
+		bio->bi_io_vec[i].bv_offset = 0;
+	}
+	bio->bi_vcnt = nr_pages;
+	bio->bi_idx = 0;
+	bio->bi_size = nr_pages * PAGE_SIZE;
+	bio->bi_bdev = super->s_bdev;
+	bio->bi_sector = ofs >> 9;
+	bio->bi_private = sb;
+	bio->bi_end_io = erase_end_io;
+	atomic_inc(&super->s_pending_writes);
+	submit_bio(WRITE, bio);
+	return 0;
+}
+
+static int bdev_erase(struct super_block *sb, loff_t to, size_t len,
+		int ensure_write)
+{
+	struct logfs_super *super = logfs_super(sb);
 
 	BUG_ON(to & (PAGE_SIZE - 1));
 	BUG_ON(len & (PAGE_SIZE - 1));
 
-	if (logfs_super(sb)->s_flags & LOGFS_SB_FLAG_RO)
+	if (super->s_flags & LOGFS_SB_FLAG_RO)
 		return -EROFS;
 
-	for (i = 0; i < nr_pages; i++) {
-		page = find_get_page(mapping, index + i);
-		if (page) {
-			memset(page_address(page), 0xFF, PAGE_SIZE);
-			page_cache_release(page);
-		}
+	if (ensure_write) {
+		/*
+		 * Object store doesn't care whether erases happen or not.
+		 * But for the journal they are required.  Otherwise a scan
+		 * can find an old commit entry and assume it is the current
+		 * one, travelling back in time.
+		 */
+		do_erase(sb, to, to >> PAGE_SHIFT, len >> PAGE_SHIFT);
 	}
+
 	return 0;
 }
 

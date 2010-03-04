@@ -317,6 +317,7 @@ static int logfs_make_writeable(struct super_block *sb)
 
 static int logfs_get_sb_final(struct super_block *sb, struct vfsmount *mnt)
 {
+	struct logfs_super *super = logfs_super(sb);
 	struct inode *rootdir;
 	int err;
 
@@ -329,15 +330,22 @@ static int logfs_get_sb_final(struct super_block *sb, struct vfsmount *mnt)
 	if (!sb->s_root)
 		goto fail;
 
+	super->s_erase_page = alloc_pages(GFP_KERNEL, 0);
+	if (!super->s_erase_page)
+		goto fail2;
+	memset(page_address(super->s_erase_page), 0xFF, PAGE_SIZE);
+
 	/* FIXME: check for read-only mounts */
 	err = logfs_make_writeable(sb);
 	if (err)
-		goto fail2;
+		goto fail3;
 
 	log_super("LogFS: Finished mounting\n");
 	simple_set_mnt(mnt, sb);
 	return 0;
 
+fail3:
+	__free_page(super->s_erase_page);
 fail2:
 	iput(rootdir);
 fail:
@@ -498,6 +506,8 @@ static void logfs_kill_sb(struct super_block *sb)
 	logfs_cleanup_journal(sb);
 	logfs_cleanup_areas(sb);
 	logfs_cleanup_rw(sb);
+	if (super->s_erase_page)
+		__free_page(super->s_erase_page);
 	super->s_devops->put_device(sb);
 	mempool_destroy(super->s_btree_pool);
 	mempool_destroy(super->s_alias_pool);

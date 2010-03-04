@@ -392,7 +392,7 @@ static int journal_erase_segment(struct logfs_area *area)
 	u64 ofs;
 	int err;
 
-	err = logfs_erase_segment(sb, area->a_segno);
+	err = logfs_erase_segment(sb, area->a_segno, 1);
 	if (err)
 		return err;
 

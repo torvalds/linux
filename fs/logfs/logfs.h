@@ -151,7 +151,8 @@ struct logfs_device_ops {
 	int (*write_sb)(struct super_block *sb, struct page *page);
 	int (*readpage)(void *_sb, struct page *page);
 	void (*writeseg)(struct super_block *sb, u64 ofs, size_t len);
-	int (*erase)(struct super_block *sb, loff_t ofs, size_t len);
+	int (*erase)(struct super_block *sb, loff_t ofs, size_t len,
+			int ensure_write);
 	void (*sync)(struct super_block *sb);
 	void (*put_device)(struct super_block *sb);
 };
@@ -327,6 +328,7 @@ struct logfs_super {
 	u64	 s_feature_compat;
 	u64	 s_feature_flags;
 	u64	 s_sb_ofs[2];
+	struct page *s_erase_page;		/* for dev_bdev.c */
 	/* alias.c fields */
 	struct btree_head32 s_segment_alias;	/* remapped segments */
 	int	 s_no_object_aliases;
@@ -572,7 +574,7 @@ int get_page_reserve(struct inode *inode, struct page *page);
 extern struct logfs_block_ops indirect_block_ops;
 
 /* segment.c */
-int logfs_erase_segment(struct super_block *sb, u32 ofs);
+int logfs_erase_segment(struct super_block *sb, u32 ofs, int ensure_erase);
 int wbuf_read(struct super_block *sb, u64 ofs, size_t len, void *buf);
 int logfs_segment_read(struct inode *inode, struct page *page, u64 ofs, u64 bix,
 		level_t level);

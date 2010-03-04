@@ -25,14 +25,14 @@ static int logfs_mark_segment_bad(struct super_block *sb, u32 segno)
 	return 0;
 }
 
-int logfs_erase_segment(struct super_block *sb, u32 segno)
+int logfs_erase_segment(struct super_block *sb, u32 segno, int ensure_erase)
 {
 	struct logfs_super *super = logfs_super(sb);
 
 	super->s_gec++;
 
 	return super->s_devops->erase(sb, (u64)segno << super->s_segshift,
-			super->s_segsize);
+			super->s_segsize, ensure_erase);
 }
 
 static s64 logfs_get_free_bytes(struct logfs_area *area, size_t bytes)
@@ -798,7 +798,7 @@ static int ostore_erase_segment(struct logfs_area *area)
 	u64 ofs;
 	int err;
 
-	err = logfs_erase_segment(sb, area->a_segno);
+	err = logfs_erase_segment(sb, area->a_segno, 0);
 	if (err)
 		return err;
 

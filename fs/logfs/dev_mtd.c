@@ -83,7 +83,8 @@ static int mtd_erase_mapping(struct super_block *sb, loff_t ofs, size_t len)
 	return 0;
 }
 
-static int mtd_erase(struct super_block *sb, loff_t ofs, size_t len)
+static int mtd_erase(struct super_block *sb, loff_t ofs, size_t len,
+		int ensure_write)
 {
 	struct mtd_info *mtd = logfs_super(sb)->s_mtd;
 	struct erase_info ei;
