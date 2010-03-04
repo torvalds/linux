@@ -27,6 +27,17 @@ config REGULATOR_DEBUG
 	help
 	  Say yes here to enable debugging support.
 
+config REGULATOR_DUMMY
+	bool "Provide a dummy regulator if regulator lookups fail"
+	help
+	  If this option is enabled then when a regulator lookup fails
+	  and the board has not specified that it has provided full
+	  constraints then the regulator core will provide an always
+	  enabled dummy regulator will be provided, allowing consumer
+	  drivers to continue.
+
+	  A warning will be generated when this substitution is done.
+
 config REGULATOR_FIXED_VOLTAGE
 	tristate "Fixed voltage regulator support"
 	help
@@ -69,6 +80,13 @@ config REGULATOR_MAX1586
 	  regulator via I2C bus. The provided regulator is suitable
 	  for PXA27x chips to control VCC_CORE and VCC_USIM voltages.
 
+config REGULATOR_MAX8649
+	tristate "Maxim 8649 voltage regulator"
+	depends on I2C
+	help
+	  This driver controls a Maxim 8649 voltage output regulator via
+	  I2C bus.
+
 config REGULATOR_MAX8660
 	tristate "Maxim 8660/8661 voltage regulator"
 	depends on I2C
@@ -91,18 +109,25 @@ config REGULATOR_WM831X
 	  of PMIC devices.
 
 config REGULATOR_WM8350
-	tristate "Wolfson Microelectroncis WM8350 AudioPlus PMIC"
+	tristate "Wolfson Microelectronics WM8350 AudioPlus PMIC"
 	depends on MFD_WM8350
 	help
 	  This driver provides support for the voltage and current regulators
           of the WM8350 AudioPlus PMIC.
 
 config REGULATOR_WM8400
-	tristate "Wolfson Microelectroncis WM8400 AudioPlus PMIC"
+	tristate "Wolfson Microelectronics WM8400 AudioPlus PMIC"
 	depends on MFD_WM8400
 	help
 	  This driver provides support for the voltage regulators of the
 	  WM8400 AudioPlus PMIC.
+
+config REGULATOR_WM8994
+	tristate "Wolfson Microelectronics WM8994 CODEC"
+	depends on MFD_WM8994
+	help
+	  This driver provides support for the voltage regulators on the
+	  WM8994 CODEC.
 
 config REGULATOR_DA903X
 	tristate "Support regulators on Dialog Semiconductor DA9030/DA9034 PMIC"
