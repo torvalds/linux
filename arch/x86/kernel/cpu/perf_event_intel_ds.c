@@ -379,8 +379,6 @@ static void intel_pmu_pebs_disable_all(void)
 
 #include <asm/insn.h>
 
-#define MAX_INSN_SIZE	16
-
 static inline bool kernel_ip(unsigned long ip)
 {
 #ifdef CONFIG_X86_32
