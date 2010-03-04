@@ -604,6 +604,97 @@ static int nmk_gpio_to_irq(struct gpio_chip *chip, unsigned offset)
 	return NOMADIK_GPIO_TO_IRQ(nmk_chip->chip.base) + offset;
 }
 
+#ifdef CONFIG_DEBUG_FS
+
+#include <linux/seq_file.h>
+
+static void nmk_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
+{
+	int mode;
+	unsigned		i;
+	unsigned		gpio = chip->base;
+	int			is_out;
+	struct nmk_gpio_chip *nmk_chip =
+		container_of(chip, struct nmk_gpio_chip, chip);
+	const char *modes[] = {
+		[NMK_GPIO_ALT_GPIO]	= "gpio",
+		[NMK_GPIO_ALT_A]	= "altA",
+		[NMK_GPIO_ALT_B]	= "altB",
+		[NMK_GPIO_ALT_C]	= "altC",
+	};
+
+	for (i = 0; i < chip->ngpio; i++, gpio++) {
+		const char *label = gpiochip_is_requested(chip, i);
+		bool pull;
+		u32 bit = 1 << i;
+
+		if (!label)
+			continue;
+
+		is_out = readl(nmk_chip->addr + NMK_GPIO_DIR) & bit;
+		pull = !(readl(nmk_chip->addr + NMK_GPIO_PDIS) & bit);
+		mode = nmk_gpio_get_mode(gpio);
+		seq_printf(s, " gpio-%-3d (%-20.20s) %s %s %s %s",
+			gpio, label,
+			is_out ? "out" : "in ",
+			chip->get
+				? (chip->get(chip, i) ? "hi" : "lo")
+				: "?  ",
+			(mode < 0) ? "unknown" : modes[mode],
+			pull ? "pull" : "none");
+
+		if (!is_out) {
+			int		irq = gpio_to_irq(gpio);
+			struct irq_desc	*desc = irq_to_desc(irq);
+
+			/* This races with request_irq(), set_irq_type(),
+			 * and set_irq_wake() ... but those are "rare".
+			 *
+			 * More significantly, trigger type flags aren't
+			 * currently maintained by genirq.
+			 */
+			if (irq >= 0 && desc->action) {
+				char *trigger;
+
+				switch (desc->status & IRQ_TYPE_SENSE_MASK) {
+				case IRQ_TYPE_NONE:
+					trigger = "(default)";
+					break;
+				case IRQ_TYPE_EDGE_FALLING:
+					trigger = "edge-falling";
+					break;
+				case IRQ_TYPE_EDGE_RISING:
+					trigger = "edge-rising";
+					break;
+				case IRQ_TYPE_EDGE_BOTH:
+					trigger = "edge-both";
+					break;
+				case IRQ_TYPE_LEVEL_HIGH:
+					trigger = "level-high";
+					break;
+				case IRQ_TYPE_LEVEL_LOW:
+					trigger = "level-low";
+					break;
+				default:
+					trigger = "?trigger?";
+					break;
+				}
+
+				seq_printf(s, " irq-%d %s%s",
+					irq, trigger,
+					(desc->status & IRQ_WAKEUP)
+						? " wakeup" : "");
+			}
+		}
+
+		seq_printf(s, "\n");
+	}
+}
+
+#else
+#define nmk_gpio_dbg_show	NULL
+#endif
+
 /* This structure is replicated for each GPIO block allocated at probe time */
 static struct gpio_chip nmk_gpio_template = {
 	.direction_input	= nmk_gpio_make_input,
@@ -611,6 +702,7 @@ static struct gpio_chip nmk_gpio_template = {
 	.direction_output	= nmk_gpio_make_output,
 	.set			= nmk_gpio_set_output,
 	.to_irq			= nmk_gpio_to_irq,
+	.dbg_show		= nmk_gpio_dbg_show,
 	.can_sleep		= 0,
 };
 
