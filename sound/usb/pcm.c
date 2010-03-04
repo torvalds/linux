@@ -202,11 +202,11 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 			return -EIO;
 		}
 		subs->interface = -1;
-		subs->format = 0;
+		subs->altset_idx = 0;
 	}
 
 	/* set interface */
-	if (subs->interface != fmt->iface || subs->format != fmt->altset_idx) {
+	if (subs->interface != fmt->iface || subs->altset_idx != fmt->altset_idx) {
 		if (usb_set_interface(dev, fmt->iface, fmt->altsetting) < 0) {
 			snd_printk(KERN_ERR "%d:%d:%d: usb_set_interface failed\n",
 				   dev->devnum, fmt->iface, fmt->altsetting);
@@ -214,7 +214,7 @@ static int set_format(struct snd_usb_substream *subs, struct audioformat *fmt)
 		}
 		snd_printdd(KERN_INFO "setting usb interface %d:%d\n", fmt->iface, fmt->altsetting);
 		subs->interface = fmt->iface;
-		subs->format = fmt->altset_idx;
+		subs->altset_idx = fmt->altset_idx;
 	}
 
 	/* create a data pipe */
@@ -771,7 +771,7 @@ static int snd_usb_pcm_open(struct snd_pcm_substream *substream, int direction)
 	struct snd_usb_substream *subs = &as->substream[direction];
 
 	subs->interface = -1;
-	subs->format = 0;
+	subs->altset_idx = 0;
 	runtime->hw = snd_usb_hardware;
 	runtime->private_data = subs;
 	subs->pcm_substream = substream;

@@ -116,7 +116,7 @@ static void proc_dump_substream_status(struct snd_usb_substream *subs, struct sn
 		unsigned int i;
 		snd_iprintf(buffer, "  Status: Running\n");
 		snd_iprintf(buffer, "    Interface = %d\n", subs->interface);
-		snd_iprintf(buffer, "    Altset = %d\n", subs->format);
+		snd_iprintf(buffer, "    Altset = %d\n", subs->altset_idx);
 		snd_iprintf(buffer, "    URBs = %d [ ", subs->nurbs);
 		for (i = 0; i < subs->nurbs; i++)
 			snd_iprintf(buffer, "%d ", subs->dataurb[i].packets);

@@ -54,7 +54,7 @@ struct snd_usb_substream {
 	struct audioformat *cur_audiofmt;	/* current audioformat pointer (for hw_params callback) */
 	unsigned int cur_rate;		/* current rate (for hw_params callback) */
 	unsigned int period_bytes;	/* current period bytes (for hw_params callback) */
-	unsigned int format;     /* USB data format */
+	unsigned int altset_idx;     /* USB data format: index of alternate setting */
 	unsigned int datapipe;   /* the data i/o pipe */
 	unsigned int syncpipe;   /* 1 - async out or adaptive in */
 	unsigned int datainterval;	/* log_2 of data packet interval */
