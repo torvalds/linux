@@ -525,7 +525,7 @@ static int dss_mgr_wait_for_go(struct omap_overlay_manager *mgr)
 	int i;
 	struct omap_dss_device *dssdev = mgr->device;
 
-	if (!dssdev)
+	if (!dssdev || dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
 		return 0;
 
 	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC) {
@@ -596,10 +596,13 @@ int dss_mgr_wait_for_go_ovl(struct omap_overlay *ovl)
 	int r;
 	int i;
 
-	if (!ovl->manager || !ovl->manager->device)
+	if (!ovl->manager)
 		return 0;
 
 	dssdev = ovl->manager->device;
+
+	if (!dssdev || dssdev->state != OMAP_DSS_DISPLAY_ACTIVE)
+		return 0;
 
 	if (dssdev->type == OMAP_DISPLAY_TYPE_VENC) {
 		irq = DISPC_IRQ_EVSYNC_ODD | DISPC_IRQ_EVSYNC_EVEN;
