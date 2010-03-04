@@ -620,8 +620,11 @@ void rds_ib_conn_shutdown(struct rds_connection *conn)
 				ic->i_cm_id, err);
 		}
 
+		/*
+		 * Don't wait for the send ring to be empty -- there may be completed
+		 * non-signaled entries sitting on there. We unmap these below.
+		 */
 		wait_event(rds_ib_ring_empty_wait,
-			rds_ib_ring_empty(&ic->i_send_ring) &&
 			rds_ib_ring_empty(&ic->i_recv_ring));
 
 		if (ic->i_send_hdrs)
