@@ -490,7 +490,7 @@ static void logfs_kill_sb(struct super_block *sb)
 	log_super("LogFS: Start unmounting\n");
 	/* Alias entries slow down mount, so evict as many as possible */
 	sync_filesystem(sb);
-	logfs_write_anchor(super->s_master_inode);
+	logfs_write_anchor(sb);
 
 	/*
 	 * From this point on alias entries are simply dropped - and any

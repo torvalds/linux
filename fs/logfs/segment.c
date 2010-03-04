@@ -352,7 +352,8 @@ int logfs_segment_write(struct inode *inode, struct page *page,
 	int ret;
 	void *buf;
 
-	BUG_ON(logfs_super(sb)->s_flags & LOGFS_SB_FLAG_SHUTDOWN);
+	super->s_flags |= LOGFS_SB_FLAG_DIRTY;
+	BUG_ON(super->s_flags & LOGFS_SB_FLAG_SHUTDOWN);
 	do_compress = logfs_inode(inode)->li_flags & LOGFS_IF_COMPRESSED;
 	if (shadow->gc_level != 0) {
 		/* temporarily disable compression for indirect blocks */
@@ -653,11 +654,13 @@ int logfs_segment_read(struct inode *inode, struct page *page,
 int logfs_segment_delete(struct inode *inode, struct logfs_shadow *shadow)
 {
 	struct super_block *sb = inode->i_sb;
+	struct logfs_super *super = logfs_super(sb);
 	struct logfs_object_header h;
 	u16 len;
 	int err;
 
-	BUG_ON(logfs_super(sb)->s_flags & LOGFS_SB_FLAG_SHUTDOWN);
+	super->s_flags |= LOGFS_SB_FLAG_DIRTY;
+	BUG_ON(super->s_flags & LOGFS_SB_FLAG_SHUTDOWN);
 	BUG_ON(shadow->old_ofs & LOGFS_FULLY_POPULATED);
 	if (!shadow->old_ofs)
 		return 0;

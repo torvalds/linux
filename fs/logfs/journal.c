@@ -724,14 +724,17 @@ static int logfs_write_obj_aliases(struct super_block *sb)
  * bit wasteful, but robustness is more important.  With this we can *always*
  * erase all journal segments except the one containing the most recent commit.
  */
-void logfs_write_anchor(struct inode *inode)
+void logfs_write_anchor(struct super_block *sb)
 {
-	struct super_block *sb = inode->i_sb;
 	struct logfs_super *super = logfs_super(sb);
 	struct logfs_area *area = super->s_journal_area;
 	int i, err;
 
-	BUG_ON(logfs_super(sb)->s_flags & LOGFS_SB_FLAG_SHUTDOWN);
+	if (!(super->s_flags & LOGFS_SB_FLAG_DIRTY))
+		return;
+	super->s_flags &= ~LOGFS_SB_FLAG_DIRTY;
+
+	BUG_ON(super->s_flags & LOGFS_SB_FLAG_SHUTDOWN);
 	mutex_lock(&super->s_journal_mutex);
 
 	/* Do this first or suffer corruption */
@@ -821,7 +824,7 @@ void do_logfs_journal_wl_pass(struct super_block *sb)
 	area->a_is_open = 0;
 	area->a_used_bytes = 0;
 	/* Write journal */
-	logfs_write_anchor(super->s_master_inode);
+	logfs_write_anchor(sb);
 	/* Write superblocks */
 	err = logfs_write_sb(sb);
 	BUG_ON(err);

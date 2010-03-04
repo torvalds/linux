@@ -82,7 +82,7 @@
 
 /* Read-only filesystem */
 #define LOGFS_SB_FLAG_RO	0x0001
-#define LOGFS_SB_FLAG_SEG_ALIAS	0x0002
+#define LOGFS_SB_FLAG_DIRTY	0x0002
 #define LOGFS_SB_FLAG_OBJ_ALIAS	0x0004
 #define LOGFS_SB_FLAG_SHUTDOWN	0x0008
 
@@ -526,7 +526,7 @@ void logfs_delete_inode(struct inode *inode);
 void logfs_clear_inode(struct inode *inode);
 
 /* journal.c */
-void logfs_write_anchor(struct inode *inode);
+void logfs_write_anchor(struct super_block *sb);
 int logfs_init_journal(struct super_block *sb);
 void logfs_cleanup_journal(struct super_block *sb);
 int write_alias_journal(struct super_block *sb, u64 ino, u64 bix,

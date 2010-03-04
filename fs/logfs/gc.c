@@ -469,7 +469,7 @@ static void __logfs_gc_pass(struct super_block *sb, int target)
 
 		/* Sync in-memory state with on-medium state in case they
 		 * diverged */
-		logfs_write_anchor(super->s_master_inode);
+		logfs_write_anchor(sb);
 		round += logfs_scan_some(sb);
 		if (no_free_segments(sb) >= target)
 			goto write_alias;
@@ -613,8 +613,8 @@ void logfs_gc_pass(struct super_block *sb)
 	 */
 	if (super->s_dirty_used_bytes + super->s_dirty_free_bytes
 			+ LOGFS_MAX_OBJECTSIZE >= super->s_free_bytes)
-		logfs_write_anchor(super->s_master_inode);
-	__logfs_gc_pass(sb, logfs_super(sb)->s_total_levels);
+		logfs_write_anchor(sb);
+	__logfs_gc_pass(sb, super->s_total_levels);
 	logfs_wl_pass(sb);
 	logfs_journal_wl_pass(sb);
 }

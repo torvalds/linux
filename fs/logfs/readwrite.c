@@ -421,7 +421,7 @@ static void inode_write_block(struct logfs_block *block)
 
 	inode = block->inode;
 	if (inode->i_ino == LOGFS_INO_MASTER)
-		logfs_write_anchor(inode);
+		logfs_write_anchor(inode->i_sb);
 	else {
 		ret = __logfs_write_inode(inode, 0);
 		/* see indirect_write_block comment */
