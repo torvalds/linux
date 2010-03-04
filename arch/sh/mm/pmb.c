@@ -24,6 +24,7 @@
 #include <linux/io.h>
 #include <linux/spinlock.h>
 #include <linux/vmalloc.h>
+#include <asm/cacheflush.h>
 #include <asm/sizes.h>
 #include <asm/system.h>
 #include <asm/uaccess.h>
@@ -292,9 +293,18 @@ static void pmb_free(struct pmb_entry *pmbe)
  */
 static void __set_pmb_entry(struct pmb_entry *pmbe)
 {
+	unsigned long addr, data;
+
+	addr = mk_pmb_addr(pmbe->entry);
+	data = mk_pmb_data(pmbe->entry);
+
+	jump_to_uncached();
+
 	/* Set V-bit */
-	__raw_writel(pmbe->ppn | pmbe->flags | PMB_V, mk_pmb_data(pmbe->entry));
-	__raw_writel(pmbe->vpn | PMB_V, mk_pmb_addr(pmbe->entry));
+	__raw_writel(pmbe->vpn | PMB_V, addr);
+	__raw_writel(pmbe->ppn | pmbe->flags | PMB_V, data);
+
+	back_to_cached();
 }
 
 static void __clear_pmb_entry(struct pmb_entry *pmbe)
@@ -326,6 +336,7 @@ int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 		     unsigned long size, pgprot_t prot)
 {
 	struct pmb_entry *pmbp, *pmbe;
+	unsigned long orig_addr, orig_size;
 	unsigned long flags, pmb_flags;
 	int i, mapped;
 
@@ -333,6 +344,11 @@ int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 		return -EFAULT;
 	if (pmb_mapping_exists(vaddr, phys, size))
 		return 0;
+
+	orig_addr = vaddr;
+	orig_size = size;
+
+	flush_tlb_kernel_range(vaddr, vaddr + size);
 
 	pmb_flags = pgprot_to_pmb_flags(prot);
 	pmbp = NULL;
@@ -383,13 +399,15 @@ int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 		}
 	} while (size >= SZ_16M);
 
+	flush_cache_vmap(orig_addr, orig_addr + orig_size);
+
 	return 0;
 }
 
 void __iomem *pmb_remap_caller(phys_addr_t phys, unsigned long size,
 			       pgprot_t prot, void *caller)
 {
-	unsigned long orig_addr, vaddr;
+	unsigned long vaddr;
 	phys_addr_t offset, last_addr;
 	phys_addr_t align_mask;
 	unsigned long aligned;
@@ -417,19 +435,24 @@ void __iomem *pmb_remap_caller(phys_addr_t phys, unsigned long size,
 	phys &= align_mask;
 	aligned = ALIGN(last_addr, pmb_sizes[i].size) - phys;
 
-	area = __get_vm_area_caller(aligned, VM_IOREMAP, uncached_end,
+	/*
+	 * XXX: This should really start from uncached_end, but this
+	 * causes the MMU to reset, so for now we restrict it to the
+	 * 0xb000...0xc000 range.
+	 */
+	area = __get_vm_area_caller(aligned, VM_IOREMAP, 0xb0000000,
 				    P3SEG, caller);
 	if (!area)
 		return NULL;
 
 	area->phys_addr = phys;
-	orig_addr = vaddr = (unsigned long)area->addr;
+	vaddr = (unsigned long)area->addr;
 
 	ret = pmb_bolt_mapping(vaddr, phys, size, prot);
 	if (unlikely(ret != 0))
 		return ERR_PTR(ret);
 
-	return (void __iomem *)(offset + (char *)orig_addr);
+	return (void __iomem *)(offset + (char *)vaddr);
 }
 
 int pmb_unmap(void __iomem *addr)
@@ -476,6 +499,8 @@ static void __pmb_unmap_entry(struct pmb_entry *pmbe, int depth)
 		 * other mapping can be using that slot.
 		 */
 		__clear_pmb_entry(pmbe);
+
+		flush_cache_vunmap(pmbe->vpn, pmbe->vpn + pmbe->size);
 
 		pmbe = pmblink->link;
 
