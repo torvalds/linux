@@ -197,6 +197,7 @@ struct x86_pmu {
 	void		(*put_event_constraints)(struct cpu_hw_events *cpuc,
 						 struct perf_event *event);
 	struct event_constraint *event_constraints;
+	void		(*quirks)(void);
 
 	void		(*cpu_prepare)(int cpu);
 	void		(*cpu_starting)(int cpu);
@@ -1372,6 +1373,9 @@ void __init init_hw_perf_events(void)
 	pmu_check_apic();
 
 	pr_cont("%s PMU driver.\n", x86_pmu.name);
+
+	if (x86_pmu.quirks)
+		x86_pmu.quirks();
 
 	if (x86_pmu.num_events > X86_PMC_MAX_GENERIC) {
 		WARN(1, KERN_ERR "hw perf events %d > max(%d), clipping!",
