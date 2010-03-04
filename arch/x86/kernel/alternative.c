@@ -595,8 +595,8 @@ static int __kprobes stop_machine_text_poke(void *data)
 		wrote_text = 1;
 	} else {
 		while (!wrote_text)
-			smp_rmb();
-		sync_core();
+			cpu_relax();
+		smp_mb();	/* Load wrote_text before following execution */
 	}
 
 	flush_icache_range((unsigned long)tpp->addr,
