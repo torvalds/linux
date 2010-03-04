@@ -441,10 +441,9 @@ static void mb_free_blocks_double(struct inode *inode, struct ext4_buddy *e4b,
 	for (i = 0; i < count; i++) {
 		if (!mb_test_bit(first + i, e4b->bd_info->bb_bitmap)) {
 			ext4_fsblk_t blocknr;
-			blocknr = e4b->bd_group * EXT4_BLOCKS_PER_GROUP(sb);
+
+			blocknr = ext4_group_first_block_no(sb, e4b->bd_group);
 			blocknr += first + i;
-			blocknr +=
-			    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
 			ext4_grp_locked_error(sb, e4b->bd_group,
 				   __func__, "double-free of inode"
 				   " %lu's block %llu(bit %u in group %u)",
@@ -1255,10 +1254,9 @@ static void mb_free_blocks(struct inode *inode, struct ext4_buddy *e4b,
 
 		if (!mb_test_bit(block, EXT4_MB_BITMAP(e4b))) {
 			ext4_fsblk_t blocknr;
-			blocknr = e4b->bd_group * EXT4_BLOCKS_PER_GROUP(sb);
+
+			blocknr = ext4_group_first_block_no(sb, e4b->bd_group);
 			blocknr += block;
-			blocknr +=
-			    le32_to_cpu(EXT4_SB(sb)->s_es->s_first_data_block);
 			ext4_grp_locked_error(sb, e4b->bd_group,
 				   __func__, "double-free of inode"
 				   " %lu's block %llu(bit %u in group %u)",
@@ -1631,7 +1629,6 @@ int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
 	int max;
 	int err;
 	struct ext4_sb_info *sbi = EXT4_SB(ac->ac_sb);
-	struct ext4_super_block *es = sbi->s_es;
 	struct ext4_free_extent ex;
 
 	if (!(ac->ac_flags & EXT4_MB_HINT_TRY_GOAL))
@@ -1648,8 +1645,8 @@ int ext4_mb_find_by_goal(struct ext4_allocation_context *ac,
 	if (max >= ac->ac_g_ex.fe_len && ac->ac_g_ex.fe_len == sbi->s_stripe) {
 		ext4_fsblk_t start;
 
-		start = (e4b->bd_group * EXT4_BLOCKS_PER_GROUP(ac->ac_sb)) +
-			ex.fe_start + le32_to_cpu(es->s_first_data_block);
+		start = ext4_group_first_block_no(ac->ac_sb, e4b->bd_group) +
+			ex.fe_start;
 		/* use do_div to get remainder (would be 64-bit modulo) */
 		if (do_div(start, sbi->s_stripe) == 0) {
 			ac->ac_found++;
@@ -1803,8 +1800,8 @@ void ext4_mb_scan_aligned(struct ext4_allocation_context *ac,
 	BUG_ON(sbi->s_stripe == 0);
 
 	/* find first stripe-aligned block in group */
-	first_group_block = e4b->bd_group * EXT4_BLOCKS_PER_GROUP(sb)
-		+ le32_to_cpu(sbi->s_es->s_first_data_block);
+	first_group_block = ext4_group_first_block_no(sb, e4b->bd_group);
+
 	a = first_group_block + sbi->s_stripe - 1;
 	do_div(a, sbi->s_stripe);
 	i = (a * sbi->s_stripe) - first_group_block;
@@ -2560,12 +2557,9 @@ static void release_blocks_on_commit(journal_t *journal, transaction_t *txn)
 		ext4_unlock_group(sb, entry->group);
 		if (test_opt(sb, DISCARD)) {
 			ext4_fsblk_t discard_block;
-			struct ext4_super_block *es = EXT4_SB(sb)->s_es;
 
-			discard_block = (ext4_fsblk_t)entry->group *
-						EXT4_BLOCKS_PER_GROUP(sb)
-					+ entry->start_blk
-					+ le32_to_cpu(es->s_first_data_block);
+			discard_block = entry->start_blk +
+				ext4_group_first_block_no(sb, entry->group);
 			trace_ext4_discard_blocks(sb,
 					(unsigned long long)discard_block,
 					entry->count);
@@ -3525,8 +3519,7 @@ ext4_mb_release_inode_pa(struct ext4_buddy *e4b, struct buffer_head *bitmap_bh,
 		if (bit >= end)
 			break;
 		next = mb_find_next_bit(bitmap_bh->b_data, end, bit);
-		start = group * EXT4_BLOCKS_PER_GROUP(sb) + bit +
-				le32_to_cpu(sbi->s_es->s_first_data_block);
+		start = ext4_group_first_block_no(sb, group) + bit;
 		mb_debug(1, "    free preallocated %u/%u in group %u\n",
 				(unsigned) start, (unsigned) next - bit,
 				(unsigned) group);

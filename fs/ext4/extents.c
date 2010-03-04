@@ -195,8 +195,7 @@ static ext4_fsblk_t ext4_ext_find_goal(struct inode *inode,
 		if (S_ISREG(inode->i_mode))
 			block_group++;
 	}
-	bg_start = (block_group * EXT4_BLOCKS_PER_GROUP(inode->i_sb)) +
-		le32_to_cpu(EXT4_SB(inode->i_sb)->s_es->s_first_data_block);
+	bg_start = ext4_group_first_block_no(inode->i_sb, block_group);
 	last_block = ext4_blocks_count(EXT4_SB(inode->i_sb)->s_es) - 1;
 
 	/*

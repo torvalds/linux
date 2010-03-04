@@ -130,8 +130,7 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
 		 * to make sure we calculate the right free blocks
 		 */
 		group_blocks = ext4_blocks_count(sbi->s_es) -
-			le32_to_cpu(sbi->s_es->s_first_data_block) -
-			(EXT4_BLOCKS_PER_GROUP(sb) * (ngroups - 1));
+			ext4_group_first_block_no(sb, ngroups - 1);
 	} else {
 		group_blocks = EXT4_BLOCKS_PER_GROUP(sb);
 	}
