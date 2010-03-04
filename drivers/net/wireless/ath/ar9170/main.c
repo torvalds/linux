@@ -2701,7 +2701,8 @@ int ar9170_register(struct ar9170 *ar, struct device *pdev)
 	dev_info(pdev, "Atheros AR9170 is registered as '%s'\n",
 		 wiphy_name(ar->hw->wiphy));
 
-	return err;
+	ar->registered = true;
+	return 0;
 
 err_unreg:
 	ieee80211_unregister_hw(ar->hw);
@@ -2712,11 +2713,14 @@ err_out:
 
 void ar9170_unregister(struct ar9170 *ar)
 {
+	if (ar->registered) {
 #ifdef CONFIG_AR9170_LEDS
-	ar9170_unregister_leds(ar);
+		ar9170_unregister_leds(ar);
 #endif /* CONFIG_AR9170_LEDS */
 
-	kfree_skb(ar->rx_failover);
 	ieee80211_unregister_hw(ar->hw);
+	}
+
+	kfree_skb(ar->rx_failover);
 	mutex_destroy(&ar->mutex);
 }

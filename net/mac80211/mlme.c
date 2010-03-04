@@ -177,7 +177,8 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 		sta = sta_info_get(sdata, bssid);
 		if (sta)
 			rate_control_rate_update(local, sband, sta,
-						 IEEE80211_RC_HT_CHANGED);
+						 IEEE80211_RC_HT_CHANGED,
+						 local->oper_channel_type);
 		rcu_read_unlock();
         }
 
@@ -1893,8 +1894,20 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	mutex_lock(&ifmgd->mtx);
 	if (ifmgd->associated) {
-		mutex_unlock(&ifmgd->mtx);
-		return -EALREADY;
+		if (!req->prev_bssid ||
+		    memcmp(req->prev_bssid, ifmgd->associated->bssid,
+			   ETH_ALEN)) {
+			/*
+			 * We are already associated and the request was not a
+			 * reassociation request from the current BSS, so
+			 * reject it.
+			 */
+			mutex_unlock(&ifmgd->mtx);
+			return -EALREADY;
+		}
+
+		/* Trying to reassociate - clear previous association state */
+		ieee80211_set_disassoc(sdata);
 	}
 	mutex_unlock(&ifmgd->mtx);
 

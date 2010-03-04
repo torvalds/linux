@@ -1323,7 +1323,7 @@ static void ath_rate_init(void *priv, struct ieee80211_supported_band *sband,
 
 static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 			    struct ieee80211_sta *sta, void *priv_sta,
-			    u32 changed)
+			    u32 changed, enum nl80211_channel_type oper_chan_type)
 {
 	struct ath_softc *sc = priv;
 	struct ath_rate_priv *ath_rc_priv = priv_sta;
@@ -1340,8 +1340,8 @@ static void ath_rate_update(void *priv, struct ieee80211_supported_band *sband,
 		if (sc->sc_ah->opmode != NL80211_IFTYPE_STATION)
 			return;
 
-		if (sc->hw->conf.channel_type == NL80211_CHAN_HT40MINUS ||
-		    sc->hw->conf.channel_type == NL80211_CHAN_HT40PLUS)
+		if (oper_chan_type == NL80211_CHAN_HT40MINUS ||
+		    oper_chan_type == NL80211_CHAN_HT40PLUS)
 			oper_cw40 = true;
 
 		oper_sgi40 = (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40) ?
