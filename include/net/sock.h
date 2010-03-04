@@ -592,7 +592,7 @@ static inline int sk_stream_memory_free(struct sock *sk)
 }
 
 /* OOB backlog add */
-static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
+static inline void __sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
 	if (!sk->sk_backlog.tail) {
 		sk->sk_backlog.head = sk->sk_backlog.tail = skb;
@@ -604,12 +604,12 @@ static inline void sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 }
 
 /* The per-socket spinlock must be held here. */
-static inline int sk_add_backlog_limited(struct sock *sk, struct sk_buff *skb)
+static inline int sk_add_backlog(struct sock *sk, struct sk_buff *skb)
 {
 	if (sk->sk_backlog.len >= max(sk->sk_backlog.limit, sk->sk_rcvbuf << 1))
 		return -ENOBUFS;
 
-	sk_add_backlog(sk, skb);
+	__sk_add_backlog(sk, skb);
 	sk->sk_backlog.len += skb->truesize;
 	return 0;
 }

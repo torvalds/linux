@@ -1682,7 +1682,7 @@ process:
 			if (!tcp_prequeue(sk, skb))
 				ret = tcp_v4_do_rcv(sk, skb);
 		}
-	} else if (sk_add_backlog_limited(sk, skb)) {
+	} else if (sk_add_backlog(sk, skb)) {
 		bh_unlock_sock(sk);
 		goto discard_and_relse;
 	}

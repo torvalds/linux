@@ -341,7 +341,7 @@ int sctp_backlog_rcv(struct sock *sk, struct sk_buff *skb)
 		sctp_bh_lock_sock(sk);
 
 		if (sock_owned_by_user(sk)) {
-			if (sk_add_backlog_limited(sk, skb))
+			if (sk_add_backlog(sk, skb))
 				sctp_chunk_free(chunk);
 			else
 				backloged = 1;
@@ -375,7 +375,7 @@ static int sctp_add_backlog(struct sock *sk, struct sk_buff *skb)
 	struct sctp_ep_common *rcvr = chunk->rcvr;
 	int ret;
 
-	ret = sk_add_backlog_limited(sk, skb);
+	ret = sk_add_backlog(sk, skb);
 	if (!ret) {
 		/* Hold the assoc/ep while hanging on the backlog queue.
 		 * This way, we know structures we need will not disappear

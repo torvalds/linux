@@ -1322,7 +1322,7 @@ static u32 dispatch(struct tipc_port *tport, struct sk_buff *buf)
 	if (!sock_owned_by_user(sk)) {
 		res = filter_rcv(sk, buf);
 	} else {
-		if (sk_add_backlog_limited(sk, buf))
+		if (sk_add_backlog(sk, buf))
 			res = TIPC_ERR_OVERLOAD;
 		else
 			res = TIPC_OK;
