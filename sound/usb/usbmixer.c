@@ -41,6 +41,7 @@
 #include <sound/tlv.h>
 
 #include "usbaudio.h"
+#include "usbmixer.h"
 
 /*
  */

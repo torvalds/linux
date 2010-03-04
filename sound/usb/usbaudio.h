@@ -21,9 +21,6 @@
  *   Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307 USA
  */
 
-/* maximum number of endpoints per interface */
-#define MIDI_MAX_ENDPOINTS 2
-
 /* handling of USB vendor/product ID pairs as 32-bit numbers */
 #define USB_ID(vendor, product) (((vendor) << 16) | (product))
 #define USB_ID_VENDOR(id) ((id) >> 16)
@@ -89,39 +86,6 @@ struct snd_usb_audio_quirk {
 	const void *data;
 };
 
-/* data for QUIRK_MIDI_FIXED_ENDPOINT */
-struct snd_usb_midi_endpoint_info {
-	int8_t   out_ep;	/* ep number, 0 autodetect */
-	uint8_t  out_interval;	/* interval for interrupt endpoints */
-	int8_t   in_ep;	
-	uint8_t  in_interval;
-	uint16_t out_cables;	/* bitmask */
-	uint16_t in_cables;	/* bitmask */
-};
-
-/* for QUIRK_MIDI_YAMAHA, data is NULL */
-
-/* for QUIRK_MIDI_MIDIMAN, data points to a snd_usb_midi_endpoint_info
- * structure (out_cables and in_cables only) */
-
-/* for QUIRK_COMPOSITE, data points to an array of snd_usb_audio_quirk
- * structures, terminated with .ifnum = -1 */
-
-/* for QUIRK_AUDIO_FIXED_ENDPOINT, data points to an audioformat structure */
-
-/* for QUIRK_AUDIO/MIDI_STANDARD_INTERFACE, data is NULL */
-
-/* for QUIRK_AUDIO_EDIROL_UAXX, data is NULL */
-
-/* for QUIRK_IGNORE_INTERFACE, data is NULL */
-
-/* for QUIRK_MIDI_NOVATION and _RAW, data is NULL */
-
-/* for QUIRK_MIDI_EMAGIC, data points to a snd_usb_midi_endpoint_info
- * structure (out_cables and in_cables only) */
-
-/* for QUIRK_MIDI_CME, data is NULL */
-
 /*
  */
 
@@ -147,21 +111,6 @@ void *snd_usb_find_csint_desc(void *descstart, int desclen, void *after, u8 dsub
 int snd_usb_ctl_msg(struct usb_device *dev, unsigned int pipe,
 		    __u8 request, __u8 requesttype, __u16 value, __u16 index,
 		    void *data, __u16 size, int timeout);
-
-int snd_usb_create_mixer(struct snd_usb_audio *chip, int ctrlif,
-			 int ignore_error);
-void snd_usb_mixer_disconnect(struct list_head *p);
-
-int snd_usbmidi_create(struct snd_card *card,
-		       struct usb_interface *iface,
-		       struct list_head *midi_list,
-		       const struct snd_usb_audio_quirk *quirk);
-void snd_usbmidi_input_stop(struct list_head* p);
-void snd_usbmidi_input_start(struct list_head* p);
-void snd_usbmidi_disconnect(struct list_head *p);
-
-void snd_emuusb_set_samplerate(struct snd_usb_audio *chip,
-			unsigned char samplerate_id);
 
 /*
  * retrieve usb_interface descriptor from the host interface

@@ -56,7 +56,8 @@
 #include <sound/initval.h>
 
 #include "usbaudio.h"
-
+#include "usbmidi.h"
+#include "usbmixer.h"
 
 MODULE_AUTHOR("Takashi Iwai <tiwai@suse.de>");
 MODULE_DESCRIPTION("USB Audio");

@@ -53,6 +53,7 @@
 #include <sound/rawmidi.h>
 #include <sound/asequencer.h>
 #include "usbaudio.h"
+#include "usbmidi.h"
 
 
 /*

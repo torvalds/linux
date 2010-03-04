@@ -25,6 +25,7 @@
 #define MODNAME "US122L"
 #include "usb_stream.c"
 #include "../usbaudio.h"
+#include "../usbmidi.h"
 #include "us122l.h"
 
 MODULE_AUTHOR("Karsten Wiese <fzu@wemgehoertderstaat.de>");
