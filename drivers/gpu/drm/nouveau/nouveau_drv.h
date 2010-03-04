@@ -689,6 +689,7 @@ extern int nouveau_ctxfw;
 extern int nouveau_ignorelid;
 extern int nouveau_nofbaccel;
 extern int nouveau_noaccel;
+extern int nouveau_override_conntype;
 
 /* nouveau_state.c */
 extern void nouveau_preclose(struct drm_device *dev, struct drm_file *);

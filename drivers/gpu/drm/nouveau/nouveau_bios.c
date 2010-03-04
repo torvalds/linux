@@ -5287,8 +5287,14 @@ parse_dcb_connector_table(struct nvbios *bios)
 			break;
 		default:
 			cte->type = divine_connector_type(bios, cte->index);
-			NV_WARN(dev, "unknown type, using 0x%02x", cte->type);
+			NV_WARN(dev, "unknown type, using 0x%02x\n", cte->type);
 			break;
+		}
+
+		if (nouveau_override_conntype) {
+			int type = divine_connector_type(bios, cte->index);
+			if (type != cte->type)
+				NV_WARN(dev, " -> type 0x%02x\n", cte->type);
 		}
 
 	}
