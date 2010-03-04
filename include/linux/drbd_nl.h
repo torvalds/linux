@@ -12,7 +12,7 @@
 #endif
 
 NL_PACKET(primary, 1,
-       NL_BIT(		1,	T_MAY_IGNORE,	overwrite_peer)
+       NL_BIT(		1,	T_MAY_IGNORE,	primary_force)
 )
 
 NL_PACKET(secondary, 2, )
