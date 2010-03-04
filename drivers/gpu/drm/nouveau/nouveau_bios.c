@@ -5211,6 +5211,21 @@ divine_connector_type(struct nvbios *bios, int index)
 }
 
 static void
+apply_dcb_connector_quirks(struct nvbios *bios, int idx)
+{
+	struct dcb_connector_table_entry *cte = &bios->dcb.connector.entry[idx];
+	struct drm_device *dev = bios->dev;
+
+	/* Gigabyte NX85T */
+	if ((dev->pdev->device == 0x0421) &&
+	    (dev->pdev->subsystem_vendor == 0x1458) &&
+	    (dev->pdev->subsystem_device == 0x344c)) {
+		if (cte->type == DCB_CONNECTOR_HDMI_1)
+			cte->type = DCB_CONNECTOR_DVI_I;
+	}
+}
+
+static void
 parse_dcb_connector_table(struct nvbios *bios)
 {
 	struct drm_device *dev = bios->dev;
@@ -5265,6 +5280,8 @@ parse_dcb_connector_table(struct nvbios *bios)
 
 		if (cte->type == 0xff)
 			continue;
+
+		apply_dcb_connector_quirks(bios, i);
 
 		NV_INFO(dev, "  %d: 0x%08x: type 0x%02x idx %d tag 0x%02x\n",
 			i, cte->entry, cte->type, cte->index, cte->gpio_tag);
