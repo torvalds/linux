@@ -65,17 +65,17 @@ static void hal_set_beacon_period(struct hw_data *pHwData, u16 beacon_period)
 }
 
 static int wbsoft_add_interface(struct ieee80211_hw *dev,
-				struct ieee80211_if_init_conf *conf)
+				struct ieee80211_vif *vif)
 {
 	struct wbsoft_priv *priv = dev->priv;
 
-	hal_set_beacon_period(&priv->sHwData, conf->vif->bss_conf.beacon_int);
+	hal_set_beacon_period(&priv->sHwData, vif->bss_conf.beacon_int);
 
 	return 0;
 }
 
 static void wbsoft_remove_interface(struct ieee80211_hw *dev,
-				    struct ieee80211_if_init_conf *conf)
+				    struct ieee80211_vif *vif)
 {
 	printk("wbsoft_remove interface called\n");
 }
@@ -87,13 +87,6 @@ static void wbsoft_stop(struct ieee80211_hw *hw)
 
 static int wbsoft_get_stats(struct ieee80211_hw *hw,
 			    struct ieee80211_low_level_stats *stats)
-{
-	printk(KERN_INFO "%s called\n", __func__);
-	return 0;
-}
-
-static int wbsoft_get_tx_stats(struct ieee80211_hw *hw,
-			       struct ieee80211_tx_queue_stats *stats)
 {
 	printk(KERN_INFO "%s called\n", __func__);
 	return 0;
@@ -287,7 +280,6 @@ static const struct ieee80211_ops wbsoft_ops = {
 	.prepare_multicast	= wbsoft_prepare_multicast,
 	.configure_filter	= wbsoft_configure_filter,
 	.get_stats		= wbsoft_get_stats,
-	.get_tx_stats		= wbsoft_get_tx_stats,
 	.get_tsf		= wbsoft_get_tsf,
 };
 
