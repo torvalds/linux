@@ -36,8 +36,6 @@ extern asmlinkage long sys_rt_sigaction(int sig,
 					struct sigaction __user *oact,
 					void __user *restorer,
 					size_t sigsetsize);
-extern asmlinkage long sys_perfctr(int opcode, unsigned long arg0,
-				   unsigned long arg1, unsigned long arg2);
 
 extern asmlinkage void sparc64_set_context(struct pt_regs *regs);
 extern asmlinkage void sparc64_get_context(struct pt_regs *regs);
