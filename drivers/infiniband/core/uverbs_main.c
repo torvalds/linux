@@ -484,11 +484,10 @@ void ib_uverbs_event_handler(struct ib_event_handler *handler,
 }
 
 struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
-					int is_async, int *fd)
+					int is_async)
 {
 	struct ib_uverbs_event_file *ev_file;
 	struct file *filp;
-	int ret;
 
 	ev_file = kmalloc(sizeof *ev_file, GFP_KERNEL);
 	if (!ev_file)
@@ -503,27 +502,12 @@ struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
 	ev_file->is_async    = is_async;
 	ev_file->is_closed   = 0;
 
-	*fd = get_unused_fd();
-	if (*fd < 0) {
-		ret = *fd;
-		goto err;
-	}
-
-	filp = anon_inode_getfile("[uverbs-event]", &uverbs_event_fops,
+	filp = anon_inode_getfile("[infinibandevent]", &uverbs_event_fops,
 				  ev_file, O_RDONLY);
-	if (!filp) {
-		ret = -ENFILE;
-		goto err_fd;
-	}
+	if (IS_ERR(filp))
+		kfree(ev_file);
 
 	return filp;
-
-err_fd:
-	put_unused_fd(*fd);
-
-err:
-	kfree(ev_file);
-	return ERR_PTR(ret);
 }
 
 /*

@@ -271,7 +271,7 @@ static long do_sys_truncate(const char __user *pathname, loff_t length)
 	 * Make sure that there are no leases.  get_write_access() protects
 	 * against the truncate racing with a lease-granting setlease().
 	 */
-	error = break_lease(inode, FMODE_WRITE);
+	error = break_lease(inode, O_WRONLY);
 	if (error)
 		goto put_write_and_out;
 

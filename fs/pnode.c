@@ -86,7 +86,7 @@ static int do_make_slave(struct vfsmount *mnt)
 
 	/*
 	 * slave 'mnt' to a peer mount that has the
-	 * same root dentry. If none is available than
+	 * same root dentry. If none is available then
 	 * slave it to anything that is available.
 	 */
 	while ((peer_mnt = next_peer(peer_mnt)) != mnt &&
@@ -147,6 +147,11 @@ void change_mnt_propagation(struct vfsmount *mnt, int type)
  * get the next mount in the propagation tree.
  * @m: the mount seen last
  * @origin: the original mount from where the tree walk initiated
+ *
+ * Note that peer groups form contiguous segments of slave lists.
+ * We rely on that in get_source() to be able to find out if
+ * vfsmount found while iterating with propagation_next() is
+ * a peer of one we'd found earlier.
  */
 static struct vfsmount *propagation_next(struct vfsmount *m,
 					 struct vfsmount *origin)
@@ -186,10 +191,6 @@ static struct vfsmount *get_source(struct vfsmount *dest,
 {
 	struct vfsmount *p_last_src = NULL;
 	struct vfsmount *p_last_dest = NULL;
-	*type = CL_PROPAGATION;
-
-	if (IS_MNT_SHARED(dest))
-		*type |= CL_MAKE_SHARED;
 
 	while (last_dest != dest->mnt_master) {
 		p_last_dest = last_dest;
@@ -202,13 +203,18 @@ static struct vfsmount *get_source(struct vfsmount *dest,
 		do {
 			p_last_dest = next_peer(p_last_dest);
 		} while (IS_MNT_NEW(p_last_dest));
+		/* is that a peer of the earlier? */
+		if (dest == p_last_dest) {
+			*type = CL_MAKE_SHARED;
+			return p_last_src;
+		}
 	}
-
-	if (dest != p_last_dest) {
-		*type |= CL_SLAVE;
-		return last_src;
-	} else
-		return p_last_src;
+	/* slave of the earlier, then */
+	*type = CL_SLAVE;
+	/* beginning of peer group among the slaves? */
+	if (IS_MNT_SHARED(dest))
+		*type |= CL_MAKE_SHARED;
+	return last_src;
 }
 
 /*

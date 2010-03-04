@@ -361,7 +361,7 @@ nfsd_setattr(struct svc_rqst *rqstp, struct svc_fh *fhp, struct iattr *iap,
 		 * If we are changing the size of the file, then
 		 * we need to break all leases.
 		 */
-		host_err = break_lease(inode, FMODE_WRITE | O_NONBLOCK);
+		host_err = break_lease(inode, O_WRONLY | O_NONBLOCK);
 		if (host_err == -EWOULDBLOCK)
 			host_err = -ETIMEDOUT;
 		if (host_err) /* ENOMEM or EWOULDBLOCK */
@@ -734,7 +734,7 @@ nfsd_open(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	 * Check to see if there are any leases on this file.
 	 * This may block while leases are broken.
 	 */
-	host_err = break_lease(inode, O_NONBLOCK | ((access & NFSD_MAY_WRITE) ? FMODE_WRITE : 0));
+	host_err = break_lease(inode, O_NONBLOCK | ((access & NFSD_MAY_WRITE) ? O_WRONLY : 0));
 	if (host_err == -EWOULDBLOCK)
 		host_err = -ETIMEDOUT;
 	if (host_err) /* NOMEM or WOULDBLOCK */

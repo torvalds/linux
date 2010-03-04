@@ -34,7 +34,18 @@ struct mnt_namespace;
 
 #define MNT_SHARED	0x1000	/* if the vfsmount is a shared mount */
 #define MNT_UNBINDABLE	0x2000	/* if the vfsmount is a unbindable mount */
-#define MNT_PNODE_MASK	0x3000	/* propagation flag mask */
+/*
+ * MNT_SHARED_MASK is the set of flags that should be cleared when a
+ * mount becomes shared.  Currently, this is only the flag that says a
+ * mount cannot be bind mounted, since this is how we create a mount
+ * that shares events with another mount.  If you add a new MNT_*
+ * flag, consider how it interacts with shared mounts.
+ */
+#define MNT_SHARED_MASK	(MNT_UNBINDABLE)
+#define MNT_PROPAGATION_MASK	(MNT_SHARED | MNT_UNBINDABLE)
+
+
+#define MNT_INTERNAL	0x4000
 
 struct vfsmount {
 	struct list_head mnt_hash;
@@ -123,7 +134,6 @@ extern int do_add_mount(struct vfsmount *newmnt, struct path *path,
 
 extern void mark_mounts_for_expiry(struct list_head *mounts);
 
-extern spinlock_t vfsmount_lock;
 extern dev_t name_to_dev_t(char *name);
 
 #endif /* _LINUX_MOUNT_H */

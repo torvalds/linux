@@ -547,7 +547,7 @@ static void udf_table_free_blocks(struct super_block *sb,
 		}
 
 		if (epos.offset + (2 * adsize) > sb->s_blocksize) {
-			char *sptr, *dptr;
+			unsigned char *sptr, *dptr;
 			int loffset;
 
 			brelse(oepos.bh);

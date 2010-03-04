@@ -1050,7 +1050,7 @@ static void invalidate_sub(struct fsg_lun *curlun)
 	unsigned long	rc;
 
 	rc = invalidate_mapping_pages(inode->i_mapping, 0, -1);
-	VLDBG(curlun, "invalidate_inode_pages -> %ld\n", rc);
+	VLDBG(curlun, "invalidate_mapping_pages -> %ld\n", rc);
 }
 
 static int do_verify(struct fsg_common *common)

@@ -215,7 +215,7 @@ secno hpfs_bplus_lookup(struct super_block *, struct inode *, struct bplus_heade
 secno hpfs_add_sector_to_btree(struct super_block *, secno, int, unsigned);
 void hpfs_remove_btree(struct super_block *, struct bplus_header *);
 int hpfs_ea_read(struct super_block *, secno, int, unsigned, unsigned, char *);
-int hpfs_ea_write(struct super_block *, secno, int, unsigned, unsigned, char *);
+int hpfs_ea_write(struct super_block *, secno, int, unsigned, unsigned, const char *);
 void hpfs_ea_remove(struct super_block *, secno, int, unsigned);
 void hpfs_truncate_btree(struct super_block *, secno, int, unsigned);
 void hpfs_remove_fnode(struct super_block *, fnode_secno fno);
@@ -244,13 +244,17 @@ extern const struct file_operations hpfs_dir_ops;
 
 void hpfs_add_pos(struct inode *, loff_t *);
 void hpfs_del_pos(struct inode *, loff_t *);
-struct hpfs_dirent *hpfs_add_de(struct super_block *, struct dnode *, unsigned char *, unsigned, secno);
-int hpfs_add_dirent(struct inode *, unsigned char *, unsigned, struct hpfs_dirent *, int);
+struct hpfs_dirent *hpfs_add_de(struct super_block *, struct dnode *,
+				const unsigned char *, unsigned, secno);
+int hpfs_add_dirent(struct inode *, const unsigned char *, unsigned,
+		    struct hpfs_dirent *, int);
 int hpfs_remove_dirent(struct inode *, dnode_secno, struct hpfs_dirent *, struct quad_buffer_head *, int);
 void hpfs_count_dnodes(struct super_block *, dnode_secno, int *, int *, int *);
 dnode_secno hpfs_de_as_down_as_possible(struct super_block *, dnode_secno dno);
 struct hpfs_dirent *map_pos_dirent(struct inode *, loff_t *, struct quad_buffer_head *);
-struct hpfs_dirent *map_dirent(struct inode *, dnode_secno, char *, unsigned, dnode_secno *, struct quad_buffer_head *);
+struct hpfs_dirent *map_dirent(struct inode *, dnode_secno,
+			       const unsigned char *, unsigned, dnode_secno *,
+			       struct quad_buffer_head *);
 void hpfs_remove_dtree(struct super_block *, dnode_secno);
 struct hpfs_dirent *map_fnode_dirent(struct super_block *, fnode_secno, struct fnode *, struct quad_buffer_head *);
 
@@ -259,7 +263,8 @@ struct hpfs_dirent *map_fnode_dirent(struct super_block *, fnode_secno, struct f
 void hpfs_ea_ext_remove(struct super_block *, secno, int, unsigned);
 int hpfs_read_ea(struct super_block *, struct fnode *, char *, char *, int);
 char *hpfs_get_ea(struct super_block *, struct fnode *, char *, int *);
-void hpfs_set_ea(struct inode *, struct fnode *, char *, char *, int);
+void hpfs_set_ea(struct inode *, struct fnode *, const char *,
+		 const char *, int);
 
 /* file.c */
 
@@ -282,7 +287,7 @@ void hpfs_delete_inode(struct inode *);
 
 unsigned *hpfs_map_dnode_bitmap(struct super_block *, struct quad_buffer_head *);
 unsigned *hpfs_map_bitmap(struct super_block *, unsigned, struct quad_buffer_head *, char *);
-char *hpfs_load_code_page(struct super_block *, secno);
+unsigned char *hpfs_load_code_page(struct super_block *, secno);
 secno *hpfs_load_bitmap_directory(struct super_block *, secno bmp);
 struct fnode *hpfs_map_fnode(struct super_block *s, ino_t, struct buffer_head **);
 struct anode *hpfs_map_anode(struct super_block *s, anode_secno, struct buffer_head **);
@@ -292,12 +297,13 @@ dnode_secno hpfs_fnode_dno(struct super_block *s, ino_t ino);
 /* name.c */
 
 unsigned char hpfs_upcase(unsigned char *, unsigned char);
-int hpfs_chk_name(unsigned char *, unsigned *);
-char *hpfs_translate_name(struct super_block *, unsigned char *, unsigned, int, int);
-int hpfs_compare_names(struct super_block *, unsigned char *, unsigned, unsigned char *, unsigned, int);
-int hpfs_is_name_long(unsigned char *, unsigned);
-void hpfs_adjust_length(unsigned char *, unsigned *);
-void hpfs_decide_conv(struct inode *, unsigned char *, unsigned);
+int hpfs_chk_name(const unsigned char *, unsigned *);
+unsigned char *hpfs_translate_name(struct super_block *, unsigned char *, unsigned, int, int);
+int hpfs_compare_names(struct super_block *, const unsigned char *, unsigned,
+		       const unsigned char *, unsigned, int);
+int hpfs_is_name_long(const unsigned char *, unsigned);
+void hpfs_adjust_length(const unsigned char *, unsigned *);
+void hpfs_decide_conv(struct inode *, const unsigned char *, unsigned);
 
 /* namei.c */
 

@@ -1672,7 +1672,7 @@ int8_t udf_add_aext(struct inode *inode, struct extent_position *epos,
 		return -1;
 
 	if (epos->offset + (2 * adsize) > inode->i_sb->s_blocksize) {
-		char *sptr, *dptr;
+		unsigned char *sptr, *dptr;
 		struct buffer_head *nbh;
 		int err, loffset;
 		struct kernel_lb_addr obloc = epos->block;

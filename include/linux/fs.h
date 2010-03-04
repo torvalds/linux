@@ -1305,6 +1305,8 @@ extern int send_sigurg(struct fown_struct *fown);
 #define MNT_FORCE	0x00000001	/* Attempt to forcibily umount */
 #define MNT_DETACH	0x00000002	/* Just detach from the tree */
 #define MNT_EXPIRE	0x00000004	/* Mark for expiry */
+#define UMOUNT_NOFOLLOW	0x00000008	/* Don't follow symlink on umount */
+#define UMOUNT_UNUSED	0x80000000	/* Flag guaranteed to be unused */
 
 extern struct list_head super_blocks;
 extern spinlock_t sb_lock;
@@ -1314,9 +1316,9 @@ extern spinlock_t sb_lock;
 struct super_block {
 	struct list_head	s_list;		/* Keep this first */
 	dev_t			s_dev;		/* search index; _not_ kdev_t */
-	unsigned long		s_blocksize;
-	unsigned char		s_blocksize_bits;
 	unsigned char		s_dirt;
+	unsigned char		s_blocksize_bits;
+	unsigned long		s_blocksize;
 	loff_t			s_maxbytes;	/* Max file size */
 	struct file_system_type	*s_type;
 	const struct super_operations	*s_op;
@@ -1357,15 +1359,15 @@ struct super_block {
 	void 			*s_fs_info;	/* Filesystem private info */
 	fmode_t			s_mode;
 
+	/* Granularity of c/m/atime in ns.
+	   Cannot be worse than a second */
+	u32		   s_time_gran;
+
 	/*
 	 * The next field is for VFS *only*. No filesystems have any business
 	 * even looking at it. You had been warned.
 	 */
 	struct mutex s_vfs_rename_mutex;	/* Kludge */
-
-	/* Granularity of c/m/atime in ns.
-	   Cannot be worse than a second */
-	u32		   s_time_gran;
 
 	/*
 	 * Filesystem subtype.  If non-empty the filesystem type field
@@ -1794,7 +1796,8 @@ extern int may_umount(struct vfsmount *);
 extern long do_mount(char *, char *, char *, unsigned long, void *);
 extern struct vfsmount *collect_mounts(struct path *);
 extern void drop_collected_mounts(struct vfsmount *);
-
+extern int iterate_mounts(int (*)(struct vfsmount *, void *), void *,
+			  struct vfsmount *);
 extern int vfs_statfs(struct dentry *, struct kstatfs *);
 
 extern int current_umask(void);
@@ -2058,12 +2061,6 @@ extern int invalidate_inodes(struct super_block *);
 unsigned long invalidate_mapping_pages(struct address_space *mapping,
 					pgoff_t start, pgoff_t end);
 
-static inline unsigned long __deprecated
-invalidate_inode_pages(struct address_space *mapping)
-{
-	return invalidate_mapping_pages(mapping, 0, ~0UL);
-}
-
 static inline void invalidate_remote_inode(struct inode *inode)
 {
 	if (S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
@@ -2132,6 +2129,7 @@ extern struct file * open_exec(const char *);
  
 /* fs/dcache.c -- generic fs support functions */
 extern int is_subdir(struct dentry *, struct dentry *);
+extern int path_is_under(struct path *, struct path *);
 extern ino_t find_inode_number(struct dentry *, struct qstr *);
 
 #include <linux/err.h>
@@ -2340,8 +2338,6 @@ extern int simple_rename(struct inode *, struct dentry *, struct inode *, struct
 extern int simple_sync_file(struct file *, struct dentry *, int);
 extern int simple_empty(struct dentry *);
 extern int simple_readpage(struct file *file, struct page *page);
-extern int simple_prepare_write(struct file *file, struct page *page,
-			unsigned offset, unsigned to);
 extern int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata);

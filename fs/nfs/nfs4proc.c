@@ -724,8 +724,8 @@ static struct nfs4_opendata *nfs4_opendata_alloc(struct path *path,
 	p->o_arg.seqid = nfs_alloc_seqid(&sp->so_seqid);
 	if (p->o_arg.seqid == NULL)
 		goto err_free;
-	p->path.mnt = mntget(path->mnt);
-	p->path.dentry = dget(path->dentry);
+	path_get(path);
+	p->path = *path;
 	p->dir = parent;
 	p->owner = sp;
 	atomic_inc(&sp->so_count);
@@ -1944,8 +1944,8 @@ int nfs4_do_close(struct path *path, struct nfs4_state *state, int wait)
 	calldata->res.seqid = calldata->arg.seqid;
 	calldata->res.server = server;
 	calldata->res.seq_res.sr_slotid = NFS4_MAX_SLOT_TABLE;
-	calldata->path.mnt = mntget(path->mnt);
-	calldata->path.dentry = dget(path->dentry);
+	path_get(path);
+	calldata->path = *path;
 
 	msg.rpc_argp = &calldata->arg,
 	msg.rpc_resp = &calldata->res,

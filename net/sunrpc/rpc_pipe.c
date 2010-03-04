@@ -999,19 +999,14 @@ rpc_fill_super(struct super_block *sb, void *data, int silent)
 	inode = rpc_get_inode(sb, S_IFDIR | 0755);
 	if (!inode)
 		return -ENOMEM;
-	root = d_alloc_root(inode);
+	sb->s_root = root = d_alloc_root(inode);
 	if (!root) {
 		iput(inode);
 		return -ENOMEM;
 	}
 	if (rpc_populate(root, files, RPCAUTH_lockd, RPCAUTH_RootEOF, NULL))
-		goto out;
-	sb->s_root = root;
+		return -ENOMEM;
 	return 0;
-out:
-	d_genocide(root);
-	dput(root);
-	return -ENOMEM;
 }
 
 static int

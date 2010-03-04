@@ -544,10 +544,9 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 			goto out;
 		devid = new_encode_dev(path.mnt->mnt_sb->s_dev);
 		err = 0;
-		if (path.dentry->d_inode &&
-		    path.mnt->mnt_root == path.dentry) {
+		if (path.mnt->mnt_root == path.dentry) {
 			err = 1;
-			magic = path.dentry->d_inode->i_sb->s_magic;
+			magic = path.mnt->mnt_sb->s_magic;
 		}
 	} else {
 		dev_t dev = sbi->sb->s_dev;
@@ -560,10 +559,8 @@ static int autofs_dev_ioctl_ismountpoint(struct file *fp,
 
 		err = have_submounts(path.dentry);
 
-		if (path.mnt->mnt_mountpoint != path.mnt->mnt_root) {
-			if (follow_down(&path))
-				magic = path.mnt->mnt_sb->s_magic;
-		}
+		if (follow_down(&path))
+			magic = path.mnt->mnt_sb->s_magic;
 	}
 
 	param->ismountpoint.out.devid = devid;

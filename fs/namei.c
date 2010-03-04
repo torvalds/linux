@@ -689,33 +689,20 @@ static __always_inline void follow_dotdot(struct nameidata *nd)
 	set_root(nd);
 
 	while(1) {
-		struct vfsmount *parent;
 		struct dentry *old = nd->path.dentry;
 
 		if (nd->path.dentry == nd->root.dentry &&
 		    nd->path.mnt == nd->root.mnt) {
 			break;
 		}
-		spin_lock(&dcache_lock);
 		if (nd->path.dentry != nd->path.mnt->mnt_root) {
-			nd->path.dentry = dget(nd->path.dentry->d_parent);
-			spin_unlock(&dcache_lock);
+			/* rare case of legitimate dget_parent()... */
+			nd->path.dentry = dget_parent(nd->path.dentry);
 			dput(old);
 			break;
 		}
-		spin_unlock(&dcache_lock);
-		spin_lock(&vfsmount_lock);
-		parent = nd->path.mnt->mnt_parent;
-		if (parent == nd->path.mnt) {
-			spin_unlock(&vfsmount_lock);
+		if (!follow_up(&nd->path))
 			break;
-		}
-		mntget(parent);
-		nd->path.dentry = dget(nd->path.mnt->mnt_mountpoint);
-		spin_unlock(&vfsmount_lock);
-		dput(old);
-		mntput(nd->path.mnt);
-		nd->path.mnt = parent;
 	}
 	follow_mount(&nd->path);
 }
@@ -1347,7 +1334,7 @@ static int may_delete(struct inode *dir,struct dentry *victim,int isdir)
 		return -ENOENT;
 
 	BUG_ON(victim->d_parent->d_inode != dir);
-	audit_inode_child(victim->d_name.name, victim, dir);
+	audit_inode_child(victim, dir);
 
 	error = inode_permission(dir, MAY_WRITE | MAY_EXEC);
 	if (error)
@@ -1503,7 +1490,7 @@ int may_open(struct path *path, int acc_mode, int flag)
 	 * An append-only file must be opened in append mode for writing.
 	 */
 	if (IS_APPEND(inode)) {
-		if  ((flag & FMODE_WRITE) && !(flag & O_APPEND))
+		if  ((flag & O_ACCMODE) != O_RDONLY && !(flag & O_APPEND))
 			return -EPERM;
 		if (flag & O_TRUNC)
 			return -EPERM;
@@ -1547,7 +1534,7 @@ static int handle_truncate(struct path *path)
  * what get passed to sys_open().
  */
 static int __open_namei_create(struct nameidata *nd, struct path *path,
-				int flag, int mode)
+				int open_flag, int mode)
 {
 	int error;
 	struct dentry *dir = nd->path.dentry;
@@ -1565,7 +1552,7 @@ out_unlock:
 	if (error)
 		return error;
 	/* Don't check for write permission, don't truncate */
-	return may_open(&nd->path, 0, flag & ~O_TRUNC);
+	return may_open(&nd->path, 0, open_flag & ~O_TRUNC);
 }
 
 /*
@@ -1736,7 +1723,7 @@ do_last:
 		error = mnt_want_write(nd.path.mnt);
 		if (error)
 			goto exit_mutex_unlock;
-		error = __open_namei_create(&nd, &path, flag, mode);
+		error = __open_namei_create(&nd, &path, open_flag, mode);
 		if (error) {
 			mnt_drop_write(nd.path.mnt);
 			goto exit;
@@ -1798,7 +1785,7 @@ ok:
 		if (error)
 			goto exit;
 	}
-	error = may_open(&nd.path, acc_mode, flag);
+	error = may_open(&nd.path, acc_mode, open_flag);
 	if (error) {
 		if (will_truncate)
 			mnt_drop_write(nd.path.mnt);
@@ -2275,8 +2262,11 @@ int vfs_unlink(struct inode *dir, struct dentry *dentry)
 		error = -EBUSY;
 	else {
 		error = security_inode_unlink(dir, dentry);
-		if (!error)
+		if (!error) {
 			error = dir->i_op->unlink(dir, dentry);
+			if (!error)
+				dentry->d_inode->i_flags |= S_DEAD;
+		}
 	}
 	mutex_unlock(&dentry->d_inode->i_mutex);
 
@@ -2629,6 +2619,8 @@ static int vfs_rename_other(struct inode *old_dir, struct dentry *old_dentry,
 	else
 		error = old_dir->i_op->rename(old_dir, old_dentry, new_dir, new_dentry);
 	if (!error) {
+		if (target)
+			target->i_flags |= S_DEAD;
 		if (!(old_dir->i_sb->s_type->fs_flags & FS_RENAME_DOES_D_MOVE))
 			d_move(old_dentry, new_dentry);
 	}
@@ -2671,11 +2663,9 @@ int vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		error = vfs_rename_dir(old_dir,old_dentry,new_dir,new_dentry);
 	else
 		error = vfs_rename_other(old_dir,old_dentry,new_dir,new_dentry);
-	if (!error) {
-		const char *new_name = old_dentry->d_name.name;
-		fsnotify_move(old_dir, new_dir, old_name, new_name, is_dir,
+	if (!error)
+		fsnotify_move(old_dir, new_dir, old_name, is_dir,
 			      new_dentry->d_inode, old_dentry);
-	}
 	fsnotify_oldname_free(old_name);
 
 	return error;
