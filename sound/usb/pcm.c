@@ -58,7 +58,9 @@ static struct audioformat *find_format(struct snd_usb_substream *subs, unsigned 
 	list_for_each(p, &subs->fmt_list) {
 		struct audioformat *fp;
 		fp = list_entry(p, struct audioformat, list);
-		if (fp->format != format || fp->channels != channels)
+		if (!(fp->formats & (1uLL << format)))
+			continue;
+		if (fp->channels != channels)
 			continue;
 		if (rate < fp->rate_min || rate > fp->rate_max)
 			continue;
@@ -428,10 +430,15 @@ static int hw_check_valid_format(struct snd_usb_substream *subs,
 	struct snd_interval *ct = hw_param_interval(params, SNDRV_PCM_HW_PARAM_CHANNELS);
 	struct snd_mask *fmts = hw_param_mask(params, SNDRV_PCM_HW_PARAM_FORMAT);
 	struct snd_interval *pt = hw_param_interval(params, SNDRV_PCM_HW_PARAM_PERIOD_TIME);
+	struct snd_mask check_fmts;
 	unsigned int ptime;
 
 	/* check the format */
-	if (!snd_mask_test(fmts, fp->format)) {
+	snd_mask_none(&check_fmts);
+	check_fmts.bits[0] = (u32)fp->formats;
+	check_fmts.bits[1] = (u32)(fp->formats >> 32);
+	snd_mask_intersect(&check_fmts, fmts);
+	if (snd_mask_empty(&check_fmts)) {
 		hwc_debug("   > check: no supported format %d\n", fp->format);
 		return 0;
 	}
@@ -584,7 +591,7 @@ static int hw_rule_format(struct snd_pcm_hw_params *params,
 		fp = list_entry(p, struct audioformat, list);
 		if (!hw_check_valid_format(subs, params, fp))
 			continue;
-		fbits |= (1ULL << fp->format);
+		fbits |= fp->formats;
 	}
 
 	oldbits[0] = fmt->bits[0];

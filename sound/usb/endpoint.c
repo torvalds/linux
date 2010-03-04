@@ -94,7 +94,7 @@ int snd_usb_add_audio_endpoint(struct snd_usb_audio *chip, int stream, struct au
 		if (subs->endpoint == fp->endpoint) {
 			list_add_tail(&fp->list, &subs->fmt_list);
 			subs->num_formats++;
-			subs->formats |= 1ULL << fp->format;
+			subs->formats |= fp->formats;
 			return 0;
 		}
 	}
@@ -268,7 +268,7 @@ int snd_usb_parse_audio_endpoints(struct snd_usb_audio *chip, int iface_no)
 		 */
 		if (fmt[4] == 1 && fmt[5] == 2 && altno == 2 && num == 3 &&
 		    fp && fp->altsetting == 1 && fp->channels == 1 &&
-		    fp->format == SNDRV_PCM_FORMAT_S16_LE &&
+		    fp->formats == SNDRV_PCM_FMTBIT_S16_LE &&
 		    protocol == UAC_VERSION_1 &&
 		    le16_to_cpu(get_endpoint(alts, 0)->wMaxPacketSize) ==
 							fp->maxpacksize * 2)

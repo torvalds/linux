@@ -174,7 +174,7 @@ static int create_uaxx_quirk(struct snd_usb_audio *chip,
 			     const struct snd_usb_audio_quirk *quirk)
 {
 	static const struct audioformat ua_format = {
-		.format = SNDRV_PCM_FORMAT_S24_3LE,
+		.formats = SNDRV_PCM_FMTBIT_S24_3LE,
 		.channels = 2,
 		.fmt_type = UAC_FORMAT_TYPE_I,
 		.altsetting = 1,

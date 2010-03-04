@@ -662,7 +662,7 @@ static int prepare_nodata_playback_urb(struct snd_usb_substream *subs,
 	urb->number_of_packets = ctx->packets;
 	urb->transfer_buffer_length = offs * stride;
 	memset(urb->transfer_buffer,
-	       subs->cur_audiofmt->format == SNDRV_PCM_FORMAT_U8 ? 0x80 : 0,
+	       runtime->format == SNDRV_PCM_FORMAT_U8 ? 0x80 : 0,
 	       offs * stride);
 	return 0;
 }
@@ -924,7 +924,7 @@ void snd_usb_init_substream(struct snd_usb_stream *as,
 	snd_usb_set_pcm_ops(as->pcm, stream);
 
 	list_add_tail(&fp->list, &subs->fmt_list);
-	subs->formats |= 1ULL << fp->format;
+	subs->formats |= fp->formats;
 	subs->endpoint = fp->endpoint;
 	subs->num_formats++;
 	subs->fmt_type = fp->fmt_type;

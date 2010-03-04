@@ -323,7 +323,7 @@ static int parse_audio_format_i(struct snd_usb_audio *chip,
 			return -1;
 	}
 
-	fp->format = pcm_format;
+	fp->formats = 1uLL << pcm_format;
 
 	/* gather possible sample rates */
 	/* audio class v1 reports possible sample rates as part of the
@@ -365,16 +365,16 @@ static int parse_audio_format_ii(struct snd_usb_audio *chip,
 	switch (format) {
 	case UAC_FORMAT_TYPE_II_AC3:
 		/* FIXME: there is no AC3 format defined yet */
-		// fp->format = SNDRV_PCM_FORMAT_AC3;
-		fp->format = SNDRV_PCM_FORMAT_U8; /* temporarily hack to receive byte streams */
+		// fp->formats = SNDRV_PCM_FMTBIT_AC3;
+		fp->formats = SNDRV_PCM_FMTBIT_U8; /* temporary hack to receive byte streams */
 		break;
 	case UAC_FORMAT_TYPE_II_MPEG:
-		fp->format = SNDRV_PCM_FORMAT_MPEG;
+		fp->formats = SNDRV_PCM_FMTBIT_MPEG;
 		break;
 	default:
 		snd_printd(KERN_INFO "%d:%u:%d : unknown format tag %#x is detected.  processed as MPEG.\n",
 			   chip->dev->devnum, fp->iface, fp->altsetting, format);
-		fp->format = SNDRV_PCM_FORMAT_MPEG;
+		fp->formats = SNDRV_PCM_FMTBIT_MPEG;
 		break;
 	}
 

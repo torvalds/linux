@@ -9,7 +9,7 @@
 
 struct audioformat {
 	struct list_head list;
-	snd_pcm_format_t format;	/* format type */
+	u64 formats;			/* ALSA format bits */
 	unsigned int channels;		/* # channels */
 	unsigned int fmt_type;		/* USB audio format type (1-3) */
 	unsigned int frame_size;	/* samples per frame for non-audio */
