@@ -24,9 +24,6 @@
 
 #include <fcs/bfa_fcs_rport.h>
 
-void bfa_fcs_rport_modinit(struct bfa_fcs_s *fcs);
-void bfa_fcs_rport_modexit(struct bfa_fcs_s *fcs);
-
 void bfa_fcs_rport_uf_recv(struct bfa_fcs_rport_s *rport, struct fchs_s *fchs,
 			u16 len);
 void bfa_fcs_rport_scn(struct bfa_fcs_rport_s *rport);

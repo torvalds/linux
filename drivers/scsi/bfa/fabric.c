@@ -814,10 +814,10 @@ bfa_fcs_fabric_delete_comp(void *cbarg)
  */
 
 /**
- *   Module initialization
+ *   Attach time initialization
  */
 void
-bfa_fcs_fabric_modinit(struct bfa_fcs_s *fcs)
+bfa_fcs_fabric_attach(struct bfa_fcs_s *fcs)
 {
 	struct bfa_fcs_fabric_s *fabric;
 
@@ -841,7 +841,12 @@ bfa_fcs_fabric_modinit(struct bfa_fcs_s *fcs)
 	bfa_wc_up(&fabric->wc);	/* For the base port */
 
 	bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_uninit);
-	bfa_sm_send_event(fabric, BFA_FCS_FABRIC_SM_CREATE);
+}
+
+void
+bfa_fcs_fabric_modinit(struct bfa_fcs_s *fcs)
+{
+	bfa_sm_send_event(&fcs->fabric, BFA_FCS_FABRIC_SM_CREATE);
 	bfa_trc(fcs, 0);
 }
 

@@ -748,7 +748,8 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfa_fcs_log_init(&bfad->bfa_fcs, bfad->logmod);
 	bfa_fcs_trc_init(&bfad->bfa_fcs, bfad->trcmod);
 	bfa_fcs_aen_init(&bfad->bfa_fcs, bfad->aen);
-	bfa_fcs_init(&bfad->bfa_fcs, &bfad->bfa, bfad, BFA_FALSE);
+	bfa_fcs_attach(&bfad->bfa_fcs, &bfad->bfa, bfad, BFA_FALSE);
+	bfa_fcs_init(&bfad->bfa_fcs);
 	bfa_fcs_driver_info_init(&bfad->bfa_fcs, &driver_info);
 	bfa_fcs_set_fdmi_param(&bfad->bfa_fcs, fdmi_enable);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);

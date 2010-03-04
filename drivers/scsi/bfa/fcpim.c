@@ -822,22 +822,3 @@ void
 bfa_fcs_itnim_resume(struct bfa_fcs_itnim_s *itnim)
 {
 }
-
-/**
- *   Module initialization
- */
-void
-bfa_fcs_fcpim_modinit(struct bfa_fcs_s *fcs)
-{
-}
-
-/**
- *   Module cleanup
- */
-void
-bfa_fcs_fcpim_modexit(struct bfa_fcs_s *fcs)
-{
-	bfa_fcs_modexit_comp(fcs);
-}
-
-

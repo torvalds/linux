@@ -29,6 +29,7 @@
 /*
 * fcs friend functions: only between fcs modules
  */
+void		bfa_fcs_fabric_attach(struct bfa_fcs_s *fcs);
 void            bfa_fcs_fabric_modinit(struct bfa_fcs_s *fcs);
 void            bfa_fcs_fabric_modexit(struct bfa_fcs_s *fcs);
 void            bfa_fcs_fabric_modsusp(struct bfa_fcs_s *fcs);

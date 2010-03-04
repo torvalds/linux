@@ -26,7 +26,6 @@
 /*
  * fcs friend functions: only between fcs modules
  */
-void bfa_fcs_uf_modinit(struct bfa_fcs_s *fcs);
-void bfa_fcs_uf_modexit(struct bfa_fcs_s *fcs);
+void bfa_fcs_uf_attach(struct bfa_fcs_s *fcs);
 
 #endif /* __FCS_UF_H__ */

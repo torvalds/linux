@@ -616,23 +616,6 @@ bfa_fcs_vport_delete_comp(struct bfa_fcs_vport_s *vport)
 	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_DELCOMP);
 }
 
-/**
- *   Module initialization
- */
-void
-bfa_fcs_vport_modinit(struct bfa_fcs_s *fcs)
-{
-}
-
-/**
- *   Module cleanup
- */
-void
-bfa_fcs_vport_modexit(struct bfa_fcs_s *fcs)
-{
-	bfa_fcs_modexit_comp(fcs);
-}
-
 u32
 bfa_fcs_vport_get_max(struct bfa_fcs_s *fcs)
 {
