@@ -36,6 +36,7 @@
 #define POHMELFS_MAGIC_NUM	0x504f482e
 
 static struct kmem_cache *pohmelfs_inode_cache;
+static atomic_t psb_bdi_num = ATOMIC_INIT(0);
 
 /*
  * Removes inode from all trees, drops local name cache and removes all queued
@@ -322,7 +323,7 @@ int pohmelfs_write_create_inode(struct pohmelfs_inode *pi)
 	t = netfs_trans_alloc(psb, err + 1, 0, 0);
 	if (!t) {
 		err = -ENOMEM;
-		goto err_out_put;
+		goto err_out_exit;
 	}
 	t->complete = pohmelfs_write_inode_complete;
 	t->private = igrab(inode);
@@ -395,7 +396,8 @@ int pohmelfs_remove_child(struct pohmelfs_inode *pi, struct pohmelfs_name *n)
 /*
  * Writeback for given inode.
  */
-static int pohmelfs_write_inode(struct inode *inode, int sync)
+static int pohmelfs_write_inode(struct inode *inode,
+				struct writeback_control *wbc)
 {
 	struct pohmelfs_inode *pi = POHMELFS_I(inode);
 
@@ -1331,6 +1333,8 @@ static void pohmelfs_put_super(struct super_block *sb)
 	pohmelfs_crypto_exit(psb);
 	pohmelfs_state_exit(psb);
 
+	bdi_destroy(&psb->bdi);
+
 	kfree(psb);
 	sb->s_fs_info = NULL;
 }
@@ -1767,8 +1771,7 @@ static int pohmelfs_show_stats(struct seq_file *m, struct vfsmount *mnt)
 		seq_printf(m, "%u ", ctl->idx);
 		if (ctl->addr.sa_family == AF_INET) {
 			struct sockaddr_in *sin = (struct sockaddr_in *)&st->ctl.addr;
-			/* seq_printf(m, "%pi4:%u", &sin->sin_addr.s_addr, ntohs(sin->sin_port)); */
-			seq_printf(m, "%u.%u.%u.%u:%u", NIPQUAD(sin->sin_addr.s_addr), ntohs(sin->sin_port));
+			seq_printf(m, "%pI4:%u", &sin->sin_addr.s_addr, ntohs(sin->sin_port));
 		} else if (ctl->addr.sa_family == AF_INET6) {
 			struct sockaddr_in6 *sin = (struct sockaddr_in6 *)&st->ctl.addr;
 			seq_printf(m, "%pi6:%u", &sin->sin6_addr, ntohs(sin->sin6_port));
@@ -1815,11 +1818,22 @@ static int pohmelfs_fill_super(struct super_block *sb, void *data, int silent)
 	if (!psb)
 		goto err_out_exit;
 
+	err = bdi_init(&psb->bdi);
+	if (err)
+		goto err_out_free_sb;
+
+	err = bdi_register(&psb->bdi, NULL, "pfs-%d", atomic_inc_return(&psb_bdi_num));
+	if (err) {
+		bdi_destroy(&psb->bdi);
+		goto err_out_free_sb;
+	}
+
 	sb->s_fs_info = psb;
 	sb->s_op = &pohmelfs_sb_ops;
 	sb->s_magic = POHMELFS_MAGIC_NUM;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_blocksize = PAGE_SIZE;
+	sb->s_bdi = &psb->bdi;
 
 	psb->sb = sb;
 
@@ -1863,11 +1877,11 @@ static int pohmelfs_fill_super(struct super_block *sb, void *data, int silent)
 
 	err = pohmelfs_parse_options((char *) data, psb, 0);
 	if (err)
-		goto err_out_free_sb;
+		goto err_out_free_bdi;
 
 	err = pohmelfs_copy_crypto(psb);
 	if (err)
-		goto err_out_free_sb;
+		goto err_out_free_bdi;
 
 	err = pohmelfs_state_init(psb);
 	if (err)
@@ -1916,6 +1930,8 @@ err_out_state_exit:
 err_out_free_strings:
 	kfree(psb->cipher_string);
 	kfree(psb->hash_string);
+err_out_free_bdi:
+	bdi_destroy(&psb->bdi);
 err_out_free_sb:
 	kfree(psb);
 err_out_exit:

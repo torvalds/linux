@@ -14,7 +14,7 @@ void Dxx_initial(  struct hw_data * pHwData );
 void Mxx_initial(  struct hw_data * pHwData );
 void RFSynthesizer_initial(  struct hw_data * pHwData );
 //void RFSynthesizer_SwitchingChannel(  struct hw_data * pHwData,  s8 Channel );
-void RFSynthesizer_SwitchingChannel(  struct hw_data * pHwData,  ChanInfo Channel );
+void RFSynthesizer_SwitchingChannel(  struct hw_data * pHwData,  struct chan_info Channel );
 void BBProcessor_initial(  struct hw_data * pHwData );
 void BBProcessor_RateChanging(  struct hw_data * pHwData,  u8 rate ); // 20060613.1
 //void RF_RateChanging(  struct hw_data * pHwData,  u8 rate ); // 20060626.5.c Add

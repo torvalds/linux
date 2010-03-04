@@ -1194,8 +1194,6 @@ u16_t zfFindMinimumUtilizationChannelIndex(zdev_t* dev, u16_t* array, u16_t coun
     u8_t   i;
     u16_t  tempMinIndex, tempMinValue;
 
-    zmw_get_wlan_dev(dev);
-
     i = 1;
     tempMinIndex = 0;
     tempMinValue = array[tempMinIndex];

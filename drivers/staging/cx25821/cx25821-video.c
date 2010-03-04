@@ -876,7 +876,7 @@ int cx25821_enum_input(struct cx25821_dev *dev, struct v4l2_input *i)
 	dprintk(1, "%s()\n", __func__);
 
 	n = i->index;
-	if (n > 2)
+	if (n >= 2)
 		return -EINVAL;
 
 	if (0 == INPUT(n)->type)
@@ -963,10 +963,11 @@ int cx25821_set_freq(struct cx25821_dev *dev, struct v4l2_frequency *f)
 int vidioc_s_frequency(struct file *file, void *priv, struct v4l2_frequency *f)
 {
 	struct cx25821_fh *fh = priv;
-	struct cx25821_dev *dev = fh->dev;
+	struct cx25821_dev *dev;
 	int err;
 
 	if (fh) {
+		dev = fh->dev;
 		err = v4l2_prio_check(&dev->prio, &fh->prio);
 		if (0 != err)
 			return err;

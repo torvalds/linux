@@ -3,5 +3,7 @@ config RT2870
 	depends on USB && X86 && WLAN
 	select WIRELESS_EXT
 	select WEXT_PRIV
+	select CRC_CCITT
+	select FW_LOADER
 	---help---
 	  This is an experimental driver for the Ralink xx70 wireless chips.

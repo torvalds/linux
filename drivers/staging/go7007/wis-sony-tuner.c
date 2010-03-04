@@ -688,7 +688,7 @@ static int wis_sony_tuner_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id wis_sony_tuner_id[] = {
+static const struct i2c_device_id wis_sony_tuner_id[] = {
 	{ "wis_sony_tuner", 0 },
 	{ }
 };

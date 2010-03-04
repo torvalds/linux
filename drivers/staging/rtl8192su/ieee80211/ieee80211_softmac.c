@@ -1709,7 +1709,7 @@ ieee80211_rx_assoc_rq(struct ieee80211_device *ieee, struct sk_buff *skb)
 		ieee80211_resp_to_assoc_rq(ieee, dest);
 	}
 
-	printk(KERN_INFO"New client associated: "MAC_FMT"\n", MAC_ARG(dest));
+	printk(KERN_INFO"New client associated: %pM\n", dest);
 	//FIXME
 }
 
@@ -2145,8 +2145,8 @@ void ieee80211_softmac_xmit(struct ieee80211_txb *txb, struct ieee80211_device *
 	ieee80211_sta_wakeup(ieee,0);
 
 	/* update the tx status */
-//	ieee->stats.tx_bytes += txb->payload_size;
-//	ieee->stats.tx_packets++;
+	ieee->stats.tx_bytes += txb->payload_size;
+	ieee->stats.tx_packets++;
 	tcb_desc = (cb_desc *)(txb->fragments[0]->cb + MAX_DEV_ADDR_SIZE);
 	if(tcb_desc->bMulticast) {
 		ieee->stats.multicast++;

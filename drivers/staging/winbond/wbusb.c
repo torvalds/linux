@@ -23,7 +23,7 @@ MODULE_DESCRIPTION("IS89C35 802.11bg WLAN USB Driver");
 MODULE_LICENSE("GPL");
 MODULE_VERSION("0.1");
 
-static struct usb_device_id wb35_table[] __devinitdata = {
+static const struct usb_device_id wb35_table[] __devinitconst = {
 	{ USB_DEVICE(0x0416, 0x0035) },
 	{ USB_DEVICE(0x18E8, 0x6201) },
 	{ USB_DEVICE(0x18E8, 0x6206) },
@@ -161,7 +161,7 @@ static void hal_set_radio_mode(struct hw_data *pHwData, unsigned char radio_off)
 }
 
 static void
-hal_set_current_channel_ex(struct hw_data *pHwData, ChanInfo channel)
+hal_set_current_channel_ex(struct hw_data *pHwData, struct chan_info channel)
 {
 	struct wb35_reg *reg = &pHwData->reg;
 
@@ -180,10 +180,10 @@ hal_set_current_channel_ex(struct hw_data *pHwData, ChanInfo channel)
 	reg->M28_MacControl &= ~0xff;	// Clean channel information field
 	reg->M28_MacControl |= channel.ChanNo;
 	Wb35Reg_WriteWithCallbackValue(pHwData, 0x0828, reg->M28_MacControl,
-				       (s8 *) & channel, sizeof(ChanInfo));
+				       (s8 *) & channel, sizeof(struct chan_info));
 }
 
-static void hal_set_current_channel(struct hw_data *pHwData, ChanInfo channel)
+static void hal_set_current_channel(struct hw_data *pHwData, struct chan_info channel)
 {
 	hal_set_current_channel_ex(pHwData, channel);
 }
@@ -253,7 +253,7 @@ static void hal_set_accept_beacon(struct hw_data *pHwData, u8 enable)
 static int wbsoft_config(struct ieee80211_hw *dev, u32 changed)
 {
 	struct wbsoft_priv *priv = dev->priv;
-	ChanInfo ch;
+	struct chan_info ch;
 
 	printk("wbsoft_config called\n");
 

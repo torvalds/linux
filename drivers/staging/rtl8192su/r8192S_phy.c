@@ -2407,8 +2407,8 @@ void PHY_SetBWModeCallback8192S(struct net_device *dev)
 			break;
 
 		default:
-			RT_TRACE(COMP_DBG, "SetBWModeCallback8190Pci():\
-						unknown Bandwidth: %#X\n",priv->CurrentChannelBW);
+			RT_TRACE(COMP_DBG, "SetBWModeCallback8190Pci(): unknown Bandwidth: %#X\n",
+				 priv->CurrentChannelBW);
 			break;
 	}
 
@@ -3398,8 +3398,8 @@ void SwChnlCallback8192SUsb(struct net_device *dev)
 	u32			delay;
 //	bool			ret;
 
-	RT_TRACE(COMP_SCAN, "==>SwChnlCallback8190Pci(), switch to channel\
-				%d\n", priv->chan);
+	RT_TRACE(COMP_SCAN, "==>SwChnlCallback8190Pci(), switch to channel %d\n",
+		 priv->chan);
 
 
 	if(!priv->up)
@@ -3525,8 +3525,8 @@ void SetBWModeCallback8192SUsb(struct net_device *dev)
 			break;
 
 		default:
-			RT_TRACE(COMP_DBG, "SetChannelBandwidth8190Pci():\
-						unknown Bandwidth: %#X\n",priv->CurrentChannelBW);
+			RT_TRACE(COMP_DBG, "SetChannelBandwidth8190Pci(): unknown Bandwidth: %#X\n",
+				 priv->CurrentChannelBW);
 			break;
 	}
 
@@ -3660,8 +3660,8 @@ void SetBWModeCallback8192SUsbWorkItem(struct net_device *dev)
 			break;
 
 		default:
-			RT_TRACE(COMP_DBG, "SetBWModeCallback8192SUsbWorkItem():\
-						unknown Bandwidth: %#X\n",priv->CurrentChannelBW);
+			RT_TRACE(COMP_DBG, "SetBWModeCallback8192SUsbWorkItem(): unknown Bandwidth: %#X\n",
+				 priv->CurrentChannelBW);
 			break;
 	}
 

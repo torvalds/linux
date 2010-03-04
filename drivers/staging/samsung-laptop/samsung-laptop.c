@@ -99,7 +99,8 @@ static struct rfkill *rfk;
 
 static int force;
 module_param(force, bool, 0);
-MODULE_PARM_DESC(force, "Disable the DMI check and forces the driver to be loaded");
+MODULE_PARM_DESC(force,
+		"Disable the DMI check and forces the driver to be loaded");
 
 static int debug;
 module_param(debug, bool, S_IRUGO | S_IWUSR);
@@ -370,7 +371,8 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 	{
 		.ident = "N128",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_SYS_VENDOR,
+					"SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "N128"),
 			DMI_MATCH(DMI_BOARD_NAME, "N128"),
 		},
@@ -379,7 +381,8 @@ static struct dmi_system_id __initdata samsung_dmi_table[] = {
 	{
 		.ident = "N130",
 		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+			DMI_MATCH(DMI_SYS_VENDOR,
+					"SAMSUNG ELECTRONICS CO., LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "N130"),
 			DMI_MATCH(DMI_BOARD_NAME, "N130"),
 		},

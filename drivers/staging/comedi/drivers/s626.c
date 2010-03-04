@@ -140,7 +140,7 @@ struct s626_private {
 	short allocatedBuf;
 	uint8_t ai_cmd_running;	/*  ai_cmd is running */
 	uint8_t ai_continous;	/*  continous aquisition */
-	int ai_sample_count;	/*  number of samples to aquire */
+	int ai_sample_count;	/*  number of samples to acquire */
 	unsigned int ai_sample_timer;
 	/*  time between samples in  units of the timer */
 	int ai_convert_count;	/*  conversion counter */

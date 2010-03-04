@@ -360,7 +360,7 @@ int wl_open(struct net_device *dev)
     wl_lock( lp, &flags );
 
     if( status != HCF_SUCCESS ) {
-	// Unsuccesfull, try reset of the card to recover
+	// Unsuccessful, try reset of the card to recover
 	status = wl_reset( dev );
     }
 
