@@ -408,25 +408,100 @@ coh901318_first_queued(struct coh901318_chan *cohc)
 	return d;
 }
 
+static inline u32 coh901318_get_bytes_in_lli(struct coh901318_lli *in_lli)
+{
+	struct coh901318_lli *lli = in_lli;
+	u32 bytes = 0;
+
+	while (lli) {
+		bytes += lli->control & COH901318_CX_CTRL_TC_VALUE_MASK;
+		lli = lli->virt_link_addr;
+	}
+	return bytes;
+}
+
 /*
- * DMA start/stop controls
+ * Get the number of bytes left to transfer on this channel,
+ * it is unwise to call this before stopping the channel for
+ * absolute measures, but for a rough guess you can still call
+ * it.
  */
 u32 coh901318_get_bytes_left(struct dma_chan *chan)
 {
-	unsigned long flags;
-	u32 ret;
 	struct coh901318_chan *cohc = to_coh901318_chan(chan);
+	struct coh901318_desc *cohd;
+	struct list_head *pos;
+	unsigned long flags;
+	u32 left = 0;
+	int i = 0;
 
 	spin_lock_irqsave(&cohc->lock, flags);
 
-	/* Read transfer count value */
-	ret = readl(cohc->base->virtbase +
-		    COH901318_CX_CTRL+COH901318_CX_CTRL_SPACING *
-		    cohc->id) & COH901318_CX_CTRL_TC_VALUE_MASK;
+	/*
+	 * If there are many queued jobs, we iterate and add the
+	 * size of them all. We take a special look on the first
+	 * job though, since it is probably active.
+	 */
+	list_for_each(pos, &cohc->active) {
+		/*
+		 * The first job in the list will be working on the
+		 * hardware. The job can be stopped but still active,
+		 * so that the transfer counter is somewhere inside
+		 * the buffer.
+		 */
+		cohd = list_entry(pos, struct coh901318_desc, node);
+
+		if (i == 0) {
+			struct coh901318_lli *lli;
+			dma_addr_t ladd;
+
+			/* Read current transfer count value */
+			left = readl(cohc->base->virtbase +
+				     COH901318_CX_CTRL +
+				     COH901318_CX_CTRL_SPACING * cohc->id) &
+				COH901318_CX_CTRL_TC_VALUE_MASK;
+
+			/* See if the transfer is linked... */
+			ladd = readl(cohc->base->virtbase +
+				     COH901318_CX_LNK_ADDR +
+				     COH901318_CX_LNK_ADDR_SPACING *
+				     cohc->id) &
+				~COH901318_CX_LNK_LINK_IMMEDIATE;
+			/* Single transaction */
+			if (!ladd)
+				continue;
+
+			/*
+			 * Linked transaction, follow the lli, find the
+			 * currently processing lli, and proceed to the next
+			 */
+			lli = cohd->lli;
+			while (lli && lli->link_addr != ladd)
+				lli = lli->virt_link_addr;
+
+			if (lli)
+				lli = lli->virt_link_addr;
+
+			/*
+			 * Follow remaining lli links around to count the total
+			 * number of bytes left
+			 */
+			left += coh901318_get_bytes_in_lli(lli);
+		} else {
+			left += coh901318_get_bytes_in_lli(cohd->lli);
+		}
+		i++;
+	}
+
+	/* Also count bytes in the queued jobs */
+	list_for_each(pos, &cohc->queue) {
+		cohd = list_entry(pos, struct coh901318_desc, node);
+		left += coh901318_get_bytes_in_lli(cohd->lli);
+	}
 
 	spin_unlock_irqrestore(&cohc->lock, flags);
 
-	return ret;
+	return left;
 }
 EXPORT_SYMBOL(coh901318_get_bytes_left);
 
@@ -831,6 +906,7 @@ static irqreturn_t dma_irq_handler(int irq, void *dev_id)
 static int coh901318_alloc_chan_resources(struct dma_chan *chan)
 {
 	struct coh901318_chan	*cohc = to_coh901318_chan(chan);
+	unsigned long flags;
 
 	dev_vdbg(COHC_2_DEV(cohc), "[%s] DMA channel %d\n",
 		 __func__, cohc->id);
@@ -838,10 +914,14 @@ static int coh901318_alloc_chan_resources(struct dma_chan *chan)
 	if (chan->client_count > 1)
 		return -EBUSY;
 
+	spin_lock_irqsave(&cohc->lock, flags);
+
 	coh901318_config(cohc, NULL);
 
 	cohc->allocated = 1;
 	cohc->completed = chan->cookie = 1;
+
+	spin_unlock_irqrestore(&cohc->lock, flags);
 
 	return 1;
 }
