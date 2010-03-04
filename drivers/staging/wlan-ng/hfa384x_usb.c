@@ -118,10 +118,10 @@
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 #include <linux/timer.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <asm/byteorder.h>
-#include <asm/bitops.h>
+#include <linux/bitops.h>
 #include <linux/list.h>
 #include <linux/usb.h>
 #include <linux/byteorder/generic.h>
@@ -1909,22 +1909,19 @@ int hfa384x_drvr_flashdl_enable(hfa384x_t *hw)
 		return -EINVAL;
 
 	/* Retrieve the buffer loc&size and timeout */
-
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_DOWNLOADBUFFER,
-		&(hw->bufinfo), sizeof(hw->bufinfo));
-	if (result) {
+					&(hw->bufinfo), sizeof(hw->bufinfo));
+	if (result)
 		return result;
-	}
+
 	hw->bufinfo.page = le16_to_cpu(hw->bufinfo.page);
 	hw->bufinfo.offset = le16_to_cpu(hw->bufinfo.offset);
 	hw->bufinfo.len = le16_to_cpu(hw->bufinfo.len);
-
 	result = hfa384x_drvr_getconfig16(hw, HFA384x_RID_MAXLOADTIME,
-		&(hw->dltimeout));
-
-	if (result) {
+					  &(hw->dltimeout));
+	if (result)
 		return result;
-	}
+
 	hw->dltimeout = le16_to_cpu(hw->dltimeout);
 
 	pr_debug("flashdl_enable\n");
@@ -3075,9 +3072,7 @@ static void hfa384x_usbctlxq_run(hfa384x_t *hw)
 				  hfa384x_ctlxout_callback, hw);
 		hw->ctlx_urb.transfer_flags |= USB_QUEUE_BULK;
 
-		/* Now submit the URB and update the CTLX's state
-		 */
-
+		/* Now submit the URB and update the CTLX's state */
 		result = SUBMIT_URB(&hw->ctlx_urb, GFP_ATOMIC);
 		if (result == 0) {
 			/* This CTLX is now running on the active queue */
@@ -3878,9 +3873,8 @@ retry:
 delresp:
 	if (delete_resptimer) {
 		timer_ok = del_timer(&hw->resptimer);
-		if (timer_ok != 0) {
+		if (timer_ok != 0)
 			hw->resp_timer_done = 1;
-		}
 	}
 
 	spin_unlock_irqrestore(&hw->ctlxq.lock, flags);

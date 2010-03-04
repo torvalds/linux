@@ -2,7 +2,7 @@
  * Copyright (C) 2008-2009 QUALCOMM Incorporated.
  */
 
-/* FIXME: most allocations need not be GFP_ATOMIC
+/* FIXME: most allocations need not be GFP_ATOMIC */
 /* FIXME: management of mutexes */
 /* FIXME: msm_pmem_region_lookup return values */
 /* FIXME: way too many copy to/from user */
@@ -1619,7 +1619,8 @@ static int msm_release_control(struct inode *node, struct file *filep)
 	int rc;
 	struct msm_control_device *ctrl_pmsm = filep->private_data;
 	struct msm_device *pmsm = ctrl_pmsm->pmsm;
-	printk(KERN_INFO "msm_camera: RELEASE %s\n", filep->f_path.dentry->d_name.name);
+	printk(KERN_INFO "msm_camera: RELEASE %s\n",
+					filep->f_path.dentry->d_name.name);
 	rc = __msm_release(pmsm->sync);
 	if (!rc) {
 		MSM_DRAIN_QUEUE(&ctrl_pmsm->ctrl_q, ctrl_status_q);
@@ -1633,7 +1634,8 @@ static int msm_release_frame(struct inode *node, struct file *filep)
 {
 	int rc;
 	struct msm_device *pmsm = filep->private_data;
-	printk(KERN_INFO "msm_camera: RELEASE %s\n", filep->f_path.dentry->d_name.name);
+	printk(KERN_INFO "msm_camera: RELEASE %s\n",
+					filep->f_path.dentry->d_name.name);
 	rc = __msm_release(pmsm->sync);
 	if (!rc) {
 		MSM_DRAIN_QUEUE(pmsm->sync, prev_frame_q);

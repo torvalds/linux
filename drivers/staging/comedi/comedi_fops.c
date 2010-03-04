@@ -63,7 +63,7 @@ module_param(comedi_debug, int, 0644);
 int comedi_autoconfig = 1;
 module_param(comedi_autoconfig, bool, 0444);
 
-int comedi_num_legacy_minors = 0;
+int comedi_num_legacy_minors;
 module_param(comedi_num_legacy_minors, int, 0444);
 
 static DEFINE_SPINLOCK(comedi_file_info_table_lock);
@@ -1510,7 +1510,7 @@ static unsigned int comedi_poll(struct file *file, poll_table * wait)
 }
 
 static ssize_t comedi_write(struct file *file, const char *buf, size_t nbytes,
-			    loff_t * offset)
+				loff_t *offset)
 {
 	struct comedi_subdevice *s;
 	struct comedi_async *async;
@@ -1612,7 +1612,7 @@ done:
 }
 
 static ssize_t comedi_read(struct file *file, char *buf, size_t nbytes,
-			   loff_t * offset)
+				loff_t *offset)
 {
 	struct comedi_subdevice *s;
 	struct comedi_async *async;

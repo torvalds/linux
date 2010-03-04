@@ -190,9 +190,9 @@
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1))
 #define DIDmib_dot11mac_dot11OperationTable_dot11MACAddress \
-			((P80211DID_MKSECTION(2) | \
+			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1) | \
-			P80211DID_MKITEM(1) | 0x18000000))
+			P80211DID_MKITEM(1) | 0x18000000)
 #define DIDmib_dot11mac_dot11OperationTable_dot11RTSThreshold \
 			(P80211DID_MKSECTION(2) | \
 			P80211DID_MKGROUP(1) | \

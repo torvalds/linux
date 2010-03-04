@@ -46,8 +46,8 @@
 #include <linux/wireless.h>
 #include <net/iw_handler.h>
 #include <linux/if_arp.h>
-#include <asm/bitops.h>
-#include <asm/uaccess.h>
+#include <linux/bitops.h>
+#include <linux/uaccess.h>
 #include <asm/byteorder.h>
 #include <linux/if_ether.h>
 #include <linux/bitops.h>
@@ -553,15 +553,14 @@ static int p80211wext_siwencode(netdevice_t *dev,
 	}
 
 	/* Check the Key index first. */
-    i = (erq->flags & IW_ENCODE_INDEX);
+	i = (erq->flags & IW_ENCODE_INDEX);
 	if (i) {
-
 		if ((i < 1) || (i > NUM_WEPKEYS)) {
 			err = -EINVAL;
 			goto exit;
-		} else
+		} else {
 			i--;
-
+		}
 		/* Set current key number only if no keys are given */
 		if (erq->flags & IW_ENCODE_NOKEY) {
 			result =

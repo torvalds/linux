@@ -628,9 +628,11 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	/* analog output */
 	s = dev->subdevices + 1;
 	if (thisboard->has_ao) {
-		/* Could provide command support, except it only has a
+		/*
+		 * Could provide command support, except it only has a
 		 * one sample hardware buffer for analog output and no
-		 * underrun flag. */
+		 * underrun flag.
+		 */
 		s->type = COMEDI_SUBD_AO;
 		s->subdev_flags = SDF_READABLE | SDF_WRITABLE | SDF_GROUND;
 		s->n_chan = NUM_AO_CHAN;
@@ -1149,6 +1151,7 @@ static int labpc_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 	/*  initialize software conversion count */
 	if (cmd->stop_src == TRIG_COUNT)
 		devpriv->count = cmd->stop_arg * cmd->chanlist_len;
+
 	/*  setup hardware conversion counter */
 	if (cmd->stop_src == TRIG_EXT) {
 		/*  load counter a1 with count of 3 (pc+ manual says this is minimum allowed) using mode 0 */
@@ -1403,7 +1406,10 @@ static irqreturn_t labpc_interrupt(int irq, void *d)
 	}
 
 	if (devpriv->current_transfer == isa_dma_transfer) {
-	/* if a dma terminal count of external stop trigger has occurred */
+		/*
+		 * if a dma terminal count of external stop trigger
+		 * has occurred
+		 */
 		if (devpriv->status1_bits & DMATC_BIT ||
 		    (thisboard->register_layout == labpc_1200_layout
 		     && devpriv->status2_bits & A1_TC_BIT)) {
@@ -1523,6 +1529,7 @@ static void labpc_drain_dma(struct comedi_device *dev)
 	/* write data to comedi buffer */
 	for (i = 0; i < num_points; i++)
 		cfc_write_to_buffer(s, devpriv->dma_buffer[i]);
+
 	if (async->cmd.stop_src == TRIG_COUNT)
 		devpriv->count -= num_points;
 

@@ -67,7 +67,7 @@
 #include <linux/wireless.h>
 #include <linux/netdevice.h>
 #include <linux/delay.h>
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/byteorder.h>
 #include <linux/random.h>
 #include <linux/usb.h>
@@ -1123,8 +1123,8 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 		if (hw->presniff_port_type != 0) {
 			word = hw->presniff_port_type;
 			result = hfa384x_drvr_setconfig16(hw,
-							  HFA384x_RID_CNFPORTTYPE,
-							  word);
+						  HFA384x_RID_CNFPORTTYPE,
+						  word);
 			if (result) {
 				pr_debug
 				    ("failed to restore porttype, result=%d\n",
@@ -1156,10 +1156,8 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			if (wlandev->netdev->type == ARPHRD_ETHER) {
 				/* Save macport 0 state */
 				result = hfa384x_drvr_getconfig16(hw,
-								  HFA384x_RID_CNFPORTTYPE,
-								  &
-								  (hw->
-								   presniff_port_type));
+						  HFA384x_RID_CNFPORTTYPE,
+						  &(hw->presniff_port_type));
 				if (result) {
 					pr_debug
 					    ("failed to read porttype, result=%d\n",
@@ -1168,10 +1166,8 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 				}
 				/* Save the wepflags state */
 				result = hfa384x_drvr_getconfig16(hw,
-								  HFA384x_RID_CNFWEPFLAGS,
-								  &
-								  (hw->
-								   presniff_wepflags));
+						  HFA384x_RID_CNFWEPFLAGS,
+						  &(hw->presniff_wepflags));
 				if (result) {
 					pr_debug
 					    ("failed to read wepflags, result=%d\n",
@@ -1218,8 +1214,8 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 			/* Set the port type to pIbss */
 			word = HFA384x_PORTTYPE_PSUEDOIBSS;
 			result = hfa384x_drvr_setconfig16(hw,
-							  HFA384x_RID_CNFPORTTYPE,
-							  word);
+						  HFA384x_RID_CNFPORTTYPE,
+						  word);
 			if (result) {
 				pr_debug
 				    ("failed to set porttype %d, result=%d\n",
@@ -1235,8 +1231,8 @@ int prism2mgmt_wlansniff(wlandevice_t *wlandev, void *msgp)
 				    HFA384x_WEPFLAGS_DISABLE_RXCRYPT;
 				result =
 				    hfa384x_drvr_setconfig16(hw,
-							     HFA384x_RID_CNFWEPFLAGS,
-							     word);
+						     HFA384x_RID_CNFWEPFLAGS,
+						     word);
 			}
 
 			if (result) {

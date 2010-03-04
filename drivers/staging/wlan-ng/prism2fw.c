@@ -109,9 +109,9 @@ typedef struct pda {
 } pda_t;
 
 typedef struct imgchunk {
-	u32 addr;		/* start address */
-	u32 len;		/* in bytes */
-	u16 crc;		/* CRC value (if it falls at a chunk boundary) */
+	u32 addr;	/* start address */
+	u32 len;	/* in bytes */
+	u16 crc;	/* CRC value (if it falls at a chunk boundary) */
 	u8 *data;
 } imgchunk_t;
 
@@ -1159,7 +1159,7 @@ int validate_identity(void)
 			/* SEC compat range */
 			if ((s3info[i].info.compat.role == 1) &&
 			    (s3info[i].info.compat.id == 4)) {
-                /* FIXME: isn't something missing here? */
+				/* FIXME: isn't something missing here? */
 			}
 
 			break;

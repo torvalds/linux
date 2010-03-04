@@ -64,7 +64,7 @@
 #include <linux/byteorder/generic.h>
 #include <linux/ctype.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <linux/delay.h>
 #include <asm/byteorder.h>
 #include <linux/if_arp.h>

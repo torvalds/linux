@@ -736,9 +736,9 @@ static int prism2mib_priv(mibrec_t *mib,
 
 				result =
 				    hfa384x_drvr_setconfig(hw,
-							   HFA384x_RID_CNFWPADATA,
-							   (u8 *) &wpa,
-							   sizeof(wpa));
+						   HFA384x_RID_CNFWPADATA,
+						   (u8 *) &wpa,
+						   sizeof(wpa));
 			}
 			break;
 		}

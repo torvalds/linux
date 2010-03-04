@@ -54,7 +54,6 @@ enum ni_660x_constants {
 #define NUM_PFI_CHANNELS 40
 /* really there are only up to 3 dma channels, but the register layout allows
 for 4 */
-
 #define MAX_DMA_CHANNEL 4
 
 /* See Register-Level Programmer Manual page 3.1 */
@@ -200,7 +199,7 @@ struct NI_660xRegisterData {
 	const char *name;	/*  Register Name */
 	int offset;		/*  Offset from base address from GPCT chip */
 	enum ni_660x_register_direction direction;
-	enum ni_660x_register_width size; /*  1 byte, 2 bytes, or 4 bytes */
+	enum ni_660x_register_width size; /* 1 byte, 2 bytes, or 4 bytes */
 };
 
 static const struct NI_660xRegisterData registerData[NumRegisters] = {
@@ -1082,13 +1081,12 @@ static int ni_660x_attach(struct comedi_device *dev,
 	output enables in stc dio control reg */
 	ni_660x_write_register(dev, 0, 0, STCDIOControl);
 
-	private(dev)->counter_dev
-		= ni_gpct_device_construct(dev,
-					   &ni_gpct_write_register,
-					   &ni_gpct_read_register,
-					   ni_gpct_variant_660x,
-					   ni_660x_num_counters
-					   (dev));
+	private(dev)->counter_dev = ni_gpct_device_construct(dev,
+						     &ni_gpct_write_register,
+						     &ni_gpct_read_register,
+						     ni_gpct_variant_660x,
+						     ni_660x_num_counters
+						     (dev));
 	if (private(dev)->counter_dev == NULL)
 		return -ENOMEM;
 	for (i = 0; i < NI_660X_MAX_NUM_COUNTERS; ++i) {
