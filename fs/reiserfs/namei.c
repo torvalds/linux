@@ -561,23 +561,13 @@ static int drop_new_inode(struct inode *inode)
 */
 static int new_inode_init(struct inode *inode, struct inode *dir, int mode)
 {
-
-	/* the quota init calls have to know who to charge the quota to, so
-	 ** we have to set uid and gid here
-	 */
-	inode->i_uid = current_fsuid();
-	inode->i_mode = mode;
 	/* Make inode invalid - just in case we are going to drop it before
 	 * the initialization happens */
 	INODE_PKEY(inode)->k_objectid = 0;
-
-	if (dir->i_mode & S_ISGID) {
-		inode->i_gid = dir->i_gid;
-		if (S_ISDIR(mode))
-			inode->i_mode |= S_ISGID;
-	} else {
-		inode->i_gid = current_fsgid();
-	}
+	/* the quota init calls have to know who to charge the quota to, so
+	 ** we have to set uid and gid here
+	 */
+	inode_init_owner(inode, dir, mode);
 	dquot_initialize(inode);
 	return 0;
 }
