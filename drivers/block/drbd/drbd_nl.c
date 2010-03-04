@@ -285,8 +285,8 @@ int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role, int force)
 		}
 
 		if (r == SS_NO_UP_TO_DATE_DISK && force &&
-		    (mdev->state.disk == D_INCONSISTENT ||
-		     mdev->state.disk == D_OUTDATED)) {
+		    (mdev->state.disk < D_UP_TO_DATE &&
+		     mdev->state.disk >= D_INCONSISTENT)) {
 			mask.disk = D_MASK;
 			val.disk  = D_UP_TO_DATE;
 			forced = 1;
