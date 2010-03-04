@@ -188,9 +188,6 @@ unsigned ext4_init_block_bitmap(struct super_block *sb, struct buffer_head *bh,
  * when a file system is mounted (see ext4_fill_super).
  */
 
-
-#define in_range(b, first, len)	((b) >= (first) && (b) <= (first) + (len) - 1)
-
 /**
  * ext4_get_group_desc() -- load group descriptor from disk
  * @sb:			super block
