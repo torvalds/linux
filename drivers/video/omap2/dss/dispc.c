@@ -335,7 +335,7 @@ void dispc_save_context(void)
 void dispc_restore_context(void)
 {
 	RR(SYSCONFIG);
-	RR(IRQENABLE);
+	/*RR(IRQENABLE);*/
 	/*RR(CONTROL);*/
 	RR(CONFIG);
 	RR(DEFAULT_COLOR0);
@@ -472,6 +472,15 @@ void dispc_restore_context(void)
 
 	/* enable last, because LCD & DIGIT enable are here */
 	RR(CONTROL);
+
+	/* clear spurious SYNC_LOST_DIGIT interrupts */
+	dispc_write_reg(DISPC_IRQSTATUS, DISPC_IRQ_SYNC_LOST_DIGIT);
+
+	/*
+	 * enable last so IRQs won't trigger before
+	 * the context is fully restored
+	 */
+	RR(IRQENABLE);
 }
 
 #undef SR
