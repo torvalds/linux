@@ -18,12 +18,19 @@
 #include <bfa.h>
 #include <bfi/bfi_lps.h>
 #include <cs/bfa_debug.h>
+#include <defs/bfa_defs_pci.h>
 
 BFA_TRC_FILE(HAL, LPS);
 BFA_MODULE(lps);
 
 #define BFA_LPS_MIN_LPORTS	(1)
 #define BFA_LPS_MAX_LPORTS	(256)
+
+/*
+ * Maximum Vports supported per physical port or vf.
+ */
+#define BFA_LPS_MAX_VPORTS_SUPP_CB  255
+#define BFA_LPS_MAX_VPORTS_SUPP_CT  190
 
 /**
  * forward declarations
@@ -596,6 +603,19 @@ bfa_lps_cvl_event(struct bfa_lps_s *lps)
 	/* Clear virtual link to base port will result in link down */
 	if (lps->fdisc)
 		bfa_cb_lps_cvl_event(lps->bfa->bfad, lps->uarg);
+}
+
+u32
+bfa_lps_get_max_vport(struct bfa_s *bfa)
+{
+	struct bfa_ioc_attr_s ioc_attr;
+
+	bfa_get_attr(bfa, &ioc_attr);
+
+	if (ioc_attr.pci_attr.device_id == BFA_PCI_DEVICE_ID_CT)
+		return (BFA_LPS_MAX_VPORTS_SUPP_CT);
+	else
+		return (BFA_LPS_MAX_VPORTS_SUPP_CB);
 }
 
 /**
