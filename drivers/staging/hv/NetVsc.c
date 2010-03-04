@@ -167,7 +167,7 @@ static struct netvsc_device *ReleaseInboundNetDevice(struct hv_device *Device)
 	return netDevice;
 }
 
-/**
+/*
  * NetVscInitialize - Main entry point
  */
 int NetVscInitialize(struct hv_driver *drv)
@@ -705,7 +705,7 @@ static void NetVscDisconnectFromVsp(struct netvsc_device *NetDevice)
 	DPRINT_EXIT(NETVSC);
 }
 
-/**
+/*
  * NetVscOnDeviceAdd - Callback when the device belonging to this driver is added
  */
 static int NetVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
@@ -807,7 +807,7 @@ Cleanup:
 	return ret;
 }
 
-/**
+/*
  * NetVscOnDeviceRemove - Callback when the root bus device is removed
  */
 static int NetVscOnDeviceRemove(struct hv_device *Device)
@@ -864,7 +864,7 @@ static int NetVscOnDeviceRemove(struct hv_device *Device)
 	return 0;
 }
 
-/**
+/*
  * NetVscOnCleanup - Perform any cleanup when the driver is removed
  */
 static void NetVscOnCleanup(struct hv_driver *drv)

@@ -266,7 +266,7 @@ retry_send:
 	return ret;
 }
 
-/**
+/*
  * netvsc_linkstatus_callback - Link up/down notification
  */
 static void netvsc_linkstatus_callback(struct hv_device *device_obj,
@@ -293,8 +293,9 @@ static void netvsc_linkstatus_callback(struct hv_device *device_obj,
 	DPRINT_EXIT(NETVSC_DRV);
 }
 
-/**
- * netvsc_recv_callback -  Callback when we receive a packet from the "wire" on the specified device.
+/*
+ * netvsc_recv_callback -  Callback when we receive a packet from the
+ * "wire" on the specified device.
  */
 static int netvsc_recv_callback(struct hv_device *device_obj,
 				struct hv_netvsc_packet *packet)

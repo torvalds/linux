@@ -84,6 +84,24 @@ struct hv_device_info {
 	struct hv_dev_port_info Outbound;
 };
 
+/**
+ * struct vmbus_channel_interface - Contains member functions for vmbus channel
+ * @Open:      Open the channel
+ * @Close:     Close the channel
+ * @SendPacket:        Send a packet over the channel
+ * @SendPacketPageBuffer:      Send a single page buffer over the channel
+ * @SendPacketMultiPageBuffer: Send a multiple page buffers
+ * @RecvPacket:        Receive packet
+ * @RecvPacketRaw:     Receive Raw packet
+ * @EstablishGpadl:    Set up GPADL for ringbuffer
+ * @TeardownGpadl:     Teardown GPADL for ringbuffer
+ * @GetInfo:   Get info about the channel
+ *
+ * This structure contains function pointer to control vmbus channel
+ * behavior. None of these functions is externally callable, but they
+ * are used for normal vmbus channel internal behavior.
+ * Only used by Hyper-V drivers.
+ */
 struct vmbus_channel_interface {
 	int (*Open)(struct hv_device *Device, u32 SendBufferSize,
 		    u32 RecvRingBufferSize, void *UserData, u32 UserDataLen,

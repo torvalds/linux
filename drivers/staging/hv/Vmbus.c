@@ -52,7 +52,7 @@ static const struct hv_guid gVmbusDeviceId = {
 static struct hv_driver *gDriver; /* vmbus driver object */
 static struct hv_device *gDevice; /* vmbus root device */
 
-/**
+/*
  * VmbusGetChannelOffers - Retrieve the channel offers from the parent partition
  */
 static void VmbusGetChannelOffers(void)
@@ -62,7 +62,7 @@ static void VmbusGetChannelOffers(void)
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * VmbusGetChannelInterface - Get the channel interface
  */
 static void VmbusGetChannelInterface(struct vmbus_channel_interface *Interface)
@@ -70,7 +70,7 @@ static void VmbusGetChannelInterface(struct vmbus_channel_interface *Interface)
 	GetChannelInterface(Interface);
 }
 
-/**
+/*
  * VmbusGetChannelInfo - Get the device info for the specified device object
  */
 static void VmbusGetChannelInfo(struct hv_device *DeviceObject,
@@ -79,7 +79,7 @@ static void VmbusGetChannelInfo(struct hv_device *DeviceObject,
 	GetChannelInfo(DeviceObject, DeviceInfo);
 }
 
-/**
+/*
  * VmbusCreateChildDevice - Creates the child device on the bus that represents the channel offer
  */
 struct hv_device *VmbusChildDeviceCreate(struct hv_guid *DeviceType,
@@ -92,7 +92,7 @@ struct hv_device *VmbusChildDeviceCreate(struct hv_guid *DeviceType,
 						Context);
 }
 
-/**
+/*
  * VmbusChildDeviceAdd - Registers the child device with the vmbus
  */
 int VmbusChildDeviceAdd(struct hv_device *ChildDevice)
@@ -102,7 +102,7 @@ int VmbusChildDeviceAdd(struct hv_device *ChildDevice)
 	return vmbusDriver->OnChildDeviceAdd(gDevice, ChildDevice);
 }
 
-/**
+/*
  * VmbusChildDeviceRemove Unregisters the child device from the vmbus
  */
 void VmbusChildDeviceRemove(struct hv_device *ChildDevice)
@@ -112,7 +112,7 @@ void VmbusChildDeviceRemove(struct hv_device *ChildDevice)
 	vmbusDriver->OnChildDeviceRemove(ChildDevice);
 }
 
-/**
+/*
  * VmbusOnDeviceAdd - Callback when the root bus device is added
  */
 static int VmbusOnDeviceAdd(struct hv_device *dev, void *AdditionalInfo)
@@ -141,7 +141,7 @@ static int VmbusOnDeviceAdd(struct hv_device *dev, void *AdditionalInfo)
 	return ret;
 }
 
-/**
+/*
  * VmbusOnDeviceRemove - Callback when the root bus device is removed
  */
 static int VmbusOnDeviceRemove(struct hv_device *dev)
@@ -157,7 +157,7 @@ static int VmbusOnDeviceRemove(struct hv_device *dev)
 	return ret;
 }
 
-/**
+/*
  * VmbusOnCleanup - Perform any cleanup when the driver is removed
  */
 static void VmbusOnCleanup(struct hv_driver *drv)
@@ -169,7 +169,7 @@ static void VmbusOnCleanup(struct hv_driver *drv)
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * VmbusOnMsgDPC - DPC routine to handle messages from the hypervisior
  */
 static void VmbusOnMsgDPC(struct hv_driver *drv)
@@ -217,7 +217,7 @@ static void VmbusOnMsgDPC(struct hv_driver *drv)
 	}
 }
 
-/**
+/*
  * VmbusOnEventDPC - DPC routine to handle events from the hypervisior
  */
 static void VmbusOnEventDPC(struct hv_driver *drv)
@@ -226,7 +226,7 @@ static void VmbusOnEventDPC(struct hv_driver *drv)
 	VmbusOnEvents();
 }
 
-/**
+/*
  * VmbusOnISR - ISR routine
  */
 static int VmbusOnISR(struct hv_driver *drv)
@@ -264,7 +264,7 @@ static int VmbusOnISR(struct hv_driver *drv)
 	return ret;
 }
 
-/**
+/*
  * VmbusInitialize - Main entry point
  */
 int VmbusInitialize(struct hv_driver *drv)

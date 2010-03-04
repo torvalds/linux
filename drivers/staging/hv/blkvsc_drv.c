@@ -165,7 +165,7 @@ static struct block_device_operations block_ops = {
 	.ioctl  = blkvsc_ioctl,
 };
 
-/**
+/*
  * blkvsc_drv_init -  BlkVsc driver initialization.
  */
 static int blkvsc_drv_init(int (*drv_init)(struct hv_driver *drv))
@@ -245,7 +245,7 @@ static void blkvsc_drv_exit(void)
 	return;
 }
 
-/**
+/*
  * blkvsc_probe - Add a new device for this driver
  */
 static int blkvsc_probe(struct device *device)
@@ -733,7 +733,7 @@ static int blkvsc_do_read_capacity16(struct block_device_context *blkdev)
 	return 0;
 }
 
-/**
+/*
  * blkvsc_remove() - Callback when our device is removed
  */
 static int blkvsc_remove(struct device *device)

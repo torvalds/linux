@@ -35,7 +35,7 @@ struct hv_context gHvContext = {
 	.SignalEventBuffer	= NULL,
 };
 
-/**
+/*
  * HvQueryHypervisorPresence - Query the cpuid for presense of windows hypervisor
  */
 static int HvQueryHypervisorPresence(void)
@@ -56,7 +56,7 @@ static int HvQueryHypervisorPresence(void)
 	return ecx & HV_PRESENT_BIT;
 }
 
-/**
+/*
  * HvQueryHypervisorInfo - Get version info of the windows hypervisor
  */
 static int HvQueryHypervisorInfo(void)
@@ -125,7 +125,7 @@ static int HvQueryHypervisorInfo(void)
 	return maxLeaf;
 }
 
-/**
+/*
  * HvDoHypercall - Invoke the specified hypercall
  */
 static u64 HvDoHypercall(u64 Control, void *Input, void *Output)
@@ -180,7 +180,7 @@ static u64 HvDoHypercall(u64 Control, void *Input, void *Output)
 #endif /* !x86_64 */
 }
 
-/**
+/*
  * HvInit - Main initialization routine.
  *
  * This routine must be called before any other routines in here are called
@@ -294,7 +294,7 @@ Cleanup:
 	return ret;
 }
 
-/**
+/*
  * HvCleanup - Cleanup routine.
  *
  * This routine is called normally during driver unloading or exiting.
@@ -321,7 +321,7 @@ void HvCleanup(void)
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * HvPostMessage - Post a message using the hypervisor message IPC.
  *
  * This involves a hypercall.
@@ -362,7 +362,7 @@ u16 HvPostMessage(union hv_connection_id connectionId,
 }
 
 
-/**
+/*
  * HvSignalEvent - Signal an event on the specified connection using the hypervisor event IPC.
  *
  * This involves a hypercall.
@@ -376,7 +376,7 @@ u16 HvSignalEvent(void)
 	return status;
 }
 
-/**
+/*
  * HvSynicInit - Initialize the Synthethic Interrupt Controller.
  *
  * If it is already initialized by another entity (ie x2v shim), we need to
@@ -482,7 +482,7 @@ Cleanup:
 	return;
 }
 
-/**
+/*
  * HvSynicCleanup - Cleanup routine for HvSynicInit().
  */
 void HvSynicCleanup(void *arg)

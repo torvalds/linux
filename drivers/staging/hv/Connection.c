@@ -34,7 +34,7 @@ struct VMBUS_CONNECTION gVmbusConnection = {
 	.NextGpadlHandle	= ATOMIC_INIT(0xE1E10),
 };
 
-/**
+/*
  * VmbusConnect - Sends a connect request on the partition service connection
  */
 int VmbusConnect(void)
@@ -180,7 +180,7 @@ Cleanup:
 	return ret;
 }
 
-/**
+/*
  * VmbusDisconnect - Sends a disconnect request on the partition service connection
  */
 int VmbusDisconnect(void)
@@ -218,7 +218,7 @@ Cleanup:
 	return ret;
 }
 
-/**
+/*
  * GetChannelFromRelId - Get the channel object given its child relative id (ie channel id)
  */
 struct vmbus_channel *GetChannelFromRelId(u32 relId)
@@ -239,7 +239,7 @@ struct vmbus_channel *GetChannelFromRelId(u32 relId)
 	return foundChannel;
 }
 
-/**
+/*
  * VmbusProcessChannelEvent - Process a channel event notification
  */
 static void VmbusProcessChannelEvent(void *context)
@@ -267,7 +267,7 @@ static void VmbusProcessChannelEvent(void *context)
 	}
 }
 
-/**
+/*
  * VmbusOnEvents - Handler for events
  */
 void VmbusOnEvents(void)
@@ -308,7 +308,7 @@ void VmbusOnEvents(void)
 	return;
 }
 
-/**
+/*
  * VmbusPostMessage - Send a msg on the vmbus's message connection
  */
 int VmbusPostMessage(void *buffer, size_t bufferLen)
@@ -320,7 +320,7 @@ int VmbusPostMessage(void *buffer, size_t bufferLen)
 	return HvPostMessage(connId, 1, buffer, bufferLen);
 }
 
-/**
+/*
  * VmbusSetEvent - Send an event notification to the parent
  */
 int VmbusSetEvent(u32 childRelId)

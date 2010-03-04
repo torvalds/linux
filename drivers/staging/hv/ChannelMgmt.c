@@ -71,7 +71,7 @@ static const struct hv_guid
 	},
 };
 
-/**
+/*
  * AllocVmbusChannel - Allocate and initialize a vmbus channel object
  */
 struct vmbus_channel *AllocVmbusChannel(void)
@@ -97,7 +97,7 @@ struct vmbus_channel *AllocVmbusChannel(void)
 	return channel;
 }
 
-/**
+/*
  * ReleaseVmbusChannel - Release the vmbus channel object itself
  */
 static inline void ReleaseVmbusChannel(void *context)
@@ -115,7 +115,7 @@ static inline void ReleaseVmbusChannel(void *context)
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * FreeVmbusChannel - Release the resources used by the vmbus channel object
  */
 void FreeVmbusChannel(struct vmbus_channel *Channel)
@@ -131,7 +131,7 @@ void FreeVmbusChannel(struct vmbus_channel *Channel)
 			      Channel);
 }
 
-/**
+/*
  * VmbusChannelProcessOffer - Process the offer by creating a channel/device associated with this offer
  */
 static void VmbusChannelProcessOffer(void *context)
@@ -213,7 +213,7 @@ static void VmbusChannelProcessOffer(void *context)
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * VmbusChannelProcessRescindOffer - Rescind the offer by initiating a device removal
  */
 static void VmbusChannelProcessRescindOffer(void *context)
@@ -225,7 +225,7 @@ static void VmbusChannelProcessRescindOffer(void *context)
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * VmbusChannelOnOffer - Handler for channel offers from vmbus in parent partition.
  *
  * We ignore all offers except network and storage offers. For each network and
@@ -308,7 +308,7 @@ static void VmbusChannelOnOffer(struct vmbus_channel_message_header *hdr)
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * VmbusChannelOnOfferRescind - Rescind offer handler.
  *
  * We queue a work item to process this offer synchronously
@@ -335,7 +335,7 @@ static void VmbusChannelOnOfferRescind(struct vmbus_channel_message_header *hdr)
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * VmbusChannelOnOffersDelivered - This is invoked when all offers have been delivered.
  *
  * Nothing to do here.
@@ -347,7 +347,7 @@ static void VmbusChannelOnOffersDelivered(
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * VmbusChannelOnOpenResult - Open result handler.
  *
  * This is invoked when we received a response to our channel open request.
@@ -395,7 +395,7 @@ static void VmbusChannelOnOpenResult(struct vmbus_channel_message_header *hdr)
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * VmbusChannelOnGpadlCreated - GPADL created handler.
  *
  * This is invoked when we received a response to our gpadl create request.
@@ -447,7 +447,7 @@ static void VmbusChannelOnGpadlCreated(struct vmbus_channel_message_header *hdr)
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * VmbusChannelOnGpadlTorndown - GPADL torndown handler.
  *
  * This is invoked when we received a response to our gpadl teardown request.
@@ -495,7 +495,7 @@ static void VmbusChannelOnGpadlTorndown(
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * VmbusChannelOnVersionResponse - Version response handler
  *
  * This is invoked when we received a response to our initiate contact request.
@@ -558,7 +558,7 @@ static struct vmbus_channel_message_table_entry
 	{ChannelMessageUnload,			NULL},
 };
 
-/**
+/*
  * VmbusOnChannelMessage - Handler for channel protocol messages.
  *
  * This is invoked in the vmbus worker thread context.
@@ -597,7 +597,7 @@ void VmbusOnChannelMessage(void *Context)
 	DPRINT_EXIT(VMBUS);
 }
 
-/**
+/*
  * VmbusChannelRequestOffers - Send a request to get all our pending offers.
  */
 int VmbusChannelRequestOffers(void)
@@ -651,8 +651,9 @@ Cleanup:
 	return ret;
 }
 
-/**
- * VmbusChannelReleaseUnattachedChannels - Release channels that are unattached/unconnected ie (no drivers associated)
+/*
+ * VmbusChannelReleaseUnattachedChannels - Release channels that are
+ * unattached/unconnected ie (no drivers associated)
  */
 void VmbusChannelReleaseUnattachedChannels(void)
 {

@@ -533,7 +533,7 @@ static int StorVscConnectToVsp(struct hv_device *Device)
 	return ret;
 }
 
-/**
+/*
  * StorVscOnDeviceAdd - Callback when the device belonging to this driver is added
  */
 static int StorVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
@@ -585,7 +585,7 @@ Cleanup:
 	return ret;
 }
 
-/**
+/*
  * StorVscOnDeviceRemove - Callback when the our device is being removed
  */
 static int StorVscOnDeviceRemove(struct hv_device *Device)
@@ -683,7 +683,7 @@ Cleanup:
 	return ret;
 }
 
-/**
+/*
  * StorVscOnIORequest - Callback to initiate an I/O request
  */
 static int StorVscOnIORequest(struct hv_device *Device,
@@ -783,7 +783,7 @@ static int StorVscOnIORequest(struct hv_device *Device,
 	return ret;
 }
 
-/**
+/*
  * StorVscOnCleanup - Perform any cleanup when the driver is removed
  */
 static void StorVscOnCleanup(struct hv_driver *Driver)
@@ -792,7 +792,7 @@ static void StorVscOnCleanup(struct hv_driver *Driver)
 	DPRINT_EXIT(STORVSC);
 }
 
-/**
+/*
  * StorVscInitialize - Main entry point
  */
 int StorVscInitialize(struct hv_driver *Driver)
