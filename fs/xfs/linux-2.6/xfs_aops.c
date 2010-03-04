@@ -229,7 +229,7 @@ xfs_end_io(
 {
 	xfs_ioend_t	*ioend = container_of(work, xfs_ioend_t, io_work);
 	struct xfs_inode *ip = XFS_I(ioend->io_inode);
-	int		error;
+	int		error = 0;
 
 	/*
 	 * For unwritten extents we need to issue transactions to convert a
