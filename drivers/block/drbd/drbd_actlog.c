@@ -536,7 +536,9 @@ static void atodb_endio(struct bio *bio, int error)
 	put_ldev(mdev);
 }
 
+/* sector to word */
 #define S2W(s)	((s)<<(BM_EXT_SHIFT-BM_BLOCK_SHIFT-LN2_BPL))
+
 /* activity log to on disk bitmap -- prepare bio unless that sector
  * is already covered by previously prepared bios */
 static int atodb_prepare_unless_covered(struct drbd_conf *mdev,
@@ -546,12 +548,19 @@ static int atodb_prepare_unless_covered(struct drbd_conf *mdev,
 {
 	struct bio *bio;
 	struct page *page;
-	sector_t on_disk_sector = enr + mdev->ldev->md.md_offset
-				      + mdev->ldev->md.bm_offset;
+	sector_t on_disk_sector;
 	unsigned int page_offset = PAGE_SIZE;
 	int offset;
 	int i = 0;
 	int err = -ENOMEM;
+
+	/* We always write aligned, full 4k blocks,
+	 * so we can ignore the logical_block_size (for now) */
+	enr &= ~7U;
+	on_disk_sector = enr + mdev->ldev->md.md_offset
+			     + mdev->ldev->md.bm_offset;
+
+	D_ASSERT(!(on_disk_sector & 7U));
 
 	/* Check if that enr is already covered by an already created bio.
 	 * Caution, bios[] is not NULL terminated,
@@ -588,7 +597,7 @@ static int atodb_prepare_unless_covered(struct drbd_conf *mdev,
 
 	offset = S2W(enr);
 	drbd_bm_get_lel(mdev, offset,
-			min_t(size_t, S2W(1), drbd_bm_words(mdev) - offset),
+			min_t(size_t, S2W(8), drbd_bm_words(mdev) - offset),
 			kmap(page) + page_offset);
 	kunmap(page);
 
@@ -597,7 +606,7 @@ static int atodb_prepare_unless_covered(struct drbd_conf *mdev,
 	bio->bi_bdev = mdev->ldev->md_bdev;
 	bio->bi_sector = on_disk_sector;
 
-	if (bio_add_page(bio, page, MD_SECTOR_SIZE, page_offset) != MD_SECTOR_SIZE)
+	if (bio_add_page(bio, page, 4096, page_offset) != 4096)
 		goto out_put_page;
 
 	atomic_inc(&wc->count);
