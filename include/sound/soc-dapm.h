@@ -427,7 +427,6 @@ struct snd_soc_dapm_widget {
 	unsigned char ext:1;			/* has external widgets */
 	unsigned char muted:1;			/* muted for pop reduction */
 	unsigned char suspend:1;		/* was active before suspend */
-	unsigned char pmdown:1;			/* waiting for timeout */
 
 	int (*power_check)(struct snd_soc_dapm_widget *w);
 
