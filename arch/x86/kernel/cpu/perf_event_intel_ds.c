@@ -457,6 +457,7 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 	struct perf_event *event = cpuc->events[0]; /* PMC0 only */
 	struct pebs_record_core *at, *top;
 	struct perf_sample_data data;
+	struct perf_raw_record raw;
 	struct pt_regs regs;
 	int n;
 
@@ -478,6 +479,12 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 
 	perf_sample_data_init(&data, 0);
 	data.period = event->hw.last_period;
+
+	if (event->attr.sample_type & PERF_SAMPLE_RAW) {
+		raw.size = x86_pmu.pebs_record_size;
+		raw.data = at;
+		data.raw = &raw;
+	}
 
 	n = top - at;
 
@@ -521,6 +528,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	struct pebs_record_nhm *at, *top;
 	struct perf_sample_data data;
 	struct perf_event *event = NULL;
+	struct perf_raw_record raw;
 	struct pt_regs regs;
 	int bit, n;
 
@@ -561,6 +569,12 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 
 		perf_sample_data_init(&data, 0);
 		data.period = event->hw.last_period;
+
+		if (event->attr.sample_type & PERF_SAMPLE_RAW) {
+			raw.size = x86_pmu.pebs_record_size;
+			raw.data = at;
+			data.raw = &raw;
+		}
 
 		/*
 		 * See the comment in intel_pmu_drain_pebs_core()
