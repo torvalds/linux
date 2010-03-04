@@ -94,16 +94,12 @@ static irqreturn_t ioat_dma_do_interrupt_msix(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static void ioat1_cleanup_tasklet(unsigned long data);
-
 /* common channel initialization */
-void ioat_init_channel(struct ioatdma_device *device,
-		       struct ioat_chan_common *chan, int idx,
-		       void (*timer_fn)(unsigned long),
-		       void (*tasklet)(unsigned long),
-		       unsigned long ioat)
+void ioat_init_channel(struct ioatdma_device *device, struct ioat_chan_common *chan, int idx)
 {
 	struct dma_device *dma = &device->common;
+	struct dma_chan *c = &chan->common;
+	unsigned long data = (unsigned long) c;
 
 	chan->device = device;
 	chan->reg_base = device->reg_base + (0x80 * (idx + 1));
@@ -112,13 +108,11 @@ void ioat_init_channel(struct ioatdma_device *device,
 	list_add_tail(&chan->common.device_node, &dma->channels);
 	device->idx[idx] = chan;
 	init_timer(&chan->timer);
-	chan->timer.function = timer_fn;
-	chan->timer.data = ioat;
-	tasklet_init(&chan->cleanup_task, tasklet, ioat);
+	chan->timer.function = device->timer_fn;
+	chan->timer.data = data;
+	tasklet_init(&chan->cleanup_task, device->cleanup_fn, data);
 	tasklet_disable(&chan->cleanup_task);
 }
-
-static void ioat1_timer_event(unsigned long data);
 
 /**
  * ioat1_dma_enumerate_channels - find and initialize the device's channels
@@ -155,10 +149,7 @@ static int ioat1_enumerate_channels(struct ioatdma_device *device)
 		if (!ioat)
 			break;
 
-		ioat_init_channel(device, &ioat->base, i,
-				  ioat1_timer_event,
-				  ioat1_cleanup_tasklet,
-				  (unsigned long) ioat);
+		ioat_init_channel(device, &ioat->base, i);
 		ioat->xfercap = xfercap;
 		spin_lock_init(&ioat->desc_lock);
 		INIT_LIST_HEAD(&ioat->free_desc);
@@ -532,12 +523,12 @@ ioat1_dma_prep_memcpy(struct dma_chan *c, dma_addr_t dma_dest,
 	return &desc->txd;
 }
 
-static void ioat1_cleanup_tasklet(unsigned long data)
+static void ioat1_cleanup_event(unsigned long data)
 {
-	struct ioat_dma_chan *chan = (void *)data;
+	struct ioat_dma_chan *ioat = to_ioat_chan((void *) data);
 
-	ioat1_cleanup(chan);
-	writew(IOAT_CHANCTRL_RUN, chan->base.reg_base + IOAT_CHANCTRL_OFFSET);
+	ioat1_cleanup(ioat);
+	writew(IOAT_CHANCTRL_RUN, ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
 }
 
 void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
@@ -687,7 +678,7 @@ static void ioat1_cleanup(struct ioat_dma_chan *ioat)
 
 static void ioat1_timer_event(unsigned long data)
 {
-	struct ioat_dma_chan *ioat = (void *) data;
+	struct ioat_dma_chan *ioat = to_ioat_chan((void *) data);
 	struct ioat_chan_common *chan = &ioat->base;
 
 	dev_dbg(to_dev(chan), "%s: state: %lx\n", __func__, chan->state);
@@ -734,16 +725,17 @@ static void ioat1_timer_event(unsigned long data)
 	spin_unlock_bh(&chan->cleanup_lock);
 }
 
-static enum dma_status
-ioat1_dma_is_complete(struct dma_chan *c, dma_cookie_t cookie,
+enum dma_status
+ioat_is_dma_complete(struct dma_chan *c, dma_cookie_t cookie,
 		      dma_cookie_t *done, dma_cookie_t *used)
 {
-	struct ioat_dma_chan *ioat = to_ioat_chan(c);
+	struct ioat_chan_common *chan = to_chan_common(c);
+	struct ioatdma_device *device = chan->device;
 
 	if (ioat_is_complete(c, cookie, done, used) == DMA_SUCCESS)
 		return DMA_SUCCESS;
 
-	ioat1_cleanup(ioat);
+	device->cleanup_fn((unsigned long) c);
 
 	return ioat_is_complete(c, cookie, done, used);
 }
@@ -1199,12 +1191,14 @@ int __devinit ioat1_dma_probe(struct ioatdma_device *device, int dca)
 	device->intr_quirk = ioat1_intr_quirk;
 	device->enumerate_channels = ioat1_enumerate_channels;
 	device->self_test = ioat_dma_self_test;
+	device->timer_fn = ioat1_timer_event;
+	device->cleanup_fn = ioat1_cleanup_event;
 	dma = &device->common;
 	dma->device_prep_dma_memcpy = ioat1_dma_prep_memcpy;
 	dma->device_issue_pending = ioat1_dma_memcpy_issue_pending;
 	dma->device_alloc_chan_resources = ioat1_dma_alloc_chan_resources;
 	dma->device_free_chan_resources = ioat1_dma_free_chan_resources;
-	dma->device_is_tx_complete = ioat1_dma_is_complete;
+	dma->device_is_tx_complete = ioat_is_dma_complete;
 
 	err = ioat_probe(device);
 	if (err)

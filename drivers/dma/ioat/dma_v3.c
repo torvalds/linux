@@ -358,9 +358,9 @@ static void ioat3_cleanup_sync(struct ioat2_dma_chan *ioat)
 	spin_unlock_bh(&chan->cleanup_lock);
 }
 
-static void ioat3_cleanup_tasklet(unsigned long data)
+static void ioat3_cleanup_event(unsigned long data)
 {
-	struct ioat2_dma_chan *ioat = (void *) data;
+	struct ioat2_dma_chan *ioat = to_ioat2_chan((void *) data);
 
 	ioat3_cleanup_sync(ioat);
 	writew(IOAT_CHANCTRL_RUN, ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
@@ -380,7 +380,7 @@ static void ioat3_restart_channel(struct ioat2_dma_chan *ioat)
 
 static void ioat3_timer_event(unsigned long data)
 {
-	struct ioat2_dma_chan *ioat = (void *) data;
+	struct ioat2_dma_chan *ioat = to_ioat2_chan((void *) data);
 	struct ioat_chan_common *chan = &ioat->base;
 
 	spin_lock_bh(&chan->cleanup_lock);
@@ -1259,11 +1259,11 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 
 	if (is_raid_device) {
 		dma->device_is_tx_complete = ioat3_is_complete;
-		device->cleanup_tasklet = ioat3_cleanup_tasklet;
+		device->cleanup_fn = ioat3_cleanup_event;
 		device->timer_fn = ioat3_timer_event;
 	} else {
-		dma->device_is_tx_complete = ioat2_is_complete;
-		device->cleanup_tasklet = ioat2_cleanup_tasklet;
+		dma->device_is_tx_complete = ioat_is_dma_complete;
+		device->cleanup_fn = ioat2_cleanup_event;
 		device->timer_fn = ioat2_timer_event;
 	}
 
