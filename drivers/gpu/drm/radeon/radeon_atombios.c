@@ -206,6 +206,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
 	}
 
+	/* Asrock RS600 board lists the DVI port as HDMI */
+	if ((dev->pdev->device == 0x7941) &&
+	    (dev->pdev->subsystem_vendor == 0x1849) &&
+	    (dev->pdev->subsystem_device == 0x7941)) {
+		if ((*connector_type == DRM_MODE_CONNECTOR_HDMIA) &&
+		    (supported_device == ATOM_DEVICE_DFP3_SUPPORT))
+			*connector_type = DRM_MODE_CONNECTOR_DVID;
+	}
+
 	/* a-bit f-i90hd - ciaranm on #radeonhd - this board has no DVI */
 	if ((dev->pdev->device == 0x7941) &&
 	    (dev->pdev->subsystem_vendor == 0x147b) &&
@@ -287,6 +296,15 @@ static bool radeon_atom_apply_quirks(struct drm_device *dev,
 			*connector_type = DRM_MODE_CONNECTOR_DVID;
 	}
 
+	/* XFX Pine Group device rv730 reports no VGA DDC lines
+	 * even though they are wired up to record 0x93
+	 */
+	if ((dev->pdev->device == 0x9498) &&
+	    (dev->pdev->subsystem_vendor == 0x1682) &&
+	    (dev->pdev->subsystem_device == 0x2452)) {
+		struct radeon_device *rdev = dev->dev_private;
+		*i2c_bus = radeon_lookup_i2c_gpio(rdev, 0x93);
+	}
 	return true;
 }
 

@@ -226,7 +226,6 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx)
 		temp = readb(i2c_imx->base + IMX_I2C_I2CR);
 		temp &= ~(I2CR_MSTA | I2CR_MTX);
 		writeb(temp, i2c_imx->base + IMX_I2C_I2CR);
-		i2c_imx->stopped = 1;
 	}
 	if (cpu_is_mx1()) {
 		/*
@@ -236,8 +235,10 @@ static void i2c_imx_stop(struct imx_i2c_struct *i2c_imx)
 		udelay(i2c_imx->disable_delay);
 	}
 
-	if (!i2c_imx->stopped)
+	if (!i2c_imx->stopped) {
 		i2c_imx_bus_busy(i2c_imx, 0);
+		i2c_imx->stopped = 1;
+	}
 
 	/* Disable I2C controller */
 	writeb(0, i2c_imx->base + IMX_I2C_I2CR);
@@ -496,22 +497,23 @@ static int __init i2c_imx_probe(struct platform_device *pdev)
 	}
 
 	res_size = resource_size(res);
+
+	if (!request_mem_region(res->start, res_size, DRIVER_NAME)) {
+		ret = -EBUSY;
+		goto fail0;
+	}
+
 	base = ioremap(res->start, res_size);
 	if (!base) {
 		dev_err(&pdev->dev, "ioremap failed\n");
 		ret = -EIO;
-		goto fail0;
+		goto fail1;
 	}
 
 	i2c_imx = kzalloc(sizeof(struct imx_i2c_struct), GFP_KERNEL);
 	if (!i2c_imx) {
 		dev_err(&pdev->dev, "can't allocate interface\n");
 		ret = -ENOMEM;
-		goto fail1;
-	}
-
-	if (!request_mem_region(res->start, res_size, DRIVER_NAME)) {
-		ret = -EBUSY;
 		goto fail2;
 	}
 
@@ -582,11 +584,11 @@ fail5:
 fail4:
 	clk_put(i2c_imx->clk);
 fail3:
-	release_mem_region(i2c_imx->res->start, resource_size(res));
-fail2:
 	kfree(i2c_imx);
-fail1:
+fail2:
 	iounmap(base);
+fail1:
+	release_mem_region(res->start, resource_size(res));
 fail0:
 	if (pdata && pdata->exit)
 		pdata->exit(&pdev->dev);
@@ -618,8 +620,8 @@ static int __exit i2c_imx_remove(struct platform_device *pdev)
 
 	clk_put(i2c_imx->clk);
 
-	release_mem_region(i2c_imx->res->start, resource_size(i2c_imx->res));
 	iounmap(i2c_imx->base);
+	release_mem_region(i2c_imx->res->start, resource_size(i2c_imx->res));
 	kfree(i2c_imx);
 	return 0;
 }

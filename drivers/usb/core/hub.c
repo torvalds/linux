@@ -3347,6 +3347,9 @@ static void hub_events(void)
 					USB_PORT_FEAT_C_SUSPEND);
 				udev = hdev->children[i-1];
 				if (udev) {
+					/* TRSMRCY = 10 msec */
+					msleep(10);
+
 					usb_lock_device(udev);
 					ret = remote_wakeup(hdev->
 							children[i-1]);
@@ -3692,19 +3695,14 @@ static int usb_reset_and_verify_device(struct usb_device *udev)
 			usb_enable_interface(udev, intf, true);
 			ret = 0;
 		} else {
-			/* We've just reset the device, so it will think alt
-			 * setting 0 is installed.  For usb_set_interface() to
-			 * work properly, we need to set the current alternate
-			 * interface setting to 0 (or the first alt setting, if
-			 * the device doesn't have alt setting 0).
+			/* Let the bandwidth allocation function know that this
+			 * device has been reset, and it will have to use
+			 * alternate setting 0 as the current alternate setting.
 			 */
-			intf->cur_altsetting =
-				usb_find_alt_setting(config, i, 0);
-			if (!intf->cur_altsetting)
-				intf->cur_altsetting =
-					&config->intf_cache[i]->altsetting[0];
+			intf->resetting_device = 1;
 			ret = usb_set_interface(udev, desc->bInterfaceNumber,
 					desc->bAlternateSetting);
+			intf->resetting_device = 0;
 		}
 		if (ret < 0) {
 			dev_err(&udev->dev, "failed to restore interface %d "

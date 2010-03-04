@@ -321,6 +321,7 @@ retry:
 		else {
 			NV_ERROR(dev, "invalid valid domains: 0x%08x\n",
 				 b->valid_domains);
+			list_add_tail(&nvbo->entry, &op->both_list);
 			validate_fini(op, NULL);
 			return -EINVAL;
 		}
@@ -466,13 +467,14 @@ u_memcpya(uint64_t user, unsigned nmemb, unsigned size)
 static int
 nouveau_gem_pushbuf_reloc_apply(struct nouveau_channel *chan, int nr_bo,
 				struct drm_nouveau_gem_pushbuf_bo *bo,
-				int nr_relocs, uint64_t ptr_relocs,
-				int nr_dwords, int first_dword,
+				unsigned nr_relocs, uint64_t ptr_relocs,
+				unsigned nr_dwords, unsigned first_dword,
 				uint32_t *pushbuf, bool is_iomem)
 {
 	struct drm_nouveau_gem_pushbuf_reloc *reloc = NULL;
 	struct drm_device *dev = chan->dev;
-	int ret = 0, i;
+	int ret = 0;
+	unsigned i;
 
 	reloc = u_memcpya(ptr_relocs, nr_relocs, sizeof(*reloc));
 	if (IS_ERR(reloc))
@@ -666,6 +668,18 @@ nouveau_gem_ioctl_pushbuf_call(struct drm_device *dev, void *data,
 		goto out;
 	}
 	pbbo = nouveau_gem_object(gem);
+
+	if ((req->offset & 3) || req->nr_dwords < 2 ||
+	    (unsigned long)req->offset > (unsigned long)pbbo->bo.mem.size ||
+	    (unsigned long)req->nr_dwords >
+	     ((unsigned long)(pbbo->bo.mem.size - req->offset ) >> 2)) {
+		NV_ERROR(dev, "pb call misaligned or out of bounds: "
+			      "%d + %d * 4 > %ld\n",
+			 req->offset, req->nr_dwords, pbbo->bo.mem.size);
+		ret = -EINVAL;
+		drm_gem_object_unreference(gem);
+		goto out;
+	}
 
 	ret = ttm_bo_reserve(&pbbo->bo, false, false, true,
 			     chan->fence.sequence);
@@ -911,7 +925,9 @@ nouveau_gem_ioctl_cpu_prep(struct drm_device *dev, void *data,
 	}
 
 	if (req->flags & NOUVEAU_GEM_CPU_PREP_NOBLOCK) {
+		spin_lock(&nvbo->bo.lock);
 		ret = ttm_bo_wait(&nvbo->bo, false, false, no_wait);
+		spin_unlock(&nvbo->bo.lock);
 	} else {
 		ret = ttm_bo_synccpu_write_grab(&nvbo->bo, no_wait);
 		if (ret == 0)

@@ -47,48 +47,6 @@
 #include "xfs_trace.h"
 
 /*
- * This is a subroutine for xfs_write() and other writers (xfs_ioctl)
- * which clears the setuid and setgid bits when a file is written.
- */
-int
-xfs_write_clear_setuid(
-	xfs_inode_t	*ip)
-{
-	xfs_mount_t	*mp;
-	xfs_trans_t	*tp;
-	int		error;
-
-	mp = ip->i_mount;
-	tp = xfs_trans_alloc(mp, XFS_TRANS_WRITEID);
-	if ((error = xfs_trans_reserve(tp, 0,
-				      XFS_WRITEID_LOG_RES(mp),
-				      0, 0, 0))) {
-		xfs_trans_cancel(tp, 0);
-		return error;
-	}
-	xfs_ilock(ip, XFS_ILOCK_EXCL);
-	xfs_trans_ijoin(tp, ip, XFS_ILOCK_EXCL);
-	xfs_trans_ihold(tp, ip);
-	ip->i_d.di_mode &= ~S_ISUID;
-
-	/*
-	 * Note that we don't have to worry about mandatory
-	 * file locking being disabled here because we only
-	 * clear the S_ISGID bit if the Group execute bit is
-	 * on, but if it was on then mandatory locking wouldn't
-	 * have been enabled.
-	 */
-	if (ip->i_d.di_mode & S_IXGRP) {
-		ip->i_d.di_mode &= ~S_ISGID;
-	}
-	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
-	xfs_trans_set_sync(tp);
-	error = xfs_trans_commit(tp, 0);
-	xfs_iunlock(ip, XFS_ILOCK_EXCL);
-	return 0;
-}
-
-/*
  * Force a shutdown of the filesystem instantly while keeping
  * the filesystem consistent. We don't do an unmount here; just shutdown
  * the shop, make sure that absolutely nothing persistent happens to
@@ -151,88 +109,6 @@ xfs_do_force_shutdown(
 		cmn_err(CE_ALERT, "Please umount the filesystem, "
 				  "and rectify the problem(s)");
 	}
-}
-
-
-/*
- * Called when we want to stop a buffer from getting written or read.
- * We attach the EIO error, muck with its flags, and call biodone
- * so that the proper iodone callbacks get called.
- */
-int
-xfs_bioerror(
-	xfs_buf_t *bp)
-{
-
-#ifdef XFSERRORDEBUG
-	ASSERT(XFS_BUF_ISREAD(bp) || bp->b_iodone);
-#endif
-
-	/*
-	 * No need to wait until the buffer is unpinned.
-	 * We aren't flushing it.
-	 */
-	XFS_BUF_ERROR(bp, EIO);
-	/*
-	 * We're calling biodone, so delete B_DONE flag. Either way
-	 * we have to call the iodone callback, and calling biodone
-	 * probably is the best way since it takes care of
-	 * GRIO as well.
-	 */
-	XFS_BUF_UNREAD(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
-	XFS_BUF_UNDONE(bp);
-	XFS_BUF_STALE(bp);
-
-	XFS_BUF_CLR_BDSTRAT_FUNC(bp);
-	xfs_biodone(bp);
-
-	return (EIO);
-}
-
-/*
- * Same as xfs_bioerror, except that we are releasing the buffer
- * here ourselves, and avoiding the biodone call.
- * This is meant for userdata errors; metadata bufs come with
- * iodone functions attached, so that we can track down errors.
- */
-int
-xfs_bioerror_relse(
-	xfs_buf_t *bp)
-{
-	int64_t fl;
-
-	ASSERT(XFS_BUF_IODONE_FUNC(bp) != xfs_buf_iodone_callbacks);
-	ASSERT(XFS_BUF_IODONE_FUNC(bp) != xlog_iodone);
-
-	fl = XFS_BUF_BFLAGS(bp);
-	/*
-	 * No need to wait until the buffer is unpinned.
-	 * We aren't flushing it.
-	 *
-	 * chunkhold expects B_DONE to be set, whether
-	 * we actually finish the I/O or not. We don't want to
-	 * change that interface.
-	 */
-	XFS_BUF_UNREAD(bp);
-	XFS_BUF_UNDELAYWRITE(bp);
-	XFS_BUF_DONE(bp);
-	XFS_BUF_STALE(bp);
-	XFS_BUF_CLR_IODONE_FUNC(bp);
-	XFS_BUF_CLR_BDSTRAT_FUNC(bp);
-	if (!(fl & XFS_B_ASYNC)) {
-		/*
-		 * Mark b_error and B_ERROR _both_.
-		 * Lot's of chunkcache code assumes that.
-		 * There's no reason to mark error for
-		 * ASYNC buffers.
-		 */
-		XFS_BUF_ERROR(bp, EIO);
-		XFS_BUF_FINISH_IOWAIT(bp);
-	} else {
-		xfs_buf_relse(bp);
-	}
-	return (EIO);
 }
 
 /*
@@ -301,37 +177,6 @@ xfs_read_buf(
 			 */
 			xfs_buf_relse(bp);
 		}
-	}
-	return (error);
-}
-
-/*
- * Wrapper around bwrite() so that we can trap
- * write errors, and act accordingly.
- */
-int
-xfs_bwrite(
-	struct xfs_mount *mp,
-	struct xfs_buf	 *bp)
-{
-	int	error;
-
-	/*
-	 * XXXsup how does this work for quotas.
-	 */
-	XFS_BUF_SET_BDSTRAT_FUNC(bp, xfs_bdstrat_cb);
-	bp->b_mount = mp;
-	XFS_BUF_WRITE(bp);
-
-	if ((error = XFS_bwrite(bp))) {
-		ASSERT(mp);
-		/*
-		 * Cannot put a buftrace here since if the buffer is not
-		 * B_HOLD then we will brelse() the buffer before returning
-		 * from bwrite and we could be tracing a buffer that has
-		 * been reused.
-		 */
-		xfs_force_shutdown(mp, SHUTDOWN_META_IO_ERROR);
 	}
 	return (error);
 }

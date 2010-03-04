@@ -12,6 +12,7 @@
 
 #include <linux/kernel.h>
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <linux/pci.h>
 #include <linux/irq.h>
@@ -32,6 +33,7 @@
 
 #define DNS323_GPIO_LED_RIGHT_AMBER	1
 #define DNS323_GPIO_LED_LEFT_AMBER	2
+#define DNS323_GPIO_SYSTEM_UP		3
 #define DNS323_GPIO_LED_POWER		5
 #define DNS323_GPIO_OVERTEMP		6
 #define DNS323_GPIO_RTC			7
@@ -239,7 +241,7 @@ static struct gpio_led dns323_leds[] = {
 	{
 		.name = "power:blue",
 		.gpio = DNS323_GPIO_LED_POWER,
-		.active_low = 1,
+		.default_state = LEDS_GPIO_DEFSTATE_ON,
 	}, {
 		.name = "right:amber",
 		.gpio = DNS323_GPIO_LED_RIGHT_AMBER,
@@ -334,7 +336,7 @@ static struct orion5x_mpp_mode dns323_mv88f5182_mpp_modes[] __initdata = {
 	{  0, MPP_UNUSED },
 	{  1, MPP_GPIO },		/* right amber LED (sata ch0) */
 	{  2, MPP_GPIO },		/* left amber LED (sata ch1) */
-	{  3, MPP_UNUSED },
+	{  3, MPP_GPIO },		/* system up flag */
 	{  4, MPP_GPIO },		/* power button LED */
 	{  5, MPP_GPIO },		/* power button LED */
 	{  6, MPP_GPIO },		/* GMT G751-2f overtemp */
@@ -372,11 +374,21 @@ static struct i2c_board_info __initdata dns323_i2c_devices[] = {
 	},
 };
 
-/* DNS-323 specific power off method */
-static void dns323_power_off(void)
+/* DNS-323 rev. A specific power off method */
+static void dns323a_power_off(void)
 {
 	pr_info("%s: triggering power-off...\n", __func__);
 	gpio_set_value(DNS323_GPIO_POWER_OFF, 1);
+}
+
+/* DNS-323 rev B specific power off method */
+static void dns323b_power_off(void)
+{
+	pr_info("%s: triggering power-off...\n", __func__);
+	/* Pin has to be changed to 1 and back to 0 to do actual power off. */
+	gpio_set_value(DNS323_GPIO_POWER_OFF, 1);
+	mdelay(100);
+	gpio_set_value(DNS323_GPIO_POWER_OFF, 0);
 }
 
 static void __init dns323_init(void)
@@ -424,11 +436,20 @@ static void __init dns323_init(void)
 	if (dns323_dev_id() == MV88F5182_DEV_ID)
 		orion5x_sata_init(&dns323_sata_data);
 
-	/* register dns323 specific power-off method */
+	/* The 5182 has flag to indicate the system is up. Without this flag
+	 * set, power LED will flash and cannot be controlled via leds-gpio.
+	 */
+	if (dns323_dev_id() == MV88F5182_DEV_ID)
+		gpio_set_value(DNS323_GPIO_SYSTEM_UP, 1);
+
+	/* Register dns323 specific power-off method */
 	if (gpio_request(DNS323_GPIO_POWER_OFF, "POWEROFF") != 0 ||
 	    gpio_direction_output(DNS323_GPIO_POWER_OFF, 0) != 0)
 		pr_err("DNS323: failed to setup power-off GPIO\n");
-	pm_power_off = dns323_power_off;
+	if (dns323_dev_id() == MV88F5182_DEV_ID)
+		pm_power_off = dns323b_power_off;
+	else
+		pm_power_off = dns323a_power_off;
 }
 
 /* Warning: D-Link uses a wrong mach-type (=526) in their bootloader */

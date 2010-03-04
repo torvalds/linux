@@ -226,8 +226,8 @@ xfs_fs_nfs_commit_metadata(
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
 	if (xfs_ipincount(ip)) {
-		error = _xfs_log_force(mp, ip->i_itemp->ili_last_lsn,
-				XFS_LOG_FORCE | XFS_LOG_SYNC, NULL);
+		error = _xfs_log_force_lsn(mp, ip->i_itemp->ili_last_lsn,
+				XFS_LOG_SYNC, NULL);
 	}
 	xfs_iunlock(ip, XFS_ILOCK_SHARED);
 

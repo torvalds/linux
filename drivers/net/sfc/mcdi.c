@@ -127,7 +127,7 @@ static int efx_mcdi_poll(struct efx_nic *efx)
 	efx_dword_t reg;
 
 	/* Check for a reboot atomically with respect to efx_mcdi_copyout() */
-	rc = efx_mcdi_poll_reboot(efx);
+	rc = -efx_mcdi_poll_reboot(efx);
 	if (rc)
 		goto out;
 
@@ -142,8 +142,9 @@ static int efx_mcdi_poll(struct efx_nic *efx)
 		if (spins != 0) {
 			--spins;
 			udelay(1);
-		} else
-			schedule();
+		} else {
+			schedule_timeout_uninterruptible(1);
+		}
 
 		time = get_seconds();
 
@@ -803,7 +804,7 @@ int efx_mcdi_nvram_read(struct efx_nic *efx, unsigned int type,
 			loff_t offset, u8 *buffer, size_t length)
 {
 	u8 inbuf[MC_CMD_NVRAM_READ_IN_LEN];
-	u8 outbuf[MC_CMD_NVRAM_READ_OUT_LEN(length)];
+	u8 outbuf[MC_CMD_NVRAM_READ_OUT_LEN(EFX_MCDI_NVRAM_LEN_MAX)];
 	size_t outlen;
 	int rc;
 
@@ -827,7 +828,7 @@ fail:
 int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
 			   loff_t offset, const u8 *buffer, size_t length)
 {
-	u8 inbuf[MC_CMD_NVRAM_WRITE_IN_LEN(length)];
+	u8 inbuf[MC_CMD_NVRAM_WRITE_IN_LEN(EFX_MCDI_NVRAM_LEN_MAX)];
 	int rc;
 
 	MCDI_SET_DWORD(inbuf, NVRAM_WRITE_IN_TYPE, type);
@@ -837,7 +838,8 @@ int efx_mcdi_nvram_write(struct efx_nic *efx, unsigned int type,
 
 	BUILD_BUG_ON(MC_CMD_NVRAM_WRITE_OUT_LEN != 0);
 
-	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_WRITE, inbuf, sizeof(inbuf),
+	rc = efx_mcdi_rpc(efx, MC_CMD_NVRAM_WRITE, inbuf,
+			  ALIGN(MC_CMD_NVRAM_WRITE_IN_LEN(length), 4),
 			  NULL, 0, NULL);
 	if (rc)
 		goto fail;

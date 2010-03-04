@@ -298,13 +298,16 @@ nv50_crtc_set_clock(struct drm_device *dev, int head, int pclk)
 static void
 nv50_crtc_destroy(struct drm_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-
-	NV_DEBUG_KMS(dev, "\n");
+	struct drm_device *dev;
+	struct nouveau_crtc *nv_crtc;
 
 	if (!crtc)
 		return;
+
+	dev = crtc->dev;
+	nv_crtc = nouveau_crtc(crtc);
+
+	NV_DEBUG_KMS(dev, "\n");
 
 	drm_crtc_cleanup(&nv_crtc->base);
 
@@ -432,6 +435,7 @@ nv50_crtc_prepare(struct drm_crtc *crtc)
 	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
 	struct drm_device *dev = crtc->dev;
 	struct drm_encoder *encoder;
+	uint32_t dac = 0, sor = 0;
 
 	NV_DEBUG_KMS(dev, "index %d\n", nv_crtc->index);
 
@@ -439,8 +443,27 @@ nv50_crtc_prepare(struct drm_crtc *crtc)
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
 		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 
-		if (drm_helper_encoder_in_use(encoder))
+		if (!drm_helper_encoder_in_use(encoder))
 			continue;
+
+		if (nv_encoder->dcb->type == OUTPUT_ANALOG ||
+		    nv_encoder->dcb->type == OUTPUT_TV)
+			dac |= (1 << nv_encoder->or);
+		else
+			sor |= (1 << nv_encoder->or);
+	}
+
+	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
+		struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+
+		if (nv_encoder->dcb->type == OUTPUT_ANALOG ||
+		    nv_encoder->dcb->type == OUTPUT_TV) {
+			if (dac & (1 << nv_encoder->or))
+				continue;
+		} else {
+			if (sor & (1 << nv_encoder->or))
+				continue;
+		}
 
 		nv_encoder->disconnect(nv_encoder);
 	}

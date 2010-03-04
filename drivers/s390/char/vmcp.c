@@ -19,6 +19,7 @@
 #include <linux/kernel.h>
 #include <linux/miscdevice.h>
 #include <linux/module.h>
+#include <asm/compat.h>
 #include <asm/cpcmd.h>
 #include <asm/debug.h>
 #include <asm/uaccess.h>
@@ -139,21 +140,26 @@ vmcp_write(struct file *file, const char __user *buff, size_t count,
 static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct vmcp_session *session;
+	int __user *argp;
 	int temp;
 
 	session = (struct vmcp_session *)file->private_data;
+	if (is_compat_task())
+		argp = compat_ptr(arg);
+	else
+		argp = (int __user *)arg;
 	if (mutex_lock_interruptible(&session->mutex))
 		return -ERESTARTSYS;
 	switch (cmd) {
 	case VMCP_GETCODE:
 		temp = session->resp_code;
 		mutex_unlock(&session->mutex);
-		return put_user(temp, (int __user *)arg);
+		return put_user(temp, argp);
 	case VMCP_SETBUF:
 		free_pages((unsigned long)session->response,
 				get_order(session->bufsize));
 		session->response=NULL;
-		temp = get_user(session->bufsize, (int __user *)arg);
+		temp = get_user(session->bufsize, argp);
 		if (get_order(session->bufsize) > 8) {
 			session->bufsize = PAGE_SIZE;
 			temp = -EINVAL;
@@ -163,7 +169,7 @@ static long vmcp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	case VMCP_GETSIZE:
 		temp = session->resp_size;
 		mutex_unlock(&session->mutex);
-		return put_user(temp, (int __user *)arg);
+		return put_user(temp, argp);
 	default:
 		mutex_unlock(&session->mutex);
 		return -ENOIOCTLCMD;

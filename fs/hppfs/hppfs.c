@@ -646,20 +646,25 @@ static const struct super_operations hppfs_sbops = {
 static int hppfs_readlink(struct dentry *dentry, char __user *buffer,
 			  int buflen)
 {
-	struct dentry *proc_dentry;
-
-	proc_dentry = HPPFS_I(dentry->d_inode)->proc_dentry;
+	struct dentry *proc_dentry = HPPFS_I(dentry->d_inode)->proc_dentry;
 	return proc_dentry->d_inode->i_op->readlink(proc_dentry, buffer,
 						    buflen);
 }
 
 static void *hppfs_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
-	struct dentry *proc_dentry;
-
-	proc_dentry = HPPFS_I(dentry->d_inode)->proc_dentry;
+	struct dentry *proc_dentry = HPPFS_I(dentry->d_inode)->proc_dentry;
 
 	return proc_dentry->d_inode->i_op->follow_link(proc_dentry, nd);
+}
+
+static void hppfs_put_link(struct dentry *dentry, struct nameidata *nd,
+			   void *cookie)
+{
+	struct dentry *proc_dentry = HPPFS_I(dentry->d_inode)->proc_dentry;
+
+	if (proc_dentry->d_inode->i_op->put_link)
+		proc_dentry->d_inode->i_op->put_link(proc_dentry, nd, cookie);
 }
 
 static const struct inode_operations hppfs_dir_iops = {
@@ -669,6 +674,7 @@ static const struct inode_operations hppfs_dir_iops = {
 static const struct inode_operations hppfs_link_iops = {
 	.readlink	= hppfs_readlink,
 	.follow_link	= hppfs_follow_link,
+	.put_link	= hppfs_put_link,
 };
 
 static struct inode *get_inode(struct super_block *sb, struct dentry *dentry)

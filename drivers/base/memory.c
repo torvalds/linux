@@ -311,7 +311,7 @@ static SYSDEV_ATTR(removable, 0444, show_mem_removable, NULL);
 static ssize_t
 print_block_size(struct class *class, char *buf)
 {
-	return sprintf(buf, "%lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
+	return sprintf(buf, "%#lx\n", (unsigned long)PAGES_PER_SECTION * PAGE_SIZE);
 }
 
 static CLASS_ATTR(block_size_bytes, 0444, print_block_size, NULL);

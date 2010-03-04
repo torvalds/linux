@@ -318,15 +318,9 @@ static int qt202x_reset_phy(struct efx_nic *efx)
 	/* Wait 250ms for the PHY to complete bootup */
 	msleep(250);
 
-	/* Check that all the MMDs we expect are present and responding. We
-	 * expect faults on some if the link is down, but not on the PHY XS */
-	rc = efx_mdio_check_mmds(efx, QT202X_REQUIRED_DEVS, MDIO_DEVS_PHYXS);
-	if (rc < 0)
-		goto fail;
-
 	falcon_board(efx)->type->init_phy(efx);
 
-	return rc;
+	return 0;
 
  fail:
 	EFX_ERR(efx, "PHY reset timed out\n");

@@ -19,7 +19,9 @@
 #include <linux/list.h>
 #include <linux/module.h>
 
-#define CCID_MAX 255
+/* maximum value for a CCID (RFC 4340, 19.5) */
+#define CCID_MAX		255
+#define CCID_SLAB_NAME_LENGTH	32
 
 struct tcp_info;
 
@@ -49,6 +51,8 @@ struct ccid_operations {
 	const char		*ccid_name;
 	struct kmem_cache	*ccid_hc_rx_slab,
 				*ccid_hc_tx_slab;
+	char			ccid_hc_rx_slab_name[CCID_SLAB_NAME_LENGTH];
+	char			ccid_hc_tx_slab_name[CCID_SLAB_NAME_LENGTH];
 	__u32			ccid_hc_rx_obj_size,
 				ccid_hc_tx_obj_size;
 	/* Interface Routines */

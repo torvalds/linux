@@ -1316,19 +1316,11 @@ rqst_exp_parent(struct svc_rqst *rqstp, struct path *path)
 
 static struct svc_export *find_fsidzero_export(struct svc_rqst *rqstp)
 {
-	struct svc_export *exp;
 	u32 fsidv[2];
 
 	mk_fsid(FSID_NUM, fsidv, 0, 0, 0, NULL);
 
-	exp = rqst_exp_find(rqstp, FSID_NUM, fsidv);
-	/*
-	 * We shouldn't have accepting an nfsv4 request at all if we
-	 * don't have a pseudoexport!:
-	 */
-	if (IS_ERR(exp) && PTR_ERR(exp) == -ENOENT)
-		exp = ERR_PTR(-ESERVERFAULT);
-	return exp;
+	return rqst_exp_find(rqstp, FSID_NUM, fsidv);
 }
 
 /*

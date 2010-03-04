@@ -285,53 +285,50 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 			uint32_t flags, uint64_t phys)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_gpuobj **pgt;
-	unsigned psz, pfl, pages;
+	struct nouveau_gpuobj *pgt;
+	unsigned block;
+	int i;
 
-	if (virt >= dev_priv->vm_gart_base &&
-	    (virt + size) < (dev_priv->vm_gart_base + dev_priv->vm_gart_size)) {
-		psz = 12;
-		pgt = &dev_priv->gart_info.sg_ctxdma;
-		pfl = 0x21;
-		virt -= dev_priv->vm_gart_base;
-	} else
-	if (virt >= dev_priv->vm_vram_base &&
-	    (virt + size) < (dev_priv->vm_vram_base + dev_priv->vm_vram_size)) {
-		psz = 16;
-		pgt = dev_priv->vm_vram_pt;
-		pfl = 0x01;
-		virt -= dev_priv->vm_vram_base;
-	} else {
-		NV_ERROR(dev, "Invalid address: 0x%16llx-0x%16llx\n",
-			 virt, virt + size - 1);
-		return -EINVAL;
+	virt = ((virt - dev_priv->vm_vram_base) >> 16) << 1;
+	size = (size >> 16) << 1;
+
+	phys |= ((uint64_t)flags << 32);
+	phys |= 1;
+	if (dev_priv->vram_sys_base) {
+		phys += dev_priv->vram_sys_base;
+		phys |= 0x30;
 	}
 
-	pages = size >> psz;
-
 	dev_priv->engine.instmem.prepare_access(dev, true);
-	if (flags & 0x80000000) {
-		while (pages--) {
-			struct nouveau_gpuobj *pt = pgt[virt >> 29];
-			unsigned pte = ((virt & 0x1fffffffULL) >> psz) << 1;
+	while (size) {
+		unsigned offset_h = upper_32_bits(phys);
+		unsigned offset_l = lower_32_bits(phys);
+		unsigned pte, end;
 
-			nv_wo32(dev, pt, pte++, 0x00000000);
-			nv_wo32(dev, pt, pte++, 0x00000000);
-
-			virt += (1 << psz);
+		for (i = 7; i >= 0; i--) {
+			block = 1 << (i + 1);
+			if (size >= block && !(virt & (block - 1)))
+				break;
 		}
-	} else {
-		while (pages--) {
-			struct nouveau_gpuobj *pt = pgt[virt >> 29];
-			unsigned pte = ((virt & 0x1fffffffULL) >> psz) << 1;
-			unsigned offset_h = upper_32_bits(phys) & 0xff;
-			unsigned offset_l = lower_32_bits(phys);
+		offset_l |= (i << 7);
 
-			nv_wo32(dev, pt, pte++, offset_l | pfl);
-			nv_wo32(dev, pt, pte++, offset_h | flags);
+		phys += block << 15;
+		size -= block;
 
-			phys += (1 << psz);
-			virt += (1 << psz);
+		while (block) {
+			pgt = dev_priv->vm_vram_pt[virt >> 14];
+			pte = virt & 0x3ffe;
+
+			end = pte + block;
+			if (end > 16384)
+				end = 16384;
+			block -= (end - pte);
+			virt  += (end - pte);
+
+			while (pte < end) {
+				nv_wo32(dev, pgt, pte++, offset_l);
+				nv_wo32(dev, pgt, pte++, offset_h);
+			}
 		}
 	}
 	dev_priv->engine.instmem.finish_access(dev);
@@ -356,7 +353,41 @@ nv50_mem_vm_bind_linear(struct drm_device *dev, uint64_t virt, uint32_t size,
 void
 nv50_mem_vm_unbind(struct drm_device *dev, uint64_t virt, uint32_t size)
 {
-	nv50_mem_vm_bind_linear(dev, virt, size, 0x80000000, 0);
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_gpuobj *pgt;
+	unsigned pages, pte, end;
+
+	virt -= dev_priv->vm_vram_base;
+	pages = (size >> 16) << 1;
+
+	dev_priv->engine.instmem.prepare_access(dev, true);
+	while (pages) {
+		pgt = dev_priv->vm_vram_pt[virt >> 29];
+		pte = (virt & 0x1ffe0000ULL) >> 15;
+
+		end = pte + pages;
+		if (end > 16384)
+			end = 16384;
+		pages -= (end - pte);
+		virt  += (end - pte) << 15;
+
+		while (pte < end)
+			nv_wo32(dev, pgt, pte++, 0);
+	}
+	dev_priv->engine.instmem.finish_access(dev);
+
+	nv_wr32(dev, 0x100c80, 0x00050001);
+	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
+		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
+		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
+		return;
+	}
+
+	nv_wr32(dev, 0x100c80, 0x00000001);
+	if (!nv_wait(0x100c80, 0x00000001, 0x00000000)) {
+		NV_ERROR(dev, "timeout: (0x100c80 & 1) == 0 (2)\n");
+		NV_ERROR(dev, "0x100c80 = 0x%08x\n", nv_rd32(dev, 0x100c80));
+	}
 }
 
 /*
@@ -383,9 +414,8 @@ void nouveau_mem_close(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 
-	if (dev_priv->ttm.bdev.man[TTM_PL_PRIV0].has_type)
-		ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_PRIV0);
-	ttm_bo_clean_mm(&dev_priv->ttm.bdev, TTM_PL_VRAM);
+	nouveau_bo_unpin(dev_priv->vga_ram);
+	nouveau_bo_ref(NULL, &dev_priv->vga_ram);
 
 	ttm_bo_device_release(&dev_priv->ttm.bdev);
 
@@ -622,6 +652,15 @@ nouveau_mem_init(struct drm_device *dev)
 		return ret;
 	}
 
+	ret = nouveau_bo_new(dev, NULL, 256*1024, 0, TTM_PL_FLAG_VRAM,
+			     0, 0, true, true, &dev_priv->vga_ram);
+	if (ret == 0)
+		ret = nouveau_bo_pin(dev_priv->vga_ram, TTM_PL_FLAG_VRAM);
+	if (ret) {
+		NV_WARN(dev, "failed to reserve VGA memory\n");
+		nouveau_bo_ref(NULL, &dev_priv->vga_ram);
+	}
+
 	/* GART */
 #if !defined(__powerpc__) && !defined(__ia64__)
 	if (drm_device_is_agp(dev) && dev->agp) {
@@ -653,6 +692,7 @@ nouveau_mem_init(struct drm_device *dev)
 	dev_priv->fb_mtrr = drm_mtrr_add(drm_get_resource_start(dev, 1),
 					 drm_get_resource_len(dev, 1),
 					 DRM_MTRR_WC);
+
 	return 0;
 }
 
