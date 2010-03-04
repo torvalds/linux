@@ -51,3 +51,4 @@ obj-$(CONFIG_PCMCIA_NETWAVE)	+= netwave/
 obj-$(CONFIG_FB_SM7XX)		+= sm7xx/
 obj-$(CONFIG_DT3155)		+= dt3155/
 obj-$(CONFIG_CRYSTALHD)		+= crystalhd/
+obj-$(CONFIG_CXT1E1)		+= cxt1e1/
