@@ -319,6 +319,7 @@ void bfa_cb_lps_flogi_comp(void *bfad, void *uarg, bfa_status_t status);
 void bfa_cb_lps_flogo_comp(void *bfad, void *uarg);
 void bfa_cb_lps_fdisc_comp(void *bfad, void *uarg, bfa_status_t status);
 void bfa_cb_lps_fdisclogo_comp(void *bfad, void *uarg);
+void bfa_cb_lps_cvl_event(void *bfad, void *uarg);
 
 #endif /* __BFA_SVC_H__ */
 

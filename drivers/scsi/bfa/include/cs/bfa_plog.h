@@ -80,7 +80,8 @@ enum bfa_plog_mid {
 	BFA_PL_MID_HAL_FCXP 	= 4,
 	BFA_PL_MID_HAL_UF 	= 5,
 	BFA_PL_MID_FCS 		= 6,
-	BFA_PL_MID_MAX 		= 7
+	BFA_PL_MID_LPS		= 7,
+	BFA_PL_MID_MAX 		= 8
 };
 
 #define BFA_PL_MID_STRLEN    8
@@ -118,7 +119,11 @@ enum bfa_plog_eid {
 	BFA_PL_EID_RSCN 		= 17,
 	BFA_PL_EID_DEBUG 		= 18,
 	BFA_PL_EID_MISC 		= 19,
-	BFA_PL_EID_MAX 			= 20
+	BFA_PL_EID_FIP_FCF_DISC		= 20,
+	BFA_PL_EID_FIP_FCF_CVL		= 21,
+	BFA_PL_EID_LOGIN		= 22,
+	BFA_PL_EID_LOGO			= 23,
+	BFA_PL_EID_MAX			= 24
 };
 
 #define BFA_PL_ENAME_STRLEN    	8

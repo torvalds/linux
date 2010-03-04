@@ -888,4 +888,15 @@ bfa_cb_lps_fdisclogo_comp(void *bfad, void *uarg)
 	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_RSP_OK);
 }
 
+/**
+ * Received clear virtual link
+ */
+void
+bfa_cb_lps_cvl_event(void *bfad, void *uarg)
+{
+	struct bfa_fcs_vport_s *vport = uarg;
 
+	/* Send an Offline followed by an ONLINE */
+	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_OFFLINE);
+	bfa_sm_send_event(vport, BFA_FCS_VPORT_SM_ONLINE);
+}

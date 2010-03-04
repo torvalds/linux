@@ -49,7 +49,7 @@ static void bfa_lps_send_login(struct bfa_lps_s *lps);
 static void bfa_lps_send_logout(struct bfa_lps_s *lps);
 static void bfa_lps_login_comp(struct bfa_lps_s *lps);
 static void bfa_lps_logout_comp(struct bfa_lps_s *lps);
-
+static void bfa_lps_cvl_event(struct bfa_lps_s *lps);
 
 /**
  *  lps_pvt BFA LPS private functions
@@ -62,6 +62,7 @@ enum bfa_lps_event {
 	BFA_LPS_SM_RESUME	= 4,	/* space present in reqq queue	*/
 	BFA_LPS_SM_DELETE	= 5,	/* lps delete from user		*/
 	BFA_LPS_SM_OFFLINE	= 6,	/* Link is offline		*/
+	BFA_LPS_SM_RX_CVL       = 7,	/* Rx clear virtual link        */
 };
 
 static void bfa_lps_sm_init(struct bfa_lps_s *lps, enum bfa_lps_event event);
@@ -101,6 +102,7 @@ bfa_lps_sm_init(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		bfa_lps_free(lps);
 		break;
 
+	case BFA_LPS_SM_RX_CVL:
 	case BFA_LPS_SM_OFFLINE:
 		break;
 
@@ -162,6 +164,14 @@ bfa_lps_sm_loginwait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		bfa_reqq_wcancel(&lps->wqe);
 		break;
 
+	case BFA_LPS_SM_RX_CVL:
+		/*
+		 * Login was not even sent out; so when getting out
+		 * of this state, it will appear like a login retry
+		 * after Clear virtual link
+		 */
+		break;
+
 	default:
 		bfa_assert(0);
 	}
@@ -185,6 +195,15 @@ bfa_lps_sm_online(struct bfa_lps_s *lps, enum bfa_lps_event event)
 			bfa_sm_set_state(lps, bfa_lps_sm_logout);
 			bfa_lps_send_logout(lps);
 		}
+		break;
+
+	case BFA_LPS_SM_RX_CVL:
+		bfa_sm_set_state(lps, bfa_lps_sm_init);
+
+		/* Let the vport module know about this event */
+		bfa_lps_cvl_event(lps);
+		bfa_plog_str(lps->bfa->plog, BFA_PL_MID_LPS,
+			BFA_PL_EID_FIP_FCF_CVL, 0, "FCF Clear Virt. Link Rx");
 		break;
 
 	case BFA_LPS_SM_OFFLINE:
@@ -396,6 +415,20 @@ bfa_lps_logout_rsp(struct bfa_s *bfa, struct bfi_lps_logout_rsp_s *rsp)
 }
 
 /**
+ * Firmware received a Clear virtual link request (for FCoE)
+ */
+static void
+bfa_lps_rx_cvl_event(struct bfa_s *bfa, struct bfi_lps_cvl_event_s *cvl)
+{
+	struct bfa_lps_mod_s    *mod = BFA_LPS_MOD(bfa);
+	struct bfa_lps_s        *lps;
+
+	lps = BFA_LPS_FROM_TAG(mod, cvl->lp_tag);
+
+	bfa_sm_send_event(lps, BFA_LPS_SM_RX_CVL);
+}
+
+/**
  * Space is available in request queue, resume queueing request to firmware.
  */
 static void
@@ -531,7 +564,39 @@ bfa_lps_logout_comp(struct bfa_lps_s *lps)
 		bfa_cb_lps_flogo_comp(lps->bfa->bfad, lps->uarg);
 }
 
+/**
+ * Clear virtual link completion handler for non-fcs
+ */
+static void
+bfa_lps_cvl_event_cb(void *arg, bfa_boolean_t complete)
+{
+	struct bfa_lps_s *lps   = arg;
 
+	if (!complete)
+		return;
+
+	/* Clear virtual link to base port will result in link down */
+	if (lps->fdisc)
+		bfa_cb_lps_cvl_event(lps->bfa->bfad, lps->uarg);
+}
+
+/**
+ * Received Clear virtual link event --direct call for fcs,
+ * queue for others
+ */
+static void
+bfa_lps_cvl_event(struct bfa_lps_s *lps)
+{
+	if (!lps->bfa->fcs) {
+		bfa_cb_queue(lps->bfa, &lps->hcb_qe, bfa_lps_cvl_event_cb,
+				lps);
+		return;
+	}
+
+	/* Clear virtual link to base port will result in link down */
+	if (lps->fdisc)
+		bfa_cb_lps_cvl_event(lps->bfa->bfad, lps->uarg);
+}
 
 /**
  *  lps_public BFA LPS public functions
@@ -771,6 +836,10 @@ bfa_lps_isr(struct bfa_s *bfa, struct bfi_msg_s *m)
 
 	case BFI_LPS_H2I_LOGOUT_RSP:
 		bfa_lps_logout_rsp(bfa, msg.logout_rsp);
+		break;
+
+	case BFI_LPS_H2I_CVL_EVENT:
+		bfa_lps_rx_cvl_event(bfa, msg.cvl_event);
 		break;
 
 	default:
