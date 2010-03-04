@@ -690,13 +690,6 @@ free_client(struct nfs4_client *clp)
 	kfree(clp);
 }
 
-void
-put_nfs4_client(struct nfs4_client *clp)
-{
-	if (atomic_dec_and_test(&clp->cl_count))
-		free_client(clp);
-}
-
 static void
 expire_client(struct nfs4_client *clp)
 {
@@ -735,7 +728,7 @@ expire_client(struct nfs4_client *clp)
 	nfsd4_set_callback_client(clp, NULL);
 	if (clp->cl_cb_xprt)
 		svc_xprt_put(clp->cl_cb_xprt);
-	put_nfs4_client(clp);
+	free_client(clp);
 }
 
 static void copy_verf(struct nfs4_client *target, nfs4_verifier *source)
@@ -821,7 +814,6 @@ static struct nfs4_client *create_client(struct xdr_netobj name, char *recdir,
 	}
 
 	memcpy(clp->cl_recdir, recdir, HEXDIR_LEN);
-	atomic_set(&clp->cl_count, 1);
 	atomic_set(&clp->cl_cb_conn.cb_set, 0);
 	INIT_LIST_HEAD(&clp->cl_idhash);
 	INIT_LIST_HEAD(&clp->cl_strhash);
@@ -2010,7 +2002,6 @@ void nfsd_break_deleg_cb(struct file_lock *fl)
 	 * lock) we know the server hasn't removed the lease yet, we know
 	 * it's safe to take a reference: */
 	atomic_inc(&dp->dl_count);
-	atomic_inc(&dp->dl_client->cl_count);
 
 	spin_lock(&recall_lock);
 	list_add_tail(&dp->dl_recall_lru, &del_recall_lru);

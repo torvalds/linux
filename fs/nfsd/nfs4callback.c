@@ -681,10 +681,8 @@ static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 static void nfsd4_cb_recall_release(void *calldata)
 {
 	struct nfs4_delegation *dp = calldata;
-	struct nfs4_client *clp = dp->dl_client;
 
 	nfs4_put_delegation(dp);
-	put_nfs4_client(clp);
 }
 
 static const struct rpc_call_ops nfsd4_cb_recall_ops = {
@@ -746,10 +744,8 @@ static void _nfsd4_cb_recall(struct nfs4_delegation *dp)
 	dp->dl_retries = 1;
 	status = rpc_call_async(clnt, &msg, RPC_TASK_SOFT,
 				&nfsd4_cb_recall_ops, dp);
-	if (status) {
-		put_nfs4_client(clp);
+	if (status)
 		nfs4_put_delegation(dp);
-	}
 }
 
 void nfsd4_do_callback_rpc(struct work_struct *w)
