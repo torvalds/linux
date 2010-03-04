@@ -23,6 +23,9 @@ config RWSEM_XCHGADD_ALGORITHM
 config GENERIC_TIME
 	def_bool y
 
+config GENERIC_CMOS_UPDATE
+	def_bool y
+
 config ARCH_USES_GETTIMEOFFSET
 	def_bool y
 
