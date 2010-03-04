@@ -252,6 +252,7 @@ mext_insert_across_blocks(handle_t *handle, struct inode *orig_inode,
 		}
 
 		o_start->ee_len = start_ext->ee_len;
+		eblock = le32_to_cpu(start_ext->ee_block);
 		new_flag = 1;
 
 	} else if (start_ext->ee_len && new_ext->ee_len &&
@@ -262,6 +263,7 @@ mext_insert_across_blocks(handle_t *handle, struct inode *orig_inode,
 		 * orig  |------------------------------|
 		 */
 		o_start->ee_len = start_ext->ee_len;
+		eblock = le32_to_cpu(start_ext->ee_block);
 		new_flag = 1;
 
 	} else if (!start_ext->ee_len && new_ext->ee_len &&
@@ -502,6 +504,7 @@ mext_leaf_block(handle_t *handle, struct inode *orig_inode,
 		le32_to_cpu(oext->ee_block) + oext_alen) {
 		start_ext.ee_len = cpu_to_le16(le32_to_cpu(new_ext.ee_block) -
 					       le32_to_cpu(oext->ee_block));
+		start_ext.ee_block = oext->ee_block;
 		copy_extent_status(oext, &start_ext);
 	} else if (oext > EXT_FIRST_EXTENT(orig_path[depth].p_hdr)) {
 		prev_ext = oext - 1;
@@ -515,6 +518,7 @@ mext_leaf_block(handle_t *handle, struct inode *orig_inode,
 			start_ext.ee_len = cpu_to_le16(
 				ext4_ext_get_actual_len(prev_ext) +
 				new_ext_alen);
+			start_ext.ee_block = oext->ee_block;
 			copy_extent_status(prev_ext, &start_ext);
 			new_ext.ee_len = 0;
 		}
