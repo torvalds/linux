@@ -241,7 +241,7 @@ int ioat2_quiesce(struct ioat_chan_common *chan, unsigned long tmo)
 	if (is_ioat_active(status) || is_ioat_idle(status))
 		ioat_suspend(chan);
 	while (is_ioat_active(status) || is_ioat_idle(status)) {
-		if (end && time_after(jiffies, end)) {
+		if (tmo && time_after(jiffies, end)) {
 			err = -ETIMEDOUT;
 			break;
 		}
