@@ -64,15 +64,15 @@ static void xhci_hub_descriptor(struct xhci_hcd *xhci,
 static unsigned int xhci_port_speed(unsigned int port_status)
 {
 	if (DEV_LOWSPEED(port_status))
-		return 1 << USB_PORT_FEAT_LOWSPEED;
+		return USB_PORT_STAT_LOW_SPEED;
 	if (DEV_HIGHSPEED(port_status))
-		return 1 << USB_PORT_FEAT_HIGHSPEED;
+		return USB_PORT_STAT_HIGH_SPEED;
 	if (DEV_SUPERSPEED(port_status))
-		return 1 << USB_PORT_FEAT_SUPERSPEED;
+		return USB_PORT_STAT_SUPER_SPEED;
 	/*
 	 * FIXME: Yes, we should check for full speed, but the core uses that as
 	 * a default in portspeed() in usb/core/hub.c (which is the only place
-	 * USB_PORT_FEAT_*SPEED is used).
+	 * USB_PORT_STAT_*_SPEED is used).
 	 */
 	return 0;
 }

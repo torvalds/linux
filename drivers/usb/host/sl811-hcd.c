@@ -1121,7 +1121,7 @@ sl811h_timer(unsigned long _sl811)
 	u8		signaling = sl811->ctrl1 & SL11H_CTL1MASK_FORCE;
 	const u32	mask = (1 << USB_PORT_FEAT_CONNECTION)
 				| (1 << USB_PORT_FEAT_ENABLE)
-				| (1 << USB_PORT_FEAT_LOWSPEED);
+				| USB_PORT_STAT_LOW_SPEED;
 
 	spin_lock_irqsave(&sl811->lock, flags);
 
@@ -1162,7 +1162,7 @@ sl811h_timer(unsigned long _sl811)
 	} else {
 		sl811->port1 |= mask;
 		if (irqstat & SL11H_INTMASK_DP)
-			sl811->port1 &= ~(1 << USB_PORT_FEAT_LOWSPEED);
+			sl811->port1 &= ~USB_PORT_STAT_LOW_SPEED;
 		sl811->irq_enable = SL11H_INTMASK_INSRMV | SL11H_INTMASK_RD;
 	}
 
@@ -1173,7 +1173,7 @@ sl811h_timer(unsigned long _sl811)
 #ifdef USE_B
 		sl811->irq_enable |= SL11H_INTMASK_DONE_B;
 #endif
-		if (sl811->port1 & (1 << USB_PORT_FEAT_LOWSPEED)) {
+		if (sl811->port1 & USB_PORT_STAT_LOW_SPEED) {
 			sl811->ctrl1 |= SL11H_CTL1MASK_LSPD;
 			ctrl2 |= SL811HS_CTL2MASK_DSWAP;
 		}

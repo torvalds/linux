@@ -556,20 +556,20 @@ ehci_port_speed(struct ehci_hcd *ehci, unsigned int portsc)
 		case 0:
 			return 0;
 		case 1:
-			return (1<<USB_PORT_FEAT_LOWSPEED);
+			return USB_PORT_STAT_LOW_SPEED;
 		case 2:
 		default:
-			return (1<<USB_PORT_FEAT_HIGHSPEED);
+			return USB_PORT_STAT_HIGH_SPEED;
 		}
 	}
-	return (1<<USB_PORT_FEAT_HIGHSPEED);
+	return USB_PORT_STAT_HIGH_SPEED;
 }
 
 #else
 
 #define	ehci_is_TDI(e)			(0)
 
-#define	ehci_port_speed(ehci, portsc)	(1<<USB_PORT_FEAT_HIGHSPEED)
+#define	ehci_port_speed(ehci, portsc)	USB_PORT_STAT_HIGH_SPEED
 #endif
 
 /*-------------------------------------------------------------------------*/

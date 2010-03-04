@@ -47,11 +47,7 @@
 #define USB_PORT_FEAT_RESET		4
 #define USB_PORT_FEAT_L1		5	/* L1 suspend */
 #define USB_PORT_FEAT_POWER		8
-#define USB_PORT_FEAT_LOWSPEED		9
-/* This value was never in Table 11-17 */
-#define USB_PORT_FEAT_HIGHSPEED		10
-/* This value is also fake */
-#define USB_PORT_FEAT_SUPERSPEED	11
+#define USB_PORT_FEAT_LOWSPEED		9	/* Should never be used */
 #define USB_PORT_FEAT_C_CONNECTION	16
 #define USB_PORT_FEAT_C_ENABLE		17
 #define USB_PORT_FEAT_C_SUSPEND		18
@@ -87,6 +83,7 @@ struct usb_port_status {
 #define USB_PORT_STAT_TEST              0x0800
 #define USB_PORT_STAT_INDICATOR         0x1000
 /* bits 13 to 15 are reserved */
+#define USB_PORT_STAT_SUPER_SPEED	0x8000	/* Linux-internal */
 
 /*
  * wPortChange bit field

@@ -3153,10 +3153,10 @@ static inline unsigned int oxu_port_speed(struct oxu_hcd *oxu,
 	case 0:
 		return 0;
 	case 1:
-		return 1 << USB_PORT_FEAT_LOWSPEED;
+		return USB_PORT_STAT_LOW_SPEED;
 	case 2:
 	default:
-		return 1 << USB_PORT_FEAT_HIGHSPEED;
+		return USB_PORT_STAT_HIGH_SPEED;
 	}
 }
 

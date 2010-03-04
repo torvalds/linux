@@ -153,11 +153,11 @@ static int usb_reset_and_verify_device(struct usb_device *udev);
 
 static inline char *portspeed(int portstatus)
 {
-	if (portstatus & (1 << USB_PORT_FEAT_HIGHSPEED))
+	if (portstatus & USB_PORT_STAT_HIGH_SPEED)
     		return "480 Mb/s";
-	else if (portstatus & (1 << USB_PORT_FEAT_LOWSPEED))
+	else if (portstatus & USB_PORT_STAT_LOW_SPEED)
 		return "1.5 Mb/s";
-	else if (portstatus & (1 << USB_PORT_FEAT_SUPERSPEED))
+	else if (portstatus & USB_PORT_STAT_SUPER_SPEED)
 		return "5.0 Gb/s";
 	else
 		return "12 Mb/s";
@@ -3075,7 +3075,7 @@ static void hub_port_connect_change(struct usb_hub *hub, int port1,
 		if (!(hcd->driver->flags & HCD_USB3))
 			udev->speed = USB_SPEED_UNKNOWN;
 		else if ((hdev->parent == NULL) &&
-				(portstatus & (1 << USB_PORT_FEAT_SUPERSPEED)))
+				(portstatus & USB_PORT_STAT_SUPER_SPEED))
 			udev->speed = USB_SPEED_SUPER;
 		else
 			udev->speed = USB_SPEED_UNKNOWN;

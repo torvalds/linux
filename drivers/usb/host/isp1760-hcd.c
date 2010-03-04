@@ -111,7 +111,7 @@ struct isp1760_qh {
 	u32 ping;
 };
 
-#define ehci_port_speed(priv, portsc) (1 << USB_PORT_FEAT_HIGHSPEED)
+#define ehci_port_speed(priv, portsc) USB_PORT_STAT_HIGH_SPEED
 
 static unsigned int isp1760_readl(__u32 __iomem *regs)
 {

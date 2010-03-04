@@ -1059,12 +1059,11 @@ static void r8a66597_usb_connect(struct r8a66597 *r8a66597, int port)
 	u16 speed = get_rh_usb_speed(r8a66597, port);
 	struct r8a66597_root_hub *rh = &r8a66597->root_hub[port];
 
-	rh->port &= ~((1 << USB_PORT_FEAT_HIGHSPEED) |
-		      (1 << USB_PORT_FEAT_LOWSPEED));
+	rh->port &= ~(USB_PORT_STAT_HIGH_SPEED | USB_PORT_STAT_LOW_SPEED);
 	if (speed == HSMODE)
-		rh->port |= (1 << USB_PORT_FEAT_HIGHSPEED);
+		rh->port |= USB_PORT_STAT_HIGH_SPEED;
 	else if (speed == LSMODE)
-		rh->port |= (1 << USB_PORT_FEAT_LOWSPEED);
+		rh->port |= USB_PORT_STAT_LOW_SPEED;
 
 	rh->port &= ~(1 << USB_PORT_FEAT_RESET);
 	rh->port |= 1 << USB_PORT_FEAT_ENABLE;
