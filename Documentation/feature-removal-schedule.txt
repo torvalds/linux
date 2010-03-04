@@ -377,16 +377,6 @@ Who:	Eric Paris <eparis@redhat.com>
 
 ----------------------------
 
-What:	lock_policy_rwsem_* and unlock_policy_rwsem_* will not be
-	exported interface anymore.
-When:	2.6.33
-Why:	cpu_policy_rwsem has a new cleaner definition making it local to
-	cpufreq core and contained inside cpufreq.c. Other dependent
-	drivers should not use it in order to safely avoid lockdep issues.
-Who:	Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
-
-----------------------------
-
 What:	sound-slot/service-* module aliases and related clutters in
 	sound/sound_core.c
 When:	August 2010
