@@ -72,7 +72,7 @@ config ARCH_USES_GETTIMEOFFSET
 
 config GENERIC_CMOS_UPDATE
 	bool
-	default y if SPARC64
+	default y
 
 config GENERIC_CLOCKEVENTS
 	bool
