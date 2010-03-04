@@ -253,9 +253,7 @@ struct inode *v9fs_get_inode(struct super_block *sb, int mode)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	inode->i_mode = mode;
-	inode->i_uid = current_fsuid();
-	inode->i_gid = current_fsgid();
+	inode_init_owner(inode, NULL, mode);
 	inode->i_blocks = 0;
 	inode->i_rdev = 0;
 	inode->i_atime = inode->i_mtime = inode->i_ctime = CURRENT_TIME;
