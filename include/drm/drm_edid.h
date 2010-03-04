@@ -201,4 +201,7 @@ struct edid {
 
 #define EDID_PRODUCT_ID(e) ((e)->prod_code[0] | ((e)->prod_code[1] << 8))
 
+/* define the number of Extension EDID block */
+#define DRM_MAX_EDID_EXT_NUM 4
+
 #endif /* __DRM_EDID_H__ */

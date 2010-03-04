@@ -16,3 +16,14 @@ config VGA_ARB_MAX_GPUS
 	help
 	  Reserves space in the kernel to maintain resource locking for
 	  multiple GPUS.  The overhead for each GPU is very small.
+
+config VGA_SWITCHEROO
+	bool "Laptop Hybrid Grapics - GPU switching support"
+	depends on X86
+	depends on ACPI
+	help
+	  Many laptops released in 2008/9/10 have two gpus with a multiplxer
+	  to switch between them. This adds support for dynamic switching when
+          X isn't running and delayed switching until the next logoff. This
+	  features is called hybrid graphics, ATI PowerXpress, and Nvidia
+	  HybridPower.

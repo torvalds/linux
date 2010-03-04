@@ -118,7 +118,7 @@ nv04_fbcon_imageblit(struct fb_info *info, const struct fb_image *image)
 		return;
 	}
 
-	width = (image->width + 31) & ~31;
+	width = ALIGN(image->width, 32);
 	dsize = (width * image->height) >> 5;
 
 	if (info->fix.visual == FB_VISUAL_TRUECOLOR ||

@@ -113,6 +113,7 @@ int rs400_gart_enable(struct radeon_device *rdev)
 	uint32_t size_reg;
 	uint32_t tmp;
 
+	radeon_gart_restore(rdev);
 	tmp = RREG32_MC(RS690_AIC_CTRL_SCRATCH);
 	tmp |= RS690_DIS_OUT_OF_PCI_GART_ACCESS;
 	WREG32_MC(RS690_AIC_CTRL_SCRATCH, tmp);
@@ -150,9 +151,8 @@ int rs400_gart_enable(struct radeon_device *rdev)
 		WREG32(RADEON_AGP_BASE, 0xFFFFFFFF);
 		WREG32(RS480_AGP_BASE_2, 0);
 	}
-	tmp = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
-	tmp = REG_SET(RS690_MC_AGP_TOP, tmp >> 16);
-	tmp |= REG_SET(RS690_MC_AGP_START, rdev->mc.gtt_location >> 16);
+	tmp = REG_SET(RS690_MC_AGP_TOP, rdev->mc.gtt_end >> 16);
+	tmp |= REG_SET(RS690_MC_AGP_START, rdev->mc.gtt_start >> 16);
 	if ((rdev->family == CHIP_RS690) || (rdev->family == CHIP_RS740)) {
 		WREG32_MC(RS690_MCCFG_AGP_LOCATION, tmp);
 		tmp = RREG32(RADEON_BUS_CNTL) & ~RS600_BUS_MASTER_DIS;
@@ -251,14 +251,19 @@ void rs400_gpu_init(struct radeon_device *rdev)
 	}
 }
 
-void rs400_vram_info(struct radeon_device *rdev)
+void rs400_mc_init(struct radeon_device *rdev)
 {
+	u64 base;
+
 	rs400_gart_adjust_size(rdev);
+	rdev->mc.igp_sideport_enabled = radeon_combios_sideport_present(rdev);
 	/* DDR for all card after R300 & IGP */
 	rdev->mc.vram_is_ddr = true;
 	rdev->mc.vram_width = 128;
-
 	r100_vram_init_sizes(rdev);
+	base = (RREG32(RADEON_NB_TOM) & 0xffff) << 16;
+	radeon_vram_location(rdev, &rdev->mc, base);
+	radeon_gtt_location(rdev, &rdev->mc);
 }
 
 uint32_t rs400_mc_rreg(struct radeon_device *rdev, uint32_t reg)
@@ -360,22 +365,6 @@ static int rs400_debugfs_pcie_gart_info_init(struct radeon_device *rdev)
 #else
 	return 0;
 #endif
-}
-
-static int rs400_mc_init(struct radeon_device *rdev)
-{
-	int r;
-	u32 tmp;
-
-	/* Setup GPU memory space */
-	tmp = RREG32(R_00015C_NB_TOM);
-	rdev->mc.vram_location = G_00015C_MC_FB_START(tmp) << 16;
-	rdev->mc.gtt_location = 0xFFFFFFFFUL;
-	r = radeon_mc_setup(rdev);
-	rdev->mc.igp_sideport_enabled = radeon_combios_sideport_present(rdev);
-	if (r)
-		return r;
-	return 0;
 }
 
 void rs400_mc_program(struct radeon_device *rdev)
@@ -516,12 +505,8 @@ int rs400_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
 	radeon_pm_init(rdev);
-	/* Get vram informations */
-	rs400_vram_info(rdev);
-	/* Initialize memory controller (also test AGP) */
-	r = rs400_mc_init(rdev);
-	if (r)
-		return r;
+	/* initialize memory controller */
+	rs400_mc_init(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);
 	if (r)

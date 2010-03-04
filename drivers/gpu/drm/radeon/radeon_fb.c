@@ -39,6 +39,8 @@
 
 #include "drm_fb_helper.h"
 
+#include <linux/vga_switcheroo.h>
+
 struct radeon_fb_device {
 	struct drm_fb_helper helper;
 	struct radeon_framebuffer	*rfb;
@@ -148,7 +150,6 @@ int radeonfb_create(struct drm_device *dev,
 	unsigned long tmp;
 	bool fb_tiled = false; /* useful for testing */
 	u32 tiling_flags = 0;
-	int crtc_count;
 
 	mode_cmd.width = surface_width;
 	mode_cmd.height = surface_height;
@@ -239,11 +240,7 @@ int radeonfb_create(struct drm_device *dev,
 	rfbdev = info->par;
 	rfbdev->helper.funcs = &radeon_fb_helper_funcs;
 	rfbdev->helper.dev = dev;
-	if (rdev->flags & RADEON_SINGLE_CRTC)
-		crtc_count = 1;
-	else
-		crtc_count = 2;
-	ret = drm_fb_helper_init_crtc_count(&rfbdev->helper, crtc_count,
+	ret = drm_fb_helper_init_crtc_count(&rfbdev->helper, rdev->num_crtc,
 					    RADEONFB_CONN_LIMIT);
 	if (ret)
 		goto out_unref;
@@ -257,7 +254,7 @@ int radeonfb_create(struct drm_device *dev,
 	info->flags = FBINFO_DEFAULT;
 	info->fbops = &radeonfb_ops;
 
-	tmp = fb_gpuaddr - rdev->mc.vram_location;
+	tmp = fb_gpuaddr - rdev->mc.vram_start;
 	info->fix.smem_start = rdev->mc.aper_base + tmp;
 	info->fix.smem_len = size;
 	info->screen_base = fbptr;
@@ -291,6 +288,7 @@ int radeonfb_create(struct drm_device *dev,
 	rfbdev->rdev = rdev;
 
 	mutex_unlock(&rdev->ddev->struct_mutex);
+	vga_switcheroo_client_fb_set(rdev->ddev->pdev, info);
 	return 0;
 
 out_unref:
