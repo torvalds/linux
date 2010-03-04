@@ -18,6 +18,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/*
+ * This machine is known as:
+ *  - i.MX35 3-Stack Development System
+ *  - i.MX35 Platform Development Kit (i.MX35 PDK)
+ */
+
 #include <linux/types.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
