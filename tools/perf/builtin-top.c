@@ -410,6 +410,7 @@ static double sym_weight(const struct sym_entry *sym)
 
 static long			samples;
 static long			userspace_samples;
+static long			exact_samples;
 static const char		CONSOLE_CLEAR[] = "[H[2J";
 
 static void __list_insert_active_sym(struct sym_entry *syme)
@@ -450,6 +451,7 @@ static void print_sym_table(void)
 	int counter, snap = !display_weighted ? sym_counter : 0;
 	float samples_per_sec = samples/delay_secs;
 	float ksamples_per_sec = (samples-userspace_samples)/delay_secs;
+	float esamples_percent = (100.0*exact_samples)/samples;
 	float sum_ksamples = 0.0;
 	struct sym_entry *syme, *n;
 	struct rb_root tmp = RB_ROOT;
@@ -457,7 +459,7 @@ static void print_sym_table(void)
 	int sym_width = 0, dso_width = 0, max_dso_width;
 	const int win_width = winsize.ws_col - 1;
 
-	samples = userspace_samples = 0;
+	samples = userspace_samples = exact_samples = 0;
 
 	/* Sort the active symbols */
 	pthread_mutex_lock(&active_symbols_lock);
@@ -488,9 +490,10 @@ static void print_sym_table(void)
 	puts(CONSOLE_CLEAR);
 
 	printf("%-*.*s\n", win_width, win_width, graph_dotted_line);
-	printf( "   PerfTop:%8.0f irqs/sec  kernel:%4.1f%% [",
+	printf( "   PerfTop:%8.0f irqs/sec  kernel:%4.1f%%  exact: %4.1f%% [",
 		samples_per_sec,
-		100.0 - (100.0*((samples_per_sec-ksamples_per_sec)/samples_per_sec)));
+		100.0 - (100.0*((samples_per_sec-ksamples_per_sec)/samples_per_sec)),
+		esamples_percent);
 
 	if (nr_counters == 1 || !display_weighted) {
 		printf("%Ld", (u64)attrs[0].sample_period);
@@ -953,6 +956,9 @@ static void event__process_sample(const event_t *self,
 	default:
 		return;
 	}
+
+	if (self->header.misc & PERF_RECORD_MISC_EXACT)
+		exact_samples++;
 
 	if (event__preprocess_sample(self, session, &al, symbol_filter) < 0 ||
 	    al.filtered)
