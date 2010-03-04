@@ -138,7 +138,7 @@ typedef struct ext4_io_end {
 	struct list_head	list;		/* per-file finished AIO list */
 	struct inode		*inode;		/* file being written to */
 	unsigned int		flag;		/* unwritten or not */
-	int			error;		/* I/O error code */
+	struct page		*page;		/* page struct for buffer write */
 	loff_t			offset;		/* offset in the file */
 	ssize_t			size;		/* size of the extent */
 	struct work_struct	work;		/* data work queue */
@@ -361,7 +361,7 @@ struct ext4_new_group_data {
 					 EXT4_GET_BLOCKS_CREATE_UNINIT_EXT)
 	/* Convert extent to initialized after IO complete */
 #define EXT4_GET_BLOCKS_IO_CONVERT_EXT		(EXT4_GET_BLOCKS_CONVERT|\
-					 EXT4_GET_BLOCKS_IO_CREATE_EXT)
+					 EXT4_GET_BLOCKS_CREATE_UNINIT_EXT)
 
 /*
  * Flags used by ext4_free_blocks
@@ -702,6 +702,7 @@ struct ext4_inode_info {
 
 	/* completed IOs that might need unwritten extents handling */
 	struct list_head i_completed_io_list;
+	spinlock_t i_completed_io_lock;
 	/* current io_end structure for async DIO write*/
 	ext4_io_end_t *cur_aio_dio;
 
@@ -752,6 +753,7 @@ struct ext4_inode_info {
 #define EXT4_MOUNT_QUOTA		0x80000 /* Some quota option set */
 #define EXT4_MOUNT_USRQUOTA		0x100000 /* "old" user quota */
 #define EXT4_MOUNT_GRPQUOTA		0x200000 /* "old" group quota */
+#define EXT4_MOUNT_DIOREAD_NOLOCK	0x400000 /* Enable support for dio read nolocking */
 #define EXT4_MOUNT_JOURNAL_CHECKSUM	0x800000 /* Journal checksums */
 #define EXT4_MOUNT_JOURNAL_ASYNC_COMMIT	0x1000000 /* Journal Async Commit */
 #define EXT4_MOUNT_I_VERSION            0x2000000 /* i_version support */
@@ -1780,6 +1782,15 @@ extern int ext4_move_extents(struct file *o_filp, struct file *d_filp,
 			     __u64 start_orig, __u64 start_donor,
 			     __u64 len, __u64 *moved_len);
 
+
+/* BH_Uninit flag: blocks are allocated but uninitialized on disk */
+enum ext4_state_bits {
+	BH_Uninit	/* blocks are allocated but uninitialized on disk */
+	  = BH_JBDPrivateStart,
+};
+
+BUFFER_FNS(Uninit, uninit)
+TAS_BUFFER_FNS(Uninit, uninit)
 
 /*
  * Add new method to test wether block and inode bitmaps are properly

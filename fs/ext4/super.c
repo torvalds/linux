@@ -709,6 +709,7 @@ static struct inode *ext4_alloc_inode(struct super_block *sb)
 	ei->i_reserved_quota = 0;
 #endif
 	INIT_LIST_HEAD(&ei->i_completed_io_list);
+	spin_lock_init(&ei->i_completed_io_lock);
 	ei->cur_aio_dio = NULL;
 	ei->i_sync_tid = 0;
 	ei->i_datasync_tid = 0;
@@ -926,6 +927,9 @@ static int ext4_show_options(struct seq_file *seq, struct vfsmount *vfs)
 	if (test_opt(sb, NOLOAD))
 		seq_puts(seq, ",norecovery");
 
+	if (test_opt(sb, DIOREAD_NOLOCK))
+		seq_puts(seq, ",dioread_nolock");
+
 	ext4_show_quota_options(seq, sb);
 
 	return 0;
@@ -1109,6 +1113,7 @@ enum {
 	Opt_stripe, Opt_delalloc, Opt_nodelalloc,
 	Opt_block_validity, Opt_noblock_validity,
 	Opt_inode_readahead_blks, Opt_journal_ioprio,
+	Opt_dioread_nolock, Opt_dioread_lock,
 	Opt_discard, Opt_nodiscard,
 };
 
@@ -1176,6 +1181,8 @@ static const match_table_t tokens = {
 	{Opt_auto_da_alloc, "auto_da_alloc=%u"},
 	{Opt_auto_da_alloc, "auto_da_alloc"},
 	{Opt_noauto_da_alloc, "noauto_da_alloc"},
+	{Opt_dioread_nolock, "dioread_nolock"},
+	{Opt_dioread_lock, "dioread_lock"},
 	{Opt_discard, "discard"},
 	{Opt_nodiscard, "nodiscard"},
 	{Opt_err, NULL},
@@ -1639,6 +1646,12 @@ set_qf_format:
 			break;
 		case Opt_nodiscard:
 			clear_opt(sbi->s_mount_opt, DISCARD);
+			break;
+		case Opt_dioread_nolock:
+			set_opt(sbi->s_mount_opt, DIOREAD_NOLOCK);
+			break;
+		case Opt_dioread_lock:
+			clear_opt(sbi->s_mount_opt, DIOREAD_NOLOCK);
 			break;
 		default:
 			ext4_msg(sb, KERN_ERR,
@@ -2795,7 +2808,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	      EXT4_HAS_INCOMPAT_FEATURE(sb, EXT4_FEATURE_INCOMPAT_RECOVER)) {
 		ext4_msg(sb, KERN_ERR, "required journal recovery "
 		       "suppressed and not mounted read-only");
-		goto failed_mount4;
+		goto failed_mount_wq;
 	} else {
 		clear_opt(sbi->s_mount_opt, DATA_FLAGS);
 		set_opt(sbi->s_mount_opt, WRITEBACK_DATA);
@@ -2808,7 +2821,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	    !jbd2_journal_set_features(EXT4_SB(sb)->s_journal, 0, 0,
 				       JBD2_FEATURE_INCOMPAT_64BIT)) {
 		ext4_msg(sb, KERN_ERR, "Failed to set 64-bit journal feature");
-		goto failed_mount4;
+		goto failed_mount_wq;
 	}
 
 	if (test_opt(sb, JOURNAL_ASYNC_COMMIT)) {
@@ -2847,7 +2860,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 		    (sbi->s_journal, 0, 0, JBD2_FEATURE_INCOMPAT_REVOKE)) {
 			ext4_msg(sb, KERN_ERR, "Journal does not support "
 			       "requested data journaling mode");
-			goto failed_mount4;
+			goto failed_mount_wq;
 		}
 	default:
 		break;
@@ -2855,12 +2868,16 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 	set_task_ioprio(sbi->s_journal->j_task, journal_ioprio);
 
 no_journal:
-
 	if (test_opt(sb, NOBH)) {
 		if (!(test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_WRITEBACK_DATA)) {
 			ext4_msg(sb, KERN_WARNING, "Ignoring nobh option - "
 				"its supported only with writeback mode");
 			clear_opt(sbi->s_mount_opt, NOBH);
+		}
+		if (test_opt(sb, DIOREAD_NOLOCK)) {
+			ext4_msg(sb, KERN_WARNING, "dioread_nolock option is "
+				"not supported with nobh mode");
+			goto failed_mount_wq;
 		}
 	}
 	EXT4_SB(sb)->dio_unwritten_wq = create_workqueue("ext4-dio-unwritten");
@@ -2925,6 +2942,18 @@ no_journal:
 		ext4_msg(sb, KERN_WARNING, "Ignoring delalloc option - "
 			 "requested data journaling mode");
 		clear_opt(sbi->s_mount_opt, DELALLOC);
+	}
+	if (test_opt(sb, DIOREAD_NOLOCK)) {
+		if (test_opt(sb, DATA_FLAGS) == EXT4_MOUNT_JOURNAL_DATA) {
+			ext4_msg(sb, KERN_WARNING, "Ignoring dioread_nolock "
+				"option - requested data journaling mode");
+			clear_opt(sbi->s_mount_opt, DIOREAD_NOLOCK);
+		}
+		if (sb->s_blocksize < PAGE_SIZE) {
+			ext4_msg(sb, KERN_WARNING, "Ignoring dioread_nolock "
+				"option - block size is too small");
+			clear_opt(sbi->s_mount_opt, DIOREAD_NOLOCK);
+		}
 	}
 
 	err = ext4_setup_system_zone(sb);

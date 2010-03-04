@@ -1619,7 +1619,7 @@ int ext4_ext_insert_extent(handle_t *handle, struct inode *inode,
 	BUG_ON(path[depth].p_hdr == NULL);
 
 	/* try to insert block into found extent and return */
-	if (ex && (flag != EXT4_GET_BLOCKS_PRE_IO)
+	if (ex && !(flag & EXT4_GET_BLOCKS_PRE_IO)
 		&& ext4_can_extents_be_merged(inode, ex, newext)) {
 		ext_debug("append [%d]%d block to %d:[%d]%d (from %llu)\n",
 				ext4_ext_is_uninitialized(newext),
@@ -1740,7 +1740,7 @@ has_space:
 
 merge:
 	/* try to merge extents to the right */
-	if (flag != EXT4_GET_BLOCKS_PRE_IO)
+	if (!(flag & EXT4_GET_BLOCKS_PRE_IO))
 		ext4_ext_try_to_merge(inode, path, nearex);
 
 	/* try to merge extents to the left */
@@ -3065,7 +3065,7 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 	ext4_ext_show_leaf(inode, path);
 
 	/* get_block() before submit the IO, split the extent */
-	if (flags == EXT4_GET_BLOCKS_PRE_IO) {
+	if ((flags & EXT4_GET_BLOCKS_PRE_IO)) {
 		ret = ext4_split_unwritten_extents(handle,
 						inode, path, iblock,
 						max_blocks, flags);
@@ -3078,10 +3078,12 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 			io->flag = EXT4_IO_UNWRITTEN;
 		else
 			ext4_set_inode_state(inode, EXT4_STATE_DIO_UNWRITTEN);
+		if (ext4_should_dioread_nolock(inode))
+			set_buffer_uninit(bh_result);
 		goto out;
 	}
 	/* IO end_io complete, convert the filled extent to written */
-	if (flags == EXT4_GET_BLOCKS_CONVERT) {
+	if ((flags & EXT4_GET_BLOCKS_CONVERT)) {
 		ret = ext4_convert_unwritten_extents_endio(handle, inode,
 							path);
 		if (ret >= 0)
@@ -3351,21 +3353,21 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	if (flags & EXT4_GET_BLOCKS_UNINIT_EXT){
 		ext4_ext_mark_uninitialized(&newex);
 		/*
-		 * io_end structure was created for every async
-		 * direct IO write to the middle of the file.
-		 * To avoid unecessary convertion for every aio dio rewrite
-		 * to the mid of file, here we flag the IO that is really
-		 * need the convertion.
+		 * io_end structure was created for every IO write to an
+		 * uninitialized extent. To avoid unecessary conversion,
+		 * here we flag the IO that really needs the conversion.
 		 * For non asycn direct IO case, flag the inode state
 		 * that we need to perform convertion when IO is done.
 		 */
-		if (flags == EXT4_GET_BLOCKS_PRE_IO) {
+		if ((flags & EXT4_GET_BLOCKS_PRE_IO)) {
 			if (io)
 				io->flag = EXT4_IO_UNWRITTEN;
 			else
 				ext4_set_inode_state(inode,
 						     EXT4_STATE_DIO_UNWRITTEN);
 		}
+		if (ext4_should_dioread_nolock(inode))
+			set_buffer_uninit(bh_result);
 	}
 
 	if (unlikely(EXT4_I(inode)->i_flags & EXT4_EOFBLOCKS_FL)) {
