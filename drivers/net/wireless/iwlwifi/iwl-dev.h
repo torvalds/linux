@@ -1300,6 +1300,11 @@ struct iwl_priv {
 			int ict_index;
 			u32 inta;
 			bool use_ict;
+			/*
+			 * reporting the number of tids has AGG on. 0 means
+			 * no AGGREGATION
+			 */
+			u8 agg_tids_count;
 		} _agn;
 #endif
 	};
