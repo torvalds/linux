@@ -279,6 +279,7 @@ static struct iwl_lib_ops iwl6000_lib = {
 	 },
 	.add_bcast_station = iwl_add_bcast_station,
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
+	.recover_from_statistics = iwl_recover_from_statistics,
 };
 
 static const struct iwl_ops iwl6000_ops = {
@@ -345,6 +346,7 @@ static struct iwl_lib_ops iwl6050_lib = {
 	 },
 	.add_bcast_station = iwl_add_bcast_station,
 	.recover_from_tx_stall = iwl_bg_monitor_recover,
+	.recover_from_statistics = iwl_recover_from_statistics,
 };
 
 static const struct iwl_ops iwl6050_ops = {

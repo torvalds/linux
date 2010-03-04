@@ -617,28 +617,18 @@ static void iwl_accumulative_statistics(struct iwl_priv *priv,
 #define REG_RECALIB_PERIOD (60)
 
 #define PLCP_MSG "plcp_err exceeded %u, %u, %u, %u, %u, %d, %u mSecs\n"
-void iwl_rx_statistics(struct iwl_priv *priv,
-			      struct iwl_rx_mem_buffer *rxb)
+/*
+ * This function checks for plcp error.
+ * - When the plcp error is exceeding the thresholds, it will reset the radio
+ * to improve the throughput.
+ */
+void iwl_recover_from_statistics(struct iwl_priv *priv,
+				   struct iwl_rx_packet *pkt)
 {
-	int change;
-	struct iwl_rx_packet *pkt = rxb_addr(rxb);
 	int combined_plcp_delta;
 	unsigned int plcp_msec;
 	unsigned long plcp_received_jiffies;
 
-	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
-		     (int)sizeof(priv->statistics),
-		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
-
-	change = ((priv->statistics.general.temperature !=
-		   pkt->u.stats.general.temperature) ||
-		  ((priv->statistics.flag &
-		    STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
-		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
-
-#ifdef CONFIG_IWLWIFI_DEBUG
-	iwl_accumulative_statistics(priv, (__le32 *)&pkt->u.stats);
-#endif
 	/*
 	 * check for plcp_err and trigger radio reset if it exceeds
 	 * the plcp error threshold plcp_delta.
@@ -659,11 +649,11 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 			le32_to_cpu(priv->statistics.rx.ofdm_ht.plcp_err));
 
 		if ((combined_plcp_delta > 0) &&
-			((combined_plcp_delta * 100) / plcp_msec) >
+		    ((combined_plcp_delta * 100) / plcp_msec) >
 			priv->cfg->plcp_delta_threshold) {
 			/*
-			 * if plcp_err exceed the threshold, the following
-			 * data is printed in csv format:
+			 * if plcp_err exceed the threshold,
+			 * the following data is printed in csv format:
 			 *    Text: plcp_err exceeded %d,
 			 *    Received ofdm.plcp_err,
 			 *    Current ofdm.plcp_err,
@@ -678,9 +668,8 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 				le32_to_cpu(priv->statistics.rx.ofdm.plcp_err),
 				le32_to_cpu(pkt->u.stats.rx.ofdm_ht.plcp_err),
 				le32_to_cpu(
-					priv->statistics.rx.ofdm_ht.plcp_err),
+				  priv->statistics.rx.ofdm_ht.plcp_err),
 				combined_plcp_delta, plcp_msec);
-
 			/*
 			 * Reset the RF radio due to the high plcp
 			 * error rate
@@ -688,6 +677,31 @@ void iwl_rx_statistics(struct iwl_priv *priv,
 			iwl_force_reset(priv, IWL_RF_RESET);
 		}
 	}
+}
+EXPORT_SYMBOL(iwl_recover_from_statistics);
+
+void iwl_rx_statistics(struct iwl_priv *priv,
+			      struct iwl_rx_mem_buffer *rxb)
+{
+	int change;
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+
+
+	IWL_DEBUG_RX(priv, "Statistics notification received (%d vs %d).\n",
+		     (int)sizeof(priv->statistics),
+		     le32_to_cpu(pkt->len_n_flags) & FH_RSCSR_FRAME_SIZE_MSK);
+
+	change = ((priv->statistics.general.temperature !=
+		   pkt->u.stats.general.temperature) ||
+		  ((priv->statistics.flag &
+		    STATISTICS_REPLY_FLG_HT40_MODE_MSK) !=
+		   (pkt->u.stats.flag & STATISTICS_REPLY_FLG_HT40_MODE_MSK)));
+
+#ifdef CONFIG_IWLWIFI_DEBUG
+	iwl_accumulative_statistics(priv, (__le32 *)&pkt->u.stats);
+#endif
+	if (priv->cfg->ops->lib->recover_from_statistics)
+		priv->cfg->ops->lib->recover_from_statistics(priv, pkt);
 
 	memcpy(&priv->statistics, &pkt->u.stats, sizeof(priv->statistics));
 
