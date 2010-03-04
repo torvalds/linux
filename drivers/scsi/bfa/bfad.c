@@ -53,6 +53,7 @@ static int      log_level = BFA_LOG_WARNING;
 static int      ioc_auto_recover = BFA_TRUE;
 static int      ipfc_enable = BFA_FALSE;
 static int      ipfc_mtu = -1;
+static int	fdmi_enable = BFA_TRUE;
 int 		bfa_lun_queue_depth = BFAD_LUN_QUEUE_DEPTH;
 int      	bfa_linkup_delay = -1;
 
@@ -74,6 +75,7 @@ module_param(log_level, int, S_IRUGO | S_IWUSR);
 module_param(ioc_auto_recover, int, S_IRUGO | S_IWUSR);
 module_param(ipfc_enable, int, S_IRUGO | S_IWUSR);
 module_param(ipfc_mtu, int, S_IRUGO | S_IWUSR);
+module_param(fdmi_enable, int, S_IRUGO | S_IWUSR);
 module_param(bfa_linkup_delay, int, S_IRUGO | S_IWUSR);
 
 /*
@@ -748,6 +750,7 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfa_fcs_aen_init(&bfad->bfa_fcs, bfad->aen);
 	bfa_fcs_init(&bfad->bfa_fcs, &bfad->bfa, bfad, BFA_FALSE);
 	bfa_fcs_driver_info_init(&bfad->bfa_fcs, &driver_info);
+	bfa_fcs_set_fdmi_param(&bfad->bfa_fcs, fdmi_enable);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	bfad->bfad_flags |= BFAD_DRV_INIT_DONE;

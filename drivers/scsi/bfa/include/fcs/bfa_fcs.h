@@ -49,6 +49,7 @@ struct bfa_fcs_s {
 	struct bfa_trc_mod_s  *trcmod;	/*  tracing module */
 	struct bfa_aen_s      *aen;	/*  aen component */
 	bfa_boolean_t   vf_enabled;	/*  VF mode is enabled */
+	bfa_boolean_t   fdmi_enabled;   /*!< FDMI is enabled */
 	bfa_boolean_t min_cfg;		/* min cfg enabled/disabled */
 	u16        port_vfid;	/*  port default VF ID */
 	struct bfa_fcs_driver_info_s driver_info;
@@ -64,6 +65,7 @@ void bfa_fcs_init(struct bfa_fcs_s *fcs, struct bfa_s *bfa, struct bfad_s *bfad,
 			bfa_boolean_t min_cfg);
 void bfa_fcs_driver_info_init(struct bfa_fcs_s *fcs,
 			struct bfa_fcs_driver_info_s *driver_info);
+void bfa_fcs_set_fdmi_param(struct bfa_fcs_s *fcs, bfa_boolean_t fdmi_enable);
 void bfa_fcs_exit(struct bfa_fcs_s *fcs);
 void bfa_fcs_trc_init(struct bfa_fcs_s *fcs, struct bfa_trc_mod_s *trcmod);
 void bfa_fcs_log_init(struct bfa_fcs_s *fcs, struct bfa_log_mod_s *logmod);

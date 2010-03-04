@@ -127,6 +127,23 @@ bfa_fcs_driver_info_init(struct bfa_fcs_s *fcs,
 }
 
 /**
+ *      @brief
+ *              FCS FDMI Driver Parameter Initialization
+ *
+ *      @param[in]              fcs             FCS instance
+ *      @param[in]              fdmi_enable     TRUE/FALSE
+ *
+ *      @return None
+ */
+void
+bfa_fcs_set_fdmi_param(struct bfa_fcs_s *fcs, bfa_boolean_t fdmi_enable)
+{
+
+	fcs->fdmi_enabled = fdmi_enable;
+
+}
+
+/**
  * 		FCS instance cleanup and exit.
  *
  * 	param[in]		fcs			FCS instance

@@ -116,6 +116,9 @@ static void     bfa_fcs_port_fdmi_sm_rpa_retry(struct bfa_fcs_port_fdmi_s *fdmi,
 			enum port_fdmi_event event);
 static void     bfa_fcs_port_fdmi_sm_online(struct bfa_fcs_port_fdmi_s *fdmi,
 			enum port_fdmi_event event);
+static void	bfa_fcs_port_fdmi_sm_disabled(struct bfa_fcs_port_fdmi_s *fdmi,
+			enum port_fdmi_event event);
+
 /**
  * 		Start in offline state - awaiting MS to send start.
  */
@@ -479,6 +482,20 @@ bfa_fcs_port_fdmi_sm_online(struct bfa_fcs_port_fdmi_s *fdmi,
 	}
 }
 
+/**
+ *  FDMI is disabled state.
+ */
+static void
+bfa_fcs_port_fdmi_sm_disabled(struct bfa_fcs_port_fdmi_s *fdmi,
+				enum port_fdmi_event event)
+{
+	struct bfa_fcs_port_s *port = fdmi->ms->port;
+
+	bfa_trc(port->fcs, port->port_cfg.pwwn);
+	bfa_trc(port->fcs, event);
+
+	/* No op State. It can only be enabled at Driver Init. */
+}
 
 /**
 *   RHBA : Register HBA Attributes.
@@ -1201,7 +1218,10 @@ bfa_fcs_port_fdmi_init(struct bfa_fcs_port_ms_s *ms)
 	struct bfa_fcs_port_fdmi_s *fdmi = &ms->fdmi;
 
 	fdmi->ms = ms;
-	bfa_sm_set_state(fdmi, bfa_fcs_port_fdmi_sm_offline);
+	if (ms->port->fcs->fdmi_enabled)
+		bfa_sm_set_state(fdmi, bfa_fcs_port_fdmi_sm_offline);
+	else
+		bfa_sm_set_state(fdmi, bfa_fcs_port_fdmi_sm_disabled);
 }
 
 void
