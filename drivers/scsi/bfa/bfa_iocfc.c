@@ -619,14 +619,15 @@ bfa_iocfc_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 
 	bfa_ioc_attach(&bfa->ioc, bfa, &bfa_iocfc_cbfn, &bfa->timer_mod,
 		bfa->trcmod, bfa->aen, bfa->logm);
-	bfa_ioc_pci_init(&bfa->ioc, pcidev, BFI_MC_IOCFC);
-	bfa_ioc_mbox_register(&bfa->ioc, bfa_mbox_isrs);
 
 	/**
 	 * Choose FC (ssid: 0x1C) v/s FCoE (ssid: 0x14) mode.
 	 */
 	if (0)
 		bfa_ioc_set_fcmode(&bfa->ioc);
+
+	bfa_ioc_pci_init(&bfa->ioc, pcidev, BFI_MC_IOCFC);
+	bfa_ioc_mbox_register(&bfa->ioc, bfa_mbox_isrs);
 
 	bfa_iocfc_init_mem(bfa, bfad, cfg, pcidev);
 	bfa_iocfc_mem_claim(bfa, cfg, meminfo);

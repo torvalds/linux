@@ -56,7 +56,7 @@ BFA_TRC_FILE(HAL, IOC);
 #define BFA_FLASH_CHUNK_NO(off)         (off / BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_FLASH_OFFSET_IN_CHUNK(off)  (off % BFI_FLASH_CHUNK_SZ_WORDS)
 #define BFA_FLASH_CHUNK_ADDR(chunkno)   (chunkno * BFI_FLASH_CHUNK_SZ_WORDS)
-bfa_boolean_t   bfa_auto_recover = BFA_FALSE;
+bfa_boolean_t   bfa_auto_recover = BFA_TRUE;
 
 /*
  * forward declarations
@@ -1642,7 +1642,7 @@ bfa_ioc_boot(struct bfa_ioc_s *ioc, u32 boot_type, u32 boot_param)
 void
 bfa_ioc_auto_recover(bfa_boolean_t auto_recover)
 {
-	bfa_auto_recover = BFA_FALSE;
+	bfa_auto_recover = auto_recover;
 }
 
 
@@ -2082,7 +2082,7 @@ bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr)
 	ioc_attr->state = bfa_sm_to_state(ioc_sm_table, ioc->fsm);
 	ioc_attr->port_id = ioc->port_id;
 
-	if (!ioc->ctdev)
+	if (!ioc->ctdev || ioc->fcmode)
 		ioc_attr->ioc_type = BFA_IOC_TYPE_FC;
 	else if (ioc->ioc_mc == BFI_MC_IOCFC)
 		ioc_attr->ioc_type = BFA_IOC_TYPE_FCoE;
