@@ -704,6 +704,7 @@ static int rndis_query_oid(struct usbnet *dev, __le32 oid, void *data, int *len)
 		struct rndis_query_c	*get_c;
 	} u;
 	int ret, buflen;
+	int resplen, respoffs, copylen;
 
 	buflen = *len + sizeof(*u.get);
 	if (buflen < CONTROL_BUFFER_SIZE)
@@ -733,11 +734,34 @@ static int rndis_query_oid(struct usbnet *dev, __le32 oid, void *data, int *len)
 			   le32_to_cpu(u.get_c->status));
 
 	if (ret == 0) {
-		memcpy(data, u.buf + le32_to_cpu(u.get_c->offset) + 8, *len);
+		resplen = le32_to_cpu(u.get_c->len);
+		respoffs = le32_to_cpu(u.get_c->offset) + 8;
 
-		ret = le32_to_cpu(u.get_c->len);
-		if (ret > *len)
-			*len = ret;
+		if (respoffs > buflen) {
+			/* Device returned data offset outside buffer, error. */
+			netdev_dbg(dev->net, "%s(%s): received invalid "
+				"data offset: %d > %d\n", __func__,
+				oid_to_string(oid), respoffs, buflen);
+
+			ret = -EINVAL;
+			goto exit_unlock;
+		}
+
+		if ((resplen + respoffs) > buflen) {
+			/* Device would have returned more data if buffer would
+			 * have been big enough. Copy just the bits that we got.
+			 */
+			copylen = buflen - respoffs;
+		} else {
+			copylen = resplen;
+		}
+
+		if (copylen > *len)
+			copylen = *len;
+
+		memcpy(data, u.buf + respoffs, copylen);
+
+		*len = resplen;
 
 		ret = rndis_error_status(u.get_c->status);
 		if (ret < 0)
@@ -746,6 +770,7 @@ static int rndis_query_oid(struct usbnet *dev, __le32 oid, void *data, int *len)
 				   le32_to_cpu(u.get_c->status), ret);
 	}
 
+exit_unlock:
 	mutex_unlock(&priv->command_lock);
 
 	if (u.buf != priv->command_buffer)
