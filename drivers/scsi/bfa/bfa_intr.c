@@ -15,7 +15,7 @@
  * General Public License for more details.
  */
 #include <bfa.h>
-#include <bfi/bfi_cbreg.h>
+#include <bfi/bfi_ctreg.h>
 #include <bfa_port_priv.h>
 #include <bfa_intr_priv.h>
 #include <cs/bfa_debug.h>
@@ -96,7 +96,8 @@ bfa_isr_enable(struct bfa_s *bfa)
 
 	bfa_msix_install(bfa);
 	intr_unmask = (__HFN_INT_ERR_EMC | __HFN_INT_ERR_LPU0 |
-		       __HFN_INT_ERR_LPU1 | __HFN_INT_ERR_PSS);
+		       __HFN_INT_ERR_LPU1 | __HFN_INT_ERR_PSS |
+		       __HFN_INT_LL_HALT);
 
 	if (pci_func == 0)
 		intr_unmask |= (__HFN_INT_CPE_Q0 | __HFN_INT_CPE_Q1 |
@@ -205,7 +206,7 @@ bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 
 	if (intr & (__HFN_INT_ERR_EMC |
 		    __HFN_INT_ERR_LPU0 | __HFN_INT_ERR_LPU1 |
-		    __HFN_INT_ERR_PSS))
+		    __HFN_INT_ERR_PSS | __HFN_INT_LL_HALT))
 		bfa_msix_errint(bfa, intr);
 }
 

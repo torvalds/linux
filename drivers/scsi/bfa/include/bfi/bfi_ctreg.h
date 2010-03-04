@@ -589,6 +589,7 @@ enum {
 #define __HFN_INT_MBOX_LPU1                0x00200000U
 #define __HFN_INT_MBOX1_LPU0               0x00400000U
 #define __HFN_INT_MBOX1_LPU1               0x00800000U
+#define __HFN_INT_LL_HALT		   0x01000000U
 #define __HFN_INT_CPE_MASK                 0x000000ffU
 #define __HFN_INT_RME_MASK                 0x0000ff00U
 
