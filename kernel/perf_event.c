@@ -4347,7 +4347,7 @@ static int perf_tp_event_match(struct perf_event *event,
 
 static void tp_perf_event_destroy(struct perf_event *event)
 {
-	ftrace_profile_disable(event->attr.config);
+	perf_trace_disable(event->attr.config);
 }
 
 static const struct pmu *tp_perf_event_init(struct perf_event *event)
@@ -4361,7 +4361,7 @@ static const struct pmu *tp_perf_event_init(struct perf_event *event)
 			!capable(CAP_SYS_ADMIN))
 		return ERR_PTR(-EPERM);
 
-	if (ftrace_profile_enable(event->attr.config))
+	if (perf_trace_enable(event->attr.config))
 		return NULL;
 
 	event->destroy = tp_perf_event_destroy;
