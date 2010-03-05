@@ -145,6 +145,7 @@ struct set_mtrr_data {
 
 /**
  * ipi_handler - Synchronisation handler. Executed by "other" CPUs.
+ * @info: pointer to mtrr configuration data
  *
  * Returns nothing.
  */
