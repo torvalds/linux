@@ -1394,6 +1394,11 @@ sub process {
 			WARN("line over 80 characters\n" . $herecurr);
 		}
 
+# check for spaces before a quoted newline
+		if ($rawline =~ /^.*\".*\s\\n/) {
+			WARN("unnecessary whitespace before a quoted newline\n" . $herecurr);
+		}
+
 # check for adding lines without a newline.
 		if ($line =~ /^\+/ && defined $lines[$linenr] && $lines[$linenr] =~ /^\\ No newline at end of file/) {
 			WARN("adding a line without newline at end of file\n" . $herecurr);
