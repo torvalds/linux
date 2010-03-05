@@ -56,7 +56,8 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	if ((sort__has_parent || symbol_conf.use_callchain) && chain)
 		syms = perf_session__resolve_callchain(self, al->thread,
 						       chain, &parent);
-	he = __perf_session__add_hist_entry(self, al, parent, count, &hit);
+	he = __perf_session__add_hist_entry(&self->hists, al, parent,
+					    count, &hit);
 	if (he == NULL)
 		return -ENOMEM;
 
