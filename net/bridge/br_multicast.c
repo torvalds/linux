@@ -1135,7 +1135,7 @@ void br_multicast_stop(struct net_bridge *br)
 
 	if (mdb->old) {
 		spin_unlock_bh(&br->multicast_lock);
-		synchronize_rcu_bh();
+		rcu_barrier_bh();
 		spin_lock_bh(&br->multicast_lock);
 		WARN_ON(mdb->old);
 	}
