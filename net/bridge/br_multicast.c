@@ -38,7 +38,7 @@ static struct net_bridge_mdb_entry *__br_mdb_ip_get(
 	struct net_bridge_mdb_entry *mp;
 	struct hlist_node *p;
 
-	hlist_for_each_entry(mp, p, &mdb->mhash[hash], hlist[mdb->ver]) {
+	hlist_for_each_entry_rcu(mp, p, &mdb->mhash[hash], hlist[mdb->ver]) {
 		if (dst == mp->addr)
 			return mp;
 	}
