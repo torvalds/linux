@@ -152,6 +152,7 @@ static int lm90_detect(struct i2c_client *client, struct i2c_board_info *info);
 static int lm90_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
 static void lm90_init_client(struct i2c_client *client);
+static void lm90_alert(struct i2c_client *client, unsigned int flag);
 static int lm90_remove(struct i2c_client *client);
 static struct lm90_data *lm90_update_device(struct device *dev);
 
@@ -186,6 +187,7 @@ static struct i2c_driver lm90_driver = {
 	},
 	.probe		= lm90_probe,
 	.remove		= lm90_remove,
+	.alert		= lm90_alert,
 	.id_table	= lm90_id,
 	.detect		= lm90_detect,
 	.address_list	= normal_i2c,
@@ -204,6 +206,7 @@ struct lm90_data {
 	int flags;
 
 	u8 config_orig;		/* Original configuration register value */
+	u8 alert_alarms;	/* Which alarm bits trigger ALERT# */
 
 	/* registers values */
 	s8 temp8[4];	/* 0: local low limit
@@ -806,6 +809,19 @@ static int lm90_probe(struct i2c_client *new_client,
 			new_client->flags &= ~I2C_CLIENT_PEC;
 	}
 
+	/* Different devices have different alarm bits triggering the
+	 * ALERT# output */
+	switch (data->kind) {
+	case lm90:
+	case lm99:
+	case lm86:
+		data->alert_alarms = 0x7b;
+		break;
+	default:
+		data->alert_alarms = 0x7c;
+		break;
+	}
+
 	/* Initialize the LM90 chip */
 	lm90_init_client(new_client);
 
@@ -895,6 +911,38 @@ static int lm90_remove(struct i2c_client *client)
 	return 0;
 }
 
+static void lm90_alert(struct i2c_client *client, unsigned int flag)
+{
+	struct lm90_data *data = i2c_get_clientdata(client);
+	u8 config, alarms;
+
+	lm90_read_reg(client, LM90_REG_R_STATUS, &alarms);
+	if ((alarms & 0x7f) == 0) {
+		dev_info(&client->dev, "Everything OK\n");
+	} else {
+		if (alarms & 0x61)
+			dev_warn(&client->dev,
+				 "temp%d out of range, please check!\n", 1);
+		if (alarms & 0x1a)
+			dev_warn(&client->dev,
+				 "temp%d out of range, please check!\n", 2);
+		if (alarms & 0x04)
+			dev_warn(&client->dev,
+				 "temp%d diode open, please check!\n", 2);
+
+		/* Disable ALERT# output, because these chips don't implement
+		  SMBus alert correctly; they should only hold the alert line
+		  low briefly. */
+		if ((data->kind == adm1032 || data->kind == adt7461)
+		 && (alarms & data->alert_alarms)) {
+			dev_dbg(&client->dev, "Disabling ALERT#\n");
+			lm90_read_reg(client, LM90_REG_R_CONFIG1, &config);
+			i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
+						  config | 0x80);
+		}
+	}
+}
+
 static int lm90_read16(struct i2c_client *client, u8 regh, u8 regl, u16 *value)
 {
 	int err;
@@ -981,6 +1029,21 @@ static struct lm90_data *lm90_update_device(struct device *dev)
 				data->temp11[3] = (h << 8) | l;
 		}
 		lm90_read_reg(client, LM90_REG_R_STATUS, &data->alarms);
+
+		/* Re-enable ALERT# output if it was originally enabled and
+		 * relevant alarms are all clear */
+		if ((data->config_orig & 0x80) == 0
+		 && (data->alarms & data->alert_alarms) == 0) {
+			u8 config;
+
+			lm90_read_reg(client, LM90_REG_R_CONFIG1, &config);
+			if (config & 0x80) {
+				dev_dbg(&client->dev, "Re-enabling ALERT#\n");
+				i2c_smbus_write_byte_data(client,
+							  LM90_REG_W_CONFIG1,
+							  config & ~0x80);
+			}
+		}
 
 		data->last_updated = jiffies;
 		data->valid = 1;
