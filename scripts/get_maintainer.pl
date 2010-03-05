@@ -347,6 +347,7 @@ foreach my $file (@files) {
 		if ($type eq 'X') {
 		    if (file_match_pattern($file, $value)) {
 			$exclude = 1;
+			last;
 		    }
 		}
 	    }
@@ -373,8 +374,7 @@ foreach my $file (@files) {
 	    }
 	}
 
-	$tvi += ($end - $start);
-
+	$tvi = $end + 1;
     }
 
     foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
