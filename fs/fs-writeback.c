@@ -461,15 +461,20 @@ writeback_single_inode(struct inode *inode, struct writeback_control *wbc)
 
 	ret = do_writepages(mapping, wbc);
 
-	/* Don't write the inode if only I_DIRTY_PAGES was set */
-	if (dirty & (I_DIRTY_SYNC | I_DIRTY_DATASYNC)) {
-		int err = write_inode(inode, wait);
+	/*
+	 * Make sure to wait on the data before writing out the metadata.
+	 * This is important for filesystems that modify metadata on data
+	 * I/O completion.
+	 */
+	if (wait) {
+		int err = filemap_fdatawait(mapping);
 		if (ret == 0)
 			ret = err;
 	}
 
-	if (wait) {
-		int err = filemap_fdatawait(mapping);
+	/* Don't write the inode if only I_DIRTY_PAGES was set */
+	if (dirty & (I_DIRTY_SYNC | I_DIRTY_DATASYNC)) {
+		int err = write_inode(inode, wait);
 		if (ret == 0)
 			ret = err;
 	}

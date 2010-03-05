@@ -1075,10 +1075,6 @@ xfs_fs_write_inode(
 		return XFS_ERROR(EIO);
 
 	if (sync) {
-		error = xfs_wait_on_pages(ip, 0, -1);
-		if (error)
-			goto out;
-
 		/*
 		 * Make sure the inode has hit stable storage.  By using the
 		 * log and the fsync transactions we reduce the IOs we have
