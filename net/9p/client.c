@@ -46,6 +46,7 @@ enum {
 	Opt_msize,
 	Opt_trans,
 	Opt_legacy,
+	Opt_version,
 	Opt_err,
 };
 
@@ -53,8 +54,29 @@ static const match_table_t tokens = {
 	{Opt_msize, "msize=%u"},
 	{Opt_legacy, "noextend"},
 	{Opt_trans, "trans=%s"},
+	{Opt_version, "version=%s"},
 	{Opt_err, NULL},
 };
+
+/* Interpret mount option for protocol version */
+static unsigned char get_protocol_version(const substring_t *name)
+{
+	unsigned char version = -EINVAL;
+	if (!strncmp("9p2000", name->from, name->to-name->from)) {
+		version = p9_proto_legacy;
+		P9_DPRINTK(P9_DEBUG_9P, "Protocol version: Legacy\n");
+	} else if (!strncmp("9p2000.u", name->from, name->to-name->from)) {
+		version = p9_proto_2000u;
+		P9_DPRINTK(P9_DEBUG_9P, "Protocol version: 9P2000.u\n");
+	} else if (!strncmp("9p2010.L", name->from, name->to-name->from)) {
+		version = p9_proto_2010L;
+		P9_DPRINTK(P9_DEBUG_9P, "Protocol version: 9P2010.L\n");
+	} else {
+		P9_DPRINTK(P9_DEBUG_ERROR, "Unknown protocol version %s. ",
+							name->from);
+	}
+	return version;
+}
 
 static struct p9_req_t *
 p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...);
@@ -119,6 +141,12 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 			break;
 		case Opt_legacy:
 			clnt->dotu = 0;
+			break;
+		case Opt_version:
+			ret = get_protocol_version(&args[0]);
+			if (ret == -EINVAL)
+				goto free_and_return;
+			clnt->proto_version = ret;
 			break;
 		default:
 			continue;
