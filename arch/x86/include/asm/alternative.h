@@ -39,9 +39,6 @@
 #define LOCK_PREFIX ""
 #endif
 
-/* This must be included *after* the definition of LOCK_PREFIX */
-#include <asm/cpufeature.h>
-
 struct alt_instr {
 	u8 *instr;		/* original instruction */
 	u8 *replacement;
@@ -94,6 +91,12 @@ static inline int alternatives_text_reserved(void *start, void *end)
       ".section .altinstr_replacement, \"ax\"\n"			\
       "663:\n\t" newinstr "\n664:\n"		/* replacement     */	\
       ".previous"
+
+/*
+ * This must be included *after* the definition of ALTERNATIVE due to
+ * <asm/arch_hweight.h>
+ */
+#include <asm/cpufeature.h>
 
 /*
  * Alternative instructions for different CPU types or capabilities.
