@@ -151,7 +151,6 @@ struct p9_req_t {
 struct p9_client {
 	spinlock_t lock; /* protect client structure */
 	int msize;
-	unsigned char dotu;
 	unsigned char proto_version;
 	struct p9_trans_module *trans_mod;
 	enum p9_trans_status status;
@@ -224,5 +223,7 @@ int p9_parse_header(struct p9_fcall *, int32_t *, int8_t *, int16_t *, int);
 int p9stat_read(char *, int, struct p9_wstat *, int);
 void p9stat_free(struct p9_wstat *);
 
+int p9_is_proto_dotu(struct p9_client *clnt);
+int p9_is_proto_dotl(struct p9_client *clnt);
 
 #endif /* NET_9P_CLIENT_H */

@@ -135,7 +135,7 @@ static int v9fs_dir_readdir(struct file *filp, void *dirent, filldir_t filldir)
 		while (rdir->head < rdir->tail) {
 			err = p9stat_read(rdir->buf + rdir->head,
 						buflen - rdir->head, &st,
-						fid->clnt->dotu);
+						fid->clnt->proto_version);
 			if (err) {
 				P9_DPRINTK(P9_DEBUG_VFS, "returned %d\n", err);
 				err = -EIO;

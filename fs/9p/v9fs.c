@@ -262,7 +262,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		goto error;
 	}
 
-	if (!v9ses->clnt->dotu)
+	if (!p9_is_proto_dotu(v9ses->clnt))
 		v9ses->flags &= ~V9FS_PROTO_2000U;
 
 	v9ses->maxdata = v9ses->clnt->msize - P9_IOHDRSZ;
