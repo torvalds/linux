@@ -4915,7 +4915,7 @@ static void fixup_automic_adc(struct hda_codec *codec)
 static void fixup_single_adc(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	hda_nid_t pin;
+	hda_nid_t pin = 0;
 	int i;
 
 	/* search for the input pin; there must be only one */
