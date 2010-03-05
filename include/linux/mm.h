@@ -873,7 +873,7 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
 /*
  * per-process(per-mm_struct) statistics.
  */
-#if USE_SPLIT_PTLOCKS
+#if defined(SPLIT_RSS_COUNTING)
 /*
  * The mm counters are not protected by its page_table_lock,
  * so must be incremented atomically.
@@ -883,10 +883,7 @@ static inline void set_mm_counter(struct mm_struct *mm, int member, long value)
 	atomic_long_set(&mm->rss_stat.count[member], value);
 }
 
-static inline unsigned long get_mm_counter(struct mm_struct *mm, int member)
-{
-	return (unsigned long)atomic_long_read(&mm->rss_stat.count[member]);
-}
+unsigned long get_mm_counter(struct mm_struct *mm, int member);
 
 static inline void add_mm_counter(struct mm_struct *mm, int member, long value)
 {
@@ -974,6 +971,7 @@ static inline void setmax_mm_hiwater_rss(unsigned long *maxrss,
 		*maxrss = hiwater_rss;
 }
 
+void sync_mm_rss(struct task_struct *task, struct mm_struct *mm);
 
 /*
  * A callback you can register to apply pressure to ageable caches.

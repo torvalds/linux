@@ -202,8 +202,14 @@ enum {
 };
 
 #if USE_SPLIT_PTLOCKS
+#define SPLIT_RSS_COUNTING
 struct mm_rss_stat {
 	atomic_long_t count[NR_MM_COUNTERS];
+};
+/* per-thread cached information, */
+struct task_rss_stat {
+	int events;	/* for synchronization threshold */
+	int count[NR_MM_COUNTERS];
 };
 #else  /* !USE_SPLIT_PTLOCKS */
 struct mm_rss_stat {
