@@ -65,3 +65,19 @@ int elf_core_write_extra_data(struct file *file, size_t *size,
 	}
 	return 1;
 }
+
+size_t elf_core_extra_data_size(void)
+{
+	if ( vsyscall_ehdr ) {
+		const struct elfhdr *const ehdrp =
+			(struct elfhdr *)vsyscall_ehdr;
+		const struct elf_phdr *const phdrp =
+			(const struct elf_phdr *) (vsyscall_ehdr + ehdrp->e_phoff);
+		int i;
+
+		for (i = 0; i < ehdrp->e_phnum; ++i)
+			if (phdrp[i].p_type == PT_LOAD)
+				return (size_t) phdrp[i].p_filesz;
+	}
+	return 0;
+}

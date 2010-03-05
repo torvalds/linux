@@ -21,3 +21,8 @@ int __weak elf_core_write_extra_data(struct file *file, size_t *size,
 {
 	return 1;
 }
+
+size_t __weak elf_core_extra_data_size(void)
+{
+	return 0;
+}

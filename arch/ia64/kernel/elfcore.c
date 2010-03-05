@@ -62,3 +62,19 @@ int elf_core_write_extra_data(struct file *file, size_t *size,
 	}
 	return 1;
 }
+
+size_t elf_core_extra_data_size(void)
+{
+	const struct elf_phdr *const gate_phdrs =
+		(const struct elf_phdr *) (GATE_ADDR + GATE_EHDR->e_phoff);
+	int i;
+	size_t size = 0;
+
+	for (i = 0; i < GATE_EHDR->e_phnum; ++i) {
+		if (gate_phdrs[i].p_type == PT_LOAD) {
+			size += PAGE_ALIGN(gate_phdrs[i].p_memsz);
+			break;
+		}
+	}
+	return size;
+}

@@ -1838,6 +1838,34 @@ static struct vm_area_struct *next_vma(struct vm_area_struct *this_vma,
 	return gate_vma;
 }
 
+static void fill_extnum_info(struct elfhdr *elf, struct elf_shdr *shdr4extnum,
+			     elf_addr_t e_shoff, int segs)
+{
+	elf->e_shoff = e_shoff;
+	elf->e_shentsize = sizeof(*shdr4extnum);
+	elf->e_shnum = 1;
+	elf->e_shstrndx = SHN_UNDEF;
+
+	memset(shdr4extnum, 0, sizeof(*shdr4extnum));
+
+	shdr4extnum->sh_type = SHT_NULL;
+	shdr4extnum->sh_size = elf->e_shnum;
+	shdr4extnum->sh_link = elf->e_shstrndx;
+	shdr4extnum->sh_info = segs;
+}
+
+static size_t elf_core_vma_data_size(struct vm_area_struct *gate_vma,
+				     unsigned long mm_flags)
+{
+	struct vm_area_struct *vma;
+	size_t size = 0;
+
+	for (vma = first_vma(current, gate_vma); vma != NULL;
+	     vma = next_vma(vma, gate_vma))
+		size += vma_dump_size(vma, mm_flags);
+	return size;
+}
+
 /*
  * Actual dumper
  *
@@ -1857,6 +1885,9 @@ static int elf_core_dump(struct coredump_params *cprm)
 	unsigned long mm_flags;
 	struct elf_note_info info;
 	struct elf_phdr *phdr4note = NULL;
+	struct elf_shdr *shdr4extnum = NULL;
+	Elf_Half e_phnum;
+	elf_addr_t e_shoff;
 
 	/*
 	 * We no longer stop all VM operations.
@@ -1885,12 +1916,19 @@ static int elf_core_dump(struct coredump_params *cprm)
 	if (gate_vma != NULL)
 		segs++;
 
+	/* for notes section */
+	segs++;
+
+	/* If segs > PN_XNUM(0xffff), then e_phnum overflows. To avoid
+	 * this, kernel supports extended numbering. Have a look at
+	 * include/linux/elf.h for further information. */
+	e_phnum = segs > PN_XNUM ? PN_XNUM : segs;
+
 	/*
 	 * Collect all the non-memory information about the process for the
 	 * notes.  This also sets up the file header.
 	 */
-	if (!fill_note_info(elf, segs + 1, /* including notes section */
-			    &info, cprm->signr, cprm->regs))
+	if (!fill_note_info(elf, e_phnum, &info, cprm->signr, cprm->regs))
 		goto cleanup;
 
 	has_dumped = 1;
@@ -1900,7 +1938,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	set_fs(KERNEL_DS);
 
 	offset += sizeof(*elf);				/* Elf header */
-	offset += (segs + 1) * sizeof(struct elf_phdr); /* Program headers */
+	offset += segs * sizeof(struct elf_phdr);	/* Program headers */
 	foffset = offset;
 
 	/* Write notes phdr entry */
@@ -1925,6 +1963,19 @@ static int elf_core_dump(struct coredump_params *cprm)
 	 * unusable core file can be generated.
 	 */
 	mm_flags = current->mm->flags;
+
+	offset += elf_core_vma_data_size(gate_vma, mm_flags);
+	offset += elf_core_extra_data_size();
+	e_shoff = offset;
+
+	if (e_phnum == PN_XNUM) {
+		shdr4extnum = kmalloc(sizeof(*shdr4extnum), GFP_KERNEL);
+		if (!shdr4extnum)
+			goto end_coredump;
+		fill_extnum_info(elf, shdr4extnum, e_shoff, segs);
+	}
+
+	offset = dataoff;
 
 	size += sizeof(*elf);
 	if (size > cprm->limit || !dump_write(cprm->file, elf, sizeof(*elf)))
@@ -2003,11 +2054,20 @@ static int elf_core_dump(struct coredump_params *cprm)
 	if (!elf_core_write_extra_data(cprm->file, &size, cprm->limit))
 		goto end_coredump;
 
+	if (e_phnum == PN_XNUM) {
+		size += sizeof(*shdr4extnum);
+		if (size > cprm->limit
+		    || !dump_write(cprm->file, shdr4extnum,
+				   sizeof(*shdr4extnum)))
+			goto end_coredump;
+	}
+
 end_coredump:
 	set_fs(fs);
 
 cleanup:
 	free_note_info(&info);
+	kfree(shdr4extnum);
 	kfree(phdr4note);
 	kfree(elf);
 out:
