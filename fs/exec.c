@@ -556,8 +556,6 @@ static int shift_arg_pages(struct vm_area_struct *vma, unsigned long shift)
 	return 0;
 }
 
-#define EXTRA_STACK_VM_PAGES	20	/* random */
-
 /*
  * Finalizes the stack vm_area_struct. The flags and permissions are updated,
  * the stack is optionally relocated, and some extra space is added.
@@ -632,7 +630,7 @@ int setup_arg_pages(struct linux_binprm *bprm,
 			goto out_unlock;
 	}
 
-	stack_expand = EXTRA_STACK_VM_PAGES * PAGE_SIZE;
+	stack_expand = 131072UL; /* randomly 32*4k (or 2*64k) pages */
 	stack_size = vma->vm_end - vma->vm_start;
 	/*
 	 * Align this down to a page boundary as expand_stack
