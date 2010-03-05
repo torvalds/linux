@@ -46,6 +46,7 @@ enum {
 	Opt_msize,
 	Opt_trans,
 	Opt_legacy,
+	Opt_version,
 	Opt_err,
 };
 
@@ -53,8 +54,41 @@ static const match_table_t tokens = {
 	{Opt_msize, "msize=%u"},
 	{Opt_legacy, "noextend"},
 	{Opt_trans, "trans=%s"},
+	{Opt_version, "version=%s"},
 	{Opt_err, NULL},
 };
+
+inline int p9_is_proto_dotl(struct p9_client *clnt)
+{
+	return (clnt->proto_version == p9_proto_2010L);
+}
+EXPORT_SYMBOL(p9_is_proto_dotl);
+
+inline int p9_is_proto_dotu(struct p9_client *clnt)
+{
+	return (clnt->proto_version == p9_proto_2000u);
+}
+EXPORT_SYMBOL(p9_is_proto_dotu);
+
+/* Interpret mount option for protocol version */
+static unsigned char get_protocol_version(const substring_t *name)
+{
+	unsigned char version = -EINVAL;
+	if (!strncmp("9p2000", name->from, name->to-name->from)) {
+		version = p9_proto_legacy;
+		P9_DPRINTK(P9_DEBUG_9P, "Protocol version: Legacy\n");
+	} else if (!strncmp("9p2000.u", name->from, name->to-name->from)) {
+		version = p9_proto_2000u;
+		P9_DPRINTK(P9_DEBUG_9P, "Protocol version: 9P2000.u\n");
+	} else if (!strncmp("9p2010.L", name->from, name->to-name->from)) {
+		version = p9_proto_2010L;
+		P9_DPRINTK(P9_DEBUG_9P, "Protocol version: 9P2010.L\n");
+	} else {
+		P9_DPRINTK(P9_DEBUG_ERROR, "Unknown protocol version %s. ",
+							name->from);
+	}
+	return version;
+}
 
 static struct p9_req_t *
 p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...);
@@ -75,7 +109,7 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 	int option;
 	int ret = 0;
 
-	clnt->dotu = 1;
+	clnt->proto_version = p9_proto_2000u;
 	clnt->msize = 8192;
 
 	if (!opts)
@@ -118,7 +152,13 @@ static int parse_opts(char *opts, struct p9_client *clnt)
 			}
 			break;
 		case Opt_legacy:
-			clnt->dotu = 0;
+			clnt->proto_version = p9_proto_legacy;
+			break;
+		case Opt_version:
+			ret = get_protocol_version(&args[0]);
+			if (ret == -EINVAL)
+				goto free_and_return;
+			clnt->proto_version = ret;
 			break;
 		default:
 			continue;
@@ -410,14 +450,15 @@ static int p9_check_errors(struct p9_client *c, struct p9_req_t *req)
 		int ecode;
 		char *ename;
 
-		err = p9pdu_readf(req->rc, c->dotu, "s?d", &ename, &ecode);
+		err = p9pdu_readf(req->rc, c->proto_version, "s?d",
+							&ename, &ecode);
 		if (err) {
 			P9_DPRINTK(P9_DEBUG_ERROR, "couldn't parse error%d\n",
 									err);
 			return err;
 		}
 
-		if (c->dotu)
+		if (p9_is_proto_dotu(c))
 			err = -ecode;
 
 		if (!err || !IS_ERR_VALUE(err))
@@ -515,7 +556,7 @@ p9_client_rpc(struct p9_client *c, int8_t type, const char *fmt, ...)
 	/* marshall the data */
 	p9pdu_prepare(req->tc, tag, type);
 	va_start(ap, fmt);
-	err = p9pdu_vwritef(req->tc, c->dotu, fmt, ap);
+	err = p9pdu_vwritef(req->tc, c->proto_version, fmt, ap);
 	va_end(ap);
 	p9pdu_finalize(req->tc);
 
@@ -627,14 +668,31 @@ int p9_client_version(struct p9_client *c)
 	char *version;
 	int msize;
 
-	P9_DPRINTK(P9_DEBUG_9P, ">>> TVERSION msize %d extended %d\n",
-							c->msize, c->dotu);
-	req = p9_client_rpc(c, P9_TVERSION, "ds", c->msize,
-				c->dotu ? "9P2000.u" : "9P2000");
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TVERSION msize %d protocol %d\n",
+						c->msize, c->proto_version);
+
+	switch (c->proto_version) {
+	case p9_proto_2010L:
+		req = p9_client_rpc(c, P9_TVERSION, "ds",
+					c->msize, "9P2010.L");
+		break;
+	case p9_proto_2000u:
+		req = p9_client_rpc(c, P9_TVERSION, "ds",
+					c->msize, "9P2000.u");
+		break;
+	case p9_proto_legacy:
+		req = p9_client_rpc(c, P9_TVERSION, "ds",
+					c->msize, "9P2000");
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
-	err = p9pdu_readf(req->rc, c->dotu, "ds", &msize, &version);
+	err = p9pdu_readf(req->rc, c->proto_version, "ds", &msize, &version);
 	if (err) {
 		P9_DPRINTK(P9_DEBUG_9P, "version error %d\n", err);
 		p9pdu_dump(1, req->rc);
@@ -642,10 +700,12 @@ int p9_client_version(struct p9_client *c)
 	}
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RVERSION msize %d %s\n", msize, version);
-	if (!memcmp(version, "9P2000.u", 8))
-		c->dotu = 1;
-	else if (!memcmp(version, "9P2000", 6))
-		c->dotu = 0;
+	if (!strncmp(version, "9P2010.L", 8))
+		c->proto_version = p9_proto_2010L;
+	else if (!strncmp(version, "9P2000.u", 8))
+		c->proto_version = p9_proto_2000u;
+	else if (!strncmp(version, "9P2000", 6))
+		c->proto_version = p9_proto_legacy;
 	else {
 		err = -EREMOTEIO;
 		goto error;
@@ -700,8 +760,8 @@ struct p9_client *p9_client_create(const char *dev_name, char *options)
 		goto put_trans;
 	}
 
-	P9_DPRINTK(P9_DEBUG_MUX, "clnt %p trans %p msize %d dotu %d\n",
-		clnt, clnt->trans_mod, clnt->msize, clnt->dotu);
+	P9_DPRINTK(P9_DEBUG_MUX, "clnt %p trans %p msize %d protocol %d\n",
+		clnt, clnt->trans_mod, clnt->msize, clnt->proto_version);
 
 	err = clnt->trans_mod->create(clnt, dev_name, options);
 	if (err)
@@ -784,7 +844,7 @@ struct p9_fid *p9_client_attach(struct p9_client *clnt, struct p9_fid *afid,
 		goto error;
 	}
 
-	err = p9pdu_readf(req->rc, clnt->dotu, "Q", &qid);
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", &qid);
 	if (err) {
 		p9pdu_dump(1, req->rc);
 		p9_free_req(clnt, req);
@@ -833,7 +893,7 @@ p9_client_auth(struct p9_client *clnt, char *uname, u32 n_uname, char *aname)
 		goto error;
 	}
 
-	err = p9pdu_readf(req->rc, clnt->dotu, "Q", &qid);
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Q", &qid);
 	if (err) {
 		p9pdu_dump(1, req->rc);
 		p9_free_req(clnt, req);
@@ -891,7 +951,7 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, int nwname, char **wnames,
 		goto error;
 	}
 
-	err = p9pdu_readf(req->rc, clnt->dotu, "R", &nwqids, &wqids);
+	err = p9pdu_readf(req->rc, clnt->proto_version, "R", &nwqids, &wqids);
 	if (err) {
 		p9pdu_dump(1, req->rc);
 		p9_free_req(clnt, req);
@@ -952,7 +1012,7 @@ int p9_client_open(struct p9_fid *fid, int mode)
 		goto error;
 	}
 
-	err = p9pdu_readf(req->rc, clnt->dotu, "Qd", &qid, &iounit);
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Qd", &qid, &iounit);
 	if (err) {
 		p9pdu_dump(1, req->rc);
 		goto free_and_error;
@@ -997,7 +1057,7 @@ int p9_client_fcreate(struct p9_fid *fid, char *name, u32 perm, int mode,
 		goto error;
 	}
 
-	err = p9pdu_readf(req->rc, clnt->dotu, "Qd", &qid, &iounit);
+	err = p9pdu_readf(req->rc, clnt->proto_version, "Qd", &qid, &iounit);
 	if (err) {
 		p9pdu_dump(1, req->rc);
 		goto free_and_error;
@@ -1098,7 +1158,7 @@ p9_client_read(struct p9_fid *fid, char *data, char __user *udata, u64 offset,
 		goto error;
 	}
 
-	err = p9pdu_readf(req->rc, clnt->dotu, "D", &count, &dataptr);
+	err = p9pdu_readf(req->rc, clnt->proto_version, "D", &count, &dataptr);
 	if (err) {
 		p9pdu_dump(1, req->rc);
 		goto free_and_error;
@@ -1159,7 +1219,7 @@ p9_client_write(struct p9_fid *fid, char *data, const char __user *udata,
 		goto error;
 	}
 
-	err = p9pdu_readf(req->rc, clnt->dotu, "d", &count);
+	err = p9pdu_readf(req->rc, clnt->proto_version, "d", &count);
 	if (err) {
 		p9pdu_dump(1, req->rc);
 		goto free_and_error;
@@ -1199,7 +1259,7 @@ struct p9_wstat *p9_client_stat(struct p9_fid *fid)
 		goto error;
 	}
 
-	err = p9pdu_readf(req->rc, clnt->dotu, "wS", &ignored, ret);
+	err = p9pdu_readf(req->rc, clnt->proto_version, "wS", &ignored, ret);
 	if (err) {
 		p9pdu_dump(1, req->rc);
 		p9_free_req(clnt, req);
@@ -1226,7 +1286,7 @@ error:
 }
 EXPORT_SYMBOL(p9_client_stat);
 
-static int p9_client_statsize(struct p9_wstat *wst, int optional)
+static int p9_client_statsize(struct p9_wstat *wst, int proto_version)
 {
 	int ret;
 
@@ -1245,7 +1305,7 @@ static int p9_client_statsize(struct p9_wstat *wst, int optional)
 	if (wst->muid)
 		ret += strlen(wst->muid);
 
-	if (optional) {
+	if (proto_version == p9_proto_2000u) {
 		ret += 2+4+4+4;	/* extension[s] n_uid[4] n_gid[4] n_muid[4] */
 		if (wst->extension)
 			ret += strlen(wst->extension);
@@ -1262,7 +1322,7 @@ int p9_client_wstat(struct p9_fid *fid, struct p9_wstat *wst)
 
 	err = 0;
 	clnt = fid->clnt;
-	wst->size = p9_client_statsize(wst, clnt->dotu);
+	wst->size = p9_client_statsize(wst, clnt->proto_version);
 	P9_DPRINTK(P9_DEBUG_9P, ">>> TWSTAT fid %d\n", fid->fid);
 	P9_DPRINTK(P9_DEBUG_9P,
 		"     sz=%x type=%x dev=%x qid=%x.%llx.%x\n"
