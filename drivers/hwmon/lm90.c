@@ -93,7 +93,8 @@
 static const unsigned short normal_i2c[] = {
 	0x18, 0x19, 0x1a, 0x29, 0x2a, 0x2b, 0x4c, 0x4d, 0x4e, I2C_CLIENT_END };
 
-enum chips { lm90, adm1032, lm99, lm86, max6657, adt7461, max6680, max6646 };
+enum chips { lm90, adm1032, lm99, lm86, max6657, adt7461, max6680, max6646,
+	w83l771 };
 
 /*
  * The LM90 registers
@@ -173,6 +174,7 @@ static const struct i2c_device_id lm90_id[] = {
 	{ "max6659", max6657 },
 	{ "max6680", max6680 },
 	{ "max6681", max6680 },
+	{ "w83l771", w83l771 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm90_id);
@@ -757,6 +759,14 @@ static int lm90_detect(struct i2c_client *new_client,
 		 && (reg_config1 & 0x3f) == 0x00
 		 && reg_convrate <= 0x07) {
 			name = "max6646";
+		}
+	} else
+	if (address == 0x4C
+	 && man_id == 0x5C) { /* Winbond/Nuvoton */
+		if ((chip_id & 0xFE) == 0x10 /* W83L771AWG/ASG */
+		 && (reg_config1 & 0x2A) == 0x00
+		 && reg_convrate <= 0x08) {
+			name = "w83l771";
 		}
 	}
 

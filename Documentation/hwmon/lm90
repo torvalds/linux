@@ -84,6 +84,10 @@ Supported chips:
     Addresses scanned: I2C 0x4c
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
+  * Winbond/Nuvoton W83L771AWG/ASG
+    Prefix: 'w83l771'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Not publicly available, can be requested from Nuvoton
 
 
 Author: Jean Delvare <khali@linux-fr.org>
@@ -146,6 +150,12 @@ MAX6659:
 MAX6680 and MAX6681:
   * Selectable address
   * Remote sensor type selection
+
+W83L771AWG/ASG
+  * The AWG and ASG variants only differ in package format.
+  * Filter and alert configuration register at 0xBF
+  * Diode ideality factor configuration (remote sensor) at 0xE3
+  * Moving average (depending on conversion rate)
 
 All temperature values are given in degrees Celsius. Resolution
 is 1.0 degree for the local temperature, 0.125 degree for the remote
