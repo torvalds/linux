@@ -437,7 +437,6 @@ __vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
 {
 	__vma_link_list(mm, vma, prev, rb_parent);
 	__vma_link_rb(mm, vma, rb_link, rb_parent);
-	__anon_vma_link(vma);
 }
 
 static void vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
@@ -499,7 +498,7 @@ __vma_unlink(struct mm_struct *mm, struct vm_area_struct *vma,
  * are necessary.  The "insert" vma (if any) is to be inserted
  * before we drop the necessary locks.
  */
-void vma_adjust(struct vm_area_struct *vma, unsigned long start,
+int vma_adjust(struct vm_area_struct *vma, unsigned long start,
 	unsigned long end, pgoff_t pgoff, struct vm_area_struct *insert)
 {
 	struct mm_struct *mm = vma->vm_mm;
@@ -542,6 +541,28 @@ again:			remove_next = 1 + (end > next->vm_end);
 		}
 	}
 
+	/*
+	 * When changing only vma->vm_end, we don't really need anon_vma lock.
+	 */
+	if (vma->anon_vma && (insert || importer || start != vma->vm_start))
+		anon_vma = vma->anon_vma;
+	if (anon_vma) {
+		/*
+		 * Easily overlooked: when mprotect shifts the boundary,
+		 * make sure the expanding vma has anon_vma set if the
+		 * shrinking vma had, to cover any anon pages imported.
+		 */
+		if (importer && !importer->anon_vma) {
+			/* Block reverse map lookups until things are set up. */
+			importer->vm_flags |= VM_LOCK_RMAP;
+			if (anon_vma_clone(importer, vma)) {
+				importer->vm_flags &= ~VM_LOCK_RMAP;
+				return -ENOMEM;
+			}
+			importer->anon_vma = anon_vma;
+		}
+	}
+
 	if (file) {
 		mapping = file->f_mapping;
 		if (!(vma->vm_flags & VM_NONLINEAR))
@@ -564,25 +585,6 @@ again:			remove_next = 1 + (end > next->vm_end);
 			 * space until vma start or end is updated.
 			 */
 			__vma_link_file(insert);
-		}
-	}
-
-	/*
-	 * When changing only vma->vm_end, we don't really need
-	 * anon_vma lock.
-	 */
-	if (vma->anon_vma && (insert || importer || start != vma->vm_start))
-		anon_vma = vma->anon_vma;
-	if (anon_vma) {
-		spin_lock(&anon_vma->lock);
-		/*
-		 * Easily overlooked: when mprotect shifts the boundary,
-		 * make sure the expanding vma has anon_vma set if the
-		 * shrinking vma had, to cover any anon pages imported.
-		 */
-		if (importer && !importer->anon_vma) {
-			importer->anon_vma = anon_vma;
-			__anon_vma_link(importer);
 		}
 	}
 
@@ -616,8 +618,11 @@ again:			remove_next = 1 + (end > next->vm_end);
 		__vma_unlink(mm, next, vma);
 		if (file)
 			__remove_shared_vm_struct(next, file, mapping);
-		if (next->anon_vma)
-			__anon_vma_merge(vma, next);
+		/*
+		 * This VMA is now dead, no need for rmap to follow it.
+		 * Call anon_vma_merge below, outside of i_mmap_lock.
+		 */
+		next->vm_flags |= VM_LOCK_RMAP;
 	} else if (insert) {
 		/*
 		 * split_vma has split insert from vma, and needs
@@ -627,10 +632,15 @@ again:			remove_next = 1 + (end > next->vm_end);
 		__insert_vm_struct(mm, insert);
 	}
 
-	if (anon_vma)
-		spin_unlock(&anon_vma->lock);
 	if (mapping)
 		spin_unlock(&mapping->i_mmap_lock);
+
+	/*
+	 * The current VMA has been set up. It is now safe for the
+	 * rmap code to get from the pages to the ptes.
+	 */
+	if (anon_vma && importer)
+		importer->vm_flags &= ~VM_LOCK_RMAP;
 
 	if (remove_next) {
 		if (file) {
@@ -638,6 +648,9 @@ again:			remove_next = 1 + (end > next->vm_end);
 			if (next->vm_flags & VM_EXECUTABLE)
 				removed_exe_file_vma(mm);
 		}
+		/* Protected by mmap_sem and VM_LOCK_RMAP. */
+		if (next->anon_vma)
+			anon_vma_merge(vma, next);
 		mm->map_count--;
 		mpol_put(vma_policy(next));
 		kmem_cache_free(vm_area_cachep, next);
@@ -653,6 +666,8 @@ again:			remove_next = 1 + (end > next->vm_end);
 	}
 
 	validate_mm(mm);
+
+	return 0;
 }
 
 /*
@@ -759,6 +774,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 {
 	pgoff_t pglen = (end - addr) >> PAGE_SHIFT;
 	struct vm_area_struct *area, *next;
+	int err;
 
 	/*
 	 * We later require that vma->vm_flags == vm_flags,
@@ -792,11 +808,13 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 				is_mergeable_anon_vma(prev->anon_vma,
 						      next->anon_vma)) {
 							/* cases 1, 6 */
-			vma_adjust(prev, prev->vm_start,
+			err = vma_adjust(prev, prev->vm_start,
 				next->vm_end, prev->vm_pgoff, NULL);
 		} else					/* cases 2, 5, 7 */
-			vma_adjust(prev, prev->vm_start,
+			err = vma_adjust(prev, prev->vm_start,
 				end, prev->vm_pgoff, NULL);
+		if (err)
+			return NULL;
 		return prev;
 	}
 
@@ -808,11 +826,13 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
 			can_vma_merge_before(next, vm_flags,
 					anon_vma, file, pgoff+pglen)) {
 		if (prev && addr < prev->vm_end)	/* case 4 */
-			vma_adjust(prev, prev->vm_start,
+			err = vma_adjust(prev, prev->vm_start,
 				addr, prev->vm_pgoff, NULL);
 		else					/* cases 3, 8 */
-			vma_adjust(area, addr, next->vm_end,
+			err = vma_adjust(area, addr, next->vm_end,
 				next->vm_pgoff - pglen, NULL);
+		if (err)
+			return NULL;
 		return area;
 	}
 
@@ -1205,6 +1225,7 @@ munmap_back:
 	vma->vm_flags = vm_flags;
 	vma->vm_page_prot = vm_get_page_prot(vm_flags);
 	vma->vm_pgoff = pgoff;
+	INIT_LIST_HEAD(&vma->anon_vma_chain);
 
 	if (file) {
 		error = -EINVAL;
@@ -1865,6 +1886,7 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 {
 	struct mempolicy *pol;
 	struct vm_area_struct *new;
+	int err = -ENOMEM;
 
 	if (is_vm_hugetlb_page(vma) && (addr &
 					~(huge_page_mask(hstate_vma(vma)))))
@@ -1872,10 +1894,12 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 
 	new = kmem_cache_alloc(vm_area_cachep, GFP_KERNEL);
 	if (!new)
-		return -ENOMEM;
+		goto out_err;
 
 	/* most fields are the same, copy all, and then fixup */
 	*new = *vma;
+
+	INIT_LIST_HEAD(&new->anon_vma_chain);
 
 	if (new_below)
 		new->vm_end = addr;
@@ -1886,10 +1910,13 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 
 	pol = mpol_dup(vma_policy(vma));
 	if (IS_ERR(pol)) {
-		kmem_cache_free(vm_area_cachep, new);
-		return PTR_ERR(pol);
+		err = PTR_ERR(pol);
+		goto out_free_vma;
 	}
 	vma_set_policy(new, pol);
+
+	if (anon_vma_clone(new, vma))
+		goto out_free_mpol;
 
 	if (new->vm_file) {
 		get_file(new->vm_file);
@@ -1901,12 +1928,28 @@ static int __split_vma(struct mm_struct * mm, struct vm_area_struct * vma,
 		new->vm_ops->open(new);
 
 	if (new_below)
-		vma_adjust(vma, addr, vma->vm_end, vma->vm_pgoff +
+		err = vma_adjust(vma, addr, vma->vm_end, vma->vm_pgoff +
 			((addr - new->vm_start) >> PAGE_SHIFT), new);
 	else
-		vma_adjust(vma, vma->vm_start, addr, vma->vm_pgoff, new);
+		err = vma_adjust(vma, vma->vm_start, addr, vma->vm_pgoff, new);
 
-	return 0;
+	/* Success. */
+	if (!err)
+		return 0;
+
+	/* Clean everything up if vma_adjust failed. */
+	new->vm_ops->close(new);
+	if (new->vm_file) {
+		if (vma->vm_flags & VM_EXECUTABLE)
+			removed_exe_file_vma(mm);
+		fput(new->vm_file);
+	}
+ out_free_mpol:
+	mpol_put(pol);
+ out_free_vma:
+	kmem_cache_free(vm_area_cachep, new);
+ out_err:
+	return err;
 }
 
 /*
@@ -2116,6 +2159,7 @@ unsigned long do_brk(unsigned long addr, unsigned long len)
 		return -ENOMEM;
 	}
 
+	INIT_LIST_HEAD(&vma->anon_vma_chain);
 	vma->vm_mm = mm;
 	vma->vm_start = addr;
 	vma->vm_end = addr + len;
@@ -2252,10 +2296,11 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 		if (new_vma) {
 			*new_vma = *vma;
 			pol = mpol_dup(vma_policy(vma));
-			if (IS_ERR(pol)) {
-				kmem_cache_free(vm_area_cachep, new_vma);
-				return NULL;
-			}
+			if (IS_ERR(pol))
+				goto out_free_vma;
+			INIT_LIST_HEAD(&new_vma->anon_vma_chain);
+			if (anon_vma_clone(new_vma, vma))
+				goto out_free_mempol;
 			vma_set_policy(new_vma, pol);
 			new_vma->vm_start = addr;
 			new_vma->vm_end = addr + len;
@@ -2271,6 +2316,12 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
 		}
 	}
 	return new_vma;
+
+ out_free_mempol:
+	mpol_put(pol);
+ out_free_vma:
+	kmem_cache_free(vm_area_cachep, new_vma);
+	return NULL;
 }
 
 /*
@@ -2348,6 +2399,7 @@ int install_special_mapping(struct mm_struct *mm,
 	if (unlikely(vma == NULL))
 		return -ENOMEM;
 
+	INIT_LIST_HEAD(&vma->anon_vma_chain);
 	vma->vm_mm = mm;
 	vma->vm_start = addr;
 	vma->vm_end = addr + len;
@@ -2448,6 +2500,7 @@ static void vm_lock_mapping(struct mm_struct *mm, struct address_space *mapping)
 int mm_take_all_locks(struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
+	struct anon_vma_chain *avc;
 	int ret = -EINTR;
 
 	BUG_ON(down_read_trylock(&mm->mmap_sem));
@@ -2465,7 +2518,8 @@ int mm_take_all_locks(struct mm_struct *mm)
 		if (signal_pending(current))
 			goto out_unlock;
 		if (vma->anon_vma)
-			vm_lock_anon_vma(mm, vma->anon_vma);
+			list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
+				vm_lock_anon_vma(mm, avc->anon_vma);
 	}
 
 	ret = 0;
@@ -2520,13 +2574,15 @@ static void vm_unlock_mapping(struct address_space *mapping)
 void mm_drop_all_locks(struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
+	struct anon_vma_chain *avc;
 
 	BUG_ON(down_read_trylock(&mm->mmap_sem));
 	BUG_ON(!mutex_is_locked(&mm_all_locks_mutex));
 
 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
 		if (vma->anon_vma)
-			vm_unlock_anon_vma(vma->anon_vma);
+			list_for_each_entry(avc, &vma->anon_vma_chain, same_vma)
+				vm_unlock_anon_vma(avc->anon_vma);
 		if (vma->vm_file && vma->vm_file->f_mapping)
 			vm_unlock_mapping(vma->vm_file->f_mapping);
 	}

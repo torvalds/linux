@@ -460,8 +460,11 @@ unsigned long do_mremap(unsigned long addr,
 		if (vma_expandable(vma, new_len - old_len)) {
 			int pages = (new_len - old_len) >> PAGE_SHIFT;
 
-			vma_adjust(vma, vma->vm_start,
-				addr + new_len, vma->vm_pgoff, NULL);
+			if (vma_adjust(vma, vma->vm_start, addr + new_len,
+				       vma->vm_pgoff, NULL)) {
+				ret = -ENOMEM;
+				goto out;
+			}
 
 			mm->total_vm += pages;
 			vm_stat_account(mm, vma->vm_flags, vma->vm_file, pages);
