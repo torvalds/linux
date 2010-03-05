@@ -5,31 +5,23 @@ Supported chips:
   * IT8705F
     Prefix: 'it87'
     Addresses scanned: from Super I/O config space (8 I/O ports)
-    Datasheet: Publicly available at the ITE website
-               http://www.ite.com.tw/product_info/file/pc/IT8705F_V.0.4.1.pdf
+    Datasheet: Once publicly available at the ITE website, but no longer
   * IT8712F
     Prefix: 'it8712'
     Addresses scanned: from Super I/O config space (8 I/O ports)
-    Datasheet: Publicly available at the ITE website
-               http://www.ite.com.tw/product_info/file/pc/IT8712F_V0.9.1.pdf
-               http://www.ite.com.tw/product_info/file/pc/Errata%20V0.1%20for%20IT8712F%20V0.9.1.pdf
-               http://www.ite.com.tw/product_info/file/pc/IT8712F_V0.9.3.pdf
+    Datasheet: Once publicly available at the ITE website, but no longer
   * IT8716F/IT8726F
     Prefix: 'it8716'
     Addresses scanned: from Super I/O config space (8 I/O ports)
-    Datasheet: Publicly available at the ITE website
-               http://www.ite.com.tw/product_info/file/pc/IT8716F_V0.3.ZIP
-               http://www.ite.com.tw/product_info/file/pc/IT8726F_V0.3.pdf
+    Datasheet: Once publicly available at the ITE website, but no longer
   * IT8718F
     Prefix: 'it8718'
     Addresses scanned: from Super I/O config space (8 I/O ports)
-    Datasheet: Publicly available at the ITE website
-               http://www.ite.com.tw/product_info/file/pc/IT8718F_V0.2.zip
-               http://www.ite.com.tw/product_info/file/pc/IT8718F_V0%203_(for%20C%20version).zip
+    Datasheet: Once publicly available at the ITE website, but no longer
   * IT8720F
     Prefix: 'it8720'
     Addresses scanned: from Super I/O config space (8 I/O ports)
-    Datasheet: Not yet publicly available.
+    Datasheet: Not publicly available
   * SiS950   [clone of IT8705F]
     Prefix: 'it87'
     Addresses scanned: from Super I/O config space (8 I/O ports)
