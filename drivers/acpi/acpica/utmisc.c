@@ -205,7 +205,7 @@ acpi_status acpi_ut_allocate_owner_id(acpi_owner_id * owner_id)
 	/* Guard against multiple allocations of ID to the same location */
 
 	if (*owner_id) {
-		ACPI_ERROR((AE_INFO, "Owner ID [%2.2X] already exists",
+		ACPI_ERROR((AE_INFO, "Owner ID [0x%2.2X] already exists",
 			    *owner_id));
 		return_ACPI_STATUS(AE_ALREADY_EXISTS);
 	}
@@ -315,7 +315,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 	/* Zero is not a valid owner_iD */
 
 	if (owner_id == 0) {
-		ACPI_ERROR((AE_INFO, "Invalid OwnerId: %2.2X", owner_id));
+		ACPI_ERROR((AE_INFO, "Invalid OwnerId: 0x%2.2X", owner_id));
 		return_VOID;
 	}
 
@@ -341,7 +341,7 @@ void acpi_ut_release_owner_id(acpi_owner_id * owner_id_ptr)
 		acpi_gbl_owner_id_mask[index] ^= bit;
 	} else {
 		ACPI_ERROR((AE_INFO,
-			    "Release of non-allocated OwnerId: %2.2X",
+			    "Release of non-allocated OwnerId: 0x%2.2X",
 			    owner_id + 1));
 	}
 

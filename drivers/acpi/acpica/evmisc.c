@@ -590,7 +590,7 @@ void acpi_ev_terminate(void)
 			status = acpi_disable_event(i, 0);
 			if (ACPI_FAILURE(status)) {
 				ACPI_ERROR((AE_INFO,
-					    "Could not disable fixed event %d",
+					    "Could not disable fixed event %u",
 					    (u32) i));
 			}
 		}

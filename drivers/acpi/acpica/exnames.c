@@ -102,7 +102,7 @@ static char *acpi_ex_allocate_name_string(u32 prefix_count, u32 num_name_segs)
 	name_string = ACPI_ALLOCATE(size_needed);
 	if (!name_string) {
 		ACPI_ERROR((AE_INFO,
-			    "Could not allocate size %d", size_needed));
+			    "Could not allocate size %u", size_needed));
 		return_PTR(NULL);
 	}
 
@@ -216,7 +216,7 @@ static acpi_status acpi_ex_name_segment(u8 ** in_aml_address, char *name_string)
 		 */
 		status = AE_AML_BAD_NAME;
 		ACPI_ERROR((AE_INFO,
-			    "Bad character %02x in name, at %p",
+			    "Bad character 0x%02x in name, at %p",
 			    *aml_address, aml_address));
 	}
 

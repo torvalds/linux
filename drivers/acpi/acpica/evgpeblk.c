@@ -1139,8 +1139,8 @@ acpi_status acpi_ev_gpe_initialize(void)
 		if ((register_count0) &&
 		    (gpe_number_max >= acpi_gbl_FADT.gpe1_base)) {
 			ACPI_ERROR((AE_INFO,
-				    "GPE0 block (GPE 0 to %d) overlaps the GPE1 block "
-				    "(GPE %d to %d) - Ignoring GPE1",
+				    "GPE0 block (GPE 0 to %u) overlaps the GPE1 block "
+				    "(GPE %u to %u) - Ignoring GPE1",
 				    gpe_number_max, acpi_gbl_FADT.gpe1_base,
 				    acpi_gbl_FADT.gpe1_base +
 				    ((register_count1 *

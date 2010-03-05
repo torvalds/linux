@@ -170,7 +170,7 @@ acpi_status acpi_ex_system_do_stall(u32 how_long)
 		 * (ACPI specifies 100 usec as max, but this gives some slack in
 		 * order to support existing BIOSs)
 		 */
-		ACPI_ERROR((AE_INFO, "Time parameter is too large (%d)",
+		ACPI_ERROR((AE_INFO, "Time parameter is too large (%u)",
 			    how_long));
 		status = AE_AML_OPERAND_VALUE;
 	} else {

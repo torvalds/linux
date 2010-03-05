@@ -249,7 +249,7 @@ acpi_ex_acquire_mutex(union acpi_operand_object *time_desc,
 	 */
 	if (walk_state->thread->current_sync_level > obj_desc->mutex.sync_level) {
 		ACPI_ERROR((AE_INFO,
-			    "Cannot acquire Mutex [%4.4s], current SyncLevel is too large (%d)",
+			    "Cannot acquire Mutex [%4.4s], current SyncLevel is too large (%u)",
 			    acpi_ut_get_node_name(obj_desc->mutex.node),
 			    walk_state->thread->current_sync_level));
 		return_ACPI_STATUS(AE_AML_MUTEX_ORDER);
@@ -410,7 +410,7 @@ acpi_ex_release_mutex(union acpi_operand_object *obj_desc,
 	if (obj_desc->mutex.sync_level !=
 	    walk_state->thread->current_sync_level) {
 		ACPI_ERROR((AE_INFO,
-			    "Cannot release Mutex [%4.4s], SyncLevel mismatch: mutex %d current %d",
+			    "Cannot release Mutex [%4.4s], SyncLevel mismatch: mutex %u current %u",
 			    acpi_ut_get_node_name(obj_desc->mutex.node),
 			    obj_desc->mutex.sync_level,
 			    walk_state->thread->current_sync_level));

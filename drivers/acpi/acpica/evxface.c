@@ -142,7 +142,7 @@ acpi_install_fixed_event_handler(u32 event,
 	if (ACPI_SUCCESS(status))
 		status = acpi_enable_event(event, 0);
 	if (ACPI_FAILURE(status)) {
-		ACPI_WARNING((AE_INFO, "Could not enable fixed event %X",
+		ACPI_WARNING((AE_INFO, "Could not enable fixed event 0x%X",
 			      event));
 
 		/* Remove the handler */
@@ -203,7 +203,7 @@ acpi_remove_fixed_event_handler(u32 event, acpi_event_handler handler)
 
 	if (ACPI_FAILURE(status)) {
 		ACPI_WARNING((AE_INFO,
-			      "Could not write to fixed event enable register %X",
+			      "Could not write to fixed event enable register 0x%X",
 			      event));
 	} else {
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO, "Disabled fixed event %X\n",

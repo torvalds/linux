@@ -245,7 +245,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 		index = operand[5]->integer.value;
 		if (index >= operand[0]->package.count) {
 			ACPI_ERROR((AE_INFO,
-				    "Index (%X%8.8X) beyond package end (%X)",
+				    "Index (0x%8.8X%8.8X) beyond package end (0x%X)",
 				    ACPI_FORMAT_UINT64(index),
 				    operand[0]->package.count));
 			status = AE_AML_PACKAGE_LIMIT;
@@ -314,7 +314,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown AML opcode %X",
+		ACPI_ERROR((AE_INFO, "Unknown AML opcode 0x%X",
 			    walk_state->opcode));
 		status = AE_AML_BAD_OPCODE;
 		goto cleanup;

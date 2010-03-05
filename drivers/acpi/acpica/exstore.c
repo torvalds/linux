@@ -193,7 +193,7 @@ acpi_ex_store(union acpi_operand_object *source_desc,
 
 	default:
 
-		ACPI_ERROR((AE_INFO, "Unknown Reference Class %2.2X",
+		ACPI_ERROR((AE_INFO, "Unknown Reference Class 0x%2.2X",
 			    ref_desc->reference.class));
 		ACPI_DUMP_ENTRY(ref_desc, ACPI_LV_INFO);
 
