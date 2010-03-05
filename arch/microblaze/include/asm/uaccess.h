@@ -75,7 +75,12 @@ struct exception_table_entry {
 
 #ifndef CONFIG_MMU
 
-extern int ___range_ok(unsigned long addr, unsigned long size);
+/* Check against bounds of physical memory */
+static inline int ___range_ok(unsigned long addr, unsigned long size)
+{
+	return ((addr < memory_start) ||
+		((addr + size) > memory_end));
+}
 
 #define __range_ok(addr, size) \
 		___range_ok((unsigned long)(addr), (unsigned long)(size))

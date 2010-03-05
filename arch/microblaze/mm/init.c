@@ -207,14 +207,6 @@ void __init mem_init(void)
 }
 
 #ifndef CONFIG_MMU
-/* Check against bounds of physical memory */
-int ___range_ok(unsigned long addr, unsigned long size)
-{
-	return ((addr < memory_start) ||
-		((addr + size) > memory_end));
-}
-EXPORT_SYMBOL(___range_ok);
-
 int page_is_ram(unsigned long pfn)
 {
 	return __range_ok(pfn, 0);
