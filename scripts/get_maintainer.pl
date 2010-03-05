@@ -381,8 +381,10 @@ foreach my $file (@files) {
 			$line =~ s/\\\./\./g;       	##Convert \. to .
 			$line =~ s/\.\*/\*/g;       	##Convert .* to *
 		    }
+		    $line =~ s/^([A-Z]):/$1:\t/g;
 		    print("$line\n");
 		}
+		print("\n");
 	    }
     }
 
