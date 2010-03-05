@@ -225,10 +225,12 @@ static int __cmd_report(void)
 	if (verbose > 2)
 		dsos__fprintf(stdout);
 
-	perf_session__collapse_resort(session);
-	perf_session__output_resort(session, session->events_stats.total);
+	perf_session__collapse_resort(&session->hists);
+	perf_session__output_resort(&session->hists,
+				    session->events_stats.total);
 	fprintf(stdout, "# Samples: %Ld\n#\n", session->events_stats.total);
-	perf_session__fprintf_hists(session, NULL, false, stdout);
+	perf_session__fprintf_hists(&session->hists, NULL, false, stdout,
+				    session->events_stats.total);
 	if (sort_order == default_sort_order &&
 	    parent_pattern == default_parent_pattern)
 		fprintf(stdout, "#\n# (For a higher level overview, try: perf report --sort comm,dso)\n#\n");
