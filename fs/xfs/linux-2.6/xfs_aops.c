@@ -39,6 +39,7 @@
 #include "xfs_iomap.h"
 #include "xfs_vnodeops.h"
 #include "xfs_trace.h"
+#include "xfs_bmap.h"
 #include <linux/mpage.h>
 #include <linux/pagevec.h>
 #include <linux/writeback.h>
@@ -893,6 +894,118 @@ xfs_cluster_write(
 	}
 }
 
+STATIC void
+xfs_vm_invalidatepage(
+	struct page		*page,
+	unsigned long		offset)
+{
+	trace_xfs_invalidatepage(page->mapping->host, page, offset);
+	block_invalidatepage(page, offset);
+}
+
+/*
+ * If the page has delalloc buffers on it, we need to punch them out before we
+ * invalidate the page. If we don't, we leave a stale delalloc mapping on the
+ * inode that can trip a BUG() in xfs_get_blocks() later on if a direct IO read
+ * is done on that same region - the delalloc extent is returned when none is
+ * supposed to be there.
+ *
+ * We prevent this by truncating away the delalloc regions on the page before
+ * invalidating it. Because they are delalloc, we can do this without needing a
+ * transaction. Indeed - if we get ENOSPC errors, we have to be able to do this
+ * truncation without a transaction as there is no space left for block
+ * reservation (typically why we see a ENOSPC in writeback).
+ *
+ * This is not a performance critical path, so for now just do the punching a
+ * buffer head at a time.
+ */
+STATIC void
+xfs_aops_discard_page(
+	struct page		*page)
+{
+	struct inode		*inode = page->mapping->host;
+	struct xfs_inode	*ip = XFS_I(inode);
+	struct buffer_head	*bh, *head;
+	loff_t			offset = page_offset(page);
+	ssize_t			len = 1 << inode->i_blkbits;
+
+	if (!xfs_is_delayed_page(page, IOMAP_DELAY))
+		goto out_invalidate;
+
+	xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+		"page discard on page %p, inode 0x%llx, offset %llu.",
+			page, ip->i_ino, offset);
+
+	xfs_ilock(ip, XFS_ILOCK_EXCL);
+	bh = head = page_buffers(page);
+	do {
+		int		done;
+		xfs_fileoff_t	offset_fsb;
+		xfs_bmbt_irec_t	imap;
+		int		nimaps = 1;
+		int		error;
+		xfs_fsblock_t	firstblock;
+		xfs_bmap_free_t flist;
+
+		if (!buffer_delay(bh))
+			goto next_buffer;
+
+		offset_fsb = XFS_B_TO_FSBT(ip->i_mount, offset);
+
+		/*
+		 * Map the range first and check that it is a delalloc extent
+		 * before trying to unmap the range. Otherwise we will be
+		 * trying to remove a real extent (which requires a
+		 * transaction) or a hole, which is probably a bad idea...
+		 */
+		error = xfs_bmapi(NULL, ip, offset_fsb, 1,
+				XFS_BMAPI_ENTIRE,  NULL, 0, &imap,
+				&nimaps, NULL, NULL);
+
+		if (error) {
+			/* something screwed, just bail */
+			xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+			"page discard failed delalloc mapping lookup.");
+			break;
+		}
+		if (!nimaps) {
+			/* nothing there */
+			goto next_buffer;
+		}
+		if (imap.br_startblock != DELAYSTARTBLOCK) {
+			/* been converted, ignore */
+			goto next_buffer;
+		}
+		WARN_ON(imap.br_blockcount == 0);
+
+		/*
+		 * Note: while we initialise the firstblock/flist pair, they
+		 * should never be used because blocks should never be
+		 * allocated or freed for a delalloc extent and hence we need
+		 * don't cancel or finish them after the xfs_bunmapi() call.
+		 */
+		xfs_bmap_init(&flist, &firstblock);
+		error = xfs_bunmapi(NULL, ip, offset_fsb, 1, 0, 1, &firstblock,
+					&flist, NULL, &done);
+
+		ASSERT(!flist.xbf_count && !flist.xbf_first);
+		if (error) {
+			/* something screwed, just bail */
+			xfs_fs_cmn_err(CE_ALERT, ip->i_mount,
+			"page discard unable to remove delalloc mapping.");
+			break;
+		}
+next_buffer:
+		offset += len;
+
+	} while ((bh = bh->b_this_page) != head);
+
+	xfs_iunlock(ip, XFS_ILOCK_EXCL);
+out_invalidate:
+	xfs_vm_invalidatepage(page, 0);
+	return;
+}
+
 /*
  * Calling this without startio set means we are being asked to make a dirty
  * page ready for freeing it's buffers.  When called with startio set then
@@ -1144,7 +1257,7 @@ error:
 	 */
 	if (err != -EAGAIN) {
 		if (!unmapped)
-			block_invalidatepage(page, 0);
+			xfs_aops_discard_page(page);
 		ClearPageUptodate(page);
 	}
 	return err;
@@ -1552,15 +1665,6 @@ xfs_vm_readpages(
 	unsigned		nr_pages)
 {
 	return mpage_readpages(mapping, pages, nr_pages, xfs_get_blocks);
-}
-
-STATIC void
-xfs_vm_invalidatepage(
-	struct page		*page,
-	unsigned long		offset)
-{
-	trace_xfs_invalidatepage(page->mapping->host, page, offset);
-	block_invalidatepage(page, offset);
 }
 
 const struct address_space_operations xfs_address_space_operations = {
