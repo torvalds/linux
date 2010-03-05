@@ -642,6 +642,9 @@ struct padata_instance *padata_alloc(const struct cpumask *cpumask,
 	if (!pd)
 		goto err_free_inst;
 
+	if (!alloc_cpumask_var(&pinst->cpumask, GFP_KERNEL))
+		goto err_free_pd;
+
 	rcu_assign_pointer(pinst->pd, pd);
 
 	pinst->wq = wq;
@@ -654,12 +657,14 @@ struct padata_instance *padata_alloc(const struct cpumask *cpumask,
 	pinst->cpu_notifier.priority = 0;
 	err = register_hotcpu_notifier(&pinst->cpu_notifier);
 	if (err)
-		goto err_free_pd;
+		goto err_free_cpumask;
 
 	mutex_init(&pinst->lock);
 
 	return pinst;
 
+err_free_cpumask:
+	free_cpumask_var(pinst->cpumask);
 err_free_pd:
 	padata_free_pd(pd);
 err_free_inst:
@@ -685,6 +690,7 @@ void padata_free(struct padata_instance *pinst)
 
 	unregister_hotcpu_notifier(&pinst->cpu_notifier);
 	padata_free_pd(pinst->pd);
+	free_cpumask_var(pinst->cpumask);
 	kfree(pinst);
 }
 EXPORT_SYMBOL(padata_free);
