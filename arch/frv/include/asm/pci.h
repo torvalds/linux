@@ -68,41 +68,4 @@ static inline void pci_dma_burst_advice(struct pci_dev *pdev,
 #define PCIBIOS_MIN_IO		0x100
 #define PCIBIOS_MIN_MEM		0x00010000
 
-/* Make physical memory consistent for a single
- * streaming mode DMA translation after a transfer.
- *
- * If you perform a pci_map_single() but wish to interrogate the
- * buffer using the cpu, yet do not wish to teardown the PCI dma
- * mapping, you must call this function before doing so.  At the
- * next point you give the PCI dma address back to the card, the
- * device again owns the buffer.
- */
-static inline void pci_dma_sync_single(struct pci_dev *hwdev,
-				       dma_addr_t dma_handle,
-				       size_t size, int direction)
-{
-	BUG_ON(direction == PCI_DMA_NONE);
-
-	frv_cache_wback_inv((unsigned long)bus_to_virt(dma_handle),
-			    (unsigned long)bus_to_virt(dma_handle) + size);
-}
-
-/* Make physical memory consistent for a set of streaming
- * mode DMA translations after a transfer.
- *
- * The same as pci_dma_sync_single but for a scatter-gather list,
- * same rules and usage.
- */
-static inline void pci_dma_sync_sg(struct pci_dev *hwdev,
-				   struct scatterlist *sg,
-				   int nelems, int direction)
-{
-	int i;
-	BUG_ON(direction == PCI_DMA_NONE);
-
-	for (i = 0; i < nelems; i++)
-		frv_cache_wback_inv(sg_dma_address(&sg[i]),
-				    sg_dma_address(&sg[i])+sg_dma_len(&sg[i]));
-}
-
 #endif /* _ASM_FRV_PCI_H */
