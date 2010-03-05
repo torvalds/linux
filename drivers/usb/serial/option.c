@@ -335,6 +335,24 @@ static int  option_resume(struct usb_serial *serial);
 #define ALCATEL_VENDOR_ID			0x1bbb
 #define ALCATEL_PRODUCT_X060S			0x0000
 
+#define PIRELLI_VENDOR_ID			0x1266
+#define PIRELLI_PRODUCT_C100_1			0x1002
+#define PIRELLI_PRODUCT_C100_2			0x1003
+#define PIRELLI_PRODUCT_1004			0x1004
+#define PIRELLI_PRODUCT_1005			0x1005
+#define PIRELLI_PRODUCT_1006			0x1006
+#define PIRELLI_PRODUCT_1007			0x1007
+#define PIRELLI_PRODUCT_1008			0x1008
+#define PIRELLI_PRODUCT_1009			0x1009
+#define PIRELLI_PRODUCT_100A			0x100a
+#define PIRELLI_PRODUCT_100B			0x100b
+#define PIRELLI_PRODUCT_100C			0x100c
+#define PIRELLI_PRODUCT_100D			0x100d
+#define PIRELLI_PRODUCT_100E			0x100e
+#define PIRELLI_PRODUCT_100F			0x100f
+#define PIRELLI_PRODUCT_1011			0x1011
+#define PIRELLI_PRODUCT_1012			0x1012
+
 /* Airplus products */
 #define AIRPLUS_VENDOR_ID			0x1011
 #define AIRPLUS_PRODUCT_MCD650			0x3198
@@ -679,6 +697,24 @@ static const struct usb_device_id option_ids[] = {
   	  .driver_info = (kernel_ulong_t)&four_g_w14_blacklist
   	},
 	{ USB_DEVICE(HAIER_VENDOR_ID, HAIER_PRODUCT_CE100) },
+	/* Pirelli  */
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_C100_1)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_C100_2)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1004)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1005)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1006)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1007)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1008)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1009)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100A)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100B) },
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100C) },
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100D) },
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100E) },
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_100F) },
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1011)},
+	{ USB_DEVICE(PIRELLI_VENDOR_ID, PIRELLI_PRODUCT_1012)},
+
 	{ } /* Terminating entry */
 };
 MODULE_DEVICE_TABLE(usb, option_ids);
@@ -802,10 +838,17 @@ static int option_probe(struct usb_serial *serial,
 			const struct usb_device_id *id)
 {
 	struct option_intf_private *data;
+
 	/* D-Link DWM 652 still exposes CD-Rom emulation interface in modem mode */
 	if (serial->dev->descriptor.idVendor == DLINK_VENDOR_ID &&
 		serial->dev->descriptor.idProduct == DLINK_PRODUCT_DWM_652 &&
 		serial->interface->cur_altsetting->desc.bInterfaceClass == 0x8)
+		return -ENODEV;
+
+	/* Bandrich modem and AT command interface is 0xff */
+	if ((serial->dev->descriptor.idVendor == BANDRICH_VENDOR_ID ||
+		serial->dev->descriptor.idVendor == PIRELLI_VENDOR_ID) &&
+		serial->interface->cur_altsetting->desc.bInterfaceClass != 0xff)
 		return -ENODEV;
 
 	data = serial->private = kzalloc(sizeof(struct option_intf_private), GFP_KERNEL);
