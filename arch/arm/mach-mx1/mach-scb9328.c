@@ -108,11 +108,10 @@ static int uart1_mxc_init(struct platform_device *pdev)
 			ARRAY_SIZE(mxc_uart1_pins), "UART1");
 }
 
-static int uart1_mxc_exit(struct platform_device *pdev)
+static void uart1_mxc_exit(struct platform_device *pdev)
 {
 	mxc_gpio_release_multiple_pins(mxc_uart1_pins,
 			ARRAY_SIZE(mxc_uart1_pins));
-	return 0;
 }
 
 static struct imxuart_platform_data uart_pdata = {
