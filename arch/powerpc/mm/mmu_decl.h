@@ -69,12 +69,7 @@ static inline void _tlbil_va(unsigned long address, unsigned int pid,
 }
 #endif /* CONIFG_8xx */
 
-/*
- * As of today, we don't support tlbivax broadcast on any
- * implementation. When that becomes the case, this will be
- * an extern.
- */
-#ifdef CONFIG_PPC_BOOK3E
+#if defined(CONFIG_PPC_BOOK3E) || defined(CONFIG_PPC_47x)
 extern void _tlbivax_bcast(unsigned long address, unsigned int pid,
 			   unsigned int tsize, unsigned int ind);
 #else

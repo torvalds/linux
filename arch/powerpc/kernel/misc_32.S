@@ -441,7 +441,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	addi	r3,r3,L1_CACHE_BYTES
 	bdnz	0b
 	sync
-#ifndef CONFIG_44x
+#ifdef CONFIG_44x
 	/* We don't flush the icache on 44x. Those have a virtual icache
 	 * and we don't have access to the virtual address here (it's
 	 * not the page vaddr but where it's mapped in user space). The
@@ -449,15 +449,19 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	 * a change in the address space occurs, before returning to
 	 * user space
 	 */
+BEGIN_MMU_FTR_SECTION
+	blr
+END_MMU_FTR_SECTION_IFSET(MMU_FTR_TYPE_44x)
+#endif /* CONFIG_44x */
 	mtctr	r4
 1:	icbi	0,r6
 	addi	r6,r6,L1_CACHE_BYTES
 	bdnz	1b
 	sync
 	isync
-#endif /* CONFIG_44x */
 	blr
 
+#ifndef CONFIG_BOOKE
 /*
  * Flush a particular page from the data cache to RAM, identified
  * by its physical address.  We turn off the MMU so we can just use
@@ -490,6 +494,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_COHERENT_ICACHE)
 	mtmsr	r10				/* restore DR */
 	isync
 	blr
+#endif /* CONFIG_BOOKE */
 
 /*
  * Clear pages using the dcbz instruction, which doesn't cause any
