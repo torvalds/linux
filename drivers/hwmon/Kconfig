@@ -200,20 +200,6 @@ config SENSORS_ADT7470
 	  This driver can also be built as a module. If so, the module
 	  will be called adt7470.
 
-config SENSORS_ADT7473
-	tristate "Analog Devices ADT7473 (DEPRECATED)"
-	depends on I2C && EXPERIMENTAL
-	select SENSORS_ADT7475
-	help
-	  If you say yes here you get support for the Analog Devices
-	  ADT7473 temperature monitoring chips.
-
-	  This driver is deprecated, you should use the adt7475 driver
-	  instead.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called adt7473.
-
 config SENSORS_ADT7475
 	tristate "Analog Devices ADT7473, ADT7475, ADT7476 and ADT7490"
 	depends on I2C && EXPERIMENTAL
