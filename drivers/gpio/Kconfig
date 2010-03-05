@@ -65,6 +65,9 @@ config GPIO_SYSFS
 
 # put expanders in the right section, in alphabetical order
 
+config GPIO_MAX730X
+	tristate
+
 comment "Memory mapped GPIO expanders:"
 
 config GPIO_PL061
@@ -86,6 +89,13 @@ config GPIO_VR41XX
 	  Say yes here to support the NEC VR4100 series General-purpose I/O Uint
 
 comment "I2C GPIO expanders:"
+
+config GPIO_MAX7300
+	tristate "Maxim MAX7300 GPIO expander"
+	depends on I2C
+	select GPIO_MAX730X
+	help
+	  GPIO driver for Maxim MAX7301 I2C-based GPIO expander.
 
 config GPIO_MAX732X
 	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
@@ -226,8 +236,9 @@ comment "SPI GPIO expanders:"
 config GPIO_MAX7301
 	tristate "Maxim MAX7301 GPIO expander"
 	depends on SPI_MASTER
+	select GPIO_MAX730X
 	help
-	  gpio driver for Maxim MAX7301 SPI GPIO expander.
+	  GPIO driver for Maxim MAX7301 SPI-based GPIO expander.
 
 config GPIO_MCP23S08
 	tristate "Microchip MCP23S08 I/O expander"
