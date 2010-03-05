@@ -1373,12 +1373,12 @@ static mode_t udf_convert_permissions(struct fileEntry *fe)
 	return mode;
 }
 
-int udf_write_inode(struct inode *inode, int sync)
+int udf_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	int ret;
 
 	lock_kernel();
-	ret = udf_update_inode(inode, sync);
+	ret = udf_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 	unlock_kernel();
 
 	return ret;

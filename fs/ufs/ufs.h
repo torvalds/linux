@@ -106,7 +106,7 @@ extern struct inode * ufs_new_inode (struct inode *, int);
 
 /* inode.c */
 extern struct inode *ufs_iget(struct super_block *, unsigned long);
-extern int ufs_write_inode (struct inode *, int);
+extern int ufs_write_inode (struct inode *, struct writeback_control *);
 extern int ufs_sync_inode (struct inode *);
 extern void ufs_delete_inode (struct inode *);
 extern struct buffer_head * ufs_bread (struct inode *, unsigned, int, int *);

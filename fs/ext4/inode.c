@@ -5177,7 +5177,7 @@ out_brelse:
  * `stuff()' is running, and the new i_size will be lost.  Plus the inode
  * will no longer be on the superblock's dirty inode list.
  */
-int ext4_write_inode(struct inode *inode, int wait)
+int ext4_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	int err;
 
@@ -5191,7 +5191,7 @@ int ext4_write_inode(struct inode *inode, int wait)
 			return -EIO;
 		}
 
-		if (!wait)
+		if (wbc->sync_mode != WB_SYNC_ALL)
 			return 0;
 
 		err = ext4_force_commit(inode->i_sb);
@@ -5201,7 +5201,7 @@ int ext4_write_inode(struct inode *inode, int wait)
 		err = ext4_get_inode_loc(inode, &iloc);
 		if (err)
 			return err;
-		if (wait)
+		if (wbc->sync_mode == WB_SYNC_ALL)
 			sync_dirty_buffer(iloc.bh);
 		if (buffer_req(iloc.bh) && !buffer_uptodate(iloc.bh)) {
 			ext4_error(inode->i_sb, __func__,

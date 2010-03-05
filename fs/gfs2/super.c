@@ -22,6 +22,7 @@
 #include <linux/crc32.h>
 #include <linux/time.h>
 #include <linux/wait.h>
+#include <linux/writeback.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -711,7 +712,7 @@ void gfs2_unfreeze_fs(struct gfs2_sbd *sdp)
  * Returns: errno
  */
 
-static int gfs2_write_inode(struct inode *inode, int sync)
+static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -745,7 +746,7 @@ static int gfs2_write_inode(struct inode *inode, int sync)
 do_unlock:
 	gfs2_glock_dq_uninit(&gh);
 do_flush:
-	if (sync != 0)
+	if (wbc->sync_mode == WB_SYNC_ALL)
 		gfs2_log_flush(GFS2_SB(inode), ip->i_gl);
 	return ret;
 }
