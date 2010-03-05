@@ -628,9 +628,9 @@ static int create_output_descriptors(struct cryptocop_operation *operation, int 
 		cdesc->dma_descr->buf = (char*)virt_to_phys(operation->tfrm_op.indata[*iniov_ix].iov_base + *iniov_offset);
 		cdesc->dma_descr->after = cdesc->dma_descr->buf + dlength;
 
+		assert(desc_len >= dlength);
 		desc_len -= dlength;
 		*iniov_offset += dlength;
-		assert(desc_len >= 0);
 		if (*iniov_offset >= operation->tfrm_op.indata[*iniov_ix].iov_len) {
 			*iniov_offset = 0;
 			++(*iniov_ix);
