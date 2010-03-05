@@ -101,11 +101,11 @@ static int mc13783_rtc_set_mmss(struct device *dev, unsigned long secs)
 	if (unlikely(ret))
 		goto out;
 
-	ret = mc13783_ackirq(priv->mc13783, MC13783_IRQ_RTCRST);
+	ret = mc13783_irq_ack(priv->mc13783, MC13783_IRQ_RTCRST);
 	if (unlikely(ret))
 		goto out;
 
-	ret = mc13783_unmask(priv->mc13783, MC13783_IRQ_RTCRST);
+	ret = mc13783_irq_unmask(priv->mc13783, MC13783_IRQ_RTCRST);
 out:
 	priv->valid = !ret;
 
@@ -123,7 +123,7 @@ static irqreturn_t mc13783_rtc_update_handler(int irq, void *dev)
 
 	rtc_update_irq(priv->rtc, 1, RTC_IRQF | RTC_UF);
 
-	mc13783_ackirq(mc13783, irq);
+	mc13783_irq_ack(mc13783, irq);
 
 	return IRQ_HANDLED;
 }
@@ -138,7 +138,7 @@ static int mc13783_rtc_update_irq_enable(struct device *dev,
 	if (!priv->valid)
 		goto out;
 
-	ret = (enabled ? mc13783_unmask : mc13783_mask)(priv->mc13783,
+	ret = (enabled ? mc13783_irq_unmask : mc13783_irq_mask)(priv->mc13783,
 			MC13783_IRQ_1HZ);
 out:
 	mc13783_unlock(priv->mc13783);
@@ -160,7 +160,7 @@ static irqreturn_t mc13783_rtc_reset_handler(int irq, void *dev)
 	dev_dbg(&priv->rtc->dev, "RTCRST\n");
 	priv->valid = 0;
 
-	mc13783_mask(mc13783, irq);
+	mc13783_irq_mask(mc13783, irq);
 
 	return IRQ_HANDLED;
 }
