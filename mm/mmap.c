@@ -554,9 +554,7 @@ again:			remove_next = 1 + (end > next->vm_end);
 		 */
 		if (importer && !importer->anon_vma) {
 			/* Block reverse map lookups until things are set up. */
-			importer->vm_flags |= VM_LOCK_RMAP;
 			if (anon_vma_clone(importer, vma)) {
-				importer->vm_flags &= ~VM_LOCK_RMAP;
 				return -ENOMEM;
 			}
 			importer->anon_vma = anon_vma;
@@ -618,11 +616,6 @@ again:			remove_next = 1 + (end > next->vm_end);
 		__vma_unlink(mm, next, vma);
 		if (file)
 			__remove_shared_vm_struct(next, file, mapping);
-		/*
-		 * This VMA is now dead, no need for rmap to follow it.
-		 * Call anon_vma_merge below, outside of i_mmap_lock.
-		 */
-		next->vm_flags |= VM_LOCK_RMAP;
 	} else if (insert) {
 		/*
 		 * split_vma has split insert from vma, and needs
@@ -635,20 +628,12 @@ again:			remove_next = 1 + (end > next->vm_end);
 	if (mapping)
 		spin_unlock(&mapping->i_mmap_lock);
 
-	/*
-	 * The current VMA has been set up. It is now safe for the
-	 * rmap code to get from the pages to the ptes.
-	 */
-	if (anon_vma && importer)
-		importer->vm_flags &= ~VM_LOCK_RMAP;
-
 	if (remove_next) {
 		if (file) {
 			fput(file);
 			if (next->vm_flags & VM_EXECUTABLE)
 				removed_exe_file_vma(mm);
 		}
-		/* Protected by mmap_sem and VM_LOCK_RMAP. */
 		if (next->anon_vma)
 			anon_vma_merge(vma, next);
 		mm->map_count--;

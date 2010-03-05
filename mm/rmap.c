@@ -329,18 +329,6 @@ vma_address(struct page *page, struct vm_area_struct *vma)
 		/* page should be within @vma mapping range */
 		return -EFAULT;
 	}
-	if (unlikely(vma->vm_flags & VM_LOCK_RMAP)) {
-		/*
-		 * This VMA is being unlinked or is not yet linked into the
-		 * VMA tree.  Do not try to follow this rmap.  This race
-		 * condition can result in page_referenced() ignoring a
-		 * reference or in try_to_unmap() failing to unmap a page.
-		 * The VMA cannot be freed under us because we hold the
-		 * anon_vma->lock, which the munmap code takes while
-		 * unlinking the anon_vmas from the VMA.
-		 */
-		return -EFAULT;
-	}
 	return address;
 }
 
