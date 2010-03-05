@@ -5713,7 +5713,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 		goto out;
 	}
 
-	vfs_dq_free_space_nodirty(inode,
+	dquot_free_space_nodirty(inode,
 				  ocfs2_clusters_to_bytes(inode->i_sb, len));
 
 	ret = ocfs2_remove_extent(handle, et, cpos, len, meta_ac, dealloc);
@@ -6936,7 +6936,7 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	vfs_dq_free_space_nodirty(inode,
+	dquot_free_space_nodirty(inode,
 			ocfs2_clusters_to_bytes(osb->sb, clusters_to_del));
 	spin_lock(&OCFS2_I(inode)->ip_lock);
 	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters) -
@@ -7301,11 +7301,10 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		unsigned int page_end;
 		u64 phys;
 
-		if (vfs_dq_alloc_space_nodirty(inode,
-				       ocfs2_clusters_to_bytes(osb->sb, 1))) {
-			ret = -EDQUOT;
+		ret = dquot_alloc_space_nodirty(inode,
+				       ocfs2_clusters_to_bytes(osb->sb, 1));
+		if (ret)
 			goto out_commit;
-		}
 		did_quota = 1;
 
 		ret = ocfs2_claim_clusters(osb, handle, data_ac, 1, &bit_off,
@@ -7381,7 +7380,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 
 out_commit:
 	if (ret < 0 && did_quota)
-		vfs_dq_free_space_nodirty(inode,
+		dquot_free_space_nodirty(inode,
 					  ocfs2_clusters_to_bytes(osb->sb, 1));
 
 	ocfs2_commit_trans(osb, handle);

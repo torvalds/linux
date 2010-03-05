@@ -59,3 +59,8 @@ config QUOTACTL
 	bool
 	depends on XFS_QUOTA || QUOTA
 	default y
+
+config QUOTACTL_COMPAT
+	bool
+	depends on QUOTACTL && COMPAT_FOR_U64_ALIGNMENT
+	default y

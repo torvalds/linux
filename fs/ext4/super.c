@@ -798,6 +798,7 @@ static void destroy_inodecache(void)
 
 static void ext4_clear_inode(struct inode *inode)
 {
+	dquot_drop(inode);
 	ext4_discard_preallocations(inode);
 	if (EXT4_JOURNAL(inode))
 		jbd2_journal_release_jbd_inode(EXT4_SB(inode->i_sb)->s_journal,
@@ -1052,19 +1053,9 @@ static ssize_t ext4_quota_write(struct super_block *sb, int type,
 				const char *data, size_t len, loff_t off);
 
 static const struct dquot_operations ext4_quota_operations = {
-	.initialize	= dquot_initialize,
-	.drop		= dquot_drop,
-	.alloc_space	= dquot_alloc_space,
-	.reserve_space	= dquot_reserve_space,
-	.claim_space	= dquot_claim_space,
-	.release_rsv	= dquot_release_reserved_space,
 #ifdef CONFIG_QUOTA
 	.get_reserved_space = ext4_get_reserved_space,
 #endif
-	.alloc_inode	= dquot_alloc_inode,
-	.free_space	= dquot_free_space,
-	.free_inode	= dquot_free_inode,
-	.transfer	= dquot_transfer,
 	.write_dquot	= ext4_write_dquot,
 	.acquire_dquot	= ext4_acquire_dquot,
 	.release_dquot	= ext4_release_dquot,
@@ -2014,7 +2005,7 @@ static void ext4_orphan_cleanup(struct super_block *sb,
 		}
 
 		list_add(&EXT4_I(inode)->i_orphan, &EXT4_SB(sb)->s_orphan);
-		vfs_dq_init(inode);
+		dquot_initialize(inode);
 		if (inode->i_nlink) {
 			ext4_msg(sb, KERN_DEBUG,
 				"%s: truncating inode %lu to %lld bytes",
@@ -3801,7 +3792,7 @@ static int ext4_statfs(struct dentry *dentry, struct kstatfs *buf)
  * Process 1                         Process 2
  * ext4_create()                     quota_sync()
  *   jbd2_journal_start()                  write_dquot()
- *   vfs_dq_init()                         down(dqio_mutex)
+ *   dquot_initialize()                         down(dqio_mutex)
  *     down(dqio_mutex)                    jbd2_journal_start()
  *
  */

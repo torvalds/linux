@@ -34,6 +34,7 @@
 #include <linux/errno.h>
 #include <linux/smp_lock.h>
 #include <linux/pagemap.h>
+#include <linux/quotaops.h>
 #include <linux/buffer_head.h>
 #include <linux/aio.h>
 
@@ -207,7 +208,7 @@ const struct file_operations udf_file_operations = {
 	.read			= do_sync_read,
 	.aio_read		= generic_file_aio_read,
 	.ioctl			= udf_ioctl,
-	.open			= generic_file_open,
+	.open			= dquot_file_open,
 	.mmap			= generic_file_mmap,
 	.write			= do_sync_write,
 	.aio_write		= udf_file_aio_write,
@@ -217,6 +218,29 @@ const struct file_operations udf_file_operations = {
 	.llseek			= generic_file_llseek,
 };
 
+static int udf_setattr(struct dentry *dentry, struct iattr *iattr)
+{
+	struct inode *inode = dentry->d_inode;
+	int error;
+
+	error = inode_change_ok(inode, iattr);
+	if (error)
+		return error;
+
+	if (iattr->ia_valid & ATTR_SIZE)
+		dquot_initialize(inode);
+
+	if ((iattr->ia_valid & ATTR_UID && iattr->ia_uid != inode->i_uid) ||
+            (iattr->ia_valid & ATTR_GID && iattr->ia_gid != inode->i_gid)) {
+		error = dquot_transfer(inode, iattr);
+		if (error)
+			return error;
+	}
+
+	return inode_setattr(inode, iattr);
+}
+
 const struct inode_operations udf_file_inode_operations = {
-	.truncate = udf_truncate,
+	.truncate		= udf_truncate,
+	.setattr		= udf_setattr,
 };

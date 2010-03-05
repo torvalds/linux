@@ -289,7 +289,7 @@ const struct file_operations reiserfs_file_operations = {
 	.compat_ioctl = reiserfs_compat_ioctl,
 #endif
 	.mmap = reiserfs_file_mmap,
-	.open = generic_file_open,
+	.open = dquot_file_open,
 	.release = reiserfs_file_release,
 	.fsync = reiserfs_sync_file,
 	.aio_read = generic_file_aio_read,

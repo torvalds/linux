@@ -149,6 +149,9 @@ void jfs_delete_inode(struct inode *inode)
 {
 	jfs_info("In jfs_delete_inode, inode = 0x%p", inode);
 
+	if (!is_bad_inode(inode))
+		dquot_initialize(inode);
+
 	if (!is_bad_inode(inode) &&
 	    (JFS_IP(inode)->fileset == FILESYSTEM_I)) {
 		truncate_inode_pages(&inode->i_data, 0);
@@ -161,9 +164,9 @@ void jfs_delete_inode(struct inode *inode)
 		/*
 		 * Free the inode from the quota allocation.
 		 */
-		vfs_dq_init(inode);
-		vfs_dq_free_inode(inode);
-		vfs_dq_drop(inode);
+		dquot_initialize(inode);
+		dquot_free_inode(inode);
+		dquot_drop(inode);
 	}
 
 	clear_inode(inode);
