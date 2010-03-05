@@ -312,8 +312,10 @@ static int __xlate_proc_name(const char *name, struct proc_dir_entry **ret,
 			if (proc_match(len, cp, de))
 				break;
 		}
-		if (!de)
+		if (!de) {
+			WARN(1, "name '%s'\n", name);
 			return -ENOENT;
+		}
 		cp += len + 1;
 	}
 	*residual = cp;
@@ -818,8 +820,10 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 		}
 	}
 	spin_unlock(&proc_subdir_lock);
-	if (!de)
+	if (!de) {
+		WARN(1, "name '%s'\n", name);
 		return;
+	}
 
 	spin_lock(&de->pde_unload_lock);
 	/*
