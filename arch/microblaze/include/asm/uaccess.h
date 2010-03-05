@@ -231,23 +231,24 @@ extern long strnlen_user(const char *src, long count);
 	__gu_err;							\
 })
 
-#define __get_user_asm(insn, __gu_ptr, __gu_val, __gu_err)		\
-({									\
-	__asm__ __volatile__ (						\
-			"1:"	insn	" %1, %2, r0;			\
-				addk	%0, r0, r0;			\
-			2:						\
-			.section .fixup,\"ax\";				\
-			3:	brid	2b;				\
-				addik	%0, r0, %3;			\
-			.previous;					\
-			.section __ex_table,\"a\";			\
-			.word	1b,3b;					\
-			.previous;"					\
-		: "=r"(__gu_err), "=r"(__gu_val)			\
-		: "r"(__gu_ptr), "i"(-EFAULT)				\
-	);								\
+#define __get_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
+({								\
+	__asm__ __volatile__ (					\
+			"1:"	insn	" %1, %2, r0;"		\
+			"	addk	%0, r0, r0;"		\
+			"2:			"		\
+			__FIXUP_SECTION				\
+			"3:	brid	2b;	"		\
+			"	addik	%0, r0, %3;"		\
+			".previous;"				\
+			__EX_TABLE_SECTION			\
+			".word	1b,3b;"				\
+			".previous;"				\
+		: "=&r"(__gu_err), "=r"(__gu_val)		\
+		: "r"(__gu_ptr), "i"(-EFAULT)			\
+	);							\
 })
+
 
 #define __put_user(x, ptr)						\
 ({									\
