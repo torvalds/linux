@@ -80,14 +80,16 @@ struct tmp421_data {
 
 static int temp_from_s16(s16 reg)
 {
-	int temp = reg;
+	/* Mask out status bits */
+	int temp = reg & ~0xf;
 
 	return (temp * 1000 + 128) / 256;
 }
 
 static int temp_from_u16(u16 reg)
 {
-	int temp = reg;
+	/* Mask out status bits */
+	int temp = reg & ~0xf;
 
 	/* Add offset for extended temperature range. */
 	temp -= 64 * 256;
