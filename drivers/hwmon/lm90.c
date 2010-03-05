@@ -1,7 +1,7 @@
 /*
  * lm90.c - Part of lm_sensors, Linux kernel modules for hardware
  *          monitoring
- * Copyright (C) 2003-2009  Jean Delvare <khali@linux-fr.org>
+ * Copyright (C) 2003-2010  Jean Delvare <khali@linux-fr.org>
  *
  * Based on the lm83 driver. The LM90 is a sensor chip made by National
  * Semiconductor. It reports up to two temperatures (its own plus up to
@@ -202,6 +202,8 @@ struct lm90_data {
 	unsigned long last_updated; /* in jiffies */
 	int kind;
 	int flags;
+
+	u8 config_orig;		/* Original configuration register value */
 
 	/* registers values */
 	s8 temp8[4];	/* 0: local low limit
@@ -840,7 +842,7 @@ exit:
 
 static void lm90_init_client(struct i2c_client *client)
 {
-	u8 config, config_orig;
+	u8 config;
 	struct lm90_data *data = i2c_get_clientdata(client);
 
 	/*
@@ -852,7 +854,7 @@ static void lm90_init_client(struct i2c_client *client)
 		dev_warn(&client->dev, "Initialization failed!\n");
 		return;
 	}
-	config_orig = config;
+	data->config_orig = config;
 
 	/* Check Temperature Range Select */
 	if (data->kind == adt7461) {
@@ -870,7 +872,7 @@ static void lm90_init_client(struct i2c_client *client)
 	}
 
 	config &= 0xBF;	/* run */
-	if (config != config_orig) /* Only write if changed */
+	if (config != data->config_orig) /* Only write if changed */
 		i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1, config);
 }
 
@@ -884,6 +886,10 @@ static int lm90_remove(struct i2c_client *client)
 	if (data->kind != max6657 && data->kind != max6646)
 		device_remove_file(&client->dev,
 				   &sensor_dev_attr_temp2_offset.dev_attr);
+
+	/* Restore initial configuration */
+	i2c_smbus_write_byte_data(client, LM90_REG_W_CONFIG1,
+				  data->config_orig);
 
 	kfree(data);
 	return 0;
