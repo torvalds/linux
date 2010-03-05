@@ -69,15 +69,8 @@ extern u8 jbd2_journal_enable_debug;
 #define jbd_debug(f, a...)	/**/
 #endif
 
-static inline void *jbd2_alloc(size_t size, gfp_t flags)
-{
-	return (void *)__get_free_pages(flags, get_order(size));
-}
-
-static inline void jbd2_free(void *ptr, size_t size)
-{
-	free_pages((unsigned long)ptr, get_order(size));
-};
+extern void *jbd2_alloc(size_t size, gfp_t flags);
+extern void jbd2_free(void *ptr, size_t size);
 
 #define JBD2_MIN_JOURNAL_BLOCKS 1024
 
