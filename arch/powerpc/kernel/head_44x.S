@@ -715,6 +715,8 @@ _GLOBAL(init_cpu_state)
 	srwi	r3,r3,16
 	cmplwi	cr0,r3,PVR_476@h
 	beq	head_start_47x
+	cmplwi	cr0,r3,PVR_476_ISS@h
+	beq	head_start_47x
 #endif /* CONFIG_PPC_47x */
 
 /*

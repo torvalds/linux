@@ -854,6 +854,9 @@
 #define PVR_8245	0x80811014
 #define PVR_8260	PVR_8240
 
+/* 476 Simulator seems to currently have the PVR of the 602... */
+#define PVR_476_ISS	0x00052000
+
 /* 64-bit processors */
 /* XXX the prefix should be PVR_, we'll do a global sweep to fix it one day */
 #define PV_NORTHSTAR	0x0033

@@ -160,6 +160,17 @@ config YOSEMITE
 	help
 	  This option enables support for the AMCC PPC440EP evaluation board.
 
+config ISS4xx
+	bool "ISS 4xx Simulator"
+	depends on (44x || 40x)
+	default n
+	select 405GP if 40x
+	select 440GP if 44x && !PPC_47x
+	select PPC_FPU
+	select OF_RTC
+	help
+	  This option enables support for the IBM ISS simulation environment
+
 #config LUAN
 #	bool "Luan"
 #	depends on 44x

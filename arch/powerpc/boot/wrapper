@@ -241,6 +241,9 @@ gamecube|wii)
     link_address='0x600000'
     platformo="$object/$platform-head.o $object/$platform.o"
     ;;
+treeboot-iss4xx-mpic)
+    platformo="$object/treeboot-iss4xx.o"
+    ;;
 esac
 
 vmz="$tmpdir/`basename \"$kernel\"`.$ext"
