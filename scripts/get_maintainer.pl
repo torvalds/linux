@@ -185,8 +185,9 @@ if (!top_of_kernel_tree($lk_path)) {
 my @typevalue = ();
 my %keyword_hash;
 
-open(MAINT, "<${lk_path}MAINTAINERS") || die "$P: Can't open MAINTAINERS\n";
-while (<MAINT>) {
+open (my $maint, '<', "${lk_path}MAINTAINERS")
+    or die "$P: Can't open MAINTAINERS: $!\n";
+while (<$maint>) {
     my $line = $_;
 
     if ($line =~ m/^(\C):\s*(.*)/) {
@@ -211,13 +212,14 @@ while (<MAINT>) {
 	push(@typevalue, $line);
     }
 }
-close(MAINT);
+close($maint);
 
 my %mailmap;
 
 if ($email_remove_duplicates) {
-    open(MAILMAP, "<${lk_path}.mailmap") || warn "$P: Can't open .mailmap\n";
-    while (<MAILMAP>) {
+    open(my $mailmap, '<', "${lk_path}.mailmap")
+	or warn "$P: Can't open .mailmap: $!\n";
+    while (<$mailmap>) {
 	my $line = $_;
 
 	next if ($line =~ m/^\s*#/);
@@ -236,7 +238,7 @@ if ($email_remove_duplicates) {
 	    $mailmap{$name} = \@arr;
 	}
     }
-    close(MAILMAP);
+    close($mailmap);
 }
 
 ## use the filenames on the command line or find the filenames in the patchfiles
@@ -262,9 +264,10 @@ foreach my $file (@ARGV) {
     if ($from_filename) {
 	push(@files, $file);
 	if (-f $file && ($keywords || $file_emails)) {
-	    open(FILE, "<$file") or die "$P: Can't open ${file}\n";
-	    my $text = do { local($/) ; <FILE> };
-	    close(FILE);
+	    open(my $f, '<', $file)
+		or die "$P: Can't open $file: $!\n";
+	    my $text = do { local($/) ; <$f> };
+	    close($f);
 	    if ($keywords) {
 		foreach my $line (keys %keyword_hash) {
 		    if ($text =~ m/$keyword_hash{$line}/x) {
@@ -280,8 +283,10 @@ foreach my $file (@ARGV) {
     } else {
 	my $file_cnt = @files;
 	my $lastfile;
-	open(PATCH, "<$file") or die "$P: Can't open ${file}\n";
-	while (<PATCH>) {
+
+	open(my $patch, '<', $file)
+	    or die "$P: Can't open $file: $!\n";
+	while (<$patch>) {
 	    my $patch_line = $_;
 	    if (m/^\+\+\+\s+(\S+)/) {
 		my $filename = $1;
@@ -301,7 +306,8 @@ foreach my $file (@ARGV) {
 		}
 	    }
 	}
-	close(PATCH);
+	close($patch);
+
 	if ($file_cnt == @files) {
 	    warn "$P: file '${file}' doesn't appear to be a patch.  "
 		. "Add -f to options?\n";
@@ -1286,7 +1292,7 @@ sub rfc822_strip_comments {
 
 #   valid: returns true if the parameter is an RFC822 valid address
 #
-sub rfc822_valid ($) {
+sub rfc822_valid {
     my $s = rfc822_strip_comments(shift);
 
     if (!$rfc822re) {
@@ -1306,7 +1312,7 @@ sub rfc822_valid ($) {
 #              from success with no addresses found, because an empty string is
 #              a valid list.
 
-sub rfc822_validlist ($) {
+sub rfc822_validlist {
     my $s = rfc822_strip_comments(shift);
 
     if (!$rfc822re) {
