@@ -716,11 +716,6 @@ static inline void kvm_load_ldt(u16 sel)
 	asm("lldt %0" : : "rm"(sel));
 }
 
-static inline void kvm_get_idt(struct desc_ptr *table)
-{
-	asm("sidt %0" : "=m"(*table));
-}
-
 #ifdef CONFIG_X86_64
 static inline unsigned long read_msr(unsigned long msr)
 {
