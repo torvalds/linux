@@ -378,16 +378,16 @@ static void sdhci_kunmap_atomic(void *buffer, unsigned long *flags)
 
 static void sdhci_set_adma_desc(u8 *desc, u32 addr, int len, unsigned cmd)
 {
-	desc[7] = (addr >> 24) & 0xff;
-	desc[6] = (addr >> 16) & 0xff;
-	desc[5] = (addr >> 8) & 0xff;
-	desc[4] = (addr >> 0) & 0xff;
+	__le32 *dataddr = (__le32 __force *)(desc + 4);
+	__le16 *cmdlen = (__le16 __force *)desc;
 
-	desc[3] = (len >> 8) & 0xff;
-	desc[2] = (len >> 0) & 0xff;
+	/* SDHCI specification says ADMA descriptors should be 4 byte
+	 * aligned, so using 16 or 32bit operations should be safe. */
 
-	desc[0] = cmd & 0xff;
-	desc[1] = cmd >> 8;
+	cmdlen[0] = cpu_to_le16(cmd);
+	cmdlen[1] = cpu_to_le16(len);
+
+	dataddr[0] = cpu_to_le32(addr);
 }
 
 static int sdhci_adma_table_pre(struct sdhci_host *host,
