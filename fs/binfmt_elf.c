@@ -1878,9 +1878,7 @@ static int elf_core_dump(struct coredump_params *cprm)
 	 * Please check DEFAULT_MAX_MAP_COUNT definition when you modify here.
 	 */
 	segs = current->mm->map_count;
-#ifdef ELF_CORE_EXTRA_PHDRS
-	segs += ELF_CORE_EXTRA_PHDRS;
-#endif
+	segs += elf_core_extra_phdrs();
 
 	gate_vma = get_gate_vma(current);
 	if (gate_vma != NULL)
@@ -1958,9 +1956,8 @@ static int elf_core_dump(struct coredump_params *cprm)
 			goto end_coredump;
 	}
 
-#ifdef ELF_CORE_WRITE_EXTRA_PHDRS
-	ELF_CORE_WRITE_EXTRA_PHDRS;
-#endif
+	if (!elf_core_write_extra_phdrs(cprm->file, offset, &size, cprm->limit))
+		goto end_coredump;
 
  	/* write out the notes section */
 	if (!write_note_info(&info, cprm->file, &foffset))
@@ -1999,9 +1996,8 @@ static int elf_core_dump(struct coredump_params *cprm)
 		}
 	}
 
-#ifdef ELF_CORE_WRITE_EXTRA_DATA
-	ELF_CORE_WRITE_EXTRA_DATA;
-#endif
+	if (!elf_core_write_extra_data(cprm->file, &size, cprm->limit))
+		goto end_coredump;
 
 end_coredump:
 	set_fs(fs);

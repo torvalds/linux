@@ -1664,9 +1664,7 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 	elf_core_copy_regs(&prstatus->pr_reg, cprm->regs);
 
 	segs = current->mm->map_count;
-#ifdef ELF_CORE_EXTRA_PHDRS
-	segs += ELF_CORE_EXTRA_PHDRS;
-#endif
+	segs += elf_core_extra_phdrs();
 
 	/* Set up header */
 	fill_elf_fdpic_header(elf, segs + 1);	/* including notes section */
@@ -1773,9 +1771,8 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 			goto end_coredump;
 	}
 
-#ifdef ELF_CORE_WRITE_EXTRA_PHDRS
-	ELF_CORE_WRITE_EXTRA_PHDRS;
-#endif
+	if (!elf_core_write_extra_phdrs(cprm->file, offset, &size, cprm->limit))
+		goto end_coredump;
 
  	/* write out the notes section */
 	for (i = 0; i < numnote; i++)
@@ -1799,9 +1796,8 @@ static int elf_fdpic_core_dump(struct coredump_params *cprm)
 				    mm_flags) < 0)
 		goto end_coredump;
 
-#ifdef ELF_CORE_WRITE_EXTRA_DATA
-	ELF_CORE_WRITE_EXTRA_DATA;
-#endif
+	if (!elf_core_write_extra_data(cprm->file, &size, cprm->limit))
+		goto end_coredump;
 
 	if (cprm->file->f_pos != offset) {
 		/* Sanity check */
