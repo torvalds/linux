@@ -81,17 +81,18 @@ static void merge_and_restore_back_links(void *priv,
 }
 
 /**
- * list_sort - sort a list.
- * @priv: private data, passed to @cmp
+ * list_sort - sort a list
+ * @priv: private data, opaque to list_sort(), passed to @cmp
  * @head: the list to sort
  * @cmp: the elements comparison function
  *
- * This function implements "merge sort" which has O(nlog(n)) complexity.
- * The list is sorted in ascending order.
+ * This function implements "merge sort", which has O(nlog(n))
+ * complexity.
  *
- * The comparison function @cmp is supposed to return a negative value if @a is
- * less than @b, and a positive value if @a is greater than @b. If @a and @b
- * are equivalent, then it does not matter what this function returns.
+ * The comparison function @cmp must return a negative value if @a
+ * should sort before @b, and a positive value if @a should sort after
+ * @b. If @a and @b are equivalent, and their original relative
+ * ordering is to be preserved, @cmp must return 0.
  */
 void list_sort(void *priv, struct list_head *head,
 		int (*cmp)(void *priv, struct list_head *a,
