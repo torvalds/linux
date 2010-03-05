@@ -145,11 +145,14 @@ our $Sparse	= qr{
 			__kprobes|
 			__ref
 		}x;
+
+# Notes to $Attribute:
+# We need \b after 'init' otherwise 'initconst' will cause a false positive in a check
 our $Attribute	= qr{
 			const|
 			__read_mostly|
 			__kprobes|
-			__(?:mem|cpu|dev|)(?:initdata|init)|
+			__(?:mem|cpu|dev|)(?:initdata|initconst|init\b)|
 			____cacheline_aligned|
 			____cacheline_aligned_in_smp|
 			____cacheline_internodealigned_in_smp|
