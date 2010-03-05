@@ -269,6 +269,41 @@ int mc13783_irq_unmask(struct mc13783 *mc13783, int irq)
 }
 EXPORT_SYMBOL(mc13783_irq_unmask);
 
+int mc13783_irq_status(struct mc13783 *mc13783, int irq,
+		int *enabled, int *pending)
+{
+	int ret;
+	unsigned int offmask = irq < 24 ? MC13783_IRQMASK0 : MC13783_IRQMASK1;
+	unsigned int offstat = irq < 24 ? MC13783_IRQSTAT0 : MC13783_IRQSTAT1;
+	u32 irqbit = 1 << (irq < 24 ? irq : irq - 24);
+
+	if (irq < 0 || irq >= MC13783_NUM_IRQ)
+		return -EINVAL;
+
+	if (enabled) {
+		u32 mask;
+
+		ret = mc13783_reg_read(mc13783, offmask, &mask);
+		if (ret)
+			return ret;
+
+		*enabled = mask & irqbit;
+	}
+
+	if (pending) {
+		u32 stat;
+
+		ret = mc13783_reg_read(mc13783, offstat, &stat);
+		if (ret)
+			return ret;
+
+		*pending = stat & irqbit;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(mc13783_irq_status);
+
 int mc13783_irq_ack(struct mc13783 *mc13783, int irq)
 {
 	unsigned int offstat = irq < 24 ? MC13783_IRQSTAT0 : MC13783_IRQSTAT1;

@@ -29,6 +29,8 @@ int mc13783_irq_free(struct mc13783 *mc13783, int irq, void *dev);
 
 int mc13783_irq_mask(struct mc13783 *mc13783, int irq);
 int mc13783_irq_unmask(struct mc13783 *mc13783, int irq);
+int mc13783_irq_status(struct mc13783 *mc13783, int irq,
+		int *enabled, int *pending);
 int mc13783_irq_ack(struct mc13783 *mc13783, int irq);
 
 static inline int mc13783_mask(struct mc13783 *mc13783, int irq) __deprecated;
