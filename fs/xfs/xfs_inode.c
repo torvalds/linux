@@ -2439,74 +2439,30 @@ xfs_idestroy_fork(
 }
 
 /*
- * Increment the pin count of the given buffer.
- * This value is protected by ipinlock spinlock in the mount structure.
+ * This is called to unpin an inode.  The caller must have the inode locked
+ * in at least shared mode so that the buffer cannot be subsequently pinned
+ * once someone is waiting for it to be unpinned.
  */
-void
-xfs_ipin(
-	xfs_inode_t	*ip)
+static void
+xfs_iunpin_nowait(
+	struct xfs_inode	*ip)
 {
-	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL));
-
-	atomic_inc(&ip->i_pincount);
-}
-
-/*
- * Decrement the pin count of the given inode, and wake up
- * anyone in xfs_iwait_unpin() if the count goes to 0.  The
- * inode must have been previously pinned with a call to xfs_ipin().
- */
-void
-xfs_iunpin(
-	xfs_inode_t	*ip)
-{
-	ASSERT(atomic_read(&ip->i_pincount) > 0);
-
-	if (atomic_dec_and_test(&ip->i_pincount))
-		wake_up(&ip->i_ipin_wait);
-}
-
-/*
- * This is called to unpin an inode. It can be directed to wait or to return
- * immediately without waiting for the inode to be unpinned.  The caller must
- * have the inode locked in at least shared mode so that the buffer cannot be
- * subsequently pinned once someone is waiting for it to be unpinned.
- */
-STATIC void
-__xfs_iunpin_wait(
-	xfs_inode_t	*ip,
-	int		wait)
-{
-	xfs_inode_log_item_t	*iip = ip->i_itemp;
-
 	ASSERT(xfs_isilocked(ip, XFS_ILOCK_EXCL|XFS_ILOCK_SHARED));
-	if (atomic_read(&ip->i_pincount) == 0)
-		return;
 
 	/* Give the log a push to start the unpinning I/O */
-	if (iip && iip->ili_last_lsn)
-		xfs_log_force_lsn(ip->i_mount, iip->ili_last_lsn, 0);
-	else
-		xfs_log_force(ip->i_mount, 0);
+	xfs_log_force_lsn(ip->i_mount, ip->i_itemp->ili_last_lsn, 0);
 
-	if (wait)
-		wait_event(ip->i_ipin_wait, (atomic_read(&ip->i_pincount) == 0));
 }
 
 void
 xfs_iunpin_wait(
-	xfs_inode_t	*ip)
+	struct xfs_inode	*ip)
 {
-	__xfs_iunpin_wait(ip, 1);
+	if (xfs_ipincount(ip)) {
+		xfs_iunpin_nowait(ip);
+		wait_event(ip->i_ipin_wait, (xfs_ipincount(ip) == 0));
+	}
 }
-
-static inline void
-xfs_iunpin_nowait(
-	xfs_inode_t	*ip)
-{
-	__xfs_iunpin_wait(ip, 0);
-}
-
 
 /*
  * xfs_iextents_copy()

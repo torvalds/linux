@@ -796,7 +796,7 @@ _xfs_trans_commit(
 	int			sync;
 #define	XFS_TRANS_LOGVEC_COUNT	16
 	xfs_log_iovec_t		log_vector_fast[XFS_TRANS_LOGVEC_COUNT];
-	void			*commit_iclog;
+	struct xlog_in_core	*commit_iclog;
 	int			shutdown;
 
 	commit_lsn = -1;
