@@ -506,6 +506,10 @@ svc_init_buffer(struct svc_rqst *rqstp, unsigned int size)
 {
 	unsigned int pages, arghi;
 
+	/* bc_xprt uses fore channel allocated buffers */
+	if (svc_is_backchannel(rqstp))
+		return 1;
+
 	pages = size / PAGE_SIZE + 1; /* extra page as we hold both request and reply.
 				       * We assume one is at most one page
 				       */
