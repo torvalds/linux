@@ -175,7 +175,7 @@ static void timbgpio_irq(unsigned int irq, struct irq_desc *desc)
 	ipr = ioread32(tgpio->membase + TGPIO_IPR);
 	iowrite32(ipr, tgpio->membase + TGPIO_ICR);
 
-	for_each_bit(offset, &ipr, tgpio->gpio.ngpio)
+	for_each_set_bit(offset, &ipr, tgpio->gpio.ngpio)
 		generic_handle_irq(timbgpio_to_irq(&tgpio->gpio, offset));
 }
 

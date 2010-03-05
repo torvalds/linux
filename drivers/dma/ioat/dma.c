@@ -71,7 +71,7 @@ static irqreturn_t ioat_dma_do_interrupt(int irq, void *data)
 	}
 
 	attnstatus = readl(instance->reg_base + IOAT_ATTNSTATUS_OFFSET);
-	for_each_bit(bit, &attnstatus, BITS_PER_LONG) {
+	for_each_set_bit(bit, &attnstatus, BITS_PER_LONG) {
 		chan = ioat_chan_by_index(instance, bit);
 		tasklet_schedule(&chan->cleanup_task);
 	}
