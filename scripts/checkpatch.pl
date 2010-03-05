@@ -1422,6 +1422,12 @@ sub process {
 			ERROR("code indent should use tabs where possible\n" . $herevet);
 		}
 
+# check for space before tabs.
+		if ($rawline =~ /^\+/ && $rawline =~ / \t/) {
+			my $herevet = "$here\n" . cat_vet($rawline) . "\n";
+			WARN("please, no space before tabs\n" . $herevet);
+		}
+
 # check we are in a valid C source file if not then ignore this hunk
 		next if ($realfile !~ /\.(h|c)$/);
 
