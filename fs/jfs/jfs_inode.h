@@ -26,7 +26,7 @@ extern long jfs_ioctl(struct file *, unsigned int, unsigned long);
 extern long jfs_compat_ioctl(struct file *, unsigned int, unsigned long);
 extern struct inode *jfs_iget(struct super_block *, unsigned long);
 extern int jfs_commit_inode(struct inode *, int);
-extern int jfs_write_inode(struct inode*, int);
+extern int jfs_write_inode(struct inode *, struct writeback_control *);
 extern void jfs_delete_inode(struct inode *);
 extern void jfs_dirty_inode(struct inode *);
 extern void jfs_truncate(struct inode *);
