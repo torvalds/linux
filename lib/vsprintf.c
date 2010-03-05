@@ -635,7 +635,7 @@ static char *resource_string(char *buf, char *end, struct resource *res,
 	 * 64-bit res (sizeof==8): 20 chars in dec, 18 in hex ("0x" + 16) */
 #define RSRC_BUF_SIZE		((2 * sizeof(resource_size_t)) + 4)
 #define FLAG_BUF_SIZE		(2 * sizeof(res->flags))
-#define DECODED_BUF_SIZE	sizeof("[mem - 64bit pref disabled]")
+#define DECODED_BUF_SIZE	sizeof("[mem - 64bit pref window disabled]")
 #define RAW_BUF_SIZE		sizeof("[mem - flags 0x]")
 	char sym[max(2*RSRC_BUF_SIZE + DECODED_BUF_SIZE,
 		     2*RSRC_BUF_SIZE + FLAG_BUF_SIZE + RAW_BUF_SIZE)];
@@ -675,6 +675,8 @@ static char *resource_string(char *buf, char *end, struct resource *res,
 			p = string(p, pend, " 64bit", str_spec);
 		if (res->flags & IORESOURCE_PREFETCH)
 			p = string(p, pend, " pref", str_spec);
+		if (res->flags & IORESOURCE_WINDOW)
+			p = string(p, pend, " window", str_spec);
 		if (res->flags & IORESOURCE_DISABLED)
 			p = string(p, pend, " disabled", str_spec);
 	} else {
