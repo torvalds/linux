@@ -126,7 +126,7 @@ if (!GetOptions(
 		'fe|file-emails!' => \$file_emails,
 		'f|file' => \$from_filename,
 		'v|version' => \$version,
-		'h|help' => \$help,
+		'h|help|usage' => \$help,
 		)) {
     die "$P: invalid argument - use --help if necessary\n";
 }
@@ -141,9 +141,9 @@ if ($version != 0) {
     exit 0;
 }
 
-if ($#ARGV < 0) {
-    usage();
-    die "$P: argument missing: patchfile or -f file please\n";
+if (-t STDIN && !@ARGV) {
+    # We're talking to a terminal, but have no command line arguments.
+    die "$P: missing patchfile or -f file - use --help if necessary\n";
 }
 
 if ($output_separator ne ", ") {
@@ -165,7 +165,6 @@ if ($sections) {
 } else {
     my $selections = $email + $scm + $status + $subsystem + $web;
     if ($selections == 0) {
-	usage();
 	die "$P:  Missing required option: email, scm, status, subsystem or web\n";
     }
 }
@@ -173,7 +172,6 @@ if ($sections) {
 if ($email &&
     ($email_maintainer + $email_list + $email_subscriber_list +
      $email_git + $email_git_penguin_chiefs + $email_git_blame) == 0) {
-    usage();
     die "$P: Please select at least 1 email option\n";
 }
 
@@ -248,12 +246,18 @@ my @range = ();
 my @keyword_tvi = ();
 my @file_emails = ();
 
+if (!@ARGV) {
+    push(@ARGV, "&STDIN");
+}
+
 foreach my $file (@ARGV) {
-    ##if $file is a directory and it lacks a trailing slash, add one
-    if ((-d $file)) {
-	$file =~ s@([^/])$@$1/@;
-    } elsif (!(-f $file)) {
-	die "$P: file '${file}' not found\n";
+    if ($file ne "&STDIN") {
+	##if $file is a directory and it lacks a trailing slash, add one
+	if ((-d $file)) {
+	    $file =~ s@([^/])$@$1/@;
+	} elsif (!(-f $file)) {
+	    die "$P: file '${file}' not found\n";
+	}
     }
     if ($from_filename) {
 	push(@files, $file);
