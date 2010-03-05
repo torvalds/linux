@@ -69,165 +69,7 @@ _ENTRY(_start);
 	mr	r27,r7
 	li	r24,0		/* CPU number */
 
-/*
- * In case the firmware didn't do it, we apply some workarounds
- * that are good for all 440 core variants here
- */
-	mfspr	r3,SPRN_CCR0
-	rlwinm	r3,r3,0,0,27	/* disable icache prefetch */
-	isync
-	mtspr	SPRN_CCR0,r3
-	isync
-	sync
-
-/*
- * Set up the initial MMU state
- *
- * We are still executing code at the virtual address
- * mappings set by the firmware for the base of RAM.
- *
- * We first invalidate all TLB entries but the one
- * we are running from.  We then load the KERNELBASE
- * mappings so we can begin to use kernel addresses
- * natively and so the interrupt vector locations are
- * permanently pinned (necessary since Book E
- * implementations always have translation enabled).
- *
- * TODO: Use the known TLB entry we are running from to
- *	 determine which physical region we are located
- *	 in.  This can be used to determine where in RAM
- *	 (on a shared CPU system) or PCI memory space
- *	 (on a DRAMless system) we are located.
- *       For now, we assume a perfect world which means
- *	 we are located at the base of DRAM (physical 0).
- */
-
-/*
- * Search TLB for entry that we are currently using.
- * Invalidate all entries but the one we are using.
- */
-	/* Load our current PID->MMUCR TID and MSR IS->MMUCR STS */
-	mfspr	r3,SPRN_PID			/* Get PID */
-	mfmsr	r4				/* Get MSR */
-	andi.	r4,r4,MSR_IS@l			/* TS=1? */
-	beq	wmmucr				/* If not, leave STS=0 */
-	oris	r3,r3,PPC44x_MMUCR_STS@h	/* Set STS=1 */
-wmmucr:	mtspr	SPRN_MMUCR,r3			/* Put MMUCR */
-	sync
-
-	bl	invstr				/* Find our address */
-invstr:	mflr	r5				/* Make it accessible */
-	tlbsx	r23,0,r5			/* Find entry we are in */
-	li	r4,0				/* Start at TLB entry 0 */
-	li	r3,0				/* Set PAGEID inval value */
-1:	cmpw	r23,r4				/* Is this our entry? */
-	beq	skpinv				/* If so, skip the inval */
-	tlbwe	r3,r4,PPC44x_TLB_PAGEID		/* If not, inval the entry */
-skpinv:	addi	r4,r4,1				/* Increment */
-	cmpwi	r4,64				/* Are we done? */
-	bne	1b				/* If not, repeat */
-	isync					/* If so, context change */
-
-/*
- * Configure and load pinned entry into TLB slot 63.
- */
-
-	lis	r3,PAGE_OFFSET@h
-	ori	r3,r3,PAGE_OFFSET@l
-
-	/* Kernel is at the base of RAM */
-	li r4, 0			/* Load the kernel physical address */
-
-	/* Load the kernel PID = 0 */
-	li	r0,0
-	mtspr	SPRN_PID,r0
-	sync
-
-	/* Initialize MMUCR */
-	li	r5,0
-	mtspr	SPRN_MMUCR,r5
-	sync
-
- 	/* pageid fields */
-	clrrwi	r3,r3,10		/* Mask off the effective page number */
-	ori	r3,r3,PPC44x_TLB_VALID | PPC44x_TLB_256M
-
-	/* xlat fields */
-	clrrwi	r4,r4,10		/* Mask off the real page number */
-					/* ERPN is 0 for first 4GB page */
-
-	/* attrib fields */
-	/* Added guarded bit to protect against speculative loads/stores */
-	li	r5,0
-	ori	r5,r5,(PPC44x_TLB_SW | PPC44x_TLB_SR | PPC44x_TLB_SX | PPC44x_TLB_G)
-
-        li      r0,63                    /* TLB slot 63 */
-
-	tlbwe	r3,r0,PPC44x_TLB_PAGEID	/* Load the pageid fields */
-	tlbwe	r4,r0,PPC44x_TLB_XLAT	/* Load the translation fields */
-	tlbwe	r5,r0,PPC44x_TLB_ATTRIB	/* Load the attrib/access fields */
-
-	/* Force context change */
-	mfmsr	r0
-	mtspr	SPRN_SRR1, r0
-	lis	r0,3f@h
-	ori	r0,r0,3f@l
-	mtspr	SPRN_SRR0,r0
-	sync
-	rfi
-
-	/* If necessary, invalidate original entry we used */
-3:	cmpwi	r23,63
-	beq	4f
-	li	r6,0
-	tlbwe   r6,r23,PPC44x_TLB_PAGEID
-	isync
-
-4:
-#ifdef CONFIG_PPC_EARLY_DEBUG_44x
-	/* Add UART mapping for early debug. */
-
- 	/* pageid fields */
-	lis	r3,PPC44x_EARLY_DEBUG_VIRTADDR@h
-	ori	r3,r3,PPC44x_TLB_VALID|PPC44x_TLB_TS|PPC44x_TLB_64K
-
-	/* xlat fields */
-	lis	r4,CONFIG_PPC_EARLY_DEBUG_44x_PHYSLOW@h
-	ori	r4,r4,CONFIG_PPC_EARLY_DEBUG_44x_PHYSHIGH
-
-	/* attrib fields */
-	li	r5,(PPC44x_TLB_SW|PPC44x_TLB_SR|PPC44x_TLB_I|PPC44x_TLB_G)
-        li      r0,62                    /* TLB slot 0 */
-
-	tlbwe	r3,r0,PPC44x_TLB_PAGEID
-	tlbwe	r4,r0,PPC44x_TLB_XLAT
-	tlbwe	r5,r0,PPC44x_TLB_ATTRIB
-
-	/* Force context change */
-	isync
-#endif /* CONFIG_PPC_EARLY_DEBUG_44x */
-
-	/* Establish the interrupt vector offsets */
-	SET_IVOR(0,  CriticalInput);
-	SET_IVOR(1,  MachineCheck);
-	SET_IVOR(2,  DataStorage);
-	SET_IVOR(3,  InstructionStorage);
-	SET_IVOR(4,  ExternalInput);
-	SET_IVOR(5,  Alignment);
-	SET_IVOR(6,  Program);
-	SET_IVOR(7,  FloatingPointUnavailable);
-	SET_IVOR(8,  SystemCall);
-	SET_IVOR(9,  AuxillaryProcessorUnavailable);
-	SET_IVOR(10, Decrementer);
-	SET_IVOR(11, FixedIntervalTimer);
-	SET_IVOR(12, WatchdogTimer);
-	SET_IVOR(13, DataTLBError);
-	SET_IVOR(14, InstructionTLBError);
-	SET_IVOR(15, DebugCrit);
-
-	/* Establish the interrupt vector base */
-	lis	r4,interrupt_base@h	/* IVPR only uses the high 16-bits */
-	mtspr	SPRN_IVPR,r4
+	bl	init_cpu_state
 
 	/*
 	 * This is where the main kernel code starts.
@@ -644,6 +486,176 @@ _GLOBAL(set_context)
 #endif
 	mtspr	SPRN_PID,r3
 	isync			/* Force context change */
+	blr
+
+/*
+ * Init CPU state. This is called at boot time or for secondary CPUs
+ * to setup initial TLB entries, setup IVORs, etc...
+ */
+_GLOBAL(init_cpu_state)
+	mflr	r22
+/*
+ * In case the firmware didn't do it, we apply some workarounds
+ * that are good for all 440 core variants here
+ */
+	mfspr	r3,SPRN_CCR0
+	rlwinm	r3,r3,0,0,27	/* disable icache prefetch */
+	isync
+	mtspr	SPRN_CCR0,r3
+	isync
+	sync
+
+/*
+ * Set up the initial MMU state
+ *
+ * We are still executing code at the virtual address
+ * mappings set by the firmware for the base of RAM.
+ *
+ * We first invalidate all TLB entries but the one
+ * we are running from.  We then load the KERNELBASE
+ * mappings so we can begin to use kernel addresses
+ * natively and so the interrupt vector locations are
+ * permanently pinned (necessary since Book E
+ * implementations always have translation enabled).
+ *
+ * TODO: Use the known TLB entry we are running from to
+ *	 determine which physical region we are located
+ *	 in.  This can be used to determine where in RAM
+ *	 (on a shared CPU system) or PCI memory space
+ *	 (on a DRAMless system) we are located.
+ *       For now, we assume a perfect world which means
+ *	 we are located at the base of DRAM (physical 0).
+ */
+
+/*
+ * Search TLB for entry that we are currently using.
+ * Invalidate all entries but the one we are using.
+ */
+	/* Load our current PID->MMUCR TID and MSR IS->MMUCR STS */
+	mfspr	r3,SPRN_PID			/* Get PID */
+	mfmsr	r4				/* Get MSR */
+	andi.	r4,r4,MSR_IS@l			/* TS=1? */
+	beq	wmmucr				/* If not, leave STS=0 */
+	oris	r3,r3,PPC44x_MMUCR_STS@h	/* Set STS=1 */
+wmmucr:	mtspr	SPRN_MMUCR,r3			/* Put MMUCR */
+	sync
+
+	bl	invstr				/* Find our address */
+invstr:	mflr	r5				/* Make it accessible */
+	tlbsx	r23,0,r5			/* Find entry we are in */
+	li	r4,0				/* Start at TLB entry 0 */
+	li	r3,0				/* Set PAGEID inval value */
+1:	cmpw	r23,r4				/* Is this our entry? */
+	beq	skpinv				/* If so, skip the inval */
+	tlbwe	r3,r4,PPC44x_TLB_PAGEID		/* If not, inval the entry */
+skpinv:	addi	r4,r4,1				/* Increment */
+	cmpwi	r4,64				/* Are we done? */
+	bne	1b				/* If not, repeat */
+	isync					/* If so, context change */
+
+/*
+ * Configure and load pinned entry into TLB slot 63.
+ */
+
+	lis	r3,PAGE_OFFSET@h
+	ori	r3,r3,PAGE_OFFSET@l
+
+	/* Kernel is at the base of RAM */
+	li r4, 0			/* Load the kernel physical address */
+
+	/* Load the kernel PID = 0 */
+	li	r0,0
+	mtspr	SPRN_PID,r0
+	sync
+
+	/* Initialize MMUCR */
+	li	r5,0
+	mtspr	SPRN_MMUCR,r5
+	sync
+
+	/* pageid fields */
+	clrrwi	r3,r3,10		/* Mask off the effective page number */
+	ori	r3,r3,PPC44x_TLB_VALID | PPC44x_TLB_256M
+
+	/* xlat fields */
+	clrrwi	r4,r4,10		/* Mask off the real page number */
+					/* ERPN is 0 for first 4GB page */
+
+	/* attrib fields */
+	/* Added guarded bit to protect against speculative loads/stores */
+	li	r5,0
+	ori	r5,r5,(PPC44x_TLB_SW | PPC44x_TLB_SR | PPC44x_TLB_SX | PPC44x_TLB_G)
+
+        li      r0,63                    /* TLB slot 63 */
+
+	tlbwe	r3,r0,PPC44x_TLB_PAGEID	/* Load the pageid fields */
+	tlbwe	r4,r0,PPC44x_TLB_XLAT	/* Load the translation fields */
+	tlbwe	r5,r0,PPC44x_TLB_ATTRIB	/* Load the attrib/access fields */
+
+	/* Force context change */
+	mfmsr	r0
+	mtspr	SPRN_SRR1, r0
+	lis	r0,3f@h
+	ori	r0,r0,3f@l
+	mtspr	SPRN_SRR0,r0
+	sync
+	rfi
+
+	/* If necessary, invalidate original entry we used */
+3:	cmpwi	r23,63
+	beq	4f
+	li	r6,0
+	tlbwe   r6,r23,PPC44x_TLB_PAGEID
+	isync
+
+4:
+#ifdef CONFIG_PPC_EARLY_DEBUG_44x
+	/* Add UART mapping for early debug. */
+
+	/* pageid fields */
+	lis	r3,PPC44x_EARLY_DEBUG_VIRTADDR@h
+	ori	r3,r3,PPC44x_TLB_VALID|PPC44x_TLB_TS|PPC44x_TLB_64K
+
+	/* xlat fields */
+	lis	r4,CONFIG_PPC_EARLY_DEBUG_44x_PHYSLOW@h
+	ori	r4,r4,CONFIG_PPC_EARLY_DEBUG_44x_PHYSHIGH
+
+	/* attrib fields */
+	li	r5,(PPC44x_TLB_SW|PPC44x_TLB_SR|PPC44x_TLB_I|PPC44x_TLB_G)
+        li      r0,62                    /* TLB slot 0 */
+
+	tlbwe	r3,r0,PPC44x_TLB_PAGEID
+	tlbwe	r4,r0,PPC44x_TLB_XLAT
+	tlbwe	r5,r0,PPC44x_TLB_ATTRIB
+
+	/* Force context change */
+	isync
+#endif /* CONFIG_PPC_EARLY_DEBUG_44x */
+
+	/* Establish the interrupt vector offsets */
+	SET_IVOR(0,  CriticalInput);
+	SET_IVOR(1,  MachineCheck);
+	SET_IVOR(2,  DataStorage);
+	SET_IVOR(3,  InstructionStorage);
+	SET_IVOR(4,  ExternalInput);
+	SET_IVOR(5,  Alignment);
+	SET_IVOR(6,  Program);
+	SET_IVOR(7,  FloatingPointUnavailable);
+	SET_IVOR(8,  SystemCall);
+	SET_IVOR(9,  AuxillaryProcessorUnavailable);
+	SET_IVOR(10, Decrementer);
+	SET_IVOR(11, FixedIntervalTimer);
+	SET_IVOR(12, WatchdogTimer);
+	SET_IVOR(13, DataTLBError);
+	SET_IVOR(14, InstructionTLBError);
+	SET_IVOR(15, DebugCrit);
+
+	/* Establish the interrupt vector base */
+	lis	r4,interrupt_base@h	/* IVPR only uses the high 16-bits */
+	mtspr	SPRN_IVPR,r4
+
+	addis	r22,r22,KERNELBASE@h
+	mtlr	r22
 	blr
 
 /*
