@@ -605,7 +605,7 @@ sub parse_email {
     $name =~ s/^\"|\"$//g;
     $address =~ s/^\s+|\s+$//g;
 
-    if ($name =~ /[^a-z0-9 \.\-]/i) {    ##has "must quote" chars
+    if ($name =~ /[^\w \-]/i) {  	 ##has "must quote" chars
 	$name =~ s/(?<!\\)"/\\"/g;       ##escape quotes
 	$name = "\"$name\"";
     }
@@ -622,7 +622,7 @@ sub format_email {
     $name =~ s/^\"|\"$//g;
     $address =~ s/^\s+|\s+$//g;
 
-    if ($name =~ /[^a-z0-9 \.\-]/i) {    ##has "must quote" chars
+    if ($name =~ /[^\w \-]/i) {          ##has "must quote" chars
 	$name =~ s/(?<!\\)"/\\"/g;       ##escape quotes
 	$name = "\"$name\"";
     }
