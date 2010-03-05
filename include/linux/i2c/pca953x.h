@@ -13,6 +13,9 @@ struct pca953x_platform_data {
 	/* initial polarity inversion setting */
 	uint16_t	invert;
 
+	/* interrupt base */
+	int		irq_base;
+
 	void		*context;	/* param to setup/teardown */
 
 	int		(*setup)(struct i2c_client *client,

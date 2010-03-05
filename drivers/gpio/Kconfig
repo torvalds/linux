@@ -134,6 +134,13 @@ config GPIO_PCA953X
 	  This driver can also be built as a module.  If so, the module
 	  will be called pca953x.
 
+config GPIO_PCA953X_IRQ
+	bool "Interrupt controller support for PCA953x"
+	depends on GPIO_PCA953X=y
+	help
+	  Say yes here to enable the pca953x to be used as an interrupt
+	  controller. It requires the driver to be built in the kernel.
+
 config GPIO_PCF857X
 	tristate "PCF857x, PCA{85,96}7x, and MAX732[89] I2C GPIO expanders"
 	depends on I2C
