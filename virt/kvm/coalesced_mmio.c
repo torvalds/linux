@@ -92,41 +92,64 @@ static const struct kvm_io_device_ops coalesced_mmio_ops = {
 int kvm_coalesced_mmio_init(struct kvm *kvm)
 {
 	struct kvm_coalesced_mmio_dev *dev;
+	struct page *page;
 	int ret;
 
+	ret = -ENOMEM;
+	page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	if (!page)
+		goto out_err;
+	kvm->coalesced_mmio_ring = page_address(page);
+
+	ret = -ENOMEM;
 	dev = kzalloc(sizeof(struct kvm_coalesced_mmio_dev), GFP_KERNEL);
 	if (!dev)
-		return -ENOMEM;
+		goto out_free_page;
 	spin_lock_init(&dev->lock);
 	kvm_iodevice_init(&dev->dev, &coalesced_mmio_ops);
 	dev->kvm = kvm;
 	kvm->coalesced_mmio_dev = dev;
 
-	ret = kvm_io_bus_register_dev(kvm, &kvm->mmio_bus, &dev->dev);
+	mutex_lock(&kvm->slots_lock);
+	ret = kvm_io_bus_register_dev(kvm, KVM_MMIO_BUS, &dev->dev);
+	mutex_unlock(&kvm->slots_lock);
 	if (ret < 0)
-		kfree(dev);
+		goto out_free_dev;
 
+	return ret;
+
+out_free_dev:
+	kfree(dev);
+out_free_page:
+	__free_page(page);
+out_err:
 	return ret;
 }
 
+void kvm_coalesced_mmio_free(struct kvm *kvm)
+{
+	if (kvm->coalesced_mmio_ring)
+		free_page((unsigned long)kvm->coalesced_mmio_ring);
+}
+
 int kvm_vm_ioctl_register_coalesced_mmio(struct kvm *kvm,
-				         struct kvm_coalesced_mmio_zone *zone)
+					 struct kvm_coalesced_mmio_zone *zone)
 {
 	struct kvm_coalesced_mmio_dev *dev = kvm->coalesced_mmio_dev;
 
 	if (dev == NULL)
 		return -EINVAL;
 
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 	if (dev->nb_zones >= KVM_COALESCED_MMIO_ZONE_MAX) {
-		up_write(&kvm->slots_lock);
+		mutex_unlock(&kvm->slots_lock);
 		return -ENOBUFS;
 	}
 
 	dev->zone[dev->nb_zones] = *zone;
 	dev->nb_zones++;
 
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 	return 0;
 }
 
@@ -140,10 +163,10 @@ int kvm_vm_ioctl_unregister_coalesced_mmio(struct kvm *kvm,
 	if (dev == NULL)
 		return -EINVAL;
 
-	down_write(&kvm->slots_lock);
+	mutex_lock(&kvm->slots_lock);
 
 	i = dev->nb_zones;
-	while(i) {
+	while (i) {
 		z = &dev->zone[i - 1];
 
 		/* unregister all zones
@@ -158,7 +181,7 @@ int kvm_vm_ioctl_unregister_coalesced_mmio(struct kvm *kvm,
 		i--;
 	}
 
-	up_write(&kvm->slots_lock);
+	mutex_unlock(&kvm->slots_lock);
 
 	return 0;
 }

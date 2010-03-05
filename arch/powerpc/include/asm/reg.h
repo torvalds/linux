@@ -426,6 +426,10 @@
 #define   SRR1_WAKEMT		0x00280000 /* mtctrl */
 #define   SRR1_WAKEDEC		0x00180000 /* Decrementer interrupt */
 #define   SRR1_WAKETHERM	0x00100000 /* Thermal management interrupt */
+#define   SRR1_PROGFPE		0x00100000 /* Floating Point Enabled */
+#define   SRR1_PROGPRIV		0x00040000 /* Privileged instruction */
+#define   SRR1_PROGTRAP		0x00020000 /* Trap */
+#define   SRR1_PROGADDR		0x00010000 /* SRR0 contains subsequent addr */
 #define SPRN_HSRR0	0x13A	/* Save/Restore Register 0 */
 #define SPRN_HSRR1	0x13B	/* Save/Restore Register 1 */
 

@@ -31,7 +31,7 @@
 #define REBOLT_SLB_ENTRY(num) \
 	ld	r10, SHADOW_SLB_ESID(num)(r11); \
 	cmpdi	r10, 0; \
-	beq	slb_exit_skip_1; \
+	beq	slb_exit_skip_ ## num; \
 	oris	r10, r10, SLB_ESID_V@h; \
 	ld	r9, SHADOW_SLB_VSID(num)(r11); \
 	slbmte	r9, r10; \
@@ -51,23 +51,21 @@ kvmppc_handler_trampoline_enter:
 	 *
 	 * MSR = ~IR|DR
 	 * R13 = PACA
+	 * R1 = host R1
+	 * R2 = host R2
 	 * R9 = guest IP
 	 * R10 = guest MSR
-	 * R11 = free
-	 * R12 = free
-	 * PACA[PACA_EXMC + EX_R9] = guest R9
-	 * PACA[PACA_EXMC + EX_R10] = guest R10
-	 * PACA[PACA_EXMC + EX_R11] = guest R11
-	 * PACA[PACA_EXMC + EX_R12] = guest R12
-	 * PACA[PACA_EXMC + EX_R13] = guest R13
-	 * PACA[PACA_EXMC + EX_CCR] = guest CR
-	 * PACA[PACA_EXMC + EX_R3] = guest XER
+	 * all other GPRS = free
+	 * PACA[KVM_CR] = guest CR
+	 * PACA[KVM_XER] = guest XER
 	 */
 
 	mtsrr0	r9
 	mtsrr1	r10
 
-	mtspr	SPRN_SPRG_SCRATCH0, r0
+	/* Activate guest mode, so faults get handled by KVM */
+	li	r11, KVM_GUEST_MODE_GUEST
+	stb	r11, PACA_KVM_IN_GUEST(r13)
 
 	/* Remove LPAR shadow entries */
 
@@ -131,20 +129,27 @@ slb_do_enter:
 
 	/* Enter guest */
 
-	mfspr	r0, SPRN_SPRG_SCRATCH0
+	ld	r0, (PACA_KVM_R0)(r13)
+	ld	r1, (PACA_KVM_R1)(r13)
+	ld	r2, (PACA_KVM_R2)(r13)
+	ld	r3, (PACA_KVM_R3)(r13)
+	ld	r4, (PACA_KVM_R4)(r13)
+	ld	r5, (PACA_KVM_R5)(r13)
+	ld	r6, (PACA_KVM_R6)(r13)
+	ld	r7, (PACA_KVM_R7)(r13)
+	ld	r8, (PACA_KVM_R8)(r13)
+	ld	r9, (PACA_KVM_R9)(r13)
+	ld	r10, (PACA_KVM_R10)(r13)
+	ld	r12, (PACA_KVM_R12)(r13)
 
-	ld	r9, (PACA_EXMC+EX_R9)(r13)
-	ld	r10, (PACA_EXMC+EX_R10)(r13)
-	ld	r12, (PACA_EXMC+EX_R12)(r13)
-
-	lwz	r11, (PACA_EXMC+EX_CCR)(r13)
+	lwz	r11, (PACA_KVM_CR)(r13)
 	mtcr	r11
 
-	ld	r11, (PACA_EXMC+EX_R3)(r13)
+	ld	r11, (PACA_KVM_XER)(r13)
 	mtxer	r11
 
-	ld	r11, (PACA_EXMC+EX_R11)(r13)
-	ld	r13, (PACA_EXMC+EX_R13)(r13)
+	ld	r11, (PACA_KVM_R11)(r13)
+	ld	r13, (PACA_KVM_R13)(r13)
 
 	RFI
 kvmppc_handler_trampoline_enter_end:
@@ -162,28 +167,54 @@ kvmppc_handler_trampoline_exit:
 
 	/* Register usage at this point:
 	 *
-	 * SPRG_SCRATCH0 = guest R13
-	 * R01           = host R1
-	 * R02           = host R2
-	 * R10           = guest PC
-	 * R11           = guest MSR
-	 * R12           = exit handler id
-	 * R13           = PACA
-	 * PACA.exmc.CCR  = guest CR
-	 * PACA.exmc.R9  = guest R1
-	 * PACA.exmc.R10 = guest R10
-	 * PACA.exmc.R11 = guest R11
-	 * PACA.exmc.R12 = guest R12
-	 * PACA.exmc.R13 = guest R2
+	 * SPRG_SCRATCH0     = guest R13
+	 * R12               = exit handler id
+	 * R13               = PACA
+	 * PACA.KVM.SCRATCH0 = guest R12
+	 * PACA.KVM.SCRATCH1 = guest CR
 	 *
 	 */
 
 	/* Save registers */
 
-	std	r0, (PACA_EXMC+EX_SRR0)(r13)
-	std	r9, (PACA_EXMC+EX_R3)(r13)
-	std	r10, (PACA_EXMC+EX_LR)(r13)
-	std	r11, (PACA_EXMC+EX_DAR)(r13)
+	std	r0, PACA_KVM_R0(r13)
+	std	r1, PACA_KVM_R1(r13)
+	std	r2, PACA_KVM_R2(r13)
+	std	r3, PACA_KVM_R3(r13)
+	std	r4, PACA_KVM_R4(r13)
+	std	r5, PACA_KVM_R5(r13)
+	std	r6, PACA_KVM_R6(r13)
+	std	r7, PACA_KVM_R7(r13)
+	std	r8, PACA_KVM_R8(r13)
+	std	r9, PACA_KVM_R9(r13)
+	std	r10, PACA_KVM_R10(r13)
+	std	r11, PACA_KVM_R11(r13)
+
+	/* Restore R1/R2 so we can handle faults */
+	ld	r1, PACA_KVM_HOST_R1(r13)
+	ld	r2, PACA_KVM_HOST_R2(r13)
+
+	/* Save guest PC and MSR in GPRs */
+	mfsrr0	r3
+	mfsrr1	r4
+
+	/* Get scratch'ed off registers */
+	mfspr	r9, SPRN_SPRG_SCRATCH0
+	std	r9, PACA_KVM_R13(r13)
+
+	ld	r8, PACA_KVM_SCRATCH0(r13)
+	std	r8, PACA_KVM_R12(r13)
+
+	lwz	r7, PACA_KVM_SCRATCH1(r13)
+	stw	r7, PACA_KVM_CR(r13)
+
+	/* Save more register state  */
+
+	mfxer	r6
+	stw	r6, PACA_KVM_XER(r13)
+
+	mfdar	r5
+	mfdsisr	r6
 
 	/*
 	 * In order for us to easily get the last instruction,
@@ -202,16 +233,27 @@ kvmppc_handler_trampoline_exit:
 
 ld_last_inst:
 	/* Save off the guest instruction we're at */
+
+	/* Set guest mode to 'jump over instruction' so if lwz faults
+	 * we'll just continue at the next IP. */
+	li	r9, KVM_GUEST_MODE_SKIP
+	stb	r9, PACA_KVM_IN_GUEST(r13)
+
 	/*    1) enable paging for data */
 	mfmsr	r9
 	ori	r11, r9, MSR_DR			/* Enable paging for data */
 	mtmsr	r11
 	/*    2) fetch the instruction */
-	lwz	r0, 0(r10)
+	li	r0, KVM_INST_FETCH_FAILED	/* In case lwz faults */
+	lwz	r0, 0(r3)
 	/*    3) disable paging again */
 	mtmsr	r9
 
 no_ld_last_inst:
+
+	/* Unset guest mode */
+	li	r9, KVM_GUEST_MODE_NONE
+	stb	r9, PACA_KVM_IN_GUEST(r13)
 
 	/* Restore bolted entries from the shadow and fix it along the way */
 
@@ -233,29 +275,27 @@ no_ld_last_inst:
 
 slb_do_exit:
 
-	/* Restore registers */
-
-	ld	r11, (PACA_EXMC+EX_DAR)(r13)
-	ld	r10, (PACA_EXMC+EX_LR)(r13)
-	ld	r9, (PACA_EXMC+EX_R3)(r13)
-
-	/* Save last inst */
-	stw	r0, (PACA_EXMC+EX_LR)(r13)
-
-	/* Save DAR and DSISR before going to paged mode */
-	mfdar	r0
-	std	r0, (PACA_EXMC+EX_DAR)(r13)
-	mfdsisr	r0
-	stw	r0, (PACA_EXMC+EX_DSISR)(r13)
+	/* Register usage at this point:
+	 *
+	 * R0         = guest last inst
+	 * R1         = host R1
+	 * R2         = host R2
+	 * R3         = guest PC
+	 * R4         = guest MSR
+	 * R5         = guest DAR
+	 * R6         = guest DSISR
+	 * R12        = exit handler id
+	 * R13        = PACA
+	 * PACA.KVM.* = guest *
+	 *
+	 */
 
 	/* RFI into the highmem handler */
-	mfmsr	r0
-	ori	r0, r0, MSR_IR|MSR_DR|MSR_RI	/* Enable paging */
-	mtsrr1	r0
-	ld	r0, PACASAVEDMSR(r13)		/* Highmem handler address */
-	mtsrr0	r0
-
-	mfspr	r0, SPRN_SPRG_SCRATCH0
+	mfmsr	r7
+	ori	r7, r7, MSR_IR|MSR_DR|MSR_RI	/* Enable paging */
+	mtsrr1	r7
+	ld	r8, PACA_KVM_VMHANDLER(r13)	/* Highmem handler address */
+	mtsrr0	r8
 
 	RFI
 kvmppc_handler_trampoline_exit_end:

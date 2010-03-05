@@ -65,11 +65,11 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	case 31:
 		switch (get_xop(inst)) {
 		case OP_31_XOP_MFMSR:
-			vcpu->arch.gpr[get_rt(inst)] = vcpu->arch.msr;
+			kvmppc_set_gpr(vcpu, get_rt(inst), vcpu->arch.msr);
 			break;
 		case OP_31_XOP_MTMSRD:
 		{
-			ulong rs = vcpu->arch.gpr[get_rs(inst)];
+			ulong rs = kvmppc_get_gpr(vcpu, get_rs(inst));
 			if (inst & 0x10000) {
 				vcpu->arch.msr &= ~(MSR_RI | MSR_EE);
 				vcpu->arch.msr |= rs & (MSR_RI | MSR_EE);
@@ -78,30 +78,30 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			break;
 		}
 		case OP_31_XOP_MTMSR:
-			kvmppc_set_msr(vcpu, vcpu->arch.gpr[get_rs(inst)]);
+			kvmppc_set_msr(vcpu, kvmppc_get_gpr(vcpu, get_rs(inst)));
 			break;
 		case OP_31_XOP_MFSRIN:
 		{
 			int srnum;
 
-			srnum = (vcpu->arch.gpr[get_rb(inst)] >> 28) & 0xf;
+			srnum = (kvmppc_get_gpr(vcpu, get_rb(inst)) >> 28) & 0xf;
 			if (vcpu->arch.mmu.mfsrin) {
 				u32 sr;
 				sr = vcpu->arch.mmu.mfsrin(vcpu, srnum);
-				vcpu->arch.gpr[get_rt(inst)] = sr;
+				kvmppc_set_gpr(vcpu, get_rt(inst), sr);
 			}
 			break;
 		}
 		case OP_31_XOP_MTSRIN:
 			vcpu->arch.mmu.mtsrin(vcpu,
-				(vcpu->arch.gpr[get_rb(inst)] >> 28) & 0xf,
-				vcpu->arch.gpr[get_rs(inst)]);
+				(kvmppc_get_gpr(vcpu, get_rb(inst)) >> 28) & 0xf,
+				kvmppc_get_gpr(vcpu, get_rs(inst)));
 			break;
 		case OP_31_XOP_TLBIE:
 		case OP_31_XOP_TLBIEL:
 		{
 			bool large = (inst & 0x00200000) ? true : false;
-			ulong addr = vcpu->arch.gpr[get_rb(inst)];
+			ulong addr = kvmppc_get_gpr(vcpu, get_rb(inst));
 			vcpu->arch.mmu.tlbie(vcpu, addr, large);
 			break;
 		}
@@ -111,14 +111,16 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			if (!vcpu->arch.mmu.slbmte)
 				return EMULATE_FAIL;
 
-			vcpu->arch.mmu.slbmte(vcpu, vcpu->arch.gpr[get_rs(inst)],
-						vcpu->arch.gpr[get_rb(inst)]);
+			vcpu->arch.mmu.slbmte(vcpu,
+					kvmppc_get_gpr(vcpu, get_rs(inst)),
+					kvmppc_get_gpr(vcpu, get_rb(inst)));
 			break;
 		case OP_31_XOP_SLBIE:
 			if (!vcpu->arch.mmu.slbie)
 				return EMULATE_FAIL;
 
-			vcpu->arch.mmu.slbie(vcpu, vcpu->arch.gpr[get_rb(inst)]);
+			vcpu->arch.mmu.slbie(vcpu,
+					kvmppc_get_gpr(vcpu, get_rb(inst)));
 			break;
 		case OP_31_XOP_SLBIA:
 			if (!vcpu->arch.mmu.slbia)
@@ -132,9 +134,9 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			} else {
 				ulong t, rb;
 
-				rb = vcpu->arch.gpr[get_rb(inst)];
+				rb = kvmppc_get_gpr(vcpu, get_rb(inst));
 				t = vcpu->arch.mmu.slbmfee(vcpu, rb);
-				vcpu->arch.gpr[get_rt(inst)] = t;
+				kvmppc_set_gpr(vcpu, get_rt(inst), t);
 			}
 			break;
 		case OP_31_XOP_SLBMFEV:
@@ -143,20 +145,20 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			} else {
 				ulong t, rb;
 
-				rb = vcpu->arch.gpr[get_rb(inst)];
+				rb = kvmppc_get_gpr(vcpu, get_rb(inst));
 				t = vcpu->arch.mmu.slbmfev(vcpu, rb);
-				vcpu->arch.gpr[get_rt(inst)] = t;
+				kvmppc_set_gpr(vcpu, get_rt(inst), t);
 			}
 			break;
 		case OP_31_XOP_DCBZ:
 		{
-			ulong rb =  vcpu->arch.gpr[get_rb(inst)];
+			ulong rb = kvmppc_get_gpr(vcpu, get_rb(inst));
 			ulong ra = 0;
 			ulong addr;
 			u32 zeros[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
 
 			if (get_ra(inst))
-				ra = vcpu->arch.gpr[get_ra(inst)];
+				ra = kvmppc_get_gpr(vcpu, get_ra(inst));
 
 			addr = (ra + rb) & ~31ULL;
 			if (!(vcpu->arch.msr & MSR_SF))
@@ -233,43 +235,44 @@ static void kvmppc_write_bat(struct kvm_vcpu *vcpu, int sprn, u32 val)
 int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 {
 	int emulated = EMULATE_DONE;
+	ulong spr_val = kvmppc_get_gpr(vcpu, rs);
 
 	switch (sprn) {
 	case SPRN_SDR1:
-		to_book3s(vcpu)->sdr1 = vcpu->arch.gpr[rs];
+		to_book3s(vcpu)->sdr1 = spr_val;
 		break;
 	case SPRN_DSISR:
-		to_book3s(vcpu)->dsisr = vcpu->arch.gpr[rs];
+		to_book3s(vcpu)->dsisr = spr_val;
 		break;
 	case SPRN_DAR:
-		vcpu->arch.dear = vcpu->arch.gpr[rs];
+		vcpu->arch.dear = spr_val;
 		break;
 	case SPRN_HIOR:
-		to_book3s(vcpu)->hior = vcpu->arch.gpr[rs];
+		to_book3s(vcpu)->hior = spr_val;
 		break;
 	case SPRN_IBAT0U ... SPRN_IBAT3L:
 	case SPRN_IBAT4U ... SPRN_IBAT7L:
 	case SPRN_DBAT0U ... SPRN_DBAT3L:
 	case SPRN_DBAT4U ... SPRN_DBAT7L:
-		kvmppc_write_bat(vcpu, sprn, (u32)vcpu->arch.gpr[rs]);
+		kvmppc_write_bat(vcpu, sprn, (u32)spr_val);
 		/* BAT writes happen so rarely that we're ok to flush
 		 * everything here */
 		kvmppc_mmu_pte_flush(vcpu, 0, 0);
 		break;
 	case SPRN_HID0:
-		to_book3s(vcpu)->hid[0] = vcpu->arch.gpr[rs];
+		to_book3s(vcpu)->hid[0] = spr_val;
 		break;
 	case SPRN_HID1:
-		to_book3s(vcpu)->hid[1] = vcpu->arch.gpr[rs];
+		to_book3s(vcpu)->hid[1] = spr_val;
 		break;
 	case SPRN_HID2:
-		to_book3s(vcpu)->hid[2] = vcpu->arch.gpr[rs];
+		to_book3s(vcpu)->hid[2] = spr_val;
 		break;
 	case SPRN_HID4:
-		to_book3s(vcpu)->hid[4] = vcpu->arch.gpr[rs];
+		to_book3s(vcpu)->hid[4] = spr_val;
 		break;
 	case SPRN_HID5:
-		to_book3s(vcpu)->hid[5] = vcpu->arch.gpr[rs];
+		to_book3s(vcpu)->hid[5] = spr_val;
 		/* guest HID5 set can change is_dcbz32 */
 		if (vcpu->arch.mmu.is_dcbz32(vcpu) &&
 		    (mfmsr() & MSR_HV))
@@ -299,38 +302,38 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 
 	switch (sprn) {
 	case SPRN_SDR1:
-		vcpu->arch.gpr[rt] = to_book3s(vcpu)->sdr1;
+		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->sdr1);
 		break;
 	case SPRN_DSISR:
-		vcpu->arch.gpr[rt] = to_book3s(vcpu)->dsisr;
+		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->dsisr);
 		break;
 	case SPRN_DAR:
-		vcpu->arch.gpr[rt] = vcpu->arch.dear;
+		kvmppc_set_gpr(vcpu, rt, vcpu->arch.dear);
 		break;
 	case SPRN_HIOR:
-		vcpu->arch.gpr[rt] = to_book3s(vcpu)->hior;
+		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hior);
 		break;
 	case SPRN_HID0:
-		vcpu->arch.gpr[rt] = to_book3s(vcpu)->hid[0];
+		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[0]);
 		break;
 	case SPRN_HID1:
-		vcpu->arch.gpr[rt] = to_book3s(vcpu)->hid[1];
+		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[1]);
 		break;
 	case SPRN_HID2:
-		vcpu->arch.gpr[rt] = to_book3s(vcpu)->hid[2];
+		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[2]);
 		break;
 	case SPRN_HID4:
-		vcpu->arch.gpr[rt] = to_book3s(vcpu)->hid[4];
+		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[4]);
 		break;
 	case SPRN_HID5:
-		vcpu->arch.gpr[rt] = to_book3s(vcpu)->hid[5];
+		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->hid[5]);
 		break;
 	case SPRN_THRM1:
 	case SPRN_THRM2:
 	case SPRN_THRM3:
 	case SPRN_CTRLF:
 	case SPRN_CTRLT:
-		vcpu->arch.gpr[rt] = 0;
+		kvmppc_set_gpr(vcpu, rt, 0);
 		break;
 	default:
 		printk(KERN_INFO "KVM: invalid SPR read: %d\n", sprn);
