@@ -209,7 +209,7 @@ static inline int page_referenced(struct page *page, int is_locked,
 				  unsigned long *vm_flags)
 {
 	*vm_flags = 0;
-	return TestClearPageReferenced(page);
+	return 0;
 }
 
 #define try_to_unmap(page, refs) SWAP_FAIL

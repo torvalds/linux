@@ -561,18 +561,18 @@ redo:
 enum page_references {
 	PAGEREF_RECLAIM,
 	PAGEREF_RECLAIM_CLEAN,
+	PAGEREF_KEEP,
 	PAGEREF_ACTIVATE,
 };
 
 static enum page_references page_check_references(struct page *page,
 						  struct scan_control *sc)
 {
+	int referenced_ptes, referenced_page;
 	unsigned long vm_flags;
-	int referenced;
 
-	referenced = page_referenced(page, 1, sc->mem_cgroup, &vm_flags);
-	if (!referenced)
-		return PAGEREF_RECLAIM;
+	referenced_ptes = page_referenced(page, 1, sc->mem_cgroup, &vm_flags);
+	referenced_page = TestClearPageReferenced(page);
 
 	/* Lumpy reclaim - ignore references */
 	if (sc->order > PAGE_ALLOC_COSTLY_ORDER)
@@ -585,11 +585,36 @@ static enum page_references page_check_references(struct page *page,
 	if (vm_flags & VM_LOCKED)
 		return PAGEREF_RECLAIM;
 
-	if (page_mapped(page))
-		return PAGEREF_ACTIVATE;
+	if (referenced_ptes) {
+		if (PageAnon(page))
+			return PAGEREF_ACTIVATE;
+		/*
+		 * All mapped pages start out with page table
+		 * references from the instantiating fault, so we need
+		 * to look twice if a mapped file page is used more
+		 * than once.
+		 *
+		 * Mark it and spare it for another trip around the
+		 * inactive list.  Another page table reference will
+		 * lead to its activation.
+		 *
+		 * Note: the mark is set for activated pages as well
+		 * so that recently deactivated but used pages are
+		 * quickly recovered.
+		 */
+		SetPageReferenced(page);
+
+		if (referenced_page)
+			return PAGEREF_ACTIVATE;
+
+		return PAGEREF_KEEP;
+	}
 
 	/* Reclaim if clean, defer dirty pages to writeback */
-	return PAGEREF_RECLAIM_CLEAN;
+	if (referenced_page)
+		return PAGEREF_RECLAIM_CLEAN;
+
+	return PAGEREF_RECLAIM;
 }
 
 /*
@@ -657,6 +682,8 @@ static unsigned long shrink_page_list(struct list_head *page_list,
 		switch (references) {
 		case PAGEREF_ACTIVATE:
 			goto activate_locked;
+		case PAGEREF_KEEP:
+			goto keep_locked;
 		case PAGEREF_RECLAIM:
 		case PAGEREF_RECLAIM_CLEAN:
 			; /* try to reclaim the page below */
@@ -1359,9 +1386,7 @@ static void shrink_active_list(unsigned long nr_pages, struct zone *zone,
 			continue;
 		}
 
-		/* page_referenced clears PageReferenced */
-		if (page_mapped(page) &&
-		    page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
+		if (page_referenced(page, 0, sc->mem_cgroup, &vm_flags)) {
 			nr_rotated++;
 			/*
 			 * Identify referenced, file-backed active pages and
