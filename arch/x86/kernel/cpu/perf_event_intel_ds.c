@@ -127,10 +127,8 @@ static int reserve_ds_buffers(void)
 
 		err = -ENOMEM;
 		ds = kzalloc(sizeof(*ds), GFP_KERNEL);
-		if (unlikely(!ds)) {
-			kfree(buffer);
+		if (unlikely(!ds))
 			break;
-		}
 		per_cpu(cpu_hw_events, cpu).ds = ds;
 
 		if (x86_pmu.bts) {
