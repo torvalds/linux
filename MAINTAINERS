@@ -3046,6 +3046,13 @@ W:	http://www.melware.de
 S:	Maintained
 F:	drivers/isdn/hardware/eicon/
 
+IT87 HARDWARE MONITORING DRIVER
+M:	Jean Delvare <khali@linux-fr.org>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/it87
+F:	drivers/hwmon/it87.c
+
 IVTV VIDEO4LINUX DRIVER
 M:	Andy Walls <awalls@radix.net>
 L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
