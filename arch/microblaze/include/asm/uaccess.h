@@ -71,8 +71,6 @@ struct exception_table_entry {
 	unsigned long insn, fixup;
 };
 
-#define __clear_user(addr, n)	(memset((void *)(addr), 0, (n)), 0)
-
 #ifndef CONFIG_MMU
 
 /* Check against bounds of physical memory */
@@ -86,7 +84,31 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 		___range_ok((unsigned long)(addr), (unsigned long)(size))
 
 #define access_ok(type, addr, size) (__range_ok((addr), (size)) == 0)
-#define __access_ok(add, size) (__range_ok((addr), (size)) == 0)
+
+#else
+
+/*
+ * Address is valid if:
+ *  - "addr", "addr + size" and "size" are all below the limit
+ */
+#define access_ok(type, addr, size) \
+	(get_fs().seg > (((unsigned long)(addr)) | \
+		(size) | ((unsigned long)(addr) + (size))))
+
+/* || printk("access_ok failed for %s at 0x%08lx (size %d), seg 0x%08x\n",
+ type?"WRITE":"READ",addr,size,get_fs().seg)) */
+
+#endif
+
+#ifdef CONFIG_MMU
+# define __FIXUP_SECTION	".section .fixup,\"ax\"\n"
+# define __EX_TABLE_SECTION	".section __ex_table,\"a\"\n"
+#else
+# define __FIXUP_SECTION	".section .discard,\"ax\"\n"
+# define __EX_TABLE_SECTION	".section .discard,\"a\"\n"
+#endif
+
+#ifndef CONFIG_MMU
 
 /* Undefined function to trigger linker error */
 extern int bad_user_access_length(void);
@@ -151,6 +173,9 @@ extern int bad_user_access_length(void);
 #define __copy_from_user_inatomic(to, from, n) \
 			(__copy_from_user((to), (from), (n)))
 
+#define __clear_user(addr, n)	(memset((void *)(addr), 0, (n)), 0)
+
+/* stejne s MMU */
 static inline unsigned long clear_user(void *addr, unsigned long size)
 {
 	if (access_ok(VERIFY_WRITE, addr, size))
@@ -165,17 +190,6 @@ extern long strncpy_from_user(char *dst, const char *src, long count);
 extern long strnlen_user(const char *src, long count);
 
 #else /* CONFIG_MMU */
-
-/*
- * Address is valid if:
- *  - "addr", "addr + size" and "size" are all below the limit
- */
-#define access_ok(type, addr, size) \
-	(get_fs().seg > (((unsigned long)(addr)) | \
-		(size) | ((unsigned long)(addr) + (size))))
-
-/* || printk("access_ok failed for %s at 0x%08lx (size %d), seg 0x%08x\n",
- type?"WRITE":"READ",addr,size,get_fs().seg)) */
 
 /*
  * All the __XXX versions macros/functions below do not perform
@@ -297,27 +311,34 @@ __asm__ __volatile__ ("	lwi	%0, %1, 0;		\
 	);							\
 })
 
-/*
- * Return: number of not copied bytes, i.e. 0 if OK or non-zero if fail.
- */
-static inline int clear_user(char *to, int size)
+/* Return: number of not copied bytes, i.e. 0 if OK or non-zero if fail. */
+static inline unsigned long __must_check __clear_user(void __user *to,
+							unsigned long n)
 {
-	if (size && access_ok(VERIFY_WRITE, to, size)) {
-		__asm__ __volatile__ ("				\
-				1:				\
-					sb	r0, %2, r0;	\
-					addik	%0, %0, -1;	\
-					bneid	%0, 1b;		\
-					addik	%2, %2, 1;	\
-				2:				\
-				.section __ex_table,\"a\";	\
-				.word	1b,2b;			\
-				.section .text;"		\
-			: "=r"(size)				\
-			: "0"(size), "r"(to)
-		);
-	}
-	return size;
+	/* normal memset with two words to __ex_table */
+	__asm__ __volatile__ (				\
+			"1:	sb	r0, %2, r0;"	\
+			"	addik	%0, %0, -1;"	\
+			"	bneid	%0, 1b;"	\
+			"	addik	%2, %2, 1;"	\
+			"2:			"	\
+			__EX_TABLE_SECTION		\
+			".word	1b,2b;"			\
+			".previous;"			\
+		: "=r"(n)				\
+		: "0"(n), "r"(to)
+	);
+	return n;
+}
+
+static inline unsigned long __must_check clear_user(void __user *to,
+							unsigned long n)
+{
+	might_sleep();
+	if (unlikely(!access_ok(VERIFY_WRITE, to, n)))
+		return n;
+
+	return __clear_user(to, n);
 }
 
 #define __copy_from_user(to, from, n)	copy_from_user((to), (from), (n))
