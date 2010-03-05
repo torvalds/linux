@@ -80,9 +80,6 @@ struct sdhci_pci_chip {
 
 static int ricoh_probe(struct sdhci_pci_chip *chip)
 {
-	if (chip->pdev->subsystem_vendor == PCI_VENDOR_ID_IBM)
-		chip->quirks |= SDHCI_QUIRK_CLOCK_BEFORE_RESET;
-
 	if (chip->pdev->subsystem_vendor == PCI_VENDOR_ID_SAMSUNG ||
 	    chip->pdev->subsystem_vendor == PCI_VENDOR_ID_SONY)
 		chip->quirks |= SDHCI_QUIRK_NO_CARD_NO_RESET;
@@ -92,7 +89,9 @@ static int ricoh_probe(struct sdhci_pci_chip *chip)
 
 static const struct sdhci_pci_fixes sdhci_ricoh = {
 	.probe		= ricoh_probe,
-	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR,
+	.quirks		= SDHCI_QUIRK_32BIT_DMA_ADDR |
+			  SDHCI_QUIRK_FORCE_DMA |
+			  SDHCI_QUIRK_CLOCK_BEFORE_RESET,
 };
 
 static const struct sdhci_pci_fixes sdhci_ene_712 = {
