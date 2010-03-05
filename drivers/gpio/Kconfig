@@ -96,7 +96,8 @@ config GPIO_VR41XX
 
 config GPIO_SCH
 	tristate "Intel SCH GPIO"
-	depends on GPIOLIB
+	depends on GPIOLIB && PCI
+	select MFD_CORE
 	select LPC_SCH
 	help
 	  Say yes here to support GPIO interface on Intel Poulsbo SCH.
