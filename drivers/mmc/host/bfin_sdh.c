@@ -115,6 +115,7 @@ static int sdh_setup_data(struct sdh_host *host, struct mmc_data *data)
 	unsigned int length;
 	unsigned int data_ctl;
 	unsigned int dma_cfg;
+	unsigned int cycle_ns, timeout;
 
 	dev_dbg(mmc_dev(host->mmc), "%s enter flags: 0x%x\n", __func__, data->flags);
 	host->data = data;
@@ -135,8 +136,11 @@ static int sdh_setup_data(struct sdh_host *host, struct mmc_data *data)
 	data_ctl |= ((ffs(data->blksz) - 1) << 4);
 
 	bfin_write_SDH_DATA_CTL(data_ctl);
-
-	bfin_write_SDH_DATA_TIMER(0xFFFF);
+	/* the time of a host clock period in ns */
+	cycle_ns = 1000000000 / (get_sclk() / (2 * (host->clk_div + 1)));
+	timeout = data->timeout_ns / cycle_ns;
+	timeout += data->timeout_clks;
+	bfin_write_SDH_DATA_TIMER(timeout);
 	SSYNC();
 
 	if (data->flags & MMC_DATA_READ) {
