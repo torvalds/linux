@@ -432,7 +432,7 @@ int __devinit jsm_tty_init(struct jsm_board *brd)
 
 int jsm_uart_port_init(struct jsm_board *brd)
 {
-	int i;
+	int i, rc;
 	unsigned int line;
 	struct jsm_channel *ch;
 
@@ -467,8 +467,11 @@ int jsm_uart_port_init(struct jsm_board *brd)
 		} else
 			set_bit(line, linemap);
 		brd->channels[i]->uart_port.line = line;
-		if (uart_add_one_port (&jsm_uart_driver, &brd->channels[i]->uart_port))
-			printk(KERN_INFO "jsm: add device failed\n");
+		rc = uart_add_one_port (&jsm_uart_driver, &brd->channels[i]->uart_port);
+		if (rc){
+			printk(KERN_INFO "jsm: Port %d failed. Aborting...\n", i);
+			return rc;
+		}
 		else
 			printk(KERN_INFO "jsm: Port %d added\n", i);
 	}

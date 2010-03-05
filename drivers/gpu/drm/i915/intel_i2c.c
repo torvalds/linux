@@ -128,7 +128,7 @@ intel_i2c_reset_gmbus(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		I915_WRITE(PCH_GMBUS0, 0);
 	} else {
 		I915_WRITE(GMBUS0, 0);

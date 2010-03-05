@@ -129,6 +129,50 @@ static u32 xhci_port_state_to_neutral(u32 state)
 	return (state & XHCI_PORT_RO) | (state & XHCI_PORT_RWS);
 }
 
+static void xhci_disable_port(struct xhci_hcd *xhci, u16 wIndex,
+		u32 __iomem *addr, u32 port_status)
+{
+	/* Write 1 to disable the port */
+	xhci_writel(xhci, port_status | PORT_PE, addr);
+	port_status = xhci_readl(xhci, addr);
+	xhci_dbg(xhci, "disable port, actual port %d status  = 0x%x\n",
+			wIndex, port_status);
+}
+
+static void xhci_clear_port_change_bit(struct xhci_hcd *xhci, u16 wValue,
+		u16 wIndex, u32 __iomem *addr, u32 port_status)
+{
+	char *port_change_bit;
+	u32 status;
+
+	switch (wValue) {
+	case USB_PORT_FEAT_C_RESET:
+		status = PORT_RC;
+		port_change_bit = "reset";
+		break;
+	case USB_PORT_FEAT_C_CONNECTION:
+		status = PORT_CSC;
+		port_change_bit = "connect";
+		break;
+	case USB_PORT_FEAT_C_OVER_CURRENT:
+		status = PORT_OCC;
+		port_change_bit = "over-current";
+		break;
+	case USB_PORT_FEAT_C_ENABLE:
+		status = PORT_PEC;
+		port_change_bit = "enable/disable";
+		break;
+	default:
+		/* Should never happen */
+		return;
+	}
+	/* Change bits are all write 1 to clear */
+	xhci_writel(xhci, port_status | status, addr);
+	port_status = xhci_readl(xhci, addr);
+	xhci_dbg(xhci, "clear port %s change, actual port %d status  = 0x%x\n",
+			port_change_bit, wIndex, port_status);
+}
+
 int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		u16 wIndex, char *buf, u16 wLength)
 {
@@ -138,7 +182,6 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 	u32 temp, status;
 	int retval = 0;
 	u32 __iomem *addr;
-	char *port_change_bit;
 
 	ports = HCS_MAX_PORTS(xhci->hcs_params1);
 
@@ -229,26 +272,18 @@ int xhci_hub_control(struct usb_hcd *hcd, u16 typeReq, u16 wValue,
 		temp = xhci_port_state_to_neutral(temp);
 		switch (wValue) {
 		case USB_PORT_FEAT_C_RESET:
-			status = PORT_RC;
-			port_change_bit = "reset";
-			break;
 		case USB_PORT_FEAT_C_CONNECTION:
-			status = PORT_CSC;
-			port_change_bit = "connect";
-			break;
 		case USB_PORT_FEAT_C_OVER_CURRENT:
-			status = PORT_OCC;
-			port_change_bit = "over-current";
+		case USB_PORT_FEAT_C_ENABLE:
+			xhci_clear_port_change_bit(xhci, wValue, wIndex,
+					addr, temp);
+			break;
+		case USB_PORT_FEAT_ENABLE:
+			xhci_disable_port(xhci, wIndex, addr, temp);
 			break;
 		default:
 			goto error;
 		}
-		/* Change bits are all write 1 to clear */
-		xhci_writel(xhci, temp | status, addr);
-		temp = xhci_readl(xhci, addr);
-		xhci_dbg(xhci, "clear port %s change, actual port %d status  = 0x%x\n",
-				port_change_bit, wIndex, temp);
-		temp = xhci_readl(xhci, addr); /* unblock any posted writes */
 		break;
 	default:
 error:

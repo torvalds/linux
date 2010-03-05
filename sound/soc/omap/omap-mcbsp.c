@@ -39,6 +39,14 @@
 
 #define OMAP_MCBSP_RATES	(SNDRV_PCM_RATE_8000_96000)
 
+#define OMAP_MCBSP_SOC_SINGLE_S16_EXT(xname, xmin, xmax, \
+	xhandler_get, xhandler_put) \
+{	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, \
+	.info = omap_mcbsp_st_info_volsw, \
+	.get = xhandler_get, .put = xhandler_put, \
+	.private_value = (unsigned long) &(struct soc_mixer_control) \
+	{.min = xmin, .max = xmax} }
+
 struct omap_mcbsp_data {
 	unsigned int			bus_id;
 	struct omap_mcbsp_reg_cfg	regs;
@@ -82,11 +90,11 @@ static const int omap1_dma_reqs[][2] = {};
 static const unsigned long omap1_mcbsp_port[][2] = {};
 #endif
 
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 static const int omap24xx_dma_reqs[][2] = {
 	{ OMAP24XX_DMA_MCBSP1_TX, OMAP24XX_DMA_MCBSP1_RX },
 	{ OMAP24XX_DMA_MCBSP2_TX, OMAP24XX_DMA_MCBSP2_RX },
-#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3)
 	{ OMAP24XX_DMA_MCBSP3_TX, OMAP24XX_DMA_MCBSP3_RX },
 	{ OMAP24XX_DMA_MCBSP4_TX, OMAP24XX_DMA_MCBSP4_RX },
 	{ OMAP24XX_DMA_MCBSP5_TX, OMAP24XX_DMA_MCBSP5_RX },
@@ -124,7 +132,7 @@ static const unsigned long omap2430_mcbsp_port[][2] = {
 static const unsigned long omap2430_mcbsp_port[][2] = {};
 #endif
 
-#if defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP3)
 static const unsigned long omap34xx_mcbsp_port[][2] = {
 	{ OMAP34XX_MCBSP1_BASE + OMAP_MCBSP_REG_DXR,
 	  OMAP34XX_MCBSP1_BASE + OMAP_MCBSP_REG_DRR },
@@ -287,6 +295,8 @@ static int omap_mcbsp_dai_hw_params(struct snd_pcm_substream *substream,
 	omap_mcbsp_dai_dma_params[id][substream->stream].dma_req = dma;
 	omap_mcbsp_dai_dma_params[id][substream->stream].port_addr = port;
 	omap_mcbsp_dai_dma_params[id][substream->stream].sync_mode = sync_mode;
+	omap_mcbsp_dai_dma_params[id][substream->stream].data_type =
+							OMAP_DMA_DATA_TYPE_S16;
 	cpu_dai->dma_data = &omap_mcbsp_dai_dma_params[id][substream->stream];
 
 	if (mcbsp_data->configured) {
@@ -636,6 +646,136 @@ struct snd_soc_dai omap_mcbsp_dai[] = {
 };
 
 EXPORT_SYMBOL_GPL(omap_mcbsp_dai);
+
+int omap_mcbsp_st_info_volsw(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_info *uinfo)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	int max = mc->max;
+	int min = mc->min;
+
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	uinfo->count = 1;
+	uinfo->value.integer.min = min;
+	uinfo->value.integer.max = max;
+	return 0;
+}
+
+#define OMAP_MCBSP_ST_SET_CHANNEL_VOLUME(id, channel)			\
+static int								\
+omap_mcbsp##id##_set_st_ch##channel##_volume(struct snd_kcontrol *kc,	\
+					struct snd_ctl_elem_value *uc)	\
+{									\
+	struct soc_mixer_control *mc =					\
+		(struct soc_mixer_control *)kc->private_value;		\
+	int max = mc->max;						\
+	int min = mc->min;						\
+	int val = uc->value.integer.value[0];				\
+									\
+	if (val < min || val > max)					\
+		return -EINVAL;						\
+									\
+	/* OMAP McBSP implementation uses index values 0..4 */		\
+	return omap_st_set_chgain((id)-1, channel, val);		\
+}
+
+#define OMAP_MCBSP_ST_GET_CHANNEL_VOLUME(id, channel)			\
+static int								\
+omap_mcbsp##id##_get_st_ch##channel##_volume(struct snd_kcontrol *kc,	\
+					struct snd_ctl_elem_value *uc)	\
+{									\
+	s16 chgain;							\
+									\
+	if (omap_st_get_chgain((id)-1, channel, &chgain))		\
+		return -EAGAIN;						\
+									\
+	uc->value.integer.value[0] = chgain;				\
+	return 0;							\
+}
+
+OMAP_MCBSP_ST_SET_CHANNEL_VOLUME(2, 0)
+OMAP_MCBSP_ST_SET_CHANNEL_VOLUME(2, 1)
+OMAP_MCBSP_ST_SET_CHANNEL_VOLUME(3, 0)
+OMAP_MCBSP_ST_SET_CHANNEL_VOLUME(3, 1)
+OMAP_MCBSP_ST_GET_CHANNEL_VOLUME(2, 0)
+OMAP_MCBSP_ST_GET_CHANNEL_VOLUME(2, 1)
+OMAP_MCBSP_ST_GET_CHANNEL_VOLUME(3, 0)
+OMAP_MCBSP_ST_GET_CHANNEL_VOLUME(3, 1)
+
+static int omap_mcbsp_st_put_mode(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+	u8 value = ucontrol->value.integer.value[0];
+
+	if (value == omap_st_is_enabled(mc->reg))
+		return 0;
+
+	if (value)
+		omap_st_enable(mc->reg);
+	else
+		omap_st_disable(mc->reg);
+
+	return 1;
+}
+
+static int omap_mcbsp_st_get_mode(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct soc_mixer_control *mc =
+		(struct soc_mixer_control *)kcontrol->private_value;
+
+	ucontrol->value.integer.value[0] = omap_st_is_enabled(mc->reg);
+	return 0;
+}
+
+static const struct snd_kcontrol_new omap_mcbsp2_st_controls[] = {
+	SOC_SINGLE_EXT("McBSP2 Sidetone Switch", 1, 0, 1, 0,
+			omap_mcbsp_st_get_mode, omap_mcbsp_st_put_mode),
+	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP2 Sidetone Channel 0 Volume",
+				      -32768, 32767,
+				      omap_mcbsp2_get_st_ch0_volume,
+				      omap_mcbsp2_set_st_ch0_volume),
+	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP2 Sidetone Channel 1 Volume",
+				      -32768, 32767,
+				      omap_mcbsp2_get_st_ch1_volume,
+				      omap_mcbsp2_set_st_ch1_volume),
+};
+
+static const struct snd_kcontrol_new omap_mcbsp3_st_controls[] = {
+	SOC_SINGLE_EXT("McBSP3 Sidetone Switch", 2, 0, 1, 0,
+			omap_mcbsp_st_get_mode, omap_mcbsp_st_put_mode),
+	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP3 Sidetone Channel 0 Volume",
+				      -32768, 32767,
+				      omap_mcbsp3_get_st_ch0_volume,
+				      omap_mcbsp3_set_st_ch0_volume),
+	OMAP_MCBSP_SOC_SINGLE_S16_EXT("McBSP3 Sidetone Channel 1 Volume",
+				      -32768, 32767,
+				      omap_mcbsp3_get_st_ch1_volume,
+				      omap_mcbsp3_set_st_ch1_volume),
+};
+
+int omap_mcbsp_st_add_controls(struct snd_soc_codec *codec, int mcbsp_id)
+{
+	if (!cpu_is_omap34xx())
+		return -ENODEV;
+
+	switch (mcbsp_id) {
+	case 1: /* McBSP 2 */
+		return snd_soc_add_controls(codec, omap_mcbsp2_st_controls,
+					ARRAY_SIZE(omap_mcbsp2_st_controls));
+	case 2: /* McBSP 3 */
+		return snd_soc_add_controls(codec, omap_mcbsp3_st_controls,
+					ARRAY_SIZE(omap_mcbsp3_st_controls));
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(omap_mcbsp_st_add_controls);
 
 static int __init snd_omap_mcbsp_init(void)
 {

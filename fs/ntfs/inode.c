@@ -2957,7 +2957,7 @@ out:
  *
  * Return 0 on success and -errno on error.
  */
-int ntfs_write_inode(struct inode *vi, int sync)
+int __ntfs_write_inode(struct inode *vi, int sync)
 {
 	sle64 nt;
 	ntfs_inode *ni = NTFS_I(vi);

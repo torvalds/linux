@@ -35,9 +35,9 @@
  */
 static int ext4_release_file(struct inode *inode, struct file *filp)
 {
-	if (EXT4_I(inode)->i_state & EXT4_STATE_DA_ALLOC_CLOSE) {
+	if (ext4_test_inode_state(inode, EXT4_STATE_DA_ALLOC_CLOSE)) {
 		ext4_alloc_da_blocks(inode);
-		EXT4_I(inode)->i_state &= ~EXT4_STATE_DA_ALLOC_CLOSE;
+		ext4_clear_inode_state(inode, EXT4_STATE_DA_ALLOC_CLOSE);
 	}
 	/* if we are the last writer on the inode, drop the block reservation */
 	if ((filp->f_mode & FMODE_WRITE) &&
@@ -116,11 +116,9 @@ static int ext4_file_open(struct inode * inode, struct file * filp)
 		 * devices or filesystem images.
 		 */
 		memset(buf, 0, sizeof(buf));
-		path.mnt = mnt->mnt_parent;
-		path.dentry = mnt->mnt_mountpoint;
-		path_get(&path);
+		path.mnt = mnt;
+		path.dentry = mnt->mnt_root;
 		cp = d_path(&path, buf, sizeof(buf));
-		path_put(&path);
 		if (!IS_ERR(cp)) {
 			memcpy(sbi->s_es->s_last_mounted, cp,
 			       sizeof(sbi->s_es->s_last_mounted));

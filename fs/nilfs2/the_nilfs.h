@@ -38,6 +38,7 @@ enum {
 				   the latest checkpoint was loaded */
 	THE_NILFS_DISCONTINUED,	/* 'next' pointer chain has broken */
 	THE_NILFS_GC_RUNNING,	/* gc process is running */
+	THE_NILFS_SB_DIRTY,	/* super block is dirty */
 };
 
 /**
@@ -197,6 +198,7 @@ THE_NILFS_FNS(INIT, init)
 THE_NILFS_FNS(LOADED, loaded)
 THE_NILFS_FNS(DISCONTINUED, discontinued)
 THE_NILFS_FNS(GC_RUNNING, gc_running)
+THE_NILFS_FNS(SB_DIRTY, sb_dirty)
 
 /* Minimum interval of periodical update of superblocks (in seconds) */
 #define NILFS_SB_FREQ		10
@@ -221,6 +223,7 @@ struct the_nilfs *find_or_create_nilfs(struct block_device *);
 void put_nilfs(struct the_nilfs *);
 int init_nilfs(struct the_nilfs *, struct nilfs_sb_info *, char *);
 int load_nilfs(struct the_nilfs *, struct nilfs_sb_info *);
+int nilfs_discard_segments(struct the_nilfs *, __u64 *, size_t);
 int nilfs_count_free_blocks(struct the_nilfs *, sector_t *);
 struct nilfs_sb_info *nilfs_find_sbinfo(struct the_nilfs *, int, __u64);
 int nilfs_checkpoint_is_mounted(struct the_nilfs *, __u64, int);

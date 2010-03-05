@@ -45,7 +45,7 @@ enum b43legacy_led_behaviour {
 void b43legacy_leds_init(struct b43legacy_wldev *dev);
 void b43legacy_leds_exit(struct b43legacy_wldev *dev);
 
-#else /* CONFIG_B43EGACY_LEDS */
+#else /* CONFIG_B43LEGACY_LEDS */
 /* LED support disabled */
 
 struct b43legacy_led {

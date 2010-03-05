@@ -35,7 +35,6 @@ struct notifier_block;
 extern void rcu_sched_qs(int cpu);
 extern void rcu_bh_qs(int cpu);
 extern int rcu_needs_cpu(int cpu);
-extern void rcu_scheduler_starting(void);
 extern int rcu_expedited_torture_stats(char *page);
 
 #ifdef CONFIG_TREE_PREEMPT_RCU
@@ -99,6 +98,9 @@ extern void rcu_check_callbacks(int cpu, int user);
 extern long rcu_batches_completed(void);
 extern long rcu_batches_completed_bh(void);
 extern long rcu_batches_completed_sched(void);
+extern void rcu_force_quiescent_state(void);
+extern void rcu_bh_force_quiescent_state(void);
+extern void rcu_sched_force_quiescent_state(void);
 
 #ifdef CONFIG_NO_HZ
 void rcu_enter_nohz(void);

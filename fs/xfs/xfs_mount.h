@@ -78,7 +78,8 @@ typedef int	(*xfs_send_destroy_t)(struct xfs_inode *, dm_right_t);
 typedef int	(*xfs_send_namesp_t)(dm_eventtype_t, struct xfs_mount *,
 			struct xfs_inode *, dm_right_t,
 			struct xfs_inode *, dm_right_t,
-			const char *, const char *, mode_t, int, int);
+			const unsigned char *, const unsigned char *,
+			mode_t, int, int);
 typedef int	(*xfs_send_mount_t)(struct xfs_mount *, dm_right_t,
 			char *, char *);
 typedef void	(*xfs_send_unmount_t)(struct xfs_mount *, struct xfs_inode *,
@@ -207,8 +208,8 @@ typedef struct xfs_mount {
 	uint			m_ag_maxlevels;	/* XFS_AG_MAXLEVELS */
 	uint			m_bm_maxlevels[2]; /* XFS_BM_MAXLEVELS */
 	uint			m_in_maxlevels;	/* max inobt btree levels. */
-	struct xfs_perag	*m_perag;	/* per-ag accounting info */
-	struct rw_semaphore	m_peraglock;	/* lock for m_perag (pointer) */
+	struct radix_tree_root	m_perag_tree;	/* per-ag accounting info */
+	spinlock_t		m_perag_lock;	/* lock for m_perag_tree */
 	struct mutex		m_growlock;	/* growfs mutex */
 	int			m_fixedfsid[2];	/* unchanged for life of FS */
 	uint			m_dmevmask;	/* DMI events for this FS */
@@ -224,6 +225,7 @@ typedef struct xfs_mount {
 	__uint64_t		m_maxioffset;	/* maximum inode offset */
 	__uint64_t		m_resblks;	/* total reserved blocks */
 	__uint64_t		m_resblks_avail;/* available reserved blocks */
+	__uint64_t		m_resblks_save;	/* reserved blks @ remount,ro */
 	int			m_dalign;	/* stripe unit */
 	int			m_swidth;	/* stripe width */
 	int			m_sinoalign;	/* stripe unit inode alignment */
@@ -243,7 +245,7 @@ typedef struct xfs_mount {
 	struct xfs_qmops	*m_qm_ops;	/* vector of XQM ops */
 	atomic_t		m_active_trans;	/* number trans frozen */
 #ifdef HAVE_PERCPU_SB
-	xfs_icsb_cnts_t		*m_sb_cnts;	/* per-cpu superblock counters */
+	xfs_icsb_cnts_t __percpu *m_sb_cnts;	/* per-cpu superblock counters */
 	unsigned long		m_icsb_counters; /* disabled per-cpu counters */
 	struct notifier_block	m_icsb_notifier; /* hotplug cpu notifier */
 	struct mutex		m_icsb_mutex;	/* balancer sync lock */
@@ -384,19 +386,10 @@ xfs_daddr_to_agbno(struct xfs_mount *mp, xfs_daddr_t d)
 }
 
 /*
- * perag get/put wrappers for eventual ref counting
+ * perag get/put wrappers for ref counting
  */
-static inline xfs_perag_t *
-xfs_get_perag(struct xfs_mount *mp, xfs_ino_t ino)
-{
-	return &mp->m_perag[XFS_INO_TO_AGNO(mp, ino)];
-}
-
-static inline void
-xfs_put_perag(struct xfs_mount *mp, xfs_perag_t *pag)
-{
-	/* nothing to see here, move along */
-}
+struct xfs_perag *xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno);
+void	xfs_perag_put(struct xfs_perag *pag);
 
 /*
  * Per-cpu superblock locking functions
@@ -428,6 +421,7 @@ typedef struct xfs_mod_sb {
 } xfs_mod_sb_t;
 
 extern int	xfs_log_sbcount(xfs_mount_t *, uint);
+extern __uint64_t xfs_default_resblks(xfs_mount_t *mp);
 extern int	xfs_mountfs(xfs_mount_t *mp);
 
 extern void	xfs_unmountfs(xfs_mount_t *);
@@ -450,7 +444,8 @@ extern struct xfs_dmops xfs_dmcore_xfs;
 #endif	/* __KERNEL__ */
 
 extern void	xfs_mod_sb(struct xfs_trans *, __int64_t);
-extern xfs_agnumber_t	xfs_initialize_perag(struct xfs_mount *, xfs_agnumber_t);
+extern int	xfs_initialize_perag(struct xfs_mount *, xfs_agnumber_t,
+					xfs_agnumber_t *);
 extern void	xfs_sb_from_disk(struct xfs_sb *, struct xfs_dsb *);
 extern void	xfs_sb_to_disk(struct xfs_dsb *, struct xfs_sb *, __int64_t);
 

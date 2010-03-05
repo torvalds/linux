@@ -22,6 +22,7 @@
 #include <linux/buffer_head.h>
 #include <linux/pagemap.h>
 #include <linux/quotaops.h>
+#include <linux/writeback.h>
 #include "jfs_incore.h"
 #include "jfs_inode.h"
 #include "jfs_filsys.h"
@@ -120,8 +121,10 @@ int jfs_commit_inode(struct inode *inode, int wait)
 	return rc;
 }
 
-int jfs_write_inode(struct inode *inode, int wait)
+int jfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
+	int wait = wbc->sync_mode == WB_SYNC_ALL;
+
 	if (test_cflag(COMMIT_Nolink, inode))
 		return 0;
 	/*

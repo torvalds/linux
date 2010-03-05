@@ -51,7 +51,7 @@
 #define ALLOC_NEW_GROUP			0x1
 #define ALLOC_GROUPS_FROM_GLOBAL	0x2
 
-#define OCFS2_MAX_INODES_TO_STEAL	1024
+#define OCFS2_MAX_TO_STEAL		1024
 
 static inline void ocfs2_debug_bg(struct ocfs2_group_desc *bg);
 static inline void ocfs2_debug_suballoc_inode(struct ocfs2_dinode *fe);
@@ -637,12 +637,113 @@ bail:
 	return status;
 }
 
+static void ocfs2_init_inode_steal_slot(struct ocfs2_super *osb)
+{
+	spin_lock(&osb->osb_lock);
+	osb->s_inode_steal_slot = OCFS2_INVALID_SLOT;
+	spin_unlock(&osb->osb_lock);
+	atomic_set(&osb->s_num_inodes_stolen, 0);
+}
+
+static void ocfs2_init_meta_steal_slot(struct ocfs2_super *osb)
+{
+	spin_lock(&osb->osb_lock);
+	osb->s_meta_steal_slot = OCFS2_INVALID_SLOT;
+	spin_unlock(&osb->osb_lock);
+	atomic_set(&osb->s_num_meta_stolen, 0);
+}
+
+void ocfs2_init_steal_slots(struct ocfs2_super *osb)
+{
+	ocfs2_init_inode_steal_slot(osb);
+	ocfs2_init_meta_steal_slot(osb);
+}
+
+static void __ocfs2_set_steal_slot(struct ocfs2_super *osb, int slot, int type)
+{
+	spin_lock(&osb->osb_lock);
+	if (type == INODE_ALLOC_SYSTEM_INODE)
+		osb->s_inode_steal_slot = slot;
+	else if (type == EXTENT_ALLOC_SYSTEM_INODE)
+		osb->s_meta_steal_slot = slot;
+	spin_unlock(&osb->osb_lock);
+}
+
+static int __ocfs2_get_steal_slot(struct ocfs2_super *osb, int type)
+{
+	int slot = OCFS2_INVALID_SLOT;
+
+	spin_lock(&osb->osb_lock);
+	if (type == INODE_ALLOC_SYSTEM_INODE)
+		slot = osb->s_inode_steal_slot;
+	else if (type == EXTENT_ALLOC_SYSTEM_INODE)
+		slot = osb->s_meta_steal_slot;
+	spin_unlock(&osb->osb_lock);
+
+	return slot;
+}
+
+static int ocfs2_get_inode_steal_slot(struct ocfs2_super *osb)
+{
+	return __ocfs2_get_steal_slot(osb, INODE_ALLOC_SYSTEM_INODE);
+}
+
+static int ocfs2_get_meta_steal_slot(struct ocfs2_super *osb)
+{
+	return __ocfs2_get_steal_slot(osb, EXTENT_ALLOC_SYSTEM_INODE);
+}
+
+static int ocfs2_steal_resource(struct ocfs2_super *osb,
+				struct ocfs2_alloc_context *ac,
+				int type)
+{
+	int i, status = -ENOSPC;
+	int slot = __ocfs2_get_steal_slot(osb, type);
+
+	/* Start to steal resource from the first slot after ours. */
+	if (slot == OCFS2_INVALID_SLOT)
+		slot = osb->slot_num + 1;
+
+	for (i = 0; i < osb->max_slots; i++, slot++) {
+		if (slot == osb->max_slots)
+			slot = 0;
+
+		if (slot == osb->slot_num)
+			continue;
+
+		status = ocfs2_reserve_suballoc_bits(osb, ac,
+						     type,
+						     (u32)slot, NULL,
+						     NOT_ALLOC_NEW_GROUP);
+		if (status >= 0) {
+			__ocfs2_set_steal_slot(osb, slot, type);
+			break;
+		}
+
+		ocfs2_free_ac_resource(ac);
+	}
+
+	return status;
+}
+
+static int ocfs2_steal_inode(struct ocfs2_super *osb,
+			     struct ocfs2_alloc_context *ac)
+{
+	return ocfs2_steal_resource(osb, ac, INODE_ALLOC_SYSTEM_INODE);
+}
+
+static int ocfs2_steal_meta(struct ocfs2_super *osb,
+			    struct ocfs2_alloc_context *ac)
+{
+	return ocfs2_steal_resource(osb, ac, EXTENT_ALLOC_SYSTEM_INODE);
+}
+
 int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
 				      int blocks,
 				      struct ocfs2_alloc_context **ac)
 {
 	int status;
-	u32 slot;
+	int slot = ocfs2_get_meta_steal_slot(osb);
 
 	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
 	if (!(*ac)) {
@@ -653,12 +754,34 @@ int ocfs2_reserve_new_metadata_blocks(struct ocfs2_super *osb,
 
 	(*ac)->ac_bits_wanted = blocks;
 	(*ac)->ac_which = OCFS2_AC_USE_META;
-	slot = osb->slot_num;
 	(*ac)->ac_group_search = ocfs2_block_group_search;
 
+	if (slot != OCFS2_INVALID_SLOT &&
+		atomic_read(&osb->s_num_meta_stolen) < OCFS2_MAX_TO_STEAL)
+		goto extent_steal;
+
+	atomic_set(&osb->s_num_meta_stolen, 0);
 	status = ocfs2_reserve_suballoc_bits(osb, (*ac),
 					     EXTENT_ALLOC_SYSTEM_INODE,
-					     slot, NULL, ALLOC_NEW_GROUP);
+					     (u32)osb->slot_num, NULL,
+					     ALLOC_NEW_GROUP);
+
+
+	if (status >= 0) {
+		status = 0;
+		if (slot != OCFS2_INVALID_SLOT)
+			ocfs2_init_meta_steal_slot(osb);
+		goto bail;
+	} else if (status < 0 && status != -ENOSPC) {
+		mlog_errno(status);
+		goto bail;
+	}
+
+	ocfs2_free_ac_resource(*ac);
+
+extent_steal:
+	status = ocfs2_steal_meta(osb, *ac);
+	atomic_inc(&osb->s_num_meta_stolen);
 	if (status < 0) {
 		if (status != -ENOSPC)
 			mlog_errno(status);
@@ -685,43 +808,11 @@ int ocfs2_reserve_new_metadata(struct ocfs2_super *osb,
 					ac);
 }
 
-static int ocfs2_steal_inode_from_other_nodes(struct ocfs2_super *osb,
-					      struct ocfs2_alloc_context *ac)
-{
-	int i, status = -ENOSPC;
-	s16 slot = ocfs2_get_inode_steal_slot(osb);
-
-	/* Start to steal inodes from the first slot after ours. */
-	if (slot == OCFS2_INVALID_SLOT)
-		slot = osb->slot_num + 1;
-
-	for (i = 0; i < osb->max_slots; i++, slot++) {
-		if (slot == osb->max_slots)
-			slot = 0;
-
-		if (slot == osb->slot_num)
-			continue;
-
-		status = ocfs2_reserve_suballoc_bits(osb, ac,
-						     INODE_ALLOC_SYSTEM_INODE,
-						     slot, NULL,
-						     NOT_ALLOC_NEW_GROUP);
-		if (status >= 0) {
-			ocfs2_set_inode_steal_slot(osb, slot);
-			break;
-		}
-
-		ocfs2_free_ac_resource(ac);
-	}
-
-	return status;
-}
-
 int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 			    struct ocfs2_alloc_context **ac)
 {
 	int status;
-	s16 slot = ocfs2_get_inode_steal_slot(osb);
+	int slot = ocfs2_get_inode_steal_slot(osb);
 	u64 alloc_group;
 
 	*ac = kzalloc(sizeof(struct ocfs2_alloc_context), GFP_KERNEL);
@@ -754,14 +845,14 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 	 * need to check our slots to see whether there is some space for us.
 	 */
 	if (slot != OCFS2_INVALID_SLOT &&
-	    atomic_read(&osb->s_num_inodes_stolen) < OCFS2_MAX_INODES_TO_STEAL)
+	    atomic_read(&osb->s_num_inodes_stolen) < OCFS2_MAX_TO_STEAL)
 		goto inode_steal;
 
 	atomic_set(&osb->s_num_inodes_stolen, 0);
 	alloc_group = osb->osb_inode_alloc_group;
 	status = ocfs2_reserve_suballoc_bits(osb, *ac,
 					     INODE_ALLOC_SYSTEM_INODE,
-					     osb->slot_num,
+					     (u32)osb->slot_num,
 					     &alloc_group,
 					     ALLOC_NEW_GROUP |
 					     ALLOC_GROUPS_FROM_GLOBAL);
@@ -789,7 +880,7 @@ int ocfs2_reserve_new_inode(struct ocfs2_super *osb,
 	ocfs2_free_ac_resource(*ac);
 
 inode_steal:
-	status = ocfs2_steal_inode_from_other_nodes(osb, *ac);
+	status = ocfs2_steal_inode(osb, *ac);
 	atomic_inc(&osb->s_num_inodes_stolen);
 	if (status < 0) {
 		if (status != -ENOSPC)

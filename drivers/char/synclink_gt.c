@@ -468,7 +468,7 @@ static unsigned int free_tbuf_count(struct slgt_info *info);
 static unsigned int tbuf_bytes(struct slgt_info *info);
 static void reset_tbufs(struct slgt_info *info);
 static void tdma_reset(struct slgt_info *info);
-static void tx_load(struct slgt_info *info, const char *buf, unsigned int count);
+static bool tx_load(struct slgt_info *info, const char *buf, unsigned int count);
 
 static void get_signals(struct slgt_info *info);
 static void set_signals(struct slgt_info *info);
@@ -813,59 +813,32 @@ static int write(struct tty_struct *tty,
 	int ret = 0;
 	struct slgt_info *info = tty->driver_data;
 	unsigned long flags;
-	unsigned int bufs_needed;
 
 	if (sanity_check(info, tty->name, "write"))
-		goto cleanup;
+		return -EIO;
+
 	DBGINFO(("%s write count=%d\n", info->device_name, count));
 
-	if (!info->tx_buf)
-		goto cleanup;
+	if (!info->tx_buf || (count > info->max_frame_size))
+		return -EIO;
 
-	if (count > info->max_frame_size) {
-		ret = -EIO;
-		goto cleanup;
-	}
+	if (!count || tty->stopped || tty->hw_stopped)
+		return 0;
 
-	if (!count)
-		goto cleanup;
+	spin_lock_irqsave(&info->lock, flags);
 
-	if (!info->tx_active && info->tx_count) {
+	if (info->tx_count) {
 		/* send accumulated data from send_char() */
-		tx_load(info, info->tx_buf, info->tx_count);
-		goto start;
+		if (!tx_load(info, info->tx_buf, info->tx_count))
+			goto cleanup;
+		info->tx_count = 0;
 	}
-	bufs_needed = (count/DMABUFSIZE);
-	if (count % DMABUFSIZE)
-		++bufs_needed;
-	if (bufs_needed > free_tbuf_count(info))
-		goto cleanup;
 
-	ret = info->tx_count = count;
-	tx_load(info, buf, count);
-	goto start;
-
-start:
- 	if (info->tx_count && !tty->stopped && !tty->hw_stopped) {
-		spin_lock_irqsave(&info->lock,flags);
-		if (!info->tx_active)
-		 	tx_start(info);
-		else if (!(rd_reg32(info, TDCSR) & BIT0)) {
-			/* transmit still active but transmit DMA stopped */
-			unsigned int i = info->tbuf_current;
-			if (!i)
-				i = info->tbuf_count;
-			i--;
-			/* if DMA buf unsent must try later after tx idle */
-			if (desc_count(info->tbufs[i]))
-				ret = 0;
-		}
-		if (ret > 0)
-			update_tx_timer(info);
-		spin_unlock_irqrestore(&info->lock,flags);
- 	}
+	if (tx_load(info, buf, count))
+		ret = count;
 
 cleanup:
+	spin_unlock_irqrestore(&info->lock, flags);
 	DBGINFO(("%s write rc=%d\n", info->device_name, ret));
 	return ret;
 }
@@ -882,7 +855,7 @@ static int put_char(struct tty_struct *tty, unsigned char ch)
 	if (!info->tx_buf)
 		return 0;
 	spin_lock_irqsave(&info->lock,flags);
-	if (!info->tx_active && (info->tx_count < info->max_frame_size)) {
+	if (info->tx_count < info->max_frame_size) {
 		info->tx_buf[info->tx_count++] = ch;
 		ret = 1;
 	}
@@ -981,10 +954,8 @@ static void flush_chars(struct tty_struct *tty)
 	DBGINFO(("%s flush_chars start transmit\n", info->device_name));
 
 	spin_lock_irqsave(&info->lock,flags);
-	if (!info->tx_active && info->tx_count) {
-		tx_load(info, info->tx_buf,info->tx_count);
-	 	tx_start(info);
-	}
+	if (info->tx_count && tx_load(info, info->tx_buf, info->tx_count))
+		info->tx_count = 0;
 	spin_unlock_irqrestore(&info->lock,flags);
 }
 
@@ -997,10 +968,9 @@ static void flush_buffer(struct tty_struct *tty)
 		return;
 	DBGINFO(("%s flush_buffer\n", info->device_name));
 
-	spin_lock_irqsave(&info->lock,flags);
-	if (!info->tx_active)
-		info->tx_count = 0;
-	spin_unlock_irqrestore(&info->lock,flags);
+	spin_lock_irqsave(&info->lock, flags);
+	info->tx_count = 0;
+	spin_unlock_irqrestore(&info->lock, flags);
 
 	tty_wakeup(tty);
 }
@@ -1033,12 +1003,10 @@ static void tx_release(struct tty_struct *tty)
 	if (sanity_check(info, tty->name, "tx_release"))
 		return;
 	DBGINFO(("%s tx_release\n", info->device_name));
-	spin_lock_irqsave(&info->lock,flags);
-	if (!info->tx_active && info->tx_count) {
-		tx_load(info, info->tx_buf, info->tx_count);
-	 	tx_start(info);
-	}
-	spin_unlock_irqrestore(&info->lock,flags);
+	spin_lock_irqsave(&info->lock, flags);
+	if (info->tx_count && tx_load(info, info->tx_buf, info->tx_count))
+		info->tx_count = 0;
+	spin_unlock_irqrestore(&info->lock, flags);
 }
 
 /*
@@ -1506,27 +1474,25 @@ static netdev_tx_t hdlcdev_xmit(struct sk_buff *skb,
 
 	DBGINFO(("%s hdlc_xmit\n", dev->name));
 
+	if (!skb->len)
+		return NETDEV_TX_OK;
+
 	/* stop sending until this frame completes */
 	netif_stop_queue(dev);
-
-	/* copy data to device buffers */
-	info->tx_count = skb->len;
-	tx_load(info, skb->data, skb->len);
 
 	/* update network statistics */
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
 
-	/* done with socket buffer, so free it */
-	dev_kfree_skb(skb);
-
 	/* save start time for transmit timeout detection */
 	dev->trans_start = jiffies;
 
-	spin_lock_irqsave(&info->lock,flags);
-	tx_start(info);
-	update_tx_timer(info);
-	spin_unlock_irqrestore(&info->lock,flags);
+	spin_lock_irqsave(&info->lock, flags);
+	tx_load(info, skb->data, skb->len);
+	spin_unlock_irqrestore(&info->lock, flags);
+
+	/* done with socket buffer, so free it */
+	dev_kfree_skb(skb);
 
 	return NETDEV_TX_OK;
 }
@@ -2180,7 +2146,7 @@ static void isr_serial(struct slgt_info *info)
 
 	if (info->params.mode == MGSL_MODE_ASYNC) {
 		if (status & IRQ_TXIDLE) {
-			if (info->tx_count)
+			if (info->tx_active)
 				isr_txeom(info, status);
 		}
 		if (info->rx_pio && (status & IRQ_RXDATA))
@@ -2276,13 +2242,42 @@ static void isr_tdma(struct slgt_info *info)
 	}
 }
 
+/*
+ * return true if there are unsent tx DMA buffers, otherwise false
+ *
+ * if there are unsent buffers then info->tbuf_start
+ * is set to index of first unsent buffer
+ */
+static bool unsent_tbufs(struct slgt_info *info)
+{
+	unsigned int i = info->tbuf_current;
+	bool rc = false;
+
+	/*
+	 * search backwards from last loaded buffer (precedes tbuf_current)
+	 * for first unsent buffer (desc_count > 0)
+	 */
+
+	do {
+		if (i)
+			i--;
+		else
+			i = info->tbuf_count - 1;
+		if (!desc_count(info->tbufs[i]))
+			break;
+		info->tbuf_start = i;
+		rc = true;
+	} while (i != info->tbuf_current);
+
+	return rc;
+}
+
 static void isr_txeom(struct slgt_info *info, unsigned short status)
 {
 	DBGISR(("%s txeom status=%04x\n", info->device_name, status));
 
 	slgt_irq_off(info, IRQ_TXDATA + IRQ_TXIDLE + IRQ_TXUNDER);
 	tdma_reset(info);
-	reset_tbufs(info);
 	if (status & IRQ_TXUNDER) {
 		unsigned short val = rd_reg16(info, TCR);
 		wr_reg16(info, TCR, (unsigned short)(val | BIT2)); /* set reset bit */
@@ -2297,8 +2292,12 @@ static void isr_txeom(struct slgt_info *info, unsigned short status)
 				info->icount.txok++;
 		}
 
+		if (unsent_tbufs(info)) {
+			tx_start(info);
+			update_tx_timer(info);
+			return;
+		}
 		info->tx_active = false;
-		info->tx_count = 0;
 
 		del_timer(&info->tx_timer);
 
@@ -3949,7 +3948,7 @@ static void tx_start(struct slgt_info *info)
 		info->tx_enabled = true;
 	}
 
-	if (info->tx_count) {
+	if (desc_count(info->tbufs[info->tbuf_start])) {
 		info->drop_rts_on_tx_done = false;
 
 		if (info->params.mode != MGSL_MODE_ASYNC) {
@@ -4772,25 +4771,36 @@ static unsigned int tbuf_bytes(struct slgt_info *info)
 }
 
 /*
- * load transmit DMA buffer(s) with data
+ * load data into transmit DMA buffer ring and start transmitter if needed
+ * return true if data accepted, otherwise false (buffers full)
  */
-static void tx_load(struct slgt_info *info, const char *buf, unsigned int size)
+static bool tx_load(struct slgt_info *info, const char *buf, unsigned int size)
 {
 	unsigned short count;
 	unsigned int i;
 	struct slgt_desc *d;
 
-	if (size == 0)
-		return;
+	/* check required buffer space */
+	if (DIV_ROUND_UP(size, DMABUFSIZE) > free_tbuf_count(info))
+		return false;
 
 	DBGDATA(info, buf, size, "tx");
+
+	/*
+	 * copy data to one or more DMA buffers in circular ring
+	 * tbuf_start   = first buffer for this data
+	 * tbuf_current = next free buffer
+	 *
+	 * Copy all data before making data visible to DMA controller by
+	 * setting descriptor count of the first buffer.
+	 * This prevents an active DMA controller from reading the first DMA
+	 * buffers of a frame and stopping before the final buffers are filled.
+	 */
 
 	info->tbuf_start = i = info->tbuf_current;
 
 	while (size) {
 		d = &info->tbufs[i];
-		if (++i == info->tbuf_count)
-			i = 0;
 
 		count = (unsigned short)((size > DMABUFSIZE) ? DMABUFSIZE : size);
 		memcpy(d->buf, buf, count);
@@ -4808,11 +4818,27 @@ static void tx_load(struct slgt_info *info, const char *buf, unsigned int size)
 		else
 			set_desc_eof(*d, 0);
 
-		set_desc_count(*d, count);
+		/* set descriptor count for all but first buffer */
+		if (i != info->tbuf_start)
+			set_desc_count(*d, count);
 		d->buf_count = count;
+
+		if (++i == info->tbuf_count)
+			i = 0;
 	}
 
 	info->tbuf_current = i;
+
+	/* set first buffer count to make new data visible to DMA controller */
+	d = &info->tbufs[info->tbuf_start];
+	set_desc_count(*d, d->buf_count);
+
+	/* start transmitter if needed and update transmit timeout */
+	if (!info->tx_active)
+		tx_start(info);
+	update_tx_timer(info);
+
+	return true;
 }
 
 static int register_test(struct slgt_info *info)
@@ -4934,9 +4960,7 @@ static int loopback_test(struct slgt_info *info)
 	spin_lock_irqsave(&info->lock,flags);
 	async_mode(info);
 	rx_start(info);
-	info->tx_count = count;
 	tx_load(info, buf, count);
-	tx_start(info);
 	spin_unlock_irqrestore(&info->lock, flags);
 
 	/* wait for receive complete */

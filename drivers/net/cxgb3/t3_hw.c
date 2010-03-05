@@ -1262,7 +1262,8 @@ void t3_link_changed(struct adapter *adapter, int port_id)
 		lc->fc = fc;
 	}
 
-	t3_os_link_changed(adapter, port_id, link_ok, speed, duplex, fc);
+	t3_os_link_changed(adapter, port_id, link_ok && !pi->link_fault,
+			   speed, duplex, fc);
 }
 
 void t3_link_fault(struct adapter *adapter, int port_id)
@@ -1432,7 +1433,10 @@ static int t3_handle_intr_status(struct adapter *adapter, unsigned int reg,
 		       F_IRPARITYERROR | V_ITPARITYERROR(M_ITPARITYERROR) | \
 		       V_FLPARITYERROR(M_FLPARITYERROR) | F_LODRBPARITYERROR | \
 		       F_HIDRBPARITYERROR | F_LORCQPARITYERROR | \
-		       F_HIRCQPARITYERROR)
+		       F_HIRCQPARITYERROR | F_LOPRIORITYDBFULL | \
+		       F_HIPRIORITYDBFULL | F_LOPRIORITYDBEMPTY | \
+		       F_HIPRIORITYDBEMPTY | F_HIPIODRBDROPERR | \
+		       F_LOPIODRBDROPERR)
 #define MC5_INTR_MASK (F_PARITYERR | F_ACTRGNFULL | F_UNKNOWNCMD | \
 		       F_REQQPARERR | F_DISPQPARERR | F_DELACTEMPTY | \
 		       F_NFASRCHFAIL)

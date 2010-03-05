@@ -1050,7 +1050,8 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 			strcpy(eb->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE);
 			eb->h_blkno = cpu_to_le64(first_blkno);
 			eb->h_fs_generation = cpu_to_le32(osb->fs_generation);
-			eb->h_suballoc_slot = cpu_to_le16(osb->slot_num);
+			eb->h_suballoc_slot =
+				cpu_to_le16(meta_ac->ac_alloc_slot);
 			eb->h_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 			eb->h_list.l_count =
 				cpu_to_le16(ocfs2_extent_recs_per_eb(osb->sb));
@@ -6037,7 +6038,7 @@ static void ocfs2_truncate_log_worker(struct work_struct *work)
 	if (status < 0)
 		mlog_errno(status);
 	else
-		ocfs2_init_inode_steal_slot(osb);
+		ocfs2_init_steal_slots(osb);
 
 	mlog_exit(status);
 }

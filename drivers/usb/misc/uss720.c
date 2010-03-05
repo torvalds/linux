@@ -770,7 +770,7 @@ static void uss720_disconnect(struct usb_interface *intf)
 }
 
 /* table of cables that work through this driver */
-static struct usb_device_id uss720_table [] = {
+static const struct usb_device_id uss720_table[] = {
 	{ USB_DEVICE(0x047e, 0x1001) },
 	{ USB_DEVICE(0x0557, 0x2001) },
 	{ USB_DEVICE(0x0729, 0x1284) },

@@ -3,7 +3,7 @@
 /*
  * 802.11 netlink interface public header
  *
- * Copyright 2006, 2007, 2008 Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2006-2010 Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2008 Michael Wu <flamingice@sourmilk.net>
  * Copyright 2008 Luis Carlos Cobo <luisca@cozybit.com>
  * Copyright 2008 Michael Buesch <mb@bu3sch.de>
@@ -270,6 +270,60 @@
  * @NL80211_CMD_SET_WIPHY_NETNS: Set a wiphy's netns. Note that all devices
  *	associated with this wiphy must be down and will follow.
  *
+ * @NL80211_CMD_REMAIN_ON_CHANNEL: Request to remain awake on the specified
+ *	channel for the specified amount of time. This can be used to do
+ *	off-channel operations like transmit a Public Action frame and wait for
+ *	a response while being associated to an AP on another channel.
+ *	%NL80211_ATTR_WIPHY or %NL80211_ATTR_IFINDEX is used to specify which
+ *	radio is used. %NL80211_ATTR_WIPHY_FREQ is used to specify the
+ *	frequency for the operation and %NL80211_ATTR_WIPHY_CHANNEL_TYPE may be
+ *	optionally used to specify additional channel parameters.
+ *	%NL80211_ATTR_DURATION is used to specify the duration in milliseconds
+ *	to remain on the channel. This command is also used as an event to
+ *	notify when the requested duration starts (it may take a while for the
+ *	driver to schedule this time due to other concurrent needs for the
+ *	radio).
+ *	When called, this operation returns a cookie (%NL80211_ATTR_COOKIE)
+ *	that will be included with any events pertaining to this request;
+ *	the cookie is also used to cancel the request.
+ * @NL80211_CMD_CANCEL_REMAIN_ON_CHANNEL: This command can be used to cancel a
+ *	pending remain-on-channel duration if the desired operation has been
+ *	completed prior to expiration of the originally requested duration.
+ *	%NL80211_ATTR_WIPHY or %NL80211_ATTR_IFINDEX is used to specify the
+ *	radio. The %NL80211_ATTR_COOKIE attribute must be given as well to
+ *	uniquely identify the request.
+ *	This command is also used as an event to notify when a requested
+ *	remain-on-channel duration has expired.
+ *
+ * @NL80211_CMD_SET_TX_BITRATE_MASK: Set the mask of rates to be used in TX
+ *	rate selection. %NL80211_ATTR_IFINDEX is used to specify the interface
+ *	and @NL80211_ATTR_TX_RATES the set of allowed rates.
+ *
+ * @NL80211_CMD_REGISTER_ACTION: Register for receiving certain action frames
+ *	(via @NL80211_CMD_ACTION) for processing in userspace. This command
+ *	requires an interface index and a match attribute containing the first
+ *	few bytes of the frame that should match, e.g. a single byte for only
+ *	a category match or four bytes for vendor frames including the OUI.
+ *	The registration cannot be dropped, but is removed automatically
+ *	when the netlink socket is closed. Multiple registrations can be made.
+ * @NL80211_CMD_ACTION: Action frame TX request and RX notification. This
+ *	command is used both as a request to transmit an Action frame and as an
+ *	event indicating reception of an Action frame that was not processed in
+ *	kernel code, but is for us (i.e., which may need to be processed in a
+ *	user space application). %NL80211_ATTR_FRAME is used to specify the
+ *	frame contents (including header). %NL80211_ATTR_WIPHY_FREQ (and
+ *	optionally %NL80211_ATTR_WIPHY_CHANNEL_TYPE) is used to indicate on
+ *	which channel the frame is to be transmitted or was received. This
+ *	channel has to be the current channel (remain-on-channel or the
+ *	operational channel). When called, this operation returns a cookie
+ *	(%NL80211_ATTR_COOKIE) that will be included with the TX status event
+ *	pertaining to the TX request.
+ * @NL80211_CMD_ACTION_TX_STATUS: Report TX status of an Action frame
+ *	transmitted with %NL80211_CMD_ACTION. %NL80211_ATTR_COOKIE identifies
+ *	the TX command and %NL80211_ATTR_FRAME includes the contents of the
+ *	frame. %NL80211_ATTR_ACK flag is included if the recipient acknowledged
+ *	the frame.
+ *
  * @NL80211_CMD_MAX: highest used command number
  * @__NL80211_CMD_AFTER_LAST: internal use
  */
@@ -353,6 +407,18 @@ enum nl80211_commands {
 	NL80211_CMD_DEL_PMKSA,
 	NL80211_CMD_FLUSH_PMKSA,
 
+	NL80211_CMD_REMAIN_ON_CHANNEL,
+	NL80211_CMD_CANCEL_REMAIN_ON_CHANNEL,
+
+	NL80211_CMD_SET_TX_BITRATE_MASK,
+
+	NL80211_CMD_REGISTER_ACTION,
+	NL80211_CMD_ACTION,
+	NL80211_CMD_ACTION_TX_STATUS,
+
+	NL80211_CMD_SET_POWER_SAVE,
+	NL80211_CMD_GET_POWER_SAVE,
+
 	/* add new commands above here */
 
 	/* used to define NL80211_CMD_MAX below */
@@ -402,6 +468,8 @@ enum nl80211_commands {
  * @NL80211_ATTR_WIPHY_RTS_THRESHOLD: RTS threshold (TX frames with length
  *	larger than or equal to this use RTS/CTS handshake); allowed range:
  *	0..65536, disable with (u32)-1; dot11RTSThreshold; u32
+ * @NL80211_ATTR_WIPHY_COVERAGE_CLASS: Coverage Class as defined by IEEE 802.11
+ *	section 7.3.2.9; dot11CoverageClass; u8
  *
  * @NL80211_ATTR_IFINDEX: network interface index of the device to operate on
  * @NL80211_ATTR_IFNAME: network interface name
@@ -606,6 +674,23 @@ enum nl80211_commands {
  * @NL80211_ATTR_MAX_NUM_PMKIDS: maximum number of PMKIDs a firmware can
  *	cache, a wiphy attribute.
  *
+ * @NL80211_ATTR_DURATION: Duration of an operation in milliseconds, u32.
+ *
+ * @NL80211_ATTR_COOKIE: Generic 64-bit cookie to identify objects.
+ *
+ * @NL80211_ATTR_TX_RATES: Nested set of attributes
+ *	(enum nl80211_tx_rate_attributes) describing TX rates per band. The
+ *	enum nl80211_band value is used as the index (nla_type() of the nested
+ *	data. If a band is not included, it will be configured to allow all
+ *	rates based on negotiated supported rates information. This attribute
+ *	is used with %NL80211_CMD_SET_TX_BITRATE_MASK.
+ *
+ * @NL80211_ATTR_FRAME_MATCH: A binary attribute which typically must contain
+ *	at least one byte, currently used with @NL80211_CMD_REGISTER_ACTION.
+ *
+ * @NL80211_ATTR_ACK: Flag attribute indicating that the frame was
+ *	acknowledged by the recipient.
+ *
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
  */
@@ -742,6 +827,20 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_PMKID,
 	NL80211_ATTR_MAX_NUM_PMKIDS,
+
+	NL80211_ATTR_DURATION,
+
+	NL80211_ATTR_COOKIE,
+
+	NL80211_ATTR_WIPHY_COVERAGE_CLASS,
+
+	NL80211_ATTR_TX_RATES,
+
+	NL80211_ATTR_FRAME_MATCH,
+
+	NL80211_ATTR_ACK,
+
+	NL80211_ATTR_PS_STATE,
 
 	/* add attributes here, update the policy in nl80211.c */
 
@@ -1323,13 +1422,20 @@ enum nl80211_channel_type {
  * @NL80211_BSS_BEACON_INTERVAL: beacon interval of the (I)BSS (u16)
  * @NL80211_BSS_CAPABILITY: capability field (CPU order, u16)
  * @NL80211_BSS_INFORMATION_ELEMENTS: binary attribute containing the
- *	raw information elements from the probe response/beacon (bin)
+ *	raw information elements from the probe response/beacon (bin);
+ *	if the %NL80211_BSS_BEACON_IES attribute is present, the IEs here are
+ *	from a Probe Response frame; otherwise they are from a Beacon frame.
+ *	However, if the driver does not indicate the source of the IEs, these
+ *	IEs may be from either frame subtype.
  * @NL80211_BSS_SIGNAL_MBM: signal strength of probe response/beacon
  *	in mBm (100 * dBm) (s32)
  * @NL80211_BSS_SIGNAL_UNSPEC: signal strength of the probe response/beacon
  *	in unspecified units, scaled to 0..100 (u8)
  * @NL80211_BSS_STATUS: status, if this BSS is "used"
  * @NL80211_BSS_SEEN_MS_AGO: age of this BSS entry in ms
+ * @NL80211_BSS_BEACON_IES: binary attribute containing the raw information
+ *	elements from a Beacon frame (bin); not present if no Beacon frame has
+ *	yet been received
  * @__NL80211_BSS_AFTER_LAST: internal
  * @NL80211_BSS_MAX: highest BSS attribute
  */
@@ -1345,6 +1451,7 @@ enum nl80211_bss {
 	NL80211_BSS_SIGNAL_UNSPEC,
 	NL80211_BSS_STATUS,
 	NL80211_BSS_SEEN_MS_AGO,
+	NL80211_BSS_BEACON_IES,
 
 	/* keep last */
 	__NL80211_BSS_AFTER_LAST,
@@ -1440,6 +1547,40 @@ enum nl80211_key_attributes {
 	/* keep last */
 	__NL80211_KEY_AFTER_LAST,
 	NL80211_KEY_MAX = __NL80211_KEY_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_tx_rate_attributes - TX rate set attributes
+ * @__NL80211_TXRATE_INVALID: invalid
+ * @NL80211_TXRATE_LEGACY: Legacy (non-MCS) rates allowed for TX rate selection
+ *	in an array of rates as defined in IEEE 802.11 7.3.2.2 (u8 values with
+ *	1 = 500 kbps) but without the IE length restriction (at most
+ *	%NL80211_MAX_SUPP_RATES in a single array).
+ * @__NL80211_TXRATE_AFTER_LAST: internal
+ * @NL80211_TXRATE_MAX: highest TX rate attribute
+ */
+enum nl80211_tx_rate_attributes {
+	__NL80211_TXRATE_INVALID,
+	NL80211_TXRATE_LEGACY,
+
+	/* keep last */
+	__NL80211_TXRATE_AFTER_LAST,
+	NL80211_TXRATE_MAX = __NL80211_TXRATE_AFTER_LAST - 1
+};
+
+/**
+ * enum nl80211_band - Frequency band
+ * @NL80211_BAND_2GHZ - 2.4 GHz ISM band
+ * @NL80211_BAND_5GHZ - around 5 GHz band (4.9 - 5.7 GHz)
+ */
+enum nl80211_band {
+	NL80211_BAND_2GHZ,
+	NL80211_BAND_5GHZ,
+};
+
+enum nl80211_ps_state {
+	NL80211_PS_DISABLED,
+	NL80211_PS_ENABLED,
 };
 
 #endif /* __LINUX_NL80211_H */

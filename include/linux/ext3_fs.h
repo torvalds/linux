@@ -877,7 +877,7 @@ int ext3_get_blocks_handle(handle_t *handle, struct inode *inode,
 	int create);
 
 extern struct inode *ext3_iget(struct super_block *, unsigned long);
-extern int  ext3_write_inode (struct inode *, int);
+extern int  ext3_write_inode (struct inode *, struct writeback_control *);
 extern int  ext3_setattr (struct dentry *, struct iattr *);
 extern void ext3_delete_inode (struct inode *);
 extern int  ext3_sync_inode (handle_t *, struct inode *);

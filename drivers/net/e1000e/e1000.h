@@ -459,7 +459,7 @@ extern int e1000e_setup_tx_resources(struct e1000_adapter *adapter);
 extern void e1000e_free_rx_resources(struct e1000_adapter *adapter);
 extern void e1000e_free_tx_resources(struct e1000_adapter *adapter);
 extern void e1000e_update_stats(struct e1000_adapter *adapter);
-extern bool e1000_has_link(struct e1000_adapter *adapter);
+extern bool e1000e_has_link(struct e1000_adapter *adapter);
 extern void e1000e_set_interrupt_capability(struct e1000_adapter *adapter);
 extern void e1000e_reset_interrupt_capability(struct e1000_adapter *adapter);
 
@@ -503,6 +503,8 @@ extern s32 e1000e_cleanup_led_generic(struct e1000_hw *hw);
 extern s32 e1000e_led_on_generic(struct e1000_hw *hw);
 extern s32 e1000e_led_off_generic(struct e1000_hw *hw);
 extern s32 e1000e_get_bus_info_pcie(struct e1000_hw *hw);
+extern void e1000_set_lan_id_multi_port_pcie(struct e1000_hw *hw);
+extern void e1000_set_lan_id_single_port(struct e1000_hw *hw);
 extern s32 e1000e_get_speed_and_duplex_copper(struct e1000_hw *hw, u16 *speed, u16 *duplex);
 extern s32 e1000e_get_speed_and_duplex_fiber_serdes(struct e1000_hw *hw, u16 *speed, u16 *duplex);
 extern s32 e1000e_disable_pcie_master(struct e1000_hw *hw);
@@ -517,9 +519,7 @@ extern void e1000_clear_vfta_generic(struct e1000_hw *hw);
 extern void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count);
 extern void e1000e_update_mc_addr_list_generic(struct e1000_hw *hw,
 					       u8 *mc_addr_list,
-					       u32 mc_addr_count,
-					       u32 rar_used_count,
-					       u32 rar_count);
+					       u32 mc_addr_count);
 extern void e1000e_rar_set(struct e1000_hw *hw, u8 *addr, u32 index);
 extern s32 e1000e_set_fc_watermarks(struct e1000_hw *hw);
 extern void e1000e_set_pcie_no_snoop(struct e1000_hw *hw, u32 no_snoop);
@@ -530,6 +530,7 @@ extern s32 e1000e_config_fc_after_link_up(struct e1000_hw *hw);
 extern s32 e1000e_force_mac_fc(struct e1000_hw *hw);
 extern s32 e1000e_blink_led(struct e1000_hw *hw);
 extern void e1000_write_vfta_generic(struct e1000_hw *hw, u32 offset, u32 value);
+extern s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw);
 extern void e1000e_reset_adaptive(struct e1000_hw *hw);
 extern void e1000e_update_adaptive(struct e1000_hw *hw);
 
@@ -629,7 +630,15 @@ extern s32 e1000e_read_nvm_eerd(struct e1000_hw *hw, u16 offset, u16 words, u16 
 extern s32 e1000e_validate_nvm_checksum_generic(struct e1000_hw *hw);
 extern void e1000e_release_nvm(struct e1000_hw *hw);
 extern void e1000e_reload_nvm(struct e1000_hw *hw);
-extern s32 e1000e_read_mac_addr(struct e1000_hw *hw);
+extern s32 e1000_read_mac_addr_generic(struct e1000_hw *hw);
+
+static inline s32 e1000e_read_mac_addr(struct e1000_hw *hw)
+{
+	if (hw->mac.ops.read_mac_addr)
+		return hw->mac.ops.read_mac_addr(hw);
+
+	return e1000_read_mac_addr_generic(hw);
+}
 
 static inline s32 e1000_validate_nvm_checksum(struct e1000_hw *hw)
 {

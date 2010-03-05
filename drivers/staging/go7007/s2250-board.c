@@ -159,7 +159,7 @@ static int write_reg(struct i2c_client *client, u8 reg, u8 value)
 	struct go7007 *go = i2c_get_adapdata(client->adapter);
 	struct go7007_usb *usb;
 	int rc;
-	int dev_addr = client->addr;
+	int dev_addr = client->addr << 1;  /* firmware wants 8-bit address */
 	u8 *buf;
 
 	if (go == NULL)

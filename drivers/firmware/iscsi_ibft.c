@@ -380,8 +380,7 @@ static ssize_t ibft_attr_show_nic(struct ibft_kobject *entry,
 	struct ibft_nic *nic = entry->nic;
 	void *ibft_loc = entry->header;
 	char *str = buf;
-	char *mac;
-	int val;
+	__be32 val;
 
 	if (!nic)
 		return 0;
@@ -397,10 +396,8 @@ static ssize_t ibft_attr_show_nic(struct ibft_kobject *entry,
 		str += sprintf_ipaddr(str, nic->ip_addr);
 		break;
 	case ibft_eth_subnet_mask:
-		val = ~((1 << (32-nic->subnet_mask_prefix))-1);
-		str += sprintf(str, NIPQUAD_FMT,
-			       (u8)(val >> 24), (u8)(val >> 16),
-			       (u8)(val >> 8), (u8)(val));
+		val = cpu_to_be32(~((1 << (32-nic->subnet_mask_prefix))-1));
+		str += sprintf(str, "%pI4", &val);
 		break;
 	case ibft_eth_origin:
 		str += sprintf(str, "%d\n", nic->origin);
@@ -421,10 +418,7 @@ static ssize_t ibft_attr_show_nic(struct ibft_kobject *entry,
 		str += sprintf(str, "%d\n", nic->vlan);
 		break;
 	case ibft_eth_mac:
-		mac = nic->mac;
-		str += sprintf(str, "%02x:%02x:%02x:%02x:%02x:%02x\n",
-			       (u8)mac[0], (u8)mac[1], (u8)mac[2],
-			       (u8)mac[3], (u8)mac[4], (u8)mac[5]);
+		str += sprintf(str, "%pM\n", nic->mac);
 		break;
 	case ibft_eth_hostname:
 		str += sprintf_string(str, nic->hostname_len,

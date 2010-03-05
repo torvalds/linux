@@ -298,13 +298,16 @@ nv50_crtc_set_clock(struct drm_device *dev, int head, int pclk)
 static void
 nv50_crtc_destroy(struct drm_crtc *crtc)
 {
-	struct drm_device *dev = crtc->dev;
-	struct nouveau_crtc *nv_crtc = nouveau_crtc(crtc);
-
-	NV_DEBUG_KMS(dev, "\n");
+	struct drm_device *dev;
+	struct nouveau_crtc *nv_crtc;
 
 	if (!crtc)
 		return;
+
+	dev = crtc->dev;
+	nv_crtc = nouveau_crtc(crtc);
+
+	NV_DEBUG_KMS(dev, "\n");
 
 	drm_crtc_cleanup(&nv_crtc->base);
 
@@ -355,9 +358,7 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	nv_crtc->cursor.show(nv_crtc, true);
 
 out:
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_unreference(gem);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(gem);
 	return ret;
 }
 

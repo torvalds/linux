@@ -61,6 +61,16 @@ config I2C_HELPER_AUTO
 
 	  In doubt, say Y.
 
+config I2C_SMBUS
+	tristate "SMBus-specific protocols" if !I2C_HELPER_AUTO
+	help
+	  Say Y here if you want support for SMBus extensions to the I2C
+	  specification. At the moment, the only supported extension is
+	  the SMBus alert protocol.
+
+	  This support is also available as a module.  If so, the module
+	  will be called i2c-smbus.
+
 source drivers/i2c/algos/Kconfig
 source drivers/i2c/busses/Kconfig
 source drivers/i2c/chips/Kconfig

@@ -108,6 +108,8 @@ int mc13783_adc_do_conversion(struct mc13783 *mc13783, unsigned int mode,
 #define	MC13783_REGU_V2		28
 #define	MC13783_REGU_V3		29
 #define	MC13783_REGU_V4		30
+#define	MC13783_REGU_PWGT1SPI	31
+#define	MC13783_REGU_PWGT2SPI	32
 
 #define MC13783_IRQ_ADCDONE	0
 #define MC13783_IRQ_ADCBISDONE	1

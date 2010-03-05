@@ -50,7 +50,7 @@ static int debug;
 /* usb timeout of 1 second */
 #define ARK_TIMEOUT (1*HZ)
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x6547, 0x0232) },
 	{ USB_DEVICE(0x18ec, 0x3118) },		/* USB to IrDA adapter */
 	{ },
@@ -733,7 +733,6 @@ static void ark3116_read_bulk_callback(struct urb *urb)
 
 		tty = tty_port_tty_get(&port->port);
 		if (tty) {
-			tty_buffer_request_room(tty, urb->actual_length + 1);
 			/* overrun is special, not associated with a char */
 			if (unlikely(lsr & UART_LSR_OE))
 				tty_insert_flip_char(tty, 0, TTY_OVERRUN);

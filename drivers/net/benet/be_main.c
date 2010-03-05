@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -34,7 +34,6 @@ static DEFINE_PCI_DEVICE_TABLE(be_dev_ids) = {
 	{ PCI_DEVICE(BE_VENDOR_ID, BE_DEVICE_ID2) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID1) },
 	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID2) },
-	{ PCI_DEVICE(BE_VENDOR_ID, OC_DEVICE_ID3) },
 	{ 0 }
 };
 MODULE_DEVICE_TABLE(pci, be_dev_ids);
@@ -69,6 +68,9 @@ static void be_intr_set(struct be_adapter *adapter, bool enable)
 	u32 reg = ioread32(addr);
 	u32 enabled = reg & MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
 
+	if (adapter->eeh_err)
+		return;
+
 	if (!enabled && enable)
 		reg |= MEMBAR_CTRL_INT_CTRL_HOSTINTR_MASK;
 	else if (enabled && !enable)
@@ -100,6 +102,10 @@ static void be_eq_notify(struct be_adapter *adapter, u16 qid,
 {
 	u32 val = 0;
 	val |= qid & DB_EQ_RING_ID_MASK;
+
+	if (adapter->eeh_err)
+		return;
+
 	if (arm)
 		val |= 1 << DB_EQ_REARM_SHIFT;
 	if (clear_int)
@@ -113,6 +119,10 @@ void be_cq_notify(struct be_adapter *adapter, u16 qid, bool arm, u16 num_popped)
 {
 	u32 val = 0;
 	val |= qid & DB_CQ_RING_ID_MASK;
+
+	if (adapter->eeh_err)
+		return;
+
 	if (arm)
 		val |= 1 << DB_CQ_REARM_SHIFT;
 	val |= num_popped << DB_CQ_NUM_POPPED_SHIFT;
@@ -149,13 +159,10 @@ void netdev_stats_update(struct be_adapter *adapter)
 	struct net_device_stats *dev_stats = &adapter->netdev->stats;
 	struct be_erx_stats *erx_stats = &hw_stats->erx;
 
-	dev_stats->rx_packets = port_stats->rx_total_frames;
-	dev_stats->tx_packets = port_stats->tx_unicastframes +
-		port_stats->tx_multicastframes + port_stats->tx_broadcastframes;
-	dev_stats->rx_bytes = (u64) port_stats->rx_bytes_msd << 32 |
-				(u64) port_stats->rx_bytes_lsd;
-	dev_stats->tx_bytes = (u64) port_stats->tx_bytes_msd << 32 |
-				(u64) port_stats->tx_bytes_lsd;
+	dev_stats->rx_packets = drvr_stats(adapter)->be_rx_pkts;
+	dev_stats->tx_packets = drvr_stats(adapter)->be_tx_pkts;
+	dev_stats->rx_bytes = drvr_stats(adapter)->be_rx_bytes;
+	dev_stats->tx_bytes = drvr_stats(adapter)->be_tx_bytes;
 
 	/* bad pkts received */
 	dev_stats->rx_errors = port_stats->rx_crc_errors +
@@ -312,12 +319,13 @@ static void be_tx_rate_update(struct be_adapter *adapter)
 }
 
 static void be_tx_stats_update(struct be_adapter *adapter,
-			u32 wrb_cnt, u32 copied, bool stopped)
+			u32 wrb_cnt, u32 copied, u32 gso_segs, bool stopped)
 {
 	struct be_drvr_stats *stats = drvr_stats(adapter);
 	stats->be_tx_reqs++;
 	stats->be_tx_wrbs += wrb_cnt;
 	stats->be_tx_bytes += copied;
+	stats->be_tx_pkts += (gso_segs ? gso_segs : 1);
 	if (stopped)
 		stats->be_tx_stops++;
 }
@@ -462,7 +470,8 @@ static netdev_tx_t be_xmit(struct sk_buff *skb,
 
 		be_txq_notify(adapter, txq->id, wrb_cnt);
 
-		be_tx_stats_update(adapter, wrb_cnt, copied, stopped);
+		be_tx_stats_update(adapter, wrb_cnt, copied,
+				skb_shinfo(skb)->gso_segs, stopped);
 	} else {
 		txq->head = start;
 		dev_kfree_skb_any(skb);
@@ -474,10 +483,12 @@ static int be_change_mtu(struct net_device *netdev, int new_mtu)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 	if (new_mtu < BE_MIN_MTU ||
-			new_mtu > BE_MAX_JUMBO_FRAME_SIZE) {
+			new_mtu > (BE_MAX_JUMBO_FRAME_SIZE -
+					(ETH_HLEN + ETH_FCS_LEN))) {
 		dev_info(&adapter->pdev->dev,
 			"MTU must be between %d and %d bytes\n",
-			BE_MIN_MTU, BE_MAX_JUMBO_FRAME_SIZE);
+			BE_MIN_MTU,
+			(BE_MAX_JUMBO_FRAME_SIZE - (ETH_HLEN + ETH_FCS_LEN)));
 		return -EINVAL;
 	}
 	dev_info(&adapter->pdev->dev, "MTU changed from %d to %d bytes\n",
@@ -487,17 +498,16 @@ static int be_change_mtu(struct net_device *netdev, int new_mtu)
 }
 
 /*
- * if there are BE_NUM_VLANS_SUPPORTED or lesser number of VLANS configured,
- * program them in BE.  If more than BE_NUM_VLANS_SUPPORTED are configured,
- * set the BE in promiscuous VLAN mode.
+ * A max of 64 (BE_NUM_VLANS_SUPPORTED) vlans can be configured in BE.
+ * If the user configures more, place BE in vlan promiscuous mode.
  */
 static int be_vid_config(struct be_adapter *adapter)
 {
 	u16 vtag[BE_NUM_VLANS_SUPPORTED];
 	u16 ntags = 0, i;
-	int status;
+	int status = 0;
 
-	if (adapter->num_vlans <= BE_NUM_VLANS_SUPPORTED)  {
+	if (adapter->vlans_added <= adapter->max_vlans)  {
 		/* Construct VLAN Table to give to HW */
 		for (i = 0; i < VLAN_GROUP_ARRAY_LEN; i++) {
 			if (adapter->vlan_tag[i]) {
@@ -531,21 +541,21 @@ static void be_vlan_add_vid(struct net_device *netdev, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	adapter->num_vlans++;
 	adapter->vlan_tag[vid] = 1;
-
-	be_vid_config(adapter);
+	adapter->vlans_added++;
+	if (adapter->vlans_added <= (adapter->max_vlans + 1))
+		be_vid_config(adapter);
 }
 
 static void be_vlan_rem_vid(struct net_device *netdev, u16 vid)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
 
-	adapter->num_vlans--;
 	adapter->vlan_tag[vid] = 0;
-
 	vlan_group_set_device(adapter->vlan_grp, vid, NULL);
-	be_vid_config(adapter);
+	adapter->vlans_added--;
+	if (adapter->vlans_added <= adapter->max_vlans)
+		be_vid_config(adapter);
 }
 
 static void be_set_multicast_list(struct net_device *netdev)
@@ -565,14 +575,15 @@ static void be_set_multicast_list(struct net_device *netdev)
 	}
 
 	/* Enable multicast promisc if num configured exceeds what we support */
-	if (netdev->flags & IFF_ALLMULTI || netdev->mc_count > BE_MAX_MC) {
-		be_cmd_multicast_set(adapter, adapter->if_handle, NULL, 0,
+	if (netdev->flags & IFF_ALLMULTI ||
+	    netdev_mc_count(netdev) > BE_MAX_MC) {
+		be_cmd_multicast_set(adapter, adapter->if_handle, NULL,
 				&adapter->mc_cmd_mem);
 		goto done;
 	}
 
-	be_cmd_multicast_set(adapter, adapter->if_handle, netdev->mc_list,
-		netdev->mc_count, &adapter->mc_cmd_mem);
+	be_cmd_multicast_set(adapter, adapter->if_handle, netdev,
+		&adapter->mc_cmd_mem);
 done:
 	return;
 }
@@ -607,6 +618,7 @@ static void be_rx_stats_update(struct be_adapter *adapter,
 	stats->be_rx_compl++;
 	stats->be_rx_frags += numfrags;
 	stats->be_rx_bytes += pktsize;
+	stats->be_rx_pkts++;
 }
 
 static inline bool do_pkt_csum(struct be_eth_rx_compl *rxcp, bool cso)
@@ -634,9 +646,11 @@ get_rx_page_info(struct be_adapter *adapter, u16 frag_idx)
 	rx_page_info = &adapter->rx_obj.page_info_tbl[frag_idx];
 	BUG_ON(!rx_page_info->page);
 
-	if (rx_page_info->last_page_user)
+	if (rx_page_info->last_page_user) {
 		pci_unmap_page(adapter->pdev, pci_unmap_addr(rx_page_info, bus),
 			adapter->big_page_size, PCI_DMA_FROMDEVICE);
+		rx_page_info->last_page_user = false;
+	}
 
 	atomic_dec(&rxq->used);
 	return rx_page_info;
@@ -666,17 +680,17 @@ static void be_rx_compl_discard(struct be_adapter *adapter,
  * indicated by rxcp.
  */
 static void skb_fill_rx_data(struct be_adapter *adapter,
-			struct sk_buff *skb, struct be_eth_rx_compl *rxcp)
+			struct sk_buff *skb, struct be_eth_rx_compl *rxcp,
+			u16 num_rcvd)
 {
 	struct be_queue_info *rxq = &adapter->rx_obj.q;
 	struct be_rx_page_info *page_info;
-	u16 rxq_idx, i, num_rcvd, j;
+	u16 rxq_idx, i, j;
 	u32 pktsize, hdr_len, curr_frag_len, size;
 	u8 *start;
 
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
 	pktsize = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
-	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
 
 	page_info = get_rx_page_info(adapter, rxq_idx);
 
@@ -704,7 +718,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 		skb->data_len = curr_frag_len - hdr_len;
 		skb->tail += hdr_len;
 	}
-	memset(page_info, 0, sizeof(*page_info));
+	page_info->page = NULL;
 
 	if (pktsize <= rx_frag_size) {
 		BUG_ON(num_rcvd != 1);
@@ -737,7 +751,7 @@ static void skb_fill_rx_data(struct be_adapter *adapter,
 		skb->len += curr_frag_len;
 		skb->data_len += curr_frag_len;
 
-		memset(page_info, 0, sizeof(*page_info));
+		page_info->page = NULL;
 	}
 	BUG_ON(j > MAX_SKB_FRAGS);
 
@@ -752,25 +766,23 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 {
 	struct sk_buff *skb;
 	u32 vlanf, vid;
+	u16 num_rcvd;
 	u8 vtm;
 
-	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
-	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
-
-	/* vlanf could be wrongly set in some cards.
-	 * ignore if vtm is not set */
-	if ((adapter->cap & 0x400) && !vtm)
-		vlanf = 0;
+	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
+	/* Is it a flush compl that has no data */
+	if (unlikely(num_rcvd == 0))
+		return;
 
 	skb = netdev_alloc_skb_ip_align(adapter->netdev, BE_HDR_LEN);
-	if (!skb) {
+	if (unlikely(!skb)) {
 		if (net_ratelimit())
 			dev_warn(&adapter->pdev->dev, "skb alloc failed\n");
 		be_rx_compl_discard(adapter, rxcp);
 		return;
 	}
 
-	skb_fill_rx_data(adapter, skb, rxcp);
+	skb_fill_rx_data(adapter, skb, rxcp, num_rcvd);
 
 	if (do_pkt_csum(rxcp, adapter->rx_csum))
 		skb->ip_summed = CHECKSUM_NONE;
@@ -781,8 +793,16 @@ static void be_rx_compl_process(struct be_adapter *adapter,
 	skb->protocol = eth_type_trans(skb, adapter->netdev);
 	skb->dev = adapter->netdev;
 
-	if (vlanf) {
-		if (!adapter->vlan_grp || adapter->num_vlans == 0) {
+	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
+	vtm = AMAP_GET_BITS(struct amap_eth_rx_compl, vtm, rxcp);
+
+	/* vlanf could be wrongly set in some cards.
+	 * ignore if vtm is not set */
+	if ((adapter->cap & 0x400) && !vtm)
+		vlanf = 0;
+
+	if (unlikely(vlanf)) {
+		if (!adapter->vlan_grp || adapter->vlans_added == 0) {
 			kfree_skb(skb);
 			return;
 		}
@@ -809,6 +829,10 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 	u8 vtm;
 
 	num_rcvd = AMAP_GET_BITS(struct amap_eth_rx_compl, numfrags, rxcp);
+	/* Is it a flush compl that has no data */
+	if (unlikely(num_rcvd == 0))
+		return;
+
 	pkt_size = AMAP_GET_BITS(struct amap_eth_rx_compl, pktsize, rxcp);
 	vlanf = AMAP_GET_BITS(struct amap_eth_rx_compl, vtp, rxcp);
 	rxq_idx = AMAP_GET_BITS(struct amap_eth_rx_compl, fragndx, rxcp);
@@ -862,7 +886,7 @@ static void be_rx_compl_process_gro(struct be_adapter *adapter,
 		vid = AMAP_GET_BITS(struct amap_eth_rx_compl, vlan_tag, rxcp);
 		vid = be16_to_cpu(vid);
 
-		if (!adapter->vlan_grp || adapter->num_vlans == 0)
+		if (!adapter->vlan_grp || adapter->vlans_added == 0)
 			return;
 
 		vlan_gro_frags(&eq_obj->napi, adapter->vlan_grp, vid);
@@ -1104,6 +1128,9 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 	struct be_queue_info *txq = &adapter->tx_obj.q;
 	struct be_eth_tx_compl *txcp;
 	u16 end_idx, cmpl = 0, timeo = 0;
+	struct sk_buff **sent_skbs = adapter->tx_obj.sent_skb_list;
+	struct sk_buff *sent_skb;
+	bool dummy_wrb;
 
 	/* Wait for a max of 200ms for all the tx-completions to arrive. */
 	do {
@@ -1127,6 +1154,15 @@ static void be_tx_compl_clean(struct be_adapter *adapter)
 	if (atomic_read(&txq->used))
 		dev_err(&adapter->pdev->dev, "%d pending tx-completions\n",
 			atomic_read(&txq->used));
+
+	/* free posted tx for which compls will never arrive */
+	while (atomic_read(&txq->used)) {
+		sent_skb = sent_skbs[txq->tail];
+		end_idx = txq->tail;
+		index_adv(&end_idx,
+			wrb_cnt_for_skb(sent_skb, &dummy_wrb) - 1, txq->len);
+		be_tx_compl_process(adapter, end_idx);
+	}
 }
 
 static void be_mcc_queues_destroy(struct be_adapter *adapter)
@@ -1259,6 +1295,11 @@ static void be_rx_queues_destroy(struct be_adapter *adapter)
 	q = &adapter->rx_obj.q;
 	if (q->created) {
 		be_cmd_q_destroy(adapter, q, QTYPE_RXQ);
+
+		/* After the rxq is invalidated, wait for a grace time
+		 * of 1ms for all dma to end and the flush compl to arrive
+		 */
+		mdelay(1);
 		be_rx_q_clean(adapter);
 	}
 	be_queue_free(adapter, q);
@@ -1428,23 +1469,38 @@ int be_poll_rx(struct napi_struct *napi, int budget)
 	return work_done;
 }
 
-void be_process_tx(struct be_adapter *adapter)
+/* As TX and MCC share the same EQ check for both TX and MCC completions.
+ * For TX/MCC we don't honour budget; consume everything
+ */
+static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
 {
+	struct be_eq_obj *tx_eq = container_of(napi, struct be_eq_obj, napi);
+	struct be_adapter *adapter =
+		container_of(tx_eq, struct be_adapter, tx_eq);
 	struct be_queue_info *txq = &adapter->tx_obj.q;
 	struct be_queue_info *tx_cq = &adapter->tx_obj.cq;
 	struct be_eth_tx_compl *txcp;
-	u32 num_cmpl = 0;
+	int tx_compl = 0, mcc_compl, status = 0;
 	u16 end_idx;
 
 	while ((txcp = be_tx_compl_get(tx_cq))) {
 		end_idx = AMAP_GET_BITS(struct amap_eth_tx_compl,
-					wrb_index, txcp);
+				wrb_index, txcp);
 		be_tx_compl_process(adapter, end_idx);
-		num_cmpl++;
+		tx_compl++;
 	}
 
-	if (num_cmpl) {
-		be_cq_notify(adapter, tx_cq->id, true, num_cmpl);
+	mcc_compl = be_process_mcc(adapter, &status);
+
+	napi_complete(napi);
+
+	if (mcc_compl) {
+		struct be_mcc_obj *mcc_obj = &adapter->mcc_obj;
+		be_cq_notify(adapter, mcc_obj->cq.id, true, mcc_compl);
+	}
+
+	if (tx_compl) {
+		be_cq_notify(adapter, adapter->tx_obj.cq.id, true, tx_compl);
 
 		/* As Tx wrbs have been freed up, wake up netdev queue if
 		 * it was stopped due to lack of tx wrbs.
@@ -1455,24 +1511,8 @@ void be_process_tx(struct be_adapter *adapter)
 		}
 
 		drvr_stats(adapter)->be_tx_events++;
-		drvr_stats(adapter)->be_tx_compl += num_cmpl;
+		drvr_stats(adapter)->be_tx_compl += tx_compl;
 	}
-}
-
-/* As TX and MCC share the same EQ check for both TX and MCC completions.
- * For TX/MCC we don't honour budget; consume everything
- */
-static int be_poll_tx_mcc(struct napi_struct *napi, int budget)
-{
-	struct be_eq_obj *tx_eq = container_of(napi, struct be_eq_obj, napi);
-	struct be_adapter *adapter =
-		container_of(tx_eq, struct be_adapter, tx_eq);
-
-	napi_complete(napi);
-
-	be_process_tx(adapter);
-
-	be_process_mcc(adapter);
 
 	return 1;
 }
@@ -1641,6 +1681,9 @@ static int be_open(struct net_device *netdev)
 	/* Rx compl queue may be in unarmed state; rearm it */
 	be_cq_notify(adapter, adapter->rx_obj.cq.id, true, 0);
 
+	/* Now that interrupts are on we can process async mcc */
+	be_async_mcc_enable(adapter);
+
 	status = be_cmd_link_status_query(adapter, &link_up, &mac_speed,
 			&link_speed);
 	if (status)
@@ -1766,6 +1809,8 @@ static int be_close(struct net_device *netdev)
 
 	cancel_delayed_work_sync(&adapter->work);
 
+	be_async_mcc_disable(adapter);
+
 	netif_stop_queue(netdev);
 	netif_carrier_off(netdev);
 	adapter->link_up = false;
@@ -1798,15 +1843,19 @@ char flash_cookie[2][16] =	{"*** SE FLAS",
 				"H DIRECTORY *** "};
 
 static bool be_flash_redboot(struct be_adapter *adapter,
-			const u8 *p)
+			const u8 *p, u32 img_start, int image_size,
+			int hdr_size)
 {
 	u32 crc_offset;
 	u8 flashed_crc[4];
 	int status;
-	crc_offset = FLASH_REDBOOT_START + FLASH_REDBOOT_IMAGE_MAX_SIZE - 4
-			+ sizeof(struct flash_file_hdr) - 32*1024;
+
+	crc_offset = hdr_size + img_start + image_size - 4;
+
 	p += crc_offset;
-	status = be_cmd_get_flash_crc(adapter, flashed_crc);
+
+	status = be_cmd_get_flash_crc(adapter, flashed_crc,
+			(img_start + image_size - 4));
 	if (status) {
 		dev_err(&adapter->pdev->dev,
 		"could not get crc from flash, not flashing redboot\n");
@@ -1818,102 +1867,124 @@ static bool be_flash_redboot(struct be_adapter *adapter,
 		return false;
 	else
 		return true;
-
 }
 
-static int be_flash_image(struct be_adapter *adapter,
+static int be_flash_data(struct be_adapter *adapter,
 			const struct firmware *fw,
-			struct be_dma_mem *flash_cmd, u32 flash_type)
+			struct be_dma_mem *flash_cmd, int num_of_images)
+
 {
-	int status;
-	u32 flash_op, image_offset = 0, total_bytes, image_size = 0;
+	int status = 0, i, filehdr_size = 0;
+	u32 total_bytes = 0, flash_op;
 	int num_bytes;
 	const u8 *p = fw->data;
 	struct be_cmd_write_flashrom *req = flash_cmd->va;
+	struct flash_comp *pflashcomp;
 
-	switch (flash_type) {
-	case FLASHROM_TYPE_ISCSI_ACTIVE:
-		image_offset = FLASH_iSCSI_PRIMARY_IMAGE_START;
-		image_size = FLASH_IMAGE_MAX_SIZE;
-		break;
-	case FLASHROM_TYPE_ISCSI_BACKUP:
-		image_offset = FLASH_iSCSI_BACKUP_IMAGE_START;
-		image_size = FLASH_IMAGE_MAX_SIZE;
-		break;
-	case FLASHROM_TYPE_FCOE_FW_ACTIVE:
-		image_offset = FLASH_FCoE_PRIMARY_IMAGE_START;
-		image_size = FLASH_IMAGE_MAX_SIZE;
-		break;
-	case FLASHROM_TYPE_FCOE_FW_BACKUP:
-		image_offset = FLASH_FCoE_BACKUP_IMAGE_START;
-		image_size = FLASH_IMAGE_MAX_SIZE;
-		break;
-	case FLASHROM_TYPE_BIOS:
-		image_offset = FLASH_iSCSI_BIOS_START;
-		image_size = FLASH_BIOS_IMAGE_MAX_SIZE;
-		break;
-	case FLASHROM_TYPE_FCOE_BIOS:
-		image_offset = FLASH_FCoE_BIOS_START;
-		image_size = FLASH_BIOS_IMAGE_MAX_SIZE;
-		break;
-	case FLASHROM_TYPE_PXE_BIOS:
-		image_offset = FLASH_PXE_BIOS_START;
-		image_size = FLASH_BIOS_IMAGE_MAX_SIZE;
-		break;
-	case FLASHROM_TYPE_REDBOOT:
-		if (!be_flash_redboot(adapter, fw->data))
-			return 0;
-		image_offset = FLASH_REDBOOT_ISM_START;
-		image_size = FLASH_REDBOOT_IMAGE_MAX_SIZE;
-		break;
-	default:
-		return 0;
+	struct flash_comp gen3_flash_types[8] = {
+		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g3, IMG_TYPE_ISCSI_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g3},
+		{ FLASH_REDBOOT_START_g3, IMG_TYPE_REDBOOT,
+			FLASH_REDBOOT_IMAGE_MAX_SIZE_g3},
+		{ FLASH_iSCSI_BIOS_START_g3, IMG_TYPE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g3},
+		{ FLASH_PXE_BIOS_START_g3, IMG_TYPE_PXE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g3},
+		{ FLASH_FCoE_BIOS_START_g3, IMG_TYPE_FCOE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g3},
+		{ FLASH_iSCSI_BACKUP_IMAGE_START_g3, IMG_TYPE_ISCSI_BACKUP,
+			FLASH_IMAGE_MAX_SIZE_g3},
+		{ FLASH_FCoE_PRIMARY_IMAGE_START_g3, IMG_TYPE_FCOE_FW_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g3},
+		{ FLASH_FCoE_BACKUP_IMAGE_START_g3, IMG_TYPE_FCOE_FW_BACKUP,
+			FLASH_IMAGE_MAX_SIZE_g3}
+	};
+	struct flash_comp gen2_flash_types[8] = {
+		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g2, IMG_TYPE_ISCSI_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g2},
+		{ FLASH_REDBOOT_START_g2, IMG_TYPE_REDBOOT,
+			FLASH_REDBOOT_IMAGE_MAX_SIZE_g2},
+		{ FLASH_iSCSI_BIOS_START_g2, IMG_TYPE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g2},
+		{ FLASH_PXE_BIOS_START_g2, IMG_TYPE_PXE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g2},
+		{ FLASH_FCoE_BIOS_START_g2, IMG_TYPE_FCOE_BIOS,
+			FLASH_BIOS_IMAGE_MAX_SIZE_g2},
+		{ FLASH_iSCSI_BACKUP_IMAGE_START_g2, IMG_TYPE_ISCSI_BACKUP,
+			FLASH_IMAGE_MAX_SIZE_g2},
+		{ FLASH_FCoE_PRIMARY_IMAGE_START_g2, IMG_TYPE_FCOE_FW_ACTIVE,
+			FLASH_IMAGE_MAX_SIZE_g2},
+		{ FLASH_FCoE_BACKUP_IMAGE_START_g2, IMG_TYPE_FCOE_FW_BACKUP,
+			 FLASH_IMAGE_MAX_SIZE_g2}
+	};
+
+	if (adapter->generation == BE_GEN3) {
+		pflashcomp = gen3_flash_types;
+		filehdr_size = sizeof(struct flash_file_hdr_g3);
+	} else {
+		pflashcomp = gen2_flash_types;
+		filehdr_size = sizeof(struct flash_file_hdr_g2);
 	}
-
-	p += sizeof(struct flash_file_hdr) + image_offset;
-	if (p + image_size > fw->data + fw->size)
+	for (i = 0; i < 8; i++) {
+		if ((pflashcomp[i].optype == IMG_TYPE_REDBOOT) &&
+			(!be_flash_redboot(adapter, fw->data,
+			 pflashcomp[i].offset, pflashcomp[i].size,
+			 filehdr_size)))
+			continue;
+		p = fw->data;
+		p += filehdr_size + pflashcomp[i].offset
+			+ (num_of_images * sizeof(struct image_hdr));
+	if (p + pflashcomp[i].size > fw->data + fw->size)
 		return -1;
+	total_bytes = pflashcomp[i].size;
+		while (total_bytes) {
+			if (total_bytes > 32*1024)
+				num_bytes = 32*1024;
+			else
+				num_bytes = total_bytes;
+			total_bytes -= num_bytes;
 
-	total_bytes = image_size;
-
-	while (total_bytes) {
-		if (total_bytes > 32*1024)
-			num_bytes = 32*1024;
-		else
-			num_bytes = total_bytes;
-		total_bytes -= num_bytes;
-
-		if (!total_bytes)
-			flash_op = FLASHROM_OPER_FLASH;
-		else
-			flash_op = FLASHROM_OPER_SAVE;
-		memcpy(req->params.data_buf, p, num_bytes);
-		p += num_bytes;
-		status = be_cmd_write_flashrom(adapter, flash_cmd,
-				flash_type, flash_op, num_bytes);
-		if (status) {
-			dev_err(&adapter->pdev->dev,
-			"cmd to write to flash rom failed. type/op %d/%d\n",
-			flash_type, flash_op);
-			return -1;
+			if (!total_bytes)
+				flash_op = FLASHROM_OPER_FLASH;
+			else
+				flash_op = FLASHROM_OPER_SAVE;
+			memcpy(req->params.data_buf, p, num_bytes);
+			p += num_bytes;
+			status = be_cmd_write_flashrom(adapter, flash_cmd,
+				pflashcomp[i].optype, flash_op, num_bytes);
+			if (status) {
+				dev_err(&adapter->pdev->dev,
+					"cmd to write to flash rom failed.\n");
+				return -1;
+			}
+			yield();
 		}
-		yield();
 	}
-
 	return 0;
+}
+
+static int get_ufigen_type(struct flash_file_hdr_g2 *fhdr)
+{
+	if (fhdr == NULL)
+		return 0;
+	if (fhdr->build[0] == '3')
+		return BE_GEN3;
+	else if (fhdr->build[0] == '2')
+		return BE_GEN2;
+	else
+		return 0;
 }
 
 int be_load_fw(struct be_adapter *adapter, u8 *func)
 {
 	char fw_file[ETHTOOL_FLASH_MAX_FILENAME];
 	const struct firmware *fw;
-	struct flash_file_hdr *fhdr;
-	struct flash_section_info *fsec = NULL;
+	struct flash_file_hdr_g2 *fhdr;
+	struct flash_file_hdr_g3 *fhdr3;
+	struct image_hdr *img_hdr_ptr = NULL;
 	struct be_dma_mem flash_cmd;
-	int status;
+	int status, i = 0;
 	const u8 *p;
-	bool entry_found = false;
-	int flash_type;
 	char fw_ver[FW_VER_LEN];
 	char fw_cfg;
 
@@ -1931,33 +2002,8 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 		goto fw_exit;
 
 	p = fw->data;
-	fhdr = (struct flash_file_hdr *) p;
-	if (memcmp(fhdr->sign, FW_FILE_HDR_SIGN, strlen(FW_FILE_HDR_SIGN))) {
-		dev_err(&adapter->pdev->dev,
-			"Firmware(%s) load error (signature did not match)\n",
-				fw_file);
-		status = -1;
-		goto fw_exit;
-	}
-
+	fhdr = (struct flash_file_hdr_g2 *) p;
 	dev_info(&adapter->pdev->dev, "Flashing firmware file %s\n", fw_file);
-
-	p += sizeof(struct flash_file_hdr);
-	while (p < (fw->data + fw->size)) {
-		fsec = (struct flash_section_info *)p;
-		if (!memcmp(flash_cookie, fsec->cookie, sizeof(flash_cookie))) {
-			entry_found = true;
-			break;
-		}
-		p += 32;
-	}
-
-	if (!entry_found) {
-		status = -1;
-		dev_err(&adapter->pdev->dev,
-			"Flash cookie not found in firmware image\n");
-		goto fw_exit;
-	}
 
 	flash_cmd.size = sizeof(struct be_cmd_write_flashrom) + 32*1024;
 	flash_cmd.va = pci_alloc_consistent(adapter->pdev, flash_cmd.size,
@@ -1969,12 +2015,26 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 		goto fw_exit;
 	}
 
-	for (flash_type = FLASHROM_TYPE_ISCSI_ACTIVE;
-		flash_type <= FLASHROM_TYPE_FCOE_FW_BACKUP; flash_type++) {
-		status = be_flash_image(adapter, fw, &flash_cmd,
-				flash_type);
-		if (status)
-			break;
+	if ((adapter->generation == BE_GEN3) &&
+			(get_ufigen_type(fhdr) == BE_GEN3)) {
+		fhdr3 = (struct flash_file_hdr_g3 *) fw->data;
+		for (i = 0; i < fhdr3->num_imgs; i++) {
+			img_hdr_ptr = (struct image_hdr *) (fw->data +
+					(sizeof(struct flash_file_hdr_g3) +
+					i * sizeof(struct image_hdr)));
+			if (img_hdr_ptr->imageid == 1) {
+				status = be_flash_data(adapter, fw,
+						&flash_cmd, fhdr3->num_imgs);
+			}
+
+		}
+	} else if ((adapter->generation == BE_GEN2) &&
+			(get_ufigen_type(fhdr) == BE_GEN2)) {
+		status = be_flash_data(adapter, fw, &flash_cmd, 0);
+	} else {
+		dev_err(&adapter->pdev->dev,
+			"UFI and Interface are not compatible for flashing\n");
+		status = -1;
 	}
 
 	pci_free_consistent(adapter->pdev, flash_cmd.size, flash_cmd.va,
@@ -2136,6 +2196,7 @@ static int be_ctrl_init(struct be_adapter *adapter)
 	spin_lock_init(&adapter->mcc_lock);
 	spin_lock_init(&adapter->mcc_cq_lock);
 
+	pci_save_state(adapter->pdev);
 	return 0;
 
 free_mbox:
@@ -2221,6 +2282,11 @@ static int be_get_config(struct be_adapter *adapter)
 
 	memcpy(adapter->netdev->dev_addr, mac, ETH_ALEN);
 	memcpy(adapter->netdev->perm_addr, mac, ETH_ALEN);
+
+	if (adapter->cap & 0x400)
+		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED/4;
+	else
+		adapter->max_vlans = BE_NUM_VLANS_SUPPORTED;
 
 	return 0;
 }
@@ -2394,13 +2460,123 @@ static int be_resume(struct pci_dev *pdev)
 	return 0;
 }
 
+/*
+ * An FLR will stop BE from DMAing any data.
+ */
+static void be_shutdown(struct pci_dev *pdev)
+{
+	struct be_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev =  adapter->netdev;
+
+	netif_device_detach(netdev);
+
+	be_cmd_reset_function(adapter);
+
+	if (adapter->wol)
+		be_setup_wol(adapter, true);
+
+	pci_disable_device(pdev);
+
+	return;
+}
+
+static pci_ers_result_t be_eeh_err_detected(struct pci_dev *pdev,
+				pci_channel_state_t state)
+{
+	struct be_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev =  adapter->netdev;
+
+	dev_err(&adapter->pdev->dev, "EEH error detected\n");
+
+	adapter->eeh_err = true;
+
+	netif_device_detach(netdev);
+
+	if (netif_running(netdev)) {
+		rtnl_lock();
+		be_close(netdev);
+		rtnl_unlock();
+	}
+	be_clear(adapter);
+
+	if (state == pci_channel_io_perm_failure)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	pci_disable_device(pdev);
+
+	return PCI_ERS_RESULT_NEED_RESET;
+}
+
+static pci_ers_result_t be_eeh_reset(struct pci_dev *pdev)
+{
+	struct be_adapter *adapter = pci_get_drvdata(pdev);
+	int status;
+
+	dev_info(&adapter->pdev->dev, "EEH reset\n");
+	adapter->eeh_err = false;
+
+	status = pci_enable_device(pdev);
+	if (status)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	pci_set_master(pdev);
+	pci_set_power_state(pdev, 0);
+	pci_restore_state(pdev);
+
+	/* Check if card is ok and fw is ready */
+	status = be_cmd_POST(adapter);
+	if (status)
+		return PCI_ERS_RESULT_DISCONNECT;
+
+	return PCI_ERS_RESULT_RECOVERED;
+}
+
+static void be_eeh_resume(struct pci_dev *pdev)
+{
+	int status = 0;
+	struct be_adapter *adapter = pci_get_drvdata(pdev);
+	struct net_device *netdev =  adapter->netdev;
+
+	dev_info(&adapter->pdev->dev, "EEH resume\n");
+
+	pci_save_state(pdev);
+
+	/* tell fw we're ready to fire cmds */
+	status = be_cmd_fw_init(adapter);
+	if (status)
+		goto err;
+
+	status = be_setup(adapter);
+	if (status)
+		goto err;
+
+	if (netif_running(netdev)) {
+		status = be_open(netdev);
+		if (status)
+			goto err;
+	}
+	netif_device_attach(netdev);
+	return;
+err:
+	dev_err(&adapter->pdev->dev, "EEH resume failed\n");
+	return;
+}
+
+static struct pci_error_handlers be_eeh_handlers = {
+	.error_detected = be_eeh_err_detected,
+	.slot_reset = be_eeh_reset,
+	.resume = be_eeh_resume,
+};
+
 static struct pci_driver be_driver = {
 	.name = DRV_NAME,
 	.id_table = be_dev_ids,
 	.probe = be_probe,
 	.remove = be_remove,
 	.suspend = be_suspend,
-	.resume = be_resume
+	.resume = be_resume,
+	.shutdown = be_shutdown,
+	.err_handler = &be_eeh_handlers
 };
 
 static int __init be_init_module(void)

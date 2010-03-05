@@ -338,8 +338,8 @@ static int __init nvram_create_os_partition(void)
 
 	rc = nvram_write_header(new_part);
 	if (rc <= 0) {
-		printk(KERN_ERR "nvram_create_os_partition: nvram_write_header \
-				failed (%d)\n", rc);
+		printk(KERN_ERR "nvram_create_os_partition: nvram_write_header "
+				"failed (%d)\n", rc);
 		return rc;
 	}
 
@@ -349,7 +349,7 @@ static int __init nvram_create_os_partition(void)
 	rc = ppc_md.nvram_write((char *)&seq_init, sizeof(seq_init), &tmp_index);
 	if (rc <= 0) {
 		printk(KERN_ERR "nvram_create_os_partition: nvram_write "
-				"failed (%d)\n", rc);
+		       "failed (%d)\n", rc);
 		return rc;
 	}
 	

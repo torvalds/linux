@@ -241,6 +241,11 @@ static void __cpuinit smp_callin(void)
 	map_cpu_to_logical_apicid();
 
 	notify_cpu_starting(cpuid);
+
+	/*
+	 * Need to setup vector mappings before we enable interrupts.
+	 */
+	__setup_vector_irq(smp_processor_id());
 	/*
 	 * Get our bogomips.
 	 *
@@ -315,11 +320,11 @@ notrace static void __cpuinit start_secondary(void *unused)
 	 */
 	ipi_call_lock();
 	lock_vector_lock();
-	__setup_vector_irq(smp_processor_id());
 	set_cpu_online(smp_processor_id(), true);
 	unlock_vector_lock();
 	ipi_call_unlock();
 	per_cpu(cpu_state, smp_processor_id()) = CPU_ONLINE;
+	x86_platform.nmi_init();
 
 	/* enable local interrupts */
 	local_irq_enable();
@@ -1083,9 +1088,7 @@ void __init native_smp_prepare_cpus(unsigned int max_cpus)
 	set_cpu_sibling_map(0);
 
 	enable_IR_x2apic();
-#ifdef CONFIG_X86_64
 	default_setup_apic_routing();
-#endif
 
 	if (smp_sanity_check(max_cpus) < 0) {
 		printk(KERN_INFO "SMP disabled\n");
@@ -1213,11 +1216,12 @@ __init void prefill_possible_map(void)
 
 	total_cpus = max_t(int, possible, num_processors + disabled_cpus);
 
-	if (possible > CONFIG_NR_CPUS) {
+	/* nr_cpu_ids could be reduced via nr_cpus= */
+	if (possible > nr_cpu_ids) {
 		printk(KERN_WARNING
 			"%d Processors exceeds NR_CPUS limit of %d\n",
-			possible, CONFIG_NR_CPUS);
-		possible = CONFIG_NR_CPUS;
+			possible, nr_cpu_ids);
+		possible = nr_cpu_ids;
 	}
 
 	printk(KERN_INFO "SMP: Allowing %d CPUs, %d hotplug CPUs\n",

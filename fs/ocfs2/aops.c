@@ -577,8 +577,9 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
-	/* We should already CoW the refcounted extent. */
-	BUG_ON(ext_flags & OCFS2_EXT_REFCOUNTED);
+	/* We should already CoW the refcounted extent in case of create. */
+	BUG_ON(create && (ext_flags & OCFS2_EXT_REFCOUNTED));
+
 	/*
 	 * get_more_blocks() expects us to describe a hole by clearing
 	 * the mapped bit on bh_result().

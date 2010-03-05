@@ -98,10 +98,10 @@ config BATTERY_WM97XX
 	  Say Y to enable support for battery measured by WM97xx aux port.
 
 config BATTERY_BQ27x00
-	tristate "BQ27200 battery driver"
+	tristate "BQ27x00 battery driver"
 	depends on I2C
 	help
-	  Say Y here to enable support for batteries with BQ27200(I2C) chip.
+	  Say Y here to enable support for batteries with BQ27x00 (I2C) chips.
 
 config BATTERY_DA9030
 	tristate "DA9030 battery driver"

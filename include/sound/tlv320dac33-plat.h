@@ -15,6 +15,7 @@
 
 struct tlv320dac33_platform_data {
 	int power_gpio;
+	u8 burst_bclkdiv;
 };
 
 #endif /* __TLV320DAC33_PLAT_H */

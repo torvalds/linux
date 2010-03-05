@@ -150,6 +150,14 @@ config SH_SDK7780
 	  Select SDK7780 if configuring for a Renesas SH7780 SDK7780R3
 	  evaluation board.
 
+config SH_SDK7786
+	bool "SDK7786"
+	depends on CPU_SUBTYPE_SH7786
+	select SYS_SUPPORTS_PCI
+	help
+	  Select SDK7786 if configuring for a Renesas Technology Europe
+	  SH7786-65nm board.
+
 config SH_HIGHLANDER
 	bool "Highlander"
 	depends on CPU_SUBTYPE_SH7780 || CPU_SUBTYPE_SH7785

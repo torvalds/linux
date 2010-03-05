@@ -36,6 +36,7 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/screen_info.h>
+#include <linux/vga_switcheroo.h>
 
 #include "drmP.h"
 #include "drm.h"
@@ -101,6 +102,34 @@ static struct fb_ops nouveau_fbcon_ops = {
 	.fb_fillrect = cfb_fillrect,
 	.fb_copyarea = cfb_copyarea,
 	.fb_imageblit = cfb_imageblit,
+	.fb_sync = nouveau_fbcon_sync,
+	.fb_pan_display = drm_fb_helper_pan_display,
+	.fb_blank = drm_fb_helper_blank,
+	.fb_setcmap = drm_fb_helper_setcmap,
+};
+
+static struct fb_ops nv04_fbcon_ops = {
+	.owner = THIS_MODULE,
+	.fb_check_var = drm_fb_helper_check_var,
+	.fb_set_par = drm_fb_helper_set_par,
+	.fb_setcolreg = drm_fb_helper_setcolreg,
+	.fb_fillrect = nv04_fbcon_fillrect,
+	.fb_copyarea = nv04_fbcon_copyarea,
+	.fb_imageblit = nv04_fbcon_imageblit,
+	.fb_sync = nouveau_fbcon_sync,
+	.fb_pan_display = drm_fb_helper_pan_display,
+	.fb_blank = drm_fb_helper_blank,
+	.fb_setcmap = drm_fb_helper_setcmap,
+};
+
+static struct fb_ops nv50_fbcon_ops = {
+	.owner = THIS_MODULE,
+	.fb_check_var = drm_fb_helper_check_var,
+	.fb_set_par = drm_fb_helper_set_par,
+	.fb_setcolreg = drm_fb_helper_setcolreg,
+	.fb_fillrect = nv50_fbcon_fillrect,
+	.fb_copyarea = nv50_fbcon_copyarea,
+	.fb_imageblit = nv50_fbcon_imageblit,
 	.fb_sync = nouveau_fbcon_sync,
 	.fb_pan_display = drm_fb_helper_pan_display,
 	.fb_blank = drm_fb_helper_blank,
@@ -267,8 +296,12 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	dev_priv->fbdev_info = info;
 
 	strcpy(info->fix.id, "nouveaufb");
-	info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
-		      FBINFO_HWACCEL_FILLRECT | FBINFO_HWACCEL_IMAGEBLIT;
+	if (nouveau_nofbaccel)
+		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_DISABLED;
+	else
+		info->flags = FBINFO_DEFAULT | FBINFO_HWACCEL_COPYAREA |
+			      FBINFO_HWACCEL_FILLRECT |
+			      FBINFO_HWACCEL_IMAGEBLIT;
 	info->fbops = &nouveau_fbcon_ops;
 	info->fix.smem_start = dev->mode_config.fb_base + nvbo->bo.offset -
 			       dev_priv->vm_vram_base;
@@ -316,13 +349,15 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 	par->nouveau_fb = nouveau_fb;
 	par->dev = dev;
 
-	if (dev_priv->channel) {
+	if (dev_priv->channel && !nouveau_nofbaccel) {
 		switch (dev_priv->card_type) {
 		case NV_50:
 			nv50_fbcon_accel_init(info);
+			info->fbops = &nv50_fbcon_ops;
 			break;
 		default:
 			nv04_fbcon_accel_init(info);
+			info->fbops = &nv04_fbcon_ops;
 			break;
 		};
 	}
@@ -336,6 +371,7 @@ nouveau_fbcon_create(struct drm_device *dev, uint32_t fb_width,
 						nvbo->bo.offset, nvbo);
 
 	mutex_unlock(&dev->struct_mutex);
+	vga_switcheroo_client_fb_set(dev->pdev, info);
 	return 0;
 
 out_unref:
@@ -367,10 +403,8 @@ nouveau_fbcon_remove(struct drm_device *dev, struct drm_framebuffer *fb)
 
 		unregister_framebuffer(info);
 		nouveau_bo_unmap(nouveau_fb->nvbo);
-		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(nouveau_fb->nvbo->gem);
+		drm_gem_object_unreference_unlocked(nouveau_fb->nvbo->gem);
 		nouveau_fb->nvbo = NULL;
-		mutex_unlock(&dev->struct_mutex);
 		if (par)
 			drm_fb_helper_free(&par->helper);
 		framebuffer_release(info);

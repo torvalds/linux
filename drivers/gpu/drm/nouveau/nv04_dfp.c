@@ -269,10 +269,10 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 	regp->fp_horiz_regs[FP_TOTAL] = output_mode->htotal - 1;
 	if (!nv_gf4_disp_arch(dev) ||
 	    (output_mode->hsync_start - output_mode->hdisplay) >=
-					dev_priv->vbios->digital_min_front_porch)
+					dev_priv->vbios.digital_min_front_porch)
 		regp->fp_horiz_regs[FP_CRTC] = output_mode->hdisplay;
 	else
-		regp->fp_horiz_regs[FP_CRTC] = output_mode->hsync_start - dev_priv->vbios->digital_min_front_porch - 1;
+		regp->fp_horiz_regs[FP_CRTC] = output_mode->hsync_start - dev_priv->vbios.digital_min_front_porch - 1;
 	regp->fp_horiz_regs[FP_SYNC_START] = output_mode->hsync_start - 1;
 	regp->fp_horiz_regs[FP_SYNC_END] = output_mode->hsync_end - 1;
 	regp->fp_horiz_regs[FP_VALID_START] = output_mode->hskew;

@@ -244,7 +244,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 			/* revalidate/getattr then populate from inode */
 		} /* BB add else when above is implemented */
 		ea_name += 5; /* skip past user. prefix */
-		rc = CIFSSMBQueryEA(xid, pTcon, full_path, ea_name, ea_value,
+		rc = CIFSSMBQAllEAs(xid, pTcon, full_path, ea_name, ea_value,
 			buf_size, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	} else if (strncmp(ea_name, CIFS_XATTR_OS2_PREFIX, 4) == 0) {
@@ -252,7 +252,7 @@ ssize_t cifs_getxattr(struct dentry *direntry, const char *ea_name,
 			goto get_ea_exit;
 
 		ea_name += 4; /* skip past os2. prefix */
-		rc = CIFSSMBQueryEA(xid, pTcon, full_path, ea_name, ea_value,
+		rc = CIFSSMBQAllEAs(xid, pTcon, full_path, ea_name, ea_value,
 			buf_size, cifs_sb->local_nls,
 			cifs_sb->mnt_cifs_flags & CIFS_MOUNT_MAP_SPECIAL_CHR);
 	} else if (strncmp(ea_name, POSIX_ACL_XATTR_ACCESS,
@@ -364,8 +364,8 @@ ssize_t cifs_listxattr(struct dentry *direntry, char *data, size_t buf_size)
 	/* if proc/fs/cifs/streamstoxattr is set then
 		search server for EAs or streams to
 		returns as xattrs */
-	rc = CIFSSMBQAllEAs(xid, pTcon, full_path, data, buf_size,
-				cifs_sb->local_nls,
+	rc = CIFSSMBQAllEAs(xid, pTcon, full_path, NULL, data,
+				buf_size, cifs_sb->local_nls,
 				cifs_sb->mnt_cifs_flags &
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 

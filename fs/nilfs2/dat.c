@@ -388,8 +388,7 @@ int nilfs_dat_translate(struct inode *dat, __u64 vblocknr, sector_t *blocknrp)
 		ret = -ENOENT;
 		goto out;
 	}
-	if (blocknrp != NULL)
-		*blocknrp = blocknr;
+	*blocknrp = blocknr;
 
  out:
 	kunmap_atomic(kaddr, KM_USER0);

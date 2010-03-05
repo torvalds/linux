@@ -49,6 +49,7 @@ EXPORT_SYMBOL(acpi_disabled);
 
 #ifdef	CONFIG_X86_64
 # include <asm/proto.h>
+# include <asm/numa_64.h>
 #endif				/* X86 */
 
 #define BAD_MADT_ENTRY(entry, end) (					    \
@@ -446,6 +447,12 @@ void __init acpi_pic_sci_set_trigger(unsigned int irq, u16 trigger)
 int acpi_gsi_to_irq(u32 gsi, unsigned int *irq)
 {
 	*irq = gsi;
+
+#ifdef CONFIG_X86_IO_APIC
+	if (acpi_irq_model == ACPI_IRQ_MODEL_IOAPIC)
+		setup_IO_APIC_irq_extra(gsi);
+#endif
+
 	return 0;
 }
 
@@ -473,7 +480,8 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
 		plat_gsi = mp_register_gsi(dev, gsi, trigger, polarity);
 	}
 #endif
-	acpi_gsi_to_irq(plat_gsi, &irq);
+	irq = plat_gsi;
+
 	return irq;
 }
 
@@ -481,6 +489,25 @@ int acpi_register_gsi(struct device *dev, u32 gsi, int trigger, int polarity)
  *  ACPI based hotplug support for CPU
  */
 #ifdef CONFIG_ACPI_HOTPLUG_CPU
+
+static void acpi_map_cpu2node(acpi_handle handle, int cpu, int physid)
+{
+#ifdef CONFIG_ACPI_NUMA
+	int nid;
+
+	nid = acpi_get_node(handle);
+	if (nid == -1 || !node_online(nid))
+		return;
+#ifdef CONFIG_X86_64
+	apicid_to_node[physid] = nid;
+	numa_set_node(cpu, nid);
+#else /* CONFIG_X86_32 */
+	apicid_2_node[physid] = nid;
+	cpu_to_node_map[cpu] = nid;
+#endif
+
+#endif
+}
 
 static int __cpuinit _acpi_map_lsapic(acpi_handle handle, int *pcpu)
 {
@@ -540,6 +567,7 @@ static int __cpuinit _acpi_map_lsapic(acpi_handle handle, int *pcpu)
 	}
 
 	cpu = cpumask_first(new_map);
+	acpi_map_cpu2node(handle, cpu, physid);
 
 	*pcpu = cpu;
 	retval = 0;
@@ -1185,9 +1213,6 @@ static void __init acpi_process_madt(void)
 		if (!error) {
 			acpi_lapic = 1;
 
-#ifdef CONFIG_X86_BIGSMP
-			generic_bigsmp_probe();
-#endif
 			/*
 			 * Parse MADT IO-APIC entries
 			 */
@@ -1197,8 +1222,6 @@ static void __init acpi_process_madt(void)
 				acpi_ioapic = 1;
 
 				smp_found_config = 1;
-				if (apic->setup_apic_routing)
-					apic->setup_apic_routing();
 			}
 		}
 		if (error == -EINVAL) {
@@ -1345,14 +1368,6 @@ static struct dmi_system_id __initdata acpi_dmi_table[] = {
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Compaq"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "Workstation W8000"),
-		     },
-	 },
-	{
-	 .callback = force_acpi_ht,
-	 .ident = "ASUS P2B-DS",
-	 .matches = {
-		     DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
-		     DMI_MATCH(DMI_BOARD_NAME, "P2B-DS"),
 		     },
 	 },
 	{

@@ -124,6 +124,5 @@ void prom_putchar(char c)
 	}
 }
 
-EXPORT_SYMBOL(prom_getcmdline);
 EXPORT_SYMBOL(get_ethernet_addr);
 EXPORT_SYMBOL(str2eaddr);

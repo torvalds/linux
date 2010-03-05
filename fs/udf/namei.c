@@ -34,8 +34,8 @@
 #include <linux/crc-itu-t.h>
 #include <linux/exportfs.h>
 
-static inline int udf_match(int len1, const char *name1, int len2,
-			    const char *name2)
+static inline int udf_match(int len1, const unsigned char *name1, int len2,
+			    const unsigned char *name2)
 {
 	if (len1 != len2)
 		return 0;
@@ -142,15 +142,15 @@ int udf_write_fi(struct inode *inode, struct fileIdentDesc *cfi,
 }
 
 static struct fileIdentDesc *udf_find_entry(struct inode *dir,
-					    struct qstr *child,
+					    const struct qstr *child,
 					    struct udf_fileident_bh *fibh,
 					    struct fileIdentDesc *cfi)
 {
 	struct fileIdentDesc *fi = NULL;
 	loff_t f_pos;
 	int block, flen;
-	char *fname = NULL;
-	char *nameptr;
+	unsigned char *fname = NULL;
+	unsigned char *nameptr;
 	uint8_t lfi;
 	uint16_t liu;
 	loff_t size;
@@ -308,7 +308,7 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 {
 	struct super_block *sb = dir->i_sb;
 	struct fileIdentDesc *fi = NULL;
-	char *name = NULL;
+	unsigned char *name = NULL;
 	int namelen;
 	loff_t f_pos;
 	loff_t size = udf_ext0_offset(dir) + dir->i_size;
@@ -885,16 +885,16 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 {
 	struct inode *inode;
 	struct pathComponent *pc;
-	char *compstart;
+	const char *compstart;
 	struct udf_fileident_bh fibh;
 	struct extent_position epos = {};
 	int eoffset, elen = 0;
 	struct fileIdentDesc *fi;
 	struct fileIdentDesc cfi;
-	char *ea;
+	uint8_t *ea;
 	int err;
 	int block;
-	char *name = NULL;
+	unsigned char *name = NULL;
 	int namelen;
 	struct buffer_head *bh;
 	struct udf_inode_info *iinfo;
@@ -970,7 +970,7 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 
 		pc = (struct pathComponent *)(ea + elen);
 
-		compstart = (char *)symname;
+		compstart = symname;
 
 		do {
 			symname++;

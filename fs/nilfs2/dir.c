@@ -224,7 +224,7 @@ fail:
  * len <= NILFS_NAME_LEN and de != NULL are guaranteed by caller.
  */
 static int
-nilfs_match(int len, const char * const name, struct nilfs_dir_entry *de)
+nilfs_match(int len, const unsigned char *name, struct nilfs_dir_entry *de)
 {
 	if (len != de->name_len)
 		return 0;
@@ -349,11 +349,11 @@ done:
  * Entry is guaranteed to be valid.
  */
 struct nilfs_dir_entry *
-nilfs_find_entry(struct inode *dir, struct dentry *dentry,
+nilfs_find_entry(struct inode *dir, const struct qstr *qstr,
 		 struct page **res_page)
 {
-	const char *name = dentry->d_name.name;
-	int namelen = dentry->d_name.len;
+	const unsigned char *name = qstr->name;
+	int namelen = qstr->len;
 	unsigned reclen = NILFS_DIR_REC_LEN(namelen);
 	unsigned long start, n;
 	unsigned long npages = dir_pages(dir);
@@ -424,13 +424,13 @@ struct nilfs_dir_entry *nilfs_dotdot(struct inode *dir, struct page **p)
 	return de;
 }
 
-ino_t nilfs_inode_by_name(struct inode *dir, struct dentry *dentry)
+ino_t nilfs_inode_by_name(struct inode *dir, const struct qstr *qstr)
 {
 	ino_t res = 0;
 	struct nilfs_dir_entry *de;
 	struct page *page;
 
-	de = nilfs_find_entry(dir, dentry, &page);
+	de = nilfs_find_entry(dir, qstr, &page);
 	if (de) {
 		res = le64_to_cpu(de->inode);
 		kunmap(page);
@@ -465,7 +465,7 @@ void nilfs_set_link(struct inode *dir, struct nilfs_dir_entry *de,
 int nilfs_add_link(struct dentry *dentry, struct inode *inode)
 {
 	struct inode *dir = dentry->d_parent->d_inode;
-	const char *name = dentry->d_name.name;
+	const unsigned char *name = dentry->d_name.name;
 	int namelen = dentry->d_name.len;
 	unsigned chunk_size = nilfs_chunk_size(dir);
 	unsigned reclen = NILFS_DIR_REC_LEN(namelen);

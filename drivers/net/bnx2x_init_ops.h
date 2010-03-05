@@ -2,7 +2,7 @@
  *               Static functions needed during the initialization.
  *               This file is "included" in bnx2x_main.c.
  *
- * Copyright (c) 2007-2009 Broadcom Corporation
+ * Copyright (c) 2007-2010 Broadcom Corporation
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -138,11 +138,16 @@ static void bnx2x_write_big_buf_wb(struct bnx2x *bp, u32 addr, u32 len)
 static void bnx2x_init_wr_wb(struct bnx2x *bp, u32 addr, const u32 *data,
 			     u32 len)
 {
+	const u32 *old_data = data;
+
 	data = (const u32 *)bnx2x_sel_blob(bp, addr, (const u8 *)data);
 
-	if (bp->dmae_ready)
-		VIRT_WR_DMAE_LEN(bp, data, addr, len);
-	else
+	if (bp->dmae_ready) {
+		if (old_data != data)
+			VIRT_WR_DMAE_LEN(bp, data, addr, len, 1);
+		else
+			VIRT_WR_DMAE_LEN(bp, data, addr, len, 0);
+	} else
 		bnx2x_init_ind_wr(bp, addr, data, len);
 }
 

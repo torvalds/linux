@@ -953,6 +953,17 @@ bandwidth_change:
 	case TRB_TYPE(TRB_RESET_EP):
 		handle_reset_ep_completion(xhci, event, xhci->cmd_ring->dequeue);
 		break;
+	case TRB_TYPE(TRB_RESET_DEV):
+		xhci_dbg(xhci, "Completed reset device command.\n");
+		slot_id = TRB_TO_SLOT_ID(
+				xhci->cmd_ring->dequeue->generic.field[3]);
+		virt_dev = xhci->devs[slot_id];
+		if (virt_dev)
+			handle_cmd_in_cmd_wait_list(xhci, virt_dev, event);
+		else
+			xhci_warn(xhci, "Reset device command completion "
+					"for disabled slot %u\n", slot_id);
+		break;
 	default:
 		/* Skip over unknown commands on the event ring */
 		xhci->error_bitmask |= 1 << 6;
@@ -1080,6 +1091,20 @@ static int xhci_requires_manual_halt_cleanup(struct xhci_hcd *xhci,
 	return 0;
 }
 
+int xhci_is_vendor_info_code(struct xhci_hcd *xhci, unsigned int trb_comp_code)
+{
+	if (trb_comp_code >= 224 && trb_comp_code <= 255) {
+		/* Vendor defined "informational" completion code,
+		 * treat as not-an-error.
+		 */
+		xhci_dbg(xhci, "Vendor defined info completion code %u\n",
+				trb_comp_code);
+		xhci_dbg(xhci, "Treating code as success.\n");
+		return 1;
+	}
+	return 0;
+}
+
 /*
  * If this function returns an error condition, it means it got a Transfer
  * event with a corrupted Slot ID, Endpoint ID, or TRB DMA address.
@@ -1196,13 +1221,7 @@ static int handle_tx_event(struct xhci_hcd *xhci,
 		status = -ENOSR;
 		break;
 	default:
-		if (trb_comp_code >= 224 && trb_comp_code <= 255) {
-			/* Vendor defined "informational" completion code,
-			 * treat as not-an-error.
-			 */
-			xhci_dbg(xhci, "Vendor defined info completion code %u\n",
-					trb_comp_code);
-			xhci_dbg(xhci, "Treating code as success.\n");
+		if (xhci_is_vendor_info_code(xhci, trb_comp_code)) {
 			status = 0;
 			break;
 		}
@@ -2178,6 +2197,14 @@ int xhci_queue_address_device(struct xhci_hcd *xhci, dma_addr_t in_ctx_ptr,
 	return queue_command(xhci, lower_32_bits(in_ctx_ptr),
 			upper_32_bits(in_ctx_ptr), 0,
 			TRB_TYPE(TRB_ADDR_DEV) | SLOT_ID_FOR_TRB(slot_id),
+			false);
+}
+
+/* Queue a reset device command TRB */
+int xhci_queue_reset_device(struct xhci_hcd *xhci, u32 slot_id)
+{
+	return queue_command(xhci, 0, 0, 0,
+			TRB_TYPE(TRB_RESET_DEV) | SLOT_ID_FOR_TRB(slot_id),
 			false);
 }
 

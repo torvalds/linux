@@ -416,13 +416,13 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 
 	/* We can be called before check_nmi_watchdog, hence NULL check. */
 	if (cpumask_test_cpu(cpu, to_cpumask(backtrace_mask))) {
-		static DEFINE_SPINLOCK(lock);	/* Serialise the printks */
+		static DEFINE_RAW_SPINLOCK(lock); /* Serialise the printks */
 
-		spin_lock(&lock);
+		raw_spin_lock(&lock);
 		printk(KERN_WARNING "NMI backtrace for cpu %d\n", cpu);
 		show_regs(regs);
 		dump_stack();
-		spin_unlock(&lock);
+		raw_spin_unlock(&lock);
 		cpumask_clear_cpu(cpu, to_cpumask(backtrace_mask));
 
 		rc = 1;
@@ -438,8 +438,8 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 		 * Ayiee, looks like this CPU is stuck ...
 		 * wait a few IRQs (5 seconds) before doing the oops ...
 		 */
-		__this_cpu_inc(per_cpu_var(alert_counter));
-		if (__this_cpu_read(per_cpu_var(alert_counter)) == 5 * nmi_hz)
+		__this_cpu_inc(alert_counter);
+		if (__this_cpu_read(alert_counter) == 5 * nmi_hz)
 			/*
 			 * die_nmi will return ONLY if NOTIFY_STOP happens..
 			 */
@@ -447,7 +447,7 @@ nmi_watchdog_tick(struct pt_regs *regs, unsigned reason)
 				regs, panic_on_timeout);
 	} else {
 		__get_cpu_var(last_irq_sum) = sum;
-		__this_cpu_write(per_cpu_var(alert_counter), 0);
+		__this_cpu_write(alert_counter, 0);
 	}
 
 	/* see if the nmi watchdog went off */

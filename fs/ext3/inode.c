@@ -3096,7 +3096,7 @@ out_brelse:
  * `stuff()' is running, and the new i_size will be lost.  Plus the inode
  * will no longer be on the superblock's dirty inode list.
  */
-int ext3_write_inode(struct inode *inode, int wait)
+int ext3_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	if (current->flags & PF_MEMALLOC)
 		return 0;
@@ -3107,7 +3107,7 @@ int ext3_write_inode(struct inode *inode, int wait)
 		return -EIO;
 	}
 
-	if (!wait)
+	if (wbc->sync_mode != WB_SYNC_ALL)
 		return 0;
 
 	return ext3_force_commit(inode->i_sb);

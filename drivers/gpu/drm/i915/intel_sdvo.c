@@ -35,6 +35,7 @@
 #include "i915_drm.h"
 #include "i915_drv.h"
 #include "intel_sdvo_regs.h"
+#include <linux/dmi.h>
 
 static char *tv_format_names[] = {
 	"NTSC_M"   , "NTSC_J"  , "NTSC_443",
@@ -2283,6 +2284,25 @@ intel_sdvo_get_slave_addr(struct drm_device *dev, int output_device)
 		return 0x72;
 }
 
+static int intel_sdvo_bad_tv_callback(const struct dmi_system_id *id)
+{
+	DRM_DEBUG_KMS("Ignoring bad SDVO TV connector for %s\n", id->ident);
+	return 1;
+}
+
+static struct dmi_system_id intel_sdvo_bad_tv[] = {
+	{
+		.callback = intel_sdvo_bad_tv_callback,
+		.ident = "IntelG45/ICH10R/DME1737",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "IBM CORPORATION"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "4800784"),
+		},
+	},
+
+	{ }	/* terminating entry */
+};
+
 static bool
 intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 {
@@ -2323,7 +2343,8 @@ intel_sdvo_output_setup(struct intel_output *intel_output, uint16_t flags)
 					(1 << INTEL_SDVO_NON_TV_CLONE_BIT) |
 					(1 << INTEL_ANALOG_CLONE_BIT);
 		}
-	} else if (flags & SDVO_OUTPUT_SVID0) {
+	} else if ((flags & SDVO_OUTPUT_SVID0) &&
+		   !dmi_check_system(intel_sdvo_bad_tv)) {
 
 		sdvo_priv->controlled_output = SDVO_OUTPUT_SVID0;
 		encoder->encoder_type = DRM_MODE_ENCODER_TVDAC;

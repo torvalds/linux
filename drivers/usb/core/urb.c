@@ -387,6 +387,13 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	{
 	unsigned int	orig_flags = urb->transfer_flags;
 	unsigned int	allowed;
+	static int pipetypes[4] = {
+		PIPE_CONTROL, PIPE_ISOCHRONOUS, PIPE_BULK, PIPE_INTERRUPT
+	};
+
+	/* Check that the pipe's type matches the endpoint's type */
+	if (usb_pipetype(urb->pipe) != pipetypes[xfertype])
+		return -EPIPE;		/* The most suitable error code :-) */
 
 	/* enforce simple/standard policy */
 	allowed = (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP |
@@ -430,7 +437,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 	case USB_ENDPOINT_XFER_INT:
 		/* too small? */
 		switch (dev->speed) {
-		case USB_SPEED_VARIABLE:
+		case USB_SPEED_WIRELESS:
 			if (urb->interval < 6)
 				return -EINVAL;
 			break;
@@ -446,7 +453,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 			if (urb->interval > (1 << 15))
 				return -EINVAL;
 			max = 1 << 15;
-		case USB_SPEED_VARIABLE:
+		case USB_SPEED_WIRELESS:
 			if (urb->interval > 16)
 				return -EINVAL;
 			break;
@@ -473,7 +480,7 @@ int usb_submit_urb(struct urb *urb, gfp_t mem_flags)
 		default:
 			return -EINVAL;
 		}
-		if (dev->speed != USB_SPEED_VARIABLE) {
+		if (dev->speed != USB_SPEED_WIRELESS) {
 			/* Round down to a power of 2, no more than max */
 			urb->interval = min(max, 1 << ilog2(urb->interval));
 		}

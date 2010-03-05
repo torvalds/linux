@@ -1895,14 +1895,14 @@ enum {
 
 /*	TX_GMF_CTRL_T	32 bit	Tx GMAC FIFO Control/Test */
 enum {
-	TX_STFW_DIS	= 1<<31,/* Disable Store & Forward (Yukon-EC Ultra) */
-	TX_STFW_ENA	= 1<<30,/* Enable  Store & Forward (Yukon-EC Ultra) */
+	TX_STFW_DIS	= 1<<31,/* Disable Store & Forward */
+	TX_STFW_ENA	= 1<<30,/* Enable  Store & Forward */
 
 	TX_VLAN_TAG_ON	= 1<<25,/* enable  VLAN tagging */
 	TX_VLAN_TAG_OFF	= 1<<24,/* disable VLAN tagging */
 
-	TX_JUMBO_ENA	= 1<<23,/* PCI Jumbo Mode enable (Yukon-EC Ultra) */
-	TX_JUMBO_DIS	= 1<<22,/* PCI Jumbo Mode enable (Yukon-EC Ultra) */
+	TX_PCI_JUM_ENA  = 1<<23,/* PCI Jumbo Mode enable */
+	TX_PCI_JUM_DIS  = 1<<22,/* PCI Jumbo Mode enable */
 
 	GMF_WSP_TST_ON	= 1<<18,/* Write Shadow Pointer Test On */
 	GMF_WSP_TST_OFF	= 1<<17,/* Write Shadow Pointer Test Off */
@@ -2156,7 +2156,7 @@ struct tx_ring_info {
 	struct sk_buff	*skb;
 	unsigned long flags;
 #define TX_MAP_SINGLE   0x0001
-#define TX_MAP_PAGE     000002
+#define TX_MAP_PAGE     0x0002
 	DECLARE_PCI_UNMAP_ADDR(mapaddr);
 	DECLARE_PCI_UNMAP_LEN(maplen);
 };

@@ -681,7 +681,7 @@ static char *cmd_to_str(int cmd)
 	case CX2341X_ENC_SET_VIDEO_ID:
 		return  "SET_VIDEO_ID";
 	case CX2341X_ENC_SET_PCR_ID:
-		return  "SET_PCR_PID";
+		return  "SET_PCR_ID";
 	case CX2341X_ENC_SET_FRAME_RATE:
 		return  "SET_FRAME_RATE";
 	case CX2341X_ENC_SET_FRAME_SIZE:
@@ -693,7 +693,7 @@ static char *cmd_to_str(int cmd)
 	case CX2341X_ENC_SET_ASPECT_RATIO:
 		return  "SET_ASPECT_RATIO";
 	case CX2341X_ENC_SET_DNR_FILTER_MODE:
-		return  "SET_DNR_FILTER_PROPS";
+		return  "SET_DNR_FILTER_MODE";
 	case CX2341X_ENC_SET_DNR_FILTER_PROPS:
 		return  "SET_DNR_FILTER_PROPS";
 	case CX2341X_ENC_SET_CORING_LEVELS:

@@ -38,7 +38,7 @@ static int xfrm6_tunnel_check_size(struct sk_buff *skb)
 
 	if (!skb->local_df && skb->len > mtu) {
 		skb->dev = dst->dev;
-		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu, skb->dev);
+		icmpv6_send(skb, ICMPV6_PKT_TOOBIG, 0, mtu);
 		ret = -EMSGSIZE;
 	}
 

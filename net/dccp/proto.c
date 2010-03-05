@@ -835,6 +835,8 @@ verify_sock_status:
 			len = -EFAULT;
 			break;
 		}
+		if (flags & MSG_TRUNC)
+			len = skb->len;
 	found_fin_ok:
 		if (!(flags & MSG_PEEK))
 			sk_eat_skb(sk, skb, 0);
@@ -1003,12 +1005,13 @@ EXPORT_SYMBOL_GPL(dccp_shutdown);
 
 static inline int dccp_mib_init(void)
 {
-	return snmp_mib_init((void**)dccp_statistics, sizeof(struct dccp_mib));
+	return snmp_mib_init((void __percpu **)dccp_statistics,
+			     sizeof(struct dccp_mib));
 }
 
 static inline void dccp_mib_exit(void)
 {
-	snmp_mib_free((void**)dccp_statistics);
+	snmp_mib_free((void __percpu **)dccp_statistics);
 }
 
 static int thash_entries;

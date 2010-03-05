@@ -938,7 +938,7 @@ static void r6040_multicast_list(struct net_device *dev)
 	u16 *adrp;
 	u16 reg;
 	unsigned long flags;
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	int i;
 
 	/* MAC Address */
@@ -958,24 +958,23 @@ static void r6040_multicast_list(struct net_device *dev)
 	}
 	/* Too many multicast addresses
 	 * accept all traffic */
-	else if ((dev->mc_count > MCAST_MAX) || (dev->flags & IFF_ALLMULTI))
+	else if ((netdev_mc_count(dev) > MCAST_MAX) ||
+		 (dev->flags & IFF_ALLMULTI))
 		reg |= 0x0020;
 
 	iowrite16(reg, ioaddr);
 	spin_unlock_irqrestore(&lp->lock, flags);
 
 	/* Build the hash table */
-	if (dev->mc_count > MCAST_MAX) {
+	if (netdev_mc_count(dev) > MCAST_MAX) {
 		u16 hash_table[4];
 		u32 crc;
 
 		for (i = 0; i < 4; i++)
 			hash_table[i] = 0;
 
-		for (i = 0; i < dev->mc_count; i++) {
+		netdev_for_each_mc_addr(dmi, dev) {
 			char *addrs = dmi->dmi_addr;
-
-			dmi = dmi->next;
 
 			if (!(*addrs & 1))
 				continue;
@@ -994,17 +993,19 @@ static void r6040_multicast_list(struct net_device *dev)
 		iowrite16(hash_table[3], ioaddr + MAR3);
 	}
 	/* Multicast Address 1~4 case */
-	for (i = 0, dmi; (i < dev->mc_count) && (i < MCAST_MAX); i++) {
-		adrp = (u16 *)dmi->dmi_addr;
-		iowrite16(adrp[0], ioaddr + MID_1L + 8*i);
-		iowrite16(adrp[1], ioaddr + MID_1M + 8*i);
-		iowrite16(adrp[2], ioaddr + MID_1H + 8*i);
-		dmi = dmi->next;
-	}
-	for (i = dev->mc_count; i < MCAST_MAX; i++) {
-		iowrite16(0xffff, ioaddr + MID_0L + 8*i);
-		iowrite16(0xffff, ioaddr + MID_0M + 8*i);
-		iowrite16(0xffff, ioaddr + MID_0H + 8*i);
+	i = 0;
+	netdev_for_each_mc_addr(dmi, dev) {
+		if (i < MCAST_MAX) {
+			adrp = (u16 *) dmi->dmi_addr;
+			iowrite16(adrp[0], ioaddr + MID_1L + 8 * i);
+			iowrite16(adrp[1], ioaddr + MID_1M + 8 * i);
+			iowrite16(adrp[2], ioaddr + MID_1H + 8 * i);
+		} else {
+			iowrite16(0xffff, ioaddr + MID_0L + 8 * i);
+			iowrite16(0xffff, ioaddr + MID_0M + 8 * i);
+			iowrite16(0xffff, ioaddr + MID_0H + 8 * i);
+		}
+		i++;
 	}
 }
 
@@ -1222,7 +1223,7 @@ static void __devexit r6040_remove_one(struct pci_dev *pdev)
 }
 
 
-static struct pci_device_id r6040_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(r6040_pci_tbl) = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_RDC, 0x6040) },
 	{ 0 }
 };

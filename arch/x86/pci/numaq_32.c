@@ -8,17 +8,13 @@
 #include <asm/apic.h>
 #include <asm/mpspec.h>
 #include <asm/pci_x86.h>
-
-#define XQUAD_PORTIO_BASE 0xfe400000
-#define XQUAD_PORTIO_QUAD 0x40000  /* 256k per quad. */
+#include <asm/numaq.h>
 
 #define BUS2QUAD(global) (mp_bus_id_to_node[global])
 
 #define BUS2LOCAL(global) (mp_bus_id_to_local[global])
 
 #define QUADLOCAL2BUS(quad,local) (quad_local_to_mp_bus_id[quad][local])
-
-#define XQUAD_PORT_ADDR(port, quad) (xquad_portio + (XQUAD_PORTIO_QUAD*quad) + port)
 
 #define PCI_CONF1_MQ_ADDRESS(bus, devfn, reg) \
 	(0x80000000 | (BUS2LOCAL(bus) << 16) | (devfn << 8) | (reg & ~3))

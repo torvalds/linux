@@ -55,12 +55,12 @@ struct omap_mmc_platform_data {
 	unsigned int max_freq;
 
 	/* switch the bus to a new slot */
-	int (* switch_slot)(struct device *dev, int slot);
+	int (*switch_slot)(struct device *dev, int slot);
 	/* initialize board-specific MMC functionality, can be NULL if
 	 * not supported */
-	int (* init)(struct device *dev);
-	void (* cleanup)(struct device *dev);
-	void (* shutdown)(struct device *dev);
+	int (*init)(struct device *dev);
+	void (*cleanup)(struct device *dev);
+	void (*shutdown)(struct device *dev);
 
 	/* To handle board related suspend/resume functionality for MMC */
 	int (*suspend)(struct device *dev, int slot);
@@ -96,14 +96,28 @@ struct omap_mmc_platform_data {
 		/* Try to sleep or power off when possible */
 		unsigned power_saving:1;
 
+		/* If using power_saving and the MMC power is not to go off */
+		unsigned no_off:1;
+
+		/* Regulator off remapped to sleep */
+		unsigned vcc_aux_disable_is_sleep:1;
+
 		int switch_pin;			/* gpio (card detect) */
 		int gpio_wp;			/* gpio (write protect) */
 
-		int (* set_bus_mode)(struct device *dev, int slot, int bus_mode);
-		int (* set_power)(struct device *dev, int slot, int power_on, int vdd);
-		int (* get_ro)(struct device *dev, int slot);
+		int (*set_bus_mode)(struct device *dev, int slot, int bus_mode);
+		int (*set_power)(struct device *dev, int slot,
+				 int power_on, int vdd);
+		int (*get_ro)(struct device *dev, int slot);
 		int (*set_sleep)(struct device *dev, int slot, int sleep,
 				 int vdd, int cardsleep);
+		void (*remux)(struct device *dev, int slot, int power_on);
+		/* Call back before enabling / disabling regulators */
+		void (*before_set_reg)(struct device *dev, int slot,
+				       int power_on, int vdd);
+		/* Call back after enabling / disabling regulators */
+		void (*after_set_reg)(struct device *dev, int slot,
+				      int power_on, int vdd);
 
 		/* return MMC cover switch state, can be NULL if not supported.
 		 *
@@ -111,14 +125,14 @@ struct omap_mmc_platform_data {
 		 *   0 - closed
 		 *   1 - open
 		 */
-		int (* get_cover_state)(struct device *dev, int slot);
+		int (*get_cover_state)(struct device *dev, int slot);
 
 		const char *name;
 		u32 ocr_mask;
 
 		/* Card detection IRQs */
 		int card_detect_irq;
-		int (* card_detect)(int irq);
+		int (*card_detect)(struct device *dev, int slot);
 
 		unsigned int ban_openended:1;
 
@@ -126,7 +140,8 @@ struct omap_mmc_platform_data {
 };
 
 /* called from board-specific card detection service routine */
-extern void omap_mmc_notify_cover_event(struct device *dev, int slot, int is_closed);
+extern void omap_mmc_notify_cover_event(struct device *dev, int slot,
+					int is_closed);
 
 #if	defined(CONFIG_MMC_OMAP) || defined(CONFIG_MMC_OMAP_MODULE) || \
 	defined(CONFIG_MMC_OMAP_HS) || defined(CONFIG_MMC_OMAP_HS_MODULE)

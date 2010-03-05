@@ -320,7 +320,7 @@ static inline void usba_cleanup_debugfs(struct usba_udc *udc)
 static int vbus_is_present(struct usba_udc *udc)
 {
 	if (gpio_is_valid(udc->vbus_pin))
-		return gpio_get_value(udc->vbus_pin);
+		return gpio_get_value(udc->vbus_pin) ^ udc->vbus_pin_inverted;
 
 	/* No Vbus detection: Assume always present */
 	return 1;
@@ -1763,7 +1763,7 @@ static irqreturn_t usba_vbus_irq(int irq, void *devid)
 	if (!udc->driver)
 		goto out;
 
-	vbus = gpio_get_value(udc->vbus_pin);
+	vbus = vbus_is_present(udc);
 	if (vbus != udc->vbus_prev) {
 		if (vbus) {
 			toggle_bias(1);
@@ -1914,14 +1914,14 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	udc->vbus_pin = -ENODEV;
 
 	ret = -ENOMEM;
-	udc->regs = ioremap(regs->start, regs->end - regs->start + 1);
+	udc->regs = ioremap(regs->start, resource_size(regs));
 	if (!udc->regs) {
 		dev_err(&pdev->dev, "Unable to map I/O memory, aborting.\n");
 		goto err_map_regs;
 	}
 	dev_info(&pdev->dev, "MMIO registers at 0x%08lx mapped at %p\n",
 		 (unsigned long)regs->start, udc->regs);
-	udc->fifo = ioremap(fifo->start, fifo->end - fifo->start + 1);
+	udc->fifo = ioremap(fifo->start, resource_size(fifo));
 	if (!udc->fifo) {
 		dev_err(&pdev->dev, "Unable to map FIFO, aborting.\n");
 		goto err_map_fifo;
@@ -2000,6 +2000,7 @@ static int __init usba_udc_probe(struct platform_device *pdev)
 	if (gpio_is_valid(pdata->vbus_pin)) {
 		if (!gpio_request(pdata->vbus_pin, "atmel_usba_udc")) {
 			udc->vbus_pin = pdata->vbus_pin;
+			udc->vbus_pin_inverted = pdata->vbus_pin_inverted;
 
 			ret = request_irq(gpio_to_irq(udc->vbus_pin),
 					usba_vbus_irq, 0,

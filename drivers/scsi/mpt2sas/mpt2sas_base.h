@@ -69,10 +69,10 @@
 #define MPT2SAS_DRIVER_NAME		"mpt2sas"
 #define MPT2SAS_AUTHOR	"LSI Corporation <DL-MPTFusionLinux@lsi.com>"
 #define MPT2SAS_DESCRIPTION	"LSI MPT Fusion SAS 2.0 Device Driver"
-#define MPT2SAS_DRIVER_VERSION		"03.100.03.00"
-#define MPT2SAS_MAJOR_VERSION		03
+#define MPT2SAS_DRIVER_VERSION		"04.100.01.00"
+#define MPT2SAS_MAJOR_VERSION		04
 #define MPT2SAS_MINOR_VERSION		100
-#define MPT2SAS_BUILD_VERSION		03
+#define MPT2SAS_BUILD_VERSION		01
 #define MPT2SAS_RELEASE_VERSION		00
 
 /*
@@ -323,6 +323,7 @@ struct _sas_device {
  * @device_info: bitfield provides detailed info about the hidden components
  * @num_pds: number of hidden raid components
  * @responding: used in _scsih_raid_device_mark_responding
+ * @percent_complete: resync percent complete
  */
 struct _raid_device {
 	struct list_head list;
@@ -336,6 +337,7 @@ struct _raid_device {
 	u32	device_info;
 	u8	num_pds;
 	u8	responding;
+	u8	percent_complete;
 };
 
 /**
@@ -464,7 +466,6 @@ typedef void (*MPT_ADD_SGE)(void *paddr, u32 flags_length, dma_addr_t dma_addr);
  * @pdev: pci pdev object
  * @chip: memory mapped register space
  * @chip_phys: physical addrss prior to mapping
- * @pio_chip: I/O mapped register space
  * @logging_level: see mpt2sas_debug.h
  * @fwfault_debug: debuging FW timeouts
  * @ir_firmware: IR firmware present
@@ -587,8 +588,7 @@ struct MPT2SAS_ADAPTER {
 	char		tmp_string[MPT_STRING_LENGTH];
 	struct pci_dev	*pdev;
 	Mpi2SystemInterfaceRegs_t __iomem *chip;
-	unsigned long	chip_phys;
-	unsigned long	pio_chip;
+	resource_size_t	chip_phys;
 	int		logging_level;
 	int		fwfault_debug;
 	u8		ir_firmware;
@@ -853,6 +853,8 @@ int mpt2sas_config_set_iounit_pg1(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
     *mpi_reply, Mpi2IOUnitPage1_t *config_page);
 int mpt2sas_config_get_sas_iounit_pg1(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
     *mpi_reply, Mpi2SasIOUnitPage1_t *config_page, u16 sz);
+int mpt2sas_config_set_sas_iounit_pg1(struct MPT2SAS_ADAPTER *ioc,
+    Mpi2ConfigReply_t *mpi_reply, Mpi2SasIOUnitPage1_t *config_page, u16 sz);
 int mpt2sas_config_get_ioc_pg8(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
     *mpi_reply, Mpi2IOCPage8_t *config_page);
 int mpt2sas_config_get_expander_pg0(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t

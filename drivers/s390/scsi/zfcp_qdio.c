@@ -10,6 +10,7 @@
 #define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
 
 #include "zfcp_ext.h"
+#include "zfcp_qdio.h"
 
 #define QBUFF_PER_PAGE		(PAGE_SIZE / sizeof(struct qdio_buffer))
 
@@ -26,12 +27,6 @@ static int zfcp_qdio_buffers_enqueue(struct qdio_buffer **sbal)
 		if (pos % QBUFF_PER_PAGE)
 			sbal[pos] = sbal[pos - 1] + 1;
 	return 0;
-}
-
-static struct qdio_buffer_element *
-zfcp_qdio_sbale(struct zfcp_qdio_queue *q, int sbal_idx, int sbale_idx)
-{
-	return &q->sbal[sbal_idx]->element[sbale_idx];
 }
 
 static void zfcp_qdio_handler_error(struct zfcp_qdio *qdio, char *id)
@@ -106,7 +101,7 @@ static void zfcp_qdio_resp_put_back(struct zfcp_qdio *qdio, int processed)
 
 	if (unlikely(retval)) {
 		atomic_set(&queue->count, count);
-		/* FIXME: Recover this with an adapter reopen? */
+		zfcp_erp_adapter_reopen(qdio->adapter, 0, "qdrpb_1", NULL);
 	} else {
 		queue->first += count;
 		queue->first %= QDIO_MAX_BUFFERS_PER_Q;
@@ -145,32 +140,8 @@ static void zfcp_qdio_int_resp(struct ccw_device *cdev, unsigned int qdio_err,
 	zfcp_qdio_resp_put_back(qdio, count);
 }
 
-/**
- * zfcp_qdio_sbale_req - return ptr to SBALE of req_q for a struct zfcp_fsf_req
- * @qdio: pointer to struct zfcp_qdio
- * @q_rec: pointer to struct zfcp_queue_rec
- * Returns: pointer to qdio_buffer_element (SBALE) structure
- */
-struct qdio_buffer_element *zfcp_qdio_sbale_req(struct zfcp_qdio *qdio,
-						struct zfcp_queue_req *q_req)
-{
-	return zfcp_qdio_sbale(&qdio->req_q, q_req->sbal_last, 0);
-}
-
-/**
- * zfcp_qdio_sbale_curr - return curr SBALE on req_q for a struct zfcp_fsf_req
- * @fsf_req: pointer to struct fsf_req
- * Returns: pointer to qdio_buffer_element (SBALE) structure
- */
-struct qdio_buffer_element *zfcp_qdio_sbale_curr(struct zfcp_qdio *qdio,
-						 struct zfcp_queue_req *q_req)
-{
-	return zfcp_qdio_sbale(&qdio->req_q, q_req->sbal_last,
-			       q_req->sbale_curr);
-}
-
 static void zfcp_qdio_sbal_limit(struct zfcp_qdio *qdio,
-				 struct zfcp_queue_req *q_req, int max_sbals)
+				 struct zfcp_qdio_req *q_req, int max_sbals)
 {
 	int count = atomic_read(&qdio->req_q.count);
 	count = min(count, max_sbals);
@@ -179,7 +150,7 @@ static void zfcp_qdio_sbal_limit(struct zfcp_qdio *qdio,
 }
 
 static struct qdio_buffer_element *
-zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req,
+zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 		     unsigned long sbtype)
 {
 	struct qdio_buffer_element *sbale;
@@ -214,7 +185,7 @@ zfcp_qdio_sbal_chain(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req,
 }
 
 static struct qdio_buffer_element *
-zfcp_qdio_sbale_next(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req,
+zfcp_qdio_sbale_next(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 		     unsigned int sbtype)
 {
 	if (q_req->sbale_curr == ZFCP_LAST_SBALE_PER_SBAL)
@@ -224,7 +195,7 @@ zfcp_qdio_sbale_next(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req,
 }
 
 static void zfcp_qdio_undo_sbals(struct zfcp_qdio *qdio,
-				 struct zfcp_queue_req *q_req)
+				 struct zfcp_qdio_req *q_req)
 {
 	struct qdio_buffer **sbal = qdio->req_q.sbal;
 	int first = q_req->sbal_first;
@@ -235,7 +206,7 @@ static void zfcp_qdio_undo_sbals(struct zfcp_qdio *qdio,
 }
 
 static int zfcp_qdio_fill_sbals(struct zfcp_qdio *qdio,
-				struct zfcp_queue_req *q_req,
+				struct zfcp_qdio_req *q_req,
 				unsigned int sbtype, void *start_addr,
 				unsigned int total_length)
 {
@@ -271,8 +242,7 @@ static int zfcp_qdio_fill_sbals(struct zfcp_qdio *qdio,
  * @max_sbals: upper bound for number of SBALs to be used
  * Returns: number of bytes, or error (negativ)
  */
-int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio,
-			    struct zfcp_queue_req *q_req,
+int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req,
 			    unsigned long sbtype, struct scatterlist *sg,
 			    int max_sbals)
 {
@@ -304,10 +274,10 @@ int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *qdio,
 /**
  * zfcp_qdio_send - set PCI flag in first SBALE and send req to QDIO
  * @qdio: pointer to struct zfcp_qdio
- * @q_req: pointer to struct zfcp_queue_req
+ * @q_req: pointer to struct zfcp_qdio_req
  * Returns: 0 on success, error otherwise
  */
-int zfcp_qdio_send(struct zfcp_qdio *qdio, struct zfcp_queue_req *q_req)
+int zfcp_qdio_send(struct zfcp_qdio *qdio, struct zfcp_qdio_req *q_req)
 {
 	struct zfcp_qdio_queue *req_q = &qdio->req_q;
 	int first = q_req->sbal_first;

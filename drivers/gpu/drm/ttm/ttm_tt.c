@@ -196,14 +196,15 @@ EXPORT_SYMBOL(ttm_tt_populate);
 
 #ifdef CONFIG_X86
 static inline int ttm_tt_set_page_caching(struct page *p,
-					  enum ttm_caching_state c_state)
+					  enum ttm_caching_state c_old,
+					  enum ttm_caching_state c_new)
 {
 	int ret = 0;
 
 	if (PageHighMem(p))
 		return 0;
 
-	if (get_page_memtype(p) != -1) {
+	if (c_old != tt_cached) {
 		/* p isn't in the default caching state, set it to
 		 * writeback first to free its current memtype. */
 
@@ -212,16 +213,17 @@ static inline int ttm_tt_set_page_caching(struct page *p,
 			return ret;
 	}
 
-	if (c_state == tt_wc)
+	if (c_new == tt_wc)
 		ret = set_memory_wc((unsigned long) page_address(p), 1);
-	else if (c_state == tt_uncached)
+	else if (c_new == tt_uncached)
 		ret = set_pages_uc(p, 1);
 
 	return ret;
 }
 #else /* CONFIG_X86 */
 static inline int ttm_tt_set_page_caching(struct page *p,
-					  enum ttm_caching_state c_state)
+					  enum ttm_caching_state c_old,
+					  enum ttm_caching_state c_new)
 {
 	return 0;
 }
@@ -254,7 +256,9 @@ static int ttm_tt_set_caching(struct ttm_tt *ttm,
 	for (i = 0; i < ttm->num_pages; ++i) {
 		cur_page = ttm->pages[i];
 		if (likely(cur_page != NULL)) {
-			ret = ttm_tt_set_page_caching(cur_page, c_state);
+			ret = ttm_tt_set_page_caching(cur_page,
+						      ttm->caching_state,
+						      c_state);
 			if (unlikely(ret != 0))
 				goto out_err;
 		}
@@ -268,7 +272,7 @@ out_err:
 	for (j = 0; j < i; ++j) {
 		cur_page = ttm->pages[j];
 		if (likely(cur_page != NULL)) {
-			(void)ttm_tt_set_page_caching(cur_page,
+			(void)ttm_tt_set_page_caching(cur_page, c_state,
 						      ttm->caching_state);
 		}
 	}
@@ -476,7 +480,7 @@ static int ttm_tt_swapin(struct ttm_tt *ttm)
 	void *from_virtual;
 	void *to_virtual;
 	int i;
-	int ret;
+	int ret = -ENOMEM;
 
 	if (ttm->page_flags & TTM_PAGE_FLAG_USER) {
 		ret = ttm_tt_set_user(ttm, ttm->tsk, ttm->start,
@@ -495,8 +499,10 @@ static int ttm_tt_swapin(struct ttm_tt *ttm)
 
 	for (i = 0; i < ttm->num_pages; ++i) {
 		from_page = read_mapping_page(swap_space, i, NULL);
-		if (IS_ERR(from_page))
+		if (IS_ERR(from_page)) {
+			ret = PTR_ERR(from_page);
 			goto out_err;
+		}
 		to_page = __ttm_tt_get_page(ttm, i);
 		if (unlikely(to_page == NULL))
 			goto out_err;
@@ -519,7 +525,7 @@ static int ttm_tt_swapin(struct ttm_tt *ttm)
 	return 0;
 out_err:
 	ttm_tt_free_alloced_pages(ttm);
-	return -ENOMEM;
+	return ret;
 }
 
 int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
@@ -531,6 +537,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
 	void *from_virtual;
 	void *to_virtual;
 	int i;
+	int ret = -ENOMEM;
 
 	BUG_ON(ttm->state != tt_unbound && ttm->state != tt_unpopulated);
 	BUG_ON(ttm->caching_state != tt_cached);
@@ -553,7 +560,7 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
 						0);
 		if (unlikely(IS_ERR(swap_storage))) {
 			printk(KERN_ERR "Failed allocating swap storage.\n");
-			return -ENOMEM;
+			return PTR_ERR(swap_storage);
 		}
 	} else
 		swap_storage = persistant_swap_storage;
@@ -565,9 +572,10 @@ int ttm_tt_swapout(struct ttm_tt *ttm, struct file *persistant_swap_storage)
 		if (unlikely(from_page == NULL))
 			continue;
 		to_page = read_mapping_page(swap_space, i, NULL);
-		if (unlikely(to_page == NULL))
+		if (unlikely(IS_ERR(to_page))) {
+			ret = PTR_ERR(to_page);
 			goto out_err;
-
+		}
 		preempt_disable();
 		from_virtual = kmap_atomic(from_page, KM_USER0);
 		to_virtual = kmap_atomic(to_page, KM_USER1);
@@ -591,5 +599,5 @@ out_err:
 	if (!persistant_swap_storage)
 		fput(swap_storage);
 
-	return -ENOMEM;
+	return ret;
 }

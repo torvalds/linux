@@ -408,8 +408,10 @@ xfs_bulkstat(
 		(XFS_INODE_CLUSTER_SIZE(mp) >> mp->m_sb.sb_inodelog);
 	nimask = ~(nicluster - 1);
 	nbcluster = nicluster >> mp->m_sb.sb_inopblog;
-	irbuf = kmem_zalloc_greedy(&irbsize, PAGE_SIZE, PAGE_SIZE * 4,
-				   KM_SLEEP | KM_MAYFAIL | KM_LARGE);
+	irbuf = kmem_zalloc_greedy(&irbsize, PAGE_SIZE, PAGE_SIZE * 4);
+	if (!irbuf)
+		return ENOMEM;
+
 	nirbuf = irbsize / sizeof(*irbuf);
 
 	/*
@@ -420,9 +422,7 @@ xfs_bulkstat(
 	while (XFS_BULKSTAT_UBLEFT(ubleft) && agno < mp->m_sb.sb_agcount) {
 		cond_resched();
 		bp = NULL;
-		down_read(&mp->m_peraglock);
 		error = xfs_ialloc_read_agi(mp, NULL, agno, &agbp);
-		up_read(&mp->m_peraglock);
 		if (error) {
 			/*
 			 * Skip this allocation group and go to the next one.
@@ -729,7 +729,7 @@ xfs_bulkstat(
 	/*
 	 * Done, we're either out of filesystem or space to put the data.
 	 */
-	kmem_free(irbuf);
+	kmem_free_large(irbuf);
 	*ubcountp = ubelem;
 	/*
 	 * Found some inodes, return them now and return the error next time.
@@ -849,9 +849,7 @@ xfs_inumbers(
 	agbp = NULL;
 	while (left > 0 && agno < mp->m_sb.sb_agcount) {
 		if (agbp == NULL) {
-			down_read(&mp->m_peraglock);
 			error = xfs_ialloc_read_agi(mp, NULL, agno, &agbp);
-			up_read(&mp->m_peraglock);
 			if (error) {
 				/*
 				 * If we can't read the AGI of this ag,

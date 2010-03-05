@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -409,8 +409,7 @@ acpi_ex_do_concatenate(union acpi_operand_object *operand0,
  *
  ******************************************************************************/
 
-acpi_integer
-acpi_ex_do_math_op(u16 opcode, acpi_integer integer0, acpi_integer integer1)
+u64 acpi_ex_do_math_op(u16 opcode, u64 integer0, u64 integer1)
 {
 
 	ACPI_FUNCTION_ENTRY();
@@ -498,8 +497,7 @@ acpi_ex_do_math_op(u16 opcode, acpi_integer integer0, acpi_integer integer1)
 
 acpi_status
 acpi_ex_do_logical_numeric_op(u16 opcode,
-			      acpi_integer integer0,
-			      acpi_integer integer1, u8 * logical_result)
+			      u64 integer0, u64 integer1, u8 *logical_result)
 {
 	acpi_status status = AE_OK;
 	u8 local_result = FALSE;
@@ -564,8 +562,8 @@ acpi_ex_do_logical_op(u16 opcode,
 		      union acpi_operand_object *operand1, u8 * logical_result)
 {
 	union acpi_operand_object *local_operand1 = operand1;
-	acpi_integer integer0;
-	acpi_integer integer1;
+	u64 integer0;
+	u64 integer1;
 	u32 length0;
 	u32 length1;
 	acpi_status status = AE_OK;

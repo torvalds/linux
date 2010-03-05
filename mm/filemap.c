@@ -1117,7 +1117,7 @@ readpage:
 			if (!PageUptodate(page)) {
 				if (page->mapping == NULL) {
 					/*
-					 * invalidate_inode_pages got it
+					 * invalidate_mapping_pages got it
 					 */
 					unlock_page(page);
 					page_cache_release(page);

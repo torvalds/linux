@@ -290,6 +290,51 @@ static int wm8350_isink_is_enabled(struct regulator_dev *rdev)
 	return -EINVAL;
 }
 
+static int wm8350_isink_enable_time(struct regulator_dev *rdev)
+{
+	struct wm8350 *wm8350 = rdev_get_drvdata(rdev);
+	int isink = rdev_get_id(rdev);
+	int reg;
+
+	switch (isink) {
+	case WM8350_ISINK_A:
+		reg = wm8350_reg_read(wm8350, WM8350_CSA_FLASH_CONTROL);
+		break;
+	case WM8350_ISINK_B:
+		reg = wm8350_reg_read(wm8350, WM8350_CSB_FLASH_CONTROL);
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (reg & WM8350_CS1_FLASH_MODE) {
+		switch (reg & WM8350_CS1_ON_RAMP_MASK) {
+		case 0:
+			return 0;
+		case 1:
+			return 1950;
+		case 2:
+			return 3910;
+		case 3:
+			return 7800;
+		}
+	} else {
+		switch (reg & WM8350_CS1_ON_RAMP_MASK) {
+		case 0:
+			return 0;
+		case 1:
+			return 250000;
+		case 2:
+			return 500000;
+		case 3:
+			return 1000000;
+		}
+	}
+
+	return -EINVAL;
+}
+
+
 int wm8350_isink_set_flash(struct wm8350 *wm8350, int isink, u16 mode,
 			   u16 trigger, u16 duration, u16 on_ramp, u16 off_ramp,
 			   u16 drive)
@@ -1221,6 +1266,7 @@ static struct regulator_ops wm8350_isink_ops = {
 	.enable = wm8350_isink_enable,
 	.disable = wm8350_isink_disable,
 	.is_enabled = wm8350_isink_is_enabled,
+	.enable_time = wm8350_isink_enable_time,
 };
 
 static struct regulator_desc wm8350_reg[NUM_WM8350_REGULATORS] = {

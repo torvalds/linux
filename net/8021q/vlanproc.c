@@ -140,7 +140,7 @@ void vlan_proc_cleanup(struct net *net)
  *	Create /proc/net/vlan entries
  */
 
-int vlan_proc_init(struct net *net)
+int __net_init vlan_proc_init(struct net *net)
 {
 	struct vlan_net *vn = net_generic(net, vlan_net_id);
 

@@ -159,6 +159,10 @@ void recalc_sigpending(void)
 
 /* Given the mask, find the first available signal that should be serviced. */
 
+#define SYNCHRONOUS_MASK \
+	(sigmask(SIGSEGV) | sigmask(SIGBUS) | sigmask(SIGILL) | \
+	 sigmask(SIGTRAP) | sigmask(SIGFPE))
+
 int next_signal(struct sigpending *pending, sigset_t *mask)
 {
 	unsigned long i, *s, *m, x;
@@ -166,26 +170,39 @@ int next_signal(struct sigpending *pending, sigset_t *mask)
 
 	s = pending->signal.sig;
 	m = mask->sig;
+
+	/*
+	 * Handle the first word specially: it contains the
+	 * synchronous signals that need to be dequeued first.
+	 */
+	x = *s &~ *m;
+	if (x) {
+		if (x & SYNCHRONOUS_MASK)
+			x &= SYNCHRONOUS_MASK;
+		sig = ffz(~x) + 1;
+		return sig;
+	}
+
 	switch (_NSIG_WORDS) {
 	default:
-		for (i = 0; i < _NSIG_WORDS; ++i, ++s, ++m)
-			if ((x = *s &~ *m) != 0) {
-				sig = ffz(~x) + i*_NSIG_BPW + 1;
-				break;
-			}
-		break;
-
-	case 2: if ((x = s[0] &~ m[0]) != 0)
-			sig = 1;
-		else if ((x = s[1] &~ m[1]) != 0)
-			sig = _NSIG_BPW + 1;
-		else
+		for (i = 1; i < _NSIG_WORDS; ++i) {
+			x = *++s &~ *++m;
+			if (!x)
+				continue;
+			sig = ffz(~x) + i*_NSIG_BPW + 1;
 			break;
-		sig += ffz(~x);
+		}
 		break;
 
-	case 1: if ((x = *s &~ *m) != 0)
-			sig = ffz(~x) + 1;
+	case 2:
+		x = s[1] &~ m[1];
+		if (!x)
+			break;
+		sig = ffz(~x) + _NSIG_BPW + 1;
+		break;
+
+	case 1:
+		/* Nothing to do */
 		break;
 	}
 

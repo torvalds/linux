@@ -297,12 +297,10 @@ static int __init zero_bind(struct usb_composite_dev *cdev)
 	 */
 	if (loopdefault) {
 		loopback_add(cdev, autoresume != 0);
-		if (!gadget_is_sh(gadget))
-			sourcesink_add(cdev, autoresume != 0);
+		sourcesink_add(cdev, autoresume != 0);
 	} else {
 		sourcesink_add(cdev, autoresume != 0);
-		if (!gadget_is_sh(gadget))
-			loopback_add(cdev, autoresume != 0);
+		loopback_add(cdev, autoresume != 0);
 	}
 
 	gcnum = usb_gadget_controller_number(gadget);

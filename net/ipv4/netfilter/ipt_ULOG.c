@@ -338,7 +338,7 @@ struct compat_ipt_ulog_info {
 	char		prefix[ULOG_PREFIX_LEN];
 };
 
-static void ulog_tg_compat_from_user(void *dst, void *src)
+static void ulog_tg_compat_from_user(void *dst, const void *src)
 {
 	const struct compat_ipt_ulog_info *cl = src;
 	struct ipt_ulog_info l = {
@@ -351,7 +351,7 @@ static void ulog_tg_compat_from_user(void *dst, void *src)
 	memcpy(dst, &l, sizeof(l));
 }
 
-static int ulog_tg_compat_to_user(void __user *dst, void *src)
+static int ulog_tg_compat_to_user(void __user *dst, const void *src)
 {
 	const struct ipt_ulog_info *l = src;
 	struct compat_ipt_ulog_info cl = {

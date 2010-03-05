@@ -115,6 +115,10 @@ config SPARSEMEM_EXTREME
 config SPARSEMEM_VMEMMAP_ENABLE
 	bool
 
+config SPARSEMEM_ALLOC_MEM_MAP_TOGETHER
+	def_bool y
+	depends on SPARSEMEM && X86_64
+
 config SPARSEMEM_VMEMMAP
 	bool "Sparse Memory virtual memmap"
 	depends on SPARSEMEM && SPARSEMEM_VMEMMAP_ENABLE
@@ -195,7 +199,7 @@ config BOUNCE
 config NR_QUICK
 	int
 	depends on QUICKLIST
-	default "2" if SUPERH || AVR32
+	default "2" if AVR32
 	default "1"
 
 config VIRT_TO_BUS

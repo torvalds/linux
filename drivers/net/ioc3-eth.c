@@ -1383,7 +1383,7 @@ static void __devexit ioc3_remove_one (struct pci_dev *pdev)
 	 */
 }
 
-static struct pci_device_id ioc3_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(ioc3_pci_tbl) = {
 	{ PCI_VENDOR_ID_SGI, PCI_DEVICE_ID_SGI_IOC3, PCI_ANY_ID, PCI_ANY_ID },
 	{ 0 }
 };
@@ -1664,11 +1664,10 @@ static int ioc3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 
 static void ioc3_set_multicast_list(struct net_device *dev)
 {
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	struct ioc3_private *ip = netdev_priv(dev);
 	struct ioc3 *ioc3 = ip->regs;
 	u64 ehar = 0;
-	int i;
 
 	netif_stop_queue(dev);				/* Lock out others. */
 
@@ -1681,16 +1680,16 @@ static void ioc3_set_multicast_list(struct net_device *dev)
 		ioc3_w_emcr(ip->emcr);			/* Clear promiscuous. */
 		(void) ioc3_r_emcr();
 
-		if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+		if ((dev->flags & IFF_ALLMULTI) ||
+		    (netdev_mc_count(dev) > 64)) {
 			/* Too many for hashing to make sense or we want all
 			   multicast packets anyway,  so skip computing all the
 			   hashes and just accept all packets.  */
 			ip->ehar_h = 0xffffffff;
 			ip->ehar_l = 0xffffffff;
 		} else {
-			for (i = 0; i < dev->mc_count; i++) {
+			netdev_for_each_mc_addr(dmi, dev) {
 				char *addr = dmi->dmi_addr;
-				dmi = dmi->next;
 
 				if (!(*addr & 1))
 					continue;

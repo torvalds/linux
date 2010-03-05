@@ -55,7 +55,7 @@ static const u8 twl4030_reg[TWL4030_CACHEREGNUM] = {
 	0x0c, /* REG_ATXR1PGA		(0xB)	*/
 	0x00, /* REG_AVTXL2PGA		(0xC)	*/
 	0x00, /* REG_AVTXR2PGA		(0xD)	*/
-	0x01, /* REG_AUDIO_IF		(0xE)	*/
+	0x00, /* REG_AUDIO_IF		(0xE)	*/
 	0x00, /* REG_VOICE_IF		(0xF)	*/
 	0x00, /* REG_ARXR1PGA		(0x10)	*/
 	0x00, /* REG_ARXL1PGA		(0x11)	*/
@@ -64,19 +64,19 @@ static const u8 twl4030_reg[TWL4030_CACHEREGNUM] = {
 	0x00, /* REG_VRXPGA		(0x14)	*/
 	0x00, /* REG_VSTPGA		(0x15)	*/
 	0x00, /* REG_VRX2ARXPGA		(0x16)	*/
-	0x0c, /* REG_AVDAC_CTL		(0x17)	*/
+	0x00, /* REG_AVDAC_CTL		(0x17)	*/
 	0x00, /* REG_ARX2VTXPGA		(0x18)	*/
 	0x00, /* REG_ARXL1_APGA_CTL	(0x19)	*/
 	0x00, /* REG_ARXR1_APGA_CTL	(0x1A)	*/
-	0x4b, /* REG_ARXL2_APGA_CTL	(0x1B)	*/
-	0x4b, /* REG_ARXR2_APGA_CTL	(0x1C)	*/
+	0x4a, /* REG_ARXL2_APGA_CTL	(0x1B)	*/
+	0x4a, /* REG_ARXR2_APGA_CTL	(0x1C)	*/
 	0x00, /* REG_ATX2ARXPGA		(0x1D)	*/
 	0x00, /* REG_BT_IF		(0x1E)	*/
 	0x00, /* REG_BTPGA		(0x1F)	*/
 	0x00, /* REG_BTSTPGA		(0x20)	*/
 	0x00, /* REG_EAR_CTL		(0x21)	*/
-	0x24, /* REG_HS_SEL		(0x22)	*/
-	0x0a, /* REG_HS_GAIN_SET	(0x23)	*/
+	0x00, /* REG_HS_SEL		(0x22)	*/
+	0x00, /* REG_HS_GAIN_SET	(0x23)	*/
 	0x00, /* REG_HS_POPN_SET	(0x24)	*/
 	0x00, /* REG_PREDL_CTL		(0x25)	*/
 	0x00, /* REG_PREDR_CTL		(0x26)	*/
@@ -99,7 +99,7 @@ static const u8 twl4030_reg[TWL4030_CACHEREGNUM] = {
 	0x00, /* REG_I2S_RX_SCRAMBLE_H	(0x37)	*/
 	0x00, /* REG_I2S_RX_SCRAMBLE_M	(0x38)	*/
 	0x00, /* REG_I2S_RX_SCRAMBLE_L	(0x39)	*/
-	0x16, /* REG_APLL_CTL		(0x3A)	*/
+	0x06, /* REG_APLL_CTL		(0x3A)	*/
 	0x00, /* REG_DTMF_CTL		(0x3B)	*/
 	0x00, /* REG_DTMF_PGA_CTL2	(0x3C)	*/
 	0x00, /* REG_DTMF_PGA_CTL1	(0x3D)	*/
@@ -1203,6 +1203,8 @@ static const struct snd_soc_dapm_widget twl4030_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY("APLL Enable", SND_SOC_NOPM, 0, 0, apll_event,
 			    SND_SOC_DAPM_PRE_PMU|SND_SOC_DAPM_POST_PMD),
 
+	SND_SOC_DAPM_SUPPLY("AIF Enable", TWL4030_REG_AUDIO_IF, 0, 0, NULL, 0),
+
 	/* Output MIXER controls */
 	/* Earpiece */
 	SND_SOC_DAPM_MIXER("Earpiece Mixer", SND_SOC_NOPM, 0, 0,
@@ -1337,6 +1339,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"Digital L2 Playback Mixer", NULL, "APLL Enable"},
 	{"Digital Voice Playback Mixer", NULL, "APLL Enable"},
 
+	{"Digital R1 Playback Mixer", NULL, "AIF Enable"},
+	{"Digital L1 Playback Mixer", NULL, "AIF Enable"},
+	{"Digital R2 Playback Mixer", NULL, "AIF Enable"},
+	{"Digital L2 Playback Mixer", NULL, "AIF Enable"},
+
 	{"Analog L1 Playback Mixer", NULL, "Digital L1 Playback Mixer"},
 	{"Analog R1 Playback Mixer", NULL, "Digital R1 Playback Mixer"},
 	{"Analog L2 Playback Mixer", NULL, "Digital L2 Playback Mixer"},
@@ -1454,6 +1461,11 @@ static const struct snd_soc_dapm_route intercon[] = {
 	{"ADC Virtual Right1", NULL, "APLL Enable"},
 	{"ADC Virtual Left2", NULL, "APLL Enable"},
 	{"ADC Virtual Right2", NULL, "APLL Enable"},
+
+	{"ADC Virtual Left1", NULL, "AIF Enable"},
+	{"ADC Virtual Right1", NULL, "AIF Enable"},
+	{"ADC Virtual Left2", NULL, "AIF Enable"},
+	{"ADC Virtual Right2", NULL, "AIF Enable"},
 
 	/* Analog bypass routes */
 	{"Right1 Analog Loopback", "Switch", "Analog Right"},
@@ -2152,8 +2164,6 @@ static int twl4030_soc_remove(struct platform_device *pdev)
 	twl4030_set_bias_level(codec, SND_SOC_BIAS_OFF);
 	snd_soc_free_pcms(socdev);
 	snd_soc_dapm_free(socdev);
-	kfree(codec->private_data);
-	kfree(codec);
 
 	return 0;
 }
@@ -2192,7 +2202,7 @@ static int __devinit twl4030_codec_probe(struct platform_device *pdev)
 	codec->write = twl4030_write;
 	codec->set_bias_level = twl4030_set_bias_level;
 	codec->dai = twl4030_dai;
-	codec->num_dai = ARRAY_SIZE(twl4030_dai),
+	codec->num_dai = ARRAY_SIZE(twl4030_dai);
 	codec->reg_cache_size = sizeof(twl4030_reg);
 	codec->reg_cache = kmemdup(twl4030_reg, sizeof(twl4030_reg),
 					GFP_KERNEL);
@@ -2237,6 +2247,9 @@ static int __devexit twl4030_codec_remove(struct platform_device *pdev)
 {
 	struct twl4030_priv *twl4030 = platform_get_drvdata(pdev);
 
+	snd_soc_unregister_dais(&twl4030_dai[0], ARRAY_SIZE(twl4030_dai));
+	snd_soc_unregister_codec(&twl4030->codec);
+	kfree(twl4030->codec.reg_cache);
 	kfree(twl4030);
 
 	twl4030_codec = NULL;

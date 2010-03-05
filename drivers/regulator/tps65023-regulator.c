@@ -457,8 +457,8 @@ static struct regulator_ops tps65023_ldo_ops = {
 	.list_voltage = tps65023_ldo_list_voltage,
 };
 
-static
-int tps_65023_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int __devinit tps_65023_probe(struct i2c_client *client,
+				     const struct i2c_device_id *id)
 {
 	static int desc_id;
 	const struct tps_info *info = (void *)id->driver_data;
@@ -466,6 +466,7 @@ int tps_65023_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	struct regulator_dev *rdev;
 	struct tps_pmic *tps;
 	int i;
+	int error;
 
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_SMBUS_BYTE_DATA))
 		return -EIO;
@@ -475,7 +476,6 @@ int tps_65023_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 * coming from the board-evm file.
 	 */
 	init_data = client->dev.platform_data;
-
 	if (!init_data)
 		return -EIO;
 
@@ -502,21 +502,12 @@ int tps_65023_probe(struct i2c_client *client, const struct i2c_device_id *id)
 
 		/* Register the regulators */
 		rdev = regulator_register(&tps->desc[i], &client->dev,
-								init_data, tps);
+					  init_data, tps);
 		if (IS_ERR(rdev)) {
 			dev_err(&client->dev, "failed to register %s\n",
 				id->name);
-
-			/* Unregister */
-			while (i)
-				regulator_unregister(tps->rdev[--i]);
-
-			tps->client = NULL;
-
-			/* clear the client data in i2c */
-			i2c_set_clientdata(client, NULL);
-			kfree(tps);
-			return PTR_ERR(rdev);
+			error = PTR_ERR(rdev);
+			goto fail;
 		}
 
 		/* Save regulator for cleanup */
@@ -526,6 +517,13 @@ int tps_65023_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	i2c_set_clientdata(client, tps);
 
 	return 0;
+
+ fail:
+	while (--i >= 0)
+		regulator_unregister(tps->rdev[i]);
+
+	kfree(tps);
+	return error;
 }
 
 /**
@@ -539,13 +537,12 @@ static int __devexit tps_65023_remove(struct i2c_client *client)
 	struct tps_pmic *tps = i2c_get_clientdata(client);
 	int i;
 
+	/* clear the client data in i2c */
+	i2c_set_clientdata(client, NULL);
+
 	for (i = 0; i < TPS65023_NUM_REGULATOR; i++)
 		regulator_unregister(tps->rdev[i]);
 
-	tps->client = NULL;
-
-	/* clear the client data in i2c */
-	i2c_set_clientdata(client, NULL);
 	kfree(tps);
 
 	return 0;

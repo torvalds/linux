@@ -121,6 +121,7 @@ static int ehci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 {
 	struct usb_hcd *hcd;
 	struct ehci_hcd *ehci;
+	struct resource *res;
 	int ret;
 
 	if (usb_disabled())
@@ -144,8 +145,9 @@ static int ehci_hcd_au1xxx_drv_probe(struct platform_device *pdev)
 	if (!hcd)
 		return -ENOMEM;
 
-	hcd->rsrc_start = pdev->resource[0].start;
-	hcd->rsrc_len = pdev->resource[0].end - pdev->resource[0].start + 1;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	hcd->rsrc_start = res->start;
+	hcd->rsrc_len = resource_size(res);
 
 	if (!request_mem_region(hcd->rsrc_start, hcd->rsrc_len, hcd_name)) {
 		pr_debug("request_mem_region failed");

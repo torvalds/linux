@@ -65,7 +65,6 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_quota_scale_den = 1;
 	gt->gt_new_files_jdata = 0;
 	gt->gt_max_readahead = 1 << 18;
-	gt->gt_stall_secs = 600;
 	gt->gt_complain_secs = 10;
 }
 
@@ -725,7 +724,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		goto fail;
 	}
 
-	error = -EINVAL;
+	error = -EUSERS;
 	if (!gfs2_jindex_size(sdp)) {
 		fs_err(sdp, "no journals!\n");
 		goto fail_jindex;
@@ -1241,10 +1240,9 @@ fail_sb:
 fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);
 fail_lm:
+	invalidate_inodes(sb);
 	gfs2_gl_hash_clear(sdp);
 	gfs2_lm_unmount(sdp);
-	while (invalidate_inodes(sb))
-		yield();
 fail_sys:
 	gfs2_sys_fs_del(sdp);
 fail:

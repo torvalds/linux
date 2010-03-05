@@ -29,6 +29,7 @@
 #include "drm_sarea.h"
 #include "drm_crtc_helper.h"
 #include <linux/vgaarb.h>
+#include <linux/vga_switcheroo.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_drm.h"
@@ -310,6 +311,14 @@ static int nouveau_init_engine_ptrs(struct drm_device *dev)
 static unsigned int
 nouveau_vga_set_decode(void *priv, bool state)
 {
+	struct drm_device *dev = priv;
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+
+	if (dev_priv->chipset >= 0x40)
+		nv_wr32(dev, 0x88054, state);
+	else
+		nv_wr32(dev, 0x1854, state);
+
 	if (state)
 		return VGA_RSRC_LEGACY_IO | VGA_RSRC_LEGACY_MEM |
 		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
@@ -363,6 +372,30 @@ out_err:
 	return ret;
 }
 
+static void nouveau_switcheroo_set_state(struct pci_dev *pdev,
+					 enum vga_switcheroo_state state)
+{
+	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
+	if (state == VGA_SWITCHEROO_ON) {
+		printk(KERN_ERR "VGA switcheroo: switched nouveau on\n");
+		nouveau_pci_resume(pdev);
+	} else {
+		printk(KERN_ERR "VGA switcheroo: switched nouveau off\n");
+		nouveau_pci_suspend(pdev, pmm);
+	}
+}
+
+static bool nouveau_switcheroo_can_switch(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	bool can_switch;
+
+	spin_lock(&dev->count_lock);
+	can_switch = (dev->open_count == 0);
+	spin_unlock(&dev->count_lock);
+	return can_switch;
+}
+
 int
 nouveau_card_init(struct drm_device *dev)
 {
@@ -376,6 +409,8 @@ nouveau_card_init(struct drm_device *dev)
 		return 0;
 
 	vga_client_register(dev->pdev, dev, NULL, nouveau_vga_set_decode);
+	vga_switcheroo_register_client(dev->pdev, nouveau_switcheroo_set_state,
+				       nouveau_switcheroo_can_switch);
 
 	/* Initialise internal driver API hooks */
 	ret = nouveau_init_engine_ptrs(dev);
@@ -383,6 +418,7 @@ nouveau_card_init(struct drm_device *dev)
 		goto out;
 	engine = &dev_priv->engine;
 	dev_priv->init_state = NOUVEAU_CARD_INIT_FAILED;
+	spin_lock_init(&dev_priv->context_switch_lock);
 
 	/* Parse BIOS tables / Run init tables if card not POSTed */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -427,15 +463,19 @@ nouveau_card_init(struct drm_device *dev)
 	if (ret)
 		goto out_timer;
 
-	/* PGRAPH */
-	ret = engine->graph.init(dev);
-	if (ret)
-		goto out_fb;
+	if (nouveau_noaccel)
+		engine->graph.accel_blocked = true;
+	else {
+		/* PGRAPH */
+		ret = engine->graph.init(dev);
+		if (ret)
+			goto out_fb;
 
-	/* PFIFO */
-	ret = engine->fifo.init(dev);
-	if (ret)
-		goto out_graph;
+		/* PFIFO */
+		ret = engine->fifo.init(dev);
+		if (ret)
+			goto out_graph;
+	}
 
 	/* this call irq_preinstall, register irq handler and
 	 * call irq_postinstall
@@ -479,9 +519,11 @@ nouveau_card_init(struct drm_device *dev)
 out_irq:
 	drm_irq_uninstall(dev);
 out_fifo:
-	engine->fifo.takedown(dev);
+	if (!nouveau_noaccel)
+		engine->fifo.takedown(dev);
 out_graph:
-	engine->graph.takedown(dev);
+	if (!nouveau_noaccel)
+		engine->graph.takedown(dev);
 out_fb:
 	engine->fb.takedown(dev);
 out_timer:
@@ -518,8 +560,10 @@ static void nouveau_card_takedown(struct drm_device *dev)
 			dev_priv->channel = NULL;
 		}
 
-		engine->fifo.takedown(dev);
-		engine->graph.takedown(dev);
+		if (!nouveau_noaccel) {
+			engine->fifo.takedown(dev);
+			engine->graph.takedown(dev);
+		}
 		engine->fb.takedown(dev);
 		engine->timer.takedown(dev);
 		engine->mc.takedown(dev);
@@ -600,11 +644,6 @@ int nouveau_load(struct drm_device *dev, unsigned long flags)
 
 	NV_DEBUG(dev, "vendor: 0x%X device: 0x%X class: 0x%X\n",
 		 dev->pci_vendor, dev->pci_device, dev->pdev->class);
-
-	dev_priv->acpi_dsm = nouveau_dsm_probe(dev);
-
-	if (dev_priv->acpi_dsm)
-		nouveau_hybrid_setup(dev);
 
 	dev_priv->wq = create_workqueue("nouveau");
 	if (!dev_priv->wq)
@@ -760,13 +799,6 @@ int nouveau_unload(struct drm_device *dev)
 	return 0;
 }
 
-int
-nouveau_ioctl_card_init(struct drm_device *dev, void *data,
-			struct drm_file *file_priv)
-{
-	return nouveau_card_init(dev);
-}
-
 int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 						struct drm_file *file_priv)
 {
@@ -817,6 +849,15 @@ int nouveau_ioctl_getparam(struct drm_device *dev, void *data,
 	case NOUVEAU_GETPARAM_VM_VRAM_BASE:
 		getparam->value = dev_priv->vm_vram_base;
 		break;
+	case NOUVEAU_GETPARAM_GRAPH_UNITS:
+		/* NV40 and NV50 versions are quite different, but register
+		 * address is the same. User is supposed to know the card
+		 * family anyway... */
+		if (dev_priv->chipset >= 0x40) {
+			getparam->value = nv_rd32(dev, NV40_PMC_GRAPH_UNITS);
+			break;
+		}
+		/* FALLTHRU */
 	default:
 		NV_ERROR(dev, "unknown parameter %lld\n", getparam->param);
 		return -EINVAL;

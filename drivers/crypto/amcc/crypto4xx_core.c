@@ -1274,7 +1274,7 @@ static int __exit crypto4xx_remove(struct of_device *ofdev)
 	return 0;
 }
 
-static struct of_device_id crypto4xx_match[] = {
+static const struct of_device_id crypto4xx_match[] = {
 	{ .compatible      = "amcc,ppc4xx-crypto",},
 	{ },
 };

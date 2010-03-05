@@ -32,12 +32,12 @@
 #include <linux/buffer_head.h>
 #include "udf_i.h"
 
-static void udf_pc_to_char(struct super_block *sb, char *from, int fromlen,
-			   char *to)
+static void udf_pc_to_char(struct super_block *sb, unsigned char *from,
+			   int fromlen, unsigned char *to)
 {
 	struct pathComponent *pc;
 	int elen = 0;
-	char *p = to;
+	unsigned char *p = to;
 
 	while (elen < fromlen) {
 		pc = (struct pathComponent *)(from + elen);
@@ -75,9 +75,9 @@ static int udf_symlink_filler(struct file *file, struct page *page)
 {
 	struct inode *inode = page->mapping->host;
 	struct buffer_head *bh = NULL;
-	char *symlink;
+	unsigned char *symlink;
 	int err = -EIO;
-	char *p = kmap(page);
+	unsigned char *p = kmap(page);
 	struct udf_inode_info *iinfo;
 
 	lock_kernel();

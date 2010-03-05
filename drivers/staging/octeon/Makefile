@@ -14,7 +14,6 @@ obj-${CONFIG_OCTEON_ETHERNET} :=  octeon-ethernet.o
 octeon-ethernet-objs := ethernet.o
 octeon-ethernet-objs += ethernet-mdio.o
 octeon-ethernet-objs += ethernet-mem.o
-octeon-ethernet-objs += ethernet-proc.o
 octeon-ethernet-objs += ethernet-rgmii.o
 octeon-ethernet-objs += ethernet-rx.o
 octeon-ethernet-objs += ethernet-sgmii.o

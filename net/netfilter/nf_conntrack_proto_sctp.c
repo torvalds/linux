@@ -377,7 +377,7 @@ static int sctp_packet(struct nf_conn *ct,
 	    new_state == SCTP_CONNTRACK_ESTABLISHED) {
 		pr_debug("Setting assured bit\n");
 		set_bit(IPS_ASSURED_BIT, &ct->status);
-		nf_conntrack_event_cache(IPCT_STATUS, ct);
+		nf_conntrack_event_cache(IPCT_ASSURED, ct);
 	}
 
 	return NF_ACCEPT;

@@ -63,14 +63,13 @@ int ccid_getsockopt_builtin_ccids(struct sock *sk, int len,
 	u8 *ccid_array, array_len;
 	int err = 0;
 
-	if (len < ARRAY_SIZE(ccids))
-		return -EINVAL;
-
 	if (ccid_get_builtin_ccids(&ccid_array, &array_len))
 		return -ENOBUFS;
 
-	if (put_user(array_len, optlen) ||
-	    copy_to_user(optval, ccid_array, array_len))
+	if (put_user(array_len, optlen))
+		err = -EFAULT;
+	else if (len > 0 && copy_to_user(optval, ccid_array,
+					 len > array_len ? array_len : len))
 		err = -EFAULT;
 
 	kfree(ccid_array);
@@ -83,7 +82,7 @@ static struct kmem_cache *ccid_kmem_cache_create(int obj_size, char *slab_name_f
 	va_list args;
 
 	va_start(args, fmt);
-	vsnprintf(slab_name_fmt, sizeof(slab_name_fmt), fmt, args);
+	vsnprintf(slab_name_fmt, CCID_SLAB_NAME_LENGTH, fmt, args);
 	va_end(args);
 
 	slab = kmem_cache_create(slab_name_fmt, sizeof(struct ccid) + obj_size, 0,

@@ -626,7 +626,7 @@ static int ocfs2_create_refcount_tree(struct inode *inode,
 	rb = (struct ocfs2_refcount_block *)new_bh->b_data;
 	memset(rb, 0, inode->i_sb->s_blocksize);
 	strcpy((void *)rb, OCFS2_REFCOUNT_BLOCK_SIGNATURE);
-	rb->rf_suballoc_slot = cpu_to_le16(osb->slot_num);
+	rb->rf_suballoc_slot = cpu_to_le16(meta_ac->ac_alloc_slot);
 	rb->rf_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 	rb->rf_fs_generation = cpu_to_le32(osb->fs_generation);
 	rb->rf_blkno = cpu_to_le64(first_blkno);
@@ -1330,7 +1330,7 @@ static int ocfs2_expand_inline_ref_root(handle_t *handle,
 	memcpy(new_bh->b_data, ref_root_bh->b_data, sb->s_blocksize);
 
 	new_rb = (struct ocfs2_refcount_block *)new_bh->b_data;
-	new_rb->rf_suballoc_slot = cpu_to_le16(OCFS2_SB(sb)->slot_num);
+	new_rb->rf_suballoc_slot = cpu_to_le16(meta_ac->ac_alloc_slot);
 	new_rb->rf_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 	new_rb->rf_blkno = cpu_to_le64(blkno);
 	new_rb->rf_cpos = cpu_to_le32(0);
@@ -1576,7 +1576,7 @@ static int ocfs2_new_leaf_refcount_block(handle_t *handle,
 	new_rb = (struct ocfs2_refcount_block *)new_bh->b_data;
 	memset(new_rb, 0, sb->s_blocksize);
 	strcpy((void *)new_rb, OCFS2_REFCOUNT_BLOCK_SIGNATURE);
-	new_rb->rf_suballoc_slot = cpu_to_le16(OCFS2_SB(sb)->slot_num);
+	new_rb->rf_suballoc_slot = cpu_to_le16(meta_ac->ac_alloc_slot);
 	new_rb->rf_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 	new_rb->rf_fs_generation = cpu_to_le32(OCFS2_SB(sb)->fs_generation);
 	new_rb->rf_blkno = cpu_to_le64(blkno);

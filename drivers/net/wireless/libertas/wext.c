@@ -192,7 +192,7 @@ static void copy_active_data_rates(struct lbs_private *priv, u8 *rates)
 	lbs_deb_enter(LBS_DEB_WEXT);
 
 	if ((priv->connect_status != LBS_CONNECTED) &&
-		(priv->mesh_connect_status != LBS_CONNECTED))
+		!lbs_mesh_connected(priv))
 		memcpy(rates, lbs_bg_rates, MAX_RATES);
 	else
 		memcpy(rates, priv->curbssparams.rates, MAX_RATES);
@@ -298,6 +298,7 @@ static int lbs_get_nick(struct net_device *dev, struct iw_request_info *info,
 	return 0;
 }
 
+#ifdef CONFIG_LIBERTAS_MESH
 static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
 			 struct iw_point *dwrq, char *extra)
 {
@@ -307,7 +308,7 @@ static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
 
 	/* Use nickname to indicate that mesh is on */
 
-	if (priv->mesh_connect_status == LBS_CONNECTED) {
+	if (lbs_mesh_connected(priv)) {
 		strncpy(extra, "Mesh", 12);
 		extra[12] = '\0';
 		dwrq->length = strlen(extra);
@@ -321,6 +322,7 @@ static int mesh_get_nick(struct net_device *dev, struct iw_request_info *info,
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
 }
+#endif
 
 static int lbs_set_rts(struct net_device *dev, struct iw_request_info *info,
 			struct iw_param *vwrq, char *extra)
@@ -422,6 +424,7 @@ static int lbs_get_mode(struct net_device *dev,
 	return 0;
 }
 
+#ifdef CONFIG_LIBERTAS_MESH
 static int mesh_wlan_get_mode(struct net_device *dev,
 		              struct iw_request_info *info, u32 * uwrq,
 			      char *extra)
@@ -433,6 +436,7 @@ static int mesh_wlan_get_mode(struct net_device *dev,
 	lbs_deb_leave(LBS_DEB_WEXT);
 	return 0;
 }
+#endif
 
 static int lbs_get_txpow(struct net_device *dev,
 			  struct iw_request_info *info,
@@ -863,7 +867,7 @@ static struct iw_statistics *lbs_get_wireless_stats(struct net_device *dev)
 
 	/* If we're not associated, all quality values are meaningless */
 	if ((priv->connect_status != LBS_CONNECTED) &&
-	    (priv->mesh_connect_status != LBS_CONNECTED))
+	    !lbs_mesh_connected(priv))
 		goto out;
 
 	/* Quality by RSSI */
@@ -1010,6 +1014,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_LIBERTAS_MESH
 static int lbs_mesh_set_freq(struct net_device *dev,
 			     struct iw_request_info *info,
 			     struct iw_freq *fwrq, char *extra)
@@ -1061,6 +1066,7 @@ out:
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
 }
+#endif
 
 static int lbs_set_rate(struct net_device *dev, struct iw_request_info *info,
 		  struct iw_param *vwrq, char *extra)
@@ -2108,6 +2114,7 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_LIBERTAS_MESH
 static int lbs_mesh_get_essid(struct net_device *dev,
 			      struct iw_request_info *info,
 			      struct iw_point *dwrq, char *extra)
@@ -2161,6 +2168,7 @@ static int lbs_mesh_set_essid(struct net_device *dev,
 	lbs_deb_leave_args(LBS_DEB_WEXT, "ret %d", ret);
 	return ret;
 }
+#endif
 
 /**
  *  @brief Connect to the AP or Ad-hoc Network with specific bssid
@@ -2267,7 +2275,13 @@ static const iw_handler lbs_handler[] = {
 	(iw_handler) lbs_get_encodeext,/* SIOCGIWENCODEEXT */
 	(iw_handler) NULL,		/* SIOCSIWPMKSA */
 };
+struct iw_handler_def lbs_handler_def = {
+	.num_standard	= ARRAY_SIZE(lbs_handler),
+	.standard	= (iw_handler *) lbs_handler,
+	.get_wireless_stats = lbs_get_wireless_stats,
+};
 
+#ifdef CONFIG_LIBERTAS_MESH
 static const iw_handler mesh_wlan_handler[] = {
 	(iw_handler) NULL,	/* SIOCSIWCOMMIT */
 	(iw_handler) lbs_get_name,	/* SIOCGIWNAME */
@@ -2325,14 +2339,10 @@ static const iw_handler mesh_wlan_handler[] = {
 	(iw_handler) lbs_get_encodeext,/* SIOCGIWENCODEEXT */
 	(iw_handler) NULL,		/* SIOCSIWPMKSA */
 };
-struct iw_handler_def lbs_handler_def = {
-	.num_standard	= ARRAY_SIZE(lbs_handler),
-	.standard	= (iw_handler *) lbs_handler,
-	.get_wireless_stats = lbs_get_wireless_stats,
-};
 
 struct iw_handler_def mesh_handler_def = {
 	.num_standard	= ARRAY_SIZE(mesh_wlan_handler),
 	.standard	= (iw_handler *) mesh_wlan_handler,
 	.get_wireless_stats = lbs_get_wireless_stats,
 };
+#endif

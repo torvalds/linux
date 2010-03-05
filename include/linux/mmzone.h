@@ -184,13 +184,7 @@ struct per_cpu_pageset {
 	s8 stat_threshold;
 	s8 vm_stat_diff[NR_VM_ZONE_STAT_ITEMS];
 #endif
-} ____cacheline_aligned_in_smp;
-
-#ifdef CONFIG_NUMA
-#define zone_pcp(__z, __cpu) ((__z)->pageset[(__cpu)])
-#else
-#define zone_pcp(__z, __cpu) (&(__z)->pageset[(__cpu)])
-#endif
+};
 
 #endif /* !__GENERATING_BOUNDS.H */
 
@@ -306,10 +300,8 @@ struct zone {
 	 */
 	unsigned long		min_unmapped_pages;
 	unsigned long		min_slab_pages;
-	struct per_cpu_pageset	*pageset[NR_CPUS];
-#else
-	struct per_cpu_pageset	pageset[NR_CPUS];
 #endif
+	struct per_cpu_pageset __percpu *pageset;
 	/*
 	 * free areas of different sizes
 	 */
@@ -620,7 +612,9 @@ typedef struct pglist_data {
 	struct page_cgroup *node_page_cgroup;
 #endif
 #endif
+#ifndef CONFIG_NO_BOOTMEM
 	struct bootmem_data *bdata;
+#endif
 #ifdef CONFIG_MEMORY_HOTPLUG
 	/*
 	 * Must be held any time you expect node_start_pfn, node_present_pages

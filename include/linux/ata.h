@@ -841,7 +841,8 @@ static inline int ata_id_current_chs_valid(const u16 *id)
 
 static inline int ata_id_is_cfa(const u16 *id)
 {
-	if (id[ATA_ID_CONFIG] == 0x848A)	/* Traditional CF */
+	if ((id[ATA_ID_CONFIG] == 0x848A) ||	/* Traditional CF */
+	    (id[ATA_ID_CONFIG] == 0x844A))	/* Delkin Devices CF */
 		return 1;
 	/*
 	 * CF specs don't require specific value in the word 0 anymore and yet

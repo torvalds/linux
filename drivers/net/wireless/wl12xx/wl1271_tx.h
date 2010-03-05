@@ -123,6 +123,42 @@ struct wl1271_tx_hw_res_if {
 	struct wl1271_tx_hw_res_descr tx_results_queue[TX_HW_RESULT_QUEUE_LEN];
 } __attribute__ ((packed));
 
+static inline int wl1271_tx_get_queue(int queue)
+{
+	/* FIXME: use best effort until WMM is enabled */
+	return CONF_TX_AC_BE;
+
+	switch (queue) {
+	case 0:
+		return CONF_TX_AC_VO;
+	case 1:
+		return CONF_TX_AC_VI;
+	case 2:
+		return CONF_TX_AC_BE;
+	case 3:
+		return CONF_TX_AC_BK;
+	default:
+		return CONF_TX_AC_BE;
+	}
+}
+
+/* wl1271 tx descriptor needs the tid and we need to convert it from ac */
+static inline int wl1271_tx_ac_to_tid(int ac)
+{
+	switch (ac) {
+	case 0:
+		return 0;
+	case 1:
+		return 2;
+	case 2:
+		return 4;
+	case 3:
+		return 6;
+	default:
+		return 0;
+	}
+}
+
 void wl1271_tx_work(struct work_struct *work);
 void wl1271_tx_complete(struct wl1271 *wl, u32 count);
 void wl1271_tx_flush(struct wl1271 *wl);

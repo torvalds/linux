@@ -921,23 +921,15 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 		void *payload, size_t length, void *callback_data)
 {
 	int reg = offset & ~CSR_REGISTER_BASE;
-	unsigned long long bus_time;
 	__be32 *data = payload;
 	int rcode = RCODE_COMPLETE;
 
 	switch (reg) {
 	case CSR_CYCLE_TIME:
-	case CSR_BUS_TIME:
-		if (!TCODE_IS_READ_REQUEST(tcode) || length != 4) {
-			rcode = RCODE_TYPE_ERROR;
-			break;
-		}
-
-		bus_time = card->driver->get_bus_time(card);
-		if (reg == CSR_CYCLE_TIME)
-			*data = cpu_to_be32(bus_time);
+		if (TCODE_IS_READ_REQUEST(tcode) && length == 4)
+			*data = cpu_to_be32(card->driver->get_cycle_time(card));
 		else
-			*data = cpu_to_be32(bus_time >> 25);
+			rcode = RCODE_TYPE_ERROR;
 		break;
 
 	case CSR_BROADCAST_CHANNEL:
@@ -967,6 +959,9 @@ static void handle_registers(struct fw_card *card, struct fw_request *request,
 
 	case CSR_BUSY_TIMEOUT:
 		/* FIXME: Implement this. */
+
+	case CSR_BUS_TIME:
+		/* Useless without initialization by the bus manager. */
 
 	default:
 		rcode = RCODE_ADDRESS_ERROR;

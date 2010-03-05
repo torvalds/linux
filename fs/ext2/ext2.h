@@ -118,7 +118,7 @@ extern unsigned long ext2_count_free (struct buffer_head *, unsigned);
 
 /* inode.c */
 extern struct inode *ext2_iget (struct super_block *, unsigned long);
-extern int ext2_write_inode (struct inode *, int);
+extern int ext2_write_inode (struct inode *, struct writeback_control *);
 extern void ext2_delete_inode (struct inode *);
 extern int ext2_sync_inode (struct inode *);
 extern int ext2_get_block(struct inode *, sector_t, struct buffer_head *, int);

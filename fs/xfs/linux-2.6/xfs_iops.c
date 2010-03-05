@@ -140,10 +140,10 @@ xfs_init_security(
 	struct xfs_inode *ip = XFS_I(inode);
 	size_t		length;
 	void		*value;
-	char		*name;
+	unsigned char	*name;
 	int		error;
 
-	error = security_inode_init_security(inode, dir, &name,
+	error = security_inode_init_security(inode, dir, (char **)&name,
 					     &value, &length);
 	if (error) {
 		if (error == -EOPNOTSUPP)

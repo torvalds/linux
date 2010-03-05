@@ -894,6 +894,7 @@ int snd_pcm_attach_substream(struct snd_pcm *pcm, int stream,
 	memset((void*)runtime->control, 0, size);
 
 	init_waitqueue_head(&runtime->sleep);
+	init_waitqueue_head(&runtime->tsleep);
 
 	runtime->status->state = SNDRV_PCM_STATE_OPEN;
 
@@ -921,6 +922,10 @@ void snd_pcm_detach_substream(struct snd_pcm_substream *substream)
 	snd_free_pages((void*)runtime->control,
 		       PAGE_ALIGN(sizeof(struct snd_pcm_mmap_control)));
 	kfree(runtime->hw_constraints.rules);
+#ifdef CONFIG_SND_PCM_XRUN_DEBUG
+	if (runtime->hwptr_log)
+		kfree(runtime->hwptr_log);
+#endif
 	kfree(runtime);
 	substream->runtime = NULL;
 	put_pid(substream->pid);

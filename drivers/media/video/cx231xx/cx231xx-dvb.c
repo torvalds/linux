@@ -464,9 +464,9 @@ static int dvb_init(struct cx231xx *dev)
 		/* define general-purpose callback pointer */
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
-		if (dvb_attach(xc5000_attach, dev->dvb->frontend,
+		if (!dvb_attach(xc5000_attach, dev->dvb->frontend,
 			       &dev->i2c_bus[1].i2c_adap,
-			       &cnxt_rde250_tunerconfig) < 0) {
+			       &cnxt_rde250_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
 		}
@@ -486,9 +486,9 @@ static int dvb_init(struct cx231xx *dev)
 		/* define general-purpose callback pointer */
 		dvb->frontend->callback = cx231xx_tuner_callback;
 
-		if (dvb_attach(xc5000_attach, dev->dvb->frontend,
+		if (!dvb_attach(xc5000_attach, dev->dvb->frontend,
 			       &dev->i2c_bus[1].i2c_adap,
-			       &cnxt_rde250_tunerconfig) < 0) {
+			       &cnxt_rde250_tunerconfig)) {
 			result = -EINVAL;
 			goto out_free;
 		}

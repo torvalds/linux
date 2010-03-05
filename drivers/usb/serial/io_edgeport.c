@@ -364,42 +364,6 @@ static void update_edgeport_E2PROM(struct edgeport_serial *edge_serial)
 	release_firmware(fw);
 }
 
-
-/************************************************************************
- *									*
- *  Get string descriptor from device					*
- *									*
- ************************************************************************/
-static int get_string(struct usb_device *dev, int Id, char *string, int buflen)
-{
-	struct usb_string_descriptor StringDesc;
-	struct usb_string_descriptor *pStringDesc;
-
-	dbg("%s - USB String ID = %d", __func__, Id);
-
-	if (!usb_get_descriptor(dev, USB_DT_STRING, Id,
-					&StringDesc, sizeof(StringDesc)))
-		return 0;
-
-	pStringDesc = kmalloc(StringDesc.bLength, GFP_KERNEL);
-	if (!pStringDesc)
-		return 0;
-
-	if (!usb_get_descriptor(dev, USB_DT_STRING, Id,
-					pStringDesc, StringDesc.bLength)) {
-		kfree(pStringDesc);
-		return 0;
-	}
-
-	unicode_to_ascii(string, buflen,
-				pStringDesc->wData, pStringDesc->bLength/2);
-
-	kfree(pStringDesc);
-	dbg("%s - USB String %s", __func__, string);
-	return strlen(string);
-}
-
-
 #if 0
 /************************************************************************
  *
@@ -2007,7 +1971,7 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 			return;
 
 		case IOSP_EXT_STATUS_RX_CHECK_RSP:
-			dbg("%s ========== Port %u CHECK_RSP Sequence = %02x =============\n", __func__, edge_serial->rxPort, byte3);
+			dbg("%s ========== Port %u CHECK_RSP Sequence = %02x =============", __func__, edge_serial->rxPort, byte3);
 			/* Port->RxCheckRsp = true; */
 			return;
 		}
@@ -2075,7 +2039,7 @@ static void process_rcvd_status(struct edgeport_serial *edge_serial,
 		break;
 
 	default:
-		dbg("%s - Unrecognized IOSP status code %u\n", __func__, code);
+		dbg("%s - Unrecognized IOSP status code %u", __func__, code);
 		break;
 	}
 	return;
@@ -2091,18 +2055,13 @@ static void edge_tty_recv(struct device *dev, struct tty_struct *tty,
 {
 	int cnt;
 
-	do {
-		cnt = tty_buffer_request_room(tty, length);
-		if (cnt < length) {
-			dev_err(dev, "%s - dropping data, %d bytes lost\n",
-					__func__, length - cnt);
-			if (cnt == 0)
-				break;
-		}
-		tty_insert_flip_string(tty, data, cnt);
-		data += cnt;
-		length -= cnt;
-	} while (length > 0);
+	cnt = tty_insert_flip_string(tty, data, length);
+	if (cnt < length) {
+		dev_err(dev, "%s - dropping data, %d bytes lost\n",
+				__func__, length - cnt);
+	}
+	data += cnt;
+	length -= cnt;
 
 	tty_flip_buffer_push(tty);
 }
@@ -2530,7 +2489,7 @@ static int calc_baud_rate_divisor(int baudrate, int *divisor)
 
 		*divisor = custom;
 
-		dbg("%s - Baud %d = %d\n", __func__, baudrate, custom);
+		dbg("%s - Baud %d = %d", __func__, baudrate, custom);
 		return 0;
 	}
 
@@ -2915,7 +2874,7 @@ static void load_application_firmware(struct edgeport_serial *edge_serial)
 			break;
 
 		case EDGE_DOWNLOAD_FILE_NONE:
-			dbg     ("No download file specified, skipping download\n");
+			dbg("No download file specified, skipping download");
 			return;
 
 		default:
@@ -2997,10 +2956,12 @@ static int edge_startup(struct usb_serial *serial)
 	usb_set_serial_data(serial, edge_serial);
 
 	/* get the name for the device from the device */
-	i = get_string(dev, dev->descriptor.iManufacturer,
+	i = usb_string(dev, dev->descriptor.iManufacturer,
 	    &edge_serial->name[0], MAX_NAME_LEN+1);
+	if (i < 0)
+		i = 0;
 	edge_serial->name[i++] = ' ';
-	get_string(dev, dev->descriptor.iProduct,
+	usb_string(dev, dev->descriptor.iProduct,
 	    &edge_serial->name[i], MAX_NAME_LEN+2 - i);
 
 	dev_info(&serial->dev->dev, "%s detected\n", edge_serial->name);

@@ -741,19 +741,40 @@ acpi_bus_extract_wakeup_device_power_package(struct acpi_device *device,
 	return AE_OK;
 }
 
-static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
+static void acpi_bus_set_run_wake_flags(struct acpi_device *device)
 {
-	acpi_status status = 0;
-	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
-	union acpi_object *package = NULL;
-	int psw_error;
-
 	struct acpi_device_id button_device_ids[] = {
 		{"PNP0C0D", 0},
 		{"PNP0C0C", 0},
 		{"PNP0C0E", 0},
 		{"", 0},
 	};
+	acpi_status status;
+	acpi_event_status event_status;
+
+	device->wakeup.run_wake_count = 0;
+	device->wakeup.flags.notifier_present = 0;
+
+	/* Power button, Lid switch always enable wakeup */
+	if (!acpi_match_device_ids(device, button_device_ids)) {
+		device->wakeup.flags.run_wake = 1;
+		device->wakeup.flags.always_enabled = 1;
+		return;
+	}
+
+	status = acpi_get_gpe_status(NULL, device->wakeup.gpe_number,
+					ACPI_NOT_ISR, &event_status);
+	if (status == AE_OK)
+		device->wakeup.flags.run_wake =
+				!!(event_status & ACPI_EVENT_FLAG_HANDLE);
+}
+
+static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
+{
+	acpi_status status = 0;
+	struct acpi_buffer buffer = { ACPI_ALLOCATE_BUFFER, NULL };
+	union acpi_object *package = NULL;
+	int psw_error;
 
 	/* _PRW */
 	status = acpi_evaluate_object(device->handle, "_PRW", NULL, &buffer);
@@ -773,6 +794,7 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 
 	device->wakeup.flags.valid = 1;
 	device->wakeup.prepare_count = 0;
+	acpi_bus_set_run_wake_flags(device);
 	/* Call _PSW/_DSW object to disable its ability to wake the sleeping
 	 * system for the ACPI device with the _PRW object.
 	 * The _PSW object is depreciated in ACPI 3.0 and is replaced by _DSW.
@@ -783,10 +805,6 @@ static int acpi_bus_get_wakeup_device_flags(struct acpi_device *device)
 	if (psw_error)
 		ACPI_DEBUG_PRINT((ACPI_DB_INFO,
 				"error in _DSW or _PSW evaluation\n"));
-
-	/* Power button, Lid switch always enable wakeup */
-	if (!acpi_match_device_ids(device, button_device_ids))
-		device->wakeup.flags.run_wake = 1;
 
 end:
 	if (ACPI_FAILURE(status))
@@ -1336,8 +1354,24 @@ static int acpi_bus_scan(acpi_handle handle, struct acpi_bus_ops *ops,
 
 	if (child)
 		*child = device;
-	return 0;
+
+	if (device)
+		return 0;
+	else
+		return -ENODEV;
 }
+
+/*
+ * acpi_bus_add and acpi_bus_start
+ *
+ * scan a given ACPI tree and (probably recently hot-plugged)
+ * create and add or starts found devices.
+ *
+ * If no devices were found -ENODEV is returned which does not
+ * mean that this is a real error, there just have been no suitable
+ * ACPI objects in the table trunk from which the kernel could create
+ * a device and add/start an appropriate driver.
+ */
 
 int
 acpi_bus_add(struct acpi_device **child,
@@ -1348,8 +1382,7 @@ acpi_bus_add(struct acpi_device **child,
 	memset(&ops, 0, sizeof(ops));
 	ops.acpi_op_add = 1;
 
-	acpi_bus_scan(handle, &ops, child);
-	return 0;
+	return acpi_bus_scan(handle, &ops, child);
 }
 EXPORT_SYMBOL(acpi_bus_add);
 
@@ -1357,11 +1390,13 @@ int acpi_bus_start(struct acpi_device *device)
 {
 	struct acpi_bus_ops ops;
 
+	if (!device)
+		return -EINVAL;
+
 	memset(&ops, 0, sizeof(ops));
 	ops.acpi_op_start = 1;
 
-	acpi_bus_scan(device->handle, &ops, NULL);
-	return 0;
+	return acpi_bus_scan(device->handle, &ops, NULL);
 }
 EXPORT_SYMBOL(acpi_bus_start);
 

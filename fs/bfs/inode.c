@@ -15,6 +15,7 @@
 #include <linux/smp_lock.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
+#include <linux/writeback.h>
 #include <asm/uaccess.h>
 #include "bfs.h"
 
@@ -98,7 +99,7 @@ error:
 	return ERR_PTR(-EIO);
 }
 
-static int bfs_write_inode(struct inode *inode, int wait)
+static int bfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct bfs_sb_info *info = BFS_SB(inode->i_sb);
 	unsigned int ino = (u16)inode->i_ino;
@@ -147,7 +148,7 @@ static int bfs_write_inode(struct inode *inode, int wait)
 	di->i_eoffset = cpu_to_le32(i_sblock * BFS_BSIZE + inode->i_size - 1);
 
 	mark_buffer_dirty(bh);
-	if (wait) {
+	if (wbc->sync_mode == WB_SYNC_ALL) {
 		sync_dirty_buffer(bh);
 		if (buffer_req(bh) && !buffer_uptodate(bh))
 			err = -EIO;

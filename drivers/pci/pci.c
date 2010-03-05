@@ -19,8 +19,8 @@
 #include <linux/pci-aspm.h>
 #include <linux/pm_wakeup.h>
 #include <linux/interrupt.h>
-#include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include <linux/device.h>
+#include <linux/pm_runtime.h>
 #include <asm/setup.h>
 #include "pci.h"
 
@@ -28,6 +28,12 @@ const char *pci_power_names[] = {
 	"error", "D0", "D1", "D2", "D3hot", "D3cold", "unknown",
 };
 EXPORT_SYMBOL_GPL(pci_power_names);
+
+int isa_dma_bridge_buggy;
+EXPORT_SYMBOL(isa_dma_bridge_buggy);
+
+int pci_pci_problems;
+EXPORT_SYMBOL(pci_pci_problems);
 
 unsigned int pci_pm_d3_delay;
 
@@ -380,10 +386,9 @@ pci_find_parent_resource(const struct pci_dev *dev, struct resource *res)
 {
 	const struct pci_bus *bus = dev->bus;
 	int i;
-	struct resource *best = NULL;
+	struct resource *best = NULL, *r;
 
-	for(i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
-		struct resource *r = bus->resource[i];
+	pci_bus_for_each_resource(bus, r, i) {
 		if (!r)
 			continue;
 		if (res->start && !(res->start >= r->start && res->end <= r->end))
@@ -455,6 +460,12 @@ static inline int platform_pci_sleep_wake(struct pci_dev *dev, bool enable)
 {
 	return pci_platform_pm ?
 			pci_platform_pm->sleep_wake(dev, enable) : -ENODEV;
+}
+
+static inline int platform_pci_run_wake(struct pci_dev *dev, bool enable)
+{
+	return pci_platform_pm ?
+			pci_platform_pm->run_wake(dev, enable) : -ENODEV;
 }
 
 /**
@@ -1190,6 +1201,66 @@ int pci_set_pcie_reset_state(struct pci_dev *dev, enum pcie_reset_state state)
 }
 
 /**
+ * pci_check_pme_status - Check if given device has generated PME.
+ * @dev: Device to check.
+ *
+ * Check the PME status of the device and if set, clear it and clear PME enable
+ * (if set).  Return 'true' if PME status and PME enable were both set or
+ * 'false' otherwise.
+ */
+bool pci_check_pme_status(struct pci_dev *dev)
+{
+	int pmcsr_pos;
+	u16 pmcsr;
+	bool ret = false;
+
+	if (!dev->pm_cap)
+		return false;
+
+	pmcsr_pos = dev->pm_cap + PCI_PM_CTRL;
+	pci_read_config_word(dev, pmcsr_pos, &pmcsr);
+	if (!(pmcsr & PCI_PM_CTRL_PME_STATUS))
+		return false;
+
+	/* Clear PME status. */
+	pmcsr |= PCI_PM_CTRL_PME_STATUS;
+	if (pmcsr & PCI_PM_CTRL_PME_ENABLE) {
+		/* Disable PME to avoid interrupt flood. */
+		pmcsr &= ~PCI_PM_CTRL_PME_ENABLE;
+		ret = true;
+	}
+
+	pci_write_config_word(dev, pmcsr_pos, pmcsr);
+
+	return ret;
+}
+
+/**
+ * pci_pme_wakeup - Wake up a PCI device if its PME Status bit is set.
+ * @dev: Device to handle.
+ * @ign: Ignored.
+ *
+ * Check if @dev has generated PME and queue a resume request for it in that
+ * case.
+ */
+static int pci_pme_wakeup(struct pci_dev *dev, void *ign)
+{
+	if (pci_check_pme_status(dev))
+		pm_request_resume(&dev->dev);
+	return 0;
+}
+
+/**
+ * pci_pme_wakeup_bus - Walk given bus and wake up devices on it, if necessary.
+ * @bus: Top bus of the subtree to walk.
+ */
+void pci_pme_wakeup_bus(struct pci_bus *bus)
+{
+	if (bus)
+		pci_walk_bus(bus, pci_pme_wakeup, NULL);
+}
+
+/**
  * pci_pme_capable - check the capability of PCI device to generate PME#
  * @dev: PCI device to handle.
  * @state: PCI state from which device will issue PME#.
@@ -1230,9 +1301,10 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
 }
 
 /**
- * pci_enable_wake - enable PCI device as wakeup event source
+ * __pci_enable_wake - enable PCI device as wakeup event source
  * @dev: PCI device affected
  * @state: PCI state from which device will issue wakeup events
+ * @runtime: True if the events are to be generated at run time
  * @enable: True to enable event generation; false to disable
  *
  * This enables the device as a wakeup event source, or disables it.
@@ -1248,11 +1320,12 @@ void pci_pme_active(struct pci_dev *dev, bool enable)
  * Error code depending on the platform is returned if both the platform and
  * the native mechanism fail to enable the generation of wake-up events
  */
-int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
+int __pci_enable_wake(struct pci_dev *dev, pci_power_t state,
+		      bool runtime, bool enable)
 {
 	int ret = 0;
 
-	if (enable && !device_may_wakeup(&dev->dev))
+	if (enable && !runtime && !device_may_wakeup(&dev->dev))
 		return -EINVAL;
 
 	/* Don't do the same thing twice in a row for one device. */
@@ -1272,19 +1345,24 @@ int pci_enable_wake(struct pci_dev *dev, pci_power_t state, bool enable)
 			pci_pme_active(dev, true);
 		else
 			ret = 1;
-		error = platform_pci_sleep_wake(dev, true);
+		error = runtime ? platform_pci_run_wake(dev, true) :
+					platform_pci_sleep_wake(dev, true);
 		if (ret)
 			ret = error;
 		if (!ret)
 			dev->wakeup_prepared = true;
 	} else {
-		platform_pci_sleep_wake(dev, false);
+		if (runtime)
+			platform_pci_run_wake(dev, false);
+		else
+			platform_pci_sleep_wake(dev, false);
 		pci_pme_active(dev, false);
 		dev->wakeup_prepared = false;
 	}
 
 	return ret;
 }
+EXPORT_SYMBOL(__pci_enable_wake);
 
 /**
  * pci_wake_from_d3 - enable/disable device to wake up from D3_hot or D3_cold
@@ -1394,6 +1472,66 @@ int pci_back_from_sleep(struct pci_dev *dev)
 }
 
 /**
+ * pci_finish_runtime_suspend - Carry out PCI-specific part of runtime suspend.
+ * @dev: PCI device being suspended.
+ *
+ * Prepare @dev to generate wake-up events at run time and put it into a low
+ * power state.
+ */
+int pci_finish_runtime_suspend(struct pci_dev *dev)
+{
+	pci_power_t target_state = pci_target_state(dev);
+	int error;
+
+	if (target_state == PCI_POWER_ERROR)
+		return -EIO;
+
+	__pci_enable_wake(dev, target_state, true, pci_dev_run_wake(dev));
+
+	error = pci_set_power_state(dev, target_state);
+
+	if (error)
+		__pci_enable_wake(dev, target_state, true, false);
+
+	return error;
+}
+
+/**
+ * pci_dev_run_wake - Check if device can generate run-time wake-up events.
+ * @dev: Device to check.
+ *
+ * Return true if the device itself is cabable of generating wake-up events
+ * (through the platform or using the native PCIe PME) or if the device supports
+ * PME and one of its upstream bridges can generate wake-up events.
+ */
+bool pci_dev_run_wake(struct pci_dev *dev)
+{
+	struct pci_bus *bus = dev->bus;
+
+	if (device_run_wake(&dev->dev))
+		return true;
+
+	if (!dev->pme_support)
+		return false;
+
+	while (bus->parent) {
+		struct pci_dev *bridge = bus->self;
+
+		if (device_run_wake(&bridge->dev))
+			return true;
+
+		bus = bus->parent;
+	}
+
+	/* We have reached the root bus. */
+	if (bus->bridge)
+		return device_run_wake(bus->bridge);
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(pci_dev_run_wake);
+
+/**
  * pci_pm_init - Initialize PM functions of given PCI device
  * @dev: PCI device to handle.
  */
@@ -1402,6 +1540,7 @@ void pci_pm_init(struct pci_dev *dev)
 	int pm;
 	u16 pmc;
 
+	device_enable_async_suspend(&dev->dev);
 	dev->wakeup_prepared = false;
 	dev->pm_cap = 0;
 
@@ -2615,6 +2754,23 @@ int pci_resource_bar(struct pci_dev *dev, int resno, enum pci_bar_type *type)
 	return 0;
 }
 
+/* Some architectures require additional programming to enable VGA */
+static arch_set_vga_state_t arch_set_vga_state;
+
+void __init pci_register_set_vga_state(arch_set_vga_state_t func)
+{
+	arch_set_vga_state = func;	/* NULL disables */
+}
+
+static int pci_set_vga_state_arch(struct pci_dev *dev, bool decode,
+		      unsigned int command_bits, bool change_bridge)
+{
+	if (arch_set_vga_state)
+		return arch_set_vga_state(dev, decode, command_bits,
+						change_bridge);
+	return 0;
+}
+
 /**
  * pci_set_vga_state - set VGA decode state on device and parents if requested
  * @dev: the PCI device
@@ -2628,8 +2784,14 @@ int pci_set_vga_state(struct pci_dev *dev, bool decode,
 	struct pci_bus *bus;
 	struct pci_dev *bridge;
 	u16 cmd;
+	int rc;
 
 	WARN_ON(command_bits & ~(PCI_COMMAND_IO|PCI_COMMAND_MEMORY));
+
+	/* ARCH specific VGA enables */
+	rc = pci_set_vga_state_arch(dev, decode, command_bits, change_bridge);
+	if (rc)
+		return rc;
 
 	pci_read_config_word(dev, PCI_COMMAND, &cmd);
 	if (decode == true)
@@ -2845,6 +3007,7 @@ EXPORT_SYMBOL(pcim_pin_device);
 EXPORT_SYMBOL(pci_disable_device);
 EXPORT_SYMBOL(pci_find_capability);
 EXPORT_SYMBOL(pci_bus_find_capability);
+EXPORT_SYMBOL(pci_register_set_vga_state);
 EXPORT_SYMBOL(pci_release_regions);
 EXPORT_SYMBOL(pci_request_regions);
 EXPORT_SYMBOL(pci_request_regions_exclusive);
@@ -2871,10 +3034,8 @@ EXPORT_SYMBOL(pci_save_state);
 EXPORT_SYMBOL(pci_restore_state);
 EXPORT_SYMBOL(pci_pme_capable);
 EXPORT_SYMBOL(pci_pme_active);
-EXPORT_SYMBOL(pci_enable_wake);
 EXPORT_SYMBOL(pci_wake_from_d3);
 EXPORT_SYMBOL(pci_target_state);
 EXPORT_SYMBOL(pci_prepare_to_sleep);
 EXPORT_SYMBOL(pci_back_from_sleep);
 EXPORT_SYMBOL_GPL(pci_set_pcie_reset_state);
-

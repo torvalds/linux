@@ -482,6 +482,9 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     reference_rate	- reference sample rate, 44100 or 48000 (default)
     multiple		- multiple to ref. sample rate, 1 or 2 (default)
+    subsystem		- override the PCI SSID for probing; the value
+			  consists of SSVID << 16 | SSDID.  The default is
+			  zero, which means no override.
 
     This module supports multiple cards.
 
@@ -1122,6 +1125,21 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
     dma2	- DMA # for InterWave chip (0,1,3,5,6,7,-1=disable)
 
     This module supports multiple cards, autoprobe and ISA PnP.
+
+  Module snd-jazz16
+  -------------------
+
+    Module for Media Vision Jazz16 chipset. The chipset consists of 3 chips:
+    MVD1216 + MVA416 + MVA514.
+
+    port	- port # for SB DSP chip (0x210,0x220,0x230,0x240,0x250,0x260)
+    irq		- IRQ # for SB DSP chip (3,5,7,9,10,15)
+    dma8	- DMA # for SB DSP chip (1,3)
+    dma16	- DMA # for SB DSP chip (5,7)
+    mpu_port	- MPU-401 port # (0x300,0x310,0x320,0x330)
+    mpu_irq	- MPU-401 irq # (2,3,5,7)
+
+    This module supports multiple cards.
 
   Module snd-korg1212
   -------------------
@@ -1791,6 +1809,13 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
 
     The power-management is supported.
 
+  Module snd-ua101
+  ----------------
+
+    Module for the Edirol UA-101 audio/MIDI interface.
+
+    This module supports multiple devices, autoprobe and hotplugging.
+
   Module snd-usb-audio
   --------------------
 
@@ -1923,7 +1948,7 @@ Prior to version 0.9.0rc4 options had a 'snd_' prefix. This was removed.
   -------------------
 
     Module for sound cards based on the Asus AV100/AV200 chips,
-    i.e., Xonar D1, DX, D2, D2X, HDAV1.3 (Deluxe), Essence ST
+    i.e., Xonar D1, DX, D2, D2X, DS, HDAV1.3 (Deluxe), Essence ST
     (Deluxe) and Essence STX.
 
     This module supports autoprobe and multiple cards.

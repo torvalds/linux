@@ -317,6 +317,11 @@ struct sock {
 /*
  * Hashed lists helper routines
  */
+static inline struct sock *sk_entry(const struct hlist_node *node)
+{
+	return hlist_entry(node, struct sock, sk_node);
+}
+
 static inline struct sock *__sk_head(const struct hlist_head *head)
 {
 	return hlist_entry(head->first, struct sock, sk_node);
@@ -376,6 +381,7 @@ static __inline__ void __sk_del_node(struct sock *sk)
 	__hlist_del(&sk->sk_node);
 }
 
+/* NB: equivalent to hlist_del_init_rcu */
 static __inline__ int __sk_del_node_init(struct sock *sk)
 {
 	if (sk_hashed(sk)) {
@@ -416,6 +422,7 @@ static __inline__ int sk_del_node_init(struct sock *sk)
 	}
 	return rc;
 }
+#define sk_del_node_init_rcu(sk)	sk_del_node_init(sk)
 
 static __inline__ int __sk_nulls_del_node_init_rcu(struct sock *sk)
 {
@@ -449,6 +456,12 @@ static __inline__ void sk_add_node(struct sock *sk, struct hlist_head *list)
 	__sk_add_node(sk, list);
 }
 
+static __inline__ void sk_add_node_rcu(struct sock *sk, struct hlist_head *list)
+{
+	sock_hold(sk);
+	hlist_add_head_rcu(&sk->sk_node, list);
+}
+
 static __inline__ void __sk_nulls_add_node_rcu(struct sock *sk, struct hlist_nulls_head *list)
 {
 	hlist_nulls_add_head_rcu(&sk->sk_nulls_node, list);
@@ -473,6 +486,8 @@ static __inline__ void sk_add_bind_node(struct sock *sk,
 
 #define sk_for_each(__sk, node, list) \
 	hlist_for_each_entry(__sk, node, list, sk_node)
+#define sk_for_each_rcu(__sk, node, list) \
+	hlist_for_each_entry_rcu(__sk, node, list, sk_node)
 #define sk_nulls_for_each(__sk, node, list) \
 	hlist_nulls_for_each_entry(__sk, node, list, sk_nulls_node)
 #define sk_nulls_for_each_rcu(__sk, node, list) \
@@ -1044,7 +1059,7 @@ extern void sk_common_release(struct sock *sk);
 extern void sock_init_data(struct socket *sock, struct sock *sk);
 
 /**
- *	sk_filter_release: Release a socket filter
+ *	sk_filter_release - release a socket filter
  *	@fp: filter to remove
  *
  *	Remove a filter from a socket and release its resources.

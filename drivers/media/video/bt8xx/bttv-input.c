@@ -247,7 +247,7 @@ int bttv_input_init(struct bttv *btv)
 	struct card_ir *ir;
 	struct ir_scancode_table *ir_codes = NULL;
 	struct input_dev *input_dev;
-	int ir_type = IR_TYPE_OTHER;
+	u64 ir_type = IR_TYPE_OTHER;
 	int err = -ENOMEM;
 
 	if (!btv->has_remote)
@@ -389,7 +389,7 @@ int bttv_input_init(struct bttv *btv)
 	bttv_ir_start(btv, ir);
 
 	/* all done */
-	err = ir_input_register(btv->remote->dev, ir_codes);
+	err = ir_input_register(btv->remote->dev, ir_codes, NULL);
 	if (err)
 		goto err_out_stop;
 

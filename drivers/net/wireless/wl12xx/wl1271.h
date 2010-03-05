@@ -43,7 +43,7 @@ enum {
 	DEBUG_SPI	= BIT(1),
 	DEBUG_BOOT	= BIT(2),
 	DEBUG_MAILBOX	= BIT(3),
-	DEBUG_NETLINK	= BIT(4),
+	DEBUG_TESTMODE	= BIT(4),
 	DEBUG_EVENT	= BIT(5),
 	DEBUG_TX	= BIT(6),
 	DEBUG_RX	= BIT(7),
@@ -107,10 +107,35 @@ enum {
 				  CFG_RX_CTL_EN | CFG_RX_BCN_EN |     \
 				  CFG_RX_AUTH_EN | CFG_RX_ASSOC_EN)
 
-#define WL1271_DEFAULT_BASIC_RATE_SET (CONF_TX_RATE_MASK_ALL)
-
 #define WL1271_FW_NAME "wl1271-fw.bin"
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
+
+/* NVS data structure */
+#define WL1271_NVS_SECTION_SIZE                  468
+
+#define WL1271_NVS_GENERAL_PARAMS_SIZE            57
+#define WL1271_NVS_GENERAL_PARAMS_SIZE_PADDED \
+	(WL1271_NVS_GENERAL_PARAMS_SIZE + 1)
+#define WL1271_NVS_STAT_RADIO_PARAMS_SIZE         17
+#define WL1271_NVS_STAT_RADIO_PARAMS_SIZE_PADDED \
+	(WL1271_NVS_STAT_RADIO_PARAMS_SIZE + 1)
+#define WL1271_NVS_DYN_RADIO_PARAMS_SIZE          65
+#define WL1271_NVS_DYN_RADIO_PARAMS_SIZE_PADDED \
+	(WL1271_NVS_DYN_RADIO_PARAMS_SIZE + 1)
+#define WL1271_NVS_FEM_COUNT                       2
+#define WL1271_NVS_INI_SPARE_SIZE                124
+
+struct wl1271_nvs_file {
+	/* NVS section */
+	u8 nvs[WL1271_NVS_SECTION_SIZE];
+
+	/* INI section */
+	u8 general_params[WL1271_NVS_GENERAL_PARAMS_SIZE_PADDED];
+	u8 stat_radio_params[WL1271_NVS_STAT_RADIO_PARAMS_SIZE_PADDED];
+	u8 dyn_radio_params[WL1271_NVS_FEM_COUNT]
+			   [WL1271_NVS_DYN_RADIO_PARAMS_SIZE_PADDED];
+	u8 ini_spare[WL1271_NVS_INI_SPARE_SIZE];
+} __attribute__ ((packed));
 
 /*
  * Enable/disable 802.11a support for WL1273
@@ -276,6 +301,7 @@ struct wl1271_debugfs {
 
 	struct dentry *retry_count;
 	struct dentry *excessive_retries;
+	struct dentry *gpio_power;
 };
 
 #define NUM_TX_QUEUES              4
@@ -322,6 +348,17 @@ struct wl1271 {
 	enum wl1271_state state;
 	struct mutex mutex;
 
+#define WL1271_FLAG_STA_RATES_CHANGED  (0)
+#define WL1271_FLAG_STA_ASSOCIATED     (1)
+#define WL1271_FLAG_JOINED             (2)
+#define WL1271_FLAG_GPIO_POWER         (3)
+#define WL1271_FLAG_TX_QUEUE_STOPPED   (4)
+#define WL1271_FLAG_SCANNING           (5)
+#define WL1271_FLAG_IN_ELP             (6)
+#define WL1271_FLAG_PSM                (7)
+#define WL1271_FLAG_PSM_REQUESTED      (8)
+	unsigned long flags;
+
 	struct wl1271_partition_set part;
 
 	struct wl1271_chip chip;
@@ -331,8 +368,7 @@ struct wl1271 {
 
 	u8 *fw;
 	size_t fw_len;
-	u8 *nvs;
-	size_t nvs_len;
+	struct wl1271_nvs_file *nvs;
 
 	u8 bssid[ETH_ALEN];
 	u8 mac_addr[ETH_ALEN];
@@ -359,7 +395,6 @@ struct wl1271 {
 
 	/* Frames scheduled for transmission, not handled yet */
 	struct sk_buff_head tx_queue;
-	bool tx_queue_stopped;
 
 	struct work_struct tx_work;
 
@@ -387,14 +422,15 @@ struct wl1271 {
 	u32 mbox_ptr[2];
 
 	/* Are we currently scanning */
-	bool scanning;
 	struct wl1271_scan scan;
 
 	/* Our association ID */
 	u16 aid;
 
 	/* currently configured rate set */
+	u32 sta_rate_set;
 	u32 basic_rate_set;
+	u32 rate_set;
 
 	/* The current band */
 	enum ieee80211_band band;
@@ -405,17 +441,8 @@ struct wl1271 {
 	unsigned int rx_config;
 	unsigned int rx_filter;
 
-	/* is firmware in elp mode */
-	bool elp;
-
 	struct completion *elp_compl;
 	struct delayed_work elp_work;
-
-	/* we can be in psm, but not in elp, we have to differentiate */
-	bool psm;
-
-	/* PSM mode requested */
-	bool psm_requested;
 
 	/* retry counter for PSM entries */
 	u8 psm_entry_retry;
@@ -435,9 +462,6 @@ struct wl1271 {
 
 	struct ieee80211_vif *vif;
 
-	/* Used for a workaround to send disconnect before rejoining */
-	bool joined;
-
 	/* Current chipset configuration */
 	struct conf_drv_settings conf;
 
@@ -455,11 +479,14 @@ int wl1271_plt_stop(struct wl1271 *wl);
 
 #define WL1271_TX_QUEUE_MAX_LENGTH 20
 
-/* WL1271 needs a 200ms sleep after power on */
+/* WL1271 needs a 200ms sleep after power on, and a 20ms sleep before power
+   on in case is has been shut down shortly before */
+#define WL1271_PRE_POWER_ON_SLEEP 20 /* in miliseconds */
 #define WL1271_POWER_ON_SLEEP 200 /* in miliseconds */
 
 static inline bool wl1271_11a_enabled(void)
 {
+	/* FIXME: this could be determined based on the NVS-INI file */
 #ifdef WL1271_80211A_ENABLED
 	return true;
 #else

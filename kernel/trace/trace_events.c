@@ -60,10 +60,8 @@ int trace_define_field(struct ftrace_event_call *call, const char *type,
 	return 0;
 
 err:
-	if (field) {
+	if (field)
 		kfree(field->name);
-		kfree(field->type);
-	}
 	kfree(field);
 
 	return -ENOMEM;
@@ -520,41 +518,16 @@ out:
 	return ret;
 }
 
-extern char *__bad_type_size(void);
-
-#undef FIELD
-#define FIELD(type, name)						\
-	sizeof(type) != sizeof(field.name) ? __bad_type_size() :	\
-	#type, "common_" #name, offsetof(typeof(field), name),		\
-		sizeof(field.name), is_signed_type(type)
-
-static int trace_write_header(struct trace_seq *s)
-{
-	struct trace_entry field;
-
-	/* struct trace_entry */
-	return trace_seq_printf(s,
-			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
-			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
-			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
-			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
-			"\tfield:%s %s;\toffset:%zu;\tsize:%zu;\tsigned:%u;\n"
-			"\n",
-			FIELD(unsigned short, type),
-			FIELD(unsigned char, flags),
-			FIELD(unsigned char, preempt_count),
-			FIELD(int, pid),
-			FIELD(int, lock_depth));
-}
-
 static ssize_t
 event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 		  loff_t *ppos)
 {
 	struct ftrace_event_call *call = filp->private_data;
+	struct ftrace_event_field *field;
 	struct trace_seq *s;
+	int common_field_count = 5;
 	char *buf;
-	int r;
+	int r = 0;
 
 	if (*ppos)
 		return 0;
@@ -565,14 +538,48 @@ event_format_read(struct file *filp, char __user *ubuf, size_t cnt,
 
 	trace_seq_init(s);
 
-	/* If any of the first writes fail, so will the show_format. */
-
 	trace_seq_printf(s, "name: %s\n", call->name);
 	trace_seq_printf(s, "ID: %d\n", call->id);
 	trace_seq_printf(s, "format:\n");
-	trace_write_header(s);
 
-	r = call->show_format(call, s);
+	list_for_each_entry_reverse(field, &call->fields, link) {
+		/*
+		 * Smartly shows the array type(except dynamic array).
+		 * Normal:
+		 *	field:TYPE VAR
+		 * If TYPE := TYPE[LEN], it is shown:
+		 *	field:TYPE VAR[LEN]
+		 */
+		const char *array_descriptor = strchr(field->type, '[');
+
+		if (!strncmp(field->type, "__data_loc", 10))
+			array_descriptor = NULL;
+
+		if (!array_descriptor) {
+			r = trace_seq_printf(s, "\tfield:%s %s;\toffset:%u;"
+					"\tsize:%u;\tsigned:%d;\n",
+					field->type, field->name, field->offset,
+					field->size, !!field->is_signed);
+		} else {
+			r = trace_seq_printf(s, "\tfield:%.*s %s%s;\toffset:%u;"
+					"\tsize:%u;\tsigned:%d;\n",
+					(int)(array_descriptor - field->type),
+					field->type, field->name,
+					array_descriptor, field->offset,
+					field->size, !!field->is_signed);
+		}
+
+		if (--common_field_count == 0)
+			r = trace_seq_printf(s, "\n");
+
+		if (!r)
+			break;
+	}
+
+	if (r)
+		r = trace_seq_printf(s, "\nprint fmt: %s\n",
+				call->print_fmt);
+
 	if (!r) {
 		/*
 		 * ug!  The format output is bigger than a PAGE!!
@@ -947,10 +954,6 @@ event_create_dir(struct ftrace_event_call *call, struct dentry *d_events,
 		trace_create_file("filter", 0644, call->dir, call,
 				  filter);
 	}
-
-	/* A trace may not want to export its format */
-	if (!call->show_format)
-		return 0;
 
 	trace_create_file("format", 0444, call->dir, call,
 			  format);

@@ -162,6 +162,8 @@ struct gfs2_glock_operations {
 	void (*go_callback) (struct gfs2_glock *gl);
 	const int go_type;
 	const unsigned long go_min_hold_time;
+	const unsigned long go_flags;
+#define GLOF_ASPACE 1
 };
 
 enum {
@@ -225,7 +227,6 @@ struct gfs2_glock {
 
 	struct gfs2_sbd *gl_sbd;
 
-	struct inode *gl_aspace;
 	struct list_head gl_ail_list;
 	atomic_t gl_ail_count;
 	struct delayed_work gl_work;
@@ -258,7 +259,6 @@ enum {
 	GIF_INVALID		= 0,
 	GIF_QD_LOCKED		= 1,
 	GIF_SW_PAGED		= 3,
-	GIF_USER                = 4, /* user inode, not metadata addr space */
 };
 
 
@@ -451,7 +451,6 @@ struct gfs2_tune {
 	unsigned int gt_quota_quantum; /* Secs between syncs to quota file */
 	unsigned int gt_new_files_jdata;
 	unsigned int gt_max_readahead; /* Max bytes to read-ahead from disk */
-	unsigned int gt_stall_secs; /* Detects trouble! */
 	unsigned int gt_complain_secs;
 	unsigned int gt_statfs_quantum;
 	unsigned int gt_statfs_slow;

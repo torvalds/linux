@@ -62,7 +62,7 @@ static int phison_init_one(struct pci_dev *pdev, const struct pci_device_id *id)
 	};
 	const struct ata_port_info *ppi[] = { &info, NULL };
 
-	ret = ata_pci_sff_init_one(pdev, ppi, &phison_sht, NULL);
+	ret = ata_pci_sff_init_one(pdev, ppi, &phison_sht, NULL, 0);
 
 	dev_dbg(&pdev->dev, "phison_init_one(), ret = %x\n", ret);
 

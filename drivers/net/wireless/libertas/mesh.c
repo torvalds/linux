@@ -1,4 +1,3 @@
-#include <linux/moduleparam.h>
 #include <linux/delay.h>
 #include <linux/etherdevice.h>
 #include <linux/netdevice.h>
@@ -197,7 +196,14 @@ int lbs_init_mesh(struct lbs_private *priv)
 
 	lbs_deb_enter(LBS_DEB_MESH);
 
-	if (priv->mesh_fw_ver == MESH_FW_OLD) {
+	priv->mesh_connect_status = LBS_DISCONNECTED;
+
+	/* Determine mesh_fw_ver from fwrelease and fwcapinfo */
+	/* 5.0.16p0 9.0.0.p0 is known to NOT support any mesh */
+	/* 5.110.22 have mesh command with 0xa3 command id */
+	/* 10.0.0.p0 FW brings in mesh config command with different id */
+	/* Check FW version MSB and initialize mesh_fw_ver */
+	if (MRVL_FW_MAJOR_REV(priv->fwrelease) == MRVL_FW_V5) {
 		/* Enable mesh, if supported, and work out which TLV it uses.
 		   0x100 + 291 is an unofficial value used in 5.110.20.pXX
 		   0x100 + 37 is the official value used in 5.110.21.pXX
@@ -219,7 +225,9 @@ int lbs_init_mesh(struct lbs_private *priv)
 					    priv->channel))
 				priv->mesh_tlv = 0;
 		}
-	} else if (priv->mesh_fw_ver == MESH_FW_NEW) {
+	} else
+	if ((MRVL_FW_MAJOR_REV(priv->fwrelease) >= MRVL_FW_V10) &&
+		(priv->fwcapinfo & MESH_CAPINFO_ENABLE_MASK)) {
 		/* 10.0.0.pXX new firmwares should succeed with TLV
 		 * 0x100+37; Do not invoke command with old TLV.
 		 */
@@ -228,7 +236,12 @@ int lbs_init_mesh(struct lbs_private *priv)
 				    priv->channel))
 			priv->mesh_tlv = 0;
 	}
+
+
 	if (priv->mesh_tlv) {
+		sprintf(priv->mesh_ssid, "mesh");
+		priv->mesh_ssid_len = 4;
+
 		lbs_add_mesh(priv);
 
 		if (device_create_file(&dev->dev, &dev_attr_lbs_mesh))
@@ -416,10 +429,10 @@ struct net_device *lbs_mesh_set_dev(struct lbs_private *priv,
 	struct net_device *dev, struct rxpd *rxpd)
 {
 	if (priv->mesh_dev) {
-		if (priv->mesh_fw_ver == MESH_FW_OLD) {
+		if (priv->mesh_tlv == TLV_TYPE_OLD_MESH_ID) {
 			if (rxpd->rx_control & RxPD_MESH_FRAME)
 				dev = priv->mesh_dev;
-		} else if (priv->mesh_fw_ver == MESH_FW_NEW) {
+		} else if (priv->mesh_tlv == TLV_TYPE_MESH_ID) {
 			if (rxpd->u.bss.bss_num == MESH_IFACE_ID)
 				dev = priv->mesh_dev;
 		}
@@ -432,9 +445,9 @@ void lbs_mesh_set_txpd(struct lbs_private *priv,
 	struct net_device *dev, struct txpd *txpd)
 {
 	if (dev == priv->mesh_dev) {
-		if (priv->mesh_fw_ver == MESH_FW_OLD)
+		if (priv->mesh_tlv == TLV_TYPE_OLD_MESH_ID)
 			txpd->tx_control |= cpu_to_le32(TxPD_MESH_FRAME);
-		else if (priv->mesh_fw_ver == MESH_FW_NEW)
+		else if (priv->mesh_tlv == TLV_TYPE_MESH_ID)
 			txpd->u.bss.bss_num = MESH_IFACE_ID;
 	}
 }
@@ -538,7 +551,7 @@ static int __lbs_mesh_config_send(struct lbs_private *priv,
 	 * Command id is 0xac for v10 FW along with mesh interface
 	 * id in bits 14-13-12.
 	 */
-	if (priv->mesh_fw_ver == MESH_FW_NEW)
+	if (priv->mesh_tlv == TLV_TYPE_MESH_ID)
 		command = CMD_MESH_CONFIG |
 			  (MESH_IFACE_ID << MESH_IFACE_BIT_OFFSET);
 

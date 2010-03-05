@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2007-2008 Steven Rostedt <srostedt@redhat.com>
  * Copyright (C) 2009 DSLab, Lanzhou University, China
- * Author: Wu Zhangjin <wuzj@lemote.com>
+ * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  *
  * Thanks goes to Steven Rostedt for writing the original x86 version.
  */

@@ -381,7 +381,6 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 			addr->a.v6.sin6_scope_id = dev->ifindex;
 			addr->valid = 1;
 			INIT_LIST_HEAD(&addr->list);
-			INIT_RCU_HEAD(&addr->rcu);
 			list_add_tail(&addr->list, addrlist);
 		}
 	}

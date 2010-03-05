@@ -1448,7 +1448,7 @@ static void invalidate_sub(struct fsg_lun *curlun)
 	unsigned long	rc;
 
 	rc = invalidate_mapping_pages(inode->i_mapping, 0, -1);
-	VLDBG(curlun, "invalidate_inode_pages -> %ld\n", rc);
+	VLDBG(curlun, "invalidate_mapping_pages -> %ld\n", rc);
 }
 
 static int do_verify(struct fsg_dev *fsg)
@@ -3208,15 +3208,11 @@ static int __init check_parameters(struct fsg_dev *fsg)
 	 * halt bulk endpoints correctly.  If one of them is present,
 	 * disable stalls.
 	 */
-	if (gadget_is_sh(fsg->gadget) || gadget_is_at91(fsg->gadget))
+	if (gadget_is_at91(fsg->gadget))
 		mod_data.can_stall = 0;
 
 	if (mod_data.release == 0xffff) {	// Parameter wasn't set
-		/* The sa1100 controller is not supported */
-		if (gadget_is_sa1100(fsg->gadget))
-			gcnum = -1;
-		else
-			gcnum = usb_gadget_controller_number(fsg->gadget);
+		gcnum = usb_gadget_controller_number(fsg->gadget);
 		if (gcnum >= 0)
 			mod_data.release = 0x0300 + gcnum;
 		else {

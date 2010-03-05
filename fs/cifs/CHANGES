@@ -1,3 +1,8 @@
+Version 1.62
+------------
+Add sockopt=TCP_NODELAY mount option. EA (xattr) routines hardened
+to more strictly handle corrupt frames.
+
 Version 1.61
 ------------
 Fix append problem to Samba servers (files opened with O_APPEND could

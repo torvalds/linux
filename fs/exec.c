@@ -571,6 +571,9 @@ int setup_arg_pages(struct linux_binprm *bprm,
 	struct vm_area_struct *prev = NULL;
 	unsigned long vm_flags;
 	unsigned long stack_base;
+	unsigned long stack_size;
+	unsigned long stack_expand;
+	unsigned long rlim_stack;
 
 #ifdef CONFIG_STACK_GROWSUP
 	/* Limit stack size to 1GB */
@@ -627,10 +630,23 @@ int setup_arg_pages(struct linux_binprm *bprm,
 			goto out_unlock;
 	}
 
+	stack_expand = EXTRA_STACK_VM_PAGES * PAGE_SIZE;
+	stack_size = vma->vm_end - vma->vm_start;
+	/*
+	 * Align this down to a page boundary as expand_stack
+	 * will align it up.
+	 */
+	rlim_stack = rlimit(RLIMIT_STACK) & PAGE_MASK;
 #ifdef CONFIG_STACK_GROWSUP
-	stack_base = vma->vm_end + EXTRA_STACK_VM_PAGES * PAGE_SIZE;
+	if (stack_size + stack_expand > rlim_stack)
+		stack_base = vma->vm_start + rlim_stack;
+	else
+		stack_base = vma->vm_end + stack_expand;
 #else
-	stack_base = vma->vm_start - EXTRA_STACK_VM_PAGES * PAGE_SIZE;
+	if (stack_size + stack_expand > rlim_stack)
+		stack_base = vma->vm_end - rlim_stack;
+	else
+		stack_base = vma->vm_start - stack_expand;
 #endif
 	ret = expand_stack(vma, stack_base);
 	if (ret)

@@ -2087,7 +2087,7 @@ static void set_huge_ptep_writable(struct vm_area_struct *vma,
 
 	entry = pte_mkwrite(pte_mkdirty(huge_ptep_get(ptep)));
 	if (huge_ptep_set_access_flags(vma, address, ptep, entry, 1)) {
-		update_mmu_cache(vma, address, entry);
+		update_mmu_cache(vma, address, ptep);
 	}
 }
 
@@ -2558,7 +2558,7 @@ int hugetlb_fault(struct mm_struct *mm, struct vm_area_struct *vma,
 	entry = pte_mkyoung(entry);
 	if (huge_ptep_set_access_flags(vma, address, ptep, entry,
 						flags & FAULT_FLAG_WRITE))
-		update_mmu_cache(vma, address, entry);
+		update_mmu_cache(vma, address, ptep);
 
 out_page_table_lock:
 	spin_unlock(&mm->page_table_lock);

@@ -480,7 +480,7 @@ static struct i2c_adapter ali1535_adapter = {
 	.algo		= &smbus_algorithm,
 };
 
-static struct pci_device_id ali1535_ids[] = {
+static const struct pci_device_id ali1535_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_AL, PCI_DEVICE_ID_AL_M7101) },
 	{ },
 };

@@ -41,7 +41,6 @@
 #include "util/debugfs.h"
 #include "util/symbol.h"
 #include "util/thread.h"
-#include "util/session.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"	/* For debugfs_path */
 #include "util/probe-finder.h"
@@ -55,11 +54,13 @@ static struct {
 	bool need_dwarf;
 	bool list_events;
 	bool force_add;
+	bool show_lines;
 	int nr_probe;
 	struct probe_point probes[MAX_PROBES];
 	struct strlist *dellist;
-	struct perf_session *psession;
-	struct map *kmap;
+	struct map_groups kmap_groups;
+	struct map *kmaps[MAP__NR_TYPES];
+	struct line_range line_range;
 } session;
 
 
@@ -120,22 +121,33 @@ static int opt_del_probe_event(const struct option *opt __used,
 static void evaluate_probe_point(struct probe_point *pp)
 {
 	struct symbol *sym;
-	sym = map__find_symbol_by_name(session.kmap, pp->function,
-				       session.psession, NULL);
+	sym = map__find_symbol_by_name(session.kmaps[MAP__FUNCTION],
+				       pp->function, NULL);
 	if (!sym)
 		die("Kernel symbol \'%s\' not found - probe not added.",
 		    pp->function);
 }
 
-#ifndef NO_LIBDWARF
+#ifndef NO_DWARF_SUPPORT
 static int open_vmlinux(void)
 {
-	if (map__load(session.kmap, session.psession, NULL) < 0) {
+	if (map__load(session.kmaps[MAP__FUNCTION], NULL) < 0) {
 		pr_debug("Failed to load kernel map.\n");
 		return -EINVAL;
 	}
-	pr_debug("Try to open %s\n", session.kmap->dso->long_name);
-	return open(session.kmap->dso->long_name, O_RDONLY);
+	pr_debug("Try to open %s\n",
+		 session.kmaps[MAP__FUNCTION]->dso->long_name);
+	return open(session.kmaps[MAP__FUNCTION]->dso->long_name, O_RDONLY);
+}
+
+static int opt_show_lines(const struct option *opt __used,
+			  const char *str, int unset __used)
+{
+	if (str)
+		parse_line_range_desc(str, &session.line_range);
+	INIT_LIST_HEAD(&session.line_range.line_list);
+	session.show_lines = true;
+	return 0;
 }
 #endif
 
@@ -144,13 +156,16 @@ static const char * const probe_usage[] = {
 	"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
 	"perf probe [<options>] --del '[GROUP:]EVENT' ...",
 	"perf probe --list",
+#ifndef NO_DWARF_SUPPORT
+	"perf probe --line 'LINEDESC'",
+#endif
 	NULL
 };
 
 static const struct option options[] = {
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
-#ifndef NO_LIBDWARF
+#ifndef NO_DWARF_SUPPORT
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 #endif
@@ -159,36 +174,60 @@ static const struct option options[] = {
 	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
 		opt_del_probe_event),
 	OPT_CALLBACK('a', "add", NULL,
-#ifdef NO_LIBDWARF
-		"[EVENT=]FUNC[+OFFS|%return] [ARG ...]",
+#ifdef NO_DWARF_SUPPORT
+		"[EVENT=]FUNC[+OFF|%return] [ARG ...]",
 #else
-		"[EVENT=]FUNC[+OFFS|%return|:RLN][@SRC]|SRC:ALN [ARG ...]",
+		"[EVENT=]FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT"
+		" [ARG ...]",
 #endif
 		"probe point definition, where\n"
 		"\t\tGROUP:\tGroup name (optional)\n"
 		"\t\tEVENT:\tEvent name\n"
 		"\t\tFUNC:\tFunction name\n"
-		"\t\tOFFS:\tOffset from function entry (in byte)\n"
+		"\t\tOFF:\tOffset from function entry (in byte)\n"
 		"\t\t%return:\tPut the probe at function return\n"
-#ifdef NO_LIBDWARF
+#ifdef NO_DWARF_SUPPORT
 		"\t\tARG:\tProbe argument (only \n"
 #else
 		"\t\tSRC:\tSource code path\n"
-		"\t\tRLN:\tRelative line number from function entry.\n"
-		"\t\tALN:\tAbsolute line number in file.\n"
+		"\t\tRL:\tRelative line number from function entry.\n"
+		"\t\tAL:\tAbsolute line number in file.\n"
+		"\t\tPT:\tLazy expression of line code.\n"
 		"\t\tARG:\tProbe argument (local variable name or\n"
 #endif
 		"\t\t\tkprobe-tracer argument format.)\n",
 		opt_add_probe_event),
 	OPT_BOOLEAN('f', "force", &session.force_add, "forcibly add events"
 		    " with existing name"),
+#ifndef NO_DWARF_SUPPORT
+	OPT_CALLBACK('L', "line", NULL,
+		     "FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]",
+		     "Show source code lines.", opt_show_lines),
+#endif
 	OPT_END()
 };
+
+/* Initialize symbol maps for vmlinux */
+static void init_vmlinux(void)
+{
+	symbol_conf.sort_by_name = true;
+	if (symbol_conf.vmlinux_name == NULL)
+		symbol_conf.try_vmlinux_path = true;
+	else
+		pr_debug("Use vmlinux: %s\n", symbol_conf.vmlinux_name);
+	if (symbol__init() < 0)
+		die("Failed to init symbol map.");
+
+	map_groups__init(&session.kmap_groups);
+	if (map_groups__create_kernel_maps(&session.kmap_groups,
+					   session.kmaps) < 0)
+		die("Failed to create kernel maps.");
+}
 
 int cmd_probe(int argc, const char **argv, const char *prefix __used)
 {
 	int i, ret;
-#ifndef NO_LIBDWARF
+#ifndef NO_DWARF_SUPPORT
 	int fd;
 #endif
 	struct probe_point *pp;
@@ -203,7 +242,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		parse_probe_event_argv(argc, argv);
 	}
 
-	if ((!session.nr_probe && !session.dellist && !session.list_events))
+	if ((!session.nr_probe && !session.dellist && !session.list_events &&
+	     !session.show_lines))
 		usage_with_options(probe_usage, options);
 
 	if (debugfs_valid_mountpoint(debugfs_path) < 0)
@@ -215,9 +255,33 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 				   " --add/--del.\n");
 			usage_with_options(probe_usage, options);
 		}
+		if (session.show_lines) {
+			pr_warning("  Error: Don't use --list with --line.\n");
+			usage_with_options(probe_usage, options);
+		}
 		show_perf_probe_events();
 		return 0;
 	}
+
+#ifndef NO_DWARF_SUPPORT
+	if (session.show_lines) {
+		if (session.nr_probe != 0 || session.dellist) {
+			pr_warning("  Error: Don't use --line with"
+				   " --add/--del.\n");
+			usage_with_options(probe_usage, options);
+		}
+		init_vmlinux();
+		fd = open_vmlinux();
+		if (fd < 0)
+			die("Could not open debuginfo file.");
+		ret = find_line_range(fd, &session.line_range);
+		if (ret <= 0)
+			die("Source line is not found.\n");
+		close(fd);
+		show_line_range(&session.line_range);
+		return 0;
+	}
+#endif
 
 	if (session.dellist) {
 		del_trace_kprobe_events(session.dellist);
@@ -226,25 +290,13 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			return 0;
 	}
 
-	/* Initialize symbol maps for vmlinux */
-	symbol_conf.sort_by_name = true;
-	if (symbol_conf.vmlinux_name == NULL)
-		symbol_conf.try_vmlinux_path = true;
-	if (symbol__init() < 0)
-		die("Failed to init symbol map.");
-	session.psession = perf_session__new(NULL, O_WRONLY, false);
-	if (session.psession == NULL)
-		die("Failed to init perf_session.");
-	session.kmap = map_groups__find_by_name(&session.psession->kmaps,
-						MAP__FUNCTION,
-						"[kernel.kallsyms]");
-	if (!session.kmap)
-		die("Could not find kernel map.\n");
+	/* Add probes */
+	init_vmlinux();
 
 	if (session.need_dwarf)
-#ifdef NO_LIBDWARF
+#ifdef NO_DWARF_SUPPORT
 		die("Debuginfo-analysis is not supported");
-#else	/* !NO_LIBDWARF */
+#else	/* !NO_DWARF_SUPPORT */
 		pr_debug("Some probes require debuginfo.\n");
 
 	fd = open_vmlinux();
@@ -264,7 +316,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			continue;
 
 		lseek(fd, SEEK_SET, 0);
-		ret = find_probepoint(fd, pp);
+		ret = find_probe_point(fd, pp);
 		if (ret > 0)
 			continue;
 		if (ret == 0) {	/* No error but failed to find probe point. */
@@ -285,7 +337,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	close(fd);
 
 end_dwarf:
-#endif /* !NO_LIBDWARF */
+#endif /* !NO_DWARF_SUPPORT */
 
 	/* Synthesize probes without dwarf */
 	for (i = 0; i < session.nr_probe; i++) {
