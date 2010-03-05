@@ -775,7 +775,7 @@ EXPORT_SYMBOL_GPL(usb_free_coherent);
  * @urb: urb whose transfer_buffer/setup_packet will be mapped
  *
  * Return value is either null (indicating no buffer could be mapped), or
- * the parameter.  URB_NO_TRANSFER_DMA_MAP and URB_NO_SETUP_DMA_MAP are
+ * the parameter.  URB_NO_TRANSFER_DMA_MAP is
  * added to urb->transfer_flags if the operation succeeds.  If the device
  * is connected to this system through a non-DMA controller, this operation
  * always succeeds.
@@ -803,17 +803,11 @@ struct urb *usb_buffer_map(struct urb *urb)
 			urb->transfer_buffer, urb->transfer_buffer_length,
 			usb_pipein(urb->pipe)
 				? DMA_FROM_DEVICE : DMA_TO_DEVICE);
-		if (usb_pipecontrol(urb->pipe))
-			urb->setup_dma = dma_map_single(controller,
-					urb->setup_packet,
-					sizeof(struct usb_ctrlrequest),
-					DMA_TO_DEVICE);
 	/* FIXME generic api broken like pci, can't report errors */
 	/* if (urb->transfer_dma == DMA_ADDR_INVALID) return 0; */
 	} else
 		urb->transfer_dma = ~0;
-	urb->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP
-				| URB_NO_SETUP_DMA_MAP);
+	urb->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 	return urb;
 }
 EXPORT_SYMBOL_GPL(usb_buffer_map);
@@ -881,14 +875,8 @@ void usb_buffer_unmap(struct urb *urb)
 			urb->transfer_dma, urb->transfer_buffer_length,
 			usb_pipein(urb->pipe)
 				? DMA_FROM_DEVICE : DMA_TO_DEVICE);
-		if (usb_pipecontrol(urb->pipe))
-			dma_unmap_single(controller,
-					urb->setup_dma,
-					sizeof(struct usb_ctrlrequest),
-					DMA_TO_DEVICE);
 	}
-	urb->transfer_flags &= ~(URB_NO_TRANSFER_DMA_MAP
-				| URB_NO_SETUP_DMA_MAP);
+	urb->transfer_flags &= ~URB_NO_TRANSFER_DMA_MAP;
 }
 EXPORT_SYMBOL_GPL(usb_buffer_unmap);
 #endif  /*  0  */

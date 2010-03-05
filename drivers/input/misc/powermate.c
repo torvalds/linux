@@ -64,7 +64,6 @@ struct powermate_device {
 	dma_addr_t data_dma;
 	struct urb *irq, *config;
 	struct usb_ctrlrequest *configcr;
-	dma_addr_t configcr_dma;
 	struct usb_device *udev;
 	struct input_dev *input;
 	spinlock_t lock;
@@ -182,8 +181,6 @@ static void powermate_sync_state(struct powermate_device *pm)
 	usb_fill_control_urb(pm->config, pm->udev, usb_sndctrlpipe(pm->udev, 0),
 			     (void *) pm->configcr, NULL, 0,
 			     powermate_config_complete, pm);
-	pm->config->setup_dma = pm->configcr_dma;
-	pm->config->transfer_flags |= URB_NO_SETUP_DMA_MAP;
 
 	if (usb_submit_urb(pm->config, GFP_ATOMIC))
 		printk(KERN_ERR "powermate: usb_submit_urb(config) failed");
@@ -281,8 +278,7 @@ static int powermate_alloc_buffers(struct usb_device *udev, struct powermate_dev
 	if (!pm->data)
 		return -1;
 
-	pm->configcr = usb_buffer_alloc(udev, sizeof(*(pm->configcr)),
-					GFP_ATOMIC, &pm->configcr_dma);
+	pm->configcr = kmalloc(sizeof(*(pm->configcr)), GFP_KERNEL);
 	if (!pm->configcr)
 		return -1;
 
@@ -293,8 +289,7 @@ static void powermate_free_buffers(struct usb_device *udev, struct powermate_dev
 {
 	usb_buffer_free(udev, POWERMATE_PAYLOAD_SIZE_MAX,
 			pm->data, pm->data_dma);
-	usb_buffer_free(udev, sizeof(*(pm->configcr)),
-			pm->configcr, pm->configcr_dma);
+	kfree(pm->configcr);
 }
 
 /* Called whenever a USB device matching one in our supported devices table is connected */

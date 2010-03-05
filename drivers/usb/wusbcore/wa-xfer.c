@@ -474,8 +474,6 @@ static void __wa_xfer_setup_hdr0(struct wa_xfer *xfer,
 		struct wa_xfer_ctl *xfer_ctl =
 			container_of(xfer_hdr0, struct wa_xfer_ctl, hdr);
 		xfer_ctl->bmAttribute = xfer->is_inbound ? 1 : 0;
-		BUG_ON(xfer->urb->transfer_flags & URB_NO_SETUP_DMA_MAP
-		       && xfer->urb->setup_packet == NULL);
 		memcpy(&xfer_ctl->baSetupData, xfer->urb->setup_packet,
 		       sizeof(xfer_ctl->baSetupData));
 		break;

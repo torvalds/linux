@@ -407,9 +407,8 @@ static int associate_dev(struct us_data *us, struct usb_interface *intf)
 	/* Store our private data in the interface */
 	usb_set_intfdata(intf, us);
 
-	/* Allocate the device-related DMA-mapped buffers */
-	us->cr = usb_buffer_alloc(us->pusb_dev, sizeof(*us->cr),
-			GFP_KERNEL, &us->cr_dma);
+	/* Allocate the control/setup and DMA-mapped buffers */
+	us->cr = kmalloc(sizeof(*us->cr), GFP_KERNEL);
 	if (!us->cr) {
 		US_DEBUGP("usb_ctrlrequest allocation failed\n");
 		return -ENOMEM;
@@ -757,13 +756,9 @@ static void dissociate_dev(struct us_data *us)
 {
 	US_DEBUGP("-- %s\n", __func__);
 
-	/* Free the device-related DMA-mapped buffers */
-	if (us->cr)
-		usb_buffer_free(us->pusb_dev, sizeof(*us->cr), us->cr,
-				us->cr_dma);
-	if (us->iobuf)
-		usb_buffer_free(us->pusb_dev, US_IOBUF_SIZE, us->iobuf,
-				us->iobuf_dma);
+	/* Free the buffers */
+	kfree(us->cr);
+	usb_buffer_free(us->pusb_dev, US_IOBUF_SIZE, us->iobuf, us->iobuf_dma);
 
 	/* Remove our private data from the interface */
 	usb_set_intfdata(us->pusb_intf, NULL);

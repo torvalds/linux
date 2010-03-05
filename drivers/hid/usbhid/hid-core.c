@@ -787,8 +787,7 @@ static int hid_alloc_buffers(struct usb_device *dev, struct hid_device *hid)
 			&usbhid->inbuf_dma);
 	usbhid->outbuf = usb_buffer_alloc(dev, usbhid->bufsize, GFP_KERNEL,
 			&usbhid->outbuf_dma);
-	usbhid->cr = usb_buffer_alloc(dev, sizeof(*usbhid->cr), GFP_KERNEL,
-			&usbhid->cr_dma);
+	usbhid->cr = kmalloc(sizeof(*usbhid->cr), GFP_KERNEL);
 	usbhid->ctrlbuf = usb_buffer_alloc(dev, usbhid->bufsize, GFP_KERNEL,
 			&usbhid->ctrlbuf_dma);
 	if (!usbhid->inbuf || !usbhid->outbuf || !usbhid->cr ||
@@ -846,7 +845,7 @@ static void hid_free_buffers(struct usb_device *dev, struct hid_device *hid)
 
 	usb_buffer_free(dev, usbhid->bufsize, usbhid->inbuf, usbhid->inbuf_dma);
 	usb_buffer_free(dev, usbhid->bufsize, usbhid->outbuf, usbhid->outbuf_dma);
-	usb_buffer_free(dev, sizeof(*(usbhid->cr)), usbhid->cr, usbhid->cr_dma);
+	kfree(usbhid->cr);
 	usb_buffer_free(dev, usbhid->bufsize, usbhid->ctrlbuf, usbhid->ctrlbuf_dma);
 }
 
@@ -1007,9 +1006,8 @@ static int usbhid_start(struct hid_device *hid)
 
 	usb_fill_control_urb(usbhid->urbctrl, dev, 0, (void *) usbhid->cr,
 			     usbhid->ctrlbuf, 1, hid_ctrl, hid);
-	usbhid->urbctrl->setup_dma = usbhid->cr_dma;
 	usbhid->urbctrl->transfer_dma = usbhid->ctrlbuf_dma;
-	usbhid->urbctrl->transfer_flags |= (URB_NO_TRANSFER_DMA_MAP | URB_NO_SETUP_DMA_MAP);
+	usbhid->urbctrl->transfer_flags |= URB_NO_TRANSFER_DMA_MAP;
 
 	if (!(hid->quirks & HID_QUIRK_NO_INIT_REPORTS))
 		usbhid_init_reports(hid);

@@ -977,15 +977,13 @@ test_ctrl_queue (struct usbtest_dev *dev, struct usbtest_param *param)
 		if (!u)
 			goto cleanup;
 
-		reqp = usb_buffer_alloc (udev, sizeof *reqp, GFP_KERNEL,
-				&u->setup_dma);
+		reqp = kmalloc(sizeof *reqp, GFP_KERNEL);
 		if (!reqp)
 			goto cleanup;
 		reqp->setup = req;
 		reqp->number = i % NUM_SUBCASES;
 		reqp->expected = expected;
 		u->setup_packet = (char *) &reqp->setup;
-		u->transfer_flags |= URB_NO_SETUP_DMA_MAP;
 
 		u->context = &context;
 		u->complete = ctrl_complete;
@@ -1017,10 +1015,7 @@ cleanup:
 		if (!urb [i])
 			continue;
 		urb [i]->dev = udev;
-		if (urb [i]->setup_packet)
-			usb_buffer_free (udev, sizeof (struct usb_ctrlrequest),
-					urb [i]->setup_packet,
-					urb [i]->setup_dma);
+		kfree(urb[i]->setup_packet);
 		simple_free_urb (urb [i]);
 	}
 	kfree (urb);
