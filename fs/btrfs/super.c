@@ -752,14 +752,37 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct btrfs_root *root = btrfs_sb(dentry->d_sb);
 	struct btrfs_super_block *disk_super = &root->fs_info->super_copy;
+	struct list_head *head = &root->fs_info->space_info;
+	struct btrfs_space_info *found;
+	u64 total_used = 0;
+	u64 data_used = 0;
 	int bits = dentry->d_sb->s_blocksize_bits;
 	__be32 *fsid = (__be32 *)root->fs_info->fsid;
 
+	rcu_read_lock();
+	list_for_each_entry_rcu(found, head, list) {
+		if (found->flags & (BTRFS_BLOCK_GROUP_DUP|
+				    BTRFS_BLOCK_GROUP_RAID10|
+				    BTRFS_BLOCK_GROUP_RAID1)) {
+			total_used += found->bytes_used;
+			if (found->flags & BTRFS_BLOCK_GROUP_DATA)
+				data_used += found->bytes_used;
+			else
+				data_used += found->total_bytes;
+		}
+
+		total_used += found->bytes_used;
+		if (found->flags & BTRFS_BLOCK_GROUP_DATA)
+			data_used += found->bytes_used;
+		else
+			data_used += found->total_bytes;
+	}
+	rcu_read_unlock();
+
 	buf->f_namelen = BTRFS_NAME_LEN;
 	buf->f_blocks = btrfs_super_total_bytes(disk_super) >> bits;
-	buf->f_bfree = buf->f_blocks -
-		(btrfs_super_bytes_used(disk_super) >> bits);
-	buf->f_bavail = buf->f_bfree;
+	buf->f_bfree = buf->f_blocks - (total_used >> bits);
+	buf->f_bavail = buf->f_blocks - (data_used >> bits);
 	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_type = BTRFS_SUPER_MAGIC;
 
