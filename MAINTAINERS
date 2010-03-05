@@ -4257,7 +4257,9 @@ M:	Ingo Molnar <mingo@elte.hu>
 S:	Supported
 F:	kernel/perf_event.c
 F:	include/linux/perf_event.h
-F:	arch/*/*/kernel/perf_event.c
+F:	arch/*/kernel/perf_event.c
+F:	arch/*/kernel/*/perf_event.c
+F:	arch/*/kernel/*/*/perf_event.c
 F:	arch/*/include/asm/perf_event.h
 F:	arch/*/lib/perf_event.c
 F:	arch/*/kernel/perf_callchain.c
