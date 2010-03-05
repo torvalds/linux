@@ -229,7 +229,10 @@ static int __devinit sch_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 err_sch_gpio_resume:
-	gpiochip_remove(&sch_gpio_core);
+	err = gpiochip_remove(&sch_gpio_core);
+	if (err)
+		dev_err(&pdev->dev, "%s failed, %d\n",
+				"gpiochip_remove()", err);
 
 err_sch_gpio_core:
 	release_region(res->start, resource_size(res));
@@ -242,13 +245,23 @@ static int __devexit sch_gpio_remove(struct platform_device *pdev)
 {
 	struct resource *res;
 	if (gpio_ba) {
-		gpiochip_remove(&sch_gpio_core);
-		gpiochip_remove(&sch_gpio_resume);
+		int err;
+
+		err  = gpiochip_remove(&sch_gpio_core);
+		if (err)
+			dev_err(&pdev->dev, "%s failed, %d\n",
+				"gpiochip_remove()", err);
+		err = gpiochip_remove(&sch_gpio_resume);
+		if (err)
+			dev_err(&pdev->dev, "%s failed, %d\n",
+				"gpiochip_remove()", err);
 
 		res = platform_get_resource(pdev, IORESOURCE_IO, 0);
 
 		release_region(res->start, resource_size(res));
 		gpio_ba = 0;
+
+		return err;
 	}
 
 	return 0;
