@@ -1107,14 +1107,14 @@ static const struct attribute_group it87_group_pwm[3] = {
 	{ .attrs = it87_attributes_pwm[2] },
 };
 
-static struct attribute *it87_attributes_opt[] = {
+static struct attribute *it87_attributes_vid[] = {
 	&dev_attr_vrm.attr,
 	&dev_attr_cpu0_vid.attr,
 	NULL
 };
 
-static const struct attribute_group it87_group_opt = {
-	.attrs = it87_attributes_opt,
+static const struct attribute_group it87_group_vid = {
+	.attrs = it87_attributes_vid,
 };
 
 /* SuperIO detection - will change isa_address if a chip is found */
@@ -1250,7 +1250,8 @@ static void it87_remove_files(struct device *dev)
 			continue;
 		sysfs_remove_group(&dev->kobj, &it87_group_pwm[i]);
 	}
-	sysfs_remove_group(&dev->kobj, &it87_group_opt);
+	if (!sio_data->skip_vid)
+		sysfs_remove_group(&dev->kobj, &it87_group_vid);
 }
 
 static int __devinit it87_probe(struct platform_device *pdev)
@@ -1335,10 +1336,8 @@ static int __devinit it87_probe(struct platform_device *pdev)
 		data->vrm = vid_which_vrm();
 		/* VID reading from Super-I/O config space if available */
 		data->vid = sio_data->vid_value;
-		if ((err = device_create_file(dev,
-		     &dev_attr_vrm))
-		 || (err = device_create_file(dev,
-		     &dev_attr_cpu0_vid)))
+		err = sysfs_create_group(&dev->kobj, &it87_group_vid);
+		if (err)
 			goto ERROR4;
 	}
 
