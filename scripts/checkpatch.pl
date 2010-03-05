@@ -2572,6 +2572,11 @@ sub process {
 			WARN("plain inline is preferred over $1\n" . $herecurr);
 		}
 
+# check for sizeof(&)
+		if ($line =~ /\bsizeof\s*\(\s*\&/) {
+			WARN("sizeof(& should be avoided\n" . $herecurr);
+		}
+
 # check for new externs in .c files.
 		if ($realfile =~ /\.c$/ && defined $stat &&
 		    $stat =~ /^.\s*(?:extern\s+)?$Type\s+($Ident)(\s*)\(/s)
