@@ -275,8 +275,6 @@ static int migrate_page_move_mapping(struct address_space *mapping,
  */
 static void migrate_page_copy(struct page *newpage, struct page *page)
 {
-	int anon;
-
 	copy_highpage(newpage, page);
 
 	if (PageError(page))
@@ -313,8 +311,6 @@ static void migrate_page_copy(struct page *newpage, struct page *page)
 	ClearPageSwapCache(page);
 	ClearPagePrivate(page);
 	set_page_private(page, 0);
-	/* page->mapping contains a flag for PageAnon() */
-	anon = PageAnon(page);
 	page->mapping = NULL;
 
 	/*
