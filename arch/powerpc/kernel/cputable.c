@@ -1712,6 +1712,7 @@ static struct cpu_spec __initdata cpu_specs[] = {
 			MMU_FTR_USE_TLBIVAX_BCAST | MMU_FTR_LOCK_BCAST_INVAL,
 		.icache_bsize		= 32,
 		.dcache_bsize		= 128,
+		.machine_check		= machine_check_47x,
 		.platform		= "ppc470",
 	},
 	{	/* default match */
