@@ -399,10 +399,23 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 	if (!x86_pmu.intel_cap.pebs_trap)
 		return 1;
 
+	/*
+	 * No LBR entry, no basic block, no rewinding
+	 */
 	if (!cpuc->lbr_stack.nr || !from || !to)
 		return 0;
 
-	if (ip < to)
+	/*
+	 * Basic blocks should never cross user/kernel boundaries
+	 */
+	if (kernel_ip(ip) != kernel_ip(to))
+		return 0;
+
+	/*
+	 * unsigned math, either ip is before the start (impossible) or
+	 * the basic block is larger than 1 page (sanity)
+	 */
+	if ((ip - to) > PAGE_SIZE)
 		return 0;
 
 	/*
@@ -420,7 +433,7 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 
 		old_to = to;
 		if (!kernel_ip(ip)) {
-			int bytes, size = min_t(int, MAX_INSN_SIZE, ip - to);
+			int bytes, size = MAX_INSN_SIZE;
 
 			bytes = copy_from_user_nmi(buf, (void __user *)to, size);
 			if (bytes != size)
@@ -440,6 +453,10 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 		return 1;
 	}
 
+	/*
+	 * Even though we decoded the basic block, the instruction stream
+	 * never matched the given IP, either the TO or the IP got corrupted.
+	 */
 	return 0;
 }
 
