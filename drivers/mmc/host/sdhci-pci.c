@@ -501,6 +501,7 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 {
 	struct sdhci_pci_chip *chip;
 	struct sdhci_pci_slot *slot;
+	mmc_pm_flag_t pm_flags = 0;
 	int i, ret;
 
 	chip = pci_get_drvdata(pdev);
@@ -519,6 +520,8 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 				sdhci_resume_host(chip->slots[i]->host);
 			return ret;
 		}
+
+		pm_flags |= slot->host->mmc->pm_flags;
 	}
 
 	if (chip->fixes && chip->fixes->suspend) {
@@ -531,9 +534,15 @@ static int sdhci_pci_suspend (struct pci_dev *pdev, pm_message_t state)
 	}
 
 	pci_save_state(pdev);
-	pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
-	pci_disable_device(pdev);
-	pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	if (pm_flags & MMC_PM_KEEP_POWER) {
+		if (pm_flags & MMC_PM_WAKE_SDIO_IRQ)
+			pci_enable_wake(pdev, PCI_D3hot, 1);
+		pci_set_power_state(pdev, PCI_D3hot);
+	} else {
+		pci_enable_wake(pdev, pci_choose_state(pdev, state), 0);
+		pci_disable_device(pdev);
+		pci_set_power_state(pdev, pci_choose_state(pdev, state));
+	}
 
 	return 0;
 }
@@ -652,6 +661,8 @@ static struct sdhci_pci_slot * __devinit sdhci_pci_probe_slot(
 		if (ret)
 			goto unmap;
 	}
+
+	host->mmc->pm_caps = MMC_PM_KEEP_POWER | MMC_PM_WAKE_SDIO_IRQ;
 
 	ret = sdhci_add_host(host);
 	if (ret)
