@@ -1190,6 +1190,79 @@ static int ov7670_s_autogain(struct v4l2_subdev *sd, int value)
 	return ret;
 }
 
+/*
+ * Exposure is spread all over the place: top 6 bits in AECHH, middle
+ * 8 in AECH, and two stashed in COM1 just for the hell of it.
+ */
+static int ov7670_g_exp(struct v4l2_subdev *sd, __s32 *value)
+{
+	int ret;
+	unsigned char com1, aech, aechh;
+
+	ret = ov7670_read(sd, REG_COM1, &com1) +
+		ov7670_read(sd, REG_AECH, &aech) +
+		ov7670_read(sd, REG_AECHH, &aechh);
+	*value = ((aechh & 0x3f) << 10) | (aech << 2) | (com1 & 0x03);
+	return ret;
+}
+
+static int ov7670_s_exp(struct v4l2_subdev *sd, int value)
+{
+	int ret;
+	unsigned char com1, com8, aech, aechh;
+
+	ret = ov7670_read(sd, REG_COM1, &com1) +
+		ov7670_read(sd, REG_COM8, &com8);
+		ov7670_read(sd, REG_AECHH, &aechh);
+	if (ret)
+		return ret;
+
+	com1 = (com1 & 0xfc) | (value & 0x03);
+	aech = (value >> 2) & 0xff;
+	aechh = (aechh & 0xc0) | ((value >> 10) & 0x3f);
+	ret = ov7670_write(sd, REG_COM1, com1) +
+		ov7670_write(sd, REG_AECH, aech) +
+		ov7670_write(sd, REG_AECHH, aechh);
+	/* Have to turn off AEC as well */
+	if (ret == 0)
+		ret = ov7670_write(sd, REG_COM8, com8 & ~COM8_AEC);
+	return ret;
+}
+
+/*
+ * Tweak autoexposure.
+ */
+static int ov7670_g_autoexp(struct v4l2_subdev *sd, __s32 *value)
+{
+	int ret;
+	unsigned char com8;
+	enum v4l2_exposure_auto_type *atype = (enum v4l2_exposure_auto_type *) value;
+
+	ret = ov7670_read(sd, REG_COM8, &com8);
+	if (com8 & COM8_AEC)
+		*value = V4L2_EXPOSURE_AUTO;
+	else
+		*value = V4L2_EXPOSURE_MANUAL;
+	return ret;
+}
+
+static int ov7670_s_autoexp(struct v4l2_subdev *sd,
+		enum v4l2_exposure_auto_type value)
+{
+	int ret;
+	unsigned char com8;
+
+	ret = ov7670_read(sd, REG_COM8, &com8);
+	if (ret == 0) {
+		if (value == V4L2_EXPOSURE_AUTO)
+			com8 |= COM8_AEC;
+		else
+			com8 &= ~COM8_AEC;
+		ret = ov7670_write(sd, REG_COM8, com8);
+	}
+	return ret;
+}
+
 
 
 static int ov7670_queryctrl(struct v4l2_subdev *sd,
@@ -1212,6 +1285,10 @@ static int ov7670_queryctrl(struct v4l2_subdev *sd,
 		return v4l2_ctrl_query_fill(qc, 0, 255, 1, 128);
 	case V4L2_CID_AUTOGAIN:
 		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
+	case V4L2_CID_EXPOSURE:
+		return v4l2_ctrl_query_fill(qc, 0, 65535, 1, 500);
+	case V4L2_CID_EXPOSURE_AUTO:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 0);
 	}
 	return -EINVAL;
 }
@@ -1235,6 +1312,10 @@ static int ov7670_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		return ov7670_g_gain(sd, &ctrl->value);
 	case V4L2_CID_AUTOGAIN:
 		return ov7670_g_autogain(sd, &ctrl->value);
+	case V4L2_CID_EXPOSURE:
+		return ov7670_g_exp(sd, &ctrl->value);
+	case V4L2_CID_EXPOSURE_AUTO:
+		return ov7670_g_autoexp(sd, &ctrl->value);
 	}
 	return -EINVAL;
 }
@@ -1258,6 +1339,11 @@ static int ov7670_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		return ov7670_s_gain(sd, ctrl->value);
 	case V4L2_CID_AUTOGAIN:
 		return ov7670_s_autogain(sd, ctrl->value);
+	case V4L2_CID_EXPOSURE:
+		return ov7670_s_exp(sd, ctrl->value);
+	case V4L2_CID_EXPOSURE_AUTO:
+		return ov7670_s_autoexp(sd,
+				(enum v4l2_exposure_auto_type) ctrl->value);
 	}
 	return -EINVAL;
 }
