@@ -1133,6 +1133,7 @@ void r600_gpu_init(struct radeon_device *rdev)
 	/* Setup pipes */
 	WREG32(CC_RB_BACKEND_DISABLE, cc_rb_backend_disable);
 	WREG32(CC_GC_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
+	WREG32(GC_USER_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
 
 	tmp = R6XX_MAX_PIPES - r600_count_pipe_bits((cc_gc_shader_pipe_config & INACTIVE_QD_PIPES_MASK) >> 8);
 	WREG32(VGT_OUT_DEALLOC_CNTL, (tmp * 4) & DEALLOC_DIST_MASK);

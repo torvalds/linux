@@ -648,10 +648,13 @@ static void rv770_gpu_init(struct radeon_device *rdev)
 
 	WREG32(CC_RB_BACKEND_DISABLE,      cc_rb_backend_disable);
 	WREG32(CC_GC_SHADER_PIPE_CONFIG,   cc_gc_shader_pipe_config);
+	WREG32(GC_USER_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
 	WREG32(CC_SYS_RB_BACKEND_DISABLE,  cc_rb_backend_disable);
 
 	WREG32(CGTS_SYS_TCC_DISABLE, 0);
 	WREG32(CGTS_TCC_DISABLE, 0);
+	WREG32(CGTS_USER_SYS_TCC_DISABLE, 0);
+	WREG32(CGTS_USER_TCC_DISABLE, 0);
 
 	num_qd_pipes =
 		R7XX_MAX_PIPES - r600_count_pipe_bits((cc_gc_shader_pipe_config & INACTIVE_QD_PIPES_MASK) >> 8);
