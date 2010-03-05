@@ -2501,13 +2501,6 @@ L:	linux-parisc@vger.kernel.org
 S:	Maintained
 F:	sound/parisc/harmony.*
 
-HAYES ESP SERIAL DRIVER
-M:	"Andrew J. Robinson" <arobinso@nyx.net>
-W:	http://www.nyx.net/~arobinso
-S:	Maintained
-F:	Documentation/serial/hayes-esp.txt
-F:	drivers/char/esp.c
-
 HEWLETT-PACKARD SMART2 RAID DRIVER
 M:	Chirag Kantharia <chirag.kantharia@hp.com>
 L:	iss_storagedev@hp.com
