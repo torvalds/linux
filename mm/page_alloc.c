@@ -4392,8 +4392,12 @@ void __init free_area_init_nodes(unsigned long *max_zone_pfn)
 	for (i = 0; i < MAX_NR_ZONES; i++) {
 		if (i == ZONE_MOVABLE)
 			continue;
-		printk("  %-8s %0#10lx -> %0#10lx\n",
-				zone_names[i],
+		printk("  %-8s ", zone_names[i]);
+		if (arch_zone_lowest_possible_pfn[i] ==
+				arch_zone_highest_possible_pfn[i])
+			printk("empty\n");
+		else
+			printk("%0#10lx -> %0#10lx\n",
 				arch_zone_lowest_possible_pfn[i],
 				arch_zone_highest_possible_pfn[i]);
 	}
