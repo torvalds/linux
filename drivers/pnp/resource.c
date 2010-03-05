@@ -470,7 +470,8 @@ int pnp_check_dma(struct pnp_dev *dev, struct resource *res)
 unsigned long pnp_resource_type(struct resource *res)
 {
 	return res->flags & (IORESOURCE_IO  | IORESOURCE_MEM |
-			     IORESOURCE_IRQ | IORESOURCE_DMA);
+			     IORESOURCE_IRQ | IORESOURCE_DMA |
+			     IORESOURCE_BUS);
 }
 
 struct resource *pnp_get_resource(struct pnp_dev *dev,
@@ -583,6 +584,30 @@ struct pnp_resource *pnp_add_mem_resource(struct pnp_dev *dev,
 
 	res = &pnp_res->res;
 	res->flags = IORESOURCE_MEM | flags;
+	res->start = start;
+	res->end = end;
+
+	pnp_dbg(&dev->dev, "  add %pr\n", res);
+	return pnp_res;
+}
+
+struct pnp_resource *pnp_add_bus_resource(struct pnp_dev *dev,
+					  resource_size_t start,
+					  resource_size_t end)
+{
+	struct pnp_resource *pnp_res;
+	struct resource *res;
+
+	pnp_res = pnp_new_resource(dev);
+	if (!pnp_res) {
+		dev_err(&dev->dev, "can't add resource for BUS %#llx-%#llx\n",
+			(unsigned long long) start,
+			(unsigned long long) end);
+		return NULL;
+	}
+
+	res = &pnp_res->res;
+	res->flags = IORESOURCE_BUS;
 	res->start = start;
 	res->end = end;
 

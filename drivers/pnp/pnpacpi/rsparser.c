@@ -265,6 +265,14 @@ static void pnpacpi_parse_allocated_memresource(struct pnp_dev *dev,
 	pnp_add_mem_resource(dev, start, end, flags);
 }
 
+static void pnpacpi_parse_allocated_busresource(struct pnp_dev *dev,
+						u64 start, u64 len)
+{
+	u64 end = start + len - 1;
+
+	pnp_add_bus_resource(dev, start, end);
+}
+
 static void pnpacpi_parse_allocated_address_space(struct pnp_dev *dev,
 						  struct acpi_resource *res)
 {
@@ -290,6 +298,9 @@ static void pnpacpi_parse_allocated_address_space(struct pnp_dev *dev,
 			p->minimum, p->address_length,
 			p->granularity == 0xfff ? ACPI_DECODE_10 :
 				ACPI_DECODE_16, window);
+	else if (p->resource_type == ACPI_BUS_NUMBER_RANGE)
+		pnpacpi_parse_allocated_busresource(dev, p->minimum,
+						    p->address_length);
 }
 
 static void pnpacpi_parse_allocated_ext_address_space(struct pnp_dev *dev,
@@ -309,6 +320,9 @@ static void pnpacpi_parse_allocated_ext_address_space(struct pnp_dev *dev,
 			p->minimum, p->address_length,
 			p->granularity == 0xfff ? ACPI_DECODE_10 :
 				ACPI_DECODE_16, window);
+	else if (p->resource_type == ACPI_BUS_NUMBER_RANGE)
+		pnpacpi_parse_allocated_busresource(dev, p->minimum,
+						    p->address_length);
 }
 
 static acpi_status pnpacpi_allocated_resource(struct acpi_resource *res,
