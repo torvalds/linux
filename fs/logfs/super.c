@@ -440,7 +440,7 @@ static int __logfs_read_sb(struct super_block *sb)
 	return 0;
 }
 
-static int logfs_read_sb(struct super_block *sb)
+static int logfs_read_sb(struct super_block *sb, int read_only)
 {
 	struct logfs_super *super = logfs_super(sb);
 	int ret;
@@ -459,6 +459,12 @@ static int logfs_read_sb(struct super_block *sb)
 	ret = __logfs_read_sb(sb);
 	if (ret)
 		return ret;
+
+	if (super->s_feature_incompat & ~LOGFS_FEATURES_INCOMPAT)
+		return -EIO;
+	if ((super->s_feature_ro_compat & ~LOGFS_FEATURES_RO_COMPAT) &&
+			!read_only)
+		return -EIO;
 
 	mutex_init(&super->s_dirop_mutex);
 	mutex_init(&super->s_object_alias_mutex);
@@ -555,7 +561,7 @@ int logfs_get_sb_device(struct file_system_type *type, int flags,
 	sb->s_op	= &logfs_super_operations;
 	sb->s_flags	= flags | MS_NOATIME;
 
-	err = logfs_read_sb(sb);
+	err = logfs_read_sb(sb, sb->s_flags & MS_RDONLY);
 	if (err)
 		goto err1;
 

@@ -193,6 +193,10 @@ struct logfs_segment_header {
 
 SIZE_CHECK(logfs_segment_header, LOGFS_SEGMENT_HEADERSIZE);
 
+#define LOGFS_FEATURES_INCOMPAT		(0ull)
+#define LOGFS_FEATURES_RO_COMPAT	(0ull)
+#define LOGFS_FEATURES_COMPAT		(0ull)
+
 /**
  * struct logfs_disk_super - on-medium superblock
  *
