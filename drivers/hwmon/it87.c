@@ -719,6 +719,32 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 	mutex_unlock(&data->update_lock);
 	return count;
 }
+
+/* Returns 0 if OK, -EINVAL otherwise */
+static int check_trip_points(struct device *dev, int nr)
+{
+	const struct it87_data *data = dev_get_drvdata(dev);
+	int i, err = 0;
+
+	if (has_old_autopwm(data)) {
+		for (i = 0; i < 3; i++) {
+			if (data->auto_temp[nr][i] > data->auto_temp[nr][i + 1])
+				err = -EINVAL;
+		}
+		for (i = 0; i < 2; i++) {
+			if (data->auto_pwm[nr][i] > data->auto_pwm[nr][i + 1])
+				err = -EINVAL;
+		}
+	}
+
+	if (err) {
+		dev_err(dev, "Inconsistent trip points, not switching to "
+			"automatic mode\n");
+		dev_err(dev, "Adjust the trip points and try again\n");
+	}
+	return err;
+}
+
 static ssize_t set_pwm_enable(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
@@ -730,6 +756,12 @@ static ssize_t set_pwm_enable(struct device *dev,
 
 	if (strict_strtol(buf, 10, &val) < 0 || val < 0 || val > 2)
 		return -EINVAL;
+
+	/* Check trip points before switching to automatic mode */
+	if (val == 2) {
+		if (check_trip_points(dev, nr) < 0)
+			return -EINVAL;
+	}
 
 	mutex_lock(&data->update_lock);
 

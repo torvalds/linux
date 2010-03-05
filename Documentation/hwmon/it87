@@ -177,3 +177,7 @@ between trip point N and trip point N+1 then the PWM output value is
 the one of trip point N. The automatic control mode is less flexible
 than the manual control mode, but it reacts faster, is more robust and
 doesn't use CPU cycles.
+
+Trip points must be set properly before switching to automatic fan speed
+control mode. The driver will perform basic integrity checks before
+actually switching to automatic control mode.
