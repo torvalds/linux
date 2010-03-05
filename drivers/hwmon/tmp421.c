@@ -254,9 +254,9 @@ static int tmp421_detect(struct i2c_client *client,
 		return -ENODEV;
 	}
 
-	strlcpy(info->type, tmp421_id[kind - 1].name, I2C_NAME_SIZE);
+	strlcpy(info->type, tmp421_id[kind].name, I2C_NAME_SIZE);
 	dev_info(&adapter->dev, "Detected TI %s chip at 0x%02x\n",
-		 names[kind - 1], client->addr);
+		 names[kind], client->addr);
 
 	return 0;
 }
