@@ -61,9 +61,9 @@ static const u8 TMP421_TEMP_LSB[4]		= { 0x10, 0x11, 0x12, 0x13 };
 #define TMP423_DEVICE_ID			0x23
 
 static const struct i2c_device_id tmp421_id[] = {
-	{ "tmp421", tmp421 },
-	{ "tmp422", tmp422 },
-	{ "tmp423", tmp423 },
+	{ "tmp421", 2 },
+	{ "tmp422", 3 },
+	{ "tmp423", 4 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, tmp421_id);
@@ -73,7 +73,7 @@ struct tmp421_data {
 	struct mutex update_lock;
 	char valid;
 	unsigned long last_updated;
-	int kind;
+	int channels;
 	u8 config;
 	s16 temp[4];
 };
@@ -107,7 +107,7 @@ static struct tmp421_data *tmp421_update_device(struct device *dev)
 		data->config = i2c_smbus_read_byte_data(client,
 			TMP421_CONFIG_REG_1);
 
-		for (i = 0; i <= data->kind; i++) {
+		for (i = 0; i < data->channels; i++) {
 			data->temp[i] = i2c_smbus_read_byte_data(client,
 				TMP421_TEMP_MSB[i]) << 8;
 			data->temp[i] |= i2c_smbus_read_byte_data(client,
@@ -166,7 +166,7 @@ static mode_t tmp421_is_visible(struct kobject *kobj, struct attribute *a,
 	devattr = container_of(a, struct device_attribute, attr);
 	index = to_sensor_dev_attr(devattr)->index;
 
-	if (data->kind > index)
+	if (index < data->channels)
 		return a->mode;
 
 	return 0;
@@ -271,7 +271,7 @@ static int tmp421_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
-	data->kind = id->driver_data;
+	data->channels = id->driver_data;
 
 	err = tmp421_init_client(client);
 	if (err)
