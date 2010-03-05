@@ -363,7 +363,10 @@ static ssize_t set_in_min(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->index;
 
 	struct it87_data *data = dev_get_drvdata(dev);
-	unsigned long val = simple_strtoul(buf, NULL, 10);
+	unsigned long val;
+
+	if (strict_strtoul(buf, 10, &val) < 0)
+		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	data->in_min[nr] = IN_TO_REG(val);
@@ -379,7 +382,10 @@ static ssize_t set_in_max(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->index;
 
 	struct it87_data *data = dev_get_drvdata(dev);
-	unsigned long val = simple_strtoul(buf, NULL, 10);
+	unsigned long val;
+
+	if (strict_strtoul(buf, 10, &val) < 0)
+		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	data->in_max[nr] = IN_TO_REG(val);
@@ -452,7 +458,10 @@ static ssize_t set_temp_max(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->index;
 
 	struct it87_data *data = dev_get_drvdata(dev);
-	int val = simple_strtol(buf, NULL, 10);
+	long val;
+
+	if (strict_strtol(buf, 10, &val) < 0)
+		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	data->temp_high[nr] = TEMP_TO_REG(val);
@@ -467,7 +476,10 @@ static ssize_t set_temp_min(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->index;
 
 	struct it87_data *data = dev_get_drvdata(dev);
-	int val = simple_strtol(buf, NULL, 10);
+	long val;
+
+	if (strict_strtol(buf, 10, &val) < 0)
+		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	data->temp_low[nr] = TEMP_TO_REG(val);
@@ -510,7 +522,10 @@ static ssize_t set_sensor(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->index;
 
 	struct it87_data *data = dev_get_drvdata(dev);
-	int val = simple_strtol(buf, NULL, 10);
+	long val;
+
+	if (strict_strtol(buf, 10, &val) < 0)
+		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 
@@ -618,8 +633,11 @@ static ssize_t set_fan_min(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->index;
 
 	struct it87_data *data = dev_get_drvdata(dev);
-	int val = simple_strtol(buf, NULL, 10);
+	long val;
 	u8 reg;
+
+	if (strict_strtol(buf, 10, &val) < 0)
+		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	reg = it87_read_value(data, IT87_REG_FAN_DIV);
@@ -647,9 +665,12 @@ static ssize_t set_fan_div(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->index;
 
 	struct it87_data *data = dev_get_drvdata(dev);
-	unsigned long val = simple_strtoul(buf, NULL, 10);
+	unsigned long val;
 	int min;
 	u8 old;
+
+	if (strict_strtoul(buf, 10, &val) < 0)
+		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	old = it87_read_value(data, IT87_REG_FAN_DIV);
@@ -689,9 +710,9 @@ static ssize_t set_pwm_enable(struct device *dev,
 	int nr = sensor_attr->index;
 
 	struct it87_data *data = dev_get_drvdata(dev);
-	int val = simple_strtol(buf, NULL, 10);
+	long val;
 
-	if (val < 0 || val > 2)
+	if (strict_strtol(buf, 10, &val) < 0 || val < 0 || val > 2)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -727,9 +748,9 @@ static ssize_t set_pwm(struct device *dev, struct device_attribute *attr,
 	int nr = sensor_attr->index;
 
 	struct it87_data *data = dev_get_drvdata(dev);
-	int val = simple_strtol(buf, NULL, 10);
+	long val;
 
-	if (val < 0 || val > 255)
+	if (strict_strtol(buf, 10, &val) < 0 || val < 0 || val > 255)
 		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
@@ -747,8 +768,11 @@ static ssize_t set_pwm_freq(struct device *dev,
 		struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
-	unsigned long val = simple_strtoul(buf, NULL, 10);
+	unsigned long val;
 	int i;
+
+	if (strict_strtoul(buf, 10, &val) < 0)
+		return -EINVAL;
 
 	/* Search for the nearest available frequency */
 	for (i = 0; i < 7; i++) {
@@ -871,7 +895,10 @@ static ssize_t set_fan16_min(struct device *dev, struct device_attribute *attr,
 	struct sensor_device_attribute *sensor_attr = to_sensor_dev_attr(attr);
 	int nr = sensor_attr->index;
 	struct it87_data *data = dev_get_drvdata(dev);
-	int val = simple_strtol(buf, NULL, 10);
+	long val;
+
+	if (strict_strtol(buf, 10, &val) < 0)
+		return -EINVAL;
 
 	mutex_lock(&data->update_lock);
 	data->fan_min[nr] = FAN16_TO_REG(val);
@@ -992,9 +1019,11 @@ static ssize_t store_vrm_reg(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
 	struct it87_data *data = dev_get_drvdata(dev);
-	u32 val;
+	unsigned long val;
 
-	val = simple_strtoul(buf, NULL, 10);
+	if (strict_strtoul(buf, 10, &val) < 0)
+		return -EINVAL;
+
 	data->vrm = val;
 
 	return count;
