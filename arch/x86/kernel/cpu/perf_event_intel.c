@@ -870,7 +870,10 @@ static __initconst struct x86_pmu intel_pmu = {
 	.max_period		= (1ULL << 31) - 1,
 	.enable_bts		= intel_pmu_enable_bts,
 	.disable_bts		= intel_pmu_disable_bts,
-	.get_event_constraints	= intel_get_event_constraints
+	.get_event_constraints	= intel_get_event_constraints,
+
+	.cpu_starting		= init_debug_store_on_cpu,
+	.cpu_dying		= fini_debug_store_on_cpu,
 };
 
 static __init int intel_pmu_init(void)

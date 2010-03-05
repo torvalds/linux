@@ -275,11 +275,28 @@ const struct pmu *hw_perf_event_init(struct perf_event *event)
 	return &pmu;
 }
 
-void hw_perf_event_setup(int cpu)
+static void sh_pmu_setup(int cpu)
 {
 	struct cpu_hw_events *cpuhw = &per_cpu(cpu_hw_events, cpu);
 
 	memset(cpuhw, 0, sizeof(struct cpu_hw_events));
+}
+
+static int __cpuinit
+sh_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (long)hcpu;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_UP_PREPARE:
+		sh_pmu_setup(cpu);
+		break;
+
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
 }
 
 void hw_perf_enable(void)
@@ -308,5 +325,6 @@ int register_sh_pmu(struct sh_pmu *pmu)
 
 	WARN_ON(pmu->num_events > MAX_HWEVENTS);
 
+	perf_cpu_notifier(sh_pmu_notifier);
 	return 0;
 }
