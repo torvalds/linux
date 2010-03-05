@@ -136,6 +136,10 @@ registers are read whenever any data is read (unless it is less than 1.5
 seconds since the last update). This means that you can easily miss
 once-only alarms.
 
+Out-of-limit readings can also result in beeping, if the chip is properly
+wired and configured. Beeping can be enabled or disabled per sensor type
+(temperatures, voltages and fans.)
+
 The IT87xx only updates its values each 1.5 seconds; reading it more often
 will do no harm, but will return 'old' values.
 
