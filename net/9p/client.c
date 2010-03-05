@@ -670,8 +670,25 @@ int p9_client_version(struct p9_client *c)
 
 	P9_DPRINTK(P9_DEBUG_9P, ">>> TVERSION msize %d protocol %d\n",
 						c->msize, c->proto_version);
-	req = p9_client_rpc(c, P9_TVERSION, "ds", c->msize,
-				p9_is_proto_dotu(c) ? "9P2000.u" : "9P2000");
+
+	switch (c->proto_version) {
+	case p9_proto_2010L:
+		req = p9_client_rpc(c, P9_TVERSION, "ds",
+					c->msize, "9P2010.L");
+		break;
+	case p9_proto_2000u:
+		req = p9_client_rpc(c, P9_TVERSION, "ds",
+					c->msize, "9P2000.u");
+		break;
+	case p9_proto_legacy:
+		req = p9_client_rpc(c, P9_TVERSION, "ds",
+					c->msize, "9P2000");
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+
 	if (IS_ERR(req))
 		return PTR_ERR(req);
 
@@ -683,7 +700,9 @@ int p9_client_version(struct p9_client *c)
 	}
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RVERSION msize %d %s\n", msize, version);
-	if (!strncmp(version, "9P2000.u", 8))
+	if (!strncmp(version, "9P2010.L", 8))
+		c->proto_version = p9_proto_2010L;
+	else if (!strncmp(version, "9P2000.u", 8))
 		c->proto_version = p9_proto_2000u;
 	else if (!strncmp(version, "9P2000", 6))
 		c->proto_version = p9_proto_legacy;
