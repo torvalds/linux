@@ -1083,6 +1083,7 @@ static void free_hot_cold_page(struct page *page, int cold)
 	int migratetype;
 	int wasMlocked = __TestClearPageMlocked(page);
 
+	trace_mm_page_free_direct(page, 0);
 	kmemcheck_free_shadow(page, 0);
 
 	if (PageAnon(page))
@@ -1136,7 +1137,6 @@ out:
 
 void free_hot_page(struct page *page)
 {
-	trace_mm_page_free_direct(page, 0);
 	free_hot_cold_page(page, 0);
 }
 	
