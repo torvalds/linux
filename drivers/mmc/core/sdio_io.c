@@ -189,7 +189,12 @@ static inline unsigned int sdio_max_byte_size(struct sdio_func *func)
 {
 	unsigned mval =	min(func->card->host->max_seg_size,
 			    func->card->host->max_blk_size);
-	mval = min(mval, func->max_blksize);
+
+	if (mmc_blksz_for_byte_mode(func->card))
+		mval = min(mval, func->cur_blksize);
+	else
+		mval = min(mval, func->max_blksize);
+
 	return min(mval, 512u); /* maximum size for byte mode */
 }
 
