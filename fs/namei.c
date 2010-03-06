@@ -1656,7 +1656,7 @@ static struct file *do_last(struct nameidata *nd, struct path *path,
 		if (path->dentry->d_inode->i_op->follow_link)
 			return NULL;
 		error = -ENOTDIR;
-		if (*want_dir & !path->dentry->d_inode->i_op->lookup)
+		if (*want_dir && !path->dentry->d_inode->i_op->lookup)
 			goto exit_dput;
 		path_to_nameidata(path, nd);
 		audit_inode(pathname, nd->path.dentry);
