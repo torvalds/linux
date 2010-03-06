@@ -46,7 +46,7 @@
 #ifdef BFA_DRIVER_VERSION
 #define BFAD_DRIVER_VERSION    BFA_DRIVER_VERSION
 #else
-#define BFAD_DRIVER_VERSION    "2.0.0.0"
+#define BFAD_DRIVER_VERSION    "2.1.2.1"
 #endif
 
 
