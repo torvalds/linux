@@ -470,27 +470,27 @@ void r600_hdmi_init(struct drm_encoder *encoder)
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_TMDS1:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
-		radeon_encoder->hdmi_offset = R600_HDMI_TMDS1;
+		radeon_encoder->hdmi_offset = R600_HDMI_BLOCK1;
 		break;
 
 	case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
 		switch (r600_audio_tmds_index(encoder)) {
 		case 0:
-			radeon_encoder->hdmi_offset = R600_HDMI_TMDS1;
+			radeon_encoder->hdmi_offset = R600_HDMI_BLOCK1;
 			break;
 		case 1:
-			radeon_encoder->hdmi_offset = R600_HDMI_TMDS2;
+			radeon_encoder->hdmi_offset = R600_HDMI_BLOCK2;
 			break;
 		default:
 			radeon_encoder->hdmi_offset = 0;
 			break;
 		}
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
-		radeon_encoder->hdmi_offset = R600_HDMI_TMDS2;
+		radeon_encoder->hdmi_offset = R600_HDMI_BLOCK2;
 		break;
 
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
-		radeon_encoder->hdmi_offset = R600_HDMI_DIG;
+		radeon_encoder->hdmi_offset = R600_HDMI_BLOCK3;
 		break;
 
 	default:
