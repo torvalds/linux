@@ -23,6 +23,16 @@
 #include "bfa_intr_priv.h"
 
 /**
+ * Link notification data structure
+ */
+struct bfa_pport_ln_s {
+	struct bfa_pport_s     *pport;
+	bfa_sm_t                sm;
+	struct bfa_cb_qe_s      ln_qe;  /*  BFA callback queue elem for ln */
+	enum bfa_pport_linkstate ln_event; /*  ln event for callback */
+};
+
+/**
  * BFA physical port data structure
  */
 struct bfa_pport_s {
@@ -52,9 +62,8 @@ struct bfa_pport_s {
 		union bfi_pport_i2h_msg_u i2hmsg;
 	} event_arg;
 	void			*bfad;	/*  BFA driver handle */
+	struct bfa_pport_ln_s   ln; /* Link Notification */
 	struct bfa_cb_qe_s		hcb_qe;	/*  BFA callback queue elem */
-	enum bfa_pport_linkstate	hcb_event;
-					/*  link event for callback */
 	u32		msgtag;	/*  fimrware msg tag for reply */
 	u8			*stats_kva;
 	u64		stats_pa;

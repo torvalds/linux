@@ -26,16 +26,6 @@
 BFA_TRC_FILE(HAL, PPORT);
 BFA_MODULE(pport);
 
-#define bfa_pport_callback(__pport, __event) do {			\
-	if ((__pport)->bfa->fcs) {      \
-		(__pport)->event_cbfn((__pport)->event_cbarg, (__event));      \
-	} else {							\
-		(__pport)->hcb_event = (__event);      \
-		bfa_cb_queue((__pport)->bfa, &(__pport)->hcb_qe,	\
-		__bfa_cb_port_event, (__pport));      \
-	}								\
-} while (0)
-
 /*
  * The port is considered disabled if corresponding physical port or IOC are
  * disabled explicitly
@@ -57,7 +47,10 @@ static void     __bfa_cb_port_stats(void *cbarg, bfa_boolean_t complete);
 static void     __bfa_cb_port_stats_clr(void *cbarg, bfa_boolean_t complete);
 static void     bfa_port_stats_timeout(void *cbarg);
 static void     bfa_port_stats_clr_timeout(void *cbarg);
-
+static void	bfa_pport_callback(struct bfa_pport_s *pport,
+				enum bfa_pport_linkstate event);
+static void	bfa_pport_queue_cb(struct bfa_pport_ln_s *ln,
+				enum bfa_pport_linkstate event);
 /**
  *  bfa_pport_private
  */
@@ -75,6 +68,16 @@ enum bfa_pport_sm_event {
 	BFA_PPORT_SM_LINKDOWN = 7,	/*  firmware linkup down */
 	BFA_PPORT_SM_QRESUME = 8,	/*  CQ space available */
 	BFA_PPORT_SM_HWFAIL = 9,	/*  IOC h/w failure */
+};
+
+/**
+ * BFA port link notification state machine events
+ */
+
+enum bfa_pport_ln_sm_event {
+	BFA_PPORT_LN_SM_LINKUP         = 1,    /*  linkup event */
+	BFA_PPORT_LN_SM_LINKDOWN       = 2,    /*  linkdown event */
+	BFA_PPORT_LN_SM_NOTIFICATION   = 3     /*  done notification */
 };
 
 static void     bfa_pport_sm_uninit(struct bfa_pport_s *pport,
@@ -99,6 +102,21 @@ static void     bfa_pport_sm_iocdown(struct bfa_pport_s *pport,
 				     enum bfa_pport_sm_event event);
 static void     bfa_pport_sm_iocfail(struct bfa_pport_s *pport,
 				     enum bfa_pport_sm_event event);
+
+static void	bfa_pport_ln_sm_dn(struct bfa_pport_ln_s *ln,
+					enum bfa_pport_ln_sm_event event);
+static void	bfa_pport_ln_sm_dn_nf(struct bfa_pport_ln_s *ln,
+					enum bfa_pport_ln_sm_event event);
+static void	bfa_pport_ln_sm_dn_up_nf(struct bfa_pport_ln_s *ln,
+					enum bfa_pport_ln_sm_event event);
+static void     bfa_pport_ln_sm_up(struct bfa_pport_ln_s *ln,
+					enum bfa_pport_ln_sm_event event);
+static void	bfa_pport_ln_sm_up_nf(struct bfa_pport_ln_s *ln,
+					enum bfa_pport_ln_sm_event event);
+static void	bfa_pport_ln_sm_up_dn_nf(struct bfa_pport_ln_s *ln,
+					enum bfa_pport_ln_sm_event event);
+static void	bfa_pport_ln_sm_up_dn_up_nf(struct bfa_pport_ln_s *ln,
+					enum bfa_pport_ln_sm_event event);
 
 static struct bfa_sm_table_s hal_pport_sm_table[] = {
 	{BFA_SM(bfa_pport_sm_uninit), BFA_PPORT_ST_UNINIT},
@@ -619,7 +637,163 @@ bfa_pport_sm_iocfail(struct bfa_pport_s *pport, enum bfa_pport_sm_event event)
 	}
 }
 
+/**
+ * Link state is down
+ */
+static void
+bfa_pport_ln_sm_dn(struct bfa_pport_ln_s *ln,
+		enum bfa_pport_ln_sm_event event)
+{
+	bfa_trc(ln->pport->bfa, event);
 
+	switch (event) {
+	case BFA_PPORT_LN_SM_LINKUP:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_up_nf);
+		bfa_pport_queue_cb(ln, BFA_PPORT_LINKUP);
+		break;
+
+	default:
+		bfa_sm_fault(ln->pport->bfa, event);
+	}
+}
+
+/**
+ * Link state is waiting for down notification
+ */
+static void
+bfa_pport_ln_sm_dn_nf(struct bfa_pport_ln_s *ln,
+		enum bfa_pport_ln_sm_event event)
+{
+	bfa_trc(ln->pport->bfa, event);
+
+	switch (event) {
+	case BFA_PPORT_LN_SM_LINKUP:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_dn_up_nf);
+		break;
+
+	case BFA_PPORT_LN_SM_NOTIFICATION:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_dn);
+		break;
+
+	default:
+		bfa_sm_fault(ln->pport->bfa, event);
+	}
+}
+
+/**
+ * Link state is waiting for down notification and there is a pending up
+ */
+static void
+bfa_pport_ln_sm_dn_up_nf(struct bfa_pport_ln_s *ln,
+		enum bfa_pport_ln_sm_event event)
+{
+	bfa_trc(ln->pport->bfa, event);
+
+	switch (event) {
+	case BFA_PPORT_LN_SM_LINKDOWN:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_dn_nf);
+		break;
+
+	case BFA_PPORT_LN_SM_NOTIFICATION:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_up_nf);
+		bfa_pport_queue_cb(ln, BFA_PPORT_LINKUP);
+		break;
+
+	default:
+		bfa_sm_fault(ln->pport->bfa, event);
+	}
+}
+
+/**
+ * Link state is up
+ */
+static void
+bfa_pport_ln_sm_up(struct bfa_pport_ln_s *ln,
+		enum bfa_pport_ln_sm_event event)
+{
+	bfa_trc(ln->pport->bfa, event);
+
+	switch (event) {
+	case BFA_PPORT_LN_SM_LINKDOWN:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_dn_nf);
+		bfa_pport_queue_cb(ln, BFA_PPORT_LINKDOWN);
+		break;
+
+	default:
+		bfa_sm_fault(ln->pport->bfa, event);
+	}
+}
+
+/**
+ * Link state is waiting for up notification
+ */
+static void
+bfa_pport_ln_sm_up_nf(struct bfa_pport_ln_s *ln,
+		enum bfa_pport_ln_sm_event event)
+{
+	bfa_trc(ln->pport->bfa, event);
+
+	switch (event) {
+	case BFA_PPORT_LN_SM_LINKDOWN:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_up_dn_nf);
+		break;
+
+	case BFA_PPORT_LN_SM_NOTIFICATION:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_up);
+		break;
+
+	default:
+		bfa_sm_fault(ln->pport->bfa, event);
+	}
+}
+
+/**
+ * Link state is waiting for up notification and there is a pending down
+ */
+static void
+bfa_pport_ln_sm_up_dn_nf(struct bfa_pport_ln_s *ln,
+		enum bfa_pport_ln_sm_event event)
+{
+	bfa_trc(ln->pport->bfa, event);
+
+	switch (event) {
+	case BFA_PPORT_LN_SM_LINKUP:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_up_dn_up_nf);
+		break;
+
+	case BFA_PPORT_LN_SM_NOTIFICATION:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_dn_nf);
+		bfa_pport_queue_cb(ln, BFA_PPORT_LINKDOWN);
+		break;
+
+	default:
+		bfa_sm_fault(ln->pport->bfa, event);
+	}
+}
+
+/**
+ * Link state is waiting for up notification and there are pending down and up
+ */
+static void
+bfa_pport_ln_sm_up_dn_up_nf(struct bfa_pport_ln_s *ln,
+			enum bfa_pport_ln_sm_event event)
+{
+	bfa_trc(ln->pport->bfa, event);
+
+	switch (event) {
+	case BFA_PPORT_LN_SM_LINKDOWN:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_up_dn_nf);
+		break;
+
+	case BFA_PPORT_LN_SM_NOTIFICATION:
+		bfa_sm_set_state(ln, bfa_pport_ln_sm_dn_up_nf);
+		bfa_pport_queue_cb(ln, BFA_PPORT_LINKDOWN);
+		break;
+
+	default:
+		bfa_sm_fault(ln->pport->bfa, event);
+	}
+}
 
 /**
  *  bfa_pport_private
@@ -628,10 +802,12 @@ bfa_pport_sm_iocfail(struct bfa_pport_s *pport, enum bfa_pport_sm_event event)
 static void
 __bfa_cb_port_event(void *cbarg, bfa_boolean_t complete)
 {
-	struct bfa_pport_s *pport = cbarg;
+	struct bfa_pport_ln_s *ln = cbarg;
 
 	if (complete)
-		pport->event_cbfn(pport->event_cbarg, pport->hcb_event);
+		ln->pport->event_cbfn(ln->pport->event_cbarg, ln->ln_event);
+	else
+		bfa_sm_send_event(ln, BFA_PPORT_LN_SM_NOTIFICATION);
 }
 
 #define PPORT_STATS_DMA_SZ (BFA_ROUNDUP(sizeof(union bfa_pport_stats_u), \
@@ -681,13 +857,16 @@ bfa_pport_attach(struct bfa_s *bfa, void *bfad, struct bfa_iocfc_cfg_s *cfg,
 {
 	struct bfa_pport_s *pport = BFA_PORT_MOD(bfa);
 	struct bfa_pport_cfg_s *port_cfg = &pport->cfg;
+	struct bfa_pport_ln_s *ln = &pport->ln;
 
 	bfa_os_memset(pport, 0, sizeof(struct bfa_pport_s));
 	pport->bfa = bfa;
+	ln->pport = pport;
 
 	bfa_pport_mem_claim(pport, meminfo);
 
 	bfa_sm_set_state(pport, bfa_pport_sm_uninit);
+	bfa_sm_set_state(ln, bfa_pport_ln_sm_dn);
 
 	/**
 	 * initialize and set default configuration
@@ -1366,6 +1545,33 @@ bfa_port_stats_clr_timeout(void *cbarg)
 
 	port->stats_status = BFA_STATUS_ETIMER;
 	bfa_cb_queue(port->bfa, &port->hcb_qe, __bfa_cb_port_stats_clr, port);
+}
+
+static void
+bfa_pport_callback(struct bfa_pport_s *pport, enum bfa_pport_linkstate event)
+{
+	if (pport->bfa->fcs) {
+		pport->event_cbfn(pport->event_cbarg, event);
+		return;
+	}
+
+	switch (event) {
+	case BFA_PPORT_LINKUP:
+		bfa_sm_send_event(&pport->ln, BFA_PPORT_LN_SM_LINKUP);
+		break;
+	case BFA_PPORT_LINKDOWN:
+		bfa_sm_send_event(&pport->ln, BFA_PPORT_LN_SM_LINKDOWN);
+		break;
+	default:
+		bfa_assert(0);
+	}
+}
+
+static void
+bfa_pport_queue_cb(struct bfa_pport_ln_s *ln, enum bfa_pport_linkstate event)
+{
+	ln->ln_event = event;
+	bfa_cb_queue(ln->pport->bfa, &ln->ln_qe, __bfa_cb_port_event, ln);
 }
 
 static void
