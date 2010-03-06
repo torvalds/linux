@@ -1013,6 +1013,13 @@ int rv770_resume(struct radeon_device *rdev)
 		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
 		return r;
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "radeon: audio init failed\n");
+		return r;
+	}
+
 	return r;
 
 }
@@ -1021,6 +1028,7 @@ int rv770_suspend(struct radeon_device *rdev)
 {
 	int r;
 
+	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
@@ -1144,6 +1152,13 @@ int rv770_init(struct radeon_device *rdev)
 			}
 		}
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		dev_err(rdev->dev, "radeon: audio init failed\n");
+		return r;
+	}
+
 	return 0;
 }
 
