@@ -42,6 +42,18 @@ module_param_string(o2_speedup, o2_speedup, sizeof(o2_speedup), 0444);
 MODULE_PARM_DESC(o2_speedup, "Use prefetch/burst for O2-bridges: 'on', 'off' "
 	"or 'default' (uses recommended behaviour for the detected bridge)");
 
+/*
+ * Only probe "regular" interrupts, don't
+ * touch dangerous spots like the mouse irq,
+ * because there are mice that apparently
+ * get really confused if they get fondled
+ * too intimately.
+ *
+ * Default to 11, 10, 9, 7, 6, 5, 4, 3.
+ */
+static u32 isa_interrupts = 0x0ef8;
+
+
 #define debug(x, s, args...) dev_dbg(&s->dev->dev, x, ##args)
 
 /* Don't ask.. */
@@ -54,6 +66,8 @@ MODULE_PARM_DESC(o2_speedup, "Use prefetch/burst for O2-bridges: 'on', 'off' "
  */
 #ifdef CONFIG_YENTA_TI
 static int yenta_probe_cb_irq(struct yenta_socket *socket);
+static unsigned int yenta_probe_irq(struct yenta_socket *socket,
+				u32 isa_irq_mask);
 #endif
 
 
@@ -897,17 +911,6 @@ static struct cardbus_type cardbus_type[] = {
 #endif
 };
 
-
-/*
- * Only probe "regular" interrupts, don't
- * touch dangerous spots like the mouse irq,
- * because there are mice that apparently
- * get really confused if they get fondled
- * too intimately.
- *
- * Default to 11, 10, 9, 7, 6, 5, 4, 3.
- */
-static u32 isa_interrupts = 0x0ef8;
 
 static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mask)
 {
