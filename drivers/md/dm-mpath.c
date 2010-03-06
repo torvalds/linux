@@ -1181,14 +1181,19 @@ static void pg_init_done(void *data, int errors)
 			m->current_pgpath = NULL;
 			m->current_pg = NULL;
 		}
-	} else if (!m->pg_init_required) {
-		m->queue_io = 0;
+	} else if (!m->pg_init_required)
 		pg->bypassed = 0;
-	}
 
-	m->pg_init_in_progress--;
-	if (!m->pg_init_in_progress)
-		queue_work(kmultipathd, &m->process_queued_ios);
+	if (--m->pg_init_in_progress)
+		/* Activations of other paths are still on going */
+		goto out;
+
+	if (!m->pg_init_required)
+		m->queue_io = 0;
+
+	queue_work(kmultipathd, &m->process_queued_ios);
+
+out:
 	spin_unlock_irqrestore(&m->lock, flags);
 }
 
