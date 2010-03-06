@@ -220,6 +220,20 @@ p9_virtio_request(struct p9_client *client, struct p9_req_t *req)
 	return 0;
 }
 
+static ssize_t p9_mount_tag_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct virtio_chan *chan;
+	struct virtio_device *vdev;
+
+	vdev = dev_to_virtio(dev);
+	chan = vdev->priv;
+
+	return snprintf(buf, chan->tag_len + 1, "%s", chan->tag);
+}
+
+static DEVICE_ATTR(mount_tag, 0444, p9_mount_tag_show, NULL);
+
 /**
  * p9_virtio_probe - probe for existence of 9P virtio channels
  * @vdev: virtio device to probe
@@ -273,6 +287,11 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 			tag, tag_len);
 	chan->tag = tag;
 	chan->tag_len = tag_len;
+	err = sysfs_create_file(&(vdev->dev.kobj), &dev_attr_mount_tag.attr);
+	if (err) {
+		kfree(tag);
+		goto out_free_vq;
+	}
 	mutex_lock(&virtio_9p_lock);
 	list_add_tail(&chan->chan_list, &virtio_chan_list);
 	mutex_unlock(&virtio_9p_lock);
@@ -348,6 +367,7 @@ static void p9_virtio_remove(struct virtio_device *vdev)
 	mutex_lock(&virtio_9p_lock);
 	list_del(&chan->chan_list);
 	mutex_unlock(&virtio_9p_lock);
+	sysfs_remove_file(&(vdev->dev.kobj), &dev_attr_mount_tag.attr);
 	kfree(chan->tag);
 	kfree(chan);
 
