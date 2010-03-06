@@ -802,6 +802,7 @@ void hw_perf_enable(void)
 		return;
 
 	if (cpuc->n_added) {
+		int n_running = cpuc->n_events - cpuc->n_added;
 		/*
 		 * apply assignment obtained either from
 		 * hw_perf_group_sched_in() or x86_pmu_enable()
@@ -809,7 +810,7 @@ void hw_perf_enable(void)
 		 * step1: save events moving to new counters
 		 * step2: reprogram moved events into new counters
 		 */
-		for (i = 0; i < cpuc->n_events; i++) {
+		for (i = 0; i < n_running; i++) {
 
 			event = cpuc->event_list[i];
 			hwc = &event->hw;
