@@ -37,6 +37,7 @@
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/stringify.h>
+#include <linux/namei.h>
 #include <linux/stat.h>
 #include <linux/miscdevice.h>
 #include <linux/log2.h>
@@ -50,7 +51,8 @@
 
 /**
  * struct mtd_dev_param - MTD device parameter description data structure.
- * @name: MTD device name or number string
+ * @name: MTD character device node path, MTD device name, or MTD device number
+ *        string
  * @vid_hdr_offs: VID header offset
  */
 struct mtd_dev_param {
@@ -59,10 +61,10 @@ struct mtd_dev_param {
 };
 
 /* Numbers of elements set in the @mtd_dev_param array */
-static int mtd_devs;
+static int __initdata mtd_devs;
 
 /* MTD devices specification parameters */
-static struct mtd_dev_param mtd_dev_param[UBI_MAX_DEVICES];
+static struct mtd_dev_param __initdata mtd_dev_param[UBI_MAX_DEVICES];
 
 /* Root UBI "class" object (corresponds to '/<sysfs>/class/ubi/') */
 struct class *ubi_class;
@@ -363,11 +365,13 @@ static void dev_release(struct device *dev)
 /**
  * ubi_sysfs_init - initialize sysfs for an UBI device.
  * @ubi: UBI device description object
+ * @ref: set to %1 on exit in case of failure if a reference to @ubi->dev was
+ *       taken
  *
  * This function returns zero in case of success and a negative error code in
  * case of failure.
  */
-static int ubi_sysfs_init(struct ubi_device *ubi)
+static int ubi_sysfs_init(struct ubi_device *ubi, int *ref)
 {
 	int err;
 
@@ -379,6 +383,7 @@ static int ubi_sysfs_init(struct ubi_device *ubi)
 	if (err)
 		return err;
 
+	*ref = 1;
 	err = device_create_file(&ubi->dev, &dev_eraseblock_size);
 	if (err)
 		return err;
@@ -434,7 +439,7 @@ static void ubi_sysfs_close(struct ubi_device *ubi)
 }
 
 /**
- * kill_volumes - destroy all volumes.
+ * kill_volumes - destroy all user volumes.
  * @ubi: UBI device description object
  */
 static void kill_volumes(struct ubi_device *ubi)
@@ -447,36 +452,29 @@ static void kill_volumes(struct ubi_device *ubi)
 }
 
 /**
- * free_user_volumes - free all user volumes.
- * @ubi: UBI device description object
- *
- * Normally the volumes are freed at the release function of the volume device
- * objects. However, on error paths the volumes have to be freed before the
- * device objects have been initialized.
- */
-static void free_user_volumes(struct ubi_device *ubi)
-{
-	int i;
-
-	for (i = 0; i < ubi->vtbl_slots; i++)
-		if (ubi->volumes[i]) {
-			kfree(ubi->volumes[i]->eba_tbl);
-			kfree(ubi->volumes[i]);
-		}
-}
-
-/**
  * uif_init - initialize user interfaces for an UBI device.
  * @ubi: UBI device description object
+ * @ref: set to %1 on exit in case of failure if a reference to @ubi->dev was
+ *       taken, otherwise set to %0
+ *
+ * This function initializes various user interfaces for an UBI device. If the
+ * initialization fails at an early stage, this function frees all the
+ * resources it allocated, returns an error, and @ref is set to %0. However,
+ * if the initialization fails after the UBI device was registered in the
+ * driver core subsystem, this function takes a reference to @ubi->dev, because
+ * otherwise the release function ('dev_release()') would free whole @ubi
+ * object. The @ref argument is set to %1 in this case. The caller has to put
+ * this reference.
  *
  * This function returns zero in case of success and a negative error code in
- * case of failure. Note, this function destroys all volumes if it fails.
+ * case of failure.
  */
-static int uif_init(struct ubi_device *ubi)
+static int uif_init(struct ubi_device *ubi, int *ref)
 {
 	int i, err;
 	dev_t dev;
 
+	*ref = 0;
 	sprintf(ubi->ubi_name, UBI_NAME_STR "%d", ubi->ubi_num);
 
 	/*
@@ -504,7 +502,7 @@ static int uif_init(struct ubi_device *ubi)
 		goto out_unreg;
 	}
 
-	err = ubi_sysfs_init(ubi);
+	err = ubi_sysfs_init(ubi, ref);
 	if (err)
 		goto out_sysfs;
 
@@ -522,6 +520,8 @@ static int uif_init(struct ubi_device *ubi)
 out_volumes:
 	kill_volumes(ubi);
 out_sysfs:
+	if (*ref)
+		get_device(&ubi->dev);
 	ubi_sysfs_close(ubi);
 	cdev_del(&ubi->cdev);
 out_unreg:
@@ -875,7 +875,7 @@ static int ubi_reboot_notifier(struct notifier_block *n, unsigned long state,
 int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 {
 	struct ubi_device *ubi;
-	int i, err, do_free = 1;
+	int i, err, ref = 0;
 
 	/*
 	 * Check if we already have the same MTD device attached.
@@ -975,9 +975,9 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 			goto out_detach;
 	}
 
-	err = uif_init(ubi);
+	err = uif_init(ubi, &ref);
 	if (err)
-		goto out_nofree;
+		goto out_detach;
 
 	ubi->bgt_thread = kthread_create(ubi_thread, ubi, ubi->bgt_name);
 	if (IS_ERR(ubi->bgt_thread)) {
@@ -1025,12 +1025,8 @@ int ubi_attach_mtd_dev(struct mtd_info *mtd, int ubi_num, int vid_hdr_offset)
 
 out_uif:
 	uif_close(ubi);
-out_nofree:
-	do_free = 0;
 out_detach:
 	ubi_wl_close(ubi);
-	if (do_free)
-		free_user_volumes(ubi);
 	free_internal_volumes(ubi);
 	vfree(ubi->vtbl);
 out_free:
@@ -1039,7 +1035,10 @@ out_free:
 #ifdef CONFIG_MTD_UBI_DEBUG_PARANOID
 	vfree(ubi->dbg_peb_buf);
 #endif
-	kfree(ubi);
+	if (ref)
+		put_device(&ubi->dev);
+	else
+		kfree(ubi);
 	return err;
 }
 
@@ -1096,7 +1095,7 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 
 	/*
 	 * Get a reference to the device in order to prevent 'dev_release()'
-	 * from freeing @ubi object.
+	 * from freeing the @ubi object.
 	 */
 	get_device(&ubi->dev);
 
@@ -1116,13 +1115,50 @@ int ubi_detach_mtd_dev(int ubi_num, int anyway)
 }
 
 /**
- * find_mtd_device - open an MTD device by its name or number.
- * @mtd_dev: name or number of the device
+ * open_mtd_by_chdev - open an MTD device by its character device node path.
+ * @mtd_dev: MTD character device node path
+ *
+ * This helper function opens an MTD device by its character node device path.
+ * Returns MTD device description object in case of success and a negative
+ * error code in case of failure.
+ */
+static struct mtd_info * __init open_mtd_by_chdev(const char *mtd_dev)
+{
+	int err, major, minor, mode;
+	struct path path;
+
+	/* Probably this is an MTD character device node path */
+	err = kern_path(mtd_dev, LOOKUP_FOLLOW, &path);
+	if (err)
+		return ERR_PTR(err);
+
+	/* MTD device number is defined by the major / minor numbers */
+	major = imajor(path.dentry->d_inode);
+	minor = iminor(path.dentry->d_inode);
+	mode = path.dentry->d_inode->i_mode;
+	path_put(&path);
+	if (major != MTD_CHAR_MAJOR || !S_ISCHR(mode))
+		return ERR_PTR(-EINVAL);
+
+	if (minor & 1)
+		/*
+		 * Just do not think the "/dev/mtdrX" devices support is need,
+		 * so do not support them to avoid doing extra work.
+		 */
+		return ERR_PTR(-EINVAL);
+
+	return get_mtd_device(NULL, minor / 2);
+}
+
+/**
+ * open_mtd_device - open MTD device by name, character device path, or number.
+ * @mtd_dev: name, character device node path, or MTD device device number
  *
  * This function tries to open and MTD device described by @mtd_dev string,
- * which is first treated as an ASCII number, and if it is not true, it is
- * treated as MTD device name. Returns MTD device description object in case of
- * success and a negative error code in case of failure.
+ * which is first treated as ASCII MTD device number, and if it is not true, it
+ * is treated as MTD device name, and if that is also not true, it is treated
+ * as MTD character device node path. Returns MTD device description object in
+ * case of success and a negative error code in case of failure.
  */
 static struct mtd_info * __init open_mtd_device(const char *mtd_dev)
 {
@@ -1137,6 +1173,9 @@ static struct mtd_info * __init open_mtd_device(const char *mtd_dev)
 		 * MTD device name.
 		 */
 		mtd = get_mtd_device_nm(mtd_dev);
+		if (IS_ERR(mtd) && PTR_ERR(mtd) == -ENODEV)
+			/* Probably this is an MTD character device node path */
+			mtd = open_mtd_by_chdev(mtd_dev);
 	} else
 		mtd = get_mtd_device(NULL, mtd_num);
 
@@ -1352,13 +1391,15 @@ static int __init ubi_mtd_param_parse(const char *val, struct kernel_param *kp)
 
 module_param_call(mtd, ubi_mtd_param_parse, NULL, NULL, 000);
 MODULE_PARM_DESC(mtd, "MTD devices to attach. Parameter format: "
-		      "mtd=<name|num>[,<vid_hdr_offs>].\n"
+		      "mtd=<name|num|path>[,<vid_hdr_offs>].\n"
 		      "Multiple \"mtd\" parameters may be specified.\n"
-		      "MTD devices may be specified by their number or name.\n"
+		      "MTD devices may be specified by their number, name, or "
+		      "path to the MTD character device node.\n"
 		      "Optional \"vid_hdr_offs\" parameter specifies UBI VID "
-		      "header position and data starting position to be used "
-		      "by UBI.\n"
-		      "Example: mtd=content,1984 mtd=4 - attach MTD device"
+		      "header position to be used by UBI.\n"
+		      "Example 1: mtd=/dev/mtd0 - attach MTD device "
+		      "/dev/mtd0.\n"
+		      "Example 2: mtd=content,1984 mtd=4 - attach MTD device "
 		      "with name \"content\" using VID header offset 1984, and "
 		      "MTD device number 4 with default VID header offset.");
 
