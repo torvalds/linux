@@ -1731,6 +1731,21 @@ bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 	ad_attr->cna_capable = ioc->cna;
 }
 
+enum bfa_ioc_type_e
+bfa_ioc_get_type(struct bfa_ioc_s *ioc)
+{
+	if (!ioc->ctdev || ioc->fcmode)
+		return BFA_IOC_TYPE_FC;
+	else if (ioc->ioc_mc == BFI_MC_IOCFC)
+		return BFA_IOC_TYPE_FCoE;
+	else if (ioc->ioc_mc == BFI_MC_LL)
+		return BFA_IOC_TYPE_LL;
+	else {
+		bfa_assert(ioc->ioc_mc == BFI_MC_LL);
+		return BFA_IOC_TYPE_LL;
+	}
+}
+
 void
 bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr)
 {
@@ -1739,12 +1754,7 @@ bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr)
 	ioc_attr->state = bfa_sm_to_state(ioc_sm_table, ioc->fsm);
 	ioc_attr->port_id = ioc->port_id;
 
-	if (!ioc->ctdev || ioc->fcmode)
-		ioc_attr->ioc_type = BFA_IOC_TYPE_FC;
-	else if (ioc->ioc_mc == BFI_MC_IOCFC)
-		ioc_attr->ioc_type = BFA_IOC_TYPE_FCoE;
-	else if (ioc->ioc_mc == BFI_MC_LL)
-		ioc_attr->ioc_type = BFA_IOC_TYPE_LL;
+	ioc_attr->ioc_type = bfa_ioc_get_type(ioc);
 
 	bfa_ioc_get_adapter_attr(ioc, &ioc_attr->adapter_attr);
 
@@ -1860,7 +1870,7 @@ bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event)
 	union bfa_aen_data_u aen_data;
 	struct bfa_log_mod_s *logmod = ioc->logm;
 	s32         inst_num = 0;
-	struct bfa_ioc_attr_s ioc_attr;
+	enum bfa_ioc_type_e ioc_type;
 
 	switch (event) {
 	case BFA_IOC_AEN_HBGOOD:
@@ -1884,8 +1894,8 @@ bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event)
 
 	memset(&aen_data.ioc.pwwn, 0, sizeof(aen_data.ioc.pwwn));
 	memset(&aen_data.ioc.mac, 0, sizeof(aen_data.ioc.mac));
-	bfa_ioc_get_attr(ioc, &ioc_attr);
-	switch (ioc_attr.ioc_type) {
+	ioc_type = bfa_ioc_get_type(ioc);
+	switch (ioc_type) {
 	case BFA_IOC_TYPE_FC:
 		aen_data.ioc.pwwn = bfa_ioc_get_pwwn(ioc);
 		break;
@@ -1897,10 +1907,10 @@ bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event)
 		aen_data.ioc.mac = bfa_ioc_get_mac(ioc);
 		break;
 	default:
-		bfa_assert(ioc_attr.ioc_type == BFA_IOC_TYPE_FC);
+		bfa_assert(ioc_type == BFA_IOC_TYPE_FC);
 		break;
 	}
-	aen_data.ioc.ioc_type = ioc_attr.ioc_type;
+	aen_data.ioc.ioc_type = ioc_type;
 }
 
 /**

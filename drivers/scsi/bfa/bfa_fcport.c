@@ -142,6 +142,7 @@ bfa_pport_aen_post(struct bfa_pport_s *pport, enum bfa_port_aen_event event)
 	char            pwwn_ptr[BFA_STRING_32];
 	struct bfa_ioc_attr_s ioc_attr;
 
+	memset(&aen_data, 0, sizeof(aen_data));
 	wwn2str(pwwn_ptr, pwwn);
 	switch (event) {
 	case BFA_PORT_AEN_ONLINE:

@@ -677,7 +677,6 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfa_status_t    rc;
 	unsigned long   flags;
 	struct bfa_fcs_driver_info_s driver_info;
-	int             i;
 
 	bfad->cfg_data.rport_del_timeout = rport_del_timeout;
 	bfad->cfg_data.lun_queue_depth = bfa_lun_queue_depth;
@@ -697,12 +696,7 @@ bfad_drv_init(struct bfad_s *bfad)
 	bfa_init_log(&bfad->bfa, bfad->logmod);
 	bfa_init_trc(&bfad->bfa, bfad->trcmod);
 	bfa_init_aen(&bfad->bfa, bfad->aen);
-	INIT_LIST_HEAD(&bfad->file_q);
-	INIT_LIST_HEAD(&bfad->file_free_q);
-	for (i = 0; i < BFAD_AEN_MAX_APPS; i++) {
-		bfa_q_qe_init(&bfad->file_buf[i].qe);
-		list_add_tail(&bfad->file_buf[i].qe, &bfad->file_free_q);
-	}
+	memset(bfad->file_map, 0, sizeof(bfad->file_map));
 	bfa_init_plog(&bfad->bfa, &bfad->plog_buf);
 	bfa_plog_init(&bfad->plog_buf);
 	bfa_plog_str(&bfad->plog_buf, BFA_PL_MID_DRVR, BFA_PL_EID_DRIVER_START,
@@ -799,7 +793,6 @@ bfad_drv_uninit(struct bfad_s *bfad)
 	bfa_isr_disable(&bfad->bfa);
 	bfa_detach(&bfad->bfa);
 	bfad_remove_intr(bfad);
-	bfa_assert(list_empty(&bfad->file_q));
 	bfad_hal_mem_release(bfad);
 
 	bfad->bfad_flags &= ~BFAD_DRV_INIT_DONE;

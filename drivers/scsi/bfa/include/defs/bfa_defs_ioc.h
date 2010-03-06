@@ -144,8 +144,8 @@ enum bfa_ioc_aen_event {
  * BFA IOC level event data, now just a place holder
  */
 struct bfa_ioc_aen_data_s {
-	enum bfa_ioc_type_e ioc_type;
 	wwn_t	pwwn;
+	s16 ioc_type;
 	mac_t	mac;
 };
 

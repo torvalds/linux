@@ -234,14 +234,15 @@ enum bfa_port_aen_sfp_pom {
 };
 
 struct bfa_port_aen_data_s {
-	enum bfa_ioc_type_e ioc_type;
-	wwn_t           pwwn;	      /*  WWN of the physical port */
-	wwn_t           fwwn;	      /*  WWN of the fabric port */
-	mac_t           mac;	      /*  MAC address of the ethernet port,
-				       * applicable to CNA port only */
-	int             phy_port_num; /*! For SFP related events */
-	enum bfa_port_aen_sfp_pom level; /*  Only transitions will
-					  * be informed */
+	wwn_t           pwwn;         /*  WWN of the physical port */
+	wwn_t           fwwn;         /*  WWN of the fabric port */
+	s32         phy_port_num; /*! For SFP related events */
+	s16         ioc_type;
+	s16         level;        /*  Only transitions will
+					* be informed */
+	struct mac_s    mac;          /*  MAC address of the ethernet port,
+					* applicable to CNA port only */
+	s16         rsvd;
 };
 
 #endif /* __BFA_DEFS_PORT_H__ */

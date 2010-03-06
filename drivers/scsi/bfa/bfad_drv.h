@@ -139,14 +139,6 @@ struct bfad_cfg_param_s {
 	u32        binding_method;
 };
 
-#define BFAD_AEN_MAX_APPS 8
-struct bfad_aen_file_s {
-	struct list_head  qe;
-	struct bfad_s *bfad;
-	s32 ri;
-	s32 app_id;
-};
-
 /*
  * BFAD (PCI function) data structure
  */
@@ -186,9 +178,7 @@ struct bfad_s {
 	struct bfa_log_mod_s  *logmod;
 	struct bfa_aen_s      *aen;
 	struct bfa_aen_s       aen_buf;
-	struct bfad_aen_file_s file_buf[BFAD_AEN_MAX_APPS];
-	struct list_head         file_q;
-	struct list_head         file_free_q;
+	void		*file_map[BFA_AEN_MAX_APP];
 	struct bfa_plog_s      plog_buf;
 	int             ref_count;
 	bfa_boolean_t	ipfc_enabled;
