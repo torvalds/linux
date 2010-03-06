@@ -635,8 +635,10 @@ static void dec_pending(struct dm_io *io, int error)
 			if (!md->barrier_error && io_error != -EOPNOTSUPP)
 				md->barrier_error = io_error;
 			end_io_acct(io);
+			free_io(md, io);
 		} else {
 			end_io_acct(io);
+			free_io(md, io);
 
 			if (io_error != DM_ENDIO_REQUEUE) {
 				trace_block_bio_complete(md->queue, bio);
@@ -644,8 +646,6 @@ static void dec_pending(struct dm_io *io, int error)
 				bio_endio(bio, io_error);
 			}
 		}
-
-		free_io(md, io);
 	}
 }
 
