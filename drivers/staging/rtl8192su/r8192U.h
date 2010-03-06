@@ -44,6 +44,12 @@
 
 #include "r8192S_firmware.h"
 
+/* EEPROM defs for use with linux/eeprom_93cx6.h */
+#define RTL819X_EEPROM_CMD_READ		(1 << 0)
+#define RTL819X_EEPROM_CMD_WRITE	(1 << 1)
+#define RTL819X_EEPROM_CMD_CK		(1 << 2)
+#define RTL819X_EEPROM_CMD_CS		(1 << 3)
+
 //#define RTL8192U
 #define RTL819xU_MODULE_NAME "rtl819xU"
 //added for HW security, john.0629

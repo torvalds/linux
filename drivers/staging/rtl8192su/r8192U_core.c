@@ -26,6 +26,7 @@
 
 #include <linux/vmalloc.h>
 #include <linux/slab.h>
+#include <linux/eeprom_93cx6.h>
 
 #undef LOOP_TEST
 #undef DUMP_RX
@@ -54,7 +55,6 @@
 
 #include <asm/uaccess.h>
 #include "r8192U.h"
-#include "r8180_93cx6.h"   /* Card EEPROM */
 #include "r8192U_wx.h"
 
 #include "r8192S_rtl8225.h"
@@ -213,6 +213,36 @@ static CHANNEL_LIST ChannelPlan[] = {
 	{{1,2,3,4,5,6,7,8,9,10,11,12,13,14,36,40,44,48,52,56,60,64}, 22},    //MIC
 	{{1,2,3,4,5,6,7,8,9,10,11,12,13,14},14}					//For Global Domain. 1-11:active scan, 12-14 passive scan. //+YJ, 080626
 };
+
+static void rtl819x_eeprom_register_read(struct eeprom_93cx6 *eeprom)
+{
+	struct net_device *dev = eeprom->data;
+	u8 reg = read_nic_byte(dev, EPROM_CMD);
+
+	eeprom->reg_data_in = reg & RTL819X_EEPROM_CMD_WRITE;
+	eeprom->reg_data_out = reg & RTL819X_EEPROM_CMD_READ;
+	eeprom->reg_data_clock = reg & RTL819X_EEPROM_CMD_CK;
+	eeprom->reg_chip_select = reg & RTL819X_EEPROM_CMD_CS;
+}
+
+static void rtl819x_eeprom_register_write(struct eeprom_93cx6 *eeprom)
+{
+	struct net_device *dev = eeprom->data;
+	u8 reg = 2 << 6;
+
+	if (eeprom->reg_data_in)
+		reg |= RTL819X_EEPROM_CMD_WRITE;
+	if (eeprom->reg_data_out)
+		reg |= RTL819X_EEPROM_CMD_READ;
+	if (eeprom->reg_data_clock)
+		reg |= RTL819X_EEPROM_CMD_CK;
+	if (eeprom->reg_chip_select)
+		reg |= RTL819X_EEPROM_CMD_CS;
+
+	write_nic_byte(dev, EPROM_CMD, reg);
+	read_nic_byte(dev, EPROM_CMD);
+	udelay(10);
+}
 
 static void rtl819x_set_channel_map(u8 channel_plan, struct r8192_priv* priv)
 {
@@ -1150,15 +1180,6 @@ void tx_timeout(struct net_device *dev)
 
 	schedule_work(&priv->reset_wq);
 	//DMESG("TXTIMEOUT");
-}
-
-
-/* this is only for debug */
-void dump_eprom(struct net_device *dev)
-{
-	int i;
-	for(i=0; i<63; i++)
-		RT_TRACE(COMP_EPROM, "EEPROM addr %x : %x", i, eprom_read(dev,i));
 }
 
 /* this is only for debug */
@@ -3531,26 +3552,32 @@ rtl8192SU_ConfigAdapterInfo8192SForAutoLoadFail(struct net_device* dev)
 //
 //	Created by Roger, 2008.10.21.
 //
-void
-rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
+void rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 {
-	struct r8192_priv 	*priv = ieee80211_priv(dev);
-	u16			i,usValue;
-	u8			tmpU1b, tempval;
-	u16			EEPROMId;
-	u8			hwinfo[HWSET_MAX_SIZE_92S];
-	u8			rf_path, index;	// For EEPROM/EFUSE After V0.6_1117
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	u16 i;
+	u8 tmpU1b, tempval;
+	u16 EEPROMId;
+	u8 hwinfo[HWSET_MAX_SIZE_92S];
+	u8 rf_path, index;	// For EEPROM/EFUSE After V0.6_1117
+	struct eeprom_93cx6 eeprom;
+	u16 eeprom_val;
 
+	eeprom.data = dev;
+	eeprom.register_read = rtl819x_eeprom_register_read;
+	eeprom.register_write = rtl819x_eeprom_register_write;
+	if (priv->epromtype == EPROM_93c46)
+		eeprom.width = PCI_EEPROM_WIDTH_93C46;
+	else
+		eeprom.width = PCI_EEPROM_WIDTH_93C56;
 
 	RT_TRACE(COMP_INIT, "====> ReadAdapterInfo8192SUsb\n");
 
-	//
-	// <Roger_Note> The following operation are prevent Efuse leakage by turn on 2.5V.
-	// 2008.11.25.
-	//
+	/*
+	 * The following operation are prevent Efuse leakage by turn on 2.5V..
+	 */
 	tmpU1b = read_nic_byte(dev, EFUSE_TEST+3);
 	write_nic_byte(dev, EFUSE_TEST+3, tmpU1b|0x80);
-	//PlatformStallExecution(1000);
 	mdelay(10);
 	write_nic_byte(dev, EFUSE_TEST+3, (tmpU1b&(~BIT7)));
 
@@ -3558,21 +3585,20 @@ rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 	priv->card_8192_version = (VERSION_8192S)((read_nic_dword(dev, PMC_FSM)>>16)&0xF);
 	RT_TRACE(COMP_INIT, "Chip Version ID: 0x%2x\n", priv->card_8192_version);
 
-	switch(priv->card_8192_version)
-	{
-		case 0:
-			RT_TRACE(COMP_INIT, "Chip Version ID: VERSION_8192S_ACUT.\n");
-			break;
-		case 1:
-			RT_TRACE(COMP_INIT, "Chip Version ID: VERSION_8192S_BCUT.\n");
-			break;
-		case 2:
-			RT_TRACE(COMP_INIT, "Chip Version ID: VERSION_8192S_CCUT.\n");
-			break;
-		default:
-			RT_TRACE(COMP_INIT, "Unknown Chip Version!!\n");
-			priv->card_8192_version = VERSION_8192S_BCUT;
-			break;
+	switch (priv->card_8192_version) {
+	case 0:
+		RT_TRACE(COMP_INIT, "Chip Version ID: VERSION_8192S_ACUT.\n");
+		break;
+	case 1:
+		RT_TRACE(COMP_INIT, "Chip Version ID: VERSION_8192S_BCUT.\n");
+		break;
+	case 2:
+		RT_TRACE(COMP_INIT, "Chip Version ID: VERSION_8192S_CCUT.\n");
+		break;
+	default:
+		RT_TRACE(COMP_INIT, "Unknown Chip Version!!\n");
+		priv->card_8192_version = VERSION_8192S_BCUT;
+		break;
 	}
 
 	//if (IS_BOOT_FROM_EEPROM(Adapter))
@@ -3585,8 +3611,8 @@ rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 		// Read all Content from EEPROM or EFUSE.
 		for(i = 0; i < HWSET_MAX_SIZE_92S; i += 2)
 		{
-			usValue = eprom_read(dev, (u16) (i>>1));
-			*((u16*)(&hwinfo[i])) = usValue;
+			eeprom_93cx6_read(&eeprom, (u16) (i>>1), &eeprom_val);
+			*((u16 *)(&hwinfo[i])) = eeprom_val;
 		}
 	}
 	else if (!(priv->EepromOrEfuse))
@@ -4138,11 +4164,6 @@ short rtl8192_init(struct net_device *dev)
 	init_timer(&priv->watch_dog_timer);
 	priv->watch_dog_timer.data = (unsigned long)dev;
 	priv->watch_dog_timer.function = watch_dog_timer_callback;
-
-	//rtl8192_adapter_start(dev);
-#ifdef DEBUG_EPROM
-	dump_eprom(dev);
-#endif
 	return 0;
 }
 

@@ -9,7 +9,6 @@ EXTRA_CFLAGS += -DTHOMAS_BEACON
 #EXTRA_CFLAGS += -DMUTIPLE_BULK_OUT
 
 r8192s_usb-objs :=		\
-	r8180_93cx6.o		\
 	r8192U_wx.o		\
 	r8192S_phy.o		\
 	r8192S_rtl6052.o	\
