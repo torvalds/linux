@@ -33,9 +33,9 @@ BFA_TRC_FILE(CNA, IOC_CT);
 static bfa_status_t bfa_ioc_ct_pll_init(struct bfa_ioc_s *ioc);
 static bfa_boolean_t bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc);
-static uint32_t* bfa_ioc_ct_fwimg_get_chunk(struct bfa_ioc_s *ioc,
-					uint32_t off);
-static uint32_t bfa_ioc_ct_fwimg_get_size(struct bfa_ioc_s *ioc);
+static u32* bfa_ioc_ct_fwimg_get_chunk(struct bfa_ioc_s *ioc,
+					u32 off);
+static u32 bfa_ioc_ct_fwimg_get_size(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_map_port(struct bfa_ioc_s *ioc);
 static void bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix);
@@ -64,13 +64,13 @@ bfa_ioc_set_ct_hwif(struct bfa_ioc_s *ioc)
 	ioc->ioc_hwif = &hwif_ct;
 }
 
-static uint32_t*
-bfa_ioc_ct_fwimg_get_chunk(struct bfa_ioc_s *ioc, uint32_t off)
+static u32*
+bfa_ioc_ct_fwimg_get_chunk(struct bfa_ioc_s *ioc, u32 off)
 {
 	return bfi_image_ct_get_chunk(off);
 }
 
-static uint32_t
+static u32
 bfa_ioc_ct_fwimg_get_size(struct bfa_ioc_s *ioc)
 {
 	return bfi_image_ct_size;
@@ -83,7 +83,7 @@ static bfa_boolean_t
 bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 {
 	enum bfi_ioc_state ioc_fwstate;
-	uint32_t usecnt;
+	u32 usecnt;
 	struct bfi_ioc_image_hdr_s fwhdr;
 
 	/**
@@ -142,7 +142,7 @@ bfa_ioc_ct_firmware_lock(struct bfa_ioc_s *ioc)
 static void
 bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 {
-	uint32_t usecnt;
+	u32 usecnt;
 
 	/**
 	 * Firmware lock is relevant only for CNA.
@@ -184,7 +184,7 @@ bfa_ioc_ct_notify_hbfail(struct bfa_ioc_s *ioc)
 /**
  * Host to LPU mailbox message addresses
  */
-static struct { uint32_t hfn_mbox, lpu_mbox, hfn_pgn; } iocreg_fnreg[] = {
+static struct { u32 hfn_mbox, lpu_mbox, hfn_pgn; } iocreg_fnreg[] = {
 	{ HOSTFN0_LPU_MBOX0_0, LPU_HOSTFN0_MBOX0_0, HOST_PAGE_NUM_FN0 },
 	{ HOSTFN1_LPU_MBOX0_8, LPU_HOSTFN1_MBOX0_8, HOST_PAGE_NUM_FN1 },
 	{ HOSTFN2_LPU_MBOX0_0, LPU_HOSTFN2_MBOX0_0, HOST_PAGE_NUM_FN2 },
@@ -194,7 +194,7 @@ static struct { uint32_t hfn_mbox, lpu_mbox, hfn_pgn; } iocreg_fnreg[] = {
 /**
  * Host <-> LPU mailbox command/status registers - port 0
  */
-static struct { uint32_t hfn, lpu; } iocreg_mbcmd_p0[] = {
+static struct { u32 hfn, lpu; } iocreg_mbcmd_p0[] = {
 	{ HOSTFN0_LPU0_MBOX0_CMD_STAT, LPU0_HOSTFN0_MBOX0_CMD_STAT },
 	{ HOSTFN1_LPU0_MBOX0_CMD_STAT, LPU0_HOSTFN1_MBOX0_CMD_STAT },
 	{ HOSTFN2_LPU0_MBOX0_CMD_STAT, LPU0_HOSTFN2_MBOX0_CMD_STAT },
@@ -204,7 +204,7 @@ static struct { uint32_t hfn, lpu; } iocreg_mbcmd_p0[] = {
 /**
  * Host <-> LPU mailbox command/status registers - port 1
  */
-static struct { uint32_t hfn, lpu; } iocreg_mbcmd_p1[] = {
+static struct { u32 hfn, lpu; } iocreg_mbcmd_p1[] = {
 	{ HOSTFN0_LPU1_MBOX0_CMD_STAT, LPU1_HOSTFN0_MBOX0_CMD_STAT },
 	{ HOSTFN1_LPU1_MBOX0_CMD_STAT, LPU1_HOSTFN1_MBOX0_CMD_STAT },
 	{ HOSTFN2_LPU1_MBOX0_CMD_STAT, LPU1_HOSTFN2_MBOX0_CMD_STAT },
@@ -274,7 +274,7 @@ static void
 bfa_ioc_ct_map_port(struct bfa_ioc_s *ioc)
 {
 	bfa_os_addr_t	rb = ioc->pcidev.pci_bar_kva;
-	uint32_t	r32;
+	u32	r32;
 
 	/**
 	 * For catapult, base port id on personality register and IOC type
@@ -294,7 +294,7 @@ static void
 bfa_ioc_ct_isr_mode_set(struct bfa_ioc_s *ioc, bfa_boolean_t msix)
 {
 	bfa_os_addr_t	rb = ioc->pcidev.pci_bar_kva;
-	uint32_t	r32, mode;
+	u32	r32, mode;
 
 	r32 = bfa_reg_read(rb + FNC_PERS_REG);
 	bfa_trc(ioc, r32);
@@ -324,7 +324,7 @@ static bfa_status_t
 bfa_ioc_ct_pll_init(struct bfa_ioc_s *ioc)
 {
 	bfa_os_addr_t	rb = ioc->pcidev.pci_bar_kva;
-	uint32_t	pll_sclk, pll_fclk, r32;
+	u32	pll_sclk, pll_fclk, r32;
 
 	/*
 	 *  Hold semaphore so that nobody can access the chip during init.

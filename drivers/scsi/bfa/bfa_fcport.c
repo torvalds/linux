@@ -853,9 +853,9 @@ bfa_fcport_meminfo(struct bfa_iocfc_cfg_s *cfg, u32 *ndm_len,
 static void
 bfa_fcport_qresume(void *cbarg)
 {
-	struct bfa_fcport_s *port = cbarg;
+	struct bfa_fcport_s *fcport = cbarg;
 
-	bfa_sm_send_event(port, BFA_FCPORT_SM_QRESUME);
+	bfa_sm_send_event(fcport, BFA_FCPORT_SM_QRESUME);
 }
 
 static void

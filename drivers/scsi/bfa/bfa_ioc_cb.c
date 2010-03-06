@@ -63,13 +63,13 @@ bfa_ioc_set_cb_hwif(struct bfa_ioc_s *ioc)
 	ioc->ioc_hwif = &hwif_cb;
 }
 
-static uint32_t *
-bfa_ioc_cb_fwimg_get_chunk(struct bfa_ioc_s *ioc, uint32_t off)
+static u32 *
+bfa_ioc_cb_fwimg_get_chunk(struct bfa_ioc_s *ioc, u32 off)
 {
 	return bfi_image_cb_get_chunk(off);
 }
 
-static uint32_t
+static u32
 bfa_ioc_cb_fwimg_get_size(struct bfa_ioc_s *ioc)
 {
 	return bfi_image_cb_size;
@@ -102,7 +102,7 @@ bfa_ioc_cb_notify_hbfail(struct bfa_ioc_s *ioc)
 /**
  * Host to LPU mailbox message addresses
  */
-static struct { uint32_t hfn_mbox, lpu_mbox, hfn_pgn; } iocreg_fnreg[] = {
+static struct { u32 hfn_mbox, lpu_mbox, hfn_pgn; } iocreg_fnreg[] = {
 	{ HOSTFN0_LPU_MBOX0_0, LPU_HOSTFN0_MBOX0_0, HOST_PAGE_NUM_FN0 },
 	{ HOSTFN1_LPU_MBOX0_8, LPU_HOSTFN1_MBOX0_8, HOST_PAGE_NUM_FN1 }
 };
@@ -110,7 +110,7 @@ static struct { uint32_t hfn_mbox, lpu_mbox, hfn_pgn; } iocreg_fnreg[] = {
 /**
  * Host <-> LPU mailbox command/status registers
  */
-static struct { uint32_t hfn, lpu; } iocreg_mbcmd[] = {
+static struct { u32 hfn, lpu; } iocreg_mbcmd[] = {
 	{ HOSTFN0_LPU0_CMD_STAT, LPU0_HOSTFN0_CMD_STAT },
 	{ HOSTFN1_LPU1_CMD_STAT, LPU1_HOSTFN1_CMD_STAT }
 };
@@ -192,7 +192,7 @@ static bfa_status_t
 bfa_ioc_cb_pll_init(struct bfa_ioc_s *ioc)
 {
 	bfa_os_addr_t	rb = ioc->pcidev.pci_bar_kva;
-	uint32_t	pll_sclk, pll_fclk;
+	u32	pll_sclk, pll_fclk;
 
 	/*
 	 *  Hold semaphore so that nobody can access the chip during init.

@@ -509,16 +509,6 @@ void bfa_fcb_itnim_tov(struct bfad_itnim_s *itnim)
 }
 
 /**
- * Path TOV processing begin notification -- dummy for linux
- */
-void
-bfa_fcb_itnim_tov_begin(struct bfad_itnim_s *itnim)
-{
-}
-
-
-
-/**
  * Allocate a Scsi_Host for a port.
  */
 int

@@ -196,11 +196,6 @@ struct bfad_s {
 	bfa_boolean_t	ipfc_enabled;
 	union bfad_tmp_buf tmp_buf;
 	struct fc_host_statistics link_stats;
-
-	struct kobject *bfa_kobj;
-	struct kobject *ioc_kobj;
-	struct kobject *pport_kobj;
-	struct kobject *lport_kobj;
 };
 
 /*
@@ -286,11 +281,6 @@ void		bfad_drv_uninit(struct bfad_s *bfad);
 void		bfad_drv_log_level_set(struct bfad_s *bfad);
 bfa_status_t	bfad_fc4_module_init(void);
 void		bfad_fc4_module_exit(void);
-
-bfa_status_t	bfad_os_kthread_create(struct bfad_s *bfad);
-void		bfad_os_kthread_stop(struct bfad_s *bfad);
-void		bfad_os_kthread_wakeup(struct bfad_s *bfad);
-int		bfad_os_kthread_should_stop(void);
 int		bfad_worker (void *ptr);
 
 void bfad_pci_remove(struct pci_dev *pdev);

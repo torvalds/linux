@@ -678,7 +678,6 @@ bfa_cb_itnim_tov_begin(void *cb_arg)
 	struct bfa_fcs_itnim_s *itnim = (struct bfa_fcs_itnim_s *)cb_arg;
 
 	bfa_trc(itnim->fcs, itnim->rport->pwwn);
-	bfa_fcb_itnim_tov_begin(itnim->itnim_drv);
 }
 
 /**
