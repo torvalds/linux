@@ -2699,23 +2699,13 @@ int dm_suspended_md(struct mapped_device *md)
 
 int dm_suspended(struct dm_target *ti)
 {
-	struct mapped_device *md = dm_table_get_md(ti->table);
-	int r = dm_suspended_md(md);
-
-	dm_put(md);
-
-	return r;
+	return dm_suspended_md(dm_table_get_md(ti->table));
 }
 EXPORT_SYMBOL_GPL(dm_suspended);
 
 int dm_noflush_suspending(struct dm_target *ti)
 {
-	struct mapped_device *md = dm_table_get_md(ti->table);
-	int r = __noflush_suspending(md);
-
-	dm_put(md);
-
-	return r;
+	return __noflush_suspending(dm_table_get_md(ti->table));
 }
 EXPORT_SYMBOL_GPL(dm_noflush_suspending);
 

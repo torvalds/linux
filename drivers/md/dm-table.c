@@ -1231,8 +1231,6 @@ void dm_table_unplug_all(struct dm_table *t)
 
 struct mapped_device *dm_table_get_md(struct dm_table *t)
 {
-	dm_get(t->md);
-
 	return t->md;
 }
 
