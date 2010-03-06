@@ -737,9 +737,12 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		dm_rh_delay(ms->rh, bio);
 
 	while ((bio = bio_list_pop(&nosync))) {
-		if (unlikely(ms->leg_failure) && errors_handled(ms))
-			hold_bio(ms, bio);
-		else {
+		if (unlikely(ms->leg_failure) && errors_handled(ms)) {
+			spin_lock_irq(&ms->lock);
+			bio_list_add(&ms->failures, bio);
+			spin_unlock_irq(&ms->lock);
+			wakeup_mirrord(ms);
+		} else {
 			map_bio(get_default_mirror(ms), bio);
 			generic_make_request(bio);
 		}
