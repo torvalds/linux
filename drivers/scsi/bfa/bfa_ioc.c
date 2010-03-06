@@ -18,7 +18,7 @@
 #include <bfa.h>
 #include <bfa_ioc.h>
 #include <bfa_fwimg_priv.h>
-#include <bfa_trcmod_priv.h>
+#include <cna/bfa_cna_trcmod.h>
 #include <cs/bfa_debug.h>
 #include <bfi/bfi_ioc.h>
 #include <bfi/bfi_ctreg.h>
@@ -27,7 +27,7 @@
 #include <log/bfa_log_hal.h>
 #include <defs/bfa_defs_pci.h>
 
-BFA_TRC_FILE(HAL, IOC);
+BFA_TRC_FILE(CNA, IOC);
 
 /**
  * IOC local definitions

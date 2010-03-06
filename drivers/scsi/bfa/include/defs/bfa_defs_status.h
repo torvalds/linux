@@ -180,8 +180,8 @@ enum bfa_status {
 	BFA_STATUS_IM_ADAPT_ALREADY_IN_TEAM = 114, /*  Given adapter is part
 						    * of another team */
 	BFA_STATUS_IM_ADAPT_HAS_VLANS = 115, /*  Adapter has VLANs configured.
-					      * Delete all VLANs before
-					      * creating team */
+					      * Delete all VLANs to become
+					      * part of the team */
 	BFA_STATUS_IM_PVID_MISMATCH = 116, /*  Mismatching PVIDs configured
 					    * for adapters */
 	BFA_STATUS_IM_LINK_SPEED_MISMATCH = 117, /*  Mismatching link speeds
@@ -242,6 +242,14 @@ enum bfa_status {
 					  * failed */
 	BFA_STATUS_IM_UNBIND_FAILED = 149, /* ! < IM Driver unbind operation
 					    * failed */
+	BFA_STATUS_IM_PORT_IN_TEAM = 150, /*  Port is already part of the
+					   * team */
+	BFA_STATUS_IM_VLAN_NOT_FOUND = 151, /*  VLAN ID doesn't exists */
+	BFA_STATUS_IM_TEAM_NOT_FOUND = 152, /*  Teaming configuration doesn't
+					     * exists */
+	BFA_STATUS_IM_TEAM_CFG_NOT_ALLOWED = 153, /*  Given settings are not
+						* allowed for the current
+						* Teaming mode */
 	BFA_STATUS_MAX_VAL		/*  Unknown error code */
 };
 #define bfa_status_t enum bfa_status
