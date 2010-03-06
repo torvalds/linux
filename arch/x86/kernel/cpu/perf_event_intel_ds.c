@@ -476,18 +476,16 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 	if (!event || !ds || !x86_pmu.pebs)
 		return;
 
-	intel_pmu_pebs_disable_all();
-
 	at  = (struct pebs_record_core *)(unsigned long)ds->pebs_buffer_base;
 	top = (struct pebs_record_core *)(unsigned long)ds->pebs_index;
 
 	if (top <= at)
-		goto out;
+		return;
 
 	ds->pebs_index = ds->pebs_buffer_base;
 
 	if (!intel_pmu_save_and_restart(event))
-		goto out;
+		return;
 
 	perf_sample_data_init(&data, 0);
 	data.period = event->hw.last_period;
@@ -528,9 +526,6 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 
 	if (perf_event_overflow(event, 1, &data, &regs))
 		x86_pmu_stop(event);
-
-out:
-	intel_pmu_pebs_enable_all();
 }
 
 static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
@@ -547,13 +542,11 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	if (!ds || !x86_pmu.pebs)
 		return;
 
-	intel_pmu_pebs_disable_all();
-
 	at  = (struct pebs_record_nhm *)(unsigned long)ds->pebs_buffer_base;
 	top = (struct pebs_record_nhm *)(unsigned long)ds->pebs_index;
 
 	if (top <= at)
-		goto out;
+		return;
 
 	ds->pebs_index = ds->pebs_buffer_base;
 
@@ -604,8 +597,6 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 		if (perf_event_overflow(event, 1, &data, &regs))
 			x86_pmu_stop(event);
 	}
-out:
-	intel_pmu_pebs_enable_all();
 }
 
 /*
