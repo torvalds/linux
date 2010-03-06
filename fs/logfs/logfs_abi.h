@@ -61,7 +61,7 @@ static inline void check_##type(void)				\
 
 
 /* Magic numbers.  64bit for superblock, 32bit for statfs f_type */
-#define LOGFS_MAGIC		0xb21f205ac97e8168ull
+#define LOGFS_MAGIC		0x7a3a8e5cb9d5bf67ull
 #define LOGFS_MAGIC_U32		0xc97e8168u
 
 /*
