@@ -34,6 +34,26 @@ bfa_msix_lpu(struct bfa_s *bfa)
 	bfa_ioc_mbox_isr(&bfa->ioc);
 }
 
+static void
+bfa_reqq_resume(struct bfa_s *bfa, int qid)
+{
+	struct list_head *waitq, *qe, *qen;
+	struct bfa_reqq_wait_s *wqe;
+
+	waitq = bfa_reqq(bfa, qid);
+	list_for_each_safe(qe, qen, waitq) {
+		/**
+		 * Callback only as long as there is room in request queue
+		 */
+		if (bfa_reqq_full(bfa, qid))
+			break;
+
+		list_del(qe);
+		wqe = (struct bfa_reqq_wait_s *) qe;
+		wqe->qresume(wqe->cbarg);
+	}
+}
+
 void
 bfa_msix_all(struct bfa_s *bfa, int vec)
 {
@@ -128,23 +148,18 @@ bfa_isr_disable(struct bfa_s *bfa)
 void
 bfa_msix_reqq(struct bfa_s *bfa, int qid)
 {
-	struct list_head 		*waitq, *qe, *qen;
-	struct bfa_reqq_wait_s	*wqe;
+	struct list_head *waitq;
 
 	qid &= (BFI_IOC_MAX_CQS - 1);
 
-	waitq = bfa_reqq(bfa, qid);
-	list_for_each_safe(qe, qen, waitq) {
-		/**
-		 * Callback only as long as there is room in request queue
-		 */
-		if (bfa_reqq_full(bfa, qid))
-			break;
+	bfa->iocfc.hwif.hw_reqq_ack(bfa, qid);
 
-		list_del(qe);
-		wqe = (struct bfa_reqq_wait_s *) qe;
-		wqe->qresume(wqe->cbarg);
-	}
+	/**
+	 * Resume any pending requests in the corresponding reqq.
+	 */
+	waitq = bfa_reqq(bfa, qid);
+	if (!list_empty(waitq))
+		bfa_reqq_resume(bfa, qid);
 }
 
 void
@@ -158,26 +173,27 @@ bfa_isr_unhandled(struct bfa_s *bfa, struct bfi_msg_s *m)
 }
 
 void
-bfa_msix_rspq(struct bfa_s *bfa, int rsp_qid)
+bfa_msix_rspq(struct bfa_s *bfa, int qid)
 {
-	struct bfi_msg_s      *m;
-	u32        pi, ci;
+	struct bfi_msg_s *m;
+	u32 pi, ci;
+	struct list_head *waitq;
 
-	bfa_trc_fp(bfa, rsp_qid);
+	bfa_trc_fp(bfa, qid);
 
-	rsp_qid &= (BFI_IOC_MAX_CQS - 1);
+	qid &= (BFI_IOC_MAX_CQS - 1);
 
-	bfa->iocfc.hwif.hw_rspq_ack(bfa, rsp_qid);
+	bfa->iocfc.hwif.hw_rspq_ack(bfa, qid);
 
-	ci = bfa_rspq_ci(bfa, rsp_qid);
-	pi = bfa_rspq_pi(bfa, rsp_qid);
+	ci = bfa_rspq_ci(bfa, qid);
+	pi = bfa_rspq_pi(bfa, qid);
 
 	bfa_trc_fp(bfa, ci);
 	bfa_trc_fp(bfa, pi);
 
 	if (bfa->rme_process) {
 		while (ci != pi) {
-			m = bfa_rspq_elem(bfa, rsp_qid, ci);
+			m = bfa_rspq_elem(bfa, qid, ci);
 			bfa_assert_fp(m->mhdr.msg_class < BFI_MC_MAX);
 
 			bfa_isrs[m->mhdr.msg_class] (bfa, m);
@@ -189,9 +205,16 @@ bfa_msix_rspq(struct bfa_s *bfa, int rsp_qid)
 	/**
 	 * update CI
 	 */
-	bfa_rspq_ci(bfa, rsp_qid) = pi;
-	bfa_reg_write(bfa->iocfc.bfa_regs.rme_q_ci[rsp_qid], pi);
+	bfa_rspq_ci(bfa, qid) = pi;
+	bfa_reg_write(bfa->iocfc.bfa_regs.rme_q_ci[qid], pi);
 	bfa_os_mmiowb();
+
+	/**
+	 * Resume any pending requests in the corresponding reqq.
+	 */
+	waitq = bfa_reqq(bfa, qid);
+	if (!list_empty(waitq))
+		bfa_reqq_resume(bfa, qid);
 }
 
 void

@@ -85,6 +85,15 @@ bfa_hwct_reginit(struct bfa_s *bfa)
 }
 
 void
+bfa_hwct_reqq_ack(struct bfa_s *bfa, int reqq)
+{
+	u32 r32;
+
+	r32 = bfa_reg_read(bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq]);
+	bfa_reg_write(bfa->iocfc.bfa_regs.cpe_q_ctrl[reqq], r32);
+}
+
+void
 bfa_hwct_rspq_ack(struct bfa_s *bfa, int rspq)
 {
 	u32	r32;
