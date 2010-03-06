@@ -161,6 +161,7 @@ bfa_status_t bfa_iocfc_israttr_set(struct bfa_s *bfa,
 void bfa_iocfc_enable(struct bfa_s *bfa);
 void bfa_iocfc_disable(struct bfa_s *bfa);
 void bfa_ioc_auto_recover(bfa_boolean_t auto_recover);
+void bfa_chip_reset(struct bfa_s *bfa);
 void bfa_cb_ioc_disable(void *bfad);
 void bfa_timer_tick(struct bfa_s *bfa);
 #define bfa_timer_start(_bfa, _timer, _timercb, _arg, _timeout)	\

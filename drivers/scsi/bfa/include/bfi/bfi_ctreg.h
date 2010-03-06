@@ -430,6 +430,8 @@ enum {
 #define __PSS_LMEM_INIT_EN               0x00000100
 #define __PSS_LPU1_RESET                 0x00000002
 #define __PSS_LPU0_RESET                 0x00000001
+#define ERR_SET_REG			 0x00018818
+#define __PSS_ERR_STATUS_SET		 0x003fffff
 #define HQM_QSET0_RXQ_DRBL_P0            0x00038000
 #define __RXQ0_ADD_VECTORS_P             0x80000000
 #define __RXQ0_STOP_P                    0x40000000

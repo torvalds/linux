@@ -177,7 +177,8 @@
 #define __PSS_LMEM_INIT_EN               0x00000100
 #define __PSS_LPU1_RESET                 0x00000002
 #define __PSS_LPU0_RESET                 0x00000001
-
+#define ERR_SET_REG			 0x00018818
+#define __PSS_ERR_STATUS_SET		 0x00000fff
 
 /*
  * These definitions are either in error/missing in spec. Its auto-generated

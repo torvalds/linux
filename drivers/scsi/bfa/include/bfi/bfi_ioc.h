@@ -123,7 +123,7 @@ enum bfi_ioc_state {
 	BFI_IOC_DISABLING 	 = 5,	/*  IOC is being disabled           */
 	BFI_IOC_DISABLED 	 = 6,	/*  IOC is disabled                 */
 	BFI_IOC_CFG_DISABLED = 7,	/*  IOC is being disabled;transient */
-	BFI_IOC_HBFAIL       = 8,	/*  IOC heart-beat failure          */
+	BFI_IOC_FAIL       = 8,		/*  IOC heart-beat failure          */
 	BFI_IOC_MEMTEST      = 9,	/*  IOC is doing memtest            */
 };
 

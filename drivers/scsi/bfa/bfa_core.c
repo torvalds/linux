@@ -399,4 +399,14 @@ bfa_debug_fwtrc(struct bfa_s *bfa, void *trcdata, int *trclen)
 {
 	return bfa_ioc_debug_fwtrc(&bfa->ioc, trcdata, trclen);
 }
+
+/**
+ * Reset hw semaphore & usage cnt regs and initialize.
+ */
+void
+bfa_chip_reset(struct bfa_s *bfa)
+{
+	bfa_ioc_ownership_reset(&bfa->ioc);
+	bfa_ioc_pll_init(&bfa->ioc);
+}
 #endif
