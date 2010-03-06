@@ -74,6 +74,7 @@ struct bfa_ioc_regs_s {
 	bfa_os_addr_t   lpu_mbox_cmd;
 	bfa_os_addr_t   lpu_mbox;
 	bfa_os_addr_t   pss_ctl_reg;
+	bfa_os_addr_t   pss_err_status_reg;
 	bfa_os_addr_t   app_pll_fast_ctl_reg;
 	bfa_os_addr_t   app_pll_slow_ctl_reg;
 	bfa_os_addr_t   ioc_sem_reg;

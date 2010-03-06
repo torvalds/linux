@@ -197,17 +197,44 @@ bfa_msix_rspq(struct bfa_s *bfa, int rsp_qid)
 void
 bfa_msix_lpu_err(struct bfa_s *bfa, int vec)
 {
-	u32 intr;
+	u32 intr, curr_value;
 
 	intr = bfa_reg_read(bfa->iocfc.bfa_regs.intr_status);
 
 	if (intr & (__HFN_INT_MBOX_LPU0 | __HFN_INT_MBOX_LPU1))
 		bfa_msix_lpu(bfa);
 
-	if (intr & (__HFN_INT_ERR_EMC |
-		    __HFN_INT_ERR_LPU0 | __HFN_INT_ERR_LPU1 |
-		    __HFN_INT_ERR_PSS | __HFN_INT_LL_HALT))
+	intr &= (__HFN_INT_ERR_EMC | __HFN_INT_ERR_LPU0 |
+		__HFN_INT_ERR_LPU1 | __HFN_INT_ERR_PSS | __HFN_INT_LL_HALT);
+
+	if (intr) {
+		if (intr & __HFN_INT_LL_HALT) {
+			/**
+			 * If LL_HALT bit is set then FW Init Halt LL Port
+			 * Register needs to be cleared as well so Interrupt
+			 * Status Register will be cleared.
+			 */
+			curr_value = bfa_reg_read(bfa->ioc.ioc_regs.ll_halt);
+			curr_value &= ~__FW_INIT_HALT_P;
+			bfa_reg_write(bfa->ioc.ioc_regs.ll_halt, curr_value);
+		}
+
+		if (intr & __HFN_INT_ERR_PSS) {
+			/**
+			 * ERR_PSS bit needs to be cleared as well in case
+			 * interrups are shared so driver's interrupt handler is
+			 * still called eventhough it is already masked out.
+			 */
+			curr_value = bfa_reg_read(
+				bfa->ioc.ioc_regs.pss_err_status_reg);
+			curr_value &= __PSS_ERR_STATUS_SET;
+			bfa_reg_write(bfa->ioc.ioc_regs.pss_err_status_reg,
+				curr_value);
+		}
+
+		bfa_reg_write(bfa->iocfc.bfa_regs.intr_status, intr);
 		bfa_msix_errint(bfa, intr);
+	}
 }
 
 void

@@ -237,6 +237,7 @@ bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc)
 	 * PSS control registers
 	 */
 	ioc->ioc_regs.pss_ctl_reg = (rb + PSS_CTL_REG);
+	ioc->ioc_regs.pss_err_status_reg = (rb + PSS_ERR_STATUS_REG);
 	ioc->ioc_regs.app_pll_fast_ctl_reg = (rb + APP_PLL_425_CTL_REG);
 	ioc->ioc_regs.app_pll_slow_ctl_reg = (rb + APP_PLL_312_CTL_REG);
 
