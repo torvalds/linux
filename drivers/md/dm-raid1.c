@@ -920,8 +920,7 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 		return -EINVAL;
 	}
 
-	if (dm_get_device(ti, argv[0], offset, ti->len,
-			  dm_table_get_mode(ti->table),
+	if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table),
 			  &ms->mirror[mirror].dev)) {
 		ti->error = "Device lookup failure";
 		return -ENXIO;

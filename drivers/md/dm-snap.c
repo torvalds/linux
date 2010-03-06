@@ -1081,8 +1081,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argv++;
 	argc--;
 
-	r = dm_get_device(ti, cow_path, 0, 0,
-			  FMODE_READ | FMODE_WRITE, &s->cow);
+	r = dm_get_device(ti, cow_path, FMODE_READ | FMODE_WRITE, &s->cow);
 	if (r) {
 		ti->error = "Cannot get COW device";
 		goto bad_cow;
@@ -1098,7 +1097,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argv += args_used;
 	argc -= args_used;
 
-	r = dm_get_device(ti, origin_path, 0, ti->len, origin_mode, &s->origin);
+	r = dm_get_device(ti, origin_path, origin_mode, &s->origin);
 	if (r) {
 		ti->error = "Cannot get origin device";
 		goto bad_origin;
@@ -2100,8 +2099,7 @@ static int origin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	r = dm_get_device(ti, argv[0], 0, ti->len,
-			  dm_table_get_mode(ti->table), &dev);
+	r = dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), &dev);
 	if (r) {
 		ti->error = "Cannot get target device";
 		return r;
