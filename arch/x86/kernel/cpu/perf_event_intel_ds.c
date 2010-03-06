@@ -538,6 +538,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	struct perf_event *event = NULL;
 	struct perf_raw_record raw;
 	struct pt_regs regs;
+	u64 status = 0;
 	int bit, n;
 
 	if (!ds || !x86_pmu.pebs)
@@ -561,13 +562,22 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 
 	for ( ; at < top; at++) {
 		for_each_bit(bit, (unsigned long *)&at->status, MAX_PEBS_EVENTS) {
-			if (!cpuc->events[bit]->attr.precise)
+			event = cpuc->events[bit];
+			if (!test_bit(bit, cpuc->active_mask))
 				continue;
 
-			event = cpuc->events[bit];
+			WARN_ON_ONCE(!event);
+
+			if (!event->attr.precise)
+				continue;
+
+			if (__test_and_set_bit(bit, (unsigned long *)&status))
+				continue;
+
+			break;
 		}
 
-		if (!event)
+		if (!event || bit >= MAX_PEBS_EVENTS)
 			continue;
 
 		if (!intel_pmu_save_and_restart(event))
