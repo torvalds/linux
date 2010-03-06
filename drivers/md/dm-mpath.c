@@ -69,6 +69,7 @@ struct multipath {
 	struct list_head priority_groups;
 	unsigned pg_init_required;	/* pg_init needs calling? */
 	unsigned pg_init_in_progress;	/* Only one pg_init allowed at once */
+	wait_queue_head_t pg_init_wait;	/* Wait for pg_init completion */
 
 	unsigned nr_valid_paths;	/* Total number of usable paths */
 	struct pgpath *current_pgpath;
@@ -200,6 +201,7 @@ static struct multipath *alloc_multipath(struct dm_target *ti)
 		m->queue_io = 1;
 		INIT_WORK(&m->process_queued_ios, process_queued_ios);
 		INIT_WORK(&m->trigger_event, trigger_event);
+		init_waitqueue_head(&m->pg_init_wait);
 		mutex_init(&m->work_mutex);
 		m->mpio_pool = mempool_create_slab_pool(MIN_IOS, _mpio_cache);
 		if (!m->mpio_pool) {
@@ -891,9 +893,34 @@ static int multipath_ctr(struct dm_target *ti, unsigned int argc,
 	return r;
 }
 
-static void flush_multipath_work(void)
+static void multipath_wait_for_pg_init_completion(struct multipath *m)
+{
+	DECLARE_WAITQUEUE(wait, current);
+	unsigned long flags;
+
+	add_wait_queue(&m->pg_init_wait, &wait);
+
+	while (1) {
+		set_current_state(TASK_UNINTERRUPTIBLE);
+
+		spin_lock_irqsave(&m->lock, flags);
+		if (!m->pg_init_in_progress) {
+			spin_unlock_irqrestore(&m->lock, flags);
+			break;
+		}
+		spin_unlock_irqrestore(&m->lock, flags);
+
+		io_schedule();
+	}
+	set_current_state(TASK_RUNNING);
+
+	remove_wait_queue(&m->pg_init_wait, &wait);
+}
+
+static void flush_multipath_work(struct multipath *m)
 {
 	flush_workqueue(kmpath_handlerd);
+	multipath_wait_for_pg_init_completion(m);
 	flush_workqueue(kmultipathd);
 	flush_scheduled_work();
 }
@@ -902,7 +929,7 @@ static void multipath_dtr(struct dm_target *ti)
 {
 	struct multipath *m = ti->private;
 
-	flush_multipath_work();
+	flush_multipath_work(m);
 	free_multipath(m);
 }
 
@@ -1193,6 +1220,11 @@ static void pg_init_done(void *data, int errors)
 
 	queue_work(kmultipathd, &m->process_queued_ios);
 
+	/*
+	 * Wake up any thread waiting to suspend.
+	 */
+	wake_up(&m->pg_init_wait);
+
 out:
 	spin_unlock_irqrestore(&m->lock, flags);
 }
@@ -1281,7 +1313,7 @@ static void multipath_postsuspend(struct dm_target *ti)
 	struct multipath *m = ti->private;
 
 	mutex_lock(&m->work_mutex);
-	flush_multipath_work();
+	flush_multipath_work(m);
 	mutex_unlock(&m->work_mutex);
 }
 
