@@ -5524,85 +5524,93 @@ void rtl819x_update_rxcounts(
 	}
 }
 
-extern	void	rtl819x_watchdog_wqcallback(struct work_struct *work)
+void rtl819x_watchdog_wqcallback(struct work_struct *work)
 {
-	struct delayed_work *dwork = container_of(work,struct delayed_work,work);
-       struct r8192_priv *priv = container_of(dwork,struct r8192_priv,watch_dog_wq);
-       struct net_device *dev = priv->ieee80211->dev;
+	struct delayed_work *dwork = container_of(work,
+						struct delayed_work,
+						work);
+	struct r8192_priv *priv = container_of(dwork,
+						struct r8192_priv,
+						watch_dog_wq);
+	struct net_device *dev = priv->ieee80211->dev;
 	struct ieee80211_device* ieee = priv->ieee80211;
-	RESET_TYPE	ResetType = RESET_TYPE_NORESET;
-      	static u8	check_reset_cnt=0;
+	RESET_TYPE ResetType = RESET_TYPE_NORESET;
+	u8 check_reset_cnt = 0;
 	bool bBusyTraffic = false;
 
 	if(!priv->up)
 		return;
 	hal_dm_watchdog(dev);
 
-	{//to get busy traffic condition
-		if(ieee->state == IEEE80211_LINKED)
-		{
-			//windows mod 666 to 100.
-			//if(	ieee->LinkDetectInfo.NumRxOkInPeriod> 666 ||
-			//	ieee->LinkDetectInfo.NumTxOkInPeriod> 666 ) {
-			if(	ieee->LinkDetectInfo.NumRxOkInPeriod> 100 ||
-				ieee->LinkDetectInfo.NumTxOkInPeriod> 100 ) {
+	/* to get busy traffic condition */
+	if (ieee->state == IEEE80211_LINKED) {
+		if (ieee->LinkDetectInfo.NumRxOkInPeriod > 666 ||
+			ieee->LinkDetectInfo.NumTxOkInPeriod > 666)
 				bBusyTraffic = true;
-			}
-			ieee->LinkDetectInfo.NumRxOkInPeriod = 0;
-			ieee->LinkDetectInfo.NumTxOkInPeriod = 0;
-			ieee->LinkDetectInfo.bBusyTraffic = bBusyTraffic;
-		}
-	}
-	//added by amy for AP roaming
-	{
-		if(priv->ieee80211->state == IEEE80211_LINKED && priv->ieee80211->iw_mode == IW_MODE_INFRA)
-		{
-			u32	TotalRxBcnNum = 0;
-			u32	TotalRxDataNum = 0;
 
-			rtl819x_update_rxcounts(priv, &TotalRxBcnNum, &TotalRxDataNum);
-			if((TotalRxBcnNum+TotalRxDataNum) == 0)
-			{
-				#ifdef TODO
-				if(rfState == eRfOff)
-					RT_TRACE(COMP_ERR,"========>%s()\n",__FUNCTION__);
-				#endif
-				printk("===>%s(): AP is power off,connect another one\n",__FUNCTION__);
-			//	Dot11d_Reset(dev);
-				priv->ieee80211->state = IEEE80211_ASSOCIATING;
-				notify_wx_assoc_event(priv->ieee80211);
-				RemovePeerTS(priv->ieee80211,priv->ieee80211->current_network.bssid);
-				ieee->is_roaming = true;
-				priv->ieee80211->link_change(dev);
-                                queue_work(priv->ieee80211->wq, &priv->ieee80211->associate_procedure_wq);
-			}
+		ieee->LinkDetectInfo.NumRxOkInPeriod = 0;
+		ieee->LinkDetectInfo.NumTxOkInPeriod = 0;
+		ieee->LinkDetectInfo.bBusyTraffic = bBusyTraffic;
+	}
+
+	if (priv->ieee80211->state == IEEE80211_LINKED &&
+				priv->ieee80211->iw_mode == IW_MODE_INFRA) {
+		u32 TotalRxBcnNum = 0;
+		u32 TotalRxDataNum = 0;
+		rtl819x_update_rxcounts(priv, &TotalRxBcnNum, &TotalRxDataNum);
+		if ((TotalRxBcnNum + TotalRxDataNum) == 0) {
+			#ifdef TODO
+			if (rfState == eRfOff)
+				RT_TRACE(COMP_ERR, "========>%s()\n",
+								__func__);
+			#endif
+			RT_TRACE(COMP_ERR, "=>%s(): AP is power off,"
+					"connect another one\n", __func__);
+			/* Dot11d_Reset(dev); */
+			priv->ieee80211->state = IEEE80211_ASSOCIATING;
+			notify_wx_assoc_event(priv->ieee80211);
+			RemovePeerTS(priv->ieee80211,
+					priv->ieee80211->current_network.bssid);
+
+			ieee->is_roaming = true;
+			priv->ieee80211->link_change(dev);
+			queue_work(priv->ieee80211->wq,
+				&priv->ieee80211->associate_procedure_wq);
 		}
-		priv->ieee80211->LinkDetectInfo.NumRecvBcnInPeriod=0;
-		priv->ieee80211->LinkDetectInfo.NumRecvDataInPeriod=0;
 	}
-//	CAM_read_entry(dev,4);
-	//check if reset the driver
-	if(check_reset_cnt++ >= 3 && !ieee->is_roaming)
-	{
-    		ResetType = rtl819x_ifcheck_resetornot(dev);
+	priv->ieee80211->LinkDetectInfo.NumRecvBcnInPeriod = 0;
+	priv->ieee80211->LinkDetectInfo.NumRecvDataInPeriod = 0;
+
+	/*
+	 * CAM_read_entry(dev,4);
+	 * check if reset the driver
+	 */
+	if (check_reset_cnt++ >= 3 && !ieee->is_roaming) {
+		ResetType = rtl819x_ifcheck_resetornot(dev);
 		check_reset_cnt = 3;
-		//DbgPrint("Start to check silent reset\n");
 	}
-	//	RT_TRACE(COMP_RESET,"%s():priv->force_reset is %d,priv->ResetProgress is %d, priv->bForcedSilentReset is %d,priv->bDisableNormalResetCheck is %d,ResetType is %d\n",__FUNCTION__,priv->force_reset,priv->ResetProgress,priv->bForcedSilentReset,priv->bDisableNormalResetCheck,ResetType);
-#if 1
-	if( (priv->force_reset) || (priv->ResetProgress==RESET_TYPE_NORESET &&
+	if ((priv->force_reset) || (priv->ResetProgress == RESET_TYPE_NORESET &&
 		(priv->bForcedSilentReset ||
-		(!priv->bDisableNormalResetCheck && ResetType==RESET_TYPE_SILENT)))) // This is control by OID set in Pomelo
-	{
-		RT_TRACE(COMP_RESET,"%s():priv->force_reset is %d,priv->ResetProgress is %d, priv->bForcedSilentReset is %d,priv->bDisableNormalResetCheck is %d,ResetType is %d\n",__FUNCTION__,priv->force_reset,priv->ResetProgress,priv->bForcedSilentReset,priv->bDisableNormalResetCheck,ResetType);
+		(!priv->bDisableNormalResetCheck &&
+		 /* This is control by OID set in Pomelo */
+		ResetType == RESET_TYPE_SILENT)))) {
+		RT_TRACE(COMP_RESET, "%s():priv->force_reset is %d,"
+			"priv->ResetProgress is %d, "
+			"priv->bForcedSilentReset is %d, "
+			"priv->bDisableNormalResetCheck is %d, "
+			"ResetType is %d\n",
+					__func__,
+					priv->force_reset,
+					priv->ResetProgress,
+					priv->bForcedSilentReset,
+					priv->bDisableNormalResetCheck,
+					ResetType);
 		rtl819x_ifsilentreset(dev);
 	}
-#endif
 	priv->force_reset = false;
 	priv->bForcedSilentReset = false;
 	priv->bResetInProgress = false;
 	RT_TRACE(COMP_TRACE, " <==RtUsbCheckForHangWorkItemCallback()\n");
-
 }
 
 void watch_dog_timer_callback(unsigned long data)
