@@ -1129,9 +1129,6 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 	if (bfa_ioc_fwimg_get_size(ioc) < BFA_IOC_FWIMG_MINSZ)
 		boot_type = BFI_BOOT_TYPE_FLASH;
 	fwimg = bfa_ioc_fwimg_get_chunk(ioc, chunkno);
-	fwimg[BFI_BOOT_TYPE_OFF / sizeof(u32)] = bfa_os_swap32(boot_type);
-	fwimg[BFI_BOOT_PARAM_OFF / sizeof(u32)] =
-		bfa_os_swap32(boot_param);
 
 	pgnum = bfa_ioc_smem_pgnum(ioc, loff);
 	pgoff = bfa_ioc_smem_pgoff(ioc, loff);
@@ -1166,6 +1163,14 @@ bfa_ioc_download_fw(struct bfa_ioc_s *ioc, u32 boot_type,
 
 	bfa_reg_write(ioc->ioc_regs.host_page_num_fn,
 		      bfa_ioc_smem_pgnum(ioc, 0));
+
+	/*
+	 * Set boot type and boot param at the end.
+	 */
+	bfa_mem_write(ioc->ioc_regs.smem_page_start, BFI_BOOT_TYPE_OFF,
+			bfa_os_swap32(boot_type));
+	bfa_mem_write(ioc->ioc_regs.smem_page_start, BFI_BOOT_PARAM_OFF,
+			bfa_os_swap32(boot_param));
 }
 
 static void
