@@ -230,10 +230,6 @@ bfa_fcs_port_ms_sm_online(struct bfa_fcs_port_ms_s *ms,
 	switch (event) {
 	case MSSM_EVENT_PORT_OFFLINE:
 		bfa_sm_set_state(ms, bfa_fcs_port_ms_sm_offline);
-		/*
-		 * now invoke MS related sub-modules
-		 */
-		bfa_fcs_port_fdmi_offline(ms);
 		break;
 
 	case MSSM_EVENT_PORT_FABRIC_RSCN:
@@ -735,6 +731,7 @@ bfa_fcs_port_ms_offline(struct bfa_fcs_port_s *port)
 
 	ms->port = port;
 	bfa_sm_send_event(ms, MSSM_EVENT_PORT_OFFLINE);
+	bfa_fcs_port_fdmi_offline(ms);
 }
 
 void

@@ -562,17 +562,15 @@ void
 bfa_fcs_fabric_psymb_init(struct bfa_fcs_fabric_s *fabric)
 {
 	struct bfa_port_cfg_s *port_cfg = &fabric->bport.port_cfg;
-	struct bfa_adapter_attr_s adapter_attr;
+	char            model[BFA_ADAPTER_MODEL_NAME_LEN] = {0};
 	struct bfa_fcs_driver_info_s *driver_info = &fabric->fcs->driver_info;
 
-	bfa_os_memset((void *)&adapter_attr, 0,
-		      sizeof(struct bfa_adapter_attr_s));
-	bfa_ioc_get_adapter_attr(&fabric->fcs->bfa->ioc, &adapter_attr);
+	bfa_ioc_get_adapter_model(&fabric->fcs->bfa->ioc, model);
 
 	/*
 	 * Model name/number
 	 */
-	strncpy((char *)&port_cfg->sym_name, adapter_attr.model,
+	strncpy((char *)&port_cfg->sym_name, model,
 		BFA_FCS_PORT_SYMBNAME_MODEL_SZ);
 	strncat((char *)&port_cfg->sym_name, BFA_FCS_PORT_SYMBNAME_SEPARATOR,
 		sizeof(BFA_FCS_PORT_SYMBNAME_SEPARATOR));
