@@ -959,7 +959,7 @@ static int x86_pmu_enable(struct perf_event *event)
 	memcpy(cpuc->assign, assign, n*sizeof(int));
 
 	cpuc->n_events = n;
-	cpuc->n_added  = n - n0;
+	cpuc->n_added += n - n0;
 
 	return 0;
 }
@@ -1302,7 +1302,7 @@ int hw_perf_group_sched_in(struct perf_event *leader,
 	memcpy(cpuc->assign, assign, n0*sizeof(int));
 
 	cpuc->n_events  = n0;
-	cpuc->n_added   = n1;
+	cpuc->n_added  += n1;
 	ctx->nr_active += n1;
 
 	/*
