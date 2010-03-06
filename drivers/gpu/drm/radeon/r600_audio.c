@@ -197,14 +197,12 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
 	case ENCODER_OBJECT_ID_INTERNAL_LVTM1:
 		WREG32_P(R600_AUDIO_TIMING, 0, ~0x301);
 		break;
-
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY1:
 	case ENCODER_OBJECT_ID_INTERNAL_UNIPHY2:
 	case ENCODER_OBJECT_ID_INTERNAL_KLDSCP_LVTMA:
 		WREG32_P(R600_AUDIO_TIMING, 0x100, ~0x301);
 		break;
-
 	default:
 		DRM_ERROR("Unsupported encoder type 0x%02X\n",
 			  radeon_encoder->encoder_id);
@@ -213,14 +211,14 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
 
 	switch (dig->dig_encoder) {
 	case 0:
-		WREG32(R600_AUDIO_PLL1_MUL, base_rate*50);
-		WREG32(R600_AUDIO_PLL1_DIV, clock*100);
+		WREG32(R600_AUDIO_PLL1_MUL, base_rate * 50);
+		WREG32(R600_AUDIO_PLL1_DIV, clock * 100);
 		WREG32(R600_AUDIO_CLK_SRCSEL, 0);
 		break;
 
 	case 1:
-		WREG32(R600_AUDIO_PLL2_MUL, base_rate*50);
-		WREG32(R600_AUDIO_PLL2_DIV, clock*100);
+		WREG32(R600_AUDIO_PLL2_MUL, base_rate * 50);
+		WREG32(R600_AUDIO_PLL2_DIV, clock * 100);
 		WREG32(R600_AUDIO_CLK_SRCSEL, 1);
 		break;
 	default:

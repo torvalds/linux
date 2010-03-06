@@ -42,13 +42,13 @@ enum r600_hdmi_color_format {
  */
 enum r600_hdmi_iec_status_bits {
 	AUDIO_STATUS_DIG_ENABLE   = 0x01,
-	AUDIO_STATUS_V	    = 0x02,
-	AUDIO_STATUS_VCFG	 = 0x04,
+	AUDIO_STATUS_V            = 0x02,
+	AUDIO_STATUS_VCFG         = 0x04,
 	AUDIO_STATUS_EMPHASIS     = 0x08,
 	AUDIO_STATUS_COPYRIGHT    = 0x10,
 	AUDIO_STATUS_NONAUDIO     = 0x20,
 	AUDIO_STATUS_PROFESSIONAL = 0x40,
-	AUDIO_STATUS_LEVEL	= 0x80
+	AUDIO_STATUS_LEVEL        = 0x80
 };
 
 struct {
@@ -85,7 +85,7 @@ struct {
 static void r600_hdmi_calc_CTS(uint32_t clock, int *CTS, int N, int freq)
 {
 	if (*CTS == 0)
-		*CTS = clock*N/(128*freq)*1000;
+		*CTS = clock * N / (128 * freq) * 1000;
 	DRM_DEBUG("Using ACR timing N=%d CTS=%d for frequency %d\n",
 		  N, *CTS, freq);
 }
@@ -131,11 +131,11 @@ static void r600_hdmi_infoframe_checksum(uint8_t packetType,
 					 uint8_t length,
 					 uint8_t *frame)
 {
-    int i;
-    frame[0] = packetType + versionNumber + length;
-    for (i = 1; i <= length; i++)
-	frame[0] += frame[i];
-    frame[0] = 0x100 - frame[0];
+	int i;
+	frame[0] = packetType + versionNumber + length;
+	for (i = 1; i <= length; i++)
+		frame[0] += frame[i];
+	frame[0] = 0x100 - frame[0];
 }
 
 /*
