@@ -43,11 +43,11 @@ bfa_cb_ioim_done(void *drv, struct bfad_ioim_s *dio,
 	struct bfad_s         *bfad = drv;
 	struct bfad_itnim_data_s *itnim_data;
 	struct bfad_itnim_s *itnim;
+	u8         host_status = DID_OK;
 
 	switch (io_status) {
 	case BFI_IOIM_STS_OK:
 		bfa_trc(bfad, scsi_status);
-		cmnd->result = ScsiResult(DID_OK, scsi_status);
 		scsi_set_resid(cmnd, 0);
 
 		if (sns_len > 0) {
@@ -56,8 +56,18 @@ bfa_cb_ioim_done(void *drv, struct bfad_ioim_s *dio,
 				sns_len = SCSI_SENSE_BUFFERSIZE;
 			memcpy(cmnd->sense_buffer, sns_info, sns_len);
 		}
-		if (residue > 0)
+		if (residue > 0) {
+			bfa_trc(bfad, residue);
 			scsi_set_resid(cmnd, residue);
+			if (!sns_len && (scsi_status == SAM_STAT_GOOD) &&
+				(scsi_bufflen(cmnd) - residue) <
+					cmnd->underflow) {
+				bfa_trc(bfad, 0);
+				host_status = DID_ERROR;
+			}
+		}
+		cmnd->result = ScsiResult(host_status, scsi_status);
+
 		break;
 
 	case BFI_IOIM_STS_ABORTED:
