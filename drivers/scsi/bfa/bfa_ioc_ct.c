@@ -171,10 +171,14 @@ bfa_ioc_ct_firmware_unlock(struct bfa_ioc_s *ioc)
 static void
 bfa_ioc_ct_notify_hbfail(struct bfa_ioc_s *ioc)
 {
-
-	bfa_reg_write(ioc->ioc_regs.ll_halt, __FW_INIT_HALT_P);
-	/* Wait for halt to take effect */
-	bfa_reg_read(ioc->ioc_regs.ll_halt);
+	if (ioc->cna) {
+		bfa_reg_write(ioc->ioc_regs.ll_halt, __FW_INIT_HALT_P);
+		/* Wait for halt to take effect */
+		bfa_reg_read(ioc->ioc_regs.ll_halt);
+	} else {
+		bfa_reg_write(ioc->ioc_regs.err_set, __PSS_ERR_STATUS_SET);
+		bfa_reg_read(ioc->ioc_regs.err_set);
+	}
 }
 
 /**
@@ -254,6 +258,11 @@ bfa_ioc_ct_reg_init(struct bfa_ioc_s *ioc)
 	 */
 	ioc->ioc_regs.smem_page_start = (rb + PSS_SMEM_PAGE_START);
 	ioc->ioc_regs.smem_pg0 = BFI_IOC_SMEM_PG0_CT;
+
+	/*
+	 * err set reg : for notification of hb failure in fcmode
+	 */
+	ioc->ioc_regs.err_set = (rb + ERR_SET_REG);
 }
 
 /**
