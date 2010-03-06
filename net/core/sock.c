@@ -2288,7 +2288,8 @@ out_free_request_sock_slab:
 		prot->rsk_prot->slab = NULL;
 	}
 out_free_request_sock_slab_name:
-	kfree(prot->rsk_prot->slab_name);
+	if (prot->rsk_prot)
+		kfree(prot->rsk_prot->slab_name);
 out_free_sock_slab:
 	kmem_cache_destroy(prot->slab);
 	prot->slab = NULL;
