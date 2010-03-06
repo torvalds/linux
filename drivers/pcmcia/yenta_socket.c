@@ -329,8 +329,8 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 		/* ISA interrupt control? */
 		intr = exca_readb(socket, I365_INTCTL);
 		intr = (intr & ~0xf);
-		if (!socket->cb_irq) {
-			intr |= state->io_irq;
+		if (!socket->dev->irq) {
+			intr |= socket->cb_irq ? socket->cb_irq : state->io_irq;
 			bridge |= CB_BRIDGE_INTR;
 		}
 		exca_writeb(socket, I365_INTCTL, intr);
@@ -340,7 +340,7 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 		reg = exca_readb(socket, I365_INTCTL) & (I365_RING_ENA | I365_INTR_ENA);
 		reg |= (state->flags & SS_RESET) ? 0 : I365_PC_RESET;
 		reg |= (state->flags & SS_IOCARD) ? I365_PC_IOCARD : 0;
-		if (state->io_irq != socket->cb_irq) {
+		if (state->io_irq != socket->dev->irq) {
 			reg |= state->io_irq;
 			bridge |= CB_BRIDGE_INTR;
 		}
