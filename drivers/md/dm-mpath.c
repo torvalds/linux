@@ -235,6 +235,21 @@ static void free_multipath(struct multipath *m)
  * Path selection
  *-----------------------------------------------*/
 
+static void __pg_init_all_paths(struct multipath *m)
+{
+	struct pgpath *pgpath;
+
+	m->pg_init_count++;
+	m->pg_init_required = 0;
+	list_for_each_entry(pgpath, &m->current_pg->pgpaths, list) {
+		/* Skip failed paths */
+		if (!pgpath->is_active)
+			continue;
+		if (queue_work(kmpath_handlerd, &pgpath->activate_path))
+			m->pg_init_in_progress++;
+	}
+}
+
 static void __switch_pg(struct multipath *m, struct pgpath *pgpath)
 {
 	m->current_pg = pgpath->pg;
@@ -439,7 +454,7 @@ static void process_queued_ios(struct work_struct *work)
 {
 	struct multipath *m =
 		container_of(work, struct multipath, process_queued_ios);
-	struct pgpath *pgpath = NULL, *tmp;
+	struct pgpath *pgpath = NULL;
 	unsigned must_queue = 1;
 	unsigned long flags;
 
@@ -457,17 +472,9 @@ static void process_queued_ios(struct work_struct *work)
 	    (!pgpath && !m->queue_if_no_path))
 		must_queue = 0;
 
-	if (m->pg_init_required && !m->pg_init_in_progress && pgpath) {
-		m->pg_init_count++;
-		m->pg_init_required = 0;
-		list_for_each_entry(tmp, &pgpath->pg->pgpaths, list) {
-			/* Skip failed paths */
-			if (!tmp->is_active)
-				continue;
-			if (queue_work(kmpath_handlerd, &tmp->activate_path))
-				m->pg_init_in_progress++;
-		}
-	}
+	if (m->pg_init_required && !m->pg_init_in_progress && pgpath)
+		__pg_init_all_paths(m);
+
 out:
 	spin_unlock_irqrestore(&m->lock, flags);
 	if (!must_queue)
