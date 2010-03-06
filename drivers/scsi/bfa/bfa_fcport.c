@@ -145,35 +145,12 @@ bfa_fcport_aen_post(struct bfa_fcport_s *fcport, enum bfa_port_aen_event event)
 	struct bfa_log_mod_s *logmod = fcport->bfa->logm;
 	wwn_t           pwwn = fcport->pwwn;
 	char            pwwn_ptr[BFA_STRING_32];
-	struct bfa_ioc_attr_s ioc_attr;
 
 	memset(&aen_data, 0, sizeof(aen_data));
 	wwn2str(pwwn_ptr, pwwn);
-	switch (event) {
-	case BFA_PORT_AEN_ONLINE:
-		bfa_log(logmod, BFA_AEN_PORT_ONLINE, pwwn_ptr);
-		break;
-	case BFA_PORT_AEN_OFFLINE:
-		bfa_log(logmod, BFA_AEN_PORT_OFFLINE, pwwn_ptr);
-		break;
-	case BFA_PORT_AEN_ENABLE:
-		bfa_log(logmod, BFA_AEN_PORT_ENABLE, pwwn_ptr);
-		break;
-	case BFA_PORT_AEN_DISABLE:
-		bfa_log(logmod, BFA_AEN_PORT_DISABLE, pwwn_ptr);
-		break;
-	case BFA_PORT_AEN_DISCONNECT:
-		bfa_log(logmod, BFA_AEN_PORT_DISCONNECT, pwwn_ptr);
-		break;
-	case BFA_PORT_AEN_QOS_NEG:
-		bfa_log(logmod, BFA_AEN_PORT_QOS_NEG, pwwn_ptr);
-		break;
-	default:
-		break;
-	}
+	bfa_log(logmod, BFA_LOG_CREATE_ID(BFA_AEN_CAT_PORT, event), pwwn_ptr);
 
-	bfa_ioc_get_attr(&fcport->bfa->ioc, &ioc_attr);
-	aen_data.port.ioc_type = ioc_attr.ioc_type;
+	aen_data.port.ioc_type = bfa_get_type(fcport->bfa);
 	aen_data.port.pwwn = pwwn;
 }
 
@@ -2043,11 +2020,15 @@ void
 bfa_fcport_cfg_qos(struct bfa_s *bfa, bfa_boolean_t on_off)
 {
 	struct bfa_fcport_s *fcport = BFA_FCPORT_MOD(bfa);
+	enum bfa_ioc_type_e ioc_type = bfa_get_type(bfa);
 
 	bfa_trc(bfa, on_off);
 	bfa_trc(bfa, fcport->cfg.qos_enabled);
 
-	fcport->cfg.qos_enabled = on_off;
+	bfa_trc(bfa, ioc_type);
+
+	if (ioc_type == BFA_IOC_TYPE_FC)
+		fcport->cfg.qos_enabled = on_off;
 }
 
 void

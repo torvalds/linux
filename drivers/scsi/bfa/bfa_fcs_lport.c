@@ -263,30 +263,8 @@ bfa_fcs_port_aen_post(struct bfa_fcs_port_s *port,
 
 	bfa_assert(role <= BFA_PORT_ROLE_FCP_MAX);
 
-	switch (event) {
-	case BFA_LPORT_AEN_ONLINE:
-		bfa_log(logmod, BFA_AEN_LPORT_ONLINE, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	case BFA_LPORT_AEN_OFFLINE:
-		bfa_log(logmod, BFA_AEN_LPORT_OFFLINE, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	case BFA_LPORT_AEN_NEW:
-		bfa_log(logmod, BFA_AEN_LPORT_NEW, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	case BFA_LPORT_AEN_DELETE:
-		bfa_log(logmod, BFA_AEN_LPORT_DELETE, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	case BFA_LPORT_AEN_DISCONNECT:
-		bfa_log(logmod, BFA_AEN_LPORT_DISCONNECT, lpwwn_ptr,
-			role_str[role / 2]);
-		break;
-	default:
-		break;
-	}
+	bfa_log(logmod, BFA_LOG_CREATE_ID(BFA_AEN_CAT_LPORT, event), lpwwn_ptr,
+		role_str[role/2]);
 
 	aen_data.lport.vf_id = port->fabric->vf_id;
 	aen_data.lport.roles = role;

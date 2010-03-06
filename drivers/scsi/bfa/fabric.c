@@ -1235,14 +1235,8 @@ bfa_fcs_fabric_aen_post(struct bfa_fcs_port_s *port,
 	wwn2str(pwwn_ptr, pwwn);
 	wwn2str(fwwn_ptr, fwwn);
 
-	switch (event) {
-	case BFA_PORT_AEN_FABRIC_NAME_CHANGE:
-		bfa_log(logmod, BFA_AEN_PORT_FABRIC_NAME_CHANGE, pwwn_ptr,
-			fwwn_ptr);
-		break;
-	default:
-		break;
-	}
+	bfa_log(logmod, BFA_LOG_CREATE_ID(BFA_AEN_CAT_PORT, event),
+		pwwn_ptr, fwwn_ptr);
 
 	aen_data.port.pwwn = pwwn;
 	aen_data.port.fwwn = fwwn;

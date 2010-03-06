@@ -385,19 +385,8 @@ bfa_fcs_itnim_aen_post(struct bfa_fcs_itnim_s *itnim,
 	wwn2str(lpwwn_ptr, lpwwn);
 	wwn2str(rpwwn_ptr, rpwwn);
 
-	switch (event) {
-	case BFA_ITNIM_AEN_ONLINE:
-		bfa_log(logmod, BFA_AEN_ITNIM_ONLINE, rpwwn_ptr, lpwwn_ptr);
-		break;
-	case BFA_ITNIM_AEN_OFFLINE:
-		bfa_log(logmod, BFA_AEN_ITNIM_OFFLINE, rpwwn_ptr, lpwwn_ptr);
-		break;
-	case BFA_ITNIM_AEN_DISCONNECT:
-		bfa_log(logmod, BFA_AEN_ITNIM_DISCONNECT, rpwwn_ptr, lpwwn_ptr);
-		break;
-	default:
-		break;
-	}
+	bfa_log(logmod, BFA_LOG_CREATE_ID(BFA_AEN_CAT_ITNIM, event),
+		rpwwn_ptr, lpwwn_ptr);
 
 	aen_data.itnim.vf_id = rport->port->fabric->vf_id;
 	aen_data.itnim.ppwwn =

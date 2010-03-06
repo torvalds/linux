@@ -631,11 +631,7 @@ bfa_lps_cvl_event(struct bfa_lps_s *lps)
 u32
 bfa_lps_get_max_vport(struct bfa_s *bfa)
 {
-	struct bfa_ioc_attr_s ioc_attr;
-
-	bfa_get_attr(bfa, &ioc_attr);
-
-	if (ioc_attr.pci_attr.device_id == BFA_PCI_DEVICE_ID_CT)
+	if (bfa_ioc_devid(&bfa->ioc) == BFA_PCI_DEVICE_ID_CT)
 		return BFA_LPS_MAX_VPORTS_SUPP_CT;
 	else
 		return BFA_LPS_MAX_VPORTS_SUPP_CB;

@@ -2039,13 +2039,10 @@ bfa_fcs_rport_aen_post(struct bfa_fcs_rport_s *rport,
 
 	switch (event) {
 	case BFA_RPORT_AEN_ONLINE:
-		bfa_log(logmod, BFA_AEN_RPORT_ONLINE, rpwwn_ptr, lpwwn_ptr);
-		break;
 	case BFA_RPORT_AEN_OFFLINE:
-		bfa_log(logmod, BFA_AEN_RPORT_OFFLINE, rpwwn_ptr, lpwwn_ptr);
-		break;
 	case BFA_RPORT_AEN_DISCONNECT:
-		bfa_log(logmod, BFA_AEN_RPORT_DISCONNECT, rpwwn_ptr, lpwwn_ptr);
+		bfa_log(logmod, BFA_LOG_CREATE_ID(BFA_AEN_CAT_RPORT, event),
+			rpwwn_ptr, lpwwn_ptr);
 		break;
 	case BFA_RPORT_AEN_QOS_PRIO:
 		aen_data.rport.priv.qos = data->priv.qos;

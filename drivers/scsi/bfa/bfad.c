@@ -978,7 +978,6 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 {
 	struct bfad_s  *bfad;
 	int             error = -ENODEV, retval;
-	char            buf[16];
 
 	/*
 	 * For single port cards - only claim function 0
@@ -1009,8 +1008,7 @@ bfad_pci_probe(struct pci_dev *pdev, const struct pci_device_id *pid)
 	bfa_trc(bfad, bfad_inst);
 
 	bfad->logmod = &bfad->log_data;
-	sprintf(buf, "%d", bfad_inst);
-	bfa_log_init(bfad->logmod, buf, bfa_os_printf);
+	bfa_log_init(bfad->logmod, (char *)pci_name(pdev), bfa_os_printf);
 
 	bfad_drv_log_level_set(bfad);
 

@@ -1679,45 +1679,27 @@ bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 			 struct bfa_adapter_attr_s *ad_attr)
 {
 	struct bfi_ioc_attr_s *ioc_attr;
-	char            model[BFA_ADAPTER_MODEL_NAME_LEN];
 
 	ioc_attr = ioc->attr;
-	bfa_os_memcpy((void *)&ad_attr->serial_num,
-		      (void *)ioc_attr->brcd_serialnum,
-		      BFA_ADAPTER_SERIAL_NUM_LEN);
 
-	bfa_os_memcpy(&ad_attr->fw_ver, ioc_attr->fw_version, BFA_VERSION_LEN);
-	bfa_os_memcpy(&ad_attr->optrom_ver, ioc_attr->optrom_version,
-		      BFA_VERSION_LEN);
-	bfa_os_memcpy(&ad_attr->manufacturer, BFA_MFG_NAME,
-		      BFA_ADAPTER_MFG_NAME_LEN);
+	bfa_ioc_get_adapter_serial_num(ioc, ad_attr->serial_num);
+	bfa_ioc_get_adapter_fw_ver(ioc, ad_attr->fw_ver);
+	bfa_ioc_get_adapter_optrom_ver(ioc, ad_attr->optrom_ver);
+	bfa_ioc_get_adapter_manufacturer(ioc, ad_attr->manufacturer);
 	bfa_os_memcpy(&ad_attr->vpd, &ioc_attr->vpd,
 		      sizeof(struct bfa_mfg_vpd_s));
 
-	ad_attr->nports = BFI_ADAPTER_GETP(NPORTS, ioc_attr->adapter_prop);
-	ad_attr->max_speed = BFI_ADAPTER_GETP(SPEED, ioc_attr->adapter_prop);
+	ad_attr->nports = bfa_ioc_get_nports(ioc);
+	ad_attr->max_speed = bfa_ioc_speed_sup(ioc);
 
-	/**
-	 * model name
-	 */
-	if (BFI_ADAPTER_GETP(SPEED, ioc_attr->adapter_prop) == 10) {
-		strcpy(model, "BR-10?0");
-		model[5] = '0' + ad_attr->nports;
-	} else {
-		strcpy(model, "Brocade-??5");
-		model[8] =
-			'0' + BFI_ADAPTER_GETP(SPEED, ioc_attr->adapter_prop);
-		model[9] = '0' + ad_attr->nports;
-	}
+	bfa_ioc_get_adapter_model(ioc, ad_attr->model);
+	/* For now, model descr uses same model string */
+	bfa_ioc_get_adapter_model(ioc, ad_attr->model_descr);
 
 	if (BFI_ADAPTER_IS_SPECIAL(ioc_attr->adapter_prop))
 		ad_attr->prototype = 1;
 	else
 		ad_attr->prototype = 0;
-
-	bfa_os_memcpy(&ad_attr->model, model, BFA_ADAPTER_MODEL_NAME_LEN);
-	bfa_os_memcpy(&ad_attr->model_descr, &ad_attr->model,
-		      BFA_ADAPTER_MODEL_NAME_LEN);
 
 	ad_attr->pwwn = bfa_ioc_get_pwwn(ioc);
 	ad_attr->mac = bfa_ioc_get_mac(ioc);
@@ -1726,12 +1708,8 @@ bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 	ad_attr->pcie_lanes = ioc_attr->pcie_lanes;
 	ad_attr->pcie_lanes_orig = ioc_attr->pcie_lanes_orig;
 	ad_attr->asic_rev = ioc_attr->asic_rev;
-	ad_attr->hw_ver[0] = 'R';
-	ad_attr->hw_ver[1] = 'e';
-	ad_attr->hw_ver[2] = 'v';
-	ad_attr->hw_ver[3] = '-';
-	ad_attr->hw_ver[4] = ioc_attr->asic_rev;
-	ad_attr->hw_ver[5] = '\0';
+
+	bfa_ioc_get_pci_chip_rev(ioc, ad_attr->hw_ver);
 
 	ad_attr->cna_capable = ioc->cna;
 }
@@ -1752,11 +1730,91 @@ bfa_ioc_get_type(struct bfa_ioc_s *ioc)
 }
 
 void
+bfa_ioc_get_adapter_serial_num(struct bfa_ioc_s *ioc, char *serial_num)
+{
+	bfa_os_memset((void *)serial_num, 0, BFA_ADAPTER_SERIAL_NUM_LEN);
+	bfa_os_memcpy((void *)serial_num,
+			(void *)ioc->attr->brcd_serialnum,
+			BFA_ADAPTER_SERIAL_NUM_LEN);
+}
+
+void
+bfa_ioc_get_adapter_fw_ver(struct bfa_ioc_s *ioc, char *fw_ver)
+{
+	bfa_os_memset((void *)fw_ver, 0, BFA_VERSION_LEN);
+	bfa_os_memcpy(fw_ver, ioc->attr->fw_version, BFA_VERSION_LEN);
+}
+
+void
+bfa_ioc_get_pci_chip_rev(struct bfa_ioc_s *ioc, char *chip_rev)
+{
+	bfa_assert(chip_rev);
+
+	bfa_os_memset((void *)chip_rev, 0, BFA_IOC_CHIP_REV_LEN);
+
+	chip_rev[0] = 'R';
+	chip_rev[1] = 'e';
+	chip_rev[2] = 'v';
+	chip_rev[3] = '-';
+	chip_rev[4] = ioc->attr->asic_rev;
+	chip_rev[5] = '\0';
+}
+
+void
+bfa_ioc_get_adapter_optrom_ver(struct bfa_ioc_s *ioc, char *optrom_ver)
+{
+	bfa_os_memset((void *)optrom_ver, 0, BFA_VERSION_LEN);
+	bfa_os_memcpy(optrom_ver, ioc->attr->optrom_version,
+		BFA_VERSION_LEN);
+}
+
+void
+bfa_ioc_get_adapter_manufacturer(struct bfa_ioc_s *ioc, char *manufacturer)
+{
+	bfa_os_memset((void *)manufacturer, 0, BFA_ADAPTER_MFG_NAME_LEN);
+	bfa_os_memcpy(manufacturer, BFA_MFG_NAME, BFA_ADAPTER_MFG_NAME_LEN);
+}
+
+void
+bfa_ioc_get_adapter_model(struct bfa_ioc_s *ioc, char *model)
+{
+	struct bfi_ioc_attr_s   *ioc_attr;
+	u8              nports;
+	u8              max_speed;
+
+	bfa_assert(model);
+	bfa_os_memset((void *)model, 0, BFA_ADAPTER_MODEL_NAME_LEN);
+
+	ioc_attr = ioc->attr;
+
+	nports = bfa_ioc_get_nports(ioc);
+	max_speed = bfa_ioc_speed_sup(ioc);
+
+	/**
+	 * model name
+	 */
+	if (max_speed == 10) {
+		strcpy(model, "BR-10?0");
+		model[5] = '0' + nports;
+	} else {
+		strcpy(model, "Brocade-??5");
+		model[8] = '0' + max_speed;
+		model[9] = '0' + nports;
+	}
+}
+
+enum bfa_ioc_state
+bfa_ioc_get_state(struct bfa_ioc_s *ioc)
+{
+	return bfa_sm_to_state(ioc_sm_table, ioc->fsm);
+}
+
+void
 bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr)
 {
 	bfa_os_memset((void *)ioc_attr, 0, sizeof(struct bfa_ioc_attr_s));
 
-	ioc_attr->state = bfa_sm_to_state(ioc_sm_table, ioc->fsm);
+	ioc_attr->state = bfa_ioc_get_state(ioc);
 	ioc_attr->port_id = ioc->port_id;
 
 	ioc_attr->ioc_type = bfa_ioc_get_type(ioc);
@@ -1765,12 +1823,7 @@ bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr)
 
 	ioc_attr->pci_attr.device_id = ioc->pcidev.device_id;
 	ioc_attr->pci_attr.pcifn = ioc->pcidev.pci_func;
-	ioc_attr->pci_attr.chip_rev[0] = 'R';
-	ioc_attr->pci_attr.chip_rev[1] = 'e';
-	ioc_attr->pci_attr.chip_rev[2] = 'v';
-	ioc_attr->pci_attr.chip_rev[3] = '-';
-	ioc_attr->pci_attr.chip_rev[4] = ioc_attr->adapter_attr.asic_rev;
-	ioc_attr->pci_attr.chip_rev[5] = '\0';
+	bfa_ioc_get_pci_chip_rev(ioc, ioc_attr->pci_attr.chip_rev);
 }
 
 /**
@@ -1877,25 +1930,7 @@ bfa_ioc_aen_post(struct bfa_ioc_s *ioc, enum bfa_ioc_aen_event event)
 	s32         inst_num = 0;
 	enum bfa_ioc_type_e ioc_type;
 
-	switch (event) {
-	case BFA_IOC_AEN_HBGOOD:
-		bfa_log(logmod, BFA_AEN_IOC_HBGOOD, inst_num);
-		break;
-	case BFA_IOC_AEN_HBFAIL:
-		bfa_log(logmod, BFA_AEN_IOC_HBFAIL, inst_num);
-		break;
-	case BFA_IOC_AEN_ENABLE:
-		bfa_log(logmod, BFA_AEN_IOC_ENABLE, inst_num);
-		break;
-	case BFA_IOC_AEN_DISABLE:
-		bfa_log(logmod, BFA_AEN_IOC_DISABLE, inst_num);
-		break;
-	case BFA_IOC_AEN_FWMISMATCH:
-		bfa_log(logmod, BFA_AEN_IOC_FWMISMATCH, inst_num);
-		break;
-	default:
-		break;
-	}
+	bfa_log(logmod, BFA_LOG_CREATE_ID(BFA_AEN_CAT_IOC, event), inst_num);
 
 	memset(&aen_data.ioc.pwwn, 0, sizeof(aen_data.ioc.pwwn));
 	memset(&aen_data.ioc.mac, 0, sizeof(aen_data.ioc.mac));

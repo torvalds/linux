@@ -263,6 +263,16 @@ bfa_boolean_t bfa_ioc_is_disabled(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_fw_mismatch(struct bfa_ioc_s *ioc);
 bfa_boolean_t bfa_ioc_adapter_is_disabled(struct bfa_ioc_s *ioc);
 void bfa_ioc_cfg_complete(struct bfa_ioc_s *ioc);
+enum bfa_ioc_type_e bfa_ioc_get_type(struct bfa_ioc_s *ioc);
+void bfa_ioc_get_adapter_serial_num(struct bfa_ioc_s *ioc, char *serial_num);
+void bfa_ioc_get_adapter_fw_ver(struct bfa_ioc_s *ioc, char *fw_ver);
+void bfa_ioc_get_adapter_optrom_ver(struct bfa_ioc_s *ioc, char *optrom_ver);
+void bfa_ioc_get_adapter_model(struct bfa_ioc_s *ioc, char *model);
+void bfa_ioc_get_adapter_manufacturer(struct bfa_ioc_s *ioc,
+	char *manufacturer);
+void bfa_ioc_get_pci_chip_rev(struct bfa_ioc_s *ioc, char *chip_rev);
+enum bfa_ioc_state bfa_ioc_get_state(struct bfa_ioc_s *ioc);
+
 void bfa_ioc_get_attr(struct bfa_ioc_s *ioc, struct bfa_ioc_attr_s *ioc_attr);
 void bfa_ioc_get_adapter_attr(struct bfa_ioc_s *ioc,
 		struct bfa_adapter_attr_s *ad_attr);
