@@ -275,19 +275,9 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 		goto unlock;
 	}
 
-	if (mod->Attributes & CONF_IRQ_CHANGE_VALID) {
-		if (mod->Attributes & CONF_ENABLE_IRQ) {
-			c->Attributes |= CONF_ENABLE_IRQ;
-			s->socket.io_irq = s->irq.AssignedIRQ;
-		} else {
-			c->Attributes &= ~CONF_ENABLE_IRQ;
-			s->socket.io_irq = 0;
-		}
-		s->ops->set_socket(s, &s->socket);
-	}
-
-	if (mod->Attributes & CONF_VCC_CHANGE_VALID) {
-		dev_dbg(&s->dev, "changing Vcc is not allowed at this time\n");
+	if (mod->Attributes & (CONF_IRQ_CHANGE_VALID | CONF_VCC_CHANGE_VALID)) {
+		dev_dbg(&s->dev,
+			"changing Vcc or IRQ is not allowed at this time\n");
 		ret = -EINVAL;
 		goto unlock;
 	}
