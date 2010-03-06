@@ -32,6 +32,8 @@ enum bfi_pport_h2i {
 	BFI_PPORT_H2I_ENABLE_TX_VF_TAG_REQ	= (7),
 	BFI_PPORT_H2I_GET_QOS_STATS_REQ		= (8),
 	BFI_PPORT_H2I_CLEAR_QOS_STATS_REQ	= (9),
+	BFI_FCPORT_H2I_GET_STATS_REQ            = (10),
+	BFI_FCPORT_H2I_CLEAR_STATS_REQ          = (11),
 };
 
 enum bfi_pport_i2h {
@@ -45,6 +47,8 @@ enum bfi_pport_i2h {
 	BFI_PPORT_I2H_EVENT			= BFA_I2HM(8),
 	BFI_PPORT_I2H_GET_QOS_STATS_RSP		= BFA_I2HM(9),
 	BFI_PPORT_I2H_CLEAR_QOS_STATS_RSP	= BFA_I2HM(10),
+	BFI_FCPORT_I2H_GET_STATS_RSP            = BFA_I2HM(11),
+	BFI_FCPORT_I2H_CLEAR_STATS_RSP          = BFA_I2HM(12),
 };
 
 /**
@@ -75,6 +79,7 @@ struct bfi_pport_enable_req_s {
 	wwn_t           pwwn;		/*  port wwn of physical port	    */
 	struct bfa_pport_cfg_s port_cfg;	/*  port configuration	    */
 	union bfi_addr_u  stats_dma_addr;	/*  DMA address for stats  */
+	union bfi_addr_u  fcport_stats_dma_addr;/*!< DMA address for stats  */
 	u32        msgtag;		/*  msgtag for reply		    */
 	u32        rsvd2;
 };

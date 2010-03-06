@@ -102,7 +102,7 @@ bfa_fcs_rport_get_attr(struct bfa_fcs_rport_s *rport,
 	rport_attr->qos_attr = qos_attr;
 
 	rport_attr->trl_enforced = BFA_FALSE;
-	if (bfa_pport_is_ratelim(port->fcs->bfa)) {
+	if (bfa_fcport_is_ratelim(port->fcs->bfa)) {
 		if ((rport->rpf.rpsc_speed == BFA_PPORT_SPEED_UNKNOWN) ||
 			(rport->rpf.rpsc_speed <
 			bfa_fcs_port_get_rport_max_speed(port)))

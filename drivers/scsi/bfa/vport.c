@@ -478,7 +478,7 @@ static void
 bfa_fcs_vport_do_fdisc(struct bfa_fcs_vport_s *vport)
 {
 	bfa_lps_fdisc(vport->lps, vport,
-		      bfa_pport_get_maxfrsize(__vport_bfa(vport)),
+		      bfa_fcport_get_maxfrsize(__vport_bfa(vport)),
 		      __vport_pwwn(vport), __vport_nwwn(vport));
 	vport->vport_stats.fdisc_sent++;
 }

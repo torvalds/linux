@@ -236,6 +236,7 @@ struct bfa_fw_fip_stats_s {
     u32    disc_err;           /*  Discovery advt. parse errors        */
     u32    disc_unsol;         /*  Discovery unsolicited               */
     u32    disc_timeouts;      /*  Discovery timeouts                  */
+    u32    disc_fcf_unavail;   /*  Discovery FCF Not Avail.            */
     u32    linksvc_unsupp;     /*  Unsupported link service req        */
     u32    linksvc_err;        /*  Parse error in link service req     */
     u32    logo_req;           /*  Number of FIP logos received        */

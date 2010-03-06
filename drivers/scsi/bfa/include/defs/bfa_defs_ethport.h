@@ -19,6 +19,7 @@
 #define __BFA_DEFS_ETHPORT_H__
 
 #include <defs/bfa_defs_status.h>
+#include <defs/bfa_defs_port.h>
 #include <protocol/types.h>
 #include <cna/pstats/phyport_defs.h>
 #include <cna/pstats/ethport_defs.h>

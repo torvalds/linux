@@ -26,6 +26,7 @@ struct bfa_fcxp_s;
 #include <defs/bfa_defs_pport.h>
 #include <defs/bfa_defs_rport.h>
 #include <defs/bfa_defs_qos.h>
+#include <defs/bfa_defs_fcport.h>
 #include <cs/bfa_sm.h>
 #include <bfa.h>
 
@@ -151,60 +152,67 @@ struct bfa_lps_s {
 	bfa_eproto_status_t	ext_status;
 };
 
+#define BFA_FCPORT(_bfa)        (&((_bfa)->modules.port))
+
 /*
  * bfa pport API functions
  */
-bfa_status_t bfa_pport_enable(struct bfa_s *bfa);
-bfa_status_t bfa_pport_disable(struct bfa_s *bfa);
-bfa_status_t bfa_pport_cfg_speed(struct bfa_s *bfa,
+bfa_status_t bfa_fcport_enable(struct bfa_s *bfa);
+bfa_status_t bfa_fcport_disable(struct bfa_s *bfa);
+bfa_status_t bfa_fcport_cfg_speed(struct bfa_s *bfa,
 			enum bfa_pport_speed speed);
-enum bfa_pport_speed bfa_pport_get_speed(struct bfa_s *bfa);
-bfa_status_t bfa_pport_cfg_topology(struct bfa_s *bfa,
+enum bfa_pport_speed bfa_fcport_get_speed(struct bfa_s *bfa);
+bfa_status_t bfa_fcport_cfg_topology(struct bfa_s *bfa,
 			enum bfa_pport_topology topo);
-enum bfa_pport_topology bfa_pport_get_topology(struct bfa_s *bfa);
-bfa_status_t bfa_pport_cfg_hardalpa(struct bfa_s *bfa, u8 alpa);
-bfa_boolean_t bfa_pport_get_hardalpa(struct bfa_s *bfa, u8 *alpa);
-u8 bfa_pport_get_myalpa(struct bfa_s *bfa);
-bfa_status_t bfa_pport_clr_hardalpa(struct bfa_s *bfa);
-bfa_status_t bfa_pport_cfg_maxfrsize(struct bfa_s *bfa, u16 maxsize);
-u16 bfa_pport_get_maxfrsize(struct bfa_s *bfa);
-u32 bfa_pport_mypid(struct bfa_s *bfa);
-u8 bfa_pport_get_rx_bbcredit(struct bfa_s *bfa);
-bfa_status_t bfa_pport_trunk_enable(struct bfa_s *bfa, u8 bitmap);
-bfa_status_t bfa_pport_trunk_disable(struct bfa_s *bfa);
-bfa_boolean_t bfa_pport_trunk_query(struct bfa_s *bfa, u32 *bitmap);
-void bfa_pport_get_attr(struct bfa_s *bfa, struct bfa_pport_attr_s *attr);
-wwn_t bfa_pport_get_wwn(struct bfa_s *bfa, bfa_boolean_t node);
+enum bfa_pport_topology bfa_fcport_get_topology(struct bfa_s *bfa);
+bfa_status_t bfa_fcport_cfg_hardalpa(struct bfa_s *bfa, u8 alpa);
+bfa_boolean_t bfa_fcport_get_hardalpa(struct bfa_s *bfa, u8 *alpa);
+u8 bfa_fcport_get_myalpa(struct bfa_s *bfa);
+bfa_status_t bfa_fcport_clr_hardalpa(struct bfa_s *bfa);
+bfa_status_t bfa_fcport_cfg_maxfrsize(struct bfa_s *bfa, u16 maxsize);
+u16 bfa_fcport_get_maxfrsize(struct bfa_s *bfa);
+u32 bfa_fcport_mypid(struct bfa_s *bfa);
+u8 bfa_fcport_get_rx_bbcredit(struct bfa_s *bfa);
+bfa_status_t bfa_fcport_trunk_enable(struct bfa_s *bfa, u8 bitmap);
+bfa_status_t bfa_fcport_trunk_disable(struct bfa_s *bfa);
+bfa_boolean_t bfa_fcport_trunk_query(struct bfa_s *bfa, u32 *bitmap);
+void bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_pport_attr_s *attr);
+wwn_t bfa_fcport_get_wwn(struct bfa_s *bfa, bfa_boolean_t node);
 bfa_status_t bfa_pport_get_stats(struct bfa_s *bfa,
 			union bfa_pport_stats_u *stats,
 			bfa_cb_pport_t cbfn, void *cbarg);
 bfa_status_t bfa_pport_clear_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn,
 			void *cbarg);
-void bfa_pport_event_register(struct bfa_s *bfa,
+void bfa_fcport_event_register(struct bfa_s *bfa,
 			void (*event_cbfn) (void *cbarg,
 			bfa_pport_event_t event), void *event_cbarg);
-bfa_boolean_t bfa_pport_is_disabled(struct bfa_s *bfa);
-void bfa_pport_cfg_qos(struct bfa_s *bfa, bfa_boolean_t on_off);
-void bfa_pport_cfg_ratelim(struct bfa_s *bfa, bfa_boolean_t on_off);
-bfa_status_t bfa_pport_cfg_ratelim_speed(struct bfa_s *bfa,
+bfa_boolean_t bfa_fcport_is_disabled(struct bfa_s *bfa);
+void bfa_fcport_cfg_qos(struct bfa_s *bfa, bfa_boolean_t on_off);
+void bfa_fcport_cfg_ratelim(struct bfa_s *bfa, bfa_boolean_t on_off);
+bfa_status_t bfa_fcport_cfg_ratelim_speed(struct bfa_s *bfa,
 			enum bfa_pport_speed speed);
-enum bfa_pport_speed bfa_pport_get_ratelim_speed(struct bfa_s *bfa);
+enum bfa_pport_speed bfa_fcport_get_ratelim_speed(struct bfa_s *bfa);
 
-void bfa_pport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit);
-void bfa_pport_busy(struct bfa_s *bfa, bfa_boolean_t status);
-void bfa_pport_beacon(struct bfa_s *bfa, bfa_boolean_t beacon,
+void bfa_fcport_set_tx_bbcredit(struct bfa_s *bfa, u16 tx_bbcredit);
+void bfa_fcport_busy(struct bfa_s *bfa, bfa_boolean_t status);
+void bfa_fcport_beacon(struct bfa_s *bfa, bfa_boolean_t beacon,
 			bfa_boolean_t link_e2e_beacon);
 void bfa_cb_pport_event(void *cbarg, bfa_pport_event_t event);
-void bfa_pport_qos_get_attr(struct bfa_s *bfa, struct bfa_qos_attr_s *qos_attr);
-void bfa_pport_qos_get_vc_attr(struct bfa_s *bfa,
+void bfa_fcport_qos_get_attr(struct bfa_s *bfa, struct bfa_qos_attr_s *qos_attr);
+void bfa_fcport_qos_get_vc_attr(struct bfa_s *bfa,
 			struct bfa_qos_vc_attr_s *qos_vc_attr);
-bfa_status_t bfa_pport_get_qos_stats(struct bfa_s *bfa,
+bfa_status_t bfa_fcport_get_qos_stats(struct bfa_s *bfa,
 			union bfa_pport_stats_u *stats,
 			bfa_cb_pport_t cbfn, void *cbarg);
-bfa_status_t bfa_pport_clear_qos_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn,
+bfa_status_t bfa_fcport_clear_qos_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn,
 			void *cbarg);
-bfa_boolean_t     bfa_pport_is_ratelim(struct bfa_s *bfa);
-bfa_boolean_t	bfa_pport_is_linkup(struct bfa_s *bfa);
+bfa_boolean_t     bfa_fcport_is_ratelim(struct bfa_s *bfa);
+bfa_boolean_t	bfa_fcport_is_linkup(struct bfa_s *bfa);
+bfa_status_t bfa_fcport_get_stats(struct bfa_s *bfa,
+		union bfa_fcport_stats_u *stats,
+		bfa_cb_pport_t cbfn, void *cbarg);
+bfa_status_t bfa_fcport_clear_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn,
+		void *cbarg);
 
 /*
  * bfa rport API functions

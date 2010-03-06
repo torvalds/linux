@@ -156,7 +156,7 @@ bfa_fcs_port_get_rport_max_speed(struct bfa_fcs_port_s *port)
 	/*
 	 * Get Physical port's current speed
 	 */
-	bfa_pport_get_attr(port->fcs->bfa, &pport_attr);
+	bfa_fcport_get_attr(port->fcs->bfa, &pport_attr);
 	pport_speed = pport_attr.speed;
 	bfa_trc(fcs, pport_speed);
 

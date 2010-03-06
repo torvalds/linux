@@ -57,5 +57,5 @@ bfa_fcs_pport_event_handler(void *cbarg, bfa_pport_event_t event)
 void
 bfa_fcs_pport_attach(struct bfa_fcs_s *fcs)
 {
-	bfa_pport_event_register(fcs->bfa, bfa_fcs_pport_event_handler, fcs);
+	bfa_fcport_event_register(fcs->bfa, bfa_fcs_pport_event_handler, fcs);
 }

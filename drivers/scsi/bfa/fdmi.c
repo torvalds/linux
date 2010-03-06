@@ -1175,7 +1175,7 @@ bfa_fcs_fdmi_get_portattr(struct bfa_fcs_port_fdmi_s *fdmi,
 	/*
 	 * get pport attributes from hal
 	 */
-	bfa_pport_get_attr(port->fcs->bfa, &pport_attr);
+	bfa_fcport_get_attr(port->fcs->bfa, &pport_attr);
 
 	/*
 	 * get FC4 type Bitmask

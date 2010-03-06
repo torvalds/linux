@@ -23,6 +23,14 @@
 #define __BFA_SM_H__
 
 typedef void (*bfa_sm_t)(void *sm, int event);
+/**
+ * oc - object class eg. bfa_ioc
+ * st - state, eg. reset
+ * otype - object type, eg. struct bfa_ioc_s
+ * etype - object type, eg. enum ioc_event
+ */
+#define bfa_sm_state_decl(oc, st, otype, etype)         \
+	static void oc ## _sm_ ## st(otype * fsm, etype event)
 
 #define bfa_sm_set_state(_sm, _state)	((_sm)->sm = (bfa_sm_t)(_state))
 #define bfa_sm_send_event(_sm, _event)	((_sm)->sm((_sm), (_event)))

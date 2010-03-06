@@ -664,7 +664,7 @@ bfad_fcs_port_cfg(struct bfad_s *bfad)
 
 	sprintf(symname, "%s-%d", BFAD_DRIVER_NAME, bfad->inst_no);
 	memcpy(port_cfg.sym_name.symname, symname, strlen(symname));
-	bfa_pport_get_attr(&bfad->bfa, &attr);
+	bfa_fcport_get_attr(&bfad->bfa, &attr);
 	port_cfg.nwwn = attr.nwwn;
 	port_cfg.pwwn = attr.pwwn;
 

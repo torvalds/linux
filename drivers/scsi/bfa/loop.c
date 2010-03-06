@@ -162,7 +162,7 @@ bfa_fcs_port_loop_send_plogi(struct bfa_fcs_port_s *port, u8 alpa)
 	len = fc_plogi_build(&fchs, bfa_fcxp_get_reqbuf(fcxp), alpa,
 			     bfa_fcs_port_get_fcid(port), 0,
 			     port->port_cfg.pwwn, port->port_cfg.nwwn,
-				 bfa_pport_get_maxfrsize(port->fcs->bfa));
+				 bfa_fcport_get_maxfrsize(port->fcs->bfa));
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 			  FC_CLASS_3, len, &fchs,

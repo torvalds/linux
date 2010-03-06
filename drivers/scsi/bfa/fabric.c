@@ -37,7 +37,7 @@ BFA_TRC_FILE(FCS, FABRIC);
 #define BFA_FCS_FABRIC_CLEANUP_DELAY	(10000)	/* Milliseconds */
 
 #define bfa_fcs_fabric_set_opertype(__fabric) do {             \
-	if (bfa_pport_get_topology((__fabric)->fcs->bfa)       \
+	if (bfa_fcport_get_topology((__fabric)->fcs->bfa)       \
 				== BFA_PPORT_TOPOLOGY_P2P)     \
 		(__fabric)->oper_type = BFA_PPORT_TYPE_NPORT;  \
 	else                                                   \
@@ -160,7 +160,7 @@ bfa_fcs_fabric_sm_created(struct bfa_fcs_fabric_s *fabric,
 
 	switch (event) {
 	case BFA_FCS_FABRIC_SM_START:
-		if (bfa_pport_is_linkup(fabric->fcs->bfa)) {
+		if (bfa_fcport_is_linkup(fabric->fcs->bfa)) {
 			bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_flogi);
 			bfa_fcs_fabric_login(fabric);
 		} else
@@ -224,7 +224,7 @@ bfa_fcs_fabric_sm_flogi(struct bfa_fcs_fabric_s *fabric,
 	switch (event) {
 	case BFA_FCS_FABRIC_SM_CONT_OP:
 
-		bfa_pport_set_tx_bbcredit(fabric->fcs->bfa, fabric->bb_credit);
+		bfa_fcport_set_tx_bbcredit(fabric->fcs->bfa, fabric->bb_credit);
 		fabric->fab_type = BFA_FCS_FABRIC_SWITCHED;
 
 		if (fabric->auth_reqd && fabric->is_auth) {
@@ -251,7 +251,7 @@ bfa_fcs_fabric_sm_flogi(struct bfa_fcs_fabric_s *fabric,
 
 	case BFA_FCS_FABRIC_SM_NO_FABRIC:
 		fabric->fab_type = BFA_FCS_FABRIC_N2N;
-		bfa_pport_set_tx_bbcredit(fabric->fcs->bfa, fabric->bb_credit);
+		bfa_fcport_set_tx_bbcredit(fabric->fcs->bfa, fabric->bb_credit);
 		bfa_fcs_fabric_notify_online(fabric);
 		bfa_sm_set_state(fabric, bfa_fcs_fabric_sm_nofabric);
 		break;
@@ -418,7 +418,7 @@ bfa_fcs_fabric_sm_nofabric(struct bfa_fcs_fabric_s *fabric,
 
 	case BFA_FCS_FABRIC_SM_NO_FABRIC:
 		bfa_trc(fabric->fcs, fabric->bb_credit);
-		bfa_pport_set_tx_bbcredit(fabric->fcs->bfa, fabric->bb_credit);
+		bfa_fcport_set_tx_bbcredit(fabric->fcs->bfa, fabric->bb_credit);
 		break;
 
 	default:
@@ -718,10 +718,10 @@ bfa_fcs_fabric_login(struct bfa_fcs_fabric_s *fabric)
 	struct bfa_port_cfg_s *pcfg = &fabric->bport.port_cfg;
 	u8         alpa = 0;
 
-	if (bfa_pport_get_topology(bfa) == BFA_PPORT_TOPOLOGY_LOOP)
-		alpa = bfa_pport_get_myalpa(bfa);
+	if (bfa_fcport_get_topology(bfa) == BFA_PPORT_TOPOLOGY_LOOP)
+		alpa = bfa_fcport_get_myalpa(bfa);
 
-	bfa_lps_flogi(fabric->lps, fabric, alpa, bfa_pport_get_maxfrsize(bfa),
+	bfa_lps_flogi(fabric->lps, fabric, alpa, bfa_fcport_get_maxfrsize(bfa),
 		      pcfg->pwwn, pcfg->nwwn, fabric->auth_reqd);
 
 	fabric->stats.flogi_sent++;
@@ -1176,8 +1176,8 @@ bfa_fcs_fabric_send_flogi_acc(struct bfa_fcs_fabric_s *fabric)
 	reqlen = fc_flogi_acc_build(&fchs, bfa_fcxp_get_reqbuf(fcxp),
 				    bfa_os_hton3b(FC_FABRIC_PORT),
 				    n2n_port->reply_oxid, pcfg->pwwn,
-				    pcfg->nwwn, bfa_pport_get_maxfrsize(bfa),
-				    bfa_pport_get_rx_bbcredit(bfa));
+				    pcfg->nwwn, bfa_fcport_get_maxfrsize(bfa),
+				    bfa_fcport_get_rx_bbcredit(bfa));
 
 	bfa_fcxp_send(fcxp, NULL, fabric->vf_id, bfa_lps_get_tag(fabric->lps),
 			BFA_FALSE, FC_CLASS_3, reqlen, &fchs,

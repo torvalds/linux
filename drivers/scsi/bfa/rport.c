@@ -1373,7 +1373,7 @@ bfa_fcs_rport_send_plogi(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	len = fc_plogi_build(&fchs, bfa_fcxp_get_reqbuf(fcxp), rport->pid,
 			     bfa_fcs_port_get_fcid(port), 0,
 			     port->port_cfg.pwwn, port->port_cfg.nwwn,
-			     bfa_pport_get_maxfrsize(port->fcs->bfa));
+			     bfa_fcport_get_maxfrsize(port->fcs->bfa));
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, bfa_fcs_rport_plogi_response,
@@ -1485,7 +1485,7 @@ bfa_fcs_rport_send_plogiacc(void *rport_cbarg, struct bfa_fcxp_s *fcxp_alloced)
 	len = fc_plogi_acc_build(&fchs, bfa_fcxp_get_reqbuf(fcxp), rport->pid,
 				 bfa_fcs_port_get_fcid(port), rport->reply_oxid,
 				 port->port_cfg.pwwn, port->port_cfg.nwwn,
-				 bfa_pport_get_maxfrsize(port->fcs->bfa));
+				 bfa_fcport_get_maxfrsize(port->fcs->bfa));
 
 	bfa_fcxp_send(fcxp, NULL, port->fabric->vf_id, port->lp_tag, BFA_FALSE,
 		      FC_CLASS_3, len, &fchs, NULL, NULL, FC_MAX_PDUSZ, 0);
@@ -1820,7 +1820,7 @@ bfa_fcs_rport_process_rpsc(struct bfa_fcs_rport_s *rport,
 	/*
 	 * get curent speed from pport attributes from BFA
 	 */
-	bfa_pport_get_attr(port->fcs->bfa, &pport_attr);
+	bfa_fcport_get_attr(port->fcs->bfa, &pport_attr);
 
 	speeds.port_op_speed = fc_bfa_speed_to_rpsc_operspeed(pport_attr.speed);
 
@@ -2171,7 +2171,7 @@ bfa_fcs_rport_update(struct bfa_fcs_rport_s *rport, struct fc_logi_s *plogi)
 		bfa_trc(port->fcs, port->fabric->bb_credit);
 
 		port->fabric->bb_credit = bfa_os_ntohs(plogi->csp.bbcred);
-		bfa_pport_set_tx_bbcredit(port->fcs->bfa,
+		bfa_fcport_set_tx_bbcredit(port->fcs->bfa,
 					  port->fabric->bb_credit);
 	}
 

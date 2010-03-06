@@ -141,7 +141,7 @@ bfad_im_get_host_port_type(struct Scsi_Host *shost)
 	struct bfad_s         *bfad = im_port->bfad;
 	struct bfa_pport_attr_s attr;
 
-	bfa_pport_get_attr(&bfad->bfa, &attr);
+	bfa_fcport_get_attr(&bfad->bfa, &attr);
 
 	switch (attr.port_type) {
 	case BFA_PPORT_TYPE_NPORT:
@@ -173,7 +173,7 @@ bfad_im_get_host_port_state(struct Scsi_Host *shost)
 	struct bfad_s         *bfad = im_port->bfad;
 	struct bfa_pport_attr_s attr;
 
-	bfa_pport_get_attr(&bfad->bfa, &attr);
+	bfa_fcport_get_attr(&bfad->bfa, &attr);
 
 	switch (attr.port_state) {
 	case BFA_PPORT_ST_LINKDOWN:
@@ -232,7 +232,7 @@ bfad_im_get_host_speed(struct Scsi_Host *shost)
 	unsigned long   flags;
 
 	spin_lock_irqsave(shost->host_lock, flags);
-	bfa_pport_get_attr(&bfad->bfa, &attr);
+	bfa_fcport_get_attr(&bfad->bfa, &attr);
 	switch (attr.speed) {
 	case BFA_PPORT_SPEED_8GBPS:
 		fc_host_speed(shost) = FC_PORTSPEED_8GBIT;

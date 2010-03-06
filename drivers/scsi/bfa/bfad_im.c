@@ -966,7 +966,7 @@ bfad_os_fc_host_init(struct bfad_im_port_s *im_port)
 		FC_PORTSPEED_1GBIT;
 
 	memset(&attr.pattr, 0, sizeof(attr.pattr));
-	bfa_pport_get_attr(&bfad->bfa, &attr.pattr);
+	bfa_fcport_get_attr(&bfad->bfa, &attr.pattr);
 	fc_host_maxframe_size(host) = attr.pattr.pport_cfg.maxfrsize;
 }
 

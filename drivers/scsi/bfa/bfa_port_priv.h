@@ -25,17 +25,17 @@
 /**
  * Link notification data structure
  */
-struct bfa_pport_ln_s {
-	struct bfa_pport_s     *pport;
+struct bfa_fcport_ln_s {
+	struct bfa_fcport_s     *fcport;
 	bfa_sm_t                sm;
 	struct bfa_cb_qe_s      ln_qe;  /*  BFA callback queue elem for ln */
 	enum bfa_pport_linkstate ln_event; /*  ln event for callback */
 };
 
 /**
- * BFA physical port data structure
+ * BFA FC port data structure
  */
-struct bfa_pport_s {
+struct bfa_fcport_s {
 	struct bfa_s 		*bfa;	/*  parent BFA instance */
 	bfa_sm_t		sm;	/*  port state machine */
 	wwn_t			nwwn;	/*  node wwn of physical port */
@@ -62,7 +62,7 @@ struct bfa_pport_s {
 		union bfi_pport_i2h_msg_u i2hmsg;
 	} event_arg;
 	void			*bfad;	/*  BFA driver handle */
-	struct bfa_pport_ln_s   ln; /* Link Notification */
+	struct bfa_fcport_ln_s   ln; /* Link Notification */
 	struct bfa_cb_qe_s		hcb_qe;	/*  BFA callback queue elem */
 	u32		msgtag;	/*  fimrware msg tag for reply */
 	u8			*stats_kva;
@@ -88,12 +88,17 @@ struct bfa_pport_s {
 					/*  driver callback function */
 	void			*stats_cbarg;
 					/* *!< user callback arg */
+	/* FCport stats */
+	u8         *fcport_stats_kva;
+	u64        fcport_stats_pa;
+	union bfa_fcport_stats_u *fcport_stats;
+	union bfa_fcport_stats_u *fcport_stats_ret;
 };
 
-#define BFA_PORT_MOD(__bfa)	(&(__bfa)->modules.pport)
+#define BFA_FCPORT_MOD(__bfa)	(&(__bfa)->modules.fcport)
 
 /*
  * public functions
  */
-void	bfa_pport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
+void	bfa_fcport_isr(struct bfa_s *bfa, struct bfi_msg_s *msg);
 #endif /* __BFA_PORT_PRIV_H__ */
