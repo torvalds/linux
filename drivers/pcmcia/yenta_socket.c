@@ -356,7 +356,9 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 			exca_writeb(socket, I365_POWER, reg);
 
 		/* CSC interrupt: no ISA irq for CSC */
-		reg = I365_CSC_DETECT;
+		reg = exca_readb(socket, I365_CSCINT);
+		reg &= I365_CSC_IRQ_MASK;
+		reg |= I365_CSC_DETECT;
 		if (state->flags & SS_IOCARD) {
 			if (state->csc_mask & SS_STSCHG)
 				reg |= I365_CSC_STSCHG;
@@ -912,6 +914,7 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 	int i;
 	unsigned long val;
 	u32 mask;
+	u8 reg;
 
 	/*
 	 * Probe for usable interrupts using the force
@@ -919,6 +922,7 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 	 */
 	cb_writel(socket, CB_SOCKET_EVENT, -1);
 	cb_writel(socket, CB_SOCKET_MASK, CB_CSTSMASK);
+	reg = exca_readb(socket, I365_CSCINT);
 	exca_writeb(socket, I365_CSCINT, 0);
 	val = probe_irq_on() & isa_irq_mask;
 	for (i = 1; i < 16; i++) {
@@ -930,7 +934,7 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 		cb_writel(socket, CB_SOCKET_EVENT, -1);
 	}
 	cb_writel(socket, CB_SOCKET_MASK, 0);
-	exca_writeb(socket, I365_CSCINT, 0);
+	exca_writeb(socket, I365_CSCINT, reg);
 
 	mask = probe_irq_mask(val) & 0xffff;
 
@@ -967,6 +971,8 @@ static irqreturn_t yenta_probe_handler(int irq, void *dev_id)
 /* probes the PCI interrupt, use only on override functions */
 static int yenta_probe_cb_irq(struct yenta_socket *socket)
 {
+	u8 reg;
+
 	if (!socket->cb_irq)
 		return -1;
 
@@ -979,7 +985,8 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
 	}
 
 	/* generate interrupt, wait */
-	exca_writeb(socket, I365_CSCINT, I365_CSC_STSCHG);
+	reg = exca_readb(socket, I365_CSCINT);
+	exca_writeb(socket, I365_CSCINT, reg | I365_CSC_STSCHG);
 	cb_writel(socket, CB_SOCKET_EVENT, -1);
 	cb_writel(socket, CB_SOCKET_MASK, CB_CSTSMASK);
 	cb_writel(socket, CB_SOCKET_FORCE, CB_FCARDSTS);
@@ -988,7 +995,7 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
 
 	/* disable interrupts */
 	cb_writel(socket, CB_SOCKET_MASK, 0);
-	exca_writeb(socket, I365_CSCINT, 0);
+	exca_writeb(socket, I365_CSCINT, reg);
 	cb_writel(socket, CB_SOCKET_EVENT, -1);
 	exca_readb(socket, I365_CSC);
 
