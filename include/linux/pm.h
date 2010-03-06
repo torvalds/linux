@@ -215,19 +215,58 @@ struct dev_pm_ops {
 	int (*runtime_idle)(struct device *dev);
 };
 
+#ifdef CONFIG_PM_SLEEP
+#define SET_SYSTEM_SLEEP_PM_OPS(suspend_fn, resume_fn) \
+	.suspend = suspend_fn, \
+	.resume = resume_fn, \
+	.freeze = suspend_fn, \
+	.thaw = resume_fn, \
+	.poweroff = suspend_fn, \
+	.restore = resume_fn,
+#else
+#define SET_SYSTEM_SLEEP_PM_OPS(suspend_fn, resume_fn)
+#endif
+
+#ifdef CONFIG_PM_RUNTIME
+#define SET_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn) \
+	.runtime_suspend = suspend_fn, \
+	.runtime_resume = resume_fn, \
+	.runtime_idle = idle_fn,
+#else
+#define SET_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn)
+#endif
+
 /*
  * Use this if you want to use the same suspend and resume callbacks for suspend
  * to RAM and hibernation.
  */
 #define SIMPLE_DEV_PM_OPS(name, suspend_fn, resume_fn) \
 const struct dev_pm_ops name = { \
-	.suspend = suspend_fn, \
-	.resume = resume_fn, \
-	.freeze = suspend_fn, \
-	.thaw = resume_fn, \
-	.poweroff = suspend_fn, \
-	.restore = resume_fn, \
+	SET_SYSTEM_SLEEP_PM_OPS(suspend_fn, resume_fn) \
 }
+
+/*
+ * Use this for defining a set of PM operations to be used in all situations
+ * (sustem suspend, hibernation or runtime PM).
+ */
+#define UNIVERSAL_DEV_PM_OPS(name, suspend_fn, resume_fn, idle_fn) \
+const struct dev_pm_ops name = { \
+	SET_SYSTEM_SLEEP_PM_OPS(suspend_fn, resume_fn) \
+	SET_RUNTIME_PM_OPS(suspend_fn, resume_fn, idle_fn) \
+}
+
+/*
+ * Use this for subsystems (bus types, device types, device classes) that don't
+ * need any special suspend/resume handling in addition to invoking the PM
+ * callbacks provided by device drivers supporting both the system sleep PM and
+ * runtime PM, make the pm member point to generic_subsys_pm_ops.
+ */
+#ifdef CONFIG_PM_OPS
+extern struct dev_pm_ops generic_subsys_pm_ops;
+#define GENERIC_SUBSYS_PM_OPS	(&generic_subsys_pm_ops)
+#else
+#define GENERIC_SUBSYS_PM_OPS	NULL
+#endif
 
 /**
  * PM_EVENT_ messages

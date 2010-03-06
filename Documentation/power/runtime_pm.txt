@@ -335,6 +335,10 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       'power.runtime_error' is set or 'power.disable_depth' is greater than
       zero)
 
+  bool pm_runtime_suspended(struct device *dev);
+    - return true if the device's runtime PM status is 'suspended', or false
+      otherwise
+
   void pm_runtime_allow(struct device *dev);
     - set the power.runtime_auto flag for the device and decrease its usage
       counter (used by the /sys/devices/.../power/control interface to
@@ -459,3 +463,64 @@ The PM core always increments the run-time usage counter before calling the
 ->prepare() callback and decrements it after calling the ->complete() callback.
 Hence disabling run-time PM temporarily like this will not cause any run-time
 suspend callbacks to be lost.
+
+7. Generic subsystem callbacks
+
+Subsystems may wish to conserve code space by using the set of generic power
+management callbacks provided by the PM core, defined in
+driver/base/power/generic_ops.c:
+
+  int pm_generic_runtime_idle(struct device *dev);
+    - invoke the ->runtime_idle() callback provided by the driver of this
+      device, if defined, and call pm_runtime_suspend() for this device if the
+      return value is 0 or the callback is not defined
+
+  int pm_generic_runtime_suspend(struct device *dev);
+    - invoke the ->runtime_suspend() callback provided by the driver of this
+      device and return its result, or return -EINVAL if not defined
+
+  int pm_generic_runtime_resume(struct device *dev);
+    - invoke the ->runtime_resume() callback provided by the driver of this
+      device and return its result, or return -EINVAL if not defined
+
+  int pm_generic_suspend(struct device *dev);
+    - if the device has not been suspended at run time, invoke the ->suspend()
+      callback provided by its driver and return its result, or return 0 if not
+      defined
+
+  int pm_generic_resume(struct device *dev);
+    - invoke the ->resume() callback provided by the driver of this device and,
+      if successful, change the device's runtime PM status to 'active'
+
+  int pm_generic_freeze(struct device *dev);
+    - if the device has not been suspended at run time, invoke the ->freeze()
+      callback provided by its driver and return its result, or return 0 if not
+      defined
+
+  int pm_generic_thaw(struct device *dev);
+    - if the device has not been suspended at run time, invoke the ->thaw()
+      callback provided by its driver and return its result, or return 0 if not
+      defined
+
+  int pm_generic_poweroff(struct device *dev);
+    - if the device has not been suspended at run time, invoke the ->poweroff()
+      callback provided by its driver and return its result, or return 0 if not
+      defined
+
+  int pm_generic_restore(struct device *dev);
+    - invoke the ->restore() callback provided by the driver of this device and,
+      if successful, change the device's runtime PM status to 'active'
+
+These functions can be assigned to the ->runtime_idle(), ->runtime_suspend(),
+->runtime_resume(), ->suspend(), ->resume(), ->freeze(), ->thaw(), ->poweroff(),
+or ->restore() callback pointers in the subsystem-level dev_pm_ops structures.
+
+If a subsystem wishes to use all of them at the same time, it can simply assign
+the GENERIC_SUBSYS_PM_OPS macro, defined in include/linux/pm.h, to its
+dev_pm_ops structure pointer.
+
+Device drivers that wish to use the same function as a system suspend, freeze,
+poweroff and run-time suspend callback, and similarly for system resume, thaw,
+restore, and run-time resume, can achieve this with the help of the
+UNIVERSAL_DEV_PM_OPS macro defined in include/linux/pm.h (possibly setting its
+last argument to NULL).
