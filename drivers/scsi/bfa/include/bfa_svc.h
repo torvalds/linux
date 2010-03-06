@@ -316,6 +316,7 @@ wwn_t bfa_lps_get_peer_pwwn(struct bfa_lps_s *lps);
 wwn_t bfa_lps_get_peer_nwwn(struct bfa_lps_s *lps);
 u8 bfa_lps_get_lsrjt_rsn(struct bfa_lps_s *lps);
 u8 bfa_lps_get_lsrjt_expl(struct bfa_lps_s *lps);
+mac_t bfa_lps_get_lp_mac(struct bfa_lps_s *lps);
 void bfa_cb_lps_flogi_comp(void *bfad, void *uarg, bfa_status_t status);
 void bfa_cb_lps_flogo_comp(void *bfad, void *uarg);
 void bfa_cb_lps_fdisc_comp(void *bfad, void *uarg, bfa_status_t status);

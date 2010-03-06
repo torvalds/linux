@@ -613,9 +613,9 @@ bfa_lps_get_max_vport(struct bfa_s *bfa)
 	bfa_get_attr(bfa, &ioc_attr);
 
 	if (ioc_attr.pci_attr.device_id == BFA_PCI_DEVICE_ID_CT)
-		return (BFA_LPS_MAX_VPORTS_SUPP_CT);
+		return BFA_LPS_MAX_VPORTS_SUPP_CT;
 	else
-		return (BFA_LPS_MAX_VPORTS_SUPP_CB);
+		return BFA_LPS_MAX_VPORTS_SUPP_CB;
 }
 
 /**
@@ -837,6 +837,14 @@ bfa_lps_get_lsrjt_expl(struct bfa_lps_s *lps)
 	return lps->lsrjt_expl;
 }
 
+/**
+ * Return fpma/spma MAC for lport
+ */
+struct mac_s
+bfa_lps_get_lp_mac(struct bfa_lps_s *lps)
+{
+	return lps->lp_mac;
+}
 
 /**
  * LPS firmware message class handler.

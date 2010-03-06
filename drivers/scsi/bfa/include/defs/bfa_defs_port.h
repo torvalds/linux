@@ -185,6 +185,8 @@ struct bfa_port_attr_s {
 	wwn_t		fabric_name; /*  attached switch's nwwn */
 	u8		fabric_ip_addr[BFA_FCS_FABRIC_IPADDR_SZ]; /*  attached
 							* fabric's ip addr */
+	struct mac_s    fpma_mac;	/*  Lport's FPMA Mac address */
+	u16     authfail;		/*  auth failed state */
 };
 
 /**
@@ -235,7 +237,7 @@ struct bfa_port_aen_data_s {
 	enum bfa_ioc_type_e ioc_type;
 	wwn_t           pwwn;	      /*  WWN of the physical port */
 	wwn_t           fwwn;	      /*  WWN of the fabric port */
-	mac_t           mac;	      /*  MAC addres of the ethernet port,
+	mac_t           mac;	      /*  MAC address of the ethernet port,
 				       * applicable to CNA port only */
 	int             phy_port_num; /*! For SFP related events */
 	enum bfa_port_aen_sfp_pom level; /*  Only transitions will
