@@ -897,16 +897,17 @@ static int do_resume(struct dm_ioctl *param)
 			set_disk_ro(dm_disk(md), 1);
 	}
 
-	if (dm_suspended_md(md))
+	if (dm_suspended_md(md)) {
 		r = dm_resume(md);
+		if (!r)
+			dm_kobject_uevent(md, KOBJ_CHANGE, param->event_nr);
+	}
 
 	if (old_map)
 		dm_table_destroy(old_map);
 
-	if (!r) {
-		dm_kobject_uevent(md, KOBJ_CHANGE, param->event_nr);
+	if (!r)
 		r = __dev_status(md, param);
-	}
 
 	dm_put(md);
 	return r;
