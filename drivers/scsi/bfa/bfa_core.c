@@ -385,6 +385,15 @@ bfa_debug_fwsave(struct bfa_s *bfa, void *trcdata, int *trclen)
 }
 
 /**
+ * Clear the saved firmware trace information of an IOC.
+ */
+void
+bfa_debug_fwsave_clear(struct bfa_s *bfa)
+{
+	bfa_ioc_debug_fwsave_clear(&bfa->ioc);
+}
+
+/**
  * 		Fetch firmware trace data.
  *
  * @param[in]		bfa			BFA instance

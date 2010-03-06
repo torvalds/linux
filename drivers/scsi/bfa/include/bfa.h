@@ -172,6 +172,7 @@ void bfa_timer_tick(struct bfa_s *bfa);
  */
 bfa_status_t bfa_debug_fwtrc(struct bfa_s *bfa, void *trcdata, int *trclen);
 bfa_status_t bfa_debug_fwsave(struct bfa_s *bfa, void *trcdata, int *trclen);
+void bfa_debug_fwsave_clear(struct bfa_s *bfa);
 
 #include "bfa_priv.h"
 

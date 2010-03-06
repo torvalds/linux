@@ -1488,7 +1488,6 @@ return (auto_recover) ? BFA_DBG_FWTRC_LEN : 0;
 void
 bfa_ioc_debug_memclaim(struct bfa_ioc_s *ioc, void *dbg_fwsave)
 {
-	bfa_assert(ioc->auto_recover);
 	ioc->dbg_fwsave = dbg_fwsave;
 	ioc->dbg_fwsave_len = bfa_ioc_debug_trcsz(ioc->auto_recover);
 }
@@ -1922,6 +1921,15 @@ bfa_ioc_debug_fwsave(struct bfa_ioc_s *ioc, void *trcdata, int *trclen)
 	bfa_os_memcpy(trcdata, ioc->dbg_fwsave, tlen);
 	*trclen = tlen;
 	return BFA_STATUS_OK;
+}
+
+/**
+ * Clear saved firmware trace
+ */
+void
+bfa_ioc_debug_fwsave_clear(struct bfa_ioc_s *ioc)
+{
+	ioc->dbg_fwsave_once = BFA_TRUE;
 }
 
 /**
