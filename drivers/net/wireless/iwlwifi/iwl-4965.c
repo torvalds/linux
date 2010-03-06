@@ -2232,7 +2232,7 @@ static const struct iwl_ops iwl4965_ops = {
 };
 
 struct iwl_cfg iwl4965_agn_cfg = {
-	.name = "4965AGN",
+	.name = "Intel(R) Wireless WiFi Link 4965AGN",
 	.fw_name_pre = IWL4965_FW_PRE,
 	.ucode_api_max = IWL4965_UCODE_API_MAX,
 	.ucode_api_min = IWL4965_UCODE_API_MIN,

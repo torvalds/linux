@@ -1579,7 +1579,7 @@ struct iwl_mod_params iwl50_mod_params = {
 
 
 struct iwl_cfg iwl5300_agn_cfg = {
-	.name = "5300AGN",
+	.name = "Intel(R) Ultimate N WiFi Link 5300 AGN",
 	.fw_name_pre = IWL5000_FW_PRE,
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
@@ -1605,7 +1605,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 };
 
 struct iwl_cfg iwl5100_bgn_cfg = {
-	.name = "5100BGN",
+	.name = "Intel(R) WiFi Link 5100 BGN",
 	.fw_name_pre = IWL5000_FW_PRE,
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
@@ -1631,7 +1631,7 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 };
 
 struct iwl_cfg iwl5100_abg_cfg = {
-	.name = "5100ABG",
+	.name = "Intel(R) WiFi Link 5100 ABG",
 	.fw_name_pre = IWL5000_FW_PRE,
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
@@ -1655,7 +1655,7 @@ struct iwl_cfg iwl5100_abg_cfg = {
 };
 
 struct iwl_cfg iwl5100_agn_cfg = {
-	.name = "5100AGN",
+	.name = "Intel(R) WiFi Link 5100 AGN",
 	.fw_name_pre = IWL5000_FW_PRE,
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
@@ -1681,7 +1681,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 };
 
 struct iwl_cfg iwl5350_agn_cfg = {
-	.name = "5350AGN",
+	.name = "Intel(R) WiMAX/WiFi Link 5350 AGN",
 	.fw_name_pre = IWL5000_FW_PRE,
 	.ucode_api_max = IWL5000_UCODE_API_MAX,
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
@@ -1707,7 +1707,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 };
 
 struct iwl_cfg iwl5150_agn_cfg = {
-	.name = "5150AGN",
+	.name = "Intel(R) WiMAX/WiFi Link 5150 AGN",
 	.fw_name_pre = IWL5150_FW_PRE,
 	.ucode_api_max = IWL5150_UCODE_API_MAX,
 	.ucode_api_min = IWL5150_UCODE_API_MIN,
@@ -1733,7 +1733,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 };
 
 struct iwl_cfg iwl5150_abg_cfg = {
-	.name = "5150ABG",
+	.name = "Intel(R) WiMAX/WiFi Link 5150 ABG",
 	.fw_name_pre = IWL5150_FW_PRE,
 	.ucode_api_max = IWL5150_UCODE_API_MAX,
 	.ucode_api_min = IWL5150_UCODE_API_MIN,

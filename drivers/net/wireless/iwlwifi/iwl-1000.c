@@ -223,7 +223,7 @@ static const struct iwl_ops iwl1000_ops = {
 };
 
 struct iwl_cfg iwl1000_bgn_cfg = {
-	.name = "1000 Series BGN",
+	.name = "Intel(R) Centrino(R) Wireless-N 1000 BGN",
 	.fw_name_pre = IWL1000_FW_PRE,
 	.ucode_api_max = IWL1000_UCODE_API_MAX,
 	.ucode_api_min = IWL1000_UCODE_API_MIN,
@@ -252,7 +252,7 @@ struct iwl_cfg iwl1000_bgn_cfg = {
 };
 
 struct iwl_cfg iwl1000_bg_cfg = {
-	.name = "1000 Series BG",
+	.name = "Intel(R) Centrino(R) Wireless-N 1000 BG",
 	.fw_name_pre = IWL1000_FW_PRE,
 	.ucode_api_max = IWL1000_UCODE_API_MAX,
 	.ucode_api_min = IWL1000_UCODE_API_MIN,

@@ -3477,7 +3477,7 @@ static int iwl_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	iwl_write32(priv, CSR_RESET, CSR_RESET_REG_FLAG_NEVO_RESET);
 
 	iwl_hw_detect(priv);
-	IWL_INFO(priv, "Detected Intel Wireless WiFi Link %s REV=0x%X\n",
+	IWL_INFO(priv, "Detected %s, REV=0x%X\n",
 		priv->cfg->name, priv->hw_rev);
 
 	/* We disable the RETRY_TIMEOUT register (0x41) to keep

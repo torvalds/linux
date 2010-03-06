@@ -357,7 +357,7 @@ static const struct iwl_ops iwl6050_ops = {
  * "i": Internal configuration, use internal Power Amplifier
  */
 struct iwl_cfg iwl6000i_2agn_cfg = {
-	.name = "6000 Series 2x2 AGN",
+	.name = "Intel(R) Centrino(R) Advanced-N 6200 AGN",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
@@ -389,7 +389,7 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 };
 
 struct iwl_cfg iwl6000i_2abg_cfg = {
-	.name = "6000 Series 2x2 ABG",
+	.name = "Intel(R) Centrino(R) Advanced-N 6200 ABG",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
@@ -420,7 +420,7 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 };
 
 struct iwl_cfg iwl6000i_2bg_cfg = {
-	.name = "6000 Series 2x2 BG",
+	.name = "Intel(R) Centrino(R) Advanced-N 6200 BG",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
@@ -451,7 +451,7 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 };
 
 struct iwl_cfg iwl6050_2agn_cfg = {
-	.name = "6050 Series 2x2 AGN",
+	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 AGN",
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
@@ -483,7 +483,7 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 };
 
 struct iwl_cfg iwl6050_2abg_cfg = {
-	.name = "6050 Series 2x2 ABG",
+	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 ABG",
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
@@ -514,7 +514,7 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
-	.name = "6000 Series 3x3 AGN",
+	.name = "Intel(R) Centrino(R) Ultimate-N 6300 AGN",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
