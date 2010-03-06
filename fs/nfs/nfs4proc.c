@@ -5107,6 +5107,7 @@ static int nfs41_proc_async_sequence(struct nfs_client *clp,
 	res = kzalloc(sizeof(*res), GFP_KERNEL);
 	if (!args || !res) {
 		kfree(args);
+		kfree(res);
 		nfs_put_client(clp);
 		return -ENOMEM;
 	}
