@@ -106,6 +106,7 @@ xfs_bulkstat_one_iget(
 	buf->bs_dmevmask = dic->di_dmevmask;
 	buf->bs_dmstate = dic->di_dmstate;
 	buf->bs_aextents = dic->di_anextents;
+	buf->bs_forkoff = XFS_IFORK_BOFF(ip);
 
 	switch (dic->di_format) {
 	case XFS_DINODE_FMT_DEV:
@@ -176,6 +177,7 @@ xfs_bulkstat_one_dinode(
 	buf->bs_dmevmask = be32_to_cpu(dic->di_dmevmask);
 	buf->bs_dmstate = be16_to_cpu(dic->di_dmstate);
 	buf->bs_aextents = be16_to_cpu(dic->di_anextents);
+	buf->bs_forkoff = XFS_DFORK_BOFF(dic);
 
 	switch (dic->di_format) {
 	case XFS_DINODE_FMT_DEV:

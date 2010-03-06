@@ -110,8 +110,6 @@ typedef struct xfs_log_iovec {
 	uint		i_type;		/* type of region */
 } xfs_log_iovec_t;
 
-typedef void* xfs_log_ticket_t;
-
 /*
  * Structure used to pass callback function and the function's argument
  * to the log manager.
@@ -126,10 +124,12 @@ typedef struct xfs_log_callback {
 #ifdef __KERNEL__
 /* Log manager interfaces */
 struct xfs_mount;
+struct xlog_in_core;
 struct xlog_ticket;
+
 xfs_lsn_t xfs_log_done(struct xfs_mount *mp,
-		       xfs_log_ticket_t ticket,
-		       void		**iclog,
+		       struct xlog_ticket *ticket,
+		       struct xlog_in_core **iclog,
 		       uint		flags);
 int	  _xfs_log_force(struct xfs_mount *mp,
 			 uint		flags,
@@ -151,21 +151,21 @@ int	  xfs_log_mount_finish(struct xfs_mount *mp);
 void	  xfs_log_move_tail(struct xfs_mount	*mp,
 			    xfs_lsn_t		tail_lsn);
 int	  xfs_log_notify(struct xfs_mount	*mp,
-			 void			*iclog,
+			 struct xlog_in_core	*iclog,
 			 xfs_log_callback_t	*callback_entry);
 int	  xfs_log_release_iclog(struct xfs_mount *mp,
-			 void			 *iclog_hndl);
+			 struct xlog_in_core	 *iclog);
 int	  xfs_log_reserve(struct xfs_mount *mp,
 			  int		   length,
 			  int		   count,
-			  xfs_log_ticket_t *ticket,
+			  struct xlog_ticket **ticket,
 			  __uint8_t	   clientid,
 			  uint		   flags,
 			  uint		   t_type);
 int	  xfs_log_write(struct xfs_mount *mp,
 			xfs_log_iovec_t  region[],
 			int		 nentries,
-			xfs_log_ticket_t ticket,
+			struct xlog_ticket *ticket,
 			xfs_lsn_t	 *start_lsn);
 int	  xfs_log_unmount_write(struct xfs_mount *mp);
 void      xfs_log_unmount(struct xfs_mount *mp);

@@ -88,7 +88,6 @@
 #include <xfs_super.h>
 #include <xfs_globals.h>
 #include <xfs_fs_subr.h>
-#include <xfs_lrw.h>
 #include <xfs_buf.h>
 
 /*

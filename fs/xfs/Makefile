@@ -105,7 +105,6 @@ xfs-y				+= $(addprefix $(XFS_LINUX)/, \
 				   xfs_globals.o \
 				   xfs_ioctl.o \
 				   xfs_iops.o \
-				   xfs_lrw.o \
 				   xfs_super.o \
 				   xfs_sync.o \
 				   xfs_xattr.o)
