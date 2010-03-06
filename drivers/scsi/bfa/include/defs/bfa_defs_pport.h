@@ -333,8 +333,7 @@ struct bfa_pport_fcpmap_s {
 };
 
 /**
- *              Port RNID info.
- */
+ *              Port RNI	 */
 struct bfa_pport_rnid_s {
 	wwn_t             wwn;
 	u32          unittype;
@@ -345,6 +344,23 @@ struct bfa_pport_rnid_s {
 	u8           ipaddr[16];
 	u16          rsvd;
 	u16          topologydiscoveryflags;
+};
+
+struct bfa_fcport_fcf_s {
+	wwn_t           name;           /* FCF name                 */
+	wwn_t           fabric_name;    /* Fabric Name              */
+	u8		fipenabled;     /* FIP enabled or not       */
+	u8		fipfailed;      /* FIP failed or not        */
+	u8         	resv[2];
+	u8         	pri;            /* FCF priority             */
+	u8         	version;        /* FIP version used         */
+	u8         	available;      /* Available  for  login    */
+	u8         	fka_disabled;   /* FKA is disabled          */
+	u8         	maxsz_verified; /* FCoE max size verified   */
+	u8         	fc_map[3];      /* FC map                   */
+	u16		vlan;           /* FCoE vlan tag/priority   */
+	u32        	fka_adv_per;    /* FIP  ka advert. period   */
+	struct mac_s	mac;            /* FCF mac                  */
 };
 
 /**
@@ -378,6 +394,7 @@ struct bfa_pport_link_s {
 			struct fc_alpabm_s     alpabm;	   /*  alpa bitmap */
 		} loop_info;
 	} tl;
+	struct bfa_fcport_fcf_s fcf;    /*!< FCF information (for FCoE) */
 };
 
 #endif /* __BFA_DEFS_PPORT_H__ */

@@ -326,6 +326,7 @@ static void
 bfa_fcport_sm_linkdown(struct bfa_fcport_s *fcport,
 			enum bfa_fcport_sm_event event)
 {
+	struct bfi_pport_event_s *pevent = fcport->event_arg.i2hmsg.event;
 	bfa_trc(fcport->bfa, event);
 
 	switch (event) {
@@ -335,6 +336,22 @@ bfa_fcport_sm_linkdown(struct bfa_fcport_s *fcport,
 		bfa_assert(fcport->event_cbfn);
 		bfa_plog_str(fcport->bfa->plog, BFA_PL_MID_HAL,
 			     BFA_PL_EID_PORT_ST_CHANGE, 0, "Port Linkup");
+
+		if (!bfa_ioc_get_fcmode(&fcport->bfa->ioc)) {
+
+			bfa_trc(fcport->bfa, pevent->link_state.fcf.fipenabled);
+			bfa_trc(fcport->bfa, pevent->link_state.fcf.fipfailed);
+
+			if (pevent->link_state.fcf.fipfailed)
+				bfa_plog_str(fcport->bfa->plog, BFA_PL_MID_HAL,
+					BFA_PL_EID_FIP_FCF_DISC, 0,
+					"FIP FCF Discovery Failed");
+			else
+				bfa_plog_str(fcport->bfa->plog, BFA_PL_MID_HAL,
+					BFA_PL_EID_FIP_FCF_DISC, 0,
+					"FIP FCF Discovered");
+		}
+
 		bfa_fcport_callback(fcport, BFA_PPORT_LINKUP);
 		bfa_fcport_aen_post(fcport, BFA_PORT_AEN_ONLINE);
 		/**
@@ -1500,8 +1517,6 @@ bfa_port_stats_query(void *cbarg)
 	bfi_h2i_set(msg->mh, BFI_MC_FC_PORT, BFI_PPORT_H2I_GET_STATS_REQ,
 		    bfa_lpuid(fcport->bfa));
 	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT);
-
-	return;
 }
 
 static void
@@ -1526,7 +1541,6 @@ bfa_port_stats_clear(void *cbarg)
 	bfi_h2i_set(msg->mh, BFI_MC_FC_PORT, BFI_PPORT_H2I_CLEAR_STATS_REQ,
 		    bfa_lpuid(fcport->bfa));
 	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT);
-	return;
 }
 
 static void
@@ -1599,7 +1613,6 @@ bfa_port_qos_stats_clear(void *cbarg)
 	bfi_h2i_set(msg->mh, BFI_MC_FC_PORT, BFI_PPORT_H2I_CLEAR_QOS_STATS_REQ,
 		    bfa_lpuid(fcport->bfa));
 	bfa_reqq_produce(fcport->bfa, BFA_REQQ_PORT);
-	return;
 }
 
 static void
