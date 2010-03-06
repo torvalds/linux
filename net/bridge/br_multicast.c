@@ -627,8 +627,8 @@ static void br_multicast_port_query_expired(unsigned long data)
 	struct net_bridge *br = port->br;
 
 	spin_lock(&br->multicast_lock);
-	if (port && (port->state == BR_STATE_DISABLED ||
-		     port->state == BR_STATE_BLOCKING))
+	if (port->state == BR_STATE_DISABLED ||
+	    port->state == BR_STATE_BLOCKING)
 		goto out;
 
 	if (port->multicast_startup_queries_sent <
