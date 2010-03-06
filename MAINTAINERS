@@ -3450,6 +3450,13 @@ S:	Maintained
 F:	Documentation/ldm.txt
 F:	fs/partitions/ldm.*
 
+LogFS
+M:	Joern Engel <joern@logfs.org>
+L:	logfs@logfs.org
+W:	logfs.org
+S:	Maintained
+F:	fs/logfs/
+
 LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
 M:	Eric Moore <Eric.Moore@lsi.com>
 M:	support@lsi.com

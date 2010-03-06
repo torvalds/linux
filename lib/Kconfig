@@ -163,6 +163,9 @@ config TEXTSEARCH_FSM
 config LIST_SORT
 	boolean
 
+config BTREE
+	boolean
+
 config HAS_IOMEM
 	boolean
 	depends on !NO_IOMEM
