@@ -338,7 +338,7 @@ static void intel_pmu_pebs_enable(struct perf_event *event)
 	hwc->config &= ~ARCH_PERFMON_EVENTSEL_INT;
 
 	val |= 1ULL << hwc->idx;
-	wrmsrl(MSR_IA32_PEBS_ENABLE, val);
+	WARN_ON_ONCE(cpuc->enabled);
 
 	if (x86_pmu.intel_cap.pebs_trap)
 		intel_pmu_lbr_enable(event);
@@ -351,7 +351,8 @@ static void intel_pmu_pebs_disable(struct perf_event *event)
 	u64 val = cpuc->pebs_enabled;
 
 	val &= ~(1ULL << hwc->idx);
-	wrmsrl(MSR_IA32_PEBS_ENABLE, val);
+	if (cpuc->enabled)
+		wrmsrl(MSR_IA32_PEBS_ENABLE, val);
 
 	hwc->config |= ARCH_PERFMON_EVENTSEL_INT;
 
