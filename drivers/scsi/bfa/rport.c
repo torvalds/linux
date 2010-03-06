@@ -925,10 +925,17 @@ bfa_fcs_rport_sm_hcb_offline(struct bfa_fcs_rport_s *rport,
 	case RPSM_EVENT_HCB_OFFLINE:
 	case RPSM_EVENT_ADDRESS_CHANGE:
 		if (bfa_fcs_port_is_online(rport->port)) {
-			bfa_sm_set_state(rport,
-					 bfa_fcs_rport_sm_nsdisc_sending);
-			rport->ns_retries = 0;
-			bfa_fcs_rport_send_gidpn(rport, NULL);
+			if (bfa_fcs_fabric_is_switched(rport->port->fabric)) {
+				bfa_sm_set_state(rport,
+					bfa_fcs_rport_sm_nsdisc_sending);
+				rport->ns_retries = 0;
+				bfa_fcs_rport_send_gidpn(rport, NULL);
+			} else {
+				bfa_sm_set_state(rport,
+					bfa_fcs_rport_sm_plogi_sending);
+				rport->plogi_retries = 0;
+				bfa_fcs_rport_send_plogi(rport, NULL);
+			}
 		} else {
 			rport->pid = 0;
 			bfa_sm_set_state(rport, bfa_fcs_rport_sm_offline);
