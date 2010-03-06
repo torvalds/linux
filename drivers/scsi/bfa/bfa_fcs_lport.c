@@ -931,6 +931,8 @@ bfa_fcs_port_get_attr(struct bfa_fcs_port_s *port,
 	if (port->fabric) {
 		port_attr->port_type = bfa_fcs_fabric_port_type(port->fabric);
 		port_attr->loopback = bfa_fcs_fabric_is_loopback(port->fabric);
+		port_attr->authfail =
+				bfa_fcs_fabric_is_auth_failed(port->fabric);
 		port_attr->fabric_name = bfa_fcs_port_get_fabric_name(port);
 		memcpy(port_attr->fabric_ip_addr,
 		       bfa_fcs_port_get_fabric_ipaddr(port),

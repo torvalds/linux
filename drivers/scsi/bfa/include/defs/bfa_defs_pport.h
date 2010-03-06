@@ -232,7 +232,7 @@ struct bfa_pport_attr_s {
 	u32        	pid;		/*  port ID */
 	enum bfa_pport_type 	port_type;	/*  current topology */
 	u32        	loopback;	/*  external loopback */
-	u32		rsvd1;
+	u32		authfail;	/* auth fail state */
 	u32		rsvd2;		/*  padding for 64 bit */
 };
 
@@ -247,7 +247,7 @@ struct bfa_pport_fc_stats_s {
 	u64        rx_words;	/*  received words */
 	u64        lip_count;	/*  LIPs seen */
 	u64        nos_count;	/*  NOS count */
-	u64        error_frames;	/*  errored frames (sent?) */
+	u64        error_frames;	/*  errored frames */
 	u64        dropped_frames;	/*  dropped frames */
 	u64        link_failures;	/*  link failure count */
 	u64        loss_of_syncs;	/*  loss of sync count */

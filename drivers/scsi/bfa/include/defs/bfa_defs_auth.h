@@ -23,6 +23,7 @@
 #define PRIVATE_KEY			19009
 #define KEY_LEN				32399
 #define BFA_AUTH_SECRET_STRING_LEN	256
+#define BFA_AUTH_FAIL_NO_PASSWORD	0xFE
 #define BFA_AUTH_FAIL_TIMEOUT		0xFF
 
 /**
@@ -39,6 +40,27 @@ enum bfa_auth_status {
 	BFA_AUTH_SUCCESS 	= 7,	/*  state - success */
 	BFA_AUTH_FAILED 	= 8,	/*  state - failed */
 	BFA_AUTH_STATUS_UNKNOWN = 9,	/*  authentication status unknown */
+};
+
+enum bfa_auth_rej_code {
+	BFA_AUTH_RJT_CODE_AUTH_FAILURE   = 1, /* auth failure */
+	BFA_AUTH_RJT_CODE_LOGICAL_ERR    = 2, /* logical error */
+};
+
+/**
+ * Authentication reject codes
+ */
+enum bfa_auth_rej_code_exp {
+	BFA_AUTH_MECH_NOT_USABLE        = 1, /* auth. mechanism not usable */
+	BFA_AUTH_DH_GROUP_NOT_USABLE    = 2, /* DH Group not usable */
+	BFA_AUTH_HASH_FUNC_NOT_USABLE   = 3, /* hash Function not usable */
+	BFA_AUTH_AUTH_XACT_STARTED      = 4, /* auth xact started */
+	BFA_AUTH_AUTH_FAILED            = 5, /* auth failed */
+	BFA_AUTH_INCORRECT_PLD          = 6, /* incorrect payload */
+	BFA_AUTH_INCORRECT_PROTO_MSG    = 7, /* incorrect proto msg */
+	BFA_AUTH_RESTART_AUTH_PROTO     = 8, /* restart auth protocol */
+	BFA_AUTH_AUTH_CONCAT_NOT_SUPP   = 9, /* auth concat not supported */
+	BFA_AUTH_PROTO_VER_NOT_SUPP     = 10,/* proto version not supported */
 };
 
 struct auth_proto_stats_s {

@@ -895,6 +895,12 @@ bfa_fcs_fabric_is_loopback(struct bfa_fcs_fabric_s *fabric)
 	return bfa_sm_cmp_state(fabric, bfa_fcs_fabric_sm_loopback);
 }
 
+bfa_boolean_t
+bfa_fcs_fabric_is_auth_failed(struct bfa_fcs_fabric_s *fabric)
+{
+	return bfa_sm_cmp_state(fabric, bfa_fcs_fabric_sm_auth_failed);
+}
+
 enum bfa_pport_type
 bfa_fcs_fabric_port_type(struct bfa_fcs_fabric_s *fabric)
 {
