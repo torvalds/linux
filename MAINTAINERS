@@ -968,6 +968,13 @@ W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/vfp/
 
+ASC7621 HARDWARE MONITOR DRIVER
+M:	George Joseph <george.joseph@fairview5.com>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/asc7621
+F:	drivers/hwmon/asc7621.c
+
 ASUS ACPI EXTRAS DRIVER
 M:	Corentin Chary <corentincj@iksaif.net>
 M:	Karol Kozimor <sziwan@users.sourceforge.net>
@@ -3047,6 +3054,13 @@ L:	isdn4linux@listserv.isdn4linux.de (subscribers-only)
 W:	http://www.melware.de
 S:	Maintained
 F:	drivers/isdn/hardware/eicon/
+
+IT87 HARDWARE MONITORING DRIVER
+M:	Jean Delvare <khali@linux-fr.org>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/it87
+F:	drivers/hwmon/it87.c
 
 IVTV VIDEO4LINUX DRIVER
 M:	Andy Walls <awalls@radix.net>

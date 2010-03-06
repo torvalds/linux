@@ -449,12 +449,6 @@ Who:	Alok N Kataria <akataria@vmware.com>
 
 ----------------------------
 
-What:	adt7473 hardware monitoring driver
-When:	February 2010
-Why:	Obsoleted by the adt7475 driver.
-Who:	Jean Delvare <khali@linux-fr.org>
-
----------------------------
 What:	Support for lcd_switch and display_get in asus-laptop driver
 When:	March 2010
 Why:	These two features use non-standard interfaces. There are the
