@@ -920,7 +920,7 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
 	} else {
-		ret = trace_seq_printf(s, "} (%ps)\n", (void *)trace->func);
+		ret = trace_seq_printf(s, "} /* %ps */\n", (void *)trace->func);
 		if (!ret)
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
