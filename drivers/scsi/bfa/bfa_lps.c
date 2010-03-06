@@ -121,7 +121,7 @@ bfa_lps_sm_init(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(lps->bfa, event);
 	}
 }
 
@@ -148,7 +148,7 @@ bfa_lps_sm_login(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(lps->bfa, event);
 	}
 }
 
@@ -180,7 +180,7 @@ bfa_lps_sm_loginwait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(lps->bfa, event);
 	}
 }
 
@@ -219,7 +219,7 @@ bfa_lps_sm_online(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(lps->bfa, event);
 	}
 }
 
@@ -243,7 +243,7 @@ bfa_lps_sm_logout(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(lps->bfa, event);
 	}
 }
 
@@ -268,7 +268,7 @@ bfa_lps_sm_logowait(struct bfa_lps_s *lps, enum bfa_lps_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(lps->bfa, event);
 	}
 }
 

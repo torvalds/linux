@@ -114,7 +114,7 @@ bfa_fcs_port_sm_uninit(struct bfa_fcs_port_s *port,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -136,7 +136,7 @@ bfa_fcs_port_sm_init(struct bfa_fcs_port_s *port, enum bfa_fcs_port_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -176,7 +176,7 @@ bfa_fcs_port_sm_online(struct bfa_fcs_port_s *port,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -214,7 +214,7 @@ bfa_fcs_port_sm_offline(struct bfa_fcs_port_s *port,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 
@@ -234,7 +234,7 @@ bfa_fcs_port_sm_deleting(struct bfa_fcs_port_s *port,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(port->fcs, event);
 	}
 }
 

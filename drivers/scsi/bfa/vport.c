@@ -122,7 +122,7 @@ bfa_fcs_vport_sm_uninit(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -165,7 +165,7 @@ bfa_fcs_vport_sm_created(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -202,7 +202,7 @@ bfa_fcs_vport_sm_offline(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -249,7 +249,7 @@ bfa_fcs_vport_sm_fdisc(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -283,7 +283,7 @@ bfa_fcs_vport_sm_fdisc_retry(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -310,7 +310,7 @@ bfa_fcs_vport_sm_online(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -339,7 +339,7 @@ bfa_fcs_vport_sm_deleting(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -387,7 +387,7 @@ bfa_fcs_vport_sm_cleanup(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 
@@ -419,7 +419,7 @@ bfa_fcs_vport_sm_logo(struct bfa_fcs_vport_s *vport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(__vport_fcs(vport), event);
 	}
 }
 

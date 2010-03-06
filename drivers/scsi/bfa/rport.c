@@ -224,7 +224,7 @@ bfa_fcs_rport_sm_uninit(struct bfa_fcs_rport_s *rport, enum rport_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -276,7 +276,7 @@ bfa_fcs_rport_sm_plogi_sending(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -332,7 +332,7 @@ bfa_fcs_rport_sm_plogiacc_sending(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -406,7 +406,7 @@ bfa_fcs_rport_sm_plogi_retry(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -481,7 +481,7 @@ bfa_fcs_rport_sm_plogi(struct bfa_fcs_rport_s *rport, enum rport_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -534,7 +534,7 @@ bfa_fcs_rport_sm_hal_online(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -589,7 +589,7 @@ bfa_fcs_rport_sm_online(struct bfa_fcs_rport_s *rport, enum rport_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -646,7 +646,7 @@ bfa_fcs_rport_sm_nsquery_sending(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -704,7 +704,7 @@ bfa_fcs_rport_sm_nsquery(struct bfa_fcs_rport_s *rport, enum rport_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -754,7 +754,7 @@ bfa_fcs_rport_sm_adisc_sending(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -816,7 +816,7 @@ bfa_fcs_rport_sm_adisc(struct bfa_fcs_rport_s *rport, enum rport_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -846,7 +846,7 @@ bfa_fcs_rport_sm_fc4_logorcv(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -869,7 +869,7 @@ bfa_fcs_rport_sm_fc4_logosend(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -905,7 +905,7 @@ bfa_fcs_rport_sm_fc4_offline(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -951,7 +951,7 @@ bfa_fcs_rport_sm_hcb_offline(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -1011,7 +1011,7 @@ bfa_fcs_rport_sm_hcb_logorcv(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -1038,7 +1038,7 @@ bfa_fcs_rport_sm_hcb_logosend(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -1073,7 +1073,7 @@ bfa_fcs_rport_sm_logo_sending(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -1132,7 +1132,7 @@ bfa_fcs_rport_sm_offline(struct bfa_fcs_rport_s *rport, enum rport_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -1188,7 +1188,7 @@ bfa_fcs_rport_sm_nsdisc_sending(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -1249,7 +1249,7 @@ bfa_fcs_rport_sm_nsdisc_retry(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -1334,7 +1334,7 @@ bfa_fcs_rport_sm_nsdisc_sent(struct bfa_fcs_rport_s *rport,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 

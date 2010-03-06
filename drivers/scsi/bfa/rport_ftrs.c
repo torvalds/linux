@@ -91,7 +91,7 @@ bfa_fcs_rpf_sm_uninit(struct bfa_fcs_rpf_s *rpf, enum rpf_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -114,7 +114,7 @@ bfa_fcs_rpf_sm_rpsc_sending(struct bfa_fcs_rpf_s *rpf, enum rpf_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -160,7 +160,7 @@ bfa_fcs_rpf_sm_rpsc(struct bfa_fcs_rpf_s *rpf, enum rpf_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -186,7 +186,7 @@ bfa_fcs_rpf_sm_rpsc_retry(struct bfa_fcs_rpf_s *rpf, enum rpf_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -206,7 +206,7 @@ bfa_fcs_rpf_sm_online(struct bfa_fcs_rpf_s *rpf, enum rpf_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 
@@ -229,7 +229,7 @@ bfa_fcs_rpf_sm_offline(struct bfa_fcs_rpf_s *rpf, enum rpf_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(rport->fcs, event);
 	}
 }
 /**

@@ -118,7 +118,7 @@ bfa_fcs_port_ms_sm_offline(struct bfa_fcs_port_ms_s *ms,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ms->port->fcs, event);
 	}
 }
 
@@ -141,7 +141,7 @@ bfa_fcs_port_ms_sm_plogi_sending(struct bfa_fcs_port_ms_s *ms,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ms->port->fcs, event);
 	}
 }
 
@@ -190,7 +190,7 @@ bfa_fcs_port_ms_sm_plogi(struct bfa_fcs_port_ms_s *ms, enum port_ms_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ms->port->fcs, event);
 	}
 }
 
@@ -216,7 +216,7 @@ bfa_fcs_port_ms_sm_plogi_retry(struct bfa_fcs_port_ms_s *ms,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ms->port->fcs, event);
 	}
 }
 
@@ -243,7 +243,7 @@ bfa_fcs_port_ms_sm_online(struct bfa_fcs_port_ms_s *ms,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ms->port->fcs, event);
 	}
 }
 
@@ -266,7 +266,7 @@ bfa_fcs_port_ms_sm_gmal_sending(struct bfa_fcs_port_ms_s *ms,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ms->port->fcs, event);
 	}
 }
 
@@ -304,7 +304,7 @@ bfa_fcs_port_ms_sm_gmal(struct bfa_fcs_port_ms_s *ms, enum port_ms_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ms->port->fcs, event);
 	}
 }
 
@@ -330,7 +330,7 @@ bfa_fcs_port_ms_sm_gmal_retry(struct bfa_fcs_port_ms_s *ms,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ms->port->fcs, event);
 	}
 }
 
@@ -466,7 +466,7 @@ bfa_fcs_port_ms_sm_gfn_sending(struct bfa_fcs_port_ms_s *ms,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ms->port->fcs, event);
 	}
 }
 
@@ -502,7 +502,7 @@ bfa_fcs_port_ms_sm_gfn(struct bfa_fcs_port_ms_s *ms, enum port_ms_event event)
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ms->port->fcs, event);
 	}
 }
 
@@ -528,7 +528,7 @@ bfa_fcs_port_ms_sm_gfn_retry(struct bfa_fcs_port_ms_s *ms,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(ms->port->fcs, event);
 	}
 }
 
