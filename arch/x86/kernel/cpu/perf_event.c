@@ -835,6 +835,10 @@ void hw_perf_enable(void)
 			event = cpuc->event_list[i];
 			hwc = &event->hw;
 
+			if (i < n_running &&
+			    match_prev_assignment(hwc, cpuc, i))
+				continue;
+
 			if (hwc->idx == -1)
 				x86_assign_hw_event(event, cpuc, i);
 
