@@ -422,7 +422,6 @@ SIZE_CHECK(logfs_segment_entry, 8);
  *				not including header
  * @h_datalen:			length of uncompressed data
  * @h_type:			JE type
- * @h_version:			unnormalized version of journal entry
  * @h_compr:			compression type
  * @h_pad:			reserved
  */
@@ -431,9 +430,8 @@ struct logfs_journal_header {
 	__be16	h_len;
 	__be16	h_datalen;
 	__be16	h_type;
-	__be16	h_version;
 	__u8	h_compr;
-	__u8	h_pad[3];
+	__u8	h_pad[5];
 };
 
 SIZE_CHECK(logfs_journal_header, 16);

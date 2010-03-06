@@ -419,12 +419,13 @@ static size_t __logfs_write_header(struct logfs_super *super,
 {
 	jh->h_len	= cpu_to_be16(len);
 	jh->h_type	= cpu_to_be16(type);
-	jh->h_version	= cpu_to_be16(++super->s_last_version);
 	jh->h_datalen	= cpu_to_be16(datalen);
 	jh->h_compr	= compr;
 	jh->h_pad[0]	= 'H';
-	jh->h_pad[1]	= 'A';
-	jh->h_pad[2]	= 'T';
+	jh->h_pad[1]	= 'E';
+	jh->h_pad[2]	= 'A';
+	jh->h_pad[3]	= 'D';
+	jh->h_pad[4]	= 'R';
 	jh->h_crc	= logfs_crc32(jh, len + sizeof(*jh), 4);
 	return ALIGN(len, 16) + sizeof(*jh);
 }
