@@ -331,12 +331,12 @@ bfa_ioc_ct_pll_init(struct bfa_ioc_s *ioc)
 	 */
 	bfa_ioc_sem_get(ioc->ioc_regs.ioc_init_sem_reg);
 
-	pll_sclk = __APP_PLL_312_ENABLE | __APP_PLL_312_LRESETN |
-		__APP_PLL_312_RSEL200500 | __APP_PLL_312_P0_1(0U) |
+	pll_sclk = __APP_PLL_312_LRESETN | __APP_PLL_312_ENARST |
+		__APP_PLL_312_RSEL200500 | __APP_PLL_312_P0_1(3U) |
 		__APP_PLL_312_JITLMT0_1(3U) |
 		__APP_PLL_312_CNTLMT0_1(1U);
-	pll_fclk = __APP_PLL_425_ENABLE | __APP_PLL_425_LRESETN |
-		__APP_PLL_425_RSEL200500 | __APP_PLL_425_P0_1(0U) |
+	pll_fclk = __APP_PLL_425_LRESETN | __APP_PLL_425_ENARST |
+		__APP_PLL_425_RSEL200500 | __APP_PLL_425_P0_1(3U) |
 		__APP_PLL_425_JITLMT0_1(3U) |
 		__APP_PLL_425_CNTLMT0_1(1U);
 
@@ -366,36 +366,27 @@ bfa_ioc_ct_pll_init(struct bfa_ioc_s *ioc)
 	bfa_reg_write((rb + HOSTFN0_INT_MSK), 0xffffffffU);
 	bfa_reg_write((rb + HOSTFN1_INT_MSK), 0xffffffffU);
 
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg,
-				__APP_PLL_312_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg,
-				__APP_PLL_312_BYPASS |
-				__APP_PLL_312_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg,
-				__APP_PLL_425_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg,
-				__APP_PLL_425_BYPASS |
-				__APP_PLL_425_LOGIC_SOFT_RESET);
-	bfa_os_udelay(2);
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg,
-				__APP_PLL_312_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg,
-				__APP_PLL_425_LOGIC_SOFT_RESET);
-
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg,
-				pll_sclk | __APP_PLL_312_LOGIC_SOFT_RESET);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg,
-				pll_fclk | __APP_PLL_425_LOGIC_SOFT_RESET);
+	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg, pll_sclk |
+		__APP_PLL_312_LOGIC_SOFT_RESET);
+	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg, pll_fclk |
+		__APP_PLL_425_LOGIC_SOFT_RESET);
+	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg, pll_sclk |
+		__APP_PLL_312_LOGIC_SOFT_RESET | __APP_PLL_312_ENABLE);
+	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg, pll_fclk |
+		__APP_PLL_425_LOGIC_SOFT_RESET | __APP_PLL_425_ENABLE);
 
 	/**
 	 * Wait for PLLs to lock.
 	 */
+	bfa_reg_read(rb + HOSTFN0_INT_MSK);
 	bfa_os_udelay(2000);
 	bfa_reg_write((rb + HOSTFN0_INT_STATUS), 0xffffffffU);
 	bfa_reg_write((rb + HOSTFN1_INT_STATUS), 0xffffffffU);
 
-	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg, pll_sclk);
-	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg, pll_fclk);
+	bfa_reg_write(ioc->ioc_regs.app_pll_slow_ctl_reg, pll_sclk |
+		__APP_PLL_312_ENABLE);
+	bfa_reg_write(ioc->ioc_regs.app_pll_fast_ctl_reg, pll_fclk |
+		__APP_PLL_425_ENABLE);
 
 	bfa_reg_write((rb + MBIST_CTL_REG), __EDRAM_BISTR_START);
 	bfa_os_udelay(1000);

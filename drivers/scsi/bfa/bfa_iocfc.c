@@ -659,7 +659,6 @@ bfa_iocfc_init(struct bfa_s *bfa)
 {
 	bfa->iocfc.action = BFA_IOCFC_ACT_INIT;
 	bfa_ioc_enable(&bfa->ioc);
-	bfa_msix_install(bfa);
 }
 
 /**
