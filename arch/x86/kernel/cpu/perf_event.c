@@ -785,6 +785,7 @@ static inline int match_prev_assignment(struct hw_perf_event *hwc,
 		hwc->last_tag == cpuc->tags[i];
 }
 
+static int x86_pmu_start(struct perf_event *event);
 static void x86_pmu_stop(struct perf_event *event);
 
 void hw_perf_enable(void)
@@ -833,20 +834,10 @@ void hw_perf_enable(void)
 			event = cpuc->event_list[i];
 			hwc = &event->hw;
 
-			if (hwc->idx == -1) {
+			if (hwc->idx == -1)
 				x86_assign_hw_event(event, cpuc, i);
-				x86_perf_event_set_period(event);
-			}
-			/*
-			 * need to mark as active because x86_pmu_disable()
-			 * clear active_mask and events[] yet it preserves
-			 * idx
-			 */
-			__set_bit(hwc->idx, cpuc->active_mask);
-			cpuc->events[hwc->idx] = event;
 
-			x86_pmu.enable(event);
-			perf_event_update_userpage(event);
+			x86_pmu_start(event);
 		}
 		cpuc->n_added = 0;
 		perf_events_lapic_init();
@@ -975,11 +966,17 @@ static int x86_pmu_enable(struct perf_event *event)
 
 static int x86_pmu_start(struct perf_event *event)
 {
-	if (event->hw.idx == -1)
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	int idx = event->hw.idx;
+
+	if (idx == -1)
 		return -EAGAIN;
 
 	x86_perf_event_set_period(event);
+	cpuc->events[idx] = event;
+	__set_bit(idx, cpuc->active_mask);
 	x86_pmu.enable(event);
+	perf_event_update_userpage(event);
 
 	return 0;
 }
