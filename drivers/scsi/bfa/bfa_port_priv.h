@@ -46,6 +46,8 @@ struct bfa_fcport_s {
 	enum bfa_pport_topology topology;	/*  current topology */
 	u8			myalpa;	/*  my ALPA in LOOP topology */
 	u8			rsvd[3];
+	u32             mypid:24;
+	u32             rsvd_b:8;
 	struct bfa_pport_cfg_s	cfg;	/*  current port configuration */
 	struct bfa_qos_attr_s  qos_attr;   /* QoS Attributes */
 	struct bfa_qos_vc_attr_s qos_vc_attr;  /*  VC info from ELP */
@@ -59,40 +61,25 @@ struct bfa_fcport_s {
 	void			(*event_cbfn) (void *cbarg,
 						bfa_pport_event_t event);
 	union {
-		union bfi_pport_i2h_msg_u i2hmsg;
+		union bfi_fcport_i2h_msg_u i2hmsg;
 	} event_arg;
 	void			*bfad;	/*  BFA driver handle */
 	struct bfa_fcport_ln_s   ln; /* Link Notification */
 	struct bfa_cb_qe_s		hcb_qe;	/*  BFA callback queue elem */
+	struct bfa_timer_s      timer;  /*  timer */
 	u32		msgtag;	/*  fimrware msg tag for reply */
 	u8			*stats_kva;
 	u64		stats_pa;
-	union bfa_pport_stats_u *stats;	/*  pport stats */
-	u32		mypid:24;
-	u32		rsvd_b:8;
-	struct bfa_timer_s 	timer;	/*  timer */
-	union bfa_pport_stats_u 	*stats_ret;
-					/*  driver stats location */
-	bfa_status_t		stats_status;
-					/*  stats/statsclr status */
-	bfa_boolean_t   	stats_busy;
-					/*  outstanding stats/statsclr */
-	bfa_boolean_t   	stats_qfull;
-	bfa_boolean_t   	diag_busy;
-					/*  diag busy status */
-	bfa_boolean_t   	beacon;
-					/*  port beacon status */
-	bfa_boolean_t   	link_e2e_beacon;
-					/*  link beacon status */
-	bfa_cb_pport_t		stats_cbfn;
-					/*  driver callback function */
-	void			*stats_cbarg;
-					/* *!< user callback arg */
-	/* FCport stats */
-	u8         *fcport_stats_kva;
-	u64        fcport_stats_pa;
-	union bfa_fcport_stats_u *fcport_stats;
-	union bfa_fcport_stats_u *fcport_stats_ret;
+	union bfa_fcport_stats_u *stats;
+	union bfa_fcport_stats_u *stats_ret; /*  driver stats location */
+	bfa_status_t            stats_status; /*  stats/statsclr status */
+	bfa_boolean_t           stats_busy; /*  outstanding stats/statsclr */
+	bfa_boolean_t           stats_qfull;
+	bfa_cb_pport_t          stats_cbfn; /*  driver callback function */
+	void                    *stats_cbarg; /* *!< user callback arg */
+	bfa_boolean_t           diag_busy; /*  diag busy status */
+	bfa_boolean_t           beacon; /*  port beacon status */
+	bfa_boolean_t           link_e2e_beacon; /*  link beacon status */
 };
 
 #define BFA_FCPORT_MOD(__bfa)	(&(__bfa)->modules.fcport)

@@ -36,7 +36,7 @@ struct bfa_fcxp_s;
 struct bfa_rport_info_s {
 	u16        max_frmsz;	/*  max rcv pdu size               */
 	u32        pid:24,		/*  remote port ID                 */
-			lp_tag:8;
+			lp_tag:8;	/*  tag                     */
 	u32        local_pid:24,	/*  local port ID		    */
 			cisc:8;		/*  CIRO supported		    */
 	u8         fc_class;	/*  supported FC classes. enum fc_cos */
@@ -55,7 +55,7 @@ struct bfa_rport_s {
 	void                  *rport_drv; /*  fcs/driver rport object */
 	u16              fw_handle; /*  firmware rport handle */
 	u16              rport_tag; /*  BFA rport tag */
-	struct bfa_rport_info_s rport_info; /*  rport info from *fcs/driver */
+	struct bfa_rport_info_s rport_info; /*  rport info from fcs/driver */
 	struct bfa_reqq_wait_s reqq_wait; /*  to wait for room in reqq */
 	struct bfa_cb_qe_s    hcb_qe;	 /*  BFA callback qelem */
 	struct bfa_rport_hal_stats_s stats; /*  BFA rport statistics  */
@@ -102,7 +102,7 @@ struct bfa_uf_buf_s {
 struct bfa_uf_s {
 	struct list_head	qe;		/*  queue element	  */
 	struct bfa_s	*bfa;		/*  bfa instance	  */
-	u16        uf_tag;		/*  identifying tag f/w messages */
+	u16        uf_tag;		/*  identifying tag fw msgs     */
 	u16        vf_id;
 	u16        src_rport_handle;
 	u16        rsvd;
@@ -128,7 +128,7 @@ struct bfa_lps_s {
 	u8		reqq;		/*  lport request queue	*/
 	u8		alpa;		/*  ALPA for loop topologies	*/
 	u32	lp_pid;		/*  lport port ID		*/
-	bfa_boolean_t	fdisc;		/*  send FDISC instead of FLOGI*/
+	bfa_boolean_t	fdisc;		/*  send FDISC instead of FLOGI  */
 	bfa_boolean_t	auth_en;	/*  enable authentication	*/
 	bfa_boolean_t	auth_req;	/*  authentication required	*/
 	bfa_boolean_t	npiv_en;	/*  NPIV is allowed by peer	*/
@@ -178,11 +178,6 @@ bfa_status_t bfa_fcport_trunk_disable(struct bfa_s *bfa);
 bfa_boolean_t bfa_fcport_trunk_query(struct bfa_s *bfa, u32 *bitmap);
 void bfa_fcport_get_attr(struct bfa_s *bfa, struct bfa_pport_attr_s *attr);
 wwn_t bfa_fcport_get_wwn(struct bfa_s *bfa, bfa_boolean_t node);
-bfa_status_t bfa_pport_get_stats(struct bfa_s *bfa,
-			union bfa_pport_stats_u *stats,
-			bfa_cb_pport_t cbfn, void *cbarg);
-bfa_status_t bfa_pport_clear_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn,
-			void *cbarg);
 void bfa_fcport_event_register(struct bfa_s *bfa,
 			void (*event_cbfn) (void *cbarg,
 			bfa_pport_event_t event), void *event_cbarg);
@@ -198,14 +193,21 @@ void bfa_fcport_busy(struct bfa_s *bfa, bfa_boolean_t status);
 void bfa_fcport_beacon(struct bfa_s *bfa, bfa_boolean_t beacon,
 			bfa_boolean_t link_e2e_beacon);
 void bfa_cb_pport_event(void *cbarg, bfa_pport_event_t event);
-void bfa_fcport_qos_get_attr(struct bfa_s *bfa, struct bfa_qos_attr_s *qos_attr);
+void bfa_fcport_qos_get_attr(struct bfa_s *bfa,
+			struct bfa_qos_attr_s *qos_attr);
 void bfa_fcport_qos_get_vc_attr(struct bfa_s *bfa,
 			struct bfa_qos_vc_attr_s *qos_vc_attr);
 bfa_status_t bfa_fcport_get_qos_stats(struct bfa_s *bfa,
-			union bfa_pport_stats_u *stats,
+			union bfa_fcport_stats_u *stats,
 			bfa_cb_pport_t cbfn, void *cbarg);
 bfa_status_t bfa_fcport_clear_qos_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn,
 			void *cbarg);
+bfa_status_t bfa_fcport_get_fcoe_stats(struct bfa_s *bfa,
+			union bfa_fcport_stats_u *stats,
+			bfa_cb_pport_t cbfn, void *cbarg);
+bfa_status_t bfa_fcport_clear_fcoe_stats(struct bfa_s *bfa, bfa_cb_pport_t cbfn,
+			void *cbarg);
+
 bfa_boolean_t     bfa_fcport_is_ratelim(struct bfa_s *bfa);
 bfa_boolean_t	bfa_fcport_is_linkup(struct bfa_s *bfa);
 bfa_status_t bfa_fcport_get_stats(struct bfa_s *bfa,

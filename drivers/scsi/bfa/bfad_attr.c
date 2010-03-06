@@ -288,7 +288,7 @@ bfad_im_get_stats(struct Scsi_Host *shost)
 	init_completion(&fcomp.comp);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	memset(hstats, 0, sizeof(struct fc_host_statistics));
-	rc = bfa_pport_get_stats(&bfad->bfa,
+	rc =  bfa_port_get_stats(BFA_FCPORT(&bfad->bfa),
 				     (union bfa_pport_stats_u *) hstats,
 				     bfad_hcb_comp, &fcomp);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -315,7 +315,8 @@ bfad_im_reset_stats(struct Scsi_Host *shost)
 
 	init_completion(&fcomp.comp);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rc = bfa_pport_clear_stats(&bfad->bfa, bfad_hcb_comp, &fcomp);
+	rc = bfa_port_clear_stats(BFA_FCPORT(&bfad->bfa), bfad_hcb_comp,
+		&fcomp);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	if (rc != BFA_STATUS_OK)

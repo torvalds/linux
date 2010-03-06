@@ -143,8 +143,8 @@ enum bfi_mclass {
 	BFI_MC_IOC		= 1,	/*  IO Controller (IOC)	    */
 	BFI_MC_DIAG		= 2,	/*  Diagnostic Msgs		    */
 	BFI_MC_FLASH		= 3,	/*  Flash message class	    */
-	BFI_MC_CEE		= 4,
-	BFI_MC_FC_PORT		= 5,	/*  FC port		   	    */
+	BFI_MC_CEE		= 4,	/*  CEE                     */
+	BFI_MC_FCPORT		= 5,	/*  FC port		   	    */
 	BFI_MC_IOCFC		= 6,	/*  FC - IO Controller (IOC)	    */
 	BFI_MC_LL		= 7,	/*  Link Layer		 	    */
 	BFI_MC_UF		= 8,	/*  Unsolicited frame receive	    */
