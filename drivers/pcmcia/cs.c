@@ -337,7 +337,6 @@ static void socket_shutdown(struct pcmcia_socket *s)
 	s->socket = dead_socket;
 	s->ops->init(s);
 	s->ops->set_socket(s, &s->socket);
-	s->irq.AssignedIRQ = s->irq.Config = 0;
 	s->lock_count = 0;
 	kfree(s->fake_cis);
 	s->fake_cis = NULL;

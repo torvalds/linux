@@ -351,7 +351,7 @@ static int pccard_get_configuration_info(struct pcmcia_socket *s,
 		if (s->state & SOCKET_CARDBUS_CONFIG) {
 			config->Attributes = CONF_VALID_CLIENT;
 			config->IntType = INT_CARDBUS;
-			config->AssignedIRQ = s->irq.AssignedIRQ;
+			config->AssignedIRQ = s->pcmcia_irq;
 			if (config->AssignedIRQ)
 				config->Attributes |= CONF_ENABLE_IRQ;
 			if (s->io[0].res) {
@@ -391,7 +391,7 @@ static int pccard_get_configuration_info(struct pcmcia_socket *s,
 	config->ExtStatus = c->ExtStatus;
 	config->Present = config->CardValues = c->CardValues;
 	config->IRQAttributes = c->irq.Attributes;
-	config->AssignedIRQ = s->irq.AssignedIRQ;
+	config->AssignedIRQ = s->pcmcia_irq;
 	config->BasePort1 = c->io.BasePort1;
 	config->NumPorts1 = c->io.NumPorts1;
 	config->Attributes1 = c->io.Attributes1;
