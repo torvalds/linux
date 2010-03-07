@@ -133,11 +133,6 @@ static struct device_connect_event {
 	.wait = __WAIT_QUEUE_HEAD_INITIALIZER(device_event.wait)
 };
 
-/* this struct stores the poll state for <mountpoint>/devices pollers */
-struct usb_device_status {
-	unsigned int lastev;
-};
-
 struct class_info {
 	int class;
 	char *class_name;
