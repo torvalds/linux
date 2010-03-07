@@ -230,7 +230,7 @@ static int labpc_cs_attach(struct pcmcia_device *link)
 	link->priv = local;
 
 	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_FORCED_PULSE;
+	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	link->irq.Handler = NULL;
 
 	/*
@@ -307,7 +307,8 @@ static int labpc_pcmcia_config_loop(struct pcmcia_device *p_dev,
 
 	/* Do we need to allocate an interrupt? */
 	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+		p_dev->conf.Attributes |=
+			(CONF_ENABLE_IRQ | CONF_ENABLE_PULSE_IRQ);
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;

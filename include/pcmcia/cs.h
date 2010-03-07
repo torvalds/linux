@@ -85,6 +85,7 @@ typedef struct config_req_t {
 #define CONF_ENABLE_IRQ		0x01
 #define CONF_ENABLE_DMA		0x02
 #define CONF_ENABLE_SPKR	0x04
+#define CONF_ENABLE_PULSE_IRQ	0x08
 #define CONF_VALID_CLIENT	0x100
 
 /* IntType field */

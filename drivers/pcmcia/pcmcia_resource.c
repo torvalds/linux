@@ -426,10 +426,6 @@ static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 	if (c->state & CONFIG_LOCKED)
 		goto out;
 
-	if (c->irq.Attributes != req->Attributes) {
-		dev_dbg(&s->dev, "IRQ attributes must match assigned ones\n");
-		goto out;
-	}
 	if (s->pcmcia_irq != req->AssignedIRQ) {
 		dev_dbg(&s->dev, "IRQ must match assigned one\n");
 		goto out;
@@ -553,9 +549,9 @@ int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 			if (req->Present & PRESENT_IOBASE_0)
 				c->Option |= COR_ADDR_DECODE;
 		}
-		if (req->Attributes & CONF_ENABLE_IRQ)
-			if (!(c->irq.Attributes & IRQ_FORCED_PULSE))
-				c->Option |= COR_LEVEL_REQ;
+		if ((req->Attributes & CONF_ENABLE_IRQ) &&
+			!(req->Attributes & CONF_ENABLE_PULSE_IRQ))
+			c->Option |= COR_LEVEL_REQ;
 		pcmcia_write_cis_mem(s, 1, (base + CISREG_COR)>>1, 1, &c->Option);
 		mdelay(40);
 	}
@@ -730,7 +726,6 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		}
 	}
 
-	c->irq.Attributes = req->Attributes;
 	req->AssignedIRQ = irq;
 
 	p_dev->_irq = 1;
