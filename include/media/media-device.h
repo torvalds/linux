@@ -25,6 +25,7 @@
 
 #include <linux/device.h>
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/spinlock.h>
 
 #include <media/media-devnode.h>
@@ -42,6 +43,7 @@
  * @entity_id:	ID of the next entity to be registered
  * @entities:	List of registered entities
  * @lock:	Entities list lock
+ * @graph_mutex: Entities graph operation lock
  *
  * This structure represents an abstract high-level media device. It allows easy
  * access to entities and provides basic media device-level support. The
@@ -69,6 +71,8 @@ struct media_device {
 
 	/* Protects the entities list */
 	spinlock_t lock;
+	/* Serializes graph operations. */
+	struct mutex graph_mutex;
 };
 
 /* media_devnode to media_device */

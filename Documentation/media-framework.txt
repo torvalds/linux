@@ -258,3 +258,16 @@ When the graph traversal is complete the function will return NULL.
 
 Graph traversal can be interrupted at any moment. No cleanup function call is
 required and the graph structure can be freed normally.
+
+
+Use count and power handling
+----------------------------
+
+Due to the wide differences between drivers regarding power management needs,
+the media controller does not implement power management. However, the
+media_entity structure includes a use_count field that media drivers can use to
+track the number of users of every entity for power management needs.
+
+The use_count field is owned by media drivers and must not be touched by entity
+drivers. Access to the field must be protected by the media device graph_mutex
+lock.

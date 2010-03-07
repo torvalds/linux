@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <media/media-entity.h>
+#include <media/media-device.h>
 
 /**
  * media_entity_init - Initialize a media entity
@@ -194,6 +195,51 @@ media_entity_graph_walk_next(struct media_entity_graph *graph)
 	return stack_pop(graph);
 }
 EXPORT_SYMBOL_GPL(media_entity_graph_walk_next);
+
+/* -----------------------------------------------------------------------------
+ * Module use count
+ */
+
+/*
+ * media_entity_get - Get a reference to the parent module
+ * @entity: The entity
+ *
+ * Get a reference to the parent media device module.
+ *
+ * The function will return immediately if @entity is NULL.
+ *
+ * Return a pointer to the entity on success or NULL on failure.
+ */
+struct media_entity *media_entity_get(struct media_entity *entity)
+{
+	if (entity == NULL)
+		return NULL;
+
+	if (entity->parent->dev &&
+	    !try_module_get(entity->parent->dev->driver->owner))
+		return NULL;
+
+	return entity;
+}
+EXPORT_SYMBOL_GPL(media_entity_get);
+
+/*
+ * media_entity_put - Release the reference to the parent module
+ * @entity: The entity
+ *
+ * Release the reference count acquired by media_entity_get().
+ *
+ * The function will return immediately if @entity is NULL.
+ */
+void media_entity_put(struct media_entity *entity)
+{
+	if (entity == NULL)
+		return;
+
+	if (entity->parent->dev)
+		module_put(entity->parent->dev->driver->owner);
+}
+EXPORT_SYMBOL_GPL(media_entity_put);
 
 /* -----------------------------------------------------------------------------
  * Links management

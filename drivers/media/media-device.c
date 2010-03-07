@@ -73,6 +73,7 @@ int __must_check media_device_register(struct media_device *mdev)
 	mdev->entity_id = 1;
 	INIT_LIST_HEAD(&mdev->entities);
 	spin_lock_init(&mdev->lock);
+	mutex_init(&mdev->graph_mutex);
 
 	/* Register the device node. */
 	mdev->devnode.fops = &media_device_fops;
