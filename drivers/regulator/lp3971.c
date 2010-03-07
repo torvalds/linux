@@ -439,6 +439,10 @@ static int __devinit setup_regulators(struct lp3971 *lp3971,
 	lp3971->num_regulators = pdata->num_regulators;
 	lp3971->rdev = kcalloc(pdata->num_regulators,
 				sizeof(struct regulator_dev *), GFP_KERNEL);
+	if (!lp3971->rdev) {
+		err = -ENOMEM;
+		goto err_nomem;
+	}
 
 	/* Instantiate the regulators */
 	for (i = 0; i < pdata->num_regulators; i++) {
@@ -461,6 +465,7 @@ error:
 		regulator_unregister(lp3971->rdev[i]);
 	kfree(lp3971->rdev);
 	lp3971->rdev = NULL;
+err_nomem:
 	return err;
 }
 
