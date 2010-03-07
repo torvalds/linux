@@ -56,7 +56,7 @@ module_param(dumb_switch, int, 0444);
 MODULE_PARM_DESC(debug_level, "Number of NETIF_MSG bits to enable");
 MODULE_PARM_DESC(dumb_switch, "Assume switch is not connected to MDIO bus");
 
-#define CPMAC_VERSION "0.5.1"
+#define CPMAC_VERSION "0.5.2"
 /* frame size + 802.1q tag + FCS size */
 #define CPMAC_SKB_SIZE		(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 #define CPMAC_QUEUES	8
