@@ -1740,8 +1740,9 @@ process:
 			if (!tcp_prequeue(sk, skb))
 				ret = tcp_v6_do_rcv(sk, skb);
 		}
-	} else if (sk_add_backlog(sk, skb)) {
+	} else if (unlikely(sk_add_backlog(sk, skb))) {
 		bh_unlock_sock(sk);
+		NET_INC_STATS_BH(net, LINUX_MIB_TCPBACKLOGDROP);
 		goto discard_and_relse;
 	}
 	bh_unlock_sock(sk);
