@@ -48,6 +48,7 @@
 #include <linux/err.h>
 #include <linux/nmi.h>
 #include <linux/tboot.h>
+#include <linux/stackprotector.h>
 
 #include <asm/acpi.h>
 #include <asm/desc.h>
@@ -67,6 +68,7 @@
 #include <linux/mc146818rtc.h>
 
 #include <asm/smpboot_hooks.h>
+#include <asm/i8259.h>
 
 #ifdef CONFIG_X86_32
 u8 apicid_2_node[MAX_APICID];
@@ -291,9 +293,9 @@ notrace static void __cpuinit start_secondary(void *unused)
 	check_tsc_sync_target();
 
 	if (nmi_watchdog == NMI_IO_APIC) {
-		disable_8259A_irq(0);
+		legacy_pic->chip->mask(0);
 		enable_NMI_through_LVT0();
-		enable_8259A_irq(0);
+		legacy_pic->chip->unmask(0);
 	}
 
 #ifdef CONFIG_X86_32
@@ -328,6 +330,9 @@ notrace static void __cpuinit start_secondary(void *unused)
 
 	/* enable local interrupts */
 	local_irq_enable();
+
+	/* to prevent fake stack check failure in clock setup */
+	boot_init_stack_canary();
 
 	x86_cpuinit.setup_percpu_clockev();
 

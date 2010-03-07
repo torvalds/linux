@@ -45,8 +45,15 @@ static inline int pci_proc_domain(struct pci_bus *bus)
 
 #ifdef CONFIG_PCI
 extern unsigned int pcibios_assign_all_busses(void);
+extern int pci_legacy_init(void);
+# ifdef CONFIG_ACPI
+#  define x86_default_pci_init pci_acpi_init
+# else
+#  define x86_default_pci_init pci_legacy_init
+# endif
 #else
-#define pcibios_assign_all_busses()	0
+# define pcibios_assign_all_busses()	0
+# define x86_default_pci_init		NULL
 #endif
 
 extern unsigned long pci_mem_start;

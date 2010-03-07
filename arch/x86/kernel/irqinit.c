@@ -99,9 +99,6 @@ int vector_used_by_percpu_irq(unsigned int vector)
 	return 0;
 }
 
-/* Number of legacy interrupts */
-int nr_legacy_irqs __read_mostly = NR_IRQS_LEGACY;
-
 void __init init_ISA_irqs(void)
 {
 	int i;
@@ -109,12 +106,12 @@ void __init init_ISA_irqs(void)
 #if defined(CONFIG_X86_64) || defined(CONFIG_X86_LOCAL_APIC)
 	init_bsp_APIC();
 #endif
-	init_8259A(0);
+	legacy_pic->init(0);
 
 	/*
 	 * 16 old-style INTA-cycle interrupts:
 	 */
-	for (i = 0; i < NR_IRQS_LEGACY; i++) {
+	for (i = 0; i < legacy_pic->nr_legacy_irqs; i++) {
 		struct irq_desc *desc = irq_to_desc(i);
 
 		desc->status = IRQ_DISABLED;
@@ -138,7 +135,7 @@ void __init init_IRQ(void)
 	 * then this vector space can be freed and re-used dynamically as the
 	 * irq's migrate etc.
 	 */
-	for (i = 0; i < nr_legacy_irqs; i++)
+	for (i = 0; i < legacy_pic->nr_legacy_irqs; i++)
 		per_cpu(vector_irq, 0)[IRQ0_VECTOR + i] = i;
 
 	x86_init.irqs.intr_init();

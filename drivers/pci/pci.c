@@ -303,6 +303,49 @@ int pci_find_ext_capability(struct pci_dev *dev, int cap)
 }
 EXPORT_SYMBOL_GPL(pci_find_ext_capability);
 
+/**
+ * pci_bus_find_ext_capability - find an extended capability
+ * @bus:   the PCI bus to query
+ * @devfn: PCI device to query
+ * @cap:   capability code
+ *
+ * Like pci_find_ext_capability() but works for pci devices that do not have a
+ * pci_dev structure set up yet.
+ *
+ * Returns the address of the requested capability structure within the
+ * device's PCI configuration space or 0 in case the device does not
+ * support it.
+ */
+int pci_bus_find_ext_capability(struct pci_bus *bus, unsigned int devfn,
+				int cap)
+{
+	u32 header;
+	int ttl;
+	int pos = PCI_CFG_SPACE_SIZE;
+
+	/* minimum 8 bytes per capability */
+	ttl = (PCI_CFG_SPACE_EXP_SIZE - PCI_CFG_SPACE_SIZE) / 8;
+
+	if (!pci_bus_read_config_dword(bus, devfn, pos, &header))
+		return 0;
+	if (header == 0xffffffff || header == 0)
+		return 0;
+
+	while (ttl-- > 0) {
+		if (PCI_EXT_CAP_ID(header) == cap)
+			return pos;
+
+		pos = PCI_EXT_CAP_NEXT(header);
+		if (pos < PCI_CFG_SPACE_SIZE)
+			break;
+
+		if (!pci_bus_read_config_dword(bus, devfn, pos, &header))
+			break;
+	}
+
+	return 0;
+}
+
 static int __pci_find_next_ht_cap(struct pci_dev *dev, int pos, int ht_cap)
 {
 	int rc, ttl = PCI_FIND_CAP_TTL;

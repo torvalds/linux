@@ -30,6 +30,7 @@
 
 extern int found_numaq;
 extern int get_memcfg_numaq(void);
+extern int pci_numaq_init(void);
 
 extern void *xquad_portio;
 

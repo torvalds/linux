@@ -35,6 +35,7 @@
 #include <linux/ioport.h>
 #include <linux/pci.h>
 
+#include <asm/pci_x86.h>
 #include <asm/pgtable.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
@@ -1623,6 +1624,9 @@ int __init acpi_boot_init(void)
 	acpi_process_madt();
 
 	acpi_table_parse(ACPI_SIG_HPET, acpi_parse_hpet);
+
+	if (!acpi_noirq)
+		x86_init.pci.init = pci_acpi_init;
 
 	return 0;
 }

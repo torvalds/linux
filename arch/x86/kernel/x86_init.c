@@ -4,9 +4,11 @@
  *  For licencing details see kernel-base/COPYING
  */
 #include <linux/init.h>
+#include <linux/ioport.h>
 
 #include <asm/bios_ebda.h>
 #include <asm/paravirt.h>
+#include <asm/pci_x86.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/apic.h>
@@ -69,6 +71,12 @@ struct x86_init_ops x86_init __initdata = {
 
 	.iommu = {
 		.iommu_init		= iommu_init_noop,
+	},
+
+	.pci = {
+		.init			= x86_default_pci_init,
+		.init_irq		= x86_default_pci_init_irq,
+		.fixup_irqs		= x86_default_pci_fixup_irqs,
 	},
 };
 

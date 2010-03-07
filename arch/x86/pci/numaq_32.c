@@ -148,13 +148,7 @@ int __init pci_numaq_init(void)
 {
 	int quad;
 
-	if (!found_numaq)
-		return 0;
-
 	raw_pci_ops = &pci_direct_conf1_mq;
-
-	if (pcibios_scanned++)
-		return 0;
 
 	pci_root_bus = pcibios_scan_root(0);
 	if (pci_root_bus)

@@ -53,7 +53,7 @@ struct irq_router_handler {
 	int (*probe)(struct irq_router *r, struct pci_dev *router, u16 device);
 };
 
-int (*pcibios_enable_irq)(struct pci_dev *dev) = NULL;
+int (*pcibios_enable_irq)(struct pci_dev *dev) = pirq_enable_irq;
 void (*pcibios_disable_irq)(struct pci_dev *dev) = NULL;
 
 /*
@@ -1018,7 +1018,7 @@ static int pcibios_lookup_irq(struct pci_dev *dev, int assign)
 	return 1;
 }
 
-static void __init pcibios_fixup_irqs(void)
+void __init pcibios_fixup_irqs(void)
 {
 	struct pci_dev *dev = NULL;
 	u8 pin;
@@ -1112,12 +1112,12 @@ static struct dmi_system_id __initdata pciirq_dmi_table[] = {
 	{ }
 };
 
-int __init pcibios_irq_init(void)
+void __init pcibios_irq_init(void)
 {
 	DBG(KERN_DEBUG "PCI: IRQ init\n");
 
-	if (pcibios_enable_irq || raw_pci_ops == NULL)
-		return 0;
+	if (raw_pci_ops == NULL)
+		return;
 
 	dmi_check_system(pciirq_dmi_table);
 
@@ -1144,9 +1144,7 @@ int __init pcibios_irq_init(void)
 			pirq_table = NULL;
 	}
 
-	pcibios_enable_irq = pirq_enable_irq;
-
-	pcibios_fixup_irqs();
+	x86_init.pci.fixup_irqs();
 
 	if (io_apic_assign_pci_irqs && pci_routeirq) {
 		struct pci_dev *dev = NULL;
@@ -1159,8 +1157,6 @@ int __init pcibios_irq_init(void)
 		for_each_pci_dev(dev)
 			pirq_enable_irq(dev);
 	}
-
-	return 0;
 }
 
 static void pirq_penalize_isa_irq(int irq, int active)

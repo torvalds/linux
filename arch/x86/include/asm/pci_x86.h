@@ -83,7 +83,6 @@ struct irq_routing_table {
 
 extern unsigned int pcibios_irq_mask;
 
-extern int pcibios_scanned;
 extern spinlock_t pci_config_lock;
 
 extern int (*pcibios_enable_irq)(struct pci_dev *dev);
@@ -106,16 +105,15 @@ extern bool port_cf9_safe;
 extern int pci_direct_probe(void);
 extern void pci_direct_init(int type);
 extern void pci_pcbios_init(void);
-extern int pci_olpc_init(void);
 extern void __init dmi_check_pciprobe(void);
 extern void __init dmi_check_skip_isa_align(void);
 
 /* some common used subsys_initcalls */
 extern int __init pci_acpi_init(void);
-extern int __init pcibios_irq_init(void);
-extern int __init pci_visws_init(void);
-extern int __init pci_numaq_init(void);
+extern void __init pcibios_irq_init(void);
 extern int __init pcibios_init(void);
+extern int pci_legacy_init(void);
+extern void pcibios_fixup_irqs(void);
 
 /* pci-mmconfig.c */
 
@@ -183,3 +181,17 @@ static inline void mmio_config_writel(void __iomem *pos, u32 val)
 {
 	asm volatile("movl %%eax,(%1)" : : "a" (val), "r" (pos) : "memory");
 }
+
+#ifdef CONFIG_PCI
+# ifdef CONFIG_ACPI
+#  define x86_default_pci_init		pci_acpi_init
+# else
+#  define x86_default_pci_init		pci_legacy_init
+# endif
+# define x86_default_pci_init_irq	pcibios_irq_init
+# define x86_default_pci_fixup_irqs	pcibios_fixup_irqs
+#else
+# define x86_default_pci_init		NULL
+# define x86_default_pci_init_irq	NULL
+# define x86_default_pci_fixup_irqs	NULL
+#endif
