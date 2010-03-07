@@ -94,6 +94,23 @@ config GPIO_VR41XX
 	help
 	  Say yes here to support the NEC VR4100 series General-purpose I/O Uint
 
+config GPIO_SCH
+	tristate "Intel SCH GPIO"
+	depends on GPIOLIB && PCI
+	select MFD_CORE
+	select LPC_SCH
+	help
+	  Say yes here to support GPIO interface on Intel Poulsbo SCH.
+	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
+	  powered by the core power rail and are turned off during sleep
+	  modes (S3 and higher). The remaining four GPIOs are powered by
+	  the Intel SCH suspend power supply. These GPIOs remain
+	  active during S3. The suspend powered GPIOs can be used to wake the
+	  system from the Suspend-to-RAM state.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sch-gpio.
+
 comment "I2C GPIO expanders:"
 
 config GPIO_MAX7300
@@ -184,6 +201,20 @@ config GPIO_WM831X
 	help
 	  Say yes here to access the GPIO signals of WM831x power management
 	  chips from Wolfson Microelectronics.
+
+config GPIO_WM8350
+	tristate "WM8350 GPIOs"
+	depends on MFD_WM8350
+	help
+	  Say yes here to access the GPIO signals of WM8350 power management
+	  chips from Wolfson Microelectronics.
+
+config GPIO_WM8994
+	tristate "WM8994 GPIOs"
+	depends on MFD_WM8994
+	help
+	  Say yes here to access the GPIO signals of WM8994 audio hub
+	  CODECs from Wolfson Microelectronics.
 
 config GPIO_ADP5520
 	tristate "GPIO Support for ADP5520 PMIC"

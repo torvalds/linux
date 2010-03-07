@@ -212,6 +212,13 @@ config BACKLIGHT_DA903X
 	  If you have a LCD backlight connected to the WLED output of DA9030
 	  or DA9034 WLED output, say Y here to enable this driver.
 
+config BACKLIGHT_MAX8925
+	tristate "Backlight driver for MAX8925"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_MAX8925
+	help
+	  If you have a LCD backlight connected to the WLED output of MAX8925
+	  WLED output, say Y here to enable this driver.
+
 config BACKLIGHT_MBP_NVIDIA
        tristate "MacBook Pro Nvidia Backlight Driver"
        depends on BACKLIGHT_CLASS_DEVICE && X86
@@ -261,4 +268,10 @@ config BACKLIGHT_ADP5520
 
 	  To compile this driver as a module, choose M here: the module will
 	  be called adp5520_bl.
+
+config BACKLIGHT_88PM860X
+	tristate "Backlight Driver for 88PM8606 using WLED"
+	depends on BACKLIGHT_CLASS_DEVICE && MFD_88PM860X
+	help
+	  Say Y to enable the backlight driver for Marvell 88PM8606.
 

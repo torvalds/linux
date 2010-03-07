@@ -80,6 +80,11 @@
 #define TWL_MODULE_PM_MASTER	TWL4030_MODULE_PM_MASTER
 #define TWL_MODULE_PM_RECEIVER	TWL4030_MODULE_PM_RECEIVER
 #define TWL_MODULE_RTC		TWL4030_MODULE_RTC
+#define TWL_MODULE_PWM		TWL4030_MODULE_PWM0
+
+#define TWL6030_MODULE_ID0	0x0D
+#define TWL6030_MODULE_ID1	0x0E
+#define TWL6030_MODULE_ID2	0x0F
 
 #define GPIO_INTR_OFFSET	0
 #define KEYPAD_INTR_OFFSET	1
@@ -236,6 +241,21 @@ int twl6030_interrupt_mask(u8 bit_mask, u8 offset);
  * pins are not assigned to another use (such as ULPI/USB).
  */
 #define TWL4030_GPIO_MAX		18
+
+/*----------------------------------------------------------------------*/
+
+/*Interface Bit Register (INTBR) offsets
+ *(Use TWL_4030_MODULE_INTBR)
+ */
+
+#define REG_GPPUPDCTR1			0x0F
+
+/*I2C1 and I2C4(SR) SDA/SCL pull-up control bits */
+
+#define I2C_SCL_CTRL_PU			BIT(0)
+#define I2C_SDA_CTRL_PU			BIT(2)
+#define SR_I2C_SCL_CTRL_PU		BIT(4)
+#define SR_I2C_SDA_CTRL_PU		BIT(6)
 
 /*----------------------------------------------------------------------*/
 
@@ -530,6 +550,7 @@ struct twl4030_power_data {
 };
 
 extern void twl4030_power_init(struct twl4030_power_data *triton2_scripts);
+extern int twl4030_remove_script(u8 flags);
 
 struct twl4030_codec_audio_data {
 	unsigned int	audio_mclk;
@@ -605,12 +626,7 @@ int twl4030_sih_setup(int module);
 #define TWL4030_VAUX3_DEV_GRP		0x1F
 #define TWL4030_VAUX3_DEDICATED		0x22
 
-#if defined(CONFIG_TWL4030_BCI_BATTERY) || \
-	defined(CONFIG_TWL4030_BCI_BATTERY_MODULE)
-	extern int twl4030charger_usb_en(int enable);
-#else
-	static inline int twl4030charger_usb_en(int enable) { return 0; }
-#endif
+static inline int twl4030charger_usb_en(int enable) { return 0; }
 
 /*----------------------------------------------------------------------*/
 

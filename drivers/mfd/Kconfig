@@ -9,6 +9,16 @@ config MFD_CORE
 	tristate
 	default n
 
+config MFD_88PM860X
+	bool "Support Marvell 88PM8606/88PM8607"
+	depends on I2C=y
+	select MFD_CORE
+	help
+	  This supports for Marvell 88PM8606/88PM8607 Power Management IC.
+	  This includes the I2C driver and the core APIs _only_, you have to
+	  select individual components like voltage regulators, RTC and
+	  battery-charger under the corresponding menus.
+
 config MFD_SM501
 	tristate "Support for Silicon Motion SM501"
 	 ---help---
@@ -37,7 +47,7 @@ config MFD_ASIC3
 
 config MFD_SH_MOBILE_SDHI
 	bool "Support for SuperH Mobile SDHI"
-	depends on SUPERH
+	depends on SUPERH || ARCH_SHMOBILE
 	select MFD_CORE
 	 ---help---
 	  This driver supports the SDHI hardware block found in many
@@ -67,6 +77,15 @@ config HTC_PASIC3
 	  chips labeled "AIC2" and "AIC3", found on HTC Blueangel and
 	  HTC Magician devices, respectively. Actual functionality is
 	  handled by the leds-pasic3 and ds1wm drivers.
+
+config HTC_I2CPLD
+	bool "HTC I2C PLD chip support"
+	depends on I2C=y && GPIOLIB
+	help
+	  If you say yes here you get support for the supposed CPLD
+	  found on omap850 HTC devices like the HTC Wizard and HTC Herald.
+	  This device provides input and output GPIOs through an I2C
+	  interface to one or more sub-chips.
 
 config UCB1400_CORE
 	tristate "Philips UCB1400 Core driver"
@@ -184,6 +203,16 @@ config PMIC_ADP5520
 	  individual components like LCD backlight, LEDs, GPIOs and Kepad
 	  under the corresponding menus.
 
+config MFD_MAX8925
+	bool "Maxim Semiconductor MAX8925 PMIC Support"
+	depends on I2C=y
+	select MFD_CORE
+	help
+	  Say yes here to support for Maxim Semiconductor MAX8925. This is
+	  a Power Management IC. This driver provies common support for
+	  accessing the device, additional drivers must be enabled in order
+	  to use the functionality of the device.
+
 config MFD_WM8400
 	tristate "Support Wolfson Microelectronics WM8400"
 	select MFD_CORE
@@ -205,7 +234,7 @@ config MFD_WM831X
 	  functionality of the device.
 
 config MFD_WM8350
-	tristate
+	bool
 
 config MFD_WM8350_CONFIG_MODE_0
 	bool
@@ -256,15 +285,27 @@ config MFD_WM8352_CONFIG_MODE_3
 	depends on MFD_WM8350
 
 config MFD_WM8350_I2C
-	tristate "Support Wolfson Microelectronics WM8350 with I2C"
+	bool "Support Wolfson Microelectronics WM8350 with I2C"
 	select MFD_WM8350
-	depends on I2C
+	depends on I2C=y
 	help
 	  The WM8350 is an integrated audio and power management
 	  subsystem with watchdog and RTC functionality for embedded
 	  systems.  This option enables core support for the WM8350 with
 	  I2C as the control interface.  Additional options must be
 	  selected to enable support for the functionality of the chip.
+
+config MFD_WM8994
+	tristate "Support Wolfson Microelectronics WM8994"
+	select MFD_CORE
+	depends on I2C
+	help
+	  The WM8994 is a highly integrated hi-fi CODEC designed for
+	  smartphone applicatiosn.  As well as audio functionality it
+	  has on board GPIO and regulator functionality which is
+	  supported via the relevant subsystems.  This driver provides
+	  core support for the WM8994, in order to use the actual
+	  functionaltiy of the device other drivers must be enabled.
 
 config MFD_PCF50633
 	tristate "Support for NXP PCF50633"
@@ -300,8 +341,8 @@ config PCF50633_GPIO
 	 the PCF50633 chip.
 
 config AB3100_CORE
-	tristate "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
-	depends on I2C
+	bool "ST-Ericsson AB3100 Mixed Signal Circuit core functions"
+	depends on I2C=y
 	default y if ARCH_U300
 	help
 	  Select this to enable the AB3100 Mixed Signal IC core
@@ -329,16 +370,6 @@ config EZX_PCAP
 	  This enables the PCAP ASIC present on EZX Phones. This is
 	  needed for MMC, TouchScreen, Sound, USB, etc..
 
-config MFD_88PM8607
-	bool "Support Marvell 88PM8607"
-	depends on I2C=y
-	select MFD_CORE
-	help
-	  This supports for Marvell 88PM8607 Power Management IC. This includes
-	  the I2C driver and the core APIs _only_, you have to select
-	  individual components like voltage regulators, RTC and
-	  battery-charger under the corresponding menus.
-
 config AB4500_CORE
 	tristate "ST-Ericsson's AB4500 Mixed Signal Power management chip"
 	depends on SPI
@@ -358,6 +389,15 @@ config MFD_TIMBERDALE
 
 	The timberdale FPGA can be found on the Intel Atom development board
 	for in-vehicle infontainment, called Russellville.
+
+config LPC_SCH
+	tristate "Intel SCH LPC"
+	depends on PCI
+	select MFD_CORE
+	help
+	  LPC bridge function of the Intel SCH provides support for
+	  System Management Bus and General Purpose I/O.
+
 endmenu
 
 menu "Multimedia Capabilities Port drivers"

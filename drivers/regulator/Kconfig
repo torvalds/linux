@@ -94,6 +94,12 @@ config REGULATOR_MAX8660
 	  This driver controls a Maxim 8660/8661 voltage output
 	  regulator via I2C bus.
 
+config REGULATOR_MAX8925
+	tristate "Maxim MAX8925 Power Management IC"
+	depends on MFD_MAX8925
+	help
+	  Say y here to support the voltage regulaltor of Maxim MAX8925 PMIC.
+
 config REGULATOR_TWL4030
 	bool "TI TWL4030/TWL5030/TWL6030/TPS695x0 PMIC"
 	depends on TWL4030_CORE
@@ -191,7 +197,7 @@ config REGULATOR_TPS6507X
 
 config REGULATOR_88PM8607
 	bool "Marvell 88PM8607 Power regulators"
-	depends on MFD_88PM8607=y
+	depends on MFD_88PM860X=y
 	help
 	  This driver supports 88PM8607 voltage regulator chips.
 
