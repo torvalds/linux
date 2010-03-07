@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
@@ -56,8 +57,8 @@ MODULE_PARM_DESC(debug_level, "Number of NETIF_MSG bits to enable");
 MODULE_PARM_DESC(dumb_switch, "Assume switch is not connected to MDIO bus");
 
 #define CPMAC_VERSION "0.5.1"
-/* frame size + 802.1q tag */
-#define CPMAC_SKB_SIZE		(ETH_FRAME_LEN + 4)
+/* frame size + 802.1q tag + FCS size */
+#define CPMAC_SKB_SIZE		(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 #define CPMAC_QUEUES	8
 
 /* Ethernet registers */
