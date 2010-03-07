@@ -477,15 +477,6 @@ static int pcmcia_device_query(struct pcmcia_device *p_dev)
 }
 
 
-/* device_add_lock is needed to avoid double registration by cardmgr and kernel.
- * Serializes pcmcia_device_add; will most likely be removed in future.
- *
- * While it has the caveat that adding new PCMCIA devices inside(!) device_register()
- * won't work, this doesn't matter much at the moment: the driver core doesn't
- * support it either.
- */
-static DEFINE_MUTEX(device_add_lock);
-
 struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int function)
 {
 	struct pcmcia_device *p_dev, *tmp_dev;
@@ -494,8 +485,6 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	s = pcmcia_get_socket(s);
 	if (!s)
 		return NULL;
-
-	mutex_lock(&device_add_lock);
 
 	pr_debug("adding device to %d, function %d\n", s->sock, function);
 
@@ -536,8 +525,8 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 
 	/*
 	 * p_dev->function_config must be the same for all card functions.
-	 * Note that this is serialized by the device_add_lock, so that
-	 * only one such struct will be created.
+	 * Note that this is serialized by ops_mutex, so that only one
+	 * such struct will be created.
 	 */
 	list_for_each_entry(tmp_dev, &s->devices_list, socket_device_list)
 		if (p_dev->func == tmp_dev->func) {
@@ -575,8 +564,6 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	if (device_register(&p_dev->dev))
 		goto err_unreg;
 
-	mutex_unlock(&device_add_lock);
-
 	return p_dev;
 
  err_unreg:
@@ -594,7 +581,6 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 	kfree(p_dev->devname);
 	kfree(p_dev);
  err_put:
-	mutex_unlock(&device_add_lock);
 	pcmcia_put_socket(s);
 
 	return NULL;
