@@ -829,6 +829,10 @@ int ivtv_stop_v4l2_encode_stream(struct ivtv_stream *s, int gop_end)
 		ivtv_set_irq_mask(itv, IVTV_IRQ_ENC_VIM_RST);
 	}
 
+	/* Raw-passthrough is implied on start. Make sure it's stopped so
+	   the encoder will re-initialize when next started */
+	ivtv_vapi(itv, CX2341X_ENC_STOP_CAPTURE, 3, 1, 2, 7);
+
 	wake_up(&s->waitq);
 
 	return 0;
