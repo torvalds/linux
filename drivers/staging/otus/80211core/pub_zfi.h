@@ -814,7 +814,6 @@ extern void zfiRxPerformanceReg(zdev_t* dev, u32_t reg, u32_t rsp);
 #define ZM_PERFORMANCE_RX_AMSDU(dev, buf, len)
 #define ZM_PERFORMANCE_RX_FLUSH(dev)
 #define ZM_PERFORMANCE_RX_CLEAR(dev)
-#define ZM_SEQ_DEBUG
 #define ZM_PERFORMANCE_RX_REORDER(dev)
 #endif
 /***** End of section 3 *****/

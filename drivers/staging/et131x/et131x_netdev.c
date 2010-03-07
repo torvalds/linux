@@ -85,14 +85,9 @@
 #include <linux/ioport.h>
 
 #include "et1310_phy.h"
-#include "et1310_pm.h"
-#include "et1310_jagcore.h"
-#include "et1310_mac.h"
 #include "et1310_tx.h"
-
 #include "et131x_adapter.h"
-#include "et131x_isr.h"
-#include "et131x_initpci.h"
+#include "et131x.h"
 
 struct net_device_stats *et131x_stats(struct net_device *netdev);
 int et131x_open(struct net_device *netdev);
@@ -339,66 +334,64 @@ int et131x_ioctl(struct net_device *netdev, struct ifreq *reqbuf, int cmd)
  * et131x_set_packet_filter - Configures the Rx Packet filtering on the device
  * @adapter: pointer to our private adapter structure
  *
+ * FIXME: lot of dups with MAC code
+ *
  * Returns 0 on success, errno on failure
  */
 int et131x_set_packet_filter(struct et131x_adapter *adapter)
 {
 	int status = 0;
 	uint32_t filter = adapter->PacketFilter;
-	RXMAC_CTRL_t ctrl;
-	RXMAC_PF_CTRL_t pf_ctrl;
+	u32 ctrl;
+	u32 pf_ctrl;
 
-	ctrl.value = readl(&adapter->regs->rxmac.ctrl.value);
-	pf_ctrl.value = readl(&adapter->regs->rxmac.pf_ctrl.value);
+	ctrl = readl(&adapter->regs->rxmac.ctrl);
+	pf_ctrl = readl(&adapter->regs->rxmac.pf_ctrl);
 
 	/* Default to disabled packet filtering.  Enable it in the individual
 	 * case statements that require the device to filter something
 	 */
-	ctrl.bits.pkt_filter_disable = 1;
+	ctrl |= 0x04;
 
 	/* Set us to be in promiscuous mode so we receive everything, this
 	 * is also true when we get a packet filter of 0
 	 */
-	if ((filter & ET131X_PACKET_TYPE_PROMISCUOUS) || filter == 0) {
-		pf_ctrl.bits.filter_broad_en = 0;
-		pf_ctrl.bits.filter_multi_en = 0;
-		pf_ctrl.bits.filter_uni_en = 0;
-	} else {
+	if ((filter & ET131X_PACKET_TYPE_PROMISCUOUS) || filter == 0)
+		pf_ctrl &= ~7;	/* Clear filter bits */
+	else {
 		/*
 		 * Set us up with Multicast packet filtering.  Three cases are
 		 * possible - (1) we have a multi-cast list, (2) we receive ALL
 		 * multicast entries or (3) we receive none.
 		 */
-		if (filter & ET131X_PACKET_TYPE_ALL_MULTICAST) {
-			pf_ctrl.bits.filter_multi_en = 0;
-		} else {
+		if (filter & ET131X_PACKET_TYPE_ALL_MULTICAST)
+			pf_ctrl &= ~2;	/* Multicast filter bit */
+		else {
 			SetupDeviceForMulticast(adapter);
-			pf_ctrl.bits.filter_multi_en = 1;
-			ctrl.bits.pkt_filter_disable = 0;
+			pf_ctrl |= 2;
+			ctrl &= ~0x04;
 		}
 
 		/* Set us up with Unicast packet filtering */
 		if (filter & ET131X_PACKET_TYPE_DIRECTED) {
 			SetupDeviceForUnicast(adapter);
-			pf_ctrl.bits.filter_uni_en = 1;
-			ctrl.bits.pkt_filter_disable = 0;
+			pf_ctrl |= 4;
+			ctrl &= ~0x04;
 		}
 
 		/* Set us up with Broadcast packet filtering */
 		if (filter & ET131X_PACKET_TYPE_BROADCAST) {
-			pf_ctrl.bits.filter_broad_en = 1;
-			ctrl.bits.pkt_filter_disable = 0;
-		} else {
-			pf_ctrl.bits.filter_broad_en = 0;
-		}
+			pf_ctrl |= 1;	/* Broadcast filter bit */
+			ctrl &= ~0x04;
+		} else
+			pf_ctrl &= ~1;
 
 		/* Setup the receive mac configuration registers - Packet
 		 * Filter control + the enable / disable for packet filter
 		 * in the control reg.
 		 */
-		writel(pf_ctrl.value,
-		       &adapter->regs->rxmac.pf_ctrl.value);
-		writel(ctrl.value, &adapter->regs->rxmac.ctrl.value);
+		writel(pf_ctrl, &adapter->regs->rxmac.pf_ctrl);
+		writel(ctrl, &adapter->regs->rxmac.ctrl);
 	}
 	return status;
 }
@@ -675,12 +668,8 @@ int et131x_set_mac_addr(struct net_device *netdev, void *new_mac)
 
 	memcpy(netdev->dev_addr, address->sa_data, netdev->addr_len);
 
-	printk(KERN_INFO
-		"%s: Setting MAC address to %02x:%02x:%02x:%02x:%02x:%02x\n",
-			netdev->name,
-			netdev->dev_addr[0], netdev->dev_addr[1],
-			netdev->dev_addr[2], netdev->dev_addr[3],
-			netdev->dev_addr[4], netdev->dev_addr[5]);
+	printk(KERN_INFO "%s: Setting MAC address to %pM\n",
+			netdev->name, netdev->dev_addr);
 
 	/* Free Rx DMA memory */
 	et131x_adapter_memory_free(adapter);

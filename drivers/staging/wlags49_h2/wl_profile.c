@@ -383,15 +383,15 @@ void translate_option( char *buffer, struct wl_private *lp )
 				DbgInfo->DebugFlag |= DBG_DEFAULTS;
 			}
 		} else {
-			DbgInfo->DebugFlag = wl_atoi( value ); //;?DebugFlag;
+			DbgInfo->DebugFlag = simple_strtoul(value, NULL, 0); //;?DebugFlag;
 		}
-		DbgInfo->DebugFlag = wl_atoi( value ); //;?Delete ASAP
+		DbgInfo->DebugFlag = simple_strtoul(value, NULL, 0); //;?Delete ASAP
 	}
 #endif /* DBG */
 	if ( strcmp( key, PARM_NAME_AUTH_KEY_MGMT_SUITE ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_AUTH_KEY_MGMT_SUITE, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if (( value_convert >= PARM_MIN_AUTH_KEY_MGMT_SUITE ) || ( value_convert <= PARM_MAX_AUTH_KEY_MGMT_SUITE )) {
 			lp->AuthKeyMgmtSuite = value_convert;
 		} else {
@@ -401,7 +401,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_BRSC_2GHZ ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_BRSC_2GHZ, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if (( value_convert >= PARM_MIN_BRSC ) || ( value_convert <= PARM_MAX_BRSC )) {
 			lp->brsc[0] = value_convert;
 		} else {
@@ -411,7 +411,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_BRSC_5GHZ ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_BRSC_5GHZ, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if (( value_convert >= PARM_MIN_BRSC ) || ( value_convert <= PARM_MAX_BRSC )) {
 			lp->brsc[1] = value_convert;
 		} else {
@@ -448,7 +448,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_ENABLE_ENCRYPTION ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_ENABLE_ENCRYPTION, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if (( value_convert >= PARM_MIN_ENABLE_ENCRYPTION ) && ( value_convert <= PARM_MAX_ENABLE_ENCRYPTION )) {
 			lp->EnableEncryption = value_convert;
 		} else {
@@ -529,7 +529,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_MULTICAST_RATE ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_MULTICAST_RATE, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 
 		if (( value_convert >= PARM_MIN_MULTICAST_RATE ) && ( value_convert <= PARM_MAX_MULTICAST_RATE )) {
 			lp->MulticastRate[0] = value_convert;
@@ -540,7 +540,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_OWN_CHANNEL ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_OWN_CHANNEL, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if ( wl_is_a_valid_chan( value_convert )) {
 			if ( value_convert > 14 ) {
 				value_convert = value_convert | 0x100;
@@ -567,7 +567,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_RTS_THRESHOLD ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_RTS_THRESHOLD, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if (( value_convert >= PARM_MIN_RTS_THRESHOLD ) && ( value_convert <= PARM_MAX_RTS_THRESHOLD )) {
 			lp->RTSThreshold = value_convert;
 		} else {
@@ -577,7 +577,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_SRSC_2GHZ ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_SRSC_2GHZ, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if (( value_convert >= PARM_MIN_SRSC ) || ( value_convert <= PARM_MAX_SRSC )) {
 			lp->srsc[0] = value_convert;
 		} else {
@@ -587,7 +587,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_SRSC_5GHZ ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_SRSC_5GHZ, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if (( value_convert >= PARM_MIN_SRSC ) || ( value_convert <= PARM_MAX_SRSC )) {
 			lp->srsc[1] = value_convert;
 		} else {
@@ -597,7 +597,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_SYSTEM_SCALE ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_SYSTEM_SCALE, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if (( value_convert >= PARM_MIN_SYSTEM_SCALE ) && ( value_convert <= PARM_MAX_SYSTEM_SCALE )) {
 			lp->DistanceBetweenAPs = value_convert;
 		} else {
@@ -607,9 +607,9 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_TX_KEY ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_TX_KEY, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if (( value_convert >= PARM_MIN_TX_KEY ) && ( value_convert <= PARM_MAX_TX_KEY )) {
-			lp->TransmitKeyID = wl_atoi( value );
+			lp->TransmitKeyID = simple_strtoul(value, NULL, 0);
 		} else {
 			DBG_WARNING( DbgInfo, "%s invalid; will be ignored\n", PARM_NAME_TX_KEY );
 		}
@@ -617,7 +617,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_TX_RATE ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_TX_RATE, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if (( value_convert >= PARM_MIN_TX_RATE ) && ( value_convert <= PARM_MAX_TX_RATE )) {
 			lp->TxRateControl[0] = value_convert;
 		} else {
@@ -627,7 +627,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 	else if ( strcmp( key, PARM_NAME_TX_POW_LEVEL ) == 0 ) {
 		DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_TX_POW_LEVEL, value );
 
-		value_convert = wl_atoi( value );
+		value_convert = simple_strtoul(value, NULL, 0);
 		if (( value_convert >= PARM_MIN_TX_POW_LEVEL ) || ( value_convert <= PARM_MAX_TX_POW_LEVEL )) {
 			lp->txPowLevel = value_convert;
 		} else {
@@ -645,7 +645,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		if ( strcmp( key, PARM_NAME_PORT_TYPE ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_PORT_TYPE, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert == PARM_MIN_PORT_TYPE ) || ( value_convert == PARM_MAX_PORT_TYPE )) {
 				lp->PortType = value_convert;
 			} else {
@@ -654,7 +654,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		}
 		else if ( strcmp( key, PARM_NAME_PM_ENABLED ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_PM_ENABLED, value );
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 	/* ;? how about wl_main.c containing
 	 * VALID_PARAM( PARM_PM_ENABLED <= WVLAN_PM_STATE_STANDARD ||
 	 *					 ( PARM_PM_ENABLED & 0x7FFF ) <= WVLAN_PM_STATE_STANDARD );
@@ -677,7 +677,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_MAX_SLEEP ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_MAX_SLEEP, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= 0 ) && ( value_convert <= 65535 )) {
 				lp->MaxSleepDuration = value_convert;
 			} else {
@@ -696,7 +696,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_AUTHENTICATION ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_AUTHENTICATION, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_AUTHENTICATION ) && ( value_convert <= PARM_MAX_AUTHENTICATION )) {
 				lp->authentication = value_convert;
 			} else {
@@ -706,7 +706,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_OWN_ATIM_WINDOW ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_OWN_ATIM_WINDOW, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_OWN_ATIM_WINDOW ) && ( value_convert <= PARM_MAX_OWN_ATIM_WINDOW )) {
 				lp->atimWindow = value_convert;
 			} else {
@@ -716,7 +716,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_PM_HOLDOVER_DURATION ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_PM_HOLDOVER_DURATION, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_PM_HOLDOVER_DURATION ) && ( value_convert <= PARM_MAX_PM_HOLDOVER_DURATION )) {
 				lp->holdoverDuration = value_convert;
 			} else {
@@ -730,7 +730,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_CONNECTION_CONTROL ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_CONNECTION_CONTROL, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_CONNECTION_CONTROL ) && ( value_convert <= PARM_MAX_CONNECTION_CONTROL )) {
 				lp->connectionControl = value_convert;
 			} else {
@@ -749,7 +749,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		if ( strcmp( key, PARM_NAME_OWN_DTIM_PERIOD ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_OWN_DTIM_PERIOD, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if ( value_convert >= PARM_MIN_OWN_DTIM_PERIOD ) {
 				lp->DTIMPeriod = value_convert;
 			} else {
@@ -775,7 +775,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_OWN_BEACON_INTERVAL ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_OWN_BEACON_INTERVAL, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if ( value_convert >= PARM_MIN_OWN_BEACON_INTERVAL ) {
 				lp->ownBeaconInterval = value_convert;
 			} else {
@@ -785,7 +785,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_COEXISTENCE ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_COEXISTENCE, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if ( value_convert >= PARM_MIN_COEXISTENCE ) {
 				lp->coexistence = value_convert;
 			} else {
@@ -797,7 +797,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_RTS_THRESHOLD1 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_RTS_THRESHOLD1, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_RTS_THRESHOLD ) && ( value_convert <= PARM_MAX_RTS_THRESHOLD )) {
 				lp->wds_port[0].rtsThreshold = value_convert;
 			} else {
@@ -807,7 +807,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_RTS_THRESHOLD2 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_RTS_THRESHOLD2, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_RTS_THRESHOLD ) && ( value_convert <= PARM_MAX_RTS_THRESHOLD )) {
 				lp->wds_port[1].rtsThreshold = value_convert;
 			} else {
@@ -817,7 +817,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_RTS_THRESHOLD3 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_RTS_THRESHOLD3, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_RTS_THRESHOLD ) && ( value_convert <= PARM_MAX_RTS_THRESHOLD )) {
 				lp->wds_port[2].rtsThreshold = value_convert;
 			} else {
@@ -827,7 +827,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_RTS_THRESHOLD4 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_RTS_THRESHOLD4, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_RTS_THRESHOLD ) && ( value_convert <= PARM_MAX_RTS_THRESHOLD )) {
 				lp->wds_port[3].rtsThreshold = value_convert;
 			} else {
@@ -837,7 +837,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_RTS_THRESHOLD5 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_RTS_THRESHOLD5, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_RTS_THRESHOLD ) && ( value_convert <= PARM_MAX_RTS_THRESHOLD )) {
 				lp->wds_port[4].rtsThreshold = value_convert;
 			} else {
@@ -847,7 +847,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_RTS_THRESHOLD6 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_RTS_THRESHOLD6, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_RTS_THRESHOLD ) && ( value_convert <= PARM_MAX_RTS_THRESHOLD )) {
 				lp->wds_port[5].rtsThreshold = value_convert;
 			} else {
@@ -857,7 +857,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_TX_RATE1 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_TX_RATE1, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_TX_RATE ) && ( value_convert <= PARM_MAX_TX_RATE )) {
 				lp->wds_port[0].txRateCntl = value_convert;
 			} else {
@@ -867,7 +867,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_TX_RATE2 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_TX_RATE2, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_TX_RATE ) && ( value_convert <= PARM_MAX_TX_RATE )) {
 				lp->wds_port[1].txRateCntl = value_convert;
 			} else {
@@ -877,7 +877,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_TX_RATE3 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_TX_RATE3, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_TX_RATE ) && ( value_convert <= PARM_MAX_TX_RATE )) {
 				lp->wds_port[2].txRateCntl = value_convert;
 			} else {
@@ -887,7 +887,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_TX_RATE4 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_TX_RATE4, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_TX_RATE ) && ( value_convert <= PARM_MAX_TX_RATE )) {
 				lp->wds_port[3].txRateCntl = value_convert;
 			} else {
@@ -897,7 +897,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_TX_RATE5 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_TX_RATE5, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_TX_RATE ) && ( value_convert <= PARM_MAX_TX_RATE )) {
 				lp->wds_port[4].txRateCntl = value_convert;
 			} else {
@@ -907,7 +907,7 @@ void translate_option( char *buffer, struct wl_private *lp )
 		else if ( strcmp( key, PARM_NAME_TX_RATE6 ) == 0 ) {
 			DBG_TRACE( DbgInfo, "%s, value: %s\n", PARM_NAME_TX_RATE6, value );
 
-			value_convert = wl_atoi( value );
+			value_convert = simple_strtoul(value, NULL, 0);
 			if (( value_convert >= PARM_MIN_TX_RATE ) && ( value_convert <= PARM_MAX_TX_RATE )) {
 				lp->wds_port[5].txRateCntl = value_convert;
 			} else {

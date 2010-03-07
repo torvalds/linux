@@ -52,6 +52,10 @@
 #define ASUS_OLED_DISP_HEIGHT		32
 #define ASUS_OLED_PACKET_BUF_SIZE	256
 
+#define USB_VENDOR_ID_ASUS      0x0b05
+#define USB_DEVICE_ID_ASUS_LCM      0x1726
+#define USB_DEVICE_ID_ASUS_LCM2     0x175b
+
 MODULE_AUTHOR("Jakub Schmidtke, sjakub@gmail.com");
 MODULE_DESCRIPTION("Asus OLED Driver v" ASUS_OLED_VERSION);
 MODULE_LICENSE("GPL");
@@ -83,18 +87,20 @@ struct oled_dev_desc_str {
 };
 
 /* table of devices that work with this driver */
-static struct usb_device_id id_table[] = {
+static const struct usb_device_id id_table[] = {
 	/* Asus G1/G2 (and variants)*/
-	{ USB_DEVICE(0x0b05, 0x1726) },
+	{ USB_DEVICE(USB_VENDOR_ID_ASUS, USB_DEVICE_ID_ASUS_LCM) },
 	/* Asus G50V (and possibly others - G70? G71?)*/
-	{ USB_DEVICE(0x0b05, 0x175b) },
+	{ USB_DEVICE(USB_VENDOR_ID_ASUS, USB_DEVICE_ID_ASUS_LCM2) },
 	{ },
 };
 
 /* parameters of specific devices */
 static struct oled_dev_desc_str oled_dev_desc_table[] = {
-	{ 0x0b05, 0x1726, 128, PACK_MODE_G1, "G1/G2" },
-	{ 0x0b05, 0x175b, 256, PACK_MODE_G50, "G50" },
+	{ USB_VENDOR_ID_ASUS, USB_DEVICE_ID_ASUS_LCM, 128, PACK_MODE_G1,
+		"G1/G2" },
+	{ USB_VENDOR_ID_ASUS, USB_DEVICE_ID_ASUS_LCM2, 256, PACK_MODE_G50,
+		"G50" },
 	{ },
 };
 
@@ -424,6 +430,11 @@ static ssize_t odev_set_picture(struct asus_oled_dev *odev,
 
 		kfree(odev->buf);
 		odev->buf = kmalloc(odev->buf_size, GFP_KERNEL);
+		if (odev->buf == NULL) {
+			odev->buf_size = 0;
+			printk(ASUS_OLED_ERROR "Out of memory!\n");
+			return -ENOMEM;
+		}
 
 		memset(odev->buf, 0xff, odev->buf_size);
 

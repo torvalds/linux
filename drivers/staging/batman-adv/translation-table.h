@@ -23,6 +23,7 @@
 
 int hna_local_init(void);
 void hna_local_add(uint8_t *addr);
+void hna_local_remove(uint8_t *addr, char *message);
 int hna_local_fill_buffer(unsigned char *buff, int buff_len);
 int hna_local_fill_buffer_text(unsigned char *buff, int buff_len);
 void hna_local_purge(struct work_struct *work);

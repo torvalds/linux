@@ -76,13 +76,15 @@ struct dio700_board {
 static const struct dio700_board dio700_boards[] = {
 	{
 	 .name = "daqcard-700",
-	 .device_id = 0x4743,	/*  0x10b is manufacturer id, 0x4743 is device id */
+	  /*  0x10b is manufacturer id, 0x4743 is device id */
+	 .device_id = 0x4743,
 	 .bustype = pcmcia_bustype,
 	 .have_dio = 1,
 	 },
 	{
 	 .name = "ni_daq_700",
-	 .device_id = 0x4743,	/*  0x10b is manufacturer id, 0x4743 is device id */
+	  /*  0x10b is manufacturer id, 0x4743 is device id */
+	 .device_id = 0x4743,
 	 .bustype = pcmcia_bustype,
 	 .have_dio = 1,
 	 },
@@ -309,11 +311,11 @@ int subdev_700_init(struct comedi_device *dev, struct comedi_subdevice *s,
 		return -ENOMEM;
 
 	CALLBACK_ARG = arg;
-	if (cb == NULL) {
+	if (cb == NULL)
 		CALLBACK_FUNC = subdev_700_cb;
-	} else {
+	 else
 		CALLBACK_FUNC = cb;
-	}
+
 	s->insn_bits = subdev_700_insn;
 	s->insn_config = subdev_700_insn_config;
 
@@ -345,12 +347,10 @@ int subdev_700_init_irq(struct comedi_device *dev, struct comedi_subdevice *s,
 
 void subdev_700_cleanup(struct comedi_device *dev, struct comedi_subdevice *s)
 {
-	if (s->private) {
-		if (subdevpriv->have_irq) {
-		}
+	if (s->private)
+		if (subdevpriv->have_irq)
 
-		kfree(s->private);
-	}
+			kfree(s->private);
 }
 
 EXPORT_SYMBOL(subdev_700_init);
@@ -390,9 +390,9 @@ static int dio700_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	printk("comedi%d: ni_daq_700: %s, io 0x%lx", dev->minor,
 	       thisboard->name, iobase);
 #ifdef incomplete
-	if (irq) {
+	if (irq)
 		printk(", irq %u", irq);
-	}
+
 #endif
 
 	printk("\n");

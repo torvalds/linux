@@ -58,7 +58,7 @@ void zfLnxRecv80211(zdev_t *dev, zbuf_t *buf, struct zsAdditionInfo *addInfo)
 			skb1 = skb_copy(buf, GFP_ATOMIC);
 			if (skb1 != NULL) {
 				skb1->dev = dev;
-				skb1->mac_header = skb1->data;
+				skb_reset_mac_header(skb1);
 				skb1->ip_summed = CHECKSUM_NONE;
 				skb1->pkt_type = PACKET_OTHERHOST;
 				/* ETH_P_80211_RAW */
@@ -85,13 +85,7 @@ void zfLnxRecvEth(zdev_t *dev, zbuf_t *buf, u16_t port)
 	/* new_buf = dev_alloc_skb(2048);	*/
 	new_buf = dev_alloc_skb(buf->len);
 
-#ifdef NET_SKBUFF_DATA_USES_OFFSET
-	new_buf->tail = 0;
-	new_buf->len = 0;
-#else
-	new_buf->tail = new_buf->data;
-	new_buf->len = 0;
-#endif
+	skb_reset_tail_pointer(new_buf);
 
 	skb_put(new_buf, buf->len);
 	memcpy(new_buf->data, buf->data, buf->len);

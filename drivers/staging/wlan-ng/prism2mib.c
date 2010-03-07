@@ -114,7 +114,7 @@ static int prism2mib_flag(mibrec_t *mib,
 
 static int prism2mib_wepdefaultkey(mibrec_t *mib,
 				   int isget,
-				   wlandevice_t * wlandev,
+				   wlandevice_t *wlandev,
 				   hfa384x_t *hw,
 				   p80211msg_dot11req_mibset_t *msg,
 				   void *data);
@@ -726,7 +726,7 @@ static int prism2mib_priv(mibrec_t *mib,
 			if (isget) {
 				hfa384x_drvr_getconfig(hw,
 						       HFA384x_RID_CNFWPADATA,
-						       (u8 *) & wpa,
+						       (u8 *) &wpa,
 						       sizeof(wpa));
 				pstr->len = le16_to_cpu(wpa.datalen);
 				memcpy(pstr->data, wpa.data, pstr->len);
@@ -736,9 +736,9 @@ static int prism2mib_priv(mibrec_t *mib,
 
 				result =
 				    hfa384x_drvr_setconfig(hw,
-							   HFA384x_RID_CNFWPADATA,
-							   (u8 *) & wpa,
-							   sizeof(wpa));
+						   HFA384x_RID_CNFWPADATA,
+						   (u8 *) &wpa,
+						   sizeof(wpa));
 			}
 			break;
 		}

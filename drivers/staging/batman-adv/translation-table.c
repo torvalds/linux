@@ -21,11 +21,9 @@
 
 #include "main.h"
 #include "translation-table.h"
-#include "log.h"
 #include "soft-interface.h"
 #include "types.h"
 #include "hash.h"
-#include "compat.h"
 
 struct hashtable_t *hna_local_hash;
 static struct hashtable_t *hna_global_hash;
@@ -62,7 +60,6 @@ void hna_local_add(uint8_t *addr)
 	struct hna_local_entry *hna_local_entry;
 	struct hna_global_entry *hna_global_entry;
 	struct hashtable_t *swaphash;
-	char hna_str[ETH_STR_LEN];
 	unsigned long flags;
 
 	spin_lock_irqsave(&hna_local_hash_lock, flags);
@@ -75,19 +72,17 @@ void hna_local_add(uint8_t *addr)
 		return;
 	}
 
-	addr_to_string(hna_str, addr);
-
 	/* only announce as many hosts as possible in the batman-packet and
 	   space in batman_packet->num_hna That also should give a limit to
 	   MAC-flooding. */
 	if ((num_hna + 1 > (ETH_DATA_LEN - BAT_PACKET_LEN) / ETH_ALEN) ||
 	    (num_hna + 1 > 255)) {
-		debug_log(LOG_TYPE_ROUTES, "Can't add new local hna entry (%s): number of local hna entries exceeds packet size \n", hna_str);
+		bat_dbg(DBG_ROUTES, "Can't add new local hna entry (%pM): number of local hna entries exceeds packet size \n", addr);
 		return;
 	}
 
-	debug_log(LOG_TYPE_ROUTES, "Creating new local hna entry: %s \n",
-		  hna_str);
+	bat_dbg(DBG_ROUTES, "Creating new local hna entry: %pM \n",
+		addr);
 
 	hna_local_entry = kmalloc(sizeof(struct hna_local_entry), GFP_ATOMIC);
 	if (!hna_local_entry)
@@ -113,7 +108,7 @@ void hna_local_add(uint8_t *addr)
 				       hna_local_hash->size * 2);
 
 		if (swaphash == NULL)
-			debug_log(LOG_TYPE_CRIT, "Couldn't resize local hna hash table \n");
+			printk(KERN_ERR "batman-adv:Couldn't resize local hna hash table \n");
 		else
 			hna_local_hash = swaphash;
 	}
@@ -135,18 +130,18 @@ void hna_local_add(uint8_t *addr)
 int hna_local_fill_buffer(unsigned char *buff, int buff_len)
 {
 	struct hna_local_entry *hna_local_entry;
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	int i = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hna_local_hash_lock, flags);
 
-	while (NULL != (hashit = hash_iterate(hna_local_hash, hashit))) {
+	while (hash_iterate(hna_local_hash, &hashit)) {
 
 		if (buff_len < (i + 1) * ETH_ALEN)
 			break;
 
-		hna_local_entry = hashit->bucket->data;
+		hna_local_entry = hashit.bucket->data;
 		memcpy(buff + (i * ETH_ALEN), hna_local_entry->addr, ETH_ALEN);
 
 		i++;
@@ -164,18 +159,18 @@ int hna_local_fill_buffer(unsigned char *buff, int buff_len)
 int hna_local_fill_buffer_text(unsigned char *buff, int buff_len)
 {
 	struct hna_local_entry *hna_local_entry;
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	int bytes_written = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hna_local_hash_lock, flags);
 
-	while (NULL != (hashit = hash_iterate(hna_local_hash, hashit))) {
+	while (hash_iterate(hna_local_hash, &hashit)) {
 
 		if (buff_len < bytes_written + ETH_STR_LEN + 4)
 			break;
 
-		hna_local_entry = hashit->bucket->data;
+		hna_local_entry = hashit.bucket->data;
 
 		bytes_written += snprintf(buff + bytes_written, ETH_STR_LEN + 4,
 					  " * %02x:%02x:%02x:%02x:%02x:%02x\n",
@@ -202,27 +197,39 @@ static void _hna_local_del(void *data)
 static void hna_local_del(struct hna_local_entry *hna_local_entry,
 			  char *message)
 {
-	char hna_str[ETH_STR_LEN];
-
-	addr_to_string(hna_str, hna_local_entry->addr);
-	debug_log(LOG_TYPE_ROUTES, "Deleting local hna entry (%s): %s \n",
-		  hna_str, message);
+	bat_dbg(DBG_ROUTES, "Deleting local hna entry (%pM): %s \n",
+		hna_local_entry->addr, message);
 
 	hash_remove(hna_local_hash, hna_local_entry->addr);
 	_hna_local_del(hna_local_entry);
 }
 
+void hna_local_remove(uint8_t *addr, char *message)
+{
+	struct hna_local_entry *hna_local_entry;
+	unsigned long flags;
+
+	spin_lock_irqsave(&hna_local_hash_lock, flags);
+
+	hna_local_entry = (struct hna_local_entry *)
+		hash_find(hna_local_hash, addr);
+	if (hna_local_entry)
+		hna_local_del(hna_local_entry, message);
+
+	spin_unlock_irqrestore(&hna_local_hash_lock, flags);
+}
+
 void hna_local_purge(struct work_struct *work)
 {
 	struct hna_local_entry *hna_local_entry;
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	unsigned long flags;
 	unsigned long timeout;
 
 	spin_lock_irqsave(&hna_local_hash_lock, flags);
 
-	while (NULL != (hashit = hash_iterate(hna_local_hash, hashit))) {
-		hna_local_entry = hashit->bucket->data;
+	while (hash_iterate(hna_local_hash, &hashit)) {
+		hna_local_entry = hashit.bucket->data;
 
 		timeout = hna_local_entry->last_seen +
 			((LOCAL_HNA_TIMEOUT / 1000) * HZ);
@@ -264,12 +271,9 @@ void hna_global_add_orig(struct orig_node *orig_node,
 	struct hna_global_entry *hna_global_entry;
 	struct hna_local_entry *hna_local_entry;
 	struct hashtable_t *swaphash;
-	char hna_str[ETH_STR_LEN], orig_str[ETH_STR_LEN];
 	int hna_buff_count = 0;
 	unsigned long flags;
 	unsigned char *hna_ptr;
-
-	addr_to_string(orig_str, orig_node->orig);
 
 	while ((hna_buff_count + 1) * ETH_ALEN <= hna_buff_len) {
 		spin_lock_irqsave(&hna_global_hash_lock, flags);
@@ -290,8 +294,9 @@ void hna_global_add_orig(struct orig_node *orig_node,
 
 			memcpy(hna_global_entry->addr, hna_ptr, ETH_ALEN);
 
-			addr_to_string(hna_str, hna_global_entry->addr);
-			debug_log(LOG_TYPE_ROUTES, "Creating new global hna entry: %s (via %s)\n", hna_str, orig_str);
+			bat_dbg(DBG_ROUTES,
+				"Creating new global hna entry: %pM (via %pM)\n",
+				hna_global_entry->addr, orig_node->orig);
 
 			spin_lock_irqsave(&hna_global_hash_lock, flags);
 			hash_add(hna_global_hash, hna_global_entry);
@@ -316,14 +321,16 @@ void hna_global_add_orig(struct orig_node *orig_node,
 		hna_buff_count++;
 	}
 
-	orig_node->hna_buff_len = hna_buff_len;
+	/* initialize, and overwrite if malloc succeeds */
+	orig_node->hna_buff = NULL;
+	orig_node->hna_buff_len = 0;
 
-	if (orig_node->hna_buff_len > 0) {
-		orig_node->hna_buff = kmalloc(orig_node->hna_buff_len,
-					      GFP_ATOMIC);
-		memcpy(orig_node->hna_buff, hna_buff, orig_node->hna_buff_len);
-	} else {
-		orig_node->hna_buff = NULL;
+	if (hna_buff_len > 0) {
+		orig_node->hna_buff = kmalloc(hna_buff_len, GFP_ATOMIC);
+		if (orig_node->hna_buff) {
+			memcpy(orig_node->hna_buff, hna_buff, hna_buff_len);
+			orig_node->hna_buff_len = hna_buff_len;
+		}
 	}
 
 	spin_lock_irqsave(&hna_global_hash_lock, flags);
@@ -333,7 +340,7 @@ void hna_global_add_orig(struct orig_node *orig_node,
 				       hna_global_hash->size * 2);
 
 		if (swaphash == NULL)
-			debug_log(LOG_TYPE_CRIT, "Couldn't resize global hna hash table \n");
+			printk(KERN_ERR "batman-adv:Couldn't resize global hna hash table \n");
 		else
 			hna_global_hash = swaphash;
 	}
@@ -344,17 +351,17 @@ void hna_global_add_orig(struct orig_node *orig_node,
 int hna_global_fill_buffer_text(unsigned char *buff, int buff_len)
 {
 	struct hna_global_entry *hna_global_entry;
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	int bytes_written = 0;
 	unsigned long flags;
 
 	spin_lock_irqsave(&hna_global_hash_lock, flags);
 
-	while (NULL != (hashit = hash_iterate(hna_global_hash, hashit))) {
+	while (hash_iterate(hna_global_hash, &hashit)) {
 		if (buff_len < bytes_written + (2 * ETH_STR_LEN) + 10)
 			break;
 
-		hna_global_entry = hashit->bucket->data;
+		hna_global_entry = hashit.bucket->data;
 
 		bytes_written += snprintf(buff + bytes_written,
 					  (2 * ETH_STR_LEN) + 10,
@@ -381,12 +388,9 @@ int hna_global_fill_buffer_text(unsigned char *buff, int buff_len)
 void _hna_global_del_orig(struct hna_global_entry *hna_global_entry,
 			  char *message)
 {
-	char hna_str[ETH_STR_LEN], orig_str[ETH_STR_LEN];
-
-	addr_to_string(orig_str, hna_global_entry->orig_node->orig);
-	addr_to_string(hna_str, hna_global_entry->addr);
-
-	debug_log(LOG_TYPE_ROUTES, "Deleting global hna entry %s (via %s): %s \n", hna_str, orig_str, message);
+	bat_dbg(DBG_ROUTES, "Deleting global hna entry %pM (via %pM): %s \n",
+		hna_global_entry->addr, hna_global_entry->orig_node->orig,
+		message);
 
 	hash_remove(hna_global_hash, hna_global_entry->addr);
 	kfree(hna_global_entry);
