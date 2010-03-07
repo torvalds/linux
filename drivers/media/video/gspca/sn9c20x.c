@@ -1655,9 +1655,9 @@ static int set_exposure(struct gspca_dev *gspca_dev)
 	case SENSOR_HV7131R:
 		exp[0] |= (4 << 4);
 		exp[2] = 0x25;
-		exp[3] = ((sd->exposure * 0xffffff) / 0xffff) >> 16;
-		exp[4] = ((sd->exposure * 0xffffff) / 0xffff) >> 8;
-		exp[5] = ((sd->exposure * 0xffffff) / 0xffff) & 0xff;
+		exp[3] = (sd->exposure >> 5) & 0xff;
+		exp[4] = (sd->exposure << 3) & 0xff;
+		exp[5] = 0;
 		break;
 	default:
 		return 0;
