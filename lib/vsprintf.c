@@ -408,12 +408,12 @@ enum format_type {
 };
 
 struct printf_spec {
-	enum format_type	type;
-	int			flags;		/* flags to number() */
-	int			field_width;	/* width of output field */
-	int			base;
-	int			precision;	/* # of digits/chars */
-	int			qualifier;
+	u16	type;
+	s16	field_width;	/* width of output field */
+	u8	flags;		/* flags to number() */
+	u8	base;
+	s8	precision;	/* # of digits/chars */
+	u8	qualifier;
 };
 
 static char *number(char *buf, char *end, unsigned long long num,
@@ -1333,7 +1333,7 @@ int vsnprintf(char *buf, size_t size, const char *fmt, va_list args)
 			break;
 
 		case FORMAT_TYPE_NRCHARS: {
-			int qualifier = spec.qualifier;
+			u8 qualifier = spec.qualifier;
 
 			if (qualifier == 'l') {
 				long *ip = va_arg(args, long *);
@@ -1619,7 +1619,7 @@ do {									\
 
 		case FORMAT_TYPE_NRCHARS: {
 			/* skip %n 's argument */
-			int qualifier = spec.qualifier;
+			u8 qualifier = spec.qualifier;
 			void *skip_arg;
 			if (qualifier == 'l')
 				skip_arg = va_arg(args, long *);
@@ -1885,7 +1885,9 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 	char *next;
 	char digit;
 	int num = 0;
-	int qualifier, base, field_width;
+	u8 qualifier;
+	u8 base;
+	s16 field_width;
 	bool is_sign;
 
 	while (*fmt && *str) {
@@ -1963,7 +1965,7 @@ int vsscanf(const char *buf, const char *fmt, va_list args)
 		{
 			char *s = (char *)va_arg(args, char *);
 			if (field_width == -1)
-				field_width = INT_MAX;
+				field_width = SHORT_MAX;
 			/* first, skip leading white space in buffer */
 			str = skip_spaces(str);
 
