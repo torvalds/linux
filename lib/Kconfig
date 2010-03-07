@@ -160,9 +160,6 @@ config TEXTSEARCH_BM
 config TEXTSEARCH_FSM
 	tristate
 
-config LIST_SORT
-	boolean
-
 config BTREE
 	boolean
 
