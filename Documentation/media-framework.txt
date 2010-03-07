@@ -216,3 +216,45 @@ Links have flags that describe the link capabilities and state.
 	modified at runtime. If MEDIA_LNK_FL_IMMUTABLE is set, then
 	MEDIA_LNK_FL_ENABLED must also be set since an immutable link is always
 	enabled.
+
+
+Graph traversal
+---------------
+
+The media framework provides APIs to iterate over entities in a graph.
+
+To iterate over all entities belonging to a media device, drivers can use the
+media_device_for_each_entity macro, defined in include/media/media-device.h.
+
+	struct media_entity *entity;
+
+	media_device_for_each_entity(entity, mdev) {
+		/* entity will point to each entity in turn */
+		...
+	}
+
+Drivers might also need to iterate over all entities in a graph that can be
+reached only through enabled links starting at a given entity. The media
+framework provides a depth-first graph traversal API for that purpose.
+
+Note that graphs with cycles (whether directed or undirected) are *NOT*
+supported by the graph traversal API. To prevent infinite loops, the graph
+traversal code limits the maximum depth to MEDIA_ENTITY_ENUM_MAX_DEPTH,
+currently defined as 16.
+
+Drivers initiate a graph traversal by calling
+
+	media_entity_graph_walk_start(struct media_entity_graph *graph,
+				      struct media_entity *entity);
+
+The graph structure, provided by the caller, is initialized to start graph
+traversal at the given entity.
+
+Drivers can then retrieve the next entity by calling
+
+	media_entity_graph_walk_next(struct media_entity_graph *graph);
+
+When the graph traversal is complete the function will return NULL.
+
+Graph traversal can be interrupted at any moment. No cleanup function call is
+required and the graph structure can be freed normally.

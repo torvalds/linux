@@ -113,10 +113,25 @@ static inline u32 media_entity_subtype(struct media_entity *entity)
 	return entity->type & MEDIA_ENT_SUBTYPE_MASK;
 }
 
+#define MEDIA_ENTITY_ENUM_MAX_DEPTH	16
+
+struct media_entity_graph {
+	struct {
+		struct media_entity *entity;
+		int link;
+	} stack[MEDIA_ENTITY_ENUM_MAX_DEPTH];
+	int top;
+};
+
 int media_entity_init(struct media_entity *entity, u16 num_pads,
 		struct media_pad *pads, u16 extra_links);
 void media_entity_cleanup(struct media_entity *entity);
 int media_entity_create_link(struct media_entity *source, u16 source_pad,
 		struct media_entity *sink, u16 sink_pad, u32 flags);
+
+void media_entity_graph_walk_start(struct media_entity_graph *graph,
+		struct media_entity *entity);
+struct media_entity *
+media_entity_graph_walk_next(struct media_entity_graph *graph);
 
 #endif

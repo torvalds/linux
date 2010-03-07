@@ -84,6 +84,121 @@ media_entity_cleanup(struct media_entity *entity)
 }
 EXPORT_SYMBOL_GPL(media_entity_cleanup);
 
+/* -----------------------------------------------------------------------------
+ * Graph traversal
+ */
+
+static struct media_entity *
+media_entity_other(struct media_entity *entity, struct media_link *link)
+{
+	if (link->source->entity == entity)
+		return link->sink->entity;
+	else
+		return link->source->entity;
+}
+
+/* push an entity to traversal stack */
+static void stack_push(struct media_entity_graph *graph,
+		       struct media_entity *entity)
+{
+	if (graph->top == MEDIA_ENTITY_ENUM_MAX_DEPTH - 1) {
+		WARN_ON(1);
+		return;
+	}
+	graph->top++;
+	graph->stack[graph->top].link = 0;
+	graph->stack[graph->top].entity = entity;
+}
+
+static struct media_entity *stack_pop(struct media_entity_graph *graph)
+{
+	struct media_entity *entity;
+
+	entity = graph->stack[graph->top].entity;
+	graph->top--;
+
+	return entity;
+}
+
+#define stack_peek(en)	((en)->stack[(en)->top - 1].entity)
+#define link_top(en)	((en)->stack[(en)->top].link)
+#define stack_top(en)	((en)->stack[(en)->top].entity)
+
+/**
+ * media_entity_graph_walk_start - Start walking the media graph at a given entity
+ * @graph: Media graph structure that will be used to walk the graph
+ * @entity: Starting entity
+ *
+ * This function initializes the graph traversal structure to walk the entities
+ * graph starting at the given entity. The traversal structure must not be
+ * modified by the caller during graph traversal. When done the structure can
+ * safely be freed.
+ */
+void media_entity_graph_walk_start(struct media_entity_graph *graph,
+				   struct media_entity *entity)
+{
+	graph->top = 0;
+	graph->stack[graph->top].entity = NULL;
+	stack_push(graph, entity);
+}
+EXPORT_SYMBOL_GPL(media_entity_graph_walk_start);
+
+/**
+ * media_entity_graph_walk_next - Get the next entity in the graph
+ * @graph: Media graph structure
+ *
+ * Perform a depth-first traversal of the given media entities graph.
+ *
+ * The graph structure must have been previously initialized with a call to
+ * media_entity_graph_walk_start().
+ *
+ * Return the next entity in the graph or NULL if the whole graph have been
+ * traversed.
+ */
+struct media_entity *
+media_entity_graph_walk_next(struct media_entity_graph *graph)
+{
+	if (stack_top(graph) == NULL)
+		return NULL;
+
+	/*
+	 * Depth first search. Push entity to stack and continue from
+	 * top of the stack until no more entities on the level can be
+	 * found.
+	 */
+	while (link_top(graph) < stack_top(graph)->num_links) {
+		struct media_entity *entity = stack_top(graph);
+		struct media_link *link = &entity->links[link_top(graph)];
+		struct media_entity *next;
+
+		/* The link is not enabled so we do not follow. */
+		if (!(link->flags & MEDIA_LNK_FL_ENABLED)) {
+			link_top(graph)++;
+			continue;
+		}
+
+		/* Get the entity in the other end of the link . */
+		next = media_entity_other(entity, link);
+
+		/* Was it the entity we came here from? */
+		if (next == stack_peek(graph)) {
+			link_top(graph)++;
+			continue;
+		}
+
+		/* Push the new entity to stack and start over. */
+		link_top(graph)++;
+		stack_push(graph, next);
+	}
+
+	return stack_pop(graph);
+}
+EXPORT_SYMBOL_GPL(media_entity_graph_walk_next);
+
+/* -----------------------------------------------------------------------------
+ * Links management
+ */
+
 static struct media_link *media_entity_add_link(struct media_entity *entity)
 {
 	if (entity->num_links >= entity->max_links) {
