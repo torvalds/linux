@@ -1993,16 +1993,7 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 	struct be_dma_mem flash_cmd;
 	int status, i = 0;
 	const u8 *p;
-	char fw_ver[FW_VER_LEN];
-	char fw_cfg;
 
-	status = be_cmd_get_fw_ver(adapter, fw_ver);
-	if (status)
-		return status;
-
-	fw_cfg = *(fw_ver + 2);
-	if (fw_cfg == '0')
-		fw_cfg = '1';
 	strcpy(fw_file, func);
 
 	status = request_firmware(&fw, fw_file, &adapter->pdev->dev);
