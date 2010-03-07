@@ -443,7 +443,7 @@ void __init setup_arch(char **cmdline_p)
 
 	nodes_clear(node_online_map);
 
-	/* Setup bootmem with available RAM */
+	pmb_init();
 	lmb_init();
 	setup_memory();
 	sparse_init();
@@ -452,7 +452,6 @@ void __init setup_arch(char **cmdline_p)
 	conswitchp = &dummy_con;
 #endif
 	paging_init();
-	pmb_init();
 
 	ioremap_fixed_init();
 
