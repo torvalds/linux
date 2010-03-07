@@ -34,8 +34,10 @@
 #include <pcmcia/cistpl.h>
 #include "cs_internal.h"
 
+/* moved to rsrc_mgr.c
 MODULE_AUTHOR("David A. Hinds, Dominik Brodowski");
 MODULE_LICENSE("GPL");
+*/
 
 /* Parameters that can be set with 'insmod' */
 
@@ -70,27 +72,13 @@ struct socket_data {
 ======================================================================*/
 
 static struct resource *
-make_resource(resource_size_t b, resource_size_t n, int flags, const char *name)
-{
-	struct resource *res = kzalloc(sizeof(*res), GFP_KERNEL);
-
-	if (res) {
-		res->name = name;
-		res->start = b;
-		res->end = b + n - 1;
-		res->flags = flags;
-	}
-	return res;
-}
-
-static struct resource *
 claim_region(struct pcmcia_socket *s, resource_size_t base,
 		resource_size_t size, int type, char *name)
 {
 	struct resource *res, *parent;
 
 	parent = type & IORESOURCE_MEM ? &iomem_resource : &ioport_resource;
-	res = make_resource(base, size, type | IORESOURCE_BUSY, name);
+	res = pcmcia_make_resource(base, size, type | IORESOURCE_BUSY, name);
 
 	if (res) {
 #ifdef CONFIG_PCI
@@ -698,7 +686,8 @@ static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_star
 static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 		   unsigned long align, struct pcmcia_socket *s)
 {
-	struct resource *res = make_resource(0, num, IORESOURCE_IO, dev_name(&s->dev));
+	struct resource *res = pcmcia_make_resource(0, num, IORESOURCE_IO,
+						dev_name(&s->dev));
 	struct socket_data *s_data = s->resource_data;
 	struct pcmcia_align_data data;
 	unsigned long min = base;
@@ -730,7 +719,8 @@ static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 static struct resource *nonstatic_find_mem_region(u_long base, u_long num,
 		u_long align, int low, struct pcmcia_socket *s)
 {
-	struct resource *res = make_resource(0, num, IORESOURCE_MEM, dev_name(&s->dev));
+	struct resource *res = pcmcia_make_resource(0, num, IORESOURCE_MEM,
+						dev_name(&s->dev));
 	struct socket_data *s_data = s->resource_data;
 	struct pcmcia_align_data data;
 	unsigned long min, max;

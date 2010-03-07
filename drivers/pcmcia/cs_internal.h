@@ -89,6 +89,14 @@ struct pccard_resource_ops {
 
 
 /*
+ * Stuff internal to module "pcmcia_rsrc":
+ */
+extern int static_init(struct pcmcia_socket *s);
+extern struct resource *pcmcia_make_resource(unsigned long start,
+					unsigned long end,
+					int flags, const char *name);
+
+/*
  * Stuff internal to module "pcmcia_core":
  */
 

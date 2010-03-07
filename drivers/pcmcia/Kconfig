@@ -317,7 +317,7 @@ config ELECTRA_CF
 	  PA Semi Electra eval board.
 
 config PCCARD_NONSTATIC
-	tristate
+	bool
 
 config PCCARD_IODYN
 	bool
