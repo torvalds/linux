@@ -34,7 +34,8 @@
  * Board-specific wiring options include using split power mode with
  * RTC_OFF_NOFF used as the reset signal (so the RTC won't be reset),
  * and wiring RTC_WAKE_INT (so the RTC alarm can wake the system from
- * low power modes).  See the BOARD-SPECIFIC CUSTOMIZATION comment.
+ * low power modes) for OMAP1 boards (OMAP-L138 has this built into
+ * the SoC). See the BOARD-SPECIFIC CUSTOMIZATION comment.
  */
 
 #define OMAP_RTC_BASE			0xfffb4800
@@ -401,16 +402,17 @@ static int __init omap_rtc_probe(struct platform_device *pdev)
 
 	/* BOARD-SPECIFIC CUSTOMIZATION CAN GO HERE:
 	 *
-	 *  - Boards wired so that RTC_WAKE_INT does something, and muxed
-	 *    right (W13_1610_RTC_WAKE_INT is the default after chip reset),
-	 *    should initialize the device wakeup flag appropriately.
+	 *  - Device wake-up capability setting should come through chip
+	 *    init logic. OMAP1 boards should initialize the "wakeup capable"
+	 *    flag in the platform device if the board is wired right for
+	 *    being woken up by RTC alarm. For OMAP-L138, this capability
+	 *    is built into the SoC by the "Deep Sleep" capability.
 	 *
 	 *  - Boards wired so RTC_ON_nOFF is used as the reset signal,
 	 *    rather than nPWRON_RESET, should forcibly enable split
 	 *    power mode.  (Some chip errata report that RTC_CTRL_SPLIT
 	 *    is write-only, and always reads as zero...)
 	 */
-	device_init_wakeup(&pdev->dev, 0);
 
 	if (new_ctrl & (u8) OMAP_RTC_CTRL_SPLIT)
 		pr_info("%s: split power mode\n", pdev->name);
