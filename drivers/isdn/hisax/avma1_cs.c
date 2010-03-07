@@ -119,9 +119,6 @@ static int __devinit avma1cs_probe(struct pcmcia_device *p_dev)
     p_dev->io.Attributes2 = IO_DATA_PATH_WIDTH_16;
     p_dev->io.IOAddrLines = 5;
 
-    /* Interrupt setup */
-    p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-
     /* General socket configuration */
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
     p_dev->conf.IntType = INT_MEMORY_AND_IO;
@@ -177,7 +174,7 @@ static int avma1cs_configcheck(struct pcmcia_device *p_dev,
 static int __devinit avma1cs_config(struct pcmcia_device *link)
 {
     local_info_t *dev;
-    int i;
+    int i = -1;
     char devname[128];
     IsdnCard_t	icard;
     int busy = 0;
@@ -197,8 +194,7 @@ static int __devinit avma1cs_config(struct pcmcia_device *link)
 	/*
 	 * allocate an interrupt line
 	 */
-	i = pcmcia_request_irq(link, &link->irq);
-	if (i != 0) {
+	if (!link->irq) {
 	    /* undo */
 	    pcmcia_disable_device(link);
 	    break;
@@ -230,9 +226,9 @@ static int __devinit avma1cs_config(struct pcmcia_device *link)
     }
 
     printk(KERN_NOTICE "avma1_cs: checking at i/o %#x, irq %d\n",
-				link->io.BasePort1, link->irq.AssignedIRQ);
+				link->io.BasePort1, link->irq);
 
-    icard.para[0] = link->irq.AssignedIRQ;
+    icard.para[0] = link->irq;
     icard.para[1] = link->io.BasePort1;
     icard.protocol = isdnprot;
     icard.typ = ISDN_CTYPE_A1_PCMCIA;

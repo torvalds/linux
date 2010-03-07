@@ -268,7 +268,6 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	pdev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 	pdev->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
 	pdev->io.IOAddrLines = 3;
-	pdev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	pdev->conf.Attributes = CONF_ENABLE_IRQ;
 	pdev->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -293,8 +292,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	}
 	io_base = pdev->io.BasePort1;
 	ctl_base = stk->ctl_base;
-	ret = pcmcia_request_irq(pdev, &pdev->irq);
-	if (ret)
+	if (!pdev->irq)
 		goto failed;
 
 	ret = pcmcia_request_configuration(pdev, &pdev->conf);
@@ -344,7 +342,7 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	}
 
 	/* activate */
-	ret = ata_host_activate(host, pdev->irq.AssignedIRQ, ata_sff_interrupt,
+	ret = ata_host_activate(host, pdev->irq, ata_sff_interrupt,
 				IRQF_SHARED, &pcmcia_sht);
 	if (ret)
 		goto failed;

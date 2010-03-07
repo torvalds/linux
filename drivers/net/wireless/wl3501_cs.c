@@ -1897,10 +1897,6 @@ static int wl3501_probe(struct pcmcia_device *p_dev)
 	p_dev->io.Attributes1	= IO_DATA_PATH_WIDTH_8;
 	p_dev->io.IOAddrLines	= 5;
 
-	/* Interrupt setup */
-	p_dev->irq.Attributes	= IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.Handler = wl3501_interrupt;
-
 	/* General socket configuration */
 	p_dev->conf.Attributes	= CONF_ENABLE_IRQ;
 	p_dev->conf.IntType	= INT_MEMORY_AND_IO;
@@ -1961,7 +1957,7 @@ static int wl3501_config(struct pcmcia_device *link)
 	/* Now allocate an interrupt line. Note that this does not actually
 	 * assign a handler to the interrupt. */
 
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_irq(link, wl3501_interrupt);
 	if (ret)
 		goto failed;
 
@@ -1972,7 +1968,7 @@ static int wl3501_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	dev->irq = link->irq.AssignedIRQ;
+	dev->irq = link->irq;
 	dev->base_addr = link->io.BasePort1;
 	SET_NETDEV_DEV(dev, &link->dev);
 	if (register_netdev(dev)) {

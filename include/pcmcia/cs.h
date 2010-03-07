@@ -114,13 +114,6 @@ typedef struct io_req_t {
 #define IO_DATA_PATH_WIDTH_16	0x08
 #define IO_DATA_PATH_WIDTH_AUTO	0x10
 
-/* For RequestIRQ and ReleaseIRQ */
-typedef struct irq_req_t {
-	u_int		Attributes;
-	u_int		AssignedIRQ;
-	irq_handler_t	Handler;
-} irq_req_t;
-
 /* Attributes for RequestIRQ and ReleaseIRQ */
 #define IRQ_TYPE			0x03
 #define IRQ_TYPE_EXCLUSIVE		0x00

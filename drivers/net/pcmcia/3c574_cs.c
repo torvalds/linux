@@ -283,8 +283,6 @@ static int tc574_probe(struct pcmcia_device *link)
 	spin_lock_init(&lp->window_lock);
 	link->io.NumPorts1 = 32;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = &el3_interrupt;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.ConfigIndex = 1;
@@ -353,7 +351,7 @@ static int tc574_config(struct pcmcia_device *link)
 	if (i != 0)
 		goto failed;
 
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_irq(link, el3_interrupt);
 	if (ret)
 		goto failed;
 
@@ -361,7 +359,7 @@ static int tc574_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	dev->irq = link->irq.AssignedIRQ;
+	dev->irq = link->irq;
 	dev->base_addr = link->io.BasePort1;
 
 	ioaddr = dev->base_addr;

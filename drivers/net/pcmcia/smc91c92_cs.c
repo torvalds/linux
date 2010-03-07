@@ -329,8 +329,6 @@ static int smc91c92_probe(struct pcmcia_device *link)
     link->io.NumPorts1 = 16;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.IOAddrLines = 4;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = &smc_interrupt;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -453,7 +451,6 @@ static int mhz_mfc_config(struct pcmcia_device *link)
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->io.IOAddrLines = 16;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
@@ -652,7 +649,6 @@ static int osi_config(struct pcmcia_device *link)
 
     link->conf.Attributes |= CONF_ENABLE_SPKR;
     link->conf.Status = CCSR_AUDIO_ENA;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->io.NumPorts1 = 64;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts2 = 8;
@@ -877,7 +873,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     if (i)
 	    goto config_failed;
 
-    i = pcmcia_request_irq(link, &link->irq);
+    i = pcmcia_request_irq(link, smc_interrupt);
     if (i)
 	    goto config_failed;
     i = pcmcia_request_configuration(link, &link->conf);
@@ -887,7 +883,7 @@ static int smc91c92_config(struct pcmcia_device *link)
     if (smc->manfid == MANFID_MOTOROLA)
 	mot_config(link);
 
-    dev->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
 
     if ((if_port >= 0) && (if_port <= 2))
 	dev->if_port = if_port;

@@ -172,10 +172,6 @@ static int das08_pcmcia_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-	link->irq.Handler = NULL;
-
 	/*
 	   General socket configuration defaults can go here.  In this
 	   client, we assume very little, and rely on the CIS for almost
@@ -229,8 +225,7 @@ static int das08_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -277,11 +272,8 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
+	if (!link->irq)
+		goto failed;
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
@@ -304,7 +296,7 @@ static void das08_pcmcia_config(struct pcmcia_device *link)
 	printk(KERN_INFO "%s: index 0x%02x",
 	       dev->node.dev_name, link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u", link->irq.AssignedIRQ);
+		printk(", irq %u", link->irq);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		       link->io.BasePort1 + link->io.NumPorts1 - 1);

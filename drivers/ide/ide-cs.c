@@ -102,7 +102,6 @@ static int ide_probe(struct pcmcia_device *link)
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
     link->io.IOAddrLines = 3;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -285,8 +284,7 @@ static int ide_config(struct pcmcia_device *link)
     io_base = link->io.BasePort1;
     ctl_base = stk->ctl_base;
 
-    ret = pcmcia_request_irq(link, &link->irq);
-    if (ret)
+    if (!link->irq)
 	    goto failed;
     ret = pcmcia_request_configuration(link, &link->conf);
     if (ret)
@@ -299,11 +297,11 @@ static int ide_config(struct pcmcia_device *link)
     if (is_kme)
 	outb(0x81, ctl_base+1);
 
-     host = idecs_register(io_base, ctl_base, link->irq.AssignedIRQ, link);
+     host = idecs_register(io_base, ctl_base, link->irq, link);
      if (host == NULL && link->io.NumPorts1 == 0x20) {
 	    outb(0x02, ctl_base + 0x10);
 	    host = idecs_register(io_base + 0x10, ctl_base + 0x10,
-				  link->irq.AssignedIRQ, link);
+				  link->irq, link);
     }
 
     if (host == NULL)

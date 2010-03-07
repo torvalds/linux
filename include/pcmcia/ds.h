@@ -91,12 +91,11 @@ struct pcmcia_device {
 	dev_node_t		*dev_node;
 	u_int			open;
 	io_req_t		io;
-	irq_req_t		irq;
 	config_req_t		conf;
 	window_handle_t		win;
 
 	/* device setup */
-	unsigned int		irq_v; /* do not use directly yet */
+	unsigned int		irq;
 
 	/* Is the device suspended? */
 	u16			suspended:1;
@@ -194,7 +193,13 @@ int pcmcia_access_configuration_register(struct pcmcia_device *p_dev,
 
 /* device configuration */
 int pcmcia_request_io(struct pcmcia_device *p_dev, io_req_t *req);
-int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req);
+
+int __must_check __deprecated
+pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev,
+				irq_handler_t handler);
+int __must_check pcmcia_request_irq(struct pcmcia_device *p_dev,
+				irq_handler_t handler);
+
 int pcmcia_request_configuration(struct pcmcia_device *p_dev,
 				 config_req_t *req);
 

@@ -141,10 +141,6 @@ static int atmel_probe(struct pcmcia_device *p_dev)
 
 	dev_dbg(&p_dev->dev, "atmel_attach()\n");
 
-	/* Interrupt setup */
-	p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.Handler = NULL;
-
 	/*
 	  General socket configuration defaults can go here.  In this
 	  client, we assume very little, and rely on the CIS for almost
@@ -226,9 +222,7 @@ static int atmel_config_check(struct pcmcia_device *p_dev,
 	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
 		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
-	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -278,15 +272,9 @@ static int atmel_config(struct pcmcia_device *link)
 	if (pcmcia_loop_config(link, atmel_config_check, NULL))
 		goto failed;
 
-	/*
-	  Allocate an interrupt line.  Note that this does not assign a
-	  handler to the interrupt, unless the 'Handler' member of the
-	  irq structure is initialized.
-	*/
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
+	if (!link->irq) {
+		dev_err(&link->dev, "atmel: cannot assign IRQ: check that CONFIG_ISA is set in kernel config.");
+		goto failed;
 	}
 
 	/*
@@ -298,14 +286,8 @@ static int atmel_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	if (link->irq.AssignedIRQ == 0) {
-		printk(KERN_ALERT
-		       "atmel: cannot assign IRQ: check that CONFIG_ISA is set in kernel config.");
-		goto failed;
-	}
-
 	((local_info_t*)link->priv)->eth_dev =
-		init_atmel_card(link->irq.AssignedIRQ,
+		init_atmel_card(link->irq,
 				link->io.BasePort1,
 				did ? did->driver_info : ATMEL_FW_TYPE_NONE,
 				&link->dev,

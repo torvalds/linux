@@ -661,9 +661,6 @@ static int bt3c_probe(struct pcmcia_device *link)
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.NumPorts1 = 8;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-
-	link->irq.Handler = bt3c_interrupt;
 
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
@@ -743,9 +740,9 @@ static int bt3c_config(struct pcmcia_device *link)
 	goto failed;
 
 found_port:
-	i = pcmcia_request_irq(link, &link->irq);
+	i = pcmcia_request_irq(link, &bt3c_interrupt);
 	if (i != 0)
-		link->irq.AssignedIRQ = 0;
+		goto failed;
 
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != 0)

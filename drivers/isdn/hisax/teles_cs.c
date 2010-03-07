@@ -126,10 +126,6 @@ static int __devinit teles_probe(struct pcmcia_device *link)
     local->p_dev = link;
     link->priv = local;
 
-    /* Interrupt setup */
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-    link->irq.Handler = NULL;
-
     /*
       General socket configuration defaults can go here.  In this
       client, we assume very little, and rely on the CIS for almost
@@ -213,11 +209,8 @@ static int __devinit teles_cs_config(struct pcmcia_device *link)
     if (i != 0)
 	goto cs_failed;
 
-    i = pcmcia_request_irq(link, &link->irq);
-    if (i != 0) {
-        link->irq.AssignedIRQ = 0;
+    if (!link->irq)
         goto cs_failed;
-    }
 
     i = pcmcia_request_configuration(link, &link->conf);
     if (i != 0)
@@ -234,7 +227,7 @@ static int __devinit teles_cs_config(struct pcmcia_device *link)
     printk(KERN_INFO "%s: index 0x%02x:",
            dev->node.dev_name, link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
-        printk(", irq %d", link->irq.AssignedIRQ);
+	    printk(", irq %d", link->irq);
     if (link->io.NumPorts1)
         printk(", io 0x%04x-0x%04x", link->io.BasePort1,
                link->io.BasePort1+link->io.NumPorts1-1);
@@ -243,7 +236,7 @@ static int __devinit teles_cs_config(struct pcmcia_device *link)
                link->io.BasePort2+link->io.NumPorts2-1);
     printk("\n");
 
-    icard.para[0] = link->irq.AssignedIRQ;
+    icard.para[0] = link->irq;
     icard.para[1] = link->io.BasePort1;
     icard.protocol = protocol;
     icard.typ = ISDN_CTYPE_TELESPCMCIA;

@@ -132,10 +132,6 @@ static int airo_probe(struct pcmcia_device *p_dev)
 
 	dev_dbg(&p_dev->dev, "airo_attach()\n");
 
-	/* Interrupt setup */
-	p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.Handler = NULL;
-
 	/*
 	  General socket configuration defaults can go here.  In this
 	  client, we assume very little, and rely on the CIS for almost
@@ -212,9 +208,7 @@ static int airo_cs_config_check(struct pcmcia_device *p_dev,
 	else if (dflt->vpp1.present & (1<<CISTPL_POWER_VNOM))
 		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM]/10000;
 
-	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -300,16 +294,8 @@ static int airo_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	/*
-	  Allocate an interrupt line.  Note that this does not assign a
-	  handler to the interrupt, unless the 'Handler' member of the
-	  irq structure is initialized.
-	*/
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
+	if (!link->irq)
+		goto failed;
 
 	/*
 	  This actually configures the PCMCIA socket -- setting up
@@ -320,7 +306,7 @@ static int airo_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 	((local_info_t *)link->priv)->eth_dev =
-		init_airo_card(link->irq.AssignedIRQ,
+		init_airo_card(link->irq,
 			       link->io.BasePort1, 1, &link->dev);
 	if (!((local_info_t *)link->priv)->eth_dev)
 		goto failed;
@@ -338,8 +324,7 @@ static int airo_config(struct pcmcia_device *link)
 	       dev->node.dev_name, link->conf.ConfigIndex);
 	if (link->conf.Vpp)
 		printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
-	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq.AssignedIRQ);
+	printk(", irq %d", link->irq);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		       link->io.BasePort1+link->io.NumPorts1-1);

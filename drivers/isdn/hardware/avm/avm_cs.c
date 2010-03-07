@@ -107,9 +107,6 @@ static int avmcs_probe(struct pcmcia_device *p_dev)
     p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     p_dev->io.NumPorts2 = 0;
 
-    /* Interrupt setup */
-    p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-
     /* General socket configuration */
     p_dev->conf.Attributes = CONF_ENABLE_IRQ;
     p_dev->conf.IntType = INT_MEMORY_AND_IO;
@@ -172,7 +169,7 @@ static int avmcs_configcheck(struct pcmcia_device *p_dev,
 static int avmcs_config(struct pcmcia_device *link)
 {
     local_info_t *dev;
-    int i;
+    int i = -1;
     char devname[128];
     int cardtype;
     int (*addcard)(unsigned int port, unsigned irq);
@@ -190,11 +187,7 @@ static int avmcs_config(struct pcmcia_device *link)
 	    return -ENODEV;
 
     do {
-	/*
-	 * allocate an interrupt line
-	 */
-	i = pcmcia_request_irq(link, &link->irq);
-	if (i != 0) {
+	if (!link->irq) {
 	    /* undo */
 	    pcmcia_disable_device(link);
 	    break;
@@ -249,9 +242,9 @@ static int avmcs_config(struct pcmcia_device *link)
 	default:
         case AVM_CARDTYPE_B1: addcard = b1pcmcia_addcard_b1; break;
     }
-    if ((i = (*addcard)(link->io.BasePort1, link->irq.AssignedIRQ)) < 0) {
+    if ((i = (*addcard)(link->io.BasePort1, link->irq)) < 0) {
         printk(KERN_ERR "avm_cs: failed to add AVM-%s-Controller at i/o %#x, irq %d\n",
-		dev->node.dev_name, link->io.BasePort1, link->irq.AssignedIRQ);
+		dev->node.dev_name, link->io.BasePort1, link->irq);
 	avmcs_release(link);
 	return -ENODEV;
     }
@@ -270,7 +263,7 @@ static int avmcs_config(struct pcmcia_device *link)
 
 static void avmcs_release(struct pcmcia_device *link)
 {
-	b1pcmcia_delcard(link->io.BasePort1, link->irq.AssignedIRQ);
+	b1pcmcia_delcard(link->io.BasePort1, link->irq);
 	pcmcia_disable_device(link);
 } /* avmcs_release */
 

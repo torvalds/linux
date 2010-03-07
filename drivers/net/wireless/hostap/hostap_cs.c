@@ -556,15 +556,7 @@ static int prism2_config_check(struct pcmcia_device *p_dev,
 		p_dev->conf.Vpp = dflt->vpp1.param[CISTPL_POWER_VNOM] / 10000;
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-	else if (!(p_dev->conf.Attributes & CONF_ENABLE_IRQ)) {
-		/* At least Compaq WL200 does not have IRQInfo1 set,
-		 * but it does not work without interrupts.. */
-		printk(KERN_WARNING "Config has no IRQ info, but trying to "
-		       "enable IRQ anyway..\n");
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
-	}
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	PDEBUG(DEBUG_EXTRA, "IO window settings: cfg->io.nwin=%d "
@@ -636,18 +628,9 @@ static int prism2_config(struct pcmcia_device *link)
 	strcpy(hw_priv->node.dev_name, dev->name);
 	link->dev_node = &hw_priv->node;
 
-	/*
-	 * Allocate an interrupt line.  Note that this does not assign a
-	 * handler to the interrupt, unless the 'Handler' member of the
-	 * irq structure is initialized.
-	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-		link->irq.Handler = prism2_interrupt;
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
+	ret = pcmcia_request_irq(link, prism2_interrupt);
+	if (ret)
+		goto failed;
 
 	/*
 	 * This actually configures the PCMCIA socket -- setting up
@@ -658,7 +641,7 @@ static int prism2_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	dev->irq = link->irq.AssignedIRQ;
+	dev->irq = link->irq;
 	dev->base_addr = link->io.BasePort1;
 
 	/* Finally, report what we've done */
@@ -668,7 +651,7 @@ static int prism2_config(struct pcmcia_device *link)
 		printk(", Vpp %d.%d", link->conf.Vpp / 10,
 		       link->conf.Vpp % 10);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %d", link->irq.AssignedIRQ);
+		printk(", irq %d", link->irq);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		       link->io.BasePort1+link->io.NumPorts1-1);

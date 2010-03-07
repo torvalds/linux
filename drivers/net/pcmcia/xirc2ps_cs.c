@@ -555,7 +555,6 @@ xirc2ps_probe(struct pcmcia_device *link)
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
-    link->irq.Handler = xirc2ps_interrupt;
 
     /* Fill in card specific entries */
     dev->netdev_ops = &netdev_ops;
@@ -841,7 +840,6 @@ xirc2ps_config(struct pcmcia_device * link)
 	    link->conf.Attributes |= CONF_ENABLE_SPKR;
 	    link->conf.Status |= CCSR_AUDIO_ENA;
 	}
-	link->irq.Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
 	link->io.NumPorts2 = 8;
 	link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
 	if (local->dingo) {
@@ -866,7 +864,6 @@ xirc2ps_config(struct pcmcia_device * link)
 	}
 	printk(KNOT_XIRC "no ports available\n");
     } else {
-	link->irq.Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
 	link->io.NumPorts1 = 16;
 	for (ioaddr = 0x300; ioaddr < 0x400; ioaddr += 0x10) {
 	    link->io.BasePort1 = ioaddr;
@@ -885,7 +882,7 @@ xirc2ps_config(struct pcmcia_device * link)
      * Now allocate an interrupt line.	Note that this does not
      * actually assign a handler to the interrupt.
      */
-    if ((err=pcmcia_request_irq(link, &link->irq)))
+    if ((err=pcmcia_request_irq(link, xirc2ps_interrupt)))
 	goto config_error;
 
     /****************
@@ -982,7 +979,7 @@ xirc2ps_config(struct pcmcia_device * link)
 	printk(KNOT_XIRC "invalid if_port requested\n");
 
     /* we can now register the device with the net subsystem */
-    dev->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
     dev->base_addr = link->io.BasePort1;
 
     if (local->dingo)

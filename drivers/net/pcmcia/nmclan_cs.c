@@ -463,8 +463,6 @@ static int nmclan_probe(struct pcmcia_device *link)
     link->io.NumPorts1 = 32;
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
     link->io.IOAddrLines = 5;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.Handler = mace_interrupt;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.ConfigIndex = 1;
@@ -652,14 +650,14 @@ static int nmclan_config(struct pcmcia_device *link)
   ret = pcmcia_request_io(link, &link->io);
   if (ret)
 	  goto failed;
-  ret = pcmcia_request_irq(link, &link->irq);
+  ret = pcmcia_request_exclusive_irq(link, mace_interrupt);
   if (ret)
 	  goto failed;
   ret = pcmcia_request_configuration(link, &link->conf);
   if (ret)
 	  goto failed;
 
-  dev->irq = link->irq.AssignedIRQ;
+  dev->irq = link->irq;
   dev->base_addr = link->io.BasePort1;
 
   ioaddr = dev->base_addr;

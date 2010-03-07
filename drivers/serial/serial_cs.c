@@ -343,7 +343,6 @@ static int serial_probe(struct pcmcia_device *link)
 
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	link->io.NumPorts1 = 8;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	if (do_sound) {
 		link->conf.Attributes |= CONF_ENABLE_SPKR;
@@ -486,7 +485,7 @@ static int simple_config(struct pcmcia_device *link)
 		}
 		if (info->slave) {
 			return setup_serial(link, info, port,
-					    link->irq.AssignedIRQ);
+					    link->irq);
 		}
 	}
 
@@ -507,10 +506,6 @@ static int simple_config(struct pcmcia_device *link)
 	return -1;
 
 found_port:
-	i = pcmcia_request_irq(link, &link->irq);
-	if (i != 0)
-		link->irq.AssignedIRQ = 0;
-
 	if (info->multi && (info->manfid == MANFID_3COM))
 		link->conf.ConfigIndex &= ~(0x08);
 
@@ -523,7 +518,7 @@ found_port:
 	i = pcmcia_request_configuration(link, &link->conf);
 	if (i != 0)
 		return -1;
-	return setup_serial(link, info, link->io.BasePort1, link->irq.AssignedIRQ);
+	return setup_serial(link, info, link->io.BasePort1, link->irq);
 }
 
 static int multi_config_check(struct pcmcia_device *p_dev,
@@ -586,13 +581,9 @@ static int multi_config(struct pcmcia_device *link)
 		}
 	}
 
-	i = pcmcia_request_irq(link, &link->irq);
-	if (i != 0) {
-		/* FIXME: comment does not fit, error handling does not fit */
-		printk(KERN_NOTICE
-		       "serial_cs: no usable port range found, giving up\n");
-		link->irq.AssignedIRQ = 0;
-	}
+	if (!link->irq)
+		dev_warn(&link->dev,
+			"serial_cs: no usable IRQ found, continuing...\n");
 
 	/*
 	 * Apply any configuration quirks.
@@ -615,11 +606,11 @@ static int multi_config(struct pcmcia_device *link)
 		if (link->conf.ConfigIndex == 1 ||
 		    link->conf.ConfigIndex == 3) {
 			err = setup_serial(link, info, base2,
-					link->irq.AssignedIRQ);
+					link->irq);
 			base2 = link->io.BasePort1;
 		} else {
 			err = setup_serial(link, info, link->io.BasePort1,
-					link->irq.AssignedIRQ);
+					link->irq);
 		}
 		info->c950ctrl = base2;
 
@@ -633,10 +624,10 @@ static int multi_config(struct pcmcia_device *link)
 		return 0;
 	}
 
-	setup_serial(link, info, link->io.BasePort1, link->irq.AssignedIRQ);
+	setup_serial(link, info, link->io.BasePort1, link->irq);
 	for (i = 0; i < info->multi - 1; i++)
 		setup_serial(link, info, base2 + (8 * i),
-				link->irq.AssignedIRQ);
+				link->irq);
 	return 0;
 }
 

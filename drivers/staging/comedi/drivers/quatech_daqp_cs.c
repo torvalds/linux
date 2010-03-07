@@ -1040,10 +1040,6 @@ static int daqp_cs_attach(struct pcmcia_device *link)
 	local->link = link;
 	link->priv = local;
 
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = daqp_interrupt;
-
 	/*
 	   General socket configuration defaults can go here.  In this
 	   client, we assume very little, and rely on the CIS for almost
@@ -1105,8 +1101,7 @@ static int daqp_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		return -ENODEV;
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -1144,16 +1139,9 @@ static void daqp_cs_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	/*
-	   Allocate an interrupt line.  Note that this does not assign a
-	   handler to the interrupt, unless the 'Handler' member of the
-	   irq structure is initialized.
-	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
+	ret = pcmcia_request_irq(link, daqp_interrupt);
+	if (ret)
+		goto failed;
 
 	/*
 	   This actually configures the PCMCIA socket -- setting up
@@ -1180,7 +1168,7 @@ static void daqp_cs_config(struct pcmcia_device *link)
 	printk(KERN_INFO "%s: index 0x%02x",
 	       dev->node.dev_name, link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u", link->irq.AssignedIRQ);
+		printk(", irq %u", link->irq);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		       link->io.BasePort1 + link->io.NumPorts1 - 1);

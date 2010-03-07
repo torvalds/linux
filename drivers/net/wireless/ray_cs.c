@@ -321,10 +321,6 @@ static int ray_probe(struct pcmcia_device *p_dev)
 	p_dev->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
 	p_dev->io.IOAddrLines = 5;
 
-	/* Interrupt setup. For PCMCIA, driver takes what's given */
-	p_dev->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	p_dev->irq.Handler = &ray_interrupt;
-
 	/* General socket configuration */
 	p_dev->conf.Attributes = CONF_ENABLE_IRQ;
 	p_dev->conf.IntType = INT_MEMORY_AND_IO;
@@ -417,10 +413,10 @@ static int ray_config(struct pcmcia_device *link)
 	/* Now allocate an interrupt line.  Note that this does not
 	   actually assign a handler to the interrupt.
 	 */
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_irq(link, ray_interrupt);
 	if (ret)
 		goto failed;
-	dev->irq = link->irq.AssignedIRQ;
+	dev->irq = link->irq;
 
 	/* This actually configures the PCMCIA socket -- setting up
 	   the I/O windows and the interrupt mapping.

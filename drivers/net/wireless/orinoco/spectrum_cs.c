@@ -193,10 +193,6 @@ spectrum_cs_probe(struct pcmcia_device *link)
 	card->p_dev = link;
 	link->priv = priv;
 
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = orinoco_interrupt;
-
 	/* General socket configuration defaults can go here.  In this
 	 * client, we assume very little, and rely on the CIS for
 	 * almost everything.  In most clients, many details (i.e.,
@@ -332,12 +328,7 @@ spectrum_cs_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	/*
-	 * Allocate an interrupt line.  Note that this does not assign
-	 * a handler to the interrupt, unless the 'Handler' member of
-	 * the irq structure is initialized.
-	 */
-	ret = pcmcia_request_irq(link, &link->irq);
+	ret = pcmcia_request_irq(link, orinoco_interrupt);
 	if (ret)
 		goto failed;
 
@@ -374,7 +365,7 @@ spectrum_cs_config(struct pcmcia_device *link)
 
 	/* Register an interface with the stack */
 	if (orinoco_if_add(priv, link->io.BasePort1,
-			   link->irq.AssignedIRQ) != 0) {
+			   link->irq) != 0) {
 		printk(KERN_ERR PFX "orinoco_if_add() failed\n");
 		goto failed;
 	}

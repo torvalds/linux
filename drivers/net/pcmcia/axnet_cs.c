@@ -168,7 +168,6 @@ static int axnet_probe(struct pcmcia_device *link)
     info = PRIV(dev);
     info->p_dev = link;
     link->priv = dev;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -265,12 +264,9 @@ static int try_io_port(struct pcmcia_device *link)
     int j, ret;
     if (link->io.NumPorts1 == 32) {
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
-	if (link->io.NumPorts2 > 0) {
-	    /* for master/slave multifunction cards */
+	/* for master/slave multifunction cards */
+	if (link->io.NumPorts2 > 0)
 	    link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-	    link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING;
-	}
     } else {
 	/* This should be two 16-port windows */
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
@@ -336,8 +332,7 @@ static int axnet_config(struct pcmcia_device *link)
     if (ret != 0)
 	goto failed;
 
-    ret = pcmcia_request_irq(link, &link->irq);
-    if (ret)
+    if (!link->irq)
 	    goto failed;
     
     if (link->io.NumPorts2 == 8) {
@@ -349,7 +344,7 @@ static int axnet_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    dev->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
     dev->base_addr = link->io.BasePort1;
 
     if (!get_prom(link)) {

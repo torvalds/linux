@@ -408,41 +408,6 @@ out:
 } /* pcmcia_release_io */
 
 
-static int pcmcia_release_irq(struct pcmcia_device *p_dev, irq_req_t *req)
-{
-	struct pcmcia_socket *s = p_dev->socket;
-	config_t *c;
-	int ret = -EINVAL;
-
-	mutex_lock(&s->ops_mutex);
-
-	c = p_dev->function_config;
-
-	if (!p_dev->_irq)
-		goto out;
-
-	p_dev->_irq = 0;
-
-	if (c->state & CONFIG_LOCKED)
-		goto out;
-
-	if (s->pcmcia_irq != req->AssignedIRQ) {
-		dev_dbg(&s->dev, "IRQ must match assigned one\n");
-		goto out;
-	}
-
-	if (req->Handler)
-		free_irq(req->AssignedIRQ, p_dev->priv);
-
-	ret = 0;
-
-out:
-	mutex_unlock(&s->ops_mutex);
-
-	return ret;
-} /* pcmcia_release_irq */
-
-
 int pcmcia_release_window(struct pcmcia_device *p_dev, window_handle_t wh)
 {
 	struct pcmcia_socket *s = p_dev->socket;
@@ -681,61 +646,66 @@ out:
 EXPORT_SYMBOL(pcmcia_request_io);
 
 
-/** pcmcia_request_irq
+/**
+ * pcmcia_request_irq() - attempt to request a IRQ for a PCMCIA device
  *
- * Request_irq() reserves an irq for this client.
+ * pcmcia_request_irq() is a wrapper around request_irq which will allow
+ * the PCMCIA core to clean up the registration in pcmcia_disable_device().
+ * Drivers are free to use request_irq() directly, but then they need to
+ * call free_irq themselfves, too. Also, only IRQF_SHARED capable IRQ
+ * handlers are allowed.
  */
-
-int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
+int __must_check pcmcia_request_irq(struct pcmcia_device *p_dev,
+				    irq_handler_t handler)
 {
-	struct pcmcia_socket *s = p_dev->socket;
-	config_t *c;
-	int ret = -EINVAL, irq = p_dev->irq_v;
-	int type = IRQF_SHARED;
+	int ret;
 
-	mutex_lock(&s->ops_mutex);
+	if (!p_dev->irq)
+		return -EINVAL;
 
-	if (!(s->state & SOCKET_PRESENT)) {
-		dev_dbg(&s->dev, "No card present\n");
-		goto out;
-	}
-	c = p_dev->function_config;
-	if (c->state & CONFIG_LOCKED) {
-		dev_dbg(&s->dev, "Configuration is locked\n");
-		goto out;
-	}
+	ret = request_irq(p_dev->irq, handler, IRQF_SHARED,
+			p_dev->devname, p_dev->priv);
+	if (!ret)
+		p_dev->_irq = 1;
 
-	if (!irq) {
-		dev_dbg(&s->dev, "no IRQ available\n");
-		goto out;
-	}
+	return ret;
+}
+EXPORT_SYMBOL(pcmcia_request_irq);
 
-	if (!(req->Attributes & IRQ_TYPE_DYNAMIC_SHARING)) {
-		req->Attributes |= IRQ_TYPE_DYNAMIC_SHARING;
+
+/**
+ * pcmcia_request_exclusive_irq() - attempt to request an exclusive IRQ first
+ *
+ * pcmcia_request_exclusive_irq() is a wrapper around request_irq which
+ * attempts first to request an exclusive IRQ. If it fails, it also accepts
+ * a shared IRQ, but prints out a warning. PCMCIA drivers should allow for
+ * IRQ sharing and either use request_irq directly (then they need to call
+ * free_irq themselves, too), or the pcmcia_request_irq() function.
+ */
+int __must_check
+pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev, irq_handler_t handler)
+{
+	int ret;
+
+	if (!p_dev->irq)
+		return -EINVAL;
+
+	ret = request_irq(p_dev->irq, handler, 0, p_dev->devname, p_dev->priv);
+	if (ret) {
+		ret = pcmcia_request_irq(p_dev, handler);
+		dev_printk(KERN_WARNING, &p_dev->dev, "pcmcia: "
+			"request for exclusive IRQ could not be fulfilled.\n");
 		dev_printk(KERN_WARNING, &p_dev->dev, "pcmcia: the driver "
 			"needs updating to supported shared IRQ lines.\n");
 	}
+	if (ret)
+		dev_printk(KERN_INFO, &p_dev->dev, "request_irq() failed\n");
+	else
+		p_dev->_irq = 1;
 
-	if (req->Handler) {
-		ret = request_irq(irq, req->Handler, type,
-				  p_dev->devname, p_dev->priv);
-		if (ret) {
-			dev_printk(KERN_INFO, &s->dev,
-				"request_irq() failed\n");
-			goto out;
-		}
-	}
-
-	req->AssignedIRQ = irq;
-
-	p_dev->_irq = 1;
-
-	ret = 0;
-out:
-	mutex_unlock(&s->ops_mutex);
 	return ret;
-} /* pcmcia_request_irq */
-EXPORT_SYMBOL(pcmcia_request_irq);
+} /* pcmcia_request_exclusive_irq */
+EXPORT_SYMBOL(pcmcia_request_exclusive_irq);
 
 
 #ifdef CONFIG_PCMCIA_PROBE
@@ -779,7 +749,7 @@ static int pcmcia_setup_isa_irq(struct pcmcia_device *p_dev, int type)
 				  p_dev);
 		if (!ret) {
 			free_irq(irq, p_dev);
-			p_dev->irq_v = s->pcmcia_irq = irq;
+			p_dev->irq = s->pcmcia_irq = irq;
 			pcmcia_used_irq[irq]++;
 			break;
 		}
@@ -820,12 +790,12 @@ int pcmcia_setup_irq(struct pcmcia_device *p_dev)
 {
 	struct pcmcia_socket *s = p_dev->socket;
 
-	if (p_dev->irq_v)
+	if (p_dev->irq)
 		return 0;
 
 	/* already assigned? */
 	if (s->pcmcia_irq) {
-		p_dev->irq_v = s->pcmcia_irq;
+		p_dev->irq = s->pcmcia_irq;
 		return 0;
 	}
 
@@ -839,7 +809,7 @@ int pcmcia_setup_irq(struct pcmcia_device *p_dev)
 
 	/* but use the PCI irq otherwise */
 	if (s->pci_irq) {
-		p_dev->irq_v = s->pcmcia_irq = s->pci_irq;
+		p_dev->irq = s->pcmcia_irq = s->pci_irq;
 		return 0;
 	}
 
@@ -947,7 +917,8 @@ void pcmcia_disable_device(struct pcmcia_device *p_dev)
 {
 	pcmcia_release_configuration(p_dev);
 	pcmcia_release_io(p_dev, &p_dev->io);
-	pcmcia_release_irq(p_dev, &p_dev->irq);
+	if (p_dev->_irq)
+		free_irq(p_dev->irq, p_dev->priv);
 	if (p_dev->win)
 		pcmcia_release_window(p_dev, p_dev->win);
 }

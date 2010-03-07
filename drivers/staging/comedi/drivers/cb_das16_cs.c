@@ -180,12 +180,12 @@ static int das16cs_attach(struct comedi_device *dev,
 	}
 	printk("\n");
 
-	ret = request_irq(link->irq.AssignedIRQ, das16cs_interrupt,
+	ret = request_irq(link->irq, das16cs_interrupt,
 			  IRQF_SHARED, "cb_das16_cs", dev);
 	if (ret < 0) {
 		return ret;
 	}
-	dev->irq = link->irq.AssignedIRQ;
+	dev->irq = link->irq;
 	printk("irq=%u ", dev->irq);
 
 	dev->board_ptr = das16cs_probe(dev, link);
@@ -702,10 +702,6 @@ static int das16cs_pcmcia_attach(struct pcmcia_device *link)
 	link->priv = local;
 
 	/* Initialize the pcmcia_device structure */
-	/* Interrupt setup */
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
-	link->irq.Handler = NULL;
-
 	link->conf.Attributes = 0;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -740,8 +736,7 @@ static int das16cs_pcmcia_config_loop(struct pcmcia_device *p_dev,
 		return -EINVAL;
 
 	/* Do we need to allocate an interrupt? */
-	if (cfg->irq.IRQInfo1 || dflt->irq.IRQInfo1)
-		p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
+	p_dev->conf.Attributes |= CONF_ENABLE_IRQ;
 
 	/* IO window settings */
 	p_dev->io.NumPorts1 = p_dev->io.NumPorts2 = 0;
@@ -780,16 +775,9 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 		goto failed;
 	}
 
-	/*
-	   Allocate an interrupt line.  Note that this does not assign a
-	   handler to the interrupt, unless the 'Handler' member of the
-	   irq structure is initialized.
-	 */
-	if (link->conf.Attributes & CONF_ENABLE_IRQ) {
-		ret = pcmcia_request_irq(link, &link->irq);
-		if (ret)
-			goto failed;
-	}
+	if (!link->irq)
+		goto failed;
+
 	/*
 	   This actually configures the PCMCIA socket -- setting up
 	   the I/O windows and the interrupt mapping, and putting the
@@ -811,7 +799,7 @@ static void das16cs_pcmcia_config(struct pcmcia_device *link)
 	printk(KERN_INFO "%s: index 0x%02x",
 	       dev->node.dev_name, link->conf.ConfigIndex);
 	if (link->conf.Attributes & CONF_ENABLE_IRQ)
-		printk(", irq %u", link->irq.AssignedIRQ);
+		printk(", irq %u", link->irq);
 	if (link->io.NumPorts1)
 		printk(", io 0x%04x-0x%04x", link->io.BasePort1,
 		       link->io.BasePort1 + link->io.NumPorts1 - 1);

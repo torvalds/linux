@@ -105,7 +105,6 @@ static int parport_probe(struct pcmcia_device *link)
 
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     link->io.Attributes2 = IO_DATA_PATH_WIDTH_8;
-    link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -174,20 +173,19 @@ static int parport_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    ret = pcmcia_request_irq(link, &link->irq);
-    if (ret)
+    if (!link->irq)
 	    goto failed;
     ret = pcmcia_request_configuration(link, &link->conf);
     if (ret)
 	    goto failed;
 
     p = parport_pc_probe_port(link->io.BasePort1, link->io.BasePort2,
-			      link->irq.AssignedIRQ, PARPORT_DMA_NONE,
+			      link->irq, PARPORT_DMA_NONE,
 			      &link->dev, IRQF_SHARED);
     if (p == NULL) {
 	printk(KERN_NOTICE "parport_cs: parport_pc_probe_port() at "
 	       "0x%3x, irq %u failed\n", link->io.BasePort1,
-	       link->irq.AssignedIRQ);
+	       link->irq);
 	goto failed;
     }
 

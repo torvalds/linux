@@ -272,7 +272,6 @@ static int cs_attach(struct pcmcia_device *link)
 {
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_16;
 	link->io.NumPorts1 = 16;
-	link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 
@@ -344,10 +343,8 @@ static void mio_cs_config(struct pcmcia_device *link)
 		return;
 	}
 
-	ret = pcmcia_request_irq(link, &link->irq);
-	if (ret) {
-		printk("pcmcia_request_irq() returned error: %i\n", ret);
-	}
+	if (!link->irq)
+		dev_info(&link->dev, "no IRQ available\n");
 
 	ret = pcmcia_request_configuration(link, &link->conf);
 
@@ -369,7 +366,7 @@ static int mio_cs_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	dev->driver = &driver_ni_mio_cs;
 	dev->iobase = link->io.BasePort1;
 
-	irq = link->irq.AssignedIRQ;
+	irq = link->irq;
 
 	printk("comedi%d: %s: DAQCard: io 0x%04lx, irq %u, ",
 	       dev->minor, dev->driver->driver_name, dev->iobase, irq);

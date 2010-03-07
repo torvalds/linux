@@ -546,7 +546,6 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 			p_dev->function_config = tmp_dev->function_config;
 			p_dev->io = tmp_dev->io;
 			p_dev->irq = tmp_dev->irq;
-			p_dev->irq_v = tmp_dev->irq_v;
 			kref_get(&p_dev->function_config->ref);
 		}
 
@@ -571,7 +570,7 @@ struct pcmcia_device *pcmcia_device_add(struct pcmcia_socket *s, unsigned int fu
 
 	dev_printk(KERN_NOTICE, &p_dev->dev,
 		   "pcmcia: registering new device %s (IRQ: %d)\n",
-		   p_dev->devname, p_dev->irq_v);
+		   p_dev->devname, p_dev->irq);
 
 	pcmcia_device_query(p_dev);
 

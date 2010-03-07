@@ -88,7 +88,6 @@ static int fdomain_probe(struct pcmcia_device *link)
 	link->io.NumPorts1 = 0x10;
 	link->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
 	link->io.IOAddrLines = 10;
-	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
 	link->conf.Attributes = CONF_ENABLE_IRQ;
 	link->conf.IntType = INT_MEMORY_AND_IO;
 	link->conf.Present = PRESENT_OPTION;
@@ -133,8 +132,7 @@ static int fdomain_config(struct pcmcia_device *link)
     if (ret)
 	    goto failed;
 
-    ret = pcmcia_request_irq(link, &link->irq);
-    if (ret)
+    if (!link->irq)
 	    goto failed;
     ret = pcmcia_request_configuration(link, &link->conf);
     if (ret)
@@ -144,7 +142,7 @@ static int fdomain_config(struct pcmcia_device *link)
     release_region(link->io.BasePort1, link->io.NumPorts1);
 
     /* Set configuration options for the fdomain driver */
-    sprintf(str, "%d,%d", link->io.BasePort1, link->irq.AssignedIRQ);
+    sprintf(str, "%d,%d", link->io.BasePort1, link->irq);
     fdomain_setup(str);
 
     host = __fdomain_16x0_detect(&fdomain_driver_template);

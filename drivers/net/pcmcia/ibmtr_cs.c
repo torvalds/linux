@@ -156,8 +156,6 @@ static int __devinit ibmtr_attach(struct pcmcia_device *link)
     link->io.Attributes1 = IO_DATA_PATH_WIDTH_8;
     link->io.NumPorts1 = 4;
     link->io.IOAddrLines = 16;
-    link->irq.Attributes = IRQ_TYPE_EXCLUSIVE;
-    link->irq.Handler = ibmtr_interrupt;
     link->conf.Attributes = CONF_ENABLE_IRQ;
     link->conf.IntType = INT_MEMORY_AND_IO;
     link->conf.Present = PRESENT_OPTION;
@@ -238,11 +236,11 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
     }
     dev->base_addr = link->io.BasePort1;
 
-    ret = pcmcia_request_irq(link, &link->irq);
+    ret = pcmcia_request_exclusive_irq(link, ibmtr_interrupt);
     if (ret)
 	    goto failed;
-    dev->irq = link->irq.AssignedIRQ;
-    ti->irq = link->irq.AssignedIRQ;
+    dev->irq = link->irq;
+    ti->irq = link->irq;
     ti->global_int_enable=GLOBAL_INT_ENABLE+((dev->irq==9) ? 2 : dev->irq);
 
     /* Allocate the MMIO memory window */

@@ -490,7 +490,7 @@ static int ssb_devices_register(struct ssb_bus *bus)
 			break;
 		case SSB_BUSTYPE_PCMCIA:
 #ifdef CONFIG_SSB_PCMCIAHOST
-			sdev->irq = bus->host_pcmcia->irq.AssignedIRQ;
+			sdev->irq = bus->host_pcmcia->irq;
 			dev->parent = &bus->host_pcmcia->dev;
 #endif
 			break;
