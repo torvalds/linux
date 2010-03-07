@@ -523,6 +523,10 @@ static void reg_w_buf(struct gspca_dev *gspca_dev,
 		u8 *tmpbuf;
 
 		tmpbuf = kmalloc(len, GFP_KERNEL);
+		if (!tmpbuf) {
+			err("Out of memory");
+			return;
+		}
 		memcpy(tmpbuf, buffer, len);
 		usb_control_msg(gspca_dev->dev,
 				usb_sndctrlpipe(gspca_dev->dev, 0),
@@ -542,10 +546,15 @@ static void reg_w_ixbuf(struct gspca_dev *gspca_dev,
 	int i;
 	u8 *p, *tmpbuf;
 
-	if (len * 2 <= USB_BUF_SZ)
+	if (len * 2 <= USB_BUF_SZ) {
 		p = tmpbuf = gspca_dev->usb_buf;
-	else
+	} else {
 		p = tmpbuf = kmalloc(len * 2, GFP_KERNEL);
+		if (!tmpbuf) {
+			err("Out of memory");
+			return;
+		}
+	}
 	i = len;
 	while (--i >= 0) {
 		*p++ = reg++;
