@@ -1382,7 +1382,7 @@ rx_eq_free:
 /* There are 8 evt ids per func. Retruns the evt id's bit number */
 static inline int be_evt_bit_get(struct be_adapter *adapter, u32 eq_id)
 {
-	return eq_id - 8 * be_pci_func(adapter);
+	return eq_id % 8;
 }
 
 static irqreturn_t be_intx(int irq, void *dev)
