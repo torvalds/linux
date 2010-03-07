@@ -35,7 +35,7 @@
 #include <linux/io.h>
 #include <asm/page.h>
 #include <linux/uaccess.h>
-#include <linux/jiffies.h>
+#include <linux/ktime.h>
 #include <media/v4l2-ioctl.h>
 
 #include "gspca.h"
@@ -442,8 +442,7 @@ void gspca_frame_add(struct gspca_dev *gspca_dev,
 	 * is not queued, discard the whole frame */
 	if (packet_type == FIRST_PACKET) {
 		frame->data_end = frame->data;
-		jiffies_to_timeval(get_jiffies_64(),
-				   &frame->v4l2_buf.timestamp);
+		frame->v4l2_buf.timestamp = ktime_to_timeval(ktime_get());
 		frame->v4l2_buf.sequence = ++gspca_dev->sequence;
 	} else if (gspca_dev->last_packet_type == DISCARD_PACKET) {
 		if (packet_type == LAST_PACKET)
@@ -2124,7 +2123,7 @@ static ssize_t dev_read(struct file *file, char __user *data,
 	}
 
 	/* get a frame */
-	jiffies_to_timeval(get_jiffies_64(), &timestamp);
+	timestamp = ktime_to_timeval(ktime_get());
 	timestamp.tv_sec--;
 	n = 2;
 	for (;;) {
