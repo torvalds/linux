@@ -581,6 +581,16 @@ config I2C_OCTEON
 	  This driver can also be built as a module.  If so, the module
 	  will be called i2c-octeon.
 
+config I2C_XILINX
+	tristate "Xilinx I2C Controller"
+	depends on EXPERIMENTAL && HAS_IOMEM
+	help
+	  If you say yes to this option, support will be included for the
+	  Xilinx I2C controller.
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called xilinx_i2c.
+
 comment "External I2C/SMBus adapter drivers"
 
 config I2C_PARPORT
