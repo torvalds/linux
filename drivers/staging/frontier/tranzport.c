@@ -255,7 +255,7 @@ static void usb_tranzport_interrupt_in_callback(struct urb *urb)
 	if (urb->actual_length != 8) {
 		dev_warn(&dev->intf->dev,
 			"Urb length was %d bytes!!"
-			"Do something intelligent \n",
+			"Do something intelligent\n",
 			 urb->actual_length);
 	} else {
 		dbg_info(&dev->intf->dev,
@@ -724,7 +724,7 @@ static ssize_t usb_tranzport_write(struct file *file,
 	}
 
 	if (dev->interrupt_out_endpoint == NULL) {
-		err("Endpoint should not be be null! \n");
+		err("Endpoint should not be be null!\n");
 		goto unlock_exit;
 	}
 

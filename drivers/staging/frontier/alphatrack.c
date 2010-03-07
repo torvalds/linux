@@ -238,7 +238,7 @@ static void usb_alphatrack_interrupt_in_callback(struct urb *urb)
 	if (urb->actual_length != INPUT_CMD_SIZE) {
 		dev_warn(&dev->intf->dev,
 			 "Urb length was %d bytes!!"
-			 "Do something intelligent \n", urb->actual_length);
+			 "Do something intelligent\n", urb->actual_length);
 	} else {
 		alphatrack_ocmd_info(&dev->intf->dev,
 				     &(*dev->ring_buffer)[dev->ring_tail].cmd,
@@ -599,7 +599,7 @@ static ssize_t usb_alphatrack_write(struct file *file,
 	}
 
 	if (dev->interrupt_out_endpoint == NULL) {
-		err("Endpoint should not be be null! \n");
+		err("Endpoint should not be be null!\n");
 		goto unlock_exit;
 	}
 
@@ -771,7 +771,7 @@ static int usb_alphatrack_probe(struct usb_interface *intf,
 	    kmalloc(sizeof(struct alphatrack_ocmd) * true_size, GFP_KERNEL);
 
 	if (!dev->write_buffer) {
-		dev_err(&intf->dev, "Couldn't allocate write_buffer \n");
+		dev_err(&intf->dev, "Couldn't allocate write_buffer\n");
 		goto error;
 	}
 
