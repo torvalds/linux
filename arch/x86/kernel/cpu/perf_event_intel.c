@@ -487,6 +487,8 @@ static void intel_pmu_enable_all(void)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 
+	intel_pmu_pebs_enable_all();
+	intel_pmu_lbr_enable_all();
 	wrmsrl(MSR_CORE_PERF_GLOBAL_CTRL, x86_pmu.intel_ctrl);
 
 	if (test_bit(X86_PMC_IDX_FIXED_BTS, cpuc->active_mask)) {
@@ -498,9 +500,6 @@ static void intel_pmu_enable_all(void)
 
 		intel_pmu_enable_bts(event->hw.config);
 	}
-
-	intel_pmu_pebs_enable_all();
-	intel_pmu_lbr_enable_all();
 }
 
 static inline u64 intel_pmu_get_status(void)
