@@ -2839,7 +2839,12 @@ static int dasd_symm_io(struct dasd_device *device, void __user *argp)
 	char *psf_data, *rssd_result;
 	struct dasd_ccw_req *cqr;
 	struct ccw1 *ccw;
+	char psf0, psf1;
 	int rc;
+
+	if (!capable(CAP_SYS_ADMIN) && !capable(CAP_SYS_RAWIO))
+		return -EACCES;
+	psf0 = psf1 = 0;
 
 	/* Copy parms from caller */
 	rc = -EFAULT;
@@ -2869,12 +2874,8 @@ static int dasd_symm_io(struct dasd_device *device, void __user *argp)
 			   (void __user *)(unsigned long) usrparm.psf_data,
 			   usrparm.psf_data_len))
 		goto out_free;
-
-	/* sanity check on syscall header */
-	if (psf_data[0] != 0x17 && psf_data[1] != 0xce) {
-		rc = -EINVAL;
-		goto out_free;
-	}
+	psf0 = psf_data[0];
+	psf1 = psf_data[1];
 
 	/* setup CCWs for PSF + RSSD */
 	cqr = dasd_smalloc_request(DASD_ECKD_MAGIC, 2 , 0, device);
@@ -2925,7 +2926,9 @@ out_free:
 	kfree(rssd_result);
 	kfree(psf_data);
 out:
-	DBF_DEV_EVENT(DBF_WARNING, device, "Symmetrix ioctl: rc=%d", rc);
+	DBF_DEV_EVENT(DBF_WARNING, device,
+		      "Symmetrix ioctl (0x%02x 0x%02x): rc=%d",
+		      (int) psf0, (int) psf1, rc);
 	return rc;
 }
 
