@@ -562,18 +562,21 @@ DECLARE_EVENT_CLASS(xfs_inode_class,
 		__field(dev_t, dev)
 		__field(xfs_ino_t, ino)
 		__field(int, count)
+		__field(int, pincount)
 		__field(unsigned long, caller_ip)
 	),
 	TP_fast_assign(
 		__entry->dev = VFS_I(ip)->i_sb->s_dev;
 		__entry->ino = ip->i_ino;
 		__entry->count = atomic_read(&VFS_I(ip)->i_count);
+		__entry->pincount = atomic_read(&ip->i_pincount);
 		__entry->caller_ip = caller_ip;
 	),
-	TP_printk("dev %d:%d ino 0x%llx count %d caller %pf",
+	TP_printk("dev %d:%d ino 0x%llx count %d pincount %d caller %pf",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->ino,
 		  __entry->count,
+		  __entry->pincount,
 		  (char *)__entry->caller_ip)
 )
 
@@ -583,6 +586,10 @@ DEFINE_EVENT(xfs_inode_class, name, \
 	TP_ARGS(ip, caller_ip))
 DEFINE_INODE_EVENT(xfs_ihold);
 DEFINE_INODE_EVENT(xfs_irele);
+DEFINE_INODE_EVENT(xfs_inode_pin);
+DEFINE_INODE_EVENT(xfs_inode_unpin);
+DEFINE_INODE_EVENT(xfs_inode_unpin_nowait);
+
 /* the old xfs_itrace_entry tracer - to be replaced by s.th. in the VFS */
 DEFINE_INODE_EVENT(xfs_inode);
 #define xfs_itrace_entry(ip)    \

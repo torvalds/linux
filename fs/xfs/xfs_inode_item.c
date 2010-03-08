@@ -543,6 +543,7 @@ xfs_inode_item_pin(
 {
 	ASSERT(xfs_isilocked(iip->ili_inode, XFS_ILOCK_EXCL));
 
+	trace_xfs_inode_pin(iip->ili_inode, _RET_IP_);
 	atomic_inc(&iip->ili_inode->i_pincount);
 }
 
@@ -561,6 +562,7 @@ xfs_inode_item_unpin(
 {
 	struct xfs_inode	*ip = iip->ili_inode;
 
+	trace_xfs_inode_unpin(ip, _RET_IP_);
 	ASSERT(atomic_read(&ip->i_pincount) > 0);
 	if (atomic_dec_and_test(&ip->i_pincount))
 		wake_up(&ip->i_ipin_wait);
