@@ -312,7 +312,7 @@ static long wdrtas_ioctl(struct file *file, unsigned int cmd,
 {
 	int __user *argp = (void __user *)arg;
 	int i;
-	static struct watchdog_info wdinfo = {
+	static const struct watchdog_info wdinfo = {
 		.options = WDRTAS_SUPPORTED_MASK,
 		.firmware_version = 0,
 		.identity = "wdrtas",

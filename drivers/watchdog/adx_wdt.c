@@ -37,7 +37,7 @@ struct adx_wdt {
 	spinlock_t lock;
 };
 
-static struct watchdog_info adx_wdt_info = {
+static const struct watchdog_info adx_wdt_info = {
 	.identity = "Avionic Design Xanthos Watchdog",
 	.options = WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 };
