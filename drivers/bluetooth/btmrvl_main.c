@@ -66,7 +66,7 @@ int btmrvl_process_event(struct btmrvl_private *priv, struct sk_buff *skb)
 {
 	struct btmrvl_adapter *adapter = priv->adapter;
 	struct btmrvl_event *event;
-	u8 ret = 0;
+	int ret = 0;
 
 	event = (struct btmrvl_event *) skb->data;
 	if (event->ec != 0xff) {
