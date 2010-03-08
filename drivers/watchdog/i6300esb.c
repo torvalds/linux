@@ -65,7 +65,7 @@
 /* Config register bits */
 #define ESB_WDT_REBOOT  (0x01 << 5)   /* Enable reboot on timeout          */
 #define ESB_WDT_FREQ    (0x01 << 2)   /* Decrement frequency               */
-#define ESB_WDT_INTTYPE (0x11 << 0)   /* Interrupt type on timer1 timeout  */
+#define ESB_WDT_INTTYPE (0x03 << 0)   /* Interrupt type on timer1 timeout  */
 
 /* Reload register bits */
 #define ESB_WDT_TIMEOUT (0x01 << 9)    /* Watchdog timed out                */
@@ -111,8 +111,8 @@ MODULE_PARM_DESC(nowayout,
  */
 static inline void esb_unlock_registers(void)
 {
-	writeb(ESB_UNLOCK1, ESB_RELOAD_REG);
-	writeb(ESB_UNLOCK2, ESB_RELOAD_REG);
+	writew(ESB_UNLOCK1, ESB_RELOAD_REG);
+	writew(ESB_UNLOCK2, ESB_RELOAD_REG);
 }
 
 static int esb_timer_start(void)
