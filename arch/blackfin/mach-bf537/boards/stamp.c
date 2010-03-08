@@ -701,6 +701,65 @@ static struct bfin5xx_spi_chip ad2s1210_spi_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_AD7314) || defined(CONFIG_AD7314_MODULE)
+static struct bfin5xx_spi_chip ad7314_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
+#if defined(CONFIG_AD7816) || defined(CONFIG_AD7816_MODULE)
+static unsigned short ad7816_platform_data[] = {
+	GPIO_PF4, /* rdwr_pin */
+	GPIO_PF5, /* convert_pin */
+	GPIO_PF7, /* busy_pin */
+	0,
+};
+
+static struct bfin5xx_spi_chip ad7816_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
+
+#if defined(CONFIG_ADT7310) || defined(CONFIG_ADT7310_MODULE)
+static unsigned long adt7310_platform_data[3] = {
+/* INT bound temperature alarm event. line 1 */
+	IRQ_PG4, IRQF_TRIGGER_LOW,
+/* CT bound temperature alarm event irq_flags. line 0 */
+	IRQF_TRIGGER_LOW,
+};
+
+static struct bfin5xx_spi_chip adt7310_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
+
+#if defined(CONFIG_AD7298) || defined(CONFIG_AD7298_MODULE)
+static unsigned short ad7298_platform_data[] = {
+	GPIO_PF7, /* busy_pin */
+	0,
+};
+
+static struct bfin5xx_spi_chip ad7298_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 16,
+};
+#endif
+
+#if defined(CONFIG_ADT7316_SPI) || defined(CONFIG_ADT7316_SPI_MODULE)
+static unsigned long adt7316_spi_data[2] = {
+	IRQF_TRIGGER_LOW, /* interrupt flags */
+	GPIO_PF7, /* ldac_pin, 0 means DAC/LDAC registers control DAC update */
+};
+
+static struct bfin5xx_spi_chip adt7316_spi_chip_info = {
+	.enable_dma = 0,
+	.bits_per_word = 8,
+};
+#endif
+
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 #define MMC_SPI_CARD_DETECT_INT IRQ_PF5
 
@@ -944,6 +1003,13 @@ static struct bfin5xx_spi_chip spi_adxl34x_chip_info = {
 };
 #endif
 
+#if defined(CONFIG_AD7476) || defined(CONFIG_AD7476_MODULE)
+static struct bfin5xx_spi_chip spi_ad7476_chip_info = {
+	.enable_dma = 0,         /* use dma transfer with this chip*/
+	.bits_per_word = 8,
+};
+#endif
+
 static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_MTD_M25P80) \
 	|| defined(CONFIG_MTD_M25P80_MODULE)
@@ -1062,6 +1128,67 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
+#if defined(CONFIG_AD7314) || defined(CONFIG_AD7314_MODULE)
+	{
+		.modalias = "ad7314",
+		.max_speed_hz = 1000000,
+		.bus_num = 0,
+		.chip_select = 4,            /* CS, change it for your board */
+		.controller_data = &ad7314_spi_chip_info,
+		.mode = SPI_MODE_1,
+	},
+#endif
+
+#if defined(CONFIG_AD7816) || defined(CONFIG_AD7816_MODULE)
+	{
+		.modalias = "ad7818",
+		.max_speed_hz = 1000000,
+		.bus_num = 0,
+		.chip_select = 4,            /* CS, change it for your board */
+		.platform_data = ad7816_platform_data,
+		.controller_data = &ad7816_spi_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+
+#if defined(CONFIG_ADT7310) || defined(CONFIG_ADT7310_MODULE)
+	{
+		.modalias = "adt7310",
+		.max_speed_hz = 1000000,
+		.irq = IRQ_PG5,		/* CT alarm event. Line 0 */
+		.bus_num = 0,
+		.chip_select = 4,	/* CS, change it for your board */
+		.platform_data = adt7310_platform_data,
+		.controller_data = &adt7310_spi_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+
+#if defined(CONFIG_AD7298) || defined(CONFIG_AD7298_MODULE)
+	{
+		.modalias = "ad7298",
+		.max_speed_hz = 1000000,
+		.bus_num = 0,
+		.chip_select = 4,            /* CS, change it for your board */
+		.platform_data = ad7298_platform_data,
+		.controller_data = &ad7298_spi_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+
+#if defined(CONFIG_ADT7316_SPI) || defined(CONFIG_ADT7316_SPI_MODULE)
+	{
+		.modalias = "adt7316",
+		.max_speed_hz = 1000000,
+		.irq = IRQ_PG5,		/* interrupt line */
+		.bus_num = 0,
+		.chip_select = 4,	/* CS, change it for your board */
+		.platform_data = adt7316_spi_data,
+		.controller_data = &adt7316_spi_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 	{
 		.modalias = "mmc_spi",
@@ -1159,6 +1286,233 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.controller_data = &ad7873_spi_chip_info,
 		.platform_data = &ad7873_pdata,
 		.mode = SPI_MODE_0,
+	},
+#endif
+#if defined(CONFIG_AD7476) \
+	|| defined(CONFIG_AD7476_MODULE)
+	{
+		.modalias = "ad7476", /* Name of spi_driver for this device */
+		.max_speed_hz = 6250000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0, /* Framework bus number */
+		.chip_select = 1, /* Framework chip select. */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.controller_data = &spi_ad7476_chip_info,
+		.mode = SPI_MODE_3,
+	},
+#endif
+#if defined(CONFIG_ADE7753) \
+	|| defined(CONFIG_ADE7753_MODULE)
+	{
+		.modalias = "ade7753",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_1,
+	},
+#endif
+#if defined(CONFIG_ADE7754) \
+	|| defined(CONFIG_ADE7754_MODULE)
+	{
+		.modalias = "ade7754",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_1,
+	},
+#endif
+#if defined(CONFIG_ADE7758) \
+	|| defined(CONFIG_ADE7758_MODULE)
+	{
+		.modalias = "ade7758",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_1,
+	},
+#endif
+#if defined(CONFIG_ADE7759) \
+	|| defined(CONFIG_ADE7759_MODULE)
+	{
+		.modalias = "ade7759",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_1,
+	},
+#endif
+#if defined(CONFIG_ADE7854_SPI) \
+	|| defined(CONFIG_ADE7854_SPI_MODULE)
+	{
+		.modalias = "ade7854",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+	},
+#endif
+#if defined(CONFIG_ADIS16060) \
+	|| defined(CONFIG_ADIS16060_MODULE)
+	{
+		.modalias = "adis16060_r",
+		.max_speed_hz = 2900000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = MAX_CTRL_CS + 1, /* CS for read, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_0,
+	},
+	{
+		.modalias = "adis16060_w",
+		.max_speed_hz = 2900000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 2, /* CS for write, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_1,
+	},
+#endif
+#if defined(CONFIG_ADIS16130) \
+	|| defined(CONFIG_ADIS16130_MODULE)
+	{
+		.modalias = "adis16130",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS for read, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+	},
+#endif
+#if defined(CONFIG_ADIS16201) \
+	|| defined(CONFIG_ADIS16201_MODULE)
+	{
+		.modalias = "adis16201",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16203) \
+	|| defined(CONFIG_ADIS16203_MODULE)
+	{
+		.modalias = "adis16203",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16204) \
+	|| defined(CONFIG_ADIS16204_MODULE)
+	{
+		.modalias = "adis16204",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16209) \
+	|| defined(CONFIG_ADIS16209_MODULE)
+	{
+		.modalias = "adis16209",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16220) \
+	|| defined(CONFIG_ADIS16220_MODULE)
+	{
+		.modalias = "adis16220",
+		.max_speed_hz = 2000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16240) \
+	|| defined(CONFIG_ADIS16240_MODULE)
+	{
+		.modalias = "adis16240",
+		.max_speed_hz = 1500000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16260) \
+	|| defined(CONFIG_ADIS16260_MODULE)
+	{
+		.modalias = "adis16260",
+		.max_speed_hz = 1500000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16261) \
+	|| defined(CONFIG_ADIS16261_MODULE)
+	{
+		.modalias = "adis16261",
+		.max_speed_hz = 2500000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+	},
+#endif
+#if defined(CONFIG_ADIS16300) \
+	|| defined(CONFIG_ADIS16300_MODULE)
+	{
+		.modalias = "adis16300",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16350) \
+	|| defined(CONFIG_ADIS16350_MODULE)
+	{
+		.modalias = "adis16364",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 5, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
+		.irq = IRQ_PF4,
+	},
+#endif
+#if defined(CONFIG_ADIS16400) \
+	|| defined(CONFIG_ADIS16400_MODULE)
+	{
+		.modalias = "adis16400",
+		.max_speed_hz = 1000000,     /* max spi clock (SCK) speed in HZ */
+		.bus_num = 0,
+		.chip_select = 1, /* CS, change it for your board */
+		.platform_data = NULL, /* No spi_driver specific config */
+		.mode = SPI_MODE_3,
 	},
 #endif
 };
@@ -1829,6 +2183,21 @@ static struct platform_device ad5398_userspace_consumer_device = {
 #endif
 #endif
 
+#if defined(CONFIG_ADT7410) || defined(CONFIG_ADT7410_MODULE)
+/* INT bound temperature alarm event. line 1 */
+static unsigned long adt7410_platform_data[2] = {
+	IRQ_PG4, IRQF_TRIGGER_LOW,
+};
+#endif
+
+#if defined(CONFIG_ADT7316_I2C) || defined(CONFIG_ADT7316_I2C_MODULE)
+/* INT bound temperature alarm event. line 1 */
+static unsigned long adt7316_i2c_data[2] = {
+	IRQF_TRIGGER_LOW, /* interrupt flags */
+	GPIO_PF4, /* ldac_pin, 0 means DAC/LDAC registers control DAC update */
+};
+#endif
+
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 #if defined(CONFIG_SND_BF5XX_SOC_AD193X) || defined(CONFIG_SND_BF5XX_SOC_AD193X_MODULE)
 	{
@@ -1873,12 +2242,7 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("ad7414", 0x9),
 		.irq = IRQ_PG5,
-		/*
-		 * platform_data pointer is borrwoed by the driver to
-		 * store custimer defined IRQ ALART level mode.
-		 * only IRQF_TRIGGER_HIGH and IRQF_TRIGGER_LOW are valid.
-		 */
-		.platform_data = (void *)IRQF_TRIGGER_LOW,
+		.irq_flags = IRQF_TRIGGER_LOW,
 	},
 #endif
 
@@ -1886,12 +2250,56 @@ static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
 	{
 		I2C_BOARD_INFO("ad7417", 0xb),
 		.irq = IRQ_PG5,
-		/*
-		 * platform_data pointer is borrwoed by the driver to
-		 * store custimer defined IRQ ALART level mode.
-		 * only IRQF_TRIGGER_HIGH and IRQF_TRIGGER_LOW are valid.
-		 */
-		.platform_data = (void *)IRQF_TRIGGER_LOW,
+		.irq_flags = IRQF_TRIGGER_LOW,
+		.platform_data = (void *)GPIO_PF4,
+	},
+#endif
+
+#if defined(CONFIG_ADE7854_I2C) || defined(CONFIG_ADE7854_I2C_MODULE)
+	{
+		I2C_BOARD_INFO("ade7854", 0x38),
+	},
+#endif
+
+#if defined(CONFIG_ADT75) || defined(CONFIG_ADT75_MODULE)
+	{
+		I2C_BOARD_INFO("adt75", 0x9),
+		.irq = IRQ_PG5,
+		.irq_flags = IRQF_TRIGGER_LOW,
+	},
+#endif
+
+#if defined(CONFIG_ADT7408) || defined(CONFIG_ADT7408_MODULE)
+	{
+		I2C_BOARD_INFO("adt7408", 0x18),
+		.irq = IRQ_PG5,
+		.irq_flags = IRQF_TRIGGER_LOW,
+	},
+#endif
+
+#if defined(CONFIG_ADT7410) || defined(CONFIG_ADT7410_MODULE)
+	{
+		I2C_BOARD_INFO("adt7410", 0x48),
+		/* CT critical temperature event. line 0 */
+		.irq = IRQ_PG5,
+		.irq_flags = IRQF_TRIGGER_LOW,
+		.platform_data = (void *)&adt7410_platform_data,
+	},
+#endif
+
+#if defined(CONFIG_AD7291) || defined(CONFIG_AD7291_MODULE)
+	{
+		I2C_BOARD_INFO("ad7291", 0x20),
+		.irq = IRQ_PG5,
+		.irq_flags = IRQF_TRIGGER_LOW,
+	},
+#endif
+
+#if defined(CONFIG_ADT7316_I2C) || defined(CONFIG_ADT7316_I2C_MODULE)
+	{
+		I2C_BOARD_INFO("adt7316", 0x48),
+		.irq = IRQ_PG6,
+		.platform_data = (void *)&adt7316_i2c_data,
 	},
 #endif
 
@@ -2272,6 +2680,23 @@ static struct platform_device adp150_userspace_consumer_device = {
 #endif
 #endif
 
+#if defined(CONFIG_IIO_GPIO_TRIGGER) || \
+	defined(CONFIG_IIO_GPIO_TRIGGER_MODULE)
+
+static struct resource iio_gpio_trigger_resources[] = {
+	[0] = {
+		.start  = IRQ_PF5,
+		.end    = IRQ_PF5,
+		.flags  = IORESOURCE_IRQ | IORESOURCE_IRQ_LOWEDGE,
+	},
+};
+
+static struct platform_device iio_gpio_trigger = {
+	.name = "iio_gpio_trigger",
+	.num_resources = ARRAY_SIZE(iio_gpio_trigger_resources),
+	.resource = iio_gpio_trigger_resources,
+};
+#endif
 
 static struct platform_device *stamp_devices[] __initdata = {
 
@@ -2411,6 +2836,11 @@ static struct platform_device *stamp_devices[] __initdata = {
 	&adp122_userspace_consumer_device,
 	&adp150_userspace_consumer_device,
 #endif
+#endif
+
+#if defined(CONFIG_IIO_GPIO_TRIGGER) || \
+	defined(CONFIG_IIO_GPIO_TRIGGER_MODULE)
+	&iio_gpio_trigger,
 #endif
 };
 
