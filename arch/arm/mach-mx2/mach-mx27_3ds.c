@@ -18,6 +18,12 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+/*
+ * This machine is known as:
+ *  - i.MX27 3-Stack Development System
+ *  - i.MX27 Platform Development Kit (i.MX27 PDK)
+ */
+
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
 #include <asm/mach-types.h>
@@ -27,7 +33,6 @@
 #include <mach/common.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx27.h>
-#include <mach/board-mx27pdk.h>
 
 #include "devices.h"
 
