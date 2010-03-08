@@ -18,6 +18,8 @@ ignore="( -name SCCS -o -name BitKeeper -o -name .svn -o \
           -prune -o"
 
 # Do not use full path if we do not use O=.. builds
+# Use make O=. {tags|cscope}
+# to force full paths for a non-O= build
 if [ "${KBUILD_SRC}" = "" ]; then
 	tree=
 else
@@ -108,13 +110,7 @@ all_defconfigs()
 
 docscope()
 {
-	# always use absolute paths for cscope, as recommended by cscope
-	# upstream
-	case "$tree" in
-		/*) ;;
-		*) tree=$PWD/$tree ;;
-	esac
-	(cd /; echo \-k; echo \-q; all_sources) > cscope.files
+	(echo \-k; echo \-q; all_sources) > cscope.files
 	cscope -b -f cscope.out
 }
 
