@@ -593,7 +593,6 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 	}
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
-	r600_hdmi_enable(encoder, hdmi_detected);
 }
 
 int
@@ -1389,9 +1388,10 @@ radeon_atom_encoder_mode_set(struct drm_encoder *encoder,
 	}
 	atombios_apply_encoder_quirks(encoder, adjusted_mode);
 
-	/* XXX */
-	if (!ASIC_IS_DCE4(rdev))
+	if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI) {
+		r600_hdmi_enable(encoder);
 		r600_hdmi_setmode(encoder, adjusted_mode);
+	}
 }
 
 static bool
@@ -1514,6 +1514,8 @@ static void radeon_atom_encoder_disable(struct drm_encoder *encoder)
 	radeon_atom_encoder_dpms(encoder, DRM_MODE_DPMS_OFF);
 
 	if (radeon_encoder_is_digital(encoder)) {
+		if (atombios_get_encoder_mode(encoder) == ATOM_ENCODER_MODE_HDMI)
+			r600_hdmi_disable(encoder);
 		dig = radeon_encoder->enc_priv;
 		dig->dig_encoder = -1;
 	}
@@ -1664,6 +1666,4 @@ radeon_add_atom_encoder(struct drm_device *dev, uint32_t encoder_id, uint32_t su
 		drm_encoder_helper_add(encoder, &radeon_atom_dig_helper_funcs);
 		break;
 	}
-
-	r600_hdmi_init(encoder);
 }

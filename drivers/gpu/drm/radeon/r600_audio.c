@@ -224,6 +224,7 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_encoder *radeon_encoder = to_radeon_encoder(encoder);
+	struct radeon_encoder_atom_dig *dig = radeon_encoder->enc_priv;
 	int base_rate = 48000;
 
 	switch (radeon_encoder->encoder_id) {
@@ -245,7 +246,7 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
 		return;
 	}
 
-	switch (r600_audio_tmds_index(encoder)) {
+	switch (dig->dig_encoder) {
 	case 0:
 		WREG32(R600_AUDIO_PLL1_MUL, base_rate*50);
 		WREG32(R600_AUDIO_PLL1_DIV, clock*100);
@@ -257,6 +258,10 @@ void r600_audio_set_clock(struct drm_encoder *encoder, int clock)
 		WREG32(R600_AUDIO_PLL2_DIV, clock*100);
 		WREG32(R600_AUDIO_CLK_SRCSEL, 1);
 		break;
+	default:
+		dev_err(rdev->dev, "Unsupported DIG on encoder 0x%02X\n",
+			  radeon_encoder->encoder_id);
+		return;
 	}
 }
 
