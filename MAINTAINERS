@@ -131,19 +131,12 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	drivers/net/typhoon*
 
-3W-9XXX SATA-RAID CONTROLLER DRIVER
-M:	Adam Radford <linuxraid@amcc.com>
+3WARE SAS/SATA-RAID SCSI DRIVERS (3W-XXXX, 3W-9XXX, 3W-SAS)
+M:	Adam Radford <linuxraid@lsi.com>
 L:	linux-scsi@vger.kernel.org
-W:	http://www.amcc.com
+W:	http://www.lsi.com
 S:	Supported
-F:	drivers/scsi/3w-9xxx*
-
-3W-XXXX ATA-RAID CONTROLLER DRIVER
-M:	Adam Radford <linuxraid@amcc.com>
-L:	linux-scsi@vger.kernel.org
-W:	http://www.amcc.com
-S:	Supported
-F:	drivers/scsi/3w-xxxx*
+F:	drivers/scsi/3w-*
 
 53C700 AND 53C700-66 SCSI DRIVER
 M:	"James E.J. Bottomley" <James.Bottomley@HansenPartnership.com>
