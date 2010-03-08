@@ -60,7 +60,7 @@ static const match_table_t tokens = {
 
 inline int p9_is_proto_dotl(struct p9_client *clnt)
 {
-	return (clnt->proto_version == p9_proto_2010L);
+	return (clnt->proto_version == p9_proto_2000L);
 }
 EXPORT_SYMBOL(p9_is_proto_dotl);
 
@@ -80,9 +80,9 @@ static unsigned char get_protocol_version(const substring_t *name)
 	} else if (!strncmp("9p2000.u", name->from, name->to-name->from)) {
 		version = p9_proto_2000u;
 		P9_DPRINTK(P9_DEBUG_9P, "Protocol version: 9P2000.u\n");
-	} else if (!strncmp("9p2010.L", name->from, name->to-name->from)) {
-		version = p9_proto_2010L;
-		P9_DPRINTK(P9_DEBUG_9P, "Protocol version: 9P2010.L\n");
+	} else if (!strncmp("9p2000.L", name->from, name->to-name->from)) {
+		version = p9_proto_2000L;
+		P9_DPRINTK(P9_DEBUG_9P, "Protocol version: 9P2000.L\n");
 	} else {
 		P9_DPRINTK(P9_DEBUG_ERROR, "Unknown protocol version %s. ",
 							name->from);
@@ -672,9 +672,9 @@ int p9_client_version(struct p9_client *c)
 						c->msize, c->proto_version);
 
 	switch (c->proto_version) {
-	case p9_proto_2010L:
+	case p9_proto_2000L:
 		req = p9_client_rpc(c, P9_TVERSION, "ds",
-					c->msize, "9P2010.L");
+					c->msize, "9P2000.L");
 		break;
 	case p9_proto_2000u:
 		req = p9_client_rpc(c, P9_TVERSION, "ds",
@@ -700,8 +700,8 @@ int p9_client_version(struct p9_client *c)
 	}
 
 	P9_DPRINTK(P9_DEBUG_9P, "<<< RVERSION msize %d %s\n", msize, version);
-	if (!strncmp(version, "9P2010.L", 8))
-		c->proto_version = p9_proto_2010L;
+	if (!strncmp(version, "9P2000.L", 8))
+		c->proto_version = p9_proto_2000L;
 	else if (!strncmp(version, "9P2000.u", 8))
 		c->proto_version = p9_proto_2000u;
 	else if (!strncmp(version, "9P2000", 6))
