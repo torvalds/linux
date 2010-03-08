@@ -17,7 +17,7 @@
 #include <linux/seq_file.h>
 #include <linux/err.h>
 #include <keys/keyring-type.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include "internal.h"
 
 /*
@@ -304,7 +304,7 @@ key_ref_t keyring_search_aux(key_ref_t keyring_ref,
 	key_check(keyring);
 
 	/* top keyring must have search permission to begin the search */
-        err = key_task_permission(keyring_ref, cred, KEY_SEARCH);
+	err = key_task_permission(keyring_ref, cred, KEY_SEARCH);
 	if (err < 0) {
 		key_ref = ERR_PTR(err);
 		goto error;
@@ -773,8 +773,7 @@ int __key_link(struct key *keyring, struct key *key)
 		smp_wmb();
 		klist->nkeys++;
 		smp_wmb();
-	}
-	else {
+	} else {
 		/* grow the key list */
 		max = 4;
 		if (klist)
