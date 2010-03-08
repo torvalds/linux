@@ -847,7 +847,7 @@ qlcnic_get_bios_version(struct qlcnic_adapter *adapter)
 	bios_ver = cpu_to_le32(*((u32 *) (&fw->data[prd_off])
 				+ QLCNIC_UNI_BIOS_VERSION_OFF));
 
-	return (bios_ver << 24) + ((bios_ver >> 8) & 0xff00) + (bios_ver >> 24);
+	return (bios_ver << 16) + ((bios_ver >> 8) & 0xff00) + (bios_ver >> 24);
 }
 
 int
