@@ -66,7 +66,7 @@ struct sd {
 	s8 sharpness;
 	u8 hflip;
 	u8 vflip;
-
+	u8 freqfltr;
 };
 
 /* V4L2 controls supported by the driver */
@@ -90,6 +90,10 @@ static int sd_setbrightness(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getbrightness(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setcontrast(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getcontrast(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_setfreqfltr(struct gspca_dev *gspca_dev, __s32 val);
+static int sd_getfreqfltr(struct gspca_dev *gspca_dev, __s32 *val);
+static int sd_querymenu(struct gspca_dev *gspca_dev,
+		struct v4l2_querymenu *menu);
 
 static const struct ctrl sd_ctrls[] = {
 	{	/* 0 */
@@ -232,6 +236,20 @@ static const struct ctrl sd_ctrls[] = {
 		},
 		.set = sd_setvflip,
 		.get = sd_getvflip,
+	},
+	{	/* 10 */
+		{
+			.id      = V4L2_CID_POWER_LINE_FREQUENCY,
+			.type    = V4L2_CTRL_TYPE_MENU,
+			.name    = "Light Frequency Filter",
+			.minimum = 0,
+			.maximum = 1,
+			.step    = 1,
+#define FREQFLTR_DEF 0
+			.default_value = FREQFLTR_DEF,
+		},
+		.set = sd_setfreqfltr,
+		.get = sd_getfreqfltr,
 	},
 };
 
@@ -784,6 +802,17 @@ static void setvflip(struct gspca_dev *gspca_dev)
 				sccb_reg_read(gspca_dev, 0x0c) & ~0x80);
 }
 
+static void setfreqfltr(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	if (sd->freqfltr == 0)
+		sccb_reg_write(gspca_dev, 0x2b, 0x00);
+	else
+		sccb_reg_write(gspca_dev, 0x2b, 0x9e);
+}
+
+
 /* this function is called at probe time */
 static int sd_config(struct gspca_dev *gspca_dev,
 		     const struct usb_device_id *id)
@@ -817,6 +846,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->sharpness = SHARPNESS_DEF;
 	sd->hflip = HFLIP_DEF;
 	sd->vflip = VFLIP_DEF;
+	sd->freqfltr = FREQFLTR_DEF;
 
 	return 0;
 }
@@ -886,6 +916,7 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	setsharpness(gspca_dev);
 	setvflip(gspca_dev);
 	sethflip(gspca_dev);
+	setfreqfltr(gspca_dev);
 
 	ov534_set_led(gspca_dev, 1);
 	ov534_reg_write(gspca_dev, 0xe0, 0x00);
@@ -1179,6 +1210,43 @@ static int sd_getvflip(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+static int sd_setfreqfltr(struct gspca_dev *gspca_dev, __s32 val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	sd->freqfltr = val;
+	if (gspca_dev->streaming)
+		setfreqfltr(gspca_dev);
+	return 0;
+}
+
+static int sd_getfreqfltr(struct gspca_dev *gspca_dev, __s32 *val)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+
+	*val = sd->freqfltr;
+	return 0;
+}
+
+static int sd_querymenu(struct gspca_dev *gspca_dev,
+		struct v4l2_querymenu *menu)
+{
+	switch (menu->id) {
+	case V4L2_CID_POWER_LINE_FREQUENCY:
+		switch (menu->index) {
+		case 0:         /* V4L2_CID_POWER_LINE_FREQUENCY_DISABLED */
+			strcpy((char *) menu->name, "Disabled");
+			return 0;
+		case 1:         /* V4L2_CID_POWER_LINE_FREQUENCY_50HZ */
+			strcpy((char *) menu->name, "50 Hz");
+			return 0;
+		}
+		break;
+	}
+
+	return -EINVAL;
+}
+
 /* get stream parameters (framerate) */
 static int sd_get_streamparm(struct gspca_dev *gspca_dev,
 			     struct v4l2_streamparm *parm)
@@ -1230,6 +1298,7 @@ static const struct sd_desc sd_desc = {
 	.start    = sd_start,
 	.stopN    = sd_stopN,
 	.pkt_scan = sd_pkt_scan,
+	.querymenu = sd_querymenu,
 	.get_streamparm = sd_get_streamparm,
 	.set_streamparm = sd_set_streamparm,
 };
