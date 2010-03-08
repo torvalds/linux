@@ -52,6 +52,7 @@
 #include <linux/cpu.h>
 #include "md.h"
 #include "raid5.h"
+#include "raid0.h"
 #include "bitmap.h"
 
 /*
@@ -5619,6 +5620,21 @@ static void raid5_quiesce(mddev_t *mddev, int state)
 }
 
 
+static void *raid5_takeover_raid0(mddev_t *mddev)
+{
+
+	mddev->new_level = 5;
+	mddev->new_layout = ALGORITHM_PARITY_N;
+	mddev->new_chunk_sectors = mddev->chunk_sectors;
+	mddev->raid_disks += 1;
+	mddev->delta_disks = 1;
+	/* make sure it will be not marked as dirty */
+	mddev->recovery_cp = MaxSector;
+
+	return setup_conf(mddev);
+}
+
+
 static void *raid5_takeover_raid1(mddev_t *mddev)
 {
 	int chunksect;
@@ -5748,6 +5764,16 @@ static void *raid5_takeover(mddev_t *mddev)
 	 *  raid4 - trivial - just use a raid4 layout.
 	 *  raid6 - Providing it is a *_6 layout
 	 */
+	if (mddev->level == 0) {
+		/* for raid0 takeover only one zone is supported */
+		struct raid0_private_data *raid0_priv
+			= mddev->private;
+		if (raid0_priv->nr_strip_zones > 1) {
+			printk(KERN_ERR "md: cannot takeover raid 0 with more than one zone.\n");
+			return ERR_PTR(-EINVAL);
+		}
+		return raid5_takeover_raid0(mddev);
+	}
 
 	if (mddev->level == 1)
 		return raid5_takeover_raid1(mddev);

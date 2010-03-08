@@ -3017,6 +3017,20 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 			mddev->to_remove = &md_redundancy_group;
 	}
 
+	if (mddev->pers->sync_request == NULL &&
+	    mddev->external) {
+		/* We are converting from a no-redundancy array
+		 * to a redundancy array and metadata is managed
+		 * externally so we need to be sure that writes
+		 * won't block due to a need to transition
+		 *      clean->dirty
+		 * until external management is started.
+		 */
+		mddev->in_sync = 0;
+		mddev->safemode_delay = 0;
+		mddev->safemode = 0;
+	}
+
 	module_put(mddev->pers->owner);
 	/* Invalidate devices that are now superfluous */
 	list_for_each_entry(rdev, &mddev->disks, same_set)
