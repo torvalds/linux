@@ -265,6 +265,7 @@ struct proc_ns_operations {
 	void (*put)(void *ns);
 	int (*install)(struct nsproxy *nsproxy, void *ns);
 };
+extern const struct proc_ns_operations netns_operations;
 
 union proc_op {
 	int (*proc_get_link)(struct inode *, struct path *);
