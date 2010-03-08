@@ -129,7 +129,7 @@ static inline void
 btrfs_ordered_inode_tree_init(struct btrfs_ordered_inode_tree *t)
 {
 	mutex_init(&t->mutex);
-	t->tree.rb_node = NULL;
+	t->tree = RB_ROOT;
 	t->last = NULL;
 }
 
