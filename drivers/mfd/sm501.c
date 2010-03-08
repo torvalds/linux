@@ -1430,7 +1430,7 @@ static int __devinit sm501_plat_probe(struct platform_device *dev)
 	}
 
 	sm->regs_claim = request_mem_region(sm->io_res->start,
-					    resource_size(sm->io_res), "sm501");
+					    0x100, "sm501");
 
 	if (sm->regs_claim == NULL) {
 		dev_err(&dev->dev, "cannot claim registers\n");
@@ -1644,7 +1644,7 @@ static int __devinit sm501_pci_probe(struct pci_dev *dev,
 	sm->mem_res = &dev->resource[0];
 
 	sm->regs_claim = request_mem_region(sm->io_res->start,
-					    resource_size(sm->io_res), "sm501");
+					    0x100, "sm501");
 	if (sm->regs_claim == NULL) {
 		dev_err(&dev->dev, "cannot claim registers\n");
 		err= -EBUSY;
