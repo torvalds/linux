@@ -447,7 +447,7 @@ static struct i2c_adapter octeon_i2c_ops = {
 /**
  * octeon_i2c_setclock - Calculate and set clock divisors.
  */
-static int __init octeon_i2c_setclock(struct octeon_i2c *i2c)
+static int __devinit octeon_i2c_setclock(struct octeon_i2c *i2c)
 {
 	int tclk, thp_base, inc, thp_idx, mdiv_idx, ndiv_idx, foscl, diff;
 	int thp = 0x18, mdiv = 2, ndiv = 0, delta_hz = 1000000;
@@ -490,7 +490,7 @@ static int __init octeon_i2c_setclock(struct octeon_i2c *i2c)
 	return 0;
 }
 
-static int __init octeon_i2c_initlowlevel(struct octeon_i2c *i2c)
+static int __devinit octeon_i2c_initlowlevel(struct octeon_i2c *i2c)
 {
 	u8 status;
 	int tries;
