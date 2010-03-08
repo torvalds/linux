@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/cpufreq.h>
 #include <linux/fs.h>
+#include <linux/delay.h>
 #include <asm/blackfin.h>
 #include <asm/time.h>
 #include <asm/dpmc.h>
@@ -99,13 +100,15 @@ static unsigned int bfin_getfreq_khz(unsigned int cpu)
 	return get_cclk() / 1000;
 }
 
-
 static int bfin_target(struct cpufreq_policy *poli,
 			unsigned int target_freq, unsigned int relation)
 {
 	unsigned int index, plldiv, cpu;
 	unsigned long flags, cclk_hz;
 	struct cpufreq_freqs freqs;
+	static unsigned long lpj_ref;
+	static unsigned int  lpj_ref_freq;
+
 #if defined(CONFIG_CYCLES_CLOCKSOURCE)
 	cycles_t cycles;
 #endif
@@ -144,6 +147,14 @@ static int bfin_target(struct cpufreq_policy *poli,
 			    (cycles << __bfin_cycles_mod) - (cycles << index);
 			__bfin_cycles_mod = index;
 #endif
+			if (!lpj_ref_freq) {
+				lpj_ref = loops_per_jiffy;
+				lpj_ref_freq = freqs.old;
+			}
+			if (freqs.new != freqs.old) {
+				loops_per_jiffy = cpufreq_scale(lpj_ref,
+						lpj_ref_freq, freqs.new);
+			}
 			local_irq_restore_hw(flags);
 		}
 		/* TODO: just test case for cycles clock source, remove later */
