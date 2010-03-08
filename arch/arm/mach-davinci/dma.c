@@ -359,9 +359,11 @@ static irqreturn_t dma_irq_handler(int irq, void *data)
 
 	while (1) {
 		int j;
-		if (edma_shadow0_read_array(ctlr, SH_IPR, 0))
+		if (edma_shadow0_read_array(ctlr, SH_IPR, 0) &
+				edma_shadow0_read_array(ctlr, SH_IER, 0))
 			j = 0;
-		else if (edma_shadow0_read_array(ctlr, SH_IPR, 1))
+		else if (edma_shadow0_read_array(ctlr, SH_IPR, 1) &
+				edma_shadow0_read_array(ctlr, SH_IER, 1))
 			j = 1;
 		else
 			break;
@@ -369,8 +371,9 @@ static irqreturn_t dma_irq_handler(int irq, void *data)
 				edma_shadow0_read_array(ctlr, SH_IPR, j));
 		for (i = 0; i < 32; i++) {
 			int k = (j << 5) + i;
-			if (edma_shadow0_read_array(ctlr, SH_IPR, j) &
-							(1 << i)) {
+			if ((edma_shadow0_read_array(ctlr, SH_IPR, j) & BIT(i))
+					&& (edma_shadow0_read_array(ctlr,
+							SH_IER, j) & BIT(i))) {
 				/* Clear the corresponding IPR bits */
 				edma_shadow0_write_array(ctlr, SH_ICR, j,
 							(1 << i));
