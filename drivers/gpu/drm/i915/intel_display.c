@@ -1002,7 +1002,7 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_framebuffer *fb = crtc->fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj_priv = intel_fb->obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(intel_fb->obj);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int plane, i;
 	u32 fbc_ctl, fbc_ctl2;
@@ -1079,7 +1079,7 @@ static void g4x_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	struct drm_framebuffer *fb = crtc->fb;
 	struct intel_framebuffer *intel_fb = to_intel_framebuffer(fb);
-	struct drm_i915_gem_object *obj_priv = intel_fb->obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(intel_fb->obj);
 	struct intel_crtc *intel_crtc = to_intel_crtc(crtc);
 	int plane = (intel_crtc->plane == 0 ? DPFC_CTL_PLANEA :
 		     DPFC_CTL_PLANEB);
@@ -1175,7 +1175,7 @@ static void intel_update_fbc(struct drm_crtc *crtc,
 		return;
 
 	intel_fb = to_intel_framebuffer(fb);
-	obj_priv = intel_fb->obj->driver_private;
+	obj_priv = to_intel_bo(intel_fb->obj);
 
 	/*
 	 * If FBC is already on, we just have to verify that we can
@@ -1242,7 +1242,7 @@ out_disable:
 static int
 intel_pin_and_fence_fb_obj(struct drm_device *dev, struct drm_gem_object *obj)
 {
-	struct drm_i915_gem_object *obj_priv = obj->driver_private;
+	struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 	u32 alignment;
 	int ret;
 
@@ -1322,7 +1322,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	intel_fb = to_intel_framebuffer(crtc->fb);
 	obj = intel_fb->obj;
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 
 	mutex_lock(&dev->struct_mutex);
 	ret = intel_pin_and_fence_fb_obj(dev, obj);
@@ -1400,7 +1400,7 @@ intel_pipe_set_base(struct drm_crtc *crtc, int x, int y,
 
 	if (old_fb) {
 		intel_fb = to_intel_framebuffer(old_fb);
-		obj_priv = intel_fb->obj->driver_private;
+		obj_priv = to_intel_bo(intel_fb->obj);
 		i915_gem_object_unpin(intel_fb->obj);
 	}
 	intel_increase_pllclock(crtc, true);
@@ -3510,7 +3510,7 @@ static int intel_crtc_cursor_set(struct drm_crtc *crtc,
 	if (!bo)
 		return -ENOENT;
 
-	obj_priv = bo->driver_private;
+	obj_priv = to_intel_bo(bo);
 
 	if (bo->size < width * height * 4) {
 		DRM_ERROR("buffer is to small\n");
@@ -4155,7 +4155,7 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 	work = intel_crtc->unpin_work;
 	if (work == NULL || !work->pending) {
 		if (work && !work->pending) {
-			obj_priv = work->pending_flip_obj->driver_private;
+			obj_priv = to_intel_bo(work->pending_flip_obj);
 			DRM_DEBUG_DRIVER("flip finish: %p (%d) not pending?\n",
 					 obj_priv,
 					 atomic_read(&obj_priv->pending_flip));
@@ -4180,7 +4180,7 @@ void intel_finish_page_flip(struct drm_device *dev, int pipe)
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 
-	obj_priv = work->pending_flip_obj->driver_private;
+	obj_priv = to_intel_bo(work->pending_flip_obj);
 
 	/* Initial scanout buffer will have a 0 pending flip count */
 	if ((atomic_read(&obj_priv->pending_flip) == 0) ||
@@ -4251,7 +4251,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	ret = intel_pin_and_fence_fb_obj(dev, obj);
 	if (ret != 0) {
 		DRM_DEBUG_DRIVER("flip queue: %p pin & fence failed\n",
-			  obj->driver_private);
+			  to_intel_bo(obj));
 		kfree(work);
 		intel_crtc->unpin_work = NULL;
 		mutex_unlock(&dev->struct_mutex);
@@ -4265,7 +4265,7 @@ static int intel_crtc_page_flip(struct drm_crtc *crtc,
 	crtc->fb = fb;
 	i915_gem_object_flush_write_domain(obj);
 	drm_vblank_get(dev, intel_crtc->pipe);
-	obj_priv = obj->driver_private;
+	obj_priv = to_intel_bo(obj);
 	atomic_inc(&obj_priv->pending_flip);
 	work->pending_flip_obj = obj;
 
@@ -4778,14 +4778,14 @@ void intel_init_clock_gating(struct drm_device *dev)
 		struct drm_i915_gem_object *obj_priv = NULL;
 
 		if (dev_priv->pwrctx) {
-			obj_priv = dev_priv->pwrctx->driver_private;
+			obj_priv = to_intel_bo(dev_priv->pwrctx);
 		} else {
 			struct drm_gem_object *pwrctx;
 
 			pwrctx = intel_alloc_power_context(dev);
 			if (pwrctx) {
 				dev_priv->pwrctx = pwrctx;
-				obj_priv = pwrctx->driver_private;
+				obj_priv = to_intel_bo(pwrctx);
 			}
 		}
 
@@ -4956,7 +4956,7 @@ void intel_modeset_cleanup(struct drm_device *dev)
 	if (dev_priv->pwrctx) {
 		struct drm_i915_gem_object *obj_priv;
 
-		obj_priv = dev_priv->pwrctx->driver_private;
+		obj_priv = to_intel_bo(dev_priv->pwrctx);
 		I915_WRITE(PWRCTXA, obj_priv->gtt_offset &~ PWRCTX_EN);
 		I915_READ(PWRCTXA);
 		i915_gem_object_unpin(dev_priv->pwrctx);

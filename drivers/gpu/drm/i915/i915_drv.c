@@ -361,7 +361,7 @@ int i965_reset(struct drm_device *dev, u8 flags)
 	    !dev_priv->mm.suspended) {
 		drm_i915_ring_buffer_t *ring = &dev_priv->ring;
 		struct drm_gem_object *obj = ring->ring_obj;
-		struct drm_i915_gem_object *obj_priv = obj->driver_private;
+		struct drm_i915_gem_object *obj_priv = to_intel_bo(obj);
 		dev_priv->mm.suspended = 0;
 
 		/* Stop the ring if it's running. */

@@ -443,7 +443,7 @@ i915_error_object_create(struct drm_device *dev,
 	if (src == NULL)
 		return NULL;
 
-	src_priv = src->driver_private;
+	src_priv = to_intel_bo(src);
 	if (src_priv->pages == NULL)
 		return NULL;
 
