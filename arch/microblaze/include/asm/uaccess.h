@@ -146,31 +146,75 @@ static inline unsigned long __must_check clear_user(void __user *to,
 
 #ifndef CONFIG_MMU
 
-/* Undefined function to trigger linker error */
-extern int bad_user_access_length(void);
+extern long __user_bad(void);
 
-/* FIXME this is function for optimalization -> memcpy */
-#define __get_user(var, ptr)				\
-({							\
-	int __gu_err = 0;				\
-	switch (sizeof(*(ptr))) {			\
-	case 1:						\
-	case 2:						\
-	case 4:						\
-		(var) = *(ptr);				\
-		break;					\
-	case 8:						\
-		memcpy((void *) &(var), (ptr), 8);	\
-		break;					\
-	default:					\
-		(var) = 0;				\
-		__gu_err = __get_user_bad();		\
-		break;					\
-	}						\
-	__gu_err;					\
+#define __get_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
+({								\
+	__asm__ __volatile__ (					\
+			"1:"	insn	" %1, %2, r0;"		\
+			"	addk	%0, r0, r0;"		\
+			"2:			"		\
+			__FIXUP_SECTION				\
+			"3:	brid	2b;"			\
+			"	addik	%0, r0, %3;"		\
+			".previous;"				\
+			__EX_TABLE_SECTION			\
+			".word	1b,3b;"				\
+			".previous;"				\
+		: "=&r"(__gu_err), "=r"(__gu_val)		\
+		: "r"(__gu_ptr), "i"(-EFAULT)			\
+	);							\
 })
 
-#define __get_user_bad()	(bad_user_access_length(), (-EFAULT))
+/**
+ * get_user: - Get a simple variable from user space.
+ * @x:   Variable to store result.
+ * @ptr: Source address, in user space.
+ *
+ * Context: User context only.  This function may sleep.
+ *
+ * This macro copies a single simple variable from user space to kernel
+ * space.  It supports simple types like char and int, but not larger
+ * data types like structures or arrays.
+ *
+ * @ptr must have pointer-to-simple-variable type, and the result of
+ * dereferencing @ptr must be assignable to @x without a cast.
+ *
+ * Returns zero on success, or -EFAULT on error.
+ * On error, the variable @x is set to zero.
+ */
+
+#define __get_user(x, ptr)						\
+({									\
+	unsigned long __gu_val;						\
+	/*unsigned long __gu_ptr = (unsigned long)(ptr);*/		\
+	long __gu_err;							\
+	switch (sizeof(*(ptr))) {					\
+	case 1:								\
+		__get_user_asm("lbu", (ptr), __gu_val, __gu_err);	\
+		break;							\
+	case 2:								\
+		__get_user_asm("lhu", (ptr), __gu_val, __gu_err);	\
+		break;							\
+	case 4:								\
+		__get_user_asm("lw", (ptr), __gu_val, __gu_err);	\
+		break;							\
+	default:							\
+		/* __gu_val = 0; __gu_err = -EINVAL;*/ __gu_err = __user_bad();\
+	}								\
+	x = (__typeof__(*(ptr))) __gu_val;				\
+	__gu_err;							\
+})
+
+
+#define get_user(x, ptr)						\
+({									\
+	access_ok(VERIFY_READ, (ptr), sizeof(*(ptr)))			\
+		? __get_user((x), (ptr)) : -EFAULT;			\
+})
+
+/* Undefined function to trigger linker error */
+extern int bad_user_access_length(void);
 
 /* FIXME is not there defined __pu_val */
 #define __put_user(var, ptr)					\
@@ -197,7 +241,6 @@ extern int bad_user_access_length(void);
 #define __put_user_bad()	(bad_user_access_length(), (-EFAULT))
 
 #define put_user(x, ptr)	__put_user((x), (ptr))
-#define get_user(x, ptr)	__get_user((x), (ptr))
 
 #define copy_to_user(to, from, n)	(memcpy((to), (from), (n)), 0)
 #define copy_from_user(to, from, n)	(memcpy((to), (from), (n)), 0)
