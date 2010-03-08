@@ -557,8 +557,7 @@ xfs_inode_item_pin(
 /* ARGSUSED */
 STATIC void
 xfs_inode_item_unpin(
-	xfs_inode_log_item_t	*iip,
-	int			stale)
+	xfs_inode_log_item_t	*iip)
 {
 	struct xfs_inode	*ip = iip->ili_inode;
 
@@ -574,7 +573,7 @@ xfs_inode_item_unpin_remove(
 	xfs_inode_log_item_t	*iip,
 	xfs_trans_t		*tp)
 {
-	xfs_inode_item_unpin(iip, 0);
+	xfs_inode_item_unpin(iip);
 }
 
 /*
@@ -840,7 +839,7 @@ static struct xfs_item_ops xfs_inode_item_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_inode_item_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_inode_item_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*, int))xfs_inode_item_unpin,
+	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_inode_item_unpin,
 	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t*))
 					xfs_inode_item_unpin_remove,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_inode_item_trylock,

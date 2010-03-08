@@ -1451,6 +1451,6 @@ xfs_trans_chunk_committed(
 		 * flags, if anyone else stales the buffer we do not
 		 * want to pay any attention to it.
 		 */
-		IOP_UNPIN(lip, lidp->lid_flags & XFS_LID_BUF_STALE);
+		IOP_UNPIN(lip);
 	}
 }

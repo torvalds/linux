@@ -696,7 +696,6 @@ xfs_trans_log_buf(xfs_trans_t	*tp,
 
 	tp->t_flags |= XFS_TRANS_DIRTY;
 	lidp->lid_flags |= XFS_LID_DIRTY;
-	lidp->lid_flags &= ~XFS_LID_BUF_STALE;
 	bip->bli_flags |= XFS_BLI_LOGGED;
 	xfs_buf_item_log(bip, first, last);
 }
@@ -782,7 +781,7 @@ xfs_trans_binval(
 	bip->bli_format.blf_flags |= XFS_BLI_CANCEL;
 	memset((char *)(bip->bli_format.blf_data_map), 0,
 	      (bip->bli_format.blf_map_size * sizeof(uint)));
-	lidp->lid_flags |= XFS_LID_DIRTY|XFS_LID_BUF_STALE;
+	lidp->lid_flags |= XFS_LID_DIRTY;
 	tp->t_flags |= XFS_TRANS_DIRTY;
 }
 

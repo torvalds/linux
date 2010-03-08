@@ -106,7 +106,7 @@ xfs_efi_item_pin(xfs_efi_log_item_t *efip)
  */
 /*ARGSUSED*/
 STATIC void
-xfs_efi_item_unpin(xfs_efi_log_item_t *efip, int stale)
+xfs_efi_item_unpin(xfs_efi_log_item_t *efip)
 {
 	struct xfs_ail		*ailp = efip->efi_item.li_ailp;
 
@@ -224,7 +224,7 @@ static struct xfs_item_ops xfs_efi_item_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_efi_item_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_efi_item_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*, int))xfs_efi_item_unpin,
+	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_efi_item_unpin,
 	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t *))
 					xfs_efi_item_unpin_remove,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_efi_item_trylock,
@@ -425,7 +425,7 @@ xfs_efd_item_pin(xfs_efd_log_item_t *efdp)
  */
 /*ARGSUSED*/
 STATIC void
-xfs_efd_item_unpin(xfs_efd_log_item_t *efdp, int stale)
+xfs_efd_item_unpin(xfs_efd_log_item_t *efdp)
 {
 	return;
 }
@@ -515,7 +515,7 @@ static struct xfs_item_ops xfs_efd_item_ops = {
 	.iop_format	= (void(*)(xfs_log_item_t*, xfs_log_iovec_t*))
 					xfs_efd_item_format,
 	.iop_pin	= (void(*)(xfs_log_item_t*))xfs_efd_item_pin,
-	.iop_unpin	= (void(*)(xfs_log_item_t*, int))xfs_efd_item_unpin,
+	.iop_unpin	= (void(*)(xfs_log_item_t*))xfs_efd_item_unpin,
 	.iop_unpin_remove = (void(*)(xfs_log_item_t*, xfs_trans_t*))
 					xfs_efd_item_unpin_remove,
 	.iop_trylock	= (uint(*)(xfs_log_item_t*))xfs_efd_item_trylock,
