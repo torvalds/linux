@@ -537,7 +537,8 @@ static void qeth_send_control_data_cb(struct qeth_channel *channel,
 			dev_err(&card->gdev->dev,
 				"The qeth device is not configured "
 				"for the OSI layer required by z/VM\n");
-		qeth_schedule_recovery(card);
+		else
+			qeth_schedule_recovery(card);
 		goto out;
 	}
 

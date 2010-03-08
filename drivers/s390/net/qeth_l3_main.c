@@ -2219,11 +2219,9 @@ static int qeth_l3_stop_card(struct qeth_card *card, int recovery_mode)
 		if (recovery_mode)
 			qeth_l3_stop(card->dev);
 		else {
-			if (card->dev) {
-				rtnl_lock();
-				dev_close(card->dev);
-				rtnl_unlock();
-			}
+			rtnl_lock();
+			dev_close(card->dev);
+			rtnl_unlock();
 		}
 		if (!card->use_hard_stop) {
 			rc = qeth_send_stoplan(card);
@@ -3536,11 +3534,9 @@ static int qeth_l3_pm_resume(struct ccwgroup_device *gdev)
 	if (card->state == CARD_STATE_RECOVER) {
 		rc = __qeth_l3_set_online(card->gdev, 1);
 		if (rc) {
-			if (card->dev) {
-				rtnl_lock();
-				dev_close(card->dev);
-				rtnl_unlock();
-			}
+			rtnl_lock();
+			dev_close(card->dev);
+			rtnl_unlock();
 		}
 	} else
 		rc = __qeth_l3_set_online(card->gdev, 0);
