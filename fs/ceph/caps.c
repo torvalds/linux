@@ -2334,6 +2334,7 @@ static int handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 			   revoked_rdcache)
 			reply = 2;     /* send revoke ack in check_caps */
 		cap->issued = newcaps;
+		cap->implemented |= newcaps;
 	} else if (cap->issued == newcaps) {
 		dout("caps unchanged: %s -> %s\n",
 		     ceph_cap_string(cap->issued), ceph_cap_string(newcaps));
@@ -2346,6 +2347,7 @@ static int handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 					      * pending revocation */
 		wake = 1;
 	}
+	BUG_ON(cap->issued & ~cap->implemented);
 
 	spin_unlock(&inode->i_lock);
 	if (writeback)
