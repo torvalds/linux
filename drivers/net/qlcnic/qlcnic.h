@@ -423,6 +423,11 @@ struct qlcnic_adapter_stats {
 	u64  lro_pkts;
 	u64  rxbytes;
 	u64  txbytes;
+	u64  lrobytes;
+	u64  lso_frames;
+	u64  xmit_on;
+	u64  xmit_off;
+	u64  skb_alloc_failure;
 };
 
 /*

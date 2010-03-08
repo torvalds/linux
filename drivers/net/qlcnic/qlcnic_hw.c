@@ -349,6 +349,7 @@ qlcnic_send_cmd_descs(struct qlcnic_adapter *adapter,
 	if (nr_desc >= qlcnic_tx_avail(tx_ring)) {
 		netif_tx_stop_queue(tx_ring->txq);
 		__netif_tx_unlock_bh(tx_ring->txq);
+		adapter->stats.xmit_off++;
 		return -EBUSY;
 	}
 

@@ -1114,8 +1114,10 @@ qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 
 	buffer->skb = dev_alloc_skb(rds_ring->skb_size);
-	if (!buffer->skb)
+	if (!buffer->skb) {
+		adapter->stats.skb_alloc_failure++;
 		return -ENOMEM;
+	}
 
 	skb = buffer->skb;
 
@@ -1289,7 +1291,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	netif_receive_skb(skb);
 
 	adapter->stats.lro_pkts++;
-	adapter->stats.rxbytes += length;
+	adapter->stats.lrobytes += length;
 
 	return buffer;
 }
@@ -1505,6 +1507,8 @@ qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter,
 		adapter->diag_cnt++;
 
 	dev_kfree_skb_any(skb);
+	adapter->stats.rx_pkts++;
+	adapter->stats.rxbytes += length;
 
 	return buffer;
 }

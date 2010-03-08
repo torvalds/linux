@@ -59,6 +59,17 @@ static const struct qlcnic_stats qlcnic_gstrings_stats[] = {
 		QLC_SIZEOF(stats.rxbytes), QLC_OFF(stats.rxbytes)},
 	{"tx_bytes",
 		QLC_SIZEOF(stats.txbytes), QLC_OFF(stats.txbytes)},
+	{"lrobytes",
+		QLC_SIZEOF(stats.lrobytes), QLC_OFF(stats.lrobytes)},
+	{"lso_frames",
+		QLC_SIZEOF(stats.lso_frames), QLC_OFF(stats.lso_frames)},
+	{"xmit_on",
+		QLC_SIZEOF(stats.xmit_on), QLC_OFF(stats.xmit_on)},
+	{"xmit_off",
+		QLC_SIZEOF(stats.xmit_off), QLC_OFF(stats.xmit_off)},
+	{"skb_alloc_failure", QLC_SIZEOF(stats.skb_alloc_failure),
+		QLC_OFF(stats.skb_alloc_failure)},
+
 };
 
 #define QLCNIC_STATS_LEN	ARRAY_SIZE(qlcnic_gstrings_stats)
