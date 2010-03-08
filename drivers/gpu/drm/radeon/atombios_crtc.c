@@ -1127,9 +1127,6 @@ int atombios_crtc_mode_set(struct drm_crtc *crtc,
 
 	/* TODO color tiling */
 
-	/* pick pll */
-	radeon_crtc->pll_id = radeon_atom_pick_pll(crtc);
-
 	atombios_disable_ss(crtc);
 	/* always set DCPLL */
 	if (ASIC_IS_DCE4(rdev))
@@ -1164,6 +1161,11 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 
 static void atombios_crtc_prepare(struct drm_crtc *crtc)
 {
+	struct radeon_crtc *radeon_crtc = to_radeon_crtc(crtc);
+
+	/* pick pll */
+	radeon_crtc->pll_id = radeon_atom_pick_pll(crtc);
+
 	atombios_lock_crtc(crtc, ATOM_ENABLE);
 	atombios_crtc_dpms(crtc, DRM_MODE_DPMS_OFF);
 }
