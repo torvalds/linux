@@ -1,6 +1,7 @@
 #include <linux/init.h>
 #include <asm/sizes.h>
 #include <asm/page.h>
+#include <asm/addrspace.h>
 
 /*
  * This is the offset of the uncached section from its cached alias.
@@ -23,7 +24,11 @@ int virt_addr_uncached(unsigned long kaddr)
 
 void __init uncached_init(void)
 {
+#ifdef CONFIG_29BIT
+	uncached_start = P2SEG;
+#else
 	uncached_start = memory_end;
+#endif
 	uncached_end = uncached_start + uncached_size;
 }
 
