@@ -398,9 +398,8 @@ static int hdmi_setup_channel_allocation(struct hda_codec *codec, hda_nid_t nid,
 	}
 
 	snd_print_channel_allocation(eld->spk_alloc, buf, sizeof(buf));
-	snd_printdd(KERN_INFO
-			"HDMI: select CA 0x%x for %d-channel allocation: %s\n",
-			ai->CA, channels, buf);
+	snd_printdd("HDMI: select CA 0x%x for %d-channel allocation: %s\n",
+		    ai->CA, channels, buf);
 
 	return ai->CA;
 }
@@ -442,7 +441,8 @@ static void hdmi_setup_channel_mapping(struct hda_codec *codec,
 					  AC_VERB_SET_HDMI_CHAN_SLOT,
 					  hdmi_channel_mapping[ca][i]);
 		if (err) {
-			snd_printdd(KERN_INFO "HDMI: channel mapping failed\n");
+			snd_printdd(KERN_NOTICE
+				    "HDMI: channel mapping failed\n");
 			break;
 		}
 	}
@@ -599,6 +599,10 @@ static void hdmi_setup_audio_infoframe(struct hda_codec *codec, hda_nid_t nid,
 
 		pin_nid = spec->pin[i];
 		if (!hdmi_infoframe_uptodate(codec, pin_nid, &ai)) {
+			snd_printdd("hdmi_setup_audio_infoframe: "
+				    "cvt=%d pin=%d channels=%d\n",
+				    nid, pin_nid,
+				    substream->runtime->channels);
 			hdmi_setup_channel_mapping(codec, pin_nid, &ai);
 			hdmi_stop_infoframe_trans(codec, pin_nid);
 			hdmi_fill_audio_infoframe(codec, pin_nid, &ai);
