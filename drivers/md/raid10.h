@@ -33,8 +33,15 @@ struct r10_private_data_s {
 					       * 1 stripe.
 					       */
 
+	sector_t		dev_sectors;  /* temp copy of mddev->dev_sectors */
+
 	int chunk_shift; /* shift from chunks to sectors */
 	sector_t chunk_mask;
+
+	int			scale_disks;  /* When starting array, multiply
+					       * each ->raid_disk by this.
+					       * Need for raid0->raid10 migration
+					       */
 
 	struct list_head	retry_list;
 	/* queue pending writes and submit them on unplug */
@@ -57,6 +64,11 @@ struct r10_private_data_s {
 	mempool_t *r10bio_pool;
 	mempool_t *r10buf_pool;
 	struct page		*tmppage;
+
+	/* When taking over an array from a different personality, we store
+	 * the new thread here until we fully activate the array.
+	 */
+	struct mdk_thread_s	*thread;
 };
 
 typedef struct r10_private_data_s conf_t;
