@@ -177,7 +177,7 @@ static const struct dev_pm_ops smsg_pm_ops = {
 
 static struct device_driver smsg_driver = {
 	.owner = THIS_MODULE,
-	.name = "SMSGIUCV",
+	.name = SMSGIUCV_DRV_NAME,
 	.bus  = &iucv_bus,
 	.pm = &smsg_pm_ops,
 };
