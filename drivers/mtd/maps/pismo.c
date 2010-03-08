@@ -118,7 +118,7 @@ static int __devinit pismo_add_device(struct pismo_data *pismo, int i,
 {
 	struct platform_device *dev;
 	struct resource res = { };
-	phys_addr_t base = region.base;
+	phys_addr_t base = region->base;
 	int ret;
 
 	if (base == ~0)
