@@ -227,6 +227,7 @@ struct bitmap {
 	int allclean;
 
 	atomic_t behind_writes;
+	unsigned long behind_writes_used; /* highest actual value at runtime */
 
 	/*
 	 * the bitmap daemon - periodically wakes up and sweeps the bitmap

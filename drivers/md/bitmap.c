@@ -1292,9 +1292,14 @@ int bitmap_startwrite(struct bitmap *bitmap, sector_t offset, unsigned long sect
 	if (!bitmap) return 0;
 
 	if (behind) {
+		int bw;
 		atomic_inc(&bitmap->behind_writes);
+		bw = atomic_read(&bitmap->behind_writes);
+		if (bw > bitmap->behind_writes_used)
+			bitmap->behind_writes_used = bw;
+
 		PRINTK(KERN_DEBUG "inc write-behind count %d/%d\n",
-		  atomic_read(&bitmap->behind_writes), bitmap->max_write_behind);
+		       bw, bitmap->max_write_behind);
 	}
 
 	while (sectors) {
@@ -2006,6 +2011,27 @@ static ssize_t can_clear_store(mddev_t *mddev, const char *buf, size_t len)
 static struct md_sysfs_entry bitmap_can_clear =
 __ATTR(can_clear, S_IRUGO|S_IWUSR, can_clear_show, can_clear_store);
 
+static ssize_t
+behind_writes_used_show(mddev_t *mddev, char *page)
+{
+	if (mddev->bitmap == NULL)
+		return sprintf(page, "0\n");
+	return sprintf(page, "%lu\n",
+		       mddev->bitmap->behind_writes_used);
+}
+
+static ssize_t
+behind_writes_used_reset(mddev_t *mddev, const char *buf, size_t len)
+{
+	if (mddev->bitmap)
+		mddev->bitmap->behind_writes_used = 0;
+	return len;
+}
+
+static struct md_sysfs_entry max_backlog_used =
+__ATTR(max_backlog_used, S_IRUGO | S_IWUSR,
+       behind_writes_used_show, behind_writes_used_reset);
+
 static struct attribute *md_bitmap_attrs[] = {
 	&bitmap_location.attr,
 	&bitmap_timeout.attr,
@@ -2013,6 +2039,7 @@ static struct attribute *md_bitmap_attrs[] = {
 	&bitmap_chunksize.attr,
 	&bitmap_metadata.attr,
 	&bitmap_can_clear.attr,
+	&max_backlog_used.attr,
 	NULL
 };
 struct attribute_group md_bitmap_group = {
