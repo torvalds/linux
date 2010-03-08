@@ -1,5 +1,5 @@
 /*
- * Edirol UA-101 driver
+ * Edirol UA-101/UA-1000 driver
  * Copyright (c) Clemens Ladisch <clemens@ladisch.de>
  *
  * This driver is free software: you can redistribute it and/or modify
@@ -25,13 +25,10 @@
 #include <sound/pcm_params.h>
 #include "usbaudio.h"
 
-MODULE_DESCRIPTION("Edirol UA-101 driver");
+MODULE_DESCRIPTION("Edirol UA-101/1000 driver");
 MODULE_AUTHOR("Clemens Ladisch <clemens@ladisch.de>");
 MODULE_LICENSE("GPL v2");
-MODULE_SUPPORTED_DEVICE("{{Edirol,UA-101}}");
-
-/* I use my UA-1A for testing because I don't have a UA-101 ... */
-#define UA1A_HACK
+MODULE_SUPPORTED_DEVICE("{{Edirol,UA-101},{Edirol,UA-1000}}");
 
 /*
  * Should not be lower than the minimum scheduling delay of the host
@@ -132,9 +129,6 @@ struct ua101 {
 			dma_addr_t dma;
 		} buffers[MAX_MEMORY_BUFFERS];
 	} capture, playback;
-
-	unsigned int fps[10];
-	unsigned int frame_counter;
 };
 
 static DEFINE_MUTEX(devices_mutex);
@@ -424,16 +418,6 @@ static void capture_urb_complete(struct urb *urb)
 	if (do_period_elapsed)
 		snd_pcm_period_elapsed(stream->substream);
 
-	/* for debugging: measure the sample rate relative to the USB clock */
-	ua->fps[ua->frame_counter++ / ua->packets_per_second] += frames;
-	if (ua->frame_counter >= ARRAY_SIZE(ua->fps) * ua->packets_per_second) {
-		printk(KERN_DEBUG "capture rate:");
-		for (frames = 0; frames < ARRAY_SIZE(ua->fps); ++frames)
-			printk(KERN_CONT " %u", ua->fps[frames]);
-		printk(KERN_CONT "\n");
-		memset(ua->fps, 0, sizeof(ua->fps));
-		ua->frame_counter = 0;
-	}
 	return;
 
 stream_stopped:
@@ -1200,13 +1184,30 @@ static int ua101_probe(struct usb_interface *interface,
 		.type = QUIRK_MIDI_FIXED_ENDPOINT,
 		.data = &midi_ep
 	};
+	static const int intf_numbers[2][3] = {
+		{	/* UA-101 */
+			[INTF_PLAYBACK] = 0,
+			[INTF_CAPTURE] = 1,
+			[INTF_MIDI] = 2,
+		},
+		{	/* UA-1000 */
+			[INTF_CAPTURE] = 1,
+			[INTF_PLAYBACK] = 2,
+			[INTF_MIDI] = 3,
+		},
+	};
 	struct snd_card *card;
 	struct ua101 *ua;
 	unsigned int card_index, i;
+	int is_ua1000;
+	const char *name;
 	char usb_path[32];
 	int err;
 
-	if (interface->altsetting->desc.bInterfaceNumber != 0)
+	is_ua1000 = usb_id->idProduct == 0x0044;
+
+	if (interface->altsetting->desc.bInterfaceNumber !=
+	    intf_numbers[is_ua1000][0])
 		return -ENODEV;
 
 	mutex_lock(&devices_mutex);
@@ -1239,20 +1240,13 @@ static int ua101_probe(struct usb_interface *interface,
 	init_waitqueue_head(&ua->rate_feedback_wait);
 	init_waitqueue_head(&ua->alsa_playback_wait);
 
-#ifdef UA1A_HACK
-	if (ua->dev->descriptor.idProduct == cpu_to_le16(0x0018)) {
-		ua->intf[2] = interface;
-		ua->intf[0] = usb_ifnum_to_if(ua->dev, 1);
-		ua->intf[1] = usb_ifnum_to_if(ua->dev, 2);
-		usb_driver_claim_interface(&ua101_driver, ua->intf[0], ua);
-		usb_driver_claim_interface(&ua101_driver, ua->intf[1], ua);
-	} else {
-#endif
 	ua->intf[0] = interface;
 	for (i = 1; i < ARRAY_SIZE(ua->intf); ++i) {
-		ua->intf[i] = usb_ifnum_to_if(ua->dev, i);
+		ua->intf[i] = usb_ifnum_to_if(ua->dev,
+					      intf_numbers[is_ua1000][i]);
 		if (!ua->intf[i]) {
-			dev_err(&ua->dev->dev, "interface %u not found\n", i);
+			dev_err(&ua->dev->dev, "interface %u not found\n",
+				intf_numbers[is_ua1000][i]);
 			err = -ENXIO;
 			goto probe_error;
 		}
@@ -1264,39 +1258,19 @@ static int ua101_probe(struct usb_interface *interface,
 			goto probe_error;
 		}
 	}
-#ifdef UA1A_HACK
-	}
-#endif
 
 	snd_card_set_dev(card, &interface->dev);
 
-#ifdef UA1A_HACK
-	if (ua->dev->descriptor.idProduct == cpu_to_le16(0x0018)) {
-		ua->format_bit = SNDRV_PCM_FMTBIT_S16_LE;
-		ua->rate = 44100;
-		ua->packets_per_second = 1000;
-		ua->capture.channels = 2;
-		ua->playback.channels = 2;
-		ua->capture.frame_bytes = 4;
-		ua->playback.frame_bytes = 4;
-		ua->capture.usb_pipe = usb_rcvisocpipe(ua->dev, 2);
-		ua->playback.usb_pipe = usb_sndisocpipe(ua->dev, 1);
-		ua->capture.max_packet_bytes = 192;
-		ua->playback.max_packet_bytes = 192;
-	} else {
-#endif
 	err = detect_usb_format(ua);
 	if (err < 0)
 		goto probe_error;
-#ifdef UA1A_HACK
-	}
-#endif
 
+	name = usb_id->idProduct == 0x0044 ? "UA-1000" : "UA-101";
 	strcpy(card->driver, "UA-101");
-	strcpy(card->shortname, "UA-101");
+	strcpy(card->shortname, name);
 	usb_make_path(ua->dev, usb_path, sizeof(usb_path));
 	snprintf(ua->card->longname, sizeof(ua->card->longname),
-		 "EDIROL UA-101 (serial %s), %u Hz at %s, %s speed",
+		 "EDIROL %s (serial %s), %u Hz at %s, %s speed", name,
 		 ua->dev->serial ? ua->dev->serial : "?", ua->rate, usb_path,
 		 ua->dev->speed == USB_SPEED_HIGH ? "high" : "full");
 
@@ -1314,24 +1288,18 @@ static int ua101_probe(struct usb_interface *interface,
 	if (err < 0)
 		goto probe_error;
 
-	err = snd_pcm_new(card, "UA-101", 0, 1, 1, &ua->pcm);
+	err = snd_pcm_new(card, name, 0, 1, 1, &ua->pcm);
 	if (err < 0)
 		goto probe_error;
 	ua->pcm->private_data = ua;
-	strcpy(ua->pcm->name, "UA-101");
+	strcpy(ua->pcm->name, name);
 	snd_pcm_set_ops(ua->pcm, SNDRV_PCM_STREAM_PLAYBACK, &playback_pcm_ops);
 	snd_pcm_set_ops(ua->pcm, SNDRV_PCM_STREAM_CAPTURE, &capture_pcm_ops);
 
-#ifdef UA1A_HACK
-	if (ua->dev->descriptor.idProduct != cpu_to_le16(0x0018)) {
-#endif
 	err = snd_usbmidi_create(card, ua->intf[INTF_MIDI],
 				 &ua->midi_list, &midi_quirk);
 	if (err < 0)
 		goto probe_error;
-#ifdef UA1A_HACK
-	}
-#endif
 
 	err = snd_card_register(card);
 	if (err < 0)
@@ -1386,11 +1354,9 @@ static void ua101_disconnect(struct usb_interface *interface)
 }
 
 static struct usb_device_id ua101_ids[] = {
-#ifdef UA1A_HACK
-	{ USB_DEVICE(0x0582, 0x0018) },
-#endif
-	{ USB_DEVICE(0x0582, 0x007d) },
-	{ USB_DEVICE(0x0582, 0x008d) },
+	{ USB_DEVICE(0x0582, 0x0044) }, /* UA-1000 high speed */
+	{ USB_DEVICE(0x0582, 0x007d) }, /* UA-101 high speed */
+	{ USB_DEVICE(0x0582, 0x008d) }, /* UA-101 full speed */
 	{ }
 };
 MODULE_DEVICE_TABLE(usb, ua101_ids);
