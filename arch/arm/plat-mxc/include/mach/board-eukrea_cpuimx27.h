@@ -25,7 +25,7 @@
 #ifndef __ASSEMBLY__
 /*
  * This CPU module needs a baseboard to work. After basic initializing
- * its own devices, it calls baseboard's init function.
+ * its own devices, it calls the baseboard's init function.
  * TODO: Add your own baseboard init function and call it from
  * inside eukrea_cpuimx27_init().
  *
