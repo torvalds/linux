@@ -457,9 +457,8 @@ static int max_cb_time(void)
 /* Reference counting, callback cleanup, etc., all look racy as heck.
  * And why is cl_cb_set an atomic? */
 
-int setup_callback_client(struct nfs4_client *clp)
+int setup_callback_client(struct nfs4_client *clp, struct nfs4_cb_conn *cb)
 {
-	struct nfs4_cb_conn *cb = &clp->cl_cb_conn;
 	struct rpc_timeout	timeparms = {
 		.to_initval	= max_cb_time(),
 		.to_retries	= 0,
@@ -481,7 +480,7 @@ int setup_callback_client(struct nfs4_client *clp)
 	if (!clp->cl_principal && (clp->cl_flavor >= RPC_AUTH_GSS_KRB5))
 		return -EINVAL;
 	if (cb->cb_minorversion) {
-		args.bc_xprt = clp->cl_cb_conn.cb_xprt;
+		args.bc_xprt = cb->cb_xprt;
 		args.protocol = XPRT_TRANSPORT_BC_TCP;
 	}
 	/* Create RPC client */
@@ -491,7 +490,7 @@ int setup_callback_client(struct nfs4_client *clp)
 			PTR_ERR(client));
 		return PTR_ERR(client);
 	}
-	clp->cl_cb_client = client;
+	nfsd4_set_callback_client(clp, client);
 	return 0;
 
 }
@@ -548,14 +547,13 @@ void do_probe_callback(struct nfs4_client *clp)
 /*
  * Set up the callback client and put a NFSPROC4_CB_NULL on the wire...
  */
-void
-nfsd4_probe_callback(struct nfs4_client *clp)
+void nfsd4_probe_callback(struct nfs4_client *clp, struct nfs4_cb_conn *cb)
 {
 	int status;
 
 	BUG_ON(atomic_read(&clp->cl_cb_set));
 
-	status = setup_callback_client(clp);
+	status = setup_callback_client(clp, cb);
 	if (status) {
 		warn_no_callback_path(clp, status);
 		return;
@@ -645,18 +643,32 @@ static void nfsd4_cb_done(struct rpc_task *task, void *calldata)
 	}
 }
 
+
 static void nfsd4_cb_recall_done(struct rpc_task *task, void *calldata)
 {
 	struct nfs4_delegation *dp = calldata;
 	struct nfs4_client *clp = dp->dl_client;
+	struct rpc_clnt *current_rpc_client = clp->cl_cb_client;
 
 	nfsd4_cb_done(task, calldata);
+
+	if (current_rpc_client == NULL) {
+		/* We're shutting down; give up. */
+		/* XXX: err, or is it ok just to fall through
+		 * and rpc_restart_call? */
+		return;
+	}
 
 	switch (task->tk_status) {
 	case -EIO:
 		/* Network partition? */
 		atomic_set(&clp->cl_cb_set, 0);
 		warn_no_callback_path(clp, task->tk_status);
+		if (current_rpc_client != task->tk_client) {
+			/* queue a callback on the new connection: */
+			nfsd4_cb_recall(dp);
+			return;
+		}
 	case -EBADHANDLE:
 	case -NFS4ERR_BAD_STATEID:
 		/* Race: client probably got cb_recall
@@ -705,8 +717,7 @@ void nfsd4_destroy_callback_queue(void)
 	destroy_workqueue(callback_wq);
 }
 
-void nfsd4_set_callback_client(struct nfs4_client *clp, struct rpc_clnt
-*new)
+void nfsd4_set_callback_client(struct nfs4_client *clp, struct rpc_clnt *new)
 {
 	struct rpc_clnt *old = clp->cl_cb_client;
 

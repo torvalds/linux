@@ -390,7 +390,7 @@ extern int nfs4_in_grace(void);
 extern __be32 nfs4_check_open_reclaim(clientid_t *clid);
 extern void nfs4_free_stateowner(struct kref *kref);
 extern int set_callback_cred(void);
-extern void nfsd4_probe_callback(struct nfs4_client *clp);
+extern void nfsd4_probe_callback(struct nfs4_client *clp, struct nfs4_cb_conn *);
 extern void nfsd4_do_callback_rpc(struct work_struct *);
 extern void nfsd4_cb_recall(struct nfs4_delegation *dp);
 extern int nfsd4_create_callback_queue(void);

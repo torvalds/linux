@@ -1312,7 +1312,7 @@ nfsd4_create_session(struct svc_rqst *rqstp,
 				cstate->minorversion;
 			unconf->cl_cb_conn.cb_prog = cr_ses->callback_prog;
 			unconf->cl_cb_seq_nr = 1;
-			nfsd4_probe_callback(unconf);
+			nfsd4_probe_callback(unconf, &unconf->cl_cb_conn);
 		}
 		conf = unconf;
 	} else {
@@ -1605,9 +1605,8 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 		if (!same_creds(&conf->cl_cred, &unconf->cl_cred))
 			status = nfserr_clid_inuse;
 		else {
-			/* XXX: We just turn off callbacks until we can handle
-			  * change request correctly. */
 			atomic_set(&conf->cl_cb_set, 0);
+			nfsd4_probe_callback(conf, &unconf->cl_cb_conn);
 			expire_client(unconf);
 			status = nfs_ok;
 
@@ -1641,7 +1640,7 @@ nfsd4_setclientid_confirm(struct svc_rqst *rqstp,
 			}
 			move_to_confirmed(unconf);
 			conf = unconf;
-			nfsd4_probe_callback(conf);
+			nfsd4_probe_callback(conf, &conf->cl_cb_conn);
 			status = nfs_ok;
 		}
 	} else if ((!conf || (conf && !same_verf(&conf->cl_confirm, &confirm)))
