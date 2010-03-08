@@ -3045,6 +3045,13 @@ level_store(mddev_t *mddev, const char *buf, size_t len)
 	mddev->layout = mddev->new_layout;
 	mddev->chunk_sectors = mddev->new_chunk_sectors;
 	mddev->delta_disks = 0;
+	if (mddev->pers->sync_request == NULL) {
+		/* this is now an array without redundancy, so
+		 * it must always be in_sync
+		 */
+		mddev->in_sync = 1;
+		del_timer_sync(&mddev->safemode_timer);
+	}
 	pers->run(mddev);
 	mddev_resume(mddev);
 	set_bit(MD_CHANGE_DEVS, &mddev->flags);
