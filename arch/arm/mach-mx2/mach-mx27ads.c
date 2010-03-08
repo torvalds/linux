@@ -34,13 +34,42 @@
 #include <mach/gpio.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx27.h>
-#include <mach/board-mx27ads.h>
 #include <mach/mxc_nand.h>
 #include <mach/i2c.h>
 #include <mach/imxfb.h>
 #include <mach/mmc.h>
 
 #include "devices.h"
+
+/*
+ * Base address of PBC controller, CS4
+ */
+#define PBC_BASE_ADDRESS        0xf4300000
+#define PBC_REG_ADDR(offset)    (void __force __iomem *) \
+		(PBC_BASE_ADDRESS + (offset))
+
+/* When the PBC address connection is fixed in h/w, defined as 1 */
+#define PBC_ADDR_SH             0
+
+/* Offsets for the PBC Controller register */
+/*
+ * PBC Board version register offset
+ */
+#define PBC_VERSION_REG         PBC_REG_ADDR(0x00000 >> PBC_ADDR_SH)
+/*
+ * PBC Board control register 1 set address.
+ */
+#define PBC_BCTRL1_SET_REG      PBC_REG_ADDR(0x00008 >> PBC_ADDR_SH)
+/*
+ * PBC Board control register 1 clear address.
+ */
+#define PBC_BCTRL1_CLEAR_REG    PBC_REG_ADDR(0x0000C >> PBC_ADDR_SH)
+
+/* PBC Board Control Register 1 bit definitions */
+#define PBC_BCTRL1_LCDON        0x0800	/* Enable the LCD */
+
+/* to determine the correct external crystal reference */
+#define CKIH_27MHZ_BIT_SET      (1 << 3)
 
 static unsigned int mx27ads_pins[] = {
 	/* UART0 */
@@ -342,4 +371,3 @@ MACHINE_START(MX27ADS, "Freescale i.MX27ADS")
 	.init_machine   = mx27ads_board_init,
 	.timer          = &mx27ads_timer,
 MACHINE_END
-
