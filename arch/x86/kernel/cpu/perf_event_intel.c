@@ -774,7 +774,7 @@ again:
 		data.period = event->hw.last_period;
 
 		if (perf_event_overflow(event, 1, &data, regs))
-			intel_pmu_disable_event(event);
+			x86_pmu_stop(event);
 	}
 
 	intel_pmu_ack_status(ack);

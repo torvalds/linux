@@ -983,14 +983,8 @@ static int x86_pmu_start(struct perf_event *event)
 
 static void x86_pmu_unthrottle(struct perf_event *event)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	struct hw_perf_event *hwc = &event->hw;
-
-	if (WARN_ON_ONCE(hwc->idx >= X86_PMC_IDX_MAX ||
-				cpuc->events[hwc->idx] != event))
-		return;
-
-	x86_pmu.enable(event);
+	int ret = x86_pmu_start(event);
+	WARN_ON_ONCE(ret);
 }
 
 void perf_event_print_debug(void)
@@ -1050,11 +1044,9 @@ static void x86_pmu_stop(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
-	/*
-	 * Must be done before we disable, otherwise the nmi handler
-	 * could reenable again:
-	 */
-	__clear_bit(idx, cpuc->active_mask);
+	if (!__test_and_clear_bit(idx, cpuc->active_mask))
+		return;
+
 	x86_pmu.disable(event);
 
 	/*
@@ -1123,7 +1115,7 @@ static int x86_pmu_handle_irq(struct pt_regs *regs)
 			continue;
 
 		if (perf_event_overflow(event, 1, &data, regs))
-			x86_pmu.disable(event);
+			x86_pmu_stop(event);
 	}
 
 	if (handled)
