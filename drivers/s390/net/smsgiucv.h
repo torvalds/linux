@@ -5,6 +5,8 @@
  * Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com)
  */
 
-int  smsg_register_callback(char *, void (*)(char *, char *));
-void smsg_unregister_callback(char *, void (*)(char *, char *));
+int  smsg_register_callback(const char *,
+			    void (*)(const char *, char *));
+void smsg_unregister_callback(const char *,
+			      void (*)(const char *, char *));
 
