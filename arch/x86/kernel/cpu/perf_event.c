@@ -29,6 +29,17 @@
 #include <asm/stacktrace.h>
 #include <asm/nmi.h>
 
+#if 0
+#undef wrmsrl
+#define wrmsrl(msr, val) 					\
+do {								\
+	trace_printk("wrmsrl(%lx, %lx)\n", (unsigned long)(msr),\
+			(unsigned long)(val));			\
+	native_write_msr((msr), (u32)((u64)(val)), 		\
+			(u32)((u64)(val) >> 32));		\
+} while (0)
+#endif
+
 /*
  * best effort, GUP based copy_from_user() that assumes IRQ or NMI context
  */
@@ -821,14 +832,15 @@ void hw_perf_enable(void)
 
 static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc)
 {
-	(void)checking_wrmsrl(hwc->config_base + hwc->idx,
+	wrmsrl(hwc->config_base + hwc->idx,
 			      hwc->config | ARCH_PERFMON_EVENTSEL_ENABLE);
 }
 
 static inline void x86_pmu_disable_event(struct perf_event *event)
 {
 	struct hw_perf_event *hwc = &event->hw;
-	(void)checking_wrmsrl(hwc->config_base + hwc->idx, hwc->config);
+
+	wrmsrl(hwc->config_base + hwc->idx, hwc->config);
 }
 
 static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
@@ -843,7 +855,7 @@ x86_perf_event_set_period(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	s64 left = atomic64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
-	int err, ret = 0, idx = hwc->idx;
+	int ret = 0, idx = hwc->idx;
 
 	if (idx == X86_PMC_IDX_FIXED_BTS)
 		return 0;
@@ -881,8 +893,8 @@ x86_perf_event_set_period(struct perf_event *event)
 	 */
 	atomic64_set(&hwc->prev_count, (u64)-left);
 
-	err = checking_wrmsrl(hwc->event_base + idx,
-			     (u64)(-left) & x86_pmu.event_mask);
+	wrmsrl(hwc->event_base + idx,
+			(u64)(-left) & x86_pmu.event_mask);
 
 	perf_event_update_userpage(event);
 
@@ -987,7 +999,7 @@ void perf_event_print_debug(void)
 		pr_info("CPU#%d: fixed:      %016llx\n", cpu, fixed);
 		pr_info("CPU#%d: pebs:       %016llx\n", cpu, pebs);
 	}
-	pr_info("CPU#%d: active:       %016llx\n", cpu, *(u64 *)cpuc->active_mask);
+	pr_info("CPU#%d: active:     %016llx\n", cpu, *(u64 *)cpuc->active_mask);
 
 	for (idx = 0; idx < x86_pmu.num_events; idx++) {
 		rdmsrl(x86_pmu.eventsel + idx, pmc_ctrl);

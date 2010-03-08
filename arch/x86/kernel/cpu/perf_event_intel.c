@@ -525,7 +525,7 @@ static void intel_pmu_disable_fixed(struct hw_perf_event *hwc)
 
 	rdmsrl(hwc->config_base, ctrl_val);
 	ctrl_val &= ~mask;
-	(void)checking_wrmsrl(hwc->config_base, ctrl_val);
+	wrmsrl(hwc->config_base, ctrl_val);
 }
 
 static void intel_pmu_disable_event(struct perf_event *event)
@@ -553,7 +553,6 @@ static void intel_pmu_enable_fixed(struct hw_perf_event *hwc)
 {
 	int idx = hwc->idx - X86_PMC_IDX_FIXED;
 	u64 ctrl_val, bits, mask;
-	int err;
 
 	/*
 	 * Enable IRQ generation (0x8),
@@ -578,7 +577,7 @@ static void intel_pmu_enable_fixed(struct hw_perf_event *hwc)
 	rdmsrl(hwc->config_base, ctrl_val);
 	ctrl_val &= ~mask;
 	ctrl_val |= bits;
-	err = checking_wrmsrl(hwc->config_base, ctrl_val);
+	wrmsrl(hwc->config_base, ctrl_val);
 }
 
 static void intel_pmu_enable_event(struct perf_event *event)
