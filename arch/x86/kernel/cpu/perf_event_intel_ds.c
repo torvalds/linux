@@ -461,7 +461,6 @@ static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
 }
 
 static int intel_pmu_save_and_restart(struct perf_event *event);
-static void intel_pmu_disable_event(struct perf_event *event);
 
 static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 {
@@ -528,7 +527,7 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 		regs.flags &= ~PERF_EFLAGS_EXACT;
 
 	if (perf_event_overflow(event, 1, &data, &regs))
-		intel_pmu_disable_event(event);
+		x86_pmu_stop(event);
 
 out:
 	intel_pmu_pebs_enable_all();
@@ -603,7 +602,7 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 			regs.flags &= ~PERF_EFLAGS_EXACT;
 
 		if (perf_event_overflow(event, 1, &data, &regs))
-			intel_pmu_disable_event(event);
+			x86_pmu_stop(event);
 	}
 out:
 	intel_pmu_pebs_enable_all();
