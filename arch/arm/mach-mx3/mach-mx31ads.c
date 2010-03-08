@@ -33,7 +33,6 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <mach/common.h>
-#include <mach/board-mx31ads.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 
@@ -45,12 +44,42 @@
 
 #include "devices.h"
 
-/*!
- * @file mx31ads.c
- *
- * @brief This file contains the board-specific initialization routines.
- *
- * @ingroup System
+/* Base address of PBC controller */
+#define PBC_BASE_ADDRESS        MX31_CS4_BASE_ADDR_VIRT
+/* Offsets for the PBC Controller register */
+
+/* PBC Board interrupt status register */
+#define PBC_INTSTATUS           0x000016
+
+/* PBC Board interrupt current status register */
+#define PBC_INTCURR_STATUS      0x000018
+
+/* PBC Interrupt mask register set address */
+#define PBC_INTMASK_SET         0x00001A
+
+/* PBC Interrupt mask register clear address */
+#define PBC_INTMASK_CLEAR       0x00001C
+
+/* External UART A */
+#define PBC_SC16C652_UARTA      0x010000
+
+/* External UART B */
+#define PBC_SC16C652_UARTB      0x010010
+
+#define PBC_INTSTATUS_REG	(PBC_INTSTATUS + PBC_BASE_ADDRESS)
+#define PBC_INTMASK_SET_REG	(PBC_INTMASK_SET + PBC_BASE_ADDRESS)
+#define PBC_INTMASK_CLEAR_REG	(PBC_INTMASK_CLEAR + PBC_BASE_ADDRESS)
+#define EXPIO_PARENT_INT	IOMUX_TO_IRQ(MX31_PIN_GPIO1_4)
+
+#define MXC_EXP_IO_BASE		(MXC_BOARD_IRQ_START)
+#define MXC_IRQ_TO_EXPIO(irq)	((irq) - MXC_EXP_IO_BASE)
+
+#define EXPIO_INT_XUART_INTA	(MXC_EXP_IO_BASE + 10)
+#define EXPIO_INT_XUART_INTB	(MXC_EXP_IO_BASE + 11)
+
+#define MXC_MAX_EXP_IO_LINES	16
+/*
+ * This file contains the board-specific initialization routines.
  */
 
 #if defined(CONFIG_SERIAL_8250) || defined(CONFIG_SERIAL_8250_MODULE)
