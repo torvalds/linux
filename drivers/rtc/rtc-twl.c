@@ -57,7 +57,7 @@ enum {
 	REG_RTC_COMP_LSB_REG,
 	REG_RTC_COMP_MSB_REG,
 };
-const static u8 twl4030_rtc_reg_map[] = {
+static const u8 twl4030_rtc_reg_map[] = {
 	[REG_SECONDS_REG] = 0x00,
 	[REG_MINUTES_REG] = 0x01,
 	[REG_HOURS_REG] = 0x02,
@@ -80,7 +80,7 @@ const static u8 twl4030_rtc_reg_map[] = {
 	[REG_RTC_COMP_LSB_REG] = 0x10,
 	[REG_RTC_COMP_MSB_REG] = 0x11,
 };
-const static u8 twl6030_rtc_reg_map[] = {
+static const u8 twl6030_rtc_reg_map[] = {
 	[REG_SECONDS_REG] = 0x00,
 	[REG_MINUTES_REG] = 0x01,
 	[REG_HOURS_REG] = 0x02,

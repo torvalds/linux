@@ -79,7 +79,7 @@ sesInfoAlloc(void)
 		++ret_buf->ses_count;
 		INIT_LIST_HEAD(&ret_buf->smb_ses_list);
 		INIT_LIST_HEAD(&ret_buf->tcon_list);
-		init_MUTEX(&ret_buf->sesSem);
+		mutex_init(&ret_buf->session_mutex);
 	}
 	return ret_buf;
 }

@@ -34,6 +34,44 @@ struct cfg80211_conn {
 	bool auto_auth, prev_bssid_valid;
 };
 
+bool cfg80211_is_all_idle(void)
+{
+	struct cfg80211_registered_device *rdev;
+	struct wireless_dev *wdev;
+	bool is_all_idle = true;
+
+	mutex_lock(&cfg80211_mutex);
+
+	/*
+	 * All devices must be idle as otherwise if you are actively
+	 * scanning some new beacon hints could be learned and would
+	 * count as new regulatory hints.
+	 */
+	list_for_each_entry(rdev, &cfg80211_rdev_list, list) {
+		cfg80211_lock_rdev(rdev);
+		list_for_each_entry(wdev, &rdev->netdev_list, list) {
+			wdev_lock(wdev);
+			if (wdev->sme_state != CFG80211_SME_IDLE)
+				is_all_idle = false;
+			wdev_unlock(wdev);
+		}
+		cfg80211_unlock_rdev(rdev);
+	}
+
+	mutex_unlock(&cfg80211_mutex);
+
+	return is_all_idle;
+}
+
+static void disconnect_work(struct work_struct *work)
+{
+	if (!cfg80211_is_all_idle())
+		return;
+
+	regulatory_hint_disconnect();
+}
+
+static DECLARE_WORK(cfg80211_disconnect_work, disconnect_work);
 
 static int cfg80211_conn_scan(struct wireless_dev *wdev)
 {
@@ -454,6 +492,7 @@ void __cfg80211_connect_result(struct net_device *dev, const u8 *bssid,
 	 * - and country_ie[1] which is the IE length
 	 */
 	regulatory_hint_11d(wdev->wiphy,
+			    bss->channel->band,
 			    country_ie + 2,
 			    country_ie[1]);
 }
@@ -657,6 +696,8 @@ void __cfg80211_disconnected(struct net_device *dev, const u8 *ie,
 	wireless_send_event(dev, SIOCGIWAP, &wrqu, NULL);
 	wdev->wext.connect.ssid_len = 0;
 #endif
+
+	schedule_work(&cfg80211_disconnect_work);
 }
 
 void cfg80211_disconnected(struct net_device *dev, u16 reason,

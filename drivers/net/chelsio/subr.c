@@ -90,7 +90,7 @@ int __t1_tpi_write(adapter_t *adapter, u32 addr, u32 value)
 	tpi_busy = t1_wait_op_done(adapter, A_TPI_CSR, F_TPIRDY, 1,
 				   TPI_ATTEMPTS, 3);
 	if (tpi_busy)
-		CH_ALERT("%s: TPI write to 0x%x failed\n",
+		pr_alert("%s: TPI write to 0x%x failed\n",
 			 adapter->name, addr);
 	return tpi_busy;
 }
@@ -118,7 +118,7 @@ int __t1_tpi_read(adapter_t *adapter, u32 addr, u32 *valp)
 	tpi_busy = t1_wait_op_done(adapter, A_TPI_CSR, F_TPIRDY, 1,
 				   TPI_ATTEMPTS, 3);
 	if (tpi_busy)
-		CH_ALERT("%s: TPI read from 0x%x failed\n",
+		pr_alert("%s: TPI read from 0x%x failed\n",
 			 adapter->name, addr);
 	else
 		*valp = readl(adapter->regs + A_TPI_RD_DATA);
@@ -262,7 +262,7 @@ static int mi1_wait_until_ready(adapter_t *adapter, int mi1_reg)
 			udelay(10);
 	} while (busy && --attempts);
 	if (busy)
-		CH_ALERT("%s: MDIO operation timed out\n", adapter->name);
+		pr_alert("%s: MDIO operation timed out\n", adapter->name);
 	return busy;
 }
 
@@ -528,7 +528,7 @@ static const struct board_info t1_board[] = {
 
 };
 
-struct pci_device_id t1_pci_tbl[] = {
+DEFINE_PCI_DEVICE_TABLE(t1_pci_tbl) = {
 	CH_DEVICE(8, 0, CH_BRD_T110_1CU),
 	CH_DEVICE(8, 1, CH_BRD_T110_1CU),
 	CH_DEVICE(7, 0, CH_BRD_N110_1F),
@@ -581,7 +581,7 @@ int t1_seeprom_read(adapter_t *adapter, u32 addr, __le32 *data)
 	} while (!(val & F_VPD_OP_FLAG) && --i);
 
 	if (!(val & F_VPD_OP_FLAG)) {
-		CH_ERR("%s: reading EEPROM address 0x%x failed\n",
+		pr_err("%s: reading EEPROM address 0x%x failed\n",
 		       adapter->name, addr);
 		return -EIO;
 	}
@@ -734,8 +734,9 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
 		break;
 	case CHBT_BOARD_8000:
 	case CHBT_BOARD_CHT110:
-		CH_DBG(adapter, INTR, "External interrupt cause 0x%x\n",
-		       cause);
+		if (netif_msg_intr(adapter))
+			dev_dbg(&adapter->pdev->dev,
+				"External interrupt cause 0x%x\n", cause);
 		if (cause & ELMER0_GP_BIT1) {        /* PMC3393 INTB */
 			struct cmac *mac = adapter->port[0].mac;
 
@@ -746,8 +747,9 @@ int t1_elmer0_ext_intr_handler(adapter_t *adapter)
 
 			t1_tpi_read(adapter,
 					A_ELMER0_GPI_STAT, &mod_detect);
-			CH_MSG(adapter, INFO, LINK, "XPAK %s\n",
-			       mod_detect ? "removed" : "inserted");
+			if (netif_msg_link(adapter))
+				dev_info(&adapter->pdev->dev, "XPAK %s\n",
+					 mod_detect ? "removed" : "inserted");
 		}
 		break;
 #ifdef CONFIG_CHELSIO_T1_COUGAR
@@ -1084,7 +1086,7 @@ static void __devinit init_link_config(struct link_config *lc,
 
 #ifdef CONFIG_CHELSIO_T1_COUGAR
 	if (bi->clock_cspi && !(adapter->cspi = t1_cspi_create(adapter))) {
-		CH_ERR("%s: CSPI initialization failed\n",
+		pr_err("%s: CSPI initialization failed\n",
 		       adapter->name);
 		goto error;
 	}
@@ -1105,20 +1107,20 @@ int __devinit t1_init_sw_modules(adapter_t *adapter,
 
 	adapter->sge = t1_sge_create(adapter, &adapter->params.sge);
 	if (!adapter->sge) {
-		CH_ERR("%s: SGE initialization failed\n",
+		pr_err("%s: SGE initialization failed\n",
 		       adapter->name);
 		goto error;
 	}
 
 	if (bi->espi_nports && !(adapter->espi = t1_espi_create(adapter))) {
-		CH_ERR("%s: ESPI initialization failed\n",
+		pr_err("%s: ESPI initialization failed\n",
 		       adapter->name);
 		goto error;
 	}
 
 	adapter->tp = t1_tp_create(adapter, &adapter->params.tp);
 	if (!adapter->tp) {
-		CH_ERR("%s: TP initialization failed\n",
+		pr_err("%s: TP initialization failed\n",
 		       adapter->name);
 		goto error;
 	}
@@ -1138,14 +1140,14 @@ int __devinit t1_init_sw_modules(adapter_t *adapter,
 		adapter->port[i].phy = bi->gphy->create(adapter->port[i].dev,
 							phy_addr, bi->mdio_ops);
 		if (!adapter->port[i].phy) {
-			CH_ERR("%s: PHY %d initialization failed\n",
+			pr_err("%s: PHY %d initialization failed\n",
 			       adapter->name, i);
 			goto error;
 		}
 
 		adapter->port[i].mac = mac = bi->gmac->create(adapter, i);
 		if (!mac) {
-			CH_ERR("%s: MAC %d initialization failed\n",
+			pr_err("%s: MAC %d initialization failed\n",
 			       adapter->name, i);
 			goto error;
 		}
@@ -1157,7 +1159,7 @@ int __devinit t1_init_sw_modules(adapter_t *adapter,
 		if (!t1_is_asic(adapter) || bi->chip_mac == CHBT_MAC_DUMMY)
 			mac->ops->macaddress_get(mac, hw_addr);
 		else if (vpd_macaddress_get(adapter, i, hw_addr)) {
-			CH_ERR("%s: could not read MAC address from VPD ROM\n",
+			pr_err("%s: could not read MAC address from VPD ROM\n",
 			       adapter->port[i].dev->name);
 			goto error;
 		}

@@ -559,7 +559,6 @@ int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb)
 		b43err(dev->wl, "PIO transmission failure\n");
 		goto out;
 	}
-	q->nr_tx_packets++;
 
 	B43_WARN_ON(q->buffer_used > q->buffer_size);
 	if (((q->buffer_size - q->buffer_used) < roundup(2 + 2 + 6, 4)) ||
@@ -602,22 +601,6 @@ void b43_pio_handle_txstatus(struct b43_wldev *dev,
 	if (q->stopped) {
 		ieee80211_wake_queue(dev->wl->hw, q->queue_prio);
 		q->stopped = 0;
-	}
-}
-
-void b43_pio_get_tx_stats(struct b43_wldev *dev,
-			  struct ieee80211_tx_queue_stats *stats)
-{
-	const int nr_queues = dev->wl->hw->queues;
-	struct b43_pio_txqueue *q;
-	int i;
-
-	for (i = 0; i < nr_queues; i++) {
-		q = select_queue_by_priority(dev, i);
-
-		stats[i].len = B43_PIO_MAX_NR_TXPACKETS - q->free_packet_slots;
-		stats[i].limit = B43_PIO_MAX_NR_TXPACKETS;
-		stats[i].count = q->nr_tx_packets;
 	}
 }
 

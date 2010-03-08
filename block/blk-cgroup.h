@@ -43,9 +43,6 @@ struct blkio_group {
 	unsigned long sectors;
 };
 
-extern bool blkiocg_css_tryget(struct blkio_cgroup *blkcg);
-extern void blkiocg_css_put(struct blkio_cgroup *blkcg);
-
 typedef void (blkio_unlink_group_fn) (void *key, struct blkio_group *blkg);
 typedef void (blkio_update_group_weight_fn) (struct blkio_group *blkg,
 						unsigned int weight);

@@ -1536,20 +1536,12 @@ static int pci224_detach(struct comedi_device *dev)
 
 		s = dev->subdevices + 0;
 		/* AO subdevice */
-		if (s->range_table_list) {
-			kfree(s->range_table_list);
-		}
+		kfree(s->range_table_list);
 	}
 	if (devpriv) {
-		if (devpriv->ao_readback) {
-			kfree(devpriv->ao_readback);
-		}
-		if (devpriv->ao_scan_vals) {
-			kfree(devpriv->ao_scan_vals);
-		}
-		if (devpriv->ao_scan_order) {
-			kfree(devpriv->ao_scan_order);
-		}
+		kfree(devpriv->ao_readback);
+		kfree(devpriv->ao_scan_vals);
+		kfree(devpriv->ao_scan_order);
 		if (devpriv->pci_dev) {
 			if (dev->iobase) {
 				comedi_pci_disable(devpriv->pci_dev);

@@ -23,7 +23,7 @@ void of_register_spi_devices(struct spi_master *master, struct device_node *np)
 {
 	struct spi_device *spi;
 	struct device_node *nc;
-	const u32 *prop;
+	const __be32 *prop;
 	int rc;
 	int len;
 
@@ -54,7 +54,7 @@ void of_register_spi_devices(struct spi_master *master, struct device_node *np)
 			spi_dev_put(spi);
 			continue;
 		}
-		spi->chip_select = *prop;
+		spi->chip_select = be32_to_cpup(prop);
 
 		/* Mode (clock phase/polarity/etc.) */
 		if (of_find_property(nc, "spi-cpha", NULL))
@@ -72,7 +72,7 @@ void of_register_spi_devices(struct spi_master *master, struct device_node *np)
 			spi_dev_put(spi);
 			continue;
 		}
-		spi->max_speed_hz = *prop;
+		spi->max_speed_hz = be32_to_cpup(prop);
 
 		/* IRQ */
 		spi->irq = irq_of_parse_and_map(nc, 0);

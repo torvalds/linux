@@ -79,11 +79,7 @@ unsigned long vmi_tsc_khz(void)
 
 static inline unsigned int vmi_get_timer_vector(void)
 {
-#ifdef CONFIG_X86_IO_APIC
-	return FIRST_DEVICE_VECTOR;
-#else
-	return FIRST_EXTERNAL_VECTOR;
-#endif
+	return IRQ0_VECTOR;
 }
 
 /** vmi clockchip */

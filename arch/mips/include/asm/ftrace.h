@@ -4,7 +4,7 @@
  * more details.
  *
  * Copyright (C) 2009 DSLab, Lanzhou University, China
- * Author: Wu Zhangjin <wuzj@lemote.com>
+ * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  */
 
 #ifndef _ASM_MIPS_FTRACE_H

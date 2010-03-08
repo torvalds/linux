@@ -1,7 +1,11 @@
 config USB_ZC0301
-	tristate "USB ZC0301[P] Image Processor and Control Chip support"
+	tristate "USB ZC0301[P] webcam support (DEPRECATED)"
 	depends on VIDEO_V4L2
+	default n
 	---help---
+	  This driver is DEPRECATED please use the gspca zc3xx module
+	  instead.
+
 	  Say Y here if you want support for cameras based on the ZC0301 or
 	  ZC0301P Image Processors and Control Chips.
 

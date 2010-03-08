@@ -21,6 +21,8 @@
 #include <linux/io.h>
 
 #include <asm/cacheflush.h>
+
+#include <mach/hardware.h>
 #include <mach/pm.h>
 #include <mach/clock.h>
 

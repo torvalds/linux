@@ -135,7 +135,7 @@ RT_STATUS cmpk_message_handle_tx(
              * Transform from little endian to big endian
              * and pending  zero
              */
-            seg_ptr = skb->tail;
+            seg_ptr = skb_tail_pointer(skb);
             for(i=0 ; i < frag_length; i+=4) {
                 *seg_ptr++ = ((i+0)<frag_length)?code_virtual_address[i+3]:0;
                 *seg_ptr++ = ((i+1)<frag_length)?code_virtual_address[i+2]:0;

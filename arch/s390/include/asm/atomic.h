@@ -18,8 +18,6 @@
 
 #define ATOMIC_INIT(i)  { (i) }
 
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
-
 #define __CS_LOOP(ptr, op_val, op_string) ({				\
 	int old_val, new_val;						\
 	asm volatile(							\
@@ -34,26 +32,6 @@
 		: "cc", "memory");					\
 	new_val;							\
 })
-
-#else /* __GNUC__ */
-
-#define __CS_LOOP(ptr, op_val, op_string) ({				\
-	int old_val, new_val;						\
-	asm volatile(							\
-		"	l	%0,0(%3)\n"				\
-		"0:	lr	%1,%0\n"				\
-		op_string "	%1,%4\n"				\
-		"	cs	%0,%1,0(%3)\n"				\
-		"	jl	0b"					\
-		: "=&d" (old_val), "=&d" (new_val),			\
-		  "=m" (((atomic_t *)(ptr))->counter)			\
-		: "a" (ptr), "d" (op_val),				\
-		  "m" (((atomic_t *)(ptr))->counter)			\
-		: "cc", "memory");					\
-	new_val;							\
-})
-
-#endif /* __GNUC__ */
 
 static inline int atomic_read(const atomic_t *v)
 {
@@ -101,19 +79,11 @@ static inline void atomic_set_mask(unsigned long mask, atomic_t *v)
 
 static inline int atomic_cmpxchg(atomic_t *v, int old, int new)
 {
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
 	asm volatile(
 		"	cs	%0,%2,%1"
 		: "+d" (old), "=Q" (v->counter)
 		: "d" (new), "Q" (v->counter)
 		: "cc", "memory");
-#else /* __GNUC__ */
-	asm volatile(
-		"	cs	%0,%3,0(%2)"
-		: "+d" (old), "=m" (v->counter)
-		: "a" (v), "d" (new), "m" (v->counter)
-		: "cc", "memory");
-#endif /* __GNUC__ */
 	return old;
 }
 
@@ -140,8 +110,6 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 
 #ifdef CONFIG_64BIT
 
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
-
 #define __CSG_LOOP(ptr, op_val, op_string) ({				\
 	long long old_val, new_val;					\
 	asm volatile(							\
@@ -156,26 +124,6 @@ static inline int atomic_add_unless(atomic_t *v, int a, int u)
 		: "cc", "memory");					\
 	new_val;							\
 })
-
-#else /* __GNUC__ */
-
-#define __CSG_LOOP(ptr, op_val, op_string) ({				\
-	long long old_val, new_val;					\
-	asm volatile(							\
-		"	lg	%0,0(%3)\n"				\
-		"0:	lgr	%1,%0\n"				\
-		op_string "	%1,%4\n"				\
-		"	csg	%0,%1,0(%3)\n"				\
-		"	jl	0b"					\
-		: "=&d" (old_val), "=&d" (new_val),			\
-		  "=m" (((atomic_t *)(ptr))->counter)			\
-		: "a" (ptr), "d" (op_val),				\
-		  "m" (((atomic_t *)(ptr))->counter)			\
-		: "cc", "memory");					\
-	new_val;							\
-})
-
-#endif /* __GNUC__ */
 
 static inline long long atomic64_read(const atomic64_t *v)
 {
@@ -214,19 +162,11 @@ static inline void atomic64_set_mask(unsigned long mask, atomic64_t *v)
 static inline long long atomic64_cmpxchg(atomic64_t *v,
 					     long long old, long long new)
 {
-#if __GNUC__ > 3 || (__GNUC__ == 3 && __GNUC_MINOR__ > 2)
 	asm volatile(
 		"	csg	%0,%2,%1"
 		: "+d" (old), "=Q" (v->counter)
 		: "d" (new), "Q" (v->counter)
 		: "cc", "memory");
-#else /* __GNUC__ */
-	asm volatile(
-		"	csg	%0,%3,0(%2)"
-		: "+d" (old), "=m" (v->counter)
-		: "a" (v), "d" (new), "m" (v->counter)
-		: "cc", "memory");
-#endif /* __GNUC__ */
 	return old;
 }
 
@@ -243,10 +183,8 @@ static inline long long atomic64_read(const atomic64_t *v)
 	register_pair rp;
 
 	asm volatile(
-		"	lm	%0,%N0,0(%1)"
-		: "=&d" (rp)
-		: "a" (&v->counter), "m" (v->counter)
-		);
+		"	lm	%0,%N0,%1"
+		: "=&d" (rp) : "Q" (v->counter)	);
 	return rp.pair;
 }
 
@@ -255,10 +193,8 @@ static inline void atomic64_set(atomic64_t *v, long long i)
 	register_pair rp = {.pair = i};
 
 	asm volatile(
-		"	stm	%1,%N1,0(%2)"
-		: "=m" (v->counter)
-		: "d" (rp), "a" (&v->counter)
-		);
+		"	stm	%1,%N1,%0"
+		: "=Q" (v->counter) : "d" (rp) );
 }
 
 static inline long long atomic64_xchg(atomic64_t *v, long long new)
@@ -267,11 +203,11 @@ static inline long long atomic64_xchg(atomic64_t *v, long long new)
 	register_pair rp_old;
 
 	asm volatile(
-		"	lm	%0,%N0,0(%2)\n"
-		"0:	cds	%0,%3,0(%2)\n"
+		"	lm	%0,%N0,%1\n"
+		"0:	cds	%0,%2,%1\n"
 		"	jl	0b\n"
-		: "=&d" (rp_old), "+m" (v->counter)
-		: "a" (&v->counter), "d" (rp_new)
+		: "=&d" (rp_old), "=Q" (v->counter)
+		: "d" (rp_new), "Q" (v->counter)
 		: "cc");
 	return rp_old.pair;
 }
@@ -283,9 +219,9 @@ static inline long long atomic64_cmpxchg(atomic64_t *v,
 	register_pair rp_new = {.pair = new};
 
 	asm volatile(
-		"	cds	%0,%3,0(%2)"
-		: "+&d" (rp_old), "+m" (v->counter)
-		: "a" (&v->counter), "d" (rp_new)
+		"	cds	%0,%2,%1"
+		: "+&d" (rp_old), "=Q" (v->counter)
+		: "d" (rp_new), "Q" (v->counter)
 		: "cc");
 	return rp_old.pair;
 }

@@ -187,7 +187,7 @@ trap_jtable:
 	.rept 6
 		.long do_exception_error	/* 0x880 - 0x920 */
 	.endr
-	.long	do_software_break_point	/* 0x940 */
+	.long	breakpoint_trap_handler	/* 0x940 */
 	.long	do_exception_error		/* 0x960 */
 	.long	do_single_step		/* 0x980 */
 
@@ -1124,7 +1124,7 @@ fpu_error_or_IRQA:
 	pta	its_IRQ, tr0
 	beqi/l	r4, EVENT_INTERRUPT, tr0
 #ifdef CONFIG_SH_FPU
-	movi	do_fpu_state_restore, r6
+	movi	fpu_state_restore_trap_handler, r6
 #else
 	movi	do_exception_error, r6
 #endif
@@ -1135,7 +1135,7 @@ fpu_error_or_IRQB:
 	pta	its_IRQ, tr0
 	beqi/l	r4, EVENT_INTERRUPT, tr0
 #ifdef CONFIG_SH_FPU
-	movi	do_fpu_state_restore, r6
+	movi	fpu_state_restore_trap_handler, r6
 #else
 	movi	do_exception_error, r6
 #endif

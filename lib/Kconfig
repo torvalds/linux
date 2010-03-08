@@ -160,6 +160,9 @@ config TEXTSEARCH_BM
 config TEXTSEARCH_FSM
 	tristate
 
+config BTREE
+	boolean
+
 config HAS_IOMEM
 	boolean
 	depends on !NO_IOMEM

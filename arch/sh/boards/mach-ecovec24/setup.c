@@ -64,18 +64,16 @@
 
 /* Heartbeat */
 static unsigned char led_pos[] = { 0, 1, 2, 3 };
+
 static struct heartbeat_data heartbeat_data = {
-	.regsize = 8,
 	.nr_bits = 4,
 	.bit_pos = led_pos,
 };
 
-static struct resource heartbeat_resources[] = {
-	[0] = {
-		.start  = 0xA405012C, /* PTG */
-		.end    = 0xA405012E - 1,
-		.flags  = IORESOURCE_MEM,
-	},
+static struct resource heartbeat_resource = {
+	.start  = 0xA405012C, /* PTG */
+	.end    = 0xA405012E - 1,
+	.flags  = IORESOURCE_MEM | IORESOURCE_MEM_8BIT,
 };
 
 static struct platform_device heartbeat_device = {
@@ -84,8 +82,8 @@ static struct platform_device heartbeat_device = {
 	.dev = {
 		.platform_data = &heartbeat_data,
 	},
-	.num_resources  = ARRAY_SIZE(heartbeat_resources),
-	.resource       = heartbeat_resources,
+	.num_resources  = 1,
+	.resource       = &heartbeat_resource,
 };
 
 /* MTD */
@@ -455,7 +453,7 @@ static struct resource sdhi0_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 101,
+		.start  = 100,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -491,7 +489,7 @@ static struct resource sdhi1_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 24,
+		.start  = 23,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -698,13 +696,13 @@ static struct platform_device camera_devices[] = {
 #define FCLKBCR		0xa415000c
 static void fsimck_init(struct clk *clk)
 {
-	u32 status = ctrl_inl(clk->enable_reg);
+	u32 status = __raw_readl(clk->enable_reg);
 
 	/* use external clock */
 	status &= ~0x000000ff;
 	status |= 0x00000080;
 
-	ctrl_outl(status, clk->enable_reg);
+	__raw_writel(status, clk->enable_reg);
 }
 
 static struct clk_ops fsimck_clk_ops = {
@@ -753,6 +751,26 @@ static struct platform_device fsi_device = {
 	},
 };
 
+/* IrDA */
+static struct resource irda_resources[] = {
+	[0] = {
+		.name	= "IrDA",
+		.start  = 0xA45D0000,
+		.end    = 0xA45D0049,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 20,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device irda_device = {
+	.name           = "sh_sir",
+	.num_resources  = ARRAY_SIZE(irda_resources),
+	.resource       = irda_resources,
+};
+
 static struct platform_device *ecovec_devices[] __initdata = {
 	&heartbeat_device,
 	&nor_flash_device,
@@ -773,8 +791,10 @@ static struct platform_device *ecovec_devices[] __initdata = {
 	&camera_devices[1],
 	&camera_devices[2],
 	&fsi_device,
+	&irda_device,
 };
 
+#ifdef CONFIG_I2C
 #define EEPROM_ADDR 0x50
 static u8 mac_read(struct i2c_adapter *a, u8 command)
 {
@@ -817,6 +837,12 @@ static void __init sh_eth_init(struct sh_eth_plat_data *pd)
 		msleep(10);
 	}
 }
+#else
+static void __init sh_eth_init(struct sh_eth_plat_data *pd)
+{
+	pr_err("unable to read sh_eth MAC address\n");
+}
+#endif
 
 #define PORT_HIZA 0xA4050158
 #define IODRIVEA  0xA405018A
@@ -831,7 +857,8 @@ static int __init arch_setup(void)
 	struct clk *clk;
 
 	/* register board specific self-refresh code */
-	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF,
+	sh_mobile_register_self_refresh(SUSP_SH_STANDBY | SUSP_SH_SF |
+					SUSP_SH_RSTANDBY,
 					&ecovec24_sdram_enter_start,
 					&ecovec24_sdram_enter_end,
 					&ecovec24_sdram_leave_start,
@@ -855,7 +882,7 @@ static int __init arch_setup(void)
 	gpio_direction_output(GPIO_PTG1, 0);
 	gpio_direction_output(GPIO_PTG2, 0);
 	gpio_direction_output(GPIO_PTG3, 0);
-	ctrl_outw((ctrl_inw(PORT_HIZA) & ~(0x1 << 1)) , PORT_HIZA);
+	__raw_writew((__raw_readw(PORT_HIZA) & ~(0x1 << 1)) , PORT_HIZA);
 
 	/* enable SH-Eth */
 	gpio_request(GPIO_PTA1, NULL);
@@ -875,16 +902,16 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_LNKSTA,       NULL);
 
 	/* enable USB */
-	ctrl_outw(0x0000, 0xA4D80000);
-	ctrl_outw(0x0000, 0xA4D90000);
+	__raw_writew(0x0000, 0xA4D80000);
+	__raw_writew(0x0000, 0xA4D90000);
 	gpio_request(GPIO_PTB3,  NULL);
 	gpio_request(GPIO_PTB4,  NULL);
 	gpio_request(GPIO_PTB5,  NULL);
 	gpio_direction_input(GPIO_PTB3);
 	gpio_direction_output(GPIO_PTB4, 0);
 	gpio_direction_output(GPIO_PTB5, 0);
-	ctrl_outw(0x0600, 0xa40501d4);
-	ctrl_outw(0x0600, 0xa4050192);
+	__raw_writew(0x0600, 0xa40501d4);
+	__raw_writew(0x0600, 0xa4050192);
 
 	if (gpio_get_value(GPIO_PTB3)) {
 		printk(KERN_INFO "USB1 function is selected\n");
@@ -925,7 +952,7 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_LCDVSYN,  NULL);
 	gpio_request(GPIO_FN_LCDDON,   NULL);
 	gpio_request(GPIO_FN_LCDLCLK,  NULL);
-	ctrl_outw((ctrl_inw(PORT_HIZA) & ~0x0001), PORT_HIZA);
+	__raw_writew((__raw_readw(PORT_HIZA) & ~0x0001), PORT_HIZA);
 
 	gpio_request(GPIO_PTE6, NULL);
 	gpio_request(GPIO_PTU1, NULL);
@@ -937,7 +964,7 @@ static int __init arch_setup(void)
 	gpio_direction_output(GPIO_PTA2, 0);
 
 	/* I/O buffer drive ability is high */
-	ctrl_outw((ctrl_inw(IODRIVEA) & ~0x00c0) | 0x0080 , IODRIVEA);
+	__raw_writew((__raw_readw(IODRIVEA) & ~0x00c0) | 0x0080 , IODRIVEA);
 
 	if (gpio_get_value(GPIO_PTE6)) {
 		/* DVI */
@@ -1069,7 +1096,7 @@ static int __init arch_setup(void)
 	gpio_direction_output(GPIO_PTB7, 0);
 
 	/* I/O buffer drive ability is high for SDHI1 */
-	ctrl_outw((ctrl_inw(IODRIVEA) & ~0x3000) | 0x2000 , IODRIVEA);
+	__raw_writew((__raw_readw(IODRIVEA) & ~0x3000) | 0x2000 , IODRIVEA);
 #else
 	/* enable MSIOF0 on CN11 (needs DS2.4 set to OFF) */
 	gpio_request(GPIO_FN_MSIOF0_TXD, NULL);
@@ -1107,6 +1134,11 @@ static int __init arch_setup(void)
 	gpio_request(GPIO_FN_FSIOBLRCK,  NULL);
 	gpio_request(GPIO_FN_CLKAUDIOBO, NULL);
 
+	/* set SPU2 clock to 83.4 MHz */
+	clk = clk_get(NULL, "spu_clk");
+	clk_set_rate(clk, clk_round_rate(clk, 83333333));
+	clk_put(clk);
+
 	/* change parent of FSI B */
 	clk = clk_get(NULL, "fsib_clk");
 	clk_register(&fsimckb_clk);
@@ -1122,6 +1154,17 @@ static int __init arch_setup(void)
 	/* enable motion sensor */
 	gpio_request(GPIO_FN_INTC_IRQ1, NULL);
 	gpio_direction_input(GPIO_FN_INTC_IRQ1);
+
+	/* set VPU clock to 166 MHz */
+	clk = clk_get(NULL, "vpu_clk");
+	clk_set_rate(clk, clk_round_rate(clk, 166000000));
+	clk_put(clk);
+
+	/* enable IrDA */
+	gpio_request(GPIO_FN_IRDA_OUT, NULL);
+	gpio_request(GPIO_FN_IRDA_IN,  NULL);
+	gpio_request(GPIO_PTU5, NULL);
+	gpio_direction_output(GPIO_PTU5, 0);
 
 	/* enable I2C device */
 	i2c_register_board_info(0, i2c0_devices,

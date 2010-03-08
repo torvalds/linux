@@ -80,7 +80,7 @@ struct usb_hcd {
 
 	struct timer_list	rh_timer;	/* drives root-hub polling */
 	struct urb		*status_urb;	/* the current status urb */
-#ifdef CONFIG_PM
+#ifdef CONFIG_USB_SUSPEND
 	struct work_struct	wakeup_work;	/* for remote wakeup */
 #endif
 
@@ -248,7 +248,7 @@ struct hc_driver {
 	/* xHCI specific functions */
 		/* Called by usb_alloc_dev to alloc HC device structures */
 	int	(*alloc_dev)(struct usb_hcd *, struct usb_device *);
-		/* Called by usb_release_dev to free HC device structures */
+		/* Called by usb_disconnect to free HC device structures */
 	void	(*free_dev)(struct usb_hcd *, struct usb_device *);
 
 	/* Bandwidth computation functions */
@@ -286,6 +286,7 @@ struct hc_driver {
 		 */
 	int	(*update_hub_device)(struct usb_hcd *, struct usb_device *hdev,
 			struct usb_tt *tt, gfp_t mem_flags);
+	int	(*reset_device)(struct usb_hcd *, struct usb_device *);
 };
 
 extern int usb_hcd_link_urb_to_ep(struct usb_hcd *hcd, struct urb *urb);
@@ -463,16 +464,20 @@ extern int usb_find_interface_driver(struct usb_device *dev,
 #define usb_endpoint_out(ep_dir)	(!((ep_dir) & USB_DIR_IN))
 
 #ifdef CONFIG_PM
-extern void usb_hcd_resume_root_hub(struct usb_hcd *hcd);
 extern void usb_root_hub_lost_power(struct usb_device *rhdev);
 extern int hcd_bus_suspend(struct usb_device *rhdev, pm_message_t msg);
 extern int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg);
+#endif /* CONFIG_PM */
+
+#ifdef CONFIG_USB_SUSPEND
+extern void usb_hcd_resume_root_hub(struct usb_hcd *hcd);
 #else
 static inline void usb_hcd_resume_root_hub(struct usb_hcd *hcd)
 {
 	return;
 }
-#endif /* CONFIG_PM */
+#endif /* CONFIG_USB_SUSPEND */
+
 
 /*
  * USB device fs stuff

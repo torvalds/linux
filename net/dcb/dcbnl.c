@@ -54,7 +54,7 @@ MODULE_LICENSE("GPL");
 /**************** DCB attribute policies *************************************/
 
 /* DCB netlink attributes policy */
-static struct nla_policy dcbnl_rtnl_policy[DCB_ATTR_MAX + 1] = {
+static const struct nla_policy dcbnl_rtnl_policy[DCB_ATTR_MAX + 1] = {
 	[DCB_ATTR_IFNAME]      = {.type = NLA_NUL_STRING, .len = IFNAMSIZ - 1},
 	[DCB_ATTR_STATE]       = {.type = NLA_U8},
 	[DCB_ATTR_PFC_CFG]     = {.type = NLA_NESTED},
@@ -68,7 +68,7 @@ static struct nla_policy dcbnl_rtnl_policy[DCB_ATTR_MAX + 1] = {
 };
 
 /* DCB priority flow control to User Priority nested attributes */
-static struct nla_policy dcbnl_pfc_up_nest[DCB_PFC_UP_ATTR_MAX + 1] = {
+static const struct nla_policy dcbnl_pfc_up_nest[DCB_PFC_UP_ATTR_MAX + 1] = {
 	[DCB_PFC_UP_ATTR_0]   = {.type = NLA_U8},
 	[DCB_PFC_UP_ATTR_1]   = {.type = NLA_U8},
 	[DCB_PFC_UP_ATTR_2]   = {.type = NLA_U8},
@@ -81,7 +81,7 @@ static struct nla_policy dcbnl_pfc_up_nest[DCB_PFC_UP_ATTR_MAX + 1] = {
 };
 
 /* DCB priority grouping nested attributes */
-static struct nla_policy dcbnl_pg_nest[DCB_PG_ATTR_MAX + 1] = {
+static const struct nla_policy dcbnl_pg_nest[DCB_PG_ATTR_MAX + 1] = {
 	[DCB_PG_ATTR_TC_0]      = {.type = NLA_NESTED},
 	[DCB_PG_ATTR_TC_1]      = {.type = NLA_NESTED},
 	[DCB_PG_ATTR_TC_2]      = {.type = NLA_NESTED},
@@ -103,7 +103,7 @@ static struct nla_policy dcbnl_pg_nest[DCB_PG_ATTR_MAX + 1] = {
 };
 
 /* DCB traffic class nested attributes. */
-static struct nla_policy dcbnl_tc_param_nest[DCB_TC_ATTR_PARAM_MAX + 1] = {
+static const struct nla_policy dcbnl_tc_param_nest[DCB_TC_ATTR_PARAM_MAX + 1] = {
 	[DCB_TC_ATTR_PARAM_PGID]            = {.type = NLA_U8},
 	[DCB_TC_ATTR_PARAM_UP_MAPPING]      = {.type = NLA_U8},
 	[DCB_TC_ATTR_PARAM_STRICT_PRIO]     = {.type = NLA_U8},
@@ -112,7 +112,7 @@ static struct nla_policy dcbnl_tc_param_nest[DCB_TC_ATTR_PARAM_MAX + 1] = {
 };
 
 /* DCB capabilities nested attributes. */
-static struct nla_policy dcbnl_cap_nest[DCB_CAP_ATTR_MAX + 1] = {
+static const struct nla_policy dcbnl_cap_nest[DCB_CAP_ATTR_MAX + 1] = {
 	[DCB_CAP_ATTR_ALL]     = {.type = NLA_FLAG},
 	[DCB_CAP_ATTR_PG]      = {.type = NLA_U8},
 	[DCB_CAP_ATTR_PFC]     = {.type = NLA_U8},
@@ -124,14 +124,14 @@ static struct nla_policy dcbnl_cap_nest[DCB_CAP_ATTR_MAX + 1] = {
 };
 
 /* DCB capabilities nested attributes. */
-static struct nla_policy dcbnl_numtcs_nest[DCB_NUMTCS_ATTR_MAX + 1] = {
+static const struct nla_policy dcbnl_numtcs_nest[DCB_NUMTCS_ATTR_MAX + 1] = {
 	[DCB_NUMTCS_ATTR_ALL]     = {.type = NLA_FLAG},
 	[DCB_NUMTCS_ATTR_PG]      = {.type = NLA_U8},
 	[DCB_NUMTCS_ATTR_PFC]     = {.type = NLA_U8},
 };
 
 /* DCB BCN nested attributes. */
-static struct nla_policy dcbnl_bcn_nest[DCB_BCN_ATTR_MAX + 1] = {
+static const struct nla_policy dcbnl_bcn_nest[DCB_BCN_ATTR_MAX + 1] = {
 	[DCB_BCN_ATTR_RP_0]         = {.type = NLA_U8},
 	[DCB_BCN_ATTR_RP_1]         = {.type = NLA_U8},
 	[DCB_BCN_ATTR_RP_2]         = {.type = NLA_U8},
@@ -160,7 +160,7 @@ static struct nla_policy dcbnl_bcn_nest[DCB_BCN_ATTR_MAX + 1] = {
 };
 
 /* DCB APP nested attributes. */
-static struct nla_policy dcbnl_app_nest[DCB_APP_ATTR_MAX + 1] = {
+static const struct nla_policy dcbnl_app_nest[DCB_APP_ATTR_MAX + 1] = {
 	[DCB_APP_ATTR_IDTYPE]       = {.type = NLA_U8},
 	[DCB_APP_ATTR_ID]           = {.type = NLA_U16},
 	[DCB_APP_ATTR_PRIORITY]     = {.type = NLA_U8},

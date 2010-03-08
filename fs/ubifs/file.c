@@ -1011,7 +1011,7 @@ static int ubifs_writepage(struct page *page, struct writeback_control *wbc)
 	/* Is the page fully inside @i_size? */
 	if (page->index < end_index) {
 		if (page->index >= synced_i_size >> PAGE_CACHE_SHIFT) {
-			err = inode->i_sb->s_op->write_inode(inode, 1);
+			err = inode->i_sb->s_op->write_inode(inode, NULL);
 			if (err)
 				goto out_unlock;
 			/*
@@ -1039,7 +1039,7 @@ static int ubifs_writepage(struct page *page, struct writeback_control *wbc)
 	kunmap_atomic(kaddr, KM_USER0);
 
 	if (i_size > synced_i_size) {
-		err = inode->i_sb->s_op->write_inode(inode, 1);
+		err = inode->i_sb->s_op->write_inode(inode, NULL);
 		if (err)
 			goto out_unlock;
 	}
@@ -1242,7 +1242,7 @@ static int do_setattr(struct ubifs_info *c, struct inode *inode,
 	if (release)
 		ubifs_release_budget(c, &req);
 	if (IS_SYNC(inode))
-		err = inode->i_sb->s_op->write_inode(inode, 1);
+		err = inode->i_sb->s_op->write_inode(inode, NULL);
 	return err;
 
 out:
@@ -1316,7 +1316,7 @@ int ubifs_fsync(struct file *file, struct dentry *dentry, int datasync)
 	 * the inode unless this is a 'datasync()' call.
 	 */
 	if (!datasync || (inode->i_state & I_DIRTY_DATASYNC)) {
-		err = inode->i_sb->s_op->write_inode(inode, 1);
+		err = inode->i_sb->s_op->write_inode(inode, NULL);
 		if (err)
 			return err;
 	}

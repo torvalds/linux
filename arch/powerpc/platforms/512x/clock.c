@@ -698,8 +698,7 @@ static struct clk_interface mpc5121_clk_functions = {
 	.clk_get_parent		= NULL,
 };
 
-static int
-mpc5121_clk_init(void)
+int __init mpc5121_clk_init(void)
 {
 	struct device_node *np;
 
@@ -724,6 +723,3 @@ mpc5121_clk_init(void)
 	clk_functions = mpc5121_clk_functions;
 	return 0;
 }
-
-
-arch_initcall(mpc5121_clk_init);

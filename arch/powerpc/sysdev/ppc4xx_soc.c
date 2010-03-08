@@ -174,7 +174,8 @@ static int __init ppc4xx_l2c_probe(void)
 		| L2C_CFG_CPIM | L2C_CFG_TPIM | L2C_CFG_LIM | L2C_CFG_SMCM;
 
 	/* Check for 460EX/GT special handling */
-	if (of_device_is_compatible(np, "ibm,l2-cache-460ex"))
+	if (of_device_is_compatible(np, "ibm,l2-cache-460ex") ||
+	    of_device_is_compatible(np, "ibm,l2-cache-460gt"))
 		r |= L2C_CFG_RDBW;
 
 	mtdcr(dcrbase_l2c + DCRN_L2C0_CFG, r);

@@ -1212,10 +1212,9 @@ static void tms380tr_set_multicast_list(struct net_device *dev)
 		}
 		else
 		{
-			int i;
-			struct dev_mc_list *mclist = dev->mc_list;
-			for (i=0; i< dev->mc_count; i++)
-			{
+			struct dev_mc_list *mclist;
+
+			netdev_for_each_mc_addr(mclist, dev) {
 				((char *)(&tp->ocpl.FunctAddr))[0] |=
 					mclist->dmi_addr[2];
 				((char *)(&tp->ocpl.FunctAddr))[1] |=
@@ -1224,7 +1223,6 @@ static void tms380tr_set_multicast_list(struct net_device *dev)
 					mclist->dmi_addr[4];
 				((char *)(&tp->ocpl.FunctAddr))[3] |=
 					mclist->dmi_addr[5];
-				mclist = mclist->next;
 			}
 		}
 		tms380tr_exec_cmd(dev, OC_SET_FUNCT_ADDR);

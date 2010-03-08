@@ -60,7 +60,7 @@
 #define IOAT_PERPORTOFFSET_OFFSET		0x0A	/* 16-bit */
 
 #define IOAT_INTRDELAY_OFFSET			0x0C	/* 16-bit */
-#define IOAT_INTRDELAY_INT_DELAY_MASK		0x3FFF	/* Interrupt Delay Time */
+#define IOAT_INTRDELAY_MASK			0x3FFF	/* Interrupt Delay Time */
 #define IOAT_INTRDELAY_COALESE_SUPPORT		0x8000	/* Interrupt Coalescing Supported */
 
 #define IOAT_DEVICE_STATUS_OFFSET		0x0E	/* 16-bit */

@@ -2,7 +2,7 @@
  * Copyright 2002-2005, Instant802 Networks, Inc.
  * Copyright 2005-2006, Devicescape Software, Inc.
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
- * Copyright 2008-2009	Johannes Berg <johannes@sipsolutions.net>
+ * Copyright 2008-2010	Johannes Berg <johannes@sipsolutions.net>
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as
@@ -45,29 +45,19 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 
 	/*
-	 * XXX: This is temporary!
-	 *
-	 *	The problem here is that when we get here, the driver will
-	 *	quite likely have pretty much overwritten info->control by
-	 *	using info->driver_data or info->rate_driver_data. Thus,
-	 *	when passing out the frame to the driver again, we would be
-	 *	passing completely bogus data since the driver would then
-	 *	expect a properly filled info->control. In mac80211 itself
-	 *	the same problem occurs, since we need info->control.vif
-	 *	internally.
-	 *
-	 *	To fix this, we should send the frame through TX processing
-	 *	again. However, it's not that simple, since the frame will
-	 *	have been software-encrypted (if applicable) already, and
-	 *	encrypting it again doesn't do much good. So to properly do
-	 *	that, we not only have to skip the actual 'raw' encryption
-	 *	(key selection etc. still has to be done!) but also the
-	 *	sequence number assignment since that impacts the crypto
-	 *	encapsulation, of course.
-	 *
-	 *	Hence, for now, fix the bug by just dropping the frame.
+	 * This skb 'survived' a round-trip through the driver, and
+	 * hopefully the driver didn't mangle it too badly. However,
+	 * we can definitely not rely on the the control information
+	 * being correct. Clear it so we don't get junk there, and
+	 * indicate that it needs new processing, but must not be
+	 * modified/encrypted again.
 	 */
-	goto drop;
+	memset(&info->control, 0, sizeof(info->control));
+
+	info->control.jiffies = jiffies;
+	info->control.vif = &sta->sdata->vif;
+	info->flags |= IEEE80211_TX_INTFL_NEED_TXPROCESSING |
+		       IEEE80211_TX_INTFL_RETRANSMISSION;
 
 	sta->tx_filtered_count++;
 
@@ -122,7 +112,6 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 		return;
 	}
 
- drop:
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	if (net_ratelimit())
 		printk(KERN_DEBUG "%s: dropped TX filtered frame, "
@@ -132,6 +121,40 @@ static void ieee80211_handle_filtered_frame(struct ieee80211_local *local,
 		       !!test_sta_flags(sta, WLAN_STA_PS_STA), jiffies);
 #endif
 	dev_kfree_skb(skb);
+}
+
+static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
+{
+	struct ieee80211_mgmt *mgmt = (void *) skb->data;
+	struct ieee80211_local *local = sta->local;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+
+	if (ieee80211_is_action(mgmt->frame_control) &&
+	    sdata->vif.type == NL80211_IFTYPE_STATION &&
+	    mgmt->u.action.category == WLAN_CATEGORY_HT &&
+	    mgmt->u.action.u.ht_smps.action == WLAN_HT_ACTION_SMPS) {
+		/*
+		 * This update looks racy, but isn't -- if we come
+		 * here we've definitely got a station that we're
+		 * talking to, and on a managed interface that can
+		 * only be the AP. And the only other place updating
+		 * this variable is before we're associated.
+		 */
+		switch (mgmt->u.action.u.ht_smps.smps_control) {
+		case WLAN_HT_SMPS_CONTROL_DYNAMIC:
+			sta->sdata->u.mgd.ap_smps = IEEE80211_SMPS_DYNAMIC;
+			break;
+		case WLAN_HT_SMPS_CONTROL_STATIC:
+			sta->sdata->u.mgd.ap_smps = IEEE80211_SMPS_STATIC;
+			break;
+		case WLAN_HT_SMPS_CONTROL_DISABLED:
+		default: /* shouldn't happen since we don't send that */
+			sta->sdata->u.mgd.ap_smps = IEEE80211_SMPS_OFF;
+			break;
+		}
+
+		ieee80211_queue_work(&local->hw, &local->recalc_smps);
+	}
 }
 
 void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
@@ -146,7 +169,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	struct ieee80211_tx_status_rtap_hdr *rthdr;
 	struct ieee80211_sub_if_data *sdata;
 	struct net_device *prev_dev = NULL;
-	struct sta_info *sta;
+	struct sta_info *sta, *tmp;
 	int retry_count = -1, i;
 	bool injected;
 
@@ -165,10 +188,13 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	rcu_read_lock();
 
 	sband = local->hw.wiphy->bands[info->band];
+	fc = hdr->frame_control;
 
-	sta = sta_info_get(local, hdr->addr1);
+	for_each_sta_info(local, hdr->addr1, sta, tmp) {
+		/* skip wrong virtual interface */
+		if (memcmp(hdr->addr2, sta->sdata->vif.addr, ETH_ALEN))
+			continue;
 
-	if (sta) {
 		if (!(info->flags & IEEE80211_TX_STAT_ACK) &&
 		    test_sta_flags(sta, WLAN_STA_PS_STA)) {
 			/*
@@ -179,8 +205,6 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 			rcu_read_unlock();
 			return;
 		}
-
-		fc = hdr->frame_control;
 
 		if ((info->flags & IEEE80211_TX_STAT_AMPDU_NO_BACK) &&
 		    (ieee80211_is_data_qos(fc))) {
@@ -208,6 +232,10 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		rate_control_tx_status(local, sband, sta, skb);
 		if (ieee80211_vif_is_mesh(&sta->sdata->vif))
 			ieee80211s_update_metric(local, sta, skb);
+
+		if (!(info->flags & IEEE80211_TX_CTL_INJECTED) &&
+		    (info->flags & IEEE80211_TX_STAT_ACK))
+			ieee80211_frame_acked(sta, skb);
 	}
 
 	rcu_read_unlock();
@@ -245,6 +273,25 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 		if (frag == 0)
 			local->dot11FailedCount++;
 	}
+
+	if (ieee80211_is_nullfunc(fc) && ieee80211_has_pm(fc) &&
+	    (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) &&
+	    !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
+	    local->ps_sdata && !(local->scanning)) {
+		if (info->flags & IEEE80211_TX_STAT_ACK) {
+			local->ps_sdata->u.mgd.flags |=
+					IEEE80211_STA_NULLFUNC_ACKED;
+			ieee80211_queue_work(&local->hw,
+					&local->dynamic_ps_enable_work);
+		} else
+			mod_timer(&local->dynamic_ps_timer, jiffies +
+					msecs_to_jiffies(10));
+	}
+
+	if (info->flags & IEEE80211_TX_INTFL_NL80211_FRAME_TX)
+		cfg80211_action_tx_status(
+			skb->dev, (unsigned long) skb, skb->data, skb->len,
+			!!(info->flags & IEEE80211_TX_STAT_ACK), GFP_ATOMIC);
 
 	/* this was a transmitted frame, but now we want to reuse it */
 	skb_orphan(skb);
@@ -311,7 +358,7 @@ void ieee80211_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb)
 	rcu_read_lock();
 	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
 		if (sdata->vif.type == NL80211_IFTYPE_MONITOR) {
-			if (!netif_running(sdata->dev))
+			if (!ieee80211_sdata_running(sdata))
 				continue;
 
 			if ((sdata->u.mntr_flags & MONITOR_FLAG_COOK_FRAMES) &&

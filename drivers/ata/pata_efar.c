@@ -2,7 +2,7 @@
  *    pata_efar.c - EFAR PIIX clone controller driver
  *
  *	(C) 2005 Red Hat
- *	(C) 2009 Bartlomiej Zolnierkiewicz
+ *	(C) 2009-2010 Bartlomiej Zolnierkiewicz
  *
  *    Some parts based on ata_piix.c by Jeff Garzik and others.
  *
@@ -68,6 +68,8 @@ static int efar_cable_detect(struct ata_port *ap)
 	return ATA_CBL_PATA80;
 }
 
+static DEFINE_SPINLOCK(efar_lock);
+
 /**
  *	efar_set_piomode - Initialize host controller PATA PIO timings
  *	@ap: Port whose timings we are configuring
@@ -84,7 +86,9 @@ static void efar_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	unsigned int pio	= adev->pio_mode - XFER_PIO_0;
 	struct pci_dev *dev	= to_pci_dev(ap->host->dev);
 	unsigned int idetm_port= ap->port_no ? 0x42 : 0x40;
+	unsigned long flags;
 	u16 idetm_data;
+	u8 udma_enable;
 	int control = 0;
 
 	/*
@@ -106,6 +110,8 @@ static void efar_set_piomode (struct ata_port *ap, struct ata_device *adev)
 	/* Intel specifies that the prefetch/posting is for disk only */
 	if (adev->class == ATA_DEV_ATA)
 		control |= 4;	/* PPE */
+
+	spin_lock_irqsave(&efar_lock, flags);
 
 	pci_read_config_word(dev, idetm_port, &idetm_data);
 
@@ -131,6 +137,11 @@ static void efar_set_piomode (struct ata_port *ap, struct ata_device *adev)
 
 	idetm_data |= 0x4000;	/* Ensure SITRE is set */
 	pci_write_config_word(dev, idetm_port, idetm_data);
+
+	pci_read_config_byte(dev, 0x48, &udma_enable);
+	udma_enable &= ~(1 << (2 * ap->port_no + adev->devno));
+	pci_write_config_byte(dev, 0x48, udma_enable);
+	spin_unlock_irqrestore(&efar_lock, flags);
 }
 
 /**
@@ -151,6 +162,7 @@ static void efar_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 	u16 master_data;
 	u8 speed		= adev->dma_mode;
 	int devid		= adev->devno + 2 * ap->port_no;
+	unsigned long flags;
 	u8 udma_enable;
 
 	static const	 /* ISP  RTC */
@@ -159,6 +171,8 @@ static void efar_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 			    { 1, 0 },
 			    { 2, 1 },
 			    { 2, 3 }, };
+
+	spin_lock_irqsave(&efar_lock, flags);
 
 	pci_read_config_word(dev, master_port, &master_data);
 	pci_read_config_byte(dev, 0x48, &udma_enable);
@@ -217,6 +231,7 @@ static void efar_set_dmamode (struct ata_port *ap, struct ata_device *adev)
 		pci_write_config_word(dev, master_port, master_data);
 	}
 	pci_write_config_byte(dev, 0x48, udma_enable);
+	spin_unlock_irqrestore(&efar_lock, flags);
 }
 
 static struct scsi_host_template efar_sht = {
@@ -256,13 +271,14 @@ static int efar_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 		.udma_mask 	= ATA_UDMA4,
 		.port_ops	= &efar_ops,
 	};
-	const struct ata_port_info *ppi[] = { &info, NULL };
+	const struct ata_port_info *ppi[] = { &info, &info };
 
 	if (!printed_version++)
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
-	return ata_pci_sff_init_one(pdev, ppi, &efar_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &efar_sht, NULL,
+					ATA_HOST_PARALLEL_SCAN);
 }
 
 static const struct pci_device_id efar_pci_tbl[] = {

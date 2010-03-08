@@ -84,6 +84,7 @@ static struct go7007_board_info board_voyager = {
 		},
 	},
 };
+MODULE_FIRMWARE("go7007tv.bin");
 
 /********************* Driver for GPIO HPI interface *********************/
 

@@ -110,8 +110,9 @@ static const struct ieee80211_regdomain ath_world_regdom_67_68_6A = {
 
 static inline bool is_wwr_sku(u16 regd)
 {
-	return ((regd & WORLD_SKU_MASK) == WORLD_SKU_PREFIX) ||
-		(regd == WORLD);
+	return ((regd & COUNTRY_ERD_FLAG) != COUNTRY_ERD_FLAG) &&
+		(((regd & WORLD_SKU_MASK) == WORLD_SKU_PREFIX) ||
+		(regd == WORLD));
 }
 
 static u16 ath_regd_get_eepromRD(struct ath_regulatory *reg)

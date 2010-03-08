@@ -34,6 +34,8 @@
 static char		const *input_name = "perf.data";
 
 static int		force;
+static bool		hide_unresolved;
+static bool		dont_use_callchains;
 
 static int		show_threads;
 static struct perf_read_values	show_threads_values;
@@ -91,11 +93,8 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 
 	event__parse_sample(event, session->sample_type, &data);
 
-	dump_printf("(IP, %d): %d/%d: %p period: %Ld\n",
-		event->header.misc,
-		data.pid, data.tid,
-		(void *)(long)data.ip,
-		(long long)data.period);
+	dump_printf("(IP, %d): %d/%d: %#Lx period: %Ld\n", event->header.misc,
+		    data.pid, data.tid, data.ip, data.period);
 
 	if (session->sample_type & PERF_SAMPLE_CALLCHAIN) {
 		unsigned int i;
@@ -121,7 +120,7 @@ static int process_sample_event(event_t *event, struct perf_session *session)
 		return -1;
 	}
 
-	if (al.filtered)
+	if (al.filtered || (hide_unresolved && al.sym == NULL))
 		return 0;
 
 	if (perf_session__add_hist_entry(session, &al, data.callchain, data.period)) {
@@ -156,14 +155,14 @@ static int process_read_event(event_t *event, struct perf_session *session __use
 	return 0;
 }
 
-static int sample_type_check(struct perf_session *session)
+static int perf_session__setup_sample_type(struct perf_session *self)
 {
-	if (!(session->sample_type & PERF_SAMPLE_CALLCHAIN)) {
+	if (!(self->sample_type & PERF_SAMPLE_CALLCHAIN)) {
 		if (sort__has_parent) {
 			fprintf(stderr, "selected --sort parent, but no"
 					" callchain data. Did you call"
 					" perf record without -g?\n");
-			return -1;
+			return -EINVAL;
 		}
 		if (symbol_conf.use_callchain) {
 			fprintf(stderr, "selected -g but no callchain data."
@@ -171,12 +170,13 @@ static int sample_type_check(struct perf_session *session)
 					" -g?\n");
 			return -1;
 		}
-	} else if (callchain_param.mode != CHAIN_NONE && !symbol_conf.use_callchain) {
+	} else if (!dont_use_callchains && callchain_param.mode != CHAIN_NONE &&
+		   !symbol_conf.use_callchain) {
 			symbol_conf.use_callchain = true;
 			if (register_callchain_param(&callchain_param) < 0) {
 				fprintf(stderr, "Can't register callchain"
 						" params\n");
-				return -1;
+				return -EINVAL;
 			}
 	}
 
@@ -184,20 +184,18 @@ static int sample_type_check(struct perf_session *session)
 }
 
 static struct perf_event_ops event_ops = {
-	.process_sample_event	= process_sample_event,
-	.process_mmap_event	= event__process_mmap,
-	.process_comm_event	= event__process_comm,
-	.process_exit_event	= event__process_task,
-	.process_fork_event	= event__process_task,
-	.process_lost_event	= event__process_lost,
-	.process_read_event	= process_read_event,
-	.sample_type_check	= sample_type_check,
+	.sample	= process_sample_event,
+	.mmap	= event__process_mmap,
+	.comm	= event__process_comm,
+	.exit	= event__process_task,
+	.fork	= event__process_task,
+	.lost	= event__process_lost,
+	.read	= process_read_event,
 };
-
 
 static int __cmd_report(void)
 {
-	int ret;
+	int ret = -EINVAL;
 	struct perf_session *session;
 
 	session = perf_session__new(input_name, O_RDONLY, force);
@@ -206,6 +204,10 @@ static int __cmd_report(void)
 
 	if (show_threads)
 		perf_read_values_init(&show_threads_values);
+
+	ret = perf_session__setup_sample_type(session);
+	if (ret)
+		goto out_delete;
 
 	ret = perf_session__process_events(session, &event_ops);
 	if (ret)
@@ -243,10 +245,18 @@ out_delete:
 
 static int
 parse_callchain_opt(const struct option *opt __used, const char *arg,
-		    int unset __used)
+		    int unset)
 {
 	char *tok;
 	char *endptr;
+
+	/*
+	 * --no-call-graph
+	 */
+	if (unset) {
+		dont_use_callchains = true;
+		return 0;
+	}
 
 	symbol_conf.use_callchain = true;
 
@@ -319,7 +329,7 @@ static const struct option options[] = {
 		   "pretty printing style key: normal raw"),
 	OPT_STRING('s', "sort", &sort_order, "key[,key2...]",
 		   "sort by key(s): pid, comm, dso, symbol, parent"),
-	OPT_BOOLEAN('P', "full-paths", &event_ops.full_paths,
+	OPT_BOOLEAN('P', "full-paths", &symbol_conf.full_paths,
 		    "Don't shorten the pathnames taking into account the cwd"),
 	OPT_STRING('p', "parent", &parent_pattern, "regex",
 		   "regex filter to identify parent, see: '--sort parent'"),
@@ -340,6 +350,8 @@ static const struct option options[] = {
 	OPT_STRING('t', "field-separator", &symbol_conf.field_sep, "separator",
 		   "separator for columns, no spaces will be added between "
 		   "columns '.' is reserved."),
+	OPT_BOOLEAN('U', "hide-unresolved", &hide_unresolved,
+		    "Only display entries resolved to a symbol"),
 	OPT_END()
 };
 

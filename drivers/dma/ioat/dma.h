@@ -61,7 +61,7 @@
  * @intr_quirk: interrupt setup quirk (for ioat_v1 devices)
  * @enumerate_channels: hw version specific channel enumeration
  * @reset_hw: hw version specific channel (re)initialization
- * @cleanup_tasklet: select between the v2 and v3 cleanup routines
+ * @cleanup_fn: select between the v2 and v3 cleanup routines
  * @timer_fn: select between the v2 and v3 timer watchdog routines
  * @self_test: hardware version specific self test for each supported op type
  *
@@ -80,7 +80,7 @@ struct ioatdma_device {
 	void (*intr_quirk)(struct ioatdma_device *device);
 	int (*enumerate_channels)(struct ioatdma_device *device);
 	int (*reset_hw)(struct ioat_chan_common *chan);
-	void (*cleanup_tasklet)(unsigned long data);
+	void (*cleanup_fn)(unsigned long data);
 	void (*timer_fn)(unsigned long data);
 	int (*self_test)(struct ioatdma_device *device);
 };
@@ -337,10 +337,9 @@ struct dca_provider * __devinit ioat_dca_init(struct pci_dev *pdev,
 					      void __iomem *iobase);
 unsigned long ioat_get_current_completion(struct ioat_chan_common *chan);
 void ioat_init_channel(struct ioatdma_device *device,
-		       struct ioat_chan_common *chan, int idx,
-		       void (*timer_fn)(unsigned long),
-		       void (*tasklet)(unsigned long),
-		       unsigned long ioat);
+		       struct ioat_chan_common *chan, int idx);
+enum dma_status ioat_is_dma_complete(struct dma_chan *c, dma_cookie_t cookie,
+				     dma_cookie_t *done, dma_cookie_t *used);
 void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
 		    size_t len, struct ioat_dma_descriptor *hw);
 bool ioat_cleanup_preamble(struct ioat_chan_common *chan,

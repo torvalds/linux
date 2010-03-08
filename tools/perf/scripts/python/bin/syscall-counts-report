@@ -1,0 +1,4 @@
+#!/bin/bash
+# description: system-wide syscall counts
+# args: [comm]
+perf trace -s ~/libexec/perf-core/scripts/python/syscall-counts.py $1

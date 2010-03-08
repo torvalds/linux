@@ -55,8 +55,6 @@
 #define B43_PIO_MAX_NR_TXPACKETS	32
 
 
-#ifdef CONFIG_B43_PIO
-
 struct b43_pio_txpacket {
 	/* Pointer to the TX queue we belong to. */
 	struct b43_pio_txqueue *queue;
@@ -91,9 +89,6 @@ struct b43_pio_txqueue {
 	/* Buffer for TX packet meta data. */
 	struct b43_pio_txpacket packets[B43_PIO_MAX_NR_TXPACKETS];
 	struct list_head packets_list;
-
-	/* Total number of transmitted packets. */
-	unsigned int nr_tx_packets;
 
 	/* Shortcut to the 802.11 core revision. This is to
 	 * avoid horrible pointer dereferencing in the fastpaths. */
@@ -162,49 +157,9 @@ void b43_pio_free(struct b43_wldev *dev);
 int b43_pio_tx(struct b43_wldev *dev, struct sk_buff *skb);
 void b43_pio_handle_txstatus(struct b43_wldev *dev,
 			     const struct b43_txstatus *status);
-void b43_pio_get_tx_stats(struct b43_wldev *dev,
-			  struct ieee80211_tx_queue_stats *stats);
 void b43_pio_rx(struct b43_pio_rxqueue *q);
 
 void b43_pio_tx_suspend(struct b43_wldev *dev);
 void b43_pio_tx_resume(struct b43_wldev *dev);
 
-
-#else /* CONFIG_B43_PIO */
-
-
-static inline int b43_pio_init(struct b43_wldev *dev)
-{
-	return 0;
-}
-static inline void b43_pio_free(struct b43_wldev *dev)
-{
-}
-static inline void b43_pio_stop(struct b43_wldev *dev)
-{
-}
-static inline int b43_pio_tx(struct b43_wldev *dev,
-			     struct sk_buff *skb)
-{
-	return 0;
-}
-static inline void b43_pio_handle_txstatus(struct b43_wldev *dev,
-					   const struct b43_txstatus *status)
-{
-}
-static inline void b43_pio_get_tx_stats(struct b43_wldev *dev,
-					struct ieee80211_tx_queue_stats *stats)
-{
-}
-static inline void b43_pio_rx(struct b43_pio_rxqueue *q)
-{
-}
-static inline void b43_pio_tx_suspend(struct b43_wldev *dev)
-{
-}
-static inline void b43_pio_tx_resume(struct b43_wldev *dev)
-{
-}
-
-#endif /* CONFIG_B43_PIO */
 #endif /* B43_PIO_H_ */

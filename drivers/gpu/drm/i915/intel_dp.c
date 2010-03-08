@@ -231,7 +231,7 @@ intel_dp_aux_ch(struct intel_output *intel_output,
 	 */
 	if (IS_eDP(intel_output))
 		aux_clock_divider = 225; /* eDP input clock at 450Mhz */
-	else if (IS_IRONLAKE(dev))
+	else if (HAS_PCH_SPLIT(dev))
 		aux_clock_divider = 62; /* IRL input clock fixed at 125Mhz */
 	else
 		aux_clock_divider = intel_hrawclk(dev) / 2;
@@ -584,7 +584,7 @@ intel_dp_set_m_n(struct drm_crtc *crtc, struct drm_display_mode *mode,
 	intel_dp_compute_m_n(3, lane_count,
 			     mode->clock, adjusted_mode->clock, &m_n);
 
-	if (IS_IRONLAKE(dev)) {
+	if (HAS_PCH_SPLIT(dev)) {
 		if (intel_crtc->pipe == 0) {
 			I915_WRITE(TRANSA_DATA_M1,
 				   ((m_n.tu - 1) << PIPE_GMCH_DATA_M_TU_SIZE_SHIFT) |
@@ -1176,7 +1176,7 @@ intel_dp_detect(struct drm_connector *connector)
 
 	dp_priv->has_audio = false;
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		return ironlake_dp_detect(connector);
 
 	temp = I915_READ(PORT_HOTPLUG_EN);

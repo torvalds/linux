@@ -163,7 +163,6 @@ struct usblp {
 	unsigned char		used;			/* True if open */
 	unsigned char		present;		/* True if not disconnected */
 	unsigned char		bidir;			/* interface is bidirectional */
-	unsigned char		sleeping;		/* interface is suspended */
 	unsigned char		no_paper;		/* Paper Out happened */
 	unsigned char		*device_id_string;	/* IEEE 1284 DEVICE ID string (ptr) */
 							/* first 2 bytes are (big-endian) length */
@@ -191,7 +190,6 @@ static void usblp_dump(struct usblp *usblp) {
 	dbg("quirks=%d", usblp->quirks);
 	dbg("used=%d", usblp->used);
 	dbg("bidir=%d", usblp->bidir);
-	dbg("sleeping=%d", usblp->sleeping);
 	dbg("device_id_string=\"%s\"",
 		usblp->device_id_string ?
 			usblp->device_id_string + 2 :
@@ -376,7 +374,7 @@ static int usblp_check_status(struct usblp *usblp, int err)
 
 static int handle_bidir (struct usblp *usblp)
 {
-	if (usblp->bidir && usblp->used && !usblp->sleeping) {
+	if (usblp->bidir && usblp->used) {
 		if (usblp_submit_read(usblp) < 0)
 			return -EIO;
 	}
@@ -499,11 +497,6 @@ static long usblp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	mutex_lock (&usblp->mut);
 	if (!usblp->present) {
-		retval = -ENODEV;
-		goto done;
-	}
-
-	if (usblp->sleeping) {
 		retval = -ENODEV;
 		goto done;
 	}
@@ -914,8 +907,6 @@ static int usblp_wtest(struct usblp *usblp, int nonblock)
 		return 0;
 	}
 	spin_unlock_irqrestore(&usblp->lock, flags);
-	if (usblp->sleeping)
-		return -ENODEV;
 	if (nonblock)
 		return -EAGAIN;
 	return 1;
@@ -968,8 +959,6 @@ static int usblp_rtest(struct usblp *usblp, int nonblock)
 		return 0;
 	}
 	spin_unlock_irqrestore(&usblp->lock, flags);
-	if (usblp->sleeping)
-		return -ENODEV;
 	if (nonblock)
 		return -EAGAIN;
 	return 1;
@@ -1377,12 +1366,10 @@ static void usblp_disconnect(struct usb_interface *intf)
 	mutex_unlock (&usblp_mutex);
 }
 
-static int usblp_suspend (struct usb_interface *intf, pm_message_t message)
+static int usblp_suspend(struct usb_interface *intf, pm_message_t message)
 {
 	struct usblp *usblp = usb_get_intfdata (intf);
 
-	/* we take no more IO */
-	usblp->sleeping = 1;
 	usblp_unlink_urbs(usblp);
 #if 0 /* XXX Do we want this? What if someone is reading, should we fail? */
 	/* not strictly necessary, but just in case */
@@ -1393,18 +1380,17 @@ static int usblp_suspend (struct usb_interface *intf, pm_message_t message)
 	return 0;
 }
 
-static int usblp_resume (struct usb_interface *intf)
+static int usblp_resume(struct usb_interface *intf)
 {
 	struct usblp *usblp = usb_get_intfdata (intf);
 	int r;
 
-	usblp->sleeping = 0;
 	r = handle_bidir (usblp);
 
 	return r;
 }
 
-static struct usb_device_id usblp_ids [] = {
+static const struct usb_device_id usblp_ids[] = {
 	{ USB_DEVICE_INFO(7, 1, 1) },
 	{ USB_DEVICE_INFO(7, 1, 2) },
 	{ USB_DEVICE_INFO(7, 1, 3) },

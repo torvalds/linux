@@ -39,6 +39,7 @@
 #include "dir.h"
 #include "debug.h"
 #include "index.h"
+#include "inode.h"
 #include "aops.h"
 #include "layout.h"
 #include "malloc.h"
@@ -2661,6 +2662,13 @@ static int ntfs_statfs(struct dentry *dentry, struct kstatfs *sfs)
 	sfs->f_namelen	   = NTFS_MAX_NAME_LEN;
 	return 0;
 }
+
+#ifdef NTFS_RW
+static int ntfs_write_inode(struct inode *vi, struct writeback_control *wbc)
+{
+	return __ntfs_write_inode(vi, wbc->sync_mode == WB_SYNC_ALL);
+}
+#endif
 
 /**
  * The complete super operations.

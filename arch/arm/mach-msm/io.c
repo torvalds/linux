@@ -76,5 +76,6 @@ __msm_ioremap(unsigned long phys_addr, size_t size, unsigned int mtype)
 			mtype = MT_DEVICE_NONSHARED;
 	}
 
-	return __arm_ioremap(phys_addr, size, mtype);
+	return __arm_ioremap_caller(phys_addr, size, mtype,
+		__builtin_return_address(0));
 }

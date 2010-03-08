@@ -6,7 +6,7 @@
  *   vt8235, vt8237, vt8237a
  *
  * Copyright (c) 2000-2002 Vojtech Pavlik
- * Copyright (c) 2007 Bartlomiej Zolnierkiewicz
+ * Copyright (c) 2007-2010 Bartlomiej Zolnierkiewicz
  *
  * Based on the work of:
  *	Michel Aubry
@@ -54,6 +54,11 @@
 #define VIA_NO_UNMASK		0x08 /* Doesn't work with IRQ unmasking on */
 #define VIA_BAD_ID		0x10 /* Has wrong vendor ID (0x1107) */
 #define VIA_BAD_AST		0x20 /* Don't touch Address Setup Timing */
+#define VIA_SATA_PATA		0x80 /* SATA/PATA combined configuration */
+
+enum {
+	VIA_IDFLAG_SINGLE = (1 << 1), /* single channel controller */
+};
 
 /*
  * VIA SouthBridge chips.
@@ -67,11 +72,13 @@ static struct via_isa_bridge {
 	u8 udma_mask;
 	u8 flags;
 } via_isa_bridges[] = {
-	{ "vx855",	PCI_DEVICE_ID_VIA_VX855,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
-	{ "vx800",	PCI_DEVICE_ID_VIA_VX800,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
-	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vx855",	PCI_DEVICE_ID_VIA_VX855,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST | VIA_SATA_PATA },
+	{ "vx800",	PCI_DEVICE_ID_VIA_VX800,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST | VIA_SATA_PATA },
+	{ "cx700",	PCI_DEVICE_ID_VIA_CX700,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST | VIA_SATA_PATA },
+	{ "vt8261",	PCI_DEVICE_ID_VIA_8261,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt8237s",	PCI_DEVICE_ID_VIA_8237S,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt6410",	PCI_DEVICE_ID_VIA_6410,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
+	{ "vt6415",	PCI_DEVICE_ID_VIA_6410,     0x00, 0xff, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt8251",	PCI_DEVICE_ID_VIA_8251,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt8237",	PCI_DEVICE_ID_VIA_8237,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ "vt8237a",	PCI_DEVICE_ID_VIA_8237A,    0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
@@ -92,6 +99,7 @@ static struct via_isa_bridge {
 	{ "vt82c586",	PCI_DEVICE_ID_VIA_82C586_0, 0x00, 0x0f,      0x00, VIA_SET_FIFO },
 	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f,      0x00, VIA_SET_FIFO | VIA_NO_UNMASK },
 	{ "vt82c576",	PCI_DEVICE_ID_VIA_82C576,   0x00, 0x2f,      0x00, VIA_SET_FIFO | VIA_NO_UNMASK | VIA_BAD_ID },
+	{ "vtxxxx",	PCI_DEVICE_ID_VIA_ANON,     0x00, 0x2f, ATA_UDMA6, VIA_BAD_AST },
 	{ NULL }
 };
 
@@ -102,6 +110,7 @@ struct via82cxxx_dev
 {
 	struct via_isa_bridge *via_config;
 	unsigned int via_80w;
+	u8 cached_device[2];
 };
 
 /**
@@ -137,30 +146,45 @@ static void via_set_speed(ide_hwif_t *hwif, u8 dn, struct ide_timing *timing)
 	case ATA_UDMA4: t = timing->udma ? (0xe8 | (clamp_val(timing->udma, 2, 9) - 2)) : 0x0f; break;
 	case ATA_UDMA5: t = timing->udma ? (0xe0 | (clamp_val(timing->udma, 2, 9) - 2)) : 0x07; break;
 	case ATA_UDMA6: t = timing->udma ? (0xe0 | (clamp_val(timing->udma, 2, 9) - 2)) : 0x07; break;
-	default: return;
 	}
 
-	pci_write_config_byte(dev, VIA_UDMA_TIMING + (3 - dn), t);
+	/* Set UDMA unless device is not UDMA capable */
+	if (vdev->via_config->udma_mask) {
+		u8 udma_etc;
+
+		pci_read_config_byte(dev, VIA_UDMA_TIMING + 3 - dn, &udma_etc);
+
+		/* clear transfer mode bit */
+		udma_etc &= ~0x20;
+
+		if (timing->udma) {
+			/* preserve 80-wire cable detection bit */
+			udma_etc &= 0x10;
+			udma_etc |= t;
+		}
+
+		pci_write_config_byte(dev, VIA_UDMA_TIMING + 3 - dn, udma_etc);
+	}
 }
 
 /**
  *	via_set_drive		-	configure transfer mode
+ *	@hwif: port
  *	@drive: Drive to set up
- *	@speed: desired speed
  *
  *	via_set_drive() computes timing values configures the chipset to
  *	a desired transfer mode.  It also can be called by upper layers.
  */
 
-static void via_set_drive(ide_drive_t *drive, const u8 speed)
+static void via_set_drive(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	ide_drive_t *peer = ide_get_pair_dev(drive);
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	struct ide_host *host = pci_get_drvdata(dev);
 	struct via82cxxx_dev *vdev = host->host_priv;
 	struct ide_timing t, p;
 	unsigned int T, UT;
+	const u8 speed = drive->dma_mode;
 
 	T = 1000000000 / via_clock;
 
@@ -175,7 +199,7 @@ static void via_set_drive(ide_drive_t *drive, const u8 speed)
 	ide_timing_compute(drive, speed, &t, T, UT);
 
 	if (peer) {
-		ide_timing_compute(peer, peer->current_speed, &p, T, UT);
+		ide_timing_compute(peer, peer->pio_mode, &p, T, UT);
 		ide_timing_merge(&p, &t, &t, IDE_TIMING_8BIT);
 	}
 
@@ -184,22 +208,24 @@ static void via_set_drive(ide_drive_t *drive, const u8 speed)
 
 /**
  *	via_set_pio_mode	-	set host controller for PIO mode
+ *	@hwif: port
  *	@drive: drive
- *	@pio: PIO mode number
  *
  *	A callback from the upper layers for PIO-only tuning.
  */
 
-static void via_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void via_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	via_set_drive(drive, XFER_PIO_0 + pio);
+	drive->dma_mode = drive->pio_mode;
+	via_set_drive(hwif, drive);
 }
 
 static struct via_isa_bridge *via_config_find(struct pci_dev **isa)
 {
 	struct via_isa_bridge *via_config;
 
-	for (via_config = via_isa_bridges; via_config->id; via_config++)
+	for (via_config = via_isa_bridges;
+	     via_config->id != PCI_DEVICE_ID_VIA_ANON; via_config++)
 		if ((*isa = pci_get_device(PCI_VENDOR_ID_VIA +
 			!!(via_config->flags & VIA_BAD_ID),
 			via_config->id, NULL))) {
@@ -362,6 +388,9 @@ static u8 via82cxxx_cable_detect(ide_hwif_t *hwif)
 	if (via_cable_override(pdev))
 		return ATA_CBL_PATA40_SHORT;
 
+	if ((vdev->via_config->flags & VIA_SATA_PATA) && hwif->channel == 0)
+		return ATA_CBL_SATA;
+
 	if ((vdev->via_80w >> hwif->channel) & 1)
 		return ATA_CBL_PATA80;
 	else
@@ -374,10 +403,66 @@ static const struct ide_port_ops via_port_ops = {
 	.cable_detect		= via82cxxx_cable_detect,
 };
 
+static void via_write_devctl(ide_hwif_t *hwif, u8 ctl)
+{
+	struct via82cxxx_dev *vdev = hwif->host->host_priv;
+
+	outb(ctl, hwif->io_ports.ctl_addr);
+	outb(vdev->cached_device[hwif->channel], hwif->io_ports.device_addr);
+}
+
+static void __via_dev_select(ide_drive_t *drive, u8 select)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	struct via82cxxx_dev *vdev = hwif->host->host_priv;
+
+	outb(select, hwif->io_ports.device_addr);
+	vdev->cached_device[hwif->channel] = select;
+}
+
+static void via_dev_select(ide_drive_t *drive)
+{
+	__via_dev_select(drive, drive->select | ATA_DEVICE_OBS);
+}
+
+static void via_tf_load(ide_drive_t *drive, struct ide_taskfile *tf, u8 valid)
+{
+	ide_hwif_t *hwif = drive->hwif;
+	struct ide_io_ports *io_ports = &hwif->io_ports;
+
+	if (valid & IDE_VALID_FEATURE)
+		outb(tf->feature, io_ports->feature_addr);
+	if (valid & IDE_VALID_NSECT)
+		outb(tf->nsect, io_ports->nsect_addr);
+	if (valid & IDE_VALID_LBAL)
+		outb(tf->lbal, io_ports->lbal_addr);
+	if (valid & IDE_VALID_LBAM)
+		outb(tf->lbam, io_ports->lbam_addr);
+	if (valid & IDE_VALID_LBAH)
+		outb(tf->lbah, io_ports->lbah_addr);
+	if (valid & IDE_VALID_DEVICE)
+		__via_dev_select(drive, tf->device);
+}
+
+const struct ide_tp_ops via_tp_ops = {
+	.exec_command		= ide_exec_command,
+	.read_status		= ide_read_status,
+	.read_altstatus		= ide_read_altstatus,
+	.write_devctl		= via_write_devctl,
+
+	.dev_select		= via_dev_select,
+	.tf_load		= via_tf_load,
+	.tf_read		= ide_tf_read,
+
+	.input_data		= ide_input_data,
+	.output_data		= ide_output_data,
+};
+
 static const struct ide_port_info via82cxxx_chipset __devinitdata = {
 	.name		= DRV_NAME,
 	.init_chipset	= init_chipset_via82cxxx,
 	.enablebits	= { { 0x40, 0x02, 0x02 }, { 0x40, 0x01, 0x01 } },
+	.tp_ops		= &via_tp_ops,
 	.port_ops	= &via_port_ops,
 	.host_flags	= IDE_HFLAG_PIO_NO_BLACKLIST |
 			  IDE_HFLAG_POST_SET_MODE |
@@ -402,11 +487,6 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 	 * Find the ISA bridge and check we know what it is.
 	 */
 	via_config = via_config_find(&isa);
-	if (!via_config->id) {
-		printk(KERN_WARNING DRV_NAME " %s: unknown chipset, skipping\n",
-			pci_name(dev));
-		return -ENODEV;
-	}
 
 	/*
 	 * Print the boot message.
@@ -436,10 +516,13 @@ static int __devinit via_init_one(struct pci_dev *dev, const struct pci_device_i
 		via_clock = 33333;
 	}
 
-	if (idx == 0)
-		d.host_flags |= IDE_HFLAG_NO_AUTODMA;
-	else
+	if (idx == 1)
 		d.enablebits[1].reg = d.enablebits[0].reg = 0;
+	else
+		d.host_flags |= IDE_HFLAG_NO_AUTODMA;
+
+	if (idx == VIA_IDFLAG_SINGLE)
+		d.host_flags |= IDE_HFLAG_SINGLE;
 
 	if ((via_config->flags & VIA_NO_UNMASK) == 0)
 		d.host_flags |= IDE_HFLAG_UNMASK_IRQS;
@@ -475,8 +558,9 @@ static const struct pci_device_id via_pci_tbl[] = {
 	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C576_1),  0 },
 	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_82C586_1),  0 },
 	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_CX700_IDE), 0 },
-	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_VX855_IDE), 0 },
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_VX855_IDE), VIA_IDFLAG_SINGLE },
 	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_6410),      1 },
+	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_6415),      1 },
 	{ PCI_VDEVICE(VIA, PCI_DEVICE_ID_VIA_SATA_EIDE), 1 },
 	{ 0, },
 };
@@ -504,6 +588,6 @@ static void __exit via_ide_exit(void)
 module_init(via_ide_init);
 module_exit(via_ide_exit);
 
-MODULE_AUTHOR("Vojtech Pavlik, Michel Aubry, Jeff Garzik, Andre Hedrick");
+MODULE_AUTHOR("Vojtech Pavlik, Bartlomiej Zolnierkiewicz, Michel Aubry, Jeff Garzik, Andre Hedrick");
 MODULE_DESCRIPTION("PCI driver module for VIA IDE");
 MODULE_LICENSE("GPL");

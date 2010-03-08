@@ -202,14 +202,6 @@ static inline __u32 ext3_mask_flags(umode_t mode, __u32 flags)
 		return flags & EXT3_OTHER_FLMASK;
 }
 
-/*
- * Inode dynamic state flags
- */
-#define EXT3_STATE_JDATA		0x00000001 /* journaled data exists */
-#define EXT3_STATE_NEW			0x00000002 /* inode is newly created */
-#define EXT3_STATE_XATTR		0x00000004 /* has in-inode xattrs */
-#define EXT3_STATE_FLUSH_ON_CLOSE	0x00000008
-
 /* Used to pass group descriptor data when online resize is done */
 struct ext3_new_group_input {
 	__u32 group;            /* Group number for this data */
@@ -560,6 +552,31 @@ static inline int ext3_valid_inum(struct super_block *sb, unsigned long ino)
 		(ino >= EXT3_FIRST_INO(sb) &&
 		 ino <= le32_to_cpu(EXT3_SB(sb)->s_es->s_inodes_count));
 }
+
+/*
+ * Inode dynamic state flags
+ */
+enum {
+	EXT3_STATE_JDATA,		/* journaled data exists */
+	EXT3_STATE_NEW,			/* inode is newly created */
+	EXT3_STATE_XATTR,		/* has in-inode xattrs */
+	EXT3_STATE_FLUSH_ON_CLOSE,	/* flush dirty pages on close */
+};
+
+static inline int ext3_test_inode_state(struct inode *inode, int bit)
+{
+	return test_bit(bit, &EXT3_I(inode)->i_state);
+}
+
+static inline void ext3_set_inode_state(struct inode *inode, int bit)
+{
+	set_bit(bit, &EXT3_I(inode)->i_state);
+}
+
+static inline void ext3_clear_inode_state(struct inode *inode, int bit)
+{
+	clear_bit(bit, &EXT3_I(inode)->i_state);
+}
 #else
 /* Assume that user mode programs are passing in an ext3fs superblock, not
  * a kernel struct super_block.  This will allow us to call the feature-test
@@ -877,7 +894,7 @@ int ext3_get_blocks_handle(handle_t *handle, struct inode *inode,
 	int create);
 
 extern struct inode *ext3_iget(struct super_block *, unsigned long);
-extern int  ext3_write_inode (struct inode *, int);
+extern int  ext3_write_inode (struct inode *, struct writeback_control *);
 extern int  ext3_setattr (struct dentry *, struct iattr *);
 extern void ext3_delete_inode (struct inode *);
 extern int  ext3_sync_inode (handle_t *, struct inode *);

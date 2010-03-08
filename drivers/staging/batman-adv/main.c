@@ -21,9 +21,9 @@
 
 #include "main.h"
 #include "proc.h"
-#include "log.h"
 #include "routing.h"
 #include "send.h"
+#include "originator.h"
 #include "soft-interface.h"
 #include "device.h"
 #include "translation-table.h"
@@ -31,7 +31,6 @@
 #include "types.h"
 #include "vis.h"
 #include "hash.h"
-#include "compat.h"
 
 struct list_head if_list;
 struct hlist_head forw_bat_list;
@@ -44,18 +43,33 @@ DEFINE_SPINLOCK(forw_bcast_list_lock);
 
 atomic_t originator_interval;
 atomic_t vis_interval;
+atomic_t vis_mode;
 atomic_t aggregation_enabled;
 int16_t num_hna;
 int16_t num_ifs;
 
 struct net_device *soft_device;
 
-static struct task_struct *kthread_task;
-
 unsigned char broadcastAddr[] = {0xff, 0xff, 0xff, 0xff, 0xff, 0xff};
 atomic_t module_state;
 
+static struct packet_type batman_adv_packet_type __read_mostly = {
+	.type = __constant_htons(ETH_P_BATMAN),
+	.func = batman_skb_recv,
+};
+
 struct workqueue_struct *bat_event_workqueue;
+
+#ifdef CONFIG_BATMAN_ADV_DEBUG
+int debug;
+
+module_param(debug, int, 0644);
+
+int bat_debug_type(int type)
+{
+	return debug & type;
+}
+#endif
 
 int init_module(void)
 {
@@ -70,6 +84,7 @@ int init_module(void)
 	atomic_set(&originator_interval, 1000);
 	atomic_set(&vis_interval, 1000);/* TODO: raise this later, this is only
 					 * for debugging now. */
+	atomic_set(&vis_mode, VIS_TYPE_CLIENT_UPDATE);
 	atomic_set(&aggregation_enabled, 1);
 
 	/* the name should not be longer than 10 chars - see
@@ -90,21 +105,22 @@ int init_module(void)
 				   interface_setup);
 
 	if (!soft_device) {
-		debug_log(LOG_TYPE_CRIT, "Unable to allocate the batman interface\n");
+		printk(KERN_ERR "batman-adv:Unable to allocate the batman interface\n");
 		goto end;
 	}
 
 	retval = register_netdev(soft_device);
 
 	if (retval < 0) {
-		debug_log(LOG_TYPE_CRIT, "Unable to register the batman interface: %i\n", retval);
+		printk(KERN_ERR "batman-adv:Unable to register the batman interface: %i\n", retval);
 		goto free_soft_device;
 	}
 
 	register_netdevice_notifier(&hard_if_notifier);
+	dev_add_pack(&batman_adv_packet_type);
 
-	debug_log(LOG_TYPE_CRIT, "B.A.T.M.A.N. advanced %s%s (compatibility version %i) loaded \n",
-	          SOURCE_VERSION, REVISION_VERSION_STR, COMPAT_VERSION);
+	printk(KERN_INFO "batman-adv:B.A.T.M.A.N. advanced %s%s (compatibility version %i) loaded \n",
+		  SOURCE_VERSION, REVISION_VERSION_STR, COMPAT_VERSION);
 
 	return 0;
 
@@ -123,6 +139,8 @@ void cleanup_module(void)
 		unregister_netdev(soft_device);
 		soft_device = NULL;
 	}
+
+	dev_remove_pack(&batman_adv_packet_type);
 
 	unregister_netdevice_notifier(&hard_if_notifier);
 	cleanup_procfs();
@@ -151,22 +169,12 @@ void activate_module(void)
 	if (vis_init() < 1)
 		goto err;
 
-	/* (re)start kernel thread for packet processing */
-	if (!kthread_task) {
-		kthread_task = kthread_run(packet_recv_thread, NULL, "batman-adv");
-
-		if (IS_ERR(kthread_task)) {
-			debug_log(LOG_TYPE_CRIT, "Unable to start packet receive thread\n");
-			kthread_task = NULL;
-		}
-	}
-
 	update_min_mtu();
 	atomic_set(&module_state, MODULE_ACTIVE);
 	goto end;
 
 err:
-	debug_log(LOG_TYPE_CRIT, "Unable to allocate memory for mesh information structures: out of mem ?\n");
+	printk(KERN_ERR "batman-adv:Unable to allocate memory for mesh information structures: out of mem ?\n");
 	shutdown_module();
 end:
 	return;
@@ -182,14 +190,7 @@ void shutdown_module(void)
 
 	vis_quit();
 
-	/* deactivate kernel thread for packet processing (if running) */
-	if (kthread_task) {
-		atomic_set(&exit_cond, 1);
-		wake_up_interruptible(&thread_wait);
-		kthread_stop(kthread_task);
-
-		kthread_task = NULL;
-	}
+	/* TODO: unregister BATMAN pack */
 
 	originator_free();
 

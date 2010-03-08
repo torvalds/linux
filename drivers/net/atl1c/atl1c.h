@@ -313,6 +313,9 @@ enum atl1c_rss_type {
 enum atl1c_nic_type {
 	athr_l1c = 0,
 	athr_l2c = 1,
+	athr_l2c_b,
+	athr_l2c_b2,
+	athr_l1d,
 };
 
 enum atl1c_trans_queue {
@@ -426,8 +429,12 @@ struct atl1c_hw {
 #define ATL1C_ASPM_L1_SUPPORT		0x0100
 #define ATL1C_ASPM_CTRL_MON		0x0200
 #define ATL1C_HIB_DISABLE		0x0400
-#define ATL1C_LINK_CAP_1000M		0x0800
-#define ATL1C_FPGA_VERSION		0x8000
+#define ATL1C_APS_MODE_ENABLE           0x0800
+#define ATL1C_LINK_EXT_SYNC             0x1000
+#define ATL1C_CLK_GATING_EN             0x2000
+#define ATL1C_FPGA_VERSION              0x8000
+	u16 link_cap_flags;
+#define ATL1C_LINK_CAP_1000M		0x0001
 	u16 cmb_tpd;
 	u16 cmb_rrd;
 	u16 cmb_rx_timer; /* 2us resolution */

@@ -34,6 +34,9 @@ void reiserfs_delete_inode(struct inode *inode)
 	int depth;
 	int err;
 
+	if (!is_bad_inode(inode))
+		dquot_initialize(inode);
+
 	truncate_inode_pages(&inode->i_data, 0);
 
 	depth = reiserfs_write_lock_once(inode->i_sb);
@@ -54,7 +57,7 @@ void reiserfs_delete_inode(struct inode *inode)
 		 * after delete_object so that quota updates go into the same transaction as
 		 * stat data deletion */
 		if (!err) 
-			vfs_dq_free_inode(inode);
+			dquot_free_inode(inode);
 
 		if (journal_end(&th, inode->i_sb, jbegin_count))
 			goto out;
@@ -1615,7 +1618,7 @@ int reiserfs_encode_fh(struct dentry *dentry, __u32 * data, int *lenp,
 ** to properly mark inodes for datasync and such, but only actually
 ** does something when called for a synchronous update.
 */
-int reiserfs_write_inode(struct inode *inode, int do_sync)
+int reiserfs_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct reiserfs_transaction_handle th;
 	int jbegin_count = 1;
@@ -1627,7 +1630,7 @@ int reiserfs_write_inode(struct inode *inode, int do_sync)
 	 ** inode needs to reach disk for safety, and they can safely be
 	 ** ignored because the altered inode has already been logged.
 	 */
-	if (do_sync && !(current->flags & PF_MEMALLOC)) {
+	if (wbc->sync_mode == WB_SYNC_ALL && !(current->flags & PF_MEMALLOC)) {
 		reiserfs_write_lock(inode->i_sb);
 		if (!journal_begin(&th, inode->i_sb, jbegin_count)) {
 			reiserfs_update_sd(&th, inode);
@@ -1765,10 +1768,10 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 
 	BUG_ON(!th->t_trans_id);
 
-	if (vfs_dq_alloc_inode(inode)) {
-		err = -EDQUOT;
+	dquot_initialize(inode);
+	err = dquot_alloc_inode(inode);
+	if (err)
 		goto out_end_trans;
-	}
 	if (!dir->i_nlink) {
 		err = -EPERM;
 		goto out_bad_inode;
@@ -1959,12 +1962,12 @@ int reiserfs_new_inode(struct reiserfs_transaction_handle *th,
 	INODE_PKEY(inode)->k_objectid = 0;
 
 	/* Quota change must be inside a transaction for journaling */
-	vfs_dq_free_inode(inode);
+	dquot_free_inode(inode);
 
       out_end_trans:
 	journal_end(th, th->t_super, th->t_blocks_allocated);
 	/* Drop can be outside and it needs more credits so it's better to have it outside */
-	vfs_dq_drop(inode);
+	dquot_drop(inode);
 	inode->i_flags |= S_NOQUOTA;
 	make_bad_inode(inode);
 
@@ -3073,6 +3076,8 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 
 	depth = reiserfs_write_lock_once(inode->i_sb);
 	if (attr->ia_valid & ATTR_SIZE) {
+		dquot_initialize(inode);
+
 		/* version 2 items will be caught by the s_maxbytes check
 		 ** done for us in vmtruncate
 		 */
@@ -3134,8 +3139,7 @@ int reiserfs_setattr(struct dentry *dentry, struct iattr *attr)
 						  jbegin_count);
 				if (error)
 					goto out;
-				error =
-				    vfs_dq_transfer(inode, attr) ? -EDQUOT : 0;
+				error = dquot_transfer(inode, attr);
 				if (error) {
 					journal_end(&th, inode->i_sb,
 						    jbegin_count);

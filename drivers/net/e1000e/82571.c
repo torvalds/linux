@@ -267,8 +267,14 @@ static s32 e1000_init_mac_params_82571(struct e1000_adapter *adapter)
 	}
 
 	switch (hw->mac.type) {
+	case e1000_82573:
+		func->set_lan_id = e1000_set_lan_id_single_port;
+		func->check_mng_mode = e1000e_check_mng_mode_generic;
+		func->led_on = e1000e_led_on_generic;
+		break;
 	case e1000_82574:
 	case e1000_82583:
+		func->set_lan_id = e1000_set_lan_id_single_port;
 		func->check_mng_mode = e1000_check_mng_mode_82574;
 		func->led_on = e1000_led_on_82574;
 		break;
@@ -922,9 +928,12 @@ static s32 e1000_reset_hw_82571(struct e1000_hw *hw)
 	ew32(IMC, 0xffffffff);
 	icr = er32(ICR);
 
-	if (hw->mac.type == e1000_82571 &&
-		hw->dev_spec.e82571.alt_mac_addr_is_present)
-			e1000e_set_laa_state_82571(hw, true);
+	/* Install any alternate MAC address into RAR0 */
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
+	if (ret_val)
+		return ret_val;
+
+	e1000e_set_laa_state_82571(hw, true);
 
 	/* Reinitialize the 82571 serdes link state machine */
 	if (hw->phy.media_type == e1000_media_type_internal_serdes)
@@ -1222,32 +1231,6 @@ static s32 e1000_led_on_82574(struct e1000_hw *hw)
 	ew32(LEDCTL, ctrl);
 
 	return 0;
-}
-
-/**
- *  e1000_update_mc_addr_list_82571 - Update Multicast addresses
- *  @hw: pointer to the HW structure
- *  @mc_addr_list: array of multicast addresses to program
- *  @mc_addr_count: number of multicast addresses to program
- *  @rar_used_count: the first RAR register free to program
- *  @rar_count: total number of supported Receive Address Registers
- *
- *  Updates the Receive Address Registers and Multicast Table Array.
- *  The caller must have a packed mc_addr_list of multicast addresses.
- *  The parameter rar_count will usually be hw->mac.rar_entry_count
- *  unless there are workarounds that change this.
- **/
-static void e1000_update_mc_addr_list_82571(struct e1000_hw *hw,
-					    u8 *mc_addr_list,
-					    u32 mc_addr_count,
-					    u32 rar_used_count,
-					    u32 rar_count)
-{
-	if (e1000e_get_laa_state_82571(hw))
-		rar_count--;
-
-	e1000e_update_mc_addr_list_generic(hw, mc_addr_list, mc_addr_count,
-					   rar_used_count, rar_count);
 }
 
 /**
@@ -1621,6 +1604,29 @@ static s32 e1000_fix_nvm_checksum_82571(struct e1000_hw *hw)
 }
 
 /**
+ *  e1000_read_mac_addr_82571 - Read device MAC address
+ *  @hw: pointer to the HW structure
+ **/
+static s32 e1000_read_mac_addr_82571(struct e1000_hw *hw)
+{
+	s32 ret_val = 0;
+
+	/*
+	 * If there's an alternate MAC address place it in RAR0
+	 * so that it will override the Si installed default perm
+	 * address.
+	 */
+	ret_val = e1000_check_alt_mac_addr_generic(hw);
+	if (ret_val)
+		goto out;
+
+	ret_val = e1000_read_mac_addr_generic(hw);
+
+out:
+	return ret_val;
+}
+
+/**
  * e1000_power_down_phy_copper_82571 - Remove link during PHY power down
  * @hw: pointer to the HW structure
  *
@@ -1695,10 +1701,11 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	.cleanup_led		= e1000e_cleanup_led_generic,
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_82571,
 	.get_bus_info		= e1000e_get_bus_info_pcie,
+	.set_lan_id		= e1000_set_lan_id_multi_port_pcie,
 	/* .get_link_up_info: media type dependent */
 	/* .led_on: mac type dependent */
 	.led_off		= e1000e_led_off_generic,
-	.update_mc_addr_list	= e1000_update_mc_addr_list_82571,
+	.update_mc_addr_list	= e1000e_update_mc_addr_list_generic,
 	.write_vfta		= e1000_write_vfta_generic,
 	.clear_vfta		= e1000_clear_vfta_82571,
 	.reset_hw		= e1000_reset_hw_82571,
@@ -1706,6 +1713,7 @@ static struct e1000_mac_operations e82571_mac_ops = {
 	.setup_link		= e1000_setup_link_82571,
 	/* .setup_physical_interface: media type dependent */
 	.setup_led		= e1000e_setup_led_generic,
+	.read_mac_addr		= e1000_read_mac_addr_82571,
 };
 
 static struct e1000_phy_operations e82_phy_ops_igp = {

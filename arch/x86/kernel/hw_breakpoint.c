@@ -212,25 +212,6 @@ static int arch_check_va_in_kernelspace(unsigned long va, u8 hbp_len)
 	return (va >= TASK_SIZE) && ((va + len - 1) >= TASK_SIZE);
 }
 
-/*
- * Store a breakpoint's encoded address, length, and type.
- */
-static int arch_store_info(struct perf_event *bp)
-{
-	struct arch_hw_breakpoint *info = counter_arch_bp(bp);
-	/*
-	 * For kernel-addresses, either the address or symbol name can be
-	 * specified.
-	 */
-	if (info->name)
-		info->address = (unsigned long)
-				kallsyms_lookup_name(info->name);
-	if (info->address)
-		return 0;
-
-	return -EINVAL;
-}
-
 int arch_bp_generic_fields(int x86_len, int x86_type,
 			   int *gen_len, int *gen_type)
 {
@@ -362,10 +343,13 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp,
 		return ret;
 	}
 
-	ret = arch_store_info(bp);
-
-	if (ret < 0)
-		return ret;
+	/*
+	 * For kernel-addresses, either the address or symbol name can be
+	 * specified.
+	 */
+	if (info->name)
+		info->address = (unsigned long)
+				kallsyms_lookup_name(info->name);
 	/*
 	 * Check that the low-order bits of the address are appropriate
 	 * for the alignment implied by len.
@@ -502,8 +486,6 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 		rcu_read_lock();
 
 		bp = per_cpu(bp_per_reg[i], cpu);
-		if (bp)
-			rc = NOTIFY_DONE;
 		/*
 		 * Reset the 'i'th TRAP bit in dr6 to denote completion of
 		 * exception handling
@@ -522,7 +504,13 @@ static int __kprobes hw_breakpoint_handler(struct die_args *args)
 
 		rcu_read_unlock();
 	}
-	if (dr6 & (~DR_TRAP_BITS))
+	/*
+	 * Further processing in do_debug() is needed for a) user-space
+	 * breakpoints (to generate signals) and b) when the system has
+	 * taken exception due to multiple causes
+	 */
+	if ((current->thread.debugreg6 & DR_TRAP_BITS) ||
+	    (dr6 & (~DR_TRAP_BITS)))
 		rc = NOTIFY_DONE;
 
 	set_debugreg(dr7, 7);

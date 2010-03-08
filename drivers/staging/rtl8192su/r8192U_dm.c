@@ -2697,7 +2697,7 @@ static void dm_check_edca_turbo(
 		u8* peername[11] = {"unknown", "realtek", "realtek_92se", "broadcom", "ralink", "atheros", "cisco", "marvell", "92u_softap", "self_softap"};
 		static int wb_tmp = 0;
 		if (wb_tmp == 0){
-			printk("%s():iot peer is %#x:%s, bssid:"MAC_FMT"\n",__FUNCTION__,pHTInfo->IOTPeer,peername[pHTInfo->IOTPeer], MAC_ARG(priv->ieee80211->current_network.bssid));
+			printk("%s():iot peer is %#x:%s, bssid:%pM\n",__FUNCTION__,pHTInfo->IOTPeer,peername[pHTInfo->IOTPeer], priv->ieee80211->current_network.bssid);
 			wb_tmp = 1;
 		}
 	}

@@ -276,6 +276,7 @@ struct ar9170_tx_control {
 #define AR9170_TX_MAC_RATE_PROBE		0x8000
 
 /* either-or */
+#define AR9170_TX_PHY_MOD_MASK			0x00000003
 #define AR9170_TX_PHY_MOD_CCK			0x00000000
 #define AR9170_TX_PHY_MOD_OFDM			0x00000001
 #define AR9170_TX_PHY_MOD_HT			0x00000002

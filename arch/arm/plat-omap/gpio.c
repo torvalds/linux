@@ -177,13 +177,11 @@ struct gpio_bank {
 	u16 irq;
 	u16 virtual_irq_start;
 	int method;
-#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP24XX) ||  \
-		defined(CONFIG_ARCH_OMAP34XX) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2PLUS)
 	u32 suspend_wakeup;
 	u32 saved_wakeup;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX) || \
-			defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 	u32 non_wakeup_gpios;
 	u32 enabled_non_wakeup_gpios;
 
@@ -204,6 +202,7 @@ struct gpio_bank {
 #define METHOD_GPIO_1610	2
 #define METHOD_GPIO_7XX		3
 #define METHOD_GPIO_24XX	5
+#define METHOD_GPIO_44XX	6
 
 #ifdef CONFIG_ARCH_OMAP16XX
 static struct gpio_bank gpio_bank_1610[5] = {
@@ -248,7 +247,7 @@ static struct gpio_bank gpio_bank_7xx[7] = {
 };
 #endif
 
-#ifdef CONFIG_ARCH_OMAP24XX
+#ifdef CONFIG_ARCH_OMAP2
 
 static struct gpio_bank gpio_bank_242x[4] = {
 	{ OMAP242X_GPIO1_BASE, NULL, INT_24XX_GPIO_BANK1, IH_GPIO_BASE,
@@ -276,7 +275,7 @@ static struct gpio_bank gpio_bank_243x[5] = {
 
 #endif
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 static struct gpio_bank gpio_bank_34xx[6] = {
 	{ OMAP34XX_GPIO1_BASE, NULL, INT_34XX_GPIO_BANK1, IH_GPIO_BASE,
 		METHOD_GPIO_24XX },
@@ -313,18 +312,18 @@ static struct omap3_gpio_regs gpio_context[OMAP34XX_NR_GPIOS];
 
 #ifdef CONFIG_ARCH_OMAP4
 static struct gpio_bank gpio_bank_44xx[6] = {
-	{ OMAP44XX_GPIO1_BASE, NULL, INT_44XX_GPIO_BANK1, IH_GPIO_BASE,
-		METHOD_GPIO_24XX },
-	{ OMAP44XX_GPIO2_BASE, NULL, INT_44XX_GPIO_BANK2, IH_GPIO_BASE + 32,
-		METHOD_GPIO_24XX },
-	{ OMAP44XX_GPIO3_BASE, NULL, INT_44XX_GPIO_BANK3, IH_GPIO_BASE + 64,
-		METHOD_GPIO_24XX },
-	{ OMAP44XX_GPIO4_BASE, NULL, INT_44XX_GPIO_BANK4, IH_GPIO_BASE + 96,
-		METHOD_GPIO_24XX },
-	{ OMAP44XX_GPIO5_BASE, NULL, INT_44XX_GPIO_BANK5, IH_GPIO_BASE + 128,
-		METHOD_GPIO_24XX },
-	{ OMAP44XX_GPIO6_BASE, NULL, INT_44XX_GPIO_BANK6, IH_GPIO_BASE + 160,
-		METHOD_GPIO_24XX },
+	{ OMAP44XX_GPIO1_BASE, NULL, OMAP44XX_IRQ_GPIO1, IH_GPIO_BASE,
+		METHOD_GPIO_44XX },
+	{ OMAP44XX_GPIO2_BASE, NULL, OMAP44XX_IRQ_GPIO2, IH_GPIO_BASE + 32,
+		METHOD_GPIO_44XX },
+	{ OMAP44XX_GPIO3_BASE, NULL, OMAP44XX_IRQ_GPIO3, IH_GPIO_BASE + 64,
+		METHOD_GPIO_44XX },
+	{ OMAP44XX_GPIO4_BASE, NULL, OMAP44XX_IRQ_GPIO4, IH_GPIO_BASE + 96,
+		METHOD_GPIO_44XX },
+	{ OMAP44XX_GPIO5_BASE, NULL, OMAP44XX_IRQ_GPIO5, IH_GPIO_BASE + 128,
+		METHOD_GPIO_44XX },
+	{ OMAP44XX_GPIO6_BASE, NULL, OMAP44XX_IRQ_GPIO6, IH_GPIO_BASE + 160,
+		METHOD_GPIO_44XX },
 };
 
 #endif
@@ -426,13 +425,13 @@ static void _set_gpio_direction(struct gpio_bank *bank, int gpio, int is_input)
 		reg += OMAP7XX_GPIO_DIR_CONTROL;
 		break;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	case METHOD_GPIO_24XX:
 		reg += OMAP24XX_GPIO_OE;
 		break;
 #endif
 #if defined(CONFIG_ARCH_OMAP4)
-	case METHOD_GPIO_24XX:
+	case METHOD_GPIO_44XX:
 		reg += OMAP4_GPIO_OE;
 		break;
 #endif
@@ -493,7 +492,7 @@ static void _set_gpio_dataout(struct gpio_bank *bank, int gpio, int enable)
 			l &= ~(1 << gpio);
 		break;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	case METHOD_GPIO_24XX:
 		if (enable)
 			reg += OMAP24XX_GPIO_SETDATAOUT;
@@ -503,7 +502,7 @@ static void _set_gpio_dataout(struct gpio_bank *bank, int gpio, int enable)
 		break;
 #endif
 #ifdef CONFIG_ARCH_OMAP4
-	case METHOD_GPIO_24XX:
+	case METHOD_GPIO_44XX:
 		if (enable)
 			reg += OMAP4_GPIO_SETDATAOUT;
 		else
@@ -546,13 +545,13 @@ static int _get_gpio_datain(struct gpio_bank *bank, int gpio)
 		reg += OMAP7XX_GPIO_DATA_INPUT;
 		break;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	case METHOD_GPIO_24XX:
 		reg += OMAP24XX_GPIO_DATAIN;
 		break;
 #endif
 #ifdef CONFIG_ARCH_OMAP4
-	case METHOD_GPIO_24XX:
+	case METHOD_GPIO_44XX:
 		reg += OMAP4_GPIO_DATAIN;
 		break;
 #endif
@@ -592,9 +591,9 @@ static int _get_gpio_dataout(struct gpio_bank *bank, int gpio)
 		reg += OMAP7XX_GPIO_DATA_OUTPUT;
 		break;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX) || \
-		defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 	case METHOD_GPIO_24XX:
+	case METHOD_GPIO_44XX:
 		reg += OMAP24XX_GPIO_DATAOUT;
 		break;
 #endif
@@ -625,11 +624,12 @@ void omap_set_gpio_debounce(int gpio, int enable)
 
 	bank = get_gpio_bank(gpio);
 	reg = bank->base;
-#ifdef CONFIG_ARCH_OMAP4
-	reg += OMAP4_GPIO_DEBOUNCENABLE;
-#else
-	reg += OMAP24XX_GPIO_DEBOUNCE_EN;
-#endif
+
+	if (cpu_is_omap44xx())
+		reg += OMAP4_GPIO_DEBOUNCENABLE;
+	else
+		reg += OMAP24XX_GPIO_DEBOUNCE_EN;
+
 	if (!(bank->mod_usage & l)) {
 		printk(KERN_ERR "GPIO %d not requested\n", gpio);
 		return;
@@ -675,17 +675,17 @@ void omap_set_gpio_debounce_time(int gpio, int enc_time)
 	}
 
 	enc_time &= 0xff;
-#ifdef CONFIG_ARCH_OMAP4
-	reg += OMAP4_GPIO_DEBOUNCINGTIME;
-#else
-	reg += OMAP24XX_GPIO_DEBOUNCE_VAL;
-#endif
+
+	if (cpu_is_omap44xx())
+		reg += OMAP4_GPIO_DEBOUNCINGTIME;
+	else
+		reg += OMAP24XX_GPIO_DEBOUNCE_VAL;
+
 	__raw_writel(enc_time, reg);
 }
 EXPORT_SYMBOL(omap_set_gpio_debounce_time);
 
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX) || \
-				defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 static inline void set_24xx_gpio_triggering(struct gpio_bank *bank, int gpio,
 						int trigger)
 {
@@ -856,9 +856,9 @@ static int _set_gpio_triggering(struct gpio_bank *bank, int gpio, int trigger)
 			goto bad;
 		break;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX) || \
-				defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 	case METHOD_GPIO_24XX:
+	case METHOD_GPIO_44XX:
 		set_24xx_gpio_triggering(bank, gpio, trigger);
 		break;
 #endif
@@ -937,13 +937,13 @@ static void _clear_gpio_irqbank(struct gpio_bank *bank, int gpio_mask)
 		reg += OMAP7XX_GPIO_INT_STATUS;
 		break;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	case METHOD_GPIO_24XX:
 		reg += OMAP24XX_GPIO_IRQSTATUS1;
 		break;
 #endif
 #if defined(CONFIG_ARCH_OMAP4)
-	case METHOD_GPIO_24XX:
+	case METHOD_GPIO_44XX:
 		reg += OMAP4_GPIO_IRQSTATUS0;
 		break;
 #endif
@@ -954,12 +954,11 @@ static void _clear_gpio_irqbank(struct gpio_bank *bank, int gpio_mask)
 	__raw_writel(gpio_mask, reg);
 
 	/* Workaround for clearing DSP GPIO interrupts to allow retention */
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
-	reg = bank->base + OMAP24XX_GPIO_IRQSTATUS2;
-#endif
-#if defined(CONFIG_ARCH_OMAP4)
-	reg = bank->base + OMAP4_GPIO_IRQSTATUS1;
-#endif
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())
+		reg = bank->base + OMAP24XX_GPIO_IRQSTATUS2;
+	else if (cpu_is_omap44xx())
+		reg = bank->base + OMAP4_GPIO_IRQSTATUS1;
+
 	if (cpu_is_omap24xx() || cpu_is_omap34xx() || cpu_is_omap44xx()) {
 		__raw_writel(gpio_mask, reg);
 
@@ -1008,14 +1007,14 @@ static u32 _get_gpio_irqbank_mask(struct gpio_bank *bank)
 		inv = 1;
 		break;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	case METHOD_GPIO_24XX:
 		reg += OMAP24XX_GPIO_IRQENABLE1;
 		mask = 0xffffffff;
 		break;
 #endif
 #if defined(CONFIG_ARCH_OMAP4)
-	case METHOD_GPIO_24XX:
+	case METHOD_GPIO_44XX:
 		reg += OMAP4_GPIO_IRQSTATUSSET0;
 		mask = 0xffffffff;
 		break;
@@ -1077,7 +1076,7 @@ static void _enable_gpio_irqbank(struct gpio_bank *bank, int gpio_mask, int enab
 			l |= gpio_mask;
 		break;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	case METHOD_GPIO_24XX:
 		if (enable)
 			reg += OMAP24XX_GPIO_SETIRQENABLE1;
@@ -1087,7 +1086,7 @@ static void _enable_gpio_irqbank(struct gpio_bank *bank, int gpio_mask, int enab
 		break;
 #endif
 #ifdef CONFIG_ARCH_OMAP4
-	case METHOD_GPIO_24XX:
+	case METHOD_GPIO_44XX:
 		if (enable)
 			reg += OMAP4_GPIO_IRQSTATUSSET0;
 		else
@@ -1131,9 +1130,9 @@ static int _set_gpio_wakeup(struct gpio_bank *bank, int gpio, int enable)
 		spin_unlock_irqrestore(&bank->lock, flags);
 		return 0;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX) || \
-				defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 	case METHOD_GPIO_24XX:
+	case METHOD_GPIO_44XX:
 		if (bank->non_wakeup_gpios & (1 << gpio)) {
 			printk(KERN_ERR "Unable to modify wakeup on "
 					"non-wakeup GPIO%d\n",
@@ -1227,9 +1226,9 @@ static void omap_gpio_free(struct gpio_chip *chip, unsigned offset)
 		__raw_writel(1 << offset, reg);
 	}
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX) || \
-				defined(CONFIG_ARCH_OMAP4)
-	if (bank->method == METHOD_GPIO_24XX) {
+#ifdef CONFIG_ARCH_OMAP2PLUS
+	if ((bank->method == METHOD_GPIO_24XX) ||
+			(bank->method == METHOD_GPIO_44XX)) {
 		/* Disable wake-up during idle for dynamic tick */
 		void __iomem *reg = bank->base + OMAP24XX_GPIO_CLEARWKUENA;
 		__raw_writel(1 << offset, reg);
@@ -1286,12 +1285,12 @@ static void gpio_irq_handler(unsigned int irq, struct irq_desc *desc)
 	if (bank->method == METHOD_GPIO_7XX)
 		isr_reg = bank->base + OMAP7XX_GPIO_INT_STATUS;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	if (bank->method == METHOD_GPIO_24XX)
 		isr_reg = bank->base + OMAP24XX_GPIO_IRQSTATUS1;
 #endif
 #if defined(CONFIG_ARCH_OMAP4)
-	if (bank->method == METHOD_GPIO_24XX)
+	if (bank->method == METHOD_GPIO_44XX)
 		isr_reg = bank->base + OMAP4_GPIO_IRQSTATUS0;
 #endif
 	while(1) {
@@ -1571,6 +1570,7 @@ static int gpio_is_input(struct gpio_bank *bank, int mask)
 		reg += OMAP7XX_GPIO_DIR_CONTROL;
 		break;
 	case METHOD_GPIO_24XX:
+	case METHOD_GPIO_44XX:
 		reg += OMAP24XX_GPIO_OE;
 		break;
 	}
@@ -1630,7 +1630,7 @@ static int gpio_2irq(struct gpio_chip *chip, unsigned offset)
 /*---------------------------------------------------------------------*/
 
 static int initialized;
-#if !(defined(CONFIG_ARCH_OMAP3) || defined(CONFIG_ARCH_OMAP4))
+#if defined(CONFIG_ARCH_OMAP1) || defined(CONFIG_ARCH_OMAP2)
 static struct clk * gpio_ick;
 #endif
 
@@ -1756,7 +1756,7 @@ static int __init _omap_gpio_init(void)
 		bank_size = SZ_2K;
 	}
 #endif
-#ifdef CONFIG_ARCH_OMAP24XX
+#ifdef CONFIG_ARCH_OMAP2
 	if (cpu_is_omap242x()) {
 		gpio_bank_count = 4;
 		gpio_bank = gpio_bank_242x;
@@ -1766,7 +1766,7 @@ static int __init _omap_gpio_init(void)
 		gpio_bank = gpio_bank_243x;
 	}
 #endif
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 	if (cpu_is_omap34xx()) {
 		gpio_bank_count = OMAP34XX_NR_GPIOS;
 		gpio_bank = gpio_bank_34xx;
@@ -1809,30 +1809,42 @@ static int __init _omap_gpio_init(void)
 			gpio_count = 32; /* 7xx has 32-bit GPIOs */
 		}
 
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX) || \
-				defined(CONFIG_ARCH_OMAP4)
-		if (bank->method == METHOD_GPIO_24XX) {
+#ifdef CONFIG_ARCH_OMAP2PLUS
+		if ((bank->method == METHOD_GPIO_24XX) ||
+				(bank->method == METHOD_GPIO_44XX)) {
 			static const u32 non_wakeup_gpios[] = {
 				0xe203ffc0, 0x08700040
 			};
-		if (cpu_is_omap44xx()) {
-			__raw_writel(0xffffffff, bank->base +
-						OMAP4_GPIO_IRQSTATUSCLR0);
-			__raw_writew(0x0015, bank->base +
-						OMAP4_GPIO_SYSCONFIG);
-			__raw_writel(0x00000000, bank->base +
-						 OMAP4_GPIO_DEBOUNCENABLE);
-			/* Initialize interface clock ungated, module enabled */
-			__raw_writel(0, bank->base + OMAP4_GPIO_CTRL);
-		} else {
-			__raw_writel(0x00000000, bank->base + OMAP24XX_GPIO_IRQENABLE1);
-			__raw_writel(0xffffffff, bank->base + OMAP24XX_GPIO_IRQSTATUS1);
-			__raw_writew(0x0015, bank->base + OMAP24XX_GPIO_SYSCONFIG);
-			__raw_writel(0x00000000, bank->base + OMAP24XX_GPIO_DEBOUNCE_EN);
 
-			/* Initialize interface clock ungated, module enabled */
-			__raw_writel(0, bank->base + OMAP24XX_GPIO_CTRL);
-		}
+			if (cpu_is_omap44xx()) {
+				__raw_writel(0xffffffff, bank->base +
+						OMAP4_GPIO_IRQSTATUSCLR0);
+				__raw_writew(0x0015, bank->base +
+						OMAP4_GPIO_SYSCONFIG);
+				__raw_writel(0x00000000, bank->base +
+						 OMAP4_GPIO_DEBOUNCENABLE);
+				/*
+				 * Initialize interface clock ungated,
+				 * module enabled
+				 */
+				__raw_writel(0, bank->base + OMAP4_GPIO_CTRL);
+			} else {
+				__raw_writel(0x00000000, bank->base +
+						OMAP24XX_GPIO_IRQENABLE1);
+				__raw_writel(0xffffffff, bank->base +
+						OMAP24XX_GPIO_IRQSTATUS1);
+				__raw_writew(0x0015, bank->base +
+						OMAP24XX_GPIO_SYSCONFIG);
+				__raw_writel(0x00000000, bank->base +
+						OMAP24XX_GPIO_DEBOUNCE_EN);
+
+				/*
+				 * Initialize interface clock ungated,
+				 * module enabled
+				 */
+				__raw_writel(0, bank->base +
+						OMAP24XX_GPIO_CTRL);
+			}
 			if (i < ARRAY_SIZE(non_wakeup_gpios))
 				bank->non_wakeup_gpios = non_wakeup_gpios[i];
 			gpio_count = 32;
@@ -1903,8 +1915,7 @@ static int __init _omap_gpio_init(void)
 	return 0;
 }
 
-#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP24XX) || \
-		defined(CONFIG_ARCH_OMAP34XX) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2PLUS)
 static int omap_gpio_suspend(struct sys_device *dev, pm_message_t mesg)
 {
 	int i;
@@ -1927,7 +1938,7 @@ static int omap_gpio_suspend(struct sys_device *dev, pm_message_t mesg)
 			wake_set = bank->base + OMAP1610_GPIO_SET_WAKEUPENA;
 			break;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 		case METHOD_GPIO_24XX:
 			wake_status = bank->base + OMAP24XX_GPIO_WAKE_EN;
 			wake_clear = bank->base + OMAP24XX_GPIO_CLEARWKUENA;
@@ -1935,7 +1946,7 @@ static int omap_gpio_suspend(struct sys_device *dev, pm_message_t mesg)
 			break;
 #endif
 #ifdef CONFIG_ARCH_OMAP4
-		case METHOD_GPIO_24XX:
+		case METHOD_GPIO_44XX:
 			wake_status = bank->base + OMAP4_GPIO_IRQWAKEN0;
 			wake_clear = bank->base + OMAP4_GPIO_IRQWAKEN0;
 			wake_set = bank->base + OMAP4_GPIO_IRQWAKEN0;
@@ -1975,14 +1986,14 @@ static int omap_gpio_resume(struct sys_device *dev)
 			wake_set = bank->base + OMAP1610_GPIO_SET_WAKEUPENA;
 			break;
 #endif
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 		case METHOD_GPIO_24XX:
 			wake_clear = bank->base + OMAP24XX_GPIO_CLEARWKUENA;
 			wake_set = bank->base + OMAP24XX_GPIO_SETWKUENA;
 			break;
 #endif
 #ifdef CONFIG_ARCH_OMAP4
-		case METHOD_GPIO_24XX:
+		case METHOD_GPIO_44XX:
 			wake_clear = bank->base + OMAP4_GPIO_IRQWAKEN0;
 			wake_set = bank->base + OMAP4_GPIO_IRQWAKEN0;
 			break;
@@ -2013,8 +2024,7 @@ static struct sys_device omap_gpio_device = {
 
 #endif
 
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX) || \
-				defined(CONFIG_ARCH_OMAP4)
+#ifdef CONFIG_ARCH_OMAP2PLUS
 
 static int workaround_enabled;
 
@@ -2030,29 +2040,42 @@ void omap2_gpio_prepare_for_retention(void)
 
 		if (!(bank->enabled_non_wakeup_gpios))
 			continue;
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
-		bank->saved_datain = __raw_readl(bank->base + OMAP24XX_GPIO_DATAIN);
-		l1 = __raw_readl(bank->base + OMAP24XX_GPIO_FALLINGDETECT);
-		l2 = __raw_readl(bank->base + OMAP24XX_GPIO_RISINGDETECT);
-#endif
-#ifdef CONFIG_ARCH_OMAP4
-		bank->saved_datain = __raw_readl(bank->base +
-							OMAP4_GPIO_DATAIN);
-		l1 = __raw_readl(bank->base + OMAP4_GPIO_FALLINGDETECT);
-		l2 = __raw_readl(bank->base + OMAP4_GPIO_RISINGDETECT);
-#endif
+
+		if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+			bank->saved_datain = __raw_readl(bank->base +
+					OMAP24XX_GPIO_DATAIN);
+			l1 = __raw_readl(bank->base +
+					OMAP24XX_GPIO_FALLINGDETECT);
+			l2 = __raw_readl(bank->base +
+					OMAP24XX_GPIO_RISINGDETECT);
+		}
+
+		if (cpu_is_omap44xx()) {
+			bank->saved_datain = __raw_readl(bank->base +
+						OMAP4_GPIO_DATAIN);
+			l1 = __raw_readl(bank->base +
+						OMAP4_GPIO_FALLINGDETECT);
+			l2 = __raw_readl(bank->base +
+						OMAP4_GPIO_RISINGDETECT);
+		}
+
 		bank->saved_fallingdetect = l1;
 		bank->saved_risingdetect = l2;
 		l1 &= ~bank->enabled_non_wakeup_gpios;
 		l2 &= ~bank->enabled_non_wakeup_gpios;
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
-		__raw_writel(l1, bank->base + OMAP24XX_GPIO_FALLINGDETECT);
-		__raw_writel(l2, bank->base + OMAP24XX_GPIO_RISINGDETECT);
-#endif
-#ifdef CONFIG_ARCH_OMAP4
-		__raw_writel(l1, bank->base + OMAP4_GPIO_FALLINGDETECT);
-		__raw_writel(l2, bank->base + OMAP4_GPIO_RISINGDETECT);
-#endif
+
+		if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+			__raw_writel(l1, bank->base +
+					OMAP24XX_GPIO_FALLINGDETECT);
+			__raw_writel(l2, bank->base +
+					OMAP24XX_GPIO_RISINGDETECT);
+		}
+
+		if (cpu_is_omap44xx()) {
+			__raw_writel(l1, bank->base + OMAP4_GPIO_FALLINGDETECT);
+			__raw_writel(l2, bank->base + OMAP4_GPIO_RISINGDETECT);
+		}
+
 		c++;
 	}
 	if (!c) {
@@ -2074,20 +2097,23 @@ void omap2_gpio_resume_after_retention(void)
 
 		if (!(bank->enabled_non_wakeup_gpios))
 			continue;
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
-		__raw_writel(bank->saved_fallingdetect,
+
+		if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+			__raw_writel(bank->saved_fallingdetect,
 				 bank->base + OMAP24XX_GPIO_FALLINGDETECT);
-		__raw_writel(bank->saved_risingdetect,
+			__raw_writel(bank->saved_risingdetect,
 				 bank->base + OMAP24XX_GPIO_RISINGDETECT);
-		l = __raw_readl(bank->base + OMAP24XX_GPIO_DATAIN);
-#endif
-#ifdef CONFIG_ARCH_OMAP4
-		__raw_writel(bank->saved_fallingdetect,
+			l = __raw_readl(bank->base + OMAP24XX_GPIO_DATAIN);
+		}
+
+		if (cpu_is_omap44xx()) {
+			__raw_writel(bank->saved_fallingdetect,
 				 bank->base + OMAP4_GPIO_FALLINGDETECT);
-		__raw_writel(bank->saved_risingdetect,
+			__raw_writel(bank->saved_risingdetect,
 				 bank->base + OMAP4_GPIO_RISINGDETECT);
-		l = __raw_readl(bank->base + OMAP4_GPIO_DATAIN);
-#endif
+			l = __raw_readl(bank->base + OMAP4_GPIO_DATAIN);
+		}
+
 		/* Check if any of the non-wakeup interrupt GPIOs have changed
 		 * state.  If so, generate an IRQ by software.  This is
 		 * horribly racy, but it's the best we can do to work around
@@ -2113,30 +2139,36 @@ void omap2_gpio_resume_after_retention(void)
 
 		if (gen) {
 			u32 old0, old1;
-#if defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
-			old0 = __raw_readl(bank->base + OMAP24XX_GPIO_LEVELDETECT0);
-			old1 = __raw_readl(bank->base + OMAP24XX_GPIO_LEVELDETECT1);
+
+			if (cpu_is_omap24xx() || cpu_is_omap44xx()) {
+				old0 = __raw_readl(bank->base +
+					OMAP24XX_GPIO_LEVELDETECT0);
+				old1 = __raw_readl(bank->base +
+					OMAP24XX_GPIO_LEVELDETECT1);
 			__raw_writel(old0 | gen, bank->base +
 					OMAP24XX_GPIO_LEVELDETECT0);
 			__raw_writel(old1 | gen, bank->base +
 					OMAP24XX_GPIO_LEVELDETECT1);
-			__raw_writel(old0, bank->base + OMAP24XX_GPIO_LEVELDETECT0);
-			__raw_writel(old1, bank->base + OMAP24XX_GPIO_LEVELDETECT1);
-#endif
-#ifdef CONFIG_ARCH_OMAP4
-			old0 = __raw_readl(bank->base +
-						OMAP4_GPIO_LEVELDETECT0);
-			old1 = __raw_readl(bank->base +
-						OMAP4_GPIO_LEVELDETECT1);
-			__raw_writel(old0 | l, bank->base +
-						OMAP4_GPIO_LEVELDETECT0);
-			__raw_writel(old1 | l, bank->base +
-						OMAP4_GPIO_LEVELDETECT1);
 			__raw_writel(old0, bank->base +
-						OMAP4_GPIO_LEVELDETECT0);
+					OMAP24XX_GPIO_LEVELDETECT0);
 			__raw_writel(old1, bank->base +
+					OMAP24XX_GPIO_LEVELDETECT1);
+			}
+
+			if (cpu_is_omap44xx()) {
+				old0 = __raw_readl(bank->base +
+						OMAP4_GPIO_LEVELDETECT0);
+				old1 = __raw_readl(bank->base +
 						OMAP4_GPIO_LEVELDETECT1);
-#endif
+				__raw_writel(old0 | l, bank->base +
+						OMAP4_GPIO_LEVELDETECT0);
+				__raw_writel(old1 | l, bank->base +
+						OMAP4_GPIO_LEVELDETECT1);
+				__raw_writel(old0, bank->base +
+						OMAP4_GPIO_LEVELDETECT0);
+				__raw_writel(old1, bank->base +
+						OMAP4_GPIO_LEVELDETECT1);
+			}
 		}
 	}
 
@@ -2144,7 +2176,7 @@ void omap2_gpio_resume_after_retention(void)
 
 #endif
 
-#ifdef CONFIG_ARCH_OMAP34XX
+#ifdef CONFIG_ARCH_OMAP3
 /* save the registers of bank 2-6 */
 void omap_gpio_save_context(void)
 {
@@ -2240,8 +2272,7 @@ static int __init omap_gpio_sysinit(void)
 
 	mpuio_init();
 
-#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP24XX) || \
-		defined(CONFIG_ARCH_OMAP34XX) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2PLUS)
 	if (cpu_is_omap16xx() || cpu_class_is_omap2()) {
 		if (ret == 0) {
 			ret = sysdev_class_register(&omap_gpio_sysclass);
@@ -2300,8 +2331,7 @@ static int dbg_gpio_show(struct seq_file *s, void *unused)
 /* FIXME for at least omap2, show pullup/pulldown state */
 
 			irqstat = irq_desc[irq].status;
-#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP24XX) ||	\
-		defined(CONFIG_ARCH_OMAP34XX) || defined(CONFIG_ARCH_OMAP4)
+#if defined(CONFIG_ARCH_OMAP16XX) || defined(CONFIG_ARCH_OMAP2PLUS)
 			if (is_in && ((bank->suspend_wakeup & mask)
 					|| irqstat & IRQ_TYPE_SENSE_MASK)) {
 				char	*trigger = NULL;

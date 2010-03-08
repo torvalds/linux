@@ -115,7 +115,7 @@
 #ifdef CONFIG_SMP
 	move    $s7, $acr	; PGD
 #else
-	move.d  per_cpu__current_pgd, $acr ; PGD
+	move.d  current_pgd, $acr ; PGD
 #endif
 	; Look up PMD in PGD
 	lsrq	24, $r0	; Get PMD index into PGD (bit 24-31)

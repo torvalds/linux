@@ -49,6 +49,7 @@ unsigned int i915_lvds_downclock = 0;
 module_param_named(lvds_downclock, i915_lvds_downclock, int, 0400);
 
 static struct drm_driver driver;
+extern int intel_agp_enabled;
 
 #define INTEL_VGA_DEVICE(id, info) {		\
 	.class = PCI_CLASS_DISPLAY_VGA << 8,	\
@@ -136,6 +137,16 @@ const static struct intel_device_info intel_ironlake_m_info = {
 	.has_hotplug = 1,
 };
 
+const static struct intel_device_info intel_sandybridge_d_info = {
+	.is_i965g = 1, .is_i9xx = 1, .need_gfx_hws = 1,
+	.has_hotplug = 1,
+};
+
+const static struct intel_device_info intel_sandybridge_m_info = {
+	.is_i965g = 1, .is_mobile = 1, .is_i9xx = 1, .need_gfx_hws = 1,
+	.has_hotplug = 1,
+};
+
 const static struct pci_device_id pciidlist[] = {
 	INTEL_VGA_DEVICE(0x3577, &intel_i830_info),
 	INTEL_VGA_DEVICE(0x2562, &intel_845g_info),
@@ -167,6 +178,8 @@ const static struct pci_device_id pciidlist[] = {
 	INTEL_VGA_DEVICE(0xa011, &intel_pineview_info),
 	INTEL_VGA_DEVICE(0x0042, &intel_ironlake_d_info),
 	INTEL_VGA_DEVICE(0x0046, &intel_ironlake_m_info),
+	INTEL_VGA_DEVICE(0x0102, &intel_sandybridge_d_info),
+	INTEL_VGA_DEVICE(0x0106, &intel_sandybridge_m_info),
 	{0, 0, 0}
 };
 
@@ -176,6 +189,8 @@ MODULE_DEVICE_TABLE(pci, pciidlist);
 
 static int i915_drm_freeze(struct drm_device *dev)
 {
+	struct drm_i915_private *dev_priv = dev->dev_private;
+
 	pci_save_state(dev->pdev);
 
 	/* If KMS is active, we do the leavevt stuff here */
@@ -191,20 +206,15 @@ static int i915_drm_freeze(struct drm_device *dev)
 
 	i915_save_state(dev);
 
-	return 0;
-}
-
-static void i915_drm_suspend(struct drm_device *dev)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-
 	intel_opregion_free(dev, 1);
 
 	/* Modeset on resume, not lid events */
 	dev_priv->modeset_on_lid = 0;
+
+	return 0;
 }
 
-static int i915_suspend(struct drm_device *dev, pm_message_t state)
+int i915_suspend(struct drm_device *dev, pm_message_t state)
 {
 	int error;
 
@@ -221,8 +231,6 @@ static int i915_suspend(struct drm_device *dev, pm_message_t state)
 	if (error)
 		return error;
 
-	i915_drm_suspend(dev);
-
 	if (state.event == PM_EVENT_SUSPEND) {
 		/* Shut down the device */
 		pci_disable_device(dev->pdev);
@@ -236,6 +244,10 @@ static int i915_drm_thaw(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	int error = 0;
+
+	i915_restore_state(dev);
+
+	intel_opregion_init(dev, 1);
 
 	/* KMS EnterVT equivalent */
 	if (drm_core_check_feature(dev, DRIVER_MODESET)) {
@@ -256,16 +268,12 @@ static int i915_drm_thaw(struct drm_device *dev)
 	return error;
 }
 
-static int i915_resume(struct drm_device *dev)
+int i915_resume(struct drm_device *dev)
 {
 	if (pci_enable_device(dev->pdev))
 		return -EIO;
 
 	pci_set_master(dev->pdev);
-
-	i915_restore_state(dev);
-
-	intel_opregion_init(dev, 1);
 
 	return i915_drm_thaw(dev);
 }
@@ -423,8 +431,6 @@ static int i915_pm_suspend(struct device *dev)
 	if (error)
 		return error;
 
-	i915_drm_suspend(drm_dev);
-
 	pci_disable_device(pdev);
 	pci_set_power_state(pdev, PCI_D3hot);
 
@@ -464,13 +470,8 @@ static int i915_pm_poweroff(struct device *dev)
 {
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct drm_device *drm_dev = pci_get_drvdata(pdev);
-	int error;
 
-	error = i915_drm_freeze(drm_dev);
-	if (!error)
-		i915_drm_suspend(drm_dev);
-
-	return error;
+	return i915_drm_freeze(drm_dev);
 }
 
 const struct dev_pm_ops i915_pm_ops = {
@@ -558,6 +559,11 @@ static struct drm_driver driver = {
 
 static int __init i915_init(void)
 {
+	if (!intel_agp_enabled) {
+		DRM_ERROR("drm/i915 can't work without intel_agp module!\n");
+		return -ENODEV;
+	}
+
 	driver.num_ioctls = i915_max_ioctl;
 
 	i915_gem_shrinker_init();
@@ -582,6 +588,11 @@ static int __init i915_init(void)
 	if (vgacon_text_force() && i915_modeset == -1)
 		driver.driver_features &= ~DRIVER_MODESET;
 #endif
+
+	if (!(driver.driver_features & DRIVER_MODESET)) {
+		driver.suspend = i915_suspend;
+		driver.resume = i915_resume;
+	}
 
 	return drm_init(&driver);
 }

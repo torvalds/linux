@@ -405,18 +405,16 @@ int au1x00_pcmcia_socket_probe(struct device *dev, struct pcmcia_low_level *ops,
 			skt->virt_io = (void *)
 				(ioremap((phys_t)AU1X_SOCK0_IO, 0x1000) -
 				(u32)mips_io_port_base);
-			skt->phys_attr = AU1X_SOCK0_PSEUDO_PHYS_ATTR;
-			skt->phys_mem = AU1X_SOCK0_PSEUDO_PHYS_MEM;
+			skt->phys_attr = AU1X_SOCK0_PHYS_ATTR;
+			skt->phys_mem = AU1X_SOCK0_PHYS_MEM;
 		}
-#ifndef CONFIG_MIPS_XXS1500
 		else  {
 			skt->virt_io = (void *)
 				(ioremap((phys_t)AU1X_SOCK1_IO, 0x1000) -
 				(u32)mips_io_port_base);
-			skt->phys_attr = AU1X_SOCK1_PSEUDO_PHYS_ATTR;
-			skt->phys_mem = AU1X_SOCK1_PSEUDO_PHYS_MEM;
+			skt->phys_attr = AU1X_SOCK1_PHYS_ATTR;
+			skt->phys_mem = AU1X_SOCK1_PHYS_MEM;
 		}
-#endif
 		pcmcia_base_vaddrs[i] = (u32 *)skt->virt_io;
 		ret = ops->hw_init(skt);
 

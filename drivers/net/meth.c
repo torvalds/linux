@@ -51,14 +51,11 @@
 
 static const char *meth_str="SGI O2 Fast Ethernet";
 
-#define HAVE_TX_TIMEOUT
 /* The maximum time waited (in jiffies) before assuming a Tx failed. (400ms) */
 #define TX_TIMEOUT (400*HZ/1000)
 
-#ifdef HAVE_TX_TIMEOUT
 static int timeout = TX_TIMEOUT;
 module_param(timeout, int, 0);
-#endif
 
 /*
  * This structure is private to each device. It is used to pass

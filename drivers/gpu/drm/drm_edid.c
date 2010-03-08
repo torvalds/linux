@@ -60,8 +60,7 @@
 #define EDID_QUIRK_FIRST_DETAILED_PREFERRED	(1 << 5)
 /* use +hsync +vsync for detailed mode */
 #define EDID_QUIRK_DETAILED_SYNC_PP		(1 << 6)
-/* define the number of Extension EDID block */
-#define MAX_EDID_EXT_NUM 4
+
 
 #define LEVEL_DMT	0
 #define LEVEL_GTF	1
@@ -114,14 +113,14 @@ static const u8 edid_header[] = {
 };
 
 /**
- * edid_is_valid - sanity check EDID data
+ * drm_edid_is_valid - sanity check EDID data
  * @edid: EDID data
  *
  * Sanity check the EDID block by looking at the header, the version number
  * and the checksum.  Return 0 if the EDID doesn't check out, or 1 if it's
  * valid.
  */
-static bool edid_is_valid(struct edid *edid)
+bool drm_edid_is_valid(struct edid *edid)
 {
 	int i, score = 0;
 	u8 csum = 0;
@@ -163,6 +162,7 @@ bad:
 	}
 	return 0;
 }
+EXPORT_SYMBOL(drm_edid_is_valid);
 
 /**
  * edid_vendor - match a string against EDID's obfuscated vendor field
@@ -1112,8 +1112,8 @@ static int add_detailed_info_eedid(struct drm_connector *connector,
 	}
 
 	/* Chose real EDID extension number */
-	edid_ext_num = edid->extensions > MAX_EDID_EXT_NUM ?
-		       MAX_EDID_EXT_NUM : edid->extensions;
+	edid_ext_num = edid->extensions > DRM_MAX_EDID_EXT_NUM ?
+		DRM_MAX_EDID_EXT_NUM : edid->extensions;
 
 	/* Find CEA extension */
 	for (i = 0; i < edid_ext_num; i++) {
@@ -1195,7 +1195,7 @@ static int drm_ddc_read_edid(struct drm_connector *connector,
 	for (i = 0; i < 4; i++) {
 		if (drm_do_probe_ddc_edid(adapter, buf, len))
 			return -1;
-		if (edid_is_valid((struct edid *)buf))
+		if (drm_edid_is_valid((struct edid *)buf))
 			return 0;
 	}
 
@@ -1220,7 +1220,7 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 	int ret;
 	struct edid *edid;
 
-	edid = kmalloc(EDID_LENGTH * (MAX_EDID_EXT_NUM + 1),
+	edid = kmalloc(EDID_LENGTH * (DRM_MAX_EDID_EXT_NUM + 1),
 		       GFP_KERNEL);
 	if (edid == NULL) {
 		dev_warn(&connector->dev->pdev->dev,
@@ -1238,14 +1238,14 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 	if (edid->extensions != 0) {
 		int edid_ext_num = edid->extensions;
 
-		if (edid_ext_num > MAX_EDID_EXT_NUM) {
+		if (edid_ext_num > DRM_MAX_EDID_EXT_NUM) {
 			dev_warn(&connector->dev->pdev->dev,
 				 "The number of extension(%d) is "
 				 "over max (%d), actually read number (%d)\n",
-				 edid_ext_num, MAX_EDID_EXT_NUM,
-				 MAX_EDID_EXT_NUM);
+				 edid_ext_num, DRM_MAX_EDID_EXT_NUM,
+				 DRM_MAX_EDID_EXT_NUM);
 			/* Reset EDID extension number to be read */
-			edid_ext_num = MAX_EDID_EXT_NUM;
+			edid_ext_num = DRM_MAX_EDID_EXT_NUM;
 		}
 		/* Read EDID including extensions too */
 		ret = drm_ddc_read_edid(connector, adapter, (char *)edid,
@@ -1288,8 +1288,8 @@ bool drm_detect_hdmi_monitor(struct edid *edid)
 		goto end;
 
 	/* Chose real EDID extension number */
-	edid_ext_num = edid->extensions > MAX_EDID_EXT_NUM ?
-		       MAX_EDID_EXT_NUM : edid->extensions;
+	edid_ext_num = edid->extensions > DRM_MAX_EDID_EXT_NUM ?
+		       DRM_MAX_EDID_EXT_NUM : edid->extensions;
 
 	/* Find CEA extension */
 	for (i = 0; i < edid_ext_num; i++) {
@@ -1346,7 +1346,7 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 	if (edid == NULL) {
 		return 0;
 	}
-	if (!edid_is_valid(edid)) {
+	if (!drm_edid_is_valid(edid)) {
 		dev_warn(&connector->dev->pdev->dev, "%s: EDID invalid.\n",
 			 drm_get_connector_name(connector));
 		return 0;

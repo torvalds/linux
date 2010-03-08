@@ -37,5 +37,6 @@ extern struct platform_device mxc_spi_device1;
 #ifdef CONFIG_MACH_MX27
 extern struct platform_device mxc_spi_device2;
 #endif
+extern struct platform_device mx21_usbhc_device;
 extern struct platform_device imx_ssi_device0;
 extern struct platform_device imx_ssi_device1;

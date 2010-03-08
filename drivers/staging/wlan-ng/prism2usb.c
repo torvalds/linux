@@ -24,8 +24,9 @@ static struct usb_device_id usb_prism_tbl[] = {
 	 (0x066b, 0x2213, "Linksys WUSB12v1.1 11Mbps WLAN USB Adapter")},
 	{PRISM_USB_DEVICE
 	 (0x067c, 0x1022, "Siemens SpeedStream 1022 11Mbps WLAN USB Adapter")},
-	{PRISM_USB_DEVICE(0x049f, 0x0033,
-			  "Compaq/Intel W100 PRO/Wireless 11Mbps multiport WLAN Adapter")},
+	{PRISM_USB_DEVICE
+	 (0x049f, 0x0033,
+	 "Compaq/Intel W100 PRO/Wireless 11Mbps multiport WLAN Adapter")},
 	{PRISM_USB_DEVICE
 	 (0x0411, 0x0016, "Melco WLI-USB-S11 11Mbps WLAN Adapter")},
 	{PRISM_USB_DEVICE
@@ -55,7 +56,6 @@ static struct usb_device_id usb_prism_tbl[] = {
 	 (0x04f1, 0x3009, "JVC MP-XP7250 Builtin USB WLAN Adapter")},
 	{PRISM_USB_DEVICE(0x0846, 0x4110, "NetGear MA111")},
 	{PRISM_USB_DEVICE(0x03f3, 0x0020, "Adaptec AWN-8020 USB WLAN Adapter")},
-/*      {PRISM_USB_DEVICE(0x0ace, 0x1201, "ZyDAS ZD1201 Wireless USB Adapter")}, */
 	{PRISM_USB_DEVICE(0x2821, 0x3300, "ASUS-WL140 Wireless USB Adapter")},
 	{PRISM_USB_DEVICE(0x2001, 0x3700, "DWL-122 Wireless USB Adapter")},
 	{PRISM_USB_DEVICE

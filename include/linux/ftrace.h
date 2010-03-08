@@ -134,6 +134,8 @@ extern void
 unregister_ftrace_function_probe_func(char *glob, struct ftrace_probe_ops *ops);
 extern void unregister_ftrace_function_probe_all(char *glob);
 
+extern int ftrace_text_reserved(void *start, void *end);
+
 enum {
 	FTRACE_FL_FREE		= (1 << 0),
 	FTRACE_FL_FAILED	= (1 << 1),
@@ -141,7 +143,6 @@ enum {
 	FTRACE_FL_ENABLED	= (1 << 3),
 	FTRACE_FL_NOTRACE	= (1 << 4),
 	FTRACE_FL_CONVERTED	= (1 << 5),
-	FTRACE_FL_FROZEN	= (1 << 6),
 };
 
 struct dyn_ftrace {
@@ -249,6 +250,10 @@ static inline int register_ftrace_command(struct ftrace_func_command *cmd)
 static inline int unregister_ftrace_command(char *cmd_name)
 {
 	return -EINVAL;
+}
+static inline int ftrace_text_reserved(void *start, void *end)
+{
+	return 0;
 }
 #endif /* CONFIG_DYNAMIC_FTRACE */
 
@@ -510,5 +515,11 @@ static inline void trace_hw_branch(u64 from, u64 to) {}
 static inline void trace_hw_branch_oops(void) {}
 
 #endif /* CONFIG_HW_BRANCH_TRACER */
+
+#ifdef CONFIG_FTRACE_SYSCALLS
+
+unsigned long arch_syscall_addr(int nr);
+
+#endif /* CONFIG_FTRACE_SYSCALLS */
 
 #endif /* _LINUX_FTRACE_H */

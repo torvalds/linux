@@ -262,7 +262,7 @@ int nv04_tv_create(struct drm_device *dev, struct dcb_entry *entry)
 	nv_encoder->or = ffs(entry->or) - 1;
 
 	/* Run the slave-specific initialization */
-	adap = &dev_priv->vbios->dcb->i2c[i2c_index].chan->adapter;
+	adap = &dev_priv->vbios.dcb.i2c[i2c_index].chan->adapter;
 
 	was_locked = NVLockVgaCrtcs(dev, false);
 

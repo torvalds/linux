@@ -155,7 +155,7 @@ static int pxa_ssp_suspend(struct snd_soc_dai *cpu_dai)
 	struct ssp_device *ssp = priv->ssp;
 
 	if (!cpu_dai->active)
-		return 0;
+		clk_enable(ssp->clk);
 
 	priv->cr0 = __raw_readl(ssp->mmio_base + SSCR0);
 	priv->cr1 = __raw_readl(ssp->mmio_base + SSCR1);
@@ -173,18 +173,19 @@ static int pxa_ssp_resume(struct snd_soc_dai *cpu_dai)
 	struct ssp_device *ssp = priv->ssp;
 	uint32_t sssr = SSSR_ROR | SSSR_TUR | SSSR_BCE;
 
-	if (!cpu_dai->active)
-		return 0;
-
 	clk_enable(ssp->clk);
 
 	__raw_writel(sssr, ssp->mmio_base + SSSR);
-
 	__raw_writel(priv->cr0 & ~SSCR0_SSE, ssp->mmio_base + SSCR0);
 	__raw_writel(priv->cr1, ssp->mmio_base + SSCR1);
 	__raw_writel(priv->to,  ssp->mmio_base + SSTO);
 	__raw_writel(priv->psp, ssp->mmio_base + SSPSP);
-	__raw_writel(priv->cr0 | SSCR0_SSE, ssp->mmio_base + SSCR0);
+
+	if (cpu_dai->active)
+		ssp_enable(ssp);
+	else
+		clk_disable(ssp->clk);
+
 	return 0;
 }
 

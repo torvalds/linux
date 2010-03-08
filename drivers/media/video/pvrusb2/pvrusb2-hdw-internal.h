@@ -233,8 +233,9 @@ struct pvr2_hdw {
 	int state_encoder_waitok;     /* Encoder pre-wait done */
 	int state_encoder_runok;      /* Encoder has run for >= .25 sec */
 	int state_decoder_run;        /* Decoder is running */
+	int state_decoder_ready;      /* Decoder is stabilized & streamable */
 	int state_usbstream_run;      /* FX2 is streaming */
-	int state_decoder_quiescent;  /* Decoder idle for > 50msec */
+	int state_decoder_quiescent;  /* Decoder idle for minimal interval */
 	int state_pipeline_config;    /* Pipeline is configured */
 	int state_pipeline_req;       /* Somebody wants to stream */
 	int state_pipeline_pause;     /* Pipeline must be paused */
@@ -255,8 +256,15 @@ struct pvr2_hdw {
 	void (*state_func)(void *);
 	void *state_data;
 
-	/* Timer for measuring decoder settling time */
+	/* Timer for measuring required decoder settling time before we're
+	   allowed to fire it up again. */
 	struct timer_list quiescent_timer;
+
+	/* Timer for measuring decoder stabilization time, which is the
+	   amount of time we need to let the decoder run before we can
+	   trust its output (otherwise the encoder might see garbage and
+	   then fail to start correctly). */
+	struct timer_list decoder_stabilization_timer;
 
 	/* Timer for measuring encoder pre-wait time */
 	struct timer_list encoder_wait_timer;

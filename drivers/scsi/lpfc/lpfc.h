@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2004-2009 Emulex.  All rights reserved.           *
+ * Copyright (C) 2004-2010 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
  * www.emulex.com                                                  *
  * Portions Copyright (C) 2004-2005 Christoph Hellwig              *
@@ -315,6 +315,9 @@ struct lpfc_vport {
 #define FC_VPORT_NEEDS_REG_VPI	0x80000  /* Needs to have its vpi registered */
 #define FC_RSCN_DEFERRED	0x100000 /* A deferred RSCN being processed */
 #define FC_VPORT_NEEDS_INIT_VPI 0x200000 /* Need to INIT_VPI before FDISC */
+#define FC_VPORT_CVL_RCVD	0x400000 /* VLink failed due to CVL	 */
+#define FC_VFI_REGISTERED	0x800000 /* VFI is registered */
+#define FC_FDISC_COMPLETED	0x1000000/* FDISC completed */
 
 	uint32_t ct_flags;
 #define FC_CT_RFF_ID		0x1	 /* RFF_ID accepted by switch */
@@ -448,6 +451,8 @@ struct unsol_rcv_ct_ctx {
 	uint32_t ctxt_id;
 	uint32_t SID;
 	uint32_t oxid;
+	uint32_t flags;
+#define UNSOL_VALID	0x00000001
 };
 
 struct lpfc_hba {
@@ -498,6 +503,10 @@ struct lpfc_hba {
 	void (*lpfc_handle_eratt)
 		(struct lpfc_hba *);
 	void (*lpfc_stop_port)
+		(struct lpfc_hba *);
+	int (*lpfc_hba_init_link)
+		(struct lpfc_hba *);
+	int (*lpfc_hba_down_link)
 		(struct lpfc_hba *);
 
 
@@ -613,6 +622,7 @@ struct lpfc_hba {
 	uint32_t cfg_enable_bg;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_aer_support;
+	uint32_t cfg_suppress_link_up;
 
 	lpfc_vpd_t vpd;		/* vital product data */
 
@@ -790,7 +800,7 @@ struct lpfc_hba {
 	uint16_t vlan_id;
 	struct list_head fcf_conn_rec_list;
 
-	struct mutex ct_event_mutex; /* synchronize access to ct_ev_waiters */
+	spinlock_t ct_ev_lock; /* synchronize access to ct_ev_waiters */
 	struct list_head ct_ev_waiters;
 	struct unsol_rcv_ct_ctx ct_ctx[64];
 	uint32_t ctx_idx;

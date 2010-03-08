@@ -623,10 +623,6 @@ void efx_nic_remove_rx(struct efx_rx_queue *rx_queue)
  *
  * This writes the EVQ_RPTR_REG register for the specified channel's
  * event queue.
- *
- * Note that EVQ_RPTR_REG contains the index of the "last read" event,
- * whereas channel->eventq_read_ptr contains the index of the "next to
- * read" event.
  */
 void efx_nic_eventq_read_ack(struct efx_channel *channel)
 {
@@ -1384,6 +1380,15 @@ static irqreturn_t efx_legacy_interrupt(int irq, void *dev_id)
 		efx->last_irq_cpu = raw_smp_processor_id();
 		EFX_TRACE(efx, "IRQ %d on CPU %d status " EFX_DWORD_FMT "\n",
 			  irq, raw_smp_processor_id(), EFX_DWORD_VAL(reg));
+	} else if (EFX_WORKAROUND_15783(efx)) {
+		/* We can't return IRQ_HANDLED more than once on seeing ISR0=0
+		 * because this might be a shared interrupt, but we do need to
+		 * check the channel every time and preemptively rearm it if
+		 * it's idle. */
+		efx_for_each_channel(channel, efx) {
+			if (!channel->work_pending)
+				efx_nic_eventq_read_ack(channel);
+		}
 	}
 
 	return result;

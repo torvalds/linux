@@ -1199,7 +1199,6 @@ static struct clk_lookup lookups[] = {
  */
 int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 {
-	int i;
 	u32 cscr;
 
 	external_low_reference = lref;
@@ -1217,8 +1216,7 @@ int __init mx21_clocks_init(unsigned long lref, unsigned long href)
 	else
 		spll_clk.parent = &fpm_clk;
 
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	/* Turn off all clock gates */
 	__raw_writel(0, CCM_PCCR0);

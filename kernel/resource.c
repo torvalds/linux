@@ -188,6 +188,36 @@ static int __release_resource(struct resource *old)
 	return -EINVAL;
 }
 
+static void __release_child_resources(struct resource *r)
+{
+	struct resource *tmp, *p;
+	resource_size_t size;
+
+	p = r->child;
+	r->child = NULL;
+	while (p) {
+		tmp = p;
+		p = p->sibling;
+
+		tmp->parent = NULL;
+		tmp->sibling = NULL;
+		__release_child_resources(tmp);
+
+		printk(KERN_DEBUG "release child resource %pR\n", tmp);
+		/* need to restore size, and keep flags */
+		size = resource_size(tmp);
+		tmp->start = 0;
+		tmp->end = size - 1;
+	}
+}
+
+void release_child_resources(struct resource *r)
+{
+	write_lock(&resource_lock);
+	__release_child_resources(r);
+	write_unlock(&resource_lock);
+}
+
 /**
  * request_resource - request and reserve an I/O or memory resource
  * @root: root resource descriptor
@@ -274,7 +304,7 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 		void *arg, int (*func)(unsigned long, unsigned long, void *))
 {
 	struct resource res;
-	unsigned long pfn, len;
+	unsigned long pfn, end_pfn;
 	u64 orig_end;
 	int ret = -1;
 
@@ -284,9 +314,10 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 	orig_end = res.end;
 	while ((res.start < res.end) &&
 		(find_next_system_ram(&res, "System RAM") >= 0)) {
-		pfn = (unsigned long)(res.start >> PAGE_SHIFT);
-		len = (unsigned long)((res.end + 1 - res.start) >> PAGE_SHIFT);
-		ret = (*func)(pfn, len, arg);
+		pfn = (res.start + PAGE_SIZE - 1) >> PAGE_SHIFT;
+		end_pfn = (res.end + 1) >> PAGE_SHIFT;
+		if (end_pfn > pfn)
+			ret = (*func)(pfn, end_pfn - pfn, arg);
 		if (ret)
 			break;
 		res.start = res.end + 1;
@@ -297,14 +328,29 @@ int walk_system_ram_range(unsigned long start_pfn, unsigned long nr_pages,
 
 #endif
 
+static int __is_ram(unsigned long pfn, unsigned long nr_pages, void *arg)
+{
+	return 1;
+}
+/*
+ * This generic page_is_ram() returns true if specified address is
+ * registered as "System RAM" in iomem_resource list.
+ */
+int __weak page_is_ram(unsigned long pfn)
+{
+	return walk_system_ram_range(pfn, 1, NULL, __is_ram) == 1;
+}
+
 /*
  * Find empty slot in the resource tree given range and alignment.
  */
 static int find_resource(struct resource *root, struct resource *new,
 			 resource_size_t size, resource_size_t min,
 			 resource_size_t max, resource_size_t align,
-			 void (*alignf)(void *, struct resource *,
-					resource_size_t, resource_size_t),
+			 resource_size_t (*alignf)(void *,
+						   const struct resource *,
+						   resource_size_t,
+						   resource_size_t),
 			 void *alignf_data)
 {
 	struct resource *this = root->child;
@@ -330,7 +376,7 @@ static int find_resource(struct resource *root, struct resource *new,
 			tmp.end = max;
 		tmp.start = ALIGN(tmp.start, align);
 		if (alignf)
-			alignf(alignf_data, &tmp, size, align);
+			tmp.start = alignf(alignf_data, &tmp, size, align);
 		if (tmp.start < tmp.end && tmp.end - tmp.start >= size - 1) {
 			new->start = tmp.start;
 			new->end = tmp.start + size - 1;
@@ -358,8 +404,10 @@ static int find_resource(struct resource *root, struct resource *new,
 int allocate_resource(struct resource *root, struct resource *new,
 		      resource_size_t size, resource_size_t min,
 		      resource_size_t max, resource_size_t align,
-		      void (*alignf)(void *, struct resource *,
-				     resource_size_t, resource_size_t),
+		      resource_size_t (*alignf)(void *,
+						const struct resource *,
+						resource_size_t,
+						resource_size_t),
 		      void *alignf_data)
 {
 	int err;

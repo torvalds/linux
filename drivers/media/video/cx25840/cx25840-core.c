@@ -734,10 +734,8 @@ static int set_input(struct i2c_client *client, enum cx25840_video_input vid_inp
 		v4l_dbg(1, cx25840_debug, client, "vid_input 0x%x\n",
 			vid_input);
 		reg = vid_input & 0xff;
-		if ((vid_input & CX25840_SVIDEO_ON) == CX25840_SVIDEO_ON)
-			is_composite = 0;
-		else if ((vid_input & CX25840_COMPONENT_ON) == 0)
-			is_composite = 1;
+		is_composite = !is_component &&
+			((vid_input & CX25840_SVIDEO_ON) != CX25840_SVIDEO_ON);
 
 		v4l_dbg(1, cx25840_debug, client, "mux cfg 0x%x comp=%d\n",
 			reg, is_composite);
@@ -1347,30 +1345,59 @@ static int cx25840_s_register(struct v4l2_subdev *sd, struct v4l2_dbg_register *
 }
 #endif
 
+static int cx25840_s_audio_stream(struct v4l2_subdev *sd, int enable)
+{
+	struct cx25840_state *state = to_state(sd);
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	u8 v;
+
+	if (is_cx2583x(state) || is_cx2388x(state) || is_cx231xx(state))
+		return 0;
+
+	v4l_dbg(1, cx25840_debug, client, "%s audio output\n",
+			enable ? "enable" : "disable");
+
+	if (enable) {
+		v = cx25840_read(client, 0x115) | 0x80;
+		cx25840_write(client, 0x115, v);
+		v = cx25840_read(client, 0x116) | 0x03;
+		cx25840_write(client, 0x116, v);
+	} else {
+		v = cx25840_read(client, 0x115) & ~(0x80);
+		cx25840_write(client, 0x115, v);
+		v = cx25840_read(client, 0x116) & ~(0x03);
+		cx25840_write(client, 0x116, v);
+	}
+	return 0;
+}
+
 static int cx25840_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct cx25840_state *state = to_state(sd);
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	u8 v;
 
-	v4l_dbg(1, cx25840_debug, client, "%s output\n",
+	v4l_dbg(1, cx25840_debug, client, "%s video output\n",
 			enable ? "enable" : "disable");
 	if (enable) {
 		if (is_cx2388x(state) || is_cx231xx(state)) {
-			u8 v = (cx25840_read(client, 0x421) | 0x0b);
+			v = cx25840_read(client, 0x421) | 0x0b;
 			cx25840_write(client, 0x421, v);
 		} else {
-			cx25840_write(client, 0x115,
-					is_cx2583x(state) ? 0x0c : 0x8c);
-			cx25840_write(client, 0x116,
-					is_cx2583x(state) ? 0x04 : 0x07);
+			v = cx25840_read(client, 0x115) | 0x0c;
+			cx25840_write(client, 0x115, v);
+			v = cx25840_read(client, 0x116) | 0x04;
+			cx25840_write(client, 0x116, v);
 		}
 	} else {
 		if (is_cx2388x(state) || is_cx231xx(state)) {
-			u8 v = cx25840_read(client, 0x421) & ~(0x0b);
+			v = cx25840_read(client, 0x421) & ~(0x0b);
 			cx25840_write(client, 0x421, v);
 		} else {
-			cx25840_write(client, 0x115, 0x00);
-			cx25840_write(client, 0x116, 0x00);
+			v = cx25840_read(client, 0x115) & ~(0x0c);
+			cx25840_write(client, 0x115, v);
+			v = cx25840_read(client, 0x116) & ~(0x04);
+			cx25840_write(client, 0x116, v);
 		}
 	}
 	return 0;
@@ -1601,6 +1628,7 @@ static const struct v4l2_subdev_tuner_ops cx25840_tuner_ops = {
 static const struct v4l2_subdev_audio_ops cx25840_audio_ops = {
 	.s_clock_freq = cx25840_s_clock_freq,
 	.s_routing = cx25840_s_audio_routing,
+	.s_stream = cx25840_s_audio_stream,
 };
 
 static const struct v4l2_subdev_video_ops cx25840_video_ops = {

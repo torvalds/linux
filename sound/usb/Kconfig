@@ -21,6 +21,18 @@ config SND_USB_AUDIO
 	  To compile this driver as a module, choose M here: the module
 	  will be called snd-usb-audio.
 
+config SND_USB_UA101
+	tristate "Edirol UA-101 driver (EXPERIMENTAL)"
+	depends on EXPERIMENTAL
+	select SND_PCM
+	select SND_RAWMIDI
+	help
+	  Say Y here to include support for the Edirol UA-101 audio/MIDI
+	  interface.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called snd-ua101.
+
 config SND_USB_USX2Y
 	tristate "Tascam US-122, US-224 and US-428 USB driver"
 	depends on X86 || PPC || ALPHA

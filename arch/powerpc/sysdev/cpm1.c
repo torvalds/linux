@@ -77,7 +77,7 @@ static void cpm_end_irq(unsigned int irq)
 }
 
 static struct irq_chip cpm_pic = {
-	.name = " CPM PIC ",
+	.name = "CPM PIC",
 	.mask = cpm_mask_irq,
 	.unmask = cpm_unmask_irq,
 	.eoi = cpm_end_irq,

@@ -2,6 +2,7 @@
 #define _ASM_X86_KVM_PARA_H
 
 #include <linux/types.h>
+#include <asm/hyperv.h>
 
 /* This CPUID returns the signature 'KVMKVMKVM' in ebx, ecx, and edx.  It
  * should be used to determine that a VM is running under KVM.

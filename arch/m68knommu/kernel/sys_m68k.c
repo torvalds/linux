@@ -190,3 +190,39 @@ int kernel_execve(const char *filename, char *const argv[], char *const envp[])
 			: "d" (__a), "d" (__b), "d" (__c));
 	return __res;
 }
+
+asmlinkage unsigned long sys_get_thread_area(void)
+{
+	return current_thread_info()->tp_value;
+}
+
+asmlinkage int sys_set_thread_area(unsigned long tp)
+{
+	current_thread_info()->tp_value = tp;
+	return 0;
+}
+
+/* This syscall gets its arguments in A0 (mem), D2 (oldval) and
+   D1 (newval).  */
+asmlinkage int
+sys_atomic_cmpxchg_32(unsigned long newval, int oldval, int d3, int d4, int d5,
+		      unsigned long __user * mem)
+{
+	struct mm_struct *mm = current->mm;
+	unsigned long mem_value;
+
+	down_read(&mm->mmap_sem);
+
+	mem_value = *mem;
+	if (mem_value == oldval)
+		*mem = newval;
+
+	up_read(&mm->mmap_sem);
+	return mem_value;
+}
+
+asmlinkage int sys_atomic_barrier(void)
+{
+	/* no code needed for uniprocs */
+	return 0;
+}

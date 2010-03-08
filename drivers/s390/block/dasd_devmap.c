@@ -874,12 +874,19 @@ dasd_discipline_show(struct device *dev, struct device_attribute *attr,
 	ssize_t len;
 
 	device = dasd_device_from_cdev(to_ccwdev(dev));
-	if (!IS_ERR(device) && device->discipline) {
+	if (IS_ERR(device))
+		goto out;
+	else if (!device->discipline) {
+		dasd_put_device(device);
+		goto out;
+	} else {
 		len = snprintf(buf, PAGE_SIZE, "%s\n",
 			       device->discipline->name);
 		dasd_put_device(device);
-	} else
-		len = snprintf(buf, PAGE_SIZE, "none\n");
+		return len;
+	}
+out:
+	len = snprintf(buf, PAGE_SIZE, "none\n");
 	return len;
 }
 

@@ -29,15 +29,14 @@
 #include <linux/fs.h>
 #include <linux/vfs.h>
 #include <linux/slab.h>
-#include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/buffer_head.h>
-#include <linux/zlib.h>
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"
 #include "squashfs_fs_i.h"
 #include "squashfs.h"
+#include "decompressor.h"
 
 /*
  * Read the metadata block length, this is stored in the first two
@@ -153,72 +152,10 @@ int squashfs_read_data(struct super_block *sb, void **buffer, u64 index,
 	}
 
 	if (compressed) {
-		int zlib_err = 0, zlib_init = 0;
-
-		/*
-		 * Uncompress block.
-		 */
-
-		mutex_lock(&msblk->read_data_mutex);
-
-		msblk->stream.avail_out = 0;
-		msblk->stream.avail_in = 0;
-
-		bytes = length;
-		do {
-			if (msblk->stream.avail_in == 0 && k < b) {
-				avail = min(bytes, msblk->devblksize - offset);
-				bytes -= avail;
-				wait_on_buffer(bh[k]);
-				if (!buffer_uptodate(bh[k]))
-					goto release_mutex;
-
-				if (avail == 0) {
-					offset = 0;
-					put_bh(bh[k++]);
-					continue;
-				}
-
-				msblk->stream.next_in = bh[k]->b_data + offset;
-				msblk->stream.avail_in = avail;
-				offset = 0;
-			}
-
-			if (msblk->stream.avail_out == 0 && page < pages) {
-				msblk->stream.next_out = buffer[page++];
-				msblk->stream.avail_out = PAGE_CACHE_SIZE;
-			}
-
-			if (!zlib_init) {
-				zlib_err = zlib_inflateInit(&msblk->stream);
-				if (zlib_err != Z_OK) {
-					ERROR("zlib_inflateInit returned"
-						" unexpected result 0x%x,"
-						" srclength %d\n", zlib_err,
-						srclength);
-					goto release_mutex;
-				}
-				zlib_init = 1;
-			}
-
-			zlib_err = zlib_inflate(&msblk->stream, Z_SYNC_FLUSH);
-
-			if (msblk->stream.avail_in == 0 && k < b)
-				put_bh(bh[k++]);
-		} while (zlib_err == Z_OK);
-
-		if (zlib_err != Z_STREAM_END) {
-			ERROR("zlib_inflate error, data probably corrupt\n");
-			goto release_mutex;
-		}
-
-		zlib_err = zlib_inflateEnd(&msblk->stream);
-		if (zlib_err != Z_OK) {
-			ERROR("zlib_inflate error, data probably corrupt\n");
-			goto release_mutex;
-		}
-		length = msblk->stream.total_out;
-		mutex_unlock(&msblk->read_data_mutex);
+		length = squashfs_decompress(msblk, buffer, bh, b, offset,
+			 length, srclength, pages);
+		if (length < 0)
+			goto read_failure;
 	} else {
 		/*
 		 * Block is uncompressed.
@@ -254,9 +191,6 @@ int squashfs_read_data(struct super_block *sb, void **buffer, u64 index,
 
 	kfree(bh);
 	return length;
-
-release_mutex:
-	mutex_unlock(&msblk->read_data_mutex);
 
 block_release:
 	for (; k < b; k++)

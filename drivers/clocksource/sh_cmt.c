@@ -40,7 +40,6 @@ struct sh_cmt_priv {
 	struct platform_device *pdev;
 
 	unsigned long flags;
-	unsigned long flags_suspend;
 	unsigned long match_value;
 	unsigned long next_match_value;
 	unsigned long max_match_value;
@@ -432,6 +431,11 @@ static void sh_cmt_clocksource_disable(struct clocksource *cs)
 	sh_cmt_stop(cs_to_sh_cmt(cs), FLAG_CLOCKSOURCE);
 }
 
+static void sh_cmt_clocksource_resume(struct clocksource *cs)
+{
+	sh_cmt_start(cs_to_sh_cmt(cs), FLAG_CLOCKSOURCE);
+}
+
 static int sh_cmt_register_clocksource(struct sh_cmt_priv *p,
 				       char *name, unsigned long rating)
 {
@@ -442,6 +446,8 @@ static int sh_cmt_register_clocksource(struct sh_cmt_priv *p,
 	cs->read = sh_cmt_clocksource_read;
 	cs->enable = sh_cmt_clocksource_enable;
 	cs->disable = sh_cmt_clocksource_disable;
+	cs->suspend = sh_cmt_clocksource_disable;
+	cs->resume = sh_cmt_clocksource_resume;
 	cs->mask = CLOCKSOURCE_MASK(sizeof(unsigned long) * 8);
 	cs->flags = CLOCK_SOURCE_IS_CONTINUOUS;
 	pr_info("sh_cmt: %s used as clock source\n", cs->name);
@@ -603,18 +609,13 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 	p->irqaction.handler = sh_cmt_interrupt;
 	p->irqaction.dev_id = p;
 	p->irqaction.flags = IRQF_DISABLED | IRQF_TIMER | IRQF_IRQPOLL;
-	ret = setup_irq(irq, &p->irqaction);
-	if (ret) {
-		pr_err("sh_cmt: failed to request irq %d\n", irq);
-		goto err1;
-	}
 
 	/* get hold of clock */
 	p->clk = clk_get(&p->pdev->dev, cfg->clk);
 	if (IS_ERR(p->clk)) {
 		pr_err("sh_cmt: cannot get clock \"%s\"\n", cfg->clk);
 		ret = PTR_ERR(p->clk);
-		goto err2;
+		goto err1;
 	}
 
 	if (resource_size(res) == 6) {
@@ -627,14 +628,25 @@ static int sh_cmt_setup(struct sh_cmt_priv *p, struct platform_device *pdev)
 		p->clear_bits = ~0xc000;
 	}
 
-	return sh_cmt_register(p, cfg->name,
-			       cfg->clockevent_rating,
-			       cfg->clocksource_rating);
- err2:
-	remove_irq(irq, &p->irqaction);
- err1:
+	ret = sh_cmt_register(p, cfg->name,
+			      cfg->clockevent_rating,
+			      cfg->clocksource_rating);
+	if (ret) {
+		pr_err("sh_cmt: registration failed\n");
+		goto err1;
+	}
+
+	ret = setup_irq(irq, &p->irqaction);
+	if (ret) {
+		pr_err("sh_cmt: failed to request irq %d\n", irq);
+		goto err1;
+	}
+
+	return 0;
+
+err1:
 	iounmap(p->mapbase);
- err0:
+err0:
 	return ret;
 }
 
@@ -668,38 +680,11 @@ static int __devexit sh_cmt_remove(struct platform_device *pdev)
 	return -EBUSY; /* cannot unregister clockevent and clocksource */
 }
 
-static int sh_cmt_suspend(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sh_cmt_priv *p = platform_get_drvdata(pdev);
-
-	/* save flag state and stop CMT channel */
-	p->flags_suspend = p->flags;
-	sh_cmt_stop(p, p->flags);
-	return 0;
-}
-
-static int sh_cmt_resume(struct device *dev)
-{
-	struct platform_device *pdev = to_platform_device(dev);
-	struct sh_cmt_priv *p = platform_get_drvdata(pdev);
-
-	/* start CMT channel from saved state */
-	sh_cmt_start(p, p->flags_suspend);
-	return 0;
-}
-
-static struct dev_pm_ops sh_cmt_dev_pm_ops = {
-	.suspend = sh_cmt_suspend,
-	.resume = sh_cmt_resume,
-};
-
 static struct platform_driver sh_cmt_device_driver = {
 	.probe		= sh_cmt_probe,
 	.remove		= __devexit_p(sh_cmt_remove),
 	.driver		= {
 		.name	= "sh_cmt",
-		.pm	= &sh_cmt_dev_pm_ops,
 	}
 };
 

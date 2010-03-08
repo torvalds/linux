@@ -13,7 +13,6 @@ config SUPERH
 	select HAVE_LMB
 	select HAVE_OPROFILE
 	select HAVE_GENERIC_DMA_COHERENT
-	select HAVE_IOREMAP_PROT if MMU
 	select HAVE_ARCH_TRACEHOOK
 	select HAVE_DMA_API_DEBUG
 	select HAVE_DMA_ATTRS
@@ -22,6 +21,7 @@ config SUPERH
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_LZMA
+	select HAVE_KERNEL_LZO
 	select HAVE_SYSCALL_TRACEPOINTS
 	select RTC_LIB
 	select GENERIC_ATOMIC64
@@ -35,6 +35,7 @@ config SUPERH32
 	def_bool ARCH = "sh"
 	select HAVE_KPROBES
 	select HAVE_KRETPROBES
+	select HAVE_IOREMAP_PROT if MMU && !X2TLB
 	select HAVE_FUNCTION_TRACER
 	select HAVE_FTRACE_MCOUNT_RECORD
 	select HAVE_DYNAMIC_FTRACE
@@ -42,6 +43,8 @@ config SUPERH32
 	select HAVE_FTRACE_NMI_ENTER if DYNAMIC_FTRACE
 	select HAVE_FUNCTION_GRAPH_TRACER
 	select HAVE_ARCH_KGDB
+	select HAVE_HW_BREAKPOINT
+	select PERF_EVENTS if HAVE_HW_BREAKPOINT
 	select ARCH_HIBERNATION_POSSIBLE if MMU
 
 config SUPERH64
@@ -78,11 +81,12 @@ config GENERIC_HARDIRQS
 config GENERIC_HARDIRQS_NO__DO_IRQ
 	def_bool y
 
-config GENERIC_IRQ_PROBE
-	def_bool y
-
 config IRQ_PER_CPU
 	def_bool y
+
+config SPARSE_IRQ
+	def_bool y
+	depends on SUPERH32
 
 config GENERIC_GPIO
 	def_bool n
@@ -548,8 +552,7 @@ config SH_PCLK_FREQ
 			      CPU_SUBTYPE_SH7203 || \
 			      CPU_SUBTYPE_SH7206 || \
 			      CPU_SUBTYPE_SH7263 || \
-			      CPU_SUBTYPE_MXG    || \
-			      CPU_SUBTYPE_SH7786
+			      CPU_SUBTYPE_MXG
 	default "60000000" if CPU_SUBTYPE_SH7751 || CPU_SUBTYPE_SH7751R
 	default "66000000" if CPU_SUBTYPE_SH4_202
 	default "50000000"
@@ -563,7 +566,8 @@ config SH_CLK_CPG
 
 config SH_CLK_CPG_LEGACY
 	depends on SH_CLK_CPG
-	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE
+	def_bool y if !CPU_SUBTYPE_SH7785 && !ARCH_SHMOBILE && \
+		      !CPU_SUBTYPE_SH7786
 
 config SH_CLK_MD
 	int "CPU Mode Pin Setting"
@@ -725,18 +729,6 @@ config GUSA_RB
 	  LLSC, this should be more efficient than the other alternative of
 	  disabling interrupts around the atomic sequence.
 
-config SPARSE_IRQ
-	bool "Support sparse irq numbering"
-	depends on EXPERIMENTAL
-	help
-	  This enables support for sparse irqs. This is useful in general
-	  as most CPUs have a fairly sparse array of IRQ vectors, which
-	  the irq_desc then maps directly on to. Systems with a high
-	  number of off-chip IRQs will want to treat this as
-	  experimental until they have been independently verified.
-
-	  If you don't know what to do here, say N.
-
 endmenu
 
 menu "Boot options"
@@ -822,10 +814,14 @@ config MAPLE
 config PCI
 	bool "PCI support"
 	depends on SYS_SUPPORTS_PCI
+	select PCI_DOMAINS
 	help
 	  Find out whether you have a PCI motherboard. PCI is the name of a
 	  bus system, i.e. the way the CPU talks to the other stuff inside
 	  your box. If you have PCI, say Y, otherwise N.
+
+config PCI_DOMAINS
+	bool
 
 source "drivers/pci/pcie/Kconfig"
 

@@ -54,7 +54,7 @@ static int lp3971_set_bits(struct lp3971 *lp3971, u8 reg, u16 mask, u16 val);
 #define LP3971_BUCK2_BASE 0x29
 #define LP3971_BUCK3_BASE 0x32
 
-const static int buck_base_addr[] = {
+static const int buck_base_addr[] = {
 	LP3971_BUCK1_BASE,
 	LP3971_BUCK2_BASE,
 	LP3971_BUCK3_BASE,
@@ -63,7 +63,7 @@ const static int buck_base_addr[] = {
 #define LP3971_BUCK_TARGET_VOL1_REG(x) (buck_base_addr[x])
 #define LP3971_BUCK_TARGET_VOL2_REG(x) (buck_base_addr[x]+1)
 
-const static int buck_voltage_map[] = {
+static const int buck_voltage_map[] = {
 	   0,  800,  850,  900,  950, 1000, 1050, 1100,
 	1150, 1200, 1250, 1300, 1350, 1400, 1450, 1500,
 	1550, 1600, 1650, 1700, 1800, 1900, 2500, 2800,
@@ -96,17 +96,17 @@ const static int buck_voltage_map[] = {
 #define LDO_VOL_CONTR_SHIFT(x) ((x & 1) << 2)
 #define LDO_VOL_CONTR_MASK 0x0f
 
-const static int ldo45_voltage_map[] = {
+static const int ldo45_voltage_map[] = {
 	1000, 1050, 1100, 1150, 1200, 1250, 1300, 1350,
 	1400, 1500, 1800, 1900, 2500, 2800, 3000, 3300,
 };
 
-const static int ldo123_voltage_map[] = {
+static const int ldo123_voltage_map[] = {
 	1800, 1900, 2000, 2100, 2200, 2300, 2400, 2500,
 	2600, 2700, 2800, 2900, 3000, 3100, 3200, 3300,
 };
 
-const static int *ldo_voltage_map[] = {
+static const int *ldo_voltage_map[] = {
 	ldo123_voltage_map, /* LDO1 */
 	ldo123_voltage_map, /* LDO2 */
 	ldo123_voltage_map, /* LDO3 */
@@ -431,20 +431,20 @@ static int lp3971_set_bits(struct lp3971 *lp3971, u8 reg, u16 mask, u16 val)
 	return ret;
 }
 
-static int setup_regulators(struct lp3971 *lp3971,
-	struct lp3971_platform_data *pdata)
+static int __devinit setup_regulators(struct lp3971 *lp3971,
+				      struct lp3971_platform_data *pdata)
 {
 	int i, err;
-	int num_regulators = pdata->num_regulators;
-	lp3971->num_regulators = num_regulators;
-	lp3971->rdev = kzalloc(sizeof(struct regulator_dev *) * num_regulators,
-		GFP_KERNEL);
+
+	lp3971->num_regulators = pdata->num_regulators;
+	lp3971->rdev = kcalloc(pdata->num_regulators,
+				sizeof(struct regulator_dev *), GFP_KERNEL);
 
 	/* Instantiate the regulators */
-	for (i = 0; i < num_regulators; i++) {
-		int id = pdata->regulators[i].id;
-		lp3971->rdev[i] = regulator_register(&regulators[id],
-			lp3971->dev, pdata->regulators[i].initdata, lp3971);
+	for (i = 0; i < pdata->num_regulators; i++) {
+		struct lp3971_regulator_subdev *reg = &pdata->regulators[i];
+		lp3971->rdev[i] = regulator_register(&regulators[reg->id],
+					lp3971->dev, reg->initdata, lp3971);
 
 		if (IS_ERR(lp3971->rdev[i])) {
 			err = PTR_ERR(lp3971->rdev[i]);
@@ -455,10 +455,10 @@ static int setup_regulators(struct lp3971 *lp3971,
 	}
 
 	return 0;
+
 error:
-	for (i = 0; i < num_regulators; i++)
-		if (lp3971->rdev[i])
-			regulator_unregister(lp3971->rdev[i]);
+	while (--i >= 0)
+		regulator_unregister(lp3971->rdev[i]);
 	kfree(lp3971->rdev);
 	lp3971->rdev = NULL;
 	return err;
@@ -472,15 +472,17 @@ static int __devinit lp3971_i2c_probe(struct i2c_client *i2c,
 	int ret;
 	u16 val;
 
-	lp3971 = kzalloc(sizeof(struct lp3971), GFP_KERNEL);
-	if (lp3971 == NULL) {
-		ret = -ENOMEM;
-		goto err;
+	if (!pdata) {
+		dev_dbg(&i2c->dev, "No platform init data supplied\n");
+		return -ENODEV;
 	}
+
+	lp3971 = kzalloc(sizeof(struct lp3971), GFP_KERNEL);
+	if (lp3971 == NULL)
+		return -ENOMEM;
 
 	lp3971->i2c = i2c;
 	lp3971->dev = &i2c->dev;
-	i2c_set_clientdata(i2c, lp3971);
 
 	mutex_init(&lp3971->io_lock);
 
@@ -493,19 +495,15 @@ static int __devinit lp3971_i2c_probe(struct i2c_client *i2c,
 		goto err_detect;
 	}
 
-	if (pdata) {
-		ret = setup_regulators(lp3971, pdata);
-		if (ret < 0)
-			goto err_detect;
-	} else
-		dev_warn(lp3971->dev, "No platform init data supplied\n");
+	ret = setup_regulators(lp3971, pdata);
+	if (ret < 0)
+		goto err_detect;
 
+	i2c_set_clientdata(i2c, lp3971);
 	return 0;
 
 err_detect:
-	i2c_set_clientdata(i2c, NULL);
 	kfree(lp3971);
-err:
 	return ret;
 }
 
@@ -513,11 +511,13 @@ static int __devexit lp3971_i2c_remove(struct i2c_client *i2c)
 {
 	struct lp3971 *lp3971 = i2c_get_clientdata(i2c);
 	int i;
-	for (i = 0; i < lp3971->num_regulators; i++)
-		if (lp3971->rdev[i])
-			regulator_unregister(lp3971->rdev[i]);
-	kfree(lp3971->rdev);
+
 	i2c_set_clientdata(i2c, NULL);
+
+	for (i = 0; i < lp3971->num_regulators; i++)
+		regulator_unregister(lp3971->rdev[i]);
+
+	kfree(lp3971->rdev);
 	kfree(lp3971);
 
 	return 0;

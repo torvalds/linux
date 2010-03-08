@@ -27,6 +27,8 @@
 
 #include "wl1251.h"
 
+#include <net/cfg80211.h>
+
 struct acx_header;
 
 int wl1251_cmd_send(struct wl1251 *wl, u16 type, void *buf, size_t buf_len);
@@ -43,6 +45,10 @@ int wl1251_cmd_read_memory(struct wl1251 *wl, u32 addr, void *answer,
 			   size_t len);
 int wl1251_cmd_template_set(struct wl1251 *wl, u16 cmd_id,
 			    void *buf, size_t buf_len);
+int wl1251_cmd_scan(struct wl1251 *wl, u8 *ssid, size_t ssid_len,
+		    struct ieee80211_channel *channels[],
+		    unsigned int n_channels, unsigned int n_probes);
+int wl1251_cmd_trigger_scan_to(struct wl1251 *wl, u32 timeout);
 
 /* unit ms */
 #define WL1251_COMMAND_TIMEOUT 2000
@@ -163,8 +169,12 @@ struct cmd_read_write_memory {
 #define CMDMBOX_HEADER_LEN 4
 #define CMDMBOX_INFO_ELEM_HEADER_LEN 4
 
+#define WL1251_SCAN_MIN_DURATION 30000
+#define WL1251_SCAN_MAX_DURATION 60000
 
-struct basic_scan_parameters {
+#define WL1251_SCAN_NUM_PROBES 3
+
+struct wl1251_scan_parameters {
 	u32 rx_config_options;
 	u32 rx_filter_options;
 
@@ -189,11 +199,11 @@ struct basic_scan_parameters {
 
 	u8 tid_trigger;
 	u8 ssid_len;
-	u32 ssid[8];
+	u8 ssid[32];
 
 } __attribute__ ((packed));
 
-struct basic_scan_channel_parameters {
+struct wl1251_scan_ch_parameters {
 	u32 min_duration; /* in TU */
 	u32 max_duration; /* in TU */
 	u32 bssid_lsb;
@@ -213,11 +223,11 @@ struct basic_scan_channel_parameters {
 /* SCAN parameters */
 #define SCAN_MAX_NUM_OF_CHANNELS 16
 
-struct cmd_scan {
+struct wl1251_cmd_scan {
 	struct wl1251_cmd_header header;
 
-	struct basic_scan_parameters params;
-	struct basic_scan_channel_parameters channels[SCAN_MAX_NUM_OF_CHANNELS];
+	struct wl1251_scan_parameters params;
+	struct wl1251_scan_ch_parameters channels[SCAN_MAX_NUM_OF_CHANNELS];
 } __attribute__ ((packed));
 
 enum {

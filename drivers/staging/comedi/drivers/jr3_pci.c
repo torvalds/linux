@@ -954,6 +954,8 @@ out:
 	return result;
 }
 
+MODULE_FIRMWARE("comedi/jr3pci.idm");
+
 static int jr3_pci_detach(struct comedi_device *dev)
 {
 	int i;

@@ -563,7 +563,7 @@ struct btmrvl_private *btmrvl_add_card(void *card)
 
 	priv->btmrvl_dev.tx_dnld_rdy = true;
 
-	hdev->type = HCI_SDIO;
+	hdev->bus = HCI_SDIO;
 	hdev->open = btmrvl_open;
 	hdev->close = btmrvl_close;
 	hdev->flush = btmrvl_flush;

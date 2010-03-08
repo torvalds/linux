@@ -57,6 +57,41 @@ struct net_bridge_fdb_entry
 	unsigned char			is_static;
 };
 
+struct net_bridge_port_group {
+	struct net_bridge_port		*port;
+	struct net_bridge_port_group	*next;
+	struct hlist_node		mglist;
+	struct rcu_head			rcu;
+	struct timer_list		timer;
+	struct timer_list		query_timer;
+	__be32				addr;
+	u32				queries_sent;
+};
+
+struct net_bridge_mdb_entry
+{
+	struct hlist_node		hlist[2];
+	struct hlist_node		mglist;
+	struct net_bridge		*br;
+	struct net_bridge_port_group	*ports;
+	struct rcu_head			rcu;
+	struct timer_list		timer;
+	struct timer_list		query_timer;
+	__be32				addr;
+	u32				queries_sent;
+};
+
+struct net_bridge_mdb_htable
+{
+	struct hlist_head		*mhash;
+	struct rcu_head			rcu;
+	struct net_bridge_mdb_htable	*old;
+	u32				size;
+	u32				max;
+	u32				secret;
+	u32				ver;
+};
+
 struct net_bridge_port
 {
 	struct net_bridge		*br;
@@ -84,6 +119,15 @@ struct net_bridge_port
 
 	unsigned long 			flags;
 #define BR_HAIRPIN_MODE		0x00000001
+
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	u32				multicast_startup_queries_sent;
+	unsigned char			multicast_router;
+	struct timer_list		multicast_router_timer;
+	struct timer_list		multicast_query_timer;
+	struct hlist_head		mglist;
+	struct hlist_node		rlist;
+#endif
 };
 
 struct net_bridge
@@ -93,7 +137,6 @@ struct net_bridge
 	struct net_device		*dev;
 	spinlock_t			hash_lock;
 	struct hlist_head		hash[BR_HASH_SIZE];
-	struct list_head		age_list;
 	unsigned long			feature_mask;
 #ifdef CONFIG_BRIDGE_NETFILTER
 	struct rtable 			fake_rtable;
@@ -125,12 +168,49 @@ struct net_bridge
 	unsigned char			topology_change;
 	unsigned char			topology_change_detected;
 
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+	unsigned char			multicast_router;
+
+	u8				multicast_disabled:1;
+
+	u32				hash_elasticity;
+	u32				hash_max;
+
+	u32				multicast_last_member_count;
+	u32				multicast_startup_queries_sent;
+	u32				multicast_startup_query_count;
+
+	unsigned long			multicast_last_member_interval;
+	unsigned long			multicast_membership_interval;
+	unsigned long			multicast_querier_interval;
+	unsigned long			multicast_query_interval;
+	unsigned long			multicast_query_response_interval;
+	unsigned long			multicast_startup_query_interval;
+
+	spinlock_t			multicast_lock;
+	struct net_bridge_mdb_htable	*mdb;
+	struct hlist_head		router_list;
+	struct hlist_head		mglist;
+
+	struct timer_list		multicast_router_timer;
+	struct timer_list		multicast_querier_timer;
+	struct timer_list		multicast_query_timer;
+#endif
+
 	struct timer_list		hello_timer;
 	struct timer_list		tcn_timer;
 	struct timer_list		topology_change_timer;
 	struct timer_list		gc_timer;
 	struct kobject			*ifobj;
 };
+
+struct br_input_skb_cb {
+	struct net_device *brdev;
+	int igmp;
+	int mrouters_only;
+};
+
+#define BR_INPUT_SKB_CB(__skb)	((struct br_input_skb_cb *)(__skb)->cb)
 
 extern struct notifier_block br_device_notifier;
 extern const u8 br_group_address[ETH_ALEN];
@@ -175,7 +255,8 @@ extern void br_forward(const struct net_bridge_port *to,
 		struct sk_buff *skb);
 extern int br_forward_finish(struct sk_buff *skb);
 extern void br_flood_deliver(struct net_bridge *br, struct sk_buff *skb);
-extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb);
+extern void br_flood_forward(struct net_bridge *br, struct sk_buff *skb,
+			     struct sk_buff *skb2);
 
 /* br_if.c */
 extern void br_port_carrier_check(struct net_bridge_port *p);
@@ -197,6 +278,94 @@ extern struct sk_buff *br_handle_frame(struct net_bridge_port *p,
 /* br_ioctl.c */
 extern int br_dev_ioctl(struct net_device *dev, struct ifreq *rq, int cmd);
 extern int br_ioctl_deviceless_stub(struct net *net, unsigned int cmd, void __user *arg);
+
+/* br_multicast.c */
+#ifdef CONFIG_BRIDGE_IGMP_SNOOPING
+extern int br_multicast_rcv(struct net_bridge *br,
+			    struct net_bridge_port *port,
+			    struct sk_buff *skb);
+extern struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
+					       struct sk_buff *skb);
+extern void br_multicast_add_port(struct net_bridge_port *port);
+extern void br_multicast_del_port(struct net_bridge_port *port);
+extern void br_multicast_enable_port(struct net_bridge_port *port);
+extern void br_multicast_disable_port(struct net_bridge_port *port);
+extern void br_multicast_init(struct net_bridge *br);
+extern void br_multicast_open(struct net_bridge *br);
+extern void br_multicast_stop(struct net_bridge *br);
+extern void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
+				 struct sk_buff *skb);
+extern void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
+				 struct sk_buff *skb, struct sk_buff *skb2);
+extern int br_multicast_set_router(struct net_bridge *br, unsigned long val);
+extern int br_multicast_set_port_router(struct net_bridge_port *p,
+					unsigned long val);
+extern int br_multicast_toggle(struct net_bridge *br, unsigned long val);
+extern int br_multicast_set_hash_max(struct net_bridge *br, unsigned long val);
+
+static inline bool br_multicast_is_router(struct net_bridge *br)
+{
+	return br->multicast_router == 2 ||
+	       (br->multicast_router == 1 &&
+		timer_pending(&br->multicast_router_timer));
+}
+#else
+static inline int br_multicast_rcv(struct net_bridge *br,
+				   struct net_bridge_port *port,
+				   struct sk_buff *skb)
+{
+	return 0;
+}
+
+static inline struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
+						      struct sk_buff *skb)
+{
+	return NULL;
+}
+
+static inline void br_multicast_add_port(struct net_bridge_port *port)
+{
+}
+
+static inline void br_multicast_del_port(struct net_bridge_port *port)
+{
+}
+
+static inline void br_multicast_enable_port(struct net_bridge_port *port)
+{
+}
+
+static inline void br_multicast_disable_port(struct net_bridge_port *port)
+{
+}
+
+static inline void br_multicast_init(struct net_bridge *br)
+{
+}
+
+static inline void br_multicast_open(struct net_bridge *br)
+{
+}
+
+static inline void br_multicast_stop(struct net_bridge *br)
+{
+}
+
+static inline void br_multicast_deliver(struct net_bridge_mdb_entry *mdst,
+					struct sk_buff *skb)
+{
+}
+
+static inline void br_multicast_forward(struct net_bridge_mdb_entry *mdst,
+					struct sk_buff *skb,
+					struct sk_buff *skb2)
+{
+}
+static inline bool br_multicast_is_router(struct net_bridge *br)
+{
+	return 0;
+}
+#endif
 
 /* br_netfilter.c */
 #ifdef CONFIG_BRIDGE_NETFILTER

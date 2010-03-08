@@ -24,7 +24,6 @@
   Maintainer: Giuseppe Cavallaro <peppe.cavallaro@st.com>
 *******************************************************************************/
 
-#include <linux/netdevice.h>
 #include <linux/mii.h>
 #include <linux/phy.h>
 
@@ -48,8 +47,8 @@ static int stmmac_mdio_read(struct mii_bus *bus, int phyaddr, int phyreg)
 	struct net_device *ndev = bus->priv;
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	unsigned long ioaddr = ndev->base_addr;
-	unsigned int mii_address = priv->mac_type->hw.mii.addr;
-	unsigned int mii_data = priv->mac_type->hw.mii.data;
+	unsigned int mii_address = priv->hw->mii.addr;
+	unsigned int mii_data = priv->hw->mii.data;
 
 	int data;
 	u16 regValue = (((phyaddr << 11) & (0x0000F800)) |
@@ -80,8 +79,8 @@ static int stmmac_mdio_write(struct mii_bus *bus, int phyaddr, int phyreg,
 	struct net_device *ndev = bus->priv;
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	unsigned long ioaddr = ndev->base_addr;
-	unsigned int mii_address = priv->mac_type->hw.mii.addr;
-	unsigned int mii_data = priv->mac_type->hw.mii.data;
+	unsigned int mii_address = priv->hw->mii.addr;
+	unsigned int mii_data = priv->hw->mii.data;
 
 	u16 value =
 	    (((phyaddr << 11) & (0x0000F800)) | ((phyreg << 6) & (0x000007C0)))
@@ -112,7 +111,7 @@ static int stmmac_mdio_reset(struct mii_bus *bus)
 	struct net_device *ndev = bus->priv;
 	struct stmmac_priv *priv = netdev_priv(ndev);
 	unsigned long ioaddr = ndev->base_addr;
-	unsigned int mii_address = priv->mac_type->hw.mii.addr;
+	unsigned int mii_address = priv->hw->mii.addr;
 
 	if (priv->phy_reset) {
 		pr_debug("stmmac_mdio_reset: calling phy_reset\n");

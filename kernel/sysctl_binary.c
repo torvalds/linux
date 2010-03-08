@@ -1331,7 +1331,7 @@ static ssize_t binary_sysctl(const int *name, int nlen,
 	ssize_t result;
 	char *pathname;
 	int flags;
-	int acc_mode, fmode;
+	int acc_mode;
 
 	pathname = sysctl_getname(name, nlen, &table);
 	result = PTR_ERR(pathname);
@@ -1342,15 +1342,12 @@ static ssize_t binary_sysctl(const int *name, int nlen,
 	if (oldval && oldlen && newval && newlen) {
 		flags = O_RDWR;
 		acc_mode = MAY_READ | MAY_WRITE;
-		fmode = FMODE_READ | FMODE_WRITE;
 	} else if (newval && newlen) {
 		flags = O_WRONLY;
 		acc_mode = MAY_WRITE;
-		fmode = FMODE_WRITE;
 	} else if (oldval && oldlen) {
 		flags = O_RDONLY;
 		acc_mode = MAY_READ;
-		fmode = FMODE_READ;
 	} else {
 		result = 0;
 		goto out_putname;
@@ -1361,7 +1358,7 @@ static ssize_t binary_sysctl(const int *name, int nlen,
 	if (result)
 		goto out_putname;
 
-	result = may_open(&nd.path, acc_mode, fmode);
+	result = may_open(&nd.path, acc_mode, flags);
 	if (result)
 		goto out_putpath;
 
