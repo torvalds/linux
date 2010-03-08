@@ -407,11 +407,19 @@ static inline long copy_to_user(void __user *to,
 }
 
 extern int __strncpy_user(char *to, const char __user *from, int len);
+
+#define __strncpy_from_user	__strncpy_user
+
+static inline long
+strncpy_from_user(char *dst, const char __user *src, long count)
+{
+	if (!access_ok(VERIFY_READ, src, 1))
+		return -EFAULT;
+	return __strncpy_from_user(dst, src, count);
+}
+
 extern int __strnlen_user(const char __user *sstr, int len);
 
-#define strncpy_from_user(to, from, len)	\
-		(access_ok(VERIFY_READ, from, 1) ?	\
-			__strncpy_user(to, from, len) : -EFAULT)
 #define strnlen_user(str, len)	\
 		(access_ok(VERIFY_READ, str, 1) ? __strnlen_user(str, len) : 0)
 
