@@ -405,7 +405,7 @@ static int ql_set_wol(struct net_device *ndev, struct ethtool_wolinfo *wol)
 		u32 wol = 0;
 		status = ql_mb_wol_mode(qdev, wol);
 		netif_err(qdev, drv, qdev->ndev, "WOL %s (wol code 0x%x)\n",
-			  status == 0 ? "cleared sucessfully" : "clear failed",
+			  status == 0 ? "cleared successfully" : "clear failed",
 			  wol);
 	}
 

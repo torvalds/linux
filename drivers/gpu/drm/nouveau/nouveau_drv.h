@@ -553,7 +553,7 @@ struct drm_nouveau_private {
 	uint32_t ramro_offset;
 	uint32_t ramro_size;
 
-	/* base physical adresses */
+	/* base physical addresses */
 	uint64_t fb_phys;
 	uint64_t fb_available_size;
 	uint64_t fb_mappable_pages;

@@ -1851,7 +1851,7 @@ static void bdx_tx_push_desc(struct bdx_priv *priv, void *data, int size)
  * @data - desc's data
  * @size - desc's size
  *
- * NOTE: this func does check for available space and, if neccessary, waits for
+ * NOTE: this func does check for available space and, if necessary, waits for
  *   NIC to read existing data before writing new one.
  */
 static void bdx_tx_push_desc_safe(struct bdx_priv *priv, void *data, int size)

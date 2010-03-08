@@ -353,7 +353,7 @@ static void hvc_close_event(struct HvLpEvent *event)
 
 	if (!hvlpevent_is_int(event)) {
 		printk(KERN_WARNING
-			"hvc: got unexpected close acknowlegement\n");
+			"hvc: got unexpected close acknowledgement\n");
 		return;
 	}
 

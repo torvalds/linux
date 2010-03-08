@@ -1,6 +1,6 @@
 /*
  *	xt_hashlimit - Netfilter module to limit the number of packets per time
- *	seperately for each hashbucket (sourceip/sourceport/dstip/dstport)
+ *	separately for each hashbucket (sourceip/sourceport/dstip/dstport)
  *
  *	(C) 2003-2004 by Harald Welte <laforge@netfilter.org>
  *	Copyright © CC Computer Consultants GmbH, 2007 - 2008

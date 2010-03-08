@@ -358,7 +358,7 @@ static struct resource ave_resources[] = {
 	/*
 	 * The AVE3e requires two regions of 256MB that it considers
 	 * "invisible". The hardware will not be able to access these
-	 * adresses, so they should never point to system RAM.
+	 * addresses, so they should never point to system RAM.
 	 */
 	{
 		.name  = "AVE3e Reserved 0",
@@ -1596,7 +1596,7 @@ static void __init u300_init_check_chip(void)
 /*
  * Some devices and their resources require reserved physical memory from
  * the end of the available RAM. This function traverses the list of devices
- * and assigns actual adresses to these.
+ * and assigns actual addresses to these.
  */
 static void __init u300_assign_physmem(void)
 {

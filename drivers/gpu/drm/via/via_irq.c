@@ -150,7 +150,7 @@ irqreturn_t via_driver_irq_handler(DRM_IRQ_ARGS)
 		cur_irq++;
 	}
 
-	/* Acknowlege interrupts */
+	/* Acknowledge interrupts */
 	VIA_WRITE(VIA_REG_INTERRUPT, status);
 
 
@@ -165,7 +165,7 @@ static __inline__ void viadrv_acknowledge_irqs(drm_via_private_t * dev_priv)
 	u32 status;
 
 	if (dev_priv) {
-		/* Acknowlege interrupts */
+		/* Acknowledge interrupts */
 		status = VIA_READ(VIA_REG_INTERRUPT);
 		VIA_WRITE(VIA_REG_INTERRUPT, status |
 			  dev_priv->irq_pending_mask);

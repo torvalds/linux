@@ -87,7 +87,7 @@
 #define BRI_CHANNELS	2		/* Number of B channels */
 #define BRI_BASEPG_VAL	0x98
 #define BRI_MAGIC	0x60000		/* Magic Number */
-#define BRI_MEMSIZE	0x10000		/* Ammount of RAM (64K) */
+#define BRI_MEMSIZE	0x10000		/* Amount of RAM (64K) */
 #define BRI_PARTNO	"72-029"
 #define BRI_FEATURES	ISDN_FEATURE_L2_HDLC | ISDN_FEATURE_L3_TRANS;
 /*

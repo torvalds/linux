@@ -430,7 +430,7 @@ static bool i8042_filter(unsigned char data, unsigned char str,
 	}
 
 	if (i8042_platform_filter && i8042_platform_filter(data, str, serio)) {
-		dbg("Filtered out by platfrom filter\n");
+		dbg("Filtered out by platform filter\n");
 		return true;
 	}
 

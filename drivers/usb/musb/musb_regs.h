@@ -491,7 +491,7 @@ static inline u8  musb_read_txhubport(void __iomem *mbase, u8 epnum)
 #define MUSB_FLAT_OFFSET(_epnum, _offset)	\
 	(USB_OFFSET(USB_EP_NI0_TXMAXP) + (0x40 * (_epnum)) + (_offset))
 
-/* Not implemented - HW has seperate Tx/Rx FIFO */
+/* Not implemented - HW has separate Tx/Rx FIFO */
 #define MUSB_TXCSR_MODE			0x0000
 
 static inline void musb_write_txfifosz(void __iomem *mbase, u8 c_size)

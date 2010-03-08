@@ -374,7 +374,7 @@ static void zd_mac_tx_status(struct ieee80211_hw *hw, struct sk_buff *skb,
  * zd_mac_tx_failed - callback for failed frames
  * @dev: the mac80211 wireless device
  *
- * This function is called if a frame couldn't be successfully be
+ * This function is called if a frame couldn't be successfully
  * transferred. The first frame from the tx queue, will be selected and
  * reported as error to the upper layers.
  */

@@ -442,7 +442,7 @@ struct atl2_hw {
 struct atl2_ring_header {
     /* pointer to the descriptor ring memory */
     void *desc;
-    /* physical adress of the descriptor ring */
+    /* physical address of the descriptor ring */
     dma_addr_t dma;
     /* length of descriptor ring in bytes */
     unsigned int size;

@@ -1309,7 +1309,7 @@ static void calgary_init_bitmap_from_tce_table(struct iommu_table *tbl)
 /*
  * get_tce_space_from_tar():
  * Function for kdump case. Get the tce tables from first kernel
- * by reading the contents of the base adress register of calgary iommu
+ * by reading the contents of the base address register of calgary iommu
  */
 static void __init get_tce_space_from_tar(void)
 {

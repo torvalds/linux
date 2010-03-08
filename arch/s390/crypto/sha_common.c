@@ -79,7 +79,7 @@ int s390_sha_final(struct shash_desc *desc, u8 *out)
 	memset(ctx->buf + index, 0x00, end - index - 8);
 
 	/*
-	 * Append message length. Well, SHA-512 wants a 128 bit lenght value,
+	 * Append message length. Well, SHA-512 wants a 128 bit length value,
 	 * nevertheless we use u64, should be enough for now...
 	 */
 	bits = ctx->count * 8;

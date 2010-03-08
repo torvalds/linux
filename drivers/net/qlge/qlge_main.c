@@ -3855,7 +3855,7 @@ int ql_wol(struct ql_adapter *qdev)
 		status = ql_mb_wol_mode(qdev, wol);
 		netif_err(qdev, drv, qdev->ndev,
 			  "WOL %s (wol code 0x%x) on %s\n",
-			  (status == 0) ? "Sucessfully set" : "Failed",
+			  (status == 0) ? "Successfully set" : "Failed",
 			  wol, qdev->ndev->name);
 	}
 

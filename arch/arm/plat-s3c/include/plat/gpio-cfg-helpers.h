@@ -78,7 +78,7 @@ extern int s3c_gpio_setcfg_s3c24xx_a(struct s3c_gpio_chip *chip,
  *	others = Special functions (dependant on bank)
  *
  * Note, since the code to deal with the case where there are two control
- * registers instead of one, we do not have a seperate set of functions for
+ * registers instead of one, we do not have a separate set of functions for
  * each case.
 */
 extern int s3c_gpio_setcfg_s3c64xx_4bit(struct s3c_gpio_chip *chip,
