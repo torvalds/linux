@@ -745,11 +745,11 @@ static int intel_pmu_handle_irq(struct pt_regs *regs)
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
-	perf_disable();
+	intel_pmu_disable_all();
 	intel_pmu_drain_bts_buffer();
 	status = intel_pmu_get_status();
 	if (!status) {
-		perf_enable();
+		intel_pmu_enable_all();
 		return 0;
 	}
 
@@ -759,8 +759,7 @@ again:
 		WARN_ONCE(1, "perfevents: irq loop stuck!\n");
 		perf_event_print_debug();
 		intel_pmu_reset();
-		perf_enable();
-		return 1;
+		goto done;
 	}
 
 	inc_irq_stat(apic_perf_irqs);
@@ -790,8 +789,8 @@ again:
 	if (status)
 		goto again;
 
-	perf_enable();
-
+done:
+	intel_pmu_enable_all();
 	return 1;
 }
 
