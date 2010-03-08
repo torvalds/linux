@@ -1114,8 +1114,6 @@ static int qeth_setup_card(struct qeth_card *card)
 	card->ipato.enabled = 0;
 	card->ipato.invert4 = 0;
 	card->ipato.invert6 = 0;
-	if (card->info.type == QETH_CARD_TYPE_IQD)
-		card->options.checksum_type = NO_CHECKSUMMING;
 	/* init QDIO stuff */
 	qeth_init_qdio_info(card);
 	return 0;
