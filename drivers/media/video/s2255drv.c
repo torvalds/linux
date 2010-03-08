@@ -1427,11 +1427,19 @@ static int vidioc_s_std(struct file *file, void *priv, v4l2_std_id *i)
 	}
 	mode = &fh->mode;
 	if (*i & V4L2_STD_NTSC) {
-		dprintk(4, "vidioc_s_std NTSC\n");
-		mode->format = FORMAT_NTSC;
+		dprintk(4, "%s NTSC\n", __func__);
+		/* if changing format, reset frame decimation/intervals */
+		if (mode->format != FORMAT_NTSC) {
+			mode->format = FORMAT_NTSC;
+			mode->fdec = FDEC_1;
+		}
 	} else if (*i & V4L2_STD_PAL) {
-		dprintk(4, "vidioc_s_std PAL\n");
+		dprintk(4, "%s PAL\n", __func__);
 		mode->format = FORMAT_PAL;
+		if (mode->format != FORMAT_PAL) {
+			mode->format = FORMAT_PAL;
+			mode->fdec = FDEC_1;
+		}
 	} else {
 		ret = -EINVAL;
 	}
@@ -1633,10 +1641,34 @@ static int vidioc_g_parm(struct file *file, void *priv,
 {
 	struct s2255_fh *fh = priv;
 	struct s2255_dev *dev = fh->dev;
+	__u32 def_num, def_dem;
 	if (sp->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
+	memset(sp, 0, sizeof(struct v4l2_streamparm));
+	sp->parm.capture.capability = V4L2_CAP_TIMEPERFRAME;
 	sp->parm.capture.capturemode = dev->cap_parm[fh->channel].capturemode;
-	dprintk(2, "getting parm %d\n", sp->parm.capture.capturemode);
+	def_num = (fh->mode.format == FORMAT_NTSC) ? 1001 : 1000;
+	def_dem = (fh->mode.format == FORMAT_NTSC) ? 30000 : 25000;
+	sp->parm.capture.timeperframe.denominator = def_dem;
+	switch (fh->mode.fdec) {
+	default:
+	case FDEC_1:
+		sp->parm.capture.timeperframe.numerator = def_num;
+		break;
+	case FDEC_2:
+		sp->parm.capture.timeperframe.numerator = def_num * 2;
+		break;
+	case FDEC_3:
+		sp->parm.capture.timeperframe.numerator = def_num * 3;
+		break;
+	case FDEC_5:
+		sp->parm.capture.timeperframe.numerator = def_num * 5;
+		break;
+	}
+	dprintk(4, "%s capture mode, %d timeperframe %d/%d\n", __func__,
+		sp->parm.capture.capturemode,
+		sp->parm.capture.timeperframe.numerator,
+		sp->parm.capture.timeperframe.denominator);
 	return 0;
 }
 
@@ -1645,15 +1677,79 @@ static int vidioc_s_parm(struct file *file, void *priv,
 {
 	struct s2255_fh *fh = priv;
 	struct s2255_dev *dev = fh->dev;
-
+	int fdec = FDEC_1;
+	__u32 def_num, def_dem;
 	if (sp->type != V4L2_BUF_TYPE_VIDEO_CAPTURE)
 		return -EINVAL;
-
-	dev->cap_parm[fh->channel].capturemode = sp->parm.capture.capturemode;
-	dprintk(2, "setting param capture mode %d\n",
-		sp->parm.capture.capturemode);
+	/* high quality capture mode requires a stream restart */
+	if (dev->cap_parm[fh->channel].capturemode
+	    != sp->parm.capture.capturemode && res_locked(fh->dev, fh))
+		return -EBUSY;
+	def_num = (fh->mode.format == FORMAT_NTSC) ? 1001 : 1000;
+	def_dem = (fh->mode.format == FORMAT_NTSC) ? 30000 : 25000;
+	if (def_dem != sp->parm.capture.timeperframe.denominator)
+		sp->parm.capture.timeperframe.numerator = def_num;
+	else if (sp->parm.capture.timeperframe.numerator <= def_num)
+		sp->parm.capture.timeperframe.numerator = def_num;
+	else if (sp->parm.capture.timeperframe.numerator <= (def_num * 2)) {
+		sp->parm.capture.timeperframe.numerator = def_num * 2;
+		fdec = FDEC_2;
+	} else if (sp->parm.capture.timeperframe.numerator <= (def_num * 3)) {
+		sp->parm.capture.timeperframe.numerator = def_num * 3;
+		fdec = FDEC_3;
+	} else {
+		sp->parm.capture.timeperframe.numerator = def_num * 5;
+		fdec = FDEC_5;
+	}
+	fh->mode.fdec = fdec;
+	sp->parm.capture.timeperframe.denominator = def_dem;
+	s2255_set_mode(dev, fh->channel, &fh->mode);
+	dprintk(4, "%s capture mode, %d timeperframe %d/%d, fdec %d\n",
+		__func__,
+		sp->parm.capture.capturemode,
+		sp->parm.capture.timeperframe.numerator,
+		sp->parm.capture.timeperframe.denominator, fdec);
 	return 0;
 }
+
+static int vidioc_enum_frameintervals(struct file *file, void *priv,
+			    struct v4l2_frmivalenum *fe)
+{
+	int is_ntsc = 0;
+#define NUM_FRAME_ENUMS 4
+	int frm_dec[NUM_FRAME_ENUMS] = {1, 2, 3, 5};
+	if (fe->index < 0 || fe->index >= NUM_FRAME_ENUMS)
+		return -EINVAL;
+	switch (fe->width) {
+	case 640:
+		if (fe->height != 240 && fe->height != 480)
+			return -EINVAL;
+		is_ntsc = 1;
+		break;
+	case 320:
+		if (fe->height != 240)
+			return -EINVAL;
+		is_ntsc = 1;
+		break;
+	case 704:
+		if (fe->height != 288 && fe->height != 576)
+			return -EINVAL;
+		break;
+	case 352:
+		if (fe->height != 288)
+			return -EINVAL;
+		break;
+	default:
+		return -EINVAL;
+	}
+	fe->type = V4L2_FRMIVAL_TYPE_DISCRETE;
+	fe->discrete.denominator = is_ntsc ? 30000 : 25000;
+	fe->discrete.numerator = (is_ntsc ? 1001 : 1000) * frm_dec[fe->index];
+	dprintk(4, "%s discrete %d/%d\n", __func__, fe->discrete.numerator,
+		fe->discrete.denominator);
+	return 0;
+}
+
 static int s2255_open(struct file *file)
 {
 	struct video_device *vdev = video_devdata(file);
@@ -1932,6 +2028,7 @@ static const struct v4l2_ioctl_ops s2255_ioctl_ops = {
 	.vidioc_g_jpegcomp = vidioc_g_jpegcomp,
 	.vidioc_s_parm = vidioc_s_parm,
 	.vidioc_g_parm = vidioc_g_parm,
+	.vidioc_enum_frameintervals = vidioc_enum_frameintervals,
 };
 
 static struct video_device template = {
