@@ -10,10 +10,6 @@
  *
  *  Modified for omap shared clock framework by Tony Lindgren <tony@atomide.com>
  *
- *  With clkdev bits:
- *
- *	Copyright (C) 2008 Russell King.
- *
  * This file is subject to the terms and conditions of the GNU General Public
  * License.  See the file "COPYING" in the main directory of this archive
  * for more details.
@@ -30,6 +26,7 @@
 #include <linux/platform_device.h>
 #include <linux/debugfs.h>
 #include <linux/cpufreq.h>
+#include <linux/clk.h>
 #include <asm/clock.h>
 #include <asm/machvec.h>
 
@@ -396,56 +393,6 @@ long clk_round_rate(struct clk *clk, unsigned long rate)
 	return clk_get_rate(clk);
 }
 EXPORT_SYMBOL_GPL(clk_round_rate);
-
-/*
- * Find the correct struct clk for the device and connection ID.
- * We do slightly fuzzy matching here:
- *  An entry with a NULL ID is assumed to be a wildcard.
- *  If an entry has a device ID, it must match
- *  If an entry has a connection ID, it must match
- * Then we take the most specific entry - with the following
- * order of precidence: dev+con > dev only > con only.
- */
-static struct clk *clk_find(const char *dev_id, const char *con_id)
-{
-	struct clk_lookup *p;
-	struct clk *clk = NULL;
-	int match, best = 0;
-
-	list_for_each_entry(p, &clock_list, node) {
-		match = 0;
-		if (p->dev_id) {
-			if (!dev_id || strcmp(p->dev_id, dev_id))
-				continue;
-			match += 2;
-		}
-		if (p->con_id) {
-			if (!con_id || strcmp(p->con_id, con_id))
-				continue;
-			match += 1;
-		}
-		if (match == 0)
-			continue;
-
-		if (match > best) {
-			clk = p->clk;
-			best = match;
-		}
-	}
-	return clk;
-}
-
-struct clk *clk_get_sys(const char *dev_id, const char *con_id)
-{
-	struct clk *clk;
-
-	mutex_lock(&clock_list_sem);
-	clk = clk_find(dev_id, con_id);
-	mutex_unlock(&clock_list_sem);
-
-	return clk ? clk : ERR_PTR(-ENOENT);
-}
-EXPORT_SYMBOL_GPL(clk_get_sys);
 
 /*
  * Returns a clock. Note that we first try to use device id on the bus
