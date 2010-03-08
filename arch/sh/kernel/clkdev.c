@@ -20,6 +20,9 @@
 #include <linux/string.h>
 #include <linux/mutex.h>
 #include <linux/clk.h>
+#include <linux/slab.h>
+#include <linux/bootmem.h>
+#include <linux/mm.h>
 #include <asm/clock.h>
 #include <asm/clkdev.h>
 
@@ -103,12 +106,16 @@ struct clk_lookup_alloc {
 	char	con_id[MAX_CON_ID];
 };
 
-struct clk_lookup *clkdev_alloc(struct clk *clk, const char *con_id,
-	const char *dev_fmt, ...)
+struct clk_lookup * __init_refok
+clkdev_alloc(struct clk *clk, const char *con_id, const char *dev_fmt, ...)
 {
 	struct clk_lookup_alloc *cla;
 
-	cla = kzalloc(sizeof(*cla), GFP_KERNEL);
+	if (!slab_is_available())
+		cla = alloc_bootmem_low_pages(sizeof(*cla));
+	else
+		cla = kzalloc(sizeof(*cla), GFP_KERNEL);
+
 	if (!cla)
 		return NULL;
 
