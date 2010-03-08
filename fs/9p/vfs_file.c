@@ -215,7 +215,7 @@ v9fs_file_write(struct file *filp, const char __user * data,
 	struct p9_fid *fid;
 	struct p9_client *clnt;
 	struct inode *inode = filp->f_path.dentry->d_inode;
-	int origin = *offset;
+	loff_t origin = *offset;
 	unsigned long pg_start, pg_end;
 
 	P9_DPRINTK(P9_DEBUG_VFS, "data %p count %d offset %x\n", data,
