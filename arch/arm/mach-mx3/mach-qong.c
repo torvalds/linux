@@ -34,7 +34,6 @@
 #include <mach/common.h>
 #include <asm/page.h>
 #include <asm/setup.h>
-#include <mach/board-qong.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include "devices.h"
@@ -116,7 +115,7 @@ static struct physmap_flash_data qong_flash_data = {
 
 static struct resource qong_flash_resource = {
 	.start = MX31_CS0_BASE_ADDR,
-	.end = MX31_CS0_BASE_ADDR + QONG_NOR_SIZE - 1,
+	.end = MX31_CS0_BASE_ADDR + SZ_128M - 1,
 	.flags = IORESOURCE_MEM,
 };
 
