@@ -72,12 +72,11 @@ static void intel_pmu_lbr_enable(struct perf_event *event)
 	WARN_ON_ONCE(cpuc->enabled);
 
 	/*
-	 * Reset the LBR stack if this is the first LBR user or
-	 * we changed task context so as to avoid data leaks.
+	 * Reset the LBR stack if we changed task context to
+	 * avoid data leaks.
 	 */
 
-	if (!cpuc->lbr_users ||
-	    (event->ctx->task && cpuc->lbr_context != event->ctx)) {
+	if (event->ctx->task && cpuc->lbr_context != event->ctx) {
 		intel_pmu_lbr_reset();
 		cpuc->lbr_context = event->ctx;
 	}
@@ -93,7 +92,7 @@ static void intel_pmu_lbr_disable(struct perf_event *event)
 		return;
 
 	cpuc->lbr_users--;
-	BUG_ON(cpuc->lbr_users < 0);
+	WARN_ON_ONCE(cpuc->lbr_users < 0);
 
 	if (cpuc->enabled && !cpuc->lbr_users)
 		__intel_pmu_lbr_disable();
