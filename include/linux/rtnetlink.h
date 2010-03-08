@@ -362,17 +362,17 @@ enum {
 #define RTAX_FEATURES RTAX_FEATURES
 	RTAX_RTO_MIN,
 #define RTAX_RTO_MIN RTAX_RTO_MIN
+	RTAX_INITRWND,
+#define RTAX_INITRWND RTAX_INITRWND
 	__RTAX_MAX
 };
 
 #define RTAX_MAX (__RTAX_MAX - 1)
 
 #define RTAX_FEATURE_ECN	0x00000001
-#define RTAX_FEATURE_NO_SACK	0x00000002
-#define RTAX_FEATURE_NO_TSTAMP	0x00000004
+#define RTAX_FEATURE_SACK	0x00000002
+#define RTAX_FEATURE_TIMESTAMP	0x00000004
 #define RTAX_FEATURE_ALLFRAG	0x00000008
-#define RTAX_FEATURE_NO_WSCALE	0x00000010
-#define RTAX_FEATURE_NO_DSACK	0x00000020
 
 struct rta_session {
 	__u8	proto;
@@ -737,6 +737,9 @@ extern void rtnl_lock(void);
 extern void rtnl_unlock(void);
 extern int rtnl_trylock(void);
 extern int rtnl_is_locked(void);
+#ifdef CONFIG_PROVE_LOCKING
+extern int lockdep_rtnl_is_held(void);
+#endif /* #ifdef CONFIG_PROVE_LOCKING */
 
 extern void rtnetlink_init(void);
 extern void __rtnl_unlock(void);

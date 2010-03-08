@@ -19,7 +19,7 @@
 
 #include <linux/pci.h>
 #include <linux/gfp.h>
-#include <linux/bitops.h>
+#include <linux/bitmap.h>
 #include <linux/debugfs.h>
 #include <linux/scatterlist.h>
 #include <linux/dma-mapping.h>
@@ -165,6 +165,43 @@ static int iommu_init_device(struct device *dev)
 static void iommu_uninit_device(struct device *dev)
 {
 	kfree(dev->archdata.iommu);
+}
+
+void __init amd_iommu_uninit_devices(void)
+{
+	struct pci_dev *pdev = NULL;
+
+	for_each_pci_dev(pdev) {
+
+		if (!check_device(&pdev->dev))
+			continue;
+
+		iommu_uninit_device(&pdev->dev);
+	}
+}
+
+int __init amd_iommu_init_devices(void)
+{
+	struct pci_dev *pdev = NULL;
+	int ret = 0;
+
+	for_each_pci_dev(pdev) {
+
+		if (!check_device(&pdev->dev))
+			continue;
+
+		ret = iommu_init_device(&pdev->dev);
+		if (ret)
+			goto out_free;
+	}
+
+	return 0;
+
+out_free:
+
+	amd_iommu_uninit_devices();
+
+	return ret;
 }
 #ifdef CONFIG_AMD_IOMMU_STATS
 
@@ -943,7 +980,7 @@ static int alloc_new_range(struct dma_ops_domain *dma_dom,
 {
 	int index = dma_dom->aperture_size >> APERTURE_RANGE_SHIFT;
 	struct amd_iommu *iommu;
-	int i;
+	unsigned long i;
 
 #ifdef CONFIG_IOMMU_STRESS
 	populate = false;
@@ -1125,7 +1162,7 @@ static void dma_ops_free_addresses(struct dma_ops_domain *dom,
 
 	address = (address % APERTURE_RANGE_SIZE) >> PAGE_SHIFT;
 
-	iommu_area_free(range->bitmap, address, pages);
+	bitmap_clear(range->bitmap, address, pages);
 
 }
 
@@ -1452,11 +1489,14 @@ static void __detach_device(struct device *dev)
 {
 	struct iommu_dev_data *dev_data = get_dev_data(dev);
 	struct iommu_dev_data *alias_data;
+	struct protection_domain *domain;
 	unsigned long flags;
 
 	BUG_ON(!dev_data->domain);
 
-	spin_lock_irqsave(&dev_data->domain->lock, flags);
+	domain = dev_data->domain;
+
+	spin_lock_irqsave(&domain->lock, flags);
 
 	if (dev_data->alias != dev) {
 		alias_data = get_dev_data(dev_data->alias);
@@ -1467,13 +1507,15 @@ static void __detach_device(struct device *dev)
 	if (atomic_dec_and_test(&dev_data->bind))
 		do_detach(dev);
 
-	spin_unlock_irqrestore(&dev_data->domain->lock, flags);
+	spin_unlock_irqrestore(&domain->lock, flags);
 
 	/*
 	 * If we run in passthrough mode the device must be assigned to the
-	 * passthrough domain if it is detached from any other domain
+	 * passthrough domain if it is detached from any other domain.
+	 * Make sure we can deassign from the pt_domain itself.
 	 */
-	if (iommu_pass_through && dev_data->domain == NULL)
+	if (iommu_pass_through &&
+	    (dev_data->domain == NULL && domain != pt_domain))
 		__attach_device(dev, pt_domain);
 }
 
@@ -1586,6 +1628,11 @@ out:
 static struct notifier_block device_nb = {
 	.notifier_call = device_change_notifier,
 };
+
+void amd_iommu_init_notifier(void)
+{
+	bus_register_notifier(&pci_bus_type, &device_nb);
+}
 
 /*****************************************************************************
  *
@@ -2145,8 +2192,6 @@ static void prealloc_protection_domains(void)
 		if (!check_device(&dev->dev))
 			continue;
 
-		iommu_init_device(&dev->dev);
-
 		/* Is there already any domain for it? */
 		if (domain_for_device(&dev->dev))
 			continue;
@@ -2178,6 +2223,12 @@ static struct dma_map_ops amd_iommu_dma_ops = {
 /*
  * The function which clues the AMD IOMMU driver into dma_ops.
  */
+
+void __init amd_iommu_init_api(void)
+{
+	register_iommu(&amd_iommu_ops);
+}
+
 int __init amd_iommu_init_dma_ops(void)
 {
 	struct amd_iommu *iommu;
@@ -2212,10 +2263,6 @@ int __init amd_iommu_init_dma_ops(void)
 
 	/* Make the driver finally visible to the drivers */
 	dma_ops = &amd_iommu_dma_ops;
-
-	register_iommu(&amd_iommu_ops);
-
-	bus_register_notifier(&pci_bus_type, &device_nb);
 
 	amd_iommu_stats_init();
 

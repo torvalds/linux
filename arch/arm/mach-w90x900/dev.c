@@ -197,7 +197,7 @@ static struct platform_device nuc900_device_emc = {
 
 /* SPI device */
 
-static struct w90p910_spi_info nuc900_spiflash_data = {
+static struct nuc900_spi_info nuc900_spiflash_data = {
 	.num_cs		= 1,
 	.lsb		= 0,
 	.txneg		= 1,

@@ -214,17 +214,18 @@ ENTRY(arm1022_coherent_user_range)
 	mov	pc, lr
 
 /*
- *	flush_kern_dcache_page(void *page)
+ *	flush_kern_dcache_area(void *addr, size_t size)
  *
  *	Ensure no D cache aliasing occurs, either with itself or
  *	the I cache
  *
- *	- page	- page aligned address
+ *	- addr	- kernel address
+ *	- size	- region size
  */
-ENTRY(arm1022_flush_kern_dcache_page)
+ENTRY(arm1022_flush_kern_dcache_area)
 	mov	ip, #0
 #ifndef CONFIG_CPU_DCACHE_DISABLE
-	add	r1, r0, #PAGE_SZ
+	add	r1, r0, r1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean+invalidate D entry
 	add	r0, r0, #CACHE_DLINESIZE
 	cmp	r0, r1
@@ -246,7 +247,7 @@ ENTRY(arm1022_flush_kern_dcache_page)
  *
  * (same as v4wb)
  */
-ENTRY(arm1022_dma_inv_range)
+arm1022_dma_inv_range:
 	mov	ip, #0
 #ifndef CONFIG_CPU_DCACHE_DISABLE
 	tst	r0, #CACHE_DLINESIZE - 1
@@ -272,7 +273,7 @@ ENTRY(arm1022_dma_inv_range)
  *
  * (same as v4wb)
  */
-ENTRY(arm1022_dma_clean_range)
+arm1022_dma_clean_range:
 	mov	ip, #0
 #ifndef CONFIG_CPU_DCACHE_DISABLE
 	bic	r0, r0, #CACHE_DLINESIZE - 1
@@ -304,15 +305,39 @@ ENTRY(arm1022_dma_flush_range)
 	mcr	p15, 0, ip, c7, c10, 4		@ drain WB
 	mov	pc, lr
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(arm1022_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	arm1022_dma_clean_range
+	bcs	arm1022_dma_inv_range
+	b	arm1022_dma_flush_range
+ENDPROC(arm1022_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(arm1022_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(arm1022_dma_unmap_area)
+
 ENTRY(arm1022_cache_fns)
 	.long	arm1022_flush_kern_cache_all
 	.long	arm1022_flush_user_cache_all
 	.long	arm1022_flush_user_cache_range
 	.long	arm1022_coherent_kern_range
 	.long	arm1022_coherent_user_range
-	.long	arm1022_flush_kern_dcache_page
-	.long	arm1022_dma_inv_range
-	.long	arm1022_dma_clean_range
+	.long	arm1022_flush_kern_dcache_area
+	.long	arm1022_dma_map_area
+	.long	arm1022_dma_unmap_area
 	.long	arm1022_dma_flush_range
 
 	.align	5

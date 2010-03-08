@@ -1696,10 +1696,12 @@ static int ext3_create (struct inode * dir, struct dentry * dentry, int mode,
 	struct inode * inode;
 	int err, retries = 0;
 
+	dquot_initialize(dir);
+
 retry:
 	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
 					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					2*EXT3_QUOTA_INIT_BLOCKS(dir->i_sb));
+					EXT3_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -1730,10 +1732,12 @@ static int ext3_mknod (struct inode * dir, struct dentry *dentry,
 	if (!new_valid_dev(rdev))
 		return -EINVAL;
 
+	dquot_initialize(dir);
+
 retry:
 	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
 					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					2*EXT3_QUOTA_INIT_BLOCKS(dir->i_sb));
+					EXT3_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -1766,10 +1770,12 @@ static int ext3_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 	if (dir->i_nlink >= EXT3_LINK_MAX)
 		return -EMLINK;
 
+	dquot_initialize(dir);
+
 retry:
 	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
 					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 3 +
-					2*EXT3_QUOTA_INIT_BLOCKS(dir->i_sb));
+					EXT3_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -1920,7 +1926,7 @@ int ext3_orphan_add(handle_t *handle, struct inode *inode)
 	struct ext3_iloc iloc;
 	int err = 0, rc;
 
-	lock_super(sb);
+	mutex_lock(&EXT3_SB(sb)->s_orphan_lock);
 	if (!list_empty(&EXT3_I(inode)->i_orphan))
 		goto out_unlock;
 
@@ -1929,9 +1935,13 @@ int ext3_orphan_add(handle_t *handle, struct inode *inode)
 
 	/* @@@ FIXME: Observation from aviro:
 	 * I think I can trigger J_ASSERT in ext3_orphan_add().  We block
-	 * here (on lock_super()), so race with ext3_link() which might bump
+	 * here (on s_orphan_lock), so race with ext3_link() which might bump
 	 * ->i_nlink. For, say it, character device. Not a regular file,
 	 * not a directory, not a symlink and ->i_nlink > 0.
+	 *
+	 * tytso, 4/25/2009: I'm not sure how that could happen;
+	 * shouldn't the fs core protect us from these sort of
+	 * unlink()/link() races?
 	 */
 	J_ASSERT ((S_ISREG(inode->i_mode) || S_ISDIR(inode->i_mode) ||
 		S_ISLNK(inode->i_mode)) || inode->i_nlink == 0);
@@ -1968,7 +1978,7 @@ int ext3_orphan_add(handle_t *handle, struct inode *inode)
 	jbd_debug(4, "orphan inode %lu will point to %d\n",
 			inode->i_ino, NEXT_ORPHAN(inode));
 out_unlock:
-	unlock_super(sb);
+	mutex_unlock(&EXT3_SB(sb)->s_orphan_lock);
 	ext3_std_error(inode->i_sb, err);
 	return err;
 }
@@ -1986,11 +1996,9 @@ int ext3_orphan_del(handle_t *handle, struct inode *inode)
 	struct ext3_iloc iloc;
 	int err = 0;
 
-	lock_super(inode->i_sb);
-	if (list_empty(&ei->i_orphan)) {
-		unlock_super(inode->i_sb);
-		return 0;
-	}
+	mutex_lock(&EXT3_SB(inode->i_sb)->s_orphan_lock);
+	if (list_empty(&ei->i_orphan))
+		goto out;
 
 	ino_next = NEXT_ORPHAN(inode);
 	prev = ei->i_orphan.prev;
@@ -2040,7 +2048,7 @@ int ext3_orphan_del(handle_t *handle, struct inode *inode)
 out_err:
 	ext3_std_error(inode->i_sb, err);
 out:
-	unlock_super(inode->i_sb);
+	mutex_unlock(&EXT3_SB(inode->i_sb)->s_orphan_lock);
 	return err;
 
 out_brelse:
@@ -2058,7 +2066,9 @@ static int ext3_rmdir (struct inode * dir, struct dentry *dentry)
 
 	/* Initialize quotas before so that eventual writes go in
 	 * separate transaction */
-	vfs_dq_init(dentry->d_inode);
+	dquot_initialize(dir);
+	dquot_initialize(dentry->d_inode);
+
 	handle = ext3_journal_start(dir, EXT3_DELETE_TRANS_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
@@ -2117,7 +2127,9 @@ static int ext3_unlink(struct inode * dir, struct dentry *dentry)
 
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
-	vfs_dq_init(dentry->d_inode);
+	dquot_initialize(dir);
+	dquot_initialize(dentry->d_inode);
+
 	handle = ext3_journal_start(dir, EXT3_DELETE_TRANS_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
@@ -2172,10 +2184,12 @@ static int ext3_symlink (struct inode * dir,
 	if (l > dir->i_sb->s_blocksize)
 		return -ENAMETOOLONG;
 
+	dquot_initialize(dir);
+
 retry:
 	handle = ext3_journal_start(dir, EXT3_DATA_TRANS_BLOCKS(dir->i_sb) +
 					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 5 +
-					2*EXT3_QUOTA_INIT_BLOCKS(dir->i_sb));
+					EXT3_MAXQUOTAS_INIT_BLOCKS(dir->i_sb));
 	if (IS_ERR(handle))
 		return PTR_ERR(handle);
 
@@ -2226,6 +2240,9 @@ static int ext3_link (struct dentry * old_dentry,
 
 	if (inode->i_nlink >= EXT3_LINK_MAX)
 		return -EMLINK;
+
+	dquot_initialize(dir);
+
 	/*
 	 * Return -ENOENT if we've raced with unlink and i_nlink is 0.  Doing
 	 * otherwise has the potential to corrupt the orphan inode list.
@@ -2276,12 +2293,15 @@ static int ext3_rename (struct inode * old_dir, struct dentry *old_dentry,
 	struct ext3_dir_entry_2 * old_de, * new_de;
 	int retval, flush_file = 0;
 
+	dquot_initialize(old_dir);
+	dquot_initialize(new_dir);
+
 	old_bh = new_bh = dir_bh = NULL;
 
 	/* Initialize quotas before so that eventual writes go
 	 * in separate transaction */
 	if (new_dentry->d_inode)
-		vfs_dq_init(new_dentry->d_inode);
+		dquot_initialize(new_dentry->d_inode);
 	handle = ext3_journal_start(old_dir, 2 *
 					EXT3_DATA_TRANS_BLOCKS(old_dir->i_sb) +
 					EXT3_INDEX_EXTRA_TRANS_BLOCKS + 2);

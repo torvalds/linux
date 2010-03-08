@@ -1331,7 +1331,7 @@ static ssize_t binary_sysctl(const int *name, int nlen,
 	ssize_t result;
 	char *pathname;
 	int flags;
-	int acc_mode, fmode;
+	int acc_mode;
 
 	pathname = sysctl_getname(name, nlen, &table);
 	result = PTR_ERR(pathname);
@@ -1342,15 +1342,12 @@ static ssize_t binary_sysctl(const int *name, int nlen,
 	if (oldval && oldlen && newval && newlen) {
 		flags = O_RDWR;
 		acc_mode = MAY_READ | MAY_WRITE;
-		fmode = FMODE_READ | FMODE_WRITE;
 	} else if (newval && newlen) {
 		flags = O_WRONLY;
 		acc_mode = MAY_WRITE;
-		fmode = FMODE_WRITE;
 	} else if (oldval && oldlen) {
 		flags = O_RDONLY;
 		acc_mode = MAY_READ;
-		fmode = FMODE_READ;
 	} else {
 		result = 0;
 		goto out_putname;
@@ -1361,7 +1358,7 @@ static ssize_t binary_sysctl(const int *name, int nlen,
 	if (result)
 		goto out_putname;
 
-	result = may_open(&nd.path, acc_mode, fmode);
+	result = may_open(&nd.path, acc_mode, flags);
 	if (result)
 		goto out_putpath;
 
@@ -1399,6 +1396,13 @@ static void deprecated_sysctl_warning(const int *name, int nlen)
 {
 	int i;
 
+	/*
+	 * CTL_KERN/KERN_VERSION is used by older glibc and cannot
+	 * ever go away.
+	 */
+	if (name[0] == CTL_KERN && name[1] == KERN_VERSION)
+		return;
+
 	if (printk_ratelimit()) {
 		printk(KERN_INFO
 			"warning: process `%s' used the deprecated sysctl "
@@ -1408,6 +1412,35 @@ static void deprecated_sysctl_warning(const int *name, int nlen)
 		printk("\n");
 	}
 	return;
+}
+
+#define WARN_ONCE_HASH_BITS 8
+#define WARN_ONCE_HASH_SIZE (1<<WARN_ONCE_HASH_BITS)
+
+static DECLARE_BITMAP(warn_once_bitmap, WARN_ONCE_HASH_SIZE);
+
+#define FNV32_OFFSET 2166136261U
+#define FNV32_PRIME 0x01000193
+
+/*
+ * Print each legacy sysctl (approximately) only once.
+ * To avoid making the tables non-const use a external
+ * hash-table instead.
+ * Worst case hash collision: 6, but very rarely.
+ * NOTE! We don't use the SMP-safe bit tests. We simply
+ * don't care enough.
+ */
+static void warn_on_bintable(const int *name, int nlen)
+{
+	int i;
+	u32 hash = FNV32_OFFSET;
+
+	for (i = 0; i < nlen; i++)
+		hash = (hash ^ name[i]) * FNV32_PRIME;
+	hash %= WARN_ONCE_HASH_SIZE;
+	if (__test_and_set_bit(hash, warn_once_bitmap))
+		return;
+	deprecated_sysctl_warning(name, nlen);
 }
 
 static ssize_t do_sysctl(int __user *args_name, int nlen,
@@ -1424,7 +1457,7 @@ static ssize_t do_sysctl(int __user *args_name, int nlen,
 		if (get_user(name[i], args_name + i))
 			return -EFAULT;
 
-	deprecated_sysctl_warning(name, nlen);
+	warn_on_bintable(name, nlen);
 
 	return binary_sysctl(name, nlen, oldval, oldlen, newval, newlen);
 }

@@ -26,6 +26,7 @@
 #include <linux/err.h>
 #include <linux/gpio.h>
 #include <linux/clk.h>
+#include <linux/delay.h>
 
 #include <plat/sram.h>
 #include <plat/clockdomain.h>
@@ -124,9 +125,17 @@ static void omap3_core_save_context(void)
 	control_padconf_off |= START_PADCONF_SAVE;
 	omap_ctrl_writel(control_padconf_off, OMAP343X_CONTROL_PADCONF_OFF);
 	/* wait for the save to complete */
-	while (!omap_ctrl_readl(OMAP343X_CONTROL_GENERAL_PURPOSE_STATUS)
-			& PADCONF_SAVE_DONE)
-		;
+	while (!(omap_ctrl_readl(OMAP343X_CONTROL_GENERAL_PURPOSE_STATUS)
+			& PADCONF_SAVE_DONE))
+		udelay(1);
+
+	/*
+	 * Force write last pad into memory, as this can fail in some
+	 * cases according to erratas 1.157, 1.185
+	 */
+	omap_ctrl_writel(omap_ctrl_readl(OMAP343X_PADCONF_ETK_D14),
+		OMAP343X_CONTROL_MEM_WKUP + 0x2a0);
+
 	/* Save the Interrupt controller context */
 	omap_intc_save_context();
 	/* Save the GPMC context */
@@ -392,6 +401,7 @@ void omap_sram_idle(void)
 		prm_set_mod_reg_bits(OMAP3430_EN_IO, WKUP_MOD, PM_WKEN);
 		omap3_enable_io_chain();
 	}
+	omap3_intc_prepare_idle();
 
 	/*
 	* On EMU/HS devices ROM code restores a SRDC value
@@ -438,6 +448,7 @@ void omap_sram_idle(void)
 					       OMAP3430_GR_MOD,
 					       OMAP3_PRM_VOLTCTRL_OFFSET);
 	}
+	omap3_intc_resume_idle();
 
 	/* PER */
 	if (per_next_state < PWRDM_POWER_ON) {
@@ -578,6 +589,8 @@ static int omap3_pm_suspend(void)
 	}
 
 	omap_uart_prepare_suspend();
+	omap3_intc_suspend();
+
 	omap_sram_idle();
 
 restore:
@@ -672,10 +685,10 @@ static void __init omap3_iva_idle(void)
 	prm_write_mod_reg(OMAP3430_RST1_IVA2 |
 			  OMAP3430_RST2_IVA2 |
 			  OMAP3430_RST3_IVA2,
-			  OMAP3430_IVA2_MOD, RM_RSTCTRL);
+			  OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 
 	/* Enable IVA2 clock */
-	cm_write_mod_reg(OMAP3430_CM_FCLKEN_IVA2_EN_IVA2,
+	cm_write_mod_reg(OMAP3430_CM_FCLKEN_IVA2_EN_IVA2_MASK,
 			 OMAP3430_IVA2_MOD, CM_FCLKEN);
 
 	/* Set IVA2 boot mode to 'idle' */
@@ -683,7 +696,7 @@ static void __init omap3_iva_idle(void)
 			 OMAP343X_CONTROL_IVA2_BOOTMOD);
 
 	/* Un-reset IVA2 */
-	prm_write_mod_reg(0, OMAP3430_IVA2_MOD, RM_RSTCTRL);
+	prm_write_mod_reg(0, OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 
 	/* Disable IVA2 clock */
 	cm_write_mod_reg(0, OMAP3430_IVA2_MOD, CM_FCLKEN);
@@ -692,7 +705,7 @@ static void __init omap3_iva_idle(void)
 	prm_write_mod_reg(OMAP3430_RST1_IVA2 |
 			  OMAP3430_RST2_IVA2 |
 			  OMAP3430_RST3_IVA2,
-			  OMAP3430_IVA2_MOD, RM_RSTCTRL);
+			  OMAP3430_IVA2_MOD, OMAP2_RM_RSTCTRL);
 }
 
 static void __init omap3_d2d_idle(void)
@@ -715,8 +728,8 @@ static void __init omap3_d2d_idle(void)
 	/* reset modem */
 	prm_write_mod_reg(OMAP3430_RM_RSTCTRL_CORE_MODEM_SW_RSTPWRON |
 			  OMAP3430_RM_RSTCTRL_CORE_MODEM_SW_RST,
-			  CORE_MOD, RM_RSTCTRL);
-	prm_write_mod_reg(0, CORE_MOD, RM_RSTCTRL);
+			  CORE_MOD, OMAP2_RM_RSTCTRL);
+	prm_write_mod_reg(0, CORE_MOD, OMAP2_RM_RSTCTRL);
 }
 
 static void __init prcm_setup_regs(void)
@@ -835,6 +848,8 @@ static void __init prcm_setup_regs(void)
 			CM_AUTOIDLE);
 	}
 
+	omap_ctrl_writel(OMAP3430_AUTOIDLE, OMAP2_CONTROL_SYSCONFIG);
+
 	/*
 	 * Set all plls to autoidle. This is needed until autoidle is
 	 * enabled by clockfw
@@ -875,15 +890,23 @@ static void __init prcm_setup_regs(void)
 	prm_write_mod_reg(OMAP3430_IO_EN | OMAP3430_WKUP_EN,
 			  OCP_MOD, OMAP3_PRM_IRQENABLE_MPU_OFFSET);
 
+	/* Enable PM_WKEN to support DSS LPR */
+	prm_write_mod_reg(OMAP3430_PM_WKEN_DSS_EN_DSS,
+				OMAP3430_DSS_MOD, PM_WKEN);
+
 	/* Enable wakeups in PER */
 	prm_write_mod_reg(OMAP3430_EN_GPIO2 | OMAP3430_EN_GPIO3 |
 			  OMAP3430_EN_GPIO4 | OMAP3430_EN_GPIO5 |
-			  OMAP3430_EN_GPIO6 | OMAP3430_EN_UART3,
+			  OMAP3430_EN_GPIO6 | OMAP3430_EN_UART3 |
+			  OMAP3430_EN_MCBSP2 | OMAP3430_EN_MCBSP3 |
+			  OMAP3430_EN_MCBSP4,
 			  OMAP3430_PER_MOD, PM_WKEN);
 	/* and allow them to wake up MPU */
 	prm_write_mod_reg(OMAP3430_GRPSEL_GPIO2 | OMAP3430_EN_GPIO3 |
 			  OMAP3430_GRPSEL_GPIO4 | OMAP3430_EN_GPIO5 |
-			  OMAP3430_GRPSEL_GPIO6 | OMAP3430_EN_UART3,
+			  OMAP3430_GRPSEL_GPIO6 | OMAP3430_EN_UART3 |
+			  OMAP3430_EN_MCBSP2 | OMAP3430_EN_MCBSP3 |
+			  OMAP3430_EN_MCBSP4,
 			  OMAP3430_PER_MOD, OMAP3430_PM_MPUGRPSEL);
 
 	/* Don't attach IVA interrupts */
@@ -893,31 +916,13 @@ static void __init prcm_setup_regs(void)
 	prm_write_mod_reg(0, OMAP3430_PER_MOD, OMAP3430_PM_IVAGRPSEL);
 
 	/* Clear any pending 'reset' flags */
-	prm_write_mod_reg(0xffffffff, MPU_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, CORE_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_PER_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_EMU_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_NEON_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_DSS_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430ES2_USBHOST_MOD, RM_RSTST);
-
-	/* Clear any pending PRCM interrupts */
-	prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
-
-	/* Don't attach IVA interrupts */
-	prm_write_mod_reg(0, WKUP_MOD, OMAP3430_PM_IVAGRPSEL);
-	prm_write_mod_reg(0, CORE_MOD, OMAP3430_PM_IVAGRPSEL1);
-	prm_write_mod_reg(0, CORE_MOD, OMAP3430ES2_PM_IVAGRPSEL3);
-	prm_write_mod_reg(0, OMAP3430_PER_MOD, OMAP3430_PM_IVAGRPSEL);
-
-	/* Clear any pending 'reset' flags */
-	prm_write_mod_reg(0xffffffff, MPU_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, CORE_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_PER_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_EMU_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_NEON_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430_DSS_MOD, RM_RSTST);
-	prm_write_mod_reg(0xffffffff, OMAP3430ES2_USBHOST_MOD, RM_RSTST);
+	prm_write_mod_reg(0xffffffff, MPU_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, CORE_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_PER_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_EMU_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_NEON_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430_DSS_MOD, OMAP2_RM_RSTST);
+	prm_write_mod_reg(0xffffffff, OMAP3430ES2_USBHOST_MOD, OMAP2_RM_RSTST);
 
 	/* Clear any pending PRCM interrupts */
 	prm_write_mod_reg(0, OCP_MOD, OMAP3_PRM_IRQSTATUS_MPU_OFFSET);
@@ -935,6 +940,10 @@ void omap3_pm_off_mode_enable(int enable)
 		state = PWRDM_POWER_OFF;
 	else
 		state = PWRDM_POWER_RET;
+
+#ifdef CONFIG_CPU_IDLE
+	omap3_cpuidle_update_states();
+#endif
 
 	list_for_each_entry(pwrst, &pwrst_list, node) {
 		pwrst->next_state = state;
@@ -993,6 +1002,9 @@ static int __init pwrdms_setup(struct powerdomain *pwrdm, void *unused)
  */
 static int __init clkdms_setup(struct clockdomain *clkdm, void *unused)
 {
+	clkdm_clear_all_wkdeps(clkdm);
+	clkdm_clear_all_sleepdeps(clkdm);
+
 	if (clkdm->flags & CLKDM_CAN_ENABLE_AUTO)
 		omap2_clkdm_allow_idle(clkdm);
 	else if (clkdm->flags & CLKDM_CAN_FORCE_SLEEP &&
@@ -1013,6 +1025,7 @@ void omap_push_sram_idle(void)
 static int __init omap3_pm_init(void)
 {
 	struct power_state *pwrst, *tmp;
+	struct clockdomain *neon_clkdm, *per_clkdm, *mpu_clkdm, *core_clkdm;
 	int ret;
 
 	if (!cpu_is_omap34xx())
@@ -1052,6 +1065,11 @@ static int __init omap3_pm_init(void)
 	core_pwrdm = pwrdm_lookup("core_pwrdm");
 	cam_pwrdm = pwrdm_lookup("cam_pwrdm");
 
+	neon_clkdm = clkdm_lookup("neon_clkdm");
+	mpu_clkdm = clkdm_lookup("mpu_clkdm");
+	per_clkdm = clkdm_lookup("per_clkdm");
+	core_clkdm = clkdm_lookup("core_clkdm");
+
 	omap_push_sram_idle();
 #ifdef CONFIG_SUSPEND
 	suspend_set_ops(&omap_pm_ops);
@@ -1060,14 +1078,14 @@ static int __init omap3_pm_init(void)
 	pm_idle = omap3_pm_idle;
 	omap3_idle_init();
 
-	pwrdm_add_wkdep(neon_pwrdm, mpu_pwrdm);
+	clkdm_add_wkdep(neon_clkdm, mpu_clkdm);
 	/*
 	 * REVISIT: This wkdep is only necessary when GPIO2-6 are enabled for
 	 * IO-pad wakeup.  Otherwise it will unnecessarily waste power
 	 * waking up PER with every CORE wakeup - see
 	 * http://marc.info/?l=linux-omap&m=121852150710062&w=2
 	*/
-	pwrdm_add_wkdep(per_pwrdm, core_pwrdm);
+	clkdm_add_wkdep(per_clkdm, core_clkdm);
 
 	if (omap_type() != OMAP2_DEVICE_TYPE_GP) {
 		omap3_secure_ram_storage =

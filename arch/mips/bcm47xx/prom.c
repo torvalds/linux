@@ -100,11 +100,11 @@ static __init void prom_init_console(void)
 
 static __init void prom_init_cmdline(void)
 {
-	static char buf[CL_SIZE] __initdata;
+	static char buf[COMMAND_LINE_SIZE] __initdata;
 
 	/* Get the kernel command line from CFE */
-	if (cfe_getenv("LINUX_CMDLINE", buf, CL_SIZE) >= 0) {
-		buf[CL_SIZE-1] = 0;
+	if (cfe_getenv("LINUX_CMDLINE", buf, COMMAND_LINE_SIZE) >= 0) {
+		buf[COMMAND_LINE_SIZE - 1] = 0;
 		strcpy(arcs_cmdline, buf);
 	}
 
@@ -112,13 +112,13 @@ static __init void prom_init_cmdline(void)
 	 * as CFE is not available anymore later in the boot process. */
 	if ((strstr(arcs_cmdline, "console=")) == NULL) {
 		/* Try to read the default serial port used by CFE */
-		if ((cfe_getenv("BOOT_CONSOLE", buf, CL_SIZE) < 0)
+		if ((cfe_getenv("BOOT_CONSOLE", buf, COMMAND_LINE_SIZE) < 0)
 		    || (strncmp("uart", buf, 4)))
 			/* Default to uart0 */
 			strcpy(buf, "uart0");
 
 		/* Compute the new command line */
-		snprintf(arcs_cmdline, CL_SIZE, "%s console=ttyS%c,115200",
+		snprintf(arcs_cmdline, COMMAND_LINE_SIZE, "%s console=ttyS%c,115200",
 			 arcs_cmdline, buf[4]);
 	}
 }
@@ -141,6 +141,14 @@ static __init void prom_init_mem(void)
 			break;
 	}
 
+	/* Ignoring the last page when ddr size is 128M. Cached
+	 * accesses to last page is causing the processor to prefetch
+	 * using address above 128M stepping out of the ddr address
+	 * space.
+	 */
+	if (mem == 0x8000000)
+		mem -= 0x1000;
+
 	add_memory_region(0, mem, BOOT_MEM_RAM);
 }
 
@@ -155,4 +163,3 @@ void __init prom_init(void)
 void __init prom_free_prom_memory(void)
 {
 }
-

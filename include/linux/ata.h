@@ -647,9 +647,9 @@ static inline int ata_id_has_large_logical_sectors(const u16 *id)
 	return id[ATA_ID_SECTOR_SIZE] & (1 << 13);
 }
 
-static inline u8 ata_id_logical_per_physical_sectors(const u16 *id)
+static inline u16 ata_id_logical_per_physical_sectors(const u16 *id)
 {
-	return id[ATA_ID_SECTOR_SIZE] & 0xf;
+	return 1 << (id[ATA_ID_SECTOR_SIZE] & 0xf);
 }
 
 static inline int ata_id_has_lba48(const u16 *id)
@@ -841,7 +841,8 @@ static inline int ata_id_current_chs_valid(const u16 *id)
 
 static inline int ata_id_is_cfa(const u16 *id)
 {
-	if (id[ATA_ID_CONFIG] == 0x848A)	/* Traditional CF */
+	if ((id[ATA_ID_CONFIG] == 0x848A) ||	/* Traditional CF */
+	    (id[ATA_ID_CONFIG] == 0x844A))	/* Delkin Devices CF */
 		return 1;
 	/*
 	 * CF specs don't require specific value in the word 0 anymore and yet

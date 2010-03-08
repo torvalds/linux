@@ -5,6 +5,11 @@
 #include <stdio.h>
 #include "debug.h"
 
+const char *map_type__name[MAP__NR_TYPES] = {
+	[MAP__FUNCTION] = "Functions",
+	[MAP__VARIABLE] = "Variables",
+};
+
 static inline int is_anon_memory(const char *filename)
 {
 	return strcmp(filename, "//anon") == 0;
@@ -68,8 +73,13 @@ struct map *map__new(struct mmap_event *event, enum map_type type,
 		map__init(self, type, event->start, event->start + event->len,
 			  event->pgoff, dso);
 
-		if (self->dso == vdso || anon)
+		if (anon) {
+set_identity:
 			self->map_ip = self->unmap_ip = identity__map_ip;
+		} else if (strcmp(filename, "[vdso]") == 0) {
+			dso__set_loaded(dso, self->type);
+			goto set_identity;
+		}
 	}
 	return self;
 out_delete:
@@ -104,43 +114,74 @@ void map__fixup_end(struct map *self)
 
 #define DSO__DELETED "(deleted)"
 
+int map__load(struct map *self, symbol_filter_t filter)
+{
+	const char *name = self->dso->long_name;
+	int nr;
+
+	if (dso__loaded(self->dso, self->type))
+		return 0;
+
+	nr = dso__load(self->dso, self, filter);
+	if (nr < 0) {
+		if (self->dso->has_build_id) {
+			char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+
+			build_id__sprintf(self->dso->build_id,
+					  sizeof(self->dso->build_id),
+					  sbuild_id);
+			pr_warning("%s with build id %s not found",
+				   name, sbuild_id);
+		} else
+			pr_warning("Failed to open %s", name);
+
+		pr_warning(", continuing without symbols\n");
+		return -1;
+	} else if (nr == 0) {
+		const size_t len = strlen(name);
+		const size_t real_len = len - sizeof(DSO__DELETED);
+
+		if (len > sizeof(DSO__DELETED) &&
+		    strcmp(name + real_len + 1, DSO__DELETED) == 0) {
+			pr_warning("%.*s was updated, restart the long "
+				   "running apps that use it!\n",
+				   (int)real_len, name);
+		} else {
+			pr_warning("no symbols found in %s, maybe install "
+				   "a debug package?\n", name);
+		}
+
+		return -1;
+	}
+	/*
+	 * Only applies to the kernel, as its symtabs aren't relative like the
+	 * module ones.
+	 */
+	if (self->dso->kernel)
+		map__reloc_vmlinux(self);
+
+	return 0;
+}
+
 struct symbol *map__find_symbol(struct map *self, u64 addr,
 				symbol_filter_t filter)
 {
-	if (!dso__loaded(self->dso, self->type)) {
-		int nr = dso__load(self->dso, self, filter);
+	if (map__load(self, filter) < 0)
+		return NULL;
 
-		if (nr < 0) {
-			if (self->dso->has_build_id) {
-				char sbuild_id[BUILD_ID_SIZE * 2 + 1];
+	return dso__find_symbol(self->dso, self->type, addr);
+}
 
-				build_id__sprintf(self->dso->build_id,
-						  sizeof(self->dso->build_id),
-						  sbuild_id);
-				pr_warning("%s with build id %s not found",
-					   self->dso->long_name, sbuild_id);
-			} else
-				pr_warning("Failed to open %s",
-					   self->dso->long_name);
-			pr_warning(", continuing without symbols\n");
-			return NULL;
-		} else if (nr == 0) {
-			const char *name = self->dso->long_name;
-			const size_t len = strlen(name);
-			const size_t real_len = len - sizeof(DSO__DELETED);
+struct symbol *map__find_symbol_by_name(struct map *self, const char *name,
+					symbol_filter_t filter)
+{
+	if (map__load(self, filter) < 0)
+		return NULL;
 
-			if (len > sizeof(DSO__DELETED) &&
-			    strcmp(name + real_len + 1, DSO__DELETED) == 0) {
-				pr_warning("%.*s was updated, restart the long running apps that use it!\n",
-					   (int)real_len, name);
-			} else {
-				pr_warning("no symbols found in %s, maybe install a debug package?\n", name);
-			}
-			return NULL;
-		}
-	}
+	if (!dso__sorted_by_name(self->dso, self->type))
+		dso__sort_by_name(self->dso, self->type);
 
-	return self->dso->find_symbol(self->dso, self->type, addr);
+	return dso__find_symbol_by_name(self->dso, self->type, name);
 }
 
 struct map *map__clone(struct map *self)
@@ -173,4 +214,24 @@ size_t map__fprintf(struct map *self, FILE *fp)
 {
 	return fprintf(fp, " %Lx-%Lx %Lx %s\n",
 		       self->start, self->end, self->pgoff, self->dso->name);
+}
+
+/*
+ * objdump wants/reports absolute IPs for ET_EXEC, and RIPs for ET_DYN.
+ * map->dso->adjust_symbols==1 for ET_EXEC-like cases.
+ */
+u64 map__rip_2objdump(struct map *map, u64 rip)
+{
+	u64 addr = map->dso->adjust_symbols ?
+			map->unmap_ip(map, rip) :	/* RIP -> IP */
+			rip;
+	return addr;
+}
+
+u64 map__objdump_2ip(struct map *map, u64 addr)
+{
+	u64 ip = map->dso->adjust_symbols ?
+			addr :
+			map->unmap_ip(map, addr);	/* RIP -> IP */
+	return ip;
 }

@@ -29,58 +29,138 @@
 
 #include <linux/gpio.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/pm.h>
 
 #include <asm/mach-au1x00/au1000.h>
+#include <asm/mach-au1x00/au1xxx_eth.h>
 #include <asm/mach-db1x00/db1x00.h>
+#include <asm/mach-db1x00/bcsr.h>
+#include <asm/reboot.h>
 
 #include <prom.h>
 
+#ifdef CONFIG_MIPS_DB1500
+char irq_tab_alchemy[][5] __initdata = {
+	[12] = { -1, AU1500_PCI_INTA, 0xff, 0xff, 0xff }, /* IDSEL 12 - HPT371   */
+	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, AU1500_PCI_INTC, AU1500_PCI_INTD }, /* IDSEL 13 - PCI slot */
+};
 
-static BCSR * const bcsr = (BCSR *)BCSR_KSEG1_ADDR;
+#endif
+
+
+#ifdef CONFIG_MIPS_DB1550
+char irq_tab_alchemy[][5] __initdata = {
+	[11] = { -1, AU1550_PCI_INTC, 0xff, 0xff, 0xff }, /* IDSEL 11 - on-board HPT371 */
+	[12] = { -1, AU1550_PCI_INTB, AU1550_PCI_INTC, AU1550_PCI_INTD, AU1550_PCI_INTA }, /* IDSEL 12 - PCI slot 2 (left) */
+	[13] = { -1, AU1550_PCI_INTA, AU1550_PCI_INTB, AU1550_PCI_INTC, AU1550_PCI_INTD }, /* IDSEL 13 - PCI slot 1 (right) */
+};
+#endif
+
+
+#ifdef CONFIG_MIPS_BOSPORUS
+char irq_tab_alchemy[][5] __initdata = {
+	[11] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, 0xff, 0xff }, /* IDSEL 11 - miniPCI  */
+	[12] = { -1, AU1500_PCI_INTA, 0xff, 0xff, 0xff }, /* IDSEL 12 - SN1741   */
+	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, AU1500_PCI_INTC, AU1500_PCI_INTD }, /* IDSEL 13 - PCI slot */
+};
+
+/*
+ * Micrel/Kendin 5 port switch attached to MAC0,
+ * MAC0 is associated with PHY address 5 (== WAN port)
+ * MAC1 is not associated with any PHY, since it's connected directly
+ * to the switch.
+ * no interrupts are used
+ */
+static struct au1000_eth_platform_data eth0_pdata = {
+	.phy_static_config	= 1,
+	.phy_addr		= 5,
+};
+
+static void bosporus_power_off(void)
+{
+	printk(KERN_INFO "It's now safe to turn off power\n");
+	while (1)
+		asm volatile (".set mips3 ; wait ; .set mips0");
+}
 
 const char *get_system_type(void)
 {
-#ifdef CONFIG_MIPS_BOSPORUS
 	return "Alchemy Bosporus Gateway Reference";
-#else
-	return "Alchemy Db1x00";
+}
 #endif
+
+
+#ifdef CONFIG_MIPS_MIRAGE
+char irq_tab_alchemy[][5] __initdata = {
+	[11] = { -1, AU1500_PCI_INTD, 0xff, 0xff, 0xff }, /* IDSEL 11 - SMI VGX */
+	[12] = { -1, 0xff, 0xff, AU1500_PCI_INTC, 0xff }, /* IDSEL 12 - PNX1300 */
+	[13] = { -1, AU1500_PCI_INTA, AU1500_PCI_INTB, 0xff, 0xff }, /* IDSEL 13 - miniPCI */
+};
+
+static void mirage_power_off(void)
+{
+	alchemy_gpio_direction_output(210, 1);
 }
 
-void board_reset(void)
+const char *get_system_type(void)
 {
-	/* Hit BCSR.SW_RESET[RESET] */
-	bcsr->swreset = 0x0000;
+	return "Alchemy Mirage";
 }
+#endif
+
+
+#if defined(CONFIG_MIPS_BOSPORUS) || defined(CONFIG_MIPS_MIRAGE)
+static void mips_softreset(void)
+{
+	asm volatile ("jr\t%0" : : "r"(0xbfc00000));
+}
+
+#else
+
+const char *get_system_type(void)
+{
+	return "Alchemy Db1x00";
+}
+#endif
+
 
 void __init board_setup(void)
 {
-	u32 pin_func = 0;
-	char *argptr;
+	unsigned long bcsr1, bcsr2;
+	u32 pin_func;
 
-	argptr = prom_getcmdline();
-#ifdef CONFIG_SERIAL_8250_CONSOLE
-	argptr = strstr(argptr, "console=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		strcat(argptr, " console=ttyS0,115200");
-	}
+	bcsr1 = DB1000_BCSR_PHYS_ADDR;
+	bcsr2 = DB1000_BCSR_PHYS_ADDR + DB1000_BCSR_HEXLED_OFS;
+
+	pin_func = 0;
+
+#ifdef CONFIG_MIPS_DB1000
+	printk(KERN_INFO "AMD Alchemy Au1000/Db1000 Board\n");
+#endif
+#ifdef CONFIG_MIPS_DB1500
+	printk(KERN_INFO "AMD Alchemy Au1500/Db1500 Board\n");
+#endif
+#ifdef CONFIG_MIPS_DB1100
+	printk(KERN_INFO "AMD Alchemy Au1100/Db1100 Board\n");
+#endif
+#ifdef CONFIG_MIPS_BOSPORUS
+	au1xxx_override_eth_cfg(0, &eth0_pdata);
+
+	printk(KERN_INFO "AMD Alchemy Bosporus Board\n");
+#endif
+#ifdef CONFIG_MIPS_MIRAGE
+	printk(KERN_INFO "AMD Alchemy Mirage Board\n");
+#endif
+#ifdef CONFIG_MIPS_DB1550
+	printk(KERN_INFO "AMD Alchemy Au1550/Db1550 Board\n");
+
+	bcsr1 = DB1550_BCSR_PHYS_ADDR;
+	bcsr2 = DB1550_BCSR_PHYS_ADDR + DB1550_BCSR_HEXLED_OFS;
 #endif
 
-#ifdef CONFIG_FB_AU1100
-	argptr = strstr(argptr, "video=");
-	if (argptr == NULL) {
-		argptr = prom_getcmdline();
-		/* default panel */
-		/*strcat(argptr, " video=au1100fb:panel:Sharp_320x240_16");*/
-	}
-#endif
-
-#if defined(CONFIG_SOUND_AU1X00) && !defined(CONFIG_SOC_AU1000)
-	/* au1000 does not support vra, au1500 and au1100 do */
-	strcat(argptr, " au1000_audio=vra");
-	argptr = prom_getcmdline();
-#endif
+	/* initialize board register space */
+	bcsr_init(bcsr1, bcsr2);
 
 	/* Not valid for Au1550 */
 #if defined(CONFIG_IRDA) && \
@@ -89,11 +169,10 @@ void __init board_setup(void)
 	pin_func = au_readl(SYS_PINFUNC) | SYS_PF_IRF;
 	au_writel(pin_func, SYS_PINFUNC);
 	/* Power off until the driver is in use */
-	bcsr->resets &= ~BCSR_RESETS_IRDA_MODE_MASK;
-	bcsr->resets |=  BCSR_RESETS_IRDA_MODE_OFF;
-	au_sync();
+	bcsr_mod(BCSR_RESETS, BCSR_RESETS_IRDA_MODE_MASK,
+				BCSR_RESETS_IRDA_MODE_OFF);
 #endif
-	bcsr->pcmcia = 0x0000; /* turn off PCMCIA power */
+	bcsr_write(BCSR_PCMCIA, 0);	/* turn off PCMCIA power */
 
 	/* Enable GPIO[31:0] inputs */
 	alchemy_gpio1_input_enable();
@@ -120,26 +199,53 @@ void __init board_setup(void)
 	 * be part of the audio driver.
 	 */
 	alchemy_gpio_direction_output(209, 1);
+
+	pm_power_off = mirage_power_off;
+	_machine_halt = mirage_power_off;
+	_machine_restart = (void(*)(char *))mips_softreset;
 #endif
 
-	au_sync();
-
-#ifdef CONFIG_MIPS_DB1000
-	printk(KERN_INFO "AMD Alchemy Au1000/Db1000 Board\n");
-#endif
-#ifdef CONFIG_MIPS_DB1500
-	printk(KERN_INFO "AMD Alchemy Au1500/Db1500 Board\n");
-#endif
-#ifdef CONFIG_MIPS_DB1100
-	printk(KERN_INFO "AMD Alchemy Au1100/Db1100 Board\n");
-#endif
 #ifdef CONFIG_MIPS_BOSPORUS
-	printk(KERN_INFO "AMD Alchemy Bosporus Board\n");
+	pm_power_off = bosporus_power_off;
+	_machine_halt = bosporus_power_off;
+	_machine_restart = (void(*)(char *))mips_softreset;
 #endif
-#ifdef CONFIG_MIPS_MIRAGE
-	printk(KERN_INFO "AMD Alchemy Mirage Board\n");
-#endif
-#ifdef CONFIG_MIPS_DB1550
-	printk(KERN_INFO "AMD Alchemy Au1550/Db1550 Board\n");
-#endif
+	au_sync();
 }
+
+static int __init db1x00_init_irq(void)
+{
+#if defined(CONFIG_MIPS_MIRAGE)
+	set_irq_type(AU1500_GPIO7_INT, IRQF_TRIGGER_RISING); /* TS pendown */
+#elif defined(CONFIG_MIPS_DB1550)
+	set_irq_type(AU1550_GPIO0_INT, IRQF_TRIGGER_LOW);  /* CD0# */
+	set_irq_type(AU1550_GPIO1_INT, IRQF_TRIGGER_LOW);  /* CD1# */
+	set_irq_type(AU1550_GPIO3_INT, IRQF_TRIGGER_LOW);  /* CARD0# */
+	set_irq_type(AU1550_GPIO5_INT, IRQF_TRIGGER_LOW);  /* CARD1# */
+	set_irq_type(AU1550_GPIO21_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
+	set_irq_type(AU1550_GPIO22_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
+#elif defined(CONFIG_MIPS_DB1500)
+	set_irq_type(AU1500_GPIO0_INT, IRQF_TRIGGER_LOW); /* CD0# */
+	set_irq_type(AU1500_GPIO3_INT, IRQF_TRIGGER_LOW); /* CD1# */
+	set_irq_type(AU1500_GPIO2_INT, IRQF_TRIGGER_LOW); /* CARD0# */
+	set_irq_type(AU1500_GPIO5_INT, IRQF_TRIGGER_LOW); /* CARD1# */
+	set_irq_type(AU1500_GPIO1_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
+	set_irq_type(AU1500_GPIO4_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
+#elif defined(CONFIG_MIPS_DB1100)
+	set_irq_type(AU1100_GPIO0_INT, IRQF_TRIGGER_LOW); /* CD0# */
+	set_irq_type(AU1100_GPIO3_INT, IRQF_TRIGGER_LOW); /* CD1# */
+	set_irq_type(AU1100_GPIO2_INT, IRQF_TRIGGER_LOW); /* CARD0# */
+	set_irq_type(AU1100_GPIO5_INT, IRQF_TRIGGER_LOW); /* CARD1# */
+	set_irq_type(AU1100_GPIO1_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
+	set_irq_type(AU1100_GPIO4_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
+#elif defined(CONFIG_MIPS_DB1000)
+	set_irq_type(AU1000_GPIO0_INT, IRQF_TRIGGER_LOW); /* CD0# */
+	set_irq_type(AU1000_GPIO3_INT, IRQF_TRIGGER_LOW); /* CD1# */
+	set_irq_type(AU1000_GPIO2_INT, IRQF_TRIGGER_LOW); /* CARD0# */
+	set_irq_type(AU1000_GPIO5_INT, IRQF_TRIGGER_LOW); /* CARD1# */
+	set_irq_type(AU1000_GPIO1_INT, IRQF_TRIGGER_LOW); /* STSCHG0# */
+	set_irq_type(AU1000_GPIO4_INT, IRQF_TRIGGER_LOW); /* STSCHG1# */
+#endif
+	return 0;
+}
+arch_initcall(db1x00_init_irq);

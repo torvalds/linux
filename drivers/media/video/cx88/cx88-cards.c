@@ -1466,6 +1466,18 @@ static const struct cx88_board cx88_boards[] = {
 			.audioroute = 8,
 		},
 	},
+	[CX88_BOARD_SAMSUNG_SMT_7020] = {
+		.name		= "Samsung SMT 7020 DVB-S",
+		.tuner_type	= TUNER_ABSENT,
+		.radio_type	= UNSET,
+		.tuner_addr	= ADDR_UNSET,
+		.radio_addr	= ADDR_UNSET,
+		.input		= { {
+			.type	= CX88_VMUX_DVB,
+			.vmux	= 0,
+		} },
+		.mpeg           = CX88_MPEG_DVB,
+	},
 	[CX88_BOARD_ADSTECH_PTV_390] = {
 		.name           = "ADS Tech Instant Video PCI",
 		.tuner_type     = TUNER_ABSENT,
@@ -2355,6 +2367,14 @@ static const struct cx88_subid cx88_subids[] = {
 		.subvendor = 0x0070,
 		.subdevice = 0x1404,
 		.card      = CX88_BOARD_HAUPPAUGE_HVR3000,
+	}, {
+		.subvendor = 0x18ac,
+		.subdevice = 0xdc00,
+		.card      = CX88_BOARD_SAMSUNG_SMT_7020,
+	}, {
+		.subvendor = 0x18ac,
+		.subdevice = 0xdccd,
+		.card      = CX88_BOARD_SAMSUNG_SMT_7020,
 	},{
 		.subvendor = 0x1461,
 		.subdevice = 0xc111, /* AverMedia M150-D */
@@ -2632,6 +2652,9 @@ static void hauppauge_eeprom(struct cx88_core *core, u8 *eeprom_data)
 	case 96659: /* WinTV-HVR1300 () */
 	case 98559: /* WinTV-HVR1100LP (Video no IR, Retail - Low Profile) */
 		/* known */
+		break;
+	case CX88_BOARD_SAMSUNG_SMT_7020:
+		cx_set(MO_GP0_IO, 0x008989FF);
 		break;
 	default:
 		warn_printk(core, "warning: unknown hauppauge model #%d\n",

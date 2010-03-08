@@ -1223,11 +1223,12 @@ static int pxafb_smart_thread(void *arg)
 	struct pxafb_info *fbi = arg;
 	struct pxafb_mach_info *inf = fbi->dev->platform_data;
 
-	if (!fbi || !inf->smart_update) {
+	if (!inf->smart_update) {
 		pr_err("%s: not properly initialized, thread terminated\n",
 				__func__);
 		return -EINVAL;
 	}
+	inf = fbi->dev->platform_data;
 
 	pr_debug("%s(): task starting\n", __func__);
 
@@ -1667,7 +1668,7 @@ static int pxafb_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops pxafb_pm_ops = {
+static const struct dev_pm_ops pxafb_pm_ops = {
 	.suspend	= pxafb_suspend,
 	.resume		= pxafb_resume,
 };

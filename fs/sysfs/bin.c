@@ -483,7 +483,8 @@ void unmap_bin_file(struct sysfs_dirent *attr_sd)
  *	@attr:	attribute descriptor.
  */
 
-int sysfs_create_bin_file(struct kobject * kobj, struct bin_attribute * attr)
+int sysfs_create_bin_file(struct kobject *kobj,
+			  const struct bin_attribute *attr)
 {
 	BUG_ON(!kobj || !kobj->sd || !attr);
 
@@ -497,7 +498,8 @@ int sysfs_create_bin_file(struct kobject * kobj, struct bin_attribute * attr)
  *	@attr:	attribute descriptor.
  */
 
-void sysfs_remove_bin_file(struct kobject * kobj, struct bin_attribute * attr)
+void sysfs_remove_bin_file(struct kobject *kobj,
+			   const struct bin_attribute *attr)
 {
 	sysfs_hash_and_remove(kobj->sd, attr->attr.name);
 }

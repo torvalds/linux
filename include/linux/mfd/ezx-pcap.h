@@ -231,9 +231,6 @@ void pcap_set_ts_bits(struct pcap_chip *, u32);
 #define PCAP_LED_4MA		1
 #define PCAP_LED_5MA		2
 #define PCAP_LED_9MA		3
-#define PCAP_LED_GPIO_VAL_MASK	0x00ffffff
-#define PCAP_LED_GPIO_EN	0x01000000
-#define PCAP_LED_GPIO_INVERT	0x02000000
 #define PCAP_LED_T_MASK		0xf
 #define PCAP_LED_C_MASK		0x3
 #define PCAP_BL_MASK		0x1f

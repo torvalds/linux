@@ -52,6 +52,8 @@ struct dib0070_config {
 extern struct dvb_frontend *dib0070_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dib0070_config *cfg);
 extern u16 dib0070_wbd_offset(struct dvb_frontend *);
 extern void dib0070_ctrl_agc_filter(struct dvb_frontend *, u8 open);
+extern u8 dib0070_get_rf_output(struct dvb_frontend *fe);
+extern int dib0070_set_rf_output(struct dvb_frontend *fe, u8 no);
 #else
 static inline struct dvb_frontend *dib0070_attach(struct dvb_frontend *fe, struct i2c_adapter *i2c, struct dib0070_config *cfg)
 {
@@ -62,7 +64,7 @@ static inline struct dvb_frontend *dib0070_attach(struct dvb_frontend *fe, struc
 static inline u16 dib0070_wbd_offset(struct dvb_frontend *fe)
 {
 	printk(KERN_WARNING "%s: driver disabled by Kconfig\n", __func__);
-	return -ENODEV;
+	return 0;
 }
 
 static inline void dib0070_ctrl_agc_filter(struct dvb_frontend *fe, u8 open)

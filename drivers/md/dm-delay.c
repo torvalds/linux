@@ -156,8 +156,8 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad;
 	}
 
-	if (dm_get_device(ti, argv[0], dc->start_read, ti->len,
-			  dm_table_get_mode(ti->table), &dc->dev_read)) {
+	if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table),
+			  &dc->dev_read)) {
 		ti->error = "Device lookup failed";
 		goto bad;
 	}
@@ -177,8 +177,8 @@ static int delay_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		goto bad_dev_read;
 	}
 
-	if (dm_get_device(ti, argv[3], dc->start_write, ti->len,
-			  dm_table_get_mode(ti->table), &dc->dev_write)) {
+	if (dm_get_device(ti, argv[3], dm_table_get_mode(ti->table),
+			  &dc->dev_write)) {
 		ti->error = "Write device lookup failed";
 		goto bad_dev_read;
 	}

@@ -19,6 +19,7 @@
 #include <linux/input/sh_keysc.h>
 #include <linux/i2c.h>
 #include <linux/usb/r8a66597.h>
+#include <media/rj54n1cb0c.h>
 #include <media/soc_camera.h>
 #include <media/sh_mobile_ceu.h>
 #include <video/sh_mobile_lcdc.h>
@@ -149,6 +150,7 @@ static struct sh_mobile_lcdc_info kfr2r09_sh_lcdc_info = {
 		},
 		.board_cfg = {
 			.setup_sys = kfr2r09_lcd_setup,
+			.start_transfer = kfr2r09_lcd_start,
 			.display_on = kfr2r09_lcd_on,
 			.display_off = kfr2r09_lcd_off,
 		},
@@ -255,6 +257,9 @@ static struct i2c_board_info kfr2r09_i2c_camera = {
 
 static struct clk *camera_clk;
 
+/* set VIO_CKO clock to 25MHz */
+#define CEU_MCLK_FREQ 25000000
+
 #define DRVCRB 0xA405018C
 static int camera_power(struct device *dev, int mode)
 {
@@ -267,8 +272,7 @@ static int camera_power(struct device *dev, int mode)
 		if (IS_ERR(camera_clk))
 			return PTR_ERR(camera_clk);
 
-		/* set VIO_CKO clock to 25MHz */
-		rate = clk_round_rate(camera_clk, 25000000);
+		rate = clk_round_rate(camera_clk, CEU_MCLK_FREQ);
 		ret = clk_set_rate(camera_clk, rate);
 		if (ret < 0)
 			goto eclkrate;
@@ -278,7 +282,7 @@ static int camera_power(struct device *dev, int mode)
 		 * use 1.8 V for VccQ_VIO
 		 * use 2.85V for VccQ_SR
 		 */
-		ctrl_outw((ctrl_inw(DRVCRB) & ~0x0003) | 0x0001, DRVCRB);
+		__raw_writew((__raw_readw(DRVCRB) & ~0x0003) | 0x0001, DRVCRB);
 
 		/* reset clear */
 		ret = gpio_request(GPIO_PTB4, NULL);
@@ -318,11 +322,17 @@ eclkrate:
 	return ret;
 }
 
+static struct rj54n1_pdata rj54n1_priv = {
+	.mclk_freq	= CEU_MCLK_FREQ,
+	.ioctl_high	= false,
+};
+
 static struct soc_camera_link rj54n1_link = {
 	.power		= camera_power,
 	.board_info	= &kfr2r09_i2c_camera,
 	.i2c_adapter_id	= 1,
 	.module_name	= "rj54n1cb0c",
+	.priv		= &rj54n1_priv,
 };
 
 static struct platform_device kfr2r09_camera = {
@@ -341,7 +351,7 @@ static struct resource kfr2r09_sh_sdhi0_resources[] = {
 		.flags  = IORESOURCE_MEM,
 	},
 	[1] = {
-		.start  = 101,
+		.start  = 100,
 		.flags  = IORESOURCE_IRQ,
 	},
 };
@@ -482,13 +492,13 @@ static int kfr2r09_usb0_gadget_setup(void)
 	if (kfr2r09_usb0_gadget_i2c_setup() != 0)
 		return -ENODEV; /* unable to configure using i2c */
 
-	ctrl_outw((ctrl_inw(PORT_MSELCRB) & ~0xc000) | 0x8000, PORT_MSELCRB);
+	__raw_writew((__raw_readw(PORT_MSELCRB) & ~0xc000) | 0x8000, PORT_MSELCRB);
 	gpio_request(GPIO_FN_PDSTATUS, NULL); /* R-standby disables USB clock */
 	gpio_request(GPIO_PTV6, NULL); /* USBCLK_ON */
 	gpio_direction_output(GPIO_PTV6, 1); /* USBCLK_ON = H */
 	msleep(20); /* wait 20ms to let the clock settle */
 	clk_enable(clk_get(NULL, "usb0"));
-	ctrl_outw(0x0600, 0xa40501d4);
+	__raw_writew(0x0600, 0xa40501d4);
 
 	return 0;
 }
@@ -516,12 +526,12 @@ static int __init kfr2r09_devices_setup(void)
 	gpio_direction_output(GPIO_PTG3, 1); /* HPON_ON = H */
 
 	/* setup NOR flash at CS0 */
-	ctrl_outl(0x36db0400, BSC_CS0BCR);
-	ctrl_outl(0x00000500, BSC_CS0WCR);
+	__raw_writel(0x36db0400, BSC_CS0BCR);
+	__raw_writel(0x00000500, BSC_CS0WCR);
 
 	/* setup NAND flash at CS4 */
-	ctrl_outl(0x36db0400, BSC_CS4BCR);
-	ctrl_outl(0x00000500, BSC_CS4WCR);
+	__raw_writel(0x36db0400, BSC_CS4BCR);
+	__raw_writel(0x00000500, BSC_CS4WCR);
 
 	/* setup KEYSC pins */
 	gpio_request(GPIO_FN_KEYOUT0, NULL);

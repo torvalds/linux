@@ -87,6 +87,7 @@ History:
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/etherdevice.h>
+#include <linux/if_ether.h>
 #include <linux/skbuff.h>
 #include <linux/bitops.h>
 
@@ -419,7 +420,7 @@ static void InitBoard(struct net_device *dev)
 	/* start putting the multicast addresses into the CAM list.  Stop if
 	   it is full. */
 
-	for (mcptr = dev->mc_list; mcptr != NULL; mcptr = mcptr->next) {
+	netdev_for_each_mc_addr(mcptr, dev) {
 		putcam(cams, &camcnt, mcptr->dmi_addr);
 		if (camcnt == 16)
 			break;
@@ -988,7 +989,7 @@ static int __devinit ibmlana_init_one(struct device *kdev)
 
 	/* copy out MAC address */
 
-	for (z = 0; z < sizeof(dev->dev_addr); z++)
+	for (z = 0; z < ETH_ALEN; z++)
 		dev->dev_addr[z] = inb(dev->base_addr + MACADDRPROM + z);
 
 	/* print config */

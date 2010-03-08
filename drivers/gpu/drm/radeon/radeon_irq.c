@@ -289,15 +289,15 @@ int radeon_irq_emit(struct drm_device *dev, void *data, struct drm_file *file_pr
 	drm_radeon_irq_emit_t *emit = data;
 	int result;
 
-	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
-		return -EINVAL;
-
-	LOCK_TEST_WITH_RETURN(dev, file_priv);
-
 	if (!dev_priv) {
 		DRM_ERROR("called with no initialization\n");
 		return -EINVAL;
 	}
+
+	if ((dev_priv->flags & RADEON_FAMILY_MASK) >= CHIP_R600)
+		return -EINVAL;
+
+	LOCK_TEST_WITH_RETURN(dev, file_priv);
 
 	result = radeon_emit_irq(dev);
 

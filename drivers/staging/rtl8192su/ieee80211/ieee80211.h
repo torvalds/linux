@@ -30,6 +30,7 @@
 #include <linux/jiffies.h>
 #include <linux/timer.h>
 #include <linux/sched.h>
+#include <linux/semaphore.h>
 
 #include <linux/delay.h>
 #include <linux/wireless.h>
@@ -194,10 +195,6 @@ extern u32 ieee80211_debug_level;
 #define IEEE80211_DEBUG(level, fmt, args...) do {} while (0)
 #define IEEE80211_DEBUG_DATA(level, data, datalen) do {} while(0)
 #endif	/* CONFIG_IEEE80211_DEBUG */
-
-#define MAC_FMT "%02x:%02x:%02x:%02x:%02x:%02x"
-#define MAC_ARG(x) ((u8 *)(x))[0], ((u8 *)(x))[1], ((u8 *)(x))[2], \
-		   ((u8 *)(x))[3], ((u8 *)(x))[4], ((u8 *)(x))[5]
 
 /*
  * To use the debug system;
@@ -606,16 +603,6 @@ struct ieee80211_hdr_2addr {
         __le16 duration_id;
         u8 addr1[ETH_ALEN];
         u8 addr2[ETH_ALEN];
-        u8 payload[0];
-} __attribute__ ((packed));
-
-struct ieee80211_hdr_3addr {
-	__le16 frame_ctl;
-	__le16 duration_id;
-	u8 addr1[ETH_ALEN];
-	u8 addr2[ETH_ALEN];
-	u8 addr3[ETH_ALEN];
-	__le16 seq_ctl;
         u8 payload[0];
 } __attribute__ ((packed));
 
@@ -1672,7 +1659,7 @@ static inline u8 *ieee80211_get_payload(struct rtl_ieee80211_hdr *hdr)
         case IEEE80211_2ADDR_LEN:
                 return ((struct ieee80211_hdr_2addr *)hdr)->payload;
         case IEEE80211_3ADDR_LEN:
-                return ((struct ieee80211_hdr_3addr *)hdr)->payload;
+                return (void *)hdr+sizeof(struct ieee80211_hdr_3addr);
         case IEEE80211_4ADDR_LEN:
                 return ((struct ieee80211_hdr_4addr *)hdr)->payload;
         }
@@ -1721,13 +1708,13 @@ extern int ieee80211_encrypt_fragment(
 	struct sk_buff *frag,
 	int hdr_len);
 
-extern int rtl8192_ieee80211_xmit(struct sk_buff *skb,
+extern int rtl8192_ieee80211_rtl_xmit(struct sk_buff *skb,
 			  struct net_device *dev);
 extern void ieee80211_txb_free(struct ieee80211_txb *);
 
 
 /* ieee80211_rx.c */
-extern int ieee80211_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
+extern int ieee80211_rtl_rx(struct ieee80211_device *ieee, struct sk_buff *skb,
 			struct ieee80211_rx_stats *rx_stats);
 extern void ieee80211_rx_mgt(struct ieee80211_device *ieee,
 			     struct ieee80211_hdr_4addr *header,
@@ -1783,8 +1770,8 @@ extern void ieee80211_stop_protocol(struct ieee80211_device *ieee);
 extern void ieee80211_softmac_start_protocol(struct ieee80211_device *ieee);
 extern void ieee80211_softmac_stop_protocol(struct ieee80211_device *ieee);
 extern void ieee80211_reset_queue(struct ieee80211_device *ieee);
-extern void ieee80211_wake_queue(struct ieee80211_device *ieee);
-extern void ieee80211_stop_queue(struct ieee80211_device *ieee);
+extern void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee);
+extern void ieee80211_rtl_stop_queue(struct ieee80211_device *ieee);
 extern struct sk_buff *ieee80211_get_beacon(struct ieee80211_device *ieee);
 extern void ieee80211_start_send_beacons(struct ieee80211_device *ieee);
 extern void ieee80211_stop_send_beacons(struct ieee80211_device *ieee);

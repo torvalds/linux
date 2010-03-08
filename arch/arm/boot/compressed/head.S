@@ -22,19 +22,27 @@
 #if defined(CONFIG_DEBUG_ICEDCC)
 
 #ifdef CONFIG_CPU_V6
-		.macro	loadsp, rb
+		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
 		mcr	p14, 0, \ch, c0, c5, 0
 		.endm
+#elif defined(CONFIG_CPU_V7)
+		.macro	loadsp, rb, tmp
+		.endm
+		.macro	writeb, ch, rb
+wait:		mrc	p14, 0, pc, c0, c1, 0
+		bcs	wait
+		mcr	p14, 0, \ch, c0, c5, 0
+		.endm
 #elif defined(CONFIG_CPU_XSCALE)
-		.macro	loadsp, rb
+		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
 		mcr	p14, 0, \ch, c8, c0, 0
 		.endm
 #else
-		.macro	loadsp, rb
+		.macro	loadsp, rb, tmp
 		.endm
 		.macro	writeb, ch, rb
 		mcr	p14, 0, \ch, c1, c0, 0
@@ -50,7 +58,7 @@
 		.endm
 
 #if defined(CONFIG_ARCH_SA1100)
-		.macro	loadsp, rb
+		.macro	loadsp, rb, tmp
 		mov	\rb, #0x80000000	@ physical base address
 #ifdef CONFIG_DEBUG_LL_SER3
 		add	\rb, \rb, #0x00050000	@ Ser3
@@ -59,13 +67,13 @@
 #endif
 		.endm
 #elif defined(CONFIG_ARCH_S3C2410)
-		.macro loadsp, rb
+		.macro loadsp, rb, tmp
 		mov	\rb, #0x50000000
 		add	\rb, \rb, #0x4000 * CONFIG_S3C_LOWLEVEL_UART_PORT
 		.endm
 #else
-		.macro	loadsp,	rb
-		addruart \rb
+		.macro	loadsp,	rb, tmp
+		addruart \rb, \tmp
 		.endm
 #endif
 #endif
@@ -1017,7 +1025,7 @@ phex:		adr	r3, phexbuf
 		strb	r2, [r3, r1]
 		b	1b
 
-puts:		loadsp	r3
+puts:		loadsp	r3, r1
 1:		ldrb	r2, [r0], #1
 		teq	r2, #0
 		moveq	pc, lr
@@ -1034,7 +1042,7 @@ puts:		loadsp	r3
 putc:
 		mov	r2, r0
 		mov	r0, #0
-		loadsp	r3
+		loadsp	r3, r1
 		b	2b
 
 memdump:	mov	r12, r0

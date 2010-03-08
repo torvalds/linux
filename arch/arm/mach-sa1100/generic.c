@@ -58,7 +58,6 @@ static const unsigned short cclk_frequency_100khz[NR_FREQS] = {
 	2802	/* 280.2 MHz */
 };
 
-#if defined(CONFIG_CPU_FREQ_SA1100) || defined(CONFIG_CPU_FREQ_SA1110)
 /* rounds up(!)  */
 unsigned int sa11x0_freq_to_ppcr(unsigned int khz)
 {
@@ -109,17 +108,6 @@ unsigned int sa11x0_getspeed(unsigned int cpu)
 		return 0;
 	return cclk_frequency_100khz[PPCR & 0xf] * 100;
 }
-
-#else
-/*
- * We still need to provide this so building without cpufreq works.
- */
-unsigned int cpufreq_get(unsigned int cpu)
-{
-	return cclk_frequency_100khz[PPCR & 0xf] * 100;
-}
-EXPORT_SYMBOL(cpufreq_get);
-#endif
 
 /*
  * This is the SA11x0 sched_clock implementation.  This has

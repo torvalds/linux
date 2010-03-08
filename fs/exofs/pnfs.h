@@ -15,13 +15,7 @@
 #ifndef __EXOFS_PNFS_H__
 #define __EXOFS_PNFS_H__
 
-#if defined(CONFIG_PNFS)
-
-
-/* FIXME: move this file to: linux/exportfs/pnfs_osd_xdr.h */
-#include "../nfs/objlayout/pnfs_osd_xdr.h"
-
-#else /* defined(CONFIG_PNFS) */
+#if ! defined(__PNFS_OSD_XDR_H__)
 
 enum pnfs_iomode {
 	IOMODE_READ = 1,
@@ -46,6 +40,6 @@ struct pnfs_osd_data_map {
 	u32	odm_raid_algorithm;
 };
 
-#endif /* else defined(CONFIG_PNFS) */
+#endif /* ! defined(__PNFS_OSD_XDR_H__) */
 
 #endif /* __EXOFS_PNFS_H__ */

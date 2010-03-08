@@ -61,7 +61,7 @@ void setup_mm_for_reboot(char mode)
 
 void flush_dcache_page(struct page *page)
 {
-	__cpuc_flush_dcache_page(page_address(page));
+	__cpuc_flush_dcache_area(page_address(page), PAGE_SIZE);
 }
 EXPORT_SYMBOL(flush_dcache_page);
 
@@ -74,12 +74,24 @@ void __iomem *__arm_ioremap_pfn(unsigned long pfn, unsigned long offset,
 }
 EXPORT_SYMBOL(__arm_ioremap_pfn);
 
+void __iomem *__arm_ioremap_pfn_caller(unsigned long pfn, unsigned long offset,
+			   size_t size, unsigned int mtype, void *caller)
+{
+	return __arm_ioremap_pfn(pfn, offset, size, mtype);
+}
+
 void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
 			    unsigned int mtype)
 {
 	return (void __iomem *)phys_addr;
 }
 EXPORT_SYMBOL(__arm_ioremap);
+
+void __iomem *__arm_ioremap(unsigned long phys_addr, size_t size,
+			    unsigned int mtype, void *caller)
+{
+	return __arm_ioremap(phys_addr, size, mtype);
+}
 
 void __iounmap(volatile void __iomem *addr)
 {

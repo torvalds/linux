@@ -23,6 +23,7 @@
 #include <linux/kvm_host.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
+#include <linux/hrtimer.h>
 #include <linux/fs.h>
 #include <asm/cputable.h>
 #include <asm/uaccess.h>
@@ -136,6 +137,7 @@ void kvm_arch_destroy_vm(struct kvm *kvm)
 {
 	kvmppc_free_vcpus(kvm);
 	kvm_free_physmem(kvm);
+	cleanup_srcu_struct(&kvm->srcu);
 	kfree(kvm);
 }
 
@@ -144,6 +146,9 @@ int kvm_dev_ioctl_check_extension(long ext)
 	int r;
 
 	switch (ext) {
+	case KVM_CAP_PPC_SEGSTATE:
+		r = 1;
+		break;
 	case KVM_CAP_COALESCED_MMIO:
 		r = KVM_COALESCED_MMIO_PAGE_OFFSET;
 		break;
@@ -161,13 +166,23 @@ long kvm_arch_dev_ioctl(struct file *filp,
 	return -EINVAL;
 }
 
-int kvm_arch_set_memory_region(struct kvm *kvm,
-                               struct kvm_userspace_memory_region *mem,
-                               struct kvm_memory_slot old,
-                               int user_alloc)
+int kvm_arch_prepare_memory_region(struct kvm *kvm,
+                                   struct kvm_memory_slot *memslot,
+                                   struct kvm_memory_slot old,
+                                   struct kvm_userspace_memory_region *mem,
+                                   int user_alloc)
 {
 	return 0;
 }
+
+void kvm_arch_commit_memory_region(struct kvm *kvm,
+               struct kvm_userspace_memory_region *mem,
+               struct kvm_memory_slot old,
+               int user_alloc)
+{
+       return;
+}
+
 
 void kvm_arch_flush_shadow(struct kvm *kvm)
 {
@@ -209,10 +224,25 @@ static void kvmppc_decrementer_func(unsigned long data)
 	}
 }
 
+/*
+ * low level hrtimer wake routine. Because this runs in hardirq context
+ * we schedule a tasklet to do the real work.
+ */
+enum hrtimer_restart kvmppc_decrementer_wakeup(struct hrtimer *timer)
+{
+	struct kvm_vcpu *vcpu;
+
+	vcpu = container_of(timer, struct kvm_vcpu, arch.dec_timer);
+	tasklet_schedule(&vcpu->arch.tasklet);
+
+	return HRTIMER_NORESTART;
+}
+
 int kvm_arch_vcpu_init(struct kvm_vcpu *vcpu)
 {
-	setup_timer(&vcpu->arch.dec_timer, kvmppc_decrementer_func,
-	            (unsigned long)vcpu);
+	hrtimer_init(&vcpu->arch.dec_timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	tasklet_init(&vcpu->arch.tasklet, kvmppc_decrementer_func, (ulong)vcpu);
+	vcpu->arch.dec_timer.function = kvmppc_decrementer_wakeup;
 
 	return 0;
 }
@@ -241,34 +271,35 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
 static void kvmppc_complete_dcr_load(struct kvm_vcpu *vcpu,
                                      struct kvm_run *run)
 {
-	ulong *gpr = &vcpu->arch.gpr[vcpu->arch.io_gpr];
-	*gpr = run->dcr.data;
+	kvmppc_set_gpr(vcpu, vcpu->arch.io_gpr, run->dcr.data);
 }
 
 static void kvmppc_complete_mmio_load(struct kvm_vcpu *vcpu,
                                       struct kvm_run *run)
 {
-	ulong *gpr = &vcpu->arch.gpr[vcpu->arch.io_gpr];
+	ulong gpr;
 
-	if (run->mmio.len > sizeof(*gpr)) {
+	if (run->mmio.len > sizeof(gpr)) {
 		printk(KERN_ERR "bad MMIO length: %d\n", run->mmio.len);
 		return;
 	}
 
 	if (vcpu->arch.mmio_is_bigendian) {
 		switch (run->mmio.len) {
-		case 4: *gpr = *(u32 *)run->mmio.data; break;
-		case 2: *gpr = *(u16 *)run->mmio.data; break;
-		case 1: *gpr = *(u8 *)run->mmio.data; break;
+		case 4: gpr = *(u32 *)run->mmio.data; break;
+		case 2: gpr = *(u16 *)run->mmio.data; break;
+		case 1: gpr = *(u8 *)run->mmio.data; break;
 		}
 	} else {
 		/* Convert BE data from userland back to LE. */
 		switch (run->mmio.len) {
-		case 4: *gpr = ld_le32((u32 *)run->mmio.data); break;
-		case 2: *gpr = ld_le16((u16 *)run->mmio.data); break;
-		case 1: *gpr = *(u8 *)run->mmio.data; break;
+		case 4: gpr = ld_le32((u32 *)run->mmio.data); break;
+		case 2: gpr = ld_le16((u16 *)run->mmio.data); break;
+		case 1: gpr = *(u8 *)run->mmio.data; break;
 		}
 	}
+
+	kvmppc_set_gpr(vcpu, vcpu->arch.io_gpr, gpr);
 }
 
 int kvmppc_handle_load(struct kvm_run *run, struct kvm_vcpu *vcpu,
@@ -408,11 +439,6 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 
 out:
 	return r;
-}
-
-int kvm_vm_ioctl_get_dirty_log(struct kvm *kvm, struct kvm_dirty_log *log)
-{
-	return -ENOTSUPP;
 }
 
 long kvm_arch_vm_ioctl(struct file *filp,

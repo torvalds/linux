@@ -32,7 +32,7 @@
 
 static struct ipic * primary_ipic;
 static struct irq_chip ipic_level_irq_chip, ipic_edge_irq_chip;
-static DEFINE_SPINLOCK(ipic_lock);
+static DEFINE_RAW_SPINLOCK(ipic_lock);
 
 static struct ipic_info ipic_info[] = {
 	[1] = {
@@ -530,13 +530,13 @@ static void ipic_unmask_irq(unsigned int virq)
 	unsigned long flags;
 	u32 temp;
 
-	spin_lock_irqsave(&ipic_lock, flags);
+	raw_spin_lock_irqsave(&ipic_lock, flags);
 
 	temp = ipic_read(ipic->regs, ipic_info[src].mask);
 	temp |= (1 << (31 - ipic_info[src].bit));
 	ipic_write(ipic->regs, ipic_info[src].mask, temp);
 
-	spin_unlock_irqrestore(&ipic_lock, flags);
+	raw_spin_unlock_irqrestore(&ipic_lock, flags);
 }
 
 static void ipic_mask_irq(unsigned int virq)
@@ -546,7 +546,7 @@ static void ipic_mask_irq(unsigned int virq)
 	unsigned long flags;
 	u32 temp;
 
-	spin_lock_irqsave(&ipic_lock, flags);
+	raw_spin_lock_irqsave(&ipic_lock, flags);
 
 	temp = ipic_read(ipic->regs, ipic_info[src].mask);
 	temp &= ~(1 << (31 - ipic_info[src].bit));
@@ -556,7 +556,7 @@ static void ipic_mask_irq(unsigned int virq)
 	 * for nearly all cases. */
 	mb();
 
-	spin_unlock_irqrestore(&ipic_lock, flags);
+	raw_spin_unlock_irqrestore(&ipic_lock, flags);
 }
 
 static void ipic_ack_irq(unsigned int virq)
@@ -566,7 +566,7 @@ static void ipic_ack_irq(unsigned int virq)
 	unsigned long flags;
 	u32 temp;
 
-	spin_lock_irqsave(&ipic_lock, flags);
+	raw_spin_lock_irqsave(&ipic_lock, flags);
 
 	temp = 1 << (31 - ipic_info[src].bit);
 	ipic_write(ipic->regs, ipic_info[src].ack, temp);
@@ -575,7 +575,7 @@ static void ipic_ack_irq(unsigned int virq)
 	 * for nearly all cases. */
 	mb();
 
-	spin_unlock_irqrestore(&ipic_lock, flags);
+	raw_spin_unlock_irqrestore(&ipic_lock, flags);
 }
 
 static void ipic_mask_irq_and_ack(unsigned int virq)
@@ -585,7 +585,7 @@ static void ipic_mask_irq_and_ack(unsigned int virq)
 	unsigned long flags;
 	u32 temp;
 
-	spin_lock_irqsave(&ipic_lock, flags);
+	raw_spin_lock_irqsave(&ipic_lock, flags);
 
 	temp = ipic_read(ipic->regs, ipic_info[src].mask);
 	temp &= ~(1 << (31 - ipic_info[src].bit));
@@ -598,14 +598,14 @@ static void ipic_mask_irq_and_ack(unsigned int virq)
 	 * for nearly all cases. */
 	mb();
 
-	spin_unlock_irqrestore(&ipic_lock, flags);
+	raw_spin_unlock_irqrestore(&ipic_lock, flags);
 }
 
 static int ipic_set_irq_type(unsigned int virq, unsigned int flow_type)
 {
 	struct ipic *ipic = ipic_from_irq(virq);
 	unsigned int src = ipic_irq_to_hw(virq);
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	unsigned int vold, vnew, edibit;
 
 	if (flow_type == IRQ_TYPE_NONE)
@@ -660,7 +660,7 @@ static int ipic_set_irq_type(unsigned int virq, unsigned int flow_type)
 
 /* level interrupts and edge interrupts have different ack operations */
 static struct irq_chip ipic_level_irq_chip = {
-	.typename	= " IPIC  ",
+	.name		= "IPIC",
 	.unmask		= ipic_unmask_irq,
 	.mask		= ipic_mask_irq,
 	.mask_ack	= ipic_mask_irq,
@@ -668,7 +668,7 @@ static struct irq_chip ipic_level_irq_chip = {
 };
 
 static struct irq_chip ipic_edge_irq_chip = {
-	.typename	= " IPIC  ",
+	.name		= "IPIC",
 	.unmask		= ipic_unmask_irq,
 	.mask		= ipic_mask_irq,
 	.mask_ack	= ipic_mask_irq_and_ack,
@@ -697,7 +697,7 @@ static int ipic_host_map(struct irq_host *h, unsigned int virq,
 }
 
 static int ipic_host_xlate(struct irq_host *h, struct device_node *ct,
-			   u32 *intspec, unsigned int intsize,
+			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
 {

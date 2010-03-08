@@ -72,28 +72,15 @@ ENTRY(v3_coherent_user_range)
 	mov	pc, lr
 
 /*
- *	flush_kern_dcache_page(void *page)
+ *	flush_kern_dcache_area(void *page, size_t size)
  *
  *	Ensure no D cache aliasing occurs, either with itself or
  *	the I cache
  *
- *	- addr	- page aligned address
+ *	- addr	- kernel address
+ *	- size	- region size
  */
-ENTRY(v3_flush_kern_dcache_page)
-	/* FALLTHROUGH */
-
-/*
- *	dma_inv_range(start, end)
- *
- *	Invalidate (discard) the specified virtual address range.
- *	May not write back any entries.  If 'start' or 'end'
- *	are not cache line aligned, those lines must be written
- *	back.
- *
- *	- start  - virtual start address
- *	- end	 - virtual end address
- */
-ENTRY(v3_dma_inv_range)
+ENTRY(v3_flush_kern_dcache_area)
 	/* FALLTHROUGH */
 
 /*
@@ -107,18 +94,29 @@ ENTRY(v3_dma_inv_range)
 ENTRY(v3_dma_flush_range)
 	mov	r0, #0
 	mcr	p15, 0, r0, c7, c0, 0		@ flush ID cache
+	mov	pc, lr
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(v3_dma_unmap_area)
+	teq	r2, #DMA_TO_DEVICE
+	bne	v3_dma_flush_range
 	/* FALLTHROUGH */
 
 /*
- *	dma_clean_range(start, end)
- *
- *	Clean (write back) the specified virtual address range.
- *
- *	- start  - virtual start address
- *	- end	 - virtual end address
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
  */
-ENTRY(v3_dma_clean_range)
+ENTRY(v3_dma_map_area)
 	mov	pc, lr
+ENDPROC(v3_dma_unmap_area)
+ENDPROC(v3_dma_map_area)
 
 	__INITDATA
 
@@ -129,8 +127,8 @@ ENTRY(v3_cache_fns)
 	.long	v3_flush_user_cache_range
 	.long	v3_coherent_kern_range
 	.long	v3_coherent_user_range
-	.long	v3_flush_kern_dcache_page
-	.long	v3_dma_inv_range
-	.long	v3_dma_clean_range
+	.long	v3_flush_kern_dcache_area
+	.long	v3_dma_map_area
+	.long	v3_dma_unmap_area
 	.long	v3_dma_flush_range
 	.size	v3_cache_fns, . - v3_cache_fns

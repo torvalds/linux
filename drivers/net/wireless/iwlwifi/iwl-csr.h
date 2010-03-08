@@ -5,7 +5,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -30,7 +30,7 @@
  *
  * BSD LICENSE
  *
- * Copyright(c) 2005 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2005 - 2010 Intel Corporation. All rights reserved.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,8 +77,7 @@
  * The MAC (uCode processor, etc.) does not need to be powered up for accessing
  * the CSR registers.
  *
- * NOTE:  Newer devices using one-time-programmable (OTP) memory
- *        require device to be awake in order to read this memory
+ * NOTE:  Device does need to be awake in order to read this memory
  *        via CSR_EEPROM and CSR_OTP registers
  */
 #define CSR_BASE    (0x000)
@@ -111,9 +110,8 @@
 /*
  * EEPROM and OTP (one-time-programmable) memory reads
  *
- * NOTE:  For (newer) devices using OTP, device must be awake, initialized via
- *        apm_ops.init() in order to read.  Older devices (3945/4965/5000)
- *        use EEPROM and do not require this.
+ * NOTE:  Device must be awake, initialized via apm_ops.init(),
+ *        in order to read.
  */
 #define CSR_EEPROM_REG          (CSR_BASE+0x02c)
 #define CSR_EEPROM_GP           (CSR_BASE+0x030)
@@ -371,7 +369,7 @@
 #define CSR_GP_DRIVER_REG_BIT_RADIO_SKU_3x3_HYB	    (0x00000000)
 #define CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_HYB	    (0x00000001)
 #define CSR_GP_DRIVER_REG_BIT_RADIO_SKU_2x2_IPA	    (0x00000002)
-
+#define CSR_GP_DRIVER_REG_BIT_CALIB_VERSION6	(0x00000004)
 
 /* GIO Chicken Bits (PCI Express bus link power management) */
 #define CSR_GIO_CHICKEN_BITS_REG_BIT_L1A_NO_L0S_RX  (0x00800000)

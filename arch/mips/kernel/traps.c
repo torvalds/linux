@@ -25,10 +25,12 @@
 #include <linux/ptrace.h>
 #include <linux/kgdb.h>
 #include <linux/kdebug.h>
+#include <linux/notifier.h>
 
 #include <asm/bootinfo.h>
 #include <asm/branch.h>
 #include <asm/break.h>
+#include <asm/cop2.h>
 #include <asm/cpu.h>
 #include <asm/dsp.h>
 #include <asm/fpu.h>
@@ -48,6 +50,7 @@
 #include <asm/types.h>
 #include <asm/stacktrace.h>
 #include <asm/irq.h>
+#include <asm/uasm.h>
 
 extern void check_wait(void);
 extern asmlinkage void r4k_wait(void);
@@ -78,10 +81,6 @@ extern asmlinkage void handle_reserved(void);
 
 extern int fpu_emulator_cop1Handler(struct pt_regs *xcp,
 	struct mips_fpu_struct *ctx, int has_fpu);
-
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-extern asmlinkage void octeon_cop2_restore(struct octeon_cop2_state *task);
-#endif
 
 void (*board_be_init)(void);
 int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
@@ -857,6 +856,44 @@ static void mt_ase_fp_affinity(void)
 #endif /* CONFIG_MIPS_MT_FPAFF */
 }
 
+/*
+ * No lock; only written during early bootup by CPU 0.
+ */
+static RAW_NOTIFIER_HEAD(cu2_chain);
+
+int __ref register_cu2_notifier(struct notifier_block *nb)
+{
+	return raw_notifier_chain_register(&cu2_chain, nb);
+}
+
+int cu2_notifier_call_chain(unsigned long val, void *v)
+{
+	return raw_notifier_call_chain(&cu2_chain, val, v);
+}
+
+static int default_cu2_call(struct notifier_block *nfb, unsigned long action,
+        void *data)
+{
+	struct pt_regs *regs = data;
+
+	switch (action) {
+	default:
+		die_if_kernel("Unhandled kernel unaligned access or invalid "
+			      "instruction", regs);
+		/* Fall through  */
+
+	case CU2_EXCEPTION:
+		force_sig(SIGILL, current);
+	}
+
+	return NOTIFY_OK;
+}
+
+static struct notifier_block default_cu2_notifier = {
+	.notifier_call	= default_cu2_call,
+	.priority	= 0x80000000,		/* Run last  */
+};
+
 asmlinkage void do_cpu(struct pt_regs *regs)
 {
 	unsigned int __user *epc;
@@ -920,17 +957,9 @@ asmlinkage void do_cpu(struct pt_regs *regs)
 		return;
 
 	case 2:
-#ifdef CONFIG_CPU_CAVIUM_OCTEON
-		prefetch(&current->thread.cp2);
-		local_irq_save(flags);
-		KSTK_STATUS(current) |= ST0_CU2;
-		status = read_c0_status();
-		write_c0_status(status | ST0_CU2);
-		octeon_cop2_restore(&(current->thread.cp2));
-		write_c0_status(status & ~ST0_CU2);
-		local_irq_restore(flags);
-		return;
-#endif
+		raw_notifier_call_chain(&cu2_chain, CU2_EXCEPTION, regs);
+		break;
+
 	case 3:
 		break;
 	}
@@ -1243,21 +1272,25 @@ unsigned long ebase;
 unsigned long exception_handlers[32];
 unsigned long vi_handlers[64];
 
-/*
- * As a side effect of the way this is implemented we're limited
- * to interrupt handlers in the address range from
- * KSEG0 <= x < KSEG0 + 256mb on the Nevada.  Oh well ...
- */
-void *set_except_vector(int n, void *addr)
+void __init *set_except_vector(int n, void *addr)
 {
 	unsigned long handler = (unsigned long) addr;
 	unsigned long old_handler = exception_handlers[n];
 
 	exception_handlers[n] = handler;
 	if (n == 0 && cpu_has_divec) {
-		*(u32 *)(ebase + 0x200) = 0x08000000 |
-					  (0x03ffffff & (handler >> 2));
-		local_flush_icache_range(ebase + 0x200, ebase + 0x204);
+		unsigned long jump_mask = ~((1 << 28) - 1);
+		u32 *buf = (u32 *)(ebase + 0x200);
+		unsigned int k0 = 26;
+		if ((handler & jump_mask) == ((ebase + 0x200) & jump_mask)) {
+			uasm_i_j(&buf, handler & ~jump_mask);
+			uasm_i_nop(&buf);
+		} else {
+			UASM_i_LA(&buf, k0, handler);
+			uasm_i_jr(&buf, k0);
+			uasm_i_nop(&buf);
+		}
+		local_flush_icache_range(ebase + 0x200, (unsigned long)buf);
 	}
 	return (void *)old_handler;
 }
@@ -1367,77 +1400,6 @@ void *set_vi_handler(int n, vi_handler_t addr)
 	return set_vi_srs_handler(n, addr, 0);
 }
 
-/*
- * This is used by native signal handling
- */
-asmlinkage int (*save_fp_context)(struct sigcontext __user *sc);
-asmlinkage int (*restore_fp_context)(struct sigcontext __user *sc);
-
-extern asmlinkage int _save_fp_context(struct sigcontext __user *sc);
-extern asmlinkage int _restore_fp_context(struct sigcontext __user *sc);
-
-extern asmlinkage int fpu_emulator_save_context(struct sigcontext __user *sc);
-extern asmlinkage int fpu_emulator_restore_context(struct sigcontext __user *sc);
-
-#ifdef CONFIG_SMP
-static int smp_save_fp_context(struct sigcontext __user *sc)
-{
-	return raw_cpu_has_fpu
-	       ? _save_fp_context(sc)
-	       : fpu_emulator_save_context(sc);
-}
-
-static int smp_restore_fp_context(struct sigcontext __user *sc)
-{
-	return raw_cpu_has_fpu
-	       ? _restore_fp_context(sc)
-	       : fpu_emulator_restore_context(sc);
-}
-#endif
-
-static inline void signal_init(void)
-{
-#ifdef CONFIG_SMP
-	/* For now just do the cpu_has_fpu check when the functions are invoked */
-	save_fp_context = smp_save_fp_context;
-	restore_fp_context = smp_restore_fp_context;
-#else
-	if (cpu_has_fpu) {
-		save_fp_context = _save_fp_context;
-		restore_fp_context = _restore_fp_context;
-	} else {
-		save_fp_context = fpu_emulator_save_context;
-		restore_fp_context = fpu_emulator_restore_context;
-	}
-#endif
-}
-
-#ifdef CONFIG_MIPS32_COMPAT
-
-/*
- * This is used by 32-bit signal stuff on the 64-bit kernel
- */
-asmlinkage int (*save_fp_context32)(struct sigcontext32 __user *sc);
-asmlinkage int (*restore_fp_context32)(struct sigcontext32 __user *sc);
-
-extern asmlinkage int _save_fp_context32(struct sigcontext32 __user *sc);
-extern asmlinkage int _restore_fp_context32(struct sigcontext32 __user *sc);
-
-extern asmlinkage int fpu_emulator_save_context32(struct sigcontext32 __user *sc);
-extern asmlinkage int fpu_emulator_restore_context32(struct sigcontext32 __user *sc);
-
-static inline void signal32_init(void)
-{
-	if (cpu_has_fpu) {
-		save_fp_context32 = _save_fp_context32;
-		restore_fp_context32 = _restore_fp_context32;
-	} else {
-		save_fp_context32 = fpu_emulator_save_context32;
-		restore_fp_context32 = fpu_emulator_restore_context32;
-	}
-}
-#endif
-
 extern void cpu_cache_init(void);
 extern void tlb_init(void);
 extern void flush_tlb_handlers(void);
@@ -1446,6 +1408,7 @@ extern void flush_tlb_handlers(void);
  * Timer interrupt
  */
 int cp0_compare_irq;
+int cp0_compare_irq_shift;
 
 /*
  * Performance counter IRQ or -1 if shared with timer
@@ -1536,12 +1499,14 @@ void __cpuinit per_cpu_trap_init(void)
 	 *  o read IntCtl.IPPCI to determine the performance counter interrupt
 	 */
 	if (cpu_has_mips_r2) {
-		cp0_compare_irq = (read_c0_intctl() >> 29) & 7;
-		cp0_perfcount_irq = (read_c0_intctl() >> 26) & 7;
+		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
+		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
+		cp0_perfcount_irq = (read_c0_intctl() >> INTCTLB_IPPCI) & 7;
 		if (cp0_perfcount_irq == cp0_compare_irq)
 			cp0_perfcount_irq = -1;
 	} else {
 		cp0_compare_irq = CP0_LEGACY_COMPARE_IRQ;
+		cp0_compare_irq_shift = cp0_compare_irq;
 		cp0_perfcount_irq = -1;
 	}
 
@@ -1751,13 +1716,10 @@ void __init trap_init(void)
 	else
 		memcpy((void *)(ebase + 0x080), &except_vec3_generic, 0x80);
 
-	signal_init();
-#ifdef CONFIG_MIPS32_COMPAT
-	signal32_init();
-#endif
-
 	local_flush_icache_range(ebase, ebase + 0x400);
 	flush_tlb_handlers();
 
 	sort_extable(__start___dbe_table, __stop___dbe_table);
+
+	register_cu2_notifier(&default_cu2_notifier);
 }

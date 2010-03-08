@@ -481,11 +481,7 @@ int ixp4xx_setup(int nr, struct pci_sys_data *sys)
 
 	res[1].name = "PCI Memory Space";
 	res[1].start = PCIBIOS_MIN_MEM;
-#ifndef CONFIG_IXP4XX_INDIRECT_PCI
-	res[1].end = 0x4bffffff;
-#else
-	res[1].end = 0x4fffffff;
-#endif
+	res[1].end = PCIBIOS_MAX_MEM;
 	res[1].flags = IORESOURCE_MEM;
 
 	request_resource(&ioport_resource, &res[0]);

@@ -47,11 +47,13 @@ struct rtl8187_led {
 	u8 ledpin;
 	/* The unique name string for this LED device. */
 	char name[RTL8187_LED_MAX_NAME_LEN + 1];
+	/* If the LED is radio or tx/rx */
+	bool is_radio;
 };
 
 void rtl8187_leds_init(struct ieee80211_hw *dev, u16 code);
 void rtl8187_leds_exit(struct ieee80211_hw *dev);
 
-#endif /* def CONFIG_RTL8187_LED */
+#endif /* def CONFIG_RTL8187_LEDS */
 
 #endif /* RTL8187_LED_H */

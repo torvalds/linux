@@ -48,27 +48,7 @@ extern void __aeabi_uidivmod(void);
 extern void __aeabi_ulcmp(void);
 
 extern void fpundefinstr(void);
-extern void fp_enter(void);
 
-/*
- * This has a special calling convention; it doesn't
- * modify any of the usual registers, except for LR.
- */
-#define EXPORT_CRC_ALIAS(sym) __CRC_SYMBOL(sym, "")
-
-#define EXPORT_SYMBOL_ALIAS(sym,orig)		\
- EXPORT_CRC_ALIAS(sym)				\
- static const struct kernel_symbol __ksymtab_##sym	\
-  __used __attribute__((section("__ksymtab"))) =	\
-    { (unsigned long)&orig, #sym };
-
-/*
- * floating point math emulator support.
- * These symbols will never change their calling convention...
- */
-EXPORT_SYMBOL_ALIAS(kern_fp_enter,fp_enter);
-EXPORT_SYMBOL_ALIAS(fp_printk,printk);
-EXPORT_SYMBOL_ALIAS(fp_send_sig,send_sig);
 
 EXPORT_SYMBOL(__backtrace);
 

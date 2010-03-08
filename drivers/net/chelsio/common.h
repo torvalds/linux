@@ -36,6 +36,8 @@
  *                                                                           *
  ****************************************************************************/
 
+#define pr_fmt(fmt) "cxgb: " fmt
+
 #ifndef _CXGB_COMMON_H_
 #define _CXGB_COMMON_H_
 
@@ -55,28 +57,6 @@
 #define DRV_DESCRIPTION "Chelsio 10Gb Ethernet Driver"
 #define DRV_NAME "cxgb"
 #define DRV_VERSION "2.2"
-#define PFX      DRV_NAME ": "
-
-#define CH_ERR(fmt, ...)   printk(KERN_ERR PFX fmt, ## __VA_ARGS__)
-#define CH_WARN(fmt, ...)  printk(KERN_WARNING PFX fmt, ## __VA_ARGS__)
-#define CH_ALERT(fmt, ...) printk(KERN_ALERT PFX fmt, ## __VA_ARGS__)
-
-/*
- * More powerful macro that selectively prints messages based on msg_enable.
- * For info and debugging messages.
- */
-#define CH_MSG(adapter, level, category, fmt, ...) do { \
-	if ((adapter)->msg_enable & NETIF_MSG_##category) \
-		printk(KERN_##level PFX "%s: " fmt, (adapter)->name, \
-		       ## __VA_ARGS__); \
-} while (0)
-
-#ifdef DEBUG
-# define CH_DBG(adapter, category, fmt, ...) \
-	CH_MSG(adapter, DEBUG, category, fmt, ## __VA_ARGS__)
-#else
-# define CH_DBG(fmt, ...)
-#endif
 
 #define CH_DEVICE(devid, ssid, idx) \
 	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, ssid, 0, 0, idx }
@@ -90,25 +70,13 @@
 typedef struct adapter adapter_t;
 
 struct t1_rx_mode {
-	struct net_device *dev;
-	u32 idx;
-	struct dev_mc_list *list;
+       struct net_device *dev;
 };
 
 #define t1_rx_mode_promisc(rm)	(rm->dev->flags & IFF_PROMISC)
 #define t1_rx_mode_allmulti(rm)	(rm->dev->flags & IFF_ALLMULTI)
-#define t1_rx_mode_mc_cnt(rm)	(rm->dev->mc_count)
-
-static inline u8 *t1_get_next_mcaddr(struct t1_rx_mode *rm)
-{
-	u8 *addr = NULL;
-
-	if (rm->idx++ < rm->dev->mc_count) {
-		addr = rm->list->dmi_addr;
-		rm->list = rm->list->next;
-	}
-	return addr;
-}
+#define t1_rx_mode_mc_cnt(rm)	(netdev_mc_count(rm->dev))
+#define t1_get_netdev(rm)	(rm->dev)
 
 #define	MAX_NPORTS 4
 #define PORT_MASK ((1 << MAX_NPORTS) - 1)
@@ -334,7 +302,7 @@ static inline int t1_is_asic(const adapter_t *adapter)
 	return adapter->params.is_asic;
 }
 
-extern struct pci_device_id t1_pci_tbl[];
+extern const struct pci_device_id t1_pci_tbl[];
 
 static inline int adapter_matches_type(const adapter_t *adapter,
 				       int version, int revision)

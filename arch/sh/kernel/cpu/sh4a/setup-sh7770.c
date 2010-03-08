@@ -14,67 +14,153 @@
 #include <linux/sh_timer.h>
 #include <linux/io.h>
 
-static struct plat_sci_port sci_platform_data[] = {
-	{
-		.mapbase	= 0xff923000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 61, 61, 61, 61 },
-	}, {
-		.mapbase	= 0xff924000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 62, 62, 62, 62 },
-	}, {
-		.mapbase	= 0xff925000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 63, 63, 63, 63 },
-	}, {
-		.mapbase	= 0xff926000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 64, 64, 64, 64 },
-	}, {
-		.mapbase	= 0xff927000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 65, 65, 65, 65 },
-	}, {
-		.mapbase	= 0xff928000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 66, 66, 66, 66 },
-	}, {
-		.mapbase	= 0xff929000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 67, 67, 67, 67 },
-	}, {
-		.mapbase	= 0xff92a000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 68, 68, 68, 68 },
-	}, {
-		.mapbase	= 0xff92b000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 69, 69, 69, 69 },
-	}, {
-		.mapbase	= 0xff92c000,
-		.flags		= UPF_BOOT_AUTOCONF,
-		.type		= PORT_SCIF,
-		.irqs		= { 70, 70, 70, 70 },
-	}, {
-		.flags = 0,
-	}
+static struct plat_sci_port scif0_platform_data = {
+	.mapbase	= 0xff923000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 61, 61, 61, 61 },
 };
 
-static struct platform_device sci_device = {
+static struct platform_device scif0_device = {
 	.name		= "sh-sci",
-	.id		= -1,
+	.id		= 0,
 	.dev		= {
-		.platform_data	= sci_platform_data,
+		.platform_data	= &scif0_platform_data,
+	},
+};
+
+static struct plat_sci_port scif1_platform_data = {
+	.mapbase	= 0xff924000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 62, 62, 62, 62 },
+};
+
+static struct platform_device scif1_device = {
+	.name		= "sh-sci",
+	.id		= 1,
+	.dev		= {
+		.platform_data	= &scif1_platform_data,
+	},
+};
+
+static struct plat_sci_port scif2_platform_data = {
+	.mapbase	= 0xff925000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 63, 63, 63, 63 },
+};
+
+static struct platform_device scif2_device = {
+	.name		= "sh-sci",
+	.id		= 2,
+	.dev		= {
+		.platform_data	= &scif2_platform_data,
+	},
+};
+
+static struct plat_sci_port scif3_platform_data = {
+	.mapbase	= 0xff926000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 64, 64, 64, 64 },
+};
+
+static struct platform_device scif3_device = {
+	.name		= "sh-sci",
+	.id		= 3,
+	.dev		= {
+		.platform_data	= &scif3_platform_data,
+	},
+};
+
+static struct plat_sci_port scif4_platform_data = {
+	.mapbase	= 0xff927000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 65, 65, 65, 65 },
+};
+
+static struct platform_device scif4_device = {
+	.name		= "sh-sci",
+	.id		= 4,
+	.dev		= {
+		.platform_data	= &scif4_platform_data,
+	},
+};
+
+static struct plat_sci_port scif5_platform_data = {
+	.mapbase	= 0xff928000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 66, 66, 66, 66 },
+};
+
+static struct platform_device scif5_device = {
+	.name		= "sh-sci",
+	.id		= 5,
+	.dev		= {
+		.platform_data	= &scif5_platform_data,
+	},
+};
+
+static struct plat_sci_port scif6_platform_data = {
+	.mapbase	= 0xff929000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 67, 67, 67, 67 },
+};
+
+static struct platform_device scif6_device = {
+	.name		= "sh-sci",
+	.id		= 6,
+	.dev		= {
+		.platform_data	= &scif6_platform_data,
+	},
+};
+
+static struct plat_sci_port scif7_platform_data = {
+	.mapbase	= 0xff92a000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 68, 68, 68, 68 },
+};
+
+static struct platform_device scif7_device = {
+	.name		= "sh-sci",
+	.id		= 7,
+	.dev		= {
+		.platform_data	= &scif7_platform_data,
+	},
+};
+
+static struct plat_sci_port scif8_platform_data = {
+	.mapbase	= 0xff92b000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 69, 69, 69, 69 },
+};
+
+static struct platform_device scif8_device = {
+	.name		= "sh-sci",
+	.id		= 8,
+	.dev		= {
+		.platform_data	= &scif8_platform_data,
+	},
+};
+
+static struct plat_sci_port scif9_platform_data = {
+	.mapbase	= 0xff92c000,
+	.flags		= UPF_BOOT_AUTOCONF,
+	.type		= PORT_SCIF,
+	.irqs		= { 70, 70, 70, 70 },
+};
+
+static struct platform_device scif9_device = {
+	.name		= "sh-sci",
+	.id		= 9,
+	.dev		= {
+		.platform_data	= &scif9_platform_data,
 	},
 };
 
@@ -351,6 +437,16 @@ static struct platform_device tmu8_device = {
 };
 
 static struct platform_device *sh7770_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
+	&scif2_device,
+	&scif3_device,
+	&scif4_device,
+	&scif5_device,
+	&scif6_device,
+	&scif7_device,
+	&scif8_device,
+	&scif9_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,
@@ -360,7 +456,6 @@ static struct platform_device *sh7770_devices[] __initdata = {
 	&tmu6_device,
 	&tmu7_device,
 	&tmu8_device,
-	&sci_device,
 };
 
 static int __init sh7770_devices_setup(void)
@@ -371,6 +466,16 @@ static int __init sh7770_devices_setup(void)
 arch_initcall(sh7770_devices_setup);
 
 static struct platform_device *sh7770_early_devices[] __initdata = {
+	&scif0_device,
+	&scif1_device,
+	&scif2_device,
+	&scif3_device,
+	&scif4_device,
+	&scif5_device,
+	&scif6_device,
+	&scif7_device,
+	&scif8_device,
+	&scif9_device,
 	&tmu0_device,
 	&tmu1_device,
 	&tmu2_device,
@@ -589,17 +694,17 @@ static DECLARE_INTC_DESC(intc_irl3210_desc, "sh7780-irl3210", irl_vectors,
 void __init plat_irq_setup(void)
 {
 	/* disable IRQ7-0 */
-	ctrl_outl(0xff000000, INTC_INTMSK0);
+	__raw_writel(0xff000000, INTC_INTMSK0);
 
 	/* disable IRL3-0 + IRL7-4 */
-	ctrl_outl(0xc0000000, INTC_INTMSK1);
-	ctrl_outl(0xfffefffe, INTC_INTMSK2);
+	__raw_writel(0xc0000000, INTC_INTMSK1);
+	__raw_writel(0xfffefffe, INTC_INTMSK2);
 
 	/* select IRL mode for IRL3-0 + IRL7-4 */
-	ctrl_outl(ctrl_inl(INTC_ICR0) & ~0x00c00000, INTC_ICR0);
+	__raw_writel(__raw_readl(INTC_ICR0) & ~0x00c00000, INTC_ICR0);
 
 	/* disable holding function, ie enable "SH-4 Mode" */
-	ctrl_outl(ctrl_inl(INTC_ICR0) | 0x00200000, INTC_ICR0);
+	__raw_writel(__raw_readl(INTC_ICR0) | 0x00200000, INTC_ICR0);
 
 	register_intc_controller(&intc_desc);
 }
@@ -609,27 +714,27 @@ void __init plat_irq_setup_pins(int mode)
 	switch (mode) {
 	case IRQ_MODE_IRQ:
 		/* select IRQ mode for IRL3-0 + IRL7-4 */
-		ctrl_outl(ctrl_inl(INTC_ICR0) | 0x00c00000, INTC_ICR0);
+		__raw_writel(__raw_readl(INTC_ICR0) | 0x00c00000, INTC_ICR0);
 		register_intc_controller(&intc_irq_desc);
 		break;
 	case IRQ_MODE_IRL7654:
 		/* enable IRL7-4 but don't provide any masking */
-		ctrl_outl(0x40000000, INTC_INTMSKCLR1);
-		ctrl_outl(0x0000fffe, INTC_INTMSKCLR2);
+		__raw_writel(0x40000000, INTC_INTMSKCLR1);
+		__raw_writel(0x0000fffe, INTC_INTMSKCLR2);
 		break;
 	case IRQ_MODE_IRL3210:
 		/* enable IRL0-3 but don't provide any masking */
-		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
-		ctrl_outl(0xfffe0000, INTC_INTMSKCLR2);
+		__raw_writel(0x80000000, INTC_INTMSKCLR1);
+		__raw_writel(0xfffe0000, INTC_INTMSKCLR2);
 		break;
 	case IRQ_MODE_IRL7654_MASK:
 		/* enable IRL7-4 and mask using cpu intc controller */
-		ctrl_outl(0x40000000, INTC_INTMSKCLR1);
+		__raw_writel(0x40000000, INTC_INTMSKCLR1);
 		register_intc_controller(&intc_irl7654_desc);
 		break;
 	case IRQ_MODE_IRL3210_MASK:
 		/* enable IRL0-3 and mask using cpu intc controller */
-		ctrl_outl(0x80000000, INTC_INTMSKCLR1);
+		__raw_writel(0x80000000, INTC_INTMSKCLR1);
 		register_intc_controller(&intc_irl3210_desc);
 		break;
 	default:

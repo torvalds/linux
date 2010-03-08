@@ -189,7 +189,7 @@ static unsigned int eisa_startup_irq(unsigned int irq)
 }
 
 static struct irq_chip eisa_interrupt_type = {
-	.typename =	"EISA",
+	.name	 =	"EISA",
 	.startup =	eisa_startup_irq,
 	.shutdown =	eisa_disable_irq,
 	.enable =	eisa_enable_irq,

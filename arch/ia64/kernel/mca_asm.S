@@ -59,7 +59,7 @@
 ia64_do_tlb_purge:
 #define O(member)	IA64_CPUINFO_##member##_OFFSET
 
-	GET_THIS_PADDR(r2, cpu_info)	// load phys addr of cpu_info into r2
+	GET_THIS_PADDR(r2, ia64_cpu_info) // load phys addr of cpu_info into r2
 	;;
 	addl r17=O(PTCE_STRIDE),r2
 	addl r2=O(PTCE_BASE),r2

@@ -485,7 +485,6 @@ static int bnx2i_setup_cmd_pool(struct bnx2i_hba *hba,
 		struct iscsi_task *task = session->cmds[i];
 		struct bnx2i_cmd *cmd = task->dd_data;
 
-		/* Anil */
 		task->hdr = &cmd->hdr;
 		task->hdr_max = sizeof(struct iscsi_hdr);
 
@@ -765,7 +764,6 @@ struct bnx2i_hba *bnx2i_alloc_hba(struct cnic_dev *cnic)
 	hba->pci_svid = hba->pcidev->subsystem_vendor;
 	hba->pci_func = PCI_FUNC(hba->pcidev->devfn);
 	hba->pci_devno = PCI_SLOT(hba->pcidev->devfn);
-	bnx2i_identify_device(hba);
 
 	bnx2i_identify_device(hba);
 	bnx2i_setup_host_queue_size(hba, shost);
@@ -1428,8 +1426,8 @@ static int bnx2i_conn_get_param(struct iscsi_cls_conn *cls_conn,
 		break;
 	case ISCSI_PARAM_CONN_ADDRESS:
 		if (bnx2i_conn->ep)
-			len = sprintf(buf, NIPQUAD_FMT "\n",
-				      NIPQUAD(bnx2i_conn->ep->cm_sk->dst_ip));
+			len = sprintf(buf, "%pI4\n",
+				      &bnx2i_conn->ep->cm_sk->dst_ip);
 		break;
 	default:
 		return iscsi_conn_get_param(cls_conn, param, buf);
@@ -1992,6 +1990,7 @@ static struct scsi_host_template bnx2i_host_template = {
 	.eh_abort_handler	= iscsi_eh_abort,
 	.eh_device_reset_handler = iscsi_eh_device_reset,
 	.eh_target_reset_handler = iscsi_eh_target_reset,
+	.change_queue_depth	= iscsi_change_queue_depth,
 	.can_queue		= 1024,
 	.max_sectors		= 127,
 	.cmd_per_lun		= 32,

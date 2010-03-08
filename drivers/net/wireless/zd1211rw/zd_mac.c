@@ -828,9 +828,6 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 	stats.freq = zd_channels[_zd_chip_get_channel(&mac->chip) - 1].center_freq;
 	stats.band = IEEE80211_BAND_2GHZ;
 	stats.signal = status->signal_strength;
-	stats.qual = zd_rx_qual_percent(buffer,
-		                          length - sizeof(struct rx_status),
-		                          status);
 
 	rate = zd_rx_rate(buffer, status);
 
@@ -872,7 +869,7 @@ int zd_mac_rx(struct ieee80211_hw *hw, const u8 *buffer, unsigned int length)
 }
 
 static int zd_op_add_interface(struct ieee80211_hw *hw,
-				struct ieee80211_if_init_conf *conf)
+				struct ieee80211_vif *vif)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 
@@ -880,22 +877,22 @@ static int zd_op_add_interface(struct ieee80211_hw *hw,
 	if (mac->type != NL80211_IFTYPE_UNSPECIFIED)
 		return -EOPNOTSUPP;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
-		mac->type = conf->type;
+		mac->type = vif->type;
 		break;
 	default:
 		return -EOPNOTSUPP;
 	}
 
-	return zd_write_mac_addr(&mac->chip, conf->mac_addr);
+	return zd_write_mac_addr(&mac->chip, vif->addr);
 }
 
 static void zd_op_remove_interface(struct ieee80211_hw *hw,
-				    struct ieee80211_if_init_conf *conf)
+				    struct ieee80211_vif *vif)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	mac->type = NL80211_IFTYPE_UNSPECIFIED;
@@ -990,12 +987,13 @@ static void zd_op_configure_filter(struct ieee80211_hw *hw,
 	changed_flags &= SUPPORTED_FIF_FLAGS;
 	*new_flags &= SUPPORTED_FIF_FLAGS;
 
-	/* changed_flags is always populated but this driver
-	 * doesn't support all FIF flags so its possible we don't
-	 * need to do anything */
-	if (!changed_flags)
-		return;
-
+	/*
+	 * If multicast parameter (as returned by zd_op_prepare_multicast)
+	 * has changed, no bit in changed_flags is set. To handle this
+	 * situation, we do not return if changed_flags is 0. If we do so,
+	 * we will have some issue with IPv6 which uses multicast for link
+	 * layer address resolution.
+	 */
 	if (*new_flags & (FIF_PROMISC_IN_BSS | FIF_ALLMULTI))
 		zd_mc_add_all(&hash);
 

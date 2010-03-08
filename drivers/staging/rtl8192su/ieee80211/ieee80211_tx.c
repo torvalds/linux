@@ -199,8 +199,8 @@ int ieee80211_encrypt_fragment(
 		header = (struct rtl_ieee80211_hdr *)frag->data;
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "%s: TKIP countermeasures: dropped "
-			       "TX packet to " MAC_FMT "\n",
-			       ieee->dev->name, MAC_ARG(header->addr1));
+			       "TX packet to %pM\n",
+			       ieee->dev->name, header->addr1);
 		}
 		return -1;
 	}
@@ -604,7 +604,7 @@ void ieee80211_query_seqnum(struct ieee80211_device*ieee, struct sk_buff* skb, u
 	}
 }
 
-int rtl8192_ieee80211_xmit(struct sk_buff *skb, struct net_device *dev)
+int rtl8192_ieee80211_rtl_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct ieee80211_device *ieee = netdev_priv(dev);
 	struct ieee80211_txb *txb = NULL;

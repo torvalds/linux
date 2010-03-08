@@ -101,6 +101,8 @@ static int fcoe_cpu_callback(struct notifier_block *, unsigned long, void *);
 
 static int fcoe_create(const char *, struct kernel_param *);
 static int fcoe_destroy(const char *, struct kernel_param *);
+static int fcoe_enable(const char *, struct kernel_param *);
+static int fcoe_disable(const char *, struct kernel_param *);
 
 static struct fc_seq *fcoe_elsct_send(struct fc_lport *,
 				      u32 did, struct fc_frame *,
@@ -115,10 +117,16 @@ static void fcoe_get_lesb(struct fc_lport *, struct fc_els_lesb *);
 
 module_param_call(create, fcoe_create, NULL, NULL, S_IWUSR);
 __MODULE_PARM_TYPE(create, "string");
-MODULE_PARM_DESC(create, "Create fcoe fcoe using net device passed in.");
+MODULE_PARM_DESC(create, " Creates fcoe instance on a ethernet interface");
 module_param_call(destroy, fcoe_destroy, NULL, NULL, S_IWUSR);
 __MODULE_PARM_TYPE(destroy, "string");
-MODULE_PARM_DESC(destroy, "Destroy fcoe fcoe");
+MODULE_PARM_DESC(destroy, " Destroys fcoe instance on a ethernet interface");
+module_param_call(enable, fcoe_enable, NULL, NULL, S_IWUSR);
+__MODULE_PARM_TYPE(enable, "string");
+MODULE_PARM_DESC(enable, " Enables fcoe on a ethernet interface.");
+module_param_call(disable, fcoe_disable, NULL, NULL, S_IWUSR);
+__MODULE_PARM_TYPE(disable, "string");
+MODULE_PARM_DESC(disable, " Disables fcoe on a ethernet interface.");
 
 /* notification function for packets from net device */
 static struct notifier_block fcoe_notifier = {
@@ -545,6 +553,23 @@ static void fcoe_queue_timer(ulong lport)
 }
 
 /**
+ * fcoe_get_wwn() - Get the world wide name from LLD if it supports it
+ * @netdev: the associated net device
+ * @wwn: the output WWN
+ * @type: the type of WWN (WWPN or WWNN)
+ *
+ * Returns: 0 for success
+ */
+static int fcoe_get_wwn(struct net_device *netdev, u64 *wwn, int type)
+{
+	const struct net_device_ops *ops = netdev->netdev_ops;
+
+	if (ops->ndo_fcoe_get_wwn)
+		return ops->ndo_fcoe_get_wwn(netdev, wwn, type);
+	return -EINVAL;
+}
+
+/**
  * fcoe_netdev_config() - Set up net devive for SW FCoE
  * @lport:  The local port that is associated with the net device
  * @netdev: The associated net device
@@ -611,9 +636,13 @@ static int fcoe_netdev_config(struct fc_lport *lport, struct net_device *netdev)
 		 */
 		if (netdev->priv_flags & IFF_802_1Q_VLAN)
 			vid = vlan_dev_vlan_id(netdev);
-		wwnn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 1, 0);
+
+		if (fcoe_get_wwn(netdev, &wwnn, NETDEV_FCOE_WWNN))
+			wwnn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 1, 0);
 		fc_set_wwnn(lport, wwnn);
-		wwpn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr, 2, vid);
+		if (fcoe_get_wwn(netdev, &wwpn, NETDEV_FCOE_WWPN))
+			wwpn = fcoe_wwn_from_mac(fcoe->ctlr.ctl_src_addr,
+						 2, vid);
 		fc_set_wwpn(lport, wwpn);
 	}
 
@@ -1231,7 +1260,7 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 				"CPU.\n");
 
 		spin_unlock_bh(&fps->fcoe_rx_list.lock);
-		cpu = first_cpu(cpu_online_map);
+		cpu = cpumask_first(cpu_online_mask);
 		fps = &per_cpu(fcoe_percpu, cpu);
 		spin_lock_bh(&fps->fcoe_rx_list.lock);
 		if (!fps->thread) {
@@ -1838,6 +1867,104 @@ static struct net_device *fcoe_if_to_netdev(const char *buffer)
 }
 
 /**
+ * fcoe_disable() - Disables a FCoE interface
+ * @buffer: The name of the Ethernet interface to be disabled
+ * @kp:	    The associated kernel parameter
+ *
+ * Called from sysfs.
+ *
+ * Returns: 0 for success
+ */
+static int fcoe_disable(const char *buffer, struct kernel_param *kp)
+{
+	struct fcoe_interface *fcoe;
+	struct net_device *netdev;
+	int rc = 0;
+
+	mutex_lock(&fcoe_config_mutex);
+#ifdef CONFIG_FCOE_MODULE
+	/*
+	 * Make sure the module has been initialized, and is not about to be
+	 * removed.  Module paramter sysfs files are writable before the
+	 * module_init function is called and after module_exit.
+	 */
+	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
+		rc = -ENODEV;
+		goto out_nodev;
+	}
+#endif
+
+	netdev = fcoe_if_to_netdev(buffer);
+	if (!netdev) {
+		rc = -ENODEV;
+		goto out_nodev;
+	}
+
+	rtnl_lock();
+	fcoe = fcoe_hostlist_lookup_port(netdev);
+	rtnl_unlock();
+
+	if (fcoe)
+		fc_fabric_logoff(fcoe->ctlr.lp);
+	else
+		rc = -ENODEV;
+
+	dev_put(netdev);
+out_nodev:
+	mutex_unlock(&fcoe_config_mutex);
+	return rc;
+}
+
+/**
+ * fcoe_enable() - Enables a FCoE interface
+ * @buffer: The name of the Ethernet interface to be enabled
+ * @kp:     The associated kernel parameter
+ *
+ * Called from sysfs.
+ *
+ * Returns: 0 for success
+ */
+static int fcoe_enable(const char *buffer, struct kernel_param *kp)
+{
+	struct fcoe_interface *fcoe;
+	struct net_device *netdev;
+	int rc = 0;
+
+	mutex_lock(&fcoe_config_mutex);
+#ifdef CONFIG_FCOE_MODULE
+	/*
+	 * Make sure the module has been initialized, and is not about to be
+	 * removed.  Module paramter sysfs files are writable before the
+	 * module_init function is called and after module_exit.
+	 */
+	if (THIS_MODULE->state != MODULE_STATE_LIVE) {
+		rc = -ENODEV;
+		goto out_nodev;
+	}
+#endif
+
+	netdev = fcoe_if_to_netdev(buffer);
+	if (!netdev) {
+		rc = -ENODEV;
+		goto out_nodev;
+	}
+
+	rtnl_lock();
+	fcoe = fcoe_hostlist_lookup_port(netdev);
+	rtnl_unlock();
+
+	if (fcoe)
+		rc = fc_fabric_login(fcoe->ctlr.lp);
+	else
+		rc = -ENODEV;
+
+	dev_put(netdev);
+out_nodev:
+	mutex_unlock(&fcoe_config_mutex);
+	return rc;
+}
+
+/**
  * fcoe_destroy() - Destroy a FCoE interface
  * @buffer: The name of the Ethernet interface to be destroyed
  * @kp:	    The associated kernel parameter
@@ -1882,6 +2009,8 @@ static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
 	fcoe_interface_cleanup(fcoe);
 	rtnl_unlock();
 	fcoe_if_destroy(fcoe->ctlr.lp);
+	module_put(THIS_MODULE);
+
 out_putdev:
 	dev_put(netdev);
 out_nodev:
@@ -1932,6 +2061,11 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 	}
 #endif
 
+	if (!try_module_get(THIS_MODULE)) {
+		rc = -EINVAL;
+		goto out_nomod;
+	}
+
 	rtnl_lock();
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev) {
@@ -1972,17 +2106,24 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 	if (!fcoe_link_ok(lport))
 		fcoe_ctlr_link_up(&fcoe->ctlr);
 
-	rc = 0;
-out_free:
 	/*
 	 * Release from init in fcoe_interface_create(), on success lport
 	 * should be holding a reference taken in fcoe_if_create().
 	 */
 	fcoe_interface_put(fcoe);
+	dev_put(netdev);
+	rtnl_unlock();
+	mutex_unlock(&fcoe_config_mutex);
+
+	return 0;
+out_free:
+	fcoe_interface_put(fcoe);
 out_putdev:
 	dev_put(netdev);
 out_nodev:
 	rtnl_unlock();
+	module_put(THIS_MODULE);
+out_nomod:
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }

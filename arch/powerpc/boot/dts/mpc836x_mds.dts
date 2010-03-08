@@ -99,6 +99,13 @@
 			reg = <0x200 0x100>;
 		};
 
+		pmc: power@b00 {
+			compatible = "fsl,mpc8360-pmc", "fsl,mpc8349-pmc";
+			reg = <0xb00 0x100 0xa00 0x100>;
+			interrupts = <80 0x8>;
+			interrupt-parent = <&ipic>;
+		};
+
 		i2c@3000 {
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -194,6 +201,7 @@
 			fsl,channel-fifo-len = <24>;
 			fsl,exec-units-mask = <0x7e>;
 			fsl,descriptor-types-mask = <0x01010ebf>;
+			sleep = <&pmc 0x03000000>;
 		};
 
 		ipic: pic@700 {
@@ -470,5 +478,6 @@
 		       0xe0008300 0x8>;		/* config space access registers */
 		compatible = "fsl,mpc8349-pci";
 		device_type = "pci";
+		sleep = <&pmc 0x00010000>;
 	};
 };

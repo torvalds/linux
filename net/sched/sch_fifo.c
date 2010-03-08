@@ -43,6 +43,26 @@ static int pfifo_enqueue(struct sk_buff *skb, struct Qdisc* sch)
 	return qdisc_reshape_fail(skb, sch);
 }
 
+static int pfifo_tail_enqueue(struct sk_buff *skb, struct Qdisc* sch)
+{
+	struct sk_buff *skb_head;
+	struct fifo_sched_data *q = qdisc_priv(sch);
+
+	if (likely(skb_queue_len(&sch->q) < q->limit))
+		return qdisc_enqueue_tail(skb, sch);
+
+	/* queue full, remove one skb to fulfill the limit */
+	skb_head = qdisc_dequeue_head(sch);
+	sch->bstats.bytes -= qdisc_pkt_len(skb_head);
+	sch->bstats.packets--;
+	sch->qstats.drops++;
+	kfree_skb(skb_head);
+
+	qdisc_enqueue_tail(skb, sch);
+
+	return NET_XMIT_CN;
+}
+
 static int fifo_init(struct Qdisc *sch, struct nlattr *opt)
 {
 	struct fifo_sched_data *q = qdisc_priv(sch);
@@ -107,6 +127,20 @@ struct Qdisc_ops bfifo_qdisc_ops __read_mostly = {
 	.owner		=	THIS_MODULE,
 };
 EXPORT_SYMBOL(bfifo_qdisc_ops);
+
+struct Qdisc_ops pfifo_head_drop_qdisc_ops __read_mostly = {
+	.id		=	"pfifo_head_drop",
+	.priv_size	=	sizeof(struct fifo_sched_data),
+	.enqueue	=	pfifo_tail_enqueue,
+	.dequeue	=	qdisc_dequeue_head,
+	.peek		=	qdisc_peek_head,
+	.drop		=	qdisc_queue_drop_head,
+	.init		=	fifo_init,
+	.reset		=	qdisc_reset_queue,
+	.change		=	fifo_init,
+	.dump		=	fifo_dump,
+	.owner		=	THIS_MODULE,
+};
 
 /* Pass size change message down to embedded FIFO */
 int fifo_set_limit(struct Qdisc *q, unsigned int limit)

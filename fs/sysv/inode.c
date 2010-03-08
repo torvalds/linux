@@ -26,6 +26,7 @@
 #include <linux/init.h>
 #include <linux/buffer_head.h>
 #include <linux/vfs.h>
+#include <linux/writeback.h>
 #include <linux/namei.h>
 #include <asm/byteorder.h>
 #include "sysv.h"
@@ -246,7 +247,7 @@ bad_inode:
 	return ERR_PTR(-EIO);
 }
 
-int sysv_write_inode(struct inode *inode, int wait)
+static int __sysv_write_inode(struct inode *inode, int wait)
 {
 	struct super_block * sb = inode->i_sb;
 	struct sysv_sb_info * sbi = SYSV_SB(sb);
@@ -296,9 +297,14 @@ int sysv_write_inode(struct inode *inode, int wait)
 	return 0;
 }
 
+int sysv_write_inode(struct inode *inode, struct writeback_control *wbc)
+{
+	return __sysv_write_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
+}
+
 int sysv_sync_inode(struct inode *inode)
 {
-	return sysv_write_inode(inode, 1);
+	return __sysv_write_inode(inode, 1);
 }
 
 static void sysv_delete_inode(struct inode *inode)

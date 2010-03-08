@@ -270,7 +270,7 @@ extern pgd_t swapper_pg_dir[PTRS_PER_PGD]; /* defined in head.S */
  * Actually I am not sure on what this could be used for.
  */
 static inline void update_mmu_cache(struct vm_area_struct * vma,
-	unsigned long address, pte_t pte)
+	unsigned long address, pte_t *ptep)
 {
 }
 

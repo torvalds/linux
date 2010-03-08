@@ -139,7 +139,7 @@ static int usb_set_report(struct usb_interface *intf, unsigned char type,
 /* driver registration */
 /*---------------------*/
 /* table of devices that work with this driver */
-static struct usb_device_id iowarrior_ids[] = {
+static const struct usb_device_id iowarrior_ids[] = {
 	{USB_DEVICE(USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW40)},
 	{USB_DEVICE(USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOW24)},
 	{USB_DEVICE(USB_VENDOR_ID_CODEMERCS, USB_DEVICE_ID_CODEMERCS_IOWPV1)},
@@ -602,10 +602,12 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 
 	dbg("%s", __func__);
 
+	lock_kernel();
 	subminor = iminor(inode);
 
 	interface = usb_find_interface(&iowarrior_driver, subminor);
 	if (!interface) {
+		unlock_kernel();
 		err("%s - error, can't find device for minor %d", __func__,
 		    subminor);
 		return -ENODEV;
@@ -615,6 +617,7 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 	dev = usb_get_intfdata(interface);
 	if (!dev) {
 		mutex_unlock(&iowarrior_open_disc_lock);
+		unlock_kernel();
 		return -ENODEV;
 	}
 
@@ -641,6 +644,7 @@ static int iowarrior_open(struct inode *inode, struct file *file)
 
 out:
 	mutex_unlock(&dev->mutex);
+	unlock_kernel();
 	return retval;
 }
 

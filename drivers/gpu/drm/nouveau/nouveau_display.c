@@ -39,11 +39,8 @@ nouveau_user_framebuffer_destroy(struct drm_framebuffer *drm_fb)
 	if (drm_fb->fbdev)
 		nouveau_fbcon_remove(dev, drm_fb);
 
-	if (fb->nvbo) {
-		mutex_lock(&dev->struct_mutex);
-		drm_gem_object_unreference(fb->nvbo->gem);
-		mutex_unlock(&dev->struct_mutex);
-	}
+	if (fb->nvbo)
+		drm_gem_object_unreference_unlocked(fb->nvbo->gem);
 
 	drm_framebuffer_cleanup(drm_fb);
 	kfree(fb);

@@ -27,6 +27,8 @@
 #include <mach/irqs.h>
 #include <plat/usb.h>
 
+#include "mux.h"
+
 #if defined(CONFIG_USB_EHCI_HCD) || defined(CONFIG_USB_EHCI_HCD_MODULE)
 
 static struct resource ehci_resources[] = {
@@ -72,32 +74,44 @@ static void setup_ehci_io_mux(enum ehci_hcd_omap_mode *port_mode)
 {
 	switch (port_mode[0]) {
 	case EHCI_HCD_OMAP_MODE_PHY:
-		omap_cfg_reg(Y9_3430_USB1HS_PHY_STP);
-		omap_cfg_reg(Y8_3430_USB1HS_PHY_CLK);
-		omap_cfg_reg(AA14_3430_USB1HS_PHY_DIR);
-		omap_cfg_reg(AA11_3430_USB1HS_PHY_NXT);
-		omap_cfg_reg(W13_3430_USB1HS_PHY_DATA0);
-		omap_cfg_reg(W12_3430_USB1HS_PHY_DATA1);
-		omap_cfg_reg(W11_3430_USB1HS_PHY_DATA2);
-		omap_cfg_reg(Y11_3430_USB1HS_PHY_DATA3);
-		omap_cfg_reg(W9_3430_USB1HS_PHY_DATA4);
-		omap_cfg_reg(Y12_3430_USB1HS_PHY_DATA5);
-		omap_cfg_reg(W8_3430_USB1HS_PHY_DATA6);
-		omap_cfg_reg(Y13_3430_USB1HS_PHY_DATA7);
+		omap_mux_init_signal("hsusb1_stp", OMAP_PIN_OUTPUT);
+		omap_mux_init_signal("hsusb1_clk", OMAP_PIN_OUTPUT);
+		omap_mux_init_signal("hsusb1_dir", OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_nxt", OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_data0", OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_data1", OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_data2", OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_data3", OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_data4", OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_data5", OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_data6", OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_data7", OMAP_PIN_INPUT_PULLDOWN);
 		break;
 	case EHCI_HCD_OMAP_MODE_TLL:
-		omap_cfg_reg(Y9_3430_USB1HS_TLL_STP);
-		omap_cfg_reg(Y8_3430_USB1HS_TLL_CLK);
-		omap_cfg_reg(AA14_3430_USB1HS_TLL_DIR);
-		omap_cfg_reg(AA11_3430_USB1HS_TLL_NXT);
-		omap_cfg_reg(W13_3430_USB1HS_TLL_DATA0);
-		omap_cfg_reg(W12_3430_USB1HS_TLL_DATA1);
-		omap_cfg_reg(W11_3430_USB1HS_TLL_DATA2);
-		omap_cfg_reg(Y11_3430_USB1HS_TLL_DATA3);
-		omap_cfg_reg(W9_3430_USB1HS_TLL_DATA4);
-		omap_cfg_reg(Y12_3430_USB1HS_TLL_DATA5);
-		omap_cfg_reg(W8_3430_USB1HS_TLL_DATA6);
-		omap_cfg_reg(Y13_3430_USB1HS_TLL_DATA7);
+		omap_mux_init_signal("hsusb1_tll_stp",
+			OMAP_PIN_INPUT_PULLUP);
+		omap_mux_init_signal("hsusb1_tll_clk",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_tll_dir",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_tll_nxt",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_tll_data0",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_tll_data1",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_tll_data2",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_tll_data3",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_tll_data4",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_tll_data5",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_tll_data6",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb1_tll_data7",
+			OMAP_PIN_INPUT_PULLDOWN);
 		break;
 	case EHCI_HCD_OMAP_MODE_UNKNOWN:
 		/* FALLTHROUGH */
@@ -107,32 +121,52 @@ static void setup_ehci_io_mux(enum ehci_hcd_omap_mode *port_mode)
 
 	switch (port_mode[1]) {
 	case EHCI_HCD_OMAP_MODE_PHY:
-		omap_cfg_reg(AA10_3430_USB2HS_PHY_STP);
-		omap_cfg_reg(AA8_3430_USB2HS_PHY_CLK);
-		omap_cfg_reg(AA9_3430_USB2HS_PHY_DIR);
-		omap_cfg_reg(AB11_3430_USB2HS_PHY_NXT);
-		omap_cfg_reg(AB10_3430_USB2HS_PHY_DATA0);
-		omap_cfg_reg(AB9_3430_USB2HS_PHY_DATA1);
-		omap_cfg_reg(W3_3430_USB2HS_PHY_DATA2);
-		omap_cfg_reg(T4_3430_USB2HS_PHY_DATA3);
-		omap_cfg_reg(T3_3430_USB2HS_PHY_DATA4);
-		omap_cfg_reg(R3_3430_USB2HS_PHY_DATA5);
-		omap_cfg_reg(R4_3430_USB2HS_PHY_DATA6);
-		omap_cfg_reg(T2_3430_USB2HS_PHY_DATA7);
+		omap_mux_init_signal("hsusb2_stp", OMAP_PIN_OUTPUT);
+		omap_mux_init_signal("hsusb2_clk", OMAP_PIN_OUTPUT);
+		omap_mux_init_signal("hsusb2_dir", OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_nxt", OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_data0",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_data1",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_data2",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_data3",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_data4",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_data5",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_data6",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_data7",
+			OMAP_PIN_INPUT_PULLDOWN);
 		break;
 	case EHCI_HCD_OMAP_MODE_TLL:
-		omap_cfg_reg(AA10_3430_USB2HS_TLL_STP);
-		omap_cfg_reg(AA8_3430_USB2HS_TLL_CLK);
-		omap_cfg_reg(AA9_3430_USB2HS_TLL_DIR);
-		omap_cfg_reg(AB11_3430_USB2HS_TLL_NXT);
-		omap_cfg_reg(AB10_3430_USB2HS_TLL_DATA0);
-		omap_cfg_reg(AB9_3430_USB2HS_TLL_DATA1);
-		omap_cfg_reg(W3_3430_USB2HS_TLL_DATA2);
-		omap_cfg_reg(T4_3430_USB2HS_TLL_DATA3);
-		omap_cfg_reg(T3_3430_USB2HS_TLL_DATA4);
-		omap_cfg_reg(R3_3430_USB2HS_TLL_DATA5);
-		omap_cfg_reg(R4_3430_USB2HS_TLL_DATA6);
-		omap_cfg_reg(T2_3430_USB2HS_TLL_DATA7);
+		omap_mux_init_signal("hsusb2_tll_stp",
+			OMAP_PIN_INPUT_PULLUP);
+		omap_mux_init_signal("hsusb2_tll_clk",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_tll_dir",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_tll_nxt",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_tll_data0",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_tll_data1",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_tll_data2",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_tll_data3",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_tll_data4",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_tll_data5",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_tll_data6",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb2_tll_data7",
+			OMAP_PIN_INPUT_PULLDOWN);
 		break;
 	case EHCI_HCD_OMAP_MODE_UNKNOWN:
 		/* FALLTHROUGH */
@@ -145,18 +179,30 @@ static void setup_ehci_io_mux(enum ehci_hcd_omap_mode *port_mode)
 		printk(KERN_WARNING "Port3 can't be used in PHY mode\n");
 		break;
 	case EHCI_HCD_OMAP_MODE_TLL:
-		omap_cfg_reg(AB3_3430_USB3HS_TLL_STP);
-		omap_cfg_reg(AA6_3430_USB3HS_TLL_CLK);
-		omap_cfg_reg(AA3_3430_USB3HS_TLL_DIR);
-		omap_cfg_reg(Y3_3430_USB3HS_TLL_NXT);
-		omap_cfg_reg(AA5_3430_USB3HS_TLL_DATA0);
-		omap_cfg_reg(Y4_3430_USB3HS_TLL_DATA1);
-		omap_cfg_reg(Y5_3430_USB3HS_TLL_DATA2);
-		omap_cfg_reg(W5_3430_USB3HS_TLL_DATA3);
-		omap_cfg_reg(AB12_3430_USB3HS_TLL_DATA4);
-		omap_cfg_reg(AB13_3430_USB3HS_TLL_DATA5);
-		omap_cfg_reg(AA13_3430_USB3HS_TLL_DATA6);
-		omap_cfg_reg(AA12_3430_USB3HS_TLL_DATA7);
+		omap_mux_init_signal("hsusb3_tll_stp",
+			OMAP_PIN_INPUT_PULLUP);
+		omap_mux_init_signal("hsusb3_tll_clk",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb3_tll_dir",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb3_tll_nxt",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb3_tll_data0",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb3_tll_data1",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb3_tll_data2",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb3_tll_data3",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb3_tll_data4",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb3_tll_data5",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb3_tll_data6",
+			OMAP_PIN_INPUT_PULLDOWN);
+		omap_mux_init_signal("hsusb3_tll_data7",
+			OMAP_PIN_INPUT_PULLDOWN);
 		break;
 	case EHCI_HCD_OMAP_MODE_UNKNOWN:
 		/* FALLTHROUGH */

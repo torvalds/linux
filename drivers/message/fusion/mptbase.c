@@ -126,8 +126,6 @@ static int mfcounter = 0;
  *  Public data...
  */
 
-static struct proc_dir_entry *mpt_proc_root_dir;
-
 #define WHOINIT_UNKNOWN		0xAA
 
 /*=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=*/
@@ -146,6 +144,9 @@ static MPT_EVHANDLER		 MptEvHandlers[MPT_MAX_PROTOCOL_DRIVERS];
 static MPT_RESETHANDLER		 MptResetHandlers[MPT_MAX_PROTOCOL_DRIVERS];
 static struct mpt_pci_driver 	*MptDeviceDriverHandlers[MPT_MAX_PROTOCOL_DRIVERS];
 
+#ifdef CONFIG_PROC_FS
+static struct proc_dir_entry 	*mpt_proc_root_dir;
+#endif
 
 /*
  *  Driver Callback Index's
@@ -1587,7 +1588,7 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 {
 	u8		__iomem *mem;
 	int		 ii;
-	unsigned long	 mem_phys;
+	resource_size_t	 mem_phys;
 	unsigned long	 port;
 	u32		 msize;
 	u32		 psize;
@@ -1677,8 +1678,8 @@ mpt_mapresources(MPT_ADAPTER *ioc)
 		return -EINVAL;
 	}
 	ioc->memmap = mem;
-	dinitprintk(ioc, printk(MYIOC_s_INFO_FMT "mem = %p, mem_phys = %lx\n",
-	    ioc->name, mem, mem_phys));
+	dinitprintk(ioc, printk(MYIOC_s_INFO_FMT "mem = %p, mem_phys = %llx\n",
+	    ioc->name, mem, (unsigned long long)mem_phys));
 
 	ioc->mem_phys = mem_phys;
 	ioc->chip = (SYSIF_REGS __iomem *)mem;
@@ -4330,6 +4331,8 @@ initChainBuffers(MPT_ADAPTER *ioc)
 
 	if (ioc->bus_type == SPI)
 		num_chain *= MPT_SCSI_CAN_QUEUE;
+	else if (ioc->bus_type == SAS)
+		num_chain *= MPT_SAS_CAN_QUEUE;
 	else
 		num_chain *= MPT_FC_CAN_QUEUE;
 

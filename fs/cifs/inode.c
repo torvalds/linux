@@ -111,6 +111,7 @@ cifs_fattr_to_inode(struct inode *inode, struct cifs_fattr *fattr)
 
 	cifs_i->delete_pending = fattr->cf_flags & CIFS_FATTR_DELETE_PENDING;
 
+	cifs_i->server_eof = fattr->cf_eof;
 	/*
 	 * Can't safely change the file size here if the client is writing to
 	 * it due to potential races.
@@ -366,7 +367,7 @@ static int cifs_sfu_mode(struct cifs_fattr *fattr, const unsigned char *path,
 	char ea_value[4];
 	__u32 mode;
 
-	rc = CIFSSMBQueryEA(xid, cifs_sb->tcon, path, "SETFILEBITS",
+	rc = CIFSSMBQAllEAs(xid, cifs_sb->tcon, path, "SETFILEBITS",
 			    ea_value, 4 /* size of buf */, cifs_sb->local_nls,
 			    cifs_sb->mnt_cifs_flags &
 				CIFS_MOUNT_MAP_SPECIAL_CHR);
@@ -1762,8 +1763,18 @@ cifs_setattr_unix(struct dentry *direntry, struct iattr *attrs)
 					CIFS_MOUNT_MAP_SPECIAL_CHR);
 	}
 
-	if (!rc)
+	if (!rc) {
 		rc = inode_setattr(inode, attrs);
+
+		/* force revalidate when any of these times are set since some
+		   of the fs types (eg ext3, fat) do not have fine enough
+		   time granularity to match protocol, and we do not have a
+		   a way (yet) to query the server fs's time granularity (and
+		   whether it rounds times down).
+		*/
+		if (!rc && (attrs->ia_valid & (ATTR_MTIME | ATTR_CTIME)))
+			cifsInode->time = 0;
+	}
 out:
 	kfree(args);
 	kfree(full_path);

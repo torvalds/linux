@@ -714,8 +714,8 @@ CONFIG_NETDEV_10000=y
 # CONFIG_BNX2X is not set
 # CONFIG_QLGE is not set
 # CONFIG_SFC is not set
-CONFIG_TR=y
-CONFIG_IBMOL=y
+# CONFIG_TR is not set
+# CONFIG_IBMOL is not set
 # CONFIG_3C359 is not set
 # CONFIG_TMS380TR is not set
 

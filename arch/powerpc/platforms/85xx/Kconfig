@@ -1,6 +1,7 @@
-menuconfig MPC85xx
-	bool "Machine Type"
-	depends on PPC_85xx
+menuconfig FSL_SOC_BOOKE
+	bool "Freescale Book-E Machine Type"
+	depends on PPC_85xx || PPC_BOOK3E
+	select FSL_SOC
 	select PPC_UDBG_16550
 	select MPIC
 	select PPC_PCI_CHOICE
@@ -8,7 +9,7 @@ menuconfig MPC85xx
 	select SERIAL_8250_SHARE_IRQ if SERIAL_8250
 	default y
 
-if MPC85xx
+if FSL_SOC_BOOKE
 
 config MPC8540_ADS
 	bool "Freescale MPC8540 ADS"
@@ -144,7 +145,19 @@ config SBC8560
 	help
 	  This option enables support for the Wind River SBC8560 board
 
-endif # MPC85xx
+config P4080_DS
+	bool "Freescale P4080 DS"
+	select DEFAULT_UIMAGE
+	select PPC_FSL_BOOK3E
+	select PPC_E500MC
+	select PHYS_64BIT
+	select SWIOTLB
+	select MPC8xxx_GPIO
+	select HAS_RAPIDIO
+	help
+	  This option enables support for the P4080 DS board
+
+endif # FSL_SOC_BOOKE
 
 config TQM85xx
 	bool

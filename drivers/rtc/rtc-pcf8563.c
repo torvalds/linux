@@ -212,6 +212,8 @@ static int pcf8563_probe(struct i2c_client *client,
 
 	dev_info(&client->dev, "chip found, driver version " DRV_VERSION "\n");
 
+	i2c_set_clientdata(client, pcf8563);
+
 	pcf8563->rtc = rtc_device_register(pcf8563_driver.driver.name,
 				&client->dev, &pcf8563_rtc_ops, THIS_MODULE);
 
@@ -219,8 +221,6 @@ static int pcf8563_probe(struct i2c_client *client,
 		err = PTR_ERR(pcf8563->rtc);
 		goto exit_kfree;
 	}
-
-	i2c_set_clientdata(client, pcf8563);
 
 	return 0;
 

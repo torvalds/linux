@@ -460,13 +460,6 @@ in sys_read() and friends.
 
 --------------------------- dquot_operations -------------------------------
 prototypes:
-	int (*initialize) (struct inode *, int);
-	int (*drop) (struct inode *);
-	int (*alloc_space) (struct inode *, qsize_t, int);
-	int (*alloc_inode) (const struct inode *, unsigned long);
-	int (*free_space) (struct inode *, qsize_t);
-	int (*free_inode) (const struct inode *, unsigned long);
-	int (*transfer) (struct inode *, struct iattr *);
 	int (*write_dquot) (struct dquot *);
 	int (*acquire_dquot) (struct dquot *);
 	int (*release_dquot) (struct dquot *);
@@ -479,13 +472,6 @@ a proper locking wrt the filesystem and call the generic quota operations.
 What filesystem should expect from the generic quota functions:
 
 		FS recursion	Held locks when called
-initialize:	yes		maybe dqonoff_sem
-drop:		yes		-
-alloc_space:	->mark_dirty()	-
-alloc_inode:	->mark_dirty()	-
-free_space:	->mark_dirty()	-
-free_inode:	->mark_dirty()	-
-transfer:	yes		-
 write_dquot:	yes		dqonoff_sem or dqptr_sem
 acquire_dquot:	yes		dqonoff_sem or dqptr_sem
 release_dquot:	yes		dqonoff_sem or dqptr_sem
@@ -494,10 +480,6 @@ write_info:	yes		dqonoff_sem
 
 FS recursion means calling ->quota_read() and ->quota_write() from superblock
 operations.
-
-->alloc_space(), ->alloc_inode(), ->free_space(), ->free_inode() are called
-only directly by the filesystem and do not call any fs functions only
-the ->mark_dirty() operation.
 
 More details about quota locking can be found in fs/dquot.c.
 

@@ -288,6 +288,7 @@ void ttm_suspend_unlock(struct ttm_lock *lock)
 	wake_up_all(&lock->queue);
 	spin_unlock(&lock->lock);
 }
+EXPORT_SYMBOL(ttm_suspend_unlock);
 
 static bool __ttm_suspend_lock(struct ttm_lock *lock)
 {
@@ -309,3 +310,4 @@ void ttm_suspend_lock(struct ttm_lock *lock)
 {
 	wait_event(lock->queue, __ttm_suspend_lock(lock));
 }
+EXPORT_SYMBOL(ttm_suspend_lock);

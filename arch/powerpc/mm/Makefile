@@ -28,7 +28,10 @@ obj-$(CONFIG_44x)		+= 44x_mmu.o
 obj-$(CONFIG_FSL_BOOKE)		+= fsl_booke_mmu.o
 obj-$(CONFIG_NEED_MULTIPLE_NODES) += numa.o
 obj-$(CONFIG_PPC_MM_SLICES)	+= slice.o
-obj-$(CONFIG_HUGETLB_PAGE)	+= hugetlbpage.o
+ifeq ($(CONFIG_HUGETLB_PAGE),y)
+obj-y				+= hugetlbpage.o
+obj-$(CONFIG_PPC_STD_MMU_64)	+= hugetlbpage-hash64.o
+endif
 obj-$(CONFIG_PPC_SUBPAGE_PROT)	+= subpage-prot.o
 obj-$(CONFIG_NOT_COHERENT_CACHE) += dma-noncoherent.o
 obj-$(CONFIG_HIGHMEM)		+= highmem.o

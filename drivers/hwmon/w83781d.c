@@ -56,9 +56,10 @@
 /* Addresses to scan */
 static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_4(w83781d, w83782d, w83783s, as99127f);
 
+enum chips { w83781d, w83782d, w83783s, as99127f };
+
+/* Insmod parameters */
 static unsigned short force_subclients[4];
 module_param_array(force_subclients, short, NULL, 0);
 MODULE_PARM_DESC(force_subclients, "List of subclient addresses: "
@@ -1051,8 +1052,7 @@ w83781d_create_files(struct device *dev, int kind, int is_isa)
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
 static int
-w83781d_detect(struct i2c_client *client, int kind,
-	       struct i2c_board_info *info)
+w83781d_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	int val1, val2;
 	struct w83781d_data *isa = w83781d_data_if_isa();
@@ -1537,7 +1537,7 @@ static struct i2c_driver w83781d_driver = {
 	.remove		= w83781d_remove,
 	.id_table	= w83781d_ids,
 	.detect		= w83781d_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /*
@@ -1793,17 +1793,17 @@ static int __init
 w83781d_isa_found(unsigned short address)
 {
 	int val, save, found = 0;
+	int port;
 
-	/* We have to request the region in two parts because some
-	   boards declare base+4 to base+7 as a PNP device */
-	if (!request_region(address, 4, "w83781d")) {
-		pr_debug("w83781d: Failed to request low part of region\n");
-		return 0;
-	}
-	if (!request_region(address + 4, 4, "w83781d")) {
-		pr_debug("w83781d: Failed to request high part of region\n");
-		release_region(address, 4);
-		return 0;
+	/* Some boards declare base+0 to base+7 as a PNP device, some base+4
+	 * to base+7 and some base+5 to base+6. So we better request each port
+	 * individually for the probing phase. */
+	for (port = address; port < address + W83781D_EXTENT; port++) {
+		if (!request_region(port, 1, "w83781d")) {
+			pr_debug("w83781d: Failed to request port 0x%x\n",
+				 port);
+			goto release;
+		}
 	}
 
 #define REALLY_SLOW_IO
@@ -1877,8 +1877,8 @@ w83781d_isa_found(unsigned short address)
 			val == 0x30 ? "W83782D" : "W83781D", (int)address);
 
  release:
-	release_region(address + 4, 4);
-	release_region(address, 4);
+	for (port--; port >= address; port--)
+		release_region(port, 1);
 	return found;
 }
 

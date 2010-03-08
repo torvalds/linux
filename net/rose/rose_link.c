@@ -101,13 +101,17 @@ static void rose_t0timer_expiry(unsigned long param)
 static int rose_send_frame(struct sk_buff *skb, struct rose_neigh *neigh)
 {
 	ax25_address *rose_call;
+	ax25_cb *ax25s;
 
 	if (ax25cmp(&rose_callsign, &null_ax25_address) == 0)
 		rose_call = (ax25_address *)neigh->dev->dev_addr;
 	else
 		rose_call = &rose_callsign;
 
+	ax25s = neigh->ax25;
 	neigh->ax25 = ax25_send_frame(skb, 260, rose_call, &neigh->callsign, neigh->digipeat, neigh->dev);
+	if (ax25s)
+		ax25_cb_put(ax25s);
 
 	return (neigh->ax25 != NULL);
 }
@@ -120,13 +124,17 @@ static int rose_send_frame(struct sk_buff *skb, struct rose_neigh *neigh)
 static int rose_link_up(struct rose_neigh *neigh)
 {
 	ax25_address *rose_call;
+	ax25_cb *ax25s;
 
 	if (ax25cmp(&rose_callsign, &null_ax25_address) == 0)
 		rose_call = (ax25_address *)neigh->dev->dev_addr;
 	else
 		rose_call = &rose_callsign;
 
+	ax25s = neigh->ax25;
 	neigh->ax25 = ax25_find_cb(rose_call, &neigh->callsign, neigh->digipeat, neigh->dev);
+	if (ax25s)
+		ax25_cb_put(ax25s);
 
 	return (neigh->ax25 != NULL);
 }

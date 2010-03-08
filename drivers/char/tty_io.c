@@ -516,7 +516,6 @@ static void do_tty_hangup(struct work_struct *work)
 	/* inuse_filps is protected by the single kernel lock */
 	lock_kernel();
 	check_tty_count(tty, "do_tty_hangup");
-	unlock_kernel();
 
 	file_list_lock();
 	/* This breaks for file handles being sent over AF_UNIX sockets ? */
@@ -531,7 +530,6 @@ static void do_tty_hangup(struct work_struct *work)
 	}
 	file_list_unlock();
 
-	lock_kernel();
 	tty_ldisc_hangup(tty);
 
 	read_lock(&tasklist_lock);
@@ -1953,8 +1951,10 @@ static int tty_fasync(int fd, struct file *filp, int on)
 			pid = task_pid(current);
 			type = PIDTYPE_PID;
 		}
+		get_pid(pid);
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 		retval = __f_setown(filp, pid, type, 0);
+		put_pid(pid);
 		if (retval)
 			goto out;
 	} else {

@@ -112,7 +112,7 @@ static __init void da830_evm_usb_init(void)
 	 * Set up USB clock/mode in the CFGCHIP2 register.
 	 * FYI:  CFGCHIP2 is 0x0000ef00 initially.
 	 */
-	cfgchip2 = __raw_readl(DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP2_REG));
+	cfgchip2 = __raw_readl(DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
 
 	/* USB2.0 PHY reference clock is 24 MHz */
 	cfgchip2 &= ~CFGCHIP2_REFFREQ;
@@ -139,7 +139,7 @@ static __init void da830_evm_usb_init(void)
 	cfgchip2 |=  CFGCHIP2_SESENDEN | CFGCHIP2_VBDTCTEN;
 #endif
 
-	__raw_writel(cfgchip2, DA8XX_SYSCFG_VIRT(DA8XX_CFGCHIP2_REG));
+	__raw_writel(cfgchip2, DA8XX_SYSCFG0_VIRT(DA8XX_CFGCHIP2_REG));
 
 	/* USB_REFCLKIN is not used. */
 	ret = davinci_cfg_reg(DA830_USB0_DRVVBUS);

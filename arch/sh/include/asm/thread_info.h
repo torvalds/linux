@@ -93,14 +93,16 @@ static inline struct thread_info *current_thread_info(void)
 
 #define THREAD_SIZE_ORDER	(THREAD_SHIFT - PAGE_SHIFT)
 
-#else /* THREAD_SHIFT < PAGE_SHIFT */
-
-#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
+#endif
 
 extern struct thread_info *alloc_thread_info(struct task_struct *tsk);
 extern void free_thread_info(struct thread_info *ti);
+extern void arch_task_cache_init(void);
+#define arch_task_cache_init arch_task_cache_init
+extern int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src);
+extern void init_thread_xstate(void);
 
-#endif /* THREAD_SHIFT < PAGE_SHIFT */
+#define __HAVE_ARCH_THREAD_INFO_ALLOCATOR
 
 #endif /* __ASSEMBLY__ */
 

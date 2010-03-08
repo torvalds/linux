@@ -25,14 +25,9 @@
 #include <linux/dmi.h>
 #include <linux/pci-aspm.h>
 #include <linux/ioport.h>
+#include <asm/dma.h>	/* isa_dma_bridge_buggy */
 #include "pci.h"
 
-int isa_dma_bridge_buggy;
-EXPORT_SYMBOL(isa_dma_bridge_buggy);
-int pci_pci_problems;
-EXPORT_SYMBOL(pci_pci_problems);
-
-#ifdef CONFIG_PCI_QUIRKS
 /*
  * This quirk function disables memory decoding and releases memory resources
  * of the device specified by kernel's boot parameter 'pci=resource_alignment='.
@@ -337,6 +332,23 @@ static void __devinit quirk_s3_64M(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_S3,	PCI_DEVICE_ID_S3_868,		quirk_s3_64M);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_S3,	PCI_DEVICE_ID_S3_968,		quirk_s3_64M);
+
+/*
+ * Some CS5536 BIOSes (for example, the Soekris NET5501 board w/ comBIOS
+ * ver. 1.33  20070103) don't set the correct ISA PCI region header info.
+ * BAR0 should be 8 bytes; instead, it may be set to something like 8k
+ * (which conflicts w/ BAR1's memory range).
+ */
+static void __devinit quirk_cs5536_vsa(struct pci_dev *dev)
+{
+	if (pci_resource_len(dev, 0) != 8) {
+		struct resource *res = &dev->resource[0];
+		res->end = res->start + 8 - 1;
+		dev_info(&dev->dev, "CS5536 ISA bridge bug detected "
+				"(incorrect header); workaround applied.\n");
+	}
+}
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD_CS5536_ISA, quirk_cs5536_vsa);
 
 static void __devinit quirk_io_region(struct pci_dev *dev, unsigned region,
 	unsigned size, int nr, const char *name)
@@ -2517,8 +2529,94 @@ DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10e7, quirk_i82576_sriov);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x10e8, quirk_i82576_sriov);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x150a, quirk_i82576_sriov);
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x150d, quirk_i82576_sriov);
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_INTEL, 0x1518, quirk_i82576_sriov);
 
 #endif	/* CONFIG_PCI_IOV */
+
+/*
+ * This is a quirk for the Ricoh MMC controller found as a part of
+ * some mulifunction chips.
+
+ * This is very similiar and based on the ricoh_mmc driver written by
+ * Philip Langdale. Thank you for these magic sequences.
+ *
+ * These chips implement the four main memory card controllers (SD, MMC, MS, xD)
+ * and one or both of cardbus or firewire.
+ *
+ * It happens that they implement SD and MMC
+ * support as separate controllers (and PCI functions). The linux SDHCI
+ * driver supports MMC cards but the chip detects MMC cards in hardware
+ * and directs them to the MMC controller - so the SDHCI driver never sees
+ * them.
+ *
+ * To get around this, we must disable the useless MMC controller.
+ * At that point, the SDHCI controller will start seeing them
+ * It seems to be the case that the relevant PCI registers to deactivate the
+ * MMC controller live on PCI function 0, which might be the cardbus controller
+ * or the firewire controller, depending on the particular chip in question
+ *
+ * This has to be done early, because as soon as we disable the MMC controller
+ * other pci functions shift up one level, e.g. function #2 becomes function
+ * #1, and this will confuse the pci core.
+ */
+
+#ifdef CONFIG_MMC_RICOH_MMC
+static void ricoh_mmc_fixup_rl5c476(struct pci_dev *dev)
+{
+	/* disable via cardbus interface */
+	u8 write_enable;
+	u8 write_target;
+	u8 disable;
+
+	/* disable must be done via function #0 */
+	if (PCI_FUNC(dev->devfn))
+		return;
+
+	pci_read_config_byte(dev, 0xB7, &disable);
+	if (disable & 0x02)
+		return;
+
+	pci_read_config_byte(dev, 0x8E, &write_enable);
+	pci_write_config_byte(dev, 0x8E, 0xAA);
+	pci_read_config_byte(dev, 0x8D, &write_target);
+	pci_write_config_byte(dev, 0x8D, 0xB7);
+	pci_write_config_byte(dev, 0xB7, disable | 0x02);
+	pci_write_config_byte(dev, 0x8E, write_enable);
+	pci_write_config_byte(dev, 0x8D, write_target);
+
+	dev_notice(&dev->dev, "proprietary Ricoh MMC controller disabled (via cardbus function)\n");
+	dev_notice(&dev->dev, "MMC cards are now supported by standard SDHCI controller\n");
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C476, ricoh_mmc_fixup_rl5c476);
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_RL5C476, ricoh_mmc_fixup_rl5c476);
+
+static void ricoh_mmc_fixup_r5c832(struct pci_dev *dev)
+{
+	/* disable via firewire interface */
+	u8 write_enable;
+	u8 disable;
+
+	/* disable must be done via function #0 */
+	if (PCI_FUNC(dev->devfn))
+		return;
+
+	pci_read_config_byte(dev, 0xCB, &disable);
+
+	if (disable & 0x02)
+		return;
+
+	pci_read_config_byte(dev, 0xCA, &write_enable);
+	pci_write_config_byte(dev, 0xCA, 0x57);
+	pci_write_config_byte(dev, 0xCB, disable | 0x02);
+	pci_write_config_byte(dev, 0xCA, write_enable);
+
+	dev_notice(&dev->dev, "proprietary Ricoh MMC controller disabled (via firewire function)\n");
+	dev_notice(&dev->dev, "MMC cards are now supported by standard SDHCI controller\n");
+}
+DECLARE_PCI_FIXUP_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5C832, ricoh_mmc_fixup_r5c832);
+DECLARE_PCI_FIXUP_RESUME_EARLY(PCI_VENDOR_ID_RICOH, PCI_DEVICE_ID_RICOH_R5C832, ricoh_mmc_fixup_r5c832);
+#endif /*CONFIG_MMC_RICOH_MMC*/
+
 
 static void pci_do_fixups(struct pci_dev *dev, struct pci_fixup *f,
 			  struct pci_fixup *end)
@@ -2595,6 +2693,7 @@ void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev)
 	}
 	pci_do_fixups(dev, start, end);
 }
+EXPORT_SYMBOL(pci_fixup_device);
 
 static int __init pci_apply_final_quirks(void)
 {
@@ -2629,14 +2728,80 @@ static int __init pci_apply_final_quirks(void)
 	if (!pci_cache_line_size) {
 		printk(KERN_DEBUG "PCI: CLS %u bytes, default %u\n",
 		       cls << 2, pci_dfl_cache_line_size << 2);
-		pci_cache_line_size = cls;
+		pci_cache_line_size = cls ? cls : pci_dfl_cache_line_size;
 	}
 
 	return 0;
 }
 
 fs_initcall_sync(pci_apply_final_quirks);
-#else
-void pci_fixup_device(enum pci_fixup_pass pass, struct pci_dev *dev) {}
-#endif
-EXPORT_SYMBOL(pci_fixup_device);
+
+/*
+ * Followings are device-specific reset methods which can be used to
+ * reset a single function if other methods (e.g. FLR, PM D0->D3) are
+ * not available.
+ */
+static int reset_intel_generic_dev(struct pci_dev *dev, int probe)
+{
+	int pos;
+
+	/* only implement PCI_CLASS_SERIAL_USB at present */
+	if (dev->class == PCI_CLASS_SERIAL_USB) {
+		pos = pci_find_capability(dev, PCI_CAP_ID_VNDR);
+		if (!pos)
+			return -ENOTTY;
+
+		if (probe)
+			return 0;
+
+		pci_write_config_byte(dev, pos + 0x4, 1);
+		msleep(100);
+
+		return 0;
+	} else {
+		return -ENOTTY;
+	}
+}
+
+static int reset_intel_82599_sfp_virtfn(struct pci_dev *dev, int probe)
+{
+	int pos;
+
+	pos = pci_find_capability(dev, PCI_CAP_ID_EXP);
+	if (!pos)
+		return -ENOTTY;
+
+	if (probe)
+		return 0;
+
+	pci_write_config_word(dev, pos + PCI_EXP_DEVCTL,
+				PCI_EXP_DEVCTL_BCR_FLR);
+	msleep(100);
+
+	return 0;
+}
+
+#define PCI_DEVICE_ID_INTEL_82599_SFP_VF   0x10ed
+
+static const struct pci_dev_reset_methods pci_dev_reset_methods[] = {
+	{ PCI_VENDOR_ID_INTEL, PCI_DEVICE_ID_INTEL_82599_SFP_VF,
+		 reset_intel_82599_sfp_virtfn },
+	{ PCI_VENDOR_ID_INTEL, PCI_ANY_ID,
+		reset_intel_generic_dev },
+	{ 0 }
+};
+
+int pci_dev_specific_reset(struct pci_dev *dev, int probe)
+{
+	const struct pci_dev_reset_methods *i;
+
+	for (i = pci_dev_reset_methods; i->reset; i++) {
+		if ((i->vendor == dev->vendor ||
+		     i->vendor == (u16)PCI_ANY_ID) &&
+		    (i->device == dev->device ||
+		     i->device == (u16)PCI_ANY_ID))
+			return i->reset(dev, probe);
+	}
+
+	return -ENOTTY;
+}

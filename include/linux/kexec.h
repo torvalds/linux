@@ -199,13 +199,15 @@ extern struct kimage *kexec_crash_image;
  */
 extern struct resource crashk_res;
 typedef u32 note_buf_t[KEXEC_NOTE_BYTES/4];
-extern note_buf_t *crash_notes;
+extern note_buf_t __percpu *crash_notes;
 extern u32 vmcoreinfo_note[VMCOREINFO_NOTE_SIZE/4];
 extern size_t vmcoreinfo_size;
 extern size_t vmcoreinfo_max_size;
 
 int __init parse_crashkernel(char *cmdline, unsigned long long system_ram,
 		unsigned long long *crash_size, unsigned long long *crash_base);
+int crash_shrink_memory(unsigned long new_size);
+size_t crash_get_memory_size(void);
 
 #else /* !CONFIG_KEXEC */
 struct pt_regs;

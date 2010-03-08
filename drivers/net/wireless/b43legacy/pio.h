@@ -74,10 +74,6 @@ struct b43legacy_pioqueue {
 	 * posted to the device. We are waiting for the txstatus.
 	 */
 	struct list_head txrunning;
-	/* Total number or packets sent.
-	 * (This counter can obviously wrap).
-	 */
-	unsigned int nr_tx_packets;
 	struct tasklet_struct txtask;
 	struct b43legacy_pio_txpacket
 			 tx_packets_cache[B43legacy_PIO_MAXTXPACKETS];
@@ -106,8 +102,6 @@ int b43legacy_pio_tx(struct b43legacy_wldev *dev,
 		   struct sk_buff *skb);
 void b43legacy_pio_handle_txstatus(struct b43legacy_wldev *dev,
 				 const struct b43legacy_txstatus *status);
-void b43legacy_pio_get_tx_stats(struct b43legacy_wldev *dev,
-			      struct ieee80211_tx_queue_stats *stats);
 void b43legacy_pio_rx(struct b43legacy_pioqueue *queue);
 
 /* Suspend TX queue in hardware. */
@@ -137,11 +131,6 @@ int b43legacy_pio_tx(struct b43legacy_wldev *dev,
 static inline
 void b43legacy_pio_handle_txstatus(struct b43legacy_wldev *dev,
 				 const struct b43legacy_txstatus *status)
-{
-}
-static inline
-void b43legacy_pio_get_tx_stats(struct b43legacy_wldev *dev,
-			      struct ieee80211_tx_queue_stats *stats)
 {
 }
 static inline

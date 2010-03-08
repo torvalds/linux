@@ -160,6 +160,7 @@ void __cpuinit twd_timer_setup(struct clock_event_device *clk)
 
 	/* Make sure our local interrupt controller has this enabled */
 	local_irq_save(flags);
+	irq_to_desc(clk->irq)->status |= IRQ_NOPROBE;
 	get_irq_chip(clk->irq)->unmask(clk->irq);
 	local_irq_restore(flags);
 

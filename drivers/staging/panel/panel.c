@@ -41,7 +41,6 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
@@ -55,7 +54,7 @@
 #include <linux/list.h>
 #include <linux/notifier.h>
 #include <linux/reboot.h>
-#include <linux/utsrelease.h>
+#include <generated/utsrelease.h>
 
 #include <linux/io.h>
 #include <asm/uaccess.h>
@@ -378,7 +377,7 @@ static unsigned char lcd_bits[LCD_PORTS][LCD_BITS][BIT_STATES];
 
 #ifdef CONFIG_PANEL_LCD_CHARSET
 #undef DEFAULT_LCD_CHARSET
-#define DEFAULT_LCD_CHARSET
+#define DEFAULT_LCD_CHARSET CONFIG_PANEL_LCD_CHARSET
 #endif
 
 #endif /* DEFAULT_PROFILE == 0 */

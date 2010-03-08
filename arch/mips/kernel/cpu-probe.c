@@ -16,6 +16,7 @@
 #include <linux/ptrace.h>
 #include <linux/smp.h>
 #include <linux/stddef.h>
+#include <linux/module.h>
 
 #include <asm/bugs.h>
 #include <asm/cpu.h>
@@ -32,6 +33,7 @@
  * the CPU very much.
  */
 void (*cpu_wait)(void);
+EXPORT_SYMBOL(cpu_wait);
 
 static void r3081_wait(void)
 {
@@ -160,6 +162,7 @@ void __init check_wait(void)
 	case CPU_BCM6348:
 	case CPU_BCM6358:
 	case CPU_CAVIUM_OCTEON:
+	case CPU_CAVIUM_OCTEON_PLUS:
 		cpu_wait = r4k_wait;
 		break;
 
@@ -280,6 +283,15 @@ static inline unsigned long cpu_get_fpu_id(void)
 static inline int __cpu_has_fpu(void)
 {
 	return ((cpu_get_fpu_id() & 0xff00) != FPIR_IMP_NONE);
+}
+
+static inline void cpu_probe_vmbits(struct cpuinfo_mips *c)
+{
+#ifdef __NEED_VMBITS_PROBE
+	write_c0_entryhi(0x3fffffffffffe000ULL);
+	back_to_back_c0_hazard();
+	c->vmbits = fls64(read_c0_entryhi() & 0x3fffffffffffe000ULL);
+#endif
 }
 
 #define R4K_OPTS (MIPS_CPU_TLB | MIPS_CPU_4KEX | MIPS_CPU_4K_CACHE \
@@ -689,6 +701,19 @@ static inline unsigned int decode_config3(struct cpuinfo_mips *c)
 	return config3 & MIPS_CONF_M;
 }
 
+static inline unsigned int decode_config4(struct cpuinfo_mips *c)
+{
+	unsigned int config4;
+
+	config4 = read_c0_config4();
+
+	if ((config4 & MIPS_CONF4_MMUEXTDEF) == MIPS_CONF4_MMUEXTDEF_MMUSIZEEXT
+	    && cpu_has_tlb)
+		c->tlbsize += (config4 & MIPS_CONF4_MMUSIZEEXT) * 0x40;
+
+	return config4 & MIPS_CONF_M;
+}
+
 static void __cpuinit decode_configs(struct cpuinfo_mips *c)
 {
 	int ok;
@@ -707,6 +732,8 @@ static void __cpuinit decode_configs(struct cpuinfo_mips *c)
 		ok = decode_config2(c);
 	if (ok)
 		ok = decode_config3(c);
+	if (ok)
+		ok = decode_config4(c);
 
 	mips_probe_watch_registers(c);
 }
@@ -720,9 +747,6 @@ static inline void cpu_probe_mips(struct cpuinfo_mips *c, unsigned int cpu)
 		__cpu_name[cpu] = "MIPS 4Kc";
 		break;
 	case PRID_IMP_4KEC:
-		c->cputype = CPU_4KEC;
-		__cpu_name[cpu] = "MIPS 4KEc";
-		break;
 	case PRID_IMP_4KECR2:
 		c->cputype = CPU_4KEC;
 		__cpu_name[cpu] = "MIPS 4KEc";
@@ -888,12 +912,18 @@ static inline void cpu_probe_cavium(struct cpuinfo_mips *c, unsigned int cpu)
 	case PRID_IMP_CAVIUM_CN38XX:
 	case PRID_IMP_CAVIUM_CN31XX:
 	case PRID_IMP_CAVIUM_CN30XX:
+		c->cputype = CPU_CAVIUM_OCTEON;
+		__cpu_name[cpu] = "Cavium Octeon";
+		goto platform;
 	case PRID_IMP_CAVIUM_CN58XX:
 	case PRID_IMP_CAVIUM_CN56XX:
 	case PRID_IMP_CAVIUM_CN50XX:
 	case PRID_IMP_CAVIUM_CN52XX:
-		c->cputype = CPU_CAVIUM_OCTEON;
-		__cpu_name[cpu] = "Cavium Octeon";
+		c->cputype = CPU_CAVIUM_OCTEON_PLUS;
+		__cpu_name[cpu] = "Cavium Octeon+";
+platform:
+		if (cpu == 0)
+			__elf_platform = "octeon";
 		break;
 	default:
 		printk(KERN_INFO "Unknown Octeon chip!\n");
@@ -903,6 +933,7 @@ static inline void cpu_probe_cavium(struct cpuinfo_mips *c, unsigned int cpu)
 }
 
 const char *__cpu_name[NR_CPUS];
+const char *__elf_platform;
 
 __cpuinit void cpu_probe(void)
 {
@@ -967,6 +998,8 @@ __cpuinit void cpu_probe(void)
 		c->srsets = ((read_c0_srsctl() >> 26) & 0x0f) + 1;
 	else
 		c->srsets = 1;
+
+	cpu_probe_vmbits(c);
 }
 
 __cpuinit void cpu_report(void)

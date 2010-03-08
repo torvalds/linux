@@ -6,6 +6,7 @@
 
 #include <linux/console.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/interrupt.h>
 #include <linux/list.h>
 #include <linux/mm.h>
@@ -124,50 +125,36 @@ void mconsole_log(struct mc_request *req)
 void mconsole_proc(struct mc_request *req)
 {
 	struct nameidata nd;
-	struct file_system_type *proc;
-	struct super_block *super;
+	struct vfsmount *mnt = current->nsproxy->pid_ns->proc_mnt;
 	struct file *file;
 	int n, err;
 	char *ptr = req->request.data, *buf;
+	mm_segment_t old_fs = get_fs();
 
 	ptr += strlen("proc");
-	while (isspace(*ptr)) ptr++;
+	ptr = skip_spaces(ptr);
 
-	proc = get_fs_type("proc");
-	if (proc == NULL) {
-		mconsole_reply(req, "procfs not registered", 1, 0);
-		goto out;
-	}
-
-	super = (*proc->get_sb)(proc, 0, NULL, NULL);
-	put_filesystem(proc);
-	if (super == NULL) {
-		mconsole_reply(req, "Failed to get procfs superblock", 1, 0);
-		goto out;
-	}
-	up_write(&super->s_umount);
-
-	nd.path.dentry = super->s_root;
-	nd.path.mnt = NULL;
-	nd.flags = O_RDONLY + 1;
-	nd.last_type = LAST_ROOT;
-
-	/* START: it was experienced that the stability problems are closed
-	 * if commenting out these two calls + the below read cycle. To
-	 * make UML crash again, it was enough to readd either one.*/
-	err = link_path_walk(ptr, &nd);
+	err = vfs_path_lookup(mnt->mnt_root, mnt, ptr, LOOKUP_FOLLOW, &nd);
 	if (err) {
 		mconsole_reply(req, "Failed to look up file", 1, 0);
-		goto out_kill;
+		goto out;
+	}
+
+	err = may_open(&nd.path, MAY_READ, O_RDONLY);
+	if (result) {
+		mconsole_reply(req, "Failed to open file", 1, 0);
+		path_put(&nd.path);
+		goto out;
 	}
 
 	file = dentry_open(nd.path.dentry, nd.path.mnt, O_RDONLY,
 			   current_cred());
+	err = PTR_ERR(file);
 	if (IS_ERR(file)) {
 		mconsole_reply(req, "Failed to open file", 1, 0);
-		goto out_kill;
+		path_put(&nd.path);
+		goto out;
 	}
-	/*END*/
 
 	buf = kmalloc(PAGE_SIZE, GFP_KERNEL);
 	if (buf == NULL) {
@@ -175,10 +162,13 @@ void mconsole_proc(struct mc_request *req)
 		goto out_fput;
 	}
 
-	if ((file->f_op != NULL) && (file->f_op->read != NULL)) {
+	if (file->f_op->read) {
 		do {
-			n = (*file->f_op->read)(file, buf, PAGE_SIZE - 1,
-						&file->f_pos);
+			loff_t pos;
+			set_fs(KERNEL_DS);
+			n = vfs_read(file, buf, PAGE_SIZE - 1, &pos);
+			file_pos_write(file, pos);
+			set_fs(old_fs);
 			if (n >= 0) {
 				buf[n] = '\0';
 				mconsole_reply(req, buf, 0, (n > 0));
@@ -196,8 +186,6 @@ void mconsole_proc(struct mc_request *req)
 	kfree(buf);
  out_fput:
 	fput(file);
- out_kill:
-	deactivate_super(super);
  out: ;
 }
 #endif
@@ -212,8 +200,7 @@ void mconsole_proc(struct mc_request *req)
 	char *ptr = req->request.data;
 
 	ptr += strlen("proc");
-	while (isspace(*ptr))
-		ptr++;
+	ptr = skip_spaces(ptr);
 	snprintf(path, sizeof(path), "/proc/%s", ptr);
 
 	fd = sys_open(path, 0, 0);
@@ -560,8 +547,7 @@ void mconsole_config(struct mc_request *req)
 	int err;
 
 	ptr += strlen("config");
-	while (isspace(*ptr))
-		ptr++;
+	ptr = skip_spaces(ptr);
 	dev = mconsole_find_dev(ptr);
 	if (dev == NULL) {
 		mconsole_reply(req, "Bad configuration option", 1, 0);
@@ -588,7 +574,7 @@ void mconsole_remove(struct mc_request *req)
 	int err, start, end, n;
 
 	ptr += strlen("remove");
-	while (isspace(*ptr)) ptr++;
+	ptr = skip_spaces(ptr);
 	dev = mconsole_find_dev(ptr);
 	if (dev == NULL) {
 		mconsole_reply(req, "Bad remove option", 1, 0);
@@ -712,7 +698,7 @@ void mconsole_sysrq(struct mc_request *req)
 	char *ptr = req->request.data;
 
 	ptr += strlen("sysrq");
-	while (isspace(*ptr)) ptr++;
+	ptr = skip_spaces(ptr);
 
 	/*
 	 * With 'b', the system will shut down without a chance to reply,
@@ -757,8 +743,7 @@ void mconsole_stack(struct mc_request *req)
 	 */
 
 	ptr += strlen("stack");
-	while (isspace(*ptr))
-		ptr++;
+	ptr = skip_spaces(ptr);
 
 	/*
 	 * Should really check for multiple pids or reject bad args here
@@ -833,8 +818,8 @@ static int __init mconsole_init(void)
 
 __initcall(mconsole_init);
 
-static int write_proc_mconsole(struct file *file, const char __user *buffer,
-			       unsigned long count, void *data)
+static ssize_t mconsole_proc_write(struct file *file,
+		const char __user *buffer, size_t count, loff_t *pos)
 {
 	char *buf;
 
@@ -855,6 +840,11 @@ static int write_proc_mconsole(struct file *file, const char __user *buffer,
 	return count;
 }
 
+static const struct file_operations mconsole_proc_fops = {
+	.owner		= THIS_MODULE,
+	.write		= mconsole_proc_write,
+};
+
 static int create_proc_mconsole(void)
 {
 	struct proc_dir_entry *ent;
@@ -862,15 +852,12 @@ static int create_proc_mconsole(void)
 	if (notify_socket == NULL)
 		return 0;
 
-	ent = create_proc_entry("mconsole", S_IFREG | 0200, NULL);
+	ent = proc_create("mconsole", 0200, NULL, &mconsole_proc_fops);
 	if (ent == NULL) {
 		printk(KERN_INFO "create_proc_mconsole : create_proc_entry "
 		       "failed\n");
 		return 0;
 	}
-
-	ent->read_proc = NULL;
-	ent->write_proc = write_proc_mconsole;
 	return 0;
 }
 

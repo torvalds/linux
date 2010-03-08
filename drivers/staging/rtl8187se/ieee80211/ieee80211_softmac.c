@@ -203,7 +203,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 
 			enqueue_mgmt(ieee,skb);
 		}else{
-			header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0]<<4);
+			header->seq_ctrl = cpu_to_le16(ieee->seq_ctrl[0]<<4);
 
 			if (ieee->seq_ctrl[0] == 0xFFF)
 				ieee->seq_ctrl[0] = 0;
@@ -220,7 +220,7 @@ inline void softmac_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *ieee
 		spin_unlock_irqrestore(&ieee->lock, flags);
 		spin_lock_irqsave(&ieee->mgmt_tx_lock, flags);
 
-		header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
+		header->seq_ctrl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
 
 		if (ieee->seq_ctrl[0] == 0xFFF)
 			ieee->seq_ctrl[0] = 0;
@@ -246,7 +246,7 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *i
 
 	if(single){
 
-		header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
+		header->seq_ctrl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
 
 		if (ieee->seq_ctrl[0] == 0xFFF)
 			ieee->seq_ctrl[0] = 0;
@@ -259,7 +259,7 @@ inline void softmac_ps_mgmt_xmit(struct sk_buff *skb, struct ieee80211_device *i
 
 	}else{
 
-		header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
+		header->seq_ctrl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
 
 		if (ieee->seq_ctrl[0] == 0xFFF)
 			ieee->seq_ctrl[0] = 0;
@@ -287,7 +287,7 @@ inline struct sk_buff *ieee80211_disassociate_skb(
 		return NULL;
 
 	disass = (struct ieee80211_disassoc_frame *) skb_put(skb,sizeof(struct ieee80211_disassoc_frame));
-	disass->header.frame_ctl = cpu_to_le16(IEEE80211_STYPE_DISASSOC);
+	disass->header.frame_control = cpu_to_le16(IEEE80211_STYPE_DISASSOC);
 	disass->header.duration_id = 0;
 
 	memcpy(disass->header.addr1, beacon->bssid, ETH_ALEN);
@@ -689,7 +689,7 @@ void ieee80211_stop_scan(struct ieee80211_device *ieee)
 }
 
 /* called with ieee->lock held */
-void ieee80211_start_scan(struct ieee80211_device *ieee)
+void ieee80211_rtl_start_scan(struct ieee80211_device *ieee)
 {
 	if(IS_DOT11D_ENABLE(ieee) )
 	{
@@ -905,7 +905,7 @@ struct sk_buff* ieee80211_assoc_resp(struct ieee80211_device *ieee, u8 *dest)
 	assoc = (struct ieee80211_assoc_response_frame *)
 		skb_put(skb,sizeof(struct ieee80211_assoc_response_frame));
 
-	assoc->header.frame_ctl = cpu_to_le16(IEEE80211_STYPE_ASSOC_RESP);
+	assoc->header.frame_control = cpu_to_le16(IEEE80211_STYPE_ASSOC_RESP);
 	memcpy(assoc->header.addr1, dest,ETH_ALEN);
 	memcpy(assoc->header.addr3, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy(assoc->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -981,7 +981,7 @@ struct sk_buff* ieee80211_null_func(struct ieee80211_device *ieee,short pwr)
 	memcpy(hdr->addr2, ieee->dev->dev_addr, ETH_ALEN);
 	memcpy(hdr->addr3, ieee->current_network.bssid, ETH_ALEN);
 
-	hdr->frame_ctl = cpu_to_le16(IEEE80211_FTYPE_DATA |
+	hdr->frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
 		IEEE80211_STYPE_NULLFUNC | IEEE80211_FCTL_TODS |
 		(pwr ? IEEE80211_FCTL_PM:0));
 
@@ -1084,7 +1084,7 @@ inline struct sk_buff *ieee80211_association_req(struct ieee80211_network *beaco
 		skb_put(skb, sizeof(struct ieee80211_assoc_request_frame));
 
 
-	hdr->header.frame_ctl = IEEE80211_STYPE_ASSOC_REQ;
+	hdr->header.frame_control = IEEE80211_STYPE_ASSOC_REQ;
 	hdr->header.duration_id= 37; //FIXME
 	memcpy(hdr->header.addr1, beacon->bssid, ETH_ALEN);
 	memcpy(hdr->header.addr2, ieee->dev->dev_addr, ETH_ALEN);
@@ -1196,7 +1196,7 @@ void ieee80211_associate_step1(struct ieee80211_device *ieee)
 	}
 }
 
-void ieee80211_auth_challenge(struct ieee80211_device *ieee, u8 *challenge, int chlen)
+void ieee80211_rtl_auth_challenge(struct ieee80211_device *ieee, u8 *challenge, int chlen)
 {
 	u8 *c;
 	struct sk_buff *skb;
@@ -1573,7 +1573,7 @@ ieee80211_rx_assoc_rq(struct ieee80211_device *ieee, struct sk_buff *skb)
 		ieee80211_resp_to_assoc_rq(ieee, dest);
 	}
 
-	printk(KERN_INFO"New client associated: "MAC_FMT"\n", MAC_ARG(dest));
+	printk(KERN_INFO"New client associated: %pM\n", dest);
 }
 
 
@@ -1786,11 +1786,11 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 
 		tasklet_schedule(&ieee->ps_task);
 
-	if(WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_PROBE_RESP &&
-		WLAN_FC_GET_STYPE(header->frame_ctl) != IEEE80211_STYPE_BEACON)
+	if (WLAN_FC_GET_STYPE(header->frame_control) != IEEE80211_STYPE_PROBE_RESP &&
+		WLAN_FC_GET_STYPE(header->frame_control) != IEEE80211_STYPE_BEACON)
 		ieee->last_rx_ps_time = jiffies;
 
-	switch (WLAN_FC_GET_STYPE(header->frame_ctl)) {
+	switch (WLAN_FC_GET_STYPE(header->frame_control)) {
 
 		case IEEE80211_STYPE_ASSOC_RESP:
 		case IEEE80211_STYPE_REASSOC_RESP:
@@ -1898,7 +1898,7 @@ associate_complete:
 
 								ieee80211_associate_step2(ieee);
 							}else{
-								ieee80211_auth_challenge(ieee, challenge, chlen);
+								ieee80211_rtl_auth_challenge(ieee, challenge, chlen);
 							}
 						}else{
 							ieee->softmac_stats.rx_auth_rs_err++;
@@ -2047,7 +2047,7 @@ void ieee80211_reset_queue(struct ieee80211_device *ieee)
 
 }
 
-void ieee80211_wake_queue(struct ieee80211_device *ieee)
+void ieee80211_rtl_wake_queue(struct ieee80211_device *ieee)
 {
 
 	unsigned long flags;
@@ -2064,7 +2064,7 @@ void ieee80211_wake_queue(struct ieee80211_device *ieee)
 
 			header = (struct ieee80211_hdr_3addr  *) skb->data;
 
-			header->seq_ctl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
+			header->seq_ctrl = cpu_to_le16(ieee->seq_ctrl[0] << 4);
 
 			if (ieee->seq_ctrl[0] == 0xFFF)
 				ieee->seq_ctrl[0] = 0;
@@ -2089,7 +2089,7 @@ exit :
 }
 
 
-void ieee80211_stop_queue(struct ieee80211_device *ieee)
+void ieee80211_rtl_stop_queue(struct ieee80211_device *ieee)
 {
 	//unsigned long flags;
 	//spin_lock_irqsave(&ieee->lock,flags);
@@ -2301,7 +2301,7 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 //#else
 	if (ieee->state == IEEE80211_NOLINK){
 		ieee->actscanning = true;
-		ieee80211_start_scan(ieee);
+		ieee80211_rtl_start_scan(ieee);
 	}
 //#endif
 	spin_unlock_irqrestore(&ieee->lock, flags);
@@ -2357,7 +2357,7 @@ void ieee80211_associate_retry_wq(struct work_struct *work)
 	if(ieee->state == IEEE80211_NOLINK){
 		ieee->beinretry = false;
 		ieee->actscanning = true;
-		ieee80211_start_scan(ieee);
+		ieee80211_rtl_start_scan(ieee);
 	}
 	//YJ,add,080828, notify os here
 	if(ieee->state == IEEE80211_NOLINK)

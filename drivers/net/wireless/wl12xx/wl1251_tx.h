@@ -26,6 +26,7 @@
 #define __WL1251_TX_H__
 
 #include <linux/bitops.h>
+#include "wl1251_acx.h"
 
 /*
  *
@@ -208,6 +209,22 @@ struct tx_result {
 	/* See done_1 */
 	u8 done_2;
 } __attribute__ ((packed));
+
+static inline int wl1251_tx_get_queue(int queue)
+{
+	switch (queue) {
+	case 0:
+		return QOS_AC_VO;
+	case 1:
+		return QOS_AC_VI;
+	case 2:
+		return QOS_AC_BE;
+	case 3:
+		return QOS_AC_BK;
+	default:
+		return QOS_AC_BE;
+	}
+}
 
 void wl1251_tx_work(struct work_struct *work);
 void wl1251_tx_complete(struct wl1251 *wl);

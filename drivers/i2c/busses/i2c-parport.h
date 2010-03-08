@@ -1,7 +1,7 @@
 /* ------------------------------------------------------------------------ *
  * i2c-parport.h I2C bus over parallel port                                 *
  * ------------------------------------------------------------------------ *
-   Copyright (C) 2003-2004 Jean Delvare <khali@linux-fr.org>
+   Copyright (C) 2003-2010 Jean Delvare <khali@linux-fr.org>
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ struct adapter_parm {
 	struct lineop getsda;
 	struct lineop getscl;
 	struct lineop init;
+	unsigned int smbus_alert:1;
 };
 
 static struct adapter_parm adapter_parm[] = {
@@ -73,6 +74,7 @@ static struct adapter_parm adapter_parm[] = {
 		.setscl	= { 0x01, DATA, 1 },
 		.getsda	= { 0x10, STAT, 1 },
 		.init	= { 0xf0, DATA, 0 },
+		.smbus_alert = 1,
 	},
 	/* type 5: ADM1025, ADM1030 and ADM1031 evaluation boards */
 	{

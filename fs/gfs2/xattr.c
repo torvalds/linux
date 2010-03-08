@@ -567,18 +567,17 @@ out:
 /**
  * gfs2_xattr_get - Get a GFS2 extended attribute
  * @inode: The inode
- * @type: The type of extended attribute
  * @name: The name of the extended attribute
  * @buffer: The buffer to write the result into
  * @size: The size of the buffer
+ * @type: The type of extended attribute
  *
  * Returns: actual size of data on success, -errno on error
  */
-
-int gfs2_xattr_get(struct inode *inode, int type, const char *name,
-		   void *buffer, size_t size)
+static int gfs2_xattr_get(struct dentry *dentry, const char *name,
+		void *buffer, size_t size, int type)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
 	struct gfs2_ea_location el;
 	int error;
 
@@ -1119,7 +1118,7 @@ static int ea_remove_stuffed(struct gfs2_inode *ip, struct gfs2_ea_location *el)
 
 /**
  * gfs2_xattr_remove - Remove a GFS2 extended attribute
- * @inode: The inode
+ * @ip: The inode
  * @type: The type of the extended attribute
  * @name: The name of the extended attribute
  *
@@ -1130,9 +1129,8 @@ static int ea_remove_stuffed(struct gfs2_inode *ip, struct gfs2_ea_location *el)
  * Returns: 0, or errno on failure
  */
 
-static int gfs2_xattr_remove(struct inode *inode, int type, const char *name)
+static int gfs2_xattr_remove(struct gfs2_inode *ip, int type, const char *name)
 {
-	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_ea_location el;
 	int error;
 
@@ -1156,24 +1154,24 @@ static int gfs2_xattr_remove(struct inode *inode, int type, const char *name)
 }
 
 /**
- * gfs2_xattr_set - Set (or remove) a GFS2 extended attribute
- * @inode: The inode
- * @type: The type of the extended attribute
+ * __gfs2_xattr_set - Set (or remove) a GFS2 extended attribute
+ * @ip: The inode
  * @name: The name of the extended attribute
  * @value: The value of the extended attribute (NULL for remove)
  * @size: The size of the @value argument
  * @flags: Create or Replace
+ * @type: The type of the extended attribute
  *
  * See gfs2_xattr_remove() for details of the removal of xattrs.
  *
  * Returns: 0 or errno on failure
  */
 
-int gfs2_xattr_set(struct inode *inode, int type, const char *name,
-		   const void *value, size_t size, int flags)
+int __gfs2_xattr_set(struct inode *inode, const char *name,
+		   const void *value, size_t size, int flags, int type)
 {
-	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
 	struct gfs2_ea_location el;
 	unsigned int namel = strlen(name);
 	int error;
@@ -1184,7 +1182,7 @@ int gfs2_xattr_set(struct inode *inode, int type, const char *name,
 		return -ERANGE;
 
 	if (value == NULL)
-		return gfs2_xattr_remove(inode, type, name);
+		return gfs2_xattr_remove(ip, type, name);
 
 	if (ea_check_size(sdp, namel, size))
 		return -ERANGE;
@@ -1222,6 +1220,13 @@ int gfs2_xattr_set(struct inode *inode, int type, const char *name,
 		error = ea_set_i(ip, type, name, value, size, NULL);
 
 	return error;
+}
+
+static int gfs2_xattr_set(struct dentry *dentry, const char *name,
+		const void *value, size_t size, int flags, int type)
+{
+	return __gfs2_xattr_set(dentry->d_inode, name, value,
+				size, flags, type);
 }
 
 static int ea_acl_chmod_unstuffed(struct gfs2_inode *ip,
@@ -1291,6 +1296,7 @@ fail:
 
 int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data)
 {
+	struct gfs2_sbd *sdp = GFS2_SB(&ip->i_inode);
 	struct gfs2_ea_location el;
 	struct buffer_head *dibh;
 	int error;
@@ -1300,16 +1306,17 @@ int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data)
 		return error;
 
 	if (GFS2_EA_IS_STUFFED(el.el_ea)) {
-		error = gfs2_trans_begin(GFS2_SB(&ip->i_inode), RES_DINODE + RES_EATTR, 0);
-		if (error)
-			return error;
-
-		gfs2_trans_add_bh(ip->i_gl, el.el_bh, 1);
-		memcpy(GFS2_EA2DATA(el.el_ea), data,
-		       GFS2_EA_DATA_LEN(el.el_ea));
-	} else
+		error = gfs2_trans_begin(sdp, RES_DINODE + RES_EATTR, 0);
+		if (error == 0) {
+			gfs2_trans_add_bh(ip->i_gl, el.el_bh, 1);
+			memcpy(GFS2_EA2DATA(el.el_ea), data,
+			       GFS2_EA_DATA_LEN(el.el_ea));
+		}
+	} else {
 		error = ea_acl_chmod_unstuffed(ip, el.el_ea, data);
+	}
 
+	brelse(el.el_bh);
 	if (error)
 		return error;
 
@@ -1322,8 +1329,7 @@ int gfs2_xattr_acl_chmod(struct gfs2_inode *ip, struct iattr *attr, char *data)
 		brelse(dibh);
 	}
 
-	gfs2_trans_end(GFS2_SB(&ip->i_inode));
-
+	gfs2_trans_end(sdp);
 	return error;
 }
 
@@ -1529,40 +1535,18 @@ out_alloc:
 	return error;
 }
 
-static int gfs2_xattr_user_get(struct inode *inode, const char *name,
-			       void *buffer, size_t size)
-{
-	return gfs2_xattr_get(inode, GFS2_EATYPE_USR, name, buffer, size);
-}
-
-static int gfs2_xattr_user_set(struct inode *inode, const char *name,
-			       const void *value, size_t size, int flags)
-{
-	return gfs2_xattr_set(inode, GFS2_EATYPE_USR, name, value, size, flags);
-}
-
-static int gfs2_xattr_security_get(struct inode *inode, const char *name,
-				   void *buffer, size_t size)
-{
-	return gfs2_xattr_get(inode, GFS2_EATYPE_SECURITY, name, buffer, size);
-}
-
-static int gfs2_xattr_security_set(struct inode *inode, const char *name,
-				   const void *value, size_t size, int flags)
-{
-	return gfs2_xattr_set(inode, GFS2_EATYPE_SECURITY, name, value, size, flags);
-}
-
 static struct xattr_handler gfs2_xattr_user_handler = {
 	.prefix = XATTR_USER_PREFIX,
-	.get    = gfs2_xattr_user_get,
-	.set    = gfs2_xattr_user_set,
+	.flags  = GFS2_EATYPE_USR,
+	.get    = gfs2_xattr_get,
+	.set    = gfs2_xattr_set,
 };
 
 static struct xattr_handler gfs2_xattr_security_handler = {
 	.prefix = XATTR_SECURITY_PREFIX,
-	.get    = gfs2_xattr_security_get,
-	.set    = gfs2_xattr_security_set,
+	.flags  = GFS2_EATYPE_SECURITY,
+	.get    = gfs2_xattr_get,
+	.set    = gfs2_xattr_set,
 };
 
 struct xattr_handler *gfs2_xattr_handlers[] = {

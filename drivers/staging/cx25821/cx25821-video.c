@@ -184,11 +184,11 @@ struct video_device *cx25821_vdev_init(struct cx25821_dev *dev,
 	if (NULL == vfd)
 		return NULL;
 	*vfd = *template;
-	vfd->minor = -1;
 	vfd->v4l2_dev = &dev->v4l2_dev;
 	vfd->release = video_device_release;
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s (%s)", dev->name, type,
 		 cx25821_boards[dev->board].name);
+	video_set_drvdata(vfd, dev);
 	return vfd;
 }
 
@@ -424,7 +424,7 @@ int cx25821_video_irq(struct cx25821_dev *dev, int chan_num, u32 status)
 void cx25821_videoioctl_unregister(struct cx25821_dev *dev)
 {
 	if (dev->ioctl_dev) {
-		if (dev->ioctl_dev->minor != -1)
+		if (video_is_registered(dev->ioctl_dev))
 			video_unregister_device(dev->ioctl_dev);
 		else
 			video_device_release(dev->ioctl_dev);
@@ -438,7 +438,7 @@ void cx25821_video_unregister(struct cx25821_dev *dev, int chan_num)
 	cx_clear(PCI_INT_MSK, 1);
 
 	if (dev->video_dev[chan_num]) {
-		if (-1 != dev->video_dev[chan_num]->minor)
+		if (video_is_registered(dev->video_dev[chan_num]))
 			video_unregister_device(dev->video_dev[chan_num]);
 		else
 			video_device_release(dev->video_dev[chan_num]);
@@ -876,7 +876,7 @@ int cx25821_enum_input(struct cx25821_dev *dev, struct v4l2_input *i)
 	dprintk(1, "%s()\n", __func__);
 
 	n = i->index;
-	if (n > 2)
+	if (n >= 2)
 		return -EINVAL;
 
 	if (0 == INPUT(n)->type)
@@ -963,10 +963,11 @@ int cx25821_set_freq(struct cx25821_dev *dev, struct v4l2_frequency *f)
 int vidioc_s_frequency(struct file *file, void *priv, struct v4l2_frequency *f)
 {
 	struct cx25821_fh *fh = priv;
-	struct cx25821_dev *dev = fh->dev;
+	struct cx25821_dev *dev;
 	int err;
 
 	if (fh) {
+		dev = fh->dev;
 		err = v4l2_prio_check(&dev->prio, &fh->prio);
 		if (0 != err)
 			return err;

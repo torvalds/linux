@@ -1,6 +1,5 @@
 #include <linux/sched.h>
 #include <asm/thread_info.h>
-#include <linux/autoconf.h>
 
 /*
  * Generate definitions needed by assembly language modules.

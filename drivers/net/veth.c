@@ -34,7 +34,7 @@ struct veth_net_stats {
 
 struct veth_priv {
 	struct net_device *peer;
-	struct veth_net_stats *stats;
+	struct veth_net_stats __percpu *stats;
 	unsigned ip_summed;
 };
 
@@ -153,15 +153,14 @@ static netdev_tx_t veth_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct net_device *rcv = NULL;
 	struct veth_priv *priv, *rcv_priv;
 	struct veth_net_stats *stats, *rcv_stats;
-	int length, cpu;
+	int length;
 
 	priv = netdev_priv(dev);
 	rcv = priv->peer;
 	rcv_priv = netdev_priv(rcv);
 
-	cpu = smp_processor_id();
-	stats = per_cpu_ptr(priv->stats, cpu);
-	rcv_stats = per_cpu_ptr(rcv_priv->stats, cpu);
+	stats = this_cpu_ptr(priv->stats);
+	rcv_stats = this_cpu_ptr(rcv_priv->stats);
 
 	if (!(rcv->flags & IFF_UP))
 		goto tx_drop;
@@ -264,7 +263,7 @@ static int veth_change_mtu(struct net_device *dev, int new_mtu)
 
 static int veth_dev_init(struct net_device *dev)
 {
-	struct veth_net_stats *stats;
+	struct veth_net_stats __percpu *stats;
 	struct veth_priv *priv;
 
 	stats = alloc_percpu(struct veth_net_stats);
@@ -334,19 +333,17 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 	struct veth_priv *priv;
 	char ifname[IFNAMSIZ];
 	struct nlattr *peer_tb[IFLA_MAX + 1], **tbp;
+	struct ifinfomsg *ifmp;
 	struct net *net;
 
 	/*
 	 * create and register peer first
-	 *
-	 * struct ifinfomsg is at the head of VETH_INFO_PEER, but we
-	 * skip it since no info from it is useful yet
 	 */
-
 	if (data != NULL && data[VETH_INFO_PEER] != NULL) {
 		struct nlattr *nla_peer;
 
 		nla_peer = data[VETH_INFO_PEER];
+		ifmp = nla_data(nla_peer);
 		err = nla_parse(peer_tb, IFLA_MAX,
 				nla_data(nla_peer) + sizeof(struct ifinfomsg),
 				nla_len(nla_peer) - sizeof(struct ifinfomsg),
@@ -359,8 +356,10 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 			return err;
 
 		tbp = peer_tb;
-	} else
+	} else {
+		ifmp = NULL;
 		tbp = tb;
+	}
 
 	if (tbp[IFLA_IFNAME])
 		nla_strlcpy(ifname, tbp[IFLA_IFNAME], IFNAMSIZ);
@@ -387,6 +386,10 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 		goto err_register_peer;
 
 	netif_carrier_off(peer);
+
+	err = rtnl_configure_link(peer, ifmp);
+	if (err < 0)
+		goto err_configure_peer;
 
 	/*
 	 * register dev last
@@ -429,6 +432,7 @@ static int veth_newlink(struct net *src_net, struct net_device *dev,
 err_register_dev:
 	/* nothing to do */
 err_alloc_name:
+err_configure_peer:
 	unregister_netdevice(peer);
 	return err;
 

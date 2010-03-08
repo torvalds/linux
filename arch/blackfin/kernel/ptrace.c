@@ -316,19 +316,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			case BFIN_MEM_ACCESS_CORE_ONLY:
 				copied = access_process_vm(child, addr, &data,
 				                           to_copy, 1);
-				if (copied)
-					break;
-
-				/* hrm, why didn't that work ... maybe no mapping */
-				if (addr >= FIXED_CODE_START &&
-				    addr + to_copy <= FIXED_CODE_END) {
-					copy_to_user_page(0, 0, 0, paddr, &data, to_copy);
-					copied = to_copy;
-				} else if (addr >= BOOT_ROM_START) {
-					memcpy(paddr, &data, to_copy);
-					copied = to_copy;
-				}
-
 				break;
 			case BFIN_MEM_ACCESS_DMA:
 				if (safe_dma_memcpy(paddr, &data, to_copy))

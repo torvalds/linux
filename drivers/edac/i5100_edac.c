@@ -9,6 +9,11 @@
  * Intel 5100X Chipset Memory Controller Hub (MCH) - Datasheet
  *      http://download.intel.com/design/chipsets/datashts/318378.pdf
  *
+ * The intel 5100 has two independent channels. EDAC core currently
+ * can not reflect this configuration so instead the chip-select
+ * rows for each respective channel are layed out one after another,
+ * the first half belonging to channel 0, the second half belonging
+ * to channel 1.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -25,6 +30,8 @@
 
 /* device 16, func 1 */
 #define I5100_MC		0x40	/* Memory Control Register */
+#define 	I5100_MC_SCRBEN_MASK	(1 << 7)
+#define 	I5100_MC_SCRBDONE_MASK	(1 << 4)
 #define I5100_MS		0x44	/* Memory Status Register */
 #define I5100_SPDDATA		0x48	/* Serial Presence Detect Status Reg */
 #define I5100_SPDCMD		0x4c	/* Serial Presence Detect Command Reg */
@@ -72,9 +79,19 @@
 
 /* bit field accessors */
 
+static inline u32 i5100_mc_scrben(u32 mc)
+{
+	return mc >> 7 & 1;
+}
+
 static inline u32 i5100_mc_errdeten(u32 mc)
 {
 	return mc >> 5 & 1;
+}
+
+static inline u32 i5100_mc_scrbdone(u32 mc)
+{
+	return mc >> 4 & 1;
 }
 
 static inline u16 i5100_spddata_rdo(u16 a)
@@ -265,42 +282,43 @@ static inline u32 i5100_recmemb_ras(u32 a)
 }
 
 /* some generic limits */
-#define I5100_MAX_RANKS_PER_CTLR	6
-#define I5100_MAX_CTLRS			2
+#define I5100_MAX_RANKS_PER_CHAN	6
+#define I5100_CHANNELS			    2
 #define I5100_MAX_RANKS_PER_DIMM	4
 #define I5100_DIMM_ADDR_LINES		(6 - 3)	/* 64 bits / 8 bits per byte */
-#define I5100_MAX_DIMM_SLOTS_PER_CTLR	4
+#define I5100_MAX_DIMM_SLOTS_PER_CHAN	4
 #define I5100_MAX_RANK_INTERLEAVE	4
 #define I5100_MAX_DMIRS			5
+#define I5100_SCRUB_REFRESH_RATE	(5 * 60 * HZ)
 
 struct i5100_priv {
 	/* ranks on each dimm -- 0 maps to not present -- obtained via SPD */
-	int dimm_numrank[I5100_MAX_CTLRS][I5100_MAX_DIMM_SLOTS_PER_CTLR];
+	int dimm_numrank[I5100_CHANNELS][I5100_MAX_DIMM_SLOTS_PER_CHAN];
 
 	/*
 	 * mainboard chip select map -- maps i5100 chip selects to
 	 * DIMM slot chip selects.  In the case of only 4 ranks per
-	 * controller, the mapping is fairly obvious but not unique.
-	 * we map -1 -> NC and assume both controllers use the same
+	 * channel, the mapping is fairly obvious but not unique.
+	 * we map -1 -> NC and assume both channels use the same
 	 * map...
 	 *
 	 */
-	int dimm_csmap[I5100_MAX_DIMM_SLOTS_PER_CTLR][I5100_MAX_RANKS_PER_DIMM];
+	int dimm_csmap[I5100_MAX_DIMM_SLOTS_PER_CHAN][I5100_MAX_RANKS_PER_DIMM];
 
 	/* memory interleave range */
 	struct {
 		u64	 limit;
 		unsigned way[2];
-	} mir[I5100_MAX_CTLRS];
+	} mir[I5100_CHANNELS];
 
 	/* adjusted memory interleave range register */
-	unsigned amir[I5100_MAX_CTLRS];
+	unsigned amir[I5100_CHANNELS];
 
 	/* dimm interleave range */
 	struct {
 		unsigned rank[I5100_MAX_RANK_INTERLEAVE];
 		u64	 limit;
-	} dmir[I5100_MAX_CTLRS][I5100_MAX_DMIRS];
+	} dmir[I5100_CHANNELS][I5100_MAX_DMIRS];
 
 	/* memory technology registers... */
 	struct {
@@ -310,30 +328,33 @@ struct i5100_priv {
 		unsigned numbank;	/* 2 or 3 lines */
 		unsigned numrow;	/* 13 .. 16 lines */
 		unsigned numcol;	/* 11 .. 12 lines */
-	} mtr[I5100_MAX_CTLRS][I5100_MAX_RANKS_PER_CTLR];
+	} mtr[I5100_CHANNELS][I5100_MAX_RANKS_PER_CHAN];
 
 	u64 tolm;		/* top of low memory in bytes */
-	unsigned ranksperctlr;	/* number of ranks per controller */
+	unsigned ranksperchan;	/* number of ranks per channel */
 
 	struct pci_dev *mc;	/* device 16 func 1 */
 	struct pci_dev *ch0mm;	/* device 21 func 0 */
 	struct pci_dev *ch1mm;	/* device 22 func 0 */
+
+	struct delayed_work i5100_scrubbing;
+	int scrub_enable;
 };
 
-/* map a rank/ctlr to a slot number on the mainboard */
+/* map a rank/chan to a slot number on the mainboard */
 static int i5100_rank_to_slot(const struct mem_ctl_info *mci,
-			      int ctlr, int rank)
+			      int chan, int rank)
 {
 	const struct i5100_priv *priv = mci->pvt_info;
 	int i;
 
-	for (i = 0; i < I5100_MAX_DIMM_SLOTS_PER_CTLR; i++) {
+	for (i = 0; i < I5100_MAX_DIMM_SLOTS_PER_CHAN; i++) {
 		int j;
-		const int numrank = priv->dimm_numrank[ctlr][i];
+		const int numrank = priv->dimm_numrank[chan][i];
 
 		for (j = 0; j < numrank; j++)
 			if (priv->dimm_csmap[i][j] == rank)
-				return i * 2 + ctlr;
+				return i * 2 + chan;
 	}
 
 	return -1;
@@ -374,32 +395,32 @@ static const char *i5100_err_msg(unsigned err)
 	return "none";
 }
 
-/* convert csrow index into a rank (per controller -- 0..5) */
+/* convert csrow index into a rank (per channel -- 0..5) */
 static int i5100_csrow_to_rank(const struct mem_ctl_info *mci, int csrow)
 {
 	const struct i5100_priv *priv = mci->pvt_info;
 
-	return csrow % priv->ranksperctlr;
+	return csrow % priv->ranksperchan;
 }
 
-/* convert csrow index into a controller (0..1) */
-static int i5100_csrow_to_cntlr(const struct mem_ctl_info *mci, int csrow)
+/* convert csrow index into a channel (0..1) */
+static int i5100_csrow_to_chan(const struct mem_ctl_info *mci, int csrow)
 {
 	const struct i5100_priv *priv = mci->pvt_info;
 
-	return csrow / priv->ranksperctlr;
+	return csrow / priv->ranksperchan;
 }
 
 static unsigned i5100_rank_to_csrow(const struct mem_ctl_info *mci,
-				    int ctlr, int rank)
+				    int chan, int rank)
 {
 	const struct i5100_priv *priv = mci->pvt_info;
 
-	return ctlr * priv->ranksperctlr + rank;
+	return chan * priv->ranksperchan + rank;
 }
 
 static void i5100_handle_ce(struct mem_ctl_info *mci,
-			    int ctlr,
+			    int chan,
 			    unsigned bank,
 			    unsigned rank,
 			    unsigned long syndrome,
@@ -407,12 +428,12 @@ static void i5100_handle_ce(struct mem_ctl_info *mci,
 			    unsigned ras,
 			    const char *msg)
 {
-	const int csrow = i5100_rank_to_csrow(mci, ctlr, rank);
+	const int csrow = i5100_rank_to_csrow(mci, chan, rank);
 
 	printk(KERN_ERR
-		"CE ctlr %d, bank %u, rank %u, syndrome 0x%lx, "
+		"CE chan %d, bank %u, rank %u, syndrome 0x%lx, "
 		"cas %u, ras %u, csrow %u, label \"%s\": %s\n",
-		ctlr, bank, rank, syndrome, cas, ras,
+		chan, bank, rank, syndrome, cas, ras,
 		csrow, mci->csrows[csrow].channels[0].label, msg);
 
 	mci->ce_count++;
@@ -421,7 +442,7 @@ static void i5100_handle_ce(struct mem_ctl_info *mci,
 }
 
 static void i5100_handle_ue(struct mem_ctl_info *mci,
-			    int ctlr,
+			    int chan,
 			    unsigned bank,
 			    unsigned rank,
 			    unsigned long syndrome,
@@ -429,23 +450,23 @@ static void i5100_handle_ue(struct mem_ctl_info *mci,
 			    unsigned ras,
 			    const char *msg)
 {
-	const int csrow = i5100_rank_to_csrow(mci, ctlr, rank);
+	const int csrow = i5100_rank_to_csrow(mci, chan, rank);
 
 	printk(KERN_ERR
-		"UE ctlr %d, bank %u, rank %u, syndrome 0x%lx, "
+		"UE chan %d, bank %u, rank %u, syndrome 0x%lx, "
 		"cas %u, ras %u, csrow %u, label \"%s\": %s\n",
-		ctlr, bank, rank, syndrome, cas, ras,
+		chan, bank, rank, syndrome, cas, ras,
 		csrow, mci->csrows[csrow].channels[0].label, msg);
 
 	mci->ue_count++;
 	mci->csrows[csrow].ue_count++;
 }
 
-static void i5100_read_log(struct mem_ctl_info *mci, int ctlr,
+static void i5100_read_log(struct mem_ctl_info *mci, int chan,
 			   u32 ferr, u32 nerr)
 {
 	struct i5100_priv *priv = mci->pvt_info;
-	struct pci_dev *pdev = (ctlr) ? priv->ch1mm : priv->ch0mm;
+	struct pci_dev *pdev = (chan) ? priv->ch1mm : priv->ch0mm;
 	u32 dw;
 	u32 dw2;
 	unsigned syndrome = 0;
@@ -484,7 +505,7 @@ static void i5100_read_log(struct mem_ctl_info *mci, int ctlr,
 		else
 			msg = i5100_err_msg(nerr);
 
-		i5100_handle_ce(mci, ctlr, bank, rank, syndrome, cas, ras, msg);
+		i5100_handle_ce(mci, chan, bank, rank, syndrome, cas, ras, msg);
 	}
 
 	if (i5100_validlog_nrecmemvalid(dw)) {
@@ -506,7 +527,7 @@ static void i5100_read_log(struct mem_ctl_info *mci, int ctlr,
 		else
 			msg = i5100_err_msg(nerr);
 
-		i5100_handle_ue(mci, ctlr, bank, rank, syndrome, cas, ras, msg);
+		i5100_handle_ue(mci, chan, bank, rank, syndrome, cas, ras, msg);
 	}
 
 	pci_write_config_dword(pdev, I5100_VALIDLOG, dw);
@@ -534,6 +555,80 @@ static void i5100_check_error(struct mem_ctl_info *mci)
 	}
 }
 
+/* The i5100 chipset will scrub the entire memory once, then
+ * set a done bit. Continuous scrubbing is achieved by enqueing
+ * delayed work to a workqueue, checking every few minutes if
+ * the scrubbing has completed and if so reinitiating it.
+ */
+
+static void i5100_refresh_scrubbing(struct work_struct *work)
+{
+	struct delayed_work *i5100_scrubbing = container_of(work,
+							    struct delayed_work,
+							    work);
+	struct i5100_priv *priv = container_of(i5100_scrubbing,
+					       struct i5100_priv,
+					       i5100_scrubbing);
+	u32 dw;
+
+	pci_read_config_dword(priv->mc, I5100_MC, &dw);
+
+	if (priv->scrub_enable) {
+
+		pci_read_config_dword(priv->mc, I5100_MC, &dw);
+
+		if (i5100_mc_scrbdone(dw)) {
+			dw |= I5100_MC_SCRBEN_MASK;
+			pci_write_config_dword(priv->mc, I5100_MC, dw);
+			pci_read_config_dword(priv->mc, I5100_MC, &dw);
+		}
+
+		schedule_delayed_work(&(priv->i5100_scrubbing),
+				      I5100_SCRUB_REFRESH_RATE);
+	}
+}
+/*
+ * The bandwidth is based on experimentation, feel free to refine it.
+ */
+static int i5100_set_scrub_rate(struct mem_ctl_info *mci,
+				       u32 *bandwidth)
+{
+	struct i5100_priv *priv = mci->pvt_info;
+	u32 dw;
+
+	pci_read_config_dword(priv->mc, I5100_MC, &dw);
+	if (*bandwidth) {
+		priv->scrub_enable = 1;
+		dw |= I5100_MC_SCRBEN_MASK;
+		schedule_delayed_work(&(priv->i5100_scrubbing),
+				      I5100_SCRUB_REFRESH_RATE);
+	} else {
+		priv->scrub_enable = 0;
+		dw &= ~I5100_MC_SCRBEN_MASK;
+		cancel_delayed_work(&(priv->i5100_scrubbing));
+	}
+	pci_write_config_dword(priv->mc, I5100_MC, dw);
+
+	pci_read_config_dword(priv->mc, I5100_MC, &dw);
+
+	*bandwidth = 5900000 * i5100_mc_scrben(dw);
+
+	return 0;
+}
+
+static int i5100_get_scrub_rate(struct mem_ctl_info *mci,
+				u32 *bandwidth)
+{
+	struct i5100_priv *priv = mci->pvt_info;
+	u32 dw;
+
+	pci_read_config_dword(priv->mc, I5100_MC, &dw);
+
+	*bandwidth = 5900000 * i5100_mc_scrben(dw);
+
+	return 0;
+}
+
 static struct pci_dev *pci_get_device_func(unsigned vendor,
 					   unsigned device,
 					   unsigned func)
@@ -557,19 +652,19 @@ static unsigned long __devinit i5100_npages(struct mem_ctl_info *mci,
 					    int csrow)
 {
 	struct i5100_priv *priv = mci->pvt_info;
-	const unsigned ctlr_rank = i5100_csrow_to_rank(mci, csrow);
-	const unsigned ctlr = i5100_csrow_to_cntlr(mci, csrow);
+	const unsigned chan_rank = i5100_csrow_to_rank(mci, csrow);
+	const unsigned chan = i5100_csrow_to_chan(mci, csrow);
 	unsigned addr_lines;
 
 	/* dimm present? */
-	if (!priv->mtr[ctlr][ctlr_rank].present)
+	if (!priv->mtr[chan][chan_rank].present)
 		return 0ULL;
 
 	addr_lines =
 		I5100_DIMM_ADDR_LINES +
-		priv->mtr[ctlr][ctlr_rank].numcol +
-		priv->mtr[ctlr][ctlr_rank].numrow +
-		priv->mtr[ctlr][ctlr_rank].numbank;
+		priv->mtr[chan][chan_rank].numcol +
+		priv->mtr[chan][chan_rank].numrow +
+		priv->mtr[chan][chan_rank].numbank;
 
 	return (unsigned long)
 		((unsigned long long) (1ULL << addr_lines) / PAGE_SIZE);
@@ -581,11 +676,11 @@ static void __devinit i5100_init_mtr(struct mem_ctl_info *mci)
 	struct pci_dev *mms[2] = { priv->ch0mm, priv->ch1mm };
 	int i;
 
-	for (i = 0; i < I5100_MAX_CTLRS; i++) {
+	for (i = 0; i < I5100_CHANNELS; i++) {
 		int j;
 		struct pci_dev *pdev = mms[i];
 
-		for (j = 0; j < I5100_MAX_RANKS_PER_CTLR; j++) {
+		for (j = 0; j < I5100_MAX_RANKS_PER_CHAN; j++) {
 			const unsigned addr =
 				(j < 4) ? I5100_MTR_0 + j * 2 :
 					  I5100_MTR_4 + (j - 4) * 2;
@@ -644,7 +739,6 @@ static int i5100_read_spd_byte(const struct mem_ctl_info *mci,
  * fill dimm chip select map
  *
  * FIXME:
- *   o only valid for 4 ranks per controller
  *   o not the only way to may chip selects to dimm slots
  *   o investigate if there is some way to obtain this map from the bios
  */
@@ -653,9 +747,7 @@ static void __devinit i5100_init_dimm_csmap(struct mem_ctl_info *mci)
 	struct i5100_priv *priv = mci->pvt_info;
 	int i;
 
-	WARN_ON(priv->ranksperctlr != 4);
-
-	for (i = 0; i < I5100_MAX_DIMM_SLOTS_PER_CTLR; i++) {
+	for (i = 0; i < I5100_MAX_DIMM_SLOTS_PER_CHAN; i++) {
 		int j;
 
 		for (j = 0; j < I5100_MAX_RANKS_PER_DIMM; j++)
@@ -663,12 +755,21 @@ static void __devinit i5100_init_dimm_csmap(struct mem_ctl_info *mci)
 	}
 
 	/* only 2 chip selects per slot... */
-	priv->dimm_csmap[0][0] = 0;
-	priv->dimm_csmap[0][1] = 3;
-	priv->dimm_csmap[1][0] = 1;
-	priv->dimm_csmap[1][1] = 2;
-	priv->dimm_csmap[2][0] = 2;
-	priv->dimm_csmap[3][0] = 3;
+	if (priv->ranksperchan == 4) {
+		priv->dimm_csmap[0][0] = 0;
+		priv->dimm_csmap[0][1] = 3;
+		priv->dimm_csmap[1][0] = 1;
+		priv->dimm_csmap[1][1] = 2;
+		priv->dimm_csmap[2][0] = 2;
+		priv->dimm_csmap[3][0] = 3;
+	} else {
+		priv->dimm_csmap[0][0] = 0;
+		priv->dimm_csmap[0][1] = 1;
+		priv->dimm_csmap[1][0] = 2;
+		priv->dimm_csmap[1][1] = 3;
+		priv->dimm_csmap[2][0] = 4;
+		priv->dimm_csmap[2][1] = 5;
+	}
 }
 
 static void __devinit i5100_init_dimm_layout(struct pci_dev *pdev,
@@ -677,10 +778,10 @@ static void __devinit i5100_init_dimm_layout(struct pci_dev *pdev,
 	struct i5100_priv *priv = mci->pvt_info;
 	int i;
 
-	for (i = 0; i < I5100_MAX_CTLRS; i++) {
+	for (i = 0; i < I5100_CHANNELS; i++) {
 		int j;
 
-		for (j = 0; j < I5100_MAX_DIMM_SLOTS_PER_CTLR; j++) {
+		for (j = 0; j < I5100_MAX_DIMM_SLOTS_PER_CHAN; j++) {
 			u8 rank;
 
 			if (i5100_read_spd_byte(mci, i, j, 5, &rank) < 0)
@@ -720,7 +821,7 @@ static void __devinit i5100_init_interleaving(struct pci_dev *pdev,
 	pci_read_config_word(pdev, I5100_AMIR_1, &w);
 	priv->amir[1] = w;
 
-	for (i = 0; i < I5100_MAX_CTLRS; i++) {
+	for (i = 0; i < I5100_CHANNELS; i++) {
 		int j;
 
 		for (j = 0; j < 5; j++) {
@@ -747,7 +848,7 @@ static void __devinit i5100_init_csrows(struct mem_ctl_info *mci)
 
 	for (i = 0; i < mci->nr_csrows; i++) {
 		const unsigned long npages = i5100_npages(mci, i);
-		const unsigned cntlr = i5100_csrow_to_cntlr(mci, i);
+		const unsigned chan = i5100_csrow_to_chan(mci, i);
 		const unsigned rank = i5100_csrow_to_rank(mci, i);
 
 		if (!npages)
@@ -765,7 +866,7 @@ static void __devinit i5100_init_csrows(struct mem_ctl_info *mci)
 		mci->csrows[i].grain = 32;
 		mci->csrows[i].csrow_idx = i;
 		mci->csrows[i].dtype =
-			(priv->mtr[cntlr][rank].width == 4) ? DEV_X4 : DEV_X8;
+			(priv->mtr[chan][rank].width == 4) ? DEV_X4 : DEV_X8;
 		mci->csrows[i].ue_count = 0;
 		mci->csrows[i].ce_count = 0;
 		mci->csrows[i].mtype = MEM_RDDR2;
@@ -777,7 +878,7 @@ static void __devinit i5100_init_csrows(struct mem_ctl_info *mci)
 		mci->csrows[i].channels[0].csrow = mci->csrows + i;
 		snprintf(mci->csrows[i].channels[0].label,
 			 sizeof(mci->csrows[i].channels[0].label),
-			 "DIMM%u", i5100_rank_to_slot(mci, cntlr, rank));
+			 "DIMM%u", i5100_rank_to_slot(mci, chan, rank));
 
 		total_pages += npages;
 	}
@@ -814,13 +915,6 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 	/* figure out how many ranks, from strapped state of 48GB_Mode input */
 	pci_read_config_dword(pdev, I5100_MS, &dw);
 	ranksperch = !!(dw & (1 << 8)) * 2 + 4;
-
-	if (ranksperch != 4) {
-		/* FIXME: get 6 ranks / controller to work - need hw... */
-		printk(KERN_INFO "i5100_edac: unsupported configuration.\n");
-		ret = -ENODEV;
-		goto bail_pdev;
-	}
 
 	/* enable error reporting... */
 	pci_read_config_dword(pdev, I5100_EMASK_MEM, &dw);
@@ -864,10 +958,20 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 	mci->dev = &pdev->dev;
 
 	priv = mci->pvt_info;
-	priv->ranksperctlr = ranksperch;
+	priv->ranksperchan = ranksperch;
 	priv->mc = pdev;
 	priv->ch0mm = ch0mm;
 	priv->ch1mm = ch1mm;
+
+	INIT_DELAYED_WORK(&(priv->i5100_scrubbing), i5100_refresh_scrubbing);
+
+	/* If scrubbing was already enabled by the bios, start maintaining it */
+	pci_read_config_dword(pdev, I5100_MC, &dw);
+	if (i5100_mc_scrben(dw)) {
+		priv->scrub_enable = 1;
+		schedule_delayed_work(&(priv->i5100_scrubbing),
+				      I5100_SCRUB_REFRESH_RATE);
+	}
 
 	i5100_init_dimm_layout(pdev, mci);
 	i5100_init_interleaving(pdev, mci);
@@ -882,6 +986,8 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 	mci->ctl_page_to_phys = NULL;
 
 	mci->edac_check = i5100_check_error;
+	mci->set_sdram_scrub_rate = i5100_set_scrub_rate;
+	mci->get_sdram_scrub_rate = i5100_get_scrub_rate;
 
 	i5100_init_csrows(mci);
 
@@ -897,12 +1003,14 @@ static int __devinit i5100_init_one(struct pci_dev *pdev,
 
 	if (edac_mc_add_mc(mci)) {
 		ret = -ENODEV;
-		goto bail_mc;
+		goto bail_scrub;
 	}
 
 	return ret;
 
-bail_mc:
+bail_scrub:
+	priv->scrub_enable = 0;
+	cancel_delayed_work_sync(&(priv->i5100_scrubbing));
 	edac_mc_free(mci);
 
 bail_disable_ch1:
@@ -935,6 +1043,10 @@ static void __devexit i5100_remove_one(struct pci_dev *pdev)
 		return;
 
 	priv = mci->pvt_info;
+
+	priv->scrub_enable = 0;
+	cancel_delayed_work_sync(&(priv->i5100_scrubbing));
+
 	pci_disable_device(pdev);
 	pci_disable_device(priv->ch0mm);
 	pci_disable_device(priv->ch1mm);

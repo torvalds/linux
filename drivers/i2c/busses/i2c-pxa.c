@@ -1155,7 +1155,7 @@ static int i2c_pxa_resume_noirq(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops i2c_pxa_dev_pm_ops = {
+static const struct dev_pm_ops i2c_pxa_dev_pm_ops = {
 	.suspend_noirq = i2c_pxa_suspend_noirq,
 	.resume_noirq = i2c_pxa_resume_noirq,
 };

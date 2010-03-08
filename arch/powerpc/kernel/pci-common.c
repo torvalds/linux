@@ -1047,10 +1047,8 @@ static void __devinit pcibios_fixup_bridge(struct pci_bus *bus)
 
 	struct pci_dev *dev = bus->self;
 
-	for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
-		if ((res = bus->resource[i]) == NULL)
-			continue;
-		if (!res->flags)
+	pci_bus_for_each_resource(bus, res, i) {
+		if (!res || !res->flags)
 			continue;
 		if (i >= 3 && bus->self->transparent)
 			continue;
@@ -1107,6 +1105,12 @@ void __devinit pcibios_setup_bus_devices(struct pci_bus *bus)
 	list_for_each_entry(dev, &bus->devices, bus_list) {
 		struct dev_archdata *sd = &dev->dev.archdata;
 
+		/* Cardbus can call us to add new devices to a bus, so ignore
+		 * those who are already fully discovered
+		 */
+		if (dev->is_added)
+			continue;
+
 		/* Setup OF node pointer in archdata */
 		sd->of_node = pci_device_to_OF_node(dev);
 
@@ -1147,6 +1151,13 @@ void __devinit pcibios_fixup_bus(struct pci_bus *bus)
 }
 EXPORT_SYMBOL(pcibios_fixup_bus);
 
+void __devinit pci_fixup_cardbus(struct pci_bus *bus)
+{
+	/* Now fixup devices on that bus */
+	pcibios_setup_bus_devices(bus);
+}
+
+
 static int skip_isa_ioresource_align(struct pci_dev *dev)
 {
 	if ((ppc_pci_flags & PPC_PCI_CAN_SKIP_ISA_ALIGN) &&
@@ -1168,21 +1179,20 @@ static int skip_isa_ioresource_align(struct pci_dev *dev)
  * but we want to try to avoid allocating at 0x2900-0x2bff
  * which might have be mirrored at 0x0100-0x03ff..
  */
-void pcibios_align_resource(void *data, struct resource *res,
+resource_size_t pcibios_align_resource(void *data, const struct resource *res,
 				resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;
+	resource_size_t start = res->start;
 
 	if (res->flags & IORESOURCE_IO) {
-		resource_size_t start = res->start;
-
 		if (skip_isa_ioresource_align(dev))
-			return;
-		if (start & 0x300) {
+			return start;
+		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
-			res->start = start;
-		}
 	}
+
+	return start;
 }
 EXPORT_SYMBOL(pcibios_align_resource);
 
@@ -1265,9 +1275,8 @@ void pcibios_allocate_bus_resources(struct pci_bus *bus)
 	pr_debug("PCI: Allocating bus resources for %04x:%02x...\n",
 		 pci_domain_nr(bus), bus->number);
 
-	for (i = 0; i < PCI_BUS_NUM_RESOURCES; ++i) {
-		if ((res = bus->resource[i]) == NULL || !res->flags
-		    || res->start > res->end || res->parent)
+	pci_bus_for_each_resource(bus, res, i) {
+		if (!res || !res->flags || res->start > res->end || res->parent)
 			continue;
 		if (bus->parent == NULL)
 			pr = (res->flags & IORESOURCE_IO) ?

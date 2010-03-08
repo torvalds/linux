@@ -19,6 +19,7 @@
 #include "xfs_vnodeops.h"
 #include "xfs_bmap_btree.h"
 #include "xfs_inode.h"
+#include "xfs_trace.h"
 
 int  fs_noerr(void) { return 0; }
 int  fs_nosys(void) { return ENOSYS; }
@@ -51,6 +52,8 @@ xfs_flushinval_pages(
 	struct address_space *mapping = VFS_I(ip)->i_mapping;
 	int		ret = 0;
 
+	trace_xfs_pagecache_inval(ip, first, last);
+
 	if (mapping->nrpages) {
 		xfs_iflags_clear(ip, XFS_ITRUNCATED);
 		ret = filemap_write_and_wait(mapping);
@@ -76,7 +79,7 @@ xfs_flush_pages(
 		xfs_iflags_clear(ip, XFS_ITRUNCATED);
 		ret = -filemap_fdatawrite(mapping);
 	}
-	if (flags & XFS_B_ASYNC)
+	if (flags & XBF_ASYNC)
 		return ret;
 	ret2 = xfs_wait_on_pages(ip, first, last);
 	if (!ret)

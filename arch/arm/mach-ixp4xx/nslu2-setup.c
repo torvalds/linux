@@ -26,12 +26,31 @@
 #include <linux/i2c.h>
 #include <linux/i2c-gpio.h>
 #include <linux/io.h>
-
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/flash.h>
 #include <asm/mach/time.h>
 #include <asm/gpio.h>
+
+#define NSLU2_SDA_PIN		7
+#define NSLU2_SCL_PIN		6
+
+/* NSLU2 Timer */
+#define NSLU2_FREQ 66000000
+
+/* Buttons */
+#define NSLU2_PB_GPIO		5	/* power button */
+#define NSLU2_PO_GPIO		8	/* power off */
+#define NSLU2_RB_GPIO		12	/* reset button */
+
+/* Buzzer */
+#define NSLU2_GPIO_BUZZ		4
+
+/* LEDs */
+#define NSLU2_LED_RED_GPIO	0
+#define NSLU2_LED_GRN_GPIO	1
+#define NSLU2_LED_DISK1_GPIO	3
+#define NSLU2_LED_DISK2_GPIO	2
 
 static struct flash_platform_data nslu2_flash_data = {
 	.map_name		= "cfi_probe",

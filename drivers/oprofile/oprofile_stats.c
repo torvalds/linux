@@ -23,7 +23,7 @@ void oprofile_reset_stats(void)
 	int i;
 
 	for_each_possible_cpu(i) {
-		cpu_buf = &per_cpu(cpu_buffer, i);
+		cpu_buf = &per_cpu(op_cpu_buffer, i);
 		cpu_buf->sample_received = 0;
 		cpu_buf->sample_lost_overflow = 0;
 		cpu_buf->backtrace_aborted = 0;
@@ -51,7 +51,7 @@ void oprofile_create_stats_files(struct super_block *sb, struct dentry *root)
 		return;
 
 	for_each_possible_cpu(i) {
-		cpu_buf = &per_cpu(cpu_buffer, i);
+		cpu_buf = &per_cpu(op_cpu_buffer, i);
 		snprintf(buf, 10, "cpu%d", i);
 		cpudir = oprofilefs_mkdir(sb, dir, buf);
 

@@ -304,7 +304,6 @@ static int rtc_probe(struct platform_device *pdev)
 {
 	struct v3020_platform_data *pdata = pdev->dev.platform_data;
 	struct v3020 *chip;
-	struct rtc_device *rtc;
 	int retval = -EBUSY;
 	int i;
 	int temp;
@@ -353,13 +352,12 @@ static int rtc_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, chip);
 
-	rtc = rtc_device_register("v3020",
+	chip->rtc = rtc_device_register("v3020",
 				&pdev->dev, &v3020_rtc_ops, THIS_MODULE);
-	if (IS_ERR(rtc)) {
-		retval = PTR_ERR(rtc);
+	if (IS_ERR(chip->rtc)) {
+		retval = PTR_ERR(chip->rtc);
 		goto err_io;
 	}
-	chip->rtc = rtc;
 
 	return 0;
 

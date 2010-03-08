@@ -47,7 +47,7 @@ static const u16 wm8974_reg[WM8974_CACHEREGNUM] = {
 };
 
 #define WM8974_POWER1_BIASEN  0x08
-#define WM8974_POWER1_BUFIOEN 0x10
+#define WM8974_POWER1_BUFIOEN 0x04
 
 struct wm8974_priv {
 	struct snd_soc_codec codec;
@@ -170,6 +170,10 @@ SOC_ENUM("Aux Mode", wm8974_auxmode),
 
 SOC_SINGLE("Capture Boost(+20dB)", WM8974_ADCBOOST,  8, 1, 0),
 SOC_SINGLE("Mono Playback Switch", WM8974_MONOMIX, 6, 1, 1),
+
+/* DAC / ADC oversampling */
+SOC_SINGLE("DAC 128x Oversampling Switch", WM8974_DAC, 8, 1, 0),
+SOC_SINGLE("ADC 128x Oversampling Switch", WM8974_ADC, 8, 1, 0),
 };
 
 /* Speaker Output Mixer */
@@ -381,14 +385,6 @@ static int wm8974_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 		reg = snd_soc_read(codec, WM8974_CLOCK) & 0x11f;
 		snd_soc_write(codec, WM8974_CLOCK, reg | div);
 		break;
-	case WM8974_ADCCLK:
-		reg = snd_soc_read(codec, WM8974_ADC) & 0x1f7;
-		snd_soc_write(codec, WM8974_ADC, reg | div);
-		break;
-	case WM8974_DACCLK:
-		reg = snd_soc_read(codec, WM8974_DAC) & 0x1f7;
-		snd_soc_write(codec, WM8974_DAC, reg | div);
-		break;
 	case WM8974_BCLKDIV:
 		reg = snd_soc_read(codec, WM8974_CLOCK) & 0x1e3;
 		snd_soc_write(codec, WM8974_CLOCK, reg | div);
@@ -482,23 +478,23 @@ static int wm8974_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	/* filter coefficient */
 	switch (params_rate(params)) {
-	case SNDRV_PCM_RATE_8000:
+	case 8000:
 		adn |= 0x5 << 1;
 		break;
-	case SNDRV_PCM_RATE_11025:
+	case 11025:
 		adn |= 0x4 << 1;
 		break;
-	case SNDRV_PCM_RATE_16000:
+	case 16000:
 		adn |= 0x3 << 1;
 		break;
-	case SNDRV_PCM_RATE_22050:
+	case 22050:
 		adn |= 0x2 << 1;
 		break;
-	case SNDRV_PCM_RATE_32000:
+	case 32000:
 		adn |= 0x1 << 1;
 		break;
-	case SNDRV_PCM_RATE_44100:
-	case SNDRV_PCM_RATE_48000:
+	case 44100:
+	case 48000:
 		break;
 	}
 

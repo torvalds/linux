@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -112,12 +112,14 @@ static const char et_self_tests[][ETH_GSTRING_LEN] = {
 	"PHY Loopback test",
 	"External Loopback test",
 	"DDR DMA test"
+	"Link test"
 };
 
 #define ETHTOOL_TESTS_NUM ARRAY_SIZE(et_self_tests)
 #define BE_MAC_LOOPBACK 0x0
 #define BE_PHY_LOOPBACK 0x1
 #define BE_ONE_PORT_EXT_LOOPBACK 0x2
+#define BE_NO_LOOPBACK 0xff
 
 static void
 be_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
@@ -339,28 +341,50 @@ static int be_get_settings(struct net_device *netdev, struct ethtool_cmd *ecmd)
 
 		status = be_cmd_read_port_type(adapter, adapter->port_num,
 						&connector);
-		switch (connector) {
-		case 7:
-			ecmd->port = PORT_FIBRE;
-			break;
-		default:
-			ecmd->port = PORT_TP;
-			break;
+		if (!status) {
+			switch (connector) {
+			case 7:
+				ecmd->port = PORT_FIBRE;
+				ecmd->transceiver = XCVR_EXTERNAL;
+				break;
+			case 0:
+				ecmd->port = PORT_TP;
+				ecmd->transceiver = XCVR_EXTERNAL;
+				break;
+			default:
+				ecmd->port = PORT_TP;
+				ecmd->transceiver = XCVR_INTERNAL;
+				break;
+			}
+		} else {
+			ecmd->port = PORT_AUI;
+			ecmd->transceiver = XCVR_INTERNAL;
 		}
 
 		/* Save for future use */
 		adapter->link_speed = ecmd->speed;
 		adapter->port_type = ecmd->port;
+		adapter->transceiver = ecmd->transceiver;
 	} else {
 		ecmd->speed = adapter->link_speed;
 		ecmd->port = adapter->port_type;
+		ecmd->transceiver = adapter->transceiver;
 	}
 
 	ecmd->duplex = DUPLEX_FULL;
 	ecmd->autoneg = AUTONEG_DISABLE;
-	ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_TP);
 	ecmd->phy_address = adapter->port_num;
-	ecmd->transceiver = XCVR_INTERNAL;
+	switch (ecmd->port) {
+	case PORT_FIBRE:
+		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_FIBRE);
+		break;
+	case PORT_TP:
+		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_TP);
+		break;
+	case PORT_AUI:
+		ecmd->supported = (SUPPORTED_10000baseT_Full | SUPPORTED_AUI);
+		break;
+	}
 
 	return 0;
 }
@@ -489,37 +513,56 @@ err:
 	return ret;
 }
 
+static u64 be_loopback_test(struct be_adapter *adapter, u8 loopback_type,
+				u64 *status)
+{
+	be_cmd_set_loopback(adapter, adapter->port_num,
+				loopback_type, 1);
+	*status = be_cmd_loopback_test(adapter, adapter->port_num,
+				loopback_type, 1500,
+				2, 0xabc);
+	be_cmd_set_loopback(adapter, adapter->port_num,
+				BE_NO_LOOPBACK, 1);
+	return *status;
+}
+
 static void
 be_self_test(struct net_device *netdev, struct ethtool_test *test, u64 *data)
 {
 	struct be_adapter *adapter = netdev_priv(netdev);
+	bool link_up;
+	u8 mac_speed = 0;
+	u16 qos_link_speed = 0;
 
 	memset(data, 0, sizeof(u64) * ETHTOOL_TESTS_NUM);
 
 	if (test->flags & ETH_TEST_FL_OFFLINE) {
-		data[0] = be_cmd_loopback_test(adapter, adapter->port_num,
-						BE_MAC_LOOPBACK, 1500,
-						2, 0xabc);
-		if (data[0] != 0)
+		if (be_loopback_test(adapter, BE_MAC_LOOPBACK,
+						&data[0]) != 0) {
 			test->flags |= ETH_TEST_FL_FAILED;
-
-		data[1] = be_cmd_loopback_test(adapter, adapter->port_num,
-						BE_PHY_LOOPBACK, 1500,
-						2, 0xabc);
-		if (data[1] != 0)
+		}
+		if (be_loopback_test(adapter, BE_PHY_LOOPBACK,
+						&data[1]) != 0) {
 			test->flags |= ETH_TEST_FL_FAILED;
-
-		data[2] = be_cmd_loopback_test(adapter, adapter->port_num,
-						BE_ONE_PORT_EXT_LOOPBACK,
-						1500, 2, 0xabc);
-		if (data[2] != 0)
+		}
+		if (be_loopback_test(adapter, BE_ONE_PORT_EXT_LOOPBACK,
+						&data[2]) != 0) {
 			test->flags |= ETH_TEST_FL_FAILED;
-
-		data[3] = be_test_ddr_dma(adapter);
-		if (data[3] != 0)
-			test->flags |= ETH_TEST_FL_FAILED;
+		}
 	}
 
+	if (be_test_ddr_dma(adapter) != 0) {
+		data[3] = 1;
+		test->flags |= ETH_TEST_FL_FAILED;
+	}
+
+	if (be_cmd_link_status_query(adapter, &link_up, &mac_speed,
+				&qos_link_speed) != 0) {
+		test->flags |= ETH_TEST_FL_FAILED;
+		data[4] = -1;
+	} else if (mac_speed) {
+		data[4] = 1;
+	}
 }
 
 static int
@@ -536,12 +579,57 @@ be_do_flash(struct net_device *netdev, struct ethtool_flash *efl)
 	return be_load_fw(adapter, file_name);
 }
 
+static int
+be_get_eeprom_len(struct net_device *netdev)
+{
+	return BE_READ_SEEPROM_LEN;
+}
+
+static int
+be_read_eeprom(struct net_device *netdev, struct ethtool_eeprom *eeprom,
+			uint8_t *data)
+{
+	struct be_adapter *adapter = netdev_priv(netdev);
+	struct be_dma_mem eeprom_cmd;
+	struct be_cmd_resp_seeprom_read *resp;
+	int status;
+
+	if (!eeprom->len)
+		return -EINVAL;
+
+	eeprom->magic = BE_VENDOR_ID | (adapter->pdev->device<<16);
+
+	memset(&eeprom_cmd, 0, sizeof(struct be_dma_mem));
+	eeprom_cmd.size = sizeof(struct be_cmd_req_seeprom_read);
+	eeprom_cmd.va = pci_alloc_consistent(adapter->pdev, eeprom_cmd.size,
+				&eeprom_cmd.dma);
+
+	if (!eeprom_cmd.va) {
+		dev_err(&adapter->pdev->dev,
+			"Memory allocation failure. Could not read eeprom\n");
+		return -ENOMEM;
+	}
+
+	status = be_cmd_get_seeprom_data(adapter, &eeprom_cmd);
+
+	if (!status) {
+		resp = (struct be_cmd_resp_seeprom_read *) eeprom_cmd.va;
+		memcpy(data, resp->seeprom_data + eeprom->offset, eeprom->len);
+	}
+	pci_free_consistent(adapter->pdev, eeprom_cmd.size, eeprom_cmd.va,
+			eeprom_cmd.dma);
+
+	return status;
+}
+
 const struct ethtool_ops be_ethtool_ops = {
 	.get_settings = be_get_settings,
 	.get_drvinfo = be_get_drvinfo,
 	.get_wol = be_get_wol,
 	.set_wol = be_set_wol,
 	.get_link = ethtool_op_get_link,
+	.get_eeprom_len = be_get_eeprom_len,
+	.get_eeprom = be_read_eeprom,
 	.get_coalesce = be_get_coalesce,
 	.set_coalesce = be_set_coalesce,
 	.get_ringparam = be_get_ringparam,

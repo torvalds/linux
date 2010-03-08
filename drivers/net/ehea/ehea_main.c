@@ -1967,7 +1967,7 @@ static void ehea_set_multicast_list(struct net_device *dev)
 {
 	struct ehea_port *port = netdev_priv(dev);
 	struct dev_mc_list *k_mcl_entry;
-	int ret, i;
+	int ret;
 
 	if (dev->flags & IFF_PROMISC) {
 		ehea_promiscuous(dev, 1);
@@ -1981,7 +1981,7 @@ static void ehea_set_multicast_list(struct net_device *dev)
 	}
 	ehea_allmulti(dev, 0);
 
-	if (dev->mc_count) {
+	if (!netdev_mc_empty(dev)) {
 		ret = ehea_drop_multicast_list(dev);
 		if (ret) {
 			/* Dropping the current multicast list failed.
@@ -1990,15 +1990,14 @@ static void ehea_set_multicast_list(struct net_device *dev)
 			ehea_allmulti(dev, 1);
 		}
 
-		if (dev->mc_count > port->adapter->max_mc_mac) {
+		if (netdev_mc_count(dev) > port->adapter->max_mc_mac) {
 			ehea_info("Mcast registration limit reached (0x%llx). "
 				  "Use ALLMULTI!",
 				  port->adapter->max_mc_mac);
 			goto out;
 		}
 
-		for (i = 0, k_mcl_entry = dev->mc_list; i < dev->mc_count; i++,
-			     k_mcl_entry = k_mcl_entry->next)
+		netdev_for_each_mc_addr(k_mcl_entry, dev)
 			ehea_add_multicast_entry(port, k_mcl_entry->dmi_addr);
 
 	}

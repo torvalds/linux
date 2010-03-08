@@ -237,7 +237,7 @@ static int dmatest_func(void *data)
 	dma_cookie_t		cookie;
 	enum dma_status		status;
 	enum dma_ctrl_flags 	flags;
-	u8			pq_coefs[pq_sources];
+	u8			pq_coefs[pq_sources + 1];
 	int			ret;
 	int			src_cnt;
 	int			dst_cnt;
@@ -257,7 +257,7 @@ static int dmatest_func(void *data)
 	} else if (thread->type == DMA_PQ) {
 		src_cnt = pq_sources | 1; /* force odd to ensure dst = src */
 		dst_cnt = 2;
-		for (i = 0; i < pq_sources; i++)
+		for (i = 0; i < src_cnt; i++)
 			pq_coefs[i] = 1;
 	} else
 		goto err_srcs;
@@ -298,10 +298,6 @@ static int dmatest_func(void *data)
 
 		total_tests++;
 
-		len = dmatest_random() % test_buf_size + 1;
-		src_off = dmatest_random() % (test_buf_size - len + 1);
-		dst_off = dmatest_random() % (test_buf_size - len + 1);
-
 		/* honor alignment restrictions */
 		if (thread->type == DMA_MEMCPY)
 			align = dev->copy_align;
@@ -310,7 +306,19 @@ static int dmatest_func(void *data)
 		else if (thread->type == DMA_PQ)
 			align = dev->pq_align;
 
+		if (1 << align > test_buf_size) {
+			pr_err("%u-byte buffer too small for %d-byte alignment\n",
+			       test_buf_size, 1 << align);
+			break;
+		}
+
+		len = dmatest_random() % test_buf_size + 1;
 		len = (len >> align) << align;
+		if (!len)
+			len = 1 << align;
+		src_off = dmatest_random() % (test_buf_size - len + 1);
+		dst_off = dmatest_random() % (test_buf_size - len + 1);
+
 		src_off = (src_off >> align) << align;
 		dst_off = (dst_off >> align) << align;
 
@@ -339,7 +347,7 @@ static int dmatest_func(void *data)
 		else if (thread->type == DMA_XOR)
 			tx = dev->device_prep_dma_xor(chan,
 						      dma_dsts[0] + dst_off,
-						      dma_srcs, xor_sources,
+						      dma_srcs, src_cnt,
 						      len, flags);
 		else if (thread->type == DMA_PQ) {
 			dma_addr_t dma_pq[dst_cnt];
@@ -347,7 +355,7 @@ static int dmatest_func(void *data)
 			for (i = 0; i < dst_cnt; i++)
 				dma_pq[i] = dma_dsts[i] + dst_off;
 			tx = dev->device_prep_dma_pq(chan, dma_pq, dma_srcs,
-						     pq_sources, pq_coefs,
+						     src_cnt, pq_coefs,
 						     len, flags);
 		}
 
@@ -459,7 +467,7 @@ err_srcs:
 
 	if (iterations > 0)
 		while (!kthread_should_stop()) {
-			DECLARE_WAIT_QUEUE_HEAD(wait_dmatest_exit);
+			DECLARE_WAIT_QUEUE_HEAD_ONSTACK(wait_dmatest_exit);
 			interruptible_sleep_on(&wait_dmatest_exit);
 		}
 

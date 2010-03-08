@@ -14,9 +14,21 @@
 #include "trace.h"
 #include "trace_output.h"
 
-struct fgraph_data {
+struct fgraph_cpu_data {
 	pid_t		last_pid;
 	int		depth;
+	int		ignore;
+	unsigned long	enter_funcs[FTRACE_RETFUNC_DEPTH];
+};
+
+struct fgraph_data {
+	struct fgraph_cpu_data		*cpu_data;
+
+	/* Place to preserve last processed entry. */
+	struct ftrace_graph_ent_entry	ent;
+	struct ftrace_graph_ret_entry	ret;
+	int				failed;
+	int				cpu;
 };
 
 #define TRACE_GRAPH_INDENT	2
@@ -176,7 +188,7 @@ static int __trace_graph_entry(struct trace_array *tr,
 	struct ring_buffer *buffer = tr->buffer;
 	struct ftrace_graph_ent_entry *entry;
 
-	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
+	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
 		return 0;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_ENT,
@@ -201,13 +213,11 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	int cpu;
 	int pc;
 
-	if (unlikely(!tr))
-		return 0;
-
 	if (!ftrace_trace_task(current))
 		return 0;
 
-	if (!ftrace_graph_addr(trace->func))
+	/* trace it when it is-nested-in or is a function enabled. */
+	if (!(trace->depth || ftrace_graph_addr(trace->func)))
 		return 0;
 
 	local_irq_save(flags);
@@ -220,9 +230,6 @@ int trace_graph_entry(struct ftrace_graph_ent *trace)
 	} else {
 		ret = 0;
 	}
-	/* Only do the atomic if it is not already set */
-	if (!test_tsk_trace_graph(current))
-		set_tsk_trace_graph(current);
 
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
@@ -240,7 +247,7 @@ static void __trace_graph_return(struct trace_array *tr,
 	struct ring_buffer *buffer = tr->buffer;
 	struct ftrace_graph_ret_entry *entry;
 
-	if (unlikely(local_read(&__get_cpu_var(ftrace_cpu_disabled))))
+	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
 		return;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_GRAPH_RET,
@@ -270,17 +277,24 @@ void trace_graph_return(struct ftrace_graph_ret *trace)
 		pc = preempt_count();
 		__trace_graph_return(tr, trace, flags, pc);
 	}
-	if (!trace->depth)
-		clear_tsk_trace_graph(current);
 	atomic_dec(&data->disabled);
 	local_irq_restore(flags);
+}
+
+void set_graph_array(struct trace_array *tr)
+{
+	graph_array = tr;
+
+	/* Make graph_array visible before we start tracing */
+
+	smp_mb();
 }
 
 static int graph_trace_init(struct trace_array *tr)
 {
 	int ret;
 
-	graph_array = tr;
+	set_graph_array(tr);
 	ret = register_ftrace_graph(&trace_graph_return,
 				    &trace_graph_entry);
 	if (ret)
@@ -288,11 +302,6 @@ static int graph_trace_init(struct trace_array *tr)
 	tracing_start_cmdline_record();
 
 	return 0;
-}
-
-void set_graph_array(struct trace_array *tr)
-{
-	graph_array = tr;
 }
 
 static void graph_trace_reset(struct trace_array *tr)
@@ -384,7 +393,7 @@ verif_pid(struct trace_seq *s, pid_t pid, int cpu, struct fgraph_data *data)
 	if (!data)
 		return TRACE_TYPE_HANDLED;
 
-	last_pid = &(per_cpu_ptr(data, cpu)->last_pid);
+	last_pid = &(per_cpu_ptr(data->cpu_data, cpu)->last_pid);
 
 	if (*last_pid == pid)
 		return TRACE_TYPE_HANDLED;
@@ -435,26 +444,49 @@ static struct ftrace_graph_ret_entry *
 get_return_for_leaf(struct trace_iterator *iter,
 		struct ftrace_graph_ent_entry *curr)
 {
-	struct ring_buffer_iter *ring_iter;
+	struct fgraph_data *data = iter->private;
+	struct ring_buffer_iter *ring_iter = NULL;
 	struct ring_buffer_event *event;
 	struct ftrace_graph_ret_entry *next;
 
-	ring_iter = iter->buffer_iter[iter->cpu];
+	/*
+	 * If the previous output failed to write to the seq buffer,
+	 * then we just reuse the data from before.
+	 */
+	if (data && data->failed) {
+		curr = &data->ent;
+		next = &data->ret;
+	} else {
 
-	/* First peek to compare current entry and the next one */
-	if (ring_iter)
-		event = ring_buffer_iter_peek(ring_iter, NULL);
-	else {
-	/* We need to consume the current entry to see the next one */
-		ring_buffer_consume(iter->tr->buffer, iter->cpu, NULL);
-		event = ring_buffer_peek(iter->tr->buffer, iter->cpu,
-					NULL);
+		ring_iter = iter->buffer_iter[iter->cpu];
+
+		/* First peek to compare current entry and the next one */
+		if (ring_iter)
+			event = ring_buffer_iter_peek(ring_iter, NULL);
+		else {
+			/*
+			 * We need to consume the current entry to see
+			 * the next one.
+			 */
+			ring_buffer_consume(iter->tr->buffer, iter->cpu, NULL);
+			event = ring_buffer_peek(iter->tr->buffer, iter->cpu,
+						 NULL);
+		}
+
+		if (!event)
+			return NULL;
+
+		next = ring_buffer_event_data(event);
+
+		if (data) {
+			/*
+			 * Save current and next entries for later reference
+			 * if the output fails.
+			 */
+			data->ent = *curr;
+			data->ret = *next;
+		}
 	}
-
-	if (!event)
-		return NULL;
-
-	next = ring_buffer_event_data(event);
 
 	if (next->ent.type != TRACE_GRAPH_RET)
 		return NULL;
@@ -639,15 +671,21 @@ print_graph_entry_leaf(struct trace_iterator *iter,
 	duration = graph_ret->rettime - graph_ret->calltime;
 
 	if (data) {
+		struct fgraph_cpu_data *cpu_data;
 		int cpu = iter->cpu;
-		int *depth = &(per_cpu_ptr(data, cpu)->depth);
+
+		cpu_data = per_cpu_ptr(data->cpu_data, cpu);
 
 		/*
 		 * Comments display at + 1 to depth. Since
 		 * this is a leaf function, keep the comments
 		 * equal to this depth.
 		 */
-		*depth = call->depth - 1;
+		cpu_data->depth = call->depth - 1;
+
+		/* No need to keep this function around for this depth */
+		if (call->depth < FTRACE_RETFUNC_DEPTH)
+			cpu_data->enter_funcs[call->depth] = 0;
 	}
 
 	/* Overhead */
@@ -687,10 +725,15 @@ print_graph_entry_nested(struct trace_iterator *iter,
 	int i;
 
 	if (data) {
+		struct fgraph_cpu_data *cpu_data;
 		int cpu = iter->cpu;
-		int *depth = &(per_cpu_ptr(data, cpu)->depth);
 
-		*depth = call->depth;
+		cpu_data = per_cpu_ptr(data->cpu_data, cpu);
+		cpu_data->depth = call->depth;
+
+		/* Save this function pointer to see if the exit matches */
+		if (call->depth < FTRACE_RETFUNC_DEPTH)
+			cpu_data->enter_funcs[call->depth] = call->func;
 	}
 
 	/* No overhead */
@@ -782,19 +825,34 @@ static enum print_line_t
 print_graph_entry(struct ftrace_graph_ent_entry *field, struct trace_seq *s,
 			struct trace_iterator *iter)
 {
-	int cpu = iter->cpu;
+	struct fgraph_data *data = iter->private;
 	struct ftrace_graph_ent *call = &field->graph_ent;
 	struct ftrace_graph_ret_entry *leaf_ret;
+	static enum print_line_t ret;
+	int cpu = iter->cpu;
 
 	if (print_graph_prologue(iter, s, TRACE_GRAPH_ENT, call->func))
 		return TRACE_TYPE_PARTIAL_LINE;
 
 	leaf_ret = get_return_for_leaf(iter, field);
 	if (leaf_ret)
-		return print_graph_entry_leaf(iter, field, leaf_ret, s);
+		ret = print_graph_entry_leaf(iter, field, leaf_ret, s);
 	else
-		return print_graph_entry_nested(iter, field, s, cpu);
+		ret = print_graph_entry_nested(iter, field, s, cpu);
 
+	if (data) {
+		/*
+		 * If we failed to write our output, then we need to make
+		 * note of it. Because we already consumed our entry.
+		 */
+		if (s->full) {
+			data->failed = 1;
+			data->cpu = cpu;
+		} else
+			data->failed = 0;
+	}
+
+	return ret;
 }
 
 static enum print_line_t
@@ -805,19 +863,28 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 	struct fgraph_data *data = iter->private;
 	pid_t pid = ent->pid;
 	int cpu = iter->cpu;
+	int func_match = 1;
 	int ret;
 	int i;
 
 	if (data) {
+		struct fgraph_cpu_data *cpu_data;
 		int cpu = iter->cpu;
-		int *depth = &(per_cpu_ptr(data, cpu)->depth);
+
+		cpu_data = per_cpu_ptr(data->cpu_data, cpu);
 
 		/*
 		 * Comments display at + 1 to depth. This is the
 		 * return from a function, we now want the comments
 		 * to display at the same level of the bracket.
 		 */
-		*depth = trace->depth - 1;
+		cpu_data->depth = trace->depth - 1;
+
+		if (trace->depth < FTRACE_RETFUNC_DEPTH) {
+			if (cpu_data->enter_funcs[trace->depth] != trace->func)
+				func_match = 0;
+			cpu_data->enter_funcs[trace->depth] = 0;
+		}
 	}
 
 	if (print_graph_prologue(iter, s, 0, 0))
@@ -842,9 +909,21 @@ print_graph_return(struct ftrace_graph_ret *trace, struct trace_seq *s,
 			return TRACE_TYPE_PARTIAL_LINE;
 	}
 
-	ret = trace_seq_printf(s, "}\n");
-	if (!ret)
-		return TRACE_TYPE_PARTIAL_LINE;
+	/*
+	 * If the return function does not have a matching entry,
+	 * then the entry was lost. Instead of just printing
+	 * the '}' and letting the user guess what function this
+	 * belongs to, write out the function name.
+	 */
+	if (func_match) {
+		ret = trace_seq_printf(s, "}\n");
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	} else {
+		ret = trace_seq_printf(s, "} (%ps)\n", (void *)trace->func);
+		if (!ret)
+			return TRACE_TYPE_PARTIAL_LINE;
+	}
 
 	/* Overrun */
 	if (tracer_flags.val & TRACE_GRAPH_PRINT_OVERRUN) {
@@ -873,7 +952,7 @@ print_graph_comment(struct trace_seq *s,  struct trace_entry *ent,
 	int i;
 
 	if (data)
-		depth = per_cpu_ptr(data, iter->cpu)->depth;
+		depth = per_cpu_ptr(data->cpu_data, iter->cpu)->depth;
 
 	if (print_graph_prologue(iter, s, 0, 0))
 		return TRACE_TYPE_PARTIAL_LINE;
@@ -941,8 +1020,33 @@ print_graph_comment(struct trace_seq *s,  struct trace_entry *ent,
 enum print_line_t
 print_graph_function(struct trace_iterator *iter)
 {
+	struct ftrace_graph_ent_entry *field;
+	struct fgraph_data *data = iter->private;
 	struct trace_entry *entry = iter->ent;
 	struct trace_seq *s = &iter->seq;
+	int cpu = iter->cpu;
+	int ret;
+
+	if (data && per_cpu_ptr(data->cpu_data, cpu)->ignore) {
+		per_cpu_ptr(data->cpu_data, cpu)->ignore = 0;
+		return TRACE_TYPE_HANDLED;
+	}
+
+	/*
+	 * If the last output failed, there's a possibility we need
+	 * to print out the missing entry which would never go out.
+	 */
+	if (data && data->failed) {
+		field = &data->ent;
+		iter->cpu = data->cpu;
+		ret = print_graph_entry(field, s, iter);
+		if (ret == TRACE_TYPE_HANDLED && iter->cpu != cpu) {
+			per_cpu_ptr(data->cpu_data, iter->cpu)->ignore = 1;
+			ret = TRACE_TYPE_NO_CONSUME;
+		}
+		iter->cpu = cpu;
+		return ret;
+	}
 
 	switch (entry->type) {
 	case TRACE_GRAPH_ENT: {
@@ -952,7 +1056,7 @@ print_graph_function(struct trace_iterator *iter)
 		 * sizeof(struct ftrace_graph_ent_entry) is very small,
 		 * it can be safely saved at the stack.
 		 */
-		struct ftrace_graph_ent_entry *field, saved;
+		struct ftrace_graph_ent_entry saved;
 		trace_assign_type(field, entry);
 		saved = *field;
 		return print_graph_entry(&saved, s, iter);
@@ -1030,31 +1134,54 @@ static void print_graph_headers(struct seq_file *s)
 static void graph_trace_open(struct trace_iterator *iter)
 {
 	/* pid and depth on the last trace processed */
-	struct fgraph_data *data = alloc_percpu(struct fgraph_data);
+	struct fgraph_data *data;
 	int cpu;
 
+	iter->private = NULL;
+
+	data = kzalloc(sizeof(*data), GFP_KERNEL);
 	if (!data)
-		pr_warning("function graph tracer: not enough memory\n");
-	else
-		for_each_possible_cpu(cpu) {
-			pid_t *pid = &(per_cpu_ptr(data, cpu)->last_pid);
-			int *depth = &(per_cpu_ptr(data, cpu)->depth);
-			*pid = -1;
-			*depth = 0;
-		}
+		goto out_err;
+
+	data->cpu_data = alloc_percpu(struct fgraph_cpu_data);
+	if (!data->cpu_data)
+		goto out_err_free;
+
+	for_each_possible_cpu(cpu) {
+		pid_t *pid = &(per_cpu_ptr(data->cpu_data, cpu)->last_pid);
+		int *depth = &(per_cpu_ptr(data->cpu_data, cpu)->depth);
+		int *ignore = &(per_cpu_ptr(data->cpu_data, cpu)->ignore);
+		*pid = -1;
+		*depth = 0;
+		*ignore = 0;
+	}
 
 	iter->private = data;
+
+	return;
+
+ out_err_free:
+	kfree(data);
+ out_err:
+	pr_warning("function graph tracer: not enough memory\n");
 }
 
 static void graph_trace_close(struct trace_iterator *iter)
 {
-	free_percpu(iter->private);
+	struct fgraph_data *data = iter->private;
+
+	if (data) {
+		free_percpu(data->cpu_data);
+		kfree(data);
+	}
 }
 
 static struct tracer graph_trace __read_mostly = {
 	.name		= "function_graph",
 	.open		= graph_trace_open,
+	.pipe_open	= graph_trace_open,
 	.close		= graph_trace_close,
+	.pipe_close	= graph_trace_close,
 	.wait_pipe	= poll_wait_pipe,
 	.init		= graph_trace_init,
 	.reset		= graph_trace_reset,

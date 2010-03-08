@@ -324,8 +324,8 @@ static int extract_package(struct acpi_battery *battery,
 				strncpy(ptr, element->string.pointer, 32);
 			else if (element->type == ACPI_TYPE_INTEGER) {
 				strncpy(ptr, (u8 *)&element->integer.value,
-					sizeof(acpi_integer));
-				ptr[sizeof(acpi_integer)] = 0;
+					sizeof(u64));
+				ptr[sizeof(u64)] = 0;
 			} else
 				*ptr = 0; /* don't have value */
 		} else {
@@ -831,7 +831,7 @@ static void acpi_battery_notify(struct acpi_device *device, u32 event)
 					dev_name(&device->dev), event,
 					acpi_battery_present(battery));
 #ifdef CONFIG_ACPI_SYSFS_POWER
-	/* acpi_batter_update could remove power_supply object */
+	/* acpi_battery_update could remove power_supply object */
 	if (battery->bat.dev)
 		kobject_uevent(&battery->bat.dev->kobj, KOBJ_CHANGE);
 #endif

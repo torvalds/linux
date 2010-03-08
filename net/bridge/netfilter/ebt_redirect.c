@@ -59,7 +59,7 @@ static struct xt_target ebt_redirect_tg_reg __read_mostly = {
 			  (1 << NF_BR_BROUTING),
 	.target		= ebt_redirect_tg,
 	.checkentry	= ebt_redirect_tg_check,
-	.targetsize	= XT_ALIGN(sizeof(struct ebt_redirect_info)),
+	.targetsize	= sizeof(struct ebt_redirect_info),
 	.me		= THIS_MODULE,
 };
 

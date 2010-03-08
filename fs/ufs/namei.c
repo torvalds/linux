@@ -30,6 +30,7 @@
 #include <linux/time.h>
 #include <linux/fs.h>
 #include <linux/smp_lock.h>
+#include <linux/quotaops.h>
 
 #include "ufs_fs.h"
 #include "ufs.h"
@@ -56,7 +57,7 @@ static struct dentry *ufs_lookup(struct inode * dir, struct dentry *dentry, stru
 		return ERR_PTR(-ENAMETOOLONG);
 
 	lock_kernel();
-	ino = ufs_inode_by_name(dir, dentry);
+	ino = ufs_inode_by_name(dir, &dentry->d_name);
 	if (ino) {
 		inode = ufs_iget(dir->i_sb, ino);
 		if (IS_ERR(inode)) {
@@ -84,6 +85,9 @@ static int ufs_create (struct inode * dir, struct dentry * dentry, int mode,
 	int err;
 
 	UFSD("BEGIN\n");
+
+	dquot_initialize(dir);
+
 	inode = ufs_new_inode(dir, mode);
 	err = PTR_ERR(inode);
 
@@ -107,6 +111,9 @@ static int ufs_mknod (struct inode * dir, struct dentry *dentry, int mode, dev_t
 
 	if (!old_valid_dev(rdev))
 		return -EINVAL;
+
+	dquot_initialize(dir);
+
 	inode = ufs_new_inode(dir, mode);
 	err = PTR_ERR(inode);
 	if (!IS_ERR(inode)) {
@@ -130,6 +137,8 @@ static int ufs_symlink (struct inode * dir, struct dentry * dentry,
 
 	if (l > sb->s_blocksize)
 		goto out_notlocked;
+
+	dquot_initialize(dir);
 
 	lock_kernel();
 	inode = ufs_new_inode(dir, S_IFLNK | S_IRWXUGO);
@@ -176,6 +185,8 @@ static int ufs_link (struct dentry * old_dentry, struct inode * dir,
 		return -EMLINK;
 	}
 
+	dquot_initialize(dir);
+
 	inode->i_ctime = CURRENT_TIME_SEC;
 	inode_inc_link_count(inode);
 	atomic_inc(&inode->i_count);
@@ -192,6 +203,8 @@ static int ufs_mkdir(struct inode * dir, struct dentry * dentry, int mode)
 
 	if (dir->i_nlink >= UFS_LINK_MAX)
 		goto out;
+
+	dquot_initialize(dir);
 
 	lock_kernel();
 	inode_inc_link_count(dir);
@@ -237,7 +250,9 @@ static int ufs_unlink(struct inode *dir, struct dentry *dentry)
 	struct page *page;
 	int err = -ENOENT;
 
-	de = ufs_find_entry(dir, dentry, &page);
+	dquot_initialize(dir);
+
+	de = ufs_find_entry(dir, &dentry->d_name, &page);
 	if (!de)
 		goto out;
 
@@ -281,7 +296,10 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 	struct ufs_dir_entry *old_de;
 	int err = -ENOENT;
 
-	old_de = ufs_find_entry(old_dir, old_dentry, &old_page);
+	dquot_initialize(old_dir);
+	dquot_initialize(new_dir);
+
+	old_de = ufs_find_entry(old_dir, &old_dentry->d_name, &old_page);
 	if (!old_de)
 		goto out;
 
@@ -301,7 +319,7 @@ static int ufs_rename(struct inode *old_dir, struct dentry *old_dentry,
 			goto out_dir;
 
 		err = -ENOENT;
-		new_de = ufs_find_entry(new_dir, new_dentry, &new_page);
+		new_de = ufs_find_entry(new_dir, &new_dentry->d_name, &new_page);
 		if (!new_de)
 			goto out_dir;
 		inode_inc_link_count(old_inode);

@@ -47,9 +47,7 @@ static int convert_prio(int prio)
 }
 
 #define for_each_cpupri_active(array, idx)                    \
-  for (idx = find_first_bit(array, CPUPRI_NR_PRIORITIES);     \
-       idx < CPUPRI_NR_PRIORITIES;                            \
-       idx = find_next_bit(array, CPUPRI_NR_PRIORITIES, idx+1))
+	for_each_set_bit(idx, array, CPUPRI_NR_PRIORITIES)
 
 /**
  * cpupri_find - find the best (lowest-pri) CPU in the system
@@ -135,26 +133,26 @@ void cpupri_set(struct cpupri *cp, int cpu, int newpri)
 	if (likely(newpri != CPUPRI_INVALID)) {
 		struct cpupri_vec *vec = &cp->pri_to_cpu[newpri];
 
-		spin_lock_irqsave(&vec->lock, flags);
+		raw_spin_lock_irqsave(&vec->lock, flags);
 
 		cpumask_set_cpu(cpu, vec->mask);
 		vec->count++;
 		if (vec->count == 1)
 			set_bit(newpri, cp->pri_active);
 
-		spin_unlock_irqrestore(&vec->lock, flags);
+		raw_spin_unlock_irqrestore(&vec->lock, flags);
 	}
 	if (likely(oldpri != CPUPRI_INVALID)) {
 		struct cpupri_vec *vec  = &cp->pri_to_cpu[oldpri];
 
-		spin_lock_irqsave(&vec->lock, flags);
+		raw_spin_lock_irqsave(&vec->lock, flags);
 
 		vec->count--;
 		if (!vec->count)
 			clear_bit(oldpri, cp->pri_active);
 		cpumask_clear_cpu(cpu, vec->mask);
 
-		spin_unlock_irqrestore(&vec->lock, flags);
+		raw_spin_unlock_irqrestore(&vec->lock, flags);
 	}
 
 	*currpri = newpri;
@@ -180,7 +178,7 @@ int cpupri_init(struct cpupri *cp, bool bootmem)
 	for (i = 0; i < CPUPRI_NR_PRIORITIES; i++) {
 		struct cpupri_vec *vec = &cp->pri_to_cpu[i];
 
-		spin_lock_init(&vec->lock);
+		raw_spin_lock_init(&vec->lock);
 		vec->count = 0;
 		if (!zalloc_cpumask_var(&vec->mask, gfp))
 			goto cleanup;

@@ -25,7 +25,7 @@
 /* Register descriptions are here */
 #include <linux/mfd/twl4030-codec.h>
 
-/* Sgadow register used by the audio driver */
+/* Shadow register used by the audio driver */
 #define TWL4030_REG_SW_SHADOW		0x4A
 #define TWL4030_CACHEREGNUM	(TWL4030_REG_SW_SHADOW + 1)
 

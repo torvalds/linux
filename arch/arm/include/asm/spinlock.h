@@ -5,6 +5,22 @@
 #error SMP not supported on pre-ARMv6 CPUs
 #endif
 
+static inline void dsb_sev(void)
+{
+#if __LINUX_ARM_ARCH__ >= 7
+	__asm__ __volatile__ (
+		"dsb\n"
+		"sev"
+	);
+#elif defined(CONFIG_CPU_32v6K)
+	__asm__ __volatile__ (
+		"mcr p15, 0, %0, c7, c10, 4\n"
+		"sev"
+		: : "r" (0)
+	);
+#endif
+}
+
 /*
  * ARMv6 Spin-locking.
  *
@@ -17,13 +33,13 @@
  * Locked value: 1
  */
 
-#define __raw_spin_is_locked(x)		((x)->lock != 0)
-#define __raw_spin_unlock_wait(lock) \
-	do { while (__raw_spin_is_locked(lock)) cpu_relax(); } while (0)
+#define arch_spin_is_locked(x)		((x)->lock != 0)
+#define arch_spin_unlock_wait(lock) \
+	do { while (arch_spin_is_locked(lock)) cpu_relax(); } while (0)
 
-#define __raw_spin_lock_flags(lock, flags) __raw_spin_lock(lock)
+#define arch_spin_lock_flags(lock, flags) arch_spin_lock(lock)
 
-static inline void __raw_spin_lock(raw_spinlock_t *lock)
+static inline void arch_spin_lock(arch_spinlock_t *lock)
 {
 	unsigned long tmp;
 
@@ -43,7 +59,7 @@ static inline void __raw_spin_lock(raw_spinlock_t *lock)
 	smp_mb();
 }
 
-static inline int __raw_spin_trylock(raw_spinlock_t *lock)
+static inline int arch_spin_trylock(arch_spinlock_t *lock)
 {
 	unsigned long tmp;
 
@@ -63,19 +79,17 @@ static inline int __raw_spin_trylock(raw_spinlock_t *lock)
 	}
 }
 
-static inline void __raw_spin_unlock(raw_spinlock_t *lock)
+static inline void arch_spin_unlock(arch_spinlock_t *lock)
 {
 	smp_mb();
 
 	__asm__ __volatile__(
 "	str	%1, [%0]\n"
-#ifdef CONFIG_CPU_32v6K
-"	mcr	p15, 0, %1, c7, c10, 4\n" /* DSB */
-"	sev"
-#endif
 	:
 	: "r" (&lock->lock), "r" (0)
 	: "cc");
+
+	dsb_sev();
 }
 
 /*
@@ -86,7 +100,7 @@ static inline void __raw_spin_unlock(raw_spinlock_t *lock)
  * just write zero since the lock is exclusively held.
  */
 
-static inline void __raw_write_lock(raw_rwlock_t *rw)
+static inline void arch_write_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -106,7 +120,7 @@ static inline void __raw_write_lock(raw_rwlock_t *rw)
 	smp_mb();
 }
 
-static inline int __raw_write_trylock(raw_rwlock_t *rw)
+static inline int arch_write_trylock(arch_rwlock_t *rw)
 {
 	unsigned long tmp;
 
@@ -126,23 +140,21 @@ static inline int __raw_write_trylock(raw_rwlock_t *rw)
 	}
 }
 
-static inline void __raw_write_unlock(raw_rwlock_t *rw)
+static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
 	smp_mb();
 
 	__asm__ __volatile__(
 	"str	%1, [%0]\n"
-#ifdef CONFIG_CPU_32v6K
-"	mcr	p15, 0, %1, c7, c10, 4\n" /* DSB */
-"	sev\n"
-#endif
 	:
 	: "r" (&rw->lock), "r" (0)
 	: "cc");
+
+	dsb_sev();
 }
 
 /* write_can_lock - would write_trylock() succeed? */
-#define __raw_write_can_lock(x)		((x)->lock == 0)
+#define arch_write_can_lock(x)		((x)->lock == 0)
 
 /*
  * Read locks are a bit more hairy:
@@ -156,7 +168,7 @@ static inline void __raw_write_unlock(raw_rwlock_t *rw)
  * currently active.  However, we know we won't have any write
  * locks.
  */
-static inline void __raw_read_lock(raw_rwlock_t *rw)
+static inline void arch_read_lock(arch_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
 
@@ -176,7 +188,7 @@ static inline void __raw_read_lock(raw_rwlock_t *rw)
 	smp_mb();
 }
 
-static inline void __raw_read_unlock(raw_rwlock_t *rw)
+static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2;
 
@@ -188,17 +200,15 @@ static inline void __raw_read_unlock(raw_rwlock_t *rw)
 "	strex	%1, %0, [%2]\n"
 "	teq	%1, #0\n"
 "	bne	1b"
-#ifdef CONFIG_CPU_32v6K
-"\n	cmp	%0, #0\n"
-"	mcreq   p15, 0, %0, c7, c10, 4\n"
-"	seveq"
-#endif
 	: "=&r" (tmp), "=&r" (tmp2)
 	: "r" (&rw->lock)
 	: "cc");
+
+	if (tmp == 0)
+		dsb_sev();
 }
 
-static inline int __raw_read_trylock(raw_rwlock_t *rw)
+static inline int arch_read_trylock(arch_rwlock_t *rw)
 {
 	unsigned long tmp, tmp2 = 1;
 
@@ -215,13 +225,13 @@ static inline int __raw_read_trylock(raw_rwlock_t *rw)
 }
 
 /* read_can_lock - would read_trylock() succeed? */
-#define __raw_read_can_lock(x)		((x)->lock < 0x80000000)
+#define arch_read_can_lock(x)		((x)->lock < 0x80000000)
 
-#define __raw_read_lock_flags(lock, flags) __raw_read_lock(lock)
-#define __raw_write_lock_flags(lock, flags) __raw_write_lock(lock)
+#define arch_read_lock_flags(lock, flags) arch_read_lock(lock)
+#define arch_write_lock_flags(lock, flags) arch_write_lock(lock)
 
-#define _raw_spin_relax(lock)	cpu_relax()
-#define _raw_read_relax(lock)	cpu_relax()
-#define _raw_write_relax(lock)	cpu_relax()
+#define arch_spin_relax(lock)	cpu_relax()
+#define arch_read_relax(lock)	cpu_relax()
+#define arch_write_relax(lock)	cpu_relax()
 
 #endif /* __ASM_SPINLOCK_H */

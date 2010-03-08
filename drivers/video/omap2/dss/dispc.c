@@ -148,6 +148,12 @@ static const struct dispc_reg dispc_reg_att[] = { DISPC_GFX_ATTRIBUTES,
 	DISPC_VID_ATTRIBUTES(0),
 	DISPC_VID_ATTRIBUTES(1) };
 
+struct dispc_irq_stats {
+	unsigned long last_reset;
+	unsigned irq_count;
+	unsigned irqs[32];
+};
+
 static struct {
 	void __iomem    *base;
 
@@ -160,6 +166,11 @@ static struct {
 	struct work_struct error_work;
 
 	u32		ctx[DISPC_SZ_REGS / sizeof(u32)];
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	spinlock_t irq_stats_lock;
+	struct dispc_irq_stats irq_stats;
+#endif
 } dispc;
 
 static void _omap_dispc_set_irqs(void);
@@ -1443,7 +1454,10 @@ static unsigned long calc_fclk_five_taps(u16 width, u16 height,
 		do_div(tmp, 2 * out_height * ppl);
 		fclk = tmp;
 
-		if (height > 2 * out_height && ppl != out_width) {
+		if (height > 2 * out_height) {
+			if (ppl == out_width)
+				return 0;
+
 			tmp = pclk * (height - 2 * out_height) * out_width;
 			do_div(tmp, 2 * out_height * (ppl - out_width));
 			fclk = max(fclk, (u32) tmp);
@@ -1623,7 +1637,7 @@ static int _dispc_setup_plane(enum omap_plane plane,
 		DSSDBG("required fclk rate = %lu Hz\n", fclk);
 		DSSDBG("current fclk rate = %lu Hz\n", dispc_fclk_rate());
 
-		if (fclk > dispc_fclk_rate()) {
+		if (!fclk || fclk > dispc_fclk_rate()) {
 			DSSERR("failed to set up scaling, "
 					"required fclk rate = %lu Hz, "
 					"current fclk rate = %lu Hz\n",
@@ -1711,7 +1725,7 @@ static void _enable_lcd_out(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 0, 0);
 }
 
-void dispc_enable_lcd_out(bool enable)
+static void dispc_enable_lcd_out(bool enable)
 {
 	struct completion frame_done_completion;
 	bool is_on;
@@ -1758,7 +1772,7 @@ static void _enable_digit_out(bool enable)
 	REG_FLD_MOD(DISPC_CONTROL, enable ? 1 : 0, 1, 1);
 }
 
-void dispc_enable_digit_out(bool enable)
+static void dispc_enable_digit_out(bool enable)
 {
 	struct completion frame_done_completion;
 	int r;
@@ -1820,6 +1834,26 @@ void dispc_enable_digit_out(bool enable)
 	}
 
 	enable_clocks(0);
+}
+
+bool dispc_is_channel_enabled(enum omap_channel channel)
+{
+	if (channel == OMAP_DSS_CHANNEL_LCD)
+		return !!REG_GET(DISPC_CONTROL, 0, 0);
+	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
+		return !!REG_GET(DISPC_CONTROL, 1, 1);
+	else
+		BUG();
+}
+
+void dispc_enable_channel(enum omap_channel channel, bool enable)
+{
+	if (channel == OMAP_DSS_CHANNEL_LCD)
+		dispc_enable_lcd_out(enable);
+	else if (channel == OMAP_DSS_CHANNEL_DIGIT)
+		dispc_enable_digit_out(enable);
+	else
+		BUG();
 }
 
 void dispc_lcd_enable_signal_polarity(bool act_high)
@@ -2184,7 +2218,7 @@ unsigned long dispc_fclk_rate(void)
 {
 	unsigned long r = 0;
 
-	if (dss_get_dispc_clk_source() == 0)
+	if (dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK)
 		r = dss_clk_get_rate(DSS_CLK_FCK1);
 	else
 #ifdef CONFIG_OMAP2_DSS_DSI
@@ -2237,7 +2271,7 @@ void dispc_dump_clocks(struct seq_file *s)
 	seq_printf(s, "- DISPC -\n");
 
 	seq_printf(s, "dispc fclk source = %s\n",
-			dss_get_dispc_clk_source() == 0 ?
+			dss_get_dispc_clk_source() == DSS_SRC_DSS1_ALWON_FCLK ?
 			"dss1_alwon_fclk" : "dsi1_pll_fclk");
 
 	seq_printf(s, "fck\t\t%-16lu\n", dispc_fclk_rate());
@@ -2246,6 +2280,48 @@ void dispc_dump_clocks(struct seq_file *s)
 
 	enable_clocks(0);
 }
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+void dispc_dump_irqs(struct seq_file *s)
+{
+	unsigned long flags;
+	struct dispc_irq_stats stats;
+
+	spin_lock_irqsave(&dispc.irq_stats_lock, flags);
+
+	stats = dispc.irq_stats;
+	memset(&dispc.irq_stats, 0, sizeof(dispc.irq_stats));
+	dispc.irq_stats.last_reset = jiffies;
+
+	spin_unlock_irqrestore(&dispc.irq_stats_lock, flags);
+
+	seq_printf(s, "period %u ms\n",
+			jiffies_to_msecs(jiffies - stats.last_reset));
+
+	seq_printf(s, "irqs %d\n", stats.irq_count);
+#define PIS(x) \
+	seq_printf(s, "%-20s %10d\n", #x, stats.irqs[ffs(DISPC_IRQ_##x)-1]);
+
+	PIS(FRAMEDONE);
+	PIS(VSYNC);
+	PIS(EVSYNC_EVEN);
+	PIS(EVSYNC_ODD);
+	PIS(ACBIAS_COUNT_STAT);
+	PIS(PROG_LINE_NUM);
+	PIS(GFX_FIFO_UNDERFLOW);
+	PIS(GFX_END_WIN);
+	PIS(PAL_GAMMA_MASK);
+	PIS(OCP_ERR);
+	PIS(VID1_FIFO_UNDERFLOW);
+	PIS(VID1_END_WIN);
+	PIS(VID2_FIFO_UNDERFLOW);
+	PIS(VID2_END_WIN);
+	PIS(SYNC_LOST);
+	PIS(SYNC_LOST_DIGIT);
+	PIS(WAKEUP);
+#undef PIS
+}
+#endif
 
 void dispc_dump_regs(struct seq_file *s)
 {
@@ -2665,6 +2741,13 @@ void dispc_irq_handler(void)
 
 	irqstatus = dispc_read_reg(DISPC_IRQSTATUS);
 
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	spin_lock(&dispc.irq_stats_lock);
+	dispc.irq_stats.irq_count++;
+	dss_collect_irq_stats(irqstatus, dispc.irq_stats.irqs);
+	spin_unlock(&dispc.irq_stats_lock);
+#endif
+
 #ifdef DEBUG
 	if (dss_debug)
 		print_irq_status(irqstatus);
@@ -2789,12 +2872,13 @@ static void dispc_error_worker(struct work_struct *work)
 				manager = mgr;
 				enable = mgr->device->state ==
 						OMAP_DSS_DISPLAY_ACTIVE;
-				mgr->device->disable(mgr->device);
+				mgr->device->driver->disable(mgr->device);
 				break;
 			}
 		}
 
 		if (manager) {
+			struct omap_dss_device *dssdev = manager->device;
 			for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
 				struct omap_overlay *ovl;
 				ovl = omap_dss_get_overlay(i);
@@ -2809,7 +2893,7 @@ static void dispc_error_worker(struct work_struct *work)
 			dispc_go(manager->id);
 			mdelay(50);
 			if (enable)
-				manager->device->enable(manager->device);
+				dssdev->driver->enable(dssdev);
 		}
 	}
 
@@ -2827,12 +2911,13 @@ static void dispc_error_worker(struct work_struct *work)
 				manager = mgr;
 				enable = mgr->device->state ==
 						OMAP_DSS_DISPLAY_ACTIVE;
-				mgr->device->disable(mgr->device);
+				mgr->device->driver->disable(mgr->device);
 				break;
 			}
 		}
 
 		if (manager) {
+			struct omap_dss_device *dssdev = manager->device;
 			for (i = 0; i < omap_dss_get_num_overlays(); ++i) {
 				struct omap_overlay *ovl;
 				ovl = omap_dss_get_overlay(i);
@@ -2847,7 +2932,7 @@ static void dispc_error_worker(struct work_struct *work)
 			dispc_go(manager->id);
 			mdelay(50);
 			if (enable)
-				manager->device->enable(manager->device);
+				dssdev->driver->enable(dssdev);
 		}
 	}
 
@@ -2858,7 +2943,7 @@ static void dispc_error_worker(struct work_struct *work)
 			mgr = omap_dss_get_overlay_manager(i);
 
 			if (mgr->caps & OMAP_DSS_OVL_CAP_DISPC)
-				mgr->device->disable(mgr->device);
+				mgr->device->driver->disable(mgr->device);
 		}
 	}
 
@@ -3011,6 +3096,11 @@ int dispc_init(void)
 	u32 rev;
 
 	spin_lock_init(&dispc.irq_lock);
+
+#ifdef CONFIG_OMAP2_DSS_COLLECT_IRQ_STATS
+	spin_lock_init(&dispc.irq_stats_lock);
+	dispc.irq_stats.last_reset = jiffies;
+#endif
 
 	INIT_WORK(&dispc.error_work, dispc_error_worker);
 

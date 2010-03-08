@@ -51,6 +51,8 @@ core-y += arch/microblaze/kernel/
 core-y += arch/microblaze/mm/
 core-y += arch/microblaze/platform/
 
+drivers-$(CONFIG_OPROFILE) += arch/microblaze/oprofile/
+
 boot := arch/microblaze/boot
 
 # Are we making a simpleImage.<boardname> target? If so, crack out the boardname

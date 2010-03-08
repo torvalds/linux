@@ -28,6 +28,7 @@
 #include <linux/i2c.h>
 #include <mach/irqs.h>
 #include <plat/mux.h>
+#include <plat/i2c.h>
 
 #define OMAP_I2C_SIZE		0x3f
 #define OMAP1_I2C_BASE		0xfffb3800
@@ -50,10 +51,10 @@ static const char name[] = "i2c_omap";
 
 static struct resource i2c_resources[][2] = {
 	{ I2C_RESOURCE_BUILDER(0, 0) },
-#if	defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if	defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	{ I2C_RESOURCE_BUILDER(OMAP2_I2C_BASE2, INT_24XX_I2C2_IRQ) },
 #endif
-#if	defined(CONFIG_ARCH_OMAP34XX)
+#if	defined(CONFIG_ARCH_OMAP3)
 	{ I2C_RESOURCE_BUILDER(OMAP2_I2C_BASE3, INT_34XX_I2C3_IRQ) },
 #endif
 };
@@ -72,54 +73,15 @@ static struct resource i2c_resources[][2] = {
 static u32 i2c_rate[ARRAY_SIZE(i2c_resources)];
 static struct platform_device omap_i2c_devices[] = {
 	I2C_DEV_BUILDER(1, i2c_resources[0], &i2c_rate[0]),
-#if	defined(CONFIG_ARCH_OMAP24XX) || defined(CONFIG_ARCH_OMAP34XX)
+#if	defined(CONFIG_ARCH_OMAP2) || defined(CONFIG_ARCH_OMAP3)
 	I2C_DEV_BUILDER(2, i2c_resources[1], &i2c_rate[1]),
 #endif
-#if	defined(CONFIG_ARCH_OMAP34XX)
+#if	defined(CONFIG_ARCH_OMAP3)
 	I2C_DEV_BUILDER(3, i2c_resources[2], &i2c_rate[2]),
 #endif
 };
 
-#if defined(CONFIG_ARCH_OMAP24XX)
-static const int omap24xx_pins[][2] = {
-	{ M19_24XX_I2C1_SCL, L15_24XX_I2C1_SDA },
-	{ J15_24XX_I2C2_SCL, H19_24XX_I2C2_SDA },
-};
-#else
-static const int omap24xx_pins[][2] = {};
-#endif
-#if defined(CONFIG_ARCH_OMAP34XX)
-static const int omap34xx_pins[][2] = {
-	{ K21_34XX_I2C1_SCL, J21_34XX_I2C1_SDA},
-	{ AF15_34XX_I2C2_SCL, AE15_34XX_I2C2_SDA},
-	{ AF14_34XX_I2C3_SCL, AG14_34XX_I2C3_SDA},
-};
-#else
-static const int omap34xx_pins[][2] = {};
-#endif
-
 #define OMAP_I2C_CMDLINE_SETUP	(BIT(31))
-
-static void __init omap_i2c_mux_pins(int bus)
-{
-	int scl, sda;
-
-	if (cpu_class_is_omap1()) {
-		scl = I2C_SCL;
-		sda = I2C_SDA;
-	} else if (cpu_is_omap24xx()) {
-		scl = omap24xx_pins[bus][0];
-		sda = omap24xx_pins[bus][1];
-	} else if (cpu_is_omap34xx()) {
-		scl = omap34xx_pins[bus][0];
-		sda = omap34xx_pins[bus][1];
-	} else {
-		return;
-	}
-
-	omap_cfg_reg(sda);
-	omap_cfg_reg(scl);
-}
 
 static int __init omap_i2c_nr_ports(void)
 {
@@ -156,7 +118,11 @@ static int __init omap_i2c_add_bus(int bus_id)
 		res[1].start = irq;
 	}
 
-	omap_i2c_mux_pins(bus_id - 1);
+	if (cpu_class_is_omap1())
+		omap1_i2c_mux_pins(bus_id);
+	if (cpu_class_is_omap2())
+		omap2_i2c_mux_pins(bus_id);
+
 	return platform_device_register(pdev);
 }
 

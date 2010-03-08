@@ -67,7 +67,7 @@ static int palmtc_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 	if (ret)
 		goto err7;
 
-	skt->irq = IRQ_GPIO(GPIO_NR_PALMTC_PCMCIA_READY);
+	skt->socket.pci_irq = IRQ_GPIO(GPIO_NR_PALMTC_PCMCIA_READY);
 	return 0;
 
 err7:

@@ -222,6 +222,7 @@ static void __devinit quirk_final_uli5249(struct pci_dev *dev)
 	int i;
 	u8 *dummy;
 	struct pci_bus *bus = dev->bus;
+	struct resource *res;
 	resource_size_t end = 0;
 
 	for (i = PCI_BRIDGE_RESOURCES; i < PCI_BRIDGE_RESOURCES+3; i++) {
@@ -230,13 +231,12 @@ static void __devinit quirk_final_uli5249(struct pci_dev *dev)
 			end = pci_resource_end(dev, i);
 	}
 
-	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
-		if ((bus->resource[i]) &&
-			(bus->resource[i]->flags & IORESOURCE_MEM)) {
-			if (bus->resource[i]->end == end)
-				dummy = ioremap(bus->resource[i]->start, 0x4);
+	pci_bus_for_each_resource(bus, res, i) {
+		if (res && res->flags & IORESOURCE_MEM) {
+			if (res->end == end)
+				dummy = ioremap(res->start, 0x4);
 			else
-				dummy = ioremap(bus->resource[i]->end - 3, 0x4);
+				dummy = ioremap(res->end - 3, 0x4);
 			if (dummy) {
 				in_8(dummy);
 				iounmap(dummy);

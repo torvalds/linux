@@ -108,16 +108,12 @@ struct saa7146_fh {
 
 struct saa7146_vv
 {
-	int vbi_minor;
-
 	/* vbi capture */
 	struct saa7146_dmaqueue		vbi_q;
 	/* vbi workaround interrupt queue */
 	wait_queue_head_t		vbi_wq;
 	int				vbi_fieldcount;
 	struct saa7146_fh		*vbi_streaming;
-
-	int video_minor;
 
 	int				video_status;
 	struct saa7146_fh		*video_fh;
@@ -192,6 +188,7 @@ void saa7146_buffer_timeout(unsigned long data);
 void saa7146_dma_free(struct saa7146_dev* dev,struct videobuf_queue *q,
 						struct saa7146_buf *buf);
 
+int saa7146_vv_devinit(struct saa7146_dev *dev);
 int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv);
 int saa7146_vv_release(struct saa7146_dev* dev);
 

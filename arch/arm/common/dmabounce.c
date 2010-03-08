@@ -277,7 +277,7 @@ static inline dma_addr_t map_single(struct device *dev, void *ptr, size_t size,
 		 * We don't need to sync the DMA buffer since
 		 * it was allocated via the coherent allocators.
 		 */
-		dma_cache_maint(ptr, size, dir);
+		__dma_single_cpu_to_dev(ptr, size, dir);
 	}
 
 	return dma_addr;
@@ -308,17 +308,15 @@ static inline void unmap_single(struct device *dev, dma_addr_t dma_addr,
 			memcpy(ptr, buf->safe, size);
 
 			/*
-			 * DMA buffers must have the same cache properties
-			 * as if they were really used for DMA - which means
-			 * data must be written back to RAM.  Note that
-			 * we don't use dmac_flush_range() here for the
-			 * bidirectional case because we know the cache
-			 * lines will be coherent with the data written.
+			 * Since we may have written to a page cache page,
+			 * we need to ensure that the data will be coherent
+			 * with user mappings.
 			 */
-			dmac_clean_range(ptr, ptr + size);
-			outer_clean_range(__pa(ptr), __pa(ptr) + size);
+			__cpuc_flush_dcache_area(ptr, size);
 		}
 		free_safe_buffer(dev->archdata.dmabounce, buf);
+	} else {
+		__dma_single_dev_to_cpu(dma_to_virt(dev, dma_addr), size, dir);
 	}
 }
 

@@ -68,19 +68,19 @@ struct cx231xx_board cx231xx_boards[] = {
 				.type = CX231XX_VMUX_TELEVISION,
 				.vmux = CX231XX_VIN_3_1,
 				.amux = CX231XX_AMUX_VIDEO,
-				.gpio = 0,
+				.gpio = NULL,
 			}, {
 				.type = CX231XX_VMUX_COMPOSITE1,
 				.vmux = CX231XX_VIN_2_1,
 				.amux = CX231XX_AMUX_LINE_IN,
-				.gpio = 0,
+				.gpio = NULL,
 			}, {
 				.type = CX231XX_VMUX_SVIDEO,
 				.vmux = CX231XX_VIN_1_1 |
 					(CX231XX_VIN_1_2 << 8) |
 					CX25840_SVIDEO_ON,
 				.amux = CX231XX_AMUX_LINE_IN,
-				.gpio = 0,
+				.gpio = NULL,
 			}
 		},
 	},
@@ -107,19 +107,19 @@ struct cx231xx_board cx231xx_boards[] = {
 				.type = CX231XX_VMUX_TELEVISION,
 				.vmux = CX231XX_VIN_3_1,
 				.amux = CX231XX_AMUX_VIDEO,
-				.gpio = 0,
+				.gpio = NULL,
 			}, {
 				.type = CX231XX_VMUX_COMPOSITE1,
 				.vmux = CX231XX_VIN_2_1,
 				.amux = CX231XX_AMUX_LINE_IN,
-				.gpio = 0,
+				.gpio = NULL,
 			}, {
 				.type = CX231XX_VMUX_SVIDEO,
 				.vmux = CX231XX_VIN_1_1 |
 					(CX231XX_VIN_1_2 << 8) |
 					CX25840_SVIDEO_ON,
 				.amux = CX231XX_AMUX_LINE_IN,
-				.gpio = 0,
+				.gpio = NULL,
 			}
 		},
 	},
@@ -147,19 +147,19 @@ struct cx231xx_board cx231xx_boards[] = {
 				.type = CX231XX_VMUX_TELEVISION,
 				.vmux = CX231XX_VIN_3_1,
 				.amux = CX231XX_AMUX_VIDEO,
-				.gpio = 0,
+				.gpio = NULL,
 			}, {
 				.type = CX231XX_VMUX_COMPOSITE1,
 				.vmux = CX231XX_VIN_2_1,
 				.amux = CX231XX_AMUX_LINE_IN,
-				.gpio = 0,
+				.gpio = NULL,
 			}, {
 				.type = CX231XX_VMUX_SVIDEO,
 				.vmux = CX231XX_VIN_1_1 |
 					(CX231XX_VIN_1_2 << 8) |
 					CX25840_SVIDEO_ON,
 				.amux = CX231XX_AMUX_LINE_IN,
-				.gpio = 0,
+				.gpio = NULL,
 			}
 		},
 	},
@@ -856,8 +856,9 @@ static void cx231xx_usb_disconnect(struct usb_interface *interface)
 
 	if (dev->users) {
 		cx231xx_warn
-		    ("device /dev/video%d is open! Deregistration and memory "
-		     "deallocation are deferred on close.\n", dev->vdev->num);
+		    ("device %s is open! Deregistration and memory "
+		     "deallocation are deferred on close.\n",
+		     video_device_node_name(dev->vdev));
 
 		dev->state |= DEV_MISCONFIGURED;
 		cx231xx_uninit_isoc(dev);

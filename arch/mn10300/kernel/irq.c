@@ -215,7 +215,7 @@ int show_interrupts(struct seq_file *p, void *v)
 
 		/* display information rows, one per active CPU */
 	case 1 ... NR_IRQS - 1:
-		spin_lock_irqsave(&irq_desc[i].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 
 		action = irq_desc[i].action;
 		if (action) {
@@ -235,7 +235,7 @@ int show_interrupts(struct seq_file *p, void *v)
 			seq_putc(p, '\n');
 		}
 
-		spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 		break;
 
 		/* polish off with NMI and error counters */

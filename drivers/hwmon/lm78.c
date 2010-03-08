@@ -41,8 +41,7 @@ static const unsigned short normal_i2c[] = { 0x28, 0x29, 0x2a, 0x2b, 0x2c, 0x2d,
 						0x2e, 0x2f, I2C_CLIENT_END };
 static unsigned short isa_address = 0x290;
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_2(lm78, lm79);
+enum chips { lm78, lm79 };
 
 /* Many LM78 constants specified below */
 
@@ -142,7 +141,7 @@ struct lm78_data {
 };
 
 
-static int lm78_i2c_detect(struct i2c_client *client, int kind,
+static int lm78_i2c_detect(struct i2c_client *client,
 			   struct i2c_board_info *info);
 static int lm78_i2c_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id);
@@ -173,7 +172,7 @@ static struct i2c_driver lm78_driver = {
 	.remove		= lm78_i2c_remove,
 	.id_table	= lm78_i2c_id,
 	.detect		= lm78_i2c_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static struct platform_driver lm78_isa_driver = {
@@ -558,7 +557,7 @@ static int lm78_alias_detect(struct i2c_client *client, u8 chipid)
 	return 1;
 }
 
-static int lm78_i2c_detect(struct i2c_client *client, int kind,
+static int lm78_i2c_detect(struct i2c_client *client,
 			   struct i2c_board_info *info)
 {
 	int i;
@@ -852,17 +851,16 @@ static struct lm78_data *lm78_update_device(struct device *dev)
 static int __init lm78_isa_found(unsigned short address)
 {
 	int val, save, found = 0;
+	int port;
 
-	/* We have to request the region in two parts because some
-	   boards declare base+4 to base+7 as a PNP device */
-	if (!request_region(address, 4, "lm78")) {
-		pr_debug("lm78: Failed to request low part of region\n");
-		return 0;
-	}
-	if (!request_region(address + 4, 4, "lm78")) {
-		pr_debug("lm78: Failed to request high part of region\n");
-		release_region(address, 4);
-		return 0;
+	/* Some boards declare base+0 to base+7 as a PNP device, some base+4
+	 * to base+7 and some base+5 to base+6. So we better request each port
+	 * individually for the probing phase. */
+	for (port = address; port < address + LM78_EXTENT; port++) {
+		if (!request_region(port, 1, "lm78")) {
+			pr_debug("lm78: Failed to request port 0x%x\n", port);
+			goto release;
+		}
 	}
 
 #define REALLY_SLOW_IO
@@ -926,8 +924,8 @@ static int __init lm78_isa_found(unsigned short address)
 			val & 0x80 ? "LM79" : "LM78", (int)address);
 
  release:
-	release_region(address + 4, 4);
-	release_region(address, 4);
+	for (port--; port >= address; port--)
+		release_region(port, 1);
 	return found;
 }
 

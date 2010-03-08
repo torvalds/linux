@@ -267,7 +267,7 @@ struct sge {
 	struct sk_buff	*espibug_skb[MAX_NPORTS];
 	u32		sge_control;	/* shadow value of sge control reg */
 	struct sge_intr_counts stats;
-	struct sge_port_stats *port_stats[MAX_NPORTS];
+	struct sge_port_stats __percpu *port_stats[MAX_NPORTS];
 	struct sched	*tx_sched;
 	struct cmdQ cmdQ[SGE_CMDQ_N] ____cacheline_aligned_in_smp;
 };
@@ -953,7 +953,7 @@ int t1_sge_intr_error_handler(struct sge *sge)
 		sge->stats.respQ_empty++;
 	if (cause & F_RESPQ_OVERFLOW) {
 		sge->stats.respQ_overflow++;
-		CH_ALERT("%s: SGE response queue overflow\n",
+		pr_alert("%s: SGE response queue overflow\n",
 			 adapter->name);
 	}
 	if (cause & F_FL_EXHAUSTED) {
@@ -962,12 +962,12 @@ int t1_sge_intr_error_handler(struct sge *sge)
 	}
 	if (cause & F_PACKET_TOO_BIG) {
 		sge->stats.pkt_too_big++;
-		CH_ALERT("%s: SGE max packet size exceeded\n",
+		pr_alert("%s: SGE max packet size exceeded\n",
 			 adapter->name);
 	}
 	if (cause & F_PACKET_MISMATCH) {
 		sge->stats.pkt_mismatch++;
-		CH_ALERT("%s: SGE packet mismatch\n", adapter->name);
+		pr_alert("%s: SGE packet mismatch\n", adapter->name);
 	}
 	if (cause & SGE_INT_FATAL)
 		t1_fatal_err(adapter);
@@ -1101,7 +1101,7 @@ static void unexpected_offload(struct adapter *adapter, struct freelQ *fl)
 
 	pci_dma_sync_single_for_cpu(adapter->pdev, pci_unmap_addr(ce, dma_addr),
 			    pci_unmap_len(ce, dma_len), PCI_DMA_FROMDEVICE);
-	CH_ERR("%s: unexpected offload packet, cmd %u\n",
+	pr_err("%s: unexpected offload packet, cmd %u\n",
 	       adapter->name, *skb->data);
 	recycle_fl_buf(fl, fl->cidx);
 }
@@ -1378,7 +1378,7 @@ static void sge_rx(struct sge *sge, struct freelQ *fl, unsigned int len)
 	}
 	__skb_pull(skb, sizeof(*p));
 
-	st = per_cpu_ptr(sge->port_stats[p->iff], smp_processor_id());
+	st = this_cpu_ptr(sge->port_stats[p->iff]);
 
 	skb->protocol = eth_type_trans(skb, adapter->port[p->iff].dev);
 	if ((adapter->flags & RX_CSUM_ENABLED) && p->csum == 0xffff &&
@@ -1687,7 +1687,7 @@ static int t1_sge_tx(struct sk_buff *skb, struct adapter *adapter,
 			netif_stop_queue(dev);
 			set_bit(dev->if_port, &sge->stopped_tx_queues);
 			sge->stats.cmdQ_full[2]++;
-			CH_ERR("%s: Tx ring full while queue awake!\n",
+			pr_err("%s: Tx ring full while queue awake!\n",
 			       adapter->name);
 		}
 		spin_unlock(&q->lock);
@@ -1780,8 +1780,7 @@ netdev_tx_t t1_start_xmit(struct sk_buff *skb, struct net_device *dev)
 {
 	struct adapter *adapter = dev->ml_priv;
 	struct sge *sge = adapter->sge;
-	struct sge_port_stats *st = per_cpu_ptr(sge->port_stats[dev->if_port],
-						smp_processor_id());
+	struct sge_port_stats *st = this_cpu_ptr(sge->port_stats[dev->if_port]);
 	struct cpl_tx_pkt *cpl;
 	struct sk_buff *orig_skb = skb;
 	int ret;

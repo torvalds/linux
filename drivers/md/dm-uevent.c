@@ -139,14 +139,13 @@ void dm_send_uevents(struct list_head *events, struct kobject *kobj)
 		list_del_init(&event->elist);
 
 		/*
-		 * Need to call dm_copy_name_and_uuid from here for now.
-		 * Context of previous var adds and locking used for
-		 * hash_cell not compatable.
+		 * When a device is being removed this copy fails and we
+		 * discard these unsent events.
 		 */
 		if (dm_copy_name_and_uuid(event->md, event->name,
 					  event->uuid)) {
-			DMERR("%s: dm_copy_name_and_uuid() failed",
-			      __func__);
+			DMINFO("%s: skipping sending uevent for lost device",
+			       __func__);
 			goto uevent_free;
 		}
 
@@ -188,7 +187,7 @@ void dm_path_uevent(enum dm_uevent_type event_type, struct dm_target *ti,
 
 	if (event_type >= ARRAY_SIZE(_dm_uevent_type_names)) {
 		DMERR("%s: Invalid event_type %d", __func__, event_type);
-		goto out;
+		return;
 	}
 
 	event = dm_build_path_uevent(md, ti,
@@ -196,12 +195,9 @@ void dm_path_uevent(enum dm_uevent_type event_type, struct dm_target *ti,
 				     _dm_uevent_type_names[event_type].name,
 				     path, nr_valid_paths);
 	if (IS_ERR(event))
-		goto out;
+		return;
 
 	dm_uevent_add(md, &event->elist);
-
-out:
-	dm_put(md);
 }
 EXPORT_SYMBOL_GPL(dm_path_uevent);
 

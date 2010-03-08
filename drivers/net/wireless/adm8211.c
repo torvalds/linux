@@ -39,7 +39,7 @@ static unsigned int rx_ring_size __read_mostly = 16;
 module_param(tx_ring_size, uint, 0);
 module_param(rx_ring_size, uint, 0);
 
-static struct pci_device_id adm8211_pci_id_table[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(adm8211_pci_id_table) = {
 	/* ADMtek ADM8211 */
 	{ PCI_DEVICE(0x10B7, 0x6000) }, /* 3Com 3CRSHPW796 */
 	{ PCI_DEVICE(0x1200, 0x8201) }, /* ? */
@@ -298,18 +298,6 @@ static int adm8211_get_stats(struct ieee80211_hw *dev,
 	struct adm8211_priv *priv = dev->priv;
 
 	memcpy(stats, &priv->stats, sizeof(*stats));
-
-	return 0;
-}
-
-static int adm8211_get_tx_stats(struct ieee80211_hw *dev,
-				struct ieee80211_tx_queue_stats *stats)
-{
-	struct adm8211_priv *priv = dev->priv;
-
-	stats[0].len = priv->cur_tx - priv->dirty_tx;
-	stats[0].limit = priv->tx_ring_size - 2;
-	stats[0].count = priv->dirty_tx;
 
 	return 0;
 }
@@ -1400,15 +1388,15 @@ static void adm8211_configure_filter(struct ieee80211_hw *dev,
 }
 
 static int adm8211_add_interface(struct ieee80211_hw *dev,
-				 struct ieee80211_if_init_conf *conf)
+				 struct ieee80211_vif *vif)
 {
 	struct adm8211_priv *priv = dev->priv;
 	if (priv->mode != NL80211_IFTYPE_MONITOR)
 		return -EOPNOTSUPP;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		priv->mode = conf->type;
+		priv->mode = vif->type;
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1416,8 +1404,8 @@ static int adm8211_add_interface(struct ieee80211_hw *dev,
 
 	ADM8211_IDLE();
 
-	ADM8211_CSR_WRITE(PAR0, le32_to_cpu(*(__le32 *)conf->mac_addr));
-	ADM8211_CSR_WRITE(PAR1, le16_to_cpu(*(__le16 *)(conf->mac_addr + 4)));
+	ADM8211_CSR_WRITE(PAR0, le32_to_cpu(*(__le32 *)vif->addr));
+	ADM8211_CSR_WRITE(PAR1, le16_to_cpu(*(__le16 *)(vif->addr + 4)));
 
 	adm8211_update_mode(dev);
 
@@ -1427,7 +1415,7 @@ static int adm8211_add_interface(struct ieee80211_hw *dev,
 }
 
 static void adm8211_remove_interface(struct ieee80211_hw *dev,
-				     struct ieee80211_if_init_conf *conf)
+				     struct ieee80211_vif *vif)
 {
 	struct adm8211_priv *priv = dev->priv;
 	priv->mode = NL80211_IFTYPE_MONITOR;
@@ -1773,7 +1761,6 @@ static const struct ieee80211_ops adm8211_ops = {
 	.prepare_multicast	= adm8211_prepare_multicast,
 	.configure_filter	= adm8211_configure_filter,
 	.get_stats		= adm8211_get_stats,
-	.get_tx_stats		= adm8211_get_tx_stats,
 	.get_tsf		= adm8211_get_tsft
 };
 

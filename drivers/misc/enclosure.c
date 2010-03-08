@@ -391,6 +391,7 @@ static const char *const enclosure_status [] = {
 	[ENCLOSURE_STATUS_NOT_INSTALLED] = "not installed",
 	[ENCLOSURE_STATUS_UNKNOWN] = "unknown",
 	[ENCLOSURE_STATUS_UNAVAILABLE] = "unavailable",
+	[ENCLOSURE_STATUS_MAX] = NULL,
 };
 
 static const char *const enclosure_type [] = {

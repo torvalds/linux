@@ -320,7 +320,7 @@ ssize_t ttm_bo_io(struct ttm_bo_device *bdev, struct file *filp,
 		return -EFAULT;
 
 	driver = bo->bdev->driver;
-	if (unlikely(driver->verify_access)) {
+	if (unlikely(!driver->verify_access)) {
 		ret = -EPERM;
 		goto out_unref;
 	}

@@ -16,6 +16,8 @@
 #include <asm-generic/cmpxchg.h>
 #include <asm-generic/cmpxchg-local.h>
 
+#define __ARCH_WANT_INTERRUPTS_ON_CTXSW
+
 struct task_struct;
 struct thread_info;
 

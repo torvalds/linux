@@ -143,7 +143,8 @@ static int snd_pdacf_probe(struct pcmcia_device *link)
 	link->io.NumPorts1 = 16;
 
 	link->irq.Attributes = IRQ_TYPE_EXCLUSIVE | IRQ_FORCED_PULSE;
-	// link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+	/* FIXME: This driver should be updated to allow for dynamic IRQ sharing */
+	/* link->irq.Attributes = IRQ_TYPE_DYNAMIC_SHARING | IRQ_FORCED_PULSE; */
 
 	link->irq.Handler = pdacf_interrupt;
 	link->conf.Attributes = CONF_ENABLE_IRQ;

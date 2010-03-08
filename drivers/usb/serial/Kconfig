@@ -472,6 +472,17 @@ config USB_SERIAL_OTI6858
 	  To compile this driver as a module, choose M here: the
 	  module will be called oti6858.
 
+config USB_SERIAL_QCAUX
+	tristate "USB Qualcomm Auxiliary Serial Port Driver"
+	---help---
+	  Say Y here if you want to use the auxiliary serial ports provided
+	  by many modems based on Qualcomm chipsets.  These ports often use
+	  a proprietary protocol called DM and cannot be used for AT- or
+	  PPP-based communication.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called moto_modem.  If unsure, choose N.
+
 config USB_SERIAL_QUALCOMM
 	tristate "USB Qualcomm Serial modem"
 	help
@@ -599,6 +610,14 @@ config USB_SERIAL_OPTICON
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called opticon.
+
+config USB_SERIAL_VIVOPAY_SERIAL
+        tristate "USB ViVOpay serial interface driver"
+        help
+          Say Y here if you want to use a ViVOtech ViVOpay USB device.
+
+          To compile this driver as a module, choose M here: the
+          module will be called vivopay-serial.
 
 config USB_SERIAL_DEBUG
 	tristate "USB Debugging Device"

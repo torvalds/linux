@@ -71,8 +71,6 @@ struct omap_cf_socket {
 
 #define	POLL_INTERVAL		(2 * HZ)
 
-#define	SZ_2K			(2 * SZ_1K)
-
 /*--------------------------------------------------------------------------*/
 
 static int omap_cf_ss_init(struct pcmcia_socket *s)

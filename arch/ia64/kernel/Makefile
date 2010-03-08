@@ -8,19 +8,13 @@ endif
 
 extra-y	:= head.o init_task.o vmlinux.lds
 
-obj-y := acpi.o entry.o efi.o efi_stub.o gate-data.o fsys.o ia64_ksyms.o irq.o irq_ia64.o	\
+obj-y := entry.o efi.o efi_stub.o gate-data.o fsys.o ia64_ksyms.o irq.o irq_ia64.o	\
 	 irq_lsapic.o ivt.o machvec.o pal.o paravirt_patchlist.o patch.o process.o perfmon.o ptrace.o sal.o		\
 	 salinfo.o setup.o signal.o sys_ia64.o time.o traps.o unaligned.o \
 	 unwind.o mca.o mca_asm.o topology.o dma-mapping.o
 
+obj-$(CONFIG_ACPI)		+= acpi.o acpi-ext.o
 obj-$(CONFIG_IA64_BRL_EMU)	+= brl_emu.o
-obj-$(CONFIG_IA64_GENERIC)	+= acpi-ext.o
-obj-$(CONFIG_IA64_HP_ZX1)	+= acpi-ext.o
-obj-$(CONFIG_IA64_HP_ZX1_SWIOTLB) += acpi-ext.o
-
-ifneq ($(CONFIG_ACPI_PROCESSOR),)
-obj-y				+= acpi-processor.o
-endif
 
 obj-$(CONFIG_IA64_PALINFO)	+= palinfo.o
 obj-$(CONFIG_IOSAPIC)		+= iosapic.o
@@ -50,6 +44,8 @@ obj-y				+= esi_stub.o	# must be in kernel proper
 endif
 obj-$(CONFIG_DMAR)		+= pci-dma.o
 obj-$(CONFIG_SWIOTLB)		+= pci-swiotlb.o
+
+obj-$(CONFIG_BINFMT_ELF)	+= elfcore.o
 
 # fp_emulate() expects f2-f5,f16-f31 to contain the user-level state.
 CFLAGS_traps.o  += -mfixed-range=f2-f5,f16-f31
@@ -81,16 +77,13 @@ define cmd_nr_irqs
 endef
 
 # We use internal kbuild rules to avoid the "is up to date" message from make
-arch/$(SRCARCH)/kernel/nr-irqs.s: $(srctree)/arch/$(SRCARCH)/kernel/nr-irqs.c \
-				$(wildcard $(srctree)/include/asm-ia64/*/irq.h)
+arch/$(SRCARCH)/kernel/nr-irqs.s: arch/$(SRCARCH)/kernel/nr-irqs.c
 	$(Q)mkdir -p $(dir $@)
 	$(call if_changed_dep,cc_s_c)
 
-include/asm-ia64/nr-irqs.h: arch/$(SRCARCH)/kernel/nr-irqs.s
+include/generated/nr-irqs.h: arch/$(SRCARCH)/kernel/nr-irqs.s
 	$(Q)mkdir -p $(dir $@)
 	$(call cmd,nr_irqs)
-
-clean-files += $(objtree)/include/asm-ia64/nr-irqs.h
 
 #
 # native ivt.S, entry.S and fsys.S

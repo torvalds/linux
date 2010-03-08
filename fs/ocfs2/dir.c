@@ -2439,7 +2439,7 @@ static int ocfs2_dx_dir_attach_index(struct ocfs2_super *osb,
 	dx_root = (struct ocfs2_dx_root_block *)dx_root_bh->b_data;
 	memset(dx_root, 0, osb->sb->s_blocksize);
 	strcpy(dx_root->dr_signature, OCFS2_DX_ROOT_SIGNATURE);
-	dx_root->dr_suballoc_slot = cpu_to_le16(osb->slot_num);
+	dx_root->dr_suballoc_slot = cpu_to_le16(meta_ac->ac_alloc_slot);
 	dx_root->dr_suballoc_bit = cpu_to_le16(dr_suballoc_bit);
 	dx_root->dr_fs_generation = cpu_to_le32(osb->fs_generation);
 	dx_root->dr_blkno = cpu_to_le64(dr_blkno);
@@ -2964,12 +2964,10 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 		goto out;
 	}
 
-	if (vfs_dq_alloc_space_nodirty(dir,
-				ocfs2_clusters_to_bytes(osb->sb,
-							alloc + dx_alloc))) {
-		ret = -EDQUOT;
+	ret = dquot_alloc_space_nodirty(dir,
+		ocfs2_clusters_to_bytes(osb->sb, alloc + dx_alloc));
+	if (ret)
 		goto out_commit;
-	}
 	did_quota = 1;
 
 	if (ocfs2_supports_indexed_dirs(osb) && !dx_inline) {
@@ -3178,7 +3176,7 @@ static int ocfs2_expand_inline_dir(struct inode *dir, struct buffer_head *di_bh,
 
 out_commit:
 	if (ret < 0 && did_quota)
-		vfs_dq_free_space_nodirty(dir, bytes_allocated);
+		dquot_free_space_nodirty(dir, bytes_allocated);
 
 	ocfs2_commit_trans(osb, handle);
 
@@ -3221,11 +3219,10 @@ static int ocfs2_do_extend_dir(struct super_block *sb,
 	if (extend) {
 		u32 offset = OCFS2_I(dir)->ip_clusters;
 
-		if (vfs_dq_alloc_space_nodirty(dir,
-					ocfs2_clusters_to_bytes(sb, 1))) {
-			status = -EDQUOT;
+		status = dquot_alloc_space_nodirty(dir,
+					ocfs2_clusters_to_bytes(sb, 1));
+		if (status)
 			goto bail;
-		}
 		did_quota = 1;
 
 		status = ocfs2_add_inode_data(OCFS2_SB(sb), dir, &offset,
@@ -3254,7 +3251,7 @@ static int ocfs2_do_extend_dir(struct super_block *sb,
 	status = 0;
 bail:
 	if (did_quota && status < 0)
-		vfs_dq_free_space_nodirty(dir, ocfs2_clusters_to_bytes(sb, 1));
+		dquot_free_space_nodirty(dir, ocfs2_clusters_to_bytes(sb, 1));
 	mlog_exit(status);
 	return status;
 }
@@ -3889,11 +3886,10 @@ static int ocfs2_dx_dir_rebalance(struct ocfs2_super *osb, struct inode *dir,
 		goto out;
 	}
 
-	if (vfs_dq_alloc_space_nodirty(dir,
-				       ocfs2_clusters_to_bytes(dir->i_sb, 1))) {
-		ret = -EDQUOT;
+	ret = dquot_alloc_space_nodirty(dir,
+				       ocfs2_clusters_to_bytes(dir->i_sb, 1));
+	if (ret)
 		goto out_commit;
-	}
 	did_quota = 1;
 
 	ret = ocfs2_journal_access_dl(handle, INODE_CACHE(dir), dx_leaf_bh,
@@ -3983,7 +3979,7 @@ static int ocfs2_dx_dir_rebalance(struct ocfs2_super *osb, struct inode *dir,
 
 out_commit:
 	if (ret < 0 && did_quota)
-		vfs_dq_free_space_nodirty(dir,
+		dquot_free_space_nodirty(dir,
 				ocfs2_clusters_to_bytes(dir->i_sb, 1));
 
 	ocfs2_commit_trans(osb, handle);
@@ -4165,11 +4161,10 @@ static int ocfs2_expand_inline_dx_root(struct inode *dir,
 		goto out;
 	}
 
-	if (vfs_dq_alloc_space_nodirty(dir,
-				       ocfs2_clusters_to_bytes(osb->sb, 1))) {
-		ret = -EDQUOT;
+	ret = dquot_alloc_space_nodirty(dir,
+				       ocfs2_clusters_to_bytes(osb->sb, 1));
+	if (ret)
 		goto out_commit;
-	}
 	did_quota = 1;
 
 	/*
@@ -4229,7 +4224,7 @@ static int ocfs2_expand_inline_dx_root(struct inode *dir,
 
 out_commit:
 	if (ret < 0 && did_quota)
-		vfs_dq_free_space_nodirty(dir,
+		dquot_free_space_nodirty(dir,
 					  ocfs2_clusters_to_bytes(dir->i_sb, 1));
 
 	ocfs2_commit_trans(osb, handle);

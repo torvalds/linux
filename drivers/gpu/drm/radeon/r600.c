@@ -285,7 +285,8 @@ void r600_hpd_init(struct radeon_device *rdev)
 			}
 		}
 	}
-	r600_irq_set(rdev);
+	if (rdev->irq.installed)
+		r600_irq_set(rdev);
 }
 
 void r600_hpd_fini(struct radeon_device *rdev)
@@ -352,22 +353,13 @@ void r600_hpd_fini(struct radeon_device *rdev)
 /*
  * R600 PCIE GART
  */
-int r600_gart_clear_page(struct radeon_device *rdev, int i)
-{
-	void __iomem *ptr = (void *)rdev->gart.table.vram.ptr;
-	u64 pte;
-
-	if (i < 0 || i > rdev->gart.num_gpu_pages)
-		return -EINVAL;
-	pte = 0;
-	writeq(pte, ((void __iomem *)ptr) + (i * 8));
-	return 0;
-}
-
 void r600_pcie_gart_tlb_flush(struct radeon_device *rdev)
 {
 	unsigned i;
 	u32 tmp;
+
+	/* flush hdp cache so updates hit vram */
+	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 
 	WREG32(VM_CONTEXT0_INVALIDATION_LOW_ADDR, rdev->mc.gtt_start >> 12);
 	WREG32(VM_CONTEXT0_INVALIDATION_HIGH_ADDR, (rdev->mc.gtt_end - 1) >> 12);
@@ -415,6 +407,7 @@ int r600_pcie_gart_enable(struct radeon_device *rdev)
 	r = radeon_gart_table_vram_pin(rdev);
 	if (r)
 		return r;
+	radeon_gart_restore(rdev);
 
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE | ENABLE_L2_FRAGMENT_PROCESSING |
@@ -618,12 +611,73 @@ static void r600_mc_program(struct radeon_device *rdev)
 	rv515_vga_render_disable(rdev);
 }
 
+/**
+ * r600_vram_gtt_location - try to find VRAM & GTT location
+ * @rdev: radeon device structure holding all necessary informations
+ * @mc: memory controller structure holding memory informations
+ *
+ * Function will place try to place VRAM at same place as in CPU (PCI)
+ * address space as some GPU seems to have issue when we reprogram at
+ * different address space.
+ *
+ * If there is not enough space to fit the unvisible VRAM after the
+ * aperture then we limit the VRAM size to the aperture.
+ *
+ * If we are using AGP then place VRAM adjacent to AGP aperture are we need
+ * them to be in one from GPU point of view so that we can program GPU to
+ * catch access outside them (weird GPU policy see ??).
+ *
+ * This function will never fails, worst case are limiting VRAM or GTT.
+ *
+ * Note: GTT start, end, size should be initialized before calling this
+ * function on AGP platform.
+ */
+void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
+{
+	u64 size_bf, size_af;
+
+	if (mc->mc_vram_size > 0xE0000000) {
+		/* leave room for at least 512M GTT */
+		dev_warn(rdev->dev, "limiting VRAM\n");
+		mc->real_vram_size = 0xE0000000;
+		mc->mc_vram_size = 0xE0000000;
+	}
+	if (rdev->flags & RADEON_IS_AGP) {
+		size_bf = mc->gtt_start;
+		size_af = 0xFFFFFFFF - mc->gtt_end + 1;
+		if (size_bf > size_af) {
+			if (mc->mc_vram_size > size_bf) {
+				dev_warn(rdev->dev, "limiting VRAM\n");
+				mc->real_vram_size = size_bf;
+				mc->mc_vram_size = size_bf;
+			}
+			mc->vram_start = mc->gtt_start - mc->mc_vram_size;
+		} else {
+			if (mc->mc_vram_size > size_af) {
+				dev_warn(rdev->dev, "limiting VRAM\n");
+				mc->real_vram_size = size_af;
+				mc->mc_vram_size = size_af;
+			}
+			mc->vram_start = mc->gtt_end;
+		}
+		mc->vram_end = mc->vram_start + mc->mc_vram_size - 1;
+		dev_info(rdev->dev, "VRAM: %lluM 0x%08llX - 0x%08llX (%lluM used)\n",
+				mc->mc_vram_size >> 20, mc->vram_start,
+				mc->vram_end, mc->real_vram_size >> 20);
+	} else {
+		u64 base = 0;
+		if (rdev->flags & RADEON_IS_IGP)
+			base = (RREG32(MC_VM_FB_LOCATION) & 0xFFFF) << 24;
+		radeon_vram_location(rdev, &rdev->mc, base);
+		radeon_gtt_location(rdev, mc);
+	}
+}
+
 int r600_mc_init(struct radeon_device *rdev)
 {
 	fixed20_12 a;
 	u32 tmp;
 	int chansize, numchan;
-	int r;
 
 	/* Get VRAM informations */
 	rdev->mc.vram_is_ddr = true;
@@ -658,74 +712,21 @@ int r600_mc_init(struct radeon_device *rdev)
 	/* Setup GPU memory space */
 	rdev->mc.mc_vram_size = RREG32(CONFIG_MEMSIZE);
 	rdev->mc.real_vram_size = RREG32(CONFIG_MEMSIZE);
-
-	if (rdev->mc.mc_vram_size > rdev->mc.aper_size)
+	rdev->mc.visible_vram_size = rdev->mc.aper_size;
+	/* FIXME remove this once we support unmappable VRAM */
+	if (rdev->mc.mc_vram_size > rdev->mc.aper_size) {
 		rdev->mc.mc_vram_size = rdev->mc.aper_size;
-
-	if (rdev->mc.real_vram_size > rdev->mc.aper_size)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
-
-	if (rdev->flags & RADEON_IS_AGP) {
-		r = radeon_agp_init(rdev);
-		if (r)
-			return r;
-		/* gtt_size is setup by radeon_agp_init */
-		rdev->mc.gtt_location = rdev->mc.agp_base;
-		tmp = 0xFFFFFFFFUL - rdev->mc.agp_base - rdev->mc.gtt_size;
-		/* Try to put vram before or after AGP because we
-		 * we want SYSTEM_APERTURE to cover both VRAM and
-		 * AGP so that GPU can catch out of VRAM/AGP access
-		 */
-		if (rdev->mc.gtt_location > rdev->mc.mc_vram_size) {
-			/* Enough place before */
-			rdev->mc.vram_location = rdev->mc.gtt_location -
-							rdev->mc.mc_vram_size;
-		} else if (tmp > rdev->mc.mc_vram_size) {
-			/* Enough place after */
-			rdev->mc.vram_location = rdev->mc.gtt_location +
-							rdev->mc.gtt_size;
-		} else {
-			/* Try to setup VRAM then AGP might not
-			 * not work on some card
-			 */
-			rdev->mc.vram_location = 0x00000000UL;
-			rdev->mc.gtt_location = rdev->mc.mc_vram_size;
-		}
-	} else {
-		rdev->mc.gtt_size = radeon_gart_size * 1024 * 1024;
-		rdev->mc.vram_location = (RREG32(MC_VM_FB_LOCATION) &
-							0xFFFF) << 24;
-		tmp = rdev->mc.vram_location + rdev->mc.mc_vram_size;
-		if ((0xFFFFFFFFUL - tmp) >= rdev->mc.gtt_size) {
-			/* Enough place after vram */
-			rdev->mc.gtt_location = tmp;
-		} else if (rdev->mc.vram_location >= rdev->mc.gtt_size) {
-			/* Enough place before vram */
-			rdev->mc.gtt_location = 0;
-		} else {
-			/* Not enough place after or before shrink
-			 * gart size
-			 */
-			if (rdev->mc.vram_location > (0xFFFFFFFFUL - tmp)) {
-				rdev->mc.gtt_location = 0;
-				rdev->mc.gtt_size = rdev->mc.vram_location;
-			} else {
-				rdev->mc.gtt_location = tmp;
-				rdev->mc.gtt_size = 0xFFFFFFFFUL - tmp;
-			}
-		}
-		rdev->mc.gtt_location = rdev->mc.mc_vram_size;
 	}
-	rdev->mc.vram_start = rdev->mc.vram_location;
-	rdev->mc.vram_end = rdev->mc.vram_location + rdev->mc.mc_vram_size - 1;
-	rdev->mc.gtt_start = rdev->mc.gtt_location;
-	rdev->mc.gtt_end = rdev->mc.gtt_location + rdev->mc.gtt_size - 1;
+	r600_vram_gtt_location(rdev, &rdev->mc);
 	/* FIXME: we should enforce default clock in case GPU is not in
 	 * default setup
 	 */
 	a.full = rfixed_const(100);
 	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
 	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+	if (rdev->flags & RADEON_IS_IGP)
+		rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	return 0;
 }
 
@@ -980,6 +981,9 @@ void r600_gpu_init(struct radeon_device *rdev)
 {
 	u32 tiling_config;
 	u32 ramcfg;
+	u32 backend_map;
+	u32 cc_rb_backend_disable;
+	u32 cc_gc_shader_pipe_config;
 	u32 tmp;
 	int i, j;
 	u32 sq_config;
@@ -1089,8 +1093,11 @@ void r600_gpu_init(struct radeon_device *rdev)
 	default:
 		break;
 	}
+	rdev->config.r600.tiling_npipes = rdev->config.r600.max_tile_pipes;
+	rdev->config.r600.tiling_nbanks = 4 << ((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	tiling_config |= BANK_TILING((ramcfg & NOOFBANK_MASK) >> NOOFBANK_SHIFT);
 	tiling_config |= GROUP_SIZE(0);
+	rdev->config.r600.tiling_group_size = 256;
 	tmp = (ramcfg & NOOFROWS_MASK) >> NOOFROWS_SHIFT;
 	if (tmp > 3) {
 		tiling_config |= ROW_TILING(3);
@@ -1100,24 +1107,33 @@ void r600_gpu_init(struct radeon_device *rdev)
 		tiling_config |= SAMPLE_SPLIT(tmp);
 	}
 	tiling_config |= BANK_SWAPS(1);
-	tmp = r600_get_tile_pipe_to_backend_map(rdev->config.r600.max_tile_pipes,
-						rdev->config.r600.max_backends,
-						(0xff << rdev->config.r600.max_backends) & 0xff);
-	tiling_config |= BACKEND_MAP(tmp);
+
+	cc_rb_backend_disable = RREG32(CC_RB_BACKEND_DISABLE) & 0x00ff0000;
+	cc_rb_backend_disable |=
+		BACKEND_DISABLE((R6XX_MAX_BACKENDS_MASK << rdev->config.r600.max_backends) & R6XX_MAX_BACKENDS_MASK);
+
+	cc_gc_shader_pipe_config = RREG32(CC_GC_SHADER_PIPE_CONFIG) & 0xffffff00;
+	cc_gc_shader_pipe_config |=
+		INACTIVE_QD_PIPES((R6XX_MAX_PIPES_MASK << rdev->config.r600.max_pipes) & R6XX_MAX_PIPES_MASK);
+	cc_gc_shader_pipe_config |=
+		INACTIVE_SIMDS((R6XX_MAX_SIMDS_MASK << rdev->config.r600.max_simds) & R6XX_MAX_SIMDS_MASK);
+
+	backend_map = r600_get_tile_pipe_to_backend_map(rdev->config.r600.max_tile_pipes,
+							(R6XX_MAX_BACKENDS -
+							 r600_count_pipe_bits((cc_rb_backend_disable &
+									       R6XX_MAX_BACKENDS_MASK) >> 16)),
+							(cc_rb_backend_disable >> 16));
+
+	tiling_config |= BACKEND_MAP(backend_map);
 	WREG32(GB_TILING_CONFIG, tiling_config);
 	WREG32(DCP_TILING_CONFIG, tiling_config & 0xffff);
 	WREG32(HDP_TILING_CONFIG, tiling_config & 0xffff);
 
-	tmp = BACKEND_DISABLE((R6XX_MAX_BACKENDS_MASK << rdev->config.r600.max_backends) & R6XX_MAX_BACKENDS_MASK);
-	WREG32(CC_RB_BACKEND_DISABLE, tmp);
-
 	/* Setup pipes */
-	tmp = INACTIVE_QD_PIPES((R6XX_MAX_PIPES_MASK << rdev->config.r600.max_pipes) & R6XX_MAX_PIPES_MASK);
-	tmp |= INACTIVE_SIMDS((R6XX_MAX_SIMDS_MASK << rdev->config.r600.max_simds) & R6XX_MAX_SIMDS_MASK);
-	WREG32(CC_GC_SHADER_PIPE_CONFIG, tmp);
-	WREG32(GC_USER_SHADER_PIPE_CONFIG, tmp);
+	WREG32(CC_RB_BACKEND_DISABLE, cc_rb_backend_disable);
+	WREG32(CC_GC_SHADER_PIPE_CONFIG, cc_gc_shader_pipe_config);
 
-	tmp = R6XX_MAX_BACKENDS - r600_count_pipe_bits(tmp & INACTIVE_QD_PIPES_MASK);
+	tmp = R6XX_MAX_PIPES - r600_count_pipe_bits((cc_gc_shader_pipe_config & INACTIVE_QD_PIPES_MASK) >> 8);
 	WREG32(VGT_OUT_DEALLOC_CNTL, (tmp * 4) & DEALLOC_DIST_MASK);
 	WREG32(VGT_VERTEX_REUSE_BLOCK_CNTL, ((tmp * 4) - 2) & VTX_REUSE_DEPTH_MASK);
 
@@ -1382,11 +1398,6 @@ void r600_pciep_wreg(struct radeon_device *rdev, u32 reg, u32 v)
 	(void)RREG32(PCIE_PORT_INDEX);
 	WREG32(PCIE_PORT_DATA, (v));
 	(void)RREG32(PCIE_PORT_DATA);
-}
-
-void r600_hdp_flush(struct radeon_device *rdev)
-{
-	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 }
 
 /*
@@ -1658,6 +1669,12 @@ void r600_ring_init(struct radeon_device *rdev, unsigned ring_size)
 	rdev->cp.align_mask = 16 - 1;
 }
 
+void r600_cp_fini(struct radeon_device *rdev)
+{
+	r600_cp_stop(rdev);
+	radeon_ring_fini(rdev);
+}
+
 
 /*
  * GPU scratch registers helpers function.
@@ -1781,6 +1798,13 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 			  struct radeon_fence *fence)
 {
 	/* Also consider EVENT_WRITE_EOP.  it handles the interrupts + timestamps + events */
+
+	radeon_ring_write(rdev, PACKET3(PACKET3_EVENT_WRITE, 0));
+	radeon_ring_write(rdev, CACHE_FLUSH_AND_INV_EVENT);
+	/* wait for 3D idle clean */
+	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
+	radeon_ring_write(rdev, (WAIT_UNTIL - PACKET3_SET_CONFIG_REG_OFFSET) >> 2);
+	radeon_ring_write(rdev, WAIT_3D_IDLE_bit | WAIT_3D_IDLECLEAN_bit);
 	/* Emit fence sequence & fire IRQ */
 	radeon_ring_write(rdev, PACKET3(PACKET3_SET_CONFIG_REG, 1));
 	radeon_ring_write(rdev, ((rdev->fence_drv.scratch_reg - PACKET3_SET_CONFIG_REG_OFFSET) >> 2));
@@ -1790,23 +1814,24 @@ void r600_fence_ring_emit(struct radeon_device *rdev,
 	radeon_ring_write(rdev, RB_INT_STAT);
 }
 
-int r600_copy_dma(struct radeon_device *rdev,
-		  uint64_t src_offset,
-		  uint64_t dst_offset,
-		  unsigned num_pages,
-		  struct radeon_fence *fence)
-{
-	/* FIXME: implement */
-	return 0;
-}
-
 int r600_copy_blit(struct radeon_device *rdev,
 		   uint64_t src_offset, uint64_t dst_offset,
 		   unsigned num_pages, struct radeon_fence *fence)
 {
-	r600_blit_prepare_copy(rdev, num_pages * RADEON_GPU_PAGE_SIZE);
+	int r;
+
+	mutex_lock(&rdev->r600_blit.mutex);
+	rdev->r600_blit.vb_ib = NULL;
+	r = r600_blit_prepare_copy(rdev, num_pages * RADEON_GPU_PAGE_SIZE);
+	if (r) {
+		if (rdev->r600_blit.vb_ib)
+			radeon_ib_free(rdev, &rdev->r600_blit.vb_ib);
+		mutex_unlock(&rdev->r600_blit.mutex);
+		return r;
+	}
 	r600_kms_blit_copy(rdev, src_offset, dst_offset, num_pages * RADEON_GPU_PAGE_SIZE);
 	r600_blit_done_copy(rdev, fence);
+	mutex_unlock(&rdev->r600_blit.mutex);
 	return 0;
 }
 
@@ -1862,18 +1887,25 @@ int r600_startup(struct radeon_device *rdev)
 			return r;
 	}
 	r600_gpu_init(rdev);
-
-	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-	if (unlikely(r != 0))
-		return r;
-	r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
-			&rdev->r600_blit.shader_gpu_addr);
-	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+	r = r600_blit_init(rdev);
 	if (r) {
-		dev_err(rdev->dev, "(%d) pin blit object failed\n", r);
-		return r;
+		r600_blit_fini(rdev);
+		rdev->asic->copy = NULL;
+		dev_warn(rdev->dev, "failed blitter (%d) falling back to memcpy\n", r);
 	}
-
+	/* pin copy shader into vram */
+	if (rdev->r600_blit.shader_obj) {
+		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+		if (unlikely(r != 0))
+			return r;
+		r = radeon_bo_pin(rdev->r600_blit.shader_obj, RADEON_GEM_DOMAIN_VRAM,
+				&rdev->r600_blit.shader_gpu_addr);
+		radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+		if (r) {
+			dev_err(rdev->dev, "(%d) pin blit object failed\n", r);
+			return r;
+		}
+	}
 	/* Enable IRQ */
 	r = r600_irq_init(rdev);
 	if (r) {
@@ -1938,6 +1970,13 @@ int r600_resume(struct radeon_device *rdev)
 		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
 		return r;
 	}
+
+	r = r600_audio_init(rdev);
+	if (r) {
+		DRM_ERROR("radeon: audio resume failed\n");
+		return r;
+	}
+
 	return r;
 }
 
@@ -1945,17 +1984,21 @@ int r600_suspend(struct radeon_device *rdev)
 {
 	int r;
 
+	r600_audio_fini(rdev);
 	/* FIXME: we should wait for ring to be empty */
 	r600_cp_stop(rdev);
 	rdev->cp.ready = false;
+	r600_irq_suspend(rdev);
 	r600_wb_disable(rdev);
 	r600_pcie_gart_disable(rdev);
 	/* unpin shaders bo */
-	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
-	if (unlikely(r != 0))
-		return r;
-	radeon_bo_unpin(rdev->r600_blit.shader_obj);
-	radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+	if (rdev->r600_blit.shader_obj) {
+		r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
+		if (!r) {
+			radeon_bo_unpin(rdev->r600_blit.shader_obj);
+			radeon_bo_unreserve(rdev->r600_blit.shader_obj);
+		}
+	}
 	return 0;
 }
 
@@ -2016,6 +2059,11 @@ int r600_init(struct radeon_device *rdev)
 	r = radeon_fence_driver_init(rdev);
 	if (r)
 		return r;
+	if (rdev->flags & RADEON_IS_AGP) {
+		r = radeon_agp_init(rdev);
+		if (r)
+			radeon_agp_disable(rdev);
+	}
 	r = r600_mc_init(rdev);
 	if (r)
 		return r;
@@ -2038,52 +2086,50 @@ int r600_init(struct radeon_device *rdev)
 	if (r)
 		return r;
 
-	r = r600_blit_init(rdev);
-	if (r) {
-		DRM_ERROR("radeon: failed blitter (%d).\n", r);
-		return r;
-	}
-
 	rdev->accel_working = true;
 	r = r600_startup(rdev);
 	if (r) {
-		r600_suspend(rdev);
+		dev_err(rdev->dev, "disabling GPU acceleration\n");
+		r600_cp_fini(rdev);
 		r600_wb_fini(rdev);
-		radeon_ring_fini(rdev);
+		r600_irq_fini(rdev);
+		radeon_irq_kms_fini(rdev);
 		r600_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
 	}
 	if (rdev->accel_working) {
 		r = radeon_ib_pool_init(rdev);
 		if (r) {
-			DRM_ERROR("radeon: failed initializing IB pool (%d).\n", r);
+			dev_err(rdev->dev, "IB initialization failed (%d).\n", r);
 			rdev->accel_working = false;
-		}
-		r = r600_ib_test(rdev);
-		if (r) {
-			DRM_ERROR("radeon: failed testing IB (%d).\n", r);
-			rdev->accel_working = false;
+		} else {
+			r = r600_ib_test(rdev);
+			if (r) {
+				dev_err(rdev->dev, "IB test failed (%d).\n", r);
+				rdev->accel_working = false;
+			}
 		}
 	}
+
+	r = r600_audio_init(rdev);
+	if (r)
+		return r; /* TODO error handling */
 	return 0;
 }
 
 void r600_fini(struct radeon_device *rdev)
 {
-	/* Suspend operations */
-	r600_suspend(rdev);
-
+	r600_audio_fini(rdev);
 	r600_blit_fini(rdev);
+	r600_cp_fini(rdev);
+	r600_wb_fini(rdev);
 	r600_irq_fini(rdev);
 	radeon_irq_kms_fini(rdev);
-	radeon_ring_fini(rdev);
-	r600_wb_fini(rdev);
 	r600_pcie_gart_fini(rdev);
+	radeon_agp_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_clocks_fini(rdev);
-	if (rdev->flags & RADEON_IS_AGP)
-		radeon_agp_fini(rdev);
 	radeon_bo_fini(rdev);
 	radeon_atombios_fini(rdev);
 	kfree(rdev->bios);
@@ -2189,14 +2235,14 @@ void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size)
 	rb_bufsz = drm_order(ring_size / 4);
 	ring_size = (1 << rb_bufsz) * 4;
 	rdev->ih.ring_size = ring_size;
-	rdev->ih.align_mask = 4 - 1;
+	rdev->ih.ptr_mask = rdev->ih.ring_size - 1;
+	rdev->ih.rptr = 0;
 }
 
-static int r600_ih_ring_alloc(struct radeon_device *rdev, unsigned ring_size)
+static int r600_ih_ring_alloc(struct radeon_device *rdev)
 {
 	int r;
 
-	rdev->ih.ring_size = ring_size;
 	/* Allocate ring buffer */
 	if (rdev->ih.ring_obj == NULL) {
 		r = radeon_bo_create(rdev, NULL, rdev->ih.ring_size,
@@ -2226,9 +2272,6 @@ static int r600_ih_ring_alloc(struct radeon_device *rdev, unsigned ring_size)
 			return r;
 		}
 	}
-	rdev->ih.ptr_mask = (rdev->cp.ring_size / 4) - 1;
-	rdev->ih.rptr = 0;
-
 	return 0;
 }
 
@@ -2378,7 +2421,7 @@ int r600_irq_init(struct radeon_device *rdev)
 	u32 interrupt_cntl, ih_cntl, ih_rb_cntl;
 
 	/* allocate ring */
-	ret = r600_ih_ring_alloc(rdev, rdev->ih.ring_size);
+	ret = r600_ih_ring_alloc(rdev);
 	if (ret)
 		return ret;
 
@@ -2441,10 +2484,15 @@ int r600_irq_init(struct radeon_device *rdev)
 	return ret;
 }
 
-void r600_irq_fini(struct radeon_device *rdev)
+void r600_irq_suspend(struct radeon_device *rdev)
 {
 	r600_disable_interrupts(rdev);
 	r600_rlc_stop(rdev);
+}
+
+void r600_irq_fini(struct radeon_device *rdev)
+{
+	r600_irq_suspend(rdev);
 	r600_ih_ring_fini(rdev);
 }
 
@@ -2454,9 +2502,17 @@ int r600_irq_set(struct radeon_device *rdev)
 	u32 mode_int = 0;
 	u32 hpd1, hpd2, hpd3, hpd4 = 0, hpd5 = 0, hpd6 = 0;
 
+	if (!rdev->irq.installed) {
+		WARN(1, "Can't enable IRQ/MSI because no handler is installed.\n");
+		return -EINVAL;
+	}
 	/* don't enable anything if the ih is disabled */
-	if (!rdev->ih.enabled)
+	if (!rdev->ih.enabled) {
+		r600_disable_interrupts(rdev);
+		/* force the active interrupt state to all disabled */
+		r600_disable_interrupt_state(rdev);
 		return 0;
+	}
 
 	if (ASIC_IS_DCE3(rdev)) {
 		hpd1 = RREG32(DC_HPD1_INT_CONTROL) & ~DC_HPDx_INT_EN;
@@ -2626,16 +2682,18 @@ static inline u32 r600_get_ih_wptr(struct radeon_device *rdev)
 	wptr = RREG32(IH_RB_WPTR);
 
 	if (wptr & RB_OVERFLOW) {
-		WARN_ON(1);
-		/* XXX deal with overflow */
-		DRM_ERROR("IH RB overflow\n");
+		/* When a ring buffer overflow happen start parsing interrupt
+		 * from the last not overwritten vector (wptr + 16). Hopefully
+		 * this should allow us to catchup.
+		 */
+		dev_warn(rdev->dev, "IH ring buffer overflow (0x%08X, %d, %d)\n",
+			wptr, rdev->ih.rptr, (wptr + 16) + rdev->ih.ptr_mask);
+		rdev->ih.rptr = (wptr + 16) & rdev->ih.ptr_mask;
 		tmp = RREG32(IH_RB_CNTL);
 		tmp |= IH_WPTR_OVERFLOW_CLEAR;
 		WREG32(IH_RB_CNTL, tmp);
 	}
-	wptr = wptr & WPTR_OFFSET_MASK;
-
-	return wptr;
+	return (wptr & rdev->ih.ptr_mask);
 }
 
 /*        r600 IV Ring
@@ -2671,12 +2729,13 @@ int r600_irq_process(struct radeon_device *rdev)
 	u32 wptr = r600_get_ih_wptr(rdev);
 	u32 rptr = rdev->ih.rptr;
 	u32 src_id, src_data;
-	u32 last_entry = rdev->ih.ring_size - 16;
 	u32 ring_index, disp_int, disp_int_cont, disp_int_cont2;
 	unsigned long flags;
 	bool queue_hotplug = false;
 
 	DRM_DEBUG("r600_irq_process start: rptr %d, wptr %d\n", rptr, wptr);
+	if (!rdev->ih.enabled)
+		return IRQ_NONE;
 
 	spin_lock_irqsave(&rdev->ih.lock, flags);
 
@@ -2706,6 +2765,7 @@ restart_ih:
 			case 0: /* D1 vblank */
 				if (disp_int & LB_D1_VBLANK_INTERRUPT) {
 					drm_handle_vblank(rdev->ddev, 0);
+					wake_up(&rdev->irq.vblank_queue);
 					disp_int &= ~LB_D1_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D1 vblank\n");
 				}
@@ -2717,7 +2777,7 @@ restart_ih:
 				}
 				break;
 			default:
-				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
 			break;
@@ -2726,6 +2786,7 @@ restart_ih:
 			case 0: /* D2 vblank */
 				if (disp_int & LB_D2_VBLANK_INTERRUPT) {
 					drm_handle_vblank(rdev->ddev, 1);
+					wake_up(&rdev->irq.vblank_queue);
 					disp_int &= ~LB_D2_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D2 vblank\n");
 				}
@@ -2737,7 +2798,7 @@ restart_ih:
 				}
 				break;
 			default:
-				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
 			break;
@@ -2786,7 +2847,7 @@ restart_ih:
 				}
 				break;
 			default:
-				DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+				DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 				break;
 			}
 			break;
@@ -2800,15 +2861,13 @@ restart_ih:
 			DRM_DEBUG("IH: CP EOP\n");
 			break;
 		default:
-			DRM_ERROR("Unhandled interrupt: %d %d\n", src_id, src_data);
+			DRM_DEBUG("Unhandled interrupt: %d %d\n", src_id, src_data);
 			break;
 		}
 
 		/* wptr/rptr are in bytes! */
-		if (rptr == last_entry)
-			rptr = 0;
-		else
-			rptr += 16;
+		rptr += 16;
+		rptr &= rdev->ih.ptr_mask;
 	}
 	/* make sure wptr hasn't changed while processing */
 	wptr = r600_get_ih_wptr(rdev);
@@ -2875,4 +2934,19 @@ int r600_debugfs_mc_info_init(struct radeon_device *rdev)
 #else
 	return 0;
 #endif
+}
+
+/**
+ * r600_ioctl_wait_idle - flush host path cache on wait idle ioctl
+ * rdev: radeon device structure
+ * bo: buffer object struct which userspace is waiting for idle
+ *
+ * Some R6XX/R7XX doesn't seems to take into account HDP flush performed
+ * through ring buffer, this leads to corruption in rendering, see
+ * http://bugzilla.kernel.org/show_bug.cgi?id=15186 to avoid this we
+ * directly perform HDP flush by writing register through MMIO.
+ */
+void r600_ioctl_wait_idle(struct radeon_device *rdev, struct radeon_bo *bo)
+{
+	WREG32(R_005480_HDP_MEM_COHERENCY_FLUSH_CNTL, 0x1);
 }

@@ -1287,9 +1287,10 @@ set_multicast_list(struct net_device *dev)
 	struct eepro_local *lp = netdev_priv(dev);
 	short ioaddr = dev->base_addr;
 	unsigned short mode;
-	struct dev_mc_list *dmi=dev->mc_list;
+	struct dev_mc_list *dmi;
+	int mc_count = netdev_mc_count(dev);
 
-	if (dev->flags&(IFF_ALLMULTI|IFF_PROMISC) || dev->mc_count > 63)
+	if (dev->flags&(IFF_ALLMULTI|IFF_PROMISC) || mc_count > 63)
 	{
 		eepro_sw2bank2(ioaddr); /* be CAREFUL, BANK 2 now */
 		mode = inb(ioaddr + REG2);
@@ -1299,7 +1300,7 @@ set_multicast_list(struct net_device *dev)
 		eepro_sw2bank0(ioaddr); /* Return to BANK 0 now */
 	}
 
-	else if (dev->mc_count==0 )
+	else if (mc_count == 0)
 	{
 		eepro_sw2bank2(ioaddr); /* be CAREFUL, BANK 2 now */
 		mode = inb(ioaddr + REG2);
@@ -1329,12 +1330,10 @@ set_multicast_list(struct net_device *dev)
 		outw(MC_SETUP, ioaddr + IO_PORT);
 		outw(0, ioaddr + IO_PORT);
 		outw(0, ioaddr + IO_PORT);
-		outw(6*(dev->mc_count + 1), ioaddr + IO_PORT);
+		outw(6 * (mc_count + 1), ioaddr + IO_PORT);
 
-		for (i = 0; i < dev->mc_count; i++)
-		{
-			eaddrs=(unsigned short *)dmi->dmi_addr;
-			dmi=dmi->next;
+		netdev_for_each_mc_addr(dmi, dev) {
+			eaddrs = (unsigned short *) dmi->dmi_addr;
 			outw(*eaddrs++, ioaddr + IO_PORT);
 			outw(*eaddrs++, ioaddr + IO_PORT);
 			outw(*eaddrs++, ioaddr + IO_PORT);
@@ -1348,7 +1347,7 @@ set_multicast_list(struct net_device *dev)
 		outb(MC_SETUP, ioaddr);
 
 		/* Update the transmit queue */
-		i = lp->tx_end + XMT_HEADER + 6*(dev->mc_count + 1);
+		i = lp->tx_end + XMT_HEADER + 6 * (mc_count + 1);
 
 		if (lp->tx_start != lp->tx_end)
 		{
@@ -1380,8 +1379,8 @@ set_multicast_list(struct net_device *dev)
 					break;
 				} else if ((i & 0x0f) == 0x03)	{ /* MC-Done */
 					printk(KERN_DEBUG "%s: set Rx mode to %d address%s.\n",
-						dev->name, dev->mc_count,
-						dev->mc_count > 1 ? "es":"");
+						dev->name, mc_count,
+						mc_count > 1 ? "es":"");
 					break;
 				}
 			}

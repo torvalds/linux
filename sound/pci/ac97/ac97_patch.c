@@ -544,25 +544,10 @@ static int patch_wolfson04(struct snd_ac97 * ac97)
 	return 0;
 }
 
-static int patch_wolfson_wm9705_specific(struct snd_ac97 * ac97)
-{
-	int err, i;
-	for (i = 0; i < ARRAY_SIZE(wm97xx_snd_ac97_controls); i++) {
-		if ((err = snd_ctl_add(ac97->bus->card, snd_ac97_cnew(&wm97xx_snd_ac97_controls[i], ac97))) < 0)
-			return err;
-	}
-	snd_ac97_write_cache(ac97,  0x72, 0x0808);
-	return 0;
-}
-
-static struct snd_ac97_build_ops patch_wolfson_wm9705_ops = {
-	.build_specific = patch_wolfson_wm9705_specific,
-};
-
 static int patch_wolfson05(struct snd_ac97 * ac97)
 {
 	/* WM9705, WM9710 */
-	ac97->build_ops = &patch_wolfson_wm9705_ops;
+	ac97->build_ops = &patch_wolfson_wm9703_ops;
 #ifdef CONFIG_TOUCHSCREEN_WM9705
 	/* WM9705 touchscreen uses AUX and VIDEO for touch */
 	ac97->flags |= AC97_HAS_NO_VIDEO | AC97_HAS_NO_AUX;
@@ -1870,6 +1855,7 @@ static unsigned int ad1981_jacks_blacklist[] = {
 	0x10140554, /* Thinkpad T42p/R50p */
 	0x10140567, /* Thinkpad T43p 2668-G7U */
 	0x10140581, /* Thinkpad X41-2527 */
+	0x10280160, /* Dell Dimension 2400 */
 	0x104380b0, /* Asus A7V8X-MX */
 	0x11790241, /* Toshiba Satellite A-15 S127 */
 	0x144dc01a, /* Samsung NP-X20C004/SEG */

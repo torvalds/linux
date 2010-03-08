@@ -264,10 +264,16 @@ static ssize_t nvram_write(struct file *file, const char __user *buf,
 	unsigned char contents[NVRAM_BYTES];
 	unsigned i = *ppos;
 	unsigned char *tmp;
-	int len;
 
-	len = (NVRAM_BYTES - i) < count ? (NVRAM_BYTES - i) : count;
-	if (copy_from_user(contents, buf, len))
+	if (i >= NVRAM_BYTES)
+		return 0;	/* Past EOF */
+
+	if (count > NVRAM_BYTES - i)
+		count = NVRAM_BYTES - i;
+	if (count > NVRAM_BYTES)
+		return -EFAULT;	/* Can't happen, but prove it to gcc */
+
+	if (copy_from_user(contents, buf, count))
 		return -EFAULT;
 
 	spin_lock_irq(&rtc_lock);
@@ -275,7 +281,7 @@ static ssize_t nvram_write(struct file *file, const char __user *buf,
 	if (!__nvram_check_checksum())
 		goto checksum_err;
 
-	for (tmp = contents; count-- > 0 && i < NVRAM_BYTES; ++i, ++tmp)
+	for (tmp = contents; count--; ++i, ++tmp)
 		__nvram_write_byte(*tmp, i);
 
 	__nvram_set_checksum();
@@ -330,14 +336,12 @@ static int nvram_ioctl(struct inode *inode, struct file *file,
 
 static int nvram_open(struct inode *inode, struct file *file)
 {
-	lock_kernel();
 	spin_lock(&nvram_state_lock);
 
 	if ((nvram_open_cnt && (file->f_flags & O_EXCL)) ||
 	    (nvram_open_mode & NVRAM_EXCL) ||
 	    ((file->f_mode & FMODE_WRITE) && (nvram_open_mode & NVRAM_WRITE))) {
 		spin_unlock(&nvram_state_lock);
-		unlock_kernel();
 		return -EBUSY;
 	}
 
@@ -348,7 +352,6 @@ static int nvram_open(struct inode *inode, struct file *file)
 	nvram_open_cnt++;
 
 	spin_unlock(&nvram_state_lock);
-	unlock_kernel();
 
 	return 0;
 }

@@ -221,7 +221,7 @@ static int __devinit davinci_wdt_probe(struct platform_device *pdev)
 		return -ENOENT;
 	}
 
-	size = res->end - res->start + 1;
+	size = resource_size(res);
 	wdt_mem = request_mem_region(res->start, size, pdev->name);
 
 	if (wdt_mem == NULL) {

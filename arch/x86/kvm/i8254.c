@@ -29,6 +29,8 @@
  *   Based on QEMU and Xen.
  */
 
+#define pr_fmt(fmt) "pit: " fmt
+
 #include <linux/kvm_host.h>
 
 #include "irq.h"
@@ -240,11 +242,11 @@ static void kvm_pit_ack_irq(struct kvm_irq_ack_notifier *kian)
 {
 	struct kvm_kpit_state *ps = container_of(kian, struct kvm_kpit_state,
 						 irq_ack_notifier);
-	spin_lock(&ps->inject_lock);
+	raw_spin_lock(&ps->inject_lock);
 	if (atomic_dec_return(&ps->pit_timer.pending) < 0)
 		atomic_inc(&ps->pit_timer.pending);
 	ps->irq_ack = 1;
-	spin_unlock(&ps->inject_lock);
+	raw_spin_unlock(&ps->inject_lock);
 }
 
 void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
@@ -262,7 +264,7 @@ void __kvm_migrate_pit_timer(struct kvm_vcpu *vcpu)
 
 static void destroy_pit_timer(struct kvm_timer *pt)
 {
-	pr_debug("pit: execute del timer!\n");
+	pr_debug("execute del timer!\n");
 	hrtimer_cancel(&pt->timer);
 }
 
@@ -284,7 +286,7 @@ static void create_pit_timer(struct kvm_kpit_state *ps, u32 val, int is_period)
 
 	interval = muldiv64(val, NSEC_PER_SEC, KVM_PIT_FREQ);
 
-	pr_debug("pit: create pit timer, interval is %llu nsec\n", interval);
+	pr_debug("create pit timer, interval is %llu nsec\n", interval);
 
 	/* TODO The new value only affected after the retriggered */
 	hrtimer_cancel(&pt->timer);
@@ -309,7 +311,7 @@ static void pit_load_count(struct kvm *kvm, int channel, u32 val)
 
 	WARN_ON(!mutex_is_locked(&ps->lock));
 
-	pr_debug("pit: load_count val is %d, channel is %d\n", val, channel);
+	pr_debug("load_count val is %d, channel is %d\n", val, channel);
 
 	/*
 	 * The largest possible initial count is 0; this is equivalent
@@ -395,8 +397,8 @@ static int pit_ioport_write(struct kvm_io_device *this,
 	mutex_lock(&pit_state->lock);
 
 	if (val != 0)
-		pr_debug("pit: write addr is 0x%x, len is %d, val is 0x%x\n",
-			  (unsigned int)addr, len, val);
+		pr_debug("write addr is 0x%x, len is %d, val is 0x%x\n",
+			 (unsigned int)addr, len, val);
 
 	if (addr == 3) {
 		channel = val >> 6;
@@ -465,6 +467,9 @@ static int pit_ioport_read(struct kvm_io_device *this,
 		return -EOPNOTSUPP;
 
 	addr &= KVM_PIT_CHANNEL_MASK;
+	if (addr == 3)
+		return 0;
+
 	s = &pit_state->channels[addr];
 
 	mutex_lock(&pit_state->lock);
@@ -600,7 +605,7 @@ static const struct kvm_io_device_ops speaker_dev_ops = {
 	.write    = speaker_ioport_write,
 };
 
-/* Caller must have writers lock on slots_lock */
+/* Caller must hold slots_lock */
 struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 {
 	struct kvm_pit *pit;
@@ -619,7 +624,7 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 
 	mutex_init(&pit->pit_state.lock);
 	mutex_lock(&pit->pit_state.lock);
-	spin_lock_init(&pit->pit_state.inject_lock);
+	raw_spin_lock_init(&pit->pit_state.inject_lock);
 
 	kvm->arch.vpit = pit;
 	pit->kvm = kvm;
@@ -640,13 +645,13 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	kvm_register_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
 
 	kvm_iodevice_init(&pit->dev, &pit_dev_ops);
-	ret = __kvm_io_bus_register_dev(&kvm->pio_bus, &pit->dev);
+	ret = kvm_io_bus_register_dev(kvm, KVM_PIO_BUS, &pit->dev);
 	if (ret < 0)
 		goto fail;
 
 	if (flags & KVM_PIT_SPEAKER_DUMMY) {
 		kvm_iodevice_init(&pit->speaker_dev, &speaker_dev_ops);
-		ret = __kvm_io_bus_register_dev(&kvm->pio_bus,
+		ret = kvm_io_bus_register_dev(kvm, KVM_PIO_BUS,
 						&pit->speaker_dev);
 		if (ret < 0)
 			goto fail_unregister;
@@ -655,11 +660,12 @@ struct kvm_pit *kvm_create_pit(struct kvm *kvm, u32 flags)
 	return pit;
 
 fail_unregister:
-	__kvm_io_bus_unregister_dev(&kvm->pio_bus, &pit->dev);
+	kvm_io_bus_unregister_dev(kvm, KVM_PIO_BUS, &pit->dev);
 
 fail:
-	if (pit->irq_source_id >= 0)
-		kvm_free_irq_source_id(kvm, pit->irq_source_id);
+	kvm_unregister_irq_mask_notifier(kvm, 0, &pit->mask_notifier);
+	kvm_unregister_irq_ack_notifier(kvm, &pit_state->irq_ack_notifier);
+	kvm_free_irq_source_id(kvm, pit->irq_source_id);
 
 	kfree(pit);
 	return NULL;
@@ -718,12 +724,12 @@ void kvm_inject_pit_timer_irqs(struct kvm_vcpu *vcpu)
 		/* Try to inject pending interrupts when
 		 * last one has been acked.
 		 */
-		spin_lock(&ps->inject_lock);
+		raw_spin_lock(&ps->inject_lock);
 		if (atomic_read(&ps->pit_timer.pending) && ps->irq_ack) {
 			ps->irq_ack = 0;
 			inject = 1;
 		}
-		spin_unlock(&ps->inject_lock);
+		raw_spin_unlock(&ps->inject_lock);
 		if (inject)
 			__inject_pit_timer_intr(kvm);
 	}

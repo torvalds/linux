@@ -68,6 +68,16 @@ struct tty_buffer {
 	unsigned long data[0];
 };
 
+/*
+ * We default to dicing tty buffer allocations to this many characters
+ * in order to avoid multiple page allocations. We assume tty_buffer itself
+ * is under 256 bytes. See tty_buffer_find for the allocation logic this
+ * must match
+ */
+
+#define TTY_BUFFER_PAGE		((PAGE_SIZE  - 256) / 2)
+
+
 struct tty_bufhead {
 	struct delayed_work work;
 	spinlock_t lock;
@@ -350,8 +360,6 @@ extern void tty_write_flush(struct tty_struct *);
 
 extern struct ktermios tty_std_termios;
 
-extern int kmsg_redirect;
-
 extern void console_init(void);
 extern int vcs_init(void);
 
@@ -466,7 +474,7 @@ extern int tty_port_alloc_xmit_buf(struct tty_port *port);
 extern void tty_port_free_xmit_buf(struct tty_port *port);
 extern void tty_port_put(struct tty_port *port);
 
-extern inline struct tty_port *tty_port_get(struct tty_port *port)
+static inline struct tty_port *tty_port_get(struct tty_port *port)
 {
 	if (port)
 		kref_get(&port->kref);
@@ -488,7 +496,7 @@ extern void tty_port_close(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp);
 extern int tty_port_open(struct tty_port *port,
 				struct tty_struct *tty, struct file *filp);
-extern inline int tty_port_users(struct tty_port *port)
+static inline int tty_port_users(struct tty_port *port)
 {
 	return port->count + port->blocked_open;
 }

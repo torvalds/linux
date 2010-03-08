@@ -302,6 +302,8 @@ enum e1e_registers {
 #define E1000_KMRNCTRLSTA_OFFSET_SHIFT	16
 #define E1000_KMRNCTRLSTA_REN		0x00200000
 #define E1000_KMRNCTRLSTA_DIAG_OFFSET	0x3    /* Kumeran Diagnostic */
+#define E1000_KMRNCTRLSTA_TIMEOUTS	0x4    /* Kumeran Timeouts */
+#define E1000_KMRNCTRLSTA_INBAND_PARAM	0x9    /* Kumeran InBand Parameters */
 #define E1000_KMRNCTRLSTA_DIAG_NELPBK	0x1000 /* Nearend Loopback mode */
 #define E1000_KMRNCTRLSTA_K1_CONFIG	0x7
 #define E1000_KMRNCTRLSTA_K1_ENABLE	0x140E
@@ -386,6 +388,9 @@ enum e1e_registers {
 #define E1000_REVISION_4 4
 
 #define E1000_FUNC_1 1
+
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0   0
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1   3
 
 enum e1000_mac_type {
 	e1000_82571,
@@ -744,16 +749,18 @@ struct e1000_mac_operations {
 	void (*clear_hw_cntrs)(struct e1000_hw *);
 	void (*clear_vfta)(struct e1000_hw *);
 	s32  (*get_bus_info)(struct e1000_hw *);
+	void (*set_lan_id)(struct e1000_hw *);
 	s32  (*get_link_up_info)(struct e1000_hw *, u16 *, u16 *);
 	s32  (*led_on)(struct e1000_hw *);
 	s32  (*led_off)(struct e1000_hw *);
-	void (*update_mc_addr_list)(struct e1000_hw *, u8 *, u32, u32, u32);
+	void (*update_mc_addr_list)(struct e1000_hw *, u8 *, u32);
 	s32  (*reset_hw)(struct e1000_hw *);
 	s32  (*init_hw)(struct e1000_hw *);
 	s32  (*setup_link)(struct e1000_hw *);
 	s32  (*setup_physical_interface)(struct e1000_hw *);
 	s32  (*setup_led)(struct e1000_hw *);
 	void (*write_vfta)(struct e1000_hw *, u32, u32);
+	s32  (*read_mac_addr)(struct e1000_hw *);
 };
 
 /* Function pointers for the PHY. */
@@ -812,10 +819,15 @@ struct e1000_mac_info {
 	u16 ifs_ratio;
 	u16 ifs_step_size;
 	u16 mta_reg_count;
+
+	/* Maximum size of the MTA register table in all supported adapters */
+	#define MAX_MTA_REG 128
+	u32 mta_shadow[MAX_MTA_REG];
 	u16 rar_entry_count;
 
 	u8  forced_speed_duplex;
 
+	bool adaptive_ifs;
 	bool arc_subsystem_valid;
 	bool autoneg;
 	bool autoneg_failed;
@@ -894,8 +906,11 @@ struct e1000_fc_info {
 
 struct e1000_dev_spec_82571 {
 	bool laa_is_present;
-	bool alt_mac_addr_is_present;
 	u32 smb_counter;
+};
+
+struct e1000_dev_spec_80003es2lan {
+	bool  mdic_wa_enable;
 };
 
 struct e1000_shadow_ram {
@@ -926,6 +941,7 @@ struct e1000_hw {
 
 	union {
 		struct e1000_dev_spec_82571	e82571;
+		struct e1000_dev_spec_80003es2lan e80003es2lan;
 		struct e1000_dev_spec_ich8lan	ich8lan;
 	} dev_spec;
 };

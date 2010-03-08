@@ -46,7 +46,7 @@ static void dccp_v6_hash(struct sock *sk)
 			return;
 		}
 		local_bh_disable();
-		__inet6_hash(sk);
+		__inet6_hash(sk, NULL);
 		local_bh_enable();
 	}
 }
@@ -644,7 +644,7 @@ static struct sock *dccp_v6_request_recv_sock(struct sock *sk,
 	newinet->inet_daddr = newinet->inet_saddr = LOOPBACK4_IPV6;
 	newinet->inet_rcv_saddr = LOOPBACK4_IPV6;
 
-	__inet6_hash(newsk);
+	__inet6_hash(newsk, NULL);
 	__inet_inherit_port(sk, newsk);
 
 	return newsk;
@@ -1189,7 +1189,7 @@ static struct inet_protosw dccp_v6_protosw = {
 	.flags		= INET_PROTOSW_ICSK,
 };
 
-static int dccp_v6_init_net(struct net *net)
+static int __net_init dccp_v6_init_net(struct net *net)
 {
 	int err;
 
@@ -1198,7 +1198,7 @@ static int dccp_v6_init_net(struct net *net)
 	return err;
 }
 
-static void dccp_v6_exit_net(struct net *net)
+static void __net_exit dccp_v6_exit_net(struct net *net)
 {
 	inet_ctl_sock_destroy(net->dccp.v6_ctl_sk);
 }

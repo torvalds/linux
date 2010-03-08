@@ -131,6 +131,11 @@ static void jfs_destroy_inode(struct inode *inode)
 	kmem_cache_free(jfs_inode_cachep, ji);
 }
 
+static void jfs_clear_inode(struct inode *inode)
+{
+	dquot_drop(inode);
+}
+
 static int jfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct jfs_sb_info *sbi = JFS_SBI(dentry->d_sb);
@@ -524,7 +529,7 @@ static int jfs_fill_super(struct super_block *sb, void *data, int silent)
 	 * Page cache is indexed by long.
 	 * I would use MAX_LFS_FILESIZE, but it's only half as big
 	 */
-	sb->s_maxbytes = min(((u64) PAGE_CACHE_SIZE << 32) - 1, sb->s_maxbytes);
+	sb->s_maxbytes = min(((u64) PAGE_CACHE_SIZE << 32) - 1, (u64)sb->s_maxbytes);
 #endif
 	sb->s_time_gran = 1;
 	return 0;
@@ -745,6 +750,7 @@ static const struct super_operations jfs_super_operations = {
 	.dirty_inode	= jfs_dirty_inode,
 	.write_inode	= jfs_write_inode,
 	.delete_inode	= jfs_delete_inode,
+	.clear_inode	= jfs_clear_inode,
 	.put_super	= jfs_put_super,
 	.sync_fs	= jfs_sync_fs,
 	.freeze_fs	= jfs_freeze,

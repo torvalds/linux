@@ -90,9 +90,10 @@ static void mmc_request(struct request_queue *q)
 	struct request *req;
 
 	if (!mq) {
-		printk(KERN_ERR "MMC: killing requests for dead queue\n");
-		while ((req = blk_fetch_request(q)) != NULL)
+		while ((req = blk_fetch_request(q)) != NULL) {
+			req->cmd_flags |= REQ_QUIET;
 			__blk_end_request_all(req, -EIO);
+		}
 		return;
 	}
 
@@ -153,9 +154,8 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 
 		if (mq->bounce_buf) {
 			blk_queue_bounce_limit(mq->queue, BLK_BOUNCE_ANY);
-			blk_queue_max_sectors(mq->queue, bouncesz / 512);
-			blk_queue_max_phys_segments(mq->queue, bouncesz / 512);
-			blk_queue_max_hw_segments(mq->queue, bouncesz / 512);
+			blk_queue_max_hw_sectors(mq->queue, bouncesz / 512);
+			blk_queue_max_segments(mq->queue, bouncesz / 512);
 			blk_queue_max_segment_size(mq->queue, bouncesz);
 
 			mq->sg = kmalloc(sizeof(struct scatterlist),
@@ -179,10 +179,9 @@ int mmc_init_queue(struct mmc_queue *mq, struct mmc_card *card, spinlock_t *lock
 
 	if (!mq->bounce_buf) {
 		blk_queue_bounce_limit(mq->queue, limit);
-		blk_queue_max_sectors(mq->queue,
+		blk_queue_max_hw_sectors(mq->queue,
 			min(host->max_blk_count, host->max_req_size / 512));
-		blk_queue_max_phys_segments(mq->queue, host->max_phys_segs);
-		blk_queue_max_hw_segments(mq->queue, host->max_hw_segs);
+		blk_queue_max_segments(mq->queue, host->max_hw_segs);
 		blk_queue_max_segment_size(mq->queue, host->max_seg_size);
 
 		mq->sg = kmalloc(sizeof(struct scatterlist) *
@@ -223,16 +222,17 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	struct request_queue *q = mq->queue;
 	unsigned long flags;
 
-	/* Mark that we should start throwing out stragglers */
-	spin_lock_irqsave(q->queue_lock, flags);
-	q->queuedata = NULL;
-	spin_unlock_irqrestore(q->queue_lock, flags);
-
 	/* Make sure the queue isn't suspended, as that will deadlock */
 	mmc_queue_resume(mq);
 
 	/* Then terminate our worker thread */
 	kthread_stop(mq->thread);
+
+	/* Empty the queue */
+	spin_lock_irqsave(q->queue_lock, flags);
+	q->queuedata = NULL;
+	blk_start_queue(q);
+	spin_unlock_irqrestore(q->queue_lock, flags);
 
  	if (mq->bounce_sg)
  		kfree(mq->bounce_sg);
@@ -244,8 +244,6 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	if (mq->bounce_buf)
 		kfree(mq->bounce_buf);
 	mq->bounce_buf = NULL;
-
-	blk_cleanup_queue(mq->queue);
 
 	mq->card = NULL;
 }

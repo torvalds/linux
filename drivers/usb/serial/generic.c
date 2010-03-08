@@ -20,6 +20,7 @@
 #include <linux/usb/serial.h>
 #include <linux/uaccess.h>
 #include <linux/kfifo.h>
+#include <linux/serial.h>
 
 static int debug;
 
@@ -41,7 +42,7 @@ static struct usb_device_id generic_device_ids[2]; /* Initially all zeroes. */
 
 /* we want to look at all devices, as the vendor/product id can change
  * depending on the command line argument */
-static struct usb_device_id generic_serial_ids[] = {
+static const struct usb_device_id generic_serial_ids[] = {
 	{.driver_info = 42},
 	{}
 };
@@ -194,7 +195,7 @@ static int usb_serial_multi_urb_write(struct tty_struct *tty,
 		if (port->urbs_in_flight >
 		    port->serial->type->max_in_flight_urbs) {
 			spin_unlock_irqrestore(&port->lock, flags);
-			dbg("%s - write limit hit\n", __func__);
+			dbg("%s - write limit hit", __func__);
 			return bwrite;
 		}
 		port->tx_bytes_flight += towrite;
@@ -276,7 +277,7 @@ static int usb_serial_generic_write_start(struct usb_serial_port *port)
 	if (port->write_urb_busy)
 		start_io = false;
 	else {
-		start_io = (__kfifo_len(port->write_fifo) != 0);
+		start_io = (kfifo_len(&port->write_fifo) != 0);
 		port->write_urb_busy = start_io;
 	}
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -285,7 +286,7 @@ static int usb_serial_generic_write_start(struct usb_serial_port *port)
 		return 0;
 
 	data = port->write_urb->transfer_buffer;
-	count = kfifo_get(port->write_fifo, data, port->bulk_out_size);
+	count = kfifo_out_locked(&port->write_fifo, data, port->bulk_out_size, &port->lock);
 	usb_serial_debug_data(debug, &port->dev, __func__, count, data);
 
 	/* set up our urb */
@@ -345,7 +346,7 @@ int usb_serial_generic_write(struct tty_struct *tty,
 		return usb_serial_multi_urb_write(tty, port,
 						  buf, count);
 
-	count = kfifo_put(port->write_fifo, buf, count);
+	count = kfifo_in_locked(&port->write_fifo, buf, count, &port->lock);
 	result = usb_serial_generic_write_start(port);
 
 	if (result >= 0)
@@ -370,7 +371,7 @@ int usb_serial_generic_write_room(struct tty_struct *tty)
 				(serial->type->max_in_flight_urbs -
 				 port->urbs_in_flight);
 	} else if (serial->num_bulk_out)
-		room = port->write_fifo->size - __kfifo_len(port->write_fifo);
+		room = kfifo_avail(&port->write_fifo);
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	dbg("%s - returns %d", __func__, room);
@@ -386,12 +387,12 @@ int usb_serial_generic_chars_in_buffer(struct tty_struct *tty)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (serial->type->max_in_flight_urbs) {
-		spin_lock_irqsave(&port->lock, flags);
+	spin_lock_irqsave(&port->lock, flags);
+	if (serial->type->max_in_flight_urbs)
 		chars = port->tx_bytes_flight;
-		spin_unlock_irqrestore(&port->lock, flags);
-	} else if (serial->num_bulk_out)
-		chars = kfifo_len(port->write_fifo);
+	else if (serial->num_bulk_out)
+		chars = kfifo_len(&port->write_fifo);
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	dbg("%s - returns %d", __func__, chars);
 	return chars;
@@ -489,6 +490,8 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 	dbg("%s - port %d", __func__, port->number);
 
 	if (port->serial->type->max_in_flight_urbs) {
+		kfree(urb->transfer_buffer);
+
 		spin_lock_irqsave(&port->lock, flags);
 		--port->urbs_in_flight;
 		port->tx_bytes_flight -= urb->transfer_buffer_length;
@@ -507,7 +510,7 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 		if (status) {
 			dbg("%s - nonzero multi-urb write bulk status "
 				"received: %d", __func__, status);
-			kfifo_reset(port->write_fifo);
+			kfifo_reset_out(&port->write_fifo);
 		} else
 			usb_serial_generic_write_start(port);
 	}
@@ -583,7 +586,7 @@ int usb_serial_generic_resume(struct usb_serial *serial)
 
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
-		if (!port->port.count)
+		if (!test_bit(ASYNCB_INITIALIZED, &port->port.flags))
 			continue;
 
 		if (port->read_urb) {

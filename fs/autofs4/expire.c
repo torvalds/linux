@@ -27,7 +27,7 @@ static inline int autofs4_can_expire(struct dentry *dentry,
 		return 0;
 
 	/* No point expiring a pending mount */
-	if (dentry->d_flags & DCACHE_AUTOFS_PENDING)
+	if (ino->flags & AUTOFS_INF_PENDING)
 		return 0;
 
 	if (!do_now) {

@@ -370,8 +370,6 @@ EXPORT_SYMBOL_GPL(find_module);
 
 #ifdef CONFIG_SMP
 
-#ifndef CONFIG_HAVE_LEGACY_PER_CPU_AREA
-
 static void *percpu_modalloc(unsigned long size, unsigned long align,
 			     const char *name)
 {
@@ -394,154 +392,6 @@ static void percpu_modfree(void *freeme)
 {
 	free_percpu(freeme);
 }
-
-#else /* ... CONFIG_HAVE_LEGACY_PER_CPU_AREA */
-
-/* Number of blocks used and allocated. */
-static unsigned int pcpu_num_used, pcpu_num_allocated;
-/* Size of each block.  -ve means used. */
-static int *pcpu_size;
-
-static int split_block(unsigned int i, unsigned short size)
-{
-	/* Reallocation required? */
-	if (pcpu_num_used + 1 > pcpu_num_allocated) {
-		int *new;
-
-		new = krealloc(pcpu_size, sizeof(new[0])*pcpu_num_allocated*2,
-			       GFP_KERNEL);
-		if (!new)
-			return 0;
-
-		pcpu_num_allocated *= 2;
-		pcpu_size = new;
-	}
-
-	/* Insert a new subblock */
-	memmove(&pcpu_size[i+1], &pcpu_size[i],
-		sizeof(pcpu_size[0]) * (pcpu_num_used - i));
-	pcpu_num_used++;
-
-	pcpu_size[i+1] -= size;
-	pcpu_size[i] = size;
-	return 1;
-}
-
-static inline unsigned int block_size(int val)
-{
-	if (val < 0)
-		return -val;
-	return val;
-}
-
-static void *percpu_modalloc(unsigned long size, unsigned long align,
-			     const char *name)
-{
-	unsigned long extra;
-	unsigned int i;
-	void *ptr;
-	int cpu;
-
-	if (align > PAGE_SIZE) {
-		printk(KERN_WARNING "%s: per-cpu alignment %li > %li\n",
-		       name, align, PAGE_SIZE);
-		align = PAGE_SIZE;
-	}
-
-	ptr = __per_cpu_start;
-	for (i = 0; i < pcpu_num_used; ptr += block_size(pcpu_size[i]), i++) {
-		/* Extra for alignment requirement. */
-		extra = ALIGN((unsigned long)ptr, align) - (unsigned long)ptr;
-		BUG_ON(i == 0 && extra != 0);
-
-		if (pcpu_size[i] < 0 || pcpu_size[i] < extra + size)
-			continue;
-
-		/* Transfer extra to previous block. */
-		if (pcpu_size[i-1] < 0)
-			pcpu_size[i-1] -= extra;
-		else
-			pcpu_size[i-1] += extra;
-		pcpu_size[i] -= extra;
-		ptr += extra;
-
-		/* Split block if warranted */
-		if (pcpu_size[i] - size > sizeof(unsigned long))
-			if (!split_block(i, size))
-				return NULL;
-
-		/* add the per-cpu scanning areas */
-		for_each_possible_cpu(cpu)
-			kmemleak_alloc(ptr + per_cpu_offset(cpu), size, 0,
-				       GFP_KERNEL);
-
-		/* Mark allocated */
-		pcpu_size[i] = -pcpu_size[i];
-		return ptr;
-	}
-
-	printk(KERN_WARNING "Could not allocate %lu bytes percpu data\n",
-	       size);
-	return NULL;
-}
-
-static void percpu_modfree(void *freeme)
-{
-	unsigned int i;
-	void *ptr = __per_cpu_start + block_size(pcpu_size[0]);
-	int cpu;
-
-	/* First entry is core kernel percpu data. */
-	for (i = 1; i < pcpu_num_used; ptr += block_size(pcpu_size[i]), i++) {
-		if (ptr == freeme) {
-			pcpu_size[i] = -pcpu_size[i];
-			goto free;
-		}
-	}
-	BUG();
-
- free:
-	/* remove the per-cpu scanning areas */
-	for_each_possible_cpu(cpu)
-		kmemleak_free(freeme + per_cpu_offset(cpu));
-
-	/* Merge with previous? */
-	if (pcpu_size[i-1] >= 0) {
-		pcpu_size[i-1] += pcpu_size[i];
-		pcpu_num_used--;
-		memmove(&pcpu_size[i], &pcpu_size[i+1],
-			(pcpu_num_used - i) * sizeof(pcpu_size[0]));
-		i--;
-	}
-	/* Merge with next? */
-	if (i+1 < pcpu_num_used && pcpu_size[i+1] >= 0) {
-		pcpu_size[i] += pcpu_size[i+1];
-		pcpu_num_used--;
-		memmove(&pcpu_size[i+1], &pcpu_size[i+2],
-			(pcpu_num_used - (i+1)) * sizeof(pcpu_size[0]));
-	}
-}
-
-static int percpu_modinit(void)
-{
-	pcpu_num_used = 2;
-	pcpu_num_allocated = 2;
-	pcpu_size = kmalloc(sizeof(pcpu_size[0]) * pcpu_num_allocated,
-			    GFP_KERNEL);
-	/* Static in-kernel percpu data (used). */
-	pcpu_size[0] = -(__per_cpu_end-__per_cpu_start);
-	/* Free room. */
-	pcpu_size[1] = PERCPU_ENOUGH_ROOM + pcpu_size[0];
-	if (pcpu_size[1] < 0) {
-		printk(KERN_ERR "No per-cpu room for modules.\n");
-		pcpu_num_used = 1;
-	}
-
-	return 0;
-}
-__initcall(percpu_modinit);
-
-#endif /* CONFIG_HAVE_LEGACY_PER_CPU_AREA */
 
 static unsigned int find_pcpusec(Elf_Ehdr *hdr,
 				 Elf_Shdr *sechdrs,
@@ -624,9 +474,10 @@ static void module_unload_init(struct module *mod)
 
 	INIT_LIST_HEAD(&mod->modules_which_use_me);
 	for_each_possible_cpu(cpu)
-		local_set(__module_ref_addr(mod, cpu), 0);
+		per_cpu_ptr(mod->refptr, cpu)->count = 0;
+
 	/* Hold reference count during initialization. */
-	local_set(__module_ref_addr(mod, raw_smp_processor_id()), 1);
+	__this_cpu_write(mod->refptr->count, 1);
 	/* Backwards compatibility macros put refcount during init. */
 	mod->waiter = current;
 }
@@ -769,7 +620,7 @@ unsigned int module_refcount(struct module *mod)
 	int cpu;
 
 	for_each_possible_cpu(cpu)
-		total += local_read(__module_ref_addr(mod, cpu));
+		total += per_cpu_ptr(mod->refptr, cpu)->count;
 	return total;
 }
 EXPORT_SYMBOL(module_refcount);
@@ -946,14 +797,15 @@ static struct module_attribute refcnt = {
 void module_put(struct module *module)
 {
 	if (module) {
-		unsigned int cpu = get_cpu();
-		local_dec(__module_ref_addr(module, cpu));
+		preempt_disable();
+		__this_cpu_dec(module->refptr->count);
+
 		trace_module_put(module, _RET_IP_,
-				 local_read(__module_ref_addr(module, cpu)));
+				 __this_cpu_read(module->refptr->count));
 		/* Maybe they're waiting for us to drop reference? */
 		if (unlikely(!module_is_live(module)))
 			wake_up_process(module->waiter);
-		put_cpu();
+		preempt_enable();
 	}
 }
 EXPORT_SYMBOL(module_put);
@@ -1030,11 +882,23 @@ static int try_to_force_load(struct module *mod, const char *reason)
 }
 
 #ifdef CONFIG_MODVERSIONS
+/* If the arch applies (non-zero) relocations to kernel kcrctab, unapply it. */
+static unsigned long maybe_relocated(unsigned long crc,
+				     const struct module *crc_owner)
+{
+#ifdef ARCH_RELOCATES_KCRCTAB
+	if (crc_owner == NULL)
+		return crc - (unsigned long)reloc_start;
+#endif
+	return crc;
+}
+
 static int check_version(Elf_Shdr *sechdrs,
 			 unsigned int versindex,
 			 const char *symname,
 			 struct module *mod, 
-			 const unsigned long *crc)
+			 const unsigned long *crc,
+			 const struct module *crc_owner)
 {
 	unsigned int i, num_versions;
 	struct modversion_info *versions;
@@ -1055,10 +919,10 @@ static int check_version(Elf_Shdr *sechdrs,
 		if (strcmp(versions[i].name, symname) != 0)
 			continue;
 
-		if (versions[i].crc == *crc)
+		if (versions[i].crc == maybe_relocated(*crc, crc_owner))
 			return 1;
 		DEBUGP("Found checksum %lX vs module %lX\n",
-		       *crc, versions[i].crc);
+		       maybe_relocated(*crc, crc_owner), versions[i].crc);
 		goto bad_version;
 	}
 
@@ -1081,7 +945,8 @@ static inline int check_modstruct_version(Elf_Shdr *sechdrs,
 	if (!find_symbol(MODULE_SYMBOL_PREFIX "module_layout", NULL,
 			 &crc, true, false))
 		BUG();
-	return check_version(sechdrs, versindex, "module_layout", mod, crc);
+	return check_version(sechdrs, versindex, "module_layout", mod, crc,
+			     NULL);
 }
 
 /* First part is kernel version, which we ignore if module has crcs. */
@@ -1099,7 +964,8 @@ static inline int check_version(Elf_Shdr *sechdrs,
 				unsigned int versindex,
 				const char *symname,
 				struct module *mod, 
-				const unsigned long *crc)
+				const unsigned long *crc,
+				const struct module *crc_owner)
 {
 	return 1;
 }
@@ -1134,8 +1000,8 @@ static const struct kernel_symbol *resolve_symbol(Elf_Shdr *sechdrs,
 	/* use_module can fail due to OOM,
 	   or module initialization or unloading */
 	if (sym) {
-		if (!check_version(sechdrs, versindex, name, mod, crc) ||
-		    !use_module(mod, owner))
+		if (!check_version(sechdrs, versindex, name, mod, crc, owner)
+		    || !use_module(mod, owner))
 			sym = NULL;
 	}
 	return sym;
@@ -1146,6 +1012,12 @@ static const struct kernel_symbol *resolve_symbol(Elf_Shdr *sechdrs,
  * J. Corbet <corbet@lwn.net>
  */
 #if defined(CONFIG_KALLSYMS) && defined(CONFIG_SYSFS)
+
+static inline bool sect_empty(const Elf_Shdr *sect)
+{
+	return !(sect->sh_flags & SHF_ALLOC) || sect->sh_size == 0;
+}
+
 struct module_sect_attr
 {
 	struct module_attribute mattr;
@@ -1187,8 +1059,7 @@ static void add_sect_attrs(struct module *mod, unsigned int nsect,
 
 	/* Count loaded sections and allocate structures */
 	for (i = 0; i < nsect; i++)
-		if (sechdrs[i].sh_flags & SHF_ALLOC
-		    && sechdrs[i].sh_size)
+		if (!sect_empty(&sechdrs[i]))
 			nloaded++;
 	size[0] = ALIGN(sizeof(*sect_attrs)
 			+ nloaded * sizeof(sect_attrs->attrs[0]),
@@ -1206,9 +1077,7 @@ static void add_sect_attrs(struct module *mod, unsigned int nsect,
 	sattr = &sect_attrs->attrs[0];
 	gattr = &sect_attrs->grp.attrs[0];
 	for (i = 0; i < nsect; i++) {
-		if (! (sechdrs[i].sh_flags & SHF_ALLOC))
-			continue;
-		if (!sechdrs[i].sh_size)
+		if (sect_empty(&sechdrs[i]))
 			continue;
 		sattr->address = sechdrs[i].sh_addr;
 		sattr->name = kstrdup(secstrings + sechdrs[i].sh_name,
@@ -1292,7 +1161,7 @@ static void add_notes_attrs(struct module *mod, unsigned int nsect,
 	/* Count notes sections and allocate structures.  */
 	notes = 0;
 	for (i = 0; i < nsect; i++)
-		if ((sechdrs[i].sh_flags & SHF_ALLOC) &&
+		if (!sect_empty(&sechdrs[i]) &&
 		    (sechdrs[i].sh_type == SHT_NOTE))
 			++notes;
 
@@ -1308,7 +1177,7 @@ static void add_notes_attrs(struct module *mod, unsigned int nsect,
 	notes_attrs->notes = notes;
 	nattr = &notes_attrs->attrs[0];
 	for (loaded = i = 0; i < nsect; ++i) {
-		if (!(sechdrs[i].sh_flags & SHF_ALLOC))
+		if (sect_empty(&sechdrs[i]))
 			continue;
 		if (sechdrs[i].sh_type == SHT_NOTE) {
 			nattr->attr.name = mod->sect_attrs->attrs[loaded].name;
@@ -1530,9 +1399,9 @@ static void free_module(struct module *mod)
 	kfree(mod->args);
 	if (mod->percpu)
 		percpu_modfree(mod->percpu);
-#if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
+#if defined(CONFIG_MODULE_UNLOAD)
 	if (mod->refptr)
-		percpu_modfree(mod->refptr);
+		free_percpu(mod->refptr);
 #endif
 	/* Free lock-classes: */
 	lockdep_free_key_range(mod->module_core, mod->core_size);
@@ -2046,9 +1915,7 @@ static void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
 	unsigned int i;
 
 	/* only scan the sections containing data */
-	kmemleak_scan_area(mod->module_core, (unsigned long)mod -
-			   (unsigned long)mod->module_core,
-			   sizeof(struct module), GFP_KERNEL);
+	kmemleak_scan_area(mod, sizeof(struct module), GFP_KERNEL);
 
 	for (i = 1; i < hdr->e_shnum; i++) {
 		if (!(sechdrs[i].sh_flags & SHF_ALLOC))
@@ -2057,8 +1924,7 @@ static void kmemleak_load_module(struct module *mod, Elf_Ehdr *hdr,
 		    && strncmp(secstrings + sechdrs[i].sh_name, ".bss", 4) != 0)
 			continue;
 
-		kmemleak_scan_area(mod->module_core, sechdrs[i].sh_addr -
-				   (unsigned long)mod->module_core,
+		kmemleak_scan_area((void *)sechdrs[i].sh_addr,
 				   sechdrs[i].sh_size, GFP_KERNEL);
 	}
 }
@@ -2298,9 +2164,8 @@ static noinline struct module *load_module(void __user *umod,
 	mod = (void *)sechdrs[modindex].sh_addr;
 	kmemleak_load_module(mod, hdr, sechdrs, secstrings);
 
-#if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
-	mod->refptr = percpu_modalloc(sizeof(local_t), __alignof__(local_t),
-				      mod->name);
+#if defined(CONFIG_MODULE_UNLOAD)
+	mod->refptr = alloc_percpu(struct module_ref);
 	if (!mod->refptr) {
 		err = -ENOMEM;
 		goto free_init;
@@ -2386,6 +2251,12 @@ static noinline struct module *load_module(void __user *umod,
 					 "_ftrace_events",
 					 sizeof(*mod->trace_events),
 					 &mod->num_trace_events);
+	/*
+	 * This section contains pointers to allocated objects in the trace
+	 * code and not scanning it leads to false positives.
+	 */
+	kmemleak_scan_area(mod->trace_events, sizeof(*mod->trace_events) *
+			   mod->num_trace_events, GFP_KERNEL);
 #endif
 #ifdef CONFIG_FTRACE_MCOUNT_RECORD
 	/* sechdrs[0].sh_size is always zero */
@@ -2526,8 +2397,8 @@ static noinline struct module *load_module(void __user *umod,
 	kobject_put(&mod->mkobj.kobj);
  free_unload:
 	module_unload_free(mod);
-#if defined(CONFIG_MODULE_UNLOAD) && defined(CONFIG_SMP)
-	percpu_modfree(mod->refptr);
+#if defined(CONFIG_MODULE_UNLOAD)
+	free_percpu(mod->refptr);
  free_init:
 #endif
 	module_free(mod, mod->module_init);

@@ -19,7 +19,6 @@
 #define __XFS_LOG_PRIV_H__
 
 struct xfs_buf;
-struct ktrace;
 struct log;
 struct xlog_ticket;
 struct xfs_buf_cancel;
@@ -135,6 +134,12 @@ static inline uint xlog_get_client_id(__be32 i)
 #define XLOG_TIC_INITED		0x1	/* has been initialized */
 #define XLOG_TIC_PERM_RESERV	0x2	/* permanent reservation */
 #define XLOG_TIC_IN_Q		0x4
+
+#define XLOG_TIC_FLAGS \
+	{ XLOG_TIC_INITED,	"XLOG_TIC_INITED" }, \
+	{ XLOG_TIC_PERM_RESERV,	"XLOG_TIC_PERM_RESERV" }, \
+	{ XLOG_TIC_IN_Q,	"XLOG_TIC_IN_Q" }
+
 #endif	/* __KERNEL__ */
 
 #define XLOG_UNMOUNT_TYPE	0x556e	/* Un for Unmount */
@@ -361,9 +366,6 @@ typedef struct xlog_in_core {
 	int			ic_bwritecnt;
 	unsigned short		ic_state;
 	char			*ic_datap;	/* pointer to iclog data */
-#ifdef XFS_LOG_TRACE
-	struct ktrace		*ic_trace;
-#endif
 
 	/* Callback structures need their own cacheline */
 	spinlock_t		ic_callback_lock ____cacheline_aligned_in_smp;
@@ -429,10 +431,6 @@ typedef struct log {
 	int			l_grant_write_cycle;
 	int			l_grant_write_bytes;
 
-#ifdef XFS_LOG_TRACE
-	struct ktrace		*l_grant_trace;
-#endif
-
 	/* The following field are used for debugging; need to hold icloglock */
 #ifdef DEBUG
 	char			*l_iclog_bak[XLOG_MAX_ICLOGS];
@@ -445,22 +443,11 @@ typedef struct log {
 
 /* common routines */
 extern xfs_lsn_t xlog_assign_tail_lsn(struct xfs_mount *mp);
-extern int	 xlog_find_tail(xlog_t	*log,
-				xfs_daddr_t *head_blk,
-				xfs_daddr_t *tail_blk);
 extern int	 xlog_recover(xlog_t *log);
 extern int	 xlog_recover_finish(xlog_t *log);
 extern void	 xlog_pack_data(xlog_t *log, xlog_in_core_t *iclog, int);
-extern struct xfs_buf *xlog_get_bp(xlog_t *, int);
-extern void	 xlog_put_bp(struct xfs_buf *);
 
 extern kmem_zone_t	*xfs_log_ticket_zone;
-
-/* iclog tracing */
-#define XLOG_TRACE_GRAB_FLUSH  1
-#define XLOG_TRACE_REL_FLUSH   2
-#define XLOG_TRACE_SLEEP_FLUSH 3
-#define XLOG_TRACE_WAKE_FLUSH  4
 
 /*
  * Unmount record type is used as a pseudo transaction type for the ticket.

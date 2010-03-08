@@ -177,7 +177,7 @@ void parse_proc_kallsyms(char *file, unsigned int size __unused)
 		func_count++;
 	}
 
-	func_list = malloc_or_die(sizeof(*func_list) * func_count + 1);
+	func_list = malloc_or_die(sizeof(*func_list) * (func_count + 1));
 
 	i = 0;
 	while (list) {
@@ -1477,7 +1477,7 @@ process_fields(struct event *event, struct print_flag_sym **list, char **tok)
 			goto out_free;
 
 		field = malloc_or_die(sizeof(*field));
-		memset(field, 0, sizeof(field));
+		memset(field, 0, sizeof(*field));
 
 		value = arg_eval(arg);
 		field->value = strdup(value);
@@ -1924,6 +1924,15 @@ void *raw_field_ptr(struct event *event, const char *name, void *data)
 	field = find_any_field(event, name);
 	if (!field)
 		return NULL;
+
+	if (field->flags & FIELD_IS_STRING) {
+		int offset;
+
+		offset = *(int *)(data + field->offset);
+		offset &= 0xffff;
+
+		return data + offset;
+	}
 
 	return data + field->offset;
 }
@@ -3276,4 +3285,19 @@ void parse_set_info(int nr_cpus, int long_sz)
 {
 	cpus = nr_cpus;
 	long_size = long_sz;
+}
+
+int common_pc(struct scripting_context *context)
+{
+	return parse_common_pc(context->event_data);
+}
+
+int common_flags(struct scripting_context *context)
+{
+	return parse_common_flags(context->event_data);
+}
+
+int common_lock_depth(struct scripting_context *context)
+{
+	return parse_common_lock_depth(context->event_data);
 }

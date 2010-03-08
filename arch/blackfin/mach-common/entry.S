@@ -713,6 +713,8 @@ ENTRY(_system_call)
 	cc = BITTST(r7, TIF_RESTORE_SIGMASK);
 	if cc jump .Lsyscall_do_signals;
 	cc = BITTST(r7, TIF_SIGPENDING);
+	if cc jump .Lsyscall_do_signals;
+	cc = BITTST(r7, TIF_NOTIFY_RESUME);
 	if !cc jump .Lsyscall_really_exit;
 .Lsyscall_do_signals:
 	/* Reenable interrupts.  */
@@ -721,7 +723,7 @@ ENTRY(_system_call)
 
 	r0 = sp;
 	SP += -12;
-	call _do_signal;
+	call _do_notify_resume;
 	SP += 12;
 
 .Lsyscall_really_exit:
@@ -814,8 +816,8 @@ ENDPROC(_resume)
 
 ENTRY(_ret_from_exception)
 #ifdef CONFIG_IPIPE
-	p2.l = _per_cpu__ipipe_percpu_domain;
-	p2.h = _per_cpu__ipipe_percpu_domain;
+	p2.l = _ipipe_percpu_domain;
+	p2.h = _ipipe_percpu_domain;
 	r0.l = _ipipe_root;
 	r0.h = _ipipe_root;
 	r2 = [p2];

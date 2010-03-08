@@ -16,15 +16,23 @@
 
 #include <linux/ioctl.h>
 
+/* The magic IOCTL value for this interface. */
 #define GIGASET_IOCTL 0x47
 
-#define GIGVER_DRIVER 0
-#define GIGVER_COMPAT 1
-#define GIGVER_FWBASE 2
+/* enable/disable device control via character device (lock out ISDN subsys) */
+#define GIGASET_REDIR    _IOWR(GIGASET_IOCTL, 0, int)
 
-#define GIGASET_REDIR    _IOWR (GIGASET_IOCTL, 0, int)
-#define GIGASET_CONFIG   _IOWR (GIGASET_IOCTL, 1, int)
-#define GIGASET_BRKCHARS _IOW  (GIGASET_IOCTL, 2, unsigned char[6]) //FIXME [6] okay?
-#define GIGASET_VERSION  _IOWR (GIGASET_IOCTL, 3, unsigned[4])
+/* enable adapter configuration mode (M10x only) */
+#define GIGASET_CONFIG   _IOWR(GIGASET_IOCTL, 1, int)
+
+/* set break characters (M105 only) */
+#define GIGASET_BRKCHARS _IOW(GIGASET_IOCTL, 2, unsigned char[6])
+
+/* get version information selected by arg[0] */
+#define GIGASET_VERSION  _IOWR(GIGASET_IOCTL, 3, unsigned[4])
+/* values for GIGASET_VERSION arg[0] */
+#define GIGVER_DRIVER 0		/* get driver version */
+#define GIGVER_COMPAT 1		/* get interface compatibility version */
+#define GIGVER_FWBASE 2		/* get base station firmware version */
 
 #endif

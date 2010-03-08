@@ -558,9 +558,7 @@ static void __init intcp_init(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(cp_lookups); i++)
-		clkdev_add(&cp_lookups[i]);
-
+	clkdev_add_table(cp_lookups, ARRAY_SIZE(cp_lookups));
 	platform_add_devices(intcp_devs, ARRAY_SIZE(intcp_devs));
 
 	for (i = 0; i < ARRAY_SIZE(amba_devs); i++) {

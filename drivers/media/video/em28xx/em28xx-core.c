@@ -216,7 +216,7 @@ int em28xx_write_reg(struct em28xx *dev, u16 reg, u8 val)
  * sets only some bits (specified by bitmask) of a register, by first reading
  * the actual value
  */
-static int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
+int em28xx_write_reg_bits(struct em28xx *dev, u16 reg, u8 val,
 				 u8 bitmask)
 {
 	int oldval;
@@ -691,9 +691,15 @@ int em28xx_set_outfmt(struct em28xx *dev)
 	if (em28xx_vbi_supported(dev) == 1) {
 		vinctrl |= EM28XX_VINCTRL_VBI_RAW;
 		em28xx_write_reg(dev, EM28XX_R34_VBI_START_H, 0x00);
-		em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
-		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, 0xb4);
-		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, 0x0c);
+		em28xx_write_reg(dev, EM28XX_R36_VBI_WIDTH, dev->vbi_width/4);
+		em28xx_write_reg(dev, EM28XX_R37_VBI_HEIGHT, dev->vbi_height);
+		if (dev->norm & V4L2_STD_525_60) {
+			/* NTSC */
+			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x09);
+		} else if (dev->norm & V4L2_STD_625_50) {
+			/* PAL */
+			em28xx_write_reg(dev, EM28XX_R35_VBI_START_V, 0x07);
+		}
 	}
 
 	return em28xx_write_reg(dev, EM28XX_R11_VINCTRL, vinctrl);
@@ -759,6 +765,13 @@ int em28xx_resolution_set(struct em28xx *dev)
 	int width, height;
 	width = norm_maxw(dev);
 	height = norm_maxh(dev);
+
+	/* Properly setup VBI */
+	dev->vbi_width = 720;
+	if (dev->norm & V4L2_STD_525_60)
+		dev->vbi_height = 12;
+	else
+		dev->vbi_height = 18;
 
 	if (!dev->progressive)
 		height >>= norm_maxh(dev);
@@ -1135,34 +1148,6 @@ void em28xx_wake_i2c(struct em28xx *dev)
 
 static LIST_HEAD(em28xx_devlist);
 static DEFINE_MUTEX(em28xx_devlist_mutex);
-
-struct em28xx *em28xx_get_device(int minor,
-				 enum v4l2_buf_type *fh_type,
-				 int *has_radio)
-{
-	struct em28xx *h, *dev = NULL;
-
-	*fh_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
-	*has_radio = 0;
-
-	mutex_lock(&em28xx_devlist_mutex);
-	list_for_each_entry(h, &em28xx_devlist, devlist) {
-		if (h->vdev->minor == minor)
-			dev = h;
-		if (h->vbi_dev && h->vbi_dev->minor == minor) {
-			dev = h;
-			*fh_type = V4L2_BUF_TYPE_VBI_CAPTURE;
-		}
-		if (h->radio_dev &&
-		    h->radio_dev->minor == minor) {
-			dev = h;
-			*has_radio = 1;
-		}
-	}
-	mutex_unlock(&em28xx_devlist_mutex);
-
-	return dev;
-}
 
 /*
  * em28xx_realease_resources()

@@ -5,12 +5,17 @@
 # Common support
 obj-y := id.o io.o control.o mux.o devices.o serial.o gpmc.o timer-gp.o
 
-omap-2-3-common				= irq.o sdrc.o omap_hwmod.o
+omap-2-3-common				= irq.o sdrc.o
+hwmod-common				= omap_hwmod.o \
+					  omap_hwmod_common_data.o
 prcm-common				= prcm.o powerdomain.o
-clock-common				= clock.o clockdomain.o
+clock-common				= clock.o clock_common_data.o \
+					  clockdomain.o clkt_dpll.o \
+					  clkt_clksel.o
 
-obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(prcm-common) $(clock-common)
-obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(prcm-common) $(clock-common)
+obj-$(CONFIG_ARCH_OMAP2) += $(omap-2-3-common) $(prcm-common) $(hwmod-common)
+obj-$(CONFIG_ARCH_OMAP3) += $(omap-2-3-common) $(prcm-common) $(hwmod-common)
+obj-$(CONFIG_ARCH_OMAP4) += $(prcm-common)
 
 obj-$(CONFIG_OMAP_MCBSP) += mcbsp.o
 
@@ -23,6 +28,13 @@ obj-$(CONFIG_ARCH_OMAP2420)		+= sram242x.o
 obj-$(CONFIG_ARCH_OMAP2430)		+= sram243x.o
 obj-$(CONFIG_ARCH_OMAP3)		+= sram34xx.o
 
+AFLAGS_sram242x.o			:=-Wa,-march=armv6
+AFLAGS_sram243x.o			:=-Wa,-march=armv6
+AFLAGS_sram34xx.o			:=-Wa,-march=armv7-a
+
+# Pin multiplexing
+obj-$(CONFIG_ARCH_OMAP3)		+= mux34xx.o
+
 # SMS/SDRC
 obj-$(CONFIG_ARCH_OMAP2)		+= sdrc2xxx.o
 # obj-$(CONFIG_ARCH_OMAP3)		+= sdrc3xxx.o
@@ -30,9 +42,13 @@ obj-$(CONFIG_ARCH_OMAP2)		+= sdrc2xxx.o
 # Power Management
 ifeq ($(CONFIG_PM),y)
 obj-$(CONFIG_ARCH_OMAP2)		+= pm24xx.o
-obj-$(CONFIG_ARCH_OMAP24XX)		+= sleep24xx.o
+obj-$(CONFIG_ARCH_OMAP2)		+= sleep24xx.o
 obj-$(CONFIG_ARCH_OMAP3)		+= pm34xx.o sleep34xx.o cpuidle34xx.o
 obj-$(CONFIG_PM_DEBUG)			+= pm-debug.o
+
+AFLAGS_sleep24xx.o			:=-Wa,-march=armv6
+AFLAGS_sleep34xx.o			:=-Wa,-march=armv7-a
+
 endif
 
 # PRCM
@@ -41,11 +57,31 @@ obj-$(CONFIG_ARCH_OMAP3)		+= cm.o
 obj-$(CONFIG_ARCH_OMAP4)		+= cm4xxx.o
 
 # Clock framework
-obj-$(CONFIG_ARCH_OMAP2)		+= clock24xx.o
-obj-$(CONFIG_ARCH_OMAP3)		+= clock34xx.o
+obj-$(CONFIG_ARCH_OMAP2)		+= $(clock-common) clock2xxx.o \
+					   clkt2xxx_sys.o \
+					   clkt2xxx_dpllcore.o \
+					   clkt2xxx_virt_prcm_set.o \
+					   clkt2xxx_apll.o clkt2xxx_osc.o
+obj-$(CONFIG_ARCH_OMAP2420)		+= clock2420_data.o
+obj-$(CONFIG_ARCH_OMAP2430)		+= clock2430.o clock2430_data.o
+obj-$(CONFIG_ARCH_OMAP3)		+= $(clock-common) clock3xxx.o \
+					   clock34xx.o clkt34xx_dpll3m2.o \
+					   clock3517.o clock36xx.o \
+					   dpll3xxx.o clock3xxx_data.o
+obj-$(CONFIG_ARCH_OMAP4)		+= $(clock-common) clock44xx_data.o \
+					   dpll3xxx.o
+
+# OMAP2 clock rate set data (old "OPP" data)
+obj-$(CONFIG_ARCH_OMAP2420)		+= opp2420_data.o
+obj-$(CONFIG_ARCH_OMAP2430)		+= opp2430_data.o
+
+# hwmod data
+obj-$(CONFIG_ARCH_OMAP2420)		+= omap_hwmod_2420_data.o
+obj-$(CONFIG_ARCH_OMAP2430)		+= omap_hwmod_2430_data.o
+obj-$(CONFIG_ARCH_OMAP3)		+= omap_hwmod_3xxx_data.o
 
 # EMU peripherals
-obj-$(CONFIG_OMAP3_EMU)		+= emu.o
+obj-$(CONFIG_OMAP3_EMU)			+= emu.o
 
 obj-$(CONFIG_OMAP_MBOX_FWK)		+= mailbox_mach.o
 mailbox_mach-objs			:= mailbox.o
@@ -55,48 +91,55 @@ iommu-$(CONFIG_ARCH_OMAP3)		+= omap3-iommu.o
 
 obj-$(CONFIG_OMAP_IOMMU)		+= $(iommu-y)
 
+i2c-omap-$(CONFIG_I2C_OMAP)		:= i2c.o
+obj-y					+= $(i2c-omap-m) $(i2c-omap-y)
+
 # Specific board support
 obj-$(CONFIG_MACH_OMAP_GENERIC)		+= board-generic.o
 obj-$(CONFIG_MACH_OMAP_H4)		+= board-h4.o
 obj-$(CONFIG_MACH_OMAP_2430SDP)		+= board-2430sdp.o \
-					   mmc-twl4030.o
+					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP_APOLLON)		+= board-apollon.o
 obj-$(CONFIG_MACH_OMAP3_BEAGLE)		+= board-omap3beagle.o \
-					   mmc-twl4030.o
+					   hsmmc.o
+obj-$(CONFIG_MACH_DEVKIT8000)     	+= board-devkit8000.o \
+                                           hsmmc.o
 obj-$(CONFIG_MACH_OMAP_LDP)		+= board-ldp.o \
-					   mmc-twl4030.o
+					   hsmmc.o
 obj-$(CONFIG_MACH_OVERO)		+= board-overo.o \
-					   mmc-twl4030.o
+					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP3EVM)		+= board-omap3evm.o \
-					   mmc-twl4030.o
+					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP3_PANDORA)	+= board-omap3pandora.o \
-					   mmc-twl4030.o
+					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP_3430SDP)		+= board-3430sdp.o \
-					   mmc-twl4030.o
+					   hsmmc.o \
+					   board-sdp-flash.o
 obj-$(CONFIG_MACH_NOKIA_N8X0)		+= board-n8x0.o
 obj-$(CONFIG_MACH_NOKIA_RX51)		+= board-rx51.o \
 					   board-rx51-sdram.o \
 					   board-rx51-peripherals.o \
-					   mmc-twl4030.o
+					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP_ZOOM2)		+= board-zoom2.o \
 					   board-zoom-peripherals.o \
-					   mmc-twl4030.o \
+					   hsmmc.o \
 					   board-zoom-debugboard.o
 obj-$(CONFIG_MACH_OMAP_ZOOM3)		+= board-zoom3.o \
 					   board-zoom-peripherals.o \
-					   mmc-twl4030.o \
+					   hsmmc.o \
 					   board-zoom-debugboard.o
 obj-$(CONFIG_MACH_OMAP_3630SDP)		+= board-3630sdp.o \
 					   board-zoom-peripherals.o \
-					   mmc-twl4030.o
+					   hsmmc.o
 obj-$(CONFIG_MACH_CM_T35)		+= board-cm-t35.o \
-					   mmc-twl4030.o
+					   hsmmc.o
 obj-$(CONFIG_MACH_IGEP0020)		+= board-igep0020.o \
-					   mmc-twl4030.o
-
+					   hsmmc.o
+obj-$(CONFIG_MACH_OMAP3_TOUCHBOOK)	+= board-omap3touchbook.o \
+					   hsmmc.o
 obj-$(CONFIG_MACH_OMAP_4430SDP)		+= board-4430sdp.o
 
-obj-$(CONFIG_MACH_OMAP3517EVM)     += board-am3517evm.o
+obj-$(CONFIG_MACH_OMAP3517EVM)		+= board-am3517evm.o
 
 # Platform specific device init code
 obj-y					+= usb-musb.o
@@ -105,6 +148,9 @@ obj-y					+= usb-ehci.o
 
 onenand-$(CONFIG_MTD_ONENAND_OMAP2)	:= gpmc-onenand.o
 obj-y					+= $(onenand-m) $(onenand-y)
+
+nand-$(CONFIG_MTD_NAND_OMAP2)		:= gpmc-nand.o
+obj-y					+= $(nand-m) $(nand-y)
 
 smc91x-$(CONFIG_SMC91X)			:= gpmc-smc91x.o
 obj-y					+= $(smc91x-m) $(smc91x-y)

@@ -46,6 +46,9 @@ struct kretprobe_blackpoint kretprobe_blacklist[] = {{NULL, NULL}};
 
 int __kprobes arch_prepare_kprobe(struct kprobe *p)
 {
+	if ((unsigned long) p->addr & 0x3UL)
+		return -EILSEQ;
+
 	p->ainsn.insn[0] = *p->addr;
 	flushi(&p->ainsn.insn[0]);
 

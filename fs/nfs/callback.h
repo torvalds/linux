@@ -106,6 +106,27 @@ struct cb_sequenceres {
 extern unsigned nfs4_callback_sequence(struct cb_sequenceargs *args,
 				       struct cb_sequenceres *res);
 
+extern int nfs41_validate_delegation_stateid(struct nfs_delegation *delegation,
+					     const nfs4_stateid *stateid);
+
+#define RCA4_TYPE_MASK_RDATA_DLG	0
+#define RCA4_TYPE_MASK_WDATA_DLG	1
+
+struct cb_recallanyargs {
+	struct sockaddr	*craa_addr;
+	uint32_t	craa_objs_to_keep;
+	uint32_t	craa_type_mask;
+};
+
+extern unsigned nfs4_callback_recallany(struct cb_recallanyargs *args, void *dummy);
+
+struct cb_recallslotargs {
+	struct sockaddr	*crsa_addr;
+	uint32_t	crsa_target_max_slots;
+};
+extern unsigned nfs4_callback_recallslot(struct cb_recallslotargs *args,
+					  void *dummy);
+
 #endif /* CONFIG_NFS_V4_1 */
 
 extern __be32 nfs4_callback_getattr(struct cb_getattrargs *args, struct cb_getattrres *res);
@@ -114,8 +135,9 @@ extern __be32 nfs4_callback_recall(struct cb_recallargs *args, void *dummy);
 #ifdef CONFIG_NFS_V4
 extern int nfs_callback_up(u32 minorversion, struct rpc_xprt *xprt);
 extern void nfs_callback_down(int minorversion);
+extern int nfs4_validate_delegation_stateid(struct nfs_delegation *delegation,
+					    const nfs4_stateid *stateid);
 #endif /* CONFIG_NFS_V4 */
-
 /*
  * nfs41: Callbacks are expected to not cause substantial latency,
  * so we limit their concurrency to 1 by setting up the maximum number

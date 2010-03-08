@@ -906,17 +906,6 @@ void free_pipe_info(struct inode *inode)
 }
 
 static struct vfsmount *pipe_mnt __read_mostly;
-static int pipefs_delete_dentry(struct dentry *dentry)
-{
-	/*
-	 * At creation time, we pretended this dentry was hashed
-	 * (by clearing DCACHE_UNHASHED bit in d_flags)
-	 * At delete time, we restore the truth : not hashed.
-	 * (so that dput() can proceed correctly)
-	 */
-	dentry->d_flags |= DCACHE_UNHASHED;
-	return 0;
-}
 
 /*
  * pipefs_dname() is called from d_path().
@@ -928,7 +917,6 @@ static char *pipefs_dname(struct dentry *dentry, char *buffer, int buflen)
 }
 
 static const struct dentry_operations pipefs_dentry_operations = {
-	.d_delete	= pipefs_delete_dentry,
 	.d_dname	= pipefs_dname,
 };
 
@@ -974,7 +962,7 @@ struct file *create_write_pipe(int flags)
 	int err;
 	struct inode *inode;
 	struct file *f;
-	struct dentry *dentry;
+	struct path path;
 	struct qstr name = { .name = "" };
 
 	err = -ENFILE;
@@ -983,21 +971,16 @@ struct file *create_write_pipe(int flags)
 		goto err;
 
 	err = -ENOMEM;
-	dentry = d_alloc(pipe_mnt->mnt_sb->s_root, &name);
-	if (!dentry)
+	path.dentry = d_alloc(pipe_mnt->mnt_sb->s_root, &name);
+	if (!path.dentry)
 		goto err_inode;
+	path.mnt = mntget(pipe_mnt);
 
-	dentry->d_op = &pipefs_dentry_operations;
-	/*
-	 * We dont want to publish this dentry into global dentry hash table.
-	 * We pretend dentry is already hashed, by unsetting DCACHE_UNHASHED
-	 * This permits a working /proc/$pid/fd/XXX on pipes
-	 */
-	dentry->d_flags &= ~DCACHE_UNHASHED;
-	d_instantiate(dentry, inode);
+	path.dentry->d_op = &pipefs_dentry_operations;
+	d_instantiate(path.dentry, inode);
 
 	err = -ENFILE;
-	f = alloc_file(pipe_mnt, dentry, FMODE_WRITE, &write_pipefifo_fops);
+	f = alloc_file(&path, FMODE_WRITE, &write_pipefifo_fops);
 	if (!f)
 		goto err_dentry;
 	f->f_mapping = inode->i_mapping;
@@ -1009,7 +992,7 @@ struct file *create_write_pipe(int flags)
 
  err_dentry:
 	free_pipe_info(inode);
-	dput(dentry);
+	path_put(&path);
 	return ERR_PTR(err);
 
  err_inode:
@@ -1028,20 +1011,14 @@ void free_write_pipe(struct file *f)
 
 struct file *create_read_pipe(struct file *wrf, int flags)
 {
-	struct file *f = get_empty_filp();
+	/* Grab pipe from the writer */
+	struct file *f = alloc_file(&wrf->f_path, FMODE_READ,
+				    &read_pipefifo_fops);
 	if (!f)
 		return ERR_PTR(-ENFILE);
 
-	/* Grab pipe from the writer */
-	f->f_path = wrf->f_path;
 	path_get(&wrf->f_path);
-	f->f_mapping = wrf->f_path.dentry->d_inode->i_mapping;
-
-	f->f_pos = 0;
 	f->f_flags = O_RDONLY | (flags & O_NONBLOCK);
-	f->f_op = &read_pipefifo_fops;
-	f->f_mode = FMODE_READ;
-	f->f_version = 0;
 
 	return f;
 }

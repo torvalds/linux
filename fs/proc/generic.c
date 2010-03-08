@@ -291,19 +291,17 @@ static const struct inode_operations proc_file_inode_operations = {
  * returns the struct proc_dir_entry for "/proc/tty/driver", and
  * returns "serial" in residual.
  */
-static int xlate_proc_name(const char *name,
-			   struct proc_dir_entry **ret, const char **residual)
+static int __xlate_proc_name(const char *name, struct proc_dir_entry **ret,
+			     const char **residual)
 {
 	const char     		*cp = name, *next;
 	struct proc_dir_entry	*de;
 	int			len;
-	int 			rtn = 0;
 
 	de = *ret;
 	if (!de)
 		de = &proc_root;
 
-	spin_lock(&proc_subdir_lock);
 	while (1) {
 		next = strchr(cp, '/');
 		if (!next)
@@ -315,16 +313,25 @@ static int xlate_proc_name(const char *name,
 				break;
 		}
 		if (!de) {
-			rtn = -ENOENT;
-			goto out;
+			WARN(1, "name '%s'\n", name);
+			return -ENOENT;
 		}
 		cp += len + 1;
 	}
 	*residual = cp;
 	*ret = de;
-out:
+	return 0;
+}
+
+static int xlate_proc_name(const char *name, struct proc_dir_entry **ret,
+			   const char **residual)
+{
+	int rv;
+
+	spin_lock(&proc_subdir_lock);
+	rv = __xlate_proc_name(name, ret, residual);
 	spin_unlock(&proc_subdir_lock);
-	return rtn;
+	return rv;
 }
 
 static DEFINE_IDA(proc_inum_ida);
@@ -429,7 +436,7 @@ struct dentry *proc_lookup_de(struct proc_dir_entry *de, struct inode *dir,
 			unsigned int ino;
 
 			ino = de->low_ino;
-			de_get(de);
+			pde_get(de);
 			spin_unlock(&proc_subdir_lock);
 			error = -EINVAL;
 			inode = proc_get_inode(dir->i_sb, ino, de);
@@ -445,7 +452,7 @@ out_unlock:
 		return NULL;
 	}
 	if (de)
-		de_put(de);
+		pde_put(de);
 	return ERR_PTR(error);
 }
 
@@ -509,17 +516,17 @@ int proc_readdir_de(struct proc_dir_entry *de, struct file *filp, void *dirent,
 				struct proc_dir_entry *next;
 
 				/* filldir passes info to user space */
-				de_get(de);
+				pde_get(de);
 				spin_unlock(&proc_subdir_lock);
 				if (filldir(dirent, de->name, de->namelen, filp->f_pos,
 					    de->low_ino, de->mode >> 12) < 0) {
-					de_put(de);
+					pde_put(de);
 					goto out;
 				}
 				spin_lock(&proc_subdir_lock);
 				filp->f_pos++;
 				next = de->next;
-				de_put(de);
+				pde_put(de);
 				de = next;
 			} while (de);
 			spin_unlock(&proc_subdir_lock);
@@ -662,6 +669,7 @@ struct proc_dir_entry *proc_symlink(const char *name,
 	}
 	return ent;
 }
+EXPORT_SYMBOL(proc_symlink);
 
 struct proc_dir_entry *proc_mkdir_mode(const char *name, mode_t mode,
 		struct proc_dir_entry *parent)
@@ -700,6 +708,7 @@ struct proc_dir_entry *proc_mkdir(const char *name,
 {
 	return proc_mkdir_mode(name, S_IRUGO | S_IXUGO, parent);
 }
+EXPORT_SYMBOL(proc_mkdir);
 
 struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 					 struct proc_dir_entry *parent)
@@ -728,6 +737,7 @@ struct proc_dir_entry *create_proc_entry(const char *name, mode_t mode,
 	}
 	return ent;
 }
+EXPORT_SYMBOL(create_proc_entry);
 
 struct proc_dir_entry *proc_create_data(const char *name, mode_t mode,
 					struct proc_dir_entry *parent,
@@ -762,8 +772,9 @@ out_free:
 out:
 	return NULL;
 }
+EXPORT_SYMBOL(proc_create_data);
 
-void free_proc_entry(struct proc_dir_entry *de)
+static void free_proc_entry(struct proc_dir_entry *de)
 {
 	unsigned int ino = de->low_ino;
 
@@ -777,6 +788,12 @@ void free_proc_entry(struct proc_dir_entry *de)
 	kfree(de);
 }
 
+void pde_put(struct proc_dir_entry *pde)
+{
+	if (atomic_dec_and_test(&pde->count))
+		free_proc_entry(pde);
+}
+
 /*
  * Remove a /proc entry and free it if it's not currently in use.
  */
@@ -787,11 +804,13 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 	const char *fn = name;
 	int len;
 
-	if (xlate_proc_name(name, &parent, &fn) != 0)
+	spin_lock(&proc_subdir_lock);
+	if (__xlate_proc_name(name, &parent, &fn) != 0) {
+		spin_unlock(&proc_subdir_lock);
 		return;
+	}
 	len = strlen(fn);
 
-	spin_lock(&proc_subdir_lock);
 	for (p = &parent->subdir; *p; p=&(*p)->next ) {
 		if (proc_match(len, fn, *p)) {
 			de = *p;
@@ -801,8 +820,10 @@ void remove_proc_entry(const char *name, struct proc_dir_entry *parent)
 		}
 	}
 	spin_unlock(&proc_subdir_lock);
-	if (!de)
+	if (!de) {
+		WARN(1, "name '%s'\n", name);
 		return;
+	}
 
 	spin_lock(&de->pde_unload_lock);
 	/*
@@ -845,6 +866,6 @@ continue_removing:
 	WARN(de->subdir, KERN_WARNING "%s: removing non-empty directory "
 			"'%s/%s', leaking at least '%s'\n", __func__,
 			de->parent->name, de->name, de->subdir->name);
-	if (atomic_dec_and_test(&de->count))
-		free_proc_entry(de);
+	pde_put(de);
 }
+EXPORT_SYMBOL(remove_proc_entry);

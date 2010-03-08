@@ -126,10 +126,22 @@
 #define CX18_625_LINE_ENC_YUV_BUFSIZE	(CX18_UNIT_ENC_YUV_BUFSIZE * 576/32)
 #define CX18_525_LINE_ENC_YUV_BUFSIZE	(CX18_UNIT_ENC_YUV_BUFSIZE * 480/32)
 
+/* IDX buffer size should be a multiple of the index entry size from the chip */
+struct cx18_enc_idx_entry {
+	__le32 length;
+	__le32 offset_low;
+	__le32 offset_high;
+	__le32 flags;
+	__le32 pts_low;
+	__le32 pts_high;
+} __attribute__ ((packed));
+#define CX18_UNIT_ENC_IDX_BUFSIZE \
+	(sizeof(struct cx18_enc_idx_entry) * V4L2_ENC_IDX_ENTRIES)
+
 /* DMA buffer, default size in kB allocated */
 #define CX18_DEFAULT_ENC_TS_BUFSIZE   32
 #define CX18_DEFAULT_ENC_MPG_BUFSIZE  32
-#define CX18_DEFAULT_ENC_IDX_BUFSIZE  32
+#define CX18_DEFAULT_ENC_IDX_BUFSIZE  (CX18_UNIT_ENC_IDX_BUFSIZE * 1 / 1024 + 1)
 #define CX18_DEFAULT_ENC_YUV_BUFSIZE  (CX18_UNIT_ENC_YUV_BUFSIZE * 3 / 1024 + 1)
 #define CX18_DEFAULT_ENC_PCM_BUFSIZE   4
 
@@ -234,15 +246,7 @@
 #define CX18_WARN_DEV(dev, fmt, args...)     v4l2_warn(dev, fmt , ## args)
 #define CX18_INFO_DEV(dev, fmt, args...)     v4l2_info(dev, fmt , ## args)
 
-/* Values for CX18_API_DEC_PLAYBACK_SPEED mpeg_frame_type_mask parameter: */
-#define MPEG_FRAME_TYPE_IFRAME 1
-#define MPEG_FRAME_TYPE_IFRAME_PFRAME 3
-#define MPEG_FRAME_TYPE_ALL 7
-
-#define CX18_MAX_PGM_INDEX (400)
-
 extern int cx18_debug;
-
 
 struct cx18_options {
 	int megabytes[CX18_MAX_STREAMS]; /* Size in megabytes of each stream */
@@ -275,6 +279,18 @@ struct cx18_options {
 #define CX18_SLICED_TYPE_CAPTION_525    (4)
 #define CX18_SLICED_TYPE_WSS_625        (5)
 #define CX18_SLICED_TYPE_VPS            (7)
+
+/**
+ * list_entry_is_past_end - check if a previous loop cursor is off list end
+ * @pos:	the type * previously used as a loop cursor.
+ * @head:	the head for your list.
+ * @member:	the name of the list_struct within the struct.
+ *
+ * Check if the entry's list_head is the head of the list, thus it's not a
+ * real entry but was the loop cursor that walked past the end
+ */
+#define list_entry_is_past_end(pos, head, member) \
+	(&pos->member == (head))
 
 struct cx18_buffer {
 	struct list_head list;
@@ -558,6 +574,10 @@ struct cx18 {
 	int stream_buffers[CX18_MAX_STREAMS]; /* # of buffers for each stream */
 	int stream_buf_size[CX18_MAX_STREAMS]; /* Stream buffer size */
 	struct cx18_stream streams[CX18_MAX_STREAMS]; 	/* Stream data */
+	struct snd_cx18_card *alsa; /* ALSA interface for PCM capture stream */
+	void (*pcm_announce_callback)(struct snd_cx18_card *card, u8 *pcm_data,
+				      size_t num_bytes);
+
 	unsigned long i_flags;  /* global cx18 flags */
 	atomic_t ana_capturing;	/* count number of active analog capture streams */
 	atomic_t tot_capturing;	/* total count number of active capture streams */
@@ -574,12 +594,6 @@ struct cx18 {
 	void __iomem *enc_mem, *reg_mem;
 
 	struct vbi_info vbi;
-
-	u32 pgm_info_offset;
-	u32 pgm_info_num;
-	u32 pgm_info_write_idx;
-	u32 pgm_info_read_idx;
-	struct v4l2_enc_idx_entry pgm_info[CX18_MAX_PGM_INDEX];
 
 	u64 mpg_data_received;
 	u64 vbi_data_inserted;
@@ -623,12 +637,18 @@ struct cx18 {
 	u32 active_input;
 	v4l2_std_id std;
 	v4l2_std_id tuner_std;	/* The norm of the tuner (fixed) */
+
+	/* Used for cx18-alsa module loading */
+	struct work_struct request_module_wk;
 };
 
 static inline struct cx18 *to_cx18(struct v4l2_device *v4l2_dev)
 {
 	return container_of(v4l2_dev, struct cx18, v4l2_dev);
 }
+
+/* cx18 extensions to be loaded */
+extern int (*cx18_ext_init)(struct cx18 *);
 
 /* Globals */
 extern int cx18_first_minor;

@@ -258,7 +258,8 @@ struct conf_rx_settings {
 #define CONF_TX_MAX_RATE_CLASSES       8
 
 #define CONF_TX_RATE_MASK_UNSPECIFIED  0
-#define CONF_TX_RATE_MASK_ALL          0x1eff
+#define CONF_TX_RATE_MASK_BASIC        (CONF_HW_BIT_RATE_1MBPS | \
+					CONF_HW_BIT_RATE_2MBPS)
 #define CONF_TX_RATE_RETRY_LIMIT       10
 
 struct conf_tx_rate_class {
@@ -722,31 +723,6 @@ struct conf_conn_settings {
 	u8 psm_entry_retries;
 };
 
-#define CONF_SR_ERR_TBL_MAX_VALUES   14
-
-struct conf_mart_reflex_err_table {
-	/*
-	 * Length of the error table values table.
-	 *
-	 * Range: 0 - CONF_SR_ERR_TBL_MAX_VALUES
-	 */
-	u8 len;
-
-	/*
-	 * Smart Reflex error table upper limit.
-	 *
-	 * Range: s8
-	 */
-	s8 upper_limit;
-
-	/*
-	 * Smart Reflex error table values.
-	 *
-	 * Range: s8
-	 */
-	s8 values[CONF_SR_ERR_TBL_MAX_VALUES];
-};
-
 enum {
 	CONF_REF_CLK_19_2_E,
 	CONF_REF_CLK_26_E,
@@ -759,64 +735,6 @@ enum single_dual_band_enum {
 	CONF_DUAL_BAND
 };
 
-struct conf_general_parms {
-	/*
-	 * RF Reference Clock type / speed
-	 *
-	 * Range: CONF_REF_CLK_*
-	 */
-	u8 ref_clk;
-
-	/*
-	 * Settling time of the reference clock after boot.
-	 *
-	 * Range: u8
-	 */
-	u8 settling_time;
-
-	/*
-	 * Flag defining whether clock is valid on wakeup.
-	 *
-	 * Range: 0 - not valid on wakeup, 1 - valid on wakeup
-	 */
-	u8 clk_valid_on_wakeup;
-
-	/*
-	 * DC-to-DC mode.
-	 *
-	 * Range: Unknown
-	 */
-	u8 dc2dcmode;
-
-	/*
-	 * Flag defining whether used as single or dual-band.
-	 *
-	 * Range: CONF_SINGLE_BAND, CONF_DUAL_BAND
-	 */
-	u8 single_dual_band;
-
-	/*
-	 * TX bip fem autodetect flag.
-	 *
-	 * Range: Unknown
-	 */
-	u8 tx_bip_fem_autodetect;
-
-	/*
-	 * TX bip gem manufacturer.
-	 *
-	 * Range: Unknown
-	 */
-	u8 tx_bip_fem_manufacturer;
-
-	/*
-	 * Settings flags.
-	 *
-	 * Range: Unknown
-	 */
-	u8 settings;
-};
-
 #define CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE 15
 #define CONF_NUMBER_OF_SUB_BANDS_5  7
 #define CONF_NUMBER_OF_RATE_GROUPS  6
@@ -825,87 +743,43 @@ struct conf_general_parms {
 
 struct conf_radio_parms {
 	/*
-	 * Static radio parameters for 2.4GHz
+	 * FEM parameter set to use
 	 *
-	 * Range: unknown
+	 * Range: 0 or 1
 	 */
-	u8 rx_trace_loss;
-	u8 tx_trace_loss;
-	s8 rx_rssi_and_proc_compens[CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE];
-
-	/*
-	 * Static radio parameters for 5GHz
-	 *
-	 * Range: unknown
-	 */
-	u8 rx_trace_loss_5[CONF_NUMBER_OF_SUB_BANDS_5];
-	u8 tx_trace_loss_5[CONF_NUMBER_OF_SUB_BANDS_5];
-	s8 rx_rssi_and_proc_compens_5[CONF_RSSI_AND_PROCESS_COMPENSATION_SIZE];
-
-	/*
-	 * Dynamic radio parameters for 2.4GHz
-	 *
-	 * Range: unknown
-	 */
-	s16 tx_ref_pd_voltage;
-	s8  tx_ref_power;
-	s8  tx_offset_db;
-
-	s8  tx_rate_limits_normal[CONF_NUMBER_OF_RATE_GROUPS];
-	s8  tx_rate_limits_degraded[CONF_NUMBER_OF_RATE_GROUPS];
-
-	s8  tx_channel_limits_11b[CONF_NUMBER_OF_CHANNELS_2_4];
-	s8  tx_channel_limits_ofdm[CONF_NUMBER_OF_CHANNELS_2_4];
-	s8  tx_pdv_rate_offsets[CONF_NUMBER_OF_RATE_GROUPS];
-
-	u8  tx_ibias[CONF_NUMBER_OF_RATE_GROUPS];
-	u8  rx_fem_insertion_loss;
-
-	/*
-	 * Dynamic radio parameters for 5GHz
-	 *
-	 * Range: unknown
-	 */
-	s16 tx_ref_pd_voltage_5[CONF_NUMBER_OF_SUB_BANDS_5];
-	s8  tx_ref_power_5[CONF_NUMBER_OF_SUB_BANDS_5];
-	s8  tx_offset_db_5[CONF_NUMBER_OF_SUB_BANDS_5];
-
-	s8  tx_rate_limits_normal_5[CONF_NUMBER_OF_RATE_GROUPS];
-	s8  tx_rate_limits_degraded_5[CONF_NUMBER_OF_RATE_GROUPS];
-
-	s8  tx_channel_limits_ofdm_5[CONF_NUMBER_OF_CHANNELS_5];
-	s8  tx_pdv_rate_offsets_5[CONF_NUMBER_OF_RATE_GROUPS];
-
-	/* FIXME: this is inconsistent with the types for 2.4GHz */
-	s8  tx_ibias_5[CONF_NUMBER_OF_RATE_GROUPS];
-	s8  rx_fem_insertion_loss_5[CONF_NUMBER_OF_SUB_BANDS_5];
+	u8 fem;
 };
 
-#define CONF_SR_ERR_TBL_COUNT        3
-
 struct conf_init_settings {
-	/*
-	 * Configure Smart Reflex error table values.
-	 */
-	struct conf_mart_reflex_err_table sr_err_tbl[CONF_SR_ERR_TBL_COUNT];
-
-	/*
-	 * Smart Reflex enable flag.
-	 *
-	 * Range: 1 - Smart Reflex enabled, 0 - Smart Reflex disabled
-	 */
-	u8 sr_enable;
-
-	/*
-	 * Configure general parameters.
-	 */
-	struct conf_general_parms genparam;
-
 	/*
 	 * Configure radio parameters.
 	 */
 	struct conf_radio_parms radioparam;
 
+};
+
+struct conf_itrim_settings {
+	/* enable dco itrim */
+	u8 enable;
+
+	/* moderation timeout in microsecs from the last TX */
+	u32 timeout;
+};
+
+struct conf_pm_config_settings {
+	/*
+	 * Host clock settling time
+	 *
+	 * Range: 0 - 30000 us
+	 */
+	u32 host_clk_settling_time;
+
+	/*
+	 * Host fast wakeup support
+	 *
+	 * Range: true, false
+	 */
+	bool host_fast_wakeup_support;
 };
 
 struct conf_drv_settings {
@@ -914,6 +788,8 @@ struct conf_drv_settings {
 	struct conf_tx_settings tx;
 	struct conf_conn_settings conn;
 	struct conf_init_settings init;
+	struct conf_itrim_settings itrim;
+	struct conf_pm_config_settings pm_config;
 };
 
 #endif

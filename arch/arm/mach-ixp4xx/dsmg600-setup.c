@@ -33,6 +33,23 @@
 #include <asm/mach/time.h>
 #include <asm/gpio.h>
 
+#define DSMG600_SDA_PIN		5
+#define DSMG600_SCL_PIN		4
+
+/* DSM-G600 Timer Setting */
+#define DSMG600_FREQ		66000000
+
+/* Buttons */
+#define DSMG600_PB_GPIO		15	/* power button */
+#define DSMG600_RB_GPIO		3	/* reset button */
+
+/* Power control */
+#define DSMG600_PO_GPIO		2	/* power off */
+
+/* LEDs */
+#define DSMG600_LED_PWR_GPIO	0
+#define DSMG600_LED_WLAN_GPIO	14
+
 static struct flash_platform_data dsmg600_flash_data = {
 	.map_name		= "cfi_probe",
 	.width			= 2,

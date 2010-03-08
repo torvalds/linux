@@ -229,8 +229,7 @@ static int s3c_pcm_hw_params(struct snd_pcm_substream *substream,
 
 	spin_unlock_irqrestore(&pcm->lock, flags);
 
-	dev_dbg(pcm->dev, "PCMSOURCE_CLK-%lu SCLK=%ufs \
-				SCLK_DIV=%d SYNC_DIV=%d\n",
+	dev_dbg(pcm->dev, "PCMSOURCE_CLK-%lu SCLK=%ufs SCLK_DIV=%d SYNC_DIV=%d\n",
 				clk_get_rate(clk), pcm->sclk_per_fs,
 				sclk_div, sync_div);
 

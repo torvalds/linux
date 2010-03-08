@@ -255,9 +255,13 @@ enum {
  *       in HD-audio specification
  */
 #define AC_PINCAP_HDMI			(1<<7)	/* HDMI pin */
+#define AC_PINCAP_DP			(1<<24)	/* DisplayPort pin, can
+						 * coexist with AC_PINCAP_HDMI
+						 */
 #define AC_PINCAP_VREF			(0x37<<8)
 #define AC_PINCAP_VREF_SHIFT		8
 #define AC_PINCAP_EAPD			(1<<16)	/* EAPD capable */
+#define AC_PINCAP_HBR			(1<<27)	/* High Bit Rate */
 /* Vref status (used in pin cap) */
 #define AC_PINCAP_VREF_HIZ		(1<<0)	/* Hi-Z */
 #define AC_PINCAP_VREF_50		(1<<1)	/* 50% */
@@ -523,6 +527,9 @@ enum {
 /* max. codec address */
 #define HDA_MAX_CODEC_ADDRESS	0x0f
 
+/* max number of PCM devics per card */
+#define HDA_MAX_PCMS		10
+
 /*
  * generic arrays
  */
@@ -635,6 +642,7 @@ struct hda_bus {
 	unsigned int rirb_error:1;	/* error in codec communication */
 	unsigned int response_reset:1;	/* controller was reset */
 	unsigned int in_reset:1;	/* during reset operation */
+	unsigned int power_keep_link_on:1; /* don't power off HDA link */
 };
 
 /*
@@ -784,6 +792,7 @@ struct hda_codec {
 	u32 *wcaps;
 
 	struct snd_array mixers;	/* list of assigned mixer elements */
+	struct snd_array nids;		/* list of mapped mixer elements */
 
 	struct hda_cache_rec amp_cache;	/* cache for amp access */
 	struct hda_cache_rec cmd_cache;	/* cache for other commands */
@@ -812,6 +821,7 @@ struct hda_codec {
 	unsigned int pin_amp_workaround:1; /* pin out-amp takes index
 					    * (e.g. Conexant codecs)
 					    */
+	unsigned int no_trigger_sense:1; /* don't trigger at pin-sensing */
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	unsigned int power_on :1;	/* current (global) power-state */
 	unsigned int power_transition :1; /* power-state in transition */
@@ -892,6 +902,7 @@ int snd_hda_codec_set_pincfg(struct hda_codec *codec, hda_nid_t nid,
 			     unsigned int cfg);
 int snd_hda_add_pincfg(struct hda_codec *codec, struct snd_array *list,
 		       hda_nid_t nid, unsigned int cfg); /* for hwdep */
+void snd_hda_shutup_pins(struct hda_codec *codec);
 
 /*
  * Mixer

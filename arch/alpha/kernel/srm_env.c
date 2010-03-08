@@ -33,6 +33,7 @@
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 #include <asm/console.h>
 #include <asm/uaccess.h>
 #include <asm/machvec.h>
@@ -79,41 +80,40 @@ static srm_env_t	srm_named_entries[] = {
 static srm_env_t	srm_numbered_entries[256];
 
 
-static int
-srm_env_read(char *page, char **start, off_t off, int count, int *eof,
-		void *data)
+static int srm_env_proc_show(struct seq_file *m, void *v)
 {
-	int		nbytes;
 	unsigned long	ret;
 	srm_env_t	*entry;
+	char		*page;
 
-	if (off != 0) {
-		*eof = 1;
-		return 0;
-	}
+	entry = (srm_env_t *)m->private;
+	page = (char *)__get_free_page(GFP_USER);
+	if (!page)
+		return -ENOMEM;
 
-	entry	= (srm_env_t *) data;
-	ret	= callback_getenv(entry->id, page, count);
+	ret = callback_getenv(entry->id, page, PAGE_SIZE);
 
 	if ((ret >> 61) == 0) {
-		nbytes = (int) ret;
-		*eof = 1;
+		seq_write(m, page, ret);
+		ret = 0;
 	} else
-		nbytes = -EFAULT;
-
-	return nbytes;
+		ret = -EFAULT;
+	free_page((unsigned long)page);
+	return ret;
 }
 
-static int
-srm_env_write(struct file *file, const char __user *buffer, unsigned long count,
-		void *data)
+static int srm_env_proc_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, srm_env_proc_show, PDE(inode)->data);
+}
+
+static ssize_t srm_env_proc_write(struct file *file, const char __user *buffer,
+				  size_t count, loff_t *pos)
 {
 	int res;
-	srm_env_t	*entry;
+	srm_env_t	*entry = PDE(file->f_path.dentry->d_inode)->data;
 	char		*buf = (char *) __get_free_page(GFP_USER);
 	unsigned long	ret1, ret2;
-
-	entry = (srm_env_t *) data;
 
 	if (!buf)
 		return -ENOMEM;
@@ -139,6 +139,15 @@ srm_env_write(struct file *file, const char __user *buffer, unsigned long count,
 	free_page((unsigned long)buf);
 	return res;
 }
+
+static const struct file_operations srm_env_proc_fops = {
+	.owner		= THIS_MODULE,
+	.open		= srm_env_proc_open,
+	.read		= seq_read,
+	.llseek		= seq_lseek,
+	.release	= single_release,
+	.write		= srm_env_proc_write,
+};
 
 static void
 srm_env_cleanup(void)
@@ -245,15 +254,10 @@ srm_env_init(void)
 	 */
 	entry = srm_named_entries;
 	while (entry->name && entry->id) {
-		entry->proc_entry = create_proc_entry(entry->name,
-				0644, named_dir);
+		entry->proc_entry = proc_create_data(entry->name, 0644, named_dir,
+						     &srm_env_proc_fops, entry);
 		if (!entry->proc_entry)
 			goto cleanup;
-
-		entry->proc_entry->data		= (void *) entry;
-		entry->proc_entry->read_proc	= srm_env_read;
-		entry->proc_entry->write_proc	= srm_env_write;
-
 		entry++;
 	}
 
@@ -264,15 +268,12 @@ srm_env_init(void)
 		entry = &srm_numbered_entries[var_num];
 		entry->name = number[var_num];
 
-		entry->proc_entry = create_proc_entry(entry->name,
-				0644, numbered_dir);
+		entry->proc_entry = proc_create_data(entry->name, 0644, numbered_dir,
+						     &srm_env_proc_fops, entry);
 		if (!entry->proc_entry)
 			goto cleanup;
 
 		entry->id			= var_num;
-		entry->proc_entry->data		= (void *) entry;
-		entry->proc_entry->read_proc	= srm_env_read;
-		entry->proc_entry->write_proc	= srm_env_write;
 	}
 
 	printk(KERN_INFO "%s: version %s loaded successfully\n", NAME,

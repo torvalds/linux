@@ -370,7 +370,7 @@ static enum si_sm_result kcs_event(struct si_sm_data *kcs, long time)
 			return SI_SM_IDLE;
 
 	case KCS_START_OP:
-		if (state != KCS_IDLE) {
+		if (state != KCS_IDLE_STATE) {
 			start_error_recovery(kcs,
 					     "State machine not idle at start");
 			break;

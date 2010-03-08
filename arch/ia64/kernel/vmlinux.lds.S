@@ -166,6 +166,12 @@ SECTIONS
 	}
 #endif
 
+#ifdef	CONFIG_SMP
+  . = ALIGN(PERCPU_PAGE_SIZE);
+  __cpu0_per_cpu = .;
+  . = . + PERCPU_PAGE_SIZE;	/* cpu0 per-cpu space */
+#endif
+
   . = ALIGN(PAGE_SIZE);
   __init_end = .;
 
@@ -198,11 +204,6 @@ SECTIONS
   data : { } :data
   .data : AT(ADDR(.data) - LOAD_OFFSET)
 	{
-#ifdef	CONFIG_SMP
-  . = ALIGN(PERCPU_PAGE_SIZE);
-		__cpu0_per_cpu = .;
-  . = . + PERCPU_PAGE_SIZE;	/* cpu0 per-cpu space */
-#endif
 		INIT_TASK_DATA(PAGE_SIZE)
 		CACHELINE_ALIGNED_DATA(SMP_CACHE_BYTES)
 		READ_MOSTLY_DATA(SMP_CACHE_BYTES)

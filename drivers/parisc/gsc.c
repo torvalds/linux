@@ -149,7 +149,7 @@ static unsigned int gsc_asic_startup_irq(unsigned int irq)
 }
 
 static struct irq_chip gsc_asic_interrupt_type = {
-	.typename =	"GSC-ASIC",
+	.name	 =	"GSC-ASIC",
 	.startup =	gsc_asic_startup_irq,
 	.shutdown =	gsc_asic_disable_irq,
 	.enable =	gsc_asic_enable_irq,

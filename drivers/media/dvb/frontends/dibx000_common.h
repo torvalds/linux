@@ -36,13 +36,17 @@ extern struct i2c_adapter *dibx000_get_i2c_adapter(struct dibx000_i2c_master
 extern void dibx000_exit_i2c_master(struct dibx000_i2c_master *mst);
 extern void dibx000_reset_i2c_master(struct dibx000_i2c_master *mst);
 
+extern u32 systime(void);
+
 #define BAND_LBAND 0x01
 #define BAND_UHF   0x02
 #define BAND_VHF   0x04
 #define BAND_SBAND 0x08
-#define BAND_FM	   0x10
+#define BAND_FM    0x10
+#define BAND_CBAND 0x20
 
-#define BAND_OF_FREQUENCY(freq_kHz) ( (freq_kHz) <= 115000 ? BAND_FM : \
+#define BAND_OF_FREQUENCY(freq_kHz) ((freq_kHz) <= 170000 ? BAND_CBAND : \
+									(freq_kHz) <= 115000 ? BAND_FM : \
 									(freq_kHz) <= 250000 ? BAND_VHF : \
 									(freq_kHz) <= 863000 ? BAND_UHF : \
 									(freq_kHz) <= 2000000 ? BAND_LBAND : BAND_SBAND )
@@ -148,5 +152,68 @@ enum dibx000_adc_states {
 #define OUTMODE_DIVERSITY           4
 #define OUTMODE_MPEG2_FIFO          5
 #define OUTMODE_ANALOG_ADC          6
+
+enum frontend_tune_state {
+    CT_TUNER_START = 10,
+    CT_TUNER_STEP_0,
+    CT_TUNER_STEP_1,
+    CT_TUNER_STEP_2,
+    CT_TUNER_STEP_3,
+    CT_TUNER_STEP_4,
+    CT_TUNER_STEP_5,
+    CT_TUNER_STEP_6,
+    CT_TUNER_STEP_7,
+    CT_TUNER_STOP,
+
+    CT_AGC_START = 20,
+    CT_AGC_STEP_0,
+    CT_AGC_STEP_1,
+    CT_AGC_STEP_2,
+    CT_AGC_STEP_3,
+    CT_AGC_STEP_4,
+    CT_AGC_STOP,
+
+	CT_DEMOD_START = 30,
+    CT_DEMOD_STEP_1,
+    CT_DEMOD_STEP_2,
+    CT_DEMOD_STEP_3,
+    CT_DEMOD_STEP_4,
+    CT_DEMOD_STEP_5,
+    CT_DEMOD_STEP_6,
+    CT_DEMOD_STEP_7,
+    CT_DEMOD_STEP_8,
+    CT_DEMOD_STEP_9,
+    CT_DEMOD_STEP_10,
+    CT_DEMOD_SEARCH_NEXT = 41,
+    CT_DEMOD_STEP_LOCKED,
+    CT_DEMOD_STOP,
+
+    CT_DONE = 100,
+    CT_SHUTDOWN,
+
+};
+
+struct dvb_frontend_parametersContext {
+#define CHANNEL_STATUS_PARAMETERS_UNKNOWN   0x01
+#define CHANNEL_STATUS_PARAMETERS_SET       0x02
+    u8 status;
+    u32 tune_time_estimation[2];
+    s32 tps_available;
+    u16 tps[9];
+};
+
+#define FE_STATUS_TUNE_FAILED          0
+#define FE_STATUS_TUNE_TIMED_OUT      -1
+#define FE_STATUS_TUNE_TIME_TOO_SHORT -2
+#define FE_STATUS_TUNE_PENDING        -3
+#define FE_STATUS_STD_SUCCESS         -4
+#define FE_STATUS_FFT_SUCCESS         -5
+#define FE_STATUS_DEMOD_SUCCESS       -6
+#define FE_STATUS_LOCKED              -7
+#define FE_STATUS_DATA_LOCKED         -8
+
+#define FE_CALLBACK_TIME_NEVER 0xffffffff
+
+#define ABS(x) ((x < 0) ? (-x) : (x))
 
 #endif

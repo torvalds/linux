@@ -55,7 +55,6 @@ do {											\
 	_regs->p2	= _dynamic_addr;				\
 } while(0)
 
-#define USE_ELF_CORE_DUMP
 #define ELF_FDPIC_CORE_EFLAGS	EF_BFIN_FDPIC
 #define ELF_EXEC_PAGESIZE	4096
 

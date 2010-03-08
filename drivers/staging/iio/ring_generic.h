@@ -146,8 +146,7 @@ static inline void __iio_init_ring_buffer(struct iio_ring_buffer *ring,
 	ring->length = length;
 	ring->loopcount = 0;
 	ring->shared_ev_pointer.ev_p = 0;
-	ring->shared_ev_pointer.lock =
-		__SPIN_LOCK_UNLOCKED(ring->shared_ev_pointer->loc);
+	spin_lock_init(&ring->shared_ev_pointer.lock);
 }
 
 /**

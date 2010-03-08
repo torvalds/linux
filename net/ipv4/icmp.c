@@ -114,7 +114,7 @@ struct icmp_bxm {
 /* An array of errno for error messages from dest unreach. */
 /* RFC 1122: 3.2.2.1 States that NET_UNREACH, HOST_UNREACH and SR_FAILED MUST be considered 'transient errs'. */
 
-struct icmp_err icmp_err_convert[] = {
+const struct icmp_err icmp_err_convert[] = {
 	{
 		.errno = ENETUNREACH,	/* ICMP_NET_UNREACH */
 		.fatal = 0,

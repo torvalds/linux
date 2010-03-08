@@ -310,6 +310,7 @@ static void fc_rport_work(struct work_struct *work)
 				restart = 1;
 			else
 				list_del(&rdata->peers);
+			rdata->event = RPORT_EV_NONE;
 			mutex_unlock(&rdata->rp_mutex);
 			mutex_unlock(&lport->disc.disc_mutex);
 		}
@@ -622,7 +623,7 @@ static void fc_rport_plogi_resp(struct fc_seq *sp, struct fc_frame *fp,
 
 		tov = ntohl(plp->fl_csp.sp_e_d_tov);
 		if (ntohs(plp->fl_csp.sp_features) & FC_SP_FT_EDTR)
-			tov /= 1000;
+			tov /= 1000000;
 		if (tov > rdata->e_d_tov)
 			rdata->e_d_tov = tov;
 		csp_seq = ntohs(plp->fl_csp.sp_tot_seq);

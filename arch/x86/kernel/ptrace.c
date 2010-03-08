@@ -48,6 +48,7 @@ enum x86_regset {
 	REGSET_FP,
 	REGSET_XFP,
 	REGSET_IOPERM64 = REGSET_XFP,
+	REGSET_XSTATE,
 	REGSET_TLS,
 	REGSET_IOPERM32,
 };
@@ -139,30 +140,6 @@ static const int arg_offs_table[] = {
 	[5] = offsetof(struct pt_regs, r9)
 #endif
 };
-
-/**
- * regs_get_argument_nth() - get Nth argument at function call
- * @regs:	pt_regs which contains registers at function entry.
- * @n:		argument number.
- *
- * regs_get_argument_nth() returns @n th argument of a function call.
- * Since usually the kernel stack will be changed right after function entry,
- * you must use this at function entry. If the @n th entry is NOT in the
- * kernel stack or pt_regs, this returns 0.
- */
-unsigned long regs_get_argument_nth(struct pt_regs *regs, unsigned int n)
-{
-	if (n < ARRAY_SIZE(arg_offs_table))
-		return *(unsigned long *)((char *)regs + arg_offs_table[n]);
-	else {
-		/*
-		 * The typical case: arg n is on the stack.
-		 * (Note: stack[0] = return address, so skip it)
-		 */
-		n -= ARRAY_SIZE(arg_offs_table);
-		return regs_get_kernel_stack_nth(regs, 1 + n);
-	}
-}
 
 /*
  * does not yet catch signals sent when the child dies.
@@ -509,14 +486,14 @@ static int genregs_get(struct task_struct *target,
 {
 	if (kbuf) {
 		unsigned long *k = kbuf;
-		while (count > 0) {
+		while (count >= sizeof(*k)) {
 			*k++ = getreg(target, pos);
 			count -= sizeof(*k);
 			pos += sizeof(*k);
 		}
 	} else {
 		unsigned long __user *u = ubuf;
-		while (count > 0) {
+		while (count >= sizeof(*u)) {
 			if (__put_user(getreg(target, pos), u++))
 				return -EFAULT;
 			count -= sizeof(*u);
@@ -535,14 +512,14 @@ static int genregs_set(struct task_struct *target,
 	int ret = 0;
 	if (kbuf) {
 		const unsigned long *k = kbuf;
-		while (count > 0 && !ret) {
+		while (count >= sizeof(*k) && !ret) {
 			ret = putreg(target, pos, *k++);
 			count -= sizeof(*k);
 			pos += sizeof(*k);
 		}
 	} else {
 		const unsigned long  __user *u = ubuf;
-		while (count > 0 && !ret) {
+		while (count >= sizeof(*u) && !ret) {
 			unsigned long word;
 			ret = __get_user(word, u++);
 			if (ret)
@@ -555,7 +532,9 @@ static int genregs_set(struct task_struct *target,
 	return ret;
 }
 
-static void ptrace_triggered(struct perf_event *bp, void *data)
+static void ptrace_triggered(struct perf_event *bp, int nmi,
+			     struct perf_sample_data *data,
+			     struct pt_regs *regs)
 {
 	int i;
 	struct thread_struct *thread = &(current->thread);
@@ -593,13 +572,13 @@ static unsigned long ptrace_get_dr7(struct perf_event *bp[])
 	return dr7;
 }
 
-static struct perf_event *
+static int
 ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 			 struct task_struct *tsk, int disabled)
 {
 	int err;
 	int gen_len, gen_type;
-	DEFINE_BREAKPOINT_ATTR(attr);
+	struct perf_event_attr attr;
 
 	/*
 	 * We shoud have at least an inactive breakpoint at this
@@ -607,18 +586,18 @@ ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 	 * written the address register first
 	 */
 	if (!bp)
-		return ERR_PTR(-EINVAL);
+		return -EINVAL;
 
 	err = arch_bp_generic_fields(len, type, &gen_len, &gen_type);
 	if (err)
-		return ERR_PTR(err);
+		return err;
 
 	attr = bp->attr;
 	attr.bp_len = gen_len;
 	attr.bp_type = gen_type;
 	attr.disabled = disabled;
 
-	return modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
+	return modify_user_hw_breakpoint(bp, &attr);
 }
 
 /*
@@ -656,28 +635,17 @@ restore:
 				if (!second_pass)
 					continue;
 
-				thread->ptrace_bps[i] = NULL;
-				bp = ptrace_modify_breakpoint(bp, len, type,
+				rc = ptrace_modify_breakpoint(bp, len, type,
 							      tsk, 1);
-				if (IS_ERR(bp)) {
-					rc = PTR_ERR(bp);
-					thread->ptrace_bps[i] = NULL;
+				if (rc)
 					break;
-				}
-				thread->ptrace_bps[i] = bp;
 			}
 			continue;
 		}
 
-		bp = ptrace_modify_breakpoint(bp, len, type, tsk, 0);
-
-		/* Incorrect bp, or we have a bug in bp API */
-		if (IS_ERR(bp)) {
-			rc = PTR_ERR(bp);
-			thread->ptrace_bps[i] = NULL;
+		rc = ptrace_modify_breakpoint(bp, len, type, tsk, 0);
+		if (rc)
 			break;
-		}
-		thread->ptrace_bps[i] = bp;
 	}
 	/*
 	 * Make a second pass to free the remaining unused breakpoints
@@ -711,7 +679,7 @@ static unsigned long ptrace_get_debugreg(struct task_struct *tsk, int n)
 	} else if (n == 6) {
 		val = thread->debugreg6;
 	 } else if (n == 7) {
-		val = ptrace_get_dr7(thread->ptrace_bps);
+		val = thread->ptrace_dr7;
 	}
 	return val;
 }
@@ -721,9 +689,10 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 {
 	struct perf_event *bp;
 	struct thread_struct *t = &tsk->thread;
-	DEFINE_BREAKPOINT_ATTR(attr);
+	struct perf_event_attr attr;
 
 	if (!t->ptrace_bps[nr]) {
+		hw_breakpoint_init(&attr);
 		/*
 		 * Put stub len and type to register (reserve) an inactive but
 		 * correct bp
@@ -734,26 +703,32 @@ static int ptrace_set_breakpoint_addr(struct task_struct *tsk, int nr,
 		attr.disabled = 1;
 
 		bp = register_user_hw_breakpoint(&attr, ptrace_triggered, tsk);
+
+		/*
+		 * CHECKME: the previous code returned -EIO if the addr wasn't
+		 * a valid task virtual addr. The new one will return -EINVAL in
+		 *  this case.
+		 * -EINVAL may be what we want for in-kernel breakpoints users,
+		 * but -EIO looks better for ptrace, since we refuse a register
+		 * writing for the user. And anyway this is the previous
+		 * behaviour.
+		 */
+		if (IS_ERR(bp))
+			return PTR_ERR(bp);
+
+		t->ptrace_bps[nr] = bp;
 	} else {
+		int err;
+
 		bp = t->ptrace_bps[nr];
-		t->ptrace_bps[nr] = NULL;
 
 		attr = bp->attr;
 		attr.bp_addr = addr;
-		bp = modify_user_hw_breakpoint(bp, &attr, bp->callback, tsk);
+		err = modify_user_hw_breakpoint(bp, &attr);
+		if (err)
+			return err;
 	}
-	/*
-	 * CHECKME: the previous code returned -EIO if the addr wasn't a
-	 * valid task virtual addr. The new one will return -EINVAL in this
-	 * case.
-	 * -EINVAL may be what we want for in-kernel breakpoints users, but
-	 * -EIO looks better for ptrace, since we refuse a register writing
-	 * for the user. And anyway this is the previous behaviour.
-	 */
-	if (IS_ERR(bp))
-		return PTR_ERR(bp);
 
-	t->ptrace_bps[nr] = bp;
 
 	return 0;
 }
@@ -780,8 +755,11 @@ int ptrace_set_debugreg(struct task_struct *tsk, int n, unsigned long val)
 			return rc;
 	}
 	/* All that's left is DR7 */
-	if (n == 7)
+	if (n == 7) {
 		rc = ptrace_write_dr7(tsk, val);
+		if (!rc)
+			thread->ptrace_dr7 = val;
+	}
 
 ret_path:
 	return rc;
@@ -1460,14 +1438,14 @@ static int genregs32_get(struct task_struct *target,
 {
 	if (kbuf) {
 		compat_ulong_t *k = kbuf;
-		while (count > 0) {
+		while (count >= sizeof(*k)) {
 			getreg32(target, pos, k++);
 			count -= sizeof(*k);
 			pos += sizeof(*k);
 		}
 	} else {
 		compat_ulong_t __user *u = ubuf;
-		while (count > 0) {
+		while (count >= sizeof(*u)) {
 			compat_ulong_t word;
 			getreg32(target, pos, &word);
 			if (__put_user(word, u++))
@@ -1488,14 +1466,14 @@ static int genregs32_set(struct task_struct *target,
 	int ret = 0;
 	if (kbuf) {
 		const compat_ulong_t *k = kbuf;
-		while (count > 0 && !ret) {
+		while (count >= sizeof(*k) && !ret) {
 			ret = putreg32(target, pos, *k++);
 			count -= sizeof(*k);
 			pos += sizeof(*k);
 		}
 	} else {
 		const compat_ulong_t __user *u = ubuf;
-		while (count > 0 && !ret) {
+		while (count >= sizeof(*u) && !ret) {
 			compat_ulong_t word;
 			ret = __get_user(word, u++);
 			if (ret)
@@ -1586,7 +1564,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 
 #ifdef CONFIG_X86_64
 
-static const struct user_regset x86_64_regsets[] = {
+static struct user_regset x86_64_regsets[] __read_mostly = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
 		.n = sizeof(struct user_regs_struct) / sizeof(long),
@@ -1598,6 +1576,12 @@ static const struct user_regset x86_64_regsets[] = {
 		.n = sizeof(struct user_i387_struct) / sizeof(long),
 		.size = sizeof(long), .align = sizeof(long),
 		.active = xfpregs_active, .get = xfpregs_get, .set = xfpregs_set
+	},
+	[REGSET_XSTATE] = {
+		.core_note_type = NT_X86_XSTATE,
+		.size = sizeof(u64), .align = sizeof(u64),
+		.active = xstateregs_active, .get = xstateregs_get,
+		.set = xstateregs_set
 	},
 	[REGSET_IOPERM64] = {
 		.core_note_type = NT_386_IOPERM,
@@ -1624,7 +1608,7 @@ static const struct user_regset_view user_x86_64_view = {
 #endif	/* CONFIG_X86_64 */
 
 #if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
-static const struct user_regset x86_32_regsets[] = {
+static struct user_regset x86_32_regsets[] __read_mostly = {
 	[REGSET_GENERAL] = {
 		.core_note_type = NT_PRSTATUS,
 		.n = sizeof(struct user_regs_struct32) / sizeof(u32),
@@ -1642,6 +1626,12 @@ static const struct user_regset x86_32_regsets[] = {
 		.n = sizeof(struct user32_fxsr_struct) / sizeof(u32),
 		.size = sizeof(u32), .align = sizeof(u32),
 		.active = xfpregs_active, .get = xfpregs_get, .set = xfpregs_set
+	},
+	[REGSET_XSTATE] = {
+		.core_note_type = NT_X86_XSTATE,
+		.size = sizeof(u64), .align = sizeof(u64),
+		.active = xstateregs_active, .get = xstateregs_get,
+		.set = xstateregs_set
 	},
 	[REGSET_TLS] = {
 		.core_note_type = NT_386_TLS,
@@ -1665,6 +1655,23 @@ static const struct user_regset_view user_x86_32_view = {
 };
 #endif
 
+/*
+ * This represents bytes 464..511 in the memory layout exported through
+ * the REGSET_XSTATE interface.
+ */
+u64 xstate_fx_sw_bytes[USER_XSTATE_FX_SW_WORDS];
+
+void update_regset_xstate_info(unsigned int size, u64 xstate_mask)
+{
+#ifdef CONFIG_X86_64
+	x86_64_regsets[REGSET_XSTATE].n = size / sizeof(u64);
+#endif
+#if defined CONFIG_X86_32 || defined CONFIG_IA32_EMULATION
+	x86_32_regsets[REGSET_XSTATE].n = size / sizeof(u64);
+#endif
+	xstate_fx_sw_bytes[USER_XSTATE_XCR0_WORD] = xstate_mask;
+}
+
 const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 {
 #ifdef CONFIG_IA32_EMULATION
@@ -1678,21 +1685,33 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 #endif
 }
 
+static void fill_sigtrap_info(struct task_struct *tsk,
+				struct pt_regs *regs,
+				int error_code, int si_code,
+				struct siginfo *info)
+{
+	tsk->thread.trap_no = 1;
+	tsk->thread.error_code = error_code;
+
+	memset(info, 0, sizeof(*info));
+	info->si_signo = SIGTRAP;
+	info->si_code = si_code;
+	info->si_addr = user_mode_vm(regs) ? (void __user *)regs->ip : NULL;
+}
+
+void user_single_step_siginfo(struct task_struct *tsk,
+				struct pt_regs *regs,
+				struct siginfo *info)
+{
+	fill_sigtrap_info(tsk, regs, 0, TRAP_BRKPT, info);
+}
+
 void send_sigtrap(struct task_struct *tsk, struct pt_regs *regs,
 					 int error_code, int si_code)
 {
 	struct siginfo info;
 
-	tsk->thread.trap_no = 1;
-	tsk->thread.error_code = error_code;
-
-	memset(&info, 0, sizeof(info));
-	info.si_signo = SIGTRAP;
-	info.si_code = si_code;
-
-	/* User-mode ip? */
-	info.si_addr = user_mode_vm(regs) ? (void __user *) regs->ip : NULL;
-
+	fill_sigtrap_info(tsk, regs, error_code, si_code, &info);
 	/* Send us the fake SIGTRAP */
 	force_sig_info(SIGTRAP, &info, tsk);
 }
@@ -1757,29 +1776,22 @@ asmregparm long syscall_trace_enter(struct pt_regs *regs)
 
 asmregparm void syscall_trace_leave(struct pt_regs *regs)
 {
+	bool step;
+
 	if (unlikely(current->audit_context))
 		audit_syscall_exit(AUDITSC_RESULT(regs->ax), regs->ax);
 
 	if (unlikely(test_thread_flag(TIF_SYSCALL_TRACEPOINT)))
 		trace_sys_exit(regs, regs->ax);
 
-	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, 0);
-
 	/*
 	 * If TIF_SYSCALL_EMU is set, we only get here because of
 	 * TIF_SINGLESTEP (i.e. this is PTRACE_SYSEMU_SINGLESTEP).
 	 * We already reported this syscall instruction in
-	 * syscall_trace_enter(), so don't do any more now.
+	 * syscall_trace_enter().
 	 */
-	if (unlikely(test_thread_flag(TIF_SYSCALL_EMU)))
-		return;
-
-	/*
-	 * If we are single-stepping, synthesize a trap to follow the
-	 * system call instruction.
-	 */
-	if (test_thread_flag(TIF_SINGLESTEP) &&
-	    tracehook_consider_fatal_signal(current, SIGTRAP))
-		send_sigtrap(current, regs, 0, TRAP_BRKPT);
+	step = unlikely(test_thread_flag(TIF_SINGLESTEP)) &&
+			!test_thread_flag(TIF_SYSCALL_EMU);
+	if (step || test_thread_flag(TIF_SYSCALL_TRACE))
+		tracehook_report_syscall_exit(regs, step);
 }

@@ -56,12 +56,6 @@ extern void xfs_qm_exit(void);
 # define XFS_BIGFS_STRING
 #endif
 
-#ifdef CONFIG_XFS_TRACE
-# define XFS_TRACE_STRING	"tracing, "
-#else
-# define XFS_TRACE_STRING
-#endif
-
 #ifdef CONFIG_XFS_DMAPI
 # define XFS_DMAPI_STRING	"dmapi support, "
 #else
@@ -78,7 +72,6 @@ extern void xfs_qm_exit(void);
 				XFS_SECURITY_STRING \
 				XFS_REALTIME_STRING \
 				XFS_BIGFS_STRING \
-				XFS_TRACE_STRING \
 				XFS_DMAPI_STRING \
 				XFS_DBG_STRING /* DBG must be last */
 

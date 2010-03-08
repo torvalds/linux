@@ -326,7 +326,6 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
 #define ELF_CORE_COPY_FPREGS(tsk, elf_fpregs)			\
 	dump_task_fpu(tsk, elf_fpregs)
 
-#define USE_ELF_CORE_DUMP
 #define ELF_EXEC_PAGESIZE	PAGE_SIZE
 
 /* This yields a mask that user programs can use to figure out what
@@ -335,14 +334,14 @@ extern int dump_task_fpu(struct task_struct *, elf_fpregset_t *);
 
 #define ELF_HWCAP       (0)
 
-/* This yields a string that ld.so will use to load implementation
-   specific libraries for optimization.  This is more specific in
-   intent than poking at uname or /proc/cpuinfo.
+/*
+ * This yields a string that ld.so will use to load implementation
+ * specific libraries for optimization.  This is more specific in
+ * intent than poking at uname or /proc/cpuinfo.
+ */
 
-   For the moment, we have only optimizations for the Intel generations,
-   but that could change... */
-
-#define ELF_PLATFORM  (NULL)
+#define ELF_PLATFORM  __elf_platform
+extern const char *__elf_platform;
 
 /*
  * See comments in asm-alpha/elf.h, this is the same thing

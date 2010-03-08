@@ -100,18 +100,17 @@ static struct cachepolicy cache_policies[] __initdata = {
  * writebuffer to be turned off.  (Note: the write
  * buffer should not be on and the cache off).
  */
-static void __init early_cachepolicy(char **p)
+static int __init early_cachepolicy(char *p)
 {
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(cache_policies); i++) {
 		int len = strlen(cache_policies[i].policy);
 
-		if (memcmp(*p, cache_policies[i].policy, len) == 0) {
+		if (memcmp(p, cache_policies[i].policy, len) == 0) {
 			cachepolicy = i;
 			cr_alignment &= ~cache_policies[i].cr_mask;
 			cr_no_alignment &= ~cache_policies[i].cr_mask;
-			*p += len;
 			break;
 		}
 	}
@@ -130,36 +129,37 @@ static void __init early_cachepolicy(char **p)
 	}
 	flush_cache_all();
 	set_cr(cr_alignment);
+	return 0;
 }
-__early_param("cachepolicy=", early_cachepolicy);
+early_param("cachepolicy", early_cachepolicy);
 
-static void __init early_nocache(char **__unused)
+static int __init early_nocache(char *__unused)
 {
 	char *p = "buffered";
 	printk(KERN_WARNING "nocache is deprecated; use cachepolicy=%s\n", p);
-	early_cachepolicy(&p);
+	early_cachepolicy(p);
+	return 0;
 }
-__early_param("nocache", early_nocache);
+early_param("nocache", early_nocache);
 
-static void __init early_nowrite(char **__unused)
+static int __init early_nowrite(char *__unused)
 {
 	char *p = "uncached";
 	printk(KERN_WARNING "nowb is deprecated; use cachepolicy=%s\n", p);
-	early_cachepolicy(&p);
+	early_cachepolicy(p);
+	return 0;
 }
-__early_param("nowb", early_nowrite);
+early_param("nowb", early_nowrite);
 
-static void __init early_ecc(char **p)
+static int __init early_ecc(char *p)
 {
-	if (memcmp(*p, "on", 2) == 0) {
+	if (memcmp(p, "on", 2) == 0)
 		ecc_mask = PMD_PROTECTION;
-		*p += 2;
-	} else if (memcmp(*p, "off", 3) == 0) {
+	else if (memcmp(p, "off", 3) == 0)
 		ecc_mask = 0;
-		*p += 3;
-	}
+	return 0;
 }
-__early_param("ecc=", early_ecc);
+early_param("ecc", early_ecc);
 
 static int __init noalign_setup(char *__unused)
 {
@@ -453,8 +453,7 @@ static void __init build_mem_type_table(void)
 
 	pgprot_user   = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG | user_pgprot);
 	pgprot_kernel = __pgprot(L_PTE_PRESENT | L_PTE_YOUNG |
-				 L_PTE_DIRTY | L_PTE_WRITE |
-				 L_PTE_EXEC | kern_pgprot);
+				 L_PTE_DIRTY | L_PTE_WRITE | kern_pgprot);
 
 	mem_types[MT_LOW_VECTORS].prot_l1 |= ecc_mask;
 	mem_types[MT_HIGH_VECTORS].prot_l1 |= ecc_mask;
@@ -671,9 +670,9 @@ static unsigned long __initdata vmalloc_reserve = SZ_128M;
  * bytes. This can be used to increase (or decrease) the vmalloc
  * area - the default is 128m.
  */
-static void __init early_vmalloc(char **arg)
+static int __init early_vmalloc(char *arg)
 {
-	vmalloc_reserve = memparse(*arg, arg);
+	vmalloc_reserve = memparse(arg, NULL);
 
 	if (vmalloc_reserve < SZ_16M) {
 		vmalloc_reserve = SZ_16M;
@@ -688,8 +687,9 @@ static void __init early_vmalloc(char **arg)
 			"vmalloc area is too big, limiting to %luMB\n",
 			vmalloc_reserve >> 20);
 	}
+	return 0;
 }
-__early_param("vmalloc=", early_vmalloc);
+early_param("vmalloc", early_vmalloc);
 
 #define VMALLOC_MIN	(void *)(VMALLOC_END - vmalloc_reserve)
 
@@ -1068,4 +1068,6 @@ void setup_mm_for_reboot(char mode)
 		pmd[1] = __pmd(pmdval + (1 << (PGDIR_SHIFT - 1)));
 		flush_pmd_entry(pmd);
 	}
+
+	local_flush_tlb_all();
 }

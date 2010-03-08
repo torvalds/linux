@@ -215,6 +215,23 @@ static int e1000_set_settings(struct net_device *netdev,
 	return 0;
 }
 
+static u32 e1000_get_link(struct net_device *netdev)
+{
+	struct e1000_adapter *adapter = netdev_priv(netdev);
+
+	/*
+	 * If the link is not reported up to netdev, interrupts are disabled,
+	 * and so the physical link state may have changed since we last
+	 * looked. Set get_link_status to make sure that the true link
+	 * state is interrogated, rather than pulling a cached and possibly
+	 * stale link state from the driver.
+	 */
+	if (!netif_carrier_ok(netdev))
+		adapter->hw.get_link_status = 1;
+
+	return e1000_has_link(adapter);
+}
+
 static void e1000_get_pauseparam(struct net_device *netdev,
 				 struct ethtool_pauseparam *pause)
 {
@@ -1892,7 +1909,7 @@ static const struct ethtool_ops e1000_ethtool_ops = {
 	.get_msglevel           = e1000_get_msglevel,
 	.set_msglevel           = e1000_set_msglevel,
 	.nway_reset             = e1000_nway_reset,
-	.get_link               = ethtool_op_get_link,
+	.get_link               = e1000_get_link,
 	.get_eeprom_len         = e1000_get_eeprom_len,
 	.get_eeprom             = e1000_get_eeprom,
 	.set_eeprom             = e1000_set_eeprom,

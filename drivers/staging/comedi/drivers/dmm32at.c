@@ -1048,11 +1048,10 @@ static int dmm32at_dio_insn_config(struct comedi_device *dev,
 	 * value COMEDI_INPUT or COMEDI_OUTPUT. */
 
 	/* if output clear the bit, otherwise set it */
-	if (data[0] == COMEDI_OUTPUT) {
+	if (data[0] == COMEDI_OUTPUT)
 		devpriv->dio_config &= ~chanbit;
-	} else {
+	else
 		devpriv->dio_config |= chanbit;
-	}
 	/* get access to the DIO regs */
 	dmm_outb(dev, DMM32AT_CNTRL, DMM32AT_DIOACC);
 	/* set the DIO's to the new configuration setting */

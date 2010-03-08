@@ -1019,7 +1019,7 @@ static int sclp_restore(struct device *dev)
 	return sclp_undo_suspend(SCLP_PM_EVENT_RESTORE);
 }
 
-static struct dev_pm_ops sclp_pm_ops = {
+static const struct dev_pm_ops sclp_pm_ops = {
 	.freeze		= sclp_freeze,
 	.thaw		= sclp_thaw,
 	.restore	= sclp_restore,

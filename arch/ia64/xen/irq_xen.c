@@ -63,19 +63,19 @@ xen_free_irq_vector(int vector)
 }
 
 
-static DEFINE_PER_CPU(int, timer_irq) = -1;
-static DEFINE_PER_CPU(int, ipi_irq) = -1;
-static DEFINE_PER_CPU(int, resched_irq) = -1;
-static DEFINE_PER_CPU(int, cmc_irq) = -1;
-static DEFINE_PER_CPU(int, cmcp_irq) = -1;
-static DEFINE_PER_CPU(int, cpep_irq) = -1;
+static DEFINE_PER_CPU(int, xen_timer_irq) = -1;
+static DEFINE_PER_CPU(int, xen_ipi_irq) = -1;
+static DEFINE_PER_CPU(int, xen_resched_irq) = -1;
+static DEFINE_PER_CPU(int, xen_cmc_irq) = -1;
+static DEFINE_PER_CPU(int, xen_cmcp_irq) = -1;
+static DEFINE_PER_CPU(int, xen_cpep_irq) = -1;
 #define NAME_SIZE	15
-static DEFINE_PER_CPU(char[NAME_SIZE], timer_name);
-static DEFINE_PER_CPU(char[NAME_SIZE], ipi_name);
-static DEFINE_PER_CPU(char[NAME_SIZE], resched_name);
-static DEFINE_PER_CPU(char[NAME_SIZE], cmc_name);
-static DEFINE_PER_CPU(char[NAME_SIZE], cmcp_name);
-static DEFINE_PER_CPU(char[NAME_SIZE], cpep_name);
+static DEFINE_PER_CPU(char[NAME_SIZE], xen_timer_name);
+static DEFINE_PER_CPU(char[NAME_SIZE], xen_ipi_name);
+static DEFINE_PER_CPU(char[NAME_SIZE], xen_resched_name);
+static DEFINE_PER_CPU(char[NAME_SIZE], xen_cmc_name);
+static DEFINE_PER_CPU(char[NAME_SIZE], xen_cmcp_name);
+static DEFINE_PER_CPU(char[NAME_SIZE], xen_cpep_name);
 #undef NAME_SIZE
 
 struct saved_irq {
@@ -144,64 +144,64 @@ __xen_register_percpu_irq(unsigned int cpu, unsigned int vec,
 	if (xen_slab_ready) {
 		switch (vec) {
 		case IA64_TIMER_VECTOR:
-			snprintf(per_cpu(timer_name, cpu),
-				 sizeof(per_cpu(timer_name, cpu)),
+			snprintf(per_cpu(xen_timer_name, cpu),
+				 sizeof(per_cpu(xen_timer_name, cpu)),
 				 "%s%d", action->name, cpu);
 			irq = bind_virq_to_irqhandler(VIRQ_ITC, cpu,
 				action->handler, action->flags,
-				per_cpu(timer_name, cpu), action->dev_id);
-			per_cpu(timer_irq, cpu) = irq;
+				per_cpu(xen_timer_name, cpu), action->dev_id);
+			per_cpu(xen_timer_irq, cpu) = irq;
 			break;
 		case IA64_IPI_RESCHEDULE:
-			snprintf(per_cpu(resched_name, cpu),
-				 sizeof(per_cpu(resched_name, cpu)),
+			snprintf(per_cpu(xen_resched_name, cpu),
+				 sizeof(per_cpu(xen_resched_name, cpu)),
 				 "%s%d", action->name, cpu);
 			irq = bind_ipi_to_irqhandler(XEN_RESCHEDULE_VECTOR, cpu,
 				action->handler, action->flags,
-				per_cpu(resched_name, cpu), action->dev_id);
-			per_cpu(resched_irq, cpu) = irq;
+				per_cpu(xen_resched_name, cpu), action->dev_id);
+			per_cpu(xen_resched_irq, cpu) = irq;
 			break;
 		case IA64_IPI_VECTOR:
-			snprintf(per_cpu(ipi_name, cpu),
-				 sizeof(per_cpu(ipi_name, cpu)),
+			snprintf(per_cpu(xen_ipi_name, cpu),
+				 sizeof(per_cpu(xen_ipi_name, cpu)),
 				 "%s%d", action->name, cpu);
 			irq = bind_ipi_to_irqhandler(XEN_IPI_VECTOR, cpu,
 				action->handler, action->flags,
-				per_cpu(ipi_name, cpu), action->dev_id);
-			per_cpu(ipi_irq, cpu) = irq;
+				per_cpu(xen_ipi_name, cpu), action->dev_id);
+			per_cpu(xen_ipi_irq, cpu) = irq;
 			break;
 		case IA64_CMC_VECTOR:
-			snprintf(per_cpu(cmc_name, cpu),
-				 sizeof(per_cpu(cmc_name, cpu)),
+			snprintf(per_cpu(xen_cmc_name, cpu),
+				 sizeof(per_cpu(xen_cmc_name, cpu)),
 				 "%s%d", action->name, cpu);
 			irq = bind_virq_to_irqhandler(VIRQ_MCA_CMC, cpu,
-						      action->handler,
-						      action->flags,
-						      per_cpu(cmc_name, cpu),
-						      action->dev_id);
-			per_cpu(cmc_irq, cpu) = irq;
+						action->handler,
+						action->flags,
+						per_cpu(xen_cmc_name, cpu),
+						action->dev_id);
+			per_cpu(xen_cmc_irq, cpu) = irq;
 			break;
 		case IA64_CMCP_VECTOR:
-			snprintf(per_cpu(cmcp_name, cpu),
-				 sizeof(per_cpu(cmcp_name, cpu)),
+			snprintf(per_cpu(xen_cmcp_name, cpu),
+				 sizeof(per_cpu(xen_cmcp_name, cpu)),
 				 "%s%d", action->name, cpu);
 			irq = bind_ipi_to_irqhandler(XEN_CMCP_VECTOR, cpu,
-						     action->handler,
-						     action->flags,
-						     per_cpu(cmcp_name, cpu),
-						     action->dev_id);
-			per_cpu(cmcp_irq, cpu) = irq;
+						action->handler,
+						action->flags,
+						per_cpu(xen_cmcp_name, cpu),
+						action->dev_id);
+			per_cpu(xen_cmcp_irq, cpu) = irq;
 			break;
 		case IA64_CPEP_VECTOR:
-			snprintf(per_cpu(cpep_name, cpu),
-				 sizeof(per_cpu(cpep_name, cpu)),
+			snprintf(per_cpu(xen_cpep_name, cpu),
+				 sizeof(per_cpu(xen_cpep_name, cpu)),
 				 "%s%d", action->name, cpu);
 			irq = bind_ipi_to_irqhandler(XEN_CPEP_VECTOR, cpu,
-						     action->handler,
-						     action->flags,
-						     per_cpu(cpep_name, cpu),
-						     action->dev_id);
-			per_cpu(cpep_irq, cpu) = irq;
+						action->handler,
+						action->flags,
+						per_cpu(xen_cpep_name, cpu),
+						action->dev_id);
+			per_cpu(xen_cpep_irq, cpu) = irq;
 			break;
 		case IA64_CPE_VECTOR:
 		case IA64_MCA_RENDEZ_VECTOR:
@@ -275,30 +275,33 @@ unbind_evtchn_callback(struct notifier_block *nfb,
 
 	if (action == CPU_DEAD) {
 		/* Unregister evtchn.  */
-		if (per_cpu(cpep_irq, cpu) >= 0) {
-			unbind_from_irqhandler(per_cpu(cpep_irq, cpu), NULL);
-			per_cpu(cpep_irq, cpu) = -1;
+		if (per_cpu(xen_cpep_irq, cpu) >= 0) {
+			unbind_from_irqhandler(per_cpu(xen_cpep_irq, cpu),
+					       NULL);
+			per_cpu(xen_cpep_irq, cpu) = -1;
 		}
-		if (per_cpu(cmcp_irq, cpu) >= 0) {
-			unbind_from_irqhandler(per_cpu(cmcp_irq, cpu), NULL);
-			per_cpu(cmcp_irq, cpu) = -1;
+		if (per_cpu(xen_cmcp_irq, cpu) >= 0) {
+			unbind_from_irqhandler(per_cpu(xen_cmcp_irq, cpu),
+					       NULL);
+			per_cpu(xen_cmcp_irq, cpu) = -1;
 		}
-		if (per_cpu(cmc_irq, cpu) >= 0) {
-			unbind_from_irqhandler(per_cpu(cmc_irq, cpu), NULL);
-			per_cpu(cmc_irq, cpu) = -1;
+		if (per_cpu(xen_cmc_irq, cpu) >= 0) {
+			unbind_from_irqhandler(per_cpu(xen_cmc_irq, cpu), NULL);
+			per_cpu(xen_cmc_irq, cpu) = -1;
 		}
-		if (per_cpu(ipi_irq, cpu) >= 0) {
-			unbind_from_irqhandler(per_cpu(ipi_irq, cpu), NULL);
-			per_cpu(ipi_irq, cpu) = -1;
+		if (per_cpu(xen_ipi_irq, cpu) >= 0) {
+			unbind_from_irqhandler(per_cpu(xen_ipi_irq, cpu), NULL);
+			per_cpu(xen_ipi_irq, cpu) = -1;
 		}
-		if (per_cpu(resched_irq, cpu) >= 0) {
-			unbind_from_irqhandler(per_cpu(resched_irq, cpu),
-						NULL);
-			per_cpu(resched_irq, cpu) = -1;
+		if (per_cpu(xen_resched_irq, cpu) >= 0) {
+			unbind_from_irqhandler(per_cpu(xen_resched_irq, cpu),
+					       NULL);
+			per_cpu(xen_resched_irq, cpu) = -1;
 		}
-		if (per_cpu(timer_irq, cpu) >= 0) {
-			unbind_from_irqhandler(per_cpu(timer_irq, cpu), NULL);
-			per_cpu(timer_irq, cpu) = -1;
+		if (per_cpu(xen_timer_irq, cpu) >= 0) {
+			unbind_from_irqhandler(per_cpu(xen_timer_irq, cpu),
+					       NULL);
+			per_cpu(xen_timer_irq, cpu) = -1;
 		}
 	}
 	return NOTIFY_OK;

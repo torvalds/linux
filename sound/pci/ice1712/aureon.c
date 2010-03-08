@@ -703,11 +703,13 @@ static void wm_set_vol(struct snd_ice1712 *ice, unsigned int index, unsigned sho
 {
 	unsigned char nvol;
 
-	if ((master & WM_VOL_MUTE) || (vol & WM_VOL_MUTE))
+	if ((master & WM_VOL_MUTE) || (vol & WM_VOL_MUTE)) {
 		nvol = 0;
-	else
+	} else {
 		nvol = ((vol % WM_VOL_CNT) * (master % WM_VOL_CNT)) /
 								WM_VOL_MAX;
+		nvol += 0x1b;
+	}
 
 	wm_put(ice, index, nvol);
 	wm_put_nocache(ice, index, 0x180 | nvol);
@@ -778,7 +780,7 @@ static int wm_master_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_
 	for (ch = 0; ch < 2; ch++) {
 		unsigned int vol = ucontrol->value.integer.value[ch];
 		if (vol > WM_VOL_MAX)
-			continue;
+			vol = WM_VOL_MAX;
 		vol |= spec->master[ch] & WM_VOL_MUTE;
 		if (vol != spec->master[ch]) {
 			int dac;
@@ -834,8 +836,8 @@ static int wm_vol_put(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *
 	for (i = 0; i < voices; i++) {
 		unsigned int vol = ucontrol->value.integer.value[i];
 		if (vol > WM_VOL_MAX)
-			continue;
-		vol |= spec->vol[ofs+i];
+			vol = WM_VOL_MAX;
+		vol |= spec->vol[ofs+i] & WM_VOL_MUTE;
 		if (vol != spec->vol[ofs+i]) {
 			spec->vol[ofs+i] = vol;
 			idx  = WM_DAC_ATTEN + ofs + i;

@@ -95,6 +95,21 @@ typedef	struct xfs_bmap_free
 					/* need write cache flushing and no */
 					/* additional allocation alignments */
 
+#define XFS_BMAPI_FLAGS \
+	{ XFS_BMAPI_WRITE,	"WRITE" }, \
+	{ XFS_BMAPI_DELAY,	"DELAY" }, \
+	{ XFS_BMAPI_ENTIRE,	"ENTIRE" }, \
+	{ XFS_BMAPI_METADATA,	"METADATA" }, \
+	{ XFS_BMAPI_EXACT,	"EXACT" }, \
+	{ XFS_BMAPI_ATTRFORK,	"ATTRFORK" }, \
+	{ XFS_BMAPI_ASYNC,	"ASYNC" }, \
+	{ XFS_BMAPI_RSVBLOCKS,	"RSVBLOCKS" }, \
+	{ XFS_BMAPI_PREALLOC,	"PREALLOC" }, \
+	{ XFS_BMAPI_IGSTATE,	"IGSTATE" }, \
+	{ XFS_BMAPI_CONTIG,	"CONTIG" }, \
+	{ XFS_BMAPI_CONVERT,	"CONVERT" }
+
+
 static inline int xfs_bmapi_aflag(int w)
 {
 	return (w == XFS_ATTR_FORK ? XFS_BMAPI_ATTRFORK : 0);
@@ -135,36 +150,43 @@ typedef struct xfs_bmalloca {
 	char			conv;	/* overwriting unwritten extents */
 } xfs_bmalloca_t;
 
-#if defined(__KERNEL__) && defined(XFS_BMAP_TRACE)
 /*
- * Trace operations for bmap extent tracing
+ * Flags for xfs_bmap_add_extent*.
  */
-#define	XFS_BMAP_KTRACE_DELETE	1
-#define	XFS_BMAP_KTRACE_INSERT	2
-#define	XFS_BMAP_KTRACE_PRE_UP	3
-#define	XFS_BMAP_KTRACE_POST_UP	4
+#define BMAP_LEFT_CONTIG	(1 << 0)
+#define BMAP_RIGHT_CONTIG	(1 << 1)
+#define BMAP_LEFT_FILLING	(1 << 2)
+#define BMAP_RIGHT_FILLING	(1 << 3)
+#define BMAP_LEFT_DELAY		(1 << 4)
+#define BMAP_RIGHT_DELAY	(1 << 5)
+#define BMAP_LEFT_VALID		(1 << 6)
+#define BMAP_RIGHT_VALID	(1 << 7)
+#define BMAP_ATTRFORK		(1 << 8)
 
-#define	XFS_BMAP_TRACE_SIZE	4096	/* size of global trace buffer */
-#define	XFS_BMAP_KTRACE_SIZE	32	/* size of per-inode trace buffer */
-extern ktrace_t	*xfs_bmap_trace_buf;
+#define XFS_BMAP_EXT_FLAGS \
+	{ BMAP_LEFT_CONTIG,	"LC" }, \
+	{ BMAP_RIGHT_CONTIG,	"RC" }, \
+	{ BMAP_LEFT_FILLING,	"LF" }, \
+	{ BMAP_RIGHT_FILLING,	"RF" }, \
+	{ BMAP_ATTRFORK,	"ATTR" }
 
 /*
  * Add bmap trace insert entries for all the contents of the extent list.
+ *
+ * Quite excessive tracing.  Only do this for debug builds.
  */
+#if defined(__KERNEL) && defined(DEBUG)
 void
 xfs_bmap_trace_exlist(
-	const char		*fname,		/* function name */
 	struct xfs_inode	*ip,		/* incore inode pointer */
 	xfs_extnum_t		cnt,		/* count of entries in list */
-	int			whichfork);	/* data or attr fork */
+	int			whichfork,
+	unsigned long		caller_ip);	/* data or attr fork */
 #define	XFS_BMAP_TRACE_EXLIST(ip,c,w)	\
-	xfs_bmap_trace_exlist(__func__,ip,c,w)
-
-#else	/* __KERNEL__ && XFS_BMAP_TRACE */
-
+	xfs_bmap_trace_exlist(ip,c,w, _THIS_IP_)
+#else
 #define	XFS_BMAP_TRACE_EXLIST(ip,c,w)
-
-#endif	/* __KERNEL__ && XFS_BMAP_TRACE */
+#endif
 
 /*
  * Convert inode from non-attributed to attributed.

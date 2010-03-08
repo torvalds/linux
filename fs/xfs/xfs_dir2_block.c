@@ -36,8 +36,8 @@
 #include "xfs_dir2_data.h"
 #include "xfs_dir2_leaf.h"
 #include "xfs_dir2_block.h"
-#include "xfs_dir2_trace.h"
 #include "xfs_error.h"
+#include "xfs_trace.h"
 
 /*
  * Local function prototypes.
@@ -57,8 +57,8 @@ static xfs_dahash_t xfs_dir_hash_dot, xfs_dir_hash_dotdot;
 void
 xfs_dir_startup(void)
 {
-	xfs_dir_hash_dot = xfs_da_hashname(".", 1);
-	xfs_dir_hash_dotdot = xfs_da_hashname("..", 2);
+	xfs_dir_hash_dot = xfs_da_hashname((unsigned char *)".", 1);
+	xfs_dir_hash_dotdot = xfs_da_hashname((unsigned char *)"..", 2);
 }
 
 /*
@@ -94,7 +94,8 @@ xfs_dir2_block_addname(
 	__be16			*tagp;		/* pointer to tag value */
 	xfs_trans_t		*tp;		/* transaction structure */
 
-	xfs_dir2_trace_args("block_addname", args);
+	trace_xfs_dir2_block_addname(args);
+
 	dp = args->dp;
 	tp = args->trans;
 	mp = dp->i_mount;
@@ -512,8 +513,9 @@ xfs_dir2_block_getdents(
 		/*
 		 * If it didn't fit, set the final offset to here & return.
 		 */
-		if (filldir(dirent, dep->name, dep->namelen, cook & 0x7fffffff,
-			    be64_to_cpu(dep->inumber), DT_UNKNOWN)) {
+		if (filldir(dirent, (char *)dep->name, dep->namelen,
+			    cook & 0x7fffffff, be64_to_cpu(dep->inumber),
+			    DT_UNKNOWN)) {
 			*offset = cook & 0x7fffffff;
 			xfs_da_brelse(NULL, bp);
 			return 0;
@@ -590,7 +592,8 @@ xfs_dir2_block_lookup(
 	int			error;		/* error return value */
 	xfs_mount_t		*mp;		/* filesystem mount point */
 
-	xfs_dir2_trace_args("block_lookup", args);
+	trace_xfs_dir2_block_lookup(args);
+
 	/*
 	 * Get the buffer, look up the entry.
 	 * If not found (ENOENT) then return, have no buffer.
@@ -747,7 +750,8 @@ xfs_dir2_block_removename(
 	int			size;		/* shortform size */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
-	xfs_dir2_trace_args("block_removename", args);
+	trace_xfs_dir2_block_removename(args);
+
 	/*
 	 * Look up the entry in the block.  Gets the buffer and entry index.
 	 * It will always be there, the vnodeops level does a lookup first.
@@ -823,7 +827,8 @@ xfs_dir2_block_replace(
 	int			error;		/* error return value */
 	xfs_mount_t		*mp;		/* filesystem mount point */
 
-	xfs_dir2_trace_args("block_replace", args);
+	trace_xfs_dir2_block_replace(args);
+
 	/*
 	 * Lookup the entry in the directory.  Get buffer and entry index.
 	 * This will always succeed since the caller has already done a lookup.
@@ -897,7 +902,8 @@ xfs_dir2_leaf_to_block(
 	int			to;		/* block/leaf to index */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
-	xfs_dir2_trace_args_bb("leaf_to_block", args, lbp, dbp);
+	trace_xfs_dir2_leaf_to_block(args);
+
 	dp = args->dp;
 	tp = args->trans;
 	mp = dp->i_mount;
@@ -1044,7 +1050,8 @@ xfs_dir2_sf_to_block(
 	xfs_trans_t		*tp;		/* transaction pointer */
 	struct xfs_name		name;
 
-	xfs_dir2_trace_args("sf_to_block", args);
+	trace_xfs_dir2_sf_to_block(args);
+
 	dp = args->dp;
 	tp = args->trans;
 	mp = dp->i_mount;

@@ -65,6 +65,7 @@ static struct usb_device_id rtl8187_table[] __devinitdata = {
 	/* Sitecom */
 	{USB_DEVICE(0x0df6, 0x000d), .driver_info = DEVICE_RTL8187},
 	{USB_DEVICE(0x0df6, 0x0028), .driver_info = DEVICE_RTL8187B},
+	{USB_DEVICE(0x0df6, 0x0029), .driver_info = DEVICE_RTL8187B},
 	/* Sphairon Access Systems GmbH */
 	{USB_DEVICE(0x114B, 0x0150), .driver_info = DEVICE_RTL8187},
 	/* Dick Smith Electronics */
@@ -1018,31 +1019,30 @@ static void rtl8187_stop(struct ieee80211_hw *dev)
 }
 
 static int rtl8187_add_interface(struct ieee80211_hw *dev,
-				 struct ieee80211_if_init_conf *conf)
+				 struct ieee80211_vif *vif)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	int i;
 	int ret = -EOPNOTSUPP;
 
 	mutex_lock(&priv->conf_mutex);
-	if (priv->mode != NL80211_IFTYPE_MONITOR)
+	if (priv->vif)
 		goto exit;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
-		priv->mode = conf->type;
 		break;
 	default:
 		goto exit;
 	}
 
 	ret = 0;
-	priv->vif = conf->vif;
+	priv->vif = vif;
 
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_CONFIG);
 	for (i = 0; i < ETH_ALEN; i++)
 		rtl818x_iowrite8(priv, &priv->map->MAC[i],
-				 ((u8 *)conf->mac_addr)[i]);
+				 ((u8 *)vif->addr)[i]);
 	rtl818x_iowrite8(priv, &priv->map->EEPROM_CMD, RTL818X_EEPROM_CMD_NORMAL);
 
 exit:
@@ -1051,11 +1051,10 @@ exit:
 }
 
 static void rtl8187_remove_interface(struct ieee80211_hw *dev,
-				     struct ieee80211_if_init_conf *conf)
+				     struct ieee80211_vif *vif)
 {
 	struct rtl8187_priv *priv = dev->priv;
 	mutex_lock(&priv->conf_mutex);
-	priv->mode = NL80211_IFTYPE_MONITOR;
 	priv->vif = NULL;
 	mutex_unlock(&priv->conf_mutex);
 }
@@ -1267,6 +1266,14 @@ static int rtl8187_conf_tx(struct ieee80211_hw *dev, u16 queue,
 	return 0;
 }
 
+static u64 rtl8187_get_tsf(struct ieee80211_hw *dev)
+{
+	struct rtl8187_priv *priv = dev->priv;
+
+	return rtl818x_ioread32(priv, &priv->map->TSFT[0]) |
+	       (u64)(rtl818x_ioread32(priv, &priv->map->TSFT[1])) << 32;
+}
+
 static const struct ieee80211_ops rtl8187_ops = {
 	.tx			= rtl8187_tx,
 	.start			= rtl8187_start,
@@ -1278,7 +1285,8 @@ static const struct ieee80211_ops rtl8187_ops = {
 	.prepare_multicast	= rtl8187_prepare_multicast,
 	.configure_filter	= rtl8187_configure_filter,
 	.conf_tx		= rtl8187_conf_tx,
-	.rfkill_poll		= rtl8187_rfkill_poll
+	.rfkill_poll		= rtl8187_rfkill_poll,
+	.get_tsf		= rtl8187_get_tsf,
 };
 
 static void rtl8187_eeprom_register_read(struct eeprom_93cx6 *eeprom)
@@ -1322,6 +1330,7 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	struct ieee80211_channel *channel;
 	const char *chip_name;
 	u16 txpwr, reg;
+	u16 product_id = le16_to_cpu(udev->descriptor.idProduct);
 	int err, i;
 
 	dev = ieee80211_alloc_hw(sizeof(*priv), &rtl8187_ops);
@@ -1364,7 +1373,6 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	dev->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
 
 
-	priv->mode = NL80211_IFTYPE_MONITOR;
 	dev->flags = IEEE80211_HW_HOST_BROADCAST_PS_BUFFERING |
 		     IEEE80211_HW_SIGNAL_DBM |
 		     IEEE80211_HW_RX_INCLUDES_FCS;
@@ -1481,6 +1489,13 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 		(*channel++).hw_value = txpwr & 0xFF;
 		(*channel++).hw_value = txpwr >> 8;
 	}
+	/* Handle the differing rfkill GPIO bit in different models */
+	priv->rfkill_mask = RFKILL_MASK_8187_89_97;
+	if (product_id == 0x8197 || product_id == 0x8198) {
+		eeprom_93cx6_read(&eeprom, RTL8187_EEPROM_SELECT_GPIO, &reg);
+		if (reg & 0xFF00)
+			priv->rfkill_mask = RFKILL_MASK_8198;
+	}
 
 	/*
 	 * XXX: Once this driver supports anything that requires
@@ -1509,9 +1524,9 @@ static int __devinit rtl8187_probe(struct usb_interface *intf,
 	mutex_init(&priv->conf_mutex);
 	skb_queue_head_init(&priv->b_tx_status.queue);
 
-	printk(KERN_INFO "%s: hwaddr %pM, %s V%d + %s\n",
+	printk(KERN_INFO "%s: hwaddr %pM, %s V%d + %s, rfkill mask %d\n",
 	       wiphy_name(dev->wiphy), dev->wiphy->perm_addr,
-	       chip_name, priv->asic_rev, priv->rf->name);
+	       chip_name, priv->asic_rev, priv->rf->name, priv->rfkill_mask);
 
 #ifdef CONFIG_RTL8187_LEDS
 	eeprom_93cx6_read(&eeprom, 0x3F, &reg);

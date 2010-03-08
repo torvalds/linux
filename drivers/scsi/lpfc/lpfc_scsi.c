@@ -626,6 +626,7 @@ lpfc_sli4_fcp_xri_aborted(struct lpfc_hba *phba,
 		&phba->sli4_hba.lpfc_abts_scsi_buf_list, list) {
 		if (psb->cur_iocbq.sli4_xritag == xri) {
 			list_del(&psb->list);
+			psb->exch_busy = 0;
 			psb->status = IOSTAT_SUCCESS;
 			spin_unlock_irqrestore(
 				&phba->sli4_hba.abts_scsi_buf_list_lock,
@@ -688,11 +689,12 @@ lpfc_sli4_repost_scsi_sgl_list(struct lpfc_hba *phba)
 					 list);
 			if (status) {
 				/* Put this back on the abort scsi list */
-				psb->status = IOSTAT_LOCAL_REJECT;
-				psb->result = IOERR_ABORT_REQUESTED;
+				psb->exch_busy = 1;
 				rc++;
-			} else
+			} else {
+				psb->exch_busy = 0;
 				psb->status = IOSTAT_SUCCESS;
+			}
 			/* Put it back into the SCSI buffer list */
 			lpfc_release_scsi_buf_s4(phba, psb);
 		}
@@ -796,19 +798,17 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 		 */
 		sgl->addr_hi = cpu_to_le32(putPaddrHigh(pdma_phys_fcp_cmd));
 		sgl->addr_lo = cpu_to_le32(putPaddrLow(pdma_phys_fcp_cmd));
-		bf_set(lpfc_sli4_sge_len, sgl, sizeof(struct fcp_cmnd));
 		bf_set(lpfc_sli4_sge_last, sgl, 0);
 		sgl->word2 = cpu_to_le32(sgl->word2);
-		sgl->word3 = cpu_to_le32(sgl->word3);
+		sgl->sge_len = cpu_to_le32(sizeof(struct fcp_cmnd));
 		sgl++;
 
 		/* Setup the physical region for the FCP RSP */
 		sgl->addr_hi = cpu_to_le32(putPaddrHigh(pdma_phys_fcp_rsp));
 		sgl->addr_lo = cpu_to_le32(putPaddrLow(pdma_phys_fcp_rsp));
-		bf_set(lpfc_sli4_sge_len, sgl, sizeof(struct fcp_rsp));
 		bf_set(lpfc_sli4_sge_last, sgl, 1);
 		sgl->word2 = cpu_to_le32(sgl->word2);
-		sgl->word3 = cpu_to_le32(sgl->word3);
+		sgl->sge_len = cpu_to_le32(sizeof(struct fcp_rsp));
 
 		/*
 		 * Since the IOCB for the FCP I/O is built into this
@@ -839,11 +839,12 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 						psb->cur_iocbq.sli4_xritag);
 			if (status) {
 				/* Put this back on the abort scsi list */
-				psb->status = IOSTAT_LOCAL_REJECT;
-				psb->result = IOERR_ABORT_REQUESTED;
+				psb->exch_busy = 1;
 				rc++;
-			} else
+			} else {
+				psb->exch_busy = 0;
 				psb->status = IOSTAT_SUCCESS;
+			}
 			/* Put it back into the SCSI buffer list */
 			lpfc_release_scsi_buf_s4(phba, psb);
 			break;
@@ -857,11 +858,12 @@ lpfc_new_scsi_buf_s4(struct lpfc_vport *vport, int num_to_alloc)
 				 list);
 			if (status) {
 				/* Put this back on the abort scsi list */
-				psb->status = IOSTAT_LOCAL_REJECT;
-				psb->result = IOERR_ABORT_REQUESTED;
+				psb->exch_busy = 1;
 				rc++;
-			} else
+			} else {
+				psb->exch_busy = 0;
 				psb->status = IOSTAT_SUCCESS;
+			}
 			/* Put it back into the SCSI buffer list */
 			lpfc_release_scsi_buf_s4(phba, psb);
 		}
@@ -951,8 +953,7 @@ lpfc_release_scsi_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *psb)
 {
 	unsigned long iflag = 0;
 
-	if (psb->status == IOSTAT_LOCAL_REJECT
-		&& psb->result == IOERR_ABORT_REQUESTED) {
+	if (psb->exch_busy) {
 		spin_lock_irqsave(&phba->sli4_hba.abts_scsi_buf_list_lock,
 					iflag);
 		psb->pCmd = NULL;
@@ -1869,7 +1870,6 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 		scsi_for_each_sg(scsi_cmnd, sgel, nseg, num_bde) {
 			physaddr = sg_dma_address(sgel);
 			dma_len = sg_dma_len(sgel);
-			bf_set(lpfc_sli4_sge_len, sgl, sg_dma_len(sgel));
 			sgl->addr_lo = cpu_to_le32(putPaddrLow(physaddr));
 			sgl->addr_hi = cpu_to_le32(putPaddrHigh(physaddr));
 			if ((num_bde + 1) == nseg)
@@ -1878,7 +1878,7 @@ lpfc_scsi_prep_dma_buf_s4(struct lpfc_hba *phba, struct lpfc_scsi_buf *lpfc_cmd)
 				bf_set(lpfc_sli4_sge_last, sgl, 0);
 			bf_set(lpfc_sli4_sge_offset, sgl, dma_offset);
 			sgl->word2 = cpu_to_le32(sgl->word2);
-			sgl->word3 = cpu_to_le32(sgl->word3);
+			sgl->sge_len = cpu_to_le32(dma_len);
 			dma_offset += dma_len;
 			sgl++;
 		}
@@ -2221,6 +2221,9 @@ lpfc_scsi_cmd_iocb_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pIocbIn,
 
 	lpfc_cmd->result = pIocbOut->iocb.un.ulpWord[4];
 	lpfc_cmd->status = pIocbOut->iocb.ulpStatus;
+	/* pick up SLI4 exhange busy status from HBA */
+	lpfc_cmd->exch_busy = pIocbOut->iocb_flag & LPFC_EXCHANGE_BUSY;
+
 	if (pnode && NLP_CHK_NODE_ACT(pnode))
 		atomic_dec(&pnode->cmd_pending);
 
@@ -2637,6 +2640,7 @@ lpfc_scsi_api_table_setup(struct lpfc_hba *phba, uint8_t dev_grp)
 	}
 	phba->lpfc_get_scsi_buf = lpfc_get_scsi_buf;
 	phba->lpfc_rampdown_queue_depth = lpfc_rampdown_queue_depth;
+	phba->lpfc_scsi_cmd_iocb_cmpl = lpfc_scsi_cmd_iocb_cmpl;
 	return 0;
 }
 
@@ -2694,6 +2698,13 @@ lpfc_info(struct Scsi_Host *host)
 				 384-len,
 				 " port %s",
 				 phba->Port);
+		}
+		len = strlen(lpfcinfobuf);
+		if (phba->sli4_hba.link_state.logical_speed) {
+			snprintf(lpfcinfobuf + len,
+				 384-len,
+				 " Logical Link Speed: %d Mbps",
+				 phba->sli4_hba.link_state.logical_speed * 10);
 		}
 	}
 	return lpfcinfobuf;
@@ -2990,6 +3001,7 @@ lpfc_abort_handler(struct scsi_cmnd *cmnd)
 
 	/* ABTS WQE must go to the same WQ as the WQE to be aborted */
 	abtsiocb->fcp_wqidx = iocb->fcp_wqidx;
+	abtsiocb->iocb_flag |= LPFC_USE_FCPWQIDX;
 
 	if (lpfc_is_link_up(phba))
 		icmd->ulpCommand = CMD_ABORT_XRI_CN;

@@ -5,6 +5,13 @@
 #include <linux/sched.h>
 #include <asm/ptrace.h>
 
+/*
+ * The syscall table always contains 32 bit pointers since we know that the
+ * address of the function to be called is (way) below 4GB.  So the "int"
+ * type here is what we want [need] for both 32 bit and 64 bit systems.
+ */
+extern const unsigned int sys_call_table[];
+
 /* The system call number is given by the user in %g1 */
 static inline long syscall_get_nr(struct task_struct *task,
 				  struct pt_regs *regs)

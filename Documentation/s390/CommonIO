@@ -87,6 +87,12 @@ Command line parameters
   compatibility, by the device number in hexadecimal (0xabcd or abcd). Device
   numbers given as 0xabcd will be interpreted as 0.0.abcd.
 
+* /proc/cio_settle
+
+  A write request to this file is blocked until all queued cio actions are
+  handled. This will allow userspace to wait for pending work affecting
+  device availability after changing cio_ignore or the hardware configuration.
+
 * For some of the information present in the /proc filesystem in 2.4 (namely,
   /proc/subchannels and /proc/chpids), see driver-model.txt.
   Information formerly in /proc/irq_count is now in /proc/interrupts.

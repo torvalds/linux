@@ -22,9 +22,10 @@
 #include <net/inet6_hashtables.h>
 #include <net/ip.h>
 
-void __inet6_hash(struct sock *sk)
+int __inet6_hash(struct sock *sk, struct inet_timewait_sock *tw)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
+	int twrefcnt = 0;
 
 	WARN_ON(!sk_unhashed(sk));
 
@@ -45,10 +46,15 @@ void __inet6_hash(struct sock *sk)
 		lock = inet_ehash_lockp(hashinfo, hash);
 		spin_lock(lock);
 		__sk_nulls_add_node_rcu(sk, list);
+		if (tw) {
+			WARN_ON(sk->sk_hash != tw->tw_hash);
+			twrefcnt = inet_twsk_unhash(tw);
+		}
 		spin_unlock(lock);
 	}
 
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+	return twrefcnt;
 }
 EXPORT_SYMBOL(__inet6_hash);
 

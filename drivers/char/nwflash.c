@@ -27,6 +27,7 @@
 #include <linux/init.h>
 #include <linux/smp_lock.h>
 #include <linux/mutex.h>
+#include <linux/jiffies.h>
 
 #include <asm/hardware/dec21285.h>
 #include <asm/io.h>

@@ -65,7 +65,10 @@ static ssize_t power_supply_show_property(struct device *dev,
 	ret = psy->get_property(psy, off, &value);
 
 	if (ret < 0) {
-		if (ret != -ENODEV)
+		if (ret == -ENODATA)
+			dev_dbg(dev, "driver has no data for `%s' property\n",
+				attr->attr.name);
+		else if (ret != -ENODEV)
 			dev_err(dev, "driver failed to report `%s' property\n",
 				attr->attr.name);
 		return ret;

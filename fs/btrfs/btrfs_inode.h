@@ -44,9 +44,6 @@ struct btrfs_inode {
 	 */
 	struct extent_io_tree io_failure_tree;
 
-	/* held while inesrting or deleting extents from files */
-	struct mutex extent_mutex;
-
 	/* held while logging the inode in tree-log.c */
 	struct mutex log_mutex;
 
@@ -166,7 +163,7 @@ static inline struct btrfs_inode *BTRFS_I(struct inode *inode)
 
 static inline void btrfs_i_size_write(struct inode *inode, u64 size)
 {
-	inode->i_size = size;
+	i_size_write(inode, size);
 	BTRFS_I(inode)->disk_i_size = size;
 }
 

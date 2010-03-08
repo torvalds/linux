@@ -60,7 +60,8 @@
  * @dca: direct cache access context
  * @intr_quirk: interrupt setup quirk (for ioat_v1 devices)
  * @enumerate_channels: hw version specific channel enumeration
- * @cleanup_tasklet: select between the v2 and v3 cleanup routines
+ * @reset_hw: hw version specific channel (re)initialization
+ * @cleanup_fn: select between the v2 and v3 cleanup routines
  * @timer_fn: select between the v2 and v3 timer watchdog routines
  * @self_test: hardware version specific self test for each supported op type
  *
@@ -78,7 +79,8 @@ struct ioatdma_device {
 	struct dca_provider *dca;
 	void (*intr_quirk)(struct ioatdma_device *device);
 	int (*enumerate_channels)(struct ioatdma_device *device);
-	void (*cleanup_tasklet)(unsigned long data);
+	int (*reset_hw)(struct ioat_chan_common *chan);
+	void (*cleanup_fn)(unsigned long data);
 	void (*timer_fn)(unsigned long data);
 	int (*self_test)(struct ioatdma_device *device);
 };
@@ -264,6 +266,22 @@ static inline void ioat_suspend(struct ioat_chan_common *chan)
 	writeb(IOAT_CHANCMD_SUSPEND, chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
 }
 
+static inline void ioat_reset(struct ioat_chan_common *chan)
+{
+	u8 ver = chan->device->version;
+
+	writeb(IOAT_CHANCMD_RESET, chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
+}
+
+static inline bool ioat_reset_pending(struct ioat_chan_common *chan)
+{
+	u8 ver = chan->device->version;
+	u8 cmd;
+
+	cmd = readb(chan->reg_base + IOAT_CHANCMD_OFFSET(ver));
+	return (cmd & IOAT_CHANCMD_RESET) == IOAT_CHANCMD_RESET;
+}
+
 static inline void ioat_set_chainaddr(struct ioat_dma_chan *ioat, u64 addr)
 {
 	struct ioat_chan_common *chan = &ioat->base;
@@ -319,10 +337,9 @@ struct dca_provider * __devinit ioat_dca_init(struct pci_dev *pdev,
 					      void __iomem *iobase);
 unsigned long ioat_get_current_completion(struct ioat_chan_common *chan);
 void ioat_init_channel(struct ioatdma_device *device,
-		       struct ioat_chan_common *chan, int idx,
-		       void (*timer_fn)(unsigned long),
-		       void (*tasklet)(unsigned long),
-		       unsigned long ioat);
+		       struct ioat_chan_common *chan, int idx);
+enum dma_status ioat_is_dma_complete(struct dma_chan *c, dma_cookie_t cookie,
+				     dma_cookie_t *done, dma_cookie_t *used);
 void ioat_dma_unmap(struct ioat_chan_common *chan, enum dma_ctrl_flags flags,
 		    size_t len, struct ioat_dma_descriptor *hw);
 bool ioat_cleanup_preamble(struct ioat_chan_common *chan,

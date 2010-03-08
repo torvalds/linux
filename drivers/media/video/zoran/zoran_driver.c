@@ -324,7 +324,7 @@ static int jpg_fbuffer_alloc(struct zoran_fh *fh)
 		/* Allocate fragment table for this buffer */
 
 		mem = (void *)get_zeroed_page(GFP_KERNEL);
-		if (mem == 0) {
+		if (!mem) {
 			dprintk(1,
 				KERN_ERR
 				"%s: %s - get_zeroed_page (frag_tab) failed for buffer %d\n",
@@ -1444,7 +1444,7 @@ zoran_set_norm (struct zoran *zr,
 	}
 
 	if (norm == V4L2_STD_ALL) {
-		int status = 0;
+		unsigned int status = 0;
 		v4l2_std_id std = 0;
 
 		decoder_call(zr, video, querystd, &std);
@@ -3387,6 +3387,5 @@ struct video_device zoran_template __devinitdata = {
 	.ioctl_ops = &zoran_ioctl_ops,
 	.release = &zoran_vdev_release,
 	.tvnorms = V4L2_STD_NTSC | V4L2_STD_PAL | V4L2_STD_SECAM,
-	.minor = -1
 };
 

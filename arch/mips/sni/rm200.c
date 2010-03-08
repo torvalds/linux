@@ -132,7 +132,7 @@ device_initcall(snirm_setup_devinit);
  * readb/writeb to access them
  */
 
-DEFINE_SPINLOCK(sni_rm200_i8259A_lock);
+static DEFINE_RAW_SPINLOCK(sni_rm200_i8259A_lock);
 #define PIC_CMD    0x00
 #define PIC_IMR    0x01
 #define PIC_ISR    PIC_CMD
@@ -161,13 +161,13 @@ static void sni_rm200_disable_8259A_irq(unsigned int irq)
 
 	irq -= RM200_I8259A_IRQ_BASE;
 	mask = 1 << irq;
-	spin_lock_irqsave(&sni_rm200_i8259A_lock, flags);
+	raw_spin_lock_irqsave(&sni_rm200_i8259A_lock, flags);
 	rm200_cached_irq_mask |= mask;
 	if (irq & 8)
 		writeb(cached_slave_mask, rm200_pic_slave + PIC_IMR);
 	else
 		writeb(cached_master_mask, rm200_pic_master + PIC_IMR);
-	spin_unlock_irqrestore(&sni_rm200_i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&sni_rm200_i8259A_lock, flags);
 }
 
 static void sni_rm200_enable_8259A_irq(unsigned int irq)
@@ -177,13 +177,13 @@ static void sni_rm200_enable_8259A_irq(unsigned int irq)
 
 	irq -= RM200_I8259A_IRQ_BASE;
 	mask = ~(1 << irq);
-	spin_lock_irqsave(&sni_rm200_i8259A_lock, flags);
+	raw_spin_lock_irqsave(&sni_rm200_i8259A_lock, flags);
 	rm200_cached_irq_mask &= mask;
 	if (irq & 8)
 		writeb(cached_slave_mask, rm200_pic_slave + PIC_IMR);
 	else
 		writeb(cached_master_mask, rm200_pic_master + PIC_IMR);
-	spin_unlock_irqrestore(&sni_rm200_i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&sni_rm200_i8259A_lock, flags);
 }
 
 static inline int sni_rm200_i8259A_irq_real(unsigned int irq)
@@ -216,7 +216,7 @@ void sni_rm200_mask_and_ack_8259A(unsigned int irq)
 
 	irq -= RM200_I8259A_IRQ_BASE;
 	irqmask = 1 << irq;
-	spin_lock_irqsave(&sni_rm200_i8259A_lock, flags);
+	raw_spin_lock_irqsave(&sni_rm200_i8259A_lock, flags);
 	/*
 	 * Lightweight spurious IRQ detection. We do not want
 	 * to overdo spurious IRQ handling - it's usually a sign
@@ -247,7 +247,7 @@ handle_real_irq:
 		writeb(cached_master_mask, rm200_pic_master + PIC_IMR);
 		writeb(0x60+irq, rm200_pic_master + PIC_CMD);
 	}
-	spin_unlock_irqrestore(&sni_rm200_i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&sni_rm200_i8259A_lock, flags);
 	return;
 
 spurious_8259A_irq:
@@ -298,7 +298,7 @@ static inline int sni_rm200_i8259_irq(void)
 {
 	int irq;
 
-	spin_lock(&sni_rm200_i8259A_lock);
+	raw_spin_lock(&sni_rm200_i8259A_lock);
 
 	/* Perform an interrupt acknowledge cycle on controller 1. */
 	writeb(0x0C, rm200_pic_master + PIC_CMD);	/* prepare for poll */
@@ -325,7 +325,7 @@ static inline int sni_rm200_i8259_irq(void)
 			irq = -1;
 	}
 
-	spin_unlock(&sni_rm200_i8259A_lock);
+	raw_spin_unlock(&sni_rm200_i8259A_lock);
 
 	return likely(irq >= 0) ? irq + RM200_I8259A_IRQ_BASE : irq;
 }
@@ -334,7 +334,7 @@ void sni_rm200_init_8259A(void)
 {
 	unsigned long flags;
 
-	spin_lock_irqsave(&sni_rm200_i8259A_lock, flags);
+	raw_spin_lock_irqsave(&sni_rm200_i8259A_lock, flags);
 
 	writeb(0xff, rm200_pic_master + PIC_IMR);
 	writeb(0xff, rm200_pic_slave + PIC_IMR);
@@ -352,7 +352,7 @@ void sni_rm200_init_8259A(void)
 	writeb(cached_master_mask, rm200_pic_master + PIC_IMR);
 	writeb(cached_slave_mask, rm200_pic_slave + PIC_IMR);
 
-	spin_unlock_irqrestore(&sni_rm200_i8259A_lock, flags);
+	raw_spin_unlock_irqrestore(&sni_rm200_i8259A_lock, flags);
 }
 
 /*
@@ -404,7 +404,7 @@ void __init sni_rm200_i8259_irqs(void)
 	if (!rm200_pic_master)
 		return;
 	rm200_pic_slave = ioremap_nocache(0x160000a0, 4);
-	if (!rm200_pic_master) {
+	if (!rm200_pic_slave) {
 		iounmap(rm200_pic_master);
 		return;
 	}
@@ -449,7 +449,7 @@ void end_rm200_irq(unsigned int irq)
 }
 
 static struct irq_chip rm200_irq_type = {
-	.typename = "RM200",
+	.name = "RM200",
 	.ack = disable_rm200_irq,
 	.mask = disable_rm200_irq,
 	.mask_ack = disable_rm200_irq,

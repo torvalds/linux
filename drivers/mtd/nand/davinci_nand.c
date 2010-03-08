@@ -591,6 +591,8 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 
 	/* options such as NAND_USE_FLASH_BBT or 16-bit widths */
 	info->chip.options	= pdata->options;
+	info->chip.bbt_td	= pdata->bbt_td;
+	info->chip.bbt_md	= pdata->bbt_md;
 
 	info->ioaddr		= (uint32_t __force) vaddr;
 
@@ -599,7 +601,7 @@ static int __init nand_davinci_probe(struct platform_device *pdev)
 	info->mask_chipsel	= pdata->mask_chipsel;
 
 	/* use nandboot-capable ALE/CLE masks by default */
-	info->mask_ale		= pdata->mask_cle ? : MASK_ALE;
+	info->mask_ale		= pdata->mask_ale ? : MASK_ALE;
 	info->mask_cle		= pdata->mask_cle ? : MASK_CLE;
 
 	/* Set address of hardware control function */

@@ -168,7 +168,7 @@ static int smsg_pm_restore_thaw(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops smsg_pm_ops = {
+static const struct dev_pm_ops smsg_pm_ops = {
 	.freeze = smsg_pm_freeze,
 	.thaw = smsg_pm_restore_thaw,
 	.restore = smsg_pm_restore_thaw,

@@ -697,7 +697,7 @@ static struct platform_driver vt8231_driver = {
 	.remove	= __devexit_p(vt8231_remove),
 };
 
-static struct pci_device_id vt8231_pci_ids[] = {
+static const struct pci_device_id vt8231_pci_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_VIA, PCI_DEVICE_ID_VIA_8231_4) },
 	{ 0, }
 };
@@ -948,8 +948,7 @@ static int __devinit vt8231_pci_probe(struct pci_dev *dev,
 
 	address = val & ~(VT8231_EXTENT - 1);
 	if (address == 0) {
-		dev_err(&dev->dev, "base address not set -\
-				 upgrade BIOS or use force_addr=0xaddr\n");
+		dev_err(&dev->dev, "base address not set - upgrade BIOS or use force_addr=0xaddr\n");
 		return -ENODEV;
 	}
 

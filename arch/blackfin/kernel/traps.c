@@ -119,6 +119,15 @@ static void decode_address(char *buf, unsigned long address)
 		return;
 	}
 
+	/*
+	 * Don't walk any of the vmas if we are oopsing, it has been known
+	 * to cause problems - corrupt vmas (kernel crashes) cause double faults
+	 */
+	if (oops_in_progress) {
+		strcat(buf, "/* kernel dynamic memory (maybe user-space) */");
+		return;
+	}
+
 	/* looks like we're off in user-land, so let's walk all the
 	 * mappings of all our processes and see if we can't be a whee
 	 * bit more specific
@@ -515,6 +524,36 @@ asmlinkage notrace void trap_c(struct pt_regs *fp)
 			break;
 		/* External Memory Addressing Error */
 		case (SEQSTAT_HWERRCAUSE_EXTERN_ADDR):
+			if (ANOMALY_05000310) {
+				static unsigned long anomaly_rets;
+
+				if ((fp->pc >= (L1_CODE_START + L1_CODE_LENGTH - 512)) &&
+				    (fp->pc < (L1_CODE_START + L1_CODE_LENGTH))) {
+					/*
+					 * A false hardware error will happen while fetching at
+					 * the L1 instruction SRAM boundary.  Ignore it.
+					 */
+					anomaly_rets = fp->rets;
+					goto traps_done;
+				} else if (fp->rets == anomaly_rets) {
+					/*
+					 * While boundary code returns to a function, at the ret
+					 * point, a new false hardware error might occur too based
+					 * on tests.  Ignore it too.
+					 */
+					goto traps_done;
+				} else if ((fp->rets >= (L1_CODE_START + L1_CODE_LENGTH - 512)) &&
+				           (fp->rets < (L1_CODE_START + L1_CODE_LENGTH))) {
+					/*
+					 * If boundary code calls a function, at the entry point,
+					 * a new false hardware error maybe happen based on tests.
+					 * Ignore it too.
+					 */
+					goto traps_done;
+				} else
+					anomaly_rets = 0;
+			}
+
 			info.si_code = BUS_ADRERR;
 			sig = SIGBUS;
 			strerror = KERN_NOTICE HWC_x3(KERN_NOTICE);
@@ -976,12 +1015,12 @@ void dump_bfin_process(struct pt_regs *fp)
 	    !((unsigned long)current & 0x3) && current->pid) {
 		verbose_printk(KERN_NOTICE "CURRENT PROCESS:\n");
 		if (current->comm >= (char *)FIXED_CODE_START)
-			verbose_printk(KERN_NOTICE "COMM=%s PID=%d\n",
+			verbose_printk(KERN_NOTICE "COMM=%s PID=%d",
 				current->comm, current->pid);
 		else
-			verbose_printk(KERN_NOTICE "COMM= invalid\n");
+			verbose_printk(KERN_NOTICE "COMM= invalid");
 
-		printk(KERN_NOTICE "CPU = %d\n", current_thread_info()->cpu);
+		printk(KERN_CONT " CPU=%d\n", current_thread_info()->cpu);
 		if (!((unsigned long)current->mm & 0x3) && (unsigned long)current->mm >= FIXED_CODE_START)
 			verbose_printk(KERN_NOTICE
 				"TEXT = 0x%p-0x%p        DATA = 0x%p-0x%p\n"
@@ -1140,7 +1179,7 @@ void show_regs(struct pt_regs *fp)
 	if (fp->ipend & ~0x3F) {
 		for (i = 0; i < (NR_IRQS - 1); i++) {
 			if (!in_atomic)
-				spin_lock_irqsave(&irq_desc[i].lock, flags);
+				raw_spin_lock_irqsave(&irq_desc[i].lock, flags);
 
 			action = irq_desc[i].action;
 			if (!action)
@@ -1155,7 +1194,7 @@ void show_regs(struct pt_regs *fp)
 			verbose_printk("\n");
 unlock:
 			if (!in_atomic)
-				spin_unlock_irqrestore(&irq_desc[i].lock, flags);
+				raw_spin_unlock_irqrestore(&irq_desc[i].lock, flags);
 		}
 	}
 

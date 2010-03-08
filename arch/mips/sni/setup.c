@@ -60,7 +60,7 @@ static void __init sni_console_setup(void)
 	char *cdev;
 	char *baud;
 	int port;
-	static char options[8];
+	static char options[8] __initdata;
 
 	cdev = prom_getenv("console_dev");
 	if (strncmp(cdev, "tty", 3) == 0) {

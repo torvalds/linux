@@ -122,16 +122,21 @@
 #define OMAP243X_SMS_VIRT	(OMAP243X_SMS_PHYS + OMAP2_L3_IO_OFFSET)
 #define OMAP243X_SMS_SIZE	SZ_1M
 
-/* DSP */
-#define DSP_MEM_24XX_PHYS	OMAP2420_DSP_MEM_BASE	/* 0x58000000 */
-#define DSP_MEM_24XX_VIRT	0xe0000000
-#define DSP_MEM_24XX_SIZE	0x28000
-#define DSP_IPI_24XX_PHYS	OMAP2420_DSP_IPI_BASE	/* 0x59000000 */
-#define DSP_IPI_24XX_VIRT	0xe1000000
-#define DSP_IPI_24XX_SIZE	SZ_4K
-#define DSP_MMU_24XX_PHYS	OMAP2420_DSP_MMU_BASE	/* 0x5a000000 */
-#define DSP_MMU_24XX_VIRT	0xe2000000
-#define DSP_MMU_24XX_SIZE	SZ_4K
+/* 2420 IVA */
+#define DSP_MEM_2420_PHYS	OMAP2420_DSP_MEM_BASE
+						/* 0x58000000 --> 0xfc100000 */
+#define DSP_MEM_2420_VIRT	0xfc100000
+#define DSP_MEM_2420_SIZE	0x28000
+#define DSP_IPI_2420_PHYS	OMAP2420_DSP_IPI_BASE
+						/* 0x59000000 --> 0xfc128000 */
+#define DSP_IPI_2420_VIRT	0xfc128000
+#define DSP_IPI_2420_SIZE	SZ_4K
+#define DSP_MMU_2420_PHYS	OMAP2420_DSP_MMU_BASE
+						/* 0x5a000000 --> 0xfc129000 */
+#define DSP_MMU_2420_VIRT	0xfc129000
+#define DSP_MMU_2420_SIZE	SZ_4K
+
+/* 2430 IVA2.1 - currently unmapped */
 
 /*
  * ----------------------------------------------------------------------------
@@ -152,10 +157,6 @@
  * Need to look at the Size 4M for L4.
  * VPOM3430 was not working for Int controller
  */
-
-#define L4_WK_34XX_PHYS		L4_WK_34XX_BASE	/* 0x48300000 --> 0xfa300000 */
-#define L4_WK_34XX_VIRT		(L4_WK_34XX_PHYS + OMAP2_L4_IO_OFFSET)
-#define L4_WK_34XX_SIZE		SZ_1M
 
 #define L4_PER_34XX_PHYS	L4_PER_34XX_BASE
 						/* 0x49000000 --> 0xfb000000 */
@@ -182,16 +183,7 @@
 #define OMAP343X_SDRC_VIRT	(OMAP343X_SDRC_PHYS + OMAP2_L3_IO_OFFSET)
 #define OMAP343X_SDRC_SIZE	SZ_1M
 
-/* DSP */
-#define DSP_MEM_34XX_PHYS	OMAP34XX_DSP_MEM_BASE	/* 0x58000000 */
-#define DSP_MEM_34XX_VIRT	0xe0000000
-#define DSP_MEM_34XX_SIZE	0x28000
-#define DSP_IPI_34XX_PHYS	OMAP34XX_DSP_IPI_BASE	/* 0x59000000 */
-#define DSP_IPI_34XX_VIRT	0xe1000000
-#define DSP_IPI_34XX_SIZE	SZ_4K
-#define DSP_MMU_34XX_PHYS	OMAP34XX_DSP_MMU_BASE	/* 0x5a000000 */
-#define DSP_MMU_34XX_VIRT	0xe2000000
-#define DSP_MMU_34XX_SIZE	SZ_4K
+/* 3430 IVA - currently unmapped */
 
 /*
  * ----------------------------------------------------------------------------
@@ -207,11 +199,6 @@
 #define L4_44XX_PHYS		L4_44XX_BASE	/* 0x4a000000 --> 0xfc000000 */
 #define L4_44XX_VIRT		(L4_44XX_PHYS + OMAP2_L4_IO_OFFSET)
 #define L4_44XX_SIZE		SZ_4M
-
-
-#define L4_WK_44XX_PHYS		L4_WK_44XX_BASE	/* 0x4a300000 --> 0xfc300000 */
-#define L4_WK_44XX_VIRT		(L4_WK_44XX_PHYS + OMAP2_L4_IO_OFFSET)
-#define L4_WK_44XX_SIZE		SZ_1M
 
 #define L4_PER_44XX_PHYS	L4_PER_44XX_BASE
 						/* 0x48000000 --> 0xfa000000 */
@@ -272,7 +259,38 @@ struct omap_sdrc_params;
 extern void omap1_map_common_io(void);
 extern void omap1_init_common_hw(void);
 
-extern void omap2_map_common_io(void);
+#ifdef CONFIG_ARCH_OMAP2420
+extern void omap242x_map_common_io(void);
+#else
+static inline void omap242x_map_common_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP2430
+extern void omap243x_map_common_io(void);
+#else
+static inline void omap243x_map_common_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP3
+extern void omap34xx_map_common_io(void);
+#else
+static inline void omap34xx_map_common_io(void)
+{
+}
+#endif
+
+#ifdef CONFIG_ARCH_OMAP4
+extern void omap44xx_map_common_io(void);
+#else
+static inline void omap44xx_map_common_io(void)
+{
+}
+#endif
+
 extern void omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 				 struct omap_sdrc_params *sdrc_cs1);
 

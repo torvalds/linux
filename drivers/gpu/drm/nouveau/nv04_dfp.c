@@ -261,7 +261,7 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 	struct drm_display_mode *output_mode = &nv_encoder->mode;
 	uint32_t mode_ratio, panel_ratio;
 
-	NV_DEBUG(dev, "Output mode on CRTC %d:\n", nv_crtc->index);
+	NV_DEBUG_KMS(dev, "Output mode on CRTC %d:\n", nv_crtc->index);
 	drm_mode_debug_printmodeline(output_mode);
 
 	/* Initialize the FP registers in this CRTC. */
@@ -269,10 +269,10 @@ static void nv04_dfp_mode_set(struct drm_encoder *encoder,
 	regp->fp_horiz_regs[FP_TOTAL] = output_mode->htotal - 1;
 	if (!nv_gf4_disp_arch(dev) ||
 	    (output_mode->hsync_start - output_mode->hdisplay) >=
-					dev_priv->vbios->digital_min_front_porch)
+					dev_priv->vbios.digital_min_front_porch)
 		regp->fp_horiz_regs[FP_CRTC] = output_mode->hdisplay;
 	else
-		regp->fp_horiz_regs[FP_CRTC] = output_mode->hsync_start - dev_priv->vbios->digital_min_front_porch - 1;
+		regp->fp_horiz_regs[FP_CRTC] = output_mode->hsync_start - dev_priv->vbios.digital_min_front_porch - 1;
 	regp->fp_horiz_regs[FP_SYNC_START] = output_mode->hsync_start - 1;
 	regp->fp_horiz_regs[FP_SYNC_END] = output_mode->hsync_end - 1;
 	regp->fp_horiz_regs[FP_VALID_START] = output_mode->hskew;
@@ -413,7 +413,9 @@ static void nv04_dfp_commit(struct drm_encoder *encoder)
 	struct dcb_entry *dcbe = nv_encoder->dcb;
 	int head = nouveau_crtc(encoder->crtc)->index;
 
-	NV_TRACE(dev, "%s called for encoder %d\n", __func__, nv_encoder->dcb->index);
+	NV_INFO(dev, "Output %s is running on CRTC %d using output %c\n",
+		drm_get_connector_name(&nouveau_encoder_connector_get(nv_encoder)->base),
+		nv_crtc->index, '@' + ffs(nv_encoder->dcb->or));
 
 	if (dcbe->type == OUTPUT_TMDS)
 		run_tmds_table(dev, dcbe, head, nv_encoder->mode.clock);
@@ -550,7 +552,7 @@ static void nv04_dfp_destroy(struct drm_encoder *encoder)
 {
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 
-	NV_DEBUG(encoder->dev, "\n");
+	NV_DEBUG_KMS(encoder->dev, "\n");
 
 	drm_encoder_cleanup(encoder);
 	kfree(nv_encoder);

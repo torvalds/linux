@@ -499,10 +499,41 @@ static struct undef_hook thumb_break_hook = {
 	.fn		= break_trap,
 };
 
+static int thumb2_break_trap(struct pt_regs *regs, unsigned int instr)
+{
+	unsigned int instr2;
+	void __user *pc;
+
+	/* Check the second half of the instruction.  */
+	pc = (void __user *)(instruction_pointer(regs) + 2);
+
+	if (processor_mode(regs) == SVC_MODE) {
+		instr2 = *(u16 *) pc;
+	} else {
+		get_user(instr2, (u16 __user *)pc);
+	}
+
+	if (instr2 == 0xa000) {
+		ptrace_break(current, regs);
+		return 0;
+	} else {
+		return 1;
+	}
+}
+
+static struct undef_hook thumb2_break_hook = {
+	.instr_mask	= 0xffff,
+	.instr_val	= 0xf7f0,
+	.cpsr_mask	= PSR_T_BIT,
+	.cpsr_val	= PSR_T_BIT,
+	.fn		= thumb2_break_trap,
+};
+
 static int __init ptrace_break_init(void)
 {
 	register_undef_hook(&arm_break_hook);
 	register_undef_hook(&thumb_break_hook);
+	register_undef_hook(&thumb2_break_hook);
 	return 0;
 }
 
@@ -669,7 +700,7 @@ static int ptrace_getvfpregs(struct task_struct *tsk, void __user *data)
 	union vfp_state *vfp = &thread->vfpstate;
 	struct user_vfp __user *ufp = data;
 
-	vfp_sync_state(thread);
+	vfp_sync_hwstate(thread);
 
 	/* copy the floating point registers */
 	if (copy_to_user(&ufp->fpregs, &vfp->hard.fpregs,
@@ -692,7 +723,7 @@ static int ptrace_setvfpregs(struct task_struct *tsk, void __user *data)
 	union vfp_state *vfp = &thread->vfpstate;
 	struct user_vfp __user *ufp = data;
 
-	vfp_sync_state(thread);
+	vfp_sync_hwstate(thread);
 
 	/* copy the floating point registers */
 	if (copy_from_user(&vfp->hard.fpregs, &ufp->fpregs,
@@ -703,6 +734,8 @@ static int ptrace_setvfpregs(struct task_struct *tsk, void __user *data)
 	if (get_user(vfp->hard.fpscr, &ufp->fpscr))
 		return -EFAULT;
 
+	vfp_flush_hwstate(thread);
+
 	return 0;
 }
 #endif
@@ -712,24 +745,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	int ret;
 
 	switch (request) {
-		/*
-		 * read word at location "addr" in the child process.
-		 */
-		case PTRACE_PEEKTEXT:
-		case PTRACE_PEEKDATA:
-			ret = generic_ptrace_peekdata(child, addr, data);
-			break;
-
 		case PTRACE_PEEKUSR:
 			ret = ptrace_read_user(child, addr, (unsigned long __user *)data);
-			break;
-
-		/*
-		 * write the word at location addr.
-		 */
-		case PTRACE_POKETEXT:
-		case PTRACE_POKEDATA:
-			ret = generic_ptrace_pokedata(child, addr, data);
 			break;
 
 		case PTRACE_POKEUSR:

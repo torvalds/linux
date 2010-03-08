@@ -21,7 +21,6 @@
 
 #include <asm/perf_event.h>
 #include <asm/ptrace.h>
-#include <asm/local.h>
 #include <asm/pcr.h>
 
 /* We don't have a real NMI on sparc64, but we can fake one
@@ -47,7 +46,7 @@ static DEFINE_PER_CPU(short, wd_enabled);
 static int endflag __initdata;
 
 static DEFINE_PER_CPU(unsigned int, last_irq_sum);
-static DEFINE_PER_CPU(local_t, alert_counter);
+static DEFINE_PER_CPU(long, alert_counter);
 static DEFINE_PER_CPU(int, nmi_touch);
 
 void touch_nmi_watchdog(void)
@@ -96,7 +95,6 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 	int cpu = smp_processor_id();
 
 	clear_softint(1 << irq);
-	pcr_ops->write(PCR_PIC_PRIV);
 
 	local_cpu_data().__nmi_count++;
 
@@ -105,6 +103,8 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 	if (notify_die(DIE_NMI, "nmi", regs, 0,
 		       pt_regs_trap_type(regs), SIGINT) == NOTIFY_STOP)
 		touched = 1;
+	else
+		pcr_ops->write(PCR_PIC_PRIV);
 
 	sum = kstat_irqs_cpu(0, cpu);
 	if (__get_cpu_var(nmi_touch)) {
@@ -112,13 +112,13 @@ notrace __kprobes void perfctr_irq(int irq, struct pt_regs *regs)
 		touched = 1;
 	}
 	if (!touched && __get_cpu_var(last_irq_sum) == sum) {
-		local_inc(&__get_cpu_var(alert_counter));
-		if (local_read(&__get_cpu_var(alert_counter)) == 30 * nmi_hz)
+		__this_cpu_inc(alert_counter);
+		if (__this_cpu_read(alert_counter) == 30 * nmi_hz)
 			die_nmi("BUG: NMI Watchdog detected LOCKUP",
 				regs, panic_on_timeout);
 	} else {
 		__get_cpu_var(last_irq_sum) = sum;
-		local_set(&__get_cpu_var(alert_counter), 0);
+		__this_cpu_write(alert_counter, 0);
 	}
 	if (__get_cpu_var(wd_enabled)) {
 		write_pic(picl_value(nmi_hz));

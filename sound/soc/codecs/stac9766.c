@@ -191,6 +191,7 @@ static int ac97_analog_prepare(struct snd_pcm_substream *substream,
 	vra = stac9766_ac97_read(codec, AC97_EXTENDED_STATUS);
 
 	vra |= 0x1; /* enable variable rate audio */
+	vra &= ~0x4; /* disable SPDIF output */
 
 	stac9766_ac97_write(codec, AC97_EXTENDED_STATUS, vra);
 
@@ -219,22 +220,6 @@ static int ac97_digital_prepare(struct snd_pcm_substream *substream,
 	reg = AC97_PCM_FRONT_DAC_RATE;
 
 	return stac9766_ac97_write(codec, reg, runtime->rate);
-}
-
-static int ac97_digital_trigger(struct snd_pcm_substream *substream,
-				int cmd, struct snd_soc_dai *dai)
-{
-	struct snd_soc_codec *codec = dai->codec;
-	unsigned short vra;
-
-	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_STOP:
-		vra = stac9766_ac97_read(codec, AC97_EXTENDED_STATUS);
-		vra &= !0x04;
-		stac9766_ac97_write(codec, AC97_EXTENDED_STATUS, vra);
-		break;
-	}
-	return 0;
 }
 
 static int stac9766_set_bias_level(struct snd_soc_codec *codec,
@@ -315,7 +300,6 @@ static struct snd_soc_dai_ops stac9766_dai_ops_analog = {
 
 static struct snd_soc_dai_ops stac9766_dai_ops_digital = {
 	.prepare = ac97_digital_prepare,
-	.trigger = ac97_digital_trigger,
 };
 
 struct snd_soc_dai stac9766_dai[] = {

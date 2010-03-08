@@ -233,9 +233,9 @@ All md devices contain:
 
   resync_start
      The point at which resync should start.  If no resync is needed,
-     this will be a very large number.  At array creation it will
-     default to 0, though starting the array as 'clean' will
-     set it much larger.
+     this will be a very large number (or 'none' since 2.6.30-rc1).  At
+     array creation it will default to 0, though starting the array as
+     'clean' will set it much larger.
 
    new_dev
      This file can be written but not read.  The value written should
@@ -296,6 +296,51 @@ All md devices contain:
      active-idle
          like active, but no writes have been seen for a while (safe_mode_delay).
 
+  bitmap/location
+     This indicates where the write-intent bitmap for the array is
+     stored.
+     It can be one of "none", "file" or "[+-]N".
+     "file" may later be extended to "file:/file/name"
+     "[+-]N" means that many sectors from the start of the metadata.
+       This is replicated on all devices.  For arrays with externally
+       managed metadata, the offset is from the beginning of the
+       device.
+  bitmap/chunksize
+     The size, in bytes, of the chunk which will be represented by a
+     single bit.  For RAID456, it is a portion of an individual
+     device. For RAID10, it is a portion of the array.  For RAID1, it
+     is both (they come to the same thing).
+  bitmap/time_base
+     The time, in seconds, between looking for bits in the bitmap to
+     be cleared. In the current implementation, a bit will be cleared
+     between 2 and 3 times "time_base" after all the covered blocks
+     are known to be in-sync.
+  bitmap/backlog
+     When write-mostly devices are active in a RAID1, write requests
+     to those devices proceed in the background - the filesystem (or
+     other user of the device) does not have to wait for them.
+     'backlog' sets a limit on the number of concurrent background
+     writes.  If there are more than this, new writes will by
+     synchronous.
+  bitmap/metadata
+     This can be either 'internal' or 'external'.
+     'internal' is the default and means the metadata for the bitmap
+     is stored in the first 256 bytes of the allocated space and is
+     managed by the md module.
+     'external' means that bitmap metadata is managed externally to
+     the kernel (i.e. by some userspace program)
+  bitmap/can_clear
+     This is either 'true' or 'false'.  If 'true', then bits in the
+     bitmap will be cleared when the corresponding blocks are thought
+     to be in-sync.  If 'false', bits will never be cleared.
+     This is automatically set to 'false' if a write happens on a
+     degraded array, or if the array becomes degraded during a write.
+     When metadata is managed externally, it should be set to true
+     once the array becomes non-degraded, and this fact has been
+     recorded in the metadata.
+     
+     
+     
 
 As component devices are added to an md array, they appear in the 'md'
 directory as new directories named
@@ -334,8 +379,9 @@ Each directory contains:
 	Writing "writemostly" sets the writemostly flag.
 	Writing "-writemostly" clears the writemostly flag.
 	Writing "blocked" sets the "blocked" flag.
-	Writing "-blocked" clear the "blocked" flag and allows writes
+	Writing "-blocked" clears the "blocked" flag and allows writes
 		to complete.
+	Writing "in_sync" sets the in_sync flag.
 
 	This file responds to select/poll. Any change to 'faulty'
 	or 'blocked' causes an event.
@@ -371,6 +417,24 @@ Each directory contains:
 	component_size.  This can be written while assembling an
         array.  If a value less than the current component_size is
         written, it will be rejected.
+
+      recovery_start
+
+        When the device is not 'in_sync', this records the number of
+	sectors from the start of the device which are known to be
+	correct.  This is normally zero, but during a recovery
+	operation is will steadily increase, and if the recovery is
+	interrupted, restoring this value can cause recovery to
+	avoid repeating the earlier blocks.  With v1.x metadata, this
+	value is saved and restored automatically.
+
+	This can be set whenever the device is not an active member of
+	the array, either before the array is activated, or before
+	the 'slot' is set.
+
+	Setting this to 'none' is equivalent to setting 'in_sync'.
+	Setting to any other value also clears the 'in_sync' flag.
+	
 
 
 An active md device will also contain and entry for each active device

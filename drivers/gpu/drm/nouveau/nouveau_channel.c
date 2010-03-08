@@ -35,22 +35,27 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_bo *pb = chan->pushbuf_bo;
 	struct nouveau_gpuobj *pushbuf = NULL;
-	uint32_t start = pb->bo.mem.mm_node->start << PAGE_SHIFT;
 	int ret;
 
+	if (dev_priv->card_type >= NV_50) {
+		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
+					     dev_priv->vm_end, NV_DMA_ACCESS_RO,
+					     NV_DMA_TARGET_AGP, &pushbuf);
+		chan->pushbuf_base = pb->bo.offset;
+	} else
 	if (pb->bo.mem.mem_type == TTM_PL_TT) {
 		ret = nouveau_gpuobj_gart_dma_new(chan, 0,
 						  dev_priv->gart_info.aper_size,
 						  NV_DMA_ACCESS_RO, &pushbuf,
 						  NULL);
-		chan->pushbuf_base = start;
+		chan->pushbuf_base = pb->bo.mem.mm_node->start << PAGE_SHIFT;
 	} else
 	if (dev_priv->card_type != NV_04) {
 		ret = nouveau_gpuobj_dma_new(chan, NV_CLASS_DMA_IN_MEMORY, 0,
 					     dev_priv->fb_available_size,
 					     NV_DMA_ACCESS_RO,
 					     NV_DMA_TARGET_VIDMEM, &pushbuf);
-		chan->pushbuf_base = start;
+		chan->pushbuf_base = pb->bo.mem.mm_node->start << PAGE_SHIFT;
 	} else {
 		/* NV04 cmdbuf hack, from original ddx.. not sure of it's
 		 * exact reason for existing :)  PCI access to cmdbuf in
@@ -61,7 +66,7 @@ nouveau_channel_pushbuf_ctxdma_init(struct nouveau_channel *chan)
 					     dev_priv->fb_available_size,
 					     NV_DMA_ACCESS_RO,
 					     NV_DMA_TARGET_PCI, &pushbuf);
-		chan->pushbuf_base = start;
+		chan->pushbuf_base = pb->bo.mem.mm_node->start << PAGE_SHIFT;
 	}
 
 	ret = nouveau_gpuobj_ref_add(dev, chan, 0, pushbuf, &chan->pushbuf);
@@ -158,6 +163,8 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 		return ret;
 	}
 
+	nouveau_dma_pre_init(chan);
+
 	/* Locate channel's user control regs */
 	if (dev_priv->card_type < NV_40)
 		user = NV03_USER(channel);
@@ -235,47 +242,6 @@ nouveau_channel_alloc(struct drm_device *dev, struct nouveau_channel **chan_ret,
 	return 0;
 }
 
-int
-nouveau_channel_idle(struct nouveau_channel *chan)
-{
-	struct drm_device *dev = chan->dev;
-	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct nouveau_engine *engine = &dev_priv->engine;
-	uint32_t caches;
-	int idle;
-
-	if (!chan) {
-		NV_ERROR(dev, "no channel...\n");
-		return 1;
-	}
-
-	caches = nv_rd32(dev, NV03_PFIFO_CACHES);
-	nv_wr32(dev, NV03_PFIFO_CACHES, caches & ~1);
-
-	if (engine->fifo.channel_id(dev) != chan->id) {
-		struct nouveau_gpuobj *ramfc =
-			chan->ramfc ? chan->ramfc->gpuobj : NULL;
-
-		if (!ramfc) {
-			NV_ERROR(dev, "No RAMFC for channel %d\n", chan->id);
-			return 1;
-		}
-
-		engine->instmem.prepare_access(dev, false);
-		if (nv_ro32(dev, ramfc, 0) != nv_ro32(dev, ramfc, 1))
-			idle = 0;
-		else
-			idle = 1;
-		engine->instmem.finish_access(dev);
-	} else {
-		idle = (nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_GET) ==
-			nv_rd32(dev, NV04_PFIFO_CACHE1_DMA_PUT));
-	}
-
-	nv_wr32(dev, NV03_PFIFO_CACHES, caches);
-	return idle;
-}
-
 /* stops a fifo */
 void
 nouveau_channel_free(struct nouveau_channel *chan)
@@ -314,15 +280,23 @@ nouveau_channel_free(struct nouveau_channel *chan)
 	 */
 	nouveau_fence_fini(chan);
 
-	/* Ensure the channel is no longer active on the GPU */
+	/* This will prevent pfifo from switching channels. */
 	pfifo->reassign(dev, false);
 
-	if (pgraph->channel(dev) == chan) {
-		pgraph->fifo_access(dev, false);
+	/* We want to give pgraph a chance to idle and get rid of all potential
+	 * errors. We need to do this before the lock, otherwise the irq handler
+	 * is unable to process them.
+	 */
+	if (pgraph->channel(dev) == chan)
+		nouveau_wait_for_idle(dev);
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
+
+	pgraph->fifo_access(dev, false);
+	if (pgraph->channel(dev) == chan)
 		pgraph->unload_context(dev);
-		pgraph->fifo_access(dev, true);
-	}
 	pgraph->destroy_context(chan);
+	pgraph->fifo_access(dev, true);
 
 	if (pfifo->channel_id(dev) == chan->id) {
 		pfifo->disable(dev);
@@ -332,6 +306,8 @@ nouveau_channel_free(struct nouveau_channel *chan)
 	pfifo->destroy_context(chan);
 
 	pfifo->reassign(dev, true);
+
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 
 	/* Release the channel's resources */
 	nouveau_gpuobj_ref_del(dev, &chan->pushbuf);
@@ -409,12 +385,22 @@ nouveau_ioctl_fifo_alloc(struct drm_device *dev, void *data,
 		return ret;
 	init->channel  = chan->id;
 
+	if (chan->dma.ib_max)
+		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM |
+					NOUVEAU_GEM_DOMAIN_GART;
+	else if (chan->pushbuf_bo->bo.mem.mem_type == TTM_PL_VRAM)
+		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_VRAM;
+	else
+		init->pushbuf_domains = NOUVEAU_GEM_DOMAIN_GART;
+
 	init->subchan[0].handle = NvM2MF;
 	if (dev_priv->card_type < NV_50)
 		init->subchan[0].grclass = 0x0039;
 	else
 		init->subchan[0].grclass = 0x5039;
-	init->nr_subchan = 1;
+	init->subchan[1].handle = NvSw;
+	init->subchan[1].grclass = NV_SW;
+	init->nr_subchan = 2;
 
 	/* Named memory object area */
 	ret = drm_gem_handle_create(file_priv, chan->notifier_bo->gem,
@@ -446,7 +432,6 @@ nouveau_ioctl_fifo_free(struct drm_device *dev, void *data,
  ***********************************/
 
 struct drm_ioctl_desc nouveau_ioctls[] = {
-	DRM_IOCTL_DEF(DRM_NOUVEAU_CARD_INIT, nouveau_ioctl_card_init, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GETPARAM, nouveau_ioctl_getparam, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_SETPARAM, nouveau_ioctl_setparam, DRM_AUTH|DRM_MASTER|DRM_ROOT_ONLY),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_CHANNEL_ALLOC, nouveau_ioctl_fifo_alloc, DRM_AUTH),
@@ -456,13 +441,9 @@ struct drm_ioctl_desc nouveau_ioctls[] = {
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GPUOBJ_FREE, nouveau_ioctl_gpuobj_free, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_NEW, nouveau_gem_ioctl_new, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_PUSHBUF, nouveau_gem_ioctl_pushbuf, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_PUSHBUF_CALL, nouveau_gem_ioctl_pushbuf_call, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_PIN, nouveau_gem_ioctl_pin, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_UNPIN, nouveau_gem_ioctl_unpin, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_CPU_PREP, nouveau_gem_ioctl_cpu_prep, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_CPU_FINI, nouveau_gem_ioctl_cpu_fini, DRM_AUTH),
 	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_INFO, nouveau_gem_ioctl_info, DRM_AUTH),
-	DRM_IOCTL_DEF(DRM_NOUVEAU_GEM_PUSHBUF_CALL2, nouveau_gem_ioctl_pushbuf_call2, DRM_AUTH),
 };
 
 int nouveau_max_ioctl = DRM_ARRAY_SIZE(nouveau_ioctls);

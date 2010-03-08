@@ -313,6 +313,9 @@ enum atl1c_rss_type {
 enum atl1c_nic_type {
 	athr_l1c = 0,
 	athr_l2c = 1,
+	athr_l2c_b,
+	athr_l2c_b2,
+	athr_l1d,
 };
 
 enum atl1c_trans_queue {
@@ -426,8 +429,12 @@ struct atl1c_hw {
 #define ATL1C_ASPM_L1_SUPPORT		0x0100
 #define ATL1C_ASPM_CTRL_MON		0x0200
 #define ATL1C_HIB_DISABLE		0x0400
-#define ATL1C_LINK_CAP_1000M		0x0800
-#define ATL1C_FPGA_VERSION		0x8000
+#define ATL1C_APS_MODE_ENABLE           0x0800
+#define ATL1C_LINK_EXT_SYNC             0x1000
+#define ATL1C_CLK_GATING_EN             0x2000
+#define ATL1C_FPGA_VERSION              0x8000
+	u16 link_cap_flags;
+#define ATL1C_LINK_CAP_1000M		0x0001
 	u16 cmb_tpd;
 	u16 cmb_rrd;
 	u16 cmb_rx_timer; /* 2us resolution */
@@ -479,6 +486,9 @@ struct atl1c_buffer {
 #define ATL1C_PCIMAP_PAGE		0x0008
 #define ATL1C_PCIMAP_TYPE_MASK		0x000C
 
+#define ATL1C_PCIMAP_TODEVICE		0x0010
+#define ATL1C_PCIMAP_FROMDEVICE		0x0020
+#define ATL1C_PCIMAP_DIRECTION_MASK	0x0030
 	dma_addr_t dma;
 };
 
@@ -487,9 +497,11 @@ struct atl1c_buffer {
 	((buff)->flags) |= (state);			\
 	} while (0)
 
-#define ATL1C_SET_PCIMAP_TYPE(buff, type) do {		\
-	((buff)->flags) &= ~ATL1C_PCIMAP_TYPE_MASK;	\
-	((buff)->flags) |= (type);			\
+#define ATL1C_SET_PCIMAP_TYPE(buff, type, direction) do {	\
+	((buff)->flags) &= ~ATL1C_PCIMAP_TYPE_MASK;		\
+	((buff)->flags) |= (type);				\
+	((buff)->flags) &= ~ATL1C_PCIMAP_DIRECTION_MASK;	\
+	((buff)->flags) |= (direction);				\
 	} while (0)
 
 /* transimit packet descriptor (tpd) ring */
@@ -550,6 +562,9 @@ struct atl1c_adapter {
 #define __AT_TESTING        0x0001
 #define __AT_RESETTING      0x0002
 #define __AT_DOWN           0x0003
+	u8 work_event;
+#define ATL1C_WORK_EVENT_RESET 		0x01
+#define ATL1C_WORK_EVENT_LINK_CHANGE	0x02
 	u32 msg_enable;
 
 	bool have_msi;
@@ -561,8 +576,7 @@ struct atl1c_adapter {
 	spinlock_t tx_lock;
 	atomic_t irq_sem;
 
-	struct work_struct reset_task;
-	struct work_struct link_chg_task;
+	struct work_struct common_task;
 	struct timer_list watchdog_timer;
 	struct timer_list phy_config_timer;
 

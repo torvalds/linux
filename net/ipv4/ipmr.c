@@ -1163,9 +1163,6 @@ static int ipmr_device_event(struct notifier_block *this, unsigned long event, v
 	int ct;
 	LIST_HEAD(list);
 
-	if (!net_eq(dev_net(dev), net))
-		return NOTIFY_DONE;
-
 	if (event != NETDEV_UNREGISTER)
 		return NOTIFY_DONE;
 	v = &net->ipv4.vif_table[0];

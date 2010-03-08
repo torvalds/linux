@@ -68,6 +68,14 @@ typedef u32 vme_pattern_t;
 #define VME_DMA_PATTERN_WORD		(1<<1)
 #define VME_DMA_PATTERN_INCREMENT	(1<<2)
 
+typedef u32 vme_dma_route_t;
+#define VME_DMA_VME_TO_MEM		(1<<0)
+#define VME_DMA_MEM_TO_VME		(1<<1)
+#define VME_DMA_VME_TO_VME		(1<<2)
+#define VME_DMA_MEM_TO_MEM		(1<<3)
+#define VME_DMA_PATTERN_TO_VME		(1<<4)
+#define VME_DMA_PATTERN_TO_MEM		(1<<5)
+
 struct vme_dma_attr {
 	vme_dma_t type;
 	void *private;
@@ -98,32 +106,33 @@ struct vme_driver {
 	struct device_driver    driver;
 };
 
-void * vme_alloc_consistent(struct vme_resource *, size_t, dma_addr_t *);
+void *vme_alloc_consistent(struct vme_resource *, size_t, dma_addr_t *);
 void vme_free_consistent(struct vme_resource *, size_t,  void *,
 	dma_addr_t);
 
 size_t vme_get_size(struct vme_resource *);
 
-struct vme_resource * vme_slave_request(struct device *, vme_address_t, vme_cycle_t);
-int vme_slave_set (struct vme_resource *, int, unsigned long long,
+struct vme_resource *vme_slave_request(struct device *, vme_address_t,
+	vme_cycle_t);
+int vme_slave_set(struct vme_resource *, int, unsigned long long,
 	unsigned long long, dma_addr_t, vme_address_t, vme_cycle_t);
-int vme_slave_get (struct vme_resource *, int *, unsigned long long *,
+int vme_slave_get(struct vme_resource *, int *, unsigned long long *,
 	unsigned long long *, dma_addr_t *, vme_address_t *, vme_cycle_t *);
 void vme_slave_free(struct vme_resource *);
 
-struct vme_resource * vme_master_request(struct device *, vme_address_t, vme_cycle_t,
-	vme_width_t);
-int vme_master_set (struct vme_resource *, int, unsigned long long,
+struct vme_resource *vme_master_request(struct device *, vme_address_t,
+	vme_cycle_t, vme_width_t);
+int vme_master_set(struct vme_resource *, int, unsigned long long,
 	unsigned long long, vme_address_t, vme_cycle_t, vme_width_t);
-int vme_master_get (struct vme_resource *, int *, unsigned long long *,
+int vme_master_get(struct vme_resource *, int *, unsigned long long *,
 	unsigned long long *, vme_address_t *, vme_cycle_t *, vme_width_t *);
 ssize_t vme_master_read(struct vme_resource *, void *, size_t, loff_t);
 ssize_t vme_master_write(struct vme_resource *, void *, size_t, loff_t);
-unsigned int vme_master_rmw (struct vme_resource *, unsigned int, unsigned int,
+unsigned int vme_master_rmw(struct vme_resource *, unsigned int, unsigned int,
 	unsigned int, loff_t);
 void vme_master_free(struct vme_resource *);
 
-struct vme_resource *vme_dma_request(struct device *);
+struct vme_resource *vme_dma_request(struct device *, vme_dma_route_t);
 struct vme_dma_list *vme_new_dma_list(struct vme_resource *);
 struct vme_dma_attr *vme_dma_pattern_attribute(u32, vme_pattern_t);
 struct vme_dma_attr *vme_dma_pci_attribute(dma_addr_t);
@@ -153,8 +162,8 @@ void vme_lm_free(struct vme_resource *);
 
 int vme_slot_get(struct device *);
 
-int vme_register_driver (struct vme_driver *);
-void vme_unregister_driver (struct vme_driver *);
+int vme_register_driver(struct vme_driver *);
+void vme_unregister_driver(struct vme_driver *);
 
 
 #endif /* _VME_H_ */

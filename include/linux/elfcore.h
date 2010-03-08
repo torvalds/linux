@@ -8,6 +8,8 @@
 #include <linux/user.h>
 #endif
 #include <linux/ptrace.h>
+#include <linux/elf.h>
+#include <linux/fs.h>
 
 struct elf_siginfo
 {
@@ -150,5 +152,20 @@ static inline int elf_core_copy_task_xfpregs(struct task_struct *t, elf_fpxregse
 
 #endif /* __KERNEL__ */
 
+/*
+ * These functions parameterize elf_core_dump in fs/binfmt_elf.c to write out
+ * extra segments containing the gate DSO contents.  Dumping its
+ * contents makes post-mortem fully interpretable later without matching up
+ * the same kernel and hardware config to see what PC values meant.
+ * Dumping its extra ELF program headers includes all the other information
+ * a debugger needs to easily find how the gate DSO was being used.
+ */
+extern Elf_Half elf_core_extra_phdrs(void);
+extern int
+elf_core_write_extra_phdrs(struct file *file, loff_t offset, size_t *size,
+			   unsigned long limit);
+extern int
+elf_core_write_extra_data(struct file *file, size_t *size, unsigned long limit);
+extern size_t elf_core_extra_data_size(void);
 
 #endif /* _LINUX_ELFCORE_H */

@@ -74,7 +74,7 @@
 #define E1000_WUS_BC           E1000_WUFC_BC
 
 /* Extended Device Control */
-#define E1000_CTRL_EXT_SDP7_DATA 0x00000080 /* Value of SW Definable Pin 7 */
+#define E1000_CTRL_EXT_SDP3_DATA 0x00000080 /* Value of SW Definable Pin 3 */
 #define E1000_CTRL_EXT_EE_RST    0x00002000 /* Reinitialize from EEPROM */
 #define E1000_CTRL_EXT_SPD_BYPS  0x00008000 /* Speed Select Bypass */
 #define E1000_CTRL_EXT_RO_DIS    0x00020000 /* Relaxed Ordering disable */
@@ -460,6 +460,8 @@
  */
 #define E1000_RAR_ENTRIES     15
 #define E1000_RAH_AV  0x80000000        /* Receive descriptor valid */
+#define E1000_RAL_MAC_ADDR_LEN 4
+#define E1000_RAH_MAC_ADDR_LEN 2
 
 /* Error Codes */
 #define E1000_ERR_NVM      1

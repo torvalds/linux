@@ -40,7 +40,7 @@ static struct pcmcia_irqs irqs[] = {
 
 static int sg2_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
 {
-	skt->irq = IRQ_GPIO(SG2_S0_GPIO_READY);
+	skt->socket.pci_irq = IRQ_GPIO(SG2_S0_GPIO_READY);
 	return soc_pcmcia_request_irqs(skt, irqs, ARRAY_SIZE(irqs));
 }
 

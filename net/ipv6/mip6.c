@@ -56,7 +56,7 @@ static inline void *mip6_padn(__u8 *data, __u8 padlen)
 
 static inline void mip6_param_prob(struct sk_buff *skb, u8 code, int pos)
 {
-	icmpv6_send(skb, ICMPV6_PARAMPROB, code, pos, skb->dev);
+	icmpv6_send(skb, ICMPV6_PARAMPROB, code, pos);
 }
 
 static int mip6_mh_len(int type)

@@ -282,7 +282,7 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 {
 	void *startwrite, *startread;
 	int  offset;
-	int bytesperline = 720;
+	int bytesperline = dev->vbi_width;
 
 	if (dev == NULL) {
 		em28xx_isocdbg("dev is null\n");
@@ -323,8 +323,8 @@ static void em28xx_copy_vbi(struct em28xx *dev,
 
 	/* Make sure the bottom field populates the second half of the frame */
 	if (buf->top_field == 0) {
-		startwrite += bytesperline * 0x0c;
-		offset += bytesperline * 0x0c;
+		startwrite += bytesperline * dev->vbi_height;
+		offset += bytesperline * dev->vbi_height;
 	}
 
 	memcpy(startwrite, startread, len);
@@ -578,8 +578,7 @@ static inline int em28xx_isoc_copy_vbi(struct em28xx *dev, struct urb *urb)
 			dev->cur_field = p[2];
 		}
 
-		/* FIXME: get rid of hard-coded value */
-		vbi_size = 720 * 0x0c;
+		vbi_size = dev->vbi_width * dev->vbi_height;
 
 		if (dev->capture_type == 0) {
 			if (dev->vbi_read >= vbi_size) {
@@ -1850,18 +1849,27 @@ static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 				struct v4l2_format *format)
 {
-	format->fmt.vbi.samples_per_line = 720;
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	format->fmt.vbi.samples_per_line = dev->vbi_width;
 	format->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	format->fmt.vbi.offset = 0;
 	format->fmt.vbi.flags = 0;
+	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2;
+	format->fmt.vbi.count[0] = dev->vbi_height;
+	format->fmt.vbi.count[1] = dev->vbi_height;
 
 	/* Varies by video standard (NTSC, PAL, etc.) */
-	/* FIXME: hard-coded for NTSC support */
-	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2; /* FIXME: ??? */
-	format->fmt.vbi.count[0] = 12;
-	format->fmt.vbi.count[1] = 12;
-	format->fmt.vbi.start[0] = 10;
-	format->fmt.vbi.start[1] = 273;
+	if (dev->norm & V4L2_STD_525_60) {
+		/* NTSC */
+		format->fmt.vbi.start[0] = 10;
+		format->fmt.vbi.start[1] = 273;
+	} else if (dev->norm & V4L2_STD_625_50) {
+		/* PAL */
+		format->fmt.vbi.start[0] = 6;
+		format->fmt.vbi.start[1] = 318;
+	}
 
 	return 0;
 }
@@ -1869,18 +1877,27 @@ static int vidioc_g_fmt_vbi_cap(struct file *file, void *priv,
 static int vidioc_s_fmt_vbi_cap(struct file *file, void *priv,
 				struct v4l2_format *format)
 {
-	format->fmt.vbi.samples_per_line = 720;
+	struct em28xx_fh      *fh  = priv;
+	struct em28xx         *dev = fh->dev;
+
+	format->fmt.vbi.samples_per_line = dev->vbi_width;
 	format->fmt.vbi.sample_format = V4L2_PIX_FMT_GREY;
 	format->fmt.vbi.offset = 0;
 	format->fmt.vbi.flags = 0;
+	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2;
+	format->fmt.vbi.count[0] = dev->vbi_height;
+	format->fmt.vbi.count[1] = dev->vbi_height;
 
 	/* Varies by video standard (NTSC, PAL, etc.) */
-	/* FIXME: hard-coded for NTSC support */
-	format->fmt.vbi.sampling_rate = 6750000 * 4 / 2; /* FIXME: ??? */
-	format->fmt.vbi.count[0] = 12;
-	format->fmt.vbi.count[1] = 12;
-	format->fmt.vbi.start[0] = 10;
-	format->fmt.vbi.start[1] = 273;
+	if (dev->norm & V4L2_STD_525_60) {
+		/* NTSC */
+		format->fmt.vbi.start[0] = 10;
+		format->fmt.vbi.start[1] = 273;
+	} else if (dev->norm & V4L2_STD_625_50) {
+		/* PAL */
+		format->fmt.vbi.start[0] = 6;
+		format->fmt.vbi.start[1] = 318;
+	}
 
 	return 0;
 }
@@ -1922,7 +1939,8 @@ static int vidioc_querybuf(struct file *file, void *priv,
 		   At a minimum, it causes a crash in zvbi since it does
 		   a memcpy based on the source buffer length */
 		int result = videobuf_querybuf(&fh->vb_vbiq, b);
-		b->length = 17280;
+		b->length = dev->vbi_width * dev->vbi_height * 2;
+
 		return result;
 	}
 }
@@ -2081,22 +2099,30 @@ static int radio_queryctrl(struct file *file, void *priv,
  */
 static int em28xx_v4l2_open(struct file *filp)
 {
-	int minor = video_devdata(filp)->minor;
-	int errCode = 0, radio;
-	struct em28xx *dev;
-	enum v4l2_buf_type fh_type;
+	int errCode = 0, radio = 0;
+	struct video_device *vdev = video_devdata(filp);
+	struct em28xx *dev = video_drvdata(filp);
+	enum v4l2_buf_type fh_type = 0;
 	struct em28xx_fh *fh;
 	enum v4l2_field field;
 
-	dev = em28xx_get_device(minor, &fh_type, &radio);
-
-	if (NULL == dev)
-		return -ENODEV;
+	switch (vdev->vfl_type) {
+	case VFL_TYPE_GRABBER:
+		fh_type = V4L2_BUF_TYPE_VIDEO_CAPTURE;
+		break;
+	case VFL_TYPE_VBI:
+		fh_type = V4L2_BUF_TYPE_VBI_CAPTURE;
+		break;
+	case VFL_TYPE_RADIO:
+		radio = 1;
+		break;
+	}
 
 	mutex_lock(&dev->lock);
 
-	em28xx_videodbg("open minor=%d type=%s users=%d\n",
-				minor, v4l2_type_names[fh_type], dev->users);
+	em28xx_videodbg("open dev=%s type=%s users=%d\n",
+			video_device_node_name(vdev), v4l2_type_names[fh_type],
+			dev->users);
 
 
 	fh = kzalloc(sizeof(struct em28xx_fh), GFP_KERNEL);
@@ -2160,25 +2186,25 @@ void em28xx_release_analog_resources(struct em28xx *dev)
 	/*FIXME: I2C IR should be disconnected */
 
 	if (dev->radio_dev) {
-		if (-1 != dev->radio_dev->minor)
+		if (video_is_registered(dev->radio_dev))
 			video_unregister_device(dev->radio_dev);
 		else
 			video_device_release(dev->radio_dev);
 		dev->radio_dev = NULL;
 	}
 	if (dev->vbi_dev) {
-		em28xx_info("V4L2 device /dev/vbi%d deregistered\n",
-			    dev->vbi_dev->num);
-		if (-1 != dev->vbi_dev->minor)
+		em28xx_info("V4L2 device %s deregistered\n",
+			    video_device_node_name(dev->vbi_dev));
+		if (video_is_registered(dev->vbi_dev))
 			video_unregister_device(dev->vbi_dev);
 		else
 			video_device_release(dev->vbi_dev);
 		dev->vbi_dev = NULL;
 	}
 	if (dev->vdev) {
-		em28xx_info("V4L2 device /dev/video%d deregistered\n",
-			    dev->vdev->num);
-		if (-1 != dev->vdev->minor)
+		em28xx_info("V4L2 device %s deregistered\n",
+			    video_device_node_name(dev->vdev));
+		if (video_is_registered(dev->vdev))
 			video_unregister_device(dev->vdev);
 		else
 			video_device_release(dev->vdev);
@@ -2397,8 +2423,6 @@ static const struct video_device em28xx_video_template = {
 	.release                    = video_device_release,
 	.ioctl_ops 		    = &video_ioctl_ops,
 
-	.minor                      = -1,
-
 	.tvnorms                    = V4L2_STD_ALL,
 	.current_norm               = V4L2_STD_PAL,
 };
@@ -2433,7 +2457,6 @@ static struct video_device em28xx_radio_template = {
 	.name                 = "em28xx-radio",
 	.fops                 = &radio_fops,
 	.ioctl_ops 	      = &radio_ioctl_ops,
-	.minor                = -1,
 };
 
 /******************************** usb interface ******************************/
@@ -2451,7 +2474,6 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 		return NULL;
 
 	*vfd		= *template;
-	vfd->minor	= -1;
 	vfd->v4l2_dev	= &dev->v4l2_dev;
 	vfd->release	= video_device_release;
 	vfd->debug	= video_debug;
@@ -2459,6 +2481,7 @@ static struct video_device *em28xx_vdev_init(struct em28xx *dev,
 	snprintf(vfd->name, sizeof(vfd->name), "%s %s",
 		 dev->name, type_name);
 
+	video_set_drvdata(vfd, dev);
 	return vfd;
 }
 
@@ -2540,16 +2563,16 @@ int em28xx_register_analog_devices(struct em28xx *dev)
 			em28xx_errdev("can't register radio device\n");
 			return ret;
 		}
-		em28xx_info("Registered radio device as /dev/radio%d\n",
-			    dev->radio_dev->num);
+		em28xx_info("Registered radio device as %s\n",
+			    video_device_node_name(dev->radio_dev));
 	}
 
-	em28xx_info("V4L2 video device registered as /dev/video%d\n",
-				dev->vdev->num);
+	em28xx_info("V4L2 video device registered as %s\n",
+		    video_device_node_name(dev->vdev));
 
 	if (dev->vbi_dev)
-		em28xx_info("V4L2 VBI device registered as /dev/vbi%d\n",
-			    dev->vbi_dev->num);
+		em28xx_info("V4L2 VBI device registered as %s\n",
+			    video_device_node_name(dev->vbi_dev));
 
 	return 0;
 }

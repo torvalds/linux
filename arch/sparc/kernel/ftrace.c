@@ -4,6 +4,7 @@
 #include <linux/percpu.h>
 #include <linux/init.h>
 #include <linux/list.h>
+#include <trace/syscall.h>
 
 #include <asm/ftrace.h>
 
@@ -90,4 +91,3 @@ int __init ftrace_dyn_arch_init(void *data)
 	return 0;
 }
 #endif
-

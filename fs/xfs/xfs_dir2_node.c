@@ -37,8 +37,8 @@
 #include "xfs_dir2_leaf.h"
 #include "xfs_dir2_block.h"
 #include "xfs_dir2_node.h"
-#include "xfs_dir2_trace.h"
 #include "xfs_error.h"
+#include "xfs_trace.h"
 
 /*
  * Function declarations.
@@ -65,7 +65,7 @@ static int xfs_dir2_node_addname_int(xfs_da_args_t *args,
 /*
  * Log entries from a freespace block.
  */
-void
+STATIC void
 xfs_dir2_free_log_bests(
 	xfs_trans_t		*tp,		/* transaction pointer */
 	xfs_dabuf_t		*bp,		/* freespace buffer */
@@ -123,7 +123,8 @@ xfs_dir2_leaf_to_node(
 	__be16			*to;		/* pointer to freespace entry */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
-	xfs_dir2_trace_args_b("leaf_to_node", args, lbp);
+	trace_xfs_dir2_leaf_to_node(args);
+
 	dp = args->dp;
 	mp = dp->i_mount;
 	tp = args->trans;
@@ -196,7 +197,8 @@ xfs_dir2_leafn_add(
 	xfs_mount_t		*mp;		/* filesystem mount point */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
-	xfs_dir2_trace_args_sb("leafn_add", args, index, bp);
+	trace_xfs_dir2_leafn_add(args, index);
+
 	dp = args->dp;
 	mp = dp->i_mount;
 	tp = args->trans;
@@ -711,8 +713,8 @@ xfs_dir2_leafn_moveents(
 	int		stale;			/* count stale leaves copied */
 	xfs_trans_t	*tp;			/* transaction pointer */
 
-	xfs_dir2_trace_args_bibii("leafn_moveents", args, bp_s, start_s, bp_d,
-		start_d, count);
+	trace_xfs_dir2_leafn_moveents(args, start_s, start_d, count);
+
 	/*
 	 * Silently return if nothing to do.
 	 */
@@ -933,7 +935,8 @@ xfs_dir2_leafn_remove(
 	int			needscan;	/* need to rescan data frees */
 	xfs_trans_t		*tp;		/* transaction pointer */
 
-	xfs_dir2_trace_args_sb("leafn_remove", args, index, bp);
+	trace_xfs_dir2_leafn_remove(args, index);
+
 	dp = args->dp;
 	tp = args->trans;
 	mp = dp->i_mount;
@@ -1363,7 +1366,8 @@ xfs_dir2_node_addname(
 	int			rval;		/* sub-return value */
 	xfs_da_state_t		*state;		/* btree cursor */
 
-	xfs_dir2_trace_args("node_addname", args);
+	trace_xfs_dir2_node_addname(args);
+
 	/*
 	 * Allocate and initialize the state (btree cursor).
 	 */
@@ -1822,7 +1826,8 @@ xfs_dir2_node_lookup(
 	int		rval;			/* operation return value */
 	xfs_da_state_t	*state;			/* btree cursor */
 
-	xfs_dir2_trace_args("node_lookup", args);
+	trace_xfs_dir2_node_lookup(args);
+
 	/*
 	 * Allocate and initialize the btree cursor.
 	 */
@@ -1875,7 +1880,8 @@ xfs_dir2_node_removename(
 	int			rval;		/* operation return value */
 	xfs_da_state_t		*state;		/* btree cursor */
 
-	xfs_dir2_trace_args("node_removename", args);
+	trace_xfs_dir2_node_removename(args);
+
 	/*
 	 * Allocate and initialize the btree cursor.
 	 */
@@ -1944,7 +1950,8 @@ xfs_dir2_node_replace(
 	int			rval;		/* internal return value */
 	xfs_da_state_t		*state;		/* btree cursor */
 
-	xfs_dir2_trace_args("node_replace", args);
+	trace_xfs_dir2_node_replace(args);
+
 	/*
 	 * Allocate and initialize the btree cursor.
 	 */

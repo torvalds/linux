@@ -17,18 +17,14 @@
  */
 #include <linux/init.h>
 #include <linux/device.h>
-#include <linux/jiffies.h>
 #include <linux/smp.h>
 #include <linux/io.h>
 
+#include <asm/cacheflush.h>
 #include <asm/localtimer.h>
 #include <asm/smp_scu.h>
 #include <mach/hardware.h>
 #include <plat/common.h>
-
-/* Registers used for communicating startup information */
-static void __iomem *omap4_auxcoreboot_reg0;
-static void __iomem *omap4_auxcoreboot_reg1;
 
 /* SCU base address */
 static void __iomem *scu_base;
@@ -65,8 +61,6 @@ void __cpuinit platform_secondary_init(unsigned int cpu)
 
 int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 {
-	unsigned long timeout;
-
 	/*
 	 * Set synchronisation state between this boot processor
 	 * and the secondary one
@@ -74,17 +68,14 @@ int __cpuinit boot_secondary(unsigned int cpu, struct task_struct *idle)
 	spin_lock(&boot_lock);
 
 	/*
-	 * Update the AuxCoreBoot1 with boot state for secondary core.
+	 * Update the AuxCoreBoot0 with boot state for secondary core.
 	 * omap_secondary_startup() routine will hold the secondary core till
 	 * the AuxCoreBoot1 register is updated with cpu state
 	 * A barrier is added to ensure that write buffer is drained
 	 */
-	__raw_writel(cpu, omap4_auxcoreboot_reg1);
+	omap_modify_auxcoreboot0(0x200, 0x0);
+	flush_cache_all();
 	smp_wmb();
-
-	timeout = jiffies + (1 * HZ);
-	while (time_before(jiffies, timeout))
-		;
 
 	/*
 	 * Now the secondary core is starting up let it run its
@@ -99,17 +90,18 @@ static void __init wakeup_secondary(void)
 {
 	/*
 	 * Write the address of secondary startup routine into the
-	 * AuxCoreBoot0 where ROM code will jump and start executing
+	 * AuxCoreBoot1 where ROM code will jump and start executing
 	 * on secondary core once out of WFE
 	 * A barrier is added to ensure that write buffer is drained
 	 */
-	__raw_writel(virt_to_phys(omap_secondary_startup),	   \
-					omap4_auxcoreboot_reg0);
+	omap_auxcoreboot_addr(virt_to_phys(omap_secondary_startup));
 	smp_wmb();
 
 	/*
 	 * Send a 'sev' to wake the secondary core from WFE.
+	 * Drain the outstanding writes to memory
 	 */
+	dsb();
 	set_event();
 	mb();
 }
@@ -136,7 +128,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 {
 	unsigned int ncores = get_core_count();
 	unsigned int cpu = smp_processor_id();
-	void __iomem *omap4_wkupgen_base;
 	int i;
 
 	/* sanity check */
@@ -167,12 +158,6 @@ void __init smp_prepare_cpus(unsigned int max_cpus)
 	 */
 	for (i = 0; i < max_cpus; i++)
 		set_cpu_present(i, true);
-
-	/* Never released */
-	omap4_wkupgen_base = ioremap(OMAP44XX_WKUPGEN_BASE, SZ_4K);
-	BUG_ON(!omap4_wkupgen_base);
-	omap4_auxcoreboot_reg0 = omap4_wkupgen_base + 0x800;
-	omap4_auxcoreboot_reg1 = omap4_wkupgen_base + 0x804;
 
 	if (max_cpus > 1) {
 		/*

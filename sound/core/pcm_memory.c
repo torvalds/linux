@@ -23,6 +23,7 @@
 #include <linux/time.h>
 #include <linux/init.h>
 #include <linux/moduleparam.h>
+#include <linux/vmalloc.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/info.h>
@@ -434,3 +435,57 @@ int snd_pcm_lib_free_pages(struct snd_pcm_substream *substream)
 }
 
 EXPORT_SYMBOL(snd_pcm_lib_free_pages);
+
+int _snd_pcm_lib_alloc_vmalloc_buffer(struct snd_pcm_substream *substream,
+				      size_t size, gfp_t gfp_flags)
+{
+	struct snd_pcm_runtime *runtime;
+
+	if (PCM_RUNTIME_CHECK(substream))
+		return -EINVAL;
+	runtime = substream->runtime;
+	if (runtime->dma_area) {
+		if (runtime->dma_bytes >= size)
+			return 0; /* already large enough */
+		vfree(runtime->dma_area);
+	}
+	runtime->dma_area = __vmalloc(size, gfp_flags, PAGE_KERNEL);
+	if (!runtime->dma_area)
+		return -ENOMEM;
+	runtime->dma_bytes = size;
+	return 1;
+}
+EXPORT_SYMBOL(_snd_pcm_lib_alloc_vmalloc_buffer);
+
+/**
+ * snd_pcm_lib_free_vmalloc_buffer - free vmalloc buffer
+ * @substream: the substream with a buffer allocated by
+ *	snd_pcm_lib_alloc_vmalloc_buffer()
+ */
+int snd_pcm_lib_free_vmalloc_buffer(struct snd_pcm_substream *substream)
+{
+	struct snd_pcm_runtime *runtime;
+
+	if (PCM_RUNTIME_CHECK(substream))
+		return -EINVAL;
+	runtime = substream->runtime;
+	vfree(runtime->dma_area);
+	runtime->dma_area = NULL;
+	return 0;
+}
+EXPORT_SYMBOL(snd_pcm_lib_free_vmalloc_buffer);
+
+/**
+ * snd_pcm_lib_get_vmalloc_page - map vmalloc buffer offset to page struct
+ * @substream: the substream with a buffer allocated by
+ *	snd_pcm_lib_alloc_vmalloc_buffer()
+ * @offset: offset in the buffer
+ *
+ * This function is to be used as the page callback in the PCM ops.
+ */
+struct page *snd_pcm_lib_get_vmalloc_page(struct snd_pcm_substream *substream,
+					  unsigned long offset)
+{
+	return vmalloc_to_page(substream->runtime->dma_area + offset);
+}
+EXPORT_SYMBOL(snd_pcm_lib_get_vmalloc_page);

@@ -200,7 +200,7 @@ struct floppy_state {
 	int	ejected;
 	wait_queue_head_t wait;
 	int	wanted;
-	struct device_node*	media_bay; /* NULL when not in bay */
+	struct macio_dev *mdev;
 	char	dbdma_cmd_space[5 * sizeof(struct dbdma_cmd)];
 };
 
@@ -303,14 +303,13 @@ static int swim3_readbit(struct floppy_state *fs, int bit)
 static void do_fd_request(struct request_queue * q)
 {
 	int i;
-	for(i=0;i<floppy_count;i++)
-	{
-#ifdef CONFIG_PMAC_MEDIABAY
-		if (floppy_states[i].media_bay &&
-			check_media_bay(floppy_states[i].media_bay, MB_FD))
+
+	for(i=0; i<floppy_count; i++) {
+		struct floppy_state *fs = &floppy_states[i];
+		if (fs->mdev->media_bay &&
+		    check_media_bay(fs->mdev->media_bay) != MB_FD)
 			continue;
-#endif /* CONFIG_PMAC_MEDIABAY */
-		start_request(&floppy_states[i]);
+		start_request(fs);
 	}
 }
 
@@ -849,10 +848,9 @@ static int floppy_ioctl(struct block_device *bdev, fmode_t mode,
 	if ((cmd & 0x80) && !capable(CAP_SYS_ADMIN))
 		return -EPERM;
 
-#ifdef CONFIG_PMAC_MEDIABAY
-	if (fs->media_bay && check_media_bay(fs->media_bay, MB_FD))
+	if (fs->mdev->media_bay &&
+	    check_media_bay(fs->mdev->media_bay) != MB_FD)
 		return -ENXIO;
-#endif
 
 	switch (cmd) {
 	case FDEJECT:
@@ -876,10 +874,9 @@ static int floppy_open(struct block_device *bdev, fmode_t mode)
 	int n, err = 0;
 
 	if (fs->ref_count == 0) {
-#ifdef CONFIG_PMAC_MEDIABAY
-		if (fs->media_bay && check_media_bay(fs->media_bay, MB_FD))
+		if (fs->mdev->media_bay &&
+		    check_media_bay(fs->mdev->media_bay) != MB_FD)
 			return -ENXIO;
-#endif
 		out_8(&sw->setup, S_IBM_DRIVE | S_FCLK_DIV2);
 		out_8(&sw->control_bic, 0xff);
 		out_8(&sw->mode, 0x95);
@@ -963,10 +960,9 @@ static int floppy_revalidate(struct gendisk *disk)
 	struct swim3 __iomem *sw;
 	int ret, n;
 
-#ifdef CONFIG_PMAC_MEDIABAY
-	if (fs->media_bay && check_media_bay(fs->media_bay, MB_FD))
+	if (fs->mdev->media_bay &&
+	    check_media_bay(fs->mdev->media_bay) != MB_FD)
 		return -ENXIO;
-#endif
 
 	sw = fs->swim3;
 	grab_drive(fs, revalidating, 0);
@@ -1009,7 +1005,6 @@ static const struct block_device_operations floppy_fops = {
 static int swim3_add_device(struct macio_dev *mdev, int index)
 {
 	struct device_node *swim = mdev->ofdev.node;
-	struct device_node *mediabay;
 	struct floppy_state *fs = &floppy_states[index];
 	int rc = -EBUSY;
 
@@ -1036,9 +1031,7 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 	}
 	dev_set_drvdata(&mdev->ofdev.dev, fs);
 
-	mediabay = (strcasecmp(swim->parent->type, "media-bay") == 0) ?
-		swim->parent : NULL;
-	if (mediabay == NULL)
+	if (mdev->media_bay == NULL)
 		pmac_call_feature(PMAC_FTR_SWIM3_ENABLE, swim, 0, 1);
 	
 	memset(fs, 0, sizeof(*fs));
@@ -1068,7 +1061,7 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 	fs->secpercyl = 36;
 	fs->secpertrack = 18;
 	fs->total_secs = 2880;
-	fs->media_bay = mediabay;
+	fs->mdev = mdev;
 	init_waitqueue_head(&fs->wait);
 
 	fs->dma_cmd = (struct dbdma_cmd *) DBDMA_ALIGN(fs->dbdma_cmd_space);
@@ -1093,7 +1086,7 @@ static int swim3_add_device(struct macio_dev *mdev, int index)
 	init_timer(&fs->timeout);
 
 	printk(KERN_INFO "fd%d: SWIM3 floppy controller %s\n", floppy_count,
-		mediabay ? "in media bay" : "");
+		mdev->media_bay ? "in media bay" : "");
 
 	return 0;
 

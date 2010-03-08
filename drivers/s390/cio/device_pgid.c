@@ -142,7 +142,7 @@ static void spid_do(struct ccw_device *cdev)
 	u8 fn;
 
 	/* Use next available path that is not already in correct state. */
-	req->lpm = lpm_adjust(req->lpm, sch->schib.pmcw.pam & ~sch->vpm);
+	req->lpm = lpm_adjust(req->lpm, cdev->private->pgid_todo_mask);
 	if (!req->lpm)
 		goto out_nopath;
 	/* Channel program setup. */
@@ -254,15 +254,15 @@ static void pgid_analyze(struct ccw_device *cdev, struct pgid **p,
 	*p = first;
 }
 
-static u8 pgid_to_vpm(struct ccw_device *cdev)
+static u8 pgid_to_donepm(struct ccw_device *cdev)
 {
 	struct subchannel *sch = to_subchannel(cdev->dev.parent);
 	struct pgid *pgid;
 	int i;
 	int lpm;
-	u8 vpm = 0;
+	u8 donepm = 0;
 
-	/* Set VPM bits for paths which are already in the target state. */
+	/* Set bits for paths which are already in the target state. */
 	for (i = 0; i < 8; i++) {
 		lpm = 0x80 >> i;
 		if ((cdev->private->pgid_valid_mask & lpm) == 0)
@@ -282,10 +282,10 @@ static u8 pgid_to_vpm(struct ccw_device *cdev)
 			if (pgid->inf.ps.state3 != SNID_STATE3_SINGLE_PATH)
 				continue;
 		}
-		vpm |= lpm;
+		donepm |= lpm;
 	}
 
-	return vpm;
+	return donepm;
 }
 
 static void pgid_fill(struct ccw_device *cdev, struct pgid *pgid)
@@ -307,6 +307,7 @@ static void snid_done(struct ccw_device *cdev, int rc)
 	int mismatch = 0;
 	int reserved = 0;
 	int reset = 0;
+	u8 donepm;
 
 	if (rc)
 		goto out;
@@ -316,18 +317,20 @@ static void snid_done(struct ccw_device *cdev, int rc)
 	else if (mismatch)
 		rc = -EOPNOTSUPP;
 	else {
-		sch->vpm = pgid_to_vpm(cdev);
+		donepm = pgid_to_donepm(cdev);
+		sch->vpm = donepm & sch->opm;
+		cdev->private->pgid_todo_mask &= ~donepm;
 		pgid_fill(cdev, pgid);
 	}
 out:
 	CIO_MSG_EVENT(2, "snid: device 0.%x.%04x: rc=%d pvm=%02x vpm=%02x "
-		      "mism=%d rsvd=%d reset=%d\n", id->ssid, id->devno, rc,
-		      cdev->private->pgid_valid_mask, sch->vpm, mismatch,
-		      reserved, reset);
+		      "todo=%02x mism=%d rsvd=%d reset=%d\n", id->ssid,
+		      id->devno, rc, cdev->private->pgid_valid_mask, sch->vpm,
+		      cdev->private->pgid_todo_mask, mismatch, reserved, reset);
 	switch (rc) {
 	case 0:
 		/* Anything left to do? */
-		if (sch->vpm == sch->schib.pmcw.pam) {
+		if (cdev->private->pgid_todo_mask == 0) {
 			verify_done(cdev, sch->vpm == 0 ? -EACCES : 0);
 			return;
 		}
@@ -411,6 +414,7 @@ static void verify_start(struct ccw_device *cdev)
 	struct ccw_dev_id *devid = &cdev->private->dev_id;
 
 	sch->vpm = 0;
+	sch->lpm = sch->schib.pmcw.pam;
 	/* Initialize request data. */
 	memset(req, 0, sizeof(*req));
 	req->timeout	= PGID_TIMEOUT;
@@ -442,11 +446,14 @@ static void verify_start(struct ccw_device *cdev)
  */
 void ccw_device_verify_start(struct ccw_device *cdev)
 {
+	struct subchannel *sch = to_subchannel(cdev->dev.parent);
+
 	CIO_TRACE_EVENT(4, "vrfy");
 	CIO_HEX_EVENT(4, &cdev->private->dev_id, sizeof(cdev->private->dev_id));
 	/* Initialize PGID data. */
 	memset(cdev->private->pgid, 0, sizeof(cdev->private->pgid));
 	cdev->private->pgid_valid_mask = 0;
+	cdev->private->pgid_todo_mask = sch->schib.pmcw.pam;
 	/*
 	 * Initialize pathgroup and multipath state with target values.
 	 * They may change in the course of path verification.

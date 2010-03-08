@@ -334,7 +334,7 @@ xfs_bmbt_disk_set_allf(
 /*
  * Set all the fields in a bmap extent record from the uncompressed form.
  */
-void
+STATIC void
 xfs_bmbt_disk_set_all(
 	xfs_bmbt_rec_t	*r,
 	xfs_bmbt_irec_t *s)
@@ -763,12 +763,6 @@ xfs_bmbt_trace_enter(
 	int			whichfork = cur->bc_private.b.whichfork;
 
 	ktrace_enter(xfs_bmbt_trace_buf,
-		(void *)((__psint_t)type | (whichfork << 8) | (line << 16)),
-		(void *)func, (void *)s, (void *)ip, (void *)cur,
-		(void *)a0, (void *)a1, (void *)a2, (void *)a3,
-		(void *)a4, (void *)a5, (void *)a6, (void *)a7,
-		(void *)a8, (void *)a9, (void *)a10);
-	ktrace_enter(ip->i_btrace,
 		(void *)((__psint_t)type | (whichfork << 8) | (line << 16)),
 		(void *)func, (void *)s, (void *)ip, (void *)cur,
 		(void *)a0, (void *)a1, (void *)a2, (void *)a3,

@@ -45,7 +45,7 @@
  * the insertion of new nodes. There are no nodes with duplicate
  * priorites on the list.
  *
- * The nodes on the node_list is ordered by priority and can contain
+ * The nodes on the node_list are ordered by priority and can contain
  * entries which have the same priority. Those entries are ordered
  * FIFO
  *
@@ -81,7 +81,8 @@ struct plist_head {
 	struct list_head prio_list;
 	struct list_head node_list;
 #ifdef CONFIG_DEBUG_PI_LIST
-	spinlock_t *lock;
+	raw_spinlock_t *rawlock;
+	spinlock_t *spinlock;
 #endif
 };
 
@@ -91,9 +92,11 @@ struct plist_node {
 };
 
 #ifdef CONFIG_DEBUG_PI_LIST
-# define PLIST_HEAD_LOCK_INIT(_lock)	.lock = _lock
+# define PLIST_HEAD_LOCK_INIT(_lock)		.spinlock = _lock
+# define PLIST_HEAD_LOCK_INIT_RAW(_lock)	.rawlock = _lock
 #else
 # define PLIST_HEAD_LOCK_INIT(_lock)
+# define PLIST_HEAD_LOCK_INIT_RAW(_lock)
 #endif
 
 #define _PLIST_HEAD_INIT(head)				\
@@ -107,8 +110,19 @@ struct plist_node {
  */
 #define PLIST_HEAD_INIT(head, _lock)			\
 {							\
-        _PLIST_HEAD_INIT(head),                         \
+	_PLIST_HEAD_INIT(head),				\
 	PLIST_HEAD_LOCK_INIT(&(_lock))			\
+}
+
+/**
+ * PLIST_HEAD_INIT_RAW - static struct plist_head initializer
+ * @head:	struct plist_head variable name
+ * @_lock:	lock to initialize for this list
+ */
+#define PLIST_HEAD_INIT_RAW(head, _lock)		\
+{							\
+	_PLIST_HEAD_INIT(head),				\
+	PLIST_HEAD_LOCK_INIT_RAW(&(_lock))		\
 }
 
 /**
@@ -119,13 +133,13 @@ struct plist_node {
 #define PLIST_NODE_INIT(node, __prio)			\
 {							\
 	.prio  = (__prio),				\
-	.plist = { _PLIST_HEAD_INIT((node).plist) }, 	\
+	.plist = { _PLIST_HEAD_INIT((node).plist) },	\
 }
 
 /**
  * plist_head_init - dynamic struct plist_head initializer
  * @head:	&struct plist_head pointer
- * @lock:	list spinlock, remembered for debugging
+ * @lock:	spinlock protecting the list (debugging)
  */
 static inline void
 plist_head_init(struct plist_head *head, spinlock_t *lock)
@@ -133,7 +147,24 @@ plist_head_init(struct plist_head *head, spinlock_t *lock)
 	INIT_LIST_HEAD(&head->prio_list);
 	INIT_LIST_HEAD(&head->node_list);
 #ifdef CONFIG_DEBUG_PI_LIST
-	head->lock = lock;
+	head->spinlock = lock;
+	head->rawlock = NULL;
+#endif
+}
+
+/**
+ * plist_head_init_raw - dynamic struct plist_head initializer
+ * @head:	&struct plist_head pointer
+ * @lock:	raw_spinlock protecting the list (debugging)
+ */
+static inline void
+plist_head_init_raw(struct plist_head *head, raw_spinlock_t *lock)
+{
+	INIT_LIST_HEAD(&head->prio_list);
+	INIT_LIST_HEAD(&head->node_list);
+#ifdef CONFIG_DEBUG_PI_LIST
+	head->rawlock = lock;
+	head->spinlock = NULL;
 #endif
 }
 
@@ -234,7 +265,7 @@ static inline int plist_node_empty(const struct plist_node *node)
  *
  * Assumes the plist is _not_ empty.
  */
-static inline struct plist_node* plist_first(const struct plist_head *head)
+static inline struct plist_node *plist_first(const struct plist_head *head)
 {
 	return list_entry(head->node_list.next,
 			  struct plist_node, plist.node_list);

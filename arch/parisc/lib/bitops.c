@@ -12,8 +12,8 @@
 #include <asm/atomic.h>
 
 #ifdef CONFIG_SMP
-raw_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned = {
-	[0 ... (ATOMIC_HASH_SIZE-1)]  = __RAW_SPIN_LOCK_UNLOCKED
+arch_spinlock_t __atomic_hash[ATOMIC_HASH_SIZE] __lock_aligned = {
+	[0 ... (ATOMIC_HASH_SIZE-1)]  = __ARCH_SPIN_LOCK_UNLOCKED
 };
 #endif
 

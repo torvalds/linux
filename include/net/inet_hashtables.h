@@ -251,7 +251,7 @@ extern void inet_put_port(struct sock *sk);
 
 void inet_hashinfo_init(struct inet_hashinfo *h);
 
-extern void __inet_hash_nolisten(struct sock *sk);
+extern int __inet_hash_nolisten(struct sock *sk, struct inet_timewait_sock *tw);
 extern void inet_hash(struct sock *sk);
 extern void inet_unhash(struct sock *sk);
 
@@ -391,10 +391,12 @@ static inline struct sock *__inet_lookup_skb(struct inet_hashinfo *hashinfo,
 }
 
 extern int __inet_hash_connect(struct inet_timewait_death_row *death_row,
-		struct sock *sk, u32 port_offset,
+		struct sock *sk,
+		u32 port_offset,
 		int (*check_established)(struct inet_timewait_death_row *,
 			struct sock *, __u16, struct inet_timewait_sock **),
-			       void (*hash)(struct sock *sk));
+		int (*hash)(struct sock *sk, struct inet_timewait_sock *twp));
+
 extern int inet_hash_connect(struct inet_timewait_death_row *death_row,
 			     struct sock *sk);
 #endif /* _INET_HASHTABLES_H */

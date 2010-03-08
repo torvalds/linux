@@ -49,6 +49,7 @@ struct autofs_info *autofs4_init_ino(struct autofs_info *ino,
 		ino->dentry = NULL;
 		ino->size = 0;
 		INIT_LIST_HEAD(&ino->active);
+		ino->active_count = 0;
 		INIT_LIST_HEAD(&ino->expiring);
 		atomic_set(&ino->count, 0);
 	}
@@ -95,63 +96,6 @@ void autofs4_free_ino(struct autofs_info *ino)
 	kfree(ino);
 }
 
-/*
- * Deal with the infamous "Busy inodes after umount ..." message.
- *
- * Clean up the dentry tree. This happens with autofs if the user
- * space program goes away due to a SIGKILL, SIGSEGV etc.
- */
-static void autofs4_force_release(struct autofs_sb_info *sbi)
-{
-	struct dentry *this_parent = sbi->sb->s_root;
-	struct list_head *next;
-
-	if (!sbi->sb->s_root)
-		return;
-
-	spin_lock(&dcache_lock);
-repeat:
-	next = this_parent->d_subdirs.next;
-resume:
-	while (next != &this_parent->d_subdirs) {
-		struct dentry *dentry = list_entry(next, struct dentry, d_u.d_child);
-
-		/* Negative dentry - don`t care */
-		if (!simple_positive(dentry)) {
-			next = next->next;
-			continue;
-		}
-
-		if (!list_empty(&dentry->d_subdirs)) {
-			this_parent = dentry;
-			goto repeat;
-		}
-
-		next = next->next;
-		spin_unlock(&dcache_lock);
-
-		DPRINTK("dentry %p %.*s",
-			dentry, (int)dentry->d_name.len, dentry->d_name.name);
-
-		dput(dentry);
-		spin_lock(&dcache_lock);
-	}
-
-	if (this_parent != sbi->sb->s_root) {
-		struct dentry *dentry = this_parent;
-
-		next = this_parent->d_u.d_child.next;
-		this_parent = this_parent->d_parent;
-		spin_unlock(&dcache_lock);
-		DPRINTK("parent dentry %p %.*s",
-			dentry, (int)dentry->d_name.len, dentry->d_name.name);
-		dput(dentry);
-		spin_lock(&dcache_lock);
-		goto resume;
-	}
-	spin_unlock(&dcache_lock);
-}
-
 void autofs4_kill_sb(struct super_block *sb)
 {
 	struct autofs_sb_info *sbi = autofs4_sbi(sb);
@@ -168,15 +112,12 @@ void autofs4_kill_sb(struct super_block *sb)
 	/* Free wait queues, close pipe */
 	autofs4_catatonic_mode(sbi);
 
-	/* Clean up and release dangling references */
-	autofs4_force_release(sbi);
-
 	sb->s_fs_info = NULL;
 	kfree(sbi);
 
 out_kill_sb:
 	DPRINTK("shutting down");
-	kill_anon_super(sb);
+	kill_litter_super(sb);
 }
 
 static int autofs4_show_options(struct seq_file *m, struct vfsmount *mnt)

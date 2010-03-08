@@ -18,6 +18,7 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/ctype.h>
+#include <linux/string.h>
 #include <linux/sysctl.h>
 #include <asm/uaccess.h>
 #include <linux/module.h>
@@ -1178,7 +1179,7 @@ debug_get_uint(char *buf)
 {
 	int rc;
 
-	for(; isspace(*buf); buf++);
+	buf = skip_spaces(buf);
 	rc = simple_strtoul(buf, &buf, 10);
 	if(*buf){
 		rc = -EINVAL;

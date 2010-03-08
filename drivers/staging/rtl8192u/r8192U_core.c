@@ -104,7 +104,7 @@ u32 rt_global_debug_component = \
 #define TOTAL_CAM_ENTRY 32
 #define CAM_CONTENT_COUNT 8
 
-static struct usb_device_id rtl8192_usb_id_tbl[] = {
+static const struct usb_device_id rtl8192_usb_id_tbl[] = {
 	/* Realtek */
 	{USB_DEVICE(0x0bda, 0x8192)},
 	{USB_DEVICE(0x0bda, 0x8709)},
@@ -2719,7 +2719,7 @@ void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 			wireless_mode = WIRELESS_MODE_B;
 		}
 	}
-#ifdef TO_DO_LIST //// TODO: this function doesn't work well at this time, we shoud wait for FPGA
+#ifdef TO_DO_LIST //// TODO: this function doesn't work well at this time, we should wait for FPGA
 	ActUpdateChannelAccessSetting( pAdapter, pHalData->CurrentWirelessMode, &pAdapter->MgntInfo.Info8185.ChannelAccessSetting );
 #endif
 	priv->ieee80211->mode = wireless_mode;
@@ -2976,7 +2976,7 @@ static void rtl8192_read_eeprom_info(struct net_device* dev)
 		memcpy(dev->dev_addr, bMac_Tmp_Addr, 6);
 		//should I set IDR0 here?
 	}
-	RT_TRACE(COMP_EPROM, "MAC addr:"MAC_FMT"\n", MAC_ARG(dev->dev_addr));
+	RT_TRACE(COMP_EPROM, "MAC addr:%pM\n", dev->dev_addr);
 	priv->rf_type = RTL819X_DEFAULT_RF_TYPE; //default 1T2R
 	priv->rf_chip = RF_8256;
 
@@ -6037,7 +6037,7 @@ void setKey(	struct net_device *dev,
 	if (EntryNo >= TOTAL_CAM_ENTRY)
 		RT_TRACE(COMP_ERR, "cam entry exceeds in setKey()\n");
 
-	RT_TRACE(COMP_SEC, "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d, KeyType:%d, MacAddr"MAC_FMT"\n", dev,EntryNo, KeyIndex, KeyType, MAC_ARG(MacAddr));
+	RT_TRACE(COMP_SEC, "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d, KeyType:%d, MacAddr%pM\n", dev,EntryNo, KeyIndex, KeyType, MacAddr);
 
 	if (DefaultKey)
 		usConfig |= BIT15 | (KeyType<<2);

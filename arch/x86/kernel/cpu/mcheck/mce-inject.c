@@ -74,7 +74,7 @@ static void raise_exception(struct mce *m, struct pt_regs *pregs)
 	m->finished = 0;
 }
 
-static cpumask_t mce_inject_cpumask;
+static cpumask_var_t mce_inject_cpumask;
 
 static int mce_raise_notify(struct notifier_block *self,
 			    unsigned long val, void *data)
@@ -82,9 +82,9 @@ static int mce_raise_notify(struct notifier_block *self,
 	struct die_args *args = (struct die_args *)data;
 	int cpu = smp_processor_id();
 	struct mce *m = &__get_cpu_var(injectm);
-	if (val != DIE_NMI_IPI || !cpu_isset(cpu, mce_inject_cpumask))
+	if (val != DIE_NMI_IPI || !cpumask_test_cpu(cpu, mce_inject_cpumask))
 		return NOTIFY_DONE;
-	cpu_clear(cpu, mce_inject_cpumask);
+	cpumask_clear_cpu(cpu, mce_inject_cpumask);
 	if (m->inject_flags & MCJ_EXCEPTION)
 		raise_exception(m, args->regs);
 	else if (m->status)
@@ -148,22 +148,22 @@ static void raise_mce(struct mce *m)
 		unsigned long start;
 		int cpu;
 		get_online_cpus();
-		mce_inject_cpumask = cpu_online_map;
-		cpu_clear(get_cpu(), mce_inject_cpumask);
+		cpumask_copy(mce_inject_cpumask, cpu_online_mask);
+		cpumask_clear_cpu(get_cpu(), mce_inject_cpumask);
 		for_each_online_cpu(cpu) {
 			struct mce *mcpu = &per_cpu(injectm, cpu);
 			if (!mcpu->finished ||
 			    MCJ_CTX(mcpu->inject_flags) != MCJ_CTX_RANDOM)
-				cpu_clear(cpu, mce_inject_cpumask);
+				cpumask_clear_cpu(cpu, mce_inject_cpumask);
 		}
-		if (!cpus_empty(mce_inject_cpumask))
-			apic->send_IPI_mask(&mce_inject_cpumask, NMI_VECTOR);
+		if (!cpumask_empty(mce_inject_cpumask))
+			apic->send_IPI_mask(mce_inject_cpumask, NMI_VECTOR);
 		start = jiffies;
-		while (!cpus_empty(mce_inject_cpumask)) {
+		while (!cpumask_empty(mce_inject_cpumask)) {
 			if (!time_before(jiffies, start + 2*HZ)) {
 				printk(KERN_ERR
 				"Timeout waiting for mce inject NMI %lx\n",
-					*cpus_addr(mce_inject_cpumask));
+					*cpumask_bits(mce_inject_cpumask));
 				break;
 			}
 			cpu_relax();
@@ -210,6 +210,8 @@ static ssize_t mce_write(struct file *filp, const char __user *ubuf,
 
 static int inject_init(void)
 {
+	if (!alloc_cpumask_var(&mce_inject_cpumask, GFP_KERNEL))
+		return -ENOMEM;
 	printk(KERN_INFO "Machine check injector initialized\n");
 	mce_chrdev_ops.write = mce_write;
 	register_die_notifier(&mce_raise_nb);

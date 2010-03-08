@@ -43,7 +43,7 @@ static int x86_64;
 static void usage(void)
 {
 	fprintf(stderr, "Usage: objdump -d a.out | awk -f distill.awk |"
-		" %s [-y|-n] [-v] \n", prog);
+		" %s [-y|-n] [-v]\n", prog);
 	fprintf(stderr, "\t-y	64bit mode\n");
 	fprintf(stderr, "\t-n	32bit mode\n");
 	fprintf(stderr, "\t-v	verbose mode\n");
@@ -69,7 +69,7 @@ static void dump_field(FILE *fp, const char *name, const char *indent,
 
 static void dump_insn(FILE *fp, struct insn *insn)
 {
-	fprintf(fp, "Instruction = { \n");
+	fprintf(fp, "Instruction = {\n");
 	dump_field(fp, "prefixes", "\t",	&insn->prefixes);
 	dump_field(fp, "rex_prefix", "\t",	&insn->rex_prefix);
 	dump_field(fp, "vex_prefix", "\t",	&insn->vex_prefix);
@@ -113,7 +113,7 @@ int main(int argc, char **argv)
 	char line[BUFSIZE], sym[BUFSIZE] = "<unknown>";
 	unsigned char insn_buf[16];
 	struct insn insn;
-	int insns = 0, c;
+	int insns = 0;
 	int warnings = 0;
 
 	parse_args(argc, argv);

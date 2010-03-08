@@ -38,7 +38,6 @@
 static const unsigned short normal_i2c[] = { 0x2e, 0x2f, I2C_CLIENT_END };
 
 /* Insmod parameters */
-I2C_CLIENT_INSMOD_1(w83l786ng);
 
 static int reset;
 module_param(reset, bool, 0);
@@ -147,14 +146,14 @@ struct w83l786ng_data {
 
 static int w83l786ng_probe(struct i2c_client *client,
 			   const struct i2c_device_id *id);
-static int w83l786ng_detect(struct i2c_client *client, int kind,
+static int w83l786ng_detect(struct i2c_client *client,
 			    struct i2c_board_info *info);
 static int w83l786ng_remove(struct i2c_client *client);
 static void w83l786ng_init_client(struct i2c_client *client);
 static struct w83l786ng_data *w83l786ng_update_device(struct device *dev);
 
 static const struct i2c_device_id w83l786ng_id[] = {
-	{ "w83l786ng", w83l786ng },
+	{ "w83l786ng", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, w83l786ng_id);
@@ -168,7 +167,7 @@ static struct i2c_driver w83l786ng_driver = {
 	.remove		= w83l786ng_remove,
 	.id_table	= w83l786ng_id,
 	.detect		= w83l786ng_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 static u8
@@ -586,8 +585,7 @@ static const struct attribute_group w83l786ng_group = {
 };
 
 static int
-w83l786ng_detect(struct i2c_client *client, int kind,
-		 struct i2c_board_info *info)
+w83l786ng_detect(struct i2c_client *client, struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = client->adapter;
 	u16 man_id;

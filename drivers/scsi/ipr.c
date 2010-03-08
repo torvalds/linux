@@ -1333,7 +1333,7 @@ static void ipr_log_enhanced_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	error = &hostrcb->hcam.u.error.u.type_17_error;
 	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
-	strstrip(error->failure_reason);
+	strim(error->failure_reason);
 
 	ipr_hcam_err(hostrcb, "%s [PRC: %08X]\n", error->failure_reason,
 		     be32_to_cpu(hostrcb->hcam.u.error.prc));
@@ -1359,7 +1359,7 @@ static void ipr_log_dual_ioa_error(struct ipr_ioa_cfg *ioa_cfg,
 
 	error = &hostrcb->hcam.u.error.u.type_07_error;
 	error->failure_reason[sizeof(error->failure_reason) - 1] = '\0';
-	strstrip(error->failure_reason);
+	strim(error->failure_reason);
 
 	ipr_hcam_err(hostrcb, "%s [PRC: %08X]\n", error->failure_reason,
 		     be32_to_cpu(hostrcb->hcam.u.error.prc));
@@ -3674,7 +3674,7 @@ static int ipr_slave_configure(struct scsi_device *sdev)
 		if (ipr_is_vset_device(res)) {
 			blk_queue_rq_timeout(sdev->request_queue,
 					     IPR_VSET_RW_TIMEOUT);
-			blk_queue_max_sectors(sdev->request_queue, IPR_VSET_MAX_SECTORS);
+			blk_queue_max_hw_sectors(sdev->request_queue, IPR_VSET_MAX_SECTORS);
 		}
 		if (ipr_is_vset_device(res) || ipr_is_scsi_disk(res))
 			sdev->allow_restart = 1;
@@ -6521,6 +6521,7 @@ static int ipr_reset_restore_cfg_space(struct ipr_cmnd *ipr_cmd)
 	int rc;
 
 	ENTER;
+	ioa_cfg->pdev->state_saved = true;
 	rc = pci_restore_state(ioa_cfg->pdev);
 
 	if (rc != PCIBIOS_SUCCESSFUL) {

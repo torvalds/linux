@@ -13,6 +13,8 @@ module_param(report_gart_errors, int, 0644);
 static int ecc_enable_override;
 module_param(ecc_enable_override, int, 0644);
 
+static struct msr __percpu *msrs;
+
 /* Lookup table for all possible MC control instances */
 struct amd64_pvt;
 static struct mem_ctl_info *mci_lookup[EDAC_MAX_NUMNODES];
@@ -195,7 +197,7 @@ static int amd64_get_scrub_rate(struct mem_ctl_info *mci, u32 *bw)
 	edac_printk(KERN_DEBUG, EDAC_MC,
 		    "pci-read, sdram scrub control value: %d \n", scrubval);
 
-	for (i = 0; ARRAY_SIZE(scrubrates); i++) {
+	for (i = 0; i < ARRAY_SIZE(scrubrates); i++) {
 		if (scrubrates[i].scrubval == scrubval) {
 			*bw = scrubrates[i].bandwidth;
 			status = 0;
@@ -1698,11 +1700,14 @@ static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
  */
 static void amd64_debug_display_dimm_sizes(int ctrl, struct amd64_pvt *pvt)
 {
-	int dimm, size0, size1;
+	int dimm, size0, size1, factor = 0;
 	u32 dbam;
 	u32 *dcsb;
 
 	if (boot_cpu_data.x86 == 0xf) {
+		if (pvt->dclr0 & F10_WIDTH_128)
+			factor = 1;
+
 		/* K8 families < revF not supported yet */
 	       if (pvt->ext_model < K8_REV_F)
 			return;
@@ -1730,7 +1735,8 @@ static void amd64_debug_display_dimm_sizes(int ctrl, struct amd64_pvt *pvt)
 			size1 = pvt->ops->dbam_to_cs(pvt, DBAM_DIMM(dimm, dbam));
 
 		edac_printk(KERN_DEBUG, EDAC_MC, " %d: %5dMB %d: %5dMB\n",
-			    dimm * 2, size0, dimm * 2 + 1, size1);
+			    dimm * 2,     size0 << factor,
+			    dimm * 2 + 1, size1 << factor);
 	}
 }
 
@@ -2343,7 +2349,7 @@ static void amd64_read_mc_registers(struct amd64_pvt *pvt)
 	amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_0, &pvt->dclr0);
 	amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCHR_0, &pvt->dchr0);
 
-	if (!dct_ganging_enabled(pvt)) {
+	if (!dct_ganging_enabled(pvt) && boot_cpu_data.x86 >= 0x10) {
 		amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_1, &pvt->dclr1);
 		amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCHR_1, &pvt->dchr1);
 	}
@@ -2495,8 +2501,7 @@ static void get_cpus_on_this_dct_cpumask(struct cpumask *mask, int nid)
 static bool amd64_nb_mce_bank_enabled_on_node(int nid)
 {
 	cpumask_var_t mask;
-	struct msr *msrs;
-	int cpu, nbe, idx = 0;
+	int cpu, nbe;
 	bool ret = false;
 
 	if (!zalloc_cpumask_var(&mask, GFP_KERNEL)) {
@@ -2507,32 +2512,22 @@ static bool amd64_nb_mce_bank_enabled_on_node(int nid)
 
 	get_cpus_on_this_dct_cpumask(mask, nid);
 
-	msrs = kzalloc(sizeof(struct msr) * cpumask_weight(mask), GFP_KERNEL);
-	if (!msrs) {
-		amd64_printk(KERN_WARNING, "%s: error allocating msrs\n",
-			      __func__);
-		free_cpumask_var(mask);
-		 return false;
-	}
-
 	rdmsr_on_cpus(mask, MSR_IA32_MCG_CTL, msrs);
 
 	for_each_cpu(cpu, mask) {
-		nbe = msrs[idx].l & K8_MSR_MCGCTL_NBE;
+		struct msr *reg = per_cpu_ptr(msrs, cpu);
+		nbe = reg->l & K8_MSR_MCGCTL_NBE;
 
 		debugf0("core: %u, MCG_CTL: 0x%llx, NB MSR is %s\n",
-			cpu, msrs[idx].q,
+			cpu, reg->q,
 			(nbe ? "enabled" : "disabled"));
 
 		if (!nbe)
 			goto out;
-
-		idx++;
 	}
 	ret = true;
 
 out:
-	kfree(msrs);
 	free_cpumask_var(mask);
 	return ret;
 }
@@ -2540,8 +2535,7 @@ out:
 static int amd64_toggle_ecc_err_reporting(struct amd64_pvt *pvt, bool on)
 {
 	cpumask_var_t cmask;
-	struct msr *msrs = NULL;
-	int cpu, idx = 0;
+	int cpu;
 
 	if (!zalloc_cpumask_var(&cmask, GFP_KERNEL)) {
 		amd64_printk(KERN_WARNING, "%s: error allocating mask\n",
@@ -2551,54 +2545,36 @@ static int amd64_toggle_ecc_err_reporting(struct amd64_pvt *pvt, bool on)
 
 	get_cpus_on_this_dct_cpumask(cmask, pvt->mc_node_id);
 
-	msrs = kzalloc(sizeof(struct msr) * cpumask_weight(cmask), GFP_KERNEL);
-	if (!msrs) {
-		amd64_printk(KERN_WARNING, "%s: error allocating msrs\n",
-			     __func__);
-		return -ENOMEM;
-	}
-
 	rdmsr_on_cpus(cmask, MSR_IA32_MCG_CTL, msrs);
 
 	for_each_cpu(cpu, cmask) {
 
-		if (on) {
-			if (msrs[idx].l & K8_MSR_MCGCTL_NBE)
-				pvt->flags.ecc_report = 1;
+		struct msr *reg = per_cpu_ptr(msrs, cpu);
 
-			msrs[idx].l |= K8_MSR_MCGCTL_NBE;
+		if (on) {
+			if (reg->l & K8_MSR_MCGCTL_NBE)
+				pvt->flags.nb_mce_enable = 1;
+
+			reg->l |= K8_MSR_MCGCTL_NBE;
 		} else {
 			/*
-			 * Turn off ECC reporting only when it was off before
+			 * Turn off NB MCE reporting only when it was off before
 			 */
-			if (!pvt->flags.ecc_report)
-				msrs[idx].l &= ~K8_MSR_MCGCTL_NBE;
+			if (!pvt->flags.nb_mce_enable)
+				reg->l &= ~K8_MSR_MCGCTL_NBE;
 		}
-		idx++;
 	}
 	wrmsr_on_cpus(cmask, MSR_IA32_MCG_CTL, msrs);
 
-	kfree(msrs);
 	free_cpumask_var(cmask);
 
 	return 0;
 }
 
-/*
- * Only if 'ecc_enable_override' is set AND BIOS had ECC disabled, do "we"
- * enable it.
- */
 static void amd64_enable_ecc_error_reporting(struct mem_ctl_info *mci)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u32 value, mask = K8_NBCTL_CECCEn | K8_NBCTL_UECCEn;
-
-	if (!ecc_enable_override)
-		return;
-
-	amd64_printk(KERN_WARNING,
-		"'ecc_enable_override' parameter is active, "
-		"Enabling AMD ECC hardware now: CAUTION\n");
 
 	amd64_read_pci_cfg(pvt->misc_f3_ctl, K8_NBCTL, &value);
 
@@ -2624,6 +2600,8 @@ static void amd64_enable_ecc_error_reporting(struct mem_ctl_info *mci)
 			"This node reports that DRAM ECC is "
 			"currently Disabled; ENABLING now\n");
 
+		pvt->flags.nb_ecc_prev = 0;
+
 		/* Attempt to turn on DRAM ECC Enable */
 		value |= K8_NBCFG_ECC_ENABLE;
 		pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCFG, value);
@@ -2638,7 +2616,10 @@ static void amd64_enable_ecc_error_reporting(struct mem_ctl_info *mci)
 			amd64_printk(KERN_DEBUG,
 				"Hardware accepted DRAM ECC Enable\n");
 		}
+	} else {
+		pvt->flags.nb_ecc_prev = 1;
 	}
+
 	debugf0("NBCFG(2)= 0x%x  CHIPKILL= %s ECC_ENABLE= %s\n", value,
 		(value & K8_NBCFG_CHIPKILL) ? "Enabled" : "Disabled",
 		(value & K8_NBCFG_ECC_ENABLE) ? "Enabled" : "Disabled");
@@ -2657,12 +2638,18 @@ static void amd64_restore_ecc_error_reporting(struct amd64_pvt *pvt)
 	value &= ~mask;
 	value |= pvt->old_nbctl;
 
-	/* restore the NB Enable MCGCTL bit */
 	pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCTL, value);
 
+	/* restore previous BIOS DRAM ECC "off" setting which we force-enabled */
+	if (!pvt->flags.nb_ecc_prev) {
+		amd64_read_pci_cfg(pvt->misc_f3_ctl, K8_NBCFG, &value);
+		value &= ~K8_NBCFG_ECC_ENABLE;
+		pci_write_config_dword(pvt->misc_f3_ctl, K8_NBCFG, value);
+	}
+
+	/* restore the NB Enable MCGCTL bit */
 	if (amd64_toggle_ecc_err_reporting(pvt, OFF))
-		amd64_printk(KERN_WARNING, "Error restoring ECC reporting over "
-					   "MCGCTL!\n");
+		amd64_printk(KERN_WARNING, "Error restoring NB MCGCTL settings!\n");
 }
 
 /*
@@ -2671,10 +2658,11 @@ static void amd64_restore_ecc_error_reporting(struct amd64_pvt *pvt)
  * the memory system completely. A command line option allows to force-enable
  * hardware ECC later in amd64_enable_ecc_error_reporting().
  */
-static const char *ecc_warning =
-	"WARNING: ECC is disabled by BIOS. Module will NOT be loaded.\n"
-	" Either Enable ECC in the BIOS, or set 'ecc_enable_override'.\n"
-	" Also, use of the override can cause unknown side effects.\n";
+static const char *ecc_msg =
+	"ECC disabled in the BIOS or no ECC capability, module will not load.\n"
+	" Either enable ECC checking or force module loading by setting "
+	"'ecc_enable_override'.\n"
+	" (Note that use of the override may cause unknown side effects.)\n";
 
 static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 {
@@ -2686,7 +2674,7 @@ static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 
 	ecc_enabled = !!(value & K8_NBCFG_ECC_ENABLE);
 	if (!ecc_enabled)
-		amd64_printk(KERN_WARNING, "This node reports that Memory ECC "
+		amd64_printk(KERN_NOTICE, "This node reports that Memory ECC "
 			     "is currently disabled, set F3x%x[22] (%s).\n",
 			     K8_NBCFG, pci_name(pvt->misc_f3_ctl));
 	else
@@ -2694,18 +2682,18 @@ static int amd64_check_ecc_enabled(struct amd64_pvt *pvt)
 
 	nb_mce_en = amd64_nb_mce_bank_enabled_on_node(pvt->mc_node_id);
 	if (!nb_mce_en)
-		amd64_printk(KERN_WARNING, "NB MCE bank disabled, set MSR "
+		amd64_printk(KERN_NOTICE, "NB MCE bank disabled, set MSR "
 			     "0x%08x[4] on node %d to enable.\n",
 			     MSR_IA32_MCG_CTL, pvt->mc_node_id);
 
 	if (!ecc_enabled || !nb_mce_en) {
 		if (!ecc_enable_override) {
-			amd64_printk(KERN_WARNING, "%s", ecc_warning);
+			amd64_printk(KERN_NOTICE, "%s", ecc_msg);
 			return -ENODEV;
+		} else {
+			amd64_printk(KERN_WARNING, "Forcing ECC checking on!\n");
 		}
-	} else
-		/* CLEAR the override, since BIOS controlled it */
-		ecc_enable_override = 0;
+	}
 
 	return 0;
 }
@@ -2942,16 +2930,15 @@ static void __devexit amd64_remove_one_instance(struct pci_dev *pdev)
 
 	amd64_free_mc_sibling_devices(pvt);
 
-	kfree(pvt);
-	mci->pvt_info = NULL;
-
-	mci_lookup[pvt->mc_node_id] = NULL;
-
 	/* unregister from EDAC MCE */
 	amd_report_gart_errors(false);
 	amd_unregister_ecc_decoder(amd64_decode_bus_error);
 
 	/* Free the EDAC CORE resources */
+	mci->pvt_info = NULL;
+	mci_lookup[pvt->mc_node_id] = NULL;
+
+	kfree(pvt);
 	edac_mc_free(mci);
 }
 
@@ -3028,23 +3015,29 @@ static void amd64_setup_pci_device(void)
 static int __init amd64_edac_init(void)
 {
 	int nb, err = -ENODEV;
+	bool load_ok = false;
 
 	edac_printk(KERN_INFO, EDAC_MOD_STR, EDAC_AMD64_VERSION "\n");
 
 	opstate_init();
 
 	if (cache_k8_northbridges() < 0)
-		return err;
+		goto err_ret;
+
+	msrs = msrs_alloc();
+	if (!msrs)
+		goto err_ret;
 
 	err = pci_register_driver(&amd64_pci_driver);
 	if (err)
-		return err;
+		goto err_pci;
 
 	/*
 	 * At this point, the array 'pvt_lookup[]' contains pointers to alloc'd
 	 * amd64_pvt structs. These will be used in the 2nd stage init function
 	 * to finish initialization of the MC instances.
 	 */
+	err = -ENODEV;
 	for (nb = 0; nb < num_k8_northbridges; nb++) {
 		if (!pvt_lookup[nb])
 			continue;
@@ -3052,16 +3045,21 @@ static int __init amd64_edac_init(void)
 		err = amd64_init_2nd_stage(pvt_lookup[nb]);
 		if (err)
 			goto err_2nd_stage;
+
+		load_ok = true;
 	}
 
-	amd64_setup_pci_device();
-
-	return 0;
+	if (load_ok) {
+		amd64_setup_pci_device();
+		return 0;
+	}
 
 err_2nd_stage:
-	debugf0("2nd stage failed\n");
 	pci_unregister_driver(&amd64_pci_driver);
-
+err_pci:
+	msrs_free(msrs);
+	msrs = NULL;
+err_ret:
 	return err;
 }
 
@@ -3071,6 +3069,9 @@ static void __exit amd64_edac_exit(void)
 		edac_pci_release_generic_ctl(amd64_ctl_pci);
 
 	pci_unregister_driver(&amd64_pci_driver);
+
+	msrs_free(msrs);
+	msrs = NULL;
 }
 
 module_init(amd64_edac_init);

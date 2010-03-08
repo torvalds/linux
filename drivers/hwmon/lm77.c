@@ -39,9 +39,6 @@
 static const unsigned short normal_i2c[] = { 0x48, 0x49, 0x4a, 0x4b,
 						I2C_CLIENT_END };
 
-/* Insmod parameters */
-I2C_CLIENT_INSMOD_1(lm77);
-
 /* The LM77 registers */
 #define LM77_REG_TEMP		0x00
 #define LM77_REG_CONF		0x01
@@ -66,8 +63,7 @@ struct lm77_data {
 
 static int lm77_probe(struct i2c_client *client,
 		      const struct i2c_device_id *id);
-static int lm77_detect(struct i2c_client *client, int kind,
-		       struct i2c_board_info *info);
+static int lm77_detect(struct i2c_client *client, struct i2c_board_info *info);
 static void lm77_init_client(struct i2c_client *client);
 static int lm77_remove(struct i2c_client *client);
 static u16 lm77_read_value(struct i2c_client *client, u8 reg);
@@ -77,7 +73,7 @@ static struct lm77_data *lm77_update_device(struct device *dev);
 
 
 static const struct i2c_device_id lm77_id[] = {
-	{ "lm77", lm77 },
+	{ "lm77", 0 },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, lm77_id);
@@ -92,7 +88,7 @@ static struct i2c_driver lm77_driver = {
 	.remove		= lm77_remove,
 	.id_table	= lm77_id,
 	.detect		= lm77_detect,
-	.address_data	= &addr_data,
+	.address_list	= normal_i2c,
 };
 
 /* straight from the datasheet */
@@ -245,7 +241,7 @@ static const struct attribute_group lm77_group = {
 };
 
 /* Return 0 if detection is successful, -ENODEV otherwise */
-static int lm77_detect(struct i2c_client *new_client, int kind,
+static int lm77_detect(struct i2c_client *new_client,
 		       struct i2c_board_info *info)
 {
 	struct i2c_adapter *adapter = new_client->adapter;

@@ -506,7 +506,7 @@ static int riptide_reset(struct cmdif *cif, struct snd_riptide *chip);
 /*
  */
 
-static struct pci_device_id snd_riptide_ids[] = {
+static DEFINE_PCI_DEVICE_TABLE(snd_riptide_ids) = {
 	{ PCI_DEVICE(0x127a, 0x4310) },
 	{ PCI_DEVICE(0x127a, 0x4320) },
 	{ PCI_DEVICE(0x127a, 0x4330) },
@@ -515,7 +515,7 @@ static struct pci_device_id snd_riptide_ids[] = {
 };
 
 #ifdef SUPPORT_JOYSTICK
-static struct pci_device_id snd_riptide_joystick_ids[] __devinitdata = {
+static DEFINE_PCI_DEVICE_TABLE(snd_riptide_joystick_ids) = {
 	{ PCI_DEVICE(0x127a, 0x4312) },
 	{ PCI_DEVICE(0x127a, 0x4322) },
 	{ PCI_DEVICE(0x127a, 0x4332) },
@@ -1058,7 +1058,7 @@ setsamplerate(struct cmdif *cif, unsigned char *intdec, unsigned int rate)
 				 rptr.retwords[2] != M &&
 				 rptr.retwords[3] != N &&
 				 i++ < MAX_WRITE_RETRY);
-			if (i == MAX_WRITE_RETRY) {
+			if (i > MAX_WRITE_RETRY) {
 				snd_printdd("sent samplerate %d: %d failed\n",
 					    *intdec, rate);
 				return -EIO;

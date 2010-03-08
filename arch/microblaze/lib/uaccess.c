@@ -39,3 +39,10 @@ long strncpy_from_user(char *dst, const char __user *src, long count)
 		__do_strncpy_from_user(dst, src, count, res);
 	return res;
 }
+
+unsigned long __copy_tofrom_user(void __user *to,
+		const void __user *from, unsigned long size)
+{
+	memcpy(to, from, size);
+	return 0;
+}

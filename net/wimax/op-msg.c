@@ -320,8 +320,7 @@ int wimax_msg(struct wimax_dev *wimax_dev, const char *pipe_name,
 EXPORT_SYMBOL_GPL(wimax_msg);
 
 
-static const
-struct nla_policy wimax_gnl_msg_policy[WIMAX_GNL_ATTR_MAX + 1] = {
+static const struct nla_policy wimax_gnl_msg_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 	[WIMAX_GNL_MSG_IFIDX] = {
 		.type = NLA_U32,
 	},

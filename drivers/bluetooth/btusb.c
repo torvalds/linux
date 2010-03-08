@@ -307,6 +307,7 @@ static void btusb_bulk_complete(struct urb *urb)
 		return;
 
 	usb_anchor_urb(urb, &data->bulk_anchor);
+	usb_mark_last_busy(data->udev);
 
 	err = usb_submit_urb(urb, GFP_ATOMIC);
 	if (err < 0) {
@@ -938,7 +939,7 @@ static int btusb_probe(struct usb_interface *intf,
 		return -ENOMEM;
 	}
 
-	hdev->type = HCI_USB;
+	hdev->bus = HCI_USB;
 	hdev->driver_data = data;
 
 	data->hdev = hdev;

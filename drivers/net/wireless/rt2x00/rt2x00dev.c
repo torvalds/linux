@@ -385,9 +385,6 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	memset(&rxdesc, 0, sizeof(rxdesc));
 	rt2x00dev->ops->lib->fill_rxdone(entry, &rxdesc);
 
-	/* Trim buffer to correct size */
-	skb_trim(entry->skb, rxdesc.size);
-
 	/*
 	 * The data behind the ieee80211 header must be
 	 * aligned on a 4 byte boundary.
@@ -404,10 +401,15 @@ void rt2x00lib_rxdone(struct rt2x00_dev *rt2x00dev,
 	    (rxdesc.flags & RX_FLAG_IV_STRIPPED))
 		rt2x00crypto_rx_insert_iv(entry->skb, header_length,
 					  &rxdesc);
-	else if (rxdesc.dev_flags & RXDONE_L2PAD)
+	else if (header_length &&
+		 (rxdesc.size > header_length) &&
+		 (rxdesc.dev_flags & RXDONE_L2PAD))
 		rt2x00queue_remove_l2pad(entry->skb, header_length);
 	else
 		rt2x00queue_align_payload(entry->skb, header_length);
+
+	/* Trim buffer to correct size */
+	skb_trim(entry->skb, rxdesc.size);
 
 	/*
 	 * Check if the frame was received using HT. In that case,
@@ -686,7 +688,17 @@ static int rt2x00lib_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize extra TX headroom required.
 	 */
-	rt2x00dev->hw->extra_tx_headroom = rt2x00dev->ops->extra_tx_headroom;
+	rt2x00dev->hw->extra_tx_headroom =
+		max_t(unsigned int, IEEE80211_TX_STATUS_HEADROOM,
+		      rt2x00dev->ops->extra_tx_headroom);
+
+	/*
+	 * Take TX headroom required for alignment into account.
+	 */
+	if (test_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags))
+		rt2x00dev->hw->extra_tx_headroom += RT2X00_L2PAD_SIZE;
+	else if (test_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags))
+		rt2x00dev->hw->extra_tx_headroom += RT2X00_ALIGN_SIZE;
 
 	/*
 	 * Register HW.

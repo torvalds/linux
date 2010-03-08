@@ -31,6 +31,8 @@
 #include <linux/errno.h>
 #include <asm/signal.h>
 
+#undef DEBUG
+
 /* The size of a state save frame. */
 #define STATE_SAVE_SIZE		(PT_SIZE + STATE_SAVE_ARG_SPACE)
 
@@ -352,10 +354,12 @@ C_ENTRY(_user_exception):
 	add	r12, r12, r12;			/* convert num -> ptr */
 	add	r12, r12, r12;
 
+#ifdef DEBUG
 	/* Trac syscalls and stored them to r0_ram */
 	lwi	r3, r12, 0x400 + r0_ram
 	addi	r3, r3, 1
 	swi	r3, r12, 0x400 + r0_ram
+#endif
 
 	# Find and jump into the syscall handler.
 	lwi	r12, r12, sys_call_table
@@ -494,17 +498,6 @@ C_ENTRY(sys_clone):
 C_ENTRY(sys_execve):
 	la	r8, r1, PTO;		/* add user context as 4th arg */
 	brid	microblaze_execve;	/* Do real work (tail-call).*/
-	nop;
-
-C_ENTRY(sys_rt_sigsuspend_wrapper):
-	swi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	swi	r4, r1, PTO+PT_R4;
-	la	r7, r1, PTO;		/* add user context as 3rd arg */
-	brlid	r15, sys_rt_sigsuspend;	/* Do real work.*/
-	nop;
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
-	bri ret_from_trap /* fall through will not work here due to align */
 	nop;
 
 C_ENTRY(sys_rt_sigreturn_wrapper):
@@ -711,15 +704,11 @@ C_ENTRY(ret_from_exc):
 	 * (in a possibly modified form) after do_signal returns.
 	 * store return registers separately because this macros is use
 	 * for others exceptions */
-	swi	r3, r1, PTO + PT_R3;
-	swi	r4, r1, PTO + PT_R4;
 	la	r5, r1, PTO;		/* Arg 1: struct pt_regs *regs */
 	add	r6, r0, r0;		/* Arg 2: sigset_t *oldset */
 	addi	r7, r0, 0;		/* Arg 3: int in_syscall */
 	bralid	r15, do_signal;	/* Handle any signals */
 	nop;
-	lwi	r3, r1, PTO+PT_R3; /* restore saved r3, r4 registers */
-	lwi	r4, r1, PTO+PT_R4;
 
 /* Finally, return to user state.  */
 1:	swi	r0, r0, PER_CPU(KM);	/* Now officially in user state. */

@@ -34,9 +34,28 @@ void ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_supported_band *sband,
 
 	ht_cap->ht_supported = true;
 
-	ht_cap->cap = le16_to_cpu(ht_cap_ie->cap_info) & sband->ht_cap.cap;
-	ht_cap->cap &= ~IEEE80211_HT_CAP_SM_PS;
-	ht_cap->cap |= sband->ht_cap.cap & IEEE80211_HT_CAP_SM_PS;
+	/*
+	 * The bits listed in this expression should be
+	 * the same for the peer and us, if the station
+	 * advertises more then we can't use those thus
+	 * we mask them out.
+	 */
+	ht_cap->cap = le16_to_cpu(ht_cap_ie->cap_info) &
+		(sband->ht_cap.cap |
+		 ~(IEEE80211_HT_CAP_LDPC_CODING |
+		   IEEE80211_HT_CAP_SUP_WIDTH_20_40 |
+		   IEEE80211_HT_CAP_GRN_FLD |
+		   IEEE80211_HT_CAP_SGI_20 |
+		   IEEE80211_HT_CAP_SGI_40 |
+		   IEEE80211_HT_CAP_DSSSCCK40));
+	/*
+	 * The STBC bits are asymmetric -- if we don't have
+	 * TX then mask out the peer's RX and vice versa.
+	 */
+	if (!(sband->ht_cap.cap & IEEE80211_HT_CAP_TX_STBC))
+		ht_cap->cap &= ~IEEE80211_HT_CAP_RX_STBC;
+	if (!(sband->ht_cap.cap & IEEE80211_HT_CAP_RX_STBC))
+		ht_cap->cap &= ~IEEE80211_HT_CAP_TX_STBC;
 
 	ampdu_info = ht_cap_ie->ampdu_params_info;
 	ht_cap->ampdu_factor =
@@ -106,7 +125,7 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 
 	if (!skb) {
 		printk(KERN_ERR "%s: failed to allocate buffer "
-					"for delba frame\n", sdata->dev->name);
+					"for delba frame\n", sdata->name);
 		return;
 	}
 
@@ -114,10 +133,10 @@ void ieee80211_send_delba(struct ieee80211_sub_if_data *sdata,
 	mgmt = (struct ieee80211_mgmt *) skb_put(skb, 24);
 	memset(mgmt, 0, 24);
 	memcpy(mgmt->da, da, ETH_ALEN);
-	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	if (sdata->vif.type == NL80211_IFTYPE_AP ||
 	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
-		memcpy(mgmt->bssid, sdata->dev->dev_addr, ETH_ALEN);
+		memcpy(mgmt->bssid, sdata->vif.addr, ETH_ALEN);
 	else if (sdata->vif.type == NL80211_IFTYPE_STATION)
 		memcpy(mgmt->bssid, sdata->u.mgd.bssid, ETH_ALEN);
 
@@ -165,4 +184,51 @@ void ieee80211_process_delba(struct ieee80211_sub_if_data *sdata,
 							WLAN_BACK_RECIPIENT);
 		spin_unlock_bh(&sta->lock);
 	}
+}
+
+int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
+			       enum ieee80211_smps_mode smps, const u8 *da,
+			       const u8 *bssid)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct sk_buff *skb;
+	struct ieee80211_mgmt *action_frame;
+
+	/* 27 = header + category + action + smps mode */
+	skb = dev_alloc_skb(27 + local->hw.extra_tx_headroom);
+	if (!skb)
+		return -ENOMEM;
+
+	skb_reserve(skb, local->hw.extra_tx_headroom);
+	action_frame = (void *)skb_put(skb, 27);
+	memcpy(action_frame->da, da, ETH_ALEN);
+	memcpy(action_frame->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(action_frame->bssid, bssid, ETH_ALEN);
+	action_frame->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
+						  IEEE80211_STYPE_ACTION);
+	action_frame->u.action.category = WLAN_CATEGORY_HT;
+	action_frame->u.action.u.ht_smps.action = WLAN_HT_ACTION_SMPS;
+	switch (smps) {
+	case IEEE80211_SMPS_AUTOMATIC:
+	case IEEE80211_SMPS_NUM_MODES:
+		WARN_ON(1);
+	case IEEE80211_SMPS_OFF:
+		action_frame->u.action.u.ht_smps.smps_control =
+				WLAN_HT_SMPS_CONTROL_DISABLED;
+		break;
+	case IEEE80211_SMPS_STATIC:
+		action_frame->u.action.u.ht_smps.smps_control =
+				WLAN_HT_SMPS_CONTROL_STATIC;
+		break;
+	case IEEE80211_SMPS_DYNAMIC:
+		action_frame->u.action.u.ht_smps.smps_control =
+				WLAN_HT_SMPS_CONTROL_DYNAMIC;
+		break;
+	}
+
+	/* we'll do more on status of this frame */
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_REQ_TX_STATUS;
+	ieee80211_tx_skb(sdata, skb);
+
+	return 0;
 }

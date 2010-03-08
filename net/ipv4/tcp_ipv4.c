@@ -742,9 +742,9 @@ static void tcp_v4_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
  *	This still operates on a request_sock only, not on a big
  *	socket.
  */
-static int __tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
-				struct request_sock *req,
-				struct request_values *rvp)
+static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
+			      struct request_sock *req,
+			      struct request_values *rvp)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	int err = -1;
@@ -775,10 +775,11 @@ static int __tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 	return err;
 }
 
-static int tcp_v4_send_synack(struct sock *sk, struct request_sock *req,
+static int tcp_v4_rtx_synack(struct sock *sk, struct request_sock *req,
 			      struct request_values *rvp)
 {
-	return __tcp_v4_send_synack(sk, NULL, req, rvp);
+	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
+	return tcp_v4_send_synack(sk, NULL, req, rvp);
 }
 
 /*
@@ -1192,10 +1193,11 @@ static int tcp_v4_inbound_md5_hash(struct sock *sk, struct sk_buff *skb)
 struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.family		=	PF_INET,
 	.obj_size	=	sizeof(struct tcp_request_sock),
-	.rtx_syn_ack	=	tcp_v4_send_synack,
+	.rtx_syn_ack	=	tcp_v4_rtx_synack,
 	.send_ack	=	tcp_v4_reqsk_send_ack,
 	.destructor	=	tcp_v4_reqsk_destructor,
 	.send_reset	=	tcp_v4_send_reset,
+	.syn_ack_timeout = 	tcp_syn_ack_timeout,
 };
 
 #ifdef CONFIG_TCP_MD5SIG
@@ -1262,20 +1264,10 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	tcp_rsk(req)->af_specific = &tcp_request_sock_ipv4_ops;
 #endif
 
-	ireq = inet_rsk(req);
-	ireq->loc_addr = daddr;
-	ireq->rmt_addr = saddr;
-	ireq->no_srccheck = inet_sk(sk)->transparent;
-	ireq->opt = tcp_v4_save_options(sk, skb);
-
-	dst = inet_csk_route_req(sk, req);
-	if(!dst)
-		goto drop_and_free;
-
 	tcp_clear_options(&tmp_opt);
 	tmp_opt.mss_clamp = TCP_MSS_DEFAULT;
 	tmp_opt.user_mss  = tp->rx_opt.user_mss;
-	tcp_parse_options(skb, &tmp_opt, &hash_location, 0, dst);
+	tcp_parse_options(skb, &tmp_opt, &hash_location, 0);
 
 	if (tmp_opt.cookie_plus > 0 &&
 	    tmp_opt.saw_tstamp &&
@@ -1319,8 +1311,14 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	tmp_opt.tstamp_ok = tmp_opt.saw_tstamp;
 	tcp_openreq_init(req, &tmp_opt, skb);
 
+	ireq = inet_rsk(req);
+	ireq->loc_addr = daddr;
+	ireq->rmt_addr = saddr;
+	ireq->no_srccheck = inet_sk(sk)->transparent;
+	ireq->opt = tcp_v4_save_options(sk, skb);
+
 	if (security_inet_conn_request(sk, skb, req))
-		goto drop_and_release;
+		goto drop_and_free;
 
 	if (!want_cookie)
 		TCP_ECN_create_request(req, tcp_hdr(skb));
@@ -1345,6 +1343,7 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 		 */
 		if (tmp_opt.saw_tstamp &&
 		    tcp_death_row.sysctl_tw_recycle &&
+		    (dst = inet_csk_route_req(sk, req)) != NULL &&
 		    (peer = rt_get_peer((struct rtable *)dst)) != NULL &&
 		    peer->v4daddr == saddr) {
 			if ((u32)get_seconds() - peer->tcp_ts_stamp < TCP_PAWS_MSL &&
@@ -1376,8 +1375,8 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	}
 	tcp_rsk(req)->snt_isn = isn;
 
-	if (__tcp_v4_send_synack(sk, dst, req,
-				 (struct request_values *)&tmp_ext) ||
+	if (tcp_v4_send_synack(sk, dst, req,
+			       (struct request_values *)&tmp_ext) ||
 	    want_cookie)
 		goto drop_and_free;
 
@@ -1464,7 +1463,7 @@ struct sock *tcp_v4_syn_recv_sock(struct sock *sk, struct sk_buff *skb,
 	}
 #endif
 
-	__inet_hash_nolisten(newsk);
+	__inet_hash_nolisten(newsk, NULL);
 	__inet_inherit_port(sk, newsk);
 
 	return newsk;
@@ -1651,6 +1650,9 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	sk = __inet_lookup_skb(&tcp_hashinfo, skb, th->source, th->dest);
 	if (!sk)
 		goto no_tcp_socket;
+
+	if (iph->ttl < inet_sk(sk)->min_ttl)
+		goto discard_and_relse;
 
 process:
 	if (sk->sk_state == TCP_TIME_WAIT)
@@ -2428,12 +2430,12 @@ static struct tcp_seq_afinfo tcp4_seq_afinfo = {
 	},
 };
 
-static int tcp4_proc_init_net(struct net *net)
+static int __net_init tcp4_proc_init_net(struct net *net)
 {
 	return tcp_proc_register(net, &tcp4_seq_afinfo);
 }
 
-static void tcp4_proc_exit_net(struct net *net)
+static void __net_exit tcp4_proc_exit_net(struct net *net)
 {
 	tcp_proc_unregister(net, &tcp4_seq_afinfo);
 }

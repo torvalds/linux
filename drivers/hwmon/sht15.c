@@ -305,7 +305,7 @@ static inline int sht15_calc_temp(struct sht15_data *data)
 	int d1 = 0;
 	int i;
 
-	for (i = 1; i < ARRAY_SIZE(temppoints) - 1; i++)
+	for (i = 1; i < ARRAY_SIZE(temppoints); i++)
 		/* Find pointer to interpolate */
 		if (data->supply_uV > temppoints[i - 1].vdd) {
 			d1 = (data->supply_uV/1000 - temppoints[i - 1].vdd)
@@ -332,12 +332,12 @@ static inline int sht15_calc_humid(struct sht15_data *data)
 
 	const int c1 = -4;
 	const int c2 = 40500; /* x 10 ^ -6 */
-	const int c3 = 2800; /* x10 ^ -9 */
+	const int c3 = -2800; /* x10 ^ -9 */
 
 	RHlinear = c1*1000
 		+ c2 * data->val_humid/1000
 		+ (data->val_humid * data->val_humid * c3)/1000000;
-	return (temp - 25000) * (10000 + 800 * data->val_humid)
+	return (temp - 25000) * (10000 + 80 * data->val_humid)
 		/ 1000000 + RHlinear;
 }
 

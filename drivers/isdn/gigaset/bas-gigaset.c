@@ -347,12 +347,7 @@ static inline void error_hangup(struct bc_state *bcs)
 {
 	struct cardstate *cs = bcs->cs;
 
-	gig_dbg(DEBUG_ANY, "%s: scheduling HUP for channel %d",
-		__func__, bcs->channel);
-
-	if (!gigaset_add_event(cs, &bcs->at_state, EV_HUP, NULL, 0, NULL))
-		dev_err(cs->dev, "event queue full\n");
-
+	gigaset_add_event(cs, &bcs->at_state, EV_HUP, NULL, 0, NULL);
 	gigaset_schedule_event(cs);
 }
 
@@ -1706,8 +1701,7 @@ static void complete_cb(struct cardstate *cs)
 
 	/* unqueue completed buffer */
 	cs->cmdbytes -= cs->curlen;
-	gig_dbg(DEBUG_TRANSCMD|DEBUG_LOCKCMD,
-		"write_command: sent %u bytes, %u left",
+	gig_dbg(DEBUG_OUTPUT, "write_command: sent %u bytes, %u left",
 		cs->curlen, cs->cmdbytes);
 	if (cb->next != NULL) {
 		cs->cmdbuf = cb->next;
@@ -1881,13 +1875,13 @@ static int start_cbsend(struct cardstate *cs)
 
 	/* check if suspend requested */
 	if (ucs->basstate & BS_SUSPEND) {
-		gig_dbg(DEBUG_TRANSCMD|DEBUG_LOCKCMD, "suspending");
+		gig_dbg(DEBUG_OUTPUT, "suspending");
 		return -EHOSTUNREACH;
 	}
 
 	/* check if AT channel is open */
 	if (!(ucs->basstate & BS_ATOPEN)) {
-		gig_dbg(DEBUG_TRANSCMD|DEBUG_LOCKCMD, "AT channel not open");
+		gig_dbg(DEBUG_OUTPUT, "AT channel not open");
 		rc = req_submit(cs->bcs, HD_OPEN_ATCHANNEL, 0, BAS_TIMEOUT);
 		if (rc < 0) {
 			/* flush command queue */
@@ -2251,7 +2245,7 @@ static int gigaset_probe(struct usb_interface *interface,
 	int i, j;
 	int rc;
 
-	gig_dbg(DEBUG_ANY,
+	gig_dbg(DEBUG_INIT,
 		"%s: Check if device matches .. (Vendor: 0x%x, Product: 0x%x)",
 		__func__, le16_to_cpu(udev->descriptor.idVendor),
 		le16_to_cpu(udev->descriptor.idProduct));
@@ -2259,7 +2253,7 @@ static int gigaset_probe(struct usb_interface *interface,
 	/* set required alternate setting */
 	hostif = interface->cur_altsetting;
 	if (hostif->desc.bAlternateSetting != 3) {
-		gig_dbg(DEBUG_ANY,
+		gig_dbg(DEBUG_INIT,
 			"%s: wrong alternate setting %d - trying to switch",
 			__func__, hostif->desc.bAlternateSetting);
 		if (usb_set_interface(udev, hostif->desc.bInterfaceNumber, 3)

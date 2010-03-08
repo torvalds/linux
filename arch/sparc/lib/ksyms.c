@@ -30,7 +30,6 @@ EXPORT_SYMBOL(__memscan_generic);
 EXPORT_SYMBOL(memcmp);
 EXPORT_SYMBOL(memcpy);
 EXPORT_SYMBOL(memset);
-EXPORT_SYMBOL(__memset);
 EXPORT_SYMBOL(memmove);
 EXPORT_SYMBOL(__bzero);
 
@@ -81,7 +80,6 @@ EXPORT_SYMBOL(__csum_partial_copy_sparc_generic);
 
 /* Special internal versions of library functions. */
 EXPORT_SYMBOL(__copy_1page);
-EXPORT_SYMBOL(__memcpy);
 EXPORT_SYMBOL(__memmove);
 EXPORT_SYMBOL(bzero_1page);
 

@@ -21,6 +21,11 @@
 
 #ifndef _BATMAN_HASH_H
 #define _BATMAN_HASH_H
+#define HASHIT(name) struct hash_it_t name = { \
+		.index = -1, .bucket = NULL, \
+		.prev_bucket = NULL, \
+		.first_bucket = NULL }
+
 
 typedef int (*hashdata_compare_cb)(void *, void *);
 typedef int (*hashdata_choose_cb)(void *, int);

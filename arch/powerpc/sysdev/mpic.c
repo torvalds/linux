@@ -46,7 +46,7 @@
 
 static struct mpic *mpics;
 static struct mpic *mpic_primary;
-static DEFINE_SPINLOCK(mpic_lock);
+static DEFINE_RAW_SPINLOCK(mpic_lock);
 
 #ifdef CONFIG_PPC32	/* XXX for now */
 #ifdef CONFIG_IRQ_ALL_CPUS
@@ -347,10 +347,10 @@ static inline void mpic_ht_end_irq(struct mpic *mpic, unsigned int source)
 		unsigned int mask = 1U << (fixup->index & 0x1f);
 		writel(mask, fixup->applebase + soff);
 	} else {
-		spin_lock(&mpic->fixup_lock);
+		raw_spin_lock(&mpic->fixup_lock);
 		writeb(0x11 + 2 * fixup->index, fixup->base + 2);
 		writel(fixup->data, fixup->base + 4);
-		spin_unlock(&mpic->fixup_lock);
+		raw_spin_unlock(&mpic->fixup_lock);
 	}
 }
 
@@ -366,7 +366,7 @@ static void mpic_startup_ht_interrupt(struct mpic *mpic, unsigned int source,
 
 	DBG("startup_ht_interrupt(0x%x, 0x%x) index: %d\n",
 	    source, irqflags, fixup->index);
-	spin_lock_irqsave(&mpic->fixup_lock, flags);
+	raw_spin_lock_irqsave(&mpic->fixup_lock, flags);
 	/* Enable and configure */
 	writeb(0x10 + 2 * fixup->index, fixup->base + 2);
 	tmp = readl(fixup->base + 4);
@@ -374,7 +374,7 @@ static void mpic_startup_ht_interrupt(struct mpic *mpic, unsigned int source,
 	if (irqflags & IRQ_LEVEL)
 		tmp |= 0x22;
 	writel(tmp, fixup->base + 4);
-	spin_unlock_irqrestore(&mpic->fixup_lock, flags);
+	raw_spin_unlock_irqrestore(&mpic->fixup_lock, flags);
 
 #ifdef CONFIG_PM
 	/* use the lowest bit inverted to the actual HW,
@@ -396,12 +396,12 @@ static void mpic_shutdown_ht_interrupt(struct mpic *mpic, unsigned int source,
 	DBG("shutdown_ht_interrupt(0x%x, 0x%x)\n", source, irqflags);
 
 	/* Disable */
-	spin_lock_irqsave(&mpic->fixup_lock, flags);
+	raw_spin_lock_irqsave(&mpic->fixup_lock, flags);
 	writeb(0x10 + 2 * fixup->index, fixup->base + 2);
 	tmp = readl(fixup->base + 4);
 	tmp |= 1;
 	writel(tmp, fixup->base + 4);
-	spin_unlock_irqrestore(&mpic->fixup_lock, flags);
+	raw_spin_unlock_irqrestore(&mpic->fixup_lock, flags);
 
 #ifdef CONFIG_PM
 	/* use the lowest bit inverted to the actual HW,
@@ -515,7 +515,7 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 	BUG_ON(mpic->fixups == NULL);
 
 	/* Init spinlock */
-	spin_lock_init(&mpic->fixup_lock);
+	raw_spin_lock_init(&mpic->fixup_lock);
 
 	/* Map U3 config space. We assume all IO-APICs are on the primary bus
 	 * so we only need to map 64kB.
@@ -567,20 +567,18 @@ static void __init mpic_scan_ht_pics(struct mpic *mpic)
 #endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 #ifdef CONFIG_SMP
-static int irq_choose_cpu(unsigned int virt_irq)
+static int irq_choose_cpu(const cpumask_t *mask)
 {
-	cpumask_t mask;
 	int cpuid;
 
-	cpumask_copy(&mask, irq_desc[virt_irq].affinity);
-	if (cpus_equal(mask, CPU_MASK_ALL)) {
+	if (cpumask_equal(mask, cpu_all_mask)) {
 		static int irq_rover;
-		static DEFINE_SPINLOCK(irq_rover_lock);
+		static DEFINE_RAW_SPINLOCK(irq_rover_lock);
 		unsigned long flags;
 
 		/* Round-robin distribution... */
 	do_round_robin:
-		spin_lock_irqsave(&irq_rover_lock, flags);
+		raw_spin_lock_irqsave(&irq_rover_lock, flags);
 
 		while (!cpu_online(irq_rover)) {
 			if (++irq_rover >= NR_CPUS)
@@ -592,22 +590,17 @@ static int irq_choose_cpu(unsigned int virt_irq)
 				irq_rover = 0;
 		} while (!cpu_online(irq_rover));
 
-		spin_unlock_irqrestore(&irq_rover_lock, flags);
+		raw_spin_unlock_irqrestore(&irq_rover_lock, flags);
 	} else {
-		cpumask_t tmp;
-
-		cpus_and(tmp, cpu_online_map, mask);
-
-		if (cpus_empty(tmp))
+		cpuid = cpumask_first_and(mask, cpu_online_mask);
+		if (cpuid >= nr_cpu_ids)
 			goto do_round_robin;
-
-		cpuid = first_cpu(tmp);
 	}
 
 	return get_hard_smp_processor_id(cpuid);
 }
 #else
-static int irq_choose_cpu(unsigned int virt_irq)
+static int irq_choose_cpu(const cpumask_t *mask)
 {
 	return hard_smp_processor_id();
 }
@@ -621,7 +614,7 @@ static struct mpic *mpic_find(unsigned int irq)
 	if (irq < NUM_ISA_INTERRUPTS)
 		return NULL;
 
-	return irq_desc[irq].chip_data;
+	return irq_to_desc(irq)->chip_data;
 }
 
 /* Determine if the linux irq is an IPI */
@@ -648,14 +641,14 @@ static inline u32 mpic_physmask(u32 cpumask)
 /* Get the mpic structure from the IPI number */
 static inline struct mpic * mpic_from_ipi(unsigned int ipi)
 {
-	return irq_desc[ipi].chip_data;
+	return irq_to_desc(ipi)->chip_data;
 }
 #endif
 
 /* Get the mpic structure from the irq number */
 static inline struct mpic * mpic_from_irq(unsigned int irq)
 {
-	return irq_desc[irq].chip_data;
+	return irq_to_desc(irq)->chip_data;
 }
 
 /* Send an EOI */
@@ -735,7 +728,7 @@ static void mpic_unmask_ht_irq(unsigned int irq)
 
 	mpic_unmask_irq(irq);
 
-	if (irq_desc[irq].status & IRQ_LEVEL)
+	if (irq_to_desc(irq)->status & IRQ_LEVEL)
 		mpic_ht_end_irq(mpic, src);
 }
 
@@ -745,7 +738,7 @@ static unsigned int mpic_startup_ht_irq(unsigned int irq)
 	unsigned int src = mpic_irq_to_hw(irq);
 
 	mpic_unmask_irq(irq);
-	mpic_startup_ht_interrupt(mpic, src, irq_desc[irq].status);
+	mpic_startup_ht_interrupt(mpic, src, irq_to_desc(irq)->status);
 
 	return 0;
 }
@@ -755,7 +748,7 @@ static void mpic_shutdown_ht_irq(unsigned int irq)
 	struct mpic *mpic = mpic_from_irq(irq);
 	unsigned int src = mpic_irq_to_hw(irq);
 
-	mpic_shutdown_ht_interrupt(mpic, src, irq_desc[irq].status);
+	mpic_shutdown_ht_interrupt(mpic, src, irq_to_desc(irq)->status);
 	mpic_mask_irq(irq);
 }
 
@@ -772,7 +765,7 @@ static void mpic_end_ht_irq(unsigned int irq)
 	 * latched another edge interrupt coming in anyway
 	 */
 
-	if (irq_desc[irq].status & IRQ_LEVEL)
+	if (irq_to_desc(irq)->status & IRQ_LEVEL)
 		mpic_ht_end_irq(mpic, src);
 	mpic_eoi(mpic);
 }
@@ -816,7 +809,7 @@ int mpic_set_affinity(unsigned int irq, const struct cpumask *cpumask)
 	unsigned int src = mpic_irq_to_hw(irq);
 
 	if (mpic->flags & MPIC_SINGLE_DEST_CPU) {
-		int cpuid = irq_choose_cpu(irq);
+		int cpuid = irq_choose_cpu(cpumask);
 
 		mpic_irq_write(src, MPIC_INFO(IRQ_DESTINATION), 1 << cpuid);
 	} else {
@@ -856,7 +849,7 @@ int mpic_set_irq_type(unsigned int virq, unsigned int flow_type)
 {
 	struct mpic *mpic = mpic_from_irq(virq);
 	unsigned int src = mpic_irq_to_hw(virq);
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	unsigned int vecpri, vold, vnew;
 
 	DBG("mpic: set_irq_type(mpic:@%p,virq:%d,src:0x%x,type:0x%x)\n",
@@ -994,7 +987,7 @@ static int mpic_host_map(struct irq_host *h, unsigned int virq,
 }
 
 static int mpic_host_xlate(struct irq_host *h, struct device_node *ct,
-			   u32 *intspec, unsigned int intsize,
+			   const u32 *intspec, unsigned int intsize,
 			   irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 
 {
@@ -1062,19 +1055,19 @@ struct mpic * __init mpic_alloc(struct device_node *node,
 	mpic->name = name;
 
 	mpic->hc_irq = mpic_irq_chip;
-	mpic->hc_irq.typename = name;
+	mpic->hc_irq.name = name;
 	if (flags & MPIC_PRIMARY)
 		mpic->hc_irq.set_affinity = mpic_set_affinity;
 #ifdef CONFIG_MPIC_U3_HT_IRQS
 	mpic->hc_ht_irq = mpic_irq_ht_chip;
-	mpic->hc_ht_irq.typename = name;
+	mpic->hc_ht_irq.name = name;
 	if (flags & MPIC_PRIMARY)
 		mpic->hc_ht_irq.set_affinity = mpic_set_affinity;
 #endif /* CONFIG_MPIC_U3_HT_IRQS */
 
 #ifdef CONFIG_SMP
 	mpic->hc_ipi = mpic_ipi_chip;
-	mpic->hc_ipi.typename = name;
+	mpic->hc_ipi.name = name;
 #endif /* CONFIG_SMP */
 
 	mpic->flags = flags;
@@ -1375,14 +1368,14 @@ void __init mpic_set_serial_int(struct mpic *mpic, int enable)
 	unsigned long flags;
 	u32 v;
 
-	spin_lock_irqsave(&mpic_lock, flags);
+	raw_spin_lock_irqsave(&mpic_lock, flags);
 	v = mpic_read(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1);
 	if (enable)
 		v |= MPIC_GREG_GLOBAL_CONF_1_SIE;
 	else
 		v &= ~MPIC_GREG_GLOBAL_CONF_1_SIE;
 	mpic_write(mpic->gregs, MPIC_GREG_GLOBAL_CONF_1, v);
-	spin_unlock_irqrestore(&mpic_lock, flags);
+	raw_spin_unlock_irqrestore(&mpic_lock, flags);
 }
 
 void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
@@ -1395,7 +1388,7 @@ void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 	if (!mpic)
 		return;
 
-	spin_lock_irqsave(&mpic_lock, flags);
+	raw_spin_lock_irqsave(&mpic_lock, flags);
 	if (mpic_is_ipi(mpic, irq)) {
 		reg = mpic_ipi_read(src - mpic->ipi_vecs[0]) &
 			~MPIC_VECPRI_PRIORITY_MASK;
@@ -1407,7 +1400,7 @@ void mpic_irq_set_priority(unsigned int irq, unsigned int pri)
 		mpic_irq_write(src, MPIC_INFO(IRQ_VECTOR_PRI),
 			       reg | (pri << MPIC_VECPRI_PRIORITY_SHIFT));
 	}
-	spin_unlock_irqrestore(&mpic_lock, flags);
+	raw_spin_unlock_irqrestore(&mpic_lock, flags);
 }
 
 void mpic_setup_this_cpu(void)
@@ -1422,7 +1415,7 @@ void mpic_setup_this_cpu(void)
 
 	DBG("%s: setup_this_cpu(%d)\n", mpic->name, hard_smp_processor_id());
 
-	spin_lock_irqsave(&mpic_lock, flags);
+	raw_spin_lock_irqsave(&mpic_lock, flags);
 
  	/* let the mpic know we want intrs. default affinity is 0xffffffff
 	 * until changed via /proc. That's how it's done on x86. If we want
@@ -1438,7 +1431,7 @@ void mpic_setup_this_cpu(void)
 	/* Set current processor priority to 0 */
 	mpic_cpu_write(MPIC_INFO(CPU_CURRENT_TASK_PRI), 0);
 
-	spin_unlock_irqrestore(&mpic_lock, flags);
+	raw_spin_unlock_irqrestore(&mpic_lock, flags);
 #endif /* CONFIG_SMP */
 }
 
@@ -1467,7 +1460,7 @@ void mpic_teardown_this_cpu(int secondary)
 	BUG_ON(mpic == NULL);
 
 	DBG("%s: teardown_this_cpu(%d)\n", mpic->name, hard_smp_processor_id());
-	spin_lock_irqsave(&mpic_lock, flags);
+	raw_spin_lock_irqsave(&mpic_lock, flags);
 
 	/* let the mpic know we don't want intrs.  */
 	for (i = 0; i < mpic->num_sources ; i++)
@@ -1481,7 +1474,7 @@ void mpic_teardown_this_cpu(int secondary)
 	 */
 	mpic_eoi(mpic);
 
-	spin_unlock_irqrestore(&mpic_lock, flags);
+	raw_spin_unlock_irqrestore(&mpic_lock, flags);
 }
 
 
@@ -1582,7 +1575,7 @@ void mpic_request_ipis(void)
 	int i;
 	BUG_ON(mpic == NULL);
 
-	printk(KERN_INFO "mpic: requesting IPIs ... \n");
+	printk(KERN_INFO "mpic: requesting IPIs...\n");
 
 	for (i = 0; i < 4; i++) {
 		unsigned int vipi = irq_create_mapping(mpic->irqhost,

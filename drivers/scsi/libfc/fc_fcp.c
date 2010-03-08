@@ -68,18 +68,20 @@ struct kmem_cache *scsi_pkt_cachep;
 
 /**
  * struct fc_fcp_internal - FCP layer internal data
- * @scsi_pkt_pool:  Memory pool to draw FCP packets from
+ * @scsi_pkt_pool: Memory pool to draw FCP packets from
+ * @scsi_queue_lock: Protects the scsi_pkt_queue
  * @scsi_pkt_queue: Current FCP packets
  * @last_can_queue_ramp_down_time: ramp down time
  * @last_can_queue_ramp_up_time: ramp up time
  * @max_can_queue: max can_queue size
  */
 struct fc_fcp_internal {
-	mempool_t	 *scsi_pkt_pool;
-	struct list_head scsi_pkt_queue;
-	unsigned long last_can_queue_ramp_down_time;
-	unsigned long last_can_queue_ramp_up_time;
-	int max_can_queue;
+	mempool_t		*scsi_pkt_pool;
+	spinlock_t		scsi_queue_lock;
+	struct list_head	scsi_pkt_queue;
+	unsigned long		last_can_queue_ramp_down_time;
+	unsigned long		last_can_queue_ramp_up_time;
+	int			max_can_queue;
 };
 
 #define fc_get_scsi_internal(x)	((struct fc_fcp_internal *)(x)->scsi_priv)
@@ -296,9 +298,6 @@ void fc_fcp_ddp_setup(struct fc_fcp_pkt *fsp, u16 xid)
 {
 	struct fc_lport *lport;
 
-	if (!fsp)
-		return;
-
 	lport = fsp->lp;
 	if ((fsp->req_flags & FC_SRB_READ) &&
 	    (lport->lro_enabled) && (lport->tt.ddp_setup)) {
@@ -410,12 +409,14 @@ static inline struct fc_frame *fc_fcp_frame_alloc(struct fc_lport *lport,
 	unsigned long flags;
 
 	fp = fc_frame_alloc(lport, len);
-	if (!fp) {
-		spin_lock_irqsave(lport->host->host_lock, flags);
-		fc_fcp_can_queue_ramp_down(lport);
-		spin_unlock_irqrestore(lport->host->host_lock, flags);
-	}
-	return fp;
+	if (likely(fp))
+		return fp;
+
+	/* error case */
+	spin_lock_irqsave(lport->host->host_lock, flags);
+	fc_fcp_can_queue_ramp_down(lport);
+	spin_unlock_irqrestore(lport->host->host_lock, flags);
+	return NULL;
 }
 
 /**
@@ -990,7 +991,7 @@ static void fc_fcp_cleanup_each_cmd(struct fc_lport *lport, unsigned int id,
 	struct scsi_cmnd *sc_cmd;
 	unsigned long flags;
 
-	spin_lock_irqsave(lport->host->host_lock, flags);
+	spin_lock_irqsave(&si->scsi_queue_lock, flags);
 restart:
 	list_for_each_entry(fsp, &si->scsi_pkt_queue, list) {
 		sc_cmd = fsp->cmd;
@@ -1001,7 +1002,7 @@ restart:
 			continue;
 
 		fc_fcp_pkt_hold(fsp);
-		spin_unlock_irqrestore(lport->host->host_lock, flags);
+		spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 
 		if (!fc_fcp_lock_pkt(fsp)) {
 			fc_fcp_cleanup_cmd(fsp, error);
@@ -1010,14 +1011,14 @@ restart:
 		}
 
 		fc_fcp_pkt_release(fsp);
-		spin_lock_irqsave(lport->host->host_lock, flags);
+		spin_lock_irqsave(&si->scsi_queue_lock, flags);
 		/*
 		 * while we dropped the lock multiple pkts could
 		 * have been released, so we have to start over.
 		 */
 		goto restart;
 	}
-	spin_unlock_irqrestore(lport->host->host_lock, flags);
+	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 }
 
 /**
@@ -1035,11 +1036,12 @@ static void fc_fcp_abort_io(struct fc_lport *lport)
  * @fsp:   The FCP packet to send
  *
  * Return:  Zero for success and -1 for failure
- * Locks:   Called with the host lock and irqs disabled.
+ * Locks:   Called without locks held
  */
 static int fc_fcp_pkt_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp)
 {
 	struct fc_fcp_internal *si = fc_get_scsi_internal(lport);
+	unsigned long flags;
 	int rc;
 
 	fsp->cmd->SCp.ptr = (char *)fsp;
@@ -1049,13 +1051,16 @@ static int fc_fcp_pkt_send(struct fc_lport *lport, struct fc_fcp_pkt *fsp)
 	int_to_scsilun(fsp->cmd->device->lun,
 		       (struct scsi_lun *)fsp->cdb_cmd.fc_lun);
 	memcpy(fsp->cdb_cmd.fc_cdb, fsp->cmd->cmnd, fsp->cmd->cmd_len);
-	list_add_tail(&fsp->list, &si->scsi_pkt_queue);
 
-	spin_unlock_irq(lport->host->host_lock);
+	spin_lock_irqsave(&si->scsi_queue_lock, flags);
+	list_add_tail(&fsp->list, &si->scsi_pkt_queue);
+	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 	rc = lport->tt.fcp_cmd_send(lport, fsp, fc_fcp_recv);
-	spin_lock_irq(lport->host->host_lock);
-	if (rc)
+	if (unlikely(rc)) {
+		spin_lock_irqsave(&si->scsi_queue_lock, flags);
 		list_del(&fsp->list);
+		spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
+	}
 
 	return rc;
 }
@@ -1752,6 +1757,7 @@ int fc_queuecommand(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
 	struct fcoe_dev_stats *stats;
 
 	lport = shost_priv(sc_cmd->device->host);
+	spin_unlock_irq(lport->host->host_lock);
 
 	rval = fc_remote_port_chkready(rport);
 	if (rval) {
@@ -1834,6 +1840,7 @@ int fc_queuecommand(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
 		rc = SCSI_MLQUEUE_HOST_BUSY;
 	}
 out:
+	spin_lock_irq(lport->host->host_lock);
 	return rc;
 }
 EXPORT_SYMBOL(fc_queuecommand);
@@ -1864,11 +1871,8 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 
 	lport = fsp->lp;
 	si = fc_get_scsi_internal(lport);
-	spin_lock_irqsave(lport->host->host_lock, flags);
-	if (!fsp->cmd) {
-		spin_unlock_irqrestore(lport->host->host_lock, flags);
+	if (!fsp->cmd)
 		return;
-	}
 
 	/*
 	 * if can_queue ramp down is done then try can_queue ramp up
@@ -1880,10 +1884,8 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 	sc_cmd = fsp->cmd;
 	fsp->cmd = NULL;
 
-	if (!sc_cmd->SCp.ptr) {
-		spin_unlock_irqrestore(lport->host->host_lock, flags);
+	if (!sc_cmd->SCp.ptr)
 		return;
-	}
 
 	CMD_SCSI_STATUS(sc_cmd) = fsp->cdb_status;
 	switch (fsp->status_code) {
@@ -1945,10 +1947,11 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		break;
 	}
 
+	spin_lock_irqsave(&si->scsi_queue_lock, flags);
 	list_del(&fsp->list);
+	spin_unlock_irqrestore(&si->scsi_queue_lock, flags);
 	sc_cmd->SCp.ptr = NULL;
 	sc_cmd->scsi_done(sc_cmd);
-	spin_unlock_irqrestore(lport->host->host_lock, flags);
 
 	/* release ref from initial allocation in queue command */
 	fc_fcp_pkt_release(fsp);
@@ -2216,6 +2219,7 @@ int fc_fcp_init(struct fc_lport *lport)
 	lport->scsi_priv = si;
 	si->max_can_queue = lport->host->can_queue;
 	INIT_LIST_HEAD(&si->scsi_pkt_queue);
+	spin_lock_init(&si->scsi_queue_lock);
 
 	si->scsi_pkt_pool = mempool_create_slab_pool(2, scsi_pkt_cachep);
 	if (!si->scsi_pkt_pool) {

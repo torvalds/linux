@@ -40,11 +40,11 @@
 #include "xfs_dir2_leaf.h"
 #include "xfs_dir2_block.h"
 #include "xfs_dir2_node.h"
-#include "xfs_dir2_trace.h"
 #include "xfs_error.h"
 #include "xfs_vnodeops.h"
+#include "xfs_trace.h"
 
-struct xfs_name xfs_name_dotdot = {"..", 2};
+struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2};
 
 /*
  * ASCII case-insensitive (ie. A-Z) support for directories that was
@@ -66,8 +66,8 @@ xfs_ascii_ci_hashname(
 STATIC enum xfs_dacmp
 xfs_ascii_ci_compname(
 	struct xfs_da_args *args,
-	const char	*name,
-	int 		len)
+	const unsigned char *name,
+	int		len)
 {
 	enum xfs_dacmp	result;
 	int		i;
@@ -247,7 +247,7 @@ xfs_dir_createname(
 int
 xfs_dir_cilookup_result(
 	struct xfs_da_args *args,
-	const char	*name,
+	const unsigned char *name,
 	int		len)
 {
 	if (args->cmpresult == XFS_CMP_DIFFERENT)
@@ -525,7 +525,8 @@ xfs_dir2_grow_inode(
 	xfs_trans_t	*tp;
 	xfs_drfsbno_t	nblks;
 
-	xfs_dir2_trace_args_s("grow_inode", args, space);
+	trace_xfs_dir2_grow_inode(args, space);
+
 	dp = args->dp;
 	tp = args->trans;
 	mp = dp->i_mount;
@@ -703,7 +704,8 @@ xfs_dir2_shrink_inode(
 	xfs_mount_t	*mp;
 	xfs_trans_t	*tp;
 
-	xfs_dir2_trace_args_db("shrink_inode", args, db, bp);
+	trace_xfs_dir2_shrink_inode(args, db);
+
 	dp = args->dp;
 	mp = dp->i_mount;
 	tp = args->trans;

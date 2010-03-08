@@ -724,8 +724,7 @@ static void
 dm9000_hash_table(struct net_device *dev)
 {
 	board_info_t *db = netdev_priv(dev);
-	struct dev_mc_list *mcptr = dev->mc_list;
-	int mc_cnt = dev->mc_count;
+	struct dev_mc_list *mcptr;
 	int i, oft;
 	u32 hash_val;
 	u16 hash_table[4];
@@ -753,7 +752,7 @@ dm9000_hash_table(struct net_device *dev)
 		rcr |= RCR_ALL;
 
 	/* the multicast address in Hash Table : 64 bits */
-	for (i = 0; i < mc_cnt; i++, mcptr = mcptr->next) {
+	netdev_for_each_mc_addr(mcptr, dev) {
 		hash_val = ether_crc_le(6, mcptr->dmi_addr) & 0x3f;
 		hash_table[hash_val / 16] |= (u16) 1 << (hash_val % 16);
 	}
@@ -1646,7 +1645,7 @@ dm9000_drv_resume(struct device *dev)
 	return 0;
 }
 
-static struct dev_pm_ops dm9000_drv_pm_ops = {
+static const struct dev_pm_ops dm9000_drv_pm_ops = {
 	.suspend	= dm9000_drv_suspend,
 	.resume		= dm9000_drv_resume,
 };

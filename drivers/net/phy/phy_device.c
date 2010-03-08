@@ -177,6 +177,7 @@ struct phy_device* phy_device_create(struct mii_bus *bus, int addr, int phy_id)
 	dev->state = PHY_DOWN;
 
 	mutex_init(&dev->lock);
+	INIT_DELAYED_WORK(&dev->state_queue, phy_state_machine);
 
 	return dev;
 }
@@ -274,6 +275,22 @@ int phy_device_register(struct phy_device *phydev)
 	return err;
 }
 EXPORT_SYMBOL(phy_device_register);
+
+/**
+ * phy_find_first - finds the first PHY device on the bus
+ * @bus: the target MII bus
+ */
+struct phy_device *phy_find_first(struct mii_bus *bus)
+{
+	int addr;
+
+	for (addr = 0; addr < PHY_MAX_ADDR; addr++) {
+		if (bus->phy_map[addr])
+			return bus->phy_map[addr];
+	}
+	return NULL;
+}
+EXPORT_SYMBOL(phy_find_first);
 
 /**
  * phy_prepare_link - prepares the PHY layer to monitor link status
@@ -378,6 +395,20 @@ void phy_disconnect(struct phy_device *phydev)
 }
 EXPORT_SYMBOL(phy_disconnect);
 
+int phy_init_hw(struct phy_device *phydev)
+{
+	int ret;
+
+	if (!phydev->drv || !phydev->drv->config_init)
+		return 0;
+
+	ret = phy_scan_fixups(phydev);
+	if (ret < 0)
+		return ret;
+
+	return phydev->drv->config_init(phydev);
+}
+
 /**
  * phy_attach_direct - attach a network device to a given PHY device pointer
  * @dev: network device to attach
@@ -425,21 +456,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 	/* Do initial configuration here, now that
 	 * we have certain key parameters
 	 * (dev_flags and interface) */
-	if (phydev->drv->config_init) {
-		int err;
-
-		err = phy_scan_fixups(phydev);
-
-		if (err < 0)
-			return err;
-
-		err = phydev->drv->config_init(phydev);
-
-		if (err < 0)
-			return err;
-	}
-
-	return 0;
+	return phy_init_hw(phydev);
 }
 EXPORT_SYMBOL(phy_attach_direct);
 

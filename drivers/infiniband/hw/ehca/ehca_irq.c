@@ -548,11 +548,10 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 	struct ehca_eq *eq = &shca->eq;
 	struct ehca_eqe_cache_entry *eqe_cache = eq->eqe_cache;
 	u64 eqe_value, ret;
-	unsigned long flags;
 	int eqe_cnt, i;
 	int eq_empty = 0;
 
-	spin_lock_irqsave(&eq->irq_spinlock, flags);
+	spin_lock(&eq->irq_spinlock);
 	if (is_irq) {
 		const int max_query_cnt = 100;
 		int query_cnt = 0;
@@ -643,7 +642,7 @@ void ehca_process_eq(struct ehca_shca *shca, int is_irq)
 	} while (1);
 
 unlock_irq_spinlock:
-	spin_unlock_irqrestore(&eq->irq_spinlock, flags);
+	spin_unlock(&eq->irq_spinlock);
 }
 
 void ehca_tasklet_eq(unsigned long data)
@@ -826,8 +825,7 @@ static void __cpuinit take_over_work(struct ehca_comp_pool *pool, int cpu)
 		cq = list_entry(cct->cq_list.next, struct ehca_cq, entry);
 
 		list_del(&cq->entry);
-		__queue_comp_task(cq, per_cpu_ptr(pool->cpu_comp_tasks,
-						  smp_processor_id()));
+		__queue_comp_task(cq, this_cpu_ptr(pool->cpu_comp_tasks));
 	}
 
 	spin_unlock_irqrestore(&cct->task_lock, flags_cct);

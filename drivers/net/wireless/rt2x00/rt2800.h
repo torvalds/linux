@@ -60,11 +60,11 @@
 /*
  * Chipset version.
  */
-#define RT2860C_VERSION			0x28600100
-#define RT2860D_VERSION			0x28600101
-#define RT2880E_VERSION			0x28720200
-#define RT2883_VERSION			0x28830300
-#define RT3070_VERSION			0x30700200
+#define RT2860C_VERSION			0x0100
+#define RT2860D_VERSION			0x0101
+#define RT2880E_VERSION			0x0200
+#define RT2883_VERSION			0x0300
+#define RT3070_VERSION			0x0200
 
 /*
  * Signal information.
@@ -408,8 +408,8 @@
  * ASIC_VER: 2860 or 2870
  */
 #define MAC_CSR0			0x1000
-#define MAC_CSR0_ASIC_REV		FIELD32(0x0000ffff)
-#define MAC_CSR0_ASIC_VER		FIELD32(0xffff0000)
+#define MAC_CSR0_REVISION		FIELD32(0x0000ffff)
+#define MAC_CSR0_CHIPSET		FIELD32(0xffff0000)
 
 /*
  * MAC_SYS_CTRL:
@@ -1323,7 +1323,7 @@
 #define PAIRWISE_KEY_ENTRY(__idx) \
 	( PAIRWISE_KEY_TABLE_BASE + ((__idx) * sizeof(struct hw_key_entry)) )
 #define MAC_IVEIV_ENTRY(__idx) \
-	( MAC_IVEIV_TABLE_BASE + ((__idx) & sizeof(struct mac_iveiv_entry)) )
+	( MAC_IVEIV_TABLE_BASE + ((__idx) * sizeof(struct mac_iveiv_entry)) )
 #define MAC_WCID_ATTR_ENTRY(__idx) \
 	( MAC_WCID_ATTRIBUTE_BASE + ((__idx) * sizeof(u32)) )
 #define SHARED_KEY_ENTRY(__idx) \

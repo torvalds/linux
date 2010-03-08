@@ -198,6 +198,31 @@ fail:
 	return 0;
 }
 
+void xhci_free_or_cache_endpoint_ring(struct xhci_hcd *xhci,
+		struct xhci_virt_device *virt_dev,
+		unsigned int ep_index)
+{
+	int rings_cached;
+
+	rings_cached = virt_dev->num_rings_cached;
+	if (rings_cached < XHCI_MAX_RINGS_CACHED) {
+		virt_dev->num_rings_cached++;
+		rings_cached = virt_dev->num_rings_cached;
+		virt_dev->ring_cache[rings_cached] =
+			virt_dev->eps[ep_index].ring;
+		xhci_dbg(xhci, "Cached old ring, "
+				"%d ring%s cached\n",
+				rings_cached,
+				(rings_cached > 1) ? "s" : "");
+	} else {
+		xhci_ring_free(xhci, virt_dev->eps[ep_index].ring);
+		xhci_dbg(xhci, "Ring cache full (%d rings), "
+				"freeing ring\n",
+				virt_dev->num_rings_cached);
+	}
+	virt_dev->eps[ep_index].ring = NULL;
+}
+
 /* Zero an endpoint ring (except for link TRBs) and move the enqueue and dequeue
  * pointers to the beginning of the ring.
  */
@@ -242,6 +267,8 @@ struct xhci_container_ctx *xhci_alloc_container_ctx(struct xhci_hcd *xhci,
 void xhci_free_container_ctx(struct xhci_hcd *xhci,
 			     struct xhci_container_ctx *ctx)
 {
+	if (!ctx)
+		return;
 	dma_pool_free(xhci->device_pool, ctx->bytes, ctx->dma);
 	kfree(ctx);
 }
@@ -427,7 +454,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	case USB_SPEED_LOW:
 		slot_ctx->dev_info |= (u32) SLOT_SPEED_LS;
 		break;
-	case USB_SPEED_VARIABLE:
+	case USB_SPEED_WIRELESS:
 		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
 		return -EINVAL;
 		break;
@@ -471,7 +498,7 @@ int xhci_setup_addressable_virt_dev(struct xhci_hcd *xhci, struct usb_device *ud
 	case USB_SPEED_LOW:
 		ep0_ctx->ep_info2 |= MAX_PACKET(8);
 		break;
-	case USB_SPEED_VARIABLE:
+	case USB_SPEED_WIRELESS:
 		xhci_dbg(xhci, "FIXME xHCI doesn't support wireless speeds\n");
 		return -EINVAL;
 		break;
@@ -819,7 +846,8 @@ static void scratchpad_free(struct xhci_hcd *xhci)
 }
 
 struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
-		bool allocate_completion, gfp_t mem_flags)
+		bool allocate_in_ctx, bool allocate_completion,
+		gfp_t mem_flags)
 {
 	struct xhci_command *command;
 
@@ -827,11 +855,14 @@ struct xhci_command *xhci_alloc_command(struct xhci_hcd *xhci,
 	if (!command)
 		return NULL;
 
-	command->in_ctx =
-		xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT, mem_flags);
-	if (!command->in_ctx) {
-		kfree(command);
-		return NULL;
+	if (allocate_in_ctx) {
+		command->in_ctx =
+			xhci_alloc_container_ctx(xhci, XHCI_CTX_TYPE_INPUT,
+					mem_flags);
+		if (!command->in_ctx) {
+			kfree(command);
+			return NULL;
+		}
 	}
 
 	if (allocate_completion) {

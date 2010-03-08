@@ -17,7 +17,9 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 #include <linux/io.h>
+#include <linux/mm.h>
 #include <asm/unaligned.h>
+#include <asm/cacheflush.h>
 
 #include "../core/hcd.h"
 #include "isp1760-hcd.h"
@@ -904,6 +906,14 @@ __acquires(priv->lock)
 			status = 0;
 	}
 
+	if (usb_pipein(urb->pipe) && usb_pipetype(urb->pipe) != PIPE_CONTROL) {
+		void *ptr;
+		for (ptr = urb->transfer_buffer;
+		     ptr < urb->transfer_buffer + urb->transfer_buffer_length;
+		     ptr += PAGE_SIZE)
+			flush_dcache_page(virt_to_page(ptr));
+	}
+
 	/* complete() can reenter this HCD */
 	usb_hcd_unlink_urb_from_ep(priv_to_hcd(priv), urb);
 	spin_unlock(&priv->lock);
@@ -1039,12 +1049,12 @@ static void do_atl_int(struct usb_hcd *usb_hcd)
 		if (!nakcount && (dw3 & DW3_QTD_ACTIVE)) {
 			u32 buffstatus;
 
-			/* XXX
+			/*
 			 * NAKs are handled in HW by the chip. Usually if the
 			 * device is not able to send data fast enough.
-			 * This did not trigger for a long time now.
+			 * This happens mostly on slower hardware.
 			 */
-			printk(KERN_ERR "Reloading ptd %p/%p... qh %p readed: "
+			printk(KERN_NOTICE "Reloading ptd %p/%p... qh %p read: "
 					"%d of %zu done: %08x cur: %08x\n", qtd,
 					urb, qh, PTD_XFERRED_LENGTH(dw3),
 					qtd->length, done_map,

@@ -32,6 +32,7 @@
 #include <linux/pagemap.h>
 #include <linux/suspend.h>
 #include <linux/lmb.h>
+#include <linux/hugetlb.h>
 
 #include <asm/pgalloc.h>
 #include <asm/prom.h>
@@ -417,18 +418,26 @@ EXPORT_SYMBOL(flush_dcache_page);
 
 void flush_dcache_icache_page(struct page *page)
 {
+#ifdef CONFIG_HUGETLB_PAGE
+	if (PageCompound(page)) {
+		flush_dcache_icache_hugepage(page);
+		return;
+	}
+#endif
 #ifdef CONFIG_BOOKE
-	void *start = kmap_atomic(page, KM_PPC_SYNC_ICACHE);
-	__flush_dcache_icache(start);
-	kunmap_atomic(start, KM_PPC_SYNC_ICACHE);
+	{
+		void *start = kmap_atomic(page, KM_PPC_SYNC_ICACHE);
+		__flush_dcache_icache(start);
+		kunmap_atomic(start, KM_PPC_SYNC_ICACHE);
+	}
 #elif defined(CONFIG_8xx) || defined(CONFIG_PPC64)
 	/* On 8xx there is no need to kmap since highmem is not supported */
 	__flush_dcache_icache(page_address(page)); 
 #else
 	__flush_dcache_icache_phys(page_to_pfn(page) << PAGE_SHIFT);
 #endif
-
 }
+
 void clear_user_page(void *page, unsigned long vaddr, struct page *pg)
 {
 	clear_page(page);
@@ -485,13 +494,13 @@ EXPORT_SYMBOL(flush_icache_user_range);
  * This must always be called with the pte lock held.
  */
 void update_mmu_cache(struct vm_area_struct *vma, unsigned long address,
-		      pte_t pte)
+		      pte_t *ptep)
 {
 #ifdef CONFIG_PPC_STD_MMU
 	unsigned long access = 0, trap;
 
 	/* We only want HPTEs for linux PTEs that have _PAGE_ACCESSED set */
-	if (!pte_young(pte) || address >= TASK_SIZE)
+	if (!pte_young(*ptep) || address >= TASK_SIZE)
 		return;
 
 	/* We try to figure out if we are coming from an instruction

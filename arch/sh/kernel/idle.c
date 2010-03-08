@@ -20,10 +20,9 @@
 #include <asm/system.h>
 #include <asm/atomic.h>
 
-static int hlt_counter;
 void (*pm_idle)(void) = NULL;
-void (*pm_power_off)(void);
-EXPORT_SYMBOL(pm_power_off);
+
+static int hlt_counter;
 
 static int __init nohlt_setup(char *__unused)
 {
@@ -62,6 +61,7 @@ void default_idle(void)
 		clear_thread_flag(TIF_POLLING_NRFLAG);
 		smp_mb__after_clear_bit();
 
+		set_bl_bit();
 		if (!need_resched()) {
 			local_irq_enable();
 			cpu_sleep();
@@ -69,6 +69,7 @@ void default_idle(void)
 			local_irq_enable();
 
 		set_thread_flag(TIF_POLLING_NRFLAG);
+		clear_bl_bit();
 	} else
 		poll_idle();
 }
@@ -127,6 +128,15 @@ void __cpuinit select_idle_routine(void)
 
 static void do_nothing(void *unused)
 {
+}
+
+void stop_this_cpu(void *unused)
+{
+	local_irq_disable();
+	cpu_clear(smp_processor_id(), cpu_online_map);
+
+	for (;;)
+		cpu_sleep();
 }
 
 /*

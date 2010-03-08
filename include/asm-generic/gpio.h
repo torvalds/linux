@@ -28,6 +28,7 @@ static inline int gpio_is_valid(int number)
 	return ((unsigned)number) < ARCH_NR_GPIOS;
 }
 
+struct device;
 struct seq_file;
 struct module;
 
@@ -135,6 +136,32 @@ extern int __gpio_cansleep(unsigned gpio);
 
 extern int __gpio_to_irq(unsigned gpio);
 
+#define GPIOF_DIR_OUT	(0 << 0)
+#define GPIOF_DIR_IN	(1 << 0)
+
+#define GPIOF_INIT_LOW	(0 << 1)
+#define GPIOF_INIT_HIGH	(1 << 1)
+
+#define GPIOF_IN		(GPIOF_DIR_IN)
+#define GPIOF_OUT_INIT_LOW	(GPIOF_DIR_OUT | GPIOF_INIT_LOW)
+#define GPIOF_OUT_INIT_HIGH	(GPIOF_DIR_OUT | GPIOF_INIT_HIGH)
+
+/**
+ * struct gpio - a structure describing a GPIO with configuration
+ * @gpio:	the GPIO number
+ * @flags:	GPIO configuration as specified by GPIOF_*
+ * @label:	a literal description string of this GPIO
+ */
+struct gpio {
+	unsigned	gpio;
+	unsigned long	flags;
+	const char	*label;
+};
+
+extern int gpio_request_one(unsigned gpio, unsigned long flags, const char *label);
+extern int gpio_request_array(struct gpio *array, size_t num);
+extern void gpio_free_array(struct gpio *array, size_t num);
+
 #ifdef CONFIG_GPIO_SYSFS
 
 /*
@@ -144,6 +171,7 @@ extern int __gpio_to_irq(unsigned gpio);
 extern int gpio_export(unsigned gpio, bool direction_may_change);
 extern int gpio_export_link(struct device *dev, const char *name,
 			unsigned gpio);
+extern int gpio_sysfs_set_active_low(unsigned gpio, int value);
 extern void gpio_unexport(unsigned gpio);
 
 #endif	/* CONFIG_GPIO_SYSFS */
@@ -181,6 +209,8 @@ static inline void gpio_set_value_cansleep(unsigned gpio, int value)
 
 #ifndef CONFIG_GPIO_SYSFS
 
+struct device;
+
 /* sysfs support is only available with gpiolib, where it's optional */
 
 static inline int gpio_export(unsigned gpio, bool direction_may_change)
@@ -190,6 +220,11 @@ static inline int gpio_export(unsigned gpio, bool direction_may_change)
 
 static inline int gpio_export_link(struct device *dev, const char *name,
 				unsigned gpio)
+{
+	return -ENOSYS;
+}
+
+static inline int gpio_sysfs_set_active_low(unsigned gpio, int value)
 {
 	return -ENOSYS;
 }

@@ -162,6 +162,7 @@ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
 	if (niceval > 19)
 		niceval = 19;
 
+	rcu_read_lock();
 	read_lock(&tasklist_lock);
 	switch (which) {
 		case PRIO_PROCESS:
@@ -189,16 +190,17 @@ SYSCALL_DEFINE3(setpriority, int, which, int, who, int, niceval)
 				 !(user = find_user(who)))
 				goto out_unlock;	/* No processes for this user */
 
-			do_each_thread(g, p)
+			do_each_thread(g, p) {
 				if (__task_cred(p)->uid == who)
 					error = set_one_prio(p, niceval, error);
-			while_each_thread(g, p);
+			} while_each_thread(g, p);
 			if (who != cred->uid)
 				free_uid(user);		/* For find_user() */
 			break;
 	}
 out_unlock:
 	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 out:
 	return error;
 }
@@ -220,6 +222,7 @@ SYSCALL_DEFINE2(getpriority, int, which, int, who)
 	if (which > PRIO_USER || which < PRIO_PROCESS)
 		return -EINVAL;
 
+	rcu_read_lock();
 	read_lock(&tasklist_lock);
 	switch (which) {
 		case PRIO_PROCESS:
@@ -252,19 +255,20 @@ SYSCALL_DEFINE2(getpriority, int, which, int, who)
 				 !(user = find_user(who)))
 				goto out_unlock;	/* No processes for this user */
 
-			do_each_thread(g, p)
+			do_each_thread(g, p) {
 				if (__task_cred(p)->uid == who) {
 					niceval = 20 - task_nice(p);
 					if (niceval > retval)
 						retval = niceval;
 				}
-			while_each_thread(g, p);
+			} while_each_thread(g, p);
 			if (who != cred->uid)
 				free_uid(user);		/* for find_user() */
 			break;
 	}
 out_unlock:
 	read_unlock(&tasklist_lock);
+	rcu_read_unlock();
 
 	return retval;
 }
@@ -567,13 +571,7 @@ static int set_user(struct cred *new)
 	if (!new_user)
 		return -EAGAIN;
 
-	if (!task_can_switch_user(new_user, current)) {
-		free_uid(new_user);
-		return -EINVAL;
-	}
-
-	if (atomic_read(&new_user->processes) >=
-				current->signal->rlim[RLIMIT_NPROC].rlim_cur &&
+	if (atomic_read(&new_user->processes) >= rlimit(RLIMIT_NPROC) &&
 			new_user != INIT_USER) {
 		free_uid(new_user);
 		return -EAGAIN;

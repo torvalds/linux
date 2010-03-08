@@ -114,6 +114,16 @@ config CRYPTO_NULL
 	help
 	  These are 'Null' algorithms, used by IPsec, which do nothing.
 
+config CRYPTO_PCRYPT
+	tristate "Parallel crypto engine (EXPERIMENTAL)"
+	depends on SMP && EXPERIMENTAL
+	select PADATA
+	select CRYPTO_MANAGER
+	select CRYPTO_AEAD
+	help
+	  This converts an arbitrary crypto algorithm into a parallel
+	  algorithm that executes in kernel threads.
+
 config CRYPTO_WORKQUEUE
        tristate
 

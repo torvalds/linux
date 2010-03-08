@@ -708,7 +708,7 @@ static struct notifier_block fib_rules_notifier = {
 	.notifier_call = fib_rules_event,
 };
 
-static int fib_rules_net_init(struct net *net)
+static int __net_init fib_rules_net_init(struct net *net)
 {
 	INIT_LIST_HEAD(&net->rules_ops);
 	spin_lock_init(&net->rules_mod_lock);

@@ -37,6 +37,14 @@
 #define AR5K_EEPROM_RFKILL_POLARITY_S	1
 
 #define AR5K_EEPROM_REG_DOMAIN		0x00bf	/* EEPROM regdom */
+
+/* FLASH(EEPROM) Defines for AR531X chips */
+#define AR5K_EEPROM_SIZE_LOWER		0x1b /* size info -- lower */
+#define AR5K_EEPROM_SIZE_UPPER		0x1c /* size info -- upper */
+#define AR5K_EEPROM_SIZE_UPPER_MASK	0xfff0
+#define AR5K_EEPROM_SIZE_UPPER_SHIFT	4
+#define AR5K_EEPROM_SIZE_ENDLOC_SHIFT	12
+
 #define AR5K_EEPROM_CHECKSUM		0x00c0	/* EEPROM checksum */
 #define AR5K_EEPROM_INFO_BASE		0x00c0	/* EEPROM header */
 #define AR5K_EEPROM_INFO_MAX		(0x400 - AR5K_EEPROM_INFO_BASE)

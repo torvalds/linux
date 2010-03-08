@@ -48,11 +48,13 @@
    before we are allowed to start it running. */
 #define TIME_MSEC_DECODER_WAIT 50
 
+/* This defines a minimum interval that the decoder must be allowed to run
+   before we can safely begin using its streaming output. */
+#define TIME_MSEC_DECODER_STABILIZATION_WAIT 300
+
 /* This defines a minimum interval that the encoder must remain quiet
-   before we are allowed to configure it.  I had this originally set to
-   50msec, but Martin Dauskardt <martin.dauskardt@gmx.de> reports that
-   things work better when it's set to 100msec. */
-#define TIME_MSEC_ENCODER_WAIT 100
+   before we are allowed to configure it. */
+#define TIME_MSEC_ENCODER_WAIT 50
 
 /* This defines the minimum interval that the encoder must successfully run
    before we consider that the encoder has run at least once since its
@@ -334,6 +336,7 @@ static int pvr2_hdw_get_eeprom_addr(struct pvr2_hdw *hdw);
 static void pvr2_hdw_internal_find_stdenum(struct pvr2_hdw *hdw);
 static void pvr2_hdw_internal_set_std_avail(struct pvr2_hdw *hdw);
 static void pvr2_hdw_quiescent_timeout(unsigned long);
+static void pvr2_hdw_decoder_stabilization_timeout(unsigned long);
 static void pvr2_hdw_encoder_wait_timeout(unsigned long);
 static void pvr2_hdw_encoder_run_timeout(unsigned long);
 static int pvr2_issue_simple_cmd(struct pvr2_hdw *,u32);
@@ -1705,6 +1708,7 @@ static int pvr2_decoder_enable(struct pvr2_hdw *hdw,int enablefl)
 	pvr2_trace(PVR2_TRACE_CHIPS, "subdev v4l2 stream=%s",
 		   (enablefl ? "on" : "off"));
 	v4l2_device_call_all(&hdw->v4l2_dev, 0, video, s_stream, enablefl);
+	v4l2_device_call_all(&hdw->v4l2_dev, 0, audio, s_stream, enablefl);
 	if (hdw->decoder_client_id) {
 		/* We get here if the encoder has been noticed.  Otherwise
 		   we'll issue a warning to the user (which should
@@ -2461,6 +2465,11 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
 	hdw->quiescent_timer.data = (unsigned long)hdw;
 	hdw->quiescent_timer.function = pvr2_hdw_quiescent_timeout;
 
+	init_timer(&hdw->decoder_stabilization_timer);
+	hdw->decoder_stabilization_timer.data = (unsigned long)hdw;
+	hdw->decoder_stabilization_timer.function =
+		pvr2_hdw_decoder_stabilization_timeout;
+
 	init_timer(&hdw->encoder_wait_timer);
 	hdw->encoder_wait_timer.data = (unsigned long)hdw;
 	hdw->encoder_wait_timer.function = pvr2_hdw_encoder_wait_timeout;
@@ -2674,6 +2683,7 @@ struct pvr2_hdw *pvr2_hdw_create(struct usb_interface *intf,
  fail:
 	if (hdw) {
 		del_timer_sync(&hdw->quiescent_timer);
+		del_timer_sync(&hdw->decoder_stabilization_timer);
 		del_timer_sync(&hdw->encoder_run_timer);
 		del_timer_sync(&hdw->encoder_wait_timer);
 		if (hdw->workqueue) {
@@ -2741,6 +2751,7 @@ void pvr2_hdw_destroy(struct pvr2_hdw *hdw)
 		hdw->workqueue = NULL;
 	}
 	del_timer_sync(&hdw->quiescent_timer);
+	del_timer_sync(&hdw->decoder_stabilization_timer);
 	del_timer_sync(&hdw->encoder_run_timer);
 	del_timer_sync(&hdw->encoder_wait_timer);
 	if (hdw->fw_buffer) {
@@ -4452,7 +4463,7 @@ static int state_check_enable_encoder_run(struct pvr2_hdw *hdw)
 
 	switch (hdw->pathway_state) {
 	case PVR2_PATHWAY_ANALOG:
-		if (hdw->state_decoder_run) {
+		if (hdw->state_decoder_run && hdw->state_decoder_ready) {
 			/* In analog mode, if the decoder is running, then
 			   run the encoder. */
 			return !0;
@@ -4519,6 +4530,17 @@ static void pvr2_hdw_quiescent_timeout(unsigned long data)
 }
 
 
+/* Timeout function for decoder stabilization timer. */
+static void pvr2_hdw_decoder_stabilization_timeout(unsigned long data)
+{
+	struct pvr2_hdw *hdw = (struct pvr2_hdw *)data;
+	hdw->state_decoder_ready = !0;
+	trace_stbit("state_decoder_ready", hdw->state_decoder_ready);
+	hdw->state_stale = !0;
+	queue_work(hdw->workqueue, &hdw->workpoll);
+}
+
+
 /* Timeout function for encoder wait timer. */
 static void pvr2_hdw_encoder_wait_timeout(unsigned long data)
 {
@@ -4557,8 +4579,13 @@ static int state_eval_decoder_run(struct pvr2_hdw *hdw)
 		}
 		hdw->state_decoder_quiescent = 0;
 		hdw->state_decoder_run = 0;
-		/* paranoia - solve race if timer just completed */
+		/* paranoia - solve race if timer(s) just completed */
 		del_timer_sync(&hdw->quiescent_timer);
+		/* Kill the stabilization timer, in case we're killing the
+		   encoder before the previous stabilization interval has
+		   been properly timed. */
+		del_timer_sync(&hdw->decoder_stabilization_timer);
+		hdw->state_decoder_ready = 0;
 	} else {
 		if (!hdw->state_decoder_quiescent) {
 			if (!timer_pending(&hdw->quiescent_timer)) {
@@ -4596,10 +4623,21 @@ static int state_eval_decoder_run(struct pvr2_hdw *hdw)
 		if (hdw->flag_decoder_missed) return 0;
 		if (pvr2_decoder_enable(hdw,!0) < 0) return 0;
 		hdw->state_decoder_quiescent = 0;
+		hdw->state_decoder_ready = 0;
 		hdw->state_decoder_run = !0;
+		if (hdw->decoder_client_id == PVR2_CLIENT_ID_SAA7115) {
+			hdw->decoder_stabilization_timer.expires =
+				jiffies +
+				(HZ * TIME_MSEC_DECODER_STABILIZATION_WAIT /
+				 1000);
+			add_timer(&hdw->decoder_stabilization_timer);
+		} else {
+			hdw->state_decoder_ready = !0;
+		}
 	}
 	trace_stbit("state_decoder_quiescent",hdw->state_decoder_quiescent);
 	trace_stbit("state_decoder_run",hdw->state_decoder_run);
+	trace_stbit("state_decoder_ready", hdw->state_decoder_ready);
 	return !0;
 }
 
@@ -4797,7 +4835,8 @@ static unsigned int pvr2_hdw_report_unlocked(struct pvr2_hdw *hdw,int which,
 			buf,acnt,
 			"worker:%s%s%s%s%s%s%s",
 			(hdw->state_decoder_run ?
-			 " <decode:run>" :
+			 (hdw->state_decoder_ready ?
+			  "<decode:run>" : " <decode:start>") :
 			 (hdw->state_decoder_quiescent ?
 			  "" : " <decode:stop>")),
 			(hdw->state_decoder_quiescent ?

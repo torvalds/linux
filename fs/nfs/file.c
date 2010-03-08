@@ -123,11 +123,11 @@ nfs_file_open(struct inode *inode, struct file *filp)
 			filp->f_path.dentry->d_parent->d_name.name,
 			filp->f_path.dentry->d_name.name);
 
+	nfs_inc_stats(inode, NFSIOS_VFSOPEN);
 	res = nfs_check_flags(filp->f_flags);
 	if (res)
 		return res;
 
-	nfs_inc_stats(inode, NFSIOS_VFSOPEN);
 	res = nfs_open(inode, filp);
 	return res;
 }
@@ -237,9 +237,9 @@ nfs_file_flush(struct file *file, fl_owner_t id)
 			dentry->d_parent->d_name.name,
 			dentry->d_name.name);
 
+	nfs_inc_stats(inode, NFSIOS_VFSFLUSH);
 	if ((file->f_mode & FMODE_WRITE) == 0)
 		return 0;
-	nfs_inc_stats(inode, NFSIOS_VFSFLUSH);
 
 	/* Flush writes to the server and return any errors */
 	return nfs_do_fsync(ctx, inode);
@@ -262,9 +262,11 @@ nfs_file_read(struct kiocb *iocb, const struct iovec *iov,
 		(unsigned long) count, (unsigned long) pos);
 
 	result = nfs_revalidate_mapping(inode, iocb->ki_filp->f_mapping);
-	nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, count);
-	if (!result)
+	if (!result) {
 		result = generic_file_aio_read(iocb, iov, nr_segs, pos);
+		if (result > 0)
+			nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, result);
+	}
 	return result;
 }
 
@@ -282,8 +284,11 @@ nfs_file_splice_read(struct file *filp, loff_t *ppos,
 		(unsigned long) count, (unsigned long long) *ppos);
 
 	res = nfs_revalidate_mapping(inode, filp->f_mapping);
-	if (!res)
+	if (!res) {
 		res = generic_file_splice_read(filp, ppos, pipe, count, flags);
+		if (res > 0)
+			nfs_add_stats(inode, NFSIOS_NORMALREADBYTES, res);
+	}
 	return res;
 }
 
@@ -486,6 +491,8 @@ static int nfs_release_page(struct page *page, gfp_t gfp)
 {
 	dfprintk(PAGECACHE, "NFS: release_page(%p)\n", page);
 
+	if (gfp & __GFP_WAIT)
+		nfs_wb_page(page->mapping->host, page);
 	/* If PagePrivate() is set, then the page is not freeable */
 	if (PagePrivate(page))
 		return 0;
@@ -594,6 +601,7 @@ static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 {
 	struct dentry * dentry = iocb->ki_filp->f_path.dentry;
 	struct inode * inode = dentry->d_inode;
+	unsigned long written = 0;
 	ssize_t result;
 	size_t count = iov_length(iov, nr_segs);
 
@@ -620,14 +628,18 @@ static ssize_t nfs_file_write(struct kiocb *iocb, const struct iovec *iov,
 	if (!count)
 		goto out;
 
-	nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, count);
 	result = generic_file_aio_write(iocb, iov, nr_segs, pos);
+	if (result > 0)
+		written = result;
+
 	/* Return error values for O_DSYNC and IS_SYNC() */
 	if (result >= 0 && nfs_need_sync_write(iocb->ki_filp, inode)) {
 		int err = nfs_do_fsync(nfs_file_open_context(iocb->ki_filp), inode);
 		if (err < 0)
 			result = err;
 	}
+	if (result > 0)
+		nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, written);
 out:
 	return result;
 
@@ -642,6 +654,7 @@ static ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
 {
 	struct dentry *dentry = filp->f_path.dentry;
 	struct inode *inode = dentry->d_inode;
+	unsigned long written = 0;
 	ssize_t ret;
 
 	dprintk("NFS splice_write(%s/%s, %lu@%llu)\n",
@@ -652,14 +665,17 @@ static ssize_t nfs_file_splice_write(struct pipe_inode_info *pipe,
 	 * The combination of splice and an O_APPEND destination is disallowed.
 	 */
 
-	nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, count);
-
 	ret = generic_file_splice_write(pipe, filp, ppos, count, flags);
+	if (ret > 0)
+		written = ret;
+
 	if (ret >= 0 && nfs_need_sync_write(filp, inode)) {
 		int err = nfs_do_fsync(nfs_file_open_context(filp), inode);
 		if (err < 0)
 			ret = err;
 	}
+	if (ret > 0)
+		nfs_add_stats(inode, NFSIOS_NORMALWRITTENBYTES, written);
 	return ret;
 }
 

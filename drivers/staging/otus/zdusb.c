@@ -45,7 +45,7 @@ MODULE_LICENSE("Dual BSD/GPL");
 static const char driver_name[] = "Otus";
 
 /* table of devices that work with this driver */
-static struct usb_device_id zd1221_ids [] = {
+static const struct usb_device_id zd1221_ids[] = {
 	{ USB_DEVICE(VENDOR_ATHR, PRODUCT_AR9170) },
         { USB_DEVICE(VENDOR_DLINK, PRODUCT_DWA160A) },
 	{ USB_DEVICE(VENDOR_NETGEAR, PRODUCT_WNDA3100) },

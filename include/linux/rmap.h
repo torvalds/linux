@@ -26,6 +26,9 @@
  */
 struct anon_vma {
 	spinlock_t lock;	/* Serialize access to vma list */
+#ifdef CONFIG_KSM
+	atomic_t ksm_refcount;
+#endif
 	/*
 	 * NOTE: the LSB of the head.next is set by
 	 * mm_take_all_locks() _after_ taking the above lock. So the
@@ -34,10 +37,58 @@ struct anon_vma {
 	 * is serialized by a system wide lock only visible to
 	 * mm_take_all_locks() (mm_all_locks_mutex).
 	 */
-	struct list_head head;	/* List of private "related" vmas */
+	struct list_head head;	/* Chain of private "related" vmas */
+};
+
+/*
+ * The copy-on-write semantics of fork mean that an anon_vma
+ * can become associated with multiple processes. Furthermore,
+ * each child process will have its own anon_vma, where new
+ * pages for that process are instantiated.
+ *
+ * This structure allows us to find the anon_vmas associated
+ * with a VMA, or the VMAs associated with an anon_vma.
+ * The "same_vma" list contains the anon_vma_chains linking
+ * all the anon_vmas associated with this VMA.
+ * The "same_anon_vma" list contains the anon_vma_chains
+ * which link all the VMAs associated with this anon_vma.
+ */
+struct anon_vma_chain {
+	struct vm_area_struct *vma;
+	struct anon_vma *anon_vma;
+	struct list_head same_vma;   /* locked by mmap_sem & page_table_lock */
+	struct list_head same_anon_vma;	/* locked by anon_vma->lock */
 };
 
 #ifdef CONFIG_MMU
+#ifdef CONFIG_KSM
+static inline void ksm_refcount_init(struct anon_vma *anon_vma)
+{
+	atomic_set(&anon_vma->ksm_refcount, 0);
+}
+
+static inline int ksm_refcount(struct anon_vma *anon_vma)
+{
+	return atomic_read(&anon_vma->ksm_refcount);
+}
+#else
+static inline void ksm_refcount_init(struct anon_vma *anon_vma)
+{
+}
+
+static inline int ksm_refcount(struct anon_vma *anon_vma)
+{
+	return 0;
+}
+#endif /* CONFIG_KSM */
+
+static inline struct anon_vma *page_anon_vma(struct page *page)
+{
+	if (((unsigned long)page->mapping & PAGE_MAPPING_FLAGS) !=
+					    PAGE_MAPPING_ANON)
+		return NULL;
+	return page_rmapping(page);
+}
 
 static inline void anon_vma_lock(struct vm_area_struct *vma)
 {
@@ -58,14 +109,23 @@ static inline void anon_vma_unlock(struct vm_area_struct *vma)
  */
 void anon_vma_init(void);	/* create anon_vma_cachep */
 int  anon_vma_prepare(struct vm_area_struct *);
-void __anon_vma_merge(struct vm_area_struct *, struct vm_area_struct *);
-void anon_vma_unlink(struct vm_area_struct *);
-void anon_vma_link(struct vm_area_struct *);
+void unlink_anon_vmas(struct vm_area_struct *);
+int anon_vma_clone(struct vm_area_struct *, struct vm_area_struct *);
+int anon_vma_fork(struct vm_area_struct *, struct vm_area_struct *);
 void __anon_vma_link(struct vm_area_struct *);
+void anon_vma_free(struct anon_vma *);
+
+static inline void anon_vma_merge(struct vm_area_struct *vma,
+				  struct vm_area_struct *next)
+{
+	VM_BUG_ON(vma->anon_vma != next->anon_vma);
+	unlink_anon_vmas(next);
+}
 
 /*
  * rmap interfaces called when adding or removing pte of page
  */
+void page_move_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
 void page_add_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
 void page_add_new_anon_rmap(struct page *, struct vm_area_struct *, unsigned long);
 void page_add_file_rmap(struct page *);
@@ -81,6 +141,9 @@ static inline void page_dup_rmap(struct page *page)
  */
 int page_referenced(struct page *, int is_locked,
 			struct mem_cgroup *cnt, unsigned long *vm_flags);
+int page_referenced_one(struct page *, struct vm_area_struct *,
+	unsigned long address, unsigned int *mapcount, unsigned long *vm_flags);
+
 enum ttu_flags {
 	TTU_UNMAP = 0,			/* unmap mode */
 	TTU_MIGRATION = 1,		/* migration mode */
@@ -94,6 +157,8 @@ enum ttu_flags {
 #define TTU_ACTION(x) ((x) & TTU_ACTION_MASK)
 
 int try_to_unmap(struct page *, enum ttu_flags flags);
+int try_to_unmap_one(struct page *, struct vm_area_struct *,
+			unsigned long address, enum ttu_flags flags);
 
 /*
  * Called from mm/filemap_xip.c to unmap empty zero page
@@ -127,6 +192,12 @@ struct anon_vma *page_lock_anon_vma(struct page *page);
 void page_unlock_anon_vma(struct anon_vma *anon_vma);
 int page_mapped_in_vma(struct page *page, struct vm_area_struct *vma);
 
+/*
+ * Called by migrate.c to remove migration ptes, but might be used more later.
+ */
+int rmap_walk(struct page *page, int (*rmap_one)(struct page *,
+		struct vm_area_struct *, unsigned long, void *), void *arg);
+
 #else	/* !CONFIG_MMU */
 
 #define anon_vma_init()		do {} while (0)
@@ -138,7 +209,7 @@ static inline int page_referenced(struct page *page, int is_locked,
 				  unsigned long *vm_flags)
 {
 	*vm_flags = 0;
-	return TestClearPageReferenced(page);
+	return 0;
 }
 
 #define try_to_unmap(page, refs) SWAP_FAIL

@@ -716,7 +716,7 @@ static int kaweth_open(struct net_device *net)
 	return 0;
 
 err_out:
-	usb_autopm_enable(kaweth->intf);
+	usb_autopm_put_interface(kaweth->intf);
 	return -EIO;
 }
 
@@ -753,7 +753,7 @@ static int kaweth_close(struct net_device *net)
 
 	kaweth->status &= ~KAWETH_STATUS_CLOSING;
 
-	usb_autopm_enable(kaweth->intf);
+	usb_autopm_put_interface(kaweth->intf);
 
 	return 0;
 }
@@ -881,7 +881,7 @@ static void kaweth_set_rx_mode(struct net_device *net)
 	if (net->flags & IFF_PROMISC) {
 		packet_filter_bitmap |= KAWETH_PACKET_FILTER_PROMISCUOUS;
 	}
-	else if ((net->mc_count) || (net->flags & IFF_ALLMULTI)) {
+	else if (!netdev_mc_empty(net) || (net->flags & IFF_ALLMULTI)) {
 		packet_filter_bitmap |= KAWETH_PACKET_FILTER_ALL_MULTICAST;
 	}
 

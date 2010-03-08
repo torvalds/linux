@@ -10,7 +10,6 @@ CONFIG_MIPS=y
 #
 # CONFIG_MACH_ALCHEMY is not set
 # CONFIG_AR7 is not set
-# CONFIG_BASLER_EXCITE is not set
 # CONFIG_BCM47XX is not set
 # CONFIG_BCM63XX is not set
 # CONFIG_MIPS_COBALT is not set
@@ -284,7 +283,6 @@ CONFIG_DEFAULT_AS=y
 # CONFIG_DEFAULT_CFQ is not set
 # CONFIG_DEFAULT_NOOP is not set
 CONFIG_DEFAULT_IOSCHED="anticipatory"
-# CONFIG_PROBE_INITRD_HEADER is not set
 # CONFIG_FREEZER is not set
 
 #
@@ -1063,7 +1061,7 @@ CONFIG_TRACING_SUPPORT=y
 # CONFIG_DYNAMIC_DEBUG is not set
 # CONFIG_SAMPLES is not set
 CONFIG_HAVE_ARCH_KGDB=y
-CONFIG_CMDLINE=""
+# CONFIG_CMDLINE_BOOL is not set
 
 #
 # Security options

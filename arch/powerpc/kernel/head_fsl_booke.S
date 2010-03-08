@@ -214,11 +214,11 @@ skpinv:	addi	r6,r6,1				/* Increment */
 	bl	1f		/* Find our address */
 1:	mflr	r9
 	rlwimi	r7,r9,0,20,31
-	addi	r7,r7,24
+	addi	r7,r7,(2f - 1b)
 	mtspr	SPRN_SRR0,r7
 	mtspr	SPRN_SRR1,r6
 	rfi
-
+2:
 /* 4. Clear out PIDs & Search info */
 	li	r6,0
 	mtspr   SPRN_MAS6,r6
@@ -941,28 +941,6 @@ _GLOBAL(__setup_e500mc_ivors)
 	li	r3,CriticalDoorbell@l
 	mtspr	SPRN_IVOR37,r3
 	sync
-	blr
-
-/*
- * extern void loadcam_entry(unsigned int index)
- *
- * Load TLBCAM[index] entry in to the L2 CAM MMU
- */
-_GLOBAL(loadcam_entry)
-	lis	r4,TLBCAM@ha
-	addi	r4,r4,TLBCAM@l
-	mulli	r5,r3,TLBCAM_SIZE
-	add	r3,r5,r4
-	lwz	r4,0(r3)
-	mtspr	SPRN_MAS0,r4
-	lwz	r4,4(r3)
-	mtspr	SPRN_MAS1,r4
-	lwz	r4,8(r3)
-	mtspr	SPRN_MAS2,r4
-	lwz	r4,12(r3)
-	mtspr	SPRN_MAS3,r4
-	tlbwe
-	isync
 	blr
 
 /*

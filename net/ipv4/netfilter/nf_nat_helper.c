@@ -141,6 +141,17 @@ static int enlarge_skb(struct sk_buff *skb, unsigned int extra)
 	return 1;
 }
 
+void nf_nat_set_seq_adjust(struct nf_conn *ct, enum ip_conntrack_info ctinfo,
+			   __be32 seq, s16 off)
+{
+	if (!off)
+		return;
+	set_bit(IPS_SEQ_ADJUST_BIT, &ct->status);
+	adjust_tcp_sequence(ntohl(seq), off, ct, ctinfo);
+	nf_conntrack_event_cache(IPCT_NATSEQADJ, ct);
+}
+EXPORT_SYMBOL_GPL(nf_nat_set_seq_adjust);
+
 /* Generic function for mangling variable-length address changes inside
  * NATed TCP connections (like the PORT XXX,XXX,XXX,XXX,XXX,XXX
  * command in FTP).
@@ -149,14 +160,13 @@ static int enlarge_skb(struct sk_buff *skb, unsigned int extra)
  * skb enlargement, ...
  *
  * */
-int
-nf_nat_mangle_tcp_packet(struct sk_buff *skb,
-			 struct nf_conn *ct,
-			 enum ip_conntrack_info ctinfo,
-			 unsigned int match_offset,
-			 unsigned int match_len,
-			 const char *rep_buffer,
-			 unsigned int rep_len)
+int __nf_nat_mangle_tcp_packet(struct sk_buff *skb,
+			       struct nf_conn *ct,
+			       enum ip_conntrack_info ctinfo,
+			       unsigned int match_offset,
+			       unsigned int match_len,
+			       const char *rep_buffer,
+			       unsigned int rep_len, bool adjust)
 {
 	struct rtable *rt = skb_rtable(skb);
 	struct iphdr *iph;
@@ -202,16 +212,13 @@ nf_nat_mangle_tcp_packet(struct sk_buff *skb,
 		inet_proto_csum_replace2(&tcph->check, skb,
 					 htons(oldlen), htons(datalen), 1);
 
-	if (rep_len != match_len) {
-		set_bit(IPS_SEQ_ADJUST_BIT, &ct->status);
-		adjust_tcp_sequence(ntohl(tcph->seq),
-				    (int)rep_len - (int)match_len,
-				    ct, ctinfo);
-		nf_conntrack_event_cache(IPCT_NATSEQADJ, ct);
-	}
+	if (adjust && rep_len != match_len)
+		nf_nat_set_seq_adjust(ct, ctinfo, tcph->seq,
+				      (int)rep_len - (int)match_len);
+
 	return 1;
 }
-EXPORT_SYMBOL(nf_nat_mangle_tcp_packet);
+EXPORT_SYMBOL(__nf_nat_mangle_tcp_packet);
 
 /* Generic function for mangling variable-length address changes inside
  * NATed UDP connections (like the CONNECT DATA XXXXX MESG XXXXX INDEX XXXXX

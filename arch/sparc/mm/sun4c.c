@@ -17,6 +17,7 @@
 #include <linux/fs.h>
 #include <linux/seq_file.h>
 #include <linux/scatterlist.h>
+#include <linux/bitmap.h>
 
 #include <asm/sections.h>
 #include <asm/page.h>
@@ -1021,20 +1022,12 @@ static char *sun4c_lockarea(char *vaddr, unsigned long size)
 	npages = (((unsigned long)vaddr & ~PAGE_MASK) +
 		  size + (PAGE_SIZE-1)) >> PAGE_SHIFT;
 
-	scan = 0;
 	local_irq_save(flags);
-	for (;;) {
-		scan = find_next_zero_bit(sun4c_iobuffer_map,
-					  iobuffer_map_size, scan);
-		if ((base = scan) + npages > iobuffer_map_size) goto abend;
-		for (;;) {
-			if (scan >= base + npages) goto found;
-			if (test_bit(scan, sun4c_iobuffer_map)) break;
-			scan++;
-		}
-	}
+	base = bitmap_find_next_zero_area(sun4c_iobuffer_map, iobuffer_map_size,
+						0, npages, 0);
+	if (base >= iobuffer_map_size)
+		goto abend;
 
-found:
 	high = ((base + npages) << PAGE_SHIFT) + sun4c_iobuffer_start;
 	high = SUN4C_REAL_PGDIR_ALIGN(high);
 	while (high > sun4c_iobuffer_high) {
@@ -1894,7 +1887,7 @@ static void sun4c_check_pgt_cache(int low, int high)
 /* An experiment, turn off by default for now... -DaveM */
 #define SUN4C_PRELOAD_PSEG
 
-void sun4c_update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+void sun4c_update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	unsigned long flags;
 	int pseg;
@@ -1936,7 +1929,7 @@ void sun4c_update_mmu_cache(struct vm_area_struct *vma, unsigned long address, p
 			start += PAGE_SIZE;
 		}
 #ifndef SUN4C_PRELOAD_PSEG
-		sun4c_put_pte(address, pte_val(pte));
+		sun4c_put_pte(address, pte_val(*ptep));
 #endif
 		local_irq_restore(flags);
 		return;
@@ -1947,7 +1940,7 @@ void sun4c_update_mmu_cache(struct vm_area_struct *vma, unsigned long address, p
 		add_lru(entry);
 	}
 
-	sun4c_put_pte(address, pte_val(pte));
+	sun4c_put_pte(address, pte_val(*ptep));
 	local_irq_restore(flags);
 }
 

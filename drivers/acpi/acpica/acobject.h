@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -111,7 +111,7 @@ ACPI_OBJECT_COMMON_HEADER};
 
 struct acpi_object_integer {
 	ACPI_OBJECT_COMMON_HEADER u8 fill[3];	/* Prevent warning on some compilers */
-	acpi_integer value;
+	u64 value;
 };
 
 /*
@@ -180,7 +180,11 @@ struct acpi_object_method {
 	u8 sync_level;
 	union acpi_operand_object *mutex;
 	u8 *aml_start;
-	ACPI_INTERNAL_METHOD implementation;
+	union {
+		ACPI_INTERNAL_METHOD implementation;
+		union acpi_operand_object *handler;
+	} extra;
+
 	u32 aml_length;
 	u8 thread_count;
 	acpi_owner_id owner_id;
@@ -283,8 +287,10 @@ struct acpi_object_buffer_field {
 
 struct acpi_object_notify_handler {
 	ACPI_OBJECT_COMMON_HEADER struct acpi_namespace_node *node;	/* Parent device */
+	u32 handler_type;
 	acpi_notify_handler handler;
 	void *context;
+	struct acpi_object_notify_handler *next;
 };
 
 struct acpi_object_addr_handler {

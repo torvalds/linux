@@ -157,6 +157,12 @@ struct p54_led_dev {
 
 #endif /* CONFIG_P54_LEDS */
 
+struct p54_tx_queue_stats {
+	unsigned int len;
+	unsigned int limit;
+	unsigned int count;
+};
+
 struct p54_common {
 	struct ieee80211_hw *hw;
 	struct ieee80211_vif *vif;
@@ -183,7 +189,7 @@ struct p54_common {
 	/* (e)DCF / QOS state */
 	bool use_short_slot;
 	spinlock_t tx_stats_lock;
-	struct ieee80211_tx_queue_stats tx_stats[8];
+	struct p54_tx_queue_stats tx_stats[8];
 	struct p54_edcf_queue_param qos_params[8];
 
 	/* Radio data */

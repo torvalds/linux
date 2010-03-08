@@ -91,7 +91,7 @@ EXPORT_SYMBOL(fscache_object_destroy);
  */
 static struct fscache_object *fscache_objlist_lookup(loff_t *_pos)
 {
-	struct fscache_object *pobj, *obj, *minobj = NULL;
+	struct fscache_object *pobj, *obj = NULL, *minobj = NULL;
 	struct rb_node *p;
 	unsigned long pos;
 

@@ -358,6 +358,8 @@ static int ep93xxfb_setcolreg(unsigned int regno, unsigned int red,
 
 	switch (info->fix.visual) {
 	case FB_VISUAL_PSEUDOCOLOR:
+		if (regno > 255)
+			return 1;
 		rgb = ((red & 0xff00) << 8) | (green & 0xff00) |
 			((blue & 0xff00) >> 8);
 

@@ -34,6 +34,8 @@ enum { LCDC_CLK_BUS, LCDC_CLK_PERIPHERAL, LCDC_CLK_EXTERNAL };
 #define LCDC_FLAGS_HSCNT (1 << 3) /* Disable HSYNC during VBLANK */
 #define LCDC_FLAGS_DWCNT (1 << 4) /* Disable dotclock during blanking */
 
+#define FBIO_WAITFORVSYNC _IOW('F', 0x20, __u32)
+
 struct sh_mobile_lcdc_sys_bus_cfg {
 	unsigned long ldmt2r;
 	unsigned long ldmt3r;
@@ -50,6 +52,8 @@ struct sh_mobile_lcdc_board_cfg {
 	void *board_data;
 	int (*setup_sys)(void *board_data, void *sys_ops_handle,
 			 struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
+	void (*start_transfer)(void *board_data, void *sys_ops_handle,
+			       struct sh_mobile_lcdc_sys_bus_ops *sys_ops);
 	void (*display_on)(void *board_data);
 	void (*display_off)(void *board_data);
 };

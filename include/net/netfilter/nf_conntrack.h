@@ -70,7 +70,7 @@ union nf_conntrack_help {
 struct nf_conntrack_helper;
 
 /* Must be kept in sync with the classes defined by helpers */
-#define NF_CT_MAX_EXPECT_CLASSES	3
+#define NF_CT_MAX_EXPECT_CLASSES	4
 
 /* nf_conn feature for connections that have a helper */
 struct nf_conn_help {
@@ -198,7 +198,8 @@ extern void *nf_ct_alloc_hashtable(unsigned int *sizep, int *vmalloced, int null
 extern void nf_ct_free_hashtable(void *hash, int vmalloced, unsigned int size);
 
 extern struct nf_conntrack_tuple_hash *
-__nf_conntrack_find(struct net *net, const struct nf_conntrack_tuple *tuple);
+__nf_conntrack_find(struct net *net, u16 zone,
+		    const struct nf_conntrack_tuple *tuple);
 
 extern void nf_conntrack_hash_insert(struct nf_conn *ct);
 extern void nf_ct_delete_from_lists(struct nf_conn *ct);
@@ -267,10 +268,15 @@ extern void
 nf_ct_iterate_cleanup(struct net *net, int (*iter)(struct nf_conn *i, void *data), void *data);
 extern void nf_conntrack_free(struct nf_conn *ct);
 extern struct nf_conn *
-nf_conntrack_alloc(struct net *net,
+nf_conntrack_alloc(struct net *net, u16 zone,
 		   const struct nf_conntrack_tuple *orig,
 		   const struct nf_conntrack_tuple *repl,
 		   gfp_t gfp);
+
+static inline int nf_ct_is_template(const struct nf_conn *ct)
+{
+	return test_bit(IPS_TEMPLATE_BIT, &ct->status);
+}
 
 /* It's confirmed if it is, or has been in the hash table. */
 static inline int nf_ct_is_confirmed(struct nf_conn *ct)
@@ -293,11 +299,11 @@ extern unsigned int nf_conntrack_htable_size;
 extern unsigned int nf_conntrack_max;
 
 #define NF_CT_STAT_INC(net, count)	\
-	(per_cpu_ptr((net)->ct.stat, raw_smp_processor_id())->count++)
+	__this_cpu_inc((net)->ct.stat->count)
 #define NF_CT_STAT_INC_ATOMIC(net, count)		\
 do {							\
 	local_bh_disable();				\
-	per_cpu_ptr((net)->ct.stat, raw_smp_processor_id())->count++;	\
+	__this_cpu_inc((net)->ct.stat->count);		\
 	local_bh_enable();				\
 } while (0)
 

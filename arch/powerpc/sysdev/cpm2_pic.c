@@ -115,11 +115,13 @@ static void cpm2_ack(unsigned int virq)
 
 static void cpm2_end_irq(unsigned int virq)
 {
+	struct irq_desc *desc;
 	int	bit, word;
 	unsigned int irq_nr = virq_to_hw(virq);
 
-	if (!(irq_desc[irq_nr].status & (IRQ_DISABLED|IRQ_INPROGRESS))
-			&& irq_desc[irq_nr].action) {
+	desc = irq_to_desc(irq_nr);
+	if (!(desc->status & (IRQ_DISABLED|IRQ_INPROGRESS))
+			&& desc->action) {
 
 		bit = irq_to_siubit[irq_nr];
 		word = irq_to_siureg[irq_nr];
@@ -138,16 +140,26 @@ static void cpm2_end_irq(unsigned int virq)
 static int cpm2_set_irq_type(unsigned int virq, unsigned int flow_type)
 {
 	unsigned int src = virq_to_hw(virq);
-	struct irq_desc *desc = get_irq_desc(virq);
+	struct irq_desc *desc = irq_to_desc(virq);
 	unsigned int vold, vnew, edibit;
 
-	if (flow_type == IRQ_TYPE_NONE)
-		flow_type = IRQ_TYPE_LEVEL_LOW;
+	/* Port C interrupts are either IRQ_TYPE_EDGE_FALLING or
+	 * IRQ_TYPE_EDGE_BOTH (default).  All others are IRQ_TYPE_EDGE_FALLING
+	 * or IRQ_TYPE_LEVEL_LOW (default)
+	 */
+	if (src >= CPM2_IRQ_PORTC15 && src <= CPM2_IRQ_PORTC0) {
+		if (flow_type == IRQ_TYPE_NONE)
+			flow_type = IRQ_TYPE_EDGE_BOTH;
 
-	if (flow_type & IRQ_TYPE_EDGE_RISING) {
-		printk(KERN_ERR "CPM2 PIC: sense type 0x%x not supported\n",
-			flow_type);
-		return -EINVAL;
+		if (flow_type != IRQ_TYPE_EDGE_BOTH &&
+		    flow_type != IRQ_TYPE_EDGE_FALLING)
+			goto err_sense;
+	} else {
+		if (flow_type == IRQ_TYPE_NONE)
+			flow_type = IRQ_TYPE_LEVEL_LOW;
+
+		if (flow_type & (IRQ_TYPE_EDGE_RISING | IRQ_TYPE_LEVEL_HIGH))
+			goto err_sense;
 	}
 
 	desc->status &= ~(IRQ_TYPE_SENSE_MASK | IRQ_LEVEL);
@@ -179,10 +191,14 @@ static int cpm2_set_irq_type(unsigned int virq, unsigned int flow_type)
 	if (vold != vnew)
 		out_be32(&cpm2_intctl->ic_siexr, vnew);
 	return 0;
+
+err_sense:
+	pr_err("CPM2 PIC: sense type 0x%x not supported\n", flow_type);
+	return -EINVAL;
 }
 
 static struct irq_chip cpm2_pic = {
-	.typename = " CPM2 SIU ",
+	.name = "CPM2 SIU",
 	.mask = cpm2_mask_irq,
 	.unmask = cpm2_unmask_irq,
 	.ack = cpm2_ack,
@@ -210,13 +226,13 @@ static int cpm2_pic_host_map(struct irq_host *h, unsigned int virq,
 {
 	pr_debug("cpm2_pic_host_map(%d, 0x%lx)\n", virq, hw);
 
-	get_irq_desc(virq)->status |= IRQ_LEVEL;
+	irq_to_desc(virq)->status |= IRQ_LEVEL;
 	set_irq_chip_and_handler(virq, &cpm2_pic, handle_level_irq);
 	return 0;
 }
 
 static int cpm2_pic_host_xlate(struct irq_host *h, struct device_node *ct,
-			    u32 *intspec, unsigned int intsize,
+			    const u32 *intspec, unsigned int intsize,
 			    irq_hw_number_t *out_hwirq, unsigned int *out_flags)
 {
 	*out_hwirq = intspec[0];

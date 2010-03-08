@@ -426,7 +426,7 @@ static int fmvj18x_config(struct pcmcia_device *link)
 
     if (link->io.NumPorts2 != 0) {
     	link->irq.Attributes =
-		IRQ_TYPE_DYNAMIC_SHARING|IRQ_FIRST_SHARED;
+		IRQ_TYPE_DYNAMIC_SHARING;
 	ret = mfc_try_io_port(link);
 	if (ret != 0) goto failed;
     } else if (cardtype == UNGERMANN) {
@@ -717,6 +717,7 @@ static struct pcmcia_device_id fmvj18x_ids[] = {
 	PCMCIA_PFC_DEVICE_PROD_ID12(0, "NEC", "PK-UG-J001" ,0x18df0ba0 ,0x831b1064),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0d0a),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0105, 0x0e0a),
+	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0032, 0x0e01),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0032, 0x0a05),
 	PCMCIA_PFC_DEVICE_MANF_CARD(0, 0x0032, 0x1101),
 	PCMCIA_DEVICE_NULL,
@@ -1186,22 +1187,20 @@ static void set_rx_mode(struct net_device *dev)
     if (dev->flags & IFF_PROMISC) {
 	memset(mc_filter, 0xff, sizeof(mc_filter));
 	outb(3, ioaddr + RX_MODE);	/* Enable promiscuous mode */
-    } else if (dev->mc_count > MC_FILTERBREAK ||
+    } else if (netdev_mc_count(dev) > MC_FILTERBREAK ||
 	       (dev->flags & IFF_ALLMULTI)) {
 	/* Too many to filter perfectly -- accept all multicasts. */
 	memset(mc_filter, 0xff, sizeof(mc_filter));
 	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */
-    } else if (dev->mc_count == 0) {
+    } else if (netdev_mc_empty(dev)) {
 	memset(mc_filter, 0x00, sizeof(mc_filter));
 	outb(1, ioaddr + RX_MODE);	/* Ignore almost all multicasts. */
     } else {
 	struct dev_mc_list *mclist;
 
 	memset(mc_filter, 0, sizeof(mc_filter));
-	for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
-	     i++, mclist = mclist->next) {
-	    unsigned int bit =
-	    	ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 26;
+	netdev_for_each_mc_addr(mclist, dev) {
+	    unsigned int bit = ether_crc_le(ETH_ALEN, mclist->dmi_addr) >> 26;
 	    mc_filter[bit >> 3] |= (1 << (bit & 7));
 	}
 	outb(2, ioaddr + RX_MODE);	/* Use normal mode. */

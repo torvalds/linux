@@ -328,19 +328,24 @@ int nilfs_cpfile_delete_checkpoints(struct inode *cpfile,
 			tnicps += nicps;
 			nilfs_mdt_mark_buffer_dirty(cp_bh);
 			nilfs_mdt_mark_dirty(cpfile);
-			if (!nilfs_cpfile_is_in_first(cpfile, cno) &&
-			    (count = nilfs_cpfile_block_sub_valid_checkpoints(
-				    cpfile, cp_bh, kaddr, nicps)) == 0) {
-				/* make hole */
-				kunmap_atomic(kaddr, KM_USER0);
-				brelse(cp_bh);
-				ret = nilfs_cpfile_delete_checkpoint_block(
-					cpfile, cno);
-				if (ret == 0)
-					continue;
-				printk(KERN_ERR "%s: cannot delete block\n",
-				       __func__);
-				break;
+			if (!nilfs_cpfile_is_in_first(cpfile, cno)) {
+				count =
+				  nilfs_cpfile_block_sub_valid_checkpoints(
+						cpfile, cp_bh, kaddr, nicps);
+				if (count == 0) {
+					/* make hole */
+					kunmap_atomic(kaddr, KM_USER0);
+					brelse(cp_bh);
+					ret =
+					  nilfs_cpfile_delete_checkpoint_block(
+								   cpfile, cno);
+					if (ret == 0)
+						continue;
+					printk(KERN_ERR
+					       "%s: cannot delete block\n",
+					       __func__);
+					break;
+				}
 			}
 		}
 

@@ -60,11 +60,6 @@
 
 #define PREFIX			"ACPI: "
 
-void (*pm_idle) (void);
-EXPORT_SYMBOL(pm_idle);
-void (*pm_power_off) (void);
-EXPORT_SYMBOL(pm_power_off);
-
 u32 acpi_rsdt_forced;
 unsigned int acpi_cpei_override;
 unsigned int acpi_cpei_phys_cpuid;
@@ -83,12 +78,10 @@ static unsigned long __init acpi_find_rsdp(void)
 		       "v1.0/r0.71 tables no longer supported\n");
 	return rsdp_phys;
 }
-#endif
 
 const char __init *
 acpi_get_sysname(void)
 {
-#ifdef CONFIG_IA64_GENERIC
 	unsigned long rsdp_phys;
 	struct acpi_table_rsdp *rsdp;
 	struct acpi_table_xsdt *xsdt;
@@ -143,30 +136,8 @@ acpi_get_sysname(void)
 #endif
 
 	return "dig";
-#else
-# if defined (CONFIG_IA64_HP_SIM)
-	return "hpsim";
-# elif defined (CONFIG_IA64_HP_ZX1)
-	return "hpzx1";
-# elif defined (CONFIG_IA64_HP_ZX1_SWIOTLB)
-	return "hpzx1_swiotlb";
-# elif defined (CONFIG_IA64_SGI_SN2)
-	return "sn2";
-# elif defined (CONFIG_IA64_SGI_UV)
-	return "uv";
-# elif defined (CONFIG_IA64_DIG)
-	return "dig";
-# elif defined (CONFIG_IA64_XEN_GUEST)
-	return "xen";
-# elif defined(CONFIG_IA64_DIG_VTD)
-	return "dig_vtd";
-# else
-#	error Unknown platform.  Fix acpi.c.
-# endif
-#endif
 }
-
-#ifdef CONFIG_ACPI
+#endif /* CONFIG_IA64_GENERIC */
 
 #define ACPI_MAX_PLATFORM_INTERRUPTS	256
 
@@ -702,10 +673,22 @@ int __init early_acpi_boot_init(void)
 		printk(KERN_ERR PREFIX
 		       "Error parsing MADT - no LAPIC entries\n");
 
+#ifdef CONFIG_SMP
+	if (available_cpus == 0) {
+		printk(KERN_INFO "ACPI: Found 0 CPUS; assuming 1\n");
+		printk(KERN_INFO "CPU 0 (0x%04x)", hard_smp_processor_id());
+		smp_boot_data.cpu_phys_id[available_cpus] =
+		    hard_smp_processor_id();
+		available_cpus = 1;	/* We've got at least one of these, no? */
+	}
+	smp_boot_data.cpu_count = available_cpus;
+#endif
+	/* Make boot-up look pretty */
+	printk(KERN_INFO "%d CPUs available, %d CPUs total\n", available_cpus,
+	       total_cpus);
+
 	return 0;
 }
-
-
 
 int __init acpi_boot_init(void)
 {
@@ -769,18 +752,8 @@ int __init acpi_boot_init(void)
 	if (acpi_table_parse(ACPI_SIG_FADT, acpi_parse_fadt))
 		printk(KERN_ERR PREFIX "Can't find FADT\n");
 
+#ifdef CONFIG_ACPI_NUMA
 #ifdef CONFIG_SMP
-	if (available_cpus == 0) {
-		printk(KERN_INFO "ACPI: Found 0 CPUS; assuming 1\n");
-		printk(KERN_INFO "CPU 0 (0x%04x)", hard_smp_processor_id());
-		smp_boot_data.cpu_phys_id[available_cpus] =
-		    hard_smp_processor_id();
-		available_cpus = 1;	/* We've got at least one of these, no? */
-	}
-	smp_boot_data.cpu_count = available_cpus;
-
-	smp_build_cpu_map();
-# ifdef CONFIG_ACPI_NUMA
 	if (srat_num_cpus == 0) {
 		int cpu, i = 1;
 		for (cpu = 0; cpu < smp_boot_data.cpu_count; cpu++)
@@ -789,14 +762,9 @@ int __init acpi_boot_init(void)
 				node_cpuid[i++].phys_id =
 				    smp_boot_data.cpu_phys_id[cpu];
 	}
-# endif
 #endif
-#ifdef CONFIG_ACPI_NUMA
 	build_cpu_to_node_map();
 #endif
-	/* Make boot-up look pretty */
-	printk(KERN_INFO "%d CPUs available, %d CPUs total\n", available_cpus,
-	       total_cpus);
 	return 0;
 }
 
@@ -884,8 +852,8 @@ __init void prefill_possible_map(void)
 
 	possible = available_cpus + additional_cpus;
 
-	if (possible > NR_CPUS)
-		possible = NR_CPUS;
+	if (possible > nr_cpu_ids)
+		possible = nr_cpu_ids;
 
 	printk(KERN_INFO "SMP: Allowing %d CPUs, %d hotplug CPUs\n",
 		possible, max((possible - available_cpus), 0));
@@ -1063,5 +1031,3 @@ void acpi_restore_state_mem(void) {}
  * do_suspend_lowlevel()
  */
 void do_suspend_lowlevel(void) {}
-
-#endif				/* CONFIG_ACPI */

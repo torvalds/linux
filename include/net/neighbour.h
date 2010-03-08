@@ -88,12 +88,7 @@ struct neigh_statistics {
 	unsigned long unres_discards;	/* number of unresolved drops */
 };
 
-#define NEIGH_CACHE_STAT_INC(tbl, field)				\
-	do {								\
-		preempt_disable();					\
-		(per_cpu_ptr((tbl)->stats, smp_processor_id())->field)++; \
-		preempt_enable();					\
-	} while (0)
+#define NEIGH_CACHE_STAT_INC(tbl, field) this_cpu_inc((tbl)->stats->field)
 
 struct neighbour {
 	struct neighbour	*next;
@@ -169,7 +164,7 @@ struct neigh_table {
 	rwlock_t		lock;
 	unsigned long		last_rand;
 	struct kmem_cache		*kmem_cachep;
-	struct neigh_statistics	*stats;
+	struct neigh_statistics	__percpu *stats;
 	struct neighbour	**hash_buckets;
 	unsigned int		hash_mask;
 	__u32			hash_rnd;
@@ -256,7 +251,6 @@ extern void neigh_seq_stop(struct seq_file *, void *);
 
 extern int			neigh_sysctl_register(struct net_device *dev, 
 						      struct neigh_parms *p,
-						      int p_id, int pdev_id,
 						      char *p_name,
 						      proc_handler *proc_handler);
 extern void			neigh_sysctl_unregister(struct neigh_parms *p);

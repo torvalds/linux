@@ -849,8 +849,11 @@ static int jr3_pci_attach(struct comedi_device *dev,
 	}
 
 	devpriv->pci_enabled = 1;
-	devpriv->iobase =
-	    ioremap(pci_resource_start(card, 0), sizeof(struct jr3_t));
+	devpriv->iobase = ioremap(pci_resource_start(card, 0),
+			offsetof(struct jr3_t, channel[devpriv->n_channels]));
+	if (!devpriv->iobase)
+		return -ENOMEM;
+
 	result = alloc_subdevices(dev, devpriv->n_channels);
 	if (result < 0)
 		goto out;
@@ -950,6 +953,8 @@ static int jr3_pci_attach(struct comedi_device *dev,
 out:
 	return result;
 }
+
+MODULE_FIRMWARE("comedi/jr3pci.idm");
 
 static int jr3_pci_detach(struct comedi_device *dev)
 {

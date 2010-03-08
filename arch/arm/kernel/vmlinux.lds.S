@@ -43,10 +43,6 @@ SECTIONS
 
 		INIT_SETUP(16)
 
-		__early_begin = .;
-			*(.early_param.init)
-		__early_end = .;
-
 		INIT_CALLS
 		CON_INITCALL
 		SECURITY_INITCALL
@@ -65,11 +61,11 @@ SECTIONS
 	__init_end = .;
 #endif
 
-	/DISCARD/ : {			/* Exit code and data		*/
-		EXIT_TEXT
-		EXIT_DATA
-		*(.exitcall.exit)
-		*(.discard)
+	/*
+	 * unwind exit sections must be discarded before the rest of the
+	 * unwind sections get included.
+	 */
+	/DISCARD/ : {
 		*(.ARM.exidx.exit.text)
 		*(.ARM.extab.exit.text)
 #ifndef CONFIG_HOTPLUG_CPU
@@ -238,6 +234,9 @@ SECTIONS
 
 	STABS_DEBUG
 	.comment 0 : { *(.comment) }
+
+	/* Default discards */
+	DISCARDS
 }
 
 /*

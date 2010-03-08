@@ -110,7 +110,7 @@ u32 rt_global_debug_component = \
 #define TOTAL_CAM_ENTRY 32
 #define CAM_CONTENT_COUNT 8
 
-static struct usb_device_id rtl8192_usb_id_tbl[] = {
+static const struct usb_device_id rtl8192_usb_id_tbl[] = {
 	/* Realtek */
 	{USB_DEVICE(0x0bda, 0x8192)},
 	{USB_DEVICE(0x0bda, 0x8709)},
@@ -126,6 +126,8 @@ static struct usb_device_id rtl8192_usb_id_tbl[] = {
 	{USB_DEVICE(0x2001, 0x3301)},
 	/* Zinwell */
 	{USB_DEVICE(0x5a57, 0x0290)},
+	/* Guillemot */
+	{USB_DEVICE(0x06f8, 0xe031)},
 	//92SU
 	{USB_DEVICE(0x0bda, 0x8172)},
 	{}
@@ -1501,7 +1503,7 @@ static void rtl8192_rx_isr(struct urb *urb)
         urb->context = skb;
         skb_queue_tail(&priv->rx_queue, skb);
         err = usb_submit_urb(urb, GFP_ATOMIC);
-	if(err && err != EPERM)
+	if(err && err != -EPERM)
 		printk("can not submit rxurb, err is %x,URB status is %x\n",err,urb->status);
 }
 
@@ -2338,25 +2340,24 @@ short rtl8192SU_tx(struct net_device *dev, struct sk_buff* skb)
 				    skb->len, rtl8192_tx_isr, skb);
 
 	status = usb_submit_urb(tx_urb, GFP_ATOMIC);
-	if (!status){
-//we need to send 0 byte packet whenever 512N bytes/64N(HIGN SPEED/NORMAL SPEED) bytes packet has been transmitted. Otherwise, it will be halt to wait for another packet. WB. 2008.08.27
+	if (!status) {
+		/*
+		 * we need to send 0 byte packet whenever 512N bytes/64N(HIGN SPEED/NORMAL SPEED) bytes packet has been transmitted.
+		 * Otherwise, it will be halt to wait for another packet. WB. 2008.08.27
+		 */
 		bool bSend0Byte = false;
 		u8 zero = 0;
-		if(udev->speed == USB_SPEED_HIGH)
-		{
+		if(udev->speed == USB_SPEED_HIGH) {
 			if (skb->len > 0 && skb->len % 512 == 0)
 				bSend0Byte = true;
 		}
-		else
-		{
+		else {
 			if (skb->len > 0 && skb->len % 64 == 0)
 				bSend0Byte = true;
 		}
-		if (bSend0Byte)
-		{
-#if 1
+		if (bSend0Byte) {
 			tx_urb_zero = usb_alloc_urb(0,GFP_ATOMIC);
-			if(!tx_urb_zero){
+			if(!tx_urb_zero) {
 				RT_TRACE(COMP_ERR, "can't alloc urb for zero byte\n");
 				return -ENOMEM;
 			}
@@ -2364,16 +2365,23 @@ short rtl8192SU_tx(struct net_device *dev, struct sk_buff* skb)
 					usb_sndbulkpipe(udev,idx_pipe), &zero,
 					0, tx_zero_isr, dev);
 			status = usb_submit_urb(tx_urb_zero, GFP_ATOMIC);
-			if (status){
-			RT_TRACE(COMP_ERR, "Error TX URB for zero byte %d, error %d", atomic_read(&priv->tx_pending[tcb_desc->queue_index]), status);
-			return -1;
+			switch (status) {
+				case 0:
+					break;
+				case -ECONNRESET:
+				case -ENOENT:
+				case -ESHUTDOWN:
+					break;
+				default:
+					RT_TRACE(COMP_ERR, "Error TX URB for zero byte %d, error %d",
+						atomic_read(&priv->tx_pending[tcb_desc->queue_index]), status);
+					return -1;
 			}
-#endif
 		}
 		dev->trans_start = jiffies;
 		atomic_inc(&priv->tx_pending[tcb_desc->queue_index]);
 		return 0;
-	}else{
+	} else {
 		RT_TRACE(COMP_ERR, "Error TX URB %d, error %d", atomic_read(&priv->tx_pending[tcb_desc->queue_index]),
 				status);
 		return -1;
@@ -2950,7 +2958,7 @@ void rtl8192_SetWirelessMode(struct net_device* dev, u8 wireless_mode)
 			wireless_mode = WIRELESS_MODE_B;
 		}
 	}
-#ifdef TO_DO_LIST //// TODO: this function doesn't work well at this time, we shoud wait for FPGA
+#ifdef TO_DO_LIST //// TODO: this function doesn't work well at this time, we should wait for FPGA
 	ActUpdateChannelAccessSetting( pAdapter, pHalData->CurrentWirelessMode, &pAdapter->MgntInfo.Info8185.ChannelAccessSetting );
 #endif
 	//LZM 090306 usb crash here, mark it temp
@@ -3357,6 +3365,46 @@ u8 rtl8192SU_BoardTypeToRFtype(struct net_device* dev,  u8 Boardtype)
 	return RFtype;
 }
 
+void update_hal_variables(struct r8192_priv *priv)
+{
+	int rf_path;
+	int i;
+	u8 index;
+
+	for (rf_path = 0; rf_path < 2; rf_path++) {
+		for (i = 0; i < 3; i++)	{
+			RT_TRACE((COMP_INIT), "CCK RF-%d CHan_Area-%d = 0x%x\n", rf_path, i, priv->RfCckChnlAreaTxPwr[rf_path][i]);
+			RT_TRACE((COMP_INIT), "OFDM-1T RF-%d CHan_Area-%d = 0x%x\n", rf_path, i, priv->RfOfdmChnlAreaTxPwr1T[rf_path][i]);
+			RT_TRACE((COMP_INIT), "OFDM-2T RF-%d CHan_Area-%d = 0x%x\n", rf_path, i, priv->RfOfdmChnlAreaTxPwr2T[rf_path][i]);
+		}
+		/* Assign dedicated channel tx power */
+		for(i = 0; i < 14; i++) {
+			/* channel 1-3 use the same Tx Power Level. */
+			if (i < 3)			/* Channel 1-3 */
+				index = 0;
+			else if (i < 9)			/* Channel 4-9 */
+				index = 1;
+			else				/* Channel 10-14 */
+				index = 2;
+			/* Record A & B CCK /OFDM - 1T/2T Channel area tx power */
+			priv->RfTxPwrLevelCck[rf_path][i] = priv->RfCckChnlAreaTxPwr[rf_path][index];
+			priv->RfTxPwrLevelOfdm1T[rf_path][i]  = priv->RfOfdmChnlAreaTxPwr1T[rf_path][index];
+			priv->RfTxPwrLevelOfdm2T[rf_path][i]  = priv->RfOfdmChnlAreaTxPwr2T[rf_path][index];
+			if (rf_path == 0) {
+				priv->TxPowerLevelOFDM24G[i] = priv->RfTxPwrLevelOfdm1T[rf_path][i] ;
+				priv->TxPowerLevelCCK[i] = priv->RfTxPwrLevelCck[rf_path][i];
+			}
+		}
+		for(i = 0; i < 14; i++) {
+			RT_TRACE((COMP_INIT),
+			"Rf-%d TxPwr CH-%d CCK OFDM_1T OFDM_2T= 0x%x/0x%x/0x%x\n",
+				rf_path, i, priv->RfTxPwrLevelCck[rf_path][i],
+				priv->RfTxPwrLevelOfdm1T[rf_path][i] ,
+				priv->RfTxPwrLevelOfdm2T[rf_path][i] );
+		}
+	}
+}
+
 //
 //	Description:
 //		Config HW adapter information into initial value.
@@ -3372,7 +3420,7 @@ rtl8192SU_ConfigAdapterInfo8192SForAutoLoadFail(struct net_device* dev)
 	struct r8192_priv 	*priv = ieee80211_priv(dev);
 	//u16			i,usValue;
 	//u8 sMacAddr[6] = {0x00, 0xE0, 0x4C, 0x81, 0x92, 0x00};
-	u8		rf_path, index;	// For EEPROM/EFUSE After V0.6_1117
+	u8		rf_path;	// For EEPROM/EFUSE After V0.6_1117
 	int	i;
 
 	RT_TRACE(COMP_INIT, "====> ConfigAdapterInfo8192SForAutoLoadFail\n");
@@ -3424,10 +3472,9 @@ rtl8192SU_ConfigAdapterInfo8192SForAutoLoadFail(struct net_device* dev)
 	write_nic_dword(dev, IDR0, ((u32*)dev->dev_addr)[0]);
 	write_nic_word(dev, IDR4, ((u16*)(dev->dev_addr + 4))[0]);
 
-	RT_TRACE(COMP_INIT, "ReadAdapterInfo8192SEFuse(), Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
-			dev->dev_addr[0], dev->dev_addr[1],
-			dev->dev_addr[2], dev->dev_addr[3],
-			dev->dev_addr[4], dev->dev_addr[5]);
+	RT_TRACE(COMP_INIT,
+		"ReadAdapterInfo8192SEFuse(), Permanent Address = %pM\n",
+		dev->dev_addr);
 
 	priv->EEPROMBoardType = EEPROM_Default_BoardType;
 	priv->rf_type = RF_1T2R; //RF_2T2R
@@ -3453,42 +3500,7 @@ rtl8192SU_ConfigAdapterInfo8192SForAutoLoadFail(struct net_device* dev)
 		}
 	}
 
-	for (i = 0; i < 3; i++)
-	{
-		//RT_TRACE((COMP_EFUSE), "CCK RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i,
-		//priv->RfCckChnlAreaTxPwr[rf_path][i]);
-		//RT_TRACE((COMP_EFUSE), "OFDM-1T RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i,
-		//priv->RfOfdmChnlAreaTxPwr1T[rf_path][i]);
-		//RT_TRACE((COMP_EFUSE), "OFDM-2T RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i,
-		//priv->RfOfdmChnlAreaTxPwr2T[rf_path][i]);
-	}
-
-	// Assign dedicated channel tx power
-	for(i=0; i<14; i++)	// channel 1~3 use the same Tx Power Level.
-		{
-		if (i < 3)			// Cjanel 1-3
-			index = 0;
-		else if (i < 9)		// Channel 4-9
-			index = 1;
-		else				// Channel 10-14
-			index = 2;
-
-		// Record A & B CCK /OFDM - 1T/2T Channel area tx power
-		priv->RfTxPwrLevelCck[rf_path][i]  =
-		priv->RfCckChnlAreaTxPwr[rf_path][index];
-		priv->RfTxPwrLevelOfdm1T[rf_path][i]  =
-		priv->RfOfdmChnlAreaTxPwr1T[rf_path][index];
-		priv->RfTxPwrLevelOfdm2T[rf_path][i]  =
-		priv->RfOfdmChnlAreaTxPwr2T[rf_path][index];
-		}
-
-		for(i=0; i<14; i++)
-		{
-		//RT_TRACE((COMP_EFUSE), "Rf-%d TxPwr CH-%d CCK OFDM_1T OFDM_2T= 0x%x/0x%x/0x%x\n",
-		//rf_path, i, priv->RfTxPwrLevelCck[0][i],
-		//priv->RfTxPwrLevelOfdm1T[0][i] ,
-		//priv->RfTxPwrLevelOfdm2T[0][i] );
-		}
+	update_hal_variables(priv);
 
 	//
 	// Update remained HAL variables.
@@ -3765,10 +3777,9 @@ rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 	write_nic_dword(dev, IDR0, ((u32*)dev->dev_addr)[0]);
 	write_nic_word(dev, IDR4, ((u16*)(dev->dev_addr + 4))[0]);
 
-	RT_TRACE(COMP_INIT, "ReadAdapterInfo8192SEFuse(), Permanent Address = %02x-%02x-%02x-%02x-%02x-%02x\n",
-			dev->dev_addr[0], dev->dev_addr[1],
-			dev->dev_addr[2], dev->dev_addr[3],
-			dev->dev_addr[4], dev->dev_addr[5]);
+	RT_TRACE(COMP_INIT,
+		"ReadAdapterInfo8192SEFuse(), Permanent Address = %pM\n",
+		dev->dev_addr);
 
 	//
 	// Get CustomerID(Boad Type)
@@ -3899,53 +3910,7 @@ rtl8192SU_ReadAdapterInfo8192SUsb(struct net_device* dev)
 			}
 
 		}
-//
-		// Update Tx Power HAL variables.
-//
-		for (rf_path = 0; rf_path < 2; rf_path++)
-		{
-			for (i = 0; i < 3; i++)
-			{
-				RT_TRACE((COMP_INIT),  "CCK RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i,
-				priv->RfCckChnlAreaTxPwr[rf_path][i]);
-				RT_TRACE((COMP_INIT), "OFDM-1T RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i,
-				priv->RfOfdmChnlAreaTxPwr1T[rf_path][i]);
-				RT_TRACE((COMP_INIT), "OFDM-2T RF-%d CHan_Area-%d = 0x%x\n",  rf_path, i, priv->RfOfdmChnlAreaTxPwr2T[rf_path][i]);
-			}
-
-			// Assign dedicated channel tx power
-			for(i=0; i<14; i++)	// channel 1~3 use the same Tx Power Level.
-			{
-				if (i < 3)			// Cjanel 1-3
-					index = 0;
-				else if (i < 9)		// Channel 4-9
-					index = 1;
-				else				// Channel 10-14
-					index = 2;
-
-				// Record A & B CCK /OFDM - 1T/2T Channel area tx power
-				priv->RfTxPwrLevelCck[rf_path][i]  =
-				priv->RfCckChnlAreaTxPwr[rf_path][index];
-				priv->RfTxPwrLevelOfdm1T[rf_path][i]  =
-				priv->RfOfdmChnlAreaTxPwr1T[rf_path][index];
-				priv->RfTxPwrLevelOfdm2T[rf_path][i]  =
-				priv->RfOfdmChnlAreaTxPwr2T[rf_path][index];
-				if (rf_path == 0)
-				{
-					priv->TxPowerLevelOFDM24G[i] = priv->RfTxPwrLevelOfdm1T[rf_path][i] ;
-					priv->TxPowerLevelCCK[i] = priv->RfTxPwrLevelCck[rf_path][i];
-				}
-			}
-
-			for(i=0; i<14; i++)
-			{
-				RT_TRACE((COMP_INIT),
-				"Rf-%d TxPwr CH-%d CCK OFDM_1T OFDM_2T= 0x%x/0x%x/0x%x\n",
-				rf_path, i, priv->RfTxPwrLevelCck[rf_path][i],
-				priv->RfTxPwrLevelOfdm1T[rf_path][i] ,
-				priv->RfTxPwrLevelOfdm2T[rf_path][i] );
-			}
-		}
+		update_hal_variables(priv);
 	}
 
 	//
@@ -6166,7 +6131,7 @@ void rtl8192_process_phyinfo(struct r8192_priv * priv,u8* buffer, struct ieee802
 	u16 sc ;
 	unsigned int frag,seq;
 	hdr = (struct ieee80211_hdr_3addr *)buffer;
-	sc = le16_to_cpu(hdr->seq_ctl);
+	sc = le16_to_cpu(hdr->seq_ctrl);
 	frag = WLAN_GET_SEQ_FRAG(sc);
 	seq = WLAN_GET_SEQ_SEQ(sc);
 	//cosa add 04292008 to record the sequence number
@@ -6825,7 +6790,7 @@ void rtl8192SU_TranslateRxSignalStuff(struct sk_buff *skb,
 	tmp_buf = (u8*)skb->data;// + get_rxpacket_shiftbytes_819xusb(pstats);
 
 	hdr = (struct ieee80211_hdr_3addr *)tmp_buf;
-	fc = le16_to_cpu(hdr->frame_ctl);
+	fc = le16_to_cpu(hdr->frame_control);
 	type = WLAN_FC_GET_TYPE(fc);
 	praddr = hdr->addr1;
 
@@ -7155,7 +7120,7 @@ void rtl8192SU_rx_nomal(struct sk_buff* skb)
 			unicast_packet = true;
 		}
 
-		if(!ieee80211_rx(priv->ieee80211,skb, &stats)) {
+		if(!ieee80211_rtl_rx(priv->ieee80211,skb, &stats)) {
 			dev_kfree_skb_any(skb);
 		} else {
 		//	priv->stats.rxoktotal++;  //YJ,test,090108
@@ -7426,7 +7391,7 @@ static const struct net_device_ops rtl8192_netdev_ops = {
 	.ndo_set_mac_address	= r8192_set_mac_adr,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_change_mtu		= eth_change_mtu,
-	.ndo_start_xmit		= rtl8192_ieee80211_xmit,
+	.ndo_start_xmit		= rtl8192_ieee80211_rtl_xmit,
 };
 
 static int __devinit rtl8192_usb_probe(struct usb_interface *intf,
@@ -7619,7 +7584,7 @@ void rtl8192_try_wake_queue(struct net_device *dev, int pri)
         spin_unlock_irqrestore(&priv->tx_lock,flags);
 
 	if(enough_desc)
-		ieee80211_wake_queue(priv->ieee80211);
+		ieee80211_rtl_wake_queue(priv->ieee80211);
 }
 
 void EnableHWSecurityConfig8192(struct net_device *dev)
@@ -7675,7 +7640,7 @@ void setKey(	struct net_device *dev,
 	if (EntryNo >= TOTAL_CAM_ENTRY)
 		RT_TRACE(COMP_ERR, "cam entry exceeds in setKey()\n");
 
-	RT_TRACE(COMP_SEC, "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d, KeyType:%d, MacAddr"MAC_FMT"\n", dev,EntryNo, KeyIndex, KeyType, MAC_ARG(MacAddr));
+	RT_TRACE(COMP_SEC, "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d, KeyType:%d, MacAddr%pM\n", dev,EntryNo, KeyIndex, KeyType, MacAddr);
 
 	if (DefaultKey)
 		usConfig |= BIT15 | (KeyType<<2);

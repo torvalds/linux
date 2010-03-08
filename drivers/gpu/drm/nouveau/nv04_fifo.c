@@ -71,6 +71,40 @@ nv04_fifo_reassign(struct drm_device *dev, bool enable)
 	return (reassign == 1);
 }
 
+bool
+nv04_fifo_cache_flush(struct drm_device *dev)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	struct nouveau_timer_engine *ptimer = &dev_priv->engine.timer;
+	uint64_t start = ptimer->read(dev);
+
+	do {
+		if (nv_rd32(dev, NV03_PFIFO_CACHE1_GET) ==
+		    nv_rd32(dev, NV03_PFIFO_CACHE1_PUT))
+			return true;
+
+	} while (ptimer->read(dev) - start < 100000000);
+
+	NV_ERROR(dev, "Timeout flushing the PFIFO cache.\n");
+
+	return false;
+}
+
+bool
+nv04_fifo_cache_pull(struct drm_device *dev, bool enable)
+{
+	uint32_t pull = nv_rd32(dev, NV04_PFIFO_CACHE1_PULL0);
+
+	if (enable) {
+		nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, pull | 1);
+	} else {
+		nv_wr32(dev, NV04_PFIFO_CACHE1_PULL0, pull & ~1);
+		nv_wr32(dev, NV04_PFIFO_CACHE1_HASH, 0);
+	}
+
+	return !!(pull & 1);
+}
+
 int
 nv04_fifo_channel_id(struct drm_device *dev)
 {
@@ -83,6 +117,7 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 {
 	struct drm_device *dev = chan->dev;
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	unsigned long flags;
 	int ret;
 
 	ret = nouveau_gpuobj_new_fake(dev, NV04_RAMFC(chan->id), ~0,
@@ -92,6 +127,8 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 						NULL, &chan->ramfc);
 	if (ret)
 		return ret;
+
+	spin_lock_irqsave(&dev_priv->context_switch_lock, flags);
 
 	/* Setup initial state */
 	dev_priv->engine.instmem.prepare_access(dev, true);
@@ -110,6 +147,8 @@ nv04_fifo_create_context(struct nouveau_channel *chan)
 	/* enable the fifo dma operation */
 	nv_wr32(dev, NV04_PFIFO_MODE,
 		nv_rd32(dev, NV04_PFIFO_MODE) | (1 << chan->id));
+
+	spin_unlock_irqrestore(&dev_priv->context_switch_lock, flags);
 	return 0;
 }
 

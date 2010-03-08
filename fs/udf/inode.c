@@ -36,6 +36,7 @@
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
+#include <linux/quotaops.h>
 #include <linux/slab.h>
 #include <linux/crc-itu-t.h>
 
@@ -70,6 +71,9 @@ static int udf_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
 void udf_delete_inode(struct inode *inode)
 {
+	if (!is_bad_inode(inode))
+		dquot_initialize(inode);
+
 	truncate_inode_pages(&inode->i_data, 0);
 
 	if (is_bad_inode(inode))
@@ -97,15 +101,19 @@ no_delete:
  */
 void udf_clear_inode(struct inode *inode)
 {
-	struct udf_inode_info *iinfo;
-	if (!(inode->i_sb->s_flags & MS_RDONLY)) {
-		lock_kernel();
-		udf_truncate_tail_extent(inode);
-		unlock_kernel();
-		write_inode_now(inode, 0);
-		invalidate_inode_buffers(inode);
+	struct udf_inode_info *iinfo = UDF_I(inode);
+
+	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB &&
+	    inode->i_size != iinfo->i_lenExtents) {
+		printk(KERN_WARNING "UDF-fs (%s): Inode %lu (mode %o) has "
+			"inode size %llu different from extent lenght %llu. "
+			"Filesystem need not be standards compliant.\n",
+			inode->i_sb->s_id, inode->i_ino, inode->i_mode,
+			(unsigned long long)inode->i_size,
+			(unsigned long long)iinfo->i_lenExtents);
 	}
-	iinfo = UDF_I(inode);
+
+	dquot_drop(inode);
 	kfree(iinfo->i_ext.i_data);
 	iinfo->i_ext.i_data = NULL;
 }
@@ -198,7 +206,6 @@ struct buffer_head *udf_expand_dir_adinicb(struct inode *inode, int *block,
 	int newblock;
 	struct buffer_head *dbh = NULL;
 	struct kernel_lb_addr eloc;
-	uint32_t elen;
 	uint8_t alloctype;
 	struct extent_position epos;
 
@@ -273,12 +280,11 @@ struct buffer_head *udf_expand_dir_adinicb(struct inode *inode, int *block,
 	eloc.logicalBlockNum = *block;
 	eloc.partitionReferenceNum =
 				iinfo->i_location.partitionReferenceNum;
-	elen = inode->i_sb->s_blocksize;
-	iinfo->i_lenExtents = elen;
+	iinfo->i_lenExtents = inode->i_size;
 	epos.bh = NULL;
 	epos.block = iinfo->i_location;
 	epos.offset = udf_file_entry_alloc_offset(inode);
-	udf_add_aext(inode, &epos, &eloc, elen, 0);
+	udf_add_aext(inode, &epos, &eloc, inode->i_size, 0);
 	/* UniqueID stuff */
 
 	brelse(epos.bh);
@@ -1373,12 +1379,12 @@ static mode_t udf_convert_permissions(struct fileEntry *fe)
 	return mode;
 }
 
-int udf_write_inode(struct inode *inode, int sync)
+int udf_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	int ret;
 
 	lock_kernel();
-	ret = udf_update_inode(inode, sync);
+	ret = udf_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 	unlock_kernel();
 
 	return ret;
@@ -1672,7 +1678,7 @@ int8_t udf_add_aext(struct inode *inode, struct extent_position *epos,
 		return -1;
 
 	if (epos->offset + (2 * adsize) > inode->i_sb->s_blocksize) {
-		char *sptr, *dptr;
+		unsigned char *sptr, *dptr;
 		struct buffer_head *nbh;
 		int err, loffset;
 		struct kernel_lb_addr obloc = epos->block;

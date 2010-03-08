@@ -142,19 +142,6 @@ drm_gem_object_alloc(struct drm_device *dev, size_t size)
 	if (IS_ERR(obj->filp))
 		goto free;
 
-	/* Basically we want to disable the OOM killer and handle ENOMEM
-	 * ourselves by sacrificing pages from cached buffers.
-	 * XXX shmem_file_[gs]et_gfp_mask()
-	 */
-	mapping_set_gfp_mask(obj->filp->f_path.dentry->d_inode->i_mapping,
-			     GFP_HIGHUSER |
-			     __GFP_COLD |
-			     __GFP_FS |
-			     __GFP_RECLAIMABLE |
-			     __GFP_NORETRY |
-			     __GFP_NOWARN |
-			     __GFP_NOMEMALLOC);
-
 	kref_init(&obj->refcount);
 	kref_init(&obj->handlecount);
 	obj->size = size;
@@ -205,9 +192,7 @@ drm_gem_handle_delete(struct drm_file *filp, u32 handle)
 	idr_remove(&filp->object_idr, handle);
 	spin_unlock(&filp->table_lock);
 
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_handle_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_handle_unreference_unlocked(obj);
 
 	return 0;
 }
@@ -338,9 +323,7 @@ again:
 	}
 
 err:
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 	return ret;
 }
 
@@ -371,9 +354,7 @@ drm_gem_open_ioctl(struct drm_device *dev, void *data,
 		return -ENOENT;
 
 	ret = drm_gem_handle_create(file_priv, obj, &handle);
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 	if (ret)
 		return ret;
 
@@ -403,7 +384,7 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 {
 	struct drm_gem_object *obj = ptr;
 
-	drm_gem_object_handle_unreference(obj);
+	drm_gem_object_handle_unreference_unlocked(obj);
 
 	return 0;
 }
@@ -416,16 +397,25 @@ drm_gem_object_release_handle(int id, void *ptr, void *data)
 void
 drm_gem_release(struct drm_device *dev, struct drm_file *file_private)
 {
-	mutex_lock(&dev->struct_mutex);
 	idr_for_each(&file_private->object_idr,
 		     &drm_gem_object_release_handle, NULL);
 
 	idr_destroy(&file_private->object_idr);
-	mutex_unlock(&dev->struct_mutex);
+}
+
+static void
+drm_gem_object_free_common(struct drm_gem_object *obj)
+{
+	struct drm_device *dev = obj->dev;
+	fput(obj->filp);
+	atomic_dec(&dev->object_count);
+	atomic_sub(obj->size, &dev->object_memory);
+	kfree(obj);
 }
 
 /**
  * Called after the last reference to the object has been lost.
+ * Must be called holding struct_ mutex
  *
  * Frees the object
  */
@@ -440,12 +430,38 @@ drm_gem_object_free(struct kref *kref)
 	if (dev->driver->gem_free_object != NULL)
 		dev->driver->gem_free_object(obj);
 
-	fput(obj->filp);
-	atomic_dec(&dev->object_count);
-	atomic_sub(obj->size, &dev->object_memory);
-	kfree(obj);
+	drm_gem_object_free_common(obj);
 }
 EXPORT_SYMBOL(drm_gem_object_free);
+
+/**
+ * Called after the last reference to the object has been lost.
+ * Must be called without holding struct_mutex
+ *
+ * Frees the object
+ */
+void
+drm_gem_object_free_unlocked(struct kref *kref)
+{
+	struct drm_gem_object *obj = (struct drm_gem_object *) kref;
+	struct drm_device *dev = obj->dev;
+
+	if (dev->driver->gem_free_object_unlocked != NULL)
+		dev->driver->gem_free_object_unlocked(obj);
+	else if (dev->driver->gem_free_object != NULL) {
+		mutex_lock(&dev->struct_mutex);
+		dev->driver->gem_free_object(obj);
+		mutex_unlock(&dev->struct_mutex);
+	}
+
+	drm_gem_object_free_common(obj);
+}
+EXPORT_SYMBOL(drm_gem_object_free_unlocked);
+
+static void drm_gem_object_ref_bug(struct kref *list_kref)
+{
+	BUG();
+}
 
 /**
  * Called after the last handle to the object has been closed
@@ -471,8 +487,10 @@ drm_gem_object_handle_free(struct kref *kref)
 		/*
 		 * The object name held a reference to this object, drop
 		 * that now.
+		*
+		* This cannot be the last reference, since the handle holds one too.
 		 */
-		drm_gem_object_unreference(obj);
+		kref_put(&obj->refcount, drm_gem_object_ref_bug);
 	} else
 		spin_unlock(&dev->object_name_lock);
 
@@ -490,11 +508,8 @@ EXPORT_SYMBOL(drm_gem_vm_open);
 void drm_gem_vm_close(struct vm_area_struct *vma)
 {
 	struct drm_gem_object *obj = vma->vm_private_data;
-	struct drm_device *dev = obj->dev;
 
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_unreference(obj);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(obj);
 }
 EXPORT_SYMBOL(drm_gem_vm_close);
 

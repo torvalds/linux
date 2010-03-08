@@ -237,7 +237,7 @@ static const struct usb_interface_descriptor ac_interface_desc = {
 };
 
 /* B.3.2  Class-Specific AC Interface Descriptor */
-static const struct uac_ac_header_descriptor_1 ac_header_desc = {
+static const struct uac_ac_header_descriptor_v1_1 ac_header_desc = {
 	.bLength =		UAC_DT_AC_HEADER_SIZE(1),
 	.bDescriptorType =	USB_DT_CS_INTERFACE,
 	.bDescriptorSubtype =	USB_MS_HEADER,
@@ -618,11 +618,6 @@ gmidi_set_config(struct gmidi_device *dev, unsigned number, gfp_t gfp_flags)
 	}
 #endif
 
-	if (gadget_is_sa1100(gadget) && dev->config) {
-		/* tx fifo is full, but we can't clear it...*/
-		ERROR(dev, "can't change configurations\n");
-		return -ESPIPE;
-	}
 	gmidi_reset_config(dev);
 
 	switch (number) {

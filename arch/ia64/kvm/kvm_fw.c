@@ -75,7 +75,7 @@ static void set_pal_result(struct kvm_vcpu *vcpu,
 	struct exit_ctl_data *p;
 
 	p = kvm_get_exit_data(vcpu);
-	if (p && p->exit_reason == EXIT_REASON_PAL_CALL) {
+	if (p->exit_reason == EXIT_REASON_PAL_CALL) {
 		p->u.pal_data.ret = result;
 		return ;
 	}
@@ -87,7 +87,7 @@ static void set_sal_result(struct kvm_vcpu *vcpu,
 	struct exit_ctl_data *p;
 
 	p = kvm_get_exit_data(vcpu);
-	if (p && p->exit_reason == EXIT_REASON_SAL_CALL) {
+	if (p->exit_reason == EXIT_REASON_SAL_CALL) {
 		p->u.sal_data.ret = result;
 		return ;
 	}
@@ -322,7 +322,7 @@ static  u64 kvm_get_pal_call_index(struct kvm_vcpu *vcpu)
 	struct exit_ctl_data *p;
 
 	p = kvm_get_exit_data(vcpu);
-	if (p && (p->exit_reason == EXIT_REASON_PAL_CALL))
+	if (p->exit_reason == EXIT_REASON_PAL_CALL)
 		index = p->u.pal_data.gr28;
 
 	return index;
@@ -646,18 +646,16 @@ static void kvm_get_sal_call_data(struct kvm_vcpu *vcpu, u64 *in0, u64 *in1,
 
 	p = kvm_get_exit_data(vcpu);
 
-	if (p) {
-		if (p->exit_reason == EXIT_REASON_SAL_CALL) {
-			*in0 = p->u.sal_data.in0;
-			*in1 = p->u.sal_data.in1;
-			*in2 = p->u.sal_data.in2;
-			*in3 = p->u.sal_data.in3;
-			*in4 = p->u.sal_data.in4;
-			*in5 = p->u.sal_data.in5;
-			*in6 = p->u.sal_data.in6;
-			*in7 = p->u.sal_data.in7;
-			return ;
-		}
+	if (p->exit_reason == EXIT_REASON_SAL_CALL) {
+		*in0 = p->u.sal_data.in0;
+		*in1 = p->u.sal_data.in1;
+		*in2 = p->u.sal_data.in2;
+		*in3 = p->u.sal_data.in3;
+		*in4 = p->u.sal_data.in4;
+		*in5 = p->u.sal_data.in5;
+		*in6 = p->u.sal_data.in6;
+		*in7 = p->u.sal_data.in7;
+		return ;
 	}
 	*in0 = 0;
 }

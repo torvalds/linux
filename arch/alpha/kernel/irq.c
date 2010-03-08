@@ -81,7 +81,7 @@ show_interrupts(struct seq_file *p, void *v)
 #endif
 
 	if (irq < ACTUAL_NR_IRQS) {
-		spin_lock_irqsave(&irq_desc[irq].lock, flags);
+		raw_spin_lock_irqsave(&irq_desc[irq].lock, flags);
 		action = irq_desc[irq].action;
 		if (!action) 
 			goto unlock;
@@ -105,7 +105,7 @@ show_interrupts(struct seq_file *p, void *v)
 
 		seq_putc(p, '\n');
 unlock:
-		spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
+		raw_spin_unlock_irqrestore(&irq_desc[irq].lock, flags);
 	} else if (irq == ACTUAL_NR_IRQS) {
 #ifdef CONFIG_SMP
 		seq_puts(p, "IPI: ");

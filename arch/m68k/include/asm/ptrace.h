@@ -71,6 +71,8 @@ struct switch_stack {
 #define PTRACE_GETFPREGS          14
 #define PTRACE_SETFPREGS          15
 
+#define PTRACE_GET_THREAD_AREA    25
+
 #define PTRACE_SINGLEBLOCK	33	/* resume execution until next branch */
 
 #ifdef __KERNEL__

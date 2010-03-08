@@ -274,10 +274,6 @@ static inline unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
 		return 0;
 }
 
-/* Get Nth argument at function call */
-extern unsigned long regs_get_argument_nth(struct pt_regs *regs,
-					   unsigned int n);
-
 /*
  * These are defined as per linux/ptrace.h, which see.
  */
@@ -291,6 +287,8 @@ extern void user_enable_block_step(struct task_struct *);
 #else
 #define arch_has_block_step()	(boot_cpu_data.x86 >= 6)
 #endif
+
+#define ARCH_HAS_USER_SINGLE_STEP_INFO
 
 struct user_desc;
 extern int do_get_thread_area(struct task_struct *p, int idx,

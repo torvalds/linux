@@ -912,7 +912,11 @@ static void media_check(unsigned long arg)
 	if ((inw(ioaddr + EL3_STATUS) & IntLatch) && (inb(ioaddr + Timer) == 0xff)) {
 		if (!lp->fast_poll)
 			printk(KERN_INFO "%s: interrupt(s) dropped!\n", dev->name);
+
+		local_irq_save(flags);
 		el3_interrupt(dev->irq, dev);
+		local_irq_restore(flags);
+
 		lp->fast_poll = HZ;
 	}
 	if (lp->fast_poll) {
@@ -1144,7 +1148,7 @@ static void set_rx_mode(struct net_device *dev)
 	if (dev->flags & IFF_PROMISC)
 		outw(SetRxFilter | RxStation | RxMulticast | RxBroadcast | RxProm,
 			 ioaddr + EL3_CMD);
-	else if (dev->mc_count || (dev->flags & IFF_ALLMULTI))
+	else if (!netdev_mc_empty(dev) || (dev->flags & IFF_ALLMULTI))
 		outw(SetRxFilter|RxStation|RxMulticast|RxBroadcast, ioaddr + EL3_CMD);
 	else
 		outw(SetRxFilter | RxStation | RxBroadcast, ioaddr + EL3_CMD);

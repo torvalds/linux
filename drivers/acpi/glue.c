@@ -87,7 +87,7 @@ static int acpi_find_bridge_device(struct device *dev, acpi_handle * handle)
 /* Get device's handler per its address under its parent */
 struct acpi_find_child {
 	acpi_handle handle;
-	acpi_integer address;
+	u64 address;
 };
 
 static acpi_status
@@ -106,7 +106,7 @@ do_acpi_find_child(acpi_handle handle, u32 lvl, void *context, void **rv)
 	return AE_OK;
 }
 
-acpi_handle acpi_get_child(acpi_handle parent, acpi_integer address)
+acpi_handle acpi_get_child(acpi_handle parent, u64 address)
 {
 	struct acpi_find_child find = { NULL, address };
 

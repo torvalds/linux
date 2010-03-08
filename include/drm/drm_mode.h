@@ -85,7 +85,7 @@ struct drm_mode_modeinfo {
 	__u16 hdisplay, hsync_start, hsync_end, htotal, hskew;
 	__u16 vdisplay, vsync_start, vsync_end, vtotal, vscan;
 
-	__u32 vrefresh; /* vertical refresh * 1000 */
+	__u32 vrefresh;
 
 	__u32 flags;
 	__u32 type;
@@ -160,6 +160,7 @@ struct drm_mode_get_encoder {
 #define DRM_MODE_CONNECTOR_HDMIA	11
 #define DRM_MODE_CONNECTOR_HDMIB	12
 #define DRM_MODE_CONNECTOR_TV		13
+#define DRM_MODE_CONNECTOR_eDP		14
 
 struct drm_mode_get_connector {
 

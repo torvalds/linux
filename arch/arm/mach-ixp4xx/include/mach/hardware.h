@@ -18,7 +18,13 @@
 #define __ASM_ARCH_HARDWARE_H__
 
 #define PCIBIOS_MIN_IO		0x00001000
-#define PCIBIOS_MIN_MEM		(cpu_is_ixp43x() ? 0x40000000 : 0x48000000)
+#ifdef CONFIG_IXP4XX_INDIRECT_PCI
+#define PCIBIOS_MIN_MEM		0x10000000 /* 1 GB of indirect PCI MMIO space */
+#define PCIBIOS_MAX_MEM		0x4FFFFFFF
+#else
+#define PCIBIOS_MIN_MEM		0x48000000 /* 64 MB of PCI MMIO space */
+#define PCIBIOS_MAX_MEM		0x4BFFFFFF
+#endif
 
 /*
  * We override the standard dma-mask routines for bouncing.
@@ -36,15 +42,5 @@
 
 /* Platform helper functions and definitions */
 #include "platform.h"
-
-/* Platform specific details */
-#include "ixdp425.h"
-#include "avila.h"
-#include "coyote.h"
-#include "prpmc1100.h"
-#include "nslu2.h"
-#include "nas100d.h"
-#include "dsmg600.h"
-#include "fsg.h"
 
 #endif  /* _ASM_ARCH_HARDWARE_H */

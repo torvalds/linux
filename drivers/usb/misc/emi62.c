@@ -167,7 +167,7 @@ static int emi62_load_firmware (struct usb_device *dev)
 			err("%s - error loading firmware: error = %d", __func__, err);
 			goto wraperr;
 		}
-	} while (i > 0);
+	} while (rec);
 
 	/* Assert reset (stop the CPU in the EMI) */
 	err = emi62_set_reset(dev,1);
@@ -259,7 +259,7 @@ wraperr:
 	return err;
 }
 
-static __devinitdata struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] __devinitconst = {
 	{ USB_DEVICE(EMI62_VENDOR_ID, EMI62_PRODUCT_ID) },
 	{ }                                             /* Terminating entry */
 };

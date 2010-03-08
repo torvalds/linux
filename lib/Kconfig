@@ -117,6 +117,10 @@ config DECOMPRESS_BZIP2
 config DECOMPRESS_LZMA
 	tristate
 
+config DECOMPRESS_LZO
+	select LZO_DECOMPRESS
+	tristate
+
 #
 # Generic allocator support is selected if needed
 #
@@ -155,6 +159,9 @@ config TEXTSEARCH_BM
 
 config TEXTSEARCH_FSM
 	tristate
+
+config BTREE
+	boolean
 
 config HAS_IOMEM
 	boolean

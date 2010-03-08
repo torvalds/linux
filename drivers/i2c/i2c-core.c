@@ -34,6 +34,7 @@
 #include <linux/hardirq.h>
 #include <linux/irqflags.h>
 #include <linux/rwsem.h>
+#include <linux/pm_runtime.h>
 #include <asm/uaccess.h>
 
 #include "i2c-core.h"
@@ -155,6 +156,81 @@ static void i2c_device_shutdown(struct device *dev)
 		driver->shutdown(client);
 }
 
+#ifdef CONFIG_SUSPEND
+static int i2c_device_pm_suspend(struct device *dev)
+{
+	const struct dev_pm_ops *pm;
+
+	if (!dev->driver)
+		return 0;
+	pm = dev->driver->pm;
+	if (!pm || !pm->suspend)
+		return 0;
+	return pm->suspend(dev);
+}
+
+static int i2c_device_pm_resume(struct device *dev)
+{
+	const struct dev_pm_ops *pm;
+
+	if (!dev->driver)
+		return 0;
+	pm = dev->driver->pm;
+	if (!pm || !pm->resume)
+		return 0;
+	return pm->resume(dev);
+}
+#else
+#define i2c_device_pm_suspend	NULL
+#define i2c_device_pm_resume	NULL
+#endif
+
+#ifdef CONFIG_PM_RUNTIME
+static int i2c_device_runtime_suspend(struct device *dev)
+{
+	const struct dev_pm_ops *pm;
+
+	if (!dev->driver)
+		return 0;
+	pm = dev->driver->pm;
+	if (!pm || !pm->runtime_suspend)
+		return 0;
+	return pm->runtime_suspend(dev);
+}
+
+static int i2c_device_runtime_resume(struct device *dev)
+{
+	const struct dev_pm_ops *pm;
+
+	if (!dev->driver)
+		return 0;
+	pm = dev->driver->pm;
+	if (!pm || !pm->runtime_resume)
+		return 0;
+	return pm->runtime_resume(dev);
+}
+
+static int i2c_device_runtime_idle(struct device *dev)
+{
+	const struct dev_pm_ops *pm = NULL;
+	int ret;
+
+	if (dev->driver)
+		pm = dev->driver->pm;
+	if (pm && pm->runtime_idle) {
+		ret = pm->runtime_idle(dev);
+		if (ret)
+			return ret;
+	}
+
+	return pm_runtime_suspend(dev);
+}
+#else
+#define i2c_device_runtime_suspend	NULL
+#define i2c_device_runtime_resume	NULL
+#define i2c_device_runtime_idle		NULL
+#endif
+
 static int i2c_device_suspend(struct device *dev, pm_message_t mesg)
 {
 	struct i2c_client *client = i2c_verify_client(dev);
@@ -219,6 +295,14 @@ static const struct attribute_group *i2c_dev_attr_groups[] = {
 	NULL
 };
 
+static const struct dev_pm_ops i2c_device_pm_ops = {
+	.suspend = i2c_device_pm_suspend,
+	.resume = i2c_device_pm_resume,
+	.runtime_suspend = i2c_device_runtime_suspend,
+	.runtime_resume = i2c_device_runtime_resume,
+	.runtime_idle = i2c_device_runtime_idle,
+};
+
 struct bus_type i2c_bus_type = {
 	.name		= "i2c",
 	.match		= i2c_device_match,
@@ -227,6 +311,7 @@ struct bus_type i2c_bus_type = {
 	.shutdown	= i2c_device_shutdown,
 	.suspend	= i2c_device_suspend,
 	.resume		= i2c_device_resume,
+	.pm		= &i2c_device_pm_ops,
 };
 EXPORT_SYMBOL_GPL(i2c_bus_type);
 
@@ -808,6 +893,9 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 				 adap->dev.parent);
 #endif
 
+	/* device name is gone after device_unregister */
+	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
+
 	/* clean up the sysfs representation */
 	init_completion(&adap->dev_released);
 	device_unregister(&adap->dev);
@@ -819,8 +907,6 @@ int i2c_del_adapter(struct i2c_adapter *adap)
 	mutex_lock(&core_lock);
 	idr_remove(&i2c_adapter_idr, adap->nr);
 	mutex_unlock(&core_lock);
-
-	dev_dbg(&adap->dev, "adapter [%s] unregistered\n", adap->name);
 
 	/* Clear the device structure in case this adapter is ever going to be
 	   added again */
@@ -1097,7 +1183,7 @@ EXPORT_SYMBOL(i2c_transfer);
  * i2c_master_send - issue a single I2C message in master transmit mode
  * @client: Handle to slave device
  * @buf: Data that will be written to the slave
- * @count: How many bytes to write
+ * @count: How many bytes to write, must be less than 64k since msg.len is u16
  *
  * Returns negative errno, or else the number of bytes written.
  */
@@ -1124,7 +1210,7 @@ EXPORT_SYMBOL(i2c_master_send);
  * i2c_master_recv - issue a single I2C message in master receive mode
  * @client: Handle to slave device
  * @buf: Where to store data read from slave
- * @count: How many bytes to read
+ * @count: How many bytes to read, must be less than 64k since msg.len is u16
  *
  * Returns negative errno, or else the number of bytes read.
  */
@@ -1184,7 +1270,7 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 	/* Finally call the custom detection function */
 	memset(&info, 0, sizeof(struct i2c_board_info));
 	info.addr = addr;
-	err = driver->detect(temp_client, -1, &info);
+	err = driver->detect(temp_client, &info);
 	if (err) {
 		/* -ENODEV is returned if the detection fails. We catch it
 		   here as this isn't an error. */
@@ -1214,13 +1300,13 @@ static int i2c_detect_address(struct i2c_client *temp_client,
 
 static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 {
-	const struct i2c_client_address_data *address_data;
+	const unsigned short *address_list;
 	struct i2c_client *temp_client;
 	int i, err = 0;
 	int adap_id = i2c_adapter_id(adapter);
 
-	address_data = driver->address_data;
-	if (!driver->detect || !address_data)
+	address_list = driver->address_list;
+	if (!driver->detect || !address_list)
 		return 0;
 
 	/* Set up a temporary client to help detect callback */
@@ -1235,7 +1321,7 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 
 	/* Stop here if we can't use SMBUS_QUICK */
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_QUICK)) {
-		if (address_data->normal_i2c[0] == I2C_CLIENT_END)
+		if (address_list[0] == I2C_CLIENT_END)
 			goto exit_free;
 
 		dev_warn(&adapter->dev, "SMBus Quick command not supported, "
@@ -1244,11 +1330,10 @@ static int i2c_detect(struct i2c_adapter *adapter, struct i2c_driver *driver)
 		goto exit_free;
 	}
 
-	for (i = 0; address_data->normal_i2c[i] != I2C_CLIENT_END; i += 1) {
+	for (i = 0; address_list[i] != I2C_CLIENT_END; i += 1) {
 		dev_dbg(&adapter->dev, "found normal entry for adapter %d, "
-			"addr 0x%02x\n", adap_id,
-			address_data->normal_i2c[i]);
-		temp_client->addr = address_data->normal_i2c[i];
+			"addr 0x%02x\n", adap_id, address_list[i]);
+		temp_client->addr = address_list[i];
 		err = i2c_detect_address(temp_client, driver);
 		if (err)
 			goto exit_free;

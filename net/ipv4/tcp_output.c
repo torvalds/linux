@@ -183,7 +183,8 @@ static inline void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
  */
 void tcp_select_initial_window(int __space, __u32 mss,
 			       __u32 *rcv_wnd, __u32 *window_clamp,
-			       int wscale_ok, __u8 *rcv_wscale)
+			       int wscale_ok, __u8 *rcv_wscale,
+			       __u32 init_rcv_wnd)
 {
 	unsigned int space = (__space < 0 ? 0 : __space);
 
@@ -232,7 +233,13 @@ void tcp_select_initial_window(int __space, __u32 mss,
 			init_cwnd = 2;
 		else if (mss > 1460)
 			init_cwnd = 3;
-		if (*rcv_wnd > init_cwnd * mss)
+		/* when initializing use the value from init_rcv_wnd
+		 * rather than the default from above
+		 */
+		if (init_rcv_wnd &&
+		    (*rcv_wnd > init_rcv_wnd * mss))
+			*rcv_wnd = init_rcv_wnd * mss;
+		else if (*rcv_wnd > init_cwnd * mss)
 			*rcv_wnd = init_cwnd * mss;
 	}
 
@@ -553,7 +560,6 @@ static unsigned tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 				struct tcp_md5sig_key **md5) {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct tcp_cookie_values *cvp = tp->cookie_values;
-	struct dst_entry *dst = __sk_dst_get(sk);
 	unsigned remaining = MAX_TCP_OPTION_SPACE;
 	u8 cookie_size = (!tp->rx_opt.cookie_out_never && cvp != NULL) ?
 			 tcp_cookie_size_check(cvp->cookie_desired) :
@@ -581,22 +587,18 @@ static unsigned tcp_syn_options(struct sock *sk, struct sk_buff *skb,
 	opts->mss = tcp_advertise_mss(sk);
 	remaining -= TCPOLEN_MSS_ALIGNED;
 
-	if (likely(sysctl_tcp_timestamps &&
-		   !dst_feature(dst, RTAX_FEATURE_NO_TSTAMP) &&
-		   *md5 == NULL)) {
+	if (likely(sysctl_tcp_timestamps && *md5 == NULL)) {
 		opts->options |= OPTION_TS;
 		opts->tsval = TCP_SKB_CB(skb)->when;
 		opts->tsecr = tp->rx_opt.ts_recent;
 		remaining -= TCPOLEN_TSTAMP_ALIGNED;
 	}
-	if (likely(sysctl_tcp_window_scaling &&
-		   !dst_feature(dst, RTAX_FEATURE_NO_WSCALE))) {
+	if (likely(sysctl_tcp_window_scaling)) {
 		opts->ws = tp->rx_opt.rcv_wscale;
 		opts->options |= OPTION_WSCALE;
 		remaining -= TCPOLEN_WSCALE_ALIGNED;
 	}
-	if (likely(sysctl_tcp_sack &&
-		   !dst_feature(dst, RTAX_FEATURE_NO_SACK))) {
+	if (likely(sysctl_tcp_sack)) {
 		opts->options |= OPTION_SACK_ADVERTISE;
 		if (unlikely(!(OPTION_TS & opts->options)))
 			remaining -= TCPOLEN_SACKPERM_ALIGNED;
@@ -1799,11 +1801,6 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
 			       int nonagle)
 {
-	struct sk_buff *skb = tcp_send_head(sk);
-
-	if (!skb)
-		return;
-
 	/* If we are closed, the bytes will have to remain here.
 	 * In time closedown will finish, we empty the write queue and
 	 * all will be happy.
@@ -2427,7 +2424,8 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 			&req->rcv_wnd,
 			&req->window_clamp,
 			ireq->wscale_ok,
-			&rcv_wscale);
+			&rcv_wscale,
+			dst_metric(dst, RTAX_INITRWND));
 		ireq->rcv_wscale = rcv_wscale;
 	}
 
@@ -2527,9 +2525,7 @@ static void tcp_connect_init(struct sock *sk)
 	 * See tcp_input.c:tcp_rcv_state_process case TCP_SYN_SENT.
 	 */
 	tp->tcp_header_len = sizeof(struct tcphdr) +
-		(sysctl_tcp_timestamps &&
-		(!dst_feature(dst, RTAX_FEATURE_NO_TSTAMP) ?
-		  TCPOLEN_TSTAMP_ALIGNED : 0));
+		(sysctl_tcp_timestamps ? TCPOLEN_TSTAMP_ALIGNED : 0);
 
 #ifdef CONFIG_TCP_MD5SIG
 	if (tp->af_specific->md5_lookup(sk, sk) != NULL)
@@ -2555,9 +2551,9 @@ static void tcp_connect_init(struct sock *sk)
 				  tp->advmss - (tp->rx_opt.ts_recent_stamp ? tp->tcp_header_len - sizeof(struct tcphdr) : 0),
 				  &tp->rcv_wnd,
 				  &tp->window_clamp,
-				  (sysctl_tcp_window_scaling &&
-				   !dst_feature(dst, RTAX_FEATURE_NO_WSCALE)),
-				  &rcv_wscale);
+				  sysctl_tcp_window_scaling,
+				  &rcv_wscale,
+				  dst_metric(dst, RTAX_INITRWND));
 
 	tp->rx_opt.rcv_wscale = rcv_wscale;
 	tp->rcv_ssthresh = tp->rcv_wnd;

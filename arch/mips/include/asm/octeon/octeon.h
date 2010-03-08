@@ -47,6 +47,7 @@ struct octeon_cop2_state;
 extern unsigned long octeon_crypto_enable(struct octeon_cop2_state *state);
 extern void octeon_crypto_disable(struct octeon_cop2_state *state,
 				  unsigned long flags);
+extern asmlinkage void octeon_cop2_restore(struct octeon_cop2_state *task);
 
 extern void octeon_init_cvmcount(void);
 
@@ -210,6 +211,11 @@ struct octeon_cf_data {
 	unsigned int	base_region;	/* The chip select region used by CF */
 	int		is16bit;	/* 0 - 8bit, !0 - 16bit */
 	int		dma_engine;	/* -1 for no DMA */
+};
+
+struct octeon_i2c_data {
+	unsigned int	sys_freq;
+	unsigned int	i2c_freq;
 };
 
 extern void octeon_write_lcd(const char *s);

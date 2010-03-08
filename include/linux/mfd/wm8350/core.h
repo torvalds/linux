@@ -15,7 +15,8 @@
 
 #include <linux/kernel.h>
 #include <linux/mutex.h>
-#include <linux/workqueue.h>
+#include <linux/interrupt.h>
+#include <linux/completion.h>
 
 #include <linux/mfd/wm8350/audio.h>
 #include <linux/mfd/wm8350/gpio.h>
@@ -579,6 +580,8 @@
 
 #define WM8350_NUM_IRQ				63
 
+#define WM8350_NUM_IRQ_REGS 7
+
 struct wm8350_reg_access {
 	u16 readable;		/* Mask of readable bits */
 	u16 writable;		/* Mask of writable bits */
@@ -600,11 +603,6 @@ extern const u16 wm8352_mode3_defaults[];
 
 struct wm8350;
 
-struct wm8350_irq {
-	void (*handler) (struct wm8350 *, int, void *);
-	void *data;
-};
-
 struct wm8350_hwmon {
 	struct platform_device *pdev;
 	struct device *classdev;
@@ -624,11 +622,13 @@ struct wm8350 {
 	u16 *reg_cache;
 
 	struct mutex auxadc_mutex;
+	struct completion auxadc_done;
 
 	/* Interrupt handling */
-	struct mutex irq_mutex; /* IRQ table mutex */
-	struct wm8350_irq irq[WM8350_NUM_IRQ];
+	struct mutex irq_lock;
 	int chip_irq;
+	int irq_base;
+	u16 irq_masks[WM8350_NUM_IRQ_REGS];
 
 	/* Client devices */
 	struct wm8350_codec codec;
@@ -646,10 +646,14 @@ struct wm8350 {
  * @init: Function called during driver initialisation.  Should be
  *        used by the platform to configure GPIO functions and similar.
  * @irq_high: Set if WM8350 IRQ is active high.
+ * @irq_base: Base IRQ for genirq (not currently used).
+ * @gpio_base: Base for gpiolib.
  */
 struct wm8350_platform_data {
 	int (*init)(struct wm8350 *wm8350);
 	int irq_high;
+	int irq_base;
+	int gpio_base;
 };
 
 
@@ -675,12 +679,35 @@ int wm8350_block_write(struct wm8350 *wm8350, int reg, int size, u16 *src);
 /*
  * WM8350 internal interrupts
  */
-int wm8350_register_irq(struct wm8350 *wm8350, int irq,
-			void (*handler) (struct wm8350 *, int, void *),
-			void *data);
-int wm8350_free_irq(struct wm8350 *wm8350, int irq);
-int wm8350_mask_irq(struct wm8350 *wm8350, int irq);
-int wm8350_unmask_irq(struct wm8350 *wm8350, int irq);
+static inline int wm8350_register_irq(struct wm8350 *wm8350, int irq,
+				      irq_handler_t handler,
+				      unsigned long flags,
+				      const char *name, void *data)
+{
+	if (!wm8350->irq_base)
+		return -ENODEV;
 
+	return request_threaded_irq(irq + wm8350->irq_base, NULL,
+				    handler, flags, name, data);
+}
+
+static inline void wm8350_free_irq(struct wm8350 *wm8350, int irq, void *data)
+{
+	free_irq(irq + wm8350->irq_base, data);
+}
+
+static inline void wm8350_mask_irq(struct wm8350 *wm8350, int irq)
+{
+	disable_irq(irq + wm8350->irq_base);
+}
+
+static inline void wm8350_unmask_irq(struct wm8350 *wm8350, int irq)
+{
+	enable_irq(irq + wm8350->irq_base);
+}
+
+int wm8350_irq_init(struct wm8350 *wm8350, int irq,
+		    struct wm8350_platform_data *pdata);
+int wm8350_irq_exit(struct wm8350 *wm8350);
 
 #endif

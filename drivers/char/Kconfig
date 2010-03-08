@@ -502,7 +502,7 @@ config BRIQ_PANEL
 
 config BFIN_OTP
 	tristate "Blackfin On-Chip OTP Memory Support"
-	depends on BLACKFIN && (BF52x || BF54x)
+	depends on BLACKFIN && (BF51x || BF52x || BF54x)
 	default y
 	help
 	  If you say Y here, you will get support for a character device
@@ -666,10 +666,18 @@ config VIRTIO_CONSOLE
 	help
 	  Virtio console for use with lguest and other hypervisors.
 
+	  Also serves as a general-purpose serial device for data
+	  transfer between the guest and host.  Character devices at
+	  /dev/vportNpn will be created when corresponding ports are
+	  found, where N is the device number and n is the port number
+	  within that device.  If specified by the host, a sysfs
+	  attribute called 'name' will be populated with a name for
+	  the port which can be used by udev scripts to create a
+	  symlink to the device.
 
 config HVCS
 	tristate "IBM Hypervisor Virtual Console Server support"
-	depends on PPC_PSERIES
+	depends on PPC_PSERIES && HVC_CONSOLE
 	help
 	  Partitionable IBM Power5 ppc64 machines allow hosting of
 	  firmware virtual consoles from one Linux partition by

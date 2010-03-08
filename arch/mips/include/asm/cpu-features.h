@@ -95,6 +95,9 @@
 #ifndef cpu_has_smartmips
 #define cpu_has_smartmips      (cpu_data[0].ases & MIPS_ASE_SMARTMIPS)
 #endif
+#ifndef kernel_uses_smartmips_rixi
+#define kernel_uses_smartmips_rixi 0
+#endif
 #ifndef cpu_has_vtag_icache
 #define cpu_has_vtag_icache	(cpu_data[0].icache.flags & MIPS_CACHE_VTAG)
 #endif
@@ -191,6 +194,9 @@
 # ifndef cpu_has_64bit_addresses
 # define cpu_has_64bit_addresses	0
 # endif
+# ifndef cpu_vmbits
+# define cpu_vmbits 31
+# endif
 #endif
 
 #ifdef CONFIG_64BIT
@@ -208,6 +214,10 @@
 # endif
 # ifndef cpu_has_64bit_addresses
 # define cpu_has_64bit_addresses	1
+# endif
+# ifndef cpu_vmbits
+# define cpu_vmbits cpu_data[0].vmbits
+# define __NEED_VMBITS_PROBE
 # endif
 #endif
 

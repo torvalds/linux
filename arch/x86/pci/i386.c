@@ -60,22 +60,20 @@ skip_isa_ioresource_align(struct pci_dev *dev) {
  * but we want to try to avoid allocating at 0x2900-0x2bff
  * which might have be mirrored at 0x0100-0x03ff..
  */
-void
-pcibios_align_resource(void *data, struct resource *res,
+resource_size_t
+pcibios_align_resource(void *data, const struct resource *res,
 			resource_size_t size, resource_size_t align)
 {
 	struct pci_dev *dev = data;
+	resource_size_t start = res->start;
 
 	if (res->flags & IORESOURCE_IO) {
-		resource_size_t start = res->start;
-
 		if (skip_isa_ioresource_align(dev))
-			return;
-		if (start & 0x300) {
+			return start;
+		if (start & 0x300)
 			start = (start + 0x3ff) & ~0x3ff;
-			res->start = start;
-		}
 	}
+	return start;
 }
 EXPORT_SYMBOL(pcibios_align_resource);
 
@@ -256,10 +254,6 @@ void __init pcibios_resource_survey(void)
  * give a chance for motherboard reserve resources
  */
 fs_initcall(pcibios_assign_resources);
-
-void __weak x86_pci_root_bus_res_quirks(struct pci_bus *b)
-{
-}
 
 /*
  *  If we set up a device for bus mastering, we need to check the latency

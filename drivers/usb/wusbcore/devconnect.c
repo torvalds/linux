@@ -868,7 +868,7 @@ static struct usb_wireless_cap_descriptor wusb_cap_descr_default = {
  * reference that we'll drop.
  *
  * First we need to determine if the device is a WUSB device (else we
- * ignore it). For that we use the speed setting (USB_SPEED_VARIABLE)
+ * ignore it). For that we use the speed setting (USB_SPEED_WIRELESS)
  * [FIXME: maybe we'd need something more definitive]. If so, we track
  * it's usb_busd and from there, the WUSB HC.
  *

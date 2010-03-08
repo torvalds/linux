@@ -1198,7 +1198,7 @@ static void relay_pipe_buf_release(struct pipe_inode_info *pipe,
 	relay_consume_bytes(rbuf, buf->private);
 }
 
-static struct pipe_buf_operations relay_pipe_buf_ops = {
+static const struct pipe_buf_operations relay_pipe_buf_ops = {
 	.can_merge = 0,
 	.map = generic_pipe_buf_map,
 	.unmap = generic_pipe_buf_unmap,
@@ -1215,14 +1215,14 @@ static void relay_page_release(struct splice_pipe_desc *spd, unsigned int i)
 /*
  *	subbuf_splice_actor - splice up to one subbuf's worth of data
  */
-static int subbuf_splice_actor(struct file *in,
+static ssize_t subbuf_splice_actor(struct file *in,
 			       loff_t *ppos,
 			       struct pipe_inode_info *pipe,
 			       size_t len,
 			       unsigned int flags,
 			       int *nonpad_ret)
 {
-	unsigned int pidx, poff, total_len, subbuf_pages, nr_pages, ret;
+	unsigned int pidx, poff, total_len, subbuf_pages, nr_pages;
 	struct rchan_buf *rbuf = in->private_data;
 	unsigned int subbuf_size = rbuf->chan->subbuf_size;
 	uint64_t pos = (uint64_t) *ppos;
@@ -1241,6 +1241,7 @@ static int subbuf_splice_actor(struct file *in,
 		.ops = &relay_pipe_buf_ops,
 		.spd_release = relay_page_release,
 	};
+	ssize_t ret;
 
 	if (rbuf->subbufs_produced == rbuf->subbufs_consumed)
 		return 0;

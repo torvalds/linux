@@ -113,7 +113,7 @@ static int atmel_pwm_bl_init_pwm(struct atmel_pwm_bl *pwmbl)
 	return pwm_channel_enable(&pwmbl->pwmc);
 }
 
-static struct backlight_ops atmel_pwm_bl_ops = {
+static const struct backlight_ops atmel_pwm_bl_ops = {
 	.get_brightness = atmel_pwm_bl_get_intensity,
 	.update_status  = atmel_pwm_bl_set_intensity,
 };

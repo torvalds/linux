@@ -111,6 +111,8 @@ static struct platform_device davinci_nand_device = {
 static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_freq	= 400	/* kHz */,
 	.bus_delay	= 0	/* usec */,
+	.sda_pin        = 15,
+	.scl_pin        = 14,
 };
 
 static struct snd_platform_data dm355_evm_snd_data;
@@ -236,6 +238,7 @@ static struct vpfe_subdev_info vpfe_sub_devs[] = {
 
 static struct vpfe_config vpfe_cfg = {
 	.num_subdevs = ARRAY_SIZE(vpfe_sub_devs),
+	.i2c_adapter_id = 1,
 	.sub_devs = vpfe_sub_devs,
 	.card_name = "DM355 EVM",
 	.ccdc = "DM355 CCDC",

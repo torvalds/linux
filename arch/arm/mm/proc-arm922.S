@@ -209,15 +209,16 @@ ENTRY(arm922_coherent_user_range)
 	mov	pc, lr
 
 /*
- *	flush_kern_dcache_page(void *page)
+ *	flush_kern_dcache_area(void *addr, size_t size)
  *
  *	Ensure no D cache aliasing occurs, either with itself or
  *	the I cache
  *
- *	- addr	- page aligned address
+ *	- addr	- kernel address
+ *	- size	- region size
  */
-ENTRY(arm922_flush_kern_dcache_page)
-	add	r1, r0, #PAGE_SZ
+ENTRY(arm922_flush_kern_dcache_area)
+	add	r1, r0, r1
 1:	mcr	p15, 0, r0, c7, c14, 1		@ clean+invalidate D entry
 	add	r0, r0, #CACHE_DLINESIZE
 	cmp	r0, r1
@@ -240,7 +241,7 @@ ENTRY(arm922_flush_kern_dcache_page)
  *
  * (same as v4wb)
  */
-ENTRY(arm922_dma_inv_range)
+arm922_dma_inv_range:
 	tst	r0, #CACHE_DLINESIZE - 1
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 	mcrne	p15, 0, r0, c7, c10, 1		@ clean D entry
@@ -263,7 +264,7 @@ ENTRY(arm922_dma_inv_range)
  *
  * (same as v4wb)
  */
-ENTRY(arm922_dma_clean_range)
+arm922_dma_clean_range:
 	bic	r0, r0, #CACHE_DLINESIZE - 1
 1:	mcr	p15, 0, r0, c7, c10, 1		@ clean D entry
 	add	r0, r0, #CACHE_DLINESIZE
@@ -289,15 +290,39 @@ ENTRY(arm922_dma_flush_range)
 	mcr	p15, 0, r0, c7, c10, 4		@ drain WB
 	mov	pc, lr
 
+/*
+ *	dma_map_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(arm922_dma_map_area)
+	add	r1, r1, r0
+	cmp	r2, #DMA_TO_DEVICE
+	beq	arm922_dma_clean_range
+	bcs	arm922_dma_inv_range
+	b	arm922_dma_flush_range
+ENDPROC(arm922_dma_map_area)
+
+/*
+ *	dma_unmap_area(start, size, dir)
+ *	- start	- kernel virtual start address
+ *	- size	- size of region
+ *	- dir	- DMA direction
+ */
+ENTRY(arm922_dma_unmap_area)
+	mov	pc, lr
+ENDPROC(arm922_dma_unmap_area)
+
 ENTRY(arm922_cache_fns)
 	.long	arm922_flush_kern_cache_all
 	.long	arm922_flush_user_cache_all
 	.long	arm922_flush_user_cache_range
 	.long	arm922_coherent_kern_range
 	.long	arm922_coherent_user_range
-	.long	arm922_flush_kern_dcache_page
-	.long	arm922_dma_inv_range
-	.long	arm922_dma_clean_range
+	.long	arm922_flush_kern_dcache_area
+	.long	arm922_dma_map_area
+	.long	arm922_dma_unmap_area
 	.long	arm922_dma_flush_range
 
 #endif

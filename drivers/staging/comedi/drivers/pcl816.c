@@ -202,6 +202,7 @@ struct pcl816_private {
 	unsigned int ai_act_chanlist[16];	/*  MUX setting for actual AI operations */
 	unsigned int ai_act_chanlist_len;	/*  how long is actual MUX list */
 	unsigned int ai_act_chanlist_pos;	/*  actual position in MUX list */
+	unsigned int ai_n_chan;		/*  how many channels per scan */
 	unsigned int ai_poll_ptr;	/*  how many sampes transfer poll */
 	struct comedi_subdevice *sub_ai;	/*  ptr to AI subdevice */
 #ifdef unused
@@ -213,9 +214,12 @@ struct pcl816_private {
 /*
 ==============================================================================
 */
-static int check_and_setup_channel_list(struct comedi_device *dev,
-					struct comedi_subdevice *s,
-					unsigned int *chanlist, int chanlen);
+static int check_channel_list(struct comedi_device *dev,
+			      struct comedi_subdevice *s,
+			      unsigned int *chanlist, unsigned int chanlen);
+static void setup_channel_list(struct comedi_device *dev,
+			       struct comedi_subdevice *s,
+			       unsigned int *chanlist, unsigned int seglen);
 static int pcl816_ai_cancel(struct comedi_device *dev,
 			    struct comedi_subdevice *s);
 static void start_pacer(struct comedi_device *dev, int mode,
@@ -320,7 +324,9 @@ static irqreturn_t interrupt_pcl816_ai_mode13_int(int irq, void *d)
 	if (++devpriv->ai_act_chanlist_pos >= devpriv->ai_act_chanlist_len)
 		devpriv->ai_act_chanlist_pos = 0;
 
-	if (s->async->cur_chan == 0) {
+	s->async->cur_chan++;
+	if (s->async->cur_chan >= devpriv->ai_n_chan) {
+		s->async->cur_chan = 0;
 		devpriv->ai_act_scan++;
 	}
 
@@ -353,6 +359,11 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 		if (++devpriv->ai_act_chanlist_pos >=
 		    devpriv->ai_act_chanlist_len) {
 			devpriv->ai_act_chanlist_pos = 0;
+		}
+
+		s->async->cur_chan++;
+		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+			s->async->cur_chan = 0;
 			devpriv->ai_act_scan++;
 		}
 
@@ -558,14 +569,6 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 		}
 	}
 
-	if (!cmd->chanlist_len) {
-		cmd->chanlist_len = 1;
-		err++;
-	}
-	if (cmd->chanlist_len > this_board->n_aichan) {
-		cmd->chanlist_len = this_board->n_aichan;
-		err++;
-	}
 	if (cmd->scan_end_arg != cmd->chanlist_len) {
 		cmd->scan_end_arg = cmd->chanlist_len;
 		err++;
@@ -603,6 +606,14 @@ static int pcl816_ai_cmdtest(struct comedi_device *dev,
 		return 4;
 	}
 
+	/* step 5: complain about special chanlist considerations */
+
+	if (cmd->chanlist) {
+		if (!check_channel_list(dev, s, cmd->chanlist,
+					cmd->chanlist_len))
+			return 5;	/*  incorrect channels list */
+	}
+
 	return 0;
 }
 
@@ -610,6 +621,7 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 {
 	unsigned int divisor1 = 0, divisor2 = 0, dma_flags, bytes, dmairq;
 	struct comedi_cmd *cmd = &s->async->cmd;
+	unsigned int seglen;
 
 	if (cmd->start_src != TRIG_NOW)
 		return -EINVAL;
@@ -642,11 +654,13 @@ static int pcl816_ai_cmd(struct comedi_device *dev, struct comedi_subdevice *s)
 
 	start_pacer(dev, -1, 0, 0);	/*  stop pacer */
 
-	if (!check_and_setup_channel_list(dev, s, cmd->chanlist,
-					  cmd->chanlist_len))
+	seglen = check_channel_list(dev, s, cmd->chanlist, cmd->chanlist_len);
+	if (seglen < 1)
 		return -EINVAL;
+	setup_channel_list(dev, s, cmd->chanlist, seglen);
 	udelay(1);
 
+	devpriv->ai_n_chan = cmd->chanlist_len;
 	devpriv->ai_act_scan = 0;
 	s->async->cur_chan = 0;
 	devpriv->irq_blocked = 1;
@@ -871,12 +885,12 @@ start_pacer(struct comedi_device *dev, int mode, unsigned int divisor1,
 /*
 ==============================================================================
  Check if channel list from user is builded correctly
- If it's ok, then program scan/gain logic
+ If it's ok, then return non-zero length of repeated segment of channel list
 */
 static int
-check_and_setup_channel_list(struct comedi_device *dev,
-			     struct comedi_subdevice *s, unsigned int *chanlist,
-			     int chanlen)
+check_channel_list(struct comedi_device *dev,
+		   struct comedi_subdevice *s, unsigned int *chanlist,
+		   unsigned int chanlen)
 {
 	unsigned int chansegment[16];
 	unsigned int i, nowmustbechan, seglen, segpos;
@@ -930,6 +944,20 @@ check_and_setup_channel_list(struct comedi_device *dev,
 		seglen = 1;
 	}
 
+	return seglen;	/*  we can serve this with MUX logic */
+}
+
+/*
+==============================================================================
+ Program scan/gain logic with channel list.
+*/
+static void
+setup_channel_list(struct comedi_device *dev,
+		   struct comedi_subdevice *s, unsigned int *chanlist,
+		   unsigned int seglen)
+{
+	unsigned int i;
+
 	devpriv->ai_act_chanlist_len = seglen;
 	devpriv->ai_act_chanlist_pos = 0;
 
@@ -942,8 +970,6 @@ check_and_setup_channel_list(struct comedi_device *dev,
 	udelay(1);
 
 	outb(devpriv->ai_act_chanlist[0] | (devpriv->ai_act_chanlist[seglen - 1] << 4), dev->iobase + PCL816_MUX);	/* select channel interval to scan */
-
-	return 1;		/*  we can serve this with MUX logic */
 }
 
 #ifdef unused

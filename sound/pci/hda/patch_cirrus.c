@@ -66,6 +66,7 @@ struct cs_spec {
 /* available models */
 enum {
 	CS420X_MBP55,
+	CS420X_IMAC27,
 	CS420X_AUTO,
 	CS420X_MODELS
 };
@@ -500,7 +501,8 @@ static int add_mute(struct hda_codec *codec, const char *name, int index,
 	knew.private_value = pval;
 	snprintf(tmp, sizeof(tmp), "%s %s Switch", name, dir_sfx[dir]);
 	*kctlp = snd_ctl_new1(&knew, codec);
-	return snd_hda_ctl_add(codec, get_amp_nid_(pval), *kctlp);
+	(*kctlp)->id.subdevice = HDA_SUBDEV_AMP_FLAG;
+	return snd_hda_ctl_add(codec, 0, *kctlp);
 }
 
 static int add_volume(struct hda_codec *codec, const char *name,
@@ -513,7 +515,8 @@ static int add_volume(struct hda_codec *codec, const char *name,
 	knew.private_value = pval;
 	snprintf(tmp, sizeof(tmp), "%s %s Volume", name, dir_sfx[dir]);
 	*kctlp = snd_ctl_new1(&knew, codec);
-	return snd_hda_ctl_add(codec, get_amp_nid_(pval), *kctlp);
+	(*kctlp)->id.subdevice = HDA_SUBDEV_AMP_FLAG;
+	return snd_hda_ctl_add(codec, 0, *kctlp);
 }
 
 static void fix_volume_caps(struct hda_codec *codec, hda_nid_t dac)
@@ -750,6 +753,7 @@ static int build_input(struct hda_codec *codec)
 	spec->capture_bind[1] = make_bind_capture(codec, &snd_hda_bind_vol);
 	for (i = 0; i < 2; i++) {
 		struct snd_kcontrol *kctl;
+		int n;
 		if (!spec->capture_bind[i])
 			return -ENOMEM;
 		kctl = snd_ctl_new1(&cs_capture_ctls[i], codec);
@@ -759,6 +763,13 @@ static int build_input(struct hda_codec *codec)
 		err = snd_hda_ctl_add(codec, 0, kctl);
 		if (err < 0)
 			return err;
+		for (n = 0; n < AUTO_PIN_LAST; n++) {
+			if (!spec->adc_nid[n])
+				continue;
+			err = snd_hda_add_nid(codec, kctl, 0, spec->adc_nid[i]);
+			if (err < 0)
+				return err;
+		}
 	}
 	
 	if (spec->num_inputs > 1 && !spec->mic_detect) {
@@ -827,7 +838,8 @@ static void cs_automute(struct hda_codec *codec)
 				    AC_VERB_SET_PIN_WIDGET_CONTROL,
 				    hp_present ? 0 : PIN_OUT);
 	}
-	if (spec->board_config == CS420X_MBP55) {
+	if (spec->board_config == CS420X_MBP55 ||
+	    spec->board_config == CS420X_IMAC27) {
 		unsigned int gpio = hp_present ? 0x02 : 0x08;
 		snd_hda_codec_write(codec, 0x01, 0,
 				    AC_VERB_SET_GPIO_DATA, gpio);
@@ -1069,12 +1081,14 @@ static int cs_parse_auto_config(struct hda_codec *codec)
 
 static const char *cs420x_models[CS420X_MODELS] = {
 	[CS420X_MBP55] = "mbp55",
+	[CS420X_IMAC27] = "imac27",
 	[CS420X_AUTO] = "auto",
 };
 
 
 static struct snd_pci_quirk cs420x_cfg_tbl[] = {
 	SND_PCI_QUIRK(0x10de, 0xcb79, "MacBookPro 5,5", CS420X_MBP55),
+	SND_PCI_QUIRK(0x8086, 0x7270, "IMac 27 Inch", CS420X_IMAC27),
 	{} /* terminator */
 };
 
@@ -1097,8 +1111,23 @@ static struct cs_pincfg mbp55_pincfgs[] = {
 	{} /* terminator */
 };
 
+static struct cs_pincfg imac27_pincfgs[] = {
+	{ 0x09, 0x012b4050 },
+	{ 0x0a, 0x90100140 },
+	{ 0x0b, 0x90100142 },
+	{ 0x0c, 0x018b3020 },
+	{ 0x0d, 0x90a00110 },
+	{ 0x0e, 0x400000f0 },
+	{ 0x0f, 0x01cbe030 },
+	{ 0x10, 0x014be060 },
+	{ 0x12, 0x01ab9070 },
+	{ 0x15, 0x400000f0 },
+	{} /* terminator */
+};
+
 static struct cs_pincfg *cs_pincfgs[CS420X_MODELS] = {
 	[CS420X_MBP55] = mbp55_pincfgs,
+	[CS420X_IMAC27] = imac27_pincfgs,
 };
 
 static void fix_pincfg(struct hda_codec *codec, int model)
@@ -1128,6 +1157,7 @@ static int patch_cs420x(struct hda_codec *codec)
 		fix_pincfg(codec, spec->board_config);
 
 	switch (spec->board_config) {
+	case CS420X_IMAC27:
 	case CS420X_MBP55:
 		/* GPIO1 = headphones */
 		/* GPIO3 = speakers */

@@ -110,6 +110,9 @@ static int cx8802_start_dma(struct cx8802_dev    *dev,
 		case CX88_BOARD_PCHDTV_HD5500:
 			cx_write(TS_SOP_STAT, 1<<13);
 			break;
+		case CX88_BOARD_SAMSUNG_SMT_7020:
+			cx_write(TS_SOP_STAT, 0x00);
+			break;
 		case CX88_BOARD_HAUPPAUGE_NOVASPLUS_S1:
 		case CX88_BOARD_HAUPPAUGE_NOVASE2_S1:
 			cx_write(MO_PINMUX_IO, 0x88); /* Enable MPEG parallel IO and video signal pins */
@@ -579,21 +582,6 @@ static int cx8802_resume_common(struct pci_dev *pci_dev)
 
 	return 0;
 }
-
-#if defined(CONFIG_VIDEO_CX88_BLACKBIRD) || \
-    defined(CONFIG_VIDEO_CX88_BLACKBIRD_MODULE)
-struct cx8802_dev *cx8802_get_device(int minor)
-{
-	struct cx8802_dev *dev;
-
-	list_for_each_entry(dev, &cx8802_devlist, devlist)
-		if (dev->mpeg_dev && dev->mpeg_dev->minor == minor)
-			return dev;
-
-	return NULL;
-}
-EXPORT_SYMBOL(cx8802_get_device);
-#endif
 
 struct cx8802_driver * cx8802_get_driver(struct cx8802_dev *dev, enum cx88_board_type btype)
 {

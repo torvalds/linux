@@ -247,6 +247,7 @@ static struct vpfe_subdev_info vpfe_sub_devs[] = {
 
 static struct vpfe_config vpfe_cfg = {
 	.num_subdevs = ARRAY_SIZE(vpfe_sub_devs),
+	.i2c_adapter_id = 1,
 	.sub_devs = vpfe_sub_devs,
 	.card_name = "DM6446 EVM",
 	.ccdc = "DM6446 CCDC",
@@ -628,6 +629,8 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_freq	= 20 /* kHz */,
 	.bus_delay	= 100 /* usec */,
+	.sda_pin        = 44,
+	.scl_pin        = 43,
 };
 
 static void __init evm_init_i2c(void)
