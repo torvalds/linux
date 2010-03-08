@@ -6,6 +6,7 @@ struct mnt_namespace {
 	atomic_t		count;
 	struct mount *	root;
 	struct list_head	list;
+	u64			seq;	/* Sequence number to prevent loops */
 	wait_queue_head_t poll;
 	int event;
 };
