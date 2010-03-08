@@ -254,7 +254,7 @@ static inline void update_head_pos(int slot, r10bio_t *r10_bio)
 static void raid10_end_read_request(struct bio *bio, int error)
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	r10bio_t * r10_bio = (r10bio_t *)(bio->bi_private);
+	r10bio_t *r10_bio = bio->bi_private;
 	int slot, dev;
 	conf_t *conf = r10_bio->mddev->private;
 
@@ -295,7 +295,7 @@ static void raid10_end_read_request(struct bio *bio, int error)
 static void raid10_end_write_request(struct bio *bio, int error)
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	r10bio_t * r10_bio = (r10bio_t *)(bio->bi_private);
+	r10bio_t *r10_bio = bio->bi_private;
 	int slot, dev;
 	conf_t *conf = r10_bio->mddev->private;
 
@@ -1223,7 +1223,7 @@ abort:
 
 static void end_sync_read(struct bio *bio, int error)
 {
-	r10bio_t * r10_bio = (r10bio_t *)(bio->bi_private);
+	r10bio_t *r10_bio = bio->bi_private;
 	conf_t *conf = r10_bio->mddev->private;
 	int i,d;
 
@@ -1260,7 +1260,7 @@ static void end_sync_read(struct bio *bio, int error)
 static void end_sync_write(struct bio *bio, int error)
 {
 	int uptodate = test_bit(BIO_UPTODATE, &bio->bi_flags);
-	r10bio_t * r10_bio = (r10bio_t *)(bio->bi_private);
+	r10bio_t *r10_bio = bio->bi_private;
 	mddev_t *mddev = r10_bio->mddev;
 	conf_t *conf = mddev->private;
 	int i,d;
