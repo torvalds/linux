@@ -1691,39 +1691,43 @@ qeth_diags_trace_cb(struct qeth_card *card, struct qeth_reply *reply,
 
 	cmd = (struct qeth_ipa_cmd *)data;
 	rc = cmd->hdr.return_code;
-	if (rc) {
+	if (rc)
 		QETH_DBF_TEXT_(TRACE, 2, "dxter%x", rc);
-		if (cmd->data.diagass.action == QETH_DIAGS_CMD_TRACE_ENABLE) {
-			switch (rc) {
-			case IPA_RC_HARDWARE_AUTH_ERROR:
-				dev_warn(&card->gdev->dev, "The device is not "
-					"authorized to run as a HiperSockets "
-					"network traffic analyzer\n");
-				break;
-			case IPA_RC_TRACE_ALREADY_ACTIVE:
-				dev_warn(&card->gdev->dev, "A HiperSockets "
-					"network traffic analyzer is already "
-					"active in the HiperSockets LAN\n");
-				break;
-			default:
-				break;
-			}
-		}
-		return 0;
-	}
-
 	switch (cmd->data.diagass.action) {
 	case QETH_DIAGS_CMD_TRACE_QUERY:
 		break;
 	case QETH_DIAGS_CMD_TRACE_DISABLE:
-		card->info.promisc_mode = SET_PROMISC_MODE_OFF;
-		dev_info(&card->gdev->dev, "The HiperSockets network traffic "
-			"analyzer is deactivated\n");
+		switch (rc) {
+		case 0:
+		case IPA_RC_INVALID_SUBCMD:
+			card->info.promisc_mode = SET_PROMISC_MODE_OFF;
+			dev_info(&card->gdev->dev, "The HiperSockets network "
+				"traffic analyzer is deactivated\n");
+			break;
+		default:
+			break;
+		}
 		break;
 	case QETH_DIAGS_CMD_TRACE_ENABLE:
-		card->info.promisc_mode = SET_PROMISC_MODE_ON;
-		dev_info(&card->gdev->dev, "The HiperSockets network traffic "
-			"analyzer is activated\n");
+		switch (rc) {
+		case 0:
+			card->info.promisc_mode = SET_PROMISC_MODE_ON;
+			dev_info(&card->gdev->dev, "The HiperSockets network "
+				"traffic analyzer is activated\n");
+			break;
+		case IPA_RC_HARDWARE_AUTH_ERROR:
+			dev_warn(&card->gdev->dev, "The device is not "
+				"authorized to run as a HiperSockets network "
+				"traffic analyzer\n");
+			break;
+		case IPA_RC_TRACE_ALREADY_ACTIVE:
+			dev_warn(&card->gdev->dev, "A HiperSockets "
+				"network traffic analyzer is already "
+				"active in the HiperSockets LAN\n");
+			break;
+		default:
+			break;
+		}
 		break;
 	default:
 		QETH_DBF_MESSAGE(2, "Unknown sniffer action (0x%04x) on %s\n",
