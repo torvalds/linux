@@ -1089,6 +1089,7 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	struct dasd_eckd_private *private;
 	struct dasd_block *block;
 	int is_known, rc;
+	int readonly;
 
 	if (!ccw_device_is_pathgroup(device->cdev)) {
 		dev_warn(&device->cdev->dev,
@@ -1182,15 +1183,20 @@ dasd_eckd_check_characteristics(struct dasd_device *device)
 	else
 		private->real_cyl = private->rdc_data.no_cyl;
 
+	readonly = dasd_device_is_ro(device);
+	if (readonly)
+		set_bit(DASD_FLAG_DEVICE_RO, &device->flags);
+
 	dev_info(&device->cdev->dev, "New DASD %04X/%02X (CU %04X/%02X) "
-		 "with %d cylinders, %d heads, %d sectors\n",
+		 "with %d cylinders, %d heads, %d sectors%s\n",
 		 private->rdc_data.dev_type,
 		 private->rdc_data.dev_model,
 		 private->rdc_data.cu_type,
 		 private->rdc_data.cu_model.model,
 		 private->real_cyl,
 		 private->rdc_data.trk_per_cyl,
-		 private->rdc_data.sec_per_trk);
+		 private->rdc_data.sec_per_trk,
+		 readonly ? ", read-only device" : "");
 	return 0;
 
 out_err3:
