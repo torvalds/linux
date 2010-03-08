@@ -69,6 +69,15 @@ static void au1xxx_stop_ehc(void)
 	au_sync();
 }
 
+static int au1xxx_ehci_setup(struct usb_hcd *hcd)
+{
+	struct ehci_hcd *ehci = hcd_to_ehci(hcd);
+	int ret = ehci_init(hcd);
+
+	ehci->need_io_watchdog = 0;
+	return ret;
+}
+
 static const struct hc_driver ehci_au1xxx_hc_driver = {
 	.description		= hcd_name,
 	.product_desc		= "Au1xxx EHCI",
@@ -86,7 +95,7 @@ static const struct hc_driver ehci_au1xxx_hc_driver = {
 	 * FIXME -- ehci_init() doesn't do enough here.
 	 * See ehci-ppc-soc for a complete implementation.
 	 */
-	.reset			= ehci_init,
+	.reset			= au1xxx_ehci_setup,
 	.start			= ehci_run,
 	.stop			= ehci_stop,
 	.shutdown		= ehci_shutdown,
