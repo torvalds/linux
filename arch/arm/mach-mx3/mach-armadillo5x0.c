@@ -50,7 +50,6 @@
 #include <mach/common.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
-#include <mach/board-armadillo5x0.h>
 #include <mach/mmc.h>
 #include <mach/ipu.h>
 #include <mach/mx3fb.h>

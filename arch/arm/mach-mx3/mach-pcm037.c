@@ -43,7 +43,6 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/time.h>
 #include <asm/mach/map.h>
-#include <mach/board-pcm037.h>
 #include <mach/common.h>
 #include <mach/hardware.h>
 #include <mach/i2c.h>
