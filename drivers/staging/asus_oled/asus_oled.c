@@ -770,13 +770,8 @@ static struct usb_driver oled_driver = {
 	.id_table =	id_table,
 };
 
-static ssize_t version_show(struct class *dev, char *buf)
-{
-	return sprintf(buf, ASUS_OLED_UNDERSCORE_NAME " %s\n",
-		       ASUS_OLED_VERSION);
-}
-
-static CLASS_ATTR(version, S_IRUGO, version_show, NULL);
+static CLASS_ATTR_STRING(version, S_IRUGO,
+		 	ASUS_OLED_UNDERSCORE_NAME " " ASUS_OLED_VERSION);
 
 static int __init asus_oled_init(void)
 {
@@ -788,7 +783,7 @@ static int __init asus_oled_init(void)
 		return PTR_ERR(oled_class);
 	}
 
-	retval = class_create_file(oled_class, &class_attr_version);
+	retval = class_create_file(oled_class, &class_attr_version.attr);
 	if (retval) {
 		err("Error creating class version file");
 		goto error;
@@ -810,7 +805,7 @@ error:
 
 static void __exit asus_oled_exit(void)
 {
-	class_remove_file(oled_class, &class_attr_version);
+	class_remove_file(oled_class, &class_attr_version.attr);
 	class_destroy(oled_class);
 
 	usb_deregister(&oled_driver);

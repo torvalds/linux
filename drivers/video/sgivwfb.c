@@ -745,7 +745,7 @@ int __init sgivwfb_setup(char *options)
 /*
  *  Initialisation
  */
-static int __init sgivwfb_probe(struct platform_device *dev)
+static int __devinit sgivwfb_probe(struct platform_device *dev)
 {
 	struct sgivw_par *par;
 	struct fb_info *info;

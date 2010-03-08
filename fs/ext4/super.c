@@ -2358,7 +2358,7 @@ static void ext4_sb_release(struct kobject *kobj)
 }
 
 
-static struct sysfs_ops ext4_attr_ops = {
+static const struct sysfs_ops ext4_attr_ops = {
 	.show	= ext4_attr_show,
 	.store	= ext4_attr_store,
 };

@@ -210,7 +210,7 @@ static int __init efifb_setup(char *options)
 	return 0;
 }
 
-static int __init efifb_probe(struct platform_device *dev)
+static int __devinit efifb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	int err;
