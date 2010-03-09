@@ -1453,6 +1453,8 @@ void drm_gem_vm_open(struct vm_area_struct *vma);
 void drm_gem_vm_close(struct vm_area_struct *vma);
 int drm_gem_mmap(struct file *filp, struct vm_area_struct *vma);
 
+#include "drm_global.h"
+
 static inline void
 drm_gem_object_reference(struct drm_gem_object *obj)
 {

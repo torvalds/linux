@@ -533,7 +533,7 @@ struct drm_nouveau_private {
 	struct list_head vbl_waiting;
 
 	struct {
-		struct ttm_global_reference mem_global_ref;
+		struct drm_global_reference mem_global_ref;
 		struct ttm_bo_global_ref bo_global_ref;
 		struct ttm_bo_device bdev;
 		spinlock_t bo_list_lock;

@@ -288,6 +288,7 @@ static int __init drm_core_init(void)
 {
 	int ret = -ENOMEM;
 
+	drm_global_init();
 	idr_init(&drm_minors_idr);
 
 	if (register_chrdev(DRM_MAJOR, "drm", &drm_stub_fops))

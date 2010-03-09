@@ -28,45 +28,45 @@
  * Authors: Thomas Hellstrom <thellstrom-at-vmware-dot-com>
  */
 
-#include "ttm/ttm_module.h"
 #include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include "drm_global.h"
 
-struct ttm_global_item {
+struct drm_global_item {
 	struct mutex mutex;
 	void *object;
 	int refcount;
 };
 
-static struct ttm_global_item glob[TTM_GLOBAL_NUM];
+static struct drm_global_item glob[DRM_GLOBAL_NUM];
 
-void ttm_global_init(void)
+void drm_global_init(void)
 {
 	int i;
 
-	for (i = 0; i < TTM_GLOBAL_NUM; ++i) {
-		struct ttm_global_item *item = &glob[i];
+	for (i = 0; i < DRM_GLOBAL_NUM; ++i) {
+		struct drm_global_item *item = &glob[i];
 		mutex_init(&item->mutex);
 		item->object = NULL;
 		item->refcount = 0;
 	}
 }
 
-void ttm_global_release(void)
+void drm_global_release(void)
 {
 	int i;
-	for (i = 0; i < TTM_GLOBAL_NUM; ++i) {
-		struct ttm_global_item *item = &glob[i];
+	for (i = 0; i < DRM_GLOBAL_NUM; ++i) {
+		struct drm_global_item *item = &glob[i];
 		BUG_ON(item->object != NULL);
 		BUG_ON(item->refcount != 0);
 	}
 }
 
-int ttm_global_item_ref(struct ttm_global_reference *ref)
+int drm_global_item_ref(struct drm_global_reference *ref)
 {
 	int ret;
-	struct ttm_global_item *item = &glob[ref->global_type];
+	struct drm_global_item *item = &glob[ref->global_type];
 	void *object;
 
 	mutex_lock(&item->mutex);
@@ -93,11 +93,11 @@ out_err:
 	item->object = NULL;
 	return ret;
 }
-EXPORT_SYMBOL(ttm_global_item_ref);
+EXPORT_SYMBOL(drm_global_item_ref);
 
-void ttm_global_item_unref(struct ttm_global_reference *ref)
+void drm_global_item_unref(struct drm_global_reference *ref)
 {
-	struct ttm_global_item *item = &glob[ref->global_type];
+	struct drm_global_item *item = &glob[ref->global_type];
 
 	mutex_lock(&item->mutex);
 	BUG_ON(item->refcount == 0);
@@ -108,5 +108,5 @@ void ttm_global_item_unref(struct ttm_global_reference *ref)
 	}
 	mutex_unlock(&item->mutex);
 }
-EXPORT_SYMBOL(ttm_global_item_unref);
+EXPORT_SYMBOL(drm_global_item_unref);
 

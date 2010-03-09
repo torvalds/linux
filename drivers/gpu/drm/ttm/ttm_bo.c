@@ -1395,7 +1395,7 @@ static void ttm_bo_global_kobj_release(struct kobject *kobj)
 	kfree(glob);
 }
 
-void ttm_bo_global_release(struct ttm_global_reference *ref)
+void ttm_bo_global_release(struct drm_global_reference *ref)
 {
 	struct ttm_bo_global *glob = ref->object;
 
@@ -1404,7 +1404,7 @@ void ttm_bo_global_release(struct ttm_global_reference *ref)
 }
 EXPORT_SYMBOL(ttm_bo_global_release);
 
-int ttm_bo_global_init(struct ttm_global_reference *ref)
+int ttm_bo_global_init(struct drm_global_reference *ref)
 {
 	struct ttm_bo_global_ref *bo_ref =
 		container_of(ref, struct ttm_bo_global_ref, ref);
