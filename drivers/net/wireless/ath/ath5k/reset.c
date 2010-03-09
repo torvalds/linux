@@ -1379,11 +1379,10 @@ int ath5k_hw_reset(struct ath5k_hw *ah, enum nl80211_iftype op_mode,
 		ath5k_hw_set_sleep_clock(ah, true);
 
 	/*
-	 * Disable beacons and reset the register
+	 * Disable beacons and reset the TSF
 	 */
-	AR5K_REG_DISABLE_BITS(ah, AR5K_BEACON, AR5K_BEACON_ENABLE |
-			AR5K_BEACON_RESET_TSF);
-
+	AR5K_REG_DISABLE_BITS(ah, AR5K_BEACON, AR5K_BEACON_ENABLE);
+	ath5k_hw_reset_tsf(ah);
 	return 0;
 }
 
