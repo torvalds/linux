@@ -72,4 +72,15 @@
 
 #define SPORT_TX_FIFO_SIZE	8
 
+#define SPORT_UART_GET_CTS(x)		gpio_get_value(x->cts_pin)
+#define SPORT_UART_DISABLE_RTS(x)	gpio_set_value(x->rts_pin, 1)
+#define SPORT_UART_ENABLE_RTS(x)	gpio_set_value(x->rts_pin, 0)
+
+#if defined(CONFIG_SERIAL_BFIN_SPORT0_UART_CTSRTS) \
+	|| defined(CONFIG_SERIAL_BFIN_SPORT1_UART_CTSRTS) \
+	|| defined(CONFIG_SERIAL_BFIN_SPORT2_UART_CTSRTS) \
+	|| defined(CONFIG_SERIAL_BFIN_SPORT3_UART_CTSRTS)
+# define CONFIG_SERIAL_BFIN_SPORT_CTSRTS
+#endif
+
 #endif /* _BFIN_SPORT_UART_H */

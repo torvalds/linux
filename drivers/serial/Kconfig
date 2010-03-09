@@ -1443,11 +1443,23 @@ config SERIAL_BFIN_SPORT0_UART
 	help
 	  Enable UART over SPORT0
 
+config SERIAL_BFIN_SPORT0_UART_CTSRTS
+	bool "Enable UART over SPORT0 hardware flow control"
+	depends on SERIAL_BFIN_SPORT0_UART
+	help
+	  Enable hardware flow control in the driver.
+
 config SERIAL_BFIN_SPORT1_UART
 	bool "Enable UART over SPORT1"
 	depends on SERIAL_BFIN_SPORT
 	help
 	  Enable UART over SPORT1
+
+config SERIAL_BFIN_SPORT1_UART_CTSRTS
+	bool "Enable UART over SPORT1 hardware flow control"
+	depends on SERIAL_BFIN_SPORT1_UART
+	help
+	  Enable hardware flow control in the driver.
 
 config SERIAL_BFIN_SPORT2_UART
 	bool "Enable UART over SPORT2"
@@ -1455,11 +1467,23 @@ config SERIAL_BFIN_SPORT2_UART
 	help
 	  Enable UART over SPORT2
 
+config SERIAL_BFIN_SPORT2_UART_CTSRTS
+	bool "Enable UART over SPORT2 hardware flow control"
+	depends on SERIAL_BFIN_SPORT2_UART
+	help
+	  Enable hardware flow control in the driver.
+
 config SERIAL_BFIN_SPORT3_UART
 	bool "Enable UART over SPORT3"
 	depends on SERIAL_BFIN_SPORT && (BF54x || BF538 || BF539)
 	help
 	  Enable UART over SPORT3
+
+config SERIAL_BFIN_SPORT3_UART_CTSRTS
+	bool "Enable UART over SPORT3 hardware flow control"
+	depends on SERIAL_BFIN_SPORT3_UART
+	help
+	  Enable hardware flow control in the driver.
 
 config SERIAL_TIMBERDALE
 	tristate "Support for timberdale UART"
