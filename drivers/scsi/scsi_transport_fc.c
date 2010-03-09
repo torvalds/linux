@@ -834,7 +834,7 @@ static ssize_t
 store_fc_rport_dev_loss_tmo(struct device *dev, struct device_attribute *attr,
 			    const char *buf, size_t count)
 {
-	int val;
+	unsigned long val;
 	struct fc_rport *rport = transport_class_to_rport(dev);
 	struct Scsi_Host *shost = rport_to_shost(rport);
 	struct fc_internal *i = to_fc_internal(shost->transportt);
@@ -845,6 +845,12 @@ store_fc_rport_dev_loss_tmo(struct device *dev, struct device_attribute *attr,
 		return -EBUSY;
 	val = simple_strtoul(buf, &cp, 0);
 	if ((*cp && (*cp != '\n')) || (val < 0))
+		return -EINVAL;
+
+	/*
+	 * Check for overflow; dev_loss_tmo is u32
+	 */
+	if (val > UINT_MAX)
 		return -EINVAL;
 
 	/*
@@ -2865,7 +2871,7 @@ void
 fc_remote_port_delete(struct fc_rport  *rport)
 {
 	struct Scsi_Host *shost = rport_to_shost(rport);
-	int timeout = rport->dev_loss_tmo;
+	unsigned long timeout = rport->dev_loss_tmo;
 	unsigned long flags;
 
 	/*
