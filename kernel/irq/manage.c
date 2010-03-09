@@ -483,8 +483,26 @@ static int irq_wait_for_interrupt(struct irqaction *action)
  */
 static void irq_finalize_oneshot(unsigned int irq, struct irq_desc *desc)
 {
+again:
 	chip_bus_lock(irq, desc);
 	raw_spin_lock_irq(&desc->lock);
+
+	/*
+	 * Implausible though it may be we need to protect us against
+	 * the following scenario:
+	 *
+	 * The thread is faster done than the hard interrupt handler
+	 * on the other CPU. If we unmask the irq line then the
+	 * interrupt can come in again and masks the line, leaves due
+	 * to IRQ_INPROGRESS and the irq line is masked forever.
+	 */
+	if (unlikely(desc->status & IRQ_INPROGRESS)) {
+		raw_spin_unlock_irq(&desc->lock);
+		chip_bus_sync_unlock(irq, desc);
+		cpu_relax();
+		goto again;
+	}
+
 	if (!(desc->status & IRQ_DISABLED) && (desc->status & IRQ_MASKED)) {
 		desc->status &= ~IRQ_MASKED;
 		desc->chip->unmask(irq);
