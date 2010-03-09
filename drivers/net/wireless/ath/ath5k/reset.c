@@ -851,12 +851,15 @@ static void ath5k_hw_commit_eeprom_settings(struct ath5k_hw *ah,
 				AR5K_PHY_OFDM_SELFCORR_CYPWR_THR1,
 				AR5K_INIT_CYCRSSI_THR1);
 
-	/* I/Q correction
-	 * TODO: Per channel i/q infos ? */
-	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ,
-		AR5K_PHY_IQ_CORR_ENABLE |
-		(ee->ee_i_cal[ee_mode] << AR5K_PHY_IQ_CORR_Q_I_COFF_S) |
-		ee->ee_q_cal[ee_mode]);
+	/* I/Q correction (set enable bit last to match HAL sources) */
+	/* TODO: Per channel i/q infos ? */
+	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_4_0) {
+		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_Q_I_COFF,
+			    ee->ee_i_cal[ee_mode]);
+		AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_Q_Q_COFF,
+			    ee->ee_q_cal[ee_mode]);
+		AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_ENABLE);
+	}
 
 	/* Heavy clipping -disable for now */
 	if (ah->ah_ee_version >= AR5K_EEPROM_VERSION_5_1)
