@@ -249,6 +249,12 @@ config MACH_COLIBRI320
 	select PXA3xx
 	select CPU_PXA320
 
+config MACH_VPAC270
+	bool "Voipac PXA270"
+	select PXA27x
+	help
+	  PXA270 based Single Board Computer.
+
 comment "End-user Products (sorted by vendor name)"
 
 config MACH_H4700
