@@ -1028,7 +1028,6 @@ struct ath5k_nfcal_hist
 
 /* TODO: Clean up and merge with ath5k_softc */
 struct ath5k_hw {
-	u32			ah_magic;
 	struct ath_common       common;
 
 	struct ath5k_softc	*ah_sc;

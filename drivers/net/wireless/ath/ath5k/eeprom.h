@@ -24,9 +24,6 @@
 						 * SERDES infos are present */
 #define AR5K_EEPROM_MAGIC		0x003d	/* EEPROM Magic number */
 #define AR5K_EEPROM_MAGIC_VALUE		0x5aa5	/* Default - found on EEPROM */
-#define AR5K_EEPROM_MAGIC_5212		0x0000145c /* 5212 */
-#define AR5K_EEPROM_MAGIC_5211		0x0000145b /* 5211 */
-#define AR5K_EEPROM_MAGIC_5210		0x0000145a /* 5210 */
 
 #define	AR5K_EEPROM_IS_HB63		0x000b	/* Talon detect */
 

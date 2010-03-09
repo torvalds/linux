@@ -670,12 +670,6 @@ int ath5k_hw_init_desc_functions(struct ath5k_hw *ah)
 		ah->ah_version != AR5K_AR5212)
 			return -ENOTSUPP;
 
-	/* XXX: What is this magic value and where is it used ? */
-	if (ah->ah_version == AR5K_AR5212)
-		ah->ah_magic = AR5K_EEPROM_MAGIC_5212;
-	else if (ah->ah_version == AR5K_AR5211)
-		ah->ah_magic = AR5K_EEPROM_MAGIC_5211;
-
 	if (ah->ah_version == AR5K_AR5212) {
 		ah->ah_setup_rx_desc = ath5k_hw_setup_rx_desc;
 		ah->ah_setup_tx_desc = ath5k_hw_setup_4word_tx_desc;
