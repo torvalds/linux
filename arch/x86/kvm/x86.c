@@ -4483,7 +4483,9 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 		kvm_set_cr8(vcpu, kvm_run->cr8);
 
 	if (vcpu->arch.pio.cur_count) {
+		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = complete_pio(vcpu);
+		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
 		if (r)
 			goto out;
 	}
