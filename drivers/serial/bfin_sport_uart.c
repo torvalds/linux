@@ -500,27 +500,12 @@ static void sport_set_termios(struct uart_port *port,
 
 	spin_lock_irqsave(&up->port.lock, flags);
 
-	port->read_status_mask = OE;
-	if (termios->c_iflag & INPCK)
-		port->read_status_mask |= (FE | PE);
-	if (termios->c_iflag & (BRKINT | PARMRK))
-		port->read_status_mask |= BI;
+	port->read_status_mask = 0;
 
 	/*
 	 * Characters to ignore
 	 */
 	port->ignore_status_mask = 0;
-	if (termios->c_iflag & IGNPAR)
-		port->ignore_status_mask |= FE | PE;
-	if (termios->c_iflag & IGNBRK) {
-		port->ignore_status_mask |= BI;
-		/*
-		 * If we're ignoring parity and break indicators,
-		 * ignore overruns too (for real raw support).
-		 */
-		if (termios->c_iflag & IGNPAR)
-			port->ignore_status_mask |= OE;
-	}
 
 	/* RX extract mask */
 	up->rxmask = 0x01 | (((up->csize + up->stopb) * 2 - 1) << 0x8);
