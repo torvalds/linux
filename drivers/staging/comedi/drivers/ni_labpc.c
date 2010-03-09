@@ -536,7 +536,7 @@ int labpc_common_attach(struct comedi_device *dev, unsigned long iobase,
 	printk("\n");
 
 	if (iobase == 0) {
-		printk("io base address is zero!\n");
+		printk(KERN_ERR "io base address is zero!\n");
 		return -EINVAL;
 	}
 	/*  request io regions for isa boards */
