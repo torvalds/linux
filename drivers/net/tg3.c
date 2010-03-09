@@ -5279,7 +5279,7 @@ static void tg3_poll_controller(struct net_device *dev)
 	struct tg3 *tp = netdev_priv(dev);
 
 	for (i = 0; i < tp->irq_cnt; i++)
-		tg3_interrupt(tp->napi[i].irq_vec, dev);
+		tg3_interrupt(tp->napi[i].irq_vec, &tp->napi[i]);
 }
 #endif
 
