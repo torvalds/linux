@@ -472,19 +472,38 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 	struct pt_regs regs;
 	int n;
 
-	if (!event || !ds || !x86_pmu.pebs)
+	if (!ds || !x86_pmu.pebs)
 		return;
 
 	at  = (struct pebs_record_core *)(unsigned long)ds->pebs_buffer_base;
 	top = (struct pebs_record_core *)(unsigned long)ds->pebs_index;
 
-	if (top <= at)
+	/*
+	 * Whatever else happens, drain the thing
+	 */
+	ds->pebs_index = ds->pebs_buffer_base;
+
+	if (!test_bit(0, cpuc->active_mask))
 		return;
 
-	ds->pebs_index = ds->pebs_buffer_base;
+	WARN_ON_ONCE(!event);
+
+	if (!event->attr.precise)
+		return;
+
+	n = top - at;
+	if (n <= 0)
+		return;
 
 	if (!intel_pmu_save_and_restart(event))
 		return;
+
+	/*
+	 * Should not happen, we program the threshold at 1 and do not
+	 * set a reset value.
+	 */
+	WARN_ON_ONCE(n > 1);
+	at += n - 1;
 
 	perf_sample_data_init(&data, 0);
 	data.period = event->hw.last_period;
@@ -494,14 +513,6 @@ static void intel_pmu_drain_pebs_core(struct pt_regs *iregs)
 		raw.data = at;
 		data.raw = &raw;
 	}
-
-	n = top - at;
-
-	/*
-	 * Should not happen, we program the threshold at 1 and do not
-	 * set a reset value.
-	 */
-	WARN_ON_ONCE(n > 1);
 
 	/*
 	 * We use the interrupt regs as a base because the PEBS record
@@ -545,12 +556,11 @@ static void intel_pmu_drain_pebs_nhm(struct pt_regs *iregs)
 	at  = (struct pebs_record_nhm *)(unsigned long)ds->pebs_buffer_base;
 	top = (struct pebs_record_nhm *)(unsigned long)ds->pebs_index;
 
-	if (top <= at)
-		return;
-
 	ds->pebs_index = ds->pebs_buffer_base;
 
 	n = top - at;
+	if (n <= 0)
+		return;
 
 	/*
 	 * Should not happen, we program the threshold at 1 and do not
