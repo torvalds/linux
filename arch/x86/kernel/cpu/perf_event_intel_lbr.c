@@ -129,7 +129,7 @@ static void intel_pmu_lbr_read_32(struct cpu_hw_events *cpuc)
 	u64 tos = intel_pmu_lbr_tos();
 	int i;
 
-	for (i = 0; i < x86_pmu.lbr_nr; i++, tos--) {
+	for (i = 0; i < x86_pmu.lbr_nr; i++) {
 		unsigned long lbr_idx = (tos - i) & mask;
 		union {
 			struct {
@@ -162,7 +162,7 @@ static void intel_pmu_lbr_read_64(struct cpu_hw_events *cpuc)
 	u64 tos = intel_pmu_lbr_tos();
 	int i;
 
-	for (i = 0; i < x86_pmu.lbr_nr; i++, tos--) {
+	for (i = 0; i < x86_pmu.lbr_nr; i++) {
 		unsigned long lbr_idx = (tos - i) & mask;
 		u64 from, to, flags = 0;
 
