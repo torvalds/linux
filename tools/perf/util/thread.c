@@ -79,8 +79,8 @@ int thread__comm_len(struct thread *self)
 	return self->comm_len;
 }
 
-static size_t __map_groups__fprintf_maps(struct map_groups *self,
-					 enum map_type type, FILE *fp)
+size_t __map_groups__fprintf_maps(struct map_groups *self,
+				  enum map_type type, FILE *fp)
 {
 	size_t printed = fprintf(fp, "%s:\n", map_type__name[type]);
 	struct rb_node *nd;
@@ -89,7 +89,7 @@ static size_t __map_groups__fprintf_maps(struct map_groups *self,
 		struct map *pos = rb_entry(nd, struct map, rb_node);
 		printed += fprintf(fp, "Map:");
 		printed += map__fprintf(pos, fp);
-		if (verbose > 1) {
+		if (verbose > 2) {
 			printed += dso__fprintf(pos->dso, type, fp);
 			printed += fprintf(fp, "--\n");
 		}

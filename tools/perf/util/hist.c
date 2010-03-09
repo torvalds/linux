@@ -655,6 +655,11 @@ print_entries:
 		}
 		ret += hist_entry__fprintf(h, pair, show_displacement,
 					   displacement, fp, session_total);
+		if (h->map == NULL && verbose > 1) {
+			__map_groups__fprintf_maps(&h->thread->mg,
+						   MAP__FUNCTION, fp);
+			fprintf(fp, "%.10s end\n", graph_dotted_line);
+		}
 	}
 
 	free(rem_sq_bracket);
