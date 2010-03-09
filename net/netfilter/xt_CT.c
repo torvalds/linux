@@ -137,7 +137,7 @@ static void xt_ct_tg_destroy(const struct xt_tgdtor_param *par)
 static struct xt_target xt_ct_tg __read_mostly = {
 	.name		= "CT",
 	.family		= NFPROTO_UNSPEC,
-	.targetsize	= XT_ALIGN(sizeof(struct xt_ct_target_info)),
+	.targetsize	= sizeof(struct xt_ct_target_info),
 	.checkentry	= xt_ct_tg_check,
 	.destroy	= xt_ct_tg_destroy,
 	.target		= xt_ct_target,
