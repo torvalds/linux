@@ -510,9 +510,9 @@ int cifs_get_file_info(struct file *filp)
 	if (rc == -EOPNOTSUPP || rc == -EINVAL) {
 		/*
 		 * FIXME: legacy server -- fall back to path-based call?
- 		 * for now, just skip revalidating and mark inode for
- 		 * immediate reval.
- 		 */
+		 * for now, just skip revalidating and mark inode for
+		 * immediate reval.
+		 */
 		rc = 0;
 		CIFS_I(inode)->time = 0;
 		goto cgfi_exit;
