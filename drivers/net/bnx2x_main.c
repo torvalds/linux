@@ -893,7 +893,6 @@ static inline u16 bnx2x_tx_avail(struct bnx2x_fastpath *fp)
 	u16 prod;
 	u16 cons;
 
-	barrier(); /* Tell compiler that prod and cons can change */
 	prod = fp->tx_bd_prod;
 	cons = fp->tx_bd_cons;
 
