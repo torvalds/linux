@@ -442,6 +442,7 @@ static int fw_setup_device(struct firmware *fw, struct device **dev_p,
 	fw_priv = dev_get_drvdata(f_dev);
 
 	fw_priv->fw = fw;
+	sysfs_bin_attr_init(&fw_priv->attr_data);
 	retval = sysfs_create_bin_file(&f_dev->kobj, &fw_priv->attr_data);
 	if (retval) {
 		dev_err(device, "%s: sysfs_create_bin_file failed\n", __func__);
