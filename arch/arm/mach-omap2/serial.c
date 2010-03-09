@@ -550,7 +550,7 @@ static ssize_t sleep_timeout_store(struct device *dev,
 	unsigned int value;
 
 	if (sscanf(buf, "%u", &value) != 1) {
-		printk(KERN_ERR "sleep_timeout_store: Invalid value\n");
+		dev_err(dev, "sleep_timeout_store: Invalid value\n");
 		return -EINVAL;
 	}
 
@@ -666,8 +666,8 @@ void __init omap_serial_early_init(void)
 
 		/* Don't map zero-based physical address */
 		if (p->mapbase == 0) {
-			printk(KERN_WARNING "omap serial: No physical address"
-			       " for uart#%d, so skipping early_init...\n", i);
+			dev_warn(dev, "no physical address for uart#%d,"
+				 " so skipping early_init...\n", i);
 			continue;
 		}
 		/*
@@ -676,21 +676,21 @@ void __init omap_serial_early_init(void)
 		 */
 		p->membase = ioremap(p->mapbase, SZ_8K);
 		if (!p->membase) {
-			printk(KERN_ERR "ioremap failed for uart%i\n", i + 1);
+			dev_err(dev, "ioremap failed for uart%i\n", i + 1);
 			continue;
 		}
 
 		sprintf(name, "uart%d_ick", i + 1);
 		uart->ick = clk_get(NULL, name);
 		if (IS_ERR(uart->ick)) {
-			printk(KERN_ERR "Could not get uart%d_ick\n", i + 1);
+			dev_err(dev, "Could not get uart%d_ick\n", i + 1);
 			uart->ick = NULL;
 		}
 
 		sprintf(name, "uart%d_fck", i+1);
 		uart->fck = clk_get(NULL, name);
 		if (IS_ERR(uart->fck)) {
-			printk(KERN_ERR "Could not get uart%d_fck\n", i + 1);
+			dev_err(dev, "Could not get uart%d_fck\n", i + 1);
 			uart->fck = NULL;
 		}
 
