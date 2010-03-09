@@ -26,8 +26,9 @@
  *          Jerome Glisse
  */
 #include <linux/seq_file.h>
-#include "drmP.h"
-#include "drm.h"
+#include <drm/drmP.h>
+#include <drm/drm.h>
+#include <drm/drm_crtc_helper.h>
 #include "radeon_reg.h"
 #include "radeon.h"
 #include "radeon_asic.h"
@@ -426,12 +427,35 @@ int r300_ga_reset(struct radeon_device *rdev)
 	return -1;
 }
 
+bool r300_gpu_is_lockup(struct radeon_device *rdev)
+{
+	u32 rbbm_status;
+	int r;
+
+	rbbm_status = RREG32(R_000E40_RBBM_STATUS);
+	if (!G_000E40_GUI_ACTIVE(rbbm_status)) {
+		r100_gpu_lockup_update(&rdev->config.r300.lockup, &rdev->cp);
+		return false;
+	}
+	/* force CP activities */
+	r = radeon_ring_lock(rdev, 2);
+	if (!r) {
+		/* PACKET2 NOP */
+		radeon_ring_write(rdev, 0x80000000);
+		radeon_ring_write(rdev, 0x80000000);
+		radeon_ring_unlock_commit(rdev);
+	}
+	rdev->cp.rptr = RREG32(RADEON_CP_RB_RPTR);
+	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r300.lockup, &rdev->cp);
+}
+
 int r300_gpu_reset(struct radeon_device *rdev)
 {
 	uint32_t status;
 
 	/* reset order likely matter */
 	status = RREG32(RADEON_RBBM_STATUS);
+	dev_info(rdev->dev, "(%s:%d) RBBM_STATUS=0x%08X\n", __func__, __LINE__, status);
 	/* reset HDP */
 	r100_hdp_reset(rdev);
 	/* reset rb2d */

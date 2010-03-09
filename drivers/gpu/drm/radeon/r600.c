@@ -784,7 +784,7 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 		dev_info(rdev->dev, "  R_008020_GRBM_SOFT_RESET=0x%08X\n", tmp);
 		WREG32(R_008020_GRBM_SOFT_RESET, tmp);
 		(void)RREG32(R_008020_GRBM_SOFT_RESET);
-		udelay(50);
+		mdelay(1);
 		WREG32(R_008020_GRBM_SOFT_RESET, 0);
 		(void)RREG32(R_008020_GRBM_SOFT_RESET);
 	}
@@ -824,16 +824,16 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 	dev_info(rdev->dev, "  R_000E60_SRBM_SOFT_RESET=0x%08X\n", srbm_reset);
 	WREG32(R_000E60_SRBM_SOFT_RESET, srbm_reset);
 	(void)RREG32(R_000E60_SRBM_SOFT_RESET);
-	udelay(50);
+	mdelay(1);
 	WREG32(R_000E60_SRBM_SOFT_RESET, 0);
 	(void)RREG32(R_000E60_SRBM_SOFT_RESET);
 	WREG32(R_000E60_SRBM_SOFT_RESET, srbm_reset);
 	(void)RREG32(R_000E60_SRBM_SOFT_RESET);
-	udelay(50);
+	mdelay(1);
 	WREG32(R_000E60_SRBM_SOFT_RESET, 0);
 	(void)RREG32(R_000E60_SRBM_SOFT_RESET);
 	/* Wait a little for things to settle down */
-	udelay(50);
+	mdelay(1);
 	dev_info(rdev->dev, "  R_008010_GRBM_STATUS=0x%08X\n",
 		RREG32(R_008010_GRBM_STATUS));
 	dev_info(rdev->dev, "  R_008014_GRBM_STATUS2=0x%08X\n",
@@ -846,6 +846,32 @@ int r600_gpu_soft_reset(struct radeon_device *rdev)
 	atom_asic_init(rdev->mode_info.atom_context);
 	rv515_mc_resume(rdev, &save);
 	return 0;
+}
+
+bool r600_gpu_is_lockup(struct radeon_device *rdev)
+{
+	u32 srbm_status;
+	u32 grbm_status;
+	u32 grbm_status2;
+	int r;
+
+	srbm_status = RREG32(R_000E50_SRBM_STATUS);
+	grbm_status = RREG32(R_008010_GRBM_STATUS);
+	grbm_status2 = RREG32(R_008014_GRBM_STATUS2);
+	if (!G_008010_GUI_ACTIVE(grbm_status)) {
+		r100_gpu_lockup_update(&rdev->config.r300.lockup, &rdev->cp);
+		return false;
+	}
+	/* force CP activities */
+	r = radeon_ring_lock(rdev, 2);
+	if (!r) {
+		/* PACKET2 NOP */
+		radeon_ring_write(rdev, 0x80000000);
+		radeon_ring_write(rdev, 0x80000000);
+		radeon_ring_unlock_commit(rdev);
+	}
+	rdev->cp.rptr = RREG32(R600_CP_RB_RPTR);
+	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r300.lockup, &rdev->cp);
 }
 
 int r600_gpu_reset(struct radeon_device *rdev)
