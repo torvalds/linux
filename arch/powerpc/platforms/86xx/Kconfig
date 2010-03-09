@@ -33,32 +33,32 @@ config MPC8610_HPCD
 	  This option enables support for the MPC8610 HPCD board.
 
 config GEF_PPC9A
-	bool "GE Fanuc PPC9A"
+	bool "GE PPC9A"
 	select DEFAULT_UIMAGE
 	select MMIO_NVRAM
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
-	  This option enables support for GE Fanuc's PPC9A.
+	  This option enables support for the GE PPC9A.
 
 config GEF_SBC310
-	bool "GE Fanuc SBC310"
+	bool "GE SBC310"
 	select DEFAULT_UIMAGE
 	select MMIO_NVRAM
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	help
-	  This option enables support for GE Fanuc's SBC310.
+	  This option enables support for the GE SBC310.
 
 config GEF_SBC610
-	bool "GE Fanuc SBC610"
+	bool "GE SBC610"
 	select DEFAULT_UIMAGE
 	select MMIO_NVRAM
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
 	select HAS_RAPIDIO
 	help
-	  This option enables support for GE Fanuc's SBC610.
+	  This option enables support for the GE SBC610.
 
 endif
 
