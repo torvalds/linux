@@ -527,6 +527,8 @@ struct uart_ops sport_uart_ops = {
 static struct sport_uart_port *bfin_sport_uart_ports[BFIN_SPORT_UART_MAX_PORTS];
 
 #ifdef CONFIG_SERIAL_BFIN_SPORT_CONSOLE
+#define CLASS_BFIN_SPORT_CONSOLE	"bfin-sport-console"
+
 static int __init
 sport_uart_console_setup(struct console *co, char *options)
 {
@@ -788,7 +790,7 @@ static struct platform_driver sport_uart_driver = {
 
 #ifdef CONFIG_SERIAL_BFIN_SPORT_CONSOLE
 static __initdata struct early_platform_driver early_sport_uart_driver = {
-	.class_str = DRV_NAME,
+	.class_str = CLASS_BFIN_SPORT_CONSOLE,
 	.pdrv = &sport_uart_driver,
 	.requested_id = EARLY_PLATFORM_ID_UNSET,
 };
@@ -797,7 +799,8 @@ static int __init sport_uart_rs_console_init(void)
 {
 	early_platform_driver_register(&early_sport_uart_driver, DRV_NAME);
 
-	early_platform_driver_probe(DRV_NAME, BFIN_SPORT_UART_MAX_PORTS, 0);
+	early_platform_driver_probe(CLASS_BFIN_SPORT_CONSOLE,
+		BFIN_SPORT_UART_MAX_PORTS, 0);
 
 	register_console(&sport_uart_console);
 
