@@ -136,7 +136,7 @@ static unsigned int ata_data_xfer_8bit(struct ata_device *dev,
  *
  */
  
-void pcmcia_8bit_drain_fifo(struct ata_queued_cmd *qc)
+static void pcmcia_8bit_drain_fifo(struct ata_queued_cmd *qc)
 {
 	int count;
 	struct ata_port *ap;

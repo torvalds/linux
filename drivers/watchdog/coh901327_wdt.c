@@ -257,7 +257,7 @@ static long coh901327_ioctl(struct file *file, unsigned int cmd,
 		struct watchdog_info __user *ident;
 		int __user *i;
 	} uarg;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options		= WDIOF_CARDRESET |
 					  WDIOF_SETTIMEOUT |
 					  WDIOF_KEEPALIVEPING,

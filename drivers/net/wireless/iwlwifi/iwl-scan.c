@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -192,19 +192,17 @@ static void iwl_rx_scan_results_notif(struct iwl_priv *priv,
 	IWL_DEBUG_SCAN(priv, "Scan ch.res: "
 		       "%d [802.11%s] "
 		       "(TSF: 0x%08X:%08X) - %d "
-		       "elapsed=%lu usec (%dms since last)\n",
+		       "elapsed=%lu usec\n",
 		       notif->channel,
 		       notif->band ? "bg" : "a",
 		       le32_to_cpu(notif->tsf_high),
 		       le32_to_cpu(notif->tsf_low),
 		       le32_to_cpu(notif->statistics[0]),
-		       le32_to_cpu(notif->tsf_low) - priv->scan_start_tsf,
-		       jiffies_to_msecs(elapsed_jiffies
-					(priv->last_scan_jiffies, jiffies)));
+		       le32_to_cpu(notif->tsf_low) - priv->scan_start_tsf);
 #endif
 
-	priv->last_scan_jiffies = jiffies;
-	priv->next_scan_jiffies = 0;
+	if (!priv->is_internal_short_scan)
+		priv->next_scan_jiffies = 0;
 }
 
 /* Service SCAN_COMPLETE_NOTIFICATION (0x84) */
@@ -250,8 +248,9 @@ static void iwl_rx_scan_complete_notif(struct iwl_priv *priv,
 			goto reschedule;
 	}
 
-	priv->last_scan_jiffies = jiffies;
-	priv->next_scan_jiffies = 0;
+	if (!priv->is_internal_short_scan)
+		priv->next_scan_jiffies = 0;
+
 	IWL_DEBUG_INFO(priv, "Setting scan to off\n");
 
 	clear_bit(STATUS_SCANNING, &priv->status);
@@ -313,6 +312,72 @@ u16 iwl_get_passive_dwell_time(struct iwl_priv *priv,
 	return passive;
 }
 EXPORT_SYMBOL(iwl_get_passive_dwell_time);
+
+static int iwl_get_single_channel_for_scan(struct iwl_priv *priv,
+				     enum ieee80211_band band,
+				     struct iwl_scan_channel *scan_ch)
+{
+	const struct ieee80211_supported_band *sband;
+	const struct iwl_channel_info *ch_info;
+	u16 passive_dwell = 0;
+	u16 active_dwell = 0;
+	int i, added = 0;
+	u16 channel = 0;
+
+	sband = iwl_get_hw_mode(priv, band);
+	if (!sband) {
+		IWL_ERR(priv, "invalid band\n");
+		return added;
+	}
+
+	active_dwell = iwl_get_active_dwell_time(priv, band, 0);
+	passive_dwell = iwl_get_passive_dwell_time(priv, band);
+
+	if (passive_dwell <= active_dwell)
+		passive_dwell = active_dwell + 1;
+
+	/* only scan single channel, good enough to reset the RF */
+	/* pick the first valid not in-use channel */
+	if (band == IEEE80211_BAND_5GHZ) {
+		for (i = 14; i < priv->channel_count; i++) {
+			if (priv->channel_info[i].channel !=
+			    le16_to_cpu(priv->staging_rxon.channel)) {
+				channel = priv->channel_info[i].channel;
+				ch_info = iwl_get_channel_info(priv,
+					band, channel);
+				if (is_channel_valid(ch_info))
+					break;
+			}
+		}
+	} else {
+		for (i = 0; i < 14; i++) {
+			if (priv->channel_info[i].channel !=
+			    le16_to_cpu(priv->staging_rxon.channel)) {
+					channel =
+						priv->channel_info[i].channel;
+					ch_info = iwl_get_channel_info(priv,
+						band, channel);
+					if (is_channel_valid(ch_info))
+						break;
+			}
+		}
+	}
+	if (channel) {
+		scan_ch->channel = cpu_to_le16(channel);
+		scan_ch->type = SCAN_CHANNEL_TYPE_PASSIVE;
+		scan_ch->active_dwell = cpu_to_le16(active_dwell);
+		scan_ch->passive_dwell = cpu_to_le16(passive_dwell);
+		/* Set txpower levels to defaults */
+		scan_ch->dsp_atten = 110;
+		if (band == IEEE80211_BAND_5GHZ)
+			scan_ch->tx_gain = ((1 << 5) | (3 << 3)) | 3;
+		else
+			scan_ch->tx_gain = ((1 << 5) | (5 << 3));
+		added++;
+	} else
+		IWL_ERR(priv, "no valid channel found\n");
+	return added;
+}
 
 static int iwl_get_channels_for_scan(struct iwl_priv *priv,
 				     enum ieee80211_band band,
@@ -404,23 +469,9 @@ EXPORT_SYMBOL(iwl_init_scan_params);
 
 static int iwl_scan_initiate(struct iwl_priv *priv)
 {
-	if (!iwl_is_ready_rf(priv)) {
-		IWL_DEBUG_SCAN(priv, "Aborting scan due to not ready.\n");
-		return -EIO;
-	}
-
-	if (test_bit(STATUS_SCANNING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
-		return -EAGAIN;
-	}
-
-	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
-		IWL_DEBUG_SCAN(priv, "Scan request while abort pending\n");
-		return -EAGAIN;
-	}
-
 	IWL_DEBUG_INFO(priv, "Starting scan...\n");
 	set_bit(STATUS_SCANNING, &priv->status);
+	priv->is_internal_short_scan = false;
 	priv->scan_start = jiffies;
 	priv->scan_pass_start = priv->scan_start;
 
@@ -449,6 +500,18 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 		goto out_unlock;
 	}
 
+	if (test_bit(STATUS_SCANNING, &priv->status)) {
+		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
+		ret = -EAGAIN;
+		goto out_unlock;
+	}
+
+	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
+		IWL_DEBUG_SCAN(priv, "Scan request while abort pending\n");
+		ret = -EAGAIN;
+		goto out_unlock;
+	}
+
 	/* We don't schedule scan within next_scan_jiffies period.
 	 * Avoid scanning during possible EAPOL exchange, return
 	 * success immediately.
@@ -456,15 +519,6 @@ int iwl_mac_hw_scan(struct ieee80211_hw *hw,
 	if (priv->next_scan_jiffies &&
 	    time_after(priv->next_scan_jiffies, jiffies)) {
 		IWL_DEBUG_SCAN(priv, "scan rejected: within next scan period\n");
-		queue_work(priv->workqueue, &priv->scan_completed);
-		ret = 0;
-		goto out_unlock;
-	}
-
-	/* if we just finished scan ask for delay */
-	if (iwl_is_associated(priv) && priv->last_scan_jiffies &&
-	    time_after(priv->last_scan_jiffies + IWL_DELAY_NEXT_SCAN, jiffies)) {
-		IWL_DEBUG_SCAN(priv, "scan rejected: within previous scan period\n");
 		queue_work(priv->workqueue, &priv->scan_completed);
 		ret = 0;
 		goto out_unlock;
@@ -487,6 +541,46 @@ out_unlock:
 	return ret;
 }
 EXPORT_SYMBOL(iwl_mac_hw_scan);
+
+/*
+ * internal short scan, this function should only been called while associated.
+ * It will reset and tune the radio to prevent possible RF related problem
+ */
+int iwl_internal_short_hw_scan(struct iwl_priv *priv)
+{
+	int ret = 0;
+
+	if (!iwl_is_ready_rf(priv)) {
+		ret = -EIO;
+		IWL_DEBUG_SCAN(priv, "not ready or exit pending\n");
+		goto out;
+	}
+	if (test_bit(STATUS_SCANNING, &priv->status)) {
+		IWL_DEBUG_SCAN(priv, "Scan already in progress.\n");
+		ret = -EAGAIN;
+		goto out;
+	}
+	if (test_bit(STATUS_SCAN_ABORTING, &priv->status)) {
+		IWL_DEBUG_SCAN(priv, "Scan request while abort pending\n");
+		ret = -EAGAIN;
+		goto out;
+	}
+
+	priv->scan_bands = 0;
+	if (priv->band == IEEE80211_BAND_5GHZ)
+		priv->scan_bands |= BIT(IEEE80211_BAND_5GHZ);
+	else
+		priv->scan_bands |= BIT(IEEE80211_BAND_2GHZ);
+
+	IWL_DEBUG_SCAN(priv, "Start internal short scan...\n");
+	set_bit(STATUS_SCANNING, &priv->status);
+	priv->is_internal_short_scan = true;
+	queue_work(priv->workqueue, &priv->request_scan);
+
+out:
+	return ret;
+}
+EXPORT_SYMBOL(iwl_internal_short_hw_scan);
 
 #define IWL_SCAN_CHECK_WATCHDOG (7 * HZ)
 
@@ -544,14 +638,26 @@ u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
 	if (left < 0)
 		return 0;
 	*pos++ = WLAN_EID_SSID;
-	*pos++ = 0;
+	if (!priv->is_internal_short_scan &&
+	    priv->scan_request->n_ssids) {
+		struct cfg80211_ssid *ssid =
+			priv->scan_request->ssids;
 
-	len += 2;
+		/* Broadcast if ssid_len is 0 */
+		*pos++ = ssid->ssid_len;
+		memcpy(pos, ssid->ssid, ssid->ssid_len);
+		pos += ssid->ssid_len;
+		len += 2 + ssid->ssid_len;
+	} else {
+		*pos++ = 0;
+		len += 2;
+	}
 
 	if (WARN_ON(left < ie_len))
 		return len;
 
-	memcpy(pos, ies, ie_len);
+	if (ies)
+		memcpy(pos, ies, ie_len);
 	len += ie_len;
 	left -= ie_len;
 
@@ -654,7 +760,6 @@ static void iwl_bg_request_scan(struct work_struct *data)
 		unsigned long flags;
 
 		IWL_DEBUG_INFO(priv, "Scanning while associated...\n");
-
 		spin_lock_irqsave(&priv->lock, flags);
 		interval = priv->beacon_int;
 		spin_unlock_irqrestore(&priv->lock, flags);
@@ -672,21 +777,29 @@ static void iwl_bg_request_scan(struct work_struct *data)
 			       scan_suspend_time, interval);
 	}
 
-	if (priv->scan_request->n_ssids) {
-		int i, p = 0;
+	if (priv->is_internal_short_scan) {
+		IWL_DEBUG_SCAN(priv, "Start internal passive scan.\n");
+	} else if (priv->scan_request->n_ssids) {
 		IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
-		for (i = 0; i < priv->scan_request->n_ssids; i++) {
-			/* always does wildcard anyway */
-			if (!priv->scan_request->ssids[i].ssid_len)
-				continue;
-			scan->direct_scan[p].id = WLAN_EID_SSID;
-			scan->direct_scan[p].len =
-				priv->scan_request->ssids[i].ssid_len;
-			memcpy(scan->direct_scan[p].ssid,
-			       priv->scan_request->ssids[i].ssid,
-			       priv->scan_request->ssids[i].ssid_len);
-			n_probes++;
-			p++;
+		/*
+		 * The first SSID to scan is stuffed into the probe request
+		 * template and the remaining ones are handled through the
+		 * direct_scan array.
+		 */
+		if (priv->scan_request->n_ssids > 1) {
+			int i, p = 0;
+			for (i = 1; i < priv->scan_request->n_ssids; i++) {
+				if (!priv->scan_request->ssids[i].ssid_len)
+					continue;
+				scan->direct_scan[p].id = WLAN_EID_SSID;
+				scan->direct_scan[p].len =
+					priv->scan_request->ssids[i].ssid_len;
+				memcpy(scan->direct_scan[p].ssid,
+				       priv->scan_request->ssids[i].ssid,
+				       priv->scan_request->ssids[i].ssid_len);
+				n_probes++;
+				p++;
+			}
 		}
 		is_active = true;
 	} else
@@ -753,24 +866,38 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	rx_chain |= rx_ant << RXON_RX_CHAIN_FORCE_SEL_POS;
 	rx_chain |= 0x1 << RXON_RX_CHAIN_DRIVER_FORCE_POS;
 	scan->rx_chain = cpu_to_le16(rx_chain);
-	cmd_len = iwl_fill_probe_req(priv,
-				(struct ieee80211_mgmt *)scan->data,
-				priv->scan_request->ie,
-				priv->scan_request->ie_len,
-				IWL_MAX_SCAN_SIZE - sizeof(*scan));
+	if (!priv->is_internal_short_scan) {
+		cmd_len = iwl_fill_probe_req(priv,
+					(struct ieee80211_mgmt *)scan->data,
+					priv->scan_request->ie,
+					priv->scan_request->ie_len,
+					IWL_MAX_SCAN_SIZE - sizeof(*scan));
+	} else {
+		cmd_len = iwl_fill_probe_req(priv,
+					(struct ieee80211_mgmt *)scan->data,
+					NULL, 0,
+					IWL_MAX_SCAN_SIZE - sizeof(*scan));
 
+	}
 	scan->tx_cmd.len = cpu_to_le16(cmd_len);
-
 	if (iwl_is_monitor_mode(priv))
 		scan->filter_flags = RXON_FILTER_PROMISC_MSK;
 
 	scan->filter_flags |= (RXON_FILTER_ACCEPT_GRP_MSK |
 			       RXON_FILTER_BCON_AWARE_MSK);
 
-	scan->channel_count =
-		iwl_get_channels_for_scan(priv, band, is_active, n_probes,
-			(void *)&scan->data[le16_to_cpu(scan->tx_cmd.len)]);
-
+	if (priv->is_internal_short_scan) {
+		scan->channel_count =
+			iwl_get_single_channel_for_scan(priv, band,
+				(void *)&scan->data[le16_to_cpu(
+				scan->tx_cmd.len)]);
+	} else {
+		scan->channel_count =
+			iwl_get_channels_for_scan(priv, band,
+				is_active, n_probes,
+				(void *)&scan->data[le16_to_cpu(
+				scan->tx_cmd.len)]);
+	}
 	if (scan->channel_count == 0) {
 		IWL_DEBUG_SCAN(priv, "channel count %d\n", scan->channel_count);
 		goto done;
@@ -831,7 +958,12 @@ void iwl_bg_scan_completed(struct work_struct *work)
 
 	cancel_delayed_work(&priv->scan_check);
 
-	ieee80211_scan_completed(priv->hw, false);
+	if (!priv->is_internal_short_scan)
+		ieee80211_scan_completed(priv->hw, false);
+	else {
+		priv->is_internal_short_scan = false;
+		IWL_DEBUG_SCAN(priv, "internal short scan completed\n");
+	}
 
 	if (test_bit(STATUS_EXIT_PENDING, &priv->status))
 		return;

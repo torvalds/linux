@@ -55,7 +55,7 @@ static int crypto_ecb_crypt(struct blkcipher_desc *desc,
 
 		do {
 			fn(crypto_cipher_tfm(tfm), wdst, wsrc);
-	
+
 			wsrc += bsize;
 			wdst += bsize;
 		} while ((nbytes -= bsize) >= bsize);

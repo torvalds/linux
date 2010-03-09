@@ -1,7 +1,7 @@
 /*
  * Compressed RAM based swap device
  *
- * Copyright (C) 2008, 2009  Nitin Gupta
+ * Copyright (C) 2008, 2009, 2010  Nitin Gupta
  *
  * This code is released using a dual license strategy: BSD/GPL
  * You can choose the licence that better fits your requirements.
@@ -24,12 +24,10 @@
 #include <linux/genhd.h>
 #include <linux/highmem.h>
 #include <linux/lzo.h>
-#include <linux/mutex.h>
 #include <linux/string.h>
 #include <linux/swap.h>
 #include <linux/swapops.h>
 #include <linux/vmalloc.h>
-#include <linux/version.h>
 
 #include "ramzswap_drv.h"
 
@@ -222,7 +220,7 @@ out:
 	return ret;
 }
 
-void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
+static void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
 			struct ramzswap_ioctl_stats *s)
 {
 	strncpy(s->backing_swap_name, rzs->backing_swap_name,
@@ -240,7 +238,8 @@ void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
 
 	mem_used = xv_get_total_size_bytes(rzs->mem_pool)
 			+ (rs->pages_expand << PAGE_SHIFT);
-	succ_writes = rs->num_writes - rs->failed_writes;
+	succ_writes = rzs_stat64_read(rzs, &rs->num_writes) -
+			rzs_stat64_read(rzs, &rs->failed_writes);
 
 	if (succ_writes && rs->pages_stored) {
 		good_compress_perc = rs->good_compress * 100
@@ -249,11 +248,12 @@ void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
 					/ rs->pages_stored;
 	}
 
-	s->num_reads = rs->num_reads;
-	s->num_writes = rs->num_writes;
-	s->failed_reads = rs->failed_reads;
-	s->failed_writes = rs->failed_writes;
-	s->invalid_io = rs->invalid_io;
+	s->num_reads = rzs_stat64_read(rzs, &rs->num_reads);
+	s->num_writes = rzs_stat64_read(rzs, &rs->num_writes);
+	s->failed_reads = rzs_stat64_read(rzs, &rs->failed_reads);
+	s->failed_writes = rzs_stat64_read(rzs, &rs->failed_writes);
+	s->invalid_io = rzs_stat64_read(rzs, &rs->invalid_io);
+	s->notify_free = rzs_stat64_read(rzs, &rs->notify_free);
 	s->pages_zero = rs->pages_zero;
 
 	s->good_compress_pct = good_compress_perc;
@@ -265,8 +265,8 @@ void ramzswap_ioctl_get_stats(struct ramzswap *rzs,
 	s->compr_data_size = rs->compr_size;
 	s->mem_used_total = mem_used;
 
-	s->bdev_num_reads = rs->bdev_num_reads;
-	s->bdev_num_writes = rs->bdev_num_writes;
+	s->bdev_num_reads = rzs_stat64_read(rzs, &rs->bdev_num_reads);
+	s->bdev_num_writes = rzs_stat64_read(rzs, &rs->bdev_num_writes);
 	}
 #endif /* CONFIG_RAMZSWAP_STATS */
 }
@@ -502,6 +502,14 @@ static int setup_backing_swap(struct ramzswap *rzs)
 			goto bad_param;
 		}
 		disksize = i_size_read(inode);
+		/*
+		 * Can happen if user gives an extended partition as
+		 * backing swap or simply a bad disk.
+		 */
+		if (!disksize) {
+			pr_err("Error reading backing swap size.\n");
+			goto bad_param;
+		}
 	} else if (S_ISREG(inode->i_mode)) {
 		bdev = inode->i_sb->s_bdev;
 		if (IS_SWAPFILE(inode)) {
@@ -519,7 +527,6 @@ static int setup_backing_swap(struct ramzswap *rzs)
 	rzs->swap_file = swap_file;
 	rzs->backing_swap = bdev;
 	rzs->disksize = disksize;
-	BUG_ON(!rzs->disksize);
 
 	return 0;
 
@@ -537,7 +544,7 @@ out:
  * Map logical page number 'pagenum' to physical page number
  * on backing swap device. For block device, this is a nop.
  */
-u32 map_backing_swap_page(struct ramzswap *rzs, u32 pagenum)
+static u32 map_backing_swap_page(struct ramzswap *rzs, u32 pagenum)
 {
 	u32 skip_pages, entries_per_page;
 	size_t delta, se_offset, skipped;
@@ -593,9 +600,13 @@ static void ramzswap_free_page(struct ramzswap *rzs, size_t index)
 	u32 offset = rzs->table[index].offset;
 
 	if (unlikely(!page)) {
+		/*
+		 * No memory is allocated for zero filled pages.
+		 * Simply clear zero page flag.
+		 */
 		if (rzs_test_flag(rzs, index, RZS_ZERO)) {
 			rzs_clear_flag(rzs, index, RZS_ZERO);
-			stat_dec(rzs->stats.pages_zero);
+			rzs_stat_dec(&rzs->stats.pages_zero);
 		}
 		return;
 	}
@@ -604,7 +615,7 @@ static void ramzswap_free_page(struct ramzswap *rzs, size_t index)
 		clen = PAGE_SIZE;
 		__free_page(page);
 		rzs_clear_flag(rzs, index, RZS_UNCOMPRESSED);
-		stat_dec(rzs->stats.pages_expand);
+		rzs_stat_dec(&rzs->stats.pages_expand);
 		goto out;
 	}
 
@@ -614,11 +625,11 @@ static void ramzswap_free_page(struct ramzswap *rzs, size_t index)
 
 	xv_free(rzs->mem_pool, page, offset);
 	if (clen <= PAGE_SIZE / 2)
-		stat_dec(rzs->stats.good_compress);
+		rzs_stat_dec(&rzs->stats.good_compress);
 
 out:
 	rzs->stats.compr_size -= clen;
-	stat_dec(rzs->stats.pages_stored);
+	rzs_stat_dec(&rzs->stats.pages_stored);
 
 	rzs->table[index].page = NULL;
 	rzs->table[index].offset = 0;
@@ -664,7 +675,6 @@ static int handle_uncompressed_page(struct ramzswap *rzs, struct bio *bio)
 	return 0;
 }
 
-
 /*
  * Called when request page is not present in ramzswap.
  * Its either in backing swap device (if present) or
@@ -680,8 +690,8 @@ static int handle_ramzswap_fault(struct ramzswap *rzs, struct bio *bio)
 	 */
 	if (rzs->backing_swap) {
 		u32 pagenum;
-		stat_dec(rzs->stats.num_reads);
-		stat_inc(rzs->stats.bdev_num_reads);
+		rzs_stat64_dec(rzs, &rzs->stats.num_reads);
+		rzs_stat64_inc(rzs, &rzs->stats.bdev_num_reads);
 		bio->bi_bdev = rzs->backing_swap;
 
 		/*
@@ -719,7 +729,7 @@ static int ramzswap_read(struct ramzswap *rzs, struct bio *bio)
 	struct zobj_header *zheader;
 	unsigned char *user_mem, *cmem;
 
-	stat_inc(rzs->stats.num_reads);
+	rzs_stat64_inc(rzs, &rzs->stats.num_reads);
 
 	page = bio->bi_io_vec[0].bv_page;
 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
@@ -731,7 +741,7 @@ static int ramzswap_read(struct ramzswap *rzs, struct bio *bio)
 	if (!rzs->table[index].page)
 		return handle_ramzswap_fault(rzs, bio);
 
-	/* Page is stored uncompressed since its incompressible */
+	/* Page is stored uncompressed since it's incompressible */
 	if (unlikely(rzs_test_flag(rzs, index, RZS_UNCOMPRESSED)))
 		return handle_uncompressed_page(rzs, bio);
 
@@ -753,7 +763,7 @@ static int ramzswap_read(struct ramzswap *rzs, struct bio *bio)
 	if (unlikely(ret != LZO_E_OK)) {
 		pr_err("Decompression failed! err=%d, page=%u\n",
 			ret, index);
-		stat_inc(rzs->stats.failed_reads);
+		rzs_stat64_inc(rzs, &rzs->stats.failed_reads);
 		goto out;
 	}
 
@@ -777,7 +787,7 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 	struct page *page, *page_store;
 	unsigned char *user_mem, *cmem, *src;
 
-	stat_inc(rzs->stats.num_writes);
+	rzs_stat64_inc(rzs, &rzs->stats.num_writes);
 
 	page = bio->bi_io_vec[0].bv_page;
 	index = bio->bi_sector >> SECTORS_PER_PAGE_SHIFT;
@@ -789,17 +799,8 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 	 * is no longer referenced by any process. So, its now safe
 	 * to free the memory that was allocated for this page.
 	 */
-	if (rzs->table[index].page)
+	if (rzs->table[index].page || rzs_test_flag(rzs, index, RZS_ZERO))
 		ramzswap_free_page(rzs, index);
-
-	/*
-	 * No memory ia allocated for zero filled pages.
-	 * Simply clear zero page flag.
-	 */
-	if (rzs_test_flag(rzs, index, RZS_ZERO)) {
-		stat_dec(rzs->stats.pages_zero);
-		rzs_clear_flag(rzs, index, RZS_ZERO);
-	}
 
 	mutex_lock(&rzs->lock);
 
@@ -807,7 +808,7 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 	if (page_zero_filled(user_mem)) {
 		kunmap_atomic(user_mem, KM_USER0);
 		mutex_unlock(&rzs->lock);
-		stat_inc(rzs->stats.pages_zero);
+		rzs_stat_inc(&rzs->stats.pages_zero);
 		rzs_set_flag(rzs, index, RZS_ZERO);
 
 		set_bit(BIO_UPTODATE, &bio->bi_flags);
@@ -831,7 +832,7 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 	if (unlikely(ret != LZO_E_OK)) {
 		mutex_unlock(&rzs->lock);
 		pr_err("Compression failed! err=%d\n", ret);
-		stat_inc(rzs->stats.failed_writes);
+		rzs_stat64_inc(rzs, &rzs->stats.failed_writes);
 		goto out;
 	}
 
@@ -854,13 +855,13 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 			mutex_unlock(&rzs->lock);
 			pr_info("Error allocating memory for incompressible "
 				"page: %u\n", index);
-			stat_inc(rzs->stats.failed_writes);
+			rzs_stat64_inc(rzs, &rzs->stats.failed_writes);
 			goto out;
 		}
 
 		offset = 0;
 		rzs_set_flag(rzs, index, RZS_UNCOMPRESSED);
-		stat_inc(rzs->stats.pages_expand);
+		rzs_stat_inc(&rzs->stats.pages_expand);
 		rzs->table[index].page = page_store;
 		src = kmap_atomic(page, KM_USER0);
 		goto memstore;
@@ -872,7 +873,7 @@ static int ramzswap_write(struct ramzswap *rzs, struct bio *bio)
 		mutex_unlock(&rzs->lock);
 		pr_info("Error allocating memory for compressed "
 			"page: %u, size=%zu\n", index, clen);
-		stat_inc(rzs->stats.failed_writes);
+		rzs_stat64_inc(rzs, &rzs->stats.failed_writes);
 		if (rzs->backing_swap)
 			fwd_write_request = 1;
 		goto out;
@@ -901,9 +902,9 @@ memstore:
 
 	/* Update stats */
 	rzs->stats.compr_size += clen;
-	stat_inc(rzs->stats.pages_stored);
+	rzs_stat_inc(&rzs->stats.pages_stored);
 	if (clen <= PAGE_SIZE / 2)
-		stat_inc(rzs->stats.good_compress);
+		rzs_stat_inc(&rzs->stats.good_compress);
 
 	mutex_unlock(&rzs->lock);
 
@@ -913,7 +914,7 @@ memstore:
 
 out:
 	if (fwd_write_request) {
-		stat_inc(rzs->stats.bdev_num_writes);
+		rzs_stat64_inc(rzs, &rzs->stats.bdev_num_writes);
 		bio->bi_bdev = rzs->backing_swap;
 #if 0
 		/*
@@ -940,7 +941,6 @@ out:
 	bio_io_error(bio);
 	return 0;
 }
-
 
 /*
  * Check if request is within bounds and page aligned.
@@ -975,7 +975,7 @@ static int ramzswap_make_request(struct request_queue *queue, struct bio *bio)
 	}
 
 	if (!valid_swap_request(rzs, bio)) {
-		stat_inc(rzs->stats.invalid_io);
+		rzs_stat64_inc(rzs, &rzs->stats.invalid_io);
 		bio_io_error(bio);
 		return 0;
 	}
@@ -999,6 +999,9 @@ static void reset_device(struct ramzswap *rzs)
 	size_t index, num_pages;
 	unsigned entries_per_page;
 	unsigned long num_table_pages, entry = 0;
+
+	/* Do not accept any new I/O request */
+	rzs->init_done = 0;
 
 	if (rzs->backing_swap && !rzs->num_extents)
 		is_backing_blkdev = 1;
@@ -1066,6 +1069,7 @@ static void reset_device(struct ramzswap *rzs)
 			bd_release(rzs->backing_swap);
 		filp_close(rzs->swap_file, NULL);
 		rzs->backing_swap = NULL;
+		memset(rzs->backing_swap_name, 0, MAX_SWAP_NAME_LEN);
 	}
 
 	/* Reset stats */
@@ -1073,9 +1077,6 @@ static void reset_device(struct ramzswap *rzs)
 
 	rzs->disksize = 0;
 	rzs->memlimit = 0;
-
-	/* Back to uninitialized state */
-	rzs->init_done = 0;
 }
 
 static int ramzswap_ioctl_init_device(struct ramzswap *rzs)
@@ -1276,6 +1277,11 @@ static int ramzswap_ioctl(struct block_device *bdev, fmode_t mode,
 			ret = -EBUSY;
 			goto out;
 		}
+
+		/* Make sure all pending I/O is finished */
+		if (bdev)
+			fsync_bdev(bdev);
+
 		ret = ramzswap_ioctl_reset_device(rzs);
 		break;
 
@@ -1293,16 +1299,20 @@ static struct block_device_operations ramzswap_devops = {
 	.owner = THIS_MODULE,
 };
 
-static void create_device(struct ramzswap *rzs, int device_id)
+static int create_device(struct ramzswap *rzs, int device_id)
 {
+	int ret = 0;
+
 	mutex_init(&rzs->lock);
+	spin_lock_init(&rzs->stat64_lock);
 	INIT_LIST_HEAD(&rzs->backing_swap_extent_list);
 
 	rzs->queue = blk_alloc_queue(GFP_KERNEL);
 	if (!rzs->queue) {
 		pr_err("Error allocating disk queue for device %d\n",
 			device_id);
-		return;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	blk_queue_make_request(rzs->queue, ramzswap_make_request);
@@ -1314,7 +1324,8 @@ static void create_device(struct ramzswap *rzs, int device_id)
 		blk_cleanup_queue(rzs->queue);
 		pr_warning("Error allocating disk structure for device %d\n",
 			device_id);
-		return;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	rzs->disk->major = ramzswap_major;
@@ -1329,9 +1340,16 @@ static void create_device(struct ramzswap *rzs, int device_id)
 	 * or set equal to backing swap device (if provided)
 	 */
 	set_capacity(rzs->disk, 0);
+
+	blk_queue_physical_block_size(rzs->disk->queue, PAGE_SIZE);
+	blk_queue_logical_block_size(rzs->disk->queue, PAGE_SIZE);
+
 	add_disk(rzs->disk);
 
 	rzs->init_done = 0;
+
+out:
+	return ret;
 }
 
 static void destroy_device(struct ramzswap *rzs)
@@ -1347,18 +1365,20 @@ static void destroy_device(struct ramzswap *rzs)
 
 static int __init ramzswap_init(void)
 {
-	int i, ret;
+	int ret, dev_id;
 
 	if (num_devices > max_num_devices) {
 		pr_warning("Invalid value for num_devices: %u\n",
 				num_devices);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto out;
 	}
 
 	ramzswap_major = register_blkdev(0, "ramzswap");
 	if (ramzswap_major <= 0) {
 		pr_warning("Unable to get major number\n");
-		return -EBUSY;
+		ret = -EBUSY;
+		goto out;
 	}
 
 	if (!num_devices) {
@@ -1371,15 +1391,23 @@ static int __init ramzswap_init(void)
 	devices = kzalloc(num_devices * sizeof(struct ramzswap), GFP_KERNEL);
 	if (!devices) {
 		ret = -ENOMEM;
-		goto out;
+		goto unregister;
 	}
 
-	for (i = 0; i < num_devices; i++)
-		create_device(&devices[i], i);
+	for (dev_id = 0; dev_id < num_devices; dev_id++) {
+		ret = create_device(&devices[dev_id], dev_id);
+		if (ret)
+			goto free_devices;
+	}
 
 	return 0;
-out:
+
+free_devices:
+	while (dev_id)
+		destroy_device(&devices[--dev_id]);
+unregister:
 	unregister_blkdev(ramzswap_major, "ramzswap");
+out:
 	return ret;
 }
 

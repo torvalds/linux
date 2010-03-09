@@ -1659,7 +1659,7 @@ void zfiWlanSetPacketTypePromiscuous(zdev_t *dev, u32_t setValue)
 	if (setValue) {
 		/* write register for sniffer mode */
 		zfHpSetSnifferMode(dev, 1);
-		zm_msg0_mm(ZM_LV_1, "enalbe sniffer mode");
+		zm_msg0_mm(ZM_LV_1, "enable sniffer mode");
 	} else {
 		zfHpSetSnifferMode(dev, 0);
 		zm_msg0_mm(ZM_LV_0, "disalbe sniffer mode");

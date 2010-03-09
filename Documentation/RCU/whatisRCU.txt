@@ -323,14 +323,17 @@ used as follows:
 	Defer			Protect
 
 a.	synchronize_rcu()	rcu_read_lock() / rcu_read_unlock()
-	call_rcu()
+	call_rcu()		rcu_dereference()
 
 b.	call_rcu_bh()		rcu_read_lock_bh() / rcu_read_unlock_bh()
+				rcu_dereference_bh()
 
-c.	synchronize_sched()	preempt_disable() / preempt_enable()
+c.	synchronize_sched()	rcu_read_lock_sched() / rcu_read_unlock_sched()
+				preempt_disable() / preempt_enable()
 				local_irq_save() / local_irq_restore()
 				hardirq enter / hardirq exit
 				NMI enter / NMI exit
+				rcu_dereference_sched()
 
 These three mechanisms are used as follows:
 
@@ -780,9 +783,8 @@ Linux-kernel source code, but it helps to have a full list of the
 APIs, since there does not appear to be a way to categorize them
 in docbook.  Here is the list, by category.
 
-RCU pointer/list traversal:
+RCU list traversal:
 
-	rcu_dereference
 	list_for_each_entry_rcu
 	hlist_for_each_entry_rcu
 	hlist_nulls_for_each_entry_rcu
@@ -808,7 +810,7 @@ RCU:	Critical sections	Grace period		Barrier
 
 	rcu_read_lock		synchronize_net		rcu_barrier
 	rcu_read_unlock		synchronize_rcu
-				synchronize_rcu_expedited
+	rcu_dereference		synchronize_rcu_expedited
 				call_rcu
 
 
@@ -816,7 +818,7 @@ bh:	Critical sections	Grace period		Barrier
 
 	rcu_read_lock_bh	call_rcu_bh		rcu_barrier_bh
 	rcu_read_unlock_bh	synchronize_rcu_bh
-				synchronize_rcu_bh_expedited
+	rcu_dereference_bh	synchronize_rcu_bh_expedited
 
 
 sched:	Critical sections	Grace period		Barrier
@@ -825,12 +827,14 @@ sched:	Critical sections	Grace period		Barrier
 	rcu_read_unlock_sched	call_rcu_sched
 	[preempt_disable]	synchronize_sched_expedited
 	[and friends]
+	rcu_dereference_sched
 
 
 SRCU:	Critical sections	Grace period		Barrier
 
 	srcu_read_lock		synchronize_srcu	N/A
 	srcu_read_unlock	synchronize_srcu_expedited
+	srcu_dereference
 
 SRCU:	Initialization/cleanup
 	init_srcu_struct

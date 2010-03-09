@@ -210,7 +210,7 @@ int exofs_sync_fs(struct super_block *sb, int wait)
 	sbi = sb->s_fs_info;
 	fscb = &sbi->s_fscb;
 
-	ret = exofs_get_io_state(sbi, &ios);
+	ret = exofs_get_io_state(&sbi->layout, &ios);
 	if (ret)
 		goto out;
 
@@ -264,12 +264,12 @@ static void _exofs_print_device(const char *msg, const char *dev_path,
 
 void exofs_free_sbi(struct exofs_sb_info *sbi)
 {
-	while (sbi->s_numdevs) {
-		int i = --sbi->s_numdevs;
-		struct osd_dev *od = sbi->s_ods[i];
+	while (sbi->layout.s_numdevs) {
+		int i = --sbi->layout.s_numdevs;
+		struct osd_dev *od = sbi->layout.s_ods[i];
 
 		if (od) {
-			sbi->s_ods[i] = NULL;
+			sbi->layout.s_ods[i] = NULL;
 			osduld_put_device(od);
 		}
 	}
@@ -298,7 +298,8 @@ static void exofs_put_super(struct super_block *sb)
 				  msecs_to_jiffies(100));
 	}
 
-	_exofs_print_device("Unmounting", NULL, sbi->s_ods[0], sbi->s_pid);
+	_exofs_print_device("Unmounting", NULL, sbi->layout.s_ods[0],
+			    sbi->layout.s_pid);
 
 	exofs_free_sbi(sbi);
 	sb->s_fs_info = NULL;
@@ -307,6 +308,8 @@ static void exofs_put_super(struct super_block *sb)
 static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 				    struct exofs_device_table *dt)
 {
+	u64 stripe_length;
+
 	sbi->data_map.odm_num_comps   =
 				le32_to_cpu(dt->dt_data_map.cb_num_comps);
 	sbi->data_map.odm_stripe_unit =
@@ -320,14 +323,63 @@ static int _read_and_match_data_map(struct exofs_sb_info *sbi, unsigned numdevs,
 	sbi->data_map.odm_raid_algorithm  =
 				le32_to_cpu(dt->dt_data_map.cb_raid_algorithm);
 
-/* FIXME: Hard coded mirror only for now. if not so do not mount */
-	if ((sbi->data_map.odm_num_comps != numdevs) ||
-	    (sbi->data_map.odm_stripe_unit != EXOFS_BLKSIZE) ||
-	    (sbi->data_map.odm_raid_algorithm != PNFS_OSD_RAID_0) ||
-	    (sbi->data_map.odm_mirror_cnt != (numdevs - 1)))
+/* FIXME: Only raid0 for now. if not so, do not mount */
+	if (sbi->data_map.odm_num_comps != numdevs) {
+		EXOFS_ERR("odm_num_comps(%u) != numdevs(%u)\n",
+			  sbi->data_map.odm_num_comps, numdevs);
 		return -EINVAL;
-	else
-		return 0;
+	}
+	if (sbi->data_map.odm_raid_algorithm != PNFS_OSD_RAID_0) {
+		EXOFS_ERR("Only RAID_0 for now\n");
+		return -EINVAL;
+	}
+	if (0 != (numdevs % (sbi->data_map.odm_mirror_cnt + 1))) {
+		EXOFS_ERR("Data Map wrong, numdevs=%d mirrors=%d\n",
+			  numdevs, sbi->data_map.odm_mirror_cnt);
+		return -EINVAL;
+	}
+
+	if (0 != (sbi->data_map.odm_stripe_unit & ~PAGE_MASK)) {
+		EXOFS_ERR("Stripe Unit(0x%llx)"
+			  " must be Multples of PAGE_SIZE(0x%lx)\n",
+			  _LLU(sbi->data_map.odm_stripe_unit), PAGE_SIZE);
+		return -EINVAL;
+	}
+
+	sbi->layout.stripe_unit = sbi->data_map.odm_stripe_unit;
+	sbi->layout.mirrors_p1 = sbi->data_map.odm_mirror_cnt + 1;
+
+	if (sbi->data_map.odm_group_width) {
+		sbi->layout.group_width = sbi->data_map.odm_group_width;
+		sbi->layout.group_depth = sbi->data_map.odm_group_depth;
+		if (!sbi->layout.group_depth) {
+			EXOFS_ERR("group_depth == 0 && group_width != 0\n");
+			return -EINVAL;
+		}
+		sbi->layout.group_count = sbi->data_map.odm_num_comps /
+						sbi->layout.mirrors_p1 /
+						sbi->data_map.odm_group_width;
+	} else {
+		if (sbi->data_map.odm_group_depth) {
+			printk(KERN_NOTICE "Warning: group_depth ignored "
+				"group_width == 0 && group_depth == %d\n",
+				sbi->data_map.odm_group_depth);
+			sbi->data_map.odm_group_depth = 0;
+		}
+		sbi->layout.group_width = sbi->data_map.odm_num_comps /
+							sbi->layout.mirrors_p1;
+		sbi->layout.group_depth = -1;
+		sbi->layout.group_count = 1;
+	}
+
+	stripe_length = (u64)sbi->layout.group_width * sbi->layout.stripe_unit;
+	if (stripe_length >= (1ULL << 32)) {
+		EXOFS_ERR("Total Stripe length(0x%llx)"
+			  " >= 32bit is not supported\n", _LLU(stripe_length));
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /* @odi is valid only as long as @fscb_dev is valid */
@@ -361,7 +413,7 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info **psbi,
 {
 	struct exofs_sb_info *sbi = *psbi;
 	struct osd_dev *fscb_od;
-	struct osd_obj_id obj = {.partition = sbi->s_pid,
+	struct osd_obj_id obj = {.partition = sbi->layout.s_pid,
 				 .id = EXOFS_DEVTABLE_ID};
 	struct exofs_device_table *dt;
 	unsigned table_bytes = table_count * sizeof(dt->dt_dev_table[0]) +
@@ -376,9 +428,9 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info **psbi,
 		return -ENOMEM;
 	}
 
-	fscb_od = sbi->s_ods[0];
-	sbi->s_ods[0] = NULL;
-	sbi->s_numdevs = 0;
+	fscb_od = sbi->layout.s_ods[0];
+	sbi->layout.s_ods[0] = NULL;
+	sbi->layout.s_numdevs = 0;
 	ret = exofs_read_kern(fscb_od, sbi->s_cred, &obj, 0, dt, table_bytes);
 	if (unlikely(ret)) {
 		EXOFS_ERR("ERROR: reading device table\n");
@@ -397,14 +449,15 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info **psbi,
 		goto out;
 
 	if (likely(numdevs > 1)) {
-		unsigned size = numdevs * sizeof(sbi->s_ods[0]);
+		unsigned size = numdevs * sizeof(sbi->layout.s_ods[0]);
 
 		sbi = krealloc(sbi, sizeof(*sbi) + size, GFP_KERNEL);
 		if (unlikely(!sbi)) {
 			ret = -ENOMEM;
 			goto out;
 		}
-		memset(&sbi->s_ods[1], 0, size - sizeof(sbi->s_ods[0]));
+		memset(&sbi->layout.s_ods[1], 0,
+		       size - sizeof(sbi->layout.s_ods[0]));
 		*psbi = sbi;
 	}
 
@@ -427,8 +480,8 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info **psbi,
 		 * line. We always keep them in device-table order.
 		 */
 		if (fscb_od && osduld_device_same(fscb_od, &odi)) {
-			sbi->s_ods[i] = fscb_od;
-			++sbi->s_numdevs;
+			sbi->layout.s_ods[i] = fscb_od;
+			++sbi->layout.s_numdevs;
 			fscb_od = NULL;
 			continue;
 		}
@@ -441,8 +494,8 @@ static int exofs_read_lookup_dev_table(struct exofs_sb_info **psbi,
 			goto out;
 		}
 
-		sbi->s_ods[i] = od;
-		++sbi->s_numdevs;
+		sbi->layout.s_ods[i] = od;
+		++sbi->layout.s_numdevs;
 
 		/* Read the fscb of the other devices to make sure the FS
 		 * partition is there.
@@ -499,9 +552,15 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_sbi;
 	}
 
-	sbi->s_ods[0] = od;
-	sbi->s_numdevs = 1;
-	sbi->s_pid = opts->pid;
+	/* Default layout in case we do not have a device-table */
+	sbi->layout.stripe_unit = PAGE_SIZE;
+	sbi->layout.mirrors_p1 = 1;
+	sbi->layout.group_width = 1;
+	sbi->layout.group_depth = -1;
+	sbi->layout.group_count = 1;
+	sbi->layout.s_ods[0] = od;
+	sbi->layout.s_numdevs = 1;
+	sbi->layout.s_pid = opts->pid;
 	sbi->s_timeout = opts->timeout;
 
 	/* fill in some other data by hand */
@@ -514,7 +573,7 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_bdev = NULL;
 	sb->s_dev = 0;
 
-	obj.partition = sbi->s_pid;
+	obj.partition = sbi->layout.s_pid;
 	obj.id = EXOFS_SUPER_ID;
 	exofs_make_credential(sbi->s_cred, &obj);
 
@@ -578,13 +637,13 @@ static int exofs_fill_super(struct super_block *sb, void *data, int silent)
 		goto free_sbi;
 	}
 
-	_exofs_print_device("Mounting", opts->dev_name, sbi->s_ods[0],
-			    sbi->s_pid);
+	_exofs_print_device("Mounting", opts->dev_name, sbi->layout.s_ods[0],
+			    sbi->layout.s_pid);
 	return 0;
 
 free_sbi:
 	EXOFS_ERR("Unable to mount exofs on %s pid=0x%llx err=%d\n",
-		  opts->dev_name, sbi->s_pid, ret);
+		  opts->dev_name, sbi->layout.s_pid, ret);
 	exofs_free_sbi(sbi);
 	return ret;
 }
@@ -627,7 +686,7 @@ static int exofs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	uint8_t cred_a[OSD_CAP_LEN];
 	int ret;
 
-	ret = exofs_get_io_state(sbi, &ios);
+	ret = exofs_get_io_state(&sbi->layout, &ios);
 	if (ret) {
 		EXOFS_DBGMSG("exofs_get_io_state failed.\n");
 		return ret;

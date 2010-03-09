@@ -43,7 +43,7 @@ struct davinci_soc_info {
 	void __iomem			*jtag_id_base;
 	struct davinci_id		*ids;
 	unsigned long			ids_num;
-	struct davinci_clk		*cpu_clks;
+	struct clk_lookup		*cpu_clks;
 	void __iomem			**psc_bases;
 	unsigned long			psc_bases_num;
 	void __iomem			*pinmux_base;

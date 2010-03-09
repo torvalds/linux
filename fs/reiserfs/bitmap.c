@@ -425,7 +425,7 @@ static void _reiserfs_free_block(struct reiserfs_transaction_handle *th,
 
 	journal_mark_dirty(th, s, sbh);
 	if (for_unformatted)
-		vfs_dq_free_block_nodirty(inode, 1);
+		dquot_free_block_nodirty(inode, 1);
 }
 
 void reiserfs_free_block(struct reiserfs_transaction_handle *th,
@@ -1049,7 +1049,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 			       amount_needed, hint->inode->i_uid);
 #endif
 		quota_ret =
-		    vfs_dq_alloc_block_nodirty(hint->inode, amount_needed);
+		    dquot_alloc_block_nodirty(hint->inode, amount_needed);
 		if (quota_ret)	/* Quota exceeded? */
 			return QUOTA_EXCEEDED;
 		if (hint->preallocate && hint->prealloc_size) {
@@ -1058,7 +1058,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 				       "reiserquota: allocating (prealloc) %d blocks id=%u",
 				       hint->prealloc_size, hint->inode->i_uid);
 #endif
-			quota_ret = vfs_dq_prealloc_block_nodirty(hint->inode,
+			quota_ret = dquot_prealloc_block_nodirty(hint->inode,
 							 hint->prealloc_size);
 			if (quota_ret)
 				hint->preallocate = hint->prealloc_size = 0;
@@ -1092,7 +1092,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 					       hint->inode->i_uid);
 #endif
 				/* Free not allocated blocks */
-				vfs_dq_free_block_nodirty(hint->inode,
+				dquot_free_block_nodirty(hint->inode,
 					amount_needed + hint->prealloc_size -
 					nr_allocated);
 			}
@@ -1125,7 +1125,7 @@ static inline int blocknrs_and_prealloc_arrays_from_search_start
 			       REISERFS_I(hint->inode)->i_prealloc_count,
 			       hint->inode->i_uid);
 #endif
-		vfs_dq_free_block_nodirty(hint->inode, amount_needed +
+		dquot_free_block_nodirty(hint->inode, amount_needed +
 					 hint->prealloc_size - nr_allocated -
 					 REISERFS_I(hint->inode)->
 					 i_prealloc_count);

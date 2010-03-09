@@ -51,48 +51,40 @@ MODULE_PARM_DESC(ioat_ring_max_alloc_order,
 
 void __ioat2_issue_pending(struct ioat2_dma_chan *ioat)
 {
-	void * __iomem reg_base = ioat->base.reg_base;
+	struct ioat_chan_common *chan = &ioat->base;
 
-	ioat->pending = 0;
 	ioat->dmacount += ioat2_ring_pending(ioat);
 	ioat->issued = ioat->head;
 	/* make descriptor updates globally visible before notifying channel */
 	wmb();
-	writew(ioat->dmacount, reg_base + IOAT_CHAN_DMACOUNT_OFFSET);
-	dev_dbg(to_dev(&ioat->base),
+	writew(ioat->dmacount, chan->reg_base + IOAT_CHAN_DMACOUNT_OFFSET);
+	dev_dbg(to_dev(chan),
 		"%s: head: %#x tail: %#x issued: %#x count: %#x\n",
 		__func__, ioat->head, ioat->tail, ioat->issued, ioat->dmacount);
 }
 
-void ioat2_issue_pending(struct dma_chan *chan)
+void ioat2_issue_pending(struct dma_chan *c)
 {
-	struct ioat2_dma_chan *ioat = to_ioat2_chan(chan);
+	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
 
-	spin_lock_bh(&ioat->ring_lock);
-	if (ioat->pending == 1)
+	if (ioat2_ring_pending(ioat)) {
+		spin_lock_bh(&ioat->ring_lock);
 		__ioat2_issue_pending(ioat);
-	spin_unlock_bh(&ioat->ring_lock);
+		spin_unlock_bh(&ioat->ring_lock);
+	}
 }
 
 /**
  * ioat2_update_pending - log pending descriptors
  * @ioat: ioat2+ channel
  *
- * set pending to '1' unless pending is already set to '2', pending == 2
- * indicates that submission is temporarily blocked due to an in-flight
- * reset.  If we are already above the ioat_pending_level threshold then
- * just issue pending.
- *
- * called with ring_lock held
+ * Check if the number of unsubmitted descriptors has exceeded the
+ * watermark.  Called with ring_lock held
  */
 static void ioat2_update_pending(struct ioat2_dma_chan *ioat)
 {
-	if (unlikely(ioat->pending == 2))
-		return;
-	else if (ioat2_ring_pending(ioat) > ioat_pending_level)
+	if (ioat2_ring_pending(ioat) > ioat_pending_level)
 		__ioat2_issue_pending(ioat);
-	else
-		ioat->pending = 1;
 }
 
 static void __ioat2_start_null_desc(struct ioat2_dma_chan *ioat)
@@ -166,7 +158,7 @@ static void __cleanup(struct ioat2_dma_chan *ioat, unsigned long phys_complete)
 			seen_current = true;
 	}
 	ioat->tail += i;
-	BUG_ON(!seen_current); /* no active descs have written a completion? */
+	BUG_ON(active && !seen_current); /* no active descs have written a completion? */
 
 	chan->last_completion = phys_complete;
 	if (ioat->head == ioat->tail) {
@@ -207,9 +199,9 @@ static void ioat2_cleanup(struct ioat2_dma_chan *ioat)
 	spin_unlock_bh(&chan->cleanup_lock);
 }
 
-void ioat2_cleanup_tasklet(unsigned long data)
+void ioat2_cleanup_event(unsigned long data)
 {
-	struct ioat2_dma_chan *ioat = (void *) data;
+	struct ioat2_dma_chan *ioat = to_ioat2_chan((void *) data);
 
 	ioat2_cleanup(ioat);
 	writew(IOAT_CHANCTRL_RUN, ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
@@ -291,7 +283,7 @@ static void ioat2_restart_channel(struct ioat2_dma_chan *ioat)
 
 void ioat2_timer_event(unsigned long data)
 {
-	struct ioat2_dma_chan *ioat = (void *) data;
+	struct ioat2_dma_chan *ioat = to_ioat2_chan((void *) data);
 	struct ioat_chan_common *chan = &ioat->base;
 
 	spin_lock_bh(&chan->cleanup_lock);
@@ -397,10 +389,7 @@ int ioat2_enumerate_channels(struct ioatdma_device *device)
 		if (!ioat)
 			break;
 
-		ioat_init_channel(device, &ioat->base, i,
-				  device->timer_fn,
-				  device->cleanup_tasklet,
-				  (unsigned long) ioat);
+		ioat_init_channel(device, &ioat->base, i);
 		ioat->xfercap_log = xfercap_log;
 		spin_lock_init(&ioat->ring_lock);
 		if (device->reset_hw(&ioat->base)) {
@@ -546,7 +535,6 @@ int ioat2_alloc_chan_resources(struct dma_chan *c)
 	ioat->head = 0;
 	ioat->issued = 0;
 	ioat->tail = 0;
-	ioat->pending = 0;
 	ioat->alloc_order = order;
 	spin_unlock_bh(&ioat->ring_lock);
 
@@ -701,7 +689,7 @@ int ioat2_alloc_and_lock(u16 *idx, struct ioat2_dma_chan *ioat, int num_descs)
 
 			mod_timer(&chan->timer, jiffies + COMPLETION_TIMEOUT);
 			spin_unlock_bh(&chan->cleanup_lock);
-			device->timer_fn((unsigned long) ioat);
+			device->timer_fn((unsigned long) &chan->common);
 		} else
 			spin_unlock_bh(&chan->cleanup_lock);
 		return -ENOMEM;
@@ -785,7 +773,7 @@ void ioat2_free_chan_resources(struct dma_chan *c)
 
 	tasklet_disable(&chan->cleanup_task);
 	del_timer_sync(&chan->timer);
-	device->cleanup_tasklet((unsigned long) ioat);
+	device->cleanup_fn((unsigned long) c);
 	device->reset_hw(chan);
 
 	spin_lock_bh(&ioat->ring_lock);
@@ -815,23 +803,7 @@ void ioat2_free_chan_resources(struct dma_chan *c)
 
 	chan->last_completion = 0;
 	chan->completion_dma = 0;
-	ioat->pending = 0;
 	ioat->dmacount = 0;
-}
-
-enum dma_status
-ioat2_is_complete(struct dma_chan *c, dma_cookie_t cookie,
-		     dma_cookie_t *done, dma_cookie_t *used)
-{
-	struct ioat2_dma_chan *ioat = to_ioat2_chan(c);
-	struct ioatdma_device *device = ioat->base.device;
-
-	if (ioat_is_complete(c, cookie, done, used) == DMA_SUCCESS)
-		return DMA_SUCCESS;
-
-	device->cleanup_tasklet((unsigned long) ioat);
-
-	return ioat_is_complete(c, cookie, done, used);
 }
 
 static ssize_t ring_size_show(struct dma_chan *c, char *page)
@@ -874,7 +846,7 @@ int __devinit ioat2_dma_probe(struct ioatdma_device *device, int dca)
 
 	device->enumerate_channels = ioat2_enumerate_channels;
 	device->reset_hw = ioat2_reset_hw;
-	device->cleanup_tasklet = ioat2_cleanup_tasklet;
+	device->cleanup_fn = ioat2_cleanup_event;
 	device->timer_fn = ioat2_timer_event;
 	device->self_test = ioat_dma_self_test;
 	dma = &device->common;
@@ -882,7 +854,7 @@ int __devinit ioat2_dma_probe(struct ioatdma_device *device, int dca)
 	dma->device_issue_pending = ioat2_issue_pending;
 	dma->device_alloc_chan_resources = ioat2_alloc_chan_resources;
 	dma->device_free_chan_resources = ioat2_free_chan_resources;
-	dma->device_is_tx_complete = ioat2_is_complete;
+	dma->device_is_tx_complete = ioat_is_dma_complete;
 
 	err = ioat_probe(device);
 	if (err)

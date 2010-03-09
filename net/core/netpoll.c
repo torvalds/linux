@@ -407,11 +407,24 @@ static void arp_reply(struct sk_buff *skb)
 	__be32 sip, tip;
 	unsigned char *sha;
 	struct sk_buff *send_skb;
-	struct netpoll *np = NULL;
+	struct netpoll *np, *tmp;
+	unsigned long flags;
+	int hits = 0;
 
-	if (npinfo->rx_np && npinfo->rx_np->dev == skb->dev)
-		np = npinfo->rx_np;
-	if (!np)
+	if (list_empty(&npinfo->rx_np))
+		return;
+
+	/* Before checking the packet, we do some early
+	   inspection whether this is interesting at all */
+	spin_lock_irqsave(&npinfo->rx_lock, flags);
+	list_for_each_entry_safe(np, tmp, &npinfo->rx_np, rx) {
+		if (np->dev == skb->dev)
+			hits++;
+	}
+	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+
+	/* No netpoll struct is using this dev */
+	if (!hits)
 		return;
 
 	/* No arp on this interface */
@@ -437,77 +450,91 @@ static void arp_reply(struct sk_buff *skb)
 	arp_ptr += skb->dev->addr_len;
 	memcpy(&sip, arp_ptr, 4);
 	arp_ptr += 4;
-	/* if we actually cared about dst hw addr, it would get copied here */
+	/* If we actually cared about dst hw addr,
+	   it would get copied here */
 	arp_ptr += skb->dev->addr_len;
 	memcpy(&tip, arp_ptr, 4);
 
 	/* Should we ignore arp? */
-	if (tip != np->local_ip ||
-	    ipv4_is_loopback(tip) || ipv4_is_multicast(tip))
+	if (ipv4_is_loopback(tip) || ipv4_is_multicast(tip))
 		return;
 
 	size = arp_hdr_len(skb->dev);
-	send_skb = find_skb(np, size + LL_ALLOCATED_SPACE(np->dev),
-			    LL_RESERVED_SPACE(np->dev));
 
-	if (!send_skb)
-		return;
+	spin_lock_irqsave(&npinfo->rx_lock, flags);
+	list_for_each_entry_safe(np, tmp, &npinfo->rx_np, rx) {
+		if (tip != np->local_ip)
+			continue;
 
-	skb_reset_network_header(send_skb);
-	arp = (struct arphdr *) skb_put(send_skb, size);
-	send_skb->dev = skb->dev;
-	send_skb->protocol = htons(ETH_P_ARP);
+		send_skb = find_skb(np, size + LL_ALLOCATED_SPACE(np->dev),
+				    LL_RESERVED_SPACE(np->dev));
+		if (!send_skb)
+			continue;
 
-	/* Fill the device header for the ARP frame */
-	if (dev_hard_header(send_skb, skb->dev, ptype,
-			    sha, np->dev->dev_addr,
-			    send_skb->len) < 0) {
-		kfree_skb(send_skb);
-		return;
+		skb_reset_network_header(send_skb);
+		arp = (struct arphdr *) skb_put(send_skb, size);
+		send_skb->dev = skb->dev;
+		send_skb->protocol = htons(ETH_P_ARP);
+
+		/* Fill the device header for the ARP frame */
+		if (dev_hard_header(send_skb, skb->dev, ptype,
+				    sha, np->dev->dev_addr,
+				    send_skb->len) < 0) {
+			kfree_skb(send_skb);
+			continue;
+		}
+
+		/*
+		 * Fill out the arp protocol part.
+		 *
+		 * we only support ethernet device type,
+		 * which (according to RFC 1390) should
+		 * always equal 1 (Ethernet).
+		 */
+
+		arp->ar_hrd = htons(np->dev->type);
+		arp->ar_pro = htons(ETH_P_IP);
+		arp->ar_hln = np->dev->addr_len;
+		arp->ar_pln = 4;
+		arp->ar_op = htons(type);
+
+		arp_ptr = (unsigned char *)(arp + 1);
+		memcpy(arp_ptr, np->dev->dev_addr, np->dev->addr_len);
+		arp_ptr += np->dev->addr_len;
+		memcpy(arp_ptr, &tip, 4);
+		arp_ptr += 4;
+		memcpy(arp_ptr, sha, np->dev->addr_len);
+		arp_ptr += np->dev->addr_len;
+		memcpy(arp_ptr, &sip, 4);
+
+		netpoll_send_skb(np, send_skb);
+
+		/* If there are several rx_hooks for the same address,
+		   we're fine by sending a single reply */
+		break;
 	}
-
-	/*
-	 * Fill out the arp protocol part.
-	 *
-	 * we only support ethernet device type,
-	 * which (according to RFC 1390) should always equal 1 (Ethernet).
-	 */
-
-	arp->ar_hrd = htons(np->dev->type);
-	arp->ar_pro = htons(ETH_P_IP);
-	arp->ar_hln = np->dev->addr_len;
-	arp->ar_pln = 4;
-	arp->ar_op = htons(type);
-
-	arp_ptr=(unsigned char *)(arp + 1);
-	memcpy(arp_ptr, np->dev->dev_addr, np->dev->addr_len);
-	arp_ptr += np->dev->addr_len;
-	memcpy(arp_ptr, &tip, 4);
-	arp_ptr += 4;
-	memcpy(arp_ptr, sha, np->dev->addr_len);
-	arp_ptr += np->dev->addr_len;
-	memcpy(arp_ptr, &sip, 4);
-
-	netpoll_send_skb(np, send_skb);
+	spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 }
 
 int __netpoll_rx(struct sk_buff *skb)
 {
 	int proto, len, ulen;
+	int hits = 0;
 	struct iphdr *iph;
 	struct udphdr *uh;
-	struct netpoll_info *npi = skb->dev->npinfo;
-	struct netpoll *np = npi->rx_np;
+	struct netpoll_info *npinfo = skb->dev->npinfo;
+	struct netpoll *np, *tmp;
 
-	if (!np)
+	if (list_empty(&npinfo->rx_np))
 		goto out;
+
 	if (skb->dev->type != ARPHRD_ETHER)
 		goto out;
 
 	/* check if netpoll clients need ARP */
 	if (skb->protocol == htons(ETH_P_ARP) &&
 	    atomic_read(&trapped)) {
-		skb_queue_tail(&npi->arp_tx, skb);
+		skb_queue_tail(&npinfo->arp_tx, skb);
 		return 1;
 	}
 
@@ -551,16 +578,23 @@ int __netpoll_rx(struct sk_buff *skb)
 		goto out;
 	if (checksum_udp(skb, uh, ulen, iph->saddr, iph->daddr))
 		goto out;
-	if (np->local_ip && np->local_ip != iph->daddr)
-		goto out;
-	if (np->remote_ip && np->remote_ip != iph->saddr)
-		goto out;
-	if (np->local_port && np->local_port != ntohs(uh->dest))
-		goto out;
 
-	np->rx_hook(np, ntohs(uh->source),
-		    (char *)(uh+1),
-		    ulen - sizeof(struct udphdr));
+	list_for_each_entry_safe(np, tmp, &npinfo->rx_np, rx) {
+		if (np->local_ip && np->local_ip != iph->daddr)
+			continue;
+		if (np->remote_ip && np->remote_ip != iph->saddr)
+			continue;
+		if (np->local_port && np->local_port != ntohs(uh->dest))
+			continue;
+
+		np->rx_hook(np, ntohs(uh->source),
+			       (char *)(uh+1),
+			       ulen - sizeof(struct udphdr));
+		hits++;
+	}
+
+	if (!hits)
+		goto out;
 
 	kfree_skb(skb);
 	return 1;
@@ -684,6 +718,7 @@ int netpoll_setup(struct netpoll *np)
 	struct net_device *ndev = NULL;
 	struct in_device *in_dev;
 	struct netpoll_info *npinfo;
+	struct netpoll *npe, *tmp;
 	unsigned long flags;
 	int err;
 
@@ -704,7 +739,7 @@ int netpoll_setup(struct netpoll *np)
 		}
 
 		npinfo->rx_flags = 0;
-		npinfo->rx_np = NULL;
+		INIT_LIST_HEAD(&npinfo->rx_np);
 
 		spin_lock_init(&npinfo->rx_lock);
 		skb_queue_head_init(&npinfo->arp_tx);
@@ -785,7 +820,7 @@ int netpoll_setup(struct netpoll *np)
 	if (np->rx_hook) {
 		spin_lock_irqsave(&npinfo->rx_lock, flags);
 		npinfo->rx_flags |= NETPOLL_RX_ENABLED;
-		npinfo->rx_np = np;
+		list_add_tail(&np->rx, &npinfo->rx_np);
 		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 	}
 
@@ -801,9 +836,16 @@ int netpoll_setup(struct netpoll *np)
 	return 0;
 
  release:
-	if (!ndev->npinfo)
+	if (!ndev->npinfo) {
+		spin_lock_irqsave(&npinfo->rx_lock, flags);
+		list_for_each_entry_safe(npe, tmp, &npinfo->rx_np, rx) {
+			npe->dev = NULL;
+		}
+		spin_unlock_irqrestore(&npinfo->rx_lock, flags);
+
 		kfree(npinfo);
-	np->dev = NULL;
+	}
+
 	dev_put(ndev);
 	return err;
 }
@@ -823,10 +865,11 @@ void netpoll_cleanup(struct netpoll *np)
 	if (np->dev) {
 		npinfo = np->dev->npinfo;
 		if (npinfo) {
-			if (npinfo->rx_np == np) {
+			if (!list_empty(&npinfo->rx_np)) {
 				spin_lock_irqsave(&npinfo->rx_lock, flags);
-				npinfo->rx_np = NULL;
-				npinfo->rx_flags &= ~NETPOLL_RX_ENABLED;
+				list_del(&np->rx);
+				if (list_empty(&npinfo->rx_np))
+					npinfo->rx_flags &= ~NETPOLL_RX_ENABLED;
 				spin_unlock_irqrestore(&npinfo->rx_lock, flags);
 			}
 

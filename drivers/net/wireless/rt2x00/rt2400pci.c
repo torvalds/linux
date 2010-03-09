@@ -451,7 +451,7 @@ static void rt2400pci_config_channel(struct rt2x00_dev *rt2x00dev,
 	/*
 	 * RF2420 chipset don't need any additional actions.
 	 */
-	if (rt2x00_rf(&rt2x00dev->chip, RF2420))
+	if (rt2x00_rf(rt2x00dev, RF2420))
 		return;
 
 	/*
@@ -1340,11 +1340,10 @@ static int rt2400pci_init_eeprom(struct rt2x00_dev *rt2x00dev)
 	 */
 	value = rt2x00_get_field16(eeprom, EEPROM_ANTENNA_RF_TYPE);
 	rt2x00pci_register_read(rt2x00dev, CSR0, &reg);
-	rt2x00_set_chip_rf(rt2x00dev, value, reg);
-	rt2x00_print_chip(rt2x00dev);
+	rt2x00_set_chip(rt2x00dev, RT2460, value,
+			rt2x00_get_field32(reg, CSR0_REVISION));
 
-	if (!rt2x00_rf(&rt2x00dev->chip, RF2420) &&
-	    !rt2x00_rf(&rt2x00dev->chip, RF2421)) {
+	if (!rt2x00_rf(rt2x00dev, RF2420) && !rt2x00_rf(rt2x00dev, RF2421)) {
 		ERROR(rt2x00dev, "Invalid RF chipset detected.\n");
 		return -ENODEV;
 	}
@@ -1562,7 +1561,6 @@ static const struct ieee80211_ops rt2400pci_mac80211_ops = {
 	.get_stats		= rt2x00mac_get_stats,
 	.bss_info_changed	= rt2x00mac_bss_info_changed,
 	.conf_tx		= rt2400pci_conf_tx,
-	.get_tx_stats		= rt2x00mac_get_tx_stats,
 	.get_tsf		= rt2400pci_get_tsf,
 	.tx_last_beacon		= rt2400pci_tx_last_beacon,
 	.rfkill_poll		= rt2x00mac_rfkill_poll,
@@ -1643,7 +1641,7 @@ static const struct rt2x00_ops rt2400pci_ops = {
 /*
  * RT2400pci module information.
  */
-static struct pci_device_id rt2400pci_device_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(rt2400pci_device_table) = {
 	{ PCI_DEVICE(0x1814, 0x0101), PCI_DEVICE_DATA(&rt2400pci_ops) },
 	{ 0, }
 };

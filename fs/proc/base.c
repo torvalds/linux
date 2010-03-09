@@ -647,17 +647,11 @@ static int mounts_release(struct inode *inode, struct file *file)
 static unsigned mounts_poll(struct file *file, poll_table *wait)
 {
 	struct proc_mounts *p = file->private_data;
-	struct mnt_namespace *ns = p->ns;
 	unsigned res = POLLIN | POLLRDNORM;
 
-	poll_wait(file, &ns->poll, wait);
-
-	spin_lock(&vfsmount_lock);
-	if (p->event != ns->event) {
-		p->event = ns->event;
+	poll_wait(file, &p->ns->poll, wait);
+	if (mnt_had_events(p))
 		res |= POLLERR | POLLPRI;
-	}
-	spin_unlock(&vfsmount_lock);
 
 	return res;
 }
@@ -1095,8 +1089,12 @@ static ssize_t proc_loginuid_write(struct file * file, const char __user * buf,
 	if (!capable(CAP_AUDIT_CONTROL))
 		return -EPERM;
 
-	if (current != pid_task(proc_pid(inode), PIDTYPE_PID))
+	rcu_read_lock();
+	if (current != pid_task(proc_pid(inode), PIDTYPE_PID)) {
+		rcu_read_unlock();
 		return -EPERM;
+	}
+	rcu_read_unlock();
 
 	if (count >= PAGE_SIZE)
 		count = PAGE_SIZE - 1;

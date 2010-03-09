@@ -1564,7 +1564,7 @@ static void
 set_multicast_list(struct net_device *dev)
 {
 	struct net_local *lp = netdev_priv(dev);
-	int num_addr = dev->mc_count;
+	int num_addr = netdev_mc_count(dev);
 	unsigned long int lo_bits;
 	unsigned long int hi_bits;
 
@@ -1596,13 +1596,12 @@ set_multicast_list(struct net_device *dev)
 	} else {
 		/* MC mode, receive normal and MC packets */
 		char hash_ix;
-		struct dev_mc_list *dmi = dev->mc_list;
-		int i;
+		struct dev_mc_list *dmi;
 		char *baddr;
 
 		lo_bits = 0x00000000ul;
 		hi_bits = 0x00000000ul;
-		for (i = 0; i < num_addr; i++) {
+		netdev_for_each_mc_addr(dmi, dev) {
 			/* Calculate the hash index for the GA registers */
 
 			hash_ix = 0;
@@ -1632,7 +1631,6 @@ set_multicast_list(struct net_device *dev)
 			} else {
 				lo_bits |= (1 << hash_ix);
 			}
-			dmi = dmi->next;
 		}
 		/* Disable individual receive */
 		SETS(network_rec_config_shadow, R_NETWORK_REC_CONFIG, individual, discard);

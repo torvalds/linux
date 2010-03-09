@@ -789,7 +789,6 @@ struct amd8111e_priv{
 	char opened;
 	struct net_device_stats stats;
 	unsigned int drv_rx_errors;
-	struct dev_mc_list* mc_list;
 	struct amd8111e_coalesce_conf coal_conf;
 
 	struct ipg_info  ipg_data;

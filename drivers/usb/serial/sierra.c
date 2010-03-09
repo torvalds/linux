@@ -226,7 +226,7 @@ static const struct sierra_iface_info direct_ip_interface_blacklist = {
 	.ifaceinfo = direct_ip_non_serial_ifaces,
 };
 
-static struct usb_device_id id_table [] = {
+static const struct usb_device_id id_table[] = {
 	{ USB_DEVICE(0x0F3D, 0x0112) }, /* Airprime/Sierra PC 5220 */
 	{ USB_DEVICE(0x03F0, 0x1B1D) },	/* HP ev2200 a.k.a MC5720 */
 	{ USB_DEVICE(0x03F0, 0x1E1D) },	/* HP hs2300 a.k.a MC8775 */
@@ -304,16 +304,6 @@ static struct usb_device_id id_table [] = {
 };
 MODULE_DEVICE_TABLE(usb, id_table);
 
-static struct usb_driver sierra_driver = {
-	.name       = "sierra",
-	.probe      = usb_serial_probe,
-	.disconnect = usb_serial_disconnect,
-	.suspend    = usb_serial_suspend,
-	.resume     = usb_serial_resume,
-	.id_table   = id_table,
-	.no_dynamic_id = 	1,
-	.supports_autosuspend =	1,
-};
 
 struct sierra_port_private {
 	spinlock_t lock;	/* lock the structure */
@@ -477,7 +467,7 @@ static void sierra_outdat_callback(struct urb *urb)
 static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 					const unsigned char *buf, int count)
 {
-	struct sierra_port_private *portdata = usb_get_serial_port_data(port);
+	struct sierra_port_private *portdata;
 	struct sierra_intf_private *intfdata;
 	struct usb_serial *serial = port->serial;
 	unsigned long flags;
@@ -604,14 +594,15 @@ static void sierra_indat_callback(struct urb *urb)
 	} else {
 		if (urb->actual_length) {
 			tty = tty_port_tty_get(&port->port);
+			if (tty) {
+				tty_insert_flip_string(tty, data,
+					urb->actual_length);
+				tty_flip_buffer_push(tty);
 
-			tty_buffer_request_room(tty, urb->actual_length);
-			tty_insert_flip_string(tty, data, urb->actual_length);
-			tty_flip_buffer_push(tty);
-
-			tty_kref_put(tty);
-			usb_serial_debug_data(debug, &port->dev, __func__,
-				urb->actual_length, data);
+				tty_kref_put(tty);
+				usb_serial_debug_data(debug, &port->dev,
+					__func__, urb->actual_length, data);
+			}
 		} else {
 			dev_dbg(&port->dev, "%s: empty read urb"
 				" received\n", __func__);
@@ -619,10 +610,10 @@ static void sierra_indat_callback(struct urb *urb)
 	}
 
 	/* Resubmit urb so we continue receiving */
-	if (port->port.count && status != -ESHUTDOWN && status != -EPERM) {
+	if (status != -ESHUTDOWN && status != -EPERM) {
 		usb_mark_last_busy(port->serial->dev);
 		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (err)
+		if (err && err != -EPERM)
 			dev_err(&port->dev, "resubmit read urb failed."
 				"(%d)\n", err);
 	}
@@ -681,11 +672,11 @@ static void sierra_instat_callback(struct urb *urb)
 		dev_dbg(&port->dev, "%s: error %d\n", __func__, status);
 
 	/* Resubmit urb so we continue receiving IRQ data */
-	if (port->port.count && status != -ESHUTDOWN && status != -ENOENT) {
+	if (status != -ESHUTDOWN && status != -ENOENT) {
 		usb_mark_last_busy(serial->dev);
 		urb->dev = serial->dev;
 		err = usb_submit_urb(urb, GFP_ATOMIC);
-		if (err)
+		if (err && err != -EPERM)
 			dev_err(&port->dev, "%s: resubmit intr urb "
 				"failed. (%d)\n", __func__, err);
 	}
@@ -1061,10 +1052,30 @@ static int sierra_resume(struct usb_serial *serial)
 
 	return ec ? -EIO : 0;
 }
+
+static int sierra_reset_resume(struct usb_interface *intf)
+{
+	struct usb_serial *serial = usb_get_intfdata(intf);
+	dev_err(&serial->dev->dev, "%s\n", __func__);
+	return usb_serial_resume(intf);
+}
 #else
 #define sierra_suspend NULL
 #define sierra_resume NULL
+#define sierra_reset_resume NULL
 #endif
+
+static struct usb_driver sierra_driver = {
+	.name       = "sierra",
+	.probe      = usb_serial_probe,
+	.disconnect = usb_serial_disconnect,
+	.suspend    = usb_serial_suspend,
+	.resume     = usb_serial_resume,
+	.reset_resume = sierra_reset_resume,
+	.id_table   = id_table,
+	.no_dynamic_id = 	1,
+	.supports_autosuspend =	1,
+};
 
 static struct usb_serial_driver sierra_device = {
 	.driver = {

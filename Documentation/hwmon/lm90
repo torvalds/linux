@@ -84,6 +84,10 @@ Supported chips:
     Addresses scanned: I2C 0x4c
     Datasheet: Publicly available at the Maxim website
                http://www.maxim-ic.com/quick_view2.cfm/qv_pk/3500
+  * Winbond/Nuvoton W83L771AWG/ASG
+    Prefix: 'w83l771'
+    Addresses scanned: I2C 0x4c
+    Datasheet: Not publicly available, can be requested from Nuvoton
 
 
 Author: Jean Delvare <khali@linux-fr.org>
@@ -147,6 +151,12 @@ MAX6680 and MAX6681:
   * Selectable address
   * Remote sensor type selection
 
+W83L771AWG/ASG
+  * The AWG and ASG variants only differ in package format.
+  * Filter and alert configuration register at 0xBF
+  * Diode ideality factor configuration (remote sensor) at 0xE3
+  * Moving average (depending on conversion rate)
+
 All temperature values are given in degrees Celsius. Resolution
 is 1.0 degree for the local temperature, 0.125 degree for the remote
 temperature, except for the MAX6657, MAX6658 and MAX6659 which have a
@@ -162,6 +172,18 @@ applies to the remote hysteresis.
 The lm90 driver will not update its values more frequently than every
 other second; reading them more often will do no harm, but will return
 'old' values.
+
+SMBus Alert Support
+-------------------
+
+This driver has basic support for SMBus alert. When an alert is received,
+the status register is read and the faulty temperature channel is logged.
+
+The Analog Devices chips (ADM1032 and ADT7461) do not implement the SMBus
+alert protocol properly so additional care is needed: the ALERT output is
+disabled when an alert is received, and is re-enabled only when the alarm
+is gone. Otherwise the chip would block alerts from other chips in the bus
+as long as the alarm is active.
 
 PEC Support
 -----------

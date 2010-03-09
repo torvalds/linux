@@ -12,6 +12,7 @@
 
 struct davinci_cpuidle_config {
 	u32 ddr2_pdown;
+	void __iomem *ddr2_ctlr_base;
 };
 
 #endif

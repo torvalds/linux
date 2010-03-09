@@ -629,6 +629,8 @@ static struct i2c_board_info __initdata i2c_info[] =  {
 static struct davinci_i2c_platform_data i2c_pdata = {
 	.bus_freq	= 20 /* kHz */,
 	.bus_delay	= 100 /* usec */,
+	.sda_pin        = 44,
+	.scl_pin        = 43,
 };
 
 static void __init evm_init_i2c(void)

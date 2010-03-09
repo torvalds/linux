@@ -91,7 +91,7 @@ mc_copy_user_page(void *from, void *to)
 }
 
 void xscale_mc_copy_user_highpage(struct page *to, struct page *from,
-	unsigned long vaddr)
+	unsigned long vaddr, struct vm_area_struct *vma)
 {
 	void *kto = kmap_atomic(to, KM_USER1);
 

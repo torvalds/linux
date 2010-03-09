@@ -154,7 +154,7 @@ smp_call_function_any(const struct cpumask *mask, void (*func)(void *info),
 /*
  * smp_processor_id(): get the current CPU ID.
  *
- * if DEBUG_PREEMPT is enabled the we check whether it is
+ * if DEBUG_PREEMPT is enabled then we check whether it is
  * used in a preemption-safe way. (smp_processor_id() is safe
  * if it's used in a preemption-off critical section, or in
  * a thread that is bound to the current CPU.)

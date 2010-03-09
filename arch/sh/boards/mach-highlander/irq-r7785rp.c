@@ -66,20 +66,20 @@ static DECLARE_INTC_DESC(intc_desc, "r7785rp", vectors,
 
 unsigned char * __init highlander_plat_irq_setup(void)
 {
-	if ((ctrl_inw(0xa4000158) & 0xf000) != 0x1000)
+	if ((__raw_readw(0xa4000158) & 0xf000) != 0x1000)
 		return NULL;
 
 	printk(KERN_INFO "Using r7785rp interrupt controller.\n");
 
-	ctrl_outw(0x0000, PA_IRLSSR1);	/* FPGA IRLSSR1(CF_CD clear) */
+	__raw_writew(0x0000, PA_IRLSSR1);	/* FPGA IRLSSR1(CF_CD clear) */
 
 	/* Setup the FPGA IRL */
-	ctrl_outw(0x0000, PA_IRLPRA);	/* FPGA IRLA */
-	ctrl_outw(0xe598, PA_IRLPRB);	/* FPGA IRLB */
-	ctrl_outw(0x7060, PA_IRLPRC);	/* FPGA IRLC */
-	ctrl_outw(0x0000, PA_IRLPRD);	/* FPGA IRLD */
-	ctrl_outw(0x4321, PA_IRLPRE);	/* FPGA IRLE */
-	ctrl_outw(0xdcba, PA_IRLPRF);	/* FPGA IRLF */
+	__raw_writew(0x0000, PA_IRLPRA);	/* FPGA IRLA */
+	__raw_writew(0xe598, PA_IRLPRB);	/* FPGA IRLB */
+	__raw_writew(0x7060, PA_IRLPRC);	/* FPGA IRLC */
+	__raw_writew(0x0000, PA_IRLPRD);	/* FPGA IRLD */
+	__raw_writew(0x4321, PA_IRLPRE);	/* FPGA IRLE */
+	__raw_writew(0xdcba, PA_IRLPRF);	/* FPGA IRLF */
 
 	register_intc_controller(&intc_desc);
 	return irl2irq;

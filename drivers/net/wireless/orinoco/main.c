@@ -1668,16 +1668,15 @@ __orinoco_set_multicast_list(struct net_device *dev)
 	/* The Hermes doesn't seem to have an allmulti mode, so we go
 	 * into promiscuous mode and let the upper levels deal. */
 	if ((dev->flags & IFF_PROMISC) || (dev->flags & IFF_ALLMULTI) ||
-	    (dev->mc_count > MAX_MULTICAST(priv))) {
+	    (netdev_mc_count(dev) > MAX_MULTICAST(priv))) {
 		promisc = 1;
 		mc_count = 0;
 	} else {
 		promisc = 0;
-		mc_count = dev->mc_count;
+		mc_count = netdev_mc_count(dev);
 	}
 
-	err = __orinoco_hw_set_multicast_list(priv, dev->mc_list, mc_count,
-					      promisc);
+	err = __orinoco_hw_set_multicast_list(priv, dev, mc_count, promisc);
 
 	return err;
 }

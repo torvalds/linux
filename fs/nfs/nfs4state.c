@@ -1249,26 +1249,65 @@ static int nfs4_reclaim_lease(struct nfs_client *clp)
 }
 
 #ifdef CONFIG_NFS_V4_1
+void nfs41_handle_recall_slot(struct nfs_client *clp)
+{
+	set_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state);
+	nfs4_schedule_state_recovery(clp);
+}
+
+static void nfs4_reset_all_state(struct nfs_client *clp)
+{
+	if (test_and_set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0) {
+		clp->cl_boot_time = CURRENT_TIME;
+		nfs4_state_start_reclaim_nograce(clp);
+		nfs4_schedule_state_recovery(clp);
+	}
+}
+
+static void nfs41_handle_server_reboot(struct nfs_client *clp)
+{
+	if (test_and_set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) == 0) {
+		nfs4_state_start_reclaim_reboot(clp);
+		nfs4_schedule_state_recovery(clp);
+	}
+}
+
+static void nfs41_handle_state_revoked(struct nfs_client *clp)
+{
+	/* Temporary */
+	nfs4_reset_all_state(clp);
+}
+
+static void nfs41_handle_recallable_state_revoked(struct nfs_client *clp)
+{
+	/* This will need to handle layouts too */
+	nfs_expire_all_delegations(clp);
+}
+
+static void nfs41_handle_cb_path_down(struct nfs_client *clp)
+{
+	nfs_expire_all_delegations(clp);
+	if (test_and_set_bit(NFS4CLNT_SESSION_RESET, &clp->cl_state) == 0)
+		nfs4_schedule_state_recovery(clp);
+}
+
 void nfs41_handle_sequence_flag_errors(struct nfs_client *clp, u32 flags)
 {
 	if (!flags)
 		return;
-	else if (flags & SEQ4_STATUS_RESTART_RECLAIM_NEEDED) {
-		set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-		nfs4_state_start_reclaim_reboot(clp);
-		nfs4_schedule_state_recovery(clp);
-	} else if (flags & (SEQ4_STATUS_EXPIRED_ALL_STATE_REVOKED |
+	else if (flags & SEQ4_STATUS_RESTART_RECLAIM_NEEDED)
+		nfs41_handle_server_reboot(clp);
+	else if (flags & (SEQ4_STATUS_EXPIRED_ALL_STATE_REVOKED |
 			    SEQ4_STATUS_EXPIRED_SOME_STATE_REVOKED |
 			    SEQ4_STATUS_ADMIN_STATE_REVOKED |
-			    SEQ4_STATUS_RECALLABLE_STATE_REVOKED |
-			    SEQ4_STATUS_LEASE_MOVED)) {
-		set_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state);
-		nfs4_state_start_reclaim_nograce(clp);
-		nfs4_schedule_state_recovery(clp);
-	} else if (flags & (SEQ4_STATUS_CB_PATH_DOWN |
+			    SEQ4_STATUS_LEASE_MOVED))
+		nfs41_handle_state_revoked(clp);
+	else if (flags & SEQ4_STATUS_RECALLABLE_STATE_REVOKED)
+		nfs41_handle_recallable_state_revoked(clp);
+	else if (flags & (SEQ4_STATUS_CB_PATH_DOWN |
 			    SEQ4_STATUS_BACKCHANNEL_FAULT |
 			    SEQ4_STATUS_CB_PATH_DOWN_SESSION))
-		nfs_expire_all_delegations(clp);
+		nfs41_handle_cb_path_down(clp);
 }
 
 static int nfs4_reset_session(struct nfs_client *clp)
@@ -1285,23 +1324,52 @@ static int nfs4_reset_session(struct nfs_client *clp)
 
 	memset(clp->cl_session->sess_id.data, 0, NFS4_MAX_SESSIONID_LEN);
 	status = nfs4_proc_create_session(clp);
-	if (status)
+	if (status) {
 		status = nfs4_recovery_handle_error(clp, status);
+		goto out;
+	}
+	/* create_session negotiated new slot table */
+	clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state);
 
-out:
-	/*
-	 * Let the state manager reestablish state
-	 */
-	if (!test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state) &&
-	    status == 0)
+	 /* Let the state manager reestablish state */
+	if (!test_bit(NFS4CLNT_LEASE_EXPIRED, &clp->cl_state))
 		nfs41_setup_state_renewal(clp);
-
+out:
 	return status;
+}
+
+static int nfs4_recall_slot(struct nfs_client *clp)
+{
+	struct nfs4_slot_table *fc_tbl = &clp->cl_session->fc_slot_table;
+	struct nfs4_channel_attrs *fc_attrs = &clp->cl_session->fc_attrs;
+	struct nfs4_slot *new, *old;
+	int i;
+
+	nfs4_begin_drain_session(clp);
+	new = kmalloc(fc_tbl->target_max_slots * sizeof(struct nfs4_slot),
+		      GFP_KERNEL);
+        if (!new)
+		return -ENOMEM;
+
+	spin_lock(&fc_tbl->slot_tbl_lock);
+	for (i = 0; i < fc_tbl->target_max_slots; i++)
+		new[i].seq_nr = fc_tbl->slots[i].seq_nr;
+	old = fc_tbl->slots;
+	fc_tbl->slots = new;
+	fc_tbl->max_slots = fc_tbl->target_max_slots;
+	fc_tbl->target_max_slots = 0;
+	fc_attrs->max_reqs = fc_tbl->max_slots;
+	spin_unlock(&fc_tbl->slot_tbl_lock);
+
+	kfree(old);
+	nfs4_end_drain_session(clp);
+	return 0;
 }
 
 #else /* CONFIG_NFS_V4_1 */
 static int nfs4_reset_session(struct nfs_client *clp) { return 0; }
 static int nfs4_end_drain_session(struct nfs_client *clp) { return 0; }
+static int nfs4_recall_slot(struct nfs_client *clp) { return 0; }
 #endif /* CONFIG_NFS_V4_1 */
 
 /* Set NFS4CLNT_LEASE_EXPIRED for all v4.0 errors and for recoverable errors
@@ -1314,6 +1382,7 @@ static void nfs4_set_lease_expired(struct nfs_client *clp, int status)
 		case -NFS4ERR_DELAY:
 		case -NFS4ERR_CLID_INUSE:
 		case -EAGAIN:
+		case -EKEYEXPIRED:
 			break;
 
 		case -NFS4ERR_NOT_SAME: /* FixMe: implement recovery
@@ -1397,6 +1466,15 @@ static void nfs4_state_manager(struct nfs_client *clp)
 			nfs_client_return_marked_delegations(clp);
 			continue;
 		}
+		/* Recall session slots */
+		if (test_and_clear_bit(NFS4CLNT_RECALL_SLOT, &clp->cl_state)
+		   && nfs4_has_session(clp)) {
+			status = nfs4_recall_slot(clp);
+			if (status < 0)
+				goto out_error;
+			continue;
+		}
+
 
 		nfs4_clear_state_manager_bit(clp);
 		/* Did we race with an attempt to give us more work? */

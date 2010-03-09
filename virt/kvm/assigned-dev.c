@@ -504,12 +504,12 @@ out:
 static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 				      struct kvm_assigned_pci_dev *assigned_dev)
 {
-	int r = 0;
+	int r = 0, idx;
 	struct kvm_assigned_dev_kernel *match;
 	struct pci_dev *dev;
 
 	mutex_lock(&kvm->lock);
-	down_read(&kvm->slots_lock);
+	idx = srcu_read_lock(&kvm->srcu);
 
 	match = kvm_find_assigned_dev(&kvm->arch.assigned_dev_head,
 				      assigned_dev->assigned_dev_id);
@@ -526,7 +526,8 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 		r = -ENOMEM;
 		goto out;
 	}
-	dev = pci_get_bus_and_slot(assigned_dev->busnr,
+	dev = pci_get_domain_bus_and_slot(assigned_dev->segnr,
+				   assigned_dev->busnr,
 				   assigned_dev->devfn);
 	if (!dev) {
 		printk(KERN_INFO "%s: host device not found\n", __func__);
@@ -548,6 +549,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	pci_reset_function(dev);
 
 	match->assigned_dev_id = assigned_dev->assigned_dev_id;
+	match->host_segnr = assigned_dev->segnr;
 	match->host_busnr = assigned_dev->busnr;
 	match->host_devfn = assigned_dev->devfn;
 	match->flags = assigned_dev->flags;
@@ -573,7 +575,7 @@ static int kvm_vm_ioctl_assign_device(struct kvm *kvm,
 	}
 
 out:
-	up_read(&kvm->slots_lock);
+	srcu_read_unlock(&kvm->srcu, idx);
 	mutex_unlock(&kvm->lock);
 	return r;
 out_list_del:
@@ -585,7 +587,7 @@ out_put:
 	pci_dev_put(dev);
 out_free:
 	kfree(match);
-	up_read(&kvm->slots_lock);
+	srcu_read_unlock(&kvm->srcu, idx);
 	mutex_unlock(&kvm->lock);
 	return r;
 }

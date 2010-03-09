@@ -51,7 +51,8 @@
 #define IVTV_CARD_AVER_M104          24 /* AverMedia M104 miniPCI card */
 #define IVTV_CARD_BUFFALO_MV5L       25 /* Buffalo PC-MV5L/PCI card */
 #define IVTV_CARD_AVER_ULTRA1500MCE  26 /* AVerMedia UltraTV 1500 MCE */
-#define IVTV_CARD_LAST 		     26
+#define IVTV_CARD_KIKYOU             27 /* Sony VAIO Giga Pocket (ENX Kikyou) */
+#define IVTV_CARD_LAST 		     27
 
 /* Variants of existing cards but with the same PCI IDs. The driver
    detects these based on other device information.
@@ -86,6 +87,7 @@
 #define IVTV_PCI_ID_MELCO 		0x1154
 #define IVTV_PCI_ID_GOTVIEW1		0xffac
 #define IVTV_PCI_ID_GOTVIEW2 		0xffad
+#define IVTV_PCI_ID_SONY 		0x104d
 
 /* hardware flags, no gaps allowed */
 #define IVTV_HW_CX25840			(1 << 0)

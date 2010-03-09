@@ -5,4 +5,3 @@ header-y += gadgetfs.h
 header-y += midi.h
 header-y += g_printer.h
 header-y += tmc.h
-header-y += vstusb.h

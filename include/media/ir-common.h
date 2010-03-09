@@ -35,7 +35,7 @@
 
 struct ir_input_state {
 	/* configuration */
-	int                ir_type;
+	u64      ir_type;
 
 	/* key info */
 	u32                ir_key;      /* ir scancode */
@@ -84,7 +84,7 @@ struct card_ir {
 /* Routines from ir-functions.c */
 
 int ir_input_init(struct input_dev *dev, struct ir_input_state *ir,
-		   int ir_type);
+		   const u64 ir_type);
 void ir_input_nokey(struct input_dev *dev, struct ir_input_state *ir);
 void ir_input_keydown(struct input_dev *dev, struct ir_input_state *ir,
 		      u32 ir_key);
@@ -162,4 +162,6 @@ extern struct ir_scancode_table ir_codes_terratec_cinergy_xs_table;
 extern struct ir_scancode_table ir_codes_videomate_s350_table;
 extern struct ir_scancode_table ir_codes_gadmei_rm008z_table;
 extern struct ir_scancode_table ir_codes_nec_terratec_cinergy_xs_table;
+extern struct ir_scancode_table ir_codes_winfast_usbii_deluxe_table;
+extern struct ir_scancode_table ir_codes_kworld_315u_table;
 #endif

@@ -170,6 +170,16 @@ config SENSORS_ADM9240
 	  This driver can also be built as a module.  If so, the module
 	  will be called adm9240.
 
+config SENSORS_ADT7411
+	tristate "Analog Devices ADT7411"
+	depends on I2C && EXPERIMENTAL
+	help
+	  If you say yes here you get support for the Analog Devices
+	  ADT7411 voltage and temperature monitoring chip.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called adt7411.
+
 config SENSORS_ADT7462
 	tristate "Analog Devices ADT7462"
 	depends on I2C && EXPERIMENTAL
@@ -190,20 +200,6 @@ config SENSORS_ADT7470
 	  This driver can also be built as a module. If so, the module
 	  will be called adt7470.
 
-config SENSORS_ADT7473
-	tristate "Analog Devices ADT7473 (DEPRECATED)"
-	depends on I2C && EXPERIMENTAL
-	select SENSORS_ADT7475
-	help
-	  If you say yes here you get support for the Analog Devices
-	  ADT7473 temperature monitoring chips.
-
-	  This driver is deprecated, you should use the adt7475 driver
-	  instead.
-
-	  This driver can also be built as a module. If so, the module
-	  will be called adt7473.
-
 config SENSORS_ADT7475
 	tristate "Analog Devices ADT7473, ADT7475, ADT7476 and ADT7490"
 	depends on I2C && EXPERIMENTAL
@@ -215,6 +211,19 @@ config SENSORS_ADT7475
 
 	  This driver can also be build as a module.  If so, the module
 	  will be called adt7475.
+
+config SENSORS_ASC7621
+	tristate "Andigilog aSC7621"
+	depends on HWMON && I2C
+	help
+	  If you say yes here you get support for the aSC7621
+	  family of SMBus sensors chip found on most Intel X48, X38, 975,
+	  965 and 945 desktop boards.  Currently supported chips:
+	  aSC7621
+	  aSC7621a
+
+	  This driver can also be built as a module.  If so, the module
+	  will be called asc7621.
 
 config SENSORS_K8TEMP
 	tristate "AMD Athlon64/FX or Opteron temperature sensor"
@@ -563,9 +572,10 @@ config SENSORS_LM90
 	depends on I2C
 	help
 	  If you say yes here you get support for National Semiconductor LM90,
-	  LM86, LM89 and LM99, Analog Devices ADM1032 and ADT7461, and Maxim
+	  LM86, LM89 and LM99, Analog Devices ADM1032 and ADT7461, Maxim
 	  MAX6646, MAX6647, MAX6648, MAX6649, MAX6657, MAX6658, MAX6659,
-	  MAX6680, MAX6681 and MAX6692 sensor chips.
+	  MAX6680, MAX6681 and MAX6692, and Winbond/Nuvoton W83L771AWG/ASG
+	  sensor chips.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called lm90.
@@ -909,7 +919,8 @@ config SENSORS_W83793
 	select HWMON_VID
 	help
 	  If you say yes here you get support for the Winbond W83793
-	  hardware monitoring chip.
+	  hardware monitoring chip, including support for the integrated
+	  watchdog.
 
 	  This driver can also be built as a module.  If so, the module
 	  will be called w83793.

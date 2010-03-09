@@ -56,8 +56,8 @@ static int __init lboxre2_devices_setup(void)
 	/* open I/O area window */
 	paddrbase = virt_to_phys((void*)PA_AREA5_IO);
 	psize = PAGE_SIZE;
-	prot = PAGE_KERNEL_PCC( 1 , _PAGE_PCC_IO16);
-	cf0_io_base = (u32)p3_ioremap(paddrbase, psize, prot.pgprot);
+	prot = PAGE_KERNEL_PCC(1, _PAGE_PCC_IO16);
+	cf0_io_base = (u32)ioremap_prot(paddrbase, psize, pgprot_val(prot));
 	if (!cf0_io_base) {
 		printk(KERN_ERR "%s : can't open CF I/O window!\n" , __func__ );
 		return -ENOMEM;

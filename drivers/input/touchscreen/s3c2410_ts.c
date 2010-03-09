@@ -128,27 +128,29 @@ static void touch_timer_fire(unsigned long data)
 
 	down = get_down(data0, data1);
 
-	if (ts.count == (1 << ts.shift)) {
-		ts.xp >>= ts.shift;
-		ts.yp >>= ts.shift;
-
-		dev_dbg(ts.dev, "%s: X=%lu, Y=%lu, count=%d\n",
-			__func__, ts.xp, ts.yp, ts.count);
-
-		input_report_abs(ts.input, ABS_X, ts.xp);
-		input_report_abs(ts.input, ABS_Y, ts.yp);
-
-		input_report_key(ts.input, BTN_TOUCH, 1);
-		input_sync(ts.input);
-
-		ts.xp = 0;
-		ts.yp = 0;
-		ts.count = 0;
-	}
-
 	if (down) {
+		if (ts.count == (1 << ts.shift)) {
+			ts.xp >>= ts.shift;
+			ts.yp >>= ts.shift;
+
+			dev_dbg(ts.dev, "%s: X=%lu, Y=%lu, count=%d\n",
+				__func__, ts.xp, ts.yp, ts.count);
+
+			input_report_abs(ts.input, ABS_X, ts.xp);
+			input_report_abs(ts.input, ABS_Y, ts.yp);
+
+			input_report_key(ts.input, BTN_TOUCH, 1);
+			input_sync(ts.input);
+
+			ts.xp = 0;
+			ts.yp = 0;
+			ts.count = 0;
+		}
+
 		s3c_adc_start(ts.client, 0, 1 << ts.shift);
 	} else {
+		ts.xp = 0;
+		ts.yp = 0;
 		ts.count = 0;
 
 		input_report_key(ts.input, BTN_TOUCH, 0);
@@ -401,6 +403,7 @@ static int s3c2410ts_resume(struct device *dev)
 	struct s3c2410_ts_mach_info *info = pdev->dev.platform_data;
 
 	clk_enable(ts.clock);
+	enable_irq(ts.irq_tc);
 
 	/* Initialise registers */
 	if ((info->delay & 0xffff) > 0)

@@ -360,8 +360,8 @@ static int mptctl_bus_reset(MPT_ADAPTER *ioc, u8 function)
 	u16		 iocstatus;
 
 	/* bus reset is only good for SCSI IO, RAID PASSTHRU */
-	if (!(function == MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH) ||
-	    (function == MPI_FUNCTION_SCSI_IO_REQUEST)) {
+	if (!(function == MPI_FUNCTION_RAID_SCSI_IO_PASSTHROUGH ||
+		function == MPI_FUNCTION_SCSI_IO_REQUEST)) {
 		dtmprintk(ioc, printk(MYIOC_s_WARN_FMT
 			"TaskMgmt, not SCSI_IO!!\n", ioc->name));
 		return -EPERM;

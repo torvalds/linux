@@ -1,0 +1,10 @@
+TODO:
+	- fix checkpatch.pl issues
+	- remove old kernel support, it is not needed
+	- convert to proper PCI device API
+	- fix sparse warnings
+	- audit for correct subsystem interaction
+	- review review review!
+
+Please send patches to Greg Kroah-Hartman <greg@kroah.com>
+and Scott Smedley <ss@aao.gov.au>

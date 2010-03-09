@@ -386,6 +386,8 @@ static void br_make_forwarding(struct net_bridge_port *p)
 	else
 		p->state = BR_STATE_LEARNING;
 
+	br_multicast_enable_port(p);
+
 	br_log_state(p);
 
 	if (br->forward_delay != 0)

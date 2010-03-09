@@ -1505,7 +1505,7 @@ static void set_multicast_list(struct net_device *dev)
 	int config = 0, cnt;
 
 	DEB(DEB_MULTI,printk(KERN_DEBUG "%s: set multicast list, %d entries, promisc %s, allmulti %s\n",
-		dev->name, dev->mc_count,
+		dev->name, netdev_mc_count(dev),
 		dev->flags & IFF_PROMISC  ? "ON" : "OFF",
 		dev->flags & IFF_ALLMULTI ? "ON" : "OFF"));
 
@@ -1533,7 +1533,7 @@ static void set_multicast_list(struct net_device *dev)
 		i596_add_cmd(dev, &lp->cf_cmd.cmd);
 	}
 
-	cnt = dev->mc_count;
+	cnt = netdev_mc_count(dev);
 	if (cnt > MAX_MC_CNT)
 	{
 		cnt = MAX_MC_CNT;
@@ -1541,7 +1541,7 @@ static void set_multicast_list(struct net_device *dev)
 			dev->name, cnt);
 	}
 
-	if (dev->mc_count > 0) {
+	if (!netdev_mc_empty(dev)) {
 		struct dev_mc_list *dmi;
 		unsigned char *cp;
 		struct mc_cmd *cmd;
@@ -1550,13 +1550,16 @@ static void set_multicast_list(struct net_device *dev)
 			return;
 		cmd = &lp->mc_cmd;
 		cmd->cmd.command = CmdMulticastList;
-		cmd->mc_cnt = dev->mc_count * 6;
+		cmd->mc_cnt = cnt * ETH_ALEN;
 		cp = cmd->mc_addrs;
-		for (dmi = dev->mc_list; cnt && dmi != NULL; dmi = dmi->next, cnt--, cp += 6) {
-			memcpy(cp, dmi->dmi_addr, 6);
+		netdev_for_each_mc_addr(dmi, dev) {
+			if (!cnt--)
+				break;
+			memcpy(cp, dmi->dmi_addr, ETH_ALEN);
 			if (i596_debug > 1)
 				DEB(DEB_MULTI,printk(KERN_INFO "%s: Adding address %pM\n",
 						dev->name, cp));
+			cp += ETH_ALEN;
 		}
 		i596_add_cmd(dev, &cmd->cmd);
 	}

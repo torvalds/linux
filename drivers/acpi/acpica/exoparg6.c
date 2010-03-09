@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -218,7 +218,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 	union acpi_operand_object **operand = &walk_state->operands[0];
 	union acpi_operand_object *return_desc = NULL;
 	acpi_status status = AE_OK;
-	acpi_integer index;
+	u64 index;
 	union acpi_operand_object *this_element;
 
 	ACPI_FUNCTION_TRACE_STR(ex_opcode_6A_0T_1R,
@@ -253,9 +253,9 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 		}
 
 		/* Create an integer for the return value */
-		/* Default return value is ACPI_INTEGER_MAX if no match found */
+		/* Default return value is ACPI_UINT64_MAX if no match found */
 
-		return_desc = acpi_ut_create_integer_object(ACPI_INTEGER_MAX);
+		return_desc = acpi_ut_create_integer_object(ACPI_UINT64_MAX);
 		if (!return_desc) {
 			status = AE_NO_MEMORY;
 			goto cleanup;
@@ -270,7 +270,7 @@ acpi_status acpi_ex_opcode_6A_0T_1R(struct acpi_walk_state * walk_state)
 		 *
 		 * Upon finding a match, the loop will terminate via "break" at
 		 * the bottom.  If it terminates "normally", match_value will be
-		 * ACPI_INTEGER_MAX (Ones) (its initial value) indicating that no
+		 * ACPI_UINT64_MAX (Ones) (its initial value) indicating that no
 		 * match was found.
 		 */
 		for (; index < operand[0]->package.count; index++) {

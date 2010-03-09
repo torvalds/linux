@@ -22,6 +22,7 @@
 #include <linux/crc32.h>
 #include <linux/time.h>
 #include <linux/wait.h>
+#include <linux/writeback.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -711,7 +712,7 @@ void gfs2_unfreeze_fs(struct gfs2_sbd *sdp)
  * Returns: errno
  */
 
-static int gfs2_write_inode(struct inode *inode, int sync)
+static int gfs2_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -722,8 +723,7 @@ static int gfs2_write_inode(struct inode *inode, int sync)
 	int ret = 0;
 
 	/* Check this is a "normal" inode, etc */
-	if (!test_bit(GIF_USER, &ip->i_flags) ||
-	    (current->flags & PF_MEMALLOC))
+	if (current->flags & PF_MEMALLOC)
 		return 0;
 	ret = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	if (ret)
@@ -746,7 +746,7 @@ static int gfs2_write_inode(struct inode *inode, int sync)
 do_unlock:
 	gfs2_glock_dq_uninit(&gh);
 do_flush:
-	if (sync != 0)
+	if (wbc->sync_mode == WB_SYNC_ALL)
 		gfs2_log_flush(GFS2_SB(inode), ip->i_gl);
 	return ret;
 }
@@ -764,7 +764,7 @@ static int gfs2_make_fs_ro(struct gfs2_sbd *sdp)
 	int error;
 
 	flush_workqueue(gfs2_delete_workqueue);
-	gfs2_quota_sync(sdp->sd_vfs, 0);
+	gfs2_quota_sync(sdp->sd_vfs, 0, 1);
 	gfs2_statfs_sync(sdp->sd_vfs, 0);
 
 	error = gfs2_glock_nq_init(sdp->sd_trans_gl, LM_ST_SHARED, GL_NOCACHE,
@@ -860,6 +860,7 @@ restart:
 	gfs2_clear_rgrpd(sdp);
 	gfs2_jindex_free(sdp);
 	/*  Take apart glock structures and buffer lists  */
+	invalidate_inodes(sdp->sd_vfs);
 	gfs2_gl_hash_clear(sdp);
 	/*  Unmount the locking protocol  */
 	gfs2_lm_unmount(sdp);
@@ -1194,7 +1195,7 @@ static void gfs2_drop_inode(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 
-	if (test_bit(GIF_USER, &ip->i_flags) && inode->i_nlink) {
+	if (inode->i_nlink) {
 		struct gfs2_glock *gl = ip->i_iopen_gh.gh_gl;
 		if (gl && test_bit(GLF_DEMOTE, &gl->gl_flags))
 			clear_nlink(inode);
@@ -1212,18 +1213,12 @@ static void gfs2_clear_inode(struct inode *inode)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 
-	/* This tells us its a "real" inode and not one which only
-	 * serves to contain an address space (see rgrp.c, meta_io.c)
-	 * which therefore doesn't have its own glocks.
-	 */
-	if (test_bit(GIF_USER, &ip->i_flags)) {
-		ip->i_gl->gl_object = NULL;
-		gfs2_glock_put(ip->i_gl);
-		ip->i_gl = NULL;
-		if (ip->i_iopen_gh.gh_gl) {
-			ip->i_iopen_gh.gh_gl->gl_object = NULL;
-			gfs2_glock_dq_uninit(&ip->i_iopen_gh);
-		}
+	ip->i_gl->gl_object = NULL;
+	gfs2_glock_put(ip->i_gl);
+	ip->i_gl = NULL;
+	if (ip->i_iopen_gh.gh_gl) {
+		ip->i_iopen_gh.gh_gl->gl_object = NULL;
+		gfs2_glock_dq_uninit(&ip->i_iopen_gh);
 	}
 }
 
@@ -1357,9 +1352,6 @@ static void gfs2_delete_inode(struct inode *inode)
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_holder gh;
 	int error;
-
-	if (!test_bit(GIF_USER, &ip->i_flags))
-		goto out;
 
 	error = gfs2_glock_nq_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, &gh);
 	if (unlikely(error)) {

@@ -1558,7 +1558,7 @@ static int __devinit snd_card_miro_pnp(struct snd_miro *chip,
 
 	err = pnp_activate_dev(devmc);
 	if (err < 0) {
-		snd_printk(KERN_ERR "OPL syntg pnp configure failure: %d\n",
+		snd_printk(KERN_ERR "MC pnp configure failure: %d\n",
 				    err);
 		return err;
 	}

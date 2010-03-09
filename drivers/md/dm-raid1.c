@@ -465,9 +465,17 @@ static void map_region(struct dm_io_region *io, struct mirror *m,
 static void hold_bio(struct mirror_set *ms, struct bio *bio)
 {
 	/*
-	 * If device is suspended, complete the bio.
+	 * Lock is required to avoid race condition during suspend
+	 * process.
 	 */
+	spin_lock_irq(&ms->lock);
+
 	if (atomic_read(&ms->suspend)) {
+		spin_unlock_irq(&ms->lock);
+
+		/*
+		 * If device is suspended, complete the bio.
+		 */
 		if (dm_noflush_suspending(ms->ti))
 			bio_endio(bio, DM_ENDIO_REQUEUE);
 		else
@@ -478,7 +486,6 @@ static void hold_bio(struct mirror_set *ms, struct bio *bio)
 	/*
 	 * Hold bio until the suspend is complete.
 	 */
-	spin_lock_irq(&ms->lock);
 	bio_list_add(&ms->holds, bio);
 	spin_unlock_irq(&ms->lock);
 }
@@ -737,9 +744,12 @@ static void do_writes(struct mirror_set *ms, struct bio_list *writes)
 		dm_rh_delay(ms->rh, bio);
 
 	while ((bio = bio_list_pop(&nosync))) {
-		if (unlikely(ms->leg_failure) && errors_handled(ms))
-			hold_bio(ms, bio);
-		else {
+		if (unlikely(ms->leg_failure) && errors_handled(ms)) {
+			spin_lock_irq(&ms->lock);
+			bio_list_add(&ms->failures, bio);
+			spin_unlock_irq(&ms->lock);
+			wakeup_mirrord(ms);
+		} else {
 			map_bio(get_default_mirror(ms), bio);
 			generic_make_request(bio);
 		}
@@ -917,8 +927,7 @@ static int get_mirror(struct mirror_set *ms, struct dm_target *ti,
 		return -EINVAL;
 	}
 
-	if (dm_get_device(ti, argv[0], offset, ti->len,
-			  dm_table_get_mode(ti->table),
+	if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table),
 			  &ms->mirror[mirror].dev)) {
 		ti->error = "Device lookup failure";
 		return -ENXIO;
@@ -1259,6 +1268,20 @@ static void mirror_presuspend(struct dm_target *ti)
 	atomic_set(&ms->suspend, 1);
 
 	/*
+	 * Process bios in the hold list to start recovery waiting
+	 * for bios in the hold list. After the process, no bio has
+	 * a chance to be added in the hold list because ms->suspend
+	 * is set.
+	 */
+	spin_lock_irq(&ms->lock);
+	holds = ms->holds;
+	bio_list_init(&ms->holds);
+	spin_unlock_irq(&ms->lock);
+
+	while ((bio = bio_list_pop(&holds)))
+		hold_bio(ms, bio);
+
+	/*
 	 * We must finish up all the work that we've
 	 * generated (i.e. recovery work).
 	 */
@@ -1278,22 +1301,6 @@ static void mirror_presuspend(struct dm_target *ti)
 	 * we know that all of our I/O has been pushed.
 	 */
 	flush_workqueue(ms->kmirrord_wq);
-
-	/*
-	 * Now set ms->suspend is set and the workqueue flushed, no more
-	 * entries can be added to ms->hold list, so process it.
-	 *
-	 * Bios can still arrive concurrently with or after this
-	 * presuspend function, but they cannot join the hold list
-	 * because ms->suspend is set.
-	 */
-	spin_lock_irq(&ms->lock);
-	holds = ms->holds;
-	bio_list_init(&ms->holds);
-	spin_unlock_irq(&ms->lock);
-
-	while ((bio = bio_list_pop(&holds)))
-		hold_bio(ms, bio);
 }
 
 static void mirror_postsuspend(struct dm_target *ti)

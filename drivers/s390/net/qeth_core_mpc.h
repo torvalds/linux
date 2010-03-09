@@ -156,6 +156,8 @@ enum qeth_ipa_return_codes {
 	IPA_RC_IP_TABLE_FULL		= 0x0002,
 	IPA_RC_UNKNOWN_ERROR		= 0x0003,
 	IPA_RC_UNSUPPORTED_COMMAND	= 0x0004,
+	IPA_RC_TRACE_ALREADY_ACTIVE	= 0x0005,
+	IPA_RC_INVALID_FORMAT		= 0x0006,
 	IPA_RC_DUP_IPV6_REMOTE		= 0x0008,
 	IPA_RC_DUP_IPV6_HOME		= 0x0010,
 	IPA_RC_UNREGISTERED_ADDR	= 0x0011,
@@ -196,6 +198,11 @@ enum qeth_ipa_return_codes {
 	IPA_RC_INVALID_IP_VERSION2	= 0xf001,
 	IPA_RC_FFFF			= 0xffff
 };
+/* for DELIP */
+#define IPA_RC_IP_ADDRESS_NOT_DEFINED	IPA_RC_PRIMARY_ALREADY_DEFINED
+/* for SET_DIAGNOSTIC_ASSIST */
+#define IPA_RC_INVALID_SUBCMD		IPA_RC_IP_TABLE_FULL
+#define IPA_RC_HARDWARE_AUTH_ERROR	IPA_RC_UNKNOWN_ERROR
 
 /* IPA function flags; each flag marks availability of respective function */
 enum qeth_ipa_funcs {
@@ -246,6 +253,7 @@ enum qeth_ipa_setadp_cmd {
 	IPA_SETADP_SET_SNMP_CONTROL		= 0x00000200L,
 	IPA_SETADP_QUERY_CARD_INFO		= 0x00000400L,
 	IPA_SETADP_SET_PROMISC_MODE		= 0x00000800L,
+	IPA_SETADP_SET_DIAG_ASSIST		= 0x00002000L,
 	IPA_SETADP_SET_ACCESS_CONTROL		= 0x00010000L,
 };
 enum qeth_ipa_mac_ops {
@@ -424,6 +432,40 @@ struct qeth_create_destroy_address {
 	__u8 unique_id[8];
 } __attribute__ ((packed));
 
+/* SET DIAGNOSTIC ASSIST IPA Command:	 *************************************/
+
+enum qeth_diags_cmds {
+	QETH_DIAGS_CMD_QUERY	= 0x0001,
+	QETH_DIAGS_CMD_TRAP	= 0x0002,
+	QETH_DIAGS_CMD_TRACE	= 0x0004,
+	QETH_DIAGS_CMD_NOLOG	= 0x0008,
+	QETH_DIAGS_CMD_DUMP	= 0x0010,
+};
+
+enum qeth_diags_trace_types {
+	QETH_DIAGS_TYPE_HIPERSOCKET	= 0x02,
+};
+
+enum qeth_diags_trace_cmds {
+	QETH_DIAGS_CMD_TRACE_ENABLE	= 0x0001,
+	QETH_DIAGS_CMD_TRACE_DISABLE	= 0x0002,
+	QETH_DIAGS_CMD_TRACE_MODIFY	= 0x0004,
+	QETH_DIAGS_CMD_TRACE_REPLACE	= 0x0008,
+	QETH_DIAGS_CMD_TRACE_QUERY	= 0x0010,
+};
+
+struct qeth_ipacmd_diagass {
+	__u32  host_tod2;
+	__u32:32;
+	__u16  subcmd_len;
+	__u16:16;
+	__u32  subcmd;
+	__u8   type;
+	__u8   action;
+	__u16  options;
+	__u32:32;
+} __attribute__ ((packed));
+
 /* Header for each IPA command */
 struct qeth_ipacmd_hdr {
 	__u8   command;
@@ -452,6 +494,7 @@ struct qeth_ipa_cmd {
 		struct qeth_create_destroy_address	create_destroy_addr;
 		struct qeth_ipacmd_setadpparms		setadapterparms;
 		struct qeth_set_routing			setrtg;
+		struct qeth_ipacmd_diagass		diagass;
 	} data;
 } __attribute__ ((packed));
 
@@ -468,7 +511,6 @@ enum qeth_ipa_arp_return_codes {
 	QETH_IPA_ARP_RC_Q_NOTSUPP    = 0x0004,
 	QETH_IPA_ARP_RC_Q_NO_DATA    = 0x0008,
 };
-
 
 extern char *qeth_get_ipa_msg(enum qeth_ipa_return_codes rc);
 extern char *qeth_get_ipa_cmd_name(enum qeth_ipa_cmds cmd);

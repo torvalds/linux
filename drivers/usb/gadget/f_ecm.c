@@ -497,12 +497,9 @@ static int ecm_set_alt(struct usb_function *f, unsigned intf, unsigned alt)
 			struct net_device	*net;
 
 			/* Enable zlps by default for ECM conformance;
-			 * override for musb_hdrc (avoids txdma ovhead)
-			 * and sa1100 (can't).
+			 * override for musb_hdrc (avoids txdma ovhead).
 			 */
-			ecm->port.is_zlp_ok = !(
-				   gadget_is_sa1100(cdev->gadget)
-				|| gadget_is_musbhdrc(cdev->gadget)
+			ecm->port.is_zlp_ok = !(gadget_is_musbhdrc(cdev->gadget)
 				);
 			ecm->port.cdc_filter = DEFAULT_FILTER;
 			DBG(cdev, "activate ecm\n");

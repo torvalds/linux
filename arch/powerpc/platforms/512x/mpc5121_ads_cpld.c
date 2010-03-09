@@ -79,7 +79,7 @@ cpld_unmask_irq(unsigned int irq)
 }
 
 static struct irq_chip cpld_pic = {
-	.name = " CPLD PIC ",
+	.name = "CPLD PIC",
 	.mask = cpld_mask_irq,
 	.ack = cpld_mask_irq,
 	.unmask = cpld_unmask_irq,

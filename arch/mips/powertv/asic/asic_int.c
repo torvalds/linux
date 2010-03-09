@@ -39,21 +39,21 @@
 
 #include <asm/mach-powertv/asic_regs.h>
 
-static DEFINE_SPINLOCK(asic_irq_lock);
+static DEFINE_RAW_SPINLOCK(asic_irq_lock);
 
 static inline int get_int(void)
 {
 	unsigned long flags;
 	int irq;
 
-	spin_lock_irqsave(&asic_irq_lock, flags);
+	raw_spin_lock_irqsave(&asic_irq_lock, flags);
 
 	irq = (asic_read(int_int_scan) >> 4) - 1;
 
 	if (irq == 0 || irq >= NR_IRQS)
 		irq = -1;
 
-	spin_unlock_irqrestore(&asic_irq_lock, flags);
+	raw_spin_unlock_irqrestore(&asic_irq_lock, flags);
 
 	return irq;
 }

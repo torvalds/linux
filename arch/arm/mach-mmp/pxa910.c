@@ -131,7 +131,7 @@ static int __init pxa910_init(void)
 		mfp_init_base(MFPR_VIRT_BASE);
 		mfp_init_addr(pxa910_mfp_addr_map);
 		pxa_init_dma(IRQ_PXA910_DMA_INT0, 32);
-		clks_register(ARRAY_AND_SIZE(pxa910_clkregs));
+		clkdev_add_table(ARRAY_AND_SIZE(pxa910_clkregs));
 	}
 
 	return 0;

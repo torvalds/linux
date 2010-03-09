@@ -30,12 +30,12 @@
 
 struct ipcomp_tfms {
 	struct list_head list;
-	struct crypto_comp **tfms;
+	struct crypto_comp * __percpu *tfms;
 	int users;
 };
 
 static DEFINE_MUTEX(ipcomp_resource_mutex);
-static void **ipcomp_scratches;
+static void * __percpu *ipcomp_scratches;
 static int ipcomp_scratch_users;
 static LIST_HEAD(ipcomp_tfms_list);
 
@@ -200,7 +200,7 @@ EXPORT_SYMBOL_GPL(ipcomp_output);
 static void ipcomp_free_scratches(void)
 {
 	int i;
-	void **scratches;
+	void * __percpu *scratches;
 
 	if (--ipcomp_scratch_users)
 		return;
@@ -215,10 +215,10 @@ static void ipcomp_free_scratches(void)
 	free_percpu(scratches);
 }
 
-static void **ipcomp_alloc_scratches(void)
+static void * __percpu *ipcomp_alloc_scratches(void)
 {
 	int i;
-	void **scratches;
+	void * __percpu *scratches;
 
 	if (ipcomp_scratch_users++)
 		return ipcomp_scratches;
@@ -239,7 +239,7 @@ static void **ipcomp_alloc_scratches(void)
 	return scratches;
 }
 
-static void ipcomp_free_tfms(struct crypto_comp **tfms)
+static void ipcomp_free_tfms(struct crypto_comp * __percpu *tfms)
 {
 	struct ipcomp_tfms *pos;
 	int cpu;
@@ -267,10 +267,10 @@ static void ipcomp_free_tfms(struct crypto_comp **tfms)
 	free_percpu(tfms);
 }
 
-static struct crypto_comp **ipcomp_alloc_tfms(const char *alg_name)
+static struct crypto_comp * __percpu *ipcomp_alloc_tfms(const char *alg_name)
 {
 	struct ipcomp_tfms *pos;
-	struct crypto_comp **tfms;
+	struct crypto_comp * __percpu *tfms;
 	int cpu;
 
 	/* This can be any valid CPU ID so we don't need locking. */

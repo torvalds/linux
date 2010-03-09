@@ -29,6 +29,7 @@
 #include <mach/cpu.h>
 
 #include "clock.h"
+#include "generic.h"
 
 
 /*
@@ -628,7 +629,7 @@ static void __init at91_pllb_usbfs_clock_init(unsigned long main_clock)
 		at91_sys_write(AT91_PMC_SCER, AT91RM9200_PMC_MCKUDP);
 	} else if (cpu_is_at91sam9260() || cpu_is_at91sam9261() ||
 		   cpu_is_at91sam9263() || cpu_is_at91sam9g20() ||
-		   cpu_is_at91sam9g10()) {
+		   cpu_is_at91sam9g10() || cpu_is_at572d940hf()) {
 		uhpck.pmc_mask = AT91SAM926x_PMC_UHP;
 		udpck.pmc_mask = AT91SAM926x_PMC_UDP;
 	} else if (cpu_is_at91cap9()) {
@@ -711,12 +712,13 @@ int __init at91_clock_init(unsigned long main_clock)
 	/*
 	 * USB HS clock init
 	 */
-	if (cpu_has_utmi())
+	if (cpu_has_utmi()) {
 		/*
 		 * multiplier is hard-wired to 40
 		 * (obtain the USB High Speed 480 MHz when input is 12 MHz)
 		 */
 		utmi_clk.rate_hz = 40 * utmi_clk.parent->rate_hz;
+	}
 
 	/*
 	 * USB FS clock init
@@ -746,7 +748,7 @@ int __init at91_clock_init(unsigned long main_clock)
 		mck.rate_hz = (mckr & AT91_PMC_MDIV) == AT91SAM9_PMC_MDIV_3 ?
 			freq / 3 : freq / (1 << ((mckr & AT91_PMC_MDIV) >> 8));	/* mdiv */
 	} else {
-		mck.rate_hz = freq / (1 << ((mckr & AT91_PMC_MDIV) >> 8));      /* mdiv */
+		mck.rate_hz = freq / (1 << ((mckr & AT91_PMC_MDIV) >> 8));		/* mdiv */
 	}
 
 	/* Register the PMC's standard clocks */

@@ -30,7 +30,10 @@ static void gdlm_ast(void *arg)
 
 	switch (gl->gl_lksb.sb_status) {
 	case -DLM_EUNLOCK: /* Unlocked, so glock can be freed */
-		kmem_cache_free(gfs2_glock_cachep, gl);
+		if (gl->gl_ops->go_flags & GLOF_ASPACE)
+			kmem_cache_free(gfs2_glock_aspace_cachep, gl);
+		else
+			kmem_cache_free(gfs2_glock_cachep, gl);
 		if (atomic_dec_and_test(&sdp->sd_glock_disposal))
 			wake_up(&sdp->sd_glock_wait);
 		return;

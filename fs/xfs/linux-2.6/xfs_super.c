@@ -1063,7 +1063,7 @@ xfs_log_inode(
 STATIC int
 xfs_fs_write_inode(
 	struct inode		*inode,
-	int			sync)
+	struct writeback_control *wbc)
 {
 	struct xfs_inode	*ip = XFS_I(inode);
 	struct xfs_mount	*mp = ip->i_mount;
@@ -1074,11 +1074,7 @@ xfs_fs_write_inode(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		return XFS_ERROR(EIO);
 
-	if (sync) {
-		error = xfs_wait_on_pages(ip, 0, -1);
-		if (error)
-			goto out;
-
+	if (wbc->sync_mode == WB_SYNC_ALL) {
 		/*
 		 * Make sure the inode has hit stable storage.  By using the
 		 * log and the fsync transactions we reduce the IOs we have

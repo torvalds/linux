@@ -358,9 +358,7 @@ nv50_crtc_cursor_set(struct drm_crtc *crtc, struct drm_file *file_priv,
 	nv_crtc->cursor.show(nv_crtc, true);
 
 out:
-	mutex_lock(&dev->struct_mutex);
-	drm_gem_object_unreference(gem);
-	mutex_unlock(&dev->struct_mutex);
+	drm_gem_object_unreference_unlocked(gem);
 	return ret;
 }
 

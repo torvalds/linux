@@ -17,6 +17,7 @@
 #include <linux/platform_device.h>
 #include <linux/io.h>
 #include <linux/gpio.h>
+#include <linux/usb/otg.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
@@ -27,7 +28,9 @@
 #include <plat/common.h>
 #include <plat/control.h>
 #include <plat/timer-gp.h>
+#include <plat/usb.h>
 #include <asm/hardware/gic.h>
+#include <asm/hardware/cache-l2x0.h>
 
 static struct platform_device sdp4430_lcd_device = {
 	.name		= "sdp4430_lcd",
@@ -38,10 +41,6 @@ static struct platform_device *sdp4430_devices[] __initdata = {
 	&sdp4430_lcd_device,
 };
 
-static struct omap_uart_config sdp4430_uart_config __initdata = {
-	.enabled_uarts	= (1 << 0) | (1 << 1) | (1 << 2) | (1 << 3),
-};
-
 static struct omap_lcd_config sdp4430_lcd_config __initdata = {
 	.ctrl_name	= "internal",
 };
@@ -49,6 +48,59 @@ static struct omap_lcd_config sdp4430_lcd_config __initdata = {
 static struct omap_board_config_kernel sdp4430_config[] __initdata = {
 	{ OMAP_TAG_LCD,		&sdp4430_lcd_config },
 };
+
+#ifdef CONFIG_CACHE_L2X0
+noinline void omap_smc1(u32 fn, u32 arg)
+{
+	register u32 r12 asm("r12") = fn;
+	register u32 r0 asm("r0") = arg;
+
+	/* This is common routine cache secure monitor API used to
+	 * modify the PL310 secure registers.
+	 * r0 contains the value to be modified and "r12" contains
+	 * the monitor API number. It uses few CPU registers
+	 * internally and hence they need be backed up including
+	 * link register "lr".
+	 * Explicitly save r11 and r12 the compiler generated code
+	 * won't save it.
+	 */
+	asm volatile(
+		"stmfd r13!, {r11,r12}\n"
+		"dsb\n"
+		"smc\n"
+		"ldmfd r13!, {r11,r12}\n"
+		: "+r" (r0), "+r" (r12)
+		:
+		: "r4", "r5", "r10", "lr", "cc");
+}
+EXPORT_SYMBOL(omap_smc1);
+
+static int __init omap_l2_cache_init(void)
+{
+	void __iomem *l2cache_base;
+
+	/* To avoid code running on other OMAPs in
+	 * multi-omap builds
+	 */
+	if (!cpu_is_omap44xx())
+		return -ENODEV;
+
+	/* Static mapping, never released */
+	l2cache_base = ioremap(OMAP44XX_L2CACHE_BASE, SZ_4K);
+	BUG_ON(!l2cache_base);
+
+	/* Enable PL310 L2 Cache controller */
+	omap_smc1(0x102, 0x1);
+
+	/* 32KB way size, 16-way associativity,
+	* parity disabled
+	*/
+	l2x0_init(l2cache_base, 0x0e050000, 0xc0000fff);
+
+	return 0;
+}
+early_initcall(omap_l2_cache_init);
+#endif
 
 static void __init gic_init_irq(void)
 {
@@ -77,17 +129,27 @@ static void __init omap_4430sdp_init_irq(void)
 	omap_gpio_init();
 }
 
+static struct omap_musb_board_data musb_board_data = {
+	.interface_type		= MUSB_INTERFACE_UTMI,
+	.mode			= MUSB_PERIPHERAL,
+	.power			= 100,
+};
 
 static void __init omap_4430sdp_init(void)
 {
 	platform_add_devices(sdp4430_devices, ARRAY_SIZE(sdp4430_devices));
 	omap_serial_init();
+	/* OMAP4 SDP uses internal transceiver so register nop transceiver */
+	usb_nop_xceiv_register();
+	/* FIXME: allow multi-omap to boot until musb is updated for omap4 */
+	if (!cpu_is_omap44xx())
+		usb_musb_init(&musb_board_data);
 }
 
 static void __init omap_4430sdp_map_io(void)
 {
 	omap2_set_globals_443x();
-	omap2_map_common_io();
+	omap44xx_map_common_io();
 }
 
 MACHINE_START(OMAP_4430SDP, "OMAP4430 4430SDP board")

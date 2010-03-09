@@ -955,6 +955,7 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 	unsigned int mask, timeout;
 	struct comedi_device *dev = d;
 	struct comedi_subdevice *s = dev->subdevices + 0;
+	unsigned int next_chan;
 
 	s->async->events = 0;
 
@@ -993,9 +994,18 @@ static irqreturn_t interrupt_pcl812_ai_int(int irq, void *d)
 		       ((inb(dev->iobase + PCL812_AD_HI) << 8) |
 			inb(dev->iobase + PCL812_AD_LO)) & mask);
 
+	/* Set up next channel. Added by abbotti 2010-01-20, but untested. */
+	next_chan = s->async->cur_chan + 1;
+	if (next_chan >= devpriv->ai_n_chan)
+		next_chan = 0;
+	if (devpriv->ai_chanlist[s->async->cur_chan] !=
+			devpriv->ai_chanlist[next_chan])
+		setup_range_channel(dev, s, devpriv->ai_chanlist[next_chan], 0);
+
 	outb(0, dev->iobase + PCL812_CLRINT);	/* clear INT request */
 
-	if (s->async->cur_chan == 0) {	/* one scan done */
+	s->async->cur_chan = next_chan;
+	if (next_chan == 0) {	/* one scan done */
 		devpriv->ai_act_scan++;
 		if (!(devpriv->ai_neverending))
 			if (devpriv->ai_act_scan >= devpriv->ai_scans) {	/* all data sampled */
@@ -1021,7 +1031,9 @@ static void transfer_from_dma_buf(struct comedi_device *dev,
 	for (i = len; i; i--) {
 		comedi_buf_put(s->async, ptr[bufptr++]);	/*  get one sample */
 
-		if (s->async->cur_chan == 0) {
+		s->async->cur_chan++;
+		if (s->async->cur_chan >= devpriv->ai_n_chan) {
+			s->async->cur_chan = 0;
 			devpriv->ai_act_scan++;
 			if (!devpriv->ai_neverending)
 				if (devpriv->ai_act_scan >= devpriv->ai_scans) {	/* all data sampled */

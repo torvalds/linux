@@ -80,8 +80,7 @@ static int get_stripe(struct dm_target *ti, struct stripe_c *sc,
 	if (sscanf(argv[1], "%llu", &start) != 1)
 		return -EINVAL;
 
-	if (dm_get_device(ti, argv[0], start, sc->stripe_width,
-			  dm_table_get_mode(ti->table),
+	if (dm_get_device(ti, argv[0], dm_table_get_mode(ti->table),
 			  &sc->stripe[stripe].dev))
 		return -ENXIO;
 

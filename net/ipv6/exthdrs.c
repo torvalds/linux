@@ -481,7 +481,7 @@ looped_back:
 			IP6_INC_STATS_BH(net, ip6_dst_idev(skb_dst(skb)),
 					 IPSTATS_MIB_INHDRERRORS);
 			icmpv6_send(skb, ICMPV6_TIME_EXCEED, ICMPV6_EXC_HOPLIMIT,
-				    0, skb->dev);
+				    0);
 			kfree_skb(skb);
 			return -1;
 		}

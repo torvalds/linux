@@ -45,7 +45,7 @@ This driver has suffered bitrot.
 
 #define DAS6402_SIZE 16
 
-#define N_WORDS 3000*64
+#define N_WORDS (3000*64)
 
 #define STOP    0
 #define START   1

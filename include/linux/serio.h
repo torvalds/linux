@@ -30,7 +30,6 @@ struct serio {
 	char phys[32];
 
 	bool manual_bind;
-	bool registered;	/* port has been fully registered with driver core */
 
 	struct serio_device_id id;
 

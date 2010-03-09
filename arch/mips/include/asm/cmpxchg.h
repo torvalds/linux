@@ -72,14 +72,14 @@
  */
 extern void __cmpxchg_called_with_bad_pointer(void);
 
-#define __cmpxchg(ptr, old, new, barrier)				\
+#define __cmpxchg(ptr, old, new, pre_barrier, post_barrier)		\
 ({									\
 	__typeof__(ptr) __ptr = (ptr);					\
 	__typeof__(*(ptr)) __old = (old);				\
 	__typeof__(*(ptr)) __new = (new);				\
 	__typeof__(*(ptr)) __res = 0;					\
 									\
-	barrier;							\
+	pre_barrier;							\
 									\
 	switch (sizeof(*(__ptr))) {					\
 	case 4:								\
@@ -96,13 +96,13 @@ extern void __cmpxchg_called_with_bad_pointer(void);
 		break;							\
 	}								\
 									\
-	barrier;							\
+	post_barrier;							\
 									\
 	__res;								\
 })
 
-#define cmpxchg(ptr, old, new)		__cmpxchg(ptr, old, new, smp_llsc_mb())
-#define cmpxchg_local(ptr, old, new)	__cmpxchg(ptr, old, new, )
+#define cmpxchg(ptr, old, new)		__cmpxchg(ptr, old, new, smp_mb__before_llsc(), smp_llsc_mb())
+#define cmpxchg_local(ptr, old, new)	__cmpxchg(ptr, old, new, , )
 
 #define cmpxchg64(ptr, o, n)						\
   ({									\

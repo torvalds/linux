@@ -33,6 +33,22 @@
 #define TSI148_MAX_MAILBOX		4	/* Max Mail Box registers */
 #define TSI148_MAX_SEMAPHORE		8	/* Max Semaphores */
 
+/* Structure used to hold driver specific information */
+struct tsi148_driver {
+	void *base;	/* Base Address of device registers */
+	wait_queue_head_t dma_queue[2];
+	wait_queue_head_t iack_queue;
+	void (*lm_callback[4])(int);	/* Called in interrupt handler */
+	void *crcsr_kernel;
+	dma_addr_t crcsr_bus;
+	struct vme_master_resource *flush_image;
+	struct mutex vme_rmw;		/* Only one RMW cycle at a time */
+	struct mutex vme_int;		/*
+					 * Only one VME interrupt can be
+					 * generated at a time, provide locking
+					 */
+};
+
 /*
  * Layout of a DMAC Linked-List Descriptor
  *

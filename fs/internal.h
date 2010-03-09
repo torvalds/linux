@@ -70,6 +70,8 @@ extern struct vfsmount *copy_tree(struct vfsmount *, struct dentry *, int);
 
 extern void __init mnt_init(void);
 
+extern spinlock_t vfsmount_lock;
+
 /*
  * fs_struct.c
  */

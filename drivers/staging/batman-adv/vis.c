@@ -23,11 +23,9 @@
 #include "send.h"
 #include "translation-table.h"
 #include "vis.h"
-#include "log.h"
 #include "soft-interface.h"
 #include "hard-interface.h"
 #include "hash.h"
-#include "compat.h"
 
 struct hashtable_t *vis_hash;
 DEFINE_SPINLOCK(vis_hash_lock);
@@ -48,39 +46,6 @@ static void free_info(void *data)
 		kfree(entry);
 	}
 	kfree(info);
-}
-
-/* set the mode of the visualization to client or server */
-void vis_set_mode(int mode)
-{
-	spin_lock(&vis_hash_lock);
-
-	if (my_vis_info != NULL)
-		my_vis_info->packet.vis_type = mode;
-
-	spin_unlock(&vis_hash_lock);
-}
-
-/* is_vis_server(), locked outside */
-static int is_vis_server_locked(void)
-{
-	if (my_vis_info != NULL)
-		if (my_vis_info->packet.vis_type == VIS_TYPE_SERVER_SYNC)
-			return 1;
-
-	return 0;
-}
-
-/* get the current set mode */
-int is_vis_server(void)
-{
-	int ret = 0;
-
-	spin_lock(&vis_hash_lock);
-	ret = is_vis_server_locked();
-	spin_unlock(&vis_hash_lock);
-
-	return ret;
 }
 
 /* Compare two vis packets, used by the hashing algorithm */
@@ -113,6 +78,68 @@ static int vis_info_choose(void *data, int size)
 	hash += (hash << 15);
 
 	return hash % size;
+}
+
+/* insert interface to the list of interfaces of one originator, if it
+ * does not already exist in the list */
+static void proc_vis_insert_interface(const uint8_t *interface,
+				      struct hlist_head *if_list,
+				      bool primary)
+{
+	struct if_list_entry *entry;
+	struct hlist_node *pos;
+
+	hlist_for_each_entry(entry, pos, if_list, list) {
+		if (compare_orig(entry->addr, (void *)interface))
+			return;
+	}
+
+	/* its a new address, add it to the list */
+	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
+	if (!entry)
+		return;
+	memcpy(entry->addr, interface, ETH_ALEN);
+	entry->primary = primary;
+	hlist_add_head(&entry->list, if_list);
+}
+
+void proc_vis_read_prim_sec(struct seq_file *seq,
+			    struct hlist_head *if_list)
+{
+	struct if_list_entry *entry;
+	struct hlist_node *pos, *n;
+	char tmp_addr_str[ETH_STR_LEN];
+
+	hlist_for_each_entry_safe(entry, pos, n, if_list, list) {
+		if (entry->primary) {
+			seq_printf(seq, "PRIMARY, ");
+		} else {
+			addr_to_string(tmp_addr_str, entry->addr);
+			seq_printf(seq, "SEC %s, ", tmp_addr_str);
+		}
+
+		hlist_del(&entry->list);
+		kfree(entry);
+	}
+}
+
+/* read an entry  */
+void proc_vis_read_entry(struct seq_file *seq,
+				struct vis_info_entry *entry,
+				struct hlist_head *if_list,
+				uint8_t *vis_orig)
+{
+	char to[40];
+
+	addr_to_string(to, entry->dest);
+	if (entry->quality == 0) {
+		proc_vis_insert_interface(vis_orig, if_list, true);
+		seq_printf(seq, "HNA %s, ", to);
+	} else {
+		proc_vis_insert_interface(entry->src, if_list,
+					  compare_orig(entry->src, vis_orig));
+		seq_printf(seq, "TQ %s %d, ", to, entry->quality);
+	}
 }
 
 /* tries to add one entry to the receive list. */
@@ -208,21 +235,23 @@ void receive_server_sync_packet(struct vis_packet *vis_packet, int vis_info_len)
 {
 	struct vis_info *info;
 	int is_new;
+	unsigned long flags;
+	int vis_server = atomic_read(&vis_mode);
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 	info = add_packet(vis_packet, vis_info_len, &is_new);
 	if (info == NULL)
 		goto end;
 
 	/* only if we are server ourselves and packet is newer than the one in
 	 * hash.*/
-	if (is_vis_server_locked() && is_new) {
+	if (vis_server == VIS_TYPE_SERVER_SYNC && is_new) {
 		memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
 		if (list_empty(&info->send_list))
 			list_add_tail(&info->send_list, &send_list);
 	}
 end:
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 }
 
 /* handle an incoming client update packet and schedule forward if needed. */
@@ -231,12 +260,14 @@ void receive_client_update_packet(struct vis_packet *vis_packet,
 {
 	struct vis_info *info;
 	int is_new;
+	unsigned long flags;
+	int vis_server = atomic_read(&vis_mode);
 
 	/* clients shall not broadcast. */
 	if (is_bcast(vis_packet->target_orig))
 		return;
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 	info = add_packet(vis_packet, vis_info_len, &is_new);
 	if (info == NULL)
 		goto end;
@@ -244,7 +275,7 @@ void receive_client_update_packet(struct vis_packet *vis_packet,
 
 
 	/* send only if we're the target server or ... */
-	if (is_vis_server_locked() &&
+	if (vis_server == VIS_TYPE_SERVER_SYNC  &&
 	    is_my_mac(info->packet.target_orig) &&
 	    is_new) {
 		info->packet.vis_type = VIS_TYPE_SERVER_SYNC;	/* upgrade! */
@@ -258,7 +289,7 @@ void receive_client_update_packet(struct vis_packet *vis_packet,
 			list_add_tail(&info->send_list, &send_list);
 	}
 end:
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 }
 
 /* Walk the originators and find the VIS server with the best tq. Set the packet
@@ -267,12 +298,12 @@ end:
  * Must be called with the originator hash locked */
 static int find_best_vis_server(struct vis_info *info)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	struct orig_node *orig_node;
 	int best_tq = -1;
 
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
-		orig_node = hashit->bucket->data;
+	while (hash_iterate(orig_hash, &hashit)) {
+		orig_node = hashit.bucket->data;
 		if ((orig_node != NULL) &&
 		    (orig_node->router != NULL) &&
 		    (orig_node->flags & VIS_SERVER) &&
@@ -298,7 +329,8 @@ static bool vis_packet_full(struct vis_info *info)
  * returns 0 on success, -1 if no packet could be generated */
 static int generate_vis_packet(void)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit_local);
+	HASHIT(hashit_global);
 	struct orig_node *orig_node;
 	struct vis_info *info = (struct vis_info *)my_vis_info;
 	struct vis_info_entry *entry, *entry_array;
@@ -307,27 +339,27 @@ static int generate_vis_packet(void)
 	unsigned long flags;
 
 	info->first_seen = jiffies;
+	info->packet.vis_type = atomic_read(&vis_mode);
 
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 	memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
 	info->packet.ttl = TTL;
 	info->packet.seqno++;
 	info->packet.entries = 0;
 
-	if (!is_vis_server_locked()) {
+	if (info->packet.vis_type == VIS_TYPE_CLIENT_UPDATE) {
 		best_tq = find_best_vis_server(info);
 		if (best_tq < 0) {
-			spin_unlock(&orig_hash_lock);
+			spin_unlock_irqrestore(&orig_hash_lock, flags);
 			return -1;
 		}
 	}
-	hashit = NULL;
 
 	entry_array = (struct vis_info_entry *)
 		((char *)info + sizeof(struct vis_info));
 
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
-		orig_node = hashit->bucket->data;
+	while (hash_iterate(orig_hash, &hashit_global)) {
+		orig_node = hashit_global.bucket->data;
 		if (orig_node->router != NULL
 			&& compare_orig(orig_node->router->addr, orig_node->orig)
 			&& orig_node->batman_if
@@ -342,18 +374,17 @@ static int generate_vis_packet(void)
 			info->packet.entries++;
 
 			if (vis_packet_full(info)) {
-				spin_unlock(&orig_hash_lock);
+				spin_unlock_irqrestore(&orig_hash_lock, flags);
 				return 0;
 			}
 		}
 	}
 
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
-	hashit = NULL;
 	spin_lock_irqsave(&hna_local_hash_lock, flags);
-	while (NULL != (hashit = hash_iterate(hna_local_hash, hashit))) {
-		hna_local_entry = hashit->bucket->data;
+	while (hash_iterate(hna_local_hash, &hashit_local)) {
+		hna_local_entry = hashit_local.bucket->data;
 		entry = &entry_array[info->packet.entries];
 		memset(entry->src, 0, ETH_ALEN);
 		memcpy(entry->dest, hna_local_entry->addr, ETH_ALEN);
@@ -371,16 +402,16 @@ static int generate_vis_packet(void)
 
 static void purge_vis_packets(void)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	struct vis_info *info;
 
-	while (NULL != (hashit = hash_iterate(vis_hash, hashit))) {
-		info = hashit->bucket->data;
+	while (hash_iterate(vis_hash, &hashit)) {
+		info = hashit.bucket->data;
 		if (info == my_vis_info)	/* never purge own data. */
 			continue;
 		if (time_after(jiffies,
-			       info->first_seen + (VIS_TIMEOUT/1000)*HZ)) {
-			hash_remove_bucket(vis_hash, hashit);
+			       info->first_seen + (VIS_TIMEOUT*HZ)/1000)) {
+			hash_remove_bucket(vis_hash, &hashit);
 			free_info(info);
 		}
 	}
@@ -388,14 +419,15 @@ static void purge_vis_packets(void)
 
 static void broadcast_vis_packet(struct vis_info *info, int packet_length)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	struct orig_node *orig_node;
+	unsigned long flags;
 
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 
 	/* send to all routers in range. */
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
-		orig_node = hashit->bucket->data;
+	while (hash_iterate(orig_hash, &hashit)) {
+		orig_node = hashit.bucket->data;
 
 		/* if it's a vis server and reachable, send it. */
 		if (orig_node &&
@@ -418,14 +450,15 @@ static void broadcast_vis_packet(struct vis_info *info, int packet_length)
 		}
 	}
 	memcpy(info->packet.target_orig, broadcastAddr, ETH_ALEN);
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 }
 
 static void unicast_vis_packet(struct vis_info *info, int packet_length)
 {
 	struct orig_node *orig_node;
+	unsigned long flags;
 
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 	orig_node = ((struct orig_node *)
 		     hash_find(orig_hash, info->packet.target_orig));
 
@@ -436,7 +469,7 @@ static void unicast_vis_packet(struct vis_info *info, int packet_length)
 				orig_node->batman_if,
 				orig_node->router->addr);
 	}
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 }
 
 /* only send one vis packet. called from send_vis_packets() */
@@ -445,8 +478,7 @@ static void send_vis_packet(struct vis_info *info)
 	int packet_length;
 
 	if (info->packet.ttl < 2) {
-		debug_log(LOG_TYPE_NOTICE,
-			  "Error - can't send vis packet: ttl exceeded\n");
+		printk(KERN_WARNING "batman-adv: Error - can't send vis packet: ttl exceeded\n");
 		return;
 	}
 
@@ -467,8 +499,9 @@ static void send_vis_packet(struct vis_info *info)
 static void send_vis_packets(struct work_struct *work)
 {
 	struct vis_info *info, *temp;
+	unsigned long flags;
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 	purge_vis_packets();
 
 	if (generate_vis_packet() == 0)
@@ -479,7 +512,7 @@ static void send_vis_packets(struct work_struct *work)
 		list_del_init(&info->send_list);
 		send_vis_packet(info);
 	}
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 	start_vis_timer();
 }
 static DECLARE_DELAYED_WORK(vis_timer_wq, send_vis_packets);
@@ -488,20 +521,21 @@ static DECLARE_DELAYED_WORK(vis_timer_wq, send_vis_packets);
  * initialized (e.g. bat0 is initialized, interfaces have been added) */
 int vis_init(void)
 {
+	unsigned long flags;
 	if (vis_hash)
 		return 1;
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 
 	vis_hash = hash_new(256, vis_info_cmp, vis_info_choose);
 	if (!vis_hash) {
-		debug_log(LOG_TYPE_CRIT, "Can't initialize vis_hash\n");
+		printk(KERN_ERR "batman-adv:Can't initialize vis_hash\n");
 		goto err;
 	}
 
 	my_vis_info = kmalloc(1000, GFP_ATOMIC);
 	if (!my_vis_info) {
-		debug_log(LOG_TYPE_CRIT, "Can't initialize vis packet\n");
+		printk(KERN_ERR "batman-adv:Can't initialize vis packet\n");
 		goto err;
 	}
 
@@ -511,7 +545,6 @@ int vis_init(void)
 	INIT_LIST_HEAD(&my_vis_info->send_list);
 	my_vis_info->packet.version = COMPAT_VERSION;
 	my_vis_info->packet.packet_type = BAT_VIS;
-	my_vis_info->packet.vis_type = VIS_TYPE_CLIENT_UPDATE;
 	my_vis_info->packet.ttl = TTL;
 	my_vis_info->packet.seqno = 0;
 	my_vis_info->packet.entries = 0;
@@ -522,19 +555,19 @@ int vis_init(void)
 	memcpy(my_vis_info->packet.sender_orig, mainIfAddr, ETH_ALEN);
 
 	if (hash_add(vis_hash, my_vis_info) < 0) {
-		debug_log(LOG_TYPE_CRIT,
-			  "Can't add own vis packet into hash\n");
+		printk(KERN_ERR
+			  "batman-adv:Can't add own vis packet into hash\n");
 		free_info(my_vis_info);	/* not in hash, need to remove it
 					 * manually. */
 		goto err;
 	}
 
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 	start_vis_timer();
 	return 1;
 
 err:
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 	vis_quit();
 	return 0;
 }
@@ -542,23 +575,23 @@ err:
 /* shutdown vis-server */
 void vis_quit(void)
 {
+	unsigned long flags;
 	if (!vis_hash)
 		return;
 
 	cancel_delayed_work_sync(&vis_timer_wq);
 
-	spin_lock(&vis_hash_lock);
+	spin_lock_irqsave(&vis_hash_lock, flags);
 	/* properly remove, kill timers ... */
 	hash_delete(vis_hash, free_info);
 	vis_hash = NULL;
 	my_vis_info = NULL;
-	spin_unlock(&vis_hash_lock);
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
 }
 
 /* schedule packets for (re)transmission */
 static void start_vis_timer(void)
 {
 	queue_delayed_work(bat_event_workqueue, &vis_timer_wq,
-			   (atomic_read(&vis_interval)/1000) * HZ);
+			   (atomic_read(&vis_interval) * HZ) / 1000);
 }
-

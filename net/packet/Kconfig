@@ -14,13 +14,3 @@ config PACKET
 	  be called af_packet.
 
 	  If unsure, say Y.
-
-config PACKET_MMAP
-	bool "Packet socket: mmapped IO"
-	depends on PACKET
-	help
-	  If you say Y here, the Packet protocol driver will use an IO
-	  mechanism that results in faster communication.
-
-	  If unsure, say N.
-

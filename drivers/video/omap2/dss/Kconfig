@@ -30,19 +30,29 @@ config OMAP2_DSS_COLLECT_IRQ_STATS
 	depends on OMAP2_DSS_DEBUG_SUPPORT
 	default n
 	help
-	  Collect DSS IRQ statistics, printable via debugfs
+	  Collect DSS IRQ statistics, printable via debugfs.
+
+	  The statistics can be found from
+	  <debugfs>/omapdss/dispc_irq for DISPC interrupts, and
+	  <debugfs>/omapdss/dsi_irq for DSI interrupts.
 
 config OMAP2_DSS_RFBI
 	bool "RFBI support"
         default n
 	help
-	  MIPI DBI, or RFBI (Remote Framebuffer Interface), support.
+	  MIPI DBI support (RFBI, Remote Framebuffer Interface, in Texas
+	  Instrument's terminology).
+
+	  DBI is a bus between the host processor and a peripheral,
+	  such as a display or a framebuffer chip.
+
+	  See http://www.mipi.org/ for DBI spesifications.
 
 config OMAP2_DSS_VENC
 	bool "VENC support"
         default y
 	help
-	  OMAP Video Encoder support.
+	  OMAP Video Encoder support for S-Video and composite TV-out.
 
 config OMAP2_DSS_SDI
 	bool "SDI support"
@@ -51,12 +61,20 @@ config OMAP2_DSS_SDI
 	help
 	  SDI (Serial Display Interface) support.
 
+	  SDI is a high speed one-way display serial bus between the host
+	  processor and a display.
+
 config OMAP2_DSS_DSI
 	bool "DSI support"
 	depends on ARCH_OMAP3
         default n
 	help
-	  MIPI DSI support.
+	  MIPI DSI (Display Serial Interface) support.
+
+	  DSI is a high speed half-duplex serial interface between the host
+	  processor and a peripheral, such as a display or a framebuffer chip.
+
+	  See http://www.mipi.org/ for DSI spesifications.
 
 config OMAP2_DSS_USE_DSI_PLL
 	bool "Use DSI PLL for PCLK (EXPERIMENTAL)"

@@ -505,7 +505,7 @@ static inline int pte_file(pte_t pte)
 /*
  * preload information about a newly instantiated PTE into the SCR0/SCR1 PGE cache
  */
-static inline void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+static inline void update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 	struct mm_struct *mm;
 	unsigned long ampr;

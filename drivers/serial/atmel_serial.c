@@ -1213,6 +1213,24 @@ static int atmel_verify_port(struct uart_port *port, struct serial_struct *ser)
 	return ret;
 }
 
+#ifdef CONFIG_CONSOLE_POLL
+static int atmel_poll_get_char(struct uart_port *port)
+{
+	while (!(UART_GET_CSR(port) & ATMEL_US_RXRDY))
+		cpu_relax();
+
+	return UART_GET_CHAR(port);
+}
+
+static void atmel_poll_put_char(struct uart_port *port, unsigned char ch)
+{
+	while (!(UART_GET_CSR(port) & ATMEL_US_TXRDY))
+		cpu_relax();
+
+	UART_PUT_CHAR(port, ch);
+}
+#endif
+
 static struct uart_ops atmel_pops = {
 	.tx_empty	= atmel_tx_empty,
 	.set_mctrl	= atmel_set_mctrl,
@@ -1232,6 +1250,10 @@ static struct uart_ops atmel_pops = {
 	.config_port	= atmel_config_port,
 	.verify_port	= atmel_verify_port,
 	.pm		= atmel_serial_pm,
+#ifdef CONFIG_CONSOLE_POLL
+	.poll_get_char	= atmel_poll_get_char,
+	.poll_put_char	= atmel_poll_put_char,
+#endif
 };
 
 /*

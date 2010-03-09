@@ -31,3 +31,16 @@ config BRIDGE
 	  will be called bridge.
 
 	  If unsure, say N.
+
+config BRIDGE_IGMP_SNOOPING
+	bool "IGMP snooping"
+	depends on BRIDGE
+	default y
+	---help---
+	  If you say Y here, then the Ethernet bridge will be able selectively
+	  forward multicast traffic based on IGMP traffic received from each
+	  port.
+
+	  Say N to exclude this support and reduce the binary size.
+
+	  If unsure, say Y.

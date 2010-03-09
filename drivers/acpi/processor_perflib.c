@@ -561,7 +561,7 @@ end:
 }
 
 int acpi_processor_preregister_performance(
-		struct acpi_processor_performance *performance)
+		struct acpi_processor_performance __percpu *performance)
 {
 	int count, count_target;
 	int retval = 0;

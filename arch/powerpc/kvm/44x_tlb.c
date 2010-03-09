@@ -439,7 +439,7 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 	struct kvmppc_44x_tlbe *tlbe;
 	unsigned int gtlb_index;
 
-	gtlb_index = vcpu->arch.gpr[ra];
+	gtlb_index = kvmppc_get_gpr(vcpu, ra);
 	if (gtlb_index > KVM44x_GUEST_TLB_SIZE) {
 		printk("%s: index %d\n", __func__, gtlb_index);
 		kvmppc_dump_vcpu(vcpu);
@@ -455,15 +455,15 @@ int kvmppc_44x_emul_tlbwe(struct kvm_vcpu *vcpu, u8 ra, u8 rs, u8 ws)
 	switch (ws) {
 	case PPC44x_TLB_PAGEID:
 		tlbe->tid = get_mmucr_stid(vcpu);
-		tlbe->word0 = vcpu->arch.gpr[rs];
+		tlbe->word0 = kvmppc_get_gpr(vcpu, rs);
 		break;
 
 	case PPC44x_TLB_XLAT:
-		tlbe->word1 = vcpu->arch.gpr[rs];
+		tlbe->word1 = kvmppc_get_gpr(vcpu, rs);
 		break;
 
 	case PPC44x_TLB_ATTRIB:
-		tlbe->word2 = vcpu->arch.gpr[rs];
+		tlbe->word2 = kvmppc_get_gpr(vcpu, rs);
 		break;
 
 	default:
@@ -500,18 +500,20 @@ int kvmppc_44x_emul_tlbsx(struct kvm_vcpu *vcpu, u8 rt, u8 ra, u8 rb, u8 rc)
 	unsigned int as = get_mmucr_sts(vcpu);
 	unsigned int pid = get_mmucr_stid(vcpu);
 
-	ea = vcpu->arch.gpr[rb];
+	ea = kvmppc_get_gpr(vcpu, rb);
 	if (ra)
-		ea += vcpu->arch.gpr[ra];
+		ea += kvmppc_get_gpr(vcpu, ra);
 
 	gtlb_index = kvmppc_44x_tlb_index(vcpu, ea, pid, as);
 	if (rc) {
+		u32 cr = kvmppc_get_cr(vcpu);
+
 		if (gtlb_index < 0)
-			vcpu->arch.cr &= ~0x20000000;
+			kvmppc_set_cr(vcpu, cr & ~0x20000000);
 		else
-			vcpu->arch.cr |= 0x20000000;
+			kvmppc_set_cr(vcpu, cr | 0x20000000);
 	}
-	vcpu->arch.gpr[rt] = gtlb_index;
+	kvmppc_set_gpr(vcpu, rt, gtlb_index);
 
 	kvmppc_set_exit_type(vcpu, EMULATED_TLBSX_EXITS);
 	return EMULATE_DONE;

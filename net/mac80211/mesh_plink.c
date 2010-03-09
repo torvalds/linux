@@ -102,7 +102,7 @@ static struct sta_info *mesh_plink_alloc(struct ieee80211_sub_if_data *sdata,
 	if (local->num_sta >= MESH_MAX_PLINKS)
 		return NULL;
 
-	sta = sta_info_alloc(sdata, hw_addr, GFP_ATOMIC);
+	sta = sta_info_alloc(sdata, hw_addr, GFP_KERNEL);
 	if (!sta)
 		return NULL;
 
@@ -169,7 +169,7 @@ static int mesh_plink_frame_tx(struct ieee80211_sub_if_data *sdata,
 	mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 					  IEEE80211_STYPE_ACTION);
 	memcpy(mgmt->da, da, ETH_ALEN);
-	memcpy(mgmt->sa, sdata->dev->dev_addr, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
 	/* BSSID is left zeroed, wildcard value */
 	mgmt->u.action.category = MESH_PLINK_CATEGORY;
 	mgmt->u.action.u.plink_action.action_code = action;
@@ -234,14 +234,14 @@ void mesh_neighbour_update(u8 *hw_addr, u32 rates, struct ieee80211_sub_if_data 
 
 	rcu_read_lock();
 
-	sta = sta_info_get(local, hw_addr);
+	sta = sta_info_get(sdata, hw_addr);
 	if (!sta) {
+		rcu_read_unlock();
+
 		sta = mesh_plink_alloc(sdata, hw_addr, rates);
-		if (!sta) {
-			rcu_read_unlock();
+		if (!sta)
 			return;
-		}
-		if (sta_info_insert(sta)) {
+		if (sta_info_insert_rcu(sta)) {
 			rcu_read_unlock();
 			return;
 		}
@@ -455,7 +455,7 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 
 	rcu_read_lock();
 
-	sta = sta_info_get(local, mgmt->sa);
+	sta = sta_info_get(sdata, mgmt->sa);
 	if (!sta && ftype != PLINK_OPEN) {
 		mpl_dbg("Mesh plink: cls or cnf from unknown peer\n");
 		rcu_read_unlock();
@@ -485,9 +485,11 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 	} else if (!sta) {
 		/* ftype == PLINK_OPEN */
 		u32 rates;
+
+		rcu_read_unlock();
+
 		if (!mesh_plink_free_count(sdata)) {
 			mpl_dbg("Mesh plink error: no more free plinks\n");
-			rcu_read_unlock();
 			return;
 		}
 
@@ -495,10 +497,9 @@ void mesh_rx_plink_frame(struct ieee80211_sub_if_data *sdata, struct ieee80211_m
 		sta = mesh_plink_alloc(sdata, mgmt->sa, rates);
 		if (!sta) {
 			mpl_dbg("Mesh plink error: plink table full\n");
-			rcu_read_unlock();
 			return;
 		}
-		if (sta_info_insert(sta)) {
+		if (sta_info_insert_rcu(sta)) {
 			rcu_read_unlock();
 			return;
 		}

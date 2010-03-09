@@ -329,7 +329,7 @@ extern pgd_t swapper_pg_dir[1024];
  * tables contain all the necessary information.
  */
 extern inline void update_mmu_cache(struct vm_area_struct * vma,
-	unsigned long address, pte_t pte)
+	unsigned long address, pte_t *ptep)
 {
 }
 

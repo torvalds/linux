@@ -765,9 +765,10 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_codec *codec = socdev->card->codec;
 	struct aic3x_priv *aic3x = codec->private_data;
 	int codec_clk = 0, bypass_pll = 0, fsref, last_clk = 0;
-	u8 data, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
-	u16 pll_d = 1;
+	u8 data, j, r, p, pll_q, pll_p = 1, pll_r = 1, pll_j = 1;
+	u16 d, pll_d = 1;
 	u8 reg;
+	int clk;
 
 	/* select data word length */
 	data =
@@ -833,48 +834,70 @@ static int aic3x_hw_params(struct snd_pcm_substream *substream,
 	if (bypass_pll)
 		return 0;
 
-	/* Use PLL
-	 * find an apropriate setup for j, d, r and p by iterating over
-	 * p and r - j and d are calculated for each fraction.
-	 * Up to 128 values are probed, the closest one wins the game.
+	/* Use PLL, compute apropriate setup for j, d, r and p, the closest
+	 * one wins the game. Try with d==0 first, next with d!=0.
+	 * Constraints for j are according to the datasheet.
 	 * The sysclk is divided by 1000 to prevent integer overflows.
 	 */
+
 	codec_clk = (2048 * fsref) / (aic3x->sysclk / 1000);
 
 	for (r = 1; r <= 16; r++)
 		for (p = 1; p <= 8; p++) {
-			int clk, tmp = (codec_clk * pll_r * 10) / pll_p;
-			u8 j = tmp / 10000;
-			u16 d = tmp % 10000;
+			for (j = 4; j <= 55; j++) {
+				/* This is actually 1000*((j+(d/10000))*r)/p
+				 * The term had to be converted to get
+				 * rid of the division by 10000; d = 0 here
+				 */
+				int tmp_clk = (1000 * j * r) / p;
 
-			if (j > 63)
-				continue;
+				/* Check whether this values get closer than
+				 * the best ones we had before
+				 */
+				if (abs(codec_clk - tmp_clk) <
+					abs(codec_clk - last_clk)) {
+					pll_j = j; pll_d = 0;
+					pll_r = r; pll_p = p;
+					last_clk = tmp_clk;
+				}
 
-			if (d != 0 && aic3x->sysclk < 10000000)
-				continue;
-
-			/* This is actually 1000 * ((j + (d/10000)) * r) / p
-			 * The term had to be converted to get rid of the
-			 * division by 10000 */
-			clk = ((10000 * j * r) + (d * r)) / (10 * p);
-
-			/* check whether this values get closer than the best
-			 * ones we had before */
-			if (abs(codec_clk - clk) < abs(codec_clk - last_clk)) {
-				pll_j = j; pll_d = d; pll_r = r; pll_p = p;
-				last_clk = clk;
+				/* Early exit for exact matches */
+				if (tmp_clk == codec_clk)
+					goto found;
 			}
-
-			/* Early exit for exact matches */
-			if (clk == codec_clk)
-				break;
 		}
+
+	/* try with d != 0 */
+	for (p = 1; p <= 8; p++) {
+		j = codec_clk * p / 1000;
+
+		if (j < 4 || j > 11)
+			continue;
+
+		/* do not use codec_clk here since we'd loose precision */
+		d = ((2048 * p * fsref) - j * aic3x->sysclk)
+			* 100 / (aic3x->sysclk/100);
+
+		clk = (10000 * j + d) / (10 * p);
+
+		/* check whether this values get closer than the best
+		 * ones we had before */
+		if (abs(codec_clk - clk) < abs(codec_clk - last_clk)) {
+			pll_j = j; pll_d = d; pll_r = 1; pll_p = p;
+			last_clk = clk;
+		}
+
+		/* Early exit for exact matches */
+		if (clk == codec_clk)
+			goto found;
+	}
 
 	if (last_clk == 0) {
 		printk(KERN_ERR "%s(): unable to setup PLL\n", __func__);
 		return -EINVAL;
 	}
 
+found:
 	data = aic3x_read_reg_cache(codec, AIC3X_PLL_PROGA_REG);
 	aic3x_write(codec, AIC3X_PLL_PROGA_REG, data | (pll_p << PLLP_SHIFT));
 	aic3x_write(codec, AIC3X_OVRF_STATUS_AND_PLLR_REG, pll_r << PLLR_SHIFT);

@@ -19,12 +19,12 @@
 #include <asm/io_generic.h>
 
 
-#define SETBITS_OUTB(mask, reg)   ctrl_outb(ctrl_inb(reg) | mask, reg)
-#define SETBITS_OUTW(mask, reg)   ctrl_outw(ctrl_inw(reg) | mask, reg)
-#define SETBITS_OUTL(mask, reg)   ctrl_outl(ctrl_inl(reg) | mask, reg)
-#define CLRBITS_OUTB(mask, reg)   ctrl_outb(ctrl_inb(reg) & ~mask, reg)
-#define CLRBITS_OUTW(mask, reg)   ctrl_outw(ctrl_inw(reg) & ~mask, reg)
-#define CLRBITS_OUTL(mask, reg)   ctrl_outl(ctrl_inl(reg) & ~mask, reg)
+#define SETBITS_OUTB(mask, reg)   __raw_writeb(__raw_readb(reg) | mask, reg)
+#define SETBITS_OUTW(mask, reg)   __raw_writew(__raw_readw(reg) | mask, reg)
+#define SETBITS_OUTL(mask, reg)   __raw_writel(__raw_readl(reg) | mask, reg)
+#define CLRBITS_OUTB(mask, reg)   __raw_writeb(__raw_readb(reg) & ~mask, reg)
+#define CLRBITS_OUTW(mask, reg)   __raw_writew(__raw_readw(reg) & ~mask, reg)
+#define CLRBITS_OUTL(mask, reg)   __raw_writel(__raw_readl(reg) & ~mask, reg)
 
 
 #define PA_LED          PORT_PADR      /* LED */

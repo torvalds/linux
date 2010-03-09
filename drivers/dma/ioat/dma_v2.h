@@ -47,7 +47,6 @@ extern int ioat_ring_alloc_order;
  * @head: allocated index
  * @issued: hardware notification point
  * @tail: cleanup index
- * @pending: lock free indicator for issued != head
  * @dmacount: identical to 'head' except for occasionally resetting to zero
  * @alloc_order: log2 of the number of allocated descriptors
  * @ring: software ring buffer implementation of hardware ring
@@ -61,7 +60,6 @@ struct ioat2_dma_chan {
 	u16 tail;
 	u16 dmacount;
 	u16 alloc_order;
-	int pending;
 	struct ioat_ring_ent **ring;
 	spinlock_t ring_lock;
 };
@@ -178,12 +176,10 @@ ioat2_dma_prep_memcpy_lock(struct dma_chan *c, dma_addr_t dma_dest,
 void ioat2_issue_pending(struct dma_chan *chan);
 int ioat2_alloc_chan_resources(struct dma_chan *c);
 void ioat2_free_chan_resources(struct dma_chan *c);
-enum dma_status ioat2_is_complete(struct dma_chan *c, dma_cookie_t cookie,
-				  dma_cookie_t *done, dma_cookie_t *used);
 void __ioat2_restart_chan(struct ioat2_dma_chan *ioat);
 bool reshape_ring(struct ioat2_dma_chan *ioat, int order);
 void __ioat2_issue_pending(struct ioat2_dma_chan *ioat);
-void ioat2_cleanup_tasklet(unsigned long data);
+void ioat2_cleanup_event(unsigned long data);
 void ioat2_timer_event(unsigned long data);
 int ioat2_quiesce(struct ioat_chan_common *chan, unsigned long tmo);
 int ioat2_reset_sync(struct ioat_chan_common *chan, unsigned long tmo);

@@ -134,7 +134,7 @@ enum {
 
 #define IPW_WANTS_TO_SEND	0x30
 
-static struct usb_device_id usb_ipw_ids[] = {
+static const struct usb_device_id usb_ipw_ids[] = {
 	{ USB_DEVICE(IPW_VID, IPW_PID) },
 	{ },
 };
@@ -172,7 +172,6 @@ static void ipw_read_bulk_callback(struct urb *urb)
 
 	tty = tty_port_tty_get(&port->port);
 	if (tty && urb->actual_length) {
-		tty_buffer_request_room(tty, urb->actual_length);
 		tty_insert_flip_string(tty, data, urb->actual_length);
 		tty_flip_buffer_push(tty);
 	}

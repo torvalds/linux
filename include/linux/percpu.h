@@ -27,10 +27,17 @@
  * we force a syntax error here if it isn't.
  */
 #define get_cpu_var(var) (*({				\
-	extern int simple_identifier_##var(void);	\
 	preempt_disable();				\
 	&__get_cpu_var(var); }))
-#define put_cpu_var(var) preempt_enable()
+
+/*
+ * The weird & is necessary because sparse considers (void)(var) to be
+ * a direct dereference of percpu variable (var).
+ */
+#define put_cpu_var(var) do {				\
+	(void)&(var);					\
+	preempt_enable();				\
+} while (0)
 
 #ifdef CONFIG_SMP
 
@@ -127,9 +134,9 @@ extern int __init pcpu_page_first_chunk(size_t reserved_size,
  */
 #define per_cpu_ptr(ptr, cpu)	SHIFT_PERCPU_PTR((ptr), per_cpu_offset((cpu)))
 
-extern void *__alloc_reserved_percpu(size_t size, size_t align);
-extern void *__alloc_percpu(size_t size, size_t align);
-extern void free_percpu(void *__pdata);
+extern void __percpu *__alloc_reserved_percpu(size_t size, size_t align);
+extern void __percpu *__alloc_percpu(size_t size, size_t align);
+extern void free_percpu(void __percpu *__pdata);
 extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
 
 #ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
@@ -140,7 +147,7 @@ extern void __init setup_per_cpu_areas(void);
 
 #define per_cpu_ptr(ptr, cpu) ({ (void)(cpu); (ptr); })
 
-static inline void *__alloc_percpu(size_t size, size_t align)
+static inline void __percpu *__alloc_percpu(size_t size, size_t align)
 {
 	/*
 	 * Can't easily make larger alignment work with kmalloc.  WARN
@@ -151,7 +158,7 @@ static inline void *__alloc_percpu(size_t size, size_t align)
 	return kzalloc(size, GFP_KERNEL);
 }
 
-static inline void free_percpu(void *p)
+static inline void free_percpu(void __percpu *p)
 {
 	kfree(p);
 }
@@ -171,7 +178,7 @@ static inline void *pcpu_lpage_remapped(void *kaddr)
 #endif /* CONFIG_SMP */
 
 #define alloc_percpu(type)	\
-	(typeof(type) *)__alloc_percpu(sizeof(type), __alignof__(type))
+	(typeof(type) __percpu *)__alloc_percpu(sizeof(type), __alignof__(type))
 
 /*
  * Optional methods for optimized non-lvalue per-cpu variable access.
@@ -188,17 +195,19 @@ static inline void *pcpu_lpage_remapped(void *kaddr)
 #ifndef percpu_read
 # define percpu_read(var)						\
   ({									\
-	typeof(per_cpu_var(var)) __tmp_var__;				\
-	__tmp_var__ = get_cpu_var(var);					\
-	put_cpu_var(var);						\
-	__tmp_var__;							\
+	typeof(var) *pr_ptr__ = &(var);					\
+	typeof(var) pr_ret__;						\
+	pr_ret__ = get_cpu_var(*pr_ptr__);				\
+	put_cpu_var(*pr_ptr__);						\
+	pr_ret__;							\
   })
 #endif
 
 #define __percpu_generic_to_op(var, val, op)				\
 do {									\
-	get_cpu_var(var) op val;					\
-	put_cpu_var(var);						\
+	typeof(var) *pgto_ptr__ = &(var);				\
+	get_cpu_var(*pgto_ptr__) op val;				\
+	put_cpu_var(*pgto_ptr__);					\
 } while (0)
 
 #ifndef percpu_write
@@ -234,6 +243,7 @@ extern void __bad_size_call_parameter(void);
 
 #define __pcpu_size_call_return(stem, variable)				\
 ({	typeof(variable) pscr_ret__;					\
+	__verify_pcpu_ptr(&(variable));					\
 	switch(sizeof(variable)) {					\
 	case 1: pscr_ret__ = stem##1(variable);break;			\
 	case 2: pscr_ret__ = stem##2(variable);break;			\
@@ -247,6 +257,7 @@ extern void __bad_size_call_parameter(void);
 
 #define __pcpu_size_call(stem, variable, ...)				\
 do {									\
+	__verify_pcpu_ptr(&(variable));					\
 	switch(sizeof(variable)) {					\
 		case 1: stem##1(variable, __VA_ARGS__);break;		\
 		case 2: stem##2(variable, __VA_ARGS__);break;		\
@@ -259,8 +270,7 @@ do {									\
 
 /*
  * Optimized manipulation for memory allocated through the per cpu
- * allocator or for addresses of per cpu variables (can be determined
- * using per_cpu_var(xx).
+ * allocator or for addresses of per cpu variables.
  *
  * These operation guarantee exclusivity of access for other operations
  * on the *same* processor. The assumption is that per cpu data is only
@@ -311,7 +321,7 @@ do {									\
 #define _this_cpu_generic_to_op(pcp, val, op)				\
 do {									\
 	preempt_disable();						\
-	*__this_cpu_ptr(&pcp) op val;					\
+	*__this_cpu_ptr(&(pcp)) op val;					\
 	preempt_enable();						\
 } while (0)
 

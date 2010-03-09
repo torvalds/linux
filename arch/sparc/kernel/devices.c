@@ -59,7 +59,7 @@ static int __cpu_find_by(int (*compare)(int, int, void *), void *compare_arg,
 
 	cur_inst = 0;
 	for_each_node_by_type(dp, "cpu") {
-		int err = check_cpu_node(dp->node, &cur_inst,
+		int err = check_cpu_node(dp->phandle, &cur_inst,
 					 compare, compare_arg,
 					 prom_node, mid);
 		if (!err) {
@@ -143,6 +143,4 @@ void __init device_scan(void)
 
 	if (ARCH_SUN4C)
 		sun4c_probe_memerr_reg();
-
-	return;
 }

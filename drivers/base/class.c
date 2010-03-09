@@ -31,7 +31,7 @@ static ssize_t class_attr_show(struct kobject *kobj, struct attribute *attr,
 	ssize_t ret = -EIO;
 
 	if (class_attr->show)
-		ret = class_attr->show(cp->class, buf);
+		ret = class_attr->show(cp->class, class_attr, buf);
 	return ret;
 }
 
@@ -43,7 +43,7 @@ static ssize_t class_attr_store(struct kobject *kobj, struct attribute *attr,
 	ssize_t ret = -EIO;
 
 	if (class_attr->store)
-		ret = class_attr->store(cp->class, buf, count);
+		ret = class_attr->store(cp->class, class_attr, buf, count);
 	return ret;
 }
 
@@ -63,7 +63,7 @@ static void class_release(struct kobject *kobj)
 	kfree(cp);
 }
 
-static struct sysfs_ops class_sysfs_ops = {
+static const struct sysfs_ops class_sysfs_ops = {
 	.show	= class_attr_show,
 	.store	= class_attr_store,
 };
@@ -489,6 +489,16 @@ void class_interface_unregister(struct class_interface *class_intf)
 
 	class_put(parent);
 }
+
+ssize_t show_class_attr_string(struct class *class, struct class_attribute *attr,
+                        	char *buf)
+{
+	struct class_attribute_string *cs;
+	cs = container_of(attr, struct class_attribute_string, attr);
+	return snprintf(buf, PAGE_SIZE, "%s\n", cs->str);
+}
+
+EXPORT_SYMBOL_GPL(show_class_attr_string);
 
 struct class_compat {
 	struct kobject *kobj;

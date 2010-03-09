@@ -183,6 +183,7 @@ static void __cpuinit probe_octeon(void)
 
 	switch (c->cputype) {
 	case CPU_CAVIUM_OCTEON:
+	case CPU_CAVIUM_OCTEON_PLUS:
 		config1 = read_c0_config1();
 		c->icache.linesz = 2 << ((config1 >> 19) & 7);
 		c->icache.sets = 64 << ((config1 >> 22) & 7);
@@ -192,10 +193,10 @@ static void __cpuinit probe_octeon(void)
 			c->icache.sets * c->icache.ways * c->icache.linesz;
 		c->icache.waybit = ffs(icache_size / c->icache.ways) - 1;
 		c->dcache.linesz = 128;
-		if (OCTEON_IS_MODEL(OCTEON_CN3XXX))
-			c->dcache.sets = 1; /* CN3XXX has one Dcache set */
-		else
+		if (c->cputype == CPU_CAVIUM_OCTEON_PLUS)
 			c->dcache.sets = 2; /* CN5XXX has two Dcache sets */
+		else
+			c->dcache.sets = 1; /* CN3XXX has one Dcache set */
 		c->dcache.ways = 64;
 		dcache_size =
 			c->dcache.sets * c->dcache.ways * c->dcache.linesz;
@@ -305,4 +306,3 @@ asmlinkage void cache_parity_error_octeon_non_recoverable(void)
 {
 	cache_parity_error_octeon(1);
 }
-

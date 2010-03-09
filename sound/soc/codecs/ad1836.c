@@ -171,57 +171,35 @@ static int ad1836_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-
-/*
- * interface to read/write ad1836 register
- */
-#define AD1836_SPI_REG_SHFT 12
-#define AD1836_SPI_READ     (1 << 11)
-#define AD1836_SPI_VAL_MSK  0x3FF
-
-/*
- * write to the ad1836 register space
- */
-
-static int ad1836_write_reg(struct snd_soc_codec *codec, unsigned int reg,
-		unsigned int value)
+#ifdef CONFIG_PM
+static int ad1836_soc_suspend(struct platform_device *pdev,
+		pm_message_t state)
 {
-	u16 *reg_cache = codec->reg_cache;
-	int ret = 0;
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->card->codec;
 
-	if (value != reg_cache[reg]) {
-		unsigned short buf;
-		struct spi_transfer t = {
-			.tx_buf = &buf,
-			.len = 2,
-		};
-		struct spi_message m;
+	/* reset clock control mode */
+	u16 adc_ctrl2 = snd_soc_read(codec, AD1836_ADC_CTRL2);
+	adc_ctrl2 &= ~AD1836_ADC_SERFMT_MASK;
 
-		buf = (reg << AD1836_SPI_REG_SHFT) |
-			(value & AD1836_SPI_VAL_MSK);
-		spi_message_init(&m);
-		spi_message_add_tail(&t, &m);
-		ret = spi_sync(codec->control_data, &m);
-		if (ret == 0)
-			reg_cache[reg] = value;
-	}
-
-	return ret;
+	return snd_soc_write(codec, AD1836_ADC_CTRL2, adc_ctrl2);
 }
 
-/*
- * read from the ad1836 register space cache
- */
-static unsigned int ad1836_read_reg_cache(struct snd_soc_codec *codec,
-					  unsigned int reg)
+static int ad1836_soc_resume(struct platform_device *pdev)
 {
-	u16 *reg_cache = codec->reg_cache;
+	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
+	struct snd_soc_codec *codec = socdev->card->codec;
 
-	if (reg >= codec->reg_cache_size)
-		return -EINVAL;
+	/* restore clock control mode */
+	u16 adc_ctrl2 = snd_soc_read(codec, AD1836_ADC_CTRL2);
+	adc_ctrl2 |= AD1836_ADC_AUX;
 
-	return reg_cache[reg];
+	return snd_soc_write(codec, AD1836_ADC_CTRL2, adc_ctrl2);
 }
+#else
+#define ad1836_soc_suspend NULL
+#define ad1836_soc_resume  NULL
+#endif
 
 static int __devinit ad1836_spi_probe(struct spi_device *spi)
 {
@@ -306,32 +284,38 @@ static int ad1836_register(struct ad1836_priv *ad1836)
 	codec->owner = THIS_MODULE;
 	codec->dai = &ad1836_dai;
 	codec->num_dai = 1;
-	codec->write = ad1836_write_reg;
-	codec->read = ad1836_read_reg_cache;
 	INIT_LIST_HEAD(&codec->dapm_widgets);
 	INIT_LIST_HEAD(&codec->dapm_paths);
 
 	ad1836_dai.dev = codec->dev;
 	ad1836_codec = codec;
 
+	ret = snd_soc_codec_set_cache_io(codec, 4, 12, SND_SOC_SPI);
+	if (ret < 0) {
+		dev_err(codec->dev, "failed to set cache I/O: %d\n",
+				ret);
+		kfree(ad1836);
+		return ret;
+	}
+
 	/* default setting for ad1836 */
 	/* de-emphasis: 48kHz, power-on dac */
-	codec->write(codec, AD1836_DAC_CTRL1, 0x300);
+	snd_soc_write(codec, AD1836_DAC_CTRL1, 0x300);
 	/* unmute dac channels */
-	codec->write(codec, AD1836_DAC_CTRL2, 0x0);
+	snd_soc_write(codec, AD1836_DAC_CTRL2, 0x0);
 	/* high-pass filter enable, power-on adc */
-	codec->write(codec, AD1836_ADC_CTRL1, 0x100);
+	snd_soc_write(codec, AD1836_ADC_CTRL1, 0x100);
 	/* unmute adc channles, adc aux mode */
-	codec->write(codec, AD1836_ADC_CTRL2, 0x180);
+	snd_soc_write(codec, AD1836_ADC_CTRL2, 0x180);
 	/* left/right diff:PGA/MUX */
-	codec->write(codec, AD1836_ADC_CTRL3, 0x3A);
+	snd_soc_write(codec, AD1836_ADC_CTRL3, 0x3A);
 	/* volume */
-	codec->write(codec, AD1836_DAC_L1_VOL, 0x3FF);
-	codec->write(codec, AD1836_DAC_R1_VOL, 0x3FF);
-	codec->write(codec, AD1836_DAC_L2_VOL, 0x3FF);
-	codec->write(codec, AD1836_DAC_R2_VOL, 0x3FF);
-	codec->write(codec, AD1836_DAC_L3_VOL, 0x3FF);
-	codec->write(codec, AD1836_DAC_R3_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_L1_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_R1_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_L2_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_R2_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_L3_VOL, 0x3FF);
+	snd_soc_write(codec, AD1836_DAC_R3_VOL, 0x3FF);
 
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
@@ -404,6 +388,8 @@ static int ad1836_remove(struct platform_device *pdev)
 struct snd_soc_codec_device soc_codec_dev_ad1836 = {
 	.probe = 	ad1836_probe,
 	.remove = 	ad1836_remove,
+	.suspend =      ad1836_soc_suspend,
+	.resume =       ad1836_soc_resume,
 };
 EXPORT_SYMBOL_GPL(soc_codec_dev_ad1836);
 

@@ -660,6 +660,75 @@ static int hpc_slot_disable(struct slot * slot)
 	return retval;
 }
 
+static int shpc_get_cur_bus_speed(struct controller *ctrl)
+{
+	int retval = 0;
+	struct pci_bus *bus = ctrl->pci_dev->subordinate;
+	enum pci_bus_speed bus_speed = PCI_SPEED_UNKNOWN;
+	u16 sec_bus_reg = shpc_readw(ctrl, SEC_BUS_CONFIG);
+	u8 pi = shpc_readb(ctrl, PROG_INTERFACE);
+	u8 speed_mode = (pi == 2) ? (sec_bus_reg & 0xF) : (sec_bus_reg & 0x7);
+
+	if ((pi == 1) && (speed_mode > 4)) {
+		retval = -ENODEV;
+		goto out;
+	}
+
+	switch (speed_mode) {
+	case 0x0:
+		bus_speed = PCI_SPEED_33MHz;
+		break;
+	case 0x1:
+		bus_speed = PCI_SPEED_66MHz;
+		break;
+	case 0x2:
+		bus_speed = PCI_SPEED_66MHz_PCIX;
+		break;
+	case 0x3:
+		bus_speed = PCI_SPEED_100MHz_PCIX;
+		break;
+	case 0x4:
+		bus_speed = PCI_SPEED_133MHz_PCIX;
+		break;
+	case 0x5:
+		bus_speed = PCI_SPEED_66MHz_PCIX_ECC;
+		break;
+	case 0x6:
+		bus_speed = PCI_SPEED_100MHz_PCIX_ECC;
+		break;
+	case 0x7:
+		bus_speed = PCI_SPEED_133MHz_PCIX_ECC;
+		break;
+	case 0x8:
+		bus_speed = PCI_SPEED_66MHz_PCIX_266;
+		break;
+	case 0x9:
+		bus_speed = PCI_SPEED_100MHz_PCIX_266;
+		break;
+	case 0xa:
+		bus_speed = PCI_SPEED_133MHz_PCIX_266;
+		break;
+	case 0xb:
+		bus_speed = PCI_SPEED_66MHz_PCIX_533;
+		break;
+	case 0xc:
+		bus_speed = PCI_SPEED_100MHz_PCIX_533;
+		break;
+	case 0xd:
+		bus_speed = PCI_SPEED_133MHz_PCIX_533;
+		break;
+	default:
+		retval = -ENODEV;
+		break;
+	}
+
+ out:
+	bus->cur_bus_speed = bus_speed;
+	dbg("Current bus speed = %d\n", bus_speed);
+	return retval;
+}
+
+
 static int hpc_set_bus_speed_mode(struct slot * slot, enum pci_bus_speed value)
 {
 	int retval;
@@ -720,6 +789,8 @@ static int hpc_set_bus_speed_mode(struct slot * slot, enum pci_bus_speed value)
 	retval = shpc_write_cmd(slot, 0, cmd);
 	if (retval)
 		ctrl_err(ctrl, "%s: Write command failed!\n", __func__);
+	else
+		shpc_get_cur_bus_speed(ctrl);
 
 	return retval;
 }
@@ -803,10 +874,10 @@ static irqreturn_t shpc_isr(int irq, void *dev_id)
 	return IRQ_HANDLED;
 }
 
-static int hpc_get_max_bus_speed (struct slot *slot, enum pci_bus_speed *value)
+static int shpc_get_max_bus_speed(struct controller *ctrl)
 {
 	int retval = 0;
-	struct controller *ctrl = slot->ctrl;
+	struct pci_bus *bus = ctrl->pci_dev->subordinate;
 	enum pci_bus_speed bus_speed = PCI_SPEED_UNKNOWN;
 	u8 pi = shpc_readb(ctrl, PROG_INTERFACE);
 	u32 slot_avail1 = shpc_readl(ctrl, SLOT_AVAIL1);
@@ -842,76 +913,9 @@ static int hpc_get_max_bus_speed (struct slot *slot, enum pci_bus_speed *value)
 			retval = -ENODEV;
 	}
 
-	*value = bus_speed;
+	bus->max_bus_speed = bus_speed;
 	ctrl_dbg(ctrl, "Max bus speed = %d\n", bus_speed);
 
-	return retval;
-}
-
-static int hpc_get_cur_bus_speed (struct slot *slot, enum pci_bus_speed *value)
-{
-	int retval = 0;
-	struct controller *ctrl = slot->ctrl;
-	enum pci_bus_speed bus_speed = PCI_SPEED_UNKNOWN;
-	u16 sec_bus_reg = shpc_readw(ctrl, SEC_BUS_CONFIG);
-	u8 pi = shpc_readb(ctrl, PROG_INTERFACE);
-	u8 speed_mode = (pi == 2) ? (sec_bus_reg & 0xF) : (sec_bus_reg & 0x7);
-
-	if ((pi == 1) && (speed_mode > 4)) {
-		*value = PCI_SPEED_UNKNOWN;
-		return -ENODEV;
-	}
-
-	switch (speed_mode) {
-	case 0x0:
-		*value = PCI_SPEED_33MHz;
-		break;
-	case 0x1:
-		*value = PCI_SPEED_66MHz;
-		break;
-	case 0x2:
-		*value = PCI_SPEED_66MHz_PCIX;
-		break;
-	case 0x3:
-		*value = PCI_SPEED_100MHz_PCIX;
-		break;
-	case 0x4:
-		*value = PCI_SPEED_133MHz_PCIX;
-		break;
-	case 0x5:
-		*value = PCI_SPEED_66MHz_PCIX_ECC;
-		break;
-	case 0x6:
-		*value = PCI_SPEED_100MHz_PCIX_ECC;
-		break;
-	case 0x7:
-		*value = PCI_SPEED_133MHz_PCIX_ECC;
-		break;
-	case 0x8:
-		*value = PCI_SPEED_66MHz_PCIX_266;
-		break;
-	case 0x9:
-		*value = PCI_SPEED_100MHz_PCIX_266;
-		break;
-	case 0xa:
-		*value = PCI_SPEED_133MHz_PCIX_266;
-		break;
-	case 0xb:
-		*value = PCI_SPEED_66MHz_PCIX_533;
-		break;
-	case 0xc:
-		*value = PCI_SPEED_100MHz_PCIX_533;
-		break;
-	case 0xd:
-		*value = PCI_SPEED_133MHz_PCIX_533;
-		break;
-	default:
-		*value = PCI_SPEED_UNKNOWN;
-		retval = -ENODEV;
-		break;
-	}
-
-	ctrl_dbg(ctrl, "Current bus speed = %d\n", bus_speed);
 	return retval;
 }
 
@@ -926,8 +930,6 @@ static struct hpc_ops shpchp_hpc_ops = {
 	.get_latch_status		= hpc_get_latch_status,
 	.get_adapter_status		= hpc_get_adapter_status,
 
-	.get_max_bus_speed		= hpc_get_max_bus_speed,
-	.get_cur_bus_speed		= hpc_get_cur_bus_speed,
 	.get_adapter_speed		= hpc_get_adapter_speed,
 	.get_mode1_ECC_cap		= hpc_get_mode1_ECC_cap,
 	.get_prog_int			= hpc_get_prog_int,
@@ -1085,6 +1087,9 @@ int shpc_init(struct controller *ctrl, struct pci_dev *pdev)
 		}
 	}
 	ctrl_dbg(ctrl, "HPC at %s irq=%x\n", pci_name(pdev), pdev->irq);
+
+	shpc_get_max_bus_speed(ctrl);
+	shpc_get_cur_bus_speed(ctrl);
 
 	/*
 	 * If this is the first controller to be initialized,

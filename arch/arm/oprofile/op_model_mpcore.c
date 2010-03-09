@@ -32,6 +32,7 @@
 /* #define DEBUG */
 #include <linux/types.h>
 #include <linux/errno.h>
+#include <linux/err.h>
 #include <linux/sched.h>
 #include <linux/oprofile.h>
 #include <linux/interrupt.h>
@@ -43,6 +44,7 @@
 #include <mach/hardware.h>
 #include <mach/board-eb.h>
 #include <asm/system.h>
+#include <asm/pmu.h>
 
 #include "op_counter.h"
 #include "op_arm_model.h"
@@ -58,6 +60,7 @@
  * Bitmask of used SCU counters
  */
 static unsigned int scu_em_used;
+static const struct pmu_irqs *pmu_irqs;
 
 /*
  * 2 helper fns take a counter number from 0-7 (not the userspace-visible counter number)
@@ -225,33 +228,40 @@ static int em_setup_ctrs(void)
 	return 0;
 }
 
-static int arm11_irqs[] = {
-	[0]	= IRQ_EB11MP_PMU_CPU0,
-	[1]	= IRQ_EB11MP_PMU_CPU1,
-	[2]	= IRQ_EB11MP_PMU_CPU2,
-	[3]	= IRQ_EB11MP_PMU_CPU3
-};
-
 static int em_start(void)
 {
 	int ret;
 
-	ret = arm11_request_interrupts(arm11_irqs, ARRAY_SIZE(arm11_irqs));
+	pmu_irqs = reserve_pmu();
+	if (IS_ERR(pmu_irqs)) {
+		ret = PTR_ERR(pmu_irqs);
+		goto out;
+	}
+
+	ret = arm11_request_interrupts(pmu_irqs->irqs, pmu_irqs->num_irqs);
 	if (ret == 0) {
 		em_call_function(arm11_start_pmu);
 
 		ret = scu_start();
-		if (ret)
-			arm11_release_interrupts(arm11_irqs, ARRAY_SIZE(arm11_irqs));
+		if (ret) {
+			arm11_release_interrupts(pmu_irqs->irqs,
+						 pmu_irqs->num_irqs);
+		} else {
+			release_pmu(pmu_irqs);
+			pmu_irqs = NULL;
+		}
 	}
+
+out:
 	return ret;
 }
 
 static void em_stop(void)
 {
 	em_call_function(arm11_stop_pmu);
-	arm11_release_interrupts(arm11_irqs, ARRAY_SIZE(arm11_irqs));
+	arm11_release_interrupts(pmu_irqs->irqs, pmu_irqs->num_irqs);
 	scu_stop();
+	release_pmu(pmu_irqs);
 }
 
 /*
@@ -283,15 +293,7 @@ static int em_setup(void)
 	em_route_irq(IRQ_EB11MP_PMU_SCU6, 3);
 	em_route_irq(IRQ_EB11MP_PMU_SCU7, 3);
 
-	/*
-	 * Send CP15 PMU interrupts to the owner CPU.
-	 */
-	em_route_irq(IRQ_EB11MP_PMU_CPU0, 0);
-	em_route_irq(IRQ_EB11MP_PMU_CPU1, 1);
-	em_route_irq(IRQ_EB11MP_PMU_CPU2, 2);
-	em_route_irq(IRQ_EB11MP_PMU_CPU3, 3);
-
-	return 0;
+	return init_pmu();
 }
 
 struct op_arm_model_spec op_mpcore_spec = {

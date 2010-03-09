@@ -115,6 +115,15 @@ static ssize_t ep93xx_rtc_show_comp_delete(struct device *dev,
 }
 static DEVICE_ATTR(comp_delete, S_IRUGO, ep93xx_rtc_show_comp_delete, NULL);
 
+static struct attribute *ep93xx_rtc_attrs[] = {
+	&dev_attr_comp_preload.attr,
+	&dev_attr_comp_delete.attr,
+	NULL
+};
+
+static const struct attribute_group ep93xx_rtc_sysfs_files = {
+	.attrs	= ep93xx_rtc_attrs,
+};
 
 static int __init ep93xx_rtc_probe(struct platform_device *pdev)
 {
@@ -123,27 +132,22 @@ static int __init ep93xx_rtc_probe(struct platform_device *pdev)
 	struct rtc_device *rtc;
 	int err;
 
-	ep93xx_rtc = kzalloc(sizeof(struct ep93xx_rtc), GFP_KERNEL);
-	if (ep93xx_rtc == NULL)
+	ep93xx_rtc = devm_kzalloc(&pdev->dev, sizeof(*ep93xx_rtc), GFP_KERNEL);
+	if (!ep93xx_rtc)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (res == NULL) {
-		err = -ENXIO;
-		goto fail_free;
-	}
+	if (!res)
+		return -ENXIO;
 
-	res = request_mem_region(res->start, resource_size(res), pdev->name);
-	if (res == NULL) {
-		err = -EBUSY;
-		goto fail_free;
-	}
+	if (!devm_request_mem_region(&pdev->dev, res->start,
+				     resource_size(res), pdev->name))
+		return -EBUSY;
 
-	ep93xx_rtc->mmio_base = ioremap(res->start, resource_size(res));
-	if (ep93xx_rtc->mmio_base == NULL) {
-		err = -ENXIO;
-		goto fail;
-	}
+	ep93xx_rtc->mmio_base = devm_ioremap(&pdev->dev, res->start,
+					     resource_size(res));
+	if (!ep93xx_rtc->mmio_base)
+		return -ENXIO;
 
 	pdev->dev.platform_data = ep93xx_rtc;
 
@@ -151,52 +155,33 @@ static int __init ep93xx_rtc_probe(struct platform_device *pdev)
 				&pdev->dev, &ep93xx_rtc_ops, THIS_MODULE);
 	if (IS_ERR(rtc)) {
 		err = PTR_ERR(rtc);
-		goto fail;
+		goto exit;
 	}
 
 	platform_set_drvdata(pdev, rtc);
 
-	err = device_create_file(&pdev->dev, &dev_attr_comp_preload);
+	err = sysfs_create_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
 	if (err)
 		goto fail;
-	err = device_create_file(&pdev->dev, &dev_attr_comp_delete);
-	if (err) {
-		device_remove_file(&pdev->dev, &dev_attr_comp_preload);
-		goto fail;
-	}
 
 	return 0;
 
 fail:
-	if (ep93xx_rtc->mmio_base) {
-		iounmap(ep93xx_rtc->mmio_base);
-		pdev->dev.platform_data = NULL;
-	}
-	release_mem_region(res->start, resource_size(res));
-fail_free:
-	kfree(ep93xx_rtc);
+	platform_set_drvdata(pdev, NULL);
+	rtc_device_unregister(rtc);
+exit:
+	pdev->dev.platform_data = NULL;
 	return err;
 }
 
 static int __exit ep93xx_rtc_remove(struct platform_device *pdev)
 {
 	struct rtc_device *rtc = platform_get_drvdata(pdev);
-	struct ep93xx_rtc *ep93xx_rtc = pdev->dev.platform_data;
-	struct resource *res;
 
-	/* cleanup sysfs */
-	device_remove_file(&pdev->dev, &dev_attr_comp_delete);
-	device_remove_file(&pdev->dev, &dev_attr_comp_preload);
-
-	rtc_device_unregister(rtc);
-
-	iounmap(ep93xx_rtc->mmio_base);
-	pdev->dev.platform_data = NULL;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, resource_size(res));
-
+	sysfs_remove_group(&pdev->dev.kobj, &ep93xx_rtc_sysfs_files);
 	platform_set_drvdata(pdev, NULL);
+	rtc_device_unregister(rtc);
+	pdev->dev.platform_data = NULL;
 
 	return 0;
 }

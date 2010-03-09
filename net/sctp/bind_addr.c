@@ -186,7 +186,6 @@ int sctp_add_bind_addr(struct sctp_bind_addr *bp, union sctp_addr *new,
 	addr->valid = 1;
 
 	INIT_LIST_HEAD(&addr->list);
-	INIT_RCU_HEAD(&addr->rcu);
 
 	/* We always hold a socket lock when calling this function,
 	 * and that acts as a writer synchronizing lock.

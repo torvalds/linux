@@ -46,6 +46,65 @@ STATIC xfs_buf_t *xfs_trans_buf_item_match(xfs_trans_t *, xfs_buftarg_t *,
 STATIC xfs_buf_t *xfs_trans_buf_item_match_all(xfs_trans_t *, xfs_buftarg_t *,
 		xfs_daddr_t, int);
 
+/*
+ * Add the locked buffer to the transaction.
+ *
+ * The buffer must be locked, and it cannot be associated with any
+ * transaction.
+ *
+ * If the buffer does not yet have a buf log item associated with it,
+ * then allocate one for it.  Then add the buf item to the transaction.
+ */
+STATIC void
+_xfs_trans_bjoin(
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp,
+	int			reset_recur)
+{
+	struct xfs_buf_log_item	*bip;
+
+	ASSERT(XFS_BUF_ISBUSY(bp));
+	ASSERT(XFS_BUF_FSPRIVATE2(bp, void *) == NULL);
+
+	/*
+	 * The xfs_buf_log_item pointer is stored in b_fsprivate.  If
+	 * it doesn't have one yet, then allocate one and initialize it.
+	 * The checks to see if one is there are in xfs_buf_item_init().
+	 */
+	xfs_buf_item_init(bp, tp->t_mountp);
+	bip = XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t *);
+	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
+	ASSERT(!(bip->bli_format.blf_flags & XFS_BLI_CANCEL));
+	ASSERT(!(bip->bli_flags & XFS_BLI_LOGGED));
+	if (reset_recur)
+		bip->bli_recur = 0;
+
+	/*
+	 * Take a reference for this transaction on the buf item.
+	 */
+	atomic_inc(&bip->bli_refcount);
+
+	/*
+	 * Get a log_item_desc to point at the new item.
+	 */
+	(void) xfs_trans_add_item(tp, (xfs_log_item_t *)bip);
+
+	/*
+	 * Initialize b_fsprivate2 so we can find it with incore_match()
+	 * in xfs_trans_get_buf() and friends above.
+	 */
+	XFS_BUF_SET_FSPRIVATE2(bp, tp);
+
+}
+
+void
+xfs_trans_bjoin(
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp)
+{
+	_xfs_trans_bjoin(tp, bp, 0);
+	trace_xfs_trans_bjoin(bp->b_fspriv);
+}
 
 /*
  * Get and lock the buffer for the caller if it is not already
@@ -132,40 +191,8 @@ xfs_trans_get_buf(xfs_trans_t	*tp,
 
 	ASSERT(!XFS_BUF_GETERROR(bp));
 
-	/*
-	 * The xfs_buf_log_item pointer is stored in b_fsprivate.  If
-	 * it doesn't have one yet, then allocate one and initialize it.
-	 * The checks to see if one is there are in xfs_buf_item_init().
-	 */
-	xfs_buf_item_init(bp, tp->t_mountp);
-
-	/*
-	 * Set the recursion count for the buffer within this transaction
-	 * to 0.
-	 */
-	bip = XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t*);
-	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
-	ASSERT(!(bip->bli_format.blf_flags & XFS_BLI_CANCEL));
-	ASSERT(!(bip->bli_flags & XFS_BLI_LOGGED));
-	bip->bli_recur = 0;
-
-	/*
-	 * Take a reference for this transaction on the buf item.
-	 */
-	atomic_inc(&bip->bli_refcount);
-
-	/*
-	 * Get a log_item_desc to point at the new item.
-	 */
-	(void) xfs_trans_add_item(tp, (xfs_log_item_t*)bip);
-
-	/*
-	 * Initialize b_fsprivate2 so we can find it with incore_match()
-	 * above.
-	 */
-	XFS_BUF_SET_FSPRIVATE2(bp, tp);
-
-	trace_xfs_trans_get_buf(bip);
+	_xfs_trans_bjoin(tp, bp, 1);
+	trace_xfs_trans_get_buf(bp->b_fspriv);
 	return (bp);
 }
 
@@ -210,44 +237,11 @@ xfs_trans_getsb(xfs_trans_t	*tp,
 	}
 
 	bp = xfs_getsb(mp, flags);
-	if (bp == NULL) {
+	if (bp == NULL)
 		return NULL;
-	}
 
-	/*
-	 * The xfs_buf_log_item pointer is stored in b_fsprivate.  If
-	 * it doesn't have one yet, then allocate one and initialize it.
-	 * The checks to see if one is there are in xfs_buf_item_init().
-	 */
-	xfs_buf_item_init(bp, mp);
-
-	/*
-	 * Set the recursion count for the buffer within this transaction
-	 * to 0.
-	 */
-	bip = XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t*);
-	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
-	ASSERT(!(bip->bli_format.blf_flags & XFS_BLI_CANCEL));
-	ASSERT(!(bip->bli_flags & XFS_BLI_LOGGED));
-	bip->bli_recur = 0;
-
-	/*
-	 * Take a reference for this transaction on the buf item.
-	 */
-	atomic_inc(&bip->bli_refcount);
-
-	/*
-	 * Get a log_item_desc to point at the new item.
-	 */
-	(void) xfs_trans_add_item(tp, (xfs_log_item_t*)bip);
-
-	/*
-	 * Initialize b_fsprivate2 so we can find it with incore_match()
-	 * above.
-	 */
-	XFS_BUF_SET_FSPRIVATE2(bp, tp);
-
-	trace_xfs_trans_getsb(bip);
+	_xfs_trans_bjoin(tp, bp, 1);
+	trace_xfs_trans_getsb(bp->b_fspriv);
 	return (bp);
 }
 
@@ -425,40 +419,9 @@ xfs_trans_read_buf(
 	if (XFS_FORCED_SHUTDOWN(mp))
 		goto shutdown_abort;
 
-	/*
-	 * The xfs_buf_log_item pointer is stored in b_fsprivate.  If
-	 * it doesn't have one yet, then allocate one and initialize it.
-	 * The checks to see if one is there are in xfs_buf_item_init().
-	 */
-	xfs_buf_item_init(bp, tp->t_mountp);
+	_xfs_trans_bjoin(tp, bp, 1);
+	trace_xfs_trans_read_buf(bp->b_fspriv);
 
-	/*
-	 * Set the recursion count for the buffer within this transaction
-	 * to 0.
-	 */
-	bip = XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t*);
-	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
-	ASSERT(!(bip->bli_format.blf_flags & XFS_BLI_CANCEL));
-	ASSERT(!(bip->bli_flags & XFS_BLI_LOGGED));
-	bip->bli_recur = 0;
-
-	/*
-	 * Take a reference for this transaction on the buf item.
-	 */
-	atomic_inc(&bip->bli_refcount);
-
-	/*
-	 * Get a log_item_desc to point at the new item.
-	 */
-	(void) xfs_trans_add_item(tp, (xfs_log_item_t*)bip);
-
-	/*
-	 * Initialize b_fsprivate2 so we can find it with incore_match()
-	 * above.
-	 */
-	XFS_BUF_SET_FSPRIVATE2(bp, tp);
-
-	trace_xfs_trans_read_buf(bip);
 	*bpp = bp;
 	return 0;
 
@@ -620,53 +583,6 @@ xfs_trans_brelse(xfs_trans_t	*tp,
 
 	xfs_buf_relse(bp);
 	return;
-}
-
-/*
- * Add the locked buffer to the transaction.
- * The buffer must be locked, and it cannot be associated with any
- * transaction.
- *
- * If the buffer does not yet have a buf log item associated with it,
- * then allocate one for it.  Then add the buf item to the transaction.
- */
-void
-xfs_trans_bjoin(xfs_trans_t	*tp,
-		xfs_buf_t	*bp)
-{
-	xfs_buf_log_item_t	*bip;
-
-	ASSERT(XFS_BUF_ISBUSY(bp));
-	ASSERT(XFS_BUF_FSPRIVATE2(bp, void *) == NULL);
-
-	/*
-	 * The xfs_buf_log_item pointer is stored in b_fsprivate.  If
-	 * it doesn't have one yet, then allocate one and initialize it.
-	 * The checks to see if one is there are in xfs_buf_item_init().
-	 */
-	xfs_buf_item_init(bp, tp->t_mountp);
-	bip = XFS_BUF_FSPRIVATE(bp, xfs_buf_log_item_t *);
-	ASSERT(!(bip->bli_flags & XFS_BLI_STALE));
-	ASSERT(!(bip->bli_format.blf_flags & XFS_BLI_CANCEL));
-	ASSERT(!(bip->bli_flags & XFS_BLI_LOGGED));
-
-	/*
-	 * Take a reference for this transaction on the buf item.
-	 */
-	atomic_inc(&bip->bli_refcount);
-
-	/*
-	 * Get a log_item_desc to point at the new item.
-	 */
-	(void) xfs_trans_add_item(tp, (xfs_log_item_t *)bip);
-
-	/*
-	 * Initialize b_fsprivate2 so we can find it with incore_match()
-	 * in xfs_trans_get_buf() and friends above.
-	 */
-	XFS_BUF_SET_FSPRIVATE2(bp, tp);
-
-	trace_xfs_trans_bjoin(bip);
 }
 
 /*

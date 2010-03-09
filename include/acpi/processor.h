@@ -92,11 +92,11 @@ struct acpi_processor_power {
 /* Performance Management */
 
 struct acpi_psd_package {
-	acpi_integer num_entries;
-	acpi_integer revision;
-	acpi_integer domain;
-	acpi_integer coord_type;
-	acpi_integer num_processors;
+	u64 num_entries;
+	u64 revision;
+	u64 domain;
+	u64 coord_type;
+	u64 num_processors;
 } __attribute__ ((packed));
 
 struct acpi_pct_register {
@@ -110,12 +110,12 @@ struct acpi_pct_register {
 } __attribute__ ((packed));
 
 struct acpi_processor_px {
-	acpi_integer core_frequency;	/* megahertz */
-	acpi_integer power;	/* milliWatts */
-	acpi_integer transition_latency;	/* microseconds */
-	acpi_integer bus_master_latency;	/* microseconds */
-	acpi_integer control;	/* control value */
-	acpi_integer status;	/* success indicator */
+	u64 core_frequency;	/* megahertz */
+	u64 power;	/* milliWatts */
+	u64 transition_latency;	/* microseconds */
+	u64 bus_master_latency;	/* microseconds */
+	u64 control;	/* control value */
+	u64 status;	/* success indicator */
 };
 
 struct acpi_processor_performance {
@@ -133,11 +133,11 @@ struct acpi_processor_performance {
 /* Throttling Control */
 
 struct acpi_tsd_package {
-	acpi_integer num_entries;
-	acpi_integer revision;
-	acpi_integer domain;
-	acpi_integer coord_type;
-	acpi_integer num_processors;
+	u64 num_entries;
+	u64 revision;
+	u64 domain;
+	u64 coord_type;
+	u64 num_processors;
 } __attribute__ ((packed));
 
 struct acpi_ptc_register {
@@ -151,11 +151,11 @@ struct acpi_ptc_register {
 } __attribute__ ((packed));
 
 struct acpi_processor_tx_tss {
-	acpi_integer freqpercentage;	/* */
-	acpi_integer power;	/* milliWatts */
-	acpi_integer transition_latency;	/* microseconds */
-	acpi_integer control;	/* control value */
-	acpi_integer status;	/* success indicator */
+	u64 freqpercentage;	/* */
+	u64 power;	/* milliWatts */
+	u64 transition_latency;	/* microseconds */
+	u64 control;	/* control value */
+	u64 status;	/* success indicator */
 };
 struct acpi_processor_tx {
 	u16 power;
@@ -238,7 +238,7 @@ struct acpi_processor_errata {
 
 extern int acpi_processor_preregister_performance(struct
 						  acpi_processor_performance
-						  *performance);
+						  __percpu *performance);
 
 extern int acpi_processor_register_performance(struct acpi_processor_performance
 					       *performance, unsigned int cpu);

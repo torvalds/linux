@@ -130,6 +130,7 @@ config CMDLINE_FORCE
 
 config OF
 	def_bool y
+	select OF_FLATTREE
 
 config PROC_DEVICETREE
 	bool "Support for device tree in /proc"

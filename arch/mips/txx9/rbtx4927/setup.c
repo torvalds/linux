@@ -187,8 +187,6 @@ static void __init rbtx4937_clock_init(void);
 
 static void __init rbtx4927_mem_setup(void)
 {
-	char *argptr;
-
 	if (TX4927_REV_PCODE() == 0x4927) {
 		rbtx4927_clock_init();
 		tx4927_setup();
@@ -213,11 +211,6 @@ static void __init rbtx4927_mem_setup(void)
 	gpio_direction_output(15, 1);
 
 	tx4927_sio_init(0, 0);
-#ifdef CONFIG_SERIAL_TXX9_CONSOLE
-	argptr = prom_getcmdline();
-	if (!strstr(argptr, "console="))
-		strcat(argptr, " console=ttyS0,38400");
-#endif
 }
 
 static void __init rbtx4927_clock_init(void)

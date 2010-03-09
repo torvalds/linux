@@ -119,6 +119,12 @@ enum dss_clock {
 	DSS_CLK_96M	= 1 << 4,
 };
 
+enum dss_clk_source {
+	DSS_SRC_DSI1_PLL_FCLK,
+	DSS_SRC_DSI2_PLL_FCLK,
+	DSS_SRC_DSS1_ALWON_FCLK,
+};
+
 struct dss_clock_info {
 	/* rates that we get with dividers below */
 	unsigned long fck;
@@ -169,6 +175,9 @@ unsigned long dss_clk_get_rate(enum dss_clock clk);
 int dss_need_ctx_restore(void);
 void dss_dump_clocks(struct seq_file *s);
 struct bus_type *dss_get_bus(void);
+struct regulator *dss_get_vdds_dsi(void);
+struct regulator *dss_get_vdds_sdi(void);
+struct regulator *dss_get_vdda_dac(void);
 
 /* display */
 int dss_suspend_all_devices(void);
@@ -216,9 +225,11 @@ void dss_sdi_init(u8 datapairs);
 int dss_sdi_enable(void);
 void dss_sdi_disable(void);
 
-void dss_select_clk_source(bool dsi, bool dispc);
-int dss_get_dsi_clk_source(void);
-int dss_get_dispc_clk_source(void);
+void dss_select_dispc_clk_source(enum dss_clk_source clk_src);
+void dss_select_dsi_clk_source(enum dss_clk_source clk_src);
+enum dss_clk_source dss_get_dispc_clk_source(void);
+enum dss_clk_source dss_get_dsi_clk_source(void);
+
 void dss_set_venc_output(enum omap_dss_venc_type type);
 void dss_set_dac_pwrdn_bgz(bool enable);
 
@@ -261,7 +272,7 @@ void dsi_get_overlay_fifo_thresholds(enum omap_plane plane,
 		u32 *fifo_low, u32 *fifo_high);
 
 /* DPI */
-int dpi_init(void);
+int dpi_init(struct platform_device *pdev);
 void dpi_exit(void);
 int dpi_init_display(struct omap_dss_device *dssdev);
 
@@ -313,8 +324,8 @@ int dispc_setup_plane(enum omap_plane plane,
 
 bool dispc_go_busy(enum omap_channel channel);
 void dispc_go(enum omap_channel channel);
-void dispc_enable_lcd_out(bool enable);
-void dispc_enable_digit_out(bool enable);
+void dispc_enable_channel(enum omap_channel channel, bool enable);
+bool dispc_is_channel_enabled(enum omap_channel channel);
 int dispc_enable_plane(enum omap_plane plane, bool enable);
 void dispc_enable_replication(enum omap_plane plane, bool enable);
 

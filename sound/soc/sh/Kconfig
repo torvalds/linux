@@ -26,6 +26,13 @@ config SND_SOC_SH4_FSI
 	help
 	  This option enables FSI sound support
 
+config SND_SOC_SH4_SIU
+	tristate
+	depends on (SUPERH || ARCH_SHMOBILE) && HAVE_CLK
+	select DMA_ENGINE
+	select DMADEVICES
+	select SH_DMAE
+
 ##
 ## Boards
 ##
@@ -46,5 +53,21 @@ config SND_FSI_AK4642
 	help
 	  This option enables generic sound support for the
 	  FSI - AK4642 unit
+
+config SND_FSI_DA7210
+	bool "FSI-DA7210 sound support"
+	depends on SND_SOC_SH4_FSI
+	select SND_SOC_DA7210
+	help
+	  This option enables generic sound support for the
+	  FSI - DA7210 unit
+
+config SND_SIU_MIGOR
+	tristate "SIU sound support on Migo-R"
+	depends on SH_MIGOR
+	select SND_SOC_SH4_SIU
+	select SND_SOC_WM8978
+	help
+	  This option enables sound support for the SH7722 Migo-R board
 
 endmenu

@@ -3,7 +3,7 @@
  *
  * Error Recovery Procedures (ERP).
  *
- * Copyright IBM Corporation 2002, 2009
+ * Copyright IBM Corporation 2002, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -11,6 +11,7 @@
 
 #include <linux/kthread.h>
 #include "zfcp_ext.h"
+#include "zfcp_reqlist.h"
 
 #define ZFCP_MAX_ERPS                   3
 
@@ -174,7 +175,7 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need,
 
 	switch (need) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
-		if (!get_device(&unit->sysfs_device))
+		if (!get_device(&unit->dev))
 			return NULL;
 		atomic_set_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &unit->status);
 		erp_action = &unit->erp_action;
@@ -184,7 +185,7 @@ static struct zfcp_erp_action *zfcp_erp_setup_act(int need,
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
-		if (!get_device(&port->sysfs_device))
+		if (!get_device(&port->dev))
 			return NULL;
 		zfcp_erp_action_dismiss_port(port);
 		atomic_set_mask(ZFCP_STATUS_COMMON_ERP_INUSE, &port->status);
@@ -478,26 +479,27 @@ static void zfcp_erp_action_to_running(struct zfcp_erp_action *erp_action)
 static void zfcp_erp_strategy_check_fsfreq(struct zfcp_erp_action *act)
 {
 	struct zfcp_adapter *adapter = act->adapter;
+	struct zfcp_fsf_req *req;
 
-	if (!act->fsf_req)
+	if (!act->fsf_req_id)
 		return;
 
-	spin_lock(&adapter->req_list_lock);
-	if (zfcp_reqlist_find_safe(adapter, act->fsf_req) &&
-	    act->fsf_req->erp_action == act) {
+	spin_lock(&adapter->req_list->lock);
+	req = _zfcp_reqlist_find(adapter->req_list, act->fsf_req_id);
+	if (req && req->erp_action == act) {
 		if (act->status & (ZFCP_STATUS_ERP_DISMISSED |
 				   ZFCP_STATUS_ERP_TIMEDOUT)) {
-			act->fsf_req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
+			req->status |= ZFCP_STATUS_FSFREQ_DISMISSED;
 			zfcp_dbf_rec_action("erscf_1", act);
-			act->fsf_req->erp_action = NULL;
+			req->erp_action = NULL;
 		}
 		if (act->status & ZFCP_STATUS_ERP_TIMEDOUT)
 			zfcp_dbf_rec_action("erscf_2", act);
-		if (act->fsf_req->status & ZFCP_STATUS_FSFREQ_DISMISSED)
-			act->fsf_req = NULL;
+		if (req->status & ZFCP_STATUS_FSFREQ_DISMISSED)
+			act->fsf_req_id = 0;
 	} else
-		act->fsf_req = NULL;
-	spin_unlock(&adapter->req_list_lock);
+		act->fsf_req_id = 0;
+	spin_unlock(&adapter->req_list->lock);
 }
 
 /**
@@ -1179,19 +1181,19 @@ static void zfcp_erp_action_cleanup(struct zfcp_erp_action *act, int result)
 	switch (act->action) {
 	case ZFCP_ERP_ACTION_REOPEN_UNIT:
 		if ((result == ZFCP_ERP_SUCCEEDED) && !unit->device) {
-			get_device(&unit->sysfs_device);
+			get_device(&unit->dev);
 			if (scsi_queue_work(unit->port->adapter->scsi_host,
 					    &unit->scsi_work) <= 0)
-				put_device(&unit->sysfs_device);
+				put_device(&unit->dev);
 		}
-		put_device(&unit->sysfs_device);
+		put_device(&unit->dev);
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_PORT_FORCED:
 	case ZFCP_ERP_ACTION_REOPEN_PORT:
 		if (result == ZFCP_ERP_SUCCEEDED)
 			zfcp_scsi_schedule_rport_register(port);
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 		break;
 
 	case ZFCP_ERP_ACTION_REOPEN_ADAPTER:

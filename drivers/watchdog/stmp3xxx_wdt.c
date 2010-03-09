@@ -94,7 +94,7 @@ static ssize_t stmp3xxx_wdt_write(struct file *file, const char __user *data,
 	return len;
 }
 
-static struct watchdog_info ident = {
+static const struct watchdog_info ident = {
 	.options	= WDIOF_CARDRESET |
 			  WDIOF_MAGICCLOSE |
 			  WDIOF_SETTIMEOUT |

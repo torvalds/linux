@@ -37,7 +37,6 @@
 
 #define VIA1_SOURCE_BASE	8
 #define VIA2_SOURCE_BASE	16
-#define MAC_SCC_SOURCE_BASE	24
 #define PSC3_SOURCE_BASE	24
 #define PSC4_SOURCE_BASE	32
 #define PSC5_SOURCE_BASE	40
@@ -96,26 +95,12 @@
 #define IRQ_PSC3_2	  (26)
 #define IRQ_PSC3_3	  (27)
 
-/* Level 4 (SCC) interrupts */
-#define IRQ_SCC		     (32)
-#define IRQ_SCCA	     (33)
-#define IRQ_SCCB	     (34)
-#if 0 /* FIXME: are there multiple interrupt conditions on the SCC ?? */
-/* SCC interrupts */
-#define IRQ_SCCB_TX	     (32)
-#define IRQ_SCCB_STAT	     (33)
-#define IRQ_SCCB_RX	     (34)
-#define IRQ_SCCB_SPCOND	     (35)
-#define IRQ_SCCA_TX	     (36)
-#define IRQ_SCCA_STAT	     (37)
-#define IRQ_SCCA_RX	     (38)
-#define IRQ_SCCA_SPCOND	     (39)
-#endif
-
 /* Level 4 (PSC, AV Macs only) interrupts */
 #define IRQ_PSC4_0	  (32)
 #define IRQ_PSC4_1	  (33)
+#define IRQ_MAC_SCC_A	  IRQ_PSC4_1
 #define IRQ_PSC4_2	  (34)
+#define IRQ_MAC_SCC_B	  IRQ_PSC4_2
 #define IRQ_PSC4_3	  (35)
 #define IRQ_MAC_MACE_DMA  IRQ_PSC4_3
 
@@ -145,6 +130,9 @@
 #define IRQ_BABOON_1	  (65)
 #define IRQ_BABOON_2	  (66)
 #define IRQ_BABOON_3	  (67)
+
+/* On non-PSC machines, the serial ports share an IRQ */
+#define IRQ_MAC_SCC	  IRQ_AUTO_4
 
 #define SLOT2IRQ(x)	  (x + 47)
 #define IRQ2SLOT(x)	  (x - 47)

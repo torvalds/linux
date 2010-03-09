@@ -89,7 +89,7 @@ static int iwm_debugfs_dbg_modules_write(void *data, u64 val)
 	for (i = 0; i < __IWM_DM_NR; i++)
 		iwm->dbg.dbg_module[i] = 0;
 
-	for_each_bit(bit, &iwm->dbg.dbg_modules, __IWM_DM_NR)
+	for_each_set_bit(bit, &iwm->dbg.dbg_modules, __IWM_DM_NR)
 		iwm->dbg.dbg_module[bit] = iwm->dbg.dbg_level;
 
 	return 0;

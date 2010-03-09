@@ -58,11 +58,6 @@ struct thread_info {
 	unsigned long		gsr[7];
 	unsigned long		xfsr[7];
 
-	__u64			__user *user_cntd0;
-	__u64			__user *user_cntd1;
-	__u64			kernel_cntd0, kernel_cntd1;
-	__u64			pcr_reg;
-
 	struct restart_block	restart_block;
 
 	struct pt_regs		*kern_una_regs;
@@ -96,15 +91,10 @@ struct thread_info {
 #define TI_RWIN_SPTRS	0x000003c8
 #define TI_GSR		0x00000400
 #define TI_XFSR		0x00000438
-#define TI_USER_CNTD0	0x00000470
-#define TI_USER_CNTD1	0x00000478
-#define TI_KERN_CNTD0	0x00000480
-#define TI_KERN_CNTD1	0x00000488
-#define TI_PCR		0x00000490
-#define TI_RESTART_BLOCK 0x00000498
-#define TI_KUNA_REGS	0x000004c8
-#define TI_KUNA_INSN	0x000004d0
-#define TI_FPREGS	0x00000500
+#define TI_RESTART_BLOCK 0x00000470
+#define TI_KUNA_REGS	0x000004a0
+#define TI_KUNA_INSN	0x000004a8
+#define TI_FPREGS	0x000004c0
 
 /* We embed this in the uppermost byte of thread_info->flags */
 #define FAULT_CODE_WRITE	0x01	/* Write access, implies D-TLB	   */
@@ -199,7 +189,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
  *
  * On trap return we need to test several values:
  *
- * user:	need_resched, notify_resume, sigpending, wsaved, perfctr
+ * user:	need_resched, notify_resume, sigpending, wsaved
  * kernel:	fpdepth
  *
  * So to check for work in the kernel case we simply load the fpdepth
@@ -220,7 +210,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define TIF_NOTIFY_RESUME	1	/* callback before returning to user */
 #define TIF_SIGPENDING		2	/* signal pending */
 #define TIF_NEED_RESCHED	3	/* rescheduling necessary */
-#define TIF_PERFCTR		4	/* performance counters active */
+/* flag bit 4 is available */
 #define TIF_UNALIGNED		5	/* allowed to do unaligned accesses */
 /* flag bit 6 is available */
 #define TIF_32BIT		7	/* 32-bit binary */
@@ -241,7 +231,6 @@ register struct thread_info *current_thread_info_reg asm("g6");
 #define _TIF_NOTIFY_RESUME	(1<<TIF_NOTIFY_RESUME)
 #define _TIF_SIGPENDING		(1<<TIF_SIGPENDING)
 #define _TIF_NEED_RESCHED	(1<<TIF_NEED_RESCHED)
-#define _TIF_PERFCTR		(1<<TIF_PERFCTR)
 #define _TIF_UNALIGNED		(1<<TIF_UNALIGNED)
 #define _TIF_32BIT		(1<<TIF_32BIT)
 #define _TIF_SECCOMP		(1<<TIF_SECCOMP)
@@ -252,7 +241,7 @@ register struct thread_info *current_thread_info_reg asm("g6");
 
 #define _TIF_USER_WORK_MASK	((0xff << TI_FLAG_WSAVED_SHIFT) | \
 				 _TIF_DO_NOTIFY_RESUME_MASK | \
-				 _TIF_NEED_RESCHED | _TIF_PERFCTR)
+				 _TIF_NEED_RESCHED)
 #define _TIF_DO_NOTIFY_RESUME_MASK	(_TIF_NOTIFY_RESUME | _TIF_SIGPENDING)
 
 /*

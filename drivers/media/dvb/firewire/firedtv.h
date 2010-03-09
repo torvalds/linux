@@ -73,7 +73,7 @@ struct input_dev;
 struct firedtv;
 
 struct firedtv_backend {
-	int (*lock)(struct firedtv *fdtv, u64 addr, __be32 data[]);
+	int (*lock)(struct firedtv *fdtv, u64 addr, void *data);
 	int (*read)(struct firedtv *fdtv, u64 addr, void *data);
 	int (*write)(struct firedtv *fdtv, u64 addr, void *data, size_t len);
 	int (*start_iso)(struct firedtv *fdtv);
@@ -114,8 +114,8 @@ struct firedtv {
 	unsigned long		channel_active;
 	u16			channel_pid[16];
 
-	size_t			response_length;
-	u8			response[512];
+	int			avc_data_length;
+	u8			avc_data[512];
 };
 
 /* firedtv-1394.c */
