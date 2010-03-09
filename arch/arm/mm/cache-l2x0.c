@@ -27,6 +27,7 @@
 
 static void __iomem *l2x0_base;
 static uint32_t l2x0_way_mask;	/* Bitmask of active ways */
+bool l2x0_disabled;
 
 static inline void cache_wait_always(void __iomem *reg, unsigned long mask)
 {
@@ -249,6 +250,9 @@ void l2x0_shutdown(void)
 {
 	unsigned long flags;
 
+	if (l2x0_disabled)
+		return;
+
 	BUG_ON(num_online_cpus() > 1);
 
 	local_irq_save(flags);
@@ -281,6 +285,9 @@ static void l2x0_enable(__u32 aux_val, __u32 aux_mask)
 	__u32 cache_id;
 	int ways;
 	const char *type;
+
+	if (l2x0_disabled)
+		return;
 
 	cache_id = readl_relaxed(l2x0_base + L2X0_CACHE_ID);
 	aux = readl_relaxed(l2x0_base + L2X0_AUX_CTRL);
@@ -338,6 +345,11 @@ void l2x0_restart(void)
 
 void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 {
+	if (l2x0_disabled) {
+		pr_info(L2CC_TYPE " cache controller disabled\n");
+		return;
+	}
+
 	l2x0_base = base;
 
 	l2x0_enable(aux_val, aux_mask);
@@ -347,3 +359,10 @@ void __init l2x0_init(void __iomem *base, __u32 aux_val, __u32 aux_mask)
 	outer_cache.flush_range = l2x0_flush_range;
 	outer_cache.sync = l2x0_cache_sync;
 }
+
+static int __init l2x0_disable(char *unused)
+{
+	l2x0_disabled = 1;
+	return 0;
+}
+early_param("nol2x0", l2x0_disable);
