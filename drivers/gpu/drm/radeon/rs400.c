@@ -242,8 +242,6 @@ int rs400_mc_wait_for_idle(struct radeon_device *rdev)
 
 void rs400_gpu_init(struct radeon_device *rdev)
 {
-	/* FIXME: HDP same place on rs400 ? */
-	r100_hdp_reset(rdev);
 	/* FIXME: is this correct ? */
 	r420_pipes_init(rdev);
 	if (rs400_mc_wait_for_idle(rdev)) {

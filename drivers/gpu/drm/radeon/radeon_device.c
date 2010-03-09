@@ -639,6 +639,8 @@ void radeon_device_fini(struct radeon_device *rdev)
 {
 	DRM_INFO("radeon: finishing device.\n");
 	rdev->shutdown = true;
+	/* evict vram memory */
+	radeon_bo_evict_vram(rdev);
 	radeon_fini(rdev);
 	destroy_workqueue(rdev->wq);
 	vga_switcheroo_unregister_client(rdev->pdev);
@@ -735,6 +737,26 @@ int radeon_resume_kms(struct drm_device *dev)
 	/* blat the mode back in */
 	drm_helper_resume_force_mode(dev);
 	return 0;
+}
+
+int radeon_gpu_reset(struct radeon_device *rdev)
+{
+	int r;
+
+	radeon_save_bios_scratch_regs(rdev);
+	radeon_suspend(rdev);
+
+	r = radeon_asic_reset(rdev);
+	if (!r) {
+		dev_info(rdev->dev, "GPU reset succeed\n");
+		radeon_resume(rdev);
+		radeon_restore_bios_scratch_regs(rdev);
+		drm_helper_resume_force_mode(rdev->ddev);
+		return 0;
+	}
+	/* bad news, how to tell it to userspace ? */
+	dev_info(rdev->dev, "GPU reset failed\n");
+	return r;
 }
 
 

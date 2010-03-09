@@ -447,6 +447,9 @@ int r600_blit_init(struct radeon_device *rdev)
 	u32 packet2s[16];
 	int num_packet2s = 0;
 
+	/* don't reinitialize blit */
+	if (rdev->r600_blit.shader_obj)
+		return 0;
 	mutex_init(&rdev->r600_blit.mutex);
 	rdev->r600_blit.state_offset = 0;
 

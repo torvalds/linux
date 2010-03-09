@@ -209,8 +209,9 @@ retry:
 		r = wait_event_interruptible_timeout(rdev->fence_drv.queue,
 				radeon_fence_signaled(fence), timeout);
 		radeon_irq_kms_sw_irq_put(rdev);
-		if (unlikely(r < 0))
+		if (unlikely(r < 0)) {
 			return r;
+		}
 	} else {
 		radeon_irq_kms_sw_irq_get(rdev);
 		r = wait_event_timeout(rdev->fence_drv.queue,
@@ -230,14 +231,16 @@ retry:
 		 */
 		if (seq == rdev->fence_drv.last_seq && radeon_gpu_is_lockup(rdev)) {
 			/* good news we believe it's a lockup */
-			dev_warn(rdev->dev, "GPU lockup (last fence id 0x%08X)\n", seq);
-			r = radeon_asic_reset(rdev);
-			if (r)
-				return r;
+			WARN(1, "GPU lockup (waiting for 0x%08X last fence id 0x%08X)\n", fence->seq, seq);
 			/* FIXME: what should we do ? marking everyone
 			 * as signaled for now
 			 */
+			rdev->gpu_lockup = true;
 			WREG32(rdev->fence_drv.scratch_reg, fence->seq);
+			r = radeon_gpu_reset(rdev);
+			if (r)
+				return r;
+			rdev->gpu_lockup = false;
 		}
 		timeout = RADEON_FENCE_JIFFIES_TIMEOUT;
 		write_lock_irqsave(&rdev->fence_drv.lock, irq_flags);

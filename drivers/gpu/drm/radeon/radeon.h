@@ -1188,6 +1188,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 
 /* Common functions */
 /* AGP */
+extern int radeon_gpu_reset(struct radeon_device *rdev);
 extern void radeon_agp_disable(struct radeon_device *rdev);
 extern int radeon_gart_table_vram_pin(struct radeon_device *rdev);
 extern void radeon_gart_restore(struct radeon_device *rdev);

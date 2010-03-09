@@ -146,16 +146,11 @@ void rv515_gpu_init(struct radeon_device *rdev)
 {
 	unsigned pipe_select_current, gb_pipe_select, tmp;
 
-	r100_hdp_reset(rdev);
-	r100_rb2d_reset(rdev);
-
 	if (r100_gui_wait_for_idle(rdev)) {
 		printk(KERN_WARNING "Failed to wait GUI idle while "
 		       "reseting GPU. Bad things might happen.\n");
 	}
-
 	rv515_vga_render_disable(rdev);
-
 	r420_pipes_init(rdev);
 	gb_pipe_select = RREG32(0x402C);
 	tmp = RREG32(0x170C);
@@ -171,91 +166,6 @@ void rv515_gpu_init(struct radeon_device *rdev)
 		printk(KERN_WARNING "Failed to wait MC idle while "
 		       "programming pipes. Bad things might happen.\n");
 	}
-}
-
-int rv515_ga_reset(struct radeon_device *rdev)
-{
-	uint32_t tmp;
-	bool reinit_cp;
-	int i;
-
-	reinit_cp = rdev->cp.ready;
-	rdev->cp.ready = false;
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		WREG32(CP_CSQ_MODE, 0);
-		WREG32(CP_CSQ_CNTL, 0);
-		WREG32(RBBM_SOFT_RESET, 0x32005);
-		(void)RREG32(RBBM_SOFT_RESET);
-		udelay(200);
-		WREG32(RBBM_SOFT_RESET, 0);
-		/* Wait to prevent race in RBBM_STATUS */
-		mdelay(1);
-		tmp = RREG32(RBBM_STATUS);
-		if (tmp & ((1 << 20) | (1 << 26))) {
-			DRM_ERROR("VAP & CP still busy (RBBM_STATUS=0x%08X)\n", tmp);
-			/* GA still busy soft reset it */
-			WREG32(0x429C, 0x200);
-			WREG32(VAP_PVS_STATE_FLUSH_REG, 0);
-			WREG32(0x43E0, 0);
-			WREG32(0x43E4, 0);
-			WREG32(0x24AC, 0);
-		}
-		/* Wait to prevent race in RBBM_STATUS */
-		mdelay(1);
-		tmp = RREG32(RBBM_STATUS);
-		if (!(tmp & ((1 << 20) | (1 << 26)))) {
-			break;
-		}
-	}
-	for (i = 0; i < rdev->usec_timeout; i++) {
-		tmp = RREG32(RBBM_STATUS);
-		if (!(tmp & ((1 << 20) | (1 << 26)))) {
-			DRM_INFO("GA reset succeed (RBBM_STATUS=0x%08X)\n",
-				 tmp);
-			DRM_INFO("GA_IDLE=0x%08X\n", RREG32(0x425C));
-			DRM_INFO("RB3D_RESET_STATUS=0x%08X\n", RREG32(0x46f0));
-			DRM_INFO("ISYNC_CNTL=0x%08X\n", RREG32(0x1724));
-			if (reinit_cp) {
-				return r100_cp_init(rdev, rdev->cp.ring_size);
-			}
-			return 0;
-		}
-		DRM_UDELAY(1);
-	}
-	tmp = RREG32(RBBM_STATUS);
-	DRM_ERROR("Failed to reset GA ! (RBBM_STATUS=0x%08X)\n", tmp);
-	return -1;
-}
-
-int rv515_asic_reset(struct radeon_device *rdev)
-{
-	uint32_t status;
-
-	/* reset order likely matter */
-	status = RREG32(RBBM_STATUS);
-	/* reset HDP */
-	r100_hdp_reset(rdev);
-	/* reset rb2d */
-	if (status & ((1 << 17) | (1 << 18) | (1 << 27))) {
-		r100_rb2d_reset(rdev);
-	}
-	/* reset GA */
-	if (status & ((1 << 20) | (1 << 26))) {
-		rv515_ga_reset(rdev);
-	}
-	/* reset CP */
-	status = RREG32(RBBM_STATUS);
-	if (status & (1 << 16)) {
-		r100_cp_reset(rdev);
-	}
-	/* Check if GPU is idle */
-	status = RREG32(RBBM_STATUS);
-	if (status & (1 << 31)) {
-		DRM_ERROR("Failed to reset GPU (RBBM_STATUS=0x%08X)\n", status);
-		return -1;
-	}
-	DRM_INFO("GPU reset succeed (RBBM_STATUS=0x%08X)\n", status);
-	return 0;
 }
 
 static void rv515_vram_get_type(struct radeon_device *rdev)

@@ -111,8 +111,6 @@ void r100_vram_init_sizes(struct radeon_device *rdev);
 void r100_wb_disable(struct radeon_device *rdev);
 void r100_wb_fini(struct radeon_device *rdev);
 int r100_wb_init(struct radeon_device *rdev);
-void r100_hdp_reset(struct radeon_device *rdev);
-int r100_rb2d_reset(struct radeon_device *rdev);
 int r100_cp_reset(struct radeon_device *rdev);
 void r100_vga_render_disable(struct radeon_device *rdev);
 int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
@@ -127,7 +125,7 @@ int r100_cs_packet_parse(struct radeon_cs_parser *p,
 			 unsigned idx);
 void r100_enable_bm(struct radeon_device *rdev);
 void r100_set_common_regs(struct radeon_device *rdev);
-
+void r100_bm_disable(struct radeon_device *rdev);
 /*
  * r200,rv250,rs300,rv280
  */
@@ -180,6 +178,7 @@ void rs400_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 /*
  * rs600.
  */
+extern int rs600_asic_reset(struct radeon_device *rdev);
 extern int rs600_init(struct radeon_device *rdev);
 extern void rs600_fini(struct radeon_device *rdev);
 extern int rs600_suspend(struct radeon_device *rdev);
@@ -214,7 +213,6 @@ void rs690_bandwidth_update(struct radeon_device *rdev);
  */
 int rv515_init(struct radeon_device *rdev);
 void rv515_fini(struct radeon_device *rdev);
-int rv515_asic_reset(struct radeon_device *rdev);
 uint32_t rv515_mc_rreg(struct radeon_device *rdev, uint32_t reg);
 void rv515_mc_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void rv515_ring_start(struct radeon_device *rdev);
