@@ -453,6 +453,13 @@ config PXA_SHARPSL
 config SHARPSL_PM
 	bool
 	select APM_EMULATION
+	select SHARPSL_PM_MAX1111
+
+config SHARPSL_PM_MAX1111
+	bool
+	depends on !CORGI_SSP_DEPRECATED
+	select HWMON
+	select SENSORS_MAX1111
 
 config CORGI_SSP_DEPRECATED
 	bool
