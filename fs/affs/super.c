@@ -203,7 +203,7 @@ parse_options(char *options, uid_t *uid, gid_t *gid, int *mode, int *reserved, s
 		switch (token) {
 		case Opt_bs:
 			if (match_int(&args[0], &n))
-				return -EINVAL;
+				return 0;
 			if (n != 512 && n != 1024 && n != 2048
 			    && n != 4096) {
 				printk ("AFFS: Invalid blocksize (512, 1024, 2048, 4096 allowed)\n");
@@ -213,7 +213,7 @@ parse_options(char *options, uid_t *uid, gid_t *gid, int *mode, int *reserved, s
 			break;
 		case Opt_mode:
 			if (match_octal(&args[0], &option))
-				return 1;
+				return 0;
 			*mode = option & 0777;
 			*mount_opts |= SF_SETMODE;
 			break;
@@ -221,8 +221,6 @@ parse_options(char *options, uid_t *uid, gid_t *gid, int *mode, int *reserved, s
 			*mount_opts |= SF_MUFS;
 			break;
 		case Opt_prefix:
-			/* Free any previous prefix */
-			kfree(*prefix);
 			*prefix = match_strdup(&args[0]);
 			if (!*prefix)
 				return 0;
@@ -233,21 +231,21 @@ parse_options(char *options, uid_t *uid, gid_t *gid, int *mode, int *reserved, s
 			break;
 		case Opt_reserved:
 			if (match_int(&args[0], reserved))
-				return 1;
+				return 0;
 			break;
 		case Opt_root:
 			if (match_int(&args[0], root))
-				return 1;
+				return 0;
 			break;
 		case Opt_setgid:
 			if (match_int(&args[0], &option))
-				return 1;
+				return 0;
 			*gid = option;
 			*mount_opts |= SF_SETGID;
 			break;
 		case Opt_setuid:
 			if (match_int(&args[0], &option))
-				return -EINVAL;
+				return 0;
 			*uid = option;
 			*mount_opts |= SF_SETUID;
 			break;
@@ -311,11 +309,14 @@ static int affs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 	sb->s_fs_info = sbi;
 	mutex_init(&sbi->s_bmlock);
+	spin_lock_init(&sbi->symlink_lock);
 
 	if (!parse_options(data,&uid,&gid,&i,&reserved,&root_block,
 				&blocksize,&sbi->s_prefix,
 				sbi->s_volume, &mount_flags)) {
 		printk(KERN_ERR "AFFS: Error parsing options\n");
+		kfree(sbi->s_prefix);
+		kfree(sbi);
 		return -EINVAL;
 	}
 	/* N.B. after this point s_prefix must be released */
@@ -516,14 +517,18 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	unsigned long		 mount_flags;
 	int			 res = 0;
 	char			*new_opts = kstrdup(data, GFP_KERNEL);
+	char			 volume[32];
+	char			*prefix = NULL;
 
 	pr_debug("AFFS: remount(flags=0x%x,opts=\"%s\")\n",*flags,data);
 
 	*flags |= MS_NODIRATIME;
 
+	memcpy(volume, sbi->s_volume, 32);
 	if (!parse_options(data, &uid, &gid, &mode, &reserved, &root_block,
-			   &blocksize, &sbi->s_prefix, sbi->s_volume,
+			   &blocksize, &prefix, volume,
 			   &mount_flags)) {
+		kfree(prefix);
 		kfree(new_opts);
 		return -EINVAL;
 	}
@@ -534,6 +539,14 @@ affs_remount(struct super_block *sb, int *flags, char *data)
 	sbi->s_mode  = mode;
 	sbi->s_uid   = uid;
 	sbi->s_gid   = gid;
+	/* protect against readers */
+	spin_lock(&sbi->symlink_lock);
+	if (prefix) {
+		kfree(sbi->s_prefix);
+		sbi->s_prefix = prefix;
+	}
+	memcpy(sbi->s_volume, volume, 32);
+	spin_unlock(&sbi->symlink_lock);
 
 	if ((*flags & MS_RDONLY) == (sb->s_flags & MS_RDONLY)) {
 		unlock_kernel();

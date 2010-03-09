@@ -243,11 +243,9 @@ static int make_socks(struct svc_serv *serv)
 	if (err < 0)
 		goto out_err;
 
-#if defined(CONFIG_IPV6) || defined(CONFIG_IPV6_MODULE)
 	err = create_lockd_family(serv, PF_INET6);
 	if (err < 0 && err != -EAFNOSUPPORT)
 		goto out_err;
-#endif	/* CONFIG_IPV6 || CONFIG_IPV6_MODULE */
 
 	warned = 0;
 	return 0;

@@ -121,7 +121,9 @@
 unsigned long max_low_pfn_mapped;
 unsigned long max_pfn_mapped;
 
+#ifdef CONFIG_DMI
 RESERVE_BRK(dmi_alloc, 65536);
+#endif
 
 unsigned int boot_cpu_id __read_mostly;
 
@@ -642,22 +644,47 @@ static struct dmi_system_id __initdata bad_bios_dmi_table[] = {
 			DMI_MATCH(DMI_BIOS_VENDOR, "Phoenix/MSC"),
 		},
 	},
-	{
 	/*
-	 * AMI BIOS with low memory corruption was found on Intel DG45ID board.
-	 * It hase different DMI_BIOS_VENDOR = "Intel Corp.", for now we will
+	 * AMI BIOS with low memory corruption was found on Intel DG45ID and
+	 * DG45FC boards.
+	 * It has a different DMI_BIOS_VENDOR = "Intel Corp.", for now we will
 	 * match only DMI_BOARD_NAME and see if there is more bad products
 	 * with this vendor.
 	 */
+	{
 		.callback = dmi_low_memory_corruption,
 		.ident = "AMI BIOS",
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "DG45ID"),
 		},
 	},
+	{
+		.callback = dmi_low_memory_corruption,
+		.ident = "AMI BIOS",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "DG45FC"),
+		},
+	},
 #endif
 	{}
 };
+
+static void __init trim_bios_range(void)
+{
+	/*
+	 * A special case is the first 4Kb of memory;
+	 * This is a BIOS owned area, not kernel ram, but generally
+	 * not listed as such in the E820 table.
+	 */
+	e820_update_range(0, PAGE_SIZE, E820_RAM, E820_RESERVED);
+	/*
+	 * special case: Some BIOSen report the PC BIOS
+	 * area (640->1Mb) as ram even though it is not.
+	 * take them out.
+	 */
+	e820_remove_range(BIOS_BEGIN, BIOS_END - BIOS_BEGIN, E820_RAM, 1);
+	sanitize_e820_map(e820.map, ARRAY_SIZE(e820.map), &e820.nr_map);
+}
 
 /*
  * Determine if we were loaded by an EFI loader.  If so, then we have also been
@@ -822,7 +849,7 @@ void __init setup_arch(char **cmdline_p)
 	insert_resource(&iomem_resource, &data_resource);
 	insert_resource(&iomem_resource, &bss_resource);
 
-
+	trim_bios_range();
 #ifdef CONFIG_X86_32
 	if (ppro_with_ram_bug()) {
 		e820_update_range(0x70000000ULL, 0x40000ULL, E820_RAM,
@@ -942,15 +969,11 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	initmem_init(0, max_pfn, acpi, k8);
-
-#ifdef CONFIG_X86_64
-	/*
-	 * dma32_reserve_bootmem() allocates bootmem which may conflict
-	 * with the crashkernel command line, so do that after
-	 * reserve_crashkernel()
-	 */
-	dma32_reserve_bootmem();
+#ifndef CONFIG_NO_BOOTMEM
+	early_res_to_bootmem(0, max_low_pfn<<PAGE_SHIFT);
 #endif
+
+	dma32_reserve_bootmem();
 
 	reserve_ibft_region();
 

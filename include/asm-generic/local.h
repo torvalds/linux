@@ -52,23 +52,4 @@ typedef struct
 #define __local_add(i,l)	local_set((l), local_read(l) + (i))
 #define __local_sub(i,l)	local_set((l), local_read(l) - (i))
 
-/* Use these for per-cpu local_t variables: on some archs they are
- * much more efficient than these naive implementations.  Note they take
- * a variable (eg. mystruct.foo), not an address.
- */
-#define cpu_local_read(l)	local_read(&__get_cpu_var(l))
-#define cpu_local_set(l, i)	local_set(&__get_cpu_var(l), (i))
-#define cpu_local_inc(l)	local_inc(&__get_cpu_var(l))
-#define cpu_local_dec(l)	local_dec(&__get_cpu_var(l))
-#define cpu_local_add(i, l)	local_add((i), &__get_cpu_var(l))
-#define cpu_local_sub(i, l)	local_sub((i), &__get_cpu_var(l))
-
-/* Non-atomic increments, ie. preemption disabled and won't be touched
- * in interrupt, etc.  Some archs can optimize this case well.
- */
-#define __cpu_local_inc(l)	__local_inc(&__get_cpu_var(l))
-#define __cpu_local_dec(l)	__local_dec(&__get_cpu_var(l))
-#define __cpu_local_add(i, l)	__local_add((i), &__get_cpu_var(l))
-#define __cpu_local_sub(i, l)	__local_sub((i), &__get_cpu_var(l))
-
 #endif /* _ASM_GENERIC_LOCAL_H */

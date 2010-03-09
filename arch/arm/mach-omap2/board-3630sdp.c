@@ -68,8 +68,8 @@ static struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 
 static void __init omap_sdp_map_io(void)
 {
-	omap2_set_globals_343x();
-	omap2_map_common_io();
+	omap2_set_globals_36xx();
+	omap34xx_map_common_io();
 }
 
 static struct omap_board_config_kernel sdp_config[] __initdata = {

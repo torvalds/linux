@@ -808,6 +808,7 @@ static int btmrvl_sdio_host_to_card(struct btmrvl_private *priv,
 
 exit:
 	sdio_release_host(card->func);
+	kfree(tmpbuf);
 
 	return ret;
 }
@@ -975,7 +976,7 @@ static struct sdio_driver bt_mrvl_sdio = {
 	.remove		= btmrvl_sdio_remove,
 };
 
-static int btmrvl_sdio_init_module(void)
+static int __init btmrvl_sdio_init_module(void)
 {
 	if (sdio_register_driver(&bt_mrvl_sdio) != 0) {
 		BT_ERR("SDIO Driver Registration Failed");
@@ -988,7 +989,7 @@ static int btmrvl_sdio_init_module(void)
 	return 0;
 }
 
-static void btmrvl_sdio_exit_module(void)
+static void __exit btmrvl_sdio_exit_module(void)
 {
 	/* Set the flag as user is removing this module. */
 	user_rmmod = 1;

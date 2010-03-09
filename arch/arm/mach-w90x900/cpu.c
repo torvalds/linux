@@ -45,6 +45,7 @@ static struct map_desc nuc900_iodesc[] __initdata = {
 	IODESC_ENT(UART),
 	IODESC_ENT(TIMER),
 	IODESC_ENT(EBI),
+	IODESC_ENT(GPIO),
 };
 
 /* Initial clock declarations. */
@@ -68,6 +69,11 @@ static DEFINE_CLK(gdma, 27);
 static DEFINE_CLK(adc, 28);
 static DEFINE_CLK(usi, 29);
 static DEFINE_CLK(ext, 0);
+static DEFINE_CLK(timer0, 19);
+static DEFINE_CLK(timer1, 20);
+static DEFINE_CLK(timer2, 21);
+static DEFINE_CLK(timer3, 22);
+static DEFINE_CLK(timer4, 23);
 
 static struct clk_lookup nuc900_clkregs[] = {
 	DEF_CLKLOOK(&clk_lcd, "nuc900-lcd", NULL),
@@ -90,6 +96,11 @@ static struct clk_lookup nuc900_clkregs[] = {
 	DEF_CLKLOOK(&clk_adc, "nuc900-adc", NULL),
 	DEF_CLKLOOK(&clk_usi, "nuc900-spi", NULL),
 	DEF_CLKLOOK(&clk_ext, NULL, "ext"),
+	DEF_CLKLOOK(&clk_timer0, NULL, "timer0"),
+	DEF_CLKLOOK(&clk_timer1, NULL, "timer1"),
+	DEF_CLKLOOK(&clk_timer2, NULL, "timer2"),
+	DEF_CLKLOOK(&clk_timer3, NULL, "timer3"),
+	DEF_CLKLOOK(&clk_timer4, NULL, "timer4"),
 };
 
 /* Initial serial platform data */
@@ -208,6 +219,6 @@ void __init nuc900_map_io(struct map_desc *mach_desc, int mach_size)
 
 void __init nuc900_init_clocks(void)
 {
-	clks_register(nuc900_clkregs, ARRAY_SIZE(nuc900_clkregs));
+	clkdev_add_table(nuc900_clkregs, ARRAY_SIZE(nuc900_clkregs));
 }
 

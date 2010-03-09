@@ -196,7 +196,9 @@ static int ehci_bus_suspend (struct usb_hcd *hcd)
 			if (hostpc_reg) {
 				u32	t3;
 
+				spin_unlock_irq(&ehci->lock);
 				msleep(5);/* 5ms for HCD enter low pwr mode */
+				spin_lock_irq(&ehci->lock);
 				t3 = ehci_readl(ehci, hostpc_reg);
 				ehci_writel(ehci, t3 | HOSTPC_PHCD, hostpc_reg);
 				t3 = ehci_readl(ehci, hostpc_reg);
@@ -904,17 +906,18 @@ static int ehci_hub_control (
 			if ((temp & PORT_PE) == 0
 					|| (temp & PORT_RESET) != 0)
 				goto error;
-			ehci_writel(ehci, temp | PORT_SUSPEND, status_reg);
+
 			/* After above check the port must be connected.
 			 * Set appropriate bit thus could put phy into low power
 			 * mode if we have hostpc feature
 			 */
+			temp &= ~PORT_WKCONN_E;
+			temp |= PORT_WKDISC_E | PORT_WKOC_E;
+			ehci_writel(ehci, temp | PORT_SUSPEND, status_reg);
 			if (hostpc_reg) {
-				temp &= ~PORT_WKCONN_E;
-				temp |= (PORT_WKDISC_E | PORT_WKOC_E);
-				ehci_writel(ehci, temp | PORT_SUSPEND,
-							status_reg);
+				spin_unlock_irqrestore(&ehci->lock, flags);
 				msleep(5);/* 5ms for HCD enter low pwr mode */
+				spin_lock_irqsave(&ehci->lock, flags);
 				temp1 = ehci_readl(ehci, hostpc_reg);
 				ehci_writel(ehci, temp1 | HOSTPC_PHCD,
 					hostpc_reg);

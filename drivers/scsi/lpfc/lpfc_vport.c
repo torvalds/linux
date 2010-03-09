@@ -389,7 +389,7 @@ lpfc_vport_create(struct fc_vport *fc_vport, bool disable)
 	 * by the port.
 	 */
 	if ((phba->sli_rev == LPFC_SLI_REV4) &&
-	    (pport->vpi_state & LPFC_VPI_REGISTERED)) {
+		(pport->fc_flag & FC_VFI_REGISTERED)) {
 		rc = lpfc_sli4_init_vpi(phba, vpi);
 		if (rc) {
 			lpfc_printf_log(phba, KERN_ERR, LOG_VPORT,
@@ -505,6 +505,7 @@ enable_vport(struct fc_vport *fc_vport)
 	struct lpfc_vport *vport = *(struct lpfc_vport **)fc_vport->dd_data;
 	struct lpfc_hba   *phba = vport->phba;
 	struct lpfc_nodelist *ndlp = NULL;
+	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
 
 	if ((phba->link_state < LPFC_LINK_UP) ||
 	    (phba->fc_topology == TOPOLOGY_LOOP)) {
@@ -512,10 +513,10 @@ enable_vport(struct fc_vport *fc_vport)
 		return VPORT_OK;
 	}
 
-	spin_lock_irq(&phba->hbalock);
+	spin_lock_irq(shost->host_lock);
 	vport->load_flag |= FC_LOADING;
 	vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
-	spin_unlock_irq(&phba->hbalock);
+	spin_unlock_irq(shost->host_lock);
 
 	/* Use the Physical nodes Fabric NDLP to determine if the link is
 	 * up and ready to FDISC.

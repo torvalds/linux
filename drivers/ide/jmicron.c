@@ -80,19 +80,19 @@ static u8 jmicron_cable_detect(ide_hwif_t *hwif)
 	return ATA_CBL_PATA80;
 }
 
-static void jmicron_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void jmicron_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 }
 
 /**
  *	jmicron_set_dma_mode	-	set host controller for DMA mode
+ *	@hwif: port
  *	@drive: drive
- *	@mode: DMA mode
  *
  *	As the JMicron snoops for timings we don't need to do anything here.
  */
 
-static void jmicron_set_dma_mode(ide_drive_t *drive, const u8 mode)
+static void jmicron_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 }
 

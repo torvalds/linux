@@ -38,8 +38,6 @@
 #include <linux/platform_device.h>
 #include <linux/uaccess.h>
 
-#include <asm/byteorder.h>
-
 #include <mach/msm_smd.h>
 #include "smd_rpcrouter.h"
 

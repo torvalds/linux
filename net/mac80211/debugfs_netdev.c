@@ -41,6 +41,30 @@ static ssize_t ieee80211_if_read(
 	return ret;
 }
 
+static ssize_t ieee80211_if_write(
+	struct ieee80211_sub_if_data *sdata,
+	const char __user *userbuf,
+	size_t count, loff_t *ppos,
+	ssize_t (*write)(struct ieee80211_sub_if_data *, const char *, int))
+{
+	u8 *buf;
+	ssize_t ret = -ENODEV;
+
+	buf = kzalloc(count, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	if (copy_from_user(buf, userbuf, count))
+		return -EFAULT;
+
+	rtnl_lock();
+	if (sdata->dev->reg_state == NETREG_REGISTERED)
+		ret = (*write)(sdata, buf, count);
+	rtnl_unlock();
+
+	return ret;
+}
+
 #define IEEE80211_IF_FMT(name, field, format_string)			\
 static ssize_t ieee80211_if_fmt_##name(					\
 	const struct ieee80211_sub_if_data *sdata, char *buf,		\
@@ -71,7 +95,7 @@ static ssize_t ieee80211_if_fmt_##name(					\
 	return scnprintf(buf, buflen, "%pM\n", sdata->field);		\
 }
 
-#define __IEEE80211_IF_FILE(name)					\
+#define __IEEE80211_IF_FILE(name, _write)				\
 static ssize_t ieee80211_if_read_##name(struct file *file,		\
 					char __user *userbuf,		\
 					size_t count, loff_t *ppos)	\
@@ -82,22 +106,99 @@ static ssize_t ieee80211_if_read_##name(struct file *file,		\
 }									\
 static const struct file_operations name##_ops = {			\
 	.read = ieee80211_if_read_##name,				\
+	.write = (_write),						\
 	.open = mac80211_open_file_generic,				\
 }
 
+#define __IEEE80211_IF_FILE_W(name)					\
+static ssize_t ieee80211_if_write_##name(struct file *file,		\
+					 const char __user *userbuf,	\
+					 size_t count, loff_t *ppos)	\
+{									\
+	return ieee80211_if_write(file->private_data, userbuf, count,	\
+				  ppos, ieee80211_if_parse_##name);	\
+}									\
+__IEEE80211_IF_FILE(name, ieee80211_if_write_##name)
+
+
 #define IEEE80211_IF_FILE(name, field, format)				\
 		IEEE80211_IF_FMT_##format(name, field)			\
-		__IEEE80211_IF_FILE(name)
+		__IEEE80211_IF_FILE(name, NULL)
 
 /* common attributes */
 IEEE80211_IF_FILE(drop_unencrypted, drop_unencrypted, DEC);
-IEEE80211_IF_FILE(force_unicast_rateidx, force_unicast_rateidx, DEC);
-IEEE80211_IF_FILE(max_ratectrl_rateidx, max_ratectrl_rateidx, DEC);
+IEEE80211_IF_FILE(rc_rateidx_mask_2ghz, rc_rateidx_mask[IEEE80211_BAND_2GHZ],
+		  HEX);
+IEEE80211_IF_FILE(rc_rateidx_mask_5ghz, rc_rateidx_mask[IEEE80211_BAND_5GHZ],
+		  HEX);
 
 /* STA attributes */
 IEEE80211_IF_FILE(bssid, u.mgd.bssid, MAC);
 IEEE80211_IF_FILE(aid, u.mgd.aid, DEC);
-IEEE80211_IF_FILE(capab, u.mgd.capab, HEX);
+
+static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
+			      enum ieee80211_smps_mode smps_mode)
+{
+	struct ieee80211_local *local = sdata->local;
+	int err;
+
+	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_STATIC_SMPS) &&
+	    smps_mode == IEEE80211_SMPS_STATIC)
+		return -EINVAL;
+
+	/* auto should be dynamic if in PS mode */
+	if (!(local->hw.flags & IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS) &&
+	    (smps_mode == IEEE80211_SMPS_DYNAMIC ||
+	     smps_mode == IEEE80211_SMPS_AUTOMATIC))
+		return -EINVAL;
+
+	/* supported only on managed interfaces for now */
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&local->iflist_mtx);
+	err = __ieee80211_request_smps(sdata, smps_mode);
+	mutex_unlock(&local->iflist_mtx);
+
+	return err;
+}
+
+static const char *smps_modes[IEEE80211_SMPS_NUM_MODES] = {
+	[IEEE80211_SMPS_AUTOMATIC] = "auto",
+	[IEEE80211_SMPS_OFF] = "off",
+	[IEEE80211_SMPS_STATIC] = "static",
+	[IEEE80211_SMPS_DYNAMIC] = "dynamic",
+};
+
+static ssize_t ieee80211_if_fmt_smps(const struct ieee80211_sub_if_data *sdata,
+				     char *buf, int buflen)
+{
+	if (sdata->vif.type != NL80211_IFTYPE_STATION)
+		return -EOPNOTSUPP;
+
+	return snprintf(buf, buflen, "request: %s\nused: %s\n",
+			smps_modes[sdata->u.mgd.req_smps],
+			smps_modes[sdata->u.mgd.ap_smps]);
+}
+
+static ssize_t ieee80211_if_parse_smps(struct ieee80211_sub_if_data *sdata,
+				       const char *buf, int buflen)
+{
+	enum ieee80211_smps_mode mode;
+
+	for (mode = 0; mode < IEEE80211_SMPS_NUM_MODES; mode++) {
+		if (strncmp(buf, smps_modes[mode], buflen) == 0) {
+			int err = ieee80211_set_smps(sdata, mode);
+			if (!err)
+				return buflen;
+			return err;
+		}
+	}
+
+	return -EINVAL;
+}
+
+__IEEE80211_IF_FILE_W(smps);
 
 /* AP attributes */
 IEEE80211_IF_FILE(num_sta_ps, u.ap.num_sta_ps, ATOMIC);
@@ -109,7 +210,7 @@ static ssize_t ieee80211_if_fmt_num_buffered_multicast(
 	return scnprintf(buf, buflen, "%u\n",
 			 skb_queue_len(&sdata->u.ap.ps_bc_buf));
 }
-__IEEE80211_IF_FILE(num_buffered_multicast);
+__IEEE80211_IF_FILE(num_buffered_multicast, NULL);
 
 /* WDS attributes */
 IEEE80211_IF_FILE(peer, u.wds.remote_addr, MAC);
@@ -154,46 +255,50 @@ IEEE80211_IF_FILE(dot11MeshHWMPRootMode,
 #endif
 
 
-#define DEBUGFS_ADD(name, type) \
+#define DEBUGFS_ADD(name) \
 	debugfs_create_file(#name, 0400, sdata->debugfs.dir, \
+			    sdata, &name##_ops);
+
+#define DEBUGFS_ADD_MODE(name, mode) \
+	debugfs_create_file(#name, mode, sdata->debugfs.dir, \
 			    sdata, &name##_ops);
 
 static void add_sta_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted, sta);
-	DEBUGFS_ADD(force_unicast_rateidx, sta);
-	DEBUGFS_ADD(max_ratectrl_rateidx, sta);
+	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
+	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
-	DEBUGFS_ADD(bssid, sta);
-	DEBUGFS_ADD(aid, sta);
-	DEBUGFS_ADD(capab, sta);
+	DEBUGFS_ADD(bssid);
+	DEBUGFS_ADD(aid);
+	DEBUGFS_ADD_MODE(smps, 0600);
 }
 
 static void add_ap_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted, ap);
-	DEBUGFS_ADD(force_unicast_rateidx, ap);
-	DEBUGFS_ADD(max_ratectrl_rateidx, ap);
+	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
+	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
-	DEBUGFS_ADD(num_sta_ps, ap);
-	DEBUGFS_ADD(dtim_count, ap);
-	DEBUGFS_ADD(num_buffered_multicast, ap);
+	DEBUGFS_ADD(num_sta_ps);
+	DEBUGFS_ADD(dtim_count);
+	DEBUGFS_ADD(num_buffered_multicast);
 }
 
 static void add_wds_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted, wds);
-	DEBUGFS_ADD(force_unicast_rateidx, wds);
-	DEBUGFS_ADD(max_ratectrl_rateidx, wds);
+	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
+	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 
-	DEBUGFS_ADD(peer, wds);
+	DEBUGFS_ADD(peer);
 }
 
 static void add_vlan_files(struct ieee80211_sub_if_data *sdata)
 {
-	DEBUGFS_ADD(drop_unencrypted, vlan);
-	DEBUGFS_ADD(force_unicast_rateidx, vlan);
-	DEBUGFS_ADD(max_ratectrl_rateidx, vlan);
+	DEBUGFS_ADD(drop_unencrypted);
+	DEBUGFS_ADD(rc_rateidx_mask_2ghz);
+	DEBUGFS_ADD(rc_rateidx_mask_5ghz);
 }
 
 static void add_monitor_files(struct ieee80211_sub_if_data *sdata)
@@ -280,16 +385,11 @@ static void add_files(struct ieee80211_sub_if_data *sdata)
 	}
 }
 
-static int notif_registered;
-
 void ieee80211_debugfs_add_netdev(struct ieee80211_sub_if_data *sdata)
 {
 	char buf[10+IFNAMSIZ];
 
-	if (!notif_registered)
-		return;
-
-	sprintf(buf, "netdev:%s", sdata->dev->name);
+	sprintf(buf, "netdev:%s", sdata->name);
 	sdata->debugfs.dir = debugfs_create_dir(buf,
 		sdata->local->hw.wiphy->debugfsdir);
 	add_files(sdata);
@@ -304,58 +404,18 @@ void ieee80211_debugfs_remove_netdev(struct ieee80211_sub_if_data *sdata)
 	sdata->debugfs.dir = NULL;
 }
 
-static int netdev_notify(struct notifier_block *nb,
-			 unsigned long state,
-			 void *ndev)
+void ieee80211_debugfs_rename_netdev(struct ieee80211_sub_if_data *sdata)
 {
-	struct net_device *dev = ndev;
 	struct dentry *dir;
-	struct ieee80211_sub_if_data *sdata;
-	char buf[10+IFNAMSIZ];
-
-	if (state != NETDEV_CHANGENAME)
-		return 0;
-
-	if (!dev->ieee80211_ptr || !dev->ieee80211_ptr->wiphy)
-		return 0;
-
-	if (dev->ieee80211_ptr->wiphy->privid != mac80211_wiphy_privid)
-		return 0;
-
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	char buf[10 + IFNAMSIZ];
 
 	dir = sdata->debugfs.dir;
 
 	if (!dir)
-		return 0;
+		return;
 
-	sprintf(buf, "netdev:%s", dev->name);
+	sprintf(buf, "netdev:%s", sdata->name);
 	if (!debugfs_rename(dir->d_parent, dir, dir->d_parent, buf))
 		printk(KERN_ERR "mac80211: debugfs: failed to rename debugfs "
 		       "dir to %s\n", buf);
-
-	return 0;
-}
-
-static struct notifier_block mac80211_debugfs_netdev_notifier = {
-	.notifier_call = netdev_notify,
-};
-
-void ieee80211_debugfs_netdev_init(void)
-{
-	int err;
-
-	err = register_netdevice_notifier(&mac80211_debugfs_netdev_notifier);
-	if (err) {
-		printk(KERN_ERR
-		       "mac80211: failed to install netdev notifier,"
-		       " disabling per-netdev debugfs!\n");
-	} else
-		notif_registered = 1;
-}
-
-void ieee80211_debugfs_netdev_exit(void)
-{
-	unregister_netdevice_notifier(&mac80211_debugfs_netdev_notifier);
-	notif_registered = 0;
 }

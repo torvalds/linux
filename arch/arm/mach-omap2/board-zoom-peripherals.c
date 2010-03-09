@@ -24,7 +24,8 @@
 #include <plat/common.h>
 #include <plat/usb.h>
 
-#include "mmc-twl4030.h"
+#include "mux.h"
+#include "hsmmc.h"
 
 /* Zoom2 has Qwerty keyboard*/
 static int board_keymap[] = {
@@ -150,7 +151,7 @@ static struct regulator_init_data zoom_vsim = {
 	.consumer_supplies      = &zoom_vsim_supply,
 };
 
-static struct twl4030_hsmmc_info mmc[] __initdata = {
+static struct omap2_hsmmc_info mmc[] __initdata = {
 	{
 		.name		= "external",
 		.mmc		= 1,
@@ -175,7 +176,7 @@ static int zoom_twl_gpio_setup(struct device *dev,
 {
 	/* gpio + 0 is "mmc0_cd" (input/IRQ) */
 	mmc[0].gpio_cd = gpio + 0;
-	twl4030_mmc_init(mmc);
+	omap2_hsmmc_init(mmc);
 
 	/* link regulators to MMC adapters ... we "know" the
 	 * regulators will be set up only *after* we return.
@@ -263,9 +264,23 @@ static int __init omap_i2c_init(void)
 	return 0;
 }
 
+static struct omap_musb_board_data musb_board_data = {
+	.interface_type		= MUSB_INTERFACE_ULPI,
+	.mode			= MUSB_OTG,
+	.power			= 100,
+};
+
+static void enable_board_wakeup_source(void)
+{
+	/* T2 interrupt line (keypad) */
+	omap_mux_init_signal("sys_nirq",
+		OMAP_WAKEUP_EN | OMAP_PIN_INPUT_PULLUP);
+}
+
 void __init zoom_peripherals_init(void)
 {
 	omap_i2c_init();
 	omap_serial_init();
-	usb_musb_init();
+	usb_musb_init(&musb_board_data);
+	enable_board_wakeup_source();
 }

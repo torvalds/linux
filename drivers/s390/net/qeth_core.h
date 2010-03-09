@@ -649,6 +649,7 @@ struct qeth_card_options {
 	int performance_stats;
 	int rx_sg_cb;
 	enum qeth_ipa_isolation_modes isolation;
+	int sniffer;
 };
 
 /*
@@ -737,6 +738,7 @@ struct qeth_card {
 	struct qeth_discipline discipline;
 	atomic_t force_alloc_skb;
 	struct service_level qeth_service_level;
+	struct qdio_ssqd_desc ssqd;
 };
 
 struct qeth_card_list_struct {
@@ -811,7 +813,8 @@ int qeth_send_ipa_cmd(struct qeth_card *, struct qeth_cmd_buffer *,
 struct qeth_cmd_buffer *qeth_get_ipacmd_buffer(struct qeth_card *,
 			enum qeth_ipa_cmds, enum qeth_prot_versions);
 int qeth_query_setadapterparms(struct qeth_card *);
-int qeth_check_qdio_errors(struct qdio_buffer *, unsigned int, const char *);
+int qeth_check_qdio_errors(struct qeth_card *, struct qdio_buffer *,
+		unsigned int, const char *);
 void qeth_queue_input_buffer(struct qeth_card *, int);
 struct sk_buff *qeth_core_get_next_skb(struct qeth_card *,
 		struct qdio_buffer *, struct qdio_buffer_element **, int *,

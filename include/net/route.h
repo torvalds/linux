@@ -101,7 +101,7 @@ struct rt_cache_stat {
         unsigned int out_hlist_search;
 };
 
-extern struct ip_rt_acct *ip_rt_acct;
+extern struct ip_rt_acct __percpu *ip_rt_acct;
 
 struct in_device;
 extern int		ip_rt_init(void);

@@ -23,6 +23,7 @@
  */
 
 #include <linux/cgroup.h>
+#include <linux/module.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
 #include <linux/fs.h>
@@ -165,6 +166,20 @@ static DEFINE_SPINLOCK(hierarchy_id_lock);
  * be called.
  */
 static int need_forkexit_callback __read_mostly;
+
+#ifdef CONFIG_PROVE_LOCKING
+int cgroup_lock_is_held(void)
+{
+	return lockdep_is_held(&cgroup_mutex);
+}
+#else /* #ifdef CONFIG_PROVE_LOCKING */
+int cgroup_lock_is_held(void)
+{
+	return mutex_is_locked(&cgroup_mutex);
+}
+#endif /* #else #ifdef CONFIG_PROVE_LOCKING */
+
+EXPORT_SYMBOL_GPL(cgroup_lock_is_held);
 
 /* convenient tests for these bits */
 inline int cgroup_is_removed(const struct cgroup *cgrp)
@@ -2936,14 +2951,17 @@ static long cgroup_create(struct cgroup *parent, struct dentry *dentry,
 
 	for_each_subsys(root, ss) {
 		struct cgroup_subsys_state *css = ss->create(ss, cgrp);
+
 		if (IS_ERR(css)) {
 			err = PTR_ERR(css);
 			goto err_destroy;
 		}
 		init_cgroup_css(css, ss, cgrp);
-		if (ss->use_id)
-			if (alloc_css_id(ss, parent, cgrp))
+		if (ss->use_id) {
+			err = alloc_css_id(ss, parent, cgrp);
+			if (err)
 				goto err_destroy;
+		}
 		/* At error, ->destroy() callback has to free assigned ID. */
 	}
 

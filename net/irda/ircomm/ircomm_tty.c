@@ -496,9 +496,6 @@ static void ircomm_tty_close(struct tty_struct *tty, struct file *filp)
 
 	IRDA_DEBUG(0, "%s()\n", __func__ );
 
-	if (!tty)
-		return;
-
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
 
@@ -1006,9 +1003,6 @@ static void ircomm_tty_hangup(struct tty_struct *tty)
 
 	IRDA_ASSERT(self != NULL, return;);
 	IRDA_ASSERT(self->magic == IRCOMM_TTY_MAGIC, return;);
-
-	if (!tty)
-		return;
 
 	/* ircomm_tty_flush_buffer(tty); */
 	ircomm_tty_shutdown(self);

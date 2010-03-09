@@ -126,7 +126,7 @@ static void wl1251_rx_body(struct wl1251 *wl,
 	if (wl->rx_current_buffer)
 		rx_packet_ring_addr += wl->data_path->rx_packet_ring_chunk_size;
 
-	skb = dev_alloc_skb(length);
+	skb = __dev_alloc_skb(length, GFP_KERNEL);
 	if (!skb) {
 		wl1251_error("Couldn't allocate RX frame");
 		return;

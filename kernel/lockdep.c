@@ -2147,7 +2147,7 @@ check_usage_backwards(struct task_struct *curr, struct held_lock *this,
 		return ret;
 
 	return print_irq_inversion_bug(curr, &root, target_entry,
-					this, 1, irqclass);
+					this, 0, irqclass);
 }
 
 void print_irqtrace_events(struct task_struct *curr)
@@ -3809,3 +3809,21 @@ void lockdep_sys_exit(void)
 		lockdep_print_held_locks(curr);
 	}
 }
+
+void lockdep_rcu_dereference(const char *file, const int line)
+{
+	struct task_struct *curr = current;
+
+	if (!debug_locks_off())
+		return;
+	printk("\n===================================================\n");
+	printk(  "[ INFO: suspicious rcu_dereference_check() usage. ]\n");
+	printk(  "---------------------------------------------------\n");
+	printk("%s:%d invoked rcu_dereference_check() without protection!\n",
+			file, line);
+	printk("\nother info that might help us debug this:\n\n");
+	lockdep_print_held_locks(curr);
+	printk("\nstack backtrace:\n");
+	dump_stack();
+}
+EXPORT_SYMBOL_GPL(lockdep_rcu_dereference);

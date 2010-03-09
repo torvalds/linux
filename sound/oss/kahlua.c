@@ -198,7 +198,7 @@ MODULE_LICENSE("GPL");
  *	5530 only. The 5510/5520 decode is different.
  */
 
-static struct pci_device_id id_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(id_tbl) = {
 	{ PCI_VDEVICE(CYRIX, PCI_DEVICE_ID_CYRIX_5530_AUDIO), 0 },
 	{ }
 };

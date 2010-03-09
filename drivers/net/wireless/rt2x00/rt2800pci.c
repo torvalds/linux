@@ -48,14 +48,6 @@
 #include "rt2800.h"
 #include "rt2800pci.h"
 
-#ifdef CONFIG_RT2800PCI_PCI_MODULE
-#define CONFIG_RT2800PCI_PCI
-#endif
-
-#ifdef CONFIG_RT2800PCI_WISOC_MODULE
-#define CONFIG_RT2800PCI_WISOC
-#endif
-
 /*
  * Allow hardware encryption to be disabled.
  */
@@ -87,7 +79,7 @@ static void rt2800pci_mcu_status(struct rt2x00_dev *rt2x00dev, const u8 token)
 	rt2800_register_write(rt2x00dev, H2M_MAILBOX_CID, ~0);
 }
 
-#ifdef CONFIG_RT2800PCI_WISOC
+#ifdef CONFIG_RT2800PCI_SOC
 static void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 {
 	u32 *base_addr = (u32 *) KSEG1ADDR(0x1F040000); /* XXX for RT3052 */
@@ -98,7 +90,7 @@ static void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 static inline void rt2800pci_read_eeprom_soc(struct rt2x00_dev *rt2x00dev)
 {
 }
-#endif /* CONFIG_RT2800PCI_WISOC */
+#endif /* CONFIG_RT2800PCI_SOC */
 
 #ifdef CONFIG_RT2800PCI_PCI
 static void rt2800pci_eepromregister_read(struct eeprom_93cx6 *eeprom)
@@ -461,24 +453,6 @@ static void rt2800pci_toggle_irq(struct rt2x00_dev *rt2x00dev,
 	rt2800_register_write(rt2x00dev, INT_MASK_CSR, reg);
 }
 
-static int rt2800pci_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev)
-{
-	unsigned int i;
-	u32 reg;
-
-	for (i = 0; i < REGISTER_BUSY_COUNT; i++) {
-		rt2800_register_read(rt2x00dev, WPDMA_GLO_CFG, &reg);
-		if (!rt2x00_get_field32(reg, WPDMA_GLO_CFG_TX_DMA_BUSY) &&
-		    !rt2x00_get_field32(reg, WPDMA_GLO_CFG_RX_DMA_BUSY))
-			return 0;
-
-		msleep(1);
-	}
-
-	ERROR(rt2x00dev, "WPDMA TX/RX busy, aborting.\n");
-	return -EACCES;
-}
-
 static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 {
 	u32 reg;
@@ -487,10 +461,10 @@ static int rt2800pci_enable_radio(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Initialize all registers.
 	 */
-	if (unlikely(rt2800pci_wait_wpdma_ready(rt2x00dev) ||
+	if (unlikely(rt2800_wait_wpdma_ready(rt2x00dev) ||
 		     rt2800pci_init_queues(rt2x00dev) ||
 		     rt2800_init_registers(rt2x00dev) ||
-		     rt2800pci_wait_wpdma_ready(rt2x00dev) ||
+		     rt2800_wait_wpdma_ready(rt2x00dev) ||
 		     rt2800_init_bbp(rt2x00dev) ||
 		     rt2800_init_rfcsr(rt2x00dev)))
 		return -EIO;
@@ -570,7 +544,7 @@ static void rt2800pci_disable_radio(struct rt2x00_dev *rt2x00dev)
 	rt2800_register_write(rt2x00dev, PBF_SYS_CTRL, 0x00000e00);
 
 	/* Wait for DMA, ignore error */
-	rt2800pci_wait_wpdma_ready(rt2x00dev);
+	rt2800_wait_wpdma_ready(rt2x00dev);
 }
 
 static int rt2800pci_set_state(struct rt2x00_dev *rt2x00dev,
@@ -835,7 +809,6 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 				  struct rxdone_entry_desc *rxdesc)
 {
 	struct rt2x00_dev *rt2x00dev = entry->queue->rt2x00dev;
-	struct skb_frame_desc *skbdesc = get_skb_frame_desc(entry->skb);
 	struct queue_entry_priv_pci *entry_priv = entry->priv_data;
 	__le32 *rxd = entry_priv->desc;
 	__le32 *rxwi = (__le32 *)entry->skb->data;
@@ -883,10 +856,8 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	if (rt2x00_get_field32(rxd3, RXD_W3_MY_BSS))
 		rxdesc->dev_flags |= RXDONE_MY_BSS;
 
-	if (rt2x00_get_field32(rxd3, RXD_W3_L2PAD)) {
+	if (rt2x00_get_field32(rxd3, RXD_W3_L2PAD))
 		rxdesc->dev_flags |= RXDONE_L2PAD;
-		skbdesc->flags |= SKBDESC_L2_PADDED;
-	}
 
 	if (rt2x00_get_field32(rxwi1, RXWI_W1_SHORT_GI))
 		rxdesc->flags |= RX_FLAG_SHORT_GI;
@@ -927,7 +898,6 @@ static void rt2800pci_fill_rxdone(struct queue_entry *entry,
 	 * Remove TXWI descriptor from start of buffer.
 	 */
 	skb_pull(entry->skb, RXWI_DESC_SIZE);
-	skb_trim(entry->skb, rxdesc->size);
 }
 
 /*
@@ -1071,18 +1041,12 @@ static int rt2800pci_validate_eeprom(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * Read EEPROM into buffer
 	 */
-	switch (rt2x00dev->chip.rt) {
-	case RT2880:
-	case RT3052:
+	if (rt2x00_is_soc(rt2x00dev))
 		rt2800pci_read_eeprom_soc(rt2x00dev);
-		break;
-	default:
-		if (rt2800pci_efuse_detect(rt2x00dev))
-			rt2800pci_read_eeprom_efuse(rt2x00dev);
-		else
-			rt2800pci_read_eeprom_pci(rt2x00dev);
-		break;
-	}
+	else if (rt2800pci_efuse_detect(rt2x00dev))
+		rt2800pci_read_eeprom_efuse(rt2x00dev);
+	else
+		rt2800pci_read_eeprom_pci(rt2x00dev);
 
 	return rt2800_validate_eeprom(rt2x00dev);
 }
@@ -1133,8 +1097,7 @@ static int rt2800pci_probe_hw(struct rt2x00_dev *rt2x00dev)
 	/*
 	 * This device requires firmware.
 	 */
-	if (!rt2x00_rt(&rt2x00dev->chip, RT2880) &&
-	    !rt2x00_rt(&rt2x00dev->chip, RT3052))
+	if (!rt2x00_is_soc(rt2x00dev))
 		__set_bit(DRIVER_REQUIRE_FIRMWARE, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_DMA, &rt2x00dev->flags);
 	__set_bit(DRIVER_REQUIRE_L2PAD, &rt2x00dev->flags);
@@ -1221,8 +1184,11 @@ static const struct rt2x00_ops rt2800pci_ops = {
 /*
  * RT2800pci module information.
  */
-static struct pci_device_id rt2800pci_device_table[] = {
-	{ PCI_DEVICE(0x1462, 0x891a), PCI_DEVICE_DATA(&rt2800pci_ops) },
+static DEFINE_PCI_DEVICE_TABLE(rt2800pci_device_table) = {
+	{ PCI_DEVICE(0x1814, 0x0601), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x0681), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x0701), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x0781), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7708), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7727), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7728), PCI_DEVICE_DATA(&rt2800pci_ops) },
@@ -1230,18 +1196,19 @@ static struct pci_device_id rt2800pci_device_table[] = {
 	{ PCI_DEVICE(0x1432, 0x7748), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7758), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1432, 0x7768), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x0601), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x0681), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x0701), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x0781), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x3060), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1814, 0x3062), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1a3b, 0x1059), PCI_DEVICE_DATA(&rt2800pci_ops) },
+#ifdef CONFIG_RT2800PCI_RT30XX
 	{ PCI_DEVICE(0x1814, 0x3090), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3091), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3092), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1462, 0x891a), PCI_DEVICE_DATA(&rt2800pci_ops) },
+#endif
+#ifdef CONFIG_RT2800PCI_RT35XX
+	{ PCI_DEVICE(0x1814, 0x3060), PCI_DEVICE_DATA(&rt2800pci_ops) },
+	{ PCI_DEVICE(0x1814, 0x3062), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3562), PCI_DEVICE_DATA(&rt2800pci_ops) },
 	{ PCI_DEVICE(0x1814, 0x3592), PCI_DEVICE_DATA(&rt2800pci_ops) },
-	{ PCI_DEVICE(0x1a3b, 0x1059), PCI_DEVICE_DATA(&rt2800pci_ops) },
+#endif
 	{ 0, }
 };
 
@@ -1255,12 +1222,11 @@ MODULE_DEVICE_TABLE(pci, rt2800pci_device_table);
 #endif /* CONFIG_RT2800PCI_PCI */
 MODULE_LICENSE("GPL");
 
-#ifdef CONFIG_RT2800PCI_WISOC
-#if defined(CONFIG_RALINK_RT288X)
-__rt2x00soc_probe(RT2880, &rt2800pci_ops);
-#elif defined(CONFIG_RALINK_RT305X)
-__rt2x00soc_probe(RT3052, &rt2800pci_ops);
-#endif
+#ifdef CONFIG_RT2800PCI_SOC
+static int rt2800soc_probe(struct platform_device *pdev)
+{
+	return rt2x00soc_probe(pdev, rt2800pci_ops);
+}
 
 static struct platform_driver rt2800soc_driver = {
 	.driver		= {
@@ -1268,12 +1234,12 @@ static struct platform_driver rt2800soc_driver = {
 		.owner		= THIS_MODULE,
 		.mod_name	= KBUILD_MODNAME,
 	},
-	.probe		= __rt2x00soc_probe,
+	.probe		= rt2800soc_probe,
 	.remove		= __devexit_p(rt2x00soc_remove),
 	.suspend	= rt2x00soc_suspend,
 	.resume		= rt2x00soc_resume,
 };
-#endif /* CONFIG_RT2800PCI_WISOC */
+#endif /* CONFIG_RT2800PCI_SOC */
 
 #ifdef CONFIG_RT2800PCI_PCI
 static struct pci_driver rt2800pci_driver = {
@@ -1290,7 +1256,7 @@ static int __init rt2800pci_init(void)
 {
 	int ret = 0;
 
-#ifdef CONFIG_RT2800PCI_WISOC
+#ifdef CONFIG_RT2800PCI_SOC
 	ret = platform_driver_register(&rt2800soc_driver);
 	if (ret)
 		return ret;
@@ -1298,7 +1264,7 @@ static int __init rt2800pci_init(void)
 #ifdef CONFIG_RT2800PCI_PCI
 	ret = pci_register_driver(&rt2800pci_driver);
 	if (ret) {
-#ifdef CONFIG_RT2800PCI_WISOC
+#ifdef CONFIG_RT2800PCI_SOC
 		platform_driver_unregister(&rt2800soc_driver);
 #endif
 		return ret;
@@ -1313,7 +1279,7 @@ static void __exit rt2800pci_exit(void)
 #ifdef CONFIG_RT2800PCI_PCI
 	pci_unregister_driver(&rt2800pci_driver);
 #endif
-#ifdef CONFIG_RT2800PCI_WISOC
+#ifdef CONFIG_RT2800PCI_SOC
 	platform_driver_unregister(&rt2800soc_driver);
 #endif
 }

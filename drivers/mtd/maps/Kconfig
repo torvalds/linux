@@ -251,12 +251,6 @@ config MTD_NETtel
 	help
 	  Support for flash chips on NETtel/SecureEdge/SnapGear boards.
 
-config MTD_ALCHEMY
-	tristate "AMD Alchemy Pb1xxx/Db1xxx/RDK MTD support"
-	depends on SOC_AU1X00 && MTD_PARTITIONS && MTD_CFI
-	help
-	  Flash memory access on AMD Alchemy Pb/Db/RDK Reference Boards
-
 config MTD_DILNETPC
 	tristate "CFI Flash device mapped on DIL/Net PC"
 	depends on X86 && MTD_CONCAT && MTD_PARTITIONS && MTD_CFI_INTELEXT && BROKEN
@@ -428,15 +422,6 @@ config MTD_H720X
 	  This enables access to the flash chips on the Hynix evaluation boards.
 	  If you have such a board, say 'Y'.
 
-config MTD_OMAP_NOR
-	tristate "TI OMAP board mappings"
-	depends on MTD_CFI && ARCH_OMAP
-	help
-	  This enables access to the NOR flash chips on TI OMAP-based
-	  boards defining flash platform devices and flash platform data.
-	  These boards include the Innovator, H2, H3, OSK, Perseus2, and
-	  more.  If you have such a board, say 'Y'.
-
 # This needs CFI or JEDEC, depending on the cards found.
 config MTD_PCI
 	tristate "PCI MTD driver"
@@ -548,5 +533,22 @@ config MTD_VMU
 
 	  To build this as a module select M here, the module will be called
 	  vmu-flash.
+
+config MTD_PISMO
+	tristate "MTD discovery driver for PISMO modules"
+	depends on I2C
+	depends on ARCH_VERSATILE
+	help
+	  This driver allows for discovery of PISMO modules - see
+	  <http://www.pismoworld.org/>.  These are small modules containing
+	  up to five memory devices (eg, SRAM, flash, DOC) described by an
+	  I2C EEPROM.
+
+	  This driver does not create any MTD maps itself; instead it
+	  creates MTD physmap and MTD SRAM platform devices.  If you
+	  enable this option, you should consider enabling MTD_PHYSMAP
+	  and/or MTD_PLATRAM according to the devices on your module.
+
+	  When built as a module, it will be called pismo.ko
 
 endmenu

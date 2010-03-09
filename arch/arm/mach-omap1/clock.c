@@ -1,7 +1,7 @@
 /*
  *  linux/arch/arm/mach-omap1/clock.c
  *
- *  Copyright (C) 2004 - 2005, 2009 Nokia corporation
+ *  Copyright (C) 2004 - 2005, 2009-2010 Nokia Corporation
  *  Written by Tuukka Tikkanen <tuukka.tikkanen@elektrobit.com>
  *
  *  Modified to use omap shared clock framework by
@@ -37,26 +37,6 @@ struct clk *api_ck_p, *ck_dpll1_p, *ck_ref_p;
 /*-------------------------------------------------------------------------
  * Omap1 specific clock functions
  *-------------------------------------------------------------------------*/
-
-static int clk_omap1_dummy_enable(struct clk *clk)
-{
-	return 0;
-}
-
-static void clk_omap1_dummy_disable(struct clk *clk)
-{
-}
-
-const struct clkops clkops_dummy = {
-	.enable		= clk_omap1_dummy_enable,
-	.disable	= clk_omap1_dummy_disable,
-};
-
-/* XXX can be replaced with a fixed_divisor_recalc */
-unsigned long omap1_watchdog_recalc(struct clk *clk)
-{
-	return clk->parent->rate / 14;
-}
 
 unsigned long omap1_uart_recalc(struct clk *clk)
 {
@@ -214,8 +194,8 @@ int omap1_select_table_rate(struct clk *clk, unsigned long rate)
 	struct mpu_rate * ptr;
 	unsigned long dpll1_rate, ref_rate;
 
-	dpll1_rate = clk_get_rate(ck_dpll1_p);
-	ref_rate = clk_get_rate(ck_ref_p);
+	dpll1_rate = ck_dpll1_p->rate;
+	ref_rate = ck_ref_p->rate;
 
 	for (ptr = omap1_rate_table; ptr->rate; ptr++) {
 		if (ptr->xtal != ref_rate)
@@ -306,7 +286,7 @@ long omap1_round_to_table_rate(struct clk *clk, unsigned long rate)
 	long highest_rate;
 	unsigned long ref_rate;
 
-	ref_rate = clk_get_rate(ck_ref_p);
+	ref_rate = ck_ref_p->rate;
 
 	highest_rate = -EINVAL;
 
@@ -577,9 +557,6 @@ const struct clkops clkops_uart = {
 
 long omap1_clk_round_rate(struct clk *clk, unsigned long rate)
 {
-	if (clk->flags & RATE_FIXED)
-		return clk->rate;
-
 	if (clk->round_rate != NULL)
 		return clk->round_rate(clk, rate);
 

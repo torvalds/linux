@@ -14,7 +14,7 @@ static inline __attribute_const__ __u32 __arch_swab32(__u32 val)
 }
 
 #define __arch_swab32 __arch_swab32
-#elif !defined(__uClinux__)
+#elif !defined(__mcoldfire__)
 
 static inline __attribute_const__ __u32 __arch_swab32(__u32 val)
 {

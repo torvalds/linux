@@ -324,7 +324,9 @@ _config_request(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigRequest_t
 		if (r != 0)
 			goto out;
 		if (mpi_request->Action ==
-		    MPI2_CONFIG_ACTION_PAGE_WRITE_CURRENT) {
+		    MPI2_CONFIG_ACTION_PAGE_WRITE_CURRENT ||
+		    mpi_request->Action ==
+		    MPI2_CONFIG_ACTION_PAGE_WRITE_NVRAM) {
 			ioc->base_add_sg_single(&mpi_request->PageBufferSGE,
 			    MPT2_CONFIG_COMMON_WRITE_SGLFLAGS | mem.sz,
 			    mem.page_dma);
@@ -882,7 +884,7 @@ mpt2sas_config_get_sas_iounit_pg0(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
 }
 
 /**
- * mpt2sas_config_get_sas_iounit_pg1 - obtain sas iounit page 0
+ * mpt2sas_config_get_sas_iounit_pg1 - obtain sas iounit page 1
  * @ioc: per adapter object
  * @mpi_reply: reply mf payload returned from firmware
  * @config_page: contents of the config page
@@ -907,7 +909,7 @@ mpt2sas_config_get_sas_iounit_pg1(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
 	mpi_request.Header.PageType = MPI2_CONFIG_PAGETYPE_EXTENDED;
 	mpi_request.ExtPageType = MPI2_CONFIG_EXTPAGETYPE_SAS_IO_UNIT;
 	mpi_request.Header.PageNumber = 1;
-	mpi_request.Header.PageVersion = MPI2_SASIOUNITPAGE0_PAGEVERSION;
+	mpi_request.Header.PageVersion = MPI2_SASIOUNITPAGE1_PAGEVERSION;
 	mpt2sas_base_build_zero_len_sge(ioc, &mpi_request.PageBufferSGE);
 	r = _config_request(ioc, &mpi_request, mpi_reply,
 	    MPT2_CONFIG_PAGE_DEFAULT_TIMEOUT, NULL, 0);
@@ -915,6 +917,49 @@ mpt2sas_config_get_sas_iounit_pg1(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
 		goto out;
 
 	mpi_request.Action = MPI2_CONFIG_ACTION_PAGE_READ_CURRENT;
+	r = _config_request(ioc, &mpi_request, mpi_reply,
+	    MPT2_CONFIG_PAGE_DEFAULT_TIMEOUT, config_page, sz);
+ out:
+	return r;
+}
+
+/**
+ * mpt2sas_config_set_sas_iounit_pg1 - send sas iounit page 1
+ * @ioc: per adapter object
+ * @mpi_reply: reply mf payload returned from firmware
+ * @config_page: contents of the config page
+ * @sz: size of buffer passed in config_page
+ * Context: sleep.
+ *
+ * Calling function should call config_get_number_hba_phys prior to
+ * this function, so enough memory is allocated for config_page.
+ *
+ * Returns 0 for success, non-zero for failure.
+ */
+int
+mpt2sas_config_set_sas_iounit_pg1(struct MPT2SAS_ADAPTER *ioc, Mpi2ConfigReply_t
+    *mpi_reply, Mpi2SasIOUnitPage1_t *config_page, u16 sz)
+{
+	Mpi2ConfigRequest_t mpi_request;
+	int r;
+
+	memset(&mpi_request, 0, sizeof(Mpi2ConfigRequest_t));
+	mpi_request.Function = MPI2_FUNCTION_CONFIG;
+	mpi_request.Action = MPI2_CONFIG_ACTION_PAGE_HEADER;
+	mpi_request.Header.PageType = MPI2_CONFIG_PAGETYPE_EXTENDED;
+	mpi_request.ExtPageType = MPI2_CONFIG_EXTPAGETYPE_SAS_IO_UNIT;
+	mpi_request.Header.PageNumber = 1;
+	mpi_request.Header.PageVersion = MPI2_SASIOUNITPAGE1_PAGEVERSION;
+	mpt2sas_base_build_zero_len_sge(ioc, &mpi_request.PageBufferSGE);
+	r = _config_request(ioc, &mpi_request, mpi_reply,
+	    MPT2_CONFIG_PAGE_DEFAULT_TIMEOUT, NULL, 0);
+	if (r)
+		goto out;
+
+	mpi_request.Action = MPI2_CONFIG_ACTION_PAGE_WRITE_CURRENT;
+	_config_request(ioc, &mpi_request, mpi_reply,
+	    MPT2_CONFIG_PAGE_DEFAULT_TIMEOUT, config_page, sz);
+	mpi_request.Action = MPI2_CONFIG_ACTION_PAGE_WRITE_NVRAM;
 	r = _config_request(ioc, &mpi_request, mpi_reply,
 	    MPT2_CONFIG_PAGE_DEFAULT_TIMEOUT, config_page, sz);
  out:

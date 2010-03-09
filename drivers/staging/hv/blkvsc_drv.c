@@ -31,6 +31,7 @@
 #include <scsi/scsi_dbg.h>
 #include "osd.h"
 #include "logging.h"
+#include "VersionInfo.h"
 #include "vmbus.h"
 #include "StorVscApi.h"
 
@@ -92,7 +93,7 @@ struct blkvsc_request {
 /* Per device structure */
 struct block_device_context {
 	/* point back to our device context */
-	struct device_context *device_ctx;
+	struct vm_device *device_ctx;
 	struct kmem_cache *request_pool;
 	spinlock_t lock;
 	struct gendisk *gd;
@@ -254,7 +255,7 @@ static int blkvsc_probe(struct device *device)
 				(struct blkvsc_driver_context *)driver_ctx;
 	struct storvsc_driver_object *storvsc_drv_obj =
 				&blkvsc_drv_ctx->drv_obj;
-	struct device_context *device_ctx = device_to_device_context(device);
+	struct vm_device *device_ctx = device_to_vm_device(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
 
 	struct block_device_context *blkdev = NULL;
@@ -363,10 +364,7 @@ static int blkvsc_probe(struct device *device)
 	blkdev->gd->queue = blk_init_queue(blkvsc_request, &blkdev->lock);
 
 	blk_queue_max_segment_size(blkdev->gd->queue, PAGE_SIZE);
-	blk_queue_max_phys_segments(blkdev->gd->queue,
-				    MAX_MULTIPAGE_BUFFER_COUNT);
-	blk_queue_max_hw_segments(blkdev->gd->queue,
-				  MAX_MULTIPAGE_BUFFER_COUNT);
+	blk_queue_max_segments(blkdev->gd->queue, MAX_MULTIPAGE_BUFFER_COUNT);
 	blk_queue_segment_boundary(blkdev->gd->queue, PAGE_SIZE-1);
 	blk_queue_bounce_limit(blkdev->gd->queue, BLK_BOUNCE_ANY);
 	blk_queue_dma_alignment(blkdev->gd->queue, 511);
@@ -745,7 +743,7 @@ static int blkvsc_remove(struct device *device)
 				(struct blkvsc_driver_context *)driver_ctx;
 	struct storvsc_driver_object *storvsc_drv_obj =
 				&blkvsc_drv_ctx->drv_obj;
-	struct device_context *device_ctx = device_to_device_context(device);
+	struct vm_device *device_ctx = device_to_vm_device(device);
 	struct hv_device *device_obj = &device_ctx->device_obj;
 	struct block_device_context *blkdev = dev_get_drvdata(device);
 	unsigned long flags;
@@ -865,7 +863,7 @@ static int blkvsc_submit_request(struct blkvsc_request *blkvsc_req,
 			void (*request_completion)(struct hv_storvsc_request *))
 {
 	struct block_device_context *blkdev = blkvsc_req->dev;
-	struct device_context *device_ctx = blkdev->device_ctx;
+	struct vm_device *device_ctx = blkdev->device_ctx;
 	struct driver_context *driver_ctx =
 			driver_to_driver_context(device_ctx->device.driver);
 	struct blkvsc_driver_context *blkvsc_drv_ctx =
@@ -1507,6 +1505,7 @@ static void __exit blkvsc_exit(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_VERSION(HV_DRV_VERSION);
 module_param(blkvsc_ringbuffer_size, int, S_IRUGO);
 module_init(blkvsc_init);
 module_exit(blkvsc_exit);

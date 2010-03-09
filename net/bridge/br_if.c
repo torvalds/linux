@@ -147,6 +147,8 @@ static void del_nbp(struct net_bridge_port *p)
 
 	rcu_assign_pointer(dev->br_port, NULL);
 
+	br_multicast_del_port(p);
+
 	kobject_uevent(&p->kobj, KOBJ_REMOVE);
 	kobject_del(&p->kobj);
 
@@ -206,9 +208,8 @@ static struct net_device *new_bridge_dev(struct net *net, const char *name)
 
 	br_netfilter_rtable_init(br);
 
-	INIT_LIST_HEAD(&br->age_list);
-
 	br_stp_timer_init(br);
+	br_multicast_init(br);
 
 	return dev;
 }
@@ -260,6 +261,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	br_init_port(p);
 	p->state = BR_STATE_DISABLED;
 	br_stp_port_timer_init(p);
+	br_multicast_add_port(p);
 
 	return p;
 }
@@ -467,7 +469,7 @@ int br_del_if(struct net_bridge *br, struct net_device *dev)
 	return 0;
 }
 
-void br_net_exit(struct net *net)
+void __net_exit br_net_exit(struct net *net)
 {
 	struct net_device *dev;
 	LIST_HEAD(list);

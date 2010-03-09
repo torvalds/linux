@@ -65,7 +65,16 @@ config GPIO_SYSFS
 
 # put expanders in the right section, in alphabetical order
 
+config GPIO_MAX730X
+	tristate
+
 comment "Memory mapped GPIO expanders:"
+
+config GPIO_IT8761E
+	tristate "IT8761E GPIO support"
+	depends on GPIOLIB
+	help
+	  Say yes here to support GPIO functionality of IT8761E super I/O chip.
 
 config GPIO_PL061
 	bool "PrimeCell PL061 GPIO support"
@@ -85,7 +94,31 @@ config GPIO_VR41XX
 	help
 	  Say yes here to support the NEC VR4100 series General-purpose I/O Uint
 
+config GPIO_SCH
+	tristate "Intel SCH GPIO"
+	depends on GPIOLIB && PCI
+	select MFD_CORE
+	select LPC_SCH
+	help
+	  Say yes here to support GPIO interface on Intel Poulsbo SCH.
+	  The Intel SCH contains a total of 14 GPIO pins. Ten GPIOs are
+	  powered by the core power rail and are turned off during sleep
+	  modes (S3 and higher). The remaining four GPIOs are powered by
+	  the Intel SCH suspend power supply. These GPIOs remain
+	  active during S3. The suspend powered GPIOs can be used to wake the
+	  system from the Suspend-to-RAM state.
+
+	  This driver can also be built as a module. If so, the module
+	  will be called sch-gpio.
+
 comment "I2C GPIO expanders:"
+
+config GPIO_MAX7300
+	tristate "Maxim MAX7300 GPIO expander"
+	depends on I2C
+	select GPIO_MAX730X
+	help
+	  GPIO driver for Maxim MAX7301 I2C-based GPIO expander.
 
 config GPIO_MAX732X
 	tristate "MAX7319, MAX7320-7327 I2C Port Expanders"
@@ -124,6 +157,13 @@ config GPIO_PCA953X
 	  This driver can also be built as a module.  If so, the module
 	  will be called pca953x.
 
+config GPIO_PCA953X_IRQ
+	bool "Interrupt controller support for PCA953x"
+	depends on GPIO_PCA953X=y
+	help
+	  Say yes here to enable the pca953x to be used as an interrupt
+	  controller. It requires the driver to be built in the kernel.
+
 config GPIO_PCF857X
 	tristate "PCF857x, PCA{85,96}7x, and MAX732[89] I2C GPIO expanders"
 	depends on I2C
@@ -161,6 +201,20 @@ config GPIO_WM831X
 	help
 	  Say yes here to access the GPIO signals of WM831x power management
 	  chips from Wolfson Microelectronics.
+
+config GPIO_WM8350
+	tristate "WM8350 GPIOs"
+	depends on MFD_WM8350
+	help
+	  Say yes here to access the GPIO signals of WM8350 power management
+	  chips from Wolfson Microelectronics.
+
+config GPIO_WM8994
+	tristate "WM8994 GPIOs"
+	depends on MFD_WM8994
+	help
+	  Say yes here to access the GPIO signals of WM8994 audio hub
+	  CODECs from Wolfson Microelectronics.
 
 config GPIO_ADP5520
 	tristate "GPIO Support for ADP5520 PMIC"
@@ -226,8 +280,9 @@ comment "SPI GPIO expanders:"
 config GPIO_MAX7301
 	tristate "Maxim MAX7301 GPIO expander"
 	depends on SPI_MASTER
+	select GPIO_MAX730X
 	help
-	  gpio driver for Maxim MAX7301 SPI GPIO expander.
+	  GPIO driver for Maxim MAX7301 SPI-based GPIO expander.
 
 config GPIO_MCP23S08
 	tristate "Microchip MCP23S08 I/O expander"

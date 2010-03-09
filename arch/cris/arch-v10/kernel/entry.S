@@ -358,7 +358,7 @@ mmu_bus_fault:
 1:	btstq	12, $r1		   ; Refill?
 	bpl	2f
 	lsrq	24, $r1     ; Get PGD index (bit 24-31)
-	move.d  [per_cpu__current_pgd], $r0 ; PGD for the current process
+	move.d  [current_pgd], $r0 ; PGD for the current process
 	move.d	[$r0+$r1.d], $r0   ; Get PMD
 	beq	2f
 	nop

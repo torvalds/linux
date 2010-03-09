@@ -206,6 +206,20 @@ static inline int list_empty_careful(const struct list_head *head)
 }
 
 /**
+ * list_rotate_left - rotate the list to the left
+ * @head: the head of the list
+ */
+static inline void list_rotate_left(struct list_head *head)
+{
+	struct list_head *first;
+
+	if (!list_empty(head)) {
+		first = head->next;
+		list_move_tail(first, head);
+	}
+}
+
+/**
  * list_is_singular - tests whether a list has just one entry.
  * @head: the list to test.
  */
@@ -484,7 +498,7 @@ static inline void list_splice_tail_init(struct list_head *list,
 	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
 
 /**
- * list_for_each_entry_safe_continue
+ * list_for_each_entry_safe_continue - continue list iteration safe against removal
  * @pos:	the type * to use as a loop cursor.
  * @n:		another type * to use as temporary storage
  * @head:	the head for your list.
@@ -500,7 +514,7 @@ static inline void list_splice_tail_init(struct list_head *list,
 	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
 
 /**
- * list_for_each_entry_safe_from
+ * list_for_each_entry_safe_from - iterate over list from current point safe against removal
  * @pos:	the type * to use as a loop cursor.
  * @n:		another type * to use as temporary storage
  * @head:	the head for your list.
@@ -515,7 +529,7 @@ static inline void list_splice_tail_init(struct list_head *list,
 	     pos = n, n = list_entry(n->member.next, typeof(*n), member))
 
 /**
- * list_for_each_entry_safe_reverse
+ * list_for_each_entry_safe_reverse - iterate backwards over list safe against removal
  * @pos:	the type * to use as a loop cursor.
  * @n:		another type * to use as temporary storage
  * @head:	the head for your list.

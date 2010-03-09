@@ -72,7 +72,8 @@ struct pcpu_lstats {
 static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 				 struct net_device *dev)
 {
-	struct pcpu_lstats *pcpu_lstats, *lb_stats;
+	struct pcpu_lstats __percpu *pcpu_lstats;
+	struct pcpu_lstats *lb_stats;
 	int len;
 
 	skb_orphan(skb);
@@ -80,7 +81,7 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 	skb->protocol = eth_type_trans(skb, dev);
 
 	/* it's OK to use per_cpu_ptr() because BHs are off */
-	pcpu_lstats = dev->ml_priv;
+	pcpu_lstats = (void __percpu __force *)dev->ml_priv;
 	lb_stats = this_cpu_ptr(pcpu_lstats);
 
 	len = skb->len;
@@ -95,14 +96,14 @@ static netdev_tx_t loopback_xmit(struct sk_buff *skb,
 
 static struct net_device_stats *loopback_get_stats(struct net_device *dev)
 {
-	const struct pcpu_lstats *pcpu_lstats;
+	const struct pcpu_lstats __percpu *pcpu_lstats;
 	struct net_device_stats *stats = &dev->stats;
 	unsigned long bytes = 0;
 	unsigned long packets = 0;
 	unsigned long drops = 0;
 	int i;
 
-	pcpu_lstats = dev->ml_priv;
+	pcpu_lstats = (void __percpu __force *)dev->ml_priv;
 	for_each_possible_cpu(i) {
 		const struct pcpu_lstats *lb_stats;
 
@@ -135,19 +136,20 @@ static const struct ethtool_ops loopback_ethtool_ops = {
 
 static int loopback_dev_init(struct net_device *dev)
 {
-	struct pcpu_lstats *lstats;
+	struct pcpu_lstats __percpu *lstats;
 
 	lstats = alloc_percpu(struct pcpu_lstats);
 	if (!lstats)
 		return -ENOMEM;
 
-	dev->ml_priv = lstats;
+	dev->ml_priv = (void __force *)lstats;
 	return 0;
 }
 
 static void loopback_dev_free(struct net_device *dev)
 {
-	struct pcpu_lstats *lstats = dev->ml_priv;
+	struct pcpu_lstats __percpu *lstats =
+		(void __percpu __force *)dev->ml_priv;
 
 	free_percpu(lstats);
 	free_netdev(dev);

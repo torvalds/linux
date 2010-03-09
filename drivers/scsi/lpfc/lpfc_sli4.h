@@ -22,6 +22,10 @@
 #define LPFC_RELEASE_NOTIFICATION_INTERVAL	32
 #define LPFC_GET_QE_REL_INT			32
 #define LPFC_RPI_LOW_WATER_MARK			10
+
+/* Amount of time in seconds for waiting FCF rediscovery to complete */
+#define LPFC_FCF_REDISCOVER_WAIT_TMO		2000 /* msec */
+
 /* Number of SGL entries can be posted in a 4KB nonembedded mbox command */
 #define LPFC_NEMBED_MBOX_SGL_CNT		254
 
@@ -126,24 +130,36 @@ struct lpfc_sli4_link {
 	uint8_t status;
 	uint8_t physical;
 	uint8_t fault;
+	uint16_t logical_speed;
+};
+
+struct lpfc_fcf_rec {
+	uint8_t  fabric_name[8];
+	uint8_t  switch_name[8];
+	uint8_t  mac_addr[6];
+	uint16_t fcf_indx;
+	uint32_t priority;
+	uint16_t vlan_id;
+	uint32_t addr_mode;
+	uint32_t flag;
+#define BOOT_ENABLE	0x01
+#define RECORD_VALID	0x02
 };
 
 struct lpfc_fcf {
-	uint8_t	 fabric_name[8];
-	uint8_t	 switch_name[8];
-	uint8_t  mac_addr[6];
-	uint16_t fcf_indx;
 	uint16_t fcfi;
 	uint32_t fcf_flag;
 #define FCF_AVAILABLE	0x01 /* FCF available for discovery */
 #define FCF_REGISTERED	0x02 /* FCF registered with FW */
-#define FCF_DISCOVERED	0x04 /* FCF discovery started  */
-#define FCF_BOOT_ENABLE 0x08 /* Boot bios use this FCF */
-#define FCF_IN_USE	0x10 /* Atleast one discovery completed */
-#define FCF_VALID_VLAN	0x20 /* Use the vlan id specified */
-	uint32_t priority;
+#define FCF_SCAN_DONE	0x04 /* FCF table scan done */
+#define FCF_IN_USE	0x08 /* Atleast one discovery completed */
+#define FCF_REDISC_PEND	0x10 /* FCF rediscovery pending */
+#define FCF_REDISC_EVT	0x20 /* FCF rediscovery event to worker thread */
+#define FCF_REDISC_FOV	0x40 /* Post FCF rediscovery fast failover */
 	uint32_t addr_mode;
-	uint16_t vlan_id;
+	struct lpfc_fcf_rec current_rec;
+	struct lpfc_fcf_rec failover_rec;
+	struct timer_list redisc_wait;
 };
 
 #define LPFC_REGION23_SIGNATURE "RG23"
@@ -248,7 +264,10 @@ struct lpfc_bmbx {
 #define SLI4_CT_VFI 2
 #define SLI4_CT_FCFI 3
 
-#define LPFC_SLI4_MAX_SEGMENT_SIZE 0x10000
+#define LPFC_SLI4_FL1_MAX_SEGMENT_SIZE	0x10000
+#define LPFC_SLI4_FL1_MAX_BUF_SIZE	0X2000
+#define LPFC_SLI4_MIN_BUF_SIZE		0x400
+#define LPFC_SLI4_MAX_BUF_SIZE		0x20000
 
 /*
  * SLI4 specific data structures
@@ -282,6 +301,42 @@ struct lpfc_fcp_eq_hdl {
 	struct lpfc_hba *phba;
 };
 
+/* Port Capabilities for SLI4 Parameters */
+struct lpfc_pc_sli4_params {
+	uint32_t supported;
+	uint32_t if_type;
+	uint32_t sli_rev;
+	uint32_t sli_family;
+	uint32_t featurelevel_1;
+	uint32_t featurelevel_2;
+	uint32_t proto_types;
+#define LPFC_SLI4_PROTO_FCOE	0x0000001
+#define LPFC_SLI4_PROTO_FC	0x0000002
+#define LPFC_SLI4_PROTO_NIC	0x0000004
+#define LPFC_SLI4_PROTO_ISCSI	0x0000008
+#define LPFC_SLI4_PROTO_RDMA	0x0000010
+	uint32_t sge_supp_len;
+	uint32_t if_page_sz;
+	uint32_t rq_db_window;
+	uint32_t loopbk_scope;
+	uint32_t eq_pages_max;
+	uint32_t eqe_size;
+	uint32_t cq_pages_max;
+	uint32_t cqe_size;
+	uint32_t mq_pages_max;
+	uint32_t mqe_size;
+	uint32_t mq_elem_cnt;
+	uint32_t wq_pages_max;
+	uint32_t wqe_size;
+	uint32_t rq_pages_max;
+	uint32_t rqe_size;
+	uint32_t hdr_pages_max;
+	uint32_t hdr_size;
+	uint32_t hdr_pp_align;
+	uint32_t sgl_pages_max;
+	uint32_t sgl_pp_align;
+};
+
 /* SLI4 HBA data structure entries */
 struct lpfc_sli4_hba {
 	void __iomem *conf_regs_memmap_p; /* Kernel memory mapped address for
@@ -295,7 +350,7 @@ struct lpfc_sli4_hba {
 	void __iomem *UERRHIregaddr; /* Address to UERR_STATUS_HI register */
 	void __iomem *UEMASKLOregaddr; /* Address to UE_MASK_LO register */
 	void __iomem *UEMASKHIregaddr; /* Address to UE_MASK_HI register */
-	void __iomem *SCRATCHPADregaddr; /* Address to scratchpad register */
+	void __iomem *SLIINTFregaddr; /* Address to SLI_INTF register */
 	/* BAR1 FCoE function CSR register memory map */
 	void __iomem *STAregaddr;    /* Address to HST_STATE register */
 	void __iomem *ISRregaddr;    /* Address to HST_ISR register */
@@ -310,6 +365,8 @@ struct lpfc_sli4_hba {
 
 	uint32_t ue_mask_lo;
 	uint32_t ue_mask_hi;
+	struct lpfc_register sli_intf;
+	struct lpfc_pc_sli4_params pc_sli4_params;
 	struct msix_entry *msix_entries;
 	uint32_t cfg_eqn;
 	struct lpfc_fcp_eq_hdl *fcp_eq_hdl; /* FCP per-WQ handle */
@@ -406,6 +463,8 @@ void lpfc_sli4_mbox_cmd_free(struct lpfc_hba *, struct lpfcMboxq *);
 void lpfc_sli4_mbx_sge_set(struct lpfcMboxq *, uint32_t, dma_addr_t, uint32_t);
 void lpfc_sli4_mbx_sge_get(struct lpfcMboxq *, uint32_t,
 			   struct lpfc_mbx_sge *);
+int lpfc_sli4_mbx_read_fcf_record(struct lpfc_hba *, struct lpfcMboxq *,
+				  uint16_t);
 
 void lpfc_sli4_hba_reset(struct lpfc_hba *);
 struct lpfc_queue *lpfc_sli4_queue_alloc(struct lpfc_hba *, uint32_t,
@@ -448,6 +507,7 @@ int lpfc_sli4_alloc_rpi(struct lpfc_hba *);
 void lpfc_sli4_free_rpi(struct lpfc_hba *, int);
 void lpfc_sli4_remove_rpis(struct lpfc_hba *);
 void lpfc_sli4_async_event_proc(struct lpfc_hba *);
+void lpfc_sli4_fcf_redisc_event_proc(struct lpfc_hba *);
 int lpfc_sli4_resume_rpi(struct lpfc_nodelist *);
 void lpfc_sli4_fcp_xri_abort_event_proc(struct lpfc_hba *);
 void lpfc_sli4_els_xri_abort_event_proc(struct lpfc_hba *);

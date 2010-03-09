@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -220,7 +220,7 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 			union acpi_parse_object *arg)
 {
 	acpi_status status;
-	acpi_integer position;
+	u64 position;
 
 	ACPI_FUNCTION_TRACE_PTR(ds_get_field_names, info);
 
@@ -240,8 +240,8 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 		switch (arg->common.aml_opcode) {
 		case AML_INT_RESERVEDFIELD_OP:
 
-			position = (acpi_integer) info->field_bit_position
-			    + (acpi_integer) arg->common.value.size;
+			position = (u64) info->field_bit_position
+			    + (u64) arg->common.value.size;
 
 			if (position > ACPI_UINT32_MAX) {
 				ACPI_ERROR((AE_INFO,
@@ -305,8 +305,8 @@ acpi_ds_get_field_names(struct acpi_create_field_info *info,
 
 			/* Keep track of bit position for the next field */
 
-			position = (acpi_integer) info->field_bit_position
-			    + (acpi_integer) arg->common.value.size;
+			position = (u64) info->field_bit_position
+			    + (u64) arg->common.value.size;
 
 			if (position > ACPI_UINT32_MAX) {
 				ACPI_ERROR((AE_INFO,

@@ -44,6 +44,7 @@ struct davinci_audio_dev {
 	int sample_rate;
 	struct clk *clk;
 	unsigned int codec_fmt;
+	u8 clk_active;
 
 	/* McASP specific data */
 	int	tdm_slots;

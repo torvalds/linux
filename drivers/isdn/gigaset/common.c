@@ -149,10 +149,8 @@ static int test_timeout(struct at_state_t *at_state)
 		return 0;
 	}
 
-	if (!gigaset_add_event(at_state->cs, at_state, EV_TIMEOUT, NULL,
-			       at_state->timer_index, NULL))
-			dev_err(at_state->cs->dev, "%s: out of memory\n",
-				__func__);
+	gigaset_add_event(at_state->cs, at_state, EV_TIMEOUT, NULL,
+			  at_state->timer_index, NULL);
 	return 1;
 }
 
@@ -180,7 +178,7 @@ static void timer_tick(unsigned long data)
 	if (cs->running) {
 		mod_timer(&cs->timer, jiffies + msecs_to_jiffies(GIG_TICK));
 		if (timeout) {
-			gig_dbg(DEBUG_CMD, "scheduling timeout");
+			gig_dbg(DEBUG_EVENT, "scheduling timeout");
 			tasklet_schedule(&cs->event_tasklet);
 		}
 	}
@@ -194,14 +192,14 @@ int gigaset_get_channel(struct bc_state *bcs)
 
 	spin_lock_irqsave(&bcs->cs->lock, flags);
 	if (bcs->use_count || !try_module_get(bcs->cs->driver->owner)) {
-		gig_dbg(DEBUG_ANY, "could not allocate channel %d",
+		gig_dbg(DEBUG_CHANNEL, "could not allocate channel %d",
 			bcs->channel);
 		spin_unlock_irqrestore(&bcs->cs->lock, flags);
 		return 0;
 	}
 	++bcs->use_count;
 	bcs->busy = 1;
-	gig_dbg(DEBUG_ANY, "allocated channel %d", bcs->channel);
+	gig_dbg(DEBUG_CHANNEL, "allocated channel %d", bcs->channel);
 	spin_unlock_irqrestore(&bcs->cs->lock, flags);
 	return 1;
 }
@@ -213,7 +211,7 @@ struct bc_state *gigaset_get_free_channel(struct cardstate *cs)
 
 	spin_lock_irqsave(&cs->lock, flags);
 	if (!try_module_get(cs->driver->owner)) {
-		gig_dbg(DEBUG_ANY,
+		gig_dbg(DEBUG_CHANNEL,
 			"could not get module for allocating channel");
 		spin_unlock_irqrestore(&cs->lock, flags);
 		return NULL;
@@ -223,12 +221,12 @@ struct bc_state *gigaset_get_free_channel(struct cardstate *cs)
 			++cs->bcs[i].use_count;
 			cs->bcs[i].busy = 1;
 			spin_unlock_irqrestore(&cs->lock, flags);
-			gig_dbg(DEBUG_ANY, "allocated channel %d", i);
+			gig_dbg(DEBUG_CHANNEL, "allocated channel %d", i);
 			return cs->bcs + i;
 		}
 	module_put(cs->driver->owner);
 	spin_unlock_irqrestore(&cs->lock, flags);
-	gig_dbg(DEBUG_ANY, "no free channel");
+	gig_dbg(DEBUG_CHANNEL, "no free channel");
 	return NULL;
 }
 
@@ -238,14 +236,15 @@ void gigaset_free_channel(struct bc_state *bcs)
 
 	spin_lock_irqsave(&bcs->cs->lock, flags);
 	if (!bcs->busy) {
-		gig_dbg(DEBUG_ANY, "could not free channel %d", bcs->channel);
+		gig_dbg(DEBUG_CHANNEL, "could not free channel %d",
+			bcs->channel);
 		spin_unlock_irqrestore(&bcs->cs->lock, flags);
 		return;
 	}
 	--bcs->use_count;
 	bcs->busy = 0;
 	module_put(bcs->cs->driver->owner);
-	gig_dbg(DEBUG_ANY, "freed channel %d", bcs->channel);
+	gig_dbg(DEBUG_CHANNEL, "freed channel %d", bcs->channel);
 	spin_unlock_irqrestore(&bcs->cs->lock, flags);
 }
 
@@ -258,14 +257,15 @@ int gigaset_get_channels(struct cardstate *cs)
 	for (i = 0; i < cs->channels; ++i)
 		if (cs->bcs[i].use_count) {
 			spin_unlock_irqrestore(&cs->lock, flags);
-			gig_dbg(DEBUG_ANY, "could not allocate all channels");
+			gig_dbg(DEBUG_CHANNEL,
+				"could not allocate all channels");
 			return 0;
 		}
 	for (i = 0; i < cs->channels; ++i)
 		++cs->bcs[i].use_count;
 	spin_unlock_irqrestore(&cs->lock, flags);
 
-	gig_dbg(DEBUG_ANY, "allocated all channels");
+	gig_dbg(DEBUG_CHANNEL, "allocated all channels");
 
 	return 1;
 }
@@ -275,7 +275,7 @@ void gigaset_free_channels(struct cardstate *cs)
 	unsigned long flags;
 	int i;
 
-	gig_dbg(DEBUG_ANY, "unblocking all channels");
+	gig_dbg(DEBUG_CHANNEL, "unblocking all channels");
 	spin_lock_irqsave(&cs->lock, flags);
 	for (i = 0; i < cs->channels; ++i)
 		--cs->bcs[i].use_count;
@@ -287,7 +287,7 @@ void gigaset_block_channels(struct cardstate *cs)
 	unsigned long flags;
 	int i;
 
-	gig_dbg(DEBUG_ANY, "blocking all channels");
+	gig_dbg(DEBUG_CHANNEL, "blocking all channels");
 	spin_lock_irqsave(&cs->lock, flags);
 	for (i = 0; i < cs->channels; ++i)
 		++cs->bcs[i].use_count;
@@ -337,6 +337,8 @@ struct event_t *gigaset_add_event(struct cardstate *cs,
 	unsigned long flags;
 	unsigned next, tail;
 	struct event_t *event = NULL;
+
+	gig_dbg(DEBUG_EVENT, "queueing event %d", type);
 
 	spin_lock_irqsave(&cs->ev_lock, flags);
 
@@ -934,11 +936,8 @@ int gigaset_start(struct cardstate *cs)
 
 	if (!gigaset_add_event(cs, &cs->at_state, EV_START, NULL, 0, NULL)) {
 		cs->waiting = 0;
-		dev_err(cs->dev, "%s: out of memory\n", __func__);
 		goto error;
 	}
-
-	gig_dbg(DEBUG_CMD, "scheduling START");
 	gigaset_schedule_event(cs);
 
 	wait_event(cs->waitqueue, !cs->waiting);
@@ -973,12 +972,8 @@ int gigaset_shutdown(struct cardstate *cs)
 
 	cs->waiting = 1;
 
-	if (!gigaset_add_event(cs, &cs->at_state, EV_SHUTDOWN, NULL, 0, NULL)) {
-		dev_err(cs->dev, "%s: out of memory\n", __func__);
+	if (!gigaset_add_event(cs, &cs->at_state, EV_SHUTDOWN, NULL, 0, NULL))
 		goto exit;
-	}
-
-	gig_dbg(DEBUG_CMD, "scheduling SHUTDOWN");
 	gigaset_schedule_event(cs);
 
 	wait_event(cs->waitqueue, !cs->waiting);
@@ -1004,12 +999,8 @@ void gigaset_stop(struct cardstate *cs)
 
 	cs->waiting = 1;
 
-	if (!gigaset_add_event(cs, &cs->at_state, EV_STOP, NULL, 0, NULL)) {
-		dev_err(cs->dev, "%s: out of memory\n", __func__);
+	if (!gigaset_add_event(cs, &cs->at_state, EV_STOP, NULL, 0, NULL))
 		goto exit;
-	}
-
-	gig_dbg(DEBUG_CMD, "scheduling STOP");
 	gigaset_schedule_event(cs);
 
 	wait_event(cs->waitqueue, !cs->waiting);

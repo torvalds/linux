@@ -62,9 +62,11 @@
  *
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include "tehuti.h"
 
-static struct pci_device_id __devinitdata bdx_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(bdx_pci_tbl) = {
 	{0x1FC9, 0x3009, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x1FC9, 0x3010, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
 	{0x1FC9, 0x3014, PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0},
@@ -105,26 +107,24 @@ static void print_hw_id(struct pci_dev *pdev)
 	pci_read_config_word(pdev, PCI_LINK_STATUS_REG, &pci_link_status);
 	pci_read_config_word(pdev, PCI_DEV_CTRL_REG, &pci_ctrl);
 
-	printk(KERN_INFO "tehuti: %s%s\n", BDX_NIC_NAME,
-	       nic->port_num == 1 ? "" : ", 2-Port");
-	printk(KERN_INFO
-	       "tehuti: srom 0x%x fpga %d build %u lane# %d"
-	       " max_pl 0x%x mrrs 0x%x\n",
-	       readl(nic->regs + SROM_VER), readl(nic->regs + FPGA_VER) & 0xFFF,
-	       readl(nic->regs + FPGA_SEED),
-	       GET_LINK_STATUS_LANES(pci_link_status),
-	       GET_DEV_CTRL_MAXPL(pci_ctrl), GET_DEV_CTRL_MRRS(pci_ctrl));
+	pr_info("%s%s\n", BDX_NIC_NAME,
+		nic->port_num == 1 ? "" : ", 2-Port");
+	pr_info("srom 0x%x fpga %d build %u lane# %d max_pl 0x%x mrrs 0x%x\n",
+		readl(nic->regs + SROM_VER), readl(nic->regs + FPGA_VER) & 0xFFF,
+		readl(nic->regs + FPGA_SEED),
+		GET_LINK_STATUS_LANES(pci_link_status),
+		GET_DEV_CTRL_MAXPL(pci_ctrl), GET_DEV_CTRL_MRRS(pci_ctrl));
 }
 
 static void print_fw_id(struct pci_nic *nic)
 {
-	printk(KERN_INFO "tehuti: fw 0x%x\n", readl(nic->regs + FW_VER));
+	pr_info("fw 0x%x\n", readl(nic->regs + FW_VER));
 }
 
 static void print_eth_id(struct net_device *ndev)
 {
-	printk(KERN_INFO "%s: %s, Port %c\n", ndev->name, BDX_NIC_NAME,
-	       (ndev->if_port == 0) ? 'A' : 'B');
+	netdev_info(ndev, "%s, Port %c\n",
+		    BDX_NIC_NAME, (ndev->if_port == 0) ? 'A' : 'B');
 
 }
 
@@ -160,7 +160,7 @@ bdx_fifo_init(struct bdx_priv *priv, struct fifo *f, int fsz_type,
 	f->va = pci_alloc_consistent(priv->pdev,
 				     memsz + FIFO_EXTRA_SPACE, &f->da);
 	if (!f->va) {
-		ERR("pci_alloc_consistent failed\n");
+		pr_err("pci_alloc_consistent failed\n");
 		RET(-ENOMEM);
 	}
 	f->reg_CFG0 = reg_CFG0;
@@ -204,13 +204,13 @@ static void bdx_link_changed(struct bdx_priv *priv)
 		if (netif_carrier_ok(priv->ndev)) {
 			netif_stop_queue(priv->ndev);
 			netif_carrier_off(priv->ndev);
-			ERR("%s: Link Down\n", priv->ndev->name);
+			netdev_err(priv->ndev, "Link Down\n");
 		}
 	} else {
 		if (!netif_carrier_ok(priv->ndev)) {
 			netif_wake_queue(priv->ndev);
 			netif_carrier_on(priv->ndev);
-			ERR("%s: Link Up\n", priv->ndev->name);
+			netdev_err(priv->ndev, "Link Up\n");
 		}
 	}
 }
@@ -226,10 +226,10 @@ static void bdx_isr_extra(struct bdx_priv *priv, u32 isr)
 		bdx_link_changed(priv);
 
 	if (isr & IR_PCIE_LINK)
-		ERR("%s: PCI-E Link Fault\n", priv->ndev->name);
+		netdev_err(priv->ndev, "PCI-E Link Fault\n");
 
 	if (isr & IR_PCIE_TOUT)
-		ERR("%s: PCI-E Time Out\n", priv->ndev->name);
+		netdev_err(priv->ndev, "PCI-E Time Out\n");
 
 }
 
@@ -345,7 +345,7 @@ out:
 		release_firmware(fw);
 
 	if (rc) {
-		ERR("%s: firmware loading failed\n", priv->ndev->name);
+		netdev_err(priv->ndev, "firmware loading failed\n");
 		if (rc == -EIO)
 			DBG("VPC = 0x%x VIC = 0x%x INIT_STATUS = 0x%x i=%d\n",
 			    READ_REG(priv, regVPC),
@@ -419,9 +419,11 @@ static int bdx_hw_start(struct bdx_priv *priv)
 	WRITE_REG(priv, regGMAC_RXF_A, GMAC_RX_FILTER_OSEN |
 		  GMAC_RX_FILTER_AM | GMAC_RX_FILTER_AB);
 
-#define BDX_IRQ_TYPE	((priv->nic->irq_type == IRQ_MSI)?0:IRQF_SHARED)
-	if ((rc = request_irq(priv->pdev->irq, bdx_isr_napi, BDX_IRQ_TYPE,
-			 ndev->name, ndev)))
+#define BDX_IRQ_TYPE	((priv->nic->irq_type == IRQ_MSI) ? 0 : IRQF_SHARED)
+
+	rc = request_irq(priv->pdev->irq, bdx_isr_napi, BDX_IRQ_TYPE,
+			 ndev->name, ndev);
+	if (rc)
 		goto err_irq;
 	bdx_enable_interrupts(priv);
 
@@ -462,7 +464,7 @@ static int bdx_hw_reset_direct(void __iomem *regs)
 			readl(regs + regRXD_CFG0_0);
 			return 0;
 		}
-	ERR("tehuti: HW reset failed\n");
+	pr_err("HW reset failed\n");
 	return 1;		/* failure */
 }
 
@@ -486,7 +488,7 @@ static int bdx_hw_reset(struct bdx_priv *priv)
 			READ_REG(priv, regRXD_CFG0_0);
 			return 0;
 		}
-	ERR("tehuti: HW reset failed\n");
+	pr_err("HW reset failed\n");
 	return 1;		/* failure */
 }
 
@@ -510,8 +512,7 @@ static int bdx_sw_reset(struct bdx_priv *priv)
 		mdelay(10);
 	}
 	if (i == 50)
-		ERR("%s: SW reset timeout. continuing anyway\n",
-		    priv->ndev->name);
+		netdev_err(priv->ndev, "SW reset timeout. continuing anyway\n");
 
 	/* 6. disable intrs */
 	WRITE_REG(priv, regRDINTCM0, 0);
@@ -604,18 +605,15 @@ static int bdx_open(struct net_device *ndev)
 	if (netif_running(ndev))
 		netif_stop_queue(priv->ndev);
 
-	if ((rc = bdx_tx_init(priv)))
-		goto err;
-
-	if ((rc = bdx_rx_init(priv)))
-		goto err;
-
-	if ((rc = bdx_fw_load(priv)))
+	if ((rc = bdx_tx_init(priv)) ||
+	    (rc = bdx_rx_init(priv)) ||
+	    (rc = bdx_fw_load(priv)))
 		goto err;
 
 	bdx_rx_alloc_skbs(priv, &priv->rxf_fifo0);
 
-	if ((rc = bdx_hw_start(priv)))
+	rc = bdx_hw_start(priv);
+	if (rc)
 		goto err;
 
 	napi_enable(&priv->napi);
@@ -647,7 +645,7 @@ static int bdx_ioctl_priv(struct net_device *ndev, struct ifreq *ifr, int cmd)
 	if (cmd != SIOCDEVPRIVATE) {
 		error = copy_from_user(data, ifr->ifr_data, sizeof(data));
 		if (error) {
-			ERR("cant copy from user\n");
+			pr_err("cant copy from user\n");
 			RET(error);
 		}
 		DBG("%d 0x%x 0x%x\n", data[0], data[1], data[2]);
@@ -708,7 +706,7 @@ static void __bdx_vlan_rx_vid(struct net_device *ndev, uint16_t vid, int enable)
 	ENTER;
 	DBG2("vid=%d value=%d\n", (int)vid, enable);
 	if (unlikely(vid >= 4096)) {
-		ERR("tehuti: invalid VID: %u (> 4096)\n", vid);
+		pr_err("invalid VID: %u (> 4096)\n", vid);
 		RET();
 	}
 	reg = regVLAN_0 + (vid / 32) * 4;
@@ -776,8 +774,8 @@ static int bdx_change_mtu(struct net_device *ndev, int new_mtu)
 
 	/* enforce minimum frame size */
 	if (new_mtu < ETH_ZLEN) {
-		ERR("%s: %s mtu %d is less then minimal %d\n",
-		    BDX_DRV_NAME, ndev->name, new_mtu, ETH_ZLEN);
+		netdev_err(ndev, "mtu %d is less then minimal %d\n",
+			   new_mtu, ETH_ZLEN);
 		RET(-EINVAL);
 	}
 
@@ -808,7 +806,7 @@ static void bdx_setmulti(struct net_device *ndev)
 		/* set IMF to accept all multicast frmaes */
 		for (i = 0; i < MAC_MCST_HASH_NUM; i++)
 			WRITE_REG(priv, regRX_MCST_HASH0 + i * 4, ~0);
-	} else if (ndev->mc_count) {
+	} else if (!netdev_mc_empty(ndev)) {
 		u8 hash;
 		struct dev_mc_list *mclist;
 		u32 reg, val;
@@ -826,10 +824,8 @@ static void bdx_setmulti(struct net_device *ndev)
 		/* TBD: sort addreses and write them in ascending order
 		 * into RX_MAC_MCST regs. we skip this phase now and accept ALL
 		 * multicast frames throu IMF */
-		mclist = ndev->mc_list;
-
 		/* accept the rest of addresses throu IMF */
-		for (; mclist; mclist = mclist->next) {
+		netdev_for_each_mc_addr(mclist, ndev) {
 			hash = 0;
 			for (i = 0; i < ETH_ALEN; i++)
 				hash ^= mclist->dmi_addr[i];
@@ -840,7 +836,7 @@ static void bdx_setmulti(struct net_device *ndev)
 		}
 
 	} else {
-		DBG("only own mac %d\n", ndev->mc_count);
+		DBG("only own mac %d\n", netdev_mc_count(ndev));
 		rxf_val |= GMAC_RX_FILTER_AB;
 	}
 	WRITE_REG(priv, regGMAC_RXF_A, rxf_val);
@@ -1028,17 +1024,16 @@ static int bdx_rx_init(struct bdx_priv *priv)
 			  regRXF_CFG0_0, regRXF_CFG1_0,
 			  regRXF_RPTR_0, regRXF_WPTR_0))
 		goto err_mem;
-	if (!
-	    (priv->rxdb =
-	     bdx_rxdb_create(priv->rxf_fifo0.m.memsz /
-			     sizeof(struct rxf_desc))))
+	priv->rxdb = bdx_rxdb_create(priv->rxf_fifo0.m.memsz /
+				     sizeof(struct rxf_desc));
+	if (!priv->rxdb)
 		goto err_mem;
 
 	priv->rxf_fifo0.m.pktsz = priv->ndev->mtu + VLAN_ETH_HLEN;
 	return 0;
 
 err_mem:
-	ERR("%s: %s: Rx init failed\n", BDX_DRV_NAME, priv->ndev->name);
+	netdev_err(priv->ndev, "Rx init failed\n");
 	return -ENOMEM;
 }
 
@@ -1115,8 +1110,9 @@ static void bdx_rx_alloc_skbs(struct bdx_priv *priv, struct rxf_fifo *f)
 	ENTER;
 	dno = bdx_rxdb_available(db) - 1;
 	while (dno > 0) {
-		if (!(skb = dev_alloc_skb(f->m.pktsz + NET_IP_ALIGN))) {
-			ERR("NO MEM: dev_alloc_skb failed\n");
+		skb = dev_alloc_skb(f->m.pktsz + NET_IP_ALIGN);
+		if (!skb) {
+			pr_err("NO MEM: dev_alloc_skb failed\n");
 			break;
 		}
 		skb->dev = priv->ndev;
@@ -1337,9 +1333,7 @@ static int bdx_rx_receive(struct bdx_priv *priv, struct rxd_fifo *f, int budget)
 static void print_rxdd(struct rxd_desc *rxdd, u32 rxd_val1, u16 len,
 		       u16 rxd_vlan)
 {
-	DBG("ERROR: rxdd bc %d rxfq %d to %d type %d err %d rxp %d "
-	    "pkt_id %d vtag %d len %d vlan_id %d cfi %d prio %d "
-	    "va_lo %d va_hi %d\n",
+	DBG("ERROR: rxdd bc %d rxfq %d to %d type %d err %d rxp %d pkt_id %d vtag %d len %d vlan_id %d cfi %d prio %d va_lo %d va_hi %d\n",
 	    GET_RXD_BC(rxd_val1), GET_RXD_RXFQ(rxd_val1), GET_RXD_TO(rxd_val1),
 	    GET_RXD_TYPE(rxd_val1), GET_RXD_ERR(rxd_val1),
 	    GET_RXD_RXP(rxd_val1), GET_RXD_PKT_ID(rxd_val1),
@@ -1591,7 +1585,7 @@ static int bdx_tx_init(struct bdx_priv *priv)
 	return 0;
 
 err_mem:
-	ERR("tehuti: %s: Tx init failed\n", priv->ndev->name);
+	netdev_err(priv->ndev, "Tx init failed\n");
 	return -ENOMEM;
 }
 
@@ -1609,7 +1603,7 @@ static inline int bdx_tx_space(struct bdx_priv *priv)
 	fsize = f->m.rptr - f->m.wptr;
 	if (fsize <= 0)
 		fsize = f->m.memsz + fsize;
-	return (fsize);
+	return fsize;
 }
 
 /* bdx_tx_transmit - send packet to NIC
@@ -1937,8 +1931,9 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		RET(-ENOMEM);
 
     /************** pci *****************/
-	if ((err = pci_enable_device(pdev)))	/* it trigers interrupt, dunno why. */
-		goto err_pci;			/* it's not a problem though */
+	err = pci_enable_device(pdev);
+	if (err)			/* it triggers interrupt, dunno why. */
+		goto err_pci;		/* it's not a problem though */
 
 	if (!(err = pci_set_dma_mask(pdev, DMA_BIT_MASK(64))) &&
 	    !(err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(64)))) {
@@ -1946,14 +1941,14 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	} else {
 		if ((err = pci_set_dma_mask(pdev, DMA_BIT_MASK(32))) ||
 		    (err = pci_set_consistent_dma_mask(pdev, DMA_BIT_MASK(32)))) {
-			printk(KERN_ERR "tehuti: No usable DMA configuration"
-					", aborting\n");
+			pr_err("No usable DMA configuration, aborting\n");
 			goto err_dma;
 		}
 		pci_using_dac = 0;
 	}
 
-	if ((err = pci_request_regions(pdev, BDX_DRV_NAME)))
+	err = pci_request_regions(pdev, BDX_DRV_NAME);
+	if (err)
 		goto err_dma;
 
 	pci_set_master(pdev);
@@ -1961,25 +1956,26 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	pciaddr = pci_resource_start(pdev, 0);
 	if (!pciaddr) {
 		err = -EIO;
-		ERR("tehuti: no MMIO resource\n");
+		pr_err("no MMIO resource\n");
 		goto err_out_res;
 	}
-	if ((regionSize = pci_resource_len(pdev, 0)) < BDX_REGS_SIZE) {
+	regionSize = pci_resource_len(pdev, 0);
+	if (regionSize < BDX_REGS_SIZE) {
 		err = -EIO;
-		ERR("tehuti: MMIO resource (%x) too small\n", regionSize);
+		pr_err("MMIO resource (%x) too small\n", regionSize);
 		goto err_out_res;
 	}
 
 	nic->regs = ioremap(pciaddr, regionSize);
 	if (!nic->regs) {
 		err = -EIO;
-		ERR("tehuti: ioremap failed\n");
+		pr_err("ioremap failed\n");
 		goto err_out_res;
 	}
 
 	if (pdev->irq < 2) {
 		err = -EIO;
-		ERR("tehuti: invalid irq (%d)\n", pdev->irq);
+		pr_err("invalid irq (%d)\n", pdev->irq);
 		goto err_out_iomap;
 	}
 	pci_set_drvdata(pdev, nic);
@@ -1996,8 +1992,9 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	nic->irq_type = IRQ_INTX;
 #ifdef BDX_MSI
 	if ((readl(nic->regs + FPGA_VER) & 0xFFF) >= 378) {
-		if ((err = pci_enable_msi(pdev)))
-			ERR("Tehuti: Can't eneble msi. error is %d\n", err);
+		err = pci_enable_msi(pdev);
+		if (err)
+			pr_err("Can't eneble msi. error is %d\n", err);
 		else
 			nic->irq_type = IRQ_MSI;
 	} else
@@ -2006,9 +2003,10 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
     /************** netdev **************/
 	for (port = 0; port < nic->port_num; port++) {
-		if (!(ndev = alloc_etherdev(sizeof(struct bdx_priv)))) {
+		ndev = alloc_etherdev(sizeof(struct bdx_priv));
+		if (!ndev) {
 			err = -ENOMEM;
-			printk(KERN_ERR "tehuti: alloc_etherdev failed\n");
+			pr_err("alloc_etherdev failed\n");
 			goto err_out_iomap;
 		}
 
@@ -2075,12 +2073,13 @@ bdx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 		/*bdx_hw_reset(priv); */
 		if (bdx_read_mac(priv)) {
-			printk(KERN_ERR "tehuti: load MAC address failed\n");
+			pr_err("load MAC address failed\n");
 			goto err_out_iomap;
 		}
 		SET_NETDEV_DEV(ndev, &pdev->dev);
-		if ((err = register_netdev(ndev))) {
-			printk(KERN_ERR "tehuti: register_netdev failed\n");
+		err = register_netdev(ndev);
+		if (err) {
+			pr_err("register_netdev failed\n");
 			goto err_out_free;
 		}
 		netif_carrier_off(ndev);
@@ -2294,13 +2293,13 @@ bdx_set_coalesce(struct net_device *netdev, struct ethtool_coalesce *ecoal)
 /* Convert RX fifo size to number of pending packets */
 static inline int bdx_rx_fifo_size_to_packets(int rx_size)
 {
-	return ((FIFO_SIZE * (1 << rx_size)) / sizeof(struct rxf_desc));
+	return (FIFO_SIZE * (1 << rx_size)) / sizeof(struct rxf_desc);
 }
 
 /* Convert TX fifo size to number of pending packets */
 static inline int bdx_tx_fifo_size_to_packets(int tx_size)
 {
-	return ((FIFO_SIZE * (1 << tx_size)) / BDX_TXF_DESC_SZ);
+	return (FIFO_SIZE * (1 << tx_size)) / BDX_TXF_DESC_SZ;
 }
 
 /*
@@ -2392,10 +2391,10 @@ static int bdx_get_sset_count(struct net_device *netdev, int stringset)
 	case ETH_SS_STATS:
 		BDX_ASSERT(ARRAY_SIZE(bdx_stat_names)
 			   != sizeof(struct bdx_stats) / sizeof(u64));
-		return ((priv->stats_flag) ? ARRAY_SIZE(bdx_stat_names)	: 0);
-	default:
-		return -EINVAL;
+		return (priv->stats_flag) ? ARRAY_SIZE(bdx_stat_names)	: 0;
 	}
+
+	return -EINVAL;
 }
 
 /*
@@ -2493,10 +2492,8 @@ static struct pci_driver bdx_pci_driver = {
  */
 static void __init print_driver_id(void)
 {
-	printk(KERN_INFO "%s: %s, %s\n", BDX_DRV_NAME, BDX_DRV_DESC,
-	       BDX_DRV_VERSION);
-	printk(KERN_INFO "%s: Options: hw_csum %s\n", BDX_DRV_NAME,
-	       BDX_MSI_STRING);
+	pr_info("%s, %s\n", BDX_DRV_DESC, BDX_DRV_VERSION);
+	pr_info("Options: hw_csum %s\n", BDX_MSI_STRING);
 }
 
 static int __init bdx_module_init(void)

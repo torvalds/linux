@@ -141,7 +141,7 @@ static inline void omap_init_camera(void)
 #define MBOX_REG_SIZE   0x120
 
 #ifdef CONFIG_ARCH_OMAP2
-static struct resource omap_mbox_resources[] = {
+static struct resource omap2_mbox_resources[] = {
 	{
 		.start		= OMAP24XX_MAILBOX_BASE,
 		.end		= OMAP24XX_MAILBOX_BASE + MBOX_REG_SIZE - 1,
@@ -156,10 +156,14 @@ static struct resource omap_mbox_resources[] = {
 		.flags		= IORESOURCE_IRQ,
 	},
 };
+static int omap2_mbox_resources_sz = ARRAY_SIZE(omap2_mbox_resources);
+#else
+#define omap2_mbox_resources		NULL
+#define omap2_mbox_resources_sz		0
 #endif
 
 #ifdef CONFIG_ARCH_OMAP3
-static struct resource omap_mbox_resources[] = {
+static struct resource omap3_mbox_resources[] = {
 	{
 		.start		= OMAP34XX_MAILBOX_BASE,
 		.end		= OMAP34XX_MAILBOX_BASE + MBOX_REG_SIZE - 1,
@@ -170,12 +174,16 @@ static struct resource omap_mbox_resources[] = {
 		.flags		= IORESOURCE_IRQ,
 	},
 };
+static int omap3_mbox_resources_sz = ARRAY_SIZE(omap3_mbox_resources);
+#else
+#define omap3_mbox_resources		NULL
+#define omap3_mbox_resources_sz		0
 #endif
 
 #ifdef CONFIG_ARCH_OMAP4
 
 #define OMAP4_MBOX_REG_SIZE	0x130
-static struct resource omap_mbox_resources[] = {
+static struct resource omap4_mbox_resources[] = {
 	{
 		.start          = OMAP44XX_MAILBOX_BASE,
 		.end            = OMAP44XX_MAILBOX_BASE +
@@ -183,10 +191,14 @@ static struct resource omap_mbox_resources[] = {
 		.flags          = IORESOURCE_MEM,
 	},
 	{
-		.start          = INT_44XX_MAIL_U0_MPU,
+		.start          = OMAP44XX_IRQ_MAIL_U0,
 		.flags          = IORESOURCE_IRQ,
 	},
 };
+static int omap4_mbox_resources_sz = ARRAY_SIZE(omap4_mbox_resources);
+#else
+#define omap4_mbox_resources		NULL
+#define omap4_mbox_resources_sz		0
 #endif
 
 static struct platform_device mbox_device = {
@@ -196,9 +208,15 @@ static struct platform_device mbox_device = {
 
 static inline void omap_init_mbox(void)
 {
-	if (cpu_is_omap2420() || cpu_is_omap3430() || cpu_is_omap44xx()) {
-		mbox_device.num_resources = ARRAY_SIZE(omap_mbox_resources);
-		mbox_device.resource = omap_mbox_resources;
+	if (cpu_is_omap24xx()) {
+		mbox_device.resource = omap2_mbox_resources;
+		mbox_device.num_resources = omap2_mbox_resources_sz;
+	} else if (cpu_is_omap34xx()) {
+		mbox_device.resource = omap3_mbox_resources;
+		mbox_device.num_resources = omap3_mbox_resources_sz;
+	} else if (cpu_is_omap44xx()) {
+		mbox_device.resource = omap4_mbox_resources;
+		mbox_device.num_resources = omap4_mbox_resources_sz;
 	} else {
 		pr_err("%s: platform not supported\n", __func__);
 		return;
@@ -492,7 +510,12 @@ static struct platform_device dummy_pdev = {
  **/
 static void __init omap_hsmmc_reset(void)
 {
-	u32 i, nr_controllers = cpu_is_omap44xx() ? OMAP44XX_NR_MMC :
+	u32 i, nr_controllers;
+
+	if (cpu_is_omap242x())
+		return;
+
+	nr_controllers = cpu_is_omap44xx() ? OMAP44XX_NR_MMC :
 		(cpu_is_omap34xx() ? OMAP34XX_NR_MMC : OMAP24XX_NR_MMC);
 
 	for (i = 0; i < nr_controllers; i++) {
@@ -697,13 +720,13 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 			if (!cpu_is_omap44xx())
 				return;
 			base = OMAP4_MMC4_BASE + OMAP4_MMC_REG_OFFSET;
-			irq = INT_44XX_MMC4_IRQ;
+			irq = OMAP44XX_IRQ_MMC4;
 			break;
 		case 4:
 			if (!cpu_is_omap44xx())
 				return;
 			base = OMAP4_MMC5_BASE + OMAP4_MMC_REG_OFFSET;
-			irq = INT_44XX_MMC5_IRQ;
+			irq = OMAP44XX_IRQ_MMC4;
 			break;
 		default:
 			continue;
@@ -715,7 +738,7 @@ void __init omap2_init_mmc(struct omap_mmc_platform_data **mmc_data,
 		} else if (cpu_is_omap44xx()) {
 			if (i < 3) {
 				base += OMAP4_MMC_REG_OFFSET;
-				irq += IRQ_GIC_START;
+				irq += OMAP44XX_IRQ_GIC_START;
 			}
 			size = OMAP4_HSMMC_SIZE;
 			name = "mmci-omap-hs";

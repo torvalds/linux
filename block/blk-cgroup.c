@@ -23,20 +23,6 @@ static LIST_HEAD(blkio_list);
 struct blkio_cgroup blkio_root_cgroup = { .weight = 2*BLKIO_WEIGHT_DEFAULT };
 EXPORT_SYMBOL_GPL(blkio_root_cgroup);
 
-bool blkiocg_css_tryget(struct blkio_cgroup *blkcg)
-{
-	if (!css_tryget(&blkcg->css))
-		return false;
-	return true;
-}
-EXPORT_SYMBOL_GPL(blkiocg_css_tryget);
-
-void blkiocg_css_put(struct blkio_cgroup *blkcg)
-{
-	css_put(&blkcg->css);
-}
-EXPORT_SYMBOL_GPL(blkiocg_css_put);
-
 struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
 {
 	return container_of(cgroup_subsys_state(cgroup, blkio_subsys_id),
@@ -147,16 +133,16 @@ blkiocg_weight_write(struct cgroup *cgroup, struct cftype *cftype, u64 val)
 		return -EINVAL;
 
 	blkcg = cgroup_to_blkio_cgroup(cgroup);
+	spin_lock(&blkio_list_lock);
 	spin_lock_irq(&blkcg->lock);
 	blkcg->weight = (unsigned int)val;
 	hlist_for_each_entry(blkg, n, &blkcg->blkg_list, blkcg_node) {
-		spin_lock(&blkio_list_lock);
 		list_for_each_entry(blkiop, &blkio_list, list)
 			blkiop->ops.blkio_update_group_weight_fn(blkg,
 					blkcg->weight);
-		spin_unlock(&blkio_list_lock);
 	}
 	spin_unlock_irq(&blkcg->lock);
+	spin_unlock(&blkio_list_lock);
 	return 0;
 }
 

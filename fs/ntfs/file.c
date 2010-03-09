@@ -2182,7 +2182,7 @@ static int ntfs_file_fsync(struct file *filp, struct dentry *dentry,
 	ntfs_debug("Entering for inode 0x%lx.", vi->i_ino);
 	BUG_ON(S_ISDIR(vi->i_mode));
 	if (!datasync || !NInoNonResident(NTFS_I(vi)))
-		ret = ntfs_write_inode(vi, 1);
+		ret = __ntfs_write_inode(vi, 1);
 	write_inode_now(vi, !datasync);
 	/*
 	 * NOTE: If we were to use mapping->private_list (see ext2 and

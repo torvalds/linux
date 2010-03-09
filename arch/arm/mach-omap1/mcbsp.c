@@ -99,9 +99,11 @@ static struct omap_mcbsp_platform_data omap7xx_mcbsp_pdata[] = {
 	},
 };
 #define OMAP7XX_MCBSP_PDATA_SZ		ARRAY_SIZE(omap7xx_mcbsp_pdata)
+#define OMAP7XX_MCBSP_REG_NUM		(OMAP_MCBSP_REG_XCERH / sizeof(u16) + 1)
 #else
 #define omap7xx_mcbsp_pdata		NULL
 #define OMAP7XX_MCBSP_PDATA_SZ		0
+#define OMAP7XX_MCBSP_REG_NUM		0
 #endif
 
 #ifdef CONFIG_ARCH_OMAP15XX
@@ -132,9 +134,11 @@ static struct omap_mcbsp_platform_data omap15xx_mcbsp_pdata[] = {
 	},
 };
 #define OMAP15XX_MCBSP_PDATA_SZ		ARRAY_SIZE(omap15xx_mcbsp_pdata)
+#define OMAP15XX_MCBSP_REG_NUM		(OMAP_MCBSP_REG_XCERH / sizeof(u16) + 1)
 #else
 #define omap15xx_mcbsp_pdata		NULL
 #define OMAP15XX_MCBSP_PDATA_SZ		0
+#define OMAP15XX_MCBSP_REG_NUM		0
 #endif
 
 #ifdef CONFIG_ARCH_OMAP16XX
@@ -165,19 +169,25 @@ static struct omap_mcbsp_platform_data omap16xx_mcbsp_pdata[] = {
 	},
 };
 #define OMAP16XX_MCBSP_PDATA_SZ		ARRAY_SIZE(omap16xx_mcbsp_pdata)
+#define OMAP16XX_MCBSP_REG_NUM		(OMAP_MCBSP_REG_XCERH / sizeof(u16) + 1)
 #else
 #define omap16xx_mcbsp_pdata		NULL
 #define OMAP16XX_MCBSP_PDATA_SZ		0
+#define OMAP16XX_MCBSP_REG_NUM		0
 #endif
 
 int __init omap1_mcbsp_init(void)
 {
-	if (cpu_is_omap7xx())
+	if (cpu_is_omap7xx()) {
 		omap_mcbsp_count = OMAP7XX_MCBSP_PDATA_SZ;
-	if (cpu_is_omap15xx())
+		omap_mcbsp_cache_size = OMAP7XX_MCBSP_REG_NUM * sizeof(u16);
+	} else if (cpu_is_omap15xx()) {
 		omap_mcbsp_count = OMAP15XX_MCBSP_PDATA_SZ;
-	if (cpu_is_omap16xx())
+		omap_mcbsp_cache_size = OMAP15XX_MCBSP_REG_NUM * sizeof(u16);
+	} else if (cpu_is_omap16xx()) {
 		omap_mcbsp_count = OMAP16XX_MCBSP_PDATA_SZ;
+		omap_mcbsp_cache_size = OMAP16XX_MCBSP_REG_NUM * sizeof(u16);
+	}
 
 	mcbsp_ptr = kzalloc(omap_mcbsp_count * sizeof(struct omap_mcbsp *),
 								GFP_KERNEL);

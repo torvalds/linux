@@ -694,7 +694,7 @@ extern void tsunami_setup_blockops(void);
  * The following code is a deadwood that may be necessary when
  * we start to make precise page flushes again. --zaitcev
  */
-static void swift_update_mmu_cache(struct vm_area_struct * vma, unsigned long address, pte_t pte)
+static void swift_update_mmu_cache(struct vm_area_struct * vma, unsigned long address, pte_t *ptep)
 {
 #if 0
 	static unsigned long last;
@@ -703,10 +703,10 @@ static void swift_update_mmu_cache(struct vm_area_struct * vma, unsigned long ad
 
 	if (address == last) {
 		val = srmmu_hwprobe(address);
-		if (val != 0 && pte_val(pte) != val) {
+		if (val != 0 && pte_val(*ptep) != val) {
 			printk("swift_update_mmu_cache: "
 			    "addr %lx put %08x probed %08x from %p\n",
-			    address, pte_val(pte), val,
+			    address, pte_val(*ptep), val,
 			    __builtin_return_address(0));
 			srmmu_flush_whole_tlb();
 		}

@@ -952,6 +952,7 @@
 #       define R300_TXO_ENDIAN_HALFDW_SWAP       (3 << 0)
 #       define R300_TXO_MACRO_TILE               (1 << 2)
 #       define R300_TXO_MICRO_TILE               (1 << 3)
+#       define R300_TXO_MICRO_TILE_SQUARE        (2 << 3)
 #       define R300_TXO_OFFSET_MASK              0xffffffe0
 #       define R300_TXO_OFFSET_SHIFT             5
 	/* END: Guess from R200 */
@@ -1360,6 +1361,7 @@
 #       define R300_COLORPITCH_MASK              0x00001FF8 /* GUESS */
 #       define R300_COLOR_TILE_ENABLE            (1 << 16) /* GUESS */
 #       define R300_COLOR_MICROTILE_ENABLE       (1 << 17) /* GUESS */
+#       define R300_COLOR_MICROTILE_SQUARE_ENABLE (2 << 17)
 #       define R300_COLOR_ENDIAN_NO_SWAP         (0 << 18) /* GUESS */
 #       define R300_COLOR_ENDIAN_WORD_SWAP       (1 << 18) /* GUESS */
 #       define R300_COLOR_ENDIAN_DWORD_SWAP      (2 << 18) /* GUESS */

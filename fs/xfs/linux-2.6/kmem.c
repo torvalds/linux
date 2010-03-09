@@ -16,7 +16,6 @@
  * Inc.,  51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
  */
 #include <linux/mm.h>
-#include <linux/vmalloc.h>
 #include <linux/highmem.h>
 #include <linux/swap.h>
 #include <linux/blkdev.h>
@@ -24,8 +23,25 @@
 #include "time.h"
 #include "kmem.h"
 
-#define MAX_VMALLOCS	6
-#define MAX_SLAB_SIZE	0x20000
+/*
+ * Greedy allocation.  May fail and may return vmalloced memory.
+ *
+ * Must be freed using kmem_free_large.
+ */
+void *
+kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize)
+{
+	void		*ptr;
+	size_t		kmsize = maxsize;
+
+	while (!(ptr = kmem_zalloc_large(kmsize))) {
+		if ((kmsize >>= 1) <= minsize)
+			kmsize = minsize;
+	}
+	if (ptr)
+		*size = kmsize;
+	return ptr;
+}
 
 void *
 kmem_alloc(size_t size, unsigned int __nocast flags)
@@ -34,19 +50,8 @@ kmem_alloc(size_t size, unsigned int __nocast flags)
 	gfp_t	lflags = kmem_flags_convert(flags);
 	void	*ptr;
 
-#ifdef DEBUG
-	if (unlikely(!(flags & KM_LARGE) && (size > PAGE_SIZE))) {
-		printk(KERN_WARNING "Large %s attempt, size=%ld\n",
-			__func__, (long)size);
-		dump_stack();
-	}
-#endif
-
 	do {
-		if (size < MAX_SLAB_SIZE || retries > MAX_VMALLOCS)
-			ptr = kmalloc(size, lflags);
-		else
-			ptr = __vmalloc(size, lflags, PAGE_KERNEL);
+		ptr = kmalloc(size, lflags);
 		if (ptr || (flags & (KM_MAYFAIL|KM_NOSLEEP)))
 			return ptr;
 		if (!(++retries % 100))
@@ -65,27 +70,6 @@ kmem_zalloc(size_t size, unsigned int __nocast flags)
 	ptr = kmem_alloc(size, flags);
 	if (ptr)
 		memset((char *)ptr, 0, (int)size);
-	return ptr;
-}
-
-void *
-kmem_zalloc_greedy(size_t *size, size_t minsize, size_t maxsize,
-		   unsigned int __nocast flags)
-{
-	void		*ptr;
-	size_t		kmsize = maxsize;
-	unsigned int	kmflags = (flags & ~KM_SLEEP) | KM_NOSLEEP;
-
-	while (!(ptr = kmem_zalloc(kmsize, kmflags))) {
-		if ((kmsize <= minsize) && (flags & KM_NOSLEEP))
-			break;
-		if ((kmsize >>= 1) <= minsize) {
-			kmsize = minsize;
-			kmflags = flags;
-		}
-	}
-	if (ptr)
-		*size = kmsize;
 	return ptr;
 }
 

@@ -397,7 +397,7 @@ static void serial_2002_open(struct comedi_device *dev)
 	char port[20];
 
 	sprintf(port, "/dev/ttyS%d", devpriv->port);
-	devpriv->tty = filp_open(port, 0, O_RDWR);
+	devpriv->tty = filp_open(port, O_RDWR, 0);
 	if (IS_ERR(devpriv->tty)) {
 		printk("serial_2002: file open error = %ld\n",
 		       PTR_ERR(devpriv->tty));

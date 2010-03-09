@@ -1,4 +1,6 @@
 ath9k-y +=	beacon.o \
+		gpio.o \
+		init.o \
 		main.o \
 		recv.o \
 		xmit.o \

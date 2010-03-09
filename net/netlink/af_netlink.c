@@ -455,8 +455,13 @@ static int netlink_create(struct net *net, struct socket *sock, int protocol,
 	if (nl_table[protocol].registered &&
 	    try_module_get(nl_table[protocol].module))
 		module = nl_table[protocol].module;
+	else
+		err = -EPROTONOSUPPORT;
 	cb_mutex = nl_table[protocol].cb_mutex;
 	netlink_unlock_table();
+
+	if (err < 0)
+		goto out;
 
 	err = __netlink_create(net, sock, cb_mutex, protocol);
 	if (err < 0)
@@ -1973,12 +1978,12 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 	if (v == SEQ_START_TOKEN)
 		seq_puts(seq,
 			 "sk       Eth Pid    Groups   "
-			 "Rmem     Wmem     Dump     Locks     Drops\n");
+			 "Rmem     Wmem     Dump     Locks     Drops     Inode\n");
 	else {
 		struct sock *s = v;
 		struct netlink_sock *nlk = nlk_sk(s);
 
-		seq_printf(seq, "%p %-3d %-6d %08x %-8d %-8d %p %-8d %-8d\n",
+		seq_printf(seq, "%p %-3d %-6d %08x %-8d %-8d %p %-8d %-8d %-8lu\n",
 			   s,
 			   s->sk_protocol,
 			   nlk->pid,
@@ -1987,7 +1992,8 @@ static int netlink_seq_show(struct seq_file *seq, void *v)
 			   sk_wmem_alloc_get(s),
 			   nlk->cb,
 			   atomic_read(&s->sk_refcnt),
-			   atomic_read(&s->sk_drops)
+			   atomic_read(&s->sk_drops),
+			   sock_i_ino(s)
 			);
 
 	}

@@ -578,6 +578,8 @@ static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc)
 	struct pci_dev *dev;
 	struct pci_bus *bus;
 	bool blocked = eeepc_wlan_rfkill_blocked(eeepc);
+	bool absent;
+	u32 l;
 
 	if (eeepc->wlan_rfkill)
 		rfkill_set_sw_state(eeepc->wlan_rfkill, blocked);
@@ -588,6 +590,22 @@ static void eeepc_rfkill_hotplug(struct eeepc_laptop *eeepc)
 		bus = pci_find_bus(0, 1);
 		if (!bus) {
 			pr_warning("Unable to find PCI bus 1?\n");
+			goto out_unlock;
+		}
+
+		if (pci_bus_read_config_dword(bus, 0, PCI_VENDOR_ID, &l)) {
+			pr_err("Unable to read PCI config space?\n");
+			goto out_unlock;
+		}
+		absent = (l == 0xffffffff);
+
+		if (blocked != absent) {
+			pr_warning("BIOS says wireless lan is %s, "
+					"but the pci device is %s\n",
+				blocked ? "blocked" : "unblocked",
+				absent ? "absent" : "present");
+			pr_warning("skipped wireless hotplug as probably "
+					"inappropriate for this model\n");
 			goto out_unlock;
 		}
 
@@ -1277,7 +1295,8 @@ static void eeepc_dmi_check(struct eeepc_laptop *eeepc)
 	 * hotplug code. In fact, current hotplug code seems to unplug another
 	 * device...
 	 */
-	if (strcmp(model, "1005HA") == 0 || strcmp(model, "1201N") == 0) {
+	if (strcmp(model, "1005HA") == 0 || strcmp(model, "1201N") == 0 ||
+	    strcmp(model, "1005PE") == 0) {
 		eeepc->hotplug_disabled = true;
 		pr_info("wlan hotplug disabled\n");
 	}

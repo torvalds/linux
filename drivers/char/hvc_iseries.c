@@ -197,7 +197,7 @@ done:
 	return sent;
 }
 
-static struct hv_ops hvc_get_put_ops = {
+static const struct hv_ops hvc_get_put_ops = {
 	.get_chars = get_chars,
 	.put_chars = put_chars,
 	.notifier_add = notifier_add_irq,

@@ -696,11 +696,11 @@ static int serial_config(struct pcmcia_device * link)
 		info->multi = info->quirk->multi;
 
 	if (info->multi > 1)
-		multi_config(link);
+		i = multi_config(link);
 	else
-		simple_config(link);
+		i = simple_config(link);
 
-	if (info->ndev == 0)
+	if (i || info->ndev == 0)
 		goto failed;
 
 	/*
@@ -715,6 +715,7 @@ static int serial_config(struct pcmcia_device * link)
 	return 0;
 
 failed:
+	dev_warn(&link->dev, "serial_cs: failed to initialize\n");
 	serial_remove(link);
 	return -ENODEV;
 }
@@ -758,6 +759,7 @@ static struct pcmcia_device_id serial_ids[] = {
 	PCMCIA_PFC_DEVICE_PROD_ID12(1, "PCMCIAs", "LanModem", 0xdcfe12d3, 0xc67c648f),
 	PCMCIA_PFC_DEVICE_PROD_ID12(1, "TDK", "GlobalNetworker 3410/3412", 0x1eae9475, 0xd9a93bed),
 	PCMCIA_PFC_DEVICE_PROD_ID12(1, "Xircom", "CreditCard Ethernet+Modem II", 0x2e3ee845, 0xeca401bf),
+	PCMCIA_PFC_DEVICE_MANF_CARD(1, 0x0032, 0x0e01),
 	PCMCIA_PFC_DEVICE_MANF_CARD(1, 0x0032, 0x0a05),
 	PCMCIA_PFC_DEVICE_MANF_CARD(1, 0x0032, 0x1101),
 	PCMCIA_MFC_DEVICE_MANF_CARD(0, 0x0104, 0x0070),

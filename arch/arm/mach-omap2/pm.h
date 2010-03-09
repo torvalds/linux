@@ -23,6 +23,22 @@ extern int omap3_can_sleep(void);
 extern int set_pwrdm_state(struct powerdomain *pwrdm, u32 state);
 extern int omap3_idle_init(void);
 
+struct cpuidle_params {
+	u8  valid;
+	u32 sleep_latency;
+	u32 wake_latency;
+	u32 threshold;
+};
+
+#if defined(CONFIG_PM) && defined(CONFIG_CPU_IDLE)
+extern void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params);
+#else
+static
+inline void omap3_pm_init_cpuidle(struct cpuidle_params *cpuidle_board_params)
+{
+}
+#endif
+
 extern int omap3_pm_get_suspend_state(struct powerdomain *pwrdm);
 extern int omap3_pm_set_suspend_state(struct powerdomain *pwrdm, int state);
 
@@ -32,12 +48,20 @@ extern struct omap_dm_timer *gptimer_wakeup;
 #ifdef CONFIG_PM_DEBUG
 extern void omap2_pm_dump(int mode, int resume, unsigned int us);
 extern int omap2_pm_debug;
+#else
+#define omap2_pm_dump(mode, resume, us)		do {} while (0);
+#define omap2_pm_debug				0
+#endif
+
+#if defined(CONFIG_CPU_IDLE)
+extern void omap3_cpuidle_update_states(void);
+#endif
+
+#if defined(CONFIG_PM_DEBUG) && defined(CONFIG_DEBUG_FS)
 extern void pm_dbg_update_time(struct powerdomain *pwrdm, int prev);
 extern int pm_dbg_regset_save(int reg_set);
 extern int pm_dbg_regset_init(int reg_set);
 #else
-#define omap2_pm_dump(mode, resume, us)		do {} while (0);
-#define omap2_pm_debug				0
 #define pm_dbg_update_time(pwrdm, prev) do {} while (0);
 #define pm_dbg_regset_save(reg_set) do {} while (0);
 #define pm_dbg_regset_init(reg_set) do {} while (0);

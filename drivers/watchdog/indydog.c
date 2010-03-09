@@ -111,7 +111,7 @@ static long indydog_ioctl(struct file *file, unsigned int cmd,
 							unsigned long arg)
 {
 	int options, retval = -EINVAL;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options		= WDIOF_KEEPALIVEPING,
 		.firmware_version	= 0,
 		.identity		= "Hardware Watchdog for SGI IP22",

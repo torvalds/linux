@@ -163,7 +163,7 @@ int vlan_skb_recv(struct sk_buff *skb, struct net_device *dev,
 		goto err_unlock;
 	}
 
-	rx_stats = per_cpu_ptr(vlan_dev_info(dev)->vlan_rx_stats,
+	rx_stats = per_cpu_ptr(vlan_dev_info(skb->dev)->vlan_rx_stats,
 			       smp_processor_id());
 	rx_stats->rx_packets++;
 	rx_stats->rx_bytes += skb->len;
@@ -263,11 +263,10 @@ static int vlan_dev_hard_header(struct sk_buff *skb, struct net_device *dev,
 		vhdr->h_vlan_TCI = htons(vlan_tci);
 
 		/*
-		 *  Set the protocol type. For a packet of type ETH_P_802_3 we
-		 *  put the length in here instead. It is up to the 802.2
-		 *  layer to carry protocol information.
+		 *  Set the protocol type. For a packet of type ETH_P_802_3/2 we
+		 *  put the length in here instead.
 		 */
-		if (type != ETH_P_802_3)
+		if (type != ETH_P_802_3 && type != ETH_P_802_2)
 			vhdr->h_vlan_encapsulated_proto = htons(type);
 		else
 			vhdr->h_vlan_encapsulated_proto = htons(len);
@@ -323,7 +322,7 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 	}
 
 
-	skb->dev = vlan_dev_info(dev)->real_dev;
+	skb_set_dev(skb, vlan_dev_info(dev)->real_dev);
 	len = skb->len;
 	ret = dev_queue_xmit(skb);
 

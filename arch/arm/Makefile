@@ -94,7 +94,7 @@ CFLAGS_ABI	+=-funwind-tables
 endif
 
 ifeq ($(CONFIG_THUMB2_KERNEL),y)
-AFLAGS_AUTOIT	:=$(call as-option,-Wa$(comma)-mimplicit-it=thumb,-Wa$(comma)-mauto-it)
+AFLAGS_AUTOIT	:=$(call as-option,-Wa$(comma)-mimplicit-it=always,-Wa$(comma)-mauto-it)
 AFLAGS_NOWARN	:=$(call as-option,-Wa$(comma)-mno-warn-deprecated,-Wa$(comma)-W)
 CFLAGS_THUMB2	:=-mthumb $(AFLAGS_AUTOIT) $(AFLAGS_NOWARN)
 AFLAGS_THUMB2	:=$(CFLAGS_THUMB2) -Wa$(comma)-mthumb
@@ -171,6 +171,7 @@ machine-$(CONFIG_ARCH_U300)		:= u300
 machine-$(CONFIG_ARCH_U8500)		:= ux500
 machine-$(CONFIG_ARCH_VERSATILE)	:= versatile
 machine-$(CONFIG_ARCH_W90X900)		:= w90x900
+machine-$(CONFIG_ARCH_NUC93X)		:= nuc93x
 machine-$(CONFIG_FOOTBRIDGE)		:= footbridge
 
 # Platform directory name.  This list is sorted alphanumerically

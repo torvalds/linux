@@ -497,6 +497,7 @@ trace_print_graph_duration(unsigned long long duration, struct trace_seq *s);
 #ifdef CONFIG_DYNAMIC_FTRACE
 /* TODO: make this variable */
 #define FTRACE_GRAPH_MAX_FUNCS		32
+extern int ftrace_graph_filter_enabled;
 extern int ftrace_graph_count;
 extern unsigned long ftrace_graph_funcs[FTRACE_GRAPH_MAX_FUNCS];
 
@@ -504,7 +505,7 @@ static inline int ftrace_graph_addr(unsigned long addr)
 {
 	int i;
 
-	if (!ftrace_graph_count || test_tsk_trace_graph(current))
+	if (!ftrace_graph_filter_enabled)
 		return 1;
 
 	for (i = 0; i < ftrace_graph_count; i++) {
@@ -791,7 +792,8 @@ extern const char *__stop___trace_bprintk_fmt[];
 
 #undef FTRACE_ENTRY
 #define FTRACE_ENTRY(call, struct_name, id, tstruct, print)		\
-	extern struct ftrace_event_call event_##call;
+	extern struct ftrace_event_call					\
+	__attribute__((__aligned__(4))) event_##call;
 #undef FTRACE_ENTRY_DUP
 #define FTRACE_ENTRY_DUP(call, struct_name, id, tstruct, print)		\
 	FTRACE_ENTRY(call, struct_name, id, PARAMS(tstruct), PARAMS(print))

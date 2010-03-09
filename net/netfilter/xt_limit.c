@@ -148,7 +148,7 @@ struct compat_xt_rateinfo {
 
 /* To keep the full "prev" timestamp, the upper 32 bits are stored in the
  * master pointer, which does not need to be preserved. */
-static void limit_mt_compat_from_user(void *dst, void *src)
+static void limit_mt_compat_from_user(void *dst, const void *src)
 {
 	const struct compat_xt_rateinfo *cm = src;
 	struct xt_rateinfo m = {
@@ -162,7 +162,7 @@ static void limit_mt_compat_from_user(void *dst, void *src)
 	memcpy(dst, &m, sizeof(m));
 }
 
-static int limit_mt_compat_to_user(void __user *dst, void *src)
+static int limit_mt_compat_to_user(void __user *dst, const void *src)
 {
 	const struct xt_rateinfo *m = src;
 	struct compat_xt_rateinfo cm = {

@@ -736,32 +736,8 @@ typedef union _MI_LCR2_t {
 
 /* MI Register 29 - 31: Reserved Reg(0x1D - 0x1E) */
 
-/* Forward declaration of the private adapter structure */
-struct et131x_adapter;
 
 /* Prototypes for ET1310_phy.c */
-int et131x_xcvr_find(struct et131x_adapter *adapter);
-void et131x_setphy_normal(struct et131x_adapter *adapter);
-
-/* static inline function does not work because et131x_adapter is not always
- * defined
- */
-int PhyMiRead(struct et131x_adapter *adapter, u8 xcvrAddr,
-	      u8 xcvrReg, u16 *value);
-#define MiRead(adapter, xcvrReg, value) \
-	PhyMiRead((adapter), (adapter)->Stats.xcvr_addr, (xcvrReg), (value))
-
-int32_t MiWrite(struct et131x_adapter *adapter,
-		u8 xcvReg, u16 value);
-void et131x_Mii_check(struct et131x_adapter *pAdapter,
-		      MI_BMSR_t bmsr, MI_BMSR_t bmsr_ints);
-
-/* This last is not strictly required (the driver could call the TPAL
- * version instead), but this sets the adapter up correctly, and calls the
- * access routine indirectly.  This protects the driver from changes in TPAL.
- */
-void SetPhy_10BaseTHalfDuplex(struct et131x_adapter *adapter);
-
 /* Defines for PHY access routines */
 
 /* Define bit operation flags */
@@ -842,15 +818,5 @@ void SetPhy_10BaseTHalfDuplex(struct et131x_adapter *adapter);
 #define PHY_LED_2                  0x1C	/* #define TRU_VMI_LED_CONTROL_2_REGISTER          28 */
 					/* #define TRU_VMI_LINK_CONTROL_REGISTER           29 */
 					/* #define TRU_VMI_TIMING_CONTROL_REGISTER */
-
-/* Prototypes for PHY access routines */
-void ET1310_PhyInit(struct et131x_adapter *adapter);
-void ET1310_PhyReset(struct et131x_adapter *adapter);
-void ET1310_PhyPowerDown(struct et131x_adapter *adapter, bool down);
-void ET1310_PhyAdvertise1000BaseT(struct et131x_adapter *adapter,
-				  u16 duplex);
-void ET1310_PhyAccessMiBit(struct et131x_adapter *adapter,
-			   u16 action,
-			   u16 regnum, u16 bitnum, u8 *value);
 
 #endif /* _ET1310_PHY_H_ */

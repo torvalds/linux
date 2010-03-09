@@ -80,7 +80,7 @@ struct smsc9420_pdata {
 	int last_carrier;
 };
 
-static const struct pci_device_id smsc9420_id_table[] = {
+static DEFINE_PCI_DEVICE_TABLE(smsc9420_id_table) = {
 	{ PCI_VENDOR_ID_9420, PCI_DEVICE_ID_9420, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0, }
 };
@@ -1062,12 +1062,12 @@ static void smsc9420_set_multicast_list(struct net_device *dev)
 		mac_cr &= (~MAC_CR_PRMS_);
 		mac_cr |= MAC_CR_MCPAS_;
 		mac_cr &= (~MAC_CR_HPFILT_);
-	} else if (dev->mc_count > 0) {
-		struct dev_mc_list *mc_list = dev->mc_list;
+	} else if (!netdev_mc_empty(dev)) {
+		struct dev_mc_list *mc_list;
 		u32 hash_lo = 0, hash_hi = 0;
 
 		smsc_dbg(HW, "Multicast filter enabled");
-		while (mc_list) {
+		netdev_for_each_mc_addr(mc_list, dev) {
 			u32 bit_num = smsc9420_hash(mc_list->dmi_addr);
 			u32 mask = 1 << (bit_num & 0x1F);
 
@@ -1076,7 +1076,6 @@ static void smsc9420_set_multicast_list(struct net_device *dev)
 			else
 				hash_lo |= mask;
 
-			mc_list = mc_list->next;
 		}
 		smsc9420_reg_write(pd, HASHH, hash_hi);
 		smsc9420_reg_write(pd, HASHL, hash_lo);

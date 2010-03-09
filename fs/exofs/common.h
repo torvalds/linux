@@ -55,6 +55,8 @@
 /* exofs Application specific page/attribute */
 # define EXOFS_APAGE_FS_DATA	(OSD_APAGE_APP_DEFINED_FIRST + 3)
 # define EXOFS_ATTR_INODE_DATA	1
+# define EXOFS_ATTR_INODE_FILE_LAYOUT	2
+# define EXOFS_ATTR_INODE_DIR_LAYOUT	3
 
 /*
  * The maximum number of files we can have is limited by the size of the
@@ -205,5 +207,42 @@ enum {
 #define EXOFS_DIR_REC_LEN(name_len) \
 	(((name_len) + offsetof(struct exofs_dir_entry, name)  + \
 	  EXOFS_DIR_ROUND) & ~EXOFS_DIR_ROUND)
+
+/*
+ * The on-disk (optional) layout structure.
+ * sits in an EXOFS_ATTR_INODE_FILE_LAYOUT or EXOFS_ATTR_INODE_DIR_LAYOUT
+ * attribute, attached to any inode, usually to a directory.
+ */
+
+enum exofs_inode_layout_gen_functions {
+	LAYOUT_MOVING_WINDOW = 0,
+	LAYOUT_IMPLICT = 1,
+};
+
+struct exofs_on_disk_inode_layout {
+	__le16 gen_func; /* One of enum exofs_inode_layout_gen_functions */
+	__le16 pad;
+	union {
+		/* gen_func == LAYOUT_MOVING_WINDOW (default) */
+		struct exofs_layout_sliding_window {
+			__le32 num_devices; /* first n devices in global-table*/
+		} sliding_window __packed;
+
+		/* gen_func == LAYOUT_IMPLICT */
+		struct exofs_layout_implict_list {
+			struct exofs_dt_data_map data_map;
+			/* Variable array of size data_map.cb_num_comps. These
+			 * are device indexes of the devices in the global table
+			 */
+			__le32 dev_indexes[];
+		} implict __packed;
+	};
+} __packed;
+
+static inline size_t exofs_on_disk_inode_layout_size(unsigned max_devs)
+{
+	return sizeof(struct exofs_on_disk_inode_layout) +
+		max_devs * sizeof(__le32);
+}
 
 #endif /*ifndef __EXOFS_COM_H__*/

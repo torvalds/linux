@@ -1323,7 +1323,7 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 	 * I don't need to zero the multicast table, because the flag is
 	 * checked before the table is
 	 */
-	else if (dev->flags & IFF_ALLMULTI || dev->mc_count > 16) {
+	else if (dev->flags & IFF_ALLMULTI || netdev_mc_count(dev) > 16) {
 		DBG(SMC_DEBUG_MISC, "%s: RCR_ALMUL\n", dev->name);
 		mcr |= MAC_CR_MCPAS_;
 	}
@@ -1340,8 +1340,7 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 	 * the number of the 32 bit register, while the low 5 bits are the bit
 	 * within that register.
 	 */
-	else if (dev->mc_count)  {
-		int i;
+	else if (!netdev_mc_empty(dev)) {
 		struct dev_mc_list *cur_addr;
 
 		/* Set the Hash perfec mode */
@@ -1350,8 +1349,7 @@ static void smc911x_set_multicast_list(struct net_device *dev)
 		/* start with a table of all zeros: reject all */
 		memset(multicast_table, 0, sizeof(multicast_table));
 
-		cur_addr = dev->mc_list;
-		for (i = 0; i < dev->mc_count; i++, cur_addr = cur_addr->next) {
+		netdev_for_each_mc_addr(cur_addr, dev) {
 			u32 position;
 
 			/* do we have a pointer here? */
@@ -2017,10 +2015,8 @@ static int __devinit smc911x_probe(struct net_device *dev)
 					"set using ifconfig\n", dev->name);
 		} else {
 			/* Print the Ethernet address */
-			printk("%s: Ethernet addr: ", dev->name);
-			for (i = 0; i < 5; i++)
-				printk("%2.2x:", dev->dev_addr[i]);
-			printk("%2.2x\n", dev->dev_addr[5]);
+			printk("%s: Ethernet addr: %pM\n",
+				dev->name, dev->dev_addr);
 		}
 
 		if (lp->phy_type == 0) {

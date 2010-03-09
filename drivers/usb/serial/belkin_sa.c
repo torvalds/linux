@@ -103,7 +103,7 @@ static int  belkin_sa_tiocmset(struct tty_struct *tty, struct file *file,
 					unsigned int set, unsigned int clear);
 
 
-static struct usb_device_id id_table_combined [] = {
+static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(BELKIN_SA_VID, BELKIN_SA_PID) },
 	{ USB_DEVICE(BELKIN_OLD_VID, BELKIN_OLD_PID) },
 	{ USB_DEVICE(PERACOM_VID, PERACOM_PID) },

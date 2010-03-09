@@ -380,7 +380,7 @@ static int ns87415_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 
 	ns87415_fixup(pdev);
 
-	return ata_pci_sff_init_one(pdev, ppi, &ns87415_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &ns87415_sht, NULL, 0);
 }
 
 static const struct pci_device_id ns87415_pci_tbl[] = {

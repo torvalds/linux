@@ -1854,17 +1854,18 @@ static void set_rx_mode(struct net_device *dev)
 
 	if (dev->flags & IFF_PROMISC) {			/* Set promiscuous. */
 		writew(0x000F, ioaddr + AddrMode);
-	} else if ((dev->mc_count > 63)  ||  (dev->flags & IFF_ALLMULTI)) {
+	} else if ((netdev_mc_count(dev) > 63) || (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */
 		writew(0x000B, ioaddr + AddrMode);
-	} else if (dev->mc_count > 0) { /* Must use the CAM filter. */
+	} else if (!netdev_mc_empty(dev)) { /* Must use the CAM filter. */
 		struct dev_mc_list *mclist;
-		int i;
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
-			 i++, mclist = mclist->next) {
+		int i = 0;
+
+		netdev_for_each_mc_addr(mclist, dev) {
 			writel(*(u32*)(mclist->dmi_addr), ioaddr + 0x100 + i*8);
 			writel(0x20000 | (*(u16*)&mclist->dmi_addr[4]),
 				   ioaddr + 0x104 + i*8);
+			i++;
 		}
 		/* Clear remaining entries. */
 		for (; i < 64; i++)
@@ -1990,7 +1991,7 @@ static void __devexit hamachi_remove_one (struct pci_dev *pdev)
 	}
 }
 
-static struct pci_device_id hamachi_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(hamachi_pci_tbl) = {
 	{ 0x1318, 0x0911, PCI_ANY_ID, PCI_ANY_ID, },
 	{ 0, }
 };

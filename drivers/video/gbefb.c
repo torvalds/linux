@@ -1128,7 +1128,7 @@ static int __init gbefb_setup(char *options)
 	return 0;
 }
 
-static int __init gbefb_probe(struct platform_device *p_dev)
+static int __devinit gbefb_probe(struct platform_device *p_dev)
 {
 	int i, ret = 0;
 	struct fb_info *info;

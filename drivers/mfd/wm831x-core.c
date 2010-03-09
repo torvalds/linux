@@ -321,7 +321,6 @@ EXPORT_SYMBOL_GPL(wm831x_set_bits);
  */
 int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
 {
-	int tries = 10;
 	int ret, src;
 
 	mutex_lock(&wm831x->auxadc_lock);
@@ -349,13 +348,14 @@ int wm831x_auxadc_read(struct wm831x *wm831x, enum wm831x_auxadc input)
 		goto disable;
 	}
 
-	do {
-		msleep(1);
+	/* Ignore the result to allow us to soldier on without IRQ hookup */
+	wait_for_completion_timeout(&wm831x->auxadc_done, msecs_to_jiffies(5));
 
-		ret = wm831x_reg_read(wm831x, WM831X_AUXADC_CONTROL);
-		if (ret < 0)
-			ret = WM831X_AUX_CVT_ENA;
-	} while ((ret & WM831X_AUX_CVT_ENA) && --tries);
+	ret = wm831x_reg_read(wm831x, WM831X_AUXADC_CONTROL);
+	if (ret < 0) {
+		dev_err(wm831x->dev, "AUXADC status read failed: %d\n", ret);
+		goto disable;
+	}
 
 	if (ret & WM831X_AUX_CVT_ENA) {
 		dev_err(wm831x->dev, "Timed out reading AUXADC\n");
@@ -389,6 +389,15 @@ out:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(wm831x_auxadc_read);
+
+static irqreturn_t wm831x_auxadc_irq(int irq, void *irq_data)
+{
+	struct wm831x *wm831x = irq_data;
+
+	complete(&wm831x->auxadc_done);
+
+	return IRQ_HANDLED;
+}
 
 /**
  * wm831x_auxadc_read_uv: Read a voltage from the WM831x AUXADC
@@ -1411,6 +1420,7 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	mutex_init(&wm831x->io_lock);
 	mutex_init(&wm831x->key_lock);
 	mutex_init(&wm831x->auxadc_lock);
+	init_completion(&wm831x->auxadc_done);
 	dev_set_drvdata(wm831x->dev, wm831x);
 
 	ret = wm831x_reg_read(wm831x, WM831X_PARENT_ID);
@@ -1449,18 +1459,33 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	case WM8310:
 		parent = WM8310;
 		wm831x->num_gpio = 16;
+		if (rev > 0) {
+			wm831x->has_gpio_ena = 1;
+			wm831x->has_cs_sts = 1;
+		}
+
 		dev_info(wm831x->dev, "WM8310 revision %c\n", 'A' + rev);
 		break;
 
 	case WM8311:
 		parent = WM8311;
 		wm831x->num_gpio = 16;
+		if (rev > 0) {
+			wm831x->has_gpio_ena = 1;
+			wm831x->has_cs_sts = 1;
+		}
+
 		dev_info(wm831x->dev, "WM8311 revision %c\n", 'A' + rev);
 		break;
 
 	case WM8312:
 		parent = WM8312;
 		wm831x->num_gpio = 16;
+		if (rev > 0) {
+			wm831x->has_gpio_ena = 1;
+			wm831x->has_cs_sts = 1;
+		}
+
 		dev_info(wm831x->dev, "WM8312 revision %c\n", 'A' + rev);
 		break;
 
@@ -1507,6 +1532,16 @@ static int wm831x_device_init(struct wm831x *wm831x, unsigned long id, int irq)
 	ret = wm831x_irq_init(wm831x, irq);
 	if (ret != 0)
 		goto err;
+
+	if (wm831x->irq_base) {
+		ret = request_threaded_irq(wm831x->irq_base +
+					   WM831X_IRQ_AUXADC_DATA,
+					   NULL, wm831x_auxadc_irq, 0,
+					   "auxadc", wm831x);
+		if (ret < 0)
+			dev_err(wm831x->dev, "AUXADC IRQ request failed: %d\n",
+				ret);
+	}
 
 	/* The core device is up, instantiate the subdevices. */
 	switch (parent) {
@@ -1578,6 +1613,8 @@ static void wm831x_device_exit(struct wm831x *wm831x)
 {
 	wm831x_otp_exit(wm831x);
 	mfd_remove_devices(wm831x->dev);
+	if (wm831x->irq_base)
+		free_irq(wm831x->irq_base + WM831X_IRQ_AUXADC_DATA, wm831x);
 	wm831x_irq_exit(wm831x);
 	kfree(wm831x);
 }

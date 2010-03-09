@@ -6,7 +6,7 @@
  * more details.
  *
  * Copyright (C) 2009 Lemote Inc. & DSLab, Lanzhou University, China
- * Author: Wu Zhangjin <wuzj@lemote.com>
+ * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  */
 
 #include <asm/regdef.h>

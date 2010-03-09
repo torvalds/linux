@@ -196,6 +196,9 @@ extern void tcp_time_wait(struct sock *sk, int state, int timeo);
 #define TCP_NAGLE_CORK		2	/* Socket is corked	    */
 #define TCP_NAGLE_PUSH		4	/* Cork is overridden for already queued data */
 
+/* TCP thin-stream limits */
+#define TCP_THIN_LINEAR_RETRIES 6       /* After 6 linear retries, do exp. backoff */
+
 extern struct inet_timewait_death_row tcp_death_row;
 
 /* sysctl variables for tcp */
@@ -241,6 +244,8 @@ extern int sysctl_tcp_workaround_signed_windows;
 extern int sysctl_tcp_slow_start_after_idle;
 extern int sysctl_tcp_max_ssthresh;
 extern int sysctl_tcp_cookie_size;
+extern int sysctl_tcp_thin_linear_timeouts;
+extern int sysctl_tcp_thin_dupack;
 
 extern atomic_t tcp_memory_allocated;
 extern struct percpu_counter tcp_sockets_allocated;
@@ -400,6 +405,8 @@ extern int			compat_tcp_setsockopt(struct sock *sk,
 					int level, int optname,
 					char __user *optval, unsigned int optlen);
 extern void			tcp_set_keepalive(struct sock *sk, int val);
+extern void			tcp_syn_ack_timeout(struct sock *sk,
+						    struct request_sock *req);
 extern int			tcp_recvmsg(struct kiocb *iocb, struct sock *sk,
 					    struct msghdr *msg,
 					    size_t len, int nonblock, 
@@ -856,13 +863,6 @@ static inline void tcp_check_probe_timer(struct sock *sk)
 					  icsk->icsk_rto, TCP_RTO_MAX);
 }
 
-static inline void tcp_push_pending_frames(struct sock *sk)
-{
-	struct tcp_sock *tp = tcp_sk(sk);
-
-	__tcp_push_pending_frames(sk, tcp_current_mss(sk), tp->nonagle);
-}
-
 static inline void tcp_init_wl(struct tcp_sock *tp, u32 seq)
 {
 	tp->snd_wl1 = seq;
@@ -972,7 +972,8 @@ static inline void tcp_sack_reset(struct tcp_options_received *rx_opt)
 /* Determine a window scaling and initial window to offer. */
 extern void tcp_select_initial_window(int __space, __u32 mss,
 				      __u32 *rcv_wnd, __u32 *window_clamp,
-				      int wscale_ok, __u8 *rcv_wscale);
+				      int wscale_ok, __u8 *rcv_wscale,
+				      __u32 init_rcv_wnd);
 
 static inline int tcp_win_from_space(int space)
 {
@@ -1193,7 +1194,7 @@ extern int			tcp_v4_md5_do_del(struct sock *sk,
 #define tcp_twsk_md5_key(twsk)	NULL
 #endif
 
-extern struct tcp_md5sig_pool	**tcp_alloc_md5sig_pool(struct sock *);
+extern struct tcp_md5sig_pool * __percpu *tcp_alloc_md5sig_pool(struct sock *);
 extern void			tcp_free_md5sig_pool(void);
 
 extern struct tcp_md5sig_pool	*__tcp_get_md5sig_pool(int cpu);
@@ -1342,6 +1343,15 @@ static inline int tcp_write_queue_empty(struct sock *sk)
 	return skb_queue_empty(&sk->sk_write_queue);
 }
 
+static inline void tcp_push_pending_frames(struct sock *sk)
+{
+	if (tcp_send_head(sk)) {
+		struct tcp_sock *tp = tcp_sk(sk);
+
+		__tcp_push_pending_frames(sk, tcp_current_mss(sk), tp->nonagle);
+	}
+}
+
 /* Start sequence of the highest skb with SACKed bit, valid only if
  * sacked > 0 or when the caller has ensured validity by itself.
  */
@@ -1379,6 +1389,14 @@ static inline void tcp_highest_sack_combine(struct sock *sk,
 {
 	if (tcp_sk(sk)->sacked_out && (old == tcp_sk(sk)->highest_sack))
 		tcp_sk(sk)->highest_sack = new;
+}
+
+/* Determines whether this is a thin stream (which may suffer from
+ * increased latency). Used to trigger latency-reducing mechanisms.
+ */
+static inline unsigned int tcp_stream_is_thin(struct tcp_sock *tp)
+{
+	return tp->packets_out < 4 && !tcp_in_initial_slowstart(tp);
 }
 
 /* /proc */

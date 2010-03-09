@@ -1337,6 +1337,22 @@ static struct tuner_params tuner_philips_cu1216l_params[] = {
 	},
 };
 
+/* ---------------------- TUNER_SONY_BTF_PXN01Z ------------------------ */
+
+static struct tuner_range tuner_sony_btf_pxn01z_ranges[] = {
+	{ 16 * 137.25 /*MHz*/, 0x8e, 0x01, },
+	{ 16 * 367.25 /*MHz*/, 0x8e, 0x02, },
+	{ 16 * 999.99        , 0x8e, 0x04, },
+};
+
+static struct tuner_params tuner_sony_btf_pxn01z_params[] = {
+	{
+		.type   = TUNER_PARAM_TYPE_NTSC,
+		.ranges = tuner_sony_btf_pxn01z_ranges,
+		.count  = ARRAY_SIZE(tuner_sony_btf_pxn01z_ranges),
+	},
+};
+
 /* --------------------------------------------------------------------- */
 
 struct tunertype tuners[] = {
@@ -1804,6 +1820,11 @@ struct tunertype tuners[] = {
 	[TUNER_NXP_TDA18271] = {
 		.name   = "NXP TDA18271",
 		/* see tda18271-fe.c for details */
+	},
+	[TUNER_SONY_BTF_PXN01Z] = {
+		.name   = "Sony BTF-Pxn01Z",
+		.params = tuner_sony_btf_pxn01z_params,
+		.count  = ARRAY_SIZE(tuner_sony_btf_pxn01z_params),
 	},
 };
 EXPORT_SYMBOL(tuners);

@@ -26,7 +26,7 @@
 
 static DEFINE_MUTEX(bat_lock);
 static struct work_struct bat_work;
-struct mutex work_lock;
+static struct mutex work_lock;
 static int bat_status = POWER_SUPPLY_STATUS_UNKNOWN;
 static struct wm97xx_batt_info *gpdata;
 static enum power_supply_property *prop;
@@ -175,8 +175,14 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 		dev_err(&dev->dev, "Do not pass platform_data through "
 			"wm97xx_bat_set_pdata!\n");
 		return -EINVAL;
-	} else
-		pdata = wmdata->batt_pdata;
+	}
+
+	if (!wmdata) {
+		dev_err(&dev->dev, "No platform data supplied\n");
+		return -EINVAL;
+	}
+
+	pdata = wmdata->batt_pdata;
 
 	if (dev->id != -1)
 		return -EINVAL;
@@ -197,7 +203,7 @@ static int __devinit wm97xx_bat_probe(struct platform_device *dev)
 			goto err2;
 		ret = request_irq(gpio_to_irq(pdata->charge_gpio),
 				wm97xx_chrg_irq, IRQF_DISABLED,
-				"AC Detect", 0);
+				"AC Detect", dev);
 		if (ret)
 			goto err2;
 		props++;	/* POWER_SUPPLY_PROP_STATUS */

@@ -43,15 +43,14 @@ static int iwmct_fw_parser_init(struct iwmct_priv *priv, const u8 *file,
 	struct iwmct_parser *parser = &priv->parser;
 	struct iwmct_fw_hdr *fw_hdr = &parser->versions;
 
-	LOG_INFOEX(priv, INIT, "-->\n");
+	LOG_TRACE(priv, FW_DOWNLOAD, "-->\n");
 
 	LOG_INFO(priv, FW_DOWNLOAD, "file_size=%zd\n", file_size);
 
 	parser->file = file;
 	parser->file_size = file_size;
 	parser->cur_pos = 0;
-	parser->buf = NULL;
-
+	parser->entry_point = 0;
 	parser->buf = kzalloc(block_size, GFP_KERNEL);
 	if (!parser->buf) {
 		LOG_ERROR(priv, FW_DOWNLOAD, "kzalloc error\n");
@@ -70,7 +69,7 @@ static int iwmct_fw_parser_init(struct iwmct_priv *priv, const u8 *file,
 
 	parser->cur_pos += sizeof(struct iwmct_fw_hdr);
 
-	LOG_INFOEX(priv, INIT, "<--\n");
+	LOG_TRACE(priv, FW_DOWNLOAD, "<--\n");
 	return 0;
 }
 
@@ -113,7 +112,7 @@ static int iwmct_parse_next_section(struct iwmct_priv *priv, const u8 **p_sec,
 	struct iwmct_dbg *dbg = &priv->dbg;
 	struct iwmct_fw_sec_hdr *sec_hdr;
 
-	LOG_INFOEX(priv, INIT, "-->\n");
+	LOG_TRACE(priv, FW_DOWNLOAD, "-->\n");
 
 	while (parser->cur_pos + sizeof(struct iwmct_fw_sec_hdr)
 		<= parser->file_size) {
@@ -152,7 +151,7 @@ static int iwmct_parse_next_section(struct iwmct_priv *priv, const u8 **p_sec,
 			"finished with section cur_pos=%zd\n", parser->cur_pos);
 	}
 
-	LOG_INFOEX(priv, INIT, "<--\n");
+	LOG_TRACE(priv, INIT, "<--\n");
 	return 0;
 }
 
@@ -167,7 +166,7 @@ static int iwmct_download_section(struct iwmct_priv *priv, const u8 *p_sec,
 	int ret = 0;
 	u32 cmd = 0;
 
-	LOG_INFOEX(priv, INIT, "-->\n");
+	LOG_TRACE(priv, FW_DOWNLOAD, "-->\n");
 	LOG_INFO(priv, FW_DOWNLOAD, "Download address 0x%x size 0x%zx\n",
 				addr, sec_size);
 
@@ -229,7 +228,7 @@ static int iwmct_download_section(struct iwmct_priv *priv, const u8 *p_sec,
 		hdr->cmd = cpu_to_le32(cmd);
 		/* send it down */
 		/* TODO: add more proper sending and error checking */
-		ret = iwmct_tx(priv, 0, parser->buf, trans_size);
+		ret = iwmct_tx(priv, parser->buf, trans_size);
 		if (ret != 0) {
 			LOG_INFO(priv, FW_DOWNLOAD,
 				"iwmct_tx returned %d\n", ret);
@@ -251,7 +250,7 @@ static int iwmct_download_section(struct iwmct_priv *priv, const u8 *p_sec,
 	if (sent < sec_size)
 		ret = -EINVAL;
 exit:
-	LOG_INFOEX(priv, INIT, "<--\n");
+	LOG_TRACE(priv, FW_DOWNLOAD, "<--\n");
 	return ret;
 }
 
@@ -262,7 +261,7 @@ static int iwmct_kick_fw(struct iwmct_priv *priv, bool jump)
 	int ret;
 	u32 cmd;
 
-	LOG_INFOEX(priv, INIT, "-->\n");
+	LOG_TRACE(priv, FW_DOWNLOAD, "-->\n");
 
 	memset(parser->buf, 0, parser->buf_size);
 	cmd = IWMC_CMD_SIGNATURE << CMD_HDR_SIGNATURE_POS;
@@ -281,11 +280,11 @@ static int iwmct_kick_fw(struct iwmct_priv *priv, bool jump)
 	LOG_HEXDUMP(FW_DOWNLOAD, parser->buf, sizeof(*hdr));
 	/* send it down */
 	/* TODO: add more proper sending and error checking */
-	ret = iwmct_tx(priv, 0, parser->buf, IWMC_SDIO_BLK_SIZE);
+	ret = iwmct_tx(priv, parser->buf, IWMC_SDIO_BLK_SIZE);
 	if (ret)
 		LOG_INFO(priv, FW_DOWNLOAD, "iwmct_tx returned %d", ret);
 
-	LOG_INFOEX(priv, INIT, "<--\n");
+	LOG_TRACE(priv, FW_DOWNLOAD, "<--\n");
 	return 0;
 }
 
@@ -298,8 +297,16 @@ int iwmct_fw_load(struct iwmct_priv *priv)
 	__le32 addr;
 	int ret;
 
-	/* clear parser struct */
-	memset(&priv->parser, 0, sizeof(struct iwmct_parser));
+
+	LOG_INFO(priv, FW_DOWNLOAD, "barker download request 0x%x is:\n",
+			priv->barker);
+	LOG_INFO(priv, FW_DOWNLOAD, "*******  Top FW %s requested ********\n",
+			(priv->barker & BARKER_DNLOAD_TOP_MSK) ? "was" : "not");
+	LOG_INFO(priv, FW_DOWNLOAD, "*******  GPS FW %s requested ********\n",
+			(priv->barker & BARKER_DNLOAD_GPS_MSK) ? "was" : "not");
+	LOG_INFO(priv, FW_DOWNLOAD, "*******  BT FW %s requested ********\n",
+			(priv->barker & BARKER_DNLOAD_BT_MSK) ? "was" : "not");
+
 
 	/* get the firmware */
 	ret = request_firmware(&raw, fw_name, &priv->func->dev);
@@ -317,6 +324,7 @@ int iwmct_fw_load(struct iwmct_priv *priv)
 
 	LOG_INFO(priv, FW_DOWNLOAD, "Read firmware '%s'\n", fw_name);
 
+	/* clear parser struct */
 	ret = iwmct_fw_parser_init(priv, raw->data, raw->size, priv->trans_len);
 	if (ret < 0) {
 		LOG_ERROR(priv, FW_DOWNLOAD,
@@ -324,7 +332,6 @@ int iwmct_fw_load(struct iwmct_priv *priv)
 		goto exit;
 	}
 
-	/* checksum  */
 	if (!iwmct_checksum(priv)) {
 		LOG_ERROR(priv, FW_DOWNLOAD, "checksum error\n");
 		ret = -EINVAL;
@@ -333,23 +340,18 @@ int iwmct_fw_load(struct iwmct_priv *priv)
 
 	/* download firmware to device */
 	while (iwmct_parse_next_section(priv, &pdata, &len, &addr)) {
-		if (iwmct_download_section(priv, pdata, len, addr)) {
+		ret = iwmct_download_section(priv, pdata, len, addr);
+		if (ret) {
 			LOG_ERROR(priv, FW_DOWNLOAD,
 				  "%s download section failed\n", fw_name);
-			ret = -EIO;
 			goto exit;
 		}
 	}
 
-	iwmct_kick_fw(priv, !!(priv->barker & BARKER_DNLOAD_JUMP_MSK));
+	ret = iwmct_kick_fw(priv, !!(priv->barker & BARKER_DNLOAD_JUMP_MSK));
 
 exit:
 	kfree(priv->parser.buf);
-
-	if (raw)
-		release_firmware(raw);
-
-	raw = NULL;
-
+	release_firmware(raw);
 	return ret;
 }

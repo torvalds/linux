@@ -15,6 +15,7 @@
 #include <linux/slab.h>
 #include <linux/pcieport_if.h>
 #include <linux/aer.h>
+#include <linux/dmi.h>
 
 #include "portdrv.h"
 #include "aer/aerdrv.h"
@@ -273,9 +274,35 @@ static struct pci_driver pcie_portdriver = {
 	.driver.pm 	= PCIE_PORTDRV_PM_OPS,
 };
 
+static int __init dmi_pcie_pme_disable_msi(const struct dmi_system_id *d)
+{
+	pr_notice("%s detected: will not use MSI for PCIe PME signaling\n",
+			d->ident);
+	pcie_pme_disable_msi();
+	return 0;
+}
+
+static struct dmi_system_id __initdata pcie_portdrv_dmi_table[] = {
+	/*
+	 * Boxes that should not use MSI for PCIe PME signaling.
+	 */
+	{
+	 .callback = dmi_pcie_pme_disable_msi,
+	 .ident = "MSI Wind U-100",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR,
+		     		"MICRO-STAR INTERNATIONAL CO., LTD"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "U-100"),
+		     },
+	 },
+	 {}
+};
+
 static int __init pcie_portdrv_init(void)
 {
 	int retval;
+
+	dmi_check_system(pcie_portdrv_dmi_table);
 
 	retval = pcie_port_bus_register();
 	if (retval) {

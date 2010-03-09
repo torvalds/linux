@@ -491,6 +491,19 @@ void force_hpet_resume(void)
 		break;
 	}
 }
+
+/*
+ * HPET MSI on some boards (ATI SB700/SB800) has side effect on
+ * floppy DMA. Disable HPET MSI on such platforms.
+ */
+static void force_disable_hpet_msi(struct pci_dev *unused)
+{
+	hpet_msi_disable = 1;
+}
+
+DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_ATI, PCI_DEVICE_ID_ATI_SBX00_SMBUS,
+			 force_disable_hpet_msi);
+
 #endif
 
 #if defined(CONFIG_PCI) && defined(CONFIG_NUMA)

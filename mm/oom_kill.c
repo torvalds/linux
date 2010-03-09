@@ -401,8 +401,8 @@ static void __oom_kill_task(struct task_struct *p, int verbose)
 		       "vsz:%lukB, anon-rss:%lukB, file-rss:%lukB\n",
 		       task_pid_nr(p), p->comm,
 		       K(p->mm->total_vm),
-		       K(get_mm_counter(p->mm, anon_rss)),
-		       K(get_mm_counter(p->mm, file_rss)));
+		       K(get_mm_counter(p->mm, MM_ANONPAGES)),
+		       K(get_mm_counter(p->mm, MM_FILEPAGES)));
 	task_unlock(p);
 
 	/*
@@ -458,6 +458,8 @@ static int oom_kill_process(struct task_struct *p, gfp_t gfp_mask, int order,
 	/* Try to kill a child first */
 	list_for_each_entry(c, &p->children, sibling) {
 		if (c->mm == p->mm)
+			continue;
+		if (mem && !task_in_mem_cgroup(c, mem))
 			continue;
 		if (!oom_kill_task(c))
 			return 0;

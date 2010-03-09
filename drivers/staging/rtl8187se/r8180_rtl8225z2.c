@@ -854,134 +854,48 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 	btConfig3 = read_nic_byte(dev, CONFIG3);
 	write_nic_byte(dev, CONFIG3, (btConfig3 | CONFIG3_PARM_En));
 
-	switch (priv->rf_chip) {
-	case RF_ZEBRA2:
-		switch (eRFPowerState) {
-		case eRfOn:
-			RF_WriteReg(dev,0x4,0x9FF);
+	switch (eRFPowerState) {
+	case eRfOn:
+		write_nic_word(dev, 0x37C, 0x00EC);
 
-			write_nic_dword(dev, ANAPARAM, ANAPARM_ON);
-			write_nic_dword(dev, ANAPARAM2, ANAPARM2_ON);
+		/* turn on AFE */
+		write_nic_byte(dev, 0x54, 0x00);
+		write_nic_byte(dev, 0x62, 0x00);
 
-			write_nic_byte(dev, CONFIG4, priv->RFProgType);
+		/* turn on RF */
+		RF_WriteReg(dev, 0x0, 0x009f); udelay(500);
+		RF_WriteReg(dev, 0x4, 0x0972); udelay(500);
 
-			/* turn on CCK and OFDM */
-			u1bTmp = read_nic_byte(dev, 0x24E);
-			write_nic_byte(dev, 0x24E, (u1bTmp & (~(BIT5 | BIT6))));
-			break;
-		case eRfSleep:
-			break;
-		case eRfOff:
-			break;
-		default:
-			bResult = false;
-			break;
-		}
+		/* turn on RF again */
+		RF_WriteReg(dev, 0x0, 0x009f); udelay(500);
+		RF_WriteReg(dev, 0x4, 0x0972); udelay(500);
+
+		/* turn on BB */
+		write_phy_ofdm(dev, 0x10, 0x40);
+		write_phy_ofdm(dev, 0x12, 0x40);
+
+		/* Avoid power down at init time. */
+		write_nic_byte(dev, CONFIG4, priv->RFProgType);
+
+		u1bTmp = read_nic_byte(dev, 0x24E);
+		write_nic_byte(dev, 0x24E, (u1bTmp & (~(BIT5 | BIT6))));
 		break;
-	case RF_ZEBRA4:
-		switch (eRFPowerState) {
-		case eRfOn:
-			write_nic_word(dev, 0x37C, 0x00EC);
-
-			/* turn on AFE */
-			write_nic_byte(dev, 0x54, 0x00);
-			write_nic_byte(dev, 0x62, 0x00);
-
-			/* turn on RF */
-			RF_WriteReg(dev, 0x0, 0x009f); udelay(500);
-			RF_WriteReg(dev, 0x4, 0x0972); udelay(500);
-
-			/* turn on RF again */
-			RF_WriteReg(dev, 0x0, 0x009f); udelay(500);
-			RF_WriteReg(dev, 0x4, 0x0972); udelay(500);
-
-			/* turn on BB */
-			write_phy_ofdm(dev,0x10,0x40);
-			write_phy_ofdm(dev,0x12,0x40);
-
-			/* Avoid power down at init time. */
-			write_nic_byte(dev, CONFIG4, priv->RFProgType);
-
-			u1bTmp = read_nic_byte(dev, 0x24E);
-			write_nic_byte(dev, 0x24E, (u1bTmp & (~(BIT5 | BIT6))));
-			break;
-		case eRfSleep:
-			for (QueueID = 0, i = 0; QueueID < 6;) {
-				if (get_curr_tx_free_desc(dev, QueueID) == priv->txringcount) {
-					QueueID++;
-					continue;
-				} else {
-					priv->TxPollingTimes ++;
-					if (priv->TxPollingTimes >= LPS_MAX_SLEEP_WAITING_TIMES_87SE) {
-						bActionAllowed = false;
-						break;
-					} else
-						udelay(10);
-				}
-			}
-
-			if (bActionAllowed) {
-				/* turn off BB RXIQ matrix to cut off rx signal */
-				write_phy_ofdm(dev, 0x10, 0x00);
-				write_phy_ofdm(dev, 0x12, 0x00);
-
-				/* turn off RF */
-				RF_WriteReg(dev, 0x4, 0x0000);
-				RF_WriteReg(dev, 0x0, 0x0000);
-
-				/* turn off AFE except PLL */
-				write_nic_byte(dev, 0x62, 0xff);
-				write_nic_byte(dev, 0x54, 0xec);
-
-				mdelay(1);
-
-				{
-					int i = 0;
-					while (true) {
-						u8 tmp24F = read_nic_byte(dev, 0x24f);
-
-						if ((tmp24F == 0x01) || (tmp24F == 0x09)) {
-							bTurnOffBB = true;
-							break;
-						} else {
-							udelay(10);
-							i++;
-							priv->TxPollingTimes++;
-
-							if (priv->TxPollingTimes >= LPS_MAX_SLEEP_WAITING_TIMES_87SE) {
-								bTurnOffBB = false;
-								break;
-							} else
-								udelay(10);
-						}
-					}
-				}
-
-				if (bTurnOffBB) {
-					/* turn off BB */
-					u1bTmp = read_nic_byte(dev, 0x24E);
-					write_nic_byte(dev, 0x24E, (u1bTmp | BIT5 | BIT6));
-
-					/* turn off AFE PLL */
-					write_nic_byte(dev, 0x54, 0xFC);
-					write_nic_word(dev, 0x37C, 0x00FC);
-				}
-			}
-			break;
-		case eRfOff:
-			for (QueueID = 0, i = 0; QueueID < 6;) {
-				if (get_curr_tx_free_desc(dev, QueueID) == priv->txringcount) {
-					QueueID++;
-					continue;
-				} else {
-					udelay(10);
-					i++;
-				}
-
-				if (i >= MAX_DOZE_WAITING_TIMES_85B)
+	case eRfSleep:
+		for (QueueID = 0, i = 0; QueueID < 6;) {
+			if (get_curr_tx_free_desc(dev, QueueID) == priv->txringcount) {
+				QueueID++;
+				continue;
+			} else {
+				priv->TxPollingTimes++;
+				if (priv->TxPollingTimes >= LPS_MAX_SLEEP_WAITING_TIMES_87SE) {
+					bActionAllowed = false;
 					break;
+				} else
+					udelay(10);
 			}
+		}
 
+		if (bActionAllowed) {
 			/* turn off BB RXIQ matrix to cut off rx signal */
 			write_phy_ofdm(dev, 0x10, 0x00);
 			write_phy_ofdm(dev, 0x12, 0x00);
@@ -998,22 +912,23 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 
 			{
 				int i = 0;
-
-				while (true)
-				{
+				while (true) {
 					u8 tmp24F = read_nic_byte(dev, 0x24f);
 
 					if ((tmp24F == 0x01) || (tmp24F == 0x09)) {
 						bTurnOffBB = true;
 						break;
 					} else {
-						bTurnOffBB = false;
 						udelay(10);
 						i++;
-					}
+						priv->TxPollingTimes++;
 
-					if (i > MAX_POLLING_24F_TIMES_87SE)
-						break;
+						if (priv->TxPollingTimes >= LPS_MAX_SLEEP_WAITING_TIMES_87SE) {
+							bTurnOffBB = false;
+							break;
+						} else
+							udelay(10);
+					}
 				}
 			}
 
@@ -1022,15 +937,68 @@ bool SetZebraRFPowerState8185(struct net_device *dev,
 				u1bTmp = read_nic_byte(dev, 0x24E);
 				write_nic_byte(dev, 0x24E, (u1bTmp | BIT5 | BIT6));
 
-				/* turn off AFE PLL (80M) */
+				/* turn off AFE PLL */
 				write_nic_byte(dev, 0x54, 0xFC);
 				write_nic_word(dev, 0x37C, 0x00FC);
 			}
-			break;
-		default:
-			bResult = false;
-			printk("SetZebraRFPowerState8185(): unknown state to set: 0x%X!!!\n", eRFPowerState);
-			break;
+		}
+		break;
+	case eRfOff:
+		for (QueueID = 0, i = 0; QueueID < 6;) {
+			if (get_curr_tx_free_desc(dev, QueueID) == priv->txringcount) {
+				QueueID++;
+				continue;
+			} else {
+				udelay(10);
+				i++;
+			}
+
+			if (i >= MAX_DOZE_WAITING_TIMES_85B)
+				break;
+		}
+
+		/* turn off BB RXIQ matrix to cut off rx signal */
+		write_phy_ofdm(dev, 0x10, 0x00);
+		write_phy_ofdm(dev, 0x12, 0x00);
+
+		/* turn off RF */
+		RF_WriteReg(dev, 0x4, 0x0000);
+		RF_WriteReg(dev, 0x0, 0x0000);
+
+		/* turn off AFE except PLL */
+		write_nic_byte(dev, 0x62, 0xff);
+		write_nic_byte(dev, 0x54, 0xec);
+
+		mdelay(1);
+
+		{
+			int i = 0;
+
+			while (true) {
+				u8 tmp24F = read_nic_byte(dev, 0x24f);
+
+				if ((tmp24F == 0x01) || (tmp24F == 0x09)) {
+					bTurnOffBB = true;
+					break;
+				} else {
+					bTurnOffBB = false;
+					udelay(10);
+					i++;
+				}
+
+				if (i > MAX_POLLING_24F_TIMES_87SE)
+					break;
+			}
+		}
+
+		if (bTurnOffBB) {
+			/* turn off BB */
+			u1bTmp = read_nic_byte(dev, 0x24E);
+			write_nic_byte(dev, 0x24E, (u1bTmp | BIT5 | BIT6));
+
+			/* turn off AFE PLL (80M) */
+			write_nic_byte(dev, 0x54, 0xFC);
+			write_nic_word(dev, 0x37C, 0x00FC);
 		}
 		break;
 	}

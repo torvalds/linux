@@ -1625,7 +1625,7 @@ If I am only interested in sys_nanosleep and hrtimer_interrupt:
 
  # echo sys_nanosleep hrtimer_interrupt \
 		> set_ftrace_filter
- # echo ftrace > current_tracer
+ # echo function > current_tracer
  # echo 1 > tracing_enabled
  # usleep 1
  # echo 0 > tracing_enabled

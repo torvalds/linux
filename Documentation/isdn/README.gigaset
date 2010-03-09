@@ -292,10 +292,10 @@ GigaSet 307x Device Driver
         to /etc/modprobe.d/gigaset, /etc/modprobe.conf.local or a similar file.
 
      Problem:
-        Your isdn script aborts with a message about isdnlog.
+        The isdnlog program emits error messages or just doesn't work.
      Solution:
-        Try deactivating (or commenting out) isdnlog. This driver does not
-        support it.
+        Isdnlog supports only the HiSax driver. Do not attempt to use it with
+	other drivers such as Gigaset.
 
      Problem:
         You have two or more DECT data adapters (M101/M105) and only the
@@ -321,8 +321,8 @@ GigaSet 307x Device Driver
      writing an appropriate value to /sys/module/gigaset/parameters/debug, e.g.
         echo 0 > /sys/module/gigaset/parameters/debug
      switches off debugging output completely,
-        echo 0x10a020 > /sys/module/gigaset/parameters/debug
-     enables the standard set of debugging output messages. These values are
+        echo 0x302020 > /sys/module/gigaset/parameters/debug
+     enables a reasonable set of debugging output messages. These values are
      bit patterns where every bit controls a certain type of debugging output.
      See the constants DEBUG_* in the source file gigaset.h for details.
 

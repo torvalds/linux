@@ -487,7 +487,7 @@ int __bitmap_parse(const char *buf, unsigned int buflen,
 EXPORT_SYMBOL(__bitmap_parse);
 
 /**
- * bitmap_parse_user()
+ * bitmap_parse_user - convert an ASCII hex string in a user buffer into a bitmap
  *
  * @ubuf: pointer to user buffer containing string.
  * @ulen: buffer size in bytes.  If string is smaller than this
@@ -619,7 +619,7 @@ int bitmap_parselist(const char *bp, unsigned long *maskp, int nmaskbits)
 EXPORT_SYMBOL(bitmap_parselist);
 
 /**
- * bitmap_pos_to_ord(buf, pos, bits)
+ * bitmap_pos_to_ord - find ordinal of set bit at given position in bitmap
  *	@buf: pointer to a bitmap
  *	@pos: a bit position in @buf (0 <= @pos < @bits)
  *	@bits: number of valid bit positions in @buf
@@ -655,7 +655,7 @@ static int bitmap_pos_to_ord(const unsigned long *buf, int pos, int bits)
 }
 
 /**
- * bitmap_ord_to_pos(buf, ord, bits)
+ * bitmap_ord_to_pos - find position of n-th set bit in bitmap
  *	@buf: pointer to bitmap
  *	@ord: ordinal bit position (n-th set bit, n >= 0)
  *	@bits: number of valid bit positions in @buf
@@ -733,10 +733,9 @@ void bitmap_remap(unsigned long *dst, const unsigned long *src,
 	bitmap_zero(dst, bits);
 
 	w = bitmap_weight(new, bits);
-	for (oldbit = find_first_bit(src, bits);
-	     oldbit < bits;
-	     oldbit = find_next_bit(src, bits, oldbit + 1)) {
+	for_each_set_bit(oldbit, src, bits) {
 	     	int n = bitmap_pos_to_ord(old, oldbit, bits);
+
 		if (n < 0 || w == 0)
 			set_bit(oldbit, dst);	/* identity map */
 		else
@@ -903,9 +902,7 @@ void bitmap_onto(unsigned long *dst, const unsigned long *orig,
 	 */
 
 	m = 0;
-	for (n = find_first_bit(relmap, bits);
-	     n < bits;
-	     n = find_next_bit(relmap, bits, n + 1)) {
+	for_each_set_bit(n, relmap, bits) {
 		/* m == bitmap_pos_to_ord(relmap, n, bits) */
 		if (test_bit(m, orig))
 			set_bit(n, dst);
@@ -934,9 +931,7 @@ void bitmap_fold(unsigned long *dst, const unsigned long *orig,
 		return;
 	bitmap_zero(dst, bits);
 
-	for (oldbit = find_first_bit(orig, bits);
-	     oldbit < bits;
-	     oldbit = find_next_bit(orig, bits, oldbit + 1))
+	for_each_set_bit(oldbit, orig, bits)
 		set_bit(oldbit % sz, dst);
 }
 EXPORT_SYMBOL(bitmap_fold);

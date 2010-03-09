@@ -53,7 +53,7 @@ struct coh901318_params {
  * struct coh_dma_channel - dma channel base
  * @name: ascii name of dma channel
  * @number: channel id number
- * @desc_nbr_max: number of preallocated descriptortors
+ * @desc_nbr_max: number of preallocated descriptors
  * @priority_high: prio of channel, 0 low otherwise high.
  * @param: configuration parameters
  * @dev_addr: physical address of periphal connected to channel

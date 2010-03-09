@@ -195,29 +195,34 @@ mptfc_block_error_handler(struct scsi_cmnd *SCpnt,
 	unsigned long		flags;
 	int			ready;
 	MPT_ADAPTER 		*ioc;
+	int			loops = 40;	/* seconds */
 
 	hd = shost_priv(SCpnt->device->host);
 	ioc = hd->ioc;
 	spin_lock_irqsave(shost->host_lock, flags);
-	while ((ready = fc_remote_port_chkready(rport) >> 16) == DID_IMM_RETRY) {
+	while ((ready = fc_remote_port_chkready(rport) >> 16) == DID_IMM_RETRY
+	 || (loops > 0 && ioc->active == 0)) {
 		spin_unlock_irqrestore(shost->host_lock, flags);
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"mptfc_block_error_handler.%d: %d:%d, port status is "
-			"DID_IMM_RETRY, deferring %s recovery.\n",
+			"%x, active flag %d, deferring %s recovery.\n",
 			ioc->name, ioc->sh->host_no,
-			SCpnt->device->id, SCpnt->device->lun, caller));
+			SCpnt->device->id, SCpnt->device->lun,
+			ready, ioc->active, caller));
 		msleep(1000);
 		spin_lock_irqsave(shost->host_lock, flags);
+		loops --;
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 
-	if (ready == DID_NO_CONNECT || !SCpnt->device->hostdata) {
+	if (ready == DID_NO_CONNECT || !SCpnt->device->hostdata
+	 || ioc->active == 0) {
 		dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT
 			"%s.%d: %d:%d, failing recovery, "
-			"port state %d, vdevice %p.\n", caller,
+			"port state %x, active %d, vdevice %p.\n", caller,
 			ioc->name, ioc->sh->host_no,
 			SCpnt->device->id, SCpnt->device->lun, ready,
-			SCpnt->device->hostdata));
+			ioc->active, SCpnt->device->hostdata));
 		return FAILED;
 	}
 	dfcprintk (ioc, printk(MYIOC_s_DEBUG_FMT

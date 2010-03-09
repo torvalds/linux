@@ -626,7 +626,7 @@ static int ocfs2_create_refcount_tree(struct inode *inode,
 	rb = (struct ocfs2_refcount_block *)new_bh->b_data;
 	memset(rb, 0, inode->i_sb->s_blocksize);
 	strcpy((void *)rb, OCFS2_REFCOUNT_BLOCK_SIGNATURE);
-	rb->rf_suballoc_slot = cpu_to_le16(osb->slot_num);
+	rb->rf_suballoc_slot = cpu_to_le16(meta_ac->ac_alloc_slot);
 	rb->rf_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 	rb->rf_fs_generation = cpu_to_le32(osb->fs_generation);
 	rb->rf_blkno = cpu_to_le64(first_blkno);
@@ -1330,7 +1330,7 @@ static int ocfs2_expand_inline_ref_root(handle_t *handle,
 	memcpy(new_bh->b_data, ref_root_bh->b_data, sb->s_blocksize);
 
 	new_rb = (struct ocfs2_refcount_block *)new_bh->b_data;
-	new_rb->rf_suballoc_slot = cpu_to_le16(OCFS2_SB(sb)->slot_num);
+	new_rb->rf_suballoc_slot = cpu_to_le16(meta_ac->ac_alloc_slot);
 	new_rb->rf_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 	new_rb->rf_blkno = cpu_to_le64(blkno);
 	new_rb->rf_cpos = cpu_to_le32(0);
@@ -1576,7 +1576,7 @@ static int ocfs2_new_leaf_refcount_block(handle_t *handle,
 	new_rb = (struct ocfs2_refcount_block *)new_bh->b_data;
 	memset(new_rb, 0, sb->s_blocksize);
 	strcpy((void *)new_rb, OCFS2_REFCOUNT_BLOCK_SIGNATURE);
-	new_rb->rf_suballoc_slot = cpu_to_le16(OCFS2_SB(sb)->slot_num);
+	new_rb->rf_suballoc_slot = cpu_to_le16(meta_ac->ac_alloc_slot);
 	new_rb->rf_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 	new_rb->rf_fs_generation = cpu_to_le32(OCFS2_SB(sb)->fs_generation);
 	new_rb->rf_blkno = cpu_to_le64(blkno);
@@ -2945,7 +2945,7 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 
 	while (offset < end) {
 		page_index = offset >> PAGE_CACHE_SHIFT;
-		map_end = (page_index + 1) << PAGE_CACHE_SHIFT;
+		map_end = ((loff_t)page_index + 1) << PAGE_CACHE_SHIFT;
 		if (map_end > end)
 			map_end = end;
 
@@ -2957,8 +2957,12 @@ static int ocfs2_duplicate_clusters_by_page(handle_t *handle,
 
 		page = grab_cache_page(mapping, page_index);
 
-		/* This page can't be dirtied before we CoW it out. */
-		BUG_ON(PageDirty(page));
+		/*
+		 * In case PAGE_CACHE_SIZE <= CLUSTER_SIZE, This page
+		 * can't be dirtied before we CoW it out.
+		 */
+		if (PAGE_CACHE_SIZE <= OCFS2_SB(sb)->s_clustersize)
+			BUG_ON(PageDirty(page));
 
 		if (!PageUptodate(page)) {
 			ret = block_read_full_page(page, ocfs2_get_block);
@@ -3170,7 +3174,7 @@ static int ocfs2_cow_sync_writeback(struct super_block *sb,
 
 	while (offset < end) {
 		page_index = offset >> PAGE_CACHE_SHIFT;
-		map_end = (page_index + 1) << PAGE_CACHE_SHIFT;
+		map_end = ((loff_t)page_index + 1) << PAGE_CACHE_SHIFT;
 		if (map_end > end)
 			map_end = end;
 
@@ -4386,7 +4390,7 @@ static int ocfs2_vfs_reflink(struct dentry *old_dentry, struct inode *dir,
 	}
 
 	mutex_lock(&inode->i_mutex);
-	vfs_dq_init(dir);
+	dquot_initialize(dir);
 	error = ocfs2_reflink(old_dentry, dir, new_dentry, preserve);
 	mutex_unlock(&inode->i_mutex);
 	if (!error)

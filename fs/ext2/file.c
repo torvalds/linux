@@ -20,6 +20,7 @@
 
 #include <linux/time.h>
 #include <linux/pagemap.h>
+#include <linux/quotaops.h>
 #include "ext2.h"
 #include "xattr.h"
 #include "acl.h"
@@ -70,7 +71,7 @@ const struct file_operations ext2_file_operations = {
 	.compat_ioctl	= ext2_compat_ioctl,
 #endif
 	.mmap		= generic_file_mmap,
-	.open		= generic_file_open,
+	.open		= dquot_file_open,
 	.release	= ext2_release_file,
 	.fsync		= ext2_fsync,
 	.splice_read	= generic_file_splice_read,
@@ -87,7 +88,7 @@ const struct file_operations ext2_xip_file_operations = {
 	.compat_ioctl	= ext2_compat_ioctl,
 #endif
 	.mmap		= xip_file_mmap,
-	.open		= generic_file_open,
+	.open		= dquot_file_open,
 	.release	= ext2_release_file,
 	.fsync		= ext2_fsync,
 };

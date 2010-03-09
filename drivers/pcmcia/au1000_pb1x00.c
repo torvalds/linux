@@ -1,6 +1,6 @@
 /*
  *
- * Alchemy Semi Pb1x00 boards specific pcmcia routines.
+ * Alchemy Semi Pb1000 boards specific pcmcia routines.
  *
  * Copyright 2002 MontaVista Software Inc.
  * Author: MontaVista Software, Inc.
@@ -46,20 +46,11 @@
 
 #define debug(fmt, arg...) do { } while (0)
 
-#ifdef CONFIG_MIPS_PB1000
 #include <asm/pb1000.h>
 #define PCMCIA_IRQ AU1000_GPIO_15
-#elif defined (CONFIG_MIPS_PB1500)
-#include <asm/pb1500.h>
-#define PCMCIA_IRQ AU1500_GPIO_203
-#elif defined (CONFIG_MIPS_PB1100)
-#include <asm/pb1100.h>
-#define PCMCIA_IRQ AU1000_GPIO_11
-#endif
 
 static int pb1x00_pcmcia_init(struct pcmcia_init *init)
 {
-#ifdef CONFIG_MIPS_PB1000
 	u16 pcr;
 	pcr = PCR_SLOT_0_RST | PCR_SLOT_1_RST;
 
@@ -74,21 +65,10 @@ static int pb1x00_pcmcia_init(struct pcmcia_init *init)
 	au_sync_delay(20);
 	  
 	return PCMCIA_NUM_SOCKS;
-
-#else /* fixme -- take care of the Pb1500 at some point */
-
-	u16 pcr;
-	pcr = au_readw(PCMCIA_BOARD_REG) & ~0xf; /* turn off power */
-	pcr &= ~(PC_DEASSERT_RST | PC_DRV_EN);
-	au_writew(pcr, PCMCIA_BOARD_REG);
-	au_sync_delay(500);
-	return PCMCIA_NUM_SOCKS;
-#endif
 }
 
 static int pb1x00_pcmcia_shutdown(void)
 {
-#ifdef CONFIG_MIPS_PB1000
 	u16 pcr;
 	pcr = PCR_SLOT_0_RST | PCR_SLOT_1_RST;
 	pcr |= SET_VCC_VPP(VCC_HIZ,VPP_HIZ,0);
@@ -96,14 +76,6 @@ static int pb1x00_pcmcia_shutdown(void)
 	au_writel(pcr, PB1000_PCR);
 	au_sync_delay(20);
 	return 0;
-#else
-	u16 pcr;
-	pcr = au_readw(PCMCIA_BOARD_REG) & ~0xf; /* turn off power */
-	pcr &= ~(PC_DEASSERT_RST | PC_DRV_EN);
-	au_writew(pcr, PCMCIA_BOARD_REG);
-	au_sync_delay(2);
-	return 0;
-#endif
 }
 
 static int 
@@ -112,21 +84,11 @@ pb1x00_pcmcia_socket_state(unsigned sock, struct pcmcia_state *state)
 	u32 inserted0, inserted1;
 	u16 vs0, vs1;
 
-#ifdef CONFIG_MIPS_PB1000
 	vs0 = vs1 = (u16)au_readl(PB1000_ACR1);
 	inserted0 = !(vs0 & (ACR1_SLOT_0_CD1 | ACR1_SLOT_0_CD2));
 	inserted1 = !(vs1 & (ACR1_SLOT_1_CD1 | ACR1_SLOT_1_CD2));
 	vs0 = (vs0 >> 4) & 0x3;
 	vs1 = (vs1 >> 12) & 0x3;
-#else
-	vs0 = (au_readw(BOARD_STATUS_REG) >> 4) & 0x3;
-#ifdef CONFIG_MIPS_PB1500
-	inserted0 = !((au_readl(GPIO2_PINSTATE) >> 1) & 0x1); /* gpio 201 */
-#else /* Pb1100 */
-	inserted0 = !((au_readl(SYS_PINSTATERD) >> 9) & 0x1); /* gpio 9 */
-#endif
-	inserted1 = 0;
-#endif
 
 	state->ready = 0;
 	state->vs_Xv = 0;
@@ -203,7 +165,6 @@ pb1x00_pcmcia_configure_socket(const struct pcmcia_configure *configure)
 
 	if(configure->sock > PCMCIA_MAX_SOCK) return -1;
 
-#ifdef CONFIG_MIPS_PB1000
 	pcr = au_readl(PB1000_PCR);
 
 	if (configure->sock == 0) {
@@ -323,84 +284,6 @@ pb1x00_pcmcia_configure_socket(const struct pcmcia_configure *configure)
 	au_writel(pcr, PB1000_PCR);
 	au_sync_delay(300);
 
-#else
-
-	pcr = au_readw(PCMCIA_BOARD_REG) & ~0xf;
-
-	debug("Vcc %dV Vpp %dV, pcr %x, reset %d\n", 
-			configure->vcc, configure->vpp, pcr, configure->reset);
-
-
-	switch(configure->vcc){
-		case 0:  /* Vcc 0 */
-			pcr |= SET_VCC_VPP(0,0);
-			break;
-		case 50: /* Vcc 5V */
-			switch(configure->vpp) {
-				case 0:
-					pcr |= SET_VCC_VPP(2,0);
-					break;
-				case 50:
-					pcr |= SET_VCC_VPP(2,1);
-					break;
-				case 12:
-					pcr |= SET_VCC_VPP(2,2);
-					break;
-				case 33:
-				default:
-					pcr |= SET_VCC_VPP(0,0);
-					printk("%s: bad Vcc/Vpp (%d:%d)\n", 
-							__func__,
-							configure->vcc, 
-							configure->vpp);
-					break;
-			}
-			break;
-		case 33: /* Vcc 3.3V */
-			switch(configure->vpp) {
-				case 0:
-					pcr |= SET_VCC_VPP(1,0);
-					break;
-				case 12:
-					pcr |= SET_VCC_VPP(1,2);
-					break;
-				case 33:
-					pcr |= SET_VCC_VPP(1,1);
-					break;
-				case 50:
-				default:
-					pcr |= SET_VCC_VPP(0,0);
-					printk("%s: bad Vcc/Vpp (%d:%d)\n", 
-							__func__,
-							configure->vcc, 
-							configure->vpp);
-					break;
-			}
-			break;
-		default: /* what's this ? */
-			pcr |= SET_VCC_VPP(0,0);
-			printk(KERN_ERR "%s: bad Vcc %d\n", 
-					__func__, configure->vcc);
-			break;
-	}
-
-	au_writew(pcr, PCMCIA_BOARD_REG);
-	au_sync_delay(300);
-
-	if (!configure->reset) {
-		pcr |= PC_DRV_EN;
-		au_writew(pcr, PCMCIA_BOARD_REG);
-		au_sync_delay(100);
-		pcr |= PC_DEASSERT_RST;
-		au_writew(pcr, PCMCIA_BOARD_REG);
-		au_sync_delay(100);
-	}
-	else {
-		pcr &= ~(PC_DEASSERT_RST | PC_DRV_EN);
-		au_writew(pcr, PCMCIA_BOARD_REG);
-		au_sync_delay(100);
-	}
-#endif
 	return 0;
 }
 

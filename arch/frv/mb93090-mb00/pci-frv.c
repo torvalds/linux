@@ -32,18 +32,16 @@
  * but we want to try to avoid allocating at 0x2900-0x2bff
  * which might have be mirrored at 0x0100-0x03ff..
  */
-void
-pcibios_align_resource(void *data, struct resource *res,
+resource_size_t
+pcibios_align_resource(void *data, const struct resource *res,
 		       resource_size_t size, resource_size_t align)
 {
-	if (res->flags & IORESOURCE_IO) {
-		resource_size_t start = res->start;
+	resource_size_t start = res->start;
 
-		if (start & 0x300) {
-			start = (start + 0x3ff) & ~0x3ff;
-			res->start = start;
-		}
-	}
+	if ((res->flags & IORESOURCE_IO) && (start & 0x300))
+		start = (start + 0x3ff) & ~0x3ff;
+
+	return start
 }
 
 

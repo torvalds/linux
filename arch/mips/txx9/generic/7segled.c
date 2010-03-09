@@ -58,13 +58,16 @@ static ssize_t raw_store(struct sys_device *dev,
 static SYSDEV_ATTR(ascii, 0200, NULL, ascii_store);
 static SYSDEV_ATTR(raw, 0200, NULL, raw_store);
 
-static ssize_t map_seg7_show(struct sysdev_class *class, char *buf)
+static ssize_t map_seg7_show(struct sysdev_class *class,
+			     struct sysdev_class_attribute *attr,
+			     char *buf)
 {
 	memcpy(buf, &txx9_seg7map, sizeof(txx9_seg7map));
 	return sizeof(txx9_seg7map);
 }
 
 static ssize_t map_seg7_store(struct sysdev_class *class,
+			      struct sysdev_class_attribute *attr,
 			      const char *buf, size_t size)
 {
 	if (size != sizeof(txx9_seg7map))

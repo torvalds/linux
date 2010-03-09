@@ -75,6 +75,8 @@ int ec_query_seq(unsigned char cmd)
 		udelay(EC_REG_DELAY);
 	}
 
+	spin_unlock_irqrestore(&port_access_lock, flags);
+
 	if (timeout <= 0) {
 		printk(KERN_ERR "%s: deadable error : timeout...\n", __func__);
 		ret = -EINVAL;
@@ -82,8 +84,6 @@ int ec_query_seq(unsigned char cmd)
 		printk(KERN_INFO
 			   "(%x/%d)ec issued command %d status : 0x%x\n",
 			   timeout, EC_CMD_TIMEOUT - timeout, cmd, status);
-
-	spin_unlock_irqrestore(&port_access_lock, flags);
 
 	return ret;
 }

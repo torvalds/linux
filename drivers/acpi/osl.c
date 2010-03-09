@@ -436,7 +436,7 @@ acpi_status acpi_os_remove_interrupt_handler(u32 irq, acpi_osd_handler handler)
  * Running in interpreter thread context, safe to sleep
  */
 
-void acpi_os_sleep(acpi_integer ms)
+void acpi_os_sleep(u64 ms)
 {
 	schedule_timeout_interruptible(msecs_to_jiffies(ms));
 }
@@ -603,7 +603,7 @@ acpi_os_read_pci_configuration(struct acpi_pci_id * pci_id, u32 reg,
 
 acpi_status
 acpi_os_write_pci_configuration(struct acpi_pci_id * pci_id, u32 reg,
-				acpi_integer value, u32 width)
+				u64 value, u32 width)
 {
 	int result, size;
 

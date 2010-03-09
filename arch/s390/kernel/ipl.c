@@ -553,13 +553,18 @@ out:
 	return rc;
 }
 
-static void ipl_run(struct shutdown_trigger *trigger)
+static void __ipl_run(void *unused)
 {
 	diag308(DIAG308_IPL, NULL);
 	if (MACHINE_IS_VM)
 		__cpcmd("IPL", NULL, 0, NULL);
 	else if (ipl_info.type == IPL_TYPE_CCW)
 		reipl_ccw_dev(&ipl_info.data.ccw.dev_id);
+}
+
+static void ipl_run(struct shutdown_trigger *trigger)
+{
+	smp_switch_to_ipl_cpu(__ipl_run, NULL);
 }
 
 static int __init ipl_init(void)
@@ -1039,7 +1044,7 @@ static void get_ipl_string(char *dst, struct ipl_parameter_block *ipb,
 		sprintf(dst + pos, " PARM %s", vmparm);
 }
 
-static void reipl_run(struct shutdown_trigger *trigger)
+static void __reipl_run(void *unused)
 {
 	struct ccw_dev_id devid;
 	static char buf[128];
@@ -1085,6 +1090,11 @@ static void reipl_run(struct shutdown_trigger *trigger)
 		break;
 	}
 	disabled_wait((unsigned long) __builtin_return_address(0));
+}
+
+static void reipl_run(struct shutdown_trigger *trigger)
+{
+	smp_switch_to_ipl_cpu(__reipl_run, NULL);
 }
 
 static void reipl_block_ccw_init(struct ipl_parameter_block *ipb)
@@ -1369,20 +1379,18 @@ static struct kobj_attribute dump_type_attr =
 
 static struct kset *dump_kset;
 
-static void dump_run(struct shutdown_trigger *trigger)
+static void __dump_run(void *unused)
 {
 	struct ccw_dev_id devid;
 	static char buf[100];
 
 	switch (dump_method) {
 	case DUMP_METHOD_CCW_CIO:
-		smp_send_stop();
 		devid.devno = dump_block_ccw->ipl_info.ccw.devno;
 		devid.ssid  = 0;
 		reipl_ccw_dev(&devid);
 		break;
 	case DUMP_METHOD_CCW_VM:
-		smp_send_stop();
 		sprintf(buf, "STORE STATUS");
 		__cpcmd(buf, NULL, 0, NULL);
 		sprintf(buf, "IPL %X", dump_block_ccw->ipl_info.ccw.devno);
@@ -1396,10 +1404,17 @@ static void dump_run(struct shutdown_trigger *trigger)
 		diag308(DIAG308_SET, dump_block_fcp);
 		diag308(DIAG308_DUMP, NULL);
 		break;
-	case DUMP_METHOD_NONE:
-		return;
+	default:
+		break;
 	}
-	printk(KERN_EMERG "Dump failed!\n");
+}
+
+static void dump_run(struct shutdown_trigger *trigger)
+{
+	if (dump_method == DUMP_METHOD_NONE)
+		return;
+	smp_send_stop();
+	smp_switch_to_ipl_cpu(__dump_run, NULL);
 }
 
 static int __init dump_ccw_init(void)
@@ -1577,7 +1592,7 @@ static void vmcmd_run(struct shutdown_trigger *trigger)
 static int vmcmd_init(void)
 {
 	if (!MACHINE_IS_VM)
-		return -ENOTSUPP;
+		return -EOPNOTSUPP;
 	vmcmd_kset = kset_create_and_add("vmcmd", NULL, firmware_kobj);
 	if (!vmcmd_kset)
 		return -ENOMEM;
@@ -1595,7 +1610,7 @@ static void stop_run(struct shutdown_trigger *trigger)
 {
 	if (strcmp(trigger->name, ON_PANIC_STR) == 0)
 		disabled_wait((unsigned long) __builtin_return_address(0));
-	while (signal_processor(smp_processor_id(), sigp_stop) == sigp_busy)
+	while (sigp(smp_processor_id(), sigp_stop) == sigp_busy)
 		cpu_relax();
 	for (;;);
 }
@@ -1902,7 +1917,6 @@ void __init ipl_update_parameters(void)
 void __init ipl_save_parameters(void)
 {
 	struct cio_iplinfo iplinfo;
-	unsigned int *ipl_ptr;
 	void *src, *dst;
 
 	if (cio_get_iplinfo(&iplinfo))
@@ -1913,11 +1927,10 @@ void __init ipl_save_parameters(void)
 	if (!iplinfo.is_qdio)
 		return;
 	ipl_flags |= IPL_PARMBLOCK_VALID;
-	ipl_ptr = (unsigned int *)__LC_IPL_PARMBLOCK_PTR;
-	src = (void *)(unsigned long)*ipl_ptr;
+	src = (void *)(unsigned long)S390_lowcore.ipl_parmblock_ptr;
 	dst = (void *)IPL_PARMBLOCK_ORIGIN;
 	memmove(dst, src, PAGE_SIZE);
-	*ipl_ptr = IPL_PARMBLOCK_ORIGIN;
+	S390_lowcore.ipl_parmblock_ptr = IPL_PARMBLOCK_ORIGIN;
 }
 
 static LIST_HEAD(rcall);

@@ -1504,7 +1504,7 @@ static int wm8903_resume(struct platform_device *pdev)
 	struct i2c_client *i2c = codec->control_data;
 	int i;
 	u16 *reg_cache = codec->reg_cache;
-	u16 *tmp_cache = kmemdup(codec->reg_cache, sizeof(wm8903_reg_defaults),
+	u16 *tmp_cache = kmemdup(reg_cache, sizeof(wm8903_reg_defaults),
 				 GFP_KERNEL);
 
 	/* Bring the codec back up to standby first to minimise pop/clicks */
@@ -1516,6 +1516,7 @@ static int wm8903_resume(struct platform_device *pdev)
 		for (i = 2; i < ARRAY_SIZE(wm8903_reg_defaults); i++)
 			if (tmp_cache[i] != reg_cache[i])
 				snd_soc_write(codec, i, tmp_cache[i]);
+		kfree(tmp_cache);
 	} else {
 		dev_err(&i2c->dev, "Failed to allocate temporary cache\n");
 	}

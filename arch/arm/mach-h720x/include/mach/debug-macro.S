@@ -14,7 +14,7 @@
 		.equ    io_virt, IO_BASE
 		.equ    io_phys, IO_START
 
-		.macro  addruart,rx
+		.macro  addruart, rx, tmp
 		mrc     p15, 0, \rx, c1, c0
 		tst     \rx, #1  	       @ MMU enabled?
 		moveq   \rx, #io_phys	       @ physical base address

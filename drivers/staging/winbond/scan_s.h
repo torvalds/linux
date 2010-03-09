@@ -35,7 +35,6 @@ typedef struct _SCAN_REQ_PARA	//mandatory parameters for SCAN request
 {
 	u32				ScanType;			//passive/active scan
 
-	CHAN_LIST		sChannelList;	// 86B
 	u8			reserved_1[2];
 
 	struct SSID_Element	sSSID; // 34B. scan only for this SSID

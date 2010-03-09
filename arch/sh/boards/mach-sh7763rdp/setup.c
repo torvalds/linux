@@ -158,50 +158,50 @@ device_initcall(sh7763rdp_devices_setup);
 static void __init sh7763rdp_setup(char **cmdline_p)
 {
 	/* Board version check */
-	if (ctrl_inw(CPLD_BOARD_ID_ERV_REG) == 0xECB1)
+	if (__raw_readw(CPLD_BOARD_ID_ERV_REG) == 0xECB1)
 		printk(KERN_INFO "RTE Standard Configuration\n");
 	else
 		printk(KERN_INFO "RTA Standard Configuration\n");
 
 	/* USB pin select bits (clear bit 5-2 to 0) */
-	ctrl_outw((ctrl_inw(PORT_PSEL2) & 0xFFC3), PORT_PSEL2);
+	__raw_writew((__raw_readw(PORT_PSEL2) & 0xFFC3), PORT_PSEL2);
 	/* USBH setup port I controls to other (clear bits 4-9 to 0) */
-	ctrl_outw(ctrl_inw(PORT_PICR) & 0xFC0F, PORT_PICR);
+	__raw_writew(__raw_readw(PORT_PICR) & 0xFC0F, PORT_PICR);
 
 	/* Select USB Host controller */
-	ctrl_outw(0x00, USB_USBHSC);
+	__raw_writew(0x00, USB_USBHSC);
 
 	/* For LCD */
 	/* set PTJ7-1, bits 15-2 of PJCR to 0 */
-	ctrl_outw(ctrl_inw(PORT_PJCR) & 0x0003, PORT_PJCR);
+	__raw_writew(__raw_readw(PORT_PJCR) & 0x0003, PORT_PJCR);
 	/* set PTI5, bits 11-10 of PICR to 0 */
-	ctrl_outw(ctrl_inw(PORT_PICR) & 0xF3FF, PORT_PICR);
-	ctrl_outw(0, PORT_PKCR);
-	ctrl_outw(0, PORT_PLCR);
+	__raw_writew(__raw_readw(PORT_PICR) & 0xF3FF, PORT_PICR);
+	__raw_writew(0, PORT_PKCR);
+	__raw_writew(0, PORT_PLCR);
 	/* set PSEL2 bits 14-8, 5-4, of PSEL2 to 0 */
-	ctrl_outw((ctrl_inw(PORT_PSEL2) & 0x00C0), PORT_PSEL2);
+	__raw_writew((__raw_readw(PORT_PSEL2) & 0x00C0), PORT_PSEL2);
 	/* set PSEL3 bits 14-12, 6-4, 2-0 of PSEL3 to 0 */
-	ctrl_outw((ctrl_inw(PORT_PSEL3) & 0x0700), PORT_PSEL3);
+	__raw_writew((__raw_readw(PORT_PSEL3) & 0x0700), PORT_PSEL3);
 
 	/* For HAC */
 	/* bit3-0  0100:HAC & SSI1 enable */
-	ctrl_outw((ctrl_inw(PORT_PSEL1) & 0xFFF0) | 0x0004, PORT_PSEL1);
+	__raw_writew((__raw_readw(PORT_PSEL1) & 0xFFF0) | 0x0004, PORT_PSEL1);
 	/* bit14      1:SSI_HAC_CLK enable */
-	ctrl_outw(ctrl_inw(PORT_PSEL4) | 0x4000, PORT_PSEL4);
+	__raw_writew(__raw_readw(PORT_PSEL4) | 0x4000, PORT_PSEL4);
 
 	/* SH-Ether */
-	ctrl_outw((ctrl_inw(PORT_PSEL1) & ~0xff00) | 0x2400, PORT_PSEL1);
-	ctrl_outw(0x0, PORT_PFCR);
-	ctrl_outw(0x0, PORT_PFCR);
-	ctrl_outw(0x0, PORT_PFCR);
+	__raw_writew((__raw_readw(PORT_PSEL1) & ~0xff00) | 0x2400, PORT_PSEL1);
+	__raw_writew(0x0, PORT_PFCR);
+	__raw_writew(0x0, PORT_PFCR);
+	__raw_writew(0x0, PORT_PFCR);
 
 	/* MMC */
 	/*selects SCIF and MMC other functions */
-	ctrl_outw(0x0001, PORT_PSEL0);
+	__raw_writew(0x0001, PORT_PSEL0);
 	/* MMC clock operates */
-	ctrl_outl(ctrl_inl(MSTPCR1) & ~0x8, MSTPCR1);
-	ctrl_outw(ctrl_inw(PORT_PACR) & ~0x3000, PORT_PACR);
-	ctrl_outw(ctrl_inw(PORT_PCCR) & ~0xCFC3, PORT_PCCR);
+	__raw_writel(__raw_readl(MSTPCR1) & ~0x8, MSTPCR1);
+	__raw_writew(__raw_readw(PORT_PACR) & ~0x3000, PORT_PACR);
+	__raw_writew(__raw_readw(PORT_PCCR) & ~0xCFC3, PORT_PCCR);
 }
 
 static struct sh_machine_vector mv_sh7763rdp __initmv = {

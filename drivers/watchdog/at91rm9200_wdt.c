@@ -121,7 +121,7 @@ static int at91_wdt_settimeout(int new_time)
 	return 0;
 }
 
-static struct watchdog_info at91_wdt_info = {
+static const struct watchdog_info at91_wdt_info = {
 	.identity	= "at91 watchdog",
 	.options	= WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 };

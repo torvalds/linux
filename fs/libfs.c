@@ -338,28 +338,14 @@ int simple_readpage(struct file *file, struct page *page)
 	return 0;
 }
 
-int simple_prepare_write(struct file *file, struct page *page,
-			unsigned from, unsigned to)
-{
-	if (!PageUptodate(page)) {
-		if (to - from != PAGE_CACHE_SIZE)
-			zero_user_segments(page,
-				0, from,
-				to, PAGE_CACHE_SIZE);
-	}
-	return 0;
-}
-
 int simple_write_begin(struct file *file, struct address_space *mapping,
 			loff_t pos, unsigned len, unsigned flags,
 			struct page **pagep, void **fsdata)
 {
 	struct page *page;
 	pgoff_t index;
-	unsigned from;
 
 	index = pos >> PAGE_CACHE_SHIFT;
-	from = pos & (PAGE_CACHE_SIZE - 1);
 
 	page = grab_cache_page_write_begin(mapping, index, flags);
 	if (!page)
@@ -367,14 +353,48 @@ int simple_write_begin(struct file *file, struct address_space *mapping,
 
 	*pagep = page;
 
-	return simple_prepare_write(file, page, from, from+len);
+	if (!PageUptodate(page) && (len != PAGE_CACHE_SIZE)) {
+		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+
+		zero_user_segments(page, 0, from, from + len, PAGE_CACHE_SIZE);
+	}
+	return 0;
 }
 
-static int simple_commit_write(struct file *file, struct page *page,
-			       unsigned from, unsigned to)
+/**
+ * simple_write_end - .write_end helper for non-block-device FSes
+ * @available: See .write_end of address_space_operations
+ * @file: 		"
+ * @mapping: 		"
+ * @pos: 		"
+ * @len: 		"
+ * @copied: 		"
+ * @page: 		"
+ * @fsdata: 		"
+ *
+ * simple_write_end does the minimum needed for updating a page after writing is
+ * done. It has the same API signature as the .write_end of
+ * address_space_operations vector. So it can just be set onto .write_end for
+ * FSes that don't need any other processing. i_mutex is assumed to be held.
+ * Block based filesystems should use generic_write_end().
+ * NOTE: Even though i_size might get updated by this function, mark_inode_dirty
+ * is not called, so a filesystem that actually does store data in .write_inode
+ * should extend on what's done here with a call to mark_inode_dirty() in the
+ * case that i_size has changed.
+ */
+int simple_write_end(struct file *file, struct address_space *mapping,
+			loff_t pos, unsigned len, unsigned copied,
+			struct page *page, void *fsdata)
 {
 	struct inode *inode = page->mapping->host;
-	loff_t pos = ((loff_t)page->index << PAGE_CACHE_SHIFT) + to;
+	loff_t last_pos = pos + copied;
+
+	/* zero the stale part of the page if we did a short copy */
+	if (copied < len) {
+		unsigned from = pos & (PAGE_CACHE_SIZE - 1);
+
+		zero_user(page, from + copied, len - copied);
+	}
 
 	if (!PageUptodate(page))
 		SetPageUptodate(page);
@@ -382,28 +402,10 @@ static int simple_commit_write(struct file *file, struct page *page,
 	 * No need to use i_size_read() here, the i_size
 	 * cannot change under us because we hold the i_mutex.
 	 */
-	if (pos > inode->i_size)
-		i_size_write(inode, pos);
+	if (last_pos > inode->i_size)
+		i_size_write(inode, last_pos);
+
 	set_page_dirty(page);
-	return 0;
-}
-
-int simple_write_end(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned copied,
-			struct page *page, void *fsdata)
-{
-	unsigned from = pos & (PAGE_CACHE_SIZE - 1);
-
-	/* zero the stale part of the page if we did a short copy */
-	if (copied < len) {
-		void *kaddr = kmap_atomic(page, KM_USER0);
-		memset(kaddr + from + copied, 0, len - copied);
-		flush_dcache_page(page);
-		kunmap_atomic(kaddr, KM_USER0);
-	}
-
-	simple_commit_write(file, page, from, from+copied);
-
 	unlock_page(page);
 	page_cache_release(page);
 
@@ -853,7 +855,6 @@ EXPORT_SYMBOL(simple_getattr);
 EXPORT_SYMBOL(simple_link);
 EXPORT_SYMBOL(simple_lookup);
 EXPORT_SYMBOL(simple_pin_fs);
-EXPORT_UNUSED_SYMBOL(simple_prepare_write);
 EXPORT_SYMBOL(simple_readpage);
 EXPORT_SYMBOL(simple_release_fs);
 EXPORT_SYMBOL(simple_rename);

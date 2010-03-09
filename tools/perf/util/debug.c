@@ -9,6 +9,7 @@
 #include "color.h"
 #include "event.h"
 #include "debug.h"
+#include "util.h"
 
 int verbose = 0;
 int dump_trace = 0;

@@ -62,8 +62,8 @@ static char *get_indirect_ea(struct super_block *s, int ano, secno a, int size)
 	return ret;
 }
 
-static void set_indirect_ea(struct super_block *s, int ano, secno a, char *data,
-			    int size)
+static void set_indirect_ea(struct super_block *s, int ano, secno a,
+			    const char *data, int size)
 {
 	hpfs_ea_write(s, a, ano, 0, size, data);
 }
@@ -186,7 +186,8 @@ char *hpfs_get_ea(struct super_block *s, struct fnode *fnode, char *key, int *si
  * This driver can't change sizes of eas ('cause I just don't need it).
  */
 
-void hpfs_set_ea(struct inode *inode, struct fnode *fnode, char *key, char *data, int size)
+void hpfs_set_ea(struct inode *inode, struct fnode *fnode, const char *key,
+		 const char *data, int size)
 {
 	fnode_secno fno = inode->i_ino;
 	struct super_block *s = inode->i_sb;

@@ -198,7 +198,7 @@ static long rc32434_wdt_ioctl(struct file *file, unsigned int cmd,
 	void __user *argp = (void __user *)arg;
 	int new_timeout;
 	unsigned int value;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options =		WDIOF_SETTIMEOUT |
 					WDIOF_KEEPALIVEPING |
 					WDIOF_MAGICCLOSE,

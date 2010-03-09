@@ -423,14 +423,15 @@ static void vv_callback(struct saa7146_dev *dev, unsigned long status)
 	}
 }
 
+int saa7146_vv_devinit(struct saa7146_dev *dev)
+{
+	return v4l2_device_register(&dev->pci->dev, &dev->v4l2_dev);
+}
+EXPORT_SYMBOL_GPL(saa7146_vv_devinit);
+
 int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 {
 	struct saa7146_vv *vv;
-	int err;
-
-	err = v4l2_device_register(&dev->pci->dev, &dev->v4l2_dev);
-	if (err)
-		return err;
 
 	vv = kzalloc(sizeof(struct saa7146_vv), GFP_KERNEL);
 	if (vv == NULL) {

@@ -21,7 +21,6 @@ extern struct zfcp_adapter *zfcp_adapter_enqueue(struct ccw_device *);
 extern struct zfcp_port *zfcp_port_enqueue(struct zfcp_adapter *, u64, u32,
 					   u32);
 extern struct zfcp_unit *zfcp_unit_enqueue(struct zfcp_port *, u64);
-extern int zfcp_reqlist_isempty(struct zfcp_adapter *);
 extern void zfcp_sg_free_table(struct scatterlist *, int);
 extern int zfcp_sg_setup_table(struct scatterlist *, int);
 extern void zfcp_device_unregister(struct device *,
@@ -108,6 +107,7 @@ extern void zfcp_fc_wka_ports_force_offline(struct zfcp_fc_wka_ports *);
 extern int zfcp_fc_gs_setup(struct zfcp_adapter *);
 extern void zfcp_fc_gs_destroy(struct zfcp_adapter *);
 extern int zfcp_fc_exec_bsg_job(struct fc_bsg_job *);
+extern int zfcp_fc_timeout_bsg_job(struct fc_bsg_job *);
 
 /* zfcp_fsf.c */
 extern int zfcp_fsf_open_port(struct zfcp_erp_action *);
@@ -129,9 +129,9 @@ extern void zfcp_fsf_req_dismiss_all(struct zfcp_adapter *);
 extern int zfcp_fsf_status_read(struct zfcp_qdio *);
 extern int zfcp_status_read_refill(struct zfcp_adapter *adapter);
 extern int zfcp_fsf_send_ct(struct zfcp_fc_wka_port *, struct zfcp_fsf_ct_els *,
-			    mempool_t *);
+			    mempool_t *, unsigned int);
 extern int zfcp_fsf_send_els(struct zfcp_adapter *, u32,
-			     struct zfcp_fsf_ct_els *);
+			     struct zfcp_fsf_ct_els *, unsigned int);
 extern int zfcp_fsf_send_fcp_command_task(struct zfcp_unit *,
 					  struct scsi_cmnd *);
 extern void zfcp_fsf_req_free(struct zfcp_fsf_req *);
@@ -143,13 +143,9 @@ extern void zfcp_fsf_reqid_check(struct zfcp_qdio *, int);
 /* zfcp_qdio.c */
 extern int zfcp_qdio_setup(struct zfcp_adapter *);
 extern void zfcp_qdio_destroy(struct zfcp_qdio *);
-extern int zfcp_qdio_send(struct zfcp_qdio *, struct zfcp_queue_req *);
-extern struct qdio_buffer_element
-	*zfcp_qdio_sbale_req(struct zfcp_qdio *, struct zfcp_queue_req *);
-extern struct qdio_buffer_element
-	*zfcp_qdio_sbale_curr(struct zfcp_qdio *, struct zfcp_queue_req *);
+extern int zfcp_qdio_send(struct zfcp_qdio *, struct zfcp_qdio_req *);
 extern int zfcp_qdio_sbals_from_sg(struct zfcp_qdio *,
-				   struct zfcp_queue_req *, unsigned long,
+				   struct zfcp_qdio_req *, unsigned long,
 				   struct scatterlist *, int);
 extern int zfcp_qdio_open(struct zfcp_qdio *);
 extern void zfcp_qdio_close(struct zfcp_qdio *);

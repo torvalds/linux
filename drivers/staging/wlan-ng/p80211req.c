@@ -94,7 +94,7 @@ static int p80211req_mibset_mibget(wlandevice_t *wlandev,
 *	Potentially blocks the caller, so it's a good idea to
 *	not call this function from an interrupt context.
 ----------------------------------------------------------------*/
-int p80211req_dorequest(wlandevice_t * wlandev, u8 * msgbuf)
+int p80211req_dorequest(wlandevice_t *wlandev, u8 *msgbuf)
 {
 	int result = 0;
 	p80211msg_t *msg = (p80211msg_t *) msgbuf;

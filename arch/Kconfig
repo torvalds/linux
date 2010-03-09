@@ -3,31 +3,15 @@
 #
 
 config OPROFILE
-	tristate "OProfile system profiling (EXPERIMENTAL)"
+	tristate "OProfile system profiling"
 	depends on PROFILING
 	depends on HAVE_OPROFILE
-	depends on TRACING_SUPPORT
-	select TRACING
 	select RING_BUFFER
 	select RING_BUFFER_ALLOW_SWAP
 	help
 	  OProfile is a profiling system capable of profiling the
 	  whole system, include the kernel, kernel modules, libraries,
 	  and applications.
-
-	  If unsure, say N.
-
-config OPROFILE_IBS
-	bool "OProfile AMD IBS support (EXPERIMENTAL)"
-	default n
-	depends on OPROFILE && SMP && X86
-	help
-          Instruction-Based Sampling (IBS) is a new profiling
-          technique that provides rich, precise program performance
-          information. IBS is introduced by AMD Family10h processors
-          (AMD Opteron Quad-Core processor "Barcelona") to overcome
-          the limitations of conventional performance counter
-          sampling.
 
 	  If unsure, say N.
 
@@ -56,6 +40,17 @@ config KPROBES
 	  a probepoint and specifies the callback.  Kprobes is useful
 	  for kernel debugging, non-intrusive instrumentation and testing.
 	  If in doubt, say "N".
+
+config OPTPROBES
+	bool "Kprobes jump optimization support (EXPERIMENTAL)"
+	default y
+	depends on KPROBES
+	depends on !PREEMPT
+	depends on HAVE_OPTPROBES
+	select KALLSYMS_ALL
+	help
+	  This option will allow kprobes to optimize breakpoint to
+	  a jump for reducing its overhead.
 
 config HAVE_EFFICIENT_UNALIGNED_ACCESS
 	bool
@@ -99,6 +94,8 @@ config HAVE_KPROBES
 config HAVE_KRETPROBES
 	bool
 
+config HAVE_OPTPROBES
+	bool
 #
 # An arch should select this if it provides all these things:
 #
@@ -120,6 +117,14 @@ config HAVE_DMA_ATTRS
 
 config USE_GENERIC_SMP_HELPERS
 	bool
+
+config HAVE_REGS_AND_STACK_ACCESS_API
+	bool
+	help
+	  This symbol should be selected by an architecure if it supports
+	  the API needed to access registers and stack entries from pt_regs,
+	  declared in asm/ptrace.h
+	  For example the kprobes-based event tracer needs this API.
 
 config HAVE_CLK
 	bool

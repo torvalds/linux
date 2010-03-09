@@ -284,7 +284,7 @@ struct dma_chan_tbl_ent {
 /**
  * channel_table - percpu lookup table for memory-to-memory offload providers
  */
-static struct dma_chan_tbl_ent *channel_table[DMA_TX_TYPE_END];
+static struct dma_chan_tbl_ent __percpu *channel_table[DMA_TX_TYPE_END];
 
 static int __init dma_channel_table_init(void)
 {
@@ -826,6 +826,7 @@ void dma_async_device_unregister(struct dma_device *device)
 		chan->dev->chan = NULL;
 		mutex_unlock(&dma_list_mutex);
 		device_unregister(&chan->dev->device);
+		free_percpu(chan->local);
 	}
 }
 EXPORT_SYMBOL(dma_async_device_unregister);
