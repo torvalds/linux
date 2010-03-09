@@ -767,13 +767,13 @@ static void __init cm_x300_init(void)
 static void __init cm_x300_fixup(struct machine_desc *mdesc, struct tag *tags,
 				 char **cmdline, struct meminfo *mi)
 {
-	mi->nr_banks = 2;
-	mi->bank[0].start = 0xa0000000;
-	mi->bank[0].node = 0;
-	mi->bank[0].size = (64*1024*1024);
-	mi->bank[1].start = 0xc0000000;
-	mi->bank[1].node = 0;
-	mi->bank[1].size = (64*1024*1024);
+	/* Make sure that mi->bank[0].start = PHYS_ADDR */
+	for (; tags->hdr.size; tags = tag_next(tags))
+		if (tags->hdr.tag == ATAG_MEM &&
+			tags->u.mem.start == 0x80000000) {
+			tags->u.mem.start = 0xa0000000;
+			break;
+		}
 }
 
 MACHINE_START(CM_X300, "CM-X300 module")
