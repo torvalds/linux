@@ -139,12 +139,12 @@ const static struct intel_device_info intel_ironlake_m_info = {
 
 const static struct intel_device_info intel_sandybridge_d_info = {
 	.is_i965g = 1, .is_i9xx = 1, .need_gfx_hws = 1,
-	.has_hotplug = 1,
+	.has_hotplug = 1, .is_gen6 = 1,
 };
 
 const static struct intel_device_info intel_sandybridge_m_info = {
 	.is_i965g = 1, .is_mobile = 1, .is_i9xx = 1, .need_gfx_hws = 1,
-	.has_hotplug = 1,
+	.has_hotplug = 1, .is_gen6 = 1,
 };
 
 const static struct pci_device_id pciidlist[] = {
