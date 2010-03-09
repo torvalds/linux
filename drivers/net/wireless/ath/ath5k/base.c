@@ -1997,6 +1997,12 @@ accept:
 		rxs->signal = rxs->noise + rs.rs_rssi;
 
 		rxs->antenna = rs.rs_antenna;
+
+		if (rs.rs_antenna > 0 && rs.rs_antenna < 5)
+			sc->stats.antenna_rx[rs.rs_antenna]++;
+		else
+			sc->stats.antenna_rx[0]++; /* invalid */
+
 		rxs->rate_idx = ath5k_hw_to_driver_rix(sc, rs.rs_rate);
 		rxs->flag |= ath5k_rx_decrypted(sc, ds, skb, &rs);
 
@@ -2089,6 +2095,11 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 		 * back to mac80211.
 		 */
 		ath5k_remove_padding(skb);
+
+		if (ts.ts_antenna > 0 && ts.ts_antenna < 5)
+			sc->stats.antenna_tx[ts.ts_antenna]++;
+		else
+			sc->stats.antenna_tx[0]++; /* invalid */
 
 		ieee80211_tx_status(sc->hw, skb);
 

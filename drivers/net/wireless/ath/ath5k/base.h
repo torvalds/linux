@@ -105,6 +105,12 @@ struct ath5k_rfkill {
 	struct tasklet_struct toggleq;
 };
 
+/* statistics (only used for debugging now) */
+struct ath5k_statistics {
+	unsigned int antenna_rx[5];	/* frames count per antenna RX */
+	unsigned int antenna_tx[5];	/* frames count per antenna TX */
+};
+
 #if CHAN_DEBUG
 #define ATH_CHAN_MAX	(26+26+26+200+200)
 #else
@@ -191,6 +197,8 @@ struct ath5k_softc {
 	int 			power_level;	/* Requested tx power in dbm */
 	bool			assoc;		/* associate state */
 	bool			enable_beacon;	/* true if beacons are on */
+
+	struct ath5k_statistics	stats;
 };
 
 #define ath5k_hw_hasbssidmask(_ah) \

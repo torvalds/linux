@@ -364,6 +364,107 @@ static const struct file_operations fops_debug = {
 };
 
 
+/* debugfs: antenna */
+
+static ssize_t read_file_antenna(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	char buf[700];
+	unsigned int len = 0;
+	unsigned int i;
+	unsigned int v;
+
+	len += snprintf(buf+len, sizeof(buf)-len, "antenna mode\t%d\n",
+		sc->ah->ah_ant_mode);
+	len += snprintf(buf+len, sizeof(buf)-len, "default antenna\t%d\n",
+		sc->ah->ah_def_ant);
+	len += snprintf(buf+len, sizeof(buf)-len, "tx antenna\t%d\n",
+		sc->ah->ah_tx_ant);
+
+	len += snprintf(buf+len, sizeof(buf)-len, "\nANTENNA\t\tRX\tTX\n");
+	for (i = 1; i < ARRAY_SIZE(sc->stats.antenna_rx); i++) {
+		len += snprintf(buf+len, sizeof(buf)-len,
+			"[antenna %d]\t%d\t%d\n",
+			i, sc->stats.antenna_rx[i], sc->stats.antenna_tx[i]);
+	}
+	len += snprintf(buf+len, sizeof(buf)-len, "[invalid]\t%d\t%d\n",
+			sc->stats.antenna_rx[0], sc->stats.antenna_tx[0]);
+
+	v = ath5k_hw_reg_read(sc->ah, AR5K_DEFAULT_ANTENNA);
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"\nAR5K_DEFAULT_ANTENNA\t0x%08x\n", v);
+
+	v = ath5k_hw_reg_read(sc->ah, AR5K_STA_ID1);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_STA_ID1_DEFAULT_ANTENNA\t%d\n",
+		(v & AR5K_STA_ID1_DEFAULT_ANTENNA) != 0);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_STA_ID1_DESC_ANTENNA\t%d\n",
+		(v & AR5K_STA_ID1_DESC_ANTENNA) != 0);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_STA_ID1_RTS_DEF_ANTENNA\t%d\n",
+		(v & AR5K_STA_ID1_RTS_DEF_ANTENNA) != 0);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_STA_ID1_SELFGEN_DEF_ANT\t%d\n",
+		(v & AR5K_STA_ID1_SELFGEN_DEF_ANT) != 0);
+
+	v = ath5k_hw_reg_read(sc->ah, AR5K_PHY_AGCCTL);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"\nAR5K_PHY_AGCCTL_OFDM_DIV_DIS\t%d\n",
+		(v & AR5K_PHY_AGCCTL_OFDM_DIV_DIS) != 0);
+
+	v = ath5k_hw_reg_read(sc->ah, AR5K_PHY_RESTART);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_PHY_RESTART_DIV_GC\t\t%x\n",
+		(v & AR5K_PHY_RESTART_DIV_GC) >> AR5K_PHY_RESTART_DIV_GC_S);
+
+	v = ath5k_hw_reg_read(sc->ah, AR5K_PHY_FAST_ANT_DIV);
+	len += snprintf(buf+len, sizeof(buf)-len,
+		"AR5K_PHY_FAST_ANT_DIV_EN\t%d\n",
+		(v & AR5K_PHY_FAST_ANT_DIV_EN) != 0);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_antenna(struct file *file,
+				 const char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	unsigned int i;
+	char buf[20];
+
+	if (copy_from_user(buf, userbuf, min(count, sizeof(buf))))
+		return -EFAULT;
+
+	if (strncmp(buf, "diversity", 9) == 0) {
+		ath5k_hw_set_antenna_mode(sc->ah, AR5K_ANTMODE_DEFAULT);
+		printk(KERN_INFO "ath5k debug: enable diversity\n");
+	} else if (strncmp(buf, "fixed-a", 7) == 0) {
+		ath5k_hw_set_antenna_mode(sc->ah, AR5K_ANTMODE_FIXED_A);
+		printk(KERN_INFO "ath5k debugfs: fixed antenna A\n");
+	} else if (strncmp(buf, "fixed-b", 7) == 0) {
+		ath5k_hw_set_antenna_mode(sc->ah, AR5K_ANTMODE_FIXED_B);
+		printk(KERN_INFO "ath5k debug: fixed antenna B\n");
+	} else if (strncmp(buf, "clear", 5) == 0) {
+		for (i = 0; i < ARRAY_SIZE(sc->stats.antenna_rx); i++) {
+			sc->stats.antenna_rx[i] = 0;
+			sc->stats.antenna_tx[i] = 0;
+		}
+		printk(KERN_INFO "ath5k debug: cleared antenna stats\n");
+	}
+	return count;
+}
+
+static const struct file_operations fops_antenna = {
+	.read = read_file_antenna,
+	.write = write_file_antenna,
+	.open = ath5k_debugfs_open,
+	.owner = THIS_MODULE,
+};
+
+
 /* init */
 
 void
@@ -393,6 +494,10 @@ ath5k_debug_init_device(struct ath5k_softc *sc)
 
 	sc->debug.debugfs_reset = debugfs_create_file("reset", S_IWUSR,
 				sc->debug.debugfs_phydir, sc, &fops_reset);
+
+	sc->debug.debugfs_antenna = debugfs_create_file("antenna",
+				S_IWUSR | S_IRUSR,
+				sc->debug.debugfs_phydir, sc, &fops_antenna);
 }
 
 void
@@ -408,6 +513,7 @@ ath5k_debug_finish_device(struct ath5k_softc *sc)
 	debugfs_remove(sc->debug.debugfs_registers);
 	debugfs_remove(sc->debug.debugfs_beacon);
 	debugfs_remove(sc->debug.debugfs_reset);
+	debugfs_remove(sc->debug.debugfs_antenna);
 	debugfs_remove(sc->debug.debugfs_phydir);
 }
 
