@@ -498,6 +498,8 @@ static void sport_set_termios(struct uart_port *port,
 		/* up->parib = 1; */
 	}
 
+	spin_lock_irqsave(&up->port.lock, flags);
+
 	port->read_status_mask = OE;
 	if (termios->c_iflag & INPCK)
 		port->read_status_mask |= (FE | PE);
@@ -537,8 +539,6 @@ static void sport_set_termios(struct uart_port *port,
 	up->txmask2 <<= 1;
 	/* uart baud rate */
 	port->uartclk = uart_get_baud_rate(port, termios, old, 0, get_sclk()/16);
-
-	spin_lock_irqsave(&up->port.lock, flags);
 
 	/* Disable UART */
 	SPORT_PUT_TCR1(up, SPORT_GET_TCR1(up) & ~TSPEN);
