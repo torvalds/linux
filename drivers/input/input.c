@@ -582,7 +582,8 @@ static int input_fetch_keycode(struct input_dev *dev, int scancode)
 }
 
 static int input_default_getkeycode(struct input_dev *dev,
-				    int scancode, int *keycode)
+				    unsigned int scancode,
+				    unsigned int *keycode)
 {
 	if (!dev->keycodesize)
 		return -EINVAL;
@@ -596,7 +597,8 @@ static int input_default_getkeycode(struct input_dev *dev,
 }
 
 static int input_default_setkeycode(struct input_dev *dev,
-				    int scancode, int keycode)
+				    unsigned int scancode,
+				    unsigned int keycode)
 {
 	int old_keycode;
 	int i;
@@ -654,11 +656,9 @@ static int input_default_setkeycode(struct input_dev *dev,
  * This function should be called by anyone interested in retrieving current
  * keymap. Presently keyboard and evdev handlers use it.
  */
-int input_get_keycode(struct input_dev *dev, int scancode, int *keycode)
+int input_get_keycode(struct input_dev *dev,
+		      unsigned int scancode, unsigned int *keycode)
 {
-	if (scancode < 0)
-		return -EINVAL;
-
 	return dev->getkeycode(dev, scancode, keycode);
 }
 EXPORT_SYMBOL(input_get_keycode);
@@ -672,16 +672,14 @@ EXPORT_SYMBOL(input_get_keycode);
  * This function should be called by anyone needing to update current
  * keymap. Presently keyboard and evdev handlers use it.
  */
-int input_set_keycode(struct input_dev *dev, int scancode, int keycode)
+int input_set_keycode(struct input_dev *dev,
+		      unsigned int scancode, unsigned int keycode)
 {
 	unsigned long flags;
 	int old_keycode;
 	int retval;
 
-	if (scancode < 0)
-		return -EINVAL;
-
-	if (keycode < 0 || keycode > KEY_MAX)
+	if (keycode > KEY_MAX)
 		return -EINVAL;
 
 	spin_lock_irqsave(&dev->event_lock, flags);

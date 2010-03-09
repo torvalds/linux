@@ -474,10 +474,11 @@ static void ati_remote2_complete_key(struct urb *urb)
 }
 
 static int ati_remote2_getkeycode(struct input_dev *idev,
-				  int scancode, int *keycode)
+				  unsigned int scancode, unsigned int *keycode)
 {
 	struct ati_remote2 *ar2 = input_get_drvdata(idev);
-	int index, mode;
+	unsigned int mode;
+	int index;
 
 	mode = scancode >> 8;
 	if (mode > ATI_REMOTE2_PC || !((1 << mode) & ar2->mode_mask))
@@ -491,10 +492,12 @@ static int ati_remote2_getkeycode(struct input_dev *idev,
 	return 0;
 }
 
-static int ati_remote2_setkeycode(struct input_dev *idev, int scancode, int keycode)
+static int ati_remote2_setkeycode(struct input_dev *idev,
+				  unsigned int scancode, unsigned int keycode)
 {
 	struct ati_remote2 *ar2 = input_get_drvdata(idev);
-	int index, mode, old_keycode;
+	unsigned int mode, old_keycode;
+	int index;
 
 	mode = scancode >> 8;
 	if (mode > ATI_REMOTE2_PC || !((1 << mode) & ar2->mode_mask))
@@ -502,9 +505,6 @@ static int ati_remote2_setkeycode(struct input_dev *idev, int scancode, int keyc
 
 	index = ati_remote2_lookup(scancode & 0xFF);
 	if (index < 0)
-		return -EINVAL;
-
-	if (keycode < KEY_RESERVED || keycode > KEY_MAX)
 		return -EINVAL;
 
 	old_keycode = ar2->keycode[mode][index];
