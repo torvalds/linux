@@ -712,6 +712,7 @@ static int __devinit sport_uart_probe(struct platform_device *pdev)
 			ret = -ENXIO;
 			goto out_error_free_peripherals;
 		}
+		sport->port.mapbase = res->start;
 
 		sport->port.irq = platform_get_irq(pdev, 0);
 		if (sport->port.irq < 0) {
@@ -809,7 +810,7 @@ static int __init sport_uart_init(void)
 {
 	int ret;
 
-	pr_info("Serial: Blackfin uart over sport driver\n");
+	pr_info("Blackfin uart over sport driver\n");
 
 	ret = uart_register_driver(&sport_uart_reg);
 	if (ret) {
