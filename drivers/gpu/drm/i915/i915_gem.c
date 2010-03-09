@@ -4725,6 +4725,11 @@ i915_gem_init_ringbuffer(struct drm_device *dev)
 			ring->space += ring->Size;
 	}
 
+	if (IS_I9XX(dev) && !IS_GEN3(dev)) {
+		I915_WRITE(MI_MODE,
+			   (VS_TIMER_DISPATCH) << 16 | VS_TIMER_DISPATCH);
+	}
+
 	return 0;
 }
 
