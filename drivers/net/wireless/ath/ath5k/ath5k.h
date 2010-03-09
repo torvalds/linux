@@ -1068,8 +1068,6 @@ struct ath5k_hw {
 	u8			ah_def_ant;
 	bool			ah_software_retry;
 
-	int			ah_gpio_npins;
-
 	struct ath5k_capabilities ah_capabilities;
 
 	struct ath5k_txq_info	ah_txq[AR5K_NUM_TX_QUEUES];
