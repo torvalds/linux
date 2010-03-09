@@ -259,7 +259,8 @@ static void __kprobes __free_insn_slot(struct kprobe_insn_cache *c,
 	struct kprobe_insn_page *kip;
 
 	list_for_each_entry(kip, &c->pages, list) {
-		long idx = ((long)slot - (long)kip->insns) / c->insn_size;
+		long idx = ((long)slot - (long)kip->insns) /
+				(c->insn_size * sizeof(kprobe_opcode_t));
 		if (idx >= 0 && idx < slots_per_page(c)) {
 			WARN_ON(kip->slot_used[idx] != SLOT_USED);
 			if (dirty) {
