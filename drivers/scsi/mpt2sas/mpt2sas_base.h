@@ -259,16 +259,6 @@ struct _internal_cmd {
 	u16	smid;
 };
 
-/*
- * SAS Topology Structures
- */
-
-#define MPTSAS_STATE_TR_SEND		0x0001
-#define MPTSAS_STATE_TR_COMPLETE	0x0002
-#define MPTSAS_STATE_CNTRL_SEND		0x0004
-#define MPTSAS_STATE_CNTRL_COMPLETE	0x0008
-
-#define MPT2SAS_REQ_SAS_CNTRL		0x0010
 
 /**
  * struct _sas_device - attached device information
@@ -306,7 +296,6 @@ struct _sas_device {
 	u16	slot;
 	u8	hidden_raid_component;
 	u8	responding;
-	u16	state;
 };
 
 /**
