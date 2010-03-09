@@ -1047,7 +1047,6 @@ struct ath5k_hw {
 	u32			ah_phy;
 	u32			ah_mac_srev;
 	u16			ah_mac_version;
-	u16			ah_mac_revision;
 	u16			ah_phy_revision;
 	u16			ah_radio_5ghz_revision;
 	u16			ah_radio_2ghz_revision;
