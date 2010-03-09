@@ -187,7 +187,8 @@ static int lp3971_ldo_set_voltage(struct regulator_dev *dev,
 		return -EINVAL;
 
 	return lp3971_set_bits(lp3971, LP3971_LDO_VOL_CONTR_REG(ldo),
-		LDO_VOL_CONTR_MASK << LDO_VOL_CONTR_SHIFT(ldo), val);
+			LDO_VOL_CONTR_MASK << LDO_VOL_CONTR_SHIFT(ldo),
+			val << LDO_VOL_CONTR_SHIFT(ldo));
 }
 
 static struct regulator_ops lp3971_ldo_ops = {
