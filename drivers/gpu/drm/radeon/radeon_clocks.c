@@ -96,6 +96,7 @@ void radeon_get_clock_info(struct drm_device *dev)
 	struct radeon_device *rdev = dev->dev_private;
 	struct radeon_pll *p1pll = &rdev->clock.p1pll;
 	struct radeon_pll *p2pll = &rdev->clock.p2pll;
+	struct radeon_pll *dcpll = &rdev->clock.dcpll;
 	struct radeon_pll *spll = &rdev->clock.spll;
 	struct radeon_pll *mpll = &rdev->clock.mpll;
 	int ret;
@@ -203,6 +204,17 @@ void radeon_get_clock_info(struct drm_device *dev)
 		p2pll->min_frac_feedback_div = 0;
 		p2pll->max_frac_feedback_div = 0;
 	}
+
+	/* dcpll is DCE4 only */
+	dcpll->min_post_div = 2;
+	dcpll->max_post_div = 0x7f;
+	dcpll->min_frac_feedback_div = 0;
+	dcpll->max_frac_feedback_div = 9;
+	dcpll->min_ref_div = 2;
+	dcpll->max_ref_div = 0x3ff;
+	dcpll->min_feedback_div = 4;
+	dcpll->max_feedback_div = 0xfff;
+	dcpll->best_vco = 0;
 
 	p1pll->min_ref_div = 2;
 	p1pll->max_ref_div = 0x3ff;
@@ -846,8 +858,10 @@ int radeon_static_clocks_init(struct drm_device *dev)
 	/* XXX make sure engine is idle */
 
 	if (radeon_dynclks != -1) {
-		if (radeon_dynclks)
-			radeon_set_clock_gating(rdev, 1);
+		if (radeon_dynclks) {
+			if (rdev->asic->set_clock_gating)
+				radeon_set_clock_gating(rdev, 1);
+		}
 	}
 	radeon_apply_clock_quirks(rdev);
 	return 0;

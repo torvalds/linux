@@ -507,6 +507,7 @@ int jbd2_cleanup_journal_tail(journal_t *journal)
 	if (blocknr < journal->j_tail)
 		freed = freed + journal->j_last - journal->j_first;
 
+	trace_jbd2_cleanup_journal_tail(journal, first_tid, blocknr, freed);
 	jbd_debug(1,
 		  "Cleaning journal tail from %d to %d (offset %lu), "
 		  "freeing %lu\n",

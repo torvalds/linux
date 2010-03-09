@@ -152,7 +152,7 @@ static struct attribute *ttm_mem_zone_attrs[] = {
 	NULL
 };
 
-static struct sysfs_ops ttm_mem_zone_ops = {
+static const struct sysfs_ops ttm_mem_zone_ops = {
 	.show = &ttm_mem_zone_show,
 	.store = &ttm_mem_zone_store
 };

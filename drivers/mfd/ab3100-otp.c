@@ -13,6 +13,7 @@
 #include <linux/platform_device.h>
 #include <linux/mfd/ab3100.h>
 #include <linux/debugfs.h>
+#include <linux/seq_file.h>
 
 /* The OTP registers */
 #define AB3100_OTP0		0xb0
@@ -95,11 +96,10 @@ static int __init ab3100_otp_read(struct ab3100_otp *otp)
  * This is a simple debugfs human-readable file that dumps out
  * the contents of the OTP.
  */
-#ifdef CONFIG_DEBUGFS
-static int show_otp(struct seq_file *s, void *v)
+#ifdef CONFIG_DEBUG_FS
+static int ab3100_show_otp(struct seq_file *s, void *v)
 {
 	struct ab3100_otp *otp = s->private;
-	int err;
 
 	seq_printf(s, "OTP is %s\n", otp->locked ? "LOCKED" : "UNLOCKED");
 	seq_printf(s, "OTP clock switch startup is %uHz\n", otp->freq);
@@ -113,7 +113,7 @@ static int show_otp(struct seq_file *s, void *v)
 
 static int ab3100_otp_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, ab3100_otp_show, inode->i_private);
+	return single_open(file, ab3100_show_otp, inode->i_private);
 }
 
 static const struct file_operations ab3100_otp_operations = {
@@ -131,13 +131,14 @@ static int __init ab3100_otp_init_debugfs(struct device *dev,
 					   &ab3100_otp_operations);
 	if (!otp->debugfs) {
 		dev_err(dev, "AB3100 debugfs OTP file registration failed!\n");
-		return err;
+		return -ENOENT;
 	}
+	return 0;
 }
 
 static void __exit ab3100_otp_exit_debugfs(struct ab3100_otp *otp)
 {
-	debugfs_remove_file(otp->debugfs);
+	debugfs_remove(otp->debugfs);
 }
 #else
 /* Compile this out if debugfs not selected */

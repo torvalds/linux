@@ -133,7 +133,7 @@ static int tda665x_set_state(struct dvb_frontend *fe,
 		frequency += config->ref_divider >> 1;
 		frequency /= config->ref_divider;
 
-		buf[0] = (u8) (frequency & 0x7f00) >> 8;
+		buf[0] = (u8) ((frequency & 0x7f00) >> 8);
 		buf[1] = (u8) (frequency & 0x00ff) >> 0;
 		buf[2] = 0x80 | 0x40 | 0x02;
 		buf[3] = 0x00;

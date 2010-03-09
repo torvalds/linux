@@ -1069,7 +1069,8 @@ static void pvscsi_free_sgls(const struct pvscsi_adapter *adapter)
 		free_pages((unsigned long)ctx->sgl, get_order(SGL_SIZE));
 }
 
-static int pvscsi_setup_msix(const struct pvscsi_adapter *adapter, int *irq)
+static int pvscsi_setup_msix(const struct pvscsi_adapter *adapter,
+			     unsigned int *irq)
 {
 	struct msix_entry entry = { 0, PVSCSI_VECTOR_COMPLETION };
 	int ret;

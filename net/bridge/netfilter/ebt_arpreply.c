@@ -78,7 +78,7 @@ static struct xt_target ebt_arpreply_tg_reg __read_mostly = {
 	.hooks		= (1 << NF_BR_NUMHOOKS) | (1 << NF_BR_PRE_ROUTING),
 	.target		= ebt_arpreply_tg,
 	.checkentry	= ebt_arpreply_tg_check,
-	.targetsize	= XT_ALIGN(sizeof(struct ebt_arpreply_info)),
+	.targetsize	= sizeof(struct ebt_arpreply_info),
 	.me		= THIS_MODULE,
 };
 

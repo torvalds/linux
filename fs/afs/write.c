@@ -585,27 +585,6 @@ int afs_writepages(struct address_space *mapping,
 }
 
 /*
- * write an inode back
- */
-int afs_write_inode(struct inode *inode, int sync)
-{
-	struct afs_vnode *vnode = AFS_FS_I(inode);
-	int ret;
-
-	_enter("{%x:%u},", vnode->fid.vid, vnode->fid.vnode);
-
-	ret = 0;
-	if (sync) {
-		ret = filemap_fdatawait(inode->i_mapping);
-		if (ret < 0)
-			__mark_inode_dirty(inode, I_DIRTY_DATASYNC);
-	}
-
-	_leave(" = %d", ret);
-	return ret;
-}
-
-/*
  * completion of write to server
  */
 void afs_pages_written_back(struct afs_vnode *vnode, struct afs_call *call)

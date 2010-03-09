@@ -70,7 +70,7 @@ struct fw_card_driver {
 	int (*enable_phys_dma)(struct fw_card *card,
 			       int node_id, int generation);
 
-	u64 (*get_bus_time)(struct fw_card *card);
+	u32 (*get_cycle_time)(struct fw_card *card);
 
 	struct fw_iso_context *
 	(*allocate_iso_context)(struct fw_card *card,

@@ -45,6 +45,7 @@
 #include <linux/firmware.h>
 #include <linux/log2.h>
 #include <linux/stringify.h>
+#include <linux/sched.h>
 #include <asm/uaccess.h>
 
 #include "common.h"
@@ -80,7 +81,7 @@ enum {
 #define CH_DEVICE(devid, idx) \
 	{ PCI_VENDOR_ID_CHELSIO, devid, PCI_ANY_ID, PCI_ANY_ID, 0, 0, idx }
 
-static const struct pci_device_id cxgb3_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(cxgb3_pci_tbl) = {
 	CH_DEVICE(0x20, 0),	/* PE9000 */
 	CH_DEVICE(0x21, 1),	/* T302E */
 	CH_DEVICE(0x22, 2),	/* T310E */
@@ -140,7 +141,7 @@ MODULE_PARM_DESC(ofld_disable, "whether to enable offload at init time or not");
  * will block keventd as it needs the rtnl lock, and we'll deadlock waiting
  * for our work to complete.  Get our own work queue to solve this.
  */
-static struct workqueue_struct *cxgb3_wq;
+struct workqueue_struct *cxgb3_wq;
 
 /**
  *	link_report - show link status and link speed/duplex
@@ -324,11 +325,9 @@ void t3_os_phymod_changed(struct adapter *adap, int port_id)
 
 static void cxgb_set_rxmode(struct net_device *dev)
 {
-	struct t3_rx_mode rm;
 	struct port_info *pi = netdev_priv(dev);
 
-	init_rx_mode(&rm, dev, dev->mc_list);
-	t3_mac_set_rx_mode(&pi->mac, &rm);
+	t3_mac_set_rx_mode(&pi->mac, dev);
 }
 
 /**
@@ -339,17 +338,15 @@ static void cxgb_set_rxmode(struct net_device *dev)
  */
 static void link_start(struct net_device *dev)
 {
-	struct t3_rx_mode rm;
 	struct port_info *pi = netdev_priv(dev);
 	struct cmac *mac = &pi->mac;
 
-	init_rx_mode(&rm, dev, dev->mc_list);
 	t3_mac_reset(mac);
 	t3_mac_set_num_ucast(mac, MAX_MAC_IDX);
 	t3_mac_set_mtu(mac, dev->mtu);
 	t3_mac_set_address(mac, LAN_MAC_IDX, dev->dev_addr);
 	t3_mac_set_address(mac, SAN_MAC_IDX, pi->iscsic.mac_addr);
-	t3_mac_set_rx_mode(mac, &rm);
+	t3_mac_set_rx_mode(mac, dev);
 	t3_link_start(&pi->phy, mac, &pi->link_config);
 	t3_mac_enable(mac, MAC_DIRECTION_RX | MAC_DIRECTION_TX);
 }
@@ -588,6 +585,19 @@ static void setup_rss(struct adapter *adap)
 	t3_config_rss(adap, F_RQFEEDBACKENABLE | F_TNLLKPEN | F_TNLMAPEN |
 		      F_TNLPRTEN | F_TNL2TUPEN | F_TNL4TUPEN |
 		      V_RRCPLCPUSIZE(6) | F_HASHTOEPLITZ, cpus, rspq_map);
+}
+
+static void ring_dbs(struct adapter *adap)
+{
+	int i, j;
+
+	for (i = 0; i < SGE_QSETS; i++) {
+		struct sge_qset *qs = &adap->sge.qs[i];
+
+		if (qs->adap)
+			for (j = 0; j < SGE_TXQ_PER_SET; j++)
+				t3_write_reg(adap, A_SG_KDOORBELL, F_SELEGRCNTX | V_EGRCNTX(qs->txq[j].cntxt_id));
+	}
 }
 
 static void init_napi(struct adapter *adap)
@@ -2754,6 +2764,42 @@ static void t3_adap_check_task(struct work_struct *work)
 	spin_unlock_irq(&adapter->work_lock);
 }
 
+static void db_full_task(struct work_struct *work)
+{
+	struct adapter *adapter = container_of(work, struct adapter,
+					       db_full_task);
+
+	cxgb3_event_notify(&adapter->tdev, OFFLOAD_DB_FULL, 0);
+}
+
+static void db_empty_task(struct work_struct *work)
+{
+	struct adapter *adapter = container_of(work, struct adapter,
+					       db_empty_task);
+
+	cxgb3_event_notify(&adapter->tdev, OFFLOAD_DB_EMPTY, 0);
+}
+
+static void db_drop_task(struct work_struct *work)
+{
+	struct adapter *adapter = container_of(work, struct adapter,
+					       db_drop_task);
+	unsigned long delay = 1000;
+	unsigned short r;
+
+	cxgb3_event_notify(&adapter->tdev, OFFLOAD_DB_DROP, 0);
+
+	/*
+	 * Sleep a while before ringing the driver qset dbs.
+	 * The delay is between 1000-2023 usecs.
+	 */
+	get_random_bytes(&r, 2);
+	delay += r & 1023;
+	set_current_state(TASK_UNINTERRUPTIBLE);
+	schedule_timeout(usecs_to_jiffies(delay));
+	ring_dbs(adapter);
+}
+
 /*
  * Processes external (PHY) interrupts in process context.
  */
@@ -3222,6 +3268,11 @@ static int __devinit init_one(struct pci_dev *pdev,
 	INIT_LIST_HEAD(&adapter->adapter_list);
 	INIT_WORK(&adapter->ext_intr_handler_task, ext_intr_task);
 	INIT_WORK(&adapter->fatal_error_handler_task, fatal_error_task);
+
+	INIT_WORK(&adapter->db_full_task, db_full_task);
+	INIT_WORK(&adapter->db_empty_task, db_empty_task);
+	INIT_WORK(&adapter->db_drop_task, db_drop_task);
+
 	INIT_DELAYED_WORK(&adapter->adap_check_task, t3_adap_check_task);
 
 	for (i = 0; i < ai->nports0 + ai->nports1; ++i) {

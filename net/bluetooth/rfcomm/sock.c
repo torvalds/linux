@@ -1061,7 +1061,9 @@ done:
 	return result;
 }
 
-static ssize_t rfcomm_sock_sysfs_show(struct class *dev, char *buf)
+static ssize_t rfcomm_sock_sysfs_show(struct class *dev,
+				      struct class_attribute *attr,
+				      char *buf)
 {
 	struct sock *sk;
 	struct hlist_node *node;

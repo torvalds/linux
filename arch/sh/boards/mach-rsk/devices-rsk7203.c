@@ -96,7 +96,7 @@ static int __init rsk7203_devices_setup(void)
 	gpio_request(GPIO_FN_RXD0, NULL);
 
 	/* Setup LAN9118: CS1 in 16-bit Big Endian Mode, IRQ0 at Port B */
-	ctrl_outl(0x36db0400, 0xfffc0008); /* CS1BCR */
+	__raw_writel(0x36db0400, 0xfffc0008); /* CS1BCR */
 	gpio_request(GPIO_FN_IRQ0_PB, NULL);
 
 	return platform_add_devices(rsk7203_devices,

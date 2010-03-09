@@ -55,6 +55,11 @@ config SOFT_WATCHDOG
 	  To compile this driver as a module, choose M here: the
 	  module will be called softdog.
 
+config MAX63XX_WATCHDOG
+       tristate "Max63xx watchdog"
+       help
+         Support for memory mapped max63{69,70,71,72,73,74} watchdog timer.
+
 config WM831X_WATCHDOG
 	tristate "WM831x watchdog"
 	depends on MFD_WM831X
@@ -194,7 +199,7 @@ config EP93XX_WATCHDOG
 
 config OMAP_WATCHDOG
 	tristate "OMAP Watchdog"
-	depends on ARCH_OMAP16XX || ARCH_OMAP24XX || ARCH_OMAP34XX
+	depends on ARCH_OMAP16XX || ARCH_OMAP2 || ARCH_OMAP3
 	help
 	  Support for TI OMAP1610/OMAP1710/OMAP2420/OMAP3430 watchdog.  Say 'Y'
 	  here to enable the OMAP1610/OMAP1710/OMAP2420/OMAP3430 watchdog timer.
@@ -288,6 +293,17 @@ config ADX_WATCHDOG
 	help
 	  Say Y here if you want support for the watchdog timer on Avionic
 	  Design Xanthos boards.
+
+config TS72XX_WATCHDOG
+	tristate "TS-72XX SBC Watchdog"
+	depends on MACH_TS72XX
+	help
+	  Technologic Systems TS-7200, TS-7250 and TS-7260 boards have
+	  watchdog timer implemented in a external CPLD chip. Say Y here
+	  if you want to support for the watchdog timer on TS-72XX boards.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ts72xx_wdt.
 
 # AVR32 Architecture
 
@@ -845,10 +861,10 @@ config TXX9_WDT
 # POWERPC Architecture
 
 config GEF_WDT
-	tristate "GE Fanuc Watchdog Timer"
+	tristate "GE Watchdog Timer"
 	depends on GEF_SBC610 || GEF_SBC310 || GEF_PPC9A
 	---help---
-	  Watchdog timer found in a number of GE Fanuc single board computers.
+	  Watchdog timer found in a number of GE single board computers.
 
 config MPC5200_WDT
 	bool "MPC52xx Watchdog Timer"

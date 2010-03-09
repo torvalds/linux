@@ -452,6 +452,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		u32 flags, phy_interface_t interface);
 struct phy_device * phy_attach(struct net_device *dev,
 		const char *bus_id, u32 flags, phy_interface_t interface);
+struct phy_device *phy_find_first(struct mii_bus *bus);
 int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
 		void (*handler)(struct net_device *), u32 flags,
 		phy_interface_t interface);

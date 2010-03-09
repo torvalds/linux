@@ -33,7 +33,7 @@
 /*-------------------------------------------------------------------------*/
 /* debug routines */
 
-#ifdef CONFIG_USB_DEBUG
+#ifdef CONFIG_USB_IP_DEBUG_ENABLE
 unsigned long usbip_debug_flag = 0xffffffff;
 #else
 unsigned long usbip_debug_flag;
@@ -55,10 +55,7 @@ static ssize_t show_flag(struct device *dev, struct device_attribute *attr,
 static ssize_t store_flag(struct device *dev, struct device_attribute *attr,
 		const char *buf, size_t count)
 {
-	unsigned long flag;
-
-	sscanf(buf, "%lx", &flag);
-	usbip_debug_flag = flag;
+	sscanf(buf, "%lx", &usbip_debug_flag);
 
 	return count;
 }
@@ -66,33 +63,8 @@ DEVICE_ATTR(usbip_debug, (S_IRUGO | S_IWUSR), show_flag, store_flag);
 
 static void usbip_dump_buffer(char *buff, int bufflen)
 {
-	int i;
-
-	if (bufflen > 128) {
-		for (i = 0; i < 128; i++) {
-			if (i%24 == 0)
-				printk(KERN_DEBUG "   ");
-			printk(KERN_DEBUG "%02x ", (unsigned char) buff[i]);
-			if (i%4 == 3)
-				printk(KERN_DEBUG "| ");
-			if (i%24 == 23)
-				printk(KERN_DEBUG "\n");
-		}
-		printk(KERN_DEBUG "... (%d byte)\n", bufflen);
-		return;
-	}
-
-	for (i = 0; i < bufflen; i++) {
-		if (i%24 == 0)
-			printk(KERN_DEBUG "   ");
-		printk(KERN_DEBUG "%02x ", (unsigned char) buff[i]);
-		if (i%4 == 3)
-			printk(KERN_DEBUG "| ");
-		if (i%24 == 23)
-			printk(KERN_DEBUG "\n");
-	}
-	printk(KERN_DEBUG "\n");
-
+	print_hex_dump(KERN_DEBUG, "usb-ip", DUMP_PREFIX_OFFSET, 16, 4,
+		       buff, bufflen, false);
 }
 
 static void usbip_dump_pipe(unsigned int p)
@@ -557,60 +529,6 @@ err:
 	return result;
 }
 EXPORT_SYMBOL_GPL(usbip_xmit);
-
-
-/* now a usrland utility should set options. */
-#if 0
-int setquickack(struct socket *socket)
-{
-	mm_segment_t oldfs;
-	int val = 1;
-	int ret;
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ret = socket->ops->setsockopt(socket, SOL_TCP, TCP_QUICKACK,
-			(char __user *) &val, sizeof(ret));
-	set_fs(oldfs);
-
-	return ret;
-}
-
-int setnodelay(struct socket *socket)
-{
-	mm_segment_t oldfs;
-	int val = 1;
-	int ret;
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ret = socket->ops->setsockopt(socket, SOL_TCP, TCP_NODELAY,
-			(char __user *) &val, sizeof(ret));
-	set_fs(oldfs);
-
-	return ret;
-}
-
-int setkeepalive(struct socket *socket)
-{
-	mm_segment_t oldfs;
-	int val = 1;
-	int ret;
-
-	oldfs = get_fs();
-	set_fs(get_ds());
-	ret = socket->ops->setsockopt(socket, SOL_SOCKET, SO_KEEPALIVE,
-			(char __user *) &val, sizeof(ret));
-	set_fs(oldfs);
-
-	return ret;
-}
-
-void setreuse(struct socket *socket)
-{
-	socket->sk->sk_reuse = 1;
-}
-#endif
 
 struct socket *sockfd_to_socket(unsigned int sockfd)
 {

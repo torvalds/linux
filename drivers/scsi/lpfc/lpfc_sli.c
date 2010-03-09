@@ -580,10 +580,7 @@ __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 	else
 		sglq = __lpfc_clear_active_sglq(phba, iocbq->sli4_xritag);
 	if (sglq)  {
-		if (iocbq->iocb_flag & LPFC_DRIVER_ABORTED
-			&& ((iocbq->iocb.ulpStatus == IOSTAT_LOCAL_REJECT)
-			&& (iocbq->iocb.un.ulpWord[4]
-				== IOERR_ABORT_REQUESTED))) {
+		if (iocbq->iocb_flag & LPFC_EXCHANGE_BUSY) {
 			spin_lock_irqsave(&phba->sli4_hba.abts_sgl_list_lock,
 					iflag);
 			list_add(&sglq->list,
@@ -764,10 +761,6 @@ lpfc_sli_iocb_cmd_type(uint8_t iocb_cmnd)
 	case DSSCMD_IWRITE64_CX:
 	case DSSCMD_IREAD64_CR:
 	case DSSCMD_IREAD64_CX:
-	case DSSCMD_INVALIDATE_DEK:
-	case DSSCMD_SET_KEK:
-	case DSSCMD_GET_KEK_ID:
-	case DSSCMD_GEN_XFER:
 		type = LPFC_SOL_IOCB;
 		break;
 	case CMD_ABORT_XRI_CN:
@@ -1717,6 +1710,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	struct lpfc_dmabuf *mp;
 	uint16_t rpi, vpi;
 	int rc;
+	struct lpfc_vport  *vport = pmb->vport;
 
 	mp = (struct lpfc_dmabuf *) (pmb->context1);
 
@@ -1739,6 +1733,18 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 		rpi = pmb->u.mb.un.varWords[0];
 		vpi = pmb->u.mb.un.varRegLogin.vpi - phba->vpi_base;
 		lpfc_unreg_login(phba, vpi, rpi, pmb);
+		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
+		if (rc != MBX_NOT_FINISHED)
+			return;
+	}
+
+	/* Unreg VPI, if the REG_VPI succeed after VLink failure */
+	if ((pmb->u.mb.mbxCommand == MBX_REG_VPI) &&
+		!(phba->pport->load_flag & FC_UNLOADING) &&
+		!pmb->u.mb.mbxStatus) {
+		lpfc_unreg_vpi(phba, pmb->u.mb.un.varRegVpi.vpi, pmb);
+		pmb->vport = vport;
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		rc = lpfc_sli_issue_mbox(phba, pmb, MBX_NOWAIT);
 		if (rc != MBX_NOT_FINISHED)
@@ -2228,9 +2234,15 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			 * All other are passed to the completion callback.
 			 */
 			if (pring->ringno == LPFC_ELS_RING) {
-				if (cmdiocbp->iocb_flag & LPFC_DRIVER_ABORTED) {
+				if ((phba->sli_rev < LPFC_SLI_REV4) &&
+				    (cmdiocbp->iocb_flag &
+							LPFC_DRIVER_ABORTED)) {
+					spin_lock_irqsave(&phba->hbalock,
+							  iflag);
 					cmdiocbp->iocb_flag &=
 						~LPFC_DRIVER_ABORTED;
+					spin_unlock_irqrestore(&phba->hbalock,
+							       iflag);
 					saveq->iocb.ulpStatus =
 						IOSTAT_LOCAL_REJECT;
 					saveq->iocb.un.ulpWord[4] =
@@ -2240,7 +2252,47 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					 * of DMAing payload, so don't free data
 					 * buffer till after a hbeat.
 					 */
+					spin_lock_irqsave(&phba->hbalock,
+							  iflag);
 					saveq->iocb_flag |= LPFC_DELAY_MEM_FREE;
+					spin_unlock_irqrestore(&phba->hbalock,
+							       iflag);
+				}
+				if ((phba->sli_rev == LPFC_SLI_REV4) &&
+				    (saveq->iocb_flag & LPFC_EXCHANGE_BUSY)) {
+					/* Set cmdiocb flag for the exchange
+					 * busy so sgl (xri) will not be
+					 * released until the abort xri is
+					 * received from hba, clear the
+					 * LPFC_DRIVER_ABORTED bit in case
+					 * it was driver initiated abort.
+					 */
+					spin_lock_irqsave(&phba->hbalock,
+							  iflag);
+					cmdiocbp->iocb_flag &=
+						~LPFC_DRIVER_ABORTED;
+					cmdiocbp->iocb_flag |=
+						LPFC_EXCHANGE_BUSY;
+					spin_unlock_irqrestore(&phba->hbalock,
+							       iflag);
+					cmdiocbp->iocb.ulpStatus =
+						IOSTAT_LOCAL_REJECT;
+					cmdiocbp->iocb.un.ulpWord[4] =
+						IOERR_ABORT_REQUESTED;
+					/*
+					 * For SLI4, irsiocb contains NO_XRI
+					 * in sli_xritag, it shall not affect
+					 * releasing sgl (xri) process.
+					 */
+					saveq->iocb.ulpStatus =
+						IOSTAT_LOCAL_REJECT;
+					saveq->iocb.un.ulpWord[4] =
+						IOERR_SLI_ABORTED;
+					spin_lock_irqsave(&phba->hbalock,
+							  iflag);
+					saveq->iocb_flag |= LPFC_DELAY_MEM_FREE;
+					spin_unlock_irqrestore(&phba->hbalock,
+							       iflag);
 				}
 			}
 			(cmdiocbp->iocb_cmpl) (phba, cmdiocbp, saveq);
@@ -5687,19 +5739,19 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 
 		for (i = 0; i < numBdes; i++) {
 			/* Should already be byte swapped. */
-			sgl->addr_hi =  bpl->addrHigh;
-			sgl->addr_lo =  bpl->addrLow;
-			/* swap the size field back to the cpu so we
-			 * can assign it to the sgl.
-			 */
-			bde.tus.w  = le32_to_cpu(bpl->tus.w);
-			bf_set(lpfc_sli4_sge_len, sgl, bde.tus.f.bdeSize);
+			sgl->addr_hi = bpl->addrHigh;
+			sgl->addr_lo = bpl->addrLow;
+
 			if ((i+1) == numBdes)
 				bf_set(lpfc_sli4_sge_last, sgl, 1);
 			else
 				bf_set(lpfc_sli4_sge_last, sgl, 0);
 			sgl->word2 = cpu_to_le32(sgl->word2);
-			sgl->word3 = cpu_to_le32(sgl->word3);
+			/* swap the size field back to the cpu so we
+			 * can assign it to the sgl.
+			 */
+			bde.tus.w = le32_to_cpu(bpl->tus.w);
+			sgl->sge_len = cpu_to_le32(bde.tus.f.bdeSize);
 			bpl++;
 			sgl++;
 		}
@@ -5712,11 +5764,10 @@ lpfc_sli4_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq,
 				cpu_to_le32(icmd->un.genreq64.bdl.addrHigh);
 			sgl->addr_lo =
 				cpu_to_le32(icmd->un.genreq64.bdl.addrLow);
-			bf_set(lpfc_sli4_sge_len, sgl,
-				icmd->un.genreq64.bdl.bdeSize);
 			bf_set(lpfc_sli4_sge_last, sgl, 1);
 			sgl->word2 = cpu_to_le32(sgl->word2);
-			sgl->word3 = cpu_to_le32(sgl->word3);
+			sgl->sge_len =
+				cpu_to_le32(icmd->un.genreq64.bdl.bdeSize);
 	}
 	return sglq->sli4_xritag;
 }
@@ -5987,12 +6038,10 @@ lpfc_sli4_iocb2wqe(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq,
 		else
 			bf_set(abort_cmd_ia, &wqe->abort_cmd, 0);
 		bf_set(abort_cmd_criteria, &wqe->abort_cmd, T_XRI_TAG);
-		abort_tag = iocbq->iocb.un.acxri.abortIoTag;
 		wqe->words[5] = 0;
 		bf_set(lpfc_wqe_gen_ct, &wqe->generic,
 			((iocbq->iocb.ulpCt_h << 1) | iocbq->iocb.ulpCt_l));
 		abort_tag = iocbq->iocb.un.acxri.abortIoTag;
-		wqe->generic.abort_tag = abort_tag;
 		/*
 		 * The abort handler will send us CMD_ABORT_XRI_CN or
 		 * CMD_CLOSE_XRI_CN and the fw only accepts CMD_ABORT_XRI_CX
@@ -6121,15 +6170,15 @@ __lpfc_sli_issue_iocb_s4(struct lpfc_hba *phba, uint32_t ring_number,
 	if (lpfc_sli4_iocb2wqe(phba, piocb, &wqe))
 		return IOCB_ERROR;
 
-	if (piocb->iocb_flag &  LPFC_IO_FCP) {
+	if ((piocb->iocb_flag & LPFC_IO_FCP) ||
+		(piocb->iocb_flag & LPFC_USE_FCPWQIDX)) {
 		/*
 		 * For FCP command IOCB, get a new WQ index to distribute
 		 * WQE across the WQsr. On the other hand, for abort IOCB,
 		 * it carries the same WQ index to the original command
 		 * IOCB.
 		 */
-		if ((piocb->iocb.ulpCommand != CMD_ABORT_XRI_CN) &&
-		    (piocb->iocb.ulpCommand != CMD_CLOSE_XRI_CN))
+		if (piocb->iocb_flag & LPFC_IO_FCP)
 			piocb->fcp_wqidx = lpfc_sli4_scmd_to_wqidx_distr(phba);
 		if (lpfc_sli4_wq_put(phba->sli4_hba.fcp_wq[piocb->fcp_wqidx],
 				     &wqe))
@@ -7004,7 +7053,14 @@ lpfc_sli_abort_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		    abort_iocb->iocb.ulpContext != abort_context ||
 		    (abort_iocb->iocb_flag & LPFC_DRIVER_ABORTED) == 0)
 			spin_unlock_irq(&phba->hbalock);
-		else {
+		else if (phba->sli_rev < LPFC_SLI_REV4) {
+			/*
+			 * leave the SLI4 aborted command on the txcmplq
+			 * list and the command complete WCQE's XB bit
+			 * will tell whether the SGL (XRI) can be released
+			 * immediately or to the aborted SGL list for the
+			 * following abort XRI from the HBA.
+			 */
 			list_del_init(&abort_iocb->list);
 			pring->txcmplq_cnt--;
 			spin_unlock_irq(&phba->hbalock);
@@ -7013,11 +7069,13 @@ lpfc_sli_abort_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			 * payload, so don't free data buffer till after
 			 * a hbeat.
 			 */
+			spin_lock_irq(&phba->hbalock);
 			abort_iocb->iocb_flag |= LPFC_DELAY_MEM_FREE;
-
 			abort_iocb->iocb_flag &= ~LPFC_DRIVER_ABORTED;
+			spin_unlock_irq(&phba->hbalock);
+
 			abort_iocb->iocb.ulpStatus = IOSTAT_LOCAL_REJECT;
-			abort_iocb->iocb.un.ulpWord[4] = IOERR_SLI_ABORTED;
+			abort_iocb->iocb.un.ulpWord[4] = IOERR_ABORT_REQUESTED;
 			(abort_iocb->iocb_cmpl)(phba, abort_iocb, abort_iocb);
 		}
 	}
@@ -7106,7 +7164,7 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		return 0;
 
 	/* This signals the response to set the correct status
-	 * before calling the completion handler.
+	 * before calling the completion handler
 	 */
 	cmdiocb->iocb_flag |= LPFC_DRIVER_ABORTED;
 
@@ -7124,6 +7182,8 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	/* ABTS WQE must go to the same WQ as the WQE to be aborted */
 	abtsiocbp->fcp_wqidx = cmdiocb->fcp_wqidx;
+	if (cmdiocb->iocb_flag & LPFC_IO_FCP)
+		abtsiocbp->iocb_flag |= LPFC_USE_FCPWQIDX;
 
 	if (phba->link_state >= LPFC_LINK_UP)
 		iabt->ulpCommand = CMD_ABORT_XRI_CN;
@@ -7330,6 +7390,8 @@ lpfc_sli_abort_iocb(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 
 		/* ABTS WQE must go to the same WQ as the WQE to be aborted */
 		abtsiocb->fcp_wqidx = iocbq->fcp_wqidx;
+		if (iocbq->iocb_flag & LPFC_IO_FCP)
+			abtsiocb->iocb_flag |= LPFC_USE_FCPWQIDX;
 
 		if (lpfc_is_link_up(phba))
 			abtsiocb->iocb.ulpCommand = CMD_ABORT_XRI_CN;
@@ -8359,11 +8421,24 @@ void lpfc_sli4_els_xri_abort_event_proc(struct lpfc_hba *phba)
 	}
 }
 
+/**
+ * lpfc_sli4_iocb_param_transfer - Transfer pIocbOut and cmpl status to pIocbIn
+ * @phba: pointer to lpfc hba data structure
+ * @pIocbIn: pointer to the rspiocbq
+ * @pIocbOut: pointer to the cmdiocbq
+ * @wcqe: pointer to the complete wcqe
+ *
+ * This routine transfers the fields of a command iocbq to a response iocbq
+ * by copying all the IOCB fields from command iocbq and transferring the
+ * completion status information from the complete wcqe.
+ **/
 static void
-lpfc_sli4_iocb_param_transfer(struct lpfc_iocbq *pIocbIn,
+lpfc_sli4_iocb_param_transfer(struct lpfc_hba *phba,
+			      struct lpfc_iocbq *pIocbIn,
 			      struct lpfc_iocbq *pIocbOut,
 			      struct lpfc_wcqe_complete *wcqe)
 {
+	unsigned long iflags;
 	size_t offset = offsetof(struct lpfc_iocbq, iocb);
 
 	memcpy((char *)pIocbIn + offset, (char *)pIocbOut + offset,
@@ -8377,8 +8452,17 @@ lpfc_sli4_iocb_param_transfer(struct lpfc_iocbq *pIocbIn,
 					wcqe->total_data_placed;
 		else
 			pIocbIn->iocb.un.ulpWord[4] = wcqe->parameter;
-	else
+	else {
 		pIocbIn->iocb.un.ulpWord[4] = wcqe->parameter;
+		pIocbIn->iocb.un.genreq64.bdl.bdeSize = wcqe->total_data_placed;
+	}
+
+	/* Pick up HBA exchange busy condition */
+	if (bf_get(lpfc_wcqe_c_xb, wcqe)) {
+		spin_lock_irqsave(&phba->hbalock, iflags);
+		pIocbIn->iocb_flag |= LPFC_EXCHANGE_BUSY;
+		spin_unlock_irqrestore(&phba->hbalock, iflags);
+	}
 }
 
 /**
@@ -8419,7 +8503,7 @@ lpfc_sli4_els_wcqe_to_rspiocbq(struct lpfc_hba *phba,
 	}
 
 	/* Fake the irspiocbq and copy necessary response information */
-	lpfc_sli4_iocb_param_transfer(irspiocbq, cmdiocbq, wcqe);
+	lpfc_sli4_iocb_param_transfer(phba, irspiocbq, cmdiocbq, wcqe);
 
 	return irspiocbq;
 }
@@ -8849,8 +8933,7 @@ lpfc_sli4_sp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe)
 	int ecount = 0;
 	uint16_t cqid;
 
-	if (bf_get(lpfc_eqe_major_code, eqe) != 0 ||
-	    bf_get(lpfc_eqe_minor_code, eqe) != 0) {
+	if (bf_get(lpfc_eqe_major_code, eqe) != 0) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0359 Not a valid slow-path completion "
 				"event: majorcode=x%x, minorcode=x%x\n",
@@ -8976,7 +9059,7 @@ lpfc_sli4_fp_handle_fcp_wcqe(struct lpfc_hba *phba,
 	}
 
 	/* Fake the irspiocb and copy necessary response information */
-	lpfc_sli4_iocb_param_transfer(&irspiocbq, cmdiocbq, wcqe);
+	lpfc_sli4_iocb_param_transfer(phba, &irspiocbq, cmdiocbq, wcqe);
 
 	/* Pass the cmd_iocb and the rsp state to the upper layer */
 	(cmdiocbq->iocb_cmpl)(phba, cmdiocbq, &irspiocbq);
@@ -9082,8 +9165,7 @@ lpfc_sli4_fp_handle_eqe(struct lpfc_hba *phba, struct lpfc_eqe *eqe,
 	uint16_t cqid;
 	int ecount = 0;
 
-	if (unlikely(bf_get(lpfc_eqe_major_code, eqe) != 0) ||
-	    unlikely(bf_get(lpfc_eqe_minor_code, eqe) != 0)) {
+	if (unlikely(bf_get(lpfc_eqe_major_code, eqe) != 0)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
 				"0366 Not a valid fast-path completion "
 				"event: majorcode=x%x, minorcode=x%x\n",
@@ -11871,12 +11953,6 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 {
 	int rc = 0, error;
 	LPFC_MBOXQ_t *mboxq;
-	void *virt_addr;
-	dma_addr_t phys_addr;
-	uint8_t *bytep;
-	struct lpfc_mbx_sge sge;
-	uint32_t alloc_len, req_len;
-	struct lpfc_mbx_read_fcf_tbl *read_fcf;
 
 	phba->fcoe_eventtag_at_fcf_scan = phba->fcoe_eventtag;
 	mboxq = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
@@ -11887,43 +11963,19 @@ lpfc_sli4_read_fcf_record(struct lpfc_hba *phba, uint16_t fcf_index)
 		error = -ENOMEM;
 		goto fail_fcfscan;
 	}
-
-	req_len = sizeof(struct fcf_record) +
-		  sizeof(union lpfc_sli4_cfg_shdr) + 2 * sizeof(uint32_t);
-
-	/* Set up READ_FCF SLI4_CONFIG mailbox-ioctl command */
-	alloc_len = lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
-			 LPFC_MBOX_OPCODE_FCOE_READ_FCF_TABLE, req_len,
-			 LPFC_SLI4_MBX_NEMBED);
-
-	if (alloc_len < req_len) {
-		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
-				"0291 Allocated DMA memory size (x%x) is "
-				"less than the requested DMA memory "
-				"size (x%x)\n", alloc_len, req_len);
-		error = -ENOMEM;
+	/* Construct the read FCF record mailbox command */
+	rc = lpfc_sli4_mbx_read_fcf_record(phba, mboxq, fcf_index);
+	if (rc) {
+		error = -EINVAL;
 		goto fail_fcfscan;
 	}
-
-	/* Get the first SGE entry from the non-embedded DMA memory. This
-	 * routine only uses a single SGE.
-	 */
-	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
-	phys_addr = getPaddr(sge.pa_hi, sge.pa_lo);
-	virt_addr = mboxq->sge_array->addr[0];
-	read_fcf = (struct lpfc_mbx_read_fcf_tbl *)virt_addr;
-
-	/* Set up command fields */
-	bf_set(lpfc_mbx_read_fcf_tbl_indx, &read_fcf->u.request, fcf_index);
-	/* Perform necessary endian conversion */
-	bytep = virt_addr + sizeof(union lpfc_sli4_cfg_shdr);
-	lpfc_sli_pcimem_bcopy(bytep, bytep, sizeof(uint32_t));
+	/* Issue the mailbox command asynchronously */
 	mboxq->vport = phba->pport;
 	mboxq->mbox_cmpl = lpfc_mbx_cmpl_read_fcf_record;
 	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_NOWAIT);
-	if (rc == MBX_NOT_FINISHED) {
+	if (rc == MBX_NOT_FINISHED)
 		error = -EIO;
-	} else {
+	else {
 		spin_lock_irq(&phba->hbalock);
 		phba->hba_flag |= FCF_DISC_INPROGRESS;
 		spin_unlock_irq(&phba->hbalock);
@@ -11939,6 +11991,90 @@ fail_fcfscan:
 		spin_unlock_irq(&phba->hbalock);
 	}
 	return error;
+}
+
+/**
+ * lpfc_mbx_cmpl_redisc_fcf_table - completion routine for rediscover FCF table
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is the completion routine for the rediscover FCF table mailbox
+ * command. If the mailbox command returned failure, it will try to stop the
+ * FCF rediscover wait timer.
+ **/
+void
+lpfc_mbx_cmpl_redisc_fcf_table(struct lpfc_hba *phba, LPFC_MBOXQ_t *mbox)
+{
+	struct lpfc_mbx_redisc_fcf_tbl *redisc_fcf;
+	uint32_t shdr_status, shdr_add_status;
+
+	redisc_fcf = &mbox->u.mqe.un.redisc_fcf_tbl;
+
+	shdr_status = bf_get(lpfc_mbox_hdr_status,
+			     &redisc_fcf->header.cfg_shdr.response);
+	shdr_add_status = bf_get(lpfc_mbox_hdr_add_status,
+			     &redisc_fcf->header.cfg_shdr.response);
+	if (shdr_status || shdr_add_status) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2746 Requesting for FCF rediscovery failed "
+				"status x%x add_status x%x\n",
+				shdr_status, shdr_add_status);
+		/*
+		 * Request failed, last resort to re-try current
+		 * registered FCF entry
+		 */
+		lpfc_retry_pport_discovery(phba);
+	} else
+		/*
+		 * Start FCF rediscovery wait timer for pending FCF
+		 * before rescan FCF record table.
+		 */
+		lpfc_fcf_redisc_wait_start_timer(phba);
+
+	mempool_free(mbox, phba->mbox_mem_pool);
+}
+
+/**
+ * lpfc_sli4_redisc_all_fcf - Request to rediscover entire FCF table by port.
+ * @phba: pointer to lpfc hba data structure.
+ *
+ * This routine is invoked to request for rediscovery of the entire FCF table
+ * by the port.
+ **/
+int
+lpfc_sli4_redisc_fcf_table(struct lpfc_hba *phba)
+{
+	LPFC_MBOXQ_t *mbox;
+	struct lpfc_mbx_redisc_fcf_tbl *redisc_fcf;
+	int rc, length;
+
+	mbox = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!mbox) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_SLI,
+				"2745 Failed to allocate mbox for "
+				"requesting FCF rediscover.\n");
+		return -ENOMEM;
+	}
+
+	length = (sizeof(struct lpfc_mbx_redisc_fcf_tbl) -
+		  sizeof(struct lpfc_sli4_cfg_mhdr));
+	lpfc_sli4_config(phba, mbox, LPFC_MBOX_SUBSYSTEM_FCOE,
+			 LPFC_MBOX_OPCODE_FCOE_REDISCOVER_FCF,
+			 length, LPFC_SLI4_MBX_EMBED);
+
+	redisc_fcf = &mbox->u.mqe.un.redisc_fcf_tbl;
+	/* Set count to 0 for invalidating the entire FCF database */
+	bf_set(lpfc_mbx_redisc_fcf_count, redisc_fcf, 0);
+
+	/* Issue the mailbox command asynchronously */
+	mbox->vport = phba->pport;
+	mbox->mbox_cmpl = lpfc_mbx_cmpl_redisc_fcf_table;
+	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_NOWAIT);
+
+	if (rc == MBX_NOT_FINISHED) {
+		mempool_free(mbox, phba->mbox_mem_pool);
+		return -EIO;
+	}
+	return 0;
 }
 
 /**
@@ -12069,3 +12205,48 @@ out:
 	kfree(rgn23_data);
 	return;
 }
+
+/**
+ * lpfc_cleanup_pending_mbox - Free up vport discovery mailbox commands.
+ * @vport: pointer to vport data structure.
+ *
+ * This function iterate through the mailboxq and clean up all REG_LOGIN
+ * and REG_VPI mailbox commands associated with the vport. This function
+ * is called when driver want to restart discovery of the vport due to
+ * a Clear Virtual Link event.
+ **/
+void
+lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
+{
+	struct lpfc_hba *phba = vport->phba;
+	LPFC_MBOXQ_t *mb, *nextmb;
+	struct lpfc_dmabuf *mp;
+
+	spin_lock_irq(&phba->hbalock);
+	list_for_each_entry_safe(mb, nextmb, &phba->sli.mboxq, list) {
+		if (mb->vport != vport)
+			continue;
+
+		if ((mb->u.mb.mbxCommand != MBX_REG_LOGIN64) &&
+			(mb->u.mb.mbxCommand != MBX_REG_VPI))
+			continue;
+
+		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
+			mp = (struct lpfc_dmabuf *) (mb->context1);
+			if (mp) {
+				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
+				kfree(mp);
+			}
+		}
+		list_del(&mb->list);
+		mempool_free(mb, phba->mbox_mem_pool);
+	}
+	mb = phba->sli.mbox_active;
+	if (mb && (mb->vport == vport)) {
+		if ((mb->u.mb.mbxCommand == MBX_REG_LOGIN64) ||
+			(mb->u.mb.mbxCommand == MBX_REG_VPI))
+			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
+	}
+	spin_unlock_irq(&phba->hbalock);
+}
+

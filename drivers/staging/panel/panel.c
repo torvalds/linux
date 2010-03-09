@@ -41,7 +41,6 @@
 #include <linux/signal.h>
 #include <linux/sched.h>
 #include <linux/spinlock.h>
-#include <linux/smp_lock.h>
 #include <linux/interrupt.h>
 #include <linux/miscdevice.h>
 #include <linux/slab.h>

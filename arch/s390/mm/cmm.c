@@ -374,7 +374,7 @@ static struct ctl_table cmm_dir_table[] = {
 #ifdef CONFIG_CMM_IUCV
 #define SMSG_PREFIX "CMM"
 static void
-cmm_smsg_target(char *from, char *msg)
+cmm_smsg_target(const char *from, char *msg)
 {
 	long nr, seconds;
 

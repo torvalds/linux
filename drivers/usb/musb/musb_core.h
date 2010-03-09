@@ -52,6 +52,15 @@ struct musb;
 struct musb_hw_ep;
 struct musb_ep;
 
+/* Helper defines for struct musb->hwvers */
+#define MUSB_HWVERS_MAJOR(x)	((x >> 10) & 0x1f)
+#define MUSB_HWVERS_MINOR(x)	(x & 0x3ff)
+#define MUSB_HWVERS_RC		0x8000
+#define MUSB_HWVERS_1300	0x52C
+#define MUSB_HWVERS_1400	0x590
+#define MUSB_HWVERS_1800	0x720
+#define MUSB_HWVERS_1900	0x784
+#define MUSB_HWVERS_2000	0x800
 
 #include "musb_debug.h"
 #include "musb_dma.h"
@@ -322,13 +331,6 @@ struct musb {
 	struct clk		*clock;
 	irqreturn_t		(*isr)(int, void *);
 	struct work_struct	irq_work;
-#define MUSB_HWVERS_MAJOR(x)	((x >> 10) & 0x1f)
-#define MUSB_HWVERS_MINOR(x)	(x & 0x3ff)
-#define MUSB_HWVERS_RC		0x8000
-#define MUSB_HWVERS_1300	0x52C
-#define MUSB_HWVERS_1400	0x590
-#define MUSB_HWVERS_1800	0x720
-#define MUSB_HWVERS_2000	0x800
 	u16			hwvers;
 
 /* this hub status bit is reserved by USB 2.0 and not seen by usbcore */
@@ -411,22 +413,15 @@ struct musb {
 
 	unsigned		hb_iso_rx:1;	/* high bandwidth iso rx? */
 	unsigned		hb_iso_tx:1;	/* high bandwidth iso tx? */
+	unsigned		dyn_fifo:1;	/* dynamic FIFO supported? */
 
-#ifdef C_MP_TX
-	unsigned bulk_split:1;
+	unsigned		bulk_split:1;
 #define	can_bulk_split(musb,type) \
-		(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_split)
-#else
-#define	can_bulk_split(musb, type)	0
-#endif
+	(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_split)
 
-#ifdef C_MP_RX
-	unsigned bulk_combine:1;
+	unsigned		bulk_combine:1;
 #define	can_bulk_combine(musb,type) \
-		(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_combine)
-#else
-#define	can_bulk_combine(musb, type)	0
-#endif
+	(((type) == USB_ENDPOINT_XFER_BULK) && (musb)->bulk_combine)
 
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 	/* is_suspended means USB B_PERIPHERAL suspend */
@@ -460,6 +455,45 @@ struct musb {
 	struct proc_dir_entry *proc_entry;
 #endif
 };
+
+#ifdef CONFIG_PM
+struct musb_csr_regs {
+	/* FIFO registers */
+	u16 txmaxp, txcsr, rxmaxp, rxcsr;
+	u16 rxfifoadd, txfifoadd;
+	u8 txtype, txinterval, rxtype, rxinterval;
+	u8 rxfifosz, txfifosz;
+	u8 txfunaddr, txhubaddr, txhubport;
+	u8 rxfunaddr, rxhubaddr, rxhubport;
+};
+
+struct musb_context_registers {
+
+#if defined(CONFIG_ARCH_OMAP34XX) || defined(CONFIG_ARCH_OMAP2430)
+	u32 otg_sysconfig, otg_forcestandby;
+#endif
+	u8 power;
+	u16 intrtxe, intrrxe;
+	u8 intrusbe;
+	u16 frame;
+	u8 index, testmode;
+
+	u8 devctl, misc;
+
+	struct musb_csr_regs index_regs[MUSB_C_NUM_EPS];
+};
+
+#if defined(CONFIG_ARCH_OMAP34XX) || defined(CONFIG_ARCH_OMAP2430)
+extern void musb_platform_save_context(struct musb *musb,
+		struct musb_context_registers *musb_context);
+extern void musb_platform_restore_context(struct musb *musb,
+		struct musb_context_registers *musb_context);
+#else
+#define musb_platform_save_context(m, x)	do {} while (0)
+#define musb_platform_restore_context(m, x)	do {} while (0)
+#endif
+
+#endif
 
 static inline void musb_set_vbus(struct musb *musb, int is_on)
 {
@@ -562,7 +596,7 @@ extern void musb_hnp_stop(struct musb *musb);
 extern int musb_platform_set_mode(struct musb *musb, u8 musb_mode);
 
 #if defined(CONFIG_USB_TUSB6010) || defined(CONFIG_BLACKFIN) || \
-	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP34XX)
+	defined(CONFIG_ARCH_OMAP2430) || defined(CONFIG_ARCH_OMAP3)
 extern void musb_platform_try_idle(struct musb *musb, unsigned long timeout);
 #else
 #define musb_platform_try_idle(x, y)		do {} while (0)

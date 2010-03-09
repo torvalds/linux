@@ -772,7 +772,7 @@ static int nv_adma_slave_config(struct scsi_device *sdev)
 	}
 
 	blk_queue_segment_boundary(sdev->request_queue, segment_boundary);
-	blk_queue_max_hw_segments(sdev->request_queue, sg_tablesize);
+	blk_queue_max_segments(sdev->request_queue, sg_tablesize);
 	ata_port_printk(ap, KERN_INFO,
 		"DMA mask 0x%llX, segment boundary 0x%lX, hw segs %hu\n",
 		(unsigned long long)*ap->host->dev->dma_mask,

@@ -132,9 +132,9 @@ void udbg_scc_init(int force_scc)
 		scc_inittab[1] = in_8(sccc);
 		out_8(sccc, 12);
 		scc_inittab[3] = in_8(sccc);
-	} else if (machine_is_compatible("RackMac1,1")
-		   || machine_is_compatible("RackMac1,2")
-		   || machine_is_compatible("MacRISC4")) {
+	} else if (of_machine_is_compatible("RackMac1,1")
+		   || of_machine_is_compatible("RackMac1,2")
+		   || of_machine_is_compatible("MacRISC4")) {
 		/* Xserves and G5s default to 57600 */
 		scc_inittab[1] = 0;
 		scc_inittab[3] = 0;

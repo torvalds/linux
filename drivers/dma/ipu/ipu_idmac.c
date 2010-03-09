@@ -348,6 +348,7 @@ static void ipu_ch_param_set_size(union chan_param_mem *params,
 		break;
 	case IPU_PIX_FMT_BGRA32:
 	case IPU_PIX_FMT_BGR32:
+	case IPU_PIX_FMT_ABGR32:
 		params->ip.bpp	= 0;
 		params->ip.pfs	= 4;
 		params->ip.npb	= 7;
@@ -370,20 +371,6 @@ static void ipu_ch_param_set_size(union chan_param_mem *params,
 		params->ip.ofs0	= 24;		/* Red bit offset */
 		params->ip.ofs1	= 16;		/* Green bit offset */
 		params->ip.ofs2	= 8;		/* Blue bit offset */
-		params->ip.ofs3	= 0;		/* Alpha bit offset */
-		params->ip.wid0	= 7;		/* Red bit width - 1 */
-		params->ip.wid1	= 7;		/* Green bit width - 1 */
-		params->ip.wid2	= 7;		/* Blue bit width - 1 */
-		params->ip.wid3	= 7;		/* Alpha bit width - 1 */
-		break;
-	case IPU_PIX_FMT_ABGR32:
-		params->ip.bpp	= 0;
-		params->ip.pfs	= 4;
-		params->ip.npb	= 7;
-		params->ip.sat	= 2;		/* SAT = 32-bit access */
-		params->ip.ofs0	= 8;		/* Red bit offset */
-		params->ip.ofs1	= 16;		/* Green bit offset */
-		params->ip.ofs2	= 24;		/* Blue bit offset */
 		params->ip.ofs3	= 0;		/* Alpha bit offset */
 		params->ip.wid0	= 7;		/* Red bit width - 1 */
 		params->ip.wid1	= 7;		/* Green bit width - 1 */

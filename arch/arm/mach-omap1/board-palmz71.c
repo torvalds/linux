@@ -25,14 +25,15 @@
 #include <linux/interrupt.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
+#include <linux/mtd/physmap.h>
 
 #include <mach/hardware.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
-#include <asm/mach/flash.h>
 
 #include <mach/gpio.h>
+#include <plat/flash.h>
 #include <plat/mux.h>
 #include <plat/usb.h>
 #include <plat/dma.h>
@@ -126,10 +127,9 @@ static struct mtd_partition palmz71_rom_partitions[] = {
 	},
 };
 
-static struct flash_platform_data palmz71_rom_data = {
-	.map_name	= "map_rom",
-	.name		= "onboardrom",
+static struct physmap_flash_data palmz71_rom_data = {
 	.width		= 2,
+	.set_vpp	= omap1_set_vpp,
 	.parts		= palmz71_rom_partitions,
 	.nr_parts	= ARRAY_SIZE(palmz71_rom_partitions),
 };
@@ -141,7 +141,7 @@ static struct resource palmz71_rom_resource = {
 };
 
 static struct platform_device palmz71_rom_device = {
-	.name	= "omapflash",
+	.name	= "physmap-flash",
 	.id	= -1,
 	.dev = {
 		.platform_data = &palmz71_rom_data,

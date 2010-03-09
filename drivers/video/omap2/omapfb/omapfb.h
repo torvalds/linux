@@ -83,6 +83,12 @@ struct omapfb2_device {
 	struct omap_overlay *overlays[10];
 	unsigned num_managers;
 	struct omap_overlay_manager *managers[10];
+
+	unsigned num_bpp_overrides;
+	struct {
+		struct omap_dss_device *dssdev;
+		u8 bpp;
+	} bpp_overrides[10];
 };
 
 struct omapfb_colormode {
@@ -104,6 +110,9 @@ int omapfb_create_sysfs(struct omapfb2_device *fbdev);
 void omapfb_remove_sysfs(struct omapfb2_device *fbdev);
 
 int omapfb_ioctl(struct fb_info *fbi, unsigned int cmd, unsigned long arg);
+
+int omapfb_update_window(struct fb_info *fbi,
+		u32 x, u32 y, u32 w, u32 h);
 
 int dss_mode_to_fb_mode(enum omap_color_mode dssmode,
 			struct fb_var_screeninfo *var);

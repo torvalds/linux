@@ -23,12 +23,11 @@
 #include <sound/ac97_codec.h>
 #include <sound/initval.h>
 #include <sound/pcm_params.h>
+#include <sound/tlv.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 
 #include "wm9713.h"
-
-#define WM9713_VERSION "0.15"
 
 struct wm9713_priv {
 	u32 pll_in; /* PLL input frequency */
@@ -115,15 +114,27 @@ SOC_ENUM_SINGLE(AC97_3D_CONTROL, 12, 3, wm9713_mic_select), /* mic selection 18 
 SOC_ENUM_SINGLE(MICB_MUX, 0, 2, wm9713_micb_select), /* mic selection 19 */
 };
 
+static const DECLARE_TLV_DB_SCALE(out_tlv, -4650, 150, 0);
+static const DECLARE_TLV_DB_SCALE(main_tlv, -3450, 150, 0);
+static const DECLARE_TLV_DB_SCALE(misc_tlv, -1500, 300, 0);
+static unsigned int mic_tlv[] = {
+	TLV_DB_RANGE_HEAD(2),
+	0, 2, TLV_DB_SCALE_ITEM(1200, 600, 0),
+	3, 3, TLV_DB_SCALE_ITEM(3000, 0, 0),
+};
+
 static const struct snd_kcontrol_new wm9713_snd_ac97_controls[] = {
-SOC_DOUBLE("Speaker Playback Volume", AC97_MASTER, 8, 0, 31, 1),
+SOC_DOUBLE_TLV("Speaker Playback Volume", AC97_MASTER, 8, 0, 31, 1, out_tlv),
 SOC_DOUBLE("Speaker Playback Switch", AC97_MASTER, 15, 7, 1, 1),
-SOC_DOUBLE("Headphone Playback Volume", AC97_HEADPHONE, 8, 0, 31, 1),
+SOC_DOUBLE_TLV("Headphone Playback Volume", AC97_HEADPHONE, 8, 0, 31, 1,
+	       out_tlv),
 SOC_DOUBLE("Headphone Playback Switch", AC97_HEADPHONE, 15, 7, 1, 1),
-SOC_DOUBLE("Line In Volume", AC97_PC_BEEP, 8, 0, 31, 1),
-SOC_DOUBLE("PCM Playback Volume", AC97_PHONE, 8, 0, 31, 1),
-SOC_SINGLE("Mic 1 Volume", AC97_MIC, 8, 31, 1),
-SOC_SINGLE("Mic 2 Volume", AC97_MIC, 0, 31, 1),
+SOC_DOUBLE_TLV("Line In Volume", AC97_PC_BEEP, 8, 0, 31, 1, main_tlv),
+SOC_DOUBLE_TLV("PCM Playback Volume", AC97_PHONE, 8, 0, 31, 1, main_tlv),
+SOC_SINGLE_TLV("Mic 1 Volume", AC97_MIC, 8, 31, 1, main_tlv),
+SOC_SINGLE_TLV("Mic 2 Volume", AC97_MIC, 0, 31, 1, main_tlv),
+SOC_SINGLE_TLV("Mic 1 Preamp Volume", AC97_3D_CONTROL, 10, 3, 0, mic_tlv),
+SOC_SINGLE_TLV("Mic 2 Preamp Volume", AC97_3D_CONTROL, 12, 3, 0, mic_tlv),
 
 SOC_SINGLE("Mic Boost (+20dB) Switch", AC97_LINE, 5, 1, 0),
 SOC_SINGLE("Mic Headphone Mixer Volume", AC97_LINE, 0, 7, 1),
@@ -133,7 +144,7 @@ SOC_ENUM("Capture Volume Steps", wm9713_enum[5]),
 SOC_DOUBLE("Capture Volume", AC97_CD, 8, 0, 31, 0),
 SOC_SINGLE("Capture ZC Switch", AC97_CD, 7, 1, 0),
 
-SOC_SINGLE("Capture to Headphone Volume", AC97_VIDEO, 11, 7, 1),
+SOC_SINGLE_TLV("Capture to Headphone Volume", AC97_VIDEO, 11, 7, 1, misc_tlv),
 SOC_SINGLE("Capture to Mono Boost (+20dB) Switch", AC97_VIDEO, 8, 1, 0),
 SOC_SINGLE("Capture ADC Boost (+20dB) Switch", AC97_VIDEO, 6, 1, 0),
 
@@ -154,28 +165,43 @@ SOC_DOUBLE("Headphone Playback ZC Switch", AC97_HEADPHONE, 14, 6, 1, 0),
 
 SOC_SINGLE("Out4 Playback Switch", AC97_MASTER_MONO, 15, 1, 1),
 SOC_SINGLE("Out4 Playback ZC Switch", AC97_MASTER_MONO, 14, 1, 0),
-SOC_SINGLE("Out4 Playback Volume", AC97_MASTER_MONO, 8, 63, 1),
+SOC_SINGLE_TLV("Out4 Playback Volume", AC97_MASTER_MONO, 8, 31, 1, out_tlv),
 
 SOC_SINGLE("Out3 Playback Switch", AC97_MASTER_MONO, 7, 1, 1),
 SOC_SINGLE("Out3 Playback ZC Switch", AC97_MASTER_MONO, 6, 1, 0),
-SOC_SINGLE("Out3 Playback Volume", AC97_MASTER_MONO, 0, 63, 1),
+SOC_SINGLE_TLV("Out3 Playback Volume", AC97_MASTER_MONO, 0, 31, 1, out_tlv),
 
-SOC_SINGLE("Mono Capture Volume", AC97_MASTER_TONE, 8, 31, 1),
+SOC_SINGLE_TLV("Mono Capture Volume", AC97_MASTER_TONE, 8, 31, 1, main_tlv),
 SOC_SINGLE("Mono Playback Switch", AC97_MASTER_TONE, 7, 1, 1),
 SOC_SINGLE("Mono Playback ZC Switch", AC97_MASTER_TONE, 6, 1, 0),
-SOC_SINGLE("Mono Playback Volume", AC97_MASTER_TONE, 0, 31, 1),
+SOC_SINGLE_TLV("Mono Playback Volume", AC97_MASTER_TONE, 0, 31, 1, out_tlv),
 
-SOC_SINGLE("Beep Playback Headphone Volume", AC97_AUX, 12, 7, 1),
-SOC_SINGLE("Beep Playback Speaker Volume", AC97_AUX, 8, 7, 1),
-SOC_SINGLE("Beep Playback Mono Volume", AC97_AUX, 4, 7, 1),
+SOC_SINGLE_TLV("Headphone Mixer Beep Playback Volume", AC97_AUX, 12, 7, 1,
+	       misc_tlv),
+SOC_SINGLE_TLV("Speaker Mixer Beep Playback Volume", AC97_AUX, 8, 7, 1,
+	       misc_tlv),
+SOC_SINGLE_TLV("Mono Mixer Beep Playback Volume", AC97_AUX, 4, 7, 1, misc_tlv),
 
-SOC_SINGLE("Voice Playback Headphone Volume", AC97_PCM, 12, 7, 1),
+SOC_SINGLE_TLV("Voice Playback Headphone Volume", AC97_PCM, 12, 7, 1,
+	       misc_tlv),
 SOC_SINGLE("Voice Playback Master Volume", AC97_PCM, 8, 7, 1),
 SOC_SINGLE("Voice Playback Mono Volume", AC97_PCM, 4, 7, 1),
 
+SOC_SINGLE_TLV("Headphone Mixer Aux Playback Volume", AC97_REC_SEL, 12, 7, 1,
+	       misc_tlv),
+
+SOC_SINGLE_TLV("Speaker Mixer Voice Playback Volume", AC97_PCM, 8, 7, 1,
+	       misc_tlv),
+SOC_SINGLE_TLV("Speaker Mixer Aux Playback Volume", AC97_REC_SEL, 8, 7, 1,
+	       misc_tlv),
+
+SOC_SINGLE_TLV("Mono Mixer Voice Playback Volume", AC97_PCM, 4, 7, 1,
+	       misc_tlv),
+SOC_SINGLE_TLV("Mono Mixer Aux Playback Volume", AC97_REC_SEL, 4, 7, 1,
+	       misc_tlv),
+
 SOC_SINGLE("Aux Playback Headphone Volume", AC97_REC_SEL, 12, 7, 1),
 SOC_SINGLE("Aux Playback Master Volume", AC97_REC_SEL, 8, 7, 1),
-SOC_SINGLE("Aux Playback Mono Volume", AC97_REC_SEL, 4, 7, 1),
 
 SOC_ENUM("Bass Control", wm9713_enum[16]),
 SOC_SINGLE("Bass Cut-off Switch", AC97_GENERAL_PURPOSE, 12, 1, 1),
@@ -1185,8 +1211,6 @@ static int wm9713_soc_probe(struct platform_device *pdev)
 	struct snd_soc_device *socdev = platform_get_drvdata(pdev);
 	struct snd_soc_codec *codec;
 	int ret = 0, reg;
-
-	printk(KERN_INFO "WM9713/WM9714 SoC Audio Codec %s\n", WM9713_VERSION);
 
 	socdev->card->codec = kzalloc(sizeof(struct snd_soc_codec),
 				      GFP_KERNEL);

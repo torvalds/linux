@@ -88,7 +88,7 @@ static void iic_eoi(unsigned int irq)
 }
 
 static struct irq_chip iic_chip = {
-	.name = " CELL-IIC ",
+	.name = "CELL-IIC",
 	.mask = iic_mask,
 	.unmask = iic_unmask,
 	.eoi = iic_eoi,
@@ -133,7 +133,7 @@ static void iic_ioexc_cascade(unsigned int irq, struct irq_desc *desc)
 
 
 static struct irq_chip iic_ioexc_chip = {
-	.name = " CELL-IOEX",
+	.name = "CELL-IOEX",
 	.mask = iic_mask,
 	.unmask = iic_unmask,
 	.eoi = iic_ioexc_eoi,

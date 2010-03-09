@@ -83,9 +83,9 @@ struct dm_snapshot {
 	/* Whether or not owning mapped_device is suspended */
 	int suspended;
 
-	mempool_t *pending_pool;
-
 	atomic_t pending_exceptions_count;
+
+	mempool_t *pending_pool;
 
 	struct dm_exception_table pending;
 	struct dm_exception_table complete;
@@ -96,6 +96,11 @@ struct dm_snapshot {
 	 */
 	spinlock_t pe_lock;
 
+	/* Chunks with outstanding reads */
+	spinlock_t tracked_chunk_lock;
+	mempool_t *tracked_chunk_pool;
+	struct hlist_head tracked_chunk_hash[DM_TRACKED_CHUNK_HASH_SIZE];
+
 	/* The on disk metadata handler */
 	struct dm_exception_store *store;
 
@@ -105,10 +110,12 @@ struct dm_snapshot {
 	struct bio_list queued_bios;
 	struct work_struct queued_bios_work;
 
-	/* Chunks with outstanding reads */
-	mempool_t *tracked_chunk_pool;
-	spinlock_t tracked_chunk_lock;
-	struct hlist_head tracked_chunk_hash[DM_TRACKED_CHUNK_HASH_SIZE];
+	/* Wait for events based on state_bits */
+	unsigned long state_bits;
+
+	/* Range of chunks currently being merged. */
+	chunk_t first_merging_chunk;
+	int num_merging_chunks;
 
 	/*
 	 * The merge operation failed if this flag is set.
@@ -124,13 +131,6 @@ struct dm_snapshot {
 	 *	=> stop merging; set merge_failed; process I/O normally.
 	 */
 	int merge_failed;
-
-	/* Wait for events based on state_bits */
-	unsigned long state_bits;
-
-	/* Range of chunks currently being merged. */
-	chunk_t first_merging_chunk;
-	int num_merging_chunks;
 
 	/*
 	 * Incoming bios that overlap with chunks being merged must wait
@@ -1081,8 +1081,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argv++;
 	argc--;
 
-	r = dm_get_device(ti, cow_path, 0, 0,
-			  FMODE_READ | FMODE_WRITE, &s->cow);
+	r = dm_get_device(ti, cow_path, FMODE_READ | FMODE_WRITE, &s->cow);
 	if (r) {
 		ti->error = "Cannot get COW device";
 		goto bad_cow;
@@ -1098,7 +1097,7 @@ static int snapshot_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	argv += args_used;
 	argc -= args_used;
 
-	r = dm_get_device(ti, origin_path, 0, ti->len, origin_mode, &s->origin);
+	r = dm_get_device(ti, origin_path, origin_mode, &s->origin);
 	if (r) {
 		ti->error = "Cannot get origin device";
 		goto bad_origin;
@@ -2100,8 +2099,7 @@ static int origin_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 		return -EINVAL;
 	}
 
-	r = dm_get_device(ti, argv[0], 0, ti->len,
-			  dm_table_get_mode(ti->table), &dev);
+	r = dm_get_device(ti, argv[0], dm_table_get_mode(ti->table), &dev);
 	if (r) {
 		ti->error = "Cannot get target device";
 		return r;

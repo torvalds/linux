@@ -166,7 +166,7 @@ static void palm_bk3710_setpiomode(void __iomem *base, ide_drive_t *mate,
 	writel(val32, base + BK3710_DATRCVR);
 
 	if (mate) {
-		u8 mode2 = ide_get_best_pio_mode(mate, 255, 4);
+		u8 mode2 = mate->pio_mode - XFER_PIO_0;
 
 		if (mode2 < mode)
 			mode = mode2;
@@ -188,10 +188,11 @@ static void palm_bk3710_setpiomode(void __iomem *base, ide_drive_t *mate,
 	writel(val32, base + BK3710_REGRCVR);
 }
 
-static void palm_bk3710_set_dma_mode(ide_drive_t *drive, u8 xferspeed)
+static void palm_bk3710_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	int is_slave = drive->dn & 1;
-	void __iomem *base = (void *)drive->hwif->dma_base;
+	void __iomem *base = (void *)hwif->dma_base;
+	const u8 xferspeed = drive->dma_mode;
 
 	if (xferspeed >= XFER_UDMA_0) {
 		palm_bk3710_setudmamode(base, is_slave,
@@ -203,12 +204,13 @@ static void palm_bk3710_set_dma_mode(ide_drive_t *drive, u8 xferspeed)
 	}
 }
 
-static void palm_bk3710_set_pio_mode(ide_drive_t *drive, u8 pio)
+static void palm_bk3710_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
 	unsigned int cycle_time;
 	int is_slave = drive->dn & 1;
 	ide_drive_t *mate;
-	void __iomem *base = (void *)drive->hwif->dma_base;
+	void __iomem *base = (void *)hwif->dma_base;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	/*
 	 * Obtain the drive PIO data for tuning the Palm Chip registers

@@ -1,7 +1,7 @@
 /*
  * arch/s390/kernel/head31.S
  *
- * Copyright (C) IBM Corp. 2005,2006
+ * Copyright (C) IBM Corp. 2005,2010
  *
  *   Author(s):	Hartmut Penner <hp@de.ibm.com>
  *		Martin Schwidefsky <schwidefsky@de.ibm.com>
@@ -10,13 +10,19 @@
  *
  */
 
-	.org	0x11000
+#include <linux/init.h>
+#include <asm/asm-offsets.h>
+#include <asm/thread_info.h>
+#include <asm/page.h>
 
+__HEAD
+	.globl	startup_continue
 startup_continue:
 	basr	%r13,0			# get base
 .LPG1:
 
-	mvi	__LC_AR_MODE_ID,0	# set ESA flag (mode 0)
+	l	%r1,.Lbase_cc-.LPG1(%r13)
+	mvc	0(8,%r1),__LC_LAST_UPDATE_CLOCK
 	lctl	%c0,%c15,.Lctl-.LPG1(%r13) # load control registers
 	l	%r12,.Lparmaddr-.LPG1(%r13) # pointer to parameter area
 					# move IPL device to lowcore
@@ -69,10 +75,12 @@ startup_continue:
 .Lduald:.rept	8
 	.long	0x80000000,0,0,0	# invalid access-list entries
 	.endr
+.Lbase_cc:
+	.long	sched_clock_base_cc
 
-	.org	0x12000
 	.globl	_ehead
 _ehead:
+
 #ifdef CONFIG_SHARED_KERNEL
 	.org	0x100000
 #endif

@@ -679,7 +679,7 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 			if (c->weight != w)
 				continue;
 
-			for_each_bit(j, c->idxmsk, X86_PMC_IDX_MAX) {
+			for_each_set_bit(j, c->idxmsk, X86_PMC_IDX_MAX) {
 				if (!test_bit(j, used_mask))
 					break;
 			}

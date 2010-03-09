@@ -28,6 +28,7 @@
 #include "drmP.h"
 #include "radeon.h"
 #include "r600d.h"
+#include "r600_reg_safe.h"
 
 static int r600_cs_packet_next_reloc_mm(struct radeon_cs_parser *p,
 					struct radeon_cs_reloc **cs_reloc);
@@ -35,10 +36,312 @@ static int r600_cs_packet_next_reloc_nomm(struct radeon_cs_parser *p,
 					struct radeon_cs_reloc **cs_reloc);
 typedef int (*next_reloc_t)(struct radeon_cs_parser*, struct radeon_cs_reloc**);
 static next_reloc_t r600_cs_packet_next_reloc = &r600_cs_packet_next_reloc_mm;
+extern void r600_cs_legacy_get_tiling_conf(struct drm_device *dev, u32 *npipes, u32 *nbanks, u32 *group_size);
+
 
 struct r600_cs_track {
-	u32	cb_color0_base_last;
+	/* configuration we miror so that we use same code btw kms/ums */
+	u32			group_size;
+	u32			nbanks;
+	u32			npipes;
+	/* value we track */
+	u32			nsamples;
+	u32			cb_color_base_last[8];
+	struct radeon_bo	*cb_color_bo[8];
+	u32			cb_color_bo_offset[8];
+	struct radeon_bo	*cb_color_frag_bo[8];
+	struct radeon_bo	*cb_color_tile_bo[8];
+	u32			cb_color_info[8];
+	u32			cb_color_size_idx[8];
+	u32			cb_target_mask;
+	u32			cb_shader_mask;
+	u32			cb_color_size[8];
+	u32			vgt_strmout_en;
+	u32			vgt_strmout_buffer_en;
+	u32			db_depth_control;
+	u32			db_depth_info;
+	u32			db_depth_size_idx;
+	u32			db_depth_view;
+	u32			db_depth_size;
+	u32			db_offset;
+	struct radeon_bo	*db_bo;
 };
+
+static inline int r600_bpe_from_format(u32 *bpe, u32 format)
+{
+	switch (format) {
+	case V_038004_COLOR_8:
+	case V_038004_COLOR_4_4:
+	case V_038004_COLOR_3_3_2:
+	case V_038004_FMT_1:
+		*bpe = 1;
+		break;
+	case V_038004_COLOR_16:
+	case V_038004_COLOR_16_FLOAT:
+	case V_038004_COLOR_8_8:
+	case V_038004_COLOR_5_6_5:
+	case V_038004_COLOR_6_5_5:
+	case V_038004_COLOR_1_5_5_5:
+	case V_038004_COLOR_4_4_4_4:
+	case V_038004_COLOR_5_5_5_1:
+		*bpe = 2;
+		break;
+	case V_038004_FMT_8_8_8:
+		*bpe = 3;
+		break;
+	case V_038004_COLOR_32:
+	case V_038004_COLOR_32_FLOAT:
+	case V_038004_COLOR_16_16:
+	case V_038004_COLOR_16_16_FLOAT:
+	case V_038004_COLOR_8_24:
+	case V_038004_COLOR_8_24_FLOAT:
+	case V_038004_COLOR_24_8:
+	case V_038004_COLOR_24_8_FLOAT:
+	case V_038004_COLOR_10_11_11:
+	case V_038004_COLOR_10_11_11_FLOAT:
+	case V_038004_COLOR_11_11_10:
+	case V_038004_COLOR_11_11_10_FLOAT:
+	case V_038004_COLOR_2_10_10_10:
+	case V_038004_COLOR_8_8_8_8:
+	case V_038004_COLOR_10_10_10_2:
+	case V_038004_FMT_5_9_9_9_SHAREDEXP:
+	case V_038004_FMT_32_AS_8:
+	case V_038004_FMT_32_AS_8_8:
+		*bpe = 4;
+		break;
+	case V_038004_COLOR_X24_8_32_FLOAT:
+	case V_038004_COLOR_32_32:
+	case V_038004_COLOR_32_32_FLOAT:
+	case V_038004_COLOR_16_16_16_16:
+	case V_038004_COLOR_16_16_16_16_FLOAT:
+		*bpe = 8;
+		break;
+	case V_038004_FMT_16_16_16:
+	case V_038004_FMT_16_16_16_FLOAT:
+		*bpe = 6;
+		break;
+	case V_038004_FMT_32_32_32:
+	case V_038004_FMT_32_32_32_FLOAT:
+		*bpe = 12;
+		break;
+	case V_038004_COLOR_32_32_32_32:
+	case V_038004_COLOR_32_32_32_32_FLOAT:
+		*bpe = 16;
+		break;
+	case V_038004_FMT_GB_GR:
+	case V_038004_FMT_BG_RG:
+	case V_038004_COLOR_INVALID:
+		*bpe = 16;
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static void r600_cs_track_init(struct r600_cs_track *track)
+{
+	int i;
+
+	for (i = 0; i < 8; i++) {
+		track->cb_color_base_last[i] = 0;
+		track->cb_color_size[i] = 0;
+		track->cb_color_size_idx[i] = 0;
+		track->cb_color_info[i] = 0;
+		track->cb_color_bo[i] = NULL;
+		track->cb_color_bo_offset[i] = 0xFFFFFFFF;
+	}
+	track->cb_target_mask = 0xFFFFFFFF;
+	track->cb_shader_mask = 0xFFFFFFFF;
+	track->db_bo = NULL;
+	/* assume the biggest format and that htile is enabled */
+	track->db_depth_info = 7 | (1 << 25);
+	track->db_depth_view = 0xFFFFC000;
+	track->db_depth_size = 0xFFFFFFFF;
+	track->db_depth_size_idx = 0;
+	track->db_depth_control = 0xFFFFFFFF;
+}
+
+static inline int r600_cs_track_validate_cb(struct radeon_cs_parser *p, int i)
+{
+	struct r600_cs_track *track = p->track;
+	u32 bpe = 0, pitch, slice_tile_max, size, tmp, height;
+	volatile u32 *ib = p->ib->ptr;
+
+	if (G_0280A0_TILE_MODE(track->cb_color_info[i])) {
+		dev_warn(p->dev, "FMASK or CMASK buffer are not supported by this kernel\n");
+		return -EINVAL;
+	}
+	size = radeon_bo_size(track->cb_color_bo[i]);
+	if (r600_bpe_from_format(&bpe, G_0280A0_FORMAT(track->cb_color_info[i]))) {
+		dev_warn(p->dev, "%s:%d cb invalid format %d for %d (0x%08X)\n",
+			 __func__, __LINE__, G_0280A0_FORMAT(track->cb_color_info[i]),
+			i, track->cb_color_info[i]);
+		return -EINVAL;
+	}
+	pitch = (G_028060_PITCH_TILE_MAX(track->cb_color_size[i]) + 1) << 3;
+	slice_tile_max = G_028060_SLICE_TILE_MAX(track->cb_color_size[i]) + 1;
+	if (!pitch) {
+		dev_warn(p->dev, "%s:%d cb pitch (%d) for %d invalid (0x%08X)\n",
+			__func__, __LINE__, pitch, i, track->cb_color_size[i]);
+		return -EINVAL;
+	}
+	height = size / (pitch * bpe);
+	if (height > 8192)
+		height = 8192;
+	switch (G_0280A0_ARRAY_MODE(track->cb_color_info[i])) {
+	case V_0280A0_ARRAY_LINEAR_GENERAL:
+	case V_0280A0_ARRAY_LINEAR_ALIGNED:
+		if (pitch & 0x3f) {
+			dev_warn(p->dev, "%s:%d cb pitch (%d x %d = %d) invalid\n",
+				__func__, __LINE__, pitch, bpe, pitch * bpe);
+			return -EINVAL;
+		}
+		if ((pitch * bpe) & (track->group_size - 1)) {
+			dev_warn(p->dev, "%s:%d cb pitch (%d) invalid\n",
+				__func__, __LINE__, pitch);
+			return -EINVAL;
+		}
+		break;
+	case V_0280A0_ARRAY_1D_TILED_THIN1:
+		if ((pitch * 8 * bpe * track->nsamples) & (track->group_size - 1)) {
+			dev_warn(p->dev, "%s:%d cb pitch (%d) invalid\n",
+				__func__, __LINE__, pitch);
+			return -EINVAL;
+		}
+		height &= ~0x7;
+		if (!height)
+			height = 8;
+		break;
+	case V_0280A0_ARRAY_2D_TILED_THIN1:
+		if (pitch & ((8 * track->nbanks) - 1)) {
+			dev_warn(p->dev, "%s:%d cb pitch (%d) invalid\n",
+				__func__, __LINE__, pitch);
+			return -EINVAL;
+		}
+		tmp = pitch * 8 * bpe * track->nsamples;
+		tmp = tmp / track->nbanks;
+		if (tmp & (track->group_size - 1)) {
+			dev_warn(p->dev, "%s:%d cb pitch (%d) invalid\n",
+				__func__, __LINE__, pitch);
+			return -EINVAL;
+		}
+		height &= ~((16 * track->npipes) - 1);
+		if (!height)
+			height = 16 * track->npipes;
+		break;
+	default:
+		dev_warn(p->dev, "%s invalid tiling %d for %d (0x%08X)\n", __func__,
+			G_0280A0_ARRAY_MODE(track->cb_color_info[i]), i,
+			track->cb_color_info[i]);
+		return -EINVAL;
+	}
+	/* check offset */
+	tmp = height * pitch;
+	if ((tmp + track->cb_color_bo_offset[i]) > radeon_bo_size(track->cb_color_bo[i])) {
+		dev_warn(p->dev, "%s offset[%d] %d to big\n", __func__, i, track->cb_color_bo_offset[i]);
+		return -EINVAL;
+	}
+	/* limit max tile */
+	tmp = (height * pitch) >> 6;
+	if (tmp < slice_tile_max)
+		slice_tile_max = tmp;
+	tmp = S_028060_PITCH_TILE_MAX((pitch >> 3) - 1) |
+		S_028060_SLICE_TILE_MAX(slice_tile_max - 1);
+	ib[track->cb_color_size_idx[i]] = tmp;
+	return 0;
+}
+
+static int r600_cs_track_check(struct radeon_cs_parser *p)
+{
+	struct r600_cs_track *track = p->track;
+	u32 tmp;
+	int r, i;
+	volatile u32 *ib = p->ib->ptr;
+
+	/* on legacy kernel we don't perform advanced check */
+	if (p->rdev == NULL)
+		return 0;
+	/* we don't support out buffer yet */
+	if (track->vgt_strmout_en || track->vgt_strmout_buffer_en) {
+		dev_warn(p->dev, "this kernel doesn't support SMX output buffer\n");
+		return -EINVAL;
+	}
+	/* check that we have a cb for each enabled target, we don't check
+	 * shader_mask because it seems mesa isn't always setting it :(
+	 */
+	tmp = track->cb_target_mask;
+	for (i = 0; i < 8; i++) {
+		if ((tmp >> (i * 4)) & 0xF) {
+			/* at least one component is enabled */
+			if (track->cb_color_bo[i] == NULL) {
+				dev_warn(p->dev, "%s:%d mask 0x%08X | 0x%08X no cb for %d\n",
+					__func__, __LINE__, track->cb_target_mask, track->cb_shader_mask, i);
+				return -EINVAL;
+			}
+			/* perform rewrite of CB_COLOR[0-7]_SIZE */
+			r = r600_cs_track_validate_cb(p, i);
+			if (r)
+				return r;
+		}
+	}
+	/* Check depth buffer */
+	if (G_028800_STENCIL_ENABLE(track->db_depth_control) ||
+		G_028800_Z_ENABLE(track->db_depth_control)) {
+		u32 nviews, bpe, ntiles;
+		if (track->db_bo == NULL) {
+			dev_warn(p->dev, "z/stencil with no depth buffer\n");
+			return -EINVAL;
+		}
+		if (G_028010_TILE_SURFACE_ENABLE(track->db_depth_info)) {
+			dev_warn(p->dev, "this kernel doesn't support z/stencil htile\n");
+			return -EINVAL;
+		}
+		switch (G_028010_FORMAT(track->db_depth_info)) {
+		case V_028010_DEPTH_16:
+			bpe = 2;
+			break;
+		case V_028010_DEPTH_X8_24:
+		case V_028010_DEPTH_8_24:
+		case V_028010_DEPTH_X8_24_FLOAT:
+		case V_028010_DEPTH_8_24_FLOAT:
+		case V_028010_DEPTH_32_FLOAT:
+			bpe = 4;
+			break;
+		case V_028010_DEPTH_X24_8_32_FLOAT:
+			bpe = 8;
+			break;
+		default:
+			dev_warn(p->dev, "z/stencil with invalid format %d\n", G_028010_FORMAT(track->db_depth_info));
+			return -EINVAL;
+		}
+		if ((track->db_depth_size & 0xFFFFFC00) == 0xFFFFFC00) {
+			if (!track->db_depth_size_idx) {
+				dev_warn(p->dev, "z/stencil buffer size not set\n");
+				return -EINVAL;
+			}
+			printk_once(KERN_WARNING "You have old & broken userspace please consider updating mesa\n");
+			tmp = radeon_bo_size(track->db_bo) - track->db_offset;
+			tmp = (tmp / bpe) >> 6;
+			if (!tmp) {
+				dev_warn(p->dev, "z/stencil buffer too small (0x%08X %d %d %ld)\n",
+						track->db_depth_size, bpe, track->db_offset,
+						radeon_bo_size(track->db_bo));
+				return -EINVAL;
+			}
+			ib[track->db_depth_size_idx] = S_028000_SLICE_TILE_MAX(tmp - 1) | (track->db_depth_size & 0x3FF);
+		} else {
+			ntiles = G_028000_SLICE_TILE_MAX(track->db_depth_size) + 1;
+			nviews = G_028004_SLICE_MAX(track->db_depth_view) + 1;
+			tmp = ntiles * bpe * 64 * nviews;
+			if ((tmp + track->db_offset) > radeon_bo_size(track->db_bo)) {
+				dev_warn(p->dev, "z/stencil buffer too small (0x%08X %d %d %d -> %d have %ld)\n",
+						track->db_depth_size, ntiles, nviews, bpe, tmp + track->db_offset,
+						radeon_bo_size(track->db_bo));
+				return -EINVAL;
+			}
+		}
+	}
+	return 0;
+}
 
 /**
  * r600_cs_packet_parse() - parse cp packet and point ib index to next packet
@@ -359,6 +662,334 @@ static int r600_cs_parse_packet0(struct radeon_cs_parser *p,
 	return 0;
 }
 
+/**
+ * r600_cs_check_reg() - check if register is authorized or not
+ * @parser: parser structure holding parsing context
+ * @reg: register we are testing
+ * @idx: index into the cs buffer
+ *
+ * This function will test against r600_reg_safe_bm and return 0
+ * if register is safe. If register is not flag as safe this function
+ * will test it against a list of register needind special handling.
+ */
+static inline int r600_cs_check_reg(struct radeon_cs_parser *p, u32 reg, u32 idx)
+{
+	struct r600_cs_track *track = (struct r600_cs_track *)p->track;
+	struct radeon_cs_reloc *reloc;
+	u32 last_reg = ARRAY_SIZE(r600_reg_safe_bm);
+	u32 m, i, tmp, *ib;
+	int r;
+
+	i = (reg >> 7);
+	if (i > last_reg) {
+		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
+		return -EINVAL;
+	}
+	m = 1 << ((reg >> 2) & 31);
+	if (!(r600_reg_safe_bm[i] & m))
+		return 0;
+	ib = p->ib->ptr;
+	switch (reg) {
+	/* force following reg to 0 in an attemp to disable out buffer
+	 * which will need us to better understand how it works to perform
+	 * security check on it (Jerome)
+	 */
+	case R_0288A8_SQ_ESGS_RING_ITEMSIZE:
+	case R_008C44_SQ_ESGS_RING_SIZE:
+	case R_0288B0_SQ_ESTMP_RING_ITEMSIZE:
+	case R_008C54_SQ_ESTMP_RING_SIZE:
+	case R_0288C0_SQ_FBUF_RING_ITEMSIZE:
+	case R_008C74_SQ_FBUF_RING_SIZE:
+	case R_0288B4_SQ_GSTMP_RING_ITEMSIZE:
+	case R_008C5C_SQ_GSTMP_RING_SIZE:
+	case R_0288AC_SQ_GSVS_RING_ITEMSIZE:
+	case R_008C4C_SQ_GSVS_RING_SIZE:
+	case R_0288BC_SQ_PSTMP_RING_ITEMSIZE:
+	case R_008C6C_SQ_PSTMP_RING_SIZE:
+	case R_0288C4_SQ_REDUC_RING_ITEMSIZE:
+	case R_008C7C_SQ_REDUC_RING_SIZE:
+	case R_0288B8_SQ_VSTMP_RING_ITEMSIZE:
+	case R_008C64_SQ_VSTMP_RING_SIZE:
+	case R_0288C8_SQ_GS_VERT_ITEMSIZE:
+		/* get value to populate the IB don't remove */
+		tmp =radeon_get_ib_value(p, idx);
+		ib[idx] = 0;
+		break;
+	case R_028800_DB_DEPTH_CONTROL:
+		track->db_depth_control = radeon_get_ib_value(p, idx);
+		break;
+	case R_028010_DB_DEPTH_INFO:
+		track->db_depth_info = radeon_get_ib_value(p, idx);
+		break;
+	case R_028004_DB_DEPTH_VIEW:
+		track->db_depth_view = radeon_get_ib_value(p, idx);
+		break;
+	case R_028000_DB_DEPTH_SIZE:
+		track->db_depth_size = radeon_get_ib_value(p, idx);
+		track->db_depth_size_idx = idx;
+		break;
+	case R_028AB0_VGT_STRMOUT_EN:
+		track->vgt_strmout_en = radeon_get_ib_value(p, idx);
+		break;
+	case R_028B20_VGT_STRMOUT_BUFFER_EN:
+		track->vgt_strmout_buffer_en = radeon_get_ib_value(p, idx);
+		break;
+	case R_028238_CB_TARGET_MASK:
+		track->cb_target_mask = radeon_get_ib_value(p, idx);
+		break;
+	case R_02823C_CB_SHADER_MASK:
+		track->cb_shader_mask = radeon_get_ib_value(p, idx);
+		break;
+	case R_028C04_PA_SC_AA_CONFIG:
+		tmp = G_028C04_MSAA_NUM_SAMPLES(radeon_get_ib_value(p, idx));
+		track->nsamples = 1 << tmp;
+		break;
+	case R_0280A0_CB_COLOR0_INFO:
+	case R_0280A4_CB_COLOR1_INFO:
+	case R_0280A8_CB_COLOR2_INFO:
+	case R_0280AC_CB_COLOR3_INFO:
+	case R_0280B0_CB_COLOR4_INFO:
+	case R_0280B4_CB_COLOR5_INFO:
+	case R_0280B8_CB_COLOR6_INFO:
+	case R_0280BC_CB_COLOR7_INFO:
+		tmp = (reg - R_0280A0_CB_COLOR0_INFO) / 4;
+		track->cb_color_info[tmp] = radeon_get_ib_value(p, idx);
+		break;
+	case R_028060_CB_COLOR0_SIZE:
+	case R_028064_CB_COLOR1_SIZE:
+	case R_028068_CB_COLOR2_SIZE:
+	case R_02806C_CB_COLOR3_SIZE:
+	case R_028070_CB_COLOR4_SIZE:
+	case R_028074_CB_COLOR5_SIZE:
+	case R_028078_CB_COLOR6_SIZE:
+	case R_02807C_CB_COLOR7_SIZE:
+		tmp = (reg - R_028060_CB_COLOR0_SIZE) / 4;
+		track->cb_color_size[tmp] = radeon_get_ib_value(p, idx);
+		track->cb_color_size_idx[tmp] = idx;
+		break;
+		/* This register were added late, there is userspace
+		 * which does provide relocation for those but set
+		 * 0 offset. In order to avoid breaking old userspace
+		 * we detect this and set address to point to last
+		 * CB_COLOR0_BASE, note that if userspace doesn't set
+		 * CB_COLOR0_BASE before this register we will report
+		 * error. Old userspace always set CB_COLOR0_BASE
+		 * before any of this.
+		 */
+	case R_0280E0_CB_COLOR0_FRAG:
+	case R_0280E4_CB_COLOR1_FRAG:
+	case R_0280E8_CB_COLOR2_FRAG:
+	case R_0280EC_CB_COLOR3_FRAG:
+	case R_0280F0_CB_COLOR4_FRAG:
+	case R_0280F4_CB_COLOR5_FRAG:
+	case R_0280F8_CB_COLOR6_FRAG:
+	case R_0280FC_CB_COLOR7_FRAG:
+		tmp = (reg - R_0280E0_CB_COLOR0_FRAG) / 4;
+		if (!r600_cs_packet_next_is_pkt3_nop(p)) {
+			if (!track->cb_color_base_last[tmp]) {
+				dev_err(p->dev, "Broken old userspace ? no cb_color0_base supplied before trying to write 0x%08X\n", reg);
+				return -EINVAL;
+			}
+			ib[idx] = track->cb_color_base_last[tmp];
+			printk_once(KERN_WARNING "You have old & broken userspace "
+					"please consider updating mesa & xf86-video-ati\n");
+			track->cb_color_frag_bo[tmp] = track->cb_color_bo[tmp];
+		} else {
+			r = r600_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				dev_err(p->dev, "bad SET_CONTEXT_REG 0x%04X\n", reg);
+				return -EINVAL;
+			}
+			ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+			track->cb_color_frag_bo[tmp] = reloc->robj;
+		}
+		break;
+	case R_0280C0_CB_COLOR0_TILE:
+	case R_0280C4_CB_COLOR1_TILE:
+	case R_0280C8_CB_COLOR2_TILE:
+	case R_0280CC_CB_COLOR3_TILE:
+	case R_0280D0_CB_COLOR4_TILE:
+	case R_0280D4_CB_COLOR5_TILE:
+	case R_0280D8_CB_COLOR6_TILE:
+	case R_0280DC_CB_COLOR7_TILE:
+		tmp = (reg - R_0280C0_CB_COLOR0_TILE) / 4;
+		if (!r600_cs_packet_next_is_pkt3_nop(p)) {
+			if (!track->cb_color_base_last[tmp]) {
+				dev_err(p->dev, "Broken old userspace ? no cb_color0_base supplied before trying to write 0x%08X\n", reg);
+				return -EINVAL;
+			}
+			ib[idx] = track->cb_color_base_last[tmp];
+			printk_once(KERN_WARNING "You have old & broken userspace "
+					"please consider updating mesa & xf86-video-ati\n");
+			track->cb_color_tile_bo[tmp] = track->cb_color_bo[tmp];
+		} else {
+			r = r600_cs_packet_next_reloc(p, &reloc);
+			if (r) {
+				dev_err(p->dev, "bad SET_CONTEXT_REG 0x%04X\n", reg);
+				return -EINVAL;
+			}
+			ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+			track->cb_color_tile_bo[tmp] = reloc->robj;
+		}
+		break;
+	case CB_COLOR0_BASE:
+	case CB_COLOR1_BASE:
+	case CB_COLOR2_BASE:
+	case CB_COLOR3_BASE:
+	case CB_COLOR4_BASE:
+	case CB_COLOR5_BASE:
+	case CB_COLOR6_BASE:
+	case CB_COLOR7_BASE:
+		r = r600_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		tmp = (reg - CB_COLOR0_BASE) / 4;
+		track->cb_color_bo_offset[tmp] = radeon_get_ib_value(p, idx);
+		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		track->cb_color_base_last[tmp] = ib[idx];
+		track->cb_color_bo[tmp] = reloc->robj;
+		break;
+	case DB_DEPTH_BASE:
+		r = r600_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		track->db_offset = radeon_get_ib_value(p, idx);
+		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		track->db_bo = reloc->robj;
+		break;
+	case DB_HTILE_DATA_BASE:
+	case SQ_PGM_START_FS:
+	case SQ_PGM_START_ES:
+	case SQ_PGM_START_VS:
+	case SQ_PGM_START_GS:
+	case SQ_PGM_START_PS:
+		r = r600_cs_packet_next_reloc(p, &reloc);
+		if (r) {
+			dev_warn(p->dev, "bad SET_CONTEXT_REG "
+					"0x%04X\n", reg);
+			return -EINVAL;
+		}
+		ib[idx] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+		break;
+	default:
+		dev_warn(p->dev, "forbidden register 0x%08x at %d\n", reg, idx);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static inline unsigned minify(unsigned size, unsigned levels)
+{
+	size = size >> levels;
+	if (size < 1)
+		size = 1;
+	return size;
+}
+
+static void r600_texture_size(unsigned nfaces, unsigned blevel, unsigned nlevels,
+				unsigned w0, unsigned h0, unsigned d0, unsigned bpe,
+				unsigned *l0_size, unsigned *mipmap_size)
+{
+	unsigned offset, i, level, face;
+	unsigned width, height, depth, rowstride, size;
+
+	w0 = minify(w0, 0);
+	h0 = minify(h0, 0);
+	d0 = minify(d0, 0);
+	for(i = 0, offset = 0, level = blevel; i < nlevels; i++, level++) {
+		width = minify(w0, i);
+		height = minify(h0, i);
+		depth = minify(d0, i);
+		for(face = 0; face < nfaces; face++) {
+			rowstride = ((width * bpe) + 255) & ~255;
+			size = height * rowstride * depth;
+			offset += size;
+			offset = (offset + 0x1f) & ~0x1f;
+		}
+	}
+	*l0_size = (((w0 * bpe) + 255) & ~255) * h0 * d0;
+	*mipmap_size = offset;
+	if (!blevel)
+		*mipmap_size -= *l0_size;
+	if (!nlevels)
+		*mipmap_size = *l0_size;
+}
+
+/**
+ * r600_check_texture_resource() - check if register is authorized or not
+ * @p: parser structure holding parsing context
+ * @idx: index into the cs buffer
+ * @texture: texture's bo structure
+ * @mipmap: mipmap's bo structure
+ *
+ * This function will check that the resource has valid field and that
+ * the texture and mipmap bo object are big enough to cover this resource.
+ */
+static inline int r600_check_texture_resource(struct radeon_cs_parser *p,  u32 idx,
+						struct radeon_bo *texture,
+						struct radeon_bo *mipmap)
+{
+	u32 nfaces, nlevels, blevel, w0, h0, d0, bpe = 0;
+	u32 word0, word1, l0_size, mipmap_size;
+
+	/* on legacy kernel we don't perform advanced check */
+	if (p->rdev == NULL)
+		return 0;
+	word0 = radeon_get_ib_value(p, idx + 0);
+	word1 = radeon_get_ib_value(p, idx + 1);
+	w0 = G_038000_TEX_WIDTH(word0) + 1;
+	h0 = G_038004_TEX_HEIGHT(word1) + 1;
+	d0 = G_038004_TEX_DEPTH(word1);
+	nfaces = 1;
+	switch (G_038000_DIM(word0)) {
+	case V_038000_SQ_TEX_DIM_1D:
+	case V_038000_SQ_TEX_DIM_2D:
+	case V_038000_SQ_TEX_DIM_3D:
+		break;
+	case V_038000_SQ_TEX_DIM_CUBEMAP:
+		nfaces = 6;
+		break;
+	case V_038000_SQ_TEX_DIM_1D_ARRAY:
+	case V_038000_SQ_TEX_DIM_2D_ARRAY:
+	case V_038000_SQ_TEX_DIM_2D_MSAA:
+	case V_038000_SQ_TEX_DIM_2D_ARRAY_MSAA:
+	default:
+		dev_warn(p->dev, "this kernel doesn't support %d texture dim\n", G_038000_DIM(word0));
+		return -EINVAL;
+	}
+	if (r600_bpe_from_format(&bpe,  G_038004_DATA_FORMAT(word1))) {
+		dev_warn(p->dev, "%s:%d texture invalid format %d\n",
+			 __func__, __LINE__, G_038004_DATA_FORMAT(word1));
+		return -EINVAL;
+	}
+	word0 = radeon_get_ib_value(p, idx + 4);
+	word1 = radeon_get_ib_value(p, idx + 5);
+	blevel = G_038010_BASE_LEVEL(word0);
+	nlevels = G_038014_LAST_LEVEL(word1);
+	r600_texture_size(nfaces, blevel, nlevels, w0, h0, d0, bpe, &l0_size, &mipmap_size);
+	/* using get ib will give us the offset into the texture bo */
+	word0 = radeon_get_ib_value(p, idx + 2);
+	if ((l0_size + word0) > radeon_bo_size(texture)) {
+		dev_warn(p->dev, "texture bo too small (%d %d %d %d -> %d have %ld)\n",
+			w0, h0, bpe, word0, l0_size, radeon_bo_size(texture));
+		return -EINVAL;
+	}
+	/* using get ib will give us the offset into the mipmap bo */
+	word0 = radeon_get_ib_value(p, idx + 3);
+	if ((mipmap_size + word0) > radeon_bo_size(mipmap)) {
+		dev_warn(p->dev, "mipmap bo too small (%d %d %d %d %d %d -> %d have %ld)\n",
+			w0, h0, bpe, blevel, nlevels, word0, mipmap_size, radeon_bo_size(texture));
+		return -EINVAL;
+	}
+	return 0;
+}
+
 static int r600_packet3_check(struct radeon_cs_parser *p,
 				struct radeon_cs_packet *pkt)
 {
@@ -408,11 +1039,21 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		ib[idx+0] = idx_value + (u32)(reloc->lobj.gpu_offset & 0xffffffff);
 		ib[idx+1] += upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
+		r = r600_cs_track_check(p);
+		if (r) {
+			dev_warn(p->dev, "%s:%d invalid cmd stream\n", __func__, __LINE__);
+			return r;
+		}
 		break;
 	case PACKET3_DRAW_INDEX_AUTO:
 		if (pkt->count != 1) {
 			DRM_ERROR("bad DRAW_INDEX_AUTO\n");
 			return -EINVAL;
+		}
+		r = r600_cs_track_check(p);
+		if (r) {
+			dev_warn(p->dev, "%s:%d invalid cmd stream %d\n", __func__, __LINE__, idx);
+			return r;
 		}
 		break;
 	case PACKET3_DRAW_INDEX_IMMD_BE:
@@ -420,6 +1061,11 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		if (pkt->count < 2) {
 			DRM_ERROR("bad DRAW_INDEX_IMMD\n");
 			return -EINVAL;
+		}
+		r = r600_cs_track_check(p);
+		if (r) {
+			dev_warn(p->dev, "%s:%d invalid cmd stream\n", __func__, __LINE__);
+			return r;
 		}
 		break;
 	case PACKET3_WAIT_REG_MEM:
@@ -493,30 +1139,9 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		for (i = 0; i < pkt->count; i++) {
 			reg = start_reg + (4 * i);
-			switch (reg) {
-			case SQ_ESGS_RING_BASE:
-			case SQ_GSVS_RING_BASE:
-			case SQ_ESTMP_RING_BASE:
-			case SQ_GSTMP_RING_BASE:
-			case SQ_VSTMP_RING_BASE:
-			case SQ_PSTMP_RING_BASE:
-			case SQ_FBUF_RING_BASE:
-			case SQ_REDUC_RING_BASE:
-			case SX_MEMORY_EXPORT_BASE:
-				r = r600_cs_packet_next_reloc(p, &reloc);
-				if (r) {
-					DRM_ERROR("bad SET_CONFIG_REG "
-							"0x%04X\n", reg);
-					return -EINVAL;
-				}
-				ib[idx+1+i] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
-				break;
-			case CP_COHER_BASE:
-				/* use PACKET3_SURFACE_SYNC */
-				return -EINVAL;
-			default:
-				break;
-			}
+			r = r600_cs_check_reg(p, reg, idx+1+i);
+			if (r)
+				return r;
 		}
 		break;
 	case PACKET3_SET_CONTEXT_REG:
@@ -530,106 +1155,9 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 		}
 		for (i = 0; i < pkt->count; i++) {
 			reg = start_reg + (4 * i);
-			switch (reg) {
-			/* This register were added late, there is userspace
-			 * which does provide relocation for those but set
-			 * 0 offset. In order to avoid breaking old userspace
-			 * we detect this and set address to point to last
-			 * CB_COLOR0_BASE, note that if userspace doesn't set
-			 * CB_COLOR0_BASE before this register we will report
-			 * error. Old userspace always set CB_COLOR0_BASE
-			 * before any of this.
-			 */
-			case R_0280E0_CB_COLOR0_FRAG:
-			case R_0280E4_CB_COLOR1_FRAG:
-			case R_0280E8_CB_COLOR2_FRAG:
-			case R_0280EC_CB_COLOR3_FRAG:
-			case R_0280F0_CB_COLOR4_FRAG:
-			case R_0280F4_CB_COLOR5_FRAG:
-			case R_0280F8_CB_COLOR6_FRAG:
-			case R_0280FC_CB_COLOR7_FRAG:
-			case R_0280C0_CB_COLOR0_TILE:
-			case R_0280C4_CB_COLOR1_TILE:
-			case R_0280C8_CB_COLOR2_TILE:
-			case R_0280CC_CB_COLOR3_TILE:
-			case R_0280D0_CB_COLOR4_TILE:
-			case R_0280D4_CB_COLOR5_TILE:
-			case R_0280D8_CB_COLOR6_TILE:
-			case R_0280DC_CB_COLOR7_TILE:
-				if (!r600_cs_packet_next_is_pkt3_nop(p)) {
-					if (!track->cb_color0_base_last) {
-						dev_err(p->dev, "Broken old userspace ? no cb_color0_base supplied before trying to write 0x%08X\n", reg);
-						return -EINVAL;
-					}
-					ib[idx+1+i] = track->cb_color0_base_last;
-					printk_once(KERN_WARNING "radeon: You have old & broken userspace "
-						"please consider updating mesa & xf86-video-ati\n");
-				} else {
-					r = r600_cs_packet_next_reloc(p, &reloc);
-					if (r) {
-						dev_err(p->dev, "bad SET_CONTEXT_REG 0x%04X\n", reg);
-						return -EINVAL;
-					}
-					ib[idx+1+i] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
-				}
-				break;
-			case DB_DEPTH_BASE:
-			case DB_HTILE_DATA_BASE:
-			case CB_COLOR0_BASE:
-				r = r600_cs_packet_next_reloc(p, &reloc);
-				if (r) {
-					DRM_ERROR("bad SET_CONTEXT_REG "
-							"0x%04X\n", reg);
-					return -EINVAL;
-				}
-				ib[idx+1+i] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
-				track->cb_color0_base_last = ib[idx+1+i];
-				break;
-			case CB_COLOR1_BASE:
-			case CB_COLOR2_BASE:
-			case CB_COLOR3_BASE:
-			case CB_COLOR4_BASE:
-			case CB_COLOR5_BASE:
-			case CB_COLOR6_BASE:
-			case CB_COLOR7_BASE:
-			case SQ_PGM_START_FS:
-			case SQ_PGM_START_ES:
-			case SQ_PGM_START_VS:
-			case SQ_PGM_START_GS:
-			case SQ_PGM_START_PS:
-				r = r600_cs_packet_next_reloc(p, &reloc);
-				if (r) {
-					DRM_ERROR("bad SET_CONTEXT_REG "
-							"0x%04X\n", reg);
-					return -EINVAL;
-				}
-				ib[idx+1+i] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
-				break;
-			case VGT_DMA_BASE:
-			case VGT_DMA_BASE_HI:
-				/* These should be handled by DRAW_INDEX packet 3 */
-			case VGT_STRMOUT_BASE_OFFSET_0:
-			case VGT_STRMOUT_BASE_OFFSET_1:
-			case VGT_STRMOUT_BASE_OFFSET_2:
-			case VGT_STRMOUT_BASE_OFFSET_3:
-			case VGT_STRMOUT_BASE_OFFSET_HI_0:
-			case VGT_STRMOUT_BASE_OFFSET_HI_1:
-			case VGT_STRMOUT_BASE_OFFSET_HI_2:
-			case VGT_STRMOUT_BASE_OFFSET_HI_3:
-			case VGT_STRMOUT_BUFFER_BASE_0:
-			case VGT_STRMOUT_BUFFER_BASE_1:
-			case VGT_STRMOUT_BUFFER_BASE_2:
-			case VGT_STRMOUT_BUFFER_BASE_3:
-			case VGT_STRMOUT_BUFFER_OFFSET_0:
-			case VGT_STRMOUT_BUFFER_OFFSET_1:
-			case VGT_STRMOUT_BUFFER_OFFSET_2:
-			case VGT_STRMOUT_BUFFER_OFFSET_3:
-				/* These should be handled by STRMOUT_BUFFER packet 3 */
-				DRM_ERROR("bad context reg: 0x%08x\n", reg);
-				return -EINVAL;
-			default:
-				break;
-			}
+			r = r600_cs_check_reg(p, reg, idx+1+i);
+			if (r)
+				return r;
 		}
 		break;
 	case PACKET3_SET_RESOURCE:
@@ -646,6 +1174,9 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 			return -EINVAL;
 		}
 		for (i = 0; i < (pkt->count / 7); i++) {
+			struct radeon_bo *texture, *mipmap;
+			u32 size, offset;
+
 			switch (G__SQ_VTX_CONSTANT_TYPE(radeon_get_ib_value(p, idx+(i*7)+6+1))) {
 			case SQ_TEX_VTX_VALID_TEXTURE:
 				/* tex base */
@@ -655,6 +1186,7 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 					return -EINVAL;
 				}
 				ib[idx+1+(i*7)+2] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				texture = reloc->robj;
 				/* tex mip base */
 				r = r600_cs_packet_next_reloc(p, &reloc);
 				if (r) {
@@ -662,6 +1194,11 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 					return -EINVAL;
 				}
 				ib[idx+1+(i*7)+3] += (u32)((reloc->lobj.gpu_offset >> 8) & 0xffffffff);
+				mipmap = reloc->robj;
+				r = r600_check_texture_resource(p,  idx+(i*7)+1,
+						texture, mipmap);
+				if (r)
+					return r;
 				break;
 			case SQ_TEX_VTX_VALID_BUFFER:
 				/* vtx base */
@@ -669,6 +1206,13 @@ static int r600_packet3_check(struct radeon_cs_parser *p,
 				if (r) {
 					DRM_ERROR("bad SET_RESOURCE\n");
 					return -EINVAL;
+				}
+				offset = radeon_get_ib_value(p, idx+1+(i*7)+0);
+				size = radeon_get_ib_value(p, idx+1+(i*7)+1);
+				if (p->rdev && (size + offset) > radeon_bo_size(reloc->robj)) {
+					/* force size to size of the buffer */
+					dev_warn(p->dev, "vbo resource seems too big for the bo\n");
+					ib[idx+1+(i*7)+1] = radeon_bo_size(reloc->robj);
 				}
 				ib[idx+1+(i*7)+0] += (u32)((reloc->lobj.gpu_offset) & 0xffffffff);
 				ib[idx+1+(i*7)+2] += upper_32_bits(reloc->lobj.gpu_offset) & 0xff;
@@ -760,11 +1304,28 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 	struct r600_cs_track *track;
 	int r;
 
-	track = kzalloc(sizeof(*track), GFP_KERNEL);
-	p->track = track;
+	if (p->track == NULL) {
+		/* initialize tracker, we are in kms */
+		track = kzalloc(sizeof(*track), GFP_KERNEL);
+		if (track == NULL)
+			return -ENOMEM;
+		r600_cs_track_init(track);
+		if (p->rdev->family < CHIP_RV770) {
+			track->npipes = p->rdev->config.r600.tiling_npipes;
+			track->nbanks = p->rdev->config.r600.tiling_nbanks;
+			track->group_size = p->rdev->config.r600.tiling_group_size;
+		} else if (p->rdev->family <= CHIP_RV740) {
+			track->npipes = p->rdev->config.rv770.tiling_npipes;
+			track->nbanks = p->rdev->config.rv770.tiling_nbanks;
+			track->group_size = p->rdev->config.rv770.tiling_group_size;
+		}
+		p->track = track;
+	}
 	do {
 		r = r600_cs_packet_parse(p, &pkt, p->idx);
 		if (r) {
+			kfree(p->track);
+			p->track = NULL;
 			return r;
 		}
 		p->idx += pkt.count + 2;
@@ -779,9 +1340,13 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 			break;
 		default:
 			DRM_ERROR("Unknown packet type %d !\n", pkt.type);
+			kfree(p->track);
+			p->track = NULL;
 			return -EINVAL;
 		}
 		if (r) {
+			kfree(p->track);
+			p->track = NULL;
 			return r;
 		}
 	} while (p->idx < p->chunks[p->chunk_ib_idx].length_dw);
@@ -791,6 +1356,8 @@ int r600_cs_parse(struct radeon_cs_parser *p)
 		mdelay(1);
 	}
 #endif
+	kfree(p->track);
+	p->track = NULL;
 	return 0;
 }
 
@@ -833,9 +1400,16 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 {
 	struct radeon_cs_parser parser;
 	struct radeon_cs_chunk *ib_chunk;
-	struct radeon_ib	fake_ib;
+	struct radeon_ib fake_ib;
+	struct r600_cs_track *track;
 	int r;
 
+	/* initialize tracker */
+	track = kzalloc(sizeof(*track), GFP_KERNEL);
+	if (track == NULL)
+		return -ENOMEM;
+	r600_cs_track_init(track);
+	r600_cs_legacy_get_tiling_conf(dev, &track->npipes, &track->nbanks, &track->group_size);
 	/* initialize parser */
 	memset(&parser, 0, sizeof(struct radeon_cs_parser));
 	parser.filp = filp;
@@ -843,6 +1417,7 @@ int r600_cs_legacy(struct drm_device *dev, void *data, struct drm_file *filp,
 	parser.rdev = NULL;
 	parser.family = family;
 	parser.ib = &fake_ib;
+	parser.track = track;
 	fake_ib.ptr = ib;
 	r = radeon_cs_parser_init(&parser, data);
 	if (r) {

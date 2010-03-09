@@ -162,6 +162,7 @@ static int __init cpcihp_generic_init(void)
 	dev = pci_get_slot(bus, PCI_DEVFN(bridge_slot, 0));
 	if(!dev || dev->hdr_type != PCI_HEADER_TYPE_BRIDGE) {
 		err("Invalid bridge device %s", bridge);
+		pci_dev_put(dev);
 		return -EINVAL;
 	}
 	bus = dev->subordinate;

@@ -1719,7 +1719,7 @@ static void ns83820_set_multicast(struct net_device *ndev)
 	else
 		and_mask &= ~(RFCR_AAU | RFCR_AAM);
 
-	if (ndev->flags & IFF_ALLMULTI || ndev->mc_count)
+	if (ndev->flags & IFF_ALLMULTI || netdev_mc_count(ndev))
 		or_mask |= RFCR_AAM;
 	else
 		and_mask &= ~RFCR_AAM;
@@ -2292,7 +2292,7 @@ static void __devexit ns83820_remove_one(struct pci_dev *pci_dev)
 	pci_set_drvdata(pci_dev, NULL);
 }
 
-static struct pci_device_id ns83820_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(ns83820_pci_tbl) = {
 	{ 0x100b, 0x0022, PCI_ANY_ID, PCI_ANY_ID, 0, .driver_data = 0, },
 	{ 0, },
 };

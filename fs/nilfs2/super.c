@@ -96,9 +96,6 @@ void nilfs_error(struct super_block *sb, const char *function,
 	if (!(sb->s_flags & MS_RDONLY)) {
 		struct the_nilfs *nilfs = sbi->s_nilfs;
 
-		if (!nilfs_test_opt(sbi, ERRORS_CONT))
-			nilfs_detach_segment_constructor(sbi);
-
 		down_write(&nilfs->ns_sem);
 		if (!(nilfs->ns_mount_state & NILFS_ERROR_FS)) {
 			nilfs->ns_mount_state |= NILFS_ERROR_FS;
@@ -301,7 +298,7 @@ int nilfs_commit_super(struct nilfs_sb_info *sbi, int dupsb)
 		memcpy(sbp[1], sbp[0], nilfs->ns_sbsize);
 		nilfs->ns_sbwtime[1] = t;
 	}
-	sbi->s_super->s_dirt = 0;
+	clear_nilfs_sb_dirty(nilfs);
 	return nilfs_sync_super(sbi, dupsb);
 }
 
@@ -345,7 +342,7 @@ static int nilfs_sync_fs(struct super_block *sb, int wait)
 		err = nilfs_construct_segment(sb);
 
 	down_write(&nilfs->ns_sem);
-	if (sb->s_dirt)
+	if (nilfs_sb_dirty(nilfs))
 		nilfs_commit_super(sbi, 1);
 	up_write(&nilfs->ns_sem);
 
@@ -481,6 +478,8 @@ static int nilfs_show_options(struct seq_file *seq, struct vfsmount *vfs)
 		seq_printf(seq, ",order=strict");
 	if (nilfs_test_opt(sbi, NORECOVERY))
 		seq_printf(seq, ",norecovery");
+	if (nilfs_test_opt(sbi, DISCARD))
+		seq_printf(seq, ",discard");
 
 	return 0;
 }
@@ -550,7 +549,7 @@ static const struct export_operations nilfs_export_ops = {
 enum {
 	Opt_err_cont, Opt_err_panic, Opt_err_ro,
 	Opt_nobarrier, Opt_snapshot, Opt_order, Opt_norecovery,
-	Opt_err,
+	Opt_discard, Opt_err,
 };
 
 static match_table_t tokens = {
@@ -561,6 +560,7 @@ static match_table_t tokens = {
 	{Opt_snapshot, "cp=%u"},
 	{Opt_order, "order=%s"},
 	{Opt_norecovery, "norecovery"},
+	{Opt_discard, "discard"},
 	{Opt_err, NULL}
 };
 
@@ -613,6 +613,9 @@ static int parse_options(char *options, struct super_block *sb)
 			break;
 		case Opt_norecovery:
 			nilfs_set_opt(sbi, NORECOVERY);
+			break;
+		case Opt_discard:
+			nilfs_set_opt(sbi, DISCARD);
 			break;
 		default:
 			printk(KERN_ERR

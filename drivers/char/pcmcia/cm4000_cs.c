@@ -1047,7 +1047,7 @@ release_io:
 static ssize_t cmm_write(struct file *filp, const char __user *buf,
 			 size_t count, loff_t *ppos)
 {
-	struct cm4000_dev *dev = (struct cm4000_dev *) filp->private_data;
+	struct cm4000_dev *dev = filp->private_data;
 	unsigned int iobase = dev->p_dev->io.BasePort1;
 	unsigned short s;
 	unsigned char tmp;

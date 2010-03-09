@@ -117,12 +117,20 @@ static const char *format_endpt =
  * However, these will come from functions that return ptrs to each of them.
  */
 
-static DECLARE_WAIT_QUEUE_HEAD(deviceconndiscwq);
-static unsigned int conndiscevcnt;
-
-/* this struct stores the poll state for <mountpoint>/devices pollers */
-struct usb_device_status {
-	unsigned int lastev;
+/*
+ * Wait for an connect/disconnect event to happen. We initialize
+ * the event counter with an odd number, and each event will increment
+ * the event counter by two, so it will always _stay_ odd. That means
+ * that it will never be zero, so "event 0" will never match a current
+ * event, and thus 'poll' will always trigger as readable for the first
+ * time it gets called.
+ */
+static struct device_connect_event {
+	atomic_t count;
+	wait_queue_head_t wait;
+} device_event = {
+	.count = ATOMIC_INIT(1),
+	.wait = __WAIT_QUEUE_HEAD_INITIALIZER(device_event.wait)
 };
 
 struct class_info {
@@ -156,8 +164,8 @@ static const struct class_info clas_info[] =
 
 void usbfs_conn_disc_event(void)
 {
-	conndiscevcnt++;
-	wake_up(&deviceconndiscwq);
+	atomic_add(2, &device_event.count);
+	wake_up(&device_event.wait);
 }
 
 static const char *class_decode(const int class)
@@ -629,55 +637,16 @@ static ssize_t usb_device_read(struct file *file, char __user *buf,
 static unsigned int usb_device_poll(struct file *file,
 				    struct poll_table_struct *wait)
 {
-	struct usb_device_status *st = file->private_data;
-	unsigned int mask = 0;
+	unsigned int event_count;
 
-	lock_kernel();
-	if (!st) {
-		st = kmalloc(sizeof(struct usb_device_status), GFP_KERNEL);
+	poll_wait(file, &device_event.wait, wait);
 
-		/* we may have dropped BKL -
-		 * need to check for having lost the race */
-		if (file->private_data) {
-			kfree(st);
-			st = file->private_data;
-			goto lost_race;
-		}
-		/* we haven't lost - check for allocation failure now */
-		if (!st) {
-			unlock_kernel();
-			return POLLIN;
-		}
-
-		/*
-		 * need to prevent the module from being unloaded, since
-		 * proc_unregister does not call the release method and
-		 * we would have a memory leak
-		 */
-		st->lastev = conndiscevcnt;
-		file->private_data = st;
-		mask = POLLIN;
+	event_count = atomic_read(&device_event.count);
+	if (file->f_version != event_count) {
+		file->f_version = event_count;
+		return POLLIN | POLLRDNORM;
 	}
-lost_race:
-	if (file->f_mode & FMODE_READ)
-		poll_wait(file, &deviceconndiscwq, wait);
-	if (st->lastev != conndiscevcnt)
-		mask |= POLLIN;
-	st->lastev = conndiscevcnt;
-	unlock_kernel();
-	return mask;
-}
 
-static int usb_device_open(struct inode *inode, struct file *file)
-{
-	file->private_data = NULL;
-	return 0;
-}
-
-static int usb_device_release(struct inode *inode, struct file *file)
-{
-	kfree(file->private_data);
-	file->private_data = NULL;
 	return 0;
 }
 
@@ -685,7 +654,7 @@ static loff_t usb_device_lseek(struct file *file, loff_t offset, int orig)
 {
 	loff_t ret;
 
-	lock_kernel();
+	mutex_lock(&file->f_dentry->d_inode->i_mutex);
 
 	switch (orig) {
 	case 0:
@@ -701,7 +670,7 @@ static loff_t usb_device_lseek(struct file *file, loff_t offset, int orig)
 		ret = -EINVAL;
 	}
 
-	unlock_kernel();
+	mutex_unlock(&file->f_dentry->d_inode->i_mutex);
 	return ret;
 }
 
@@ -709,6 +678,4 @@ const struct file_operations usbfs_devices_fops = {
 	.llseek =	usb_device_lseek,
 	.read =		usb_device_read,
 	.poll =		usb_device_poll,
-	.open =		usb_device_open,
-	.release =	usb_device_release,
 };

@@ -227,12 +227,11 @@ static int load_asic(struct echoaudio *chip)
 	/* Give the DSP a few milliseconds to settle down */
 	mdelay(2);
 
-	err = load_asic_generic(chip, DSP_FNC_LOAD_3G_ASIC,
-				&card_fw[FW_3G_ASIC]);
+	err = load_asic_generic(chip, DSP_FNC_LOAD_3G_ASIC, FW_3G_ASIC);
 	if (err < 0)
 		return err;
 
-	chip->asic_code = &card_fw[FW_3G_ASIC];
+	chip->asic_code = FW_3G_ASIC;
 
 	/* Now give the new ASIC some time to set up */
 	msleep(1000);

@@ -145,7 +145,7 @@ static const struct file_operations rcname_ops = {
 };
 #endif
 
-struct rate_control_ref *rate_control_alloc(const char *name,
+static struct rate_control_ref *rate_control_alloc(const char *name,
 					    struct ieee80211_local *local)
 {
 	struct dentry *debugfsdir = NULL;
@@ -207,6 +207,27 @@ static bool rc_no_data_or_no_ack(struct ieee80211_tx_rate_control *txrc)
 	return ((info->flags & IEEE80211_TX_CTL_NO_ACK) || !ieee80211_is_data(fc));
 }
 
+static void rc_send_low_broadcast(s8 *idx, u32 basic_rates, u8 max_rate_idx)
+{
+	u8 i;
+
+	if (basic_rates == 0)
+		return; /* assume basic rates unknown and accept rate */
+	if (*idx < 0)
+		return;
+	if (basic_rates & (1 << *idx))
+		return; /* selected rate is a basic rate */
+
+	for (i = *idx + 1; i <= max_rate_idx; i++) {
+		if (basic_rates & (1 << i)) {
+			*idx = i;
+			return;
+		}
+	}
+
+	/* could not find a basic rate; use original selection */
+}
+
 bool rate_control_send_low(struct ieee80211_sta *sta,
 			   void *priv_sta,
 			   struct ieee80211_tx_rate_control *txrc)
@@ -218,11 +239,47 @@ bool rate_control_send_low(struct ieee80211_sta *sta,
 		info->control.rates[0].count =
 			(info->flags & IEEE80211_TX_CTL_NO_ACK) ?
 			1 : txrc->hw->max_rate_tries;
+		if (!sta && txrc->ap)
+			rc_send_low_broadcast(&info->control.rates[0].idx,
+					      txrc->bss_conf->basic_rates,
+					      txrc->sband->n_bitrates);
 		return true;
 	}
 	return false;
 }
 EXPORT_SYMBOL(rate_control_send_low);
+
+static void rate_idx_match_mask(struct ieee80211_tx_rate *rate,
+				int n_bitrates, u32 mask)
+{
+	int j;
+
+	/* See whether the selected rate or anything below it is allowed. */
+	for (j = rate->idx; j >= 0; j--) {
+		if (mask & (1 << j)) {
+			/* Okay, found a suitable rate. Use it. */
+			rate->idx = j;
+			return;
+		}
+	}
+
+	/* Try to find a higher rate that would be allowed */
+	for (j = rate->idx + 1; j < n_bitrates; j++) {
+		if (mask & (1 << j)) {
+			/* Okay, found a suitable rate. Use it. */
+			rate->idx = j;
+			return;
+		}
+	}
+
+	/*
+	 * Uh.. No suitable rate exists. This should not really happen with
+	 * sane TX rate mask configurations. However, should someone manage to
+	 * configure supported rates and TX rate mask in incompatible way,
+	 * allow the frame to be transmitted with whatever the rate control
+	 * selected.
+	 */
+}
 
 void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 			   struct sta_info *sta,
@@ -233,6 +290,7 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_sta *ista = NULL;
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(txrc->skb);
 	int i;
+	u32 mask;
 
 	if (sta) {
 		ista = &sta->sta;
@@ -248,23 +306,31 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 	if (sdata->local->hw.flags & IEEE80211_HW_HAS_RATE_CONTROL)
 		return;
 
-	if (sta && sdata->force_unicast_rateidx > -1) {
-		info->control.rates[0].idx = sdata->force_unicast_rateidx;
-	} else {
-		ref->ops->get_rate(ref->priv, ista, priv_sta, txrc);
-		info->flags |= IEEE80211_TX_INTFL_RCALGO;
-	}
+	ref->ops->get_rate(ref->priv, ista, priv_sta, txrc);
 
 	/*
-	 * try to enforce the maximum rate the user wanted
+	 * Try to enforce the rateidx mask the user wanted. skip this if the
+	 * default mask (allow all rates) is used to save some processing for
+	 * the common case.
 	 */
-	if (sdata->max_ratectrl_rateidx > -1)
+	mask = sdata->rc_rateidx_mask[info->band];
+	if (mask != (1 << txrc->sband->n_bitrates) - 1) {
+		if (sta) {
+			/* Filter out rates that the STA does not support */
+			mask &= sta->sta.supp_rates[info->band];
+		}
+		/*
+		 * Make sure the rate index selected for each TX rate is
+		 * included in the configured mask and change the rate indexes
+		 * if needed.
+		 */
 		for (i = 0; i < IEEE80211_TX_MAX_RATES; i++) {
+			/* Rate masking supports only legacy rates for now */
 			if (info->control.rates[i].flags & IEEE80211_TX_RC_MCS)
 				continue;
-			info->control.rates[i].idx =
-				min_t(s8, info->control.rates[i].idx,
-				      sdata->max_ratectrl_rateidx);
+			rate_idx_match_mask(&info->control.rates[i],
+					    txrc->sband->n_bitrates, mask);
+		}
 	}
 
 	BUG_ON(info->control.rates[0].idx < 0);

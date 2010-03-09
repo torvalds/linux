@@ -129,27 +129,21 @@ void rs690_pm_info(struct radeon_device *rdev)
 	rdev->pm.sideport_bandwidth.full = rfixed_div(rdev->pm.sideport_bandwidth, tmp);
 }
 
-void rs690_vram_info(struct radeon_device *rdev)
+void rs690_mc_init(struct radeon_device *rdev)
 {
 	fixed20_12 a;
+	u64 base;
 
 	rs400_gart_adjust_size(rdev);
-
 	rdev->mc.vram_is_ddr = true;
 	rdev->mc.vram_width = 128;
-
 	rdev->mc.real_vram_size = RREG32(RADEON_CONFIG_MEMSIZE);
 	rdev->mc.mc_vram_size = rdev->mc.real_vram_size;
-
 	rdev->mc.aper_base = drm_get_resource_start(rdev->ddev, 0);
 	rdev->mc.aper_size = drm_get_resource_len(rdev->ddev, 0);
-
-	if (rdev->mc.mc_vram_size > rdev->mc.aper_size)
-		rdev->mc.mc_vram_size = rdev->mc.aper_size;
-
-	if (rdev->mc.real_vram_size > rdev->mc.aper_size)
-		rdev->mc.real_vram_size = rdev->mc.aper_size;
-
+	rdev->mc.visible_vram_size = rdev->mc.aper_size;
+	base = RREG32_MC(R_000100_MCCFG_FB_LOCATION);
+	base = G_000100_MC_FB_START(base) << 16;
 	rs690_pm_info(rdev);
 	/* FIXME: we should enforce default clock in case GPU is not in
 	 * default setup
@@ -160,22 +154,9 @@ void rs690_vram_info(struct radeon_device *rdev)
 	a.full = rfixed_const(16);
 	/* core_bandwidth = sclk(Mhz) * 16 */
 	rdev->pm.core_bandwidth.full = rfixed_div(rdev->pm.sclk, a);
-}
-
-static int rs690_mc_init(struct radeon_device *rdev)
-{
-	int r;
-	u32 tmp;
-
-	/* Setup GPU memory space */
-	tmp = RREG32_MC(R_000100_MCCFG_FB_LOCATION);
-	rdev->mc.vram_location = G_000100_MC_FB_START(tmp) << 16;
-	rdev->mc.gtt_location = 0xFFFFFFFFUL;
-	r = radeon_mc_setup(rdev);
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
-	if (r)
-		return r;
-	return 0;
+	radeon_vram_location(rdev, &rdev->mc, base);
+	radeon_gtt_location(rdev, &rdev->mc);
 }
 
 void rs690_line_buffer_adjust(struct radeon_device *rdev,
@@ -728,12 +709,8 @@ int rs690_init(struct radeon_device *rdev)
 	radeon_get_clock_info(rdev->ddev);
 	/* Initialize power management */
 	radeon_pm_init(rdev);
-	/* Get vram informations */
-	rs690_vram_info(rdev);
-	/* Initialize memory controller (also test AGP) */
-	r = rs690_mc_init(rdev);
-	if (r)
-		return r;
+	/* initialize memory controller */
+	rs690_mc_init(rdev);
 	rv515_debugfs(rdev);
 	/* Fence driver */
 	r = radeon_fence_driver_init(rdev);

@@ -625,8 +625,8 @@ static int init586(struct net_device *dev)
 	volatile struct iasetup_cmd_struct *ias_cmd;
 	volatile struct tdr_cmd_struct *tdr_cmd;
 	volatile struct mcsetup_cmd_struct *mc_cmd;
-	struct dev_mc_list *dmi = dev->mc_list;
-	int num_addrs = dev->mc_count;
+	struct dev_mc_list *dmi;
+	int num_addrs = netdev_mc_count(dev);
 
 	ptr = (void *) ((char *) p->scb + sizeof(struct scb_struct));
 
@@ -771,7 +771,7 @@ static int init586(struct net_device *dev)
 	 * Multicast setup
 	 */
 
-	if (dev->mc_count) {
+	if (num_addrs) {
 		/* I don't understand this: do we really need memory after the init? */
 		int len = ((char *) p->iscp - (char *) ptr - 8) / 6;
 		if (len <= 0) {
@@ -787,10 +787,9 @@ static int init586(struct net_device *dev)
 			mc_cmd->cmd_cmd = CMD_MCSETUP | CMD_LAST;
 			mc_cmd->cmd_link = 0xffff;
 			mc_cmd->mc_cnt = num_addrs * 6;
-			for (i = 0; i < num_addrs; i++) {
-				memcpy((char *) mc_cmd->mc_list[i], dmi->dmi_addr, 6);
-				dmi = dmi->next;
-			}
+			i = 0;
+			netdev_for_each_mc_addr(dmi, dev)
+				memcpy((char *) mc_cmd->mc_list[i++], dmi->dmi_addr, 6);
 			p->scb->cbl_offset = make16(mc_cmd);
 			p->scb->cmd = CUC_START;
 			elmc_id_attn586();

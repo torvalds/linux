@@ -55,11 +55,10 @@ struct resource_map {
 
 struct socket_data {
 	struct resource_map		mem_db;
+	struct resource_map		mem_db_valid;
 	struct resource_map		io_db;
-	unsigned int			rsrc_mem_probe;
 };
 
-static DEFINE_MUTEX(rsrc_mutex);
 #define MEM_PROBE_LOW	(1 << 0)
 #define MEM_PROBE_HIGH	(1 << 1)
 
@@ -125,8 +124,10 @@ static int add_interval(struct resource_map *map, u_long base, u_long num)
 	struct resource_map *p, *q;
 
 	for (p = map; ; p = p->next) {
-		if ((p != map) && (p->base+p->num-1 >= base))
-			return -1;
+		if ((p != map) && (p->base+p->num >= base)) {
+			p->num = max(num + base - p->base, p->num);
+			return 0;
+		}
 		if ((p->next == map) || (p->next->base > base+num-1))
 			break;
 	}
@@ -264,36 +265,44 @@ static void do_io_probe(struct pcmcia_socket *s, unsigned int base,
 }
 #endif
 
-/*======================================================================
+/*======================================================================*/
 
-    This is tricky... when we set up CIS memory, we try to validate
-    the memory window space allocations.
-
-======================================================================*/
-
-/* Validation function for cards with a valid CIS */
+/**
+ * readable() - iomem validation function for cards with a valid CIS
+ */
 static int readable(struct pcmcia_socket *s, struct resource *res,
 		    unsigned int *count)
 {
-	int ret = -1;
+	int ret = -EINVAL;
+
+	if (s->fake_cis) {
+		dev_dbg(&s->dev, "fake CIS is being used: can't validate mem\n");
+		return 0;
+	}
 
 	s->cis_mem.res = res;
 	s->cis_virt = ioremap(res->start, s->map_size);
 	if (s->cis_virt) {
-		ret = pccard_validate_cis(s, count);
-		/* invalidate mapping and CIS cache */
+		mutex_unlock(&s->ops_mutex);
+		/* as we're only called from pcmcia.c, we're safe */
+		if (s->callback->validate)
+			ret = s->callback->validate(s, count);
+		/* invalidate mapping */
+		mutex_lock(&s->ops_mutex);
 		iounmap(s->cis_virt);
 		s->cis_virt = NULL;
-		destroy_cis_cache(s);
 	}
 	s->cis_mem.res = NULL;
-	if ((ret != 0) || (*count == 0))
-		return 0;
-	return 1;
+	if ((ret) || (*count == 0))
+		return -EINVAL;
+	return 0;
 }
 
-/* Validation function for simple memory cards */
-static int checksum(struct pcmcia_socket *s, struct resource *res)
+/**
+ * checksum() - iomem validation function for simple memory cards
+ */
+static int checksum(struct pcmcia_socket *s, struct resource *res,
+		    unsigned int *value)
 {
 	pccard_mem_map map;
 	int i, a = 0, b = -1, d;
@@ -321,61 +330,90 @@ static int checksum(struct pcmcia_socket *s, struct resource *res)
 		iounmap(virt);
 	}
 
-	return (b == -1) ? -1 : (a>>1);
+	if (b == -1)
+		return -EINVAL;
+
+	*value = a;
+
+	return 0;
 }
 
-static int
-cis_readable(struct pcmcia_socket *s, unsigned long base, unsigned long size)
+/**
+ * do_validate_mem() - low level validate a memory region for PCMCIA use
+ * @s:		PCMCIA socket to validate
+ * @base:	start address of resource to check
+ * @size:	size of resource to check
+ * @validate:	validation function to use
+ *
+ * do_validate_mem() splits up the memory region which is to be checked
+ * into two parts. Both are passed to the @validate() function. If
+ * @validate() returns non-zero, or the value parameter to @validate()
+ * is zero, or the value parameter is different between both calls,
+ * the check fails, and -EINVAL is returned. Else, 0 is returned.
+ */
+static int do_validate_mem(struct pcmcia_socket *s,
+			   unsigned long base, unsigned long size,
+			   int validate (struct pcmcia_socket *s,
+					 struct resource *res,
+					 unsigned int *value))
 {
+	struct socket_data *s_data = s->resource_data;
 	struct resource *res1, *res2;
-	unsigned int info1, info2;
-	int ret = 0;
+	unsigned int info1 = 1, info2 = 1;
+	int ret = -EINVAL;
 
 	res1 = claim_region(s, base, size/2, IORESOURCE_MEM, "PCMCIA memprobe");
 	res2 = claim_region(s, base + size/2, size/2, IORESOURCE_MEM,
 			"PCMCIA memprobe");
 
 	if (res1 && res2) {
-		ret = readable(s, res1, &info1);
-		ret += readable(s, res2, &info2);
+		ret = 0;
+		if (validate) {
+			ret = validate(s, res1, &info1);
+			ret += validate(s, res2, &info2);
+		}
 	}
 
 	free_region(res2);
 	free_region(res1);
 
-	return (ret == 2) && (info1 == info2);
-}
+	dev_dbg(&s->dev, "cs: memory probe 0x%06lx-0x%06lx: %p %p %u %u %u",
+		base, base+size-1, res1, res2, ret, info1, info2);
 
-static int
-checksum_match(struct pcmcia_socket *s, unsigned long base, unsigned long size)
-{
-	struct resource *res1, *res2;
-	int a = -1, b = -1;
+	if ((ret) || (info1 != info2) || (info1 == 0))
+		return -EINVAL;
 
-	res1 = claim_region(s, base, size/2, IORESOURCE_MEM, "PCMCIA memprobe");
-	res2 = claim_region(s, base + size/2, size/2, IORESOURCE_MEM,
-			"PCMCIA memprobe");
-
-	if (res1 && res2) {
-		a = checksum(s, res1);
-		b = checksum(s, res2);
+	if (validate && !s->fake_cis) {
+		/* move it to the validated data set */
+		add_interval(&s_data->mem_db_valid, base, size);
+		sub_interval(&s_data->mem_db, base, size);
 	}
 
-	free_region(res2);
-	free_region(res1);
-
-	return (a == b) && (a >= 0);
+	return 0;
 }
 
-/*======================================================================
 
-    The memory probe.  If the memory list includes a 64K-aligned block
-    below 1MB, we probe in 64K chunks, and as soon as we accumulate at
-    least mem_limit free space, we quit.
-
-======================================================================*/
-
-static int do_mem_probe(u_long base, u_long num, struct pcmcia_socket *s)
+/**
+ * do_mem_probe() - validate a memory region for PCMCIA use
+ * @s:		PCMCIA socket to validate
+ * @base:	start address of resource to check
+ * @num:	size of resource to check
+ * @validate:	validation function to use
+ * @fallback:	validation function to use if validate fails
+ *
+ * do_mem_probe() checks a memory region for use by the PCMCIA subsystem.
+ * To do so, the area is split up into sensible parts, and then passed
+ * into the @validate() function. Only if @validate() and @fallback() fail,
+ * the area is marked as unavaibale for use by the PCMCIA subsystem. The
+ * function returns the size of the usable memory area.
+ */
+static int do_mem_probe(struct pcmcia_socket *s, u_long base, u_long num,
+			int validate (struct pcmcia_socket *s,
+				      struct resource *res,
+				      unsigned int *value),
+			int fallback (struct pcmcia_socket *s,
+				      struct resource *res,
+				      unsigned int *value))
 {
 	struct socket_data *s_data = s->resource_data;
 	u_long i, j, bad, fail, step;
@@ -393,15 +431,14 @@ static int do_mem_probe(u_long base, u_long num, struct pcmcia_socket *s)
 	for (i = j = base; i < base+num; i = j + step) {
 		if (!fail) {
 			for (j = i; j < base+num; j += step) {
-				if (cis_readable(s, j, step))
+				if (!do_validate_mem(s, j, step, validate))
 					break;
 			}
 			fail = ((i == base) && (j == base+num));
 		}
-		if (fail) {
-			for (j = i; j < base+num; j += 2*step)
-				if (checksum_match(s, j, step) &&
-					checksum_match(s, j + step, step))
+		if ((fail) && (fallback)) {
+			for (j = i; j < base+num; j += step)
+				if (!do_validate_mem(s, j, step, fallback))
 					break;
 		}
 		if (i != j) {
@@ -416,8 +453,14 @@ static int do_mem_probe(u_long base, u_long num, struct pcmcia_socket *s)
 	return num - bad;
 }
 
+
 #ifdef CONFIG_PCMCIA_PROBE
 
+/**
+ * inv_probe() - top-to-bottom search for one usuable high memory area
+ * @s:		PCMCIA socket to validate
+ * @m:		resource_map to check
+ */
 static u_long inv_probe(struct resource_map *m, struct pcmcia_socket *s)
 {
 	struct socket_data *s_data = s->resource_data;
@@ -432,9 +475,18 @@ static u_long inv_probe(struct resource_map *m, struct pcmcia_socket *s)
 	}
 	if (m->base < 0x100000)
 		return 0;
-	return do_mem_probe(m->base, m->num, s);
+	return do_mem_probe(s, m->base, m->num, readable, checksum);
 }
 
+/**
+ * validate_mem() - memory probe function
+ * @s:		PCMCIA socket to validate
+ * @probe_mask: MEM_PROBE_LOW | MEM_PROBE_HIGH
+ *
+ * The memory probe.  If the memory list includes a 64K-aligned block
+ * below 1MB, we probe in 64K chunks, and as soon as we accumulate at
+ * least mem_limit free space, we quit. Returns 0 on usuable ports.
+ */
 static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 {
 	struct resource_map *m, mm;
@@ -445,6 +497,8 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 	/* We do up to four passes through the list */
 	if (probe_mask & MEM_PROBE_HIGH) {
 		if (inv_probe(s_data->mem_db.next, s) > 0)
+			return 0;
+		if (s_data->mem_db_valid.next != &s_data->mem_db_valid)
 			return 0;
 		dev_printk(KERN_NOTICE, &s->dev,
 			   "cs: warning: no high memory space available!\n");
@@ -457,7 +511,8 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 		if (mm.base >= 0x100000)
 			continue;
 		if ((mm.base | mm.num) & 0xffff) {
-			ok += do_mem_probe(mm.base, mm.num, s);
+			ok += do_mem_probe(s, mm.base, mm.num, readable,
+					   checksum);
 			continue;
 		}
 		/* Special probe for 64K-aligned block */
@@ -467,7 +522,8 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 				if (ok >= mem_limit)
 					sub_interval(&s_data->mem_db, b, 0x10000);
 				else
-					ok += do_mem_probe(b, 0x10000, s);
+					ok += do_mem_probe(s, b, 0x10000,
+							   readable, checksum);
 			}
 		}
 	}
@@ -480,6 +536,13 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 
 #else /* CONFIG_PCMCIA_PROBE */
 
+/**
+ * validate_mem() - memory probe function
+ * @s:		PCMCIA socket to validate
+ * @probe_mask: ignored
+ *
+ * Returns 0 on usuable ports.
+ */
 static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 {
 	struct resource_map *m, mm;
@@ -488,7 +551,7 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 
 	for (m = s_data->mem_db.next; m != &s_data->mem_db; m = mm.next) {
 		mm = *m;
-		ok += do_mem_probe(mm.base, mm.num, s);
+		ok += do_mem_probe(s, mm.base, mm.num, readable, checksum);
 	}
 	if (ok > 0)
 		return 0;
@@ -498,31 +561,31 @@ static int validate_mem(struct pcmcia_socket *s, unsigned int probe_mask)
 #endif /* CONFIG_PCMCIA_PROBE */
 
 
-/*
+/**
+ * pcmcia_nonstatic_validate_mem() - try to validate iomem for PCMCIA use
+ * @s:		PCMCIA socket to validate
+ *
+ * This is tricky... when we set up CIS memory, we try to validate
+ * the memory window space allocations.
+ *
  * Locking note: Must be called with skt_mutex held!
  */
 static int pcmcia_nonstatic_validate_mem(struct pcmcia_socket *s)
 {
 	struct socket_data *s_data = s->resource_data;
 	unsigned int probe_mask = MEM_PROBE_LOW;
-	int ret = 0;
+	int ret;
 
-	if (!probe_mem)
+	if (!probe_mem || !(s->state & SOCKET_PRESENT))
 		return 0;
-
-	mutex_lock(&rsrc_mutex);
 
 	if (s->features & SS_CAP_PAGE_REGS)
 		probe_mask = MEM_PROBE_HIGH;
 
-	if (probe_mask & ~s_data->rsrc_mem_probe) {
-		if (s->state & SOCKET_PRESENT)
-			ret = validate_mem(s, probe_mask);
-		if (!ret)
-			s_data->rsrc_mem_probe |= probe_mask;
-	}
+	ret = validate_mem(s, probe_mask);
 
-	mutex_unlock(&rsrc_mutex);
+	if (s_data->mem_db_valid.next != &s_data->mem_db_valid)
+		return 0;
 
 	return ret;
 }
@@ -533,8 +596,8 @@ struct pcmcia_align_data {
 	struct resource_map	*map;
 };
 
-static void
-pcmcia_common_align(void *align_data, struct resource *res,
+static resource_size_t
+pcmcia_common_align(void *align_data, const struct resource *res,
 			resource_size_t size, resource_size_t align)
 {
 	struct pcmcia_align_data *data = align_data;
@@ -545,17 +608,18 @@ pcmcia_common_align(void *align_data, struct resource *res,
 	start = (res->start & ~data->mask) + data->offset;
 	if (start < res->start)
 		start += data->mask + 1;
-	res->start = start;
+	return start;
 }
 
-static void
-pcmcia_align(void *align_data, struct resource *res, resource_size_t size,
-		resource_size_t align)
+static resource_size_t
+pcmcia_align(void *align_data, const struct resource *res,
+	resource_size_t size, resource_size_t align)
 {
 	struct pcmcia_align_data *data = align_data;
 	struct resource_map *m;
+	resource_size_t start;
 
-	pcmcia_common_align(data, res, size, align);
+	start = pcmcia_common_align(data, res, size, align);
 
 	for (m = data->map->next; m != data->map; m = m->next) {
 		unsigned long start = m->base;
@@ -567,8 +631,7 @@ pcmcia_align(void *align_data, struct resource *res, resource_size_t size,
 		 * fit here.
 		 */
 		if (res->start < start) {
-			res->start = start;
-			pcmcia_common_align(data, res, size, align);
+			start = pcmcia_common_align(data, res, size, align);
 		}
 
 		/*
@@ -586,7 +649,9 @@ pcmcia_align(void *align_data, struct resource *res, resource_size_t size,
 	 * If we failed to find something suitable, ensure we fail.
 	 */
 	if (m == data->map)
-		res->start = res->end;
+		start = res->end;
+
+	return start;
 }
 
 /*
@@ -600,7 +665,6 @@ static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_star
 	struct socket_data *s_data = s->resource_data;
 	int ret = -ENOMEM;
 
-	mutex_lock(&rsrc_mutex);
 	for (m = s_data->io_db.next; m != &s_data->io_db; m = m->next) {
 		unsigned long start = m->base;
 		unsigned long end = m->base + m->num - 1;
@@ -611,7 +675,6 @@ static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_star
 		ret = adjust_resource(res, r_start, r_end - r_start + 1);
 		break;
 	}
-	mutex_unlock(&rsrc_mutex);
 
 	return ret;
 }
@@ -645,7 +708,6 @@ static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 	data.offset = base & data.mask;
 	data.map = &s_data->io_db;
 
-	mutex_lock(&rsrc_mutex);
 #ifdef CONFIG_PCI
 	if (s->cb_dev) {
 		ret = pci_bus_alloc_resource(s->cb_dev->bus, res, num, 1,
@@ -654,7 +716,6 @@ static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 #endif
 		ret = allocate_resource(&ioport_resource, res, num, min, ~0UL,
 					1, pcmcia_align, &data);
-	mutex_unlock(&rsrc_mutex);
 
 	if (ret != 0) {
 		kfree(res);
@@ -670,15 +731,15 @@ static struct resource *nonstatic_find_mem_region(u_long base, u_long num,
 	struct socket_data *s_data = s->resource_data;
 	struct pcmcia_align_data data;
 	unsigned long min, max;
-	int ret, i;
+	int ret, i, j;
 
 	low = low || !(s->features & SS_CAP_PAGE_REGS);
 
 	data.mask = align - 1;
 	data.offset = base & data.mask;
-	data.map = &s_data->mem_db;
 
 	for (i = 0; i < 2; i++) {
+		data.map = &s_data->mem_db_valid;
 		if (low) {
 			max = 0x100000UL;
 			min = base < max ? base : 0;
@@ -687,17 +748,23 @@ static struct resource *nonstatic_find_mem_region(u_long base, u_long num,
 			min = 0x100000UL + base;
 		}
 
-		mutex_lock(&rsrc_mutex);
+		for (j = 0; j < 2; j++) {
 #ifdef CONFIG_PCI
-		if (s->cb_dev) {
-			ret = pci_bus_alloc_resource(s->cb_dev->bus, res, num,
-						     1, min, 0,
-						     pcmcia_align, &data);
-		} else
+			if (s->cb_dev) {
+				ret = pci_bus_alloc_resource(s->cb_dev->bus,
+							res, num, 1, min, 0,
+							pcmcia_align, &data);
+			} else
 #endif
-			ret = allocate_resource(&iomem_resource, res, num, min,
-						max, 1, pcmcia_align, &data);
-		mutex_unlock(&rsrc_mutex);
+			{
+				ret = allocate_resource(&iomem_resource,
+							res, num, min, max, 1,
+							pcmcia_align, &data);
+			}
+			if (ret == 0)
+				break;
+			data.map = &s_data->mem_db;
+		}
 		if (ret == 0 || low)
 			break;
 		low = 1;
@@ -720,25 +787,18 @@ static int adjust_memory(struct pcmcia_socket *s, unsigned int action, unsigned 
 	if (end < start)
 		return -EINVAL;
 
-	mutex_lock(&rsrc_mutex);
 	switch (action) {
 	case ADD_MANAGED_RESOURCE:
 		ret = add_interval(&data->mem_db, start, size);
+		if (!ret)
+			do_mem_probe(s, start, size, NULL, NULL);
 		break;
 	case REMOVE_MANAGED_RESOURCE:
 		ret = sub_interval(&data->mem_db, start, size);
-		if (!ret) {
-			struct pcmcia_socket *socket;
-			down_read(&pcmcia_socket_list_rwsem);
-			list_for_each_entry(socket, &pcmcia_socket_list, socket_list)
-				release_cis_mem(socket);
-			up_read(&pcmcia_socket_list_rwsem);
-		}
 		break;
 	default:
 		ret = -EINVAL;
 	}
-	mutex_unlock(&rsrc_mutex);
 
 	return ret;
 }
@@ -756,7 +816,6 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 	if (end > IO_SPACE_LIMIT)
 		return -EINVAL;
 
-	mutex_lock(&rsrc_mutex);
 	switch (action) {
 	case ADD_MANAGED_RESOURCE:
 		if (add_interval(&data->io_db, start, size) != 0) {
@@ -775,7 +834,6 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 		ret = -EINVAL;
 		break;
 	}
-	mutex_unlock(&rsrc_mutex);
 
 	return ret;
 }
@@ -801,8 +859,7 @@ static int nonstatic_autoadd_resources(struct pcmcia_socket *s)
 		return -EINVAL;
 #endif
 
-	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
-		res = s->cb_dev->bus->resource[i];
+	pci_bus_for_each_resource(s->cb_dev->bus, res, i) {
 		if (!res)
 			continue;
 
@@ -859,6 +916,7 @@ static int nonstatic_init(struct pcmcia_socket *s)
 		return -ENOMEM;
 
 	data->mem_db.next = &data->mem_db;
+	data->mem_db_valid.next = &data->mem_db_valid;
 	data->io_db.next = &data->io_db;
 
 	s->resource_data = (void *) data;
@@ -873,7 +931,10 @@ static void nonstatic_release_resource_db(struct pcmcia_socket *s)
 	struct socket_data *data = s->resource_data;
 	struct resource_map *p, *q;
 
-	mutex_lock(&rsrc_mutex);
+	for (p = data->mem_db_valid.next; p != &data->mem_db_valid; p = q) {
+		q = p->next;
+		kfree(p);
+	}
 	for (p = data->mem_db.next; p != &data->mem_db; p = q) {
 		q = p->next;
 		kfree(p);
@@ -882,7 +943,6 @@ static void nonstatic_release_resource_db(struct pcmcia_socket *s)
 		q = p->next;
 		kfree(p);
 	}
-	mutex_unlock(&rsrc_mutex);
 }
 
 
@@ -909,7 +969,7 @@ static ssize_t show_io_db(struct device *dev,
 	struct resource_map *p;
 	ssize_t ret = 0;
 
-	mutex_lock(&rsrc_mutex);
+	mutex_lock(&s->ops_mutex);
 	data = s->resource_data;
 
 	for (p = data->io_db.next; p != &data->io_db; p = p->next) {
@@ -921,7 +981,7 @@ static ssize_t show_io_db(struct device *dev,
 				((unsigned long) p->base + p->num - 1));
 	}
 
-	mutex_unlock(&rsrc_mutex);
+	mutex_unlock(&s->ops_mutex);
 	return ret;
 }
 
@@ -949,9 +1009,11 @@ static ssize_t store_io_db(struct device *dev,
 	if (end_addr < start_addr)
 		return -EINVAL;
 
+	mutex_lock(&s->ops_mutex);
 	ret = adjust_io(s, add, start_addr, end_addr);
 	if (!ret)
 		s->resource_setup_new = 1;
+	mutex_unlock(&s->ops_mutex);
 
 	return ret ? ret : count;
 }
@@ -965,8 +1027,18 @@ static ssize_t show_mem_db(struct device *dev,
 	struct resource_map *p;
 	ssize_t ret = 0;
 
-	mutex_lock(&rsrc_mutex);
+	mutex_lock(&s->ops_mutex);
 	data = s->resource_data;
+
+	for (p = data->mem_db_valid.next; p != &data->mem_db_valid;
+	     p = p->next) {
+		if (ret > (PAGE_SIZE - 10))
+			continue;
+		ret += snprintf(&buf[ret], (PAGE_SIZE - ret - 1),
+				"0x%08lx - 0x%08lx\n",
+				((unsigned long) p->base),
+				((unsigned long) p->base + p->num - 1));
+	}
 
 	for (p = data->mem_db.next; p != &data->mem_db; p = p->next) {
 		if (ret > (PAGE_SIZE - 10))
@@ -977,7 +1049,7 @@ static ssize_t show_mem_db(struct device *dev,
 				((unsigned long) p->base + p->num - 1));
 	}
 
-	mutex_unlock(&rsrc_mutex);
+	mutex_unlock(&s->ops_mutex);
 	return ret;
 }
 
@@ -1005,9 +1077,11 @@ static ssize_t store_mem_db(struct device *dev,
 	if (end_addr < start_addr)
 		return -EINVAL;
 
+	mutex_lock(&s->ops_mutex);
 	ret = adjust_memory(s, add, start_addr, end_addr);
 	if (!ret)
 		s->resource_setup_new = 1;
+	mutex_unlock(&s->ops_mutex);
 
 	return ret ? ret : count;
 }

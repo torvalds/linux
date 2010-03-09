@@ -15,11 +15,11 @@
 /* packet length for individual models */
 #define WACOM_PKGLEN_PENPRTN	 7
 #define WACOM_PKGLEN_GRAPHIRE	 8
-#define WACOM_PKGLEN_BBFUN 	 9
-#define WACOM_PKGLEN_INTUOS 	10
+#define WACOM_PKGLEN_BBFUN	 9
+#define WACOM_PKGLEN_INTUOS	10
 #define WACOM_PKGLEN_PENABLED	 8
 #define WACOM_PKGLEN_TPC1FG	 5
-#define WACOM_PKGLEN_TPC2FG 	14
+#define WACOM_PKGLEN_TPC2FG	14
 
 /* device IDs */
 #define STYLUS_DEVICE_ID	0x02
@@ -58,7 +58,7 @@ enum {
 };
 
 struct wacom_features {
-	char *name;
+	const char *name;
 	int pktlen;
 	int x_max;
 	int y_max;
@@ -73,11 +73,12 @@ struct wacom_features {
 };
 
 struct wacom_wac {
+	char name[64];
 	unsigned char *data;
-        int tool[2];
-        int id[2];
-        __u32 serial[2];
-	struct wacom_features *features;
+	int tool[2];
+	int id[2];
+	__u32 serial[2];
+	struct wacom_features features;
 };
 
 #endif

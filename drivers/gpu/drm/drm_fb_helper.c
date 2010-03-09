@@ -27,6 +27,7 @@
  *      Dave Airlie <airlied@linux.ie>
  *      Jesse Barnes <jesse.barnes@intel.com>
  */
+#include <linux/kernel.h>
 #include <linux/sysrq.h>
 #include <linux/fb.h>
 #include "drmP.h"
@@ -49,21 +50,6 @@ int drm_fb_helper_add_connector(struct drm_connector *connector)
 	return 0;
 }
 EXPORT_SYMBOL(drm_fb_helper_add_connector);
-
-static int my_atoi(const char *name)
-{
-	int val = 0;
-
-	for (;; name++) {
-		switch (*name) {
-		case '0' ... '9':
-			val = 10*val+(*name-'0');
-			break;
-		default:
-			return val;
-		}
-	}
-}
 
 /**
  * drm_fb_helper_connector_parse_command_line - parse command line for connector
@@ -111,7 +97,7 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_connector *con
 			namelen = i;
 			if (!refresh_specified && !bpp_specified &&
 			    !yres_specified) {
-				refresh = my_atoi(&name[i+1]);
+				refresh = simple_strtol(&name[i+1], NULL, 10);
 				refresh_specified = 1;
 				if (cvt || rb)
 					cvt = 0;
@@ -121,7 +107,7 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_connector *con
 		case '-':
 			namelen = i;
 			if (!bpp_specified && !yres_specified) {
-				bpp = my_atoi(&name[i+1]);
+				bpp = simple_strtol(&name[i+1], NULL, 10);
 				bpp_specified = 1;
 				if (cvt || rb)
 					cvt = 0;
@@ -130,7 +116,7 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_connector *con
 			break;
 		case 'x':
 			if (!yres_specified) {
-				yres = my_atoi(&name[i+1]);
+				yres = simple_strtol(&name[i+1], NULL, 10);
 				yres_specified = 1;
 			} else
 				goto done;
@@ -170,7 +156,7 @@ static bool drm_fb_helper_connector_parse_command_line(struct drm_connector *con
 		}
 	}
 	if (i < 0 && yres_specified) {
-		xres = my_atoi(name);
+		xres = simple_strtol(name, NULL, 10);
 		res_specified = 1;
 	}
 done:
@@ -694,7 +680,7 @@ int drm_fb_helper_set_par(struct fb_info *info)
 	int i;
 
 	if (var->pixclock != 0) {
-		DRM_ERROR("PIXEL CLCOK SET\n");
+		DRM_ERROR("PIXEL CLOCK SET\n");
 		return -EINVAL;
 	}
 

@@ -11,13 +11,13 @@
 #include <linux/module.h>
 #include <linux/io.h>
 #include <linux/etherdevice.h>
+#include <linux/davinci_emac.h>
 
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 
 #include <mach/common.h>
 #include <mach/cputype.h>
-#include <mach/emac.h>
 
 #include "clock.h"
 

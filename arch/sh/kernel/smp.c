@@ -161,15 +161,6 @@ void smp_send_reschedule(int cpu)
 	plat_send_ipi(cpu, SMP_MSG_RESCHEDULE);
 }
 
-static void stop_this_cpu(void *unused)
-{
-	cpu_clear(smp_processor_id(), cpu_online_map);
-	local_irq_disable();
-
-	for (;;)
-		cpu_relax();
-}
-
 void smp_send_stop(void)
 {
 	smp_call_function(stop_this_cpu, 0, 0);

@@ -153,6 +153,7 @@ extern int sysctl_igmp_max_msf;
 struct ip_sf_socklist {
 	unsigned int		sl_max;
 	unsigned int		sl_count;
+	struct rcu_head		rcu;
 	__be32			sl_addr[0];
 };
 
@@ -170,6 +171,7 @@ struct ip_mc_socklist {
 	struct ip_mreqn		multi;
 	unsigned int		sfmode;		/* MCAST_{INCLUDE,EXCLUDE} */
 	struct ip_sf_socklist	*sflist;
+	struct rcu_head		rcu;
 };
 
 struct ip_sf_list {

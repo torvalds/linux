@@ -170,6 +170,10 @@ SOC_ENUM("Aux Mode", wm8974_auxmode),
 
 SOC_SINGLE("Capture Boost(+20dB)", WM8974_ADCBOOST,  8, 1, 0),
 SOC_SINGLE("Mono Playback Switch", WM8974_MONOMIX, 6, 1, 1),
+
+/* DAC / ADC oversampling */
+SOC_SINGLE("DAC 128x Oversampling Switch", WM8974_DAC, 8, 1, 0),
+SOC_SINGLE("ADC 128x Oversampling Switch", WM8974_ADC, 8, 1, 0),
 };
 
 /* Speaker Output Mixer */
@@ -380,14 +384,6 @@ static int wm8974_set_dai_clkdiv(struct snd_soc_dai *codec_dai,
 	case WM8974_MCLKDIV:
 		reg = snd_soc_read(codec, WM8974_CLOCK) & 0x11f;
 		snd_soc_write(codec, WM8974_CLOCK, reg | div);
-		break;
-	case WM8974_ADCCLK:
-		reg = snd_soc_read(codec, WM8974_ADC) & 0x1f7;
-		snd_soc_write(codec, WM8974_ADC, reg | div);
-		break;
-	case WM8974_DACCLK:
-		reg = snd_soc_read(codec, WM8974_DAC) & 0x1f7;
-		snd_soc_write(codec, WM8974_DAC, reg | div);
 		break;
 	case WM8974_BCLKDIV:
 		reg = snd_soc_read(codec, WM8974_CLOCK) & 0x1e3;

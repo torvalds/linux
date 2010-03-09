@@ -37,15 +37,21 @@
 
 /* This function tries to claim the stream for a specific file descriptor.
    If no one else is using this stream then the stream is claimed and
-   associated VBI streams are also automatically claimed.
+   associated VBI and IDX streams are also automatically claimed.
    Possible error returns: -EBUSY if someone else has claimed
    the stream or 0 on success. */
-static int cx18_claim_stream(struct cx18_open_id *id, int type)
+int cx18_claim_stream(struct cx18_open_id *id, int type)
 {
 	struct cx18 *cx = id->cx;
 	struct cx18_stream *s = &cx->streams[type];
-	struct cx18_stream *s_vbi;
-	int vbi_type;
+	struct cx18_stream *s_assoc;
+
+	/* Nothing should ever try to directly claim the IDX stream */
+	if (type == CX18_ENC_STREAM_TYPE_IDX) {
+		CX18_WARN("MPEG Index stream cannot be claimed "
+			  "directly, but something tried.\n");
+		return -EINVAL;
+	}
 
 	if (test_and_set_bit(CX18_F_S_CLAIMED, &s->s_flags)) {
 		/* someone already claimed this stream */
@@ -67,32 +73,47 @@ static int cx18_claim_stream(struct cx18_open_id *id, int type)
 	}
 	s->id = id->open_id;
 
-	/* CX18_ENC_STREAM_TYPE_MPG needs to claim CX18_ENC_STREAM_TYPE_VBI
-	   (provided VBI insertion is on and sliced VBI is selected), for all
-	   other streams we're done */
-	if (type == CX18_ENC_STREAM_TYPE_MPG &&
-	    cx->vbi.insert_mpeg && !cx18_raw_vbi(cx)) {
-		vbi_type = CX18_ENC_STREAM_TYPE_VBI;
-	} else {
+	/*
+	 * CX18_ENC_STREAM_TYPE_MPG needs to claim:
+	 * CX18_ENC_STREAM_TYPE_VBI, if VBI insertion is on for sliced VBI, or
+	 * CX18_ENC_STREAM_TYPE_IDX, if VBI insertion is off for sliced VBI
+	 * (We don't yet fix up MPEG Index entries for our inserted packets).
+	 *
+	 * For all other streams we're done.
+	 */
+	if (type != CX18_ENC_STREAM_TYPE_MPG)
 		return 0;
-	}
-	s_vbi = &cx->streams[vbi_type];
 
-	set_bit(CX18_F_S_CLAIMED, &s_vbi->s_flags);
+	s_assoc = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
+	if (cx->vbi.insert_mpeg && !cx18_raw_vbi(cx))
+		s_assoc = &cx->streams[CX18_ENC_STREAM_TYPE_VBI];
+	else if (!cx18_stream_enabled(s_assoc))
+		return 0;
+
+	set_bit(CX18_F_S_CLAIMED, &s_assoc->s_flags);
 
 	/* mark that it is used internally */
-	set_bit(CX18_F_S_INTERNAL_USE, &s_vbi->s_flags);
+	set_bit(CX18_F_S_INTERNAL_USE, &s_assoc->s_flags);
 	return 0;
 }
+EXPORT_SYMBOL(cx18_claim_stream);
 
 /* This function releases a previously claimed stream. It will take into
    account associated VBI streams. */
-static void cx18_release_stream(struct cx18_stream *s)
+void cx18_release_stream(struct cx18_stream *s)
 {
 	struct cx18 *cx = s->cx;
-	struct cx18_stream *s_vbi;
+	struct cx18_stream *s_assoc;
 
 	s->id = -1;
+	if (s->type == CX18_ENC_STREAM_TYPE_IDX) {
+		/*
+		 * The IDX stream is only used internally, and can
+		 * only be indirectly unclaimed by unclaiming the MPG stream.
+		 */
+		return;
+	}
+
 	if (s->type == CX18_ENC_STREAM_TYPE_VBI &&
 		test_bit(CX18_F_S_INTERNAL_USE, &s->s_flags)) {
 		/* this stream is still in use internally */
@@ -105,25 +126,36 @@ static void cx18_release_stream(struct cx18_stream *s)
 
 	cx18_flush_queues(s);
 
-	/* CX18_ENC_STREAM_TYPE_MPG needs to release CX18_ENC_STREAM_TYPE_VBI,
-	   for all other streams we're done */
-	if (s->type == CX18_ENC_STREAM_TYPE_MPG)
-		s_vbi = &cx->streams[CX18_ENC_STREAM_TYPE_VBI];
-	else
+	/*
+	 * CX18_ENC_STREAM_TYPE_MPG needs to release the
+	 * CX18_ENC_STREAM_TYPE_VBI and/or CX18_ENC_STREAM_TYPE_IDX streams.
+	 *
+	 * For all other streams we're done.
+	 */
+	if (s->type != CX18_ENC_STREAM_TYPE_MPG)
 		return;
 
-	/* clear internal use flag */
-	if (!test_and_clear_bit(CX18_F_S_INTERNAL_USE, &s_vbi->s_flags)) {
-		/* was already cleared */
-		return;
+	/* Unclaim the associated MPEG Index stream */
+	s_assoc = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
+	if (test_and_clear_bit(CX18_F_S_INTERNAL_USE, &s_assoc->s_flags)) {
+		clear_bit(CX18_F_S_CLAIMED, &s_assoc->s_flags);
+		cx18_flush_queues(s_assoc);
 	}
-	if (s_vbi->id != -1) {
-		/* VBI stream still claimed by a file descriptor */
-		return;
+
+	/* Unclaim the associated VBI stream */
+	s_assoc = &cx->streams[CX18_ENC_STREAM_TYPE_VBI];
+	if (test_and_clear_bit(CX18_F_S_INTERNAL_USE, &s_assoc->s_flags)) {
+		if (s_assoc->id == -1) {
+			/*
+			 * The VBI stream is not still claimed by a file
+			 * descriptor, so completely unclaim it.
+			 */
+			clear_bit(CX18_F_S_CLAIMED, &s_assoc->s_flags);
+			cx18_flush_queues(s_assoc);
+		}
 	}
-	clear_bit(CX18_F_S_CLAIMED, &s_vbi->s_flags);
-	cx18_flush_queues(s_vbi);
 }
+EXPORT_SYMBOL(cx18_release_stream);
 
 static void cx18_dualwatch(struct cx18 *cx)
 {
@@ -177,9 +209,7 @@ static struct cx18_mdl *cx18_get_mdl(struct cx18_stream *s, int non_block,
 	*err = 0;
 	while (1) {
 		if (s->type == CX18_ENC_STREAM_TYPE_MPG) {
-			/* Process pending program info updates and pending
-			   VBI data */
-
+			/* Process pending program updates and VBI data */
 			if (time_after(jiffies, cx->dualwatch_jiffies + msecs_to_jiffies(1000))) {
 				cx->dualwatch_jiffies = jiffies;
 				cx18_dualwatch(cx);
@@ -362,18 +392,6 @@ static size_t cx18_copy_buf_to_user(struct cx18_stream *s,
 	return len;
 }
 
-/**
- * list_entry_is_past_end - check if a previous loop cursor is off list end
- * @pos:	the type * previously used as a loop cursor.
- * @head:	the head for your list.
- * @member:	the name of the list_struct within the struct.
- *
- * Check if the entry's list_head is the head of the list, thus it's not a
- * real entry but was the loop cursor that walked past the end
- */
-#define list_entry_is_past_end(pos, head, member) \
-	(&pos->member == (head))
-
 static size_t cx18_copy_mdl_to_user(struct cx18_stream *s,
 		struct cx18_mdl *mdl, char __user *ubuf, size_t ucount)
 {
@@ -498,6 +516,7 @@ int cx18_start_capture(struct cx18_open_id *id)
 	struct cx18 *cx = id->cx;
 	struct cx18_stream *s = &cx->streams[id->type];
 	struct cx18_stream *s_vbi;
+	struct cx18_stream *s_idx;
 
 	if (s->type == CX18_ENC_STREAM_TYPE_RAD) {
 		/* you cannot read from these stream types. */
@@ -516,25 +535,33 @@ int cx18_start_capture(struct cx18_open_id *id)
 		return 0;
 	}
 
-	/* Start VBI capture if required */
+	/* Start associated VBI or IDX stream capture if required */
 	s_vbi = &cx->streams[CX18_ENC_STREAM_TYPE_VBI];
-	if (s->type == CX18_ENC_STREAM_TYPE_MPG &&
-	    test_bit(CX18_F_S_INTERNAL_USE, &s_vbi->s_flags) &&
-	    !test_and_set_bit(CX18_F_S_STREAMING, &s_vbi->s_flags)) {
-		/* Note: the CX18_ENC_STREAM_TYPE_VBI is claimed
-		   automatically when the MPG stream is claimed.
-		   We only need to start the VBI capturing. */
-		if (cx18_start_v4l2_encode_stream(s_vbi)) {
-			CX18_DEBUG_WARN("VBI capture start failed\n");
-
-			/* Failure, clean up and return an error */
-			clear_bit(CX18_F_S_STREAMING, &s_vbi->s_flags);
-			clear_bit(CX18_F_S_STREAMING, &s->s_flags);
-			/* also releases the associated VBI stream */
-			cx18_release_stream(s);
-			return -EIO;
+	s_idx = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
+	if (s->type == CX18_ENC_STREAM_TYPE_MPG) {
+		/*
+		 * The VBI and IDX streams should have been claimed
+		 * automatically, if for internal use, when the MPG stream was
+		 * claimed.  We only need to start these streams capturing.
+		 */
+		if (test_bit(CX18_F_S_INTERNAL_USE, &s_idx->s_flags) &&
+		    !test_and_set_bit(CX18_F_S_STREAMING, &s_idx->s_flags)) {
+			if (cx18_start_v4l2_encode_stream(s_idx)) {
+				CX18_DEBUG_WARN("IDX capture start failed\n");
+				clear_bit(CX18_F_S_STREAMING, &s_idx->s_flags);
+				goto start_failed;
+			}
+			CX18_DEBUG_INFO("IDX capture started\n");
 		}
-		CX18_DEBUG_INFO("VBI insertion started\n");
+		if (test_bit(CX18_F_S_INTERNAL_USE, &s_vbi->s_flags) &&
+		    !test_and_set_bit(CX18_F_S_STREAMING, &s_vbi->s_flags)) {
+			if (cx18_start_v4l2_encode_stream(s_vbi)) {
+				CX18_DEBUG_WARN("VBI capture start failed\n");
+				clear_bit(CX18_F_S_STREAMING, &s_vbi->s_flags);
+				goto start_failed;
+			}
+			CX18_DEBUG_INFO("VBI insertion started\n");
+		}
 	}
 
 	/* Tell the card to start capturing */
@@ -547,19 +574,29 @@ int cx18_start_capture(struct cx18_open_id *id)
 		return 0;
 	}
 
-	/* failure, clean up */
+start_failed:
 	CX18_DEBUG_WARN("Failed to start capturing for stream %s\n", s->name);
 
-	/* Note: the CX18_ENC_STREAM_TYPE_VBI is released
-	   automatically when the MPG stream is released.
-	   We only need to stop the VBI capturing. */
-	if (s->type == CX18_ENC_STREAM_TYPE_MPG &&
-	    test_bit(CX18_F_S_STREAMING, &s_vbi->s_flags)) {
-		cx18_stop_v4l2_encode_stream(s_vbi, 0);
-		clear_bit(CX18_F_S_STREAMING, &s_vbi->s_flags);
+	/*
+	 * The associated VBI and IDX streams for internal use are released
+	 * automatically when the MPG stream is released.  We only need to stop
+	 * the associated stream.
+	 */
+	if (s->type == CX18_ENC_STREAM_TYPE_MPG) {
+		/* Stop the IDX stream which is always for internal use */
+		if (test_bit(CX18_F_S_STREAMING, &s_idx->s_flags)) {
+			cx18_stop_v4l2_encode_stream(s_idx, 0);
+			clear_bit(CX18_F_S_STREAMING, &s_idx->s_flags);
+		}
+		/* Stop the VBI stream, if only running for internal use */
+		if (test_bit(CX18_F_S_STREAMING, &s_vbi->s_flags) &&
+		    !test_bit(CX18_F_S_APPL_IO, &s_vbi->s_flags)) {
+			cx18_stop_v4l2_encode_stream(s_vbi, 0);
+			clear_bit(CX18_F_S_STREAMING, &s_vbi->s_flags);
+		}
 	}
 	clear_bit(CX18_F_S_STREAMING, &s->s_flags);
-	cx18_release_stream(s);
+	cx18_release_stream(s); /* Also releases associated streams */
 	return -EIO;
 }
 
@@ -618,6 +655,8 @@ void cx18_stop_capture(struct cx18_open_id *id, int gop_end)
 {
 	struct cx18 *cx = id->cx;
 	struct cx18_stream *s = &cx->streams[id->type];
+	struct cx18_stream *s_vbi = &cx->streams[CX18_ENC_STREAM_TYPE_VBI];
+	struct cx18_stream *s_idx = &cx->streams[CX18_ENC_STREAM_TYPE_IDX];
 
 	CX18_DEBUG_IOCTL("close() of %s\n", s->name);
 
@@ -625,17 +664,19 @@ void cx18_stop_capture(struct cx18_open_id *id, int gop_end)
 
 	/* Stop capturing */
 	if (test_bit(CX18_F_S_STREAMING, &s->s_flags)) {
-		struct cx18_stream *s_vbi =
-			&cx->streams[CX18_ENC_STREAM_TYPE_VBI];
-
 		CX18_DEBUG_INFO("close stopping capture\n");
-		/* Special case: a running VBI capture for VBI insertion
-		   in the mpeg stream. Need to stop that too. */
-		if (id->type == CX18_ENC_STREAM_TYPE_MPG &&
-		    test_bit(CX18_F_S_STREAMING, &s_vbi->s_flags) &&
-		    !test_bit(CX18_F_S_APPL_IO, &s_vbi->s_flags)) {
-			CX18_DEBUG_INFO("close stopping embedded VBI capture\n");
-			cx18_stop_v4l2_encode_stream(s_vbi, 0);
+		if (id->type == CX18_ENC_STREAM_TYPE_MPG) {
+			/* Stop internal use associated VBI and IDX streams */
+			if (test_bit(CX18_F_S_STREAMING, &s_vbi->s_flags) &&
+			    !test_bit(CX18_F_S_APPL_IO, &s_vbi->s_flags)) {
+				CX18_DEBUG_INFO("close stopping embedded VBI "
+						"capture\n");
+				cx18_stop_v4l2_encode_stream(s_vbi, 0);
+			}
+			if (test_bit(CX18_F_S_STREAMING, &s_idx->s_flags)) {
+				CX18_DEBUG_INFO("close stopping IDX capture\n");
+				cx18_stop_v4l2_encode_stream(s_idx, 0);
+			}
 		}
 		if (id->type == CX18_ENC_STREAM_TYPE_VBI &&
 		    test_bit(CX18_F_S_INTERNAL_USE, &s->s_flags))

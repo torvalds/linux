@@ -54,6 +54,8 @@
 #include "hda_codec.h"
 #include "hda_local.h"
 
+#define NID_MAPPING		(-1)
+
 /* amp values */
 #define AMP_VAL_IDX_SHIFT	19
 #define AMP_VAL_IDX_MASK	(0x0f<<19)
@@ -156,6 +158,19 @@ struct via_spec {
 	struct hda_loopback_check loopback;
 #endif
 };
+
+static struct via_spec * via_new_spec(struct hda_codec *codec)
+{
+	struct via_spec *spec;
+
+	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	if (spec == NULL)
+		return NULL;
+
+	codec->spec = spec;
+	spec->codec = codec;
+	return spec;
+}
 
 static enum VIA_HDA_CODEC get_codec_type(struct hda_codec *codec)
 {
@@ -443,8 +458,24 @@ static int via_add_control(struct via_spec *spec, int type, const char *name,
 	if (!knew->name)
 		return -ENOMEM;
 	if (get_amp_nid_(val))
-		knew->subdevice = HDA_SUBDEV_NID_FLAG | get_amp_nid_(val);
+		knew->subdevice = HDA_SUBDEV_AMP_FLAG;
 	knew->private_value = val;
+	return 0;
+}
+
+static struct snd_kcontrol_new *via_clone_control(struct via_spec *spec,
+						struct snd_kcontrol_new *tmpl)
+{
+	struct snd_kcontrol_new *knew;
+
+	snd_array_init(&spec->kctls, sizeof(*knew), 32);
+	knew = snd_array_new(&spec->kctls);
+	if (!knew)
+		return NULL;
+	*knew = *tmpl;
+	knew->name = kstrdup(tmpl->name, GFP_KERNEL);
+	if (!knew->name)
+		return NULL;
 	return 0;
 }
 
@@ -1088,24 +1119,9 @@ static int via_independent_hp_get(struct snd_kcontrol *kcontrol,
 				  struct snd_ctl_elem_value *ucontrol)
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
-	struct via_spec *spec = codec->spec;
-	hda_nid_t nid;
+	hda_nid_t nid = kcontrol->private_value;
 	unsigned int pinsel;
 
-	switch (spec->codec_type) {
-	case VT1718S:
-		nid = 0x34;
-		break;
-	case VT2002P:
-		nid = 0x35;
-		break;
-	case VT1812:
-		nid = 0x3d;
-		break;
-	default:
-		nid = spec->autocfg.hp_pins[0];
-		break;
-	}
 	/* use !! to translate conn sel 2 for VT1718S */
 	pinsel = !!snd_hda_codec_read(codec, nid, 0,
 				      AC_VERB_GET_CONNECT_SEL,
@@ -1127,29 +1143,24 @@ static void activate_ctl(struct hda_codec *codec, const char *name, int active)
 	}
 }
 
+static hda_nid_t side_mute_channel(struct via_spec *spec)
+{
+	switch (spec->codec_type) {
+	case VT1708:		return 0x1b;
+	case VT1709_10CH:	return 0x29;
+	case VT1708B_8CH:	/* fall thru */
+	case VT1708S:		return 0x27;
+	default:		return 0;
+	}
+}
+
 static int update_side_mute_status(struct hda_codec *codec)
 {
 	/* mute side channel */
 	struct via_spec *spec = codec->spec;
 	unsigned int parm = spec->hp_independent_mode
 		? AMP_OUT_MUTE : AMP_OUT_UNMUTE;
-	hda_nid_t sw3;
-
-	switch (spec->codec_type) {
-	case VT1708:
-		sw3 = 0x1b;
-		break;
-	case VT1709_10CH:
-		sw3 = 0x29;
-		break;
-	case VT1708B_8CH:
-	case VT1708S:
-		sw3 = 0x27;
-		break;
-	default:
-		sw3 = 0;
-		break;
-	}
+	hda_nid_t sw3 = side_mute_channel(spec);
 
 	if (sw3)
 		snd_hda_codec_write(codec, sw3, 0, AC_VERB_SET_AMP_GAIN_MUTE,
@@ -1162,28 +1173,11 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 {
 	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
 	struct via_spec *spec = codec->spec;
-	hda_nid_t nid = spec->autocfg.hp_pins[0];
+	hda_nid_t nid = kcontrol->private_value;
 	unsigned int pinsel = ucontrol->value.enumerated.item[0];
 	/* Get Independent Mode index of headphone pin widget */
 	spec->hp_independent_mode = spec->hp_independent_mode_index == pinsel
 		? 1 : 0;
-
-	switch (spec->codec_type) {
-	case VT1718S:
-		nid = 0x34;
-		pinsel = pinsel ? 2 : 0; /* indep HP use AOW4 (index 2) */
-		spec->multiout.num_dacs = 4;
-		break;
-	case VT2002P:
-		nid = 0x35;
-		break;
-	case VT1812:
-		nid = 0x3d;
-		break;
-	default:
-		nid = spec->autocfg.hp_pins[0];
-		break;
-	}
 	snd_hda_codec_write(codec, nid, 0, AC_VERB_SET_CONNECT_SEL, pinsel);
 
 	if (spec->multiout.hp_nid && spec->multiout.hp_nid
@@ -1207,17 +1201,54 @@ static int via_independent_hp_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static struct snd_kcontrol_new via_hp_mixer[] = {
+static struct snd_kcontrol_new via_hp_mixer[2] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Independent HP",
-		.count = 1,
 		.info = via_independent_hp_info,
 		.get = via_independent_hp_get,
 		.put = via_independent_hp_put,
 	},
-	{ } /* end */
+	{
+		.iface = NID_MAPPING,
+		.name = "Independent HP",
+	},
 };
+
+static int via_hp_build(struct via_spec *spec)
+{
+	struct snd_kcontrol_new *knew;
+	hda_nid_t nid;
+
+	knew = via_clone_control(spec, &via_hp_mixer[0]);
+	if (knew == NULL)
+		return -ENOMEM;
+
+	switch (spec->codec_type) {
+	case VT1718S:
+		nid = 0x34;
+		break;
+	case VT2002P:
+		nid = 0x35;
+		break;
+	case VT1812:
+		nid = 0x3d;
+		break;
+	default:
+		nid = spec->autocfg.hp_pins[0];
+		break;
+	}
+
+	knew->subdevice = HDA_SUBDEV_NID_FLAG | nid;
+	knew->private_value = nid;
+
+	knew = via_clone_control(spec, &via_hp_mixer[1]);
+	if (knew == NULL)
+		return -ENOMEM;
+	knew->subdevice = side_mute_channel(spec);
+
+	return 0;
+}
 
 static void notify_aa_path_ctls(struct hda_codec *codec)
 {
@@ -1376,7 +1407,7 @@ static int via_smart51_put(struct snd_kcontrol *kcontrol,
 	return 1;
 }
 
-static struct snd_kcontrol_new via_smart51_mixer[] = {
+static struct snd_kcontrol_new via_smart51_mixer[2] = {
 	{
 	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	 .name = "Smart 5.1",
@@ -1385,8 +1416,35 @@ static struct snd_kcontrol_new via_smart51_mixer[] = {
 	 .get = via_smart51_get,
 	 .put = via_smart51_put,
 	 },
-	{}			/* end */
+	{
+	 .iface = NID_MAPPING,
+	 .name = "Smart 5.1",
+	}
 };
+
+static int via_smart51_build(struct via_spec *spec)
+{
+	struct snd_kcontrol_new *knew;
+	int index[] = { AUTO_PIN_MIC, AUTO_PIN_FRONT_MIC, AUTO_PIN_LINE };
+	hda_nid_t nid;
+	int i;
+
+	knew = via_clone_control(spec, &via_smart51_mixer[0]);
+	if (knew == NULL)
+		return -ENOMEM;
+
+	for (i = 0; i < ARRAY_SIZE(index); i++) {
+		nid = spec->autocfg.input_pins[index[i]];
+		if (nid) {
+			knew = via_clone_control(spec, &via_smart51_mixer[1]);
+			if (knew == NULL)
+				return -ENOMEM;
+			knew->subdevice = nid;
+		}
+	}
+
+	return 0;
+}
 
 /* capture mixer elements */
 static struct snd_kcontrol_new vt1708_capture_mixer[] = {
@@ -1819,8 +1877,9 @@ static struct hda_pcm_stream vt1708_pcm_digital_capture = {
 static int via_build_controls(struct hda_codec *codec)
 {
 	struct via_spec *spec = codec->spec;
-	int err;
-	int i;
+	struct snd_kcontrol *kctl;
+	struct snd_kcontrol_new *knew;
+	int err, i;
 
 	for (i = 0; i < spec->num_mixers; i++) {
 		err = snd_hda_add_new_ctls(codec, spec->mixers[i]);
@@ -1843,6 +1902,27 @@ static int via_build_controls(struct hda_codec *codec)
 		err = snd_hda_create_spdif_in_ctls(codec, spec->dig_in_nid);
 		if (err < 0)
 			return err;
+	}
+
+	/* assign Capture Source enums to NID */
+	kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
+	for (i = 0; kctl && i < kctl->count; i++) {
+		err = snd_hda_add_nid(codec, kctl, i, spec->mux_nids[i]);
+		if (err < 0)
+			return err;
+	}
+
+	/* other nid->control mapping */
+	for (i = 0; i < spec->num_mixers; i++) {
+		for (knew = spec->mixers[i]; knew->name; knew++) {
+			if (knew->iface != NID_MAPPING)
+				continue;
+			kctl = snd_hda_find_mixer_ctl(codec, knew->name);
+			if (kctl == NULL)
+				continue;
+			err = snd_hda_add_nid(codec, kctl, 0,
+					      knew->subdevice);
+		}
 	}
 
 	/* init power states */
@@ -2481,9 +2561,9 @@ static int vt1708_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		spec->mixers[spec->num_mixers++] = via_hp_mixer;
+		via_hp_build(spec);
 
-	spec->mixers[spec->num_mixers++] = via_smart51_mixer;
+	via_smart51_build(spec);
 	return 1;
 }
 
@@ -2554,11 +2634,9 @@ static int patch_vt1708(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	codec->spec = spec;
 
 	/* automatic parse from the BIOS config */
 	err = vt1708_parse_auto_config(codec);
@@ -2597,7 +2675,6 @@ static int patch_vt1708(struct hda_codec *codec)
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	spec->loopback.amplist = vt1708_loopbacks;
 #endif
-	spec->codec = codec;
 	INIT_DELAYED_WORK(&spec->vt1708_hp_work, vt1708_update_hp_jack_state);
 	return 0;
 }
@@ -3010,9 +3087,9 @@ static int vt1709_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		spec->mixers[spec->num_mixers++] = via_hp_mixer;
+		via_hp_build(spec);
 
-	spec->mixers[spec->num_mixers++] = via_smart51_mixer;
+	via_smart51_build(spec);
 	return 1;
 }
 
@@ -3032,11 +3109,9 @@ static int patch_vt1709_10ch(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	codec->spec = spec;
 
 	err = vt1709_parse_auto_config(codec);
 	if (err < 0) {
@@ -3126,11 +3201,9 @@ static int patch_vt1709_6ch(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	codec->spec = spec;
 
 	err = vt1709_parse_auto_config(codec);
 	if (err < 0) {
@@ -3581,9 +3654,9 @@ static int vt1708B_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		spec->mixers[spec->num_mixers++] = via_hp_mixer;
+		via_hp_build(spec);
 
-	spec->mixers[spec->num_mixers++] = via_smart51_mixer;
+	via_smart51_build(spec);
 	return 1;
 }
 
@@ -3605,11 +3678,9 @@ static int patch_vt1708B_8ch(struct hda_codec *codec)
 	if (get_codec_type(codec) == VT1708BCE)
 		return patch_vt1708S(codec);
 	/* create a codec specific record */
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	codec->spec = spec;
 
 	/* automatic parse from the BIOS config */
 	err = vt1708B_parse_auto_config(codec);
@@ -3657,11 +3728,9 @@ static int patch_vt1708B_4ch(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	codec->spec = spec;
 
 	/* automatic parse from the BIOS config */
 	err = vt1708B_parse_auto_config(codec);
@@ -4071,9 +4140,9 @@ static int vt1708S_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		spec->mixers[spec->num_mixers++] = via_hp_mixer;
+		via_hp_build(spec);
 
-	spec->mixers[spec->num_mixers++] = via_smart51_mixer;
+	via_smart51_build(spec);
 	return 1;
 }
 
@@ -4103,11 +4172,9 @@ static int patch_vt1708S(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	codec->spec = spec;
 
 	/* automatic parse from the BIOS config */
 	err = vt1708S_parse_auto_config(codec);
@@ -4443,7 +4510,7 @@ static int vt1702_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		spec->mixers[spec->num_mixers++] = via_hp_mixer;
+		via_hp_build(spec);
 
 	return 1;
 }
@@ -4464,11 +4531,9 @@ static int patch_vt1702(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	codec->spec = spec;
 
 	/* automatic parse from the BIOS config */
 	err = vt1702_parse_auto_config(codec);
@@ -4865,9 +4930,9 @@ static int vt1718S_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		spec->mixers[spec->num_mixers++] = via_hp_mixer;
+		via_hp_build(spec);
 
-	spec->mixers[spec->num_mixers++] = via_smart51_mixer;
+	via_smart51_build(spec);
 
 	return 1;
 }
@@ -4888,11 +4953,9 @@ static int patch_vt1718S(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	codec->spec = spec;
 
 	/* automatic parse from the BIOS config */
 	err = vt1718S_parse_auto_config(codec);
@@ -5014,6 +5077,7 @@ static struct snd_kcontrol_new vt1716s_dmic_mixer[] = {
 	{
 	 .iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 	 .name = "Digital Mic Capture Switch",
+	 .subdevice = HDA_SUBDEV_NID_FLAG | 0x26,
 	 .count = 1,
 	 .info = vt1716s_dmic_info,
 	 .get = vt1716s_dmic_get,
@@ -5361,9 +5425,9 @@ static int vt1716S_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		spec->mixers[spec->num_mixers++] = via_hp_mixer;
+		via_hp_build(spec);
 
-	spec->mixers[spec->num_mixers++] = via_smart51_mixer;
+	via_smart51_build(spec);
 
 	return 1;
 }
@@ -5384,11 +5448,9 @@ static int patch_vt1716S(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	codec->spec = spec;
 
 	/* automatic parse from the BIOS config */
 	err = vt1716S_parse_auto_config(codec);
@@ -5719,7 +5781,7 @@ static int vt2002P_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		spec->mixers[spec->num_mixers++] = via_hp_mixer;
+		via_hp_build(spec);
 
 	return 1;
 }
@@ -5741,11 +5803,9 @@ static int patch_vt2002P(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	codec->spec = spec;
 
 	/* automatic parse from the BIOS config */
 	err = vt2002P_parse_auto_config(codec);
@@ -6070,7 +6130,7 @@ static int vt1812_parse_auto_config(struct hda_codec *codec)
 	spec->input_mux = &spec->private_imux[0];
 
 	if (spec->hp_mux)
-		spec->mixers[spec->num_mixers++] = via_hp_mixer;
+		via_hp_build(spec);
 
 	return 1;
 }
@@ -6092,11 +6152,9 @@ static int patch_vt1812(struct hda_codec *codec)
 	int err;
 
 	/* create a codec specific record */
-	spec = kzalloc(sizeof(*spec), GFP_KERNEL);
+	spec = via_new_spec(codec);
 	if (spec == NULL)
 		return -ENOMEM;
-
-	codec->spec = spec;
 
 	/* automatic parse from the BIOS config */
 	err = vt1812_parse_auto_config(codec);

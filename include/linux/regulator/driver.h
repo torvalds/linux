@@ -58,6 +58,9 @@ enum regulator_status {
  * @get_optimum_mode: Get the most efficient operating mode for the regulator
  *                    when running with the specified parameters.
  *
+ * @enable_time: Time taken for the regulator voltage output voltage to
+ *               stabalise after being enabled, in microseconds.
+ *
  * @set_suspend_voltage: Set the voltage for the regulator when the system
  *                       is suspended.
  * @set_suspend_enable: Mark the regulator as enabled when the system is
@@ -92,6 +95,9 @@ struct regulator_ops {
 	/* get/set regulator operating mode (defined in regulator.h) */
 	int (*set_mode) (struct regulator_dev *, unsigned int mode);
 	unsigned int (*get_mode) (struct regulator_dev *);
+
+	/* Time taken to enable the regulator */
+	int (*enable_time) (struct regulator_dev *);
 
 	/* report regulator status ... most other accessors report
 	 * control inputs, this reports results of combining inputs

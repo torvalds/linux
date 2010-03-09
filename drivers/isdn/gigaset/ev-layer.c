@@ -427,7 +427,7 @@ static int isdn_getnum(char *p)
 {
 	int v = -1;
 
-	gig_dbg(DEBUG_TRANSCMD, "string: %s", p);
+	gig_dbg(DEBUG_EVENT, "string: %s", p);
 
 	while (*p >= '0' && *p <= '9')
 		v = ((v < 0) ? 0 : (v * 10)) + (int) ((*p++) - '0');
@@ -444,7 +444,7 @@ static int isdn_gethex(char *p)
 	int v = 0;
 	int c;
 
-	gig_dbg(DEBUG_TRANSCMD, "string: %s", p);
+	gig_dbg(DEBUG_EVENT, "string: %s", p);
 
 	if (!*p)
 		return -1;
@@ -517,7 +517,6 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 		return;
 	}
 	cs->respdata[len] = 0;
-	gig_dbg(DEBUG_TRANSCMD, "raw string: '%s'", cs->respdata);
 	argv[0] = cs->respdata;
 	params = 1;
 	if (cs->at_state.getstring) {
@@ -552,14 +551,14 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 		for (j = 1; j < params; ++j)
 			argv[j][-1] = 0;
 
-		gig_dbg(DEBUG_TRANSCMD, "CMD received: %s", argv[0]);
+		gig_dbg(DEBUG_EVENT, "CMD received: %s", argv[0]);
 		if (cid) {
 			--params;
-			gig_dbg(DEBUG_TRANSCMD, "CID: %s", argv[params]);
+			gig_dbg(DEBUG_EVENT, "CID: %s", argv[params]);
 		}
-		gig_dbg(DEBUG_TRANSCMD, "available params: %d", params - 1);
+		gig_dbg(DEBUG_EVENT, "available params: %d", params - 1);
 		for (j = 1; j < params; j++)
-			gig_dbg(DEBUG_TRANSCMD, "param %d: %s", j, argv[j]);
+			gig_dbg(DEBUG_EVENT, "param %d: %s", j, argv[j]);
 	}
 
 	spin_lock_irqsave(&cs->ev_lock, flags);
@@ -642,7 +641,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 					dev_err(cs->dev, "out of memory\n");
 				++curarg;
 			}
-			gig_dbg(DEBUG_CMD, "string==%s",
+			gig_dbg(DEBUG_EVENT, "string==%s",
 				event->ptr ? (char *) event->ptr : "NULL");
 			break;
 		case RT_ZCAU:
@@ -669,7 +668,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 				++curarg;
 			} else
 				event->parameter = -1;
-			gig_dbg(DEBUG_CMD, "parameter==%d", event->parameter);
+			gig_dbg(DEBUG_EVENT, "parameter==%d", event->parameter);
 			break;
 		}
 
@@ -684,7 +683,7 @@ void gigaset_handle_modem_response(struct cardstate *cs)
 	spin_unlock_irqrestore(&cs->ev_lock, flags);
 
 	if (curarg != params)
-		gig_dbg(DEBUG_ANY,
+		gig_dbg(DEBUG_EVENT,
 			"invalid number of processed parameters: %d/%d",
 			curarg, params);
 }
@@ -705,8 +704,8 @@ static void disconnect(struct at_state_t **at_state_p)
 	/* revert to selected idle mode */
 	if (!cs->cidmode) {
 		cs->at_state.pending_commands |= PC_UMMODE;
+		gig_dbg(DEBUG_EVENT, "Scheduling PC_UMMODE");
 		cs->commands_pending = 1;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_UMMODE");
 	}
 	spin_unlock_irqrestore(&cs->lock, flags);
 
@@ -784,15 +783,15 @@ static void init_failed(struct cardstate *cs, int mode)
 static void schedule_init(struct cardstate *cs, int state)
 {
 	if (cs->at_state.pending_commands & PC_INIT) {
-		gig_dbg(DEBUG_CMD, "not scheduling PC_INIT again");
+		gig_dbg(DEBUG_EVENT, "not scheduling PC_INIT again");
 		return;
 	}
 	cs->mstate = state;
 	cs->mode = M_UNKNOWN;
 	gigaset_block_channels(cs);
 	cs->at_state.pending_commands |= PC_INIT;
+	gig_dbg(DEBUG_EVENT, "Scheduling PC_INIT");
 	cs->commands_pending = 1;
-	gig_dbg(DEBUG_CMD, "Scheduling PC_INIT");
 }
 
 /* Add "AT" to a command, add the cid, dle encode it, send the result to the
@@ -923,7 +922,7 @@ static void start_dial(struct at_state_t *at_state, void *data,
 	}
 
 	at_state->pending_commands |= PC_CID;
-	gig_dbg(DEBUG_CMD, "Scheduling PC_CID");
+	gig_dbg(DEBUG_EVENT, "Scheduling PC_CID");
 	cs->commands_pending = 1;
 	return;
 
@@ -933,7 +932,7 @@ error:
 		commands[i] = NULL;
 	}
 	at_state->pending_commands |= PC_NOCID;
-	gig_dbg(DEBUG_CMD, "Scheduling PC_NOCID");
+	gig_dbg(DEBUG_EVENT, "Scheduling PC_NOCID");
 	cs->commands_pending = 1;
 	return;
 }
@@ -955,7 +954,7 @@ static void start_accept(struct at_state_t *at_state)
 		dev_err(at_state->cs->dev, "out of memory\n");
 		/* error reset */
 		at_state->pending_commands |= PC_HUP;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_HUP");
+		gig_dbg(DEBUG_EVENT, "Scheduling PC_HUP");
 		cs->commands_pending = 1;
 		return;
 	}
@@ -964,7 +963,7 @@ static void start_accept(struct at_state_t *at_state)
 	snprintf(bcs->commands[AT_ISO], 9, "^SISO=%u\r", bcs->channel + 1);
 
 	at_state->pending_commands |= PC_ACCEPT;
-	gig_dbg(DEBUG_CMD, "Scheduling PC_ACCEPT");
+	gig_dbg(DEBUG_EVENT, "Scheduling PC_ACCEPT");
 	cs->commands_pending = 1;
 }
 
@@ -1009,8 +1008,8 @@ static void do_shutdown(struct cardstate *cs)
 	if (cs->mstate == MS_READY) {
 		cs->mstate = MS_SHUTDOWN;
 		cs->at_state.pending_commands |= PC_SHUTDOWN;
+		gig_dbg(DEBUG_EVENT, "Scheduling PC_SHUTDOWN");
 		cs->commands_pending = 1;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_SHUTDOWN");
 	} else
 		finish_shutdown(cs);
 }
@@ -1191,8 +1190,8 @@ static void do_action(int action, struct cardstate *cs,
 		}
 		spin_unlock_irqrestore(&cs->lock, flags);
 		cs->at_state.pending_commands |= PC_CIDMODE;
+		gig_dbg(DEBUG_EVENT, "Scheduling PC_CIDMODE");
 		cs->commands_pending = 1;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_CIDMODE");
 		break;
 	case ACT_FAILINIT:
 		dev_warn(cs->dev, "Could not initialize the device.\n");
@@ -1443,7 +1442,7 @@ static void do_action(int action, struct cardstate *cs,
 	case ACT_GOTVER:
 		if (cs->gotfwver == 0) {
 			cs->gotfwver = 1;
-			gig_dbg(DEBUG_ANY,
+			gig_dbg(DEBUG_EVENT,
 				"firmware version %02d.%03d.%02d.%02d",
 				cs->fwver[0], cs->fwver[1],
 				cs->fwver[2], cs->fwver[3]);
@@ -1481,8 +1480,8 @@ static void do_action(int action, struct cardstate *cs,
 		break;
 	case ACT_HUP:
 		at_state->pending_commands |= PC_HUP;
+		gig_dbg(DEBUG_EVENT, "Scheduling PC_HUP");
 		cs->commands_pending = 1;
-		gig_dbg(DEBUG_CMD, "Scheduling PC_HUP");
 		break;
 
 	/* hotplug events */
@@ -1519,10 +1518,10 @@ static void do_action(int action, struct cardstate *cs,
 			cs->cidmode = ev->parameter;
 			if (ev->parameter) {
 				cs->at_state.pending_commands |= PC_CIDMODE;
-				gig_dbg(DEBUG_CMD, "Scheduling PC_CIDMODE");
+				gig_dbg(DEBUG_EVENT, "Scheduling PC_CIDMODE");
 			} else {
 				cs->at_state.pending_commands |= PC_UMMODE;
-				gig_dbg(DEBUG_CMD, "Scheduling PC_UMMODE");
+				gig_dbg(DEBUG_EVENT, "Scheduling PC_UMMODE");
 			}
 			cs->commands_pending = 1;
 		}
@@ -1573,6 +1572,8 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 	if (ev->cid >= 0) {
 		at_state = at_state_from_cid(cs, ev->cid);
 		if (!at_state) {
+			gig_dbg(DEBUG_EVENT, "event %d for invalid cid %d",
+				ev->type, ev->cid);
 			gigaset_add_event(cs, &cs->at_state, RSP_WRONG_CID,
 					  NULL, 0, NULL);
 			return;
@@ -1580,13 +1581,13 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 	} else {
 		at_state = ev->at_state;
 		if (at_state_invalid(cs, at_state)) {
-			gig_dbg(DEBUG_ANY, "event for invalid at_state %p",
+			gig_dbg(DEBUG_EVENT, "event for invalid at_state %p",
 				at_state);
 			return;
 		}
 	}
 
-	gig_dbg(DEBUG_CMD, "connection state %d, event %d",
+	gig_dbg(DEBUG_EVENT, "connection state %d, event %d",
 		at_state->ConState, ev->type);
 
 	bcs = at_state->bcs;
@@ -1600,11 +1601,11 @@ static void process_event(struct cardstate *cs, struct event_t *ev)
 		if (ev->parameter != at_state->timer_index
 		    || !at_state->timer_active) {
 			ev->type = RSP_NONE; /* old timeout */
-			gig_dbg(DEBUG_ANY, "old timeout");
+			gig_dbg(DEBUG_EVENT, "old timeout");
 		} else if (!at_state->waiting)
-			gig_dbg(DEBUG_ANY, "timeout occurred");
+			gig_dbg(DEBUG_EVENT, "timeout occurred");
 		else
-			gig_dbg(DEBUG_ANY, "stopped waiting");
+			gig_dbg(DEBUG_EVENT, "stopped waiting");
 	}
 	spin_unlock_irqrestore(&cs->lock, flags);
 
@@ -1712,11 +1713,11 @@ static void process_command_flags(struct cardstate *cs)
 	cs->commands_pending = 0;
 
 	if (cs->cur_at_seq) {
-		gig_dbg(DEBUG_CMD, "not searching scheduled commands: busy");
+		gig_dbg(DEBUG_EVENT, "not searching scheduled commands: busy");
 		return;
 	}
 
-	gig_dbg(DEBUG_CMD, "searching scheduled commands");
+	gig_dbg(DEBUG_EVENT, "searching scheduled commands");
 
 	sequence = SEQ_NONE;
 
@@ -1857,7 +1858,7 @@ static void process_command_flags(struct cardstate *cs)
 			switch (cs->mode) {
 			case M_UNIMODEM:
 				cs->at_state.pending_commands |= PC_CIDMODE;
-				gig_dbg(DEBUG_CMD, "Scheduling PC_CIDMODE");
+				gig_dbg(DEBUG_EVENT, "Scheduling PC_CIDMODE");
 				cs->commands_pending = 1;
 				return;
 #ifdef GIG_MAYINITONDIAL

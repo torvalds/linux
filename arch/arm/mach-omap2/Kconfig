@@ -1,28 +1,19 @@
 comment "OMAP Core Type"
 	depends on ARCH_OMAP2
 
-config ARCH_OMAP24XX
-	bool "OMAP24xx Based System"
-	depends on ARCH_OMAP2
-
 config ARCH_OMAP2420
 	bool "OMAP2420 support"
-	depends on ARCH_OMAP24XX
+	depends on ARCH_OMAP2
 	select OMAP_DM_TIMER
 	select ARCH_OMAP_OTG
 
 config ARCH_OMAP2430
 	bool "OMAP2430 support"
-	depends on ARCH_OMAP24XX
-
-config ARCH_OMAP34XX
-	bool "OMAP34xx Based System"
-	depends on ARCH_OMAP3
-	select USB_ARCH_HAS_EHCI
+	depends on ARCH_OMAP2
 
 config ARCH_OMAP3430
 	bool "OMAP3430 support"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select ARCH_OMAP_OTG
 
 config OMAP_PACKAGE_CBC
@@ -38,11 +29,11 @@ config OMAP_PACKAGE_CBP
        bool
 
 comment "OMAP Board Type"
-	depends on ARCH_OMAP2 || ARCH_OMAP3 || ARCH_OMAP4
+	depends on ARCH_OMAP2PLUS
 
 config MACH_OMAP_GENERIC
 	bool "Generic OMAP board"
-	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+	depends on ARCH_OMAP2
 
 config MACH_OMAP2_TUSB6010
 	bool
@@ -51,55 +42,59 @@ config MACH_OMAP2_TUSB6010
 
 config MACH_OMAP_H4
 	bool "OMAP 2420 H4 board"
-	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+	depends on ARCH_OMAP2
 	select OMAP_DEBUG_DEVICES
 
 config MACH_OMAP_APOLLON
 	bool "OMAP 2420 Apollon board"
-	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+	depends on ARCH_OMAP2
 
 config MACH_OMAP_2430SDP
 	bool "OMAP 2430 SDP board"
-	depends on ARCH_OMAP2 && ARCH_OMAP24XX
+	depends on ARCH_OMAP2
 
 config MACH_OMAP3_BEAGLE
 	bool "OMAP3 BEAGLE board"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
+
+config MACH_DEVKIT8000
+        bool "DEVKIT8000 board"
+        depends on ARCH_OMAP3
 
 config MACH_OMAP_LDP
 	bool "OMAP3 LDP board"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
 
 config MACH_OVERO
 	bool "Gumstix Overo board"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP3EVM
 	bool "OMAP 3530 EVM board"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP3517EVM
 	bool "OMAP3517/ AM3517 EVM board"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP3_PANDORA
 	bool "OMAP3 Pandora"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP3_TOUCHBOOK
 	bool "OMAP3 Touch Book"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select BACKLIGHT_CLASS_DEVICE
 
 config MACH_OMAP_3430SDP
 	bool "OMAP 3430 SDP board"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
 
 config MACH_NOKIA_N800
@@ -120,33 +115,33 @@ config MACH_NOKIA_N8X0
 
 config MACH_NOKIA_RX51
 	bool "Nokia RX-51 board"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP_ZOOM2
 	bool "OMAP3 Zoom2 board"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP_ZOOM3
 	bool "OMAP3630 Zoom3 board"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBP
 
 config MACH_CM_T35
 	bool "CompuLab CM-T35 module"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CUS
 	select OMAP_MUX
 
 config MACH_IGEP0020
-	bool "IGEP0020"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	bool "IGEP v2 board"
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBB
 
 config MACH_OMAP_3630SDP
 	bool "OMAP3630 SDP board"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	select OMAP_PACKAGE_CBP
 
 config MACH_OMAP_4430SDP
@@ -162,7 +157,7 @@ config OMAP3_EMU
 
 config OMAP3_SDRC_AC_TIMING
 	bool "Enable SDRC AC timing register changes"
-	depends on ARCH_OMAP3 && ARCH_OMAP34XX
+	depends on ARCH_OMAP3
 	default n
 	help
 	  If you know that none of your system initiators will attempt to

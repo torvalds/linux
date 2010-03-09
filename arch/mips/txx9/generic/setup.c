@@ -399,11 +399,6 @@ const char *get_system_type(void)
 	return txx9_system_type;
 }
 
-char * __init prom_getcmdline(void)
-{
-	return &(arcs_cmdline[0]);
-}
-
 const char *__init prom_getenv(const char *name)
 {
 	const s32 *str;

@@ -451,7 +451,7 @@ static int __cpuinit numa_setup_cpu(unsigned long lcpu)
 	nid = of_node_to_nid_single(cpu);
 
 	if (nid < 0 || !node_online(nid))
-		nid = any_online_node(NODE_MASK_ALL);
+		nid = first_online_node;
 out:
 	map_cpu_to_node(lcpu, nid);
 
@@ -1114,7 +1114,7 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 	int nid, found = 0;
 
 	if (!numa_enabled || (min_common_depth < 0))
-		return any_online_node(NODE_MASK_ALL);
+		return first_online_node;
 
 	memory = of_find_node_by_path("/ibm,dynamic-reconfiguration-memory");
 	if (memory) {
@@ -1125,7 +1125,7 @@ int hot_add_scn_to_nid(unsigned long scn_addr)
 	}
 
 	if (nid < 0 || !node_online(nid))
-		nid = any_online_node(NODE_MASK_ALL);
+		nid = first_online_node;
 
 	if (NODE_DATA(nid)->node_spanned_pages)
 		return nid;

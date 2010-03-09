@@ -65,6 +65,46 @@ struct cxgb3_client t3c_client = {
 static LIST_HEAD(dev_list);
 static DEFINE_MUTEX(dev_mutex);
 
+static int disable_qp_db(int id, void *p, void *data)
+{
+	struct iwch_qp *qhp = p;
+
+	cxio_disable_wq_db(&qhp->wq);
+	return 0;
+}
+
+static int enable_qp_db(int id, void *p, void *data)
+{
+	struct iwch_qp *qhp = p;
+
+	if (data)
+		ring_doorbell(qhp->rhp->rdev.ctrl_qp.doorbell, qhp->wq.qpid);
+	cxio_enable_wq_db(&qhp->wq);
+	return 0;
+}
+
+static void disable_dbs(struct iwch_dev *rnicp)
+{
+	spin_lock_irq(&rnicp->lock);
+	idr_for_each(&rnicp->qpidr, disable_qp_db, NULL);
+	spin_unlock_irq(&rnicp->lock);
+}
+
+static void enable_dbs(struct iwch_dev *rnicp, int ring_db)
+{
+	spin_lock_irq(&rnicp->lock);
+	idr_for_each(&rnicp->qpidr, enable_qp_db,
+		     (void *)(unsigned long)ring_db);
+	spin_unlock_irq(&rnicp->lock);
+}
+
+static void iwch_db_drop_task(struct work_struct *work)
+{
+	struct iwch_dev *rnicp = container_of(work, struct iwch_dev,
+					      db_drop_task.work);
+	enable_dbs(rnicp, 1);
+}
+
 static void rnic_init(struct iwch_dev *rnicp)
 {
 	PDBG("%s iwch_dev %p\n", __func__,  rnicp);
@@ -72,6 +112,7 @@ static void rnic_init(struct iwch_dev *rnicp)
 	idr_init(&rnicp->qpidr);
 	idr_init(&rnicp->mmidr);
 	spin_lock_init(&rnicp->lock);
+	INIT_DELAYED_WORK(&rnicp->db_drop_task, iwch_db_drop_task);
 
 	rnicp->attr.max_qps = T3_MAX_NUM_QP - 32;
 	rnicp->attr.max_wrs = T3_MAX_QP_DEPTH;
@@ -147,6 +188,8 @@ static void close_rnic_dev(struct t3cdev *tdev)
 	mutex_lock(&dev_mutex);
 	list_for_each_entry_safe(dev, tmp, &dev_list, entry) {
 		if (dev->rdev.t3cdev_p == tdev) {
+			dev->rdev.flags = CXIO_ERROR_FATAL;
+			cancel_delayed_work_sync(&dev->db_drop_task);
 			list_del(&dev->entry);
 			iwch_unregister_device(dev);
 			cxio_rdev_close(&dev->rdev);
@@ -165,7 +208,8 @@ static void iwch_event_handler(struct t3cdev *tdev, u32 evt, u32 port_id)
 	struct cxio_rdev *rdev = tdev->ulp;
 	struct iwch_dev *rnicp;
 	struct ib_event event;
-	u32    portnum = port_id + 1;
+	u32 portnum = port_id + 1;
+	int dispatch = 0;
 
 	if (!rdev)
 		return;
@@ -174,21 +218,49 @@ static void iwch_event_handler(struct t3cdev *tdev, u32 evt, u32 port_id)
 	case OFFLOAD_STATUS_DOWN: {
 		rdev->flags = CXIO_ERROR_FATAL;
 		event.event  = IB_EVENT_DEVICE_FATAL;
+		dispatch = 1;
 		break;
 		}
 	case OFFLOAD_PORT_DOWN: {
 		event.event  = IB_EVENT_PORT_ERR;
+		dispatch = 1;
 		break;
 		}
 	case OFFLOAD_PORT_UP: {
 		event.event  = IB_EVENT_PORT_ACTIVE;
+		dispatch = 1;
+		break;
+		}
+	case OFFLOAD_DB_FULL: {
+		disable_dbs(rnicp);
+		break;
+		}
+	case OFFLOAD_DB_EMPTY: {
+		enable_dbs(rnicp, 1);
+		break;
+		}
+	case OFFLOAD_DB_DROP: {
+		unsigned long delay = 1000;
+		unsigned short r;
+
+		disable_dbs(rnicp);
+		get_random_bytes(&r, 2);
+		delay += r & 1023;
+
+		/*
+		 * delay is between 1000-2023 usecs.
+		 */
+		schedule_delayed_work(&rnicp->db_drop_task,
+			usecs_to_jiffies(delay));
 		break;
 		}
 	}
 
-	event.device = &rnicp->ibdev;
-	event.element.port_num = portnum;
-	ib_dispatch_event(&event);
+	if (dispatch) {
+		event.device = &rnicp->ibdev;
+		event.element.port_num = portnum;
+		ib_dispatch_event(&event);
+	}
 
 	return;
 }

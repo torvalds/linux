@@ -751,7 +751,6 @@ static void recv_interrupt(u16 port_int_reg, struct icom_port *icom_port)
 		trace(icom_port, "FID_STATUS", status);
 		count = cpu_to_le16(icom_port->statStg->rcv[rcv_buff].leLength);
 
-                count = tty_buffer_request_room(tty, count);
 		trace(icom_port, "RCV_COUNT", count);
 
 		trace(icom_port, "REAL_COUNT", count);
@@ -1654,4 +1653,6 @@ MODULE_DESCRIPTION("IBM iSeries Serial IOA driver");
 MODULE_SUPPORTED_DEVICE
     ("IBM iSeries 2745, 2771, 2772, 2742, 2793 and 2805 Communications adapters");
 MODULE_LICENSE("GPL");
-
+MODULE_FIRMWARE("icom_call_setup.bin");
+MODULE_FIRMWARE("icom_res_dce.bin");
+MODULE_FIRMWARE("icom_asc.bin");

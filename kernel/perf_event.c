@@ -2595,7 +2595,7 @@ static int perf_mmap(struct file *file, struct vm_area_struct *vma)
 	if (user_locked > user_lock_limit)
 		extra = user_locked - user_lock_limit;
 
-	lock_limit = current->signal->rlim[RLIMIT_MEMLOCK].rlim_cur;
+	lock_limit = rlimit(RLIMIT_MEMLOCK);
 	lock_limit >>= PAGE_SHIFT;
 	locked = vma->vm_mm->locked_vm + extra;
 
@@ -5466,13 +5466,16 @@ void __init perf_event_init(void)
 	register_cpu_notifier(&perf_cpu_nb);
 }
 
-static ssize_t perf_show_reserve_percpu(struct sysdev_class *class, char *buf)
+static ssize_t perf_show_reserve_percpu(struct sysdev_class *class,
+					struct sysdev_class_attribute *attr,
+					char *buf)
 {
 	return sprintf(buf, "%d\n", perf_reserved_percpu);
 }
 
 static ssize_t
 perf_set_reserve_percpu(struct sysdev_class *class,
+			struct sysdev_class_attribute *attr,
 			const char *buf,
 			size_t count)
 {
@@ -5501,13 +5504,17 @@ perf_set_reserve_percpu(struct sysdev_class *class,
 	return count;
 }
 
-static ssize_t perf_show_overcommit(struct sysdev_class *class, char *buf)
+static ssize_t perf_show_overcommit(struct sysdev_class *class,
+				    struct sysdev_class_attribute *attr,
+				    char *buf)
 {
 	return sprintf(buf, "%d\n", perf_overcommit);
 }
 
 static ssize_t
-perf_set_overcommit(struct sysdev_class *class, const char *buf, size_t count)
+perf_set_overcommit(struct sysdev_class *class,
+		    struct sysdev_class_attribute *attr,
+		    const char *buf, size_t count)
 {
 	unsigned long val;
 	int err;

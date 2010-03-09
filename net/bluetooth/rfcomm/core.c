@@ -2098,7 +2098,9 @@ static struct hci_cb rfcomm_cb = {
 	.security_cfm	= rfcomm_security_cfm
 };
 
-static ssize_t rfcomm_dlc_sysfs_show(struct class *dev, char *buf)
+static ssize_t rfcomm_dlc_sysfs_show(struct class *dev,
+				     struct class_attribute *attr,
+				     char *buf)
 {
 	struct rfcomm_session *s;
 	struct list_head *pp, *p;

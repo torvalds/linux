@@ -489,17 +489,14 @@ void avc_audit(u32 ssid, u32 tsid,
 	struct common_audit_data stack_data;
 	u32 denied, audited;
 	denied = requested & ~avd->allowed;
-	if (denied) {
-		audited = denied;
-		if (!(audited & avd->auditdeny))
-			return;
-	} else if (result) {
+	if (denied)
+		audited = denied & avd->auditdeny;
+	else if (result)
 		audited = denied = requested;
-	} else {
-		audited = requested;
-		if (!(audited & avd->auditallow))
-			return;
-	}
+	else
+		audited = requested & avd->auditallow;
+	if (!audited)
+		return;
 	if (!a) {
 		a = &stack_data;
 		memset(a, 0, sizeof(*a));
@@ -746,9 +743,7 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 		else
 			avd = &avd_entry;
 
-		rc = security_compute_av(ssid, tsid, tclass, requested, avd);
-		if (rc)
-			goto out;
+		security_compute_av(ssid, tsid, tclass, avd);
 		rcu_read_lock();
 		node = avc_insert(ssid, tsid, tclass, avd);
 	} else {
@@ -770,7 +765,6 @@ int avc_has_perm_noaudit(u32 ssid, u32 tsid,
 	}
 
 	rcu_read_unlock();
-out:
 	return rc;
 }
 

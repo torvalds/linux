@@ -248,7 +248,7 @@ int s5k4aa_probe(struct sd *sd)
 		return -ENODEV;
 	}
 
-	info("Probing for a s5k4aa sensor");
+	PDEBUG(D_PROBE, "Probing for a s5k4aa sensor");
 
 	/* Preinit the sensor */
 	for (i = 0; i < ARRAY_SIZE(preinit_s5k4aa) && !err; i++) {

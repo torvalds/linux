@@ -988,6 +988,7 @@ static ssize_t __write_ports_delfd(char *buf)
 static ssize_t __write_ports_addxprt(char *buf)
 {
 	char transport[16];
+	struct svc_xprt *xprt;
 	int port, err;
 
 	if (sscanf(buf, "%15s %4u", transport, &port) != 2)
@@ -1002,13 +1003,24 @@ static ssize_t __write_ports_addxprt(char *buf)
 
 	err = svc_create_xprt(nfsd_serv, transport,
 				PF_INET, port, SVC_SOCK_ANONYMOUS);
-	if (err < 0) {
-		/* Give a reasonable perror msg for bad transport string */
-		if (err == -ENOENT)
-			err = -EPROTONOSUPPORT;
-		return err;
-	}
+	if (err < 0)
+		goto out_err;
+
+	err = svc_create_xprt(nfsd_serv, transport,
+				PF_INET6, port, SVC_SOCK_ANONYMOUS);
+	if (err < 0 && err != -EAFNOSUPPORT)
+		goto out_close;
 	return 0;
+out_close:
+	xprt = svc_find_xprt(nfsd_serv, transport, PF_INET, port);
+	if (xprt != NULL) {
+		svc_close_xprt(xprt);
+		svc_xprt_put(xprt);
+	}
+out_err:
+	/* Decrease the count, but don't shut down the service */
+	nfsd_serv->sv_nrthreads--;
+	return err;
 }
 
 /*

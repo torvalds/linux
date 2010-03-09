@@ -27,6 +27,7 @@
 #include <net/netfilter/nf_conntrack_expect.h>
 #include <net/netfilter/nf_conntrack_helper.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
+#include <net/netfilter/nf_conntrack_zones.h>
 
 unsigned int nf_ct_expect_hsize __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_expect_hsize);
@@ -84,7 +85,8 @@ static unsigned int nf_ct_expect_dst_hash(const struct nf_conntrack_tuple *tuple
 }
 
 struct nf_conntrack_expect *
-__nf_ct_expect_find(struct net *net, const struct nf_conntrack_tuple *tuple)
+__nf_ct_expect_find(struct net *net, u16 zone,
+		    const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_expect *i;
 	struct hlist_node *n;
@@ -95,7 +97,8 @@ __nf_ct_expect_find(struct net *net, const struct nf_conntrack_tuple *tuple)
 
 	h = nf_ct_expect_dst_hash(tuple);
 	hlist_for_each_entry_rcu(i, n, &net->ct.expect_hash[h], hnode) {
-		if (nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask))
+		if (nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask) &&
+		    nf_ct_zone(i->master) == zone)
 			return i;
 	}
 	return NULL;
@@ -104,12 +107,13 @@ EXPORT_SYMBOL_GPL(__nf_ct_expect_find);
 
 /* Just find a expectation corresponding to a tuple. */
 struct nf_conntrack_expect *
-nf_ct_expect_find_get(struct net *net, const struct nf_conntrack_tuple *tuple)
+nf_ct_expect_find_get(struct net *net, u16 zone,
+		      const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_expect *i;
 
 	rcu_read_lock();
-	i = __nf_ct_expect_find(net, tuple);
+	i = __nf_ct_expect_find(net, zone, tuple);
 	if (i && !atomic_inc_not_zero(&i->use))
 		i = NULL;
 	rcu_read_unlock();
@@ -121,7 +125,8 @@ EXPORT_SYMBOL_GPL(nf_ct_expect_find_get);
 /* If an expectation for this connection is found, it gets delete from
  * global list then returned. */
 struct nf_conntrack_expect *
-nf_ct_find_expectation(struct net *net, const struct nf_conntrack_tuple *tuple)
+nf_ct_find_expectation(struct net *net, u16 zone,
+		       const struct nf_conntrack_tuple *tuple)
 {
 	struct nf_conntrack_expect *i, *exp = NULL;
 	struct hlist_node *n;
@@ -133,7 +138,8 @@ nf_ct_find_expectation(struct net *net, const struct nf_conntrack_tuple *tuple)
 	h = nf_ct_expect_dst_hash(tuple);
 	hlist_for_each_entry(i, n, &net->ct.expect_hash[h], hnode) {
 		if (!(i->flags & NF_CT_EXPECT_INACTIVE) &&
-		    nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask)) {
+		    nf_ct_tuple_mask_cmp(tuple, &i->tuple, &i->mask) &&
+		    nf_ct_zone(i->master) == zone) {
 			exp = i;
 			break;
 		}
@@ -204,7 +210,8 @@ static inline int expect_matches(const struct nf_conntrack_expect *a,
 {
 	return a->master == b->master && a->class == b->class &&
 		nf_ct_tuple_equal(&a->tuple, &b->tuple) &&
-		nf_ct_tuple_mask_equal(&a->mask, &b->mask);
+		nf_ct_tuple_mask_equal(&a->mask, &b->mask) &&
+		nf_ct_zone(a->master) == nf_ct_zone(b->master);
 }
 
 /* Generally a bad idea to call this: could have matched already. */
@@ -232,7 +239,6 @@ struct nf_conntrack_expect *nf_ct_expect_alloc(struct nf_conn *me)
 
 	new->master = me;
 	atomic_set(&new->use, 1);
-	INIT_RCU_HEAD(&new->rcu);
 	return new;
 }
 EXPORT_SYMBOL_GPL(nf_ct_expect_alloc);
@@ -500,6 +506,7 @@ static void exp_seq_stop(struct seq_file *seq, void *v)
 static int exp_seq_show(struct seq_file *s, void *v)
 {
 	struct nf_conntrack_expect *expect;
+	struct nf_conntrack_helper *helper;
 	struct hlist_node *n = v;
 	char *delim = "";
 
@@ -524,6 +531,14 @@ static int exp_seq_show(struct seq_file *s, void *v)
 	}
 	if (expect->flags & NF_CT_EXPECT_INACTIVE)
 		seq_printf(s, "%sINACTIVE", delim);
+
+	helper = rcu_dereference(nfct_help(expect->master)->helper);
+	if (helper) {
+		seq_printf(s, "%s%s", expect->flags ? " " : "", helper->name);
+		if (helper->expect_policy[expect->class].name)
+			seq_printf(s, "/%s",
+				   helper->expect_policy[expect->class].name);
+	}
 
 	return seq_putc(s, '\n');
 }

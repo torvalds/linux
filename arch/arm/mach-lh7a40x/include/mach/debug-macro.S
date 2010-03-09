@@ -14,7 +14,7 @@
 	@ It is not known if this will be appropriate for every 40x
 	@ board.
 
-		.macro  addruart,rx
+		.macro  addruart, rx, tmp
 		mrc     p15, 0, \rx, c1, c0
 		tst     \rx, #1                 @ MMU enabled?
 		mov     \rx, #0x00000700        @ offset from base

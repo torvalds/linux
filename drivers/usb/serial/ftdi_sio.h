@@ -28,13 +28,13 @@
 #define FTDI_SIO_SET_FLOW_CTRL	2 /* Set flow control register */
 #define FTDI_SIO_SET_BAUD_RATE	3 /* Set baud rate */
 #define FTDI_SIO_SET_DATA	4 /* Set the data characteristics of the port */
-#define FTDI_SIO_GET_MODEM_STATUS	5 /* Retrieve current value of modern status register */
+#define FTDI_SIO_GET_MODEM_STATUS	5 /* Retrieve current value of modem status register */
 #define FTDI_SIO_SET_EVENT_CHAR	6 /* Set the event character */
 #define FTDI_SIO_SET_ERROR_CHAR	7 /* Set the error character */
 #define FTDI_SIO_SET_LATENCY_TIMER	9 /* Set the latency timer */
 #define FTDI_SIO_GET_LATENCY_TIMER	10 /* Get the latency timer */
 
-/* Interface indicies for FT2232, FT2232H and FT4232H devices*/
+/* Interface indices for FT2232, FT2232H and FT4232H devices */
 #define INTERFACE_A		1
 #define INTERFACE_B		2
 #define INTERFACE_C		3
@@ -270,7 +270,7 @@ typedef enum {
  *   BmRequestType:  0100 0000b
  *   bRequest:       FTDI_SIO_SET_FLOW_CTRL
  *   wValue:         Xoff/Xon
- *   wIndex:         Protocol/Port - hIndex is protocl / lIndex is port
+ *   wIndex:         Protocol/Port - hIndex is protocol / lIndex is port
  *   wLength:        0
  *   Data:           None
  *

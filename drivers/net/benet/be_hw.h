@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -99,6 +99,63 @@
 /* Number of entries posted */
 #define DB_MCCQ_NUM_POSTED_SHIFT	(16)	/* bits 16 - 29 */
 
+/* Flashrom related descriptors */
+#define IMAGE_TYPE_FIRMWARE		160
+#define IMAGE_TYPE_BOOTCODE		224
+#define IMAGE_TYPE_OPTIONROM		32
+
+#define NUM_FLASHDIR_ENTRIES		32
+
+#define IMG_TYPE_ISCSI_ACTIVE		0
+#define IMG_TYPE_REDBOOT		1
+#define IMG_TYPE_BIOS			2
+#define IMG_TYPE_PXE_BIOS		3
+#define IMG_TYPE_FCOE_BIOS		8
+#define IMG_TYPE_ISCSI_BACKUP		9
+#define IMG_TYPE_FCOE_FW_ACTIVE		10
+#define IMG_TYPE_FCOE_FW_BACKUP 	11
+#define IMG_TYPE_NCSI_BITFILE		13
+#define IMG_TYPE_NCSI_8051		14
+
+#define FLASHROM_OPER_FLASH		1
+#define FLASHROM_OPER_SAVE		2
+#define FLASHROM_OPER_REPORT		4
+
+#define FLASH_IMAGE_MAX_SIZE_g2            (1310720) /* Max firmware image sz */
+#define FLASH_BIOS_IMAGE_MAX_SIZE_g2       (262144)  /* Max OPTION ROM img sz */
+#define FLASH_REDBOOT_IMAGE_MAX_SIZE_g2	  (262144)  /* Max Redboot image sz */
+#define FLASH_IMAGE_MAX_SIZE_g3            (2097152) /* Max fw image size */
+#define FLASH_BIOS_IMAGE_MAX_SIZE_g3       (524288)  /* Max OPTION ROM img sz */
+#define FLASH_REDBOOT_IMAGE_MAX_SIZE_g3	  (1048576)  /* Max Redboot image sz */
+
+#define FLASH_NCSI_MAGIC		(0x16032009)
+#define FLASH_NCSI_DISABLED		(0)
+#define FLASH_NCSI_ENABLED		(1)
+
+#define FLASH_NCSI_BITFILE_HDR_OFFSET	(0x600000)
+
+/* Offsets for components on Flash. */
+#define FLASH_iSCSI_PRIMARY_IMAGE_START_g2 (1048576)
+#define FLASH_iSCSI_BACKUP_IMAGE_START_g2  (2359296)
+#define FLASH_FCoE_PRIMARY_IMAGE_START_g2  (3670016)
+#define FLASH_FCoE_BACKUP_IMAGE_START_g2   (4980736)
+#define FLASH_iSCSI_BIOS_START_g2          (7340032)
+#define FLASH_PXE_BIOS_START_g2            (7864320)
+#define FLASH_FCoE_BIOS_START_g2           (524288)
+#define FLASH_REDBOOT_START_g2		  (0)
+
+#define FLASH_iSCSI_PRIMARY_IMAGE_START_g3 (2097152)
+#define FLASH_iSCSI_BACKUP_IMAGE_START_g3  (4194304)
+#define FLASH_FCoE_PRIMARY_IMAGE_START_g3  (6291456)
+#define FLASH_FCoE_BACKUP_IMAGE_START_g3   (8388608)
+#define FLASH_iSCSI_BIOS_START_g3          (12582912)
+#define FLASH_PXE_BIOS_START_g3            (13107200)
+#define FLASH_FCoE_BIOS_START_g3           (13631488)
+#define FLASH_REDBOOT_START_g3             (262144)
+
+
+
+
 /*
  * BE descriptors: host memory data structures whose formats
  * are hardwired in BE silicon.
@@ -107,6 +164,7 @@
 #define EQ_ENTRY_VALID_MASK 		0x1	/* bit 0 */
 #define EQ_ENTRY_RES_ID_MASK 		0xFFFF	/* bits 16 - 31 */
 #define EQ_ENTRY_RES_ID_SHIFT 		16
+
 struct be_eq_entry {
 	u32 evt;
 };
@@ -221,41 +279,6 @@ struct be_eth_rx_compl {
 	u32 dw[4];
 };
 
-/* Flashrom related descriptors */
-#define IMAGE_TYPE_FIRMWARE		160
-#define IMAGE_TYPE_BOOTCODE		224
-#define IMAGE_TYPE_OPTIONROM		32
-
-#define NUM_FLASHDIR_ENTRIES		32
-
-#define FLASHROM_TYPE_ISCSI_ACTIVE	0
-#define FLASHROM_TYPE_REDBOOT		1
-#define FLASHROM_TYPE_BIOS		2
-#define FLASHROM_TYPE_PXE_BIOS		3
-#define FLASHROM_TYPE_FCOE_BIOS		8
-#define FLASHROM_TYPE_ISCSI_BACKUP	9
-#define FLASHROM_TYPE_FCOE_FW_ACTIVE	10
-#define FLASHROM_TYPE_FCOE_FW_BACKUP 	11
-
-#define FLASHROM_OPER_FLASH		1
-#define FLASHROM_OPER_SAVE		2
-#define FLASHROM_OPER_REPORT		4
-
-#define FLASH_IMAGE_MAX_SIZE            (1310720) /* Max firmware image size */
-#define FLASH_BIOS_IMAGE_MAX_SIZE       (262144)  /* Max OPTION ROM image sz */
-#define FLASH_REDBOOT_IMAGE_MAX_SIZE    (262144)  /* Max redboot image sz */
-
-/* Offsets for components on Flash. */
-#define FLASH_iSCSI_PRIMARY_IMAGE_START (1048576)
-#define FLASH_iSCSI_BACKUP_IMAGE_START  (2359296)
-#define FLASH_FCoE_PRIMARY_IMAGE_START  (3670016)
-#define FLASH_FCoE_BACKUP_IMAGE_START   (4980736)
-#define FLASH_iSCSI_BIOS_START          (7340032)
-#define FLASH_PXE_BIOS_START            (7864320)
-#define FLASH_FCoE_BIOS_START           (524288)
-#define FLASH_REDBOOT_START		(32768)
-#define FLASH_REDBOOT_ISM_START		(0)
-
 struct controller_id {
 	u32 vendor;
 	u32 device;
@@ -263,7 +286,20 @@ struct controller_id {
 	u32 subdevice;
 };
 
-struct flash_file_hdr {
+struct flash_comp {
+	unsigned long offset;
+	int optype;
+	int size;
+};
+
+struct image_hdr {
+	u32 imageid;
+	u32 imageoffset;
+	u32 imagelength;
+	u32 image_checksum;
+	u8 image_version[32];
+};
+struct flash_file_hdr_g2 {
 	u8 sign[32];
 	u32 cksum;
 	u32 antidote;
@@ -273,6 +309,17 @@ struct flash_file_hdr {
 	u32 total_chunks;
 	u32 num_imgs;
 	u8 build[24];
+};
+
+struct flash_file_hdr_g3 {
+	u8 sign[52];
+	u8 ufi_version[4];
+	u32 file_len;
+	u32 cksum;
+	u32 antidote;
+	u32 num_imgs;
+	u8 build[24];
+	u8 rsvd[32];
 };
 
 struct flash_section_hdr {

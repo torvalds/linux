@@ -325,7 +325,7 @@ static struct fb_ops hitfb_ops = {
 	.fb_imageblit	= cfb_imageblit,
 };
 
-static int __init hitfb_probe(struct platform_device *dev)
+static int __devinit hitfb_probe(struct platform_device *dev)
 {
 	unsigned short lcdclor, ldr3, ldvndr;
 	struct fb_info *info;

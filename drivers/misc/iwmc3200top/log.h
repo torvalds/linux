@@ -37,12 +37,25 @@
 #define LOG_SEV_INFO			3
 #define LOG_SEV_INFOEX			4
 
-#define LOG_SEV_FILTER_ALL		\
-	(BIT(LOG_SEV_CRITICAL) |	\
-	 BIT(LOG_SEV_ERROR)    |	\
-	 BIT(LOG_SEV_WARNING)  | 	\
-	 BIT(LOG_SEV_INFO)     |	\
+/* Log levels not defined for FW */
+#define LOG_SEV_TRACE			5
+#define LOG_SEV_DUMP			6
+
+#define LOG_SEV_FW_FILTER_ALL		\
+	(BIT(LOG_SEV_CRITICAL)	|	\
+	 BIT(LOG_SEV_ERROR)	|	\
+	 BIT(LOG_SEV_WARNING)	| 	\
+	 BIT(LOG_SEV_INFO)	|	\
 	 BIT(LOG_SEV_INFOEX))
+
+#define LOG_SEV_FILTER_ALL		\
+	(BIT(LOG_SEV_CRITICAL)	|	\
+	 BIT(LOG_SEV_ERROR)	|	\
+	 BIT(LOG_SEV_WARNING)	| 	\
+	 BIT(LOG_SEV_INFO)	|	\
+	 BIT(LOG_SEV_INFOEX)	|	\
+	 BIT(LOG_SEV_TRACE)	|	\
+	 BIT(LOG_SEV_DUMP))
 
 /* log source */
 #define LOG_SRC_INIT			0
@@ -104,16 +117,16 @@ do {									\
 			 __func__, __LINE__, ##args);			\
 } while (0)
 
-#define LOG_INFOEX(priv, src, fmt, args...)				\
+#define LOG_TRACE(priv, src, fmt, args...)				\
 do {									\
-	if (iwmct_logdefs[LOG_SRC_ ## src] & BIT(LOG_SEV_INFOEX))	\
+	if (iwmct_logdefs[LOG_SRC_ ## src] & BIT(LOG_SEV_TRACE))	\
 		dev_dbg(priv2dev(priv), "%s %d: " fmt,			\
 			 __func__, __LINE__, ##args);			\
 } while (0)
 
 #define LOG_HEXDUMP(src, ptr, len)					\
 do {									\
-	if (iwmct_logdefs[LOG_SRC_ ## src] & BIT(LOG_SEV_INFOEX))	\
+	if (iwmct_logdefs[LOG_SRC_ ## src] & BIT(LOG_SEV_DUMP))	\
 		print_hex_dump(KERN_DEBUG, "", DUMP_PREFIX_NONE,	\
 				16, 1, ptr, len, false);		\
 } while (0)
@@ -142,7 +155,7 @@ ssize_t store_iwmct_log_level_fw(struct device *d,
 #define LOG_ERROR(priv, src, fmt, args...)
 #define LOG_WARNING(priv, src, fmt, args...)
 #define LOG_INFO(priv, src, fmt, args...)
-#define LOG_INFOEX(priv, src, fmt, args...)
+#define LOG_TRACE(priv, src, fmt, args...)
 #define LOG_HEXDUMP(src, ptr, len)
 
 static inline void iwmct_log_top_message(struct iwmct_priv *priv,

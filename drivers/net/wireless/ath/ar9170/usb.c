@@ -84,6 +84,8 @@ static struct usb_device_id ar9170_usb_ids[] = {
 	{ USB_DEVICE(0x0cde, 0x0023) },
 	/* Z-Com UB82 ABG */
 	{ USB_DEVICE(0x0cde, 0x0026) },
+	/* Sphairon Homelink 1202 */
+	{ USB_DEVICE(0x0cde, 0x0027) },
 	/* Arcadyan WN7512 */
 	{ USB_DEVICE(0x083a, 0xf522) },
 	/* Planex GWUS300 */

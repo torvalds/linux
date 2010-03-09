@@ -25,6 +25,9 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	struct net_bridge *br = netdev_priv(dev);
 	const unsigned char *dest = skb->data;
 	struct net_bridge_fdb_entry *dst;
+	struct net_bridge_mdb_entry *mdst;
+
+	BR_INPUT_SKB_CB(skb)->brdev = dev;
 
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += skb->len;
@@ -32,13 +35,21 @@ netdev_tx_t br_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 	skb_reset_mac_header(skb);
 	skb_pull(skb, ETH_HLEN);
 
-	if (dest[0] & 1)
-		br_flood_deliver(br, skb);
-	else if ((dst = __br_fdb_get(br, dest)) != NULL)
+	if (dest[0] & 1) {
+		if (br_multicast_rcv(br, NULL, skb))
+			goto out;
+
+		mdst = br_mdb_get(br, skb);
+		if (mdst || BR_INPUT_SKB_CB(skb)->mrouters_only)
+			br_multicast_deliver(mdst, skb);
+		else
+			br_flood_deliver(br, skb);
+	} else if ((dst = __br_fdb_get(br, dest)) != NULL)
 		br_deliver(dst->dst, skb);
 	else
 		br_flood_deliver(br, skb);
 
+out:
 	return NETDEV_TX_OK;
 }
 
@@ -49,6 +60,7 @@ static int br_dev_open(struct net_device *dev)
 	br_features_recompute(br);
 	netif_start_queue(dev);
 	br_stp_enable_bridge(br);
+	br_multicast_open(br);
 
 	return 0;
 }
@@ -59,7 +71,10 @@ static void br_dev_set_multicast_list(struct net_device *dev)
 
 static int br_dev_stop(struct net_device *dev)
 {
-	br_stp_disable_bridge(netdev_priv(dev));
+	struct net_bridge *br = netdev_priv(dev);
+
+	br_stp_disable_bridge(br);
+	br_multicast_stop(br);
 
 	netif_stop_queue(dev);
 

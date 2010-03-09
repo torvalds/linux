@@ -1863,25 +1863,13 @@ static int ax25_ioctl(struct socket *sock, unsigned int cmd, unsigned long arg)
 static void *ax25_info_start(struct seq_file *seq, loff_t *pos)
 	__acquires(ax25_list_lock)
 {
-	struct ax25_cb *ax25;
-	struct hlist_node *node;
-	int i = 0;
-
 	spin_lock_bh(&ax25_list_lock);
-	ax25_for_each(ax25, node, &ax25_list) {
-		if (i == *pos)
-			return ax25;
-		++i;
-	}
-	return NULL;
+	return seq_hlist_start(&ax25_list, *pos);
 }
 
 static void *ax25_info_next(struct seq_file *seq, void *v, loff_t *pos)
 {
-	++*pos;
-
-	return hlist_entry( ((struct ax25_cb *)v)->ax25_node.next,
-			    struct ax25_cb, ax25_node);
+	return seq_hlist_next(v, &ax25_list, pos);
 }
 
 static void ax25_info_stop(struct seq_file *seq, void *v)
@@ -1892,7 +1880,7 @@ static void ax25_info_stop(struct seq_file *seq, void *v)
 
 static int ax25_info_show(struct seq_file *seq, void *v)
 {
-	ax25_cb *ax25 = v;
+	ax25_cb *ax25 = hlist_entry(v, struct ax25_cb, ax25_node);
 	char buf[11];
 	int k;
 

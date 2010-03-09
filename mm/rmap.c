@@ -62,6 +62,7 @@
 #include "internal.h"
 
 static struct kmem_cache *anon_vma_cachep;
+static struct kmem_cache *anon_vma_chain_cachep;
 
 static inline struct anon_vma *anon_vma_alloc(void)
 {
@@ -71,6 +72,16 @@ static inline struct anon_vma *anon_vma_alloc(void)
 void anon_vma_free(struct anon_vma *anon_vma)
 {
 	kmem_cache_free(anon_vma_cachep, anon_vma);
+}
+
+static inline struct anon_vma_chain *anon_vma_chain_alloc(void)
+{
+	return kmem_cache_alloc(anon_vma_chain_cachep, GFP_KERNEL);
+}
+
+void anon_vma_chain_free(struct anon_vma_chain *anon_vma_chain)
+{
+	kmem_cache_free(anon_vma_chain_cachep, anon_vma_chain);
 }
 
 /**
@@ -103,18 +114,23 @@ void anon_vma_free(struct anon_vma *anon_vma)
 int anon_vma_prepare(struct vm_area_struct *vma)
 {
 	struct anon_vma *anon_vma = vma->anon_vma;
+	struct anon_vma_chain *avc;
 
 	might_sleep();
 	if (unlikely(!anon_vma)) {
 		struct mm_struct *mm = vma->vm_mm;
 		struct anon_vma *allocated;
 
+		avc = anon_vma_chain_alloc();
+		if (!avc)
+			goto out_enomem;
+
 		anon_vma = find_mergeable_anon_vma(vma);
 		allocated = NULL;
 		if (!anon_vma) {
 			anon_vma = anon_vma_alloc();
 			if (unlikely(!anon_vma))
-				return -ENOMEM;
+				goto out_enomem_free_avc;
 			allocated = anon_vma;
 		}
 		spin_lock(&anon_vma->lock);
@@ -123,53 +139,113 @@ int anon_vma_prepare(struct vm_area_struct *vma)
 		spin_lock(&mm->page_table_lock);
 		if (likely(!vma->anon_vma)) {
 			vma->anon_vma = anon_vma;
-			list_add_tail(&vma->anon_vma_node, &anon_vma->head);
+			avc->anon_vma = anon_vma;
+			avc->vma = vma;
+			list_add(&avc->same_vma, &vma->anon_vma_chain);
+			list_add(&avc->same_anon_vma, &anon_vma->head);
 			allocated = NULL;
 		}
 		spin_unlock(&mm->page_table_lock);
 
 		spin_unlock(&anon_vma->lock);
-		if (unlikely(allocated))
+		if (unlikely(allocated)) {
 			anon_vma_free(allocated);
+			anon_vma_chain_free(avc);
+		}
 	}
 	return 0;
+
+ out_enomem_free_avc:
+	anon_vma_chain_free(avc);
+ out_enomem:
+	return -ENOMEM;
 }
 
-void __anon_vma_merge(struct vm_area_struct *vma, struct vm_area_struct *next)
+static void anon_vma_chain_link(struct vm_area_struct *vma,
+				struct anon_vma_chain *avc,
+				struct anon_vma *anon_vma)
 {
-	BUG_ON(vma->anon_vma != next->anon_vma);
-	list_del(&next->anon_vma_node);
+	avc->vma = vma;
+	avc->anon_vma = anon_vma;
+	list_add(&avc->same_vma, &vma->anon_vma_chain);
+
+	spin_lock(&anon_vma->lock);
+	list_add_tail(&avc->same_anon_vma, &anon_vma->head);
+	spin_unlock(&anon_vma->lock);
 }
 
-void __anon_vma_link(struct vm_area_struct *vma)
+/*
+ * Attach the anon_vmas from src to dst.
+ * Returns 0 on success, -ENOMEM on failure.
+ */
+int anon_vma_clone(struct vm_area_struct *dst, struct vm_area_struct *src)
 {
-	struct anon_vma *anon_vma = vma->anon_vma;
+	struct anon_vma_chain *avc, *pavc;
 
-	if (anon_vma)
-		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
-}
-
-void anon_vma_link(struct vm_area_struct *vma)
-{
-	struct anon_vma *anon_vma = vma->anon_vma;
-
-	if (anon_vma) {
-		spin_lock(&anon_vma->lock);
-		list_add_tail(&vma->anon_vma_node, &anon_vma->head);
-		spin_unlock(&anon_vma->lock);
+	list_for_each_entry(pavc, &src->anon_vma_chain, same_vma) {
+		avc = anon_vma_chain_alloc();
+		if (!avc)
+			goto enomem_failure;
+		anon_vma_chain_link(dst, avc, pavc->anon_vma);
 	}
+	return 0;
+
+ enomem_failure:
+	unlink_anon_vmas(dst);
+	return -ENOMEM;
 }
 
-void anon_vma_unlink(struct vm_area_struct *vma)
+/*
+ * Attach vma to its own anon_vma, as well as to the anon_vmas that
+ * the corresponding VMA in the parent process is attached to.
+ * Returns 0 on success, non-zero on failure.
+ */
+int anon_vma_fork(struct vm_area_struct *vma, struct vm_area_struct *pvma)
 {
-	struct anon_vma *anon_vma = vma->anon_vma;
+	struct anon_vma_chain *avc;
+	struct anon_vma *anon_vma;
+
+	/* Don't bother if the parent process has no anon_vma here. */
+	if (!pvma->anon_vma)
+		return 0;
+
+	/*
+	 * First, attach the new VMA to the parent VMA's anon_vmas,
+	 * so rmap can find non-COWed pages in child processes.
+	 */
+	if (anon_vma_clone(vma, pvma))
+		return -ENOMEM;
+
+	/* Then add our own anon_vma. */
+	anon_vma = anon_vma_alloc();
+	if (!anon_vma)
+		goto out_error;
+	avc = anon_vma_chain_alloc();
+	if (!avc)
+		goto out_error_free_anon_vma;
+	anon_vma_chain_link(vma, avc, anon_vma);
+	/* Mark this anon_vma as the one where our new (COWed) pages go. */
+	vma->anon_vma = anon_vma;
+
+	return 0;
+
+ out_error_free_anon_vma:
+	anon_vma_free(anon_vma);
+ out_error:
+	return -ENOMEM;
+}
+
+static void anon_vma_unlink(struct anon_vma_chain *anon_vma_chain)
+{
+	struct anon_vma *anon_vma = anon_vma_chain->anon_vma;
 	int empty;
 
+	/* If anon_vma_fork fails, we can get an empty anon_vma_chain. */
 	if (!anon_vma)
 		return;
 
 	spin_lock(&anon_vma->lock);
-	list_del(&vma->anon_vma_node);
+	list_del(&anon_vma_chain->same_anon_vma);
 
 	/* We must garbage collect the anon_vma if it's empty */
 	empty = list_empty(&anon_vma->head) && !ksm_refcount(anon_vma);
@@ -177,6 +253,18 @@ void anon_vma_unlink(struct vm_area_struct *vma)
 
 	if (empty)
 		anon_vma_free(anon_vma);
+}
+
+void unlink_anon_vmas(struct vm_area_struct *vma)
+{
+	struct anon_vma_chain *avc, *next;
+
+	/* Unlink each anon_vma chained to the VMA. */
+	list_for_each_entry_safe(avc, next, &vma->anon_vma_chain, same_vma) {
+		anon_vma_unlink(avc);
+		list_del(&avc->same_vma);
+		anon_vma_chain_free(avc);
+	}
 }
 
 static void anon_vma_ctor(void *data)
@@ -192,6 +280,7 @@ void __init anon_vma_init(void)
 {
 	anon_vma_cachep = kmem_cache_create("anon_vma", sizeof(struct anon_vma),
 			0, SLAB_DESTROY_BY_RCU|SLAB_PANIC, anon_vma_ctor);
+	anon_vma_chain_cachep = KMEM_CACHE(anon_vma_chain, SLAB_PANIC);
 }
 
 /*
@@ -396,7 +485,7 @@ static int page_referenced_anon(struct page *page,
 {
 	unsigned int mapcount;
 	struct anon_vma *anon_vma;
-	struct vm_area_struct *vma;
+	struct anon_vma_chain *avc;
 	int referenced = 0;
 
 	anon_vma = page_lock_anon_vma(page);
@@ -404,7 +493,8 @@ static int page_referenced_anon(struct page *page,
 		return referenced;
 
 	mapcount = page_mapcount(page);
-	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+		struct vm_area_struct *vma = avc->vma;
 		unsigned long address = vma_address(page, vma);
 		if (address == -EFAULT)
 			continue;
@@ -511,9 +601,6 @@ int page_referenced(struct page *page,
 	int referenced = 0;
 	int we_locked = 0;
 
-	if (TestClearPageReferenced(page))
-		referenced++;
-
 	*vm_flags = 0;
 	if (page_mapped(page) && page_rmapping(page)) {
 		if (!is_locked && (!PageAnon(page) || PageKsm(page))) {
@@ -614,6 +701,30 @@ int page_mkclean(struct page *page)
 EXPORT_SYMBOL_GPL(page_mkclean);
 
 /**
+ * page_move_anon_rmap - move a page to our anon_vma
+ * @page:	the page to move to our anon_vma
+ * @vma:	the vma the page belongs to
+ * @address:	the user virtual address mapped
+ *
+ * When a page belongs exclusively to one process after a COW event,
+ * that page can be moved into the anon_vma that belongs to just that
+ * process, so the rmap code will not search the parent or sibling
+ * processes.
+ */
+void page_move_anon_rmap(struct page *page,
+	struct vm_area_struct *vma, unsigned long address)
+{
+	struct anon_vma *anon_vma = vma->anon_vma;
+
+	VM_BUG_ON(!PageLocked(page));
+	VM_BUG_ON(!anon_vma);
+	VM_BUG_ON(page->index != linear_page_index(vma, address));
+
+	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
+	page->mapping = (struct address_space *) anon_vma;
+}
+
+/**
  * __page_set_anon_rmap - setup new anonymous rmap
  * @page:	the page to add the mapping to
  * @vma:	the vm area in which the mapping is added
@@ -652,9 +763,6 @@ static void __page_check_anon_rmap(struct page *page,
 	 * are initially only visible via the pagetables, and the pte is locked
 	 * over the call to page_add_new_anon_rmap.
 	 */
-	struct anon_vma *anon_vma = vma->anon_vma;
-	anon_vma = (void *) anon_vma + PAGE_MAPPING_ANON;
-	BUG_ON(page->mapping != (struct address_space *)anon_vma);
 	BUG_ON(page->index != linear_page_index(vma, address));
 #endif
 }
@@ -815,9 +923,9 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 
 	if (PageHWPoison(page) && !(flags & TTU_IGNORE_HWPOISON)) {
 		if (PageAnon(page))
-			dec_mm_counter(mm, anon_rss);
+			dec_mm_counter(mm, MM_ANONPAGES);
 		else
-			dec_mm_counter(mm, file_rss);
+			dec_mm_counter(mm, MM_FILEPAGES);
 		set_pte_at(mm, address, pte,
 				swp_entry_to_pte(make_hwpoison_entry(page)));
 	} else if (PageAnon(page)) {
@@ -839,7 +947,8 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 					list_add(&mm->mmlist, &init_mm.mmlist);
 				spin_unlock(&mmlist_lock);
 			}
-			dec_mm_counter(mm, anon_rss);
+			dec_mm_counter(mm, MM_ANONPAGES);
+			inc_mm_counter(mm, MM_SWAPENTS);
 		} else if (PAGE_MIGRATION) {
 			/*
 			 * Store the pfn of the page in a special migration
@@ -857,7 +966,7 @@ int try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
 		entry = make_migration_entry(page, pte_write(pteval));
 		set_pte_at(mm, address, pte, swp_entry_to_pte(entry));
 	} else
-		dec_mm_counter(mm, file_rss);
+		dec_mm_counter(mm, MM_FILEPAGES);
 
 	page_remove_rmap(page);
 	page_cache_release(page);
@@ -996,7 +1105,7 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
 
 		page_remove_rmap(page);
 		page_cache_release(page);
-		dec_mm_counter(mm, file_rss);
+		dec_mm_counter(mm, MM_FILEPAGES);
 		(*mapcount)--;
 	}
 	pte_unmap_unlock(pte - 1, ptl);
@@ -1024,14 +1133,15 @@ static int try_to_unmap_cluster(unsigned long cursor, unsigned int *mapcount,
 static int try_to_unmap_anon(struct page *page, enum ttu_flags flags)
 {
 	struct anon_vma *anon_vma;
-	struct vm_area_struct *vma;
+	struct anon_vma_chain *avc;
 	int ret = SWAP_AGAIN;
 
 	anon_vma = page_lock_anon_vma(page);
 	if (!anon_vma)
 		return ret;
 
-	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+		struct vm_area_struct *vma = avc->vma;
 		unsigned long address = vma_address(page, vma);
 		if (address == -EFAULT)
 			continue;
@@ -1222,7 +1332,7 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
 		struct vm_area_struct *, unsigned long, void *), void *arg)
 {
 	struct anon_vma *anon_vma;
-	struct vm_area_struct *vma;
+	struct anon_vma_chain *avc;
 	int ret = SWAP_AGAIN;
 
 	/*
@@ -1237,7 +1347,8 @@ static int rmap_walk_anon(struct page *page, int (*rmap_one)(struct page *,
 	if (!anon_vma)
 		return ret;
 	spin_lock(&anon_vma->lock);
-	list_for_each_entry(vma, &anon_vma->head, anon_vma_node) {
+	list_for_each_entry(avc, &anon_vma->head, same_anon_vma) {
+		struct vm_area_struct *vma = avc->vma;
 		unsigned long address = vma_address(page, vma);
 		if (address == -EFAULT)
 			continue;

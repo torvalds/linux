@@ -496,7 +496,7 @@ struct dentry *debugfs_rename(struct dentry *old_dir, struct dentry *old_dentry,
 	}
 	d_move(old_dentry, dentry);
 	fsnotify_move(old_dir->d_inode, new_dir->d_inode, old_name,
-		old_dentry->d_name.name, S_ISDIR(old_dentry->d_inode->i_mode),
+		S_ISDIR(old_dentry->d_inode->i_mode),
 		NULL, old_dentry);
 	fsnotify_oldname_free(old_name);
 	unlock_rename(new_dir, old_dir);

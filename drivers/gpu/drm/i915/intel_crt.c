@@ -39,7 +39,7 @@ static void intel_crt_dpms(struct drm_encoder *encoder, int mode)
 	struct drm_i915_private *dev_priv = dev->dev_private;
 	u32 temp, reg;
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		reg = PCH_ADPA;
 	else
 		reg = ADPA;
@@ -113,7 +113,7 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 	else
 		dpll_md_reg = DPLL_B_MD;
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		adpa_reg = PCH_ADPA;
 	else
 		adpa_reg = ADPA;
@@ -122,7 +122,7 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 	 * Disable separate mode multiplier used when cloning SDVO to CRT
 	 * XXX this needs to be adjusted when we really are cloning
 	 */
-	if (IS_I965G(dev) && !IS_IRONLAKE(dev)) {
+	if (IS_I965G(dev) && !HAS_PCH_SPLIT(dev)) {
 		dpll_md = I915_READ(dpll_md_reg);
 		I915_WRITE(dpll_md_reg,
 			   dpll_md & ~DPLL_MD_UDI_MULTIPLIER_MASK);
@@ -136,11 +136,11 @@ static void intel_crt_mode_set(struct drm_encoder *encoder,
 
 	if (intel_crtc->pipe == 0) {
 		adpa |= ADPA_PIPE_A_SELECT;
-		if (!IS_IRONLAKE(dev))
+		if (!HAS_PCH_SPLIT(dev))
 			I915_WRITE(BCLRPAT_A, 0);
 	} else {
 		adpa |= ADPA_PIPE_B_SELECT;
-		if (!IS_IRONLAKE(dev))
+		if (!HAS_PCH_SPLIT(dev))
 			I915_WRITE(BCLRPAT_B, 0);
 	}
 
@@ -202,7 +202,7 @@ static bool intel_crt_detect_hotplug(struct drm_connector *connector)
 	u32 hotplug_en;
 	int i, tries = 0;
 
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		return intel_ironlake_crt_detect_hotplug(connector);
 
 	/*
@@ -524,7 +524,7 @@ void intel_crt_init(struct drm_device *dev)
 					  &intel_output->enc);
 
 	/* Set up the DDC bus. */
-	if (IS_IRONLAKE(dev))
+	if (HAS_PCH_SPLIT(dev))
 		i2c_reg = PCH_GPIOA;
 	else {
 		i2c_reg = GPIOA;

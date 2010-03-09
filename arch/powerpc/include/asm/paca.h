@@ -19,6 +19,9 @@
 #include <asm/mmu.h>
 #include <asm/page.h>
 #include <asm/exception-64e.h>
+#ifdef CONFIG_KVM_BOOK3S_64_HANDLER
+#include <asm/kvm_book3s_64_asm.h>
+#endif
 
 register struct paca_struct *local_paca asm("r13");
 
@@ -135,6 +138,8 @@ struct paca_struct {
 		u64     esid;
 		u64     vsid;
 	} kvm_slb[64];			/* guest SLB */
+	/* We use this to store guest state in */
+	struct kvmppc_book3s_shadow_vcpu shadow_vcpu;
 	u8 kvm_slb_max;			/* highest used guest slb entry */
 	u8 kvm_in_guest;		/* are we inside the guest? */
 #endif

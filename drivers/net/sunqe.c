@@ -627,7 +627,7 @@ static int qe_start_xmit(struct sk_buff *skb, struct net_device *dev)
 static void qe_set_multicast(struct net_device *dev)
 {
 	struct sunqe *qep = netdev_priv(dev);
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	u8 new_mconfig = qep->mconfig;
 	char *addrs;
 	int i;
@@ -636,7 +636,7 @@ static void qe_set_multicast(struct net_device *dev)
 	/* Lock out others. */
 	netif_stop_queue(dev);
 
-	if ((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+	if ((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 64)) {
 		sbus_writeb(MREGS_IACONFIG_ACHNGE | MREGS_IACONFIG_LARESET,
 			    qep->mregs + MREGS_IACONFIG);
 		while ((sbus_readb(qep->mregs + MREGS_IACONFIG) & MREGS_IACONFIG_ACHNGE) != 0)
@@ -650,12 +650,9 @@ static void qe_set_multicast(struct net_device *dev)
 		u16 hash_table[4];
 		u8 *hbytes = (unsigned char *) &hash_table[0];
 
-		for (i = 0; i < 4; i++)
-			hash_table[i] = 0;
-
-		for (i = 0; i < dev->mc_count; i++) {
+		memset(hash_table, 0, sizeof(hash_table));
+		netdev_for_each_mc_addr(dmi, dev) {
 			addrs = dmi->dmi_addr;
-			dmi = dmi->next;
 
 			if (!(*addrs & 1))
 				continue;

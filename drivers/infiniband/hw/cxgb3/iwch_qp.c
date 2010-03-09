@@ -452,7 +452,8 @@ int iwch_post_send(struct ib_qp *ibqp, struct ib_send_wr *wr,
 		++(qhp->wq.sq_wptr);
 	}
 	spin_unlock_irqrestore(&qhp->lock, flag);
-	ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+	if (cxio_wq_db_enabled(&qhp->wq))
+		ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
 
 out:
 	if (err)
@@ -514,7 +515,8 @@ int iwch_post_receive(struct ib_qp *ibqp, struct ib_recv_wr *wr,
 		num_wrs--;
 	}
 	spin_unlock_irqrestore(&qhp->lock, flag);
-	ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+	if (cxio_wq_db_enabled(&qhp->wq))
+		ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
 
 out:
 	if (err)
@@ -597,7 +599,8 @@ int iwch_bind_mw(struct ib_qp *qp,
 	++(qhp->wq.sq_wptr);
 	spin_unlock_irqrestore(&qhp->lock, flag);
 
-	ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
+	if (cxio_wq_db_enabled(&qhp->wq))
+		ring_doorbell(qhp->wq.doorbell, qhp->wq.qpid);
 
 	return err;
 }

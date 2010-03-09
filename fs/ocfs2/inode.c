@@ -665,7 +665,7 @@ static int ocfs2_remove_inode(struct inode *inode,
 	}
 
 	ocfs2_remove_from_cache(INODE_CACHE(inode), di_bh);
-	vfs_dq_free_inode(inode);
+	dquot_free_inode(inode);
 
 	status = ocfs2_free_dinode(handle, inode_alloc_inode,
 				   inode_alloc_bh, di);
@@ -971,6 +971,8 @@ void ocfs2_delete_inode(struct inode *inode)
 		goto bail;
 	}
 
+	dquot_initialize(inode);
+
 	if (!ocfs2_inode_is_valid_to_delete(inode)) {
 		/* It's probably not necessary to truncate_inode_pages
 		 * here but we do it for safety anyway (it will most
@@ -1086,6 +1088,8 @@ void ocfs2_clear_inode(struct inode *inode)
 
 	mlog_bug_on_msg(OCFS2_SB(inode->i_sb) == NULL,
 			"Inode=%lu\n", inode->i_ino);
+
+	dquot_drop(inode);
 
 	/* To preven remote deletes we hold open lock before, now it
 	 * is time to unlock PR and EX open locks. */

@@ -86,8 +86,8 @@ extern unsigned int kobjsize(const void *objp);
  * All 32bit addresses are effectively valid for vmalloc...
  * Sort of meaningless for non-VM targets.
  */
-#define	VMALLOC_START	0
-#define	VMALLOC_END	0xffffffff
+#define	VMALLOC_START	0UL
+#define	VMALLOC_END	0xffffffffUL
 
 #define FIRST_USER_ADDRESS      (0)
 

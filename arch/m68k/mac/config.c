@@ -23,6 +23,8 @@
 #include <linux/init.h>
 #include <linux/vt_kern.h>
 #include <linux/platform_device.h>
+#include <linux/adb.h>
+#include <linux/cuda.h>
 
 #define BOOTINFO_COMPAT_1_0
 #include <asm/setup.h>
@@ -44,12 +46,7 @@
 #include <asm/mac_oss.h>
 #include <asm/mac_psc.h>
 
-/* platform device info */
-
-#define SWIM_IO_SIZE 0x2000	/* SWIM IO resource size */
-
 /* Mac bootinfo struct */
-
 struct mac_booter_data mac_bi_data;
 
 /* The phys. video addr. - might be bogus on some machines */
@@ -69,8 +66,6 @@ extern void psc_init(void);
 extern void baboon_init(void);
 
 extern void mac_mksound(unsigned int, unsigned int);
-
-extern void nubus_sweep_video(void);
 
 static void mac_get_model(char *str);
 static void mac_identify(void);
@@ -168,12 +163,6 @@ void __init config_mac(void)
 #if defined(CONFIG_INPUT_M68K_BEEP) || defined(CONFIG_INPUT_M68K_BEEP_MODULE)
 	mach_beep = mac_mksound;
 #endif
-#ifdef CONFIG_HEARTBEAT
-#if 0
-	mach_heartbeat = mac_heartbeat;
-	mach_heartbeat_irq = IRQ_MAC_TIMER;
-#endif
-#endif
 
 	/*
 	 * Determine hardware present
@@ -191,27 +180,19 @@ void __init config_mac(void)
 	if (macintosh_config->ident == MAC_MODEL_IICI
 	    || macintosh_config->ident == MAC_MODEL_IIFX)
 		mach_l2_flush = mac_cache_card_flush;
-
-	/*
-	 * Check for machine specific fixups.
-	 */
-
-#ifdef OLD_NUBUS_CODE
-	nubus_sweep_video();
-#endif
 }
 
 
 /*
- *	Macintosh Table: hardcoded model configuration data.
+ * Macintosh Table: hardcoded model configuration data.
  *
- *	Much of this was defined by Alan, based on who knows what docs.
- *	I've added a lot more, and some of that was pure guesswork based
- *	on hardware pages present on the Mac web site. Possibly wildly
- *	inaccurate, so look here if a new Mac model won't run. Example: if
- *	a Mac crashes immediately after the VIA1 registers have been dumped
- *	to the screen, it probably died attempting to read DirB on a RBV.
- *	Meaning it should have MAC_VIA_IIci here :-)
+ * Much of this was defined by Alan, based on who knows what docs.
+ * I've added a lot more, and some of that was pure guesswork based
+ * on hardware pages present on the Mac web site. Possibly wildly
+ * inaccurate, so look here if a new Mac model won't run. Example: if
+ * a Mac crashes immediately after the VIA1 registers have been dumped
+ * to the screen, it probably died attempting to read DirB on a RBV.
+ * Meaning it should have MAC_VIA_IIci here :-)
  */
 
 struct mac_model *macintosh_config;
@@ -219,7 +200,7 @@ EXPORT_SYMBOL(macintosh_config);
 
 static struct mac_model mac_data_table[] = {
 	/*
-	 *	We'll pretend to be a Macintosh II, that's pretty safe.
+	 * We'll pretend to be a Macintosh II, that's pretty safe.
 	 */
 
 	{
@@ -230,12 +211,11 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_IWM
+		.floppy_type	= MAC_FLOPPY_IWM,
 	},
 
 	/*
-	 *	Original MacII hardware
-	 *
+	 * Original Mac II hardware
 	 */
 
 	{
@@ -246,7 +226,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_IWM
+		.floppy_type	= MAC_FLOPPY_IWM,
 	}, {
 		.ident		= MAC_MODEL_IIX,
 		.name		= "IIx",
@@ -255,7 +235,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_IICX,
 		.name		= "IIcx",
@@ -264,7 +244,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_SE30,
 		.name		= "SE/30",
@@ -273,13 +253,13 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	},
 
 	/*
-	 *	Weirdified MacII hardware - all subtly different. Gee thanks
-	 *	Apple. All these boxes seem to have VIA2 in a different place to
-	 *	the MacII (+1A000 rather than +4000)
+	 * Weirdified Mac II hardware - all subtly different. Gee thanks
+	 * Apple. All these boxes seem to have VIA2 in a different place to
+	 * the Mac II (+1A000 rather than +4000)
 	 * CSA: see http://developer.apple.com/technotes/hw/hw_09.html
 	 */
 
@@ -291,7 +271,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_IIFX,
 		.name		= "IIfx",
@@ -300,7 +280,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_IOP,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_IOP
+		.floppy_type	= MAC_FLOPPY_SWIM_IOP,
 	}, {
 		.ident		= MAC_MODEL_IISI,
 		.name		= "IIsi",
@@ -309,7 +289,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_IIVI,
 		.name		= "IIvi",
@@ -318,7 +298,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_IIVX,
 		.name		= "IIvx",
@@ -327,11 +307,11 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	},
 
 	/*
-	 *	Classic models (guessing: similar to SE/30 ?? Nope, similar to LC ...)
+	 * Classic models (guessing: similar to SE/30? Nope, similar to LC...)
 	 */
 
 	{
@@ -342,7 +322,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_CCL,
 		.name		= "Color Classic",
@@ -351,11 +331,11 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	},
 
 	/*
-	 *	Some Mac LC machines. Basically the same as the IIci, ADB like IIsi
+	 * Some Mac LC machines. Basically the same as the IIci, ADB like IIsi
 	 */
 
 	{
@@ -366,7 +346,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_LCII,
 		.name		= "LC II",
@@ -375,7 +355,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_LCIII,
 		.name		= "LC III",
@@ -384,17 +364,17 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	},
 
 	/*
-	 *	Quadra. Video is at 0xF9000000, via is like a MacII. We label it differently
-	 *	as some of the stuff connected to VIA2 seems different. Better SCSI chip and
-	 *	onboard ethernet using a NatSemi SONIC except the 660AV and 840AV which use an
-	 *	AMD 79C940 (MACE).
-	 *	The 700, 900 and 950 have some I/O chips in the wrong place to
-	 *	confuse us. The 840AV has a SCSI location of its own (same as
-	 *	the 660AV).
+	 * Quadra. Video is at 0xF9000000, via is like a MacII. We label it
+	 * differently as some of the stuff connected to VIA2 seems different.
+	 * Better SCSI chip and onboard ethernet using a NatSemi SONIC except
+	 * the 660AV and 840AV which use an AMD 79C940 (MACE).
+	 * The 700, 900 and 950 have some I/O chips in the wrong place to
+	 * confuse us. The 840AV has a SCSI location of its own (same as
+	 * the 660AV).
 	 */
 
 	{
@@ -405,7 +385,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_QUADRA,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_Q605_ACC,
 		.name		= "Quadra 605",
@@ -414,7 +394,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_QUADRA,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_Q610,
 		.name		= "Quadra 610",
@@ -424,7 +404,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_QUADRA,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_Q630,
 		.name		= "Quadra 630",
@@ -435,7 +415,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_QUADRA,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_Q650,
 		.name		= "Quadra 650",
@@ -445,9 +425,9 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_QUADRA,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	},
-	/*	The Q700 does have a NS Sonic */
+	/* The Q700 does have a NS Sonic */
 	{
 		.ident		= MAC_MODEL_Q700,
 		.name		= "Quadra 700",
@@ -457,7 +437,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_QUADRA,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_Q800,
 		.name		= "Quadra 800",
@@ -467,7 +447,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_QUADRA,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_Q840,
 		.name		= "Quadra 840AV",
@@ -477,7 +457,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_PSC,
 		.ether_type	= MAC_ETHER_MACE,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_AV
+		.floppy_type	= MAC_FLOPPY_AV,
 	}, {
 		.ident		= MAC_MODEL_Q900,
 		.name		= "Quadra 900",
@@ -487,7 +467,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_IOP,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_IOP
+		.floppy_type	= MAC_FLOPPY_SWIM_IOP,
 	}, {
 		.ident		= MAC_MODEL_Q950,
 		.name		= "Quadra 950",
@@ -497,60 +477,60 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_IOP,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_IOP
+		.floppy_type	= MAC_FLOPPY_SWIM_IOP,
 	},
 
 	/*
-	 *	Performa - more LC type machines
+	 * Performa - more LC type machines
 	 */
 
 	{
 		.ident		= MAC_MODEL_P460,
-		.name		=  "Performa 460",
+		.name		= "Performa 460",
 		.adb_type	= MAC_ADB_IISI,
 		.via_type	= MAC_VIA_IIci,
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_P475,
-		.name		=  "Performa 475",
+		.name		= "Performa 475",
 		.adb_type	= MAC_ADB_CUDA,
 		.via_type	= MAC_VIA_QUADRA,
 		.scsi_type	= MAC_SCSI_QUADRA,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_P475F,
-		.name		=  "Performa 475",
+		.name		= "Performa 475",
 		.adb_type	= MAC_ADB_CUDA,
 		.via_type	= MAC_VIA_QUADRA,
 		.scsi_type	= MAC_SCSI_QUADRA,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_P520,
-		.name		=  "Performa 520",
+		.name		= "Performa 520",
 		.adb_type	= MAC_ADB_CUDA,
 		.via_type	= MAC_VIA_IIci,
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_P550,
-		.name		=  "Performa 550",
+		.name		= "Performa 550",
 		.adb_type	= MAC_ADB_CUDA,
 		.via_type	= MAC_VIA_IIci,
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	},
-	/* These have the comm slot, and therefore the possibility of SONIC ethernet */
+	/* These have the comm slot, and therefore possibly SONIC ethernet */
 	{
 		.ident		= MAC_MODEL_P575,
 		.name		= "Performa 575",
@@ -560,7 +540,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_II,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_P588,
 		.name		= "Performa 588",
@@ -571,7 +551,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_II,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_TV,
 		.name		= "TV",
@@ -580,7 +560,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_P600,
 		.name		= "Performa 600",
@@ -589,14 +569,14 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_II,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	},
 
 	/*
-	 *	Centris - just guessing again; maybe like Quadra
+	 * Centris - just guessing again; maybe like Quadra.
+	 * The C610 may or may not have SONIC. We probe to make sure.
 	 */
 
-	/* The C610 may or may not have SONIC.  We probe to make sure */
 	{
 		.ident		= MAC_MODEL_C610,
 		.name		= "Centris 610",
@@ -606,7 +586,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_QUADRA,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_C650,
 		.name		= "Centris 650",
@@ -616,7 +596,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_QUADRA,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR1
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR1,
 	}, {
 		.ident		= MAC_MODEL_C660,
 		.name		= "Centris 660AV",
@@ -626,7 +606,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_PSC,
 		.ether_type	= MAC_ETHER_MACE,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_AV
+		.floppy_type	= MAC_FLOPPY_AV,
 	},
 
 	/*
@@ -643,7 +623,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB145,
 		.name		= "PowerBook 145",
@@ -652,7 +632,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB150,
 		.name		= "PowerBook 150",
@@ -662,7 +642,7 @@ static struct mac_model mac_data_table[] = {
 		.ide_type	= MAC_IDE_PB,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB160,
 		.name		= "PowerBook 160",
@@ -671,7 +651,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB165,
 		.name		= "PowerBook 165",
@@ -680,7 +660,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB165C,
 		.name		= "PowerBook 165c",
@@ -689,7 +669,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB170,
 		.name		= "PowerBook 170",
@@ -698,7 +678,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB180,
 		.name		= "PowerBook 180",
@@ -707,7 +687,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB180C,
 		.name		= "PowerBook 180c",
@@ -716,7 +696,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB190,
 		.name		= "PowerBook 190",
@@ -726,7 +706,7 @@ static struct mac_model mac_data_table[] = {
 		.ide_type	= MAC_IDE_BABOON,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB520,
 		.name		= "PowerBook 520",
@@ -736,7 +716,7 @@ static struct mac_model mac_data_table[] = {
 		.scc_type	= MAC_SCC_QUADRA,
 		.ether_type	= MAC_ETHER_SONIC,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	},
 
 	/*
@@ -757,7 +737,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB230,
 		.name		= "PowerBook Duo 230",
@@ -766,7 +746,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB250,
 		.name		= "PowerBook Duo 250",
@@ -775,7 +755,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB270C,
 		.name		= "PowerBook Duo 270c",
@@ -784,7 +764,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB280,
 		.name		= "PowerBook Duo 280",
@@ -793,7 +773,7 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	}, {
 		.ident		= MAC_MODEL_PB280C,
 		.name		= "PowerBook Duo 280c",
@@ -802,16 +782,43 @@ static struct mac_model mac_data_table[] = {
 		.scsi_type	= MAC_SCSI_OLD,
 		.scc_type	= MAC_SCC_QUADRA,
 		.nubus_type	= MAC_NUBUS,
-		.floppy_type    = MAC_FLOPPY_SWIM_ADDR2
+		.floppy_type	= MAC_FLOPPY_SWIM_ADDR2,
 	},
 
 	/*
-	 *	Other stuff ??
+	 * Other stuff?
 	 */
+
 	{
 		.ident		= -1
 	}
 };
+
+static struct resource scc_a_rsrcs[] = {
+	{ .flags = IORESOURCE_MEM },
+	{ .flags = IORESOURCE_IRQ },
+};
+
+static struct resource scc_b_rsrcs[] = {
+	{ .flags = IORESOURCE_MEM },
+	{ .flags = IORESOURCE_IRQ },
+};
+
+struct platform_device scc_a_pdev = {
+	.name           = "scc",
+	.id             = 0,
+	.num_resources  = ARRAY_SIZE(scc_a_rsrcs),
+	.resource       = scc_a_rsrcs,
+};
+EXPORT_SYMBOL(scc_a_pdev);
+
+struct platform_device scc_b_pdev = {
+	.name           = "scc",
+	.id             = 1,
+	.num_resources  = ARRAY_SIZE(scc_b_rsrcs),
+	.resource       = scc_b_rsrcs,
+};
+EXPORT_SYMBOL(scc_b_pdev);
 
 static void __init mac_identify(void)
 {
@@ -823,7 +830,8 @@ static void __init mac_identify(void)
 		/* no bootinfo model id -> NetBSD booter was used! */
 		/* XXX FIXME: breaks for model > 31 */
 		model = (mac_bi_data.cpuid >> 2) & 63;
-		printk(KERN_WARNING "No bootinfo model ID, using cpuid instead (hey, use Penguin!)\n");
+		printk(KERN_WARNING "No bootinfo model ID, using cpuid instead "
+		       "(obsolete bootloader?)\n");
 	}
 
 	macintosh_config = mac_data_table;
@@ -834,10 +842,29 @@ static void __init mac_identify(void)
 		}
 	}
 
-	/* We need to pre-init the IOPs, if any. Otherwise */
-	/* the serial console won't work if the user had   */
-	/* the serial ports set to "Faster" mode in MacOS. */
+	/* Set up serial port resources for the console initcall. */
 
+	scc_a_rsrcs[0].start = (resource_size_t) mac_bi_data.sccbase + 2;
+	scc_a_rsrcs[0].end   = scc_a_rsrcs[0].start;
+	scc_b_rsrcs[0].start = (resource_size_t) mac_bi_data.sccbase;
+	scc_b_rsrcs[0].end   = scc_b_rsrcs[0].start;
+
+	switch (macintosh_config->scc_type) {
+	case MAC_SCC_PSC:
+		scc_a_rsrcs[1].start = scc_a_rsrcs[1].end = IRQ_MAC_SCC_A;
+		scc_b_rsrcs[1].start = scc_b_rsrcs[1].end = IRQ_MAC_SCC_B;
+		break;
+	default:
+		scc_a_rsrcs[1].start = scc_a_rsrcs[1].end = IRQ_MAC_SCC;
+		scc_b_rsrcs[1].start = scc_b_rsrcs[1].end = IRQ_MAC_SCC;
+		break;
+	}
+
+	/*
+	 * We need to pre-init the IOPs, if any. Otherwise
+	 * the serial console won't work if the user had
+	 * the serial ports set to "Faster" mode in MacOS.
+	 */
 	iop_preinit();
 
 	printk(KERN_INFO "Detected Macintosh model: %d \n", model);
@@ -846,7 +873,8 @@ static void __init mac_identify(void)
 	 * Report booter data:
 	 */
 	printk(KERN_DEBUG " Penguin bootinfo data:\n");
-	printk(KERN_DEBUG " Video: addr 0x%lx row 0x%lx depth %lx dimensions %ld x %ld\n",
+	printk(KERN_DEBUG " Video: addr 0x%lx "
+		"row 0x%lx depth %lx dimensions %ld x %ld\n",
 		mac_bi_data.videoaddr, mac_bi_data.videorow,
 		mac_bi_data.videodepth, mac_bi_data.dimensions & 0xFFFF,
 		mac_bi_data.dimensions >> 16);
@@ -863,6 +891,10 @@ static void __init mac_identify(void)
 	oss_init();
 	psc_init();
 	baboon_init();
+
+#ifdef CONFIG_ADB_CUDA
+	find_via_cuda();
+#endif
 }
 
 static void __init mac_report_hardware(void)
@@ -876,22 +908,49 @@ static void mac_get_model(char *str)
 	strcat(str, macintosh_config->name);
 }
 
-static struct resource swim_resources[1];
+static struct resource swim_rsrc = { .flags = IORESOURCE_MEM };
 
-static struct platform_device swim_device = {
+static struct platform_device swim_pdev = {
 	.name		= "swim",
 	.id		= -1,
-	.num_resources	= ARRAY_SIZE(swim_resources),
-	.resource	= swim_resources,
+	.num_resources	= 1,
+	.resource	= &swim_rsrc,
 };
 
-static struct platform_device *mac_platform_devices[] __initdata = {
-	&swim_device
+static struct platform_device esp_0_pdev = {
+	.name		= "mac_esp",
+	.id		= 0,
+};
+
+static struct platform_device esp_1_pdev = {
+	.name		= "mac_esp",
+	.id		= 1,
+};
+
+static struct platform_device sonic_pdev = {
+	.name		= "macsonic",
+	.id		= -1,
+};
+
+static struct platform_device mace_pdev = {
+	.name		= "macmace",
+	.id		= -1,
 };
 
 int __init mac_platform_init(void)
 {
 	u8 *swim_base;
+
+	/*
+	 * Serial devices
+	 */
+
+	platform_device_register(&scc_a_pdev);
+	platform_device_register(&scc_b_pdev);
+
+	/*
+	 * Floppy device
+	 */
 
 	switch (macintosh_config->floppy_type) {
 	case MAC_FLOPPY_SWIM_ADDR1:
@@ -901,16 +960,47 @@ int __init mac_platform_init(void)
 		swim_base = (u8 *)(VIA1_BASE + 0x16000);
 		break;
 	default:
-		return 0;
+		swim_base = NULL;
+		break;
 	}
 
-	swim_resources[0].name = "swim-regs";
-	swim_resources[0].start = (resource_size_t)swim_base;
-	swim_resources[0].end = (resource_size_t)(swim_base + SWIM_IO_SIZE);
-	swim_resources[0].flags = IORESOURCE_MEM;
+	if (swim_base) {
+		swim_rsrc.start = (resource_size_t) swim_base,
+		swim_rsrc.end   = (resource_size_t) swim_base + 0x2000,
+		platform_device_register(&swim_pdev);
+	}
 
-	return platform_add_devices(mac_platform_devices,
-				    ARRAY_SIZE(mac_platform_devices));
+	/*
+	 * SCSI device(s)
+	 */
+
+	switch (macintosh_config->scsi_type) {
+	case MAC_SCSI_QUADRA:
+	case MAC_SCSI_QUADRA3:
+		platform_device_register(&esp_0_pdev);
+		break;
+	case MAC_SCSI_QUADRA2:
+		platform_device_register(&esp_0_pdev);
+		if ((macintosh_config->ident == MAC_MODEL_Q900) ||
+		    (macintosh_config->ident == MAC_MODEL_Q950))
+			platform_device_register(&esp_1_pdev);
+		break;
+	}
+
+	/*
+	 * Ethernet device
+	 */
+
+	switch (macintosh_config->ether_type) {
+	case MAC_ETHER_SONIC:
+		platform_device_register(&sonic_pdev);
+		break;
+	case MAC_ETHER_MACE:
+		platform_device_register(&mace_pdev);
+		break;
+	}
+
+	return 0;
 }
 
 arch_initcall(mac_platform_init);

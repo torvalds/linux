@@ -774,7 +774,7 @@ static int ide_init_queue(ide_drive_t *drive)
 
 	if (hwif->rqsize < max_sectors)
 		max_sectors = hwif->rqsize;
-	blk_queue_max_sectors(q, max_sectors);
+	blk_queue_max_hw_sectors(q, max_sectors);
 
 #ifdef CONFIG_PCI
 	/* When we have an IOMMU, we may have a problem where pci_map_sg()
@@ -790,8 +790,7 @@ static int ide_init_queue(ide_drive_t *drive)
 		max_sg_entries >>= 1;
 #endif /* CONFIG_PCI */
 
-	blk_queue_max_hw_segments(q, max_sg_entries);
-	blk_queue_max_phys_segments(q, max_sg_entries);
+	blk_queue_max_segments(q, max_sg_entries);
 
 	/* assign drive queue */
 	drive->queue = q;
@@ -1042,6 +1041,8 @@ static void ide_port_init_devices(ide_hwif_t *hwif)
 			drive->dev_flags |= IDE_DFLAG_UNMASK;
 		if (hwif->host_flags & IDE_HFLAG_NO_UNMASK_IRQS)
 			drive->dev_flags |= IDE_DFLAG_NO_UNMASK;
+
+		drive->pio_mode = XFER_PIO_0;
 
 		if (port_ops && port_ops->init_dev)
 			port_ops->init_dev(drive);

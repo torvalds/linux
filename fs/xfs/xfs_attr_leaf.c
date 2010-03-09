@@ -521,11 +521,11 @@ xfs_attr_shortform_to_leaf(xfs_da_args_t *args)
 
 	sfe = &sf->list[0];
 	for (i = 0; i < sf->hdr.count; i++) {
-		nargs.name = (char *)sfe->nameval;
+		nargs.name = sfe->nameval;
 		nargs.namelen = sfe->namelen;
-		nargs.value = (char *)&sfe->nameval[nargs.namelen];
+		nargs.value = &sfe->nameval[nargs.namelen];
 		nargs.valuelen = sfe->valuelen;
-		nargs.hashval = xfs_da_hashname((char *)sfe->nameval,
+		nargs.hashval = xfs_da_hashname(sfe->nameval,
 						sfe->namelen);
 		nargs.flags = XFS_ATTR_NSP_ONDISK_TO_ARGS(sfe->flags);
 		error = xfs_attr_leaf_lookup_int(bp, &nargs); /* set a->index */
@@ -612,10 +612,10 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 		for (i = 0, sfe = &sf->list[0]; i < sf->hdr.count; i++) {
 			error = context->put_listent(context,
 					   sfe->flags,
-					   (char *)sfe->nameval,
+					   sfe->nameval,
 					   (int)sfe->namelen,
 					   (int)sfe->valuelen,
-					   (char*)&sfe->nameval[sfe->namelen]);
+					   &sfe->nameval[sfe->namelen]);
 
 			/*
 			 * Either search callback finished early or
@@ -659,8 +659,8 @@ xfs_attr_shortform_list(xfs_attr_list_context_t *context)
 		}
 
 		sbp->entno = i;
-		sbp->hash = xfs_da_hashname((char *)sfe->nameval, sfe->namelen);
-		sbp->name = (char *)sfe->nameval;
+		sbp->hash = xfs_da_hashname(sfe->nameval, sfe->namelen);
+		sbp->name = sfe->nameval;
 		sbp->namelen = sfe->namelen;
 		/* These are bytes, and both on-disk, don't endian-flip */
 		sbp->valuelen = sfe->valuelen;
@@ -818,9 +818,9 @@ xfs_attr_leaf_to_shortform(xfs_dabuf_t *bp, xfs_da_args_t *args, int forkoff)
 			continue;
 		ASSERT(entry->flags & XFS_ATTR_LOCAL);
 		name_loc = xfs_attr_leaf_name_local(leaf, i);
-		nargs.name = (char *)name_loc->nameval;
+		nargs.name = name_loc->nameval;
 		nargs.namelen = name_loc->namelen;
-		nargs.value = (char *)&name_loc->nameval[nargs.namelen];
+		nargs.value = &name_loc->nameval[nargs.namelen];
 		nargs.valuelen = be16_to_cpu(name_loc->valuelen);
 		nargs.hashval = be32_to_cpu(entry->hashval);
 		nargs.flags = XFS_ATTR_NSP_ONDISK_TO_ARGS(entry->flags);
@@ -2370,10 +2370,10 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 
 			retval = context->put_listent(context,
 						entry->flags,
-						(char *)name_loc->nameval,
+						name_loc->nameval,
 						(int)name_loc->namelen,
 						be16_to_cpu(name_loc->valuelen),
-						(char *)&name_loc->nameval[name_loc->namelen]);
+						&name_loc->nameval[name_loc->namelen]);
 			if (retval)
 				return retval;
 		} else {
@@ -2397,15 +2397,15 @@ xfs_attr_leaf_list_int(xfs_dabuf_t *bp, xfs_attr_list_context_t *context)
 					return retval;
 				retval = context->put_listent(context,
 						entry->flags,
-						(char *)name_rmt->name,
+						name_rmt->name,
 						(int)name_rmt->namelen,
 						valuelen,
-						(char*)args.value);
+						args.value);
 				kmem_free(args.value);
 			} else {
 				retval = context->put_listent(context,
 						entry->flags,
-						(char *)name_rmt->name,
+						name_rmt->name,
 						(int)name_rmt->namelen,
 						valuelen,
 						NULL);
@@ -2950,7 +2950,7 @@ xfs_attr_leaf_freextent(xfs_trans_t **trans, xfs_inode_t *dp,
 						map.br_blockcount);
 			bp = xfs_trans_get_buf(*trans,
 					dp->i_mount->m_ddev_targp,
-					dblkno, dblkcnt, XFS_BUF_LOCK);
+					dblkno, dblkcnt, XBF_LOCK);
 			xfs_trans_binval(*trans, bp);
 			/*
 			 * Roll to next transaction.

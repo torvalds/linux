@@ -114,8 +114,6 @@ void rt2800_mcu_request(struct rt2x00_dev *rt2x00dev,
 extern const struct rt2x00debug rt2800_rt2x00debug;
 
 int rt2800_rfkill_poll(struct rt2x00_dev *rt2x00dev);
-void rt2800_init_led(struct rt2x00_dev *rt2x00dev,
-		     struct rt2x00_led *led, enum led_type type);
 int rt2800_config_shared_key(struct rt2x00_dev *rt2x00dev,
 			     struct rt2x00lib_crypto *crypto,
 			     struct ieee80211_key_conf *key);
@@ -139,6 +137,7 @@ void rt2800_link_tuner(struct rt2x00_dev *rt2x00dev, struct link_qual *qual,
 int rt2800_init_registers(struct rt2x00_dev *rt2x00dev);
 int rt2800_init_bbp(struct rt2x00_dev *rt2x00dev);
 int rt2800_init_rfcsr(struct rt2x00_dev *rt2x00dev);
+int rt2800_wait_wpdma_ready(struct rt2x00_dev *rt2x00dev);
 
 int rt2800_efuse_detect(struct rt2x00_dev *rt2x00dev);
 void rt2800_read_eeprom_efuse(struct rt2x00_dev *rt2x00dev);

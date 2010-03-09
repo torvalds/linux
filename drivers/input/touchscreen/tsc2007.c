@@ -358,7 +358,7 @@ static int __devexit tsc2007_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id tsc2007_idtable[] = {
+static const struct i2c_device_id tsc2007_idtable[] = {
 	{ "tsc2007", 0 },
 	{ }
 };

@@ -12,9 +12,6 @@
 #ifndef __ARCH_ARM_DAVINCI_CLOCK_H
 #define __ARCH_ARM_DAVINCI_CLOCK_H
 
-#include <linux/list.h>
-#include <asm/clkdev.h>
-
 #define DAVINCI_PLL1_BASE 0x01c40800
 #define DAVINCI_PLL2_BASE 0x01c40c00
 #define MAX_PLL 2
@@ -53,6 +50,26 @@
 #define PLLDIV_EN       BIT(15)
 #define PLLDIV_RATIO_MASK 0x1f
 
+/*
+ * OMAP-L138 system reference guide recommends a wait for 4 OSCIN/CLKIN
+ * cycles to ensure that the PLLC has switched to bypass mode. Delay of 1us
+ * ensures we are good for all > 4MHz OSCIN/CLKIN inputs. Typically the input
+ * is ~25MHz. Units are micro seconds.
+ */
+#define PLL_BYPASS_TIME		1
+/* From OMAP-L138 datasheet table 6-4. Units are micro seconds */
+#define PLL_RESET_TIME		1
+/*
+ * From OMAP-L138 datasheet table 6-4; assuming prediv = 1, sqrt(pllm) = 4
+ * Units are micro seconds.
+ */
+#define PLL_LOCK_TIME		20
+
+#ifndef __ASSEMBLER__
+
+#include <linux/list.h>
+#include <asm/clkdev.h>
+
 struct pll_data {
 	u32 phys_base;
 	void __iomem *base;
@@ -89,23 +106,19 @@ struct clk {
 #define CLK_PLL			BIT(4) /* PLL-derived clock */
 #define PRE_PLL                 BIT(5) /* source is before PLL mult/div */
 
-struct davinci_clk {
-	struct clk_lookup lk;
-};
+#define CLK(dev, con, ck) 	\
+	{			\
+		.dev_id = dev,	\
+		.con_id = con,	\
+		.clk = ck,	\
+	}			\
 
-#define CLK(dev, con, ck) 		\
-	{				\
-		.lk = {			\
-			.dev_id = dev,	\
-			.con_id = con,	\
-			.clk = ck,	\
-		},			\
-	}
-
-int davinci_clk_init(struct davinci_clk *clocks);
+int davinci_clk_init(struct clk_lookup *clocks);
 int davinci_set_pllrate(struct pll_data *pll, unsigned int prediv,
 				unsigned int mult, unsigned int postdiv);
 
 extern struct platform_device davinci_wdt_device;
+
+#endif
 
 #endif

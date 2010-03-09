@@ -17,8 +17,8 @@
 
 static void __init init_shmin_irq(void)
 {
-	ctrl_outw(0x2a00, PFC_PHCR);	// IRQ0-3=IRQ
-	ctrl_outw(0x0aaa, INTC_ICR1);	// IRQ0-3=IRQ-mode,Low-active.
+	__raw_writew(0x2a00, PFC_PHCR);	// IRQ0-3=IRQ
+	__raw_writew(0x0aaa, INTC_ICR1);	// IRQ0-3=IRQ-mode,Low-active.
 	plat_irq_setup_pins(IRQ_MODE_IRQ);
 }
 

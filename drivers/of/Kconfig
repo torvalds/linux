@@ -1,3 +1,11 @@
+config OF_FLATTREE
+	bool
+	depends on OF
+
+config OF_DYNAMIC
+	def_bool y
+	depends on OF && PPC_OF
+
 config OF_DEVICE
 	def_bool y
 	depends on OF && (SPARC || PPC_OF || MICROBLAZE)

@@ -27,6 +27,7 @@
 #include <linux/mutex.h>
 #include <linux/mfd/ucb1x00.h>
 #include <linux/gpio.h>
+#include <linux/semaphore.h>
 
 #include <mach/dma.h>
 #include <mach/hardware.h>

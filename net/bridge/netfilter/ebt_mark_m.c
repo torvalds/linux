@@ -35,13 +35,50 @@ static bool ebt_mark_mt_check(const struct xt_mtchk_param *par)
 	return true;
 }
 
+
+#ifdef CONFIG_COMPAT
+struct compat_ebt_mark_m_info {
+	compat_ulong_t mark, mask;
+	uint8_t invert, bitmask;
+};
+
+static void mark_mt_compat_from_user(void *dst, const void *src)
+{
+	const struct compat_ebt_mark_m_info *user = src;
+	struct ebt_mark_m_info *kern = dst;
+
+	kern->mark = user->mark;
+	kern->mask = user->mask;
+	kern->invert = user->invert;
+	kern->bitmask = user->bitmask;
+}
+
+static int mark_mt_compat_to_user(void __user *dst, const void *src)
+{
+	struct compat_ebt_mark_m_info __user *user = dst;
+	const struct ebt_mark_m_info *kern = src;
+
+	if (put_user(kern->mark, &user->mark) ||
+	    put_user(kern->mask, &user->mask) ||
+	    put_user(kern->invert, &user->invert) ||
+	    put_user(kern->bitmask, &user->bitmask))
+		return -EFAULT;
+	return 0;
+}
+#endif
+
 static struct xt_match ebt_mark_mt_reg __read_mostly = {
 	.name		= "mark_m",
 	.revision	= 0,
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_mark_mt,
 	.checkentry	= ebt_mark_mt_check,
-	.matchsize	= XT_ALIGN(sizeof(struct ebt_mark_m_info)),
+	.matchsize	= sizeof(struct ebt_mark_m_info),
+#ifdef CONFIG_COMPAT
+	.compatsize	= sizeof(struct compat_ebt_mark_m_info),
+	.compat_from_user = mark_mt_compat_from_user,
+	.compat_to_user	= mark_mt_compat_to_user,
+#endif
 	.me		= THIS_MODULE,
 };
 

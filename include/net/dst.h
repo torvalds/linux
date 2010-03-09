@@ -83,8 +83,6 @@ struct dst_entry {
 	 * (L1_CACHE_SIZE would be too much)
 	 */
 #ifdef CONFIG_64BIT
-	long			__pad_to_align_refcnt[2];
-#else
 	long			__pad_to_align_refcnt[1];
 #endif
 	/*

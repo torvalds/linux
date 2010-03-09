@@ -109,7 +109,6 @@ struct ar9170_rxstream_mpdu_merge {
 	bool has_plcp;
 };
 
-#define AR9170_NUM_MAX_BA_RETRY	5
 #define AR9170_NUM_TID	16
 #define WME_BA_BMP_SIZE         64
 #define AR9170_NUM_MAX_AGG_LEN	(2 * WME_BA_BMP_SIZE)
@@ -143,7 +142,12 @@ struct ar9170_sta_tid {
 	u16 tid;
 	enum ar9170_tid_state state;
 	bool active;
-	u8 retry;
+};
+
+struct ar9170_tx_queue_stats {
+	unsigned int len;
+	unsigned int limit;
+	unsigned int count;
 };
 
 #define AR9170_QUEUE_TIMEOUT		64
@@ -154,6 +158,8 @@ struct ar9170_sta_tid {
 
 #define AR9170_NUM_TX_STATUS		128
 #define AR9170_NUM_TX_AGG_MAX		30
+#define AR9170_NUM_TX_LIMIT_HARD       AR9170_TXQ_DEPTH
+#define AR9170_NUM_TX_LIMIT_SOFT       (AR9170_TXQ_DEPTH - 10)
 
 struct ar9170 {
 	struct ieee80211_hw *hw;
@@ -211,7 +217,7 @@ struct ar9170 {
 
 	/* qos queue settings */
 	spinlock_t tx_stats_lock;
-	struct ieee80211_tx_queue_stats tx_stats[5];
+	struct ar9170_tx_queue_stats tx_stats[5];
 	struct ieee80211_tx_queue_params edcf[5];
 
 	spinlock_t cmdlock;
@@ -248,13 +254,8 @@ struct ar9170_sta_info {
 	unsigned int ampdu_max_len;
 };
 
-#define AR9170_TX_FLAG_WAIT_FOR_ACK	BIT(0)
-#define AR9170_TX_FLAG_NO_ACK		BIT(1)
-#define AR9170_TX_FLAG_BLOCK_ACK	BIT(2)
-
 struct ar9170_tx_info {
 	unsigned long timeout;
-	unsigned int flags;
 };
 
 #define IS_STARTED(a)		(((struct ar9170 *)a)->state >= AR9170_STARTED)

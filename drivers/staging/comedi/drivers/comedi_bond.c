@@ -417,7 +417,7 @@ static int doDevConfig(struct comedi_device *dev, struct comedi_devconfig *it)
 		int sdev = -1, nchans, tmp;
 		struct BondedDevice *bdev = NULL;
 
-		if (minor < 0 || minor > COMEDI_NUM_BOARD_MINORS) {
+		if (minor < 0 || minor >= COMEDI_NUM_BOARD_MINORS) {
 			ERROR("Minor %d is invalid!\n", minor);
 			return 0;
 		}

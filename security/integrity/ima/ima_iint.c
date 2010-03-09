@@ -63,11 +63,10 @@ int ima_inode_alloc(struct inode *inode)
 	spin_lock(&ima_iint_lock);
 	rc = radix_tree_insert(&ima_iint_store, (unsigned long)inode, iint);
 	spin_unlock(&ima_iint_lock);
+	radix_tree_preload_end();
 out:
 	if (rc < 0)
 		kmem_cache_free(iint_cache, iint);
-
-	radix_tree_preload_end();
 
 	return rc;
 }

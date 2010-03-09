@@ -41,6 +41,8 @@ my $web = 0;
 my $subsystem = 0;
 my $status = 0;
 my $keywords = 1;
+my $sections = 0;
+my $file_emails = 0;
 my $from_filename = 0;
 my $pattern_depth = 0;
 my $version = 0;
@@ -120,9 +122,11 @@ if (!GetOptions(
 		'web!' => \$web,
 		'pattern-depth=i' => \$pattern_depth,
 		'k|keywords!' => \$keywords,
+		'sections!' => \$sections,
+		'fe|file-emails!' => \$file_emails,
 		'f|file' => \$from_filename,
 		'v|version' => \$version,
-		'h|help' => \$help,
+		'h|help|usage' => \$help,
 		)) {
     die "$P: invalid argument - use --help if necessary\n";
 }
@@ -137,9 +141,9 @@ if ($version != 0) {
     exit 0;
 }
 
-if ($#ARGV < 0) {
-    usage();
-    die "$P: argument missing: patchfile or -f file please\n";
+if (-t STDIN && !@ARGV) {
+    # We're talking to a terminal, but have no command line arguments.
+    die "$P: missing patchfile or -f file - use --help if necessary\n";
 }
 
 if ($output_separator ne ", ") {
@@ -150,16 +154,24 @@ if ($output_rolestats) {
     $output_roles = 1;
 }
 
-my $selections = $email + $scm + $status + $subsystem + $web;
-if ($selections == 0) {
-    usage();
-    die "$P:  Missing required option: email, scm, status, subsystem or web\n";
+if ($sections) {
+    $email = 0;
+    $email_list = 0;
+    $scm = 0;
+    $status = 0;
+    $subsystem = 0;
+    $web = 0;
+    $keywords = 0;
+} else {
+    my $selections = $email + $scm + $status + $subsystem + $web;
+    if ($selections == 0) {
+	die "$P:  Missing required option: email, scm, status, subsystem or web\n";
+    }
 }
 
 if ($email &&
     ($email_maintainer + $email_list + $email_subscriber_list +
      $email_git + $email_git_penguin_chiefs + $email_git_blame) == 0) {
-    usage();
     die "$P: Please select at least 1 email option\n";
 }
 
@@ -173,8 +185,9 @@ if (!top_of_kernel_tree($lk_path)) {
 my @typevalue = ();
 my %keyword_hash;
 
-open(MAINT, "<${lk_path}MAINTAINERS") || die "$P: Can't open MAINTAINERS\n";
-while (<MAINT>) {
+open (my $maint, '<', "${lk_path}MAINTAINERS")
+    or die "$P: Can't open MAINTAINERS: $!\n";
+while (<$maint>) {
     my $line = $_;
 
     if ($line =~ m/^(\C):\s*(.*)/) {
@@ -199,13 +212,14 @@ while (<MAINT>) {
 	push(@typevalue, $line);
     }
 }
-close(MAINT);
+close($maint);
 
 my %mailmap;
 
 if ($email_remove_duplicates) {
-    open(MAILMAP, "<${lk_path}.mailmap") || warn "$P: Can't open .mailmap\n";
-    while (<MAILMAP>) {
+    open(my $mailmap, '<', "${lk_path}.mailmap")
+	or warn "$P: Can't open .mailmap: $!\n";
+    while (<$mailmap>) {
 	my $line = $_;
 
 	next if ($line =~ m/^\s*#/);
@@ -224,7 +238,7 @@ if ($email_remove_duplicates) {
 	    $mailmap{$name} = \@arr;
 	}
     }
-    close(MAILMAP);
+    close($mailmap);
 }
 
 ## use the filenames on the command line or find the filenames in the patchfiles
@@ -232,31 +246,47 @@ if ($email_remove_duplicates) {
 my @files = ();
 my @range = ();
 my @keyword_tvi = ();
+my @file_emails = ();
+
+if (!@ARGV) {
+    push(@ARGV, "&STDIN");
+}
 
 foreach my $file (@ARGV) {
-    ##if $file is a directory and it lacks a trailing slash, add one
-    if ((-d $file)) {
-	$file =~ s@([^/])$@$1/@;
-    } elsif (!(-f $file)) {
-	die "$P: file '${file}' not found\n";
+    if ($file ne "&STDIN") {
+	##if $file is a directory and it lacks a trailing slash, add one
+	if ((-d $file)) {
+	    $file =~ s@([^/])$@$1/@;
+	} elsif (!(-f $file)) {
+	    die "$P: file '${file}' not found\n";
+	}
     }
     if ($from_filename) {
 	push(@files, $file);
-	if (-f $file && $keywords) {
-	    open(FILE, "<$file") or die "$P: Can't open ${file}\n";
-	    my $text = do { local($/) ; <FILE> };
-	    foreach my $line (keys %keyword_hash) {
-		if ($text =~ m/$keyword_hash{$line}/x) {
-		    push(@keyword_tvi, $line);
+	if (-f $file && ($keywords || $file_emails)) {
+	    open(my $f, '<', $file)
+		or die "$P: Can't open $file: $!\n";
+	    my $text = do { local($/) ; <$f> };
+	    close($f);
+	    if ($keywords) {
+		foreach my $line (keys %keyword_hash) {
+		    if ($text =~ m/$keyword_hash{$line}/x) {
+			push(@keyword_tvi, $line);
+		    }
 		}
 	    }
-	    close(FILE);
+	    if ($file_emails) {
+		my @poss_addr = $text =~ m$[A-Za-zÀ-ÿ\"\' \,\.\+-]*\s*[\,]*\s*[\(\<\{]{0,1}[A-Za-z0-9_\.\+-]+\@[A-Za-z0-9\.-]+\.[A-Za-z0-9]+[\)\>\}]{0,1}$g;
+		push(@file_emails, clean_file_emails(@poss_addr));
+	    }
 	}
     } else {
 	my $file_cnt = @files;
 	my $lastfile;
-	open(PATCH, "<$file") or die "$P: Can't open ${file}\n";
-	while (<PATCH>) {
+
+	open(my $patch, '<', $file)
+	    or die "$P: Can't open $file: $!\n";
+	while (<$patch>) {
 	    my $patch_line = $_;
 	    if (m/^\+\+\+\s+(\S+)/) {
 		my $filename = $1;
@@ -276,7 +306,8 @@ foreach my $file (@ARGV) {
 		}
 	    }
 	}
-	close(PATCH);
+	close($patch);
+
 	if ($file_cnt == @files) {
 	    warn "$P: file '${file}' doesn't appear to be a patch.  "
 		. "Add -f to options?\n";
@@ -284,6 +315,8 @@ foreach my $file (@ARGV) {
 	@files = sort_and_uniq(@files);
     }
 }
+
+@file_emails = uniq(@file_emails);
 
 my @email_to = ();
 my @list_to = ();
@@ -314,6 +347,7 @@ foreach my $file (@files) {
 		if ($type eq 'X') {
 		    if (file_match_pattern($file, $value)) {
 			$exclude = 1;
+			last;
 		    }
 		}
 	    }
@@ -340,12 +374,28 @@ foreach my $file (@files) {
 	    }
 	}
 
-	$tvi += ($end - $start);
-
+	$tvi = $end + 1;
     }
 
     foreach my $line (sort {$hash{$b} <=> $hash{$a}} keys %hash) {
 	add_categories($line);
+	    if ($sections) {
+		my $i;
+		my $start = find_starting_index($line);
+		my $end = find_ending_index($line);
+		for ($i = $start; $i < $end; $i++) {
+		    my $line = $typevalue[$i];
+		    if ($line =~ /^[FX]:/) {		##Restore file patterns
+			$line =~ s/([^\\])\.([^\*])/$1\?$2/g;
+			$line =~ s/([^\\])\.$/$1\?/g;	##Convert . back to ?
+			$line =~ s/\\\./\./g;       	##Convert \. to .
+			$line =~ s/\.\*/\*/g;       	##Convert .* to *
+		    }
+		    $line =~ s/^([A-Z]):/$1:\t/g;
+		    print("$line\n");
+		}
+		print("\n");
+	    }
     }
 
     if ($email && $email_git) {
@@ -376,6 +426,14 @@ if ($email) {
 		@email_to = grep($_->[0] !~ /${email_address}/, @email_to);
 	    }
 	}
+    }
+
+    foreach my $email (@file_emails) {
+	my ($name, $address) = parse_email($email);
+
+	my $tmp_email = format_email($name, $address, $email_usename);
+	push_email_address($tmp_email, '');
+	add_role($tmp_email, 'in file');
     }
 }
 
@@ -453,6 +511,7 @@ MAINTAINER field selection options:
     --remove-duplicates => minimize duplicate email names/addresses
     --roles => show roles (status:subsystem, git-signer, list, etc...)
     --rolestats => show roles and statistics (commits/total_commits, %)
+    --file-emails => add email addresses found in -f file (default: 0 (off))
   --scm => print SCM tree(s) if any
   --status => print status if any
   --subsystem => print subsystem name if any
@@ -466,6 +525,7 @@ Output type options:
 Other options:
   --pattern-depth => Number of pattern directory traversals (default: 0 (all))
   --keywords => scan patch for keywords (default: 1 (on))
+  --sections => print the entire subsystem sections with pattern matches
   --version => show version
   --help => show this help information
 
@@ -545,7 +605,7 @@ sub parse_email {
     $name =~ s/^\"|\"$//g;
     $address =~ s/^\s+|\s+$//g;
 
-    if ($name =~ /[^a-z0-9 \.\-]/i) {    ##has "must quote" chars
+    if ($name =~ /[^\w \-]/i) {  	 ##has "must quote" chars
 	$name =~ s/(?<!\\)"/\\"/g;       ##escape quotes
 	$name = "\"$name\"";
     }
@@ -562,7 +622,7 @@ sub format_email {
     $name =~ s/^\"|\"$//g;
     $address =~ s/^\s+|\s+$//g;
 
-    if ($name =~ /[^a-z0-9 \.\-]/i) {    ##has "must quote" chars
+    if ($name =~ /[^\w \-]/i) {          ##has "must quote" chars
 	$name =~ s/(?<!\\)"/\\"/g;       ##escape quotes
 	$name = "\"$name\"";
     }
@@ -811,7 +871,9 @@ sub add_role {
     foreach my $entry (@email_to) {
 	if ($email_remove_duplicates) {
 	    my ($entry_name, $entry_address) = parse_email($entry->[0]);
-	    if ($name eq $entry_name || $address eq $entry_address) {
+	    if (($name eq $entry_name || $address eq $entry_address)
+		&& ($role eq "" || !($entry->[1] =~ m/$role/))
+	    ) {
 		if ($entry->[1] eq "") {
 		    $entry->[1] = "$role";
 		} else {
@@ -819,7 +881,9 @@ sub add_role {
 		}
 	    }
 	} else {
-	    if ($email eq $entry->[0]) {
+	    if ($email eq $entry->[0]
+		&& ($role eq "" || !($entry->[1] =~ m/$role/))
+	    ) {
 		if ($entry->[1] eq "") {
 		    $entry->[1] = "$role";
 		} else {
@@ -1099,6 +1163,51 @@ sub sort_and_uniq {
     return @parms;
 }
 
+sub clean_file_emails {
+    my (@file_emails) = @_;
+    my @fmt_emails = ();
+
+    foreach my $email (@file_emails) {
+	$email =~ s/[\(\<\{]{0,1}([A-Za-z0-9_\.\+-]+\@[A-Za-z0-9\.-]+)[\)\>\}]{0,1}/\<$1\>/g;
+	my ($name, $address) = parse_email($email);
+	if ($name eq '"[,\.]"') {
+	    $name = "";
+	}
+
+	my @nw = split(/[^A-Za-zÀ-ÿ\'\,\.\+-]/, $name);
+	if (@nw > 2) {
+	    my $first = $nw[@nw - 3];
+	    my $middle = $nw[@nw - 2];
+	    my $last = $nw[@nw - 1];
+
+	    if (((length($first) == 1 && $first =~ m/[A-Za-z]/) ||
+		 (length($first) == 2 && substr($first, -1) eq ".")) ||
+		(length($middle) == 1 ||
+		 (length($middle) == 2 && substr($middle, -1) eq "."))) {
+		$name = "$first $middle $last";
+	    } else {
+		$name = "$middle $last";
+	    }
+	}
+
+	if (substr($name, -1) =~ /[,\.]/) {
+	    $name = substr($name, 0, length($name) - 1);
+	} elsif (substr($name, -2) =~ /[,\.]"/) {
+	    $name = substr($name, 0, length($name) - 2) . '"';
+	}
+
+	if (substr($name, 0, 1) =~ /[,\.]/) {
+	    $name = substr($name, 1, length($name) - 1);
+	} elsif (substr($name, 0, 2) =~ /"[,\.]/) {
+	    $name = '"' . substr($name, 2, length($name) - 2);
+	}
+
+	my $fmt_email = format_email($name, $address, $email_usename);
+	push(@fmt_emails, $fmt_email);
+    }
+    return @fmt_emails;
+}
+
 sub merge_email {
     my @lines;
     my %saw;
@@ -1183,7 +1292,7 @@ sub rfc822_strip_comments {
 
 #   valid: returns true if the parameter is an RFC822 valid address
 #
-sub rfc822_valid ($) {
+sub rfc822_valid {
     my $s = rfc822_strip_comments(shift);
 
     if (!$rfc822re) {
@@ -1203,7 +1312,7 @@ sub rfc822_valid ($) {
 #              from success with no addresses found, because an empty string is
 #              a valid list.
 
-sub rfc822_validlist ($) {
+sub rfc822_validlist {
     my $s = rfc822_strip_comments(shift);
 
     if (!$rfc822re) {

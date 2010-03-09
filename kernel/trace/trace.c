@@ -32,6 +32,7 @@
 #include <linux/splice.h>
 #include <linux/kdebug.h>
 #include <linux/string.h>
+#include <linux/rwsem.h>
 #include <linux/ctype.h>
 #include <linux/init.h>
 #include <linux/poll.h>
@@ -91,19 +92,16 @@ DEFINE_PER_CPU(int, ftrace_cpu_disabled);
 static inline void ftrace_disable_cpu(void)
 {
 	preempt_disable();
-	__this_cpu_inc(per_cpu_var(ftrace_cpu_disabled));
+	__this_cpu_inc(ftrace_cpu_disabled);
 }
 
 static inline void ftrace_enable_cpu(void)
 {
-	__this_cpu_dec(per_cpu_var(ftrace_cpu_disabled));
+	__this_cpu_dec(ftrace_cpu_disabled);
 	preempt_enable();
 }
 
 static cpumask_var_t __read_mostly	tracing_buffer_mask;
-
-/* Define which cpu buffers are currently read in trace_pipe */
-static cpumask_var_t			tracing_reader_cpumask;
 
 #define for_each_tracing_cpu(cpu)	\
 	for_each_cpu(cpu, tracing_buffer_mask)
@@ -243,11 +241,90 @@ static struct tracer		*current_trace __read_mostly;
 
 /*
  * trace_types_lock is used to protect the trace_types list.
- * This lock is also used to keep user access serialized.
- * Accesses from userspace will grab this lock while userspace
- * activities happen inside the kernel.
  */
 static DEFINE_MUTEX(trace_types_lock);
+
+/*
+ * serialize the access of the ring buffer
+ *
+ * ring buffer serializes readers, but it is low level protection.
+ * The validity of the events (which returns by ring_buffer_peek() ..etc)
+ * are not protected by ring buffer.
+ *
+ * The content of events may become garbage if we allow other process consumes
+ * these events concurrently:
+ *   A) the page of the consumed events may become a normal page
+ *      (not reader page) in ring buffer, and this page will be rewrited
+ *      by events producer.
+ *   B) The page of the consumed events may become a page for splice_read,
+ *      and this page will be returned to system.
+ *
+ * These primitives allow multi process access to different cpu ring buffer
+ * concurrently.
+ *
+ * These primitives don't distinguish read-only and read-consume access.
+ * Multi read-only access are also serialized.
+ */
+
+#ifdef CONFIG_SMP
+static DECLARE_RWSEM(all_cpu_access_lock);
+static DEFINE_PER_CPU(struct mutex, cpu_access_lock);
+
+static inline void trace_access_lock(int cpu)
+{
+	if (cpu == TRACE_PIPE_ALL_CPU) {
+		/* gain it for accessing the whole ring buffer. */
+		down_write(&all_cpu_access_lock);
+	} else {
+		/* gain it for accessing a cpu ring buffer. */
+
+		/* Firstly block other trace_access_lock(TRACE_PIPE_ALL_CPU). */
+		down_read(&all_cpu_access_lock);
+
+		/* Secondly block other access to this @cpu ring buffer. */
+		mutex_lock(&per_cpu(cpu_access_lock, cpu));
+	}
+}
+
+static inline void trace_access_unlock(int cpu)
+{
+	if (cpu == TRACE_PIPE_ALL_CPU) {
+		up_write(&all_cpu_access_lock);
+	} else {
+		mutex_unlock(&per_cpu(cpu_access_lock, cpu));
+		up_read(&all_cpu_access_lock);
+	}
+}
+
+static inline void trace_access_lock_init(void)
+{
+	int cpu;
+
+	for_each_possible_cpu(cpu)
+		mutex_init(&per_cpu(cpu_access_lock, cpu));
+}
+
+#else
+
+static DEFINE_MUTEX(access_lock);
+
+static inline void trace_access_lock(int cpu)
+{
+	(void)cpu;
+	mutex_lock(&access_lock);
+}
+
+static inline void trace_access_unlock(int cpu)
+{
+	(void)cpu;
+	mutex_unlock(&access_lock);
+}
+
+static inline void trace_access_lock_init(void)
+{
+}
+
+#endif
 
 /* trace_wait is a waitqueue for tasks blocked on trace_poll */
 static DECLARE_WAIT_QUEUE_HEAD(trace_wait);
@@ -1089,7 +1166,7 @@ trace_function(struct trace_array *tr,
 	struct ftrace_entry *entry;
 
 	/* If we are reading the ring buffer, don't trace */
-	if (unlikely(__this_cpu_read(per_cpu_var(ftrace_cpu_disabled))))
+	if (unlikely(__this_cpu_read(ftrace_cpu_disabled)))
 		return;
 
 	event = trace_buffer_lock_reserve(buffer, TRACE_FN, sizeof(*entry),
@@ -1320,8 +1397,10 @@ int trace_vbprintk(unsigned long ip, const char *fmt, va_list args)
 	entry->fmt			= fmt;
 
 	memcpy(entry->buf, trace_buf, sizeof(u32) * len);
-	if (!filter_check_discard(call, entry, buffer, event))
+	if (!filter_check_discard(call, entry, buffer, event)) {
 		ring_buffer_unlock_commit(buffer, event);
+		ftrace_trace_stack(buffer, flags, 6, pc);
+	}
 
 out_unlock:
 	arch_spin_unlock(&trace_buf_lock);
@@ -1394,8 +1473,10 @@ int trace_array_vprintk(struct trace_array *tr,
 
 	memcpy(&entry->buf, trace_buf, len);
 	entry->buf[len] = '\0';
-	if (!filter_check_discard(call, entry, buffer, event))
+	if (!filter_check_discard(call, entry, buffer, event)) {
 		ring_buffer_unlock_commit(buffer, event);
+		ftrace_trace_stack(buffer, irq_flags, 6, pc);
+	}
 
  out_unlock:
 	arch_spin_unlock(&trace_buf_lock);
@@ -1585,12 +1666,6 @@ static void tracing_iter_reset(struct trace_iterator *iter, int cpu)
 }
 
 /*
- * No necessary locking here. The worst thing which can
- * happen is loosing events consumed at the same time
- * by a trace_pipe reader.
- * Other than that, we don't risk to crash the ring buffer
- * because it serializes the readers.
- *
  * The current tracer is copied to avoid a global locking
  * all around.
  */
@@ -1645,12 +1720,16 @@ static void *s_start(struct seq_file *m, loff_t *pos)
 	}
 
 	trace_event_read_lock();
+	trace_access_lock(cpu_file);
 	return p;
 }
 
 static void s_stop(struct seq_file *m, void *p)
 {
+	struct trace_iterator *iter = m->private;
+
 	atomic_dec(&trace_record_cmdline_disabled);
+	trace_access_unlock(iter->cpu_file);
 	trace_event_read_unlock();
 }
 
@@ -2841,22 +2920,6 @@ static int tracing_open_pipe(struct inode *inode, struct file *filp)
 
 	mutex_lock(&trace_types_lock);
 
-	/* We only allow one reader per cpu */
-	if (cpu_file == TRACE_PIPE_ALL_CPU) {
-		if (!cpumask_empty(tracing_reader_cpumask)) {
-			ret = -EBUSY;
-			goto out;
-		}
-		cpumask_setall(tracing_reader_cpumask);
-	} else {
-		if (!cpumask_test_cpu(cpu_file, tracing_reader_cpumask))
-			cpumask_set_cpu(cpu_file, tracing_reader_cpumask);
-		else {
-			ret = -EBUSY;
-			goto out;
-		}
-	}
-
 	/* create a buffer to store the information to pass to userspace */
 	iter = kzalloc(sizeof(*iter), GFP_KERNEL);
 	if (!iter) {
@@ -2911,12 +2974,6 @@ static int tracing_release_pipe(struct inode *inode, struct file *file)
 	struct trace_iterator *iter = file->private_data;
 
 	mutex_lock(&trace_types_lock);
-
-	if (iter->cpu_file == TRACE_PIPE_ALL_CPU)
-		cpumask_clear(tracing_reader_cpumask);
-	else
-		cpumask_clear_cpu(iter->cpu_file, tracing_reader_cpumask);
-
 
 	if (iter->trace->pipe_close)
 		iter->trace->pipe_close(iter);
@@ -3079,6 +3136,7 @@ waitagain:
 	iter->pos = -1;
 
 	trace_event_read_lock();
+	trace_access_lock(iter->cpu_file);
 	while (find_next_entry_inc(iter) != NULL) {
 		enum print_line_t ret;
 		int len = iter->seq.len;
@@ -3095,6 +3153,7 @@ waitagain:
 		if (iter->seq.len >= cnt)
 			break;
 	}
+	trace_access_unlock(iter->cpu_file);
 	trace_event_read_unlock();
 
 	/* Now copy what we have to the user */
@@ -3220,6 +3279,7 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 	}
 
 	trace_event_read_lock();
+	trace_access_lock(iter->cpu_file);
 
 	/* Fill as many pages as possible. */
 	for (i = 0, rem = len; i < PIPE_BUFFERS && rem; i++) {
@@ -3243,6 +3303,7 @@ static ssize_t tracing_splice_read_pipe(struct file *filp,
 		trace_seq_init(&iter->seq);
 	}
 
+	trace_access_unlock(iter->cpu_file);
 	trace_event_read_unlock();
 	mutex_unlock(&iter->mutex);
 
@@ -3544,10 +3605,12 @@ tracing_buffers_read(struct file *filp, char __user *ubuf,
 
 	info->read = 0;
 
+	trace_access_lock(info->cpu);
 	ret = ring_buffer_read_page(info->tr->buffer,
 				    &info->spare,
 				    count,
 				    info->cpu, 0);
+	trace_access_unlock(info->cpu);
 	if (ret < 0)
 		return 0;
 
@@ -3675,6 +3738,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		len &= PAGE_MASK;
 	}
 
+	trace_access_lock(info->cpu);
 	entries = ring_buffer_entries_cpu(info->tr->buffer, info->cpu);
 
 	for (i = 0; i < PIPE_BUFFERS && len && entries; i++, len -= PAGE_SIZE) {
@@ -3722,6 +3786,7 @@ tracing_buffers_splice_read(struct file *file, loff_t *ppos,
 		entries = ring_buffer_entries_cpu(info->tr->buffer, info->cpu);
 	}
 
+	trace_access_unlock(info->cpu);
 	spd.nr_pages = i;
 
 	/* did we read anything? */
@@ -4158,6 +4223,8 @@ static __init int tracer_init_debugfs(void)
 	struct dentry *d_tracer;
 	int cpu;
 
+	trace_access_lock_init();
+
 	d_tracer = tracing_init_dentry();
 
 	trace_create_file("tracing_enabled", 0644, d_tracer,
@@ -4392,9 +4459,6 @@ __init static int tracer_alloc_buffers(void)
 	if (!alloc_cpumask_var(&tracing_cpumask, GFP_KERNEL))
 		goto out_free_buffer_mask;
 
-	if (!zalloc_cpumask_var(&tracing_reader_cpumask, GFP_KERNEL))
-		goto out_free_tracing_cpumask;
-
 	/* To save memory, keep the ring buffer size to its minimum */
 	if (ring_buffer_expanded)
 		ring_buf_size = trace_buf_size;
@@ -4452,8 +4516,6 @@ __init static int tracer_alloc_buffers(void)
 	return 0;
 
 out_free_cpumask:
-	free_cpumask_var(tracing_reader_cpumask);
-out_free_tracing_cpumask:
 	free_cpumask_var(tracing_cpumask);
 out_free_buffer_mask:
 	free_cpumask_var(tracing_buffer_mask);

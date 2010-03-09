@@ -37,6 +37,7 @@ struct thread_info {
 	unsigned long	   flags;		/* low level flags */
 	int		   cpu;			/* cpu we're on */
 	int		   preempt_count;	/* 0 => preemptable, <0 => BUG */
+	unsigned long	   tp_value;		/* thread pointer */
 	struct restart_block restart_block;
 };
 

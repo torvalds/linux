@@ -359,7 +359,7 @@ static void parse_system_parameter_string(struct seq_file *m)
 
 	unsigned char *local_buffer = kmalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
 	if (!local_buffer) {
-		printk(KERN_ERR "%s %s kmalloc failure at line %d \n",
+		printk(KERN_ERR "%s %s kmalloc failure at line %d\n",
 		       __FILE__, __func__, __LINE__);
 		return;
 	}
@@ -383,13 +383,13 @@ static void parse_system_parameter_string(struct seq_file *m)
 		int idx, w_idx;
 		char *workbuffer = kzalloc(SPLPAR_MAXLENGTH, GFP_KERNEL);
 		if (!workbuffer) {
-			printk(KERN_ERR "%s %s kmalloc failure at line %d \n",
+			printk(KERN_ERR "%s %s kmalloc failure at line %d\n",
 			       __FILE__, __func__, __LINE__);
 			kfree(local_buffer);
 			return;
 		}
 #ifdef LPARCFG_DEBUG
-		printk(KERN_INFO "success calling get-system-parameter \n");
+		printk(KERN_INFO "success calling get-system-parameter\n");
 #endif
 		splpar_strlen = local_buffer[0] * 256 + local_buffer[1];
 		local_buffer += 2;	/* step over strlen value */
@@ -440,7 +440,7 @@ static int lparcfg_count_active_processors(void)
 
 	while ((cpus_dn = of_find_node_by_type(cpus_dn, "cpu"))) {
 #ifdef LPARCFG_DEBUG
-		printk(KERN_ERR "cpus_dn %p \n", cpus_dn);
+		printk(KERN_ERR "cpus_dn %p\n", cpus_dn);
 #endif
 		count++;
 	}
@@ -725,7 +725,7 @@ static int lparcfg_data(struct seq_file *m, void *v)
 	const unsigned int *lp_index_ptr;
 	unsigned int lp_index = 0;
 
-	seq_printf(m, "%s %s \n", MODULE_NAME, MODULE_VERS);
+	seq_printf(m, "%s %s\n", MODULE_NAME, MODULE_VERS);
 
 	rootdn = of_find_node_by_path("/");
 	if (rootdn) {

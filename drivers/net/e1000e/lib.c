@@ -51,10 +51,10 @@ enum e1000_mng_mode {
  **/
 s32 e1000e_get_bus_info_pcie(struct e1000_hw *hw)
 {
+	struct e1000_mac_info *mac = &hw->mac;
 	struct e1000_bus_info *bus = &hw->bus;
 	struct e1000_adapter *adapter = hw->adapter;
-	u32 status;
-	u16 pcie_link_status, pci_header_type, cap_offset;
+	u16 pcie_link_status, cap_offset;
 
 	cap_offset = pci_find_capability(adapter->pdev, PCI_CAP_ID_EXP);
 	if (!cap_offset) {
@@ -68,17 +68,43 @@ s32 e1000e_get_bus_info_pcie(struct e1000_hw *hw)
 						    PCIE_LINK_WIDTH_SHIFT);
 	}
 
-	pci_read_config_word(adapter->pdev, PCI_HEADER_TYPE_REGISTER,
-			     &pci_header_type);
-	if (pci_header_type & PCI_HEADER_TYPE_MULTIFUNC) {
-		status = er32(STATUS);
-		bus->func = (status & E1000_STATUS_FUNC_MASK)
-			    >> E1000_STATUS_FUNC_SHIFT;
-	} else {
-		bus->func = 0;
-	}
+	mac->ops.set_lan_id(hw);
 
 	return 0;
+}
+
+/**
+ *  e1000_set_lan_id_multi_port_pcie - Set LAN id for PCIe multiple port devices
+ *
+ *  @hw: pointer to the HW structure
+ *
+ *  Determines the LAN function id by reading memory-mapped registers
+ *  and swaps the port value if requested.
+ **/
+void e1000_set_lan_id_multi_port_pcie(struct e1000_hw *hw)
+{
+	struct e1000_bus_info *bus = &hw->bus;
+	u32 reg;
+
+	/*
+	 * The status register reports the correct function number
+	 * for the device regardless of function swap state.
+	 */
+	reg = er32(STATUS);
+	bus->func = (reg & E1000_STATUS_FUNC_MASK) >> E1000_STATUS_FUNC_SHIFT;
+}
+
+/**
+ *  e1000_set_lan_id_single_port - Set LAN id for a single port device
+ *  @hw: pointer to the HW structure
+ *
+ *  Sets the LAN function id to zero for a single port device.
+ **/
+void e1000_set_lan_id_single_port(struct e1000_hw *hw)
+{
+	struct e1000_bus_info *bus = &hw->bus;
+
+	bus->func = 0;
 }
 
 /**
@@ -136,6 +162,68 @@ void e1000e_init_rx_addrs(struct e1000_hw *hw, u16 rar_count)
 	e_dbg("Clearing RAR[1-%u]\n", rar_count-1);
 	for (i = 1; i < rar_count; i++)
 		e1000e_rar_set(hw, mac_addr, i);
+}
+
+/**
+ *  e1000_check_alt_mac_addr_generic - Check for alternate MAC addr
+ *  @hw: pointer to the HW structure
+ *
+ *  Checks the nvm for an alternate MAC address.  An alternate MAC address
+ *  can be setup by pre-boot software and must be treated like a permanent
+ *  address and must override the actual permanent MAC address. If an
+ *  alternate MAC address is found it is programmed into RAR0, replacing
+ *  the permanent address that was installed into RAR0 by the Si on reset.
+ *  This function will return SUCCESS unless it encounters an error while
+ *  reading the EEPROM.
+ **/
+s32 e1000_check_alt_mac_addr_generic(struct e1000_hw *hw)
+{
+	u32 i;
+	s32 ret_val = 0;
+	u16 offset, nvm_alt_mac_addr_offset, nvm_data;
+	u8 alt_mac_addr[ETH_ALEN];
+
+	ret_val = e1000_read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
+	                         &nvm_alt_mac_addr_offset);
+	if (ret_val) {
+		e_dbg("NVM Read Error\n");
+		goto out;
+	}
+
+	if (nvm_alt_mac_addr_offset == 0xFFFF) {
+		/* There is no Alternate MAC Address */
+		goto out;
+	}
+
+	if (hw->bus.func == E1000_FUNC_1)
+		nvm_alt_mac_addr_offset += E1000_ALT_MAC_ADDRESS_OFFSET_LAN1;
+	for (i = 0; i < ETH_ALEN; i += 2) {
+		offset = nvm_alt_mac_addr_offset + (i >> 1);
+		ret_val = e1000_read_nvm(hw, offset, 1, &nvm_data);
+		if (ret_val) {
+			e_dbg("NVM Read Error\n");
+			goto out;
+		}
+
+		alt_mac_addr[i] = (u8)(nvm_data & 0xFF);
+		alt_mac_addr[i + 1] = (u8)(nvm_data >> 8);
+	}
+
+	/* if multicast bit is set, the alternate address will not be used */
+	if (alt_mac_addr[0] & 0x01) {
+		e_dbg("Ignoring Alternate Mac Address with MC bit set\n");
+		goto out;
+	}
+
+	/*
+	 * We have a valid alternate MAC address, and we want to treat it the
+	 * same as the normal permanent MAC address stored by the HW into the
+	 * RAR. Do this by mapping this address into RAR0.
+	 */
+	e1000e_rar_set(hw, alt_mac_addr, 0);
+
+out:
+	return ret_val;
 }
 
 /**
@@ -252,62 +340,34 @@ static u32 e1000_hash_mc_addr(struct e1000_hw *hw, u8 *mc_addr)
  *  @hw: pointer to the HW structure
  *  @mc_addr_list: array of multicast addresses to program
  *  @mc_addr_count: number of multicast addresses to program
- *  @rar_used_count: the first RAR register free to program
- *  @rar_count: total number of supported Receive Address Registers
  *
- *  Updates the Receive Address Registers and Multicast Table Array.
+ *  Updates entire Multicast Table Array.
  *  The caller must have a packed mc_addr_list of multicast addresses.
- *  The parameter rar_count will usually be hw->mac.rar_entry_count
- *  unless there are workarounds that change this.
  **/
 void e1000e_update_mc_addr_list_generic(struct e1000_hw *hw,
-					u8 *mc_addr_list, u32 mc_addr_count,
-					u32 rar_used_count, u32 rar_count)
+					u8 *mc_addr_list, u32 mc_addr_count)
 {
-	u32 i;
-	u32 *mcarray = kzalloc(hw->mac.mta_reg_count * sizeof(u32), GFP_ATOMIC);
+	u32 hash_value, hash_bit, hash_reg;
+	int i;
 
-	if (!mcarray) {
-		printk(KERN_ERR "multicast array memory allocation failed\n");
-		return;
-	}
+	/* clear mta_shadow */
+	memset(&hw->mac.mta_shadow, 0, sizeof(hw->mac.mta_shadow));
 
-	/*
-	 * Load the first set of multicast addresses into the exact
-	 * filters (RAR).  If there are not enough to fill the RAR
-	 * array, clear the filters.
-	 */
-	for (i = rar_used_count; i < rar_count; i++) {
-		if (mc_addr_count) {
-			e1000e_rar_set(hw, mc_addr_list, i);
-			mc_addr_count--;
-			mc_addr_list += ETH_ALEN;
-		} else {
-			E1000_WRITE_REG_ARRAY(hw, E1000_RA, i << 1, 0);
-			e1e_flush();
-			E1000_WRITE_REG_ARRAY(hw, E1000_RA, (i << 1) + 1, 0);
-			e1e_flush();
-		}
-	}
-
-	/* Load any remaining multicast addresses into the hash table. */
-	for (; mc_addr_count > 0; mc_addr_count--) {
-		u32 hash_value, hash_reg, hash_bit, mta;
+	/* update mta_shadow from mc_addr_list */
+	for (i = 0; (u32) i < mc_addr_count; i++) {
 		hash_value = e1000_hash_mc_addr(hw, mc_addr_list);
-		e_dbg("Hash value = 0x%03X\n", hash_value);
+
 		hash_reg = (hash_value >> 5) & (hw->mac.mta_reg_count - 1);
 		hash_bit = hash_value & 0x1F;
-		mta = (1 << hash_bit);
-		mcarray[hash_reg] |= mta;
-		mc_addr_list += ETH_ALEN;
+
+		hw->mac.mta_shadow[hash_reg] |= (1 << hash_bit);
+		mc_addr_list += (ETH_ALEN);
 	}
 
-	/* write the hash table completely */
-	for (i = 0; i < hw->mac.mta_reg_count; i++)
-		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, mcarray[i]);
-
+	/* replace the entire MTA table */
+	for (i = hw->mac.mta_reg_count - 1; i >= 0; i--)
+		E1000_WRITE_REG_ARRAY(hw, E1000_MTA, i, hw->mac.mta_shadow[i]);
 	e1e_flush();
-	kfree(mcarray);
 }
 
 /**
@@ -2072,67 +2132,27 @@ s32 e1000e_write_nvm_spi(struct e1000_hw *hw, u16 offset, u16 words, u16 *data)
 }
 
 /**
- *  e1000e_read_mac_addr - Read device MAC address
+ *  e1000_read_mac_addr_generic - Read device MAC address
  *  @hw: pointer to the HW structure
  *
  *  Reads the device MAC address from the EEPROM and stores the value.
  *  Since devices with two ports use the same EEPROM, we increment the
  *  last bit in the MAC address for the second port.
  **/
-s32 e1000e_read_mac_addr(struct e1000_hw *hw)
+s32 e1000_read_mac_addr_generic(struct e1000_hw *hw)
 {
-	s32 ret_val;
-	u16 offset, nvm_data, i;
-	u16 mac_addr_offset = 0;
+	u32 rar_high;
+	u32 rar_low;
+	u16 i;
 
-	if (hw->mac.type == e1000_82571) {
-		/* Check for an alternate MAC address.  An alternate MAC
-		 * address can be setup by pre-boot software and must be
-		 * treated like a permanent address and must override the
-		 * actual permanent MAC address.*/
-		ret_val = e1000_read_nvm(hw, NVM_ALT_MAC_ADDR_PTR, 1,
-					 &mac_addr_offset);
-		if (ret_val) {
-			e_dbg("NVM Read Error\n");
-			return ret_val;
-		}
-		if (mac_addr_offset == 0xFFFF)
-			mac_addr_offset = 0;
+	rar_high = er32(RAH(0));
+	rar_low = er32(RAL(0));
 
-		if (mac_addr_offset) {
-			if (hw->bus.func == E1000_FUNC_1)
-				mac_addr_offset += ETH_ALEN/sizeof(u16);
+	for (i = 0; i < E1000_RAL_MAC_ADDR_LEN; i++)
+		hw->mac.perm_addr[i] = (u8)(rar_low >> (i*8));
 
-			/* make sure we have a valid mac address here
-			* before using it */
-			ret_val = e1000_read_nvm(hw, mac_addr_offset, 1,
-						 &nvm_data);
-			if (ret_val) {
-				e_dbg("NVM Read Error\n");
-				return ret_val;
-			}
-			if (nvm_data & 0x0001)
-				mac_addr_offset = 0;
-		}
-
-		if (mac_addr_offset)
-		hw->dev_spec.e82571.alt_mac_addr_is_present = 1;
-	}
-
-	for (i = 0; i < ETH_ALEN; i += 2) {
-		offset = mac_addr_offset + (i >> 1);
-		ret_val = e1000_read_nvm(hw, offset, 1, &nvm_data);
-		if (ret_val) {
-			e_dbg("NVM Read Error\n");
-			return ret_val;
-		}
-		hw->mac.perm_addr[i] = (u8)(nvm_data & 0xFF);
-		hw->mac.perm_addr[i+1] = (u8)(nvm_data >> 8);
-	}
-
-	/* Flip last bit of mac address if we're on second port */
-	if (!mac_addr_offset && hw->bus.func == E1000_FUNC_1)
-		hw->mac.perm_addr[5] ^= 1;
+	for (i = 0; i < E1000_RAH_MAC_ADDR_LEN; i++)
+		hw->mac.perm_addr[i+4] = (u8)(rar_high >> (i*8));
 
 	for (i = 0; i < ETH_ALEN; i++)
 		hw->mac.addr[i] = hw->mac.perm_addr[i];

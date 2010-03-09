@@ -13,6 +13,7 @@
 
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
+#include <linux/acpi.h>
 #include <linux/mfd/core.h>
 
 static int mfd_add_device(struct device *parent, int id,
@@ -62,6 +63,10 @@ static int mfd_add_device(struct device *parent, int id,
 			res[r].start = cell->resources[r].start;
 			res[r].end   = cell->resources[r].end;
 		}
+
+		ret = acpi_check_resource_conflict(res);
+		if (ret)
+			goto fail_res;
 	}
 
 	platform_device_add_resources(pdev, res, cell->num_resources);

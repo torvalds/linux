@@ -842,6 +842,7 @@ struct efx_phy_operations falcon_sfx7101_phy_ops = {
 	.get_settings	  = tenxpress_get_settings,
 	.set_settings	  = tenxpress_set_settings,
 	.set_npage_adv    = sfx7101_set_npage_adv,
+	.test_alive	  = efx_mdio_test_alive,
 	.test_name	  = sfx7101_test_name,
 	.run_tests	  = sfx7101_run_tests,
 };
@@ -856,6 +857,7 @@ struct efx_phy_operations falcon_sft9001_phy_ops = {
 	.get_settings	  = tenxpress_get_settings,
 	.set_settings	  = tenxpress_set_settings,
 	.set_npage_adv    = sft9001_set_npage_adv,
+	.test_alive	  = efx_mdio_test_alive,
 	.test_name	  = sft9001_test_name,
 	.run_tests	  = sft9001_run_tests,
 };

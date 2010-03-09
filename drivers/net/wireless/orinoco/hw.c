@@ -1028,7 +1028,7 @@ int orinoco_clear_tkip_key(struct orinoco_private *priv, int key_idx)
 }
 
 int __orinoco_hw_set_multicast_list(struct orinoco_private *priv,
-				    struct dev_addr_list *mc_list,
+				    struct net_device *dev,
 				    int mc_count, int promisc)
 {
 	hermes_t *hw = &priv->hw;
@@ -1049,23 +1049,15 @@ int __orinoco_hw_set_multicast_list(struct orinoco_private *priv,
 	 * group address if either we want to multicast, or if we were
 	 * multicasting and want to stop */
 	if (!promisc && (mc_count || priv->mc_count)) {
-		struct dev_mc_list *p = mc_list;
+		struct dev_mc_list *p;
 		struct hermes_multicast mclist;
-		int i;
+		int i = 0;
 
-		for (i = 0; i < mc_count; i++) {
-			/* paranoia: is list shorter than mc_count? */
-			BUG_ON(!p);
-			/* paranoia: bad address size in list? */
-			BUG_ON(p->dmi_addrlen != ETH_ALEN);
-
-			memcpy(mclist.addr[i], p->dmi_addr, ETH_ALEN);
-			p = p->next;
+		netdev_for_each_mc_addr(p, dev) {
+			if (i == mc_count)
+				break;
+			memcpy(mclist.addr[i++], p->dmi_addr, ETH_ALEN);
 		}
-
-		if (p)
-			printk(KERN_WARNING "%s: Multicast list is "
-			       "longer than mc_count\n", priv->ndev->name);
 
 		err = hermes_write_ltv(hw, USER_BAP,
 				   HERMES_RID_CNFGROUPADDRESSES,

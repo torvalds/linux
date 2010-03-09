@@ -159,3 +159,14 @@ Description:
 		device.  This is useful to ensure auto probing won't
 		match the driver to the device.  For example:
 		# echo "046d c315" > /sys/bus/usb/drivers/foo/remove_id
+
+What:		/sys/bus/usb/device/.../avoid_reset
+Date:		December 2009
+Contact:	Oliver Neukum <oliver@neukum.org>
+Description:
+		Writing 1 to this file tells the kernel that this
+		device will morph into another mode when it is reset.
+		Drivers will not use reset for error handling for
+		such devices.
+Users:
+		usb_modeswitch

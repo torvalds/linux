@@ -553,7 +553,7 @@ static ssize_t mpc52xx_wdt_write(struct file *file, const char __user *data,
 	return 0;
 }
 
-static struct watchdog_info mpc5200_wdt_info = {
+static const struct watchdog_info mpc5200_wdt_info = {
 	.options	= WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING,
 	.identity	= WDT_IDENTITY,
 };

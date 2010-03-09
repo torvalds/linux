@@ -1,0 +1,60 @@
+#! /bin/sh
+#
+# Module load/unload script for use with SysV-style /etc/init.d/ systems.
+# On a Debian system, copy this to /etc/init.d/dt3155 and then run
+# 	/usr/sbin/update-rc.d dt3155 defaults 55
+# to create the appropriate /etc/rc?.d/[SK]55dt3155 start/stop links.
+# (The "55" is arbitrary but is what I use to load this rather late.)
+#
+#    Andy Dougherty   Feb 22 2000	doughera@lafayette.edu
+#    Dept. of Physics
+#    Lafayette College, Easton PA 18042
+#
+
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+
+# Edit to point to your local copy.
+FILE=/usr/local/lib/modules/dt3155/dt3155.o
+NAME="dt3155"
+DESC="dt3155 Frame Grabber module"
+DEV="dt3155"
+
+if test ! -f $FILE; then
+    echo "Unable to locate $FILE"
+    exit 0
+fi
+
+set -e
+
+case "$1" in
+  start)
+    echo -n "Loading $DESC "
+    if /sbin/insmod -v -f $FILE; then
+	major=`grep $DEV /proc/devices | awk "{print \\$1}"`
+	rm -f /dev/dt3155?
+	mknod /dev/dt3155a c $major 0
+	mknod /dev/dt3155b c $major 1
+	chmod go+rw /dev/dt3155?
+	echo
+    else
+	echo "$FILE not loaded."
+    fi
+    ;;
+  stop)
+    echo -n "Unloading $DESC: "
+    if /sbin/rmmod $NAME ; then
+	echo
+    else
+	echo "$DEV not removed"
+	exit 0
+    fi
+    rm -f /dev/dt3155?
+    ;;
+  *)
+    echo "Usage: /etc/init.d/$NAME {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0
+
