@@ -115,7 +115,6 @@ struct ttm_backend {
 	struct ttm_backend_func *func;
 };
 
-#define TTM_PAGE_FLAG_VMALLOC         (1 << 0)
 #define TTM_PAGE_FLAG_USER            (1 << 1)
 #define TTM_PAGE_FLAG_USER_DIRTY      (1 << 2)
 #define TTM_PAGE_FLAG_WRITE           (1 << 3)
