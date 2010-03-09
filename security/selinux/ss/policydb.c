@@ -40,7 +40,7 @@
 #define _DEBUG_HASHES
 
 #ifdef DEBUG_HASHES
-static char *symtab_name[SYM_NUM] = {
+static const char *symtab_name[SYM_NUM] = {
 	"common prefixes",
 	"classes",
 	"roles",

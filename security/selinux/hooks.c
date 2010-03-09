@@ -323,7 +323,7 @@ extern int ss_initialized;
 
 /* The file system's label must be initialized prior to use. */
 
-static char *labeling_behaviors[6] = {
+static const char *labeling_behaviors[6] = {
 	"uses xattr",
 	"uses transition SIDs",
 	"uses task SIDs",
