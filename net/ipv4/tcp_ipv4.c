@@ -1651,14 +1651,14 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	if (!sk)
 		goto no_tcp_socket;
 
+process:
+	if (sk->sk_state == TCP_TIME_WAIT)
+		goto do_time_wait;
+
 	if (unlikely(iph->ttl < inet_sk(sk)->min_ttl)) {
 		NET_INC_STATS_BH(net, LINUX_MIB_TCPMINTTLDROP);
 		goto discard_and_relse;
 	}
-
-process:
-	if (sk->sk_state == TCP_TIME_WAIT)
-		goto do_time_wait;
 
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
