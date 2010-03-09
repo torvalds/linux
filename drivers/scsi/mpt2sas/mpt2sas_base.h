@@ -119,7 +119,6 @@
 #define MPT2_IOC_PRE_RESET		1 /* prior to host reset */
 #define MPT2_IOC_AFTER_RESET		2 /* just after host reset */
 #define MPT2_IOC_DONE_RESET		3 /* links re-initialized */
-#define MPT2_IOC_RUNNING		4 /* shost running */
 
 /*
  * logging format
@@ -603,7 +602,6 @@ struct MPT2SAS_ADAPTER {
 	/* fw event handler */
 	char		firmware_event_name[20];
 	struct workqueue_struct	*firmware_event_thread;
-	u8		fw_events_off;
 	spinlock_t	fw_event_lock;
 	struct list_head fw_event_list;
 
@@ -611,6 +609,7 @@ struct MPT2SAS_ADAPTER {
 	int		aen_event_read_flag;
 	u8		broadcast_aen_busy;
 	u8		shost_recovery;
+	struct completion	shost_recovery_done;
 	spinlock_t 	ioc_reset_in_progress_lock;
 	u8		ioc_link_reset_in_progress;
 	u8		ignore_loginfos;

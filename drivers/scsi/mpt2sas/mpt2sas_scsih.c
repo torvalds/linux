@@ -109,14 +109,16 @@ struct sense_info {
 };
 
 
+#define MPT2SAS_RESCAN_AFTER_HOST_RESET (0xFFFF)
+
 /**
  * struct fw_event_work - firmware event struct
  * @list: link list framework
  * @work: work object (ioc->fault_reset_work_q)
+ * @cancel_pending_work: flag set during reset handling
  * @ioc: per adapter object
  * @VF_ID: virtual function id
  * @VP_ID: virtual port id
- * @host_reset_handling: handling events during host reset
  * @ignore: flag meaning this event has been marked to ignore
  * @event: firmware event MPI2_EVENT_XXX defined in mpt2_ioc.h
  * @event_data: reply event data payload follows
@@ -125,11 +127,11 @@ struct sense_info {
  */
 struct fw_event_work {
 	struct list_head 	list;
-	struct work_struct	work;
+	u8			cancel_pending_work;
+	struct delayed_work	delayed_work;
 	struct MPT2SAS_ADAPTER *ioc;
 	u8			VF_ID;
 	u8			VP_ID;
-	u8			host_reset_handling;
 	u8			ignore;
 	u16			event;
 	void			*event_data;
@@ -2325,8 +2327,9 @@ _scsih_fw_event_add(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work *fw_event)
 
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
 	list_add_tail(&fw_event->list, &ioc->fw_event_list);
-	INIT_WORK(&fw_event->work, _firmware_event_work);
-	queue_work(ioc->firmware_event_thread, &fw_event->work);
+	INIT_DELAYED_WORK(&fw_event->delayed_work, _firmware_event_work);
+	queue_delayed_work(ioc->firmware_event_thread,
+	    &fw_event->delayed_work, 0);
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
@@ -2353,62 +2356,55 @@ _scsih_fw_event_free(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work
 	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 }
 
+
 /**
- * _scsih_fw_event_add - requeue an event
+ * _scsih_queue_rescan - queue a topology rescan from user context
  * @ioc: per adapter object
- * @fw_event: object describing the event
- * Context: This function will acquire ioc->fw_event_lock.
  *
  * Return nothing.
  */
 static void
-_scsih_fw_event_requeue(struct MPT2SAS_ADAPTER *ioc, struct fw_event_work
-    *fw_event, unsigned long delay)
+_scsih_queue_rescan(struct MPT2SAS_ADAPTER *ioc)
 {
-	unsigned long flags;
-	if (ioc->firmware_event_thread == NULL)
+	struct fw_event_work *fw_event;
+
+	if (ioc->wait_for_port_enable_to_complete)
+		return;
+	fw_event = kzalloc(sizeof(struct fw_event_work), GFP_ATOMIC);
+	if (!fw_event)
+		return;
+	fw_event->event = MPT2SAS_RESCAN_AFTER_HOST_RESET;
+	fw_event->ioc = ioc;
+	_scsih_fw_event_add(ioc, fw_event);
+}
+
+/**
+ * _scsih_fw_event_cleanup_queue - cleanup event queue
+ * @ioc: per adapter object
+ *
+ * Walk the firmware event queue, either killing timers, or waiting
+ * for outstanding events to complete
+ *
+ * Return nothing.
+ */
+static void
+_scsih_fw_event_cleanup_queue(struct MPT2SAS_ADAPTER *ioc)
+{
+	struct fw_event_work *fw_event, *next;
+
+	if (list_empty(&ioc->fw_event_list) ||
+	     !ioc->firmware_event_thread || in_interrupt())
 		return;
 
-	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	queue_work(ioc->firmware_event_thread, &fw_event->work);
-	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+	list_for_each_entry_safe(fw_event, next, &ioc->fw_event_list, list) {
+		if (cancel_delayed_work(&fw_event->delayed_work)) {
+			_scsih_fw_event_free(ioc, fw_event);
+			continue;
+		}
+		fw_event->cancel_pending_work = 1;
+	}
 }
 
-/**
- * _scsih_fw_event_off - turn flag off preventing event handling
- * @ioc: per adapter object
- *
- * Used to prevent handling of firmware events during adapter reset
- * driver unload.
- *
- * Return nothing.
- */
-static void
-_scsih_fw_event_off(struct MPT2SAS_ADAPTER *ioc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	ioc->fw_events_off = 1;
-	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
-
-}
-
-/**
- * _scsih_fw_event_on - turn flag on allowing firmware event handling
- * @ioc: per adapter object
- *
- * Returns nothing.
- */
-static void
-_scsih_fw_event_on(struct MPT2SAS_ADAPTER *ioc)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	ioc->fw_events_off = 0;
-	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
-}
 
 /**
  * _scsih_ublock_io_device - set the device state to SDEV_RUNNING
@@ -5694,13 +5690,13 @@ _scsih_search_responding_expanders(struct MPT2SAS_ADAPTER *ioc)
 }
 
 /**
- * _scsih_remove_unresponding_devices - removing unresponding devices
+ * _scsih_remove_unresponding_sas_devices - removing unresponding devices
  * @ioc: per adapter object
  *
  * Return nothing.
  */
 static void
-_scsih_remove_unresponding_devices(struct MPT2SAS_ADAPTER *ioc)
+_scsih_remove_unresponding_sas_devices(struct MPT2SAS_ADAPTER *ioc)
 {
 	struct _sas_device *sas_device, *sas_device_next;
 	struct _sas_node *sas_expander;
@@ -5774,31 +5770,28 @@ mpt2sas_scsih_reset_handler(struct MPT2SAS_ADAPTER *ioc, int reset_phase)
 	case MPT2_IOC_PRE_RESET:
 		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
 		    "MPT2_IOC_PRE_RESET\n", ioc->name, __func__));
-		_scsih_fw_event_off(ioc);
 		break;
 	case MPT2_IOC_AFTER_RESET:
 		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
 		    "MPT2_IOC_AFTER_RESET\n", ioc->name, __func__));
+		if (ioc->scsih_cmds.status & MPT2_CMD_PENDING) {
+			ioc->scsih_cmds.status |= MPT2_CMD_RESET;
+			mpt2sas_base_free_smid(ioc, ioc->scsih_cmds.smid);
+			complete(&ioc->scsih_cmds.done);
+		}
 		if (ioc->tm_cmds.status & MPT2_CMD_PENDING) {
 			ioc->tm_cmds.status |= MPT2_CMD_RESET;
 			mpt2sas_base_free_smid(ioc, ioc->tm_cmds.smid);
 			complete(&ioc->tm_cmds.done);
 		}
-		_scsih_fw_event_on(ioc);
+		_scsih_fw_event_cleanup_queue(ioc);
 		_scsih_flush_running_cmds(ioc);
+		_scsih_queue_rescan(ioc);
 		break;
 	case MPT2_IOC_DONE_RESET:
 		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
 		    "MPT2_IOC_DONE_RESET\n", ioc->name, __func__));
 		_scsih_sas_host_refresh(ioc);
-		_scsih_search_responding_sas_devices(ioc);
-		_scsih_search_responding_raid_devices(ioc);
-		_scsih_search_responding_expanders(ioc);
-		break;
-	case MPT2_IOC_RUNNING:
-		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: "
-		    "MPT2_IOC_RUNNING\n", ioc->name, __func__));
-		_scsih_remove_unresponding_devices(ioc);
 		break;
 	}
 }
@@ -5815,21 +5808,31 @@ static void
 _firmware_event_work(struct work_struct *work)
 {
 	struct fw_event_work *fw_event = container_of(work,
-	    struct fw_event_work, work);
+	    struct fw_event_work, delayed_work.work);
 	unsigned long flags;
 	struct MPT2SAS_ADAPTER *ioc = fw_event->ioc;
 
 	/* the queue is being flushed so ignore this event */
-	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	if (ioc->fw_events_off || ioc->remove_host) {
-		spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+	if (ioc->remove_host || fw_event->cancel_pending_work) {
 		_scsih_fw_event_free(ioc, fw_event);
 		return;
 	}
-	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 
-	if (ioc->shost_recovery) {
-		_scsih_fw_event_requeue(ioc, fw_event, 1000);
+	if (fw_event->event == MPT2SAS_RESCAN_AFTER_HOST_RESET) {
+		_scsih_fw_event_free(ioc, fw_event);
+		spin_lock_irqsave(&ioc->ioc_reset_in_progress_lock, flags);
+		if (ioc->shost_recovery) {
+			init_completion(&ioc->shost_recovery_done);
+			spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock,
+			    flags);
+			wait_for_completion(&ioc->shost_recovery_done);
+		} else
+			spin_unlock_irqrestore(&ioc->ioc_reset_in_progress_lock,
+			    flags);
+		_scsih_search_responding_sas_devices(ioc);
+		_scsih_search_responding_raid_devices(ioc);
+		_scsih_search_responding_expanders(ioc);
+		_scsih_remove_unresponding_sas_devices(ioc);
 		return;
 	}
 
@@ -5891,16 +5894,11 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 {
 	struct fw_event_work *fw_event;
 	Mpi2EventNotificationReply_t *mpi_reply;
-	unsigned long flags;
 	u16 event;
 
 	/* events turned off due to host reset or driver unloading */
-	spin_lock_irqsave(&ioc->fw_event_lock, flags);
-	if (ioc->fw_events_off || ioc->remove_host) {
-		spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+	if (ioc->remove_host)
 		return 1;
-	}
-	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
 
 	mpi_reply = mpt2sas_base_get_reply_virt_addr(ioc, reply);
 	event = le16_to_cpu(mpi_reply->Event);
@@ -6158,6 +6156,18 @@ _scsih_shutdown(struct pci_dev *pdev)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct MPT2SAS_ADAPTER *ioc = shost_priv(shost);
+	struct workqueue_struct	*wq;
+	unsigned long flags;
+
+	ioc->remove_host = 1;
+	_scsih_fw_event_cleanup_queue(ioc);
+
+	spin_lock_irqsave(&ioc->fw_event_lock, flags);
+	wq = ioc->firmware_event_thread;
+	ioc->firmware_event_thread = NULL;
+	spin_unlock_irqrestore(&ioc->fw_event_lock, flags);
+	if (wq)
+		destroy_workqueue(wq);
 
 	_scsih_ir_shutdown(ioc);
 	mpt2sas_base_detach(ioc);
@@ -6184,7 +6194,7 @@ _scsih_remove(struct pci_dev *pdev)
 	unsigned long flags;
 
 	ioc->remove_host = 1;
-	_scsih_fw_event_off(ioc);
+	_scsih_fw_event_cleanup_queue(ioc);
 
 	spin_lock_irqsave(&ioc->fw_event_lock, flags);
 	wq = ioc->firmware_event_thread;
