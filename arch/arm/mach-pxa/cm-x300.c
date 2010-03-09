@@ -650,7 +650,7 @@ static struct da903x_platform_data cm_x300_da9030_info = {
 
 static struct i2c_board_info cm_x300_pmic_info = {
 	I2C_BOARD_INFO("da9030", 0x49),
-	.irq = IRQ_GPIO(0),
+	.irq = IRQ_WAKEUP0,
 	.platform_data = &cm_x300_da9030_info,
 };
 
