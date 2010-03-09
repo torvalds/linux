@@ -1137,8 +1137,6 @@ ath5k_mode_setup(struct ath5k_softc *sc)
 	struct ath5k_hw *ah = sc->ah;
 	u32 rfilt;
 
-	ah->ah_op_mode = sc->opmode;
-
 	/* configure rx filter */
 	rfilt = sc->filter_flags;
 	ath5k_hw_set_rx_filter(ah, rfilt);
@@ -1147,8 +1145,9 @@ ath5k_mode_setup(struct ath5k_softc *sc)
 		ath5k_hw_set_bssid_mask(ah, sc->bssidmask);
 
 	/* configure operational mode */
-	ath5k_hw_set_opmode(ah);
+	ath5k_hw_set_opmode(ah, sc->opmode);
 
+	ATH5K_DBG(sc, ATH5K_DEBUG_MODE, "mode setup opmode %d\n", sc->opmode);
 	ATH5K_DBG(sc, ATH5K_DEBUG_MODE, "RX filter 0x%x\n", rfilt);
 }
 
@@ -2900,6 +2899,8 @@ static int ath5k_add_interface(struct ieee80211_hw *hw,
 		ret = -EOPNOTSUPP;
 		goto end;
 	}
+
+	ATH5K_DBG(sc, ATH5K_DEBUG_MODE, "add interface mode %d\n", sc->opmode);
 
 	ath5k_hw_set_lladdr(sc->ah, vif->addr);
 	ath5k_mode_setup(sc);

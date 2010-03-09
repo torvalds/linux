@@ -39,16 +39,16 @@
  * ath5k_hw_set_opmode - Set PCU operating mode
  *
  * @ah: The &struct ath5k_hw
+ * @op_mode: &enum nl80211_iftype operating mode
  *
  * Initialize PCU for the various operating modes (AP/STA etc)
- *
- * NOTE: ah->ah_op_mode must be set before calling this.
  */
-int ath5k_hw_set_opmode(struct ath5k_hw *ah)
+int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype op_mode)
 {
 	struct ath_common *common = ath5k_hw_common(ah);
 	u32 pcu_reg, beacon_reg, low_id, high_id;
 
+	ATH5K_DBG(ah->ah_sc, ATH5K_DEBUG_MODE, "mode %d\n", op_mode);
 
 	/* Preserve rest settings */
 	pcu_reg = ath5k_hw_reg_read(ah, AR5K_STA_ID1) & 0xffff0000;
@@ -61,7 +61,7 @@ int ath5k_hw_set_opmode(struct ath5k_hw *ah)
 
 	ATH5K_TRACE(ah->ah_sc);
 
-	switch (ah->ah_op_mode) {
+	switch (op_mode) {
 	case NL80211_IFTYPE_ADHOC:
 		pcu_reg |= AR5K_STA_ID1_ADHOC | AR5K_STA_ID1_KEYSRCH_MODE;
 		beacon_reg |= AR5K_BCR_ADHOC;
@@ -644,7 +644,7 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 	/*
 	 * Set the additional timers by mode
 	 */
-	switch (ah->ah_op_mode) {
+	switch (ah->ah_sc->opmode) {
 	case NL80211_IFTYPE_MONITOR:
 	case NL80211_IFTYPE_STATION:
 		/* In STA mode timer1 is used as next wakeup
@@ -681,8 +681,8 @@ void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval)
 	 * Set the beacon register and enable all timers.
 	 */
 	/* When in AP or Mesh Point mode zero timer0 to start TSF */
-	if (ah->ah_op_mode == NL80211_IFTYPE_AP ||
-	    ah->ah_op_mode == NL80211_IFTYPE_MESH_POINT)
+	if (ah->ah_sc->opmode == NL80211_IFTYPE_AP ||
+	    ah->ah_sc->opmode == NL80211_IFTYPE_MESH_POINT)
 		ath5k_hw_reg_write(ah, 0, AR5K_TIMER0);
 
 	ath5k_hw_reg_write(ah, next_beacon, AR5K_TIMER0);

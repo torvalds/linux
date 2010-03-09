@@ -1036,7 +1036,6 @@ struct ath5k_hw {
 
 	enum ath5k_int		ah_imr;
 
-	enum nl80211_iftype	ah_op_mode;
 	struct ieee80211_channel *ah_current_channel;
 	bool			ah_turbo;
 	bool			ah_calibration;
@@ -1200,7 +1199,7 @@ void ath5k_eeprom_detach(struct ath5k_hw *ah);
 int ath5k_eeprom_read_mac(struct ath5k_hw *ah, u8 *mac);
 
 /* Protocol Control Unit Functions */
-int ath5k_hw_set_opmode(struct ath5k_hw *ah);
+extern int ath5k_hw_set_opmode(struct ath5k_hw *ah, enum nl80211_iftype opmode);
 void ath5k_hw_set_coverage_class(struct ath5k_hw *ah, u8 coverage_class);
 /* BSSID Functions */
 int ath5k_hw_set_lladdr(struct ath5k_hw *ah, const u8 *mac);
