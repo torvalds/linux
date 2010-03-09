@@ -353,7 +353,7 @@ static int magicmouse_probe(struct hid_device *hdev,
 		goto err_free;
 	}
 
-	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT);
+	ret = hid_hw_start(hdev, HID_CONNECT_DEFAULT & ~HID_CONNECT_HIDINPUT);
 	if (ret) {
 		dev_err(&hdev->dev, "magicmouse hw start failed\n");
 		goto err_free;
@@ -409,8 +409,11 @@ err_free:
 
 static void magicmouse_remove(struct hid_device *hdev)
 {
+	struct magicmouse_sc *msc = hid_get_drvdata(hdev);
+
 	hid_hw_stop(hdev);
-	kfree(hid_get_drvdata(hdev));
+	input_unregister_device(msc->input);
+	kfree(msc);
 }
 
 static const struct hid_device_id magic_mice[] = {
