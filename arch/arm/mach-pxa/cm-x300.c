@@ -637,10 +637,6 @@ struct da9030_battery_info cm_x300_battery_info = {
 /* DA9030 */
 struct da903x_subdev_info cm_x300_da9030_subdevs[] = {
 	{
-		.name = "da903x-backlight",
-		.id = DA9030_ID_WLED,
-	},
-	{
 		.name = "da903x-battery",
 		.id = DA9030_ID_BAT,
 		.platform_data = &cm_x300_battery_info,
