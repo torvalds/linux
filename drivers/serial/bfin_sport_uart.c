@@ -39,27 +39,6 @@
 
 #include "bfin_sport_uart.h"
 
-#ifdef CONFIG_SERIAL_BFIN_SPORT0_UART
-unsigned short bfin_uart_pin_req_sport0[] =
-	{P_SPORT0_TFS, P_SPORT0_DTPRI, P_SPORT0_TSCLK, P_SPORT0_RFS, \
-	 P_SPORT0_DRPRI, P_SPORT0_RSCLK, P_SPORT0_DRSEC, P_SPORT0_DTSEC, 0};
-#endif
-#ifdef CONFIG_SERIAL_BFIN_SPORT1_UART
-unsigned short bfin_uart_pin_req_sport1[] =
-	{P_SPORT1_TFS, P_SPORT1_DTPRI, P_SPORT1_TSCLK, P_SPORT1_RFS, \
-	P_SPORT1_DRPRI, P_SPORT1_RSCLK, P_SPORT1_DRSEC, P_SPORT1_DTSEC, 0};
-#endif
-#ifdef CONFIG_SERIAL_BFIN_SPORT2_UART
-unsigned short bfin_uart_pin_req_sport2[] =
-	{P_SPORT2_TFS, P_SPORT2_DTPRI, P_SPORT2_TSCLK, P_SPORT2_RFS, \
-	P_SPORT2_DRPRI, P_SPORT2_RSCLK, P_SPORT2_DRSEC, P_SPORT2_DTSEC, 0};
-#endif
-#ifdef CONFIG_SERIAL_BFIN_SPORT3_UART
-unsigned short bfin_uart_pin_req_sport3[] =
-	{P_SPORT3_TFS, P_SPORT3_DTPRI, P_SPORT3_TSCLK, P_SPORT3_RFS, \
-	P_SPORT3_DRPRI, P_SPORT3_RSCLK, P_SPORT3_DRSEC, P_SPORT3_DTSEC, 0};
-#endif
-
 struct sport_uart_port {
 	struct uart_port	port;
 	int			err_irq;
