@@ -3434,14 +3434,28 @@ out:
 #endif /* CONFIG_SND_SUPPORT_OLD_API */
 
 #ifndef CONFIG_MMU
-unsigned long dummy_get_unmapped_area(struct file *file, unsigned long addr,
-				      unsigned long len, unsigned long pgoff,
-				      unsigned long flags)
+static unsigned long snd_pcm_get_unmapped_area(struct file *file,
+					       unsigned long addr,
+					       unsigned long len,
+					       unsigned long pgoff,
+					       unsigned long flags)
 {
-	return 0;
+	struct snd_pcm_file *pcm_file = file->private_data;
+	struct snd_pcm_substream *substream = pcm_file->substream;
+	struct snd_pcm_runtime *runtime = substream->runtime;
+	unsigned long offset = pgoff << PAGE_SHIFT;
+
+	switch (offset) {
+	case SNDRV_PCM_MMAP_OFFSET_STATUS:
+		return (unsigned long)runtime->status;
+	case SNDRV_PCM_MMAP_OFFSET_CONTROL:
+		return (unsigned long)runtime->control;
+	default:
+		return (unsigned long)runtime->dma_area + offset;
+	}
 }
 #else
-# define dummy_get_unmapped_area NULL
+# define snd_pcm_get_unmapped_area NULL
 #endif
 
 /*
@@ -3460,7 +3474,7 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
 		.mmap =			snd_pcm_mmap,
 		.fasync =		snd_pcm_fasync,
-		.get_unmapped_area =	dummy_get_unmapped_area,
+		.get_unmapped_area =	snd_pcm_get_unmapped_area,
 	},
 	{
 		.owner =		THIS_MODULE,
@@ -3473,6 +3487,6 @@ const struct file_operations snd_pcm_f_ops[2] = {
 		.compat_ioctl = 	snd_pcm_ioctl_compat,
 		.mmap =			snd_pcm_mmap,
 		.fasync =		snd_pcm_fasync,
-		.get_unmapped_area =	dummy_get_unmapped_area,
+		.get_unmapped_area =	snd_pcm_get_unmapped_area,
 	}
 };
