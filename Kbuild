@@ -94,5 +94,5 @@ PHONY += missing-syscalls
 missing-syscalls: scripts/checksyscalls.sh FORCE
 	$(call cmd,syscalls)
 
-# Delete all targets during make clean
-clean-files := $(addprefix $(objtree)/,$(filter-out $(bounds-file) $(offsets-file),$(targets)))
+# Keep these two files during make clean
+no-clean-files := $(bounds-file) $(offsets-file)
