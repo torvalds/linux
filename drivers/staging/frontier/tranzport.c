@@ -123,7 +123,7 @@ struct tranzport_cmd {
 /* Structure to hold all of our device specific stuff */
 
 struct usb_tranzport {
-	struct semaphore sem;	/* locks this structure */
+	struct mutex mtx;	/* locks this structure */
 	struct usb_interface *intf;	/* save off the usb interface pointer */
 	int open_count;		/* number of times this port opened */
 	struct tranzport_cmd (*ring_buffer)[RING_BUFFER_SIZE];
@@ -367,7 +367,7 @@ static int usb_tranzport_open(struct inode *inode, struct file *file)
 	}
 
 	/* lock this device */
-	if (down_interruptible(&dev->sem)) {
+	if (mutex_lock_interruptible(&dev->mtx)) {
 		retval = -ERESTARTSYS;
 		goto unlock_disconnect_exit;
 	}
@@ -411,7 +411,7 @@ static int usb_tranzport_open(struct inode *inode, struct file *file)
 	file->private_data = dev;
 
 unlock_exit:
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 
 unlock_disconnect_exit:
 	mutex_unlock(&disconnect_mutex);
@@ -434,7 +434,7 @@ static int usb_tranzport_release(struct inode *inode, struct file *file)
 		goto exit;
 	}
 
-	if (down_interruptible(&dev->sem)) {
+	if (mutex_lock_interruptible(&dev->mtx)) {
 		retval = -ERESTARTSYS;
 		goto exit;
 	}
@@ -446,7 +446,7 @@ static int usb_tranzport_release(struct inode *inode, struct file *file)
 
 	if (dev->intf == NULL) {
 		/* the device was unplugged before the file was released */
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 		/* unlock here as usb_tranzport_delete frees dev */
 		usb_tranzport_delete(dev);
 		retval = -ENODEV;
@@ -462,7 +462,7 @@ static int usb_tranzport_release(struct inode *inode, struct file *file)
 	dev->open_count = 0;
 
 unlock_exit:
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 
 exit:
 	return retval;
@@ -512,7 +512,7 @@ static ssize_t usb_tranzport_read(struct file *file, char __user *buffer,
 		goto exit;
 
 	/* lock this object */
-	if (down_interruptible(&dev->sem)) {
+	if (mutex_lock_interruptible(&dev->mtx)) {
 		retval = -ERESTARTSYS;
 		goto exit;
 	}
@@ -660,7 +660,7 @@ retval = 8;
 
 unlock_exit:
 /* unlock the device */
-up(&dev->sem);
+mutex_unlock(&dev->mtx);
 
 exit:
 return retval;
@@ -684,7 +684,7 @@ static ssize_t usb_tranzport_write(struct file *file,
 		goto exit;
 
 	/* lock this object */
-	if (down_interruptible(&dev->sem)) {
+	if (mutex_lock_interruptible(&dev->mtx)) {
 		retval = -ERESTARTSYS;
 		goto exit;
 	}
@@ -753,7 +753,7 @@ static ssize_t usb_tranzport_write(struct file *file,
 
 unlock_exit:
 	/* unlock the device */
-	up(&dev->sem);
+	mutex_unlock(&dev->mtx);
 
 exit:
 	return retval;
@@ -802,7 +802,7 @@ static int usb_tranzport_probe(struct usb_interface *intf,
 		dev_err(&intf->dev, "Out of memory\n");
 		goto exit;
 	}
-	init_MUTEX(&dev->sem);
+	mutex_init(&dev->mtx);
 	dev->intf = intf;
 	init_waitqueue_head(&dev->read_wait);
 	init_waitqueue_head(&dev->write_wait);
@@ -942,18 +942,18 @@ static void usb_tranzport_disconnect(struct usb_interface *intf)
 	mutex_lock(&disconnect_mutex);
 	dev = usb_get_intfdata(intf);
 	usb_set_intfdata(intf, NULL);
-	down(&dev->sem);
+	mutex_lock(&dev->mtx);
 	minor = intf->minor;
 	/* give back our minor */
 	usb_deregister_dev(intf, &usb_tranzport_class);
 
 	/* if the device is not opened, then we clean up right now */
 	if (!dev->open_count) {
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 		usb_tranzport_delete(dev);
 	} else {
 		dev->intf = NULL;
-		up(&dev->sem);
+		mutex_unlock(&dev->mtx);
 	}
 
 	mutex_unlock(&disconnect_mutex);
