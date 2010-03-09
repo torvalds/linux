@@ -2074,7 +2074,7 @@ static int ftdi_process_packet(struct tty_struct *tty,
 		return 0;	/* status only */
 	ch = packet + 2;
 
-	if (!(port->console && port->sysrq) && flag == TTY_NORMAL)
+	if (!(port->port.console && port->sysrq) && flag == TTY_NORMAL)
 		tty_insert_flip_string(tty, ch, len);
 	else {
 		for (i = 0; i < len; i++, ch++) {

@@ -289,7 +289,7 @@ static void serial_down(struct tty_port *tport)
 	 * The console is magical.  Do not hang up the console hardware
 	 * or there will be tears.
 	 */
-	if (port->console)
+	if (port->port.console)
 		return;
 	if (drv->close)
 		drv->close(port);
@@ -328,7 +328,7 @@ static void serial_cleanup(struct tty_struct *tty)
 	/* The console is magical.  Do not hang up the console hardware
 	 * or there will be tears.
 	 */
-	if (port->console)
+	if (port->port.console)
 		return;
 
 	dbg("%s - port %d", __func__, port->number);

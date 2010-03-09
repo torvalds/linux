@@ -447,7 +447,7 @@ static void flush_and_resubmit_read_urb(struct usb_serial_port *port)
 	/* The per character mucking around with sysrq path it too slow for
 	   stuff like 3G modems, so shortcircuit it in the 99.9999999% of cases
 	   where the USB serial is not a console anyway */
-	if (!port->console || !port->sysrq)
+	if (!port->port.console || !port->sysrq)
 		tty_insert_flip_string(tty, ch, urb->actual_length);
 	else {
 		/* Push data to tty */
@@ -561,7 +561,7 @@ void usb_serial_generic_unthrottle(struct tty_struct *tty)
 int usb_serial_handle_sysrq_char(struct tty_struct *tty,
 			struct usb_serial_port *port, unsigned int ch)
 {
-	if (port->sysrq && port->console) {
+	if (port->sysrq && port->port.console) {
 		if (ch && time_before(jiffies, port->sysrq)) {
 			handle_sysrq(ch, tty);
 			port->sysrq = 0;
