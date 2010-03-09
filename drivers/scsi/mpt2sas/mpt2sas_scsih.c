@@ -484,27 +484,17 @@ struct _sas_device *
 mpt2sas_scsih_sas_device_find_by_sas_address(struct MPT2SAS_ADAPTER *ioc,
     u64 sas_address)
 {
-	struct _sas_device *sas_device, *r;
+	struct _sas_device *sas_device;
 
-	r = NULL;
-	/* check the sas_device_init_list */
-	list_for_each_entry(sas_device, &ioc->sas_device_init_list,
-	    list) {
-		if (sas_device->sas_address != sas_address)
-			continue;
-		r = sas_device;
-		goto out;
-	}
+	list_for_each_entry(sas_device, &ioc->sas_device_list, list)
+		if (sas_device->sas_address == sas_address)
+			return sas_device;
 
-	/* then check the sas_device_list */
-	list_for_each_entry(sas_device, &ioc->sas_device_list, list) {
-		if (sas_device->sas_address != sas_address)
-			continue;
-		r = sas_device;
-		goto out;
-	}
- out:
-	return r;
+	list_for_each_entry(sas_device, &ioc->sas_device_init_list, list)
+		if (sas_device->sas_address == sas_address)
+			return sas_device;
+
+	return NULL;
 }
 
 /**
@@ -519,28 +509,17 @@ mpt2sas_scsih_sas_device_find_by_sas_address(struct MPT2SAS_ADAPTER *ioc,
 static struct _sas_device *
 _scsih_sas_device_find_by_handle(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 {
-	struct _sas_device *sas_device, *r;
+	struct _sas_device *sas_device;
 
-	r = NULL;
-	if (ioc->wait_for_port_enable_to_complete) {
-		list_for_each_entry(sas_device, &ioc->sas_device_init_list,
-		    list) {
-			if (sas_device->handle != handle)
-				continue;
-			r = sas_device;
-			goto out;
-		}
-	} else {
-		list_for_each_entry(sas_device, &ioc->sas_device_list, list) {
-			if (sas_device->handle != handle)
-				continue;
-			r = sas_device;
-			goto out;
-		}
-	}
+	list_for_each_entry(sas_device, &ioc->sas_device_list, list)
+		if (sas_device->handle == handle)
+			return sas_device;
 
- out:
-	return r;
+	list_for_each_entry(sas_device, &ioc->sas_device_init_list, list)
+		if (sas_device->handle == handle)
+			return sas_device;
+
+	return NULL;
 }
 
 /**
