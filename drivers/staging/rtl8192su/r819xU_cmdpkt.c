@@ -33,7 +33,6 @@ bool SendTxCommandPacket(struct net_device *dev, void *pData, u32 DataLen)
 	tcb_desc->bLastIniPkt = 0;
 	skb_reserve(skb, USB_HWDESC_HEADER_LEN);
 	ptr_buf = skb_put(skb, DataLen);
-	memset(ptr_buf, 0, DataLen);
 	memcpy(ptr_buf, pData, DataLen);
 	tcb_desc->txbuf_size = (u16)DataLen;
 

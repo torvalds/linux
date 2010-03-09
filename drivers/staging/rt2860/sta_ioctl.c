@@ -608,7 +608,6 @@ int rt_ioctl_siwap(struct net_device *dev,
 	/* Prevent to connect AP again in STAMlmePeriodicExec */
 	pAdapter->MlmeAux.AutoReconnectSsidLen = 32;
 
-	memset(Bssid, 0, MAC_ADDR_LEN);
 	memcpy(Bssid, ap_addr->sa_data, MAC_ADDR_LEN);
 	MlmeEnqueue(pAdapter,
 		    MLME_CNTL_STATE_MACHINE,
