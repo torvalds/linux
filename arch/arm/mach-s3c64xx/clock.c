@@ -518,6 +518,11 @@ static struct clk clk_iis_cd1 = {
 	.id		= -1,
 };
 
+static struct clk clk_iisv4_cd = {
+	.name		= "iis_cdclk_v4",
+	.id		= -1,
+};
+
 static struct clk clk_pcm_cd = {
 	.name		= "pcm_cdclk",
 	.id		= -1,
@@ -749,6 +754,7 @@ static struct clk *clks1[] __initdata = {
 	&clk_ext_xtal_mux,
 	&clk_iis_cd0,
 	&clk_iis_cd1,
+	&clk_iisv4_cd,
 	&clk_pcm_cd,
 	&clk_mout_epll.clk,
 	&clk_mout_mpll.clk,
