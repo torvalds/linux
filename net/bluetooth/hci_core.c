@@ -1239,7 +1239,7 @@ int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 
 	skb->dev = (void *) hdev;
 	bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
-	hci_add_acl_hdr(skb, conn->handle, flags);
+	hci_add_acl_hdr(skb, conn->handle, flags | ACL_START);
 
 	if (!(list = skb_shinfo(skb)->frag_list)) {
 		/* Non fragmented */
@@ -1256,14 +1256,12 @@ int hci_send_acl(struct hci_conn *conn, struct sk_buff *skb, __u16 flags)
 		spin_lock_bh(&conn->data_q.lock);
 
 		__skb_queue_tail(&conn->data_q, skb);
-		flags &= ~ACL_PB_MASK;
-		flags |= ACL_CONT;
 		do {
 			skb = list; list = list->next;
 
 			skb->dev = (void *) hdev;
 			bt_cb(skb)->pkt_type = HCI_ACLDATA_PKT;
-			hci_add_acl_hdr(skb, conn->handle, flags);
+			hci_add_acl_hdr(skb, conn->handle, flags | ACL_CONT);
 
 			BT_DBG("%s frag %p len %d", hdev->name, skb, skb->len);
 

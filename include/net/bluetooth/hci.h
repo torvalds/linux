@@ -145,13 +145,10 @@ enum {
 			EDR_ESCO_MASK)
 
 /* ACL flags */
-#define ACL_START		0x00
 #define ACL_CONT		0x01
-#define ACL_START_FLUSHABLE	0x02
+#define ACL_START		0x02
 #define ACL_ACTIVE_BCAST	0x04
 #define ACL_PICO_BCAST		0x08
-
-#define ACL_PB_MASK	(ACL_CONT | ACL_START | ACL_START_FLUSHABLE)
 
 /* Baseband links */
 #define SCO_LINK	0x00
