@@ -1439,7 +1439,7 @@ config SERIAL_BFIN_SPORT_CONSOLE
 
 config SERIAL_BFIN_SPORT0_UART
 	bool "Enable UART over SPORT0"
-	depends on SERIAL_BFIN_SPORT && !(BF542 || BF542M || BF544 || BF544M)
+	depends on SERIAL_BFIN_SPORT && !(BF542 || BF544)
 	help
 	  Enable UART over SPORT0
 
