@@ -54,7 +54,7 @@ struct sport_uart_port {
 #endif
 };
 
-static void sport_uart_tx_chars(struct sport_uart_port *up);
+static int sport_uart_tx_chars(struct sport_uart_port *up);
 static void sport_stop_tx(struct uart_port *port);
 
 static inline void tx_one_byte(struct sport_uart_port *up, unsigned int value)
@@ -307,18 +307,24 @@ static int sport_startup(struct uart_port *port)
 	return ret;
 }
 
-static void sport_uart_tx_chars(struct sport_uart_port *up)
+/*
+ * sport_uart_tx_chars
+ *
+ * ret 1 means need to enable sport.
+ * ret 0 means do nothing.
+ */
+static int sport_uart_tx_chars(struct sport_uart_port *up)
 {
 	struct circ_buf *xmit = &up->port.state->xmit;
 
 	if (SPORT_GET_STAT(up) & TXF)
-		return;
+		return 0;
 
 	if (up->port.x_char) {
 		tx_one_byte(up, up->port.x_char);
 		up->port.icount.tx++;
 		up->port.x_char = 0;
-		return;
+		return 1;
 	}
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&up->port)) {
@@ -329,7 +335,7 @@ static void sport_uart_tx_chars(struct sport_uart_port *up)
 		 */
 		if (SPORT_GET_STAT(up) & TXHRE)
 			sport_stop_tx(&up->port);
-		return;
+		return 0;
 	}
 
 	while(!(SPORT_GET_STAT(up) & TXF) && !uart_circ_empty(xmit)) {
@@ -340,6 +346,8 @@ static void sport_uart_tx_chars(struct sport_uart_port *up)
 
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(&up->port);
+
+	return 1;
 }
 
 static unsigned int sport_tx_empty(struct uart_port *port)
@@ -360,6 +368,9 @@ static void sport_stop_tx(struct uart_port *port)
 	struct sport_uart_port *up = (struct sport_uart_port *)port;
 
 	pr_debug("%s enter\n", __func__);
+
+	if (!(SPORT_GET_TCR1(up) & TSPEN))
+		return;
 
 	/* Although the hold register is empty, last byte is still in shift
 	 * register and not sent out yet. So, put a dummy data into TX FIFO.
@@ -383,11 +394,12 @@ static void sport_start_tx(struct uart_port *port)
 	pr_debug("%s enter\n", __func__);
 
 	/* Write data into SPORT FIFO before enable SPROT to transmit */
-	sport_uart_tx_chars(up);
+	if (sport_uart_tx_chars(up)) {
+		/* Enable transmit, then an interrupt will generated */
+		SPORT_PUT_TCR1(up, (SPORT_GET_TCR1(up) | TSPEN));
+		SSYNC();
+	}
 
-	/* Enable transmit, then an interrupt will generated */
-	SPORT_PUT_TCR1(up, (SPORT_GET_TCR1(up) | TSPEN));
-	SSYNC();
 	pr_debug("%s exit\n", __func__);
 }
 
