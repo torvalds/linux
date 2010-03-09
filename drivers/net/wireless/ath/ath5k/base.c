@@ -1902,18 +1902,28 @@ ath5k_tasklet_rx(unsigned long data)
 			break;
 		else if (unlikely(ret)) {
 			ATH5K_ERR(sc, "error in processing rx descriptor\n");
+			sc->stats.rxerr_proc++;
 			spin_unlock(&sc->rxbuflock);
 			return;
 		}
 
+		sc->stats.rx_all_count++;
+
 		if (unlikely(rs.rs_more)) {
 			ATH5K_WARN(sc, "unsupported jumbo\n");
+			sc->stats.rxerr_jumbo++;
 			goto next;
 		}
 
 		if (unlikely(rs.rs_status)) {
-			if (rs.rs_status & AR5K_RXERR_PHY)
+			if (rs.rs_status & AR5K_RXERR_CRC)
+				sc->stats.rxerr_crc++;
+			if (rs.rs_status & AR5K_RXERR_FIFO)
+				sc->stats.rxerr_fifo++;
+			if (rs.rs_status & AR5K_RXERR_PHY) {
+				sc->stats.rxerr_phy++;
 				goto next;
+			}
 			if (rs.rs_status & AR5K_RXERR_DECRYPT) {
 				/*
 				 * Decrypt error.  If the error occurred
@@ -1925,12 +1935,14 @@ ath5k_tasklet_rx(unsigned long data)
 				 *
 				 * XXX do key cache faulting
 				 */
+				sc->stats.rxerr_decrypt++;
 				if (rs.rs_keyix == AR5K_RXKEYIX_INVALID &&
 				    !(rs.rs_status & AR5K_RXERR_CRC))
 					goto accept;
 			}
 			if (rs.rs_status & AR5K_RXERR_MIC) {
 				rx_flag |= RX_FLAG_MMIC_ERROR;
+				sc->stats.rxerr_mic++;
 				goto accept;
 			}
 
@@ -2056,6 +2068,7 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 			break;
 		}
 
+		sc->stats.tx_all_count++;
 		skb = bf->skb;
 		info = IEEE80211_SKB_CB(skb);
 		bf->skb = NULL;
@@ -2082,8 +2095,14 @@ ath5k_tx_processq(struct ath5k_softc *sc, struct ath5k_txq *txq)
 
 		if (unlikely(ts.ts_status)) {
 			sc->ll_stats.dot11ACKFailureCount++;
-			if (ts.ts_status & AR5K_TXERR_FILT)
+			if (ts.ts_status & AR5K_TXERR_FILT) {
 				info->flags |= IEEE80211_TX_STAT_TX_FILTERED;
+				sc->stats.txerr_filt++;
+			}
+			if (ts.ts_status & AR5K_TXERR_XRETRY)
+				sc->stats.txerr_retry++;
+			if (ts.ts_status & AR5K_TXERR_FIFO)
+				sc->stats.txerr_fifo++;
 		} else {
 			info->flags |= IEEE80211_TX_STAT_ACK;
 			info->status.ack_signal = ts.ts_rssi;

@@ -109,6 +109,18 @@ struct ath5k_rfkill {
 struct ath5k_statistics {
 	unsigned int antenna_rx[5];	/* frames count per antenna RX */
 	unsigned int antenna_tx[5];	/* frames count per antenna TX */
+	unsigned int rx_all_count;	/* all RX frames, including errors */
+	unsigned int tx_all_count;	/* all TX frames, including errors */
+	unsigned int rxerr_crc;
+	unsigned int rxerr_phy;
+	unsigned int rxerr_fifo;
+	unsigned int rxerr_decrypt;
+	unsigned int rxerr_mic;
+	unsigned int rxerr_proc;
+	unsigned int rxerr_jumbo;
+	unsigned int txerr_retry;
+	unsigned int txerr_fifo;
+	unsigned int txerr_filt;
 };
 
 #if CHAN_DEBUG

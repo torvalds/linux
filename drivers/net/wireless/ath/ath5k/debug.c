@@ -465,6 +465,106 @@ static const struct file_operations fops_antenna = {
 };
 
 
+/* debugfs: frameerrors */
+
+static ssize_t read_file_frameerrors(struct file *file, char __user *user_buf,
+				   size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	struct ath5k_statistics *st = &sc->stats;
+	char buf[700];
+	unsigned int len = 0;
+
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"RX\n---------------------\n");
+	len += snprintf(buf+len, sizeof(buf)-len, "CRC\t%d\t(%d%%)\n",
+			st->rxerr_crc,
+			st->rx_all_count > 0 ?
+				st->rxerr_crc*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "PHY\t%d\t(%d%%)\n",
+			st->rxerr_phy,
+			st->rx_all_count > 0 ?
+				st->rxerr_phy*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "FIFO\t%d\t(%d%%)\n",
+			st->rxerr_fifo,
+			st->rx_all_count > 0 ?
+				st->rxerr_fifo*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "decrypt\t%d\t(%d%%)\n",
+			st->rxerr_decrypt,
+			st->rx_all_count > 0 ?
+				st->rxerr_decrypt*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "MIC\t%d\t(%d%%)\n",
+			st->rxerr_mic,
+			st->rx_all_count > 0 ?
+				st->rxerr_mic*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "process\t%d\t(%d%%)\n",
+			st->rxerr_proc,
+			st->rx_all_count > 0 ?
+				st->rxerr_proc*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "jumbo\t%d\t(%d%%)\n",
+			st->rxerr_jumbo,
+			st->rx_all_count > 0 ?
+				st->rxerr_jumbo*100/st->rx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "[RX all\t%d]\n",
+			st->rx_all_count);
+
+	len += snprintf(buf+len, sizeof(buf)-len,
+			"\nTX\n---------------------\n");
+	len += snprintf(buf+len, sizeof(buf)-len, "retry\t%d\t(%d%%)\n",
+			st->txerr_retry,
+			st->tx_all_count > 0 ?
+				st->txerr_retry*100/st->tx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "FIFO\t%d\t(%d%%)\n",
+			st->txerr_fifo,
+			st->tx_all_count > 0 ?
+				st->txerr_fifo*100/st->tx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "filter\t%d\t(%d%%)\n",
+			st->txerr_filt,
+			st->tx_all_count > 0 ?
+				st->txerr_filt*100/st->tx_all_count : 0);
+	len += snprintf(buf+len, sizeof(buf)-len, "[TX all\t%d]\n",
+			st->tx_all_count);
+
+	return simple_read_from_buffer(user_buf, count, ppos, buf, len);
+}
+
+static ssize_t write_file_frameerrors(struct file *file,
+				 const char __user *userbuf,
+				 size_t count, loff_t *ppos)
+{
+	struct ath5k_softc *sc = file->private_data;
+	struct ath5k_statistics *st = &sc->stats;
+	char buf[20];
+
+	if (copy_from_user(buf, userbuf, min(count, sizeof(buf))))
+		return -EFAULT;
+
+	if (strncmp(buf, "clear", 5) == 0) {
+		st->rxerr_crc = 0;
+		st->rxerr_phy = 0;
+		st->rxerr_fifo = 0;
+		st->rxerr_decrypt = 0;
+		st->rxerr_mic = 0;
+		st->rxerr_proc = 0;
+		st->rxerr_jumbo = 0;
+		st->rx_all_count = 0;
+		st->txerr_retry = 0;
+		st->txerr_fifo = 0;
+		st->txerr_filt = 0;
+		st->tx_all_count = 0;
+		printk(KERN_INFO "ath5k debug: cleared frameerrors stats\n");
+	}
+	return count;
+}
+
+static const struct file_operations fops_frameerrors = {
+	.read = read_file_frameerrors,
+	.write = write_file_frameerrors,
+	.open = ath5k_debugfs_open,
+	.owner = THIS_MODULE,
+};
+
+
 /* init */
 
 void
@@ -498,6 +598,11 @@ ath5k_debug_init_device(struct ath5k_softc *sc)
 	sc->debug.debugfs_antenna = debugfs_create_file("antenna",
 				S_IWUSR | S_IRUSR,
 				sc->debug.debugfs_phydir, sc, &fops_antenna);
+
+	sc->debug.debugfs_frameerrors = debugfs_create_file("frameerrors",
+				S_IWUSR | S_IRUSR,
+				sc->debug.debugfs_phydir, sc,
+				&fops_frameerrors);
 }
 
 void
@@ -514,6 +619,7 @@ ath5k_debug_finish_device(struct ath5k_softc *sc)
 	debugfs_remove(sc->debug.debugfs_beacon);
 	debugfs_remove(sc->debug.debugfs_reset);
 	debugfs_remove(sc->debug.debugfs_antenna);
+	debugfs_remove(sc->debug.debugfs_frameerrors);
 	debugfs_remove(sc->debug.debugfs_phydir);
 }
 
