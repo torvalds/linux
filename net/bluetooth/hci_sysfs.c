@@ -281,11 +281,9 @@ static ssize_t show_idle_timeout(struct device *dev, struct device_attribute *at
 static ssize_t store_idle_timeout(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	char *ptr;
-	__u32 val;
+	unsigned long val;
 
-	val = simple_strtoul(buf, &ptr, 10);
-	if (ptr == buf)
+	if (strict_strtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val != 0 && (val < 500 || val > 3600000))
@@ -305,11 +303,9 @@ static ssize_t show_sniff_max_interval(struct device *dev, struct device_attribu
 static ssize_t store_sniff_max_interval(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	char *ptr;
-	__u16 val;
+	unsigned long val;
 
-	val = simple_strtoul(buf, &ptr, 10);
-	if (ptr == buf)
+	if (strict_strtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val < 0x0002 || val > 0xFFFE || val % 2)
@@ -332,11 +328,9 @@ static ssize_t show_sniff_min_interval(struct device *dev, struct device_attribu
 static ssize_t store_sniff_min_interval(struct device *dev, struct device_attribute *attr, const char *buf, size_t count)
 {
 	struct hci_dev *hdev = dev_get_drvdata(dev);
-	char *ptr;
-	__u16 val;
+	unsigned long val;
 
-	val = simple_strtoul(buf, &ptr, 10);
-	if (ptr == buf)
+	if (strict_strtoul(buf, 0, &val) < 0)
 		return -EINVAL;
 
 	if (val < 0x0002 || val > 0xFFFE || val % 2)
