@@ -796,6 +796,11 @@ static int sys_addr_to_csrow(struct mem_ctl_info *mci, u64 sys_addr)
 
 static int get_channel_from_ecc_syndrome(struct mem_ctl_info *, u16);
 
+static u16 extract_syndrome(struct err_regs *err)
+{
+	return ((err->nbsh >> 15) & 0xff) | ((err->nbsl >> 16) & 0xff00);
+}
+
 static void amd64_cpu_display_info(struct amd64_pvt *pvt)
 {
 	if (boot_cpu_data.x86 == 0x11)
@@ -887,6 +892,9 @@ static void amd64_dump_misc_regs(struct amd64_pvt *pvt)
 		amd64_debug_display_dimm_sizes(0, pvt);
 		return;
 	}
+
+	amd64_printk(KERN_INFO, "using %s syndromes.\n",
+		     ((pvt->syn_type == 8) ? "x8" : "x4"));
 
 	/* Only if NOT ganged does dclr1 have valid info */
 	if (!dct_ganging_enabled(pvt))
@@ -1101,20 +1109,17 @@ static void k8_read_dram_base_limit(struct amd64_pvt *pvt, int dram)
 }
 
 static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
-					struct err_regs *info,
-					u64 sys_addr)
+				    struct err_regs *err_info, u64 sys_addr)
 {
 	struct mem_ctl_info *src_mci;
-	unsigned short syndrome;
 	int channel, csrow;
 	u32 page, offset;
+	u16 syndrome;
 
-	/* Extract the syndrome parts and form a 16-bit syndrome */
-	syndrome  = HIGH_SYNDROME(info->nbsl) << 8;
-	syndrome |= LOW_SYNDROME(info->nbsh);
+	syndrome = extract_syndrome(err_info);
 
 	/* CHIPKILL enabled */
-	if (info->nbcfg & K8_NBCFG_CHIPKILL) {
+	if (err_info->nbcfg & K8_NBCFG_CHIPKILL) {
 		channel = get_channel_from_ecc_syndrome(mci, syndrome);
 		if (channel < 0) {
 			/*
@@ -1123,8 +1128,8 @@ static void k8_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 			 * as suspect.
 			 */
 			amd64_mc_printk(mci, KERN_WARNING,
-				       "unknown syndrome 0x%x - possible error "
-				       "reporting race\n", syndrome);
+					"unknown syndrome 0x%04x - possible "
+					"error reporting race\n", syndrome);
 			edac_mc_handle_ce_no_info(mci, EDAC_MOD_STR);
 			return;
 		}
@@ -1654,13 +1659,13 @@ static int f10_translate_sysaddr_to_cs(struct amd64_pvt *pvt, u64 sys_addr,
  * (MCX_ADDR).
  */
 static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
-				     struct err_regs *info,
+				     struct err_regs *err_info,
 				     u64 sys_addr)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
 	u32 page, offset;
-	unsigned short syndrome;
 	int nid, csrow, chan = 0;
+	u16 syndrome;
 
 	csrow = f10_translate_sysaddr_to_cs(pvt, sys_addr, &nid, &chan);
 
@@ -1671,8 +1676,7 @@ static void f10_map_sysaddr_to_csrow(struct mem_ctl_info *mci,
 
 	error_address_to_page_and_offset(sys_addr, &page, &offset);
 
-	syndrome  = HIGH_SYNDROME(info->nbsl) << 8;
-	syndrome |= LOW_SYNDROME(info->nbsh);
+	syndrome = extract_syndrome(err_info);
 
 	/*
 	 * We need the syndromes for channel detection only when we're
@@ -1878,7 +1882,7 @@ static u16 x8_vectors[] = {
 };
 
 static int decode_syndrome(u16 syndrome, u16 *vectors, int num_vecs,
-				 int v_dim)
+			   int v_dim)
 {
 	unsigned int i, err_sym;
 
@@ -1955,23 +1959,23 @@ static int map_err_sym_to_channel(int err_sym, int sym_size)
 static int get_channel_from_ecc_syndrome(struct mem_ctl_info *mci, u16 syndrome)
 {
 	struct amd64_pvt *pvt = mci->pvt_info;
-	u32 value = 0;
-	int err_sym = 0;
+	int err_sym = -1;
 
-	if (boot_cpu_data.x86 == 0x10) {
-
-		amd64_read_pci_cfg(pvt->misc_f3_ctl, 0x180, &value);
-
-		/* F3x180[EccSymbolSize]=1 => x8 symbols */
-		if (boot_cpu_data.x86_model > 7 &&
-		    value & BIT(25)) {
-			err_sym = decode_syndrome(syndrome, x8_vectors,
-						  ARRAY_SIZE(x8_vectors), 8);
-			return map_err_sym_to_channel(err_sym, 8);
-		}
+	if (pvt->syn_type == 8)
+		err_sym = decode_syndrome(syndrome, x8_vectors,
+					  ARRAY_SIZE(x8_vectors),
+					  pvt->syn_type);
+	else if (pvt->syn_type == 4)
+		err_sym = decode_syndrome(syndrome, x4_vectors,
+					  ARRAY_SIZE(x4_vectors),
+					  pvt->syn_type);
+	else {
+		amd64_printk(KERN_WARNING, "%s: Illegal syndrome type: %u\n",
+					   __func__, pvt->syn_type);
+		return err_sym;
 	}
-	err_sym = decode_syndrome(syndrome, x4_vectors, ARRAY_SIZE(x4_vectors), 4);
-	return map_err_sym_to_channel(err_sym, 4);
+
+	return map_err_sym_to_channel(err_sym, pvt->syn_type);
 }
 
 /*
@@ -2284,6 +2288,7 @@ static void amd64_free_mc_sibling_devices(struct amd64_pvt *pvt)
 static void amd64_read_mc_registers(struct amd64_pvt *pvt)
 {
 	u64 msr_val;
+	u32 tmp;
 	int dram;
 
 	/*
@@ -2349,10 +2354,22 @@ static void amd64_read_mc_registers(struct amd64_pvt *pvt)
 	amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_0, &pvt->dclr0);
 	amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCHR_0, &pvt->dchr0);
 
-	if (!dct_ganging_enabled(pvt) && boot_cpu_data.x86 >= 0x10) {
-		amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_1, &pvt->dclr1);
-		amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCHR_1, &pvt->dchr1);
+	if (boot_cpu_data.x86 >= 0x10) {
+		if (!dct_ganging_enabled(pvt)) {
+			amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCLR_1, &pvt->dclr1);
+			amd64_read_pci_cfg(pvt->dram_f2_ctl, F10_DCHR_1, &pvt->dchr1);
+		}
+		amd64_read_pci_cfg(pvt->misc_f3_ctl, EXT_NB_MCA_CFG, &tmp);
 	}
+
+	if (boot_cpu_data.x86 == 0x10 &&
+	    boot_cpu_data.x86_model > 7 &&
+	    /* F3x180[EccSymbolSize]=1 => x8 symbols */
+	    tmp & BIT(25))
+		pvt->syn_type = 8;
+	else
+		pvt->syn_type = 4;
+
 	amd64_dump_misc_regs(pvt);
 }
 

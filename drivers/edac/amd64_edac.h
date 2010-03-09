@@ -382,6 +382,8 @@ enum {
 #define K8_NBCAP_SECDED			BIT(3)
 #define K8_NBCAP_DCT_DUAL		BIT(0)
 
+#define EXT_NB_MCA_CFG			0x180
+
 /* MSRs */
 #define K8_MSR_MCGCTL_NBE		BIT(4)
 
@@ -470,6 +472,9 @@ struct amd64_pvt {
 	u32 dram_ctl_select_low;	/* DRAM Controller Select Low Reg */
 	u32 dram_ctl_select_high;	/* DRAM Controller Select High Reg */
 	u32 online_spare;               /* On-Line spare Reg */
+
+	/* x4 or x8 syndromes in use */
+	u8 syn_type;
 
 	/* temp storage for when input is received from sysfs */
 	struct err_regs ctl_error_info;
