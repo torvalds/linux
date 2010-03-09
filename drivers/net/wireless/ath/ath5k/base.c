@@ -2971,7 +2971,7 @@ ath5k_config(struct ieee80211_hw *hw, u32 changed)
 	 * then we must allow the user to set how many tx antennas we
 	 * have available
 	 */
-	ath5k_hw_set_antenna_mode(ah, AR5K_ANTMODE_DEFAULT);
+	ath5k_hw_set_antenna_mode(ah, ah->ah_ant_mode);
 
 unlock:
 	mutex_unlock(&sc->lock);
