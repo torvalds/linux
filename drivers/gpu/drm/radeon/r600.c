@@ -874,7 +874,7 @@ bool r600_gpu_is_lockup(struct radeon_device *rdev)
 	return r100_gpu_cp_is_lockup(rdev, &rdev->config.r300.lockup, &rdev->cp);
 }
 
-int r600_gpu_reset(struct radeon_device *rdev)
+int r600_asic_reset(struct radeon_device *rdev)
 {
 	return r600_gpu_soft_reset(rdev);
 }

@@ -227,7 +227,7 @@ int rv515_ga_reset(struct radeon_device *rdev)
 	return -1;
 }
 
-int rv515_gpu_reset(struct radeon_device *rdev)
+int rv515_asic_reset(struct radeon_device *rdev)
 {
 	uint32_t status;
 
@@ -334,7 +334,7 @@ static int rv515_debugfs_ga_info(struct seq_file *m, void *data)
 
 	tmp = RREG32(0x2140);
 	seq_printf(m, "VAP_CNTL_STATUS 0x%08x\n", tmp);
-	radeon_gpu_reset(rdev);
+	radeon_asic_reset(rdev);
 	tmp = RREG32(0x425C);
 	seq_printf(m, "GA_IDLE 0x%08x\n", tmp);
 	return 0;
@@ -502,7 +502,7 @@ int rv515_resume(struct radeon_device *rdev)
 	/* Resume clock before doing reset */
 	rv515_clock_startup(rdev);
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
+	if (radeon_asic_reset(rdev)) {
 		dev_warn(rdev->dev, "GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
 			RREG32(R_000E40_RBBM_STATUS),
 			RREG32(R_0007C0_CP_STAT));
@@ -572,7 +572,7 @@ int rv515_init(struct radeon_device *rdev)
 		return -EINVAL;
 	}
 	/* Reset gpu before posting otherwise ATOM will enter infinite loop */
-	if (radeon_gpu_reset(rdev)) {
+	if (radeon_asic_reset(rdev)) {
 		dev_warn(rdev->dev,
 			"GPU reset failed ! (0xE40=0x%08X, 0x7C0=0x%08X)\n",
 			RREG32(R_000E40_RBBM_STATUS),

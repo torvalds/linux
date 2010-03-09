@@ -492,7 +492,7 @@ bool evergreen_gpu_is_lockup(struct radeon_device *rdev)
 	return false;
 }
 
-int evergreen_gpu_reset(struct radeon_device *rdev)
+int evergreen_asic_reset(struct radeon_device *rdev)
 {
 	/* FIXME: implement for evergreen */
 	return 0;

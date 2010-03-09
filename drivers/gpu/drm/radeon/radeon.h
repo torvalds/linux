@@ -748,7 +748,7 @@ struct radeon_asic {
 	int (*suspend)(struct radeon_device *rdev);
 	void (*vga_set_state)(struct radeon_device *rdev, bool state);
 	bool (*gpu_is_lockup)(struct radeon_device *rdev);
-	int (*gpu_reset)(struct radeon_device *rdev);
+	int (*asic_reset)(struct radeon_device *rdev);
 	void (*gart_tlb_flush)(struct radeon_device *rdev);
 	int (*gart_set_page)(struct radeon_device *rdev, int i, uint64_t addr);
 	int (*cp_init)(struct radeon_device *rdev, unsigned ring_size);
@@ -1157,7 +1157,7 @@ static inline void radeon_ring_write(struct radeon_device *rdev, uint32_t v)
 #define radeon_cs_parse(p) rdev->asic->cs_parse((p))
 #define radeon_vga_set_state(rdev, state) (rdev)->asic->vga_set_state((rdev), (state))
 #define radeon_gpu_is_lockup(rdev) (rdev)->asic->gpu_is_lockup((rdev))
-#define radeon_gpu_reset(rdev) (rdev)->asic->gpu_reset((rdev))
+#define radeon_asic_reset(rdev) (rdev)->asic->asic_reset((rdev))
 #define radeon_gart_tlb_flush(rdev) (rdev)->asic->gart_tlb_flush((rdev))
 #define radeon_gart_set_page(rdev, i, p) (rdev)->asic->gart_set_page((rdev), (i), (p))
 #define radeon_cp_commit(rdev) (rdev)->asic->cp_commit((rdev))
@@ -1290,7 +1290,7 @@ extern void r600_scratch_init(struct radeon_device *rdev);
 extern int r600_blit_init(struct radeon_device *rdev);
 extern void r600_blit_fini(struct radeon_device *rdev);
 extern int r600_init_microcode(struct radeon_device *rdev);
-extern int r600_gpu_reset(struct radeon_device *rdev);
+extern int r600_asic_reset(struct radeon_device *rdev);
 /* r600 irq */
 extern int r600_irq_init(struct radeon_device *rdev);
 extern void r600_irq_fini(struct radeon_device *rdev);
