@@ -670,6 +670,16 @@ static struct clksrc_clk clksrcs[] = {
 		.sources	= &clkset_audio1,
 	}, {
 		.clk	= {
+			.name		= "audio-bus",
+			.id		= -1,  /* There's only one IISv4 port */
+			.ctrlbit        = S3C6410_CLKCON_SCLK_AUDIO2,
+			.enable		= s3c64xx_sclk_ctrl,
+		},
+		.reg_src	= { .reg = S3C6410_CLK_SRC2, .shift = 0, .size = 3  },
+		.reg_div	= { .reg = S3C_CLK_DIV2, .shift = 24, .size = 4  },
+		.sources	= &clkset_audio2,
+	}, {
+		.clk	= {
 			.name		= "irda-bus",
 			.id		= 0,
 			.ctrlbit        = S3C_CLKCON_SCLK_IRDA,
