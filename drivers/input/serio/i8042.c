@@ -1386,6 +1386,8 @@ static int __init i8042_probe(struct platform_device *dev)
 {
 	int error;
 
+	i8042_platform_device = dev;
+
 	error = i8042_controller_selftest();
 	if (error)
 		return error;
@@ -1421,6 +1423,7 @@ static int __init i8042_probe(struct platform_device *dev)
 	i8042_free_aux_ports();	/* in case KBD failed but AUX not */
 	i8042_free_irqs();
 	i8042_controller_reset();
+	i8042_platform_device = NULL;
 
 	return error;
 }
@@ -1430,6 +1433,7 @@ static int __devexit i8042_remove(struct platform_device *dev)
 	i8042_unregister_ports();
 	i8042_free_irqs();
 	i8042_controller_reset();
+	i8042_platform_device = NULL;
 
 	return 0;
 }
@@ -1448,6 +1452,7 @@ static struct platform_driver i8042_driver = {
 
 static int __init i8042_init(void)
 {
+	struct platform_device *pdev;
 	int err;
 
 	dbg_init();
@@ -1460,31 +1465,18 @@ static int __init i8042_init(void)
 	if (err)
 		goto err_platform_exit;
 
-	i8042_platform_device = platform_device_alloc("i8042", -1);
-	if (!i8042_platform_device) {
-		err = -ENOMEM;
+	pdev = platform_create_bundle(&i8042_driver, i8042_probe, NULL, 0, NULL, 0);
+	if (IS_ERR(pdev)) {
+		err = PTR_ERR(pdev);
 		goto err_platform_exit;
 	}
-
-	err = platform_device_add(i8042_platform_device);
-	if (err)
-		goto err_free_device;
-
-	err = platform_driver_probe(&i8042_driver, i8042_probe);
-	if (err)
-		goto err_del_device;
 
 	panic_blink = i8042_panic_blink;
 
 	return 0;
 
- err_del_device:
-	platform_device_del(i8042_platform_device);
- err_free_device:
-	platform_device_put(i8042_platform_device);
  err_platform_exit:
 	i8042_platform_exit();
-
 	return err;
 }
 
