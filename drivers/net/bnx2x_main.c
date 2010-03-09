@@ -963,7 +963,7 @@ static int bnx2x_tx_int(struct bnx2x_fastpath *fp)
 	 * start_xmit() will miss it and cause the queue to be stopped
 	 * forever.
 	 */
-	smp_wmb();
+	smp_mb();
 
 	/* TBD need a thresh? */
 	if (unlikely(netif_tx_queue_stopped(txq))) {
