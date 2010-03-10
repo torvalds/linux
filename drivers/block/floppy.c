@@ -575,7 +575,6 @@ static void floppy_release_irq_and_dma(void);
  * reset doesn't need to be tested before sending commands, because
  * output_byte is automatically disabled when reset is set.
  */
-#define CHECK_RESET { if (FDCS->reset){ reset_fdc(); return; } }
 static void reset_fdc(void);
 
 /*
@@ -1958,7 +1957,10 @@ static int start_motor(void (*function)(void))
 
 static void floppy_ready(void)
 {
-	CHECK_RESET;
+	if (FDCS->reset) {
+		reset_fdc();
+		return;
+	}
 	if (start_motor(floppy_ready))
 		return;
 	if (fdc_dtr())
