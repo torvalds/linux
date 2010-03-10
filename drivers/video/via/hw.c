@@ -685,6 +685,54 @@ void viafb_set_secondary_pitch(u32 pitch)
 	viafb_write_reg_mask(0x71, VIACR, (pitch >> (10 - 7)) & 0x80, 0x80);
 }
 
+void viafb_set_primary_color_depth(u8 depth)
+{
+	u8 value;
+
+	DEBUG_MSG(KERN_DEBUG "viafb_set_primary_color_depth(%d)\n", depth);
+	switch (depth) {
+	case 6:
+		value = 0x00;
+		break;
+	case 16:
+		value = 0x14;
+		break;
+	case 24:
+		value = 0x0C;
+		break;
+	default:
+		printk(KERN_WARNING "viafb_set_primary_color_depth: "
+			"Unsupported depth: %d\n", depth);
+		return;
+	}
+
+	viafb_write_reg_mask(0x15, VIASR, value, 0x1C);
+}
+
+void viafb_set_secondary_color_depth(u8 depth)
+{
+	u8 value;
+
+	DEBUG_MSG(KERN_DEBUG "viafb_set_secondary_color_depth(%d)\n", depth);
+	switch (depth) {
+	case 6:
+		value = 0x00;
+		break;
+	case 16:
+		value = 0x40;
+		break;
+	case 24:
+		value = 0xC0;
+		break;
+	default:
+		printk(KERN_WARNING "viafb_set_secondary_color_depth: "
+			"Unsupported depth: %d\n", depth);
+		return;
+	}
+
+	viafb_write_reg_mask(0x67, VIACR, value, 0xC0);
+}
+
 void viafb_set_output_path(int device, int set_iga, int output_interface)
 {
 	switch (device) {
@@ -1761,35 +1809,6 @@ void viafb_load_crtc_timing(struct display_timing device_timing,
 	viafb_lock_crt();
 }
 
-void viafb_set_color_depth(int bpp_byte, int set_iga)
-{
-	if (set_iga == IGA1) {
-		switch (bpp_byte) {
-		case MODE_8BPP:
-			viafb_write_reg_mask(SR15, VIASR, 0x22, 0x7E);
-			break;
-		case MODE_16BPP:
-			viafb_write_reg_mask(SR15, VIASR, 0xB6, 0xFE);
-			break;
-		case MODE_32BPP:
-			viafb_write_reg_mask(SR15, VIASR, 0xAE, 0xFE);
-			break;
-		}
-	} else {
-		switch (bpp_byte) {
-		case MODE_8BPP:
-			viafb_write_reg_mask(CR67, VIACR, 0x00, BIT6 + BIT7);
-			break;
-		case MODE_16BPP:
-			viafb_write_reg_mask(CR67, VIACR, 0x40, BIT6 + BIT7);
-			break;
-		case MODE_32BPP:
-			viafb_write_reg_mask(CR67, VIACR, 0xC0, BIT6 + BIT7);
-			break;
-		}
-	}
-}
-
 void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	struct VideoModeTable *video_mode, int bpp_byte, int set_iga)
 {
@@ -1866,9 +1885,6 @@ void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
 	if ((viaparinfo->chip_info->gfx_chip_name != UNICHROME_CLE266)
 	    && (viaparinfo->chip_info->gfx_chip_name != UNICHROME_K400))
 		viafb_load_FIFO_reg(set_iga, h_addr, v_addr);
-
-	/* load SR Register About Memory and Color part */
-	viafb_set_color_depth(bpp_byte, set_iga);
 
 	pll_D_N = viafb_get_clk_value(crt_table[index].clk);
 	DEBUG_MSG(KERN_INFO "PLL=%x", pll_D_N);
@@ -2206,6 +2222,8 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 		outb(VPIT.SR[i - 1], VIASR + 1);
 	}
 
+	viafb_write_reg_mask(0x15, VIASR, viafbinfo->fix.visual
+		== FB_VISUAL_PSEUDOCOLOR ? 0x22 : 0xA2, 0xA2);
 	viafb_set_iga_path();
 
 	/* Write CRTC */
@@ -2245,6 +2263,9 @@ int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
 	viafb_set_primary_pitch(viafbinfo->fix.line_length);
 	viafb_set_secondary_pitch(viafb_dual_fb ? viafbinfo1->fix.line_length
 		: viafbinfo->fix.line_length);
+	viafb_set_primary_color_depth(viaparinfo->depth);
+	viafb_set_secondary_color_depth(viafb_dual_fb ? viaparinfo1->depth
+		: viaparinfo->depth);
 	/* Update Refresh Rate Setting */
 
 	/* Clear On Screen */

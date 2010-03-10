@@ -1006,8 +1006,6 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 		if ((viaparinfo->chip_info->gfx_chip_name != UNICHROME_CLE266)
 		    && (viaparinfo->chip_info->gfx_chip_name != UNICHROME_K400))
 			viafb_load_FIFO_reg(set_iga, set_hres, set_vres);
-
-		viafb_set_color_depth(mode_bpp / 8, set_iga);
 	}
 
 	fill_lcd_format();
