@@ -148,7 +148,6 @@ module_param(oos_shadow, bool, 0644);
 
 #include <trace/events/kvm.h>
 
-#undef TRACE_INCLUDE_FILE
 #define CREATE_TRACE_POINTS
 #include "mmutrace.h"
 
