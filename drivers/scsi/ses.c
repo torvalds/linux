@@ -591,8 +591,6 @@ static int ses_intf_add(struct device *cdev,
 		ses_dev->page10_len = len;
 		buf = NULL;
 	}
-	kfree(hdr_buf);
-
 	scomp = kzalloc(sizeof(struct ses_component) * components, GFP_KERNEL);
 	if (!scomp)
 		goto err_free;
@@ -603,6 +601,8 @@ static int ses_intf_add(struct device *cdev,
 		err = PTR_ERR(edev);
 		goto err_free;
 	}
+
+	kfree(hdr_buf);
 
 	edev->scratch = ses_dev;
 	for (i = 0; i < components; i++)
