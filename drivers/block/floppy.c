@@ -519,10 +519,6 @@ static DECLARE_WAIT_QUEUE_HEAD(fdc_wait);
 static DECLARE_WAIT_QUEUE_HEAD(command_done);
 
 #define NO_SIGNAL (!interruptible || !signal_pending(current))
-#define CALL(x)		if ((x) == -EINTR) return -EINTR
-#define _WAIT(x,i)	CALL(ret=wait_til_done((x),i))
-#define WAIT(x)		_WAIT((x),interruptible)
-#define IWAIT(x)	_WAIT((x),1)
 
 /* Errors during formatting are counted here. */
 static int format_errors;
@@ -2268,7 +2264,9 @@ static int do_format(int drive, struct format_descr *tmp_format_req)
 	format_errors = 0;
 	cont = &format_cont;
 	errors = &format_errors;
-	IWAIT(redo_format);
+	ret = wait_til_done(redo_format, 1);
+	if (ret == -EINTR)
+		return -EINTR;
 	process_fd_request();
 	return ret;
 }
@@ -2996,8 +2994,6 @@ static struct cont_t poll_cont = {
 
 static int poll_drive(int interruptible, int flag)
 {
-	int ret;
-
 	/* no auto-sense, just clear dcl */
 	raw_cmd = &default_raw_cmd;
 	raw_cmd->flags = flag;
@@ -3006,8 +3002,8 @@ static int poll_drive(int interruptible, int flag)
 	cont = &poll_cont;
 	debug_dcl(DP->flags, "setting NEWCHANGE in poll_drive\n");
 	set_bit(FD_DISK_NEWCHANGE_BIT, &DRS->flags);
-	WAIT(floppy_ready);
-	return ret;
+
+	return wait_til_done(floppy_ready, interruptible);
 }
 
 /*
@@ -3038,7 +3034,9 @@ static int user_reset_fdc(int drive, int arg, int interruptible)
 		FDCS->reset = 1;
 	if (FDCS->reset) {
 		cont = &reset_cont;
-		WAIT(reset_fdc);
+		ret = wait_til_done(reset_fdc, interruptible);
+		if (ret == -EINTR)
+			return -EINTR;
 	}
 	process_fd_request();
 	return 0;
