@@ -34,6 +34,10 @@
 #define BS_DC 	0x02
 #define BS_WR 	0x03
 
+/* Broadsheet IO interface specific defines */
+#define BS_MMIO_CMD	0x01
+#define BS_MMIO_DATA	0x02
+
 /* struct used by broadsheet. board specific stuff comes from *board */
 struct broadsheetfb_par {
 	struct fb_info *info;
@@ -49,12 +53,17 @@ struct broadsheet_board {
 	struct module *owner;
 	int (*init)(struct broadsheetfb_par *);
 	int (*wait_for_rdy)(struct broadsheetfb_par *);
-	void (*set_ctl)(struct broadsheetfb_par *, unsigned char, u8);
-	void (*set_hdb)(struct broadsheetfb_par *, u16);
-	u16 (*get_hdb)(struct broadsheetfb_par *);
 	void (*cleanup)(struct broadsheetfb_par *);
 	int (*get_panel_type)(void);
 	int (*setup_irq)(struct fb_info *);
-};
 
+	/* Functions for boards that use GPIO */
+	void (*set_ctl)(struct broadsheetfb_par *, unsigned char, u8);
+	void (*set_hdb)(struct broadsheetfb_par *, u16);
+	u16 (*get_hdb)(struct broadsheetfb_par *);
+
+	/* Functions for boards that have specialized MMIO */
+	void (*mmio_write)(struct broadsheetfb_par *, int type, u16);
+	u16 (*mmio_read)(struct broadsheetfb_par *);
+};
 #endif

@@ -115,30 +115,30 @@ static struct fb_var_screeninfo broadsheetfb_var __devinitdata = {
 };
 
 /* main broadsheetfb functions */
-static void broadsheet_issue_data(struct broadsheetfb_par *par, u16 data)
+static void broadsheet_gpio_issue_data(struct broadsheetfb_par *par, u16 data)
 {
 	par->board->set_ctl(par, BS_WR, 0);
 	par->board->set_hdb(par, data);
 	par->board->set_ctl(par, BS_WR, 1);
 }
 
-static void broadsheet_issue_cmd(struct broadsheetfb_par *par, u16 data)
+static void broadsheet_gpio_issue_cmd(struct broadsheetfb_par *par, u16 data)
 {
 	par->board->set_ctl(par, BS_DC, 0);
-	broadsheet_issue_data(par, data);
+	broadsheet_gpio_issue_data(par, data);
 }
 
-static void broadsheet_send_command(struct broadsheetfb_par *par, u16 data)
+static void broadsheet_gpio_send_command(struct broadsheetfb_par *par, u16 data)
 {
 	par->board->wait_for_rdy(par);
 
 	par->board->set_ctl(par, BS_CS, 0);
-	broadsheet_issue_cmd(par, data);
+	broadsheet_gpio_issue_cmd(par, data);
 	par->board->set_ctl(par, BS_DC, 1);
 	par->board->set_ctl(par, BS_CS, 1);
 }
 
-static void broadsheet_send_cmdargs(struct broadsheetfb_par *par, u16 cmd,
+static void broadsheet_gpio_send_cmdargs(struct broadsheetfb_par *par, u16 cmd,
 					int argc, u16 *argv)
 {
 	int i;
@@ -146,15 +146,43 @@ static void broadsheet_send_cmdargs(struct broadsheetfb_par *par, u16 cmd,
 	par->board->wait_for_rdy(par);
 
 	par->board->set_ctl(par, BS_CS, 0);
-	broadsheet_issue_cmd(par, cmd);
+	broadsheet_gpio_issue_cmd(par, cmd);
 	par->board->set_ctl(par, BS_DC, 1);
 
 	for (i = 0; i < argc; i++)
-		broadsheet_issue_data(par, argv[i]);
+		broadsheet_gpio_issue_data(par, argv[i]);
 	par->board->set_ctl(par, BS_CS, 1);
 }
 
-static void broadsheet_burst_write(struct broadsheetfb_par *par, int size,
+static void broadsheet_mmio_send_cmdargs(struct broadsheetfb_par *par, u16 cmd,
+				    int argc, u16 *argv)
+{
+	int i;
+
+	par->board->mmio_write(par, BS_MMIO_CMD, cmd);
+
+	for (i = 0; i < argc; i++)
+		par->board->mmio_write(par, BS_MMIO_DATA, argv[i]);
+}
+
+static void broadsheet_send_command(struct broadsheetfb_par *par, u16 data)
+{
+	if (par->board->mmio_write)
+		par->board->mmio_write(par, BS_MMIO_CMD, data);
+	else
+		broadsheet_gpio_send_command(par, data);
+}
+
+static void broadsheet_send_cmdargs(struct broadsheetfb_par *par, u16 cmd,
+				    int argc, u16 *argv)
+{
+	if (par->board->mmio_write)
+		broadsheet_mmio_send_cmdargs(par, cmd, argc, argv);
+	else
+		broadsheet_gpio_send_cmdargs(par, cmd, argc, argv);
+}
+
+static void broadsheet_gpio_burst_write(struct broadsheetfb_par *par, int size,
 					u16 *data)
 {
 	int i;
@@ -174,7 +202,30 @@ static void broadsheet_burst_write(struct broadsheetfb_par *par, int size,
 	par->board->set_ctl(par, BS_CS, 1);
 }
 
-static u16 broadsheet_get_data(struct broadsheetfb_par *par)
+static void broadsheet_mmio_burst_write(struct broadsheetfb_par *par, int size,
+				   u16 *data)
+{
+	int i;
+	u16 tmp;
+
+	for (i = 0; i < size; i++) {
+		tmp = (data[i] & 0x0F) << 4;
+		tmp |= (data[i] & 0x0F00) << 4;
+		par->board->mmio_write(par, BS_MMIO_DATA, tmp);
+	}
+
+}
+
+static void broadsheet_burst_write(struct broadsheetfb_par *par, int size,
+				   u16 *data)
+{
+	if (par->board->mmio_write)
+		broadsheet_mmio_burst_write(par, size, data);
+	else
+		broadsheet_gpio_burst_write(par, size, data);
+}
+
+static u16 broadsheet_gpio_get_data(struct broadsheetfb_par *par)
 {
 	u16 res;
 	/* wait for ready to go hi. (lo is busy) */
@@ -194,7 +245,16 @@ static u16 broadsheet_get_data(struct broadsheetfb_par *par)
 	return res;
 }
 
-static void broadsheet_write_reg(struct broadsheetfb_par *par, u16 reg,
+
+static u16 broadsheet_get_data(struct broadsheetfb_par *par)
+{
+	if (par->board->mmio_read)
+		return par->board->mmio_read(par);
+	else
+		return broadsheet_gpio_get_data(par);
+}
+
+static void broadsheet_gpio_write_reg(struct broadsheetfb_par *par, u16 reg,
 					u16 data)
 {
 	/* wait for ready to go hi. (lo is busy) */
@@ -203,14 +263,32 @@ static void broadsheet_write_reg(struct broadsheetfb_par *par, u16 reg,
 	/* cs lo, dc lo for cmd, we lo for each data, db as usual */
 	par->board->set_ctl(par, BS_CS, 0);
 
-	broadsheet_issue_cmd(par, BS_CMD_WR_REG);
+	broadsheet_gpio_issue_cmd(par, BS_CMD_WR_REG);
 
 	par->board->set_ctl(par, BS_DC, 1);
 
-	broadsheet_issue_data(par, reg);
-	broadsheet_issue_data(par, data);
+	broadsheet_gpio_issue_data(par, reg);
+	broadsheet_gpio_issue_data(par, data);
 
 	par->board->set_ctl(par, BS_CS, 1);
+}
+
+static void broadsheet_mmio_write_reg(struct broadsheetfb_par *par, u16 reg,
+				 u16 data)
+{
+	par->board->mmio_write(par, BS_MMIO_CMD, BS_CMD_WR_REG);
+	par->board->mmio_write(par, BS_MMIO_DATA, reg);
+	par->board->mmio_write(par, BS_MMIO_DATA, data);
+
+}
+
+static void broadsheet_write_reg(struct broadsheetfb_par *par, u16 reg,
+					u16 data)
+{
+	if (par->board->mmio_write)
+		broadsheet_mmio_write_reg(par, reg, data);
+	else
+		broadsheet_gpio_write_reg(par, reg, data);
 }
 
 static void broadsheet_write_reg32(struct broadsheetfb_par *par, u16 reg,
@@ -223,8 +301,8 @@ static void broadsheet_write_reg32(struct broadsheetfb_par *par, u16 reg,
 
 static u16 broadsheet_read_reg(struct broadsheetfb_par *par, u16 reg)
 {
-	broadsheet_send_command(par, reg);
-	msleep(100);
+	broadsheet_send_cmdargs(par, BS_CMD_RD_REG, 1, &reg);
+	par->board->wait_for_rdy(par);
 	return broadsheet_get_data(par);
 }
 
