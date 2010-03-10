@@ -34,8 +34,11 @@
 /* cpu depend functions */
 extern long h8300_get_reg(struct task_struct *task, int regno);
 extern int  h8300_put_reg(struct task_struct *task, int regno, unsigned long data);
-extern void h8300_disable_trace(struct task_struct *child);
-extern void h8300_enable_trace(struct task_struct *child);
+
+
+void user_disable_single_step(struct task_struct *child)
+{
+}
 
 /*
  * does not yet catch signals sent when the child dies.
@@ -44,7 +47,7 @@ extern void h8300_enable_trace(struct task_struct *child);
 
 void ptrace_disable(struct task_struct *child)
 {
-	h8300_disable_trace(child);
+	user_disable_single_step(child);
 }
 
 long arch_ptrace(struct task_struct *child, long request, long addr, long data)
@@ -107,49 +110,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			}
 			ret = -EIO;
 			break ;
-		case PTRACE_SYSCALL: /* continue and stop at next (return from) syscall */
-		case PTRACE_CONT: { /* restart after signal. */
-			ret = -EIO;
-			if (!valid_signal(data))
-				break ;
-			if (request == PTRACE_SYSCALL)
-				set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-			else
-				clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-			child->exit_code = data;
-			wake_up_process(child);
-			/* make sure the single step bit is not set. */
-			h8300_disable_trace(child);
-			ret = 0;
-		}
-
-/*
- * make the child exit.  Best I can do is send it a sigkill. 
- * perhaps it should be put in the status that it wants to 
- * exit.
- */
-		case PTRACE_KILL: {
-
-			ret = 0;
-			if (child->exit_state == EXIT_ZOMBIE) /* already dead */
-				break;
-			child->exit_code = SIGKILL;
-			h8300_disable_trace(child);
-			wake_up_process(child);
-			break;
-		}
-
-		case PTRACE_SINGLESTEP: {  /* set the trap flag. */
-			ret = -EIO;
-			if (!valid_signal(data))
-				break;
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-			child->exit_code = data;
-			h8300_enable_trace(child);
-			wake_up_process(child);
-			ret = 0;
-			break;
-		}
 
 		case PTRACE_GETREGS: { /* Get all gp regs from the child. */
 		  	int i;
