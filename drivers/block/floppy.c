@@ -3104,13 +3104,13 @@ static struct cont_t raw_cmd_cont = {
 	.done		= raw_cmd_done
 };
 
-static inline int raw_cmd_copyout(int cmd, char __user *param,
+static inline int raw_cmd_copyout(int cmd, void __user *param,
 				  struct floppy_raw_cmd *ptr)
 {
 	int ret;
 
 	while (ptr) {
-		ret = copy_to_user((void __user *)param, ptr, sizeof(*ptr));
+		ret = copy_to_user(param, ptr, sizeof(*ptr));
 		if (ret)
 			return -EFAULT;
 		param += sizeof(struct floppy_raw_cmd);
@@ -3148,7 +3148,7 @@ static void raw_cmd_free(struct floppy_raw_cmd **ptr)
 	}
 }
 
-static inline int raw_cmd_copyin(int cmd, char __user *param,
+static inline int raw_cmd_copyin(int cmd, void __user *param,
 				 struct floppy_raw_cmd **rcmd)
 {
 	struct floppy_raw_cmd *ptr;
@@ -3157,12 +3157,11 @@ static inline int raw_cmd_copyin(int cmd, char __user *param,
 
 	*rcmd = NULL;
 	while (1) {
-		ptr = (struct floppy_raw_cmd *)
-		    kmalloc(sizeof(struct floppy_raw_cmd), GFP_USER);
+		ptr = kmalloc(sizeof(struct floppy_raw_cmd), GFP_USER);
 		if (!ptr)
 			return -ENOMEM;
 		*rcmd = ptr;
-		ret = copy_from_user(ptr, (void __user *)param, sizeof(*ptr));
+		ret = copy_from_user(ptr, param, sizeof(*ptr));
 		if (ret)
 			return -EFAULT;
 		ptr->next = NULL;
