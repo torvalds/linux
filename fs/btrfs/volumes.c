@@ -325,16 +325,6 @@ loop_lock:
 		num_sync_run = 0;
 		blk_run_backing_dev(bdi, NULL);
 	}
-
-	cond_resched();
-	if (again)
-		goto loop;
-
-	spin_lock(&device->io_lock);
-	if (device->pending_bios.head || device->pending_sync_bios.head)
-		goto loop_lock;
-	spin_unlock(&device->io_lock);
-
 	/*
 	 * IO has already been through a long path to get here.  Checksumming,
 	 * async helper threads, perhaps compression.  We've done a pretty
@@ -346,6 +336,16 @@ loop_lock:
 	 * cared about found its way down here.
 	 */
 	blk_run_backing_dev(bdi, NULL);
+
+	cond_resched();
+	if (again)
+		goto loop;
+
+	spin_lock(&device->io_lock);
+	if (device->pending_bios.head || device->pending_sync_bios.head)
+		goto loop_lock;
+	spin_unlock(&device->io_lock);
+
 done:
 	return 0;
 }
