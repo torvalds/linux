@@ -233,11 +233,16 @@ typedef __u16 __bitwise __fs16;
  */
 #define ufs_cbtocylno(bno) \
 	((bno) * uspi->s_nspf / uspi->s_spc)
-#define ufs_cbtorpos(bno) \
+#define ufs_cbtorpos(bno)				      \
+	((UFS_SB(sb)->s_flags & UFS_CG_SUN) ?		      \
+	 (((((bno) * uspi->s_nspf % uspi->s_spc) %	      \
+	    uspi->s_nsect) *				      \
+	   uspi->s_nrpos) / uspi->s_nsect)		      \
+	 :						      \
 	((((bno) * uspi->s_nspf % uspi->s_spc / uspi->s_nsect \
 	* uspi->s_trackskew + (bno) * uspi->s_nspf % uspi->s_spc \
 	% uspi->s_nsect * uspi->s_interleave) % uspi->s_nsect \
-	* uspi->s_nrpos) / uspi->s_npsect)
+	  * uspi->s_nrpos) / uspi->s_npsect))
 
 /*
  * The following macros optimize certain frequently calculated
