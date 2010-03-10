@@ -5253,13 +5253,14 @@ parse_dcb_connector_table(struct nvbios *bios)
 	entry = conntab + conntab[1];
 	cte = &ct->entry[0];
 	for (i = 0; i < conntab[2]; i++, entry += conntab[3], cte++) {
+		cte->index = i;
 		if (conntab[3] == 2)
 			cte->entry = ROM16(entry[0]);
 		else
 			cte->entry = ROM32(entry[0]);
 
 		cte->type  = (cte->entry & 0x000000ff) >> 0;
-		cte->index = (cte->entry & 0x00000f00) >> 8;
+		cte->index2 = (cte->entry & 0x00000f00) >> 8;
 		switch (cte->entry & 0x00033000) {
 		case 0x00001000:
 			cte->gpio_tag = 0x07;
