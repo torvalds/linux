@@ -165,7 +165,6 @@ static struct platform_device scif9_device = {
 };
 
 static struct sh_timer_config tmu0_platform_data = {
-	.name = "TMU0",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
 	.clk = "peripheral_clk",
@@ -174,7 +173,6 @@ static struct sh_timer_config tmu0_platform_data = {
 
 static struct resource tmu0_resources[] = {
 	[0] = {
-		.name	= "TMU0",
 		.start	= 0xffd80008,
 		.end	= 0xffd80013,
 		.flags	= IORESOURCE_MEM,
@@ -196,7 +194,6 @@ static struct platform_device tmu0_device = {
 };
 
 static struct sh_timer_config tmu1_platform_data = {
-	.name = "TMU1",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
 	.clk = "peripheral_clk",
@@ -205,7 +202,6 @@ static struct sh_timer_config tmu1_platform_data = {
 
 static struct resource tmu1_resources[] = {
 	[0] = {
-		.name	= "TMU1",
 		.start	= 0xffd80014,
 		.end	= 0xffd8001f,
 		.flags	= IORESOURCE_MEM,
@@ -227,7 +223,6 @@ static struct platform_device tmu1_device = {
 };
 
 static struct sh_timer_config tmu2_platform_data = {
-	.name = "TMU2",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
 	.clk = "peripheral_clk",
@@ -235,7 +230,6 @@ static struct sh_timer_config tmu2_platform_data = {
 
 static struct resource tmu2_resources[] = {
 	[0] = {
-		.name	= "TMU2",
 		.start	= 0xffd80020,
 		.end	= 0xffd8002f,
 		.flags	= IORESOURCE_MEM,
@@ -257,7 +251,6 @@ static struct platform_device tmu2_device = {
 };
 
 static struct sh_timer_config tmu3_platform_data = {
-	.name = "TMU3",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
 	.clk = "peripheral_clk",
@@ -265,7 +258,6 @@ static struct sh_timer_config tmu3_platform_data = {
 
 static struct resource tmu3_resources[] = {
 	[0] = {
-		.name	= "TMU3",
 		.start	= 0xffd81008,
 		.end	= 0xffd81013,
 		.flags	= IORESOURCE_MEM,
@@ -287,7 +279,6 @@ static struct platform_device tmu3_device = {
 };
 
 static struct sh_timer_config tmu4_platform_data = {
-	.name = "TMU4",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
 	.clk = "peripheral_clk",
@@ -295,7 +286,6 @@ static struct sh_timer_config tmu4_platform_data = {
 
 static struct resource tmu4_resources[] = {
 	[0] = {
-		.name	= "TMU4",
 		.start	= 0xffd81014,
 		.end	= 0xffd8101f,
 		.flags	= IORESOURCE_MEM,
@@ -317,7 +307,6 @@ static struct platform_device tmu4_device = {
 };
 
 static struct sh_timer_config tmu5_platform_data = {
-	.name = "TMU5",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
 	.clk = "peripheral_clk",
@@ -325,7 +314,6 @@ static struct sh_timer_config tmu5_platform_data = {
 
 static struct resource tmu5_resources[] = {
 	[0] = {
-		.name	= "TMU5",
 		.start	= 0xffd81020,
 		.end	= 0xffd8102f,
 		.flags	= IORESOURCE_MEM,
@@ -347,7 +335,6 @@ static struct platform_device tmu5_device = {
 };
 
 static struct sh_timer_config tmu6_platform_data = {
-	.name = "TMU6",
 	.channel_offset = 0x04,
 	.timer_bit = 0,
 	.clk = "peripheral_clk",
@@ -355,7 +342,6 @@ static struct sh_timer_config tmu6_platform_data = {
 
 static struct resource tmu6_resources[] = {
 	[0] = {
-		.name	= "TMU6",
 		.start	= 0xffd82008,
 		.end	= 0xffd82013,
 		.flags	= IORESOURCE_MEM,
@@ -377,7 +363,6 @@ static struct platform_device tmu6_device = {
 };
 
 static struct sh_timer_config tmu7_platform_data = {
-	.name = "TMU7",
 	.channel_offset = 0x10,
 	.timer_bit = 1,
 	.clk = "peripheral_clk",
@@ -385,7 +370,6 @@ static struct sh_timer_config tmu7_platform_data = {
 
 static struct resource tmu7_resources[] = {
 	[0] = {
-		.name	= "TMU7",
 		.start	= 0xffd82014,
 		.end	= 0xffd8201f,
 		.flags	= IORESOURCE_MEM,
@@ -407,7 +391,6 @@ static struct platform_device tmu7_device = {
 };
 
 static struct sh_timer_config tmu8_platform_data = {
-	.name = "TMU8",
 	.channel_offset = 0x1c,
 	.timer_bit = 2,
 	.clk = "peripheral_clk",
@@ -415,7 +398,6 @@ static struct sh_timer_config tmu8_platform_data = {
 
 static struct resource tmu8_resources[] = {
 	[0] = {
-		.name	= "TMU8",
 		.start	= 0xffd82020,
 		.end	= 0xffd8202b,
 		.flags	= IORESOURCE_MEM,
