@@ -50,6 +50,8 @@ static void apply_second_mode_setting(struct fb_var_screeninfo
 	*sec_var);
 static void retrieve_device_setting(struct viafb_ioctl_setting
 	*setting_info);
+static int viafb_pan_display(struct fb_var_screeninfo *var,
+	struct fb_info *info);
 
 static struct fb_ops viafb_ops;
 
@@ -182,6 +184,7 @@ static int viafb_set_par(struct fb_info *info)
 			info->flags |= FBINFO_HWACCEL_DISABLED;
 		viafb_setmode(vmode_entry, info->var.bits_per_pixel,
 			vmode_entry1, viafb_bpp1);
+		viafb_pan_display(&info->var, info);
 	}
 
 	return 0;
@@ -410,15 +413,19 @@ static int viafb_setcmap(struct fb_cmap *cmap, struct fb_info *info)
 static int viafb_pan_display(struct fb_var_screeninfo *var,
 	struct fb_info *info)
 {
-	unsigned int offset;
+	struct viafb_par *viapar = info->par;
+	u32 vram_addr = (var->yoffset * var->xres_virtual + var->xoffset)
+		* (var->bits_per_pixel / 8) + viapar->vram_addr;
 
-	DEBUG_MSG(KERN_INFO "viafb_pan_display!\n");
+	DEBUG_MSG(KERN_DEBUG "viafb_pan_display, address = %d\n", vram_addr);
+	if (!viafb_dual_fb) {
+		viafb_set_primary_address(vram_addr);
+		viafb_set_secondary_address(vram_addr);
+	} else if (viapar->iga_path == IGA1)
+		viafb_set_primary_address(vram_addr);
+	else
+		viafb_set_secondary_address(vram_addr);
 
-	offset = (var->xoffset + (var->yoffset * var->xres_virtual)) *
-	    var->bits_per_pixel / 16;
-
-	DEBUG_MSG(KERN_INFO "\nviafb_pan_display,offset =%d ", offset);
-	viafb_set_primary_address(offset);
 	return 0;
 }
 
