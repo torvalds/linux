@@ -61,7 +61,7 @@ static struct _lcd_scaling_factor lcd_scaling_factor_CLE = {
 
 static int check_lvds_chip(int device_id_subaddr, int device_id);
 static bool lvds_identify_integratedlvds(void);
-static int fp_id_to_vindex(int panel_id);
+static void fp_id_to_vindex(int panel_id);
 static int lvds_register_read(int index);
 static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 		      int panel_vres);
@@ -127,33 +127,24 @@ void viafb_init_lcd_size(void)
 		break;
 	case GET_LCD_SIZE_BY_VGA_BIOS:
 		DEBUG_MSG(KERN_INFO "Get LCD Size method by VGA BIOS !!\n");
-		viaparinfo->lvds_setting_info->lcd_panel_size =
-		    fp_id_to_vindex(viafb_lcd_panel_id);
+		fp_id_to_vindex(viafb_lcd_panel_id);
 		DEBUG_MSG(KERN_INFO "LCD Panel_ID = %d\n",
 			  viaparinfo->lvds_setting_info->lcd_panel_id);
-		DEBUG_MSG(KERN_INFO "LCD Panel Size = %d\n",
-			  viaparinfo->lvds_setting_info->lcd_panel_size);
 		break;
 	case GET_LCD_SIZE_BY_USER_SETTING:
 		DEBUG_MSG(KERN_INFO "Get LCD Size method by user setting !!\n");
-		viaparinfo->lvds_setting_info->lcd_panel_size =
-		    fp_id_to_vindex(viafb_lcd_panel_id);
+		fp_id_to_vindex(viafb_lcd_panel_id);
 		DEBUG_MSG(KERN_INFO "LCD Panel_ID = %d\n",
 			  viaparinfo->lvds_setting_info->lcd_panel_id);
-		DEBUG_MSG(KERN_INFO "LCD Panel Size = %d\n",
-			  viaparinfo->lvds_setting_info->lcd_panel_size);
 		break;
 	default:
 		DEBUG_MSG(KERN_INFO "viafb_init_lcd_size fail\n");
 		viaparinfo->lvds_setting_info->lcd_panel_id =
 			LCD_PANEL_ID1_800X600;
-		viaparinfo->lvds_setting_info->lcd_panel_size =
-		    fp_id_to_vindex(LCD_PANEL_ID1_800X600);
+		fp_id_to_vindex(LCD_PANEL_ID1_800X600);
 	}
 	viaparinfo->lvds_setting_info2->lcd_panel_id =
 		viaparinfo->lvds_setting_info->lcd_panel_id;
-	viaparinfo->lvds_setting_info2->lcd_panel_size =
-		viaparinfo->lvds_setting_info->lcd_panel_size;
 	viaparinfo->lvds_setting_info2->lcd_panel_hres =
 		viaparinfo->lvds_setting_info->lcd_panel_hres;
 	viaparinfo->lvds_setting_info2->lcd_panel_vres =
@@ -250,7 +241,7 @@ int viafb_lvds_trasmitter_identify(void)
 	return FAIL;
 }
 
-static int fp_id_to_vindex(int panel_id)
+static void fp_id_to_vindex(int panel_id)
 {
 	DEBUG_MSG(KERN_INFO "fp_get_panel_id()\n");
 
@@ -266,7 +257,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID0_640X480;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_640X480;
 		break;
 	case 0x1:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 800;
@@ -275,7 +265,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID1_800X600;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_800X600;
 		break;
 	case 0x2:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1024;
@@ -284,7 +273,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID2_1024X768;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_1024X768;
 		break;
 	case 0x3:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1280;
@@ -293,7 +281,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID3_1280X768;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_1280X768;
 		break;
 	case 0x4:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1280;
@@ -302,7 +289,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID4_1280X1024;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 1;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_1280X1024;
 		break;
 	case 0x5:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1400;
@@ -311,7 +297,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID5_1400X1050;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 1;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_1400X1050;
 		break;
 	case 0x6:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1600;
@@ -320,7 +305,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID6_1600X1200;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 1;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_1600X1200;
 		break;
 	case 0x8:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 800;
@@ -329,7 +313,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_IDA_800X480;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_800X480;
 		break;
 	case 0x9:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1024;
@@ -338,7 +321,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID2_1024X768;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 1;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_1024X768;
 		break;
 	case 0xA:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1024;
@@ -347,7 +329,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID2_1024X768;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 0;
-		return VIA_RES_1024X768;
 		break;
 	case 0xB:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1024;
@@ -356,7 +337,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID2_1024X768;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 1;
 		viaparinfo->lvds_setting_info->LCDDithering = 0;
-		return VIA_RES_1024X768;
 		break;
 	case 0xC:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1280;
@@ -365,7 +345,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID3_1280X768;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 0;
-		return VIA_RES_1280X768;
 		break;
 	case 0xD:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1280;
@@ -374,7 +353,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID4_1280X1024;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 1;
 		viaparinfo->lvds_setting_info->LCDDithering = 0;
-		return VIA_RES_1280X1024;
 		break;
 	case 0xE:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1400;
@@ -383,7 +361,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID5_1400X1050;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 1;
 		viaparinfo->lvds_setting_info->LCDDithering = 0;
-		return VIA_RES_1400X1050;
 		break;
 	case 0xF:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1600;
@@ -392,7 +369,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID6_1600X1200;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 1;
 		viaparinfo->lvds_setting_info->LCDDithering = 0;
-		return VIA_RES_1600X1200;
 		break;
 	case 0x10:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1366;
@@ -401,7 +377,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID7_1366X768;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 0;
-		return VIA_RES_1368X768;
 		break;
 	case 0x11:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1024;
@@ -410,7 +385,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID8_1024X600;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_1024X600;
 		break;
 	case 0x12:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1280;
@@ -419,7 +393,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID3_1280X768;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 1;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_1280X768;
 		break;
 	case 0x13:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1280;
@@ -428,7 +401,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID9_1280X800;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_1280X800;
 		break;
 	case 0x14:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1360;
@@ -437,7 +409,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_IDB_1360X768;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 0;
-		return VIA_RES_1360X768;
 		break;
 	case 0x15:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 1280;
@@ -446,7 +417,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID3_1280X768;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 1;
 		viaparinfo->lvds_setting_info->LCDDithering = 0;
-		return VIA_RES_1280X768;
 		break;
 	case 0x16:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 480;
@@ -455,7 +425,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_IDC_480X640;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_480X640;
 		break;
 	default:
 		viaparinfo->lvds_setting_info->lcd_panel_hres = 800;
@@ -464,7 +433,6 @@ static int fp_id_to_vindex(int panel_id)
 			LCD_PANEL_ID1_800X600;
 		viaparinfo->lvds_setting_info->device_lcd_dualedge = 0;
 		viaparinfo->lvds_setting_info->LCDDithering = 1;
-		return VIA_RES_800X600;
 	}
 }
 

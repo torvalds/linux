@@ -146,7 +146,6 @@ struct tmds_setting_information {
 	int refresh_rate;
 	int get_dvi_size_method;
 	int max_pixel_clock;
-	int dvi_panel_size;
 	int dvi_panel_hres;
 	int dvi_panel_vres;
 	int native_size;
@@ -160,7 +159,6 @@ struct lvds_setting_information {
 	int refresh_rate;
 	int get_lcd_size_method;
 	int lcd_panel_id;
-	int lcd_panel_size;
 	int lcd_panel_hres;
 	int lcd_panel_vres;
 	int display_method;

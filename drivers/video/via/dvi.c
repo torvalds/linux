@@ -23,9 +23,9 @@
 static void tmds_register_write(int index, u8 data);
 static int tmds_register_read(int index);
 static int tmds_register_read_bytes(int index, u8 *buff, int buff_len);
-static int dvi_get_panel_size_from_DDCv1(void);
-static int dvi_get_panel_size_from_DDCv2(void);
-static unsigned char dvi_get_panel_info(void);
+static void dvi_get_panel_size_from_DDCv1(void);
+static void dvi_get_panel_size_from_DDCv2(void);
+static void dvi_get_panel_info(void);
 static int viafb_dvi_query_EDID(void);
 
 static int check_tmds_chip(int device_id_subaddr, int device_id)
@@ -314,18 +314,13 @@ static int viafb_dvi_query_EDID(void)
 		return false;
 }
 
-/*
- *
- * int dvi_get_panel_size_from_DDCv1(void)
+/* void dvi_get_panel_size_from_DDCv1(void)
  *
  *     - Get Panel Size Using EDID1 Table
- *
- * Return Type:    int
- *
  */
-static int dvi_get_panel_size_from_DDCv1(void)
+static void dvi_get_panel_size_from_DDCv1(void)
 {
-	int i, max_h = 0, max_v = 0, tmp, restore;
+	int i, max_h = 0, tmp, restore;
 	unsigned char rData;
 	unsigned char EDID_DATA[18];
 
@@ -391,46 +386,23 @@ static int dvi_get_panel_size_from_DDCv1(void)
 
 	switch (max_h) {
 	case 640:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_640X480;
 		break;
 	case 800:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_800X600;
 		break;
 	case 1024:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1024X768;
 		break;
 	case 1280:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1280X1024;
 		break;
 	case 1400:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1400X1050;
 		break;
 	case 1440:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1440X1050;
 		break;
 	case 1600:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1600X1200;
 		break;
 	case 1920:
-		if (max_v == 1200) {
-			viaparinfo->tmds_setting_info->dvi_panel_size =
-				VIA_RES_1920X1200;
-		} else {
-			viaparinfo->tmds_setting_info->dvi_panel_size =
-				VIA_RES_1920X1080;
-		}
 
 		break;
 	default:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1024X768;
 		DEBUG_MSG(KERN_INFO "Unknown panel size max resolution = %d !\
 					 set default panel size.\n", max_h);
 		break;
@@ -439,19 +411,13 @@ static int dvi_get_panel_size_from_DDCv1(void)
 	DEBUG_MSG(KERN_INFO "DVI max pixelclock = %d\n",
 		  viaparinfo->tmds_setting_info->max_pixel_clock);
 	viaparinfo->chip_info->tmds_chip_info.tmds_chip_slave_addr = restore;
-	return viaparinfo->tmds_setting_info->dvi_panel_size;
 }
 
-/*
- *
- * int dvi_get_panel_size_from_DDCv2(void)
+/* void dvi_get_panel_size_from_DDCv2(void)
  *
  *     - Get Panel Size Using EDID2 Table
- *
- * Return Type:    int
- *
  */
-static int dvi_get_panel_size_from_DDCv2(void)
+static void dvi_get_panel_size_from_DDCv2(void)
 {
 	int HSize = 0, restore;
 	unsigned char R_Buffer[2];
@@ -468,56 +434,34 @@ static int dvi_get_panel_size_from_DDCv2(void)
 
 	switch (HSize) {
 	case 640:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_640X480;
 		break;
 	case 800:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_800X600;
 		break;
 	case 1024:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1024X768;
 		break;
 	case 1280:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1280X1024;
 		break;
 	case 1400:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1400X1050;
 		break;
 	case 1440:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1440X1050;
 		break;
 	case 1600:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1600X1200;
 		break;
 	default:
-		viaparinfo->tmds_setting_info->dvi_panel_size =
-			VIA_RES_1024X768;
 		DEBUG_MSG(KERN_INFO "Unknown panel size max resolution = %d!\
 					set default panel size.\n", HSize);
 		break;
 	}
 
 	viaparinfo->chip_info->tmds_chip_info.tmds_chip_slave_addr = restore;
-	return viaparinfo->tmds_setting_info->dvi_panel_size;
 }
 
-/*
- *
- * unsigned char dvi_get_panel_info(void)
+/* unsigned char dvi_get_panel_info(void)
  *
  *     - Get Panel Size
- *
- * Return Type:    unsigned char
  */
-static unsigned char dvi_get_panel_info(void)
+static void dvi_get_panel_info(void)
 {
-	unsigned char dvipanelsize;
 	DEBUG_MSG(KERN_INFO "dvi_get_panel_info! \n");
 
 	viafb_dvi_sense();
@@ -531,12 +475,6 @@ static unsigned char dvi_get_panel_info(void)
 	default:
 		break;
 	}
-
-	DEBUG_MSG(KERN_INFO "dvi panel size is %2d \n",
-		  viaparinfo->tmds_setting_info->dvi_panel_size);
-	dvipanelsize = (unsigned char)(viaparinfo->
-		tmds_setting_info->dvi_panel_size);
-	return dvipanelsize;
 }
 
 /* If Disable DVI, turn off pad */
