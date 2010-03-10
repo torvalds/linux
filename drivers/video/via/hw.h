@@ -914,6 +914,8 @@ void viafb_set_primary_address(u32 addr);
 void viafb_set_secondary_address(u32 addr);
 void viafb_set_primary_pitch(u32 pitch);
 void viafb_set_secondary_pitch(u32 pitch);
+void viafb_set_primary_color_register(u8 index, u8 red, u8 green, u8 blue);
+void viafb_set_secondary_color_register(u8 index, u8 red, u8 green, u8 blue);
 void viafb_get_fb_info(unsigned int *fb_base, unsigned int *fb_len);
 
 #endif /* __HW_H__ */
