@@ -757,11 +757,8 @@ static void set_crt_output_path(int set_iga)
 		viafb_write_reg_mask(SR16, VIASR, 0x00, BIT6);
 		break;
 	case IGA2:
-	case IGA1_IGA2:
 		viafb_write_reg_mask(CR6A, VIACR, 0xC0, BIT6 + BIT7);
 		viafb_write_reg_mask(SR16, VIASR, 0x40, BIT6);
-		if (set_iga == IGA1_IGA2)
-			viafb_write_reg_mask(CR6B, VIACR, 0x08, BIT3);
 		break;
 	}
 }
@@ -951,13 +948,6 @@ static void set_lcd_output_path(int set_iga, int output_interface)
 
 		enable_second_display_channel();
 		break;
-
-	case IGA1_IGA2:
-		viafb_write_reg_mask(CR6B, VIACR, 0x08, BIT3);
-		viafb_write_reg_mask(CR6A, VIACR, 0x08, BIT3);
-
-		disable_second_display_channel();
-		break;
 	}
 
 	switch (output_interface) {
@@ -1125,15 +1115,13 @@ void viafb_load_fetch_count_reg(int h_addr, int bpp_byte, int set_iga)
 	struct io_register *reg = NULL;
 
 	switch (set_iga) {
-	case IGA1_IGA2:
 	case IGA1:
 		reg_value = IGA1_FETCH_COUNT_FORMULA(h_addr, bpp_byte);
 		viafb_load_reg_num = fetch_count_reg.
 			iga1_fetch_count_reg.reg_num;
 		reg = fetch_count_reg.iga1_fetch_count_reg.reg;
 		viafb_load_reg(reg_value, viafb_load_reg_num, reg, VIASR);
-		if (set_iga == IGA1)
-			break;
+		break;
 	case IGA2:
 		reg_value = IGA2_FETCH_COUNT_FORMULA(h_addr, bpp_byte);
 		viafb_load_reg_num = fetch_count_reg.
@@ -1503,7 +1491,7 @@ void viafb_set_vclock(u32 CLK, int set_iga)
 	/* H.W. Reset : ON */
 	viafb_write_reg_mask(CR17, VIACR, 0x00, BIT7);
 
-	if ((set_iga == IGA1) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA1) {
 		/* Change D,N FOR VCLK */
 		switch (viaparinfo->chip_info->gfx_chip_name) {
 		case UNICHROME_CLE266:
@@ -1532,7 +1520,7 @@ void viafb_set_vclock(u32 CLK, int set_iga)
 		}
 	}
 
-	if ((set_iga == IGA2) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA2) {
 		/* Change D,N FOR LCK */
 		switch (viaparinfo->chip_info->gfx_chip_name) {
 		case UNICHROME_CLE266:
@@ -1561,12 +1549,12 @@ void viafb_set_vclock(u32 CLK, int set_iga)
 	viafb_write_reg_mask(CR17, VIACR, 0x80, BIT7);
 
 	/* Reset PLL */
-	if ((set_iga == IGA1) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA1) {
 		viafb_write_reg_mask(SR40, VIASR, 0x02, BIT1);
 		viafb_write_reg_mask(SR40, VIASR, 0x00, BIT1);
 	}
 
-	if ((set_iga == IGA2) || (set_iga == IGA1_IGA2)) {
+	if (set_iga == IGA2) {
 		viafb_write_reg_mask(SR40, VIASR, 0x01, BIT0);
 		viafb_write_reg_mask(SR40, VIASR, 0x00, BIT0);
 	}

@@ -63,7 +63,6 @@
 /* Display path */
 #define IGA1        1
 #define IGA2        2
-#define IGA1_IGA2   3
 
 /* Define Color Depth  */
 #define MODE_8BPP       1
