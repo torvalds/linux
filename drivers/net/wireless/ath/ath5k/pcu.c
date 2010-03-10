@@ -178,21 +178,6 @@ void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high)
 * ACK/CTS Timeouts *
 \******************/
 
-#if 0
-/**
- * ath5k_hw_het_ack_timeout - Get ACK timeout from PCU in usec
- *
- * @ah: The &struct ath5k_hw
- */
-unsigned int ath5k_hw_get_ack_timeout(struct ath5k_hw *ah)
-{
-	ATH5K_TRACE(ah->ah_sc);
-
-	return ath5k_hw_clocktoh(ah, AR5K_REG_MS(ath5k_hw_reg_read(ah,
-			AR5K_TIME_OUT), AR5K_TIME_OUT_ACK));
-}
-#endif
-
 /**
  * ath5k_hw_set_ack_timeout - Set ACK timeout on PCU
  *
@@ -211,20 +196,6 @@ static int ath5k_hw_set_ack_timeout(struct ath5k_hw *ah, unsigned int timeout)
 
 	return 0;
 }
-
-#if 0
-/**
- * ath5k_hw_get_cts_timeout - Get CTS timeout from PCU in usec
- *
- * @ah: The &struct ath5k_hw
- */
-unsigned int ath5k_hw_get_cts_timeout(struct ath5k_hw *ah)
-{
-	ATH5K_TRACE(ah->ah_sc);
-	return ath5k_hw_clocktoh(ah, AR5K_REG_MS(ath5k_hw_reg_read(ah,
-			AR5K_TIME_OUT), AR5K_TIME_OUT_CTS));
-}
-#endif
 
 /**
  * ath5k_hw_set_cts_timeout - Set CTS timeout on PCU
@@ -454,44 +425,6 @@ void ath5k_hw_set_mcast_filter(struct ath5k_hw *ah, u32 filter0, u32 filter1)
 	ath5k_hw_reg_write(ah, filter0, AR5K_MCAST_FILTER0);
 	ath5k_hw_reg_write(ah, filter1, AR5K_MCAST_FILTER1);
 }
-
-#if 0
-/*
- * Set multicast filter by index
- */
-int ath5k_hw_set_mcast_filter_idx(struct ath5k_hw *ah, u32 index)
-{
-
-	ATH5K_TRACE(ah->ah_sc);
-	if (index >= 64)
-		return -EINVAL;
-	else if (index >= 32)
-		AR5K_REG_ENABLE_BITS(ah, AR5K_MCAST_FILTER1,
-				(1 << (index - 32)));
-	else
-		AR5K_REG_ENABLE_BITS(ah, AR5K_MCAST_FILTER0, (1 << index));
-
-	return 0;
-}
-
-/*
- * Clear Multicast filter by index
- */
-int ath5k_hw_clear_mcast_filter_idx(struct ath5k_hw *ah, u32 index)
-{
-
-	ATH5K_TRACE(ah->ah_sc);
-	if (index >= 64)
-		return -EINVAL;
-	else if (index >= 32)
-		AR5K_REG_DISABLE_BITS(ah, AR5K_MCAST_FILTER1,
-				(1 << (index - 32)));
-	else
-		AR5K_REG_DISABLE_BITS(ah, AR5K_MCAST_FILTER0, (1 << index));
-
-	return 0;
-}
-#endif
 
 /**
  * ath5k_hw_get_rx_filter - Get current rx filter
@@ -963,21 +896,6 @@ int ath5k_hw_reset_key(struct ath5k_hw *ah, u16 entry)
 
 	return 0;
 }
-
-#if 0
-/*
- * Check if a table entry is valid
- */
-int ath5k_hw_is_key_valid(struct ath5k_hw *ah, u16 entry)
-{
-	ATH5K_TRACE(ah->ah_sc);
-	AR5K_ASSERT_ENTRY(entry, AR5K_KEYTABLE_SIZE);
-
-	/* Check the validation flag at the end of the entry */
-	return ath5k_hw_reg_read(ah, AR5K_KEYTABLE_MAC1(entry)) &
-		AR5K_KEYTABLE_VALID;
-}
-#endif
 
 static
 int ath5k_keycache_type(const struct ieee80211_key_conf *key)

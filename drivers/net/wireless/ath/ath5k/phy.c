@@ -1781,18 +1781,6 @@ ath5k_hw_set_def_antenna(struct ath5k_hw *ah, u8 ant)
 		ath5k_hw_reg_write(ah, ant & 0x7, AR5K_DEFAULT_ANTENNA);
 }
 
-#if 0
-unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah)
-{
-	ATH5K_TRACE(ah->ah_sc);
-
-	if (ah->ah_version != AR5K_AR5210)
-		return ath5k_hw_reg_read(ah, AR5K_DEFAULT_ANTENNA) & 0x7;
-
-	return false; /*XXX: What do we return for 5210 ?*/
-}
-#endif
-
 /*
  * Enable/disable fast rx antenna diversity
  */

@@ -516,25 +516,6 @@ int ath5k_hw_reset_tx_queue(struct ath5k_hw *ah, unsigned int queue)
 	return 0;
 }
 
-#if 0
-/*
- * Get slot time from DCU
- */
-unsigned int ath5k_hw_get_slot_time(struct ath5k_hw *ah)
-{
-	unsigned int slot_time_clock;
-
-	ATH5K_TRACE(ah->ah_sc);
-
-	if (ah->ah_version == AR5K_AR5210)
-		slot_time_clock = ath5k_hw_reg_read(ah, AR5K_SLOT_TIME);
-	else
-		slot_time_clock = ath5k_hw_reg_read(ah, AR5K_DCU_GBL_IFS_SLOT);
-
-	return ath5k_hw_clocktoh(ah, slot_time_clock & 0xffff);
-}
-#endif
-
 /*
  * Set slot time on DCU
  */
