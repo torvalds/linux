@@ -235,6 +235,10 @@ struct cgroup {
 
 	/* For RCU-protected deletion */
 	struct rcu_head rcu_head;
+
+	/* List of events which userspace want to recieve */
+	struct list_head event_list;
+	spinlock_t event_list_lock;
 };
 
 /*
@@ -378,6 +382,26 @@ struct cftype {
 	int (*trigger)(struct cgroup *cgrp, unsigned int event);
 
 	int (*release)(struct inode *inode, struct file *file);
+
+	/*
+	 * register_event() callback will be used to add new userspace
+	 * waiter for changes related to the cftype. Implement it if
+	 * you want to provide this functionality. Use eventfd_signal()
+	 * on eventfd to send notification to userspace.
+	 */
+	int (*register_event)(struct cgroup *cgrp, struct cftype *cft,
+			struct eventfd_ctx *eventfd, const char *args);
+	/*
+	 * unregister_event() callback will be called when userspace
+	 * closes the eventfd or on cgroup removing.
+	 * This callback must be implemented, if you want provide
+	 * notification functionality.
+	 *
+	 * Be careful. It can be called after destroy(), so you have
+	 * to keep all nesessary data, until all events are removed.
+	 */
+	int (*unregister_event)(struct cgroup *cgrp, struct cftype *cft,
+			struct eventfd_ctx *eventfd);
 };
 
 struct cgroup_scanner {
