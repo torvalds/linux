@@ -83,8 +83,6 @@ struct viafb_par {
 
 extern unsigned int viafb_second_virtual_yres;
 extern unsigned int viafb_second_virtual_xres;
-extern unsigned int viafb_second_offset;
-extern int viafb_second_size;
 extern int viafb_SAMM_ON;
 extern int viafb_dual_fb;
 extern int viafb_LCD2_ON;

@@ -26,13 +26,17 @@
 
 #include "global.h"
 
-static struct fb_var_screeninfo default_var;
 static char *viafb_name = "Via";
 static u32 pseudo_pal[17];
 
 /* video mode */
 static char *viafb_mode;
 static char *viafb_mode1;
+static int viafb_bpp = 32;
+static int viafb_bpp1 = 32;
+
+static unsigned int viafb_second_offset;
+static int viafb_second_size;
 
 static int viafb_accel = 1;
 
@@ -1849,10 +1853,11 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 {
 	u32 default_xres, default_yres;
 	struct VideoModeTable *vmode_entry;
+	struct fb_var_screeninfo default_var;
 	u32 viafb_par_length;
 
 	DEBUG_MSG(KERN_INFO "VIAFB PCI Probe!!\n");
-
+	memset(&default_var, 0, sizeof(default_var));
 	viafb_par_length = ALIGN(sizeof(struct viafb_par), BITS_PER_LONG/8);
 
 	/* Allocate fb_info and ***_par here, also including some other needed
