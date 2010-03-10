@@ -420,6 +420,8 @@ NOTE2: It is recommended to set the soft limit always below the hard limit,
 
 Users can move charges associated with a task along with task migration, that
 is, uncharge task's pages from the old cgroup and charge them to the new cgroup.
+This feature is not supported in !CONFIG_MMU environments because of lack of
+page tables.
 
 8.1 Interface
 

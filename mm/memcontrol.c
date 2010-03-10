@@ -33,6 +33,7 @@
 #include <linux/rbtree.h>
 #include <linux/slab.h>
 #include <linux/swap.h>
+#include <linux/swapops.h>
 #include <linux/spinlock.h>
 #include <linux/fs.h>
 #include <linux/seq_file.h>
@@ -2270,6 +2271,54 @@ void mem_cgroup_uncharge_swap(swp_entry_t ent)
 	}
 	rcu_read_unlock();
 }
+
+/**
+ * mem_cgroup_move_swap_account - move swap charge and swap_cgroup's record.
+ * @entry: swap entry to be moved
+ * @from:  mem_cgroup which the entry is moved from
+ * @to:  mem_cgroup which the entry is moved to
+ *
+ * It succeeds only when the swap_cgroup's record for this entry is the same
+ * as the mem_cgroup's id of @from.
+ *
+ * Returns 0 on success, -EINVAL on failure.
+ *
+ * The caller must have charged to @to, IOW, called res_counter_charge() about
+ * both res and memsw, and called css_get().
+ */
+static int mem_cgroup_move_swap_account(swp_entry_t entry,
+				struct mem_cgroup *from, struct mem_cgroup *to)
+{
+	unsigned short old_id, new_id;
+
+	old_id = css_id(&from->css);
+	new_id = css_id(&to->css);
+
+	if (swap_cgroup_cmpxchg(entry, old_id, new_id) == old_id) {
+		if (!mem_cgroup_is_root(from))
+			res_counter_uncharge(&from->memsw, PAGE_SIZE);
+		mem_cgroup_swap_statistics(from, false);
+		mem_cgroup_put(from);
+		/*
+		 * we charged both to->res and to->memsw, so we should uncharge
+		 * to->res.
+		 */
+		if (!mem_cgroup_is_root(to))
+			res_counter_uncharge(&to->res, PAGE_SIZE);
+		mem_cgroup_swap_statistics(to, true);
+		mem_cgroup_get(to);
+		css_put(&to->css);
+
+		return 0;
+	}
+	return -EINVAL;
+}
+#else
+static inline int mem_cgroup_move_swap_account(swp_entry_t entry,
+				struct mem_cgroup *from, struct mem_cgroup *to)
+{
+	return -EINVAL;
+}
 #endif
 
 /*
@@ -2949,6 +2998,7 @@ static u64 mem_cgroup_move_charge_read(struct cgroup *cgrp,
 	return mem_cgroup_from_cont(cgrp)->move_charge_at_immigrate;
 }
 
+#ifdef CONFIG_MMU
 static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
 					struct cftype *cft, u64 val)
 {
@@ -2967,6 +3017,13 @@ static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
 
 	return 0;
 }
+#else
+static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
+					struct cftype *cft, u64 val)
+{
+	return -ENOSYS;
+}
+#endif
 
 
 /* For read statistics */
@@ -3489,6 +3546,7 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
 	return ret;
 }
 
+#ifdef CONFIG_MMU
 /* Handlers for move charge at task migration. */
 #define PRECHARGE_COUNT_AT_ONCE	256
 static int mem_cgroup_do_precharge(unsigned long count)
@@ -3544,77 +3602,124 @@ one_by_one:
 	}
 	return ret;
 }
+#else	/* !CONFIG_MMU */
+static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
+				struct cgroup *cgroup,
+				struct task_struct *p,
+				bool threadgroup)
+{
+	return 0;
+}
+static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
+				struct cgroup *cgroup,
+				struct task_struct *p,
+				bool threadgroup)
+{
+}
+static void mem_cgroup_move_task(struct cgroup_subsys *ss,
+				struct cgroup *cont,
+				struct cgroup *old_cont,
+				struct task_struct *p,
+				bool threadgroup)
+{
+}
+#endif
 
 /**
  * is_target_pte_for_mc - check a pte whether it is valid for move charge
  * @vma: the vma the pte to be checked belongs
  * @addr: the address corresponding to the pte to be checked
  * @ptent: the pte to be checked
- * @target: the pointer the target page will be stored(can be NULL)
+ * @target: the pointer the target page or swap ent will be stored(can be NULL)
  *
  * Returns
  *   0(MC_TARGET_NONE): if the pte is not a target for move charge.
  *   1(MC_TARGET_PAGE): if the page corresponding to this pte is a target for
  *     move charge. if @target is not NULL, the page is stored in target->page
  *     with extra refcnt got(Callers should handle it).
+ *   2(MC_TARGET_SWAP): if the swap entry corresponding to this pte is a
+ *     target for charge migration. if @target is not NULL, the entry is stored
+ *     in target->ent.
  *
  * Called with pte lock held.
  */
-/* We add a new member later. */
 union mc_target {
 	struct page	*page;
+	swp_entry_t	ent;
 };
 
-/* We add a new type later. */
 enum mc_target_type {
 	MC_TARGET_NONE,	/* not used */
 	MC_TARGET_PAGE,
+	MC_TARGET_SWAP,
 };
 
 static int is_target_pte_for_mc(struct vm_area_struct *vma,
 		unsigned long addr, pte_t ptent, union mc_target *target)
 {
-	struct page *page;
+	struct page *page = NULL;
 	struct page_cgroup *pc;
 	int ret = 0;
+	swp_entry_t ent = { .val = 0 };
+	int usage_count = 0;
 	bool move_anon = test_bit(MOVE_CHARGE_TYPE_ANON,
 					&mc.to->move_charge_at_immigrate);
 
-	if (!pte_present(ptent))
-		return 0;
-
-	page = vm_normal_page(vma, addr, ptent);
-	if (!page || !page_mapped(page))
-		return 0;
-	/*
-	 * TODO: We don't move charges of file(including shmem/tmpfs) pages for
-	 * now.
-	 */
-	if (!move_anon || !PageAnon(page))
-		return 0;
-	/*
-	 * TODO: We don't move charges of shared(used by multiple processes)
-	 * pages for now.
-	 */
-	if (page_mapcount(page) > 1)
-		return 0;
-	if (!get_page_unless_zero(page))
-		return 0;
-
-	pc = lookup_page_cgroup(page);
-	/*
-	 * Do only loose check w/o page_cgroup lock. mem_cgroup_move_account()
-	 * checks the pc is valid or not under the lock.
-	 */
-	if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
-		ret = MC_TARGET_PAGE;
-		if (target)
-			target->page = page;
+	if (!pte_present(ptent)) {
+		/* TODO: handle swap of shmes/tmpfs */
+		if (pte_none(ptent) || pte_file(ptent))
+			return 0;
+		else if (is_swap_pte(ptent)) {
+			ent = pte_to_swp_entry(ptent);
+			if (!move_anon || non_swap_entry(ent))
+				return 0;
+			usage_count = mem_cgroup_count_swap_user(ent, &page);
+		}
+	} else {
+		page = vm_normal_page(vma, addr, ptent);
+		if (!page || !page_mapped(page))
+			return 0;
+		/*
+		 * TODO: We don't move charges of file(including shmem/tmpfs)
+		 * pages for now.
+		 */
+		if (!move_anon || !PageAnon(page))
+			return 0;
+		if (!get_page_unless_zero(page))
+			return 0;
+		usage_count = page_mapcount(page);
 	}
-
-	if (!ret || !target)
-		put_page(page);
-
+	if (usage_count > 1) {
+		/*
+		 * TODO: We don't move charges of shared(used by multiple
+		 * processes) pages for now.
+		 */
+		if (page)
+			put_page(page);
+		return 0;
+	}
+	if (page) {
+		pc = lookup_page_cgroup(page);
+		/*
+		 * Do only loose check w/o page_cgroup lock.
+		 * mem_cgroup_move_account() checks the pc is valid or not under
+		 * the lock.
+		 */
+		if (PageCgroupUsed(pc) && pc->mem_cgroup == mc.from) {
+			ret = MC_TARGET_PAGE;
+			if (target)
+				target->page = page;
+		}
+		if (!ret || !target)
+			put_page(page);
+	}
+	/* throught */
+	if (ent.val && do_swap_account && !ret &&
+			css_id(&mc.from->css) == lookup_swap_cgroup(ent)) {
+		ret = MC_TARGET_SWAP;
+		if (target)
+			target->ent = ent;
+	}
 	return ret;
 }
 
@@ -3754,6 +3859,7 @@ retry:
 		int type;
 		struct page *page;
 		struct page_cgroup *pc;
+		swp_entry_t ent;
 
 		if (!mc.precharge)
 			break;
@@ -3774,6 +3880,11 @@ retry:
 			putback_lru_page(page);
 put:			/* is_target_pte_for_mc() gets the page */
 			put_page(page);
+			break;
+		case MC_TARGET_SWAP:
+			ent = target.ent;
+			if (!mem_cgroup_move_swap_account(ent, mc.from, mc.to))
+				mc.precharge--;
 			break;
 		default:
 			break;
