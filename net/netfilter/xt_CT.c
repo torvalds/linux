@@ -37,13 +37,13 @@ static unsigned int xt_ct_target(struct sk_buff *skb,
 
 static u8 xt_ct_find_proto(const struct xt_tgchk_param *par)
 {
-	if (par->family == AF_INET) {
+	if (par->family == NFPROTO_IPV4) {
 		const struct ipt_entry *e = par->entryinfo;
 
 		if (e->ip.invflags & IPT_INV_PROTO)
 			return 0;
 		return e->ip.proto;
-	} else if (par->family == AF_INET6) {
+	} else if (par->family == NFPROTO_IPV6) {
 		const struct ip6t_entry *e = par->entryinfo;
 
 		if (e->ipv6.invflags & IP6T_INV_PROTO)
