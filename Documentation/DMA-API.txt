@@ -167,6 +167,16 @@ parameters if it is.
 
 Returns: 0 if successful and a negative error if not.
 
+int
+dma_set_coherent_mask(struct device *dev, u64 mask)
+int
+pci_set_consistent_dma_mask(struct pci_device *dev, u64 mask)
+
+Checks to see if the mask is possible and updates the device
+parameters if it is.
+
+Returns: 0 if successful and a negative error if not.
+
 u64
 dma_get_required_mask(struct device *dev)
 

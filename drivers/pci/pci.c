@@ -2315,12 +2315,11 @@ pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 int
 pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 {
-	if (!pci_dma_supported(dev, mask))
-		return -EIO;
+	int ret = dma_set_coherent_mask(&dev->dev, mask);
+	if (ret)
+		return ret;
 
-	dev->dev.coherent_dma_mask = mask;
 	dev_dbg(&dev->dev, "using %dbit consistent DMA mask\n", fls64(mask));
-
 	return 0;
 }
 #endif
