@@ -18,6 +18,7 @@
 #include <crypto/algapi.h>
 #include <crypto/aes.h>
 #include <crypto/cryptd.h>
+#include <crypto/ctr.h>
 #include <asm/i387.h>
 #include <asm/aes.h>
 
@@ -57,6 +58,8 @@ asmlinkage void aesni_ecb_dec(struct crypto_aes_ctx *ctx, u8 *out,
 asmlinkage void aesni_cbc_enc(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
 asmlinkage void aesni_cbc_dec(struct crypto_aes_ctx *ctx, u8 *out,
+			      const u8 *in, unsigned int len, u8 *iv);
+asmlinkage void aesni_ctr_enc(struct crypto_aes_ctx *ctx, u8 *out,
 			      const u8 *in, unsigned int len, u8 *iv);
 
 static inline struct crypto_aes_ctx *aes_ctx(void *raw_ctx)
@@ -321,6 +324,72 @@ static struct crypto_alg blk_cbc_alg = {
 	},
 };
 
+static void ctr_crypt_final(struct crypto_aes_ctx *ctx,
+			    struct blkcipher_walk *walk)
+{
+	u8 *ctrblk = walk->iv;
+	u8 keystream[AES_BLOCK_SIZE];
+	u8 *src = walk->src.virt.addr;
+	u8 *dst = walk->dst.virt.addr;
+	unsigned int nbytes = walk->nbytes;
+
+	aesni_enc(ctx, keystream, ctrblk);
+	crypto_xor(keystream, src, nbytes);
+	memcpy(dst, keystream, nbytes);
+	crypto_inc(ctrblk, AES_BLOCK_SIZE);
+}
+
+static int ctr_crypt(struct blkcipher_desc *desc,
+		     struct scatterlist *dst, struct scatterlist *src,
+		     unsigned int nbytes)
+{
+	struct crypto_aes_ctx *ctx = aes_ctx(crypto_blkcipher_ctx(desc->tfm));
+	struct blkcipher_walk walk;
+	int err;
+
+	blkcipher_walk_init(&walk, dst, src, nbytes);
+	err = blkcipher_walk_virt_block(desc, &walk, AES_BLOCK_SIZE);
+	desc->flags &= ~CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	kernel_fpu_begin();
+	while ((nbytes = walk.nbytes) >= AES_BLOCK_SIZE) {
+		aesni_ctr_enc(ctx, walk.dst.virt.addr, walk.src.virt.addr,
+			      nbytes & AES_BLOCK_MASK, walk.iv);
+		nbytes &= AES_BLOCK_SIZE - 1;
+		err = blkcipher_walk_done(desc, &walk, nbytes);
+	}
+	if (walk.nbytes) {
+		ctr_crypt_final(ctx, &walk);
+		err = blkcipher_walk_done(desc, &walk, 0);
+	}
+	kernel_fpu_end();
+
+	return err;
+}
+
+static struct crypto_alg blk_ctr_alg = {
+	.cra_name		= "__ctr-aes-aesni",
+	.cra_driver_name	= "__driver-ctr-aes-aesni",
+	.cra_priority		= 0,
+	.cra_flags		= CRYPTO_ALG_TYPE_BLKCIPHER,
+	.cra_blocksize		= 1,
+	.cra_ctxsize		= sizeof(struct crypto_aes_ctx)+AESNI_ALIGN-1,
+	.cra_alignmask		= 0,
+	.cra_type		= &crypto_blkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_list		= LIST_HEAD_INIT(blk_ctr_alg.cra_list),
+	.cra_u = {
+		.blkcipher = {
+			.min_keysize	= AES_MIN_KEY_SIZE,
+			.max_keysize	= AES_MAX_KEY_SIZE,
+			.ivsize		= AES_BLOCK_SIZE,
+			.setkey		= aes_set_key,
+			.encrypt	= ctr_crypt,
+			.decrypt	= ctr_crypt,
+		},
+	},
+};
+
 static int ablk_set_key(struct crypto_ablkcipher *tfm, const u8 *key,
 			unsigned int key_len)
 {
@@ -467,13 +536,11 @@ static struct crypto_alg ablk_cbc_alg = {
 	},
 };
 
-#ifdef HAS_CTR
 static int ablk_ctr_init(struct crypto_tfm *tfm)
 {
 	struct cryptd_ablkcipher *cryptd_tfm;
 
-	cryptd_tfm = cryptd_alloc_ablkcipher("fpu(ctr(__driver-aes-aesni))",
-					     0, 0);
+	cryptd_tfm = cryptd_alloc_ablkcipher("__driver-ctr-aes-aesni", 0, 0);
 	if (IS_ERR(cryptd_tfm))
 		return PTR_ERR(cryptd_tfm);
 	ablk_init_common(tfm, cryptd_tfm);
@@ -500,8 +567,47 @@ static struct crypto_alg ablk_ctr_alg = {
 			.ivsize		= AES_BLOCK_SIZE,
 			.setkey		= ablk_set_key,
 			.encrypt	= ablk_encrypt,
-			.decrypt	= ablk_decrypt,
+			.decrypt	= ablk_encrypt,
 			.geniv		= "chainiv",
+		},
+	},
+};
+
+#ifdef HAS_CTR
+static int ablk_rfc3686_ctr_init(struct crypto_tfm *tfm)
+{
+	struct cryptd_ablkcipher *cryptd_tfm;
+
+	cryptd_tfm = cryptd_alloc_ablkcipher(
+		"rfc3686(__driver-ctr-aes-aesni)", 0, 0);
+	if (IS_ERR(cryptd_tfm))
+		return PTR_ERR(cryptd_tfm);
+	ablk_init_common(tfm, cryptd_tfm);
+	return 0;
+}
+
+static struct crypto_alg ablk_rfc3686_ctr_alg = {
+	.cra_name		= "rfc3686(ctr(aes))",
+	.cra_driver_name	= "rfc3686-ctr-aes-aesni",
+	.cra_priority		= 400,
+	.cra_flags		= CRYPTO_ALG_TYPE_ABLKCIPHER|CRYPTO_ALG_ASYNC,
+	.cra_blocksize		= 1,
+	.cra_ctxsize		= sizeof(struct async_aes_ctx),
+	.cra_alignmask		= 0,
+	.cra_type		= &crypto_ablkcipher_type,
+	.cra_module		= THIS_MODULE,
+	.cra_list		= LIST_HEAD_INIT(ablk_rfc3686_ctr_alg.cra_list),
+	.cra_init		= ablk_rfc3686_ctr_init,
+	.cra_exit		= ablk_exit,
+	.cra_u = {
+		.ablkcipher = {
+			.min_keysize = AES_MIN_KEY_SIZE+CTR_RFC3686_NONCE_SIZE,
+			.max_keysize = AES_MAX_KEY_SIZE+CTR_RFC3686_NONCE_SIZE,
+			.ivsize	     = CTR_RFC3686_IV_SIZE,
+			.setkey	     = ablk_set_key,
+			.encrypt     = ablk_encrypt,
+			.decrypt     = ablk_decrypt,
+			.geniv	     = "seqiv",
 		},
 	},
 };
@@ -640,13 +746,17 @@ static int __init aesni_init(void)
 		goto blk_ecb_err;
 	if ((err = crypto_register_alg(&blk_cbc_alg)))
 		goto blk_cbc_err;
+	if ((err = crypto_register_alg(&blk_ctr_alg)))
+		goto blk_ctr_err;
 	if ((err = crypto_register_alg(&ablk_ecb_alg)))
 		goto ablk_ecb_err;
 	if ((err = crypto_register_alg(&ablk_cbc_alg)))
 		goto ablk_cbc_err;
-#ifdef HAS_CTR
 	if ((err = crypto_register_alg(&ablk_ctr_alg)))
 		goto ablk_ctr_err;
+#ifdef HAS_CTR
+	if ((err = crypto_register_alg(&ablk_rfc3686_ctr_alg)))
+		goto ablk_rfc3686_ctr_err;
 #endif
 #ifdef HAS_LRW
 	if ((err = crypto_register_alg(&ablk_lrw_alg)))
@@ -675,13 +785,17 @@ ablk_pcbc_err:
 ablk_lrw_err:
 #endif
 #ifdef HAS_CTR
+	crypto_unregister_alg(&ablk_rfc3686_ctr_alg);
+ablk_rfc3686_ctr_err:
+#endif
 	crypto_unregister_alg(&ablk_ctr_alg);
 ablk_ctr_err:
-#endif
 	crypto_unregister_alg(&ablk_cbc_alg);
 ablk_cbc_err:
 	crypto_unregister_alg(&ablk_ecb_alg);
 ablk_ecb_err:
+	crypto_unregister_alg(&blk_ctr_alg);
+blk_ctr_err:
 	crypto_unregister_alg(&blk_cbc_alg);
 blk_cbc_err:
 	crypto_unregister_alg(&blk_ecb_alg);
@@ -705,10 +819,12 @@ static void __exit aesni_exit(void)
 	crypto_unregister_alg(&ablk_lrw_alg);
 #endif
 #ifdef HAS_CTR
-	crypto_unregister_alg(&ablk_ctr_alg);
+	crypto_unregister_alg(&ablk_rfc3686_ctr_alg);
 #endif
+	crypto_unregister_alg(&ablk_ctr_alg);
 	crypto_unregister_alg(&ablk_cbc_alg);
 	crypto_unregister_alg(&ablk_ecb_alg);
+	crypto_unregister_alg(&blk_ctr_alg);
 	crypto_unregister_alg(&blk_cbc_alg);
 	crypto_unregister_alg(&blk_ecb_alg);
 	crypto_unregister_alg(&__aesni_alg);
