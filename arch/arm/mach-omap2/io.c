@@ -309,7 +309,6 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 {
 	pwrdm_init(powerdomains_omap);
 	clkdm_init(clockdomains_omap, clkdm_autodeps);
-#ifndef CONFIG_ARCH_OMAP4 /* FIXME: Remove this once the clkdev is ready */
 	if (cpu_is_omap242x())
 		omap2420_hwmod_init();
 	else if (cpu_is_omap243x())
@@ -319,7 +318,6 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 	omap2_mux_init();
 	/* The OPP tables have to be registered before a clk init */
 	omap_pm_if_early_init(mpu_opps, dsp_opps, l3_opps);
-#endif
 
 	if (cpu_is_omap2420())
 		omap2420_clk_init();
@@ -333,11 +331,12 @@ void __init omap2_init_common_hw(struct omap_sdrc_params *sdrc_cs0,
 		pr_err("Could not init clock framework - unknown CPU\n");
 
 	omap_serial_early_init();
-#ifndef CONFIG_ARCH_OMAP4
-	omap_hwmod_late_init();
+	if (cpu_is_omap24xx() || cpu_is_omap34xx())   /* FIXME: OMAP4 */
+		omap_hwmod_late_init();
 	omap_pm_if_init();
-	omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
-	_omap2_init_reprogram_sdrc();
-#endif
+	if (cpu_is_omap24xx() || cpu_is_omap34xx()) {
+		omap2_sdrc_init(sdrc_cs0, sdrc_cs1);
+		_omap2_init_reprogram_sdrc();
+	}
 	gpmc_init();
 }
