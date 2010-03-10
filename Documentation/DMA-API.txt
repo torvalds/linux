@@ -472,6 +472,64 @@ void whizco_dma_map_sg_attrs(struct device *dev, dma_addr_t dma_addr,
 	....
 
 
+Part Ie - Optimizing Unmap State Space Consumption
+--------------------------------
+
+On some platforms, dma_unmap_{single,page}() is simply a nop.
+Therefore, keeping track of the mapping address and length is a waste
+of space. Instead of filling your drivers up with ifdefs and the like
+to "work around" this (which would defeat the whole purpose of a
+portable API) the following facilities are provided.
+
+Actually, instead of describing the macros one by one, we'll
+transform some example code.
+
+1) Use DEFINE_DMA_UNMAP_{ADDR,LEN} in state saving structures.
+   Example, before:
+
+	struct ring_state {
+		struct sk_buff *skb;
+		dma_addr_t mapping;
+		__u32 len;
+	};
+
+   after:
+
+	struct ring_state {
+		struct sk_buff *skb;
+		DEFINE_DMA_UNMAP_ADDR(mapping);
+		DEFINE_DMA_UNMAP_LEN(len);
+	};
+
+2) Use dma_unmap_{addr,len}_set to set these values.
+   Example, before:
+
+	ringp->mapping = FOO;
+	ringp->len = BAR;
+
+   after:
+
+	dma_unmap_addr_set(ringp, mapping, FOO);
+	dma_unmap_len_set(ringp, len, BAR);
+
+3) Use dma_unmap_{addr,len} to access these values.
+   Example, before:
+
+	dma_unmap_single(dev, ringp->mapping, ringp->len,
+			 DMA_FROM_DEVICE);
+
+   after:
+
+	dma_unmap_single(dev,
+			 dma_unmap_addr(ringp, mapping),
+			 dma_unmap_len(ringp, len),
+			 DMA_FROM_DEVICE);
+
+It really should be self-explanatory.  We treat the ADDR and LEN
+separately, because it is possible for an implementation to only
+need the address in order to perform the unmap operation.
+
+
 Part II - Advanced dma_ usage
 -----------------------------
 
