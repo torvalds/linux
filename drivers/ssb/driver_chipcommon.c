@@ -370,6 +370,7 @@ u32 ssb_chipco_gpio_control(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
 	return chipco_write32_masked(cc, SSB_CHIPCO_GPIOCTL, mask, value);
 }
+EXPORT_SYMBOL(ssb_chipco_gpio_control);
 
 u32 ssb_chipco_gpio_intmask(struct ssb_chipcommon *cc, u32 mask, u32 value)
 {
