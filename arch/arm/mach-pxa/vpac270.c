@@ -85,6 +85,26 @@ static unsigned long vpac270_pin_config[] __initdata = {
 	GPIO75_LCD_LCLK,
 	GPIO76_LCD_PCLK,
 	GPIO77_LCD_BIAS,
+
+	/* PCMCIA */
+	GPIO48_nPOE,
+	GPIO49_nPWE,
+	GPIO50_nPIOR,
+	GPIO51_nPIOW,
+	GPIO85_nPCE_1,
+	GPIO54_nPCE_2,
+	GPIO55_nPREG,
+	GPIO57_nIOIS16,
+	GPIO56_nPWAIT,
+	GPIO104_PSKTSEL,
+	GPIO84_GPIO,	/* PCMCIA CD */
+	GPIO35_GPIO,	/* PCMCIA RDY */
+	GPIO107_GPIO,	/* PCMCIA PPEN */
+	GPIO11_GPIO,	/* PCMCIA RESET */
+	GPIO17_GPIO,	/* CF CD */
+	GPIO12_GPIO,	/* CF RDY */
+	GPIO16_GPIO,	/* CF RESET */
+
 };
 
 /******************************************************************************
