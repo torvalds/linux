@@ -12,9 +12,6 @@
  * published by the Free Software Foundation.
  */
 
-#include <linux/init.h>
-#include <linux/module.h>
-#include <linux/device.h>
 #include <linux/clk.h>
 #include <linux/gpio.h>
 #include <linux/io.h>
