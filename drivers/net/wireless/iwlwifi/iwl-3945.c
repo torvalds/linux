@@ -184,7 +184,7 @@ static int iwl3945_hwrate_to_plcp_idx(u8 plcp)
 {
 	int idx;
 
-	for (idx = 0; idx < IWL_RATE_COUNT; idx++)
+	for (idx = 0; idx < IWL_RATE_COUNT_3945; idx++)
 		if (iwl3945_rates[idx].plcp == plcp)
 			return idx;
 	return -1;
@@ -805,7 +805,7 @@ void iwl3945_hw_build_tx_cmd_rate(struct iwl_priv *priv,
 				  int sta_id, int tx_id)
 {
 	u16 hw_value = ieee80211_get_tx_rate(priv->hw, info)->hw_value;
-	u16 rate_index = min(hw_value & 0xffff, IWL_RATE_COUNT - 1);
+	u16 rate_index = min(hw_value & 0xffff, IWL_RATE_COUNT_3945);
 	u16 rate_mask;
 	int rate;
 	u8 rts_retry_limit;
@@ -2146,7 +2146,7 @@ static void iwl3945_hw_reg_init_channel_groups(struct iwl_priv *priv)
 
 		/* fill in channel group's nominal powers for each rate */
 		for (rate_index = 0;
-		     rate_index < IWL_RATE_COUNT; rate_index++, clip_pwrs++) {
+		     rate_index < IWL_RATE_COUNT_3945; rate_index++, clip_pwrs++) {
 			switch (rate_index) {
 			case IWL_RATE_36M_INDEX_TABLE:
 				if (i == 0)	/* B/G */
