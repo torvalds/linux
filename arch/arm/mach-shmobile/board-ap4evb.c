@@ -206,10 +206,32 @@ static struct platform_device keysc_device = {
 	},
 };
 
+/* SDHI0 */
+static struct resource sdhi0_resources[] = {
+	[0] = {
+		.name	= "SDHI0",
+		.start  = 0xe6850000,
+		.end    = 0xe68501ff,
+		.flags  = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start  = 96,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+static struct platform_device sdhi0_device = {
+	.name           = "sh_mobile_sdhi",
+	.num_resources  = ARRAY_SIZE(sdhi0_resources),
+	.resource       = sdhi0_resources,
+	.id             = 0,
+};
+
 static struct platform_device *ap4evb_devices[] __initdata = {
 	&nor_flash_device,
 	&smc911x_device,
 	&keysc_device,
+	&sdhi0_device,
 };
 
 static struct map_desc ap4evb_io_desc[] __initdata = {
@@ -285,6 +307,16 @@ static void __init ap4evb_init(void)
 	gpio_request(GPIO_FN_KEYIN2_134, NULL);
 	gpio_request(GPIO_FN_KEYIN3_133, NULL);
 	gpio_request(GPIO_FN_KEYIN4,     NULL);
+
+	/* SDHI0 */
+	gpio_request(GPIO_FN_SDHICD0, NULL);
+	gpio_request(GPIO_FN_SDHIWP0, NULL);
+	gpio_request(GPIO_FN_SDHICMD0, NULL);
+	gpio_request(GPIO_FN_SDHICLK0, NULL);
+	gpio_request(GPIO_FN_SDHID0_3, NULL);
+	gpio_request(GPIO_FN_SDHID0_2, NULL);
+	gpio_request(GPIO_FN_SDHID0_1, NULL);
+	gpio_request(GPIO_FN_SDHID0_0, NULL);
 
 	sh7372_add_standard_devices();
 
