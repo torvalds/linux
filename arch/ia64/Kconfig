@@ -53,6 +53,9 @@ config MMU
 	bool
 	default y
 
+config NEED_DMA_MAP_STATE
+	def_bool y
+
 config SWIOTLB
        bool
 
