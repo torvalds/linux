@@ -1016,6 +1016,9 @@ magic_found:
 		case UFS_FSSTABLE:
 			UFSD("fs is stable\n");
 			break;
+		case UFS_FSLOG:
+			UFSD("fs is logging fs\n");
+			break;
 		case UFS_FSOSF1:
 			UFSD("fs is DEC OSF/1\n");
 			break;
