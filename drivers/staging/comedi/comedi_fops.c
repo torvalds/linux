@@ -598,19 +598,19 @@ copyback:
 static int parse_insn(struct comedi_device *dev, struct comedi_insn *insn,
 		      unsigned int *data, void *file);
 /*
- * 	COMEDI_INSNLIST
- * 	synchronous instructions
+ *	COMEDI_INSNLIST
+ *	synchronous instructions
  *
- * 	arg:
- * 		pointer to sync cmd structure
+ *	arg:
+ *		pointer to sync cmd structure
  *
- * 	reads:
- * 		sync cmd struct at arg
- * 		instruction list
- * 		data (for writes)
+ *	reads:
+ *		sync cmd struct at arg
+ *		instruction list
+ *		data (for writes)
  *
- * 	writes:
- * 		data (for reads)
+ *	writes:
+ *		data (for reads)
  */
 /* arbitrary limits */
 #define MAX_SAMPLES 256
@@ -894,18 +894,18 @@ out:
 }
 
 /*
- * 	COMEDI_INSN
- * 	synchronous instructions
+ *	COMEDI_INSN
+ *	synchronous instructions
  *
- * 	arg:
- * 		pointer to insn
+ *	arg:
+ *		pointer to insn
  *
- * 	reads:
- * 		struct comedi_insn struct at arg
- * 		data (for writes)
+ *	reads:
+ *		struct comedi_insn struct at arg
+ *		data (for writes)
  *
- * 	writes:
- * 		data (for reads)
+ *	writes:
+ *		data (for reads)
  */
 static int do_insn_ioctl(struct comedi_device *dev, void *arg, void *file)
 {
@@ -2105,6 +2105,7 @@ int comedi_alloc_board_minor(struct device *hardware_device)
 		kfree(info->device);
 		kfree(info);
 		printk(KERN_ERR
+
 		       "comedi: error: ran out of minor numbers for board device files.\n");
 		return -EBUSY;
 	}
