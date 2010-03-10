@@ -748,6 +748,9 @@ static int macvlan_device_event(struct notifier_block *unused,
 		list_for_each_entry_safe(vlan, next, &port->vlans, list)
 			vlan->dev->rtnl_link_ops->dellink(vlan->dev, NULL);
 		break;
+	case NETDEV_PRE_TYPE_CHANGE:
+		/* Forbid underlaying device to change its type. */
+		return NOTIFY_BAD;
 	}
 	return NOTIFY_DONE;
 }

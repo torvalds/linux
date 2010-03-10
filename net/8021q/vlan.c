@@ -530,6 +530,10 @@ static int vlan_device_event(struct notifier_block *unused, unsigned long event,
 		}
 		unregister_netdevice_many(&list);
 		break;
+
+	case NETDEV_PRE_TYPE_CHANGE:
+		/* Forbid underlaying device to change its type. */
+		return NOTIFY_BAD;
 	}
 
 out:
