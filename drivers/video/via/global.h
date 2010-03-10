@@ -35,7 +35,6 @@
 
 #include "debug.h"
 
-#include "iface.h"
 #include "viafbdev.h"
 #include "chip.h"
 #include "accel.h"
