@@ -2,6 +2,8 @@
 	- This file
 acer-wmi.txt
 	- information on the Acer Laptop WMI Extras driver.
+dslm.c
+	- Simple Disk Sleep Monitor program
 laptop-mode.txt
 	- how to conserve battery power using laptop-mode.
 sony-laptop.txt
