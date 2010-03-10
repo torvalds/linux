@@ -437,6 +437,9 @@ static void test_hash_speed(const char *algo, unsigned int sec,
 			goto out;
 		}
 
+		if (speed[i].klen)
+			crypto_hash_setkey(tfm, tvmem[0], speed[i].klen);
+
 		printk(KERN_INFO "test%3u "
 		       "(%5u byte blocks,%5u bytes per update,%4u updates): ",
 		       i, speed[i].blen, speed[i].plen, speed[i].blen / speed[i].plen);
@@ -879,6 +882,10 @@ static int do_test(int m)
 
 	case 317:
 		test_hash_speed("rmd320", sec, generic_hash_speed_template);
+		if (mode > 300 && mode < 400) break;
+
+	case 318:
+		test_hash_speed("ghash-generic", sec, hash_speed_template_16);
 		if (mode > 300 && mode < 400) break;
 
 	case 399:
