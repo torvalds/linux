@@ -2143,7 +2143,6 @@ static void format_interrupt(void)
 	cont->redo();
 }
 
-#define CODE2SIZE (ssize = ((1 << SIZECODE) + 3) >> 2)
 #define FM_MODE(x, y) ((y) & ~(((x)->rate & 0x80) >> 1))
 #define CT(x) ((x) | 0xc0)
 
@@ -2347,7 +2346,7 @@ static void rw_interrupt(void)
 		DRS->first_read_date = jiffies;
 
 	nr_sectors = 0;
-	CODE2SIZE;
+	ssize = DIV_ROUND_UP(1 << SIZECODE, 4);
 
 	if (ST1 & ST1_EOC)
 		eoc = 1;
@@ -2647,7 +2646,7 @@ static int make_raw_rw_request(void)
 	raw_cmd->track = TRACK << STRETCH(_floppy);
 	DR_SELECT = UNIT(current_drive) + PH_HEAD(_floppy, HEAD);
 	GAP = _floppy->gap;
-	CODE2SIZE;
+	ssize = DIV_ROUND_UP(1 << SIZECODE, 4);
 	SECT_PER_TRACK = _floppy->sect << 2 >> SIZECODE;
 	SECTOR = ((fsector_t % _floppy->sect) << 2 >> SIZECODE) +
 	    FD_SECTBASE(_floppy);
