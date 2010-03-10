@@ -432,7 +432,7 @@ static void crystalhd_hw_delete_ioqs(struct crystalhd_hw *hw)
 	if (!hw)
 		return;
 
-	BCMLOG(BCMLOG_DBG, "Deleting IOQs \n");
+	BCMLOG(BCMLOG_DBG, "Deleting IOQs\n");
 	crystalhd_hw_delete_ioq(hw->adp, hw->tx_actq);
 	crystalhd_hw_delete_ioq(hw->adp, hw->tx_freeq);
 	crystalhd_hw_delete_ioq(hw->adp, hw->rx_actq);
@@ -570,7 +570,7 @@ static bool crystalhd_tx_list0_handler(struct crystalhd_hw *hw, uint32_t err_sts
 	if (!(err_sts & err_mask))
 		return false;
 
-	BCMLOG_ERR("Error on Tx-L0 %x \n", err_sts);
+	BCMLOG_ERR("Error on Tx-L0 %x\n", err_sts);
 
 	tmp = err_mask;
 
@@ -602,7 +602,7 @@ static bool crystalhd_tx_list1_handler(struct crystalhd_hw *hw, uint32_t err_sts
 	if (!(err_sts & err_mask))
 		return false;
 
-	BCMLOG_ERR("Error on Tx-L1 %x \n", err_sts);
+	BCMLOG_ERR("Error on Tx-L1 %x\n", err_sts);
 
 	tmp = err_mask;
 
@@ -635,9 +635,9 @@ static void crystalhd_tx_isr(struct crystalhd_hw *hw, uint32_t int_sts)
 					   BC_STS_SUCCESS);
 
 	if (!(int_sts & (INTR_INTR_STATUS_L0_TX_DMA_ERR_INTR_MASK |
-			 INTR_INTR_STATUS_L1_TX_DMA_ERR_INTR_MASK))) {
-			 /* No error mask set.. */
-			 return;
+			INTR_INTR_STATUS_L1_TX_DMA_ERR_INTR_MASK))) {
+			/* No error mask set.. */
+			return;
 	}
 
 	/* Handle Tx errors. */
@@ -1134,33 +1134,29 @@ static void crystalhd_stop_rx_dma_engine(struct crystalhd_hw *hw)
 		if (l0y) {
 			l0y = crystalhd_reg_rd(hw->adp, MISC1_Y_RX_FIRST_DESC_L_ADDR_LIST0);
 			l0y &= DMA_START_BIT;
-			if (!l0y) {
+			if (!l0y)
 				hw->rx_list_sts[0] &= ~rx_waiting_y_intr;
-			}
 		}
 
 		if (l1y) {
 			l1y = crystalhd_reg_rd(hw->adp, MISC1_Y_RX_FIRST_DESC_L_ADDR_LIST1);
 			l1y &= DMA_START_BIT;
-			if (!l1y) {
+			if (!l1y)
 				hw->rx_list_sts[1] &= ~rx_waiting_y_intr;
-			}
 		}
 
 		if (l0uv) {
 			l0uv = crystalhd_reg_rd(hw->adp, MISC1_UV_RX_FIRST_DESC_L_ADDR_LIST0);
 			l0uv &= DMA_START_BIT;
-			if (!l0uv) {
+			if (!l0uv)
 				hw->rx_list_sts[0] &= ~rx_waiting_uv_intr;
-			}
 		}
 
 		if (l1uv) {
 			l1uv = crystalhd_reg_rd(hw->adp, MISC1_UV_RX_FIRST_DESC_L_ADDR_LIST1);
 			l1uv &= DMA_START_BIT;
-			if (!l1uv) {
+			if (!l1uv)
 				hw->rx_list_sts[1] &= ~rx_waiting_uv_intr;
-			}
 		}
 		msleep_interruptible(100);
 		count--;
@@ -1432,9 +1428,8 @@ static bool crystalhd_rx_list1_handler(struct crystalhd_hw *hw, uint32_t int_sts
 
 	/* UV1 - DMA */
 	tmp = uv_err_sts & GET_UV1_ERR_MSK;
-	if (int_sts & INTR_INTR_STATUS_L1_UV_RX_DMA_DONE_INTR_MASK) {
+	if (int_sts & INTR_INTR_STATUS_L1_UV_RX_DMA_DONE_INTR_MASK)
 		hw->rx_list_sts[1] &= ~rx_waiting_uv_intr;
-	}
 
 	if (uv_err_sts & MISC1_UV_RX_ERROR_STATUS_RX_L1_UNDERRUN_ERROR_MASK) {
 		hw->rx_list_sts[1] &= ~rx_waiting_uv_intr;
@@ -1740,7 +1735,7 @@ BC_STATUS crystalhd_do_fw_cmd(struct crystalhd_hw *hw, BC_FW_CMD *fw_cmd)
 	res_buff = fw_cmd->rsp;
 
 	if (!cmd_buff || !res_buff) {
-		BCMLOG_ERR("Invalid Parameters for F/W Command \n");
+		BCMLOG_ERR("Invalid Parameters for F/W Command\n");
 		return BC_STS_INV_ARG;
 	}
 
