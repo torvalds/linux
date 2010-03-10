@@ -632,7 +632,7 @@ static inline void set_debugt(void) { }
 static inline void debugt(const char *message) { }
 #endif /* DEBUGT */
 
-typedef void (*timeout_fn) (unsigned long);
+typedef void (*timeout_fn)(unsigned long);
 static DEFINE_TIMER(fd_timeout, floppy_shutdown, 0, 0);
 
 static const char *timeout_message;
@@ -1036,7 +1036,7 @@ static void fd_watchdog(void)
 		reset_fdc();
 	} else {
 		del_timer(&fd_timer);
-		fd_timer.function = (timeout_fn) fd_watchdog;
+		fd_timer.function = (timeout_fn)fd_watchdog;
 		fd_timer.expires = jiffies + HZ / 10;
 		add_timer(&fd_timer);
 	}
@@ -1534,9 +1534,9 @@ static void setup_rw_floppy(void)
 		 */
 		if (time_after(ready_date, jiffies + DP->select_delay)) {
 			ready_date -= DP->select_delay;
-			function = (timeout_fn) floppy_start;
+			function = (timeout_fn)floppy_start;
 		} else
-			function = (timeout_fn) setup_rw_floppy;
+			function = (timeout_fn)setup_rw_floppy;
 
 		/* wait until the floppy is spinning fast enough */
 		if (fd_wait_for_completion(ready_date, function))
