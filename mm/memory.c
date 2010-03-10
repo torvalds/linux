@@ -190,9 +190,6 @@ static void check_sync_rss_stat(struct task_struct *task)
 {
 }
 
-void sync_mm_rss(struct task_struct *task, struct mm_struct *mm)
-{
-}
 #endif
 
 /*
