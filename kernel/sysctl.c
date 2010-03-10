@@ -61,6 +61,9 @@
 #include <asm/stacktrace.h>
 #include <asm/io.h>
 #endif
+#ifdef CONFIG_BSD_PROCESS_ACCT
+#include <linux/acct.h>
+#endif
 #ifdef CONFIG_CHR_DEV_SG
 #include <scsi/sg.h>
 #endif
@@ -138,10 +141,6 @@ extern int sysctl_ieee_emulation_warnings;
 #endif
 extern int sysctl_userprocess_debug;
 extern int spin_retry;
-#endif
-
-#ifdef CONFIG_BSD_PROCESS_ACCT
-extern int acct_parm[];
 #endif
 
 #ifdef CONFIG_IA64

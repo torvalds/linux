@@ -121,6 +121,7 @@ struct vfsmount;
 struct super_block;
 struct pacct_struct;
 struct pid_namespace;
+extern int acct_parm[]; /* for sysctl */
 extern void acct_auto_close_mnt(struct vfsmount *m);
 extern void acct_auto_close(struct super_block *sb);
 extern void acct_collect(long exitcode, int group_dead);
