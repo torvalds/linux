@@ -250,8 +250,6 @@ static int allowed_drive_mask = 0x33;
 
 static int irqdma_allocated;
 
-#define DEVICE_NAME "floppy"
-
 #include <linux/blkdev.h>
 #include <linux/blkpg.h>
 #include <linux/cdrom.h>	/* for the compatibility eject ioctl */
@@ -312,7 +310,7 @@ static int initialising = 1;
 #define UFDCS	(&fdc_state[FDC(drive)])
 
 #define DPRINT(format, args...) \
-	pr_info(DEVICE_NAME "%d: " format, current_drive, ##args)
+	pr_info("floppy%d: " format, current_drive, ##args)
 
 #define PH_HEAD(floppy, head) (((((floppy)->stretch & 2) >> 1) ^ head) << 2)
 #define STRETCH(floppy)	((floppy)->stretch & FD_STRETCH)
