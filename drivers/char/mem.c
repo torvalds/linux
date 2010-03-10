@@ -708,13 +708,20 @@ static loff_t memory_lseek(struct file * file, loff_t offset, int orig)
 
 	mutex_lock(&file->f_path.dentry->d_inode->i_mutex);
 	switch (orig) {
-		case 0:
+		case SEEK_CUR:
+			offset += file->f_pos;
+			if ((unsigned long long)offset <
+			    (unsigned long long)file->f_pos) {
+				ret = -EOVERFLOW;
+				break;
+			}
+		case SEEK_SET:
+			/* to avoid userland mistaking f_pos=-9 as -EBADF=-9 */
+			if ((unsigned long long)offset >= ~0xFFFULL) {
+				ret = -EOVERFLOW;
+				break;
+			}
 			file->f_pos = offset;
-			ret = file->f_pos;
-			force_successful_syscall_return();
-			break;
-		case 1:
-			file->f_pos += offset;
 			ret = file->f_pos;
 			force_successful_syscall_return();
 			break;
