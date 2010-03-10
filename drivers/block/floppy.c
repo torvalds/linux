@@ -1198,8 +1198,6 @@ static int output_byte(char byte)
 	return -1;
 }
 
-#define LAST_OUT(x) if (output_byte(x)<0){ reset_fdc();return;}
-
 /* gets the response from the fdc */
 static int result(void)
 {
@@ -1679,7 +1677,10 @@ static void seek_floppy(void)
 	do_floppy = seek_interrupt;
 	output_byte(FD_SEEK);
 	output_byte(UNIT(current_drive));
-	LAST_OUT(track);
+	if (output_byte(track) < 0) {
+		reset_fdc();
+		return;
+	}
 	debugt("seek command:");
 }
 
@@ -1809,7 +1810,10 @@ static void recalibrate_floppy(void)
 	debugt("recalibrate floppy:");
 	do_floppy = recal_interrupt;
 	output_byte(FD_RECALIBRATE);
-	LAST_OUT(UNIT(current_drive));
+	if (output_byte(UNIT(current_drive)) < 0) {
+		reset_fdc();
+		return;
+	}
 }
 
 /*
