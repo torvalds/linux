@@ -2885,7 +2885,6 @@ static int make_raw_rw_request(void)
 
 static void redo_fd_request(void)
 {
-#define REPEAT {request_done(0); continue; }
 	int drive;
 	int tmp;
 
@@ -2920,7 +2919,8 @@ static void redo_fd_request(void)
 		if (test_bit(current_drive, &fake_change) ||
 		    test_bit(FD_DISK_CHANGED_BIT, &DRS->flags)) {
 			DPRINT("disk absent or changed during operation\n");
-			REPEAT;
+			request_done(0);
+			continue;
 		}
 		if (!_floppy) {	/* Autodetection */
 			if (!probing) {
@@ -2928,7 +2928,8 @@ static void redo_fd_request(void)
 				if (next_valid_format()) {
 					DPRINT("no autodetectable formats\n");
 					_floppy = NULL;
-					REPEAT;
+					request_done(0);
+					continue;
 				}
 			}
 			probing = 1;
@@ -2949,7 +2950,6 @@ static void redo_fd_request(void)
 		debugt("queue fd request");
 		return;
 	}
-#undef REPEAT
 }
 
 static struct cont_t rw_cont = {
