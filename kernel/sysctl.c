@@ -67,6 +67,9 @@
 #ifdef CONFIG_RT_MUTEXES
 #include <linux/rtmutex.h>
 #endif
+#if defined(CONFIG_PROVE_LOCKING) || defined(CONFIG_LOCK_STAT)
+#include <linux/lockdep.h>
+#endif
 #ifdef CONFIG_CHR_DEV_SG
 #include <scsi/sg.h>
 #endif
@@ -190,9 +193,6 @@ extern struct ctl_table epoll_table[];
 #ifdef HAVE_ARCH_PICK_MMAP_LAYOUT
 int sysctl_legacy_va_layout;
 #endif
-
-extern int prove_locking;
-extern int lock_stat;
 
 /* The default sysctl tables: */
 
