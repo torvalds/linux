@@ -753,7 +753,7 @@ int s3c_i2sv2_register_dai(struct snd_soc_dai *dai)
 
 	/* Allow overriding by (for example) IISv4 */
 	if (!ops->delay)
-		ops->delay = s3c2412_i2s_delay,
+		ops->delay = s3c2412_i2s_delay;
 
 	dai->suspend = s3c2412_i2s_suspend;
 	dai->resume = s3c2412_i2s_resume;
