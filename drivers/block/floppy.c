@@ -908,7 +908,7 @@ static inline void unlock_fdc(void)
 		DPRINT("FDC access conflict!\n");
 
 	if (do_floppy)
-		DPRINT("device interrupt still active at FDC release: %p!\n",
+		DPRINT("device interrupt still active at FDC release: %pf!\n",
 		       do_floppy);
 	command_status = FD_COMMAND_NONE;
 	spin_lock_irqsave(&floppy_lock, flags);
@@ -1733,7 +1733,7 @@ irqreturn_t floppy_interrupt(int irq, void *dev_id)
 		/* we don't even know which FDC is the culprit */
 		pr_info("DOR0=%x\n", fdc_state[0].dor);
 		pr_info("floppy interrupt on bizarre fdc %d\n", fdc);
-		pr_info("handler=%p\n", handler);
+		pr_info("handler=%pf\n", handler);
 		is_alive(__func__, "bizarre fdc");
 		return IRQ_NONE;
 	}
@@ -1792,7 +1792,7 @@ static void reset_interrupt(void)
 	debugt("reset interrupt:");
 	result();		/* get the status ready for set_fdc */
 	if (FDCS->reset) {
-		pr_info("reset set in interrupt, calling %p\n", cont->error);
+		pr_info("reset set in interrupt, calling %pf\n", cont->error);
 		cont->error();	/* a reset just after a reset. BAD! */
 	}
 	cont->redo();
@@ -1833,7 +1833,7 @@ static void show_floppy(void)
 	pr_info("\n");
 	pr_info("floppy driver state\n");
 	pr_info("-------------------\n");
-	pr_info("now=%lu last interrupt=%lu diff=%lu last called handler=%p\n",
+	pr_info("now=%lu last interrupt=%lu diff=%lu last called handler=%pf\n",
 		jiffies, interruptjiffies, jiffies - interruptjiffies,
 		lasthandler);
 
@@ -1852,13 +1852,13 @@ static void show_floppy(void)
 	pr_info("status=%x\n", fd_inb(FD_STATUS));
 	pr_info("fdc_busy=%lu\n", fdc_busy);
 	if (do_floppy)
-		pr_info("do_floppy=%p\n", do_floppy);
+		pr_info("do_floppy=%pf\n", do_floppy);
 	if (work_pending(&floppy_work))
-		pr_info("floppy_work.func=%p\n", floppy_work.func);
+		pr_info("floppy_work.func=%pf\n", floppy_work.func);
 	if (timer_pending(&fd_timer))
-		pr_info("fd_timer.function=%p\n", fd_timer.function);
+		pr_info("fd_timer.function=%pf\n", fd_timer.function);
 	if (timer_pending(&fd_timeout)) {
-		pr_info("timer_function=%p\n", fd_timeout.function);
+		pr_info("timer_function=%pf\n", fd_timeout.function);
 		pr_info("expires=%lu\n", fd_timeout.expires - jiffies);
 		pr_info("now=%lu\n", jiffies);
 	}
