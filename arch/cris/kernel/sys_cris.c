@@ -26,24 +26,6 @@
 #include <asm/uaccess.h>
 #include <asm/segment.h>
 
-asmlinkage unsigned long old_mmap(unsigned long __user *args)
-{        
-	unsigned long buffer[6];
-	int err = -EFAULT;
-
-	if (copy_from_user(&buffer, args, sizeof(buffer)))
-		goto out;
-
-	err = -EINVAL;
-	if (buffer[5] & ~PAGE_MASK) /* verify that offset is on page boundary */
-		goto out;
-
-	err = sys_mmap_pgoff(buffer[0], buffer[1], buffer[2], buffer[3],
-                       buffer[4], buffer[5] >> PAGE_SHIFT);
-out:
-	return err;
-}
-
 asmlinkage long
 sys_mmap2(unsigned long addr, unsigned long len, unsigned long prot,
           unsigned long flags, unsigned long fd, unsigned long pgoff)

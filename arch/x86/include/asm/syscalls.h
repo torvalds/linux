@@ -51,11 +51,9 @@ asmlinkage int sys_sigaction(int, const struct old_sigaction __user *,
 unsigned long sys_sigreturn(struct pt_regs *);
 
 /* kernel/sys_i386_32.c */
-struct mmap_arg_struct;
 struct oldold_utsname;
 struct old_utsname;
 
-asmlinkage int old_mmap(struct mmap_arg_struct __user *);
 asmlinkage int sys_ipc(uint, int, int, int, void __user *, long);
 asmlinkage int sys_uname(struct old_utsname __user *);
 asmlinkage int sys_olduname(struct oldold_utsname __user *);

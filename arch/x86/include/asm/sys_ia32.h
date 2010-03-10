@@ -26,8 +26,8 @@ asmlinkage long sys32_lstat64(char __user *, struct stat64 __user *);
 asmlinkage long sys32_fstat64(unsigned int, struct stat64 __user *);
 asmlinkage long sys32_fstatat(unsigned int, char __user *,
 			      struct stat64 __user *, int);
-struct mmap_arg_struct;
-asmlinkage long sys32_mmap(struct mmap_arg_struct __user *);
+struct mmap_arg_struct32;
+asmlinkage long sys32_mmap(struct mmap_arg_struct32 __user *);
 asmlinkage long sys32_mprotect(unsigned long, size_t, unsigned long);
 
 struct sigaction32;

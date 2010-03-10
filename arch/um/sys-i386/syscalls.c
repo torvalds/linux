@@ -12,39 +12,6 @@
 #include "asm/unistd.h"
 
 /*
- * Perform the select(nd, in, out, ex, tv) and mmap() system
- * calls. Linux/i386 didn't use to be able to handle more than
- * 4 system call parameters, so these system calls used a memory
- * block for parameter passing..
- */
-
-struct mmap_arg_struct {
-	unsigned long addr;
-	unsigned long len;
-	unsigned long prot;
-	unsigned long flags;
-	unsigned long fd;
-	unsigned long offset;
-};
-
-extern int old_mmap(unsigned long addr, unsigned long len,
-		    unsigned long prot, unsigned long flags,
-		    unsigned long fd, unsigned long offset);
-
-long old_mmap_i386(struct mmap_arg_struct __user *arg)
-{
-	struct mmap_arg_struct a;
-	int err = -EFAULT;
-
-	if (copy_from_user(&a, arg, sizeof(a)))
-		goto out;
-
-	err = old_mmap(a.addr, a.len, a.prot, a.flags, a.fd, a.offset);
- out:
-	return err;
-}
-
-/*
  * The prototype on i386 is:
  *
  *     int clone(int flags, void * child_stack, int * parent_tidptr, struct user_desc * newtls, int * child_tidptr)
