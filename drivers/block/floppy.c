@@ -180,6 +180,8 @@ static int print_unex = 1;
 #include <linux/mod_devicetable.h>
 #include <linux/buffer_head.h>	/* for invalidate_buffers() */
 #include <linux/mutex.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 
 /*
  * PS/2 floppies have much slower step rates than regular floppies.
@@ -191,8 +193,6 @@ static int slow_floppy;
 #include <asm/dma.h>
 #include <asm/irq.h>
 #include <asm/system.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
 
 static int FLOPPY_IRQ = 6;
 static int FLOPPY_DMA = 2;
