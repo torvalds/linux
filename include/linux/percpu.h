@@ -137,6 +137,7 @@ extern int __init pcpu_page_first_chunk(size_t reserved_size,
 extern void __percpu *__alloc_reserved_percpu(size_t size, size_t align);
 extern void __percpu *__alloc_percpu(size_t size, size_t align);
 extern void free_percpu(void __percpu *__pdata);
+extern bool is_kernel_percpu_address(unsigned long addr);
 extern phys_addr_t per_cpu_ptr_to_phys(void *addr);
 
 #ifndef CONFIG_HAVE_SETUP_PER_CPU_AREA
@@ -161,6 +162,12 @@ static inline void __percpu *__alloc_percpu(size_t size, size_t align)
 static inline void free_percpu(void __percpu *p)
 {
 	kfree(p);
+}
+
+/* can't distinguish from other static vars, always false */
+static inline bool is_kernel_percpu_address(unsigned long addr)
+{
+	return false;
 }
 
 static inline phys_addr_t per_cpu_ptr_to_phys(void *addr)

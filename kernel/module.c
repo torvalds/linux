@@ -415,6 +415,40 @@ static void percpu_modcopy(struct module *mod,
 		memcpy(per_cpu_ptr(mod->percpu, cpu), from, size);
 }
 
+/**
+ * is_module_percpu_address - test whether address is from module static percpu
+ * @addr: address to test
+ *
+ * Test whether @addr belongs to module static percpu area.
+ *
+ * RETURNS:
+ * %true if @addr is from module static percpu area
+ */
+bool is_module_percpu_address(unsigned long addr)
+{
+	struct module *mod;
+	unsigned int cpu;
+
+	preempt_disable();
+
+	list_for_each_entry_rcu(mod, &modules, list) {
+		if (!mod->percpu_size)
+			continue;
+		for_each_possible_cpu(cpu) {
+			void *start = per_cpu_ptr(mod->percpu, cpu);
+
+			if ((void *)addr >= start &&
+			    (void *)addr < start + mod->percpu_size) {
+				preempt_enable();
+				return true;
+			}
+		}
+	}
+
+	preempt_enable();
+	return false;
+}
+
 #else /* ... !CONFIG_SMP */
 
 static inline void __percpu *mod_percpu(struct module *mod)
@@ -440,6 +474,10 @@ static inline void percpu_modcopy(struct module *mod,
 {
 	/* pcpusec should be 0, and size of that section should be 0. */
 	BUG_ON(size != 0);
+}
+bool is_module_percpu_address(unsigned long addr)
+{
+	return false;
 }
 
 #endif /* CONFIG_SMP */
