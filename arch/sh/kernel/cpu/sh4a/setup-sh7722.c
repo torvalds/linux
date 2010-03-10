@@ -174,7 +174,6 @@ static struct plat_sci_port scif0_platform_data = {
 	.flags          = UPF_BOOT_AUTOCONF,
 	.type           = PORT_SCIF,
 	.irqs           = { 80, 80, 80, 80 },
-	.clk		= "scif0",
 };
 
 static struct platform_device scif0_device = {
@@ -190,7 +189,6 @@ static struct plat_sci_port scif1_platform_data = {
 	.flags          = UPF_BOOT_AUTOCONF,
 	.type           = PORT_SCIF,
 	.irqs           = { 81, 81, 81, 81 },
-	.clk		= "scif1",
 };
 
 static struct platform_device scif1_device = {
@@ -206,7 +204,6 @@ static struct plat_sci_port scif2_platform_data = {
 	.flags          = UPF_BOOT_AUTOCONF,
 	.type           = PORT_SCIF,
 	.irqs           = { 82, 82, 82, 82 },
-	.clk		= "scif2",
 };
 
 static struct platform_device scif2_device = {

@@ -87,12 +87,12 @@ struct clk div4_clks[DIV4_NR] = {
 
 static struct clk mstp_clks[] = {
 	/* MSTPCR0 */
-	SH_CLK_MSTP32("scif_fck", 5, &div4_clks[DIV4_P], MSTPCR0, 29, 0),
-	SH_CLK_MSTP32("scif_fck", 4, &div4_clks[DIV4_P], MSTPCR0, 28, 0),
-	SH_CLK_MSTP32("scif_fck", 3, &div4_clks[DIV4_P], MSTPCR0, 27, 0),
-	SH_CLK_MSTP32("scif_fck", 2, &div4_clks[DIV4_P], MSTPCR0, 26, 0),
-	SH_CLK_MSTP32("scif_fck", 1, &div4_clks[DIV4_P], MSTPCR0, 25, 0),
-	SH_CLK_MSTP32("scif_fck", 0, &div4_clks[DIV4_P], MSTPCR0, 24, 0),
+	SH_CLK_MSTP32("sci_fck", 5, &div4_clks[DIV4_P], MSTPCR0, 29, 0),
+	SH_CLK_MSTP32("sci_fck", 4, &div4_clks[DIV4_P], MSTPCR0, 28, 0),
+	SH_CLK_MSTP32("sci_fck", 3, &div4_clks[DIV4_P], MSTPCR0, 27, 0),
+	SH_CLK_MSTP32("sci_fck", 2, &div4_clks[DIV4_P], MSTPCR0, 26, 0),
+	SH_CLK_MSTP32("sci_fck", 1, &div4_clks[DIV4_P], MSTPCR0, 25, 0),
+	SH_CLK_MSTP32("sci_fck", 0, &div4_clks[DIV4_P], MSTPCR0, 24, 0),
 	SH_CLK_MSTP32("ssi_fck", 3, &div4_clks[DIV4_P], MSTPCR0, 23, 0),
 	SH_CLK_MSTP32("ssi_fck", 2, &div4_clks[DIV4_P], MSTPCR0, 22, 0),
 	SH_CLK_MSTP32("ssi_fck", 1, &div4_clks[DIV4_P], MSTPCR0, 21, 0),

@@ -164,9 +164,9 @@ static struct clk mstp_clks[] = {
 	SH_HWBLK_CLK("cmt0", -1, R_CLK, HWBLK_CMT, 0),
 	SH_HWBLK_CLK("rwdt0", -1, R_CLK, HWBLK_RWDT, 0),
 	SH_HWBLK_CLK("flctl0", -1, P_CLK, HWBLK_FLCTL, 0),
-	SH_HWBLK_CLK("scif0", -1, P_CLK, HWBLK_SCIF0, 0),
-	SH_HWBLK_CLK("scif1", -1, P_CLK, HWBLK_SCIF1, 0),
-	SH_HWBLK_CLK("scif2", -1, P_CLK, HWBLK_SCIF2, 0),
+	SH_HWBLK_CLK("sci_fck", 0, P_CLK, HWBLK_SCIF0, 0),
+	SH_HWBLK_CLK("sci_fck", 1, P_CLK, HWBLK_SCIF1, 0),
+	SH_HWBLK_CLK("sci_fck", 2, P_CLK, HWBLK_SCIF2, 0),
 
 	SH_HWBLK_CLK("i2c0", -1, P_CLK, HWBLK_IIC, 0),
 	SH_HWBLK_CLK("rtc0", -1, R_CLK, HWBLK_RTC, 0),

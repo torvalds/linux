@@ -23,7 +23,6 @@ static struct plat_sci_port scif0_platform_data = {
 	.flags		= UPF_BOOT_AUTOCONF,
 	.type		= PORT_SCIF,
 	.irqs		= { 80, 80, 80, 80 },
-	.clk		= "scif0",
 };
 
 static struct platform_device scif0_device = {

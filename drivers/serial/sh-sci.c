@@ -83,8 +83,8 @@ struct sci_port {
 
 	/* Interface clock */
 	struct clk		*iclk;
-	/* Data clock */
-	struct clk		*dclk;
+	/* Function clock */
+	struct clk		*fclk;
 
 	struct list_head	node;
 	struct dma_chan			*chan_tx;
@@ -803,7 +803,7 @@ static int sci_notifier(struct notifier_block *self,
 	    (phase == CPUFREQ_RESUMECHANGE)) {
 		spin_lock_irqsave(&priv->lock, flags);
 		list_for_each_entry(sci_port, &priv->ports, node)
-			sci_port->port.uartclk = clk_get_rate(sci_port->dclk);
+			sci_port->port.uartclk = clk_get_rate(sci_port->iclk);
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
 
@@ -814,21 +814,17 @@ static void sci_clk_enable(struct uart_port *port)
 {
 	struct sci_port *sci_port = to_sci_port(port);
 
-	clk_enable(sci_port->dclk);
-	sci_port->port.uartclk = clk_get_rate(sci_port->dclk);
-
-	if (sci_port->iclk)
-		clk_enable(sci_port->iclk);
+	clk_enable(sci_port->iclk);
+	sci_port->port.uartclk = clk_get_rate(sci_port->iclk);
+	clk_enable(sci_port->fclk);
 }
 
 static void sci_clk_disable(struct uart_port *port)
 {
 	struct sci_port *sci_port = to_sci_port(port);
 
-	if (sci_port->iclk)
-		clk_disable(sci_port->iclk);
-
-	clk_disable(sci_port->dclk);
+	clk_disable(sci_port->fclk);
+	clk_disable(sci_port->iclk);
 }
 
 static int sci_request_irq(struct sci_port *port)
@@ -1557,10 +1553,10 @@ static struct uart_ops sci_uart_ops = {
 #endif
 };
 
-static void __devinit sci_init_single(struct platform_device *dev,
-				      struct sci_port *sci_port,
-				      unsigned int index,
-				      struct plat_sci_port *p)
+static int __devinit sci_init_single(struct platform_device *dev,
+				     struct sci_port *sci_port,
+				     unsigned int index,
+				     struct plat_sci_port *p)
 {
 	struct uart_port *port = &sci_port->port;
 
@@ -1581,8 +1577,23 @@ static void __devinit sci_init_single(struct platform_device *dev,
 	}
 
 	if (dev) {
-		sci_port->iclk = p->clk ? clk_get(&dev->dev, p->clk) : NULL;
-		sci_port->dclk = clk_get(&dev->dev, "peripheral_clk");
+		sci_port->iclk = clk_get(&dev->dev, "sci_ick");
+		if (IS_ERR(sci_port->iclk)) {
+			sci_port->iclk = clk_get(&dev->dev, "peripheral_clk");
+			if (IS_ERR(sci_port->iclk)) {
+				dev_err(&dev->dev, "can't get iclk\n");
+				return PTR_ERR(sci_port->iclk);
+			}
+		}
+
+		/*
+		 * The function clock is optional, ignore it if we can't
+		 * find it.
+		 */
+		sci_port->fclk = clk_get(&dev->dev, "sci_fck");
+		if (IS_ERR(sci_port->fclk))
+			sci_port->fclk = NULL;
+
 		sci_port->enable = sci_clk_enable;
 		sci_port->disable = sci_clk_disable;
 		port->dev = &dev->dev;
@@ -1609,6 +1620,7 @@ static void __devinit sci_init_single(struct platform_device *dev,
 #endif
 
 	memcpy(&sci_port->irqs, &p->irqs, sizeof(p->irqs));
+	return 0;
 }
 
 #ifdef CONFIG_SERIAL_SH_SCI_CONSOLE
@@ -1758,8 +1770,11 @@ static int sci_remove(struct platform_device *dev)
 	cpufreq_unregister_notifier(&priv->clk_nb, CPUFREQ_TRANSITION_NOTIFIER);
 
 	spin_lock_irqsave(&priv->lock, flags);
-	list_for_each_entry(p, &priv->ports, node)
+	list_for_each_entry(p, &priv->ports, node) {
 		uart_remove_one_port(&sci_uart_driver, &p->port);
+		clk_put(p->iclk);
+		clk_put(p->fclk);
+	}
 	spin_unlock_irqrestore(&priv->lock, flags);
 
 	kfree(priv);
@@ -1785,7 +1800,9 @@ static int __devinit sci_probe_single(struct platform_device *dev,
 		return 0;
 	}
 
-	sci_init_single(dev, sciport, index, p);
+	ret = sci_init_single(dev, sciport, index, p);
+	if (ret)
+		return ret;
 
 	ret = uart_add_one_port(&sci_uart_driver, &sciport->port);
 	if (ret)
