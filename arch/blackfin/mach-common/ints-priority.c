@@ -662,14 +662,7 @@ static int bfin_gpio_irq_type(unsigned int irq, unsigned int type)
 #ifdef CONFIG_PM
 int bfin_gpio_set_wake(unsigned int irq, unsigned int state)
 {
-	unsigned gpio = irq_to_gpio(irq);
-
-	if (state)
-		gpio_pm_wakeup_request(gpio, PM_WAKE_IGNORE);
-	else
-		gpio_pm_wakeup_free(gpio);
-
-	return 0;
+	return gpio_pm_wakeup_ctrl(irq_to_gpio(irq), state);
 }
 #endif
 

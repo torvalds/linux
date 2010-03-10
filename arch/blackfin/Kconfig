@@ -1187,32 +1187,6 @@ config  PM_BFIN_SLEEP
 	  If unsure, select "Sleep Deeper".
 endchoice
 
-config PM_WAKEUP_BY_GPIO
-	bool "Allow Wakeup from Standby by GPIO"
-	depends on PM && !BF54x
-
-config PM_WAKEUP_GPIO_NUMBER
-	int "GPIO number"
-	range 0 47
-	depends on PM_WAKEUP_BY_GPIO
-	default 2
-
-choice
-	prompt "GPIO Polarity"
-	depends on PM_WAKEUP_BY_GPIO
-	default PM_WAKEUP_GPIO_POLAR_H
-config  PM_WAKEUP_GPIO_POLAR_H
-	bool "Active High"
-config  PM_WAKEUP_GPIO_POLAR_L
-	bool "Active Low"
-config  PM_WAKEUP_GPIO_POLAR_EDGE_F
-	bool "Falling EDGE"
-config  PM_WAKEUP_GPIO_POLAR_EDGE_R
-	bool "Rising EDGE"
-config  PM_WAKEUP_GPIO_POLAR_EDGE_B
-	bool "Both EDGE"
-endchoice
-
 comment "Possible Suspend Mem / Hibernate Wake-Up Sources"
 	depends on PM
 

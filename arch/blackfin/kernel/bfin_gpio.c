@@ -475,9 +475,7 @@ GET_GPIO_P(maskb)
 
 
 #ifdef CONFIG_PM
-
 static unsigned short wakeup_map[GPIO_BANK_NUM];
-static unsigned char wakeup_flags_map[MAX_BLACKFIN_GPIOS];
 
 static const unsigned int sic_iwr_irqs[] = {
 #if defined(BF533_FAMILY)
@@ -514,112 +512,26 @@ static const unsigned int sic_iwr_irqs[] = {
 *************************************************************
 * MODIFICATION HISTORY :
 **************************************************************/
-int gpio_pm_wakeup_request(unsigned gpio, unsigned char type)
-{
-	unsigned long flags;
-
-	if ((check_gpio(gpio) < 0) || !type)
-		return -EINVAL;
-
-	local_irq_save_hw(flags);
-	wakeup_map[gpio_bank(gpio)] |= gpio_bit(gpio);
-	wakeup_flags_map[gpio] = type;
-	local_irq_restore_hw(flags);
-
-	return 0;
-}
-EXPORT_SYMBOL(gpio_pm_wakeup_request);
-
-void gpio_pm_wakeup_free(unsigned gpio)
+int gpio_pm_wakeup_ctrl(unsigned gpio, unsigned ctrl)
 {
 	unsigned long flags;
 
 	if (check_gpio(gpio) < 0)
-		return;
+		return -EINVAL;
 
 	local_irq_save_hw(flags);
+	if (ctrl)
+		wakeup_map[gpio_bank(gpio)] |= gpio_bit(gpio);
+	else
+		wakeup_map[gpio_bank(gpio)] &= ~gpio_bit(gpio);
 
-	wakeup_map[gpio_bank(gpio)] &= ~gpio_bit(gpio);
-
+	set_gpio_maskb(gpio, ctrl);
 	local_irq_restore_hw(flags);
-}
-EXPORT_SYMBOL(gpio_pm_wakeup_free);
-
-static int bfin_gpio_wakeup_type(unsigned gpio, unsigned char type)
-{
-	port_setup(gpio, GPIO_USAGE);
-	set_gpio_dir(gpio, 0);
-	set_gpio_inen(gpio, 1);
-
-	if (type & (PM_WAKE_RISING | PM_WAKE_FALLING))
-		set_gpio_edge(gpio, 1);
-	 else
-		set_gpio_edge(gpio, 0);
-
-	if ((type & (PM_WAKE_BOTH_EDGES)) == (PM_WAKE_BOTH_EDGES))
-		set_gpio_both(gpio, 1);
-	else
-		set_gpio_both(gpio, 0);
-
-	if ((type & (PM_WAKE_FALLING | PM_WAKE_LOW)))
-		set_gpio_polar(gpio, 1);
-	else
-		set_gpio_polar(gpio, 0);
-
-	SSYNC();
 
 	return 0;
 }
 
-u32 bfin_pm_standby_setup(void)
-{
-	u16 bank, mask, i, gpio;
-
-	for (i = 0; i < MAX_BLACKFIN_GPIOS; i += GPIO_BANKSIZE) {
-		mask = wakeup_map[gpio_bank(i)];
-		bank = gpio_bank(i);
-
-		gpio_bank_saved[bank].maskb = gpio_array[bank]->maskb;
-		gpio_array[bank]->maskb = 0;
-
-		if (mask) {
-#if defined(CONFIG_BF52x) || defined(BF537_FAMILY) || defined(CONFIG_BF51x)
-			gpio_bank_saved[bank].fer   = *port_fer[bank];
-#endif
-			gpio_bank_saved[bank].inen  = gpio_array[bank]->inen;
-			gpio_bank_saved[bank].polar = gpio_array[bank]->polar;
-			gpio_bank_saved[bank].dir   = gpio_array[bank]->dir;
-			gpio_bank_saved[bank].edge  = gpio_array[bank]->edge;
-			gpio_bank_saved[bank].both  = gpio_array[bank]->both;
-			gpio_bank_saved[bank].reserved =
-						reserved_gpio_map[bank];
-
-			gpio = i;
-
-			while (mask) {
-				if ((mask & 1) && (wakeup_flags_map[gpio] !=
-					PM_WAKE_IGNORE)) {
-					reserved_gpio_map[gpio_bank(gpio)] |=
-							gpio_bit(gpio);
-					bfin_gpio_wakeup_type(gpio,
-						wakeup_flags_map[gpio]);
-					set_gpio_data(gpio, 0); /*Clear*/
-				}
-				gpio++;
-				mask >>= 1;
-			}
-
-			bfin_internal_set_wake(sic_iwr_irqs[bank], 1);
-			gpio_array[bank]->maskb_set = wakeup_map[gpio_bank(i)];
-		}
-	}
-
-	AWA_DUMMY_READ(maskb_set);
-
-	return 0;
-}
-
-void bfin_pm_standby_restore(void)
+int bfin_pm_standby_ctrl(unsigned ctrl)
 {
 	u16 bank, mask, i;
 
@@ -627,24 +539,10 @@ void bfin_pm_standby_restore(void)
 		mask = wakeup_map[gpio_bank(i)];
 		bank = gpio_bank(i);
 
-		if (mask) {
-#if defined(CONFIG_BF52x) || defined(BF537_FAMILY) || defined(CONFIG_BF51x)
-			*port_fer[bank]   	= gpio_bank_saved[bank].fer;
-#endif
-			gpio_array[bank]->inen  = gpio_bank_saved[bank].inen;
-			gpio_array[bank]->dir   = gpio_bank_saved[bank].dir;
-			gpio_array[bank]->polar = gpio_bank_saved[bank].polar;
-			gpio_array[bank]->edge  = gpio_bank_saved[bank].edge;
-			gpio_array[bank]->both  = gpio_bank_saved[bank].both;
-
-			reserved_gpio_map[bank] =
-					gpio_bank_saved[bank].reserved;
-			bfin_internal_set_wake(sic_iwr_irqs[bank], 0);
-		}
-
-		gpio_array[bank]->maskb = gpio_bank_saved[bank].maskb;
+		if (mask)
+			bfin_internal_set_wake(sic_iwr_irqs[bank], ctrl);
 	}
-	AWA_DUMMY_READ(maskb);
+	return 0;
 }
 
 void bfin_gpio_pm_hibernate_suspend(void)
@@ -708,14 +606,9 @@ void bfin_gpio_pm_hibernate_restore(void)
 #else /* CONFIG_BF54x */
 #ifdef CONFIG_PM
 
-u32 bfin_pm_standby_setup(void)
+int bfin_pm_standby_ctrl(unsigned ctrl)
 {
 	return 0;
-}
-
-void bfin_pm_standby_restore(void)
-{
-
 }
 
 void bfin_gpio_pm_hibernate_suspend(void)
