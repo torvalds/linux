@@ -1465,5 +1465,7 @@ extern void shake_page(struct page *p, int access);
 extern atomic_long_t mce_bad_pages;
 extern int soft_offline_page(struct page *page, int flags);
 
+extern void dump_page(struct page *page);
+
 #endif /* __KERNEL__ */
 #endif /* _LINUX_MM_H */
