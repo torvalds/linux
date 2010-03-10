@@ -294,7 +294,6 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 	struct net_device_context *net_device_ctx;
 	struct sk_buff *skb;
 	void *data;
-	int ret;
 	int i;
 	unsigned long flags;
 
@@ -308,12 +307,12 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 
 	net_device_ctx = netdev_priv(net);
 
-	/* Allocate a skb - TODO preallocate this */
-	/* Pad 2-bytes to align IP header to 16 bytes */
-	skb = dev_alloc_skb(packet->TotalDataBufferLength + 2);
-	ASSERT(skb);
-	skb_reserve(skb, 2);
-	skb->dev = net;
+	/* Allocate a skb - TODO direct I/O to pages? */
+	skb = netdev_alloc_skb_ip_align(net, packet->TotalDataBufferLength);
+	if (unlikely(!skb)) {
+		++net->stats.rx_dropped;
+		return 0;
+	}
 
 	/* for kmap_atomic */
 	local_irq_save(flags);
@@ -338,25 +337,18 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 	local_irq_restore(flags);
 
 	skb->protocol = eth_type_trans(skb, net);
-
 	skb->ip_summed = CHECKSUM_NONE;
+
+	net->stats.rx_packets++;
+	net->stats.rx_bytes += skb->len;
 
 	/*
 	 * Pass the skb back up. Network stack will deallocate the skb when it
-	 * is done
+	 * is done.
+	 * TODO - use NAPI?
 	 */
-	ret = netif_rx(skb);
+	netif_rx(skb);
 
-	switch (ret) {
-	case NET_RX_DROP:
-		net->stats.rx_dropped++;
-		break;
-	default:
-		net->stats.rx_packets++;
-		net->stats.rx_bytes += skb->len;
-		break;
-
-	}
 	DPRINT_DBG(NETVSC_DRV, "# of recvs %lu total size %lu",
 		   net->stats.rx_packets, net->stats.rx_bytes);
 
