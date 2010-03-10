@@ -33,6 +33,7 @@ unsigned int __machine_arch_type;
 #else
 
 static void putstr(const char *ptr);
+extern void error(char *x);
 
 #include <mach/uncompress.h>
 

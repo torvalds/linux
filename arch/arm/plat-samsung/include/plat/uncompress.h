@@ -140,8 +140,6 @@ static void arch_decomp_error(const char *x)
 #define arch_error arch_decomp_error
 #endif
 
-static void error(char *err);
-
 #ifdef CONFIG_S3C_BOOT_UART_FORCE_FIFO
 static inline void arch_enable_uart_fifo(void)
 {
