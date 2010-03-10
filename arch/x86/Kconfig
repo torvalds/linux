@@ -102,6 +102,9 @@ config ZONE_DMA
 config SBUS
 	bool
 
+config NEED_DMA_MAP_STATE
+       def_bool (X86_64 || DMAR || DMA_API_DEBUG)
+
 config GENERIC_ISA_DMA
 	def_bool y
 
