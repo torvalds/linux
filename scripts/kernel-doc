@@ -2103,7 +2103,7 @@ sub process_file($) {
 		$section = $newsection;
 	    } elsif (/$doc_end/) {
 
-		if ($contents ne "") {
+		if (($contents ne "") && ($contents ne "\n")) {
 		    dump_section($file, $section, xml_escape($contents));
 		    $section = $section_default;
 		    $contents = "";
