@@ -2811,7 +2811,7 @@ S:	Maintained
 F:	drivers/input/
 
 INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
-M:	Sylvain Meyer <sylvain.meyer@worldonline.fr>
+M:	Maik Broemme <mbroemme@plusserver.de>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/fb/intelfb.txt
