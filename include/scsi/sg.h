@@ -70,6 +70,9 @@ Major new features in SG 3.x driver (cf SG 2.x drivers)
  (for the lk 2.2 series).
 */
 
+#ifdef __KERNEL__
+extern int sg_big_buff; /* for sysctl */
+#endif
 
 /* New interface introduced in the 3.x SG drivers follows */
 

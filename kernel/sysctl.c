@@ -61,6 +61,9 @@
 #include <asm/stacktrace.h>
 #include <asm/io.h>
 #endif
+#ifdef CONFIG_CHR_DEV_SG
+#include <scsi/sg.h>
+#endif
 
 
 #if defined(CONFIG_SYSCTL)
@@ -115,10 +118,6 @@ static int minolduid;
 static int min_percpu_pagelist_fract = 8;
 
 static int ngroups_max = NGROUPS_MAX;
-
-#ifdef CONFIG_CHR_DEV_SG
-extern int sg_big_buff;
-#endif
 
 #ifdef CONFIG_SPARC
 #include <asm/system.h>
