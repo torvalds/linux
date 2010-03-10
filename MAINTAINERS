@@ -3628,7 +3628,7 @@ F:	mm/
 
 MEMORY RESOURCE CONTROLLER
 M:	Balbir Singh <balbir@linux.vnet.ibm.com>
-M:	Pavel Emelyanov <xemul@openvz.org>
+M:	Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 M:	KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 L:	linux-mm@kvack.org
 S:	Maintained
