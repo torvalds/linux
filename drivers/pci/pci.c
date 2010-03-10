@@ -2305,15 +2305,13 @@ void pci_msi_off(struct pci_dev *dev)
 int
 pci_set_dma_mask(struct pci_dev *dev, u64 mask)
 {
-	if (!pci_dma_supported(dev, mask))
-		return -EIO;
-
-	dev->dma_mask = mask;
+	int ret = dma_set_mask(&dev->dev, mask);
+	if (ret)
+		return ret;
 	dev_dbg(&dev->dev, "using %dbit DMA mask\n", fls64(mask));
-
 	return 0;
 }
-    
+
 int
 pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
 {
