@@ -488,6 +488,10 @@ Each subsystem should:
 - add an entry in linux/cgroup_subsys.h
 - define a cgroup_subsys object called <name>_subsys
 
+If a subsystem can be compiled as a module, it should also have in its
+module initcall a call to cgroup_load_subsys(&its_subsys_struct). It
+should also set its_subsys.module = THIS_MODULE in its .c file.
+
 Each subsystem may export the following methods. The only mandatory
 methods are create/destroy. Any others that are null are presumed to
 be successful no-ops.
