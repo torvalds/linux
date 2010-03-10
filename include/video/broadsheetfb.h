@@ -29,6 +29,10 @@
 #define BS_CMD_UPD_FULL		0x33
 #define BS_CMD_UPD_GDRV_CLR	0x37
 
+/* Broadsheet register interface defines */
+#define BS_REG_REV		0x00
+#define BS_REG_PRC		0x02
+
 /* Broadsheet pin interface specific defines */
 #define BS_CS	0x01
 #define BS_DC 	0x02
@@ -46,6 +50,7 @@ struct broadsheetfb_par {
 	u16 (*read_reg)(struct broadsheetfb_par *, u16 reg);
 	wait_queue_head_t waitq;
 	int panel_index;
+	struct mutex io_lock;
 };
 
 /* board specific routines */
