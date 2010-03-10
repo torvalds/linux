@@ -105,6 +105,7 @@ typedef struct vrc4171_socket {
 	char name[24];
 	int csc_irq;
 	int io_irq;
+	spinlock_t lock;
 } vrc4171_socket_t;
 
 static vrc4171_socket_t vrc4171_sockets[CARD_MAX_SLOTS];
@@ -327,7 +328,7 @@ static int pccard_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 	slot = sock->sock;
 	socket = &vrc4171_sockets[slot];
 
-	spin_lock_irq(&sock->lock);
+	spin_lock_irq(&socket->lock);
 
 	voltage = set_Vcc_value(state->Vcc);
 	exca_write_byte(slot, CARD_VOLTAGE_SELECT, voltage);
@@ -370,7 +371,7 @@ static int pccard_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 		cscint |= I365_CSC_DETECT;
         exca_write_byte(slot, I365_CSCINT, cscint);
 
-	spin_unlock_irq(&sock->lock);
+	spin_unlock_irq(&socket->lock);
 
 	return 0;
 }
