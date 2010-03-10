@@ -182,6 +182,8 @@ list.
 NOTE: Reclaim does not work for the root cgroup, since we cannot set any
 limits on the root cgroup.
 
+Note2: When panic_on_oom is set to "2", the whole system will panic.
+
 2. Locking
 
 The memory controller uses the following hierarchy
@@ -379,7 +381,8 @@ The feature can be disabled by
 NOTE1: Enabling/disabling will fail if the cgroup already has other
 cgroups created below it.
 
-NOTE2: This feature can be enabled/disabled per subtree.
+NOTE2: When panic_on_oom is set to "2", the whole system will panic in
+case of an oom event in any cgroup.
 
 7. Soft limits
 
