@@ -520,7 +520,6 @@ static DECLARE_WAIT_QUEUE_HEAD(command_done);
 
 #define NO_SIGNAL (!interruptible || !signal_pending(current))
 #define CALL(x)		if ((x) == -EINTR) return -EINTR
-#define ECALL(x)	if ((ret = (x))) return ret;
 #define _WAIT(x,i)	CALL(ret=wait_til_done((x),i))
 #define WAIT(x)		_WAIT((x),interruptible)
 #define IWAIT(x)	_WAIT((x),1)
@@ -3061,14 +3060,6 @@ static inline int fd_copyin(void __user *param, void *address,
 	return copy_from_user(address, param, size) ? -EFAULT : 0;
 }
 
-#define _COPYOUT(x)	(copy_to_user((void __user *)param, &(x), sizeof(x)) \
-			 ? -EFAULT : 0)
-#define _COPYIN(x)	(copy_from_user(&(x), (void __user *)param, sizeof(x)) \
-			 ? -EFAULT : 0)
-
-#define COPYOUT(x)	ECALL(_COPYOUT(x))
-#define COPYIN(x)	ECALL(_COPYIN(x))
-
 static inline const char *drive_name(int type, int drive)
 {
 	struct floppy_struct *floppy;
@@ -3145,7 +3136,9 @@ static inline int raw_cmd_copyout(int cmd, char __user *param,
 	int ret;
 
 	while (ptr) {
-		COPYOUT(*ptr);
+		ret = copy_to_user((void __user *)param, ptr, sizeof(*ptr));
+		if (ret)
+			return -EFAULT;
 		param += sizeof(struct floppy_raw_cmd);
 		if ((ptr->flags & FD_RAW_READ) && ptr->buffer_length) {
 			if (ptr->length >= 0 &&
@@ -3195,7 +3188,9 @@ static inline int raw_cmd_copyin(int cmd, char __user *param,
 		if (!ptr)
 			return -ENOMEM;
 		*rcmd = ptr;
-		COPYIN(*ptr);
+		ret = copy_from_user(ptr, (void __user *)param, sizeof(*ptr));
+		if (ret)
+			return -EFAULT;
 		ptr->next = NULL;
 		ptr->buffer_length = 0;
 		param += sizeof(struct floppy_raw_cmd);
