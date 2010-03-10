@@ -42,14 +42,6 @@ extern void h8300_enable_trace(struct task_struct *child);
  * in exit.c or in signal.c.
  */
 
-inline
-static int read_long(struct task_struct * tsk, unsigned long addr,
-	unsigned long * result)
-{
-	*result = *(unsigned long *)addr;
-	return 0;
-}
-
 void ptrace_disable(struct task_struct *child)
 {
 	h8300_disable_trace(child);
@@ -60,17 +52,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	int ret;
 
 	switch (request) {
-		case PTRACE_PEEKTEXT: /* read word at location addr. */ 
-		case PTRACE_PEEKDATA: {
-			unsigned long tmp;
-
-			ret = read_long(child, addr, &tmp);
-			if (ret < 0)
-				break ;
-			ret = put_user(tmp, (unsigned long *) data);
-			break ;
-		}
-
 	/* read the word at location addr in the USER area. */
 		case PTRACE_PEEKUSR: {
 			unsigned long tmp = 0;
@@ -109,11 +90,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 
       /* when I and D space are separate, this will have to be fixed. */
-		case PTRACE_POKETEXT: /* write the word at location addr. */
-		case PTRACE_POKEDATA:
-			ret = generic_ptrace_pokedata(child, addr, data);
-			break;
-
 		case PTRACE_POKEUSR: /* write the word at location addr in the USER area */
 			if ((addr & 3) || addr < 0 || addr >= sizeof(struct user)) {
 				ret = -EIO;
@@ -175,10 +151,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 			break;
 		}
 
-		case PTRACE_DETACH:	/* detach a process that was attached. */
-			ret = ptrace_detach(child, data);
-			break;
-
 		case PTRACE_GETREGS: { /* Get all gp regs from the child. */
 		  	int i;
 			unsigned long tmp;
@@ -210,7 +182,7 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 
 		default:
-			ret = -EIO;
+			ret = ptrace_request(child, request, addr, data);
 			break;
 	}
 	return ret;
