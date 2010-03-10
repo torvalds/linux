@@ -146,7 +146,7 @@ __SYSCALL(__NR_wait4, sys_wait4)
 #define __NR_kill				62
 __SYSCALL(__NR_kill, sys_kill)
 #define __NR_uname				63
-__SYSCALL(__NR_uname, sys_uname)
+__SYSCALL(__NR_uname, sys_newuname)
 
 #define __NR_semget				64
 __SYSCALL(__NR_semget, sys_semget)

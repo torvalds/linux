@@ -68,11 +68,8 @@ int sys_vm86(unsigned long, unsigned long, struct pt_regs *);
 long sys_arch_prctl(int, unsigned long);
 
 /* kernel/sys_x86_64.c */
-struct new_utsname;
-
 asmlinkage long sys_mmap(unsigned long, unsigned long, unsigned long,
 			 unsigned long, unsigned long, unsigned long);
-asmlinkage long sys_uname(struct new_utsname __user *);
 
 #endif /* CONFIG_X86_32 */
 #endif /* _ASM_X86_SYSCALLS_H */

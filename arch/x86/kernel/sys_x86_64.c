@@ -209,15 +209,3 @@ bottomup:
 
 	return addr;
 }
-
-
-SYSCALL_DEFINE1(uname, struct new_utsname __user *, name)
-{
-	int err;
-	down_read(&uts_sem);
-	err = copy_to_user(name, utsname(), sizeof(*name));
-	up_read(&uts_sem);
-	if (personality(current->personality) == PER_LINUX32)
-		err |= copy_to_user(&name->machine, "i686", 5);
-	return err ? -EFAULT : 0;
-}

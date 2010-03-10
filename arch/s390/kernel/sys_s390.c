@@ -131,17 +131,6 @@ SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
 }
 
 #ifdef CONFIG_64BIT
-SYSCALL_DEFINE1(s390_newuname, struct new_utsname __user *, name)
-{
-	int ret = sys_newuname(name);
-
-	if (personality(current->personality) == PER_LINUX32 && !ret) {
-		ret = copy_to_user(name->machine, "s390\0\0\0\0", 8);
-		if (ret) ret = -EFAULT;
-	}
-	return ret;
-}
-
 SYSCALL_DEFINE1(s390_personality, unsigned long, personality)
 {
 	int ret;

@@ -132,19 +132,6 @@ static inline int override_machine(char __user *mach)
 	return 0;
 }
 
-long ppc_newuname(struct new_utsname __user * name)
-{
-	int err = 0;
-
-	down_read(&uts_sem);
-	if (copy_to_user(name, utsname(), sizeof(*name)))
-		err = -EFAULT;
-	up_read(&uts_sem);
-	if (!err)
-		err = override_machine(name->machine);
-	return err;
-}
-
 int sys_uname(struct old_utsname __user *name)
 {
 	int err = 0;

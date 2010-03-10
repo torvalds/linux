@@ -234,18 +234,3 @@ long parisc_personality(unsigned long personality)
 
 	return err;
 }
-
-long parisc_newuname(struct new_utsname __user *name)
-{
-	int err = sys_newuname(name);
-
-#ifdef CONFIG_COMPAT
-	if (!err && personality(current->personality) == PER_LINUX32) {
-		if (__put_user(0, name->machine + 6) ||
-		    __put_user(0, name->machine + 7))
-			err = -EFAULT;
-	}
-#endif
-
-	return err;
-}
