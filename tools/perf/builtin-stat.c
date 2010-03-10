@@ -45,6 +45,7 @@
 #include "util/event.h"
 #include "util/debug.h"
 #include "util/header.h"
+#include "util/cpumap.h"
 
 #include <sys/prctl.h>
 #include <math.h>
@@ -151,7 +152,7 @@ static void create_perf_stat_counter(int counter, int pid)
 		unsigned int cpu;
 
 		for (cpu = 0; cpu < nr_cpus; cpu++) {
-			fd[cpu][counter] = sys_perf_event_open(attr, -1, cpu, -1, 0);
+			fd[cpu][counter] = sys_perf_event_open(attr, -1, cpumap[cpu], -1, 0);
 			if (fd[cpu][counter] < 0 && verbose)
 				fprintf(stderr, ERR_PERF_OPEN, counter,
 					fd[cpu][counter], strerror(errno));
@@ -519,9 +520,10 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		nr_counters = ARRAY_SIZE(default_attrs);
 	}
 
-	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-	assert(nr_cpus <= MAX_NR_CPUS);
-	assert((int)nr_cpus >= 0);
+	if (system_wide)
+		nr_cpus = read_cpu_map();
+	else
+		nr_cpus = 1;
 
 	/*
 	 * We dont want to block the signals - that would cause
