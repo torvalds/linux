@@ -344,7 +344,7 @@ static void ET1310_PhyDuplexMode(struct et131x_adapter *etdev, u16 duplex)
 static void ET1310_PhySpeedSelect(struct et131x_adapter *etdev, u16 speed)
 {
 	u16 data;
-	static const u16 bits[3]={0x0000, 0x2000, 0x0040};
+	static const u16 bits[3] = {0x0000, 0x2000, 0x0040};
 
 	/* Read the PHY control register */
 	MiRead(etdev, PHY_CONTROL, &data);

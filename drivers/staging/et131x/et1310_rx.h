@@ -91,8 +91,7 @@
 #define ALCATEL_BROADCAST_PKT	0x02000000
 
 /* typedefs for Free Buffer Descriptors */
-struct fbr_desc
-{
+struct fbr_desc {
 	u32 addr_lo;
 	u32 addr_hi;
 	u32 word2;		/* Bits 10-31 reserved, 0-9 descriptor */
@@ -117,7 +116,7 @@ struct fbr_desc
  * 9: jp			Jumbo Packet
  * 10: vp			VLAN Packet
  * 11-15: unused
- * 16: asw_prev_pkt_dropped 	e.g. IFG too small on previous
+ * 16: asw_prev_pkt_dropped	e.g. IFG too small on previous
  * 17: asw_RX_DV_event		short receive event detected
  * 18: asw_false_carrier_event	bad carrier since last good packet
  * 19: asw_code_err		one or more nibbles signalled as errors
