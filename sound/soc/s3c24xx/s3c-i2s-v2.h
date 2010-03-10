@@ -25,6 +25,10 @@
 #define S3C_I2SV2_DIV_RCLK	(2)
 #define S3C_I2SV2_DIV_PRESCALER	(3)
 
+#define S3C_I2SV2_CLKSRC_PCLK		0
+#define S3C_I2SV2_CLKSRC_AUDIOBUS	1
+#define S3C_I2SV2_CLKSRC_CDCLK		2
+
 /**
  * struct s3c_i2sv2_info - S3C I2S-V2 information
  * @dev: The parent device passed to use from the probe.
