@@ -24,17 +24,18 @@ config TOUCHSCREEN_88PM860X
 	  module will be called 88pm860x-ts.
 
 config TOUCHSCREEN_ADS7846
-	tristate "ADS7846/TSC2046 and ADS7843 based touchscreens"
+	tristate "ADS7846/TSC2046/AD7873 and AD(S)7843 based touchscreens"
 	depends on SPI_MASTER
 	depends on HWMON = n || HWMON
 	help
 	  Say Y here if you have a touchscreen interface using the
-	  ADS7846/TSC2046 or ADS7843 controller, and your board-specific
-	  setup code includes that in its table of SPI devices.
+	  ADS7846/TSC2046/AD7873 or ADS7843/AD7843 controller,
+	  and your board-specific setup code includes that in its
+	  table of SPI devices.
 
 	  If HWMON is selected, and the driver is told the reference voltage
 	  on your board, you will also get hwmon interfaces for the voltage
-	  (and on ads7846/tsc2046, temperature) sensors of this chip.
+	  (and on ads7846/tsc2046/ad7873, temperature) sensors of this chip.
 
 	  If unsure, say N (but it's safe to say "Y").
 

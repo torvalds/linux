@@ -36,6 +36,7 @@
  * TSC2046 is just newer ads7846 silicon.
  * Support for ads7843 tested on Atmel at91sam926x-EK.
  * Support for ads7845 has only been stubbed in.
+ * Support for Analog Devices AD7873 and AD7843 tested.
  *
  * IRQ handling needs a workaround because of a shortcoming in handling
  * edge triggered IRQs on some platforms like the OMAP1/2. These
@@ -983,6 +984,15 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 			pdata->pressure_min, pdata->pressure_max, 0, 0);
 
 	vref = pdata->keep_vref_on;
+
+	if (ts->model == 7873) {
+		/* The AD7873 is almost identical to the ADS7846
+		 * keep VREF off during differential/ratiometric
+		 * conversion modes
+		 */
+		ts->model = 7846;
+		vref = 0;
+	}
 
 	/* set up the transfers to read touchscreen state; this assumes we
 	 * use formula #2 for pressure, not #3.
