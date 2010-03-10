@@ -113,6 +113,7 @@ u32 rt_global_debug_component = \
 
 static const struct usb_device_id rtl8192_usb_id_tbl[] = {
 	/* Realtek */
+	{USB_DEVICE(0x0bda, 0x8171)},
 	{USB_DEVICE(0x0bda, 0x8192)},
 	{USB_DEVICE(0x0bda, 0x8709)},
 	/* Corega */
