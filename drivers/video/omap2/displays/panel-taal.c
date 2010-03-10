@@ -702,10 +702,9 @@ static int taal_power_on(struct omap_dss_device *dssdev)
 
 	return 0;
 err:
-	dsi_bus_unlock();
-
 	omapdss_dsi_display_disable(dssdev);
 err0:
+	dsi_bus_unlock();
 	if (dssdev->platform_disable)
 		dssdev->platform_disable(dssdev);
 
