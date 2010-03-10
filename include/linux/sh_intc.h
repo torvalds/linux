@@ -92,7 +92,7 @@ struct intc_desc symbol __initdata = {					\
 			   prio_regs, sense_regs, ack_regs),		\
 }
 
-void __init register_intc_controller(struct intc_desc *desc);
+int __init register_intc_controller(struct intc_desc *desc);
 int intc_set_priority(unsigned int irq, unsigned int prio);
 
 int reserve_irq_vector(unsigned int irq);
