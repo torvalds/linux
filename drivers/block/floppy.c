@@ -314,8 +314,6 @@ static int initialising = 1;
 #define PH_HEAD(floppy, head) (((((floppy)->stretch & 2) >> 1) ^ head) << 2)
 #define STRETCH(floppy)	((floppy)->stretch & FD_STRETCH)
 
-#define CLEARSTRUCT(x)	memset((x), 0, sizeof(*(x)))
-
 /* read/write */
 #define COMMAND		(raw_cmd->cmd[0])
 #define DR_SELECT	(raw_cmd->cmd[1])
@@ -3509,7 +3507,7 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 		return -EINVAL;
 
 	/* copyin */
-	CLEARSTRUCT(&inparam);
+	memset(&inparam, 0, sizeof(inparam));
 	if (_IOC_DIR(cmd) & _IOC_WRITE)
 	    ECALL(fd_copyin((void __user *)param, &inparam, size))
 
@@ -3598,7 +3596,7 @@ static int fd_ioctl(struct block_device *bdev, fmode_t mode, unsigned int cmd,
 			OUT(FDGETFDCSTAT, UFDCS);
 
 		case FDWERRORCLR:
-			CLEARSTRUCT(UDRWE);
+			memset(UDRWE, 0, sizeof(*UDRWE));
 			return 0;
 			OUT(FDWERRORGET, UDRWE);
 
@@ -4260,7 +4258,7 @@ static int __init floppy_init(void)
 
 	for (i = 0; i < N_FDC; i++) {
 		fdc = i;
-		CLEARSTRUCT(FDCS);
+		memset(FDCS, 0, sizeof(*FDCS));
 		FDCS->dtr = -1;
 		FDCS->dor = 0x4;
 #if defined(__sparc__) || defined(__mc68000__)
@@ -4293,8 +4291,8 @@ static int __init floppy_init(void)
 
 	/* initialise drive state */
 	for (drive = 0; drive < N_DRIVE; drive++) {
-		CLEARSTRUCT(UDRS);
-		CLEARSTRUCT(UDRWE);
+		memset(UDRS, 0, sizeof(*UDRS));
+		memset(UDRWE, 0, sizeof(*UDRWE));
 		USETF(FD_DISK_NEWCHANGE);
 		USETF(FD_DISK_CHANGED);
 		USETF(FD_VERIFY);
