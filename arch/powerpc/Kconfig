@@ -672,6 +672,9 @@ config ZONE_DMA
 	bool
 	default y
 
+config NEED_DMA_MAP_STATE
+	def_bool (PPC64 || NOT_COHERENT_CACHE)
+
 config GENERIC_ISA_DMA
 	bool
 	depends on PPC64 || POWER4 || 6xx && !CPM2
