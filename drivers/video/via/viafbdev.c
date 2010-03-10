@@ -80,6 +80,15 @@ static void viafb_fill_var_color_info(struct fb_var_screeninfo *var, u8 depth)
 		var->green.length = 8;
 		var->blue.length = 8;
 		break;
+	case 15:
+		var->bits_per_pixel = 16;
+		var->red.offset = 10;
+		var->green.offset = 5;
+		var->blue.offset = 0;
+		var->red.length = 5;
+		var->green.length = 5;
+		var->blue.length = 5;
+		break;
 	case 16:
 		var->bits_per_pixel = 16;
 		var->red.offset = 11;
@@ -97,6 +106,15 @@ static void viafb_fill_var_color_info(struct fb_var_screeninfo *var, u8 depth)
 		var->red.length = 8;
 		var->green.length = 8;
 		var->blue.length = 8;
+		break;
+	case 30:
+		var->bits_per_pixel = 32;
+		var->red.offset = 20;
+		var->green.offset = 10;
+		var->blue.offset = 0;
+		var->red.length = 10;
+		var->green.length = 10;
+		var->blue.length = 10;
 		break;
 	}
 }
@@ -171,6 +189,10 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	else if (!depth)
 		depth = 24;
+	else if (depth == 15 && viafb_dual_fb && ppar->iga_path == IGA1)
+		depth = 15;
+	else if (depth == 30)
+		depth = 30;
 	else if (depth <= 8)
 		depth = 8;
 	else if (depth <= 16)
@@ -1811,19 +1833,6 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 			viafb_second_virtual_yres = viafb_second_yres;
 	}
 
-	switch (viafb_bpp) {
-	case 0 ... 8:
-		viafb_bpp = 8;
-		break;
-	case 9 ... 16:
-		viafb_bpp = 16;
-		break;
-	case 17 ... 32:
-		viafb_bpp = 32;
-		break;
-	default:
-		viafb_bpp = 8;
-	}
 	default_var.xres = default_xres;
 	default_var.yres = default_yres;
 	switch (default_xres) {
@@ -1836,8 +1845,6 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	}
 	default_var.yres_virtual = default_yres;
 	default_var.bits_per_pixel = viafb_bpp;
-	if (default_var.bits_per_pixel == 15)
-		default_var.bits_per_pixel = 16;
 	default_var.pixclock =
 	    viafb_get_pixclock(default_xres, default_yres, viafb_refresh);
 	default_var.left_margin = (default_xres >> 3) & 0xf8;
@@ -1847,7 +1854,6 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	default_var.hsync_len = default_var.left_margin;
 	default_var.vsync_len = 4;
 	viafb_setup_fixinfo(&viafbinfo->fix, viaparinfo);
-	viafb_check_var(&default_var, viafbinfo);
 	viafbinfo->var = default_var;
 
 	if (viafb_dual_fb) {
@@ -1883,8 +1889,6 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 		default_var.yres = viafb_second_yres;
 		default_var.xres_virtual = viafb_second_virtual_xres;
 		default_var.yres_virtual = viafb_second_virtual_yres;
-		if (viafb_bpp1 != viafb_bpp)
-			viafb_bpp1 = viafb_bpp;
 		default_var.bits_per_pixel = viafb_bpp1;
 		default_var.pixclock =
 		    viafb_get_pixclock(viafb_second_xres, viafb_second_yres,
@@ -1904,6 +1908,7 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 			&viafbinfo1->fix);
 	}
 
+	viafb_check_var(&viafbinfo->var, viafbinfo);
 	viafb_update_fix(viafbinfo);
 	viaparinfo->depth = fb_get_color_depth(&viafbinfo->var,
 		&viafbinfo->fix);
@@ -2070,6 +2075,8 @@ static int __init viafb_init(void)
 #endif
 	if (parse_mode(viafb_mode, &dummy, &dummy)
 		|| parse_mode(viafb_mode1, &dummy, &dummy)
+		|| viafb_bpp < 0 || viafb_bpp > 32
+		|| viafb_bpp1 < 0 || viafb_bpp1 > 32
 		|| parse_active_dev())
 		return -EINVAL;
 

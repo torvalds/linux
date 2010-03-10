@@ -694,11 +694,17 @@ void viafb_set_primary_color_depth(u8 depth)
 	case 8:
 		value = 0x00;
 		break;
+	case 15:
+		value = 0x04;
+		break;
 	case 16:
 		value = 0x14;
 		break;
 	case 24:
 		value = 0x0C;
+		break;
+	case 30:
+		value = 0x08;
 		break;
 	default:
 		printk(KERN_WARNING "viafb_set_primary_color_depth: "
@@ -723,6 +729,9 @@ void viafb_set_secondary_color_depth(u8 depth)
 		break;
 	case 24:
 		value = 0xC0;
+		break;
+	case 30:
+		value = 0x80;
 		break;
 	default:
 		printk(KERN_WARNING "viafb_set_secondary_color_depth: "
