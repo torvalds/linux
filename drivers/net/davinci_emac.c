@@ -2827,30 +2827,36 @@ static int __devexit davinci_emac_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static
-int davinci_emac_suspend(struct platform_device *pdev, pm_message_t state)
+static int davinci_emac_suspend(struct device *dev)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 
-	if (netif_running(dev))
-		emac_dev_stop(dev);
+	if (netif_running(ndev))
+		emac_dev_stop(ndev);
 
 	clk_disable(emac_clk);
 
 	return 0;
 }
 
-static int davinci_emac_resume(struct platform_device *pdev)
+static int davinci_emac_resume(struct device *dev)
 {
-	struct net_device *dev = platform_get_drvdata(pdev);
+	struct platform_device *pdev = to_platform_device(dev);
+	struct net_device *ndev = platform_get_drvdata(pdev);
 
 	clk_enable(emac_clk);
 
-	if (netif_running(dev))
-		emac_dev_open(dev);
+	if (netif_running(ndev))
+		emac_dev_open(ndev);
 
 	return 0;
 }
+
+static const struct dev_pm_ops davinci_emac_pm_ops = {
+	.suspend	= davinci_emac_suspend,
+	.resume		= davinci_emac_resume,
+};
 
 /**
  * davinci_emac_driver: EMAC platform driver structure
@@ -2859,11 +2865,10 @@ static struct platform_driver davinci_emac_driver = {
 	.driver = {
 		.name	 = "davinci_emac",
 		.owner	 = THIS_MODULE,
+		.pm	 = &davinci_emac_pm_ops,
 	},
 	.probe = davinci_emac_probe,
 	.remove = __devexit_p(davinci_emac_remove),
-	.suspend = davinci_emac_suspend,
-	.resume = davinci_emac_resume,
 };
 
 /**
