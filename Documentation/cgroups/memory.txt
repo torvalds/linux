@@ -468,7 +468,24 @@ Note: More type of pages(e.g. file cache, shmem,) will be supported by other
 - All of moving charge operations are done under cgroup_mutex. It's not good
   behavior to hold the mutex too long, so we may need some trick.
 
-9. TODO
+9. Memory thresholds
+
+Memory controler implements memory thresholds using cgroups notification
+API (see cgroups.txt). It allows to register multiple memory and memsw
+thresholds and gets notifications when it crosses.
+
+To register a threshold application need:
+ - create an eventfd using eventfd(2);
+ - open memory.usage_in_bytes or memory.memsw.usage_in_bytes;
+ - write string like "<event_fd> <memory.usage_in_bytes> <threshold>" to
+   cgroup.event_control.
+
+Application will be notified through eventfd when memory usage crosses
+threshold in any direction.
+
+It's applicable for root and non-root cgroup.
+
+10. TODO
 
 1. Add support for accounting huge pages (as a separate controller)
 2. Make per-cgroup scanner reclaim not-shared pages first
