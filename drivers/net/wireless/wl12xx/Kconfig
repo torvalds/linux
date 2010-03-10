@@ -53,7 +53,7 @@ config WL1271
 	  unsure.
 
 config WL1271_SPI
-	tristate "TI wl1251 SPI support"
+	tristate "TI wl1271 SPI support"
 	depends on WL1271 && SPI_MASTER
 	---help---
 	  This module adds support for the SPI interface of adapters using
@@ -65,7 +65,7 @@ config WL1271_SPI
 
 config WL1271_SDIO
 	tristate "TI wl1271 SDIO support"
-	depends on WL1271 && MMC
+	depends on WL1271 && MMC && ARM
 	---help---
 	  This module adds support for the SDIO interface of adapters using
 	  TI wl1271 chipset.  Select this if your platform is using
