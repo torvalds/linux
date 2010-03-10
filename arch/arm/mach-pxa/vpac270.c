@@ -17,6 +17,7 @@
 #include <linux/input.h>
 #include <linux/gpio.h>
 #include <linux/sysdev.h>
+#include <linux/usb/gpio_vbus.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
@@ -28,6 +29,9 @@
 #include <mach/vpac270.h>
 #include <mach/mmc.h>
 #include <mach/pxafb.h>
+#include <mach/ohci.h>
+#include <mach/pxa27x-udc.h>
+#include <mach/udc.h>
 
 #include "generic.h"
 #include "devices.h"
@@ -105,6 +109,14 @@ static unsigned long vpac270_pin_config[] __initdata = {
 	GPIO12_GPIO,	/* CF RDY */
 	GPIO16_GPIO,	/* CF RESET */
 
+	/* UHC */
+	GPIO88_USBH1_PWR,
+	GPIO89_USBH1_PEN,
+	GPIO119_USBH2_PWR,
+	GPIO120_USBH2_PEN,
+
+	/* UDC */
+	GPIO41_GPIO,
 };
 
 /******************************************************************************
@@ -233,6 +245,70 @@ static inline void vpac270_leds_init(void) {}
 #endif
 
 /******************************************************************************
+ * USB Host
+ ******************************************************************************/
+#if defined(CONFIG_USB_OHCI_HCD) || defined(CONFIG_USB_OHCI_HCD_MODULE)
+static int vpac270_ohci_init(struct device *dev)
+{
+	UP2OCR = UP2OCR_HXS | UP2OCR_HXOE | UP2OCR_DPPDE | UP2OCR_DMPDE;
+	return 0;
+}
+
+static struct pxaohci_platform_data vpac270_ohci_info = {
+	.port_mode	= PMM_PERPORT_MODE,
+	.flags		= ENABLE_PORT1 | ENABLE_PORT2 |
+			POWER_CONTROL_LOW | POWER_SENSE_LOW,
+	.init		= vpac270_ohci_init,
+};
+
+static void __init vpac270_uhc_init(void)
+{
+	pxa_set_ohci_info(&vpac270_ohci_info);
+}
+#else
+static inline void vpac270_uhc_init(void) {}
+#endif
+
+/******************************************************************************
+ * USB Gadget
+ ******************************************************************************/
+#if defined(CONFIG_USB_GADGET_PXA27X)||defined(CONFIG_USB_GADGET_PXA27X_MODULE)
+static struct gpio_vbus_mach_info vpac270_gpio_vbus_info = {
+	.gpio_vbus		= GPIO41_VPAC270_UDC_DETECT,
+	.gpio_pullup		= -1,
+};
+
+static struct platform_device vpac270_gpio_vbus = {
+	.name	= "gpio-vbus",
+	.id	= -1,
+	.dev	= {
+		.platform_data	= &vpac270_gpio_vbus_info,
+	},
+};
+
+static void vpac270_udc_command(int cmd)
+{
+	if (cmd == PXA2XX_UDC_CMD_CONNECT)
+		UP2OCR |= UP2OCR_HXOE | UP2OCR_DPPUE | UP2OCR_DPPUBE;
+	else if (cmd == PXA2XX_UDC_CMD_DISCONNECT)
+		UP2OCR &= ~(UP2OCR_HXOE | UP2OCR_DPPUE | UP2OCR_DPPUBE);
+}
+
+static struct pxa2xx_udc_mach_info vpac270_udc_info __initdata = {
+	.udc_command		= vpac270_udc_command,
+	.gpio_pullup		= -1,
+};
+
+static void __init vpac270_udc_init(void)
+{
+	pxa_set_udc_info(&vpac270_udc_info);
+	platform_device_register(&vpac270_gpio_vbus);
+}
+#else
+static inline void vpac270_udc_init(void) {}
+#endif
+
+/******************************************************************************
  * Framebuffer
  ******************************************************************************/
 #if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
@@ -312,6 +388,8 @@ static void __init vpac270_init(void)
 	vpac270_nor_init();
 	vpac270_leds_init();
 	vpac270_keys_init();
+	vpac270_uhc_init();
+	vpac270_udc_init();
 }
 
 MACHINE_START(VPAC270, "Voipac PXA270")
