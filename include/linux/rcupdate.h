@@ -41,6 +41,10 @@
 #include <linux/lockdep.h>
 #include <linux/completion.h>
 
+#ifdef CONFIG_RCU_TORTURE_TEST
+extern int rcutorture_runnable; /* for sysctl */
+#endif /* #ifdef CONFIG_RCU_TORTURE_TEST */
+
 /**
  * struct rcu_head - callback structure for use with RCU
  * @next: next update requests in a list
