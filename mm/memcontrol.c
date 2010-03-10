@@ -63,8 +63,15 @@ static int really_do_swap_account __initdata = 1; /* for remember boot option*/
 #define do_swap_account		(0)
 #endif
 
-#define SOFTLIMIT_EVENTS_THRESH (1000)
-#define THRESHOLDS_EVENTS_THRESH (100)
+/*
+ * Per memcg event counter is incremented at every pagein/pageout. This counter
+ * is used for trigger some periodic events. This is straightforward and better
+ * than using jiffies etc. to handle periodic memcg event.
+ *
+ * These values will be used as !((event) & ((1 <<(thresh)) - 1))
+ */
+#define THRESHOLDS_EVENTS_THRESH (7) /* once in 128 */
+#define SOFTLIMIT_EVENTS_THRESH (10) /* once in 1024 */
 
 /*
  * Statistics for memory cgroup.
@@ -79,10 +86,7 @@ enum mem_cgroup_stat_index {
 	MEM_CGROUP_STAT_PGPGIN_COUNT,	/* # of pages paged in */
 	MEM_CGROUP_STAT_PGPGOUT_COUNT,	/* # of pages paged out */
 	MEM_CGROUP_STAT_SWAPOUT, /* # of pages, swapped out */
-	MEM_CGROUP_STAT_SOFTLIMIT, /* decrements on each page in/out.
-					used by soft limit implementation */
-	MEM_CGROUP_STAT_THRESHOLDS, /* decrements on each page in/out.
-					used by threshold implementation */
+	MEM_CGROUP_EVENTS,	/* incremented at every  pagein/pageout */
 
 	MEM_CGROUP_STAT_NSTATS,
 };
@@ -154,7 +158,6 @@ struct mem_cgroup_threshold_ary {
 	struct mem_cgroup_threshold entries[0];
 };
 
-static bool mem_cgroup_threshold_check(struct mem_cgroup *mem);
 static void mem_cgroup_threshold(struct mem_cgroup *mem);
 
 /*
@@ -392,19 +395,6 @@ mem_cgroup_remove_exceeded(struct mem_cgroup *mem,
 	spin_unlock(&mctz->lock);
 }
 
-static bool mem_cgroup_soft_limit_check(struct mem_cgroup *mem)
-{
-	bool ret = false;
-	s64 val;
-
-	val = this_cpu_read(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT]);
-	if (unlikely(val < 0)) {
-		this_cpu_write(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT],
-				SOFTLIMIT_EVENTS_THRESH);
-		ret = true;
-	}
-	return ret;
-}
 
 static void mem_cgroup_update_tree(struct mem_cgroup *mem, struct page *page)
 {
@@ -542,8 +532,7 @@ static void mem_cgroup_charge_statistics(struct mem_cgroup *mem,
 		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGIN_COUNT]);
 	else
 		__this_cpu_inc(mem->stat->count[MEM_CGROUP_STAT_PGPGOUT_COUNT]);
-	__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_SOFTLIMIT]);
-	__this_cpu_dec(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS]);
+	__this_cpu_inc(mem->stat->count[MEM_CGROUP_EVENTS]);
 
 	preempt_enable();
 }
@@ -561,6 +550,29 @@ static unsigned long mem_cgroup_get_local_zonestat(struct mem_cgroup *mem,
 			total += MEM_CGROUP_ZSTAT(mz, idx);
 		}
 	return total;
+}
+
+static bool __memcg_event_check(struct mem_cgroup *mem, int event_mask_shift)
+{
+	s64 val;
+
+	val = this_cpu_read(mem->stat->count[MEM_CGROUP_EVENTS]);
+
+	return !(val & ((1 << event_mask_shift) - 1));
+}
+
+/*
+ * Check events in order.
+ *
+ */
+static void memcg_check_events(struct mem_cgroup *mem, struct page *page)
+{
+	/* threshold event is triggered in finer grain than soft limit */
+	if (unlikely(__memcg_event_check(mem, THRESHOLDS_EVENTS_THRESH))) {
+		mem_cgroup_threshold(mem);
+		if (unlikely(__memcg_event_check(mem, SOFTLIMIT_EVENTS_THRESH)))
+			mem_cgroup_update_tree(mem, page);
+	}
 }
 
 static struct mem_cgroup *mem_cgroup_from_cont(struct cgroup *cont)
@@ -1686,11 +1698,7 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
 	 * Insert ancestor (and ancestor's ancestors), to softlimit RB-tree.
 	 * if they exceeds softlimit.
 	 */
-	if (mem_cgroup_soft_limit_check(mem))
-		mem_cgroup_update_tree(mem, pc->page);
-	if (mem_cgroup_threshold_check(mem))
-		mem_cgroup_threshold(mem);
-
+	memcg_check_events(mem, pc->page);
 }
 
 /**
@@ -1760,6 +1768,11 @@ static int mem_cgroup_move_account(struct page_cgroup *pc,
 		ret = 0;
 	}
 	unlock_page_cgroup(pc);
+	/*
+	 * check events
+	 */
+	memcg_check_events(to, pc->page);
+	memcg_check_events(from, pc->page);
 	return ret;
 }
 
@@ -2128,10 +2141,7 @@ __mem_cgroup_uncharge_common(struct page *page, enum charge_type ctype)
 	mz = page_cgroup_zoneinfo(pc);
 	unlock_page_cgroup(pc);
 
-	if (mem_cgroup_soft_limit_check(mem))
-		mem_cgroup_update_tree(mem, page);
-	if (mem_cgroup_threshold_check(mem))
-		mem_cgroup_threshold(mem);
+	memcg_check_events(mem, page);
 	/* at swapout, this memcg will be accessed to record to swap */
 	if (ctype != MEM_CGROUP_CHARGE_TYPE_SWAPOUT)
 		css_put(&mem->css);
@@ -3213,20 +3223,6 @@ static int mem_cgroup_swappiness_write(struct cgroup *cgrp, struct cftype *cft,
 	cgroup_unlock();
 
 	return 0;
-}
-
-static bool mem_cgroup_threshold_check(struct mem_cgroup *mem)
-{
-	bool ret = false;
-	s64 val;
-
-	val = this_cpu_read(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS]);
-	if (unlikely(val < 0)) {
-		this_cpu_write(mem->stat->count[MEM_CGROUP_STAT_THRESHOLDS],
-				THRESHOLDS_EVENTS_THRESH);
-		ret = true;
-	}
-	return ret;
 }
 
 static void __mem_cgroup_threshold(struct mem_cgroup *memcg, bool swap)
