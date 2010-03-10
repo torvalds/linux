@@ -42,11 +42,11 @@
 #include <linux/pagemap.h>
 #include <linux/vmalloc.h>
 
-#include <asm/io.h>
+#include <linux/io.h>
 #include <asm/irq.h>
 #include <asm/pgtable.h>
 #include <asm/system.h>
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 
 #include "crystalhd_cmds.h"
 

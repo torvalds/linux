@@ -237,7 +237,7 @@ BC_STATUS crystalhd_mem_rd(struct crystalhd_adp *adp, uint32_t start_off,
 
 	if (!adp || !rd_buff ||
 	    (bc_chk_dram_range(adp, start_off, dw_cnt) != BC_STS_SUCCESS)) {
-		BCMLOG_ERR("Invalid arg \n");
+		BCMLOG_ERR("Invalid arg\n");
 		return BC_STS_INV_ARG;
 	}
 	for (ix = 0; ix < dw_cnt; ix++)
@@ -265,7 +265,7 @@ BC_STATUS crystalhd_mem_wr(struct crystalhd_adp *adp, uint32_t start_off,
 
 	if (!adp || !wr_buff ||
 	    (bc_chk_dram_range(adp, start_off, dw_cnt) != BC_STS_SUCCESS)) {
-		BCMLOG_ERR("Invalid arg \n");
+		BCMLOG_ERR("Invalid arg\n");
 		return BC_STS_INV_ARG;
 	}
 
@@ -293,7 +293,7 @@ BC_STATUS crystalhd_pci_cfg_rd(struct crystalhd_adp *adp, uint32_t off,
 	int rc = 0;
 
 	if (!adp || !val) {
-		BCMLOG_ERR("Invalid arg \n");
+		BCMLOG_ERR("Invalid arg\n");
 		return BC_STS_INV_ARG;
 	}
 
@@ -338,7 +338,7 @@ BC_STATUS crystalhd_pci_cfg_wr(struct crystalhd_adp *adp, uint32_t off,
 	int rc = 0;
 
 	if (!adp || !val) {
-		BCMLOG_ERR("Invalid arg \n");
+		BCMLOG_ERR("Invalid arg\n");
 		return BC_STS_INV_ARG;
 	}
 
@@ -685,7 +685,7 @@ BC_STATUS crystalhd_map_dio(struct crystalhd_adp *adp, void *ubuff,
 	int i = 0, rw = 0, res = 0, nr_pages = 0, skip_fb_sg = 0;
 
 	if (!adp || !ubuff || !ubuff_sz || !dio_hnd) {
-		BCMLOG_ERR("Invalid arg \n");
+		BCMLOG_ERR("Invalid arg\n");
 		return BC_STS_INV_ARG;
 	}
 	/* Compute pages */
@@ -791,7 +791,7 @@ BC_STATUS crystalhd_map_dio(struct crystalhd_adp *adp, void *ubuff,
 	dio->sg_cnt = pci_map_sg(adp->pdev, dio->sg,
 				 dio->page_cnt, dio->direction);
 	if (dio->sg_cnt <= 0) {
-		BCMLOG_ERR("sg map %d-%d \n", dio->sg_cnt, dio->page_cnt);
+		BCMLOG_ERR("sg map %d-%d\n", dio->sg_cnt, dio->page_cnt);
 		crystalhd_unmap_dio(adp, dio);
 		return BC_STS_ERROR;
 	}
@@ -826,7 +826,7 @@ BC_STATUS crystalhd_unmap_dio(struct crystalhd_adp *adp, crystalhd_dio_req *dio)
 	int j = 0;
 
 	if (!adp || !dio) {
-		BCMLOG_ERR("Invalid arg \n");
+		BCMLOG_ERR("Invalid arg\n");
 		return BC_STS_INV_ARG;
 	}
 
@@ -947,7 +947,7 @@ void crystalhd_destroy_dio_pool(struct crystalhd_adp *adp)
 		adp->fill_byte_pool = NULL;
 	}
 
-	BCMLOG(BCMLOG_DBG, "Released dio pool %d \n", count);
+	BCMLOG(BCMLOG_DBG, "Released dio pool %d\n", count);
 }
 
 /**
@@ -973,7 +973,7 @@ int __devinit crystalhd_create_elem_pool(struct crystalhd_adp *adp,
 	for (i = 0; i < pool_size; i++) {
 		temp = kzalloc(sizeof(*temp), GFP_KERNEL);
 		if (!temp) {
-			BCMLOG_ERR("kalloc failed \n");
+			BCMLOG_ERR("kalloc failed\n");
 			return -ENOMEM;
 		}
 		crystalhd_free_elem(adp, temp);

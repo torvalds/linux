@@ -25,7 +25,7 @@
 #ifndef _BC_DTS_TYPES_H_
 #define _BC_DTS_TYPES_H_
 
-#ifdef __LINUX_USER__  // Don't include these for KERNEL..
+#ifdef __LINUX_USER__  /* Don't include these for KERNEL.. */
 #include <stdint.h>
 #endif
 

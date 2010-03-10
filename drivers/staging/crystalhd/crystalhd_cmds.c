@@ -88,7 +88,7 @@ static BC_STATUS bc_cproc_notify_mode(struct crystalhd_cmd *ctx,
 		return BC_STS_SUCCESS;
 	}
 	if (ctx->state != BC_LINK_INVALID) {
-		BCMLOG_ERR("Link invalid state %d \n", ctx->state);
+		BCMLOG_ERR("Link invalid state %d\n", ctx->state);
 		return BC_STS_ERR_USAGE;
 	}
 	/* Check for duplicate playback sessions..*/
@@ -301,7 +301,7 @@ static BC_STATUS bc_cproc_download_fw(struct crystalhd_cmd *ctx,
 	}
 
 	if (ctx->state != BC_LINK_INVALID) {
-		BCMLOG_ERR("Link invalid state %d \n", ctx->state);
+		BCMLOG_ERR("Link invalid state %d\n", ctx->state);
 		return BC_STS_ERR_USAGE;
 	}
 
@@ -309,7 +309,7 @@ static BC_STATUS bc_cproc_download_fw(struct crystalhd_cmd *ctx,
 				  idata->add_cdata_sz);
 
 	if (sts != BC_STS_SUCCESS) {
-		BCMLOG_ERR("Firmware Download Failure!! - %d\n", sts);
+		BCMLOG_ERR("Firmware Download Failure!! - %d\n", sts)
 	} else
 		ctx->state |= BC_LINK_INIT;
 
@@ -335,7 +335,7 @@ static BC_STATUS bc_cproc_do_fw_cmd(struct crystalhd_cmd *ctx, crystalhd_ioctl_d
 	uint32_t *cmd;
 
 	if (!(ctx->state & BC_LINK_INIT)) {
-		BCMLOG_ERR("Link invalid state %d \n", ctx->state);
+		BCMLOG_ERR("Link invalid state %d\n", ctx->state);
 		return BC_STS_ERR_USAGE;
 	}
 
@@ -379,7 +379,7 @@ static void bc_proc_in_completion(crystalhd_dio_req *dio_hnd,
 		return;
 	}
 	if (sts == BC_STS_IO_USER_ABORT)
-		 return;
+		return;
 
 	dio_hnd->uinfo.comp_sts = sts;
 	dio_hnd->uinfo.ev_sts = 1;
@@ -452,7 +452,7 @@ static BC_STATUS bc_cproc_hw_txdma(struct crystalhd_cmd *ctx,
 	if (!rc) {
 		return dio->uinfo.comp_sts;
 	} else if (rc == -EBUSY) {
-		BCMLOG(BCMLOG_DBG, "_tx_post() T/O \n");
+		BCMLOG(BCMLOG_DBG, "_tx_post() T/O\n");
 		sts = BC_STS_TIMEOUT;
 	} else if (rc == -EINTR) {
 		BCMLOG(BCMLOG_DBG, "Tx Wait Signal int.\n");
@@ -482,7 +482,7 @@ static BC_STATUS bc_cproc_check_inbuffs(bool pin, void *ubuff, uint32_t ub_sz,
 
 	/* Check for alignment */
 	if (((uintptr_t)ubuff) & 0x03) {
-		BCMLOG_ERR("%s-->Un-aligned address not implemented yet.. %p \n",
+		BCMLOG_ERR("%s-->Un-aligned address not implemented yet.. %p\n",
 				((pin) ? "TX" : "RX"), ubuff);
 		return BC_STS_NOT_IMPL;
 	}
@@ -523,7 +523,7 @@ static BC_STATUS bc_cproc_proc_input(struct crystalhd_cmd *ctx, crystalhd_ioctl_
 
 	sts = crystalhd_map_dio(ctx->adp, ubuff, ub_sz, 0, 0, 1, &dio_hnd);
 	if (sts != BC_STS_SUCCESS) {
-		BCMLOG_ERR("dio map - %d \n", sts);
+		BCMLOG_ERR("dio map - %d\n", sts);
 		return sts;
 	}
 
@@ -563,7 +563,7 @@ static BC_STATUS bc_cproc_add_cap_buff(struct crystalhd_cmd *ctx,
 	sts = crystalhd_map_dio(ctx->adp, ubuff, ub_sz, uv_off,
 			      en_422, 0, &dio_hnd);
 	if (sts != BC_STS_SUCCESS) {
-		BCMLOG_ERR("dio map - %d \n", sts);
+		BCMLOG_ERR("dio map - %d\n", sts);
 		return sts;
 	}
 
@@ -1026,7 +1026,7 @@ crystalhd_cmd_proc crystalhd_get_cmd_proc(struct crystalhd_cmd *ctx, uint32_t cm
 		if (g_crystalhd_cproc_tbl[i].cmd_id == cmd) {
 			if ((uc->mode == DTS_MONITOR_MODE) &&
 			    (g_crystalhd_cproc_tbl[i].block_mon)) {
-				BCMLOG(BCMLOG_INFO, "Blocking cmd %d \n", cmd);
+				BCMLOG(BCMLOG_INFO, "Blocking cmd %d\n", cmd);
 				break;
 			}
 			cproc = g_crystalhd_cproc_tbl[i].cmd_proc;

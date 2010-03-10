@@ -40,7 +40,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <arpa/inet.h>
-#include <asm/param.h>
+#include <linux/param.h>
 #include <linux/ioctl.h>
 #include <sys/select.h>
 

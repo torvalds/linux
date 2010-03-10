@@ -66,7 +66,7 @@ struct crystalhd_cmd {
 	struct crystalhd_hw	hw_ctx;
 };
 
-typedef BC_STATUS (*crystalhd_cmd_proc)(struct crystalhd_cmd *, crystalhd_ioctl_data *);
+typedef BC_STATUS(*crystalhd_cmd_proc)(struct crystalhd_cmd *, crystalhd_ioctl_data *);
 
 typedef struct _crystalhd_cmd_tbl {
 	uint32_t		cmd_id;
