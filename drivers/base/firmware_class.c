@@ -78,6 +78,7 @@ firmware_timeout_show(struct class *class,
 /**
  * firmware_timeout_store - set number of seconds to wait for firmware
  * @class: device class pointer
+ * @attr: device attribute pointer
  * @buf: buffer to scan for timeout value
  * @count: number of bytes in @buf
  *
