@@ -68,4 +68,10 @@ static inline int nfs_inode_return_delegation(struct inode *inode)
 }
 #endif
 
+static inline int nfs_have_delegated_attributes(struct inode *inode)
+{
+	return nfs_have_delegation(inode, FMODE_READ) &&
+		!(NFS_I(inode)->cache_validity & NFS_INO_REVAL_FORCED);
+}
+
 #endif
