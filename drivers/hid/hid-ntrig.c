@@ -140,6 +140,9 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 			nd->reading_mt = 1;
 			nd->first_contact_confidence = 0;
 			break;
+		case HID_DG_TIPSWITCH:
+			/* Prevent emission of touch until validated */
+			return 1;
 		case HID_DG_CONFIDENCE:
 			nd->confidence = value;
 			break;
@@ -259,6 +262,7 @@ static int ntrig_event (struct hid_device *hid, struct hid_field *field,
 						BTN_TOOL_TRIPLETAP, 0);
 				input_report_key(input,
 						BTN_TOOL_QUADTAP, 0);
+				input_report_key(input, BTN_TOUCH, 0);
 			}
 			break;
 
@@ -308,13 +312,20 @@ static int ntrig_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 
 	list_for_each_entry(hidinput, &hdev->inputs, list) {
+		if (hidinput->report->maxfield < 1)
+			continue;
+
 		input = hidinput->input;
 		switch (hidinput->report->field[0]->application) {
 		case HID_DG_PEN:
 			input->name = "N-Trig Pen";
 			break;
 		case HID_DG_TOUCHSCREEN:
+			/* These keys are redundant for fingers, clear them
+			 * to prevent incorrect identification */
 			__clear_bit(BTN_TOOL_PEN, input->keybit);
+			__clear_bit(BTN_TOOL_FINGER, input->keybit);
+			__clear_bit(BTN_0, input->keybit);
 			/*
 			 * A little something special to enable
 			 * two and three finger taps.
