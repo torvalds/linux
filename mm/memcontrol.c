@@ -226,9 +226,24 @@ struct mem_cgroup {
 	bool		memsw_is_minimum;
 
 	/*
+	 * Should we move charges of a task when a task is moved into this
+	 * mem_cgroup ? And what type of charges should we move ?
+	 */
+	unsigned long 	move_charge_at_immigrate;
+
+	/*
 	 * statistics. This must be placed at the end of memcg.
 	 */
 	struct mem_cgroup_stat stat;
+};
+
+/* Stuffs for move charges at task migration. */
+/*
+ * Types of charges to be moved. "move_charge_at_immitgrate" is treated as a
+ * left-shifted bitmap of these types.
+ */
+enum move_type {
+	NR_MOVE_TYPE,
 };
 
 /*
@@ -2865,6 +2880,31 @@ static int mem_cgroup_reset(struct cgroup *cont, unsigned int event)
 	return 0;
 }
 
+static u64 mem_cgroup_move_charge_read(struct cgroup *cgrp,
+					struct cftype *cft)
+{
+	return mem_cgroup_from_cont(cgrp)->move_charge_at_immigrate;
+}
+
+static int mem_cgroup_move_charge_write(struct cgroup *cgrp,
+					struct cftype *cft, u64 val)
+{
+	struct mem_cgroup *mem = mem_cgroup_from_cont(cgrp);
+
+	if (val >= (1 << NR_MOVE_TYPE))
+		return -EINVAL;
+	/*
+	 * We check this value several times in both in can_attach() and
+	 * attach(), so we need cgroup lock to prevent this value from being
+	 * inconsistent.
+	 */
+	cgroup_lock();
+	mem->move_charge_at_immigrate = val;
+	cgroup_unlock();
+
+	return 0;
+}
+
 
 /* For read statistics */
 enum {
@@ -3097,6 +3137,11 @@ static struct cftype mem_cgroup_files[] = {
 		.name = "swappiness",
 		.read_u64 = mem_cgroup_swappiness_read,
 		.write_u64 = mem_cgroup_swappiness_write,
+	},
+	{
+		.name = "move_charge_at_immigrate",
+		.read_u64 = mem_cgroup_move_charge_read,
+		.write_u64 = mem_cgroup_move_charge_write,
 	},
 };
 
@@ -3345,6 +3390,7 @@ mem_cgroup_create(struct cgroup_subsys *ss, struct cgroup *cont)
 	if (parent)
 		mem->swappiness = get_swappiness(parent);
 	atomic_set(&mem->refcnt, 1);
+	mem->move_charge_at_immigrate = 0;
 	return &mem->css;
 free_out:
 	__mem_cgroup_free(mem);
@@ -3381,16 +3427,57 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
 	return ret;
 }
 
+/* Handlers for move charge at task migration. */
+static int mem_cgroup_can_move_charge(void)
+{
+	return 0;
+}
+
+static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
+				struct cgroup *cgroup,
+				struct task_struct *p,
+				bool threadgroup)
+{
+	int ret = 0;
+	struct mem_cgroup *mem = mem_cgroup_from_cont(cgroup);
+
+	if (mem->move_charge_at_immigrate) {
+		struct mm_struct *mm;
+		struct mem_cgroup *from = mem_cgroup_from_task(p);
+
+		VM_BUG_ON(from == mem);
+
+		mm = get_task_mm(p);
+		if (!mm)
+			return 0;
+
+		/* We move charges only when we move a owner of the mm */
+		if (mm->owner == p)
+			ret = mem_cgroup_can_move_charge();
+
+		mmput(mm);
+	}
+	return ret;
+}
+
+static void mem_cgroup_cancel_attach(struct cgroup_subsys *ss,
+				struct cgroup *cgroup,
+				struct task_struct *p,
+				bool threadgroup)
+{
+}
+
+static void mem_cgroup_move_charge(void)
+{
+}
+
 static void mem_cgroup_move_task(struct cgroup_subsys *ss,
 				struct cgroup *cont,
 				struct cgroup *old_cont,
 				struct task_struct *p,
 				bool threadgroup)
 {
-	/*
-	 * FIXME: It's better to move charges of this process from old
-	 * memcg to new memcg. But it's just on TODO-List now.
-	 */
+	mem_cgroup_move_charge();
 }
 
 struct cgroup_subsys mem_cgroup_subsys = {
@@ -3400,6 +3487,8 @@ struct cgroup_subsys mem_cgroup_subsys = {
 	.pre_destroy = mem_cgroup_pre_destroy,
 	.destroy = mem_cgroup_destroy,
 	.populate = mem_cgroup_populate,
+	.can_attach = mem_cgroup_can_attach,
+	.cancel_attach = mem_cgroup_cancel_attach,
 	.attach = mem_cgroup_move_task,
 	.early_init = 0,
 	.use_id = 1,
