@@ -833,17 +833,6 @@ static void posix_cpu_timers_init_group(struct signal_struct *sig)
 	/* Thread group counters. */
 	thread_group_cputime_init(sig);
 
-	/* Expiration times and increments. */
-	sig->it[CPUCLOCK_PROF].expires = cputime_zero;
-	sig->it[CPUCLOCK_PROF].incr = cputime_zero;
-	sig->it[CPUCLOCK_VIRT].expires = cputime_zero;
-	sig->it[CPUCLOCK_VIRT].incr = cputime_zero;
-
-	/* Cached expiration times. */
-	sig->cputime_expires.prof_exp = cputime_zero;
-	sig->cputime_expires.virt_exp = cputime_zero;
-	sig->cputime_expires.sched_exp = 0;
-
 	cpu_limit = ACCESS_ONCE(sig->rlim[RLIMIT_CPU].rlim_cur);
 	if (cpu_limit != RLIM_INFINITY) {
 		sig->cputime_expires.prof_exp = secs_to_cputime(cpu_limit);
