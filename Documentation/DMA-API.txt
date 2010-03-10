@@ -5,7 +5,7 @@
 
 This document describes the DMA API.  For a more gentle introduction
 of the API (and actual examples) see
-Documentation/PCI/PCI-DMA-mapping.txt.
+Documentation/DMA-API-HOWTO.txt.
 
 This API is split into two pieces.  Part I describes the API.  Part II
 describes the extensions to the API for supporting non-consistent
