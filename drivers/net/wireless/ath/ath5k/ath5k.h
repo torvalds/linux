@@ -613,28 +613,6 @@ struct ath5k_rx_status {
 #define AR5K_BEACON_ENA		0x00800000 /*enable beacon xmit*/
 #define AR5K_BEACON_RESET_TSF	0x01000000 /*force a TSF reset*/
 
-#if 0
-/**
- * struct ath5k_beacon_state - Per-station beacon timer state.
- * @bs_interval: in TU's, can also include the above flags
- * @bs_cfp_max_duration: if non-zero hw is setup to coexist with a
- * 	Point Coordination Function capable AP
- */
-struct ath5k_beacon_state {
-	u32	bs_next_beacon;
-	u32	bs_next_dtim;
-	u32	bs_interval;
-	u8	bs_dtim_period;
-	u8	bs_cfp_period;
-	u16	bs_cfp_max_duration;
-	u16	bs_cfp_du_remain;
-	u16	bs_tim_offset;
-	u16	bs_sleep_duration;
-	u16	bs_bmiss_threshold;
-	u32  	bs_cfp_next;
-};
-#endif
-
 
 /*
  * TSF to TU conversion:
@@ -1212,12 +1190,6 @@ u64 ath5k_hw_get_tsf64(struct ath5k_hw *ah);
 void ath5k_hw_set_tsf64(struct ath5k_hw *ah, u64 tsf64);
 void ath5k_hw_reset_tsf(struct ath5k_hw *ah);
 void ath5k_hw_init_beacon(struct ath5k_hw *ah, u32 next_beacon, u32 interval);
-#if 0
-int ath5k_hw_set_beacon_timers(struct ath5k_hw *ah,
-			       const struct ath5k_beacon_state *state);
-void ath5k_hw_reset_beacon(struct ath5k_hw *ah);
-int ath5k_hw_beaconq_finish(struct ath5k_hw *ah, unsigned long phys_addr);
-#endif
 /* ACK bit rate */
 void ath5k_hw_set_ack_bitrate_high(struct ath5k_hw *ah, bool high);
 /* Clock rate related functions */
