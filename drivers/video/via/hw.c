@@ -1911,9 +1911,6 @@ void viafb_update_device_setting(int hres, int vres,
 
 		viaparinfo->tmds_setting_info->h_active = hres;
 		viaparinfo->tmds_setting_info->v_active = vres;
-		viaparinfo->tmds_setting_info->bpp = bpp;
-		viaparinfo->tmds_setting_info->refresh_rate =
-			vmode_refresh;
 
 		viaparinfo->lvds_setting_info->h_active = hres;
 		viaparinfo->lvds_setting_info->v_active = vres;
@@ -1930,9 +1927,6 @@ void viafb_update_device_setting(int hres, int vres,
 		if (viaparinfo->tmds_setting_info->iga_path == IGA2) {
 			viaparinfo->tmds_setting_info->h_active = hres;
 			viaparinfo->tmds_setting_info->v_active = vres;
-			viaparinfo->tmds_setting_info->bpp = bpp;
-			viaparinfo->tmds_setting_info->refresh_rate =
-				vmode_refresh;
 		}
 
 		if (viaparinfo->lvds_setting_info->iga_path == IGA2) {
@@ -2031,9 +2025,8 @@ static void init_tmds_chip_info(void)
 
 	DEBUG_MSG(KERN_INFO "TMDS Chip = %d\n",
 		  viaparinfo->chip_info->tmds_chip_info.tmds_chip_name);
-	viaparinfo->tmds_setting_info->get_dvi_size_method =
-		GET_DVI_SIZE_BY_VGA_BIOS;
-	viafb_init_dvi_size();
+	viafb_init_dvi_size(&viaparinfo->shared->chip_info.tmds_chip_info,
+		&viaparinfo->shared->tmds_setting_info);
 }
 
 static void init_lvds_chip_info(void)
