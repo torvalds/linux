@@ -60,6 +60,47 @@ static int viafb_pan_display(struct fb_var_screeninfo *var,
 static struct fb_ops viafb_ops;
 
 
+static void viafb_fill_var_color_info(struct fb_var_screeninfo *var, u8 depth)
+{
+	var->grayscale = 0;
+	var->red.msb_right = 0;
+	var->green.msb_right = 0;
+	var->blue.msb_right = 0;
+	var->transp.offset = 0;
+	var->transp.length = 0;
+	var->transp.msb_right = 0;
+	var->nonstd = 0;
+	switch (depth) {
+	case 8:
+		var->bits_per_pixel = 8;
+		var->red.offset = 0;
+		var->green.offset = 0;
+		var->blue.offset = 0;
+		var->red.length = 6;
+		var->green.length = 6;
+		var->blue.length = 6;
+		break;
+	case 16:
+		var->bits_per_pixel = 16;
+		var->red.offset = 11;
+		var->green.offset = 5;
+		var->blue.offset = 0;
+		var->red.length = 5;
+		var->green.length = 6;
+		var->blue.length = 5;
+		break;
+	case 24:
+		var->bits_per_pixel = 32;
+		var->red.offset = 16;
+		var->green.offset = 8;
+		var->blue.offset = 0;
+		var->red.length = 8;
+		var->green.length = 8;
+		var->blue.length = 8;
+		break;
+	}
+}
+
 static void viafb_update_fix(struct fb_info *info)
 {
 	u32 bpp = info->var.bits_per_pixel;
@@ -81,6 +122,7 @@ static void viafb_setup_fixinfo(struct fb_fix_screeninfo *fix,
 
 	fix->type = FB_TYPE_PACKED_PIXELS;
 	fix->type_aux = 0;
+	fix->visual = FB_VISUAL_TRUECOLOR;
 
 	fix->xpanstep = fix->ywrapstep = 0;
 	fix->ypanstep = 1;
@@ -103,7 +145,7 @@ static int viafb_release(struct fb_info *info, int user)
 static int viafb_check_var(struct fb_var_screeninfo *var,
 	struct fb_info *info)
 {
-	int htotal, vtotal;
+	int htotal, vtotal, depth;
 	struct VideoModeTable *vmode_entry;
 	struct viafb_par *ppar = info->par;
 	u32 long_refresh;
@@ -122,13 +164,22 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 		return -EINVAL;
 	}
 
-	if (24 == var->bits_per_pixel)
-		var->bits_per_pixel = 32;
+	depth = fb_get_color_depth(var, &info->fix);
+	if (!depth)
+		depth = var->bits_per_pixel;
 
-	if (var->bits_per_pixel != 8 && var->bits_per_pixel != 16 &&
-		var->bits_per_pixel != 32)
+	if (depth < 0 || depth > 32)
 		return -EINVAL;
+	else if (!depth)
+		depth = 24;
+	else if (depth <= 8)
+		depth = 8;
+	else if (depth <= 16)
+		depth = 16;
+	else
+		depth = 24;
 
+	viafb_fill_var_color_info(var, depth);
 	if ((var->xres_virtual * (var->bits_per_pixel >> 3)) & 0x1F)
 		/*32 pixel alignment */
 		var->xres_virtual = (var->xres_virtual + 31) & ~31;

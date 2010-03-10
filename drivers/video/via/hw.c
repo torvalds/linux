@@ -2622,36 +2622,6 @@ void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
 	}
 
 	crt_reg = crt_timing[index].crtc;
-	switch (var->bits_per_pixel) {
-	case 8:
-		var->red.offset = 0;
-		var->green.offset = 0;
-		var->blue.offset = 0;
-		var->red.length = 6;
-		var->green.length = 6;
-		var->blue.length = 6;
-		break;
-	case 16:
-		var->red.offset = 11;
-		var->green.offset = 5;
-		var->blue.offset = 0;
-		var->red.length = 5;
-		var->green.length = 6;
-		var->blue.length = 5;
-		break;
-	case 32:
-		var->red.offset = 16;
-		var->green.offset = 8;
-		var->blue.offset = 0;
-		var->red.length = 8;
-		var->green.length = 8;
-		var->blue.length = 8;
-		break;
-	default:
-		/* never happed, put here to keep consistent */
-		break;
-	}
-
 	var->pixclock = viafb_get_pixclock(var->xres, var->yres, refresh);
 	var->left_margin =
 	    crt_reg.hor_total - (crt_reg.hor_sync_start + crt_reg.hor_sync_end);
