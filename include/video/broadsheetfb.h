@@ -41,6 +41,7 @@ struct broadsheetfb_par {
 	void (*write_reg)(struct broadsheetfb_par *, u16 reg, u16 val);
 	u16 (*read_reg)(struct broadsheetfb_par *, u16 reg);
 	wait_queue_head_t waitq;
+	int panel_index;
 };
 
 /* board specific routines */
