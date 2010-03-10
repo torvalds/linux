@@ -1201,7 +1201,7 @@ static int           regsizes[SI_MAX_PARMS];
 static unsigned int num_regsizes;
 static int           regshifts[SI_MAX_PARMS];
 static unsigned int num_regshifts;
-static int slave_addrs[SI_MAX_PARMS];
+static int slave_addrs[SI_MAX_PARMS]; /* Leaving 0 chooses the default value */
 static unsigned int num_slave_addrs;
 
 #define IPMI_IO_ADDR_SPACE  0
@@ -1669,7 +1669,7 @@ static int hotmod_handler(const char *val, struct kernel_param *kp)
 		regsize = 1;
 		regshift = 0;
 		irq = 0;
-		ipmb = 0x20;
+		ipmb = 0; /* Choose the default if not specified */
 
 		next = strchr(curr, ':');
 		if (next) {
@@ -1861,6 +1861,7 @@ static __devinit void hardcode_find_bmc(void)
 		info->irq = irqs[i];
 		if (info->irq)
 			info->irq_setup = std_irq_setup;
+		info->slave_addr = slave_addrs[i];
 
 		try_smi_init(info);
 	}
