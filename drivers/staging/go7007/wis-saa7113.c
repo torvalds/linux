@@ -304,7 +304,7 @@ static int wis_saa7113_remove(struct i2c_client *client)
 	return 0;
 }
 
-static struct i2c_device_id wis_saa7113_id[] = {
+static const struct i2c_device_id wis_saa7113_id[] = {
 	{ "wis_saa7113", 0 },
 	{ }
 };

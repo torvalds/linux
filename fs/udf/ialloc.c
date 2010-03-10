@@ -36,8 +36,8 @@ void udf_free_inode(struct inode *inode)
 	 * Note: we must free any quota before locking the superblock,
 	 * as writing the quota to disk may need the lock as well.
 	 */
-	vfs_dq_free_inode(inode);
-	vfs_dq_drop(inode);
+	dquot_free_inode(inode);
+	dquot_drop(inode);
 
 	clear_inode(inode);
 
@@ -61,7 +61,7 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	struct super_block *sb = dir->i_sb;
 	struct udf_sb_info *sbi = UDF_SB(sb);
 	struct inode *inode;
-	int block;
+	int block, ret;
 	uint32_t start = UDF_I(dir)->i_location.logicalBlockNum;
 	struct udf_inode_info *iinfo;
 	struct udf_inode_info *dinfo = UDF_I(dir);
@@ -153,12 +153,14 @@ struct inode *udf_new_inode(struct inode *dir, int mode, int *err)
 	insert_inode_hash(inode);
 	mark_inode_dirty(inode);
 
-	if (vfs_dq_alloc_inode(inode)) {
-		vfs_dq_drop(inode);
+	dquot_initialize(inode);
+	ret = dquot_alloc_inode(inode);
+	if (ret) {
+		dquot_drop(inode);
 		inode->i_flags |= S_NOQUOTA;
 		inode->i_nlink = 0;
 		iput(inode);
-		*err = -EDQUOT;
+		*err = ret;
 		return NULL;
 	}
 

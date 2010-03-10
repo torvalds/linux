@@ -33,12 +33,12 @@
  */
 
 /**
- * usbip_udbg - print debug messages if CONFIG_USB_DEBUG is defined
+ * usbip_udbg - print debug messages if CONFIG_USB_IP_DEBUG_ENABLE is defined
  * @fmt:
  * @args:
  */
 
-#ifdef CONFIG_USB_DEBUG
+#ifdef CONFIG_USB_IP_DEBUG_ENABLE
 
 #define usbip_udbg(fmt, args...)					\
 	do {								\
@@ -47,11 +47,11 @@
 			__FILE__, __LINE__, __func__, ##args);		\
 	} while (0)
 
-#else  /* CONFIG_USB_DEBUG */
+#else  /* CONFIG_USB_IP_DEBUG_ENABLE */
 
 #define usbip_udbg(fmt, args...)		do { } while (0)
 
-#endif /* CONFIG_USB_DEBUG */
+#endif /* CONFIG_USB_IP_DEBUG_ENABLE */
 
 
 enum {

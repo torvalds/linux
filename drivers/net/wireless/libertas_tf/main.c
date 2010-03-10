@@ -318,14 +318,14 @@ static void lbtf_op_stop(struct ieee80211_hw *hw)
 }
 
 static int lbtf_op_add_interface(struct ieee80211_hw *hw,
-			struct ieee80211_if_init_conf *conf)
+			struct ieee80211_vif *vif)
 {
 	struct lbtf_private *priv = hw->priv;
 	if (priv->vif != NULL)
 		return -EOPNOTSUPP;
 
-	priv->vif = conf->vif;
-	switch (conf->type) {
+	priv->vif = vif;
+	switch (vif->type) {
 	case NL80211_IFTYPE_MESH_POINT:
 	case NL80211_IFTYPE_AP:
 		lbtf_set_mode(priv, LBTF_AP_MODE);
@@ -337,12 +337,12 @@ static int lbtf_op_add_interface(struct ieee80211_hw *hw,
 		priv->vif = NULL;
 		return -EOPNOTSUPP;
 	}
-	lbtf_set_mac_address(priv, (u8 *) conf->mac_addr);
+	lbtf_set_mac_address(priv, (u8 *) vif->addr);
 	return 0;
 }
 
 static void lbtf_op_remove_interface(struct ieee80211_hw *hw,
-			struct ieee80211_if_init_conf *conf)
+			struct ieee80211_vif *vif)
 {
 	struct lbtf_private *priv = hw->priv;
 
@@ -555,6 +555,9 @@ struct lbtf_private *lbtf_add_card(void *card, struct device *dmdev)
 	priv->band.n_channels = ARRAY_SIZE(lbtf_channels);
 	priv->band.channels = priv->channels;
 	hw->wiphy->bands[IEEE80211_BAND_2GHZ] = &priv->band;
+	hw->wiphy->interface_modes =
+		BIT(NL80211_IFTYPE_STATION) |
+		BIT(NL80211_IFTYPE_ADHOC);
 	skb_queue_head_init(&priv->bc_ps_buf);
 
 	SET_IEEE80211_DEV(hw, dmdev);

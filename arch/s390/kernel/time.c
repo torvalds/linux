@@ -51,14 +51,6 @@
 #define USECS_PER_JIFFY     ((unsigned long) 1000000/HZ)
 #define CLK_TICKS_PER_JIFFY ((unsigned long) USECS_PER_JIFFY << 12)
 
-/*
- * Create a small time difference between the timer interrupts
- * on the different cpus to avoid lock contention.
- */
-#define CPU_DEVIATION       (smp_processor_id() << 12)
-
-#define TICK_SIZE tick
-
 u64 sched_clock_base_cc = -1;	/* Force to data section. */
 EXPORT_SYMBOL_GPL(sched_clock_base_cc);
 
@@ -81,15 +73,15 @@ unsigned long long monotonic_clock(void)
 }
 EXPORT_SYMBOL(monotonic_clock);
 
-void tod_to_timeval(__u64 todval, struct timespec *xtime)
+void tod_to_timeval(__u64 todval, struct timespec *xt)
 {
 	unsigned long long sec;
 
 	sec = todval >> 12;
 	do_div(sec, 1000000);
-	xtime->tv_sec = sec;
+	xt->tv_sec = sec;
 	todval -= (sec * 1000000) << 12;
-	xtime->tv_nsec = ((todval * 1000) >> 12);
+	xt->tv_nsec = ((todval * 1000) >> 12);
 }
 EXPORT_SYMBOL(tod_to_timeval);
 
@@ -224,8 +216,8 @@ void update_vsyscall(struct timespec *wall_time, struct clocksource *clock,
 	++vdso_data->tb_update_count;
 	smp_wmb();
 	vdso_data->xtime_tod_stamp = clock->cycle_last;
-	vdso_data->xtime_clock_sec = xtime.tv_sec;
-	vdso_data->xtime_clock_nsec = xtime.tv_nsec;
+	vdso_data->xtime_clock_sec = wall_time->tv_sec;
+	vdso_data->xtime_clock_nsec = wall_time->tv_nsec;
 	vdso_data->wtom_clock_sec = wall_to_monotonic.tv_sec;
 	vdso_data->wtom_clock_nsec = wall_to_monotonic.tv_nsec;
 	smp_wmb();
@@ -1124,14 +1116,18 @@ static struct sys_device etr_port1_dev = {
 /*
  * ETR class attributes
  */
-static ssize_t etr_stepping_port_show(struct sysdev_class *class, char *buf)
+static ssize_t etr_stepping_port_show(struct sysdev_class *class,
+					struct sysdev_class_attribute *attr,
+					char *buf)
 {
 	return sprintf(buf, "%i\n", etr_port0.esw.p);
 }
 
 static SYSDEV_CLASS_ATTR(stepping_port, 0400, etr_stepping_port_show, NULL);
 
-static ssize_t etr_stepping_mode_show(struct sysdev_class *class, char *buf)
+static ssize_t etr_stepping_mode_show(struct sysdev_class *class,
+				      	struct sysdev_class_attribute *attr,
+					char *buf)
 {
 	char *mode_str;
 
@@ -1592,7 +1588,9 @@ static struct sysdev_class stp_sysclass = {
 	.name	= "stp",
 };
 
-static ssize_t stp_ctn_id_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_ctn_id_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online)
 		return -ENODATA;
@@ -1602,7 +1600,9 @@ static ssize_t stp_ctn_id_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(ctn_id, 0400, stp_ctn_id_show, NULL);
 
-static ssize_t stp_ctn_type_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_ctn_type_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online)
 		return -ENODATA;
@@ -1611,7 +1611,9 @@ static ssize_t stp_ctn_type_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(ctn_type, 0400, stp_ctn_type_show, NULL);
 
-static ssize_t stp_dst_offset_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_dst_offset_show(struct sysdev_class *class,
+				   struct sysdev_class_attribute *attr,
+				   char *buf)
 {
 	if (!stp_online || !(stp_info.vbits & 0x2000))
 		return -ENODATA;
@@ -1620,7 +1622,9 @@ static ssize_t stp_dst_offset_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(dst_offset, 0400, stp_dst_offset_show, NULL);
 
-static ssize_t stp_leap_seconds_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_leap_seconds_show(struct sysdev_class *class,
+					struct sysdev_class_attribute *attr,
+					char *buf)
 {
 	if (!stp_online || !(stp_info.vbits & 0x8000))
 		return -ENODATA;
@@ -1629,7 +1633,9 @@ static ssize_t stp_leap_seconds_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(leap_seconds, 0400, stp_leap_seconds_show, NULL);
 
-static ssize_t stp_stratum_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_stratum_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online)
 		return -ENODATA;
@@ -1638,7 +1644,9 @@ static ssize_t stp_stratum_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(stratum, 0400, stp_stratum_show, NULL);
 
-static ssize_t stp_time_offset_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_time_offset_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online || !(stp_info.vbits & 0x0800))
 		return -ENODATA;
@@ -1647,7 +1655,9 @@ static ssize_t stp_time_offset_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(time_offset, 0400, stp_time_offset_show, NULL);
 
-static ssize_t stp_time_zone_offset_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_time_zone_offset_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online || !(stp_info.vbits & 0x4000))
 		return -ENODATA;
@@ -1657,7 +1667,9 @@ static ssize_t stp_time_zone_offset_show(struct sysdev_class *class, char *buf)
 static SYSDEV_CLASS_ATTR(time_zone_offset, 0400,
 			 stp_time_zone_offset_show, NULL);
 
-static ssize_t stp_timing_mode_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_timing_mode_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online)
 		return -ENODATA;
@@ -1666,7 +1678,9 @@ static ssize_t stp_timing_mode_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(timing_mode, 0400, stp_timing_mode_show, NULL);
 
-static ssize_t stp_timing_state_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_timing_state_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	if (!stp_online)
 		return -ENODATA;
@@ -1675,12 +1689,15 @@ static ssize_t stp_timing_state_show(struct sysdev_class *class, char *buf)
 
 static SYSDEV_CLASS_ATTR(timing_state, 0400, stp_timing_state_show, NULL);
 
-static ssize_t stp_online_show(struct sysdev_class *class, char *buf)
+static ssize_t stp_online_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	return sprintf(buf, "%i\n", stp_online);
 }
 
 static ssize_t stp_online_store(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
 				const char *buf, size_t count)
 {
 	unsigned int value;

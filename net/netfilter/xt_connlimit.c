@@ -28,6 +28,7 @@
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_core.h>
 #include <net/netfilter/nf_conntrack_tuple.h>
+#include <net/netfilter/nf_conntrack_zones.h>
 
 /* we will save the tuples of all connections we care about */
 struct xt_connlimit_conn {
@@ -40,15 +41,11 @@ struct xt_connlimit_data {
 	spinlock_t lock;
 };
 
-static u_int32_t connlimit_rnd;
-static bool connlimit_rnd_inited;
+static u_int32_t connlimit_rnd __read_mostly;
+static bool connlimit_rnd_inited __read_mostly;
 
 static inline unsigned int connlimit_iphash(__be32 addr)
 {
-	if (unlikely(!connlimit_rnd_inited)) {
-		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
-		connlimit_rnd_inited = true;
-	}
 	return jhash_1word((__force __u32)addr, connlimit_rnd) & 0xFF;
 }
 
@@ -58,11 +55,6 @@ connlimit_iphash6(const union nf_inet_addr *addr,
 {
 	union nf_inet_addr res;
 	unsigned int i;
-
-	if (unlikely(!connlimit_rnd_inited)) {
-		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
-		connlimit_rnd_inited = true;
-	}
 
 	for (i = 0; i < ARRAY_SIZE(addr->ip6); ++i)
 		res.ip6[i] = addr->ip6[i] & mask->ip6[i];
@@ -99,7 +91,8 @@ same_source_net(const union nf_inet_addr *addr,
 	}
 }
 
-static int count_them(struct xt_connlimit_data *data,
+static int count_them(struct net *net,
+		      struct xt_connlimit_data *data,
 		      const struct nf_conntrack_tuple *tuple,
 		      const union nf_inet_addr *addr,
 		      const union nf_inet_addr *mask,
@@ -122,7 +115,8 @@ static int count_them(struct xt_connlimit_data *data,
 
 	/* check the saved connections */
 	list_for_each_entry_safe(conn, tmp, hash, list) {
-		found    = nf_conntrack_find_get(&init_net, &conn->tuple);
+		found    = nf_conntrack_find_get(net, NF_CT_DEFAULT_ZONE,
+						 &conn->tuple);
 		found_ct = NULL;
 
 		if (found != NULL)
@@ -180,6 +174,7 @@ static int count_them(struct xt_connlimit_data *data,
 static bool
 connlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
+	struct net *net = dev_net(par->in ? par->in : par->out);
 	const struct xt_connlimit_info *info = par->matchinfo;
 	union nf_inet_addr addr;
 	struct nf_conntrack_tuple tuple;
@@ -204,7 +199,7 @@ connlimit_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	}
 
 	spin_lock_bh(&info->data->lock);
-	connections = count_them(info->data, tuple_ptr, &addr,
+	connections = count_them(net, info->data, tuple_ptr, &addr,
 	                         &info->mask, par->family);
 	spin_unlock_bh(&info->data->lock);
 
@@ -226,6 +221,10 @@ static bool connlimit_mt_check(const struct xt_mtchk_param *par)
 	struct xt_connlimit_info *info = par->matchinfo;
 	unsigned int i;
 
+	if (unlikely(!connlimit_rnd_inited)) {
+		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
+		connlimit_rnd_inited = true;
+	}
 	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "cannot load conntrack support for "
 		       "address family %u\n", par->family);

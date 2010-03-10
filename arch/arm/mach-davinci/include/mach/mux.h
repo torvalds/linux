@@ -327,6 +327,8 @@ enum davinci_dm365_index {
 	/* EDMA event muxing */
 	DM365_EVT2_ASP_TX,
 	DM365_EVT3_ASP_RX,
+	DM365_EVT2_VC_TX,
+	DM365_EVT3_VC_RX,
 	DM365_EVT26_MMC0_RX,
 };
 
@@ -899,6 +901,7 @@ enum davinci_da850_index {
 	DA850_GPIO2_15,
 	DA850_GPIO4_0,
 	DA850_GPIO4_1,
+	DA850_RTC_ALARM,
 };
 
 #ifdef CONFIG_DAVINCI_MUX

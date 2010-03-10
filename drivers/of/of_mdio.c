@@ -51,7 +51,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 
 	/* Loop over the child nodes and register a phy_device for each one */
 	for_each_child_of_node(np, child) {
-		const u32 *addr;
+		const __be32 *addr;
 		int len;
 
 		/* A PHY must have a reg property in the range [0-31] */
@@ -68,7 +68,7 @@ int of_mdiobus_register(struct mii_bus *mdio, struct device_node *np)
 				mdio->irq[*addr] = PHY_POLL;
 		}
 
-		phy = get_phy_device(mdio, *addr);
+		phy = get_phy_device(mdio, be32_to_cpup(addr));
 		if (!phy) {
 			dev_err(&mdio->dev, "error probing PHY at address %i\n",
 				*addr);
@@ -160,7 +160,7 @@ struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
 	struct device_node *net_np;
 	char bus_id[MII_BUS_ID_SIZE + 3];
 	struct phy_device *phy;
-	const u32 *phy_id;
+	const __be32 *phy_id;
 	int sz;
 
 	if (!dev->dev.parent)
@@ -174,7 +174,7 @@ struct phy_device *of_phy_connect_fixed_link(struct net_device *dev,
 	if (!phy_id || sz < sizeof(*phy_id))
 		return NULL;
 
-	sprintf(bus_id, PHY_ID_FMT, "0", phy_id[0]);
+	sprintf(bus_id, PHY_ID_FMT, "0", be32_to_cpu(phy_id[0]));
 
 	phy = phy_connect(dev, bus_id, hndlr, 0, iface);
 	return IS_ERR(phy) ? NULL : phy;

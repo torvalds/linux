@@ -6,14 +6,12 @@
  */
 
 #include <linux/module.h>
+#include <linux/kprobes.h>
 #include "trace.h"
 
 
-char *perf_trace_buf;
-EXPORT_SYMBOL_GPL(perf_trace_buf);
-
-char *perf_trace_buf_nmi;
-EXPORT_SYMBOL_GPL(perf_trace_buf_nmi);
+static char *perf_trace_buf;
+static char *perf_trace_buf_nmi;
 
 typedef typeof(char [FTRACE_MAX_PROFILE_SIZE]) perf_trace_t ;
 
@@ -120,3 +118,47 @@ void ftrace_profile_disable(int event_id)
 	}
 	mutex_unlock(&event_mutex);
 }
+
+__kprobes void *ftrace_perf_buf_prepare(int size, unsigned short type,
+					int *rctxp, unsigned long *irq_flags)
+{
+	struct trace_entry *entry;
+	char *trace_buf, *raw_data;
+	int pc, cpu;
+
+	pc = preempt_count();
+
+	/* Protect the per cpu buffer, begin the rcu read side */
+	local_irq_save(*irq_flags);
+
+	*rctxp = perf_swevent_get_recursion_context();
+	if (*rctxp < 0)
+		goto err_recursion;
+
+	cpu = smp_processor_id();
+
+	if (in_nmi())
+		trace_buf = rcu_dereference(perf_trace_buf_nmi);
+	else
+		trace_buf = rcu_dereference(perf_trace_buf);
+
+	if (!trace_buf)
+		goto err;
+
+	raw_data = per_cpu_ptr(trace_buf, cpu);
+
+	/* zero the dead bytes from align to not leak stack to user */
+	*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
+
+	entry = (struct trace_entry *)raw_data;
+	tracing_generic_entry_update(entry, *irq_flags, pc);
+	entry->type = type;
+
+	return raw_data;
+err:
+	perf_swevent_put_recursion_context(*rctxp);
+err_recursion:
+	local_irq_restore(*irq_flags);
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(ftrace_perf_buf_prepare);

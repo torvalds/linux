@@ -855,6 +855,17 @@ rphy_to_ioc(struct sas_rphy *rphy)
 	return shost_priv(shost);
 }
 
+static struct _sas_phy *
+_transport_find_local_phy(struct MPT2SAS_ADAPTER *ioc, struct sas_phy *phy)
+{
+	int i;
+
+	for (i = 0; i < ioc->sas_hba.num_phys; i++)
+		if (ioc->sas_hba.phy[i].phy == phy)
+			return(&ioc->sas_hba.phy[i]);
+	return NULL;
+}
+
 /**
  * _transport_get_linkerrors -
  * @phy: The sas phy object
@@ -870,14 +881,8 @@ _transport_get_linkerrors(struct sas_phy *phy)
 	struct _sas_phy *mpt2sas_phy;
 	Mpi2ConfigReply_t mpi_reply;
 	Mpi2SasPhyPage1_t phy_pg1;
-	int i;
 
-	for (i = 0, mpt2sas_phy = NULL; i < ioc->sas_hba.num_phys &&
-	    !mpt2sas_phy; i++) {
-		if (ioc->sas_hba.phy[i].phy != phy)
-			continue;
-		mpt2sas_phy = &ioc->sas_hba.phy[i];
-	}
+	mpt2sas_phy = _transport_find_local_phy(ioc, phy);
 
 	if (!mpt2sas_phy) /* this phy not on sas_host */
 		return -EINVAL;
@@ -971,14 +976,8 @@ _transport_phy_reset(struct sas_phy *phy, int hard_reset)
 	struct _sas_phy *mpt2sas_phy;
 	Mpi2SasIoUnitControlReply_t mpi_reply;
 	Mpi2SasIoUnitControlRequest_t mpi_request;
-	int i;
 
-	for (i = 0, mpt2sas_phy = NULL; i < ioc->sas_hba.num_phys &&
-	    !mpt2sas_phy; i++) {
-		if (ioc->sas_hba.phy[i].phy != phy)
-			continue;
-		mpt2sas_phy = &ioc->sas_hba.phy[i];
-	}
+	mpt2sas_phy = _transport_find_local_phy(ioc, phy);
 
 	if (!mpt2sas_phy) /* this phy not on sas_host */
 		return -EINVAL;
@@ -1004,6 +1003,173 @@ _transport_phy_reset(struct sas_phy *phy, int hard_reset)
 
 	return 0;
 }
+
+/**
+ * _transport_phy_enable - enable/disable phys
+ * @phy: The sas phy object
+ * @enable: enable phy when true
+ *
+ * Only support sas_host direct attached phys.
+ * Returns 0 for success, non-zero for failure.
+ */
+static int
+_transport_phy_enable(struct sas_phy *phy, int enable)
+{
+	struct MPT2SAS_ADAPTER *ioc = phy_to_ioc(phy);
+	struct _sas_phy *mpt2sas_phy;
+	Mpi2SasIOUnitPage1_t *sas_iounit_pg1 = NULL;
+	Mpi2ConfigReply_t mpi_reply;
+	u16 ioc_status;
+	u16 sz;
+	int rc = 0;
+
+	mpt2sas_phy = _transport_find_local_phy(ioc, phy);
+
+	if (!mpt2sas_phy) /* this phy not on sas_host */
+		return -EINVAL;
+
+	/* sas_iounit page 1 */
+	sz = offsetof(Mpi2SasIOUnitPage1_t, PhyData) + (ioc->sas_hba.num_phys *
+	    sizeof(Mpi2SasIOUnit1PhyData_t));
+	sas_iounit_pg1 = kzalloc(sz, GFP_KERNEL);
+	if (!sas_iounit_pg1) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		rc = -ENOMEM;
+		goto out;
+	}
+	if ((mpt2sas_config_get_sas_iounit_pg1(ioc, &mpi_reply,
+	    sas_iounit_pg1, sz))) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		rc = -ENXIO;
+		goto out;
+	}
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		rc = -EIO;
+		goto out;
+	}
+
+	if (enable)
+		sas_iounit_pg1->PhyData[mpt2sas_phy->phy_id].PhyFlags
+		    &= ~MPI2_SASIOUNIT1_PHYFLAGS_PHY_DISABLE;
+	else
+		sas_iounit_pg1->PhyData[mpt2sas_phy->phy_id].PhyFlags
+		    |= MPI2_SASIOUNIT1_PHYFLAGS_PHY_DISABLE;
+
+	mpt2sas_config_set_sas_iounit_pg1(ioc, &mpi_reply, sas_iounit_pg1, sz);
+
+ out:
+	kfree(sas_iounit_pg1);
+	return rc;
+}
+
+/**
+ * _transport_phy_speed - set phy min/max link rates
+ * @phy: The sas phy object
+ * @rates: rates defined in sas_phy_linkrates
+ *
+ * Only support sas_host direct attached phys.
+ * Returns 0 for success, non-zero for failure.
+ */
+static int
+_transport_phy_speed(struct sas_phy *phy, struct sas_phy_linkrates *rates)
+{
+	struct MPT2SAS_ADAPTER *ioc = phy_to_ioc(phy);
+	struct _sas_phy *mpt2sas_phy;
+	Mpi2SasIOUnitPage1_t *sas_iounit_pg1 = NULL;
+	Mpi2SasPhyPage0_t phy_pg0;
+	Mpi2ConfigReply_t mpi_reply;
+	u16 ioc_status;
+	u16 sz;
+	int i;
+	int rc = 0;
+
+	mpt2sas_phy = _transport_find_local_phy(ioc, phy);
+
+	if (!mpt2sas_phy) /* this phy not on sas_host */
+		return -EINVAL;
+
+	if (!rates->minimum_linkrate)
+		rates->minimum_linkrate = phy->minimum_linkrate;
+	else if (rates->minimum_linkrate < phy->minimum_linkrate_hw)
+		rates->minimum_linkrate = phy->minimum_linkrate_hw;
+
+	if (!rates->maximum_linkrate)
+		rates->maximum_linkrate = phy->maximum_linkrate;
+	else if (rates->maximum_linkrate > phy->maximum_linkrate_hw)
+		rates->maximum_linkrate = phy->maximum_linkrate_hw;
+
+	/* sas_iounit page 1 */
+	sz = offsetof(Mpi2SasIOUnitPage1_t, PhyData) + (ioc->sas_hba.num_phys *
+	    sizeof(Mpi2SasIOUnit1PhyData_t));
+	sas_iounit_pg1 = kzalloc(sz, GFP_KERNEL);
+	if (!sas_iounit_pg1) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		rc = -ENOMEM;
+		goto out;
+	}
+	if ((mpt2sas_config_get_sas_iounit_pg1(ioc, &mpi_reply,
+	    sas_iounit_pg1, sz))) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		rc = -ENXIO;
+		goto out;
+	}
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		rc = -EIO;
+		goto out;
+	}
+
+	for (i = 0; i < ioc->sas_hba.num_phys; i++) {
+		if (mpt2sas_phy->phy_id != i) {
+			sas_iounit_pg1->PhyData[i].MaxMinLinkRate =
+			    (ioc->sas_hba.phy[i].phy->minimum_linkrate +
+			    (ioc->sas_hba.phy[i].phy->maximum_linkrate << 4));
+		} else {
+			sas_iounit_pg1->PhyData[i].MaxMinLinkRate =
+			    (rates->minimum_linkrate +
+			    (rates->maximum_linkrate << 4));
+		}
+	}
+
+	if (mpt2sas_config_set_sas_iounit_pg1(ioc, &mpi_reply, sas_iounit_pg1,
+	    sz)) {
+		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
+		    ioc->name, __FILE__, __LINE__, __func__);
+		rc = -ENXIO;
+		goto out;
+	}
+
+	/* link reset */
+	_transport_phy_reset(phy, 0);
+
+	/* read phy page 0, then update the rates in the sas transport phy */
+	if (!mpt2sas_config_get_phy_pg0(ioc, &mpi_reply, &phy_pg0,
+	    mpt2sas_phy->phy_id)) {
+		phy->minimum_linkrate = _transport_convert_phy_link_rate(
+		    phy_pg0.ProgrammedLinkRate & MPI2_SAS_PRATE_MIN_RATE_MASK);
+		phy->maximum_linkrate = _transport_convert_phy_link_rate(
+		    phy_pg0.ProgrammedLinkRate >> 4);
+		phy->negotiated_linkrate = _transport_convert_phy_link_rate(
+		    phy_pg0.NegotiatedLinkRate &
+		    MPI2_SAS_NEG_LINK_RATE_MASK_PHYSICAL);
+	}
+
+ out:
+	kfree(sas_iounit_pg1);
+	return rc;
+}
+
 
 /**
  * _transport_smp_handler - transport portal for smp passthru
@@ -1207,6 +1373,8 @@ struct sas_function_template mpt2sas_transport_functions = {
 	.get_enclosure_identifier = _transport_get_enclosure_identifier,
 	.get_bay_identifier	= _transport_get_bay_identifier,
 	.phy_reset		= _transport_phy_reset,
+	.phy_enable		= _transport_phy_enable,
+	.set_phy_speed		= _transport_phy_speed,
 	.smp_handler		= _transport_smp_handler,
 };
 

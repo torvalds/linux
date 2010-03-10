@@ -288,46 +288,30 @@ static int hypfs_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_blocksize_bits = PAGE_CACHE_SHIFT;
 	sb->s_magic = HYPFS_MAGIC;
 	sb->s_op = &hypfs_s_ops;
-	if (hypfs_parse_options(data, sb)) {
-		rc = -EINVAL;
-		goto err_alloc;
-	}
+	if (hypfs_parse_options(data, sb))
+		return -EINVAL;
 	root_inode = hypfs_make_inode(sb, S_IFDIR | 0755);
-	if (!root_inode) {
-		rc = -ENOMEM;
-		goto err_alloc;
-	}
+	if (!root_inode)
+		return -ENOMEM;
 	root_inode->i_op = &simple_dir_inode_operations;
 	root_inode->i_fop = &simple_dir_operations;
-	root_dentry = d_alloc_root(root_inode);
+	sb->s_root = root_dentry = d_alloc_root(root_inode);
 	if (!root_dentry) {
 		iput(root_inode);
-		rc = -ENOMEM;
-		goto err_alloc;
+		return -ENOMEM;
 	}
 	if (MACHINE_IS_VM)
 		rc = hypfs_vm_create_files(sb, root_dentry);
 	else
 		rc = hypfs_diag_create_files(sb, root_dentry);
 	if (rc)
-		goto err_tree;
+		return rc;
 	sbi->update_file = hypfs_create_update_file(sb, root_dentry);
-	if (IS_ERR(sbi->update_file)) {
-		rc = PTR_ERR(sbi->update_file);
-		goto err_tree;
-	}
+	if (IS_ERR(sbi->update_file))
+		return PTR_ERR(sbi->update_file);
 	hypfs_update_update(sb);
-	sb->s_root = root_dentry;
 	pr_info("Hypervisor filesystem mounted\n");
 	return 0;
-
-err_tree:
-	hypfs_delete_tree(root_dentry);
-	d_genocide(root_dentry);
-	dput(root_dentry);
-err_alloc:
-	kfree(sbi);
-	return rc;
 }
 
 static int hypfs_get_super(struct file_system_type *fst, int flags,
@@ -340,12 +324,12 @@ static void hypfs_kill_super(struct super_block *sb)
 {
 	struct hypfs_sb_info *sb_info = sb->s_fs_info;
 
-	if (sb->s_root) {
+	if (sb->s_root)
 		hypfs_delete_tree(sb->s_root);
+	if (sb_info->update_file)
 		hypfs_remove(sb_info->update_file);
-		kfree(sb->s_fs_info);
-		sb->s_fs_info = NULL;
-	}
+	kfree(sb->s_fs_info);
+	sb->s_fs_info = NULL;
 	kill_litter_super(sb);
 }
 

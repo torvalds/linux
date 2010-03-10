@@ -2,6 +2,7 @@
 #define __ASM_SH_SYSTEM_32_H
 
 #include <linux/types.h>
+#include <asm/mmu.h>
 
 #ifdef CONFIG_SH_DSP
 
@@ -144,9 +145,6 @@ do {								\
 		__restore_dsp(prev);				\
 } while (0)
 
-#define __uses_jump_to_uncached \
-	noinline __attribute__ ((__section__ (".uncached.text")))
-
 /*
  * Jump to uncached area.
  * When handling TLB or caches, we need to do it from an uncached area.
@@ -215,6 +213,17 @@ static inline reg_size_t register_align(void *val)
 
 int handle_unaligned_access(insn_size_t instruction, struct pt_regs *regs,
 			    struct mem_access *ma, int);
+
+static inline void trigger_address_error(void)
+{
+	if (__in_29bit_mode())
+		__asm__ __volatile__ (
+			"ldc %0, sr\n\t"
+			"mov.l @%1, %0"
+			:
+			: "r" (0x10000000), "r" (0x80000001)
+		);
+}
 
 asmlinkage void do_address_error(struct pt_regs *regs,
 				 unsigned long writeaccess,

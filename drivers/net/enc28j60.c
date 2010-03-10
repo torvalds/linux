@@ -1413,7 +1413,7 @@ static void enc28j60_set_multicast_list(struct net_device *dev)
 		if (netif_msg_link(priv))
 			dev_info(&dev->dev, "promiscuous mode\n");
 		priv->rxfilter = RXFILTER_PROMISC;
-	} else if ((dev->flags & IFF_ALLMULTI) || dev->mc_count) {
+	} else if ((dev->flags & IFF_ALLMULTI) || !netdev_mc_empty(dev)) {
 		if (netif_msg_link(priv))
 			dev_info(&dev->dev, "%smulticast mode\n",
 				(dev->flags & IFF_ALLMULTI) ? "all-" : "");

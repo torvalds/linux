@@ -59,12 +59,6 @@ typedef enum _desc_packet_type_e{
 	DESC_PACKET_TYPE_NORMAL = 1,
 }desc_packet_type_e;
 
-typedef enum _firmware_source{
-	FW_SOURCE_IMG_FILE = 0,
-	FW_SOURCE_HEADER_FILE = 1,
-}firmware_source_e, *pfirmware_source_e;
-
-
 typedef enum _opt_rst_type{
 	OPT_SYSTEM_RESET = 0,
 	OPT_FIRMWARE_RESET = 1,
@@ -185,7 +179,6 @@ typedef enum _FIRMWARE_8192S_STATUS{
 #define RTL8190_MAX_FIRMWARE_CODE_SIZE  64000   //64k
 
 typedef struct _rt_firmware{
-	firmware_source_e	eFWSource;
 	PRT_8192S_FIRMWARE_HDR	pFwHeader;
 	FIRMWARE_8192S_STATUS	FWStatus;
 	u16             FirmwareVersion;

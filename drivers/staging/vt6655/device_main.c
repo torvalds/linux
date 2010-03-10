@@ -1105,10 +1105,7 @@ static void device_print_info(PSDevice pDevice)
     struct net_device* dev=pDevice->dev;
 
     DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "%s: %s\n",dev->name, get_chip_name(pDevice->chip_id));
-    DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "%s: MAC=%2.2X:%2.2X:%2.2X:%2.2X:%2.2X:%2.2X",
-        dev->name,
-        dev->dev_addr[0],dev->dev_addr[1],dev->dev_addr[2],
-        dev->dev_addr[3],dev->dev_addr[4],dev->dev_addr[5]);
+    DBG_PRT(MSG_LEVEL_INFO, KERN_INFO "%s: MAC=%pM", dev->name, dev->dev_addr);
 #ifdef IO_MAP
     DBG_PRT(MSG_LEVEL_INFO, KERN_INFO" IO=0x%lx  ",(ULONG) pDevice->ioaddr);
     DBG_PRT(MSG_LEVEL_INFO, KERN_INFO" IRQ=%d \n", pDevice->dev->irq);
@@ -3082,8 +3079,7 @@ static void device_set_multi(struct net_device *dev) {
 
     PSMgmtObject     pMgmt = pDevice->pMgmt;
     u32              mc_filter[2];
-    int              i;
-    struct dev_mc_list  *mclist;
+    struct dev_mc_list *mclist;
 
 
     VNSvInPortB(pDevice->PortOffset + MAC_REG_RCR, &(pDevice->byRxMode));
@@ -3093,7 +3089,7 @@ static void device_set_multi(struct net_device *dev) {
         /* Unconditionally log net taps. */
         pDevice->byRxMode |= (RCR_MULTICAST|RCR_BROADCAST|RCR_UNICAST);
     }
-    else if ((dev->mc_count > pDevice->multicast_limit)
+    else if ((netdev_mc_count(dev) > pDevice->multicast_limit)
         ||  (dev->flags & IFF_ALLMULTI)) {
         MACvSelectPage1(pDevice->PortOffset);
         VNSvOutPortD(pDevice->PortOffset + MAC_REG_MAR0, 0xffffffff);
@@ -3103,8 +3099,7 @@ static void device_set_multi(struct net_device *dev) {
     }
     else {
         memset(mc_filter, 0, sizeof(mc_filter));
-        for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
-             i++, mclist = mclist->next) {
+	netdev_for_each_mc_addr(mclist, dev) {
             int bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
             mc_filter[bit_nr >> 5] |= cpu_to_le32(1 << (bit_nr & 31));
         }

@@ -28,6 +28,13 @@
 #define RT61PCI_H
 
 /*
+ * RT chip PCI IDs.
+ */
+#define RT2561s_PCI_ID			0x0301
+#define RT2561_PCI_ID			0x0302
+#define RT2661_PCI_ID			0x0401
+
+/*
  * RF chip defines.
  */
 #define RF5225				0x0001
@@ -225,6 +232,8 @@ struct hw_pairwise_ta_entry {
  * MAC_CSR0: ASIC revision number.
  */
 #define MAC_CSR0			0x3000
+#define MAC_CSR0_REVISION		FIELD32(0x0000000f)
+#define MAC_CSR0_CHIPSET		FIELD32(0x000ffff0)
 
 /*
  * MAC_CSR1: System control register.

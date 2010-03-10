@@ -285,7 +285,8 @@ retry:
 	up_write(&_hash_lock);
 }
 
-static int dm_hash_rename(uint32_t cookie, const char *old, const char *new)
+static int dm_hash_rename(uint32_t cookie, uint32_t *flags, const char *old,
+			  const char *new)
 {
 	char *new_name, *old_name;
 	struct hash_cell *hc;
@@ -344,7 +345,8 @@ static int dm_hash_rename(uint32_t cookie, const char *old, const char *new)
 		dm_table_put(table);
 	}
 
-	dm_kobject_uevent(hc->md, KOBJ_CHANGE, cookie);
+	if (!dm_kobject_uevent(hc->md, KOBJ_CHANGE, cookie))
+		*flags |= DM_UEVENT_GENERATED_FLAG;
 
 	dm_put(hc->md);
 	up_write(&_hash_lock);
@@ -736,10 +738,10 @@ static int dev_remove(struct dm_ioctl *param, size_t param_size)
 	__hash_remove(hc);
 	up_write(&_hash_lock);
 
-	dm_kobject_uevent(md, KOBJ_REMOVE, param->event_nr);
+	if (!dm_kobject_uevent(md, KOBJ_REMOVE, param->event_nr))
+		param->flags |= DM_UEVENT_GENERATED_FLAG;
 
 	dm_put(md);
-	param->data_size = 0;
 	return 0;
 }
 
@@ -773,7 +775,9 @@ static int dev_rename(struct dm_ioctl *param, size_t param_size)
 		return r;
 
 	param->data_size = 0;
-	return dm_hash_rename(param->event_nr, param->name, new_name);
+
+	return dm_hash_rename(param->event_nr, &param->flags, param->name,
+			      new_name);
 }
 
 static int dev_set_geometry(struct dm_ioctl *param, size_t param_size)
@@ -897,16 +901,17 @@ static int do_resume(struct dm_ioctl *param)
 			set_disk_ro(dm_disk(md), 1);
 	}
 
-	if (dm_suspended_md(md))
+	if (dm_suspended_md(md)) {
 		r = dm_resume(md);
+		if (!r && !dm_kobject_uevent(md, KOBJ_CHANGE, param->event_nr))
+			param->flags |= DM_UEVENT_GENERATED_FLAG;
+	}
 
 	if (old_map)
 		dm_table_destroy(old_map);
 
-	if (!r) {
-		dm_kobject_uevent(md, KOBJ_CHANGE, param->event_nr);
+	if (!r)
 		r = __dev_status(md, param);
-	}
 
 	dm_put(md);
 	return r;
@@ -1476,6 +1481,7 @@ static int validate_params(uint cmd, struct dm_ioctl *param)
 {
 	/* Always clear this flag */
 	param->flags &= ~DM_BUFFER_FULL_FLAG;
+	param->flags &= ~DM_UEVENT_GENERATED_FLAG;
 
 	/* Ignores parameters */
 	if (cmd == DM_REMOVE_ALL_CMD ||

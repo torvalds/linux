@@ -1182,8 +1182,9 @@ int __break_lease(struct inode *inode, unsigned int mode)
 	struct file_lock *fl;
 	unsigned long break_time;
 	int i_have_this_lease = 0;
+	int want_write = (mode & O_ACCMODE) != O_RDONLY;
 
-	new_fl = lease_alloc(NULL, mode & FMODE_WRITE ? F_WRLCK : F_RDLCK);
+	new_fl = lease_alloc(NULL, want_write ? F_WRLCK : F_RDLCK);
 
 	lock_kernel();
 
@@ -1197,7 +1198,7 @@ int __break_lease(struct inode *inode, unsigned int mode)
 		if (fl->fl_owner == current->files)
 			i_have_this_lease = 1;
 
-	if (mode & FMODE_WRITE) {
+	if (want_write) {
 		/* If we want write access, we have to revoke any lease. */
 		future = F_UNLCK | F_INPROGRESS;
 	} else if (flock->fl_type & F_INPROGRESS) {

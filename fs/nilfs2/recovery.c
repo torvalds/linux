@@ -39,7 +39,6 @@ enum {
 	NILFS_SEG_FAIL_IO,
 	NILFS_SEG_FAIL_MAGIC,
 	NILFS_SEG_FAIL_SEQ,
-	NILFS_SEG_FAIL_CHECKSUM_SEGSUM,
 	NILFS_SEG_FAIL_CHECKSUM_SUPER_ROOT,
 	NILFS_SEG_FAIL_CHECKSUM_FULL,
 	NILFS_SEG_FAIL_CONSISTENCY,
@@ -70,10 +69,6 @@ static int nilfs_warn_segment_error(int err)
 	case NILFS_SEG_FAIL_SEQ:
 		printk(KERN_WARNING
 		       "NILFS warning: Sequence number mismatch\n");
-		break;
-	case NILFS_SEG_FAIL_CHECKSUM_SEGSUM:
-		printk(KERN_WARNING
-		       "NILFS warning: Checksum error in segment summary\n");
 		break;
 	case NILFS_SEG_FAIL_CHECKSUM_SUPER_ROOT:
 		printk(KERN_WARNING
@@ -206,19 +201,15 @@ int nilfs_read_super_root_block(struct super_block *sb, sector_t sr_block,
  * @pseg_start: start disk block number of partial segment
  * @seg_seq: sequence number requested
  * @ssi: pointer to nilfs_segsum_info struct to store information
- * @full_check: full check flag
- *              (0: only checks segment summary CRC, 1: data CRC)
  */
 static int
 load_segment_summary(struct nilfs_sb_info *sbi, sector_t pseg_start,
-		     u64 seg_seq, struct nilfs_segsum_info *ssi,
-		     int full_check)
+		     u64 seg_seq, struct nilfs_segsum_info *ssi)
 {
 	struct buffer_head *bh_sum;
 	struct nilfs_segment_summary *sum;
-	unsigned long offset, nblock;
-	u64 check_bytes;
-	u32 crc, crc_sum;
+	unsigned long nblock;
+	u32 crc;
 	int ret = NILFS_SEG_FAIL_IO;
 
 	bh_sum = sb_bread(sbi->s_super, pseg_start);
@@ -237,34 +228,24 @@ load_segment_summary(struct nilfs_sb_info *sbi, sector_t pseg_start,
 		ret = NILFS_SEG_FAIL_SEQ;
 		goto failed;
 	}
-	if (full_check) {
-		offset = sizeof(sum->ss_datasum);
-		check_bytes =
-			((u64)ssi->nblocks << sbi->s_super->s_blocksize_bits);
-		nblock = ssi->nblocks;
-		crc_sum = le32_to_cpu(sum->ss_datasum);
-		ret = NILFS_SEG_FAIL_CHECKSUM_FULL;
-	} else { /* only checks segment summary */
-		offset = sizeof(sum->ss_datasum) + sizeof(sum->ss_sumsum);
-		check_bytes = ssi->sumbytes;
-		nblock = ssi->nsumblk;
-		crc_sum = le32_to_cpu(sum->ss_sumsum);
-		ret = NILFS_SEG_FAIL_CHECKSUM_SEGSUM;
-	}
 
+	nblock = ssi->nblocks;
 	if (unlikely(nblock == 0 ||
 		     nblock > sbi->s_nilfs->ns_blocks_per_segment)) {
 		/* This limits the number of blocks read in the CRC check */
 		ret = NILFS_SEG_FAIL_CONSISTENCY;
 		goto failed;
 	}
-	if (calc_crc_cont(sbi, bh_sum, &crc, offset, check_bytes,
+	if (calc_crc_cont(sbi, bh_sum, &crc, sizeof(sum->ss_datasum),
+			  ((u64)nblock << sbi->s_super->s_blocksize_bits),
 			  pseg_start, nblock)) {
 		ret = NILFS_SEG_FAIL_IO;
 		goto failed;
 	}
-	if (crc == crc_sum)
+	if (crc == le32_to_cpu(sum->ss_datasum))
 		ret = 0;
+	else
+		ret = NILFS_SEG_FAIL_CHECKSUM_FULL;
  failed:
 	brelse(bh_sum);
  out:
@@ -598,7 +579,7 @@ static int nilfs_do_roll_forward(struct the_nilfs *nilfs,
 
 	while (segnum != ri->ri_segnum || pseg_start <= ri->ri_pseg_start) {
 
-		ret = load_segment_summary(sbi, pseg_start, seg_seq, &ssi, 1);
+		ret = load_segment_summary(sbi, pseg_start, seg_seq, &ssi);
 		if (ret) {
 			if (ret == NILFS_SEG_FAIL_IO) {
 				err = -EIO;
@@ -821,7 +802,7 @@ int nilfs_search_super_root(struct the_nilfs *nilfs, struct nilfs_sb_info *sbi,
 
 	for (;;) {
 		/* Load segment summary */
-		ret = load_segment_summary(sbi, pseg_start, seg_seq, &ssi, 1);
+		ret = load_segment_summary(sbi, pseg_start, seg_seq, &ssi);
 		if (ret) {
 			if (ret == NILFS_SEG_FAIL_IO)
 				goto failed;

@@ -1,5 +1,5 @@
 /**
- * Copyright (C) 2005 - 2009 ServerEngines
+ * Copyright (C) 2005 - 2010 ServerEngines
  * All rights reserved.
  *
  * This program is free software; you can redistribute it and/or
@@ -425,14 +425,20 @@ int beiscsi_cmd_mccq_create(struct beiscsi_hba *phba,
 int be_poll_mcc(struct be_ctrl_info *ctrl);
 unsigned char mgmt_check_supported_fw(struct be_ctrl_info *ctrl,
 				      struct beiscsi_hba *phba);
-int be_cmd_get_mac_addr(struct beiscsi_hba *phba, u8 *mac_addr);
-
+unsigned int be_cmd_get_mac_addr(struct beiscsi_hba *phba);
+void free_mcc_tag(struct be_ctrl_info *ctrl, unsigned int tag);
 /*ISCSI Functuions */
 int be_cmd_fw_initialize(struct be_ctrl_info *ctrl);
 
 struct be_mcc_wrb *wrb_from_mbox(struct be_dma_mem *mbox_mem);
 struct be_mcc_wrb *wrb_from_mccq(struct beiscsi_hba *phba);
 int be_mcc_notify_wait(struct beiscsi_hba *phba);
+void be_mcc_notify(struct beiscsi_hba *phba);
+unsigned int alloc_mcc_tag(struct beiscsi_hba *phba);
+void beiscsi_async_link_state_process(struct beiscsi_hba *phba,
+		struct be_async_event_link_state *evt);
+int be_mcc_compl_process_isr(struct be_ctrl_info *ctrl,
+				    struct be_mcc_compl *compl);
 
 int be_mbox_notify(struct be_ctrl_info *ctrl);
 
@@ -447,6 +453,8 @@ int be_cmd_iscsi_post_sgl_pages(struct be_ctrl_info *ctrl,
 
 int be_cmd_wrbq_create(struct be_ctrl_info *ctrl, struct be_dma_mem *q_mem,
 		       struct be_queue_info *wrbq);
+
+bool is_link_state_evt(u32 trailer);
 
 struct be_default_pdu_context {
 	u32 dw[4];

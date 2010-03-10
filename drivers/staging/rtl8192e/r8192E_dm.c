@@ -19,26 +19,28 @@ Major Change History:
 #include "r819xE_phy.h"
 #include "r819xE_phyreg.h"
 #include "r8190_rtl8256.h"
+
+#define DRV_NAME "rtl819xE"
 /*---------------------------Define Local Constant---------------------------*/
 //
 // Indicate different AP vendor for IOT issue.
 //
 #ifdef  RTL8190P
 static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
-{ 0x5e4322, 	0x5e4322, 	0x5e4322,  	0x604322, 	0xa44f, 	0x5e4322};
+{ 0x5e4322, 	0x5e4322, 	0x5e4322,  	0x604322, 	0xa44f, 	0x5e4322,	0x5e4322};
 static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
-{ 0x5e4322, 	0xa44f, 	0x5e4322,  	0x604322, 	0x5e4322, 	0x5e4322};
+{ 0x5e4322, 	0xa44f, 	0x5e4322,  	0x604322, 	0x5e4322, 	0x5e4322,	0x5e4322};
 #else
 #ifdef RTL8192E
 static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
-{ 0x5e4322, 	0x5e4322, 	0x5e4322, 	0x604322, 	0xa44f, 	0x5e4322};
+{ 0x5e4322, 	0x5e4322, 	0x5e4322, 	0x604322, 	0xa44f, 	0x5e4322,	0x5e4322};
 static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
-{ 0x5e4322, 	0xa44f,		0x5e4322,  	0x604322, 	0x5e4322, 	0x5e4322};
+{ 0x5e4322, 	0xa44f,		0x5e4322,  	0x604322, 	0x5e4322, 	0x5e4322, 	0x5e4322};
 #else
 static u32 edca_setting_DL[HT_IOT_PEER_MAX] =
-{ 0x5e4322, 	0x5e4322, 	0x5e4322, 	0x604322, 	0xa44f, 	0x5ea44f};
+{ 0x5e4322, 	0x5e4322, 	0x5e4322, 	0x604322, 	0xa44f, 	0x5ea44f, 	0x5e4322};
 static u32 edca_setting_UL[HT_IOT_PEER_MAX] =
-{ 0x5e4322, 	0xa44f, 	0x5e4322, 	0x604322, 	0x5ea44f, 	0x5ea44f};
+{ 0x5e4322, 	0xa44f, 	0x5e4322, 	0x604322, 	0x5ea44f, 	0x5ea44f, 	0x5e4322};
 #endif
 #endif
 
@@ -275,12 +277,38 @@ void dm_CheckRxAggregation(struct net_device *dev) {
 #endif
 
 
+// call the script file to enable
+void dm_check_ac_dc_power(struct net_device *dev)
+{
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	static char *ac_dc_check_script_path = "/etc/acpi/wireless-rtl-ac-dc-power.sh";
+	char *argv[] = {ac_dc_check_script_path,DRV_NAME,NULL};
+	static char *envp[] = {"HOME=/",
+			"TERM=linux",
+			"PATH=/usr/bin:/bin",
+			 NULL};
+
+	if(priv->ResetProgress == RESET_TYPE_SILENT)
+	{
+		RT_TRACE((COMP_INIT | COMP_POWER | COMP_RF), "GPIOChangeRFWorkItemCallBack(): Silent Reseting!!!!!!!\n");
+		return;
+	}
+
+	if(priv->ieee80211->state != IEEE80211_LINKED) {
+		return;
+	}
+	call_usermodehelper(ac_dc_check_script_path,argv,envp,1);
+
+	return;
+};
 
 void hal_dm_watchdog(struct net_device *dev)
 {
         //struct r8192_priv *priv = ieee80211_priv(dev);
 
 	//static u8 	previous_bssid[6] ={0};
+
+	dm_check_ac_dc_power(dev);
 
 	/*Add by amy 2008/05/15 ,porting from windows code.*/
 	dm_check_rate_adaptive(dev);

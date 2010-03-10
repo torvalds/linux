@@ -240,11 +240,6 @@ int lbs_process_command_response(struct lbs_private *priv, u8 *data, u32 len)
 	/* Now we got response from FW, cancel the command timer */
 	del_timer(&priv->command_timer);
 	priv->cmd_timed_out = 0;
-	if (priv->nr_retries) {
-		lbs_pr_info("Received result %x to command %x after %d retries\n",
-			    result, curcmd, priv->nr_retries);
-		priv->nr_retries = 0;
-	}
 
 	/* Store the response code to cur_cmd_retcode. */
 	priv->cur_cmd_retcode = result;
@@ -485,20 +480,8 @@ int lbs_process_event(struct lbs_private *priv, u32 event)
 		break;
 
 	case MACREG_INT_CODE_MESH_AUTO_STARTED:
-		/* Ignore spurious autostart events if autostart is disabled */
-		if (!priv->mesh_autostart_enabled) {
-			lbs_pr_info("EVENT: MESH_AUTO_STARTED (ignoring)\n");
-			break;
-		}
-		lbs_pr_info("EVENT: MESH_AUTO_STARTED\n");
-		priv->mesh_connect_status = LBS_CONNECTED;
-		if (priv->mesh_open) {
-			netif_carrier_on(priv->mesh_dev);
-			if (!priv->tx_pending_len)
-				netif_wake_queue(priv->mesh_dev);
-		}
-		priv->mode = IW_MODE_ADHOC;
-		schedule_work(&priv->sync_channel);
+		/* Ignore spurious autostart events */
+		lbs_pr_info("EVENT: MESH_AUTO_STARTED (ignoring)\n");
 		break;
 
 	default:

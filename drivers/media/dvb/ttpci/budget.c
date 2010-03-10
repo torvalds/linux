@@ -433,9 +433,8 @@ static struct stv090x_config tt1600_stv090x_config = {
 	.demod_mode		= STV090x_SINGLE,
 	.clk_mode		= STV090x_CLK_EXT,
 
-	.xtal			= 27000000,
+	.xtal			= 13500000,
 	.address		= 0x68,
-	.ref_clk		= 27000000,
 
 	.ts1_mode		= STV090x_TSMODE_DVBCI,
 	.ts2_mode		= STV090x_TSMODE_SERIAL_CONTINUOUS,
@@ -457,6 +456,7 @@ static struct stv090x_config tt1600_stv090x_config = {
 static struct stv6110x_config tt1600_stv6110x_config = {
 	.addr			= 0x60,
 	.refclk			= 27000000,
+	.clk_div		= 2,
 };
 
 static struct isl6423_config tt1600_isl6423_config = {

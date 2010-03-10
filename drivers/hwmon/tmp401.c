@@ -134,7 +134,7 @@ struct tmp401_data {
 	struct mutex update_lock;
 	char valid; /* zero until following fields are valid */
 	unsigned long last_updated; /* in jiffies */
-	int kind;
+	enum chips kind;
 
 	/* register values */
 	u8 status;
@@ -524,7 +524,7 @@ static int tmp401_detect(struct i2c_client *client,
 	if (reg > 15)
 		return -ENODEV;
 
-	strlcpy(info->type, tmp401_id[kind - 1].name, I2C_NAME_SIZE);
+	strlcpy(info->type, tmp401_id[kind].name, I2C_NAME_SIZE);
 
 	return 0;
 }
@@ -572,8 +572,7 @@ static int tmp401_probe(struct i2c_client *client,
 		goto exit_remove;
 	}
 
-	dev_info(&client->dev, "Detected TI %s chip\n",
-		 names[data->kind - 1]);
+	dev_info(&client->dev, "Detected TI %s chip\n", names[data->kind]);
 
 	return 0;
 

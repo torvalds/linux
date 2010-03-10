@@ -1,7 +1,7 @@
 /*
  * Compressed RAM based swap device
  *
- * Copyright (C) 2008, 2009  Nitin Gupta
+ * Copyright (C) 2008, 2009, 2010  Nitin Gupta
  *
  * This code is released using a dual license strategy: BSD/GPL
  * You can choose the licence that better fits your requirements.
@@ -24,9 +24,10 @@ struct ramzswap_ioctl_stats {
 				 * size (if present) */
 	u64 num_reads;		/* failed + successful */
 	u64 num_writes;		/* --do-- */
-	u64 failed_reads;	/* can happen when memory is too low */
-	u64 failed_writes;	/* should NEVER! happen */
+	u64 failed_reads;	/* should NEVER! happen */
+	u64 failed_writes;	/* can happen when memory is too low */
 	u64 invalid_io;		/* non-swap I/O requests */
+	u64 notify_free;	/* no. of swap slot free notifications */
 	u32 pages_zero;		/* no. of zero filled pages */
 	u32 good_compress_pct;	/* no. of pages with compression ratio<=50% */
 	u32 pages_expand_pct;	/* no. of incompressible pages */

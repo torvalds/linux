@@ -280,6 +280,7 @@ ip6t_get_target(struct ip6t_entry *e)
 	return (void *)e + e->target_offset;
 }
 
+#ifndef __KERNEL__
 /* fn returns 0 to continue iteration */
 #define IP6T_MATCH_ITERATE(e, fn, args...) \
 	XT_MATCH_ITERATE(struct ip6t_entry, e, fn, ## args)
@@ -287,6 +288,7 @@ ip6t_get_target(struct ip6t_entry *e)
 /* fn returns 0 to continue iteration */
 #define IP6T_ENTRY_ITERATE(entries, size, fn, args...) \
 	XT_ENTRY_ITERATE(struct ip6t_entry, entries, size, fn, ## args)
+#endif
 
 /*
  *	Main firewall chains definitions and global var's definitions.
@@ -297,10 +299,11 @@ ip6t_get_target(struct ip6t_entry *e)
 #include <linux/init.h>
 extern void ip6t_init(void) __init;
 
+extern void *ip6t_alloc_initial_table(const struct xt_table *);
 extern struct xt_table *ip6t_register_table(struct net *net,
 					    const struct xt_table *table,
 					    const struct ip6t_replace *repl);
-extern void ip6t_unregister_table(struct xt_table *table);
+extern void ip6t_unregister_table(struct net *net, struct xt_table *table);
 extern unsigned int ip6t_do_table(struct sk_buff *skb,
 				  unsigned int hook,
 				  const struct net_device *in,
@@ -339,18 +342,6 @@ compat_ip6t_get_target(struct compat_ip6t_entry *e)
 }
 
 #define COMPAT_IP6T_ALIGN(s)	COMPAT_XT_ALIGN(s)
-
-/* fn returns 0 to continue iteration */
-#define COMPAT_IP6T_MATCH_ITERATE(e, fn, args...) \
-	XT_MATCH_ITERATE(struct compat_ip6t_entry, e, fn, ## args)
-
-/* fn returns 0 to continue iteration */
-#define COMPAT_IP6T_ENTRY_ITERATE(entries, size, fn, args...) \
-	XT_ENTRY_ITERATE(struct compat_ip6t_entry, entries, size, fn, ## args)
-
-#define COMPAT_IP6T_ENTRY_ITERATE_CONTINUE(entries, size, n, fn, args...) \
-	XT_ENTRY_ITERATE_CONTINUE(struct compat_ip6t_entry, entries, size, n, \
-				  fn, ## args)
 
 #endif /* CONFIG_COMPAT */
 #endif /*__KERNEL__*/

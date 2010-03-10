@@ -87,7 +87,7 @@ struct ext3_inode_info {
 	 * near to their parent directory's inode.
 	 */
 	__u32	i_block_group;
-	__u32	i_state;		/* Dynamic state flags for ext3 */
+	unsigned long	i_state;	/* Dynamic state flags for ext3 */
 
 	/* block reservation info */
 	struct ext3_block_alloc_info *i_block_alloc_info;

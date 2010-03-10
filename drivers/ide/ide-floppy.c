@@ -486,7 +486,7 @@ static void ide_floppy_setup(ide_drive_t *drive)
 		drive->atapi_flags |= IDE_AFLAG_ZIP_DRIVE;
 		/* This value will be visible in the /proc/ide/hdx/settings */
 		drive->pc_delay = IDEFLOPPY_PC_DELAY;
-		blk_queue_max_sectors(drive->queue, 64);
+		blk_queue_max_hw_sectors(drive->queue, 64);
 	}
 
 	/*
@@ -494,7 +494,7 @@ static void ide_floppy_setup(ide_drive_t *drive)
 	 * nasty clicking noises without it, so please don't remove this.
 	 */
 	if (strncmp((char *)&id[ATA_ID_PROD], "IOMEGA Clik!", 11) == 0) {
-		blk_queue_max_sectors(drive->queue, 64);
+		blk_queue_max_hw_sectors(drive->queue, 64);
 		drive->atapi_flags |= IDE_AFLAG_CLIK_DRIVE;
 		/* IOMEGA Clik! drives do not support lock/unlock commands */
 		drive->dev_flags &= ~IDE_DFLAG_DOORLOCKING;

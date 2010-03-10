@@ -44,7 +44,6 @@
 #include <linux/slab.h>
 #include <linux/input.h>
 #include <linux/usb.h>
-#include <linux/smp_lock.h>
 #include <linux/fcntl.h>
 #include <linux/compiler.h>
 #include "comedi_fc.h"
@@ -182,7 +181,7 @@ struct usbduxfastsub_s {
 						   context */
 	short int ai_cmd_running;	/* asynchronous command is running */
 	short int ai_continous;	/* continous aquisition */
-	long int ai_sample_count;	/* number of samples to aquire */
+	long int ai_sample_count;	/* number of samples to acquire */
 	uint8_t *dux_commands;	/* commands */
 	int ignore;		/* counter which ignores the first
 				   buffers */
@@ -1769,7 +1768,7 @@ static struct comedi_driver driver_usbduxfast = {
 /*
  * Table with the USB-devices: just now only testing IDs
  */
-static struct usb_device_id usbduxfastsub_table[] = {
+static const struct usb_device_id usbduxfastsub_table[] = {
 	/* { USB_DEVICE(0x4b4, 0x8613) }, testing */
 	{USB_DEVICE(0x13d8, 0x0010)},	/* real ID */
 	{USB_DEVICE(0x13d8, 0x0011)},	/* real ID */

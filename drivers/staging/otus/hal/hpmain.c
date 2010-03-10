@@ -1316,7 +1316,6 @@ void zfHpSetFrequencyEx(zdev_t* dev, u32_t frequency, u8_t bw40,
         u8_t extOffset, u8_t initRF)
 {
     u32_t cmd[9];
-    u32_t cmdB[3];
     u16_t ret;
     u8_t old_band;
     u8_t new_band;
@@ -3434,7 +3433,6 @@ void zfSetPowerCalTable(zdev_t* dev, u32_t frequency, u8_t bw40, u8_t extOffset)
     /* Write PHY regs 672-703 */
     for (i=0; i<128; i+=4)
     {
-        u32_t regAddr = 0x9800 + (672 * 4);
         u32_t val;
 
         val = ((u32_t)vpd_chain1[i+3]<<24) |
@@ -3485,7 +3483,6 @@ void zfSetPowerCalTable(zdev_t* dev, u32_t frequency, u8_t bw40, u8_t extOffset)
     /* Write PHY regs 672-703 + 0x1000 */
     for (i=0; i<128; i+=4)
     {
-        u32_t regAddr = 0x9800 + (672 * 4) + 0x1000;
         u32_t val;
 
         val = ((u32_t)vpd_chain3[i+3]<<24) |
@@ -4584,7 +4581,6 @@ void zfHpSetRollCallTable(zdev_t* dev)
 void zfHpSetTTSIFSTime(zdev_t* dev, u8_t sifs_time)
 {
     u32_t reg_value = 0;
-    zmw_get_wlan_dev(dev);
 
     sifs_time &= 0x3f;
     reg_value = 0x14400b | (((u32_t)sifs_time)<<24);

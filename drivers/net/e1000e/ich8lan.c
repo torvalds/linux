@@ -3368,6 +3368,7 @@ static struct e1000_mac_operations ich8_mac_ops = {
 	/* cleanup_led dependent on mac type */
 	.clear_hw_cntrs		= e1000_clear_hw_cntrs_ich8lan,
 	.get_bus_info		= e1000_get_bus_info_ich8lan,
+	.set_lan_id		= e1000_set_lan_id_single_port,
 	.get_link_up_info	= e1000_get_link_up_info_ich8lan,
 	/* led_on dependent on mac type */
 	/* led_off dependent on mac type */

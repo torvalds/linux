@@ -52,7 +52,7 @@
 #endif
 
 static int
-p9pdu_writef(struct p9_fcall *pdu, int optional, const char *fmt, ...);
+p9pdu_writef(struct p9_fcall *pdu, int proto_version, const char *fmt, ...);
 
 #ifdef CONFIG_NET_9P_DEBUG
 void
@@ -144,7 +144,8 @@ pdu_write_u(struct p9_fcall *pdu, const char __user *udata, size_t size)
 */
 
 static int
-p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
+p9pdu_vreadf(struct p9_fcall *pdu, int proto_version, const char *fmt,
+	va_list ap)
 {
 	const char *ptr;
 	int errcode = 0;
@@ -194,7 +195,8 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				int16_t len;
 				int size;
 
-				errcode = p9pdu_readf(pdu, optional, "w", &len);
+				errcode = p9pdu_readf(pdu, proto_version,
+								"w", &len);
 				if (errcode)
 					break;
 
@@ -217,7 +219,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				struct p9_qid *qid =
 				    va_arg(ap, struct p9_qid *);
 
-				errcode = p9pdu_readf(pdu, optional, "bdq",
+				errcode = p9pdu_readf(pdu, proto_version, "bdq",
 						      &qid->type, &qid->version,
 						      &qid->path);
 			}
@@ -230,7 +232,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				stbuf->n_uid = stbuf->n_gid = stbuf->n_muid =
 									-1;
 				errcode =
-				    p9pdu_readf(pdu, optional,
+				    p9pdu_readf(pdu, proto_version,
 						"wwdQdddqssss?sddd",
 						&stbuf->size, &stbuf->type,
 						&stbuf->dev, &stbuf->qid,
@@ -250,7 +252,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				void **data = va_arg(ap, void **);
 
 				errcode =
-				    p9pdu_readf(pdu, optional, "d", count);
+				    p9pdu_readf(pdu, proto_version, "d", count);
 				if (!errcode) {
 					*count =
 					    MIN(*count,
@@ -263,8 +265,8 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				int16_t *nwname = va_arg(ap, int16_t *);
 				char ***wnames = va_arg(ap, char ***);
 
-				errcode =
-				    p9pdu_readf(pdu, optional, "w", nwname);
+				errcode = p9pdu_readf(pdu, proto_version,
+								"w", nwname);
 				if (!errcode) {
 					*wnames =
 					    kmalloc(sizeof(char *) * *nwname,
@@ -278,7 +280,8 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 
 					for (i = 0; i < *nwname; i++) {
 						errcode =
-						    p9pdu_readf(pdu, optional,
+						    p9pdu_readf(pdu,
+								proto_version,
 								"s",
 								&(*wnames)[i]);
 						if (errcode)
@@ -306,7 +309,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				*wqids = NULL;
 
 				errcode =
-				    p9pdu_readf(pdu, optional, "w", nwqid);
+				    p9pdu_readf(pdu, proto_version, "w", nwqid);
 				if (!errcode) {
 					*wqids =
 					    kmalloc(*nwqid *
@@ -321,7 +324,8 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 
 					for (i = 0; i < *nwqid; i++) {
 						errcode =
-						    p9pdu_readf(pdu, optional,
+						    p9pdu_readf(pdu,
+								proto_version,
 								"Q",
 								&(*wqids)[i]);
 						if (errcode)
@@ -336,7 +340,7 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 			}
 			break;
 		case '?':
-			if (!optional)
+			if (proto_version != p9_proto_2000u)
 				return 0;
 			break;
 		default:
@@ -352,7 +356,8 @@ p9pdu_vreadf(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 }
 
 int
-p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
+p9pdu_vwritef(struct p9_fcall *pdu, int proto_version, const char *fmt,
+	va_list ap)
 {
 	const char *ptr;
 	int errcode = 0;
@@ -389,7 +394,8 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				if (sptr)
 					len = MIN(strlen(sptr), USHORT_MAX);
 
-				errcode = p9pdu_writef(pdu, optional, "w", len);
+				errcode = p9pdu_writef(pdu, proto_version,
+								"w", len);
 				if (!errcode && pdu_write(pdu, sptr, len))
 					errcode = -EFAULT;
 			}
@@ -398,7 +404,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				const struct p9_qid *qid =
 				    va_arg(ap, const struct p9_qid *);
 				errcode =
-				    p9pdu_writef(pdu, optional, "bdq",
+				    p9pdu_writef(pdu, proto_version, "bdq",
 						 qid->type, qid->version,
 						 qid->path);
 			} break;
@@ -406,7 +412,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				const struct p9_wstat *stbuf =
 				    va_arg(ap, const struct p9_wstat *);
 				errcode =
-				    p9pdu_writef(pdu, optional,
+				    p9pdu_writef(pdu, proto_version,
 						 "wwdQdddqssss?sddd",
 						 stbuf->size, stbuf->type,
 						 stbuf->dev, &stbuf->qid,
@@ -421,8 +427,8 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				int32_t count = va_arg(ap, int32_t);
 				const void *data = va_arg(ap, const void *);
 
-				errcode =
-				    p9pdu_writef(pdu, optional, "d", count);
+				errcode = p9pdu_writef(pdu, proto_version, "d",
+									count);
 				if (!errcode && pdu_write(pdu, data, count))
 					errcode = -EFAULT;
 			}
@@ -431,8 +437,8 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				int32_t count = va_arg(ap, int32_t);
 				const char __user *udata =
 						va_arg(ap, const void __user *);
-				errcode =
-				    p9pdu_writef(pdu, optional, "d", count);
+				errcode = p9pdu_writef(pdu, proto_version, "d",
+									count);
 				if (!errcode && pdu_write_u(pdu, udata, count))
 					errcode = -EFAULT;
 			}
@@ -441,14 +447,15 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				int16_t nwname = va_arg(ap, int);
 				const char **wnames = va_arg(ap, const char **);
 
-				errcode =
-				    p9pdu_writef(pdu, optional, "w", nwname);
+				errcode = p9pdu_writef(pdu, proto_version, "w",
+									nwname);
 				if (!errcode) {
 					int i;
 
 					for (i = 0; i < nwname; i++) {
 						errcode =
-						    p9pdu_writef(pdu, optional,
+						    p9pdu_writef(pdu,
+								proto_version,
 								 "s",
 								 wnames[i]);
 						if (errcode)
@@ -462,14 +469,15 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 				struct p9_qid *wqids =
 				    va_arg(ap, struct p9_qid *);
 
-				errcode =
-				    p9pdu_writef(pdu, optional, "w", nwqid);
+				errcode = p9pdu_writef(pdu, proto_version, "w",
+									nwqid);
 				if (!errcode) {
 					int i;
 
 					for (i = 0; i < nwqid; i++) {
 						errcode =
-						    p9pdu_writef(pdu, optional,
+						    p9pdu_writef(pdu,
+								proto_version,
 								 "Q",
 								 &wqids[i]);
 						if (errcode)
@@ -479,7 +487,7 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 			}
 			break;
 		case '?':
-			if (!optional)
+			if (proto_version != p9_proto_2000u)
 				return 0;
 			break;
 		default:
@@ -494,32 +502,32 @@ p9pdu_vwritef(struct p9_fcall *pdu, int optional, const char *fmt, va_list ap)
 	return errcode;
 }
 
-int p9pdu_readf(struct p9_fcall *pdu, int optional, const char *fmt, ...)
+int p9pdu_readf(struct p9_fcall *pdu, int proto_version, const char *fmt, ...)
 {
 	va_list ap;
 	int ret;
 
 	va_start(ap, fmt);
-	ret = p9pdu_vreadf(pdu, optional, fmt, ap);
+	ret = p9pdu_vreadf(pdu, proto_version, fmt, ap);
 	va_end(ap);
 
 	return ret;
 }
 
 static int
-p9pdu_writef(struct p9_fcall *pdu, int optional, const char *fmt, ...)
+p9pdu_writef(struct p9_fcall *pdu, int proto_version, const char *fmt, ...)
 {
 	va_list ap;
 	int ret;
 
 	va_start(ap, fmt);
-	ret = p9pdu_vwritef(pdu, optional, fmt, ap);
+	ret = p9pdu_vwritef(pdu, proto_version, fmt, ap);
 	va_end(ap);
 
 	return ret;
 }
 
-int p9stat_read(char *buf, int len, struct p9_wstat *st, int dotu)
+int p9stat_read(char *buf, int len, struct p9_wstat *st, int proto_version)
 {
 	struct p9_fcall fake_pdu;
 	int ret;
@@ -529,7 +537,7 @@ int p9stat_read(char *buf, int len, struct p9_wstat *st, int dotu)
 	fake_pdu.sdata = buf;
 	fake_pdu.offset = 0;
 
-	ret = p9pdu_readf(&fake_pdu, dotu, "S", st);
+	ret = p9pdu_readf(&fake_pdu, proto_version, "S", st);
 	if (ret) {
 		P9_DPRINTK(P9_DEBUG_9P, "<<< p9stat_read failed: %d\n", ret);
 		p9pdu_dump(1, &fake_pdu);

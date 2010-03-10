@@ -385,7 +385,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (!(keyidx & (1 << 5))) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "TKIP: received packet without ExtIV"
-			       " flag from " MAC_FMT "\n", MAC_ARG(hdr->addr2));
+			       " flag from %pM\n", hdr->addr2);
 		}
 		return -2;
 	}
@@ -397,9 +397,9 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	}
 	if (!tkey->key_set) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP: received packet from " MAC_FMT
+			printk(KERN_DEBUG "TKIP: received packet from %pM"
 			       " with keyid=%d that does not have a configured"
-			       " key\n", MAC_ARG(hdr->addr2), keyidx);
+			       " key\n", hdr->addr2, keyidx);
 		}
 		return -3;
 	}
@@ -410,9 +410,9 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (iv32 < tkey->rx_iv32 ||
 	    (iv32 == tkey->rx_iv32 && iv16 <= tkey->rx_iv16)) {
 		if (net_ratelimit()) {
-			printk(KERN_DEBUG "TKIP: replay detected: STA=" MAC_FMT
+			printk(KERN_DEBUG "TKIP: replay detected: STA=%pM"
 			       " previous TSC %08x%04x received TSC "
-			       "%08x%04x\n", MAC_ARG(hdr->addr2),
+			       "%08x%04x\n", hdr->addr2,
 			       tkey->rx_iv32, tkey->rx_iv16, iv32, iv16);
 		}
 		tkey->dot11RSNAStatsTKIPReplays++;
@@ -431,8 +431,8 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (crypto_blkcipher_decrypt(&desc, &sg, &sg, plen + 4)) {
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG ": TKIP: failed to decrypt "
-			       "received packet from " MAC_FMT "\n",
-			       MAC_ARG(hdr->addr2));
+			       "received packet from %pM\n",
+			       hdr->addr2);
 		}
 		return -7;
 	}
@@ -450,7 +450,7 @@ static int ieee80211_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		}
 		if (net_ratelimit()) {
 			printk(KERN_DEBUG "TKIP: ICV error detected: STA="
-			       MAC_FMT "\n", MAC_ARG(hdr->addr2));
+			       "%pM\n", hdr->addr2);
 		}
 		tkey->dot11RSNAStatsTKIPICVErrors++;
 		return -5;
@@ -604,8 +604,8 @@ static int ieee80211_michael_mic_verify(struct sk_buff *skb, int keyidx,
 		struct ieee80211_hdr_4addr *hdr;
 		hdr = (struct ieee80211_hdr_4addr *)skb->data;
 		printk(KERN_DEBUG "%s: Michael MIC verification failed for "
-		       "MSDU from " MAC_FMT " keyidx=%d\n",
-		       skb->dev ? skb->dev->name : "N/A", MAC_ARG(hdr->addr2),
+		       "MSDU from %pM keyidx=%d\n",
+		       skb->dev ? skb->dev->name : "N/A", hdr->addr2,
 		       keyidx);
 		if (skb->dev)
 			ieee80211_michael_mic_failure(skb->dev, hdr, keyidx);

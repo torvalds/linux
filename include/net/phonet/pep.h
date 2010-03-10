@@ -44,6 +44,7 @@ struct pep_sock {
 	u8			rx_fc;	/* RX flow control */
 	u8			tx_fc;	/* TX flow control */
 	u8			init_enable;	/* auto-enable at creation */
+	u8			aligned;
 };
 
 static inline struct pep_sock *pep_sk(struct sock *sk)
@@ -77,6 +78,7 @@ static inline struct pnpipehdr *pnp_hdr(struct sk_buff *skb)
 
 enum {
 	PNS_PIPE_DATA = 0x20,
+	PNS_PIPE_ALIGNED_DATA,
 
 	PNS_PEP_CONNECT_REQ = 0x40,
 	PNS_PEP_CONNECT_RESP,
@@ -138,6 +140,7 @@ enum {
 	PN_PIPE_SB_NEGOTIATED_FC,
 	PN_PIPE_SB_REQUIRED_FC_TX,
 	PN_PIPE_SB_PREFERRED_FC_RX,
+	PN_PIPE_SB_ALIGNED_DATA,
 };
 
 /* Phonet pipe flow control models */

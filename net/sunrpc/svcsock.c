@@ -968,6 +968,7 @@ static int svc_tcp_recv_record(struct svc_sock *svsk, struct svc_rqst *rqstp)
 	return len;
  err_delete:
 	set_bit(XPT_CLOSE, &svsk->sk_xprt.xpt_flags);
+	svc_xprt_received(&svsk->sk_xprt);
  err_again:
 	return -EAGAIN;
 }
@@ -1357,7 +1358,7 @@ int svc_addsock(struct svc_serv *serv, const int fd, char *name_return,
 
 	if (!so)
 		return err;
-	if (so->sk->sk_family != AF_INET)
+	if ((so->sk->sk_family != PF_INET) && (so->sk->sk_family != PF_INET6))
 		err =  -EAFNOSUPPORT;
 	else if (so->sk->sk_protocol != IPPROTO_TCP &&
 	    so->sk->sk_protocol != IPPROTO_UDP)

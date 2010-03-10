@@ -5,8 +5,8 @@
  * Author: Matt Porter <mporter@mvista.com> Derived from
  * arch/ppc/boot/prep/misc.c
  *
- * Copyright (C) 2009 Lemote, Inc. & Institute of Computing Technology
- * Author: Wu Zhangjin <wuzj@lemote.com>
+ * Copyright (C) 2009 Lemote, Inc.
+ * Author: Wu Zhangjin <wuzhangjin@gmail.com>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -75,6 +75,10 @@ void *memset(void *s, int c, size_t n)
 
 #ifdef CONFIG_KERNEL_LZMA
 #include "../../../../lib/decompress_unlzma.c"
+#endif
+
+#ifdef CONFIG_KERNEL_LZO
+#include "../../../../lib/decompress_unlzo.c"
 #endif
 
 void decompress_kernel(unsigned long boot_heap_start)

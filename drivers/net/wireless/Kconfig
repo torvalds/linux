@@ -112,6 +112,7 @@ config AIRO_CS
 	depends on PCMCIA && (BROKEN || !M32R)
 	select WIRELESS_EXT
 	select WEXT_SPY
+	select WEXT_PRIV
 	select CRYPTO
 	select CRYPTO_AES
 	---help---

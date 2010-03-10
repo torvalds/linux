@@ -33,7 +33,7 @@ struct access_method {
 		struct CommandList *c);
 	void (*set_intr_mask)(struct ctlr_info *h, unsigned long val);
 	unsigned long (*fifo_full)(struct ctlr_info *h);
-	unsigned long (*intr_pending)(struct ctlr_info *h);
+	bool (*intr_pending)(struct ctlr_info *h);
 	unsigned long (*command_completed)(struct ctlr_info *h);
 };
 
@@ -55,19 +55,20 @@ struct ctlr_info {
 	char    *product_name;
 	char	firm_ver[4]; /* Firmware version */
 	struct pci_dev *pdev;
-	__u32	board_id;
+	u32	board_id;
 	void __iomem *vaddr;
 	unsigned long paddr;
 	int 	nr_cmds; /* Number of commands allowed on this controller */
 	struct CfgTable __iomem *cfgtable;
+	int     max_sg_entries;
 	int	interrupts_enabled;
 	int	major;
 	int 	max_commands;
 	int	commands_outstanding;
 	int 	max_outstanding; /* Debug */
 	int	usage_count;  /* number of opens all all minor devices */
-#	define DOORBELL_INT	0
-#	define PERF_MODE_INT	1
+#	define PERF_MODE_INT	0
+#	define DOORBELL_INT	1
 #	define SIMPLE_MODE_INT	2
 #	define MEMQ_MODE_INT	3
 	unsigned int intr[4];
@@ -93,6 +94,9 @@ struct ctlr_info {
 	int			nr_frees;
 	int			busy_initializing;
 	int			busy_scanning;
+	int			scan_finished;
+	spinlock_t		scan_lock;
+	wait_queue_head_t	scan_wait_queue;
 	struct mutex		busy_shutting_down;
 	struct list_head	scan_list;
 	struct completion	scan_wait;
@@ -102,6 +106,24 @@ struct ctlr_info {
 	int ndevices; /* number of used elements in .dev[] array. */
 #define HPSA_MAX_SCSI_DEVS_PER_HBA 256
 	struct hpsa_scsi_dev_t *dev[HPSA_MAX_SCSI_DEVS_PER_HBA];
+	/*
+	 * Performant mode tables.
+	 */
+	u32 trans_support;
+	u32 trans_offset;
+	struct TransTable_struct *transtable;
+	unsigned long transMethod;
+
+	/*
+	 * Performant mode completion buffer
+	 */
+	u64 *reply_pool;
+	dma_addr_t reply_pool_dhandle;
+	u64 *reply_pool_head;
+	size_t reply_pool_size;
+	unsigned char reply_pool_wraparound;
+	u32 *blockFetchTable;
+	unsigned char *hba_inquiry_data;
 };
 #define HPSA_ABORT_MSG 0
 #define HPSA_DEVICE_RESET_MSG 1
@@ -164,9 +186,16 @@ struct ctlr_info {
 #define HPSA_FIRMWARE_READY	0xffff0000 /* value in scratchpad register */
 
 #define HPSA_ERROR_BIT		0x02
-#define HPSA_TAG_CONTAINS_INDEX(tag) ((tag) & 0x04)
-#define HPSA_TAG_TO_INDEX(tag) ((tag) >> 3)
-#define HPSA_TAG_DISCARD_ERROR_BITS(tag) ((tag) & ~3)
+
+/* Performant mode flags */
+#define SA5_PERF_INTR_PENDING   0x04
+#define SA5_PERF_INTR_OFF       0x05
+#define SA5_OUTDB_STATUS_PERF_BIT       0x01
+#define SA5_OUTDB_CLEAR_PERF_BIT        0x01
+#define SA5_OUTDB_CLEAR         0xA0
+#define SA5_OUTDB_CLEAR_PERF_BIT        0x01
+#define SA5_OUTDB_STATUS        0x9C
+
 
 #define HPSA_INTR_ON 	1
 #define HPSA_INTR_OFF	0
@@ -176,10 +205,8 @@ struct ctlr_info {
 static void SA5_submit_command(struct ctlr_info *h,
 	struct CommandList *c)
 {
-#ifdef HPSA_DEBUG
-	 printk(KERN_WARNING "hpsa: Sending %x - down to controller\n",
-		c->busaddr);
-#endif /* HPSA_DEBUG */
+	dev_dbg(&h->pdev->dev, "Sending %x, tag = %x\n", c->busaddr,
+		c->Header.Tag.lower);
 	writel(c->busaddr, h->vaddr + SA5_REQUEST_PORT_OFFSET);
 	h->commands_outstanding++;
 	if (h->commands_outstanding > h->max_outstanding)
@@ -202,6 +229,52 @@ static void SA5_intr_mask(struct ctlr_info *h, unsigned long val)
 			h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
 	}
 }
+
+static void SA5_performant_intr_mask(struct ctlr_info *h, unsigned long val)
+{
+	if (val) { /* turn on interrupts */
+		h->interrupts_enabled = 1;
+		writel(0, h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+	} else {
+		h->interrupts_enabled = 0;
+		writel(SA5_PERF_INTR_OFF,
+			h->vaddr + SA5_REPLY_INTR_MASK_OFFSET);
+	}
+}
+
+static unsigned long SA5_performant_completed(struct ctlr_info *h)
+{
+	unsigned long register_value = FIFO_EMPTY;
+
+	/* flush the controller write of the reply queue by reading
+	 * outbound doorbell status register.
+	 */
+	register_value = readl(h->vaddr + SA5_OUTDB_STATUS);
+	/* msi auto clears the interrupt pending bit. */
+	if (!(h->msi_vector || h->msix_vector)) {
+		writel(SA5_OUTDB_CLEAR_PERF_BIT, h->vaddr + SA5_OUTDB_CLEAR);
+		/* Do a read in order to flush the write to the controller
+		 * (as per spec.)
+		 */
+		register_value = readl(h->vaddr + SA5_OUTDB_STATUS);
+	}
+
+	if ((*(h->reply_pool_head) & 1) == (h->reply_pool_wraparound)) {
+		register_value = *(h->reply_pool_head);
+		(h->reply_pool_head)++;
+		h->commands_outstanding--;
+	} else {
+		register_value = FIFO_EMPTY;
+	}
+	/* Check for wraparound */
+	if (h->reply_pool_head == (h->reply_pool + h->max_commands)) {
+		h->reply_pool_head = h->reply_pool;
+		h->reply_pool_wraparound ^= 1;
+	}
+
+	return register_value;
+}
+
 /*
  *  Returns true if fifo is full.
  *
@@ -228,10 +301,10 @@ static unsigned long SA5_completed(struct ctlr_info *h)
 
 #ifdef HPSA_DEBUG
 	if (register_value != FIFO_EMPTY)
-		printk(KERN_INFO "hpsa:  Read %lx back from board\n",
+		dev_dbg(&h->pdev->dev, "Read %lx back from board\n",
 			register_value);
 	else
-		printk(KERN_INFO "hpsa:  FIFO Empty read\n");
+		dev_dbg(&h->pdev->dev, "hpsa: FIFO Empty read\n");
 #endif
 
 	return register_value;
@@ -239,18 +312,28 @@ static unsigned long SA5_completed(struct ctlr_info *h)
 /*
  *	Returns true if an interrupt is pending..
  */
-static unsigned long SA5_intr_pending(struct ctlr_info *h)
+static bool SA5_intr_pending(struct ctlr_info *h)
 {
 	unsigned long register_value  =
 		readl(h->vaddr + SA5_INTR_STATUS);
-#ifdef HPSA_DEBUG
-	printk(KERN_INFO "hpsa: intr_pending %lx\n", register_value);
-#endif  /* HPSA_DEBUG */
-	if (register_value &  SA5_INTR_PENDING)
-		return  1;
-	return 0 ;
+	dev_dbg(&h->pdev->dev, "intr_pending %lx\n", register_value);
+	return register_value & SA5_INTR_PENDING;
 }
 
+static bool SA5_performant_intr_pending(struct ctlr_info *h)
+{
+	unsigned long register_value = readl(h->vaddr + SA5_INTR_STATUS);
+
+	if (!register_value)
+		return false;
+
+	if (h->msi_vector || h->msix_vector)
+		return true;
+
+	/* Read outbound doorbell to flush */
+	register_value = readl(h->vaddr + SA5_OUTDB_STATUS);
+	return register_value & SA5_OUTDB_STATUS_PERF_BIT;
+}
 
 static struct access_method SA5_access = {
 	SA5_submit_command,
@@ -260,14 +343,19 @@ static struct access_method SA5_access = {
 	SA5_completed,
 };
 
+static struct access_method SA5_performant_access = {
+	SA5_submit_command,
+	SA5_performant_intr_mask,
+	SA5_fifo_full,
+	SA5_performant_intr_pending,
+	SA5_performant_completed,
+};
+
 struct board_type {
-	__u32	board_id;
+	u32	board_id;
 	char	*product_name;
 	struct access_method *access;
 };
-
-
-/* end of old hpsa_scsi.h file */
 
 #endif /* HPSA_H */
 

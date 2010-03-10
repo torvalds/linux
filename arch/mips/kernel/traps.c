@@ -50,6 +50,7 @@
 #include <asm/types.h>
 #include <asm/stacktrace.h>
 #include <asm/irq.h>
+#include <asm/uasm.h>
 
 extern void check_wait(void);
 extern asmlinkage void r4k_wait(void);
@@ -1271,21 +1272,25 @@ unsigned long ebase;
 unsigned long exception_handlers[32];
 unsigned long vi_handlers[64];
 
-/*
- * As a side effect of the way this is implemented we're limited
- * to interrupt handlers in the address range from
- * KSEG0 <= x < KSEG0 + 256mb on the Nevada.  Oh well ...
- */
-void *set_except_vector(int n, void *addr)
+void __init *set_except_vector(int n, void *addr)
 {
 	unsigned long handler = (unsigned long) addr;
 	unsigned long old_handler = exception_handlers[n];
 
 	exception_handlers[n] = handler;
 	if (n == 0 && cpu_has_divec) {
-		*(u32 *)(ebase + 0x200) = 0x08000000 |
-					  (0x03ffffff & (handler >> 2));
-		local_flush_icache_range(ebase + 0x200, ebase + 0x204);
+		unsigned long jump_mask = ~((1 << 28) - 1);
+		u32 *buf = (u32 *)(ebase + 0x200);
+		unsigned int k0 = 26;
+		if ((handler & jump_mask) == ((ebase + 0x200) & jump_mask)) {
+			uasm_i_j(&buf, handler & ~jump_mask);
+			uasm_i_nop(&buf);
+		} else {
+			UASM_i_LA(&buf, k0, handler);
+			uasm_i_jr(&buf, k0);
+			uasm_i_nop(&buf);
+		}
+		local_flush_icache_range(ebase + 0x200, (unsigned long)buf);
 	}
 	return (void *)old_handler;
 }
@@ -1403,6 +1408,7 @@ extern void flush_tlb_handlers(void);
  * Timer interrupt
  */
 int cp0_compare_irq;
+int cp0_compare_irq_shift;
 
 /*
  * Performance counter IRQ or -1 if shared with timer
@@ -1493,12 +1499,14 @@ void __cpuinit per_cpu_trap_init(void)
 	 *  o read IntCtl.IPPCI to determine the performance counter interrupt
 	 */
 	if (cpu_has_mips_r2) {
-		cp0_compare_irq = (read_c0_intctl() >> 29) & 7;
-		cp0_perfcount_irq = (read_c0_intctl() >> 26) & 7;
+		cp0_compare_irq_shift = CAUSEB_TI - CAUSEB_IP;
+		cp0_compare_irq = (read_c0_intctl() >> INTCTLB_IPTI) & 7;
+		cp0_perfcount_irq = (read_c0_intctl() >> INTCTLB_IPPCI) & 7;
 		if (cp0_perfcount_irq == cp0_compare_irq)
 			cp0_perfcount_irq = -1;
 	} else {
 		cp0_compare_irq = CP0_LEGACY_COMPARE_IRQ;
+		cp0_compare_irq_shift = cp0_compare_irq;
 		cp0_perfcount_irq = -1;
 	}
 

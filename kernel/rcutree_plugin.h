@@ -62,6 +62,15 @@ long rcu_batches_completed(void)
 EXPORT_SYMBOL_GPL(rcu_batches_completed);
 
 /*
+ * Force a quiescent state for preemptible RCU.
+ */
+void rcu_force_quiescent_state(void)
+{
+	force_quiescent_state(&rcu_preempt_state, 0);
+}
+EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
+
+/*
  * Record a preemptable-RCU quiescent state for the specified CPU.  Note
  * that this just means that the task currently running on the CPU is
  * not in a quiescent state.  There might be any number of tasks blocked
@@ -102,7 +111,7 @@ static void rcu_preempt_note_context_switch(int cpu)
 		/* Possibly blocking in an RCU read-side critical section. */
 		rdp = rcu_preempt_state.rda[cpu];
 		rnp = rdp->mynode;
-		spin_lock_irqsave(&rnp->lock, flags);
+		raw_spin_lock_irqsave(&rnp->lock, flags);
 		t->rcu_read_unlock_special |= RCU_READ_UNLOCK_BLOCKED;
 		t->rcu_blocked_node = rnp;
 
@@ -123,7 +132,7 @@ static void rcu_preempt_note_context_switch(int cpu)
 		WARN_ON_ONCE(!list_empty(&t->rcu_node_entry));
 		phase = (rnp->gpnum + !(rnp->qsmask & rdp->grpmask)) & 0x1;
 		list_add(&t->rcu_node_entry, &rnp->blocked_tasks[phase]);
-		spin_unlock_irqrestore(&rnp->lock, flags);
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 	}
 
 	/*
@@ -180,7 +189,7 @@ static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp, unsigned long flags)
 	struct rcu_node *rnp_p;
 
 	if (rnp->qsmask != 0 || rcu_preempted_readers(rnp)) {
-		spin_unlock_irqrestore(&rnp->lock, flags);
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		return;  /* Still need more quiescent states! */
 	}
 
@@ -197,8 +206,8 @@ static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp, unsigned long flags)
 
 	/* Report up the rest of the hierarchy. */
 	mask = rnp->grpmask;
-	spin_unlock(&rnp->lock);	/* irqs remain disabled. */
-	spin_lock(&rnp_p->lock);	/* irqs already disabled. */
+	raw_spin_unlock(&rnp->lock);	/* irqs remain disabled. */
+	raw_spin_lock(&rnp_p->lock);	/* irqs already disabled. */
 	rcu_report_qs_rnp(mask, &rcu_preempt_state, rnp_p, flags);
 }
 
@@ -248,10 +257,10 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		 */
 		for (;;) {
 			rnp = t->rcu_blocked_node;
-			spin_lock(&rnp->lock);  /* irqs already disabled. */
+			raw_spin_lock(&rnp->lock);  /* irqs already disabled. */
 			if (rnp == t->rcu_blocked_node)
 				break;
-			spin_unlock(&rnp->lock);  /* irqs remain disabled. */
+			raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
 		}
 		empty = !rcu_preempted_readers(rnp);
 		empty_exp = !rcu_preempted_readers_exp(rnp);
@@ -265,7 +274,7 @@ static void rcu_read_unlock_special(struct task_struct *t)
 		 * Note that rcu_report_unblock_qs_rnp() releases rnp->lock.
 		 */
 		if (empty)
-			spin_unlock_irqrestore(&rnp->lock, flags);
+			raw_spin_unlock_irqrestore(&rnp->lock, flags);
 		else
 			rcu_report_unblock_qs_rnp(rnp, flags);
 
@@ -295,16 +304,21 @@ void __rcu_read_unlock(void)
 	if (--ACCESS_ONCE(t->rcu_read_lock_nesting) == 0 &&
 	    unlikely(ACCESS_ONCE(t->rcu_read_unlock_special)))
 		rcu_read_unlock_special(t);
+#ifdef CONFIG_PROVE_LOCKING
+	WARN_ON_ONCE(ACCESS_ONCE(t->rcu_read_lock_nesting) < 0);
+#endif /* #ifdef CONFIG_PROVE_LOCKING */
 }
 EXPORT_SYMBOL_GPL(__rcu_read_unlock);
 
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
 
+#ifdef CONFIG_RCU_CPU_STALL_VERBOSE
+
 /*
- * Scan the current list of tasks blocked within RCU read-side critical
- * sections, printing out the tid of each.
+ * Dump detailed information for all tasks blocking the current RCU
+ * grace period on the specified rcu_node structure.
  */
-static void rcu_print_task_stall(struct rcu_node *rnp)
+static void rcu_print_detail_task_stall_rnp(struct rcu_node *rnp)
 {
 	unsigned long flags;
 	struct list_head *lp;
@@ -312,12 +326,51 @@ static void rcu_print_task_stall(struct rcu_node *rnp)
 	struct task_struct *t;
 
 	if (rcu_preempted_readers(rnp)) {
-		spin_lock_irqsave(&rnp->lock, flags);
+		raw_spin_lock_irqsave(&rnp->lock, flags);
+		phase = rnp->gpnum & 0x1;
+		lp = &rnp->blocked_tasks[phase];
+		list_for_each_entry(t, lp, rcu_node_entry)
+			sched_show_task(t);
+		raw_spin_unlock_irqrestore(&rnp->lock, flags);
+	}
+}
+
+/*
+ * Dump detailed information for all tasks blocking the current RCU
+ * grace period.
+ */
+static void rcu_print_detail_task_stall(struct rcu_state *rsp)
+{
+	struct rcu_node *rnp = rcu_get_root(rsp);
+
+	rcu_print_detail_task_stall_rnp(rnp);
+	rcu_for_each_leaf_node(rsp, rnp)
+		rcu_print_detail_task_stall_rnp(rnp);
+}
+
+#else /* #ifdef CONFIG_RCU_CPU_STALL_VERBOSE */
+
+static void rcu_print_detail_task_stall(struct rcu_state *rsp)
+{
+}
+
+#endif /* #else #ifdef CONFIG_RCU_CPU_STALL_VERBOSE */
+
+/*
+ * Scan the current list of tasks blocked within RCU read-side critical
+ * sections, printing out the tid of each.
+ */
+static void rcu_print_task_stall(struct rcu_node *rnp)
+{
+	struct list_head *lp;
+	int phase;
+	struct task_struct *t;
+
+	if (rcu_preempted_readers(rnp)) {
 		phase = rnp->gpnum & 0x1;
 		lp = &rnp->blocked_tasks[phase];
 		list_for_each_entry(t, lp, rcu_node_entry)
 			printk(" P%d", t->pid);
-		spin_unlock_irqrestore(&rnp->lock, flags);
 	}
 }
 
@@ -388,11 +441,11 @@ static int rcu_preempt_offline_tasks(struct rcu_state *rsp,
 		lp_root = &rnp_root->blocked_tasks[i];
 		while (!list_empty(lp)) {
 			tp = list_entry(lp->next, typeof(*tp), rcu_node_entry);
-			spin_lock(&rnp_root->lock); /* irqs already disabled */
+			raw_spin_lock(&rnp_root->lock); /* irqs already disabled */
 			list_del(&tp->rcu_node_entry);
 			tp->rcu_blocked_node = rnp_root;
 			list_add(&tp->rcu_node_entry, lp_root);
-			spin_unlock(&rnp_root->lock); /* irqs remain disabled */
+			raw_spin_unlock(&rnp_root->lock); /* irqs remain disabled */
 		}
 	}
 	return retval;
@@ -516,7 +569,7 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp)
 	unsigned long flags;
 	unsigned long mask;
 
-	spin_lock_irqsave(&rnp->lock, flags);
+	raw_spin_lock_irqsave(&rnp->lock, flags);
 	for (;;) {
 		if (!sync_rcu_preempt_exp_done(rnp))
 			break;
@@ -525,12 +578,12 @@ static void rcu_report_exp_rnp(struct rcu_state *rsp, struct rcu_node *rnp)
 			break;
 		}
 		mask = rnp->grpmask;
-		spin_unlock(&rnp->lock); /* irqs remain disabled */
+		raw_spin_unlock(&rnp->lock); /* irqs remain disabled */
 		rnp = rnp->parent;
-		spin_lock(&rnp->lock); /* irqs already disabled */
+		raw_spin_lock(&rnp->lock); /* irqs already disabled */
 		rnp->expmask &= ~mask;
 	}
-	spin_unlock_irqrestore(&rnp->lock, flags);
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
 /*
@@ -545,11 +598,11 @@ sync_rcu_preempt_exp_init(struct rcu_state *rsp, struct rcu_node *rnp)
 {
 	int must_wait;
 
-	spin_lock(&rnp->lock); /* irqs already disabled */
+	raw_spin_lock(&rnp->lock); /* irqs already disabled */
 	list_splice_init(&rnp->blocked_tasks[0], &rnp->blocked_tasks[2]);
 	list_splice_init(&rnp->blocked_tasks[1], &rnp->blocked_tasks[3]);
 	must_wait = rcu_preempted_readers_exp(rnp);
-	spin_unlock(&rnp->lock); /* irqs remain disabled */
+	raw_spin_unlock(&rnp->lock); /* irqs remain disabled */
 	if (!must_wait)
 		rcu_report_exp_rnp(rsp, rnp);
 }
@@ -594,13 +647,13 @@ void synchronize_rcu_expedited(void)
 	/* force all RCU readers onto blocked_tasks[]. */
 	synchronize_sched_expedited();
 
-	spin_lock_irqsave(&rsp->onofflock, flags);
+	raw_spin_lock_irqsave(&rsp->onofflock, flags);
 
 	/* Initialize ->expmask for all non-leaf rcu_node structures. */
 	rcu_for_each_nonleaf_node_breadth_first(rsp, rnp) {
-		spin_lock(&rnp->lock); /* irqs already disabled. */
+		raw_spin_lock(&rnp->lock); /* irqs already disabled. */
 		rnp->expmask = rnp->qsmaskinit;
-		spin_unlock(&rnp->lock); /* irqs remain disabled. */
+		raw_spin_unlock(&rnp->lock); /* irqs remain disabled. */
 	}
 
 	/* Snapshot current state of ->blocked_tasks[] lists. */
@@ -609,7 +662,7 @@ void synchronize_rcu_expedited(void)
 	if (NUM_RCU_NODES > 1)
 		sync_rcu_preempt_exp_init(rsp, rcu_get_root(rsp));
 
-	spin_unlock_irqrestore(&rsp->onofflock, flags);
+	raw_spin_unlock_irqrestore(&rsp->onofflock, flags);
 
 	/* Wait for snapshotted ->blocked_tasks[] lists to drain. */
 	rnp = rcu_get_root(rsp);
@@ -713,6 +766,16 @@ long rcu_batches_completed(void)
 EXPORT_SYMBOL_GPL(rcu_batches_completed);
 
 /*
+ * Force a quiescent state for RCU, which, because there is no preemptible
+ * RCU, becomes the same as rcu-sched.
+ */
+void rcu_force_quiescent_state(void)
+{
+	rcu_sched_force_quiescent_state();
+}
+EXPORT_SYMBOL_GPL(rcu_force_quiescent_state);
+
+/*
  * Because preemptable RCU does not exist, we never have to check for
  * CPUs being in quiescent states.
  */
@@ -734,12 +797,20 @@ static int rcu_preempted_readers(struct rcu_node *rnp)
 /* Because preemptible RCU does not exist, no quieting of tasks. */
 static void rcu_report_unblock_qs_rnp(struct rcu_node *rnp, unsigned long flags)
 {
-	spin_unlock_irqrestore(&rnp->lock, flags);
+	raw_spin_unlock_irqrestore(&rnp->lock, flags);
 }
 
 #endif /* #ifdef CONFIG_HOTPLUG_CPU */
 
 #ifdef CONFIG_RCU_CPU_STALL_DETECTOR
+
+/*
+ * Because preemptable RCU does not exist, we never have to check for
+ * tasks blocked within RCU read-side critical sections.
+ */
+static void rcu_print_detail_task_stall(struct rcu_state *rsp)
+{
+}
 
 /*
  * Because preemptable RCU does not exist, we never have to check for
@@ -884,3 +955,113 @@ static void __init __rcu_init_preempt(void)
 }
 
 #endif /* #else #ifdef CONFIG_TREE_PREEMPT_RCU */
+
+#if !defined(CONFIG_RCU_FAST_NO_HZ)
+
+/*
+ * Check to see if any future RCU-related work will need to be done
+ * by the current CPU, even if none need be done immediately, returning
+ * 1 if so.  This function is part of the RCU implementation; it is -not-
+ * an exported member of the RCU API.
+ *
+ * Because we have preemptible RCU, just check whether this CPU needs
+ * any flavor of RCU.  Do not chew up lots of CPU cycles with preemption
+ * disabled in a most-likely vain attempt to cause RCU not to need this CPU.
+ */
+int rcu_needs_cpu(int cpu)
+{
+	return rcu_needs_cpu_quick_check(cpu);
+}
+
+/*
+ * Check to see if we need to continue a callback-flush operations to
+ * allow the last CPU to enter dyntick-idle mode.  But fast dyntick-idle
+ * entry is not configured, so we never do need to.
+ */
+static void rcu_needs_cpu_flush(void)
+{
+}
+
+#else /* #if !defined(CONFIG_RCU_FAST_NO_HZ) */
+
+#define RCU_NEEDS_CPU_FLUSHES 5
+static DEFINE_PER_CPU(int, rcu_dyntick_drain);
+static DEFINE_PER_CPU(unsigned long, rcu_dyntick_holdoff);
+
+/*
+ * Check to see if any future RCU-related work will need to be done
+ * by the current CPU, even if none need be done immediately, returning
+ * 1 if so.  This function is part of the RCU implementation; it is -not-
+ * an exported member of the RCU API.
+ *
+ * Because we are not supporting preemptible RCU, attempt to accelerate
+ * any current grace periods so that RCU no longer needs this CPU, but
+ * only if all other CPUs are already in dynticks-idle mode.  This will
+ * allow the CPU cores to be powered down immediately, as opposed to after
+ * waiting many milliseconds for grace periods to elapse.
+ *
+ * Because it is not legal to invoke rcu_process_callbacks() with irqs
+ * disabled, we do one pass of force_quiescent_state(), then do a
+ * raise_softirq() to cause rcu_process_callbacks() to be invoked later.
+ * The per-cpu rcu_dyntick_drain variable controls the sequencing.
+ */
+int rcu_needs_cpu(int cpu)
+{
+	int c = 0;
+	int thatcpu;
+
+	/* Don't bother unless we are the last non-dyntick-idle CPU. */
+	for_each_cpu_not(thatcpu, nohz_cpu_mask)
+		if (thatcpu != cpu) {
+			per_cpu(rcu_dyntick_drain, cpu) = 0;
+			per_cpu(rcu_dyntick_holdoff, cpu) = jiffies - 1;
+			return rcu_needs_cpu_quick_check(cpu);
+		}
+
+	/* Check and update the rcu_dyntick_drain sequencing. */
+	if (per_cpu(rcu_dyntick_drain, cpu) <= 0) {
+		/* First time through, initialize the counter. */
+		per_cpu(rcu_dyntick_drain, cpu) = RCU_NEEDS_CPU_FLUSHES;
+	} else if (--per_cpu(rcu_dyntick_drain, cpu) <= 0) {
+		/* We have hit the limit, so time to give up. */
+		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
+		return rcu_needs_cpu_quick_check(cpu);
+	}
+
+	/* Do one step pushing remaining RCU callbacks through. */
+	if (per_cpu(rcu_sched_data, cpu).nxtlist) {
+		rcu_sched_qs(cpu);
+		force_quiescent_state(&rcu_sched_state, 0);
+		c = c || per_cpu(rcu_sched_data, cpu).nxtlist;
+	}
+	if (per_cpu(rcu_bh_data, cpu).nxtlist) {
+		rcu_bh_qs(cpu);
+		force_quiescent_state(&rcu_bh_state, 0);
+		c = c || per_cpu(rcu_bh_data, cpu).nxtlist;
+	}
+
+	/* If RCU callbacks are still pending, RCU still needs this CPU. */
+	if (c) {
+		raise_softirq(RCU_SOFTIRQ);
+		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
+	}
+	return c;
+}
+
+/*
+ * Check to see if we need to continue a callback-flush operations to
+ * allow the last CPU to enter dyntick-idle mode.
+ */
+static void rcu_needs_cpu_flush(void)
+{
+	int cpu = smp_processor_id();
+	unsigned long flags;
+
+	if (per_cpu(rcu_dyntick_drain, cpu) <= 0)
+		return;
+	local_irq_save(flags);
+	(void)rcu_needs_cpu(cpu);
+	local_irq_restore(flags);
+}
+
+#endif /* #else #if !defined(CONFIG_RCU_FAST_NO_HZ) */

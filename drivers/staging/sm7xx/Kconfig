@@ -6,10 +6,3 @@ config FB_SM7XX
 	select FB_CFB_IMAGEBLIT
 	help
 	  Frame Buffer driver for the Silicon Motion SM7XX serial graphic card.
-
-config FB_SM7XX_ACCEL
-	bool "Siliconmotion Acceleration functions (EXPERIMENTAL)"
-	depends on FB_SM7XX && EXPERIMENTAL
-	help
-	  This will compile the Trident frame buffer device with
-	  acceleration functions.

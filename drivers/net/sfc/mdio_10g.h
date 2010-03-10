@@ -106,4 +106,7 @@ efx_mdio_set_flag(struct efx_nic *efx, int devad, int addr,
 	mdio_set_flag(&efx->mdio, efx->mdio.prtad, devad, addr, mask, state);
 }
 
+/* Liveness self-test for MDIO PHYs */
+extern int efx_mdio_test_alive(struct efx_nic *efx);
+
 #endif /* EFX_MDIO_10G_H */

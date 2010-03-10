@@ -180,6 +180,7 @@ struct v4l2_subdev_audio_ops {
 	int (*s_clock_freq)(struct v4l2_subdev *sd, u32 freq);
 	int (*s_i2s_clock_freq)(struct v4l2_subdev *sd, u32 freq);
 	int (*s_routing)(struct v4l2_subdev *sd, u32 input, u32 output, u32 config);
+	int (*s_stream)(struct v4l2_subdev *sd, int enable);
 };
 
 /*

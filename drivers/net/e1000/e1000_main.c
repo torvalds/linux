@@ -42,7 +42,7 @@ static const char e1000_copyright[] = "Copyright (c) 1999-2006 Intel Corporation
  * Macro expands to...
  *   {PCI_DEVICE(PCI_VENDOR_ID_INTEL, device_id)}
  */
-static struct pci_device_id e1000_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(e1000_pci_tbl) = {
 	INTEL_E1000_ETHERNET_DEVICE(0x1000),
 	INTEL_E1000_ETHERNET_DEVICE(0x1001),
 	INTEL_E1000_ETHERNET_DEVICE(0x1004),
@@ -847,6 +847,9 @@ static int __devinit e1000_probe(struct pci_dev *pdev,
 		goto err_pci_reg;
 
 	pci_set_master(pdev);
+	err = pci_save_state(pdev);
+	if (err)
+		goto err_alloc_etherdev;
 
 	err = -ENOMEM;
 	netdev = alloc_etherdev(sizeof(struct e1000_adapter));
@@ -1698,18 +1701,6 @@ static void e1000_setup_rctl(struct e1000_adapter *adapter)
 	rctl &= ~E1000_RCTL_SZ_4096;
 	rctl |= E1000_RCTL_BSEX;
 	switch (adapter->rx_buffer_len) {
-		case E1000_RXBUFFER_256:
-			rctl |= E1000_RCTL_SZ_256;
-			rctl &= ~E1000_RCTL_BSEX;
-			break;
-		case E1000_RXBUFFER_512:
-			rctl |= E1000_RCTL_SZ_512;
-			rctl &= ~E1000_RCTL_BSEX;
-			break;
-		case E1000_RXBUFFER_1024:
-			rctl |= E1000_RCTL_SZ_1024;
-			rctl &= ~E1000_RCTL_BSEX;
-			break;
 		case E1000_RXBUFFER_2048:
 		default:
 			rctl |= E1000_RCTL_SZ_2048;
@@ -2139,7 +2130,7 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 			rctl |= E1000_RCTL_VFE;
 	}
 
-	if (netdev->uc.count > rar_entries - 1) {
+	if (netdev_uc_count(netdev) > rar_entries - 1) {
 		rctl |= E1000_RCTL_UPE;
 	} else if (!(netdev->flags & IFF_PROMISC)) {
 		rctl &= ~E1000_RCTL_UPE;
@@ -2162,7 +2153,7 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 	 */
 	i = 1;
 	if (use_uc)
-		list_for_each_entry(ha, &netdev->uc.list, list) {
+		netdev_for_each_uc_addr(ha, netdev) {
 			if (i == rar_entries)
 				break;
 			e1000_rar_set(hw, ha->addr, i++);
@@ -2170,29 +2161,25 @@ static void e1000_set_rx_mode(struct net_device *netdev)
 
 	WARN_ON(i == rar_entries);
 
-	mc_ptr = netdev->mc_list;
-
-	for (; i < rar_entries; i++) {
-		if (mc_ptr) {
-			e1000_rar_set(hw, mc_ptr->da_addr, i);
-			mc_ptr = mc_ptr->next;
+	netdev_for_each_mc_addr(mc_ptr, netdev) {
+		if (i == rar_entries) {
+			/* load any remaining addresses into the hash table */
+			u32 hash_reg, hash_bit, mta;
+			hash_value = e1000_hash_mc_addr(hw, mc_ptr->da_addr);
+			hash_reg = (hash_value >> 5) & 0x7F;
+			hash_bit = hash_value & 0x1F;
+			mta = (1 << hash_bit);
+			mcarray[hash_reg] |= mta;
 		} else {
-			E1000_WRITE_REG_ARRAY(hw, RA, i << 1, 0);
-			E1000_WRITE_FLUSH();
-			E1000_WRITE_REG_ARRAY(hw, RA, (i << 1) + 1, 0);
-			E1000_WRITE_FLUSH();
+			e1000_rar_set(hw, mc_ptr->da_addr, i++);
 		}
 	}
 
-	/* load any remaining addresses into the hash table */
-
-	for (; mc_ptr; mc_ptr = mc_ptr->next) {
-		u32 hash_reg, hash_bit, mta;
-		hash_value = e1000_hash_mc_addr(hw, mc_ptr->da_addr);
-		hash_reg = (hash_value >> 5) & 0x7F;
-		hash_bit = hash_value & 0x1F;
-		mta = (1 << hash_bit);
-		mcarray[hash_reg] |= mta;
+	for (; i < rar_entries; i++) {
+		E1000_WRITE_REG_ARRAY(hw, RA, i << 1, 0);
+		E1000_WRITE_FLUSH();
+		E1000_WRITE_REG_ARRAY(hw, RA, (i << 1) + 1, 0);
+		E1000_WRITE_FLUSH();
 	}
 
 	/* write the hash table completely, write from bottom to avoid
@@ -2258,7 +2245,7 @@ static void e1000_82547_tx_fifo_stall(unsigned long data)
 	}
 }
 
-static bool e1000_has_link(struct e1000_adapter *adapter)
+bool e1000_has_link(struct e1000_adapter *adapter)
 {
 	struct e1000_hw *hw = &adapter->hw;
 	bool link_active = false;
@@ -2802,13 +2789,13 @@ static int e1000_tx_map(struct e1000_adapter *adapter,
 dma_error:
 	dev_err(&pdev->dev, "TX DMA map failed\n");
 	buffer_info->dma = 0;
-	count--;
-
-	while (count >= 0) {
+	if (count)
 		count--;
-		i--;
-		if (i < 0)
+
+	while (count--) {
+		if (i==0)
 			i += tx_ring->count;
+		i--;
 		buffer_info = &tx_ring->buffer_info[i];
 		e1000_unmap_and_free_tx_resource(adapter, buffer_info);
 	}
@@ -3176,13 +3163,7 @@ static int e1000_change_mtu(struct net_device *netdev, int new_mtu)
 	 *  however with the new *_jumbo_rx* routines, jumbo receives will use
 	 *  fragmented skbs */
 
-	if (max_frame <= E1000_RXBUFFER_256)
-		adapter->rx_buffer_len = E1000_RXBUFFER_256;
-	else if (max_frame <= E1000_RXBUFFER_512)
-		adapter->rx_buffer_len = E1000_RXBUFFER_512;
-	else if (max_frame <= E1000_RXBUFFER_1024)
-		adapter->rx_buffer_len = E1000_RXBUFFER_1024;
-	else if (max_frame <= E1000_RXBUFFER_2048)
+	if (max_frame <= E1000_RXBUFFER_2048)
 		adapter->rx_buffer_len = E1000_RXBUFFER_2048;
 	else
 #if (PAGE_SIZE >= E1000_RXBUFFER_16384)
@@ -3850,13 +3831,22 @@ static bool e1000_clean_rx_irq(struct e1000_adapter *adapter,
 
 		length = le16_to_cpu(rx_desc->length);
 		/* !EOP means multiple descriptors were used to store a single
-		 * packet, also make sure the frame isn't just CRC only */
-		if (unlikely(!(status & E1000_RXD_STAT_EOP) || (length <= 4))) {
+		 * packet, if thats the case we need to toss it.  In fact, we
+		 * to toss every packet with the EOP bit clear and the next
+		 * frame that _does_ have the EOP bit set, as it is by
+		 * definition only a frame fragment
+		 */
+		if (unlikely(!(status & E1000_RXD_STAT_EOP)))
+			adapter->discarding = true;
+
+		if (adapter->discarding) {
 			/* All receives must fit into a single buffer */
 			E1000_DBG("%s: Receive packet consumed multiple"
 				  " buffers\n", netdev->name);
 			/* recycle */
 			buffer_info->skb = skb;
+			if (status & E1000_RXD_STAT_EOP)
+				adapter->discarding = false;
 			goto next_desc;
 		}
 
@@ -4015,11 +4005,21 @@ check_page:
 			}
 		}
 
-		if (!buffer_info->dma)
+		if (!buffer_info->dma) {
 			buffer_info->dma = pci_map_page(pdev,
 			                                buffer_info->page, 0,
 			                                buffer_info->length,
 			                                PCI_DMA_FROMDEVICE);
+			if (pci_dma_mapping_error(pdev, buffer_info->dma)) {
+				put_page(buffer_info->page);
+				dev_kfree_skb(skb);
+				buffer_info->page = NULL;
+				buffer_info->skb = NULL;
+				buffer_info->dma = 0;
+				adapter->alloc_rx_buff_failed++;
+				break; /* while !buffer_info->skb */
+			}
+		}
 
 		rx_desc = E1000_RX_DESC(*rx_ring, i);
 		rx_desc->buffer_addr = cpu_to_le64(buffer_info->dma);
@@ -4110,6 +4110,13 @@ map_skb:
 						  skb->data,
 						  buffer_info->length,
 						  PCI_DMA_FROMDEVICE);
+		if (pci_dma_mapping_error(pdev, buffer_info->dma)) {
+			dev_kfree_skb(skb);
+			buffer_info->skb = NULL;
+			buffer_info->dma = 0;
+			adapter->alloc_rx_buff_failed++;
+			break; /* while !buffer_info->skb */
+		}
 
 		/*
 		 * XXX if it was allocated cleanly it will never map to a
@@ -4605,6 +4612,7 @@ static int e1000_resume(struct pci_dev *pdev)
 
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
+	pci_save_state(pdev);
 
 	if (adapter->need_ioport)
 		err = pci_enable_device(pdev);

@@ -21,15 +21,20 @@ struct netpoll {
 	__be32 local_ip, remote_ip;
 	u16 local_port, remote_port;
 	u8 remote_mac[ETH_ALEN];
+
+	struct list_head rx; /* rx_np list element */
 };
 
 struct netpoll_info {
 	atomic_t refcnt;
+
 	int rx_flags;
 	spinlock_t rx_lock;
-	struct netpoll *rx_np; /* netpoll that registered an rx_hook */
+	struct list_head rx_np; /* netpolls that registered an rx_hook */
+
 	struct sk_buff_head arp_tx; /* list of arp requests to reply to */
 	struct sk_buff_head txq;
+
 	struct delayed_work tx_work;
 };
 
@@ -51,7 +56,7 @@ static inline int netpoll_rx(struct sk_buff *skb)
 	unsigned long flags;
 	int ret = 0;
 
-	if (!npinfo || (!npinfo->rx_np && !npinfo->rx_flags))
+	if (!npinfo || (list_empty(&npinfo->rx_np) && !npinfo->rx_flags))
 		return 0;
 
 	spin_lock_irqsave(&npinfo->rx_lock, flags);
@@ -67,7 +72,7 @@ static inline int netpoll_rx_on(struct sk_buff *skb)
 {
 	struct netpoll_info *npinfo = skb->dev->npinfo;
 
-	return npinfo && (npinfo->rx_np || npinfo->rx_flags);
+	return npinfo && (!list_empty(&npinfo->rx_np) || npinfo->rx_flags);
 }
 
 static inline int netpoll_receive_skb(struct sk_buff *skb)

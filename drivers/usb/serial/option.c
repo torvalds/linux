@@ -336,15 +336,42 @@ static int  option_resume(struct usb_serial *serial);
 #define AIRPLUS_VENDOR_ID			0x1011
 #define AIRPLUS_PRODUCT_MCD650			0x3198
 
+/* Longcheer/Longsung vendor ID; makes whitelabel devices that
+ * many other vendors like 4G Systems, Alcatel, ChinaBird,
+ * Mobidata, etc sell under their own brand names.
+ */
+#define LONGCHEER_VENDOR_ID			0x1c9e
+
 /* 4G Systems products */
-#define FOUR_G_SYSTEMS_VENDOR_ID		0x1c9e
+/* This is the 4G XS Stick W14 a.k.a. Mobilcom Debitel Surf-Stick *
+ * It seems to contain a Qualcomm QSC6240/6290 chipset            */
 #define FOUR_G_SYSTEMS_PRODUCT_W14		0x9603
 
 /* Haier products */
 #define HAIER_VENDOR_ID				0x201e
 #define HAIER_PRODUCT_CE100			0x2009
 
-static struct usb_device_id option_ids[] = {
+/* some devices interfaces need special handling due to a number of reasons */
+enum option_blacklist_reason {
+		OPTION_BLACKLIST_NONE = 0,
+		OPTION_BLACKLIST_SENDSETUP = 1,
+		OPTION_BLACKLIST_RESERVED_IF = 2
+};
+
+struct option_blacklist_info {
+	const u32 infolen;	/* number of interface numbers on blacklist */
+	const u8  *ifaceinfo;	/* pointer to the array holding the numbers */
+	enum option_blacklist_reason reason;
+};
+
+static const u8 four_g_w14_no_sendsetup[] = { 0, 1 };
+static const struct option_blacklist_info four_g_w14_blacklist = {
+	.infolen = ARRAY_SIZE(four_g_w14_no_sendsetup),
+	.ifaceinfo = four_g_w14_no_sendsetup,
+	.reason = OPTION_BLACKLIST_SENDSETUP
+};
+
+static const struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_COLT) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA) },
 	{ USB_DEVICE(OPTION_VENDOR_ID, OPTION_PRODUCT_RICOLA_LIGHT) },
@@ -644,7 +671,9 @@ static struct usb_device_id option_ids[] = {
 	{ USB_DEVICE(ALCATEL_VENDOR_ID, ALCATEL_PRODUCT_X060S) },
 	{ USB_DEVICE(AIRPLUS_VENDOR_ID, AIRPLUS_PRODUCT_MCD650) },
 	{ USB_DEVICE(TLAYTECH_VENDOR_ID, TLAYTECH_PRODUCT_TEU800) },
-	{ USB_DEVICE(FOUR_G_SYSTEMS_VENDOR_ID, FOUR_G_SYSTEMS_PRODUCT_W14) },
+	{ USB_DEVICE(LONGCHEER_VENDOR_ID, FOUR_G_SYSTEMS_PRODUCT_W14),
+  	  .driver_info = (kernel_ulong_t)&four_g_w14_blacklist
+  	},
 	{ USB_DEVICE(HAIER_VENDOR_ID, HAIER_PRODUCT_CE100) },
 	{ } /* Terminating entry */
 };
@@ -709,6 +738,7 @@ struct option_intf_private {
 	spinlock_t susp_lock;
 	unsigned int suspended:1;
 	int in_flight;
+	struct option_blacklist_info *blacklist_info;
 };
 
 struct option_port_private {
@@ -778,7 +808,25 @@ static int option_probe(struct usb_serial *serial,
 	if (!data)
 		return -ENOMEM;
 	spin_lock_init(&data->susp_lock);
+	data->blacklist_info = (struct option_blacklist_info*) id->driver_info;
 	return 0;
+}
+
+static enum option_blacklist_reason is_blacklisted(const u8 ifnum,
+				const struct option_blacklist_info *blacklist)
+{
+	const u8  *info;
+	int i;
+
+	if (blacklist) {
+		info = blacklist->ifaceinfo;
+
+		for (i = 0; i < blacklist->infolen; i++) {
+			if (info[i] == ifnum)
+				return blacklist->reason;
+		}
+	}
+	return OPTION_BLACKLIST_NONE;
 }
 
 static void option_set_termios(struct tty_struct *tty,
@@ -921,7 +969,6 @@ static void option_indat_callback(struct urb *urb)
 	} else {
 		tty = tty_port_tty_get(&port->port);
 		if (urb->actual_length) {
-			tty_buffer_request_room(tty, urb->actual_length);
 			tty_insert_flip_string(tty, data, urb->actual_length);
 			tty_flip_buffer_push(tty);
 		} else 
@@ -929,9 +976,9 @@ static void option_indat_callback(struct urb *urb)
 		tty_kref_put(tty);
 
 		/* Resubmit urb so we continue receiving */
-		if (port->port.count && status != -ESHUTDOWN) {
+		if (status != -ESHUTDOWN) {
 			err = usb_submit_urb(urb, GFP_ATOMIC);
-			if (err)
+			if (err && err != -EPERM)
 				printk(KERN_ERR "%s: resubmit read urb failed. "
 					"(%d)", __func__, err);
 			else
@@ -985,7 +1032,7 @@ static void option_instat_callback(struct urb *urb)
 				(struct usb_ctrlrequest *)urb->transfer_buffer;
 
 		if (!req_pkt) {
-			dbg("%s: NULL req_pkt\n", __func__);
+			dbg("%s: NULL req_pkt", __func__);
 			return;
 		}
 		if ((req_pkt->bRequestType == 0xA1) &&
@@ -1211,10 +1258,18 @@ static void option_setup_urbs(struct usb_serial *serial)
 static int option_send_setup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
+	struct option_intf_private *intfdata =
+		(struct option_intf_private *) serial->private;
 	struct option_port_private *portdata;
 	int ifNum = serial->interface->cur_altsetting->desc.bInterfaceNumber;
 	int val = 0;
 	dbg("%s", __func__);
+
+	if (is_blacklisted(ifNum, intfdata->blacklist_info) ==
+						OPTION_BLACKLIST_SENDSETUP) {
+		dbg("No send_setup on blacklisted interface #%d\n", ifNum);
+		return -EIO;
+	}
 
 	portdata = usb_get_serial_port_data(port);
 
@@ -1401,7 +1456,7 @@ static int option_resume(struct usb_serial *serial)
 	for (i = 0; i < serial->num_ports; i++) {
 		port = serial->port[i];
 		if (!port->interrupt_in_urb) {
-			dbg("%s: No interrupt URB for port %d\n", __func__, i);
+			dbg("%s: No interrupt URB for port %d", __func__, i);
 			continue;
 		}
 		err = usb_submit_urb(port->interrupt_in_urb, GFP_NOIO);

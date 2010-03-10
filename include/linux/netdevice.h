@@ -28,6 +28,7 @@
 #include <linux/if.h>
 #include <linux/if_ether.h>
 #include <linux/if_packet.h>
+#include <linux/if_link.h>
 
 #ifdef __KERNEL__
 #include <linux/timer.h>
@@ -136,7 +137,7 @@ static inline bool dev_xmit_complete(int rc)
  *	used.
  */
 
-#if defined(CONFIG_WLAN_80211) || defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
+#if defined(CONFIG_WLAN) || defined(CONFIG_AX25) || defined(CONFIG_AX25_MODULE)
 # if defined(CONFIG_MAC80211_MESH)
 #  define LL_MAX_HEADER 128
 # else
@@ -262,6 +263,17 @@ struct netdev_hw_addr_list {
 	struct list_head	list;
 	int			count;
 };
+
+#define netdev_uc_count(dev) ((dev)->uc.count)
+#define netdev_uc_empty(dev) ((dev)->uc.count == 0)
+#define netdev_for_each_uc_addr(ha, dev) \
+	list_for_each_entry(ha, &dev->uc.list, list)
+
+#define netdev_mc_count(dev) ((dev)->mc_count)
+#define netdev_mc_empty(dev) (netdev_mc_count(dev) == 0)
+
+#define netdev_for_each_mc_addr(mclist, dev) \
+	for (mclist = dev->mc_list; mclist; mclist = mclist->next)
 
 struct hh_cache {
 	struct hh_cache *hh_next;	/* Next entry			     */
@@ -610,6 +622,13 @@ struct netdev_queue {
  *	this function is called when a VLAN id is unregistered.
  *
  * void (*ndo_poll_controller)(struct net_device *dev);
+ *
+ *	SR-IOV management functions.
+ * int (*ndo_set_vf_mac)(struct net_device *dev, int vf, u8* mac);
+ * int (*ndo_set_vf_vlan)(struct net_device *dev, int vf, u16 vlan, u8 qos);
+ * int (*ndo_set_vf_tx_rate)(struct net_device *dev, int vf, int rate);
+ * int (*ndo_get_vf_config)(struct net_device *dev,
+ *			    int vf, struct ifla_vf_info *ivf);
  */
 #define HAVE_NET_DEVICE_OPS
 struct net_device_ops {
@@ -621,30 +640,21 @@ struct net_device_ops {
 						   struct net_device *dev);
 	u16			(*ndo_select_queue)(struct net_device *dev,
 						    struct sk_buff *skb);
-#define HAVE_CHANGE_RX_FLAGS
 	void			(*ndo_change_rx_flags)(struct net_device *dev,
 						       int flags);
-#define HAVE_SET_RX_MODE
 	void			(*ndo_set_rx_mode)(struct net_device *dev);
-#define HAVE_MULTICAST
 	void			(*ndo_set_multicast_list)(struct net_device *dev);
-#define HAVE_SET_MAC_ADDR
 	int			(*ndo_set_mac_address)(struct net_device *dev,
 						       void *addr);
-#define HAVE_VALIDATE_ADDR
 	int			(*ndo_validate_addr)(struct net_device *dev);
-#define HAVE_PRIVATE_IOCTL
 	int			(*ndo_do_ioctl)(struct net_device *dev,
 					        struct ifreq *ifr, int cmd);
-#define HAVE_SET_CONFIG
 	int			(*ndo_set_config)(struct net_device *dev,
 					          struct ifmap *map);
-#define HAVE_CHANGE_MTU
 	int			(*ndo_change_mtu)(struct net_device *dev,
 						  int new_mtu);
 	int			(*ndo_neigh_setup)(struct net_device *dev,
 						   struct neigh_parms *);
-#define HAVE_TX_TIMEOUT
 	void			(*ndo_tx_timeout) (struct net_device *dev);
 
 	struct net_device_stats* (*ndo_get_stats)(struct net_device *dev);
@@ -656,9 +666,17 @@ struct net_device_ops {
 	void			(*ndo_vlan_rx_kill_vid)(struct net_device *dev,
 						        unsigned short vid);
 #ifdef CONFIG_NET_POLL_CONTROLLER
-#define HAVE_NETDEV_POLL
 	void                    (*ndo_poll_controller)(struct net_device *dev);
 #endif
+	int			(*ndo_set_vf_mac)(struct net_device *dev,
+						  int queue, u8 *mac);
+	int			(*ndo_set_vf_vlan)(struct net_device *dev,
+						   int queue, u16 vlan, u8 qos);
+	int			(*ndo_set_vf_tx_rate)(struct net_device *dev,
+						      int vf, int rate);
+	int			(*ndo_get_vf_config)(struct net_device *dev,
+						     int vf,
+						     struct ifla_vf_info *ivf);
 #if defined(CONFIG_FCOE) || defined(CONFIG_FCOE_MODULE)
 	int			(*ndo_fcoe_enable)(struct net_device *dev);
 	int			(*ndo_fcoe_disable)(struct net_device *dev);
@@ -745,6 +763,7 @@ struct net_device {
 #define NETIF_F_FCOE_CRC	(1 << 24) /* FCoE CRC32 */
 #define NETIF_F_SCTP_CSUM	(1 << 25) /* SCTP checksum offload */
 #define NETIF_F_FCOE_MTU	(1 << 26) /* Supports max FCoE MTU, 2158 bytes*/
+#define NETIF_F_NTUPLE		(1 << 27) /* N-tuple filters supported */
 
 	/* Segmentation offload features */
 #define NETIF_F_GSO_SHIFT	16
@@ -905,7 +924,12 @@ struct net_device {
 	       NETREG_UNREGISTERED,	/* completed unregister todo */
 	       NETREG_RELEASED,		/* called free_netdev */
 	       NETREG_DUMMY,		/* dummy device for NAPI poll */
-	} reg_state;
+	} reg_state:16;
+
+	enum {
+		RTNL_LINK_INITIALIZED,
+		RTNL_LINK_INITIALIZING,
+	} rtnl_link_state:16;
 
 	/* Called from unregister, can be used to call free_netdev */
 	void (*destructor)(struct net_device *dev);
@@ -953,6 +977,8 @@ struct net_device {
 	/* max exchange id for FCoE LRO by ddp */
 	unsigned int		fcoe_ddp_xid;
 #endif
+	/* n-tuple filter list attached to this device */
+	struct ethtool_rx_ntuple_list ethtool_ntuple_list;
 };
 #define to_net_dev(d) container_of(d, struct net_device, dev)
 
@@ -1008,6 +1034,15 @@ static inline bool netdev_uses_dsa_tags(struct net_device *dev)
 
 	return 0;
 }
+
+#ifndef CONFIG_NET_NS
+static inline void skb_set_dev(struct sk_buff *skb, struct net_device *dev)
+{
+	skb->dev = dev;
+}
+#else /* CONFIG_NET_NS */
+void skb_set_dev(struct sk_buff *skb, struct net_device *dev);
+#endif
 
 static inline bool netdev_uses_trailer_tags(struct net_device *dev)
 {
@@ -1527,7 +1562,6 @@ extern int		netif_rx(struct sk_buff *skb);
 extern int		netif_rx_ni(struct sk_buff *skb);
 #define HAVE_NETIF_RECEIVE_SKB 1
 extern int		netif_receive_skb(struct sk_buff *skb);
-extern void		napi_gro_flush(struct napi_struct *napi);
 extern gro_result_t	dev_gro_receive(struct napi_struct *napi,
 					struct sk_buff *skb);
 extern gro_result_t	napi_skb_finish(gro_result_t ret, struct sk_buff *skb);
@@ -1553,7 +1587,9 @@ extern int		dev_valid_name(const char *name);
 extern int		dev_ioctl(struct net *net, unsigned int cmd, void __user *);
 extern int		dev_ethtool(struct net *net, struct ifreq *);
 extern unsigned		dev_get_flags(const struct net_device *);
+extern int		__dev_change_flags(struct net_device *, unsigned int flags);
 extern int		dev_change_flags(struct net_device *, unsigned);
+extern void		__dev_notify_flags(struct net_device *, unsigned int old_flags);
 extern int		dev_change_name(struct net_device *, const char *);
 extern int		dev_set_alias(struct net_device *, const char *, size_t);
 extern int		dev_change_net_namespace(struct net_device *,
@@ -2083,6 +2119,130 @@ static inline u32 dev_ethtool_get_flags(struct net_device *dev)
 		return 0;
 	return dev->ethtool_ops->get_flags(dev);
 }
+
+/* Logging, debugging and troubleshooting/diagnostic helpers. */
+
+/* netdev_printk helpers, similar to dev_printk */
+
+static inline const char *netdev_name(const struct net_device *dev)
+{
+	if (dev->reg_state != NETREG_REGISTERED)
+		return "(unregistered net_device)";
+	return dev->name;
+}
+
+#define netdev_printk(level, netdev, format, args...)		\
+	dev_printk(level, (netdev)->dev.parent,			\
+		   "%s: " format,				\
+		   netdev_name(netdev), ##args)
+
+#define netdev_emerg(dev, format, args...)			\
+	netdev_printk(KERN_EMERG, dev, format, ##args)
+#define netdev_alert(dev, format, args...)			\
+	netdev_printk(KERN_ALERT, dev, format, ##args)
+#define netdev_crit(dev, format, args...)			\
+	netdev_printk(KERN_CRIT, dev, format, ##args)
+#define netdev_err(dev, format, args...)			\
+	netdev_printk(KERN_ERR, dev, format, ##args)
+#define netdev_warn(dev, format, args...)			\
+	netdev_printk(KERN_WARNING, dev, format, ##args)
+#define netdev_notice(dev, format, args...)			\
+	netdev_printk(KERN_NOTICE, dev, format, ##args)
+#define netdev_info(dev, format, args...)			\
+	netdev_printk(KERN_INFO, dev, format, ##args)
+
+#if defined(DEBUG)
+#define netdev_dbg(__dev, format, args...)			\
+	netdev_printk(KERN_DEBUG, __dev, format, ##args)
+#elif defined(CONFIG_DYNAMIC_DEBUG)
+#define netdev_dbg(__dev, format, args...)			\
+do {								\
+	dynamic_dev_dbg((__dev)->dev.parent, "%s: " format,	\
+			netdev_name(__dev), ##args);		\
+} while (0)
+#else
+#define netdev_dbg(__dev, format, args...)			\
+({								\
+	if (0)							\
+		netdev_printk(KERN_DEBUG, __dev, format, ##args); \
+	0;							\
+})
+#endif
+
+#if defined(VERBOSE_DEBUG)
+#define netdev_vdbg	netdev_dbg
+#else
+
+#define netdev_vdbg(dev, format, args...)			\
+({								\
+	if (0)							\
+		netdev_printk(KERN_DEBUG, dev, format, ##args);	\
+	0;							\
+})
+#endif
+
+/*
+ * netdev_WARN() acts like dev_printk(), but with the key difference
+ * of using a WARN/WARN_ON to get the message out, including the
+ * file/line information and a backtrace.
+ */
+#define netdev_WARN(dev, format, args...)			\
+	WARN(1, "netdevice: %s\n" format, netdev_name(dev), ##args);
+
+/* netif printk helpers, similar to netdev_printk */
+
+#define netif_printk(priv, type, level, dev, fmt, args...)	\
+do {					  			\
+	if (netif_msg_##type(priv))				\
+		netdev_printk(level, (dev), fmt, ##args);	\
+} while (0)
+
+#define netif_emerg(priv, type, dev, fmt, args...)		\
+	netif_printk(priv, type, KERN_EMERG, dev, fmt, ##args)
+#define netif_alert(priv, type, dev, fmt, args...)		\
+	netif_printk(priv, type, KERN_ALERT, dev, fmt, ##args)
+#define netif_crit(priv, type, dev, fmt, args...)		\
+	netif_printk(priv, type, KERN_CRIT, dev, fmt, ##args)
+#define netif_err(priv, type, dev, fmt, args...)		\
+	netif_printk(priv, type, KERN_ERR, dev, fmt, ##args)
+#define netif_warn(priv, type, dev, fmt, args...)		\
+	netif_printk(priv, type, KERN_WARNING, dev, fmt, ##args)
+#define netif_notice(priv, type, dev, fmt, args...)		\
+	netif_printk(priv, type, KERN_NOTICE, dev, fmt, ##args)
+#define netif_info(priv, type, dev, fmt, args...)		\
+	netif_printk(priv, type, KERN_INFO, (dev), fmt, ##args)
+
+#if defined(DEBUG)
+#define netif_dbg(priv, type, dev, format, args...)		\
+	netif_printk(priv, type, KERN_DEBUG, dev, format, ##args)
+#elif defined(CONFIG_DYNAMIC_DEBUG)
+#define netif_dbg(priv, type, netdev, format, args...)		\
+do {								\
+	if (netif_msg_##type(priv))				\
+		dynamic_dev_dbg((netdev)->dev.parent,		\
+				"%s: " format,			\
+				netdev_name(netdev), ##args);	\
+} while (0)
+#else
+#define netif_dbg(priv, type, dev, format, args...)			\
+({									\
+	if (0)								\
+		netif_printk(priv, type, KERN_DEBUG, dev, format, ##args); \
+	0;								\
+})
+#endif
+
+#if defined(VERBOSE_DEBUG)
+#define netif_vdbg	netdev_dbg
+#else
+#define netif_vdbg(priv, type, dev, format, args...)		\
+({								\
+	if (0)							\
+		netif_printk(KERN_DEBUG, dev, format, ##args);	\
+	0;							\
+})
+#endif
+
 #endif /* __KERNEL__ */
 
 #endif	/* _LINUX_NETDEVICE_H */

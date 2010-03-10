@@ -420,7 +420,7 @@ static void InitBoard(struct net_device *dev)
 	/* start putting the multicast addresses into the CAM list.  Stop if
 	   it is full. */
 
-	for (mcptr = dev->mc_list; mcptr != NULL; mcptr = mcptr->next) {
+	netdev_for_each_mc_addr(mcptr, dev) {
 		putcam(cams, &camcnt, mcptr->dmi_addr);
 		if (camcnt == 16)
 			break;

@@ -323,5 +323,5 @@ int kvm_s390_handle_b2(struct kvm_vcpu *vcpu)
 		else
 			return handler(vcpu);
 	}
-	return -ENOTSUPP;
+	return -EOPNOTSUPP;
 }

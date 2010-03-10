@@ -895,8 +895,7 @@ static int mxser_activate(struct tty_port *port, struct tty_struct *tty)
 	if (inb(info->ioaddr + UART_LSR) == 0xff) {
 		spin_unlock_irqrestore(&info->slock, flags);
 		if (capable(CAP_SYS_ADMIN)) {
-			if (tty)
-				set_bit(TTY_IO_ERROR, &tty->flags);
+			set_bit(TTY_IO_ERROR, &tty->flags);
 			return 0;
 		} else
 			return -ENODEV;

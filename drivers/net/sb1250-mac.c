@@ -2161,13 +2161,13 @@ static void sbmac_setmulti(struct sbmac_softc *sc)
 	 * XXX if the table overflows */
 
 	idx = 1;		/* skip station address */
-	mclist = dev->mc_list;
-	while (mclist && (idx < MAC_ADDR_COUNT)) {
+	netdev_for_each_mc_addr(mclist, dev) {
+		if (idx == MAC_ADDR_COUNT)
+			break;
 		reg = sbmac_addr2reg(mclist->dmi_addr);
 		port = sc->sbm_base + R_MAC_ADDR_BASE+(idx * sizeof(uint64_t));
 		__raw_writeq(reg, port);
 		idx++;
-		mclist = mclist->next;
 	}
 
 	/*

@@ -233,10 +233,10 @@ struct tw9910_hsync_ctrl {
 };
 
 struct tw9910_priv {
-	struct v4l2_subdev                subdev;
-	struct tw9910_video_info       *info;
-	const struct tw9910_scale_ctrl *scale;
-	u32                             revision;
+	struct v4l2_subdev		subdev;
+	struct tw9910_video_info	*info;
+	const struct tw9910_scale_ctrl	*scale;
+	u32				revision;
 };
 
 static const struct tw9910_scale_ctrl tw9910_ntsc_scales[] = {

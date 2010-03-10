@@ -217,10 +217,10 @@ static inline int nilfs_init_acl(struct inode *inode, struct inode *dir)
 
 /* dir.c */
 extern int nilfs_add_link(struct dentry *, struct inode *);
-extern ino_t nilfs_inode_by_name(struct inode *, struct dentry *);
+extern ino_t nilfs_inode_by_name(struct inode *, const struct qstr *);
 extern int nilfs_make_empty(struct inode *, struct inode *);
 extern struct nilfs_dir_entry *
-nilfs_find_entry(struct inode *, struct dentry *, struct page **);
+nilfs_find_entry(struct inode *, const struct qstr *, struct page **);
 extern int nilfs_delete_entry(struct nilfs_dir_entry *, struct page *);
 extern int nilfs_empty_dir(struct inode *);
 extern struct nilfs_dir_entry *nilfs_dotdot(struct inode *, struct page **);

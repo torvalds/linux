@@ -216,7 +216,7 @@ int rt28xx_close(struct net_device *dev)
 	u32 i = 0;
 
 #ifdef RTMP_MAC_USB
-	DECLARE_WAIT_QUEUE_HEAD(unlink_wakeup);
+	DECLARE_WAIT_QUEUE_HEAD_ONSTACK(unlink_wakeup);
 	DECLARE_WAITQUEUE(wait, current);
 #endif /* RTMP_MAC_USB // */
 

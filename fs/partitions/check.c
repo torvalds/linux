@@ -412,9 +412,10 @@ struct hd_struct *add_partition(struct gendisk *disk, int partno,
 	pdev = part_to_dev(p);
 
 	p->start_sect = start;
-	p->alignment_offset = queue_sector_alignment_offset(disk->queue, start);
-	p->discard_alignment = queue_sector_discard_alignment(disk->queue,
-							      start);
+	p->alignment_offset =
+		queue_limit_alignment_offset(&disk->queue->limits, start);
+	p->discard_alignment =
+		queue_limit_discard_alignment(&disk->queue->limits, start);
 	p->nr_sects = len;
 	p->partno = partno;
 	p->policy = get_disk_ro(disk);

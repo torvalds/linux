@@ -153,8 +153,8 @@ static void pata_at91_set_piomode(struct ata_port *ap, struct ata_device *adev)
 	/* Compute ATA timing and set it to SMC */
 	ret = ata_timing_compute(adev, adev->pio_mode, &timing, 1000, 0);
 	if (ret) {
-		dev_warn(ap->dev, "Failed to compute ATA timing %d, \
-				set PIO_0 timing\n", ret);
+		dev_warn(ap->dev, "Failed to compute ATA timing %d, "
+			 "set PIO_0 timing\n", ret);
 		set_smc_timing(ap->dev, info, &initial_timing);
 	} else {
 		set_smc_timing(ap->dev, info, &timing);

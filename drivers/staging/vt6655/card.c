@@ -2788,16 +2788,18 @@ void CARDvUpdateBasicTopRate (PVOID pDeviceHandler)
 
      //Determines the highest basic rate.
      for (ii = RATE_54M; ii >= RATE_6M; ii --) {
-         if ( (pDevice->wBasicRate) & ((WORD)(1<<ii)) )
+         if ( (pDevice->wBasicRate) & ((WORD)(1<<ii)) ) {
              byTopOFDM = ii;
              break;
+         }
      }
      pDevice->byTopOFDMBasicRate = byTopOFDM;
 
      for (ii = RATE_11M;; ii --) {
-         if ( (pDevice->wBasicRate) & ((WORD)(1<<ii)) )
+         if ( (pDevice->wBasicRate) & ((WORD)(1<<ii)) ) {
              byTopCCK = ii;
              break;
+         }
          if (ii == RATE_1M)
             break;
      }

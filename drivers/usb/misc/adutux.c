@@ -38,7 +38,7 @@ static int debug = 1;
 #define dbg(lvl, format, arg...) 					\
 do { 									\
 	if (debug >= lvl)						\
-		printk(KERN_DEBUG __FILE__ " : " format " \n", ## arg);	\
+		printk(KERN_DEBUG "%s: " format "\n", __FILE__, ##arg);	\
 } while (0)
 
 
@@ -56,7 +56,7 @@ MODULE_PARM_DESC(debug, "Debug enabled or not");
 #define ADU_PRODUCT_ID 0x0064
 
 /* table of devices that work with this driver */
-static struct usb_device_id device_table [] = {
+static const struct usb_device_id device_table[] = {
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID) },		/* ADU100 */
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+20) }, 	/* ADU120 */
 	{ USB_DEVICE(ADU_VENDOR_ID, ADU_PRODUCT_ID+30) }, 	/* ADU130 */
@@ -132,8 +132,8 @@ static void adu_debug_data(int level, const char *function, int size,
 	if (debug < level)
 		return;
 
-	printk(KERN_DEBUG __FILE__": %s - length = %d, data = ",
-	       function, size);
+	printk(KERN_DEBUG "%s: %s - length = %d, data = ",
+	       __FILE__, function, size);
 	for (i = 0; i < size; ++i)
 		printk("%.2x ", data[i]);
 	printk("\n");

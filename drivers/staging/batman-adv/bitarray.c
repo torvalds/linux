@@ -21,7 +21,6 @@
 
 #include "main.h"
 #include "bitarray.h"
-#include "log.h"
 
 /* returns true if the corresponding bit in the given seq_bits indicates true
  * and curr_seqno is within range of last_seqno */
@@ -80,8 +79,8 @@ void bit_shift(TYPE_OF_WORD *seq_bits, int32_t n)
 		 * from.
 		 *
 		 * left is high, right is low: FEDC BA98 7654 3210
-		 *	                                  ^^ ^^
-		 *                             vvvv
+		 *					  ^^ ^^
+		 *			       vvvv
 		 * ^^^^ = from, vvvvv =to, we'd have word_num==1 and
 		 * word_offset==WORD_BIT_SIZE/2 ????? in this example.
 		 * (=24 bits)
@@ -133,13 +132,13 @@ char bit_get_packet(TYPE_OF_WORD *seq_bits, int16_t seq_num_diff,
 	    (seq_num_diff < -TQ_LOCAL_WINDOW_SIZE)) {
 
 		if (seq_num_diff > TQ_LOCAL_WINDOW_SIZE)
-			debug_log(LOG_TYPE_BATMAN,
-				  "We missed a lot of packets (%i) !\n",
-				  seq_num_diff-1);
+			bat_dbg(DBG_BATMAN,
+				"We missed a lot of packets (%i) !\n",
+				seq_num_diff-1);
 
 		if (-seq_num_diff > TQ_LOCAL_WINDOW_SIZE)
-			debug_log(LOG_TYPE_BATMAN,
-				  "Other host probably restarted !\n");
+			bat_dbg(DBG_BATMAN,
+				"Other host probably restarted !\n");
 
 		for (i = 0; i < NUM_WORDS; i++)
 			seq_bits[i] = 0;

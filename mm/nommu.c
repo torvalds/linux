@@ -146,7 +146,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 			(VM_MAYREAD | VM_MAYWRITE) : (VM_READ | VM_WRITE);
 
 	for (i = 0; i < nr_pages; i++) {
-		vma = find_vma(mm, start);
+		vma = find_extend_vma(mm, start);
 		if (!vma)
 			goto finish_or_fault;
 
@@ -764,7 +764,7 @@ EXPORT_SYMBOL(find_vma);
  */
 struct vm_area_struct *find_extend_vma(struct mm_struct *mm, unsigned long addr)
 {
-	return find_vma(mm, addr);
+	return find_vma(mm, addr & PAGE_MASK);
 }
 
 /*
@@ -1209,7 +1209,7 @@ unsigned long do_mmap_pgoff(struct file *file,
 	region->vm_flags = vm_flags;
 	region->vm_pgoff = pgoff;
 
-	INIT_LIST_HEAD(&vma->anon_vma_node);
+	INIT_LIST_HEAD(&vma->anon_vma_chain);
 	vma->vm_flags = vm_flags;
 	vma->vm_pgoff = pgoff;
 

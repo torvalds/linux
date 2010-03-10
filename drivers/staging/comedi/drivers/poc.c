@@ -122,22 +122,21 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	unsigned int iosize;
 
 	iobase = it->options[0];
-	printk("comedi%d: poc: using %s iobase 0x%lx\n", dev->minor,
+	printk(KERN_INFO "comedi%d: poc: using %s iobase 0x%lx\n", dev->minor,
 	       this_board->name, iobase);
 
 	dev->board_name = this_board->name;
 
 	if (iobase == 0) {
-		printk("io base address required\n");
+		printk(KERN_ERR "io base address required\n");
 		return -EINVAL;
 	}
 
 	iosize = this_board->iosize;
 	/* check if io addresses are available */
 	if (!request_region(iobase, iosize, "dac02")) {
-		printk
-		    ("I/O port conflict: failed to allocate ports 0x%lx to 0x%lx\n",
-		     iobase, iobase + iosize - 1);
+		printk(KERN_ERR "I/O port conflict: failed to allocate ports "
+			"0x%lx to 0x%lx\n", iobase, iobase + iosize - 1);
 		return -EIO;
 	}
 	dev->iobase = iobase;
@@ -156,9 +155,8 @@ static int poc_attach(struct comedi_device *dev, struct comedi_devconfig *it)
 	s->insn_write = this_board->winsn;
 	s->insn_read = this_board->rinsn;
 	s->insn_bits = this_board->insnbits;
-	if (s->type == COMEDI_SUBD_AO || s->type == COMEDI_SUBD_DO) {
+	if (s->type == COMEDI_SUBD_AO || s->type == COMEDI_SUBD_DO)
 		s->subdev_flags = SDF_WRITABLE;
-	}
 
 	return 0;
 }
@@ -169,7 +167,7 @@ static int poc_detach(struct comedi_device *dev)
 	if (dev->iobase)
 		release_region(dev->iobase, this_board->iosize);
 
-	printk("comedi%d: dac02: remove\n", dev->minor);
+	printk(KERN_INFO "comedi%d: dac02: remove\n", dev->minor);
 
 	return 0;
 }

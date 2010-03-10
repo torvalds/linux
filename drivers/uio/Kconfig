@@ -44,17 +44,6 @@ config UIO_PDRV_GENIRQ
 
 	  If you don't know what to do here, say N.
 
-config UIO_SMX
-	tristate "SMX cryptengine UIO interface"
-	help
-	  Userspace IO interface to the Cryptography engine found on the
-	  Nias Digital SMX boards.  These will be available from Q4 2008
-	  from http://www.niasdigital.com.  The userspace part of this
-	  driver will be released under the GPL at the same time as the
-	  hardware and will be able to be downloaded from the same site.
-
-	  If you compile this as a module, it will be called uio_smx.
-
 config UIO_AEC
 	tristate "AEC video timestamp device"
 	depends on PCI
@@ -74,6 +63,7 @@ config UIO_AEC
 
 config UIO_SERCOS3
 	tristate "Automata Sercos III PCI card driver"
+	depends on PCI
 	help
 	  Userspace I/O interface for the Sercos III PCI card from
 	  Automata GmbH. The userspace part of this driver will be
@@ -87,11 +77,21 @@ config UIO_SERCOS3
 config UIO_PCI_GENERIC
 	tristate "Generic driver for PCI 2.3 and PCI Express cards"
 	depends on PCI
-	default n
 	help
 	  Generic driver that you can bind, dynamically, to any
 	  PCI 2.3 compliant and PCI Express card. It is useful,
 	  primarily, for virtualization scenarios.
 	  If you compile this as a module, it will be called uio_pci_generic.
+
+config UIO_NETX
+	tristate "Hilscher NetX Card driver"
+	depends on PCI
+	help
+	  Driver for Hilscher NetX based fieldbus cards (cifX, comX).
+	  This driver requires a userspace component that comes with the card
+	  or is available from Hilscher (http://www.hilscher.com).
+
+	  To compile this driver as a module, choose M here; the module
+	  will be called uio_netx.
 
 endif

@@ -1871,10 +1871,8 @@ static void ray_update_parm(struct net_device *dev, UCHAR objid, UCHAR *value,
 /*===========================================================================*/
 static void ray_update_multi_list(struct net_device *dev, int all)
 {
-	struct dev_mc_list *dmi, **dmip;
 	int ccsindex;
 	struct ccs __iomem *pccs;
-	int i = 0;
 	ray_dev_t *local = netdev_priv(dev);
 	struct pcmcia_device *link = local->finder;
 	void __iomem *p = local->sram + HOST_TO_ECF_BASE;
@@ -1895,9 +1893,11 @@ static void ray_update_multi_list(struct net_device *dev, int all)
 		writeb(0xff, &pccs->var);
 		local->num_multi = 0xff;
 	} else {
+		struct dev_mc_list *dmi;
+		int i = 0;
+
 		/* Copy the kernel's list of MC addresses to card */
-		for (dmip = &dev->mc_list; (dmi = *dmip) != NULL;
-		     dmip = &dmi->next) {
+		netdev_for_each_mc_addr(dmi, dev) {
 			memcpy_toio(p, dmi->dmi_addr, ETH_ALEN);
 			dev_dbg(&link->dev,
 			      "ray_update_multi add addr %02x%02x%02x%02x%02x%02x\n",
@@ -1950,7 +1950,7 @@ static void set_multicast_list(struct net_device *dev)
 	if (dev->flags & IFF_ALLMULTI)
 		ray_update_multi_list(dev, 1);
 	else {
-		if (local->num_multi != dev->mc_count)
+		if (local->num_multi != netdev_mc_count(dev))
 			ray_update_multi_list(dev, 0);
 	}
 } /* end set_multicast_list */

@@ -142,7 +142,7 @@ extern void udf_truncate(struct inode *);
 extern void udf_read_inode(struct inode *);
 extern void udf_delete_inode(struct inode *);
 extern void udf_clear_inode(struct inode *);
-extern int udf_write_inode(struct inode *, int);
+extern int udf_write_inode(struct inode *, struct writeback_control *wbc);
 extern long udf_block_map(struct inode *, sector_t);
 extern int udf_extend_file(struct inode *, struct extent_position *,
 			   struct kernel_long_ad *, sector_t);

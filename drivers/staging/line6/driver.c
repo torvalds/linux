@@ -33,7 +33,7 @@
 
 
 /* table of devices that work with this driver */
-static struct usb_device_id line6_id_table[] = {
+static const struct usb_device_id line6_id_table[] = {
 	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXT) },
 	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXTLIVE) },
 	{ USB_DEVICE(LINE6_VENDOR_ID, LINE6_DEVID_BASSPODXTPRO) },

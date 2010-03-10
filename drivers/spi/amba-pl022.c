@@ -363,6 +363,7 @@ struct pl022 {
 	void				*rx_end;
 	enum ssp_reading		read;
 	enum ssp_writing		write;
+	u32				exp_fifo_level;
 };
 
 /**
@@ -501,6 +502,9 @@ static int flush(struct pl022 *pl022)
 		while (readw(SSP_SR(pl022->virtbase)) & SSP_SR_MASK_RNE)
 			readw(SSP_DR(pl022->virtbase));
 	} while ((readw(SSP_SR(pl022->virtbase)) & SSP_SR_MASK_BSY) && limit--);
+
+	pl022->exp_fifo_level = 0;
+
 	return limit;
 }
 
@@ -583,10 +587,9 @@ static void readwriter(struct pl022 *pl022)
 	 * errons in 8bit wide transfers on ARM variants (just 8 words
 	 * FIFO, means only 8x8 = 64 bits in FIFO) at least.
 	 *
-	 * FIXME: currently we have no logic to account for this.
-	 * perhaps there is even something broken in HW regarding
-	 * 8bit transfers (it doesn't fail on 16bit) so this needs
-	 * more investigation...
+	 * To prevent this issue, the TX FIFO is only filled to the
+	 * unused RX FIFO fill length, regardless of what the TX
+	 * FIFO status flag indicates.
 	 */
 	dev_dbg(&pl022->adev->dev,
 		"%s, rx: %p, rxend: %p, tx: %p, txend: %p\n",
@@ -613,11 +616,12 @@ static void readwriter(struct pl022 *pl022)
 			break;
 		}
 		pl022->rx += (pl022->cur_chip->n_bytes);
+		pl022->exp_fifo_level--;
 	}
 	/*
-	 * Write as much as you can, while keeping an eye on the RX FIFO!
+	 * Write as much as possible up to the RX FIFO size
 	 */
-	while ((readw(SSP_SR(pl022->virtbase)) & SSP_SR_MASK_TNF)
+	while ((pl022->exp_fifo_level < pl022->vendor->fifodepth)
 	       && (pl022->tx < pl022->tx_end)) {
 		switch (pl022->write) {
 		case WRITING_NULL:
@@ -634,6 +638,7 @@ static void readwriter(struct pl022 *pl022)
 			break;
 		}
 		pl022->tx += (pl022->cur_chip->n_bytes);
+		pl022->exp_fifo_level++;
 		/*
 		 * This inner reader takes care of things appearing in the RX
 		 * FIFO as we're transmitting. This will happen a lot since the
@@ -660,6 +665,7 @@ static void readwriter(struct pl022 *pl022)
 				break;
 			}
 			pl022->rx += (pl022->cur_chip->n_bytes);
+			pl022->exp_fifo_level--;
 		}
 	}
 	/*

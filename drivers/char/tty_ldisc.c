@@ -706,12 +706,13 @@ static void tty_reset_termios(struct tty_struct *tty)
 /**
  *	tty_ldisc_reinit	-	reinitialise the tty ldisc
  *	@tty: tty to reinit
+ *	@ldisc: line discipline to reinitialize
  *
- *	Switch the tty back to N_TTY line discipline and leave the
- *	ldisc state closed
+ *	Switch the tty to a line discipline and leave the ldisc
+ *	state closed
  */
 
-static void tty_ldisc_reinit(struct tty_struct *tty)
+static void tty_ldisc_reinit(struct tty_struct *tty, int ldisc)
 {
 	struct tty_ldisc *ld;
 
@@ -721,10 +722,10 @@ static void tty_ldisc_reinit(struct tty_struct *tty)
 	/*
 	 *	Switch the line discipline back
 	 */
-	ld = tty_ldisc_get(N_TTY);
+	ld = tty_ldisc_get(ldisc);
 	BUG_ON(IS_ERR(ld));
 	tty_ldisc_assign(tty, ld);
-	tty_set_termios_ldisc(tty, N_TTY);
+	tty_set_termios_ldisc(tty, ldisc);
 }
 
 /**
@@ -745,6 +746,8 @@ static void tty_ldisc_reinit(struct tty_struct *tty)
 void tty_ldisc_hangup(struct tty_struct *tty)
 {
 	struct tty_ldisc *ld;
+	int reset = tty->driver->flags & TTY_DRIVER_RESET_TERMIOS;
+	int err = 0;
 
 	/*
 	 * FIXME! What are the locking issues here? This may me overdoing
@@ -772,25 +775,32 @@ void tty_ldisc_hangup(struct tty_struct *tty)
 	wake_up_interruptible_poll(&tty->read_wait, POLLIN);
 	/*
 	 * Shutdown the current line discipline, and reset it to
-	 * N_TTY.
+	 * N_TTY if need be.
+	 *
+	 * Avoid racing set_ldisc or tty_ldisc_release
 	 */
-	if (tty->driver->flags & TTY_DRIVER_RESET_TERMIOS) {
-		/* Avoid racing set_ldisc or tty_ldisc_release */
-		mutex_lock(&tty->ldisc_mutex);
-		tty_ldisc_halt(tty);
-		if (tty->ldisc) {	/* Not yet closed */
-			/* Switch back to N_TTY */
-			tty_ldisc_reinit(tty);
-			/* At this point we have a closed ldisc and we want to
-			   reopen it. We could defer this to the next open but
-			   it means auditing a lot of other paths so this is
-			   a FIXME */
-			WARN_ON(tty_ldisc_open(tty, tty->ldisc));
-			tty_ldisc_enable(tty);
+	mutex_lock(&tty->ldisc_mutex);
+	tty_ldisc_halt(tty);
+	/* At this point we have a closed ldisc and we want to
+	   reopen it. We could defer this to the next open but
+	   it means auditing a lot of other paths so this is
+	   a FIXME */
+	if (tty->ldisc) {	/* Not yet closed */
+		if (reset == 0) {
+			tty_ldisc_reinit(tty, tty->termios->c_line);
+			err = tty_ldisc_open(tty, tty->ldisc);
 		}
-		mutex_unlock(&tty->ldisc_mutex);
-		tty_reset_termios(tty);
+		/* If the re-open fails or we reset then go to N_TTY. The
+		   N_TTY open cannot fail */
+		if (reset || err) {
+			tty_ldisc_reinit(tty, N_TTY);
+			WARN_ON(tty_ldisc_open(tty, tty->ldisc));
+		}
+		tty_ldisc_enable(tty);
 	}
+	mutex_unlock(&tty->ldisc_mutex);
+	if (reset)
+		tty_reset_termios(tty);
 }
 
 /**

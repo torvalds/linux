@@ -157,7 +157,7 @@ config SND_HDA_CODEC_INTELHDMI
 
 config SND_HDA_ELD
 	def_bool y
-	depends on SND_HDA_CODEC_INTELHDMI
+	depends on SND_HDA_CODEC_INTELHDMI || SND_HDA_CODEC_NVHDMI
 
 config SND_HDA_CODEC_CIRRUS
 	bool "Build Cirrus Logic codec support"

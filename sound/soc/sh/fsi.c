@@ -388,7 +388,7 @@ static void fsi_soft_all_reset(struct fsi_master *master)
 }
 
 /* playback interrupt */
-static int fsi_data_push(struct fsi_priv *fsi)
+static int fsi_data_push(struct fsi_priv *fsi, int startup)
 {
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_substream *substream = NULL;
@@ -397,7 +397,7 @@ static int fsi_data_push(struct fsi_priv *fsi)
 	int fifo_free;
 	int width;
 	u8 *start;
-	int i, ret, over_period;
+	int i, over_period;
 
 	if (!fsi			||
 	    !fsi->substream		||
@@ -453,24 +453,26 @@ static int fsi_data_push(struct fsi_priv *fsi)
 
 	fsi->byte_offset += send * width;
 
-	ret = 0;
 	status = fsi_reg_read(fsi, DOFF_ST);
-	if (status & ERR_OVER) {
+	if (!startup) {
 		struct snd_soc_dai *dai = fsi_get_dai(substream);
-		dev_err(dai->dev, "over run error\n");
-		fsi_reg_write(fsi, DOFF_ST, status & ~ST_ERR);
-		ret = -EIO;
+
+		if (status & ERR_OVER)
+			dev_err(dai->dev, "over run\n");
+		if (status & ERR_UNDER)
+			dev_err(dai->dev, "under run\n");
 	}
+	fsi_reg_write(fsi, DOFF_ST, 0);
 
 	fsi_irq_enable(fsi, 1);
 
 	if (over_period)
 		snd_pcm_period_elapsed(substream);
 
-	return ret;
+	return 0;
 }
 
-static int fsi_data_pop(struct fsi_priv *fsi)
+static int fsi_data_pop(struct fsi_priv *fsi, int startup)
 {
 	struct snd_pcm_runtime *runtime;
 	struct snd_pcm_substream *substream = NULL;
@@ -479,7 +481,7 @@ static int fsi_data_pop(struct fsi_priv *fsi)
 	int fifo_fill;
 	int width;
 	u8 *start;
-	int i, ret, over_period;
+	int i, over_period;
 
 	if (!fsi			||
 	    !fsi->substream		||
@@ -534,21 +536,23 @@ static int fsi_data_pop(struct fsi_priv *fsi)
 
 	fsi->byte_offset += fifo_fill * width;
 
-	ret = 0;
 	status = fsi_reg_read(fsi, DIFF_ST);
-	if (status & ERR_UNDER) {
+	if (!startup) {
 		struct snd_soc_dai *dai = fsi_get_dai(substream);
-		dev_err(dai->dev, "under run error\n");
-		fsi_reg_write(fsi, DIFF_ST, status & ~ST_ERR);
-		ret = -EIO;
+
+		if (status & ERR_OVER)
+			dev_err(dai->dev, "over run\n");
+		if (status & ERR_UNDER)
+			dev_err(dai->dev, "under run\n");
 	}
+	fsi_reg_write(fsi, DIFF_ST, 0);
 
 	fsi_irq_enable(fsi, 0);
 
 	if (over_period)
 		snd_pcm_period_elapsed(substream);
 
-	return ret;
+	return 0;
 }
 
 static irqreturn_t fsi_interrupt(int irq, void *data)
@@ -562,13 +566,13 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
 	fsi_master_write(master, SOFT_RST, status | 0x00000010);
 
 	if (int_st & INT_A_OUT)
-		fsi_data_push(&master->fsia);
+		fsi_data_push(&master->fsia, 0);
 	if (int_st & INT_B_OUT)
-		fsi_data_push(&master->fsib);
+		fsi_data_push(&master->fsib, 0);
 	if (int_st & INT_A_IN)
-		fsi_data_pop(&master->fsia);
+		fsi_data_pop(&master->fsia, 0);
 	if (int_st & INT_B_IN)
-		fsi_data_pop(&master->fsib);
+		fsi_data_pop(&master->fsib, 0);
 
 	fsi_master_write(master, INT_ST, 0x0000000);
 
@@ -726,7 +730,7 @@ static int fsi_dai_trigger(struct snd_pcm_substream *substream, int cmd,
 		fsi_stream_push(fsi, substream,
 				frames_to_bytes(runtime, runtime->buffer_size),
 				frames_to_bytes(runtime, runtime->period_size));
-		ret = is_play ? fsi_data_push(fsi) : fsi_data_pop(fsi);
+		ret = is_play ? fsi_data_push(fsi, 1) : fsi_data_pop(fsi, 1);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		fsi_irq_disable(fsi, is_play);

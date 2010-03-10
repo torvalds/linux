@@ -1271,14 +1271,13 @@ static void ti_recv(struct device *dev, struct tty_struct *tty,
 	int cnt;
 
 	do {
-		cnt = tty_buffer_request_room(tty, length);
+		cnt = tty_insert_flip_string(tty, data, length);
 		if (cnt < length) {
 			dev_err(dev, "%s - dropping data, %d bytes lost\n",
 						__func__, length - cnt);
 			if (cnt == 0)
 				break;
 		}
-		tty_insert_flip_string(tty, data, cnt);
 		tty_flip_buffer_push(tty);
 		data += cnt;
 		length -= cnt;

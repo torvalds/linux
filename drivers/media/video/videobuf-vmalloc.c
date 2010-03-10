@@ -138,6 +138,8 @@ static void *__videobuf_alloc(size_t size)
 	struct videobuf_buffer *vb;
 
 	vb = kzalloc(size+sizeof(*mem),GFP_KERNEL);
+	if (!vb)
+		return vb;
 
 	mem = vb->priv = ((char *)vb)+size;
 	mem->magic=MAGIC_VMAL_MEM;

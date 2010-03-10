@@ -95,7 +95,7 @@ int kobject_uevent_env(struct kobject *kobj, enum kobject_action action,
 	const char *subsystem;
 	struct kobject *top_kobj;
 	struct kset *kset;
-	struct kset_uevent_ops *uevent_ops;
+	const struct kset_uevent_ops *uevent_ops;
 	u64 seq;
 	int i = 0;
 	int retval = 0;

@@ -101,7 +101,7 @@ struct hd_struct {
 	unsigned long stamp;
 	int in_flight[2];
 #ifdef	CONFIG_SMP
-	struct disk_stats *dkstats;
+	struct disk_stats __percpu *dkstats;
 #else
 	struct disk_stats dkstats;
 #endif

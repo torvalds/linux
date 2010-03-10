@@ -1221,7 +1221,7 @@ free_unused_pages(unsigned int virtual_start, unsigned int virtual_end)
 	printk("acornfb: freed %dK memory\n", mb_freed);
 }
 
-static int __init acornfb_probe(struct platform_device *dev)
+static int __devinit acornfb_probe(struct platform_device *dev)
 {
 	unsigned long size;
 	u_int h_sync, v_sync;

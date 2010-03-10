@@ -351,13 +351,13 @@ static struct net_device_stats *am79c961_getstats (struct net_device *dev)
 	return &priv->stats;
 }
 
-static void am79c961_mc_hash(struct dev_mc_list *dmi, unsigned short *hash)
+static void am79c961_mc_hash(char *addr, unsigned short *hash)
 {
-	if (dmi->dmi_addrlen == ETH_ALEN && dmi->dmi_addr[0] & 0x01) {
+	if (addr[0] & 0x01) {
 		int idx, bit;
 		u32 crc;
 
-		crc = ether_crc_le(ETH_ALEN, dmi->dmi_addr);
+		crc = ether_crc_le(ETH_ALEN, addr);
 
 		idx = crc >> 30;
 		bit = (crc >> 26) & 15;
@@ -387,8 +387,8 @@ static void am79c961_setmulticastlist (struct net_device *dev)
 
 		memset(multi_hash, 0x00, sizeof(multi_hash));
 
-		for (dmi = dev->mc_list; dmi; dmi = dmi->next)
-			am79c961_mc_hash(dmi, multi_hash);
+		netdev_for_each_mc_addr(dmi, dev)
+			am79c961_mc_hash(dmi->dmi_addr, multi_hash);
 	}
 
 	spin_lock_irqsave(&priv->chip_lock, flags);
@@ -680,7 +680,7 @@ static const struct net_device_ops am79c961_netdev_ops = {
 #endif
 };
 
-static int __init am79c961_probe(struct platform_device *pdev)
+static int __devinit am79c961_probe(struct platform_device *pdev)
 {
 	struct resource *res;
 	struct net_device *dev;

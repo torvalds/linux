@@ -1184,6 +1184,9 @@ static struct atbm8830_config mygica_d689_atbm8830_cfg = {
 	.osc_clk_freq = 30400, /* in kHz */
 	.if_freq = 0, /* zero IF */
 	.zif_swap_iq = 1,
+	.agc_min = 0x2E,
+	.agc_max = 0x90,
+	.agc_hold_loop = 0,
 };
 
 static int cxusb_mygica_d689_frontend_attach(struct dvb_usb_adapter *adap)

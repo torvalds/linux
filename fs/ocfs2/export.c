@@ -239,7 +239,7 @@ static int ocfs2_encode_fh(struct dentry *dentry, u32 *fh_in, int *max_len,
 		mlog(0, "Encoding parent: blkno: %llu, generation: %u\n",
 		     (unsigned long long)blkno, generation);
 	}
-	
+
 	*max_len = len;
 
 bail:

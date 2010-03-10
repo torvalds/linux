@@ -267,7 +267,7 @@ enum rhine_quirks {
 /* Beware of PCI posted writes */
 #define IOSYNC	do { ioread8(ioaddr + StationAddr); } while (0)
 
-static const struct pci_device_id rhine_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(rhine_pci_tbl) = {
 	{ 0x1106, 0x3043, PCI_ANY_ID, PCI_ANY_ID, },	/* VT86C100A */
 	{ 0x1106, 0x3065, PCI_ANY_ID, PCI_ANY_ID, },	/* VT6102 */
 	{ 0x1106, 0x3106, PCI_ANY_ID, PCI_ANY_ID, },	/* 6105{,L,LOM} */
@@ -1697,7 +1697,7 @@ static void rhine_set_rx_mode(struct net_device *dev)
 		rx_mode = 0x1C;
 		iowrite32(0xffffffff, ioaddr + MulticastFilter0);
 		iowrite32(0xffffffff, ioaddr + MulticastFilter1);
-	} else if ((dev->mc_count > multicast_filter_limit) ||
+	} else if ((netdev_mc_count(dev) > multicast_filter_limit) ||
 		   (dev->flags & IFF_ALLMULTI)) {
 		/* Too many to match, or accept all multicasts. */
 		iowrite32(0xffffffff, ioaddr + MulticastFilter0);
@@ -1705,10 +1705,9 @@ static void rhine_set_rx_mode(struct net_device *dev)
 		rx_mode = 0x0C;
 	} else {
 		struct dev_mc_list *mclist;
-		int i;
+
 		memset(mc_filter, 0, sizeof(mc_filter));
-		for (i = 0, mclist = dev->mc_list; mclist && i < dev->mc_count;
-		     i++, mclist = mclist->next) {
+		netdev_for_each_mc_addr(mclist, dev) {
 			int bit_nr = ether_crc(ETH_ALEN, mclist->dmi_addr) >> 26;
 
 			mc_filter[bit_nr >> 5] |= 1 << (bit_nr & 31);

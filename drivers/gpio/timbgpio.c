@@ -23,6 +23,7 @@
 #include <linux/module.h>
 #include <linux/gpio.h>
 #include <linux/platform_device.h>
+#include <linux/irq.h>
 #include <linux/io.h>
 #include <linux/timb_gpio.h>
 #include <linux/interrupt.h>
@@ -37,6 +38,8 @@
 #define TGPIO_ICR	0x14
 #define TGPIO_FLR	0x18
 #define TGPIO_LVR	0x1c
+#define TGPIO_VER	0x20
+#define TGPIO_BFLR	0x24
 
 struct timbgpio {
 	void __iomem		*membase;
@@ -125,17 +128,23 @@ static int timbgpio_irq_type(unsigned irq, unsigned trigger)
 	struct timbgpio *tgpio = get_irq_chip_data(irq);
 	int offset = irq - tgpio->irq_base;
 	unsigned long flags;
-	u32 lvr, flr;
+	u32 lvr, flr, bflr = 0;
+	u32 ver;
 
 	if (offset < 0 || offset > tgpio->gpio.ngpio)
 		return -EINVAL;
+
+	ver = ioread32(tgpio->membase + TGPIO_VER);
 
 	spin_lock_irqsave(&tgpio->lock, flags);
 
 	lvr = ioread32(tgpio->membase + TGPIO_LVR);
 	flr = ioread32(tgpio->membase + TGPIO_FLR);
+	if (ver > 2)
+		bflr = ioread32(tgpio->membase + TGPIO_BFLR);
 
 	if (trigger & (IRQ_TYPE_LEVEL_HIGH | IRQ_TYPE_LEVEL_LOW)) {
+		bflr &= ~(1 << offset);
 		flr &= ~(1 << offset);
 		if (trigger & IRQ_TYPE_LEVEL_HIGH)
 			lvr |= 1 << offset;
@@ -143,21 +152,27 @@ static int timbgpio_irq_type(unsigned irq, unsigned trigger)
 			lvr &= ~(1 << offset);
 	}
 
-	if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH)
-		return -EINVAL;
-	else {
+	if ((trigger & IRQ_TYPE_EDGE_BOTH) == IRQ_TYPE_EDGE_BOTH) {
+		if (ver < 3)
+			return -EINVAL;
+		else {
+			flr |= 1 << offset;
+			bflr |= 1 << offset;
+		}
+	} else {
+		bflr &= ~(1 << offset);
 		flr |= 1 << offset;
-		/* opposite compared to the datasheet, but it mirrors the
-		 * reality
-		 */
 		if (trigger & IRQ_TYPE_EDGE_FALLING)
-			lvr |= 1 << offset;
-		else
 			lvr &= ~(1 << offset);
+		else
+			lvr |= 1 << offset;
 	}
 
 	iowrite32(lvr, tgpio->membase + TGPIO_LVR);
 	iowrite32(flr, tgpio->membase + TGPIO_FLR);
+	if (ver > 2)
+		iowrite32(bflr, tgpio->membase + TGPIO_BFLR);
+
 	iowrite32(1 << offset, tgpio->membase + TGPIO_ICR);
 	spin_unlock_irqrestore(&tgpio->lock, flags);
 
@@ -174,7 +189,7 @@ static void timbgpio_irq(unsigned int irq, struct irq_desc *desc)
 	ipr = ioread32(tgpio->membase + TGPIO_IPR);
 	iowrite32(ipr, tgpio->membase + TGPIO_ICR);
 
-	for_each_bit(offset, &ipr, tgpio->gpio.ngpio)
+	for_each_set_bit(offset, &ipr, tgpio->gpio.ngpio)
 		generic_handle_irq(timbgpio_to_irq(&tgpio->gpio, offset));
 }
 

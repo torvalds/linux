@@ -1371,7 +1371,7 @@ static int __init vivi_create_instance(int inst)
 	/* Now that everything is fine, let's add it to device list */
 	list_add_tail(&dev->vivi_devlist, &vivi_devlist);
 
-	if (video_nr >= 0)
+	if (video_nr != -1)
 		video_nr++;
 
 	dev->vfd = vfd;

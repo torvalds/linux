@@ -149,6 +149,7 @@ struct TCP_Server_Info {
 	bool svlocal:1;			/* local server or remote */
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
+	bool tcp_nodelay;
 	atomic_t inFlight;  /* number of requests on the wire to server */
 #ifdef CONFIG_CIFS_STATS2
 	atomic_t inSend; /* requests trying to send */
@@ -204,7 +205,7 @@ struct cifsUidInfo {
 struct cifsSesInfo {
 	struct list_head smb_ses_list;
 	struct list_head tcon_list;
-	struct semaphore sesSem;
+	struct mutex session_mutex;
 #if 0
 	struct cifsUidInfo *uidInfo;	/* pointer to user info */
 #endif

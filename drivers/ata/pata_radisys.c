@@ -227,7 +227,7 @@ static int radisys_init_one (struct pci_dev *pdev, const struct pci_device_id *e
 		dev_printk(KERN_DEBUG, &pdev->dev,
 			   "version " DRV_VERSION "\n");
 
-	return ata_pci_sff_init_one(pdev, ppi, &radisys_sht, NULL);
+	return ata_pci_sff_init_one(pdev, ppi, &radisys_sht, NULL, 0);
 }
 
 static const struct pci_device_id radisys_pci_tbl[] = {

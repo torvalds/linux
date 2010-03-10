@@ -26,6 +26,7 @@ config KVM
 	select ANON_INODES
 	select HAVE_KVM_IRQCHIP
 	select KVM_APIC_ARCHITECTURE
+	select KVM_MMIO
 	---help---
 	  Support hosting fully virtualized guest machines using hardware
 	  virtualization extensions.  You will need a fairly recent
@@ -47,6 +48,7 @@ config KVM_INTEL
 	  Provides support for KVM on Itanium 2 processors equipped with the VT
 	  extensions.
 
+source drivers/vhost/Kconfig
 source drivers/virtio/Kconfig
 
 endif # VIRTUALIZATION

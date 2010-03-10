@@ -4,9 +4,11 @@
  *  For licencing details see kernel-base/COPYING
  */
 #include <linux/init.h>
+#include <linux/ioport.h>
 
 #include <asm/bios_ebda.h>
 #include <asm/paravirt.h>
+#include <asm/pci_x86.h>
 #include <asm/mpspec.h>
 #include <asm/setup.h>
 #include <asm/apic.h>
@@ -70,11 +72,19 @@ struct x86_init_ops x86_init __initdata = {
 	.iommu = {
 		.iommu_init		= iommu_init_noop,
 	},
+
+	.pci = {
+		.init			= x86_default_pci_init,
+		.init_irq		= x86_default_pci_init_irq,
+		.fixup_irqs		= x86_default_pci_fixup_irqs,
+	},
 };
 
 struct x86_cpuinit_ops x86_cpuinit __cpuinitdata = {
 	.setup_percpu_clockev		= setup_secondary_APIC_clock,
 };
+
+static void default_nmi_init(void) { };
 
 struct x86_platform_ops x86_platform = {
 	.calibrate_tsc			= native_calibrate_tsc,
@@ -82,4 +92,5 @@ struct x86_platform_ops x86_platform = {
 	.set_wallclock			= mach_set_rtc_mmss,
 	.iommu_shutdown			= iommu_shutdown_noop,
 	.is_untracked_pat_range		= is_ISA_range,
+	.nmi_init			= default_nmi_init
 };

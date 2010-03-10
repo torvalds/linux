@@ -60,6 +60,12 @@ int kvmppc_core_vcpu_setup(struct kvm_vcpu *vcpu)
 
 	kvmppc_e500_tlb_setup(vcpu_e500);
 
+	/* Registers init */
+	vcpu->arch.pvr = mfspr(SPRN_PVR);
+
+	/* Since booke kvm only support one core, update all vcpus' PIR to 0 */
+	vcpu->vcpu_id = 0;
+
 	return 0;
 }
 

@@ -263,7 +263,7 @@ int wusbhc_chid_set(struct wusbhc *wusbhc, const struct wusb_ckhdid *chid)
 {
 	int result = 0;
 
-	if (memcmp(chid, &wusb_ckhdid_zero, sizeof(chid)) == 0)
+	if (memcmp(chid, &wusb_ckhdid_zero, sizeof(*chid)) == 0)
 		chid = NULL;
 
 	mutex_lock(&wusbhc->mutex);

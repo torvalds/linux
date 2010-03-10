@@ -301,6 +301,19 @@ int devtmpfs_delete_node(struct device *dev)
 		if (dentry->d_inode) {
 			err = vfs_getattr(nd.path.mnt, dentry, &stat);
 			if (!err && dev_mynode(dev, dentry->d_inode, &stat)) {
+				struct iattr newattrs;
+				/*
+				 * before unlinking this node, reset permissions
+				 * of possible references like hardlinks
+				 */
+				newattrs.ia_uid = 0;
+				newattrs.ia_gid = 0;
+				newattrs.ia_mode = stat.mode & ~0777;
+				newattrs.ia_valid =
+					ATTR_UID|ATTR_GID|ATTR_MODE;
+				mutex_lock(&dentry->d_inode->i_mutex);
+				notify_change(dentry, &newattrs);
+				mutex_unlock(&dentry->d_inode->i_mutex);
 				err = vfs_unlink(nd.path.dentry->d_inode,
 						 dentry);
 				if (!err || err == -ENOENT)

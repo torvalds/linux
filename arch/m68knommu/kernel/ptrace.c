@@ -319,6 +319,11 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		}
 #endif
 
+	case PTRACE_GET_THREAD_AREA:
+		ret = put_user(task_thread_info(child)->tp_value,
+			       (unsigned long __user *)data);
+		break;
+
 		default:
 			ret = -EIO;
 			break;

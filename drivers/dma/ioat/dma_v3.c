@@ -293,17 +293,25 @@ static void __cleanup(struct ioat2_dma_chan *ioat, unsigned long phys_complete)
 		}
 	}
 	ioat->tail += i;
-	BUG_ON(!seen_current); /* no active descs have written a completion? */
+	BUG_ON(active && !seen_current); /* no active descs have written a completion? */
 	chan->last_completion = phys_complete;
-	if (ioat->head == ioat->tail) {
+
+	active = ioat2_ring_active(ioat);
+	if (active == 0) {
 		dev_dbg(to_dev(chan), "%s: cancel completion timeout\n",
 			__func__);
 		clear_bit(IOAT_COMPLETION_PENDING, &chan->state);
 		mod_timer(&chan->timer, jiffies + IDLE_TIMEOUT);
 	}
+	/* 5 microsecond delay per pending descriptor */
+	writew(min((5 * active), IOAT_INTRDELAY_MASK),
+	       chan->device->reg_base + IOAT_INTRDELAY_OFFSET);
 }
 
-static void ioat3_cleanup(struct ioat2_dma_chan *ioat)
+/* try to cleanup, but yield (via spin_trylock) to incoming submissions
+ * with the expectation that we will immediately poll again shortly
+ */
+static void ioat3_cleanup_poll(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
 	unsigned long phys_complete;
@@ -329,29 +337,41 @@ static void ioat3_cleanup(struct ioat2_dma_chan *ioat)
 	spin_unlock_bh(&chan->cleanup_lock);
 }
 
-static void ioat3_cleanup_tasklet(unsigned long data)
+/* run cleanup now because we already delayed the interrupt via INTRDELAY */
+static void ioat3_cleanup_sync(struct ioat2_dma_chan *ioat)
 {
-	struct ioat2_dma_chan *ioat = (void *) data;
+	struct ioat_chan_common *chan = &ioat->base;
+	unsigned long phys_complete;
 
-	ioat3_cleanup(ioat);
-	writew(IOAT_CHANCTRL_RUN | IOAT3_CHANCTRL_COMPL_DCA_EN,
-	       ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
+	prefetch(chan->completion);
+
+	spin_lock_bh(&chan->cleanup_lock);
+	if (!ioat_cleanup_preamble(chan, &phys_complete)) {
+		spin_unlock_bh(&chan->cleanup_lock);
+		return;
+	}
+	spin_lock_bh(&ioat->ring_lock);
+
+	__cleanup(ioat, phys_complete);
+
+	spin_unlock_bh(&ioat->ring_lock);
+	spin_unlock_bh(&chan->cleanup_lock);
+}
+
+static void ioat3_cleanup_event(unsigned long data)
+{
+	struct ioat2_dma_chan *ioat = to_ioat2_chan((void *) data);
+
+	ioat3_cleanup_sync(ioat);
+	writew(IOAT_CHANCTRL_RUN, ioat->base.reg_base + IOAT_CHANCTRL_OFFSET);
 }
 
 static void ioat3_restart_channel(struct ioat2_dma_chan *ioat)
 {
 	struct ioat_chan_common *chan = &ioat->base;
 	unsigned long phys_complete;
-	u32 status;
 
-	status = ioat_chansts(chan);
-	if (is_ioat_active(status) || is_ioat_idle(status))
-		ioat_suspend(chan);
-	while (is_ioat_active(status) || is_ioat_idle(status)) {
-		status = ioat_chansts(chan);
-		cpu_relax();
-	}
-
+	ioat2_quiesce(chan, 0);
 	if (ioat_cleanup_preamble(chan, &phys_complete))
 		__cleanup(ioat, phys_complete);
 
@@ -360,7 +380,7 @@ static void ioat3_restart_channel(struct ioat2_dma_chan *ioat)
 
 static void ioat3_timer_event(unsigned long data)
 {
-	struct ioat2_dma_chan *ioat = (void *) data;
+	struct ioat2_dma_chan *ioat = to_ioat2_chan((void *) data);
 	struct ioat_chan_common *chan = &ioat->base;
 
 	spin_lock_bh(&chan->cleanup_lock);
@@ -426,7 +446,7 @@ ioat3_is_complete(struct dma_chan *c, dma_cookie_t cookie,
 	if (ioat_is_complete(c, cookie, done, used) == DMA_SUCCESS)
 		return DMA_SUCCESS;
 
-	ioat3_cleanup(ioat);
+	ioat3_cleanup_poll(ioat);
 
 	return ioat_is_complete(c, cookie, done, used);
 }
@@ -1239,11 +1259,11 @@ int __devinit ioat3_dma_probe(struct ioatdma_device *device, int dca)
 
 	if (is_raid_device) {
 		dma->device_is_tx_complete = ioat3_is_complete;
-		device->cleanup_tasklet = ioat3_cleanup_tasklet;
+		device->cleanup_fn = ioat3_cleanup_event;
 		device->timer_fn = ioat3_timer_event;
 	} else {
-		dma->device_is_tx_complete = ioat2_is_complete;
-		device->cleanup_tasklet = ioat2_cleanup_tasklet;
+		dma->device_is_tx_complete = ioat_is_dma_complete;
+		device->cleanup_fn = ioat2_cleanup_event;
 		device->timer_fn = ioat2_timer_event;
 	}
 

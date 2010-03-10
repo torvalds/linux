@@ -3211,6 +3211,7 @@ const struct ata_timing *ata_timing_find_mode(u8 xfer_mode)
 int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 		       struct ata_timing *t, int T, int UT)
 {
+	const u16 *id = adev->id;
 	const struct ata_timing *s;
 	struct ata_timing p;
 
@@ -3228,14 +3229,18 @@ int ata_timing_compute(struct ata_device *adev, unsigned short speed,
 	 * PIO/MW_DMA cycle timing.
 	 */
 
-	if (adev->id[ATA_ID_FIELD_VALID] & 2) {	/* EIDE drive */
+	if (id[ATA_ID_FIELD_VALID] & 2) {	/* EIDE drive */
 		memset(&p, 0, sizeof(p));
+
 		if (speed >= XFER_PIO_0 && speed <= XFER_SW_DMA_0) {
-			if (speed <= XFER_PIO_2) p.cycle = p.cyc8b = adev->id[ATA_ID_EIDE_PIO];
-					    else p.cycle = p.cyc8b = adev->id[ATA_ID_EIDE_PIO_IORDY];
-		} else if (speed >= XFER_MW_DMA_0 && speed <= XFER_MW_DMA_2) {
-			p.cycle = adev->id[ATA_ID_EIDE_DMA_MIN];
-		}
+			if (speed <= XFER_PIO_2)
+				p.cycle = p.cyc8b = id[ATA_ID_EIDE_PIO];
+			else if ((speed <= XFER_PIO_4) ||
+				 (speed == XFER_PIO_5 && !ata_id_is_cfa(id)))
+				p.cycle = p.cyc8b = id[ATA_ID_EIDE_PIO_IORDY];
+		} else if (speed >= XFER_MW_DMA_0 && speed <= XFER_MW_DMA_2)
+			p.cycle = id[ATA_ID_EIDE_DMA_MIN];
+
 		ata_timing_merge(&p, t, t, ATA_TIMING_CYCLE | ATA_TIMING_CYC8B);
 	}
 

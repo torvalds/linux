@@ -410,6 +410,8 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 	 * when the EOF bit is set to force synchronisation on the next packet.
 	 */
 	if (buf->state != UVC_BUF_STATE_ACTIVE) {
+		struct timespec ts;
+
 		if (fid == stream->last_fid) {
 			uvc_trace(UVC_TRACE_FRAME, "Dropping payload (out of "
 				"sync).\n");
@@ -418,6 +420,14 @@ static int uvc_video_decode_start(struct uvc_streaming *stream,
 				stream->last_fid ^= UVC_STREAM_FID;
 			return -ENODATA;
 		}
+
+		if (uvc_clock_param == CLOCK_MONOTONIC)
+			ktime_get_ts(&ts);
+		else
+			ktime_get_real_ts(&ts);
+
+		buf->buf.timestamp.tv_sec = ts.tv_sec;
+		buf->buf.timestamp.tv_usec = ts.tv_nsec / NSEC_PER_USEC;
 
 		/* TODO: Handle PTS and SCR. */
 		buf->state = UVC_BUF_STATE_ACTIVE;

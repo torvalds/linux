@@ -865,13 +865,10 @@ static int fuse_notify_inval_inode(struct fuse_conn *fc, unsigned int size,
 
 	down_read(&fc->killsb);
 	err = -ENOENT;
-	if (!fc->sb)
-		goto err_unlock;
-
-	err = fuse_reverse_inval_inode(fc->sb, outarg.ino,
-				       outarg.off, outarg.len);
-
-err_unlock:
+	if (fc->sb) {
+		err = fuse_reverse_inval_inode(fc->sb, outarg.ino,
+					       outarg.off, outarg.len);
+	}
 	up_read(&fc->killsb);
 	return err;
 
@@ -884,10 +881,15 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 				   struct fuse_copy_state *cs)
 {
 	struct fuse_notify_inval_entry_out outarg;
-	int err = -EINVAL;
-	char buf[FUSE_NAME_MAX+1];
+	int err = -ENOMEM;
+	char *buf;
 	struct qstr name;
 
+	buf = kzalloc(FUSE_NAME_MAX + 1, GFP_KERNEL);
+	if (!buf)
+		goto err;
+
+	err = -EINVAL;
 	if (size < sizeof(outarg))
 		goto err;
 
@@ -910,16 +912,14 @@ static int fuse_notify_inval_entry(struct fuse_conn *fc, unsigned int size,
 
 	down_read(&fc->killsb);
 	err = -ENOENT;
-	if (!fc->sb)
-		goto err_unlock;
-
-	err = fuse_reverse_inval_entry(fc->sb, outarg.parent, &name);
-
-err_unlock:
+	if (fc->sb)
+		err = fuse_reverse_inval_entry(fc->sb, outarg.parent, &name);
 	up_read(&fc->killsb);
+	kfree(buf);
 	return err;
 
 err:
+	kfree(buf);
 	fuse_copy_finish(cs);
 	return err;
 }

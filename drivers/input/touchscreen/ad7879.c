@@ -47,6 +47,7 @@
 #include <linux/workqueue.h>
 #include <linux/spi/spi.h>
 #include <linux/i2c.h>
+#include <linux/gpio.h>
 
 #include <linux/spi/ad7879.h>
 
@@ -132,7 +133,9 @@ struct ad7879 {
 	struct input_dev	*input;
 	struct work_struct	work;
 	struct timer_list	timer;
-
+#ifdef CONFIG_GPIOLIB
+	struct gpio_chip	gc;
+#endif
 	struct mutex		mutex;
 	unsigned		disabled:1;	/* P: mutex */
 
@@ -150,11 +153,9 @@ struct ad7879 {
 	u8			median;
 	u16			x_plate_ohms;
 	u16			pressure_max;
-	u16			gpio_init;
 	u16			cmd_crtl1;
 	u16			cmd_crtl2;
 	u16			cmd_crtl3;
-	unsigned		gpio:1;
 };
 
 static int ad7879_read(bus_device *, u8);
@@ -237,24 +238,6 @@ static irqreturn_t ad7879_irq(int irq, void *handle)
 
 static void ad7879_setup(struct ad7879 *ts)
 {
-	ts->cmd_crtl3 = AD7879_YPLUS_BIT |
-			AD7879_XPLUS_BIT |
-			AD7879_Z2_BIT |
-			AD7879_Z1_BIT |
-			AD7879_TEMPMASK_BIT |
-			AD7879_AUXVBATMASK_BIT |
-			AD7879_GPIOALERTMASK_BIT;
-
-	ts->cmd_crtl2 = AD7879_PM(AD7879_PM_DYN) | AD7879_DFR |
-			AD7879_AVG(ts->averaging) |
-			AD7879_MFS(ts->median) |
-			AD7879_FCD(ts->first_conversion_delay) |
-			ts->gpio_init;
-
-	ts->cmd_crtl1 = AD7879_MODE_INT | AD7879_MODE_SEQ1 |
-			AD7879_ACQ(ts->acquisition_time) |
-			AD7879_TMR(ts->pen_down_acc_interval);
-
 	ad7879_write(ts->bus, AD7879_REG_CTRL2, ts->cmd_crtl2);
 	ad7879_write(ts->bus, AD7879_REG_CTRL3, ts->cmd_crtl3);
 	ad7879_write(ts->bus, AD7879_REG_CTRL1, ts->cmd_crtl1);
@@ -324,48 +307,132 @@ static ssize_t ad7879_disable_store(struct device *dev,
 
 static DEVICE_ATTR(disable, 0664, ad7879_disable_show, ad7879_disable_store);
 
-static ssize_t ad7879_gpio_show(struct device *dev,
-				     struct device_attribute *attr, char *buf)
-{
-	struct ad7879 *ts = dev_get_drvdata(dev);
-
-	return sprintf(buf, "%u\n", ts->gpio);
-}
-
-static ssize_t ad7879_gpio_store(struct device *dev,
-				     struct device_attribute *attr,
-				     const char *buf, size_t count)
-{
-	struct ad7879 *ts = dev_get_drvdata(dev);
-	unsigned long val;
-	int error;
-
-	error = strict_strtoul(buf, 10, &val);
-	if (error)
-		return error;
-
-	mutex_lock(&ts->mutex);
-	ts->gpio = !!val;
-	error = ad7879_write(ts->bus, AD7879_REG_CTRL2,
-			   ts->gpio ?
-				ts->cmd_crtl2 & ~AD7879_GPIO_DATA :
-				ts->cmd_crtl2 | AD7879_GPIO_DATA);
-	mutex_unlock(&ts->mutex);
-
-	return error ? : count;
-}
-
-static DEVICE_ATTR(gpio, 0664, ad7879_gpio_show, ad7879_gpio_store);
-
 static struct attribute *ad7879_attributes[] = {
 	&dev_attr_disable.attr,
-	&dev_attr_gpio.attr,
 	NULL
 };
 
 static const struct attribute_group ad7879_attr_group = {
 	.attrs = ad7879_attributes,
 };
+
+#ifdef CONFIG_GPIOLIB
+static int ad7879_gpio_direction_input(struct gpio_chip *chip,
+					unsigned gpio)
+{
+	struct ad7879 *ts = container_of(chip, struct ad7879, gc);
+	int err;
+
+	mutex_lock(&ts->mutex);
+	ts->cmd_crtl2 |= AD7879_GPIO_EN | AD7879_GPIODIR | AD7879_GPIOPOL;
+	err = ad7879_write(ts->bus, AD7879_REG_CTRL2, ts->cmd_crtl2);
+	mutex_unlock(&ts->mutex);
+
+	return err;
+}
+
+static int ad7879_gpio_direction_output(struct gpio_chip *chip,
+					unsigned gpio, int level)
+{
+	struct ad7879 *ts = container_of(chip, struct ad7879, gc);
+	int err;
+
+	mutex_lock(&ts->mutex);
+	ts->cmd_crtl2 &= ~AD7879_GPIODIR;
+	ts->cmd_crtl2 |= AD7879_GPIO_EN | AD7879_GPIOPOL;
+	if (level)
+		ts->cmd_crtl2 |= AD7879_GPIO_DATA;
+	else
+		ts->cmd_crtl2 &= ~AD7879_GPIO_DATA;
+
+	err = ad7879_write(ts->bus, AD7879_REG_CTRL2, ts->cmd_crtl2);
+	mutex_unlock(&ts->mutex);
+
+	return err;
+}
+
+static int ad7879_gpio_get_value(struct gpio_chip *chip, unsigned gpio)
+{
+	struct ad7879 *ts = container_of(chip, struct ad7879, gc);
+	u16 val;
+
+	mutex_lock(&ts->mutex);
+	val = ad7879_read(ts->bus, AD7879_REG_CTRL2);
+	mutex_unlock(&ts->mutex);
+
+	return !!(val & AD7879_GPIO_DATA);
+}
+
+static void ad7879_gpio_set_value(struct gpio_chip *chip,
+				  unsigned gpio, int value)
+{
+	struct ad7879 *ts = container_of(chip, struct ad7879, gc);
+
+	mutex_lock(&ts->mutex);
+	if (value)
+		ts->cmd_crtl2 |= AD7879_GPIO_DATA;
+	else
+		ts->cmd_crtl2 &= ~AD7879_GPIO_DATA;
+
+	ad7879_write(ts->bus, AD7879_REG_CTRL2, ts->cmd_crtl2);
+	mutex_unlock(&ts->mutex);
+}
+
+static int __devinit ad7879_gpio_add(struct device *dev)
+{
+	struct ad7879 *ts = dev_get_drvdata(dev);
+	struct ad7879_platform_data *pdata = dev->platform_data;
+	int ret = 0;
+
+	if (pdata->gpio_export) {
+		ts->gc.direction_input = ad7879_gpio_direction_input;
+		ts->gc.direction_output = ad7879_gpio_direction_output;
+		ts->gc.get = ad7879_gpio_get_value;
+		ts->gc.set = ad7879_gpio_set_value;
+		ts->gc.can_sleep = 1;
+		ts->gc.base = pdata->gpio_base;
+		ts->gc.ngpio = 1;
+		ts->gc.label = "AD7879-GPIO";
+		ts->gc.owner = THIS_MODULE;
+		ts->gc.dev = dev;
+
+		ret = gpiochip_add(&ts->gc);
+		if (ret)
+			dev_err(dev, "failed to register gpio %d\n",
+				ts->gc.base);
+	}
+
+	return ret;
+}
+
+/*
+ * We mark ad7879_gpio_remove inline so there is a chance the code
+ * gets discarded when not needed. We can't do __devinit/__devexit
+ * markup since it is used in both probe and remove methods.
+ */
+static inline void ad7879_gpio_remove(struct device *dev)
+{
+	struct ad7879 *ts = dev_get_drvdata(dev);
+	struct ad7879_platform_data *pdata = dev->platform_data;
+	int ret;
+
+	if (pdata->gpio_export) {
+		ret = gpiochip_remove(&ts->gc);
+		if (ret)
+			dev_err(dev, "failed to remove gpio %d\n",
+				ts->gc.base);
+	}
+}
+#else
+static inline int ad7879_gpio_add(struct device *dev)
+{
+	return 0;
+}
+
+static inline void ad7879_gpio_remove(struct device *dev)
+{
+}
+#endif
 
 static int __devinit ad7879_construct(bus_device *bus, struct ad7879 *ts)
 {
@@ -402,12 +469,6 @@ static int __devinit ad7879_construct(bus_device *bus, struct ad7879 *ts)
 	ts->averaging = pdata->averaging;
 	ts->pen_down_acc_interval = pdata->pen_down_acc_interval;
 	ts->median = pdata->median;
-
-	if (pdata->gpio_output)
-		ts->gpio_init = AD7879_GPIO_EN |
-				(pdata->gpio_default ? 0 : AD7879_GPIO_DATA);
-	else
-		ts->gpio_init = AD7879_GPIO_EN | AD7879_GPIODIR;
 
 	snprintf(ts->phys, sizeof(ts->phys), "%s/input0", dev_name(&bus->dev));
 
@@ -446,6 +507,23 @@ static int __devinit ad7879_construct(bus_device *bus, struct ad7879 *ts)
 		goto err_free_mem;
 	}
 
+	ts->cmd_crtl3 = AD7879_YPLUS_BIT |
+			AD7879_XPLUS_BIT |
+			AD7879_Z2_BIT |
+			AD7879_Z1_BIT |
+			AD7879_TEMPMASK_BIT |
+			AD7879_AUXVBATMASK_BIT |
+			AD7879_GPIOALERTMASK_BIT;
+
+	ts->cmd_crtl2 = AD7879_PM(AD7879_PM_DYN) | AD7879_DFR |
+			AD7879_AVG(ts->averaging) |
+			AD7879_MFS(ts->median) |
+			AD7879_FCD(ts->first_conversion_delay);
+
+	ts->cmd_crtl1 = AD7879_MODE_INT | AD7879_MODE_SEQ1 |
+			AD7879_ACQ(ts->acquisition_time) |
+			AD7879_TMR(ts->pen_down_acc_interval);
+
 	ad7879_setup(ts);
 
 	err = request_irq(bus->irq, ad7879_irq,
@@ -460,15 +538,21 @@ static int __devinit ad7879_construct(bus_device *bus, struct ad7879 *ts)
 	if (err)
 		goto err_free_irq;
 
-	err = input_register_device(input_dev);
+	err = ad7879_gpio_add(&bus->dev);
 	if (err)
 		goto err_remove_attr;
+
+	err = input_register_device(input_dev);
+	if (err)
+		goto err_remove_gpio;
 
 	dev_info(&bus->dev, "Rev.%d touchscreen, irq %d\n",
 		 revid >> 8, bus->irq);
 
 	return 0;
 
+err_remove_gpio:
+	ad7879_gpio_remove(&bus->dev);
 err_remove_attr:
 	sysfs_remove_group(&bus->dev.kobj, &ad7879_attr_group);
 err_free_irq:
@@ -481,6 +565,7 @@ err_free_mem:
 
 static int __devexit ad7879_destroy(bus_device *bus, struct ad7879 *ts)
 {
+	ad7879_gpio_remove(&bus->dev);
 	ad7879_disable(ts);
 	sysfs_remove_group(&ts->bus->dev.kobj, &ad7879_attr_group);
 	free_irq(ts->bus->irq, ts);

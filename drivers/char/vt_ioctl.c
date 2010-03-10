@@ -888,7 +888,7 @@ int vt_ioctl(struct tty_struct *tty, struct file * file,
 			ret = -EFAULT;
 			goto out;
 		}
-		if (tmp.mode != VT_AUTO && tmp.mode != VT_PROCESS) {
+		if (tmp.mode != VT_AUTO && tmp.mode != VT_PROCESS && tmp.mode != VT_PROCESS_AUTO) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1622,7 +1622,7 @@ static void complete_change_console(struct vc_data *vc)
 	 * telling it that it has acquired. Also check if it has died and
 	 * clean up (similar to logic employed in change_console())
 	 */
-	if (vc->vt_mode.mode == VT_PROCESS) {
+	if (vc->vt_mode.mode == VT_PROCESS || vc->vt_mode.mode == VT_PROCESS_AUTO) {
 		/*
 		 * Send the signal as privileged - kill_pid() will
 		 * tell us if the process has gone or something else
@@ -1682,7 +1682,7 @@ void change_console(struct vc_data *new_vc)
 	 * vt to auto control.
 	 */
 	vc = vc_cons[fg_console].d;
-	if (vc->vt_mode.mode == VT_PROCESS) {
+	if (vc->vt_mode.mode == VT_PROCESS || vc->vt_mode.mode == VT_PROCESS_AUTO) {
 		/*
 		 * Send the signal as privileged - kill_pid() will
 		 * tell us if the process has gone or something else
@@ -1693,27 +1693,28 @@ void change_console(struct vc_data *new_vc)
 		 */
 		vc->vt_newvt = new_vc->vc_num;
 		if (kill_pid(vc->vt_pid, vc->vt_mode.relsig, 1) == 0) {
+			if(vc->vt_mode.mode == VT_PROCESS)
+				/*
+				 * It worked. Mark the vt to switch to and
+				 * return. The process needs to send us a
+				 * VT_RELDISP ioctl to complete the switch.
+				 */
+				return;
+		} else {
 			/*
-			 * It worked. Mark the vt to switch to and
-			 * return. The process needs to send us a
-			 * VT_RELDISP ioctl to complete the switch.
+			 * The controlling process has died, so we revert back to
+			 * normal operation. In this case, we'll also change back
+			 * to KD_TEXT mode. I'm not sure if this is strictly correct
+			 * but it saves the agony when the X server dies and the screen
+			 * remains blanked due to KD_GRAPHICS! It would be nice to do
+			 * this outside of VT_PROCESS but there is no single process
+			 * to account for and tracking tty count may be undesirable.
 			 */
-			return;
+			reset_vc(vc);
 		}
 
 		/*
-		 * The controlling process has died, so we revert back to
-		 * normal operation. In this case, we'll also change back
-		 * to KD_TEXT mode. I'm not sure if this is strictly correct
-		 * but it saves the agony when the X server dies and the screen
-		 * remains blanked due to KD_GRAPHICS! It would be nice to do
-		 * this outside of VT_PROCESS but there is no single process
-		 * to account for and tracking tty count may be undesirable.
-		 */
-		reset_vc(vc);
-
-		/*
-		 * Fall through to normal (VT_AUTO) handling of the switch...
+		 * Fall through to normal (VT_AUTO and VT_PROCESS_AUTO) handling of the switch...
 		 */
 	}
 

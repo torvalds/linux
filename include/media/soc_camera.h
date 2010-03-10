@@ -81,6 +81,8 @@ struct soc_camera_host_ops {
 	int (*set_bus_param)(struct soc_camera_device *, __u32);
 	int (*get_ctrl)(struct soc_camera_device *, struct v4l2_control *);
 	int (*set_ctrl)(struct soc_camera_device *, struct v4l2_control *);
+	int (*get_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
+	int (*set_parm)(struct soc_camera_device *, struct v4l2_streamparm *);
 	unsigned int (*poll)(struct file *, poll_table *);
 	const struct v4l2_queryctrl *controls;
 	int num_controls;

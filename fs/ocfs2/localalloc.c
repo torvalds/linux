@@ -476,7 +476,7 @@ out_mutex:
 
 out:
 	if (!status)
-		ocfs2_init_inode_steal_slot(osb);
+		ocfs2_init_steal_slots(osb);
 	mlog_exit(status);
 	return status;
 }

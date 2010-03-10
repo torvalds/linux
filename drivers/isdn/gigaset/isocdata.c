@@ -905,29 +905,49 @@ void gigaset_isoc_receive(unsigned char *src, unsigned count,
 
 /* == data input =========================================================== */
 
+/* process a block of received bytes in command mode (mstate != MS_LOCKED)
+ * Append received bytes to the command response buffer and forward them
+ * line by line to the response handler.
+ * Note: Received lines may be terminated by CR, LF, or CR LF, which will be
+ * removed before passing the line to the response handler.
+ */
 static void cmd_loop(unsigned char *src, int numbytes, struct inbuf_t *inbuf)
 {
 	struct cardstate *cs = inbuf->cs;
 	unsigned cbytes      = cs->cbytes;
+	unsigned char c;
 
 	while (numbytes--) {
-		/* copy next character, check for end of line */
-		switch (cs->respdata[cbytes] = *src++) {
-		case '\r':
+		c = *src++;
+		switch (c) {
 		case '\n':
-			/* end of line */
-			gig_dbg(DEBUG_TRANSCMD, "%s: End of Command (%d Bytes)",
-				__func__, cbytes);
-			if (cbytes >= MAX_RESP_SIZE - 1)
-				dev_warn(cs->dev, "response too large\n");
+			if (cbytes == 0 && cs->respdata[0] == '\r') {
+				/* collapse LF with preceding CR */
+				cs->respdata[0] = 0;
+				break;
+			}
+			/* --v-- fall through --v-- */
+		case '\r':
+			/* end of message line, pass to response handler */
+			if (cbytes >= MAX_RESP_SIZE) {
+				dev_warn(cs->dev, "response too large (%d)\n",
+					 cbytes);
+				cbytes = MAX_RESP_SIZE;
+			}
 			cs->cbytes = cbytes;
+			gigaset_dbg_buffer(DEBUG_TRANSCMD, "received response",
+					   cbytes, cs->respdata);
 			gigaset_handle_modem_response(cs);
 			cbytes = 0;
+
+			/* store EOL byte for CRLF collapsing */
+			cs->respdata[0] = c;
 			break;
 		default:
-			/* advance in line buffer, checking for overflow */
-			if (cbytes < MAX_RESP_SIZE - 1)
-				cbytes++;
+			/* append to line buffer if possible */
+			if (cbytes < MAX_RESP_SIZE)
+				cs->respdata[cbytes] = c;
+			cbytes++;
 		}
 	}
 
@@ -958,8 +978,6 @@ void gigaset_isoc_input(struct inbuf_t *inbuf)
 					   numbytes, src);
 			gigaset_if_receive(inbuf->cs, src, numbytes);
 		} else {
-			gigaset_dbg_buffer(DEBUG_CMD, "received response",
-					   numbytes, src);
 			cmd_loop(src, numbytes, inbuf);
 		}
 

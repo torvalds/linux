@@ -94,6 +94,7 @@ struct source_line {
 
 static char			*sym_filter			=   NULL;
 struct sym_entry		*sym_filter_entry		=   NULL;
+struct sym_entry		*sym_filter_entry_sched		=   NULL;
 static int			sym_pcnt_filter			=      5;
 static int			sym_counter			=      0;
 static int			display_weighted		=     -1;
@@ -201,10 +202,9 @@ static void parse_source(struct sym_entry *syme)
 	len = sym->end - sym->start;
 
 	sprintf(command,
-		"objdump --start-address=0x%016Lx "
-			 "--stop-address=0x%016Lx -dS %s",
-		map->unmap_ip(map, sym->start),
-		map->unmap_ip(map, sym->end), path);
+		"objdump --start-address=%#0*Lx --stop-address=%#0*Lx -dS %s",
+		BITS_PER_LONG / 4, map__rip_2objdump(map, sym->start),
+		BITS_PER_LONG / 4, map__rip_2objdump(map, sym->end), path);
 
 	file = popen(command, "r");
 	if (!file)
@@ -215,7 +215,7 @@ static void parse_source(struct sym_entry *syme)
 	while (!feof(file)) {
 		struct source_line *src;
 		size_t dummy = 0;
-		char *c;
+		char *c, *sep;
 
 		src = malloc(sizeof(struct source_line));
 		assert(src != NULL);
@@ -234,14 +234,11 @@ static void parse_source(struct sym_entry *syme)
 		*source->lines_tail = src;
 		source->lines_tail = &src->next;
 
-		if (strlen(src->line)>8 && src->line[8] == ':') {
-			src->eip = strtoull(src->line, NULL, 16);
-			src->eip = map->unmap_ip(map, src->eip);
-		}
-		if (strlen(src->line)>8 && src->line[16] == ':') {
-			src->eip = strtoull(src->line, NULL, 16);
-			src->eip = map->unmap_ip(map, src->eip);
-		}
+		src->eip = strtoull(src->line, &sep, 16);
+		if (*sep == ':')
+			src->eip = map__objdump_2ip(map, src->eip);
+		else /* this line has no ip info (e.g. source line) */
+			src->eip = 0;
 	}
 	pclose(file);
 out_assign:
@@ -276,6 +273,9 @@ static void record_precise_ip(struct sym_entry *syme, int counter, u64 ip)
 		goto out_unlock;
 
 	for (line = syme->src->lines; line; line = line->next) {
+		/* skip lines without IP info */
+		if (line->eip == 0)
+			continue;
 		if (line->eip == ip) {
 			line->count[counter]++;
 			break;
@@ -287,17 +287,20 @@ out_unlock:
 	pthread_mutex_unlock(&syme->src->lock);
 }
 
+#define PATTERN_LEN		(BITS_PER_LONG / 4 + 2)
+
 static void lookup_sym_source(struct sym_entry *syme)
 {
 	struct symbol *symbol = sym_entry__symbol(syme);
 	struct source_line *line;
-	char pattern[PATH_MAX];
+	char pattern[PATTERN_LEN + 1];
 
-	sprintf(pattern, "<%s>:", symbol->name);
+	sprintf(pattern, "%0*Lx <", BITS_PER_LONG / 4,
+		map__rip_2objdump(syme->map, symbol->start));
 
 	pthread_mutex_lock(&syme->src->lock);
 	for (line = syme->src->lines; line; line = line->next) {
-		if (strstr(line->line, pattern)) {
+		if (memcmp(line->line, pattern, PATTERN_LEN) == 0) {
 			syme->src->source = line;
 			break;
 		}
@@ -667,7 +670,7 @@ static void prompt_symbol(struct sym_entry **target, const char *msg)
 	}
 
 	if (!found) {
-		fprintf(stderr, "Sorry, %s is not active.\n", sym_filter);
+		fprintf(stderr, "Sorry, %s is not active.\n", buf);
 		sleep(1);
 		return;
 	} else
@@ -695,17 +698,15 @@ static void print_mapped_keys(void)
 
 	fprintf(stdout, "\t[f]     profile display filter (count).    \t(%d)\n", count_filter);
 
-	if (symbol_conf.vmlinux_name) {
-		fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", sym_pcnt_filter);
-		fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
-		fprintf(stdout, "\t[S]     stop annotation.\n");
-	}
+	fprintf(stdout, "\t[F]     annotate display filter (percent). \t(%d%%)\n", sym_pcnt_filter);
+	fprintf(stdout, "\t[s]     annotate symbol.                   \t(%s)\n", name?: "NULL");
+	fprintf(stdout, "\t[S]     stop annotation.\n");
 
 	if (nr_counters > 1)
 		fprintf(stdout, "\t[w]     toggle display weighted/count[E]r. \t(%d)\n", display_weighted ? 1 : 0);
 
 	fprintf(stdout,
-		"\t[K]     hide kernel_symbols symbols.             \t(%s)\n",
+		"\t[K]     hide kernel_symbols symbols.     \t(%s)\n",
 		hide_kernel_symbols ? "yes" : "no");
 	fprintf(stdout,
 		"\t[U]     hide user symbols.               \t(%s)\n",
@@ -725,14 +726,13 @@ static int key_mapped(int c)
 		case 'Q':
 		case 'K':
 		case 'U':
+		case 'F':
+		case 's':
+		case 'S':
 			return 1;
 		case 'E':
 		case 'w':
 			return nr_counters > 1 ? 1 : 0;
-		case 'F':
-		case 's':
-		case 'S':
-			return symbol_conf.vmlinux_name ? 1 : 0;
 		default:
 			break;
 	}
@@ -910,8 +910,12 @@ static int symbol_filter(struct map *map, struct symbol *sym)
 	syme = symbol__priv(sym);
 	syme->map = map;
 	syme->src = NULL;
-	if (!sym_filter_entry && sym_filter && !strcmp(name, sym_filter))
-		sym_filter_entry = syme;
+
+	if (!sym_filter_entry && sym_filter && !strcmp(name, sym_filter)) {
+		/* schedule initial sym_filter_entry setup */
+		sym_filter_entry_sched = syme;
+		sym_filter = NULL;
+	}
 
 	for (i = 0; skip_symbols[i]; i++) {
 		if (!strcmp(skip_symbols[i], name)) {
@@ -934,8 +938,11 @@ static void event__process_sample(const event_t *self,
 	struct addr_location al;
 	u8 origin = self->header.misc & PERF_RECORD_MISC_CPUMODE_MASK;
 
+	++samples;
+
 	switch (origin) {
 	case PERF_RECORD_MISC_USER:
+		++userspace_samples;
 		if (hide_user_symbols)
 			return;
 		break;
@@ -948,8 +955,37 @@ static void event__process_sample(const event_t *self,
 	}
 
 	if (event__preprocess_sample(self, session, &al, symbol_filter) < 0 ||
-	    al.sym == NULL || al.filtered)
+	    al.filtered)
 		return;
+
+	if (al.sym == NULL) {
+		/*
+		 * As we do lazy loading of symtabs we only will know if the
+		 * specified vmlinux file is invalid when we actually have a
+		 * hit in kernel space and then try to load it. So if we get
+		 * here and there are _no_ symbols in the DSO backing the
+		 * kernel map, bail out.
+		 *
+		 * We may never get here, for instance, if we use -K/
+		 * --hide-kernel-symbols, even if the user specifies an
+		 * invalid --vmlinux ;-)
+		 */
+		if (al.map == session->vmlinux_maps[MAP__FUNCTION] &&
+		    RB_EMPTY_ROOT(&al.map->dso->symbols[MAP__FUNCTION])) {
+			pr_err("The %s file can't be used\n",
+			       symbol_conf.vmlinux_name);
+			exit(1);
+		}
+
+		return;
+	}
+
+	/* let's see, whether we need to install initial sym_filter_entry */
+	if (sym_filter_entry_sched) {
+		sym_filter_entry = sym_filter_entry_sched;
+		sym_filter_entry_sched = NULL;
+		parse_source(sym_filter_entry);
+	}
 
 	syme = symbol__priv(al.sym);
 	if (!syme->skip) {
@@ -960,9 +996,6 @@ static void event__process_sample(const event_t *self,
 		if (list_empty(&syme->node) || !syme->node.next)
 			__list_insert_active_sym(syme);
 		pthread_mutex_unlock(&active_symbols_lock);
-		if (origin == PERF_RECORD_MISC_USER)
-			++userspace_samples;
-		++samples;
 	}
 }
 
@@ -974,6 +1007,10 @@ static int event__process(event_t *event, struct perf_session *session)
 		break;
 	case PERF_RECORD_MMAP:
 		event__process_mmap(event, session);
+		break;
+	case PERF_RECORD_FORK:
+	case PERF_RECORD_EXIT:
+		event__process_task(event, session);
 		break;
 	default:
 		break;
@@ -1244,7 +1281,7 @@ static const struct option options[] = {
 	OPT_BOOLEAN('i', "inherit", &inherit,
 		    "child tasks inherit counters"),
 	OPT_STRING('s', "sym-annotate", &sym_filter, "symbol name",
-		    "symbol to annotate - requires -k option"),
+		    "symbol to annotate"),
 	OPT_BOOLEAN('z', "zero", &zero,
 		    "zero history across updates"),
 	OPT_INTEGER('F', "freq", &freq,
@@ -1280,15 +1317,13 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 
 	symbol_conf.priv_size = (sizeof(struct sym_entry) +
 				 (nr_counters + 1) * sizeof(unsigned long));
-	if (symbol_conf.vmlinux_name == NULL)
-		symbol_conf.try_vmlinux_path = true;
+
+	symbol_conf.try_vmlinux_path = (symbol_conf.vmlinux_name == NULL);
 	if (symbol__init() < 0)
 		return -1;
 
 	if (delay_secs < 1)
 		delay_secs = 1;
-
-	parse_source(sym_filter_entry);
 
 	/*
 	 * User specified count overrides default frequency.

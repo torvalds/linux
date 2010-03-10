@@ -193,8 +193,6 @@ s8 sme_get_cwmin_value(void *pcore_data, u8 *cwmin);
 s8 sme_get_cwmax_value(void *pcore_data, u16 *cwmax);
 s8 sme_get_ms_radio_mode(void *pcore_data, u8 * pMsRadioOff);
 s8 sme_set_ms_radio_mode(void *pcore_data, u8 boMsRadioOff);
-s8 sme_get_radio_mode(void *pcore_data, psRadioOff pRadioOffData);
-s8 sme_set_radio_mode(void *pcore_data, RadioOff RadioOffData);
 
 void sme_get_tx_power_level(void *pcore_data, u32 *TxPower);
 u8 sme_set_tx_power_level(void *pcore_data, u32 TxPower);
@@ -203,7 +201,7 @@ void sme_get_rx_antenna(void *pcore_data, u32 *RxAntenna);
 u8 sme_set_rx_antenna(void *pcore_data, u32 RxAntenna);
 void sme_get_tx_antenna(void *pcore_data, u32 *TxAntenna);
 s8 sme_set_tx_antenna(void *pcore_data, u32 TxAntenna);
-s8 sme_set_IBSS_chan(void *pcore_data, ChanInfo chan);
+s8 sme_set_IBSS_chan(void *pcore_data, struct chan_info chan);
 
 //20061108 WPS
 s8 sme_set_IE_append(void *pcore_data, u8 *buffer, u16 buf_len);

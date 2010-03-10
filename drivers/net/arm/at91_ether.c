@@ -558,14 +558,11 @@ static void at91ether_sethashtable(struct net_device *dev)
 {
 	struct dev_mc_list *curr;
 	unsigned long mc_filter[2];
-	unsigned int i, bitnr;
+	unsigned int bitnr;
 
 	mc_filter[0] = mc_filter[1] = 0;
 
-	curr = dev->mc_list;
-	for (i = 0; i < dev->mc_count; i++, curr = curr->next) {
-		if (!curr) break;	/* unexpected end of list */
-
+	netdev_for_each_mc_addr(curr, dev) {
 		bitnr = hash_get_index(curr->dmi_addr);
 		mc_filter[bitnr >> 5] |= 1 << (bitnr & 31);
 	}
@@ -592,7 +589,7 @@ static void at91ether_set_multicast_list(struct net_device *dev)
 		at91_emac_write(AT91_EMAC_HSH, -1);
 		at91_emac_write(AT91_EMAC_HSL, -1);
 		cfg |= AT91_EMAC_MTI;
-	} else if (dev->mc_count > 0) {			/* Enable specific multicasts */
+	} else if (!netdev_mc_empty(dev)) { /* Enable specific multicasts */
 		at91ether_sethashtable(dev);
 		cfg |= AT91_EMAC_MTI;
 	} else if (dev->flags & (~IFF_ALLMULTI)) {	/* Disable all multicast mode */

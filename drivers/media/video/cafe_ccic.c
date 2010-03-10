@@ -1907,7 +1907,6 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 		goto out_free;
 
 	mutex_init(&cam->s_mutex);
-	mutex_lock(&cam->s_mutex);
 	spin_lock_init(&cam->dev_lock);
 	cam->state = S_NOTREADY;
 	cafe_set_config_needed(cam, 1);
@@ -1947,7 +1946,6 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	 * because the sensor could attach in this call chain, leading to
 	 * unsightly deadlocks.
 	 */
-	mutex_unlock(&cam->s_mutex);  /* attach can deadlock */
 	ret = cafe_smbus_setup(cam);
 	if (ret)
 		goto out_freeirq;
@@ -1973,7 +1971,7 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	cam->vdev.v4l2_dev = &cam->v4l2_dev;
 	ret = video_register_device(&cam->vdev, VFL_TYPE_GRABBER, -1);
 	if (ret)
-		goto out_smbus;
+		goto out_unlock;
 	video_set_drvdata(&cam->vdev, cam);
 
 	/*
@@ -1988,6 +1986,8 @@ static int cafe_pci_probe(struct pci_dev *pdev,
 	mutex_unlock(&cam->s_mutex);
 	return 0;
 
+out_unlock:
+	mutex_unlock(&cam->s_mutex);
 out_smbus:
 	cafe_smbus_shutdown(cam);
 out_freeirq:

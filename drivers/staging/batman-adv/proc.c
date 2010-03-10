@@ -21,23 +21,18 @@
 
 #include "main.h"
 #include "proc.h"
-#include "log.h"
 #include "routing.h"
 #include "translation-table.h"
 #include "hard-interface.h"
 #include "types.h"
 #include "hash.h"
 #include "vis.h"
-#include "compat.h"
-
-static uint8_t vis_format = DOT_DRAW;
 
 static struct proc_dir_entry *proc_batman_dir, *proc_interface_file;
 static struct proc_dir_entry *proc_orig_interval_file, *proc_originators_file;
-static struct proc_dir_entry *proc_log_file, *proc_log_level_file;
 static struct proc_dir_entry *proc_transt_local_file;
 static struct proc_dir_entry *proc_transt_global_file;
-static struct proc_dir_entry *proc_vis_file, *proc_vis_format_file;
+static struct proc_dir_entry *proc_vis_srv_file, *proc_vis_data_file;
 static struct proc_dir_entry *proc_aggr_file;
 
 static int proc_interfaces_read(struct seq_file *seq, void *offset)
@@ -68,7 +63,7 @@ static ssize_t proc_interfaces_write(struct file *instance,
 				     size_t count, loff_t *data)
 {
 	char *if_string, *colon_ptr = NULL, *cr_ptr = NULL;
-	int not_copied = 0, if_num = 0;
+	int not_copied = 0, if_num = 0, add_success;
 	struct batman_if *batman_if = NULL;
 
 	if_string = kmalloc(count, GFP_KERNEL);
@@ -77,8 +72,7 @@ static ssize_t proc_interfaces_write(struct file *instance,
 		return -ENOMEM;
 
 	if (count > IFNAMSIZ - 1) {
-		debug_log(LOG_TYPE_WARN,
-			  "Can't add interface: device name is too long\n");
+		printk(KERN_WARNING "batman-adv:Can't add interface: device name is too long\n");
 		goto end;
 	}
 
@@ -105,7 +99,7 @@ static ssize_t proc_interfaces_write(struct file *instance,
 	rcu_read_lock();
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
 		if (strncmp(batman_if->dev, if_string, count) == 0) {
-			debug_log(LOG_TYPE_WARN, "Given interface is already active: %s\n", if_string);
+			printk(KERN_ERR "batman-adv:Given interface is already active: %s\n", if_string);
 			rcu_read_unlock();
 			goto end;
 
@@ -115,22 +109,17 @@ static ssize_t proc_interfaces_write(struct file *instance,
 	}
 	rcu_read_unlock();
 
-	hardif_add_interface(if_string, if_num);
+	add_success = hardif_add_interface(if_string, if_num);
+	if (add_success < 0)
+		goto end;
+
+	num_ifs = if_num + 1;
 
 	if ((atomic_read(&module_state) == MODULE_INACTIVE) &&
 	    (hardif_get_active_if_num() > 0))
 		activate_module();
 
-	rcu_read_lock();
-	if (list_empty(&if_list)) {
-		rcu_read_unlock();
-		goto end;
-	}
-	rcu_read_unlock();
-
-	num_ifs = if_num + 1;
 	return count;
-
 end:
 	kfree(if_string);
 	return count;
@@ -162,20 +151,18 @@ static ssize_t proc_orig_interval_write(struct file *file,
 
 	retval = strict_strtoul(interval_string, 10, &originator_interval_tmp);
 	if (retval) {
-		debug_log(LOG_TYPE_WARN, "New originator interval invalid\n");
+		printk(KERN_ERR "batman-adv:New originator interval invalid\n");
 		goto end;
 	}
 
 	if (originator_interval_tmp <= JITTER * 2) {
-		debug_log(LOG_TYPE_WARN,
-			  "New originator interval too small: %i (min: %i)\n",
-			  originator_interval_tmp, JITTER * 2);
+		printk(KERN_WARNING "batman-adv:New originator interval too small: %li (min: %i)\n",
+		       originator_interval_tmp, JITTER * 2);
 		goto end;
 	}
 
-	debug_log(LOG_TYPE_NOTICE,
-		  "Changing originator interval from: %i to: %i\n",
-		  atomic_read(&originator_interval), originator_interval_tmp);
+	printk(KERN_INFO "batman-adv:Changing originator interval from: %i to: %li\n",
+	       atomic_read(&originator_interval), originator_interval_tmp);
 
 	atomic_set(&originator_interval, originator_interval_tmp);
 
@@ -191,11 +178,12 @@ static int proc_orig_interval_open(struct inode *inode, struct file *file)
 
 static int proc_originators_read(struct seq_file *seq, void *offset)
 {
-	struct hash_it_t *hashit = NULL;
+	HASHIT(hashit);
 	struct orig_node *orig_node;
 	struct neigh_node *neigh_node;
 	int batman_count = 0;
 	char orig_str[ETH_STR_LEN], router_str[ETH_STR_LEN];
+	unsigned long flags;
 
 	rcu_read_lock();
 	if (list_empty(&if_list)) {
@@ -218,11 +206,11 @@ static int proc_originators_read(struct seq_file *seq, void *offset)
 		   ((struct batman_if *)if_list.next)->addr_str);
 
 	rcu_read_unlock();
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
+	while (hash_iterate(orig_hash, &hashit)) {
 
-		orig_node = hashit->bucket->data;
+		orig_node = hashit.bucket->data;
 
 		if (!orig_node->router)
 			continue;
@@ -249,7 +237,7 @@ static int proc_originators_read(struct seq_file *seq, void *offset)
 
 	}
 
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 	if (batman_count == 0)
 		seq_printf(seq, "No batman nodes in range ... \n");
@@ -261,84 +249,6 @@ end:
 static int proc_originators_open(struct inode *inode, struct file *file)
 {
 	return single_open(file, proc_originators_read, NULL);
-}
-
-static int proc_log_level_read(struct seq_file *seq, void *offset)
-{
-
-	seq_printf(seq, "[x] %s (%d)\n", LOG_TYPE_CRIT_NAME, LOG_TYPE_CRIT);
-	seq_printf(seq, "[%c] %s (%d)\n",
-		   (LOG_TYPE_WARN & log_level) ? 'x' : ' ',
-		   LOG_TYPE_WARN_NAME, LOG_TYPE_WARN);
-	seq_printf(seq, "[%c] %s (%d)\n",
-		   (LOG_TYPE_NOTICE & log_level) ? 'x' : ' ',
-		   LOG_TYPE_NOTICE_NAME, LOG_TYPE_NOTICE);
-	seq_printf(seq, "[%c] %s (%d)\n",
-		   (LOG_TYPE_BATMAN & log_level) ? 'x' : ' ',
-		   LOG_TYPE_BATMAN_NAME, LOG_TYPE_BATMAN);
-	seq_printf(seq, "[%c] %s (%d)\n",
-		   (LOG_TYPE_ROUTES & log_level) ? 'x' : ' ',
-		   LOG_TYPE_ROUTES_NAME, LOG_TYPE_ROUTES);
-	return 0;
-}
-
-static int proc_log_level_open(struct inode *inode, struct file *file)
-{
-	return single_open(file, proc_log_level_read, NULL);
-}
-
-static ssize_t proc_log_level_write(struct file *instance,
-				    const char __user *userbuffer,
-				    size_t count, loff_t *data)
-{
-	char *log_level_string, *tokptr, *cp;
-	int finished, not_copied = 0;
-	unsigned long log_level_tmp = 0;
-
-	log_level_string = kmalloc(count, GFP_KERNEL);
-
-	if (!log_level_string)
-		return -ENOMEM;
-
-	not_copied = copy_from_user(log_level_string, userbuffer, count);
-	log_level_string[count - not_copied - 1] = 0;
-
-	if (strict_strtoul(log_level_string, 10, &log_level_tmp) < 0) {
-		/* was not a number, doing textual parsing */
-		log_level_tmp = 0;
-		tokptr = log_level_string;
-
-		for (cp = log_level_string, finished = 0; !finished; cp++) {
-			switch (*cp) {
-			case 0:
-				finished = 1;
-			case ' ':
-			case '\n':
-			case '\t':
-				*cp = 0;
-				/* compare */
-				if (strcmp(tokptr, LOG_TYPE_WARN_NAME) == 0)
-					log_level_tmp |= LOG_TYPE_WARN;
-				if (strcmp(tokptr, LOG_TYPE_NOTICE_NAME) == 0)
-					log_level_tmp |= LOG_TYPE_NOTICE;
-				if (strcmp(tokptr, LOG_TYPE_BATMAN_NAME) == 0)
-					log_level_tmp |= LOG_TYPE_BATMAN;
-				if (strcmp(tokptr, LOG_TYPE_ROUTES_NAME) == 0)
-					log_level_tmp |= LOG_TYPE_ROUTES;
-				tokptr = cp + 1;
-				break;
-			default:
-				;
-			}
-		}
-	}
-
-	debug_log(LOG_TYPE_CRIT, "Changing log_level from: %i to: %i\n",
-		  log_level, log_level_tmp);
-	log_level = log_level_tmp;
-
-	kfree(log_level_string);
-	return count;
 }
 
 static int proc_transt_local_read(struct seq_file *seq, void *offset)
@@ -405,172 +315,8 @@ static int proc_transt_global_open(struct inode *inode, struct file *file)
 	return single_open(file, proc_transt_global_read, NULL);
 }
 
-/* insert interface to the list of interfaces of one originator */
-
-static void proc_vis_insert_interface(const uint8_t *interface,
-				      struct vis_if_list **if_entry,
-				      bool primary)
-{
-	/* Did we get an empty list? (then insert imediately) */
-	if(*if_entry == NULL) {
-		*if_entry = kmalloc(sizeof(struct vis_if_list), GFP_KERNEL);
-		if (*if_entry == NULL)
-			return;
-
-		(*if_entry)->primary = primary;
-		(*if_entry)->next = NULL;
-		memcpy((*if_entry)->addr, interface, ETH_ALEN);
-	} else {
-		struct vis_if_list *head_if_entry = *if_entry;
-		/* Do we already have this interface in our list? */
-		while (!compare_orig((*if_entry)->addr, (void *)interface)) {
-
-			/* Or did we reach the end (then append the interface) */
-			if ((*if_entry)->next == NULL) {
-				(*if_entry)->next = kmalloc(sizeof(struct vis_if_list), GFP_KERNEL);
-				if ((*if_entry)->next == NULL)
-					return;
-
-				memcpy((*if_entry)->next->addr, interface, ETH_ALEN);
-				(*if_entry)->next->primary = primary;
-				(*if_entry)->next->next = NULL;
-				break;
-			}
-			*if_entry = (*if_entry)->next;
-		}
-		/* Rewind the list to its head */
-		*if_entry = head_if_entry;
-	}
-}
-/* read an entry  */
-
-static void proc_vis_read_entry(struct seq_file *seq,
-				struct vis_info_entry *entry,
-				struct vis_if_list **if_entry,
-				uint8_t *vis_orig,
-				uint8_t current_format,
-				uint8_t first_line)
-{
-	char from[40];
-	char to[40];
-	int int_part, frac_part;
-
-	addr_to_string(to, entry->dest);
-	if (entry->quality == 0) {
-#ifndef VIS_SUBCLUSTERS_DISABLED
-		proc_vis_insert_interface(vis_orig, if_entry, true);
-#endif /* VIS_SUBCLUSTERS_DISABLED */
-		addr_to_string(from, vis_orig);
-		if (current_format == DOT_DRAW) {
-			seq_printf(seq, "\t\"%s\" -> \"%s\" [label=\"HNA\"]\n",
-				   from, to);
-		} else {
-			seq_printf(seq,
-				   "%s\t{ router : \"%s\", gateway   : \"%s\", label : \"HNA\" }",
-				   (first_line ? "" : ",\n"), from, to);
-		}
-	} else {
-#ifndef VIS_SUBCLUSTERS_DISABLED
-		proc_vis_insert_interface(entry->src, if_entry, compare_orig(entry->src, vis_orig));
-#endif /* VIS_SUBCLUSTERS_DISABLED */
-		addr_to_string(from, entry->src);
-
-		/* kernel has no printf-support for %f? it'd be better to return
-		 * this in float. */
-
-		int_part = TQ_MAX_VALUE / entry->quality;
-		frac_part = 1000 * TQ_MAX_VALUE / entry->quality - int_part * 1000;
-
-		if (current_format == DOT_DRAW) {
-			seq_printf(seq,
-				   "\t\"%s\" -> \"%s\" [label=\"%d.%d\"]\n",
-				   from, to, int_part, frac_part);
-		} else {
-			seq_printf(seq,
-				   "%s\t{ router : \"%s\", neighbour : \"%s\", label : %d.%d }",
-				   (first_line ? "" : ",\n"), from, to, int_part, frac_part);
-		}
-	}
-}
-
-
-static int proc_vis_read(struct seq_file *seq, void *offset)
-{
-	struct hash_it_t *hashit = NULL;
-	struct vis_info *info;
-	struct vis_info_entry *entries;
-	struct vis_if_list *if_entries = NULL;
-	int i;
-	uint8_t current_format, first_line = 1;
-#ifndef VIS_SUBCLUSTERS_DISABLED
-	char tmp_addr_str[ETH_STR_LEN];
-	struct vis_if_list *tmp_if_next;
-#endif /* VIS_SUBCLUSTERS_DISABLED */
-
-	current_format = vis_format;
-
-	rcu_read_lock();
-	if (list_empty(&if_list) || (!is_vis_server())) {
-		rcu_read_unlock();
-		if (current_format == DOT_DRAW)
-			seq_printf(seq, "digraph {\n}\n");
-		goto end;
-	}
-
-	rcu_read_unlock();
-
-	if (current_format == DOT_DRAW)
-		seq_printf(seq, "digraph {\n");
-
-	spin_lock(&vis_hash_lock);
-	while (NULL != (hashit = hash_iterate(vis_hash, hashit))) {
-		info = hashit->bucket->data;
-		entries = (struct vis_info_entry *)
-			((char *)info + sizeof(struct vis_info));
-
-		for (i = 0; i < info->packet.entries; i++) {
-			proc_vis_read_entry(seq, &entries[i], &if_entries,
-					    info->packet.vis_orig,
-					    current_format, first_line);
-			if (first_line)
-				first_line = 0;
-		}
-
-#ifndef VIS_SUBCLUSTERS_DISABLED
-		/* Generate subgraphs from the collected items */
-		if (current_format == DOT_DRAW) {
-
-			addr_to_string(tmp_addr_str, info->packet.vis_orig);
-			seq_printf(seq, "\tsubgraph \"cluster_%s\" {\n", tmp_addr_str);
-			while (if_entries != NULL) {
-
-				addr_to_string(tmp_addr_str, if_entries->addr);
-				if (if_entries->primary)
-					seq_printf(seq, "\t\t\"%s\" [peripheries=2]\n", tmp_addr_str);
-				else
-					seq_printf(seq, "\t\t\"%s\"\n", tmp_addr_str);
-
-				/* ... and empty the list while doing this */
-				tmp_if_next = if_entries->next;
-				kfree(if_entries);
-				if_entries = tmp_if_next;
-			}
-			seq_printf(seq, "\t}\n");
-		}
-#endif /* VIS_SUBCLUSTERS_DISABLED */
-	}
-	spin_unlock(&vis_hash_lock);
-
-	if (current_format == DOT_DRAW)
-		seq_printf(seq, "}\n");
-	else
-		seq_printf(seq, "\n");
-end:
-	return 0;
-}
-
 /* setting the mode of the vis server by the user */
-static ssize_t proc_vis_write(struct file *file, const char __user * buffer,
+static ssize_t proc_vis_srv_write(struct file *file, const char __user * buffer,
 			      size_t count, loff_t *ppos)
 {
 	char *vis_mode_string;
@@ -584,72 +330,84 @@ static ssize_t proc_vis_write(struct file *file, const char __user * buffer,
 	not_copied = copy_from_user(vis_mode_string, buffer, count);
 	vis_mode_string[count - not_copied - 1] = 0;
 
-	if (strcmp(vis_mode_string, "client") == 0) {
-		debug_log(LOG_TYPE_NOTICE, "Setting VIS mode to client\n");
-		vis_set_mode(VIS_TYPE_CLIENT_UPDATE);
-	} else if (strcmp(vis_mode_string, "server") == 0) {
-		debug_log(LOG_TYPE_NOTICE, "Setting VIS mode to server\n");
-		vis_set_mode(VIS_TYPE_SERVER_SYNC);
+	if ((strcmp(vis_mode_string, "client") == 0) ||
+			(strcmp(vis_mode_string, "disabled") == 0)) {
+		printk(KERN_INFO "batman-adv:Setting VIS mode to client (disabling vis server)\n");
+		atomic_set(&vis_mode, VIS_TYPE_CLIENT_UPDATE);
+	} else if ((strcmp(vis_mode_string, "server") == 0) ||
+			(strcmp(vis_mode_string, "enabled") == 0)) {
+		printk(KERN_INFO "batman-adv:Setting VIS mode to server (enabling vis server)\n");
+		atomic_set(&vis_mode, VIS_TYPE_SERVER_SYNC);
 	} else
-		debug_log(LOG_TYPE_WARN, "Unknown VIS mode: %s\n",
-			  vis_mode_string);
+		printk(KERN_ERR "batman-adv:Unknown VIS mode: %s\n",
+		       vis_mode_string);
 
 	kfree(vis_mode_string);
 	return count;
 }
 
-static int proc_vis_open(struct inode *inode, struct file *file)
+static int proc_vis_srv_read(struct seq_file *seq, void *offset)
 {
-	return single_open(file, proc_vis_read, NULL);
-}
+	int vis_server = atomic_read(&vis_mode);
 
-static int proc_vis_format_read(struct seq_file *seq, void *offset)
-{
-	uint8_t current_format = vis_format;
+	seq_printf(seq, "[%c] client mode (server disabled) \n",
+			(vis_server == VIS_TYPE_CLIENT_UPDATE) ? 'x' : ' ');
+	seq_printf(seq, "[%c] server mode (server enabled) \n",
+			(vis_server == VIS_TYPE_SERVER_SYNC) ? 'x' : ' ');
 
-	seq_printf(seq, "[%c] %s\n",
-		   (current_format == DOT_DRAW) ? 'x' : ' ',
-		   VIS_FORMAT_DD_NAME);
-	seq_printf(seq, "[%c] %s\n",
-		   (current_format == JSON) ? 'x' : ' ',
-		   VIS_FORMAT_JSON_NAME);
 	return 0;
 }
 
-static int proc_vis_format_open(struct inode *inode, struct file *file)
+static int proc_vis_srv_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, proc_vis_format_read, NULL);
+	return single_open(file, proc_vis_srv_read, NULL);
 }
 
-static ssize_t proc_vis_format_write(struct file *file,
-				     const char __user *buffer,
-				     size_t count, loff_t *ppos)
+static int proc_vis_data_read(struct seq_file *seq, void *offset)
 {
-	char *vis_format_string;
-	int not_copied = 0;
+	HASHIT(hashit);
+	struct vis_info *info;
+	struct vis_info_entry *entries;
+	HLIST_HEAD(vis_if_list);
+	int i;
+	char tmp_addr_str[ETH_STR_LEN];
+	unsigned long flags;
+	int vis_server = atomic_read(&vis_mode);
 
-	vis_format_string = kmalloc(count, GFP_KERNEL);
+	rcu_read_lock();
+	if (list_empty(&if_list) || (vis_server == VIS_TYPE_CLIENT_UPDATE)) {
+		rcu_read_unlock();
+		goto end;
+	}
 
-	if (!vis_format_string)
-		return -ENOMEM;
+	rcu_read_unlock();
 
-	not_copied = copy_from_user(vis_format_string, buffer, count);
-	vis_format_string[count - not_copied - 1] = 0;
+	spin_lock_irqsave(&vis_hash_lock, flags);
+	while (hash_iterate(vis_hash, &hashit)) {
+		info = hashit.bucket->data;
+		entries = (struct vis_info_entry *)
+			((char *)info + sizeof(struct vis_info));
+		addr_to_string(tmp_addr_str, info->packet.vis_orig);
+		seq_printf(seq, "%s,", tmp_addr_str);
 
-	if (strcmp(vis_format_string, VIS_FORMAT_DD_NAME) == 0) {
-		debug_log(LOG_TYPE_NOTICE, "Setting VIS output format to: %s\n",
-			  VIS_FORMAT_DD_NAME);
-		vis_format = DOT_DRAW;
-	} else if (strcmp(vis_format_string, VIS_FORMAT_JSON_NAME) == 0) {
-		debug_log(LOG_TYPE_NOTICE, "Setting VIS output format to: %s\n",
-			  VIS_FORMAT_JSON_NAME);
-		vis_format = JSON;
-	} else
-		debug_log(LOG_TYPE_WARN, "Unknown VIS output format: %s\n",
-			  vis_format_string);
+		for (i = 0; i < info->packet.entries; i++) {
+			proc_vis_read_entry(seq, &entries[i], &vis_if_list,
+					    info->packet.vis_orig);
+		}
 
-	kfree(vis_format_string);
-	return count;
+		/* add primary/secondary records */
+		proc_vis_read_prim_sec(seq, &vis_if_list);
+		seq_printf(seq, "\n");
+	}
+	spin_unlock_irqrestore(&vis_hash_lock, flags);
+
+end:
+	return 0;
+}
+
+static int proc_vis_data_open(struct inode *inode, struct file *file)
+{
+	return single_open(file, proc_vis_data_read, NULL);
 }
 
 static int proc_aggr_read(struct seq_file *seq, void *offset)
@@ -665,6 +423,7 @@ static ssize_t proc_aggr_write(struct file *file, const char __user *buffer,
 	char *aggr_string;
 	int not_copied = 0;
 	unsigned long aggregation_enabled_tmp;
+	int retval;
 
 	aggr_string = kmalloc(count, GFP_KERNEL);
 
@@ -674,22 +433,21 @@ static ssize_t proc_aggr_write(struct file *file, const char __user *buffer,
 	not_copied = copy_from_user(aggr_string, buffer, count);
 	aggr_string[count - not_copied - 1] = 0;
 
-	strict_strtoul(aggr_string, 10, &aggregation_enabled_tmp);
+	retval = strict_strtoul(aggr_string, 10, &aggregation_enabled_tmp);
 
-	if ((aggregation_enabled_tmp != 0) && (aggregation_enabled_tmp != 1)) {
-		debug_log(LOG_TYPE_WARN, "Aggregation can only be enabled (1) or disabled (0), given value: %li\n", aggregation_enabled_tmp);
-		goto end;
+	if (retval || aggregation_enabled_tmp > 1) {
+		printk(KERN_ERR "batman-adv:Aggregation can only be enabled (1) or disabled (0), given value: %li\n", aggregation_enabled_tmp);
+	} else {
+		printk(KERN_INFO "batman-adv:Changing aggregation from: %s (%i) to: %s (%li)\n",
+		       (atomic_read(&aggregation_enabled) == 1 ?
+			"enabled" : "disabled"),
+		       atomic_read(&aggregation_enabled),
+		       (aggregation_enabled_tmp == 1 ? "enabled" : "disabled"),
+		       aggregation_enabled_tmp);
+		atomic_set(&aggregation_enabled,
+			   (unsigned)aggregation_enabled_tmp);
 	}
 
-	debug_log(LOG_TYPE_NOTICE, "Changing aggregation from: %s (%i) to: %s (%li)\n",
-		  (atomic_read(&aggregation_enabled) == 1 ?
-		   "enabled" : "disabled"),
-		  atomic_read(&aggregation_enabled),
-		  (aggregation_enabled_tmp == 1 ? "enabled" : "disabled"),
-		  aggregation_enabled_tmp);
-
-	atomic_set(&aggregation_enabled, (unsigned)aggregation_enabled_tmp);
-end:
 	kfree(aggr_string);
 	return count;
 }
@@ -715,20 +473,20 @@ static const struct file_operations proc_aggr_fops = {
 	.release	= single_release,
 };
 
-static const struct file_operations proc_vis_format_fops = {
+static const struct file_operations proc_vis_srv_fops = {
 	.owner		= THIS_MODULE,
-	.open		= proc_vis_format_open,
+	.open		= proc_vis_srv_open,
 	.read		= seq_read,
-	.write		= proc_vis_format_write,
+	.write		= proc_vis_srv_write,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
 
-static const struct file_operations proc_vis_fops = {
+static const struct file_operations proc_vis_data_fops = {
 	.owner		= THIS_MODULE,
-	.open		= proc_vis_open,
+	.open		= proc_vis_data_open,
 	.read		= seq_read,
-	.write		= proc_vis_write,
+	.write		= proc_dummy_write,
 	.llseek		= seq_lseek,
 	.release	= single_release,
 };
@@ -760,15 +518,6 @@ static const struct file_operations proc_transt_global_fops = {
 	.release	= single_release,
 };
 
-static const struct file_operations proc_log_level_fops = {
-	.owner		= THIS_MODULE,
-	.open		= proc_log_level_open,
-	.read		= seq_read,
-	.write		= proc_log_level_write,
-	.llseek		= seq_lseek,
-	.release	= single_release,
-};
-
 static const struct file_operations proc_interfaces_fops = {
 	.owner		= THIS_MODULE,
 	.open		= proc_interfaces_open,
@@ -795,12 +544,6 @@ void cleanup_procfs(void)
 	if (proc_transt_local_file)
 		remove_proc_entry(PROC_FILE_TRANST_LOCAL, proc_batman_dir);
 
-	if (proc_log_file)
-		remove_proc_entry(PROC_FILE_LOG, proc_batman_dir);
-
-	if (proc_log_level_file)
-		remove_proc_entry(PROC_FILE_LOG_LEVEL, proc_batman_dir);
-
 	if (proc_originators_file)
 		remove_proc_entry(PROC_FILE_ORIGINATORS, proc_batman_dir);
 
@@ -810,11 +553,11 @@ void cleanup_procfs(void)
 	if (proc_interface_file)
 		remove_proc_entry(PROC_FILE_INTERFACES, proc_batman_dir);
 
-	if (proc_vis_file)
-		remove_proc_entry(PROC_FILE_VIS, proc_batman_dir);
+	if (proc_vis_data_file)
+		remove_proc_entry(PROC_FILE_VIS_DATA, proc_batman_dir);
 
-	if (proc_vis_format_file)
-		remove_proc_entry(PROC_FILE_VIS_FORMAT, proc_batman_dir);
+	if (proc_vis_srv_file)
+		remove_proc_entry(PROC_FILE_VIS_SRV, proc_batman_dir);
 
 	if (proc_aggr_file)
 		remove_proc_entry(PROC_FILE_AGGR, proc_batman_dir);
@@ -862,33 +605,12 @@ int setup_procfs(void)
 		return -EFAULT;
 	}
 
-	proc_log_level_file = create_proc_entry(PROC_FILE_LOG_LEVEL,
-						S_IWUSR | S_IRUGO,
-						proc_batman_dir);
-	if (proc_log_level_file) {
-		proc_log_level_file->proc_fops = &proc_log_level_fops;
-	} else {
-		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_LOG_LEVEL);
-		cleanup_procfs();
-		return -EFAULT;
-	}
-
 	proc_originators_file = create_proc_entry(PROC_FILE_ORIGINATORS,
 						  S_IRUGO, proc_batman_dir);
 	if (proc_originators_file) {
 		proc_originators_file->proc_fops = &proc_originators_fops;
 	} else {
 		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_ORIGINATORS);
-		cleanup_procfs();
-		return -EFAULT;
-	}
-
-	proc_log_file = create_proc_entry(PROC_FILE_LOG,
-					  S_IRUGO, proc_batman_dir);
-	if (proc_log_file) {
-		proc_log_file->proc_fops = &proc_log_operations;
-	} else {
-		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_FILE_LOG, PROC_FILE_GATEWAYS);
 		cleanup_procfs();
 		return -EFAULT;
 	}
@@ -913,23 +635,23 @@ int setup_procfs(void)
 		return -EFAULT;
 	}
 
-	proc_vis_file = create_proc_entry(PROC_FILE_VIS, S_IWUSR | S_IRUGO,
-					  proc_batman_dir);
-	if (proc_vis_file) {
-		proc_vis_file->proc_fops = &proc_vis_fops;
+	proc_vis_srv_file = create_proc_entry(PROC_FILE_VIS_SRV,
+						S_IWUSR | S_IRUGO,
+						proc_batman_dir);
+	if (proc_vis_srv_file) {
+		proc_vis_srv_file->proc_fops = &proc_vis_srv_fops;
 	} else {
-		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_VIS);
+		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_VIS_SRV);
 		cleanup_procfs();
 		return -EFAULT;
 	}
 
-	proc_vis_format_file = create_proc_entry(PROC_FILE_VIS_FORMAT,
-						 S_IWUSR | S_IRUGO,
-						 proc_batman_dir);
-	if (proc_vis_format_file) {
-		proc_vis_format_file->proc_fops = &proc_vis_format_fops;
+	proc_vis_data_file = create_proc_entry(PROC_FILE_VIS_DATA, S_IRUGO,
+					  proc_batman_dir);
+	if (proc_vis_data_file) {
+		proc_vis_data_file->proc_fops = &proc_vis_data_fops;
 	} else {
-		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_VIS_FORMAT);
+		printk(KERN_ERR "batman-adv: Registering the '/proc/net/%s/%s' file failed\n", PROC_ROOT_DIR, PROC_FILE_VIS_DATA);
 		cleanup_procfs();
 		return -EFAULT;
 	}
@@ -946,5 +668,3 @@ int setup_procfs(void)
 
 	return 0;
 }
-
-

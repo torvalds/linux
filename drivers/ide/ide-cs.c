@@ -121,18 +121,10 @@ static int ide_probe(struct pcmcia_device *link)
 static void ide_detach(struct pcmcia_device *link)
 {
     ide_info_t *info = link->priv;
-    ide_hwif_t *hwif = info->host->ports[0];
-    unsigned long data_addr, ctl_addr;
 
     dev_dbg(&link->dev, "ide_detach(0x%p)\n", link);
 
-    data_addr = hwif->io_ports.data_addr;
-    ctl_addr  = hwif->io_ports.ctl_addr;
-
     ide_release(link);
-
-    release_region(ctl_addr, 1);
-    release_region(data_addr, 8);
 
     kfree(info);
 } /* ide_detach */
@@ -354,12 +346,19 @@ static void ide_release(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "ide_release(0x%p)\n", link);
 
-    if (info->ndev)
-	/* FIXME: if this fails we need to queue the cleanup somehow
-	   -- need to investigate the required PCMCIA magic */
-	ide_host_remove(host);
+    if (info->ndev) {
+	ide_hwif_t *hwif = host->ports[0];
+	unsigned long data_addr, ctl_addr;
 
-    info->ndev = 0;
+	data_addr = hwif->io_ports.data_addr;
+	ctl_addr = hwif->io_ports.ctl_addr;
+
+	ide_host_remove(host);
+	info->ndev = 0;
+
+	release_region(ctl_addr, 1);
+	release_region(data_addr, 8);
+    }
 
     pcmcia_disable_device(link);
 } /* ide_release */

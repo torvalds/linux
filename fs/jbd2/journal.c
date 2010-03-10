@@ -39,6 +39,8 @@
 #include <linux/seq_file.h>
 #include <linux/math64.h>
 #include <linux/hash.h>
+#include <linux/log2.h>
+#include <linux/vmalloc.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/jbd2.h>
@@ -93,6 +95,7 @@ EXPORT_SYMBOL(jbd2_journal_begin_ordered_truncate);
 
 static int journal_convert_superblock_v1(journal_t *, journal_superblock_t *);
 static void __journal_abort_soft (journal_t *journal, int errno);
+static int jbd2_journal_create_slab(size_t slab_size);
 
 /*
  * Helper function used to manage commit timeouts
@@ -1248,6 +1251,13 @@ int jbd2_journal_load(journal_t *journal)
 		}
 	}
 
+	/*
+	 * Create a slab for this blocksize
+	 */
+	err = jbd2_journal_create_slab(be32_to_cpu(sb->s_blocksize));
+	if (err)
+		return err;
+
 	/* Let the recovery code check whether it needs to recover any
 	 * data from the journal. */
 	if (jbd2_journal_recover(journal))
@@ -1807,6 +1817,127 @@ size_t journal_tag_bytes(journal_t *journal)
 }
 
 /*
+ * JBD memory management
+ *
+ * These functions are used to allocate block-sized chunks of memory
+ * used for making copies of buffer_head data.  Very often it will be
+ * page-sized chunks of data, but sometimes it will be in
+ * sub-page-size chunks.  (For example, 16k pages on Power systems
+ * with a 4k block file system.)  For blocks smaller than a page, we
+ * use a SLAB allocator.  There are slab caches for each block size,
+ * which are allocated at mount time, if necessary, and we only free
+ * (all of) the slab caches when/if the jbd2 module is unloaded.  For
+ * this reason we don't need to a mutex to protect access to
+ * jbd2_slab[] allocating or releasing memory; only in
+ * jbd2_journal_create_slab().
+ */
+#define JBD2_MAX_SLABS 8
+static struct kmem_cache *jbd2_slab[JBD2_MAX_SLABS];
+static DECLARE_MUTEX(jbd2_slab_create_sem);
+
+static const char *jbd2_slab_names[JBD2_MAX_SLABS] = {
+	"jbd2_1k", "jbd2_2k", "jbd2_4k", "jbd2_8k",
+	"jbd2_16k", "jbd2_32k", "jbd2_64k", "jbd2_128k"
+};
+
+
+static void jbd2_journal_destroy_slabs(void)
+{
+	int i;
+
+	for (i = 0; i < JBD2_MAX_SLABS; i++) {
+		if (jbd2_slab[i])
+			kmem_cache_destroy(jbd2_slab[i]);
+		jbd2_slab[i] = NULL;
+	}
+}
+
+static int jbd2_journal_create_slab(size_t size)
+{
+	int i = order_base_2(size) - 10;
+	size_t slab_size;
+
+	if (size == PAGE_SIZE)
+		return 0;
+
+	if (i >= JBD2_MAX_SLABS)
+		return -EINVAL;
+
+	if (unlikely(i < 0))
+		i = 0;
+	down(&jbd2_slab_create_sem);
+	if (jbd2_slab[i]) {
+		up(&jbd2_slab_create_sem);
+		return 0;	/* Already created */
+	}
+
+	slab_size = 1 << (i+10);
+	jbd2_slab[i] = kmem_cache_create(jbd2_slab_names[i], slab_size,
+					 slab_size, 0, NULL);
+	up(&jbd2_slab_create_sem);
+	if (!jbd2_slab[i]) {
+		printk(KERN_EMERG "JBD2: no memory for jbd2_slab cache\n");
+		return -ENOMEM;
+	}
+	return 0;
+}
+
+static struct kmem_cache *get_slab(size_t size)
+{
+	int i = order_base_2(size) - 10;
+
+	BUG_ON(i >= JBD2_MAX_SLABS);
+	if (unlikely(i < 0))
+		i = 0;
+	BUG_ON(jbd2_slab[i] == 0);
+	return jbd2_slab[i];
+}
+
+void *jbd2_alloc(size_t size, gfp_t flags)
+{
+	void *ptr;
+
+	BUG_ON(size & (size-1)); /* Must be a power of 2 */
+
+	flags |= __GFP_REPEAT;
+	if (size == PAGE_SIZE)
+		ptr = (void *)__get_free_pages(flags, 0);
+	else if (size > PAGE_SIZE) {
+		int order = get_order(size);
+
+		if (order < 3)
+			ptr = (void *)__get_free_pages(flags, order);
+		else
+			ptr = vmalloc(size);
+	} else
+		ptr = kmem_cache_alloc(get_slab(size), flags);
+
+	/* Check alignment; SLUB has gotten this wrong in the past,
+	 * and this can lead to user data corruption! */
+	BUG_ON(((unsigned long) ptr) & (size-1));
+
+	return ptr;
+}
+
+void jbd2_free(void *ptr, size_t size)
+{
+	if (size == PAGE_SIZE) {
+		free_pages((unsigned long)ptr, 0);
+		return;
+	}
+	if (size > PAGE_SIZE) {
+		int order = get_order(size);
+
+		if (order < 3)
+			free_pages((unsigned long)ptr, order);
+		else
+			vfree(ptr);
+		return;
+	}
+	kmem_cache_free(get_slab(size), ptr);
+};
+
+/*
  * Journal_head storage management
  */
 static struct kmem_cache *jbd2_journal_head_cache;
@@ -2204,6 +2335,7 @@ static void jbd2_journal_destroy_caches(void)
 	jbd2_journal_destroy_revoke_caches();
 	jbd2_journal_destroy_jbd2_journal_head_cache();
 	jbd2_journal_destroy_handle_cache();
+	jbd2_journal_destroy_slabs();
 }
 
 static int __init journal_init(void)

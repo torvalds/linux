@@ -34,7 +34,6 @@
 #include <linux/fs.h>
 #include <linux/vfs.h>
 #include <linux/slab.h>
-#include <linux/zlib.h>
 
 #include "squashfs_fs.h"
 #include "squashfs_fs_sb.h"

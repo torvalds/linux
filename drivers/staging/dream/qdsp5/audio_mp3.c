@@ -650,8 +650,7 @@ static long audio_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 						       &audio->read_phys,
 						       GFP_KERNEL);
 				if (!audio->read_data) {
-					pr_err("audio_mp3: malloc pcm \
-					buf failed\n");
+					pr_err("audio_mp3: malloc pcm buf failed\n");
 					rc = -1;
 				} else {
 					uint8_t index;

@@ -65,7 +65,6 @@ static void gfs2_tune_init(struct gfs2_tune *gt)
 	gt->gt_quota_scale_den = 1;
 	gt->gt_new_files_jdata = 0;
 	gt->gt_max_readahead = 1 << 18;
-	gt->gt_stall_secs = 600;
 	gt->gt_complain_secs = 10;
 }
 
@@ -82,6 +81,8 @@ static struct gfs2_sbd *init_sbd(struct super_block *sb)
 
 	gfs2_tune_init(&sdp->sd_tune);
 
+	init_waitqueue_head(&sdp->sd_glock_wait);
+	atomic_set(&sdp->sd_glock_disposal, 0);
 	spin_lock_init(&sdp->sd_statfs_spin);
 
 	spin_lock_init(&sdp->sd_rindex_spin);
@@ -723,7 +724,7 @@ static int init_journal(struct gfs2_sbd *sdp, int undo)
 		goto fail;
 	}
 
-	error = -EINVAL;
+	error = -EUSERS;
 	if (!gfs2_jindex_size(sdp)) {
 		fs_err(sdp, "no journals!\n");
 		goto fail_jindex;
@@ -983,9 +984,17 @@ static const match_table_t nolock_tokens = {
 	{ Opt_err, NULL },
 };
 
+static void nolock_put_lock(struct kmem_cache *cachep, struct gfs2_glock *gl)
+{
+	struct gfs2_sbd *sdp = gl->gl_sbd;
+	kmem_cache_free(cachep, gl);
+	if (atomic_dec_and_test(&sdp->sd_glock_disposal))
+		wake_up(&sdp->sd_glock_wait);
+}
+
 static const struct lm_lockops nolock_ops = {
 	.lm_proto_name = "lock_nolock",
-	.lm_put_lock = kmem_cache_free,
+	.lm_put_lock = nolock_put_lock,
 	.lm_tokens = &nolock_tokens,
 };
 
@@ -1231,10 +1240,9 @@ fail_sb:
 fail_locking:
 	init_locking(sdp, &mount_gh, UNDO);
 fail_lm:
+	invalidate_inodes(sb);
 	gfs2_gl_hash_clear(sdp);
 	gfs2_lm_unmount(sdp);
-	while (invalidate_inodes(sb))
-		yield();
 fail_sys:
 	gfs2_sys_fs_del(sdp);
 fail:

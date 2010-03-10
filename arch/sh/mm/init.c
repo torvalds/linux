@@ -21,25 +21,13 @@
 #include <asm/cacheflush.h>
 #include <asm/sections.h>
 #include <asm/cache.h>
+#include <asm/sizes.h>
 
 DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 pgd_t swapper_pg_dir[PTRS_PER_PGD];
 
-#ifdef CONFIG_SUPERH32
-/*
- * Handle trivial transitions between cached and uncached
- * segments, making use of the 1:1 mapping relationship in
- * 512MB lowmem.
- *
- * This is the offset of the uncached section from its cached alias.
- * Default value only valid in 29 bit mode, in 32bit mode will be
- * overridden in pmb_init.
- */
-unsigned long cached_to_uncached = P2SEG - P1SEG;
-#endif
-
 #ifdef CONFIG_MMU
-static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
+static pte_t *__get_pte_phys(unsigned long addr)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -49,22 +37,30 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 	pgd = pgd_offset_k(addr);
 	if (pgd_none(*pgd)) {
 		pgd_ERROR(*pgd);
-		return;
+		return NULL;
 	}
 
 	pud = pud_alloc(NULL, pgd, addr);
 	if (unlikely(!pud)) {
 		pud_ERROR(*pud);
-		return;
+		return NULL;
 	}
 
 	pmd = pmd_alloc(NULL, pud, addr);
 	if (unlikely(!pmd)) {
 		pmd_ERROR(*pmd);
-		return;
+		return NULL;
 	}
 
 	pte = pte_offset_kernel(pmd, addr);
+	return pte;
+}
+
+static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
+{
+	pte_t *pte;
+
+	pte = __get_pte_phys(addr);
 	if (!pte_none(*pte)) {
 		pte_ERROR(*pte);
 		return;
@@ -72,23 +68,24 @@ static void set_pte_phys(unsigned long addr, unsigned long phys, pgprot_t prot)
 
 	set_pte(pte, pfn_pte(phys >> PAGE_SHIFT, prot));
 	local_flush_tlb_one(get_asid(), addr);
+
+	if (pgprot_val(prot) & _PAGE_WIRED)
+		tlb_wire_entry(NULL, addr, *pte);
 }
 
-/*
- * As a performance optimization, other platforms preserve the fixmap mapping
- * across a context switch, we don't presently do this, but this could be done
- * in a similar fashion as to the wired TLB interface that sh64 uses (by way
- * of the memory mapped UTLB configuration) -- this unfortunately forces us to
- * give up a TLB entry for each mapping we want to preserve. While this may be
- * viable for a small number of fixmaps, it's not particularly useful for
- * everything and needs to be carefully evaluated. (ie, we may want this for
- * the vsyscall page).
- *
- * XXX: Perhaps add a _PAGE_WIRED flag or something similar that we can pass
- * in at __set_fixmap() time to determine the appropriate behavior to follow.
- *
- *					 -- PFM.
- */
+static void clear_pte_phys(unsigned long addr, pgprot_t prot)
+{
+	pte_t *pte;
+
+	pte = __get_pte_phys(addr);
+
+	if (pgprot_val(prot) & _PAGE_WIRED)
+		tlb_unwire_entry();
+
+	set_pte(pte, pfn_pte(0, __pgprot(0)));
+	local_flush_tlb_one(get_asid(), addr);
+}
+
 void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 {
 	unsigned long address = __fix_to_virt(idx);
@@ -99,6 +96,18 @@ void __set_fixmap(enum fixed_addresses idx, unsigned long phys, pgprot_t prot)
 	}
 
 	set_pte_phys(address, phys, prot);
+}
+
+void __clear_fixmap(enum fixed_addresses idx, pgprot_t prot)
+{
+	unsigned long address = __fix_to_virt(idx);
+
+	if (idx >= __end_of_fixed_addresses) {
+		BUG();
+		return;
+	}
+
+	clear_pte_phys(address, prot);
 }
 
 void __init page_table_range_init(unsigned long start, unsigned long end,
@@ -120,7 +129,13 @@ void __init page_table_range_init(unsigned long start, unsigned long end,
 	for ( ; (i < PTRS_PER_PGD) && (vaddr != end); pgd++, i++) {
 		pud = (pud_t *)pgd;
 		for ( ; (j < PTRS_PER_PUD) && (vaddr != end); pud++, j++) {
+#ifdef __PAGETABLE_PMD_FOLDED
 			pmd = (pmd_t *)pud;
+#else
+			pmd = (pmd_t *)alloc_bootmem_low_pages(PAGE_SIZE);
+			pud_populate(&init_mm, pud, pmd);
+			pmd += k;
+#endif
 			for (; (k < PTRS_PER_PMD) && (vaddr != end); pmd++, k++) {
 				if (pmd_none(*pmd)) {
 					pte = (pte_t *) alloc_bootmem_low_pages(PAGE_SIZE);
@@ -182,9 +197,6 @@ void __init paging_init(void)
 	}
 
 	free_area_init_nodes(max_zone_pfns);
-
-	/* Set up the uncached fixmap */
-	set_fixmap_nocache(FIX_UNCACHED, __pa(&__uncached_start));
 }
 
 /*
@@ -194,6 +206,8 @@ static void __init iommu_init(void)
 {
 	no_iommu_init();
 }
+
+unsigned int mem_init_done = 0;
 
 void __init mem_init(void)
 {
@@ -231,6 +245,8 @@ void __init mem_init(void)
 	memset(empty_zero_page, 0, PAGE_SIZE);
 	__flush_wback_region(empty_zero_page, PAGE_SIZE);
 
+	vsyscall_init();
+
 	codesize =  (unsigned long) &_etext - (unsigned long) &_text;
 	datasize =  (unsigned long) &_edata - (unsigned long) &_etext;
 	initsize =  (unsigned long) &__init_end - (unsigned long) &__init_begin;
@@ -243,8 +259,48 @@ void __init mem_init(void)
 		datasize >> 10,
 		initsize >> 10);
 
-	/* Initialize the vDSO */
-	vsyscall_init();
+	printk(KERN_INFO "virtual kernel memory layout:\n"
+		"    fixmap  : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+#ifdef CONFIG_HIGHMEM
+		"    pkmap   : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+#endif
+		"    vmalloc : 0x%08lx - 0x%08lx   (%4ld MB)\n"
+		"    lowmem  : 0x%08lx - 0x%08lx   (%4ld MB) (cached)\n"
+#ifdef CONFIG_UNCACHED_MAPPING
+		"            : 0x%08lx - 0x%08lx   (%4ld MB) (uncached)\n"
+#endif
+		"      .init : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+		"      .data : 0x%08lx - 0x%08lx   (%4ld kB)\n"
+		"      .text : 0x%08lx - 0x%08lx   (%4ld kB)\n",
+		FIXADDR_START, FIXADDR_TOP,
+		(FIXADDR_TOP - FIXADDR_START) >> 10,
+
+#ifdef CONFIG_HIGHMEM
+		PKMAP_BASE, PKMAP_BASE+LAST_PKMAP*PAGE_SIZE,
+		(LAST_PKMAP*PAGE_SIZE) >> 10,
+#endif
+
+		(unsigned long)VMALLOC_START, VMALLOC_END,
+		(VMALLOC_END - VMALLOC_START) >> 20,
+
+		(unsigned long)memory_start, (unsigned long)high_memory,
+		((unsigned long)high_memory - (unsigned long)memory_start) >> 20,
+
+#ifdef CONFIG_UNCACHED_MAPPING
+		uncached_start, uncached_end, uncached_size >> 20,
+#endif
+
+		(unsigned long)&__init_begin, (unsigned long)&__init_end,
+		((unsigned long)&__init_end -
+		 (unsigned long)&__init_begin) >> 10,
+
+		(unsigned long)&_etext, (unsigned long)&_edata,
+		((unsigned long)&_edata - (unsigned long)&_etext) >> 10,
+
+		(unsigned long)&_text, (unsigned long)&_etext,
+		((unsigned long)&_etext - (unsigned long)&_text) >> 10);
+
+	mem_init_done = 1;
 }
 
 void free_initmem(void)
@@ -277,35 +333,6 @@ void free_initrd_mem(unsigned long start, unsigned long end)
 }
 #endif
 
-#if THREAD_SHIFT < PAGE_SHIFT
-static struct kmem_cache *thread_info_cache;
-
-struct thread_info *alloc_thread_info(struct task_struct *tsk)
-{
-	struct thread_info *ti;
-
-	ti = kmem_cache_alloc(thread_info_cache, GFP_KERNEL);
-	if (unlikely(ti == NULL))
-		return NULL;
-#ifdef CONFIG_DEBUG_STACK_USAGE
-	memset(ti, 0, THREAD_SIZE);
-#endif
-	return ti;
-}
-
-void free_thread_info(struct thread_info *ti)
-{
-	kmem_cache_free(thread_info_cache, ti);
-}
-
-void thread_info_cache_init(void)
-{
-	thread_info_cache = kmem_cache_create("thread_info", THREAD_SIZE,
-					      THREAD_SIZE, 0, NULL);
-	BUG_ON(thread_info_cache == NULL);
-}
-#endif /* THREAD_SHIFT < PAGE_SHIFT */
-
 #ifdef CONFIG_MEMORY_HOTPLUG
 int arch_add_memory(int nid, u64 start, u64 size)
 {
@@ -336,10 +363,3 @@ EXPORT_SYMBOL_GPL(memory_add_physaddr_to_nid);
 #endif
 
 #endif /* CONFIG_MEMORY_HOTPLUG */
-
-#ifdef CONFIG_PMB
-int __in_29bit_mode(void)
-{
-	return !(ctrl_inl(PMB_PASCR) & PASCR_SE);
-}
-#endif /* CONFIG_PMB */

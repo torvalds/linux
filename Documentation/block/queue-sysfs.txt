@@ -25,11 +25,11 @@ size allowed by the hardware.
 
 nomerges (RW)
 -------------
-This enables the user to disable the lookup logic involved with IO merging
-requests in the block layer. Merging may still occur through a direct
-1-hit cache, since that comes for (almost) free. The IO scheduler will not
-waste cycles doing tree/hash lookups for merges if nomerges is 1. Defaults
-to 0, enabling all merges.
+This enables the user to disable the lookup logic involved with IO
+merging requests in the block layer. By default (0) all merges are
+enabled. When set to 1 only simple one-hit merges will be tried. When
+set to 2 no merge algorithms will be tried (including one-hit or more
+complex tree/hash lookups).
 
 nr_requests (RW)
 ----------------

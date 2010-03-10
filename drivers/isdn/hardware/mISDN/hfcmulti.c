@@ -2846,7 +2846,7 @@ mode_hfcmulti(struct hfc_multi *hc, int ch, int protocol, int slot_tx,
 	int conf;
 
 	if (ch < 0 || ch > 31)
-		return EINVAL;
+		return -EINVAL;
 	oslot_tx = hc->chan[ch].slot_tx;
 	oslot_rx = hc->chan[ch].slot_rx;
 	conf = hc->chan[ch].conf;

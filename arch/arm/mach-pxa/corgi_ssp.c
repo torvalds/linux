@@ -204,7 +204,7 @@ void __init corgi_ssp_set_machinfo(struct corgissp_machinfo *machinfo)
 	ssp_machinfo = machinfo;
 }
 
-static int __init corgi_ssp_probe(struct platform_device *dev)
+static int __devinit corgi_ssp_probe(struct platform_device *dev)
 {
 	int ret;
 

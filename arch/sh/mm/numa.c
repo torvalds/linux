@@ -74,6 +74,9 @@ void __init setup_bootmem_node(int nid, unsigned long start, unsigned long end)
 	start_pfn = start >> PAGE_SHIFT;
 	end_pfn = end >> PAGE_SHIFT;
 
+	pmb_bolt_mapping((unsigned long)__va(start), start, end - start,
+			 PAGE_KERNEL);
+
 	lmb_add(start, end - start);
 
 	__add_active_range(nid, start_pfn, end_pfn);

@@ -370,9 +370,7 @@ nv50_display_init(struct drm_device *dev)
 		struct nouveau_connector *conn = nouveau_connector(connector);
 		struct dcb_gpio_entry *gpio;
 
-		if (connector->connector_type != DRM_MODE_CONNECTOR_DVII &&
-		    connector->connector_type != DRM_MODE_CONNECTOR_DVID &&
-		    connector->connector_type != DRM_MODE_CONNECTOR_DisplayPort)
+		if (conn->dcb->gpio_tag == 0xff)
 			continue;
 
 		gpio = nouveau_bios_gpio_entry(dev, conn->dcb->gpio_tag);
@@ -465,8 +463,7 @@ static int nv50_display_disable(struct drm_device *dev)
 int nv50_display_create(struct drm_device *dev)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	struct parsed_dcb *dcb = dev_priv->vbios->dcb;
-	uint32_t connector[16] = {};
+	struct dcb_table *dcb = &dev_priv->vbios.dcb;
 	int ret, i;
 
 	NV_DEBUG_KMS(dev, "\n");
@@ -522,44 +519,13 @@ int nv50_display_create(struct drm_device *dev)
 			NV_WARN(dev, "DCB encoder %d unknown\n", entry->type);
 			continue;
 		}
-
-		connector[entry->connector] |= (1 << entry->type);
 	}
 
-	/* It appears that DCB 3.0+ VBIOS has a connector table, however,
-	 * I'm not 100% certain how to decode it correctly yet so just
-	 * look at what encoders are present on each connector index and
-	 * attempt to derive the connector type from that.
-	 */
-	for (i = 0 ; i < dcb->entries; i++) {
-		struct dcb_entry *entry = &dcb->entry[i];
-		uint16_t encoders;
-		int type;
-
-		encoders = connector[entry->connector];
-		if (!(encoders & (1 << entry->type)))
+	for (i = 0 ; i < dcb->connector.entries; i++) {
+		if (i != 0 && dcb->connector.entry[i].index ==
+			      dcb->connector.entry[i - 1].index)
 			continue;
-		connector[entry->connector] = 0;
-
-		if (encoders & (1 << OUTPUT_DP)) {
-			type = DRM_MODE_CONNECTOR_DisplayPort;
-		} else if (encoders & (1 << OUTPUT_TMDS)) {
-			if (encoders & (1 << OUTPUT_ANALOG))
-				type = DRM_MODE_CONNECTOR_DVII;
-			else
-				type = DRM_MODE_CONNECTOR_DVID;
-		} else if (encoders & (1 << OUTPUT_ANALOG)) {
-			type = DRM_MODE_CONNECTOR_VGA;
-		} else if (encoders & (1 << OUTPUT_LVDS)) {
-			type = DRM_MODE_CONNECTOR_LVDS;
-		} else {
-			type = DRM_MODE_CONNECTOR_Unknown;
-		}
-
-		if (type == DRM_MODE_CONNECTOR_Unknown)
-			continue;
-
-		nouveau_connector_create(dev, entry->connector, type);
+		nouveau_connector_create(dev, &dcb->connector.entry[i]);
 	}
 
 	ret = nv50_display_init(dev);
@@ -667,8 +633,8 @@ nv50_display_irq_head(struct drm_device *dev, int *phead,
 		return -1;
 	}
 
-	for (i = 0; i < dev_priv->vbios->dcb->entries; i++) {
-		struct dcb_entry *dcbent = &dev_priv->vbios->dcb->entry[i];
+	for (i = 0; i < dev_priv->vbios.dcb.entries; i++) {
+		struct dcb_entry *dcbent = &dev_priv->vbios.dcb.entry[i];
 
 		if (dcbent->type != type)
 			continue;
@@ -692,7 +658,7 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcbent,
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_connector *nv_connector = NULL;
 	struct drm_encoder *encoder;
-	struct nvbios *bios = &dev_priv->VBIOS;
+	struct nvbios *bios = &dev_priv->vbios;
 	uint32_t mc, script = 0, or;
 
 	list_for_each_entry(encoder, &dev->mode_config.encoder_list, head) {
@@ -710,7 +676,7 @@ nv50_display_script_select(struct drm_device *dev, struct dcb_entry *dcbent,
 	switch (dcbent->type) {
 	case OUTPUT_LVDS:
 		script = (mc >> 8) & 0xf;
-		if (bios->pub.fp_no_ddc) {
+		if (bios->fp_no_ddc) {
 			if (bios->fp.dual_link)
 				script |= 0x0100;
 			if (bios->fp.if_is_24bit)

@@ -199,7 +199,8 @@ dasd_ioctl_format(struct block_device *bdev, void __user *argp)
 	if (!argp)
 		return -EINVAL;
 
-	if (block->base->features & DASD_FEATURE_READONLY)
+	if (block->base->features & DASD_FEATURE_READONLY ||
+	    test_bit(DASD_FLAG_DEVICE_RO, &block->base->flags))
 		return -EROFS;
 	if (copy_from_user(&fdata, argp, sizeof(struct format_data_t)))
 		return -EFAULT;
@@ -260,7 +261,7 @@ static int dasd_ioctl_information(struct dasd_block *block,
 	struct ccw_dev_id dev_id;
 
 	base = block->base;
-	if (!base->discipline->fill_info)
+	if (!base->discipline || !base->discipline->fill_info)
 		return -EINVAL;
 
 	dasd_info = kzalloc(sizeof(struct dasd_information2_t), GFP_KERNEL);
@@ -303,10 +304,7 @@ static int dasd_ioctl_information(struct dasd_block *block,
 	dasd_info->features |=
 		((base->features & DASD_FEATURE_READONLY) != 0);
 
-	if (base->discipline)
-		memcpy(dasd_info->type, base->discipline->name, 4);
-	else
-		memcpy(dasd_info->type, "none", 4);
+	memcpy(dasd_info->type, base->discipline->name, 4);
 
 	if (block->request_queue->request_fn) {
 		struct list_head *l;
@@ -352,7 +350,8 @@ dasd_ioctl_set_ro(struct block_device *bdev, void __user *argp)
 		return -EINVAL;
 	if (get_user(intval, (int __user *)argp))
 		return -EFAULT;
-
+	if (!intval && test_bit(DASD_FLAG_DEVICE_RO, &block->base->flags))
+		return -EROFS;
 	set_disk_ro(bdev->bd_disk, intval);
 	return dasd_set_feature(block->base->cdev, DASD_FEATURE_READONLY, intval);
 }

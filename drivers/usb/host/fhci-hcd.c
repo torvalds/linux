@@ -433,7 +433,7 @@ static int fhci_urb_enqueue(struct usb_hcd *hcd, struct urb *urb,
 		return -ENOMEM;
 
 	/* allocate the private part of the URB */
-	urb_priv->tds = kzalloc(size * sizeof(struct td), mem_flags);
+	urb_priv->tds = kcalloc(size, sizeof(*urb_priv->tds), mem_flags);
 	if (!urb_priv->tds) {
 		kfree(urb_priv);
 		return -ENOMEM;
@@ -805,7 +805,7 @@ static int __devexit of_fhci_remove(struct of_device *ofdev)
 	return fhci_remove(&ofdev->dev);
 }
 
-static struct of_device_id of_fhci_match[] = {
+static const struct of_device_id of_fhci_match[] = {
 	{ .compatible = "fsl,mpc8323-qe-usb", },
 	{},
 };

@@ -114,15 +114,17 @@ struct nf_sockopt_ops {
 	int set_optmin;
 	int set_optmax;
 	int (*set)(struct sock *sk, int optval, void __user *user, unsigned int len);
+#ifdef CONFIG_COMPAT
 	int (*compat_set)(struct sock *sk, int optval,
 			void __user *user, unsigned int len);
-
+#endif
 	int get_optmin;
 	int get_optmax;
 	int (*get)(struct sock *sk, int optval, void __user *user, int *len);
+#ifdef CONFIG_COMPAT
 	int (*compat_get)(struct sock *sk, int optval,
 			void __user *user, int *len);
-
+#endif
 	/* Use the module struct to lock set/get code in place */
 	struct module *owner;
 };
@@ -161,11 +163,8 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 struct sk_buff *skb,
 				 struct net_device *indev,
 				 struct net_device *outdev,
-				 int (*okfn)(struct sk_buff *), int thresh,
-				 int cond)
+				 int (*okfn)(struct sk_buff *), int thresh)
 {
-	if (!cond)
-		return 1;
 #ifndef CONFIG_NETFILTER_DEBUG
 	if (list_empty(&nf_hooks[pf][hook]))
 		return 1;
@@ -177,7 +176,7 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
 			  struct net_device *indev, struct net_device *outdev,
 			  int (*okfn)(struct sk_buff *))
 {
-	return nf_hook_thresh(pf, hook, skb, indev, outdev, okfn, INT_MIN, 1);
+	return nf_hook_thresh(pf, hook, skb, indev, outdev, okfn, INT_MIN);
 }
                    
 /* Activate hook; either okfn or kfree_skb called, unless a hook
@@ -197,36 +196,49 @@ static inline int nf_hook(u_int8_t pf, unsigned int hook, struct sk_buff *skb,
    coders :)
 */
 
-/* This is gross, but inline doesn't cut it for avoiding the function
-   call in fast path: gcc doesn't inline (needs value tracking?). --RR */
+static inline int
+NF_HOOK_THRESH(uint8_t pf, unsigned int hook, struct sk_buff *skb,
+	       struct net_device *in, struct net_device *out,
+	       int (*okfn)(struct sk_buff *), int thresh)
+{
+	int ret = nf_hook_thresh(pf, hook, skb, in, out, okfn, thresh);
+	if (ret == 1)
+		ret = okfn(skb);
+	return ret;
+}
 
-/* HX: It's slightly less gross now. */
+static inline int
+NF_HOOK_COND(uint8_t pf, unsigned int hook, struct sk_buff *skb,
+	     struct net_device *in, struct net_device *out,
+	     int (*okfn)(struct sk_buff *), bool cond)
+{
+	int ret;
 
-#define NF_HOOK_THRESH(pf, hook, skb, indev, outdev, okfn, thresh)	       \
-({int __ret;								       \
-if ((__ret=nf_hook_thresh(pf, hook, (skb), indev, outdev, okfn, thresh, 1)) == 1)\
-	__ret = (okfn)(skb);						       \
-__ret;})
+	if (!cond ||
+	    (ret = nf_hook_thresh(pf, hook, skb, in, out, okfn, INT_MIN) == 1))
+		ret = okfn(skb);
+	return ret;
+}
 
-#define NF_HOOK_COND(pf, hook, skb, indev, outdev, okfn, cond)		       \
-({int __ret;								       \
-if ((__ret=nf_hook_thresh(pf, hook, (skb), indev, outdev, okfn, INT_MIN, cond)) == 1)\
-	__ret = (okfn)(skb);						       \
-__ret;})
-
-#define NF_HOOK(pf, hook, skb, indev, outdev, okfn) \
-	NF_HOOK_THRESH(pf, hook, skb, indev, outdev, okfn, INT_MIN)
+static inline int
+NF_HOOK(uint8_t pf, unsigned int hook, struct sk_buff *skb,
+	struct net_device *in, struct net_device *out,
+	int (*okfn)(struct sk_buff *))
+{
+	return NF_HOOK_THRESH(pf, hook, skb, in, out, okfn, INT_MIN);
+}
 
 /* Call setsockopt() */
 int nf_setsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
 		  unsigned int len);
 int nf_getsockopt(struct sock *sk, u_int8_t pf, int optval, char __user *opt,
 		  int *len);
-
+#ifdef CONFIG_COMPAT
 int compat_nf_setsockopt(struct sock *sk, u_int8_t pf, int optval,
 		char __user *opt, unsigned int len);
 int compat_nf_getsockopt(struct sock *sk, u_int8_t pf, int optval,
 		char __user *opt, int *len);
+#endif
 
 /* Call this before modifying an existing packet: ensures it is
    modifiable and linear to the point you care about (writable_len).
@@ -325,8 +337,7 @@ static inline int nf_hook_thresh(u_int8_t pf, unsigned int hook,
 				 struct sk_buff *skb,
 				 struct net_device *indev,
 				 struct net_device *outdev,
-				 int (*okfn)(struct sk_buff *), int thresh,
-				 int cond)
+				 int (*okfn)(struct sk_buff *), int thresh)
 {
 	return okfn(skb);
 }

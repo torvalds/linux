@@ -15,6 +15,7 @@
 #define _SS_MLS_TYPES_H_
 
 #include "security.h"
+#include "ebitmap.h"
 
 struct mls_level {
 	u32 sens;		/* sensitivity */
@@ -27,18 +28,12 @@ struct mls_range {
 
 static inline int mls_level_eq(struct mls_level *l1, struct mls_level *l2)
 {
-	if (!selinux_mls_enabled)
-		return 1;
-
 	return ((l1->sens == l2->sens) &&
 		ebitmap_cmp(&l1->cat, &l2->cat));
 }
 
 static inline int mls_level_dom(struct mls_level *l1, struct mls_level *l2)
 {
-	if (!selinux_mls_enabled)
-		return 1;
-
 	return ((l1->sens >= l2->sens) &&
 		ebitmap_contains(&l1->cat, &l2->cat));
 }
