@@ -26,7 +26,7 @@
 
 #include <linux/slab.h>
 #include <linux/kernel.h>
-#include <linux/device.h>
+#include <linux/platform_device.h>
 #include <linux/etherdevice.h>
 #include <linux/usb/android_composite.h>
 
@@ -311,6 +311,10 @@ static struct usb_gadget_strings *rndis_strings[] = {
 	&rndis_string_table,
 	NULL,
 };
+
+#ifdef CONFIG_USB_ANDROID_RNDIS
+static struct usb_ether_platform_data *rndis_pdata;
+#endif
 
 /*-------------------------------------------------------------------------*/
 
@@ -715,11 +719,12 @@ rndis_bind(struct usb_configuration *c, struct usb_function *f)
 	rndis_set_param_medium(rndis->config, NDIS_MEDIUM_802_3, 0);
 	rndis_set_host_mac(rndis->config, rndis->ethaddr);
 
-#if 0
-// FIXME
-	if (rndis_set_param_vendor(rndis->config, vendorID,
-				manufacturer))
-		goto fail0;
+#ifdef CONFIG_USB_ANDROID_RNDIS
+	if (rndis_pdata) {
+		if (rndis_set_param_vendor(rndis->config, rndis_pdata->vendorID,
+					rndis_pdata->vendorDescr))
+			goto fail;
+	}
 #endif
 
 	/* NOTE:  all that is done without knowing or caring about
@@ -875,15 +880,35 @@ fail:
 #ifdef CONFIG_USB_ANDROID_RNDIS
 #include "rndis.c"
 
-// FIXME - using bogus MAC address for now
+static int __init rndis_probe(struct platform_device *pdev)
+{
+	rndis_pdata = pdev->dev.platform_data;
+	return 0;
+}
 
-static u8 ethaddr[ETH_ALEN] = { 11, 22, 33, 44, 55, 66 };
+static struct platform_driver rndis_platform_driver = {
+	.driver = { .name = "rndis", },
+	.probe = rndis_probe,
+};
 
 int rndis_function_bind_config(struct usb_configuration *c)
 {
-	int ret = gether_setup(c->cdev->gadget, ethaddr);
+	int ret;
+
+	if (!rndis_pdata) {
+		printk(KERN_ERR "rndis_pdata null in rndis_function_bind_config\n");
+		return -1;
+	}
+
+	printk(KERN_INFO
+		"rndis_function_bind_config MAC: %02X:%02X:%02X:%02X:%02X:%02X\n",
+		rndis_pdata->ethaddr[0], rndis_pdata->ethaddr[1],
+		rndis_pdata->ethaddr[2], rndis_pdata->ethaddr[3],
+		rndis_pdata->ethaddr[4], rndis_pdata->ethaddr[5]);
+
+	ret = gether_setup(c->cdev->gadget, rndis_pdata->ethaddr);
 	if (ret == 0)
-		ret = rndis_bind_config(c, ethaddr);
+		ret = rndis_bind_config(c, rndis_pdata->ethaddr);
 	return ret;
 }
 
@@ -895,6 +920,7 @@ static struct android_usb_function rndis_function = {
 static int __init init(void)
 {
 	printk(KERN_INFO "f_rndis init\n");
+	platform_driver_register(&rndis_platform_driver);
 	android_register_function(&rndis_function);
 	return 0;
 }
