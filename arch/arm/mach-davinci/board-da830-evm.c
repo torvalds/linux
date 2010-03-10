@@ -229,14 +229,21 @@ static const short da830_evm_mmc_sd_pins[] = {
 };
 
 #define DA830_MMCSD_WP_PIN		GPIO_TO_PIN(2, 1)
+#define DA830_MMCSD_CD_PIN		GPIO_TO_PIN(2, 2)
 
 static int da830_evm_mmc_get_ro(int index)
 {
 	return gpio_get_value(DA830_MMCSD_WP_PIN);
 }
 
+static int da830_evm_mmc_get_cd(int index)
+{
+	return !gpio_get_value(DA830_MMCSD_CD_PIN);
+}
+
 static struct davinci_mmc_config da830_evm_mmc_config = {
 	.get_ro			= da830_evm_mmc_get_ro,
+	.get_cd			= da830_evm_mmc_get_cd,
 	.wires			= 4,
 	.max_freq		= 50000000,
 	.caps			= MMC_CAP_MMC_HIGHSPEED | MMC_CAP_SD_HIGHSPEED,
@@ -261,6 +268,14 @@ static inline void da830_evm_init_mmc(void)
 		return;
 	}
 	gpio_direction_input(DA830_MMCSD_WP_PIN);
+
+	ret = gpio_request(DA830_MMCSD_CD_PIN, "MMC CD\n");
+	if (ret) {
+		pr_warning("da830_evm_init: can not open GPIO %d\n",
+			   DA830_MMCSD_CD_PIN);
+		return;
+	}
+	gpio_direction_input(DA830_MMCSD_CD_PIN);
 
 	ret = da8xx_register_mmcsd0(&da830_evm_mmc_config);
 	if (ret) {
