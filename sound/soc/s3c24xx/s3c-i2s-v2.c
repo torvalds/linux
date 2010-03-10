@@ -463,29 +463,25 @@ static int s3c2412_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 
 	switch (div_id) {
 	case S3C_I2SV2_DIV_BCLK:
-		if (div > 3) {
-			/* convert value to bit field */
+		switch (div) {
+		case 16:
+			div = S3C2412_IISMOD_BCLK_16FS;
+			break;
 
-			switch (div) {
-			case 16:
-				div = S3C2412_IISMOD_BCLK_16FS;
-				break;
+		case 32:
+			div = S3C2412_IISMOD_BCLK_32FS;
+			break;
 
-			case 32:
-				div = S3C2412_IISMOD_BCLK_32FS;
-				break;
+		case 24:
+			div = S3C2412_IISMOD_BCLK_24FS;
+			break;
 
-			case 24:
-				div = S3C2412_IISMOD_BCLK_24FS;
-				break;
+		case 48:
+			div = S3C2412_IISMOD_BCLK_48FS;
+			break;
 
-			case 48:
-				div = S3C2412_IISMOD_BCLK_48FS;
-				break;
-
-			default:
-				return -EINVAL;
-			}
+		default:
+			return -EINVAL;
 		}
 
 		reg = readl(i2s->regs + S3C2412_IISMOD);
@@ -496,29 +492,25 @@ static int s3c2412_i2s_set_clkdiv(struct snd_soc_dai *cpu_dai,
 		break;
 
 	case S3C_I2SV2_DIV_RCLK:
-		if (div > 3) {
-			/* convert value to bit field */
+		switch (div) {
+		case 256:
+			div = S3C2412_IISMOD_RCLK_256FS;
+			break;
 
-			switch (div) {
-			case 256:
-				div = S3C2412_IISMOD_RCLK_256FS;
-				break;
+		case 384:
+			div = S3C2412_IISMOD_RCLK_384FS;
+			break;
 
-			case 384:
-				div = S3C2412_IISMOD_RCLK_384FS;
-				break;
+		case 512:
+			div = S3C2412_IISMOD_RCLK_512FS;
+			break;
 
-			case 512:
-				div = S3C2412_IISMOD_RCLK_512FS;
-				break;
+		case 768:
+			div = S3C2412_IISMOD_RCLK_768FS;
+			break;
 
-			case 768:
-				div = S3C2412_IISMOD_RCLK_768FS;
-				break;
-
-			default:
-				return -EINVAL;
-			}
+		default:
+			return -EINVAL;
 		}
 
 		reg = readl(i2s->regs + S3C2412_IISMOD);
