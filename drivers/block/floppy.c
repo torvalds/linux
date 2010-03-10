@@ -639,8 +639,8 @@ static const char *timeout_message;
 static void is_alive(const char *message)
 {
 	/* this routine checks whether the floppy driver is "alive" */
-	if (test_bit(0, &fdc_busy) && command_status < 2
-	    && !timer_pending(&fd_timeout)) {
+	if (test_bit(0, &fdc_busy) && command_status < 2 &&
+	    !timer_pending(&fd_timeout)) {
 		DPRINT("timeout handler died: %s\n", message);
 	}
 }
@@ -1769,8 +1769,8 @@ irqreturn_t floppy_interrupt(int irq, void *dev_id)
 			if (do_print)
 				print_result("sensei", inr);
 			max_sensei--;
-		} while ((ST0 & 0x83) != UNIT(current_drive) && inr == 2
-			 && max_sensei);
+		} while ((ST0 & 0x83) != UNIT(current_drive) &&
+			 inr == 2 && max_sensei);
 	}
 	if (!handler) {
 		FDCS->reset = 1;
