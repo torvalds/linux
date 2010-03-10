@@ -116,63 +116,6 @@ long ppc64_personality(unsigned long personality)
 }
 #endif
 
-#ifdef CONFIG_PPC64
-#define OVERRIDE_MACHINE    (personality(current->personality) == PER_LINUX32)
-#else
-#define OVERRIDE_MACHINE    0
-#endif
-
-static inline int override_machine(char __user *mach)
-{
-	if (OVERRIDE_MACHINE) {
-		/* change ppc64 to ppc */
-		if (__put_user(0, mach+3) || __put_user(0, mach+4))
-			return -EFAULT;
-	}
-	return 0;
-}
-
-int sys_uname(struct old_utsname __user *name)
-{
-	int err = 0;
-	
-	down_read(&uts_sem);
-	if (copy_to_user(name, utsname(), sizeof(*name)))
-		err = -EFAULT;
-	up_read(&uts_sem);
-	if (!err)
-		err = override_machine(name->machine);
-	return err;
-}
-
-int sys_olduname(struct oldold_utsname __user *name)
-{
-	int error;
-
-	if (!access_ok(VERIFY_WRITE, name, sizeof(struct oldold_utsname)))
-		return -EFAULT;
-  
-	down_read(&uts_sem);
-	error = __copy_to_user(&name->sysname, &utsname()->sysname,
-			       __OLD_UTS_LEN);
-	error |= __put_user(0, name->sysname + __OLD_UTS_LEN);
-	error |= __copy_to_user(&name->nodename, &utsname()->nodename,
-				__OLD_UTS_LEN);
-	error |= __put_user(0, name->nodename + __OLD_UTS_LEN);
-	error |= __copy_to_user(&name->release, &utsname()->release,
-				__OLD_UTS_LEN);
-	error |= __put_user(0, name->release + __OLD_UTS_LEN);
-	error |= __copy_to_user(&name->version, &utsname()->version,
-				__OLD_UTS_LEN);
-	error |= __put_user(0, name->version + __OLD_UTS_LEN);
-	error |= __copy_to_user(&name->machine, &utsname()->machine,
-				__OLD_UTS_LEN);
-	error |= override_machine(name->machine);
-	up_read(&uts_sem);
-
-	return error? -EFAULT: 0;
-}
-
 long ppc_fadvise64_64(int fd, int advice, u32 offset_high, u32 offset_low,
 		      u32 len_high, u32 len_low)
 {

@@ -50,13 +50,6 @@ asmlinkage int sys_sigaction(int, const struct old_sigaction __user *,
 			     struct old_sigaction __user *);
 unsigned long sys_sigreturn(struct pt_regs *);
 
-/* kernel/sys_i386_32.c */
-struct oldold_utsname;
-struct old_utsname;
-
-asmlinkage int sys_uname(struct old_utsname __user *);
-asmlinkage int sys_olduname(struct oldold_utsname __user *);
-
 /* kernel/vm86_32.c */
 int sys_vm86old(struct vm86_struct __user *, struct pt_regs *);
 int sys_vm86(unsigned long, unsigned long, struct pt_regs *);

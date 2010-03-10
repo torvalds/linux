@@ -93,14 +93,3 @@ asmlinkage int sys_cacheflush(unsigned long addr, unsigned long len, int op)
 	up_read(&current->mm->mmap_sem);
 	return 0;
 }
-
-asmlinkage int sys_uname(struct old_utsname __user *name)
-{
-	int err;
-	if (!name)
-		return -EFAULT;
-	down_read(&uts_sem);
-	err = copy_to_user(name, utsname(), sizeof(*name));
-	up_read(&uts_sem);
-	return err?-EFAULT:0;
-}
