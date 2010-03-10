@@ -411,8 +411,8 @@ static void dvi_get_panel_size_from_DDCv1(struct tmds_chip_information
 		tmds_setting->max_vres = 1080;
 		break;
 	default:
-		DEBUG_MSG(KERN_INFO "Unknown panel size max resolution = %d !\
-					 set default panel size.\n", max_h);
+		DEBUG_MSG(KERN_INFO "Unknown panel size max resolution = %d ! "
+					 "set default panel size.\n", max_h);
 		break;
 	}
 
@@ -460,8 +460,8 @@ static void dvi_get_panel_size_from_DDCv2(struct tmds_chip_information
 		tmds_setting->max_vres = 1200;
 		break;
 	default:
-		DEBUG_MSG(KERN_INFO "Unknown panel size max resolution = %d!\
-			set default panel size.\n", tmds_setting->max_hres);
+		DEBUG_MSG(KERN_INFO "Unknown panel size max resolution = %d! "
+			"set default panel size.\n", tmds_setting->max_hres);
 		break;
 	}
 
