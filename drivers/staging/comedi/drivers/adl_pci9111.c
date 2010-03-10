@@ -585,19 +585,17 @@ pci9111_ai_do_cmd_test(struct comedi_device *dev,
 	    (cmd->scan_begin_src != TRIG_EXT))
 		error++;
 
-	if ((cmd->convert_src != TRIG_TIMER) && (cmd->convert_src != TRIG_EXT)) {
+	if ((cmd->convert_src != TRIG_TIMER) && (cmd->convert_src != TRIG_EXT))
 		error++;
-	}
 	if ((cmd->convert_src == TRIG_TIMER) &&
 	    !((cmd->scan_begin_src == TRIG_TIMER) ||
-	      (cmd->scan_begin_src == TRIG_FOLLOW))) {
+	      (cmd->scan_begin_src == TRIG_FOLLOW)))
 		error++;
-	}
 	if ((cmd->convert_src == TRIG_EXT) &&
 	    !((cmd->scan_begin_src == TRIG_EXT) ||
-	      (cmd->scan_begin_src == TRIG_FOLLOW))) {
+	      (cmd->scan_begin_src == TRIG_FOLLOW)))
 		error++;
-	}
+
 
 	if (cmd->scan_end_src != TRIG_COUNT)
 		error++;
@@ -1067,9 +1065,8 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 
 	pci9111_ai_channel_set(CR_CHAN((&insn->chanspec)[0]));
 
-	if ((pci9111_ai_range_get()) != CR_RANGE((&insn->chanspec)[0])) {
+	if ((pci9111_ai_range_get()) != CR_RANGE((&insn->chanspec)[0]))
 		pci9111_ai_range_set(CR_RANGE((&insn->chanspec)[0]));
-	}
 
 	pci9111_fifo_reset();
 
@@ -1090,11 +1087,10 @@ static int pci9111_ai_insn_read(struct comedi_device *dev,
 
 conversion_done:
 
-		if (resolution == PCI9111_HR_AI_RESOLUTION) {
+		if (resolution == PCI9111_HR_AI_RESOLUTION)
 			data[i] = pci9111_hr_ai_get_data();
-		} else {
+		else
 			data[i] = pci9111_ai_get_data();
-		}
 	}
 
 #ifdef AI_INSN_DEBUG
@@ -1131,9 +1127,8 @@ static int pci9111_ao_insn_read(struct comedi_device *dev,
 {
 	int i;
 
-	for (i = 0; i < insn->n; i++) {
+	for (i = 0; i < insn->n; i++)
 		data[i] = dev_private->ao_readback & PCI9111_AO_RESOLUTION_MASK;
-	}
 
 	return i;
 }
@@ -1222,9 +1217,8 @@ static int pci9111_attach(struct comedi_device *dev,
 	int error, i;
 	const struct pci9111_board *board;
 
-	if (alloc_private(dev, sizeof(struct pci9111_private_data)) < 0) {
+	if (alloc_private(dev, sizeof(struct pci9111_private_data)) < 0)
 		return -ENOMEM;
-	}
 	/*  Probe the device to determine what device in the series it is. */
 
 	printk("comedi%d: " PCI9111_DRIVER_NAME " driver\n", dev->minor);
@@ -1394,14 +1388,12 @@ static int pci9111_detach(struct comedi_device *dev)
 	}
 	/*  Release previously allocated irq */
 
-	if (dev->irq != 0) {
+	if (dev->irq != 0)
 		free_irq(dev->irq, dev);
-	}
 
 	if (dev_private != 0 && dev_private->pci_device != 0) {
-		if (dev->iobase) {
+		if (dev->iobase)
 			comedi_pci_disable(dev_private->pci_device);
-		}
 		pci_dev_put(dev_private->pci_device);
 	}
 
