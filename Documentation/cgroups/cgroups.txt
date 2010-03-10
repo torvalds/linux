@@ -22,6 +22,7 @@ CONTENTS:
 2. Usage Examples and Syntax
   2.1 Basic Usage
   2.2 Attaching processes
+  2.3 Mounting hierarchies by name
 3. Kernel API
   3.1 Overview
   3.2 Synchronization
