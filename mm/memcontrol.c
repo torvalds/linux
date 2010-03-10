@@ -3361,12 +3361,6 @@ static int mem_cgroup_register_event(struct cgroup *cgrp, struct cftype *cft,
 		}
 	}
 
-	/*
-	 * We need to increment refcnt to be sure that all thresholds
-	 * will be unregistered before calling __mem_cgroup_free()
-	 */
-	mem_cgroup_get(memcg);
-
 	if (type == _MEM)
 		rcu_assign_pointer(memcg->thresholds, thresholds_new);
 	else
@@ -3459,9 +3453,6 @@ assign:
 
 	/* To be sure that nobody uses thresholds before freeing it */
 	synchronize_rcu();
-
-	for (i = 0; i < thresholds->size - size; i++)
-		mem_cgroup_put(memcg);
 
 	kfree(thresholds);
 unlock:
