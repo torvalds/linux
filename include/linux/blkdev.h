@@ -921,26 +921,7 @@ extern void blk_cleanup_queue(struct request_queue *);
 extern void blk_queue_make_request(struct request_queue *, make_request_fn *);
 extern void blk_queue_bounce_limit(struct request_queue *, u64);
 extern void blk_queue_max_hw_sectors(struct request_queue *, unsigned int);
-
-/* Temporary compatibility wrapper */
-static inline void blk_queue_max_sectors(struct request_queue *q, unsigned int max)
-{
-	blk_queue_max_hw_sectors(q, max);
-}
-
 extern void blk_queue_max_segments(struct request_queue *, unsigned short);
-
-static inline void blk_queue_max_phys_segments(struct request_queue *q, unsigned short max)
-{
-	blk_queue_max_segments(q, max);
-}
-
-static inline void blk_queue_max_hw_segments(struct request_queue *q, unsigned short max)
-{
-	blk_queue_max_segments(q, max);
-}
-
-
 extern void blk_queue_max_segment_size(struct request_queue *, unsigned int);
 extern void blk_queue_max_discard_sectors(struct request_queue *q,
 		unsigned int max_discard_sectors);
@@ -1029,11 +1010,6 @@ static inline int sb_issue_discard(struct super_block *sb,
 }
 
 extern int blk_verify_command(unsigned char *cmd, fmode_t has_write_perm);
-
-#define MAX_PHYS_SEGMENTS 128
-#define MAX_HW_SEGMENTS 128
-#define SAFE_MAX_SECTORS 255
-#define MAX_SEGMENT_SIZE	65536
 
 enum blk_default_limits {
 	BLK_MAX_SEGMENTS	= 128,
