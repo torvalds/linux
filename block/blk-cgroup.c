@@ -23,6 +23,31 @@ static LIST_HEAD(blkio_list);
 struct blkio_cgroup blkio_root_cgroup = { .weight = 2*BLKIO_WEIGHT_DEFAULT };
 EXPORT_SYMBOL_GPL(blkio_root_cgroup);
 
+static struct cgroup_subsys_state *blkiocg_create(struct cgroup_subsys *,
+						  struct cgroup *);
+static int blkiocg_can_attach(struct cgroup_subsys *, struct cgroup *,
+			      struct task_struct *, bool);
+static void blkiocg_attach(struct cgroup_subsys *, struct cgroup *,
+			   struct cgroup *, struct task_struct *, bool);
+static void blkiocg_destroy(struct cgroup_subsys *, struct cgroup *);
+static int blkiocg_populate(struct cgroup_subsys *, struct cgroup *);
+
+struct cgroup_subsys blkio_subsys = {
+	.name = "blkio",
+	.create = blkiocg_create,
+	.can_attach = blkiocg_can_attach,
+	.attach = blkiocg_attach,
+	.destroy = blkiocg_destroy,
+	.populate = blkiocg_populate,
+#ifdef CONFIG_BLK_CGROUP
+	/* note: blkio_subsys_id is otherwise defined in blk-cgroup.h */
+	.subsys_id = blkio_subsys_id,
+#endif
+	.use_id = 1,
+	.module = THIS_MODULE,
+};
+EXPORT_SYMBOL_GPL(blkio_subsys);
+
 struct blkio_cgroup *cgroup_to_blkio_cgroup(struct cgroup *cgroup)
 {
 	return container_of(cgroup_subsys_state(cgroup, blkio_subsys_id),
@@ -253,7 +278,8 @@ remove_entry:
 done:
 	free_css_id(&blkio_subsys, &blkcg->css);
 	rcu_read_unlock();
-	kfree(blkcg);
+	if (blkcg != &blkio_root_cgroup)
+		kfree(blkcg);
 }
 
 static struct cgroup_subsys_state *
@@ -319,17 +345,6 @@ static void blkiocg_attach(struct cgroup_subsys *subsys, struct cgroup *cgroup,
 	task_unlock(tsk);
 }
 
-struct cgroup_subsys blkio_subsys = {
-	.name = "blkio",
-	.create = blkiocg_create,
-	.can_attach = blkiocg_can_attach,
-	.attach = blkiocg_attach,
-	.destroy = blkiocg_destroy,
-	.populate = blkiocg_populate,
-	.subsys_id = blkio_subsys_id,
-	.use_id = 1,
-};
-
 void blkio_policy_register(struct blkio_policy_type *blkiop)
 {
 	spin_lock(&blkio_list_lock);
@@ -345,3 +360,17 @@ void blkio_policy_unregister(struct blkio_policy_type *blkiop)
 	spin_unlock(&blkio_list_lock);
 }
 EXPORT_SYMBOL_GPL(blkio_policy_unregister);
+
+static int __init init_cgroup_blkio(void)
+{
+	return cgroup_load_subsys(&blkio_subsys);
+}
+
+static void __exit exit_cgroup_blkio(void)
+{
+	cgroup_unload_subsys(&blkio_subsys);
+}
+
+module_init(init_cgroup_blkio);
+module_exit(exit_cgroup_blkio);
+MODULE_LICENSE("GPL");
