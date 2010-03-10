@@ -81,12 +81,12 @@ static int serio_raw_open(struct inode *inode, struct file *file)
 	struct serio_raw_list *list;
 	int retval = 0;
 
-	lock_kernel();
 	retval = mutex_lock_interruptible(&serio_raw_mutex);
 	if (retval)
-		goto out_bkl;
+		return retval;
 
-	if (!(serio_raw = serio_raw_locate(iminor(inode)))) {
+	serio_raw = serio_raw_locate(iminor(inode));
+	if (!serio_raw) {
 		retval = -ENODEV;
 		goto out;
 	}
@@ -96,7 +96,8 @@ static int serio_raw_open(struct inode *inode, struct file *file)
 		goto out;
 	}
 
-	if (!(list = kzalloc(sizeof(struct serio_raw_list), GFP_KERNEL))) {
+	list = kzalloc(sizeof(struct serio_raw_list), GFP_KERNEL);
+	if (!list) {
 		retval = -ENOMEM;
 		goto out;
 	}
@@ -109,8 +110,6 @@ static int serio_raw_open(struct inode *inode, struct file *file)
 
 out:
 	mutex_unlock(&serio_raw_mutex);
-out_bkl:
-	unlock_kernel();
 	return retval;
 }
 
