@@ -253,6 +253,7 @@ static struct move_charge_struct {
 	struct mem_cgroup *from;
 	struct mem_cgroup *to;
 	unsigned long precharge;
+	unsigned long moved_charge;
 } mc;
 
 /*
@@ -1536,14 +1537,23 @@ nomem:
  * This function is for that and do uncharge, put css's refcnt.
  * gotten by try_charge().
  */
-static void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
+static void __mem_cgroup_cancel_charge(struct mem_cgroup *mem,
+							unsigned long count)
 {
 	if (!mem_cgroup_is_root(mem)) {
-		res_counter_uncharge(&mem->res, PAGE_SIZE);
+		res_counter_uncharge(&mem->res, PAGE_SIZE * count);
 		if (do_swap_account)
-			res_counter_uncharge(&mem->memsw, PAGE_SIZE);
+			res_counter_uncharge(&mem->memsw, PAGE_SIZE * count);
+		VM_BUG_ON(test_bit(CSS_ROOT, &mem->css.flags));
+		WARN_ON_ONCE(count > INT_MAX);
+		__css_put(&mem->css, (int)count);
 	}
-	css_put(&mem->css);
+	/* we don't need css_put for root */
+}
+
+static void mem_cgroup_cancel_charge(struct mem_cgroup *mem)
+{
+	__mem_cgroup_cancel_charge(mem, 1);
 }
 
 /*
@@ -1646,17 +1656,20 @@ static void __mem_cgroup_commit_charge(struct mem_cgroup *mem,
  * @pc:	page_cgroup of the page.
  * @from: mem_cgroup which the page is moved from.
  * @to:	mem_cgroup which the page is moved to. @from != @to.
+ * @uncharge: whether we should call uncharge and css_put against @from.
  *
  * The caller must confirm following.
  * - page is not on LRU (isolate_page() is useful.)
  * - the pc is locked, used, and ->mem_cgroup points to @from.
  *
- * This function does "uncharge" from old cgroup but doesn't do "charge" to
- * new cgroup. It should be done by a caller.
+ * This function doesn't do "charge" nor css_get to new cgroup. It should be
+ * done by a caller(__mem_cgroup_try_charge would be usefull). If @uncharge is
+ * true, this function does "uncharge" from old cgroup, but it doesn't if
+ * @uncharge is false, so a caller should do "uncharge".
  */
 
 static void __mem_cgroup_move_account(struct page_cgroup *pc,
-	struct mem_cgroup *from, struct mem_cgroup *to)
+	struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
 {
 	struct page *page;
 	int cpu;
@@ -1668,10 +1681,6 @@ static void __mem_cgroup_move_account(struct page_cgroup *pc,
 	VM_BUG_ON(!PageCgroupLocked(pc));
 	VM_BUG_ON(!PageCgroupUsed(pc));
 	VM_BUG_ON(pc->mem_cgroup != from);
-
-	if (!mem_cgroup_is_root(from))
-		res_counter_uncharge(&from->res, PAGE_SIZE);
-	mem_cgroup_charge_statistics(from, pc, false);
 
 	page = pc->page;
 	if (page_mapped(page) && !PageAnon(page)) {
@@ -1688,12 +1697,12 @@ static void __mem_cgroup_move_account(struct page_cgroup *pc,
 		__mem_cgroup_stat_add_safe(cpustat, MEM_CGROUP_STAT_FILE_MAPPED,
 						1);
 	}
+	mem_cgroup_charge_statistics(from, pc, false);
+	if (uncharge)
+		/* This is not "cancel", but cancel_charge does all we need. */
+		mem_cgroup_cancel_charge(from);
 
-	if (do_swap_account && !mem_cgroup_is_root(from))
-		res_counter_uncharge(&from->memsw, PAGE_SIZE);
-	css_put(&from->css);
-
-	css_get(&to->css);
+	/* caller should have done css_get */
 	pc->mem_cgroup = to;
 	mem_cgroup_charge_statistics(to, pc, true);
 	/*
@@ -1710,12 +1719,12 @@ static void __mem_cgroup_move_account(struct page_cgroup *pc,
  * __mem_cgroup_move_account()
  */
 static int mem_cgroup_move_account(struct page_cgroup *pc,
-				struct mem_cgroup *from, struct mem_cgroup *to)
+		struct mem_cgroup *from, struct mem_cgroup *to, bool uncharge)
 {
 	int ret = -EINVAL;
 	lock_page_cgroup(pc);
 	if (PageCgroupUsed(pc) && pc->mem_cgroup == from) {
-		__mem_cgroup_move_account(pc, from, to);
+		__mem_cgroup_move_account(pc, from, to, uncharge);
 		ret = 0;
 	}
 	unlock_page_cgroup(pc);
@@ -1751,11 +1760,9 @@ static int mem_cgroup_move_parent(struct page_cgroup *pc,
 	if (ret || !parent)
 		goto put_back;
 
-	ret = mem_cgroup_move_account(pc, child, parent);
-	if (!ret)
-		css_put(&parent->css);	/* drop extra refcnt by try_charge() */
-	else
-		mem_cgroup_cancel_charge(parent);	/* does css_put */
+	ret = mem_cgroup_move_account(pc, child, parent, true);
+	if (ret)
+		mem_cgroup_cancel_charge(parent);
 put_back:
 	putback_lru_page(page);
 put:
@@ -3438,16 +3445,58 @@ static int mem_cgroup_populate(struct cgroup_subsys *ss,
 }
 
 /* Handlers for move charge at task migration. */
-static int mem_cgroup_do_precharge(void)
+#define PRECHARGE_COUNT_AT_ONCE	256
+static int mem_cgroup_do_precharge(unsigned long count)
 {
-	int ret = -ENOMEM;
+	int ret = 0;
+	int batch_count = PRECHARGE_COUNT_AT_ONCE;
 	struct mem_cgroup *mem = mc.to;
 
-	ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem, false, NULL);
-	if (ret || !mem)
-		return -ENOMEM;
-
-	mc.precharge++;
+	if (mem_cgroup_is_root(mem)) {
+		mc.precharge += count;
+		/* we don't need css_get for root */
+		return ret;
+	}
+	/* try to charge at once */
+	if (count > 1) {
+		struct res_counter *dummy;
+		/*
+		 * "mem" cannot be under rmdir() because we've already checked
+		 * by cgroup_lock_live_cgroup() that it is not removed and we
+		 * are still under the same cgroup_mutex. So we can postpone
+		 * css_get().
+		 */
+		if (res_counter_charge(&mem->res, PAGE_SIZE * count, &dummy))
+			goto one_by_one;
+		if (do_swap_account && res_counter_charge(&mem->memsw,
+						PAGE_SIZE * count, &dummy)) {
+			res_counter_uncharge(&mem->res, PAGE_SIZE * count);
+			goto one_by_one;
+		}
+		mc.precharge += count;
+		VM_BUG_ON(test_bit(CSS_ROOT, &mem->css.flags));
+		WARN_ON_ONCE(count > INT_MAX);
+		__css_get(&mem->css, (int)count);
+		return ret;
+	}
+one_by_one:
+	/* fall back to one by one charge */
+	while (count--) {
+		if (signal_pending(current)) {
+			ret = -EINTR;
+			break;
+		}
+		if (!batch_count--) {
+			batch_count = PRECHARGE_COUNT_AT_ONCE;
+			cond_resched();
+		}
+		ret = __mem_cgroup_try_charge(NULL, GFP_KERNEL, &mem,
+								false, NULL);
+		if (ret || !mem)
+			/* mem_cgroup_clear_mc() will do uncharge later */
+			return -ENOMEM;
+		mc.precharge++;
+	}
 	return ret;
 }
 
@@ -3570,34 +3619,25 @@ static unsigned long mem_cgroup_count_precharge(struct mm_struct *mm)
 	return precharge;
 }
 
-#define PRECHARGE_AT_ONCE	256
 static int mem_cgroup_precharge_mc(struct mm_struct *mm)
 {
-	int ret = 0;
-	int count = PRECHARGE_AT_ONCE;
-	unsigned long precharge = mem_cgroup_count_precharge(mm);
-
-	while (!ret && precharge--) {
-		if (signal_pending(current)) {
-			ret = -EINTR;
-			break;
-		}
-		if (!count--) {
-			count = PRECHARGE_AT_ONCE;
-			cond_resched();
-		}
-		ret = mem_cgroup_do_precharge();
-	}
-
-	return ret;
+	return mem_cgroup_do_precharge(mem_cgroup_count_precharge(mm));
 }
 
 static void mem_cgroup_clear_mc(void)
 {
 	/* we must uncharge all the leftover precharges from mc.to */
-	while (mc.precharge) {
-		mem_cgroup_cancel_charge(mc.to);
-		mc.precharge--;
+	if (mc.precharge) {
+		__mem_cgroup_cancel_charge(mc.to, mc.precharge);
+		mc.precharge = 0;
+	}
+	/*
+	 * we didn't uncharge from mc.from at mem_cgroup_move_account(), so
+	 * we must uncharge here.
+	 */
+	if (mc.moved_charge) {
+		__mem_cgroup_cancel_charge(mc.from, mc.moved_charge);
+		mc.moved_charge = 0;
 	}
 	mc.from = NULL;
 	mc.to = NULL;
@@ -3625,9 +3665,11 @@ static int mem_cgroup_can_attach(struct cgroup_subsys *ss,
 			VM_BUG_ON(mc.from);
 			VM_BUG_ON(mc.to);
 			VM_BUG_ON(mc.precharge);
+			VM_BUG_ON(mc.moved_charge);
 			mc.from = from;
 			mc.to = mem;
 			mc.precharge = 0;
+			mc.moved_charge = 0;
 
 			ret = mem_cgroup_precharge_mc(mm);
 			if (ret)
@@ -3674,9 +3716,11 @@ retry:
 			if (isolate_lru_page(page))
 				goto put;
 			pc = lookup_page_cgroup(page);
-			if (!mem_cgroup_move_account(pc, mc.from, mc.to)) {
-				css_put(&mc.to->css);
+			if (!mem_cgroup_move_account(pc,
+						mc.from, mc.to, false)) {
 				mc.precharge--;
+				/* we uncharge from mc.from later. */
+				mc.moved_charge++;
 			}
 			putback_lru_page(page);
 put:			/* is_target_pte_for_mc() gets the page */
@@ -3696,7 +3740,7 @@ put:			/* is_target_pte_for_mc() gets the page */
 		 * charges to mc.to if we have failed in charge once in attach()
 		 * phase.
 		 */
-		ret = mem_cgroup_do_precharge();
+		ret = mem_cgroup_do_precharge(1);
 		if (!ret)
 			goto retry;
 	}
