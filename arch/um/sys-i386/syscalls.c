@@ -44,24 +44,6 @@ long old_mmap_i386(struct mmap_arg_struct __user *arg)
 	return err;
 }
 
-struct sel_arg_struct {
-	unsigned long n;
-	fd_set __user *inp;
-	fd_set __user *outp;
-	fd_set __user *exp;
-	struct timeval __user *tvp;
-};
-
-long old_select(struct sel_arg_struct __user *arg)
-{
-	struct sel_arg_struct a;
-
-	if (copy_from_user(&a, arg, sizeof(a)))
-		return -EFAULT;
-	/* sys_select() does the appropriate kernel locking */
-	return sys_select(a.n, a.inp, a.outp, a.exp, a.tvp);
-}
-
 /*
  * The prototype on i386 is:
  *

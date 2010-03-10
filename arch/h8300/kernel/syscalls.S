@@ -96,7 +96,7 @@ SYMBOL_NAME_LABEL(sys_call_table)
 	.long SYMBOL_NAME(sys_settimeofday)
 	.long SYMBOL_NAME(sys_getgroups16)	/* 80 */
 	.long SYMBOL_NAME(sys_setgroups16)
-	.long SYMBOL_NAME(old_select)
+	.long SYMBOL_NAME(sys_old_select)
 	.long SYMBOL_NAME(sys_symlink)
 	.long SYMBOL_NAME(sys_lstat)
 	.long SYMBOL_NAME(sys_readlink)		/* 85 */

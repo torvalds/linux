@@ -28,7 +28,6 @@ struct new_utsname;
 struct mmap_arg_struct;
 struct fadvise64_64_args;
 struct old_sigaction;
-struct sel_arg_struct;
 
 long sys_mmap2(struct mmap_arg_struct __user  *arg);
 long sys_s390_old_mmap(struct mmap_arg_struct __user *arg);

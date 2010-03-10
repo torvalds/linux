@@ -40,8 +40,6 @@ asmlinkage long sys32_rt_sigprocmask(int, compat_sigset_t __user *,
 				     compat_sigset_t __user *, unsigned int);
 asmlinkage long sys32_alarm(unsigned int);
 
-struct sel_arg_struct;
-asmlinkage long sys32_old_select(struct sel_arg_struct __user *);
 asmlinkage long sys32_waitpid(compat_pid_t, unsigned int *, int);
 asmlinkage long sys32_sysfs(int, u32, u32);
 
