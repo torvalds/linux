@@ -141,8 +141,6 @@ extern int pci_mmap_legacy_page_range(struct pci_bus *bus,
 
 #define HAVE_PCI_LEGACY	1
 
-#include <linux/pci-dma.h>
-
 #ifdef CONFIG_PPC64
 
 /* The PCI address space does not equal the physical memory address

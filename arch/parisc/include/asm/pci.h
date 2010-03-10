@@ -183,8 +183,6 @@ struct pci_bios_ops {
 	void (*fixup_bus)(struct pci_bus *bus);
 };
 
-#include <linux/pci-dma.h>
-
 /*
 ** Stuff declared in arch/parisc/kernel/pci.c
 */

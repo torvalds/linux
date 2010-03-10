@@ -6,8 +6,6 @@
 #include <asm/pci_32.h>
 #endif
 
-#include <linux/pci-dma.h>
-
 #include <asm-generic/pci-dma-compat.h>
 
 #endif
