@@ -160,11 +160,17 @@ static int viafb_set_par(struct fb_info *info)
 	DEBUG_MSG(KERN_INFO "viafb_set_par!\n");
 
 	viapar->depth = fb_get_color_depth(&info->var, &info->fix);
-	viafb_update_device_setting(info->var.xres, info->var.yres,
-			      info->var.bits_per_pixel, viafb_refresh, 0);
+	viafb_update_device_setting(viafbinfo->var.xres, viafbinfo->var.yres,
+		viafbinfo->var.bits_per_pixel, viafb_refresh, 0);
 
-	vmode_entry = viafb_get_mode(info->var.xres, info->var.yres);
-	if (viafb_SAMM_ON == 1) {
+	vmode_entry = viafb_get_mode(viafbinfo->var.xres, viafbinfo->var.yres);
+	if (viafb_dual_fb) {
+		vmode_entry1 = viafb_get_mode(viafbinfo1->var.xres,
+			viafbinfo1->var.yres);
+		viafb_update_device_setting(viafbinfo1->var.xres,
+			viafbinfo1->var.yres, viafbinfo1->var.bits_per_pixel,
+			viafb_refresh1, 1);
+	} else if (viafb_SAMM_ON == 1) {
 		DEBUG_MSG(KERN_INFO
 		"viafb_second_xres = %d, viafb_second_yres = %d, bpp = %d\n",
 			  viafb_second_xres, viafb_second_yres, viafb_bpp1);
@@ -177,7 +183,11 @@ static int viafb_set_par(struct fb_info *info)
 
 	if (vmode_entry) {
 		viafb_update_fix(info);
-		viafb_bpp = info->var.bits_per_pixel;
+		if (viafb_dual_fb && viapar->iga_path == IGA2)
+			viafb_bpp1 = info->var.bits_per_pixel;
+		else
+			viafb_bpp = info->var.bits_per_pixel;
+
 		if (info->var.accel_flags & FB_ACCELF_TEXT)
 			info->flags &= ~FBINFO_HWACCEL_DISABLED;
 		else
