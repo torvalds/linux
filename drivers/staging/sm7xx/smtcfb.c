@@ -3,7 +3,7 @@
  *
  * Copyright (C) 2006 Silicon Motion Technology Corp.
  * Authors: Ge Wang, gewang@siliconmotion.com
- * 	    Boyod boyod.yang@siliconmotion.com.cn
+ *	    Boyod boyod.yang@siliconmotion.com.cn
  *
  * Copyright (C) 2009 Lemote, Inc.
  * Author: Wu Zhangjin, wuzhangjin@gmail.com
@@ -13,17 +13,17 @@
  *  more details.
  *
  * Version 0.10.26192.21.01
- * 	- Add PowerPC/Big endian support
- * 	- Add 2D support for Lynx
- * 	- Verified on2.6.19.2  Boyod.yang <boyod.yang@siliconmotion.com.cn>
+ *	- Add PowerPC/Big endian support
+ *	- Add 2D support for Lynx
+ *	- Verified on2.6.19.2  Boyod.yang <boyod.yang@siliconmotion.com.cn>
  *
  * Version 0.09.2621.00.01
- * 	- Only support Linux Kernel's version 2.6.21.
+ *	- Only support Linux Kernel's version 2.6.21.
  *	Boyod.yang  <boyod.yang@siliconmotion.com.cn>
  *
  * Version 0.09
- * 	- Only support Linux Kernel's version 2.6.12.
- * 	Boyod.yang <boyod.yang@siliconmotion.com.cn>
+ *	- Only support Linux Kernel's version 2.6.12.
+ *	Boyod.yang <boyod.yang@siliconmotion.com.cn>
  */
 
 #ifndef __KERNEL__
