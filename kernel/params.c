@@ -516,6 +516,7 @@ static __modinit int add_sysfs_param(struct module_kobject *mk,
 	new->grp.attrs = attrs;
 
 	/* Tack new one on the end. */
+	sysfs_attr_init(&new->attrs[num].mattr.attr);
 	new->attrs[num].param = kp;
 	new->attrs[num].mattr.show = param_attr_show;
 	new->attrs[num].mattr.store = param_attr_store;
@@ -722,7 +723,7 @@ static ssize_t module_attr_store(struct kobject *kobj,
 	return ret;
 }
 
-static struct sysfs_ops module_sysfs_ops = {
+static const struct sysfs_ops module_sysfs_ops = {
 	.show = module_attr_show,
 	.store = module_attr_store,
 };
@@ -736,7 +737,7 @@ static int uevent_filter(struct kset *kset, struct kobject *kobj)
 	return 0;
 }
 
-static struct kset_uevent_ops module_uevent_ops = {
+static const struct kset_uevent_ops module_uevent_ops = {
 	.filter = uevent_filter,
 };
 

@@ -623,7 +623,9 @@ static const struct attribute_group gpiochip_attr_group = {
  * /sys/class/gpio/unexport ... write-only
  *	integer N ... number of GPIO to unexport
  */
-static ssize_t export_store(struct class *class, const char *buf, size_t len)
+static ssize_t export_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t len)
 {
 	long	gpio;
 	int	status;
@@ -653,7 +655,9 @@ done:
 	return status ? : len;
 }
 
-static ssize_t unexport_store(struct class *class, const char *buf, size_t len)
+static ssize_t unexport_store(struct class *class,
+				struct class_attribute *attr,
+				const char *buf, size_t len)
 {
 	long	gpio;
 	int	status;

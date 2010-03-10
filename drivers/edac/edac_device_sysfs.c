@@ -137,7 +137,7 @@ static ssize_t edac_dev_ctl_info_store(struct kobject *kobj,
 }
 
 /* edac_dev file operations for an 'ctl_info' */
-static struct sysfs_ops device_ctl_info_ops = {
+static const struct sysfs_ops device_ctl_info_ops = {
 	.show = edac_dev_ctl_info_show,
 	.store = edac_dev_ctl_info_store
 };
@@ -373,7 +373,7 @@ static ssize_t edac_dev_instance_store(struct kobject *kobj,
 }
 
 /* edac_dev file operations for an 'instance' */
-static struct sysfs_ops device_instance_ops = {
+static const struct sysfs_ops device_instance_ops = {
 	.show = edac_dev_instance_show,
 	.store = edac_dev_instance_store
 };
@@ -476,7 +476,7 @@ static ssize_t edac_dev_block_store(struct kobject *kobj,
 }
 
 /* edac_dev file operations for a 'block' */
-static struct sysfs_ops device_block_ops = {
+static const struct sysfs_ops device_block_ops = {
 	.show = edac_dev_block_show,
 	.store = edac_dev_block_store
 };

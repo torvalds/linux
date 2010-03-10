@@ -1020,7 +1020,9 @@ out:
 	return rc;
 }
 
-static ssize_t __ref rescan_store(struct sysdev_class *class, const char *buf,
+static ssize_t __ref rescan_store(struct sysdev_class *class,
+				  struct sysdev_class_attribute *attr,
+				  const char *buf,
 				  size_t count)
 {
 	int rc;
@@ -1031,7 +1033,9 @@ static ssize_t __ref rescan_store(struct sysdev_class *class, const char *buf,
 static SYSDEV_CLASS_ATTR(rescan, 0200, NULL, rescan_store);
 #endif /* CONFIG_HOTPLUG_CPU */
 
-static ssize_t dispatching_show(struct sysdev_class *class, char *buf)
+static ssize_t dispatching_show(struct sysdev_class *class,
+				struct sysdev_class_attribute *attr,
+				char *buf)
 {
 	ssize_t count;
 
@@ -1041,7 +1045,9 @@ static ssize_t dispatching_show(struct sysdev_class *class, char *buf)
 	return count;
 }
 
-static ssize_t dispatching_store(struct sysdev_class *dev, const char *buf,
+static ssize_t dispatching_store(struct sysdev_class *dev,
+				 struct sysdev_class_attribute *attr,
+				 const char *buf,
 				 size_t count)
 {
 	int val, rc;

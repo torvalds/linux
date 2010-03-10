@@ -149,7 +149,7 @@ static long rdc321x_wdt_ioctl(struct file *file, unsigned int cmd,
 {
 	void __user *argp = (void __user *)arg;
 	unsigned int value;
-	static struct watchdog_info ident = {
+	static const struct watchdog_info ident = {
 		.options = WDIOF_CARDRESET,
 		.identity = "RDC321x WDT",
 	};

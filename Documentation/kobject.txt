@@ -266,7 +266,7 @@ kobj_type:
 
     struct kobj_type {
 	    void (*release)(struct kobject *);
-	    struct sysfs_ops	*sysfs_ops;
+	    const struct sysfs_ops *sysfs_ops;
 	    struct attribute	**default_attrs;
     };
 

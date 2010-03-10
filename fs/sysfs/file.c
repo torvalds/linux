@@ -53,7 +53,7 @@ struct sysfs_buffer {
 	size_t			count;
 	loff_t			pos;
 	char			* page;
-	struct sysfs_ops	* ops;
+	const struct sysfs_ops	* ops;
 	struct mutex		mutex;
 	int			needs_read_fill;
 	int			event;
@@ -75,7 +75,7 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
 	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
-	struct sysfs_ops * ops = buffer->ops;
+	const struct sysfs_ops * ops = buffer->ops;
 	int ret = 0;
 	ssize_t count;
 
@@ -85,13 +85,13 @@ static int fill_read_buffer(struct dentry * dentry, struct sysfs_buffer * buffer
 		return -ENOMEM;
 
 	/* need attr_sd for attr and ops, its parent for kobj */
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
 	buffer->event = atomic_read(&attr_sd->s_attr.open->event);
 	count = ops->show(kobj, attr_sd->s_attr.attr, buffer->page);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 
 	/*
 	 * The code works fine with PAGE_SIZE return but it's likely to
@@ -199,16 +199,16 @@ flush_write_buffer(struct dentry * dentry, struct sysfs_buffer * buffer, size_t 
 {
 	struct sysfs_dirent *attr_sd = dentry->d_fsdata;
 	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
-	struct sysfs_ops * ops = buffer->ops;
+	const struct sysfs_ops * ops = buffer->ops;
 	int rc;
 
 	/* need attr_sd for attr and ops, its parent for kobj */
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
 	rc = ops->store(kobj, attr_sd->s_attr.attr, buffer->page, count);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 
 	return rc;
 }
@@ -335,7 +335,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 	struct sysfs_dirent *attr_sd = file->f_path.dentry->d_fsdata;
 	struct kobject *kobj = attr_sd->s_parent->s_dir.kobj;
 	struct sysfs_buffer *buffer;
-	struct sysfs_ops *ops;
+	const struct sysfs_ops *ops;
 	int error = -EACCES;
 	char *p;
 
@@ -344,7 +344,7 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 		memmove(last_sysfs_file, p, strlen(p) + 1);
 
 	/* need attr_sd for attr and ops, its parent for kobj */
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		return -ENODEV;
 
 	/* every kobject with an attribute needs a ktype assigned */
@@ -393,13 +393,13 @@ static int sysfs_open_file(struct inode *inode, struct file *file)
 		goto err_free;
 
 	/* open succeeded, put active references */
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	return 0;
 
  err_free:
 	kfree(buffer);
  err_out:
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 	return error;
 }
 
@@ -437,12 +437,12 @@ static unsigned int sysfs_poll(struct file *filp, poll_table *wait)
 	struct sysfs_open_dirent *od = attr_sd->s_attr.open;
 
 	/* need parent for the kobj, grab both */
-	if (!sysfs_get_active_two(attr_sd))
+	if (!sysfs_get_active(attr_sd))
 		goto trigger;
 
 	poll_wait(filp, &od->poll, wait);
 
-	sysfs_put_active_two(attr_sd);
+	sysfs_put_active(attr_sd);
 
 	if (buffer->event != atomic_read(&od->event))
 		goto trigger;
@@ -509,6 +509,7 @@ int sysfs_add_file_mode(struct sysfs_dirent *dir_sd,
 	if (!sd)
 		return -ENOMEM;
 	sd->s_attr.attr = (void *)attr;
+	sysfs_dirent_init_lockdep(sd);
 
 	sysfs_addrm_start(&acxt, dir_sd);
 	rc = sysfs_add_one(&acxt, sd);
@@ -542,6 +543,18 @@ int sysfs_create_file(struct kobject * kobj, const struct attribute * attr)
 
 }
 
+int sysfs_create_files(struct kobject *kobj, const struct attribute **ptr)
+{
+	int err = 0;
+	int i;
+
+	for (i = 0; ptr[i] && !err; i++)
+		err = sysfs_create_file(kobj, ptr[i]);
+	if (err)
+		while (--i >= 0)
+			sysfs_remove_file(kobj, ptr[i]);
+	return err;
+}
 
 /**
  * sysfs_add_file_to_group - add an attribute file to a pre-existing group.
@@ -614,6 +627,12 @@ void sysfs_remove_file(struct kobject * kobj, const struct attribute * attr)
 	sysfs_hash_and_remove(kobj->sd, attr->name);
 }
 
+void sysfs_remove_files(struct kobject * kobj, const struct attribute **ptr)
+{
+	int i;
+	for (i = 0; ptr[i]; i++)
+		sysfs_remove_file(kobj, ptr[i]);
+}
 
 /**
  * sysfs_remove_file_from_group - remove an attribute file from a group.
@@ -732,3 +751,5 @@ EXPORT_SYMBOL_GPL(sysfs_schedule_callback);
 
 EXPORT_SYMBOL_GPL(sysfs_create_file);
 EXPORT_SYMBOL_GPL(sysfs_remove_file);
+EXPORT_SYMBOL_GPL(sysfs_remove_files);
+EXPORT_SYMBOL_GPL(sysfs_create_files);

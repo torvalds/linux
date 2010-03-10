@@ -288,9 +288,9 @@ void pci_walk_bus(struct pci_bus *top, int (*cb)(struct pci_dev *, void *),
 			next = dev->bus_list.next;
 
 		/* Run device routines with the device locked */
-		down(&dev->dev.sem);
+		device_lock(&dev->dev);
 		retval = cb(dev, userdata);
-		up(&dev->dev.sem);
+		device_unlock(&dev->dev);
 		if (retval)
 			break;
 	}

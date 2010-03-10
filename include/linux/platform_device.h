@@ -21,7 +21,7 @@ struct platform_device {
 	u32		num_resources;
 	struct resource	* resource;
 
-	struct platform_device_id	*id_entry;
+	const struct platform_device_id	*id_entry;
 
 	/* arch specific additions */
 	struct pdev_archdata	archdata;
@@ -62,7 +62,7 @@ struct platform_driver {
 	int (*suspend)(struct platform_device *, pm_message_t state);
 	int (*resume)(struct platform_device *);
 	struct device_driver driver;
-	struct platform_device_id *id_table;
+	const struct platform_device_id *id_table;
 };
 
 extern int platform_driver_register(struct platform_driver *);
@@ -76,6 +76,11 @@ extern int platform_driver_probe(struct platform_driver *driver,
 
 #define platform_get_drvdata(_dev)	dev_get_drvdata(&(_dev)->dev)
 #define platform_set_drvdata(_dev,data)	dev_set_drvdata(&(_dev)->dev, (data))
+
+extern struct platform_device *platform_create_bundle(struct platform_driver *driver,
+					int (*probe)(struct platform_device *),
+					struct resource *res, unsigned int n_res,
+					const void *data, size_t size);
 
 /* early platform driver interface */
 struct early_platform_driver {

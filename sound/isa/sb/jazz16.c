@@ -14,6 +14,7 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/io.h>
+#include <linux/delay.h>
 #include <asm/dma.h>
 #include <linux/isa.h>
 #include <sound/core.h>

@@ -2486,7 +2486,7 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 	if (!probe) {
 		pci_block_user_cfg_access(dev);
 		/* block PM suspend, driver probe, etc. */
-		down(&dev->dev.sem);
+		device_lock(&dev->dev);
 	}
 
 	rc = pci_dev_specific_reset(dev, probe);
@@ -2508,7 +2508,7 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 	rc = pci_parent_bus_reset(dev, probe);
 done:
 	if (!probe) {
-		up(&dev->dev.sem);
+		device_unlock(&dev->dev);
 		pci_unblock_user_cfg_access(dev);
 	}
 

@@ -75,7 +75,7 @@ static struct attribute *dm_attrs[] = {
 	NULL,
 };
 
-static struct sysfs_ops dm_sysfs_ops = {
+static const struct sysfs_ops dm_sysfs_ops = {
 	.show	= dm_attr_show,
 };
 

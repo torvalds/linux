@@ -70,7 +70,8 @@ int dasd_gendisk_alloc(struct dasd_block *block)
 	}
 	len += sprintf(gdp->disk_name + len, "%c", 'a'+(base->devindex%26));
 
-	if (block->base->features & DASD_FEATURE_READONLY)
+	if (base->features & DASD_FEATURE_READONLY ||
+	    test_bit(DASD_FLAG_DEVICE_RO, &base->flags))
 		set_disk_ro(gdp, 1);
 	gdp->private_data = block;
 	gdp->queue = block->request_queue;

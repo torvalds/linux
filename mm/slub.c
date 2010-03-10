@@ -4390,7 +4390,7 @@ static void kmem_cache_release(struct kobject *kobj)
 	kfree(s);
 }
 
-static struct sysfs_ops slab_sysfs_ops = {
+static const struct sysfs_ops slab_sysfs_ops = {
 	.show = slab_attr_show,
 	.store = slab_attr_store,
 };
@@ -4409,7 +4409,7 @@ static int uevent_filter(struct kset *kset, struct kobject *kobj)
 	return 0;
 }
 
-static struct kset_uevent_ops slab_uevent_ops = {
+static const struct kset_uevent_ops slab_uevent_ops = {
 	.filter = uevent_filter,
 };
 

@@ -2044,6 +2044,7 @@ static __init void mce_init_banks(void)
 		struct mce_bank *b = &mce_banks[i];
 		struct sysdev_attribute *a = &b->attr;
 
+		sysfs_attr_init(&a->attr);
 		a->attr.name	= b->attrname;
 		snprintf(b->attrname, ATTR_LEN, "bank%d", i);
 

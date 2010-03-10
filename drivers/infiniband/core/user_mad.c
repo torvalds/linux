@@ -965,11 +965,8 @@ static ssize_t show_port(struct device *dev, struct device_attribute *attr,
 }
 static DEVICE_ATTR(port, S_IRUGO, show_port, NULL);
 
-static ssize_t show_abi_version(struct class *class, char *buf)
-{
-	return sprintf(buf, "%d\n", IB_USER_MAD_ABI_VERSION);
-}
-static CLASS_ATTR(abi_version, S_IRUGO, show_abi_version, NULL);
+static CLASS_ATTR_STRING(abi_version, S_IRUGO,
+			 __stringify(IB_USER_MAD_ABI_VERSION));
 
 static dev_t overflow_maj;
 static DECLARE_BITMAP(overflow_map, IB_UMAD_MAX_PORTS);
@@ -1194,7 +1191,7 @@ static int __init ib_umad_init(void)
 		goto out_chrdev;
 	}
 
-	ret = class_create_file(umad_class, &class_attr_abi_version);
+	ret = class_create_file(umad_class, &class_attr_abi_version.attr);
 	if (ret) {
 		printk(KERN_ERR "user_mad: couldn't create abi_version attribute\n");
 		goto out_class;

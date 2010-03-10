@@ -423,7 +423,7 @@ extern void br_ifinfo_notify(int event, struct net_bridge_port *port);
 
 #ifdef CONFIG_SYSFS
 /* br_sysfs_if.c */
-extern struct sysfs_ops brport_sysfs_ops;
+extern const struct sysfs_ops brport_sysfs_ops;
 extern int br_sysfs_addif(struct net_bridge_port *p);
 
 /* br_sysfs_br.c */
