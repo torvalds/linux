@@ -22,6 +22,8 @@
 #include "global.h"
 #include "lcdtbl.h"
 
+#define viafb_compact_res(x, y) (((x)<<16)|(y))
+
 static struct iga2_shadow_crtc_timing iga2_shadow_crtc_reg = {
 	/* IGA2 Shadow Horizontal Total */
 	{IGA2_SHADOW_HOR_TOTAL_REG_NUM, {{CR6D, 0, 7}, {CR71, 3, 3} } },
@@ -576,22 +578,21 @@ static void load_lcd_scaling(int set_hres, int set_vres, int panel_hres,
 static void load_lcd_k400_patch_tbl(int set_hres, int set_vres,
 	int panel_id)
 {
-	int vmode_index;
+	u32 compact_mode = viafb_compact_res(set_hres, set_vres);
 	int reg_num = 0;
 	struct io_reg *lcd_patch_reg = NULL;
 
-	vmode_index = viafb_get_mode_index(set_hres, set_vres);
 	switch (panel_id) {
 		/* LCD 800x600 */
 	case LCD_PANEL_ID1_800X600:
-		switch (vmode_index) {
-		case VIA_RES_640X400:
-		case VIA_RES_640X480:
+		switch (compact_mode) {
+		case viafb_compact_res(640, 400):
+		case viafb_compact_res(640, 480):
 			reg_num = NUM_TOTAL_K400_LCD_RES_6X4_8X6;
 			lcd_patch_reg = K400_LCD_RES_6X4_8X6;
 			break;
-		case VIA_RES_720X480:
-		case VIA_RES_720X576:
+		case viafb_compact_res(720, 480):
+		case viafb_compact_res(720, 576):
 			reg_num = NUM_TOTAL_K400_LCD_RES_7X4_8X6;
 			lcd_patch_reg = K400_LCD_RES_7X4_8X6;
 			break;
@@ -600,18 +601,18 @@ static void load_lcd_k400_patch_tbl(int set_hres, int set_vres,
 
 		/* LCD 1024x768 */
 	case LCD_PANEL_ID2_1024X768:
-		switch (vmode_index) {
-		case VIA_RES_640X400:
-		case VIA_RES_640X480:
+		switch (compact_mode) {
+		case viafb_compact_res(640, 400):
+		case viafb_compact_res(640, 480):
 			reg_num = NUM_TOTAL_K400_LCD_RES_6X4_10X7;
 			lcd_patch_reg = K400_LCD_RES_6X4_10X7;
 			break;
-		case VIA_RES_720X480:
-		case VIA_RES_720X576:
+		case viafb_compact_res(720, 480):
+		case viafb_compact_res(720, 576):
 			reg_num = NUM_TOTAL_K400_LCD_RES_7X4_10X7;
 			lcd_patch_reg = K400_LCD_RES_7X4_10X7;
 			break;
-		case VIA_RES_800X600:
+		case viafb_compact_res(800, 600):
 			reg_num = NUM_TOTAL_K400_LCD_RES_8X6_10X7;
 			lcd_patch_reg = K400_LCD_RES_8X6_10X7;
 			break;
@@ -620,22 +621,22 @@ static void load_lcd_k400_patch_tbl(int set_hres, int set_vres,
 
 		/* LCD 1280x1024 */
 	case LCD_PANEL_ID4_1280X1024:
-		switch (vmode_index) {
-		case VIA_RES_640X400:
-		case VIA_RES_640X480:
+		switch (compact_mode) {
+		case viafb_compact_res(640, 400):
+		case viafb_compact_res(640, 480):
 			reg_num = NUM_TOTAL_K400_LCD_RES_6X4_12X10;
 			lcd_patch_reg = K400_LCD_RES_6X4_12X10;
 			break;
-		case VIA_RES_720X480:
-		case VIA_RES_720X576:
+		case viafb_compact_res(720, 480):
+		case viafb_compact_res(720, 576):
 			reg_num = NUM_TOTAL_K400_LCD_RES_7X4_12X10;
 			lcd_patch_reg = K400_LCD_RES_7X4_12X10;
 			break;
-		case VIA_RES_800X600:
+		case viafb_compact_res(800, 600):
 			reg_num = NUM_TOTAL_K400_LCD_RES_8X6_12X10;
 			lcd_patch_reg = K400_LCD_RES_8X6_12X10;
 			break;
-		case VIA_RES_1024X768:
+		case viafb_compact_res(1024, 768):
 			reg_num = NUM_TOTAL_K400_LCD_RES_10X7_12X10;
 			lcd_patch_reg = K400_LCD_RES_10X7_12X10;
 			break;
@@ -645,23 +646,23 @@ static void load_lcd_k400_patch_tbl(int set_hres, int set_vres,
 
 		/* LCD 1400x1050 */
 	case LCD_PANEL_ID5_1400X1050:
-		switch (vmode_index) {
-		case VIA_RES_640X480:
+		switch (compact_mode) {
+		case viafb_compact_res(640, 480):
 			reg_num = NUM_TOTAL_K400_LCD_RES_6X4_14X10;
 			lcd_patch_reg = K400_LCD_RES_6X4_14X10;
 			break;
-		case VIA_RES_800X600:
+		case viafb_compact_res(800, 600):
 			reg_num = NUM_TOTAL_K400_LCD_RES_8X6_14X10;
 			lcd_patch_reg = K400_LCD_RES_8X6_14X10;
 			break;
-		case VIA_RES_1024X768:
+		case viafb_compact_res(1024, 768):
 			reg_num = NUM_TOTAL_K400_LCD_RES_10X7_14X10;
 			lcd_patch_reg = K400_LCD_RES_10X7_14X10;
 			break;
-		case VIA_RES_1280X768:
-		case VIA_RES_1280X800:
-		case VIA_RES_1280X960:
-		case VIA_RES_1280X1024:
+		case viafb_compact_res(1280, 768):
+		case viafb_compact_res(1280, 800):
+		case viafb_compact_res(1280, 960):
+		case viafb_compact_res(1280, 1024):
 			reg_num = NUM_TOTAL_K400_LCD_RES_12X10_14X10;
 			lcd_patch_reg = K400_LCD_RES_12X10_14X10;
 			break;
@@ -670,29 +671,29 @@ static void load_lcd_k400_patch_tbl(int set_hres, int set_vres,
 
 		/* LCD 1600x1200 */
 	case LCD_PANEL_ID6_1600X1200:
-		switch (vmode_index) {
-		case VIA_RES_640X400:
-		case VIA_RES_640X480:
+		switch (compact_mode) {
+		case viafb_compact_res(640, 400):
+		case viafb_compact_res(640, 480):
 			reg_num = NUM_TOTAL_K400_LCD_RES_6X4_16X12;
 			lcd_patch_reg = K400_LCD_RES_6X4_16X12;
 			break;
-		case VIA_RES_720X480:
-		case VIA_RES_720X576:
+		case viafb_compact_res(720, 480):
+		case viafb_compact_res(720, 576):
 			reg_num = NUM_TOTAL_K400_LCD_RES_7X4_16X12;
 			lcd_patch_reg = K400_LCD_RES_7X4_16X12;
 			break;
-		case VIA_RES_800X600:
+		case viafb_compact_res(800, 600):
 			reg_num = NUM_TOTAL_K400_LCD_RES_8X6_16X12;
 			lcd_patch_reg = K400_LCD_RES_8X6_16X12;
 			break;
-		case VIA_RES_1024X768:
+		case viafb_compact_res(1024, 768):
 			reg_num = NUM_TOTAL_K400_LCD_RES_10X7_16X12;
 			lcd_patch_reg = K400_LCD_RES_10X7_16X12;
 			break;
-		case VIA_RES_1280X768:
-		case VIA_RES_1280X800:
-		case VIA_RES_1280X960:
-		case VIA_RES_1280X1024:
+		case viafb_compact_res(1280, 768):
+		case viafb_compact_res(1280, 800):
+		case viafb_compact_res(1280, 960):
+		case viafb_compact_res(1280, 1024):
 			reg_num = NUM_TOTAL_K400_LCD_RES_12X10_16X12;
 			lcd_patch_reg = K400_LCD_RES_12X10_16X12;
 			break;
@@ -701,28 +702,28 @@ static void load_lcd_k400_patch_tbl(int set_hres, int set_vres,
 
 		/* LCD 1366x768 */
 	case LCD_PANEL_ID7_1366X768:
-		switch (vmode_index) {
-		case VIA_RES_640X480:
+		switch (compact_mode) {
+		case viafb_compact_res(640, 480):
 			reg_num = NUM_TOTAL_K400_LCD_RES_6X4_1366X7;
 			lcd_patch_reg = K400_LCD_RES_6X4_1366X7;
 			break;
-		case VIA_RES_720X480:
-		case VIA_RES_720X576:
+		case viafb_compact_res(720, 480):
+		case viafb_compact_res(720, 576):
 			reg_num = NUM_TOTAL_K400_LCD_RES_7X4_1366X7;
 			lcd_patch_reg = K400_LCD_RES_7X4_1366X7;
 			break;
-		case VIA_RES_800X600:
+		case viafb_compact_res(800, 600):
 			reg_num = NUM_TOTAL_K400_LCD_RES_8X6_1366X7;
 			lcd_patch_reg = K400_LCD_RES_8X6_1366X7;
 			break;
-		case VIA_RES_1024X768:
+		case viafb_compact_res(1024, 768):
 			reg_num = NUM_TOTAL_K400_LCD_RES_10X7_1366X7;
 			lcd_patch_reg = K400_LCD_RES_10X7_1366X7;
 			break;
-		case VIA_RES_1280X768:
-		case VIA_RES_1280X800:
-		case VIA_RES_1280X960:
-		case VIA_RES_1280X1024:
+		case viafb_compact_res(1280, 768):
+		case viafb_compact_res(1280, 800):
+		case viafb_compact_res(1280, 960):
+		case viafb_compact_res(1280, 1024):
 			reg_num = NUM_TOTAL_K400_LCD_RES_12X10_1366X7;
 			lcd_patch_reg = K400_LCD_RES_12X10_1366X7;
 			break;
@@ -754,48 +755,46 @@ static void load_lcd_k400_patch_tbl(int set_hres, int set_vres,
 static void load_lcd_p880_patch_tbl(int set_hres, int set_vres,
 	int panel_id)
 {
-	int vmode_index;
+	u32 compact_mode = viafb_compact_res(set_hres, set_vres);
 	int reg_num = 0;
 	struct io_reg *lcd_patch_reg = NULL;
 
-	vmode_index = viafb_get_mode_index(set_hres, set_vres);
-
 	switch (panel_id) {
 	case LCD_PANEL_ID5_1400X1050:
-		switch (vmode_index) {
-		case VIA_RES_640X480:
+		switch (compact_mode) {
+		case viafb_compact_res(640, 480):
 			reg_num = NUM_TOTAL_P880_LCD_RES_6X4_14X10;
 			lcd_patch_reg = P880_LCD_RES_6X4_14X10;
 			break;
-		case VIA_RES_800X600:
+		case viafb_compact_res(800, 600):
 			reg_num = NUM_TOTAL_P880_LCD_RES_8X6_14X10;
 			lcd_patch_reg = P880_LCD_RES_8X6_14X10;
 			break;
 		}
 		break;
 	case LCD_PANEL_ID6_1600X1200:
-		switch (vmode_index) {
-		case VIA_RES_640X400:
-		case VIA_RES_640X480:
+		switch (compact_mode) {
+		case viafb_compact_res(640, 400):
+		case viafb_compact_res(640, 480):
 			reg_num = NUM_TOTAL_P880_LCD_RES_6X4_16X12;
 			lcd_patch_reg = P880_LCD_RES_6X4_16X12;
 			break;
-		case VIA_RES_720X480:
-		case VIA_RES_720X576:
+		case viafb_compact_res(720, 480):
+		case viafb_compact_res(720, 576):
 			reg_num = NUM_TOTAL_P880_LCD_RES_7X4_16X12;
 			lcd_patch_reg = P880_LCD_RES_7X4_16X12;
 			break;
-		case VIA_RES_800X600:
+		case viafb_compact_res(800, 600):
 			reg_num = NUM_TOTAL_P880_LCD_RES_8X6_16X12;
 			lcd_patch_reg = P880_LCD_RES_8X6_16X12;
 			break;
-		case VIA_RES_1024X768:
+		case viafb_compact_res(1024, 768):
 			reg_num = NUM_TOTAL_P880_LCD_RES_10X7_16X12;
 			lcd_patch_reg = P880_LCD_RES_10X7_16X12;
 			break;
-		case VIA_RES_1280X768:
-		case VIA_RES_1280X960:
-		case VIA_RES_1280X1024:
+		case viafb_compact_res(1280, 768):
+		case viafb_compact_res(1280, 960):
+		case viafb_compact_res(1280, 1024):
 			reg_num = NUM_TOTAL_P880_LCD_RES_12X10_16X12;
 			lcd_patch_reg = P880_LCD_RES_12X10_16X12;
 			break;
@@ -824,10 +823,6 @@ static void load_lcd_p880_patch_tbl(int set_hres, int set_vres,
 static void load_lcd_patch_regs(int set_hres, int set_vres,
 	int panel_id, int set_iga)
 {
-	int vmode_index;
-
-	vmode_index = viafb_get_mode_index(set_hres, set_vres);
-
 	viafb_unlock_crt();
 
 	/* Patch for simultaneous & Expansion */
@@ -949,29 +944,26 @@ void viafb_lcd_set_mode(struct crt_mode_table *mode_crt_table,
 		  struct lvds_setting_information *plvds_setting_info,
 		  struct lvds_chip_information *plvds_chip_info)
 {
-	int video_index = plvds_setting_info->lcd_panel_size;
 	int set_iga = plvds_setting_info->iga_path;
 	int mode_bpp = plvds_setting_info->bpp;
-	int set_hres, set_vres;
-	int panel_hres, panel_vres;
+	int set_hres = plvds_setting_info->h_active;
+	int set_vres = plvds_setting_info->v_active;
+	int panel_hres = plvds_setting_info->lcd_panel_hres;
+	int panel_vres = plvds_setting_info->lcd_panel_vres;
 	u32 pll_D_N;
 	int offset;
 	struct display_timing mode_crt_reg, panel_crt_reg;
 	struct crt_mode_table *panel_crt_table = NULL;
-	struct VideoModeTable *vmode_tbl = NULL;
+	struct VideoModeTable *vmode_tbl = viafb_get_mode(panel_hres,
+		panel_vres);
 
 	DEBUG_MSG(KERN_INFO "viafb_lcd_set_mode!!\n");
 	/* Get mode table */
 	mode_crt_reg = mode_crt_table->crtc;
 	/* Get panel table Pointer */
-	vmode_tbl = viafb_get_modetbl_pointer(video_index);
 	panel_crt_table = vmode_tbl->crtc;
 	panel_crt_reg = panel_crt_table->crtc;
 	DEBUG_MSG(KERN_INFO "bellow viafb_lcd_set_mode!!\n");
-	set_hres = plvds_setting_info->h_active;
-	set_vres = plvds_setting_info->v_active;
-	panel_hres = plvds_setting_info->lcd_panel_hres;
-	panel_vres = plvds_setting_info->lcd_panel_vres;
 	if (VT1636_LVDS == plvds_chip_info->lvds_chip_name)
 		viafb_init_lvds_vt1636(plvds_setting_info, plvds_chip_info);
 	plvds_setting_info->vclk = panel_crt_table->clk;

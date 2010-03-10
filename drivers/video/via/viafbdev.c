@@ -97,7 +97,8 @@ static int viafb_release(struct fb_info *info, int user)
 static int viafb_check_var(struct fb_var_screeninfo *var,
 	struct fb_info *info)
 {
-	int vmode_index, htotal, vtotal;
+	int htotal, vtotal;
+	struct VideoModeTable *vmode_entry;
 	struct viafb_par *ppar = info->par;
 	u32 long_refresh;
 
@@ -107,8 +108,8 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	if (var->vmode & FB_VMODE_INTERLACED || var->vmode & FB_VMODE_DOUBLE)
 		return -EINVAL;
 
-	vmode_index = viafb_get_mode_index(var->xres, var->yres);
-	if (vmode_index == VIA_RES_INVALID) {
+	vmode_entry = viafb_get_mode(var->xres, var->yres);
+	if (!vmode_entry) {
 		DEBUG_MSG(KERN_INFO
 			  "viafb: Mode %dx%dx%d not supported!!\n",
 			  var->xres, var->yres, var->bits_per_pixel);
@@ -142,7 +143,7 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 	viafb_refresh = viafb_get_refresh(var->xres, var->yres, long_refresh);
 
 	/* Adjust var according to our driver's own table */
-	viafb_fill_var_timing_info(var, viafb_refresh, vmode_index);
+	viafb_fill_var_timing_info(var, viafb_refresh, vmode_entry);
 	if (info->var.accel_flags & FB_ACCELF_TEXT &&
 		!ppar->shared->engine_mmio)
 		info->var.accel_flags = 0;
@@ -153,39 +154,34 @@ static int viafb_check_var(struct fb_var_screeninfo *var,
 static int viafb_set_par(struct fb_info *info)
 {
 	struct viafb_par *viapar = info->par;
-	int vmode_index;
-	int vmode_index1 = 0;
+	struct VideoModeTable *vmode_entry, *vmode_entry1 = NULL;
 	DEBUG_MSG(KERN_INFO "viafb_set_par!\n");
 
 	viapar->depth = fb_get_color_depth(&info->var, &info->fix);
 	viafb_update_device_setting(info->var.xres, info->var.yres,
 			      info->var.bits_per_pixel, viafb_refresh, 0);
 
-	vmode_index = viafb_get_mode_index(info->var.xres, info->var.yres);
-
+	vmode_entry = viafb_get_mode(info->var.xres, info->var.yres);
 	if (viafb_SAMM_ON == 1) {
 		DEBUG_MSG(KERN_INFO
 		"viafb_second_xres = %d, viafb_second_yres = %d, bpp = %d\n",
 			  viafb_second_xres, viafb_second_yres, viafb_bpp1);
-		vmode_index1 = viafb_get_mode_index(viafb_second_xres,
+		vmode_entry1 = viafb_get_mode(viafb_second_xres,
 			viafb_second_yres);
-		DEBUG_MSG(KERN_INFO "->viafb_SAMM_ON: index=%d\n",
-			vmode_index1);
 
 		viafb_update_device_setting(viafb_second_xres,
 			viafb_second_yres, viafb_bpp1, viafb_refresh1, 1);
 	}
 
-	if (vmode_index != VIA_RES_INVALID) {
+	if (vmode_entry) {
 		viafb_update_fix(info);
 		viafb_bpp = info->var.bits_per_pixel;
 		if (info->var.accel_flags & FB_ACCELF_TEXT)
 			info->flags &= ~FBINFO_HWACCEL_DISABLED;
 		else
 			info->flags |= FBINFO_HWACCEL_DISABLED;
-		viafb_setmode(vmode_index, info->var.xres, info->var.yres,
-			info->var.bits_per_pixel, vmode_index1,
-			viafb_second_xres, viafb_second_yres, viafb_bpp1);
+		viafb_setmode(vmode_entry, info->var.bits_per_pixel,
+			vmode_entry1, viafb_bpp1);
 	}
 
 	return 0;
@@ -1016,23 +1012,6 @@ static int viafb_sync(struct fb_info *info)
 	return 0;
 }
 
-int viafb_get_mode_index(int hres, int vres)
-{
-	u32 i;
-	DEBUG_MSG(KERN_INFO "viafb_get_mode_index!\n");
-
-	for (i = 0; i < NUM_TOTAL_MODETABLE; i++)
-		if (CLE266Modes[i].mode_array &&
-			CLE266Modes[i].crtc[0].crtc.hor_addr == hres &&
-			CLE266Modes[i].crtc[0].crtc.ver_addr == vres)
-			break;
-
-	if (i == NUM_TOTAL_MODETABLE)
-		return VIA_RES_INVALID;
-
-	return CLE266Modes[i].ModeIndex;
-}
-
 static void check_available_device_to_enable(int device_id)
 {
 	int device_num = 0;
@@ -1848,7 +1827,7 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 				   const struct pci_device_id *ent)
 {
 	u32 default_xres, default_yres;
-	int vmode_index;
+	struct VideoModeTable *vmode_entry;
 	u32 viafb_par_length;
 
 	DEBUG_MSG(KERN_INFO "VIAFB PCI Probe!!\n");
@@ -1927,9 +1906,7 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	}
 
 	parse_mode(viafb_mode, &default_xres, &default_yres);
-	vmode_index = viafb_get_mode_index(default_xres, default_yres);
-	DEBUG_MSG(KERN_INFO "0->index=%d\n", vmode_index);
-
+	vmode_entry = viafb_get_mode(default_xres, default_yres);
 	if (viafb_SAMM_ON == 1) {
 		parse_mode(viafb_mode1, &viafb_second_xres,
 			&viafb_second_yres);

@@ -22,6 +22,7 @@
 #ifndef __HW_H__
 #define __HW_H__
 
+#include "viamode.h"
 #include "global.h"
 
 /***************************************************
@@ -874,8 +875,9 @@ extern int viafb_hotplug;
 void viafb_write_reg_mask(u8 index, int io_port, u8 data, u8 mask);
 void viafb_set_output_path(int device, int set_iga,
 	int output_interface);
+
 void viafb_fill_crtc_timing(struct crt_mode_table *crt_table,
-		      int mode_index, int bpp_byte, int set_iga);
+	struct VideoModeTable *video_mode, int bpp_byte, int set_iga);
 
 void viafb_set_vclock(u32 CLK, int set_iga);
 void viafb_load_reg(int timing_value, int viafb_load_reg_num,
@@ -891,16 +893,16 @@ void viafb_lock_crt(void);
 void viafb_unlock_crt(void);
 void viafb_load_fetch_count_reg(int h_addr, int bpp_byte, int set_iga);
 void viafb_write_regx(struct io_reg RegTable[], int ItemNum);
-struct VideoModeTable *viafb_get_modetbl_pointer(int Index);
 u32 viafb_get_clk_value(int clk);
 void viafb_load_FIFO_reg(int set_iga, int hor_active, int ver_active);
 void viafb_set_color_depth(int bpp_byte, int set_iga);
 void viafb_set_dpa_gfx(int output_interface, struct GFX_DPA_SETTING\
 					*p_gfx_dpa_setting);
 
-int viafb_setmode(int vmode_index, int hor_res, int ver_res,
-	    int video_bpp, int vmode_index1, int hor_res1,
-	    int ver_res1, int video_bpp1);
+int viafb_setmode(struct VideoModeTable *vmode_tbl, int video_bpp,
+	struct VideoModeTable *vmode_tbl1, int video_bpp1);
+void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
+	struct VideoModeTable *vmode_tbl);
 void viafb_init_chip_info(struct pci_dev *pdev,
 			  const struct pci_device_id *pdi);
 void viafb_init_dac(int set_iga);

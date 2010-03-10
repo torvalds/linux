@@ -96,9 +96,6 @@ extern int viafb_memsize;
 extern int strict_strtoul(const char *cp, unsigned int base,
 	unsigned long *res);
 
-void viafb_fill_var_timing_info(struct fb_var_screeninfo *var, int refresh,
-			  int mode_index);
-int viafb_get_mode_index(int hres, int vres);
 u8 viafb_gpio_i2c_read_lvds(struct lvds_setting_information
 	*plvds_setting_info, struct lvds_chip_information
 	*plvds_chip_info, u8 index);

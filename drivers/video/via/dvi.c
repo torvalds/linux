@@ -23,8 +23,6 @@
 static void tmds_register_write(int index, u8 data);
 static int tmds_register_read(int index);
 static int tmds_register_read_bytes(int index, u8 *buff, int buff_len);
-static int check_reduce_blanking_mode(int mode_index,
-	int refresh_rate);
 static int dvi_get_panel_size_from_DDCv1(void);
 static int dvi_get_panel_size_from_DDCv2(void);
 static unsigned char dvi_get_panel_info(void);
@@ -189,42 +187,14 @@ static int tmds_register_read_bytes(int index, u8 *buff, int buff_len)
 	return 0;
 }
 
-static int check_reduce_blanking_mode(int mode_index,
-	int refresh_rate)
-{
-	if (refresh_rate != 60)
-		return false;
-
-	switch (mode_index) {
-		/* Following modes have reduce blanking mode. */
-	case VIA_RES_1360X768:
-	case VIA_RES_1400X1050:
-	case VIA_RES_1440X900:
-	case VIA_RES_1600X900:
-	case VIA_RES_1680X1050:
-	case VIA_RES_1920X1080:
-	case VIA_RES_1920X1200:
-		break;
-
-	default:
-		DEBUG_MSG(KERN_INFO
-			  "This dvi mode %d have no reduce blanking mode!\n",
-			  mode_index);
-		return false;
-	}
-
-	return true;
-}
-
 /* DVI Set Mode */
-void viafb_dvi_set_mode(int video_index, int mode_bpp, int set_iga)
+void viafb_dvi_set_mode(struct VideoModeTable *mode, int mode_bpp,
+	int set_iga)
 {
-	struct VideoModeTable *videoMode = NULL;
+	struct VideoModeTable *rb_mode;
 	struct crt_mode_table *pDviTiming;
 	unsigned long desirePixelClock, maxPixelClock;
-	int status = 0;
-	videoMode = viafb_get_modetbl_pointer(video_index);
-	pDviTiming = videoMode->crtc;
+	pDviTiming = mode->crtc;
 	desirePixelClock = pDviTiming->clk / 1000000;
 	maxPixelClock = (unsigned long)viaparinfo->
 		tmds_setting_info->max_pixel_clock;
@@ -232,20 +202,14 @@ void viafb_dvi_set_mode(int video_index, int mode_bpp, int set_iga)
 	DEBUG_MSG(KERN_INFO "\nDVI_set_mode!!\n");
 
 	if ((maxPixelClock != 0) && (desirePixelClock > maxPixelClock)) {
-		/*Check if reduce-blanking mode is exist */
-		status =
-		    check_reduce_blanking_mode(video_index,
-					       pDviTiming->refresh_rate);
-		if (status) {
-			video_index += 100;	/*Use reduce-blanking mode */
-			videoMode = viafb_get_modetbl_pointer(video_index);
-			pDviTiming = videoMode->crtc;
-			DEBUG_MSG(KERN_INFO
-				  "DVI use reduce blanking mode %d!!\n",
-				  video_index);
+		rb_mode = viafb_get_rb_mode(mode->crtc[0].crtc.hor_addr,
+			mode->crtc[0].crtc.ver_addr);
+		if (rb_mode) {
+			mode = rb_mode;
+			pDviTiming = rb_mode->crtc;
 		}
 	}
-	viafb_fill_crtc_timing(pDviTiming, video_index, mode_bpp / 8, set_iga);
+	viafb_fill_crtc_timing(pDviTiming, mode, mode_bpp / 8, set_iga);
 	viafb_set_output_path(DEVICE_DVI, set_iga,
 			viaparinfo->chip_info->tmds_chip_info.output_interface);
 }
