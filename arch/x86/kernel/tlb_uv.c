@@ -20,6 +20,8 @@
 #include <asm/tsc.h>
 #include <asm/irq_vectors.h>
 
+#define UV_INTD_SOFT_ACK_TIMEOUT_PERIOD	0x000000000bUL
+
 static struct bau_control	**uv_bau_table_bases __read_mostly;
 static int			uv_bau_retry_limit __read_mostly;
 
@@ -478,16 +480,16 @@ static void uv_enable_timeouts(void)
 		 * To program the period, the SOFT_ACK_MODE must be off.
 		 */
 		mmr_image &= ~((unsigned long)1 <<
-			       UV_ENABLE_INTD_SOFT_ACK_MODE_SHIFT);
+		    UVH_LB_BAU_MISC_CONTROL_ENABLE_INTD_SOFT_ACK_MODE_SHFT);
 		uv_write_global_mmr64
 		    (pnode, UVH_LB_BAU_MISC_CONTROL, mmr_image);
 		/*
 		 * Set the 4-bit period.
 		 */
 		mmr_image &= ~((unsigned long)0xf <<
-			UV_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHIFT);
+		     UVH_LB_BAU_MISC_CONTROL_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHFT);
 		mmr_image |= (UV_INTD_SOFT_ACK_TIMEOUT_PERIOD <<
-			     UV_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHIFT);
+		     UVH_LB_BAU_MISC_CONTROL_INTD_SOFT_ACK_TIMEOUT_PERIOD_SHFT);
 		uv_write_global_mmr64
 		    (pnode, UVH_LB_BAU_MISC_CONTROL, mmr_image);
 		/*
@@ -496,7 +498,7 @@ static void uv_enable_timeouts(void)
 		 * indicated in bits 2:0 (7 causes all of them to timeout).
 		 */
 		mmr_image |= ((unsigned long)1 <<
-			      UV_ENABLE_INTD_SOFT_ACK_MODE_SHIFT);
+		    UVH_LB_BAU_MISC_CONTROL_ENABLE_INTD_SOFT_ACK_MODE_SHFT);
 		uv_write_global_mmr64
 		    (pnode, UVH_LB_BAU_MISC_CONTROL, mmr_image);
 	}
