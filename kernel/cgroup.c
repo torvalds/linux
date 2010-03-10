@@ -2597,7 +2597,8 @@ static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
 {
 	struct cgroup_pidlist *l;
 	/* don't need task_nsproxy() if we're looking at ourself */
-	struct pid_namespace *ns = get_pid_ns(current->nsproxy->pid_ns);
+	struct pid_namespace *ns = current->nsproxy->pid_ns;
+
 	/*
 	 * We can't drop the pidlist_mutex before taking the l->mutex in case
 	 * the last ref-holder is trying to remove l from the list at the same
@@ -2607,8 +2608,6 @@ static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
 	mutex_lock(&cgrp->pidlist_mutex);
 	list_for_each_entry(l, &cgrp->pidlists, links) {
 		if (l->key.type == type && l->key.ns == ns) {
-			/* found a matching list - drop the extra refcount */
-			put_pid_ns(ns);
 			/* make sure l doesn't vanish out from under us */
 			down_write(&l->mutex);
 			mutex_unlock(&cgrp->pidlist_mutex);
@@ -2619,13 +2618,12 @@ static struct cgroup_pidlist *cgroup_pidlist_find(struct cgroup *cgrp,
 	l = kmalloc(sizeof(struct cgroup_pidlist), GFP_KERNEL);
 	if (!l) {
 		mutex_unlock(&cgrp->pidlist_mutex);
-		put_pid_ns(ns);
 		return l;
 	}
 	init_rwsem(&l->mutex);
 	down_write(&l->mutex);
 	l->key.type = type;
-	l->key.ns = ns;
+	l->key.ns = get_pid_ns(ns);
 	l->use_count = 0; /* don't increment here */
 	l->list = NULL;
 	l->owner = cgrp;
