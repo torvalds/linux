@@ -281,7 +281,7 @@ void construct_mic_header2(unsigned char *mic_header2,
 	mic_header2[6] = mpdu[22] & 0x0f;	/* SC */
 	mic_header2[7] = 0x00;	/* mpdu[23]; */
 
-	if ((!qc_exists) & a4_exists) {
+	if ((!qc_exists) && a4_exists) {
 		for (i = 0; i < 6; i++)
 			mic_header2[8 + i] = mpdu[24 + i];	/* A4 */
 
