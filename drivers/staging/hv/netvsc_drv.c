@@ -43,7 +43,6 @@
 struct net_device_context {
 	/* point back to our device context */
 	struct vm_device *device_ctx;
-	struct net_device_stats stats;
 };
 
 struct netvsc_driver_context {
@@ -58,13 +57,6 @@ static int netvsc_ringbuffer_size = NETVSC_DEVICE_RING_BUFFER_SIZE;
 /* The one and only one */
 static struct netvsc_driver_context g_netvsc_drv;
 
-static struct net_device_stats *netvsc_get_stats(struct net_device *net)
-{
-	struct net_device_context *net_device_ctx = netdev_priv(net);
-
-	return &net_device_ctx->stats;
-}
-
 static void netvsc_set_multicast_list(struct net_device *net)
 {
 }
@@ -78,9 +70,6 @@ static int netvsc_open(struct net_device *net)
 	DPRINT_ENTER(NETVSC_DRV);
 
 	if (netif_carrier_ok(net)) {
-		memset(&net_device_ctx->stats, 0,
-		       sizeof(struct net_device_stats));
-
 		/* Open up the device */
 		ret = RndisFilterOnOpen(device_obj);
 		if (ret != 0) {
@@ -224,8 +213,8 @@ retry_send:
 
 	if (ret == 0) {
 		ret = NETDEV_TX_OK;
-		net_device_ctx->stats.tx_bytes += skb->len;
-		net_device_ctx->stats.tx_packets++;
+		net->stats.tx_bytes += skb->len;
+		net->stats.tx_packets++;
 	} else {
 		retries++;
 		if (retries < 4) {
@@ -241,7 +230,7 @@ retry_send:
 		DPRINT_INFO(NETVSC_DRV, "net device (%p) stopping", net);
 
 		ret = NETDEV_TX_BUSY;
-		net_device_ctx->stats.tx_dropped++;
+		net->stats.tx_dropped++;
 
 		netif_stop_queue(net);
 
@@ -259,8 +248,8 @@ retry_send:
 	}
 
 	DPRINT_DBG(NETVSC_DRV, "# of xmits %lu total size %lu",
-		   net_device_ctx->stats.tx_packets,
-		   net_device_ctx->stats.tx_bytes);
+		   net->stats.tx_packets,
+		   net->stats.tx_bytes);
 
 	DPRINT_EXIT(NETVSC_DRV);
 	return ret;
@@ -360,17 +349,16 @@ static int netvsc_recv_callback(struct hv_device *device_obj,
 
 	switch (ret) {
 	case NET_RX_DROP:
-		net_device_ctx->stats.rx_dropped++;
+		net->stats.rx_dropped++;
 		break;
 	default:
-		net_device_ctx->stats.rx_packets++;
-		net_device_ctx->stats.rx_bytes += skb->len;
+		net->stats.rx_packets++;
+		net->stats.rx_bytes += skb->len;
 		break;
 
 	}
 	DPRINT_DBG(NETVSC_DRV, "# of recvs %lu total size %lu",
-		   net_device_ctx->stats.rx_packets,
-		   net_device_ctx->stats.rx_bytes);
+		   net->stats.rx_packets, net->stats.rx_bytes);
 
 	DPRINT_EXIT(NETVSC_DRV);
 
@@ -381,7 +369,6 @@ static const struct net_device_ops device_ops = {
 	.ndo_open =			netvsc_open,
 	.ndo_stop =			netvsc_close,
 	.ndo_start_xmit =		netvsc_start_xmit,
-	.ndo_get_stats =		netvsc_get_stats,
 	.ndo_set_multicast_list =	netvsc_set_multicast_list,
 };
 
