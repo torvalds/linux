@@ -286,7 +286,7 @@ void inflate_fast(z_streamp strm, unsigned start)
 		    } else { /* dist == 1 or dist == 2 */
 			unsigned short pat16;
 
-			pat16 = *(sout-2+2*OFF);
+			pat16 = *(sout-1+OFF);
 			if (dist == 1) {
 				union uu mm;
 				/* copy one char pattern to both bytes */
