@@ -1480,14 +1480,16 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				 bond_dev->name,
 				 bond_dev->type, slave_dev->type);
 
-			netdev_bonding_change(bond_dev, NETDEV_BONDING_OLDTYPE);
+			netdev_bonding_change(bond_dev,
+					      NETDEV_PRE_TYPE_CHANGE);
 
 			if (slave_dev->type != ARPHRD_ETHER)
 				bond_setup_by_slave(bond_dev, slave_dev);
 			else
 				ether_setup(bond_dev);
 
-			netdev_bonding_change(bond_dev, NETDEV_BONDING_NEWTYPE);
+			netdev_bonding_change(bond_dev,
+					      NETDEV_POST_TYPE_CHANGE);
 		}
 	} else if (bond_dev->type != slave_dev->type) {
 		pr_err("%s ether type (%d) is different from other slaves (%d), can not enslave it.\n",

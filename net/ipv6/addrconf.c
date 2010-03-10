@@ -137,8 +137,8 @@ static DEFINE_SPINLOCK(addrconf_verify_lock);
 static void addrconf_join_anycast(struct inet6_ifaddr *ifp);
 static void addrconf_leave_anycast(struct inet6_ifaddr *ifp);
 
-static void addrconf_bonding_change(struct net_device *dev,
-				    unsigned long event);
+static void addrconf_type_change(struct net_device *dev,
+				 unsigned long event);
 static int addrconf_ifdown(struct net_device *dev, int how);
 
 static void addrconf_dad_start(struct inet6_ifaddr *ifp, u32 flags);
@@ -2584,9 +2584,9 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 				return notifier_from_errno(err);
 		}
 		break;
-	case NETDEV_BONDING_OLDTYPE:
-	case NETDEV_BONDING_NEWTYPE:
-		addrconf_bonding_change(dev, event);
+	case NETDEV_PRE_TYPE_CHANGE:
+	case NETDEV_POST_TYPE_CHANGE:
+		addrconf_type_change(dev, event);
 		break;
 	}
 
@@ -2601,16 +2601,16 @@ static struct notifier_block ipv6_dev_notf = {
 	.priority = 0
 };
 
-static void addrconf_bonding_change(struct net_device *dev, unsigned long event)
+static void addrconf_type_change(struct net_device *dev, unsigned long event)
 {
 	struct inet6_dev *idev;
 	ASSERT_RTNL();
 
 	idev = __in6_dev_get(dev);
 
-	if (event == NETDEV_BONDING_NEWTYPE)
+	if (event == NETDEV_POST_TYPE_CHANGE)
 		ipv6_mc_remap(idev);
-	else if (event == NETDEV_BONDING_OLDTYPE)
+	else if (event == NETDEV_PRE_TYPE_CHANGE)
 		ipv6_mc_unmap(idev);
 }
 
