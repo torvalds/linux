@@ -330,8 +330,11 @@ struct module
 	struct module_notes_attrs *notes_attrs;
 #endif
 
+#ifdef CONFIG_SMP
 	/* Per-cpu data. */
-	void *percpu;
+	void __percpu *percpu;
+	unsigned int percpu_size;
+#endif
 
 	/* The command line arguments (may be mangled).  People like
 	   keeping pointers to this stuff */
