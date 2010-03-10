@@ -64,6 +64,9 @@
 #ifdef CONFIG_BSD_PROCESS_ACCT
 #include <linux/acct.h>
 #endif
+#ifdef CONFIG_RT_MUTEXES
+#include <linux/rtmutex.h>
+#endif
 #ifdef CONFIG_CHR_DEV_SG
 #include <scsi/sg.h>
 #endif
@@ -149,10 +152,6 @@ extern int unaligned_dump_stack;
 #endif
 
 extern struct ratelimit_state printk_ratelimit_state;
-
-#ifdef CONFIG_RT_MUTEXES
-extern int max_lock_depth;
-#endif
 
 #ifdef CONFIG_PROC_SYSCTL
 static int proc_do_cad_pid(struct ctl_table *table, int write,
