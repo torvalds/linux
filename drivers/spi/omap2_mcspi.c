@@ -578,6 +578,7 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 	struct spi_master *spi_cntrl;
 	u32 l = 0, div = 0;
 	u8 word_len = spi->bits_per_word;
+	u32 speed_hz = spi->max_speed_hz;
 
 	mcspi = spi_master_get_devdata(spi->master);
 	spi_cntrl = mcspi->master;
@@ -587,9 +588,12 @@ static int omap2_mcspi_setup_transfer(struct spi_device *spi,
 
 	cs->word_len = word_len;
 
-	if (spi->max_speed_hz) {
+	if (t && t->speed_hz)
+		speed_hz = t->speed_hz;
+
+	if (speed_hz) {
 		while (div <= 15 && (OMAP2_MCSPI_MAX_FREQ / (1 << div))
-					> spi->max_speed_hz)
+					> speed_hz)
 			div++;
 	} else
 		div = 15;
