@@ -149,8 +149,11 @@
 #define REALLY_SLOW_IO
 
 #define DEBUGT 2
-#define DCL_DEBUG		/* debug disk change line */
 
+#define DPRINT(format, args...) \
+	pr_info("floppy%d: " format, current_drive, ##args)
+
+#define DCL_DEBUG		/* debug disk change line */
 #ifdef DCL_DEBUG
 #define debug_dcl(test, fmt, args...) \
 	do { if ((test) & FD_DEBUG) DPRINT(fmt, ##args); } while (0)
@@ -158,7 +161,6 @@
 #define debug_dcl(test, fmt, args...) \
 	do { if (0) DPRINT(fmt, ##args); } while (0)
 #endif
-
 
 /* do print messages for unexpected interrupts */
 static int print_unex = 1;
@@ -308,9 +310,6 @@ static bool initialized;
 #define UDRWE	(&write_errors[drive])
 #define UFDCS	(&fdc_state[FDC(drive)])
 
-#define DPRINT(format, args...) \
-	pr_info("floppy%d: " format, current_drive, ##args)
-
 #define PH_HEAD(floppy, head) (((((floppy)->stretch & 2) >> 1) ^ head) << 2)
 #define STRETCH(floppy)	((floppy)->stretch & FD_STRETCH)
 
@@ -345,7 +344,7 @@ static bool initialized;
  */
 #define MAX_REPLIES 16
 static unsigned char reply_buffer[MAX_REPLIES];
-static int inr;			/* size of reply buffer, when called from interrupt */
+static int inr;		/* size of reply buffer, when called from interrupt */
 #define ST0		(reply_buffer[0])
 #define ST1		(reply_buffer[1])
 #define ST2		(reply_buffer[2])
@@ -755,8 +754,7 @@ static int disk_change(int drive)
 		if (UDRS->keep_data >= 0) {
 			if ((UDP->flags & FTD_MSG) &&
 			    current_type[drive] != NULL)
-				DPRINT("Disk type is undefined after "
-				       "disk change\n");
+				DPRINT("Disk type is undefined after disk change\n");
 			current_type[drive] = NULL;
 			floppy_sizes[TOMINOR(drive)] = MAX_DISK_SIZE << 1;
 		}
@@ -1447,7 +1445,7 @@ static int interpret_errors(void)
 	char bad;
 
 	if (inr != 7) {
-		DPRINT("-- FDC reply error");
+		DPRINT("-- FDC reply error\n");
 		FDCS->reset = 1;
 		return 1;
 	}
