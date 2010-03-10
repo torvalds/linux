@@ -103,6 +103,10 @@ struct clk *s3c2412_get_iisclk(void)
 }
 EXPORT_SYMBOL_GPL(s3c2412_get_iisclk);
 
+static inline struct s3c_i2sv2_info *to_info(struct snd_soc_dai *cpu_dai)
+{
+	return cpu_dai->private_data;
+}
 
 static int s3c2412_i2s_probe(struct platform_device *pdev,
 			     struct snd_soc_dai *dai)
@@ -142,6 +146,38 @@ static int s3c2412_i2s_probe(struct platform_device *pdev,
 	return 0;
 }
 
+static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
+				 struct snd_pcm_hw_params *params,
+				 struct snd_soc_dai *cpu_dai)
+{
+	struct s3c_i2sv2_info *i2s = to_info(cpu_dai);
+	u32 iismod;
+
+	pr_debug("Entered %s\n", __func__);
+
+	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
+		cpu_dai->dma_data = i2s->dma_playback;
+	else
+		cpu_dai->dma_data = i2s->dma_capture;
+
+	iismod = readl(i2s->regs + S3C2412_IISMOD);
+	pr_debug("%s: r: IISMOD: %x\n", __func__, iismod);
+
+	switch (params_format(params)) {
+	case SNDRV_PCM_FORMAT_S8:
+		iismod |= S3C2412_IISMOD_8BIT;
+		break;
+	case SNDRV_PCM_FORMAT_S16_LE:
+		iismod &= ~S3C2412_IISMOD_8BIT;
+		break;
+	}
+
+	writel(iismod, i2s->regs + S3C2412_IISMOD);
+	pr_debug("%s: w: IISMOD: %x\n", __func__, iismod);
+
+	return 0;
+}
+
 #define S3C2412_I2S_RATES \
 	(SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
 	SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_44100 | \
@@ -149,6 +185,7 @@ static int s3c2412_i2s_probe(struct platform_device *pdev,
 
 static struct snd_soc_dai_ops s3c2412_i2s_dai_ops = {
 	.set_sysclk	= s3c2412_i2s_set_sysclk,
+	.hw_params	= s3c2412_i2s_hw_params,
 };
 
 struct snd_soc_dai s3c2412_i2s_dai = {

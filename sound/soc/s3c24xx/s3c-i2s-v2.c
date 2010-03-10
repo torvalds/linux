@@ -326,7 +326,7 @@ static int s3c2412_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	return 0;
 }
 
-static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
+static int s3c_i2sv2_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_pcm_hw_params *params,
 				 struct snd_soc_dai *socdai)
 {
@@ -346,18 +346,6 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 	iismod = readl(i2s->regs + S3C2412_IISMOD);
 	pr_debug("%s: r: IISMOD: %x\n", __func__, iismod);
 
-#if defined(CONFIG_CPU_S3C2412) || defined(CONFIG_CPU_S3C2413)
-	switch (params_format(params)) {
-	case SNDRV_PCM_FORMAT_S8:
-		iismod |= S3C2412_IISMOD_8BIT;
-		break;
-	case SNDRV_PCM_FORMAT_S16_LE:
-		iismod &= ~S3C2412_IISMOD_8BIT;
-		break;
-	}
-#endif
-
-#ifdef CONFIG_PLAT_S3C64XX
 	iismod &= ~S3C64XX_IISMOD_BLC_MASK;
 	/* Sample size */
 	switch (params_format(params)) {
@@ -370,7 +358,6 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 		iismod |= S3C64XX_IISMOD_BLC_24BIT;
 		break;
 	}
-#endif
 
 	writel(iismod, i2s->regs + S3C2412_IISMOD);
 	pr_debug("%s: w: IISMOD: %x\n", __func__, iismod);
@@ -730,7 +717,8 @@ int s3c_i2sv2_register_dai(struct snd_soc_dai *dai)
 	struct snd_soc_dai_ops *ops = dai->ops;
 
 	ops->trigger = s3c2412_i2s_trigger;
-	ops->hw_params = s3c2412_i2s_hw_params;
+	if (!ops->hw_params)
+		ops->hw_params = s3c_i2sv2_hw_params;
 	ops->set_fmt = s3c2412_i2s_set_fmt;
 	ops->set_clkdiv = s3c2412_i2s_set_clkdiv;
 
