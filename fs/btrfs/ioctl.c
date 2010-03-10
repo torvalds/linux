@@ -475,6 +475,73 @@ out_unlock:
 	return error;
 }
 
+static int should_defrag_range(struct inode *inode, u64 start, u64 len,
+			       u64 *last_len, u64 *skip, u64 *defrag_end)
+{
+	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
+	struct extent_map *em = NULL;
+	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
+	int ret = 1;
+
+	/*
+	 * make sure that once we start defragging and extent, we keep on
+	 * defragging it
+	 */
+	if (start < *defrag_end)
+		return 1;
+
+	*skip = 0;
+
+	/*
+	 * hopefully we have this extent in the tree already, try without
+	 * the full extent lock
+	 */
+	read_lock(&em_tree->lock);
+	em = lookup_extent_mapping(em_tree, start, len);
+	read_unlock(&em_tree->lock);
+
+	if (!em) {
+		/* get the big lock and read metadata off disk */
+		lock_extent(io_tree, start, start + len - 1, GFP_NOFS);
+		em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
+		unlock_extent(io_tree, start, start + len - 1, GFP_NOFS);
+
+		if (!em)
+			return 0;
+	}
+
+	/* this will cover holes, and inline extents */
+	if (em->block_start >= EXTENT_MAP_LAST_BYTE)
+		ret = 0;
+
+	/*
+	 * we hit a real extent, if it is big don't bother defragging it again
+	 */
+	if ((*last_len == 0 || *last_len >= 256 * 1024) &&
+	    em->len >= 256 * 1024)
+		ret = 0;
+
+	/*
+	 * last_len ends up being a counter of how many bytes we've defragged.
+	 * every time we choose not to defrag an extent, we reset *last_len
+	 * so that the next tiny extent will force a defrag.
+	 *
+	 * The end result of this is that tiny extents before a single big
+	 * extent will force at least part of that big extent to be defragged.
+	 */
+	if (ret) {
+		*last_len += len;
+		*defrag_end = extent_map_end(em);
+	} else {
+		*last_len = 0;
+		*skip = extent_map_end(em);
+		*defrag_end = 0;
+	}
+
+	free_extent_map(em);
+	return ret;
+}
+
 static int btrfs_defrag_file(struct file *file)
 {
 	struct inode *inode = fdentry(file)->d_inode;
@@ -487,36 +554,85 @@ static int btrfs_defrag_file(struct file *file)
 	unsigned long total_read = 0;
 	u64 page_start;
 	u64 page_end;
+	u64 last_len = 0;
+	u64 skip = 0;
+	u64 defrag_end = 0;
 	unsigned long i;
 	int ret;
 
-	ret = btrfs_check_data_free_space(root, inode, inode->i_size);
-	if (ret)
-		return -ENOSPC;
+	if (inode->i_size == 0)
+		return 0;
 
-	mutex_lock(&inode->i_mutex);
-	last_index = inode->i_size >> PAGE_CACHE_SHIFT;
-	for (i = 0; i <= last_index; i++) {
+	last_index = (inode->i_size - 1) >> PAGE_CACHE_SHIFT;
+	i = 0;
+	while (i <= last_index) {
+		if (!should_defrag_range(inode, (u64)i << PAGE_CACHE_SHIFT,
+					PAGE_CACHE_SIZE, &last_len, &skip,
+					&defrag_end)) {
+			unsigned long next;
+			/*
+			 * the should_defrag function tells us how much to skip
+			 * bump our counter by the suggested amount
+			 */
+			next = (skip + PAGE_CACHE_SIZE - 1) >> PAGE_CACHE_SHIFT;
+			i = max(i + 1, next);
+			continue;
+		}
+
 		if (total_read % ra_pages == 0) {
 			btrfs_force_ra(inode->i_mapping, &file->f_ra, file, i,
 				       min(last_index, i + ra_pages - 1));
 		}
 		total_read++;
+		mutex_lock(&inode->i_mutex);
+
+		ret = btrfs_check_data_free_space(root, inode, PAGE_CACHE_SIZE);
+		if (ret) {
+			ret = -ENOSPC;
+			break;
+		}
+
+		ret = btrfs_reserve_metadata_for_delalloc(root, inode, 1);
+		if (ret) {
+			btrfs_free_reserved_data_space(root, inode,
+						       PAGE_CACHE_SIZE);
+			ret = -ENOSPC;
+			break;
+		}
 again:
+		if (inode->i_size == 0 ||
+		    i > ((inode->i_size - 1) >> PAGE_CACHE_SHIFT)) {
+			ret = 0;
+			goto err_reservations;
+		}
+
 		page = grab_cache_page(inode->i_mapping, i);
 		if (!page)
-			goto out_unlock;
+			goto err_reservations;
+
 		if (!PageUptodate(page)) {
 			btrfs_readpage(NULL, page);
 			lock_page(page);
 			if (!PageUptodate(page)) {
 				unlock_page(page);
 				page_cache_release(page);
-				goto out_unlock;
+				goto err_reservations;
 			}
 		}
 
+		if (page->mapping != inode->i_mapping) {
+			unlock_page(page);
+			page_cache_release(page);
+			goto again;
+		}
+
 		wait_on_page_writeback(page);
+
+		if (PageDirty(page)) {
+			btrfs_free_reserved_data_space(root, inode,
+						       PAGE_CACHE_SIZE);
+			goto loop_unlock;
+		}
 
 		page_start = (u64)page->index << PAGE_CACHE_SHIFT;
 		page_end = page_start + PAGE_CACHE_SIZE - 1;
@@ -538,18 +654,32 @@ again:
 		 * page if it is dirtied again later
 		 */
 		clear_page_dirty_for_io(page);
+		clear_extent_bits(&BTRFS_I(inode)->io_tree, page_start,
+				  page_end, EXTENT_DIRTY | EXTENT_DELALLOC |
+				  EXTENT_DO_ACCOUNTING, GFP_NOFS);
 
 		btrfs_set_extent_delalloc(inode, page_start, page_end);
+		ClearPageChecked(page);
 		set_page_dirty(page);
 		unlock_extent(io_tree, page_start, page_end, GFP_NOFS);
+
+loop_unlock:
 		unlock_page(page);
 		page_cache_release(page);
+		mutex_unlock(&inode->i_mutex);
+
+		btrfs_unreserve_metadata_for_delalloc(root, inode, 1);
 		balance_dirty_pages_ratelimited_nr(inode->i_mapping, 1);
+		i++;
 	}
 
-out_unlock:
-	mutex_unlock(&inode->i_mutex);
 	return 0;
+
+err_reservations:
+	mutex_unlock(&inode->i_mutex);
+	btrfs_free_reserved_data_space(root, inode, PAGE_CACHE_SIZE);
+	btrfs_unreserve_metadata_for_delalloc(root, inode, 1);
+	return ret;
 }
 
 static noinline int btrfs_ioctl_resize(struct btrfs_root *root,
