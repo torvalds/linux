@@ -1960,6 +1960,9 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 	default_var.lower_margin = 4;
 	default_var.hsync_len = default_var.left_margin;
 	default_var.vsync_len = 4;
+	viafb_setup_fixinfo(&viafbinfo->fix, viaparinfo);
+	viafb_check_var(&default_var, viafbinfo);
+	viafbinfo->var = default_var;
 
 	if (viafb_dual_fb) {
 		viafbinfo1 = framebuffer_alloc(viafb_par_length, &pdev->dev);
@@ -2015,9 +2018,6 @@ static int __devinit via_pci_probe(struct pci_dev *pdev,
 			&viafbinfo1->fix);
 	}
 
-	viafb_setup_fixinfo(&viafbinfo->fix, viaparinfo);
-	viafb_check_var(&default_var, viafbinfo);
-	viafbinfo->var = default_var;
 	viafb_update_fix(viafbinfo);
 	viaparinfo->depth = fb_get_color_depth(&viafbinfo->var,
 		&viafbinfo->fix);
