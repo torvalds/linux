@@ -54,7 +54,6 @@ unsigned long sys_sigreturn(struct pt_regs *);
 struct oldold_utsname;
 struct old_utsname;
 
-asmlinkage int sys_ipc(uint, int, int, int, void __user *, long);
 asmlinkage int sys_uname(struct old_utsname __user *);
 asmlinkage int sys_olduname(struct oldold_utsname __user *);
 

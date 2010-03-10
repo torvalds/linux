@@ -30,7 +30,7 @@ struct fadvise64_64_args;
 struct old_sigaction;
 
 long sys_mmap2(struct s390_mmap_arg_struct __user  *arg);
-long sys_ipc(uint call, int first, unsigned long second,
+long sys_s390_ipc(uint call, int first, unsigned long second,
 	     unsigned long third, void __user *ptr);
 long sys_s390_newuname(struct new_utsname __user *name);
 long sys_s390_personality(unsigned long personality);

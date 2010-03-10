@@ -64,7 +64,7 @@ out:
  *
  * This is really horribly ugly.
  */
-SYSCALL_DEFINE5(ipc, uint, call, int, first, unsigned long, second,
+SYSCALL_DEFINE5(s390_ipc, uint, call, int, first, unsigned long, second,
 		unsigned long, third, void __user *, ptr)
 {
         struct ipc_kludge tmp;
