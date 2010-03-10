@@ -2601,13 +2601,13 @@ EXPORT_SYMBOL(pcix_get_max_mmrbc);
 int pcix_get_mmrbc(struct pci_dev *dev)
 {
 	int ret, cap;
-	u32 cmd;
+	u16 cmd;
 
 	cap = pci_find_capability(dev, PCI_CAP_ID_PCIX);
 	if (!cap)
 		return -EINVAL;
 
-	ret = pci_read_config_dword(dev, cap + PCI_X_CMD, &cmd);
+	ret = pci_read_config_word(dev, cap + PCI_X_CMD, &cmd);
 	if (!ret)
 		ret = 512 << ((cmd & PCI_X_CMD_MAX_READ) >> 2);
 
@@ -2627,7 +2627,8 @@ EXPORT_SYMBOL(pcix_get_mmrbc);
 int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc)
 {
 	int cap, err = -EINVAL;
-	u32 stat, cmd, v, o;
+	u32 stat, v, o;
+	u16 cmd;
 
 	if (mmrbc < 512 || mmrbc > 4096 || !is_power_of_2(mmrbc))
 		goto out;
@@ -2645,7 +2646,7 @@ int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc)
 	if (v > (stat & PCI_X_STATUS_MAX_READ) >> 21)
 		return -E2BIG;
 
-	err = pci_read_config_dword(dev, cap + PCI_X_CMD, &cmd);
+	err = pci_read_config_word(dev, cap + PCI_X_CMD, &cmd);
 	if (err)
 		goto out;
 
@@ -2657,7 +2658,7 @@ int pcix_set_mmrbc(struct pci_dev *dev, int mmrbc)
 
 		cmd &= ~PCI_X_CMD_MAX_READ;
 		cmd |= v << 2;
-		err = pci_write_config_dword(dev, cap + PCI_X_CMD, cmd);
+		err = pci_write_config_word(dev, cap + PCI_X_CMD, cmd);
 	}
 out:
 	return err;
