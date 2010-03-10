@@ -2361,7 +2361,7 @@ int pcix_get_max_mmrbc(struct pci_dev *dev)
 	if (err)
 		return -EINVAL;
 
-	return (stat & PCI_X_STATUS_MAX_READ) >> 12;
+	return 512 << ((stat & PCI_X_STATUS_MAX_READ) >> 21);
 }
 EXPORT_SYMBOL(pcix_get_max_mmrbc);
 
