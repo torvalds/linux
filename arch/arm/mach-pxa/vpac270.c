@@ -21,6 +21,7 @@
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
 #include <linux/mtd/physmap.h>
+#include <linux/dm9000.h>
 
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
@@ -117,6 +118,9 @@ static unsigned long vpac270_pin_config[] __initdata = {
 
 	/* UDC */
 	GPIO41_GPIO,
+
+	/* Ethernet */
+	GPIO114_GPIO,	/* IRQ */
 };
 
 /******************************************************************************
@@ -309,6 +313,50 @@ static inline void vpac270_udc_init(void) {}
 #endif
 
 /******************************************************************************
+ * Ethernet
+ ******************************************************************************/
+#if defined(CONFIG_DM9000) || defined(CONFIG_DM9000_MODULE)
+static struct resource vpac270_dm9000_resources[] = {
+	[0] = {
+		.start	= PXA_CS2_PHYS + 0x300,
+		.end	= PXA_CS2_PHYS + 0x303,
+		.flags	= IORESOURCE_MEM,
+	},
+	[1] = {
+		.start	= PXA_CS2_PHYS + 0x304,
+		.end	= PXA_CS2_PHYS + 0x343,
+		.flags	= IORESOURCE_MEM,
+	},
+	[2] = {
+		.start	= IRQ_GPIO(GPIO114_VPAC270_ETH_IRQ),
+		.end	= IRQ_GPIO(GPIO114_VPAC270_ETH_IRQ),
+		.flags	= IORESOURCE_IRQ | IORESOURCE_IRQ_HIGHEDGE,
+	},
+};
+
+static struct dm9000_plat_data vpac270_dm9000_platdata = {
+	.flags		= DM9000_PLATF_32BITONLY,
+};
+
+static struct platform_device vpac270_dm9000_device = {
+	.name		= "dm9000",
+	.id		= -1,
+	.num_resources	= ARRAY_SIZE(vpac270_dm9000_resources),
+	.resource	= vpac270_dm9000_resources,
+	.dev		= {
+		.platform_data = &vpac270_dm9000_platdata,
+	}
+};
+
+static void __init vpac270_eth_init(void)
+{
+	platform_device_register(&vpac270_dm9000_device);
+}
+#else
+static inline void vpac270_eth_init(void) {}
+#endif
+
+/******************************************************************************
  * Framebuffer
  ******************************************************************************/
 #if defined(CONFIG_FB_PXA) || defined(CONFIG_FB_PXA_MODULE)
@@ -390,6 +438,7 @@ static void __init vpac270_init(void)
 	vpac270_keys_init();
 	vpac270_uhc_init();
 	vpac270_udc_init();
+	vpac270_eth_init();
 }
 
 MACHINE_START(VPAC270, "Voipac PXA270")
