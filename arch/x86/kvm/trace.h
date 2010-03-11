@@ -219,6 +219,38 @@ TRACE_EVENT(kvm_inj_virq,
 	TP_printk("irq %u", __entry->irq)
 );
 
+#define EXS(x) { x##_VECTOR, "#" #x }
+
+#define kvm_trace_sym_exc						\
+	EXS(DE), EXS(DB), EXS(BP), EXS(OF), EXS(BR), EXS(UD), EXS(NM),	\
+	EXS(DF), EXS(TS), EXS(NP), EXS(SS), EXS(GP), EXS(PF),		\
+	EXS(MF), EXS(MC)
+
+/*
+ * Tracepoint for kvm interrupt injection:
+ */
+TRACE_EVENT(kvm_inj_exception,
+	TP_PROTO(unsigned exception, bool has_error, unsigned error_code),
+	TP_ARGS(exception, has_error, error_code),
+
+	TP_STRUCT__entry(
+		__field(	u8,	exception	)
+		__field(	u8,	has_error	)
+		__field(	u32,	error_code	)
+	),
+
+	TP_fast_assign(
+		__entry->exception	= exception;
+		__entry->has_error	= has_error;
+		__entry->error_code	= error_code;
+	),
+
+	TP_printk("%s (0x%x)",
+		  __print_symbolic(__entry->exception, kvm_trace_sym_exc),
+		  /* FIXME: don't print error_code if not present */
+		  __entry->has_error ? __entry->error_code : 0)
+);
+
 /*
  * Tracepoint for page fault.
  */
