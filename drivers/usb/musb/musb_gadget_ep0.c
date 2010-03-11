@@ -199,7 +199,6 @@ service_in_request(struct musb *musb, const struct usb_ctrlrequest *ctrlrequest)
 static void musb_g_ep0_giveback(struct musb *musb, struct usb_request *req)
 {
 	musb_g_giveback(&musb->endpoints[0].ep_in, req, 0);
-	musb->ep0_state = MUSB_EP0_STAGE_SETUP;
 }
 
 /*
@@ -648,7 +647,7 @@ irqreturn_t musb_g_ep0_irq(struct musb *musb)
 			musb->ep0_state = MUSB_EP0_STAGE_STATUSIN;
 			break;
 		default:
-			ERR("SetupEnd came in a wrong ep0stage %s",
+			ERR("SetupEnd came in a wrong ep0stage %s\n",
 			    decode_ep0stage(musb->ep0_state));
 		}
 		csr = musb_readw(regs, MUSB_CSR0);
@@ -771,12 +770,18 @@ setup:
 				handled = service_zero_data_request(
 						musb, &setup);
 
+				/*
+				 * We're expecting no data in any case, so
+				 * always set the DATAEND bit -- doing this
+				 * here helps avoid SetupEnd interrupt coming
+				 * in the idle stage when we're stalling...
+				 */
+				musb->ackpend |= MUSB_CSR0_P_DATAEND;
+
 				/* status stage might be immediate */
-				if (handled > 0) {
-					musb->ackpend |= MUSB_CSR0_P_DATAEND;
+				if (handled > 0)
 					musb->ep0_state =
 						MUSB_EP0_STAGE_STATUSIN;
-				}
 				break;
 
 			/* sequence #1 (IN to host), includes GET_STATUS

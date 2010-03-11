@@ -901,8 +901,9 @@ int get_sb_single(struct file_system_type *fs_type,
 			return error;
 		}
 		s->s_flags |= MS_ACTIVE;
+	} else {
+		do_remount_sb(s, flags, data, 0);
 	}
-	do_remount_sb(s, flags, data, 0);
 	simple_set_mnt(mnt, s);
 	return 0;
 }

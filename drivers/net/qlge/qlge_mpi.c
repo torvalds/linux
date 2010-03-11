@@ -446,6 +446,9 @@ static int ql_mpi_handler(struct ql_adapter *qdev, struct mbox_params *mbcp)
 		ql_aen_lost(qdev, mbcp);
 		break;
 
+	case AEN_DCBX_CHG:
+		/* Need to support AEN 8110 */
+		break;
 	default:
 		QPRINTK(qdev, DRV, ERR,
 			"Unsupported AE %.08x.\n", mbcp->mbox_out[0]);

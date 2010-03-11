@@ -1357,6 +1357,9 @@ int acpi_bus_start(struct acpi_device *device)
 {
 	struct acpi_bus_ops ops;
 
+	if (!device)
+		return -EINVAL;
+
 	memset(&ops, 0, sizeof(ops));
 	ops.acpi_op_start = 1;
 

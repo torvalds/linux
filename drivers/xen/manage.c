@@ -43,7 +43,6 @@ static int xen_suspend(void *data)
 	if (err) {
 		printk(KERN_ERR "xen_suspend: sysdev_suspend failed: %d\n",
 			err);
-		dpm_resume_noirq(PMSG_RESUME);
 		return err;
 	}
 
@@ -69,7 +68,6 @@ static int xen_suspend(void *data)
 	}
 
 	sysdev_resume();
-	dpm_resume_noirq(PMSG_RESUME);
 
 	return 0;
 }
@@ -81,6 +79,12 @@ static void do_suspend(void)
 
 	shutting_down = SHUTDOWN_SUSPEND;
 
+	err = stop_machine_create();
+	if (err) {
+		printk(KERN_ERR "xen suspend: failed to setup stop_machine %d\n", err);
+		goto out;
+	}
+
 #ifdef CONFIG_PREEMPT
 	/* If the kernel is preemptible, we need to freeze all the processes
 	   to prevent them from being in the middle of a pagetable update
@@ -88,14 +92,14 @@ static void do_suspend(void)
 	err = freeze_processes();
 	if (err) {
 		printk(KERN_ERR "xen suspend: freeze failed %d\n", err);
-		return;
+		goto out_destroy_sm;
 	}
 #endif
 
 	err = dpm_suspend_start(PMSG_SUSPEND);
 	if (err) {
 		printk(KERN_ERR "xen suspend: dpm_suspend_start %d\n", err);
-		goto out;
+		goto out_thaw;
 	}
 
 	printk(KERN_DEBUG "suspending xenstore...\n");
@@ -104,32 +108,39 @@ static void do_suspend(void)
 	err = dpm_suspend_noirq(PMSG_SUSPEND);
 	if (err) {
 		printk(KERN_ERR "dpm_suspend_noirq failed: %d\n", err);
-		goto resume_devices;
+		goto out_resume;
 	}
 
 	err = stop_machine(xen_suspend, &cancelled, cpumask_of(0));
+
+	dpm_resume_noirq(PMSG_RESUME);
+
 	if (err) {
 		printk(KERN_ERR "failed to start xen_suspend: %d\n", err);
-		goto out;
+		cancelled = 1;
 	}
 
+out_resume:
 	if (!cancelled) {
 		xen_arch_resume();
 		xs_resume();
 	} else
 		xs_suspend_cancel();
 
-	dpm_resume_noirq(PMSG_RESUME);
-
-resume_devices:
 	dpm_resume_end(PMSG_RESUME);
 
 	/* Make sure timer events get retriggered on all CPUs */
 	clock_was_set();
-out:
+
+out_thaw:
 #ifdef CONFIG_PREEMPT
 	thaw_processes();
+
+out_destroy_sm:
 #endif
+	stop_machine_destroy();
+
+out:
 	shutting_down = SHUTDOWN_INVALID;
 }
 #endif	/* CONFIG_PM_SLEEP */

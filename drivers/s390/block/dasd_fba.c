@@ -141,9 +141,8 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	}
 	block = dasd_alloc_block();
 	if (IS_ERR(block)) {
-		DBF_EVENT(DBF_WARNING, "could not allocate dasd block "
-			  "structure for device: %s",
-			  dev_name(&device->cdev->dev));
+		DBF_EVENT_DEVID(DBF_WARNING, cdev, "%s", "could not allocate "
+				"dasd block structure");
 		device->private = NULL;
 		kfree(private);
 		return PTR_ERR(block);
@@ -155,9 +154,8 @@ dasd_fba_check_characteristics(struct dasd_device *device)
 	rc = dasd_generic_read_dev_chars(device, DASD_FBA_MAGIC,
 					 &private->rdc_data, 32);
 	if (rc) {
-		DBF_EVENT(DBF_WARNING, "Read device characteristics returned "
-			  "error %d for device: %s",
-			  rc, dev_name(&device->cdev->dev));
+		DBF_EVENT_DEVID(DBF_WARNING, cdev, "Read device "
+				"characteristics returned error %d", rc);
 		device->block = NULL;
 		dasd_free_block(block);
 		device->private = NULL;

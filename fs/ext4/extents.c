@@ -1761,7 +1761,9 @@ int ext4_ext_walk_space(struct inode *inode, ext4_lblk_t block,
 	while (block < last && block != EXT_MAX_BLOCK) {
 		num = last - block;
 		/* find extent for this block */
+		down_read(&EXT4_I(inode)->i_data_sem);
 		path = ext4_ext_find_extent(inode, block, path);
+		up_read(&EXT4_I(inode)->i_data_sem);
 		if (IS_ERR(path)) {
 			err = PTR_ERR(path);
 			path = NULL;
@@ -2074,7 +2076,7 @@ static int ext4_remove_blocks(handle_t *handle, struct inode *inode,
 		ext_debug("free last %u blocks starting %llu\n", num, start);
 		for (i = 0; i < num; i++) {
 			bh = sb_find_get_block(inode->i_sb, start + i);
-			ext4_forget(handle, 0, inode, bh, start + i);
+			ext4_forget(handle, metadata, inode, bh, start + i);
 		}
 		ext4_free_blocks(handle, inode, start, num, metadata);
 	} else if (from == le32_to_cpu(ex->ee_block)
@@ -2167,7 +2169,7 @@ ext4_ext_rm_leaf(handle_t *handle, struct inode *inode,
 			correct_index = 1;
 			credits += (ext_depth(inode)) + 1;
 		}
-		credits += 2 * EXT4_QUOTA_TRANS_BLOCKS(inode->i_sb);
+		credits += EXT4_MAXQUOTAS_TRANS_BLOCKS(inode->i_sb);
 
 		err = ext4_ext_truncate_extend_restart(handle, inode, credits);
 		if (err)
@@ -3064,6 +3066,8 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 	if (flags == EXT4_GET_BLOCKS_DIO_CONVERT_EXT) {
 		ret = ext4_convert_unwritten_extents_dio(handle, inode,
 							path);
+		if (ret >= 0)
+			ext4_update_inode_fsync_trans(handle, inode, 1);
 		goto out2;
 	}
 	/* buffered IO case */
@@ -3091,6 +3095,8 @@ ext4_ext_handle_uninitialized_extents(handle_t *handle, struct inode *inode,
 	ret = ext4_ext_convert_to_initialized(handle, inode,
 						path, iblock,
 						max_blocks);
+	if (ret >= 0)
+		ext4_update_inode_fsync_trans(handle, inode, 1);
 out:
 	if (ret <= 0) {
 		err = ret;
@@ -3329,10 +3335,16 @@ int ext4_ext_get_blocks(handle_t *handle, struct inode *inode,
 	allocated = ext4_ext_get_actual_len(&newex);
 	set_buffer_new(bh_result);
 
-	/* Cache only when it is _not_ an uninitialized extent */
-	if ((flags & EXT4_GET_BLOCKS_UNINIT_EXT) == 0)
+	/*
+	 * Cache the extent and update transaction to commit on fdatasync only
+	 * when it is _not_ an uninitialized extent.
+	 */
+	if ((flags & EXT4_GET_BLOCKS_UNINIT_EXT) == 0) {
 		ext4_ext_put_in_cache(inode, iblock, allocated, newblock,
 						EXT4_EXT_CACHE_EXTENT);
+		ext4_update_inode_fsync_trans(handle, inode, 1);
+	} else
+		ext4_update_inode_fsync_trans(handle, inode, 0);
 out:
 	if (allocated > max_blocks)
 		allocated = max_blocks;
@@ -3720,10 +3732,8 @@ int ext4_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		 * Walk the extent tree gathering extent information.
 		 * ext4_ext_fiemap_cb will push extents back to user.
 		 */
-		down_read(&EXT4_I(inode)->i_data_sem);
 		error = ext4_ext_walk_space(inode, start_blk, len_blks,
 					  ext4_ext_fiemap_cb, fieinfo);
-		up_read(&EXT4_I(inode)->i_data_sem);
 	}
 
 	return error;

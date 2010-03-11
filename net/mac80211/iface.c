@@ -15,12 +15,14 @@
 #include <linux/netdevice.h>
 #include <linux/rtnetlink.h>
 #include <net/mac80211.h>
+#include <net/ieee80211_radiotap.h>
 #include "ieee80211_i.h"
 #include "sta_info.h"
 #include "debugfs_netdev.h"
 #include "mesh.h"
 #include "led.h"
 #include "driver-ops.h"
+#include "wme.h"
 
 /**
  * DOC: Interface list locking
@@ -642,6 +644,12 @@ static void ieee80211_teardown_sdata(struct net_device *dev)
 	WARN_ON(flushed);
 }
 
+static u16 ieee80211_netdev_select_queue(struct net_device *dev,
+					 struct sk_buff *skb)
+{
+	return ieee80211_select_queue(IEEE80211_DEV_TO_SUB_IF(dev), skb);
+}
+
 static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_open		= ieee80211_open,
 	.ndo_stop		= ieee80211_stop,
@@ -650,7 +658,34 @@ static const struct net_device_ops ieee80211_dataif_ops = {
 	.ndo_set_multicast_list = ieee80211_set_multicast_list,
 	.ndo_change_mtu 	= ieee80211_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_select_queue	= ieee80211_netdev_select_queue,
 };
+
+static u16 ieee80211_monitor_select_queue(struct net_device *dev,
+					  struct sk_buff *skb)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_hdr *hdr;
+	struct ieee80211_radiotap_header *rtap = (void *)skb->data;
+
+	if (local->hw.queues < 4)
+		return 0;
+
+	if (skb->len < 4 ||
+	    skb->len < le16_to_cpu(rtap->it_len) + 2 /* frame control */)
+		return 0; /* doesn't matter, frame will be dropped */
+
+	hdr = (void *)((u8 *)skb->data + le16_to_cpu(rtap->it_len));
+
+	if (!ieee80211_is_data(hdr->frame_control)) {
+		skb->priority = 7;
+		return ieee802_1d_to_ac[skb->priority];
+	}
+
+	skb->priority = 0;
+	return ieee80211_downgrade_queue(local, skb);
+}
 
 static const struct net_device_ops ieee80211_monitorif_ops = {
 	.ndo_open		= ieee80211_open,
@@ -660,6 +695,7 @@ static const struct net_device_ops ieee80211_monitorif_ops = {
 	.ndo_set_multicast_list = ieee80211_set_multicast_list,
 	.ndo_change_mtu 	= ieee80211_change_mtu,
 	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_select_queue	= ieee80211_monitor_select_queue,
 };
 
 static void ieee80211_if_setup(struct net_device *dev)
@@ -768,8 +804,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	ASSERT_RTNL();
 
-	ndev = alloc_netdev(sizeof(*sdata) + local->hw.vif_data_size,
-			    name, ieee80211_if_setup);
+	ndev = alloc_netdev_mq(sizeof(*sdata) + local->hw.vif_data_size,
+			       name, ieee80211_if_setup, local->hw.queues);
 	if (!ndev)
 		return -ENOMEM;
 	dev_net_set(ndev, wiphy_net(local->hw.wiphy));

@@ -147,6 +147,8 @@
 #define MAX_CS_COUNT			8
 #define DRAM_REG_COUNT			8
 
+#define ON true
+#define OFF false
 
 /*
  * PCI-defined configuration space registers
@@ -386,10 +388,7 @@ enum {
 #define K8_NBCAP_DUAL_NODE		BIT(1)
 #define K8_NBCAP_DCT_DUAL		BIT(0)
 
-/*
- * MSR Regs
- */
-#define K8_MSR_MCGCTL			0x017b
+/* MSRs */
 #define K8_MSR_MCGCTL_NBE		BIT(4)
 
 #define K8_MSR_MC4CTL			0x0410
@@ -487,7 +486,6 @@ struct amd64_pvt {
 	/* Save old hw registers' values before we modified them */
 	u32 nbctl_mcgctl_saved;		/* When true, following 2 are valid */
 	u32 old_nbctl;
-	unsigned long old_mcgctl;	/* per core on this node */
 
 	/* MC Type Index value: socket F vs Family 10h */
 	u32 mc_type_index;
@@ -495,6 +493,7 @@ struct amd64_pvt {
 	/* misc settings */
 	struct flags {
 		unsigned long cf8_extcfg:1;
+		unsigned long ecc_report:1;
 	} flags;
 };
 

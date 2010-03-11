@@ -379,23 +379,23 @@ static int wm8940_i2s_hw_params(struct snd_pcm_substream *substream,
 		iface |= (1 << 9);
 
 	switch (params_rate(params)) {
-	case SNDRV_PCM_RATE_8000:
+	case 8000:
 		addcntrl |= (0x5 << 1);
 		break;
-	case SNDRV_PCM_RATE_11025:
+	case 11025:
 		addcntrl |= (0x4 << 1);
 		break;
-	case SNDRV_PCM_RATE_16000:
+	case 16000:
 		addcntrl |= (0x3 << 1);
 		break;
-	case SNDRV_PCM_RATE_22050:
+	case 22050:
 		addcntrl |= (0x2 << 1);
 		break;
-	case SNDRV_PCM_RATE_32000:
+	case 32000:
 		addcntrl |= (0x1 << 1);
 		break;
-	case SNDRV_PCM_RATE_44100:
-	case SNDRV_PCM_RATE_48000:
+	case 44100:
+	case 48000:
 		break;
 	}
 	ret = snd_soc_write(codec, WM8940_ADDCNTRL, addcntrl);

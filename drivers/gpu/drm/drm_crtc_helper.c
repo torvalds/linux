@@ -1020,6 +1020,9 @@ bool drm_helper_initial_config(struct drm_device *dev)
 {
 	int count = 0;
 
+	/* disable all the possible outputs/crtcs before entering KMS mode */
+	drm_helper_disable_unused_functions(dev);
+
 	drm_fb_helper_parse_command_line(dev);
 
 	count = drm_helper_probe_connector_modes(dev,

@@ -67,10 +67,12 @@ static inline void i8042_write_command(int val)
 
 #include <linux/dmi.h>
 
-static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
+static const struct dmi_system_id __initconst i8042_dmi_noloop_table[] = {
 	{
-		/* AUX LOOP command does not raise AUX IRQ */
-		.ident = "Arima-Rioworks HDAMB",
+		/*
+		 * Arima-Rioworks HDAMB -
+		 * AUX LOOP command does not raise AUX IRQ
+		 */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "RIOWORKS"),
 			DMI_MATCH(DMI_BOARD_NAME, "HDAMB"),
@@ -78,7 +80,7 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		.ident = "ASUS G1S",
+		/* ASUS G1S */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer Inc."),
 			DMI_MATCH(DMI_BOARD_NAME, "G1S"),
@@ -86,8 +88,7 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		/* AUX LOOP command does not raise AUX IRQ */
-		.ident = "ASUS P65UP5",
+		/* ASUS P65UP5 - AUX LOOP command does not raise AUX IRQ */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_VENDOR, "ASUSTeK Computer INC."),
 			DMI_MATCH(DMI_BOARD_NAME, "P/I-P65UP5"),
@@ -95,7 +96,6 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		.ident = "Compaq Proliant 8500",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Compaq"),
 			DMI_MATCH(DMI_PRODUCT_NAME , "ProLiant"),
@@ -103,7 +103,6 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		.ident = "Compaq Proliant DL760",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Compaq"),
 			DMI_MATCH(DMI_PRODUCT_NAME , "ProLiant"),
@@ -111,7 +110,7 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		.ident = "OQO Model 01",
+		/* OQO Model 01 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "OQO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "ZEPTO"),
@@ -119,8 +118,7 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		/* AUX LOOP does not work properly */
-		.ident = "ULI EV4873",
+		/* ULI EV4873 - AUX LOOP does not work properly */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ULI"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "EV4873"),
@@ -128,7 +126,7 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		.ident = "Microsoft Virtual Machine",
+		/* Microsoft Virtual Machine */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Virtual Machine"),
@@ -136,7 +134,7 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		.ident = "Medion MAM 2070",
+		/* Medion MAM 2070 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Notebook"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MAM 2070"),
@@ -144,7 +142,7 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		.ident = "Blue FB5601",
+		/* Blue FB5601 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "blue"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "FB5601"),
@@ -152,7 +150,7 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		.ident = "Gigabyte M912",
+		/* Gigabyte M912 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "GIGABYTE"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "M912"),
@@ -160,7 +158,14 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
 		},
 	},
 	{
-		.ident = "HP DV9700",
+		/* Gigabyte M1022M netbook */
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "Gigabyte Technology Co.,Ltd."),
+			DMI_MATCH(DMI_BOARD_NAME, "M1022E"),
+			DMI_MATCH(DMI_BOARD_VERSION, "1.02"),
+		},
+	},
+	{
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion dv9700"),
@@ -177,72 +182,72 @@ static struct dmi_system_id __initdata i8042_dmi_noloop_table[] = {
  * ... apparently some Toshibas don't like MUX mode either and
  * die horrible death on reboot.
  */
-static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
+static const struct dmi_system_id __initconst i8042_dmi_nomux_table[] = {
 	{
-		.ident = "Fujitsu Lifebook P7010/P7010D",
+		/* Fujitsu Lifebook P7010/P7010D */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "P7010"),
 		},
 	},
 	{
-		.ident = "Fujitsu Lifebook P7010",
+		/* Fujitsu Lifebook P7010 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "0000000000"),
 		},
 	},
 	{
-		.ident = "Fujitsu Lifebook P5020D",
+		/* Fujitsu Lifebook P5020D */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook P Series"),
 		},
 	},
 	{
-		.ident = "Fujitsu Lifebook S2000",
+		/* Fujitsu Lifebook S2000 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook S Series"),
 		},
 	},
 	{
-		.ident = "Fujitsu Lifebook S6230",
+		/* Fujitsu Lifebook S6230 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LifeBook S6230"),
 		},
 	},
 	{
-		.ident = "Fujitsu T70H",
+		/* Fujitsu T70H */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "FMVLT70H"),
 		},
 	},
 	{
-		.ident = "Fujitsu-Siemens Lifebook T3010",
+		/* Fujitsu-Siemens Lifebook T3010 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK T3010"),
 		},
 	},
 	{
-		.ident = "Fujitsu-Siemens Lifebook E4010",
+		/* Fujitsu-Siemens Lifebook E4010 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "LIFEBOOK E4010"),
 		},
 	},
 	{
-		.ident = "Fujitsu-Siemens Amilo Pro 2010",
+		/* Fujitsu-Siemens Amilo Pro 2010 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Pro V2010"),
 		},
 	},
 	{
-		.ident = "Fujitsu-Siemens Amilo Pro 2030",
+		/* Fujitsu-Siemens Amilo Pro 2030 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO PRO V2030"),
@@ -253,7 +258,7 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 		 * No data is coming from the touchscreen unless KBC
 		 * is in legacy mode.
 		 */
-		.ident = "Panasonic CF-29",
+		/* Panasonic CF-29 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Matsushita"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "CF-29"),
@@ -261,10 +266,10 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 	},
 	{
 		/*
-		 * Errors on MUX ports are reported without raising AUXDATA
+		 * HP Pavilion DV4017EA -
+		 * errors on MUX ports are reported without raising AUXDATA
 		 * causing "spurious NAK" messages.
 		 */
-		.ident = "HP Pavilion DV4017EA",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Pavilion dv4000 (EA032EA#ABF)"),
@@ -272,9 +277,9 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 	},
 	{
 		/*
-		 * Like DV4017EA does not raise AUXERR for errors on MUX ports.
+		 * HP Pavilion ZT1000 -
+		 * like DV4017EA does not raise AUXERR for errors on MUX ports.
 		 */
-		.ident = "HP Pavilion ZT1000",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion Notebook PC"),
@@ -283,44 +288,41 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 	},
 	{
 		/*
-		 * Like DV4017EA does not raise AUXERR for errors on MUX ports.
+		 * HP Pavilion DV4270ca -
+		 * like DV4017EA does not raise AUXERR for errors on MUX ports.
 		 */
-		.ident = "HP Pavilion DV4270ca",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Hewlett-Packard"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Pavilion dv4000 (EH476UA#ABL)"),
 		},
 	},
 	{
-		.ident = "Toshiba P10",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Satellite P10"),
 		},
 	},
 	{
-		.ident = "Toshiba Equium A110",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "TOSHIBA"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "EQUIUM A110"),
 		},
 	},
 	{
-		.ident = "Alienware Sentia",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "ALIENWARE"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Sentia"),
 		},
 	},
 	{
-		.ident = "Sharp Actius MM20",
+		/* Sharp Actius MM20 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "SHARP"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "PC-MM20 Series"),
 		},
 	},
 	{
-		.ident = "Sony Vaio FS-115b",
+		/* Sony Vaio FS-115b */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "VGN-FS115B"),
@@ -328,73 +330,72 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 	},
 	{
 		/*
-		 * Reset and GET ID commands issued via KBD port are
+		 * Sony Vaio FZ-240E -
+		 * reset and GET ID commands issued via KBD port are
 		 * sometimes being delivered to AUX3.
 		 */
-		.ident = "Sony Vaio FZ-240E",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Sony Corporation"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "VGN-FZ240E"),
 		},
 	},
 	{
-		.ident = "Amoi M636/A737",
+		/* Amoi M636/A737 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Amoi Electronics CO.,LTD."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "M636/A737 platform"),
 		},
 	},
 	{
-		.ident = "Lenovo 3000 n100",
+		/* Lenovo 3000 n100 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "076804U"),
 		},
 	},
 	{
-		.ident = "Acer Aspire 1360",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 1360"),
 		},
 	},
 	{
-		.ident = "Gericom Bellagio",
+		/* Gericom Bellagio */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Gericom"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "N34AS6"),
 		},
 	},
 	{
-		.ident = "IBM 2656",
+		/* IBM 2656 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "IBM"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "2656"),
 		},
 	},
 	{
-		.ident = "Dell XPS M1530",
+		/* Dell XPS M1530 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "XPS M1530"),
 		},
 	},
 	{
-		.ident = "Compal HEL80I",
+		/* Compal HEL80I */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "COMPAL"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "HEL80I"),
 		},
 	},
 	{
-		.ident = "Dell Vostro 1510",
+		/* Dell Vostro 1510 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro1510"),
 		},
 	},
 	{
-		.ident = "Acer Aspire 5536",
+		/* Acer Aspire 5536 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5536"),
@@ -404,65 +405,65 @@ static struct dmi_system_id __initdata i8042_dmi_nomux_table[] = {
 	{ }
 };
 
-static struct dmi_system_id __initdata i8042_dmi_reset_table[] = {
+static const struct dmi_system_id __initconst i8042_dmi_reset_table[] = {
 	{
-		.ident = "MSI Wind U-100",
+		/* MSI Wind U-100 */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "U-100"),
 			DMI_MATCH(DMI_BOARD_VENDOR, "MICRO-STAR INTERNATIONAL CO., LTD"),
 		},
 	},
 	{
-		.ident = "LG Electronics X110",
+		/* LG Electronics X110 */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "X110"),
 			DMI_MATCH(DMI_BOARD_VENDOR, "LG Electronics Inc."),
 		},
 	},
 	{
-		.ident = "Acer Aspire One 150",
+		/* Acer Aspire One 150 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "AOA150"),
 		},
 	},
 	{
-		.ident = "Advent 4211",
+		/* Advent 4211 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "DIXONSXP"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Advent 4211"),
 		},
 	},
 	{
-		.ident = "Medion Akoya Mini E1210",
+		/* Medion Akoya Mini E1210 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "E1210"),
 		},
 	},
 	{
-		.ident = "Mivvy M310",
+		/* Mivvy M310 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "VIOOO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "N10"),
 		},
 	},
 	{
-		.ident = "Dell Vostro 1320",
+		/* Dell Vostro 1320 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 1320"),
 		},
 	},
 	{
-		.ident = "Dell Vostro 1520",
+		/* Dell Vostro 1520 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 1520"),
 		},
 	},
 	{
-		.ident = "Dell Vostro 1720",
+		/* Dell Vostro 1720 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Vostro 1720"),
@@ -472,16 +473,16 @@ static struct dmi_system_id __initdata i8042_dmi_reset_table[] = {
 };
 
 #ifdef CONFIG_PNP
-static struct dmi_system_id __initdata i8042_dmi_nopnp_table[] = {
+static const struct dmi_system_id __initconst i8042_dmi_nopnp_table[] = {
 	{
-		.ident = "Intel MBO Desktop D845PESV",
+		/* Intel MBO Desktop D845PESV */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "D845PESV"),
 			DMI_MATCH(DMI_BOARD_VENDOR, "Intel Corporation"),
 		},
 	},
 	{
-		.ident = "MSI Wind U-100",
+		/* MSI Wind U-100 */
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "U-100"),
 			DMI_MATCH(DMI_BOARD_VENDOR, "MICRO-STAR INTERNATIONAL CO., LTD"),
@@ -490,27 +491,23 @@ static struct dmi_system_id __initdata i8042_dmi_nopnp_table[] = {
 	{ }
 };
 
-static struct dmi_system_id __initdata i8042_dmi_laptop_table[] = {
+static const struct dmi_system_id __initconst i8042_dmi_laptop_table[] = {
 	{
-		.ident = "Portable",
 		.matches = {
 			DMI_MATCH(DMI_CHASSIS_TYPE, "8"), /* Portable */
 		},
 	},
 	{
-		.ident = "Laptop",
 		.matches = {
 			DMI_MATCH(DMI_CHASSIS_TYPE, "9"), /* Laptop */
 		},
 	},
 	{
-		.ident = "Notebook",
 		.matches = {
 			DMI_MATCH(DMI_CHASSIS_TYPE, "10"), /* Notebook */
 		},
 	},
 	{
-		.ident = "Sub-Notebook",
 		.matches = {
 			DMI_MATCH(DMI_CHASSIS_TYPE, "14"), /* Sub-Notebook */
 		},
@@ -525,58 +522,65 @@ static struct dmi_system_id __initdata i8042_dmi_laptop_table[] = {
  * Originally, this was just confined to older laptops, but a few Acer laptops
  * have turned up in 2007 that also need this again.
  */
-static struct dmi_system_id __initdata i8042_dmi_dritek_table[] = {
+static const struct dmi_system_id __initconst i8042_dmi_dritek_table[] = {
 	{
-		.ident = "Acer Aspire 5630",
+		/* Acer Aspire 5610 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5610"),
+		},
+	},
+	{
+		/* Acer Aspire 5630 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5630"),
 		},
 	},
 	{
-		.ident = "Acer Aspire 5650",
+		/* Acer Aspire 5650 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5650"),
 		},
 	},
 	{
-		.ident = "Acer Aspire 5680",
+		/* Acer Aspire 5680 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5680"),
 		},
 	},
 	{
-		.ident = "Acer Aspire 5720",
+		/* Acer Aspire 5720 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 5720"),
 		},
 	},
 	{
-		.ident = "Acer Aspire 9110",
+		/* Acer Aspire 9110 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "Aspire 9110"),
 		},
 	},
 	{
-		.ident = "Acer TravelMate 660",
+		/* Acer TravelMate 660 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 660"),
 		},
 	},
 	{
-		.ident = "Acer TravelMate 2490",
+		/* Acer TravelMate 2490 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 2490"),
 		},
 	},
 	{
-		.ident = "Acer TravelMate 4280",
+		/* Acer TravelMate 4280 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 4280"),

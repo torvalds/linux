@@ -153,8 +153,8 @@ journal_dev=devnum	When the external journal device's major/minor numbers
 			identified through its new major/minor numbers encoded
 			in devnum.
 
-noload			Don't load the journal on mounting.  Note that
-                     	if the filesystem was not unmounted cleanly,
+norecovery		Don't load the journal on mounting.  Note that
+noload			if the filesystem was not unmounted cleanly,
                      	skipping the journal replay will lead to the
                      	filesystem containing inconsistencies that can
                      	lead to any number of problems.
@@ -196,7 +196,7 @@ nobarrier		This also requires an IO stack which can support
 			also be used to enable or disable barriers, for
 			consistency with other ext4 mount options.
 
-inode_readahead=n	This tuning parameter controls the maximum
+inode_readahead_blks=n	This tuning parameter controls the maximum
 			number of inode table blocks that ext4's inode
 			table readahead algorithm will pre-read into
 			the buffer cache.  The default value is 32 blocks.
@@ -352,6 +352,12 @@ noauto_da_alloc		replacing existing files via patterns such as
 			"zero-length" problem that can happen when a
 			system crashes before the delayed allocation
 			blocks are forced to disk.
+
+discard		Controls whether ext4 should issue discard/TRIM
+nodiscard(*)		commands to the underlying block device when
+			blocks are freed.  This is useful for SSD devices
+			and sparse/thinly-provisioned LUNs, but it is off
+			by default until sufficient testing has been done.
 
 Data Mode
 =========

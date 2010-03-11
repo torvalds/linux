@@ -31,20 +31,20 @@
  *		  contiguous (although various IO spaces may punch holes in
  *		  it)..
  *
- * 	N	- Number of bits in the node portion of a socket physical
- * 		  address.
+ *	N	- Number of bits in the node portion of a socket physical
+ *		  address.
  *
- * 	NASID   - network ID of a router, Mbrick or Cbrick. Nasid values of
- * 	 	  routers always have low bit of 1, C/MBricks have low bit
- * 		  equal to 0. Most addressing macros that target UV hub chips
- * 		  right shift the NASID by 1 to exclude the always-zero bit.
- * 		  NASIDs contain up to 15 bits.
+ *	NASID   - network ID of a router, Mbrick or Cbrick. Nasid values of
+ *		  routers always have low bit of 1, C/MBricks have low bit
+ *		  equal to 0. Most addressing macros that target UV hub chips
+ *		  right shift the NASID by 1 to exclude the always-zero bit.
+ *		  NASIDs contain up to 15 bits.
  *
  *	GNODE   - NASID right shifted by 1 bit. Most mmrs contain gnodes instead
  *		  of nasids.
  *
- * 	PNODE   - the low N bits of the GNODE. The PNODE is the most useful variant
- * 		  of the nasid for socket usage.
+ *	PNODE   - the low N bits of the GNODE. The PNODE is the most useful variant
+ *		  of the nasid for socket usage.
  *
  *
  *  NumaLink Global Physical Address Format:
@@ -71,12 +71,12 @@
  *
  *
  * APICID format
- * 	NOTE!!!!!! This is the current format of the APICID. However, code
- * 	should assume that this will change in the future. Use functions
- * 	in this file for all APICID bit manipulations and conversion.
+ *	NOTE!!!!!! This is the current format of the APICID. However, code
+ *	should assume that this will change in the future. Use functions
+ *	in this file for all APICID bit manipulations and conversion.
  *
- * 		1111110000000000
- * 		5432109876543210
+ *		1111110000000000
+ *		5432109876543210
  *		pppppppppplc0cch
  *		sssssssssss
  *
@@ -89,9 +89,9 @@
  *	Note: Processor only supports 12 bits in the APICID register. The ACPI
  *	      tables hold all 16 bits. Software needs to be aware of this.
  *
- * 	      Unless otherwise specified, all references to APICID refer to
- * 	      the FULL value contained in ACPI tables, not the subset in the
- * 	      processor APICID register.
+ *	      Unless otherwise specified, all references to APICID refer to
+ *	      the FULL value contained in ACPI tables, not the subset in the
+ *	      processor APICID register.
  */
 
 
@@ -151,16 +151,16 @@ struct uv_hub_info_s {
 };
 
 DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
-#define uv_hub_info 		(&__get_cpu_var(__uv_hub_info))
+#define uv_hub_info		(&__get_cpu_var(__uv_hub_info))
 #define uv_cpu_hub_info(cpu)	(&per_cpu(__uv_hub_info, cpu))
 
 /*
  * Local & Global MMR space macros.
- * 	Note: macros are intended to be used ONLY by inline functions
- * 	in this file - not by other kernel code.
- * 		n -  NASID (full 15-bit global nasid)
- * 		g -  GNODE (full 15-bit global nasid, right shifted 1)
- * 		p -  PNODE (local part of nsids, right shifted 1)
+ *	Note: macros are intended to be used ONLY by inline functions
+ *	in this file - not by other kernel code.
+ *		n -  NASID (full 15-bit global nasid)
+ *		g -  GNODE (full 15-bit global nasid, right shifted 1)
+ *		p -  PNODE (local part of nsids, right shifted 1)
  */
 #define UV_NASID_TO_PNODE(n)		(((n) >> 1) & uv_hub_info->pnode_mask)
 #define UV_PNODE_TO_GNODE(p)		((p) |uv_hub_info->gnode_extra)
@@ -213,8 +213,8 @@ DECLARE_PER_CPU(struct uv_hub_info_s, __uv_hub_info);
 /*
  * Macros for converting between kernel virtual addresses, socket local physical
  * addresses, and UV global physical addresses.
- * 	Note: use the standard __pa() & __va() macros for converting
- * 	      between socket virtual and socket physical addresses.
+ *	Note: use the standard __pa() & __va() macros for converting
+ *	      between socket virtual and socket physical addresses.
  */
 
 /* socket phys RAM --> UV global physical address */
@@ -265,21 +265,18 @@ static inline int uv_apicid_to_pnode(int apicid)
  * Access global MMRs using the low memory MMR32 space. This region supports
  * faster MMR access but not all MMRs are accessible in this space.
  */
-static inline unsigned long *uv_global_mmr32_address(int pnode,
-				unsigned long offset)
+static inline unsigned long *uv_global_mmr32_address(int pnode, unsigned long offset)
 {
 	return __va(UV_GLOBAL_MMR32_BASE |
 		       UV_GLOBAL_MMR32_PNODE_BITS(pnode) | offset);
 }
 
-static inline void uv_write_global_mmr32(int pnode, unsigned long offset,
-				 unsigned long val)
+static inline void uv_write_global_mmr32(int pnode, unsigned long offset, unsigned long val)
 {
 	writeq(val, uv_global_mmr32_address(pnode, offset));
 }
 
-static inline unsigned long uv_read_global_mmr32(int pnode,
-						 unsigned long offset)
+static inline unsigned long uv_read_global_mmr32(int pnode, unsigned long offset)
 {
 	return readq(uv_global_mmr32_address(pnode, offset));
 }
@@ -288,23 +285,30 @@ static inline unsigned long uv_read_global_mmr32(int pnode,
  * Access Global MMR space using the MMR space located at the top of physical
  * memory.
  */
-static inline unsigned long *uv_global_mmr64_address(int pnode,
-				unsigned long offset)
+static inline unsigned long *uv_global_mmr64_address(int pnode, unsigned long offset)
 {
 	return __va(UV_GLOBAL_MMR64_BASE |
 		    UV_GLOBAL_MMR64_PNODE_BITS(pnode) | offset);
 }
 
-static inline void uv_write_global_mmr64(int pnode, unsigned long offset,
-				unsigned long val)
+static inline void uv_write_global_mmr64(int pnode, unsigned long offset, unsigned long val)
 {
 	writeq(val, uv_global_mmr64_address(pnode, offset));
 }
 
-static inline unsigned long uv_read_global_mmr64(int pnode,
-						 unsigned long offset)
+static inline unsigned long uv_read_global_mmr64(int pnode, unsigned long offset)
 {
 	return readq(uv_global_mmr64_address(pnode, offset));
+}
+
+static inline void uv_write_global_mmr8(int pnode, unsigned long offset, unsigned char val)
+{
+	writeb(val, uv_global_mmr64_address(pnode, offset));
+}
+
+static inline unsigned char uv_read_global_mmr8(int pnode, unsigned long offset)
+{
+	return readb(uv_global_mmr64_address(pnode, offset));
 }
 
 /*
@@ -426,11 +430,17 @@ static inline void uv_set_scir_bits(unsigned char value)
 	}
 }
 
+static inline unsigned long uv_scir_offset(int apicid)
+{
+	return SCIR_LOCAL_MMR_BASE | (apicid & 0x3f);
+}
+
 static inline void uv_set_cpu_scir_bits(int cpu, unsigned char value)
 {
 	if (uv_cpu_hub_info(cpu)->scir.state != value) {
+		uv_write_global_mmr8(uv_cpu_to_pnode(cpu),
+				uv_cpu_hub_info(cpu)->scir.offset, value);
 		uv_cpu_hub_info(cpu)->scir.state = value;
-		uv_write_local_mmr8(uv_cpu_hub_info(cpu)->scir.offset, value);
 	}
 }
 

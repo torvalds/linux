@@ -37,6 +37,9 @@
 #define	FC_FRAME_HEADROOM	32	/* headroom for VLAN + FCoE headers */
 #define	FC_FRAME_TAILROOM	8	/* trailer space for FCoE */
 
+/* Max number of skb frags allowed, reserving one for fcoe_crc_eof page */
+#define FC_FRAME_SG_LEN		(MAX_SKB_FRAGS - 1)
+
 #define fp_skb(fp)	(&((fp)->skb))
 #define fr_hdr(fp)	((fp)->skb.data)
 #define fr_len(fp)	((fp)->skb.len)

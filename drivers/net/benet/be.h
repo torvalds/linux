@@ -35,20 +35,31 @@
 #define DRV_VER			"2.101.205"
 #define DRV_NAME		"be2net"
 #define BE_NAME			"ServerEngines BladeEngine2 10Gbps NIC"
+#define BE3_NAME		"ServerEngines BladeEngine3 10Gbps NIC"
 #define OC_NAME			"Emulex OneConnect 10Gbps NIC"
+#define OC_NAME1		"Emulex OneConnect 10Gbps NIC (be3)"
 #define DRV_DESC		BE_NAME "Driver"
 
 #define BE_VENDOR_ID 		0x19a2
 #define BE_DEVICE_ID1		0x211
+#define BE_DEVICE_ID2		0x221
 #define OC_DEVICE_ID1		0x700
 #define OC_DEVICE_ID2		0x701
+#define OC_DEVICE_ID3		0x710
 
 static inline char *nic_name(struct pci_dev *pdev)
 {
-	if (pdev->device == OC_DEVICE_ID1 || pdev->device == OC_DEVICE_ID2)
+	switch (pdev->device) {
+	case OC_DEVICE_ID1:
+	case OC_DEVICE_ID2:
 		return OC_NAME;
-	else
+	case OC_DEVICE_ID3:
+		return OC_NAME1;
+	case BE_DEVICE_ID2:
+		return BE3_NAME;
+	default:
 		return BE_NAME;
+	}
 }
 
 /* Number of bytes of an RX frame that are copied to skb->data */
@@ -261,7 +272,12 @@ struct be_adapter {
 	u32 cap;
 	u32 rx_fc;		/* Rx flow control */
 	u32 tx_fc;		/* Tx flow control */
+	u8 generation;		/* BladeEngine ASIC generation */
 };
+
+/* BladeEngine Generation numbers */
+#define BE_GEN2 2
+#define BE_GEN3 3
 
 extern const struct ethtool_ops be_ethtool_ops;
 

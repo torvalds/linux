@@ -56,6 +56,11 @@ static void dm_hash_remove_all(int keep_open_devices);
  */
 static DECLARE_RWSEM(_hash_lock);
 
+/*
+ * Protects use of mdptr to obtain hash cell name and uuid from mapped device.
+ */
+static DEFINE_MUTEX(dm_hash_cells_mutex);
+
 static void init_buckets(struct list_head *buckets)
 {
 	unsigned int i;
@@ -206,7 +211,9 @@ static int dm_hash_insert(const char *name, const char *uuid, struct mapped_devi
 		list_add(&cell->uuid_list, _uuid_buckets + hash_str(uuid));
 	}
 	dm_get(md);
+	mutex_lock(&dm_hash_cells_mutex);
 	dm_set_mdptr(md, cell);
+	mutex_unlock(&dm_hash_cells_mutex);
 	up_write(&_hash_lock);
 
 	return 0;
@@ -224,7 +231,9 @@ static void __hash_remove(struct hash_cell *hc)
 	/* remove from the dev hash */
 	list_del(&hc->uuid_list);
 	list_del(&hc->name_list);
+	mutex_lock(&dm_hash_cells_mutex);
 	dm_set_mdptr(hc->md, NULL);
+	mutex_unlock(&dm_hash_cells_mutex);
 
 	table = dm_get_table(hc->md);
 	if (table) {
@@ -321,7 +330,9 @@ static int dm_hash_rename(uint32_t cookie, const char *old, const char *new)
 	 */
 	list_del(&hc->name_list);
 	old_name = hc->name;
+	mutex_lock(&dm_hash_cells_mutex);
 	hc->name = new_name;
+	mutex_unlock(&dm_hash_cells_mutex);
 	list_add(&hc->name_list, _name_buckets + hash_str(new_name));
 
 	/*
@@ -1582,8 +1593,7 @@ int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid)
 	if (!md)
 		return -ENXIO;
 
-	dm_get(md);
-	down_read(&_hash_lock);
+	mutex_lock(&dm_hash_cells_mutex);
 	hc = dm_get_mdptr(md);
 	if (!hc || hc->md != md) {
 		r = -ENXIO;
@@ -1596,8 +1606,7 @@ int dm_copy_name_and_uuid(struct mapped_device *md, char *name, char *uuid)
 		strcpy(uuid, hc->uuid ? : "");
 
 out:
-	up_read(&_hash_lock);
-	dm_put(md);
+	mutex_unlock(&dm_hash_cells_mutex);
 
 	return r;
 }

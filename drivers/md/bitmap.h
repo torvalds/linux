@@ -282,7 +282,7 @@ void bitmap_close_sync(struct bitmap *bitmap);
 void bitmap_cond_end_sync(struct bitmap *bitmap, sector_t sector);
 
 void bitmap_unplug(struct bitmap *bitmap);
-void bitmap_daemon_work(struct bitmap *bitmap);
+void bitmap_daemon_work(mddev_t *mddev);
 #endif
 
 #endif

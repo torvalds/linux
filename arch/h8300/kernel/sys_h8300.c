@@ -26,39 +26,6 @@
 #include <asm/traps.h>
 #include <asm/unistd.h>
 
-/* common code for old and new mmaps */
-static inline long do_mmap2(
-	unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags,
-	unsigned long fd, unsigned long pgoff)
-{
-	int error = -EBADF;
-	struct file * file = NULL;
-
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-	if (!(flags & MAP_ANONYMOUS)) {
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-
-	if (file)
-		fput(file);
-out:
-	return error;
-}
-
-asmlinkage long sys_mmap2(unsigned long addr, unsigned long len,
-	unsigned long prot, unsigned long flags,
-	unsigned long fd, unsigned long pgoff)
-{
-	return do_mmap2(addr, len, prot, flags, fd, pgoff);
-}
-
 /*
  * Perform the select(nd, in, out, ex, tv) and mmap() system
  * calls. Linux/m68k cloned Linux/i386, which didn't use to be able to
@@ -87,57 +54,11 @@ asmlinkage int old_mmap(struct mmap_arg_struct *arg)
 	if (a.offset & ~PAGE_MASK)
 		goto out;
 
-	a.flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	error = do_mmap2(a.addr, a.len, a.prot, a.flags, a.fd, a.offset >> PAGE_SHIFT);
+	error = sys_mmap_pgoff(a.addr, a.len, a.prot, a.flags, a.fd,
+			       a.offset >> PAGE_SHIFT);
 out:
 	return error;
 }
-
-#if 0 /* DAVIDM - do we want this */
-struct mmap_arg_struct64 {
-	__u32 addr;
-	__u32 len;
-	__u32 prot;
-	__u32 flags;
-	__u64 offset; /* 64 bits */
-	__u32 fd;
-};
-
-asmlinkage long sys_mmap64(struct mmap_arg_struct64 *arg)
-{
-	int error = -EFAULT;
-	struct file * file = NULL;
-	struct mmap_arg_struct64 a;
-	unsigned long pgoff;
-
-	if (copy_from_user(&a, arg, sizeof(a)))
-		return -EFAULT;
-
-	if ((long)a.offset & ~PAGE_MASK)
-		return -EINVAL;
-
-	pgoff = a.offset >> PAGE_SHIFT;
-	if ((a.offset >> PAGE_SHIFT) != pgoff)
-		return -EINVAL;
-
-	if (!(a.flags & MAP_ANONYMOUS)) {
-		error = -EBADF;
-		file = fget(a.fd);
-		if (!file)
-			goto out;
-	}
-	a.flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, a.addr, a.len, a.prot, a.flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-	if (file)
-		fput(file);
-out:
-	return error;
-}
-#endif
 
 struct sel_arg_struct {
 	unsigned long n;

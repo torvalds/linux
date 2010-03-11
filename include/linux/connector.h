@@ -24,9 +24,6 @@
 
 #include <linux/types.h>
 
-#define CN_IDX_CONNECTOR		0xffffffff
-#define CN_VAL_CONNECTOR		0xffffffff
-
 /*
  * Process Events connector unique ids -- used for message routing
  */
@@ -70,30 +67,6 @@ struct cn_msg {
 
 	__u16 len;		/* Length of the following data */
 	__u16 flags;
-	__u8 data[0];
-};
-
-/*
- * Notify structure - requests notification about
- * registering/unregistering idx/val in range [first, first+range].
- */
-struct cn_notify_req {
-	__u32 first;
-	__u32 range;
-};
-
-/*
- * Main notification control message
- * *_notify_num 	- number of appropriate cn_notify_req structures after 
- *				this struct.
- * group 		- notification receiver's idx.
- * len 			- total length of the attached data.
- */
-struct cn_ctl_msg {
-	__u32 idx_notify_num;
-	__u32 val_notify_num;
-	__u32 group;
-	__u32 len;
 	__u8 data[0];
 };
 
@@ -147,11 +120,6 @@ struct cn_callback_entry {
 	struct cn_callback_data data;
 
 	u32 seq, group;
-};
-
-struct cn_ctl_entry {
-	struct list_head notify_entry;
-	struct cn_ctl_msg *msg;
 };
 
 struct cn_dev {

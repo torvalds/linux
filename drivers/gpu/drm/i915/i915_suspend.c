@@ -27,7 +27,7 @@
 #include "drmP.h"
 #include "drm.h"
 #include "i915_drm.h"
-#include "i915_drv.h"
+#include "intel_drv.h"
 
 static bool i915_pipe_enabled(struct drm_device *dev, enum pipe pipe)
 {
@@ -845,6 +845,9 @@ int i915_restore_state(struct drm_device *dev)
 	}
 	for (i = 0; i < 3; i++)
 		I915_WRITE(SWF30 + (i << 2), dev_priv->saveSWF2[i]);
+
+	/* I2C state */
+	intel_i2c_reset_gmbus(dev);
 
 	return 0;
 }

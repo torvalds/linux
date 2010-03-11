@@ -1254,11 +1254,11 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 	else
 		intel_output->type = INTEL_OUTPUT_DISPLAYPORT;
 
-	if (output_reg == DP_B)
+	if (output_reg == DP_B || output_reg == PCH_DP_B)
 		intel_output->clone_mask = (1 << INTEL_DP_B_CLONE_BIT);
-	else if (output_reg == DP_C)
+	else if (output_reg == DP_C || output_reg == PCH_DP_C)
 		intel_output->clone_mask = (1 << INTEL_DP_C_CLONE_BIT);
-	else if (output_reg == DP_D)
+	else if (output_reg == DP_D || output_reg == PCH_DP_D)
 		intel_output->clone_mask = (1 << INTEL_DP_D_CLONE_BIT);
 
 	if (IS_eDP(intel_output)) {
@@ -1290,14 +1290,20 @@ intel_dp_init(struct drm_device *dev, int output_reg)
 			break;
 		case DP_B:
 		case PCH_DP_B:
+			dev_priv->hotplug_supported_mask |=
+				HDMIB_HOTPLUG_INT_STATUS;
 			name = "DPDDC-B";
 			break;
 		case DP_C:
 		case PCH_DP_C:
+			dev_priv->hotplug_supported_mask |=
+				HDMIC_HOTPLUG_INT_STATUS;
 			name = "DPDDC-C";
 			break;
 		case DP_D:
 		case PCH_DP_D:
+			dev_priv->hotplug_supported_mask |=
+				HDMID_HOTPLUG_INT_STATUS;
 			name = "DPDDC-D";
 			break;
 	}

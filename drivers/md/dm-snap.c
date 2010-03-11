@@ -553,6 +553,8 @@ static int init_hash_tables(struct dm_snapshot *s)
 	hash_size = min(origin_dev_size, cow_dev_size) >> s->store->chunk_shift;
 	hash_size = min(hash_size, max_buckets);
 
+	if (hash_size < 64)
+		hash_size = 64;
 	hash_size = rounddown_pow_of_two(hash_size);
 	if (init_exception_table(&s->complete, hash_size,
 				 DM_CHUNK_CONSECUTIVE_BITS))
@@ -1152,10 +1154,11 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 	unsigned sz = 0;
 	struct dm_snapshot *snap = ti->private;
 
-	down_write(&snap->lock);
-
 	switch (type) {
 	case STATUSTYPE_INFO:
+
+		down_write(&snap->lock);
+
 		if (!snap->valid)
 			DMEMIT("Invalid");
 		else {
@@ -1171,6 +1174,9 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 			else
 				DMEMIT("Unknown");
 		}
+
+		up_write(&snap->lock);
+
 		break;
 
 	case STATUSTYPE_TABLE:
@@ -1184,8 +1190,6 @@ static int snapshot_status(struct dm_target *ti, status_type_t type,
 					  maxlen - sz);
 		break;
 	}
-
-	up_write(&snap->lock);
 
 	return 0;
 }

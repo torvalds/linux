@@ -777,7 +777,7 @@ int __pm_runtime_set_status(struct device *dev, unsigned int status)
 	}
 
 	if (parent) {
-		spin_lock(&parent->power.lock);
+		spin_lock_nested(&parent->power.lock, SINGLE_DEPTH_NESTING);
 
 		/*
 		 * It is invalid to put an active child under a parent that is

@@ -346,10 +346,8 @@ static int ipathfs_fill_super(struct super_block *sb, void *data,
 	list_for_each_entry_safe(dd, tmp, &ipath_dev_list, ipath_list) {
 		spin_unlock_irqrestore(&ipath_devs_lock, flags);
 		ret = create_device_files(sb, dd);
-		if (ret) {
-			deactivate_locked_super(sb);
+		if (ret)
 			goto bail;
-		}
 		spin_lock_irqsave(&ipath_devs_lock, flags);
 	}
 

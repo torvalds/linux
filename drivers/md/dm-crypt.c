@@ -1,7 +1,7 @@
 /*
  * Copyright (C) 2003 Christophe Saout <christophe@saout.de>
  * Copyright (C) 2004 Clemens Fruhwirth <clemens@endorphin.org>
- * Copyright (C) 2006-2008 Red Hat, Inc. All rights reserved.
+ * Copyright (C) 2006-2009 Red Hat, Inc. All rights reserved.
  *
  * This file is released under the GPL.
  */
@@ -71,8 +71,19 @@ struct crypt_iv_operations {
 	int (*ctr)(struct crypt_config *cc, struct dm_target *ti,
 		   const char *opts);
 	void (*dtr)(struct crypt_config *cc);
-	const char *(*status)(struct crypt_config *cc);
+	int (*init)(struct crypt_config *cc);
+	int (*wipe)(struct crypt_config *cc);
 	int (*generator)(struct crypt_config *cc, u8 *iv, sector_t sector);
+};
+
+struct iv_essiv_private {
+	struct crypto_cipher *tfm;
+	struct crypto_hash *hash_tfm;
+	u8 *salt;
+};
+
+struct iv_benbi_private {
+	int shift;
 };
 
 /*
@@ -102,8 +113,8 @@ struct crypt_config {
 	struct crypt_iv_operations *iv_gen_ops;
 	char *iv_mode;
 	union {
-		struct crypto_cipher *essiv_tfm;
-		int benbi_shift;
+		struct iv_essiv_private essiv;
+		struct iv_benbi_private benbi;
 	} iv_gen_private;
 	sector_t iv_offset;
 	unsigned int iv_size;
@@ -169,88 +180,114 @@ static int crypt_iv_plain_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 	return 0;
 }
 
+/* Initialise ESSIV - compute salt but no local memory allocations */
+static int crypt_iv_essiv_init(struct crypt_config *cc)
+{
+	struct iv_essiv_private *essiv = &cc->iv_gen_private.essiv;
+	struct hash_desc desc;
+	struct scatterlist sg;
+	int err;
+
+	sg_init_one(&sg, cc->key, cc->key_size);
+	desc.tfm = essiv->hash_tfm;
+	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	err = crypto_hash_digest(&desc, &sg, cc->key_size, essiv->salt);
+	if (err)
+		return err;
+
+	return crypto_cipher_setkey(essiv->tfm, essiv->salt,
+				    crypto_hash_digestsize(essiv->hash_tfm));
+}
+
+/* Wipe salt and reset key derived from volume key */
+static int crypt_iv_essiv_wipe(struct crypt_config *cc)
+{
+	struct iv_essiv_private *essiv = &cc->iv_gen_private.essiv;
+	unsigned salt_size = crypto_hash_digestsize(essiv->hash_tfm);
+
+	memset(essiv->salt, 0, salt_size);
+
+	return crypto_cipher_setkey(essiv->tfm, essiv->salt, salt_size);
+}
+
+static void crypt_iv_essiv_dtr(struct crypt_config *cc)
+{
+	struct iv_essiv_private *essiv = &cc->iv_gen_private.essiv;
+
+	crypto_free_cipher(essiv->tfm);
+	essiv->tfm = NULL;
+
+	crypto_free_hash(essiv->hash_tfm);
+	essiv->hash_tfm = NULL;
+
+	kzfree(essiv->salt);
+	essiv->salt = NULL;
+}
+
 static int crypt_iv_essiv_ctr(struct crypt_config *cc, struct dm_target *ti,
 			      const char *opts)
 {
-	struct crypto_cipher *essiv_tfm;
-	struct crypto_hash *hash_tfm;
-	struct hash_desc desc;
-	struct scatterlist sg;
-	unsigned int saltsize;
-	u8 *salt;
+	struct crypto_cipher *essiv_tfm = NULL;
+	struct crypto_hash *hash_tfm = NULL;
+	u8 *salt = NULL;
 	int err;
 
-	if (opts == NULL) {
+	if (!opts) {
 		ti->error = "Digest algorithm missing for ESSIV mode";
 		return -EINVAL;
 	}
 
-	/* Hash the cipher key with the given hash algorithm */
+	/* Allocate hash algorithm */
 	hash_tfm = crypto_alloc_hash(opts, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(hash_tfm)) {
 		ti->error = "Error initializing ESSIV hash";
-		return PTR_ERR(hash_tfm);
+		err = PTR_ERR(hash_tfm);
+		goto bad;
 	}
 
-	saltsize = crypto_hash_digestsize(hash_tfm);
-	salt = kmalloc(saltsize, GFP_KERNEL);
-	if (salt == NULL) {
+	salt = kzalloc(crypto_hash_digestsize(hash_tfm), GFP_KERNEL);
+	if (!salt) {
 		ti->error = "Error kmallocing salt storage in ESSIV";
-		crypto_free_hash(hash_tfm);
-		return -ENOMEM;
+		err = -ENOMEM;
+		goto bad;
 	}
 
-	sg_init_one(&sg, cc->key, cc->key_size);
-	desc.tfm = hash_tfm;
-	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
-	err = crypto_hash_digest(&desc, &sg, cc->key_size, salt);
-	crypto_free_hash(hash_tfm);
-
-	if (err) {
-		ti->error = "Error calculating hash in ESSIV";
-		kfree(salt);
-		return err;
-	}
-
-	/* Setup the essiv_tfm with the given salt */
+	/* Allocate essiv_tfm */
 	essiv_tfm = crypto_alloc_cipher(cc->cipher, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(essiv_tfm)) {
 		ti->error = "Error allocating crypto tfm for ESSIV";
-		kfree(salt);
-		return PTR_ERR(essiv_tfm);
+		err = PTR_ERR(essiv_tfm);
+		goto bad;
 	}
 	if (crypto_cipher_blocksize(essiv_tfm) !=
 	    crypto_ablkcipher_ivsize(cc->tfm)) {
 		ti->error = "Block size of ESSIV cipher does "
 			    "not match IV size of block cipher";
-		crypto_free_cipher(essiv_tfm);
-		kfree(salt);
-		return -EINVAL;
+		err = -EINVAL;
+		goto bad;
 	}
-	err = crypto_cipher_setkey(essiv_tfm, salt, saltsize);
-	if (err) {
-		ti->error = "Failed to set key for ESSIV cipher";
-		crypto_free_cipher(essiv_tfm);
-		kfree(salt);
-		return err;
-	}
-	kfree(salt);
 
-	cc->iv_gen_private.essiv_tfm = essiv_tfm;
+	cc->iv_gen_private.essiv.salt = salt;
+	cc->iv_gen_private.essiv.tfm = essiv_tfm;
+	cc->iv_gen_private.essiv.hash_tfm = hash_tfm;
+
 	return 0;
-}
 
-static void crypt_iv_essiv_dtr(struct crypt_config *cc)
-{
-	crypto_free_cipher(cc->iv_gen_private.essiv_tfm);
-	cc->iv_gen_private.essiv_tfm = NULL;
+bad:
+	if (essiv_tfm && !IS_ERR(essiv_tfm))
+		crypto_free_cipher(essiv_tfm);
+	if (hash_tfm && !IS_ERR(hash_tfm))
+		crypto_free_hash(hash_tfm);
+	kfree(salt);
+	return err;
 }
 
 static int crypt_iv_essiv_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 {
 	memset(iv, 0, cc->iv_size);
 	*(u64 *)iv = cpu_to_le64(sector);
-	crypto_cipher_encrypt_one(cc->iv_gen_private.essiv_tfm, iv, iv);
+	crypto_cipher_encrypt_one(cc->iv_gen_private.essiv.tfm, iv, iv);
 	return 0;
 }
 
@@ -273,7 +310,7 @@ static int crypt_iv_benbi_ctr(struct crypt_config *cc, struct dm_target *ti,
 		return -EINVAL;
 	}
 
-	cc->iv_gen_private.benbi_shift = 9 - log;
+	cc->iv_gen_private.benbi.shift = 9 - log;
 
 	return 0;
 }
@@ -288,7 +325,7 @@ static int crypt_iv_benbi_gen(struct crypt_config *cc, u8 *iv, sector_t sector)
 
 	memset(iv, 0, cc->iv_size - sizeof(u64)); /* rest is cleared below */
 
-	val = cpu_to_be64(((u64)sector << cc->iv_gen_private.benbi_shift) + 1);
+	val = cpu_to_be64(((u64)sector << cc->iv_gen_private.benbi.shift) + 1);
 	put_unaligned(val, (__be64 *)(iv + cc->iv_size - sizeof(u64)));
 
 	return 0;
@@ -308,6 +345,8 @@ static struct crypt_iv_operations crypt_iv_plain_ops = {
 static struct crypt_iv_operations crypt_iv_essiv_ops = {
 	.ctr       = crypt_iv_essiv_ctr,
 	.dtr       = crypt_iv_essiv_dtr,
+	.init      = crypt_iv_essiv_init,
+	.wipe      = crypt_iv_essiv_wipe,
 	.generator = crypt_iv_essiv_gen
 };
 
@@ -1039,6 +1078,12 @@ static int crypt_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	    cc->iv_gen_ops->ctr(cc, ti, ivopts) < 0)
 		goto bad_ivmode;
 
+	if (cc->iv_gen_ops && cc->iv_gen_ops->init &&
+	    cc->iv_gen_ops->init(cc) < 0) {
+		ti->error = "Error initialising IV";
+		goto bad_slab_pool;
+	}
+
 	cc->iv_size = crypto_ablkcipher_ivsize(tfm);
 	if (cc->iv_size)
 		/* at least a 64 bit sector number should fit in our buffer */
@@ -1278,6 +1323,7 @@ static void crypt_resume(struct dm_target *ti)
 static int crypt_message(struct dm_target *ti, unsigned argc, char **argv)
 {
 	struct crypt_config *cc = ti->private;
+	int ret = -EINVAL;
 
 	if (argc < 2)
 		goto error;
@@ -1287,10 +1333,22 @@ static int crypt_message(struct dm_target *ti, unsigned argc, char **argv)
 			DMWARN("not suspended during key manipulation.");
 			return -EINVAL;
 		}
-		if (argc == 3 && !strnicmp(argv[1], MESG_STR("set")))
-			return crypt_set_key(cc, argv[2]);
-		if (argc == 2 && !strnicmp(argv[1], MESG_STR("wipe")))
+		if (argc == 3 && !strnicmp(argv[1], MESG_STR("set"))) {
+			ret = crypt_set_key(cc, argv[2]);
+			if (ret)
+				return ret;
+			if (cc->iv_gen_ops && cc->iv_gen_ops->init)
+				ret = cc->iv_gen_ops->init(cc);
+			return ret;
+		}
+		if (argc == 2 && !strnicmp(argv[1], MESG_STR("wipe"))) {
+			if (cc->iv_gen_ops && cc->iv_gen_ops->wipe) {
+				ret = cc->iv_gen_ops->wipe(cc);
+				if (ret)
+					return ret;
+			}
 			return crypt_wipe_key(cc);
+		}
 	}
 
 error:

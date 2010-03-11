@@ -817,10 +817,8 @@ static int __init uv_init_blade(int blade)
 	 */
 	apicid = blade_to_first_apicid(blade);
 	pa = uv_read_global_mmr64(pnode, UVH_BAU_DATA_CONFIG);
-	if ((pa & 0xff) != UV_BAU_MESSAGE) {
-		uv_write_global_mmr64(pnode, UVH_BAU_DATA_CONFIG,
+	uv_write_global_mmr64(pnode, UVH_BAU_DATA_CONFIG,
 				      ((apicid << 32) | UV_BAU_MESSAGE));
-	}
 	return 0;
 }
 

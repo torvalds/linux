@@ -67,28 +67,13 @@ SYSCALL_DEFINE6(32_mmap2, unsigned long, addr, unsigned long, len,
 	unsigned long, prot, unsigned long, flags, unsigned long, fd,
 	unsigned long, pgoff)
 {
-	struct file * file = NULL;
 	unsigned long error;
 
 	error = -EINVAL;
 	if (pgoff & (~PAGE_MASK >> 12))
 		goto out;
-	pgoff >>= PAGE_SHIFT-12;
-
-	if (!(flags & MAP_ANONYMOUS)) {
-		error = -EBADF;
-		file = fget(fd);
-		if (!file)
-			goto out;
-	}
-	flags &= ~(MAP_EXECUTABLE | MAP_DENYWRITE);
-
-	down_write(&current->mm->mmap_sem);
-	error = do_mmap_pgoff(file, addr, len, prot, flags, pgoff);
-	up_write(&current->mm->mmap_sem);
-	if (file)
-		fput(file);
-
+	error = sys_mmap_pgoff(addr, len, prot, flags, fd,
+			       pgoff >> (PAGE_SHIFT-12));
 out:
 	return error;
 }
