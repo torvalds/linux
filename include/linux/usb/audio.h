@@ -181,6 +181,125 @@ struct uac_feature_unit_descriptor_##ch {			\
 	__u8  iFeature;						\
 } __attribute__ ((packed))
 
+/* 4.3.2.3 Mixer Unit Descriptor */
+struct uac_mixer_unit_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bUnitID;
+	__u8 bNrInPins;
+	__u8 baSourceID[];
+} __attribute__ ((packed));
+
+static inline __u8 uac_mixer_unit_bNrChannels(struct uac_mixer_unit_descriptor *desc)
+{
+	return desc->baSourceID[desc->bNrInPins];
+}
+
+static inline __u16 uac_mixer_unit_wChannelConfig(struct uac_mixer_unit_descriptor *desc)
+{
+	return (desc->baSourceID[desc->bNrInPins + 2] << 8) |
+		desc->baSourceID[desc->bNrInPins + 1];
+}
+
+static inline __u8 uac_mixer_unit_iChannelNames(struct uac_mixer_unit_descriptor *desc)
+{
+	return desc->baSourceID[desc->bNrInPins + 3];
+}
+
+static inline __u8 *uac_mixer_unit_bmControls(struct uac_mixer_unit_descriptor *desc)
+{
+	return &desc->baSourceID[desc->bNrInPins + 4];
+}
+
+static inline __u8 uac_mixer_unit_iMixer(struct uac_mixer_unit_descriptor *desc)
+{
+	__u8 *raw = (__u8 *) desc;
+	return raw[desc->bLength - 1];
+}
+
+/* 4.3.2.4 Selector Unit Descriptor */
+struct uac_selector_unit_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bUintID;
+	__u8 bNrInPins;
+	__u8 baSourceID[];
+} __attribute__ ((packed));
+
+static inline __u8 uac_selector_unit_iSelector(struct uac_selector_unit_descriptor *desc)
+{
+	__u8 *raw = (__u8 *) desc;
+	return raw[desc->bLength - 1];
+}
+
+/* 4.3.2.5 Feature Unit Descriptor */
+struct uac_feature_unit_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bUnitID;
+	__u8 bSourceID;
+	__u8 bControlSize;
+	__u8 bmaControls[0]; /* variable length */
+} __attribute__((packed));
+
+static inline __u8 uac_feature_unit_iFeature(struct uac_feature_unit_descriptor *desc)
+{
+	__u8 *raw = (__u8 *) desc;
+	return raw[desc->bLength - 1];
+}
+
+/* 4.3.2.6 Processing Unit Descriptors */
+struct uac_processing_unit_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bUnitID;
+	__u16 wProcessType;
+	__u8 bNrInPins;
+	__u8 baSourceID[];
+} __attribute__ ((packed));
+
+static inline __u8 uac_processing_unit_bNrChannels(struct uac_processing_unit_descriptor *desc)
+{
+	return desc->baSourceID[desc->bNrInPins];
+}
+
+static inline __u16 uac_processing_unit_wChannelConfig(struct uac_processing_unit_descriptor *desc)
+{
+	return (desc->baSourceID[desc->bNrInPins + 2] << 8) |
+		desc->baSourceID[desc->bNrInPins + 1];
+}
+
+static inline __u8 uac_processing_unit_iChannelNames(struct uac_processing_unit_descriptor *desc)
+{
+	return desc->baSourceID[desc->bNrInPins + 3];
+}
+
+static inline __u8 uac_processing_unit_bControlSize(struct uac_processing_unit_descriptor *desc)
+{
+	return desc->baSourceID[desc->bNrInPins + 4];
+}
+
+static inline __u8 *uac_processing_unit_bmControls(struct uac_processing_unit_descriptor *desc)
+{
+	return &desc->baSourceID[desc->bNrInPins + 5];
+}
+
+static inline __u8 uac_processing_unit_iProcessing(struct uac_processing_unit_descriptor *desc)
+{
+	__u8 control_size = uac_processing_unit_bControlSize(desc);
+	return desc->baSourceID[desc->bNrInPins + control_size];
+}
+
+static inline __u8 *uac_processing_unit_specific(struct uac_processing_unit_descriptor *desc)
+{
+	__u8 control_size = uac_processing_unit_bControlSize(desc);
+	return &desc->baSourceID[desc->bNrInPins + control_size + 1];
+}
+
 /* 4.5.2 Class-Specific AS Interface Descriptor */
 struct uac_as_header_descriptor_v1 {
 	__u8  bLength;			/* in bytes: 7 */
@@ -314,16 +433,6 @@ struct uac_iso_endpoint_descriptor {
 #define UAC_EP_CS_ATTR_FILL_MAX		0x80
 
 /* A.10.2 Feature Unit Control Selectors */
-
-struct uac_feature_unit_descriptor {
-	__u8 bLength;
-	__u8 bDescriptorType;
-	__u8 bDescriptorSubtype;
-	__u8 bUnitID;
-	__u8 bSourceID;
-	__u8 bControlSize;
-	__u8 controls[0]; /* variable length */
-} __attribute__((packed));
 
 #define UAC_FU_CONTROL_UNDEFINED	0x00
 #define UAC_MUTE_CONTROL		0x01
