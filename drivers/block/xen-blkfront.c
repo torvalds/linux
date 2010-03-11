@@ -947,6 +947,9 @@ static void blkfront_connect(struct blkfront_info *info)
 		/* fall through */
 	case BLKIF_STATE_SUSPENDED:
 		return;
+
+	default:
+		break;
 	}
 
 	dev_dbg(&info->xbdev->dev, "%s:%s.\n",
