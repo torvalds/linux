@@ -23,11 +23,6 @@ SCHED_FEAT(WAKEUP_PREEMPT, 1)
 SCHED_FEAT(ASYM_GRAN, 1)
 
 /*
- * Always wakeup-preempt SYNC wakeups, see SYNC_WAKEUPS.
- */
-SCHED_FEAT(WAKEUP_SYNC, 0)
-
-/*
  * Use the SYNC wakeup hint, pipes and the likes use this to indicate
  * the remote end is likely to consume the data we just wrote, and
  * therefore has cache benefit from being placed on the same cpu, see

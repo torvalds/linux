@@ -1658,7 +1658,6 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 	struct task_struct *curr = rq->curr;
 	struct sched_entity *se = &curr->se, *pse = &p->se;
 	struct cfs_rq *cfs_rq = task_cfs_rq(curr);
-	int sync = wake_flags & WF_SYNC;
 	int scale = cfs_rq->nr_running >= sched_nr_latency;
 
 	if (unlikely(rt_prio(p->prio)))
@@ -1689,9 +1688,6 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 
 	/* Idle tasks are by definition preempted by everybody. */
 	if (unlikely(curr->policy == SCHED_IDLE))
-		goto preempt;
-
-	if (sched_feat(WAKEUP_SYNC) && sync)
 		goto preempt;
 
 	if (!sched_feat(WAKEUP_PREEMPT))
