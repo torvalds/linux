@@ -615,7 +615,12 @@ static void arm_timer(struct k_itimer *timer)
  */
 static void cpu_timer_fire(struct k_itimer *timer)
 {
-	if (unlikely(timer->sigq == NULL)) {
+	if ((timer->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE) {
+		/*
+		 * User don't want any signal.
+		 */
+		timer->it.cpu.expires.sched = 0;
+	} else if (unlikely(timer->sigq == NULL)) {
 		/*
 		 * This a special case for clock_nanosleep,
 		 * not a normal timer from sys_timer_create.
@@ -784,7 +789,6 @@ int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 	 */
 	timer->it.cpu.expires = new_expires;
 	if (new_expires.sched != 0 &&
-	    (timer->it_sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_NONE &&
 	    cpu_time_before(timer->it_clock, val, new_expires)) {
 		arm_timer(timer);
 	}
@@ -809,7 +813,6 @@ int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 	timer->it_overrun = -1;
 
 	if (new_expires.sched != 0 &&
-	    (timer->it_sigev_notify & ~SIGEV_THREAD_ID) != SIGEV_NONE &&
 	    !cpu_time_before(timer->it_clock, val, new_expires)) {
 		/*
 		 * The designated time already passed, so we notify
@@ -881,25 +884,6 @@ void posix_cpu_timer_get(struct k_itimer *timer, struct itimerspec *itp)
 				      thread_group_empty(p));
 		}
 		read_unlock(&tasklist_lock);
-	}
-
-	if ((timer->it_sigev_notify & ~SIGEV_THREAD_ID) == SIGEV_NONE) {
-		if (timer->it.cpu.incr.sched == 0 &&
-		    cpu_time_before(timer->it_clock,
-				    timer->it.cpu.expires, now)) {
-			/*
-			 * Do-nothing timer expired and has no reload,
-			 * so it's as if it was never set.
-			 */
-			timer->it.cpu.expires.sched = 0;
-			itp->it_value.tv_sec = itp->it_value.tv_nsec = 0;
-			return;
-		}
-		/*
-		 * Account for any expirations and reloads that should
-		 * have happened.
-		 */
-		bump_cpu_timer(timer, now);
 	}
 
 	if (unlikely(clear_dead)) {
