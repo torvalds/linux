@@ -1149,6 +1149,7 @@ int hpet_set_periodic_freq(unsigned long freq)
 		do_div(clc, freq);
 		clc >>= hpet_clockevent.shift;
 		hpet_pie_delta = clc;
+		hpet_pie_limit = 0;
 	}
 	return 1;
 }
