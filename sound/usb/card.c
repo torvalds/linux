@@ -56,7 +56,7 @@
 #include "usbaudio.h"
 #include "card.h"
 #include "midi.h"
-#include "usbmixer.h"
+#include "mixer.h"
 #include "proc.h"
 #include "quirks.h"
 #include "endpoint.h"

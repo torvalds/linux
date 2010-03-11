@@ -24,7 +24,7 @@
 
 #include "usbaudio.h"
 #include "card.h"
-#include "usbmixer.h"
+#include "mixer.h"
 #include "mixer_quirks.h"
 #include "midi.h"
 #include "quirks.h"

@@ -3,7 +3,7 @@
 #
 
 snd-usb-audio-objs := 	card.o \
-			usbmixer.o \
+			mixer.o \
 			mixer_quirks.o \
 			proc.o \
 			quirks.o \

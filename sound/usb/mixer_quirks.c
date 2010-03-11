@@ -35,7 +35,7 @@
 #include <sound/info.h>
 
 #include "usbaudio.h"
-#include "usbmixer.h"
+#include "mixer.h"
 #include "mixer_quirks.h"
 #include "helper.h"
 

@@ -41,7 +41,7 @@
 #include <sound/tlv.h>
 
 #include "usbaudio.h"
-#include "usbmixer.h"
+#include "mixer.h"
 #include "helper.h"
 #include "mixer_quirks.h"
 
@@ -132,7 +132,7 @@ enum {
  * if the mixer topology is too complicated and the parsed names are
  * ambiguous, add the entries in usbmixer_maps.c.
  */
-#include "usbmixer_maps.c"
+#include "mixer_maps.c"
 
 static const struct usbmix_name_map *
 find_map(struct mixer_build *state, int unitid, int control)
