@@ -12,6 +12,7 @@
 #include <linux/jiffies.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
+#include <linux/pci.h>
 #include <linux/pci_ids.h>
 #include <linux/delay.h>
 #include <asm/byteorder.h>

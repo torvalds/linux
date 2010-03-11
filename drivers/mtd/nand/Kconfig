@@ -105,6 +105,7 @@ config MTD_NAND_IDS
 config MTD_NAND_RICOH
 	tristate "Ricoh xD card reader"
 	default n
+	depends on PCI
 	select MTD_SM_COMMON
 	help
 	  Enable support for Ricoh R5C852 xD card reader
