@@ -196,20 +196,33 @@ static inline __u8 uac_mixer_unit_bNrChannels(struct uac_mixer_unit_descriptor *
 	return desc->baSourceID[desc->bNrInPins];
 }
 
-static inline __u16 uac_mixer_unit_wChannelConfig(struct uac_mixer_unit_descriptor *desc)
+static inline __u32 uac_mixer_unit_wChannelConfig(struct uac_mixer_unit_descriptor *desc,
+						  int protocol)
 {
-	return (desc->baSourceID[desc->bNrInPins + 2] << 8) |
-		desc->baSourceID[desc->bNrInPins + 1];
+	if (protocol == UAC_VERSION_1)
+		return (desc->baSourceID[desc->bNrInPins + 2] << 8) |
+			desc->baSourceID[desc->bNrInPins + 1];
+	else
+		return  (desc->baSourceID[desc->bNrInPins + 4] << 24) |
+			(desc->baSourceID[desc->bNrInPins + 3] << 16) |
+			(desc->baSourceID[desc->bNrInPins + 2] << 8)  |
+			(desc->baSourceID[desc->bNrInPins + 1]);
 }
 
-static inline __u8 uac_mixer_unit_iChannelNames(struct uac_mixer_unit_descriptor *desc)
+static inline __u8 uac_mixer_unit_iChannelNames(struct uac_mixer_unit_descriptor *desc,
+						int protocol)
 {
-	return desc->baSourceID[desc->bNrInPins + 3];
+	return (protocol == UAC_VERSION_1) ?
+		desc->baSourceID[desc->bNrInPins + 3] :
+		desc->baSourceID[desc->bNrInPins + 5];
 }
 
-static inline __u8 *uac_mixer_unit_bmControls(struct uac_mixer_unit_descriptor *desc)
+static inline __u8 *uac_mixer_unit_bmControls(struct uac_mixer_unit_descriptor *desc,
+					      int protocol)
 {
-	return &desc->baSourceID[desc->bNrInPins + 4];
+	return (protocol == UAC_VERSION_1) ?
+		&desc->baSourceID[desc->bNrInPins + 4] :
+		&desc->baSourceID[desc->bNrInPins + 6];
 }
 
 static inline __u8 uac_mixer_unit_iMixer(struct uac_mixer_unit_descriptor *desc)
@@ -267,36 +280,54 @@ static inline __u8 uac_processing_unit_bNrChannels(struct uac_processing_unit_de
 	return desc->baSourceID[desc->bNrInPins];
 }
 
-static inline __u16 uac_processing_unit_wChannelConfig(struct uac_processing_unit_descriptor *desc)
+static inline __u32 uac_processing_unit_wChannelConfig(struct uac_processing_unit_descriptor *desc,
+						       int protocol)
 {
-	return (desc->baSourceID[desc->bNrInPins + 2] << 8) |
-		desc->baSourceID[desc->bNrInPins + 1];
+	if (protocol == UAC_VERSION_1)
+		return (desc->baSourceID[desc->bNrInPins + 2] << 8) |
+			desc->baSourceID[desc->bNrInPins + 1];
+	else
+		return  (desc->baSourceID[desc->bNrInPins + 4] << 24) |
+			(desc->baSourceID[desc->bNrInPins + 3] << 16) |
+			(desc->baSourceID[desc->bNrInPins + 2] << 8)  |
+			(desc->baSourceID[desc->bNrInPins + 1]);
 }
 
-static inline __u8 uac_processing_unit_iChannelNames(struct uac_processing_unit_descriptor *desc)
+static inline __u8 uac_processing_unit_iChannelNames(struct uac_processing_unit_descriptor *desc,
+						     int protocol)
 {
-	return desc->baSourceID[desc->bNrInPins + 3];
+	return (protocol == UAC_VERSION_1) ?
+		desc->baSourceID[desc->bNrInPins + 3] :
+		desc->baSourceID[desc->bNrInPins + 5];
 }
 
-static inline __u8 uac_processing_unit_bControlSize(struct uac_processing_unit_descriptor *desc)
+static inline __u8 uac_processing_unit_bControlSize(struct uac_processing_unit_descriptor *desc,
+						    int protocol)
 {
-	return desc->baSourceID[desc->bNrInPins + 4];
+	return (protocol == UAC_VERSION_1) ?
+		desc->baSourceID[desc->bNrInPins + 4] :
+		desc->baSourceID[desc->bNrInPins + 6];
 }
 
-static inline __u8 *uac_processing_unit_bmControls(struct uac_processing_unit_descriptor *desc)
+static inline __u8 *uac_processing_unit_bmControls(struct uac_processing_unit_descriptor *desc,
+						   int protocol)
 {
-	return &desc->baSourceID[desc->bNrInPins + 5];
+	return (protocol == UAC_VERSION_1) ?
+		&desc->baSourceID[desc->bNrInPins + 5] :
+		&desc->baSourceID[desc->bNrInPins + 7];
 }
 
-static inline __u8 uac_processing_unit_iProcessing(struct uac_processing_unit_descriptor *desc)
+static inline __u8 uac_processing_unit_iProcessing(struct uac_processing_unit_descriptor *desc,
+						   int protocol)
 {
-	__u8 control_size = uac_processing_unit_bControlSize(desc);
+	__u8 control_size = uac_processing_unit_bControlSize(desc, protocol);
 	return desc->baSourceID[desc->bNrInPins + control_size];
 }
 
-static inline __u8 *uac_processing_unit_specific(struct uac_processing_unit_descriptor *desc)
+static inline __u8 *uac_processing_unit_specific(struct uac_processing_unit_descriptor *desc,
+						 int protocol)
 {
-	__u8 control_size = uac_processing_unit_bControlSize(desc);
+	__u8 control_size = uac_processing_unit_bControlSize(desc, protocol);
 	return &desc->baSourceID[desc->bNrInPins + control_size + 1];
 }
 

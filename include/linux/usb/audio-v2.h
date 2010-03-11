@@ -43,6 +43,53 @@ struct uac_clock_selector_descriptor {
 	__u8 baCSourceID[];
 } __attribute__((packed));
 
+/* 4.7.2.4 Input terminal descriptor */
+
+struct uac2_input_terminal_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bTerminalID;
+	__u16 wTerminalType;
+	__u8 bAssocTerminal;
+	__u8 bCSourceID;
+	__u8 bNrChannels;
+	__u32 bmChannelConfig;
+	__u8 iChannelNames;
+	__u16 bmControls;
+	__u8 iTerminal;
+} __attribute__((packed));
+
+/* 4.7.2.5 Output terminal descriptor */
+
+struct uac2_output_terminal_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bTerminalID;
+	__u16 wTerminalType;
+	__u8 bAssocTerminal;
+	__u8 bSourceID;
+	__u8 bCSourceID;
+	__u16 bmControls;
+	__u8 iTerminal;
+} __attribute__((packed));
+
+
+
+/* 4.7.2.8 Feature Unit Descriptor */
+
+struct uac2_feature_unit_descriptor {
+	__u8 bLength;
+	__u8 bDescriptorType;
+	__u8 bDescriptorSubtype;
+	__u8 bUnitID;
+	__u8 bSourceID;
+	/* bmaControls is actually u32,
+	 * but u8 is needed for the hybrid parser */
+	__u8 bmaControls[0]; /* variable length */
+} __attribute__((packed));
+
 /* 4.9.2 Class-Specific AS Interface Descriptor */
 
 struct uac_as_header_descriptor_v2 {

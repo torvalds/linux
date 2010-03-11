@@ -10,6 +10,9 @@ struct usb_mixer_interface {
 	/* array[MAX_ID_ELEMS], indexed by unit id */
 	struct usb_mixer_elem_info **id_elems;
 
+	/* the usb audio specification version this interface complies to */
+	int protocol;
+
 	/* Sound Blaster remote control stuff */
 	const struct rc_config *rc_cfg;
 	u32 rc_code;
