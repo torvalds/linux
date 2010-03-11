@@ -673,7 +673,7 @@ int be_cmd_mccq_create(struct be_adapter *adapter,
 	be_cmd_hdr_prepare(&req->hdr, CMD_SUBSYSTEM_COMMON,
 			OPCODE_COMMON_MCC_CREATE, sizeof(*req));
 
-	req->num_pages = PAGES_4K_SPANNED(q_mem->va, q_mem->size);
+	req->num_pages = cpu_to_le16(PAGES_4K_SPANNED(q_mem->va, q_mem->size));
 
 	AMAP_SET_BITS(struct amap_mcc_context, valid, ctxt, 1);
 	AMAP_SET_BITS(struct amap_mcc_context, ring_size, ctxt,
