@@ -455,11 +455,11 @@ static size_t hist_entry_callchain__fprintf(FILE *fp, struct hist_entry *self,
 	return ret;
 }
 
-static size_t hist_entry__fprintf(struct hist_entry *self,
-				  struct perf_session *pair_session,
-				  bool show_displacement,
-				  long displacement, FILE *fp,
-				  u64 session_total)
+size_t hist_entry__fprintf(struct hist_entry *self,
+			   struct perf_session *pair_session,
+			   bool show_displacement,
+			   long displacement, FILE *fp,
+			   u64 session_total)
 {
 	struct sort_entry *se;
 	u64 count, total;
@@ -485,9 +485,9 @@ static size_t hist_entry__fprintf(struct hist_entry *self,
 
 	if (symbol_conf.show_nr_samples) {
 		if (sep)
-			fprintf(fp, "%c%lld", *sep, count);
+			ret += fprintf(fp, "%c%lld", *sep, count);
 		else
-			fprintf(fp, "%11lld", count);
+			ret += fprintf(fp, "%11lld", count);
 	}
 
 	if (pair_session) {
@@ -518,9 +518,9 @@ static size_t hist_entry__fprintf(struct hist_entry *self,
 				snprintf(bf, sizeof(bf), " ");
 
 			if (sep)
-				fprintf(fp, "%c%s", *sep, bf);
+				ret += fprintf(fp, "%c%s", *sep, bf);
 			else
-				fprintf(fp, "%6.6s", bf);
+				ret += fprintf(fp, "%6.6s", bf);
 		}
 	}
 
@@ -528,7 +528,7 @@ static size_t hist_entry__fprintf(struct hist_entry *self,
 		if (se->elide)
 			continue;
 
-		fprintf(fp, "%s", sep ?: "  ");
+		ret += fprintf(fp, "%s", sep ?: "  ");
 		ret += se->print(fp, self, se->width ? *se->width : 0);
 	}
 
@@ -544,8 +544,8 @@ static size_t hist_entry__fprintf(struct hist_entry *self,
 			left_margin -= thread__comm_len(self->thread);
 		}
 
-		hist_entry_callchain__fprintf(fp, self, session_total,
-					      left_margin);
+		ret += hist_entry_callchain__fprintf(fp, self, session_total,
+						     left_margin);
 	}
 
 	return ret;
