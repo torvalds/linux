@@ -1368,6 +1368,8 @@ void perf_event_task_sched_in(struct task_struct *task)
 	if (cpuctx->task_ctx == ctx)
 		return;
 
+	perf_disable();
+
 	/*
 	 * We want to keep the following priority order:
 	 * cpu pinned (that don't need to move), task pinned,
@@ -1380,6 +1382,8 @@ void perf_event_task_sched_in(struct task_struct *task)
 	ctx_sched_in(ctx, cpuctx, EVENT_FLEXIBLE);
 
 	cpuctx->task_ctx = ctx;
+
+	perf_enable();
 }
 
 #define MAX_INTERRUPTS (~0ULL)
