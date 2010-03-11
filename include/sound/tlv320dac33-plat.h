@@ -15,6 +15,7 @@
 
 struct tlv320dac33_platform_data {
 	int power_gpio;
+	int keep_bclk;	/* Keep the BCLK running in FIFO modes */
 	u8 burst_bclkdiv;
 };
 

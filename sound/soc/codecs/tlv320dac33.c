@@ -93,6 +93,8 @@ struct tlv320dac33_priv {
 	unsigned int nsample;		/* burst read amount from host */
 	u8 burst_bclkdiv;		/* BCLK divider value in burst mode */
 
+	int keep_bclk;			/* Keep the BCLK continuously running
+					 * in FIFO modes */
 	enum dac33_state state;
 };
 
@@ -803,7 +805,10 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 		 */
 		fifoctrl_a &= ~DAC33_FBYPAS;
 		fifoctrl_a &= ~DAC33_FAUTO;
-		aictrl_b &= ~DAC33_BCLKON;
+		if (dac33->keep_bclk)
+			aictrl_b |= DAC33_BCLKON;
+		else
+			aictrl_b &= ~DAC33_BCLKON;
 		break;
 	case DAC33_FIFO_MODE7:
 		/*
@@ -814,7 +819,10 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 		 */
 		fifoctrl_a &= ~DAC33_FBYPAS;
 		fifoctrl_a |= DAC33_FAUTO;
-		aictrl_b &= ~DAC33_BCLKON;
+		if (dac33->keep_bclk)
+			aictrl_b |= DAC33_BCLKON;
+		else
+			aictrl_b &= ~DAC33_BCLKON;
 		break;
 	default:
 		/*
@@ -1234,6 +1242,7 @@ static int __devinit dac33_i2c_probe(struct i2c_client *client,
 
 	dac33->power_gpio = pdata->power_gpio;
 	dac33->burst_bclkdiv = pdata->burst_bclkdiv;
+	dac33->keep_bclk = pdata->keep_bclk;
 	dac33->irq = client->irq;
 	dac33->nsample = NSAMPLE_MAX;
 	/* Disable FIFO use by default */
