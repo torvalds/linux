@@ -376,7 +376,7 @@ static int __devinit chd_dec_init_chdev(struct crystalhd_adp *adp)
 
 	dev = device_create(crystalhd_class, NULL, MKDEV(adp->chd_dec_major, 0),
 			    NULL, "crystalhd");
-	if (!dev) {
+	if (IS_ERR(dev)) {
 		BCMLOG_ERR("failed to create device\n");
 		goto device_create_fail;
 	}
