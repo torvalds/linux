@@ -362,6 +362,8 @@ EXPORT_SYMBOL_GPL(platform_device_unregister);
  * enumeration tasks, they don't fully conform to the Linux driver model.
  * In particular, when such drivers are built as modules, they can't be
  * "hotplugged".
+ *
+ * Returns &struct platform_device pointer on success, or ERR_PTR() on error.
  */
 struct platform_device *platform_device_register_simple(const char *name,
 							int id,
@@ -408,6 +410,8 @@ EXPORT_SYMBOL_GPL(platform_device_register_simple);
  * allocated for the device allows drivers using such devices to be
  * unloaded without waiting for the last reference to the device to be
  * dropped.
+ *
+ * Returns &struct platform_device pointer on success, or ERR_PTR() on error.
  */
 struct platform_device *platform_device_register_data(
 		struct device *parent,
@@ -559,6 +563,8 @@ EXPORT_SYMBOL_GPL(platform_driver_probe);
  *
  * Use this in legacy-style modules that probe hardware directly and
  * register a single platform device and corresponding platform driver.
+ *
+ * Returns &struct platform_device pointer on success, or ERR_PTR() on error.
  */
 struct platform_device * __init_or_module platform_create_bundle(
 			struct platform_driver *driver,
