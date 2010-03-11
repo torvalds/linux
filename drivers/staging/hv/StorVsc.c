@@ -554,7 +554,7 @@ static int StorVscOnDeviceAdd(struct hv_device *Device, void *AdditionalInfo)
 
 	/* Save the channel properties to our storvsc channel */
 	/* props = (struct vmstorage_channel_properties *)
-	 * 		channel->offerMsg.Offer.u.Standard.UserDefined; */
+	 *		channel->offerMsg.Offer.u.Standard.UserDefined; */
 
 	/* FIXME: */
 	/*
@@ -717,7 +717,7 @@ static int StorVscOnIORequest(struct hv_device *Device,
 	}
 
 	/* print_hex_dump_bytes("", DUMP_PREFIX_NONE, Request->Cdb,
-	 * 			Request->CdbLen); */
+	 *			Request->CdbLen); */
 
 	requestExtension->Request = Request;
 	requestExtension->Device  = Device;

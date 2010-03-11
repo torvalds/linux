@@ -112,7 +112,7 @@ static struct scsi_host_template scsi_driver = {
 	.slave_configure =	storvsc_device_configure,
 	.cmd_per_lun =		1,
 	/* 64 max_queue * 1 target */
-	.can_queue = 		STORVSC_MAX_IO_REQUESTS*STORVSC_MAX_TARGETS,
+	.can_queue =		STORVSC_MAX_IO_REQUESTS*STORVSC_MAX_TARGETS,
 	.this_id =		-1,
 	/* no use setting to 0 since ll_blk_rw reset it to 1 */
 	/* currently 32 */
@@ -767,7 +767,7 @@ static int storvsc_queuecommand(struct scsi_cmnd *scmnd,
 		request->DataBuffer.Offset = sgl[0].offset;
 
 		for (i = 0; i < scsi_sg_count(scmnd); i++) {
-			DPRINT_DBG(STORVSC_DRV, "sgl[%d] len %d offset %d \n",
+			DPRINT_DBG(STORVSC_DRV, "sgl[%d] len %d offset %d\n",
 				   i, sgl[i].length, sgl[i].offset);
 			request->DataBuffer.PfnArray[i] =
 					page_to_pfn(sg_page((&sgl[i])));

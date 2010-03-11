@@ -29,11 +29,11 @@
  *
  * Definition of versioning is as follows;
  *
- * 	Major Number 	Changes for these scenarios;
+ *	Major Number	Changes for these scenarios;
  *			1.	When a new version of Windows Hyper-V
  *				is released.
  *			2.	A Major change has occurred in the
- *			       	Linux IC's.
+ *				Linux IC's.
  *			(For example the merge for the first time
  *			into the kernel) Every time the Major Number
  *			changes, the Revision number is reset to 0.

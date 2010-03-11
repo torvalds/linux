@@ -1087,7 +1087,7 @@ static void NetVscOnReceive(struct hv_device *Device,
 	}
 
 	/* Remove the 1st packet to represent the xfer page packet itself */
-	xferpagePacket = (struct xferpage_packet*)listHead.next;
+	xferpagePacket = (struct xferpage_packet *)listHead.next;
 	list_del(&xferpagePacket->ListEntry);
 
 	/* This is how much we can satisfy */
@@ -1103,7 +1103,7 @@ static void NetVscOnReceive(struct hv_device *Device,
 
 	/* Each range represents 1 RNDIS pkt that contains 1 ethernet frame */
 	for (i = 0; i < (count - 1); i++) {
-		netvscPacket = (struct hv_netvsc_packet*)listHead.next;
+		netvscPacket = (struct hv_netvsc_packet *)listHead.next;
 		list_del(&netvscPacket->ListEntry);
 
 		/* Initialize the netvsc packet */

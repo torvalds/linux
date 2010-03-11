@@ -237,13 +237,13 @@ static ssize_t vmbus_show_device_attr(struct device *dev,
  * vmbus_bus_init -Main vmbus driver initialization routine.
  *
  * Here, we
- * 	- initialize the vmbus driver context
- * 	- setup various driver entry points
- * 	- invoke the vmbus hv main init routine
- * 	- get the irq resource
- * 	- invoke the vmbus to add the vmbus root device
- * 	- setup the vmbus root device
- * 	- retrieve the channel offers
+ *	- initialize the vmbus driver context
+ *	- setup various driver entry points
+ *	- invoke the vmbus hv main init routine
+ *	- get the irq resource
+ *	- invoke the vmbus to add the vmbus root device
+ *	- setup the vmbus root device
+ *	- retrieve the channel offers
  */
 static int vmbus_bus_init(int (*drv_init)(struct hv_driver *drv))
 {

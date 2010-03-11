@@ -259,8 +259,8 @@ static void VmbusProcessChannelEvent(void *context)
 		VmbusChannelOnChannelEvent(channel);
 		/*
 		 * WorkQueueQueueWorkItem(channel->dataWorkQueue,
-		 * 			  VmbusChannelOnChannelEvent,
-		 * 			  (void*)channel);
+		 *			  VmbusChannelOnChannelEvent,
+		 *			  (void*)channel);
 		 */
 	} else {
 		DPRINT_ERR(VMBUS, "channel not found for relid - %d.", relId);

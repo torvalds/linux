@@ -555,7 +555,7 @@ static int blkvsc_do_inquiry(struct block_device_context *blkdev)
 		blkdev->device_type = UNKNOWN_DEV_TYPE;
 	}
 
-	DPRINT_DBG(BLKVSC_DRV, "device type %d \n", device_type);
+	DPRINT_DBG(BLKVSC_DRV, "device type %d\n", device_type);
 
 	blkdev->device_id_len = buf[7];
 	if (blkdev->device_id_len > 64)
@@ -940,7 +940,7 @@ static int blkvsc_do_request(struct block_device_context *blkdev,
 	int pending = 0;
 	struct blkvsc_request_group *group = NULL;
 
-	DPRINT_DBG(BLKVSC_DRV, "blkdev %p req %p sect %lu \n", blkdev, req,
+	DPRINT_DBG(BLKVSC_DRV, "blkdev %p req %p sect %lu\n", blkdev, req,
 		  (unsigned long)blk_rq_pos(req));
 
 	/* Create a group to tie req to list of blkvsc_reqs */
@@ -1144,7 +1144,7 @@ static void blkvsc_request_completion(struct hv_storvsc_request *request)
 					 &blkvsc_req->group->blkvsc_req_list,
 					 req_entry) {
 			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p "
-				   "sect_start %lu sect_count %ld \n",
+				   "sect_start %lu sect_count %ld\n",
 				   comp_req,
 				   (unsigned long)comp_req->sector_start,
 				   comp_req->sector_count);
@@ -1198,7 +1198,7 @@ static int blkvsc_cancel_pending_reqs(struct block_device_context *blkdev)
 					 &pend_req->group->blkvsc_req_list,
 					 req_entry) {
 			DPRINT_DBG(BLKVSC_DRV, "completing blkvsc_req %p "
-				   "sect_start %lu sect_count %ld \n",
+				   "sect_start %lu sect_count %ld\n",
 				   comp_req,
 				   (unsigned long) comp_req->sector_start,
 				   comp_req->sector_count);
@@ -1276,7 +1276,7 @@ static void blkvsc_request(struct request_queue *queue)
 	struct request *req;
 	int ret = 0;
 
-	DPRINT_DBG(BLKVSC_DRV, "- enter \n");
+	DPRINT_DBG(BLKVSC_DRV, "- enter\n");
 	while ((req = blk_peek_request(queue)) != NULL) {
 		DPRINT_DBG(BLKVSC_DRV, "- req %p\n", req);
 
