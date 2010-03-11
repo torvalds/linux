@@ -392,6 +392,12 @@ config MMC_TMIO
 	  This provides support for the SD/MMC cell found in TC6393XB,
 	  T7L66XB and also HTC ASIC3
 
+config MMC_SDHCI_TEGRA
+	tristate "Tegra SD/MMC Controller Support"
+	depends on ARCH_TEGRA && MMC_SDHCI
+	help
+	  This selects the Tegra SD/MMC controller.
+
 config MMC_CB710
 	tristate "ENE CB710 MMC/SD Interface support"
 	depends on PCI

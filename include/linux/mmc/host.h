@@ -157,6 +157,7 @@ struct mmc_host {
 #define MMC_CAP_NONREMOVABLE	(1 << 8)	/* Nonremovable e.g. eMMC */
 #define MMC_CAP_WAIT_WHILE_BUSY	(1 << 9)	/* Waits while card is busy */
 #define MMC_CAP_ERASE		(1 << 10)	/* Allow erase/trim commands */
+#define MMC_CAP_FORCE_HS	(1 << 11)	/* Must enable highspeed mode */
 
 	mmc_pm_flag_t		pm_caps;	/* supported pm features */
 

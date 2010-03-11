@@ -66,6 +66,7 @@
 #define SDHCI_HOST_CONTROL 	0x28
 #define  SDHCI_CTRL_LED		0x01
 #define  SDHCI_CTRL_4BITBUS	0x02
+#define  SDHCI_CTRL_8BITBUS	0x20
 #define  SDHCI_CTRL_HISPD	0x04
 #define  SDHCI_CTRL_DMA_MASK	0x18
 #define   SDHCI_CTRL_SDMA	0x00
@@ -185,7 +186,7 @@ struct sdhci_host {
 	/* Data set by hardware interface driver */
 	const char		*hw_name;	/* Hardware bus name */
 
-	unsigned int		quirks;		/* Deviations from spec. */
+	u64			quirks;		/* Deviations from spec. */
 
 /* Controller doesn't honor resets unless we touch the clock register */
 #define SDHCI_QUIRK_CLOCK_BEFORE_RESET			(1<<0)
@@ -247,6 +248,22 @@ struct sdhci_host {
 #define SDHCI_QUIRK_MULTIBLOCK_READ_ACMD12		(1<<28)
 /* Controller doesn't have HISPD bit field in HI-SPEED SD card */
 #define SDHCI_QUIRK_NO_HISPD_BIT			(1<<29)
+/* Controller write protect bit is broken. Assume no write protection */
+#define SDHCI_QUIRK_BROKEN_WRITE_PROTECT		(1<<30)
+/* Controller needs INTERRUPT_AT_BLOCK_GAP enabled to detect card interrupts */
+#define SDHCI_QUIRK_ENABLE_INTERRUPT_AT_BLOCK_GAP	(1<<31)
+/* Controller should not program HIGH_SPEED_EN after switching to high speed */
+#define SDHCI_QUIRK_BROKEN_CTRL_HISPD			(1LL<<32)
+/* Controller supports 8-bit data width */
+#define SDHCI_QUIRK_8_BIT_DATA				(1LL<<33)
+/* Controller has no version register */
+#define SDHCI_QUIRK_NO_VERSION_REG			(1LL<<34)
+/* Controller treats ADMA descriptors with length 0000h incorrectly */
+#define SDHCI_QUIRK_BROKEN_ADMA_ZEROLEN_DESC		(1LL<<35)
+/* Controller should not use SDIO IRQ */
+#define SDHCI_QUIRK_NO_SDIO_IRQ				(1LL<<36)
+/* Controller should only use high-speed mode */
+#define SDHCI_QUIRK_FORCE_HIGH_SPEED_MODE		(1LL<<37)
 
 	int			irq;		/* Device IRQ */
 	void __iomem *		ioaddr;		/* Mapped address */
@@ -320,6 +337,7 @@ struct sdhci_ops {
 	void	(*set_clock)(struct sdhci_host *host, unsigned int clock);
 
 	int		(*enable_dma)(struct sdhci_host *host);
+	int		(*get_ro)(struct sdhci_host *host);
 	unsigned int	(*get_max_clock)(struct sdhci_host *host);
 	unsigned int	(*get_min_clock)(struct sdhci_host *host);
 	unsigned int	(*get_timeout_clock)(struct sdhci_host *host);
@@ -412,6 +430,7 @@ static inline u8 sdhci_readb(struct sdhci_host *host, int reg)
 extern struct sdhci_host *sdhci_alloc_host(struct device *dev,
 	size_t priv_size);
 extern void sdhci_free_host(struct sdhci_host *host);
+extern void sdhci_card_detect_callback(struct sdhci_host *host);
 
 static inline void *sdhci_priv(struct sdhci_host *host)
 {
