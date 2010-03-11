@@ -1713,3 +1713,4 @@ void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int ski
 	regs->cs = __KERNEL_CS;
 	local_save_flags(regs->flags);
 }
+EXPORT_SYMBOL_GPL(perf_arch_fetch_caller_regs);
