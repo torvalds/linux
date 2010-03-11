@@ -82,6 +82,32 @@ static void wl1251_sdio_write(struct wl1251 *wl, int addr,
 	sdio_release_host(func);
 }
 
+static void wl1251_sdio_read_elp(struct wl1251 *wl, int addr, u32 *val)
+{
+	int ret = 0;
+	struct sdio_func *func = wl_to_func(wl);
+
+	sdio_claim_host(func);
+	*val = sdio_readb(func, addr, &ret);
+	sdio_release_host(func);
+
+	if (ret)
+		wl1251_error("sdio_readb failed (%d)", ret);
+}
+
+static void wl1251_sdio_write_elp(struct wl1251 *wl, int addr, u32 val)
+{
+	int ret = 0;
+	struct sdio_func *func = wl_to_func(wl);
+
+	sdio_claim_host(func);
+	sdio_writeb(func, val, addr, &ret);
+	sdio_release_host(func);
+
+	if (ret)
+		wl1251_error("sdio_writeb failed (%d)", ret);
+}
+
 static void wl1251_sdio_reset(struct wl1251 *wl)
 {
 }
@@ -111,6 +137,8 @@ static void wl1251_sdio_set_power(bool enable)
 static const struct wl1251_if_operations wl1251_sdio_ops = {
 	.read = wl1251_sdio_read,
 	.write = wl1251_sdio_write,
+	.write_elp = wl1251_sdio_write_elp,
+	.read_elp = wl1251_sdio_read_elp,
 	.reset = wl1251_sdio_reset,
 	.enable_irq = wl1251_sdio_enable_irq,
 	.disable_irq = wl1251_sdio_disable_irq,
