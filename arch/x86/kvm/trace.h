@@ -182,8 +182,8 @@ TRACE_EVENT(kvm_apic,
  * Tracepoint for kvm guest exit:
  */
 TRACE_EVENT(kvm_exit,
-	TP_PROTO(unsigned int exit_reason, unsigned long guest_rip),
-	TP_ARGS(exit_reason, guest_rip),
+	TP_PROTO(unsigned int exit_reason, struct kvm_vcpu *vcpu),
+	TP_ARGS(exit_reason, vcpu),
 
 	TP_STRUCT__entry(
 		__field(	unsigned int,	exit_reason	)
@@ -192,7 +192,7 @@ TRACE_EVENT(kvm_exit,
 
 	TP_fast_assign(
 		__entry->exit_reason	= exit_reason;
-		__entry->guest_rip	= guest_rip;
+		__entry->guest_rip	= kvm_rip_read(vcpu);
 	),
 
 	TP_printk("reason %s rip 0x%lx",

@@ -2686,7 +2686,7 @@ static int handle_exit(struct kvm_vcpu *vcpu)
 	struct kvm_run *kvm_run = vcpu->run;
 	u32 exit_code = svm->vmcb->control.exit_code;
 
-	trace_kvm_exit(exit_code, svm->vmcb->save.rip);
+	trace_kvm_exit(exit_code, vcpu);
 
 	if (unlikely(svm->nested.exit_required)) {
 		nested_svm_vmexit(svm);
