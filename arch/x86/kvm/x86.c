@@ -433,8 +433,6 @@ void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 
 #ifdef CONFIG_X86_64
 	if (cr0 & 0xffffffff00000000UL) {
-		printk(KERN_DEBUG "set_cr0: 0x%lx #GP, reserved bits 0x%lx\n",
-		       cr0, kvm_read_cr0(vcpu));
 		kvm_inject_gp(vcpu, 0);
 		return;
 	}
@@ -443,14 +441,11 @@ void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 	cr0 &= ~CR0_RESERVED_BITS;
 
 	if ((cr0 & X86_CR0_NW) && !(cr0 & X86_CR0_CD)) {
-		printk(KERN_DEBUG "set_cr0: #GP, CD == 0 && NW == 1\n");
 		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 
 	if ((cr0 & X86_CR0_PG) && !(cr0 & X86_CR0_PE)) {
-		printk(KERN_DEBUG "set_cr0: #GP, set PG flag "
-		       "and a clear PE flag\n");
 		kvm_inject_gp(vcpu, 0);
 		return;
 	}
@@ -461,15 +456,11 @@ void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 			int cs_db, cs_l;
 
 			if (!is_pae(vcpu)) {
-				printk(KERN_DEBUG "set_cr0: #GP, start paging "
-				       "in long mode while PAE is disabled\n");
 				kvm_inject_gp(vcpu, 0);
 				return;
 			}
 			kvm_x86_ops->get_cs_db_l_bits(vcpu, &cs_db, &cs_l);
 			if (cs_l) {
-				printk(KERN_DEBUG "set_cr0: #GP, start paging "
-				       "in long mode while CS.L == 1\n");
 				kvm_inject_gp(vcpu, 0);
 				return;
 
@@ -477,8 +468,6 @@ void kvm_set_cr0(struct kvm_vcpu *vcpu, unsigned long cr0)
 		} else
 #endif
 		if (is_pae(vcpu) && !load_pdptrs(vcpu, vcpu->arch.cr3)) {
-			printk(KERN_DEBUG "set_cr0: #GP, pdptrs "
-			       "reserved bits\n");
 			kvm_inject_gp(vcpu, 0);
 			return;
 		}
@@ -505,28 +494,23 @@ void kvm_set_cr4(struct kvm_vcpu *vcpu, unsigned long cr4)
 	unsigned long pdptr_bits = X86_CR4_PGE | X86_CR4_PSE | X86_CR4_PAE;
 
 	if (cr4 & CR4_RESERVED_BITS) {
-		printk(KERN_DEBUG "set_cr4: #GP, reserved bits\n");
 		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 
 	if (is_long_mode(vcpu)) {
 		if (!(cr4 & X86_CR4_PAE)) {
-			printk(KERN_DEBUG "set_cr4: #GP, clearing PAE while "
-			       "in long mode\n");
 			kvm_inject_gp(vcpu, 0);
 			return;
 		}
 	} else if (is_paging(vcpu) && (cr4 & X86_CR4_PAE)
 		   && ((cr4 ^ old_cr4) & pdptr_bits)
 		   && !load_pdptrs(vcpu, vcpu->arch.cr3)) {
-		printk(KERN_DEBUG "set_cr4: #GP, pdptrs reserved bits\n");
 		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 
 	if (cr4 & X86_CR4_VMXE) {
-		printk(KERN_DEBUG "set_cr4: #GP, setting VMXE\n");
 		kvm_inject_gp(vcpu, 0);
 		return;
 	}
@@ -547,21 +531,16 @@ void kvm_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
 
 	if (is_long_mode(vcpu)) {
 		if (cr3 & CR3_L_MODE_RESERVED_BITS) {
-			printk(KERN_DEBUG "set_cr3: #GP, reserved bits\n");
 			kvm_inject_gp(vcpu, 0);
 			return;
 		}
 	} else {
 		if (is_pae(vcpu)) {
 			if (cr3 & CR3_PAE_RESERVED_BITS) {
-				printk(KERN_DEBUG
-				       "set_cr3: #GP, reserved bits\n");
 				kvm_inject_gp(vcpu, 0);
 				return;
 			}
 			if (is_paging(vcpu) && !load_pdptrs(vcpu, cr3)) {
-				printk(KERN_DEBUG "set_cr3: #GP, pdptrs "
-				       "reserved bits\n");
 				kvm_inject_gp(vcpu, 0);
 				return;
 			}
@@ -593,7 +572,6 @@ EXPORT_SYMBOL_GPL(kvm_set_cr3);
 void kvm_set_cr8(struct kvm_vcpu *vcpu, unsigned long cr8)
 {
 	if (cr8 & CR8_RESERVED_BITS) {
-		printk(KERN_DEBUG "set_cr8: #GP, reserved bits 0x%lx\n", cr8);
 		kvm_inject_gp(vcpu, 0);
 		return;
 	}
@@ -649,15 +627,12 @@ static u32 emulated_msrs[] = {
 static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 {
 	if (efer & efer_reserved_bits) {
-		printk(KERN_DEBUG "set_efer: 0x%llx #GP, reserved bits\n",
-		       efer);
 		kvm_inject_gp(vcpu, 0);
 		return;
 	}
 
 	if (is_paging(vcpu)
 	    && (vcpu->arch.efer & EFER_LME) != (efer & EFER_LME)) {
-		printk(KERN_DEBUG "set_efer: #GP, change LME while paging\n");
 		kvm_inject_gp(vcpu, 0);
 		return;
 	}
@@ -667,7 +642,6 @@ static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 
 		feat = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
 		if (!feat || !(feat->edx & bit(X86_FEATURE_FXSR_OPT))) {
-			printk(KERN_DEBUG "set_efer: #GP, enable FFXSR w/o CPUID capability\n");
 			kvm_inject_gp(vcpu, 0);
 			return;
 		}
@@ -678,7 +652,6 @@ static void set_efer(struct kvm_vcpu *vcpu, u64 efer)
 
 		feat = kvm_find_cpuid_entry(vcpu, 0x80000001, 0);
 		if (!feat || !(feat->ecx & bit(X86_FEATURE_SVM))) {
-			printk(KERN_DEBUG "set_efer: #GP, enable SVM w/o SVM\n");
 			kvm_inject_gp(vcpu, 0);
 			return;
 		}
