@@ -52,6 +52,7 @@ struct vbd {
 	unsigned char  type;        /* VDISK_xxx */
 	u32            pdevice;     /* phys device that this vbd maps to */
 	struct block_device *bdev;
+	sector_t       size;        /* Cached size parameter */
 };
 
 struct backend_info;
@@ -98,6 +99,7 @@ blkif_t *blkif_alloc(domid_t domid);
 void blkif_disconnect(blkif_t *blkif);
 void blkif_free(blkif_t *blkif);
 int blkif_map(blkif_t *blkif, unsigned long shared_page, unsigned int evtchn);
+void vbd_resize(blkif_t *blkif);
 
 #define blkif_get(_b) (atomic_inc(&(_b)->refcnt))
 #define blkif_put(_b)					\

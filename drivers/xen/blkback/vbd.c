@@ -73,6 +73,7 @@ int vbd_create(blkif_t *blkif, blkif_vdev_t handle, unsigned major,
 	}
 
 	vbd->bdev = bdev;
+	vbd->size = vbd_size(vbd);
 
 	if (vbd->bdev->bd_disk == NULL) {
 		DPRINTK("vbd_creat: device %08x doesn't exist.\n",
@@ -115,4 +116,46 @@ int vbd_translate(struct phys_req *req, blkif_t *blkif, int operation)
 
  out:
 	return rc;
+}
+
+void vbd_resize(blkif_t *blkif)
+{
+	struct vbd *vbd = &blkif->vbd;
+	struct xenbus_transaction xbt;
+	int err;
+	struct xenbus_device *dev = blkif->be->dev;
+	unsigned long long new_size = vbd_size(vbd);
+
+	printk(KERN_INFO "VBD Resize: new size %Lu\n", new_size);
+	vbd->size = new_size;
+again:
+	err = xenbus_transaction_start(&xbt);
+	if (err) {
+		printk(KERN_WARNING "Error starting transaction");
+		return;
+	}
+	err = xenbus_printf(xbt, dev->nodename, "sectors", "%Lu",
+			    vbd_size(vbd));
+	if (err) {
+		printk(KERN_WARNING "Error writing new size");
+		goto abort;
+	}
+	/*
+	 * Write the current state; we will use this to synchronize
+	 * the front-end. If the current state is "connected" the
+	 * front-end will get the new size information online.
+	 */
+	err = xenbus_printf(xbt, dev->nodename, "state", "%d", dev->state);
+	if (err) {
+		printk(KERN_WARNING "Error writing the state");
+		goto abort;
+	}
+
+	err = xenbus_transaction_end(xbt, 0);
+	if (err == -EAGAIN)
+		goto again;
+	if (err)
+		printk(KERN_WARNING "Error ending transaction");
+abort:
+	xenbus_transaction_end(xbt, 1);
 }
