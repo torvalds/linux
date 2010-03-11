@@ -491,13 +491,11 @@ static void domain_update_iommu_coherency(struct dmar_domain *domain)
 
 	domain->iommu_coherency = 1;
 
-	i = find_first_bit(&domain->iommu_bmp, g_num_of_iommus);
-	for (; i < g_num_of_iommus; ) {
+	for_each_set_bit(i, &domain->iommu_bmp, g_num_of_iommus) {
 		if (!ecap_coherent(g_iommus[i]->ecap)) {
 			domain->iommu_coherency = 0;
 			break;
 		}
-		i = find_next_bit(&domain->iommu_bmp, g_num_of_iommus, i+1);
 	}
 }
 
@@ -507,13 +505,11 @@ static void domain_update_iommu_snooping(struct dmar_domain *domain)
 
 	domain->iommu_snooping = 1;
 
-	i = find_first_bit(&domain->iommu_bmp, g_num_of_iommus);
-	for (; i < g_num_of_iommus; ) {
+	for_each_set_bit(i, &domain->iommu_bmp, g_num_of_iommus) {
 		if (!ecap_sc_support(g_iommus[i]->ecap)) {
 			domain->iommu_snooping = 0;
 			break;
 		}
-		i = find_next_bit(&domain->iommu_bmp, g_num_of_iommus, i+1);
 	}
 }
 
@@ -1194,8 +1190,7 @@ void free_dmar_iommu(struct intel_iommu *iommu)
 	unsigned long flags;
 
 	if ((iommu->domains) && (iommu->domain_ids)) {
-		i = find_first_bit(iommu->domain_ids, cap_ndoms(iommu->cap));
-		for (; i < cap_ndoms(iommu->cap); ) {
+		for_each_set_bit(i, iommu->domain_ids, cap_ndoms(iommu->cap)) {
 			domain = iommu->domains[i];
 			clear_bit(i, iommu->domain_ids);
 
@@ -1207,9 +1202,6 @@ void free_dmar_iommu(struct intel_iommu *iommu)
 					domain_exit(domain);
 			}
 			spin_unlock_irqrestore(&domain->iommu_lock, flags);
-
-			i = find_next_bit(iommu->domain_ids,
-				cap_ndoms(iommu->cap), i+1);
 		}
 	}
 
@@ -1292,14 +1284,11 @@ static void iommu_detach_domain(struct dmar_domain *domain,
 
 	spin_lock_irqsave(&iommu->lock, flags);
 	ndomains = cap_ndoms(iommu->cap);
-	num = find_first_bit(iommu->domain_ids, ndomains);
-	for (; num < ndomains; ) {
+	for_each_set_bit(num, iommu->domain_ids, ndomains) {
 		if (iommu->domains[num] == domain) {
 			found = 1;
 			break;
 		}
-		num = find_next_bit(iommu->domain_ids,
-				    cap_ndoms(iommu->cap), num+1);
 	}
 
 	if (found) {
@@ -1485,15 +1474,12 @@ static int domain_context_mapping_one(struct dmar_domain *domain, int segment,
 
 		/* find an available domain id for this device in iommu */
 		ndomains = cap_ndoms(iommu->cap);
-		num = find_first_bit(iommu->domain_ids, ndomains);
-		for (; num < ndomains; ) {
+		for_each_set_bit(num, iommu->domain_ids, ndomains) {
 			if (iommu->domains[num] == domain) {
 				id = num;
 				found = 1;
 				break;
 			}
-			num = find_next_bit(iommu->domain_ids,
-					    cap_ndoms(iommu->cap), num+1);
 		}
 
 		if (found == 0) {
@@ -3441,12 +3427,9 @@ static int vm_domain_min_agaw(struct dmar_domain *domain)
 	int i;
 	int min_agaw = domain->agaw;
 
-	i = find_first_bit(&domain->iommu_bmp, g_num_of_iommus);
-	for (; i < g_num_of_iommus; ) {
+	for_each_set_bit(i, &domain->iommu_bmp, g_num_of_iommus) {
 		if (min_agaw > g_iommus[i]->agaw)
 			min_agaw = g_iommus[i]->agaw;
-
-		i = find_next_bit(&domain->iommu_bmp, g_num_of_iommus, i+1);
 	}
 
 	return min_agaw;
@@ -3512,8 +3495,7 @@ static void iommu_free_vm_domain(struct dmar_domain *domain)
 		iommu = drhd->iommu;
 
 		ndomains = cap_ndoms(iommu->cap);
-		i = find_first_bit(iommu->domain_ids, ndomains);
-		for (; i < ndomains; ) {
+		for_each_set_bit(i, iommu->domain_ids, ndomains) {
 			if (iommu->domains[i] == domain) {
 				spin_lock_irqsave(&iommu->lock, flags);
 				clear_bit(i, iommu->domain_ids);
@@ -3521,7 +3503,6 @@ static void iommu_free_vm_domain(struct dmar_domain *domain)
 				spin_unlock_irqrestore(&iommu->lock, flags);
 				break;
 			}
-			i = find_next_bit(iommu->domain_ids, ndomains, i+1);
 		}
 	}
 }
