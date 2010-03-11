@@ -45,10 +45,18 @@ void radeon_atom_set_clock_gating(struct radeon_device *rdev, int enable);
 /*
  * r100,rv100,rs100,rv200,rs200
  */
-extern int r100_init(struct radeon_device *rdev);
-extern void r100_fini(struct radeon_device *rdev);
-extern int r100_suspend(struct radeon_device *rdev);
-extern int r100_resume(struct radeon_device *rdev);
+struct r100_mc_save {
+	u32	GENMO_WT;
+	u32	CRTC_EXT_CNTL;
+	u32	CRTC_GEN_CNTL;
+	u32	CRTC2_GEN_CNTL;
+	u32	CUR_OFFSET;
+	u32	CUR2_OFFSET;
+};
+int r100_init(struct radeon_device *rdev);
+void r100_fini(struct radeon_device *rdev);
+int r100_suspend(struct radeon_device *rdev);
+int r100_resume(struct radeon_device *rdev);
 uint32_t r100_mm_rreg(struct radeon_device *rdev, uint32_t reg);
 void r100_mm_wreg(struct radeon_device *rdev, uint32_t reg, uint32_t v);
 void r100_vga_set_state(struct radeon_device *rdev, bool state);
@@ -82,6 +90,42 @@ void r100_hpd_fini(struct radeon_device *rdev);
 bool r100_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd);
 void r100_hpd_set_polarity(struct radeon_device *rdev,
 			   enum radeon_hpd_id hpd);
+int r100_debugfs_rbbm_init(struct radeon_device *rdev);
+int r100_debugfs_cp_init(struct radeon_device *rdev);
+void r100_cp_disable(struct radeon_device *rdev);
+int r100_cp_init(struct radeon_device *rdev, unsigned ring_size);
+void r100_cp_fini(struct radeon_device *rdev);
+int r100_pci_gart_init(struct radeon_device *rdev);
+void r100_pci_gart_fini(struct radeon_device *rdev);
+int r100_pci_gart_enable(struct radeon_device *rdev);
+void r100_pci_gart_disable(struct radeon_device *rdev);
+int r100_debugfs_mc_info_init(struct radeon_device *rdev);
+int r100_gui_wait_for_idle(struct radeon_device *rdev);
+void r100_ib_fini(struct radeon_device *rdev);
+int r100_ib_init(struct radeon_device *rdev);
+void r100_irq_disable(struct radeon_device *rdev);
+void r100_mc_stop(struct radeon_device *rdev, struct r100_mc_save *save);
+void r100_mc_resume(struct radeon_device *rdev, struct r100_mc_save *save);
+void r100_vram_init_sizes(struct radeon_device *rdev);
+void r100_wb_disable(struct radeon_device *rdev);
+void r100_wb_fini(struct radeon_device *rdev);
+int r100_wb_init(struct radeon_device *rdev);
+void r100_hdp_reset(struct radeon_device *rdev);
+int r100_rb2d_reset(struct radeon_device *rdev);
+int r100_cp_reset(struct radeon_device *rdev);
+void r100_vga_render_disable(struct radeon_device *rdev);
+int r100_cs_track_check_pkt3_indx_buffer(struct radeon_cs_parser *p,
+					 struct radeon_cs_packet *pkt,
+					 struct radeon_bo *robj);
+int r100_cs_parse_packet0(struct radeon_cs_parser *p,
+			  struct radeon_cs_packet *pkt,
+			  const unsigned *auth, unsigned n,
+			  radeon_packet0_check_t check);
+int r100_cs_packet_parse(struct radeon_cs_parser *p,
+			 struct radeon_cs_packet *pkt,
+			 unsigned idx);
+void r100_enable_bm(struct radeon_device *rdev);
+void r100_set_common_regs(struct radeon_device *rdev);
 
 /*
  * r200,rv250,rs300,rv280
