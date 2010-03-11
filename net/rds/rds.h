@@ -388,6 +388,8 @@ struct rds_sock {
 
 	/* flag indicating we were congested or not */
 	int			rs_congested;
+	/* seen congestion (ENOBUFS) when sending? */
+	int			rs_seen_congestion;
 
 	/* rs_lock protects all these adjacent members before the newline */
 	spinlock_t		rs_lock;
