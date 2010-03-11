@@ -291,6 +291,7 @@ static int r100_hw_i2c_xfer(struct i2c_adapter *i2c_adap,
 	prescale = radeon_get_i2c_prescale(rdev);
 
 	reg = ((prescale << RADEON_I2C_PRESCALE_SHIFT) |
+	       RADEON_I2C_DRIVE_EN |
 	       RADEON_I2C_START |
 	       RADEON_I2C_STOP |
 	       RADEON_I2C_GO);
