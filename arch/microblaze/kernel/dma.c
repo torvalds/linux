@@ -43,9 +43,14 @@ static unsigned long get_dma_direct_offset(struct device *dev)
 	return PCI_DRAM_OFFSET; /* FIXME Not sure if is correct */
 }
 
-void *dma_direct_alloc_coherent(struct device *dev, size_t size,
+#define NOT_COHERENT_CACHE
+
+static void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 				dma_addr_t *dma_handle, gfp_t flag)
 {
+#ifdef NOT_COHERENT_CACHE
+	return consistent_alloc(flag, size, dma_handle);
+#else
 	void *ret;
 	struct page *page;
 	int node = dev_to_node(dev);
@@ -61,12 +66,17 @@ void *dma_direct_alloc_coherent(struct device *dev, size_t size,
 	*dma_handle = virt_to_phys(ret) + get_dma_direct_offset(dev);
 
 	return ret;
+#endif
 }
 
-void dma_direct_free_coherent(struct device *dev, size_t size,
+static void dma_direct_free_coherent(struct device *dev, size_t size,
 			      void *vaddr, dma_addr_t dma_handle)
 {
+#ifdef NOT_COHERENT_CACHE
+	consistent_free(vaddr);
+#else
 	free_pages((unsigned long)vaddr, get_order(size));
+#endif
 }
 
 static int dma_direct_map_sg(struct device *dev, struct scatterlist *sgl,
@@ -105,7 +115,6 @@ static inline dma_addr_t dma_direct_map_page(struct device *dev,
 					     enum dma_data_direction direction,
 					     struct dma_attrs *attrs)
 {
-	BUG_ON(direction == DMA_NONE);
 	__dma_sync_page(page_to_phys(page), offset, size, direction);
 	return page_to_phys(page) + offset + get_dma_direct_offset(dev);
 }
@@ -121,7 +130,7 @@ static inline void dma_direct_unmap_page(struct device *dev,
  * phys_to_virt is here because in __dma_sync_page is __virt_to_phys and
  * dma_address is physical address
  */
-	__dma_sync_page((void *)dma_address, 0 , size, direction);
+	__dma_sync_page(dma_address, 0 , size, direction);
 }
 
 struct dma_map_ops dma_direct_ops = {
