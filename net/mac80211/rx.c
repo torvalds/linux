@@ -1590,6 +1590,7 @@ static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 {
 	struct net_device *dev = rx->dev;
+	struct ieee80211_local *local = rx->local;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)rx->skb->data;
 	__le16 fc = hdr->frame_control;
 	int err;
@@ -1611,6 +1612,13 @@ ieee80211_rx_h_data(struct ieee80211_rx_data *rx)
 
 	dev->stats.rx_packets++;
 	dev->stats.rx_bytes += rx->skb->len;
+
+	if (ieee80211_is_data(hdr->frame_control) &&
+	    !is_multicast_ether_addr(hdr->addr1) &&
+	    local->hw.conf.dynamic_ps_timeout > 0 && local->ps_sdata) {
+		mod_timer(&local->dynamic_ps_timer, jiffies +
+			  msecs_to_jiffies(local->hw.conf.dynamic_ps_timeout));
+	}
 
 	ieee80211_deliver_skb(rx);
 
