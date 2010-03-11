@@ -280,7 +280,8 @@ try_again:
 		int err = errno;
 
 		if (err == EPERM || err == EACCES)
-			die("Permission error - are you root?\n");
+			die("Permission error - are you root?\n"
+			    "\t Consider tweaking /proc/sys/kernel/perf_event_paranoid.\n");
 		else if (err ==  ENODEV && profile_cpu != -1)
 			die("No such device - did you specify an out-of-range profile CPU?\n");
 
