@@ -73,7 +73,7 @@ int r100_copy_blit(struct radeon_device *rdev,
 int r100_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t tiling_flags, uint32_t pitch,
 			 uint32_t offset, uint32_t obj_size);
-int r100_clear_surface_reg(struct radeon_device *rdev, int reg);
+void r100_clear_surface_reg(struct radeon_device *rdev, int reg);
 void r100_bandwidth_update(struct radeon_device *rdev);
 void r100_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int r100_ring_test(struct radeon_device *rdev);
@@ -212,7 +212,7 @@ int r600_gpu_reset(struct radeon_device *rdev);
 int r600_set_surface_reg(struct radeon_device *rdev, int reg,
 			 uint32_t tiling_flags, uint32_t pitch,
 			 uint32_t offset, uint32_t obj_size);
-int r600_clear_surface_reg(struct radeon_device *rdev, int reg);
+void r600_clear_surface_reg(struct radeon_device *rdev, int reg);
 void r600_ring_ib_execute(struct radeon_device *rdev, struct radeon_ib *ib);
 int r600_ring_test(struct radeon_device *rdev);
 int r600_copy_blit(struct radeon_device *rdev,

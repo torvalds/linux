@@ -783,7 +783,7 @@ struct radeon_asic {
 	int (*set_surface_reg)(struct radeon_device *rdev, int reg,
 			       uint32_t tiling_flags, uint32_t pitch,
 			       uint32_t offset, uint32_t obj_size);
-	int (*clear_surface_reg)(struct radeon_device *rdev, int reg);
+	void (*clear_surface_reg)(struct radeon_device *rdev, int reg);
 	void (*bandwidth_update)(struct radeon_device *rdev);
 	void (*hpd_init)(struct radeon_device *rdev);
 	void (*hpd_fini)(struct radeon_device *rdev);
