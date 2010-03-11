@@ -1269,6 +1269,9 @@ int hw_perf_group_sched_in(struct perf_event *leader,
 	int assign[X86_PMC_IDX_MAX];
 	int n0, n1, ret;
 
+	if (!x86_pmu_initialized())
+		return 0;
+
 	/* n0 = total number of events */
 	n0 = collect_events(cpuc, leader, true);
 	if (n0 < 0)
