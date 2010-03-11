@@ -234,8 +234,8 @@ void rds_ib_destroy_mr_pool(struct rds_ib_mr_pool *pool)
 {
 	flush_workqueue(rds_wq);
 	rds_ib_flush_mr_pool(pool, 1);
-	BUG_ON(atomic_read(&pool->item_count));
-	BUG_ON(atomic_read(&pool->free_pinned));
+	WARN_ON(atomic_read(&pool->item_count));
+	WARN_ON(atomic_read(&pool->free_pinned));
 	kfree(pool);
 }
 
