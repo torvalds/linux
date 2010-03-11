@@ -1241,7 +1241,6 @@ static inline unsigned long effective_load(struct task_group *tg, int cpu,
 
 static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 {
-	struct task_struct *curr = current;
 	unsigned long this_load, load;
 	int idx, this_cpu, prev_cpu;
 	unsigned long tl_per_task;
@@ -1255,18 +1254,6 @@ static int wake_affine(struct sched_domain *sd, struct task_struct *p, int sync)
 	prev_cpu  = task_cpu(p);
 	load	  = source_load(prev_cpu, idx);
 	this_load = target_load(this_cpu, idx);
-
-	if (sync) {
-	       if (sched_feat(SYNC_LESS) &&
-		   (curr->se.avg_overlap > sysctl_sched_migration_cost ||
-		    p->se.avg_overlap > sysctl_sched_migration_cost))
-		       sync = 0;
-	} else {
-		if (sched_feat(SYNC_MORE) &&
-		    (curr->se.avg_overlap < sysctl_sched_migration_cost &&
-		     p->se.avg_overlap < sysctl_sched_migration_cost))
-			sync = 1;
-	}
 
 	/*
 	 * If sync wakeup then subtract the (maximum possible)
@@ -1709,11 +1696,6 @@ static void check_preempt_wakeup(struct rq *rq, struct task_struct *p, int wake_
 		goto preempt;
 
 	if (sched_feat(WAKEUP_SYNC) && sync)
-		goto preempt;
-
-	if (sched_feat(WAKEUP_OVERLAP) &&
-			se->avg_overlap < sysctl_sched_migration_cost &&
-			pse->avg_overlap < sysctl_sched_migration_cost)
 		goto preempt;
 
 	if (!sched_feat(WAKEUP_PREEMPT))

@@ -1180,9 +1180,6 @@ struct sched_entity {
 	u64			vruntime;
 	u64			prev_sum_exec_runtime;
 
-	u64			last_wakeup;
-	u64			avg_overlap;
-
 	u64			nr_migrations;
 
 #ifdef CONFIG_SCHEDSTATS
