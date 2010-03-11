@@ -747,6 +747,7 @@ int evergreen_init(struct radeon_device *rdev)
 
 void evergreen_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	evergreen_suspend(rdev);
 #if 0
 	r600_blit_fini(rdev);

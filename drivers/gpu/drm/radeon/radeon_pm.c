@@ -257,6 +257,12 @@ int radeon_pm_init(struct radeon_device *rdev)
 	return 0;
 }
 
+void radeon_pm_fini(struct radeon_device *rdev)
+{
+	if (rdev->pm.i2c_bus)
+		radeon_i2c_destroy(rdev->pm.i2c_bus);
+}
+
 void radeon_pm_compute_clocks(struct radeon_device *rdev)
 {
 	struct drm_device *ddev = rdev->ddev;

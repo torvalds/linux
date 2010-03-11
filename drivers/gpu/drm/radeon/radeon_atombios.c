@@ -1461,6 +1461,30 @@ radeon_atombios_get_tv_dac_info(struct radeon_encoder *encoder)
 	return tv_dac;
 }
 
+static const char *thermal_controller_names[] = {
+	"NONE",
+	"LM63",
+	"ADM1032",
+	"ADM1030",
+	"MUA6649",
+	"LM64",
+	"F75375",
+	"ASC7512",
+};
+
+static const char *pp_lib_thermal_controller_names[] = {
+	"NONE",
+	"LM63",
+	"ADM1032",
+	"ADM1030",
+	"MUA6649",
+	"LM64",
+	"F75375",
+	"RV6xx",
+	"RV770",
+	"ADT7473",
+};
+
 union power_info {
 	struct _ATOM_POWERPLAY_INFO info;
 	struct _ATOM_POWERPLAY_INFO_V2 info_2;
@@ -1480,6 +1504,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 	struct _ATOM_PPLIB_STATE *power_state;
 	int num_modes = 0, i, j;
 	int state_index = 0, mode_index = 0;
+	struct radeon_i2c_bus_rec i2c_bus;
 
 	atom_parse_data_header(mode_info->atom_context, index, NULL, &frev, &crev, &data_offset);
 
@@ -1489,6 +1514,14 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 
 	if (power_info) {
 		if (frev < 4) {
+			/* add the i2c bus for thermal/fan chip */
+			if (power_info->info.ucOverdriveThermalController > 0) {
+				DRM_INFO("Possible %s thermal controller at 0x%02x\n",
+					 thermal_controller_names[power_info->info.ucOverdriveThermalController],
+					 power_info->info.ucOverdriveControllerAddress >> 1);
+				i2c_bus = radeon_lookup_i2c_gpio(rdev, power_info->info.ucOverdriveI2cLine);
+				rdev->pm.i2c_bus = radeon_i2c_create(rdev->ddev, &i2c_bus, "Thermal");
+			}
 			num_modes = power_info->info.ucNumOfPowerModeEntries;
 			if (num_modes > ATOM_MAX_NUMBEROF_POWER_BLOCK)
 				num_modes = ATOM_MAX_NUMBEROF_POWER_BLOCK;
@@ -1698,6 +1731,24 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 				}
 			}
 		} else if (frev == 4) {
+			/* add the i2c bus for thermal/fan chip */
+			/* no support for internal controller yet */
+			if (power_info->info_4.sThermalController.ucType > 0) {
+				if ((power_info->info_4.sThermalController.ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) &&
+				    (power_info->info_4.sThermalController.ucType == ATOM_PP_THERMALCONTROLLER_RV770)) {
+					DRM_INFO("Internal thermal controller %s fan control\n",
+						 (power_info->info_4.sThermalController.ucFanParameters &
+						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+				} else {
+					DRM_INFO("Possible %s thermal controller at 0x%02x %s fan control\n",
+						 pp_lib_thermal_controller_names[power_info->info_4.sThermalController.ucType],
+						 power_info->info_4.sThermalController.ucI2cAddress >> 1,
+						 (power_info->info_4.sThermalController.ucFanParameters &
+						  ATOM_PP_FANPARAMETERS_NOFAN) ? "without" : "with");
+					i2c_bus = radeon_lookup_i2c_gpio(rdev, power_info->info_4.sThermalController.ucI2cLine);
+					rdev->pm.i2c_bus = radeon_i2c_create(rdev->ddev, &i2c_bus, "Thermal");
+				}
+			}
 			for (i = 0; i < power_info->info_4.ucNumStates; i++) {
 				mode_index = 0;
 				power_state = (struct _ATOM_PPLIB_STATE *)

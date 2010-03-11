@@ -1165,6 +1165,7 @@ int rv770_init(struct radeon_device *rdev)
 
 void rv770_fini(struct radeon_device *rdev)
 {
+	radeon_pm_fini(rdev);
 	r600_blit_fini(rdev);
 	r600_cp_fini(rdev);
 	r600_wb_fini(rdev);

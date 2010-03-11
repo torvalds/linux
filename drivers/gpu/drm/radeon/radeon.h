@@ -168,6 +168,7 @@ struct radeon_clock {
  * Power management
  */
 int radeon_pm_init(struct radeon_device *rdev);
+void radeon_pm_fini(struct radeon_device *rdev);
 void radeon_pm_compute_clocks(struct radeon_device *rdev);
 void radeon_combios_get_power_modes(struct radeon_device *rdev);
 void radeon_atombios_get_power_modes(struct radeon_device *rdev);
@@ -708,6 +709,7 @@ struct radeon_pm {
 	struct radeon_power_state *requested_power_state;
 	struct radeon_pm_clock_info *requested_clock_mode;
 	struct radeon_power_state *default_power_state;
+	struct radeon_i2c_chan *i2c_bus;
 };
 
 
