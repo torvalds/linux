@@ -23,7 +23,15 @@
 static unsigned long ir_core_dev_number;
 
 /* class for /sys/class/irrcv */
-static struct class *ir_input_class;
+static char *ir_devnode(struct device *dev, mode_t *mode)
+{
+	return kasprintf(GFP_KERNEL, "irrcv/%s", dev_name(dev));
+}
+
+struct class ir_input_class = {
+	.name		= "irrcv",
+	.devnode	= ir_devnode,
+};
 
 /**
  * show_protocol() - shows the current IR protocol
@@ -129,6 +137,20 @@ static struct attribute *ir_dev_attrs[] = {
 	NULL,
 };
 
+static struct attribute_group ir_dev_attr_grp = {
+	.attrs	= ir_dev_attrs,
+};
+
+static const struct attribute_group *ir_dev_attr_groups[] = {
+	&ir_dev_attr_grp,
+	NULL
+};
+
+static struct device_type ir_dev_type = {
+	.groups		= ir_dev_attr_groups,
+};
+
+
 /**
  * ir_register_class() - creates the sysfs for /sys/class/irrcv/irrcv?
  * @input_dev:	the struct input_dev descriptor of the device
@@ -138,7 +160,7 @@ static struct attribute *ir_dev_attrs[] = {
 int ir_register_class(struct input_dev *input_dev)
 {
 	int rc;
-	struct kobject *kobj;
+	const char *path;
 
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
 	int devno = find_first_zero_bit(&ir_core_dev_number,
@@ -147,18 +169,30 @@ int ir_register_class(struct input_dev *input_dev)
 	if (unlikely(devno < 0))
 		return devno;
 
-	ir_dev->attr.attrs = ir_dev_attrs;
-	ir_dev->class_dev = device_create(ir_input_class, NULL,
-					  input_dev->dev.devt, ir_dev,
-					  "irrcv%d", devno);
-	kobj = &ir_dev->class_dev->kobj;
+	ir_dev->dev.type = &ir_dev_type;
+	ir_dev->dev.class = &ir_input_class;
+	ir_dev->dev.parent = input_dev->dev.parent;
+	dev_set_name(&ir_dev->dev, "irrcv%d", devno);
+	rc = device_register(&ir_dev->dev);
+	if (rc)
+		return rc;
 
-	printk(KERN_WARNING "Creating IR device %s\n", kobject_name(kobj));
-	rc = sysfs_create_group(kobj, &ir_dev->attr);
-	if (unlikely(rc < 0)) {
-		device_destroy(ir_input_class, input_dev->dev.devt);
-		return -ENOMEM;
+
+	input_dev->dev.parent = &ir_dev->dev;
+	rc = input_register_device(input_dev);
+	if (rc < 0) {
+		device_del(&ir_dev->dev);
+		return rc;
 	}
+
+	__module_get(THIS_MODULE);
+
+	path = kobject_get_path(&input_dev->dev.kobj, GFP_KERNEL);
+	printk(KERN_INFO "%s: %s associated with sysfs %s\n",
+		dev_name(&ir_dev->dev),
+		input_dev->name ? input_dev->name : "Unspecified device",
+		path ? path : "N/A");
+	kfree(path);
 
 	ir_dev->devno = devno;
 	set_bit(devno, &ir_core_dev_number);
@@ -176,16 +210,12 @@ int ir_register_class(struct input_dev *input_dev)
 void ir_unregister_class(struct input_dev *input_dev)
 {
 	struct ir_input_dev *ir_dev = input_get_drvdata(input_dev);
-	struct kobject *kobj;
 
 	clear_bit(ir_dev->devno, &ir_core_dev_number);
+	input_unregister_device(input_dev);
+	device_del(&ir_dev->dev);
 
-	kobj = &ir_dev->class_dev->kobj;
-
-	sysfs_remove_group(kobj, &ir_dev->attr);
-	device_destroy(ir_input_class, input_dev->dev.devt);
-
-	kfree(ir_dev->attr.name);
+	module_put(THIS_MODULE);
 }
 
 /*
@@ -194,10 +224,10 @@ void ir_unregister_class(struct input_dev *input_dev)
 
 static int __init ir_core_init(void)
 {
-	ir_input_class = class_create(THIS_MODULE, "irrcv");
-	if (IS_ERR(ir_input_class)) {
+	int rc = class_register(&ir_input_class);
+	if (rc) {
 		printk(KERN_ERR "ir_core: unable to register irrcv class\n");
-		return PTR_ERR(ir_input_class);
+		return rc;
 	}
 
 	return 0;
@@ -205,7 +235,7 @@ static int __init ir_core_init(void)
 
 static void __exit ir_core_exit(void)
 {
-	class_destroy(ir_input_class);
+	class_unregister(&ir_input_class);
 }
 
 module_init(ir_core_init);

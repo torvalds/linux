@@ -47,11 +47,9 @@ struct ir_dev_props {
 
 
 struct ir_input_dev {
-	struct input_dev		*dev;		/* Input device*/
+	struct device			dev;		/* device */
 	struct ir_scancode_table	rc_tab;		/* scan/key table */
 	unsigned long			devno;		/* device number */
-	struct attribute_group		attr;		/* IR attributes */
-	struct device			*class_dev;	/* virtual class dev */
 	const struct ir_dev_props	*props;		/* Device properties */
 };
 #define to_ir_input_dev(_attr) container_of(_attr, struct ir_input_dev, attr)

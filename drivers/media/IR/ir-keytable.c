@@ -449,22 +449,15 @@ int ir_input_register(struct input_dev *input_dev,
 	input_dev->setkeycode = ir_setkeycode;
 	input_set_drvdata(input_dev, ir_dev);
 
-	rc = input_register_device(input_dev);
+	rc = ir_register_class(input_dev);
 	if (rc < 0)
 		goto err;
-
-	rc = ir_register_class(input_dev);
-	if (rc < 0) {
-		input_unregister_device(input_dev);
-		goto err;
-	}
 
 	return 0;
 
 err:
 	kfree(rc_tab->scan);
 	kfree(ir_dev);
-	input_set_drvdata(input_dev, NULL);
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ir_input_register);
@@ -493,7 +486,6 @@ void ir_input_unregister(struct input_dev *dev)
 	ir_unregister_class(dev);
 
 	kfree(ir_dev);
-	input_unregister_device(dev);
 }
 EXPORT_SYMBOL_GPL(ir_input_unregister);
 
