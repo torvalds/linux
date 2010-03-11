@@ -395,6 +395,9 @@ static int process_buildids(void)
 {
 	u64 size = lseek(output, 0, SEEK_CUR);
 
+	if (size == 0)
+		return 0;
+
 	session->fd = output;
 	return __perf_session__process_events(session, post_processing_offset,
 					      size - post_processing_offset,
