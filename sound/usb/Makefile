@@ -4,6 +4,7 @@
 
 snd-usb-audio-objs := 	card.o \
 			usbmixer.o \
+			mixer_quirks.o \
 			proc.o \
 			quirks.o \
 			format.o \
