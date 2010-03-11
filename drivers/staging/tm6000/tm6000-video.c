@@ -1186,16 +1186,16 @@ static int vidioc_g_ctrl (struct file *file, void *priv,
 	/* FIXME: Probably, those won't work! Maybe we need shadow regs */
 	switch (ctrl->id) {
 	case V4L2_CID_CONTRAST:
-		val=tm6000_get_reg (dev, REQ_07_SET_GET_AVREG, 0x08, 0);
+		val = tm6000_get_reg(dev, TM6010_REQ07_R08_LUMA_CONTRAST_ADJ, 0);
 		break;
 	case V4L2_CID_BRIGHTNESS:
-		val=tm6000_get_reg (dev, REQ_07_SET_GET_AVREG, 0x09, 0);
+		val = tm6000_get_reg(dev, TM6010_REQ07_R09_LUMA_BRIGHTNESS_ADJ, 0);
 		return 0;
 	case V4L2_CID_SATURATION:
-		val=tm6000_get_reg (dev, REQ_07_SET_GET_AVREG, 0x0a, 0);
+		val = tm6000_get_reg(dev, TM6010_REQ07_R0A_CHROMA_SATURATION_ADJ, 0);
 		return 0;
 	case V4L2_CID_HUE:
-		val=tm6000_get_reg (dev, REQ_07_SET_GET_AVREG, 0x0b, 0);
+		val = tm6000_get_reg(dev, TM6010_REQ07_R0B_CHROMA_HUE_PHASE_ADJ, 0);
 		return 0;
 	default:
 		return -EINVAL;
@@ -1217,16 +1217,16 @@ static int vidioc_s_ctrl (struct file *file, void *priv,
 
 	switch (ctrl->id) {
 	case V4L2_CID_CONTRAST:
-  tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x08, val);
+  tm6000_set_reg(dev, TM6010_REQ07_R08_LUMA_CONTRAST_ADJ, val);
 		return 0;
 	case V4L2_CID_BRIGHTNESS:
-  tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x09, val);
+  tm6000_set_reg(dev, TM6010_REQ07_R09_LUMA_BRIGHTNESS_ADJ, val);
 		return 0;
 	case V4L2_CID_SATURATION:
-  tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x0a, val);
+  tm6000_set_reg(dev, TM6010_REQ07_R0A_CHROMA_SATURATION_ADJ, val);
 		return 0;
 	case V4L2_CID_HUE:
-  tm6000_set_reg (dev, REQ_07_SET_GET_AVREG, 0x0b, val);
+  tm6000_set_reg(dev, TM6010_REQ07_R0B_CHROMA_HUE_PHASE_ADJ, val);
 		return 0;
 	}
 	return -EINVAL;

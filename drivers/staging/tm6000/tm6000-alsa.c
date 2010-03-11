@@ -100,11 +100,11 @@ static int _tm6000_start_audio_dma(struct snd_tm6000_card *chip)
 	int val;
 
 	/* Enables audio */
-	val = tm6000_get_reg(core, REQ_07_SET_GET_AVREG, 0xcc, 0x0);
+	val = tm6000_get_reg(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0x0);
 	val |= 0x20;
-	tm6000_set_reg(core, REQ_07_SET_GET_AVREG, 0xcc, val);
+	tm6000_set_reg(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val);
 
-	tm6000_set_reg(core, REQ_08_SET_GET_AVREG_BIT, 0x01, 0x80);
+	tm6000_set_reg(core, TM6010_REQ08_R01_A_INIT, 0x80);
 
 	return 0;
 }
@@ -119,11 +119,11 @@ static int _tm6000_stop_audio_dma(struct snd_tm6000_card *chip)
 	dprintk(1, "Stopping audio DMA\n");
 
 	/* Enables audio */
-	val = tm6000_get_reg(core, REQ_07_SET_GET_AVREG, 0xcc, 0x0);
+	val = tm6000_get_reg(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, 0x0);
 	val &= ~0x20;
-	tm6000_set_reg(core, REQ_07_SET_GET_AVREG, 0xcc, val);
+	tm6000_set_reg(core, TM6010_REQ07_RCC_ACTIVE_VIDEO_IF, val);
 
-	tm6000_set_reg(core, REQ_08_SET_GET_AVREG_BIT, 0x01, 0);
+	tm6000_set_reg(core, TM6010_REQ08_R01_A_INIT, 0);
 
 	return 0;
 }
