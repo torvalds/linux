@@ -498,7 +498,7 @@ static int __devinit acpi_pci_root_add(struct acpi_device *device)
 	 * PCI namespace does not get created until this call is made (and 
 	 * thus the root bridge's pci_dev does not exist).
 	 */
-	root->bus = pci_acpi_scan_root(device, segment, root->secondary.start);
+	root->bus = pci_acpi_scan_root(root);
 	if (!root->bus) {
 		printk(KERN_ERR PREFIX
 			    "Bus %04x:%02x not present in PCI namespace\n",
