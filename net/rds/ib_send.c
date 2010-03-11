@@ -482,6 +482,13 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 	BUG_ON(off % RDS_FRAG_SIZE);
 	BUG_ON(hdr_off != 0 && hdr_off != sizeof(struct rds_header));
 
+	/* Do not send cong updates to IB loopback */
+	if (conn->c_loopback
+	    && rm->m_inc.i_hdr.h_flags & RDS_FLAG_CONG_BITMAP) {
+		rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
+		return sizeof(struct rds_header) + RDS_CONG_MAP_BYTES;
+	}
+
 	/* FIXME we may overallocate here */
 	if (be32_to_cpu(rm->m_inc.i_hdr.h_len) == 0)
 		i = 1;
