@@ -17,12 +17,6 @@ SCHED_FEAT(START_DEBIT, 1)
 SCHED_FEAT(WAKEUP_PREEMPT, 1)
 
 /*
- * When converting the wakeup granularity to virtual time, do it such
- * that heavier tasks preempting a lighter task have an edge.
- */
-SCHED_FEAT(ASYM_GRAN, 1)
-
-/*
  * Based on load and program behaviour, see if it makes sense to place
  * a newly woken task on the same cpu as the task that woke it --
  * improve cache locality. Typically used with SYNC wakeups as
