@@ -86,4 +86,13 @@ static inline struct map *
 {
 	return map_groups__new_module(&self->kmaps, start, filename);
 }
+
+#ifdef NO_NEWT_SUPPORT
+static inline void perf_session__browse_hists(struct rb_root *hists __used,
+					      u64 session_total __used,
+					      const char *helpline __used) {}
+#else
+void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
+				const char *helpline);
+#endif
 #endif /* __PERF_SESSION_H */

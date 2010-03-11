@@ -267,6 +267,7 @@ static int __cmd_report(void)
 	int ret = -EINVAL;
 	struct perf_session *session;
 	struct rb_node *next;
+	const char *help = "For a higher level overview, try: perf report --sort comm,dso";
 
 	session = perf_session__new(input_name, O_RDONLY, force);
 	if (session == NULL)
@@ -301,30 +302,38 @@ static int __cmd_report(void)
 		stats = rb_entry(next, struct event_stat_id, rb_node);
 		perf_session__collapse_resort(&stats->hists);
 		perf_session__output_resort(&stats->hists, stats->stats.total);
-		if (rb_first(&session->stats_by_id) ==
-		    rb_last(&session->stats_by_id))
-			fprintf(stdout, "# Samples: %Ld\n#\n",
-				stats->stats.total);
-		else
-			fprintf(stdout, "# Samples: %Ld %s\n#\n",
-				stats->stats.total,
-				__event_name(stats->type, stats->config));
 
-		perf_session__fprintf_hists(&stats->hists, NULL, false, stdout,
+		if (use_browser)
+			perf_session__browse_hists(&stats->hists,
+						   stats->stats.total, help);
+		else {
+			if (rb_first(&session->stats_by_id) ==
+			    rb_last(&session->stats_by_id))
+				fprintf(stdout, "# Samples: %Ld\n#\n",
+					stats->stats.total);
+			else
+				fprintf(stdout, "# Samples: %Ld %s\n#\n",
+					stats->stats.total,
+					__event_name(stats->type, stats->config));
+
+			perf_session__fprintf_hists(&stats->hists, NULL, false, stdout,
 					    stats->stats.total);
-		fprintf(stdout, "\n\n");
+			fprintf(stdout, "\n\n");
+		}
+
 		next = rb_next(&stats->rb_node);
 	}
 
-	if (sort_order == default_sort_order &&
-	    parent_pattern == default_parent_pattern)
-		fprintf(stdout, "#\n# (For a higher level overview, try: perf report --sort comm,dso)\n#\n");
+	if (!use_browser && sort_order == default_sort_order &&
+	    parent_pattern == default_parent_pattern) {
+		fprintf(stdout, "#\n# (%s)\n#\n", help);
 
-	if (show_threads) {
-		bool raw_printing_style = !strcmp(pretty_printing_style, "raw");
-		perf_read_values_display(stdout, &show_threads_values,
-					 raw_printing_style);
-		perf_read_values_destroy(&show_threads_values);
+		if (show_threads) {
+			bool style = !strcmp(pretty_printing_style, "raw");
+			perf_read_values_display(stdout, &show_threads_values,
+						 style);
+			perf_read_values_destroy(&show_threads_values);
+		}
 	}
 out_delete:
 	perf_session__delete(session);
@@ -447,7 +456,7 @@ int cmd_report(int argc, const char **argv, const char *prefix __used)
 {
 	argc = parse_options(argc, argv, options, report_usage, 0);
 
-	setup_pager();
+	setup_browser();
 
 	if (symbol__init() < 0)
 		return -1;

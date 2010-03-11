@@ -203,7 +203,10 @@ int color_fprintf(FILE *fp, const char *color, const char *fmt, ...)
 	int r;
 
 	va_start(args, fmt);
-	r = color_vfprintf(fp, color, fmt, args);
+	if (use_browser)
+		r = vfprintf(fp, fmt, args);
+	else
+		r = color_vfprintf(fp, color, fmt, args);
 	va_end(args);
 	return r;
 }

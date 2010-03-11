@@ -513,6 +513,14 @@ else
 	LIB_OBJS += util/probe-finder.o
 endif
 
+ifneq ($(shell sh -c "(echo '\#include <newt.h>'; echo 'int main(void) { newtInit(); newtCls(); return newtFinished(); }') | $(CC) -x c - $(ALL_CFLAGS) -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64 -lnewt -o $(BITBUCKET) $(ALL_LDFLAGS) $(EXTLIBS) "$(QUIET_STDERR)" && echo y"), y)
+	msg := $(warning newt not found, disables TUI support. Please install newt-devel or libnewt-dev);
+	BASIC_CFLAGS += -DNO_NEWT_SUPPORT
+else
+	EXTLIBS += -lnewt
+	LIB_OBJS += util/newt.o
+endif
+
 ifndef NO_LIBPERL
 PERL_EMBED_LDOPTS = `perl -MExtUtils::Embed -e ldopts 2>/dev/null`
 PERL_EMBED_CCOPTS = `perl -MExtUtils::Embed -e ccopts 2>/dev/null`

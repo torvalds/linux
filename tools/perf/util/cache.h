@@ -1,6 +1,7 @@
 #ifndef __PERF_CACHE_H
 #define __PERF_CACHE_H
 
+#include <stdbool.h>
 #include "util.h"
 #include "strbuf.h"
 #include "../perf.h"
@@ -68,6 +69,19 @@ extern void setup_pager(void);
 extern const char *pager_program;
 extern int pager_in_use(void);
 extern int pager_use_color;
+
+extern bool use_browser;
+
+#ifdef NO_NEWT_SUPPORT
+static inline void setup_browser(void)
+{
+	setup_pager();
+}
+static inline void exit_browser(void) {}
+#else
+void setup_browser(void);
+void exit_browser(void);
+#endif
 
 extern const char *editor_program;
 extern const char *excludes_file;

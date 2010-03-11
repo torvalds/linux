@@ -265,6 +265,8 @@ static int run_builtin(struct cmd_struct *p, int argc, const char **argv)
 	if (status)
 		return status & 0xff;
 
+	exit_browser();
+
 	/* Somebody closed stdout? */
 	if (fstat(fileno(stdout), &st))
 		return 0;
