@@ -533,14 +533,13 @@ void rds_send_remove_from_sock(struct list_head *messages, int status)
 
 		if (rs != rm->m_rs) {
 			if (rs) {
-				spin_unlock(&rs->rs_lock);
 				rds_wake_sk_sleep(rs);
 				sock_put(rds_rs_to_sk(rs));
 			}
 			rs = rm->m_rs;
-			spin_lock(&rs->rs_lock);
 			sock_hold(rds_rs_to_sk(rs));
 		}
+		spin_lock(&rs->rs_lock);
 
 		if (test_and_clear_bit(RDS_MSG_ON_SOCK, &rm->m_flags)) {
 			struct rds_rdma_op *ro = rm->m_rdma_op;
@@ -560,6 +559,7 @@ void rds_send_remove_from_sock(struct list_head *messages, int status)
 			rds_message_put(rm);
 			rm->m_rs = NULL;
 		}
+		spin_unlock(&rs->rs_lock);
 
 unlock_and_drop:
 		spin_unlock(&rm->m_rs_lock);
@@ -567,7 +567,6 @@ unlock_and_drop:
 	}
 
 	if (rs) {
-		spin_unlock(&rs->rs_lock);
 		rds_wake_sk_sleep(rs);
 		sock_put(rds_rs_to_sk(rs));
 	}
