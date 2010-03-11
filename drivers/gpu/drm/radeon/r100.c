@@ -31,6 +31,7 @@
 #include "radeon_drm.h"
 #include "radeon_reg.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "r100d.h"
 #include "rs100d.h"
 #include "rv200d.h"

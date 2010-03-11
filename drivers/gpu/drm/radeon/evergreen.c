@@ -25,6 +25,7 @@
 #include <linux/platform_device.h>
 #include "drmP.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_drm.h"
 #include "rv770d.h"
 #include "atom.h"

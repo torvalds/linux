@@ -29,6 +29,7 @@
 #include "drmP.h"
 #include "rv515d.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "atom.h"
 #include "rv515_reg_safe.h"
 

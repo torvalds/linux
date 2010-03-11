@@ -31,6 +31,7 @@
 #include "drmP.h"
 #include "radeon_drm.h"
 #include "radeon.h"
+#include "radeon_asic.h"
 #include "radeon_mode.h"
 #include "r600d.h"
 #include "atom.h"
