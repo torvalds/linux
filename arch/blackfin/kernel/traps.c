@@ -554,3 +554,11 @@ int is_valid_bugaddr(unsigned long addr)
 	return opcode == BFIN_BUG_OPCODE;
 }
 #endif
+
+/* stub this out */
+#ifndef CONFIG_DEBUG_VERBOSE
+void show_regs(struct pt_regs *fp)
+{
+
+}
+#endif
