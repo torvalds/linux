@@ -1127,36 +1127,8 @@ struct load_weight {
 	unsigned long weight, inv_weight;
 };
 
-/*
- * CFS stats for a schedulable entity (task, task-group etc)
- *
- * Current field usage histogram:
- *
- *     4 se->block_start
- *     4 se->run_node
- *     4 se->sleep_start
- *     6 se->load.weight
- */
-struct sched_entity {
-	struct load_weight	load;		/* for load-balancing */
-	struct rb_node		run_node;
-	struct list_head	group_node;
-	unsigned int		on_rq;
-
-	u64			exec_start;
-	u64			sum_exec_runtime;
-	u64			vruntime;
-	u64			prev_sum_exec_runtime;
-
-	u64			last_wakeup;
-	u64			avg_overlap;
-
-	u64			nr_migrations;
-
-	u64			start_runtime;
-	u64			avg_wakeup;
-
 #ifdef CONFIG_SCHEDSTATS
+struct sched_statistics {
 	u64			wait_start;
 	u64			wait_max;
 	u64			wait_count;
@@ -1188,6 +1160,30 @@ struct sched_entity {
 	u64			nr_wakeups_affine_attempts;
 	u64			nr_wakeups_passive;
 	u64			nr_wakeups_idle;
+};
+#endif
+
+struct sched_entity {
+	struct load_weight	load;		/* for load-balancing */
+	struct rb_node		run_node;
+	struct list_head	group_node;
+	unsigned int		on_rq;
+
+	u64			exec_start;
+	u64			sum_exec_runtime;
+	u64			vruntime;
+	u64			prev_sum_exec_runtime;
+
+	u64			last_wakeup;
+	u64			avg_overlap;
+
+	u64			nr_migrations;
+
+	u64			start_runtime;
+	u64			avg_wakeup;
+
+#ifdef CONFIG_SCHEDSTATS
+	struct sched_statistics statistics;
 #endif
 
 #ifdef CONFIG_FAIR_GROUP_SCHED
