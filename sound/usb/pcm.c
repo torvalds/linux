@@ -17,6 +17,7 @@
 #include <linux/init.h>
 #include <linux/usb.h>
 #include <linux/usb/audio.h>
+#include <linux/usb/audio-v2.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>
@@ -215,7 +216,7 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 	data[3] = rate >> 24;
 	if ((err = snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC2_CS_CUR,
 				   USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_OUT,
-				   0x0100, chip->clock_id << 8,
+				   UAC2_CS_CONTROL_SAM_FREQ << 8, chip->clock_id << 8,
 				   data, sizeof(data), 1000)) < 0) {
 		snd_printk(KERN_ERR "%d:%d:%d: cannot set freq %d (v2)\n",
 			   dev->devnum, iface, fmt->altsetting, rate);
@@ -223,7 +224,7 @@ static int set_sample_rate_v2(struct snd_usb_audio *chip, int iface,
 	}
 	if ((err = snd_usb_ctl_msg(dev, usb_rcvctrlpipe(dev, 0), UAC2_CS_CUR,
 				   USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_DIR_IN,
-				   0x0100, chip->clock_id << 8,
+				   UAC2_CS_CONTROL_SAM_FREQ << 8, chip->clock_id << 8,
 				   data, sizeof(data), 1000)) < 0) {
 		snd_printk(KERN_WARNING "%d:%d:%d: cannot get freq (v2)\n",
 			   dev->devnum, iface, fmt->altsetting);

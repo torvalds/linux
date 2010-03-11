@@ -45,6 +45,7 @@
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/usb/audio.h>
+#include <linux/usb/audio-v2.h>
 
 #include <sound/core.h>
 #include <sound/info.h>
@@ -250,7 +251,7 @@ static int snd_usb_create_streams(struct snd_usb_audio *chip, int ctrlif)
 		 * clock selectors and sample rate conversion units. */
 
 		cs = snd_usb_find_csint_desc(host_iface->extra, host_iface->extralen,
-						NULL, UAC_CLOCK_SOURCE);
+						NULL, UAC2_CLOCK_SOURCE);
 
 		if (!cs) {
 			snd_printk(KERN_ERR "CLOCK_SOURCE descriptor not found\n");

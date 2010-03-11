@@ -13,6 +13,9 @@
  * Comments below reference relevant sections of that document:
  *
  * http://www.usb.org/developers/devclass_docs/audio10.pdf
+ *
+ * Types and defines in this file are either specific to version 1.0 of
+ * this standard or common for newer versions.
  */
 
 #ifndef __LINUX_USB_AUDIO_H
@@ -20,13 +23,14 @@
 
 #include <linux/types.h>
 
+/* bInterfaceProtocol values to denote the version of the standard used */
+#define UAC_VERSION_1			0x00
+#define UAC_VERSION_2			0x20
+
 /* A.2 Audio Interface Subclass Codes */
 #define USB_SUBCLASS_AUDIOCONTROL	0x01
 #define USB_SUBCLASS_AUDIOSTREAMING	0x02
 #define USB_SUBCLASS_MIDISTREAMING	0x03
-
-#define UAC_VERSION_1			0x00
-#define UAC_VERSION_2			0x20
 
 /* A.5 Audio Class-Specific AC Interface Descriptor Subtypes */
 #define UAC_HEADER			0x01
@@ -37,15 +41,6 @@
 #define UAC_FEATURE_UNIT		0x06
 #define UAC_PROCESSING_UNIT_V1		0x07
 #define UAC_EXTENSION_UNIT_V1		0x08
-
-/* UAC v2.0 types */
-#define UAC_EFFECT_UNIT			0x07
-#define UAC_PROCESSING_UNIT_V2		0x08
-#define UAC_EXTENSION_UNIT_V2		0x09
-#define UAC_CLOCK_SOURCE		0x0a
-#define UAC_CLOCK_SELECTOR		0x0b
-#define UAC_CLOCK_MULTIPLIER		0x0c
-#define UAC_SAMPLE_RATE_CONVERTER	0x0d
 
 /* A.6 Audio Class-Specific AS Interface Descriptor Subtypes */
 #define UAC_AS_GENERAL			0x01
@@ -77,10 +72,6 @@
 #define UAC_GET_MEM			(UAC_GET_ | UAC__MEM)
 
 #define UAC_GET_STAT			0xff
-
-/* Audio class v2.0 handles all the parameter calls differently */
-#define UAC2_CS_CUR			0x01
-#define UAC2_CS_RANGE			0x02
 
 /* MIDI - A.1 MS Class-Specific Interface Descriptor Subtypes */
 #define UAC_MS_HEADER			0x01
@@ -200,19 +191,6 @@ struct uac_as_header_descriptor_v1 {
 	__le16 wFormatTag;		/* The Audio Data Format */
 } __attribute__ ((packed));
 
-struct uac_as_header_descriptor_v2 {
-	__u8 bLength;
-	__u8 bDescriptorType;
-	__u8 bDescriptorSubtype;
-	__u8 bTerminalLink;
-	__u8 bmControls;
-	__u8 bFormatType;
-	__u32 bmFormats;
-	__u8 bNrChannels;
-	__u32 bmChannelConfig;
-	__u8 iChannelNames;
-} __attribute__((packed));
-
 #define UAC_DT_AS_HEADER_SIZE		7
 
 /* Formats - A.1.1 Audio Data Format Type I Codes */
@@ -277,7 +255,6 @@ struct uac_format_type_i_ext_descriptor {
 	__u8 bSideBandProtocol;
 } __attribute__((packed));
 
-
 /* Formats - Audio Data Format Type I Codes */
 
 #define UAC_FORMAT_TYPE_II_MPEG	0x1001
@@ -335,19 +312,6 @@ struct uac_iso_endpoint_descriptor {
 #define UAC_EP_CS_ATTR_SAMPLE_RATE	0x01
 #define UAC_EP_CS_ATTR_PITCH_CONTROL	0x02
 #define UAC_EP_CS_ATTR_FILL_MAX		0x80
-
-/* Audio class v2.0: CLOCK_SOURCE descriptor */
-
-struct uac_clock_source_descriptor {
-	__u8 bLength;
-	__u8 bDescriptorType;
-	__u8 bDescriptorSubtype;
-	__u8 bClockID;
-	__u8 bmAttributes;
-	__u8 bmControls;
-	__u8 bAssocTerminal;
-	__u8 iClockSource;
-} __attribute__((packed));
 
 /* A.10.2 Feature Unit Control Selectors */
 
