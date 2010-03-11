@@ -604,7 +604,11 @@ static __init void dm365_evm_init(void)
 	/* maybe setup mmc1/etc ... _after_ mmc0 */
 	evm_init_cpld();
 
+#ifdef CONFIG_SND_DM365_AIC3X_CODEC
 	dm365_init_asp(&dm365_evm_snd_data);
+#elif defined(CONFIG_SND_DM365_VOICE_CODEC)
+	dm365_init_vc(&dm365_evm_snd_data);
+#endif
 	dm365_init_rtc();
 	dm365_init_ks(&dm365evm_ks_data);
 
