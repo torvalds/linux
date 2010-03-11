@@ -550,7 +550,7 @@ static inline int expires_gt(cputime_t expires, cputime_t new_exp)
 /*
  * Insert the timer on the appropriate list before any timers that
  * expire later.  This must be called with the tasklist_lock held
- * for reading, and interrupts disabled.
+ * for reading, interrupts disabled and p->sighand->siglock taken.
  */
 static void arm_timer(struct k_itimer *timer)
 {
@@ -568,9 +568,6 @@ static void arm_timer(struct k_itimer *timer)
 		cputime_expires = &p->signal->cputime_expires;
 	}
 	head += CPUCLOCK_WHICH(timer->it_clock);
-
-	BUG_ON(!irqs_disabled());
-	spin_lock(&p->sighand->siglock);
 
 	listpos = head;
 	list_for_each_entry(next, head, entry) {
@@ -606,8 +603,6 @@ static void arm_timer(struct k_itimer *timer)
 			break;
 		}
 	}
-
-	spin_unlock(&p->sighand->siglock);
 }
 
 /*
@@ -720,7 +715,6 @@ int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 		ret = TIMER_RETRY;
 	} else
 		list_del_init(&timer->it.cpu.entry);
-	spin_unlock(&p->sighand->siglock);
 
 	/*
 	 * We need to sample the current value to convert the new
@@ -774,6 +768,7 @@ int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 		 * disable this firing since we are already reporting
 		 * it as an overrun (thanks to bump_cpu_timer above).
 		 */
+		spin_unlock(&p->sighand->siglock);
 		read_unlock(&tasklist_lock);
 		goto out;
 	}
@@ -793,6 +788,7 @@ int posix_cpu_timer_set(struct k_itimer *timer, int flags,
 		arm_timer(timer);
 	}
 
+	spin_unlock(&p->sighand->siglock);
 	read_unlock(&tasklist_lock);
 
 	/*
@@ -1206,6 +1202,7 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 			goto out;
 		}
 		read_lock(&tasklist_lock); /* arm_timer needs it.  */
+		spin_lock(&p->sighand->siglock);
 	} else {
 		read_lock(&tasklist_lock);
 		if (unlikely(p->signal == NULL)) {
@@ -1226,6 +1223,7 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 			clear_dead_task(timer, now);
 			goto out_unlock;
 		}
+		spin_lock(&p->sighand->siglock);
 		cpu_timer_sample_group(timer->it_clock, p, &now);
 		bump_cpu_timer(timer, now);
 		/* Leave the tasklist_lock locked for the call below.  */
@@ -1234,7 +1232,9 @@ void posix_cpu_timer_schedule(struct k_itimer *timer)
 	/*
 	 * Now re-arm for the new expiry time.
 	 */
+	BUG_ON(!irqs_disabled());
 	arm_timer(timer);
+	spin_unlock(&p->sighand->siglock);
 
 out_unlock:
 	read_unlock(&tasklist_lock);
