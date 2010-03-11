@@ -476,12 +476,17 @@ out_unlock:
 }
 
 static int should_defrag_range(struct inode *inode, u64 start, u64 len,
-			       u64 *last_len, u64 *skip, u64 *defrag_end)
+			       int thresh, u64 *last_len, u64 *skip,
+			       u64 *defrag_end)
 {
 	struct extent_io_tree *io_tree = &BTRFS_I(inode)->io_tree;
 	struct extent_map *em = NULL;
 	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	int ret = 1;
+
+
+	if (thresh == 0)
+		thresh = 256 * 1024;
 
 	/*
 	 * make sure that once we start defragging and extent, we keep on
@@ -517,8 +522,7 @@ static int should_defrag_range(struct inode *inode, u64 start, u64 len,
 	/*
 	 * we hit a real extent, if it is big don't bother defragging it again
 	 */
-	if ((*last_len == 0 || *last_len >= 256 * 1024) &&
-	    em->len >= 256 * 1024)
+	if ((*last_len == 0 || *last_len >= thresh) && em->len >= thresh)
 		ret = 0;
 
 	/*
@@ -542,7 +546,8 @@ static int should_defrag_range(struct inode *inode, u64 start, u64 len,
 	return ret;
 }
 
-static int btrfs_defrag_file(struct file *file)
+static int btrfs_defrag_file(struct file *file,
+			     struct btrfs_ioctl_defrag_range_args *range)
 {
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
@@ -563,11 +568,19 @@ static int btrfs_defrag_file(struct file *file)
 	if (inode->i_size == 0)
 		return 0;
 
-	last_index = (inode->i_size - 1) >> PAGE_CACHE_SHIFT;
-	i = 0;
+	if (range->start + range->len > range->start) {
+		last_index = min_t(u64, inode->i_size - 1,
+			 range->start + range->len - 1) >> PAGE_CACHE_SHIFT;
+	} else {
+		last_index = (inode->i_size - 1) >> PAGE_CACHE_SHIFT;
+	}
+
+	i = range->start >> PAGE_CACHE_SHIFT;
 	while (i <= last_index) {
 		if (!should_defrag_range(inode, (u64)i << PAGE_CACHE_SHIFT,
-					PAGE_CACHE_SIZE, &last_len, &skip,
+					PAGE_CACHE_SIZE,
+					range->extent_thresh,
+					&last_len, &skip,
 					&defrag_end)) {
 			unsigned long next;
 			/*
@@ -585,6 +598,8 @@ static int btrfs_defrag_file(struct file *file)
 		}
 		total_read++;
 		mutex_lock(&inode->i_mutex);
+		if (range->flags & BTRFS_DEFRAG_RANGE_COMPRESS)
+			BTRFS_I(inode)->force_compress = 1;
 
 		ret = btrfs_check_data_free_space(root, inode, PAGE_CACHE_SIZE);
 		if (ret) {
@@ -671,6 +686,28 @@ loop_unlock:
 		btrfs_unreserve_metadata_for_delalloc(root, inode, 1);
 		balance_dirty_pages_ratelimited_nr(inode->i_mapping, 1);
 		i++;
+	}
+
+	if ((range->flags & BTRFS_DEFRAG_RANGE_START_IO))
+		filemap_flush(inode->i_mapping);
+
+	if ((range->flags & BTRFS_DEFRAG_RANGE_COMPRESS)) {
+		/* the filemap_flush will queue IO into the worker threads, but
+		 * we have to make sure the IO is actually started and that
+		 * ordered extents get created before we return
+		 */
+		atomic_inc(&root->fs_info->async_submit_draining);
+		while (atomic_read(&root->fs_info->nr_async_submits) ||
+		      atomic_read(&root->fs_info->async_delalloc_pages)) {
+			wait_event(root->fs_info->async_submit_wait,
+			   (atomic_read(&root->fs_info->nr_async_submits) == 0 &&
+			    atomic_read(&root->fs_info->async_delalloc_pages) == 0));
+		}
+		atomic_dec(&root->fs_info->async_submit_draining);
+
+		mutex_lock(&inode->i_mutex);
+		BTRFS_I(inode)->force_compress = 0;
+		mutex_unlock(&inode->i_mutex);
 	}
 
 	return 0;
@@ -1284,10 +1321,11 @@ out:
 	return err;
 }
 
-static int btrfs_ioctl_defrag(struct file *file)
+static int btrfs_ioctl_defrag(struct file *file, void __user *argp)
 {
 	struct inode *inode = fdentry(file)->d_inode;
 	struct btrfs_root *root = BTRFS_I(inode)->root;
+	struct btrfs_ioctl_defrag_range_args *range;
 	int ret;
 
 	ret = mnt_want_write(file->f_path.mnt);
@@ -1308,7 +1346,30 @@ static int btrfs_ioctl_defrag(struct file *file)
 			ret = -EINVAL;
 			goto out;
 		}
-		btrfs_defrag_file(file);
+
+		range = kzalloc(sizeof(*range), GFP_KERNEL);
+		if (!range) {
+			ret = -ENOMEM;
+			goto out;
+		}
+
+		if (argp) {
+			if (copy_from_user(range, argp,
+					   sizeof(*range))) {
+				ret = -EFAULT;
+				kfree(range);
+			}
+			/* compression requires us to start the IO */
+			if ((range->flags & BTRFS_DEFRAG_RANGE_COMPRESS)) {
+				range->flags |= BTRFS_DEFRAG_RANGE_START_IO;
+				range->extent_thresh = (u32)-1;
+			}
+		} else {
+			/* the rest are all set to zero by kzalloc */
+			range->len = (u64)-1;
+		}
+		btrfs_defrag_file(file, range);
+		kfree(range);
 		break;
 	}
 out:
@@ -1831,7 +1892,9 @@ long btrfs_ioctl(struct file *file, unsigned int
 	case BTRFS_IOC_DEFAULT_SUBVOL:
 		return btrfs_ioctl_default_subvol(file, argp);
 	case BTRFS_IOC_DEFRAG:
-		return btrfs_ioctl_defrag(file);
+		return btrfs_ioctl_defrag(file, NULL);
+	case BTRFS_IOC_DEFRAG_RANGE:
+		return btrfs_ioctl_defrag(file, argp);
 	case BTRFS_IOC_RESIZE:
 		return btrfs_ioctl_resize(root, argp);
 	case BTRFS_IOC_ADD_DEV:

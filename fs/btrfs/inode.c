@@ -379,7 +379,8 @@ again:
 	 * change at any time if we discover bad compression ratios.
 	 */
 	if (!(BTRFS_I(inode)->flags & BTRFS_INODE_NOCOMPRESS) &&
-	    btrfs_test_opt(root, COMPRESS)) {
+	    (btrfs_test_opt(root, COMPRESS) ||
+	     (BTRFS_I(inode)->force_compress))) {
 		WARN_ON(pages);
 		pages = kzalloc(sizeof(struct page *) * nr_pages, GFP_NOFS);
 
@@ -483,8 +484,10 @@ again:
 		nr_pages_ret = 0;
 
 		/* flag the file so we don't compress in the future */
-		if (!btrfs_test_opt(root, FORCE_COMPRESS))
+		if (!btrfs_test_opt(root, FORCE_COMPRESS) &&
+		    !(BTRFS_I(inode)->force_compress)) {
 			BTRFS_I(inode)->flags |= BTRFS_INODE_NOCOMPRESS;
+		}
 	}
 	if (will_compress) {
 		*num_added += 1;
@@ -1211,7 +1214,8 @@ static int run_delalloc_range(struct inode *inode, struct page *locked_page,
 	else if (BTRFS_I(inode)->flags & BTRFS_INODE_PREALLOC)
 		ret = run_delalloc_nocow(inode, locked_page, start, end,
 					 page_started, 0, nr_written);
-	else if (!btrfs_test_opt(root, COMPRESS))
+	else if (!btrfs_test_opt(root, COMPRESS) &&
+		 !(BTRFS_I(inode)->force_compress))
 		ret = cow_file_range(inode, locked_page, start, end,
 				      page_started, nr_written, 1);
 	else
@@ -3639,6 +3643,7 @@ static noinline void init_btrfs_i(struct inode *inode)
 	bi->index_cnt = (u64)-1;
 	bi->last_unlink_trans = 0;
 	bi->ordered_data_close = 0;
+	bi->force_compress = 0;
 	extent_map_tree_init(&BTRFS_I(inode)->extent_tree, GFP_NOFS);
 	extent_io_tree_init(&BTRFS_I(inode)->io_tree,
 			     inode->i_mapping, GFP_NOFS);
