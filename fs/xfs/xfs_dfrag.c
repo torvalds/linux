@@ -113,10 +113,82 @@ xfs_swapext(
 	return error;
 }
 
+/*
+ * We need to check that the format of the data fork in the temporary inode is
+ * valid for the target inode before doing the swap. This is not a problem with
+ * attr1 because of the fixed fork offset, but attr2 has a dynamically sized
+ * data fork depending on the space the attribute fork is taking so we can get
+ * invalid formats on the target inode.
+ *
+ * E.g. target has space for 7 extents in extent format, temp inode only has
+ * space for 6.  If we defragment down to 7 extents, then the tmp format is a
+ * btree, but when swapped it needs to be in extent format. Hence we can't just
+ * blindly swap data forks on attr2 filesystems.
+ *
+ * Note that we check the swap in both directions so that we don't end up with
+ * a corrupt temporary inode, either.
+ *
+ * Note that fixing the way xfs_fsr sets up the attribute fork in the source
+ * inode will prevent this situation from occurring, so all we do here is
+ * reject and log the attempt. basically we are putting the responsibility on
+ * userspace to get this right.
+ */
+static int
+xfs_swap_extents_check_format(
+	xfs_inode_t	*ip,	/* target inode */
+	xfs_inode_t	*tip)	/* tmp inode */
+{
+
+	/* Should never get a local format */
+	if (ip->i_d.di_format == XFS_DINODE_FMT_LOCAL ||
+	    tip->i_d.di_format == XFS_DINODE_FMT_LOCAL)
+		return EINVAL;
+
+	/*
+	 * if the target inode has less extents that then temporary inode then
+	 * why did userspace call us?
+	 */
+	if (ip->i_d.di_nextents < tip->i_d.di_nextents)
+		return EINVAL;
+
+	/*
+	 * if the target inode is in extent form and the temp inode is in btree
+	 * form then we will end up with the target inode in the wrong format
+	 * as we already know there are less extents in the temp inode.
+	 */
+	if (ip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
+	    tip->i_d.di_format == XFS_DINODE_FMT_BTREE)
+		return EINVAL;
+
+	/* Check temp in extent form to max in target */
+	if (tip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
+	    XFS_IFORK_NEXTENTS(tip, XFS_DATA_FORK) > ip->i_df.if_ext_max)
+		return EINVAL;
+
+	/* Check target in extent form to max in temp */
+	if (ip->i_d.di_format == XFS_DINODE_FMT_EXTENTS &&
+	    XFS_IFORK_NEXTENTS(ip, XFS_DATA_FORK) > tip->i_df.if_ext_max)
+		return EINVAL;
+
+	/* Check root block of temp in btree form to max in target */
+	if (tip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
+	    XFS_IFORK_BOFF(ip) &&
+	    tip->i_df.if_broot_bytes > XFS_IFORK_BOFF(ip))
+		return EINVAL;
+
+	/* Check root block of target in btree form to max in temp */
+	if (ip->i_d.di_format == XFS_DINODE_FMT_BTREE &&
+	    XFS_IFORK_BOFF(tip) &&
+	    ip->i_df.if_broot_bytes > XFS_IFORK_BOFF(tip))
+		return EINVAL;
+
+	return 0;
+}
+
 int
 xfs_swap_extents(
-	xfs_inode_t	*ip,
-	xfs_inode_t	*tip,
+	xfs_inode_t	*ip,	/* target inode */
+	xfs_inode_t	*tip,	/* tmp inode */
 	xfs_swapext_t	*sxp)
 {
 	xfs_mount_t	*mp;
@@ -160,13 +232,6 @@ xfs_swap_extents(
 		goto out_unlock;
 	}
 
-	/* Should never get a local format */
-	if (ip->i_d.di_format == XFS_DINODE_FMT_LOCAL ||
-	    tip->i_d.di_format == XFS_DINODE_FMT_LOCAL) {
-		error = XFS_ERROR(EINVAL);
-		goto out_unlock;
-	}
-
 	if (VN_CACHED(VFS_I(tip)) != 0) {
 		xfs_inval_cached_trace(tip, 0, -1, 0, -1);
 		error = xfs_flushinval_pages(tip, 0, -1,
@@ -189,13 +254,12 @@ xfs_swap_extents(
 		goto out_unlock;
 	}
 
-	/*
-	 * If the target has extended attributes, the tmp file
-	 * must also in order to ensure the correct data fork
-	 * format.
-	 */
-	if ( XFS_IFORK_Q(ip) != XFS_IFORK_Q(tip) ) {
-		error = XFS_ERROR(EINVAL);
+	/* check inode formats now that data is flushed */
+	error = xfs_swap_extents_check_format(ip, tip);
+	if (error) {
+		xfs_fs_cmn_err(CE_NOTE, mp,
+		    "%s: inode 0x%llx format is incompatible for exchanging.",
+				__FILE__, ip->i_ino);
 		goto out_unlock;
 	}
 
@@ -274,6 +338,16 @@ xfs_swap_extents(
 	*tempifp = *ifp;	/* struct copy */
 	*ifp = *tifp;		/* struct copy */
 	*tifp = *tempifp;	/* struct copy */
+
+	/*
+	 * Fix the in-memory data fork values that are dependent on the fork
+	 * offset in the inode. We can't assume they remain the same as attr2
+	 * has dynamic fork offsets.
+	 */
+	ifp->if_ext_max = XFS_IFORK_SIZE(ip, XFS_DATA_FORK) /
+					(uint)sizeof(xfs_bmbt_rec_t);
+	tifp->if_ext_max = XFS_IFORK_SIZE(tip, XFS_DATA_FORK) /
+					(uint)sizeof(xfs_bmbt_rec_t);
 
 	/*
 	 * Fix the on-disk inode values
