@@ -53,6 +53,10 @@ config MFD_SH_MOBILE_SDHI
 	  This driver supports the SDHI hardware block found in many
 	  SuperH Mobile SoCs.
 
+config MFD_DAVINCI_VOICECODEC
+	tristate
+	select MFD_CORE
+
 config MFD_DM355EVM_MSP
 	bool "DaVinci DM355 EVM microcontroller"
 	depends on I2C && MACH_DAVINCI_DM355_EVM
