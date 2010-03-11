@@ -45,7 +45,7 @@ static int lp3971_set_bits(struct lp3971 *lp3971, u8 reg, u16 mask, u16 val);
 	LP3971_BUCK2 -> 4
 	LP3971_BUCK3 -> 6
 */
-#define BUCK_VOL_CHANGE_SHIFT(x) (((1 << x) & ~0x01) << 1)
+#define BUCK_VOL_CHANGE_SHIFT(x) (((!!x) << 2) | (x & ~0x01))
 #define BUCK_VOL_CHANGE_FLAG_GO 0x01
 #define BUCK_VOL_CHANGE_FLAG_TARGET 0x02
 #define BUCK_VOL_CHANGE_FLAG_MASK 0x03
