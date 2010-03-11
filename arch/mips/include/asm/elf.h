@@ -310,6 +310,7 @@ do {									\
 
 #endif /* CONFIG_64BIT */
 
+struct pt_regs;
 struct task_struct;
 
 extern void elf_dump_regs(elf_greg_t *, struct pt_regs *regs);
