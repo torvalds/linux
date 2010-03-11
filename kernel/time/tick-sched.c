@@ -262,6 +262,9 @@ void tick_nohz_stop_sched_tick(int inidle)
 		goto end;
 	}
 
+	if (nohz_ratelimit(cpu))
+		goto end;
+
 	ts->idle_calls++;
 	/* Read jiffies and the time when jiffies were updated last */
 	do {
