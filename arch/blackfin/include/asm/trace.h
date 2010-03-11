@@ -23,6 +23,8 @@
 #ifndef __ASSEMBLY__
 extern unsigned long trace_buff_offset;
 extern unsigned long software_trace_buff[];
+extern void decode_address(char *buf, unsigned long address);
+extern bool get_instruction(unsigned short *val, unsigned short *address);
 
 /* Trace Macros for C files */
 
