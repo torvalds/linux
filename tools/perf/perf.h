@@ -1,6 +1,10 @@
 #ifndef _PERF_PERF_H
 #define _PERF_PERF_H
 
+struct winsize;
+
+void get_term_dimensions(struct winsize *ws);
+
 #if defined(__i386__)
 #include "../../arch/x86/include/asm/unistd.h"
 #define rmb()		asm volatile("lock; addl $0,0(%%esp)" ::: "memory")

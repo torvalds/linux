@@ -133,7 +133,7 @@ static inline struct symbol *sym_entry__symbol(struct sym_entry *self)
        return ((void *)self) + symbol_conf.priv_size;
 }
 
-static void get_term_dimensions(struct winsize *ws)
+void get_term_dimensions(struct winsize *ws)
 {
 	char *s = getenv("LINES");
 
