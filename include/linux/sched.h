@@ -1185,9 +1185,6 @@ struct sched_entity {
 
 	u64			nr_migrations;
 
-	u64			start_runtime;
-	u64			avg_wakeup;
-
 #ifdef CONFIG_SCHEDSTATS
 	struct sched_statistics statistics;
 #endif

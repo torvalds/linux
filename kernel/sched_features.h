@@ -31,12 +31,6 @@ SCHED_FEAT(START_DEBIT, 1)
 SCHED_FEAT(WAKEUP_PREEMPT, 1)
 
 /*
- * Compute wakeup_gran based on task behaviour, clipped to
- *  [0, sched_wakeup_gran_ns]
- */
-SCHED_FEAT(ADAPTIVE_GRAN, 1)
-
-/*
  * When converting the wakeup granularity to virtual time, do it such
  * that heavier tasks preempting a lighter task have an edge.
  */
