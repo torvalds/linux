@@ -243,8 +243,12 @@ void rds_ib_send_cq_comp_handler(struct ib_cq *cq, void *context)
 				struct rds_message *rm;
 
 				rm = rds_send_get_message(conn, send->s_op);
-				if (rm)
+				if (rm) {
+					if (rm->m_rdma_op)
+						rds_ib_send_unmap_rdma(ic, rm->m_rdma_op);
 					rds_ib_send_rdma_complete(rm, wc.status);
+					rds_message_put(rm);
+				}
 			}
 
 			oldest = (oldest + 1) % ic->i_send_ring.w_nr;
