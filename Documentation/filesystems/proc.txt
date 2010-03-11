@@ -566,6 +566,10 @@ The default_smp_affinity mask applies to all non-active IRQs, which are the
 IRQs which have not yet been allocated/activated, and hence which lack a
 /proc/irq/[0-9]* directory.
 
+The node file on an SMP system shows the node to which the device using the IRQ
+reports itself as being attached. This hardware locality information does not
+include information about any possible driver locality preference.
+
 prof_cpu_mask specifies which CPUs are to be profiled by the system wide
 profiler. Default value is ffffffff (all cpus).
 
