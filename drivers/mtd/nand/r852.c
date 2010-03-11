@@ -197,7 +197,7 @@ static void r852_do_dma(struct r852_device *dev, uint8_t *buf, int do_read)
 			R852_DMA_LEN,
 			(do_read ? PCI_DMA_FROMDEVICE : PCI_DMA_TODEVICE));
 
-		if (dev->phys_dma_addr == DMA_ERROR_CODE)
+		if (pci_dma_mapping_error(dev->pci_dev, dev->phys_dma_addr))
 			bounce = 1;
 	}
 
