@@ -1027,11 +1027,8 @@ static inline void __run_timers(struct tvec_base *base)
 				lock_map_release(&lockdep_map);
 
 				if (preempt_count != preempt_count()) {
-					printk(KERN_ERR "huh, entered %p "
-					       "with preempt_count %08x, exited"
-					       " with %08x?\n",
-					       fn, preempt_count,
-					       preempt_count());
+					printk(KERN_ERR "timer: %pF preempt leak: %08x -> %08x\n",
+					       fn, preempt_count, preempt_count());
 					BUG();
 				}
 			}
