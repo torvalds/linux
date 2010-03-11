@@ -863,6 +863,12 @@ union radeon_asic_config {
 	struct rv770_asic	rv770;
 };
 
+/*
+ * asic initizalization from radeon_asic.c
+ */
+void radeon_agp_disable(struct radeon_device *rdev);
+int radeon_asic_init(struct radeon_device *rdev);
+
 
 /*
  * IOCTL.
