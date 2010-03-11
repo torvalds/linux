@@ -862,8 +862,8 @@ out_close:
 	if (err == 0)
 		return nr;
 out:
-	pr_warning("%s: problems reading %s PLT info.\n",
-		   __func__, self->long_name);
+	pr_debug("%s: problems reading %s PLT info.\n",
+		 __func__, self->long_name);
 	return 0;
 }
 
