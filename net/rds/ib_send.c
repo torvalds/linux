@@ -574,8 +574,7 @@ int rds_ib_xmit(struct rds_connection *conn, struct rds_message *rm,
 		rds_ib_send_grab_credits(ic, 0, &posted, 1, RDS_MAX_ADV_CREDIT - adv_credits);
 		adv_credits += posted;
 		BUG_ON(adv_credits > 255);
-	} else if (ic->i_rm != rm)
-		BUG();
+	}
 
 	send = &ic->i_sends[pos];
 	first = send;
@@ -714,8 +713,8 @@ add_header:
 			ic->i_rm = prev->s_rm;
 			prev->s_rm = NULL;
 		}
-		/* Finesse this later */
-		BUG();
+
+		rds_ib_conn_error(ic->conn, "ib_post_send failed\n");
 		goto out;
 	}
 

@@ -109,8 +109,7 @@ int rds_rdma_cm_event_handler(struct rdma_cm_id *cm_id,
 
 	default:
 		/* things like device disconnect? */
-		printk(KERN_ERR "unknown event %u\n", event->event);
-		BUG();
+		printk(KERN_ERR "RDS: unknown event %u!\n", event->event);
 		break;
 	}
 
