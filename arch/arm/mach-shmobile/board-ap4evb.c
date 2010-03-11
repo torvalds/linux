@@ -250,6 +250,9 @@ struct tsc2007_platform_data tsc2007_info = {
 /* I2C */
 static struct i2c_board_info i2c1_devices[] = {
 	{
+		I2C_BOARD_INFO("r2025sd", 0x32),
+	},
+	{
 		I2C_BOARD_INFO("tsc2007", 0x48),
 		.type		= "tsc2007",
 		.platform_data	= &tsc2007_info,
