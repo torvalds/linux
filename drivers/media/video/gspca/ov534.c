@@ -709,7 +709,7 @@ static void setexposure(struct gspca_dev *gspca_dev)
 
 	/* 'val' is one byte and represents half of the exposure value we are
 	 * going to set into registers, a two bytes value:
-	 * 
+	 *
 	 *    MSB: ((u16) val << 1) >> 8   == val >> 7
 	 *    LSB: ((u16) val << 1) & 0xff == val << 1
 	 */
