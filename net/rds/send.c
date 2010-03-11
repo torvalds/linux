@@ -632,9 +632,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		list_move(&rm->m_sock_item, &list);
 		rds_send_sndbuf_remove(rs, rm);
 		clear_bit(RDS_MSG_ON_SOCK, &rm->m_flags);
-
-		/* If this is a RDMA operation, notify the app. */
-		__rds_rdma_send_complete(rs, rm, RDS_RDMA_CANCELED);
 	}
 
 	/* order flag updates with the rs lock */
@@ -643,9 +640,6 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 
 	spin_unlock_irqrestore(&rs->rs_lock, flags);
 
-	if (wake)
-		rds_wake_sk_sleep(rs);
-
 	conn = NULL;
 
 	/* now remove the messages from the conn list as needed */
@@ -653,6 +647,10 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 		/* We do this here rather than in the loop above, so that
 		 * we don't have to nest m_rs_lock under rs->rs_lock */
 		spin_lock_irqsave(&rm->m_rs_lock, flags2);
+		/* If this is a RDMA operation, notify the app. */
+		spin_lock(&rs->rs_lock);
+		__rds_rdma_send_complete(rs, rm, RDS_RDMA_CANCELED);
+		spin_unlock(&rs->rs_lock);
 		rm->m_rs = NULL;
 		spin_unlock_irqrestore(&rm->m_rs_lock, flags2);
 
@@ -680,6 +678,9 @@ void rds_send_drop_to(struct rds_sock *rs, struct sockaddr_in *dest)
 
 	if (conn)
 		spin_unlock_irqrestore(&conn->c_lock, flags);
+
+	if (wake)
+		rds_wake_sk_sleep(rs);
 
 	while (!list_empty(&list)) {
 		rm = list_entry(list.next, struct rds_message, m_sock_item);
