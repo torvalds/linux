@@ -13,13 +13,6 @@ SCHED_FEAT(FAIR_SLEEPERS, 1)
 SCHED_FEAT(GENTLE_FAIR_SLEEPERS, 1)
 
 /*
- * By not normalizing the sleep time, heavy tasks get an effective
- * longer period, and lighter task an effective shorter period they
- * are considered running.
- */
-SCHED_FEAT(NORMALIZED_SLEEPER, 0)
-
-/*
  * Place new tasks ahead so that they do not starve already running
  * tasks
  */

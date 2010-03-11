@@ -742,16 +742,6 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 		unsigned long thresh = sysctl_sched_latency;
 
 		/*
-		 * Convert the sleeper threshold into virtual time.
-		 * SCHED_IDLE is a special sub-class.  We care about
-		 * fairness only relative to other SCHED_IDLE tasks,
-		 * all of which have the same weight.
-		 */
-		if (sched_feat(NORMALIZED_SLEEPER) && (!entity_is_task(se) ||
-				 task_of(se)->policy != SCHED_IDLE))
-			thresh = calc_delta_fair(thresh, se);
-
-		/*
 		 * Halve their sleep time's effect, to allow
 		 * for a gentler effect of sleepers:
 		 */
