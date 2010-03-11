@@ -341,7 +341,7 @@ struct reg_init tm6000_init_tab[] = {
 	{ TM6010_REQ07_RC1_TRESHOLD, 0xd0 },
 	{ TM6010_REQ07_RC3_HSTART1, 0x88 },
 	{ TM6010_REQ07_R3F_RESET, 0x00 },		/* End of the soft reset */
-	{ REQ_05_SET_GET_USBREG, 0x18, 0x00 },
+	{ TM6010_REQ05_R18_IMASK7, 0x00 },
 };
 
 struct reg_init tm6010_init_tab[] = {
@@ -414,7 +414,7 @@ struct reg_init tm6010_init_tab[] = {
 	{ TM6010_REQ07_RC3_HSTART1, 0x88 },
 	{ TM6010_REQ07_R3F_RESET, 0x00 },
 
-	{ REQ_05_SET_GET_USBREG, 0x18, 0x00 },
+	{ TM6010_REQ05_R18_IMASK7, 0x00 },
 
 	{ TM6010_REQ07_RD8_IR_LEADER1, 0xaa },
 	{ TM6010_REQ07_RD8_IR_LEADER0, 0x30 },
