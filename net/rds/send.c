@@ -507,12 +507,13 @@ EXPORT_SYMBOL_GPL(rds_send_get_message);
  */
 void rds_send_remove_from_sock(struct list_head *messages, int status)
 {
-	unsigned long flags = 0; /* silence gcc :P */
+	unsigned long flags;
 	struct rds_sock *rs = NULL;
 	struct rds_message *rm;
 
-	local_irq_save(flags);
 	while (!list_empty(messages)) {
+		int was_on_sock = 0;
+
 		rm = list_entry(messages->next, struct rds_message,
 				m_conn_item);
 		list_del_init(&rm->m_conn_item);
@@ -527,7 +528,7 @@ void rds_send_remove_from_sock(struct list_head *messages, int status)
 		 * while we're messing with it. It does not prevent the
 		 * message from being removed from the socket, though.
 		 */
-		spin_lock(&rm->m_rs_lock);
+		spin_lock_irqsave(&rm->m_rs_lock, flags);
 		if (!test_bit(RDS_MSG_ON_SOCK, &rm->m_flags))
 			goto unlock_and_drop;
 
@@ -556,21 +557,22 @@ void rds_send_remove_from_sock(struct list_head *messages, int status)
 					notifier->n_status = status;
 				rm->m_rdma_op->r_notifier = NULL;
 			}
-			rds_message_put(rm);
+			was_on_sock = 1;
 			rm->m_rs = NULL;
 		}
 		spin_unlock(&rs->rs_lock);
 
 unlock_and_drop:
-		spin_unlock(&rm->m_rs_lock);
+		spin_unlock_irqrestore(&rm->m_rs_lock, flags);
 		rds_message_put(rm);
+		if (was_on_sock)
+			rds_message_put(rm);
 	}
 
 	if (rs) {
 		rds_wake_sk_sleep(rs);
 		sock_put(rds_rs_to_sk(rs));
 	}
-	local_irq_restore(flags);
 }
 
 /*

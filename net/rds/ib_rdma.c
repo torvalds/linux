@@ -440,6 +440,7 @@ static void __rds_ib_teardown_mr(struct rds_ib_mr *ibmr)
 
 			/* FIXME we need a way to tell a r/w MR
 			 * from a r/o MR */
+			BUG_ON(in_interrupt());
 			set_page_dirty(page);
 			put_page(page);
 		}
