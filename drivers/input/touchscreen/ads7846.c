@@ -822,6 +822,9 @@ static int ads7846_suspend(struct spi_device *spi, pm_message_t message)
 
 	spin_unlock_irq(&ts->lock);
 
+	if (device_may_wakeup(&ts->spi->dev))
+		enable_irq_wake(ts->spi->irq);
+
 	return 0;
 
 }
@@ -829,6 +832,9 @@ static int ads7846_suspend(struct spi_device *spi, pm_message_t message)
 static int ads7846_resume(struct spi_device *spi)
 {
 	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
+
+	if (device_may_wakeup(&ts->spi->dev))
+		disable_irq_wake(ts->spi->irq);
 
 	spin_lock_irq(&ts->lock);
 
@@ -1201,6 +1207,8 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	if (err)
 		goto err_remove_attr_group;
 
+	device_init_wakeup(&spi->dev, pdata->wakeup);
+
 	return 0;
 
  err_remove_attr_group:
@@ -1229,6 +1237,8 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 static int __devexit ads7846_remove(struct spi_device *spi)
 {
 	struct ads7846		*ts = dev_get_drvdata(&spi->dev);
+
+	device_init_wakeup(&spi->dev, false);
 
 	ads784x_hwmon_unregister(spi, ts);
 	input_unregister_device(ts->input);
