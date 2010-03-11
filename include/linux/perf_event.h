@@ -453,6 +453,7 @@ enum perf_callchain_context {
 #include <linux/pid_namespace.h>
 #include <linux/workqueue.h>
 #include <linux/ftrace.h>
+#include <linux/cpu.h>
 #include <asm/atomic.h>
 
 #define PERF_MAX_STACK_DEPTH		255
