@@ -74,6 +74,7 @@ struct saa711x_state {
 	int contrast;
 	int hue;
 	int sat;
+	int chroma_agc;
 	int width;
 	int height;
 	u32 ident;
@@ -743,6 +744,7 @@ static int saa711x_s_clock_freq(struct v4l2_subdev *sd, u32 freq)
 static int saa711x_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 {
 	struct saa711x_state *state = to_state(sd);
+	u8 val;
 
 	switch (ctrl->id) {
 	case V4L2_CID_BRIGHTNESS:
@@ -784,7 +786,21 @@ static int saa711x_s_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		state->hue = ctrl->value;
 		saa711x_write(sd, R_0D_CHROMA_HUE_CNTL, state->hue);
 		break;
-
+	case V4L2_CID_CHROMA_AGC:
+		val = saa711x_read(sd, R_0F_CHROMA_GAIN_CNTL);
+		state->chroma_agc = ctrl->value;
+		if (ctrl->value)
+			val &= 0x7f;
+		else
+			val |= 0x80;
+		saa711x_write(sd, R_0F_CHROMA_GAIN_CNTL, val);
+		break;
+	case V4L2_CID_CHROMA_GAIN:
+		/* Chroma gain cannot be set when AGC is enabled */
+		if (state->chroma_agc == 1)
+			return -EINVAL;
+		saa711x_write(sd, R_0F_CHROMA_GAIN_CNTL, ctrl->value | 0x80);
+		break;
 	default:
 		return -EINVAL;
 	}
@@ -808,6 +824,12 @@ static int saa711x_g_ctrl(struct v4l2_subdev *sd, struct v4l2_control *ctrl)
 		break;
 	case V4L2_CID_HUE:
 		ctrl->value = state->hue;
+		break;
+	case V4L2_CID_CHROMA_AGC:
+		ctrl->value = state->chroma_agc;
+		break;
+	case V4L2_CID_CHROMA_GAIN:
+		ctrl->value = saa711x_read(sd, R_0F_CHROMA_GAIN_CNTL) & 0x7f;
 		break;
 	default:
 		return -EINVAL;
@@ -1209,6 +1231,19 @@ static int saa711x_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 		return v4l2_ctrl_query_fill(qc, 0, 127, 1, 64);
 	case V4L2_CID_HUE:
 		return v4l2_ctrl_query_fill(qc, -128, 127, 1, 0);
+	case V4L2_CID_CHROMA_AGC:
+		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
+	case V4L2_CID_CHROMA_GAIN:
+		qc->type = V4L2_CTRL_TYPE_INTEGER;
+		qc->flags = V4L2_CTRL_FLAG_SLIDER;
+		qc->minimum = 0;
+		qc->maximum = 127;
+		qc->step = 1;
+		qc->default_value = 0x30;
+		qc->reserved[0] = 0;
+		qc->reserved[1] = 0;
+		strlcpy(qc->name, "chroma_gain", sizeof(qc->name));
+		return 0;
 	default:
 		return -EINVAL;
 	}
@@ -1593,6 +1628,7 @@ static int saa711x_probe(struct i2c_client *client,
 	state->contrast = 64;
 	state->hue = 0;
 	state->sat = 64;
+	state->chroma_agc = 1;
 	switch (chip_id) {
 	case '1':
 		state->ident = V4L2_IDENT_SAA7111;
