@@ -982,9 +982,15 @@ static void call_timer_fn(struct timer_list *timer, void (*fn)(unsigned long),
 	lock_map_release(&lockdep_map);
 
 	if (preempt_count != preempt_count()) {
-		printk(KERN_ERR "timer: %pF preempt leak: %08x -> %08x\n",
-		       fn, preempt_count, preempt_count());
-		BUG();
+		WARN_ONCE(1, "timer: %pF preempt leak: %08x -> %08x\n",
+			  fn, preempt_count, preempt_count());
+		/*
+		 * Restore the preempt count. That gives us a decent
+		 * chance to survive and extract information. If the
+		 * callback kept a lock held, bad luck, but not worse
+		 * than the BUG() we had.
+		 */
+		preempt_count() = preempt_count;
 	}
 }
 
