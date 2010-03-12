@@ -2490,7 +2490,7 @@ static int dsi_proto_config(struct omap_dss_device *dssdev)
 	dsi_set_stop_state_counter(1000);
 	dsi_set_ta_timeout(6400000);
 	dsi_set_lp_rx_timeout(48000);
-	dsi_set_hs_tx_timeout(1000000);
+	dsi_set_hs_tx_timeout(8000000);
 
 	switch (dssdev->ctrl.pixel_size) {
 	case 16:
