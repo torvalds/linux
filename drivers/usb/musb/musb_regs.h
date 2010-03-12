@@ -526,18 +526,22 @@ static inline void musb_write_ulpi_buscontrol(void __iomem *mbase, u8 val)
 
 static inline u8 musb_read_txfifosz(void __iomem *mbase)
 {
+	return 0;
 }
 
 static inline u16 musb_read_txfifoadd(void __iomem *mbase)
 {
+	return 0;
 }
 
 static inline u8 musb_read_rxfifosz(void __iomem *mbase)
 {
+	return 0;
 }
 
 static inline u16  musb_read_rxfifoadd(void __iomem *mbase)
 {
+	return 0;
 }
 
 static inline u8 musb_read_ulpi_buscontrol(void __iomem *mbase)
@@ -596,22 +600,27 @@ static inline void  musb_write_txhubport(void __iomem *mbase, u8 epnum,
 
 static inline u8 musb_read_rxfunaddr(void __iomem *mbase, u8 epnum)
 {
+	return 0;
 }
 
 static inline u8 musb_read_rxhubaddr(void __iomem *mbase, u8 epnum)
 {
+	return 0;
 }
 
 static inline u8 musb_read_rxhubport(void __iomem *mbase, u8 epnum)
 {
+	return 0;
 }
 
 static inline u8  musb_read_txfunaddr(void __iomem *mbase, u8 epnum)
 {
+	return 0;
 }
 
 static inline u8  musb_read_txhubaddr(void __iomem *mbase, u8 epnum)
 {
+	return 0;
 }
 
 static inline void  musb_read_txhubport(void __iomem *mbase, u8 epnum)
