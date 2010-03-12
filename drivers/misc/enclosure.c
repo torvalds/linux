@@ -284,8 +284,11 @@ enclosure_component_register(struct enclosure_device *edev,
 	cdev->groups = enclosure_groups;
 
 	err = device_register(cdev);
-	if (err)
-		ERR_PTR(err);
+	if (err) {
+		ecomp->number = -1;
+		put_device(cdev);
+		return ERR_PTR(err);
+	}
 
 	return ecomp;
 }
