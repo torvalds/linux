@@ -1234,16 +1234,7 @@ static int saa711x_queryctrl(struct v4l2_subdev *sd, struct v4l2_queryctrl *qc)
 	case V4L2_CID_CHROMA_AGC:
 		return v4l2_ctrl_query_fill(qc, 0, 1, 1, 1);
 	case V4L2_CID_CHROMA_GAIN:
-		qc->type = V4L2_CTRL_TYPE_INTEGER;
-		qc->flags = V4L2_CTRL_FLAG_SLIDER;
-		qc->minimum = 0;
-		qc->maximum = 127;
-		qc->step = 1;
-		qc->default_value = 0x30;
-		qc->reserved[0] = 0;
-		qc->reserved[1] = 0;
-		strlcpy(qc->name, "chroma_gain", sizeof(qc->name));
-		return 0;
+		return v4l2_ctrl_query_fill(qc, 0, 127, 1, 48);
 	default:
 		return -EINVAL;
 	}

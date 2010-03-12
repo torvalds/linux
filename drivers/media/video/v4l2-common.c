@@ -429,6 +429,7 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_SHARPNESS:		return "Sharpness";
 	case V4L2_CID_BACKLIGHT_COMPENSATION:	return "Backlight Compensation";
 	case V4L2_CID_CHROMA_AGC:		return "Chroma AGC";
+	case V4L2_CID_CHROMA_GAIN:		return "Chroma Gain";
 	case V4L2_CID_COLOR_KILLER:		return "Color Killer";
 	case V4L2_CID_COLORFX:			return "Color Effects";
 	case V4L2_CID_AUTOBRIGHTNESS:		return "Brightness, Automatic";
@@ -622,6 +623,7 @@ int v4l2_ctrl_query_fill(struct v4l2_queryctrl *qctrl, s32 min, s32 max, s32 ste
 	case V4L2_CID_BLUE_BALANCE:
 	case V4L2_CID_GAMMA:
 	case V4L2_CID_SHARPNESS:
+	case V4L2_CID_CHROMA_GAIN:
 	case V4L2_CID_RDS_TX_DEVIATION:
 	case V4L2_CID_AUDIO_LIMITER_RELEASE_TIME:
 	case V4L2_CID_AUDIO_LIMITER_DEVIATION:
