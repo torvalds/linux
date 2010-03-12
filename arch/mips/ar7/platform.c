@@ -168,7 +168,7 @@ static struct plat_vlynq_data vlynq_high_data = {
 		.on	= vlynq_on,
 		.off	= vlynq_off,
 	},
-	.reset_bit	= 26,
+	.reset_bit	= 16,
 	.gpio_bit	= 19,
 };
 
