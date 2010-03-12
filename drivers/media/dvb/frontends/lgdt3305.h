@@ -1,5 +1,5 @@
 /*
- *    Support for LGDT3305 - VSB/QAM
+ *    Support for LG Electronics LGDT3304 and LGDT3305 - VSB/QAM
  *
  *    Copyright (C) 2008, 2009 Michael Krufky <mkrufky@linuxtv.org>
  *
