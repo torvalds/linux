@@ -73,6 +73,7 @@ enum clock_event_nofitiers {
  * @list:		list head for the management code
  * @mode:		operating mode assigned by the management code
  * @next_event:		local storage for the next event in oneshot mode
+ * @retries:		number of forced programming retries
  */
 struct clock_event_device {
 	const char		*name;
@@ -93,6 +94,7 @@ struct clock_event_device {
 	struct list_head	list;
 	enum clock_event_mode	mode;
 	ktime_t			next_event;
+	unsigned long		retries;
 };
 
 /*
