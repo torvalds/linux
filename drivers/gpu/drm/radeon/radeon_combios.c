@@ -531,10 +531,7 @@ static struct radeon_i2c_bus_rec combios_setup_i2c_bus(struct radeon_device *rde
 	case CHIP_RS300:
 		switch (ddc_line) {
 		case RADEON_GPIO_DVI_DDC:
-			/* in theory this should be hw capable,
-			 * but it doesn't seem to work
-			 */
-			i2c.hw_capable = false;
+			i2c.hw_capable = true;
 			break;
 		default:
 			i2c.hw_capable = false;
