@@ -183,11 +183,10 @@ static void set_data(void *i2c_priv, int data)
 
 static u32 radeon_get_i2c_prescale(struct radeon_device *rdev)
 {
-	struct radeon_pll *spll = &rdev->clock.spll;
 	u32 sclk = radeon_get_engine_clock(rdev);
 	u32 prescale = 0;
-	u32 n, m;
-	u8 loop;
+	u32 nm;
+	u8 n, m, loop;
 	int i2c_clock;
 
 	switch (rdev->family) {
@@ -203,13 +202,15 @@ static u32 radeon_get_i2c_prescale(struct radeon_device *rdev)
 	case CHIP_R300:
 	case CHIP_R350:
 	case CHIP_RV350:
-		n = (spll->reference_freq) / (4 * 6);
+		i2c_clock = 60;
+		nm = (sclk * 10) / (i2c_clock * 4);
 		for (loop = 1; loop < 255; loop++) {
-			if ((loop * (loop - 1)) > n)
+			if ((nm / loop) < loop)
 				break;
 		}
-		m = loop - 1;
-		prescale = m | (loop << 8);
+		n = loop - 1;
+		m = loop - 2;
+		prescale = m | (n << 8);
 		break;
 	case CHIP_RV380:
 	case CHIP_RS400:
@@ -217,7 +218,6 @@ static u32 radeon_get_i2c_prescale(struct radeon_device *rdev)
 	case CHIP_R420:
 	case CHIP_R423:
 	case CHIP_RV410:
-		sclk = radeon_get_engine_clock(rdev);
 		prescale = (((sclk * 10)/(4 * 128 * 100) + 1) << 8) + 128;
 		break;
 	case CHIP_RS600:
@@ -232,7 +232,6 @@ static u32 radeon_get_i2c_prescale(struct radeon_device *rdev)
 	case CHIP_RV570:
 	case CHIP_R580:
 		i2c_clock = 50;
-		sclk = radeon_get_engine_clock(rdev);
 		if (rdev->family == CHIP_R520)
 			prescale = (127 << 8) + ((sclk * 10) / (4 * 127 * i2c_clock));
 		else
