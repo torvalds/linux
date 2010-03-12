@@ -557,11 +557,6 @@ static int lgdt3305_i2c_gate_ctrl(struct dvb_frontend *fe, int enable)
 				    enable ? 0 : 1);
 }
 
-static int lgdt3304_sleep(struct dvb_frontend *fe)
-{
-	return 0;
-}
-
 static int lgdt3305_sleep(struct dvb_frontend *fe)
 {
 	struct lgdt3305_state *state = fe->demodulator_priv;
@@ -1202,7 +1197,6 @@ static struct dvb_frontend_ops lgdt3304_ops = {
 	},
 	.i2c_gate_ctrl        = lgdt3305_i2c_gate_ctrl,
 	.init                 = lgdt3304_init,
-	.sleep                = lgdt3304_sleep,
 	.set_frontend         = lgdt3304_set_parameters,
 	.get_frontend         = lgdt3305_get_frontend,
 	.get_tune_settings    = lgdt3305_get_tune_settings,
