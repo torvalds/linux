@@ -582,3 +582,13 @@ Why:	The paravirt mmu host support is slower than non-paravirt mmu, both
 Who:	Avi Kivity <avi@redhat.com>
 
 ----------------------------
+
+What:	xtime, wall_to_monotonic
+When:	2.6.36+
+Files:	kernel/time/timekeeping.c include/linux/time.h
+Why:	Cleaning up timekeeping internal values. Please use
+	existing timekeeping accessor functions to access
+	the equivalent functionality.
+Who:	John Stultz <johnstul@us.ibm.com>
+
+----------------------------
