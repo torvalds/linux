@@ -590,6 +590,9 @@ int dss_init(bool skip_init)
 		}
 	}
 
+	dss.dsi_clk_source = DSS_SRC_DSS1_ALWON_FCLK;
+	dss.dispc_clk_source = DSS_SRC_DSS1_ALWON_FCLK;
+
 	dss_save_context();
 
 	rev = dss_read_reg(DSS_REVISION);
