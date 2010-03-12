@@ -267,6 +267,12 @@ minimum value disables backlight compensation.</entry>
 	    <entry>Chroma automatic gain control.</entry>
 	  </row>
 	  <row>
+	    <entry><constant>V4L2_CID_CHROMA_GAIN</constant></entry>
+	    <entry>integer</entry>
+	    <entry>Adjusts the Chroma gain control (for use when chroma AGC
+	    is disabled).</entry>
+	  </row>
+	  <row>
 	    <entry><constant>V4L2_CID_COLOR_KILLER</constant></entry>
 	    <entry>boolean</entry>
 	    <entry>Enable the color killer (&ie; force a black &amp; white image in case of a weak video signal).</entry>
