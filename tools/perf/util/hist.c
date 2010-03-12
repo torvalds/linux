@@ -532,23 +532,23 @@ size_t hist_entry__fprintf(struct hist_entry *self,
 		ret += se->print(fp, self, se->width ? *se->width : 0);
 	}
 
-	ret += fprintf(fp, "\n");
+	return ret + fprintf(fp, "\n");
+}
 
-	if (symbol_conf.use_callchain) {
-		int left_margin = 0;
+static size_t hist_entry__fprintf_callchain(struct hist_entry *self, FILE *fp,
+					    u64 session_total)
+{
+	int left_margin = 0;
 
-		if (sort__first_dimension == SORT_COMM) {
-			se = list_first_entry(&hist_entry__sort_list, typeof(*se),
-						list);
-			left_margin = se->width ? *se->width : 0;
-			left_margin -= thread__comm_len(self->thread);
-		}
-
-		ret += hist_entry_callchain__fprintf(fp, self, session_total,
-						     left_margin);
+	if (sort__first_dimension == SORT_COMM) {
+		struct sort_entry *se = list_first_entry(&hist_entry__sort_list,
+							 typeof(*se), list);
+		left_margin = se->width ? *se->width : 0;
+		left_margin -= thread__comm_len(self->thread);
 	}
 
-	return ret;
+	return hist_entry_callchain__fprintf(fp, self, session_total,
+					     left_margin);
 }
 
 size_t perf_session__fprintf_hists(struct rb_root *hists,
@@ -655,6 +655,10 @@ print_entries:
 		}
 		ret += hist_entry__fprintf(h, pair, show_displacement,
 					   displacement, fp, session_total);
+
+		if (symbol_conf.use_callchain)
+			ret += hist_entry__fprintf_callchain(h, fp, session_total);
+
 		if (h->map == NULL && verbose > 1) {
 			__map_groups__fprintf_maps(&h->thread->mg,
 						   MAP__FUNCTION, fp);
