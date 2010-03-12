@@ -1253,7 +1253,7 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 	}
 
 	for (i = 0, memap_sz = 0, pio_sz = 0 ; i < DEVICE_COUNT_RESOURCE; i++) {
-		if (pci_resource_flags(pdev, i) & PCI_BASE_ADDRESS_SPACE_IO) {
+		if (pci_resource_flags(pdev, i) & IORESOURCE_IO) {
 			if (pio_sz)
 				continue;
 			pio_chip = (u64)pci_resource_start(pdev, i);
@@ -1261,15 +1261,18 @@ mpt2sas_base_map_resources(struct MPT2SAS_ADAPTER *ioc)
 		} else {
 			if (memap_sz)
 				continue;
-			ioc->chip_phys = pci_resource_start(pdev, i);
-			chip_phys = (u64)ioc->chip_phys;
-			memap_sz = pci_resource_len(pdev, i);
-			ioc->chip = ioremap(ioc->chip_phys, memap_sz);
-			if (ioc->chip == NULL) {
-				printk(MPT2SAS_ERR_FMT "unable to map adapter "
-				    "memory!\n", ioc->name);
-				r = -EINVAL;
-				goto out_fail;
+			/* verify memory resource is valid before using */
+			if (pci_resource_flags(pdev, i) & IORESOURCE_MEM) {
+				ioc->chip_phys = pci_resource_start(pdev, i);
+				chip_phys = (u64)ioc->chip_phys;
+				memap_sz = pci_resource_len(pdev, i);
+				ioc->chip = ioremap(ioc->chip_phys, memap_sz);
+				if (ioc->chip == NULL) {
+					printk(MPT2SAS_ERR_FMT "unable to map "
+					    "adapter memory!\n", ioc->name);
+					r = -EINVAL;
+					goto out_fail;
+				}
 			}
 		}
 	}
