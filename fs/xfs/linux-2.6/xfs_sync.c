@@ -372,7 +372,6 @@ xfs_sync_fsdata(
 	if (XFS_BUF_ISPINNED(bp))
 		xfs_log_force(mp, 0);
 
-	XFS_BUF_UNASYNC(bp);
 	return xfs_bwrite(mp, bp);
 }
 
