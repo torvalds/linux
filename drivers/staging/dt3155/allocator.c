@@ -45,7 +45,6 @@
 #  define MODULE
 #endif
 
-#include <linux/version.h>
 
 #include <linux/sched.h>
 #include <linux/kernel.h>
