@@ -52,7 +52,7 @@ static size_t hist_entry__append_browser(struct hist_entry *self,
 static void hist_entry__annotate_browser(struct hist_entry *self)
 {
 	FILE *fp;
-	struct winsize ws;
+	int cols, rows;
 	newtComponent form, listbox;
 	struct newtExitStruct es;
 	char *str;
@@ -71,8 +71,8 @@ static void hist_entry__annotate_browser(struct hist_entry *self)
 		goto out_free_str;
 
 	newtPushHelpLine("Press ESC to exit");
-	get_term_dimensions(&ws);
-	listbox = newtListbox(0, 0, ws.ws_row - 5, NEWT_FLAG_SCROLL);
+	newtGetScreenSize(&cols, &rows);
+	listbox = newtListbox(0, 0, rows - 5, NEWT_FLAG_SCROLL);
 
 	while (!feof(fp)) {
 		if (getline(&line, &line_len, fp) < 0 || !line_len)
@@ -87,13 +87,13 @@ static void hist_entry__annotate_browser(struct hist_entry *self)
 	fclose(fp);
 	free(line);
 
-	max_usable_width = ws.ws_col - 22;
+	max_usable_width = cols - 22;
 	if (max_line_len > max_usable_width)
 		max_line_len = max_usable_width;
 
 	newtListboxSetWidth(listbox, max_line_len);
 
-	newtCenteredWindow(max_line_len + 2, ws.ws_row - 5, self->sym->name);
+	newtCenteredWindow(max_line_len + 2, rows - 5, self->sym->name);
 	form = newt_form__new();
 	newtFormAddComponents(form, listbox, NULL);
 
@@ -112,7 +112,7 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 	struct rb_node *nd;
 	unsigned int width;
 	char *col_width = symbol_conf.col_width_list_str;
-	struct winsize ws;
+	int rows;
 	size_t max_len = 0;
 	char str[1024];
 	newtComponent form, listbox;
@@ -122,13 +122,13 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 	newtDrawRootText(0, 0, str);
 	newtPushHelpLine(helpline);
 
-	get_term_dimensions(&ws);
+	newtGetScreenSize(NULL, &rows);
 
 	form = newt_form__new();
 
-	listbox = newtListbox(1, 1, ws.ws_row - 2, (NEWT_FLAG_SCROLL |
-						    NEWT_FLAG_BORDER |
-						    NEWT_FLAG_RETURNEXIT));
+	listbox = newtListbox(1, 1, rows - 2, (NEWT_FLAG_SCROLL |
+					       NEWT_FLAG_BORDER |
+					       NEWT_FLAG_RETURNEXIT));
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
