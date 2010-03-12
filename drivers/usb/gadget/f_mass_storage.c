@@ -2954,7 +2954,6 @@ static int __init fsg_bind(struct usb_configuration *c, struct usb_function *f)
 autoconf_fail:
 	ERROR(fsg, "unable to autoconfigure all endpoints\n");
 	rc = -ENOTSUPP;
-	fsg_unbind(c, f);
 	return rc;
 }
 
