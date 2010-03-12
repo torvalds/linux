@@ -1,7 +1,7 @@
 /*
  *    Support for LG Electronics LGDT3304 and LGDT3305 - VSB/QAM
  *
- *    Copyright (C) 2008, 2009 Michael Krufky <mkrufky@linuxtv.org>
+ *    Copyright (C) 2008, 2009, 2010 Michael Krufky <mkrufky@linuxtv.org>
  *
  *    This program is free software; you can redistribute it and/or modify
  *    it under the terms of the GNU General Public License as published by
