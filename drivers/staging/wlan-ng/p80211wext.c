@@ -49,7 +49,6 @@
 #include <linux/uaccess.h>
 #include <asm/byteorder.h>
 #include <linux/if_ether.h>
-#include <linux/bitops.h>
 
 #include "p80211types.h"
 #include "p80211hdr.h"
