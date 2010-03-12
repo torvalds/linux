@@ -82,12 +82,16 @@
  */
 
 /*
- * KEYSC
+ * LCD / IRQ / KEYSC / IrDA
  *
- * SW43		KEYSC
- * -------------------------
- * ON		enable
- * OFF		disable
+ * IRQ = IRQ26 (TS), IRQ27 (VIO), IRQ28 (TouchScreen)
+ * LCD = 2nd LCDC
+ *
+ * 		|		SW43			|
+ * SW3		|	ON		|	OFF	|
+ * -------------+-----------------------+---------------+
+ * ON		| KEY / IrDA		| LCD		|
+ * OFF		| KEY / IrDA / IRQ	| IRQ		|
  */
 
 /* MTD */
@@ -236,7 +240,7 @@ static struct platform_device *ap4evb_devices[] __initdata = {
 	&sdhi0_device,
 };
 
-/* TouchScreen */
+/* TouchScreen (Needs SW3 set to OFF) */
 #define IRQ28	396
 struct tsc2007_platform_data tsc2007_info = {
 	.model			= 2007,
