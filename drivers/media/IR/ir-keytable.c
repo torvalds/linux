@@ -419,6 +419,7 @@ int ir_input_register(struct input_dev *input_dev,
 
 	spin_lock_init(&ir_dev->rc_tab.lock);
 
+	ir_dev->rc_tab.name = rc_tab->name;
 	ir_dev->rc_tab.size = ir_roundup_tablesize(rc_tab->size);
 	ir_dev->rc_tab.scan = kzalloc(ir_dev->rc_tab.size *
 				    sizeof(struct ir_scancode), GFP_KERNEL);

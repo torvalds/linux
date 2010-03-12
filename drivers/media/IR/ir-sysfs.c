@@ -126,6 +126,24 @@ static ssize_t store_protocol(struct device *d,
 	return len;
 }
 
+
+#define ADD_HOTPLUG_VAR(fmt, val...)					\
+	do {								\
+		int err = add_uevent_var(env, fmt, val);		\
+		if (err)						\
+			return err;					\
+	} while (0)
+
+static int ir_dev_uevent(struct device *device, struct kobj_uevent_env *env)
+{
+	struct ir_input_dev *ir_dev = dev_get_drvdata(device);
+
+	if (ir_dev->rc_tab.name)
+		ADD_HOTPLUG_VAR("NAME=\"%s\"", ir_dev->rc_tab.name);
+
+	return 0;
+}
+
 /*
  * Static device attribute struct with the sysfs attributes for IR's
  */
@@ -148,8 +166,8 @@ static const struct attribute_group *ir_dev_attr_groups[] = {
 
 static struct device_type ir_dev_type = {
 	.groups		= ir_dev_attr_groups,
+	.uevent		= ir_dev_uevent,
 };
-
 
 /**
  * ir_register_class() - creates the sysfs for /sys/class/irrcv/irrcv?
@@ -173,6 +191,7 @@ int ir_register_class(struct input_dev *input_dev)
 	ir_dev->dev.class = &ir_input_class;
 	ir_dev->dev.parent = input_dev->dev.parent;
 	dev_set_name(&ir_dev->dev, "irrcv%d", devno);
+	dev_set_drvdata(&ir_dev->dev, ir_dev);
 	rc = device_register(&ir_dev->dev);
 	if (rc)
 		return rc;
@@ -187,8 +206,8 @@ int ir_register_class(struct input_dev *input_dev)
 
 	__module_get(THIS_MODULE);
 
-	path = kobject_get_path(&input_dev->dev.kobj, GFP_KERNEL);
-	printk(KERN_INFO "%s: %s associated with sysfs %s\n",
+	path = kobject_get_path(&ir_dev->dev.kobj, GFP_KERNEL);
+	printk(KERN_INFO "%s: %s as %s\n",
 		dev_name(&ir_dev->dev),
 		input_dev->name ? input_dev->name : "Unspecified device",
 		path ? path : "N/A");
