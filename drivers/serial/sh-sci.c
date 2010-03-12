@@ -50,7 +50,6 @@
 #include <linux/list.h>
 #include <linux/dmaengine.h>
 #include <linux/scatterlist.h>
-#include <linux/timer.h>
 
 #ifdef CONFIG_SUPERH
 #include <asm/sh_bios.h>
