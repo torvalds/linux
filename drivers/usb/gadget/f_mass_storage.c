@@ -79,6 +79,9 @@
 
 #define BULK_BUFFER_SIZE           4096
 
+/* flush after every 4 meg of writes to avoid excessive block level caching */
+#define MAX_UNFLUSHED_BYTES (4 * 1024 * 1024)
+
 /*-------------------------------------------------------------------------*/
 
 #define DRIVER_NAME		"usb_mass_storage"
@@ -226,6 +229,7 @@ struct lun {
 	struct file	*filp;
 	loff_t		file_length;
 	loff_t		num_sectors;
+	unsigned int unflushed_bytes;
 
 	unsigned int	ro : 1;
 	unsigned int	prevent_medium_removal : 1;
@@ -392,7 +396,7 @@ static struct fsg_dev			*the_fsg;
 
 static void	close_backing_file(struct fsg_dev *fsg, struct lun *curlun);
 static void	close_all_backing_files(struct fsg_dev *fsg);
-
+static int fsync_sub(struct lun *curlun);
 
 /*-------------------------------------------------------------------------*/
 
@@ -1039,6 +1043,13 @@ static int do_write(struct fsg_dev *fsg)
 			amount_left_to_write -= nwritten;
 			fsg->residue -= nwritten;
 
+#ifdef MAX_UNFLUSHED_BYTES
+			curlun->unflushed_bytes += nwritten;
+			if (curlun->unflushed_bytes >= MAX_UNFLUSHED_BYTES) {
+				fsync_sub(curlun);
+				curlun->unflushed_bytes = 0;
+			}
+#endif
 			/* If an error occurred, report it and its position */
 			if (nwritten < amount) {
 				curlun->sense_data = SS_WRITE_ERROR;
@@ -2515,6 +2526,7 @@ static int open_backing_file(struct fsg_dev *fsg, struct lun *curlun,
 	curlun->ro = ro;
 	curlun->filp = filp;
 	curlun->file_length = size;
+	curlun->unflushed_bytes = 0;
 	curlun->num_sectors = num_sectors;
 	LDBG(curlun, "open backing file: %s size: %lld num_sectors: %lld\n",
 			filename, size, num_sectors);
