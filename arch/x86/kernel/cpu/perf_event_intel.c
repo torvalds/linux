@@ -749,6 +749,8 @@ static __initconst struct x86_pmu core_pmu = {
 	.enable_all		= x86_pmu_enable_all,
 	.enable			= x86_pmu_enable_event,
 	.disable		= x86_pmu_disable_event,
+	.hw_config		= x86_hw_config,
+	.schedule_events	= x86_schedule_events,
 	.eventsel		= MSR_ARCH_PERFMON_EVENTSEL0,
 	.perfctr		= MSR_ARCH_PERFMON_PERFCTR0,
 	.event_map		= intel_pmu_event_map,
@@ -786,6 +788,8 @@ static __initconst struct x86_pmu intel_pmu = {
 	.enable_all		= intel_pmu_enable_all,
 	.enable			= intel_pmu_enable_event,
 	.disable		= intel_pmu_disable_event,
+	.hw_config		= x86_hw_config,
+	.schedule_events	= x86_schedule_events,
 	.eventsel		= MSR_ARCH_PERFMON_EVENTSEL0,
 	.perfctr		= MSR_ARCH_PERFMON_PERFCTR0,
 	.event_map		= intel_pmu_event_map,
@@ -839,12 +843,13 @@ static __init int intel_pmu_init(void)
 	int version;
 
 	if (!cpu_has(&boot_cpu_data, X86_FEATURE_ARCH_PERFMON)) {
-		/* check for P6 processor family */
-	   if (boot_cpu_data.x86 == 6) {
-		return p6_pmu_init();
-	   } else {
+		switch (boot_cpu_data.x86) {
+		case 0x6:
+			return p6_pmu_init();
+		case 0xf:
+			return p4_pmu_init();
+		}
 		return -ENODEV;
-	   }
 	}
 
 	/*

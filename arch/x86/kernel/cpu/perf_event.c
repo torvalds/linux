@@ -190,6 +190,8 @@ struct x86_pmu {
 	void		(*enable_all)(void);
 	void		(*enable)(struct perf_event *);
 	void		(*disable)(struct perf_event *);
+	int		(*hw_config)(struct perf_event_attr *attr, struct hw_perf_event *hwc);
+	int		(*schedule_events)(struct cpu_hw_events *cpuc, int n, int *assign);
 	unsigned	eventsel;
 	unsigned	perfctr;
 	u64		(*event_map)(int);
@@ -415,6 +417,25 @@ set_ext_hw_attr(struct hw_perf_event *hwc, struct perf_event_attr *attr)
 	return 0;
 }
 
+static int x86_hw_config(struct perf_event_attr *attr, struct hw_perf_event *hwc)
+{
+	/*
+	 * Generate PMC IRQs:
+	 * (keep 'enabled' bit clear for now)
+	 */
+	hwc->config = ARCH_PERFMON_EVENTSEL_INT;
+
+	/*
+	 * Count user and OS events unless requested not to
+	 */
+	if (!attr->exclude_user)
+		hwc->config |= ARCH_PERFMON_EVENTSEL_USR;
+	if (!attr->exclude_kernel)
+		hwc->config |= ARCH_PERFMON_EVENTSEL_OS;
+
+	return 0;
+}
+
 /*
  * Setup the hardware configuration for a given attr_type
  */
@@ -446,23 +467,13 @@ static int __hw_perf_event_init(struct perf_event *event)
 
 	event->destroy = hw_perf_event_destroy;
 
-	/*
-	 * Generate PMC IRQs:
-	 * (keep 'enabled' bit clear for now)
-	 */
-	hwc->config = ARCH_PERFMON_EVENTSEL_INT;
-
 	hwc->idx = -1;
 	hwc->last_cpu = -1;
 	hwc->last_tag = ~0ULL;
 
-	/*
-	 * Count user and OS events unless requested not to.
-	 */
-	if (!attr->exclude_user)
-		hwc->config |= ARCH_PERFMON_EVENTSEL_USR;
-	if (!attr->exclude_kernel)
-		hwc->config |= ARCH_PERFMON_EVENTSEL_OS;
+	/* Processor specifics */
+	if (x86_pmu.hw_config(attr, hwc))
+		return -EOPNOTSUPP;
 
 	if (!hwc->sample_period) {
 		hwc->sample_period = x86_pmu.max_period;
@@ -517,7 +528,7 @@ static int __hw_perf_event_init(struct perf_event *event)
 			return -EOPNOTSUPP;
 
 		/* BTS is currently only allowed for user-mode. */
-		if (hwc->config & ARCH_PERFMON_EVENTSEL_OS)
+		if (!attr->exclude_kernel)
 			return -EOPNOTSUPP;
 	}
 
@@ -925,7 +936,7 @@ static int x86_pmu_enable(struct perf_event *event)
 	if (n < 0)
 		return n;
 
-	ret = x86_schedule_events(cpuc, n, assign);
+	ret = x86_pmu.schedule_events(cpuc, n, assign);
 	if (ret)
 		return ret;
 	/*
@@ -1252,12 +1263,15 @@ int hw_perf_group_sched_in(struct perf_event *leader,
 	int assign[X86_PMC_IDX_MAX];
 	int n0, n1, ret;
 
+	if (!x86_pmu_initialized())
+		return 0;
+
 	/* n0 = total number of events */
 	n0 = collect_events(cpuc, leader, true);
 	if (n0 < 0)
 		return n0;
 
-	ret = x86_schedule_events(cpuc, n0, assign);
+	ret = x86_pmu.schedule_events(cpuc, n0, assign);
 	if (ret)
 		return ret;
 
@@ -1307,6 +1321,7 @@ undo:
 
 #include "perf_event_amd.c"
 #include "perf_event_p6.c"
+#include "perf_event_p4.c"
 #include "perf_event_intel_lbr.c"
 #include "perf_event_intel_ds.c"
 #include "perf_event_intel.c"
@@ -1509,7 +1524,7 @@ static int validate_group(struct perf_event *event)
 
 	fake_cpuc->n_events = n;
 
-	ret = x86_schedule_events(fake_cpuc, n, NULL);
+	ret = x86_pmu.schedule_events(fake_cpuc, n, NULL);
 
 out_free:
 	kfree(fake_cpuc);

@@ -5,7 +5,7 @@
  * Performance event hw details:
  */
 
-#define X86_PMC_MAX_GENERIC					8
+#define X86_PMC_MAX_GENERIC				       32
 #define X86_PMC_MAX_FIXED					3
 
 #define X86_PMC_IDX_GENERIC				        0
