@@ -88,6 +88,7 @@ struct musb_hdrc_config {
 #ifdef CONFIG_BLACKFIN
         /* A GPIO controlling VRSEL in Blackfin */
         unsigned int    gpio_vrsel;
+	unsigned int	gpio_vrsel_active;
 #endif
 
 };
