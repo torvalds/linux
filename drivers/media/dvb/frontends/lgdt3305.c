@@ -358,10 +358,12 @@ static int lgdt3305_rfagc_loop(struct lgdt3305_state *state,
 	case QAM_256:
 		agcdelay = 0x046b;
 		rfbw     = 0x8889;
-		if (state->cfg->demod_chip == LGDT3305)
-			ifbw = 0x8888;
-		else
+		/* FIXME: investigate optimal ifbw & rfbw values for the
+		 *        DT3304 and re-write this switch..case block */
+		if (state->cfg->demod_chip == LGDT3304)
 			ifbw = 0x6666;
+		else /* (state->cfg->demod_chip == LGDT3305) */
+			ifbw = 0x8888;
 		break;
 	default:
 		return -EINVAL;
