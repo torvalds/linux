@@ -42,6 +42,10 @@ ifeq ($(CONFIG_USB_MUSB_HDRC_HCD),y)
 	musb_hdrc-objs		+= musb_virthub.o musb_host.o
 endif
 
+ifeq ($(CONFIG_DEBUG_FS),y)
+	musb_hdrc-objs		+= musb_debugfs.o
+endif
+
 # the kconfig must guarantee that only one of the
 # possible I/O schemes will be enabled at a time ...
 # PIO only, or DMA (several potential schemes).
