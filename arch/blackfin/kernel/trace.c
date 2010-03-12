@@ -19,6 +19,7 @@
 #include <asm/trace.h>
 #include <asm/fixed_code.h>
 #include <asm/traps.h>
+#include <asm/irq_handler.h>
 
 void decode_address(char *buf, unsigned long address)
 {
@@ -260,9 +261,10 @@ static void decode_instruction(unsigned short *address)
 void dump_bfin_trace_buffer(void)
 {
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_ON
-	int tflags, i = 0;
+	int tflags, i = 0, fault = 0;
 	char buf[150];
 	unsigned short *addr;
+	unsigned int cpu = raw_smp_processor_id();
 #ifdef CONFIG_DEBUG_BFIN_HWTRACE_EXPAND
 	int j, index;
 #endif
@@ -277,8 +279,21 @@ void dump_bfin_trace_buffer(void)
 
 	if (likely(bfin_read_TBUFSTAT() & TBUFCNT)) {
 		for (; bfin_read_TBUFSTAT() & TBUFCNT; i++) {
-			decode_address(buf, (unsigned long)bfin_read_TBUF());
+			addr = (unsigned short *)bfin_read_TBUF();
+			decode_address(buf, (unsigned long)addr);
 			pr_notice("%4i Target : %s\n", i, buf);
+			/* Normally, the faulting instruction doesn't go into
+			 * the trace buffer, (since it doesn't commit), so
+			 * we print out the fault address here
+			 */
+			if (!fault && addr == (unsigned short *)trap &&
+				(cpu_pda[cpu].seqstat & SEQSTAT_EXCAUSE) > VEC_EXCPT15) {
+				decode_address(buf, cpu_pda[cpu].icplb_fault_addr);
+				pr_notice("      FAULT : %s ", buf);
+				decode_instruction((unsigned short *)cpu_pda[cpu].icplb_fault_addr);
+				pr_cont("\n");
+				fault = 1;
+			}
 			addr = (unsigned short *)bfin_read_TBUF();
 			decode_address(buf, (unsigned long)addr);
 			pr_notice("     Source : %s ", buf);
