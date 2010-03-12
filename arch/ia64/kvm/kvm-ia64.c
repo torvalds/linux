@@ -1535,8 +1535,10 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 			goto out;
 
 		if (copy_to_user(user_stack, stack,
-				 sizeof(struct kvm_ia64_vcpu_stack)))
+				 sizeof(struct kvm_ia64_vcpu_stack))) {
+			r = -EFAULT;
 			goto out;
+		}
 
 		break;
 	}
