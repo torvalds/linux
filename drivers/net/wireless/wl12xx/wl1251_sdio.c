@@ -20,20 +20,11 @@
  * Copyright (C) 2009 Bob Copeland (me@bobcopeland.com)
  */
 #include <linux/module.h>
-#include <linux/crc7.h>
 #include <linux/mod_devicetable.h>
-#include <linux/irq.h>
 #include <linux/mmc/sdio_func.h>
 #include <linux/mmc/sdio_ids.h>
-#include <linux/platform_device.h>
 
 #include "wl1251.h"
-#include "wl12xx_80211.h"
-#include "wl1251_reg.h"
-#include "wl1251_ps.h"
-#include "wl1251_io.h"
-#include "wl1251_tx.h"
-#include "wl1251_debugfs.h"
 
 #ifndef SDIO_VENDOR_ID_TI
 #define SDIO_VENDOR_ID_TI		0x104c
@@ -65,7 +56,8 @@ static const struct sdio_device_id wl1251_devices[] = {
 MODULE_DEVICE_TABLE(sdio, wl1251_devices);
 
 
-void wl1251_sdio_read(struct wl1251 *wl, int addr, void *buf, size_t len)
+static void wl1251_sdio_read(struct wl1251 *wl, int addr,
+			     void *buf, size_t len)
 {
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
@@ -77,7 +69,8 @@ void wl1251_sdio_read(struct wl1251 *wl, int addr, void *buf, size_t len)
 	sdio_release_host(func);
 }
 
-void wl1251_sdio_write(struct wl1251 *wl, int addr, void *buf, size_t len)
+static void wl1251_sdio_write(struct wl1251 *wl, int addr,
+			      void *buf, size_t len)
 {
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
@@ -89,7 +82,7 @@ void wl1251_sdio_write(struct wl1251 *wl, int addr, void *buf, size_t len)
 	sdio_release_host(func);
 }
 
-void wl1251_sdio_reset(struct wl1251 *wl)
+static void wl1251_sdio_reset(struct wl1251 *wl)
 {
 }
 
@@ -111,11 +104,11 @@ static void wl1251_sdio_disable_irq(struct wl1251 *wl)
 	sdio_release_host(func);
 }
 
-void wl1251_sdio_set_power(bool enable)
+static void wl1251_sdio_set_power(bool enable)
 {
 }
 
-struct wl1251_if_operations wl1251_sdio_ops = {
+static const struct wl1251_if_operations wl1251_sdio_ops = {
 	.read = wl1251_sdio_read,
 	.write = wl1251_sdio_write,
 	.reset = wl1251_sdio_reset,
@@ -123,7 +116,8 @@ struct wl1251_if_operations wl1251_sdio_ops = {
 	.disable_irq = wl1251_sdio_disable_irq,
 };
 
-int wl1251_sdio_probe(struct sdio_func *func, const struct sdio_device_id *id)
+static int wl1251_sdio_probe(struct sdio_func *func,
+			     const struct sdio_device_id *id)
 {
 	int ret;
 	struct wl1251 *wl;
