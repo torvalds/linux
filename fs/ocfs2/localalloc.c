@@ -872,8 +872,10 @@ static int ocfs2_sync_local_to_main(struct ocfs2_super *osb,
 			     (unsigned long long)la_start_blk,
 			     (unsigned long long)blkno);
 
-			status = ocfs2_free_clusters(handle, main_bm_inode,
-						     main_bm_bh, blkno, count);
+			status = ocfs2_release_clusters(handle,
+							main_bm_inode,
+							main_bm_bh, blkno,
+							count);
 			if (status < 0) {
 				mlog_errno(status);
 				goto bail;
