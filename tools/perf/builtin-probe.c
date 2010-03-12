@@ -47,7 +47,6 @@
 #include "util/probe-event.h"
 
 #define MAX_PATH_LEN 256
-#define MAX_PROBES 128
 
 /* Session management structure */
 static struct {
