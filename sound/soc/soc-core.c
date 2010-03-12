@@ -404,6 +404,12 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 			codec_dai->playback.formats & cpu_dai->playback.formats;
 		runtime->hw.rates =
 			codec_dai->playback.rates & cpu_dai->playback.rates;
+		if (codec_dai->playback.rates
+			   & (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
+			runtime->hw.rates |= cpu_dai->playback.rates;
+		if (cpu_dai->playback.rates
+			   & (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
+			runtime->hw.rates |= codec_dai->playback.rates;
 	} else {
 		runtime->hw.rate_min =
 			max(codec_dai->capture.rate_min,
@@ -421,6 +427,12 @@ static int soc_pcm_open(struct snd_pcm_substream *substream)
 			codec_dai->capture.formats & cpu_dai->capture.formats;
 		runtime->hw.rates =
 			codec_dai->capture.rates & cpu_dai->capture.rates;
+		if (codec_dai->capture.rates
+			   & (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
+			runtime->hw.rates |= cpu_dai->capture.rates;
+		if (cpu_dai->capture.rates
+			   & (SNDRV_PCM_RATE_KNOT | SNDRV_PCM_RATE_CONTINUOUS))
+			runtime->hw.rates |= codec_dai->capture.rates;
 	}
 
 	snd_pcm_limit_hw_rates(runtime);
