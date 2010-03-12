@@ -79,8 +79,8 @@ int thread__comm_len(struct thread *self)
 	return self->comm_len;
 }
 
-static size_t __map_groups__fprintf_maps(struct map_groups *self,
-					 enum map_type type, FILE *fp)
+size_t __map_groups__fprintf_maps(struct map_groups *self,
+				  enum map_type type, FILE *fp)
 {
 	size_t printed = fprintf(fp, "%s:\n", map_type__name[type]);
 	struct rb_node *nd;
@@ -89,7 +89,7 @@ static size_t __map_groups__fprintf_maps(struct map_groups *self,
 		struct map *pos = rb_entry(nd, struct map, rb_node);
 		printed += fprintf(fp, "Map:");
 		printed += map__fprintf(pos, fp);
-		if (verbose > 1) {
+		if (verbose > 2) {
 			printed += dso__fprintf(pos->dso, type, fp);
 			printed += fprintf(fp, "--\n");
 		}
@@ -183,8 +183,8 @@ struct thread *perf_session__findnew(struct perf_session *self, pid_t pid)
 	return th;
 }
 
-static void map_groups__remove_overlappings(struct map_groups *self,
-					    struct map *map)
+static int map_groups__fixup_overlappings(struct map_groups *self,
+					  struct map *map)
 {
 	struct rb_root *root = &self->maps[map->type];
 	struct rb_node *next = rb_first(root);
@@ -209,7 +209,36 @@ static void map_groups__remove_overlappings(struct map_groups *self,
 		 * list.
 		 */
 		list_add_tail(&pos->node, &self->removed_maps[map->type]);
+		/*
+		 * Now check if we need to create new maps for areas not
+		 * overlapped by the new map:
+		 */
+		if (map->start > pos->start) {
+			struct map *before = map__clone(pos);
+
+			if (before == NULL)
+				return -ENOMEM;
+
+			before->end = map->start - 1;
+			map_groups__insert(self, before);
+			if (verbose >= 2)
+				map__fprintf(before, stderr);
+		}
+
+		if (map->end < pos->end) {
+			struct map *after = map__clone(pos);
+
+			if (after == NULL)
+				return -ENOMEM;
+
+			after->start = map->end + 1;
+			map_groups__insert(self, after);
+			if (verbose >= 2)
+				map__fprintf(after, stderr);
+		}
 	}
+
+	return 0;
 }
 
 void maps__insert(struct rb_root *maps, struct map *map)
@@ -254,7 +283,7 @@ struct map *maps__find(struct rb_root *maps, u64 ip)
 
 void thread__insert_map(struct thread *self, struct map *map)
 {
-	map_groups__remove_overlappings(&self->mg, map);
+	map_groups__fixup_overlappings(&self->mg, map);
 	map_groups__insert(&self->mg, map);
 }
 

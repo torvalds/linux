@@ -787,7 +787,6 @@ void hw_perf_enable(void)
 		 * step2: reprogram moved events into new counters
 		 */
 		for (i = 0; i < n_running; i++) {
-
 			event = cpuc->event_list[i];
 			hwc = &event->hw;
 
@@ -802,21 +801,16 @@ void hw_perf_enable(void)
 				continue;
 
 			x86_pmu_stop(event);
-
-			hwc->idx = -1;
 		}
 
 		for (i = 0; i < cpuc->n_events; i++) {
-
 			event = cpuc->event_list[i];
 			hwc = &event->hw;
 
-			if (i < n_running &&
-			    match_prev_assignment(hwc, cpuc, i))
-				continue;
-
-			if (hwc->idx == -1)
+			if (!match_prev_assignment(hwc, cpuc, i))
 				x86_assign_hw_event(event, cpuc, i);
+			else if (i < n_running)
+				continue;
 
 			x86_pmu_start(event);
 		}
@@ -1685,3 +1679,16 @@ struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 
 	return entry;
 }
+
+void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int skip)
+{
+	regs->ip = ip;
+	/*
+	 * perf_arch_fetch_caller_regs adds another call, we need to increment
+	 * the skip level
+	 */
+	regs->bp = rewind_frame_pointer(skip + 1);
+	regs->cs = __KERNEL_CS;
+	local_save_flags(regs->flags);
+}
+EXPORT_SYMBOL_GPL(perf_arch_fetch_caller_regs);

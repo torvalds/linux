@@ -401,18 +401,18 @@ static inline notrace int ftrace_get_offsets_##call(			\
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, name, proto, args)			\
 									\
-static void ftrace_profile_##name(proto);				\
+static void perf_trace_##name(proto);					\
 									\
 static notrace int							\
-ftrace_profile_enable_##name(struct ftrace_event_call *unused)		\
+perf_trace_enable_##name(struct ftrace_event_call *unused)		\
 {									\
-	return register_trace_##name(ftrace_profile_##name);		\
+	return register_trace_##name(perf_trace_##name);		\
 }									\
 									\
 static notrace void							\
-ftrace_profile_disable_##name(struct ftrace_event_call *unused)		\
+perf_trace_disable_##name(struct ftrace_event_call *unused)		\
 {									\
-	unregister_trace_##name(ftrace_profile_##name);			\
+	unregister_trace_##name(perf_trace_##name);			\
 }
 
 #undef DEFINE_EVENT_PRINT
@@ -507,12 +507,12 @@ ftrace_profile_disable_##name(struct ftrace_event_call *unused)		\
 
 #ifdef CONFIG_PERF_EVENTS
 
-#define _TRACE_PROFILE_INIT(call)					\
-	.profile_enable = ftrace_profile_enable_##call,			\
-	.profile_disable = ftrace_profile_disable_##call,
+#define _TRACE_PERF_INIT(call)						\
+	.perf_event_enable = perf_trace_enable_##call,			\
+	.perf_event_disable = perf_trace_disable_##call,
 
 #else
-#define _TRACE_PROFILE_INIT(call)
+#define _TRACE_PERF_INIT(call)
 #endif /* CONFIG_PERF_EVENTS */
 
 #undef __entry
@@ -638,7 +638,7 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.unregfunc		= ftrace_raw_unreg_event_##call,	\
 	.print_fmt		= print_fmt_##template,			\
 	.define_fields		= ftrace_define_fields_##template,	\
-	_TRACE_PROFILE_INIT(call)					\
+	_TRACE_PERF_INIT(call)					\
 }
 
 #undef DEFINE_EVENT_PRINT
@@ -657,18 +657,18 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 	.unregfunc		= ftrace_raw_unreg_event_##call,	\
 	.print_fmt		= print_fmt_##call,			\
 	.define_fields		= ftrace_define_fields_##template,	\
-	_TRACE_PROFILE_INIT(call)					\
+	_TRACE_PERF_INIT(call)					\
 }
 
 #include TRACE_INCLUDE(TRACE_INCLUDE_FILE)
 
 /*
- * Define the insertion callback to profile events
+ * Define the insertion callback to perf events
  *
  * The job is very similar to ftrace_raw_event_<call> except that we don't
  * insert in the ring buffer but in a perf counter.
  *
- * static void ftrace_profile_<call>(proto)
+ * static void ftrace_perf_<call>(proto)
  * {
  *	struct ftrace_data_offsets_<call> __maybe_unused __data_offsets;
  *	struct ftrace_event_call *event_call = &event_<call>;
@@ -757,13 +757,14 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
 #undef DECLARE_EVENT_CLASS
 #define DECLARE_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
 static notrace void							\
-ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
+perf_trace_templ_##call(struct ftrace_event_call *event_call,		\
 			    proto)					\
 {									\
 	struct ftrace_data_offsets_##call __maybe_unused __data_offsets;\
 	struct ftrace_raw_##call *entry;				\
 	u64 __addr = 0, __count = 1;					\
 	unsigned long irq_flags;					\
+	struct pt_regs *__regs;						\
 	int __entry_size;						\
 	int __data_size;						\
 	int rctx;							\
@@ -773,10 +774,10 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 			     sizeof(u64));				\
 	__entry_size -= sizeof(u32);					\
 									\
-	if (WARN_ONCE(__entry_size > FTRACE_MAX_PROFILE_SIZE,		\
+	if (WARN_ONCE(__entry_size > PERF_MAX_TRACE_SIZE,		\
 		      "profile buffer not large enough"))		\
 		return;							\
-	entry = (struct ftrace_raw_##call *)ftrace_perf_buf_prepare(	\
+	entry = (struct ftrace_raw_##call *)perf_trace_buf_prepare(	\
 		__entry_size, event_call->id, &rctx, &irq_flags);	\
 	if (!entry)							\
 		return;							\
@@ -784,17 +785,20 @@ ftrace_profile_templ_##call(struct ftrace_event_call *event_call,	\
 									\
 	{ assign; }							\
 									\
-	ftrace_perf_buf_submit(entry, __entry_size, rctx, __addr,	\
-			       __count, irq_flags);			\
+	__regs = &__get_cpu_var(perf_trace_regs);			\
+	perf_fetch_caller_regs(__regs, 2);				\
+									\
+	perf_trace_buf_submit(entry, __entry_size, rctx, __addr,	\
+			       __count, irq_flags, __regs);		\
 }
 
 #undef DEFINE_EVENT
 #define DEFINE_EVENT(template, call, proto, args)		\
-static notrace void ftrace_profile_##call(proto)		\
+static notrace void perf_trace_##call(proto)			\
 {								\
 	struct ftrace_event_call *event_call = &event_##call;	\
 								\
-	ftrace_profile_templ_##template(event_call, args);	\
+	perf_trace_templ_##template(event_call, args);		\
 }
 
 #undef DEFINE_EVENT_PRINT

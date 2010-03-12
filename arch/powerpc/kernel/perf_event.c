@@ -1298,7 +1298,7 @@ static void power_pmu_setup(int cpu)
 }
 
 static int __cpuinit
-power_pmu_notify(struct notifier_block *self, unsigned long action, void *hcpu)
+power_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long)hcpu;
 

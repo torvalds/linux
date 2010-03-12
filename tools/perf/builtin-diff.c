@@ -26,7 +26,8 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 					struct addr_location *al, u64 count)
 {
 	bool hit;
-	struct hist_entry *he = __perf_session__add_hist_entry(self, al, NULL,
+	struct hist_entry *he = __perf_session__add_hist_entry(&self->hists,
+							       al, NULL,
 							       count, &hit);
 	if (he == NULL)
 		return -ENOMEM;
@@ -114,7 +115,7 @@ static void perf_session__resort_hist_entries(struct perf_session *self)
 
 static void perf_session__set_hist_entries_positions(struct perf_session *self)
 {
-	perf_session__output_resort(self, self->events_stats.total);
+	perf_session__output_resort(&self->hists, self->events_stats.total);
 	perf_session__resort_hist_entries(self);
 }
 
@@ -166,13 +167,15 @@ static int __cmd_diff(void)
 			goto out_delete;
 	}
 
-	perf_session__output_resort(session[1], session[1]->events_stats.total);
+	perf_session__output_resort(&session[1]->hists,
+				    session[1]->events_stats.total);
 	if (show_displacement)
 		perf_session__set_hist_entries_positions(session[0]);
 
 	perf_session__match_hists(session[0], session[1]);
-	perf_session__fprintf_hists(session[1], session[0],
-				    show_displacement, stdout);
+	perf_session__fprintf_hists(&session[1]->hists, session[0],
+				    show_displacement, stdout,
+				    session[1]->events_stats.total);
 out_delete:
 	for (i = 0; i < 2; ++i)
 		perf_session__delete(session[i]);

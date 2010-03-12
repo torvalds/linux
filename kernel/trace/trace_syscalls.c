@@ -428,12 +428,12 @@ core_initcall(init_ftrace_syscalls);
 
 #ifdef CONFIG_PERF_EVENTS
 
-static DECLARE_BITMAP(enabled_prof_enter_syscalls, NR_syscalls);
-static DECLARE_BITMAP(enabled_prof_exit_syscalls, NR_syscalls);
-static int sys_prof_refcount_enter;
-static int sys_prof_refcount_exit;
+static DECLARE_BITMAP(enabled_perf_enter_syscalls, NR_syscalls);
+static DECLARE_BITMAP(enabled_perf_exit_syscalls, NR_syscalls);
+static int sys_perf_refcount_enter;
+static int sys_perf_refcount_exit;
 
-static void prof_syscall_enter(struct pt_regs *regs, long id)
+static void perf_syscall_enter(struct pt_regs *regs, long id)
 {
 	struct syscall_metadata *sys_data;
 	struct syscall_trace_enter *rec;
@@ -443,7 +443,7 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	int size;
 
 	syscall_nr = syscall_get_nr(current, regs);
-	if (!test_bit(syscall_nr, enabled_prof_enter_syscalls))
+	if (!test_bit(syscall_nr, enabled_perf_enter_syscalls))
 		return;
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
@@ -455,11 +455,11 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	size = ALIGN(size + sizeof(u32), sizeof(u64));
 	size -= sizeof(u32);
 
-	if (WARN_ONCE(size > FTRACE_MAX_PROFILE_SIZE,
-		      "profile buffer not large enough"))
+	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE,
+		      "perf buffer not large enough"))
 		return;
 
-	rec = (struct syscall_trace_enter *)ftrace_perf_buf_prepare(size,
+	rec = (struct syscall_trace_enter *)perf_trace_buf_prepare(size,
 				sys_data->enter_event->id, &rctx, &flags);
 	if (!rec)
 		return;
@@ -467,10 +467,10 @@ static void prof_syscall_enter(struct pt_regs *regs, long id)
 	rec->nr = syscall_nr;
 	syscall_get_arguments(current, regs, 0, sys_data->nb_args,
 			       (unsigned long *)&rec->args);
-	ftrace_perf_buf_submit(rec, size, rctx, 0, 1, flags);
+	perf_trace_buf_submit(rec, size, rctx, 0, 1, flags, regs);
 }
 
-int prof_sysenter_enable(struct ftrace_event_call *call)
+int perf_sysenter_enable(struct ftrace_event_call *call)
 {
 	int ret = 0;
 	int num;
@@ -478,34 +478,34 @@ int prof_sysenter_enable(struct ftrace_event_call *call)
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
 	mutex_lock(&syscall_trace_lock);
-	if (!sys_prof_refcount_enter)
-		ret = register_trace_sys_enter(prof_syscall_enter);
+	if (!sys_perf_refcount_enter)
+		ret = register_trace_sys_enter(perf_syscall_enter);
 	if (ret) {
 		pr_info("event trace: Could not activate"
 				"syscall entry trace point");
 	} else {
-		set_bit(num, enabled_prof_enter_syscalls);
-		sys_prof_refcount_enter++;
+		set_bit(num, enabled_perf_enter_syscalls);
+		sys_perf_refcount_enter++;
 	}
 	mutex_unlock(&syscall_trace_lock);
 	return ret;
 }
 
-void prof_sysenter_disable(struct ftrace_event_call *call)
+void perf_sysenter_disable(struct ftrace_event_call *call)
 {
 	int num;
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
 	mutex_lock(&syscall_trace_lock);
-	sys_prof_refcount_enter--;
-	clear_bit(num, enabled_prof_enter_syscalls);
-	if (!sys_prof_refcount_enter)
-		unregister_trace_sys_enter(prof_syscall_enter);
+	sys_perf_refcount_enter--;
+	clear_bit(num, enabled_perf_enter_syscalls);
+	if (!sys_perf_refcount_enter)
+		unregister_trace_sys_enter(perf_syscall_enter);
 	mutex_unlock(&syscall_trace_lock);
 }
 
-static void prof_syscall_exit(struct pt_regs *regs, long ret)
+static void perf_syscall_exit(struct pt_regs *regs, long ret)
 {
 	struct syscall_metadata *sys_data;
 	struct syscall_trace_exit *rec;
@@ -515,7 +515,7 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	int size;
 
 	syscall_nr = syscall_get_nr(current, regs);
-	if (!test_bit(syscall_nr, enabled_prof_exit_syscalls))
+	if (!test_bit(syscall_nr, enabled_perf_exit_syscalls))
 		return;
 
 	sys_data = syscall_nr_to_meta(syscall_nr);
@@ -530,11 +530,11 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	 * Impossible, but be paranoid with the future
 	 * How to put this check outside runtime?
 	 */
-	if (WARN_ONCE(size > FTRACE_MAX_PROFILE_SIZE,
-		"exit event has grown above profile buffer size"))
+	if (WARN_ONCE(size > PERF_MAX_TRACE_SIZE,
+		"exit event has grown above perf buffer size"))
 		return;
 
-	rec = (struct syscall_trace_exit *)ftrace_perf_buf_prepare(size,
+	rec = (struct syscall_trace_exit *)perf_trace_buf_prepare(size,
 				sys_data->exit_event->id, &rctx, &flags);
 	if (!rec)
 		return;
@@ -542,10 +542,10 @@ static void prof_syscall_exit(struct pt_regs *regs, long ret)
 	rec->nr = syscall_nr;
 	rec->ret = syscall_get_return_value(current, regs);
 
-	ftrace_perf_buf_submit(rec, size, rctx, 0, 1, flags);
+	perf_trace_buf_submit(rec, size, rctx, 0, 1, flags, regs);
 }
 
-int prof_sysexit_enable(struct ftrace_event_call *call)
+int perf_sysexit_enable(struct ftrace_event_call *call)
 {
 	int ret = 0;
 	int num;
@@ -553,30 +553,30 @@ int prof_sysexit_enable(struct ftrace_event_call *call)
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
 	mutex_lock(&syscall_trace_lock);
-	if (!sys_prof_refcount_exit)
-		ret = register_trace_sys_exit(prof_syscall_exit);
+	if (!sys_perf_refcount_exit)
+		ret = register_trace_sys_exit(perf_syscall_exit);
 	if (ret) {
 		pr_info("event trace: Could not activate"
 				"syscall exit trace point");
 	} else {
-		set_bit(num, enabled_prof_exit_syscalls);
-		sys_prof_refcount_exit++;
+		set_bit(num, enabled_perf_exit_syscalls);
+		sys_perf_refcount_exit++;
 	}
 	mutex_unlock(&syscall_trace_lock);
 	return ret;
 }
 
-void prof_sysexit_disable(struct ftrace_event_call *call)
+void perf_sysexit_disable(struct ftrace_event_call *call)
 {
 	int num;
 
 	num = ((struct syscall_metadata *)call->data)->syscall_nr;
 
 	mutex_lock(&syscall_trace_lock);
-	sys_prof_refcount_exit--;
-	clear_bit(num, enabled_prof_exit_syscalls);
-	if (!sys_prof_refcount_exit)
-		unregister_trace_sys_exit(prof_syscall_exit);
+	sys_perf_refcount_exit--;
+	clear_bit(num, enabled_perf_exit_syscalls);
+	if (!sys_perf_refcount_exit)
+		unregister_trace_sys_exit(perf_syscall_exit);
 	mutex_unlock(&syscall_trace_lock);
 }
 

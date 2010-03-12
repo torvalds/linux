@@ -29,4 +29,19 @@ struct stack_frame {
 	struct stack_frame *next_frame;
 	unsigned long return_address;
 };
+
+static inline unsigned long rewind_frame_pointer(int n)
+{
+	struct stack_frame *frame;
+
+	get_bp(frame);
+
+#ifdef CONFIG_FRAME_POINTER
+	while (n--)
+		frame = frame->next_frame;
 #endif
+
+	return (unsigned long)frame;
+}
+
+#endif /* DUMPSTACK_H */

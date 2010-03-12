@@ -28,6 +28,7 @@
 #include <linux/rbtree.h>
 #include "util/parse-options.h"
 #include "util/parse-events.h"
+#include "util/cpumap.h"
 
 #include "util/debug.h"
 
@@ -1129,7 +1130,7 @@ static void start_counter(int i, int counter)
 
 	cpu = profile_cpu;
 	if (target_pid == -1 && profile_cpu == -1)
-		cpu = i;
+		cpu = cpumap[i];
 
 	attr = attrs + counter;
 
@@ -1353,12 +1354,10 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 		attrs[counter].sample_period = default_interval;
 	}
 
-	nr_cpus = sysconf(_SC_NPROCESSORS_ONLN);
-	assert(nr_cpus <= MAX_NR_CPUS);
-	assert(nr_cpus >= 0);
-
 	if (target_pid != -1 || profile_cpu != -1)
 		nr_cpus = 1;
+	else
+		nr_cpus = read_cpu_map();
 
 	get_term_dimensions(&winsize);
 	if (print_entries == 0) {

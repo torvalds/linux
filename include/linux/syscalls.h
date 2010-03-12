@@ -101,18 +101,18 @@ struct perf_event_attr;
 
 #ifdef CONFIG_PERF_EVENTS
 
-#define TRACE_SYS_ENTER_PROFILE_INIT(sname)				       \
-	.profile_enable = prof_sysenter_enable,				       \
-	.profile_disable = prof_sysenter_disable,
+#define TRACE_SYS_ENTER_PERF_INIT(sname)				       \
+	.perf_event_enable = perf_sysenter_enable,			       \
+	.perf_event_disable = perf_sysenter_disable,
 
-#define TRACE_SYS_EXIT_PROFILE_INIT(sname)				       \
-	.profile_enable = prof_sysexit_enable,				       \
-	.profile_disable = prof_sysexit_disable,
+#define TRACE_SYS_EXIT_PERF_INIT(sname)					       \
+	.perf_event_enable = perf_sysexit_enable,			       \
+	.perf_event_disable = perf_sysexit_disable,
 #else
-#define TRACE_SYS_ENTER_PROFILE(sname)
-#define TRACE_SYS_ENTER_PROFILE_INIT(sname)
-#define TRACE_SYS_EXIT_PROFILE(sname)
-#define TRACE_SYS_EXIT_PROFILE_INIT(sname)
+#define TRACE_SYS_ENTER_PERF(sname)
+#define TRACE_SYS_ENTER_PERF_INIT(sname)
+#define TRACE_SYS_EXIT_PERF(sname)
+#define TRACE_SYS_EXIT_PERF_INIT(sname)
 #endif /* CONFIG_PERF_EVENTS */
 
 #ifdef CONFIG_FTRACE_SYSCALLS
@@ -149,7 +149,7 @@ struct perf_event_attr;
 		.regfunc		= reg_event_syscall_enter,	\
 		.unregfunc		= unreg_event_syscall_enter,	\
 		.data			= (void *)&__syscall_meta_##sname,\
-		TRACE_SYS_ENTER_PROFILE_INIT(sname)			\
+		TRACE_SYS_ENTER_PERF_INIT(sname)			\
 	}
 
 #define SYSCALL_TRACE_EXIT_EVENT(sname)					\
@@ -171,7 +171,7 @@ struct perf_event_attr;
 		.regfunc		= reg_event_syscall_exit,	\
 		.unregfunc		= unreg_event_syscall_exit,	\
 		.data			= (void *)&__syscall_meta_##sname,\
-		TRACE_SYS_EXIT_PROFILE_INIT(sname)			\
+		TRACE_SYS_EXIT_PERF_INIT(sname)			\
 	}
 
 #define SYSCALL_METADATA(sname, nb)				\
