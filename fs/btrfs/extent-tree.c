@@ -2676,6 +2676,8 @@ static int update_space_info(struct btrfs_fs_info *info, u64 flags,
 
 	INIT_LIST_HEAD(&found->block_groups);
 	init_rwsem(&found->groups_sem);
+	init_waitqueue_head(&found->flush_wait);
+	init_waitqueue_head(&found->allocate_wait);
 	spin_lock_init(&found->lock);
 	found->flags = flags;
 	found->total_bytes = total_bytes;
@@ -2944,12 +2946,10 @@ static void flush_delalloc(struct btrfs_root *root,
 
 	spin_lock(&info->lock);
 
-	if (!info->flushing) {
+	if (!info->flushing)
 		info->flushing = 1;
-		init_waitqueue_head(&info->flush_wait);
-	} else {
+	else
 		wait = true;
-	}
 
 	spin_unlock(&info->lock);
 
@@ -3011,7 +3011,6 @@ static int maybe_allocate_chunk(struct btrfs_root *root,
 	if (!info->allocating_chunk) {
 		info->force_alloc = 1;
 		info->allocating_chunk = 1;
-		init_waitqueue_head(&info->allocate_wait);
 	} else {
 		wait = true;
 	}
