@@ -35,7 +35,8 @@ struct ir_scancode {
 struct ir_scancode_table {
 	struct ir_scancode	*scan;
 	int			size;
-	u64		ir_type;
+	u64			ir_type;
+	char			*name;
 	spinlock_t		lock;
 };
 
