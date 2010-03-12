@@ -1943,7 +1943,7 @@ bad_config:
 	 * isp1504, non-OTG, etc) mostly hooking up through ULPI.
 	 */
 	musb->isr = generic_interrupt;
-	status = musb_platform_init(musb);
+	status = musb_platform_init(musb, plat->board_data);
 	if (status < 0)
 		goto fail2;
 

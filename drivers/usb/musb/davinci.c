@@ -376,7 +376,7 @@ int musb_platform_set_mode(struct musb *musb, u8 mode)
 	return -EIO;
 }
 
-int __init musb_platform_init(struct musb *musb)
+int __init musb_platform_init(struct musb *musb, void *board_data)
 {
 	void __iomem	*tibase = musb->ctrl_base;
 	u32		revision;
