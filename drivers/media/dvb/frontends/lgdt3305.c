@@ -65,6 +65,8 @@ struct lgdt3305_state {
 
 /* ------------------------------------------------------------------------ */
 
+/* FIXME: verify & document the LGDT3304 registers */
+
 #define LGDT3305_GEN_CTRL_1                   0x0000
 #define LGDT3305_GEN_CTRL_2                   0x0001
 #define LGDT3305_GEN_CTRL_3                   0x0002
