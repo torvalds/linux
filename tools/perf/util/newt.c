@@ -4,12 +4,29 @@
 
 #include <stdlib.h>
 #include <newt.h>
+#include <sys/ttydefaults.h>
 
 #include "cache.h"
 #include "hist.h"
 #include "session.h"
 #include "sort.h"
 #include "symbol.h"
+
+static void newt_form__set_exit_keys(newtComponent self)
+{
+	newtFormAddHotKey(self, NEWT_KEY_ESCAPE);
+	newtFormAddHotKey(self, 'Q');
+	newtFormAddHotKey(self, 'q');
+	newtFormAddHotKey(self, CTRL('c'));
+}
+
+static newtComponent newt_form__new(void)
+{
+	newtComponent self = newtForm(NULL, NULL, 0);
+	if (self)
+		newt_form__set_exit_keys(self);
+	return self;
+}
 
 static size_t hist_entry__append_browser(struct hist_entry *self,
 					 newtComponent listbox, u64 total)
@@ -77,8 +94,7 @@ static void hist_entry__annotate_browser(struct hist_entry *self)
 	newtListboxSetWidth(listbox, max_line_len);
 
 	newtCenteredWindow(max_line_len + 2, ws.ws_row - 5, self->sym->name);
-	form = newtForm(NULL, NULL, 0);
-	newtFormAddHotKey(form, NEWT_KEY_ESCAPE);
+	form = newt_form__new();
 	newtFormAddComponents(form, listbox, NULL);
 
 	newtFormRun(form, &es);
@@ -108,8 +124,7 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 
 	get_term_dimensions(&ws);
 
-	form = newtForm(NULL, NULL, 0);
-	newtFormAddHotKey(form, NEWT_KEY_ESCAPE);
+	form = newt_form__new();
 
 	listbox = newtListbox(1, 1, ws.ws_row - 2, (NEWT_FLAG_SCROLL |
 						    NEWT_FLAG_BORDER |
