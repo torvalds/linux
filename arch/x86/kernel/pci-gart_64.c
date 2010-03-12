@@ -720,7 +720,7 @@ void __init gart_iommu_init(void)
 	unsigned long scratch;
 	long i;
 
-	if (cache_k8_northbridges() < 0 || num_k8_northbridges == 0)
+	if (num_k8_northbridges == 0)
 		return;
 
 #ifndef CONFIG_AGP_AMD64
