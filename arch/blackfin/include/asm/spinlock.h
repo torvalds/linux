@@ -17,12 +17,12 @@ asmlinkage int __raw_spin_is_locked_asm(volatile int *ptr);
 asmlinkage void __raw_spin_lock_asm(volatile int *ptr);
 asmlinkage int __raw_spin_trylock_asm(volatile int *ptr);
 asmlinkage void __raw_spin_unlock_asm(volatile int *ptr);
-asmlinkage void arch_read_lock_asm(volatile int *ptr);
-asmlinkage int arch_read_trylock_asm(volatile int *ptr);
-asmlinkage void arch_read_unlock_asm(volatile int *ptr);
-asmlinkage void arch_write_lock_asm(volatile int *ptr);
-asmlinkage int arch_write_trylock_asm(volatile int *ptr);
-asmlinkage void arch_write_unlock_asm(volatile int *ptr);
+asmlinkage void __raw_read_lock_asm(volatile int *ptr);
+asmlinkage int __raw_read_trylock_asm(volatile int *ptr);
+asmlinkage void __raw_read_unlock_asm(volatile int *ptr);
+asmlinkage void __raw_write_lock_asm(volatile int *ptr);
+asmlinkage int __raw_write_trylock_asm(volatile int *ptr);
+asmlinkage void __raw_write_unlock_asm(volatile int *ptr);
 
 static inline int arch_spin_is_locked(arch_spinlock_t *lock)
 {
@@ -64,32 +64,32 @@ static inline int arch_write_can_lock(arch_rwlock_t *rw)
 
 static inline void arch_read_lock(arch_rwlock_t *rw)
 {
-	arch_read_lock_asm(&rw->lock);
+	__raw_read_lock_asm(&rw->lock);
 }
 
 static inline int arch_read_trylock(arch_rwlock_t *rw)
 {
-	return arch_read_trylock_asm(&rw->lock);
+	return __raw_read_trylock_asm(&rw->lock);
 }
 
 static inline void arch_read_unlock(arch_rwlock_t *rw)
 {
-	arch_read_unlock_asm(&rw->lock);
+	__raw_read_unlock_asm(&rw->lock);
 }
 
 static inline void arch_write_lock(arch_rwlock_t *rw)
 {
-	arch_write_lock_asm(&rw->lock);
+	__raw_write_lock_asm(&rw->lock);
 }
 
 static inline int arch_write_trylock(arch_rwlock_t *rw)
 {
-	return arch_write_trylock_asm(&rw->lock);
+	return __raw_write_trylock_asm(&rw->lock);
 }
 
 static inline void arch_write_unlock(arch_rwlock_t *rw)
 {
-	arch_write_unlock_asm(&rw->lock);
+	__raw_write_unlock_asm(&rw->lock);
 }
 
 #define arch_spin_relax(lock)  	cpu_relax()
