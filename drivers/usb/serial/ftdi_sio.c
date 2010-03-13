@@ -91,7 +91,7 @@ struct ftdi_private {
 	unsigned long tx_outstanding_bytes;
 	unsigned long tx_outstanding_urbs;
 	unsigned short max_packet_size;
-	struct mutex cfg_lock; /* Avoid mess by parallel calls of config ioctl() */
+	struct mutex cfg_lock; /* Avoid mess by parallel calls of config ioctl() and change_speed() */
 };
 
 /* struct ftdi_sio_quirk is used by devices requiring special attention. */
@@ -1273,8 +1273,8 @@ check_and_exit:
 	     (priv->flags & ASYNC_SPD_MASK)) ||
 	    (((priv->flags & ASYNC_SPD_MASK) == ASYNC_SPD_CUST) &&
 	     (old_priv.custom_divisor != priv->custom_divisor))) {
-		mutex_unlock(&priv->cfg_lock);
 		change_speed(tty, port);
+		mutex_unlock(&priv->cfg_lock);
 	}
 	else
 		mutex_unlock(&priv->cfg_lock);
@@ -2265,9 +2265,11 @@ static void ftdi_set_termios(struct tty_struct *tty,
 		clear_mctrl(port, TIOCM_DTR | TIOCM_RTS);
 	} else {
 		/* set the baudrate determined before */
+		mutex_lock(&priv->cfg_lock);
 		if (change_speed(tty, port))
 			dev_err(&port->dev, "%s urb failed to set baudrate\n",
 				__func__);
+		mutex_unlock(&priv->cfg_lock);
 		/* Ensure RTS and DTR are raised when baudrate changed from 0 */
 		if (!old_termios || (old_termios->c_cflag & CBAUD) == B0)
 			set_mctrl(port, TIOCM_DTR | TIOCM_RTS);
