@@ -749,8 +749,8 @@ _aesni_inc_init:
 	movaps IV, CTR
 	PSHUFB_XMM BSWAP_MASK CTR
 	mov $1, TCTR_LOW
-	movq TCTR_LOW, INC
-	movq CTR, TCTR_LOW
+	MOVQ_R64_XMM TCTR_LOW INC
+	MOVQ_R64_XMM CTR TCTR_LOW
 	ret
 
 /*
