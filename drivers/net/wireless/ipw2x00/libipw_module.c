@@ -67,16 +67,17 @@ void *libipw_wiphy_privid = &libipw_wiphy_privid;
 
 static int libipw_networks_allocate(struct libipw_device *ieee)
 {
-	if (ieee->networks)
-		return 0;
+	int i, j;
 
-	ieee->networks =
-	    kzalloc(MAX_NETWORK_COUNT * sizeof(struct libipw_network),
-		    GFP_KERNEL);
-	if (!ieee->networks) {
-		printk(KERN_WARNING "%s: Out of memory allocating beacons\n",
-		       ieee->dev->name);
-		return -ENOMEM;
+	for (i = 0; i < MAX_NETWORK_COUNT; i++) {
+		ieee->networks[i] = kzalloc(sizeof(struct libipw_network),
+					    GFP_KERNEL);
+		if (!ieee->networks[i]) {
+			LIBIPW_ERROR("Out of memory allocating beacons\n");
+			for (j = 0; j < i; j++)
+				kfree(ieee->networks[j]);
+			return -ENOMEM;
+		}
 	}
 
 	return 0;
@@ -97,15 +98,11 @@ static inline void libipw_networks_free(struct libipw_device *ieee)
 {
 	int i;
 
-	if (!ieee->networks)
-		return;
-
-	for (i = 0; i < MAX_NETWORK_COUNT; i++)
-		if (ieee->networks[i].ibss_dfs)
-			kfree(ieee->networks[i].ibss_dfs);
-
-	kfree(ieee->networks);
-	ieee->networks = NULL;
+	for (i = 0; i < MAX_NETWORK_COUNT; i++) {
+		if (ieee->networks[i]->ibss_dfs)
+			kfree(ieee->networks[i]->ibss_dfs);
+		kfree(ieee->networks[i]);
+	}
 }
 
 void libipw_networks_age(struct libipw_device *ieee,
@@ -130,7 +127,7 @@ static void libipw_networks_initialize(struct libipw_device *ieee)
 	INIT_LIST_HEAD(&ieee->network_free_list);
 	INIT_LIST_HEAD(&ieee->network_list);
 	for (i = 0; i < MAX_NETWORK_COUNT; i++)
-		list_add_tail(&ieee->networks[i].list,
+		list_add_tail(&ieee->networks[i]->list,
 			      &ieee->network_free_list);
 }
 
