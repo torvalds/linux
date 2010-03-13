@@ -1334,9 +1334,9 @@ int fcoe_ctlr_recv_flogi(struct fcoe_ctlr *fip, struct fc_lport *lport,
 		if (fip->state == FIP_ST_AUTO || fip->state == FIP_ST_NON_FIP) {
 			memcpy(fip->dest_addr, sa, ETH_ALEN);
 			fip->map_dest = 0;
-			if (fip->state == FIP_ST_NON_FIP)
-				LIBFCOE_FIP_DBG(fip, "received FLOGI REQ, "
-						"using non-FIP mode\n");
+			if (fip->state == FIP_ST_AUTO)
+				LIBFCOE_FIP_DBG(fip, "received non-FIP FLOGI. "
+						"Setting non-FIP mode\n");
 			fip->state = FIP_ST_NON_FIP;
 		}
 		spin_unlock_bh(&fip->lock);
