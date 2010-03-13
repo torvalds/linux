@@ -480,7 +480,7 @@ int cx18_get_input(struct cx18 *cx, u16 index, struct v4l2_input *input)
 		"S-Video 2",
 		"Composite 1",
 		"Composite 2",
-		"Composite 3"
+		"Component 1"
 	};
 
 	memset(input, 0, sizeof(*input));
