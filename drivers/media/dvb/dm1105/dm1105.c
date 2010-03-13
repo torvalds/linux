@@ -46,6 +46,8 @@
 #include "z0194a.h"
 #include "ds3000.h"
 
+#define MODULE_NAME "dm1105"
+
 #define UNSET (-1U)
 
 #define DM1105_BOARD_NOAUTO		UNSET
@@ -628,7 +630,7 @@ int __devinit dm1105_ir_init(struct dm1105_dev *dm1105)
 
 	INIT_WORK(&dm1105->ir.work, dm1105_emit_key);
 
-	err = ir_input_register(input_dev, ir_codes, NULL);
+	err = ir_input_register(input_dev, ir_codes, NULL, MODULE_NAME);
 
 	return err;
 }

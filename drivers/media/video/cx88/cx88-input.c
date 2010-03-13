@@ -32,6 +32,8 @@
 #include "cx88.h"
 #include <media/ir-common.h>
 
+#define MODULE_NAME "cx88xx"
+
 /* ---------------------------------------------------------------------- */
 
 struct cx88_IR {
@@ -384,7 +386,7 @@ int cx88_ir_init(struct cx88_core *core, struct pci_dev *pci)
 	cx88_ir_start(core, ir);
 
 	/* all done */
-	err = ir_input_register(ir->input, ir_codes, NULL);
+	err = ir_input_register(ir->input, ir_codes, NULL, MODULE_NAME);
 	if (err)
 		goto err_out_stop;
 

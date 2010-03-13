@@ -28,6 +28,8 @@
 #include "saa7134-reg.h"
 #include "saa7134.h"
 
+#define MODULE_NAME "saa7134"
+
 static unsigned int disable_ir;
 module_param(disable_ir, int, 0444);
 MODULE_PARM_DESC(disable_ir,"disable infrared remote support");
@@ -730,7 +732,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	dev->remote = ir;
 	saa7134_ir_start(dev, ir);
 
-	err = ir_input_register(ir->dev, ir_codes, NULL);
+	err = ir_input_register(ir->dev, ir_codes, NULL, MODULE_NAME);
 	if (err)
 		goto err_out_stop;
 

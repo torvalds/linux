@@ -61,9 +61,9 @@ module_param(hauppauge, int, 0644);    /* Choose Hauppauge remote */
 MODULE_PARM_DESC(hauppauge, "Specify Hauppauge remote: 0=black, 1=grey (defaults to 0)");
 
 
-#define DEVNAME "ir-kbd-i2c"
+#define MODULE_NAME "ir-kbd-i2c"
 #define dprintk(level, fmt, arg...)	if (debug >= level) \
-	printk(KERN_DEBUG DEVNAME ": " fmt , ## arg)
+	printk(KERN_DEBUG MODULE_NAME ": " fmt , ## arg)
 
 /* ----------------------------------------------------------------------- */
 
@@ -447,11 +447,11 @@ static int ir_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	input_dev->name       = ir->name;
 	input_dev->phys       = ir->phys;
 
-	err = ir_input_register(ir->input, ir->ir_codes, NULL);
+	err = ir_input_register(ir->input, ir->ir_codes, NULL, MODULE_NAME);
 	if (err)
 		goto err_out_free;
 
-	printk(DEVNAME ": %s detected at %s [%s]\n",
+	printk(MODULE_NAME ": %s detected at %s [%s]\n",
 	       ir->input->name, ir->input->phys, adap->name);
 
 	/* start polling via eventd */

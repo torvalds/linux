@@ -49,6 +49,7 @@ struct ir_dev_props {
 
 struct ir_input_dev {
 	struct device			dev;		/* device */
+	char				*driver_name;	/* Name of the driver module */
 	struct ir_scancode_table	rc_tab;		/* scan/key table */
 	unsigned long			devno;		/* device number */
 	const struct ir_dev_props	*props;		/* Device properties */
@@ -62,7 +63,8 @@ u32 ir_g_keycode_from_table(struct input_dev *input_dev,
 
 int ir_input_register(struct input_dev *dev,
 		      const struct ir_scancode_table *ir_codes,
-		      const struct ir_dev_props *props);
+		      const struct ir_dev_props *props,
+		      const char *driver_name);
 void ir_input_unregister(struct input_dev *input_dev);
 
 /* Routines from ir-sysfs.c */

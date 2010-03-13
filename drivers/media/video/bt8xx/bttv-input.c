@@ -49,6 +49,8 @@ module_param(ir_rc5_key_timeout, int, 0644);
 
 #define DEVNAME "bttv-input"
 
+#define MODULE_NAME "bttv"
+
 /* ---------------------------------------------------------------------- */
 
 static void ir_handle_key(struct bttv *btv)
@@ -390,7 +392,7 @@ int bttv_input_init(struct bttv *btv)
 	bttv_ir_start(btv, ir);
 
 	/* all done */
-	err = ir_input_register(btv->remote->dev, ir_codes, NULL);
+	err = ir_input_register(btv->remote->dev, ir_codes, NULL, MODULE_NAME);
 	if (err)
 		goto err_out_stop;
 

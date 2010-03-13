@@ -35,6 +35,8 @@ static unsigned int ir_debug;
 module_param(ir_debug, int, 0644);
 MODULE_PARM_DESC(ir_debug, "enable debug messages [IR]");
 
+#define MODULE_NAME "cx231xx"
+
 #define i2cdprintk(fmt, arg...) \
 	if (ir_debug) { \
 		printk(KERN_DEBUG "%s/ir: " fmt, ir->name , ## arg); \
@@ -217,7 +219,8 @@ int cx231xx_ir_init(struct cx231xx *dev)
 	cx231xx_ir_start(ir);
 
 	/* all done */
-	err = ir_input_register(ir->input, dev->board.ir_codes, NULL);
+	err = ir_input_register(ir->input, dev->board.ir_codes,
+				NULL, MODULE_NAME);
 	if (err)
 		goto err_out_stop;
 

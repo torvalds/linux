@@ -404,7 +404,8 @@ EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
  */
 int ir_input_register(struct input_dev *input_dev,
 		      const struct ir_scancode_table *rc_tab,
-		      const struct ir_dev_props *props)
+		      const struct ir_dev_props *props,
+		      const char *driver_name)
 {
 	struct ir_input_dev *ir_dev;
 	struct ir_scancode  *keymap    = rc_tab->scan;
@@ -419,6 +420,10 @@ int ir_input_register(struct input_dev *input_dev,
 
 	spin_lock_init(&ir_dev->rc_tab.lock);
 
+	ir_dev->driver_name = kmalloc(strlen(driver_name) + 1, GFP_KERNEL);
+	if (!ir_dev->driver_name)
+		return -ENOMEM;
+	strcpy(ir_dev->driver_name, driver_name);
 	ir_dev->rc_tab.name = rc_tab->name;
 	ir_dev->rc_tab.size = ir_roundup_tablesize(rc_tab->size);
 	ir_dev->rc_tab.scan = kzalloc(ir_dev->rc_tab.size *
