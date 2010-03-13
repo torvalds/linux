@@ -1374,7 +1374,7 @@ s3c24xx_serial_get_options(struct uart_port *port, int *baud,
  * data.
 */
 
-static int s3c24xx_serial_init_ports(struct s3c24xx_uart_info *info)
+static int s3c24xx_serial_init_ports(struct s3c24xx_uart_info **info)
 {
 	struct s3c24xx_uart_port *ptr = s3c24xx_serial_ports;
 	struct platform_device **platdev_ptr;
@@ -1385,7 +1385,7 @@ static int s3c24xx_serial_init_ports(struct s3c24xx_uart_info *info)
 	platdev_ptr = s3c24xx_uart_devs;
 
 	for (i = 0; i < CONFIG_SERIAL_SAMSUNG_UARTS; i++, ptr++, platdev_ptr++) {
-		s3c24xx_serial_init_port(ptr, info, *platdev_ptr);
+		s3c24xx_serial_init_port(ptr, info[i], *platdev_ptr);
 	}
 
 	return 0;
@@ -1451,7 +1451,7 @@ static struct console s3c24xx_serial_console = {
 };
 
 int s3c24xx_serial_initconsole(struct platform_driver *drv,
-			       struct s3c24xx_uart_info *info)
+			       struct s3c24xx_uart_info **info)
 
 {
 	struct platform_device *dev = s3c24xx_uart_devs[0];

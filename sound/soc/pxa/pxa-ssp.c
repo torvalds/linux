@@ -42,11 +42,14 @@
  * SSP audio private data
  */
 struct ssp_priv {
-	struct ssp_dev dev;
+	struct ssp_device *ssp;
 	unsigned int sysclk;
 	int dai_fmt;
 #ifdef CONFIG_PM
-	struct ssp_state state;
+	uint32_t	cr0;
+	uint32_t	cr1;
+	uint32_t	to;
+	uint32_t	psp;
 #endif
 };
 
@@ -59,6 +62,22 @@ static void dump_registers(struct ssp_device *ssp)
 	dev_dbg(&ssp->pdev->dev, "SSPSP 0x%08x SSSR 0x%08x SSACD 0x%08x\n",
 		 ssp_read_reg(ssp, SSPSP), ssp_read_reg(ssp, SSSR),
 		 ssp_read_reg(ssp, SSACD));
+}
+
+static void ssp_enable(struct ssp_device *ssp)
+{
+	uint32_t sscr0;
+
+	sscr0 = __raw_readl(ssp->mmio_base + SSCR0) | SSCR0_SSE;
+	__raw_writel(sscr0, ssp->mmio_base + SSCR0);
+}
+
+static void ssp_disable(struct ssp_device *ssp)
+{
+	uint32_t sscr0;
+
+	sscr0 = __raw_readl(ssp->mmio_base + SSCR0) & ~SSCR0_SSE;
+	__raw_writel(sscr0, ssp->mmio_base + SSCR0);
 }
 
 struct pxa2xx_pcm_dma_data {
@@ -94,13 +113,12 @@ static int pxa_ssp_startup(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct ssp_priv *priv = cpu_dai->private_data;
+	struct ssp_device *ssp = priv->ssp;
 	int ret = 0;
 
 	if (!cpu_dai->active) {
-		priv->dev.port = cpu_dai->id + 1;
-		priv->dev.irq = NO_IRQ;
-		clk_enable(priv->dev.ssp->clk);
-		ssp_disable(&priv->dev);
+		clk_enable(ssp->clk);
+		ssp_disable(ssp);
 	}
 
 	if (cpu_dai->dma_data) {
@@ -116,10 +134,11 @@ static void pxa_ssp_shutdown(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct ssp_priv *priv = cpu_dai->private_data;
+	struct ssp_device *ssp = priv->ssp;
 
 	if (!cpu_dai->active) {
-		ssp_disable(&priv->dev);
-		clk_disable(priv->dev.ssp->clk);
+		ssp_disable(ssp);
+		clk_disable(ssp->clk);
 	}
 
 	if (cpu_dai->dma_data) {
@@ -133,27 +152,39 @@ static void pxa_ssp_shutdown(struct snd_pcm_substream *substream,
 static int pxa_ssp_suspend(struct snd_soc_dai *cpu_dai)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
+	struct ssp_device *ssp = priv->ssp;
 
 	if (!cpu_dai->active)
-		clk_enable(priv->dev.ssp->clk);
+		clk_enable(ssp->clk);
 
-	ssp_save_state(&priv->dev, &priv->state);
-	clk_disable(priv->dev.ssp->clk);
+	priv->cr0 = __raw_readl(ssp->mmio_base + SSCR0);
+	priv->cr1 = __raw_readl(ssp->mmio_base + SSCR1);
+	priv->to  = __raw_readl(ssp->mmio_base + SSTO);
+	priv->psp = __raw_readl(ssp->mmio_base + SSPSP);
 
+	ssp_disable(ssp);
+	clk_disable(ssp->clk);
 	return 0;
 }
 
 static int pxa_ssp_resume(struct snd_soc_dai *cpu_dai)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
+	struct ssp_device *ssp = priv->ssp;
+	uint32_t sssr = SSSR_ROR | SSSR_TUR | SSSR_BCE;
 
-	clk_enable(priv->dev.ssp->clk);
-	ssp_restore_state(&priv->dev, &priv->state);
+	clk_enable(ssp->clk);
+
+	__raw_writel(sssr, ssp->mmio_base + SSSR);
+	__raw_writel(priv->cr0 & ~SSCR0_SSE, ssp->mmio_base + SSCR0);
+	__raw_writel(priv->cr1, ssp->mmio_base + SSCR1);
+	__raw_writel(priv->to,  ssp->mmio_base + SSTO);
+	__raw_writel(priv->psp, ssp->mmio_base + SSPSP);
 
 	if (cpu_dai->active)
-		ssp_enable(&priv->dev);
+		ssp_enable(ssp);
 	else
-		clk_disable(priv->dev.ssp->clk);
+		clk_disable(ssp->clk);
 
 	return 0;
 }
@@ -203,7 +234,7 @@ static int pxa_ssp_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	int clk_id, unsigned int freq, int dir)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
-	struct ssp_device *ssp = priv->dev.ssp;
+	struct ssp_device *ssp = priv->ssp;
 	int val;
 
 	u32 sscr0 = ssp_read_reg(ssp, SSCR0) &
@@ -244,11 +275,11 @@ static int pxa_ssp_set_dai_sysclk(struct snd_soc_dai *cpu_dai,
 	/* The SSP clock must be disabled when changing SSP clock mode
 	 * on PXA2xx.  On PXA3xx it must be enabled when doing so. */
 	if (!cpu_is_pxa3xx())
-		clk_disable(priv->dev.ssp->clk);
+		clk_disable(ssp->clk);
 	val = ssp_read_reg(ssp, SSCR0) | sscr0;
 	ssp_write_reg(ssp, SSCR0, val);
 	if (!cpu_is_pxa3xx())
-		clk_enable(priv->dev.ssp->clk);
+		clk_enable(ssp->clk);
 
 	return 0;
 }
@@ -260,7 +291,7 @@ static int pxa_ssp_set_dai_clkdiv(struct snd_soc_dai *cpu_dai,
 	int div_id, int div)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
-	struct ssp_device *ssp = priv->dev.ssp;
+	struct ssp_device *ssp = priv->ssp;
 	int val;
 
 	switch (div_id) {
@@ -311,7 +342,7 @@ static int pxa_ssp_set_dai_pll(struct snd_soc_dai *cpu_dai, int pll_id,
 	int source, unsigned int freq_in, unsigned int freq_out)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
-	struct ssp_device *ssp = priv->dev.ssp;
+	struct ssp_device *ssp = priv->ssp;
 	u32 ssacd = ssp_read_reg(ssp, SSACD) & ~0x70;
 
 #if defined(CONFIG_PXA3xx)
@@ -380,7 +411,7 @@ static int pxa_ssp_set_dai_tdm_slot(struct snd_soc_dai *cpu_dai,
 	unsigned int tx_mask, unsigned int rx_mask, int slots, int slot_width)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
-	struct ssp_device *ssp = priv->dev.ssp;
+	struct ssp_device *ssp = priv->ssp;
 	u32 sscr0;
 
 	sscr0 = ssp_read_reg(ssp, SSCR0);
@@ -415,7 +446,7 @@ static int pxa_ssp_set_dai_tristate(struct snd_soc_dai *cpu_dai,
 	int tristate)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
-	struct ssp_device *ssp = priv->dev.ssp;
+	struct ssp_device *ssp = priv->ssp;
 	u32 sscr1;
 
 	sscr1 = ssp_read_reg(ssp, SSCR1);
@@ -437,7 +468,7 @@ static int pxa_ssp_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 		unsigned int fmt)
 {
 	struct ssp_priv *priv = cpu_dai->private_data;
-	struct ssp_device *ssp = priv->dev.ssp;
+	struct ssp_device *ssp = priv->ssp;
 	u32 sscr0;
 	u32 sscr1;
 	u32 sspsp;
@@ -532,7 +563,7 @@ static int pxa_ssp_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	struct ssp_priv *priv = cpu_dai->private_data;
-	struct ssp_device *ssp = priv->dev.ssp;
+	struct ssp_device *ssp = priv->ssp;
 	int chn = params_channels(params);
 	u32 sscr0;
 	u32 sspsp;
@@ -642,12 +673,12 @@ static int pxa_ssp_trigger(struct snd_pcm_substream *substream, int cmd,
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
 	int ret = 0;
 	struct ssp_priv *priv = cpu_dai->private_data;
-	struct ssp_device *ssp = priv->dev.ssp;
+	struct ssp_device *ssp = priv->ssp;
 	int val;
 
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_RESUME:
-		ssp_enable(&priv->dev);
+		ssp_enable(ssp);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
 		val = ssp_read_reg(ssp, SSCR1);
@@ -666,7 +697,7 @@ static int pxa_ssp_trigger(struct snd_pcm_substream *substream, int cmd,
 		else
 			val |= SSCR1_RSRE;
 		ssp_write_reg(ssp, SSCR1, val);
-		ssp_enable(&priv->dev);
+		ssp_enable(ssp);
 		break;
 	case SNDRV_PCM_TRIGGER_STOP:
 		val = ssp_read_reg(ssp, SSCR1);
@@ -677,7 +708,7 @@ static int pxa_ssp_trigger(struct snd_pcm_substream *substream, int cmd,
 		ssp_write_reg(ssp, SSCR1, val);
 		break;
 	case SNDRV_PCM_TRIGGER_SUSPEND:
-		ssp_disable(&priv->dev);
+		ssp_disable(ssp);
 		break;
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		val = ssp_read_reg(ssp, SSCR1);
@@ -707,8 +738,8 @@ static int pxa_ssp_probe(struct platform_device *pdev,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->dev.ssp = ssp_request(dai->id + 1, "SoC audio");
-	if (priv->dev.ssp == NULL) {
+	priv->ssp = ssp_request(dai->id + 1, "SoC audio");
+	if (priv->ssp == NULL) {
 		ret = -ENODEV;
 		goto err_priv;
 	}
@@ -727,7 +758,7 @@ static void pxa_ssp_remove(struct platform_device *pdev,
 			      struct snd_soc_dai *dai)
 {
 	struct ssp_priv *priv = dai->private_data;
-	ssp_free(priv->dev.ssp);
+	ssp_free(priv->ssp);
 }
 
 #define PXA_SSP_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_11025 |\

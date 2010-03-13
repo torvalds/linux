@@ -124,7 +124,9 @@ static struct clk clk_usysclk = {
 	.name		= "usysclk",
 	.id		= -1,
 	.parent		= &clk_xtal,
-	.set_parent	= s3c2412_setparent_usysclk,
+	.ops		= &(struct clk_ops) {
+		.set_parent	= s3c2412_setparent_usysclk,
+	},
 };
 
 static struct clk clk_mrefclk = {
@@ -199,10 +201,12 @@ static int s3c2412_setrate_usbsrc(struct clk *clk, unsigned long rate)
 static struct clk clk_usbsrc = {
 	.name		= "usbsrc",
 	.id		= -1,
-	.get_rate	= s3c2412_getrate_usbsrc,
-	.set_rate	= s3c2412_setrate_usbsrc,
-	.round_rate	= s3c2412_roundrate_usbsrc,
-	.set_parent	= s3c2412_setparent_usbsrc,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2412_getrate_usbsrc,
+		.set_rate	= s3c2412_setrate_usbsrc,
+		.round_rate	= s3c2412_roundrate_usbsrc,
+		.set_parent	= s3c2412_setparent_usbsrc,
+	},
 };
 
 static int s3c2412_setparent_msysclk(struct clk *clk, struct clk *parent)
@@ -225,7 +229,9 @@ static int s3c2412_setparent_msysclk(struct clk *clk, struct clk *parent)
 static struct clk clk_msysclk = {
 	.name		= "msysclk",
 	.id		= -1,
-	.set_parent	= s3c2412_setparent_msysclk,
+	.ops		= &(struct clk_ops) {
+		.set_parent	= s3c2412_setparent_msysclk,
+	},
 };
 
 static int s3c2412_setparent_armclk(struct clk *clk, struct clk *parent)
@@ -264,7 +270,9 @@ static struct clk clk_armclk = {
 	.name		= "armclk",
 	.id		= -1,
 	.parent		= &clk_msysclk,
-	.set_parent	= s3c2412_setparent_armclk,
+	.ops		= &(struct clk_ops) {
+		.set_parent	= s3c2412_setparent_armclk,
+	},
 };
 
 /* these next clocks have an divider immediately after them,
@@ -337,10 +345,12 @@ static int s3c2412_setrate_uart(struct clk *clk, unsigned long rate)
 static struct clk clk_uart = {
 	.name		= "uartclk",
 	.id		= -1,
-	.get_rate	= s3c2412_getrate_uart,
-	.set_rate	= s3c2412_setrate_uart,
-	.set_parent	= s3c2412_setparent_uart,
-	.round_rate	= s3c2412_roundrate_clksrc,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2412_getrate_uart,
+		.set_rate	= s3c2412_setrate_uart,
+		.set_parent	= s3c2412_setparent_uart,
+		.round_rate	= s3c2412_roundrate_clksrc,
+	},
 };
 
 static int s3c2412_setparent_i2s(struct clk *clk, struct clk *parent)
@@ -388,10 +398,12 @@ static int s3c2412_setrate_i2s(struct clk *clk, unsigned long rate)
 static struct clk clk_i2s = {
 	.name		= "i2sclk",
 	.id		= -1,
-	.get_rate	= s3c2412_getrate_i2s,
-	.set_rate	= s3c2412_setrate_i2s,
-	.set_parent	= s3c2412_setparent_i2s,
-	.round_rate	= s3c2412_roundrate_clksrc,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2412_getrate_i2s,
+		.set_rate	= s3c2412_setrate_i2s,
+		.set_parent	= s3c2412_setparent_i2s,
+		.round_rate	= s3c2412_roundrate_clksrc,
+	},
 };
 
 static int s3c2412_setparent_cam(struct clk *clk, struct clk *parent)
@@ -438,10 +450,12 @@ static int s3c2412_setrate_cam(struct clk *clk, unsigned long rate)
 static struct clk clk_cam = {
 	.name		= "camif-upll",	/* same as 2440 name */
 	.id		= -1,
-	.get_rate	= s3c2412_getrate_cam,
-	.set_rate	= s3c2412_setrate_cam,
-	.set_parent	= s3c2412_setparent_cam,
-	.round_rate	= s3c2412_roundrate_clksrc,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2412_getrate_cam,
+		.set_rate	= s3c2412_setrate_cam,
+		.set_parent	= s3c2412_setparent_cam,
+		.round_rate	= s3c2412_roundrate_clksrc,
+	},
 };
 
 /* standard clock definitions */

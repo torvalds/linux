@@ -49,24 +49,17 @@ static struct clocksource nmdk_clksrc = {
 static void nmdk_clkevt_mode(enum clock_event_mode mode,
 			     struct clock_event_device *dev)
 {
-	unsigned long flags;
-
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		/* enable interrupts -- and count current value? */
-		raw_local_irq_save(flags);
+		/* count current value? */
 		writel(readl(mtu_base + MTU_IMSC) | 1, mtu_base + MTU_IMSC);
-		raw_local_irq_restore(flags);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		BUG(); /* Not supported, yet */
 		/* FALLTHROUGH */
 	case CLOCK_EVT_MODE_SHUTDOWN:
 	case CLOCK_EVT_MODE_UNUSED:
-		/* disable irq */
-		raw_local_irq_save(flags);
 		writel(readl(mtu_base + MTU_IMSC) & ~1, mtu_base + MTU_IMSC);
-		raw_local_irq_restore(flags);
 		break;
 	case CLOCK_EVT_MODE_RESUME:
 		break;

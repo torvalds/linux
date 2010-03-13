@@ -1,0 +1,84 @@
+if ARCH_SHMOBILE
+
+comment "SH-Mobile System Type"
+
+config ARCH_SH7367
+	bool "SH-Mobile G3 (SH7367)"
+	select CPU_V6
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+
+config ARCH_SH7377
+	bool "SH-Mobile G4 (SH7377)"
+	select CPU_V7
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+
+config ARCH_SH7372
+	bool "SH-Mobile AP4 (SH7372)"
+	select CPU_V7
+	select HAVE_CLK
+	select COMMON_CLKDEV
+	select GENERIC_TIME
+	select GENERIC_CLOCKEVENTS
+
+comment "SH-Mobile Board Type"
+
+config MACH_G3EVM
+	bool "G3EVM board"
+	depends on ARCH_SH7367
+	select ARCH_REQUIRE_GPIOLIB
+
+config MACH_G4EVM
+	bool "G4EVM board"
+	depends on ARCH_SH7377
+	select ARCH_REQUIRE_GPIOLIB
+
+config MACH_AP4EVB
+	bool "AP4EVB board"
+	depends on ARCH_SH7372
+	select ARCH_REQUIRE_GPIOLIB
+
+comment "SH-Mobile System Configuration"
+
+menu "Memory configuration"
+
+config MEMORY_START
+	hex "Physical memory start address"
+	default "0x50000000" if MACH_G3EVM
+	default "0x40000000" if MACH_G4EVM
+	default "0x40000000" if MACH_AP4EVB
+	default "0x00000000"
+	---help---
+	  Tweak this only when porting to a new machine which does not
+	  already have a defconfig. Changing it from the known correct
+	  value on any of the known systems will only lead to disaster.
+
+config MEMORY_SIZE
+	hex "Physical memory size"
+	default "0x08000000" if MACH_G3EVM
+	default "0x08000000" if MACH_G4EVM
+	default "0x10000000" if MACH_AP4EVB
+	default "0x04000000"
+	help
+	  This sets the default memory size assumed by your kernel. It can
+	  be overridden as normal by the 'mem=' argument on the kernel command
+	  line.
+
+endmenu
+
+menu "Timer and clock configuration"
+
+config SH_TIMER_CMT
+	bool "CMT timer driver"
+	default y
+	help
+	  This enables build of the CMT timer driver.
+
+endmenu
+
+endif

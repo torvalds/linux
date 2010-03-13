@@ -656,7 +656,7 @@ static struct platform_device kirkwood_xor00_channel = {
 	.dev		= {
 		.dma_mask		= &kirkwood_xor_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&kirkwood_xor00_data,
+		.platform_data		= &kirkwood_xor00_data,
 	},
 };
 
@@ -682,7 +682,7 @@ static struct platform_device kirkwood_xor01_channel = {
 	.dev		= {
 		.dma_mask		= &kirkwood_xor_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&kirkwood_xor01_data,
+		.platform_data		= &kirkwood_xor01_data,
 	},
 };
 
@@ -755,7 +755,7 @@ static struct platform_device kirkwood_xor10_channel = {
 	.dev		= {
 		.dma_mask		= &kirkwood_xor_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&kirkwood_xor10_data,
+		.platform_data		= &kirkwood_xor10_data,
 	},
 };
 
@@ -781,7 +781,7 @@ static struct platform_device kirkwood_xor11_channel = {
 	.dev		= {
 		.dma_mask		= &kirkwood_xor_dmamask,
 		.coherent_dma_mask	= DMA_BIT_MASK(64),
-		.platform_data		= (void *)&kirkwood_xor11_data,
+		.platform_data		= &kirkwood_xor11_data,
 	},
 };
 

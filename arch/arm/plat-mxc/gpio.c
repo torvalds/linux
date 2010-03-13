@@ -140,16 +140,13 @@ static void mxc_flip_edge(struct mxc_gpio_port *port, u32 gpio)
 	val = __raw_readl(reg);
 	edge = (val >> (bit << 1)) & 3;
 	val &= ~(0x3 << (bit << 1));
-	switch (edge) {
-	case GPIO_INT_HIGH_LEV:
+	if (edge == GPIO_INT_HIGH_LEV) {
 		edge = GPIO_INT_LOW_LEV;
 		pr_debug("mxc: switch GPIO %d to low trigger\n", gpio);
-		break;
-	case GPIO_INT_LOW_LEV:
+	} else if (edge == GPIO_INT_LOW_LEV) {
 		edge = GPIO_INT_HIGH_LEV;
 		pr_debug("mxc: switch GPIO %d to high trigger\n", gpio);
-		break;
-	default:
+	} else {
 		pr_err("mxc: invalid configuration for GPIO %d: %x\n",
 		       gpio, edge);
 		return;
@@ -157,25 +154,20 @@ static void mxc_flip_edge(struct mxc_gpio_port *port, u32 gpio)
 	__raw_writel(val | (edge << (bit << 1)), reg);
 }
 
-/* handle n interrupts in one status register */
+/* handle 32 interrupts in one status register */
 static void mxc_gpio_irq_handler(struct mxc_gpio_port *port, u32 irq_stat)
 {
-	u32 gpio_irq_no;
+	u32 gpio_irq_no_base = port->virtual_irq_start;
 
-	gpio_irq_no = port->virtual_irq_start;
-	for (; irq_stat != 0; irq_stat >>= 1, gpio_irq_no++) {
-		u32 gpio = irq_to_gpio(gpio_irq_no);
+	while (irq_stat != 0) {
+		int irqoffset = fls(irq_stat) - 1;
 
-		if ((irq_stat & 1) == 0)
-			continue;
+		if (port->both_edges & (1 << irqoffset))
+			mxc_flip_edge(port, irqoffset);
 
-		BUG_ON(!(irq_desc[gpio_irq_no].handle_irq));
+		generic_handle_irq(gpio_irq_no_base + irqoffset);
 
-		if (port->both_edges & (1 << (gpio & 31)))
-			mxc_flip_edge(port, gpio);
-
-		irq_desc[gpio_irq_no].handle_irq(gpio_irq_no,
-				&irq_desc[gpio_irq_no]);
+		irq_stat &= ~(1 << irqoffset);
 	}
 }
 
