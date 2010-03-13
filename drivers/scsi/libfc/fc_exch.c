@@ -734,19 +734,14 @@ err:
  * EM is selected when a NULL match function pointer is encountered
  * or when a call to a match function returns true.
  */
-static struct fc_exch *fc_exch_alloc(struct fc_lport *lport,
-				     struct fc_frame *fp)
+static inline struct fc_exch *fc_exch_alloc(struct fc_lport *lport,
+					    struct fc_frame *fp)
 {
 	struct fc_exch_mgr_anchor *ema;
-	struct fc_exch *ep;
 
-	list_for_each_entry(ema, &lport->ema_list, ema_list) {
-		if (!ema->match || ema->match(fp)) {
-			ep = fc_exch_em_alloc(lport, ema->mp);
-			if (ep)
-				return ep;
-		}
-	}
+	list_for_each_entry(ema, &lport->ema_list, ema_list)
+		if (!ema->match || ema->match(fp))
+			return fc_exch_em_alloc(lport, ema->mp);
 	return NULL;
 }
 
