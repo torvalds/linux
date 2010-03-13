@@ -866,7 +866,7 @@ static int nilfs_remount(struct super_block *sb, int *flags, char *data)
 	if ((*flags & MS_RDONLY) &&
 	    sbi->s_snapshot_cno != old_opts.snapshot_cno) {
 		printk(KERN_WARNING "NILFS (device %s): couldn't "
-		       "remount to a different snapshot. \n",
+		       "remount to a different snapshot.\n",
 		       sb->s_id);
 		err = -EINVAL;
 		goto restore_opts;
