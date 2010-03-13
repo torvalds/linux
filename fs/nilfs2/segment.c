@@ -141,7 +141,7 @@ int nilfs_init_transaction_cache(void)
 }
 
 /**
- * nilfs_detroy_transaction_cache - destroy the cache for transaction info
+ * nilfs_destroy_transaction_cache - destroy the cache for transaction info
  *
  * nilfs_destroy_transaction_cache() frees the slab cache for the struct
  * nilfs_transaction_info.
@@ -2214,7 +2214,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 }
 
 /**
- * nilfs_secgtor_start_timer - set timer of background write
+ * nilfs_segctor_start_timer - set timer of background write
  * @sci: nilfs_sc_info
  *
  * If the timer has already been set, it ignores the new request.
