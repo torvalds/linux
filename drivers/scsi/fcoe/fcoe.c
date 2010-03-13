@@ -1444,7 +1444,7 @@ int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 		return 0;
 	}
 
-	if (unlikely(fh->fh_r_ctl == FC_RCTL_ELS_REQ) &&
+	if (unlikely(fh->fh_type == FC_TYPE_ELS) &&
 	    fcoe_ctlr_els_send(&fcoe->ctlr, lport, skb))
 		return 0;
 
