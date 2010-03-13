@@ -1916,6 +1916,8 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		}
 		break;
 	case FC_ERROR:
+		FC_FCP_DBG(fsp, "Returning DID_ERROR to scsi-ml "
+			   "due to FC_ERROR\n");
 		sc_cmd->result = DID_ERROR << 16;
 		break;
 	case FC_DATA_UNDRUN:
@@ -1924,12 +1926,19 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 			 * scsi status is good but transport level
 			 * underrun.
 			 */
-			sc_cmd->result = (fsp->state & FC_SRB_RCV_STATUS ?
-					  DID_OK : DID_ERROR) << 16;
+			if (fsp->state & FC_SRB_RCV_STATUS) {
+				sc_cmd->result = DID_OK << 16;
+			} else {
+				FC_FCP_DBG(fsp, "Returning DID_ERROR to scsi-ml"
+					   " due to FC_DATA_UNDRUN (trans)\n");
+				sc_cmd->result = DID_ERROR << 16;
+			}
 		} else {
 			/*
 			 * scsi got underrun, this is an error
 			 */
+			FC_FCP_DBG(fsp, "Returning DID_ERROR to scsi-ml "
+				   "due to FC_DATA_UNDRUN (scsi)\n");
 			CMD_RESID_LEN(sc_cmd) = fsp->scsi_resid;
 			sc_cmd->result = (DID_ERROR << 16) | fsp->cdb_status;
 		}
@@ -1938,9 +1947,13 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		/*
 		 * overrun is an error
 		 */
+		FC_FCP_DBG(fsp, "Returning DID_ERROR to scsi-ml "
+			   "due to FC_DATA_OVRRUN\n");
 		sc_cmd->result = (DID_ERROR << 16) | fsp->cdb_status;
 		break;
 	case FC_CMD_ABORTED:
+		FC_FCP_DBG(fsp, "Returning DID_ERROR to scsi-ml "
+			   "due to FC_CMD_ABORTED\n");
 		sc_cmd->result = (DID_ERROR << 16) | fsp->io_status;
 		break;
 	case FC_CMD_RECOVERY:
@@ -1953,6 +1966,8 @@ static void fc_io_compl(struct fc_fcp_pkt *fsp)
 		sc_cmd->result = (DID_NO_CONNECT << 16);
 		break;
 	default:
+		FC_FCP_DBG(fsp, "Returning DID_ERROR to scsi-ml "
+			   "due to unknown error\n");
 		sc_cmd->result = (DID_ERROR << 16);
 		break;
 	}
