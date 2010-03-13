@@ -51,7 +51,7 @@ MODULE_LICENSE("GPL v2");
 #define	FCOE_CTLR_DEF_FKA	FIP_DEF_FKA	/* default keep alive (mS) */
 
 static void fcoe_ctlr_timeout(unsigned long);
-static void fcoe_ctlr_link_work(struct work_struct *);
+static void fcoe_ctlr_timer_work(struct work_struct *);
 static void fcoe_ctlr_recv_work(struct work_struct *);
 
 static u8 fcoe_all_fcfs[ETH_ALEN] = FIP_ALL_FCF_MACS;
@@ -116,7 +116,7 @@ void fcoe_ctlr_init(struct fcoe_ctlr *fip)
 	spin_lock_init(&fip->lock);
 	fip->flogi_oxid = FC_XID_UNKNOWN;
 	setup_timer(&fip->timer, fcoe_ctlr_timeout, (unsigned long)fip);
-	INIT_WORK(&fip->link_work, fcoe_ctlr_link_work);
+	INIT_WORK(&fip->timer_work, fcoe_ctlr_timer_work);
 	INIT_WORK(&fip->recv_work, fcoe_ctlr_recv_work);
 	skb_queue_head_init(&fip->fip_recv_list);
 }
@@ -164,7 +164,7 @@ void fcoe_ctlr_destroy(struct fcoe_ctlr *fip)
 	fcoe_ctlr_reset_fcfs(fip);
 	spin_unlock_bh(&fip->lock);
 	del_timer_sync(&fip->timer);
-	cancel_work_sync(&fip->link_work);
+	cancel_work_sync(&fip->timer_work);
 }
 EXPORT_SYMBOL(fcoe_ctlr_destroy);
 
@@ -257,14 +257,10 @@ void fcoe_ctlr_link_up(struct fcoe_ctlr *fip)
 {
 	spin_lock_bh(&fip->lock);
 	if (fip->state == FIP_ST_NON_FIP || fip->state == FIP_ST_AUTO) {
-		fip->last_link = 1;
-		fip->link = 1;
 		spin_unlock_bh(&fip->lock);
 		fc_linkup(fip->lp);
 	} else if (fip->state == FIP_ST_LINK_WAIT) {
 		fip->state = fip->mode;
-		fip->last_link = 1;
-		fip->link = 1;
 		spin_unlock_bh(&fip->lock);
 		if (fip->state == FIP_ST_AUTO)
 			LIBFCOE_FIP_DBG(fip, "%s", "setting AUTO mode.\n");
@@ -306,9 +302,7 @@ int fcoe_ctlr_link_down(struct fcoe_ctlr *fip)
 	LIBFCOE_FIP_DBG(fip, "link down.\n");
 	spin_lock_bh(&fip->lock);
 	fcoe_ctlr_reset(fip);
-	link_dropped = fip->link;
-	fip->link = 0;
-	fip->last_link = 0;
+	link_dropped = fip->state != FIP_ST_LINK_WAIT;
 	fip->state = FIP_ST_LINK_WAIT;
 	spin_unlock_bh(&fip->lock);
 
@@ -1175,7 +1169,7 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 			       "Starting FCF discovery.\n",
 			       fip->lp->host->host_no);
 			fip->reset_req = 1;
-			schedule_work(&fip->link_work);
+			schedule_work(&fip->timer_work);
 		}
 	}
 
@@ -1201,43 +1195,31 @@ static void fcoe_ctlr_timeout(unsigned long arg)
 		mod_timer(&fip->timer, next_timer);
 	}
 	if (fip->send_ctlr_ka || fip->send_port_ka)
-		schedule_work(&fip->link_work);
+		schedule_work(&fip->timer_work);
 	spin_unlock_bh(&fip->lock);
 }
 
 /**
- * fcoe_ctlr_link_work() - Worker thread function for link changes
+ * fcoe_ctlr_timer_work() - Worker thread function for timer work
  * @work: Handle to a FCoE controller
  *
- * See if the link status has changed and if so, report it.
- *
- * This is here because fc_linkup() and fc_linkdown() must not
+ * Sends keep-alives and resets which must not
  * be called from the timer directly, since they use a mutex.
  */
-static void fcoe_ctlr_link_work(struct work_struct *work)
+static void fcoe_ctlr_timer_work(struct work_struct *work)
 {
 	struct fcoe_ctlr *fip;
 	struct fc_lport *vport;
 	u8 *mac;
-	int link;
-	int last_link;
 	int reset;
 
-	fip = container_of(work, struct fcoe_ctlr, link_work);
+	fip = container_of(work, struct fcoe_ctlr, timer_work);
 	spin_lock_bh(&fip->lock);
-	last_link = fip->last_link;
-	link = fip->link;
-	fip->last_link = link;
 	reset = fip->reset_req;
 	fip->reset_req = 0;
 	spin_unlock_bh(&fip->lock);
 
-	if (last_link != link) {
-		if (link)
-			fc_linkup(fip->lp);
-		else
-			fc_linkdown(fip->lp);
-	} else if (reset && link)
+	if (reset)
 		fc_lport_reset(fip->lp);
 
 	if (fip->send_ctlr_ka) {
