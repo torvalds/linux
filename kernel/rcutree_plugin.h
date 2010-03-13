@@ -1010,6 +1010,10 @@ int rcu_needs_cpu(int cpu)
 	int c = 0;
 	int thatcpu;
 
+	/* Check for being in the holdoff period. */
+	if (per_cpu(rcu_dyntick_holdoff, cpu) == jiffies)
+		return rcu_needs_cpu_quick_check(cpu);
+
 	/* Don't bother unless we are the last non-dyntick-idle CPU. */
 	for_each_cpu_not(thatcpu, nohz_cpu_mask)
 		if (thatcpu != cpu) {
@@ -1041,10 +1045,8 @@ int rcu_needs_cpu(int cpu)
 	}
 
 	/* If RCU callbacks are still pending, RCU still needs this CPU. */
-	if (c) {
+	if (c)
 		raise_softirq(RCU_SOFTIRQ);
-		per_cpu(rcu_dyntick_holdoff, cpu) = jiffies;
-	}
 	return c;
 }
 

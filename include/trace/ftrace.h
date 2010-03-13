@@ -699,9 +699,9 @@ __attribute__((section("_ftrace_events"))) event_##call = {		\
  *	__cpu = smp_processor_id();
  *
  *	if (in_nmi())
- *		trace_buf = rcu_dereference(perf_trace_buf_nmi);
+ *		trace_buf = rcu_dereference_sched(perf_trace_buf_nmi);
  *	else
- *		trace_buf = rcu_dereference(perf_trace_buf);
+ *		trace_buf = rcu_dereference_sched(perf_trace_buf);
  *
  *	if (!trace_buf)
  *		goto end;

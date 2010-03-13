@@ -101,6 +101,11 @@ extern struct lockdep_map rcu_sched_lock_map;
 # define rcu_read_release_sched() \
 		lock_release(&rcu_sched_lock_map, 1, _THIS_IP_)
 
+static inline int debug_lockdep_rcu_enabled(void)
+{
+	return likely(rcu_scheduler_active && debug_locks);
+}
+
 /**
  * rcu_read_lock_held - might we be in RCU read-side critical section?
  *
@@ -108,12 +113,14 @@ extern struct lockdep_map rcu_sched_lock_map;
  * an RCU read-side critical section.  In absence of CONFIG_PROVE_LOCKING,
  * this assumes we are in an RCU read-side critical section unless it can
  * prove otherwise.
+ *
+ * Check rcu_scheduler_active to prevent false positives during boot.
  */
 static inline int rcu_read_lock_held(void)
 {
-	if (debug_locks)
-		return lock_is_held(&rcu_lock_map);
-	return 1;
+	if (!debug_lockdep_rcu_enabled())
+		return 1;
+	return lock_is_held(&rcu_lock_map);
 }
 
 /**
@@ -123,12 +130,14 @@ static inline int rcu_read_lock_held(void)
  * an RCU-bh read-side critical section.  In absence of CONFIG_PROVE_LOCKING,
  * this assumes we are in an RCU-bh read-side critical section unless it can
  * prove otherwise.
+ *
+ * Check rcu_scheduler_active to prevent false positives during boot.
  */
 static inline int rcu_read_lock_bh_held(void)
 {
-	if (debug_locks)
-		return lock_is_held(&rcu_bh_lock_map);
-	return 1;
+	if (!debug_lockdep_rcu_enabled())
+		return 1;
+	return lock_is_held(&rcu_bh_lock_map);
 }
 
 /**
@@ -139,15 +148,26 @@ static inline int rcu_read_lock_bh_held(void)
  * this assumes we are in an RCU-sched read-side critical section unless it
  * can prove otherwise.  Note that disabling of preemption (including
  * disabling irqs) counts as an RCU-sched read-side critical section.
+ *
+ * Check rcu_scheduler_active to prevent false positives during boot.
  */
+#ifdef CONFIG_PREEMPT
 static inline int rcu_read_lock_sched_held(void)
 {
 	int lockdep_opinion = 0;
 
+	if (!debug_lockdep_rcu_enabled())
+		return 1;
 	if (debug_locks)
 		lockdep_opinion = lock_is_held(&rcu_sched_lock_map);
-	return lockdep_opinion || preempt_count() != 0 || !rcu_scheduler_active;
+	return lockdep_opinion || preempt_count() != 0;
 }
+#else /* #ifdef CONFIG_PREEMPT */
+static inline int rcu_read_lock_sched_held(void)
+{
+	return 1;
+}
+#endif /* #else #ifdef CONFIG_PREEMPT */
 
 #else /* #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
@@ -168,10 +188,17 @@ static inline int rcu_read_lock_bh_held(void)
 	return 1;
 }
 
+#ifdef CONFIG_PREEMPT
 static inline int rcu_read_lock_sched_held(void)
 {
-	return preempt_count() != 0 || !rcu_scheduler_active;
+	return !rcu_scheduler_active || preempt_count() != 0;
 }
+#else /* #ifdef CONFIG_PREEMPT */
+static inline int rcu_read_lock_sched_held(void)
+{
+	return 1;
+}
+#endif /* #else #ifdef CONFIG_PREEMPT */
 
 #endif /* #else #ifdef CONFIG_DEBUG_LOCK_ALLOC */
 
@@ -188,7 +215,7 @@ static inline int rcu_read_lock_sched_held(void)
  */
 #define rcu_dereference_check(p, c) \
 	({ \
-		if (debug_locks && !(c)) \
+		if (debug_lockdep_rcu_enabled() && !(c)) \
 			lockdep_rcu_dereference(__FILE__, __LINE__); \
 		rcu_dereference_raw(p); \
 	})
