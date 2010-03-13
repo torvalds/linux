@@ -32,7 +32,7 @@
 struct nilfs_write_info {
 	struct the_nilfs       *nilfs;
 	struct bio	       *bio;
-	int 			start, end; /* The region to be submitted */
+	int			start, end; /* The region to be submitted */
 	int			rest_blocks;
 	int			max_pages;
 	int			nr_vecs;

@@ -71,7 +71,7 @@ struct nilfs_recovery_info {
  */
 struct nilfs_cstage {
 	int			scnt;
-	unsigned 		flags;
+	unsigned		flags;
 	struct nilfs_inode_info *dirty_file_ptr;
 	struct nilfs_inode_info *gc_inode_ptr;
 };
