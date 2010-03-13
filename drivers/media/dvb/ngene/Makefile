@@ -2,7 +2,7 @@
 # Makefile for the nGene device driver
 #
 
-ngene-objs := ngene-core.o
+ngene-objs := ngene-core.o ngene-i2c.o
 
 obj-$(CONFIG_DVB_NGENE) += ngene.o
 

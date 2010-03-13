@@ -854,6 +854,13 @@ struct ngene_buffer {
 #endif
 
 
+/* Provided by ngene-core.c */
+int ngene_command(struct ngene *dev, struct ngene_command *com);
+int ngene_command_gpio_set(struct ngene *dev, u8 select, u8 level);
+
+/* Provided by ngene-i2c.c */
+int ngene_i2c_init(struct ngene *dev, int dev_nr);
+
 #endif
 
 /*  LocalWords:  Endif
