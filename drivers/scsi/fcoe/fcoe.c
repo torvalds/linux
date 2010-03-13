@@ -1565,7 +1565,6 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 	struct fc_frame_header *fh;
 	struct fcoe_crc_eof crc_eof;
 	struct fc_frame *fp;
-	u8 *mac = NULL;
 	struct fcoe_port *port;
 	struct fcoe_hdr *hp;
 
@@ -1585,13 +1584,9 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 			skb_end_pointer(skb), skb->csum,
 			skb->dev ? skb->dev->name : "<NULL>");
 
-	/*
-	 * Save source MAC address before discarding header.
-	 */
 	port = lport_priv(lport);
 	if (skb_is_nonlinear(skb))
 		skb_linearize(skb);	/* not ideal */
-	mac = eth_hdr(skb)->h_source;
 
 	/*
 	 * Frame length checks and setting up the header pointers
