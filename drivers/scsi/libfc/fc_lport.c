@@ -835,7 +835,7 @@ static void fc_lport_recv_flogi_req(struct fc_seq *sp_in,
 		 */
 		f_ctl = FC_FC_EX_CTX | FC_FC_LAST_SEQ | FC_FC_END_SEQ;
 		ep = fc_seq_exch(sp);
-		fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, ep->did, ep->sid,
+		fc_fill_fc_hdr(fp, FC_RCTL_ELS_REP, remote_fid, local_fid,
 			       FC_TYPE_ELS, f_ctl, 0);
 		lport->tt.seq_send(lport, sp, fp);
 
