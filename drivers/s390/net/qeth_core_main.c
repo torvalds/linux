@@ -537,7 +537,8 @@ static void qeth_send_control_data_cb(struct qeth_channel *channel,
 			dev_err(&card->gdev->dev,
 				"The qeth device is not configured "
 				"for the OSI layer required by z/VM\n");
-		qeth_schedule_recovery(card);
+		else
+			qeth_schedule_recovery(card);
 		goto out;
 	}
 
@@ -1113,8 +1114,6 @@ static int qeth_setup_card(struct qeth_card *card)
 	card->ipato.enabled = 0;
 	card->ipato.invert4 = 0;
 	card->ipato.invert6 = 0;
-	if (card->info.type == QETH_CARD_TYPE_IQD)
-		card->options.checksum_type = NO_CHECKSUMMING;
 	/* init QDIO stuff */
 	qeth_init_qdio_info(card);
 	return 0;

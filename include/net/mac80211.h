@@ -2426,7 +2426,8 @@ struct rate_control_ops {
 			  struct ieee80211_sta *sta, void *priv_sta);
 	void (*rate_update)(void *priv, struct ieee80211_supported_band *sband,
 			    struct ieee80211_sta *sta,
-			    void *priv_sta, u32 changed);
+			    void *priv_sta, u32 changed,
+			    enum nl80211_channel_type oper_chan_type);
 	void (*free_sta)(void *priv, struct ieee80211_sta *sta,
 			 void *priv_sta);
 

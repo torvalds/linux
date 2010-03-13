@@ -1405,20 +1405,30 @@ F:	arch/x86/include/asm/calgary.h
 F:	arch/x86/include/asm/tce.h
 
 CAN NETWORK LAYER
-M:	Urs Thuermann <urs.thuermann@volkswagen.de>
+M:	Oliver Hartkopp <socketcan@hartkopp.net>
 M:	Oliver Hartkopp <oliver.hartkopp@volkswagen.de>
-L:	socketcan-core@lists.berlios.de (subscribers-only)
+M:	Urs Thuermann <urs.thuermann@volkswagen.de>
+L:	socketcan-core@lists.berlios.de
+L:	netdev@vger.kernel.org
 W:	http://developer.berlios.de/projects/socketcan/
 S:	Maintained
-F:	drivers/net/can/
-F:	include/linux/can/
+F:	net/can/
 F:	include/linux/can.h
+F:	include/linux/can/core.h
+F:	include/linux/can/bcm.h
+F:	include/linux/can/raw.h
 
 CAN NETWORK DRIVERS
 M:	Wolfgang Grandegger <wg@grandegger.com>
-L:	socketcan-core@lists.berlios.de (subscribers-only)
+L:	socketcan-core@lists.berlios.de
+L:	netdev@vger.kernel.org
 W:	http://developer.berlios.de/projects/socketcan/
 S:	Maintained
+F:	drivers/net/can/
+F:	include/linux/can/dev.h
+F:	include/linux/can/error.h
+F:	include/linux/can/netlink.h
+F:	include/linux/can/platform/
 
 CELL BROADBAND ENGINE ARCHITECTURE
 M:	Arnd Bergmann <arnd@arndb.de>
@@ -2130,6 +2140,7 @@ F:	drivers/net/eexpress.*
 ETHERNET BRIDGE
 M:	Stephen Hemminger <shemminger@linux-foundation.org>
 L:	bridge@lists.linux-foundation.org
+L:	netdev@vger.kernel.org
 W:	http://www.linux-foundation.org/en/Net:Bridge
 S:	Maintained
 F:	include/linux/netfilter_bridge/

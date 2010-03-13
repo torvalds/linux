@@ -59,6 +59,17 @@ static const struct qlcnic_stats qlcnic_gstrings_stats[] = {
 		QLC_SIZEOF(stats.rxbytes), QLC_OFF(stats.rxbytes)},
 	{"tx_bytes",
 		QLC_SIZEOF(stats.txbytes), QLC_OFF(stats.txbytes)},
+	{"lrobytes",
+		QLC_SIZEOF(stats.lrobytes), QLC_OFF(stats.lrobytes)},
+	{"lso_frames",
+		QLC_SIZEOF(stats.lso_frames), QLC_OFF(stats.lso_frames)},
+	{"xmit_on",
+		QLC_SIZEOF(stats.xmit_on), QLC_OFF(stats.xmit_on)},
+	{"xmit_off",
+		QLC_SIZEOF(stats.xmit_off), QLC_OFF(stats.xmit_off)},
+	{"skb_alloc_failure", QLC_SIZEOF(stats.skb_alloc_failure),
+		QLC_OFF(stats.skb_alloc_failure)},
+
 };
 
 #define QLCNIC_STATS_LEN	ARRAY_SIZE(qlcnic_gstrings_stats)
@@ -785,6 +796,11 @@ qlcnic_get_ethtool_stats(struct net_device *dev,
 	}
 }
 
+static u32 qlcnic_get_tx_csum(struct net_device *dev)
+{
+	return dev->features & NETIF_F_IP_CSUM;
+}
+
 static u32 qlcnic_get_rx_csum(struct net_device *dev)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
@@ -995,6 +1011,7 @@ const struct ethtool_ops qlcnic_ethtool_ops = {
 	.set_ringparam = qlcnic_set_ringparam,
 	.get_pauseparam = qlcnic_get_pauseparam,
 	.set_pauseparam = qlcnic_set_pauseparam,
+	.get_tx_csum = qlcnic_get_tx_csum,
 	.set_tx_csum = ethtool_op_set_tx_csum,
 	.set_sg = ethtool_op_set_sg,
 	.get_tso = qlcnic_get_tso,

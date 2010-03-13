@@ -330,6 +330,48 @@ static inline void LPD7_SMC_outsw (unsigned char* a, int r,
 
 #include <unit/smc91111.h>
 
+#elif defined(CONFIG_ARCH_MSM)
+
+#define SMC_CAN_USE_8BIT	0
+#define SMC_CAN_USE_16BIT	1
+#define SMC_CAN_USE_32BIT	0
+#define SMC_NOWAIT		1
+
+#define SMC_inw(a, r)		readw((a) + (r))
+#define SMC_outw(v, a, r)	writew(v, (a) + (r))
+#define SMC_insw(a, r, p, l)	readsw((a) + (r), p, l)
+#define SMC_outsw(a, r, p, l)	writesw((a) + (r), p, l)
+
+#define SMC_IRQ_FLAGS		IRQF_TRIGGER_HIGH
+
+#elif defined(CONFIG_COLDFIRE)
+
+#define SMC_CAN_USE_8BIT	0
+#define SMC_CAN_USE_16BIT	1
+#define SMC_CAN_USE_32BIT	0
+#define SMC_NOWAIT		1
+
+static inline void mcf_insw(void *a, unsigned char *p, int l)
+{
+	u16 *wp = (u16 *) p;
+	while (l-- > 0)
+		*wp++ = readw(a);
+}
+
+static inline void mcf_outsw(void *a, unsigned char *p, int l)
+{
+	u16 *wp = (u16 *) p;
+	while (l-- > 0)
+		writew(*wp++, a);
+}
+
+#define SMC_inw(a, r)		_swapw(readw((a) + (r)))
+#define SMC_outw(v, a, r)	writew(_swapw(v), (a) + (r))
+#define SMC_insw(a, r, p, l)	mcf_insw(a + r, p, l)
+#define SMC_outsw(a, r, p, l)	mcf_outsw(a + r, p, l)
+
+#define SMC_IRQ_FLAGS		(IRQF_DISABLED)
+
 #else
 
 /*

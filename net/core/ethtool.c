@@ -17,6 +17,7 @@
 #include <linux/errno.h>
 #include <linux/ethtool.h>
 #include <linux/netdevice.h>
+#include <linux/bitops.h>
 #include <asm/uaccess.h>
 
 /*
@@ -199,10 +200,7 @@ static int ethtool_set_settings(struct net_device *dev, void __user *useraddr)
 	return dev->ethtool_ops->set_settings(dev, &cmd);
 }
 
-/*
- * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
- */
-static noinline int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_get_drvinfo(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_drvinfo info;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -214,6 +212,10 @@ static noinline int ethtool_get_drvinfo(struct net_device *dev, void __user *use
 	info.cmd = ETHTOOL_GDRVINFO;
 	ops->get_drvinfo(dev, &info);
 
+	/*
+	 * this method of obtaining string set info is deprecated;
+	 * Use ETHTOOL_GSSET_INFO instead.
+	 */
 	if (ops->get_sset_count) {
 		int rc;
 
@@ -237,10 +239,67 @@ static noinline int ethtool_get_drvinfo(struct net_device *dev, void __user *use
 	return 0;
 }
 
-/*
- * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
- */
-static noinline int ethtool_set_rxnfc(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_get_sset_info(struct net_device *dev,
+                                          void __user *useraddr)
+{
+	struct ethtool_sset_info info;
+	const struct ethtool_ops *ops = dev->ethtool_ops;
+	u64 sset_mask;
+	int i, idx = 0, n_bits = 0, ret, rc;
+	u32 *info_buf = NULL;
+
+	if (!ops->get_sset_count)
+		return -EOPNOTSUPP;
+
+	if (copy_from_user(&info, useraddr, sizeof(info)))
+		return -EFAULT;
+
+	/* store copy of mask, because we zero struct later on */
+	sset_mask = info.sset_mask;
+	if (!sset_mask)
+		return 0;
+
+	/* calculate size of return buffer */
+	n_bits = hweight64(sset_mask);
+
+	memset(&info, 0, sizeof(info));
+	info.cmd = ETHTOOL_GSSET_INFO;
+
+	info_buf = kzalloc(n_bits * sizeof(u32), GFP_USER);
+	if (!info_buf)
+		return -ENOMEM;
+
+	/*
+	 * fill return buffer based on input bitmask and successful
+	 * get_sset_count return
+	 */
+	for (i = 0; i < 64; i++) {
+		if (!(sset_mask & (1ULL << i)))
+			continue;
+
+		rc = ops->get_sset_count(dev, i);
+		if (rc >= 0) {
+			info.sset_mask |= (1ULL << i);
+			info_buf[idx++] = rc;
+		}
+	}
+
+	ret = -EFAULT;
+	if (copy_to_user(useraddr, &info, sizeof(info)))
+		goto out;
+
+	useraddr += offsetof(struct ethtool_sset_info, data);
+	if (copy_to_user(useraddr, info_buf, idx * sizeof(u32)))
+		goto out;
+
+	ret = 0;
+
+out:
+	kfree(info_buf);
+	return ret;
+}
+
+static noinline_for_stack int ethtool_set_rxnfc(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_rxnfc cmd;
 
@@ -253,10 +312,7 @@ static noinline int ethtool_set_rxnfc(struct net_device *dev, void __user *usera
 	return dev->ethtool_ops->set_rxnfc(dev, &cmd);
 }
 
-/*
- * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
- */
-static noinline int ethtool_get_rxnfc(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_get_rxnfc(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_rxnfc info;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -328,10 +384,7 @@ static void __rx_ntuple_filter_add(struct ethtool_rx_ntuple_list *list,
 	list->count++;
 }
 
-/*
- * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
- */
-static noinline int ethtool_set_rx_ntuple(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_set_rx_ntuple(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_rx_ntuple cmd;
 	const struct ethtool_ops *ops = dev->ethtool_ops;
@@ -799,10 +852,7 @@ static int ethtool_set_eeprom(struct net_device *dev, void __user *useraddr)
 	return ret;
 }
 
-/*
- * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
- */
-static noinline int ethtool_get_coalesce(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_get_coalesce(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_coalesce coalesce = { .cmd = ETHTOOL_GCOALESCE };
 
@@ -816,10 +866,7 @@ static noinline int ethtool_get_coalesce(struct net_device *dev, void __user *us
 	return 0;
 }
 
-/*
- * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
- */
-static noinline int ethtool_set_coalesce(struct net_device *dev, void __user *useraddr)
+static noinline_for_stack int ethtool_set_coalesce(struct net_device *dev, void __user *useraddr)
 {
 	struct ethtool_coalesce coalesce;
 
@@ -1229,10 +1276,7 @@ static int ethtool_set_value(struct net_device *dev, char __user *useraddr,
 	return actor(dev, edata.data);
 }
 
-/*
- * noinline attribute so that gcc doesnt use too much stack in dev_ethtool()
- */
-static noinline int ethtool_flash_device(struct net_device *dev, char __user *useraddr)
+static noinline_for_stack int ethtool_flash_device(struct net_device *dev, char __user *useraddr)
 {
 	struct ethtool_flash efl;
 
@@ -1470,6 +1514,9 @@ int dev_ethtool(struct net *net, struct ifreq *ifr)
 		break;
 	case ETHTOOL_GRXNTUPLE:
 		rc = ethtool_get_rx_ntuple(dev, useraddr);
+		break;
+	case ETHTOOL_GSSET_INFO:
+		rc = ethtool_get_sset_info(dev, useraddr);
 		break;
 	default:
 		rc = -EOPNOTSUPP;

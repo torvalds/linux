@@ -575,9 +575,9 @@ static int ks8695_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		unsigned long flags;
 		spin_lock_irqsave(&ksp->rx_lock, flags);
+		__napi_complete(napi);
 		/*enable rx interrupt*/
 		writel(isr | mask_bit, KS8695_IRQ_VA + KS8695_INTEN);
-		__napi_complete(napi);
 		spin_unlock_irqrestore(&ksp->rx_lock, flags);
 	}
 	return work_done;

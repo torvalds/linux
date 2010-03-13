@@ -480,7 +480,7 @@ typhoon_hello(struct typhoon *tp)
 		typhoon_inc_cmd_index(&ring->lastWrite, 1);
 
 		INIT_COMMAND_NO_RESPONSE(cmd, TYPHOON_CMD_HELLO_RESP);
-		smp_wmb();
+		wmb();
 		iowrite32(ring->lastWrite, tp->ioaddr + TYPHOON_REG_CMD_READY);
 		spin_unlock(&tp->command_lock);
 	}
@@ -1311,13 +1311,15 @@ typhoon_init_interface(struct typhoon *tp)
 
 	tp->txlo_dma_addr = le32_to_cpu(iface->txLoAddr);
 	tp->card_state = Sleeping;
-	smp_wmb();
 
 	tp->offload = TYPHOON_OFFLOAD_IP_CHKSUM | TYPHOON_OFFLOAD_TCP_CHKSUM;
 	tp->offload |= TYPHOON_OFFLOAD_UDP_CHKSUM | TSO_OFFLOAD_ON;
 
 	spin_lock_init(&tp->command_lock);
 	spin_lock_init(&tp->state_lock);
+
+	/* Force the writes to the shared memory area out before continuing. */
+	wmb();
 }
 
 static void
