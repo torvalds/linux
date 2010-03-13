@@ -116,6 +116,9 @@
 #define IVTV_REG_VPU 			(0x9058)
 #define IVTV_REG_APU 			(0xA064)
 
+/* Other registers */
+#define IVTV_REG_DEC_LINE_FIELD		(0x28C0)
+
 /* debugging */
 extern int ivtv_debug;
 

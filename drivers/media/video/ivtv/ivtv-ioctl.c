@@ -1140,7 +1140,7 @@ int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 		for (f = 0; f < 4; f++) {
 			prepare_to_wait(&itv->vsync_waitq, &wait,
 					TASK_UNINTERRUPTIBLE);
-			if ((read_reg(0x28c0) >> 16) < 100)
+			if ((read_reg(IVTV_REG_DEC_LINE_FIELD) >> 16) < 100)
 				break;
 			schedule_timeout(msecs_to_jiffies(25));
 		}

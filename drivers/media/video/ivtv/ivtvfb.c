@@ -460,7 +460,7 @@ static int ivtvfb_ioctl(struct fb_info *info, unsigned int cmd, unsigned long ar
 
 			vblank.flags = FB_VBLANK_HAVE_COUNT |FB_VBLANK_HAVE_VCOUNT |
 					FB_VBLANK_HAVE_VSYNC;
-			trace = read_reg(0x028c0) >> 16;
+			trace = read_reg(IVTV_REG_DEC_LINE_FIELD) >> 16;
 			if (itv->is_50hz && trace > 312)
 				trace -= 312;
 			else if (itv->is_60hz && trace > 262)

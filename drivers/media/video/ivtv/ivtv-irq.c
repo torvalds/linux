@@ -752,7 +752,7 @@ static void ivtv_irq_vsync(struct ivtv *itv)
 	 * to determine the line being displayed and ensure we handle
 	 * one vsync per frame.
 	 */
-	unsigned int frame = read_reg(0x28c0) & 1;
+	unsigned int frame = read_reg(IVTV_REG_DEC_LINE_FIELD) & 1;
 	struct yuv_playback_info *yi = &itv->yuv_info;
 	int last_dma_frame = atomic_read(&yi->next_dma_frame);
 	struct yuv_frame_info *f = &yi->new_frame_info[last_dma_frame];
@@ -852,9 +852,11 @@ irqreturn_t ivtv_irq_handler(int irq, void *dev_id)
 		 */
 		if (~itv->irqmask & IVTV_IRQ_DEC_VSYNC) {
 			/* vsync is enabled, see if we're in a new field */
-			if ((itv->last_vsync_field & 1) != (read_reg(0x28c0) & 1)) {
+			if ((itv->last_vsync_field & 1) !=
+			    (read_reg(IVTV_REG_DEC_LINE_FIELD) & 1)) {
 				/* New field, looks like we missed it */
-				IVTV_DEBUG_YUV("VSync interrupt missed %d\n",read_reg(0x28c0)>>16);
+				IVTV_DEBUG_YUV("VSync interrupt missed %d\n",
+				       read_reg(IVTV_REG_DEC_LINE_FIELD) >> 16);
 				vsync_force = 1;
 			}
 		}
