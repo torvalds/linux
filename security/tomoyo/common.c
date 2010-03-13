@@ -886,6 +886,7 @@ static struct tomoyo_profile *tomoyo_find_or_assign_new_profile(const unsigned
 	ptr = kmalloc(sizeof(*ptr), GFP_KERNEL);
 	if (!tomoyo_memory_ok(ptr)) {
 		kfree(ptr);
+		ptr = NULL;
 		goto ok;
 	}
 	for (i = 0; i < TOMOYO_MAX_CONTROL_INDEX; i++)
