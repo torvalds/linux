@@ -1,0 +1,5 @@
+#
+# This file lists the staging drivers that are safe for signing
+# and loading in a secure boot environment with signed module enforcement.
+#
+

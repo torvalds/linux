@@ -1,0 +1,55 @@
+#!/bin/bash
+
+# This example script retrieves the DHCP state of a given interface.
+# In the interest of keeping the KVP daemon code free of distro specific
+# information; the kvp daemon code invokes this external script to gather
+# DHCP setting for the specific interface.
+#
+# Input: Name of the interface
+#
+# Output: The script prints the string "Enabled" to stdout to indicate
+#	that DHCP is enabled on the interface. If DHCP is not enabled,
+#	the script prints the string "Disabled" to stdout.
+#
+# Each Distro is expected to implement this script in a distro specific
+# fashion. 
+
+#set -x
+
+IF_FILE="/etc/network/interfaces"
+NMCMD="nmcli"
+
+function checknetworkmanager {
+	#Assumes if $NMCMD exists, inteface exists and interface is not
+	#  in $IF_FILE then dhcp is being used by NM
+        if  hash $NMCMD >/dev/null 2>&1  ; then
+                if  $NMCMD  dev status |grep -q $1  ; then
+                        echo "Enabled"
+                else
+                        echo "Disabled"
+                fi
+        else
+                #Give up
+                echo "Disabled"
+        fi
+}
+
+if [ -z $1 ]  ; then echo "Disabled"; exit; fi
+
+if [ -e $IF_FILE ]; then
+	if grep -v -e "^#" $IF_FILE|grep -q $1 ; then
+		#interface exists so
+		if grep -q -e $1\.\*dhcp $IF_FILE; then 
+			echo "Enabled"; exit;
+		else
+			echo "Disabled"; exit;
+		fi
+	else
+		checknetworkmanager $1
+		exit
+	fi
+else
+	checknetworkmanager $1
+	exit
+fi
+

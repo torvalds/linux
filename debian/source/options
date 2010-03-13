@@ -1,0 +1,14 @@
+# Ignore vbox symlinks, we will regenerate these at clean (LP:1426113)
+## autoreconstruct -- begin
+# Ignore any symlinks created since the orig which are rebuilt by reconstruct.
+extend-diff-ignore=ubuntu/vbox/vboxguest/include
+extend-diff-ignore=ubuntu/vbox/vboxguest/r0drv
+extend-diff-ignore=ubuntu/vbox/vboxsf/include
+extend-diff-ignore=ubuntu/vbox/vboxsf/r0drv
+extend-diff-ignore=ubuntu/vbox/vboxvideo/include
+extend-diff-ignore=ubuntu/vbox/vboxvideo/r0drv
+## autoreconstruct -- end
+
+# force "dpkg-source -I -i" behavior
+diff-ignore
+tar-ignore

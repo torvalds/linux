@@ -1,0 +1,172 @@
+#!/bin/bash
+
+. debian/debian.env
+
+# Script to merge all configs and run 'make silentoldconfig' on it to wade out bad juju.
+# Then split the configs into distro-commmon and flavour-specific parts
+
+# We have to be in the top level kernel source directory
+if [ ! -f MAINTAINERS ] || [ ! -f Makefile ]; then
+	echo "This does not appear to be the kernel source directory." 1>&2
+	exit 1
+fi
+
+mode=${1:?"Usage: $0 [oldconfig|editconfig]"}
+yes=0
+case "$mode" in
+    update*configs)  mode='silentoldconfig' ;;
+    default*configs) mode='oldconfig'; yes=1 ;;
+    edit*configs)    ;; # All is good
+    gen*configs)     mode='genconfigs' ;; # All is good
+    dump*configs)    mode='config'; yes=1 ;;
+    *) echo "$0 called with invalid mode" 1>&2
+       exit 1 ;;
+esac
+kerneldir="`pwd`"
+confdir="$kerneldir/${DEBIAN}/config"
+variant="$2"
+
+. $DEBIAN/etc/kernelconfig
+
+bindir="`pwd`/${DROOT}/scripts/misc"
+common_conf="$confdir/config.common.$family"
+tmpdir=`mktemp -d`
+mkdir "$tmpdir/CONFIGS"
+
+if [ "$mode" = "genconfigs" ]; then
+	keep=1
+	mode="oldconfig"
+	test -d CONFIGS || mkdir CONFIGS
+fi
+
+for arch in $archs; do
+	rm -rf build
+	mkdir build
+
+	# Map debian archs to kernel archs
+	case "$arch" in
+		ppc64|ppc64el)	kernarch="powerpc"	;;
+		amd64)		kernarch="x86_64"	;;
+		lpia)		kernarch="x86" 		;;
+		sparc)		kernarch="sparc64"	;;
+		armel|armhf)	kernarch="arm"		;;
+		s390x)		kernarch="s390"		;;
+		*)		kernarch="$arch"	;;
+	esac
+
+	archconfdir=$confdir/$arch
+	flavourconfigs=$(cd $archconfdir && ls config.flavour.*)
+
+	# Merge configs
+	# We merge config.common.ubuntu + config.common.<arch> +
+	# config.flavour.<flavour>
+
+	for config in $flavourconfigs; do
+		fullconf="$tmpdir/$arch-$config-full"
+		case $config in
+		*)
+			: >"$fullconf"
+			if [ -f $common_conf ]; then
+				cat $common_conf >> "$fullconf"
+			fi
+			if [ -f $archconfdir/config.common.$arch ]; then
+				cat $archconfdir/config.common.$arch >> "$fullconf"
+			fi
+			cat "$archconfdir/$config" >>"$fullconf"
+			if [ -f $confdir/OVERRIDES ]; then
+				cat $confdir/OVERRIDES >> "$fullconf"
+			fi
+			;;
+		esac
+	done
+
+	for config in $flavourconfigs; do
+		if [ -f $archconfdir/$config ]; then
+			fullconf="$tmpdir/$arch-$config-full"
+			cat "$fullconf" > build/.config
+			# Call oldconfig or menuconfig
+			case "$mode" in
+			    editconfigs)
+				# Interactively edit config parameters
+				while : ; do
+					echo -n "Do you want to edit config: $arch/$config? [Y/n] "
+					read choice
+					
+					case "$choice" in
+					y* | Y* | "" )
+						make O=`pwd`/build ARCH=$kernarch menuconfig
+						break ;;
+					n* | N* )
+						break ;;
+					*)
+						echo "Entry not valid"
+					esac
+				done
+				;;
+			    *)
+				echo "* Run $mode (yes=$yes) on $arch/$config ..."
+				if [ "$yes" -eq 1 ]; then
+					yes "" | make O=`pwd`/build ARCH=$kernarch "$mode"
+				else
+					make O=`pwd`/build ARCH=$kernarch "$mode"
+				fi ;;
+			esac
+			cat build/.config > $archconfdir/$config
+			cat build/.config > "$tmpdir/CONFIGS/$arch-$config"
+			if [ "$keep" = "1" ]; then
+				cat build/.config > CONFIGS/$arch-$config
+			fi
+		else
+			echo "!! Config not found $archconfdir/$config..."
+		fi
+	done
+
+	echo "Running splitconfig.pl for $arch"
+	echo
+
+	# Can we make this more robust by avoiding $tmpdir completely?
+	# This approach was used for now because I didn't want to change
+	# splitconfig.pl
+	(cd $archconfdir; $bindir/splitconfig.pl config.flavour.*; mv config.common \
+	 config.common.$arch; cp config.common.$arch $tmpdir)
+done
+
+rm -f $common_conf
+
+# Now run splitconfig.pl on all the config.common.<arch> copied to
+# $tmpdir
+(cd $tmpdir; $bindir/splitconfig.pl *)
+(
+	cd $confdir;
+	rm -f *-full
+	grep -v 'is UNMERGABLE' <$tmpdir/config.common >$common_conf
+	for arch in $archs; do
+		grep -v 'is UNMERGABLE' <$tmpdir/config.common.$arch \
+			>$arch/config.common.$arch
+	done
+)
+
+echo ""
+echo "Running config-check for all configurations ..."
+echo ""
+fail=0
+for arch in $archs; do
+	archconfdir=$confdir/$arch
+	flavourconfigs=$(cd $archconfdir && ls config.flavour.*)
+	for config in $flavourconfigs; do
+		flavour="${config##*.}"
+		if [ -f $archconfdir/$config ]; then
+			fullconf="$tmpdir/CONFIGS/$arch-$config"
+			"$bindir/../config-check" "$fullconf" "$arch" "$flavour" "$confdir" "0" || let "fail=$fail+1"
+		fi
+	done
+done
+
+if [ "$fail" != 0 ]; then
+	echo ""
+	echo "*** ERROR: $fail config-check failures detected"
+	echo ""
+fi
+
+rm -rf build
+

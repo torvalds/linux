@@ -1,0 +1,210 @@
+#!/usr/bin/perl -w
+
+my $flavour = shift;
+my $prev_abinum = shift;
+my $abinum = shift;
+my $prev_abidir = shift;
+my $abidir = shift;
+my $skipabi = shift;
+
+my $fail_exit = 1;
+my $EE = "EE:";
+my $errors = 0;
+my $abiskip = 0;
+
+my $count;
+
+print "II: Checking ABI for $flavour...\n";
+
+if (-f "$prev_abidir/ignore"
+    or -f "$prev_abidir/$flavour.ignore" or "$skipabi" eq "true") {
+	print "WW: Explicitly asked to ignore ABI, running in no-fail mode\n";
+	$fail_exit = 0;
+	$abiskip = 1;
+	$EE = "WW:";
+}
+
+if ($prev_abinum != $abinum) {
+	print "II: Different ABI's, running in no-fail mode\n";
+	$fail_exit = 0;
+	$EE = "WW:";
+}
+
+if (not -f "$abidir/$flavour" or not -f "$prev_abidir/$flavour") {
+	print "EE: Previous or current ABI file missing!\n";
+	print "    $abidir/$flavour\n" if not -f "$abidir/$flavour";
+	print "    $prev_abidir/$flavour\n" if not -f "$prev_abidir/$flavour";
+
+	# Exit if the ABI files are missing, but return status based on whether
+	# skip ABI was indicated.
+	if ("$abiskip" eq "1") {
+		exit(0);
+	} else {
+		exit(1);
+	}
+}
+
+my %symbols;
+my %symbols_ignore;
+my %modules_ignore;
+my %module_syms;
+
+# See if we have any ignores
+my $ignore = 0;
+print "    Reading symbols/modules to ignore...";
+
+for $file ("$prev_abidir/../blacklist", "$prev_abidir/../../perm-blacklist") {
+	if (-f $file) {
+		open(IGNORE, "< $file") or
+			die "Could not open $file";
+		while (<IGNORE>) {
+			chomp;
+			if ($_ =~ m/M: (.*)/) {
+				$modules_ignore{$1} = 1;
+			} else {
+				$symbols_ignore{$_} = 1;
+			}
+			$ignore++;
+		}
+		close(IGNORE);
+	}
+}
+print "read $ignore symbols/modules.\n";
+
+sub is_ignored($$) {
+	my ($mod, $sym) = @_;
+
+	die "Missing module name in is_ignored()" if not defined($mod);
+	die "Missing symbol name in is_ignored()" if not defined($sym);
+
+	if (defined($symbols_ignore{$sym}) or defined($modules_ignore{$mod})) {
+		return 1;
+	}
+	return 0;
+}
+
+# Read new syms first
+print "    Reading new symbols ($abinum)...";
+$count = 0;
+open(NEW, "< $abidir/$flavour") or
+	die "Could not open $abidir/$flavour";
+while (<NEW>) {
+	chomp;
+	m/^(\S+)\s(.+)\s(0x[0-9a-f]+)\s(.+)$/;
+	$symbols{$4}{'type'} = $1;
+	$symbols{$4}{'loc'} = $2;
+	$symbols{$4}{'hash'} = $3;
+	$module_syms{$2} = 0;
+	$count++;
+}
+close(NEW);
+print "read $count symbols.\n";
+
+# Now the old symbols, checking for missing ones
+print "    Reading old symbols ($prev_abinum)...";
+$count = 0;
+open(OLD, "< $prev_abidir/$flavour") or
+	die "Could not open $prev_abidir/$flavour";
+while (<OLD>) {
+	chomp;
+	m/^(\S+)\s(.+)\s(0x[0-9a-f]+)\s(.+)$/;
+	$symbols{$4}{'old_type'} = $1;
+	$symbols{$4}{'old_loc'} = $2;
+	$symbols{$4}{'old_hash'} = $3;
+	$count++;
+}
+close(OLD);
+
+print "read $count symbols.\n";
+
+print "II: Checking for missing symbols in new ABI...";
+$count = 0;
+foreach $sym (keys(%symbols)) {
+	if (!defined($symbols{$sym}{'type'})) {
+		print "\n" if not $count;
+		printf("    MISS : %s%s\n", $sym,
+			is_ignored($symbols{$sym}{'old_loc'}, $sym) ? " (ignored)" : "");
+		$count++ if !is_ignored($symbols{$sym}{'old_loc'}, $sym);
+	}
+}
+print "    " if $count;
+print "found $count missing symbols\n";
+if ($count) {
+	print "$EE Symbols gone missing (what did you do!?!)\n";
+	$errors++;
+}
+
+
+print "II: Checking for new symbols in new ABI...";
+$count = 0;
+foreach $sym (keys(%symbols)) {
+	if (!defined($symbols{$sym}{'old_type'})) {
+		print "\n" if not $count;
+		print "    NEW : $sym\n";
+		$count++;
+	}
+}
+print "    " if $count;
+print "found $count new symbols\n";
+if ($count and $prev_abinum == $abinum) {
+	print "WW: Found new symbols within same ABI. Not recommended\n";
+}
+
+print "II: Checking for changes to ABI...\n";
+$count = 0;
+my $moved = 0;
+my $changed_type = 0;
+my $changed_hash = 0;
+foreach $sym (keys(%symbols)) {
+	if (!defined($symbols{$sym}{'old_type'}) or
+	    !defined($symbols{$sym}{'type'})) {
+		next;
+	}
+
+	# Changes in location don't hurt us, but log it anyway
+	if ($symbols{$sym}{'loc'} ne $symbols{$sym}{'old_loc'}) {
+		printf("    MOVE : %-40s : %s => %s\n", $sym, $symbols{$sym}{'old_loc'},
+			$symbols{$sym}{'loc'});
+		$moved++;
+	}
+
+	# Changes to export type are only bad if new type isn't
+	# EXPORT_SYMBOL. Changing things to GPL are bad.
+	if ($symbols{$sym}{'type'} ne $symbols{$sym}{'old_type'}) {
+		printf("    TYPE : %-40s : %s => %s%s\n", $sym, $symbols{$sym}{'old_type'}.
+			$symbols{$sym}{'type'}, is_ignored($symbols{$sym}{'loc'}, $sym)
+			? " (ignored)" : "");
+		$changed_type++ if $symbols{$sym}{'type'} ne "EXPORT_SYMBOL"
+			and !is_ignored($symbols{$sym}{'loc'}, $sym);
+	}
+
+	# Changes to the hash are always bad
+	if ($symbols{$sym}{'hash'} ne $symbols{$sym}{'old_hash'}) {
+		printf("    HASH : %-40s : %s => %s%s\n", $sym, $symbols{$sym}{'old_hash'},
+			$symbols{$sym}{'hash'}, is_ignored($symbols{$sym}{'loc'}, $sym)
+			? " (ignored)" : "");
+		$changed_hash++ if !is_ignored($symbols{$sym}{'loc'}, $sym);
+		$module_syms{$symbols{$sym}{'loc'}}++;
+	}
+}
+
+print "WW: $moved symbols changed location\n" if $moved;
+print "$EE $changed_type symbols changed export type and weren't ignored\n" if $changed_type;
+print "$EE $changed_hash symbols changed hash and weren't ignored\n" if $changed_hash;
+
+$errors++ if $changed_hash or $changed_type;
+if ($changed_hash) {
+	print "II: Module hash change summary...\n";
+	foreach $mod (sort { $module_syms{$b} <=> $module_syms{$a} } keys %module_syms) {
+		next if ! $module_syms{$mod};
+		printf("    %-40s: %d\n", $mod, $module_syms{$mod});
+	}
+}
+
+print "II: Done\n";
+
+if ($errors) {
+	exit($fail_exit);
+} else {
+	exit(0);
+}

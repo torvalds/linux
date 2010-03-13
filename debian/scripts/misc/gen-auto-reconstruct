@@ -1,0 +1,72 @@
+#!/bin/bash
+
+if [ "$#" -ne 3 ]; then
+	echo "Usage: $0 <orig tag>|<base release> <reconstruct> <options>" 1>&2
+	exit 1
+fi
+tag="$1"
+reconstruct="$2"
+options="$3"
+
+case "$tag" in
+v*)	;;
+*)	tag="v${tag%.*}" ;;
+esac
+
+# Validate the tag.
+count=$( git tag -l "$tag" | wc -l )
+if [ "$count" != 1 ]; then
+	echo "$0: $tag: tag invalid" 1>&2
+	exit 1
+fi
+
+#git ls-tree -r --full-tree HEAD | grep ^120 | \
+#while read mode type blobid name
+
+(
+	# Identify all new symlinks since the proffered tag.
+	echo "# Recreate any symlinks created since the orig."
+	git diff "$tag.." --raw --no-renames | awk '(/^:000000 120000/ && $5 == "A") { print $NF }' | \
+	while read name
+	do
+		link=$( readlink "$name" )
+
+		echo "[ ! -L '$name' ] && ln -sf '$link' '$name'"
+	done
+
+	# Identify all removed files since the proffered tag.
+	echo "# Remove any files deleted from the orig."
+	git diff "$tag.." --raw --no-renames | awk '(/^:/ && $5 == "D") { print $NF }' | \
+	while read name
+	do
+		echo "rm -f '$name'"
+	done
+
+	# All done, make sure this does not complete in error.
+	echo "exit 0"
+) >"$reconstruct"
+
+(
+	# Identify all new symlinks since the proffered tag.
+	echo "# Ignore any symlinks created since the orig which are rebuilt by reconstruct."
+	git diff "$tag.." --raw --no-renames | awk '(/^:000000 120000/ && $5 == "A") { print $NF }' | \
+	while read name
+	do
+		echo "extend-diff-ignore=$name"
+	done
+) >"$options.update"
+
+
+head='^## autoreconstruct -- begin$'
+foot='^## autoreconstruct -- end$'
+sed -i -e "
+	/$head/,/$foot/{
+		/$head/{
+			p;
+			r $options.update
+		};
+		/$foot/p;
+		d
+	}
+" "$options"
+rm -f "$options.update"

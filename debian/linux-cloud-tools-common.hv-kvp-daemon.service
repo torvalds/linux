@@ -1,0 +1,12 @@
+# On Azure/Hyper-V systems start the hv_kvp_daemon
+#
+# author "Andy Whitcroft <apw@canonical.com>"
+[Unit]
+Description=Hyper-V KVP Protocol Daemon
+ConditionVirtualization=microsoft
+
+[Service]
+ExecStart=/usr/sbin/hv_kvp_daemon -n
+
+[Install]
+WantedBy=multi-user.target

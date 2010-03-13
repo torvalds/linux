@@ -1,0 +1,15 @@
+#
+# This template is used for commit messages that don't need to
+# show up in debian/changelog. Administrative stuff like config
+# updates, ABI bumps, etc. Setting 'Ignore: yes' prevents
+# 'debian/rules insertchanges' from inserting this commit meesage
+# as a changelog entry.
+#
+# Please give a one-line description of the config change followed
+# by a detailed explanation if necessary
+
+UBUNTU: [Config] XXXX
+
+# BugLink: http://bugs.launchpad.net/bugs/<enter bug# here>
+# Ignore: yes
+# Other text below here.

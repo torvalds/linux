@@ -1,0 +1,20 @@
+# Ubuntu external driver commit.
+#
+# NOTE: This gets reformatted for README.Ubuntu-External-Drivers and
+# debian/changelog.
+#
+# This is only needed when a driver is added, updated or removed. It is
+# not needed when patches or fixes are applied to the driver. If the
+# driver is being removed, add the line:
+#
+# Removing: yes
+#
+# to the commit, and you can remove all other tags (except UBUNTU:).
+#
+UBUNTU: 
+
+ExternalDriver: 
+Description:
+Url:
+Mask:
+Version:

@@ -1,0 +1,22 @@
+# On Azure/Hyper-V systems start the hv_kvp_daemon
+#
+description "Hyper-V KVP Protocol Daemon"
+author "Adam Conrad <adconrad@canonical.com>"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+console log
+
+pre-start script
+        if [ -e "/etc/default/hv-kvp-daemon-init" ]; then
+                . /etc/default/hv-kvp-daemon-init
+        fi
+        [ "$RUN_KVP_DAEMON" = 0 ] && { stop; exit 0; }
+	if [ -d /sys/class/dmi/id/. ]; then
+		read company </sys/class/dmi/id/sys_vendor
+		read product </sys/class/dmi/id/product_name
+		[ "$company:$product" = 'Microsoft Corporation:Virtual Machine' ] || { stop; exit 0; }
+	fi
+end script
+
+exec /usr/sbin/hv_kvp_daemon -n

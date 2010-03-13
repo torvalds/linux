@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+
+sver=`dpkg-parsechangelog -SVersion`
+read x rver x </proc/version_signature
+
+flavour=${rver#*-*-}
+rver=${rver%-$flavour}
+
+echo "Source Package Version: $sver"
+echo "Running Kernel Version: $rver"
+
+if [ "$sver" != "$rver" ]; then
+    echo "ERROR: running version does not match source package" 1>&2
+    exit 1
+fi
+
+git clone git://kernel.ubuntu.com/ubuntu/kernel-testing
+kernel-testing/run-dep8-tests

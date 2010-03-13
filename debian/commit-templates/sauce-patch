@@ -1,0 +1,40 @@
+# Ubuntu commit template.
+#
+# NOTE: This gets reformatted for debian/changelog
+#
+#
+# SAUCE refers to the fact that this patch might not go upstream, but we need to
+# carry it to successive releases. In most cases you DONOT want to use this
+# template. 
+#
+# An example of a SAUCE patch is the ACPI DSDT-in-initramfs patch which has been
+# refused upstream, but still provides useful functionality to users with broken
+# BIOSes.
+#
+#-------------------------------------------------------------------------
+#
+# The initial UBUNTU is a flag that this is an Ubuntu commit. It will be
+# referenced to the Author in the debian/changelog entry.
+#
+# The text following is the short message that will be placed in the
+# changelog. Extra text on the following lines will be ignored, but left
+# in the git commit. Lines with # will be ignored in the commit.
+#
+# OriginalAuthor allows for alternate attribution.
+#
+# OriginalLocation allows for a URL or description of where the patch came
+# from.
+#
+# BugLink is a URL to a Malone bug.
+#
+# Ignore: yes will keep this commit from showing up in the changelog.
+#
+UBUNTU: SAUCE: 
+
+<Why is this patch not going upstream?>
+
+# OriginalAuthor: 
+# OriginalLocation: 
+# BugLink: http://bugs.launchpad.net/bugs/<enter bug# here>
+# Ignore: yes
+# Other text below here.

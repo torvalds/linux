@@ -1,0 +1,69 @@
+#!/bin/bash
+
+. debian/debian.env
+
+echo "SUB_PROCESS $FROM => $TO"
+
+export from_pkg="linux-image-$ABI_RELEASE-$FROM"
+export to_pkg="linux-image-$ABI_RELEASE-$TO"
+
+from_moddir="debian/$from_pkg/lib/modules/$ABI_RELEASE-$FROM"
+to_moddir="debian/$to_pkg/lib/modules/$ABI_RELEASE-$FROM"
+
+install -d "debian/$to_pkg/boot"
+install -m644 debian/$from_pkg/boot/config-$ABI_RELEASE-$FROM \
+	debian/$to_pkg/boot/
+install -m600 debian/$from_pkg/boot/{vmlinuz,System.map}-$ABI_RELEASE-$FROM \
+	debian/$to_pkg/boot/
+
+#
+# Print some warnings if there are files in the sub-flavours list
+# that do not actually exist.
+#
+cat ${DEBIAN}/sub-flavours/$TO.list | while read line
+do
+(
+	cd debian/$from_pkg/lib/modules/$ABI_RELEASE-$FROM/kernel;
+	#
+	# If its a wildcard, then check that there are files that match.
+	#
+	if echo "$line" | grep '\*' > /dev/null
+	then
+		if [ `eval find "$line" -name '*.ko' 2>/dev/null|wc -l` -lt 1 ]
+		then
+			echo SUB_INST Warning - No files in $line
+		fi
+	#
+	# Else it should be a single file reference.
+	#
+	elif [ ! -f "$line" ]
+	then
+		echo SUB_INST Warning - could not find "$line"
+	fi
+)
+done
+
+cat ${DEBIAN}/sub-flavours/$TO.list | while read line; do
+	(
+	cd debian/$from_pkg/lib/modules/$ABI_RELEASE-$FROM/kernel;
+	if echo "$line" | grep '\*' > /dev/null
+	then
+		eval find "$line" -name '*.ko' 2>/dev/null || true
+	elif [ -f "$line" ]
+	then
+		echo "$line"
+	fi
+	);
+done | while read mod; do
+	echo "SUB_INST checking: $mod"
+	fromdir="/lib/modules/$ABI_RELEASE-$FROM/"
+	egrep "^($fromdir)?kernel/$mod:" \
+		$from_moddir/modules.dep | sed -e "s|^$fromdir||" -e 's/://' -e 's/ /\n/g' | \
+	while read m; do
+		m="${fromdir}$m"
+		test -f debian/$to_pkg/$m && continue
+		echo "SUB_INST installing: $m"
+		install -D -m644 debian/$from_pkg/$m \
+			debian/$to_pkg/$m
+	done
+done

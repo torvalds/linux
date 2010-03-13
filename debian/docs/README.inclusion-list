@@ -1,0 +1,51 @@
+This README describes the reason for, and the use of, module
+inclusion lists.
+
+The original Hardy release had the notion of sub-flavours,
+e.g., a flavour that was constructed as a subset of an existing flavour.
+For example, the virtual flavour was extracted from the server flavour using
+a subset of the server flavour modules. However, there were some difficult
+mainteneance issues with regard to packaging, make rules, and scripts. This
+re-implementation of the sub-flavours philosophy is hopefully simpler,
+and retrofitable to all releases.
+
+A module inclusion list looks at the problem of of constructing a package
+from the perspective of what modules do we _want_ in the package, as opposed
+to what modules we _don't_ want. As the kernel matures, more and more devices are added
+which makes the problem of configuration maintenance a real pain in the ass.
+If we took the approach of disabling all of the config options that we don't want,
+then the differences between flavours will quickly become quite large, making
+it difficult to quickly compare the individual flavour configs.  Each time a
+new config option is added then we also have to make a decision about disabling in
+order to continue to keep the minimal number of modules.
+
+A module inclusion list is applied on a per-flavour basis. For example,
+debian.<BRANCH>/control.d/${flavour}.inclusion-list. For example, the
+config for virtual is very close to server and generic, but the inclusion list
+causes the virtual package to be constructed with _only_ the modules described 
+in the inclusion list.
+
+The inclusion list format is a simple bash regular expression list of files. For example,
+
+arch/*/{crypto,kernel,oprofile}
+drivers/acpi/*
+drivers/ata/ahci.ko
+
+These 3 regular expression forms are suitable for expansion by bash and as inputs to 'find'.
+See debian/scripts/module-inclusion for details.
+
+There are 2 log files created as a side effect of the application of the module
+inclusion list; $(flavour).inclusion-list.log and $(flavour).depmod.log.
+
+$(flavour).inclusion-list.log : This log is created while the inclusion list
+modules are being copied. If any are missing, then those warnings go in this log.
+While its not considered a fatal error, you should endevour to correct your inclusion
+list such that there are no missing modules.
+
+$(flavour).depmod.log : The log is created as a result of running depmod on the
+resulting set of modules. If there are missing symbols then you'll find that information
+here. Again, you should modify your inclusion list such that there are no missing
+symbols.
+
+Tim Gardner <tim.gardner@canonical.com>
+June 2, 2010

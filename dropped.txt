@@ -1,0 +1,4 @@
+This is the list of patches/features which have been temporarily
+reverted or disabled for Q:
+
+UBUNTU: SAUCE: AppArmor: basic networking rules

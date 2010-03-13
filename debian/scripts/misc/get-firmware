@@ -1,0 +1,62 @@
+#!/bin/bash
+#
+# Find all files in linux-firmware that are new or different since the previous release
+# and copy them into the kernel firmware directory. You should only do this on the
+# backport branch since it would be redundant on the released kernel. It assumed you've
+# unpacked linux-firmware from each release into separate directories.
+#
+# Example: $0 ~/ubuntu/linux-firmware-precise ~/ubuntu/linux-firmware-quantal
+
+if [ "$1" = "" ] || [ "$2" = "" ] || [ ! -f $1/WHENCE ] || [ ! -f $2/WHENCE ]
+then
+	echo You must supply 2 firmware directories.
+	exit 1
+fi
+
+if [ ! -f debian/debian.env ]
+then
+	echo You must run this script from the root of the repo
+	exit 1
+fi
+. debian/debian.env
+
+NFWINFO="`find $DEBIAN -name fwinfo|wc -l`"
+if [ ! "$NFWINFO" = "1" ]
+then
+	echo Your repo is hosed. There can only be one fwinfo file.
+	find $DEBIAN -name fwinfo
+	exit 1
+fi
+
+FWINFO="`pwd`/`find $DEBIAN -name fwinfo`"
+
+CDIR=`pwd`
+OFW=$1
+NFW=$2
+
+cd $NFW
+#
+# Find all files in $NFW that are new or different from $1
+#
+(find . -type f | egrep -v "debian|git|LICEN|WHEN|READ|Make|configure" | sed 's;\./;;' | \
+while read f
+do
+	if grep -q $f $FWINFO
+	then
+		if [ ! -f $OFW/$f ]
+		then
+			echo $f
+		elif ! cmp $f $OFW/$f > /dev/null
+		then
+			echo $f
+		fi
+	fi
+done) |\
+while read f
+do
+	mkdir -p $CDIR/firmware/`dirname $f`
+	if [ ! -f $CDIR/firmware/`dirname $f`/`basename $f`.ihex ]
+	then
+		cp -v $f $CDIR/firmware/`dirname $f`
+	fi
+done

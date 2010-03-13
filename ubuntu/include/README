@@ -1,0 +1,4 @@
+Only use this directory for things which need to share their headers with
+other parts of the kernel or other modules in ubuntu/
+
+Otherwise, keep them local to the module directory.
