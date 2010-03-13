@@ -1,5 +1,5 @@
 /*
- * kref.c - library routines for handling generic reference counted objects
+ * kref.h - library routines for handling generic reference counted objects
  *
  * Copyright (C) 2004 Greg Kroah-Hartman <greg@kroah.com>
  * Copyright (C) 2004 IBM Corp.
