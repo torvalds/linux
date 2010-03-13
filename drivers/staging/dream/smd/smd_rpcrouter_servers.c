@@ -42,7 +42,6 @@ static struct msm_rpc_endpoint *endpoint;
 static LIST_HEAD(rpc_server_list);
 static DEFINE_MUTEX(rpc_server_list_lock);
 static int rpc_servers_active;
-static struct wake_lock rpc_servers_wake_lock;
 
 static void rpc_server_register(struct msm_rpc_server *server)
 {
@@ -136,10 +135,8 @@ static int rpc_servers_thread(void *data)
 	int rc;
 
 	for (;;) {
-		wake_unlock(&rpc_servers_wake_lock);
 		rc = wait_event_interruptible(endpoint->wait_q,
 						!list_empty(&endpoint->read_q));
-		wake_lock(&rpc_servers_wake_lock);
 		rc = msm_rpc_read(endpoint, &buffer, -1, -1);
 		if (rc < 0) {
 			printk(KERN_ERR "%s: could not read: %d\n",
@@ -219,7 +216,6 @@ static struct platform_driver rpcservers_driver = {
 
 static int __init rpc_servers_init(void)
 {
-	wake_lock_init(&rpc_servers_wake_lock, WAKE_LOCK_SUSPEND, "rpc_server");
 	return platform_driver_register(&rpcservers_driver);
 }
 
