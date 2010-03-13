@@ -4,7 +4,7 @@ For details to this subsystem look at Documentation/rfkill.txt.
 
 For the deprecated /sys/class/rfkill/*/state and
 /sys/class/rfkill/*/claim knobs of this interface look in
-Documentation/ABI/obsolte/sysfs-class-rfkill.
+Documentation/ABI/obsolete/sysfs-class-rfkill.
 
 What: 		/sys/class/rfkill
 Date:		09-Jul-2007
@@ -42,8 +42,8 @@ Values: 	A numeric value.
 		1: true
 
 
-What:		/sys/class/rfkill/rfkill[0-9]+/blocked_hw
-Date:		23-Feb-2010
+What:		/sys/class/rfkill/rfkill[0-9]+/hard
+Date:		12-March-2010
 KernelVersion	v2.6.34
 Contact:	linux-wireless@vger.kernel.org
 Description: 	Current hardblock state. This file is read only.
@@ -55,8 +55,8 @@ Values: 	A numeric value.
 			the driver's control.
 
 
-What:		/sys/class/rfkill/rfkill[0-9]+/blocked_sw
-Date:		23-Feb-2010
+What:		/sys/class/rfkill/rfkill[0-9]+/soft
+Date:		12-March-2010
 KernelVersion	v2.6.34
 Contact:	linux-wireless@vger.kernel.org
 Description:	Current softblock state. This file is read and write.
