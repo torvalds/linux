@@ -72,6 +72,9 @@ struct fc_lport *fc_vport_id_lookup(struct fc_lport *n_port, u32 port_id)
 	if (fc_host_port_id(n_port->host) == port_id)
 		return n_port;
 
+	if (port_id == FC_FID_FLOGI)
+		return n_port;		/* for point-to-point */
+
 	mutex_lock(&n_port->lp_mutex);
 	list_for_each_entry(vn_port, &n_port->vports, list) {
 		if (fc_host_port_id(vn_port->host) == port_id) {
