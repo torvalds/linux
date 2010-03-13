@@ -365,8 +365,10 @@ static int p4_pmu_handle_irq(struct pt_regs *regs)
 	}
 
 	if (handled) {
+#ifdef CONFIG_X86_LOCAL_APIC
 		/* p4 quirk: unmask it again */
 		apic_write(APIC_LVTPC, apic_read(APIC_LVTPC) & ~APIC_LVT_MASKED);
+#endif
 		inc_irq_stat(apic_perf_irqs);
 	}
 
