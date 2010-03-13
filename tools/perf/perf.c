@@ -16,6 +16,8 @@
 #include "util/string.h"
 #include "util/debugfs.h"
 
+bool use_browser;
+
 const char perf_usage_string[] =
 	"perf [--version] [--help] COMMAND [ARGS]";
 

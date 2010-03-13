@@ -189,8 +189,6 @@ int browser__show_help(const char *format, va_list ap)
 	return ret;
 }
 
-bool use_browser;
-
 void setup_browser(void)
 {
 	if (!isatty(1))
