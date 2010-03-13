@@ -1087,8 +1087,10 @@ static int ivtv_g_std(struct file *file, void *fh, v4l2_std_id *std)
 
 int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 {
+	DEFINE_WAIT(wait);
 	struct ivtv *itv = ((struct ivtv_open_id *)fh)->itv;
 	struct yuv_playback_info *yi = &itv->yuv_info;
+	int f;
 
 	if ((*std & V4L2_STD_ALL) == 0)
 		return -EINVAL;
@@ -1128,6 +1130,25 @@ int ivtv_s_std(struct file *file, void *fh, v4l2_std_id *std)
 		itv->is_out_60hz = itv->is_60hz;
 		itv->is_out_50hz = itv->is_50hz;
 		ivtv_call_all(itv, video, s_std_output, itv->std_out);
+
+		/*
+		 * The next firmware call is time sensitive. Time it to
+		 * avoid risk of a hard lock, by trying to ensure the call
+		 * happens within the first 100 lines of the top field.
+		 * Make 4 attempts to sync to the decoder before giving up.
+		 */
+		for (f = 0; f < 4; f++) {
+			prepare_to_wait(&itv->vsync_waitq, &wait,
+					TASK_UNINTERRUPTIBLE);
+			if ((read_reg(0x28c0) >> 16) < 100)
+				break;
+			schedule_timeout(msecs_to_jiffies(25));
+		}
+		finish_wait(&itv->vsync_waitq, &wait);
+
+		if (f == 4)
+			IVTV_WARN("Mode change failed to sync to decoder\n");
+
 		ivtv_vapi(itv, CX2341X_DEC_SET_STANDARD, 1, itv->is_out_50hz);
 		itv->main_rect.left = itv->main_rect.top = 0;
 		itv->main_rect.width = 720;
