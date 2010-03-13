@@ -12,7 +12,7 @@
  * published by the Free Software Foundation.
 */
 
-/* Note, this is a seperate header file as some of the clock framework
+/* Note, this is a separate header file as some of the clock framework
  * needs to touch this if the clk_48m is used as the USB OHCI or other
  * peripheral source.
 */

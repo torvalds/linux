@@ -331,7 +331,7 @@ static int sa1100_irda_resume(struct platform_device *pdev)
 		 * If we missed a speed change, initialise at the new speed
 		 * directly.  It is debatable whether this is actually
 		 * required, but in the interests of continuing from where
-		 * we left off it is desireable.  The converse argument is
+		 * we left off it is desirable.  The converse argument is
 		 * that we should re-negotiate at 9600 baud again.
 		 */
 		if (si->newspeed) {

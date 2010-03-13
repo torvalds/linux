@@ -256,7 +256,7 @@ drivers/base/power/runtime.c and include/linux/pm_runtime.h:
       to suspend the device again in future
 
   int pm_runtime_resume(struct device *dev);
-    - execute the subsystem-leve resume callback for the device; returns 0 on
+    - execute the subsystem-level resume callback for the device; returns 0 on
       success, 1 if the device's run-time PM status was already 'active' or
       error code on failure, where -EAGAIN means it may be safe to attempt to
       resume the device again in future, but 'power.runtime_error' should be

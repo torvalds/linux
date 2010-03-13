@@ -398,7 +398,7 @@ static void kauditd_send_skb(struct sk_buff *skb)
 	skb_get(skb);
 	err = netlink_unicast(audit_sock, skb, audit_nlk_pid, 0);
 	if (err < 0) {
-		BUG_ON(err != -ECONNREFUSED); /* Shoudn't happen */
+		BUG_ON(err != -ECONNREFUSED); /* Shouldn't happen */
 		printk(KERN_ERR "audit: *NO* daemon at audit_pid=%d\n", audit_pid);
 		audit_log_lost("auditd dissapeared\n");
 		audit_pid = 0;

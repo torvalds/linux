@@ -435,7 +435,7 @@ acpi_system_write_wakeup_device(struct file *file,
 				found_dev->wakeup.gpe_device)) {
 				printk(KERN_WARNING
 				       "ACPI: '%s' and '%s' have the same GPE, "
-				       "can't disable/enable one seperately\n",
+				       "can't disable/enable one separately\n",
 				       dev->pnp.bus_id, found_dev->pnp.bus_id);
 				dev->wakeup.state.enabled =
 				    found_dev->wakeup.state.enabled;

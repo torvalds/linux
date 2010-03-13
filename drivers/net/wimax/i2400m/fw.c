@@ -612,7 +612,7 @@ ssize_t i2400m_bm_cmd(struct i2400m *i2400m,
 		goto error_wait_for_ack;
 	}
 	rx_bytes = result;
-	/* verify the ack and read more if neccessary [result is the
+	/* verify the ack and read more if necessary [result is the
 	 * final amount of bytes we get in the ack]  */
 	result = __i2400m_bm_ack_verify(i2400m, opcode, ack, ack_size, flags);
 	if (result < 0)

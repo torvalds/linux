@@ -1271,7 +1271,7 @@ s3c24xx_serial_console_txrdy(struct uart_port *port, unsigned int ufcon)
 	unsigned long ufstat, utrstat;
 
 	if (ufcon & S3C2410_UFCON_FIFOMODE) {
-		/* fifo mode - check ammount of data in fifo registers... */
+		/* fifo mode - check amount of data in fifo registers... */
 
 		ufstat = rd_regl(port, S3C2410_UFSTAT);
 		return (ufstat & info->tx_fifofull) ? 0 : 1;

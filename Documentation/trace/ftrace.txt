@@ -1588,7 +1588,7 @@ module author does not need to worry about it.
 
 When tracing is enabled, kstop_machine is called to prevent
 races with the CPUS executing code being modified (which can
-cause the CPU to do undesireable things), and the nops are
+cause the CPU to do undesirable things), and the nops are
 patched back to calls. But this time, they do not call mcount
 (which is just a function stub). They now call into the ftrace
 infrastructure.

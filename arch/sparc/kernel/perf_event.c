@@ -1353,7 +1353,7 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 }
 
 /* Like powerpc we can't get PMU interrupts within the PMU handler,
- * so no need for seperate NMI and IRQ chains as on x86.
+ * so no need for separate NMI and IRQ chains as on x86.
  */
 static DEFINE_PER_CPU(struct perf_callchain_entry, callchain);
 

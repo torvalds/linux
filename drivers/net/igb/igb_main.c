@@ -688,7 +688,7 @@ static void igb_set_interrupt_capability(struct igb_adapter *adapter)
 	/* start with one vector for every rx queue */
 	numvecs = adapter->num_rx_queues;
 
-	/* if tx handler is seperate add 1 for every tx queue */
+	/* if tx handler is separate add 1 for every tx queue */
 	if (!(adapter->flags & IGB_FLAG_QUEUE_PAIRS))
 		numvecs += adapter->num_tx_queues;
 

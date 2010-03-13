@@ -195,7 +195,7 @@ asynchronous manner and the vaule may not be very precise. To see a precise
 snapshot of a moment, you can see /proc/<pid>/smaps file and scan page table.
 It's slow but very precise.
 
-Table 1-2: Contents of the statm files (as of 2.6.30-rc7)
+Table 1-2: Contents of the status files (as of 2.6.30-rc7)
 ..............................................................................
  Field                       Content
  Name                        filename of the executable

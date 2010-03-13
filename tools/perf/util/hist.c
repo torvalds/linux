@@ -321,7 +321,7 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 			new_depth_mask &= ~(1 << (depth - 1));
 
 		/*
-		 * But we keep the older depth mask for the line seperator
+		 * But we keep the older depth mask for the line separator
 		 * to keep the level link until we reach the last child
 		 */
 		ret += ipchain__fprintf_graph_line(fp, depth, depth_mask,

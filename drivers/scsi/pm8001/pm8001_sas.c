@@ -600,7 +600,7 @@ static void pm8001_free_dev(struct pm8001_device *pm8001_dev)
   * by the command "OPC_INB_REG_DEV", after that the HBA will assign a
   * device ID(according to device's sas address) and returned it to LLDD. From
   * now on, we communicate with HBA FW with the device ID which HBA assigned
-  * rather than sas address. it is the neccessary step for our HBA but it is
+  * rather than sas address. it is the necessary step for our HBA but it is
   * the optional for other HBA driver.
   */
 static int pm8001_dev_found_notify(struct domain_device *dev)
