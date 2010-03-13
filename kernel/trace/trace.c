@@ -1284,6 +1284,13 @@ ftrace_trace_userstack(struct ring_buffer *buffer, unsigned long flags, int pc)
 	if (!(trace_flags & TRACE_ITER_USERSTACKTRACE))
 		return;
 
+	/*
+	 * NMIs can not handle page faults, even with fix ups.
+	 * The save user stack can (and often does) fault.
+	 */
+	if (unlikely(in_nmi()))
+		return;
+
 	event = trace_buffer_lock_reserve(buffer, TRACE_USER_STACK,
 					  sizeof(*entry), flags, pc);
 	if (!event)
