@@ -436,7 +436,7 @@ static int nilfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	/*
 	 * Compute the overhead
 	 *
-	 * When distributing meta data blocks outside semgent structure,
+	 * When distributing meta data blocks outside segment structure,
 	 * We must count them as the overhead.
 	 */
 	overhead = 0;

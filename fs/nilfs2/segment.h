@@ -30,7 +30,7 @@
 #include "sb.h"
 
 /**
- * struct nilfs_recovery_info - Recovery infomation
+ * struct nilfs_recovery_info - Recovery information
  * @ri_need_recovery: Recovery status
  * @ri_super_root: Block number of the last super root
  * @ri_ri_cno: Number of the last checkpoint
