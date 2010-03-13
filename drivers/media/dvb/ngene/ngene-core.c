@@ -46,6 +46,8 @@
 #include "stv6110x.h"
 #include "stv090x.h"
 #include "lnbh24.h"
+#include "lgdt330x.h"
+#include "mt2131.h"
 
 static int one_adapter = 1;
 module_param(one_adapter, int, 0444);
@@ -513,11 +515,12 @@ static int ngene_command_gpio_set(struct ngene *dev, u8 select, u8 level)
 
 /****************************************************************************/
 
-static u8 TSFeatureDecoderSetup[8 * 4] = {
+static u8 TSFeatureDecoderSetup[8 * 5] = {
 	0x42, 0x00, 0x00, 0x02, 0x02, 0xbc, 0x00, 0x00,
 	0x40, 0x06, 0x00, 0x02, 0x02, 0xbc, 0x00, 0x00,	/* DRXH */
 	0x71, 0x07, 0x00, 0x02, 0x02, 0xbc, 0x00, 0x00,	/* DRXHser */
 	0x72, 0x06, 0x00, 0x02, 0x02, 0xbc, 0x00, 0x00,	/* S2ser */
+	0x40, 0x07, 0x00, 0x02, 0x02, 0xbc, 0x00, 0x00, /* LGDT3303 */
 };
 
 /* Set NGENE I2S Config to 16 bit packed */
@@ -1696,6 +1699,34 @@ static int demod_attach_stv0900(struct ngene_channel *chan)
 	return 0;
 }
 
+static struct lgdt330x_config aver_m780 = {
+	.demod_address = 0xb2 >> 1,
+	.demod_chip    = LGDT3303,
+	.serial_mpeg   = 0x00, /* PARALLEL */
+	.clock_polarity_flip = 1,
+};
+
+static struct mt2131_config m780_tunerconfig = {
+	0xc0 >> 1
+};
+
+/* A single func to attach the demo and tuner, rather than
+ * use two sep funcs like the current design mandates.
+ */
+static int demod_attach_lg330x(struct ngene_channel *chan)
+{
+	chan->fe = dvb_attach(lgdt330x_attach, &aver_m780, &chan->i2c_adapter);
+	if (chan->fe == NULL) {
+		printk(KERN_ERR	DEVICE_NAME ": No LGDT330x found!\n");
+		return -ENODEV;
+	}
+
+	dvb_attach(mt2131_attach, chan->fe, &chan->i2c_adapter,
+		   &m780_tunerconfig, 0);
+
+	return (chan->fe) ? 0 : -ENODEV;
+}
+
 /****************************************************************************/
 /****************************************************************************/
 /****************************************************************************/
@@ -1961,6 +1992,24 @@ static struct ngene_info ngene_info_cineS2v5 = {
 	.fw_version	= 15,
 };
 
+static struct ngene_info ngene_info_m780 = {
+	.type           = NGENE_APP,
+	.name           = "Aver M780 ATSC/QAM-B",
+
+	/* Channel 0 is analog, which is currently unsupported */
+	.io_type        = { NGENE_IO_NONE, NGENE_IO_TSIN },
+	.demod_attach   = { NULL, demod_attach_lg330x },
+
+	/* Ensure these are NULL else the frame will call them (as funcs) */
+	.tuner_attach   = { 0, 0, 0, 0 },
+	.fe_config      = { NULL, &aver_m780 },
+	.avf            = { 0 },
+
+	/* A custom electrical interface config for the demod to bridge */
+	.tsf		= { 4, 4 },
+	.fw_version	= 15,
+};
+
 /****************************************************************************/
 
 
@@ -1982,6 +2031,7 @@ static const struct pci_device_id ngene_id_tbl[] __devinitdata = {
 	NGENE_ID(0x18c3, 0xdb01, ngene_info_satixS2),
 	NGENE_ID(0x18c3, 0xdb02, ngene_info_satixS2v2),
 	NGENE_ID(0x18c3, 0xdd00, ngene_info_cineS2v5),
+	NGENE_ID(0x1461, 0x062e, ngene_info_m780),
 	{0}
 };
 MODULE_DEVICE_TABLE(pci, ngene_id_tbl);
