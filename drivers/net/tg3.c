@@ -9776,7 +9776,7 @@ static int tg3_set_settings(struct net_device *dev, struct ethtool_cmd *cmd)
 			   ADVERTISED_Pause |
 			   ADVERTISED_Asym_Pause;
 
-		if (!(tp->tg3_flags2 & TG3_FLAG_10_100_ONLY))
+		if (!(tp->tg3_flags & TG3_FLAG_10_100_ONLY))
 			mask |= ADVERTISED_1000baseT_Half |
 				ADVERTISED_1000baseT_Full;
 
