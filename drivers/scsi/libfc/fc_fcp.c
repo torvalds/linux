@@ -484,13 +484,14 @@ static void fc_fcp_recv_data(struct fc_fcp_pkt *fsp, struct fc_frame *fp)
 
 		if (~crc != le32_to_cpu(fr_crc(fp))) {
 crc_err:
-			stats = fc_lport_get_stats(lport);
+			stats = per_cpu_ptr(lport->dev_stats, get_cpu());
 			stats->ErrorFrames++;
-			/* FIXME - per cpu count, not total count! */
+			/* per cpu count, not total count, but OK for limit */
 			if (stats->InvalidCRCCount++ < 5)
 				printk(KERN_WARNING "libfc: CRC error on data "
 				       "frame for port (%6x)\n",
 				       fc_host_port_id(lport->host));
+			put_cpu();
 			/*
 			 * Assume the frame is total garbage.
 			 * We may have copied it over the good part
@@ -1819,7 +1820,7 @@ int fc_queuecommand(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
 	/*
 	 * setup the data direction
 	 */
-	stats = fc_lport_get_stats(lport);
+	stats = per_cpu_ptr(lport->dev_stats, get_cpu());
 	if (sc_cmd->sc_data_direction == DMA_FROM_DEVICE) {
 		fsp->req_flags = FC_SRB_READ;
 		stats->InputRequests++;
@@ -1832,6 +1833,7 @@ int fc_queuecommand(struct scsi_cmnd *sc_cmd, void (*done)(struct scsi_cmnd *))
 		fsp->req_flags = 0;
 		stats->ControlRequests++;
 	}
+	put_cpu();
 
 	fsp->tgt_flags = rpriv->flags;
 

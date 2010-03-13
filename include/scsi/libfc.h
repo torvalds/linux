@@ -918,15 +918,6 @@ static inline void fc_lport_free_stats(struct fc_lport *lport)
 }
 
 /**
- * fc_lport_get_stats() - Get a local port's statistics
- * @lport: The local port whose statistics are to be retreived
- */
-static inline struct fcoe_dev_stats *fc_lport_get_stats(struct fc_lport *lport)
-{
-	return per_cpu_ptr(lport->dev_stats, smp_processor_id());
-}
-
-/**
  * lport_priv() - Return the private data from a local port
  * @lport: The local port whose private data is to be retreived
  */

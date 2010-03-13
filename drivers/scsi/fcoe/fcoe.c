@@ -1075,7 +1075,7 @@ static void fcoe_percpu_thread_destroy(unsigned int cpu)
 	struct sk_buff *skb;
 #ifdef CONFIG_SMP
 	struct fcoe_percpu_s *p0;
-	unsigned targ_cpu = smp_processor_id();
+	unsigned targ_cpu = get_cpu();
 #endif /* CONFIG_SMP */
 
 	FCOE_DBG("Destroying receive thread for CPU %d\n", cpu);
@@ -1131,6 +1131,7 @@ static void fcoe_percpu_thread_destroy(unsigned int cpu)
 			kfree_skb(skb);
 		spin_unlock_bh(&p->fcoe_rx_list.lock);
 	}
+	put_cpu();
 #else
 	/*
 	 * This a non-SMP scenario where the singular Rx thread is
@@ -1299,8 +1300,8 @@ int fcoe_rcv(struct sk_buff *skb, struct net_device *netdev,
 
 	return 0;
 err:
-	fc_lport_get_stats(lport)->ErrorFrames++;
-
+	per_cpu_ptr(lport->dev_stats, get_cpu())->ErrorFrames++;
+	put_cpu();
 err2:
 	kfree_skb(skb);
 	return -1;
@@ -1529,9 +1530,10 @@ int fcoe_xmit(struct fc_lport *lport, struct fc_frame *fp)
 		skb_shinfo(skb)->gso_size = 0;
 	}
 	/* update tx stats: regardless if LLD fails */
-	stats = fc_lport_get_stats(lport);
+	stats = per_cpu_ptr(lport->dev_stats, get_cpu());
 	stats->TxFrames++;
 	stats->TxWords += wlen;
+	put_cpu();
 
 	/* send down to lld */
 	fr_dev(fp) = lport;
@@ -1595,7 +1597,7 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 	hp = (struct fcoe_hdr *) skb_network_header(skb);
 	fh = (struct fc_frame_header *) skb_transport_header(skb);
 
-	stats = fc_lport_get_stats(lport);
+	stats = per_cpu_ptr(lport->dev_stats, get_cpu());
 	if (unlikely(FC_FCOE_DECAPS_VER(hp) != FC_FCOE_VER)) {
 		if (stats->ErrorFrames < 5)
 			printk(KERN_WARNING "fcoe: FCoE version "
@@ -1604,9 +1606,7 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 			       "initiator supports version "
 			       "%x\n", FC_FCOE_DECAPS_VER(hp),
 			       FC_FCOE_VER);
-		stats->ErrorFrames++;
-		kfree_skb(skb);
-		return;
+		goto drop;
 	}
 
 	skb_pull(skb, sizeof(struct fcoe_hdr));
@@ -1621,16 +1621,12 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 	fr_sof(fp) = hp->fcoe_sof;
 
 	/* Copy out the CRC and EOF trailer for access */
-	if (skb_copy_bits(skb, fr_len, &crc_eof, sizeof(crc_eof))) {
-		kfree_skb(skb);
-		return;
-	}
+	if (skb_copy_bits(skb, fr_len, &crc_eof, sizeof(crc_eof)))
+		goto drop;
 	fr_eof(fp) = crc_eof.fcoe_eof;
 	fr_crc(fp) = crc_eof.fcoe_crc32;
-	if (pskb_trim(skb, fr_len)) {
-		kfree_skb(skb);
-		return;
-	}
+	if (pskb_trim(skb, fr_len))
+		goto drop;
 
 	/*
 	 * We only check CRC if no offload is available and if it is
@@ -1644,25 +1640,27 @@ static void fcoe_recv_frame(struct sk_buff *skb)
 		fr_flags(fp) |= FCPHF_CRC_UNCHECKED;
 
 	fh = fc_frame_header_get(fp);
-	if (fh->fh_r_ctl == FC_RCTL_DD_SOL_DATA &&
-	    fh->fh_type == FC_TYPE_FCP) {
-		fc_exch_recv(lport, fp);
-		return;
-	}
-	if (fr_flags(fp) & FCPHF_CRC_UNCHECKED) {
+	if ((fh->fh_r_ctl != FC_RCTL_DD_SOL_DATA ||
+	    fh->fh_type != FC_TYPE_FCP) &&
+	    (fr_flags(fp) & FCPHF_CRC_UNCHECKED)) {
 		if (le32_to_cpu(fr_crc(fp)) !=
 		    ~crc32(~0, skb->data, fr_len)) {
 			if (stats->InvalidCRCCount < 5)
 				printk(KERN_WARNING "fcoe: dropping "
 				       "frame with CRC error\n");
 			stats->InvalidCRCCount++;
-			stats->ErrorFrames++;
-			fc_frame_free(fp);
-			return;
+			goto drop;
 		}
 		fr_flags(fp) &= ~FCPHF_CRC_UNCHECKED;
 	}
+	put_cpu();
 	fc_exch_recv(lport, fp);
+	return;
+
+drop:
+	stats->ErrorFrames++;
+	put_cpu();
+	kfree_skb(skb);
 }
 
 /**
@@ -1835,8 +1833,9 @@ static int fcoe_device_notification(struct notifier_block *notifier,
 	if (link_possible && !fcoe_link_ok(lport))
 		fcoe_ctlr_link_up(&fcoe->ctlr);
 	else if (fcoe_ctlr_link_down(&fcoe->ctlr)) {
-		stats = fc_lport_get_stats(lport);
+		stats = per_cpu_ptr(lport->dev_stats, get_cpu());
 		stats->LinkFailureCount++;
+		put_cpu();
 		fcoe_clean_pending_queue(lport);
 	}
 out:
