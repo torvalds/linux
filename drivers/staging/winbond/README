@@ -2,6 +2,7 @@ TODO:
 	- sparse cleanups
 	- checkpatch cleanups
 	- kerneldoc cleanups
+	- fix severeCamelCaseInfestation
 	- remove typedefs
 	- remove unused ioctls
 	- use cfg80211 for regulatory stuff
