@@ -47,8 +47,8 @@ struct tsl2550_data {
 	struct i2c_client *client;
 	struct mutex update_lock;
 
-	unsigned int power_state : 1;
-	unsigned int operating_mode : 1;
+	unsigned int power_state:1;
+	unsigned int operating_mode:1;
 };
 
 /*
