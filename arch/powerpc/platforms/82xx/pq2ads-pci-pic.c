@@ -24,7 +24,7 @@
 
 #include "pq2.h"
 
-static DEFINE_SPINLOCK(pci_pic_lock);
+static DEFINE_RAW_SPINLOCK(pci_pic_lock);
 
 struct pq2ads_pci_pic {
 	struct device_node *node;
@@ -45,12 +45,12 @@ static void pq2ads_pci_mask_irq(unsigned int virq)
 
 	if (irq != -1) {
 		unsigned long flags;
-		spin_lock_irqsave(&pci_pic_lock, flags);
+		raw_spin_lock_irqsave(&pci_pic_lock, flags);
 
 		setbits32(&priv->regs->mask, 1 << irq);
 		mb();
 
-		spin_unlock_irqrestore(&pci_pic_lock, flags);
+		raw_spin_unlock_irqrestore(&pci_pic_lock, flags);
 	}
 }
 
@@ -62,9 +62,9 @@ static void pq2ads_pci_unmask_irq(unsigned int virq)
 	if (irq != -1) {
 		unsigned long flags;
 
-		spin_lock_irqsave(&pci_pic_lock, flags);
+		raw_spin_lock_irqsave(&pci_pic_lock, flags);
 		clrbits32(&priv->regs->mask, 1 << irq);
-		spin_unlock_irqrestore(&pci_pic_lock, flags);
+		raw_spin_unlock_irqrestore(&pci_pic_lock, flags);
 	}
 }
 

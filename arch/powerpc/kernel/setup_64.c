@@ -144,9 +144,9 @@ early_param("smt-enabled", early_smt_enabled);
 #endif /* CONFIG_SMP */
 
 /* Put the paca pointer into r13 and SPRG_PACA */
-void __init setup_paca(int cpu)
+static void __init setup_paca(struct paca_struct *new_paca)
 {
-	local_paca = &paca[cpu];
+	local_paca = new_paca;
 	mtspr(SPRN_SPRG_PACA, local_paca);
 #ifdef CONFIG_PPC_BOOK3E
 	mtspr(SPRN_SPRG_TLB_EXFRAME, local_paca->extlb);
@@ -176,14 +176,12 @@ void __init early_setup(unsigned long dt_ptr)
 {
 	/* -------- printk is _NOT_ safe to use here ! ------- */
 
-	/* Fill in any unititialised pacas */
-	initialise_pacas();
-
 	/* Identify CPU type */
 	identify_cpu(0, mfspr(SPRN_PVR));
 
 	/* Assume we're on cpu 0 for now. Don't write to the paca yet! */
-	setup_paca(0);
+	initialise_paca(&boot_paca, 0);
+	setup_paca(&boot_paca);
 
 	/* Initialize lockdep early or else spinlocks will blow */
 	lockdep_init();
@@ -203,7 +201,7 @@ void __init early_setup(unsigned long dt_ptr)
 	early_init_devtree(__va(dt_ptr));
 
 	/* Now we know the logical id of our boot cpu, setup the paca. */
-	setup_paca(boot_cpuid);
+	setup_paca(&paca[boot_cpuid]);
 
 	/* Fix up paca fields required for the boot cpu */
 	get_paca()->cpu_start = 1;

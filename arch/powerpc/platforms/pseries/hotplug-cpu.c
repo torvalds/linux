@@ -122,44 +122,32 @@ static void pseries_mach_cpu_die(void)
 		if (!get_lppaca()->shared_proc)
 			get_lppaca()->donate_dedicated_cpu = 1;
 
-		printk(KERN_INFO
-			"cpu %u (hwid %u) ceding for offline with hint %d\n",
-			cpu, hwcpu, cede_latency_hint);
 		while (get_preferred_offline_state(cpu) == CPU_STATE_INACTIVE) {
 			extended_cede_processor(cede_latency_hint);
-			printk(KERN_INFO "cpu %u (hwid %u) returned from cede.\n",
-				cpu, hwcpu);
-			printk(KERN_INFO
-			"Decrementer value = %x Timebase value = %llx\n",
-			get_dec(), get_tb());
 		}
-
-		printk(KERN_INFO "cpu %u (hwid %u) got prodded to go online\n",
-			cpu, hwcpu);
 
 		if (!get_lppaca()->shared_proc)
 			get_lppaca()->donate_dedicated_cpu = 0;
 		get_lppaca()->idle = 0;
+
+		if (get_preferred_offline_state(cpu) == CPU_STATE_ONLINE) {
+			unregister_slb_shadow(hwcpu, __pa(get_slb_shadow()));
+
+			/*
+			 * Call to start_secondary_resume() will not return.
+			 * Kernel stack will be reset and start_secondary()
+			 * will be called to continue the online operation.
+			 */
+			start_secondary_resume();
+		}
 	}
 
-	if (get_preferred_offline_state(cpu) == CPU_STATE_ONLINE) {
-		unregister_slb_shadow(hwcpu, __pa(get_slb_shadow()));
+	/* Requested state is CPU_STATE_OFFLINE at this point */
+	WARN_ON(get_preferred_offline_state(cpu) != CPU_STATE_OFFLINE);
 
-		/*
-		 * NOTE: Calling start_secondary() here for now to
-		 * start new context.
-		 * However, need to do it cleanly by resetting the
-		 * stack pointer.
-		 */
-		start_secondary();
-
-	} else if (get_preferred_offline_state(cpu) == CPU_STATE_OFFLINE) {
-
-		set_cpu_current_state(cpu, CPU_STATE_OFFLINE);
-		unregister_slb_shadow(hard_smp_processor_id(),
-					__pa(get_slb_shadow()));
-		rtas_stop_self();
-	}
+	set_cpu_current_state(cpu, CPU_STATE_OFFLINE);
+	unregister_slb_shadow(hwcpu, __pa(get_slb_shadow()));
+	rtas_stop_self();
 
 	/* Should never get here... */
 	BUG();
