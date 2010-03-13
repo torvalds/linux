@@ -88,7 +88,7 @@ static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
 			continue;
 		}
 		rdmsrl(msrs->controls[i].addr, val);
-		if (val & ARCH_PERFMON_EVENTSEL0_ENABLE)
+		if (val & ARCH_PERFMON_EVENTSEL_ENABLE)
 			op_x86_warn_in_use(i);
 		val &= model->reserved;
 		wrmsrl(msrs->controls[i].addr, val);
@@ -166,7 +166,7 @@ static void ppro_start(struct op_msrs const * const msrs)
 	for (i = 0; i < num_counters; ++i) {
 		if (reset_value[i]) {
 			rdmsrl(msrs->controls[i].addr, val);
-			val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+			val |= ARCH_PERFMON_EVENTSEL_ENABLE;
 			wrmsrl(msrs->controls[i].addr, val);
 		}
 	}
@@ -184,7 +184,7 @@ static void ppro_stop(struct op_msrs const * const msrs)
 		if (!reset_value[i])
 			continue;
 		rdmsrl(msrs->controls[i].addr, val);
-		val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
+		val &= ~ARCH_PERFMON_EVENTSEL_ENABLE;
 		wrmsrl(msrs->controls[i].addr, val);
 	}
 }

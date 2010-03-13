@@ -62,7 +62,7 @@ static void p6_pmu_disable_all(void)
 
 	/* p6 only has one enable register */
 	rdmsrl(MSR_P6_EVNTSEL0, val);
-	val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
+	val &= ~ARCH_PERFMON_EVENTSEL_ENABLE;
 	wrmsrl(MSR_P6_EVNTSEL0, val);
 }
 
@@ -72,7 +72,7 @@ static void p6_pmu_enable_all(void)
 
 	/* p6 only has one enable register */
 	rdmsrl(MSR_P6_EVNTSEL0, val);
-	val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+	val |= ARCH_PERFMON_EVENTSEL_ENABLE;
 	wrmsrl(MSR_P6_EVNTSEL0, val);
 }
 
@@ -83,7 +83,7 @@ p6_pmu_disable_event(struct hw_perf_event *hwc, int idx)
 	u64 val = P6_NOP_EVENT;
 
 	if (cpuc->enabled)
-		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+		val |= ARCH_PERFMON_EVENTSEL_ENABLE;
 
 	(void)checking_wrmsrl(hwc->config_base + idx, val);
 }
@@ -95,7 +95,7 @@ static void p6_pmu_enable_event(struct hw_perf_event *hwc, int idx)
 
 	val = hwc->config;
 	if (cpuc->enabled)
-		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+		val |= ARCH_PERFMON_EVENTSEL_ENABLE;
 
 	(void)checking_wrmsrl(hwc->config_base + idx, val);
 }

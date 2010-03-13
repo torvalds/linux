@@ -10,7 +10,6 @@
  * (display/resolving)
  */
 struct arch_hw_breakpoint {
-	char		*name; /* Contains name of the symbol to set bkpt */
 	unsigned long	address;
 	u8		len;
 	u8		type;

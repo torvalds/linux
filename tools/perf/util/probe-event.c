@@ -508,8 +508,8 @@ void show_perf_probe_events(void)
 	struct str_node *ent;
 
 	setup_pager();
-
 	memset(&pp, 0, sizeof(pp));
+
 	fd = open_kprobe_events(O_RDONLY, 0);
 	rawlist = get_trace_kprobe_event_rawlist(fd);
 	close(fd);
