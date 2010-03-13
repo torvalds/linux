@@ -1,0 +1,170 @@
+#!/usr/bin/make -f
+#
+# $(DEBIAN)/rules for Ubuntu linux
+#
+# Use this however you want, just give credit where credit is due.
+#
+# Copyright (c) 2007 Ben Collins <bcollins@ubuntu.com>
+#
+
+DEBIAN=$(shell awk -F= '($$1 == "DEBIAN") { print $$2 }' <debian/debian.env)
+
+# dpkg-buildpackage passes options that are incomptatible
+# with the kernel build.
+unexport CFLAGS
+unexport LDFLAGS
+
+export LC_ALL=C
+export SHELL=/bin/bash -e
+
+# Where do we find the common configuration.
+export DROOT=debian
+
+# Common variables for all architectures
+include $(DROOT)/rules.d/0-common-vars.mk
+
+# Pull in some arch specific stuff
+-include $(DEBIAN)/rules.d/$(arch).mk
+
+# Pull in some branch specific stuff. Used by LTS backport
+# branches to override master branch settings such as do_tools_common.
+-include $(DEBIAN)/rules.d/hooks.mk
+
+# Maintainer targets
+include $(DROOT)/rules.d/1-maintainer.mk
+
+do_linux_tools=$(sort $(filter-out false,$(do_tools_usbip) $(do_tools_cpupower) $(do_tools_perf) $(do_tools_x86)))
+do_cloud_tools=$(sort $(filter-out false,$(do_tools_hyperv)))
+do_tools_common=true
+
+# Don't build tools or udebs in a cross compile environment.
+ifneq ($(DEB_HOST_ARCH),$(DEB_BUILD_ARCH))
+	do_tools=false
+	disable_d_i=true
+	do_zfs=false
+	do_zfs_disable:=$(shell cat $(DROOT)/zfs-modules.ignore >>$(prev_abidir)/../modules.ignore)
+endif
+
+# Stages -- support both DEB_STAGE=stage1 and DEB_BUILD_PROFILE=bootstrap
+ifeq ($(DEB_STAGE),stage1)
+    DEB_BUILD_PROFILES=stage1
+endif
+ifneq ($(DEB_BUILD_PROFILE),)
+    DEB_BUILD_PROFILES=$(DEB_BUILD_PROFILE)
+endif
+ifneq ($(filter stage1,$(DEB_BUILD_PROFILES)),)
+    do_tools=false
+    do_doc_package=false
+    do_source_package=false
+    do_flavour_image_package=false
+    do_flavour_header_package=false
+endif
+
+# Being used to build a mainline build -- turn off things which do not work.
+ifeq ($(do_mainline_build),true)
+	do_extras_package=false
+	do_tools=false
+	no_dumpfile=1
+	do_zfs=false
+endif
+
+# Disable tools build and packaging if do_tools != true
+ifneq ($(do_tools),true)
+	do_linux_tools=
+	do_cloud_tools=
+	do_tools_common=
+endif
+
+# Either tools package needs the common source preparation
+do_any_tools=$(sort $(filter-out false,$(do_linux_tools) $(do_cloud_tools)))
+
+# autopkgtest -- rebuild support
+#  only build the first flavour on the assumption it is representative
+ifeq ($(DEB_BUILD_PROFILE),autopkgtest)
+flavours := $(firstword $(flavours))
+endif
+
+# Debian Build System targets
+binary: binary-indep binary-arch
+
+build: build-arch build-indep
+
+clean: debian/control
+	dh_testdir
+	dh_testroot
+	dh_clean
+
+	# d-i stuff
+	rm -rf $(DEBIAN)/d-i-$(arch)
+	# Generated on the fly.
+	rm -f $(DEBIAN)/d-i/firmware/$(arch)/kernel-image
+
+	# normal build junk
+	rm -rf $(DEBIAN)/abi/$(release)-$(revision)
+	rm -rf $(builddir)
+	rm -f $(stampdir)/stamp-*
+	rm -rf $(DEBIAN)/linux-*
+
+	# This gets rid of the d-i packages in control
+	cp -f $(DEBIAN)/control.stub $(DROOT)/control
+	cp $(DEBIAN)/changelog debian/changelog
+
+	# Install the copyright information.
+	cp $(DEBIAN)/copyright debian/copyright
+
+	# If we have a reconstruct script use it.
+	[ -f $(DEBIAN)/reconstruct ] && bash $(DEBIAN)/reconstruct
+
+	# Remove generated intermediate files
+	rm -f $(DROOT)/control.stub $(DEBIAN)/control.stub
+
+distclean: clean
+	rm -rf $(DROOT)/control debian/changelog \
+		debian/control debian/control.stub debian/copyright
+
+# Builds the image, arch headers and debug packages
+include $(DROOT)/rules.d/2-binary-arch.mk
+
+# Rules for building the udebs ($(DEBIAN)-installer)
+include $(DROOT)/rules.d/5-udebs.mk
+
+# Builds the source, doc and linux-headers indep packages
+include $(DROOT)/rules.d/3-binary-indep.mk
+
+# Various checks to be performed on builds
+include $(DROOT)/rules.d/4-checks.mk
+
+# Misc stuff
+.PHONY: $(DEBIAN)/control.stub
+$(DEBIAN)/control.stub: 				\
+		$(DROOT)/scripts/control-create		\
+		$(DEBIAN)/control.stub.in			\
+		$(DEBIAN)/changelog			\
+		$(wildcard $(DEBIAN)/control.d/* $(DEBIAN)/sub-flavours/*.vars)
+	for i in $(DEBIAN)/control.stub.in; do					\
+	  new=`echo $$i | sed 's/\.in$$//'`;					\
+	  cat $$i | sed -e 's/PKGVER/$(release)/g'                              \
+	        -e 's/ABINUM/$(abinum)/g'                                       \
+		-e 's/SRCPKGNAME/$(src_pkg_name)/g'                             \
+		-e 's/=HUMAN=/$(human_arch)/g'                                    \
+	  > $$new;								\
+	done
+	flavours="$(sort $(wildcard $(DEBIAN)/control.d/vars.* $(DEBIAN)/sub-flavours/*.vars))";\
+	for i in $$flavours; do							\
+	  $(SHELL) $(DROOT)/scripts/control-create $$i |				\
+		sed -e 's/PKGVER/$(release)/g'                                  \
+		-e 's/ABINUM/$(abinum)/g'                                       \
+		-e 's/SRCPKGNAME/$(src_pkg_name)/g'                             \
+		-e 's/=HUMAN=/$(human_arch)/g'                                    \
+		>> $(DEBIAN)/control.stub;						\
+	done
+
+.PHONY: debian/control
+debian/control: $(DEBIAN)/control.stub
+	echo "# placebo control.stub for kernel-wedge flow change" >debian/control.stub
+	cp $(DEBIAN)/control.stub debian/control
+	export KW_DEFCONFIG_DIR=$(DEBIAN)/d-i && \
+	export KW_CONFIG_DIR=$(DEBIAN)/d-i && \
+	LANG=C kernel-wedge gen-control $(release)-$(abinum) | \
+		perl -f $(DROOT)/scripts/misc/kernel-wedge-arch.pl $(arch) \
+		>>$(CURDIR)/debian/control

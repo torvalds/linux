@@ -23,8 +23,12 @@ quiet_cmd_modules_install = INSTALL $@
     mkdir -p $(2) ; \
     cp $@ $(2) ; \
     $(mod_strip_cmd) $(2)/$(notdir $@) ; \
-    $(mod_sign_cmd) $(2)/$(notdir $@) $(patsubst %,|| true,$(KBUILD_EXTMOD)) && \
-    $(mod_compress_cmd) $(2)/$(notdir $@)
+    if (echo "$(2)/$(notdir $@)" | egrep -q "\/drivers\/staging\/") && \
+	[ -f $(CURDIR)/drivers/staging/signature-inclusion ] && \
+	(! egrep -x "$(2)/$(notdir $@)" $(CURDIR)/drivers/staging/signature-inclusion) ; \
+	then echo Not signing "$(2)/$(notdir $@)"; \
+	else $(mod_sign_cmd) $(2)/$(notdir $@) $(patsubst %,|| true,$(KBUILD_EXTMOD)) && \
+		$(mod_compress_cmd) $(2)/$(notdir $@); fi
 
 # Modules built outside the kernel source tree go into extra by default
 INSTALL_MOD_DIR ?= extra

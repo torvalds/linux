@@ -1,0 +1,125 @@
+#!/usr/bin/python3
+
+import os
+import sys
+
+import codecs
+import urllib.request
+import json
+
+import textwrap
+
+sys.stdin = codecs.getreader("utf-8")(sys.stdin.detach())
+sys.stdout = codecs.getwriter("utf-8")(sys.stdout.detach())
+
+entries = []
+def add_entry(entry):
+    if entry and 'ignore' not in entry:
+        if 'bugs' not in entry and 'cves' in entry:
+            for cve in entry['cves']:
+                if cve not in bugs:
+                    bugs.append(cve)
+        entries.append(entry)
+
+# Suck up the git log output and extract the information we need.
+bugs = []
+entry = None
+subject_wait = False
+for line in sys.stdin:
+    if line.startswith('commit '):
+        add_entry(entry)
+        entry = {}
+        subject_wait = True
+
+    elif line.startswith('Author: '):
+        bits = line.strip().split(maxsplit=1)
+        entry['author'] = bits[1]
+
+    elif subject_wait and line.startswith('    '):
+        subject_wait = False
+        entry['subject'] = line.strip()
+
+    elif line.startswith('    BugLink: ') and 'launchpad.net' in line:
+        bits = line.strip().split(maxsplit=1)
+        bits = bits[1].split('/')
+        entry.setdefault('bugs', []).append(bits[-1])
+
+        # Accumulate bug numbers.
+        if bits[-1] not in bugs:
+            bugs.append(bits[-1])
+
+    elif line.startswith('    CVE-'):
+        entry.setdefault('cves', []).append(line.strip())
+
+    elif line.startswith('    Ignore:'):
+        entry['ignore'] = True
+
+add_entry(entry)
+
+entries.reverse()
+
+# Go through the entries and clear out authors for upstream commits.
+for entry in entries:
+    if entry['subject'].startswith('UBUNTU:'):
+        entry['subject'] = entry['subject'][7:].strip()
+    else:
+        del entry['author']
+
+# Lump everything without a bug at the bottom.
+bugs.append('__packaging__')
+bugs.append('__mainline__')
+
+emit_nl = False
+for bug in bugs:
+    if bug == '__packaging__':
+        title = 'Miscellaneous Ubuntu changes'
+    elif bug == '__mainline__':
+        title = 'Miscellaneous upstream changes'
+    elif bug.startswith('CVE-'):
+        title = bug
+    else:
+        bug_info = None
+
+        try:
+            #urllib.request.urlcleanup()
+            request = urllib.request.Request('https://api.launchpad.net/devel/bugs/' + bug)
+            request.add_header('Cache-Control', 'max-age=0')
+            with urllib.request.urlopen(request) as response:
+                data = response.read()
+                bug_info = json.loads(data.decode('utf-8'))
+            
+            title = bug_info['title']
+            if 'description' in bug_info:
+                for line in bug_info['description'].split('\n'):
+                    if line.startswith('Kernel-Description:'):
+                        title = line.split(' ', 1)[1]
+
+        except urllib.error.HTTPError:
+            title = 'INVALID or PRIVATE BUG'
+
+        title += ' (LP###' + bug + ')'
+
+    emit_title = True
+    for entry in entries:
+        if (bug == '__packaging__' and 'bugs' not in entry and 'cves' not in entry and 'author' in entry) or \
+           (bug == '__mainline__' and 'bugs' not in entry and 'cves' not in entry and 'author' not in entry) or \
+           ('bugs' in entry and bug in entry['bugs']) or \
+           ('cves' in entry and bug in entry['cves']):
+            if emit_title:
+                if emit_nl:
+                    print('')
+                emit_nl = True
+
+                title_lines = textwrap.wrap(title, 76)
+                print('  * ' + title_lines[0].replace('LP###', 'LP: #'))
+                for line in title_lines[1:]:
+                    line = line.replace('LP###', 'LP: #')
+                    print('    ' + line)
+
+                emit_title = False
+            title_lines = textwrap.wrap(entry['subject'], 76)
+            print('    - ' + title_lines[0])
+            for line in title_lines[1:]:
+                line = line.replace('LP###', 'LP: #')
+                print('      ' + line)
+

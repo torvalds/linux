@@ -1,0 +1,22 @@
+# On Azure/Hyper-V systems start the hv_vss_daemon
+#
+description "Hyper-V VSS Protocol Daemon"
+author "Ben Howard <ben.howard@canonical.com>"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+console log
+
+pre-start script
+        if [ -e "/etc/default/hv-kvp-daemon-init" ]; then
+                . /etc/default/hv-kvp-daemon-init
+        fi
+        [ "$RUN_VSS_DAEMON" -eq 0 ] && { stop; exit 0; }
+	if [ -d /sys/class/dmi/id/. ]; then
+		read company </sys/class/dmi/id/sys_vendor
+		read product </sys/class/dmi/id/product_name
+		[ "$company:$product" = 'Microsoft Corporation:Virtual Machine' ] || { stop; exit 0; }
+	fi
+end script
+
+exec /usr/sbin/hv_vss_daemon -n

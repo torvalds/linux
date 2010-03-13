@@ -1,0 +1,58 @@
+#!/usr/bin/perl
+
+if ($#ARGV != 2) {
+	die "Usage: $0 <changelog> <stop at> <start at>\n";
+}
+my ($changelog, $end, $start) = @ARGV;
+
+$end =~ s/.*\.//;
+$start =~ s/.*\.//;
+
+my @changes = ();
+my $output = 0;
+open(CHG, "<debian.master/changelog") ||
+	open(CHG, "<debian/changelog") ||
+	die "$0: debian/changelog: open failed - $!\n";
+while (<CHG>) {
+	if (/^\S+\s+\((.*\.(\d+))\)/) {
+		if ($2 <= $end) {
+			last;
+		}
+		if ($2 == $start) {
+			$output = 1;
+		}
+		if ($output) {
+			push(@changes, "\n  [ Ubuntu: $1 ]\n\n");
+			next;
+		}
+	}
+	next if ($output == 0);
+
+	next if (/^\s*$/);
+	next if (/^\s--/);
+	next if (/^\s\s[^\*\s]/);
+
+	push(@changes, $_);
+}
+close(CHG);
+
+open(CHANGELOG, "< $changelog") or die "Cannot open changelog";
+open(NEW, "> $changelog.new") or die "Cannot open new changelog";
+
+$printed = 3;
+while (<CHANGELOG>) {
+	if (/^  CHANGELOG: /) {
+		$printed--;
+		print NEW;
+		if ($printed == 0) {
+			print NEW @changes;
+		}
+		next;
+	}
+	print NEW;
+}
+
+close(NEW);
+close(CHANGELOG);
+
+rename("$changelog.new", "$changelog");

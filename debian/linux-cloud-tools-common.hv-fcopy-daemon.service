@@ -1,0 +1,12 @@
+# On Azure/Hyper-V systems start the hv_fcopy_daemon
+#
+# author "Andy Whitcroft <apw@canonical.com>"
+[Unit]
+Description=Hyper-V File Copy Protocol Daemon
+ConditionVirtualization=microsoft
+
+[Service]
+ExecStart=/usr/sbin/hv_fcopy_daemon -n
+
+[Install]
+WantedBy=multi-user.target

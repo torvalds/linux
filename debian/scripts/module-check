@@ -1,0 +1,120 @@
+#!/usr/bin/perl -w
+
+$flavour = shift;
+$prev_abidir = shift;
+$abidir = shift;
+$skipmodule = shift;
+
+print "II: Checking modules for $flavour...";
+
+if (-f "$prev_abidir/ignore.modules"
+    or -f "$prev_abidir/$flavour.ignore.modules") {
+	print "explicitly ignoring modules\n";
+	exit(0);
+}
+
+if (not -f "$abidir/$flavour.modules" or not -f
+    "$prev_abidir/$flavour.modules") {
+	print "previous or current modules file missing!\n";
+	print "   $abidir/$flavour.modules\n";
+	print "   $prev_abidir/$flavour.modules\n";
+	if (defined($skipmodule)) {
+		exit(0);
+	} else {
+		exit(1);
+	}
+}
+
+print "\n";
+
+my %modules;
+my %modules_ignore;
+my $missing = 0;
+my $new = 0;
+my $errors = 0;
+
+# See if we have any ignores
+if (-f "$prev_abidir/../modules.ignore") {
+	my $ignore = 0;
+	open(IGNORE, "< $prev_abidir/../modules.ignore") or
+		die "Could not open $prev_abidir/../modules.ignore";
+	print "   reading modules to ignore...";
+	while (<IGNORE>) {
+		chomp;
+		next if /\s*#/;
+		$modules_ignore{$_} = 1;
+		$ignore++;
+	}
+	close(IGNORE);
+	print "read $ignore modules.\n";
+}
+
+# Read new modules first
+print "   reading new modules...";
+$new_count = 0;
+open(NEW, "< $abidir/$flavour.modules") or
+	die "Could not open $abidir/$flavour.modules";
+while (<NEW>) {
+	chomp;
+	$modules{$_} = 1;
+	$new_count++;
+}
+close(NEW);
+print "read $new_count modules.\n";
+
+# Now the old modules, checking for missing ones
+print "   reading old modules...";
+$old_count = 0;
+open(OLD, "< $prev_abidir/$flavour.modules") or
+	die "Could not open $prev_abidir/$flavour.modules";
+while (<OLD>) {
+	chomp;
+	if (not defined($modules{$_})) {
+		print "\n" if not $missing;
+		$missing++;
+		if (not defined($modules_ignore{$_})) {
+			print "      MISS: $_\n";
+			$errors++;
+		} else {
+			print "      MISS: $_ (ignored)\n";
+		}
+	} else {
+		$modules{$_}++;
+	}
+	$old_count++;
+}
+close(OLD);
+# Check for new modules
+foreach $mod (keys(%modules)) {
+	if ($modules{$mod} < 2) {
+		print "\n" if not $missing and not $new;
+		print "      NEW : $mod\n";
+		$new++;
+	}
+}
+if ($new or $missing) {
+	print "      read $old_count modules : new($new)  missing($missing)\n";
+} else {
+	print "read $old_count modules.\n";
+}
+
+
+# Let's see where we stand...
+if ($errors) {
+	if (defined($skipmodule)) {
+		print "WW: Explicitly asked to ignore failures (probably not good)\n";
+	} else {
+		print "EE: Missing modules (start begging for mercy)\n";
+		exit 1
+	}
+}
+
+if ($new) {
+	print "II: New modules (you've been busy, wipe the poop off your nose)\n";
+} else {
+	print "II: No new modules (hope you're happy, slacker)\n";
+}
+
+print "II: Done\n";
+
+exit(0);

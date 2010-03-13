@@ -1,0 +1,91 @@
+#!/bin/bash
+#
+# Find all duplicate or obsolete firmware that is being carried
+# in the kernel firmware directory. Compare these files against
+# the linux-firmware package for the approriate release. For example,
+# assuming this is raring, then compare the kernel firmware files
+# against the raring branch of linux-firmware.
+#
+# Example: $0 ~/ubuntu/linux-firmware-raring
+
+USEAGE="$0 LINUX-FIRMWARE"
+
+. debian/debian.env
+
+NFWINFO="`find $DEBIAN -name fwinfo|wc -l`"
+if [ ! "$NFWINFO" = "1" ]
+then
+	echo Your repo is hosed. There can only be one fwinfo file.
+	find $DEBIAN -name fwinfo
+	exit 1
+fi
+
+FWINFO="`pwd`/`find $DEBIAN -name fwinfo`"
+
+if [ "$1" = "" ]
+then
+	echo $USEAGE
+	exit 1
+fi
+FW="$1"
+
+if [ ! -f $FW/WHENCE ]
+then
+	echo Bogus linux-firmware directory
+	exit 1
+fi
+if ! egrep -q "^firmware:" $FWINFO
+then
+	echo Bogus firmware info file
+	exit 1
+fi
+
+#
+# Prepare the tree and make firmware.
+#
+TEE="tee -a"
+LO=`pwd`/firmware.txt
+LF=`pwd`/lib/firmware
+rm -rf debian/build $LF $LO
+fakeroot debian/rules clean prepare-generic
+cp debian/build/build-generic/.config .
+mkdir -p $LF
+make firmware_install INSTALL_MOD_PATH=`pwd`
+
+(cd $LF
+find . -type f | while read f
+do
+	BN="`basename $f`"
+
+	if ! grep -q $BN $FWINFO
+	then
+		echo "Unused firmware: $f" | $TEE $LO
+	else
+		if [ -f $FW/$f ]
+		then
+			if ! cmp $FW/$f $f
+			then
+				echo "$f differs" | $TEE $LO
+			else
+				echo "$f is duplicated" | $TEE $LO
+			fi
+		else
+			echo "$f does not exist in $FW" | $TEE $LO
+		fi
+	fi
+done)
+
+#
+# Check for firmware files referenced by the kernel
+# that do not exist in either location.
+#
+cat $FWINFO | while read fwi f
+do
+	if [ -s lib/firmware/$f ] || [ -s $FW/$f ]
+	then
+		continue
+	else
+		echo "Missing firmware $f" | $TEE $LO
+	fi
+done
+

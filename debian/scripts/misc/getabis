@@ -1,0 +1,135 @@
+#!/bin/bash
+
+if [ "$#" != "2" ]; then
+	echo "Usage: $0 <release> <revision>" 1>&2
+	exit 1
+fi
+
+if [ "$DEBIAN" = "" ]; then
+	. debian/debian.env
+fi
+
+ver=$1
+revision=$2
+abi=$(echo $revision | sed -r -e 's/([^\+~]*)\.[^\.]+(~.*)?(\+.*)?$/\1/')
+
+verabi=$ver-$abi
+verfull=$ver-$revision
+
+WGET="wget --tries=1 --timeout=10 --quiet -c"
+
+abidir="`pwd`/$DEBIAN/abi/$verfull"
+tmpdir="`pwd`/abi-tmp-$verfull"
+origdir="`pwd`"
+fwinfo=$abidir/fwinfo
+
+test -d $tmpdir || mkdir $tmpdir
+
+package_prefixes() {
+	__package_prefixes="$@"
+}
+
+getall() {
+	arch=$1
+	shift
+
+	mkdir -p $abidir/$arch
+
+	for sub in $@; do
+		if [ -f $abidir/$arch/$sub ]; then
+			echo "Exists: $sub"
+			continue
+		fi
+		echo -n "Fetching $sub($arch)..."
+		prefixes=""
+		filenames=""
+		cd $tmpdir
+		for prefix in $__package_prefixes
+		do
+			filename=${prefix}-${verabi}-${sub}_${verfull}_${arch}.deb
+			for r in "${repo_list[@]}"
+			do
+				if ! [ -f $filename ]; then
+					$WGET $r/$filename
+				fi
+				if [ -f $filename ]; then
+					prefixes="$prefixes $prefix"
+					filenames="$filenames $filename"
+					break
+				fi
+			done
+		done
+		if [ "$filenames" != "" ]; then
+			echo -n "extracting$prefixes..."
+			for filename in $filenames
+			do
+				dpkg-deb --extract $filename tmp
+			done
+			find tmp -name "*.ko" | while read f; do
+				modinfo $f | grep ^firmware >> $fwinfo
+			done
+			if [ -f tmp/boot/abi-* ]; then
+				mv tmp/boot/abi-* $abidir/$arch/$sub
+			else
+				echo -n "NO ABI FILE..."
+			fi
+			(cd tmp; find lib/modules/$verabi-$sub/kernel -name '*.ko') | \
+				sed -e 's/.*\/\([^\/]*\)\.ko/\1/' | sort > \
+				$abidir/$arch/$sub.modules
+			(
+				cd tmp;
+				# Prevent exposing some errors when called by python scripts. SIGPIPE seems to get
+				# exposed when using the `find ...` form of the command.
+				ko=$(find lib/modules/$verabi-$sub/kernel \
+					-name '*.ko' | head -1)
+				readelf -p .comment "$ko" | gawk '
+					($1 == "[") {
+						printf("%s", $3);
+						for (n=4; n<=NF; n++) {
+							printf(" %s", $n);
+						}
+						print ""
+					}' | sort -u >$abidir/$arch/$sub.compiler
+				version=`cat $abidir/$arch/$sub.compiler`
+				echo -n "$version..."
+			)
+			rm -rf tmp $filenames
+			echo "done."
+		else
+			echo "FAILED."
+		fi
+		cd $origdir
+	done
+}
+
+# MAIN
+
+# Setup abi directory
+mkdir -p $abidir
+echo $abi > $abidir/abiname
+
+# NOTE: The flavours are hardcoded, because they may have changed from the
+# current build.
+
+__package_prefixes="linux-image"
+
+. $DEBIAN/etc/getabis
+
+# Extract compiler source package version from e.g.:
+#   GCC: (Ubuntu/Linaro 4.8.2-19ubuntu1) 4.8.2
+compilers=`sed 's/^.*(.* \(.*\)).*$/\1/' $abidir/*/*.compiler | sort -u | wc -l`
+if [ "$compilers" != 1 ]; then
+	echo "WARNING: inconsistent compiler versions detected:" 1>&2
+	sort -u $abidir/*/*.compiler | sed 's/^/WARNING:    /' 1>&2
+fi
+
+sort < $fwinfo | uniq > fwinfo.tmp
+mv fwinfo.tmp $fwinfo
+
+rmdir $tmpdir
+
+# If this is running in a git repo, add the new ABI directory, remove the old
+if [ -d ".git" ]; then
+    git add $abidir
+    find $DEBIAN/abi/* -maxdepth 0 -type d | grep -v $verfull | while read f; do git rm -r $f;done
+fi

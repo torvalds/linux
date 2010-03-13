@@ -1,0 +1,42 @@
+#!/bin/bash -e
+
+. debian/debian.env
+
+hdrdir="$1"
+symdir="$2"
+flavour="$3"
+
+echo "Symlinking and copying headers for $flavour..."
+
+excludes="( -path ./debian -prune -o -path ./${DEBIAN} -prune -o -path ./.git ) -prune -o"
+
+(
+find . $excludes  -type f \
+	\( -name 'Makefile*' -o -name 'Kconfig*' -o -name 'Kbuild*' -o \
+	-name '*.sh' -o -name '*.pl' -o -name '*.lds' \) -print
+find ./include ./scripts -name .gitignore -prune -o -type f -print
+find ./include -mindepth 1 -maxdepth 1 $excludes -type d -print
+) | (
+while read file; do
+	dir=$file
+	lastdir=$file
+
+	if [ -e "$hdrdir/$file" -o -L "$hdrdir/$file" ]; then
+		continue
+	fi
+
+	while [ ! -e "$hdrdir/$dir" -a ! -L "$hdrdir/$dir" ]; do
+		lastdir=$dir
+		dir=`dirname $dir`
+	done
+	# If the last item to exist is a symlink we assume all is good
+	if [ ! -L "$hdrdir/$dir" ]; then
+		# Turns things like "./foo" into "../"
+		deref="`echo -n $lastdir | sed -e 's/^\.//' -e's,/[^/]*,../,g'`"
+		item="`echo -n $lastdir | sed -e 's/^\.\///'`"
+		ln -s $deref$symdir/$item $hdrdir/$item
+	fi
+done
+)
+
+exit

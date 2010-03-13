@@ -1,0 +1,315 @@
+#! /usr/bin/perl
+#                              -*- Mode: Cperl -*-
+# image.preinst ---
+# Author           : Manoj Srivastava ( srivasta@tiamat.datasync.com )
+# Created On       : Sun Jun 14 03:38:02 1998
+# Created On Node  : tiamat.datasync.com
+# Last Modified By : Manoj Srivastava
+# Last Modified On : Sun Sep 24 14:04:42 2006
+# Last Machine Used: glaurung.internal.golden-gryphon.com
+# Update Count     : 99
+# Status           : Unknown, Use with caution!
+# HISTORY          :
+# Description      :
+#
+#
+
+#
+#use strict; #for debugging
+
+use Debconf::Client::ConfModule qw(:all);
+version('2.0');
+my $capb=capb("backup");
+
+$|=1;
+
+# Predefined values:
+my $version         = "=V";
+my $link_in_boot    = "";     # Should be empty, mostly
+my $no_symlink      = "";     # Should be empty, mostly
+my $reverse_symlink = "";     # Should be empty, mostly
+my $do_symlink      = "Yes";	# target machine defined
+my $do_boot_enable  = "Yes";	# target machine defined
+my $do_bootfloppy   = "Yes";	# target machine defined
+my $do_bootloader   = "Yes";	# target machine defined
+my $move_image      = '';       # target machine defined
+my $kimage          = "=K";     # Should be empty, mostly
+my $loader          = "=L";     # lilo, silo, quik, palo, vmelilo, nettrom
+                                # or elilo
+my $image_dir       = "/boot";     # where the image is located
+my $initrd          = "YES";     # initrd kernel
+my $use_hard_links  = '';       # hardlinks do not wirk across fs boundaries
+my $postinst_hook   = '';       #Normally we do not
+my $postrm_hook     = '';       #Normally we do not
+my $preinst_hook    = '';       #Normally we do not
+my $prerm_hook      = '';       #Normally we do not
+my $minimal_swap    = '';       # Do not swap symlinks
+my $ignore_depmod_err = '';    # normally we do not
+my $relink_src_link   = 'YES';	# There is no harm in checking the link
+my $relink_build_link = 'YES'; # There is no harm in checking the link
+my $force_build_link  = '';	 # There is no harm in checking the link
+my $kernel_arch       = "=B";
+my $ramdisk           = "/usr/sbin/update-initramfs";  # List of tools to create initial ram fs.
+my $package_name    = "linux-image-$version";
+
+my $Loader          = "NoLOADER"; #
+$Loader             = "LILO"     if $loader =~ /^lilo/io;
+$Loader             = "SILO"     if $loader =~ /^silo/io;
+$Loader             = "QUIK"     if $loader =~ /^quik/io;
+$Loader             = "yaboot"   if $loader =~ /^yaboot/io;
+$Loader             = "PALO"     if $loader =~ /^palo/io;
+$Loader             = "NETTROM"  if $loader =~ /^nettrom/io;
+$Loader             = "VMELILO"  if $loader =~ /^vmelilo/io;
+$Loader             = "ZIPL"     if $loader =~ /^zipl/io;
+$Loader             = "ELILO"    if $loader =~ /^elilo/io;
+
+
+#known variables
+my @boilerplate     = ();
+my @silotemplate    = ();
+my @quiktemplate    = ();
+my @palotemplate    = ();
+my @vmelilotemplate = ();
+my $bootdevice      = '';
+my $rootdevice      = '';
+my $rootdisk        = '';
+my $rootpartition   = '';
+my $image_dest      = "/";
+my $realimageloc    = "/$image_dir/";
+my $have_conffile   = "";
+my $CONF_LOC        = '/etc/kernel-img.conf';
+my $relative_links  = '';
+my $silent_loader   = '';
+my $warn_reboot     = '';        # Warn that we are installing a version of
+                                 # the kernel we are running
+
+my $modules_base    = '/lib/modules';
+
+die "Pre inst Internal error. Aborting." unless $version;
+
+exit 0 if $ARGV[0] =~ /abort-upgrade/;
+exit 1 unless $ARGV[0] =~ /(install|upgrade)/;
+
+$arch = `uname -i`;
+if ($arch =~ m/86/) {
+	system ("grep -q ' pae ' /proc/cpuinfo");
+	if ($?) {
+			print STDERR "This kernel does not support a non-PAE CPU.\n";
+			exit 1;
+	}
+}
+
+# remove multiple leading slashes; make sure there is at least one.
+$realimageloc  =~ s|^/*|/|o;
+$realimageloc  =~ s|/+|/|o;
+
+if (-r "$CONF_LOC" && -f "$CONF_LOC"  ) {
+  if (open(CONF, "$CONF_LOC")) {
+    while (<CONF>) {
+      chomp;
+      s/\#.*$//g;
+      next if /^\s*$/;
+
+      $do_symlink      = "" if /^\s*do_symlinks\s*=\s*(no|false|0)\s*$/ig;
+      $no_symlink      = "" if /^\s*no_symlinks\s*=\s*(no|false|0)\s*$/ig;
+      $reverse_symlink = "" if /^\s*reverse_symlinks\s*=\s*(no|false|0)\s*$/ig;
+      $link_in_boot    = "" if /^\s*image_in_boot\s*=\s*(no|false|0)\s*$/ig;
+      $link_in_boot    = "" if /^\s*link_in_boot\s*=\s*(no|false|0)\s*$/ig;
+      $move_image      = "" if /^\s*move_image\s*=\s*(no|false|0)\s*$/ig;
+      $do_boot_enable  = '' if /^\s*do_boot_enable\s*=\s*(no|false|0)\s*$/ig;
+      $do_bootfloppy   = '' if /^\s*do_bootfloppy\s*=\s*(no|false|0)\s*$/ig;
+      $do_bootloader   = '' if /^\s*do_bootloader\s*=\s*(no|false|0)\s*$/ig;
+      $relative_links  = '' if /^\s*relative_links \s*=\s*(no|false|0)\s*$/ig;
+      $use_hard_links  = '' if /^\s*use_hard_links\s*=\s*(no|false|0)\s*$/ig;
+      $silent_loader   = '' if /^\s*silent_loader\s*=\s*(no|false|0)\s*$/ig;
+      $warn_reboot     = '' if /^\s*warn_reboot\s*=\s*(no|false|0)\s*$/ig;
+      $minimal_swap    = '' if /^\s*minimal_swap\s*=\s*(no|false|0)\s*$/ig;
+      $ignore_depmod_err = '' if /^\s*ignore_depmod_err\s*=\s*(no|false|0)\s*$/ig;
+      $relink_src_link   = '' if /^\s*relink_src_link\s*=\s*(no|false|0)\s*$/ig;
+      $relink_build_link = '' if /^\s*relink_build_link\s*=\s*(no|false|0)\s*$/ig;
+      $force_build_link = '' if /^\s*force_build_link\s*=\s*(no|false|0)\s*$/ig;
+
+      $do_symlink      = "Yes" if /^\s*do_symlinks\s*=\s*(yes|true|1)\s*$/ig;
+      $no_symlink      = "Yes" if /^\s*no_symlinks\s*=\s*(yes|true|1)\s*$/ig;
+      $reverse_symlink = "Yes" if /^\s*reverse_symlinks\s*=\s*(yes|true|1)\s*$/ig;
+      $link_in_boot    = "Yes" if /^\s*image_in_boot\s*=\s*(yes|true|1)\s*$/ig;
+      $link_in_boot    = "Yes" if /^\s*link_in_boot\s*=\s*(yes|true|1)\s*$/ig;
+      $move_image      = "Yes" if /^\s*move_image\s*=\s*(yes|true|1)\s*$/ig;
+      $do_boot_enable  = "Yes" if /^\s*do_boot_enable\s*=\s*(yes|true|1)\s*$/ig;
+      $do_bootfloppy   = "Yes" if /^\s*do_bootfloppy\s*=\s*(yes|true|1)\s*$/ig;
+      $do_bootloader   = "Yes" if /^\s*do_bootloader\s*=\s*(yes|true|1)\s*$/ig;
+      $relative_links  = "Yes" if /^\s*relative_links\s*=\s*(yes|true|1)\s*$/ig;
+      $use_hard_links  = "Yes" if /^\s*use_hard_links\s*=\s*(yes|true|1)\s*$/ig;
+      $silent_loader   = 'Yes' if /^\s*silent_loader\s*=\s*(yes|true|1)\s*$/ig;
+      $warn_reboot     = 'Yes' if /^\s*warn_reboot\s*=\s*(yes|true|1)\s*$/ig;
+      $minimal_swap    = 'Yes' if /^\s*minimal_swap\s*=\s*(yes|true|1)\s*$/ig;
+      $ignore_depmod_err = 'Yes' if /^\s*ignore_depmod_err\s*=\s*(yes|true|1)\s*$/ig;
+      $relink_src_link   = 'Yes' if /^\s*relink_src_link\s*=\s*(yes|true|1)\s*$/ig;
+      $relink_build_link = 'Yes' if /^\s*relink_build_link\s*=\s*(yes|true|1)\s*$/ig;
+      $force_build_link = 'Yes' if /^\s*force_build_link\s*=\s*(yes|true|1)\s*$/ig;
+
+      $image_dest      = "$1"  if /^\s*image_dest\s*=\s*(\S+)/ig;
+      $postinst_hook   = "$1"  if /^\s*postinst_hook\s*=\s*(\S+)/ig;
+      $postrm_hook     = "$1"  if /^\s*postrm_hook\s*=\s*(\S+)/ig;
+      $preinst_hook    = "$1"  if /^\s*preinst_hook\s*=\s*(\S+)/ig;
+      $prerm_hook      = "$1"  if /^\s*prerm_hook\s*=\s*(\S+)/ig;
+      $ramdisk         = "$1"  if /^\s*ramdisk\s*=\s*(.+)$/ig;
+    }
+    close CONF;
+    $have_conffile = "Yes";
+    $have_conffile = "Yes";	# stop perl complaining
+  }
+}
+
+$ENV{KERNEL_ARCH}=$kernel_arch if $kernel_arch;
+
+# About to upgrade this package from version $2 TO THIS VERSION.
+# "prerm upgrade" has already been called for the old version of
+# this package.
+
+sub find_initrd_tool {
+  my $hostversion = shift;
+  my $version = shift;
+  my @ramdisks =
+    grep {
+      my $args = 
+        "$_ " .
+          "--supported-host-version=$hostversion " .
+            "--supported-target-version=$version " .
+              "1>/dev/null 2>&1"
+                ;
+      system($args) == 0;
+    }
+      split (/[:,\s]+/, $ramdisk);
+}
+
+sub check {
+  my $version = shift;
+  my $lib_modules="$modules_base/$version";
+  my $message = '';
+
+  if (-d "$lib_modules") {
+    opendir(DIR, $lib_modules) || die "can’t opendir $lib_modules: $!";
+    my @children = readdir(DIR);
+    if ($#children > 1) {
+      my @dirs  = grep { -d "$lib_modules/$_" } @children;
+      if ($#dirs > 1) { # we have subdirs
+        my $dir_message='';
+        for my $dir (@dirs) {
+          if ($dir =~/kernel$/) {
+            $dir_message="An older install was detected.\n";
+          }
+          else {
+            $dir_message="Module sub-directories were detected.\n"
+              unless $dir_message;
+          }
+        }
+        $message += $dir_message if $dir_message;
+      }
+
+      my @links = grep { -l "$lib_modules/$_" } @children;
+      if ($#links > -1) {
+        my $links_message = '';
+        for my $link (@links) {
+          next if ($link =~ /^build$/);
+          next if ($link =~ /^source$/);
+          $links_message = "Symbolic links were detected in $modules_base/$version.\n";
+        }
+        $message += $links_message if $links_message;
+      }
+      my @files = grep { -f "$lib_modules/$_" } @children;
+      $message += "Additional files also exist in $modules_base/$version.\n"
+        if ($#files > -1);
+    }
+  }
+  else { $message .= "$lib_modules does not exist. ";}
+  return $message;
+}
+
+if (-d "$modules_base/$version") {
+  my $errors=check($version);
+  warn "Info:\n$errors\n" if $errors;
+}
+
+# set the env var stem
+$ENV{'STEM'} = "linux";
+
+sub exec_script {
+  my $type   = shift;
+  my $script = shift;
+  print STDERR "Running $type hook script $script.\n";
+  system ("$script $version $realimageloc$kimage-$version") &&
+    print STDERR "User $type hook script [$script] ";
+  if ($?) {
+    if ($? == -1) {
+      print STDERR "failed to execute: $!\n";
+    }
+    elsif ($? & 127) {
+      printf STDERR "died with signal %d, %s coredump\n",
+        ($? & 127),  ($? & 128) ? 'with' : 'without';
+    }
+    else {
+      printf STDERR "exited with value %d\n", $? >> 8;
+    }
+    exit $? >> 8;
+  }
+}
+sub run_hook {
+  my $type   = shift;
+  my $script = shift;
+  if ($script =~ m,^/,) {
+    # Full path provided for the hook script
+    if (-x "$script") {
+      &exec_script($type,$script);
+    }
+    else {
+      die "The provided $type hook script [$script] could not be run.\n";
+    }
+  }
+  else {
+    # Look for it in a safe path
+    for my $path ('/bin', '/sbin', '/usr/bin', '/usr/sbin') {
+      if (-x "$path/$script") {
+        &exec_script($type, "$path/$script");
+        return 0;
+      }
+    }
+    # No luck
+    print STDERR "Could not find $type hook script [$script].\n";
+    die "Looked in: '/bin', '/sbin', '/usr/bin', '/usr/sbin'\n";
+  }
+}
+
+
+my $options;
+for (@ARGV) {
+	s,','\\'',g;
+	$options .= " '$_'";
+}
+$ENV{'DEB_MAINT_PARAMS'}="$options";
+
+## Run user hook script here, if any
+if (-x "$preinst_hook") {
+  &run_hook("preinst", $preinst_hook);
+}
+if (-d "/etc/kernel/preinst.d") {
+  print STDERR "Examining /etc/kernel/preinst.d/\n";
+  system ("run-parts --verbose --exit-on-error --arg=$version" .
+          " --arg=$realimageloc$kimage-$version" .
+          " /etc/kernel/preinst.d") &&
+            die "Failed to process /etc/kernel/preinst.d";
+}
+if (-d "/etc/kernel/preinst.d/$version") {
+  print STDERR "Examining /etc/kernel/preinst.d/$version.\n";
+  system ("run-parts --verbose --exit-on-error --arg=$version" .
+          " --arg=$realimageloc$kimage-$version" .
+          " /etc/kernel/preinst.d/$version") &&
+            die "Failed to process /etc/kernel/preinst.d/$version";
+}
+print STDERR "Done.\n";
+
+exit 0;
+
+__END__
+
+
