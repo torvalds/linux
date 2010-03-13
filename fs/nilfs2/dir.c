@@ -396,7 +396,7 @@ nilfs_find_entry(struct inode *dir, const struct qstr *qstr,
 		/* next page is past the blocks we've got */
 		if (unlikely(n > (dir->i_blocks >> (PAGE_CACHE_SHIFT - 9)))) {
 			nilfs_error(dir->i_sb, __func__,
-			       "dir %lu size %lld exceeds block cout %llu",
+			       "dir %lu size %lld exceeds block count %llu",
 			       dir->i_ino, dir->i_size,
 			       (unsigned long long)dir->i_blocks);
 			goto out;
