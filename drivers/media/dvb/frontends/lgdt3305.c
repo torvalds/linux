@@ -955,6 +955,10 @@ static int lgdt3305_read_status(struct dvb_frontend *fe, fe_status_t *status)
 	switch (state->current_modulation) {
 	case QAM_256:
 	case QAM_64:
+		/* signal bit is unreliable on the DT3304 in QAM mode */
+		if (((LGDT3304 == state->cfg->demod_chip)) && (cr_lock))
+			*status |= FE_HAS_SIGNAL;
+
 		ret = lgdt3305_read_fec_lock_status(state, &fec_lock);
 		if (lg_fail(ret))
 			goto fail;
