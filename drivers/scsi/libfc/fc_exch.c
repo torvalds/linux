@@ -488,7 +488,7 @@ static int fc_seq_send(struct fc_lport *lport, struct fc_seq *sp,
 	 */
 	spin_lock_bh(&ep->ex_lock);
 	ep->f_ctl = f_ctl & ~FC_FC_FIRST_SEQ;	/* not first seq */
-	if (f_ctl & (FC_FC_END_SEQ | FC_FC_SEQ_INIT))
+	if (f_ctl & FC_FC_SEQ_INIT)
 		ep->esb_stat &= ~ESB_ST_SEQ_INIT;
 	spin_unlock_bh(&ep->ex_lock);
 	return error;
