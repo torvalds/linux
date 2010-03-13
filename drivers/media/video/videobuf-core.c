@@ -567,7 +567,7 @@ int videobuf_qbuf(struct videobuf_queue *q,
 		q->ops->buf_queue(q, buf);
 		spin_unlock_irqrestore(q->irqlock, flags);
 	}
-	dprintk(1, "qbuf: succeded\n");
+	dprintk(1, "qbuf: succeeded\n");
 	retval = 0;
 	wake_up_interruptible_sync(&q->wait);
 
