@@ -146,6 +146,7 @@ static int fcoe_vport_destroy(struct fc_vport *);
 static int fcoe_vport_create(struct fc_vport *, bool disabled);
 static int fcoe_vport_disable(struct fc_vport *, bool disable);
 static void fcoe_set_vport_symbolic_name(struct fc_vport *);
+static void fcoe_set_port_id(struct fc_lport *, u32, struct fc_frame *);
 
 static struct libfc_function_template fcoe_libfc_fcn_templ = {
 	.frame_send = fcoe_xmit,
@@ -153,6 +154,7 @@ static struct libfc_function_template fcoe_libfc_fcn_templ = {
 	.ddp_done = fcoe_ddp_done,
 	.elsct_send = fcoe_elsct_send,
 	.get_lesb = fcoe_get_lesb,
+	.lport_set_port_id = fcoe_set_port_id,
 };
 
 struct fc_function_template fcoe_transport_function = {
@@ -2630,4 +2632,26 @@ static void fcoe_get_lesb(struct fc_lport *lport,
 	lesb->lesb_vlink_fail = htonl(vlfc);
 	lesb->lesb_miss_fka = htonl(mdac);
 	lesb->lesb_fcs_error = htonl(dev_get_stats(netdev)->rx_crc_errors);
+}
+
+/**
+ * fcoe_set_port_id() - Callback from libfc when Port_ID is set.
+ * @lport: the local port
+ * @port_id: the port ID
+ * @fp: the received frame, if any, that caused the port_id to be set.
+ *
+ * This routine handles the case where we received a FLOGI and are
+ * entering point-to-point mode.  We need to call fcoe_ctlr_recv_flogi()
+ * so it can set the non-mapped mode and gateway address.
+ *
+ * The FLOGI LS_ACC is handled by fcoe_flogi_resp().
+ */
+static void fcoe_set_port_id(struct fc_lport *lport,
+			     u32 port_id, struct fc_frame *fp)
+{
+	struct fcoe_port *port = lport_priv(lport);
+	struct fcoe_interface *fcoe = port->fcoe;
+
+	if (fp && fc_frame_payload_op(fp) == ELS_FLOGI)
+		fcoe_ctlr_recv_flogi(&fcoe->ctlr, lport, fp);
 }
