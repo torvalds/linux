@@ -470,8 +470,8 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
  *
  * %-ENOMEM - Insufficient memory available.
  */
-int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
-		       struct the_nilfs *nilfs)
+static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
+			      struct the_nilfs *nilfs)
 {
 	struct nilfs_write_info wi;
 	struct buffer_head *bh;
@@ -514,7 +514,7 @@ int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
  *
  * %-EIO - I/O error
  */
-int nilfs_segbuf_wait(struct nilfs_segment_buffer *segbuf)
+static int nilfs_segbuf_wait(struct nilfs_segment_buffer *segbuf)
 {
 	int err = 0;
 
