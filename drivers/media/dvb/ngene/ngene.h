@@ -752,6 +752,7 @@ struct ngene {
 	spinlock_t            cmd_lock;
 
 	struct dvb_adapter    adapter[MAX_STREAM];
+	struct dvb_adapter    *first_adapter; /* "one_adapter" modprobe opt */
 	struct ngene_channel  channel[MAX_STREAM];
 
 	struct ngene_info    *card_info;

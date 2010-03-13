@@ -1750,7 +1750,7 @@ static int init_channel(struct ngene_channel *chan)
 	if (io & (NGENE_IO_TSIN | NGENE_IO_TSOUT)) {
 		if (nr >= STREAM_AUDIOIN1)
 			chan->DataFormatFlags = DF_SWAP32;
-		if (nr == 0 || !one_adapter) {
+		if (nr == 0 || !one_adapter || dev->first_adapter == NULL) {
 			adapter = &dev->adapter[nr];
 			ret = dvb_register_adapter(adapter, "nGene",
 						   THIS_MODULE,
@@ -1758,8 +1758,10 @@ static int init_channel(struct ngene_channel *chan)
 						   adapter_nr);
 			if (ret < 0)
 				return ret;
+			if (dev->first_adapter == NULL)
+				dev->first_adapter = adapter;
 		} else {
-			adapter = &dev->adapter[0];
+			adapter = dev->first_adapter;
 		}
 
 		ret = my_dvb_dmx_ts_card_init(dvbdemux, "SW demux",
@@ -1796,6 +1798,7 @@ static int init_channels(struct ngene *dev)
 	int i, j;
 
 	for (i = 0; i < MAX_STREAM; i++) {
+		dev->channel[i].number = i;
 		if (init_channel(&dev->channel[i]) < 0) {
 			for (j = i - 1; j >= 0; j--)
 				release_channel(&dev->channel[j]);
