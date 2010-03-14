@@ -101,9 +101,26 @@ firmware_timeout_store(struct class *class,
 	return count;
 }
 
-static CLASS_ATTR(timeout, 0644, firmware_timeout_show, firmware_timeout_store);
+static struct class_attribute firmware_class_attrs[] = {
+	__ATTR(timeout, S_IWUSR | S_IRUGO,
+		firmware_timeout_show, firmware_timeout_store),
+	__ATTR_NULL
+};
 
-static void fw_dev_release(struct device *dev);
+static void fw_dev_release(struct device *dev)
+{
+	struct firmware_priv *fw_priv = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < fw_priv->nr_pages; i++)
+		__free_page(fw_priv->pages[i]);
+	kfree(fw_priv->pages);
+	kfree(fw_priv->fw_id);
+	kfree(fw_priv);
+	kfree(dev);
+
+	module_put(THIS_MODULE);
+}
 
 static int firmware_uevent(struct device *dev, struct kobj_uevent_env *env)
 {
@@ -121,6 +138,7 @@ static int firmware_uevent(struct device *dev, struct kobj_uevent_env *env)
 
 static struct class firmware_class = {
 	.name		= "firmware",
+	.class_attrs	= firmware_class_attrs,
 	.dev_uevent	= firmware_uevent,
 	.dev_release	= fw_dev_release,
 };
@@ -369,21 +387,6 @@ static struct bin_attribute firmware_attr_data_tmpl = {
 	.read = firmware_data_read,
 	.write = firmware_data_write,
 };
-
-static void fw_dev_release(struct device *dev)
-{
-	struct firmware_priv *fw_priv = dev_get_drvdata(dev);
-	int i;
-
-	for (i = 0; i < fw_priv->nr_pages; i++)
-		__free_page(fw_priv->pages[i]);
-	kfree(fw_priv->pages);
-	kfree(fw_priv->fw_id);
-	kfree(fw_priv);
-	kfree(dev);
-
-	module_put(THIS_MODULE);
-}
 
 static void
 firmware_class_timeout(u_long data)
@@ -689,26 +692,12 @@ request_firmware_nowait(
 	return 0;
 }
 
-static int __init
-firmware_class_init(void)
+static int __init firmware_class_init(void)
 {
-	int error;
-	error = class_register(&firmware_class);
-	if (error) {
-		printk(KERN_ERR "%s: class_register failed\n", __func__);
-		return error;
-	}
-	error = class_create_file(&firmware_class, &class_attr_timeout);
-	if (error) {
-		printk(KERN_ERR "%s: class_create_file failed\n",
-		       __func__);
-		class_unregister(&firmware_class);
-	}
-	return error;
-
+	return class_register(&firmware_class);
 }
-static void __exit
-firmware_class_exit(void)
+
+static void __exit firmware_class_exit(void)
 {
 	class_unregister(&firmware_class);
 }
