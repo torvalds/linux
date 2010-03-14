@@ -292,7 +292,7 @@ void nilfs_free_private_page(struct page *page)
  * @src: source page
  * @copy_dirty: flag whether to copy dirty states on the page's buffer heads.
  *
- * This fuction is for both data pages and btnode pages.  The dirty flag
+ * This function is for both data pages and btnode pages.  The dirty flag
  * should be treated by caller.  The page must not be under i/o.
  * Both src and dst page must be locked
  */
@@ -388,7 +388,7 @@ repeat:
 }
 
 /**
- * nilfs_copy_back_pages -- copy back pages to orignal cache from shadow cache
+ * nilfs_copy_back_pages -- copy back pages to original cache from shadow cache
  * @dmap: destination page cache
  * @smap: source page cache
  *

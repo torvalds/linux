@@ -141,7 +141,7 @@ int nilfs_init_transaction_cache(void)
 }
 
 /**
- * nilfs_detroy_transaction_cache - destroy the cache for transaction info
+ * nilfs_destroy_transaction_cache - destroy the cache for transaction info
  *
  * nilfs_destroy_transaction_cache() frees the slab cache for the struct
  * nilfs_transaction_info.
@@ -201,7 +201,7 @@ static int nilfs_prepare_segment_lock(struct nilfs_transaction_info *ti)
  * This function allocates a nilfs_transaction_info struct to keep context
  * information on it.  It is initialized and hooked onto the current task in
  * the outermost call.  If a pre-allocated struct is given to @ti, it is used
- * instead; othewise a new struct is assigned from a slab.
+ * instead; otherwise a new struct is assigned from a slab.
  *
  * When @vacancy_check flag is set, this function will check the amount of
  * free space, and will wait for the GC to reclaim disk space if low capacity.
@@ -2214,7 +2214,7 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 }
 
 /**
- * nilfs_secgtor_start_timer - set timer of background write
+ * nilfs_segctor_start_timer - set timer of background write
  * @sci: nilfs_sc_info
  *
  * If the timer has already been set, it ignores the new request.
@@ -2854,7 +2854,7 @@ static void nilfs_segctor_destroy(struct nilfs_sc_info *sci)
  * @sbi: nilfs_sb_info
  *
  * nilfs_attach_segment_constructor() allocates a struct nilfs_sc_info,
- * initilizes it, and starts the segment constructor.
+ * initializes it, and starts the segment constructor.
  *
  * Return Value: On success, 0 is returned. On error, one of the following
  * negative error code is returned.
