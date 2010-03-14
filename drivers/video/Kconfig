@@ -912,6 +912,18 @@ config FB_XVR2500
 	  mostly initialized the card already.  It is treated as a
 	  completely dumb framebuffer device.
 
+config FB_XVR1000
+	bool "Sun XVR-1000 support"
+	depends on SPARC64
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the framebuffer device for the Sun XVR-1000 and similar
+	  graphics cards.  The driver only works on sparc64 systems where
+	  the system firmware has mostly initialized the card already.  It
+	  is treated as a completely dumb framebuffer device.
+
 config FB_PVR2
 	tristate "NEC PowerVR 2 display support"
 	depends on FB && SH_DREAMCAST
