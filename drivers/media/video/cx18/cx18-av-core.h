@@ -378,7 +378,8 @@ void cx18_av_audio_set_path(struct cx18 *cx);
 /* cx18_av-vbi.c                                                           */
 int cx18_av_decode_vbi_line(struct v4l2_subdev *sd,
 			   struct v4l2_decode_vbi_line *vbi);
-int cx18_av_vbi_g_fmt(struct cx18 *cx, struct v4l2_format *fmt);
-int cx18_av_vbi_s_fmt(struct cx18 *cx, struct v4l2_format *fmt);
+int cx18_av_s_raw_fmt(struct v4l2_subdev *sd, struct v4l2_vbi_format *fmt);
+int cx18_av_g_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
+int cx18_av_s_sliced_fmt(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
 
 #endif
