@@ -1669,7 +1669,7 @@ static int vidioc_g_fmt_sliced_vbi_cap(struct file *file, void *priv,
 
 	f->fmt.sliced.service_set = 0;
 
-	call_all(dev, video, g_fmt, f);
+	call_all(dev, vbi, g_sliced_fmt, &f->fmt.sliced);
 
 	if (f->fmt.sliced.service_set == 0)
 		rc = -EINVAL;
@@ -1690,7 +1690,7 @@ static int vidioc_try_set_sliced_vbi_cap(struct file *file, void *priv,
 		return rc;
 
 	mutex_lock(&dev->lock);
-	call_all(dev, video, g_fmt, f);
+	call_all(dev, vbi, g_sliced_fmt, &f->fmt.sliced);
 	mutex_unlock(&dev->lock);
 
 	if (f->fmt.sliced.service_set == 0)
