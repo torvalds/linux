@@ -489,7 +489,7 @@ void pohmelfs_crypto_thread_make_ready(struct pohmelfs_crypto_thread *th);
 struct netfs_state {
 	struct mutex		__state_lock;		/* Can not allow to use the same socket simultaneously */
 	struct mutex		__state_send_lock;
-	struct netfs_cmd 	cmd;			/* Cached command */
+	struct netfs_cmd	cmd;			/* Cached command */
 	struct netfs_inode_info	info;			/* Cached inode info */
 
 	void			*data;			/* Cached some data */
@@ -500,9 +500,9 @@ struct netfs_state {
 	struct task_struct	*thread;		/* Async receiving thread */
 
 	/* Waiting/polling machinery */
-	wait_queue_t 		wait;
-	wait_queue_head_t 	*whead;
-	wait_queue_head_t 	thread_wait;
+	wait_queue_t		wait;
+	wait_queue_head_t	*whead;
+	wait_queue_head_t	thread_wait;
 
 	struct mutex		trans_lock;
 	struct rb_root		trans_root;
@@ -620,8 +620,8 @@ struct pohmelfs_sb {
 	/*
 	 * Timed checks: stale transactions, inodes to be freed and so on.
 	 */
-	struct delayed_work 	dwork;
-	struct delayed_work 	drop_dwork;
+	struct delayed_work	dwork;
+	struct delayed_work	drop_dwork;
 
 	struct super_block	*sb;
 
