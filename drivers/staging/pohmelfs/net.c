@@ -713,8 +713,8 @@ static int pohmelfs_crypto_cap_response(struct netfs_state *st)
 
 	dprintk("%s: cipher '%s': %s, hash: '%s': %s.\n",
 			__func__,
-			psb->cipher_string, (cap->cipher_strlen)?"SUPPORTED":"NOT SUPPORTED",
-			psb->hash_string, (cap->hash_strlen)?"SUPPORTED":"NOT SUPPORTED");
+			psb->cipher_string, (cap->cipher_strlen) ? "SUPPORTED" : "NOT SUPPORTED",
+			psb->hash_string, (cap->hash_strlen) ? "SUPPORTED" : "NOT SUPPORTED");
 
 	if (!cap->hash_strlen) {
 		if (psb->hash_strlen && psb->crypto_fail_unsupported)
@@ -748,11 +748,11 @@ static int pohmelfs_capabilities_response(struct netfs_state *st)
 		return err;
 
 	switch (cmd->id) {
-		case POHMELFS_CRYPTO_CAPABILITIES:
+	case POHMELFS_CRYPTO_CAPABILITIES:
 			return pohmelfs_crypto_cap_response(st);
-		case POHMELFS_ROOT_CAPABILITIES:
+	case POHMELFS_ROOT_CAPABILITIES:
 			return pohmelfs_root_cap_response(st);
-		default:
+	default:
 			break;
 	}
 	return -EINVAL;
@@ -774,7 +774,7 @@ static int pohmelfs_getxattr_response(struct netfs_state *st)
 	m = pohmelfs_mcache_search(psb, cmd->id);
 
 	dprintk("%s: id: %llu, gen: %llu, err: %d.\n",
-		__func__, cmd->id, (m)?m->gen:0, error);
+		__func__, cmd->id, (m) ? m->gen : 0, error);
 
 	if (!m) {
 		printk("%s: failed to find getxattr cache entry: id: %llu.\n", __func__, cmd->id);
@@ -824,7 +824,7 @@ int pohmelfs_data_lock_response(struct netfs_state *st)
 	m = pohmelfs_mcache_search(psb, id);
 
 	dprintk("%s: id: %llu, gen: %llu, err: %d.\n",
-		__func__, cmd->id, (m)?m->gen:0, err);
+		__func__, cmd->id, (m) ? m->gen : 0, err);
 
 	if (!m) {
 		pohmelfs_data_recv(st, st->data, cmd->size);
@@ -915,7 +915,7 @@ static int pohmelfs_recv(void *data)
 				unsigned char *hash = e->data;
 
 				dprintk("%s: received hash: ", __func__);
-				for (i=0; i<cmd->csize; ++i)
+				for (i = 0; i < cmd->csize; ++i)
 					printk("%02x ", hash[i]);
 
 				printk("\n");
@@ -933,37 +933,37 @@ static int pohmelfs_recv(void *data)
 		}
 
 		switch (cmd->cmd) {
-			case NETFS_READ_PAGE:
+		case NETFS_READ_PAGE:
 				err = pohmelfs_read_page_response(st);
 				break;
-			case NETFS_READDIR:
+		case NETFS_READDIR:
 				err = pohmelfs_readdir_response(st);
 				break;
-			case NETFS_LOOKUP:
+		case NETFS_LOOKUP:
 				err = pohmelfs_lookup_response(st);
 				break;
-			case NETFS_CREATE:
+		case NETFS_CREATE:
 				err = pohmelfs_create_response(st);
 				break;
-			case NETFS_REMOVE:
+		case NETFS_REMOVE:
 				err = pohmelfs_remove_response(st);
 				break;
-			case NETFS_TRANS:
+		case NETFS_TRANS:
 				err = pohmelfs_transaction_response(st);
 				break;
-			case NETFS_PAGE_CACHE:
+		case NETFS_PAGE_CACHE:
 				err = pohmelfs_page_cache_response(st);
 				break;
-			case NETFS_CAPABILITIES:
+		case NETFS_CAPABILITIES:
 				err = pohmelfs_capabilities_response(st);
 				break;
-			case NETFS_LOCK:
+		case NETFS_LOCK:
 				err = pohmelfs_data_lock_response(st);
 				break;
-			case NETFS_XATTR_GET:
+		case NETFS_XATTR_GET:
 				err = pohmelfs_getxattr_response(st);
 				break;
-			default:
+		default:
 				printk("%s: wrong cmd: %u, id: %llu, start: %llu, size: %u, ext: %u.\n",
 					__func__, cmd->cmd, cmd->id, cmd->start, cmd->size, cmd->ext);
 				netfs_state_reset(st);
