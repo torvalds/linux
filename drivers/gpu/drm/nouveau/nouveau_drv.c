@@ -87,6 +87,10 @@ MODULE_PARM_DESC(override_conntype, "Ignore DCB connector type");
 int nouveau_override_conntype = 0;
 module_param_named(override_conntype, nouveau_override_conntype, int, 0400);
 
+MODULE_PARM_DESC(tv_disable, "Disable TV-out detection\n");
+int nouveau_tv_disable = 0;
+module_param_named(tv_disable, nouveau_tv_disable, int, 0400);
+
 MODULE_PARM_DESC(tv_norm, "Default TV norm.\n"
 		 "\t\tSupported: PAL, PAL-M, PAL-N, PAL-Nc, NTSC-M, NTSC-J,\n"
 		 "\t\t\thd480i, hd480p, hd576i, hd576p, hd720p, hd1080i.\n"
