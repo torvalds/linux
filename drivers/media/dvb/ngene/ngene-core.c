@@ -503,7 +503,7 @@ static u8 ITUFeatureDecoderSetup[8] = {
 	0x00, 0x00, 0x00, 0x00, 0x00, 0x78, 0x04, 0x00
 };
 
-static void FillTSBuffer(void *Buffer, int Length, u32 Flags)
+void FillTSBuffer(void *Buffer, int Length, u32 Flags)
 {
 	u32 *ptr = Buffer;
 
@@ -716,62 +716,7 @@ static int ngene_command_stream_control(struct ngene *dev, u8 stream,
 	return 0;
 }
 
-
-/****************************************************************************/
-/* EEPROM TAGS **************************************************************/
-/****************************************************************************/
-
-/****************************************************************************/
-/* DVB functions and API interface ******************************************/
-/****************************************************************************/
-
-static void swap_buffer(u32 *p, u32 len)
-{
-	while (len) {
-		*p = swab32(*p);
-		p++;
-		len -= 4;
-	}
-}
-
-
-static void *tsin_exchange(void *priv, void *buf, u32 len, u32 clock, u32 flags)
-{
-	struct ngene_channel *chan = priv;
-
-
-#ifdef COMMAND_TIMEOUT_WORKAROUND
-	if (chan->users > 0)
-#endif
-		dvb_dmx_swfilter(&chan->demux, buf, len);
-	return NULL;
-}
-
-u8 fill_ts[188] = { 0x47, 0x1f, 0xff, 0x10 };
-
-static void *tsout_exchange(void *priv, void *buf, u32 len,
-			    u32 clock, u32 flags)
-{
-	struct ngene_channel *chan = priv;
-	struct ngene *dev = chan->dev;
-	u32 alen;
-
-	alen = dvb_ringbuffer_avail(&dev->tsout_rbuf);
-	alen -= alen % 188;
-
-	if (alen < len)
-		FillTSBuffer(buf + alen, len - alen, flags);
-	else
-		alen = len;
-	dvb_ringbuffer_read(&dev->tsout_rbuf, buf, alen);
-	if (flags & DF_SWAP32)
-		swap_buffer((u32 *)buf, alen);
-	wake_up_interruptible(&dev->tsout_rbuf.queue);
-	return buf;
-}
-
-
-static void set_transfer(struct ngene_channel *chan, int state)
+void set_transfer(struct ngene_channel *chan, int state)
 {
 	u8 control = 0, mode = 0, flags = 0;
 	struct ngene *dev = chan->dev;
@@ -836,77 +781,6 @@ static void set_transfer(struct ngene_channel *chan, int state)
 		dvb_ringbuffer_flush(&dev->tsout_rbuf);
 		spin_unlock_irq(&chan->state_lock);
 	}
-}
-
-static int ngene_start_feed(struct dvb_demux_feed *dvbdmxfeed)
-{
-	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
-	struct ngene_channel *chan = dvbdmx->priv;
-
-	if (chan->users == 0) {
-#ifdef COMMAND_TIMEOUT_WORKAROUND
-		if (!chan->running)
-#endif
-			set_transfer(chan, 1);
-		/* msleep(10); */
-	}
-
-	return ++chan->users;
-}
-
-static int ngene_stop_feed(struct dvb_demux_feed *dvbdmxfeed)
-{
-	struct dvb_demux *dvbdmx = dvbdmxfeed->demux;
-	struct ngene_channel *chan = dvbdmx->priv;
-
-	if (--chan->users)
-		return chan->users;
-
-#ifndef COMMAND_TIMEOUT_WORKAROUND
-	set_transfer(chan, 0);
-#endif
-
-	return 0;
-}
-
-static int my_dvb_dmx_ts_card_init(struct dvb_demux *dvbdemux, char *id,
-				   int (*start_feed)(struct dvb_demux_feed *),
-				   int (*stop_feed)(struct dvb_demux_feed *),
-				   void *priv)
-{
-	dvbdemux->priv = priv;
-
-	dvbdemux->filternum = 256;
-	dvbdemux->feednum = 256;
-	dvbdemux->start_feed = start_feed;
-	dvbdemux->stop_feed = stop_feed;
-	dvbdemux->write_to_decoder = NULL;
-	dvbdemux->dmx.capabilities = (DMX_TS_FILTERING |
-				      DMX_SECTION_FILTERING |
-				      DMX_MEMORY_BASED_FILTERING);
-	return dvb_dmx_init(dvbdemux);
-}
-
-static int my_dvb_dmxdev_ts_card_init(struct dmxdev *dmxdev,
-				      struct dvb_demux *dvbdemux,
-				      struct dmx_frontend *hw_frontend,
-				      struct dmx_frontend *mem_frontend,
-				      struct dvb_adapter *dvb_adapter)
-{
-	int ret;
-
-	dmxdev->filternum = 256;
-	dmxdev->demux = &dvbdemux->dmx;
-	dmxdev->capabilities = 0;
-	ret = dvb_dmxdev_init(dmxdev, dvb_adapter);
-	if (ret < 0)
-		return ret;
-
-	hw_frontend->source = DMX_FRONTEND_0;
-	dvbdemux->dmx.add_frontend(&dvbdemux->dmx, hw_frontend);
-	mem_frontend->source = DMX_MEMORY_FE;
-	dvbdemux->dmx.add_frontend(&dvbdemux->dmx, mem_frontend);
-	return dvbdemux->dmx.connect_frontend(&dvbdemux->dmx, hw_frontend);
 }
 
 
