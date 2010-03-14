@@ -208,7 +208,7 @@ static int cx18_g_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	 * digitizer/slicer.  Note, cx18_av_vbi() wipes the passed in
 	 * fmt->fmt.sliced under valid calling conditions
 	 */
-	if (v4l2_subdev_call(cx->sd_av, video, g_fmt, fmt))
+	if (v4l2_subdev_call(cx->sd_av, vbi, g_sliced_fmt, &fmt->fmt.sliced))
 		return -EINVAL;
 
 	/* Ensure V4L2 spec compliant output */
@@ -322,7 +322,7 @@ static int cx18_s_fmt_vbi_cap(struct file *file, void *fh,
 	 * Note cx18_av_vbi_wipes out alot of the passed in fmt under valid
 	 * calling conditions
 	 */
-	ret = v4l2_subdev_call(cx->sd_av, video, s_fmt, fmt);
+	ret = v4l2_subdev_call(cx->sd_av, vbi, s_raw_fmt, &fmt->fmt.vbi);
 	if (ret)
 		return ret;
 
@@ -359,7 +359,7 @@ static int cx18_s_fmt_sliced_vbi_cap(struct file *file, void *fh,
 	 * Note, cx18_av_vbi() wipes some "impossible" service lines in the
 	 * passed in fmt->fmt.sliced under valid calling conditions
 	 */
-	ret = v4l2_subdev_call(cx->sd_av, video, s_fmt, fmt);
+	ret = v4l2_subdev_call(cx->sd_av, vbi, s_sliced_fmt, &fmt->fmt.sliced);
 	if (ret)
 		return ret;
 	/* Store our current v4l2 sliced VBI settings */
