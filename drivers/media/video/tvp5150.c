@@ -1046,6 +1046,9 @@ static const struct v4l2_subdev_video_ops tvp5150_video_ops = {
 	.s_routing = tvp5150_s_routing,
 	.g_fmt = tvp5150_g_fmt,
 	.s_fmt = tvp5150_s_fmt,
+};
+
+static const struct v4l2_subdev_vbi_ops tvp5150_vbi_ops = {
 	.g_sliced_vbi_cap = tvp5150_g_sliced_vbi_cap,
 };
 
@@ -1053,6 +1056,7 @@ static const struct v4l2_subdev_ops tvp5150_ops = {
 	.core = &tvp5150_core_ops,
 	.tuner = &tvp5150_tuner_ops,
 	.video = &tvp5150_video_ops,
+	.vbi = &tvp5150_vbi_ops,
 };
 
 

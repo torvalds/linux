@@ -727,16 +727,20 @@ static const struct v4l2_subdev_core_ops saa7127_core_ops = {
 };
 
 static const struct v4l2_subdev_video_ops saa7127_video_ops = {
-	.s_vbi_data = saa7127_s_vbi_data,
 	.g_fmt = saa7127_g_fmt,
 	.s_std_output = saa7127_s_std_output,
 	.s_routing = saa7127_s_routing,
 	.s_stream = saa7127_s_stream,
 };
 
+static const struct v4l2_subdev_vbi_ops saa7127_vbi_ops = {
+	.s_vbi_data = saa7127_s_vbi_data,
+};
+
 static const struct v4l2_subdev_ops saa7127_ops = {
 	.core = &saa7127_core_ops,
 	.video = &saa7127_video_ops,
+	.vbi = &saa7127_vbi_ops,
 };
 
 /* ----------------------------------------------------------------------- */

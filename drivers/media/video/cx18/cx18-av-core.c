@@ -1403,10 +1403,13 @@ static const struct v4l2_subdev_audio_ops cx18_av_audio_ops = {
 
 static const struct v4l2_subdev_video_ops cx18_av_video_ops = {
 	.s_routing = cx18_av_s_video_routing,
-	.decode_vbi_line = cx18_av_decode_vbi_line,
 	.s_stream = cx18_av_s_stream,
 	.g_fmt = cx18_av_g_fmt,
 	.s_fmt = cx18_av_s_fmt,
+};
+
+static const struct v4l2_subdev_vbi_ops cx18_av_vbi_ops = {
+	.decode_vbi_line = cx18_av_decode_vbi_line,
 };
 
 static const struct v4l2_subdev_ops cx18_av_ops = {
@@ -1414,6 +1417,7 @@ static const struct v4l2_subdev_ops cx18_av_ops = {
 	.tuner = &cx18_av_tuner_ops,
 	.audio = &cx18_av_audio_ops,
 	.video = &cx18_av_video_ops,
+	.vbi = &cx18_av_vbi_ops,
 };
 
 int cx18_av_probe(struct cx18 *cx)

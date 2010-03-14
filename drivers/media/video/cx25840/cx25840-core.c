@@ -1635,8 +1635,11 @@ static const struct v4l2_subdev_video_ops cx25840_video_ops = {
 	.s_routing = cx25840_s_video_routing,
 	.g_fmt = cx25840_g_fmt,
 	.s_fmt = cx25840_s_fmt,
-	.decode_vbi_line = cx25840_decode_vbi_line,
 	.s_stream = cx25840_s_stream,
+};
+
+static const struct v4l2_subdev_vbi_ops cx25840_vbi_ops = {
+	.decode_vbi_line = cx25840_decode_vbi_line,
 };
 
 static const struct v4l2_subdev_ops cx25840_ops = {
@@ -1644,6 +1647,7 @@ static const struct v4l2_subdev_ops cx25840_ops = {
 	.tuner = &cx25840_tuner_ops,
 	.audio = &cx25840_audio_ops,
 	.video = &cx25840_video_ops,
+	.vbi = &cx25840_vbi_ops,
 };
 
 /* ----------------------------------------------------------------------- */

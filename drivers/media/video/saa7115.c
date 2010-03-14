@@ -1550,11 +1550,14 @@ static const struct v4l2_subdev_video_ops saa711x_video_ops = {
 	.s_crystal_freq = saa711x_s_crystal_freq,
 	.g_fmt = saa711x_g_fmt,
 	.s_fmt = saa711x_s_fmt,
-	.g_vbi_data = saa711x_g_vbi_data,
-	.decode_vbi_line = saa711x_decode_vbi_line,
 	.s_stream = saa711x_s_stream,
 	.querystd = saa711x_querystd,
 	.g_input_status = saa711x_g_input_status,
+};
+
+static const struct v4l2_subdev_vbi_ops saa711x_vbi_ops = {
+	.g_vbi_data = saa711x_g_vbi_data,
+	.decode_vbi_line = saa711x_decode_vbi_line,
 };
 
 static const struct v4l2_subdev_ops saa711x_ops = {
@@ -1562,6 +1565,7 @@ static const struct v4l2_subdev_ops saa711x_ops = {
 	.tuner = &saa711x_tuner_ops,
 	.audio = &saa711x_audio_ops,
 	.video = &saa711x_video_ops,
+	.vbi = &saa711x_vbi_ops,
 };
 
 /* ----------------------------------------------------------------------- */
