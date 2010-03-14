@@ -158,6 +158,9 @@ struct e1000_info;
 #define HV_M_STATUS_SPEED_1000            0x0200
 #define HV_M_STATUS_LINK_UP               0x0040
 
+/* Time to wait before putting the device into D3 if there's no link (in ms). */
+#define LINK_TIMEOUT		100
+
 enum e1000_boards {
 	board_82571,
 	board_82572,
@@ -370,6 +373,8 @@ struct e1000_adapter {
 	struct work_struct update_phy_task;
 	struct work_struct led_blink_task;
 	struct work_struct print_hang_task;
+
+	bool idle_check;
 };
 
 struct e1000_info {
