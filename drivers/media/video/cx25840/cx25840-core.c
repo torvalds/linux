@@ -1018,7 +1018,7 @@ static int cx25840_g_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 {
 	switch (fmt->type) {
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_vbi_g_fmt(sd, fmt);
+		return cx25840_g_sliced_fmt(sd, &fmt->fmt.sliced);
 	default:
 		return -EINVAL;
 	}
@@ -1080,10 +1080,10 @@ static int cx25840_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 		break;
 
 	case V4L2_BUF_TYPE_SLICED_VBI_CAPTURE:
-		return cx25840_vbi_s_fmt(sd, fmt);
+		return cx25840_s_sliced_fmt(sd, &fmt->fmt.sliced);
 
 	case V4L2_BUF_TYPE_VBI_CAPTURE:
-		return cx25840_vbi_s_fmt(sd, fmt);
+		return cx25840_s_raw_fmt(sd, &fmt->fmt.vbi);
 
 	default:
 		return -EINVAL;
@@ -1640,6 +1640,9 @@ static const struct v4l2_subdev_video_ops cx25840_video_ops = {
 
 static const struct v4l2_subdev_vbi_ops cx25840_vbi_ops = {
 	.decode_vbi_line = cx25840_decode_vbi_line,
+	.s_raw_fmt = cx25840_s_raw_fmt,
+	.s_sliced_fmt = cx25840_s_sliced_fmt,
+	.g_sliced_fmt = cx25840_g_sliced_fmt,
 };
 
 static const struct v4l2_subdev_ops cx25840_ops = {
