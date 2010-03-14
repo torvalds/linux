@@ -22,7 +22,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/device.h>
-#include <linux/semaphore.h>
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
 #include <linux/i2c.h>
@@ -55,7 +54,7 @@ static int smbus_do_alert(struct device *dev, void *addrp)
 	 * Drivers should either disable alerts, or provide at least
 	 * a minimal handler.  Lock so client->driver won't change.
 	 */
-	down(&dev->sem);
+	device_lock(dev);
 	if (client->driver) {
 		if (client->driver->alert)
 			client->driver->alert(client, data->flag);
@@ -63,7 +62,7 @@ static int smbus_do_alert(struct device *dev, void *addrp)
 			dev_warn(&client->dev, "no driver alert()!\n");
 	} else
 		dev_dbg(&client->dev, "alert with no driver\n");
-	up(&dev->sem);
+	device_unlock(dev);
 
 	/* Stop iterating after we find the device */
 	return -EBUSY;

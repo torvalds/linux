@@ -505,6 +505,7 @@ static int at24_probe(struct i2c_client *client, const struct i2c_device_id *id)
 	 * Export the EEPROM bytes through sysfs, since that's convenient.
 	 * By default, only root should see the data (maybe passwords etc)
 	 */
+	sysfs_bin_attr_init(&at24->bin);
 	at24->bin.attr.name = "eeprom";
 	at24->bin.attr.mode = chip.flags & AT24_FLAG_IRUGO ? S_IRUGO : S_IRUSR;
 	at24->bin.read = at24_bin_read;
