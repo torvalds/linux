@@ -431,8 +431,10 @@ const char *v4l2_ctrl_get_name(u32 id)
 	case V4L2_CID_CHROMA_AGC:		return "Chroma AGC";
 	case V4L2_CID_COLOR_KILLER:		return "Color Killer";
 	case V4L2_CID_COLORFX:			return "Color Effects";
+	case V4L2_CID_AUTOBRIGHTNESS:		return "Brightness, Automatic";
+	case V4L2_CID_BAND_STOP_FILTER:		return "Band-Stop Filter";
 	case V4L2_CID_ROTATE:			return "Rotate";
-	case V4L2_CID_BG_COLOR:			return "Background color";
+	case V4L2_CID_BG_COLOR:			return "Background Color";
 
 	/* MPEG controls */
 	case V4L2_CID_MPEG_CLASS: 		return "MPEG Encoder Controls";
