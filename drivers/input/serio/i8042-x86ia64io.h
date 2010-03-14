@@ -442,6 +442,13 @@ static const struct dmi_system_id __initconst i8042_dmi_reset_table[] = {
 		},
 	},
 	{
+		/* Medion Akoya E1222 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MEDION"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "E122X"),
+		},
+	},
+	{
 		/* Mivvy M310 */
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "VIOOO"),
