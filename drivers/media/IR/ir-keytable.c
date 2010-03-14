@@ -123,7 +123,7 @@ static int ir_copy_table(struct ir_scancode_table *destin,
  * If the key is not found, returns -EINVAL, otherwise, returns 0.
  */
 static int ir_getkeycode(struct input_dev *dev,
-			 int scancode, int *keycode)
+			 unsigned int scancode, unsigned int *keycode)
 {
 	int elem;
 	struct ir_input_dev *ir_dev = input_get_drvdata(dev);
@@ -291,7 +291,7 @@ static int ir_insert_key(struct ir_scancode_table *rc_tab,
  * If the key is not found, returns -EINVAL, otherwise, returns 0.
  */
 static int ir_setkeycode(struct input_dev *dev,
-			 int scancode, int keycode)
+			 unsigned int scancode, unsigned int keycode)
 {
 	int rc = 0;
 	struct ir_input_dev *ir_dev = input_get_drvdata(dev);
