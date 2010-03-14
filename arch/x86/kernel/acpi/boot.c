@@ -1559,8 +1559,10 @@ static int __init parse_acpi(char *arg)
 	}
 	/* Limit ACPI just to boot-time to enable HT */
 	else if (strcmp(arg, "ht") == 0) {
-		if (!acpi_force)
+		if (!acpi_force) {
+			printk(KERN_WARNING "acpi=ht will be removed in Linux-2.6.35\n");
 			disable_acpi();
+		}
 		acpi_ht = 1;
 	}
 	/* acpi=rsdt use RSDT instead of XSDT */
