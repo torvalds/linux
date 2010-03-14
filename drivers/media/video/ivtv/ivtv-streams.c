@@ -344,7 +344,10 @@ static void ivtv_vbi_setup(struct ivtv *itv)
 	ivtv_vapi(itv, CX2341X_ENC_SET_VBI_LINE, 5, 0xffff , 0, 0, 0, 0);
 
 	/* setup VBI registers */
-	v4l2_subdev_call(itv->sd_video, video, s_fmt, &itv->vbi.in);
+	if (raw)
+		v4l2_subdev_call(itv->sd_video, vbi, s_raw_fmt, &itv->vbi.in.fmt.vbi);
+	else
+		v4l2_subdev_call(itv->sd_video, vbi, s_sliced_fmt, &itv->vbi.in.fmt.sliced);
 
 	/* determine number of lines and total number of VBI bytes.
 	   A raw line takes 1443 bytes: 2 * 720 + 4 byte frame header - 1

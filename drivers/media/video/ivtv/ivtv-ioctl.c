@@ -392,7 +392,7 @@ static int ivtv_g_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_fo
 		return 0;
 	}
 
-	v4l2_subdev_call(itv->sd_video, video, g_fmt, fmt);
+	v4l2_subdev_call(itv->sd_video, vbi, g_sliced_fmt, vbifmt);
 	vbifmt->service_set = ivtv_get_service_set(vbifmt);
 	return 0;
 }
@@ -598,7 +598,7 @@ static int ivtv_s_fmt_vbi_cap(struct file *file, void *fh, struct v4l2_format *f
 		return -EBUSY;
 	itv->vbi.sliced_in->service_set = 0;
 	itv->vbi.in.type = V4L2_BUF_TYPE_VBI_CAPTURE;
-	v4l2_subdev_call(itv->sd_video, video, s_fmt, fmt);
+	v4l2_subdev_call(itv->sd_video, vbi, s_raw_fmt, &fmt->fmt.vbi);
 	return ivtv_g_fmt_vbi_cap(file, fh, fmt);
 }
 
@@ -616,7 +616,7 @@ static int ivtv_s_fmt_sliced_vbi_cap(struct file *file, void *fh, struct v4l2_fo
 	if (ivtv_raw_vbi(itv) && atomic_read(&itv->capturing) > 0)
 		return -EBUSY;
 	itv->vbi.in.type = V4L2_BUF_TYPE_SLICED_VBI_CAPTURE;
-	v4l2_subdev_call(itv->sd_video, video, s_fmt, fmt);
+	v4l2_subdev_call(itv->sd_video, vbi, s_sliced_fmt, vbifmt);
 	memcpy(itv->vbi.sliced_in, vbifmt, sizeof(*itv->vbi.sliced_in));
 	return 0;
 }
