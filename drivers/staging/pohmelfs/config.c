@@ -509,13 +509,13 @@ static int pohmelfs_cn_crypto(struct cn_msg *msg)
 	}
 
 	switch (crypto->type) {
-		case POHMELFS_CRYPTO_HASH:
+	case POHMELFS_CRYPTO_HASH:
 			err = pohmelfs_crypto_hash_init(g, crypto);
 			break;
-		case POHMELFS_CRYPTO_CIPHER:
+	case POHMELFS_CRYPTO_CIPHER:
 			err = pohmelfs_crypto_cipher_init(g, crypto);
 			break;
-		default:
+	default:
 			err = -ENOTSUPP;
 			break;
 	}
@@ -536,24 +536,24 @@ static void pohmelfs_cn_callback(struct cn_msg *msg, struct netlink_skb_parms *n
 		return;
 
 	switch (msg->flags) {
-		case POHMELFS_FLAGS_ADD:
-		case POHMELFS_FLAGS_DEL:
-		case POHMELFS_FLAGS_MODIFY:
+	case POHMELFS_FLAGS_ADD:
+	case POHMELFS_FLAGS_DEL:
+	case POHMELFS_FLAGS_MODIFY:
 			err = pohmelfs_cn_ctl(msg, msg->flags);
 			break;
-		case POHMELFS_FLAGS_FLUSH:
+	case POHMELFS_FLAGS_FLUSH:
 			err = pohmelfs_cn_flush(msg);
 			break;
-		case POHMELFS_FLAGS_SHOW:
+	case POHMELFS_FLAGS_SHOW:
 			err = pohmelfs_cn_disp(msg);
 			break;
-		case POHMELFS_FLAGS_DUMP:
+	case POHMELFS_FLAGS_DUMP:
 			err = pohmelfs_cn_dump(msg);
 			break;
-		case POHMELFS_FLAGS_CRYPTO:
+	case POHMELFS_FLAGS_CRYPTO:
 			err = pohmelfs_cn_crypto(msg);
 			break;
-		default:
+	default:
 			err = -ENOSYS;
 			break;
 	}
