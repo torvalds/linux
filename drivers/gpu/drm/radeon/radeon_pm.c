@@ -279,7 +279,8 @@ void radeon_pm_compute_clocks(struct radeon_device *rdev)
 	list_for_each_entry(connector,
 		&ddev->mode_config.connector_list, head) {
 		if (connector->encoder &&
-			connector->dpms != DRM_MODE_DPMS_OFF) {
+		    connector->encoder->crtc &&
+		    connector->dpms != DRM_MODE_DPMS_OFF) {
 			radeon_crtc = to_radeon_crtc(connector->encoder->crtc);
 			rdev->pm.active_crtcs |= (1 << radeon_crtc->crtc_id);
 			++count;
