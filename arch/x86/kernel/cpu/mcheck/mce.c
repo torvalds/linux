@@ -46,6 +46,8 @@
 
 #include "mce-internal.h"
 
+static DEFINE_MUTEX(mce_read_mutex);
+
 #define rcu_dereference_check_mce(p) \
 	rcu_dereference_check((p), \
 			      rcu_read_lock_sched_held() || \
@@ -1489,8 +1491,6 @@ static void collect_tscs(void *data)
 
 	rdtscll(cpu_tsc[smp_processor_id()]);
 }
-
-static DEFINE_MUTEX(mce_read_mutex);
 
 static ssize_t mce_read(struct file *filp, char __user *ubuf, size_t usize,
 			loff_t *off)
