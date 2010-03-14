@@ -1329,6 +1329,8 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	role = vcpu->arch.mmu.base_role;
 	role.level = level;
 	role.direct = direct;
+	if (role.direct)
+		role.glevels = 0;
 	role.access = access;
 	if (vcpu->arch.mmu.root_level <= PT32_ROOT_LEVEL) {
 		quadrant = gaddr >> (PAGE_SHIFT + (PT64_PT_BITS * level));
