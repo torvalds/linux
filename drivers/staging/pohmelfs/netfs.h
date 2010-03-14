@@ -305,7 +305,7 @@ struct pohmelfs_inode {
 };
 
 struct netfs_trans;
-typedef int (* netfs_trans_complete_t)(struct page **pages, unsigned int page_num,
+typedef int (*netfs_trans_complete_t)(struct page **pages, unsigned int page_num,
 		void *private, int err);
 
 struct netfs_state;
@@ -911,7 +911,8 @@ static inline void pohmelfs_mcache_put(struct pohmelfs_sb *psb,
 		pohmelfs_mcache_free(psb, m);
 }
 
-//#define POHMELFS_TRUNCATE_ON_INODE_FLUSH
+/*#define POHMELFS_TRUNCATE_ON_INODE_FLUSH
+ */
 
 #endif /* __KERNEL__*/
 
