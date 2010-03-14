@@ -29,8 +29,6 @@
 
 #include "wm8750.h"
 
-#define WM8750_VERSION "0.12"
-
 /* codec private data */
 struct wm8750_priv {
 	unsigned int sysclk;
@@ -912,7 +910,6 @@ static int wm8750_probe(struct platform_device *pdev)
 	struct wm8750_priv *wm8750;
 	int ret;
 
-	pr_info("WM8750 Audio Codec %s", WM8750_VERSION);
 	codec = kzalloc(sizeof(struct snd_soc_codec), GFP_KERNEL);
 	if (codec == NULL)
 		return -ENOMEM;
