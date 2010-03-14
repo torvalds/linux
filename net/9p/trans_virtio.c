@@ -78,6 +78,12 @@ struct virtio_chan {
 	/* Scatterlist: can be too big for stack. */
 	struct scatterlist sg[VIRTQUEUE_NUM];
 
+	int tag_len;
+	/*
+	 * tag name to identify a mount Non-null terminated
+	 */
+	char *tag;
+
 	struct list_head chan_list;
 };
 
@@ -214,6 +220,20 @@ p9_virtio_request(struct p9_client *client, struct p9_req_t *req)
 	return 0;
 }
 
+static ssize_t p9_mount_tag_show(struct device *dev,
+				struct device_attribute *attr, char *buf)
+{
+	struct virtio_chan *chan;
+	struct virtio_device *vdev;
+
+	vdev = dev_to_virtio(dev);
+	chan = vdev->priv;
+
+	return snprintf(buf, chan->tag_len + 1, "%s", chan->tag);
+}
+
+static DEVICE_ATTR(mount_tag, 0444, p9_mount_tag_show, NULL);
+
 /**
  * p9_virtio_probe - probe for existence of 9P virtio channels
  * @vdev: virtio device to probe
@@ -224,6 +244,8 @@ p9_virtio_request(struct p9_client *client, struct p9_req_t *req)
 
 static int p9_virtio_probe(struct virtio_device *vdev)
 {
+	__u16 tag_len;
+	char *tag;
 	int err;
 	struct virtio_chan *chan;
 
@@ -248,6 +270,28 @@ static int p9_virtio_probe(struct virtio_device *vdev)
 	sg_init_table(chan->sg, VIRTQUEUE_NUM);
 
 	chan->inuse = false;
+	if (virtio_has_feature(vdev, VIRTIO_9P_MOUNT_TAG)) {
+		vdev->config->get(vdev,
+				offsetof(struct virtio_9p_config, tag_len),
+				&tag_len, sizeof(tag_len));
+	} else {
+		err = -EINVAL;
+		goto out_free_vq;
+	}
+	tag = kmalloc(tag_len, GFP_KERNEL);
+	if (!tag) {
+		err = -ENOMEM;
+		goto out_free_vq;
+	}
+	vdev->config->get(vdev, offsetof(struct virtio_9p_config, tag),
+			tag, tag_len);
+	chan->tag = tag;
+	chan->tag_len = tag_len;
+	err = sysfs_create_file(&(vdev->dev.kobj), &dev_attr_mount_tag.attr);
+	if (err) {
+		kfree(tag);
+		goto out_free_vq;
+	}
 	mutex_lock(&virtio_9p_lock);
 	list_add_tail(&chan->chan_list, &virtio_chan_list);
 	mutex_unlock(&virtio_9p_lock);
@@ -284,7 +328,7 @@ p9_virtio_create(struct p9_client *client, const char *devname, char *args)
 
 	mutex_lock(&virtio_9p_lock);
 	list_for_each_entry(chan, &virtio_chan_list, chan_list) {
-		if (!strcmp(devname, dev_name(&chan->vdev->dev))) {
+		if (!strncmp(devname, chan->tag, chan->tag_len)) {
 			if (!chan->inuse) {
 				chan->inuse = true;
 				found = 1;
@@ -323,6 +367,8 @@ static void p9_virtio_remove(struct virtio_device *vdev)
 	mutex_lock(&virtio_9p_lock);
 	list_del(&chan->chan_list);
 	mutex_unlock(&virtio_9p_lock);
+	sysfs_remove_file(&(vdev->dev.kobj), &dev_attr_mount_tag.attr);
+	kfree(chan->tag);
 	kfree(chan);
 
 }
@@ -332,13 +378,19 @@ static struct virtio_device_id id_table[] = {
 	{ 0 },
 };
 
+static unsigned int features[] = {
+	VIRTIO_9P_MOUNT_TAG,
+};
+
 /* The standard "struct lguest_driver": */
 static struct virtio_driver p9_virtio_drv = {
-	.driver.name = 	KBUILD_MODNAME,
-	.driver.owner = THIS_MODULE,
-	.id_table =	id_table,
-	.probe = 	p9_virtio_probe,
-	.remove =	p9_virtio_remove,
+	.feature_table  = features,
+	.feature_table_size = ARRAY_SIZE(features),
+	.driver.name    = KBUILD_MODNAME,
+	.driver.owner	= THIS_MODULE,
+	.id_table	= id_table,
+	.probe		= p9_virtio_probe,
+	.remove		= p9_virtio_remove,
 };
 
 static struct p9_trans_module p9_virtio_trans = {
