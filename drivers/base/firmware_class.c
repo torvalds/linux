@@ -27,6 +27,52 @@ MODULE_AUTHOR("Manuel Estrada Sainz");
 MODULE_DESCRIPTION("Multi purpose firmware loading support");
 MODULE_LICENSE("GPL");
 
+/* Builtin firmware support */
+
+#ifdef CONFIG_FW_LOADER
+
+extern struct builtin_fw __start_builtin_fw[];
+extern struct builtin_fw __end_builtin_fw[];
+
+static bool fw_get_builtin_firmware(struct firmware *fw, const char *name)
+{
+	struct builtin_fw *b_fw;
+
+	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++) {
+		if (strcmp(name, b_fw->name) == 0) {
+			fw->size = b_fw->size;
+			fw->data = b_fw->data;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+static bool fw_is_builtin_firmware(const struct firmware *fw)
+{
+	struct builtin_fw *b_fw;
+
+	for (b_fw = __start_builtin_fw; b_fw != __end_builtin_fw; b_fw++)
+		if (fw->data == b_fw->data)
+			return true;
+
+	return false;
+}
+
+#else /* Module case - no builtin firmware support */
+
+static inline bool fw_get_builtin_firmware(struct firmware *fw, const char *name)
+{
+	return false;
+}
+
+static inline bool fw_is_builtin_firmware(const struct firmware *fw)
+{
+	return false;
+}
+#endif
+
 enum {
 	FW_STATUS_LOADING,
 	FW_STATUS_DONE,
@@ -52,14 +98,6 @@ struct firmware_priv {
 	struct timer_list timeout;
 	bool nowait;
 };
-
-#ifdef CONFIG_FW_LOADER
-extern struct builtin_fw __start_builtin_fw[];
-extern struct builtin_fw __end_builtin_fw[];
-#else /* Module case. Avoid ifdefs later; it'll all optimise out */
-static struct builtin_fw *__start_builtin_fw;
-static struct builtin_fw *__end_builtin_fw;
-#endif
 
 static void
 fw_load_abort(struct firmware_priv *fw_priv)
@@ -497,7 +535,6 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 	struct device *f_dev;
 	struct firmware_priv *fw_priv;
 	struct firmware *firmware;
-	struct builtin_fw *builtin;
 	int retval;
 
 	if (!firmware_p)
@@ -511,13 +548,8 @@ _request_firmware(const struct firmware **firmware_p, const char *name,
 		goto out;
 	}
 
-	for (builtin = __start_builtin_fw; builtin != __end_builtin_fw;
-	     builtin++) {
-		if (strcmp(name, builtin->name))
-			continue;
+	if (fw_get_builtin_firmware(firmware, name)) {
 		dev_dbg(device, "firmware: using built-in firmware %s\n", name);
-		firmware->size = builtin->size;
-		firmware->data = builtin->data;
 		return 0;
 	}
 
@@ -589,19 +621,11 @@ request_firmware(const struct firmware **firmware_p, const char *name,
  * release_firmware: - release the resource associated with a firmware image
  * @fw: firmware resource to release
  **/
-void
-release_firmware(const struct firmware *fw)
+void release_firmware(const struct firmware *fw)
 {
-	struct builtin_fw *builtin;
-
 	if (fw) {
-		for (builtin = __start_builtin_fw; builtin != __end_builtin_fw;
-		     builtin++) {
-			if (fw->data == builtin->data)
-				goto free_fw;
-		}
-		firmware_free_data(fw);
-	free_fw:
+		if (!fw_is_builtin_firmware(fw))
+			firmware_free_data(fw);
 		kfree(fw);
 	}
 }
