@@ -276,12 +276,21 @@ struct v4l2_subdev_video_ops {
 	returned. Note that you must fill in the 'id' member and the 'field'
 	member (to determine whether CC data from the first or second field
 	should be obtained).
+
+   s_raw_fmt: setup the video encoder/decoder for raw VBI.
+
+   g_sliced_fmt: retrieve the current sliced VBI settings.
+
+   s_sliced_fmt: setup the sliced VBI settings.
  */
 struct v4l2_subdev_vbi_ops {
 	int (*decode_vbi_line)(struct v4l2_subdev *sd, struct v4l2_decode_vbi_line *vbi_line);
 	int (*s_vbi_data)(struct v4l2_subdev *sd, const struct v4l2_sliced_vbi_data *vbi_data);
 	int (*g_vbi_data)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_data *vbi_data);
 	int (*g_sliced_vbi_cap)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_cap *cap);
+	int (*s_raw_fmt)(struct v4l2_subdev *sd, struct v4l2_vbi_format *fmt);
+	int (*g_sliced_fmt)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
+	int (*s_sliced_fmt)(struct v4l2_subdev *sd, struct v4l2_sliced_vbi_format *fmt);
 };
 
 /**
