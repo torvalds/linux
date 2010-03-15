@@ -123,7 +123,7 @@
  * writing a Wavelan ISA driver for the MACH microkernel. Girish
  * Welling <welling@paul.rutgers.edu> had also worked on it.
  * Keith Moore modify this for the Pcmcia hardware.
- * 
+ *
  * Robert Morris <rtm@das.harvard.edu> port these two drivers to BSDI
  * and add specific Pcmcia support (there is currently no equivalent
  * of the PCMCIA package under BSD...).
@@ -283,7 +283,7 @@
  * Changes made in sixth release (2.9.1a) :
  * --------------------------------------
  *	- Change the detection code for multi manufacturer code support
- *	- Correct bug (hang kernel) in init when we were "rejecting" a card 
+ *	- Correct bug (hang kernel) in init when we were "rejecting" a card
  *
  * Changes made in seventh release (2.9.1b) :
  * ----------------------------------------
@@ -514,12 +514,12 @@ static const char *version = "wavelan_cs.c : v24 (SMP + wireless extensions) 11/
 /* ------------------------ PRIVATE IOCTL ------------------------ */
 
 #define SIOCSIPQTHR	SIOCIWFIRSTPRIV		/* Set quality threshold */
-#define SIOCGIPQTHR	SIOCIWFIRSTPRIV + 1	/* Get quality threshold */
-#define SIOCSIPROAM     SIOCIWFIRSTPRIV + 2	/* Set roaming state */
-#define SIOCGIPROAM     SIOCIWFIRSTPRIV + 3	/* Get roaming state */
+#define SIOCGIPQTHR	(SIOCIWFIRSTPRIV + 1)	/* Get quality threshold */
+#define SIOCSIPROAM     (SIOCIWFIRSTPRIV + 2)	/* Set roaming state */
+#define SIOCGIPROAM     (SIOCIWFIRSTPRIV + 3)	/* Get roaming state */
 
-#define SIOCSIPHISTO	SIOCIWFIRSTPRIV + 4	/* Set histogram ranges */
-#define SIOCGIPHISTO	SIOCIWFIRSTPRIV + 5	/* Get histogram values */
+#define SIOCSIPHISTO	(SIOCIWFIRSTPRIV + 4)	/* Set histogram ranges */
+#define SIOCGIPHISTO	(SIOCIWFIRSTPRIV + 5)	/* Get histogram values */
 
 /*************************** WaveLAN Roaming  **************************/
 #ifdef WAVELAN_ROAMING		/* Conditional compile, see above in options */
@@ -532,17 +532,16 @@ static const char *version = "wavelan_cs.c : v24 (SMP + wireless extensions) 11/
 #define SEARCH_THRESH_LOW	10	/* SNR to enter cell search */
 #define SEARCH_THRESH_HIGH	13	/* SNR to leave cell search */
 #define WAVELAN_ROAMING_DELTA	1	/* Hysteresis value (+/- SNR) */
-#define CELL_TIMEOUT		2*HZ	/* in jiffies */
+#define CELL_TIMEOUT		(2*HZ)	/* in jiffies */
 
 #define FAST_CELL_SEARCH	1	/* Boolean values... */
 #define NWID_PROMISC		1	/* for code clarity. */
 
-typedef struct wavepoint_beacon
-{
+typedef struct wavepoint_beacon {
   unsigned char		dsap,		/* Unused */
 			ssap,		/* Unused */
 			ctrl,		/* Unused */
-			O,U,I,		/* Unused */
+			O, U, I,		/* Unused */
 			spec_id1,	/* Unused */
 			spec_id2,	/* Unused */
 			pdu_type,	/* Unused */
@@ -551,8 +550,7 @@ typedef struct wavepoint_beacon
 			nwid;		/* WavePoint NWID */
 } wavepoint_beacon;
 
-typedef struct wavepoint_history
-{
+typedef struct wavepoint_history {
   unsigned short	nwid;		/* WavePoint's NWID */
   int			average_slow;	/* SNR running average */
   int			average_fast;	/* SNR running average */
@@ -564,8 +562,7 @@ typedef struct wavepoint_history
   unsigned long		last_seen;	/* Time of last beacon recvd, jiffies */
 } wavepoint_history;
 
-struct wavepoint_table
-{
+struct wavepoint_table {
   wavepoint_history	*head;		/* Start of ringbuffer */
   int			num_wavepoints;	/* No. of WavePoints visible */
   unsigned char		locked;		/* Table lock */
@@ -592,12 +589,11 @@ typedef u_char		mac_addr[WAVELAN_ADDR_SIZE];	/* Hardware address */
  * keep the generic data (same format for everybody) and "net_local" keep
  * the additional specific data.
  */
-struct net_local
-{
+struct net_local {
   dev_node_t 	node;		/* ???? What is this stuff ???? */
-  struct net_device *	dev;		/* Reverse link... */
+  struct net_device *dev;		/* Reverse link... */
   spinlock_t	spinlock;	/* Serialize access to the hardware (SMP) */
-  struct pcmcia_device *	link;		/* pcmcia structure */
+  struct pcmcia_device *link;		/* pcmcia structure */
   int		nresets;	/* Number of hw resets */
   u_char	configured;	/* If it is configured */
   u_char	reconfig_82593;	/* Need to reconfigure the controller */
@@ -623,7 +619,7 @@ struct net_local
   u_long	domain_id;	/* Domain ID we lock on for roaming */
   int		filter_domains;	/* Check Domain ID of beacon found */
  struct wavepoint_table	wavepoint_table;	/* Table of visible WavePoints*/
-  wavepoint_history *	curr_point;		/* Current wavepoint */
+  wavepoint_history *curr_point;		/* Current wavepoint */
   int			cell_search;		/* Searching for new cell? */
   struct timer_list	cell_timer;		/* Garbage collection */
 #endif	/* WAVELAN_ROAMING */
@@ -673,7 +669,7 @@ static void
 		 int);		/* number of registers */
 /* ---------------------- I82593 SUBROUTINES ----------------------- */
 static int
-	wv_82593_cmd(struct net_device *,	/* synchronously send a command to i82593 */ 
+	wv_82593_cmd(struct net_device *,	/* synchronously send a command to i82593 */
 		     char *,
 		     int,
 		     int);
