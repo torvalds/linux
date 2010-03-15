@@ -21,8 +21,6 @@ extern int number_of_cpusets;	/* How many cpusets are defined in system? */
 extern int cpuset_init(void);
 extern void cpuset_init_smp(void);
 extern void cpuset_cpus_allowed(struct task_struct *p, struct cpumask *mask);
-extern void cpuset_cpus_allowed_locked(struct task_struct *p,
-				       struct cpumask *mask);
 extern nodemask_t cpuset_mems_allowed(struct task_struct *p);
 #define cpuset_current_mems_allowed (current->mems_allowed)
 void cpuset_init_current_mems_allowed(void);
@@ -69,9 +67,6 @@ struct seq_file;
 extern void cpuset_task_status_allowed(struct seq_file *m,
 					struct task_struct *task);
 
-extern void cpuset_lock(void);
-extern void cpuset_unlock(void);
-
 extern int cpuset_mem_spread_node(void);
 
 static inline int cpuset_do_page_mem_spread(void)
@@ -102,11 +97,6 @@ static inline void cpuset_init_smp(void) {}
 
 static inline void cpuset_cpus_allowed(struct task_struct *p,
 				       struct cpumask *mask)
-{
-	cpumask_copy(mask, cpu_possible_mask);
-}
-static inline void cpuset_cpus_allowed_locked(struct task_struct *p,
-					      struct cpumask *mask)
 {
 	cpumask_copy(mask, cpu_possible_mask);
 }
@@ -156,9 +146,6 @@ static inline void cpuset_task_status_allowed(struct seq_file *m,
 						struct task_struct *task)
 {
 }
-
-static inline void cpuset_lock(void) {}
-static inline void cpuset_unlock(void) {}
 
 static inline int cpuset_mem_spread_node(void)
 {
