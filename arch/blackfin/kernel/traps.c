@@ -546,7 +546,7 @@ void panic_cplb_error(int cplb_panic, struct pt_regs *fp)
 #ifdef CONFIG_BUG
 int is_valid_bugaddr(unsigned long addr)
 {
-	unsigned short opcode;
+	unsigned int opcode;
 
 	if (!get_instruction(&opcode, (unsigned short *)addr))
 		return 0;

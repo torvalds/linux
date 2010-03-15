@@ -75,6 +75,26 @@ void decode_address(char *buf, unsigned long address)
 	} else if (address >= L1_ROM_START && address < L1_ROM_START + L1_ROM_LENGTH) {
 		strcat(buf, "/* on-chip L1 ROM */");
 		return;
+
+	} else if (address >= L1_SCRATCH_START && address < L1_SCRATCH_START + L1_SCRATCH_LENGTH) {
+		strcat(buf, "/* on-chip scratchpad */");
+		return;
+
+	} else if (address >= physical_mem_end && address < ASYNC_BANK0_BASE) {
+		strcat(buf, "/* unconnected memory */");
+		return;
+
+	} else if (address >= ASYNC_BANK3_BASE + ASYNC_BANK3_SIZE && address < BOOT_ROM_START) {
+		strcat(buf, "/* reserved memory */");
+		return;
+
+	} else if (address >= L1_DATA_A_START && address < L1_DATA_A_START + L1_DATA_A_LENGTH) {
+		strcat(buf, "/* on-chip Data Bank A */");
+		return;
+
+	} else if (address >= L1_DATA_B_START && address < L1_DATA_B_START + L1_DATA_B_LENGTH) {
+		strcat(buf, "/* on-chip Data Bank B */");
+		return;
 	}
 
 	/*
@@ -173,16 +193,12 @@ done:
  * Similar to get_user, do some address checking, then dereference
  * Return true on success, false on bad address
  */
-bool get_instruction(unsigned short *val, unsigned short *address)
+bool get_mem16(unsigned short *val, unsigned short *address)
 {
 	unsigned long addr = (unsigned long)address;
 
 	/* Check for odd addresses */
 	if (addr & 0x1)
-		return false;
-
-	/* MMR region will never have instructions */
-	if (addr >= SYSMMR_BASE)
 		return false;
 
 	switch (bfin_mem_access_type(addr, 2)) {
@@ -201,60 +217,430 @@ bool get_instruction(unsigned short *val, unsigned short *address)
 	}
 }
 
+bool get_instruction(unsigned int *val, unsigned short *address)
+{
+	unsigned long addr = (unsigned long)address;
+	unsigned short opcode0, opcode1;
+
+	/* Check for odd addresses */
+	if (addr & 0x1)
+		return false;
+
+	/* MMR region will never have instructions */
+	if (addr >= SYSMMR_BASE)
+		return false;
+
+	/* Scratchpad will never have instructions */
+	if (addr >= L1_SCRATCH_START && addr < L1_SCRATCH_START + L1_SCRATCH_LENGTH)
+		return false;
+
+	/* Data banks will never have instructions */
+	if (addr >= BOOT_ROM_START + BOOT_ROM_LENGTH && addr < L1_CODE_START)
+		return false;
+
+	if (!get_mem16(&opcode0, address))
+		return false;
+
+	/* was this a 32-bit instruction? If so, get the next 16 bits */
+	if ((opcode0 & 0xc000) == 0xc000) {
+		if (!get_mem16(&opcode1, address + 1))
+			return false;
+		*val = (opcode0 << 16) + opcode1;
+	} else
+		*val = opcode0;
+
+	return true;
+}
+
+#if defined(CONFIG_DEBUG_BFIN_HWTRACE_ON)
 /*
  * decode the instruction if we are printing out the trace, as it
  * makes things easier to follow, without running it through objdump
- * These are the normal instructions which cause change of flow, which
- * would be at the source of the trace buffer
+ * Decode the change of flow, and the common load/store instructions
+ * which are the main cause for faults, and discontinuities in the trace
+ * buffer.
  */
-#if defined(CONFIG_DEBUG_BFIN_HWTRACE_ON)
-static void decode_instruction(unsigned short *address)
-{
-	unsigned short opcode;
 
-	if (get_instruction(&opcode, address)) {
-		if (opcode == 0x0010)
-			pr_cont("RTS");
-		else if (opcode == 0x0011)
-			pr_cont("RTI");
-		else if (opcode == 0x0012)
-			pr_cont("RTX");
-		else if (opcode == 0x0013)
-			pr_cont("RTN");
-		else if (opcode == 0x0014)
-			pr_cont("RTE");
-		else if (opcode == 0x0025)
-			pr_cont("EMUEXCPT");
-		else if (opcode >= 0x0040 && opcode <= 0x0047)
-			pr_cont("STI R%i", opcode & 7);
-		else if (opcode >= 0x0050 && opcode <= 0x0057)
-			pr_cont("JUMP (P%i)", opcode & 7);
-		else if (opcode >= 0x0060 && opcode <= 0x0067)
-			pr_cont("CALL (P%i)", opcode & 7);
-		else if (opcode >= 0x0070 && opcode <= 0x0077)
-			pr_cont("CALL (PC+P%i)", opcode & 7);
-		else if (opcode >= 0x0080 && opcode <= 0x0087)
-			pr_cont("JUMP (PC+P%i)", opcode & 7);
-		else if (opcode >= 0x0090 && opcode <= 0x009F)
-			pr_cont("RAISE 0x%x", opcode & 0xF);
-		else if (opcode >= 0x00A0 && opcode <= 0x00AF)
-			pr_cont("EXCPT 0x%x", opcode & 0xF);
-		else if ((opcode >= 0x1000 && opcode <= 0x13FF) || (opcode >= 0x1800 && opcode <= 0x1BFF))
-			pr_cont("IF !CC JUMP");
-		else if ((opcode >= 0x1400 && opcode <= 0x17ff) || (opcode >= 0x1c00 && opcode <= 0x1fff))
-			pr_cont("IF CC JUMP");
-		else if (opcode >= 0x2000 && opcode <= 0x2fff)
-			pr_cont("JUMP.S");
-		else if (opcode >= 0xe080 && opcode <= 0xe0ff)
-			pr_cont("LSETUP");
-		else if (opcode >= 0xe200 && opcode <= 0xe2ff)
-			pr_cont("JUMP.L");
-		else if (opcode >= 0xe300 && opcode <= 0xe3ff)
-			pr_cont("CALL pcrel");
-		else
-			pr_cont("0x%04x", opcode);
+#define ProgCtrl_opcode         0x0000
+#define ProgCtrl_poprnd_bits    0
+#define ProgCtrl_poprnd_mask    0xf
+#define ProgCtrl_prgfunc_bits   4
+#define ProgCtrl_prgfunc_mask   0xf
+#define ProgCtrl_code_bits      8
+#define ProgCtrl_code_mask      0xff
+
+static void decode_ProgCtrl_0(unsigned int opcode)
+{
+	int poprnd  = ((opcode >> ProgCtrl_poprnd_bits) & ProgCtrl_poprnd_mask);
+	int prgfunc = ((opcode >> ProgCtrl_prgfunc_bits) & ProgCtrl_prgfunc_mask);
+
+	if (prgfunc == 0 && poprnd == 0)
+		pr_cont("NOP");
+	else if (prgfunc == 1 && poprnd == 0)
+		pr_cont("RTS");
+	else if (prgfunc == 1 && poprnd == 1)
+		pr_cont("RTI");
+	else if (prgfunc == 1 && poprnd == 2)
+		pr_cont("RTX");
+	else if (prgfunc == 1 && poprnd == 3)
+		pr_cont("RTN");
+	else if (prgfunc == 1 && poprnd == 4)
+		pr_cont("RTE");
+	else if (prgfunc == 2 && poprnd == 0)
+		pr_cont("IDLE");
+	else if (prgfunc == 2 && poprnd == 3)
+		pr_cont("CSYNC");
+	else if (prgfunc == 2 && poprnd == 4)
+		pr_cont("SSYNC");
+	else if (prgfunc == 2 && poprnd == 5)
+		pr_cont("EMUEXCPT");
+	else if (prgfunc == 3)
+		pr_cont("CLI R%i", poprnd);
+	else if (prgfunc == 4)
+		pr_cont("STI R%i", poprnd);
+	else if (prgfunc == 5)
+		pr_cont("JUMP (P%i)", poprnd);
+	else if (prgfunc == 6)
+		pr_cont("CALL (P%i)", poprnd);
+	else if (prgfunc == 7)
+		pr_cont("CALL (PC + P%i)", poprnd);
+	else if (prgfunc == 8)
+		pr_cont("JUMP (PC + P%i", poprnd);
+	else if (prgfunc == 9)
+		pr_cont("RAISE %i", poprnd);
+	else if (prgfunc == 10)
+		pr_cont("EXCPT %i", poprnd);
+	else
+		pr_cont("0x%04x", opcode);
+
+}
+
+#define BRCC_opcode             0x1000
+#define BRCC_offset_bits        0
+#define BRCC_offset_mask        0x3ff
+#define BRCC_B_bits             10
+#define BRCC_B_mask             0x1
+#define BRCC_T_bits             11
+#define BRCC_T_mask             0x1
+#define BRCC_code_bits          12
+#define BRCC_code_mask          0xf
+
+static void decode_BRCC_0(unsigned int opcode)
+{
+	int B = ((opcode >> BRCC_B_bits) & BRCC_B_mask);
+	int T = ((opcode >> BRCC_T_bits) & BRCC_T_mask);
+
+	pr_cont("IF %sCC JUMP pcrel %s", T ? "" : "!", B ? "(BP)" : "");
+}
+
+#define CALLa_opcode    0xe2000000
+#define CALLa_addr_bits 0
+#define CALLa_addr_mask 0xffffff
+#define CALLa_S_bits    24
+#define CALLa_S_mask    0x1
+#define CALLa_code_bits 25
+#define CALLa_code_mask 0x7f
+
+static void decode_CALLa_0(unsigned int opcode)
+{
+	int S   = ((opcode >> (CALLa_S_bits - 16)) & CALLa_S_mask);
+
+	if (S)
+		pr_cont("CALL pcrel");
+	else
+		pr_cont("JUMP.L");
+}
+
+#define LoopSetup_opcode                0xe0800000
+#define LoopSetup_eoffset_bits          0
+#define LoopSetup_eoffset_mask          0x3ff
+#define LoopSetup_dontcare_bits         10
+#define LoopSetup_dontcare_mask         0x3
+#define LoopSetup_reg_bits              12
+#define LoopSetup_reg_mask              0xf
+#define LoopSetup_soffset_bits          16
+#define LoopSetup_soffset_mask          0xf
+#define LoopSetup_c_bits                20
+#define LoopSetup_c_mask                0x1
+#define LoopSetup_rop_bits              21
+#define LoopSetup_rop_mask              0x3
+#define LoopSetup_code_bits             23
+#define LoopSetup_code_mask             0x1ff
+
+static void decode_LoopSetup_0(unsigned int opcode)
+{
+	int c   = ((opcode >> LoopSetup_c_bits)   & LoopSetup_c_mask);
+	int reg = ((opcode >> LoopSetup_reg_bits) & LoopSetup_reg_mask);
+	int rop = ((opcode >> LoopSetup_rop_bits) & LoopSetup_rop_mask);
+
+	pr_cont("LSETUP <> LC%i", c);
+	if ((rop & 1) == 1)
+		pr_cont("= P%i", reg);
+	if ((rop & 2) == 2)
+		pr_cont(" >> 0x1");
+}
+
+#define DspLDST_opcode          0x9c00
+#define DspLDST_reg_bits        0
+#define DspLDST_reg_mask        0x7
+#define DspLDST_i_bits          3
+#define DspLDST_i_mask          0x3
+#define DspLDST_m_bits          5
+#define DspLDST_m_mask          0x3
+#define DspLDST_aop_bits        7
+#define DspLDST_aop_mask        0x3
+#define DspLDST_W_bits          9
+#define DspLDST_W_mask          0x1
+#define DspLDST_code_bits       10
+#define DspLDST_code_mask       0x3f
+
+static void decode_dspLDST_0(unsigned int opcode)
+{
+	int i   = ((opcode >> DspLDST_i_bits) & DspLDST_i_mask);
+	int m   = ((opcode >> DspLDST_m_bits) & DspLDST_m_mask);
+	int W   = ((opcode >> DspLDST_W_bits) & DspLDST_W_mask);
+	int aop = ((opcode >> DspLDST_aop_bits) & DspLDST_aop_mask);
+	int reg = ((opcode >> DspLDST_reg_bits) & DspLDST_reg_mask);
+
+	if (W == 0) {
+		pr_cont("R%i", reg);
+		switch (m) {
+		case 0:
+			pr_cont(" = ");
+			break;
+		case 1:
+			pr_cont(".L = ");
+			break;
+		case 2:
+			pr_cont(".W = ");
+			break;
+		}
 	}
 
+	pr_cont("[ I%i", i);
+
+	switch (aop) {
+	case 0:
+		pr_cont("++ ]");
+		break;
+	case 1:
+		pr_cont("-- ]");
+		break;
+	}
+
+	if (W == 1) {
+		pr_cont(" = R%i", reg);
+		switch (m) {
+		case 1:
+			pr_cont(".L = ");
+			break;
+		case 2:
+			pr_cont(".W = ");
+			break;
+		}
+	}
+}
+
+#define LDST_opcode             0x9000
+#define LDST_reg_bits           0
+#define LDST_reg_mask           0x7
+#define LDST_ptr_bits           3
+#define LDST_ptr_mask           0x7
+#define LDST_Z_bits             6
+#define LDST_Z_mask             0x1
+#define LDST_aop_bits           7
+#define LDST_aop_mask           0x3
+#define LDST_W_bits             9
+#define LDST_W_mask             0x1
+#define LDST_sz_bits            10
+#define LDST_sz_mask            0x3
+#define LDST_code_bits          12
+#define LDST_code_mask          0xf
+
+static void decode_LDST_0(unsigned int opcode)
+{
+	int Z   = ((opcode >> LDST_Z_bits) & LDST_Z_mask);
+	int W   = ((opcode >> LDST_W_bits) & LDST_W_mask);
+	int sz  = ((opcode >> LDST_sz_bits) & LDST_sz_mask);
+	int aop = ((opcode >> LDST_aop_bits) & LDST_aop_mask);
+	int reg = ((opcode >> LDST_reg_bits) & LDST_reg_mask);
+	int ptr = ((opcode >> LDST_ptr_bits) & LDST_ptr_mask);
+
+	if (W == 0)
+		pr_cont("%s%i = ", (sz == 0 && Z == 1) ? "P" : "R", reg);
+
+	switch (sz) {
+	case 1:
+		pr_cont("W");
+		break;
+	case 2:
+		pr_cont("B");
+		break;
+	}
+
+	pr_cont("[P%i", ptr);
+
+	switch (aop) {
+	case 0:
+		pr_cont("++");
+		break;
+	case 1:
+		pr_cont("--");
+		break;
+	}
+	pr_cont("]");
+
+	if (W == 1)
+		pr_cont(" = %s%i ", (sz == 0 && Z == 1) ? "P" : "R", reg);
+
+	if (sz) {
+		if (Z)
+			pr_cont(" (X)");
+		else
+			pr_cont(" (Z)");
+	}
+}
+
+#define LDSTii_opcode           0xa000
+#define LDSTii_reg_bit          0
+#define LDSTii_reg_mask         0x7
+#define LDSTii_ptr_bit          3
+#define LDSTii_ptr_mask         0x7
+#define LDSTii_offset_bit       6
+#define LDSTii_offset_mask      0xf
+#define LDSTii_op_bit           10
+#define LDSTii_op_mask          0x3
+#define LDSTii_W_bit            12
+#define LDSTii_W_mask           0x1
+#define LDSTii_code_bit         13
+#define LDSTii_code_mask        0x7
+
+static void decode_LDSTii_0(unsigned int opcode)
+{
+	int reg = ((opcode >> LDSTii_reg_bit) & LDSTii_reg_mask);
+	int ptr = ((opcode >> LDSTii_ptr_bit) & LDSTii_ptr_mask);
+	int offset = ((opcode >> LDSTii_offset_bit) & LDSTii_offset_mask);
+	int op = ((opcode >> LDSTii_op_bit) & LDSTii_op_mask);
+	int W = ((opcode >> LDSTii_W_bit) & LDSTii_W_mask);
+
+	if (W == 0) {
+		pr_cont("%s%i = %s[P%i + %i]", op == 3 ? "R" : "P", reg,
+			op == 1 || op == 2 ? "" : "W", ptr, offset);
+		if (op == 2)
+			pr_cont("(Z)");
+		if (op == 3)
+			pr_cont("(X)");
+	} else {
+		pr_cont("%s[P%i + %i] = %s%i", op == 0 ? "" : "W", ptr,
+			offset, op == 3 ? "P" : "R", reg);
+	}
+}
+
+#define LDSTidxI_opcode         0xe4000000
+#define LDSTidxI_offset_bits    0
+#define LDSTidxI_offset_mask    0xffff
+#define LDSTidxI_reg_bits       16
+#define LDSTidxI_reg_mask       0x7
+#define LDSTidxI_ptr_bits       19
+#define LDSTidxI_ptr_mask       0x7
+#define LDSTidxI_sz_bits        22
+#define LDSTidxI_sz_mask        0x3
+#define LDSTidxI_Z_bits         24
+#define LDSTidxI_Z_mask         0x1
+#define LDSTidxI_W_bits         25
+#define LDSTidxI_W_mask         0x1
+#define LDSTidxI_code_bits      26
+#define LDSTidxI_code_mask      0x3f
+
+static void decode_LDSTidxI_0(unsigned int opcode)
+{
+	int Z      = ((opcode >> LDSTidxI_Z_bits)      & LDSTidxI_Z_mask);
+	int W      = ((opcode >> LDSTidxI_W_bits)      & LDSTidxI_W_mask);
+	int sz     = ((opcode >> LDSTidxI_sz_bits)     & LDSTidxI_sz_mask);
+	int reg    = ((opcode >> LDSTidxI_reg_bits)    & LDSTidxI_reg_mask);
+	int ptr    = ((opcode >> LDSTidxI_ptr_bits)    & LDSTidxI_ptr_mask);
+	int offset = ((opcode >> LDSTidxI_offset_bits) & LDSTidxI_offset_mask);
+
+	if (W == 0)
+		pr_cont("%s%i = ", sz == 0 && Z == 1 ? "P" : "R", reg);
+
+	if (sz == 1)
+		pr_cont("W");
+	if (sz == 2)
+		pr_cont("B");
+
+	pr_cont("[P%i + %s0x%x]", ptr, offset & 0x20 ? "-" : "",
+		(offset & 0x1f) << 2);
+
+	if (W == 0 && sz != 0) {
+		if (Z)
+			pr_cont("(X)");
+		else
+			pr_cont("(Z)");
+	}
+
+	if (W == 1)
+		pr_cont("= %s%i", (sz == 0 && Z == 1) ? "P" : "R", reg);
+
+}
+
+static void decode_opcode(unsigned int opcode)
+{
+#ifdef CONFIG_BUG
+	if (opcode == BFIN_BUG_OPCODE)
+		pr_cont("BUG");
+	else
+#endif
+	if ((opcode & 0xffffff00) == ProgCtrl_opcode)
+		decode_ProgCtrl_0(opcode);
+	else if ((opcode & 0xfffff000) == BRCC_opcode)
+		decode_BRCC_0(opcode);
+	else if ((opcode & 0xfffff000) == 0x2000)
+		pr_cont("JUMP.S");
+	else if ((opcode & 0xfe000000) == CALLa_opcode)
+		decode_CALLa_0(opcode);
+	else if ((opcode & 0xff8000C0) == LoopSetup_opcode)
+		decode_LoopSetup_0(opcode);
+	else if ((opcode & 0xfffffc00) == DspLDST_opcode)
+		decode_dspLDST_0(opcode);
+	else if ((opcode & 0xfffff000) == LDST_opcode)
+		decode_LDST_0(opcode);
+	else if ((opcode & 0xffffe000) == LDSTii_opcode)
+		decode_LDSTii_0(opcode);
+	else if ((opcode & 0xfc000000) == LDSTidxI_opcode)
+		decode_LDSTidxI_0(opcode);
+	else if (opcode & 0xffff0000)
+		pr_cont("0x%08x", opcode);
+	else
+		pr_cont("0x%04x", opcode);
+}
+
+#define BIT_MULTI_INS 0x08000000
+static void decode_instruction(unsigned short *address)
+{
+	unsigned int opcode;
+
+	if (!get_instruction(&opcode, address))
+		return;
+
+	decode_opcode(opcode);
+
+	/* If things are a 32-bit instruction, it has the possibility of being
+	 * a multi-issue instruction (a 32-bit, and 2 16 bit instrucitions)
+	 * This test collidates with the unlink instruction, so disallow that
+	 */
+	if ((opcode & 0xc0000000) == 0xc0000000 &&
+	    (opcode & BIT_MULTI_INS) &&
+	    (opcode & 0xe8000000) != 0xe8000000) {
+		pr_cont(" || ");
+		if (!get_instruction(&opcode, address + 2))
+			return;
+		decode_opcode(opcode);
+		pr_cont(" || ");
+		if (!get_instruction(&opcode, address + 3))
+			return;
+		decode_opcode(opcode);
+	}
 }
 #endif
 
@@ -397,7 +783,7 @@ void dump_bfin_mem(struct pt_regs *fp)
 		if (!((unsigned long)addr & 0xF))
 			pr_notice("0x%p: ", addr);
 
-		if (!get_instruction(&val, addr)) {
+		if (!get_mem16(&val, addr)) {
 				val = 0;
 				sprintf(buf, "????");
 		} else

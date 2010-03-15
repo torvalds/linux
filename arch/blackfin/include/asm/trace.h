@@ -25,10 +25,10 @@ extern unsigned long trace_buff_offset;
 extern unsigned long software_trace_buff[];
 #if defined(CONFIG_DEBUG_VERBOSE)
 extern void decode_address(char *buf, unsigned long address);
-extern bool get_instruction(unsigned short *val, unsigned short *address);
+extern bool get_instruction(unsigned int *val, unsigned short *address);
 #else
-#define decode_address(buf, address)
-#define get_instruction(val, address) 0
+static inline void decode_address(char *buf, unsigned long address) { }
+static inline bool get_instruction(unsigned int *val, unsigned short *address) { return false; }
 #endif
 
 /* Trace Macros for C files */
