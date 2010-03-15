@@ -357,6 +357,14 @@ config HID_WACOM
 	---help---
 	Support for Wacom Graphire Bluetooth tablet.
 
+config HID_WACOM_POWER_SUPPLY
+	bool "Wacom Bluetooth devices power supply status support"
+	depends on HID_WACOM
+	select POWER_SUPPLY
+	---help---
+	  Say Y here if you want to enable power supply status monitoring for
+	  Wacom Bluetooth devices.
+
 config HID_ZEROPLUS
 	tristate "Zeroplus based game controller support" if EMBEDDED
 	depends on USB_HID
