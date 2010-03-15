@@ -1223,16 +1223,7 @@ static int pcic_init(struct pcmcia_socket *s)
 	return 0;
 }
 
-static int i82365_drv_pcmcia_suspend(struct platform_device *dev,
-				     pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&dev->dev);
-}
 
-static int i82365_drv_pcmcia_resume(struct platform_device *dev)
-{
-	return pcmcia_socket_dev_resume(&dev->dev);
-}
 static struct pccard_operations pcic_operations = {
 	.init			= pcic_init,
 	.get_status		= pcic_get_status,
@@ -1248,8 +1239,6 @@ static struct platform_driver i82365_driver = {
 		.name = "i82365",
 		.owner		= THIS_MODULE,
 	},
-	.suspend 	= i82365_drv_pcmcia_suspend,
-	.resume 	= i82365_drv_pcmcia_resume,
 };
 
 static struct platform_device *i82365_device;

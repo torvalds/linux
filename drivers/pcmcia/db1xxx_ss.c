@@ -558,37 +558,10 @@ static int __devexit db1x_pcmcia_socket_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int db1x_pcmcia_suspend(struct device *dev)
-{
-	return pcmcia_socket_dev_suspend(dev);
-}
-
-static int db1x_pcmcia_resume(struct device *dev)
-{
-	return pcmcia_socket_dev_resume(dev);
-}
-
-static struct dev_pm_ops db1x_pcmcia_pmops = {
-	.resume		= db1x_pcmcia_resume,
-	.suspend	= db1x_pcmcia_suspend,
-	.thaw		= db1x_pcmcia_resume,
-	.freeze		= db1x_pcmcia_suspend,
-};
-
-#define DB1XXX_SS_PMOPS &db1x_pcmcia_pmops
-
-#else
-
-#define DB1XXX_SS_PMOPS NULL
-
-#endif
-
 static struct platform_driver db1x_pcmcia_socket_driver = {
 	.driver	= {
 		.name	= "db1xxx_pcmcia",
 		.owner	= THIS_MODULE,
-		.pm	= DB1XXX_SS_PMOPS
 	},
 	.probe		= db1x_pcmcia_socket_probe,
 	.remove		= __devexit_p(db1x_pcmcia_socket_remove),

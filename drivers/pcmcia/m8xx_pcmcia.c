@@ -1288,21 +1288,6 @@ static int m8xx_remove(struct of_device *ofdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int m8xx_suspend(struct platform_device *pdev, pm_message_t state)
-{
-	return pcmcia_socket_dev_suspend(&pdev->dev);
-}
-
-static int m8xx_resume(struct platform_device *pdev)
-{
-	return pcmcia_socket_dev_resume(&pdev->dev);
-}
-#else
-#define m8xx_suspend NULL
-#define m8xx_resume NULL
-#endif
-
 static const struct of_device_id m8xx_pcmcia_match[] = {
 	{
 	 .type = "pcmcia",
@@ -1318,8 +1303,6 @@ static struct of_platform_driver m8xx_pcmcia_driver = {
 	.match_table = m8xx_pcmcia_match,
 	.probe = m8xx_probe,
 	.remove = m8xx_remove,
-	.suspend = m8xx_suspend,
-	.resume = m8xx_resume,
 };
 
 static int __init m8xx_init(void)
