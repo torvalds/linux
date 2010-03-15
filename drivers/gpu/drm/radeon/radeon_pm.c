@@ -375,6 +375,8 @@ static void radeon_pm_set_clocks_locked(struct radeon_device *rdev)
 
 static void radeon_pm_set_clocks(struct radeon_device *rdev)
 {
+	int i;
+
 	radeon_get_power_state(rdev, rdev->pm.planned_action);
 	mutex_lock(&rdev->cp.mutex);
 
@@ -388,22 +390,18 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 	rdev->irq.gui_idle = false;
 	radeon_irq_set(rdev);
 
-	if (rdev->pm.active_crtcs & (1 << 0)) {
-		rdev->pm.req_vblank |= (1 << 0);
-		drm_vblank_get(rdev->ddev, 0);
-	}
-	if (rdev->pm.active_crtcs & (1 << 1)) {
-		rdev->pm.req_vblank |= (1 << 1);
-		drm_vblank_get(rdev->ddev, 1);
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (rdev->pm.active_crtcs & (1 << i)) {
+			rdev->pm.req_vblank |= (1 << i);
+			drm_vblank_get(rdev->ddev, i);
+		}
 	}
 	radeon_pm_set_clocks_locked(rdev);
-	if (rdev->pm.req_vblank & (1 << 0)) {
-		rdev->pm.req_vblank &= ~(1 << 0);
-		drm_vblank_put(rdev->ddev, 0);
-	}
-	if (rdev->pm.req_vblank & (1 << 1)) {
-		rdev->pm.req_vblank &= ~(1 << 1);
-		drm_vblank_put(rdev->ddev, 1);
+	for (i = 0; i < rdev->num_crtc; i++) {
+		if (rdev->pm.req_vblank & (1 << i)) {
+			rdev->pm.req_vblank &= ~(1 << i);
+			drm_vblank_put(rdev->ddev, i);
+		}
 	}
 
 	mutex_unlock(&rdev->cp.mutex);
