@@ -3291,41 +3291,68 @@ int emulator_write_emulated(unsigned long addr,
 }
 EXPORT_SYMBOL_GPL(emulator_write_emulated);
 
+#define CMPXCHG_TYPE(t, ptr, old, new) \
+	(cmpxchg((t *)(ptr), *(t *)(old), *(t *)(new)) == *(t *)(old))
+
+#ifdef CONFIG_X86_64
+#  define CMPXCHG64(ptr, old, new) CMPXCHG_TYPE(u64, ptr, old, new)
+#else
+#  define CMPXCHG64(ptr, old, new) \
+	(cmpxchg64((u64 *)(ptr), *(u64 *)(old), *(u *)(new)) == *(u64 *)(old))
+#endif
+
 static int emulator_cmpxchg_emulated(unsigned long addr,
 				     const void *old,
 				     const void *new,
 				     unsigned int bytes,
 				     struct kvm_vcpu *vcpu)
 {
-	printk_once(KERN_WARNING "kvm: emulating exchange as write\n");
-#ifndef CONFIG_X86_64
+	gpa_t gpa;
+	struct page *page;
+	char *kaddr;
+	bool exchanged;
+
 	/* guests cmpxchg8b have to be emulated atomically */
-	if (bytes == 8) {
-		gpa_t gpa;
-		struct page *page;
-		char *kaddr;
-		u64 val;
+	if (bytes > 8 || (bytes & (bytes - 1)))
+		goto emul_write;
 
-		gpa = kvm_mmu_gva_to_gpa_write(vcpu, addr, NULL);
+	gpa = kvm_mmu_gva_to_gpa_write(vcpu, addr, NULL);
 
-		if (gpa == UNMAPPED_GVA ||
-		   (gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
-			goto emul_write;
+	if (gpa == UNMAPPED_GVA ||
+	    (gpa & PAGE_MASK) == APIC_DEFAULT_PHYS_BASE)
+		goto emul_write;
 
-		if (((gpa + bytes - 1) & PAGE_MASK) != (gpa & PAGE_MASK))
-			goto emul_write;
+	if (((gpa + bytes - 1) & PAGE_MASK) != (gpa & PAGE_MASK))
+		goto emul_write;
 
-		val = *(u64 *)new;
+	page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
 
-		page = gfn_to_page(vcpu->kvm, gpa >> PAGE_SHIFT);
-
-		kaddr = kmap_atomic(page, KM_USER0);
-		set_64bit((u64 *)(kaddr + offset_in_page(gpa)), val);
-		kunmap_atomic(kaddr, KM_USER0);
-		kvm_release_page_dirty(page);
+	kaddr = kmap_atomic(page, KM_USER0);
+	kaddr += offset_in_page(gpa);
+	switch (bytes) {
+	case 1:
+		exchanged = CMPXCHG_TYPE(u8, kaddr, old, new);
+		break;
+	case 2:
+		exchanged = CMPXCHG_TYPE(u16, kaddr, old, new);
+		break;
+	case 4:
+		exchanged = CMPXCHG_TYPE(u32, kaddr, old, new);
+		break;
+	case 8:
+		exchanged = CMPXCHG64(kaddr, old, new);
+		break;
+	default:
+		BUG();
 	}
+	kunmap_atomic(kaddr, KM_USER0);
+	kvm_release_page_dirty(page);
+
+	if (!exchanged)
+		return X86EMUL_CMPXCHG_FAILED;
+
 emul_write:
-#endif
+	printk_once(KERN_WARNING "kvm: emulating exchange as write\n");
 
 	return emulator_write_emulated(addr, new, bytes, vcpu);
 }
