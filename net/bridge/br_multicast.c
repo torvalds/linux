@@ -852,8 +852,8 @@ static int br_multicast_query(struct net_bridge *br,
 		if (ih3->nsrcs)
 			goto out;
 
-		max_delay = ih3->code ? 1 :
-			    IGMPV3_MRC(ih3->code) * (HZ / IGMP_TIMER_SCALE);
+		max_delay = ih3->code ?
+			    IGMPV3_MRC(ih3->code) * (HZ / IGMP_TIMER_SCALE) : 1;
 	}
 
 	if (!group)
