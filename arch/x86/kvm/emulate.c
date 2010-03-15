@@ -566,7 +566,7 @@ static u32 group2_table[] = {
 #define insn_fetch(_type, _size, _eip)                                  \
 ({	unsigned long _x;						\
 	rc = do_insn_fetch(ctxt, ops, (_eip), &_x, (_size));		\
-	if (rc != 0)							\
+	if (rc != X86EMUL_CONTINUE)					\
 		goto done;						\
 	(_eip) += (_size);						\
 	(_type)_x;							\
