@@ -60,13 +60,11 @@ struct p4_event_template p4_templates[] = {
 	[2] = {
 		.opcode	= P4_INSTR_RETIRED,
 		.config	= 0,
-		.dep	= 0, /* needs front-end tagging */
+		.dep	= -1, /* needs front-end tagging */
 		.emask	=
 			P4_EVENT_ATTR(P4_INSTR_RETIRED, NBOGUSNTAG)	|
-			P4_EVENT_ATTR(P4_INSTR_RETIRED, NBOGUSTAG)	|
-			P4_EVENT_ATTR(P4_INSTR_RETIRED, BOGUSNTAG)	|
-			P4_EVENT_ATTR(P4_INSTR_RETIRED, BOGUSTAG),
-		.escr_msr	= { MSR_P4_CRU_ESCR2, MSR_P4_CRU_ESCR3 },
+			P4_EVENT_ATTR(P4_INSTR_RETIRED, BOGUSNTAG),
+		.escr_msr	= { MSR_P4_CRU_ESCR0, MSR_P4_CRU_ESCR1 },
 		.cntr		= { 12, 14 },
 	},
 	[3] = {

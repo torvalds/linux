@@ -324,8 +324,8 @@ static inline u32 p4_default_escr_conf(int cpu, int exclude_os, int exclude_usr)
 
 #define P4_SSE_INPUT_ASSIST		P4_EVENT_PACK(0x34, 0x01)
 	/*
-	 * MSR_P4_FIRM_ESCR:	8, 9
-	 * MSR_P4_FIRM_ESCR:	10, 11
+	 * MSR_P4_FIRM_ESCR0:	8, 9
+	 * MSR_P4_FIRM_ESCR1:	10, 11
 	 */
 
 #define P4_PACKED_SP_UOP		P4_EVENT_PACK(0x08, 0x01)
@@ -462,8 +462,8 @@ static inline u32 p4_default_escr_conf(int cpu, int exclude_os, int exclude_usr)
 
 #define P4_INSTR_RETIRED		P4_EVENT_PACK(0x02, 0x04)
 	/*
-	 * MSR_P4_CRU_ESCR2:	12, 13, 16
-	 * MSR_P4_CRU_ESCR3:	14, 15, 17
+	 * MSR_P4_CRU_ESCR0:	12, 13, 16
+	 * MSR_P4_CRU_ESCR1:	14, 15, 17
 	 */
 
 #define P4_UOPS_RETIRED			P4_EVENT_PACK(0x01, 0x04)
