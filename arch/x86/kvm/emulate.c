@@ -1194,9 +1194,9 @@ done_prefixes:
 		break;
 	case DstAcc:
 		c->dst.type = OP_REG;
-		c->dst.bytes = c->op_bytes;
+		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
 		c->dst.ptr = &c->regs[VCPU_REGS_RAX];
-		switch (c->op_bytes) {
+		switch (c->dst.bytes) {
 			case 1:
 				c->dst.val = *(u8 *)c->dst.ptr;
 				break;
@@ -1205,6 +1205,9 @@ done_prefixes:
 				break;
 			case 4:
 				c->dst.val = *(u32 *)c->dst.ptr;
+				break;
+			case 8:
+				c->dst.val = *(u64 *)c->dst.ptr;
 				break;
 		}
 		c->dst.orig_val = c->dst.val;
