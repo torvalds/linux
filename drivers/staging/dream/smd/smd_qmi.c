@@ -25,7 +25,7 @@
 #include <linux/miscdevice.h>
 #include <linux/workqueue.h>
 
-#include <asm/uaccess.h>
+#include <linux/uaccess.h>
 #include <mach/msm_smd.h>
 
 #define QMI_CTL 0x00
@@ -643,11 +643,10 @@ static int qmi_print_state(struct qmi_ctxt *ctxt, char *buf, int max)
 	}
 
 	i = scnprintf(buf, max, "STATE=%s\n", statename);
-	i += scnprintf(buf + i, max - i, "CID=%d\n",ctxt->wds_client_id);
+	i += scnprintf(buf + i, max - i, "CID=%d\n", ctxt->wds_client_id);
 
-	if (ctxt->state != STATE_ONLINE){
+	if (ctxt->state != STATE_ONLINE)
 		return i;
-	}
 
 	i += scnprintf(buf + i, max - i, "ADDR=%d.%d.%d.%d\n",
 		ctxt->addr[0], ctxt->addr[1], ctxt->addr[2], ctxt->addr[3]);
