@@ -7764,21 +7764,23 @@ lpfc_pci_resume_one_s3(struct pci_dev *pdev)
  * @phba: pointer to lpfc hba data structure.
  *
  * This routine is called to prepare the SLI3 device for PCI slot recover. It
- * aborts and stops all the on-going I/Os on the pci device.
+ * aborts all the outstanding SCSI I/Os to the pci device.
  **/
 static void
 lpfc_sli_prep_dev_for_recover(struct lpfc_hba *phba)
 {
+	struct lpfc_sli *psli = &phba->sli;
+	struct lpfc_sli_ring  *pring;
+
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"2723 PCI channel I/O abort preparing for recovery\n");
-	/* Prepare for bringing HBA offline */
-	lpfc_offline_prep(phba);
-	/* Clear sli active flag to prevent sysfs access to HBA */
-	spin_lock_irq(&phba->hbalock);
-	phba->sli.sli_flag &= ~LPFC_SLI_ACTIVE;
-	spin_unlock_irq(&phba->hbalock);
-	/* Stop and flush all I/Os and bring HBA offline */
-	lpfc_offline(phba);
+
+	/*
+	 * There may be errored I/Os through HBA, abort all I/Os on txcmplq
+	 * and let the SCSI mid-layer to retry them to recover.
+	 */
+	pring = &psli->ring[psli->fcp_ring];
+	lpfc_sli_abort_iocb_ring(phba, pring);
 }
 
 /**
@@ -7792,21 +7794,20 @@ lpfc_sli_prep_dev_for_recover(struct lpfc_hba *phba)
 static void
 lpfc_sli_prep_dev_for_reset(struct lpfc_hba *phba)
 {
-	struct lpfc_sli *psli = &phba->sli;
-	struct lpfc_sli_ring  *pring;
-
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"2710 PCI channel disable preparing for reset\n");
+
+	/* Block all SCSI devices' I/Os on the host */
+	lpfc_scsi_dev_block(phba);
+
+	/* stop all timers */
+	lpfc_stop_hba_timers(phba);
+
 	/* Disable interrupt and pci device */
 	lpfc_sli_disable_intr(phba);
 	pci_disable_device(phba->pcidev);
-	/*
-	 * There may be I/Os dropped by the firmware.
-	 * Error iocb (I/O) on txcmplq and let the SCSI layer
-	 * retry it after re-establishing link.
-	 */
-	pring = &psli->ring[psli->fcp_ring];
-	lpfc_sli_abort_iocb_ring(phba, pring);
+	/* Flush all driver's outstanding SCSI I/Os as we are to reset */
+	lpfc_sli_flush_fcp_rings(phba);
 }
 
 /**
@@ -7822,6 +7823,12 @@ lpfc_prep_dev_for_perm_failure(struct lpfc_hba *phba)
 {
 	lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 			"2711 PCI channel permanent disable for failure\n");
+	/* Block all SCSI devices' I/Os on the host */
+	lpfc_scsi_dev_block(phba);
+
+	/* stop all timers */
+	lpfc_stop_hba_timers(phba);
+
 	/* Clean up all driver's outstanding SCSI I/Os */
 	lpfc_sli_flush_fcp_rings(phba);
 }
@@ -7849,9 +7856,6 @@ lpfc_io_error_detected_s3(struct pci_dev *pdev, pci_channel_state_t state)
 {
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
-
-	/* Block all SCSI devices' I/Os on the host */
-	lpfc_scsi_dev_block(phba);
 
 	switch (state) {
 	case pci_channel_io_normal:
@@ -7959,7 +7963,7 @@ lpfc_io_resume_s3(struct pci_dev *pdev)
 	struct Scsi_Host *shost = pci_get_drvdata(pdev);
 	struct lpfc_hba *phba = ((struct lpfc_vport *)shost->hostdata)->phba;
 
-	/* Bring the device online */
+	/* Bring device online, it will be no-op for non-fatal error resume */
 	lpfc_online(phba);
 
 	/* Clean up Advanced Error Reporting (AER) if needed */
