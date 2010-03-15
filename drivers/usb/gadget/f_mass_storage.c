@@ -302,7 +302,6 @@ static const char fsg_string_interface[] = "Mass Storage";
 
 
 #define FSG_NO_INTR_EP 1
-#define FSG_BUFFHD_STATIC_BUFFER 1
 #define FSG_NO_DEVICE_STRINGS    1
 #define FSG_NO_OTG               1
 #define FSG_NO_INTR_EP           1
@@ -2762,13 +2761,19 @@ static struct fsg_common *fsg_common_init(struct fsg_common *common,
 
 
 	/* Data buffers cyclic list */
-	/* Buffers in buffhds are static -- no need for additional
-	 * allocation. */
 	bh = common->buffhds;
-	i = FSG_NUM_BUFFERS - 1;
+	i = FSG_NUM_BUFFERS;
+	goto buffhds_first_it;
 	do {
 		bh->next = bh + 1;
-	} while (++bh, --i);
+		++bh;
+buffhds_first_it:
+		bh->buf = kmalloc(FSG_BUFLEN, GFP_KERNEL);
+		if (unlikely(!bh->buf)) {
+			rc = -ENOMEM;
+			goto error_release;
+		}
+	} while (--i);
 	bh->next = common->buffhds;
 
 
@@ -2871,6 +2876,7 @@ static void fsg_common_release(struct kref *ref)
 		container_of(ref, struct fsg_common, ref);
 	unsigned i = common->nluns;
 	struct fsg_lun *lun = common->luns;
+	struct fsg_buffhd *bh;
 
 	/* If the thread isn't already dead, tell it to exit now */
 	if (common->state != FSG_STATE_TERMINATED) {
@@ -2892,6 +2898,13 @@ static void fsg_common_release(struct kref *ref)
 	}
 
 	kfree(common->luns);
+
+	i = FSG_NUM_BUFFERS;
+	bh = common->buffhds;
+	do {
+		kfree(bh->buf);
+	} while (++bh, --i);
+
 	if (common->free_storage_on_release)
 		kfree(common);
 }
