@@ -2613,8 +2613,29 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	int flooded = 0;
 	int npte;
 	int r;
+	int invlpg_counter;
 
 	pgprintk("%s: gpa %llx bytes %d\n", __func__, gpa, bytes);
+
+	invlpg_counter = atomic_read(&vcpu->kvm->arch.invlpg_counter);
+
+	/*
+	 * Assume that the pte write on a page table of the same type
+	 * as the current vcpu paging mode.  This is nearly always true
+	 * (might be false while changing modes).  Note it is verified later
+	 * by update_pte().
+	 */
+	if ((is_pae(vcpu) && bytes == 4) || !new) {
+		/* Handle a 32-bit guest writing two halves of a 64-bit gpte */
+		if (is_pae(vcpu)) {
+			gpa &= ~(gpa_t)7;
+			bytes = 8;
+		}
+		r = kvm_read_guest(vcpu->kvm, gpa, &gentry, min(bytes, 8));
+		if (r)
+			gentry = 0;
+		new = (const u8 *)&gentry;
+	}
 
 	switch (bytes) {
 	case 4:
@@ -2628,22 +2649,10 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 		break;
 	}
 
-	/*
-	 * Assume that the pte write on a page table of the same type
-	 * as the current vcpu paging mode.  This is nearly always true
-	 * (might be false while changing modes).  Note it is verified later
-	 * by update_pte().
-	 */
-	if (is_pae(vcpu) && bytes == 4) {
-		/* Handle a 32-bit guest writing two halves of a 64-bit gpte */
-		gpa &= ~(gpa_t)7;
-		r = kvm_read_guest(vcpu->kvm, gpa, &gentry, 8);
-		if (r)
-			gentry = 0;
-	}
-
 	mmu_guess_page_from_pte_write(vcpu, gpa, gentry);
 	spin_lock(&vcpu->kvm->mmu_lock);
+	if (atomic_read(&vcpu->kvm->arch.invlpg_counter) != invlpg_counter)
+		gentry = 0;
 	kvm_mmu_access_page(vcpu, gfn);
 	kvm_mmu_free_some_pages(vcpu);
 	++vcpu->kvm->stat.mmu_pte_write;
