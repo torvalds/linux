@@ -256,13 +256,13 @@ loop_lock:
 			wake_up(&fs_info->async_submit_wait);
 
 		BUG_ON(atomic_read(&cur->bi_cnt) == 0);
-		submit_bio(cur->bi_rw, cur);
-		num_run++;
-		batch_run++;
 
 		if (bio_rw_flagged(cur, BIO_RW_SYNCIO))
 			num_sync_run++;
 
+		submit_bio(cur->bi_rw, cur);
+		num_run++;
+		batch_run++;
 		if (need_resched()) {
 			if (num_sync_run) {
 				blk_run_backing_dev(bdi, NULL);
