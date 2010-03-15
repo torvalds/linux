@@ -864,6 +864,7 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag &= ~FC_VPORT_CVL_RCVD;
+	vport->fc_flag &= ~FC_VPORT_LOGO_RCVD;
 	spin_unlock_irq(shost->host_lock);
 
 	/*
@@ -6053,7 +6054,8 @@ lpfc_cmpl_reg_new_vport(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 			spin_unlock_irq(shost->host_lock);
-			if (vport->port_type == LPFC_PHYSICAL_PORT)
+			if (vport->port_type == LPFC_PHYSICAL_PORT
+				&& !(vport->fc_flag & FC_LOGO_RCVD_DID_CHNG))
 				lpfc_initial_flogi(vport);
 			else
 				lpfc_initial_fdisc(vport);
@@ -6289,6 +6291,7 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	}
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag &= ~FC_VPORT_CVL_RCVD;
+	vport->fc_flag &= ~FC_VPORT_LOGO_RCVD;
 	vport->fc_flag |= FC_FABRIC;
 	if (vport->phba->fc_topology == TOPOLOGY_LOOP)
 		vport->fc_flag |=  FC_PUBLIC_LOOP;
@@ -6318,6 +6321,8 @@ lpfc_cmpl_els_fdisc(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		vport->fc_flag |= FC_VPORT_NEEDS_REG_VPI;
 		if (phba->sli_rev == LPFC_SLI_REV4)
 			vport->fc_flag |= FC_VPORT_NEEDS_INIT_VPI;
+		else
+			vport->fc_flag |= FC_LOGO_RCVD_DID_CHNG;
 		spin_unlock_irq(shost->host_lock);
 	}
 

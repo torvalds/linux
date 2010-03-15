@@ -1929,7 +1929,7 @@ int lpfc_enable_npiv = 0;
 module_param(lpfc_enable_npiv, int, 0);
 MODULE_PARM_DESC(lpfc_enable_npiv, "Enable NPIV functionality");
 lpfc_param_show(enable_npiv);
-lpfc_param_init(enable_npiv, 0, 0, 1);
+lpfc_param_init(enable_npiv, 1, 0, 1);
 static DEVICE_ATTR(lpfc_enable_npiv, S_IRUGO,
 			 lpfc_enable_npiv_show, NULL);
 

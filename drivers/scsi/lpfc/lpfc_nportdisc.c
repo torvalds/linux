@@ -493,6 +493,9 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	      struct lpfc_iocbq *cmdiocb, uint32_t els_cmd)
 {
 	struct Scsi_Host *shost = lpfc_shost_from_vport(vport);
+	struct lpfc_hba    *phba = vport->phba;
+	struct lpfc_vport **vports;
+	int i, active_vlink_present = 0 ;
 
 	/* Put ndlp in NPR state with 1 sec timeout for plogi, ACC logo */
 	/* Only call LOGO ACC for first LOGO, this avoids sending unnecessary
@@ -505,15 +508,44 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 		lpfc_els_rsp_acc(vport, ELS_CMD_PRLO, cmdiocb, ndlp, NULL);
 	else
 		lpfc_els_rsp_acc(vport, ELS_CMD_ACC, cmdiocb, ndlp, NULL);
-	if ((ndlp->nlp_DID == Fabric_DID) &&
-		vport->port_type == LPFC_NPIV_PORT) {
+	if (ndlp->nlp_DID == Fabric_DID) {
+		if (vport->port_state <= LPFC_FDISC)
+			goto out;
 		lpfc_linkdown_port(vport);
-		mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ * 1);
 		spin_lock_irq(shost->host_lock);
-		ndlp->nlp_flag |= NLP_DELAY_TMO;
+		vport->fc_flag |= FC_VPORT_LOGO_RCVD;
 		spin_unlock_irq(shost->host_lock);
+		vports = lpfc_create_vport_work_array(phba);
+		if (vports) {
+			for (i = 0; i <= phba->max_vports && vports[i] != NULL;
+					i++) {
+				if ((!(vports[i]->fc_flag &
+					FC_VPORT_LOGO_RCVD)) &&
+					(vports[i]->port_state > LPFC_FDISC)) {
+					active_vlink_present = 1;
+					break;
+				}
+			}
+			lpfc_destroy_vport_work_array(phba, vports);
+		}
 
-		ndlp->nlp_last_elscmd = ELS_CMD_FDISC;
+		if (active_vlink_present) {
+			/*
+			 * If there are other active VLinks present,
+			 * re-instantiate the Vlink using FDISC.
+			 */
+			mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
+			spin_lock_irq(shost->host_lock);
+			ndlp->nlp_flag |= NLP_DELAY_TMO;
+			spin_unlock_irq(shost->host_lock);
+			ndlp->nlp_last_elscmd = ELS_CMD_FDISC;
+			vport->port_state = LPFC_FDISC;
+		} else {
+			spin_lock_irq(shost->host_lock);
+			phba->pport->fc_flag &= ~FC_LOGO_RCVD_DID_CHNG;
+			spin_unlock_irq(shost->host_lock);
+			lpfc_retry_pport_discovery(phba);
+		}
 	} else if ((!(ndlp->nlp_type & NLP_FABRIC) &&
 		((ndlp->nlp_type & NLP_FCP_TARGET) ||
 		!(ndlp->nlp_type & NLP_FCP_INITIATOR))) ||
@@ -526,6 +558,7 @@ lpfc_rcv_logo(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 
 		ndlp->nlp_last_elscmd = ELS_CMD_PLOGI;
 	}
+out:
 	ndlp->nlp_prev_state = ndlp->nlp_state;
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_NPR_NODE);
 

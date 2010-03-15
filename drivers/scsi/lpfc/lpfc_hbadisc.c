@@ -3016,7 +3016,12 @@ lpfc_mbx_cmpl_fabric_reg_login(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	lpfc_nlp_set_state(vport, ndlp, NLP_STE_UNMAPPED_NODE);
 
 	if (vport->port_state == LPFC_FABRIC_CFG_LINK) {
-		lpfc_start_fdiscs(phba);
+		/* when physical port receive logo donot start
+		 * vport discovery */
+		if (!(vport->fc_flag & FC_LOGO_RCVD_DID_CHNG))
+			lpfc_start_fdiscs(phba);
+		else
+			vport->fc_flag &= ~FC_LOGO_RCVD_DID_CHNG ;
 		lpfc_do_scr_ns_plogi(phba, vport);
 	}
 
