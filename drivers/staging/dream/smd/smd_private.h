@@ -16,24 +16,21 @@
 #ifndef _ARCH_ARM_MACH_MSM_MSM_SMD_PRIVATE_H_
 #define _ARCH_ARM_MACH_MSM_MSM_SMD_PRIVATE_H_
 
-struct smem_heap_info
-{
+struct smem_heap_info {
 	unsigned initialized;
 	unsigned free_offset;
 	unsigned heap_remaining;
 	unsigned reserved;
 };
 
-struct smem_heap_entry
-{
+struct smem_heap_entry {
 	unsigned allocated;
 	unsigned offset;
 	unsigned size;
 	unsigned reserved;
 };
 
-struct smem_proc_comm
-{
+struct smem_proc_comm {
 	unsigned command;
 	unsigned status;
 	unsigned data1;
@@ -49,22 +46,19 @@ struct smem_proc_comm
 #define VERSION_APPS      8
 #define VERSION_MODEM     9
 
-struct smem_shared
-{
+struct smem_shared {
 	struct smem_proc_comm proc_comm[4];
 	unsigned version[32];
 	struct smem_heap_info heap_info;
 	struct smem_heap_entry heap_toc[128];
 };
 
-struct smsm_shared
-{
+struct smsm_shared {
 	unsigned host;
 	unsigned state;
 };
 
-struct smsm_interrupt_info
-{
+struct smsm_interrupt_info {
 	uint32_t aArm_en_mask;
 	uint32_t aArm_interrupts_pending;
 	uint32_t aArm_wakeup_reason;
@@ -108,8 +102,7 @@ void smsm_print_sleep_info(void);
 
 #define SMEM_NUM_SMD_CHANNELS        64
 
-typedef enum
-{
+typedef enum {
 	/* fixed items */
 	SMEM_PROC_COMM = 0,
 	SMEM_HEAP_INFO,
