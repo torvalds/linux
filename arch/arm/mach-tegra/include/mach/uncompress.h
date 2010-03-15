@@ -43,13 +43,75 @@ static inline void flush(void)
 {
 }
 
+static inline void konk_delay(int delay)
+{
+	int i;
+
+	for (i = 0; i < (1000 * delay); i++) {
+		barrier();
+	}
+}
+
+
 static inline void arch_decomp_setup(void)
 {
 	volatile u8 *uart = (volatile u8 *)TEGRA_DEBUG_UART_BASE;
 	int shift = 2;
+	volatile u32 *addr;
 
 	if (uart == NULL)
 		return;
+
+/*
+	addr = (volatile u32 *)0x70000014;
+	*addr &= ~(1<<29);
+
+	addr = (volatile u32 *)0x70000084;
+	*addr &= ~(3<<2);
+
+	addr = (volatile u32 *)0x700000b0;
+	*addr &= ~(3<<24);
+
+	konk_delay(5);
+
+*/
+
+	/* OSC_CTRL_0 */
+	/*addr = (volatile u32 *)0x60006050;*/
+
+	/* PLLP_BASE_0 */
+	addr = (volatile u32 *)0x600060a0;
+	*addr = 0x5011b00c;
+
+	/* PLLP_OUTA_0 */
+	addr = (volatile u32 *)0x600060a4;
+	*addr = 0x10031c03;
+
+	/* PLLP_OUTB_0 */
+	addr = (volatile u32 *)0x600060a8;
+	*addr = 0x06030a03;
+
+	/* PLLP_MISC_0 */
+	addr = (volatile u32 *)0x600060ac;
+	*addr = 0x00000800;
+
+	konk_delay(1000);
+
+	/* UARTD clock source is PLLP_OUT0 */
+	addr = (volatile u32 *)0x600061c0;
+	*addr = 0;
+
+	/* Enable clock to UARTD */
+	addr = (volatile u32 *)0x60006018;
+	*addr |= (1<<1);
+
+	konk_delay(5);
+
+	/* Deassert reset to UARTD */
+	addr = (volatile u32 *)0x6000600c;
+	*addr &= ~(1<<1);
+
+	konk_delay(5);
 
 	uart[UART_LCR << shift] |= UART_LCR_DLAB;
 	uart[UART_DLL << shift] = 0x75;
