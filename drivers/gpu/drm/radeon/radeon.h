@@ -687,6 +687,7 @@ struct radeon_pm {
 	bool 			downclocked;
 	int			active_crtcs;
 	int			req_vblank;
+	bool			vblank_sync;
 	fixed20_12		max_bandwidth;
 	fixed20_12		igp_sideport_mclk;
 	fixed20_12		igp_system_mclk;
@@ -1322,7 +1323,8 @@ extern int r600_audio_tmds_index(struct drm_encoder *encoder);
 extern void r600_audio_set_clock(struct drm_encoder *encoder, int clock);
 extern void r600_audio_fini(struct radeon_device *rdev);
 extern void r600_hdmi_init(struct drm_encoder *encoder);
-extern void r600_hdmi_enable(struct drm_encoder *encoder, int enable);
+extern void r600_hdmi_enable(struct drm_encoder *encoder);
+extern void r600_hdmi_disable(struct drm_encoder *encoder);
 extern void r600_hdmi_setmode(struct drm_encoder *encoder, struct drm_display_mode *mode);
 extern int r600_hdmi_buffer_status_changed(struct drm_encoder *encoder);
 extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder,

@@ -312,10 +312,12 @@ int r100_irq_process(struct radeon_device *rdev)
 		/* Vertical blank interrupts */
 		if (status & RADEON_CRTC_VBLANK_STAT) {
 			drm_handle_vblank(rdev->ddev, 0);
+			rdev->pm.vblank_sync = true;
 			wake_up(&rdev->irq.vblank_queue);
 		}
 		if (status & RADEON_CRTC2_VBLANK_STAT) {
 			drm_handle_vblank(rdev->ddev, 1);
+			rdev->pm.vblank_sync = true;
 			wake_up(&rdev->irq.vblank_queue);
 		}
 		if (status & RADEON_FP_DETECT_STAT) {

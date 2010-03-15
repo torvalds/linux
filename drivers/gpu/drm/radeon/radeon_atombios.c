@@ -887,6 +887,20 @@ bool radeon_atom_get_clock_info(struct drm_device *dev)
 		p1pll->pll_out_max =
 		    le32_to_cpu(firmware_info->info.ulMaxPixelClockPLL_Output);
 
+		if (crev >= 4) {
+			p1pll->lcd_pll_out_min =
+				le16_to_cpu(firmware_info->info_14.usLcdMinPixelClockPLL_Output) * 100;
+			if (p1pll->lcd_pll_out_min == 0)
+				p1pll->lcd_pll_out_min = p1pll->pll_out_min;
+			p1pll->lcd_pll_out_max =
+				le16_to_cpu(firmware_info->info_14.usLcdMaxPixelClockPLL_Output) * 100;
+			if (p1pll->lcd_pll_out_max == 0)
+				p1pll->lcd_pll_out_max = p1pll->pll_out_max;
+		} else {
+			p1pll->lcd_pll_out_min = p1pll->pll_out_min;
+			p1pll->lcd_pll_out_max = p1pll->pll_out_max;
+		}
+
 		if (p1pll->pll_out_min == 0) {
 			if (ASIC_IS_AVIVO(rdev))
 				p1pll->pll_out_min = 64800;

@@ -129,6 +129,7 @@ struct radeon_tmds_pll {
 #define RADEON_PLL_USE_FRAC_FB_DIV      (1 << 10)
 #define RADEON_PLL_PREFER_CLOSEST_LOWER (1 << 11)
 #define RADEON_PLL_USE_POST_DIV         (1 << 12)
+#define RADEON_PLL_IS_LCD               (1 << 13)
 
 /* pll algo */
 enum radeon_pll_algo {
@@ -149,6 +150,8 @@ struct radeon_pll {
 	uint32_t pll_in_max;
 	uint32_t pll_out_min;
 	uint32_t pll_out_max;
+	uint32_t lcd_pll_out_min;
+	uint32_t lcd_pll_out_max;
 	uint32_t best_vco;
 
 	/* divider limits */
@@ -342,6 +345,7 @@ struct radeon_encoder {
 	struct drm_display_mode native_mode;
 	void *enc_priv;
 	int hdmi_offset;
+	int hdmi_config_offset;
 	int hdmi_audio_workaround;
 	int hdmi_buffer_status;
 };

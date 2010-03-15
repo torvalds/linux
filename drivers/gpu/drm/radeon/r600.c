@@ -2765,6 +2765,7 @@ restart_ih:
 			case 0: /* D1 vblank */
 				if (disp_int & LB_D1_VBLANK_INTERRUPT) {
 					drm_handle_vblank(rdev->ddev, 0);
+					rdev->pm.vblank_sync = true;
 					wake_up(&rdev->irq.vblank_queue);
 					disp_int &= ~LB_D1_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D1 vblank\n");
@@ -2786,6 +2787,7 @@ restart_ih:
 			case 0: /* D2 vblank */
 				if (disp_int & LB_D2_VBLANK_INTERRUPT) {
 					drm_handle_vblank(rdev->ddev, 1);
+					rdev->pm.vblank_sync = true;
 					wake_up(&rdev->irq.vblank_queue);
 					disp_int &= ~LB_D2_VBLANK_INTERRUPT;
 					DRM_DEBUG("IH: D2 vblank\n");
