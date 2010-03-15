@@ -125,7 +125,7 @@
  * writing a WaveLAN ISA driver for the Mach microkernel.  Girish
  * Welling <welling@paul.rutgers.edu> had also worked on it.
  * Keith Moore modified this for the PCMCIA hardware.
- * 
+ *
  * Robert Morris <rtm@das.harvard.edu> ported these two drivers to BSDI
  * and added specific PCMCIA support (there is currently no equivalent
  * of the PCMCIA package under BSD).
@@ -451,17 +451,18 @@ static const char	*version	= "wavelan.c : v24 (SMP + wireless extensions) 11/12/
 /* ------------------------ PRIVATE IOCTL ------------------------ */
 
 #define SIOCSIPQTHR	SIOCIWFIRSTPRIV		/* Set quality threshold */
-#define SIOCGIPQTHR	SIOCIWFIRSTPRIV + 1	/* Get quality threshold */
+#define SIOCGIPQTHR	(SIOCIWFIRSTPRIV + 1)	/* Get quality threshold */
 
-#define SIOCSIPHISTO	SIOCIWFIRSTPRIV + 2	/* Set histogram ranges */
-#define SIOCGIPHISTO	SIOCIWFIRSTPRIV + 3	/* Get histogram values */
+#define SIOCSIPHISTO	(SIOCIWFIRSTPRIV + 2)	/* Set histogram ranges */
+#define SIOCGIPHISTO	(SIOCIWFIRSTPRIV + 3)	/* Get histogram values */
 
 /****************************** TYPES ******************************/
 
 /* Shortcuts */
 typedef struct iw_statistics	iw_stats;
 typedef struct iw_quality	iw_qual;
-typedef struct iw_freq		iw_freq;typedef struct net_local	net_local;
+typedef struct iw_freq		iw_freq;
+typedef struct net_local	net_local;
 typedef struct timer_list	timer_list;
 
 /* Basic types */
@@ -474,10 +475,9 @@ typedef u_char		mac_addr[WAVELAN_ADDR_SIZE];	/* Hardware address */
  * keeps the generic data (same format for everybody) and "net_local" keeps
  * additional specific data.
  */
-struct net_local
-{
-  net_local *	next;		/* linked list of the devices */
-  struct net_device *	dev;		/* reverse link */
+struct net_local {
+  net_local *next;		/* linked list of the devices */
+  struct net_device *dev;		/* reverse link */
   spinlock_t	spinlock;	/* Serialize access to the hardware (SMP) */
   int		nresets;	/* number of hardware resets */
   u_char	reconfig_82586;	/* We need to reconfigure the controller. */
@@ -534,7 +534,7 @@ static void
 		 int,		/* offset in PSA */
 		 u_char *,	/* buffer to fill */
 		 int),		/* size to read */
-	psa_write(u_long, 	/* Write to the PSA. */
+	psa_write(u_long,	/* Write to the PSA. */
 		  u_short,	/* hacr */
 		  int,		/* offset in PSA */
 		  u_char *,	/* buffer in memory */
@@ -654,8 +654,7 @@ static net_local *	wavelan_list	= (net_local *) NULL;
  * This table is used to translate the PSA value to IRQ number
  * and vice versa.
  */
-static u_char	irqvals[]	=
-{
+static u_char	irqvals[]	= {
 	   0,    0,    0, 0x01,
 	0x02, 0x04,    0, 0x08,
 	   0,    0, 0x10, 0x20,
@@ -665,8 +664,7 @@ static u_char	irqvals[]	=
 /*
  * Table of the available I/O addresses (base addresses) for WaveLAN
  */
-static unsigned short	iobase[]	=
-{
+static unsigned short	iobase[]	= {
 #if	0
   /* Leave out 0x3C0 for now -- seems to clash with some video
    * controllers.
