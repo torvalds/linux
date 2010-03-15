@@ -7407,7 +7407,7 @@ static void move_task_off_dead_cpu(int dead_cpu, struct task_struct *p)
 	struct rq *rq = cpu_rq(dead_cpu);
 	int needs_cpu, uninitialized_var(dest_cpu);
 	unsigned long flags;
-again:
+
 	local_irq_save(flags);
 
 	spin_lock(&rq->lock);
@@ -7415,14 +7415,13 @@ again:
 	if (needs_cpu)
 		dest_cpu = select_fallback_rq(dead_cpu, p);
 	spin_unlock(&rq->lock);
-
-	/* It can have affinity changed while we were choosing. */
+	/*
+	 * It can only fail if we race with set_cpus_allowed(),
+	 * in the racer should migrate the task anyway.
+	 */
 	if (needs_cpu)
-		needs_cpu = !__migrate_task(p, dead_cpu, dest_cpu);
+		__migrate_task(p, dead_cpu, dest_cpu);
 	local_irq_restore(flags);
-
-	if (unlikely(needs_cpu))
-		goto again;
 }
 
 /*
