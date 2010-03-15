@@ -991,7 +991,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 
 		err = pskb_trim_rcsum(skb2, len);
 		if (err)
-			return err;
+			goto err_out;
 	}
 
 	len -= ip_hdrlen(skb2);
@@ -1013,7 +1013,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 	case CHECKSUM_NONE:
 		skb2->csum = 0;
 		if (skb_checksum_complete(skb2))
-			return -EINVAL;
+			goto out;
 	}
 
 	err = 0;
@@ -1040,6 +1040,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 
 out:
 	__skb_push(skb2, offset);
+err_out:
 	if (skb2 != skb)
 		kfree_skb(skb2);
 	return err;
