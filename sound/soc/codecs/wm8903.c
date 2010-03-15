@@ -11,7 +11,6 @@
  *
  * TODO:
  *  - TDM mode configuration.
- *  - Mic detect.
  *  - Digital microphone support.
  *  - Interrupt support (mic detect and sequencer).
  */
@@ -246,10 +245,10 @@ static int wm8903_run_sequence(struct snd_soc_codec *codec, unsigned int start)
 
 	BUG_ON(start > 48);
 
-	/* Enable the sequencer */
+	/* Enable the sequencer if it's not already on */
 	reg[0] = snd_soc_read(codec, WM8903_WRITE_SEQUENCER_0);
-	reg[0] |= WM8903_WSEQ_ENA;
-	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0, reg[0]);
+	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0,
+		      reg[0] | WM8903_WSEQ_ENA);
 
 	dev_dbg(&i2c->dev, "Starting sequence at %d\n", start);
 
@@ -268,9 +267,8 @@ static int wm8903_run_sequence(struct snd_soc_codec *codec, unsigned int start)
 
 	dev_dbg(&i2c->dev, "Sequence complete\n");
 
-	/* Disable the sequencer again */
-	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0,
-		     reg[0] & ~WM8903_WSEQ_ENA);
+	/* Disable the sequencer again if we enabled it */
+	snd_soc_write(codec, WM8903_WRITE_SEQUENCER_0, reg[0]);
 
 	return 0;
 }
@@ -1578,7 +1576,7 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 
 	wm8903_reset(codec);
 
-	/* Set up GPIOs */
+	/* Set up GPIOs and microphone detection */
 	if (pdata) {
 		for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
 			if (!pdata->gpio_cfg[i])
@@ -1587,6 +1585,16 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 			snd_soc_write(codec, WM8903_GPIO_CONTROL_1 + i,
 				      pdata->gpio_cfg[i] & 0xffff);
 		}
+
+		snd_soc_write(codec, WM8903_MIC_BIAS_CONTROL_0,
+			      pdata->micdet_cfg);
+
+		/* Microphone detection needs the WSEQ clock */
+		if (pdata->micdet_cfg)
+			snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
+					    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
+
+		wm8903->mic_delay = pdata->micdet_delay;
 	}
 
 	/* power on device */

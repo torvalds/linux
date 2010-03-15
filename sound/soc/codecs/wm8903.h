@@ -173,28 +173,6 @@ extern struct snd_soc_codec_device soc_codec_dev_wm8903;
 #define WM8903_VMID_RES_5K                           4
 
 /*
- * R6 (0x06) - Mic Bias Control 0
- */
-#define WM8903_MICDET_HYST_ENA                  0x0080  /* MICDET_HYST_ENA */
-#define WM8903_MICDET_HYST_ENA_MASK             0x0080  /* MICDET_HYST_ENA */
-#define WM8903_MICDET_HYST_ENA_SHIFT                 7  /* MICDET_HYST_ENA */
-#define WM8903_MICDET_HYST_ENA_WIDTH                 1  /* MICDET_HYST_ENA */
-#define WM8903_MICDET_THR_MASK                  0x0070  /* MICDET_THR - [6:4] */
-#define WM8903_MICDET_THR_SHIFT                      4  /* MICDET_THR - [6:4] */
-#define WM8903_MICDET_THR_WIDTH                      3  /* MICDET_THR - [6:4] */
-#define WM8903_MICSHORT_THR_MASK                0x000C  /* MICSHORT_THR - [3:2] */
-#define WM8903_MICSHORT_THR_SHIFT                    2  /* MICSHORT_THR - [3:2] */
-#define WM8903_MICSHORT_THR_WIDTH                    2  /* MICSHORT_THR - [3:2] */
-#define WM8903_MICDET_ENA                       0x0002  /* MICDET_ENA */
-#define WM8903_MICDET_ENA_MASK                  0x0002  /* MICDET_ENA */
-#define WM8903_MICDET_ENA_SHIFT                      1  /* MICDET_ENA */
-#define WM8903_MICDET_ENA_WIDTH                      1  /* MICDET_ENA */
-#define WM8903_MICBIAS_ENA                      0x0001  /* MICBIAS_ENA */
-#define WM8903_MICBIAS_ENA_MASK                 0x0001  /* MICBIAS_ENA */
-#define WM8903_MICBIAS_ENA_SHIFT                     0  /* MICBIAS_ENA */
-#define WM8903_MICBIAS_ENA_WIDTH                     1  /* MICBIAS_ENA */
-
-/*
  * R8 (0x08) - Analogue DAC 0
  */
 #define WM8903_DACBIAS_SEL_MASK                 0x0018  /* DACBIAS_SEL - [4:3] */

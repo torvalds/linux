@@ -15,6 +15,28 @@
 #define WM8903_GPIO_NO_CONFIG 0x8000
 
 /*
+ * R6 (0x06) - Mic Bias Control 0
+ */
+#define WM8903_MICDET_HYST_ENA                  0x0080  /* MICDET_HYST_ENA */
+#define WM8903_MICDET_HYST_ENA_MASK             0x0080  /* MICDET_HYST_ENA */
+#define WM8903_MICDET_HYST_ENA_SHIFT                 7  /* MICDET_HYST_ENA */
+#define WM8903_MICDET_HYST_ENA_WIDTH                 1  /* MICDET_HYST_ENA */
+#define WM8903_MICDET_THR_MASK                  0x0070  /* MICDET_THR - [6:4] */
+#define WM8903_MICDET_THR_SHIFT                      4  /* MICDET_THR - [6:4] */
+#define WM8903_MICDET_THR_WIDTH                      3  /* MICDET_THR - [6:4] */
+#define WM8903_MICSHORT_THR_MASK                0x000C  /* MICSHORT_THR - [3:2] */
+#define WM8903_MICSHORT_THR_SHIFT                    2  /* MICSHORT_THR - [3:2] */
+#define WM8903_MICSHORT_THR_WIDTH                    2  /* MICSHORT_THR - [3:2] */
+#define WM8903_MICDET_ENA                       0x0002  /* MICDET_ENA */
+#define WM8903_MICDET_ENA_MASK                  0x0002  /* MICDET_ENA */
+#define WM8903_MICDET_ENA_SHIFT                      1  /* MICDET_ENA */
+#define WM8903_MICDET_ENA_WIDTH                      1  /* MICDET_ENA */
+#define WM8903_MICBIAS_ENA                      0x0001  /* MICBIAS_ENA */
+#define WM8903_MICBIAS_ENA_MASK                 0x0001  /* MICBIAS_ENA */
+#define WM8903_MICBIAS_ENA_SHIFT                     0  /* MICBIAS_ENA */
+#define WM8903_MICBIAS_ENA_WIDTH                     1  /* MICBIAS_ENA */
+
+/*
  * R116 (0x74) - GPIO Control 1
  */
 #define WM8903_GP1_FN_MASK                      0x1F00  /* GP1_FN - [12:8] */
@@ -210,6 +232,13 @@
 #define WM8903_GP5_DB_WIDTH                          1  /* GP5_DB */
 
 struct wm8903_platform_data {
+        /* Default register value for R6 (Mic bias), used to configure
+	 * microphone detection.  In conjunction with gpio_cfg this
+	 * can be used to route the microphone status signals out onto
+	 * the GPIOs for use with snd_soc_jack_add_gpios().
+	 */
+	u16 micdet_cfg;
+
 	u32 gpio_cfg[5];       /* Default register values for GPIO pin mux */
 };
 
