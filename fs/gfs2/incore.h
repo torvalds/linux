@@ -616,7 +616,7 @@ struct gfs2_sbd {
 	unsigned int sd_log_blks_reserved;
 	unsigned int sd_log_commited_buf;
 	unsigned int sd_log_commited_databuf;
-	unsigned int sd_log_commited_revoke;
+	int sd_log_commited_revoke;
 
 	unsigned int sd_log_num_buf;
 	unsigned int sd_log_num_revoke;

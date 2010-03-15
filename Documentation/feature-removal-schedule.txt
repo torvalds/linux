@@ -564,6 +564,16 @@ Who:	Avi Kivity <avi@redhat.com>
 
 ----------------------------
 
+What:	xtime, wall_to_monotonic
+When:	2.6.36+
+Files:	kernel/time/timekeeping.c include/linux/time.h
+Why:	Cleaning up timekeeping internal values. Please use
+	existing timekeeping accessor functions to access
+	the equivalent functionality.
+Who:	John Stultz <johnstul@us.ibm.com>
+
+----------------------------
+
 What:	KVM kernel-allocated memory slots
 When:	July 2010
 Why:	Since 2.6.25, kvm supports user-allocated memory slots, which are
@@ -583,12 +593,9 @@ Who:	Avi Kivity <avi@redhat.com>
 
 ----------------------------
 
-What:	xtime, wall_to_monotonic
-When:	2.6.36+
-Files:	kernel/time/timekeeping.c include/linux/time.h
-Why:	Cleaning up timekeeping internal values. Please use
-	existing timekeeping accessor functions to access
-	the equivalent functionality.
-Who:	John Stultz <johnstul@us.ibm.com>
-
-----------------------------
+What: 	"acpi=ht" boot option
+When:	2.6.35
+Why:	Useful in 2003, implementation is a hack.
+	Generally invoked by accident today.
+	Seen as doing more harm than good.
+Who:	Len Brown <len.brown@intel.com>

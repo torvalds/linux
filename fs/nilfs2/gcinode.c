@@ -28,10 +28,10 @@
  * gcinodes), and this file provides lookup function of the dummy
  * inodes and their buffer read function.
  *
- * Since NILFS2 keeps up multiple checkpoints/snapshots accross GC, it
+ * Since NILFS2 keeps up multiple checkpoints/snapshots across GC, it
  * has to treat blocks that belong to a same file but have different
  * checkpoint numbers.  To avoid interference among generations, dummy
- * inodes are managed separatly from actual inodes, and their lookup
+ * inodes are managed separately from actual inodes, and their lookup
  * function (nilfs_gc_iget) is designed to be specified with a
  * checkpoint number argument as well as an inode number.
  *

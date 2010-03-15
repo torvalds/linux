@@ -118,6 +118,8 @@ static inline void __init page_cgroup_init_flatmem(void)
 #include <linux/swap.h>
 
 #ifdef CONFIG_CGROUP_MEM_RES_CTLR_SWAP
+extern unsigned short swap_cgroup_cmpxchg(swp_entry_t ent,
+					unsigned short old, unsigned short new);
 extern unsigned short swap_cgroup_record(swp_entry_t ent, unsigned short id);
 extern unsigned short lookup_swap_cgroup(swp_entry_t ent);
 extern int swap_cgroup_swapon(int type, unsigned long max_pages);

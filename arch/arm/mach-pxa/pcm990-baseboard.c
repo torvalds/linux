@@ -58,6 +58,12 @@ static unsigned long pcm990_pin_config[] __initdata = {
 	/* I2C */
 	GPIO117_I2C_SCL,
 	GPIO118_I2C_SDA,
+
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
 };
 
 /*
@@ -259,8 +265,7 @@ static void pcm990_irq_handler(unsigned int irq, struct irq_desc *desc)
 	unsigned long pending = (~PCM990_INTSETCLR) & pcm990_irq_enabled;
 
 	do {
-		GEDR(PCM990_CTRL_INT_IRQ_GPIO) =
-					GPIO_bit(PCM990_CTRL_INT_IRQ_GPIO);
+		desc->chip->ack(irq);	/* clear our parent IRQ */
 		if (likely(pending)) {
 			irq = PCM027_IRQ(0) + __ffs(pending);
 			generic_handle_irq(irq);

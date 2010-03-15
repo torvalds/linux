@@ -2298,35 +2298,6 @@ void pci_msi_off(struct pci_dev *dev)
 	}
 }
 
-#ifndef HAVE_ARCH_PCI_SET_DMA_MASK
-/*
- * These can be overridden by arch-specific implementations
- */
-int
-pci_set_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	if (!pci_dma_supported(dev, mask))
-		return -EIO;
-
-	dev->dma_mask = mask;
-	dev_dbg(&dev->dev, "using %dbit DMA mask\n", fls64(mask));
-
-	return 0;
-}
-    
-int
-pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	if (!pci_dma_supported(dev, mask))
-		return -EIO;
-
-	dev->dev.coherent_dma_mask = mask;
-	dev_dbg(&dev->dev, "using %dbit consistent DMA mask\n", fls64(mask));
-
-	return 0;
-}
-#endif
-
 #ifndef HAVE_ARCH_PCI_SET_DMA_MAX_SEGMENT_SIZE
 int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size)
 {
@@ -3068,8 +3039,6 @@ EXPORT_SYMBOL(pci_set_mwi);
 EXPORT_SYMBOL(pci_try_set_mwi);
 EXPORT_SYMBOL(pci_clear_mwi);
 EXPORT_SYMBOL_GPL(pci_intx);
-EXPORT_SYMBOL(pci_set_dma_mask);
-EXPORT_SYMBOL(pci_set_consistent_dma_mask);
 EXPORT_SYMBOL(pci_assign_resource);
 EXPORT_SYMBOL(pci_find_parent_resource);
 EXPORT_SYMBOL(pci_select_bars);

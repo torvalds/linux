@@ -298,7 +298,7 @@ static void intel_agp_insert_sg_entries(struct agp_memory *mem,
 			j++;
 		}
 	} else {
-		/* sg may merge pages, but we have to seperate
+		/* sg may merge pages, but we have to separate
 		 * per-page addr for GTT */
 		unsigned int len, m;
 

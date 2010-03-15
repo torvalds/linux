@@ -100,14 +100,9 @@ struct net {
 extern struct net init_net;
 
 #ifdef CONFIG_NET
-#define INIT_NET_NS(net_ns) .net_ns = &init_net,
-
 extern struct net *copy_net_ns(unsigned long flags, struct net *net_ns);
 
 #else /* CONFIG_NET */
-
-#define INIT_NET_NS(net_ns)
-
 static inline struct net *copy_net_ns(unsigned long flags, struct net *net_ns)
 {
 	/* There is nothing to copy so this is a noop */

@@ -554,7 +554,7 @@ out:
  *	signal. The occurence is latched into the irq controller hardware
  *	and must be acked in order to be reenabled. After the ack another
  *	interrupt can happen on the same source even before the first one
- *	is handled by the assosiacted event handler. If this happens it
+ *	is handled by the associated event handler. If this happens it
  *	might be necessary to disable (mask) the interrupt depending on the
  *	controller hardware. This requires to reenable the interrupt inside
  *	of the loop which handles the interrupts which have arrived while

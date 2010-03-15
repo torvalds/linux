@@ -423,6 +423,11 @@ struct qlcnic_adapter_stats {
 	u64  lro_pkts;
 	u64  rxbytes;
 	u64  txbytes;
+	u64  lrobytes;
+	u64  lso_frames;
+	u64  xmit_on;
+	u64  xmit_off;
+	u64  skb_alloc_failure;
 };
 
 /*
@@ -1095,11 +1100,11 @@ struct qlcnic_brdinfo {
 
 static const struct qlcnic_brdinfo qlcnic_boards[] = {
 	{0x1077, 0x8020, 0x1077, 0x203,
-		"8200 Series Single Port 10GbE Converged Network Adapter \
-		(TCP/IP Networking)"},
+		"8200 Series Single Port 10GbE Converged Network Adapter "
+		"(TCP/IP Networking)"},
 	{0x1077, 0x8020, 0x1077, 0x207,
-		"8200 Series Dual Port 10GbE Converged Network Adapter \
-		(TCP/IP Networking)"},
+		"8200 Series Dual Port 10GbE Converged Network Adapter "
+		"(TCP/IP Networking)"},
 	{0x1077, 0x8020, 0x1077, 0x20b,
 		"3200 Series Dual Port 10Gb Intelligent Ethernet Adapter"},
 	{0x1077, 0x8020, 0x1077, 0x20c,

@@ -3886,7 +3886,7 @@ parse_DFS_referrals(TRANSACTION2_GET_DFS_REFER_RSP *pSMBr,
 		goto parse_DFS_referrals_exit;
 	}
 
-	/* collect neccessary data from referrals */
+	/* collect necessary data from referrals */
 	for (i = 0; i < *num_of_nodes; i++) {
 		char *temp;
 		int max_len;

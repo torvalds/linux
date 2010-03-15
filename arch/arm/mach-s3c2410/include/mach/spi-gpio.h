@@ -3,7 +3,7 @@
  * Copyright (c) 2006 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
- * S3C2410 - SPI Controller platfrom_device info
+ * S3C2410 - SPI Controller platform_device info
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 as

@@ -1528,7 +1528,7 @@ static void write_cinfo(__be32 **p, struct nfsd4_change_info *c)
 	} } while (0);
 
 /* Encode as an array of strings the string given with components
- * seperated @sep.
+ * separated @sep.
  */
 static __be32 nfsd4_encode_components(char sep, char *components,
 				   __be32 **pp, int *buflen)

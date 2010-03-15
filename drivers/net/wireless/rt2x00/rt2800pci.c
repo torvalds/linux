@@ -1225,7 +1225,7 @@ MODULE_LICENSE("GPL");
 #ifdef CONFIG_RT2800PCI_SOC
 static int rt2800soc_probe(struct platform_device *pdev)
 {
-	return rt2x00soc_probe(pdev, rt2800pci_ops);
+	return rt2x00soc_probe(pdev, &rt2800pci_ops);
 }
 
 static struct platform_driver rt2800soc_driver = {

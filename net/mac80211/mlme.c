@@ -177,7 +177,8 @@ static u32 ieee80211_enable_ht(struct ieee80211_sub_if_data *sdata,
 		sta = sta_info_get(sdata, bssid);
 		if (sta)
 			rate_control_rate_update(local, sband, sta,
-						 IEEE80211_RC_HT_CHANGED);
+						 IEEE80211_RC_HT_CHANGED,
+						 local->oper_channel_type);
 		rcu_read_unlock();
         }
 
@@ -435,10 +436,12 @@ static void ieee80211_enable_ps(struct ieee80211_local *local,
 		if (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)
 			ieee80211_send_nullfunc(local, sdata, 1);
 
-		if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS)) {
-			conf->flags |= IEEE80211_CONF_PS;
-			ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
-		}
+		if ((local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK) &&
+		    (local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS))
+			return;
+
+		conf->flags |= IEEE80211_CONF_PS;
+		ieee80211_hw_config(local, IEEE80211_CONF_CHANGE_PS);
 	}
 }
 
@@ -557,7 +560,8 @@ void ieee80211_dynamic_ps_enable_work(struct work_struct *work)
 	    (!(ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)))
 		ieee80211_send_nullfunc(local, sdata, 1);
 
-	if (!(local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) ||
+	if (!((local->hw.flags & IEEE80211_HW_REPORTS_TX_ACK_STATUS) &&
+	      (local->hw.flags & IEEE80211_HW_PS_NULLFUNC_STACK)) ||
 	    (ifmgd->flags & IEEE80211_STA_NULLFUNC_ACKED)) {
 		ifmgd->flags &= ~IEEE80211_STA_NULLFUNC_ACKED;
 		local->hw.conf.flags |= IEEE80211_CONF_PS;
@@ -1893,8 +1897,20 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	mutex_lock(&ifmgd->mtx);
 	if (ifmgd->associated) {
-		mutex_unlock(&ifmgd->mtx);
-		return -EALREADY;
+		if (!req->prev_bssid ||
+		    memcmp(req->prev_bssid, ifmgd->associated->bssid,
+			   ETH_ALEN)) {
+			/*
+			 * We are already associated and the request was not a
+			 * reassociation request from the current BSS, so
+			 * reject it.
+			 */
+			mutex_unlock(&ifmgd->mtx);
+			return -EALREADY;
+		}
+
+		/* Trying to reassociate - clear previous association state */
+		ieee80211_set_disassoc(sdata);
 	}
 	mutex_unlock(&ifmgd->mtx);
 

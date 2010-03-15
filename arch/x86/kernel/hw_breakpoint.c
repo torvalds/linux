@@ -344,13 +344,6 @@ int arch_validate_hwbkpt_settings(struct perf_event *bp,
 	}
 
 	/*
-	 * For kernel-addresses, either the address or symbol name can be
-	 * specified.
-	 */
-	if (info->name)
-		info->address = (unsigned long)
-				kallsyms_lookup_name(info->name);
-	/*
 	 * Check that the low-order bits of the address are appropriate
 	 * for the alignment implied by len.
 	 */
@@ -532,11 +525,6 @@ int __kprobes hw_breakpoint_exceptions_notify(
 }
 
 void hw_breakpoint_pmu_read(struct perf_event *bp)
-{
-	/* TODO */
-}
-
-void hw_breakpoint_pmu_unthrottle(struct perf_event *bp)
 {
 	/* TODO */
 }

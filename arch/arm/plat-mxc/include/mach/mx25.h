@@ -22,27 +22,27 @@
 #define MX25_GPIO3_BASE_ADDR_VIRT	(MX25_AIPS2_BASE_ADDR_VIRT + 0xa4000)
 #define MX25_GPIO4_BASE_ADDR_VIRT	(MX25_AIPS2_BASE_ADDR_VIRT + 0x9c000)
 
-#define MX25_AIPS1_IO_ADDRESS(x)  \
-	(((x) - MX25_AIPS1_BASE_ADDR) + MX25_AIPS1_BASE_ADDR_VIRT)
-#define MX25_AIPS2_IO_ADDRESS(x)  \
-	(((x) - MX25_AIPS2_BASE_ADDR) + MX25_AIPS2_BASE_ADDR_VIRT)
-#define MX25_AVIC_IO_ADDRESS(x)  \
-	(((x) - MX25_AVIC_BASE_ADDR) + MX25_AVIC_BASE_ADDR_VIRT)
+#define MX25_IO_ADDRESS(x) (					\
+	IMX_IO_ADDRESS(x, MX25_AIPS1) ?:			\
+	IMX_IO_ADDRESS(x, MX25_AIPS2) ?:			\
+	IMX_IO_ADDRESS(x, MX25_AVIC))
 
-#define __in_range(addr, name)	((addr) >= name##_BASE_ADDR && (addr) < name##_BASE_ADDR + name##_SIZE)
-
-#define MX25_IO_ADDRESS(x)					\
-	(void __force __iomem *)				\
-	(__in_range(x, MX25_AIPS1) ? MX25_AIPS1_IO_ADDRESS(x) :	\
-	__in_range(x, MX25_AIPS2) ? MX25_AIPS2_IO_ADDRESS(x) :	\
-	__in_range(x, MX25_AVIC) ? MX25_AVIC_IO_ADDRESS(x) :	\
-	0xDEADBEEF)
-
-#define UART1_BASE_ADDR			0x43f90000
-#define UART2_BASE_ADDR			0x43f94000
+#define MX25_UART1_BASE_ADDR		0x43f90000
+#define MX25_UART2_BASE_ADDR		0x43f94000
 
 #define MX25_FEC_BASE_ADDR		0x50038000
+#define MX25_NFC_BASE_ADDR		0xbb000000
+#define MX25_DRYICE_BASE_ADDR		0x53ffc000
+#define MX25_LCDC_BASE_ADDR		0x53fbc000
 
+#define MX25_INT_DRYICE	25
 #define MX25_INT_FEC	57
+#define MX25_INT_NANDFC	33
+#define MX25_INT_LCDC	39
 
-#endif /* __MACH_MX25_H__ */
+#if defined(IMX_NEEDS_DEPRECATED_SYMBOLS)
+#define UART1_BASE_ADDR			MX25_UART1_BASE_ADDR
+#define UART2_BASE_ADDR			MX25_UART2_BASE_ADDR
+#endif
+
+#endif /* ifndef __MACH_MX25_H__ */

@@ -46,17 +46,6 @@
 
 static unsigned long reset_value[NUM_VIRT_COUNTERS];
 
-/* IbsFetchCtl bits/masks */
-#define IBS_FETCH_RAND_EN		(1ULL<<57)
-#define IBS_FETCH_VAL			(1ULL<<49)
-#define IBS_FETCH_ENABLE		(1ULL<<48)
-#define IBS_FETCH_CNT_MASK		0xFFFF0000ULL
-
-/* IbsOpCtl bits */
-#define IBS_OP_CNT_CTL			(1ULL<<19)
-#define IBS_OP_VAL			(1ULL<<18)
-#define IBS_OP_ENABLE			(1ULL<<17)
-
 #define IBS_FETCH_SIZE			6
 #define IBS_OP_SIZE			12
 
@@ -182,7 +171,7 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 			continue;
 		}
 		rdmsrl(msrs->controls[i].addr, val);
-		if (val & ARCH_PERFMON_EVENTSEL0_ENABLE)
+		if (val & ARCH_PERFMON_EVENTSEL_ENABLE)
 			op_x86_warn_in_use(i);
 		val &= model->reserved;
 		wrmsrl(msrs->controls[i].addr, val);
@@ -290,7 +279,7 @@ op_amd_handle_ibs(struct pt_regs * const regs,
 			oprofile_write_commit(&entry);
 
 			/* reenable the IRQ */
-			ctl &= ~(IBS_FETCH_VAL | IBS_FETCH_CNT_MASK);
+			ctl &= ~(IBS_FETCH_VAL | IBS_FETCH_CNT);
 			ctl |= IBS_FETCH_ENABLE;
 			wrmsrl(MSR_AMD64_IBSFETCHCTL, ctl);
 		}
@@ -330,7 +319,7 @@ static inline void op_amd_start_ibs(void)
 		return;
 
 	if (ibs_config.fetch_enabled) {
-		val = (ibs_config.max_cnt_fetch >> 4) & 0xFFFF;
+		val = (ibs_config.max_cnt_fetch >> 4) & IBS_FETCH_MAX_CNT;
 		val |= ibs_config.rand_en ? IBS_FETCH_RAND_EN : 0;
 		val |= IBS_FETCH_ENABLE;
 		wrmsrl(MSR_AMD64_IBSFETCHCTL, val);
@@ -352,7 +341,7 @@ static inline void op_amd_start_ibs(void)
 			 * avoid underflows.
 			 */
 			ibs_op_ctl = min(ibs_op_ctl + IBS_RANDOM_MAXCNT_OFFSET,
-					 0xFFFFULL);
+					 IBS_OP_MAX_CNT);
 		}
 		if (ibs_caps & IBS_CAPS_OPCNT && ibs_config.dispatched_ops)
 			ibs_op_ctl |= IBS_OP_CNT_CTL;
@@ -409,7 +398,7 @@ static void op_amd_start(struct op_msrs const * const msrs)
 		if (!reset_value[op_x86_phys_to_virt(i)])
 			continue;
 		rdmsrl(msrs->controls[i].addr, val);
-		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+		val |= ARCH_PERFMON_EVENTSEL_ENABLE;
 		wrmsrl(msrs->controls[i].addr, val);
 	}
 
@@ -429,7 +418,7 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 		if (!reset_value[op_x86_phys_to_virt(i)])
 			continue;
 		rdmsrl(msrs->controls[i].addr, val);
-		val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
+		val &= ~ARCH_PERFMON_EVENTSEL_ENABLE;
 		wrmsrl(msrs->controls[i].addr, val);
 	}
 

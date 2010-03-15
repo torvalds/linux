@@ -115,6 +115,11 @@ config MACH_CM_X300
 	select CPU_PXA310
 	select HAVE_PWM
 
+config MACH_CAPC7117
+	bool "Embedian CAPC-7117 evaluation kit based on the MXM-8x10 CoM"
+	select CPU_PXA320
+	select PXA3xx
+
 config ARCH_GUMSTIX
 	bool "Gumstix XScale 255 boards"
 	select PXA25x
@@ -417,6 +422,24 @@ config MACH_TREO680
 	  Say Y here if you intend to run this kernel on Palm Treo 680
 	  smartphone.
 
+config MACH_RAUMFELD_RC
+	bool "Raumfeld Controller"
+	select PXA3xx
+	select CPU_PXA300
+	select HAVE_PWM
+
+config MACH_RAUMFELD_CONNECTOR
+	bool "Raumfeld Connector"
+	select PXA3xx
+	select CPU_PXA300
+	select PXA_SSP
+
+config MACH_RAUMFELD_SPEAKER
+	bool "Raumfeld Speaker"
+	select PXA3xx
+	select CPU_PXA300
+	select PXA_SSP
+
 config PXA_SHARPSL
 	bool "SHARP Zaurus SL-5600, SL-C7xx and SL-Cxx00 Models"
 	select SHARP_SCOOP
@@ -435,6 +458,7 @@ config SHARPSL_PM
 config CORGI_SSP_DEPRECATED
 	bool
 	select PXA_SSP
+	select PXA_SSP_LEGACY
 	help
 	  This option will include corgi_ssp.c and corgi_lcd.c
 	  that corgi_ts.c and other legacy drivers (corgi_bl.c
@@ -446,6 +470,7 @@ config MACH_POODLE
 	select PXA25x
 	select SHARP_LOCOMO
 	select PXA_SSP
+	select PXA_HAVE_BOARD_IRQS
 
 config MACH_CORGI
 	bool "Enable Sharp SL-C700 (Corgi) Support"
@@ -491,6 +516,11 @@ config MACH_TOSA
 	depends on PXA_SHARPSL
 	select PXA25x
 	select PXA_HAVE_BOARD_IRQS
+
+config MACH_ICONTROL
+	bool "TMT iControl/SafeTCam based on the MXM-8x10 CoM"
+	select CPU_PXA320
+	select PXA3xx
 
 config ARCH_PXA_ESERIES
 	bool "PXA based Toshiba e-series PDAs"
@@ -628,6 +658,11 @@ config PXA_SSP
 	tristate
 	help
 	  Enable support for PXA2xx SSP ports
+
+config PXA_SSP_LEGACY
+	bool
+	help
+	  Support of legacy SSP API
 
 config TOSA_BT
 	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"

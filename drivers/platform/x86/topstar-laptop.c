@@ -46,7 +46,7 @@ static struct tps_key_entry topstar_keymap[] = {
 	{ }
 };
 
-static struct tps_key_entry *tps_get_key_by_scancode(int code)
+static struct tps_key_entry *tps_get_key_by_scancode(unsigned int code)
 {
 	struct tps_key_entry *key;
 
@@ -57,7 +57,7 @@ static struct tps_key_entry *tps_get_key_by_scancode(int code)
 	return NULL;
 }
 
-static struct tps_key_entry *tps_get_key_by_keycode(int code)
+static struct tps_key_entry *tps_get_key_by_keycode(unsigned int code)
 {
 	struct tps_key_entry *key;
 
@@ -126,7 +126,8 @@ static int acpi_topstar_fncx_switch(struct acpi_device *device, bool state)
 	return 0;
 }
 
-static int topstar_getkeycode(struct input_dev *dev, int scancode, int *keycode)
+static int topstar_getkeycode(struct input_dev *dev,
+				unsigned int scancode, unsigned int *keycode)
 {
 	struct tps_key_entry *key = tps_get_key_by_scancode(scancode);
 
@@ -137,13 +138,11 @@ static int topstar_getkeycode(struct input_dev *dev, int scancode, int *keycode)
 	return 0;
 }
 
-static int topstar_setkeycode(struct input_dev *dev, int scancode, int keycode)
+static int topstar_setkeycode(struct input_dev *dev,
+				unsigned int scancode, unsigned int keycode)
 {
 	struct tps_key_entry *key;
 	int old_keycode;
-
-	if (keycode < 0 || keycode > KEY_MAX)
-		return -EINVAL;
 
 	key = tps_get_key_by_scancode(scancode);
 

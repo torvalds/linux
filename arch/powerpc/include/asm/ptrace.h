@@ -137,15 +137,8 @@ do {									      \
 } while (0)
 #endif /* __powerpc64__ */
 
-/*
- * These are defined as per linux/ptrace.h, which see.
- */
 #define arch_has_single_step()	(1)
 #define arch_has_block_step()	(!cpu_has_feature(CPU_FTR_601))
-extern void user_enable_single_step(struct task_struct *);
-extern void user_enable_block_step(struct task_struct *);
-extern void user_disable_single_step(struct task_struct *);
-
 #define ARCH_HAS_USER_SINGLE_STEP_INFO
 
 #endif /* __ASSEMBLY__ */

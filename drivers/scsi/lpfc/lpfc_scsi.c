@@ -1575,7 +1575,7 @@ lpfc_bg_scsi_prep_dma_buf(struct lpfc_hba *phba,
 		case LPFC_PG_TYPE_NO_DIF:
 			num_bde = lpfc_bg_setup_bpl(phba, scsi_cmnd, bpl,
 					datasegcnt);
-			/* we shoud have 2 or more entries in buffer list */
+			/* we should have 2 or more entries in buffer list */
 			if (num_bde < 2)
 				goto err;
 			break;
@@ -1612,7 +1612,7 @@ lpfc_bg_scsi_prep_dma_buf(struct lpfc_hba *phba,
 
 			num_bde = lpfc_bg_setup_bpl_prot(phba, scsi_cmnd, bpl,
 					datasegcnt, protsegcnt);
-			/* we shoud have 3 or more entries in buffer list */
+			/* we should have 3 or more entries in buffer list */
 			if (num_bde < 3)
 				goto err;
 			break;

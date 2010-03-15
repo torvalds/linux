@@ -468,7 +468,7 @@ static struct i2c_board_info jive_i2c_devs[] __initdata = {
 /* The platform devices being used. */
 
 static struct platform_device *jive_devices[] __initdata = {
-	&s3c_device_usb,
+	&s3c_device_ohci,
 	&s3c_device_rtc,
 	&s3c_device_wdt,
 	&s3c_device_i2c0,

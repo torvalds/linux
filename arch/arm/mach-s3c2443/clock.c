@@ -1,6 +1,6 @@
 /* linux/arch/arm/mach-s3c2443/clock.c
  *
- * Copyright (c) 2007 Simtec Electronics
+ * Copyright (c) 2007, 2010 Simtec Electronics
  *	Ben Dooks <ben@simtec.co.uk>
  *
  * S3C2443 Clock control support
@@ -42,6 +42,7 @@
 
 #include <plat/s3c2443.h>
 #include <plat/clock.h>
+#include <plat/clock-clksrc.h>
 #include <plat/cpu.h>
 
 /* We currently have to assume that the system is running
@@ -53,141 +54,69 @@
  * set the correct muxing at initialisation
 */
 
-static int s3c2443_clkcon_enable_h(struct clk *clk, int enable)
+static int s3c2443_gate(void __iomem *reg, struct clk *clk, int enable)
 {
-	unsigned int clocks = clk->ctrlbit;
-	unsigned long clkcon;
-
-	clkcon = __raw_readl(S3C2443_HCLKCON);
+	u32 ctrlbit = clk->ctrlbit;
+	u32 con = __raw_readl(reg);
 
 	if (enable)
-		clkcon |= clocks;
+		con |= ctrlbit;
 	else
-		clkcon &= ~clocks;
+		con &= ~ctrlbit;
 
-	__raw_writel(clkcon, S3C2443_HCLKCON);
-
+	__raw_writel(con, reg);
 	return 0;
+}
+
+static int s3c2443_clkcon_enable_h(struct clk *clk, int enable)
+{
+	return s3c2443_gate(S3C2443_HCLKCON, clk, enable);
 }
 
 static int s3c2443_clkcon_enable_p(struct clk *clk, int enable)
 {
-	unsigned int clocks = clk->ctrlbit;
-	unsigned long clkcon;
-
-	clkcon = __raw_readl(S3C2443_PCLKCON);
-
-	if (enable)
-		clkcon |= clocks;
-	else
-		clkcon &= ~clocks;
-
-	__raw_writel(clkcon, S3C2443_PCLKCON);
-
-	return 0;
+	return s3c2443_gate(S3C2443_PCLKCON, clk, enable);
 }
 
 static int s3c2443_clkcon_enable_s(struct clk *clk, int enable)
 {
-	unsigned int clocks = clk->ctrlbit;
-	unsigned long clkcon;
-
-	clkcon = __raw_readl(S3C2443_SCLKCON);
-
-	if (enable)
-		clkcon |= clocks;
-	else
-		clkcon &= ~clocks;
-
-	__raw_writel(clkcon, S3C2443_SCLKCON);
-
-	return 0;
-}
-
-static unsigned long s3c2443_roundrate_clksrc(struct clk *clk,
-					      unsigned long rate,
-					      unsigned int max)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	int div;
-
-	if (rate > parent_rate)
-		return parent_rate;
-
-	/* note, we remove the +/- 1 calculations as they cancel out */
-
-	div = (rate / parent_rate);
-
-	if (div < 1)
-		div = 1;
-	else if (div > max)
-		div = max;
-
-	return parent_rate / div;
-}
-
-static unsigned long s3c2443_roundrate_clksrc4(struct clk *clk,
-					       unsigned long rate)
-{
-	return s3c2443_roundrate_clksrc(clk, rate, 4);
-}
-
-static unsigned long s3c2443_roundrate_clksrc16(struct clk *clk,
-						unsigned long rate)
-{
-	return s3c2443_roundrate_clksrc(clk, rate, 16);
-}
-
-static unsigned long s3c2443_roundrate_clksrc256(struct clk *clk,
-						 unsigned long rate)
-{
-	return s3c2443_roundrate_clksrc(clk, rate, 256);
+	return s3c2443_gate(S3C2443_SCLKCON, clk, enable);
 }
 
 /* clock selections */
 
+/* mpllref is a direct descendant of clk_xtal by default, but it is not
+ * elided as the EPLL can be either sourced by the XTAL or EXTCLK and as
+ * such directly equating the two source clocks is impossible.
+ */
 static struct clk clk_mpllref = {
 	.name		= "mpllref",
 	.parent		= &clk_xtal,
 	.id		= -1,
 };
 
-#if 0
-static struct clk clk_mpll = {
-	.name		= "mpll",
-	.parent		= &clk_mpllref,
-	.id		= -1,
-};
-#endif
-
 static struct clk clk_i2s_ext = {
 	.name		= "i2s-ext",
 	.id		= -1,
 };
 
-static int s3c2443_setparent_epllref(struct clk *clk, struct clk *parent)
-{
-	unsigned long clksrc = __raw_readl(S3C2443_CLKSRC);
+static struct clk *clk_epllref_sources[] = {
+	[0] = &clk_mpllref,
+	[1] = &clk_mpllref,
+	[2] = &clk_xtal,
+	[3] = &clk_ext,
+};
 
-	clksrc &= ~S3C2443_CLKSRC_EPLLREF_MASK;
-
-	if (parent == &clk_xtal)
-		clksrc |= S3C2443_CLKSRC_EPLLREF_XTAL;
-	else if (parent == &clk_ext)
-		clksrc |= S3C2443_CLKSRC_EPLLREF_EXTCLK;
-	else if (parent != &clk_mpllref)
-		return -EINVAL;
-
-	__raw_writel(clksrc, S3C2443_CLKSRC);
-	clk->parent = parent;
-
-	return 0;
-}
-
-static struct clk clk_epllref = {
-	.name		= "epllref",
-	.id		= -1,
-	.set_parent	= s3c2443_setparent_epllref,
+static struct clksrc_clk clk_epllref = {
+	.clk	= {
+		.name		= "epllref",
+		.id		= -1,
+	},
+	.sources = &(struct clksrc_sources) {
+		.sources = clk_epllref_sources,
+		.nr_sources = ARRAY_SIZE(clk_epllref_sources),
+	},
+	.reg_src = { .reg = S3C2443_CLKSRC, .size = 2, .shift = 7 },
 };
 
 static unsigned long s3c2443_getrate_mdivclk(struct clk *clk)
@@ -205,34 +134,29 @@ static struct clk clk_mdivclk = {
 	.name		= "mdivclk",
 	.parent		= &clk_mpllref,
 	.id		= -1,
-	.get_rate	= s3c2443_getrate_mdivclk,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2443_getrate_mdivclk,
+	},
 };
 
-static int s3c2443_setparent_msysclk(struct clk *clk, struct clk *parent)
-{
-	unsigned long clksrc = __raw_readl(S3C2443_CLKSRC);
+static struct clk *clk_msysclk_sources[] = {
+	[0] = &clk_mpllref,
+	[1] = &clk_mpll,
+	[2] = &clk_mdivclk,
+	[3] = &clk_mpllref,
+};
 
-	clksrc &= ~(S3C2443_CLKSRC_MSYSCLK_MPLL |
-		    S3C2443_CLKSRC_EXTCLK_DIV);
-
-	if (parent == &clk_mpll)
-		clksrc |= S3C2443_CLKSRC_MSYSCLK_MPLL;
-	else if (parent == &clk_mdivclk)
-		clksrc |= S3C2443_CLKSRC_EXTCLK_DIV;
-	else if (parent != &clk_mpllref)
-		return -EINVAL;
-
-	__raw_writel(clksrc, S3C2443_CLKSRC);
-	clk->parent = parent;
-
-	return 0;
-}
-
-static struct clk clk_msysclk = {
-	.name		= "msysclk",
-	.parent		= &clk_xtal,
-	.id		= -1,
-	.set_parent	= s3c2443_setparent_msysclk,
+static struct clksrc_clk clk_msysclk = {
+	.clk	= {
+		.name		= "msysclk",
+		.parent		= &clk_xtal,
+		.id		= -1,
+	},
+	.sources = &(struct clksrc_sources) {
+		.sources = clk_msysclk_sources,
+		.nr_sources = ARRAY_SIZE(clk_msysclk_sources),
+	},
+	.reg_src = { .reg = S3C2443_CLKSRC, .size = 2, .shift = 3 },
 };
 
 /* armdiv
@@ -241,39 +165,105 @@ static struct clk clk_msysclk = {
  * divider values applied to it to then be fed into armclk.
 */
 
+/* armdiv divisor table */
+
+static unsigned int armdiv[16] = {
+	[S3C2443_CLKDIV0_ARMDIV_1 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 1,
+	[S3C2443_CLKDIV0_ARMDIV_2 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 2,
+	[S3C2443_CLKDIV0_ARMDIV_3 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 3,
+	[S3C2443_CLKDIV0_ARMDIV_4 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 4,
+	[S3C2443_CLKDIV0_ARMDIV_6 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 6,
+	[S3C2443_CLKDIV0_ARMDIV_8 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 8,
+	[S3C2443_CLKDIV0_ARMDIV_12 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 12,
+	[S3C2443_CLKDIV0_ARMDIV_16 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 16,
+};
+
+static inline unsigned int s3c2443_fclk_div(unsigned long clkcon0)
+{
+	clkcon0 &= S3C2443_CLKDIV0_ARMDIV_MASK;
+
+	return armdiv[clkcon0 >> S3C2443_CLKDIV0_ARMDIV_SHIFT];
+}
+
+static unsigned long s3c2443_armclk_roundrate(struct clk *clk,
+					      unsigned long rate)
+{
+	unsigned long parent = clk_get_rate(clk->parent);
+	unsigned long calc;
+	unsigned best = 256; /* bigger than any value */
+	unsigned div;
+	int ptr;
+
+	for (ptr = 0; ptr < ARRAY_SIZE(armdiv); ptr++) {
+		div = armdiv[ptr];
+		calc = parent / div;
+		if (calc <= rate && div < best)
+			best = div;
+	}
+
+	return parent / best;
+}
+
+static int s3c2443_armclk_setrate(struct clk *clk, unsigned long rate)
+{
+	unsigned long parent = clk_get_rate(clk->parent);
+	unsigned long calc;
+	unsigned div;
+	unsigned best = 256; /* bigger than any value */
+	int ptr;
+	int val = -1;
+
+	for (ptr = 0; ptr < ARRAY_SIZE(armdiv); ptr++) {
+		div = armdiv[ptr];
+		calc = parent / div;
+		if (calc <= rate && div < best) {
+			best = div;
+			val = ptr;
+		}
+	}
+
+	if (val >= 0) {
+		unsigned long clkcon0;
+
+		clkcon0 = __raw_readl(S3C2443_CLKDIV0);
+		clkcon0 &= S3C2443_CLKDIV0_ARMDIV_MASK;
+		clkcon0 |= val << S3C2443_CLKDIV0_ARMDIV_SHIFT;
+		__raw_writel(clkcon0, S3C2443_CLKDIV0);
+	}
+
+	return (val == -1) ? -EINVAL : 0;
+}
+
 static struct clk clk_armdiv = {
 	.name		= "armdiv",
 	.id		= -1,
-	.parent		= &clk_msysclk,
+	.parent		= &clk_msysclk.clk,
+	.ops		= &(struct clk_ops) {
+		.round_rate = s3c2443_armclk_roundrate,
+		.set_rate = s3c2443_armclk_setrate,
+	},
 };
 
 /* armclk
  *
- * this is the clock fed into the ARM core itself, either from
- * armdiv or from hclk.
+ * this is the clock fed into the ARM core itself, from armdiv or from hclk.
  */
 
-static int s3c2443_setparent_armclk(struct clk *clk, struct clk *parent)
-{
-	unsigned long clkdiv0;
+static struct clk *clk_arm_sources[] = {
+	[0] = &clk_armdiv,
+	[1] = &clk_h,
+};
 
-	clkdiv0 = __raw_readl(S3C2443_CLKDIV0);
-
-	if (parent == &clk_armdiv)
-		clkdiv0 &= ~S3C2443_CLKDIV0_DVS;
-	else if (parent == &clk_h)
-		clkdiv0 |= S3C2443_CLKDIV0_DVS;
-	else
-		return -EINVAL;
-
-	__raw_writel(clkdiv0, S3C2443_CLKDIV0);
-	return 0;
-}
-
-static struct clk clk_arm = {
-	.name		= "armclk",
-	.id		= -1,
-	.set_parent	= s3c2443_setparent_armclk,
+static struct clksrc_clk clk_arm = {
+	.clk	= {
+		.name		= "armclk",
+		.id		= -1,
+	},
+	.sources = &(struct clksrc_sources) {
+		.sources = clk_arm_sources,
+		.nr_sources = ARRAY_SIZE(clk_arm_sources),
+	},
+	.reg_src = { .reg = S3C2443_CLKDIV0, .size = 1, .shift = 13 },
 };
 
 /* esysclk
@@ -281,28 +271,22 @@ static struct clk clk_arm = {
  * this is sourced from either the EPLL or the EPLLref clock
 */
 
-static int s3c2443_setparent_esysclk(struct clk *clk, struct clk *parent)
-{
-	unsigned long clksrc = __raw_readl(S3C2443_CLKSRC);
+static struct clk *clk_sysclk_sources[] = {
+	[0] = &clk_epllref.clk,
+	[1] = &clk_epll,
+};
 
-	if (parent == &clk_epll)
-		clksrc |= S3C2443_CLKSRC_ESYSCLK_EPLL;
-	else if (parent == &clk_epllref)
-		clksrc &= ~S3C2443_CLKSRC_ESYSCLK_EPLL;
-	else
-		return -EINVAL;
-
-	__raw_writel(clksrc, S3C2443_CLKSRC);
-	clk->parent = parent;
-
-	return 0;
-}
-
-static struct clk clk_esysclk = {
-	.name		= "esysclk",
-	.parent		= &clk_epll,
-	.id		= -1,
-	.set_parent	= s3c2443_setparent_esysclk,
+static struct clksrc_clk clk_esysclk = {
+	.clk	= {
+		.name		= "esysclk",
+		.parent		= &clk_epll,
+		.id		= -1,
+	},
+	.sources = &(struct clksrc_sources) {
+		.sources = clk_sysclk_sources,
+		.nr_sources = ARRAY_SIZE(clk_sysclk_sources),
+	},
+	.reg_src = { .reg = S3C2443_CLKSRC, .size = 1, .shift = 6 },
 };
 
 /* uartclk
@@ -310,83 +294,30 @@ static struct clk clk_esysclk = {
  * UART baud-rate clock sourced from esysclk via a divisor
 */
 
-static unsigned long s3c2443_getrate_uart(struct clk *clk)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long div = __raw_readl(S3C2443_CLKDIV1);
-
-	div &= S3C2443_CLKDIV1_UARTDIV_MASK;
-	div >>= S3C2443_CLKDIV1_UARTDIV_SHIFT;
-
-	return parent_rate / (div + 1);
-}
-
-
-static int s3c2443_setrate_uart(struct clk *clk, unsigned long rate)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long clkdivn = __raw_readl(S3C2443_CLKDIV1);
-
-	rate = s3c2443_roundrate_clksrc16(clk, rate);
-	rate = parent_rate / rate;
-
-	clkdivn &= ~S3C2443_CLKDIV1_UARTDIV_MASK;
-	clkdivn |= (rate - 1) << S3C2443_CLKDIV1_UARTDIV_SHIFT;
-
-	__raw_writel(clkdivn, S3C2443_CLKDIV1);
-	return 0;
-}
-
-static struct clk clk_uart = {
-	.name		= "uartclk",
-	.id		= -1,
-	.parent		= &clk_esysclk,
-	.get_rate	= s3c2443_getrate_uart,
-	.set_rate	= s3c2443_setrate_uart,
-	.round_rate	= s3c2443_roundrate_clksrc16,
+static struct clksrc_clk clk_uart = {
+	.clk	= {
+		.name		= "uartclk",
+		.id		= -1,
+		.parent		= &clk_esysclk.clk,
+	},
+	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 4, .shift = 8 },
 };
+
 
 /* hsspi
  *
  * high-speed spi clock, sourced from esysclk
 */
 
-static unsigned long s3c2443_getrate_hsspi(struct clk *clk)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long div = __raw_readl(S3C2443_CLKDIV1);
-
-	div &= S3C2443_CLKDIV1_HSSPIDIV_MASK;
-	div >>= S3C2443_CLKDIV1_HSSPIDIV_SHIFT;
-
-	return parent_rate / (div + 1);
-}
-
-
-static int s3c2443_setrate_hsspi(struct clk *clk, unsigned long rate)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long clkdivn = __raw_readl(S3C2443_CLKDIV1);
-
-	rate = s3c2443_roundrate_clksrc4(clk, rate);
-	rate = parent_rate / rate;
-
-	clkdivn &= ~S3C2443_CLKDIV1_HSSPIDIV_MASK;
-	clkdivn |= (rate - 1) << S3C2443_CLKDIV1_HSSPIDIV_SHIFT;
-
-	__raw_writel(clkdivn, S3C2443_CLKDIV1);
-	return 0;
-}
-
-static struct clk clk_hsspi = {
-	.name		= "hsspi",
-	.id		= -1,
-	.parent		= &clk_esysclk,
-	.ctrlbit	= S3C2443_SCLKCON_HSSPICLK,
-	.enable		= s3c2443_clkcon_enable_s,
-	.get_rate	= s3c2443_getrate_hsspi,
-	.set_rate	= s3c2443_setrate_hsspi,
-	.round_rate	= s3c2443_roundrate_clksrc4,
+static struct clksrc_clk clk_hsspi = {
+	.clk	= {
+		.name		= "hsspi",
+		.id		= -1,
+		.parent		= &clk_esysclk.clk,
+		.ctrlbit	= S3C2443_SCLKCON_HSSPICLK,
+		.enable		= s3c2443_clkcon_enable_s,
+	},
+	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 2, .shift = 4 },
 };
 
 /* usbhost
@@ -394,41 +325,15 @@ static struct clk clk_hsspi = {
  * usb host bus-clock, usually 48MHz to provide USB bus clock timing
 */
 
-static unsigned long s3c2443_getrate_usbhost(struct clk *clk)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long div = __raw_readl(S3C2443_CLKDIV1);
-
-	div &= S3C2443_CLKDIV1_USBHOSTDIV_MASK;
-	div >>= S3C2443_CLKDIV1_USBHOSTDIV_SHIFT;
-
-	return parent_rate / (div + 1);
-}
-
-static int s3c2443_setrate_usbhost(struct clk *clk, unsigned long rate)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long clkdivn = __raw_readl(S3C2443_CLKDIV1);
-
-	rate = s3c2443_roundrate_clksrc4(clk, rate);
-	rate = parent_rate / rate;
-
-	clkdivn &= ~S3C2443_CLKDIV1_USBHOSTDIV_MASK;
-	clkdivn |= (rate - 1) << S3C2443_CLKDIV1_USBHOSTDIV_SHIFT;
-
-	__raw_writel(clkdivn, S3C2443_CLKDIV1);
-	return 0;
-}
-
-static struct clk clk_usb_bus_host = {
-	.name		= "usb-bus-host-parent",
-	.id		= -1,
-	.parent		= &clk_esysclk,
-	.ctrlbit	= S3C2443_SCLKCON_USBHOST,
-	.enable		= s3c2443_clkcon_enable_s,
-	.get_rate	= s3c2443_getrate_usbhost,
-	.set_rate	= s3c2443_setrate_usbhost,
-	.round_rate	= s3c2443_roundrate_clksrc4,
+static struct clksrc_clk clk_usb_bus_host = {
+	.clk	= {
+		.name		= "usb-bus-host-parent",
+		.id		= -1,
+		.parent		= &clk_esysclk.clk,
+		.ctrlbit	= S3C2443_SCLKCON_USBHOST,
+		.enable		= s3c2443_clkcon_enable_s,
+	},
+	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 2, .shift = 4 },
 };
 
 /* clk_hsmcc_div
@@ -438,39 +343,13 @@ static struct clk clk_usb_bus_host = {
  * be fed to the hsmmc block
 */
 
-static unsigned long s3c2443_getrate_hsmmc_div(struct clk *clk)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long div = __raw_readl(S3C2443_CLKDIV1);
-
-	div &= S3C2443_CLKDIV1_HSMMCDIV_MASK;
-	div >>= S3C2443_CLKDIV1_HSMMCDIV_SHIFT;
-
-	return parent_rate / (div + 1);
-}
-
-static int s3c2443_setrate_hsmmc_div(struct clk *clk, unsigned long rate)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long clkdivn = __raw_readl(S3C2443_CLKDIV1);
-
-	rate = s3c2443_roundrate_clksrc4(clk, rate);
-	rate = parent_rate / rate;
-
-	clkdivn &= ~S3C2443_CLKDIV1_HSMMCDIV_MASK;
-	clkdivn |= (rate - 1) << S3C2443_CLKDIV1_HSMMCDIV_SHIFT;
-
-	__raw_writel(clkdivn, S3C2443_CLKDIV1);
-	return 0;
-}
-
-static struct clk clk_hsmmc_div = {
-	.name		= "hsmmc-div",
-	.id		= -1,
-	.parent		= &clk_esysclk,
-	.get_rate	= s3c2443_getrate_hsmmc_div,
-	.set_rate	= s3c2443_setrate_hsmmc_div,
-	.round_rate	= s3c2443_roundrate_clksrc4,
+static struct clksrc_clk clk_hsmmc_div = {
+	.clk	= {
+		.name		= "hsmmc-div",
+		.id		= -1,
+		.parent		= &clk_esysclk.clk,
+	},
+	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 2, .shift = 6 },
 };
 
 static int s3c2443_setparent_hsmmc(struct clk *clk, struct clk *parent)
@@ -503,82 +382,55 @@ static int s3c2443_enable_hsmmc(struct clk *clk, int enable)
 static struct clk clk_hsmmc = {
 	.name		= "hsmmc-if",
 	.id		= -1,
-	.parent		= &clk_hsmmc_div,
+	.parent		= &clk_hsmmc_div.clk,
 	.enable		= s3c2443_enable_hsmmc,
-	.set_parent	= s3c2443_setparent_hsmmc,
+	.ops		= &(struct clk_ops) {
+		.set_parent	= s3c2443_setparent_hsmmc,
+	},
 };
 
 /* i2s_eplldiv
  *
- * this clock is the output from the i2s divisor of esysclk
+ * This clock is the output from the I2S divisor of ESYSCLK, and is seperate
+ * from the mux that comes after it (cannot merge into one single clock)
 */
 
-static unsigned long s3c2443_getrate_i2s_eplldiv(struct clk *clk)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long div = __raw_readl(S3C2443_CLKDIV1);
-
-	div &= S3C2443_CLKDIV1_I2SDIV_MASK;
-	div >>= S3C2443_CLKDIV1_I2SDIV_SHIFT;
-
-	return parent_rate / (div + 1);
-}
-
-static int s3c2443_setrate_i2s_eplldiv(struct clk *clk, unsigned long rate)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long clkdivn = __raw_readl(S3C2443_CLKDIV1);
-
-	rate = s3c2443_roundrate_clksrc16(clk, rate);
-	rate = parent_rate / rate;
-
-	clkdivn &= ~S3C2443_CLKDIV1_I2SDIV_MASK;
-	clkdivn |= (rate - 1) << S3C2443_CLKDIV1_I2SDIV_SHIFT;
-
-	__raw_writel(clkdivn, S3C2443_CLKDIV1);
-	return 0;
-}
-
-static struct clk clk_i2s_eplldiv = {
-	.name		= "i2s-eplldiv",
-	.id		= -1,
-	.parent		= &clk_esysclk,
-	.get_rate	= s3c2443_getrate_i2s_eplldiv,
-	.set_rate	= s3c2443_setrate_i2s_eplldiv,
-	.round_rate	= s3c2443_roundrate_clksrc16,
+static struct clksrc_clk clk_i2s_eplldiv = {
+	.clk	= {
+		.name		= "i2s-eplldiv",
+		.id		= -1,
+		.parent		= &clk_esysclk.clk,
+	},
+	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 4, .shift = 12, },
 };
 
 /* i2s-ref
  *
  * i2s bus reference clock, selectable from external, esysclk or epllref
+ *
+ * Note, this used to be two clocks, but was compressed into one.
 */
 
-static int s3c2443_setparent_i2s(struct clk *clk, struct clk *parent)
-{
-	unsigned long clksrc = __raw_readl(S3C2443_CLKSRC);
+struct clk *clk_i2s_srclist[] = {
+	[0] = &clk_i2s_eplldiv.clk,
+	[1] = &clk_i2s_ext,
+	[2] = &clk_epllref.clk,
+	[3] = &clk_epllref.clk,
+};
 
-	clksrc &= ~S3C2443_CLKSRC_I2S_MASK;
+static struct clksrc_clk clk_i2s = {
+	.clk	= {
+		.name		= "i2s-if",
+		.id		= -1,
+		.ctrlbit	= S3C2443_SCLKCON_I2SCLK,
+		.enable		= s3c2443_clkcon_enable_s,
 
-	if (parent == &clk_epllref)
-		clksrc |= S3C2443_CLKSRC_I2S_EPLLREF;
-	else if (parent == &clk_i2s_ext)
-		clksrc |= S3C2443_CLKSRC_I2S_EXT;
-	else if (parent != &clk_i2s_eplldiv)
-		return -EINVAL;
-
-	clk->parent = parent;
-	__raw_writel(clksrc, S3C2443_CLKSRC);
-
-	return 0;
-}
-
-static struct clk clk_i2s = {
-	.name		= "i2s-if",
-	.id		= -1,
-	.parent		= &clk_i2s_eplldiv,
-	.ctrlbit	= S3C2443_SCLKCON_I2SCLK,
-	.enable		= s3c2443_clkcon_enable_s,
-	.set_parent	= s3c2443_setparent_i2s,
+	},
+	.sources = &(struct clksrc_sources) {
+		.sources = clk_i2s_srclist,
+		.nr_sources = ARRAY_SIZE(clk_i2s_srclist),
+	},
+	.reg_src = { .reg = S3C2443_CLKSRC, .size = 2, .shift = 14 },
 };
 
 /* cam-if
@@ -586,41 +438,15 @@ static struct clk clk_i2s = {
  * camera interface bus-clock, divided down from esysclk
 */
 
-static unsigned long s3c2443_getrate_cam(struct clk *clk)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long div = __raw_readl(S3C2443_CLKDIV1);
-
-	div  &= S3C2443_CLKDIV1_CAMDIV_MASK;
-	div >>= S3C2443_CLKDIV1_CAMDIV_SHIFT;
-
-	return parent_rate / (div + 1);
-}
-
-static int s3c2443_setrate_cam(struct clk *clk, unsigned long rate)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long clkdiv1 = __raw_readl(S3C2443_CLKDIV1);
-
-	rate = s3c2443_roundrate_clksrc16(clk, rate);
-	rate = parent_rate / rate;
-
-	clkdiv1 &= ~S3C2443_CLKDIV1_CAMDIV_MASK;
-	clkdiv1 |= (rate - 1) << S3C2443_CLKDIV1_CAMDIV_SHIFT;
-
-	__raw_writel(clkdiv1, S3C2443_CLKDIV1);
-	return 0;
-}
-
-static struct clk clk_cam = {
-	.name		= "camif-upll",		/* same as 2440 name */
-	.id		= -1,
-	.parent		= &clk_esysclk,
-	.ctrlbit	= S3C2443_SCLKCON_CAMCLK,
-	.enable		= s3c2443_clkcon_enable_s,
-	.get_rate	= s3c2443_getrate_cam,
-	.set_rate	= s3c2443_setrate_cam,
-	.round_rate	= s3c2443_roundrate_clksrc16,
+static struct clksrc_clk clk_cam = {
+	.clk	= {
+		.name		= "camif-upll",	/* same as 2440 name */
+		.id		= -1,
+		.parent		= &clk_esysclk.clk,
+		.ctrlbit	= S3C2443_SCLKCON_CAMCLK,
+		.enable		= s3c2443_clkcon_enable_s,
+	},
+	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 4, .shift = 26 },
 };
 
 /* display-if
@@ -628,41 +454,15 @@ static struct clk clk_cam = {
  * display interface clock, divided from esysclk
 */
 
-static unsigned long s3c2443_getrate_display(struct clk *clk)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long div = __raw_readl(S3C2443_CLKDIV1);
-
-	div &= S3C2443_CLKDIV1_DISPDIV_MASK;
-	div >>= S3C2443_CLKDIV1_DISPDIV_SHIFT;
-
-	return parent_rate / (div + 1);
-}
-
-static int s3c2443_setrate_display(struct clk *clk, unsigned long rate)
-{
-	unsigned long parent_rate = clk_get_rate(clk->parent);
-	unsigned long clkdivn = __raw_readl(S3C2443_CLKDIV1);
-
-	rate = s3c2443_roundrate_clksrc256(clk, rate);
-	rate = parent_rate / rate;
-
-	clkdivn &= ~S3C2443_CLKDIV1_UARTDIV_MASK;
-	clkdivn |= (rate - 1) << S3C2443_CLKDIV1_UARTDIV_SHIFT;
-
-	__raw_writel(clkdivn, S3C2443_CLKDIV1);
-	return 0;
-}
-
-static struct clk clk_display = {
-	.name		= "display-if",
-	.id		= -1,
-	.parent		= &clk_esysclk,
-	.ctrlbit	= S3C2443_SCLKCON_DISPCLK,
-	.enable		= s3c2443_clkcon_enable_s,
-	.get_rate	= s3c2443_getrate_display,
-	.set_rate	= s3c2443_setrate_display,
-	.round_rate	= s3c2443_roundrate_clksrc256,
+static struct clksrc_clk clk_display = {
+	.clk	= {
+		.name		= "display-if",
+		.id		= -1,
+		.parent		= &clk_esysclk.clk,
+		.ctrlbit	= S3C2443_SCLKCON_DISPCLK,
+		.enable		= s3c2443_clkcon_enable_s,
+	},
+	.reg_div = { .reg = S3C2443_CLKDIV1, .size = 8, .shift = 16 },
 };
 
 /* prediv
@@ -684,8 +484,10 @@ static unsigned long s3c2443_prediv_getrate(struct clk *clk)
 static struct clk clk_prediv = {
 	.name		= "prediv",
 	.id		= -1,
-	.parent		= &clk_msysclk,
-	.get_rate	= s3c2443_prediv_getrate,
+	.parent		= &clk_msysclk.clk,
+	.ops		= &(struct clk_ops) {
+		.get_rate	= s3c2443_prediv_getrate,
+	},
 };
 
 /* standard clock definitions */
@@ -857,7 +659,7 @@ static struct clk init_clocks[] = {
 	}, {
 		.name		= "usb-bus-host",
 		.id		= -1,
-		.parent		= &clk_usb_bus_host,
+		.parent		= &clk_usb_bus_host.clk,
 	}, {
 		.name		= "ac97",
 		.id		= -1,
@@ -868,103 +670,26 @@ static struct clk init_clocks[] = {
 
 /* clocks to add where we need to check their parentage */
 
-/* s3c2443_clk_initparents
- *
- * Initialise the parents for the clocks that we get at start-time
-*/
-
-static int __init clk_init_set_parent(struct clk *clk, struct clk *parent)
-{
-	printk(KERN_DEBUG "clock %s: parent %s\n", clk->name, parent->name);
-	return clk_set_parent(clk, parent);
-}
+static struct clksrc_clk __initdata *init_list[] = {
+	&clk_epllref, /* should be first */
+	&clk_esysclk,
+	&clk_msysclk,
+	&clk_arm,
+	&clk_i2s_eplldiv,
+	&clk_i2s,
+	&clk_cam,
+	&clk_uart,
+	&clk_display,
+	&clk_hsmmc_div,
+	&clk_usb_bus_host,
+};
 
 static void __init s3c2443_clk_initparents(void)
 {
-	unsigned long clksrc = __raw_readl(S3C2443_CLKSRC);
-	struct clk *parent;
+	int ptr;
 
-	switch (clksrc & S3C2443_CLKSRC_EPLLREF_MASK) {
-	case S3C2443_CLKSRC_EPLLREF_EXTCLK:
-		parent = &clk_ext;
-		break;
-
-	case S3C2443_CLKSRC_EPLLREF_XTAL:
-	default:
-		parent = &clk_xtal;
-		break;
-
-	case S3C2443_CLKSRC_EPLLREF_MPLLREF:
-	case S3C2443_CLKSRC_EPLLREF_MPLLREF2:
-		parent = &clk_mpllref;
-		break;
-	}
-
-	clk_init_set_parent(&clk_epllref, parent);
-
-	switch (clksrc & S3C2443_CLKSRC_I2S_MASK) {
-	case S3C2443_CLKSRC_I2S_EXT:
-		parent = &clk_i2s_ext;
-		break;
-
-	case S3C2443_CLKSRC_I2S_EPLLDIV:
-	default:
-		parent = &clk_i2s_eplldiv;
-		break;
-
-	case S3C2443_CLKSRC_I2S_EPLLREF:
-	case S3C2443_CLKSRC_I2S_EPLLREF3:
-		parent = &clk_epllref;
-	}
-
-	clk_init_set_parent(&clk_i2s, &clk_epllref);
-
-	/* esysclk source */
-
-	parent = (clksrc & S3C2443_CLKSRC_ESYSCLK_EPLL) ?
-		&clk_epll : &clk_epllref;
-
-	clk_init_set_parent(&clk_esysclk, parent);
-
-	/* msysclk source */
-
-	if (clksrc & S3C2443_CLKSRC_MSYSCLK_MPLL) {
-		parent = &clk_mpll;
-	} else {
-		parent = (clksrc & S3C2443_CLKSRC_EXTCLK_DIV) ?
-			&clk_mdivclk : &clk_mpllref;
-	}
-
-	clk_init_set_parent(&clk_msysclk, parent);
-
-	/* arm */
-
-	if (__raw_readl(S3C2443_CLKDIV0) & S3C2443_CLKDIV0_DVS)
-		parent = &clk_h;
-	else
-		parent = &clk_armdiv;
-
-	clk_init_set_parent(&clk_arm, parent);
-}
-
-/* armdiv divisor table */
-
-static unsigned int armdiv[16] = {
-	[S3C2443_CLKDIV0_ARMDIV_1 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 1,
-	[S3C2443_CLKDIV0_ARMDIV_2 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 2,
-	[S3C2443_CLKDIV0_ARMDIV_3 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 3,
-	[S3C2443_CLKDIV0_ARMDIV_4 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 4,
-	[S3C2443_CLKDIV0_ARMDIV_6 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 6,
-	[S3C2443_CLKDIV0_ARMDIV_8 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 8,
-	[S3C2443_CLKDIV0_ARMDIV_12 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 12,
-	[S3C2443_CLKDIV0_ARMDIV_16 >> S3C2443_CLKDIV0_ARMDIV_SHIFT]	= 16,
-};
-
-static inline unsigned int s3c2443_fclk_div(unsigned long clkcon0)
-{
-	clkcon0 &= S3C2443_CLKDIV0_ARMDIV_MASK;
-
-	return armdiv[clkcon0 >> S3C2443_CLKDIV0_ARMDIV_SHIFT];
+	for (ptr = 0; ptr < ARRAY_SIZE(init_list); ptr++)
+		s3c_set_clksrc(init_list[ptr], true);
 }
 
 static inline unsigned long s3c2443_get_hdiv(unsigned long clkcon0)
@@ -976,15 +701,12 @@ static inline unsigned long s3c2443_get_hdiv(unsigned long clkcon0)
 
 /* clocks to add straight away */
 
-static struct clk *clks[] __initdata = {
-	&clk_ext,
-	&clk_epll,
+static struct clksrc_clk *clksrcs[] __initdata = {
 	&clk_usb_bus_host,
-	&clk_usb_bus,
-	&clk_esysclk,
 	&clk_epllref,
-	&clk_mpllref,
+	&clk_esysclk,
 	&clk_msysclk,
+	&clk_arm,
 	&clk_uart,
 	&clk_display,
 	&clk_cam,
@@ -992,9 +714,15 @@ static struct clk *clks[] __initdata = {
 	&clk_i2s,
 	&clk_hsspi,
 	&clk_hsmmc_div,
+};
+
+static struct clk *clks[] __initdata = {
+	&clk_ext,
+	&clk_epll,
+	&clk_usb_bus,
+	&clk_mpllref,
 	&clk_hsmmc,
 	&clk_armdiv,
-	&clk_arm,
 	&clk_prediv,
 };
 
@@ -1014,7 +742,7 @@ void __init_or_cpufreq s3c2443_setup_clocks(void)
 	clk_put(xtal_clk);
 
 	pll = s3c2443_get_mpll(mpllcon, xtal);
-	clk_msysclk.rate = pll;
+	clk_msysclk.clk.rate = pll;
 
 	fclk = pll / s3c2443_fclk_div(clkdiv0);
 	hclk = s3c2443_prediv_getrate(&clk_prediv);
@@ -1056,15 +784,18 @@ void __init s3c2443_init_clocks(int xtal)
 		}
 	}
 
+	for (ptr = 0; ptr < ARRAY_SIZE(clksrcs); ptr++)
+		s3c_register_clksrc(clksrcs[ptr], 1);
+
 	clk_epll.rate = s3c2443_get_epll(epllcon, xtal);
-	clk_epll.parent = &clk_epllref;
-	clk_usb_bus.parent = &clk_usb_bus_host;
+	clk_epll.parent = &clk_epllref.clk;
+	clk_usb_bus.parent = &clk_usb_bus_host.clk;
 
 	/* ensure usb bus clock is within correct rate of 48MHz */
 
-	if (clk_get_rate(&clk_usb_bus_host) != (48 * 1000 * 1000)) {
+	if (clk_get_rate(&clk_usb_bus_host.clk) != (48 * 1000 * 1000)) {
 		printk(KERN_INFO "Warning: USB host bus not at 48MHz\n");
-		clk_set_rate(&clk_usb_bus_host, 48*1000*1000);
+		clk_set_rate(&clk_usb_bus_host.clk, 48*1000*1000);
 	}
 
 	printk("S3C2443: epll %s %ld.%03ld MHz, usb-bus %ld.%03ld MHz\n",
@@ -1074,14 +805,7 @@ void __init s3c2443_init_clocks(int xtal)
 
 	/* register clocks from clock array */
 
-	clkp = init_clocks;
-	for (ptr = 0; ptr < ARRAY_SIZE(init_clocks); ptr++, clkp++) {
-		ret = s3c24xx_register_clock(clkp);
-		if (ret < 0) {
-			printk(KERN_ERR "Failed to register clock %s (%d)\n",
-			       clkp->name, ret);
-		}
-	}
+	s3c_register_clocks(init_clocks, ARRAY_SIZE(init_clocks));
 
 	/* We must be careful disabling the clocks we are not intending to
 	 * be using at boot time, as subsystems such as the LCD which do

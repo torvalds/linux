@@ -489,9 +489,6 @@ struct user_regs_struct
  * These are defined as per linux/ptrace.h, which see.
  */
 #define arch_has_single_step()	(1)
-struct task_struct;
-extern void user_enable_single_step(struct task_struct *);
-extern void user_disable_single_step(struct task_struct *);
 extern void show_regs(struct pt_regs * regs);
 
 #define user_mode(regs) (((regs)->psw.mask & PSW_MASK_PSTATE) != 0)

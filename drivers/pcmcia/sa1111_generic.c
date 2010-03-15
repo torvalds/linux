@@ -21,11 +21,18 @@
 
 #include "sa1111_generic.h"
 
+#define IDX_IRQ_S0_READY_NINT	(0)
+#define IDX_IRQ_S0_CD_VALID	(1)
+#define IDX_IRQ_S0_BVD1_STSCHG	(2)
+#define IDX_IRQ_S1_READY_NINT	(3)
+#define IDX_IRQ_S1_CD_VALID	(4)
+#define IDX_IRQ_S1_BVD1_STSCHG	(5)
+
 static struct pcmcia_irqs irqs[] = {
-	{ 0, IRQ_S0_CD_VALID,    "SA1111 PCMCIA card detect" },
-	{ 0, IRQ_S0_BVD1_STSCHG, "SA1111 PCMCIA BVD1"        },
-	{ 1, IRQ_S1_CD_VALID,    "SA1111 CF card detect"     },
-	{ 1, IRQ_S1_BVD1_STSCHG, "SA1111 CF BVD1"            },
+	{ 0, NO_IRQ, "SA1111 PCMCIA card detect" },
+	{ 0, NO_IRQ, "SA1111 PCMCIA BVD1"        },
+	{ 1, NO_IRQ, "SA1111 CF card detect"     },
+	{ 1, NO_IRQ, "SA1111 CF BVD1"            },
 };
 
 static int sa1111_pcmcia_hw_init(struct soc_pcmcia_socket *skt)
@@ -136,7 +143,9 @@ int sa1111_pcmcia_add(struct sa1111_dev *dev, struct pcmcia_low_level *ops,
 		s->soc.ops = ops;
 		s->soc.socket.owner = ops->owner;
 		s->soc.socket.dev.parent = &dev->dev;
-		s->soc.socket.pci_irq = s->soc.nr ? IRQ_S1_READY_NINT : IRQ_S0_READY_NINT;
+		s->soc.socket.pci_irq = s->soc.nr ?
+				dev->irq[IDX_IRQ_S0_READY_NINT] :
+				dev->irq[IDX_IRQ_S1_READY_NINT];
 		s->dev = dev;
 
 		ret = add(&s->soc);
@@ -161,6 +170,12 @@ static int pcmcia_probe(struct sa1111_dev *dev)
 		return -EBUSY;
 
 	base = dev->mapbase;
+
+	/* Initialize PCMCIA IRQs */
+	irqs[0].irq = dev->irq[IDX_IRQ_S0_CD_VALID];
+	irqs[1].irq = dev->irq[IDX_IRQ_S0_BVD1_STSCHG];
+	irqs[2].irq = dev->irq[IDX_IRQ_S1_CD_VALID];
+	irqs[3].irq = dev->irq[IDX_IRQ_S1_BVD1_STSCHG];
 
 	/*
 	 * Initialise the suspend state.

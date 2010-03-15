@@ -745,7 +745,7 @@ static struct backlight_ops toshiba_backlight_data = {
         .update_status  = set_lcd_status,
 };
 
-static struct key_entry *toshiba_acpi_get_entry_by_scancode(int code)
+static struct key_entry *toshiba_acpi_get_entry_by_scancode(unsigned int code)
 {
 	struct key_entry *key;
 
@@ -756,7 +756,7 @@ static struct key_entry *toshiba_acpi_get_entry_by_scancode(int code)
 	return NULL;
 }
 
-static struct key_entry *toshiba_acpi_get_entry_by_keycode(int code)
+static struct key_entry *toshiba_acpi_get_entry_by_keycode(unsigned int code)
 {
 	struct key_entry *key;
 
@@ -767,8 +767,8 @@ static struct key_entry *toshiba_acpi_get_entry_by_keycode(int code)
 	return NULL;
 }
 
-static int toshiba_acpi_getkeycode(struct input_dev *dev, int scancode,
-				   int *keycode)
+static int toshiba_acpi_getkeycode(struct input_dev *dev,
+				   unsigned int scancode, unsigned int *keycode)
 {
 	struct key_entry *key = toshiba_acpi_get_entry_by_scancode(scancode);
 
@@ -780,14 +780,11 @@ static int toshiba_acpi_getkeycode(struct input_dev *dev, int scancode,
 	return -EINVAL;
 }
 
-static int toshiba_acpi_setkeycode(struct input_dev *dev, int scancode,
-				   int keycode)
+static int toshiba_acpi_setkeycode(struct input_dev *dev,
+				   unsigned int scancode, unsigned int keycode)
 {
 	struct key_entry *key;
-	int old_keycode;
-
-	if (keycode < 0 || keycode > KEY_MAX)
-		return -EINVAL;
+	unsigned int old_keycode;
 
 	key = toshiba_acpi_get_entry_by_scancode(scancode);
 	if (key && key->type == KE_KEY) {

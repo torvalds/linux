@@ -1382,7 +1382,7 @@ rx_eq_free:
 /* There are 8 evt ids per func. Retruns the evt id's bit number */
 static inline int be_evt_bit_get(struct be_adapter *adapter, u32 eq_id)
 {
-	return eq_id - 8 * be_pci_func(adapter);
+	return eq_id % 8;
 }
 
 static irqreturn_t be_intx(int irq, void *dev)
@@ -1880,8 +1880,9 @@ static int be_flash_data(struct be_adapter *adapter,
 	const u8 *p = fw->data;
 	struct be_cmd_write_flashrom *req = flash_cmd->va;
 	struct flash_comp *pflashcomp;
+	int num_comp;
 
-	struct flash_comp gen3_flash_types[8] = {
+	struct flash_comp gen3_flash_types[9] = {
 		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g3, IMG_TYPE_ISCSI_ACTIVE,
 			FLASH_IMAGE_MAX_SIZE_g3},
 		{ FLASH_REDBOOT_START_g3, IMG_TYPE_REDBOOT,
@@ -1897,7 +1898,9 @@ static int be_flash_data(struct be_adapter *adapter,
 		{ FLASH_FCoE_PRIMARY_IMAGE_START_g3, IMG_TYPE_FCOE_FW_ACTIVE,
 			FLASH_IMAGE_MAX_SIZE_g3},
 		{ FLASH_FCoE_BACKUP_IMAGE_START_g3, IMG_TYPE_FCOE_FW_BACKUP,
-			FLASH_IMAGE_MAX_SIZE_g3}
+			FLASH_IMAGE_MAX_SIZE_g3},
+		{ FLASH_NCSI_START_g3, IMG_TYPE_NCSI_FW,
+			FLASH_NCSI_IMAGE_MAX_SIZE_g3}
 	};
 	struct flash_comp gen2_flash_types[8] = {
 		{ FLASH_iSCSI_PRIMARY_IMAGE_START_g2, IMG_TYPE_ISCSI_ACTIVE,
@@ -1921,11 +1924,16 @@ static int be_flash_data(struct be_adapter *adapter,
 	if (adapter->generation == BE_GEN3) {
 		pflashcomp = gen3_flash_types;
 		filehdr_size = sizeof(struct flash_file_hdr_g3);
+		num_comp = 9;
 	} else {
 		pflashcomp = gen2_flash_types;
 		filehdr_size = sizeof(struct flash_file_hdr_g2);
+		num_comp = 8;
 	}
-	for (i = 0; i < 8; i++) {
+	for (i = 0; i < num_comp; i++) {
+		if ((pflashcomp[i].optype == IMG_TYPE_NCSI_FW) &&
+				memcmp(adapter->fw_ver, "3.102.148.0", 11) < 0)
+			continue;
 		if ((pflashcomp[i].optype == IMG_TYPE_REDBOOT) &&
 			(!be_flash_redboot(adapter, fw->data,
 			 pflashcomp[i].offset, pflashcomp[i].size,
@@ -1985,16 +1993,7 @@ int be_load_fw(struct be_adapter *adapter, u8 *func)
 	struct be_dma_mem flash_cmd;
 	int status, i = 0;
 	const u8 *p;
-	char fw_ver[FW_VER_LEN];
-	char fw_cfg;
 
-	status = be_cmd_get_fw_ver(adapter, fw_ver);
-	if (status)
-		return status;
-
-	fw_cfg = *(fw_ver + 2);
-	if (fw_cfg == '0')
-		fw_cfg = '1';
 	strcpy(fw_file, func);
 
 	status = request_firmware(&fw, fw_file, &adapter->pdev->dev);

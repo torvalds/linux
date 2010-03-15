@@ -127,6 +127,9 @@ config ZONE_DMA
 	bool
 	default y if SPARC32
 
+config NEED_DMA_MAP_STATE
+	def_bool y
+
 config GENERIC_ISA_DMA
 	bool
 	default y if SPARC32

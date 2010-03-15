@@ -588,16 +588,6 @@ out:
 }
 
 /**
- * acct_init_pacct - initialize a new pacct_struct
- * @pacct: per-process accounting info struct to initialize
- */
-void acct_init_pacct(struct pacct_struct *pacct)
-{
-	memset(pacct, 0, sizeof(struct pacct_struct));
-	pacct->ac_utime = pacct->ac_stime = cputime_zero;
-}
-
-/**
  * acct_collect - collect accounting information into pacct_struct
  * @exitcode: task exit code
  * @group_dead: not 0, if this thread is the last one in the process.

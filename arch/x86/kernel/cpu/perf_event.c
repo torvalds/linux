@@ -73,10 +73,10 @@ struct debug_store {
 struct event_constraint {
 	union {
 		unsigned long	idxmsk[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
-		u64		idxmsk64[1];
+		u64		idxmsk64;
 	};
-	int	code;
-	int	cmask;
+	u64	code;
+	u64	cmask;
 	int	weight;
 };
 
@@ -103,7 +103,7 @@ struct cpu_hw_events {
 };
 
 #define __EVENT_CONSTRAINT(c, n, m, w) {\
-	{ .idxmsk64[0] = (n) },		\
+	{ .idxmsk64 = (n) },		\
 	.code = (c),			\
 	.cmask = (m),			\
 	.weight = (w),			\
@@ -116,7 +116,7 @@ struct cpu_hw_events {
 	EVENT_CONSTRAINT(c, n, INTEL_ARCH_EVTSEL_MASK)
 
 #define FIXED_EVENT_CONSTRAINT(c, n)	\
-	EVENT_CONSTRAINT(c, n, INTEL_ARCH_FIXED_MASK)
+	EVENT_CONSTRAINT(c, (1ULL << (32+n)), INTEL_ARCH_FIXED_MASK)
 
 #define EVENT_CONSTRAINT_END		\
 	EVENT_CONSTRAINT(0, 0, 0)
@@ -503,6 +503,9 @@ static int __hw_perf_event_init(struct perf_event *event)
 	 */
 	if (attr->type == PERF_TYPE_RAW) {
 		hwc->config |= x86_pmu.raw_event(attr->config);
+		if ((hwc->config & ARCH_PERFMON_EVENTSEL_ANY) &&
+		    perf_paranoid_cpu() && !capable(CAP_SYS_ADMIN))
+			return -EACCES;
 		return 0;
 	}
 
@@ -553,9 +556,9 @@ static void x86_pmu_disable_all(void)
 		if (!test_bit(idx, cpuc->active_mask))
 			continue;
 		rdmsrl(x86_pmu.eventsel + idx, val);
-		if (!(val & ARCH_PERFMON_EVENTSEL0_ENABLE))
+		if (!(val & ARCH_PERFMON_EVENTSEL_ENABLE))
 			continue;
-		val &= ~ARCH_PERFMON_EVENTSEL0_ENABLE;
+		val &= ~ARCH_PERFMON_EVENTSEL_ENABLE;
 		wrmsrl(x86_pmu.eventsel + idx, val);
 	}
 }
@@ -590,7 +593,7 @@ static void x86_pmu_enable_all(void)
 			continue;
 
 		val = event->hw.config;
-		val |= ARCH_PERFMON_EVENTSEL0_ENABLE;
+		val |= ARCH_PERFMON_EVENTSEL_ENABLE;
 		wrmsrl(x86_pmu.eventsel + idx, val);
 	}
 }
@@ -612,8 +615,8 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 	bitmap_zero(used_mask, X86_PMC_IDX_MAX);
 
 	for (i = 0; i < n; i++) {
-		constraints[i] =
-		  x86_pmu.get_event_constraints(cpuc, cpuc->event_list[i]);
+		c = x86_pmu.get_event_constraints(cpuc, cpuc->event_list[i]);
+		constraints[i] = c;
 	}
 
 	/*
@@ -853,7 +856,7 @@ void hw_perf_enable(void)
 static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc, int idx)
 {
 	(void)checking_wrmsrl(hwc->config_base + idx,
-			      hwc->config | ARCH_PERFMON_EVENTSEL0_ENABLE);
+			      hwc->config | ARCH_PERFMON_EVENTSEL_ENABLE);
 }
 
 static inline void x86_pmu_disable_event(struct hw_perf_event *hwc, int idx)
@@ -1094,8 +1097,7 @@ static int x86_pmu_handle_irq(struct pt_regs *regs)
 	int idx, handled = 0;
 	u64 val;
 
-	data.addr = 0;
-	data.raw = NULL;
+	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -1347,6 +1349,7 @@ static void __init pmu_check_apic(void)
 
 void __init init_hw_perf_events(void)
 {
+	struct event_constraint *c;
 	int err;
 
 	pr_info("Performance Events: ");
@@ -1394,6 +1397,16 @@ void __init init_hw_perf_events(void)
 	unconstrained = (struct event_constraint)
 		__EVENT_CONSTRAINT(0, (1ULL << x86_pmu.num_events) - 1,
 				   0, x86_pmu.num_events);
+
+	if (x86_pmu.event_constraints) {
+		for_each_event_constraint(c, x86_pmu.event_constraints) {
+			if (c->cmask != INTEL_ARCH_FIXED_MASK)
+				continue;
+
+			c->idxmsk64 |= (1ULL << x86_pmu.num_events) - 1;
+			c->weight += x86_pmu.num_events;
+		}
+	}
 
 	pr_info("... version:                %d\n",     x86_pmu.version);
 	pr_info("... bit width:              %d\n",     x86_pmu.event_bits);

@@ -12,20 +12,6 @@
 #include "asm/uaccess.h"
 #include "os.h"
 
-asmlinkage long sys_uname64(struct new_utsname __user * name)
-{
-	int err;
-
-	down_read(&uts_sem);
-	err = copy_to_user(name, utsname(), sizeof (*name));
-	up_read(&uts_sem);
-
-	if (personality(current->personality) == PER_LINUX32)
-		err |= copy_to_user(&name->machine, "i686", 5);
-
-	return err ? -EFAULT : 0;
-}
-
 long arch_prctl(struct task_struct *task, int code, unsigned long __user *addr)
 {
 	unsigned long *ptr = addr, tmp;

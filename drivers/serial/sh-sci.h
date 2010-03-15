@@ -30,7 +30,8 @@
  */
 # define SCSCR_INIT(port) (port->mapbase == SCIF2) ? 0xF3 : 0xF0
 #elif defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7721)
+      defined(CONFIG_CPU_SUBTYPE_SH7721) || \
+      defined(CONFIG_ARCH_SHMOBILE)
 # define SCSCR_INIT(port)  0x0030 /* TIE=0,RIE=0,TE=1,RE=1 */
 # define PORT_PTCR	   0xA405011EUL
 # define PORT_PVCR	   0xA4050122UL
@@ -228,7 +229,8 @@
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7705) || \
     defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7721)
+    defined(CONFIG_CPU_SUBTYPE_SH7721) || \
+    defined(CONFIG_ARCH_SHMOBILE)
 # define SCIF_ORER    0x0200
 # define SCIF_ERRORS ( SCIF_PER | SCIF_FER | SCIF_ER | SCIF_BRK | SCIF_ORER)
 # define SCIF_RFDC_MASK 0x007f
@@ -261,7 +263,8 @@
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7705) || \
     defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7721)
+    defined(CONFIG_CPU_SUBTYPE_SH7721) || \
+    defined(CONFIG_ARCH_SHMOBILE)
 # define SCxSR_RDxF_CLEAR(port)	 (sci_in(port, SCxSR) & 0xfffc)
 # define SCxSR_ERROR_CLEAR(port) (sci_in(port, SCxSR) & 0xfd73)
 # define SCxSR_TDxE_CLEAR(port)	 (sci_in(port, SCxSR) & 0xffdf)
@@ -356,7 +359,7 @@
     SCI_OUT(sci_size, sci_offset, value);				\
   }
 
-#ifdef CONFIG_CPU_SH3
+#if defined(CONFIG_CPU_SH3) || defined(CONFIG_ARCH_SHMOBILE)
 #if defined(CONFIG_CPU_SUBTYPE_SH7710) || defined(CONFIG_CPU_SUBTYPE_SH7712)
 #define SCIx_FNS(name, sh3_sci_offset, sh3_sci_size, sh4_sci_offset, sh4_sci_size, \
 		                sh3_scif_offset, sh3_scif_size, sh4_scif_offset, sh4_scif_size, \
@@ -366,7 +369,8 @@
 	  CPU_SCIF_FNS(name, sh4_scif_offset, sh4_scif_size)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705) || \
       defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7721)
+      defined(CONFIG_CPU_SUBTYPE_SH7721) || \
+      defined(CONFIG_ARCH_SHMOBILE)
 #define SCIF_FNS(name, scif_offset, scif_size) \
   CPU_SCIF_FNS(name, scif_offset, scif_size)
 #else
@@ -401,7 +405,8 @@
 
 #if defined(CONFIG_CPU_SUBTYPE_SH7705) || \
     defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-    defined(CONFIG_CPU_SUBTYPE_SH7721)
+    defined(CONFIG_CPU_SUBTYPE_SH7721) || \
+    defined(CONFIG_ARCH_SHMOBILE)
 
 SCIF_FNS(SCSMR,  0x00, 16)
 SCIF_FNS(SCBRR,  0x04,  8)
@@ -413,7 +418,7 @@ SCIF_FNS(SCFCR,  0x18, 16)
 SCIF_FNS(SCFDR,  0x1c, 16)
 SCIF_FNS(SCxTDR, 0x20,  8)
 SCIF_FNS(SCxRDR, 0x24,  8)
-SCIF_FNS(SCLSR,  0x24, 16)
+SCIF_FNS(SCLSR,  0x00,  0)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723) ||\
       defined(CONFIG_CPU_SUBTYPE_SH7724)
 SCIx_FNS(SCSMR,  0x00, 16, 0x00, 16)
@@ -583,7 +588,8 @@ static inline int sci_rxd_in(struct uart_port *port)
 #define SCBRR_VALUE(bps, clk) ((clk+16*bps)/(16*bps)-1)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7705) || \
       defined(CONFIG_CPU_SUBTYPE_SH7720) || \
-      defined(CONFIG_CPU_SUBTYPE_SH7721)
+      defined(CONFIG_CPU_SUBTYPE_SH7721) || \
+      defined(CONFIG_ARCH_SHMOBILE)
 #define SCBRR_VALUE(bps, clk) (((clk*2)+16*bps)/(32*bps)-1)
 #elif defined(CONFIG_CPU_SUBTYPE_SH7723) ||\
       defined(CONFIG_CPU_SUBTYPE_SH7724)

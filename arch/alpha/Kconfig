@@ -10,6 +10,7 @@ config ALPHA
 	select HAVE_OPROFILE
 	select HAVE_SYSCALL_WRAPPERS
 	select HAVE_PERF_EVENTS
+	select HAVE_DMA_ATTRS
 	help
 	  The Alpha is a 64-bit general-purpose processor designed and
 	  marketed by the Digital Equipment Corporation of blessed memory,
@@ -57,6 +58,9 @@ config ARCH_USES_GETTIMEOFFSET
 config ZONE_DMA
 	bool
 	default y
+
+config NEED_DMA_MAP_STATE
+       def_bool y
 
 config GENERIC_ISA_DMA
 	bool

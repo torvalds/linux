@@ -2233,11 +2233,11 @@ ring_buffer_lock_reserve(struct ring_buffer *buffer, unsigned long length)
 	if (ring_buffer_flags != RB_BUFFERS_ON)
 		return NULL;
 
-	if (atomic_read(&buffer->record_disabled))
-		return NULL;
-
 	/* If we are tracing schedule, we don't want to recurse */
 	resched = ftrace_preempt_disable();
+
+	if (atomic_read(&buffer->record_disabled))
+		goto out_nocheck;
 
 	if (trace_recursive_lock())
 		goto out_nocheck;
@@ -2470,10 +2470,10 @@ int ring_buffer_write(struct ring_buffer *buffer,
 	if (ring_buffer_flags != RB_BUFFERS_ON)
 		return -EBUSY;
 
-	if (atomic_read(&buffer->record_disabled))
-		return -EBUSY;
-
 	resched = ftrace_preempt_disable();
+
+	if (atomic_read(&buffer->record_disabled))
+		goto out;
 
 	cpu = raw_smp_processor_id();
 
@@ -2542,7 +2542,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_record_disable);
  * @buffer: The ring buffer to enable writes
  *
  * Note, multiple disables will need the same number of enables
- * to truely enable the writing (much like preempt_disable).
+ * to truly enable the writing (much like preempt_disable).
  */
 void ring_buffer_record_enable(struct ring_buffer *buffer)
 {
@@ -2578,7 +2578,7 @@ EXPORT_SYMBOL_GPL(ring_buffer_record_disable_cpu);
  * @cpu: The CPU to enable.
  *
  * Note, multiple disables will need the same number of enables
- * to truely enable the writing (much like preempt_disable).
+ * to truly enable the writing (much like preempt_disable).
  */
 void ring_buffer_record_enable_cpu(struct ring_buffer *buffer, int cpu)
 {

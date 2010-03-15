@@ -940,7 +940,7 @@ static int del_instruction_bp(struct task_struct *child, int slot)
 {
 	switch (slot) {
 	case 1:
-		if (child->thread.iac1 == 0)
+		if ((child->thread.dbcr0 & DBCR0_IAC1) == 0)
 			return -ENOENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC12MODE) {
@@ -952,7 +952,7 @@ static int del_instruction_bp(struct task_struct *child, int slot)
 		child->thread.dbcr0 &= ~DBCR0_IAC1;
 		break;
 	case 2:
-		if (child->thread.iac2 == 0)
+		if ((child->thread.dbcr0 & DBCR0_IAC2) == 0)
 			return -ENOENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC12MODE)
@@ -963,7 +963,7 @@ static int del_instruction_bp(struct task_struct *child, int slot)
 		break;
 #if CONFIG_PPC_ADV_DEBUG_IACS > 2
 	case 3:
-		if (child->thread.iac3 == 0)
+		if ((child->thread.dbcr0 & DBCR0_IAC3) == 0)
 			return -ENOENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC34MODE) {
@@ -975,7 +975,7 @@ static int del_instruction_bp(struct task_struct *child, int slot)
 		child->thread.dbcr0 &= ~DBCR0_IAC3;
 		break;
 	case 4:
-		if (child->thread.iac4 == 0)
+		if ((child->thread.dbcr0 & DBCR0_IAC4) == 0)
 			return -ENOENT;
 
 		if (dbcr_iac_range(child) & DBCR_IAC34MODE)
@@ -1054,7 +1054,7 @@ static int set_dac(struct task_struct *child, struct ppc_hw_breakpoint *bp_info)
 static int del_dac(struct task_struct *child, int slot)
 {
 	if (slot == 1) {
-		if (child->thread.dac1 == 0)
+		if ((dbcr_dac(child) & (DBCR_DAC1R | DBCR_DAC1W)) == 0)
 			return -ENOENT;
 
 		child->thread.dac1 = 0;
@@ -1070,7 +1070,7 @@ static int del_dac(struct task_struct *child, int slot)
 		child->thread.dvc1 = 0;
 #endif
 	} else if (slot == 2) {
-		if (child->thread.dac1 == 0)
+		if ((dbcr_dac(child) & (DBCR_DAC2R | DBCR_DAC2W)) == 0)
 			return -ENOENT;
 
 #ifdef CONFIG_PPC_ADV_DEBUG_DAC_RANGE

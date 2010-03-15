@@ -95,7 +95,7 @@ extern char usermode_helper[];
 
 /* All EEs on the free list should have ID_VACANT (== 0)
  * freshly allocated EEs get !ID_VACANT (== 1)
- * so if it says "cannot dereference null pointer at adress 0x00000001",
+ * so if it says "cannot dereference null pointer at address 0x00000001",
  * it is most likely one of these :( */
 
 #define ID_IN_SYNC      (4711ULL)
@@ -1171,7 +1171,7 @@ extern int drbd_bitmap_io(struct drbd_conf *mdev, int (*io_fn)(struct drbd_conf 
 /* Meta data layout
    We reserve a 128MB Block (4k aligned)
    * either at the end of the backing device
-   * or on a seperate meta data device. */
+   * or on a separate meta data device. */
 
 #define MD_RESERVED_SECT (128LU << 11)  /* 128 MB, unit sectors */
 /* The following numbers are sectors */

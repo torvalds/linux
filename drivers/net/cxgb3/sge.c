@@ -197,13 +197,13 @@ static inline void refill_rspq(struct adapter *adapter,
 /**
  *	need_skb_unmap - does the platform need unmapping of sk_buffs?
  *
- *	Returns true if the platfrom needs sk_buff unmapping.  The compiler
+ *	Returns true if the platform needs sk_buff unmapping.  The compiler
  *	optimizes away unecessary code if this returns true.
  */
 static inline int need_skb_unmap(void)
 {
 	/*
-	 * This structure is used to tell if the platfrom needs buffer
+	 * This structure is used to tell if the platform needs buffer
 	 * unmapping by checking if DECLARE_PCI_UNMAP_ADDR defines anything.
 	 */
 	struct dummy {

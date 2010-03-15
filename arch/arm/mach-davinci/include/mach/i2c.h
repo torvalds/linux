@@ -1,5 +1,5 @@
 /*
- * DaVinci I2C controller platfrom_device info
+ * DaVinci I2C controller platform_device info
  *
  * Author: Vladimir Barinov, MontaVista Software, Inc. <source@mvista.com>
  *

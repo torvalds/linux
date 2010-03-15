@@ -78,26 +78,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 	unsigned long copied;
 
 	switch (request) {
-	case PTRACE_PEEKTEXT: /* read word at location addr. */
-	case PTRACE_PEEKDATA:
-		pr_debug("PEEKTEXT/PEEKDATA at %08lX\n", addr);
-		copied = access_process_vm(child, addr, &val, sizeof(val), 0);
-		rval = -EIO;
-		if (copied != sizeof(val))
-			break;
-		rval = put_user(val, (unsigned long *)data);
-		break;
-
-	case PTRACE_POKETEXT: /* write the word at location addr. */
-	case PTRACE_POKEDATA:
-		pr_debug("POKETEXT/POKEDATA to %08lX\n", addr);
-		rval = 0;
-		if (access_process_vm(child, addr, &data, sizeof(data), 1)
-		    == sizeof(data))
-			break;
-		rval = -EIO;
-		break;
-
 	/* Read/write the word at location ADDR in the registers. */
 	case PTRACE_PEEKUSR:
 	case PTRACE_POKEUSR:
@@ -130,50 +110,8 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 		if (rval == 0 && request == PTRACE_PEEKUSR)
 			rval = put_user(val, (unsigned long *)data);
 		break;
-	/* Continue and stop at next (return from) syscall */
-	case PTRACE_SYSCALL:
-		pr_debug("PTRACE_SYSCALL\n");
-	case PTRACE_SINGLESTEP:
-		pr_debug("PTRACE_SINGLESTEP\n");
-	/* Restart after a signal.  */
-	case PTRACE_CONT:
-		pr_debug("PTRACE_CONT\n");
-		rval = -EIO;
-		if (!valid_signal(data))
-			break;
-
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-
-		child->exit_code = data;
-		pr_debug("wakeup_process\n");
-		wake_up_process(child);
-		rval = 0;
-		break;
-
-	/*
-	 * make the child exit.  Best I can do is send it a sigkill.
-	 * perhaps it should be put in the status that it wants to
-	 * exit.
-	 */
-	case PTRACE_KILL:
-		pr_debug("PTRACE_KILL\n");
-		rval = 0;
-		if (child->exit_state == EXIT_ZOMBIE)	/* already dead */
-			break;
-		child->exit_code = SIGKILL;
-		wake_up_process(child);
-		break;
-
-	case PTRACE_DETACH: /* detach a process that was attached. */
-		pr_debug("PTRACE_DETACH\n");
-		rval = ptrace_detach(child, data);
-		break;
 	default:
-		/* rval = ptrace_request(child, request, addr, data); noMMU */
-		rval = -EIO;
+		rval = ptrace_request(child, request, addr, data);
 	}
 	return rval;
 }

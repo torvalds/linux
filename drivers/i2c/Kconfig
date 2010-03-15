@@ -73,7 +73,6 @@ config I2C_SMBUS
 
 source drivers/i2c/algos/Kconfig
 source drivers/i2c/busses/Kconfig
-source drivers/i2c/chips/Kconfig
 
 config I2C_DEBUG_CORE
 	bool "I2C Core debugging messages"
@@ -94,14 +93,6 @@ config I2C_DEBUG_BUS
 	bool "I2C Bus debugging messages"
 	help
 	  Say Y here if you want the I2C bus drivers to produce a bunch of
-	  debug messages to the system log.  Select this if you are having
-	  a problem with I2C support and want to see more of what is going
-	  on.
-
-config I2C_DEBUG_CHIP
-	bool "I2C Chip debugging messages"
-	help
-	  Say Y here if you want the I2C chip drivers to produce a bunch of
 	  debug messages to the system log.  Select this if you are having
 	  a problem with I2C support and want to see more of what is going
 	  on.

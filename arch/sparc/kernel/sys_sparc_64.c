@@ -426,7 +426,7 @@ out:
  * This is really horribly ugly.
  */
 
-SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
+SYSCALL_DEFINE6(sparc_ipc, unsigned int, call, int, first, unsigned long, second,
 		unsigned long, third, void __user *, ptr, long, fifth)
 {
 	long err;
@@ -508,17 +508,6 @@ SYSCALL_DEFINE6(ipc, unsigned int, call, int, first, unsigned long, second,
 	}
 out:
 	return err;
-}
-
-SYSCALL_DEFINE1(sparc64_newuname, struct new_utsname __user *, name)
-{
-	int ret = sys_newuname(name);
-	
-	if (current->personality == PER_LINUX32 && !ret) {
-		ret = (copy_to_user(name->machine, "sparc\0\0", 8)
-		       ? -EFAULT : 0);
-	}
-	return ret;
 }
 
 SYSCALL_DEFINE1(sparc64_personality, unsigned long, personality)

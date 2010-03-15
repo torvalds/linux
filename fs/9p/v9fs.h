@@ -24,7 +24,7 @@
 /**
  * enum p9_session_flags - option flags for each 9P session
  * @V9FS_PROTO_2000U: whether or not to use 9P2000.u extensions
- * @V9FS_PROTO_2010L: whether or not to use 9P2010.l extensions
+ * @V9FS_PROTO_2000L: whether or not to use 9P2000.l extensions
  * @V9FS_ACCESS_SINGLE: only the mounting user can access the hierarchy
  * @V9FS_ACCESS_USER: a new attach will be issued for every user (default)
  * @V9FS_ACCESS_ANY: use a single attach for all users
@@ -34,7 +34,7 @@
  */
 enum p9_session_flags {
 	V9FS_PROTO_2000U	= 0x01,
-	V9FS_PROTO_2010L	= 0x02,
+	V9FS_PROTO_2000L	= 0x02,
 	V9FS_ACCESS_SINGLE	= 0x04,
 	V9FS_ACCESS_USER	= 0x08,
 	V9FS_ACCESS_ANY		= 0x0C,
@@ -130,5 +130,5 @@ static inline int v9fs_proto_dotu(struct v9fs_session_info *v9ses)
 
 static inline int v9fs_proto_dotl(struct v9fs_session_info *v9ses)
 {
-	return v9ses->flags & V9FS_PROTO_2010L;
+	return v9ses->flags & V9FS_PROTO_2000L;
 }

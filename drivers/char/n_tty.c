@@ -48,6 +48,7 @@
 #include <linux/audit.h>
 #include <linux/file.h>
 #include <linux/uaccess.h>
+#include <linux/module.h>
 
 #include <asm/system.h>
 
@@ -2091,3 +2092,19 @@ struct tty_ldisc_ops tty_ldisc_N_TTY = {
 	.receive_buf     = n_tty_receive_buf,
 	.write_wakeup    = n_tty_write_wakeup
 };
+
+/**
+ *	n_tty_inherit_ops	-	inherit N_TTY methods
+ *	@ops: struct tty_ldisc_ops where to save N_TTY methods
+ *
+ *	Used by a generic struct tty_ldisc_ops to easily inherit N_TTY
+ *	methods.
+ */
+
+void n_tty_inherit_ops(struct tty_ldisc_ops *ops)
+{
+	*ops = tty_ldisc_N_TTY;
+	ops->owner = NULL;
+	ops->refcount = ops->flags = 0;
+}
+EXPORT_SYMBOL_GPL(n_tty_inherit_ops);

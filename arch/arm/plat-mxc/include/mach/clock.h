@@ -26,13 +26,6 @@
 struct module;
 
 struct clk {
-#ifndef CONFIG_COMMON_CLKDEV
-	/* As soon as i.MX1 and i.MX31 switched to clkdev, this
-	 * block can go away */
-	struct list_head node;
-	struct module *owner;
-	const char *name;
-#endif
 	int id;
 	/* Source clock this clk depends on */
 	struct clk *parent;

@@ -580,7 +580,7 @@ cs89x0_probe1(struct net_device *dev, int ioaddr, int modular)
 	}
 
 #ifdef CONFIG_SH_HICOSH4
-	/* truely reset the chip */
+	/* truly reset the chip */
 	writeword(ioaddr, ADD_PORT, 0x0114);
 	writeword(ioaddr, DATA_PORT, 0x0040);
 #endif

@@ -46,7 +46,7 @@
 #include <linux/spi/ad7877.h>
 #include <asm/irq.h>
 
-#define	TS_PEN_UP_TIMEOUT	msecs_to_jiffies(50)
+#define	TS_PEN_UP_TIMEOUT	msecs_to_jiffies(100)
 
 #define MAX_SPI_FREQ_HZ			20000000
 #define	MAX_12BIT			((1<<12)-1)

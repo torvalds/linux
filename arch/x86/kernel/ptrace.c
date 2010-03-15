@@ -581,7 +581,7 @@ ptrace_modify_breakpoint(struct perf_event *bp, int len, int type,
 	struct perf_event_attr attr;
 
 	/*
-	 * We shoud have at least an inactive breakpoint at this
+	 * We should have at least an inactive breakpoint at this
 	 * slot. It means the user is writing dr7 without having
 	 * written the address register first
 	 */

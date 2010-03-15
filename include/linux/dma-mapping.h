@@ -127,6 +127,14 @@ static inline u64 dma_get_mask(struct device *dev)
 	return DMA_BIT_MASK(32);
 }
 
+static inline int dma_set_coherent_mask(struct device *dev, u64 mask)
+{
+	if (!dma_supported(dev, mask))
+		return -EIO;
+	dev->coherent_dma_mask = mask;
+	return 0;
+}
+
 extern u64 dma_get_required_mask(struct device *dev);
 
 static inline unsigned int dma_get_max_seg_size(struct device *dev)
@@ -231,5 +239,21 @@ struct dma_attrs;
 	dma_unmap_sg(dev, sgl, nents, dir)
 
 #endif /* CONFIG_HAVE_DMA_ATTRS */
+
+#ifdef CONFIG_NEED_DMA_MAP_STATE
+#define DEFINE_DMA_UNMAP_ADDR(ADDR_NAME)        dma_addr_t ADDR_NAME
+#define DEFINE_DMA_UNMAP_LEN(LEN_NAME)          __u32 LEN_NAME
+#define dma_unmap_addr(PTR, ADDR_NAME)           ((PTR)->ADDR_NAME)
+#define dma_unmap_addr_set(PTR, ADDR_NAME, VAL)  (((PTR)->ADDR_NAME) = (VAL))
+#define dma_unmap_len(PTR, LEN_NAME)             ((PTR)->LEN_NAME)
+#define dma_unmap_len_set(PTR, LEN_NAME, VAL)    (((PTR)->LEN_NAME) = (VAL))
+#else
+#define DEFINE_DMA_UNMAP_ADDR(ADDR_NAME)
+#define DEFINE_DMA_UNMAP_LEN(LEN_NAME)
+#define dma_unmap_addr(PTR, ADDR_NAME)           (0)
+#define dma_unmap_addr_set(PTR, ADDR_NAME, VAL)  do { } while (0)
+#define dma_unmap_len(PTR, LEN_NAME)             (0)
+#define dma_unmap_len_set(PTR, LEN_NAME, VAL)    do { } while (0)
+#endif
 
 #endif

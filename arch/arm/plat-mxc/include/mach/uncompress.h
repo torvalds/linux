@@ -1,8 +1,6 @@
 /*
  *  arch/arm/plat-mxc/include/mach/uncompress.h
  *
- *
- *
  *  Copyright (C) 1999 ARM Limited
  *  Copyright (C) Shane Nay (shane@minirl.com)
  *
@@ -25,7 +23,6 @@
 
 #define __MXC_BOOT_UNCOMPRESS
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 
 static unsigned long uart_base;

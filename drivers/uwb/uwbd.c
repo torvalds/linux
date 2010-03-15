@@ -43,7 +43,7 @@
  *
  * EVENTS
  *
- * Events have a type, a subtype, a lenght, some other stuff and the
+ * Events have a type, a subtype, a length, some other stuff and the
  * data blob, which depends on the event. The header is 'struct
  * uwb_event'; for payloads, see 'struct uwbd_evt_*'.
  *

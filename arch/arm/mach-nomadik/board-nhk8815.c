@@ -38,7 +38,7 @@
 #define SRC_CR_INIT_MASK	0x00007fff
 #define SRC_CR_INIT_VAL		0x2aaa8000
 
-/* These adresses span 16MB, so use three individual pages */
+/* These addresses span 16MB, so use three individual pages */
 static struct resource nhk8815_nand_resources[] = {
 	{
 		.name = "nand_addr",

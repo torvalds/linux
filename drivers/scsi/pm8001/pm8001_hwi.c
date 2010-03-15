@@ -2924,7 +2924,7 @@ hw_event_sas_phy_up(struct pm8001_hba_info *pm8001_ha, void *piomb)
 		break;
 	default:
 		PM8001_MSG_DBG(pm8001_ha,
-			pm8001_printk("unkown device type(%x)\n", deviceType));
+			pm8001_printk("unknown device type(%x)\n", deviceType));
 		break;
 	}
 	phy->phy_type |= PORT_TYPE_SAS;

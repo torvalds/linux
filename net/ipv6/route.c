@@ -819,15 +819,8 @@ struct dst_entry * ip6_route_output(struct net *net, struct sock *sk,
 
 	if (!ipv6_addr_any(&fl->fl6_src))
 		flags |= RT6_LOOKUP_F_HAS_SADDR;
-	else if (sk) {
-		unsigned int prefs = inet6_sk(sk)->srcprefs;
-		if (prefs & IPV6_PREFER_SRC_TMP)
-			flags |= RT6_LOOKUP_F_SRCPREF_TMP;
-		if (prefs & IPV6_PREFER_SRC_PUBLIC)
-			flags |= RT6_LOOKUP_F_SRCPREF_PUBLIC;
-		if (prefs & IPV6_PREFER_SRC_COA)
-			flags |= RT6_LOOKUP_F_SRCPREF_COA;
-	}
+	else if (sk)
+		flags |= rt6_srcprefs2flags(inet6_sk(sk)->srcprefs);
 
 	return fib6_rule_lookup(net, fl, flags, ip6_pol_route_output);
 }

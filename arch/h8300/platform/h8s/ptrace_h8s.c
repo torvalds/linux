@@ -65,13 +65,13 @@ int h8300_put_reg(struct task_struct *task, int regno, unsigned long data)
 }
 
 /* disable singlestep */
-void h8300_disable_trace(struct task_struct *child)
+void user_disable_single_step(struct task_struct *child)
 {
 	*(unsigned short *)(child->thread.esp0 + h8300_register_offset[PT_EXR]) &= ~EXR_TRACE;
 }
 
 /* enable singlestep */
-void h8300_enable_trace(struct task_struct *child)
+void user_enable_single_step(struct task_struct *child)
 {
 	*(unsigned short *)(child->thread.esp0 + h8300_register_offset[PT_EXR]) |= EXR_TRACE;
 }

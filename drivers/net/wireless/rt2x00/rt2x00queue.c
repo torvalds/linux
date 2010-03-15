@@ -497,7 +497,7 @@ int rt2x00queue_write_tx_frame(struct data_queue *queue, struct sk_buff *skb,
 	/*
 	 * When hardware encryption is supported, and this frame
 	 * is to be encrypted, we should strip the IV/EIV data from
-	 * the frame so we can provide it to the driver seperately.
+	 * the frame so we can provide it to the driver separately.
 	 */
 	if (test_bit(ENTRY_TXD_ENCRYPT, &txdesc.flags) &&
 	    !test_bit(ENTRY_TXD_ENCRYPT_IV, &txdesc.flags)) {

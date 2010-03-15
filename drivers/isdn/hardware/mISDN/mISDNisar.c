@@ -1712,13 +1712,13 @@ mISDNisar_init(struct isar_hw *isar, void *hw)
 }
 EXPORT_SYMBOL(mISDNisar_init);
 
-static int isar_mod_init(void)
+static int __init isar_mod_init(void)
 {
 	pr_notice("mISDN: ISAR driver Rev. %s\n", ISAR_REV);
 	return 0;
 }
 
-static void isar_mod_cleanup(void)
+static void __exit isar_mod_cleanup(void)
 {
 	pr_notice("mISDN: ISAR module unloaded\n");
 }

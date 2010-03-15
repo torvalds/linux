@@ -1756,10 +1756,12 @@ struct mempolicy *__mpol_dup(struct mempolicy *old)
 
 	if (!new)
 		return ERR_PTR(-ENOMEM);
+	rcu_read_lock();
 	if (current_cpuset_is_being_rebound()) {
 		nodemask_t mems = cpuset_mems_allowed(current);
 		mpol_rebind_policy(old, &mems);
 	}
+	rcu_read_unlock();
 	*new = *old;
 	atomic_set(&new->refcnt, 1);
 	return new;

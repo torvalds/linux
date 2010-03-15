@@ -281,7 +281,7 @@ static void viper_irq_handler(unsigned int irq, struct irq_desc *desc)
 	do {
 		/* we're in a chained irq handler,
 		 * so ack the interrupt by hand */
-		GEDR(VIPER_CPLD_GPIO) = GPIO_bit(VIPER_CPLD_GPIO);
+		desc->chip->ack(irq);
 
 		if (likely(pending)) {
 			irq = viper_bit_to_irq(__ffs(pending));
@@ -710,6 +710,12 @@ static mfp_cfg_t viper_pin_config[] __initdata = {
 	GPIO79_nCS_3,
 	GPIO80_nCS_4,
 	GPIO33_nCS_5,
+
+	/* AC97 */
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
 
 	/* FP Backlight */
 	GPIO9_GPIO, 				/* VIPER_BCKLIGHT_EN_GPIO */

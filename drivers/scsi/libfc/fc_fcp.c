@@ -48,7 +48,7 @@ struct kmem_cache *scsi_pkt_cachep;
 #define FC_SRB_CMD_SENT		(1 << 0)	/* cmd has been sent */
 #define FC_SRB_RCV_STATUS	(1 << 1)	/* response has arrived */
 #define FC_SRB_ABORT_PENDING	(1 << 2)	/* cmd abort sent to device */
-#define FC_SRB_ABORTED		(1 << 3)	/* abort acknowleged */
+#define FC_SRB_ABORTED		(1 << 3)	/* abort acknowledged */
 #define FC_SRB_DISCONTIG	(1 << 4)	/* non-sequential data recvd */
 #define FC_SRB_COMPL		(1 << 5)	/* fc_io_compl has been run */
 #define FC_SRB_FCP_PROCESSING_TMO (1 << 6)	/* timer function processing */
@@ -519,7 +519,7 @@ crc_err:
  *
  * Called after receiving a Transfer Ready data descriptor.
  * If the LLD is capable of sequence offload then send down the
- * seq_blen ammount of data in single frame, otherwise send
+ * seq_blen amount of data in single frame, otherwise send
  * multiple frames of the maximum frame payload supported by
  * the target port.
  */

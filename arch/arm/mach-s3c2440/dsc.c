@@ -28,7 +28,7 @@
 #include <mach/regs-dsc.h>
 
 #include <plat/cpu.h>
-#include <plat/s3c2440.h>
+#include <plat/s3c244x.h>
 
 int s3c2440_set_dsc(unsigned int pin, unsigned int value)
 {

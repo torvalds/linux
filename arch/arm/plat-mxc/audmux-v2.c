@@ -190,7 +190,10 @@ static int mxc_audmux_v2_init(void)
 {
 	int ret;
 
-	if (cpu_is_mx35()) {
+	if (cpu_is_mx31())
+		audmux_base = MX31_IO_ADDRESS(MX31_AUDMUX_BASE_ADDR);
+
+	else if (cpu_is_mx35()) {
 		audmux_clk = clk_get(NULL, "audmux");
 		if (IS_ERR(audmux_clk)) {
 			ret = PTR_ERR(audmux_clk);
@@ -198,10 +201,8 @@ static int mxc_audmux_v2_init(void)
 					ret);
 			return ret;
 		}
+		audmux_base = MX35_IO_ADDRESS(MX35_AUDMUX_BASE_ADDR);
 	}
-
-	if (cpu_is_mx31() || cpu_is_mx35())
-		audmux_base = IO_ADDRESS(AUDMUX_BASE_ADDR);
 
 	audmux_debugfs_init();
 

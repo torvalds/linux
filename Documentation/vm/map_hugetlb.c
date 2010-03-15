@@ -31,12 +31,12 @@
 #define FLAGS (MAP_PRIVATE | MAP_ANONYMOUS | MAP_HUGETLB)
 #endif
 
-void check_bytes(char *addr)
+static void check_bytes(char *addr)
 {
 	printf("First hex is %x\n", *((unsigned int *)addr));
 }
 
-void write_bytes(char *addr)
+static void write_bytes(char *addr)
 {
 	unsigned long i;
 
@@ -44,7 +44,7 @@ void write_bytes(char *addr)
 		*(addr + i) = (char)i;
 }
 
-void read_bytes(char *addr)
+static void read_bytes(char *addr)
 {
 	unsigned long i;
 

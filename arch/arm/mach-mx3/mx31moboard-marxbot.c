@@ -66,6 +66,9 @@ static unsigned int marxbot_pins[] = {
 	MX31_PIN_CSPI1_SS2__USBH1_RCV, MX31_PIN_CSPI1_SCLK__USBH1_OEB,
 	MX31_PIN_CSPI1_SPI_RDY__USBH1_FS, MX31_PIN_SFS6__USBH1_SUSPEND,
 	MX31_PIN_NFRE_B__GPIO1_11, MX31_PIN_NFALE__GPIO1_12,
+	/* SEL */
+	MX31_PIN_DTR_DCE1__GPIO2_8, MX31_PIN_DSR_DCE1__GPIO2_9,
+	MX31_PIN_RI_DCE1__GPIO2_10, MX31_PIN_DCD_DCE1__GPIO2_11,
 };
 
 #define SDHC2_CD IOMUX_TO_GPIO(MX31_PIN_ATA_DIOR)
@@ -127,12 +130,12 @@ static struct imxmmc_platform_data sdhc2_pdata = {
 static void dspics_resets_init(void)
 {
 	if (!gpio_request(TRSLAT_RST_B, "translator-rst")) {
-		gpio_direction_output(TRSLAT_RST_B, 1);
+		gpio_direction_output(TRSLAT_RST_B, 0);
 		gpio_export(TRSLAT_RST_B, false);
 	}
 
 	if (!gpio_request(DSPICS_RST_B, "dspics-rst")) {
-		gpio_direction_output(DSPICS_RST_B, 1);
+		gpio_direction_output(DSPICS_RST_B, 0);
 		gpio_export(DSPICS_RST_B, false);
 	}
 }
@@ -200,7 +203,7 @@ static int __init marxbot_cam_init(void)
 	int ret = gpio_request(CAM_CHOICE, "cam-choice");
 	if (ret)
 		return ret;
-	gpio_direction_output(CAM_CHOICE, 1);
+	gpio_direction_output(CAM_CHOICE, 0);
 
 	ret = gpio_request(BASECAM_RST_B, "basecam-reset");
 	if (ret)
@@ -221,6 +224,34 @@ static int __init marxbot_cam_init(void)
 	gpio_direction_output(TURRETCAM_POWER, 0);
 
 	return 0;
+}
+
+#define SEL0 IOMUX_TO_GPIO(MX31_PIN_DTR_DCE1)
+#define SEL1 IOMUX_TO_GPIO(MX31_PIN_DSR_DCE1)
+#define SEL2 IOMUX_TO_GPIO(MX31_PIN_RI_DCE1)
+#define SEL3 IOMUX_TO_GPIO(MX31_PIN_DCD_DCE1)
+
+static void marxbot_init_sel_gpios(void)
+{
+	if (!gpio_request(SEL0, "sel0")) {
+		gpio_direction_input(SEL0);
+		gpio_export(SEL0, true);
+	}
+
+	if (!gpio_request(SEL1, "sel1")) {
+		gpio_direction_input(SEL1);
+		gpio_export(SEL1, true);
+	}
+
+	if (!gpio_request(SEL2, "sel2")) {
+		gpio_direction_input(SEL2);
+		gpio_export(SEL2, true);
+	}
+
+	if (!gpio_request(SEL3, "sel3")) {
+		gpio_direction_input(SEL3);
+		gpio_export(SEL3, true);
+	}
 }
 
 #define USB_PAD_CFG (PAD_CTL_DRV_MAX | PAD_CTL_SRE_FAST | PAD_CTL_HYS_CMOS | \
@@ -306,6 +337,8 @@ void __init mx31moboard_marxbot_init(void)
 
 	mxc_iomux_setup_multiple_pins(marxbot_pins, ARRAY_SIZE(marxbot_pins),
 		"marxbot");
+
+	marxbot_init_sel_gpios();
 
 	dspics_resets_init();
 

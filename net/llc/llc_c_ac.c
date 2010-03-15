@@ -1437,7 +1437,7 @@ static void llc_process_tmr_ev(struct sock *sk, struct sk_buff *skb)
 			llc_conn_state_process(sk, skb);
 		else {
 			llc_set_backlog_type(skb, LLC_EVENT);
-			sk_add_backlog(sk, skb);
+			__sk_add_backlog(sk, skb);
 		}
 	}
 }

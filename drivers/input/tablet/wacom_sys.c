@@ -371,7 +371,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 					} else if (pen) {
 						/* penabled only accepts exact bytes of data */
 						if (features->type == TABLETPC2FG)
-							features->pktlen = WACOM_PKGLEN_PENABLED;
+							features->pktlen = WACOM_PKGLEN_GRAPHIRE;
 						features->device_type = BTN_TOOL_PEN;
 						features->x_max =
 							wacom_le16_to_cpu(&report[i + 3]);
@@ -410,7 +410,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 					} else if (pen) {
 						/* penabled only accepts exact bytes of data */
 						if (features->type == TABLETPC2FG)
-							features->pktlen = WACOM_PKGLEN_PENABLED;
+							features->pktlen = WACOM_PKGLEN_GRAPHIRE;
 						features->device_type = BTN_TOOL_PEN;
 						features->y_max =
 							wacom_le16_to_cpu(&report[i + 3]);

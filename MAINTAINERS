@@ -666,6 +666,12 @@ T:	git://git.pengutronix.de/git/imx/linux-2.6.git
 F:	arch/arm/mach-mx*/
 F:	arch/arm/plat-mxc/
 
+ARM/FREESCALE IMX51
+M:	Amit Kucheria <amit.kucheria@canonical.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-mx5/
+
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -938,6 +944,16 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.fluff.org/ben/linux/
 S:	Maintained
 F:	arch/arm/mach-s3c6410/
+
+ARM/SHMOBILE ARM ARCHITECTURE
+M:	Paul Mundt <lethal@linux-sh.org>
+M:	Magnus Damm <magnus.damm@gmail.com>
+L:	linux-sh@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/genesis-2.6.git
+W:	http://oss.renesas.com
+S:	Supported
+F:	arch/arm/mach-shmobile/
+F:	drivers/sh/
 
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -1235,6 +1251,13 @@ W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/rtc/rtc-bfin.c
 
+BLACKFIN SDH DRIVER
+M:	Cliff Cai <cliff.cai@analog.com>
+L:	uclinux-dist-devel@blackfin.uclinux.org
+W:	http://blackfin.uclinux.org
+S:	Supported
+F:	drivers/mmc/host/bfin_sdh.c
+
 BLACKFIN SERIAL DRIVER
 M:	Sonic Zhang <sonic.zhang@analog.com>
 L:	uclinux-dist-devel@blackfin.uclinux.org
@@ -1382,20 +1405,30 @@ F:	arch/x86/include/asm/calgary.h
 F:	arch/x86/include/asm/tce.h
 
 CAN NETWORK LAYER
-M:	Urs Thuermann <urs.thuermann@volkswagen.de>
+M:	Oliver Hartkopp <socketcan@hartkopp.net>
 M:	Oliver Hartkopp <oliver.hartkopp@volkswagen.de>
-L:	socketcan-core@lists.berlios.de (subscribers-only)
+M:	Urs Thuermann <urs.thuermann@volkswagen.de>
+L:	socketcan-core@lists.berlios.de
+L:	netdev@vger.kernel.org
 W:	http://developer.berlios.de/projects/socketcan/
 S:	Maintained
-F:	drivers/net/can/
-F:	include/linux/can/
+F:	net/can/
 F:	include/linux/can.h
+F:	include/linux/can/core.h
+F:	include/linux/can/bcm.h
+F:	include/linux/can/raw.h
 
 CAN NETWORK DRIVERS
 M:	Wolfgang Grandegger <wg@grandegger.com>
-L:	socketcan-core@lists.berlios.de (subscribers-only)
+L:	socketcan-core@lists.berlios.de
+L:	netdev@vger.kernel.org
 W:	http://developer.berlios.de/projects/socketcan/
 S:	Maintained
+F:	drivers/net/can/
+F:	include/linux/can/dev.h
+F:	include/linux/can/error.h
+F:	include/linux/can/netlink.h
+F:	include/linux/can/platform/
 
 CELL BROADBAND ENGINE ARCHITECTURE
 M:	Arnd Bergmann <arnd@arndb.de>
@@ -2107,6 +2140,7 @@ F:	drivers/net/eexpress.*
 ETHERNET BRIDGE
 M:	Stephen Hemminger <shemminger@linux-foundation.org>
 L:	bridge@lists.linux-foundation.org
+L:	netdev@vger.kernel.org
 W:	http://www.linux-foundation.org/en/Net:Bridge
 S:	Maintained
 F:	include/linux/netfilter_bridge/
@@ -2804,7 +2838,7 @@ S:	Maintained
 F:	drivers/input/
 
 INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
-M:	Sylvain Meyer <sylvain.meyer@worldonline.fr>
+M:	Maik Broemme <mbroemme@plusserver.de>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/fb/intelfb.txt
@@ -3621,7 +3655,7 @@ F:	mm/
 
 MEMORY RESOURCE CONTROLLER
 M:	Balbir Singh <balbir@linux.vnet.ibm.com>
-M:	Pavel Emelyanov <xemul@openvz.org>
+M:	Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 M:	KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 L:	linux-mm@kvack.org
 S:	Maintained
@@ -4293,6 +4327,7 @@ PERFORMANCE EVENTS SUBSYSTEM
 M:	Peter Zijlstra <a.p.zijlstra@chello.nl>
 M:	Paul Mackerras <paulus@samba.org>
 M:	Ingo Molnar <mingo@elte.hu>
+M:	Arnaldo Carvalho de Melo <acme@redhat.com>
 S:	Supported
 F:	kernel/perf_event.c
 F:	include/linux/perf_event.h
@@ -4490,6 +4525,13 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
 S:	Maintained
 
 PXA910 SUPPORT
+M:	Eric Miao <eric.y.miao@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
+S:	Maintained
+
+MMP2 SUPPORT (aka ARMADA610)
+M:	Haojian Zhuang <haojian.zhuang@marvell.com>
 M:	Eric Miao <eric.y.miao@gmail.com>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git

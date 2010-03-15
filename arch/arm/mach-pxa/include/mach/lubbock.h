@@ -34,6 +34,17 @@
 #define LUB_IRQ_SET_CLR		__LUB_REG(LUBBOCK_FPGA_PHYS + 0x0d0)
 #define LUB_GP			__LUB_REG(LUBBOCK_FPGA_PHYS + 0x100)
 
+/* Board specific IRQs */
+#define LUBBOCK_IRQ(x)		(IRQ_BOARD_START + (x))
+#define LUBBOCK_SD_IRQ		LUBBOCK_IRQ(0)
+#define LUBBOCK_SA1111_IRQ	LUBBOCK_IRQ(1)
+#define LUBBOCK_USB_IRQ		LUBBOCK_IRQ(2)  /* usb connect */
+#define LUBBOCK_ETH_IRQ		LUBBOCK_IRQ(3)
+#define LUBBOCK_UCB1400_IRQ	LUBBOCK_IRQ(4)
+#define LUBBOCK_BB_IRQ		LUBBOCK_IRQ(5)
+#define LUBBOCK_USB_DISC_IRQ	LUBBOCK_IRQ(6)  /* usb disconnect */
+#define LUBBOCK_LAST_IRQ	LUBBOCK_IRQ(6)
+
 #ifndef __ASSEMBLY__
 extern void lubbock_set_misc_wr(unsigned int mask, unsigned int set);
 #endif

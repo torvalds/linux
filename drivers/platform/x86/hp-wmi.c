@@ -278,7 +278,7 @@ static DEVICE_ATTR(als, S_IRUGO | S_IWUSR, show_als, set_als);
 static DEVICE_ATTR(dock, S_IRUGO, show_dock, NULL);
 static DEVICE_ATTR(tablet, S_IRUGO, show_tablet, NULL);
 
-static struct key_entry *hp_wmi_get_entry_by_scancode(int code)
+static struct key_entry *hp_wmi_get_entry_by_scancode(unsigned int code)
 {
 	struct key_entry *key;
 
@@ -289,7 +289,7 @@ static struct key_entry *hp_wmi_get_entry_by_scancode(int code)
 	return NULL;
 }
 
-static struct key_entry *hp_wmi_get_entry_by_keycode(int keycode)
+static struct key_entry *hp_wmi_get_entry_by_keycode(unsigned int keycode)
 {
 	struct key_entry *key;
 
@@ -300,7 +300,8 @@ static struct key_entry *hp_wmi_get_entry_by_keycode(int keycode)
 	return NULL;
 }
 
-static int hp_wmi_getkeycode(struct input_dev *dev, int scancode, int *keycode)
+static int hp_wmi_getkeycode(struct input_dev *dev,
+			     unsigned int scancode, unsigned int *keycode)
 {
 	struct key_entry *key = hp_wmi_get_entry_by_scancode(scancode);
 
@@ -312,13 +313,11 @@ static int hp_wmi_getkeycode(struct input_dev *dev, int scancode, int *keycode)
 	return -EINVAL;
 }
 
-static int hp_wmi_setkeycode(struct input_dev *dev, int scancode, int keycode)
+static int hp_wmi_setkeycode(struct input_dev *dev,
+			     unsigned int scancode, unsigned int keycode)
 {
 	struct key_entry *key;
-	int old_keycode;
-
-	if (keycode < 0 || keycode > KEY_MAX)
-		return -EINVAL;
+	unsigned int old_keycode;
 
 	key = hp_wmi_get_entry_by_scancode(scancode);
 	if (key && key->type == KE_KEY) {

@@ -189,6 +189,7 @@ static void close_rnic_dev(struct t3cdev *tdev)
 	list_for_each_entry_safe(dev, tmp, &dev_list, entry) {
 		if (dev->rdev.t3cdev_p == tdev) {
 			dev->rdev.flags = CXIO_ERROR_FATAL;
+			synchronize_net();
 			cancel_delayed_work_sync(&dev->db_drop_task);
 			list_del(&dev->entry);
 			iwch_unregister_device(dev);
@@ -217,6 +218,7 @@ static void iwch_event_handler(struct t3cdev *tdev, u32 evt, u32 port_id)
 	switch (evt) {
 	case OFFLOAD_STATUS_DOWN: {
 		rdev->flags = CXIO_ERROR_FATAL;
+		synchronize_net();
 		event.event  = IB_EVENT_DEVICE_FATAL;
 		dispatch = 1;
 		break;

@@ -583,16 +583,20 @@ static void flush_stack(struct sock **stack, unsigned int count,
 			bh_lock_sock(sk);
 			if (!sock_owned_by_user(sk))
 				udpv6_queue_rcv_skb(sk, skb1);
-			else
-				sk_add_backlog(sk, skb1);
+			else if (sk_add_backlog(sk, skb1)) {
+				kfree_skb(skb1);
+				bh_unlock_sock(sk);
+				goto drop;
+			}
 			bh_unlock_sock(sk);
-		} else {
-			atomic_inc(&sk->sk_drops);
-			UDP6_INC_STATS_BH(sock_net(sk),
-					UDP_MIB_RCVBUFERRORS, IS_UDPLITE(sk));
-			UDP6_INC_STATS_BH(sock_net(sk),
-					UDP_MIB_INERRORS, IS_UDPLITE(sk));
+			continue;
 		}
+drop:
+		atomic_inc(&sk->sk_drops);
+		UDP6_INC_STATS_BH(sock_net(sk),
+				UDP_MIB_RCVBUFERRORS, IS_UDPLITE(sk));
+		UDP6_INC_STATS_BH(sock_net(sk),
+				UDP_MIB_INERRORS, IS_UDPLITE(sk));
 	}
 }
 /*
@@ -754,8 +758,12 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk))
 		udpv6_queue_rcv_skb(sk, skb);
-	else
-		sk_add_backlog(sk, skb);
+	else if (sk_add_backlog(sk, skb)) {
+		atomic_inc(&sk->sk_drops);
+		bh_unlock_sock(sk);
+		sock_put(sk);
+		goto discard;
+	}
 	bh_unlock_sock(sk);
 	sock_put(sk);
 	return 0;

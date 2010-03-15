@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
@@ -55,9 +56,9 @@ module_param(dumb_switch, int, 0444);
 MODULE_PARM_DESC(debug_level, "Number of NETIF_MSG bits to enable");
 MODULE_PARM_DESC(dumb_switch, "Assume switch is not connected to MDIO bus");
 
-#define CPMAC_VERSION "0.5.1"
-/* frame size + 802.1q tag */
-#define CPMAC_SKB_SIZE		(ETH_FRAME_LEN + 4)
+#define CPMAC_VERSION "0.5.2"
+/* frame size + 802.1q tag + FCS size */
+#define CPMAC_SKB_SIZE		(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 #define CPMAC_QUEUES	8
 
 /* Ethernet registers */
@@ -1136,8 +1137,9 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	}
 
 	if (phy_id == PHY_MAX_ADDR) {
-		dev_err(&pdev->dev, "no PHY present\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "no PHY present, falling back to switch on MDIO bus 0\n");
+		strncpy(mdio_bus_id, "0", MII_BUS_ID_SIZE); /* fixed phys bus */
+		phy_id = pdev->id;
 	}
 
 	dev = alloc_etherdev_mq(sizeof(*priv), CPMAC_QUEUES);
@@ -1290,8 +1292,8 @@ void __devexit cpmac_exit(void)
 {
 	platform_driver_unregister(&cpmac_driver);
 	mdiobus_unregister(cpmac_mii);
-	mdiobus_free(cpmac_mii);
 	iounmap(cpmac_mii->priv);
+	mdiobus_free(cpmac_mii);
 }
 
 module_init(cpmac_init);

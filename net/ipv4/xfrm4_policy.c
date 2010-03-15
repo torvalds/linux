@@ -91,11 +91,12 @@ static int xfrm4_init_path(struct xfrm_dst *path, struct dst_entry *dst,
 	return 0;
 }
 
-static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev)
+static int xfrm4_fill_dst(struct xfrm_dst *xdst, struct net_device *dev,
+			  struct flowi *fl)
 {
 	struct rtable *rt = (struct rtable *)xdst->route;
 
-	xdst->u.rt.fl = rt->fl;
+	xdst->u.rt.fl = *fl;
 
 	xdst->u.dst.dev = dev;
 	dev_hold(dev);

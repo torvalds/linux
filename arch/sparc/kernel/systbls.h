@@ -6,15 +6,12 @@
 #include <asm/utrap.h>
 #include <asm/signal.h>
 
-struct new_utsname;
-
 extern asmlinkage unsigned long sys_getpagesize(void);
 extern asmlinkage long sparc_pipe(struct pt_regs *regs);
-extern asmlinkage long sys_ipc(unsigned int call, int first,
+extern asmlinkage long sys_sparc_ipc(unsigned int call, int first,
 			       unsigned long second,
 			       unsigned long third,
 			       void __user *ptr, long fifth);
-extern asmlinkage long sparc64_newuname(struct new_utsname __user *name);
 extern asmlinkage long sparc64_personality(unsigned long personality);
 extern asmlinkage long sys64_munmap(unsigned long addr, size_t len);
 extern asmlinkage unsigned long sys64_mremap(unsigned long addr,

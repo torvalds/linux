@@ -259,12 +259,12 @@ static inline long plpar_ipi(unsigned long servernum, unsigned long mfrr)
 	return plpar_hcall_norets(H_IPI, servernum, mfrr);
 }
 
-static inline long plpar_xirr(unsigned long *xirr_ret)
+static inline long plpar_xirr(unsigned long *xirr_ret, unsigned char cppr)
 {
 	long rc;
 	unsigned long retbuf[PLPAR_HCALL_BUFSIZE];
 
-	rc = plpar_hcall(H_XIRR, retbuf);
+	rc = plpar_hcall(H_XIRR, retbuf, cppr);
 
 	*xirr_ret = retbuf[0];
 

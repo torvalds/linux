@@ -568,21 +568,123 @@ struct uni_table_desc *qlcnic_get_table_desc(const u8 *unirom, int section)
 	return NULL;
 }
 
+#define FILEHEADER_SIZE (14 * 4)
+
 static int
-qlcnic_set_product_offs(struct qlcnic_adapter *adapter)
+qlcnic_validate_header(struct qlcnic_adapter *adapter)
+{
+	const u8 *unirom = adapter->fw->data;
+	struct uni_table_desc *directory = (struct uni_table_desc *) &unirom[0];
+	__le32 fw_file_size = adapter->fw->size;
+	__le32 entries;
+	__le32 entry_size;
+	__le32 tab_size;
+
+	if (fw_file_size < FILEHEADER_SIZE)
+		return -EINVAL;
+
+	entries = cpu_to_le32(directory->num_entries);
+	entry_size = cpu_to_le32(directory->entry_size);
+	tab_size = cpu_to_le32(directory->findex) + (entries * entry_size);
+
+	if (fw_file_size < tab_size)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+qlcnic_validate_bootld(struct qlcnic_adapter *adapter)
+{
+	struct uni_table_desc *tab_desc;
+	struct uni_data_desc *descr;
+	const u8 *unirom = adapter->fw->data;
+	int idx = cpu_to_le32(*((int *)&unirom[adapter->file_prd_off] +
+				QLCNIC_UNI_BOOTLD_IDX_OFF));
+	__le32 offs;
+	__le32 tab_size;
+	__le32 data_size;
+
+	tab_desc = qlcnic_get_table_desc(unirom, QLCNIC_UNI_DIR_SECT_BOOTLD);
+
+	if (!tab_desc)
+		return -EINVAL;
+
+	tab_size = cpu_to_le32(tab_desc->findex) +
+			(cpu_to_le32(tab_desc->entry_size * (idx + 1)));
+
+	if (adapter->fw->size < tab_size)
+		return -EINVAL;
+
+	offs = cpu_to_le32(tab_desc->findex) +
+		(cpu_to_le32(tab_desc->entry_size) * (idx));
+	descr = (struct uni_data_desc *)&unirom[offs];
+
+	data_size = descr->findex + cpu_to_le32(descr->size);
+
+	if (adapter->fw->size < data_size)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+qlcnic_validate_fw(struct qlcnic_adapter *adapter)
+{
+	struct uni_table_desc *tab_desc;
+	struct uni_data_desc *descr;
+	const u8 *unirom = adapter->fw->data;
+	int idx = cpu_to_le32(*((int *)&unirom[adapter->file_prd_off] +
+				QLCNIC_UNI_FIRMWARE_IDX_OFF));
+	__le32 offs;
+	__le32 tab_size;
+	__le32 data_size;
+
+	tab_desc = qlcnic_get_table_desc(unirom, QLCNIC_UNI_DIR_SECT_FW);
+
+	if (!tab_desc)
+		return -EINVAL;
+
+	tab_size = cpu_to_le32(tab_desc->findex) +
+			(cpu_to_le32(tab_desc->entry_size * (idx + 1)));
+
+	if (adapter->fw->size < tab_size)
+		return -EINVAL;
+
+	offs = cpu_to_le32(tab_desc->findex) +
+		(cpu_to_le32(tab_desc->entry_size) * (idx));
+	descr = (struct uni_data_desc *)&unirom[offs];
+	data_size = descr->findex + cpu_to_le32(descr->size);
+
+	if (adapter->fw->size < data_size)
+		return -EINVAL;
+
+	return 0;
+}
+
+static int
+qlcnic_validate_product_offs(struct qlcnic_adapter *adapter)
 {
 	struct uni_table_desc *ptab_descr;
 	const u8 *unirom = adapter->fw->data;
-	u32 i;
-	__le32 entries;
 	int mn_present = qlcnic_has_mn(adapter);
+	__le32 entries;
+	__le32 entry_size;
+	__le32 tab_size;
+	u32 i;
 
 	ptab_descr = qlcnic_get_table_desc(unirom,
 				QLCNIC_UNI_DIR_SECT_PRODUCT_TBL);
-	if (ptab_descr == NULL)
-		return -1;
+	if (!ptab_descr)
+		return -EINVAL;
 
 	entries = cpu_to_le32(ptab_descr->num_entries);
+	entry_size = cpu_to_le32(ptab_descr->entry_size);
+	tab_size = cpu_to_le32(ptab_descr->findex) + (entries * entry_size);
+
+	if (adapter->fw->size < tab_size)
+		return -EINVAL;
+
 nomn:
 	for (i = 0; i < entries; i++) {
 
@@ -609,7 +711,37 @@ nomn:
 		mn_present = 0;
 		goto nomn;
 	}
-	return -1;
+	return -EINVAL;
+}
+
+static int
+qlcnic_validate_unified_romimage(struct qlcnic_adapter *adapter)
+{
+	if (qlcnic_validate_header(adapter)) {
+		dev_err(&adapter->pdev->dev,
+				"unified image: header validation failed\n");
+		return -EINVAL;
+	}
+
+	if (qlcnic_validate_product_offs(adapter)) {
+		dev_err(&adapter->pdev->dev,
+				"unified image: product validation failed\n");
+		return -EINVAL;
+	}
+
+	if (qlcnic_validate_bootld(adapter)) {
+		dev_err(&adapter->pdev->dev,
+				"unified image: bootld validation failed\n");
+		return -EINVAL;
+	}
+
+	if (qlcnic_validate_fw(adapter)) {
+		dev_err(&adapter->pdev->dev,
+				"unified image: firmware validation failed\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 static
@@ -715,7 +847,7 @@ qlcnic_get_bios_version(struct qlcnic_adapter *adapter)
 	bios_ver = cpu_to_le32(*((u32 *) (&fw->data[prd_off])
 				+ QLCNIC_UNI_BIOS_VERSION_OFF));
 
-	return (bios_ver << 24) + ((bios_ver >> 8) & 0xff00) + (bios_ver >> 24);
+	return (bios_ver << 16) + ((bios_ver >> 8) & 0xff00) + (bios_ver >> 24);
 }
 
 int
@@ -858,7 +990,7 @@ qlcnic_validate_firmware(struct qlcnic_adapter *adapter)
 	u8 fw_type = adapter->fw_type;
 
 	if (fw_type == QLCNIC_UNIFIED_ROMIMAGE) {
-		if (qlcnic_set_product_offs(adapter))
+		if (qlcnic_validate_unified_romimage(adapter))
 			return -EINVAL;
 
 		min_size = QLCNIC_UNI_FW_MIN_SIZE;
@@ -1114,8 +1246,10 @@ qlcnic_alloc_rx_skb(struct qlcnic_adapter *adapter,
 	struct pci_dev *pdev = adapter->pdev;
 
 	buffer->skb = dev_alloc_skb(rds_ring->skb_size);
-	if (!buffer->skb)
+	if (!buffer->skb) {
+		adapter->stats.skb_alloc_failure++;
 		return -ENOMEM;
+	}
 
 	skb = buffer->skb;
 
@@ -1289,7 +1423,7 @@ qlcnic_process_lro(struct qlcnic_adapter *adapter,
 	netif_receive_skb(skb);
 
 	adapter->stats.lro_pkts++;
-	adapter->stats.rxbytes += length;
+	adapter->stats.lrobytes += length;
 
 	return buffer;
 }
@@ -1505,6 +1639,8 @@ qlcnic_process_rcv_diag(struct qlcnic_adapter *adapter,
 		adapter->diag_cnt++;
 
 	dev_kfree_skb_any(skb);
+	adapter->stats.rx_pkts++;
+	adapter->stats.rxbytes += length;
 
 	return buffer;
 }

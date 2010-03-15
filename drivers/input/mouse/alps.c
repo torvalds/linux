@@ -63,6 +63,8 @@ static const struct alps_model_info alps_model_data[] = {
 	{ { 0x62, 0x02, 0x14 }, 0xcf, 0xcf,
 		ALPS_PASS | ALPS_DUALPOINT | ALPS_PS2_INTERLEAVED },
 	{ { 0x73, 0x02, 0x50 }, 0xcf, 0xcf, ALPS_FOUR_BUTTONS },	  /* Dell Vostro 1400 */
+	{ { 0x52, 0x01, 0x14 }, 0xff, 0xff,
+		ALPS_PASS | ALPS_DUALPOINT | ALPS_PS2_INTERLEAVED },	  /* Toshiba Tecra A11-11L */
 };
 
 /*
@@ -118,40 +120,27 @@ static void alps_report_buttons(struct psmouse *psmouse,
 				struct input_dev *dev1, struct input_dev *dev2,
 				int left, int right, int middle)
 {
-	struct alps_data *priv = psmouse->private;
-	const struct alps_model_info *model = priv->i;
+	struct input_dev *dev;
 
-	if (model->flags & ALPS_PS2_INTERLEAVED) {
-		struct input_dev *dev;
+	/*
+	 * If shared button has already been reported on the
+	 * other device (dev2) then this event should be also
+	 * sent through that device.
+	 */
+	dev = test_bit(BTN_LEFT, dev2->key) ? dev2 : dev1;
+	input_report_key(dev, BTN_LEFT, left);
 
-		/*
-		 * If shared button has already been reported on the
-		 * other device (dev2) then this event should be also
-		 * sent through that device.
-		 */
-		dev = test_bit(BTN_LEFT, dev2->key) ? dev2 : dev1;
-		input_report_key(dev, BTN_LEFT, left);
+	dev = test_bit(BTN_RIGHT, dev2->key) ? dev2 : dev1;
+	input_report_key(dev, BTN_RIGHT, right);
 
-		dev = test_bit(BTN_RIGHT, dev2->key) ? dev2 : dev1;
-		input_report_key(dev, BTN_RIGHT, right);
+	dev = test_bit(BTN_MIDDLE, dev2->key) ? dev2 : dev1;
+	input_report_key(dev, BTN_MIDDLE, middle);
 
-		dev = test_bit(BTN_MIDDLE, dev2->key) ? dev2 : dev1;
-		input_report_key(dev, BTN_MIDDLE, middle);
-
-		/*
-		 * Sync the _other_ device now, we'll do the first
-		 * device later once we report the rest of the events.
-		 */
-		input_sync(dev2);
-	} else {
-		/*
-		 * For devices with non-interleaved packets we know what
-		 * device buttons belong to so we can simply report them.
-		 */
-		input_report_key(dev1, BTN_LEFT, left);
-		input_report_key(dev1, BTN_RIGHT, right);
-		input_report_key(dev1, BTN_MIDDLE, middle);
-	}
+	/*
+	 * Sync the _other_ device now, we'll do the first
+	 * device later once we report the rest of the events.
+	 */
+	input_sync(dev2);
 }
 
 static void alps_process_packet(struct psmouse *psmouse)

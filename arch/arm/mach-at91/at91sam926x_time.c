@@ -62,16 +62,12 @@ static struct clocksource pit_clk = {
 static void
 pit_clkevt_mode(enum clock_event_mode mode, struct clock_event_device *dev)
 {
-	unsigned long	flags;
-
 	switch (mode) {
 	case CLOCK_EVT_MODE_PERIODIC:
-		/* update clocksource counter, then enable the IRQ */
-		raw_local_irq_save(flags);
+		/* update clocksource counter */
 		pit_cnt += pit_cycle * PIT_PICNT(at91_sys_read(AT91_PIT_PIVR));
 		at91_sys_write(AT91_PIT_MR, (pit_cycle - 1) | AT91_PIT_PITEN
 				| AT91_PIT_PITIEN);
-		raw_local_irq_restore(flags);
 		break;
 	case CLOCK_EVT_MODE_ONESHOT:
 		BUG();
@@ -100,6 +96,11 @@ static struct clock_event_device pit_clkevt = {
  */
 static irqreturn_t at91sam926x_pit_interrupt(int irq, void *dev_id)
 {
+	/*
+	 * irqs should be disabled here, but as the irq is shared they are only
+	 * guaranteed to be off if the timer irq is registered first.
+	 */
+	WARN_ON_ONCE(!irqs_disabled());
 
 	/* The PIT interrupt may be disabled, and is shared */
 	if ((pit_clkevt.mode == CLOCK_EVT_MODE_PERIODIC)

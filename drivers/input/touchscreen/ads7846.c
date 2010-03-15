@@ -36,6 +36,7 @@
  * TSC2046 is just newer ads7846 silicon.
  * Support for ads7843 tested on Atmel at91sam926x-EK.
  * Support for ads7845 has only been stubbed in.
+ * Support for Analog Devices AD7873 and AD7843 tested.
  *
  * IRQ handling needs a workaround because of a shortcoming in handling
  * edge triggered IRQs on some platforms like the OMAP1/2. These
@@ -821,6 +822,9 @@ static int ads7846_suspend(struct spi_device *spi, pm_message_t message)
 
 	spin_unlock_irq(&ts->lock);
 
+	if (device_may_wakeup(&ts->spi->dev))
+		enable_irq_wake(ts->spi->irq);
+
 	return 0;
 
 }
@@ -828,6 +832,9 @@ static int ads7846_suspend(struct spi_device *spi, pm_message_t message)
 static int ads7846_resume(struct spi_device *spi)
 {
 	struct ads7846 *ts = dev_get_drvdata(&spi->dev);
+
+	if (device_may_wakeup(&ts->spi->dev))
+		disable_irq_wake(ts->spi->irq);
 
 	spin_lock_irq(&ts->lock);
 
@@ -983,6 +990,15 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 			pdata->pressure_min, pdata->pressure_max, 0, 0);
 
 	vref = pdata->keep_vref_on;
+
+	if (ts->model == 7873) {
+		/* The AD7873 is almost identical to the ADS7846
+		 * keep VREF off during differential/ratiometric
+		 * conversion modes
+		 */
+		ts->model = 7846;
+		vref = 0;
+	}
 
 	/* set up the transfers to read touchscreen state; this assumes we
 	 * use formula #2 for pressure, not #3.
@@ -1191,6 +1207,8 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 	if (err)
 		goto err_remove_attr_group;
 
+	device_init_wakeup(&spi->dev, pdata->wakeup);
+
 	return 0;
 
  err_remove_attr_group:
@@ -1219,6 +1237,8 @@ static int __devinit ads7846_probe(struct spi_device *spi)
 static int __devexit ads7846_remove(struct spi_device *spi)
 {
 	struct ads7846		*ts = dev_get_drvdata(&spi->dev);
+
+	device_init_wakeup(&spi->dev, false);
 
 	ads784x_hwmon_unregister(spi, ts);
 	input_unregister_device(ts->input);

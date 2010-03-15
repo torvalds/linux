@@ -4,20 +4,18 @@
         James E.J. Bottomley <James.Bottomley@HansenPartnership.com>
 
 This document describes the DMA API.  For a more gentle introduction
-phrased in terms of the pci_ equivalents (and actual examples) see
-Documentation/PCI/PCI-DMA-mapping.txt.
+of the API (and actual examples) see
+Documentation/DMA-API-HOWTO.txt.
 
-This API is split into two pieces.  Part I describes the API and the
-corresponding pci_ API.  Part II describes the extensions to the API
-for supporting non-consistent memory machines.  Unless you know that
-your driver absolutely has to support non-consistent platforms (this
-is usually only legacy platforms) you should only use the API
-described in part I.
+This API is split into two pieces.  Part I describes the API.  Part II
+describes the extensions to the API for supporting non-consistent
+memory machines.  Unless you know that your driver absolutely has to
+support non-consistent platforms (this is usually only legacy
+platforms) you should only use the API described in part I.
 
-Part I - pci_ and dma_ Equivalent API 
+Part I - dma_ API
 -------------------------------------
 
-To get the pci_ API, you must #include <linux/pci.h>
 To get the dma_ API, you must #include <linux/dma-mapping.h>
 
 
@@ -27,9 +25,6 @@ Part Ia - Using large dma-coherent buffers
 void *
 dma_alloc_coherent(struct device *dev, size_t size,
 			     dma_addr_t *dma_handle, gfp_t flag)
-void *
-pci_alloc_consistent(struct pci_dev *dev, size_t size,
-			     dma_addr_t *dma_handle)
 
 Consistent memory is memory for which a write by either the device or
 the processor can immediately be read by the processor or device
@@ -53,14 +48,10 @@ The simplest way to do that is to use the dma_pool calls (see below).
 The flag parameter (dma_alloc_coherent only) allows the caller to
 specify the GFP_ flags (see kmalloc) for the allocation (the
 implementation may choose to ignore flags that affect the location of
-the returned memory, like GFP_DMA).  For pci_alloc_consistent, you
-must assume GFP_ATOMIC behaviour.
+the returned memory, like GFP_DMA).
 
 void
 dma_free_coherent(struct device *dev, size_t size, void *cpu_addr,
-			   dma_addr_t dma_handle)
-void
-pci_free_consistent(struct pci_dev *dev, size_t size, void *cpu_addr,
 			   dma_addr_t dma_handle)
 
 Free the region of consistent memory you previously allocated.  dev,
@@ -89,10 +80,6 @@ for alignment, like queue heads needing to be aligned on N-byte boundaries.
 	dma_pool_create(const char *name, struct device *dev,
 			size_t size, size_t align, size_t alloc);
 
-	struct pci_pool *
-	pci_pool_create(const char *name, struct pci_device *dev,
-			size_t size, size_t align, size_t alloc);
-
 The pool create() routines initialize a pool of dma-coherent buffers
 for use with a given device.  It must be called in a context which
 can sleep.
@@ -108,9 +95,6 @@ from this pool must not cross 4KByte boundaries.
 	void *dma_pool_alloc(struct dma_pool *pool, gfp_t gfp_flags,
 			dma_addr_t *dma_handle);
 
-	void *pci_pool_alloc(struct pci_pool *pool, gfp_t gfp_flags,
-			dma_addr_t *dma_handle);
-
 This allocates memory from the pool; the returned memory will meet the size
 and alignment requirements specified at creation time.  Pass GFP_ATOMIC to
 prevent blocking, or if it's permitted (not in_interrupt, not holding SMP locks),
@@ -122,17 +106,12 @@ pool's device.
 	void dma_pool_free(struct dma_pool *pool, void *vaddr,
 			dma_addr_t addr);
 
-	void pci_pool_free(struct pci_pool *pool, void *vaddr,
-			dma_addr_t addr);
-
 This puts memory back into the pool.  The pool is what was passed to
 the pool allocation routine; the cpu (vaddr) and dma addresses are what
 were returned when that routine allocated the memory being freed.
 
 
 	void dma_pool_destroy(struct dma_pool *pool);
-
-	void pci_pool_destroy(struct pci_pool *pool);
 
 The pool destroy() routines free the resources of the pool.  They must be
 called in a context which can sleep.  Make sure you've freed all allocated
@@ -144,8 +123,6 @@ Part Ic - DMA addressing limitations
 
 int
 dma_supported(struct device *dev, u64 mask)
-int
-pci_dma_supported(struct pci_dev *hwdev, u64 mask)
 
 Checks to see if the device can support DMA to the memory described by
 mask.
@@ -159,8 +136,14 @@ driver writers.
 
 int
 dma_set_mask(struct device *dev, u64 mask)
+
+Checks to see if the mask is possible and updates the device
+parameters if it is.
+
+Returns: 0 if successful and a negative error if not.
+
 int
-pci_set_dma_mask(struct pci_device *dev, u64 mask)
+dma_set_coherent_mask(struct device *dev, u64 mask)
 
 Checks to see if the mask is possible and updates the device
 parameters if it is.
@@ -187,9 +170,6 @@ Part Id - Streaming DMA mappings
 dma_addr_t
 dma_map_single(struct device *dev, void *cpu_addr, size_t size,
 		      enum dma_data_direction direction)
-dma_addr_t
-pci_map_single(struct pci_dev *hwdev, void *cpu_addr, size_t size,
-		      int direction)
 
 Maps a piece of processor virtual memory so it can be accessed by the
 device and returns the physical handle of the memory.
@@ -198,14 +178,10 @@ The direction for both api's may be converted freely by casting.
 However the dma_ API uses a strongly typed enumerator for its
 direction:
 
-DMA_NONE		= PCI_DMA_NONE		no direction (used for
-						debugging)
-DMA_TO_DEVICE		= PCI_DMA_TODEVICE	data is going from the
-						memory to the device
-DMA_FROM_DEVICE		= PCI_DMA_FROMDEVICE	data is coming from
-						the device to the
-						memory
-DMA_BIDIRECTIONAL	= PCI_DMA_BIDIRECTIONAL	direction isn't known
+DMA_NONE		no direction (used for debugging)
+DMA_TO_DEVICE		data is going from the memory to the device
+DMA_FROM_DEVICE		data is coming from the device to the memory
+DMA_BIDIRECTIONAL	direction isn't known
 
 Notes:  Not all memory regions in a machine can be mapped by this
 API.  Further, regions that appear to be physically contiguous in
@@ -268,9 +244,6 @@ cache lines are updated with data that the device may have changed).
 void
 dma_unmap_single(struct device *dev, dma_addr_t dma_addr, size_t size,
 		 enum dma_data_direction direction)
-void
-pci_unmap_single(struct pci_dev *hwdev, dma_addr_t dma_addr,
-		 size_t size, int direction)
 
 Unmaps the region previously mapped.  All the parameters passed in
 must be identical to those passed in (and returned) by the mapping
@@ -280,15 +253,9 @@ dma_addr_t
 dma_map_page(struct device *dev, struct page *page,
 		    unsigned long offset, size_t size,
 		    enum dma_data_direction direction)
-dma_addr_t
-pci_map_page(struct pci_dev *hwdev, struct page *page,
-		    unsigned long offset, size_t size, int direction)
 void
 dma_unmap_page(struct device *dev, dma_addr_t dma_address, size_t size,
 	       enum dma_data_direction direction)
-void
-pci_unmap_page(struct pci_dev *hwdev, dma_addr_t dma_address,
-	       size_t size, int direction)
 
 API for mapping and unmapping for pages.  All the notes and warnings
 for the other mapping APIs apply here.  Also, although the <offset>
@@ -299,9 +266,6 @@ cache width is.
 int
 dma_mapping_error(struct device *dev, dma_addr_t dma_addr)
 
-int
-pci_dma_mapping_error(struct pci_dev *hwdev, dma_addr_t dma_addr)
-
 In some circumstances dma_map_single and dma_map_page will fail to create
 a mapping. A driver can check for these errors by testing the returned
 dma address with dma_mapping_error(). A non-zero return value means the mapping
@@ -311,9 +275,6 @@ reduce current DMA mapping usage or delay and try again later).
 	int
 	dma_map_sg(struct device *dev, struct scatterlist *sg,
 		int nents, enum dma_data_direction direction)
-	int
-	pci_map_sg(struct pci_dev *hwdev, struct scatterlist *sg,
-		int nents, int direction)
 
 Returns: the number of physical segments mapped (this may be shorter
 than <nents> passed in if some elements of the scatter/gather list are
@@ -353,9 +314,6 @@ accessed sg->address and sg->length as shown above.
 	void
 	dma_unmap_sg(struct device *dev, struct scatterlist *sg,
 		int nhwentries, enum dma_data_direction direction)
-	void
-	pci_unmap_sg(struct pci_dev *hwdev, struct scatterlist *sg,
-		int nents, int direction)
 
 Unmap the previously mapped scatter/gather list.  All the parameters
 must be the same as those and passed in to the scatter/gather mapping
@@ -365,21 +323,23 @@ Note: <nents> must be the number you passed in, *not* the number of
 physical entries returned.
 
 void
-dma_sync_single(struct device *dev, dma_addr_t dma_handle, size_t size,
-		enum dma_data_direction direction)
+dma_sync_single_for_cpu(struct device *dev, dma_addr_t dma_handle, size_t size,
+			enum dma_data_direction direction)
 void
-pci_dma_sync_single(struct pci_dev *hwdev, dma_addr_t dma_handle,
-			   size_t size, int direction)
+dma_sync_single_for_device(struct device *dev, dma_addr_t dma_handle, size_t size,
+			   enum dma_data_direction direction)
 void
-dma_sync_sg(struct device *dev, struct scatterlist *sg, int nelems,
-			  enum dma_data_direction direction)
+dma_sync_sg_for_cpu(struct device *dev, struct scatterlist *sg, int nelems,
+		    enum dma_data_direction direction)
 void
-pci_dma_sync_sg(struct pci_dev *hwdev, struct scatterlist *sg,
-		       int nelems, int direction)
+dma_sync_sg_for_device(struct device *dev, struct scatterlist *sg, int nelems,
+		       enum dma_data_direction direction)
 
-Synchronise a single contiguous or scatter/gather mapping.  All the
-parameters must be the same as those passed into the single mapping
-API.
+Synchronise a single contiguous or scatter/gather mapping for the cpu
+and device. With the sync_sg API, all the parameters must be the same
+as those passed into the single mapping API. With the sync_single API,
+you can use dma_handle and size parameters that aren't identical to
+those passed into the single mapping API to do a partial sync.
 
 Notes:  You must do this:
 
@@ -461,9 +421,9 @@ void whizco_dma_map_sg_attrs(struct device *dev, dma_addr_t dma_addr,
 Part II - Advanced dma_ usage
 -----------------------------
 
-Warning: These pieces of the DMA API have no PCI equivalent.  They
-should also not be used in the majority of cases, since they cater for
-unlikely corner cases that don't belong in usual drivers.
+Warning: These pieces of the DMA API should not be used in the
+majority of cases, since they cater for unlikely corner cases that
+don't belong in usual drivers.
 
 If you don't understand how cache line coherency works between a
 processor and an I/O device, you should not be using this part of the
@@ -512,16 +472,6 @@ Notes: This API may return a number *larger* than the actual cache
 line, but it will guarantee that one or more cache lines fit exactly
 into the width returned by this call.  It will also always be a power
 of two for easy alignment.
-
-void
-dma_sync_single_range(struct device *dev, dma_addr_t dma_handle,
-		      unsigned long offset, size_t size,
-		      enum dma_data_direction direction)
-
-Does a partial sync, starting at offset and continuing for size.  You
-must be careful to observe the cache alignment and width when doing
-anything like this.  You must also be extra careful about accessing
-memory you intend to sync partially.
 
 void
 dma_cache_sync(struct device *dev, void *vaddr, size_t size,

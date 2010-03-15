@@ -146,7 +146,7 @@ __SYSCALL(__NR_wait4, sys_wait4)
 #define __NR_kill				62
 __SYSCALL(__NR_kill, sys_kill)
 #define __NR_uname				63
-__SYSCALL(__NR_uname, sys_uname)
+__SYSCALL(__NR_uname, sys_newuname)
 
 #define __NR_semget				64
 __SYSCALL(__NR_semget, sys_semget)
@@ -680,6 +680,7 @@ __SYSCALL(__NR_recvmmsg, sys_recvmmsg)
 #define __ARCH_WANT_SYS_LLSEEK
 #define __ARCH_WANT_SYS_NICE
 #define __ARCH_WANT_SYS_OLD_GETRLIMIT
+#define __ARCH_WANT_SYS_OLD_UNAME
 #define __ARCH_WANT_SYS_OLDUMOUNT
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK

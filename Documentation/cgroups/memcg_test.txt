@@ -1,6 +1,6 @@
 Memory Resource Controller(Memcg)  Implementation Memo.
-Last Updated: 2009/1/20
-Base Kernel Version: based on 2.6.29-rc2.
+Last Updated: 2010/2
+Base Kernel Version: based on 2.6.33-rc7-mm(candidate for 34).
 
 Because VM is getting complex (one of reasons is memcg...), memcg's behavior
 is complex. This is a document for memcg's internal behavior.
@@ -337,7 +337,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 	race and lock dependency with other cgroup subsystems.
 
 	example)
-	# mount -t cgroup none /cgroup -t cpuset,memory,cpu,devices
+	# mount -t cgroup none /cgroup -o cpuset,memory,cpu,devices
 
 	and do task move, mkdir, rmdir etc...under this.
 
@@ -348,7 +348,7 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 
 	For example, test like following is good.
 	(Shell-A)
-	# mount -t cgroup none /cgroup -t memory
+	# mount -t cgroup none /cgroup -o memory
 	# mkdir /cgroup/test
 	# echo 40M > /cgroup/test/memory.limit_in_bytes
 	# echo 0 > /cgroup/test/tasks
@@ -378,3 +378,42 @@ Under below explanation, we assume CONFIG_MEM_RES_CTRL_SWAP=y.
 	#echo 50M > memory.limit_in_bytes
 	#echo 50M > memory.memsw.limit_in_bytes
 	run 51M of malloc
+
+ 9.9 Move charges at task migration
+	Charges associated with a task can be moved along with task migration.
+
+	(Shell-A)
+	#mkdir /cgroup/A
+	#echo $$ >/cgroup/A/tasks
+	run some programs which uses some amount of memory in /cgroup/A.
+
+	(Shell-B)
+	#mkdir /cgroup/B
+	#echo 1 >/cgroup/B/memory.move_charge_at_immigrate
+	#echo "pid of the program running in group A" >/cgroup/B/tasks
+
+	You can see charges have been moved by reading *.usage_in_bytes or
+	memory.stat of both A and B.
+	See 8.2 of Documentation/cgroups/memory.txt to see what value should be
+	written to move_charge_at_immigrate.
+
+ 9.10 Memory thresholds
+	Memory controler implements memory thresholds using cgroups notification
+	API. You can use Documentation/cgroups/cgroup_event_listener.c to test
+	it.
+
+	(Shell-A) Create cgroup and run event listener
+	# mkdir /cgroup/A
+	# ./cgroup_event_listener /cgroup/A/memory.usage_in_bytes 5M
+
+	(Shell-B) Add task to cgroup and try to allocate and free memory
+	# echo $$ >/cgroup/A/tasks
+	# a="$(dd if=/dev/zero bs=1M count=10)"
+	# a=
+
+	You will see message from cgroup_event_listener every time you cross
+	the thresholds.
+
+	Use /cgroup/A/memory.memsw.usage_in_bytes to test memsw thresholds.
+
+	It's good idea to test root cgroup as well.
