@@ -51,6 +51,12 @@ swapper_pg_dir:
 
 	.text
 ENTRY(_start)
+#if CONFIG_KERNEL_BASE_ADDR == 0
+	brai	TOPHYS(real_start)
+	.org	0x100
+real_start:
+#endif
+
 	mfs	r1, rmsr
 	andi	r1, r1, ~2
 	mts	rmsr, r1
