@@ -162,6 +162,7 @@ struct lpfc_fcf {
 #define FCF_REDISC_FOV	0x200 /* Post FCF rediscovery fast failover */
 	uint32_t addr_mode;
 	uint16_t fcf_rr_init_indx;
+	uint32_t eligible_fcf_cnt;
 	struct lpfc_fcf_rec current_rec;
 	struct lpfc_fcf_rec failover_rec;
 	struct timer_list redisc_wait;

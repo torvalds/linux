@@ -893,11 +893,14 @@ lpfc_cmpl_els_flogi(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 
 		if (!rc) {
 			/* Mark the FCF discovery process done */
-			lpfc_printf_vlog(vport, KERN_INFO, LOG_FIP | LOG_ELS,
-					 "2769 FLOGI successful on FCF record: "
-					 "current_fcf_index:x%x, terminate FCF "
-					 "round robin failover process\n",
-					 phba->fcf.current_rec.fcf_indx);
+			if (phba->hba_flag & HBA_FIP_SUPPORT)
+				lpfc_printf_vlog(vport, KERN_INFO, LOG_FIP |
+						LOG_ELS,
+						"2769 FLOGI successful on FCF "
+						"record: current_fcf_index:"
+						"x%x, terminate FCF round "
+						"robin failover process\n",
+						phba->fcf.current_rec.fcf_indx);
 			spin_lock_irq(&phba->hbalock);
 			phba->fcf.fcf_flag &= ~FCF_DISCOVERY;
 			spin_unlock_irq(&phba->hbalock);

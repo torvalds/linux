@@ -1531,7 +1531,37 @@ lpfc_check_pending_fcoe_event(struct lpfc_hba *phba, uint8_t unreg_fcf)
 }
 
 /**
- * lpfc_sli4_fcf_rec_mbox_parse - parse non-embedded fcf record mailbox command
+ * lpfc_sli4_new_fcf_random_select - Randomly select an eligible new fcf record
+ * @phba: pointer to lpfc hba data structure.
+ * @fcf_cnt: number of eligible fcf record seen so far.
+ *
+ * This function makes an running random selection decision on FCF record to
+ * use through a sequence of @fcf_cnt eligible FCF records with equal
+ * probability. To perform integer manunipulation of random numbers with
+ * size unit32_t, the lower 16 bits of the 32-bit random number returned
+ * from random32() are taken as the random random number generated.
+ *
+ * Returns true when outcome is for the newly read FCF record should be
+ * chosen; otherwise, return false when outcome is for keeping the previously
+ * chosen FCF record.
+ **/
+static bool
+lpfc_sli4_new_fcf_random_select(struct lpfc_hba *phba, uint32_t fcf_cnt)
+{
+	uint32_t rand_num;
+
+	/* Get 16-bit uniform random number */
+	rand_num = (0xFFFF & random32());
+
+	/* Decision with probability 1/fcf_cnt */
+	if ((fcf_cnt * rand_num) < 0xFFFF)
+		return true;
+	else
+		return false;
+}
+
+/**
+ * lpfc_mbx_cmpl_read_fcf_record - Completion handler for read_fcf mbox.
  * @phba: pointer to lpfc hba data structure.
  * @mboxq: pointer to mailbox object.
  * @next_fcf_index: pointer to holder of next fcf index.
@@ -1679,6 +1709,8 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 	uint16_t fcf_index, next_fcf_index;
 	struct lpfc_fcf_rec *fcf_rec = NULL;
 	uint16_t vlan_id;
+	uint32_t seed;
+	bool select_new_fcf;
 	int rc;
 
 	/* If there is pending FCoE event restart FCF table scan */
@@ -1809,9 +1841,21 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 		 * than the driver FCF record, use the new record.
 		 */
 		if (new_fcf_record->fip_priority < fcf_rec->priority) {
-			/* Choose this FCF record */
+			/* Choose the new FCF record with lower priority */
 			__lpfc_update_fcf_record(phba, fcf_rec, new_fcf_record,
 					addr_mode, vlan_id, 0);
+			/* Reset running random FCF selection count */
+			phba->fcf.eligible_fcf_cnt = 1;
+		} else if (new_fcf_record->fip_priority == fcf_rec->priority) {
+			/* Update running random FCF selection count */
+			phba->fcf.eligible_fcf_cnt++;
+			select_new_fcf = lpfc_sli4_new_fcf_random_select(phba,
+						phba->fcf.eligible_fcf_cnt);
+			if (select_new_fcf)
+				/* Choose the new FCF by random selection */
+				__lpfc_update_fcf_record(phba, fcf_rec,
+							 new_fcf_record,
+							 addr_mode, vlan_id, 0);
 		}
 		spin_unlock_irq(&phba->hbalock);
 		goto read_next_fcf;
@@ -1825,6 +1869,11 @@ lpfc_mbx_cmpl_fcf_scan_read_fcf_rec(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq)
 					 addr_mode, vlan_id, (boot_flag ?
 					 BOOT_ENABLE : 0));
 		phba->fcf.fcf_flag |= FCF_AVAILABLE;
+		/* Setup initial running random FCF selection count */
+		phba->fcf.eligible_fcf_cnt = 1;
+		/* Seeding the random number generator for random selection */
+		seed = (uint32_t)(0xFFFFFFFF & jiffies);
+		srandom32(seed);
 	}
 	spin_unlock_irq(&phba->hbalock);
 	goto read_next_fcf;

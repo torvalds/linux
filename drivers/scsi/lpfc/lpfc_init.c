@@ -3304,11 +3304,20 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	switch (event_type) {
 	case LPFC_FCOE_EVENT_TYPE_NEW_FCF:
 	case LPFC_FCOE_EVENT_TYPE_FCF_PARAM_MOD:
-		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
-			"2546 New FCF found/FCF parameter modified event: "
-			"evt_tag:x%x, fcf_index:x%x\n",
-			acqe_fcoe->event_tag, acqe_fcoe->index);
-
+		if (event_type == LPFC_FCOE_EVENT_TYPE_NEW_FCF)
+			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
+					LOG_DISCOVERY,
+					"2546 New FCF found event: "
+					"evt_tag:x%x, fcf_index:x%x\n",
+					acqe_fcoe->event_tag,
+					acqe_fcoe->index);
+		else
+			lpfc_printf_log(phba, KERN_WARNING, LOG_FIP |
+					LOG_DISCOVERY,
+					"2788 FCF parameter modified event: "
+					"evt_tag:x%x, fcf_index:x%x\n",
+					acqe_fcoe->event_tag,
+					acqe_fcoe->index);
 		spin_lock_irq(&phba->hbalock);
 		if ((phba->fcf.fcf_flag & FCF_SCAN_DONE) ||
 		    (phba->hba_flag & FCF_DISC_INPROGRESS)) {
