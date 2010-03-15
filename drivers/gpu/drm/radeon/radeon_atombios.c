@@ -1734,7 +1734,7 @@ void radeon_atombios_get_power_modes(struct radeon_device *rdev)
 			/* add the i2c bus for thermal/fan chip */
 			/* no support for internal controller yet */
 			if (power_info->info_4.sThermalController.ucType > 0) {
-				if ((power_info->info_4.sThermalController.ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) &&
+				if ((power_info->info_4.sThermalController.ucType == ATOM_PP_THERMALCONTROLLER_RV6xx) ||
 				    (power_info->info_4.sThermalController.ucType == ATOM_PP_THERMALCONTROLLER_RV770)) {
 					DRM_INFO("Internal thermal controller %s fan control\n",
 						 (power_info->info_4.sThermalController.ucFanParameters &
