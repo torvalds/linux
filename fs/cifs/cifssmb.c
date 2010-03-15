@@ -500,7 +500,7 @@ CIFSSMBNegotiate(unsigned int xid, struct cifsSesInfo *ses)
 	} else if (pSMBr->hdr.WordCount == 13) {
 		cERROR(1, ("mount failed, cifs module not built "
 			  "with CIFS_WEAK_PW_HASH support"));
-			rc = -EOPNOTSUPP;
+		rc = -EOPNOTSUPP;
 #endif /* WEAK_PW_HASH */
 		goto neg_err_exit;
 	} else if (pSMBr->hdr.WordCount != 17) {
