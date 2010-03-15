@@ -12,8 +12,7 @@
 #define SOC_MEDIABUS_H
 
 #include <linux/videodev2.h>
-
-#include <media/v4l2-mediabus.h>
+#include <linux/v4l2-mediabus.h>
 
 /**
  * enum soc_mbus_packing - data packing types on the media-bus
