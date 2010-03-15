@@ -26,8 +26,7 @@
  * product (OEM, like DEC RoamAbout, Digital Ocean, or Epson),
  * you might need to modify this part to accommodate your hardware.
  */
-static const char	MAC_ADDRESSES[][3] =
-{
+static const char	MAC_ADDRESSES[][3] = {
   { 0x08, 0x00, 0x0E },		/* AT&T WaveLAN (standard) & DEC RoamAbout */
   { 0x08, 0x00, 0x6A },		/* AT&T WaveLAN (alternate) */
   { 0x00, 0x00, 0xE1 },		/* Hitachi Wavelan */
@@ -67,8 +66,7 @@ static const int	fixed_bands[] = { 915e6, 2.425e8, 2.46e8, 2.484e8, 2.4305e8 };
  * (base is board port address).
  */
 typedef union hacs_u	hacs_u;
-union hacs_u
-{
+union hacs_u {
 	unsigned short	hu_command;		/* Command register */
 #define		HACR_RESET		0x0001	/* Reset board */
 #define		HACR_CA			0x0002	/* Set Channel Attention for 82586 */
@@ -88,8 +86,7 @@ union hacs_u
 } __attribute__ ((packed));
 
 typedef struct ha_t	ha_t;
-struct ha_t
-{
+struct ha_t {
 	hacs_u		ha_cs;		/* Command and status registers */
 #define 		ha_command	ha_cs.hu_command
 #define 		ha_status	ha_cs.hu_status
@@ -104,7 +101,7 @@ struct ha_t
 
 #define HA_SIZE		16
 
-#define	hoff(p,f) 	(unsigned short)((void *)(&((ha_t *)((void *)0 + (p)))->f) - (void *)0)
+#define	hoff(p, f) 	(unsigned short)((void *)(&((ha_t *)((void *)0 + (p)))->f) - (void *)0)
 #define	HACR(p)		hoff(p, ha_command)
 #define	HASR(p)		hoff(p, ha_status)
 #define	MMCR(p)		hoff(p, ha_mmcr)
@@ -127,7 +124,7 @@ struct ha_t
 #define PARAM_ACCESS_PIO	3	/* Mode 4: LAN parameter access mode */
 					/* Parameter access. */
 #define PIO_MASK		3	/* register mask */
-#define PIOM(cmd,piono)		((u_short)cmd << 10 << (piono * 2))
+#define PIOM(cmd, piono)		((u_short)cmd << 10 << (piono * 2))
 
 #define	HACR_DEFAULT		(HACR_OUT0 | HACR_OUT1 | HACR_16BITS | PIOM(STATIC_PIO, 0) | PIOM(AUTOINCR_PIO, 1) | PIOM(PARAM_ACCESS_PIO, 2))
 #define	HACR_INTRON		(HACR_82586_INT_ENABLE | HACR_MMC_INT_ENABLE | HACR_INTR_CLR_ENABLE)
@@ -156,8 +153,7 @@ struct ha_t
  * Parameter Storage Area (PSA).
  */
 typedef struct psa_t	psa_t;
-struct psa_t
-{
+struct psa_t {
   unsigned char	psa_io_base_addr_1;	/* [0x00] Base address 1 ??? */
   unsigned char	psa_io_base_addr_2;	/* [0x01] Base address 2 */
   unsigned char	psa_io_base_addr_3;	/* [0x02] Base address 3 */
@@ -208,7 +204,7 @@ struct psa_t
 
 /* Calculate offset of a field in the above structure.
  * Warning:  only even addresses are used. */
-#define	psaoff(p,f) 	((unsigned short) ((void *)(&((psa_t *) ((void *) NULL + (p)))->f) - (void *) NULL))
+#define	psaoff(p, f) 	((unsigned short) ((void *)(&((psa_t *) ((void *) NULL + (p)))->f) - (void *) NULL))
 
 /******************** MODEM MANAGEMENT INTERFACE ********************/
 
@@ -216,8 +212,7 @@ struct psa_t
  * Modem Management Controller (MMC) write structure.
  */
 typedef struct mmw_t	mmw_t;
-struct mmw_t
-{
+struct mmw_t {
   unsigned char	mmw_encr_key[8];	/* encryption key */
   unsigned char	mmw_encr_enable;	/* Enable or disable encryption. */
 #define	MMW_ENCR_ENABLE_MODE	0x02	/* mode of security option */
@@ -296,14 +291,13 @@ struct mmw_t
 
 #define	MMW_SIZE	37
 
-#define	mmwoff(p,f) 	(unsigned short)((void *)(&((mmw_t *)((void *)0 + (p)))->f) - (void *)0)
+#define	mmwoff(p, f) 	(unsigned short)((void *)(&((mmw_t *)((void *)0 + (p)))->f) - (void *)0)
 
 /*
  * Modem Management Controller (MMC) read structure.
  */
 typedef struct mmr_t	mmr_t;
-struct mmr_t
-{
+struct mmr_t {
   unsigned char	mmr_unused0[8];		/* unused */
   unsigned char	mmr_des_status;		/* encryption status */
   unsigned char	mmr_des_avail;		/* encryption available (0x55 read) */
@@ -351,11 +345,10 @@ struct mmr_t
 
 #define	MMR_SIZE	36
 
-#define	mmroff(p,f) 	(unsigned short)((void *)(&((mmr_t *)((void *)0 + (p)))->f) - (void *)0)
+#define	mmroff(p, f) 	(unsigned short)((void *)(&((mmr_t *)((void *)0 + (p)))->f) - (void *)0)
 
 /* Make the two above structures one */
-typedef union mm_t
-{
+typedef union mm_t {
   struct mmw_t	w;	/* Write to the mmc */
   struct mmr_t	r;	/* Read from the mmc */
 } mm_t;
