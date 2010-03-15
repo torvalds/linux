@@ -225,7 +225,7 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 	return h_attr;
 }
 
-static void create_counter(int counter, int cpu, pid_t pid)
+static void create_counter(int counter, int cpu, pid_t pid, bool forks)
 {
 	char *filter = filters[counter];
 	struct perf_event_attr *attr = attrs + counter;
@@ -276,6 +276,9 @@ static void create_counter(int counter, int cpu, pid_t pid)
 	attr->comm		= track;
 	attr->inherit		= inherit;
 	attr->disabled		= 1;
+
+	if (forks)
+		attr->enable_on_exec = 1;
 
 try_again:
 	fd[nr_cpu][counter] = sys_perf_event_open(attr, pid, cpu, group_fd, 0);
@@ -381,13 +384,13 @@ try_again:
 	ioctl(fd[nr_cpu][counter], PERF_EVENT_IOC_ENABLE);
 }
 
-static void open_counters(int cpu, pid_t pid)
+static void open_counters(int cpu, pid_t pid, bool forks)
 {
 	int counter;
 
 	group_fd = -1;
 	for (counter = 0; counter < nr_counters; counter++)
-		create_counter(counter, cpu, pid);
+		create_counter(counter, cpu, pid, forks);
 
 	nr_cpu++;
 }
@@ -547,11 +550,11 @@ static int __cmd_record(int argc, const char **argv)
 
 
 	if ((!system_wide && !inherit) || profile_cpu != -1) {
-		open_counters(profile_cpu, target_pid);
+		open_counters(profile_cpu, target_pid, forks);
 	} else {
 		nr_cpus = read_cpu_map();
 		for (i = 0; i < nr_cpus; i++)
-			open_counters(cpumap[i], target_pid);
+			open_counters(cpumap[i], target_pid, forks);
 	}
 
 	if (file_new) {
