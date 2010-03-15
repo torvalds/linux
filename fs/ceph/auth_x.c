@@ -156,6 +156,7 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 		struct timespec validity;
 		struct ceph_crypto_key old_key;
 		void *tp, *tpend;
+		struct ceph_buffer *new_ticket_blob;
 
 		ceph_decode_need(&p, end, sizeof(u32) + 1, bad);
 
@@ -223,9 +224,12 @@ static int ceph_x_proc_ticket_reply(struct ceph_auth_client *ac,
 		ceph_decode_need(&tp, tpend, 1 + sizeof(u64), bad);
 		struct_v = ceph_decode_8(&tp);
 		th->secret_id = ceph_decode_64(&tp);
-		ret = ceph_decode_buffer(&th->ticket_blob, &tp, tpend);
+		ret = ceph_decode_buffer(&new_ticket_blob, &tp, tpend);
 		if (ret)
 			goto out;
+		if (th->ticket_blob)
+			ceph_buffer_put(th->ticket_blob);
+		th->ticket_blob = new_ticket_blob;
 		dout(" got ticket service %d (%s) secret_id %lld len %d\n",
 		     type, ceph_entity_type_name(type), th->secret_id,
 		     (int)th->ticket_blob->vec.iov_len);
