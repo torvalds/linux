@@ -258,11 +258,17 @@ static void FNAME(update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *page,
 	pt_element_t gpte;
 	unsigned pte_access;
 	pfn_t pfn;
+	u64 new_spte;
 
 	gpte = *(const pt_element_t *)pte;
 	if (~gpte & (PT_PRESENT_MASK | PT_ACCESSED_MASK)) {
-		if (!is_present_gpte(gpte))
-			__set_spte(spte, shadow_notrap_nonpresent_pte);
+		if (!is_present_gpte(gpte)) {
+			if (page->unsync)
+				new_spte = shadow_trap_nonpresent_pte;
+			else
+				new_spte = shadow_notrap_nonpresent_pte;
+			__set_spte(spte, new_spte);
+		}
 		return;
 	}
 	pgprintk("%s: gpte %llx spte %p\n", __func__, (u64)gpte, spte);
