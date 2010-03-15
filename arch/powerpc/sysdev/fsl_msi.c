@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2008 Freescale Semiconductor, Inc. All rights reserved.
+ * Copyright (C) 2007-2010 Freescale Semiconductor, Inc.
  *
  * Author: Tony Li <tony.li@freescale.com>
  *	   Jason Jin <Jason.jin@freescale.com>
@@ -29,7 +29,6 @@ struct fsl_msi_feature {
 	u32 msiir_offset;
 };
 
-static struct fsl_msi *fsl_msi;
 
 static inline u32 fsl_msi_read(u32 __iomem *base, unsigned int reg)
 {
@@ -54,10 +53,12 @@ static struct irq_chip fsl_msi_chip = {
 static int fsl_msi_host_map(struct irq_host *h, unsigned int virq,
 				irq_hw_number_t hw)
 {
+	struct fsl_msi *msi_data = h->host_data;
 	struct irq_chip *chip = &fsl_msi_chip;
 
 	irq_to_desc(virq)->status |= IRQ_TYPE_EDGE_FALLING;
 
+	set_irq_chip_data(virq, msi_data);
 	set_irq_chip_and_handler(virq, chip, handle_edge_irq);
 
 	return 0;
@@ -96,11 +97,12 @@ static int fsl_msi_check_device(struct pci_dev *pdev, int nvec, int type)
 static void fsl_teardown_msi_irqs(struct pci_dev *pdev)
 {
 	struct msi_desc *entry;
-	struct fsl_msi *msi_data = fsl_msi;
+	struct fsl_msi *msi_data;
 
 	list_for_each_entry(entry, &pdev->msi_list, list) {
 		if (entry->irq == NO_IRQ)
 			continue;
+		msi_data = get_irq_chip_data(entry->irq);
 		set_irq_msi(entry->irq, NULL);
 		msi_bitmap_free_hwirqs(&msi_data->bitmap,
 				       virq_to_hw(entry->irq), 1);
@@ -111,9 +113,10 @@ static void fsl_teardown_msi_irqs(struct pci_dev *pdev)
 }
 
 static void fsl_compose_msi_msg(struct pci_dev *pdev, int hwirq,
-				  struct msi_msg *msg)
+				struct msi_msg *msg,
+				struct fsl_msi *fsl_msi_data)
 {
-	struct fsl_msi *msi_data = fsl_msi;
+	struct fsl_msi *msi_data = fsl_msi_data;
 	struct pci_controller *hose = pci_bus_to_host(pdev->bus);
 	u32 base = 0;
 
@@ -134,9 +137,11 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 	unsigned int virq;
 	struct msi_desc *entry;
 	struct msi_msg msg;
-	struct fsl_msi *msi_data = fsl_msi;
+	struct fsl_msi *msi_data;
 
 	list_for_each_entry(entry, &pdev->msi_list, list) {
+		msi_data = get_irq_chip_data(entry->irq);
+
 		hwirq = msi_bitmap_alloc_hwirqs(&msi_data->bitmap, 1);
 		if (hwirq < 0) {
 			rc = hwirq;
@@ -156,7 +161,7 @@ static int fsl_setup_msi_irqs(struct pci_dev *pdev, int nvec, int type)
 		}
 		set_irq_msi(virq, entry);
 
-		fsl_compose_msi_msg(pdev, hwirq, &msg);
+		fsl_compose_msi_msg(pdev, hwirq, &msg, msi_data);
 		write_msi_msg(virq, &msg);
 	}
 	return 0;
@@ -168,7 +173,7 @@ out_free:
 static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 {
 	unsigned int cascade_irq;
-	struct fsl_msi *msi_data = fsl_msi;
+	struct fsl_msi *msi_data = get_irq_chip_data(irq);
 	int msir_index = -1;
 	u32 msir_value = 0;
 	u32 intr_index;
@@ -193,7 +198,7 @@ static void fsl_msi_cascade(unsigned int irq, struct irq_desc *desc)
 		cascade_irq = NO_IRQ;
 
 	desc->status |= IRQ_INPROGRESS;
-	switch (fsl_msi->feature & FSL_PIC_IP_MASK) {
+	switch (msi_data->feature & FSL_PIC_IP_MASK) {
 	case FSL_PIC_IP_MPIC:
 		msir_value = fsl_msi_read(msi_data->msi_regs,
 			msir_index * 0x10);
@@ -307,15 +312,20 @@ static int __devinit fsl_of_msi_probe(struct of_device *dev,
 		if (virt_msir != NO_IRQ) {
 			set_irq_data(virt_msir, (void *)i);
 			set_irq_chained_handler(virt_msir, fsl_msi_cascade);
+			set_irq_chip_data(virt_msir, msi);
 		}
 	}
 
-	fsl_msi = msi;
-
-	WARN_ON(ppc_md.setup_msi_irqs);
-	ppc_md.setup_msi_irqs = fsl_setup_msi_irqs;
-	ppc_md.teardown_msi_irqs = fsl_teardown_msi_irqs;
-	ppc_md.msi_check_device = fsl_msi_check_device;
+	/* The multiple setting ppc_md.setup_msi_irqs will not harm things */
+	if (!ppc_md.setup_msi_irqs) {
+		ppc_md.setup_msi_irqs = fsl_setup_msi_irqs;
+		ppc_md.teardown_msi_irqs = fsl_teardown_msi_irqs;
+		ppc_md.msi_check_device = fsl_msi_check_device;
+	} else if (ppc_md.setup_msi_irqs != fsl_setup_msi_irqs) {
+		dev_err(&dev->dev, "Different MSI driver already installed!\n");
+		err = -ENODEV;
+		goto error_out;
+	}
 	return 0;
 error_out:
 	kfree(msi);
