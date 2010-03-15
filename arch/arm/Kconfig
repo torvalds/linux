@@ -238,7 +238,6 @@ config ARCH_INTEGRATOR
 	bool "ARM Ltd. Integrator family"
 	select ARM_AMBA
 	select ARCH_HAS_CPUFREQ
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ICST525
 	help
@@ -247,7 +246,6 @@ config ARCH_INTEGRATOR
 config ARCH_REALVIEW
 	bool "ARM Ltd. RealView family"
 	select ARM_AMBA
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ICST307
 	select GENERIC_TIME
@@ -260,7 +258,6 @@ config ARCH_VERSATILE
 	bool "ARM Ltd. Versatile family"
 	select ARM_AMBA
 	select ARM_VIC
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ICST307
 	select GENERIC_TIME
@@ -321,7 +318,6 @@ config ARCH_EP93XX
 	select ARM_AMBA
 	select ARM_VIC
 	select GENERIC_GPIO
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
 	select ARCH_HAS_HOLES_MEMORYMODEL
@@ -341,7 +337,6 @@ config ARCH_MXC
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select ARCH_REQUIRE_GPIOLIB
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	help
 	  Support for Freescale MXC/iMX-based family of processors
@@ -349,7 +344,6 @@ config ARCH_MXC
 config ARCH_STMP3XXX
 	bool "Freescale STMP3xxx"
 	select CPU_ARM926T
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
@@ -516,7 +510,6 @@ config ARCH_MMP
 	depends on MMU
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -552,7 +545,6 @@ config ARCH_W90X900
 	select CPU_ARM926T
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_GPIO
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -568,7 +560,6 @@ config ARCH_W90X900
 config ARCH_NUC93X
 	bool "Nuvoton NUC93X CPU"
 	select CPU_ARM926T
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	help
 	  Support for Nuvoton (Winbond logic dept.) NUC93X MCU,The NUC93X is a
@@ -577,7 +568,6 @@ config ARCH_NUC93X
 config ARCH_PNX4008
 	bool "Philips Nexperia PNX4008 Mobile"
 	select CPU_ARM926T
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	help
 	  This enables support for Philips PNX4008 mobile platform.
@@ -588,7 +578,6 @@ config ARCH_PXA
 	select ARCH_MTD_XIP
 	select ARCH_HAS_CPUFREQ
 	select GENERIC_GPIO
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	select ARCH_REQUIRE_GPIOLIB
 	select GENERIC_TIME
@@ -743,7 +732,6 @@ config ARCH_U300
 	select ARM_VIC
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	select GENERIC_GPIO
 	help
@@ -764,7 +752,6 @@ config ARCH_NOMADIK
 	select ARM_AMBA
 	select ARM_VIC
 	select CPU_ARM926T
-	select HAVE_CLK
 	select COMMON_CLKDEV
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
@@ -780,7 +767,6 @@ config ARCH_DAVINCI
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
 	select ARCH_REQUIRE_GPIOLIB
-	select HAVE_CLK
 	select ZONE_DMA
 	select HAVE_IDE
 	select COMMON_CLKDEV
