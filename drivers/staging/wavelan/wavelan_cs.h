@@ -18,7 +18,7 @@
  */
 
 /*
- * Definitions for the AT&T GIS (formerly NCR) WaveLAN PCMCIA card: 
+ * Definitions for the AT&T GIS (formerly NCR) WaveLAN PCMCIA card:
  *   An Ethernet-like radio transceiver controlled by an Intel 82593
  *   coprocessor.
  *
@@ -37,7 +37,7 @@
  *   in supporting documentation that copying and distribution is
  *   by permission of M.I.T.  M.I.T. makes no representations about
  *   the suitability of this software for any purpose.  It is pro-
- *   vided "as is" without express or implied warranty.         
+ *   vided "as is" without express or implied warranty.
  ****************************************************************************
  *
  *
@@ -62,8 +62,7 @@
  * like DEC RoamAbout, or Digital Ocean, Epson, ...), you must modify this
  * part to accommodate your hardware...
  */
-static const unsigned char	MAC_ADDRESSES[][3] =
-{
+static const unsigned char	MAC_ADDRESSES[][3] = {
   { 0x08, 0x00, 0x0E },		/* AT&T Wavelan (standard) & DEC RoamAbout */
   { 0x08, 0x00, 0x6A },		/* AT&T Wavelan (alternate) */
   { 0x00, 0x00, 0xE1 },		/* Hitachi Wavelan */
@@ -171,8 +170,7 @@ static const int	fixed_bands[] = { 915e6, 2.425e8, 2.46e8, 2.484e8, 2.4305e8 };
  * Parameter Storage Area (PSA).
  */
 typedef struct psa_t	psa_t;
-struct psa_t
-{
+struct psa_t {
   /* For the PCMCIA Adapter, locations 0x00-0x0F are unused and fixed at 00 */
   unsigned char	psa_io_base_addr_1;	/* [0x00] Base address 1 ??? */
   unsigned char	psa_io_base_addr_2;	/* [0x01] Base address 2 */
@@ -191,14 +189,14 @@ struct psa_t
 #define		PSA_UNIVERSAL	0		/* Universal (factory) */
 #define		PSA_LOCAL	1		/* Local */
   unsigned char	psa_comp_number;	/* [0x1D] Compatability Number: */
-#define		PSA_COMP_PC_AT_915	0 	/* PC-AT 915 MHz	*/
-#define		PSA_COMP_PC_MC_915	1 	/* PC-MC 915 MHz	*/
-#define		PSA_COMP_PC_AT_2400	2 	/* PC-AT 2.4 GHz	*/
-#define		PSA_COMP_PC_MC_2400	3 	/* PC-MC 2.4 GHz	*/
-#define		PSA_COMP_PCMCIA_915	4 	/* PCMCIA 915 MHz or 2.0 */
+#define		PSA_COMP_PC_AT_915	0	/* PC-AT 915 MHz	*/
+#define		PSA_COMP_PC_MC_915	1	/* PC-MC 915 MHz	*/
+#define		PSA_COMP_PC_AT_2400	2	/* PC-AT 2.4 GHz	*/
+#define		PSA_COMP_PC_MC_2400	3	/* PC-MC 2.4 GHz	*/
+#define		PSA_COMP_PCMCIA_915	4	/* PCMCIA 915 MHz or 2.0 */
   unsigned char	psa_thr_pre_set;	/* [0x1E] Modem Threshold Preset */
   unsigned char	psa_feature_select;	/* [0x1F] Call code required (1=on) */
-#define		PSA_FEATURE_CALL_CODE	0x01 	/* Call code required (Japan) */
+#define		PSA_FEATURE_CALL_CODE	0x01	/* Call code required (Japan) */
   unsigned char	psa_subband;		/* [0x20] Subband	*/
 #define		PSA_SUBBAND_915		0	/* 915 MHz or 2.0 */
 #define		PSA_SUBBAND_2425	1	/* 2425 MHz	*/
@@ -225,7 +223,7 @@ struct psa_t
 
 /* Calculate offset of a field in the above structure
  * Warning : only even addresses are used */
-#define	psaoff(p,f) 	((unsigned short) ((void *)(&((psa_t *) ((void *) NULL + (p)))->f) - (void *) NULL))
+#define	psaoff(p, f)	((unsigned short) ((void *)(&((psa_t *) ((void *) NULL + (p)))->f) - (void *) NULL))
 
 /******************** MODEM MANAGEMENT INTERFACE ********************/
 
@@ -233,8 +231,7 @@ struct psa_t
  * Modem Management Controller (MMC) write structure.
  */
 typedef struct mmw_t	mmw_t;
-struct mmw_t
-{
+struct mmw_t {
   unsigned char	mmw_encr_key[8];	/* encryption key */
   unsigned char	mmw_encr_enable;	/* enable/disable encryption */
 #define	MMW_ENCR_ENABLE_MODE	0x02	/* Mode of security option */
@@ -315,15 +312,14 @@ struct mmw_t
 #define	MMW_SIZE	37
 
 /* Calculate offset of a field in the above structure */
-#define	mmwoff(p,f) 	(unsigned short)((void *)(&((mmw_t *)((void *)0 + (p)))->f) - (void *)0)
+#define	mmwoff(p, f) 	(unsigned short)((void *)(&((mmw_t *)((void *)0 + (p)))->f) - (void *)0)
 
 
 /*
  * Modem Management Controller (MMC) read structure.
  */
 typedef struct mmr_t	mmr_t;
-struct mmr_t
-{
+struct mmr_t {
   unsigned char	mmr_unused0[8];		/* unused */
   unsigned char	mmr_des_status;		/* encryption status */
   unsigned char	mmr_des_avail;		/* encryption available (0x55 read) */
@@ -373,12 +369,11 @@ struct mmr_t
 #define	MMR_SIZE	36
 
 /* Calculate offset of a field in the above structure */
-#define	mmroff(p,f) 	(unsigned short)((void *)(&((mmr_t *)((void *)0 + (p)))->f) - (void *)0)
+#define	mmroff(p, f) 	(unsigned short)((void *)(&((mmr_t *)((void *)0 + (p)))->f) - (void *)0)
 
 
 /* Make the two above structures one */
-typedef union mm_t
-{
+typedef union mm_t {
   struct mmw_t	w;	/* Write to the mmc */
   struct mmr_t	r;	/* Read from the mmc */
 } mm_t;
