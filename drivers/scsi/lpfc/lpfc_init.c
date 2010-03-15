@@ -2566,7 +2566,7 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	shost->max_cmd_len = 16;
 	if (phba->sli_rev == LPFC_SLI_REV4) {
 		shost->dma_boundary =
-			phba->sli4_hba.pc_sli4_params.sge_supp_len;
+			phba->sli4_hba.pc_sli4_params.sge_supp_len-1;
 		shost->sg_tablesize = phba->cfg_sg_seg_cnt;
 	}
 
@@ -4039,6 +4039,43 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	if (unlikely(rc))
 		goto out_free_bsmbx;
 
+	mboxq = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
+						       GFP_KERNEL);
+	if (!mboxq) {
+		rc = -ENOMEM;
+		goto out_free_bsmbx;
+	}
+
+	/* Get the Supported Pages. It is always available. */
+	lpfc_supported_pages(mboxq);
+	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
+	if (unlikely(rc)) {
+		rc = -EIO;
+		mempool_free(mboxq, phba->mbox_mem_pool);
+		goto out_free_bsmbx;
+	}
+
+	mqe = &mboxq->u.mqe;
+	memcpy(&pn_page[0], ((uint8_t *)&mqe->un.supp_pages.word3),
+	       LPFC_MAX_SUPPORTED_PAGES);
+	for (i = 0; i < LPFC_MAX_SUPPORTED_PAGES; i++) {
+		switch (pn_page[i]) {
+		case LPFC_SLI4_PARAMETERS:
+			phba->sli4_hba.pc_sli4_params.supported = 1;
+			break;
+		default:
+			break;
+		}
+	}
+
+	/* Read the port's SLI4 Parameters capabilities if supported. */
+	if (phba->sli4_hba.pc_sli4_params.supported)
+		rc = lpfc_pc_sli4_params_get(phba, mboxq);
+	mempool_free(mboxq, phba->mbox_mem_pool);
+	if (rc) {
+		rc = -EIO;
+		goto out_free_bsmbx;
+	}
 	/* Create all the SLI4 queues */
 	rc = lpfc_sli4_queue_create(phba);
 	if (rc)
@@ -4099,43 +4136,6 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_fcp_eq_hdl;
 	}
 
-	mboxq = (LPFC_MBOXQ_t *) mempool_alloc(phba->mbox_mem_pool,
-						       GFP_KERNEL);
-	if (!mboxq) {
-		rc = -ENOMEM;
-		goto out_free_fcp_eq_hdl;
-	}
-
-	/* Get the Supported Pages. It is always available. */
-	lpfc_supported_pages(mboxq);
-	rc = lpfc_sli_issue_mbox(phba, mboxq, MBX_POLL);
-	if (unlikely(rc)) {
-		rc = -EIO;
-		mempool_free(mboxq, phba->mbox_mem_pool);
-		goto out_free_fcp_eq_hdl;
-	}
-
-	mqe = &mboxq->u.mqe;
-	memcpy(&pn_page[0], ((uint8_t *)&mqe->un.supp_pages.word3),
-	       LPFC_MAX_SUPPORTED_PAGES);
-	for (i = 0; i < LPFC_MAX_SUPPORTED_PAGES; i++) {
-		switch (pn_page[i]) {
-		case LPFC_SLI4_PARAMETERS:
-			phba->sli4_hba.pc_sli4_params.supported = 1;
-			break;
-		default:
-			break;
-		}
-	}
-
-	/* Read the port's SLI4 Parameters capabilities if supported. */
-	if (phba->sli4_hba.pc_sli4_params.supported)
-		rc = lpfc_pc_sli4_params_get(phba, mboxq);
-	mempool_free(mboxq, phba->mbox_mem_pool);
-	if (rc) {
-		rc = -EIO;
-		goto out_free_fcp_eq_hdl;
-	}
 	return rc;
 
 out_free_fcp_eq_hdl:

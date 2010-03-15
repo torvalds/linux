@@ -41,8 +41,14 @@
  * Or clear that bit field:
  *	bf_set(example_bit_field, &t1, 0);
  */
+#define bf_get_le32(name, ptr) \
+	((le32_to_cpu((ptr)->name##_WORD) >> name##_SHIFT) & name##_MASK)
 #define bf_get(name, ptr) \
 	(((ptr)->name##_WORD >> name##_SHIFT) & name##_MASK)
+#define bf_set_le32(name, ptr, value) \
+	((ptr)->name##_WORD = cpu_to_le32(((((value) & \
+	name##_MASK) << name##_SHIFT) | (le32_to_cpu((ptr)->name##_WORD) & \
+	~(name##_MASK << name##_SHIFT)))))
 #define bf_set(name, ptr, value) \
 	((ptr)->name##_WORD = ((((value) & name##_MASK) << name##_SHIFT) | \
 		 ((ptr)->name##_WORD & ~(name##_MASK << name##_SHIFT))))
@@ -1940,6 +1946,7 @@ struct lpfc_mbx_sli4_params {
 #define rdma_MASK				0x00000001
 #define rdma_WORD				word3
 	uint32_t sge_supp_len;
+#define SLI4_PAGE_SIZE 4096
 	uint32_t word5;
 #define if_page_sz_SHIFT			0
 #define if_page_sz_MASK				0x0000ffff

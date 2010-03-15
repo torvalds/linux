@@ -1622,7 +1622,9 @@ lpfc_sli4_fcf_rec_mbox_parse(struct lpfc_hba *phba, LPFC_MBOXQ_t *mboxq,
 	new_fcf_record = (struct fcf_record *)(virt_addr +
 			  sizeof(struct lpfc_mbx_read_fcf_tbl));
 	lpfc_sli_pcimem_bcopy(new_fcf_record, new_fcf_record,
-			      sizeof(struct fcf_record));
+				offsetof(struct fcf_record, vlan_bitmap));
+	new_fcf_record->word137 = le32_to_cpu(new_fcf_record->word137);
+	new_fcf_record->word138 = le32_to_cpu(new_fcf_record->word138);
 
 	return new_fcf_record;
 }
