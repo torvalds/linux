@@ -333,8 +333,8 @@ static void show_location(Dwarf_Op *op, struct probe_finder *pf)
 		die("%u exceeds max register number.", regn);
 
 	if (deref)
-		ret = snprintf(pf->buf, pf->len, " %s=+%ju(%s)",
-			       pf->var, (uintmax_t)offs, regs);
+		ret = snprintf(pf->buf, pf->len, " %s=%+jd(%s)",
+			       pf->var, (intmax_t)offs, regs);
 	else
 		ret = snprintf(pf->buf, pf->len, " %s=%s", pf->var, regs);
 	DIE_IF(ret < 0);
