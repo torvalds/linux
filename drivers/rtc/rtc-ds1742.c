@@ -184,6 +184,7 @@ static int __devinit ds1742_rtc_probe(struct platform_device *pdev)
 	pdata->size_nvram = pdata->size - RTC_SIZE;
 	pdata->ioaddr_rtc = ioaddr + pdata->size_nvram;
 
+	sysfs_bin_attr_init(&pdata->nvram_attr);
 	pdata->nvram_attr.attr.name = "nvram";
 	pdata->nvram_attr.attr.mode = S_IRUGO | S_IWUSR;
 	pdata->nvram_attr.read = ds1742_nvram_read;
