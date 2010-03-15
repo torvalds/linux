@@ -234,56 +234,56 @@ static const u32 vmx_msr_index[] = {
 };
 #define NR_VMX_MSR ARRAY_SIZE(vmx_msr_index)
 
-static inline int is_page_fault(u32 intr_info)
+static inline bool is_page_fault(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
 			     INTR_INFO_VALID_MASK)) ==
 		(INTR_TYPE_HARD_EXCEPTION | PF_VECTOR | INTR_INFO_VALID_MASK);
 }
 
-static inline int is_no_device(u32 intr_info)
+static inline bool is_no_device(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
 			     INTR_INFO_VALID_MASK)) ==
 		(INTR_TYPE_HARD_EXCEPTION | NM_VECTOR | INTR_INFO_VALID_MASK);
 }
 
-static inline int is_invalid_opcode(u32 intr_info)
+static inline bool is_invalid_opcode(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
 			     INTR_INFO_VALID_MASK)) ==
 		(INTR_TYPE_HARD_EXCEPTION | UD_VECTOR | INTR_INFO_VALID_MASK);
 }
 
-static inline int is_external_interrupt(u32 intr_info)
+static inline bool is_external_interrupt(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VALID_MASK))
 		== (INTR_TYPE_EXT_INTR | INTR_INFO_VALID_MASK);
 }
 
-static inline int is_machine_check(u32 intr_info)
+static inline bool is_machine_check(u32 intr_info)
 {
 	return (intr_info & (INTR_INFO_INTR_TYPE_MASK | INTR_INFO_VECTOR_MASK |
 			     INTR_INFO_VALID_MASK)) ==
 		(INTR_TYPE_HARD_EXCEPTION | MC_VECTOR | INTR_INFO_VALID_MASK);
 }
 
-static inline int cpu_has_vmx_msr_bitmap(void)
+static inline bool cpu_has_vmx_msr_bitmap(void)
 {
 	return vmcs_config.cpu_based_exec_ctrl & CPU_BASED_USE_MSR_BITMAPS;
 }
 
-static inline int cpu_has_vmx_tpr_shadow(void)
+static inline bool cpu_has_vmx_tpr_shadow(void)
 {
 	return vmcs_config.cpu_based_exec_ctrl & CPU_BASED_TPR_SHADOW;
 }
 
-static inline int vm_need_tpr_shadow(struct kvm *kvm)
+static inline bool vm_need_tpr_shadow(struct kvm *kvm)
 {
 	return (cpu_has_vmx_tpr_shadow()) && (irqchip_in_kernel(kvm));
 }
 
-static inline int cpu_has_secondary_exec_ctrls(void)
+static inline bool cpu_has_secondary_exec_ctrls(void)
 {
 	return vmcs_config.cpu_based_exec_ctrl &
 		CPU_BASED_ACTIVATE_SECONDARY_CONTROLS;
@@ -303,80 +303,80 @@ static inline bool cpu_has_vmx_flexpriority(void)
 
 static inline bool cpu_has_vmx_ept_execute_only(void)
 {
-	return !!(vmx_capability.ept & VMX_EPT_EXECUTE_ONLY_BIT);
+	return vmx_capability.ept & VMX_EPT_EXECUTE_ONLY_BIT;
 }
 
 static inline bool cpu_has_vmx_eptp_uncacheable(void)
 {
-	return !!(vmx_capability.ept & VMX_EPTP_UC_BIT);
+	return vmx_capability.ept & VMX_EPTP_UC_BIT;
 }
 
 static inline bool cpu_has_vmx_eptp_writeback(void)
 {
-	return !!(vmx_capability.ept & VMX_EPTP_WB_BIT);
+	return vmx_capability.ept & VMX_EPTP_WB_BIT;
 }
 
 static inline bool cpu_has_vmx_ept_2m_page(void)
 {
-	return !!(vmx_capability.ept & VMX_EPT_2MB_PAGE_BIT);
+	return vmx_capability.ept & VMX_EPT_2MB_PAGE_BIT;
 }
 
 static inline bool cpu_has_vmx_ept_1g_page(void)
 {
-	return !!(vmx_capability.ept & VMX_EPT_1GB_PAGE_BIT);
+	return vmx_capability.ept & VMX_EPT_1GB_PAGE_BIT;
 }
 
-static inline int cpu_has_vmx_invept_individual_addr(void)
+static inline bool cpu_has_vmx_invept_individual_addr(void)
 {
-	return !!(vmx_capability.ept & VMX_EPT_EXTENT_INDIVIDUAL_BIT);
+	return vmx_capability.ept & VMX_EPT_EXTENT_INDIVIDUAL_BIT;
 }
 
-static inline int cpu_has_vmx_invept_context(void)
+static inline bool cpu_has_vmx_invept_context(void)
 {
-	return !!(vmx_capability.ept & VMX_EPT_EXTENT_CONTEXT_BIT);
+	return vmx_capability.ept & VMX_EPT_EXTENT_CONTEXT_BIT;
 }
 
-static inline int cpu_has_vmx_invept_global(void)
+static inline bool cpu_has_vmx_invept_global(void)
 {
-	return !!(vmx_capability.ept & VMX_EPT_EXTENT_GLOBAL_BIT);
+	return vmx_capability.ept & VMX_EPT_EXTENT_GLOBAL_BIT;
 }
 
-static inline int cpu_has_vmx_ept(void)
+static inline bool cpu_has_vmx_ept(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_ENABLE_EPT;
 }
 
-static inline int cpu_has_vmx_unrestricted_guest(void)
+static inline bool cpu_has_vmx_unrestricted_guest(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_UNRESTRICTED_GUEST;
 }
 
-static inline int cpu_has_vmx_ple(void)
+static inline bool cpu_has_vmx_ple(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_PAUSE_LOOP_EXITING;
 }
 
-static inline int vm_need_virtualize_apic_accesses(struct kvm *kvm)
+static inline bool vm_need_virtualize_apic_accesses(struct kvm *kvm)
 {
 	return flexpriority_enabled && irqchip_in_kernel(kvm);
 }
 
-static inline int cpu_has_vmx_vpid(void)
+static inline bool cpu_has_vmx_vpid(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_ENABLE_VPID;
 }
 
-static inline int cpu_has_vmx_rdtscp(void)
+static inline bool cpu_has_vmx_rdtscp(void)
 {
 	return vmcs_config.cpu_based_2nd_exec_ctrl &
 		SECONDARY_EXEC_RDTSCP;
 }
 
-static inline int cpu_has_virtual_nmis(void)
+static inline bool cpu_has_virtual_nmis(void)
 {
 	return vmcs_config.pin_based_exec_ctrl & PIN_BASED_VIRTUAL_NMIS;
 }
