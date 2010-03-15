@@ -2317,6 +2317,7 @@ static void __devinit check_probe_mask(struct azx *chip, int dev)
 static struct snd_pci_quirk msi_white_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x103c, 0x30f7, "HP Pavilion dv4t-1300", 1),
 	SND_PCI_QUIRK(0x103c, 0x3607, "HP Compa CQ40", 1),
+	SND_PCI_QUIRK(0x107b, 0x0380, "Gateway M-6866", 1),
 	{}
 };
 
