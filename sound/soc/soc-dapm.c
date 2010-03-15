@@ -979,7 +979,10 @@ static int dapm_power_widgets(struct snd_soc_codec *codec, int event)
 				break;
 
 			default:
-				power = w->power_check(w);
+				if (!w->force)
+					power = w->power_check(w);
+				else
+					power = 1;
 				if (power)
 					sys_power = 1;
 				break;
@@ -2132,6 +2135,36 @@ int snd_soc_dapm_enable_pin(struct snd_soc_codec *codec, const char *pin)
 	return snd_soc_dapm_set_pin(codec, pin, 1);
 }
 EXPORT_SYMBOL_GPL(snd_soc_dapm_enable_pin);
+
+/**
+ * snd_soc_dapm_force_enable_pin - force a pin to be enabled
+ * @codec: SoC codec
+ * @pin: pin name
+ *
+ * Enables input/output pin regardless of any other state.  This is
+ * intended for use with microphone bias supplies used in microphone
+ * jack detection.
+ *
+ * NOTE: snd_soc_dapm_sync() needs to be called after this for DAPM to
+ * do any widget power switching.
+ */
+int snd_soc_dapm_force_enable_pin(struct snd_soc_codec *codec, const char *pin)
+{
+	struct snd_soc_dapm_widget *w;
+
+	list_for_each_entry(w, &codec->dapm_widgets, list) {
+		if (!strcmp(w->name, pin)) {
+			pr_debug("dapm: %s: pin %s\n", codec->name, pin);
+			w->connected = 1;
+			w->force = 1;
+			return 0;
+		}
+	}
+
+	pr_err("dapm: %s: configuring unknown pin %s\n", codec->name, pin);
+	return -EINVAL;
+}
+EXPORT_SYMBOL_GPL(snd_soc_dapm_force_enable_pin);
 
 /**
  * snd_soc_dapm_disable_pin - disable pin.
