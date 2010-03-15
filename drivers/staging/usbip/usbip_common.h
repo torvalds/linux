@@ -182,7 +182,7 @@ struct usbip_header_basic {
 	__u32 devid;
 
 #define USBIP_DIR_OUT	0
-#define USBIP_DIR_IN 	1
+#define USBIP_DIR_IN	1
 	__u32 direction;
 	__u32 ep;     /* endpoint number */
 } __attribute__ ((packed));
