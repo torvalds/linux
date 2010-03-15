@@ -4080,13 +4080,11 @@ unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr)
 	return value;
 }
 
-void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val,
-		     unsigned long *rflags)
+void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val)
 {
 	switch (cr) {
 	case 0:
 		kvm_set_cr0(vcpu, mk_cr_64(kvm_read_cr0(vcpu), val));
-		*rflags = kvm_get_rflags(vcpu);
 		break;
 	case 2:
 		vcpu->arch.cr2 = val;

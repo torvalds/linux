@@ -2534,8 +2534,7 @@ twobyte_insn:
 	case 0x22: /* mov reg, cr */
 		if (c->modrm_mod != 3)
 			goto cannot_emulate;
-		realmode_set_cr(ctxt->vcpu,
-				c->modrm_reg, c->modrm_val, &ctxt->eflags);
+		realmode_set_cr(ctxt->vcpu, c->modrm_reg, c->modrm_val);
 		c->dst.type = OP_NONE;
 		break;
 	case 0x23: /* mov from reg to dr */
