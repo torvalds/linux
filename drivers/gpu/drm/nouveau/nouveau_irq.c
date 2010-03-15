@@ -311,6 +311,31 @@ nouveau_print_bitfield_names_(uint32_t value,
 #define nouveau_print_bitfield_names(val, namelist) \
 	nouveau_print_bitfield_names_((val), (namelist), ARRAY_SIZE(namelist))
 
+struct nouveau_enum_names {
+	uint32_t value;
+	const char *name;
+};
+
+static void
+nouveau_print_enum_names_(uint32_t value,
+				const struct nouveau_enum_names *namelist,
+				const int namelist_len)
+{
+	/*
+	 * Caller must have already printed the KERN_* log level for us.
+	 * Also the caller is responsible for adding the newline.
+	 */
+	int i;
+	for (i = 0; i < namelist_len; ++i) {
+		if (value == namelist[i].value) {
+			printk("%s", namelist[i].name);
+			return;
+		}
+	}
+	printk("unknown value 0x%08x", value);
+}
+#define nouveau_print_enum_names(val, namelist) \
+	nouveau_print_enum_names_((val), (namelist), ARRAY_SIZE(namelist))
 
 static int
 nouveau_graph_chid_from_grctx(struct drm_device *dev)
@@ -427,14 +452,16 @@ nouveau_graph_dump_trap_info(struct drm_device *dev, const char *id,
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	uint32_t nsource = trap->nsource, nstatus = trap->nstatus;
 
-	NV_INFO(dev, "%s - nSource:", id);
-	nouveau_print_bitfield_names(nsource, nsource_names);
-	printk(", nStatus:");
-	if (dev_priv->card_type < NV_10)
-		nouveau_print_bitfield_names(nstatus, nstatus_names);
-	else
-		nouveau_print_bitfield_names(nstatus, nstatus_names_nv10);
-	printk("\n");
+	if (dev_priv->card_type < NV_50) {
+		NV_INFO(dev, "%s - nSource:", id);
+		nouveau_print_bitfield_names(nsource, nsource_names);
+		printk(", nStatus:");
+		if (dev_priv->card_type < NV_10)
+			nouveau_print_bitfield_names(nstatus, nstatus_names);
+		else
+			nouveau_print_bitfield_names(nstatus, nstatus_names_nv10);
+		printk("\n");
+	}
 
 	NV_INFO(dev, "%s - Ch %d/%d Class 0x%04x Mthd 0x%04x "
 					"Data 0x%08x:0x%08x\n",
@@ -578,27 +605,502 @@ nouveau_pgraph_irq_handler(struct drm_device *dev)
 }
 
 static void
+nv50_pfb_vm_trap(struct drm_device *dev, int display, const char *name)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	uint32_t trap[6];
+	int i, ch;
+	uint32_t idx = nv_rd32(dev, 0x100c90);
+	if (idx & 0x80000000) {
+		idx &= 0xffffff;
+		if (display) {
+			for (i = 0; i < 6; i++) {
+				nv_wr32(dev, 0x100c90, idx | i << 24);
+				trap[i] = nv_rd32(dev, 0x100c94);
+			}
+			for (ch = 0; ch < dev_priv->engine.fifo.channels; ch++) {
+				struct nouveau_channel *chan = dev_priv->fifos[ch];
+
+				if (!chan || !chan->ramin)
+					continue;
+
+				if (trap[1] == chan->ramin->instance >> 12)
+					break;
+			}
+			NV_INFO(dev, "%s - VM: Trapped %s at %02x%04x%04x status %08x %08x channel %d\n",
+					name, (trap[5]&0x100?"read":"write"),
+					trap[5]&0xff, trap[4]&0xffff,
+					trap[3]&0xffff, trap[0], trap[2], ch);
+		}
+		nv_wr32(dev, 0x100c90, idx | 0x80000000);
+	} else if (display) {
+		NV_INFO(dev, "%s - no VM fault?\n", name);
+	}
+}
+
+static struct nouveau_enum_names nv50_mp_exec_error_names[] =
+{
+	{ 3, "STACK_UNDERFLOW" },
+	{ 4, "QUADON_ACTIVE" },
+	{ 8, "TIMEOUT" },
+	{ 0x10, "INVALID_OPCODE" },
+	{ 0x40, "BREAKPOINT" },
+};
+
+static void
+nv50_pgraph_mp_trap(struct drm_device *dev, int tpid, int display)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	uint32_t units = nv_rd32(dev, 0x1540);
+	uint32_t addr, mp10, status, pc, oplow, ophigh;
+	int i;
+	int mps = 0;
+	for (i = 0; i < 4; i++) {
+		if (!(units & 1 << (i+24)))
+			continue;
+		if (dev_priv->chipset < 0xa0)
+			addr = 0x408200 + (tpid << 12) + (i << 7);
+		else
+			addr = 0x408100 + (tpid << 11) + (i << 7);
+		mp10 = nv_rd32(dev, addr + 0x10);
+		status = nv_rd32(dev, addr + 0x14);
+		if (!status)
+			continue;
+		if (display) {
+			nv_rd32(dev, addr + 0x20);
+			pc = nv_rd32(dev, addr + 0x24);
+			oplow = nv_rd32(dev, addr + 0x70);
+			ophigh= nv_rd32(dev, addr + 0x74);
+			NV_INFO(dev, "PGRAPH_TRAP_MP_EXEC - "
+					"TP %d MP %d: ", tpid, i);
+			nouveau_print_enum_names(status,
+					nv50_mp_exec_error_names);
+			printk(" at %06x warp %d, opcode %08x %08x\n",
+					pc&0xffffff, pc >> 24,
+					oplow, ophigh);
+		}
+		nv_wr32(dev, addr + 0x10, mp10);
+		nv_wr32(dev, addr + 0x14, 0);
+		mps++;
+	}
+	if (!mps && display)
+		NV_INFO(dev, "PGRAPH_TRAP_MP_EXEC - TP %d: "
+				"No MPs claiming errors?\n", tpid);
+}
+
+static void
+nv50_pgraph_tp_trap(struct drm_device *dev, int type, uint32_t ustatus_old,
+		uint32_t ustatus_new, int display, const char *name)
+{
+	struct drm_nouveau_private *dev_priv = dev->dev_private;
+	int tps = 0;
+	uint32_t units = nv_rd32(dev, 0x1540);
+	int i, r;
+	uint32_t ustatus_addr, ustatus;
+	for (i = 0; i < 16; i++) {
+		if (!(units & (1 << i)))
+			continue;
+		if (dev_priv->chipset < 0xa0)
+			ustatus_addr = ustatus_old + (i << 12);
+		else
+			ustatus_addr = ustatus_new + (i << 11);
+		ustatus = nv_rd32(dev, ustatus_addr) & 0x7fffffff;
+		if (!ustatus)
+			continue;
+		tps++;
+		switch (type) {
+		case 6: /* texture error... unknown for now */
+			nv50_pfb_vm_trap(dev, display, name);
+			if (display) {
+				NV_ERROR(dev, "magic set %d:\n", i);
+				for (r = ustatus_addr + 4; r <= ustatus_addr + 0x10; r += 4)
+					NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r,
+						nv_rd32(dev, r));
+			}
+			break;
+		case 7: /* MP error */
+			if (ustatus & 0x00010000) {
+				nv50_pgraph_mp_trap(dev, i, display);
+				ustatus &= ~0x00010000;
+			}
+			break;
+		case 8: /* TPDMA error */
+			{
+			uint32_t e0c = nv_rd32(dev, ustatus_addr + 4);
+			uint32_t e10 = nv_rd32(dev, ustatus_addr + 8);
+			uint32_t e14 = nv_rd32(dev, ustatus_addr + 0xc);
+			uint32_t e18 = nv_rd32(dev, ustatus_addr + 0x10);
+			uint32_t e1c = nv_rd32(dev, ustatus_addr + 0x14);
+			uint32_t e20 = nv_rd32(dev, ustatus_addr + 0x18);
+			uint32_t e24 = nv_rd32(dev, ustatus_addr + 0x1c);
+			nv50_pfb_vm_trap(dev, display, name);
+			/* 2d engine destination */
+			if (ustatus & 0x00000010) {
+				if (display) {
+					NV_INFO(dev, "PGRAPH_TRAP_TPDMA_2D - TP %d - Unknown fault at address %02x%08x\n",
+							i, e14, e10);
+					NV_INFO(dev, "PGRAPH_TRAP_TPDMA_2D - TP %d - e0c: %08x, e18: %08x, e1c: %08x, e20: %08x, e24: %08x\n",
+							i, e0c, e18, e1c, e20, e24);
+				}
+				ustatus &= ~0x00000010;
+			}
+			/* Render target */
+			if (ustatus & 0x00000040) {
+				if (display) {
+					NV_INFO(dev, "PGRAPH_TRAP_TPDMA_RT - TP %d - Unknown fault at address %02x%08x\n",
+							i, e14, e10);
+					NV_INFO(dev, "PGRAPH_TRAP_TPDMA_RT - TP %d - e0c: %08x, e18: %08x, e1c: %08x, e20: %08x, e24: %08x\n",
+							i, e0c, e18, e1c, e20, e24);
+				}
+				ustatus &= ~0x00000040;
+			}
+			/* CUDA memory: l[], g[] or stack. */
+			if (ustatus & 0x00000080) {
+				if (display) {
+					if (e18 & 0x80000000) {
+						/* g[] read fault? */
+						NV_INFO(dev, "PGRAPH_TRAP_TPDMA - TP %d - Global read fault at address %02x%08x\n",
+								i, e14, e10 | ((e18 >> 24) & 0x1f));
+						e18 &= ~0x1f000000;
+					} else if (e18 & 0xc) {
+						/* g[] write fault? */
+						NV_INFO(dev, "PGRAPH_TRAP_TPDMA - TP %d - Global write fault at address %02x%08x\n",
+								i, e14, e10 | ((e18 >> 7) & 0x1f));
+						e18 &= ~0x00000f80;
+					} else {
+						NV_INFO(dev, "PGRAPH_TRAP_TPDMA - TP %d - Unknown CUDA fault at address %02x%08x\n",
+								i, e14, e10);
+					}
+					NV_INFO(dev, "PGRAPH_TRAP_TPDMA - TP %d - e0c: %08x, e18: %08x, e1c: %08x, e20: %08x, e24: %08x\n",
+							i, e0c, e18, e1c, e20, e24);
+				}
+				ustatus &= ~0x00000080;
+			}
+			}
+			break;
+		}
+		if (ustatus) {
+			if (display)
+				NV_INFO(dev, "%s - TP%d: Unhandled ustatus 0x%08x\n", name, i, ustatus);
+		}
+		nv_wr32(dev, ustatus_addr, 0xc0000000);
+	}
+
+	if (!tps && display)
+		NV_INFO(dev, "%s - No TPs claiming errors?\n", name);
+}
+
+static void
+nv50_pgraph_trap_handler(struct drm_device *dev)
+{
+	struct nouveau_pgraph_trap trap;
+	uint32_t status = nv_rd32(dev, 0x400108);
+	uint32_t ustatus;
+	int display = nouveau_ratelimit();
+
+
+	if (!status && display) {
+		nouveau_graph_trap_info(dev, &trap);
+		nouveau_graph_dump_trap_info(dev, "PGRAPH_TRAP", &trap);
+		NV_INFO(dev, "PGRAPH_TRAP - no units reporting traps?\n");
+	}
+
+	/* DISPATCH: Relays commands to other units and handles NOTIFY,
+	 * COND, QUERY. If you get a trap from it, the command is still stuck
+	 * in DISPATCH and you need to do something about it. */
+	if (status & 0x001) {
+		ustatus = nv_rd32(dev, 0x400804) & 0x7fffffff;
+		if (!ustatus && display) {
+			NV_INFO(dev, "PGRAPH_TRAP_DISPATCH - no ustatus?\n");
+		}
+
+		/* Known to be triggered by screwed up NOTIFY and COND... */
+		if (ustatus & 0x00000001) {
+			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_DISPATCH_FAULT");
+			nv_wr32(dev, 0x400500, 0);
+			if (nv_rd32(dev, 0x400808) & 0x80000000) {
+				if (display) {
+					if (nouveau_graph_trapped_channel(dev, &trap.channel))
+						trap.channel = -1;
+					trap.class = nv_rd32(dev, 0x400814);
+					trap.mthd = nv_rd32(dev, 0x400808) & 0x1ffc;
+					trap.subc = (nv_rd32(dev, 0x400808) >> 16) & 0x7;
+					trap.data = nv_rd32(dev, 0x40080c);
+					trap.data2 = nv_rd32(dev, 0x400810);
+					nouveau_graph_dump_trap_info(dev,
+							"PGRAPH_TRAP_DISPATCH_FAULT", &trap);
+					NV_INFO(dev, "PGRAPH_TRAP_DISPATCH_FAULT - 400808: %08x\n", nv_rd32(dev, 0x400808));
+					NV_INFO(dev, "PGRAPH_TRAP_DISPATCH_FAULT - 400848: %08x\n", nv_rd32(dev, 0x400848));
+				}
+				nv_wr32(dev, 0x400808, 0);
+			} else if (display) {
+				NV_INFO(dev, "PGRAPH_TRAP_DISPATCH_FAULT - No stuck command?\n");
+			}
+			nv_wr32(dev, 0x4008e8, nv_rd32(dev, 0x4008e8) & 3);
+			nv_wr32(dev, 0x400848, 0);
+			ustatus &= ~0x00000001;
+		}
+		if (ustatus & 0x00000002) {
+			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_DISPATCH_QUERY");
+			nv_wr32(dev, 0x400500, 0);
+			if (nv_rd32(dev, 0x40084c) & 0x80000000) {
+				if (display) {
+					if (nouveau_graph_trapped_channel(dev, &trap.channel))
+						trap.channel = -1;
+					trap.class = nv_rd32(dev, 0x400814);
+					trap.mthd = nv_rd32(dev, 0x40084c) & 0x1ffc;
+					trap.subc = (nv_rd32(dev, 0x40084c) >> 16) & 0x7;
+					trap.data = nv_rd32(dev, 0x40085c);
+					trap.data2 = 0;
+					nouveau_graph_dump_trap_info(dev,
+							"PGRAPH_TRAP_DISPATCH_QUERY", &trap);
+					NV_INFO(dev, "PGRAPH_TRAP_DISPATCH_QUERY - 40084c: %08x\n", nv_rd32(dev, 0x40084c));
+				}
+				nv_wr32(dev, 0x40084c, 0);
+			} else if (display) {
+				NV_INFO(dev, "PGRAPH_TRAP_DISPATCH_QUERY - No stuck command?\n");
+			}
+			ustatus &= ~0x00000002;
+		}
+		if (ustatus && display)
+			NV_INFO(dev, "PGRAPH_TRAP_DISPATCH - Unhandled ustatus 0x%08x\n", ustatus);
+		nv_wr32(dev, 0x400804, 0xc0000000);
+		nv_wr32(dev, 0x400108, 0x001);
+		status &= ~0x001;
+	}
+
+	/* TRAPs other than dispatch use the "normal" trap regs. */
+	if (status && display) {
+		nouveau_graph_trap_info(dev, &trap);
+		nouveau_graph_dump_trap_info(dev,
+				"PGRAPH_TRAP", &trap);
+	}
+
+	/* M2MF: Memory to memory copy engine. */
+	if (status & 0x002) {
+		ustatus = nv_rd32(dev, 0x406800) & 0x7fffffff;
+		if (!ustatus && display) {
+			NV_INFO(dev, "PGRAPH_TRAP_M2MF - no ustatus?\n");
+		}
+		if (ustatus & 0x00000001) {
+			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_M2MF_NOTIFY");
+			ustatus &= ~0x00000001;
+		}
+		if (ustatus & 0x00000002) {
+			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_M2MF_IN");
+			ustatus &= ~0x00000002;
+		}
+		if (ustatus & 0x00000004) {
+			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_M2MF_OUT");
+			ustatus &= ~0x00000004;
+		}
+		NV_INFO (dev, "PGRAPH_TRAP_M2MF - %08x %08x %08x %08x\n",
+				nv_rd32(dev, 0x406804),
+				nv_rd32(dev, 0x406808),
+				nv_rd32(dev, 0x40680c),
+				nv_rd32(dev, 0x406810));
+		if (ustatus && display)
+			NV_INFO(dev, "PGRAPH_TRAP_M2MF - Unhandled ustatus 0x%08x\n", ustatus);
+		/* No sane way found yet -- just reset the bugger. */
+		nv_wr32(dev, 0x400040, 2);
+		nv_wr32(dev, 0x400040, 0);
+		nv_wr32(dev, 0x406800, 0xc0000000);
+		nv_wr32(dev, 0x400108, 0x002);
+		status &= ~0x002;
+	}
+
+	/* VFETCH: Fetches data from vertex buffers. */
+	if (status & 0x004) {
+		ustatus = nv_rd32(dev, 0x400c04) & 0x7fffffff;
+		if (!ustatus && display) {
+			NV_INFO(dev, "PGRAPH_TRAP_VFETCH - no ustatus?\n");
+		}
+		if (ustatus & 0x00000001) {
+			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_VFETCH_FAULT");
+			NV_INFO (dev, "PGRAPH_TRAP_VFETCH_FAULT - %08x %08x %08x %08x\n",
+					nv_rd32(dev, 0x400c00),
+					nv_rd32(dev, 0x400c08),
+					nv_rd32(dev, 0x400c0c),
+					nv_rd32(dev, 0x400c10));
+			ustatus &= ~0x00000001;
+		}
+		if (ustatus && display)
+			NV_INFO(dev, "PGRAPH_TRAP_VFETCH - Unhandled ustatus 0x%08x\n", ustatus);
+		nv_wr32(dev, 0x400c04, 0xc0000000);
+		nv_wr32(dev, 0x400108, 0x004);
+		status &= ~0x004;
+	}
+
+	/* STRMOUT: DirectX streamout / OpenGL transform feedback. */
+	if (status & 0x008) {
+		ustatus = nv_rd32(dev, 0x401800) & 0x7fffffff;
+		if (!ustatus && display) {
+			NV_INFO(dev, "PGRAPH_TRAP_STRMOUT - no ustatus?\n");
+		}
+		if (ustatus & 0x00000001) {
+			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_STRMOUT_FAULT");
+			NV_INFO (dev, "PGRAPH_TRAP_STRMOUT_FAULT - %08x %08x %08x %08x\n",
+					nv_rd32(dev, 0x401804),
+					nv_rd32(dev, 0x401808),
+					nv_rd32(dev, 0x40180c),
+					nv_rd32(dev, 0x401810));
+			ustatus &= ~0x00000001;
+		}
+		if (ustatus && display)
+			NV_INFO(dev, "PGRAPH_TRAP_STRMOUT - Unhandled ustatus 0x%08x\n", ustatus);
+		/* No sane way found yet -- just reset the bugger. */
+		nv_wr32(dev, 0x400040, 0x80);
+		nv_wr32(dev, 0x400040, 0);
+		nv_wr32(dev, 0x401800, 0xc0000000);
+		nv_wr32(dev, 0x400108, 0x008);
+		status &= ~0x008;
+	}
+
+	/* CCACHE: Handles code and c[] caches and fills them. */
+	if (status & 0x010) {
+		ustatus = nv_rd32(dev, 0x405018) & 0x7fffffff;
+		if (!ustatus && display) {
+			NV_INFO(dev, "PGRAPH_TRAP_CCACHE - no ustatus?\n");
+		}
+		if (ustatus & 0x00000001) {
+			nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_CCACHE_FAULT");
+			NV_INFO (dev, "PGRAPH_TRAP_CCACHE_FAULT - %08x %08x %08x %08x %08x %08x %08x\n",
+					nv_rd32(dev, 0x405800),
+					nv_rd32(dev, 0x405804),
+					nv_rd32(dev, 0x405808),
+					nv_rd32(dev, 0x40580c),
+					nv_rd32(dev, 0x405810),
+					nv_rd32(dev, 0x405814),
+					nv_rd32(dev, 0x40581c));
+			ustatus &= ~0x00000001;
+		}
+		if (ustatus && display)
+			NV_INFO(dev, "PGRAPH_TRAP_CCACHE - Unhandled ustatus 0x%08x\n", ustatus);
+		nv_wr32(dev, 0x405018, 0xc0000000);
+		nv_wr32(dev, 0x400108, 0x010);
+		status &= ~0x010;
+	}
+
+	/* Unknown, not seen yet... 0x402000 is the only trap status reg
+	 * remaining, so try to handle it anyway. Perhaps related to that
+	 * unknown DMA slot on tesla? */
+	if (status & 0x20) {
+		nv50_pfb_vm_trap(dev, display, "PGRAPH_TRAP_UNKC04");
+		ustatus = nv_rd32(dev, 0x402000) & 0x7fffffff;
+		if (display)
+			NV_INFO(dev, "PGRAPH_TRAP_UNKC04 - Unhandled ustatus 0x%08x\n", ustatus);
+		nv_wr32(dev, 0x402000, 0xc0000000);
+		/* no status modifiction on purpose */
+	}
+
+	/* TEXTURE: CUDA texturing units */
+	if (status & 0x040) {
+		nv50_pgraph_tp_trap (dev, 6, 0x408900, 0x408600, display,
+				"PGRAPH_TRAP_TEXTURE");
+		nv_wr32(dev, 0x400108, 0x040);
+		status &= ~0x040;
+	}
+
+	/* MP: CUDA execution engines. */
+	if (status & 0x080) {
+		nv50_pgraph_tp_trap (dev, 7, 0x408314, 0x40831c, display,
+				"PGRAPH_TRAP_MP");
+		nv_wr32(dev, 0x400108, 0x080);
+		status &= ~0x080;
+	}
+
+	/* TPDMA:  Handles TP-initiated uncached memory accesses:
+	 * l[], g[], stack, 2d surfaces, render targets. */
+	if (status & 0x100) {
+		nv50_pgraph_tp_trap (dev, 8, 0x408e08, 0x408708, display,
+				"PGRAPH_TRAP_TPDMA");
+		nv_wr32(dev, 0x400108, 0x100);
+		status &= ~0x100;
+	}
+
+	if (status) {
+		if (display)
+			NV_INFO(dev, "PGRAPH_TRAP - Unknown trap 0x%08x\n",
+				status);
+		nv_wr32(dev, 0x400108, status);
+	}
+}
+
+/* There must be a *lot* of these. Will take some time to gather them up. */
+static struct nouveau_enum_names nv50_data_error_names[] =
+{
+	{ 4,	"INVALID_VALUE" },
+	{ 5,	"INVALID_ENUM" },
+	{ 8,	"INVALID_OBJECT" },
+	{ 0xc,	"INVALID_BITFIELD" },
+	{ 0x28,	"MP_NO_REG_SPACE" },
+	{ 0x2b,	"MP_BLOCK_SIZE_MISMATCH" },
+};
+
+static void
 nv50_pgraph_irq_handler(struct drm_device *dev)
 {
+	struct nouveau_pgraph_trap trap;
+	int unhandled = 0;
 	uint32_t status;
 
 	while ((status = nv_rd32(dev, NV03_PGRAPH_INTR))) {
-		uint32_t nsource = nv_rd32(dev, NV03_PGRAPH_NSOURCE);
-
+		/* NOTIFY: You've set a NOTIFY an a command and it's done. */
 		if (status & 0x00000001) {
-			nouveau_pgraph_intr_notify(dev, nsource);
+			nouveau_graph_trap_info(dev, &trap);
+			if (nouveau_ratelimit())
+				nouveau_graph_dump_trap_info(dev,
+						"PGRAPH_NOTIFY", &trap);
 			status &= ~0x00000001;
 			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00000001);
 		}
 
-		if (status & 0x00000010) {
-			nouveau_pgraph_intr_error(dev, nsource |
-					NV03_PGRAPH_NSOURCE_ILLEGAL_MTHD);
+		/* COMPUTE_QUERY: Purpose and exact cause unknown, happens
+		 * when you write 0x200 to 0x50c0 method 0x31c. */
+		if (status & 0x00000002) {
+			nouveau_graph_trap_info(dev, &trap);
+			if (nouveau_ratelimit())
+				nouveau_graph_dump_trap_info(dev,
+						"PGRAPH_COMPUTE_QUERY", &trap);
+			status &= ~0x00000002;
+			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00000002);
+		}
 
+		/* Unknown, never seen: 0x4 */
+
+		/* ILLEGAL_MTHD: You used a wrong method for this class. */
+		if (status & 0x00000010) {
+			nouveau_graph_trap_info(dev, &trap);
+			if (nouveau_pgraph_intr_swmthd(dev, &trap))
+				unhandled = 1;
+			if (unhandled && nouveau_ratelimit())
+				nouveau_graph_dump_trap_info(dev,
+						"PGRAPH_ILLEGAL_MTHD", &trap);
 			status &= ~0x00000010;
 			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00000010);
 		}
 
+		/* ILLEGAL_CLASS: You used a wrong class. */
+		if (status & 0x00000020) {
+			nouveau_graph_trap_info(dev, &trap);
+			if (nouveau_ratelimit())
+				nouveau_graph_dump_trap_info(dev,
+						"PGRAPH_ILLEGAL_CLASS", &trap);
+			status &= ~0x00000020;
+			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00000020);
+		}
+
+		/* DOUBLE_NOTIFY: You tried to set a NOTIFY on another NOTIFY. */
+		if (status & 0x00000040) {
+			nouveau_graph_trap_info(dev, &trap);
+			if (nouveau_ratelimit())
+				nouveau_graph_dump_trap_info(dev,
+						"PGRAPH_DOUBLE_NOTIFY", &trap);
+			status &= ~0x00000040;
+			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00000040);
+		}
+
+		/* CONTEXT_SWITCH: PGRAPH needs us to load a new context */
 		if (status & 0x00001000) {
 			nv_wr32(dev, 0x400500, 0x00000000);
 			nv_wr32(dev, NV03_PGRAPH_INTR,
@@ -613,48 +1115,58 @@ nv50_pgraph_irq_handler(struct drm_device *dev)
 			status &= ~NV_PGRAPH_INTR_CONTEXT_SWITCH;
 		}
 
-		if (status & 0x00100000) {
-			nouveau_pgraph_intr_error(dev, nsource |
-					NV03_PGRAPH_NSOURCE_DATA_ERROR);
+		/* BUFFER_NOTIFY: Your m2mf transfer finished */
+		if (status & 0x00010000) {
+			nouveau_graph_trap_info(dev, &trap);
+			if (nouveau_ratelimit())
+				nouveau_graph_dump_trap_info(dev,
+						"PGRAPH_BUFFER_NOTIFY", &trap);
+			status &= ~0x00010000;
+			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00010000);
+		}
 
+		/* DATA_ERROR: Invalid value for this method, or invalid
+		 * state in current PGRAPH context for this operation */
+		if (status & 0x00100000) {
+			nouveau_graph_trap_info(dev, &trap);
+			if (nouveau_ratelimit()) {
+				nouveau_graph_dump_trap_info(dev,
+						"PGRAPH_DATA_ERROR", &trap);
+				NV_INFO (dev, "PGRAPH_DATA_ERROR - ");
+				nouveau_print_enum_names(nv_rd32(dev, 0x400110),
+						nv50_data_error_names);
+				printk("\n");
+			}
 			status &= ~0x00100000;
 			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00100000);
 		}
 
+		/* TRAP: Something bad happened in the middle of command
+		 * execution.  Has a billion types, subtypes, and even
+		 * subsubtypes. */
 		if (status & 0x00200000) {
-			int r;
-
-			nouveau_pgraph_intr_error(dev, nsource |
-					NV03_PGRAPH_NSOURCE_PROTECTION_ERROR);
-
-			NV_ERROR(dev, "magic set 1:\n");
-			for (r = 0x408900; r <= 0x408910; r += 4)
-				NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r,
-					nv_rd32(dev, r));
-			nv_wr32(dev, 0x408900,
-				nv_rd32(dev, 0x408904) | 0xc0000000);
-			for (r = 0x408e08; r <= 0x408e24; r += 4)
-				NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r,
-							nv_rd32(dev, r));
-			nv_wr32(dev, 0x408e08,
-				nv_rd32(dev, 0x408e08) | 0xc0000000);
-
-			NV_ERROR(dev, "magic set 2:\n");
-			for (r = 0x409900; r <= 0x409910; r += 4)
-				NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r,
-					nv_rd32(dev, r));
-			nv_wr32(dev, 0x409900,
-				nv_rd32(dev, 0x409904) | 0xc0000000);
-			for (r = 0x409e08; r <= 0x409e24; r += 4)
-				NV_ERROR(dev, "\t0x%08x: 0x%08x\n", r,
-					nv_rd32(dev, r));
-			nv_wr32(dev, 0x409e08,
-				nv_rd32(dev, 0x409e08) | 0xc0000000);
-
+			nv50_pgraph_trap_handler(dev);
 			status &= ~0x00200000;
-			nv_wr32(dev, NV03_PGRAPH_NSOURCE, nsource);
 			nv_wr32(dev, NV03_PGRAPH_INTR, 0x00200000);
 		}
+
+		/* Unknown, never seen: 0x00400000 */
+
+		/* SINGLE_STEP: Happens on every method if you turned on
+		 * single stepping in 40008c */
+		if (status & 0x01000000) {
+			nouveau_graph_trap_info(dev, &trap);
+			if (nouveau_ratelimit())
+				nouveau_graph_dump_trap_info(dev,
+						"PGRAPH_SINGLE_STEP", &trap);
+			status &= ~0x01000000;
+			nv_wr32(dev, NV03_PGRAPH_INTR, 0x01000000);
+		}
+
+		/* 0x02000000 happens when you pause a ctxprog...
+		 * but the only way this can happen that I know is by
+		 * poking the relevant MMIO register, and we don't
+		 * do that. */
 
 		if (status) {
 			NV_INFO(dev, "Unhandled PGRAPH_INTR - 0x%08x\n",
@@ -672,7 +1184,8 @@ nv50_pgraph_irq_handler(struct drm_device *dev)
 	}
 
 	nv_wr32(dev, NV03_PMC_INTR_0, NV_PMC_INTR_0_PGRAPH_PENDING);
-	nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) & ~(1 << 31));
+	if (nv_rd32(dev, 0x400824) & (1 << 31))
+		nv_wr32(dev, 0x400824, nv_rd32(dev, 0x400824) & ~(1 << 31));
 }
 
 static void

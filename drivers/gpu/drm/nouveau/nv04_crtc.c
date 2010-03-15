@@ -230,9 +230,9 @@ nv_crtc_mode_set_vga(struct drm_crtc *crtc, struct drm_display_mode *mode)
 	struct drm_framebuffer *fb = crtc->fb;
 
 	/* Calculate our timings */
-	int horizDisplay	= (mode->crtc_hdisplay >> 3) 	- 1;
-	int horizStart		= (mode->crtc_hsync_start >> 3) 	- 1;
-	int horizEnd		= (mode->crtc_hsync_end >> 3) 	- 1;
+	int horizDisplay	= (mode->crtc_hdisplay >> 3)		- 1;
+	int horizStart		= (mode->crtc_hsync_start >> 3) 	+ 1;
+	int horizEnd		= (mode->crtc_hsync_end >> 3)		+ 1;
 	int horizTotal		= (mode->crtc_htotal >> 3)		- 5;
 	int horizBlankStart	= (mode->crtc_hdisplay >> 3)		- 1;
 	int horizBlankEnd	= (mode->crtc_htotal >> 3)		- 1;

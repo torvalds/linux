@@ -302,7 +302,7 @@ nouveau_connector_detect(struct drm_connector *connector)
 
 detect_analog:
 	nv_encoder = find_encoder_by_type(connector, OUTPUT_ANALOG);
-	if (!nv_encoder)
+	if (!nv_encoder && !nouveau_tv_disable)
 		nv_encoder = find_encoder_by_type(connector, OUTPUT_TV);
 	if (nv_encoder) {
 		struct drm_encoder *encoder = to_drm_encoder(nv_encoder);
