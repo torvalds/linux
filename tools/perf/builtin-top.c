@@ -169,7 +169,7 @@ static void sig_winch_handler(int sig __used)
 	update_print_entries(&winsize);
 }
 
-static void parse_source(struct sym_entry *syme)
+static int parse_source(struct sym_entry *syme)
 {
 	struct symbol *sym;
 	struct sym_entry_source *source;
@@ -180,12 +180,21 @@ static void parse_source(struct sym_entry *syme)
 	u64 len;
 
 	if (!syme)
-		return;
+		return -1;
+
+	sym = sym_entry__symbol(syme);
+	map = syme->map;
+
+	/*
+	 * We can't annotate with just /proc/kallsyms
+	 */
+	if (map->dso->origin == DSO__ORIG_KERNEL)
+		return -1;
 
 	if (syme->src == NULL) {
 		syme->src = zalloc(sizeof(*source));
 		if (syme->src == NULL)
-			return;
+			return -1;
 		pthread_mutex_init(&syme->src->lock, NULL);
 	}
 
@@ -195,9 +204,6 @@ static void parse_source(struct sym_entry *syme)
 		pthread_mutex_lock(&source->lock);
 		goto out_assign;
 	}
-
-	sym = sym_entry__symbol(syme);
-	map = syme->map;
 	path = map->dso->long_name;
 
 	len = sym->end - sym->start;
@@ -209,7 +215,7 @@ static void parse_source(struct sym_entry *syme)
 
 	file = popen(command, "r");
 	if (!file)
-		return;
+		return -1;
 
 	pthread_mutex_lock(&source->lock);
 	source->lines_tail = &source->lines;
@@ -245,6 +251,7 @@ static void parse_source(struct sym_entry *syme)
 out_assign:
 	sym_filter_entry = syme;
 	pthread_mutex_unlock(&source->lock);
+	return 0;
 }
 
 static void __zero_source_counters(struct sym_entry *syme)
@@ -991,7 +998,17 @@ static void event__process_sample(const event_t *self,
 	if (sym_filter_entry_sched) {
 		sym_filter_entry = sym_filter_entry_sched;
 		sym_filter_entry_sched = NULL;
-		parse_source(sym_filter_entry);
+		if (parse_source(sym_filter_entry) < 0) {
+			struct symbol *sym = sym_entry__symbol(sym_filter_entry);
+
+			pr_err("Can't annotate %s", sym->name);
+			if (sym_filter_entry->map->dso->origin == DSO__ORIG_KERNEL) {
+				pr_err(": No vmlinux file was found in the path:\n");
+				vmlinux_path__fprintf(stderr);
+			} else
+				pr_err(".\n");
+			exit(1);
+		}
 	}
 
 	syme = symbol__priv(al.sym);

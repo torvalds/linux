@@ -18,18 +18,6 @@
 #define NT_GNU_BUILD_ID 3
 #endif
 
-enum dso_origin {
-	DSO__ORIG_KERNEL = 0,
-	DSO__ORIG_JAVA_JIT,
-	DSO__ORIG_BUILD_ID_CACHE,
-	DSO__ORIG_FEDORA,
-	DSO__ORIG_UBUNTU,
-	DSO__ORIG_BUILDID,
-	DSO__ORIG_DSO,
-	DSO__ORIG_KMODULE,
-	DSO__ORIG_NOT_FOUND,
-};
-
 static void dsos__add(struct list_head *head, struct dso *dso);
 static struct map *map__new2(u64 start, struct dso *dso, enum map_type type);
 static int dso__load_kernel_sym(struct dso *self, struct map *map,
@@ -1017,7 +1005,7 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 				}
 				curr_map->map_ip = identity__map_ip;
 				curr_map->unmap_ip = identity__map_ip;
-				curr_dso->origin = DSO__ORIG_KERNEL;
+				curr_dso->origin = self->origin;
 				map_groups__insert(kmap->kmaps, curr_map);
 				dsos__add(&dsos__kernel, curr_dso);
 				dso__set_loaded(curr_dso, map->type);
@@ -1885,6 +1873,17 @@ static int vmlinux_path__init(void)
 out_fail:
 	vmlinux_path__exit();
 	return -1;
+}
+
+size_t vmlinux_path__fprintf(FILE *fp)
+{
+	int i;
+	size_t printed = 0;
+
+	for (i = 0; i < vmlinux_path__nr_entries; ++i)
+		printed += fprintf(fp, "[%d] %s\n", i, vmlinux_path[i]);
+
+	return printed;
 }
 
 static int setup_list(struct strlist **list, const char *list_str,

@@ -149,6 +149,19 @@ size_t dsos__fprintf_buildid(FILE *fp, bool with_hits);
 
 size_t dso__fprintf_buildid(struct dso *self, FILE *fp);
 size_t dso__fprintf(struct dso *self, enum map_type type, FILE *fp);
+
+enum dso_origin {
+	DSO__ORIG_KERNEL = 0,
+	DSO__ORIG_JAVA_JIT,
+	DSO__ORIG_BUILD_ID_CACHE,
+	DSO__ORIG_FEDORA,
+	DSO__ORIG_UBUNTU,
+	DSO__ORIG_BUILDID,
+	DSO__ORIG_DSO,
+	DSO__ORIG_KMODULE,
+	DSO__ORIG_NOT_FOUND,
+};
+
 char dso__symtab_origin(const struct dso *self);
 void dso__set_long_name(struct dso *self, char *name);
 void dso__set_build_id(struct dso *self, void *build_id);
@@ -167,5 +180,7 @@ int kallsyms__parse(const char *filename, void *arg,
 
 int symbol__init(void);
 bool symbol_type__is_a(char symbol_type, enum map_type map_type);
+
+size_t vmlinux_path__fprintf(FILE *fp);
 
 #endif /* __PERF_SYMBOL */
