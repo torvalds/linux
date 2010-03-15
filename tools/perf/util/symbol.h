@@ -106,6 +106,7 @@ struct dso {
 	u8		 has_build_id:1;
 	u8		 kernel:1;
 	u8		 hit:1;
+	u8		 annotate_warned:1;
 	unsigned char	 origin;
 	u8		 sorted_by_name;
 	u8		 loaded;

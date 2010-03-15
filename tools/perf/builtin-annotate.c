@@ -452,6 +452,16 @@ static void annotate_sym(struct hist_entry *he)
 	if (!filename)
 		return;
 
+	if (dso->origin == DSO__ORIG_KERNEL) {
+		if (dso->annotate_warned)
+			return;
+		dso->annotate_warned = 1;
+		pr_err("Can't annotate %s: No vmlinux file was found in the "
+		       "path:\n", sym->name);
+		vmlinux_path__fprintf(stderr);
+		return;
+	}
+
 	pr_debug("%s: filename=%s, sym=%s, start=%#Lx, end=%#Lx\n", __func__,
 		 filename, sym->name, map->unmap_ip(map, sym->start),
 		 map->unmap_ip(map, sym->end));

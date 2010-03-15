@@ -63,7 +63,7 @@ static void hist_entry__annotate_browser(struct hist_entry *self)
 	if (self->sym == NULL)
 		return;
 
-	if (asprintf(&str, "perf annotate %s | expand", self->sym->name) < 0)
+	if (asprintf(&str, "perf annotate %s 2>&1 | expand", self->sym->name) < 0)
 		return;
 
 	fp = popen(str, "r");
