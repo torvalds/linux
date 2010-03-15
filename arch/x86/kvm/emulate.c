@@ -1852,7 +1852,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 
 	if (c->rep_prefix && (c->d & String)) {
 		/* All REP prefixes have the same first termination condition */
-		if (c->regs[VCPU_REGS_RCX] == 0) {
+		if (address_mask(c, c->regs[VCPU_REGS_RCX]) == 0) {
 			kvm_rip_write(ctxt->vcpu, c->eip);
 			goto done;
 		}
@@ -1876,7 +1876,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 				goto done;
 			}
 		}
-		c->regs[VCPU_REGS_RCX]--;
+		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
 		c->eip = kvm_rip_read(ctxt->vcpu);
 	}
 
