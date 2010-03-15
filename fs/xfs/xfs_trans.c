@@ -1020,19 +1020,17 @@ xfs_trans_commit_iclog(
  * have already been unlocked as if the commit had succeeded.
  * Do not reference the transaction structure after this call.
  */
- /*ARGSUSED*/
 int
 _xfs_trans_commit(
-	xfs_trans_t	*tp,
-	uint		flags,
-	int		*log_flushed)
+	struct xfs_trans	*tp,
+	uint			flags,
+	int			*log_flushed)
 {
-	xfs_mount_t		*mp = tp->t_mountp;
+	struct xfs_mount	*mp = tp->t_mountp;
 	xfs_lsn_t		commit_lsn = -1;
-	int			error;
+	int			error = 0;
 	int			log_flags = 0;
 	int			sync = tp->t_flags & XFS_TRANS_SYNC;
-	int			shutdown;
 
 	/*
 	 * Determine whether this commit is releasing a permanent
@@ -1050,30 +1048,14 @@ _xfs_trans_commit(
 	 * Also make sure to return any reserved blocks to
 	 * the free pool.
 	 */
-shut_us_down:
-	shutdown = XFS_FORCED_SHUTDOWN(mp) ? EIO : 0;
-	if (!(tp->t_flags & XFS_TRANS_DIRTY) || shutdown) {
-		xfs_trans_unreserve_and_mod_sb(tp);
-		/*
-		 * It is indeed possible for the transaction to be
-		 * not dirty but the dqinfo portion to be. All that
-		 * means is that we have some (non-persistent) quota
-		 * reservations that need to be unreserved.
-		 */
-		xfs_trans_unreserve_and_mod_dquots(tp);
-		if (tp->t_ticket) {
-			commit_lsn = xfs_log_done(mp, tp->t_ticket,
-							NULL, log_flags);
-			if (commit_lsn == -1 && !shutdown)
-				shutdown = XFS_ERROR(EIO);
-		}
-		current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
-		xfs_trans_free_items(tp, shutdown? XFS_TRANS_ABORT : 0);
-		xfs_trans_free_busy(tp);
-		xfs_trans_free(tp);
-		XFS_STATS_INC(xs_trans_empty);
-		return (shutdown);
+	if (!(tp->t_flags & XFS_TRANS_DIRTY))
+		goto out_unreserve;
+
+	if (XFS_FORCED_SHUTDOWN(mp)) {
+		error = XFS_ERROR(EIO);
+		goto out_unreserve;
 	}
+
 	ASSERT(tp->t_ticket != NULL);
 
 	/*
@@ -1086,7 +1068,8 @@ shut_us_down:
 	error = xfs_trans_commit_iclog(mp, tp, &commit_lsn, flags);
 	if (error == ENOMEM) {
 		xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
-		goto shut_us_down;
+		error = XFS_ERROR(EIO);
+		goto out_unreserve;
 	}
 
 	/*
@@ -1103,7 +1086,29 @@ shut_us_down:
 		XFS_STATS_INC(xs_trans_async);
 	}
 
-	return (error);
+	return error;
+
+out_unreserve:
+	xfs_trans_unreserve_and_mod_sb(tp);
+
+	/*
+	 * It is indeed possible for the transaction to be not dirty but
+	 * the dqinfo portion to be.  All that means is that we have some
+	 * (non-persistent) quota reservations that need to be unreserved.
+	 */
+	xfs_trans_unreserve_and_mod_dquots(tp);
+	if (tp->t_ticket) {
+		commit_lsn = xfs_log_done(mp, tp->t_ticket, NULL, log_flags);
+		if (commit_lsn == -1 && !error)
+			error = XFS_ERROR(EIO);
+	}
+	current_restore_flags_nested(&tp->t_pflags, PF_FSTRANS);
+	xfs_trans_free_items(tp, error ? XFS_TRANS_ABORT : 0);
+	xfs_trans_free_busy(tp);
+	xfs_trans_free(tp);
+
+	XFS_STATS_INC(xs_trans_empty);
+	return error;
 }
 
 /*
