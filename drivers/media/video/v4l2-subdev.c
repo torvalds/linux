@@ -149,6 +149,9 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	struct video_device *vdev = video_devdata(file);
 	struct v4l2_subdev *sd = vdev_to_v4l2_subdev(vdev);
 	struct v4l2_fh *vfh = file->private_data;
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+	struct v4l2_subdev_fh *subdev_fh = to_v4l2_subdev_fh(vfh);
+#endif
 
 	switch (cmd) {
 	case VIDIOC_QUERYCTRL:
@@ -183,7 +186,53 @@ static long subdev_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	case VIDIOC_UNSUBSCRIBE_EVENT:
 		return v4l2_subdev_call(sd, core, unsubscribe_event, vfh, arg);
+#if defined(CONFIG_VIDEO_V4L2_SUBDEV_API)
+	case VIDIOC_SUBDEV_G_FMT: {
+		struct v4l2_subdev_format *format = arg;
 
+		if (format->which != V4L2_SUBDEV_FORMAT_TRY &&
+		    format->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
+
+		if (format->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, get_fmt, subdev_fh, format);
+	}
+
+	case VIDIOC_SUBDEV_S_FMT: {
+		struct v4l2_subdev_format *format = arg;
+
+		if (format->which != V4L2_SUBDEV_FORMAT_TRY &&
+		    format->which != V4L2_SUBDEV_FORMAT_ACTIVE)
+			return -EINVAL;
+
+		if (format->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, set_fmt, subdev_fh, format);
+	}
+
+	case VIDIOC_SUBDEV_ENUM_MBUS_CODE: {
+		struct v4l2_subdev_mbus_code_enum *code = arg;
+
+		if (code->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, enum_mbus_code, subdev_fh,
+					code);
+	}
+
+	case VIDIOC_SUBDEV_ENUM_FRAME_SIZE: {
+		struct v4l2_subdev_frame_size_enum *fse = arg;
+
+		if (fse->pad >= sd->entity.num_pads)
+			return -EINVAL;
+
+		return v4l2_subdev_call(sd, pad, enum_frame_size, subdev_fh,
+					fse);
+	}
+#endif
 	default:
 		return -ENOIOCTLCMD;
 	}

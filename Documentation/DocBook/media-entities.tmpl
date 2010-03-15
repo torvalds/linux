@@ -86,6 +86,10 @@
 <!ENTITY VIDIOC-S-PRIORITY "<link linkend='vidioc-g-priority'><constant>VIDIOC_S_PRIORITY</constant></link>">
 <!ENTITY VIDIOC-S-STD "<link linkend='vidioc-g-std'><constant>VIDIOC_S_STD</constant></link>">
 <!ENTITY VIDIOC-S-TUNER "<link linkend='vidioc-g-tuner'><constant>VIDIOC_S_TUNER</constant></link>">
+<!ENTITY VIDIOC-SUBDEV-ENUM-FRAME-SIZE "<link linkend='vidioc-subdev-enum-frame-size'><constant>VIDIOC_SUBDEV_ENUM_FRAME_SIZE</constant></link>">
+<!ENTITY VIDIOC-SUBDEV-ENUM-MBUS-CODE "<link linkend='vidioc-subdev-enum-mbus-code'><constant>VIDIOC_SUBDEV_ENUM_MBUS_CODE</constant></link>">
+<!ENTITY VIDIOC-SUBDEV-G-FMT "<link linkend='vidioc-subdev-g-fmt'><constant>VIDIOC_SUBDEV_G_FMT</constant></link>">
+<!ENTITY VIDIOC-SUBDEV-S-FMT "<link linkend='vidioc-subdev-g-fmt'><constant>VIDIOC_SUBDEV_S_FMT</constant></link>">
 <!ENTITY VIDIOC-TRY-ENCODER-CMD "<link linkend='vidioc-encoder-cmd'><constant>VIDIOC_TRY_ENCODER_CMD</constant></link>">
 <!ENTITY VIDIOC-TRY-EXT-CTRLS "<link linkend='vidioc-g-ext-ctrls'><constant>VIDIOC_TRY_EXT_CTRLS</constant></link>">
 <!ENTITY VIDIOC-TRY-FMT "<link linkend='vidioc-g-fmt'><constant>VIDIOC_TRY_FMT</constant></link>">
@@ -107,6 +111,7 @@
 <!ENTITY v4l2-field "enum&nbsp;<link linkend='v4l2-field'>v4l2_field</link>">
 <!ENTITY v4l2-frmivaltypes "enum&nbsp;<link linkend='v4l2-frmivaltypes'>v4l2_frmivaltypes</link>">
 <!ENTITY v4l2-frmsizetypes "enum&nbsp;<link linkend='v4l2-frmsizetypes'>v4l2_frmsizetypes</link>">
+<!ENTITY v4l2-mbus-pixelcode "enum&nbsp;<link linkend='v4l2-mbus-pixelcode'>v4l2_mbus_pixelcode</link>">
 <!ENTITY v4l2-memory "enum&nbsp;<link linkend='v4l2-memory'>v4l2_memory</link>">
 <!ENTITY v4l2-mpeg-audio-ac3-bitrate "enum&nbsp;<link linkend='v4l2-mpeg-audio-ac3-bitrate'>v4l2_mpeg_audio_ac3_bitrate</link>">
 <!ENTITY v4l2-mpeg-audio-crc "enum&nbsp;<link linkend='v4l2-mpeg-audio-crc'>v4l2_mpeg_audio_crc</link>">
@@ -130,6 +135,7 @@
 <!ENTITY v4l2-mpeg-video-encoding "enum&nbsp;<link linkend='v4l2-mpeg-video-encoding'>v4l2_mpeg_video_encoding</link>">
 <!ENTITY v4l2-power-line-frequency "enum&nbsp;<link linkend='v4l2-power-line-frequency'>v4l2_power_line_frequency</link>">
 <!ENTITY v4l2-priority "enum&nbsp;<link linkend='v4l2-priority'>v4l2_priority</link>">
+<!ENTITY v4l2-subdev-format-whence "enum&nbsp;<link linkend='v4l2-subdev-format-whence'>v4l2_subdev_format_whence</link>">
 <!ENTITY v4l2-tuner-type "enum&nbsp;<link linkend='v4l2-tuner-type'>v4l2_tuner_type</link>">
 <!ENTITY v4l2-preemphasis "enum&nbsp;<link linkend='v4l2-preemphasis'>v4l2_preemphasis</link>">
 
@@ -172,6 +178,7 @@
 <!ENTITY v4l2-hw-freq-seek "struct&nbsp;<link linkend='v4l2-hw-freq-seek'>v4l2_hw_freq_seek</link>">
 <!ENTITY v4l2-input "struct&nbsp;<link linkend='v4l2-input'>v4l2_input</link>">
 <!ENTITY v4l2-jpegcompression "struct&nbsp;<link linkend='v4l2-jpegcompression'>v4l2_jpegcompression</link>">
+<!ENTITY v4l2-mbus-framefmt "struct&nbsp;<link linkend='v4l2-mbus-framefmt'>v4l2_mbus_framefmt</link>">
 <!ENTITY v4l2-modulator "struct&nbsp;<link linkend='v4l2-modulator'>v4l2_modulator</link>">
 <!ENTITY v4l2-mpeg-vbi-fmt-ivtv "struct&nbsp;<link linkend='v4l2-mpeg-vbi-fmt-ivtv'>v4l2_mpeg_vbi_fmt_ivtv</link>">
 <!ENTITY v4l2-output "struct&nbsp;<link linkend='v4l2-output'>v4l2_output</link>">
@@ -186,6 +193,9 @@
 <!ENTITY v4l2-sliced-vbi-cap "struct&nbsp;<link linkend='v4l2-sliced-vbi-cap'>v4l2_sliced_vbi_cap</link>">
 <!ENTITY v4l2-sliced-vbi-data "struct&nbsp;<link linkend='v4l2-sliced-vbi-data'>v4l2_sliced_vbi_data</link>">
 <!ENTITY v4l2-sliced-vbi-format "struct&nbsp;<link linkend='v4l2-sliced-vbi-format'>v4l2_sliced_vbi_format</link>">
+<!ENTITY v4l2-subdev-frame-size-enum "struct&nbsp;<link linkend='v4l2-subdev-frame-size-enum'>v4l2_subdev_frame_size_enum</link>">
+<!ENTITY v4l2-subdev-format "struct&nbsp;<link linkend='v4l2-subdev-format'>v4l2_subdev_format</link>">
+<!ENTITY v4l2-subdev-mbus-code-enum "struct&nbsp;<link linkend='v4l2-subdev-mbus-code-enum'>v4l2_subdev_mbus_code_enum</link>">
 <!ENTITY v4l2-standard "struct&nbsp;<link linkend='v4l2-standard'>v4l2_standard</link>">
 <!ENTITY v4l2-streamparm "struct&nbsp;<link linkend='v4l2-streamparm'>v4l2_streamparm</link>">
 <!ENTITY v4l2-timecode "struct&nbsp;<link linkend='v4l2-timecode'>v4l2_timecode</link>">
@@ -215,6 +225,7 @@
 <!ENTITY ENXIO "<errorcode>ENXIO</errorcode> error code">
 <!ENTITY EMFILE "<errorcode>EMFILE</errorcode> error code">
 <!ENTITY EPERM "<errorcode>EPERM</errorcode> error code">
+<!ENTITY EPIPE "<errorcode>EPIPE</errorcode> error code">
 <!ENTITY ERANGE "<errorcode>ERANGE</errorcode> error code">
 
 <!-- Subsections -->
@@ -234,6 +245,7 @@
 <!ENTITY sub-dev-raw-vbi SYSTEM "v4l/dev-raw-vbi.xml">
 <!ENTITY sub-dev-rds SYSTEM "v4l/dev-rds.xml">
 <!ENTITY sub-dev-sliced-vbi SYSTEM "v4l/dev-sliced-vbi.xml">
+<!ENTITY sub-dev-subdev SYSTEM "v4l/dev-subdev.xml">
 <!ENTITY sub-dev-teletext SYSTEM "v4l/dev-teletext.xml">
 <!ENTITY sub-driver SYSTEM "v4l/driver.xml">
 <!ENTITY sub-libv4l SYSTEM "v4l/libv4l.xml">
@@ -319,6 +331,10 @@
 <!ENTITY sub-reqbufs SYSTEM "v4l/vidioc-reqbufs.xml">
 <!ENTITY sub-s-hw-freq-seek SYSTEM "v4l/vidioc-s-hw-freq-seek.xml">
 <!ENTITY sub-streamon SYSTEM "v4l/vidioc-streamon.xml">
+<!ENTITY sub-subdev-enum-frame-size SYSTEM "v4l/vidioc-subdev-enum-frame-size.xml">
+<!ENTITY sub-subdev-enum-mbus-code SYSTEM "v4l/vidioc-subdev-enum-mbus-code.xml">
+<!ENTITY sub-subdev-formats SYSTEM "v4l/subdev-formats.xml">
+<!ENTITY sub-subdev-g-fmt SYSTEM "v4l/vidioc-subdev-g-fmt.xml">
 <!ENTITY sub-capture-c SYSTEM "v4l/capture.c.xml">
 <!ENTITY sub-keytable-c SYSTEM "v4l/keytable.c.xml">
 <!ENTITY sub-v4l2grab-c SYSTEM "v4l/v4l2grab.c.xml">

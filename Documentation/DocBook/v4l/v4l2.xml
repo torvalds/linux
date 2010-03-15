@@ -439,6 +439,7 @@ and discussions on the V4L mailing list.</revremark>
     <section id="radio"> &sub-dev-radio; </section>
     <section id="rds"> &sub-dev-rds; </section>
     <section id="event"> &sub-dev-event; </section>
+    <section id="subdev"> &sub-dev-subdev; </section>
   </chapter>
 
   <chapter id="driver">
@@ -506,6 +507,9 @@ and discussions on the V4L mailing list.</revremark>
     &sub-reqbufs;
     &sub-s-hw-freq-seek;
     &sub-streamon;
+    &sub-subdev-enum-frame-size;
+    &sub-subdev-enum-mbus-code;
+    &sub-subdev-g-fmt;
     &sub-subscribe-event;
     <!-- End of ioctls. -->
     &sub-mmap;
