@@ -290,11 +290,6 @@ extern const struct ethtool_ops be_ethtool_ops;
 
 #define drvr_stats(adapter)		(&adapter->stats.drvr_stats)
 
-static inline unsigned int be_pci_func(struct be_adapter *adapter)
-{
-	return PCI_FUNC(adapter->pdev->devfn);
-}
-
 #define BE_SET_NETDEV_OPS(netdev, ops)	(netdev->netdev_ops = ops)
 
 #define PAGE_SHIFT_4K		12

@@ -320,6 +320,8 @@
 #define E1000_RXCSUM_IPPCSE    0x00001000   /* IP payload checksum enable */
 
 /* Header split receive */
+#define E1000_RFCTL_NFSW_DIS            0x00000040
+#define E1000_RFCTL_NFSR_DIS            0x00000080
 #define E1000_RFCTL_ACK_DIS             0x00001000
 #define E1000_RFCTL_EXTEN               0x00008000
 #define E1000_RFCTL_IPV6_EX_DIS         0x00010000

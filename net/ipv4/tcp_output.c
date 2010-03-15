@@ -2395,13 +2395,17 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	struct tcp_extend_values *xvp = tcp_xv(rvp);
 	struct inet_request_sock *ireq = inet_rsk(req);
 	struct tcp_sock *tp = tcp_sk(sk);
+	const struct tcp_cookie_values *cvp = tp->cookie_values;
 	struct tcphdr *th;
 	struct sk_buff *skb;
 	struct tcp_md5sig_key *md5;
 	int tcp_header_size;
 	int mss;
+	int s_data_desired = 0;
 
-	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1, GFP_ATOMIC);
+	if (cvp != NULL && cvp->s_data_constant && cvp->s_data_desired)
+		s_data_desired = cvp->s_data_desired;
+	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15 + s_data_desired, 1, GFP_ATOMIC);
 	if (skb == NULL)
 		return NULL;
 
@@ -2457,16 +2461,12 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 			     TCPCB_FLAG_SYN | TCPCB_FLAG_ACK);
 
 	if (OPTION_COOKIE_EXTENSION & opts.options) {
-		const struct tcp_cookie_values *cvp = tp->cookie_values;
-
-		if (cvp != NULL &&
-		    cvp->s_data_constant &&
-		    cvp->s_data_desired > 0) {
-			u8 *buf = skb_put(skb, cvp->s_data_desired);
+		if (s_data_desired) {
+			u8 *buf = skb_put(skb, s_data_desired);
 
 			/* copy data directly from the listening socket. */
-			memcpy(buf, cvp->s_data_payload, cvp->s_data_desired);
-			TCP_SKB_CB(skb)->end_seq += cvp->s_data_desired;
+			memcpy(buf, cvp->s_data_payload, s_data_desired);
+			TCP_SKB_CB(skb)->end_seq += s_data_desired;
 		}
 
 		if (opts.hash_size > 0) {

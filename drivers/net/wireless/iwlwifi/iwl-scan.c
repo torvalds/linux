@@ -638,20 +638,9 @@ u16 iwl_fill_probe_req(struct iwl_priv *priv, struct ieee80211_mgmt *frame,
 	if (left < 0)
 		return 0;
 	*pos++ = WLAN_EID_SSID;
-	if (!priv->is_internal_short_scan &&
-	    priv->scan_request->n_ssids) {
-		struct cfg80211_ssid *ssid =
-			priv->scan_request->ssids;
+	*pos++ = 0;
 
-		/* Broadcast if ssid_len is 0 */
-		*pos++ = ssid->ssid_len;
-		memcpy(pos, ssid->ssid, ssid->ssid_len);
-		pos += ssid->ssid_len;
-		len += 2 + ssid->ssid_len;
-	} else {
-		*pos++ = 0;
-		len += 2;
-	}
+	len += 2;
 
 	if (WARN_ON(left < ie_len))
 		return len;
@@ -780,26 +769,20 @@ static void iwl_bg_request_scan(struct work_struct *data)
 	if (priv->is_internal_short_scan) {
 		IWL_DEBUG_SCAN(priv, "Start internal passive scan.\n");
 	} else if (priv->scan_request->n_ssids) {
+		int i, p = 0;
 		IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
-		/*
-		 * The first SSID to scan is stuffed into the probe request
-		 * template and the remaining ones are handled through the
-		 * direct_scan array.
-		 */
-		if (priv->scan_request->n_ssids > 1) {
-			int i, p = 0;
-			for (i = 1; i < priv->scan_request->n_ssids; i++) {
-				if (!priv->scan_request->ssids[i].ssid_len)
-					continue;
-				scan->direct_scan[p].id = WLAN_EID_SSID;
-				scan->direct_scan[p].len =
-					priv->scan_request->ssids[i].ssid_len;
-				memcpy(scan->direct_scan[p].ssid,
-				       priv->scan_request->ssids[i].ssid,
-				       priv->scan_request->ssids[i].ssid_len);
-				n_probes++;
-				p++;
-			}
+		for (i = 0; i < priv->scan_request->n_ssids; i++) {
+			/* always does wildcard anyway */
+			if (!priv->scan_request->ssids[i].ssid_len)
+				continue;
+			scan->direct_scan[p].id = WLAN_EID_SSID;
+			scan->direct_scan[p].len =
+				priv->scan_request->ssids[i].ssid_len;
+			memcpy(scan->direct_scan[p].ssid,
+			       priv->scan_request->ssids[i].ssid,
+			       priv->scan_request->ssids[i].ssid_len);
+			n_probes++;
+			p++;
 		}
 		is_active = true;
 	} else

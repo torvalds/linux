@@ -200,7 +200,7 @@ static struct acpi_driver acpi_pcc_driver = {
 };
 
 #define KEYMAP_SIZE		11
-static const int initial_keymap[KEYMAP_SIZE] = {
+static const unsigned int initial_keymap[KEYMAP_SIZE] = {
 	/*  0 */ KEY_RESERVED,
 	/*  1 */ KEY_BRIGHTNESSDOWN,
 	/*  2 */ KEY_BRIGHTNESSUP,
@@ -222,7 +222,7 @@ struct pcc_acpi {
 	struct acpi_device	*device;
 	struct input_dev	*input_dev;
 	struct backlight_device	*backlight;
-	int			keymap[KEYMAP_SIZE];
+	unsigned int		keymap[KEYMAP_SIZE];
 };
 
 struct pcc_keyinput {
@@ -445,7 +445,8 @@ static struct attribute_group pcc_attr_group = {
 
 /* hotkey input device driver */
 
-static int pcc_getkeycode(struct input_dev *dev, int scancode, int *keycode)
+static int pcc_getkeycode(struct input_dev *dev,
+			  unsigned int scancode, unsigned int *keycode)
 {
 	struct pcc_acpi *pcc = input_get_drvdata(dev);
 
@@ -457,7 +458,7 @@ static int pcc_getkeycode(struct input_dev *dev, int scancode, int *keycode)
 	return 0;
 }
 
-static int keymap_get_by_keycode(struct pcc_acpi *pcc, int keycode)
+static int keymap_get_by_keycode(struct pcc_acpi *pcc, unsigned int keycode)
 {
 	int i;
 
@@ -469,15 +470,13 @@ static int keymap_get_by_keycode(struct pcc_acpi *pcc, int keycode)
 	return 0;
 }
 
-static int pcc_setkeycode(struct input_dev *dev, int scancode, int keycode)
+static int pcc_setkeycode(struct input_dev *dev,
+			  unsigned int scancode, unsigned int keycode)
 {
 	struct pcc_acpi *pcc = input_get_drvdata(dev);
 	int oldkeycode;
 
 	if (scancode >= ARRAY_SIZE(pcc->keymap))
-		return -EINVAL;
-
-	if (keycode < 0 || keycode > KEY_MAX)
 		return -EINVAL;
 
 	oldkeycode = pcc->keymap[scancode];
