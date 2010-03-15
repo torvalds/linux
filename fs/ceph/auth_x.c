@@ -28,6 +28,12 @@ static int ceph_x_is_authenticated(struct ceph_auth_client *ac)
 	return (ac->want_keys & xi->have_keys) == ac->want_keys;
 }
 
+static int ceph_x_encrypt_buflen(int ilen)
+{
+	return sizeof(struct ceph_x_encrypt_header) + ilen + 16 +
+		sizeof(u32);
+}
+
 static int ceph_x_encrypt(struct ceph_crypto_key *secret,
 			  void *ibuf, int ilen, void *obuf, size_t olen)
 {
@@ -242,7 +248,7 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 				   struct ceph_x_ticket_handler *th,
 				   struct ceph_x_authorizer *au)
 {
-	int len;
+	int maxlen;
 	struct ceph_x_authorize_a *msg_a;
 	struct ceph_x_authorize_b msg_b;
 	void *p, *end;
@@ -253,15 +259,15 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 	dout("build_authorizer for %s %p\n",
 	     ceph_entity_type_name(th->service), au);
 
-	len = sizeof(*msg_a) + sizeof(msg_b) + sizeof(u32) +
-		ticket_blob_len + 16;
-	dout("  need len %d\n", len);
-	if (au->buf && au->buf->alloc_len < len) {
+	maxlen = sizeof(*msg_a) + sizeof(msg_b) +
+		ceph_x_encrypt_buflen(ticket_blob_len);
+	dout("  need len %d\n", maxlen);
+	if (au->buf && au->buf->alloc_len < maxlen) {
 		ceph_buffer_put(au->buf);
 		au->buf = NULL;
 	}
 	if (!au->buf) {
-		au->buf = ceph_buffer_new(len, GFP_NOFS);
+		au->buf = ceph_buffer_new(maxlen, GFP_NOFS);
 		if (!au->buf)
 			return -ENOMEM;
 	}
@@ -296,6 +302,7 @@ static int ceph_x_build_authorizer(struct ceph_auth_client *ac,
 	au->buf->vec.iov_len = p - au->buf->vec.iov_base;
 	dout(" built authorizer nonce %llx len %d\n", au->nonce,
 	     (int)au->buf->vec.iov_len);
+	BUG_ON(au->buf->vec.iov_len > maxlen);
 	return 0;
 
 out_buf:
