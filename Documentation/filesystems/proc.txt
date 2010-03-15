@@ -305,7 +305,7 @@ Table 1-4: Contents of the stat files (as of 2.6.30-rc7)
   cgtime        guest time of the task children in jiffies
 ..............................................................................
 
-The /proc/PID/map file containing the currently mapped memory regions and
+The /proc/PID/maps file containing the currently mapped memory regions and
 their access permissions.
 
 The format is:
