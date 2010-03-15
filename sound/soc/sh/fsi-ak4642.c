@@ -26,6 +26,10 @@ static int fsi_ak4642_dai_init(struct snd_soc_codec *codec)
 {
 	int ret;
 
+	ret = snd_soc_dai_set_fmt(&ak4642_dai, SND_SOC_DAIFMT_CBM_CFM);
+	if (ret < 0)
+		return ret;
+
 	ret = snd_soc_dai_set_sysclk(&ak4642_dai, 0, 11289600, 0);
 
 	return ret;

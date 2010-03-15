@@ -80,12 +80,26 @@
 
 #define AK4642_CACHEREGNUM 	0x25
 
+/* PW_MGMT2 */
+#define HPMTN		(1 << 6)
+#define PMHPL		(1 << 5)
+#define PMHPR		(1 << 4)
+#define MS		(1 << 3) /* master/slave select */
+#define MCKO		(1 << 1)
+#define PMPLL		(1 << 0)
+
+#define PMHP_MASK	(PMHPL | PMHPR)
+#define PMHP		PMHP_MASK
+
 /* MD_CTL1 */
 #define PLL3		(1 << 7)
 #define PLL2		(1 << 6)
 #define PLL1		(1 << 5)
 #define PLL0		(1 << 4)
 #define PLL_MASK	(PLL3 | PLL2 | PLL1 | PLL0)
+
+#define BCKO_MASK	(1 << 3)
+#define BCKO_64		BCKO_MASK
 
 struct snd_soc_codec_device soc_codec_dev_ak4642;
 
@@ -188,9 +202,6 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 *
 		 * This operation came from example code of
 		 * "ASAHI KASEI AK4642" (japanese) manual p97.
-		 *
-		 * Example code use 0x39, 0x79 value for 0x01 address,
-		 * But we need MCKO (0x02) bit now
 		 */
 		ak4642_write(codec, 0x05, 0x27);
 		ak4642_write(codec, 0x0f, 0x09);
@@ -200,8 +211,8 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		ak4642_write(codec, 0x0a, 0x28);
 		ak4642_write(codec, 0x0d, 0x28);
 		ak4642_write(codec, 0x00, 0x64);
-		ak4642_write(codec, 0x01, 0x3b); /* + MCKO bit */
-		ak4642_write(codec, 0x01, 0x7b); /* + MCKO bit */
+		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	PMHP);
+		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	HPMTN);
 	} else {
 		/*
 		 * start stereo input
@@ -238,8 +249,8 @@ static void ak4642_dai_shutdown(struct snd_pcm_substream *substream,
 
 	if (is_play) {
 		/* stop headphone output */
-		ak4642_write(codec, 0x01, 0x3b);
-		ak4642_write(codec, 0x01, 0x0b);
+		snd_soc_update_bits(codec, PW_MGMT2, HPMTN,	0);
+		snd_soc_update_bits(codec, PW_MGMT2, PMHP_MASK,	0);
 		ak4642_write(codec, 0x00, 0x40);
 		ak4642_write(codec, 0x0e, 0x11);
 		ak4642_write(codec, 0x0f, 0x08);
@@ -284,10 +295,37 @@ static int ak4642_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 	return 0;
 }
 
+static int ak4642_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	u8 data;
+	u8 bcko;
+
+	data = MCKO | PMPLL; /* use MCKO */
+	bcko = 0;
+
+	/* set master/slave audio interface */
+	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
+	case SND_SOC_DAIFMT_CBM_CFM:
+		data |= MS;
+		bcko = BCKO_64;
+		break;
+	case SND_SOC_DAIFMT_CBS_CFS:
+		break;
+	default:
+		return -EINVAL;
+	}
+	snd_soc_update_bits(codec, PW_MGMT2, MS, data);
+	snd_soc_update_bits(codec, MD_CTL1, BCKO_MASK, bcko);
+
+	return 0;
+}
+
 static struct snd_soc_dai_ops ak4642_dai_ops = {
 	.startup	= ak4642_dai_startup,
 	.shutdown	= ak4642_dai_shutdown,
 	.set_sysclk	= ak4642_dai_set_sysclk,
+	.set_fmt	= ak4642_dai_set_fmt,
 };
 
 struct snd_soc_dai ak4642_dai = {
@@ -365,23 +403,6 @@ static int ak4642_init(struct ak4642_priv *ak4642)
 		snd_soc_unregister_codec(codec);
 		goto reg_cache_err;
 	}
-
-	/*
-	 * clock setting
-	 *
-	 * Audio I/F Format: MSB justified (ADC & DAC)
-	 * BICK frequency at Master Mode: 64fs
-	 * MCKO: Enable
-	 * Sampling Frequency: 44.1kHz
-	 *
-	 * This operation came from example code of
-	 * "ASAHI KASEI AK4642" (japanese) manual p89.
-	 *
-	 * please fix-me
-	 */
-	ak4642_write(codec, 0x01, 0x08);
-	ak4642_write(codec, 0x05, 0x27);
-	ak4642_write(codec, 0x04, 0x0a);
 
 	return ret;
 
