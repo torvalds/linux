@@ -64,8 +64,11 @@ config BITS
 	default 64 if SPARC64
 
 config GENERIC_TIME
+	def_bool y
+
+config ARCH_USES_GETTIMEOFFSET
 	bool
-	default y if SPARC64
+	default y if SPARC32
 
 config GENERIC_CMOS_UPDATE
 	bool
@@ -123,6 +126,9 @@ config HIGHMEM
 config ZONE_DMA
 	bool
 	default y if SPARC32
+
+config NEED_DMA_MAP_STATE
+	def_bool y
 
 config GENERIC_ISA_DMA
 	bool

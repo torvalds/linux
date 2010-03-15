@@ -9,10 +9,14 @@ Documentation/SubmittingPatches and elsewhere regarding submitting Linux
 kernel patches.
 
 
-1: Builds cleanly with applicable or modified CONFIG options =y, =m, and
+1: If you use a facility then #include the file that defines/declares
+   that facility.  Don't depend on other header files pulling in ones
+   that you use.
+
+2: Builds cleanly with applicable or modified CONFIG options =y, =m, and
    =n.  No gcc warnings/errors, no linker warnings/errors.
 
-2: Passes allnoconfig, allmodconfig
+2b: Passes allnoconfig, allmodconfig
 
 3: Builds on multiple CPU architectures by using local cross-compile tools
    or some other build farm.

@@ -7,27 +7,37 @@ config ARCH_OMAP_OTG
 
 choice
 	prompt "OMAP System Type"
-	default ARCH_OMAP1
+	default ARCH_OMAP2PLUS
 
 config ARCH_OMAP1
 	bool "TI OMAP1"
 	select COMMON_CLKDEV
+	help
+	  "Systems based on omap7xx, omap15xx or omap16xx"
+
+config ARCH_OMAP2PLUS
+	bool "TI OMAP2/3/4"
+	select COMMON_CLKDEV
+	help
+	  "Systems based on omap24xx, omap34xx or omap44xx"
 
 config ARCH_OMAP2
 	bool "TI OMAP2"
+	depends on ARCH_OMAP2PLUS
 	select CPU_V6
-	select COMMON_CLKDEV
 
 config ARCH_OMAP3
 	bool "TI OMAP3"
+	depends on ARCH_OMAP2PLUS
 	select CPU_V7
-	select COMMON_CLKDEV
+	select USB_ARCH_HAS_EHCI
+	select ARM_L1_CACHE_SHIFT_6
 
 config ARCH_OMAP4
 	bool "TI OMAP4"
+	depends on ARCH_OMAP2PLUS
 	select CPU_V7
 	select ARM_GIC
-	select COMMON_CLKDEV
 
 endchoice
 
@@ -116,7 +126,7 @@ config OMAP_MPU_TIMER
 
 config OMAP_32K_TIMER
 	bool "Use 32KHz timer"
-	depends on ARCH_OMAP16XX || ARCH_OMAP24XX || ARCH_OMAP34XX || ARCH_OMAP4
+	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS
 	help
 	  Select this option if you want to enable the OMAP 32KHz timer.
 	  This timer saves power compared to the OMAP_MPU_TIMER, and has
@@ -125,6 +135,23 @@ config OMAP_32K_TIMER
 	  currently only available for OMAP16XX, 24XX, 34XX and OMAP4.
 
 endchoice
+
+config OMAP3_L2_AUX_SECURE_SAVE_RESTORE
+	bool "OMAP3 HS/EMU save and restore for L2 AUX control register"
+	depends on ARCH_OMAP3 && PM
+	default n
+	help
+	  Without this option, L2 Auxiliary control register contents are
+	  lost during off-mode entry on HS/EMU devices. This feature
+	  requires support from PPA / boot-loader in HS/EMU devices, which
+	  currently does not exist by default.
+
+config OMAP3_L2_AUX_SECURE_SERVICE_SET_ID
+	int "Service ID for the support routine to set L2 AUX control"
+	depends on OMAP3_L2_AUX_SECURE_SAVE_RESTORE
+	default 43
+	help
+	  PPA routine service ID for setting L2 auxiliary control register.
 
 config OMAP_32K_TIMER_HZ
 	int "Kernel internal timer frequency for 32KHz timer"
@@ -137,28 +164,9 @@ config OMAP_32K_TIMER_HZ
 
 config OMAP_DM_TIMER
 	bool "Use dual-mode timer"
-	depends on ARCH_OMAP16XX || ARCH_OMAP24XX || ARCH_OMAP34XX || ARCH_OMAP4
+	depends on ARCH_OMAP16XX || ARCH_OMAP2PLUS
 	help
 	 Select this option if you want to use OMAP Dual-Mode timers.
-
-choice
-	prompt "Low-level debug console UART"
-	depends on ARCH_OMAP
-	default OMAP_LL_DEBUG_NONE
-
-config OMAP_LL_DEBUG_UART1
-	bool "UART1"
-
-config OMAP_LL_DEBUG_UART2
-	bool "UART2"
-
-config OMAP_LL_DEBUG_UART3
-	bool "UART3"
-
-config OMAP_LL_DEBUG_NONE
-	bool "None"
-
-endchoice
 
 config OMAP_SERIAL_WAKE
 	bool "Enable wake-up events for serial ports"

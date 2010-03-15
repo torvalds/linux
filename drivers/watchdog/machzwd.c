@@ -101,7 +101,7 @@ MODULE_PARM_DESC(nowayout,
 
 #define PFX "machzwd"
 
-static struct watchdog_info zf_info = {
+static const struct watchdog_info zf_info = {
 	.options		= WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE,
 	.firmware_version	= 1,
 	.identity		= "ZF-Logic watchdog",

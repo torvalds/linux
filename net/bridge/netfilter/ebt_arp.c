@@ -120,7 +120,7 @@ static struct xt_match ebt_arp_mt_reg __read_mostly = {
 	.family		= NFPROTO_BRIDGE,
 	.match		= ebt_arp_mt,
 	.checkentry	= ebt_arp_mt_check,
-	.matchsize	= XT_ALIGN(sizeof(struct ebt_arp_info)),
+	.matchsize	= sizeof(struct ebt_arp_info),
 	.me		= THIS_MODULE,
 };
 

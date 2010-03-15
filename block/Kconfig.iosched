@@ -23,6 +23,7 @@ config IOSCHED_DEADLINE
 
 config IOSCHED_CFQ
 	tristate "CFQ I/O scheduler"
+	select BLK_CGROUP if CFQ_GROUP_IOSCHED
 	default y
 	---help---
 	  The CFQ I/O scheduler tries to distribute bandwidth equally
@@ -35,7 +36,6 @@ config IOSCHED_CFQ
 config CFQ_GROUP_IOSCHED
 	bool "CFQ Group Scheduling support"
 	depends on IOSCHED_CFQ && CGROUPS
-	select BLK_CGROUP
 	default n
 	---help---
 	  Enable group IO scheduling in CFQ.

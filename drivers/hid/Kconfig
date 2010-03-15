@@ -55,6 +55,12 @@ source "drivers/hid/usbhid/Kconfig"
 menu "Special HID drivers"
 	depends on HID
 
+config HID_3M_PCT
+	tristate "3M PCT"
+	depends on USB_HID
+	---help---
+	Support for 3M PCT touch screens.
+
 config HID_A4TECH
 	tristate "A4 tech" if EMBEDDED
 	depends on USB_HID
@@ -183,12 +189,35 @@ config LOGIRUMBLEPAD2_FF
 	  Say Y here if you want to enable force feedback support for Logitech
 	  Rumblepad 2 devices.
 
+config LOGIG940_FF
+	bool "Logitech Flight System G940 force feedback support"
+	depends on HID_LOGITECH
+	select INPUT_FF_MEMLESS
+	help
+	  Say Y here if you want to enable force feedback support for Logitech
+	  Flight System G940 devices.
+
+config HID_MAGICMOUSE
+	tristate "Apple MagicMouse multi-touch support"
+	depends on BT_HIDP
+	---help---
+	Support for the Apple Magic Mouse multi-touch.
+
+	Say Y here if you want support for the multi-touch features of the
+	Apple Wireless "Magic" Mouse.
+
 config HID_MICROSOFT
 	tristate "Microsoft" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
 	Support for Microsoft devices that are not fully compliant with HID standard.
+
+config HID_MOSART
+	tristate "MosArt"
+	depends on USB_HID
+	---help---
+	Support for MosArt dual-touch panels.
 
 config HID_MONTEREY
 	tristate "Monterey" if EMBEDDED
@@ -198,11 +227,17 @@ config HID_MONTEREY
 	Support for Monterey Genius KB29E.
 
 config HID_NTRIG
-	tristate "NTrig" if EMBEDDED
+	tristate "NTrig"
+	depends on USB_HID
+	---help---
+	Support for N-Trig touch screen.
+
+config HID_ORTEK
+	tristate "Ortek" if EMBEDDED
 	depends on USB_HID
 	default !EMBEDDED
 	---help---
-	Support for N-Trig touch screen.
+	Support for Ortek WKB-2000 wireless keyboard + mouse trackpad.
 
 config HID_PANTHERLORD
 	tristate "Pantherlord support" if EMBEDDED
@@ -227,6 +262,12 @@ config HID_PETALYNX
 	---help---
 	Support for Petalynx Maxter remote control.
 
+config HID_QUANTA
+	tristate "Quanta Optical Touch"
+	depends on USB_HID
+	---help---
+	Support for Quanta Optical Touch dual-touch panels.
+
 config HID_SAMSUNG
 	tristate "Samsung" if EMBEDDED
 	depends on USB_HID
@@ -240,6 +281,12 @@ config HID_SONY
 	default !EMBEDDED
 	---help---
 	Support for Sony PS3 controller.
+
+config HID_STANTUM
+	tristate "Stantum"
+	depends on USB_HID
+	---help---
+	Support for Stantum multitouch panel.
 
 config HID_SUNPLUS
 	tristate "Sunplus" if EMBEDDED
@@ -305,9 +352,8 @@ config THRUSTMASTER_FF
 	  Rumble Force or Force Feedback Wheel.
 
 config HID_WACOM
-	tristate "Wacom Bluetooth devices support" if EMBEDDED
+	tristate "Wacom Bluetooth devices support"
 	depends on BT_HIDP
-	default !EMBEDDED
 	---help---
 	Support for Wacom Graphire Bluetooth tablet.
 

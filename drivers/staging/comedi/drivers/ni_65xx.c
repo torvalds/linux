@@ -26,12 +26,13 @@
 /*
 Driver: ni_65xx
 Description: National Instruments 65xx static dio boards
-Author: Jon Grierson <jd@renko.co.uk>, Frank Mori Hess <fmhess@users.sourceforge.net>
+Author: Jon Grierson <jd@renko.co.uk>,
+	Frank Mori Hess <fmhess@users.sourceforge.net>
 Status: testing
-Devices: [National Instruments] PCI-6509 (ni_65xx), PXI-6509, PCI-6510, PCI-6511,
-  PXI-6511, PCI-6512, PXI-6512, PCI-6513, PXI-6513, PCI-6514, PXI-6514, PCI-6515,
-  PXI-6515, PCI-6516, PCI-6517, PCI-6518, PCI-6519, PCI-6520, PCI-6521, PXI-6521,
-  PCI-6528, PXI-6528
+Devices: [National Instruments] PCI-6509 (ni_65xx), PXI-6509, PCI-6510,
+  PCI-6511, PXI-6511, PCI-6512, PXI-6512, PCI-6513, PXI-6513, PCI-6514,
+  PXI-6514, PCI-6515, PXI-6515, PCI-6516, PCI-6517, PCI-6518, PCI-6519,
+  PCI-6520, PCI-6521, PXI-6521, PCI-6528, PXI-6528
 Updated: Wed Oct 18 08:59:11 EDT 2006
 
 Based on the PCI-6527 driver by ds.
@@ -418,9 +419,10 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 		return -EINVAL;
 	base_bitfield_channel = CR_CHAN(insn->chanspec);
 	for (j = 0; j < max_ports_per_bitfield; ++j) {
-		const unsigned port_offset = ni_65xx_port_by_channel(base_bitfield_channel) + j;
+		const unsigned port_offset =
+			ni_65xx_port_by_channel(base_bitfield_channel) + j;
 		const unsigned port =
-		    sprivate(s)->base_port + port_offset;
+			sprivate(s)->base_port + port_offset;
 		unsigned base_port_channel;
 		unsigned port_mask, port_data, port_read_bits;
 		int bitshift;
@@ -463,11 +465,11 @@ static int ni_65xx_dio_insn_bits(struct comedi_device *dev,
 			 * subdevice.) */
 			port_read_bits ^= 0xFF;
 		}
-		if (bitshift > 0) {
+		if (bitshift > 0)
 			port_read_bits <<= bitshift;
-		} else {
+		else
 			port_read_bits >>= -bitshift;
-		}
+
 		read_bits |= port_read_bits;
 	}
 	data[1] = read_bits;
@@ -532,7 +534,8 @@ static int ni_65xx_intr_cmdtest(struct comedi_device *dev,
 	if (err)
 		return 1;
 
-	/* step 2: make sure trigger sources are unique and mutually compatible */
+	/* step 2: make sure trigger sources are unique and mutually
+	compatible */
 
 	if (err)
 		return 2;
@@ -652,7 +655,7 @@ static int ni_65xx_attach(struct comedi_device *dev,
 	unsigned i;
 	int ret;
 
-	printk("comedi%d: ni_65xx:", dev->minor);
+	printk(KERN_INFO "comedi%d: ni_65xx:", dev->minor);
 
 	ret = alloc_private(dev, sizeof(struct ni_65xx_private));
 	if (ret < 0)
@@ -664,15 +667,15 @@ static int ni_65xx_attach(struct comedi_device *dev,
 
 	ret = mite_setup(private(dev)->mite);
 	if (ret < 0) {
-		printk("error setting up mite\n");
+		printk(KERN_WARNING "error setting up mite\n");
 		return ret;
 	}
 
 	dev->board_name = board(dev)->name;
 	dev->irq = mite_irq(private(dev)->mite);
-	printk(" %s", dev->board_name);
+	printk(KERN_INFO " %s", dev->board_name);
 
-	printk(" ID=0x%02x",
+	printk(KERN_INFO " ID=0x%02x",
 	       readb(private(dev)->mite->daq_io_addr + ID_Register));
 
 	ret = alloc_subdevices(dev, 4);
@@ -773,7 +776,7 @@ static int ni_65xx_attach(struct comedi_device *dev,
 			  "ni_65xx", dev);
 	if (ret < 0) {
 		dev->irq = 0;
-		printk(" irq not available");
+		printk(KERN_WARNING " irq not available");
 	}
 
 	printk("\n");
@@ -790,21 +793,17 @@ static int ni_65xx_detach(struct comedi_device *dev)
 		       Master_Interrupt_Control);
 	}
 
-	if (dev->irq) {
+	if (dev->irq)
 		free_irq(dev->irq, dev);
-	}
 
 	if (private(dev)) {
 		unsigned i;
 		for (i = 0; i < dev->n_subdevices; ++i) {
-			if (dev->subdevices[i].private) {
-				kfree(dev->subdevices[i].private);
-				dev->subdevices[i].private = NULL;
-			}
+			kfree(dev->subdevices[i].private);
+			dev->subdevices[i].private = NULL;
 		}
-		if (private(dev)->mite) {
+		if (private(dev)->mite)
 			mite_unsetup(private(dev)->mite);
-		}
 	}
 	return 0;
 }
@@ -830,7 +829,7 @@ static int ni_65xx_find_device(struct comedi_device *dev, int bus, int slot)
 			}
 		}
 	}
-	printk("no device found\n");
+	printk(KERN_WARNING "no device found\n");
 	mite_list_devices();
 	return -EIO;
 }

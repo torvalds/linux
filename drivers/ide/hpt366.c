@@ -627,14 +627,14 @@ static u32 get_speed_setting(u8 speed, struct hpt_info *info)
 	return info->timings->clock_table[info->clock][i];
 }
 
-static void hpt3xx_set_mode(ide_drive_t *drive, const u8 speed)
+static void hpt3xx_set_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	struct hpt_info *info	= hpt3xx_get_info(hwif->dev);
 	struct hpt_timings *t	= info->timings;
 	u8  itr_addr		= 0x40 + (drive->dn * 4);
 	u32 old_itr		= 0;
+	const u8 speed		= drive->dma_mode;
 	u32 new_itr		= get_speed_setting(speed, info);
 	u32 itr_mask		= speed < XFER_MW_DMA_0 ? t->pio_mask :
 				 (speed < XFER_UDMA_0   ? t->dma_mask :
@@ -651,9 +651,10 @@ static void hpt3xx_set_mode(ide_drive_t *drive, const u8 speed)
 	pci_write_config_dword(dev, itr_addr, new_itr);
 }
 
-static void hpt3xx_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void hpt3xx_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	hpt3xx_set_mode(drive, XFER_PIO_0 + pio);
+	drive->dma_mode = drive->pio_mode;
+	hpt3xx_set_mode(hwif, drive);
 }
 
 static void hpt3xx_maskproc(ide_drive_t *drive, int mask)

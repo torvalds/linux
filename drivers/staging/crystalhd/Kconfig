@@ -1,0 +1,6 @@
+config CRYSTALHD
+	tristate "Broadcom Crystal HD video decoder support"
+	depends on PCI
+	default n
+	help
+	  Support for the Broadcom Crystal HD video decoder chipset

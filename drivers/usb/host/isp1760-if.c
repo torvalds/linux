@@ -109,7 +109,7 @@ static int of_isp1760_remove(struct of_device *dev)
 	return 0;
 }
 
-static struct of_device_id of_isp1760_match[] = {
+static const struct of_device_id of_isp1760_match[] = {
 	{
 		.compatible = "nxp,usb-isp1760",
 	},

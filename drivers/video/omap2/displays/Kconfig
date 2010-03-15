@@ -13,10 +13,28 @@ config PANEL_SHARP_LS037V7DW01
         help
           LCD Panel used in TI's SDP3430 and EVM boards
 
+config PANEL_SHARP_LQ043T1DG01
+        tristate "Sharp LQ043T1DG01 LCD Panel"
+        depends on OMAP2_DSS
+        help
+          LCD Panel used in TI's OMAP3517 EVM boards
+
 config PANEL_TAAL
         tristate "Taal DSI Panel"
         depends on OMAP2_DSS_DSI
         help
           Taal DSI command mode panel from TPO.
+
+config PANEL_TOPPOLY_TDO35S
+        tristate "Toppoly TDO35S LCD Panel support"
+        depends on OMAP2_DSS
+        help
+          LCD Panel used in CM-T35
+
+config PANEL_TPO_TD043MTEA1
+        tristate "TPO TD043MTEA1 LCD Panel"
+        depends on OMAP2_DSS && I2C
+        help
+          LCD Panel used in OMAP3 Pandora
 
 endmenu

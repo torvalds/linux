@@ -551,7 +551,7 @@ static struct fb_ops hgafb_ops = {
 	 *  Initialization
 	 */
 
-static int __init hgafb_probe(struct platform_device *pdev)
+static int __devinit hgafb_probe(struct platform_device *pdev)
 {
 	struct fb_info *info;
 

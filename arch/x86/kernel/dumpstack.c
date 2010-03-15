@@ -123,13 +123,15 @@ print_context_stack_bp(struct thread_info *tinfo,
 	while (valid_stack_ptr(tinfo, ret_addr, sizeof(*ret_addr), end)) {
 		unsigned long addr = *ret_addr;
 
-		if (__kernel_text_address(addr)) {
-			ops->address(data, addr, 1);
-			frame = frame->next_frame;
-			ret_addr = &frame->return_address;
-			print_ftrace_graph_addr(addr, data, ops, tinfo, graph);
-		}
+		if (!__kernel_text_address(addr))
+			break;
+
+		ops->address(data, addr, 1);
+		frame = frame->next_frame;
+		ret_addr = &frame->return_address;
+		print_ftrace_graph_addr(addr, data, ops, tinfo, graph);
 	}
+
 	return (unsigned long)frame;
 }
 EXPORT_SYMBOL_GPL(print_context_stack_bp);

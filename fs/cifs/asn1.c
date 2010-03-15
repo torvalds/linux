@@ -136,7 +136,7 @@ asn1_enum_decode(struct asn1_ctx *ctx, __le32 *val)
 		return 0;
 	}
 
-	ch = *(ctx->pointer)++; /* ch has 0xa, ptr points to lenght octet */
+	ch = *(ctx->pointer)++; /* ch has 0xa, ptr points to length octet */
 	if ((ch) == ASN1_ENUM)  /* if ch value is ENUM, 0xa */
 		*val = *(++(ctx->pointer)); /* value has enum value */
 	else

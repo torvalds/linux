@@ -36,7 +36,7 @@ enum ir_kbd_get_key_fn {
 struct IR_i2c_init_data {
 	struct ir_scancode_table *ir_codes;
 	const char             *name;
-	int                    type; /* IR_TYPE_RC5, IR_TYPE_PD, etc */
+	u64          type; /* IR_TYPE_RC5, IR_TYPE_PD, etc */
 	/*
 	 * Specify either a function pointer or a value indicating one of
 	 * ir_kbd_i2c's internal get_key functions

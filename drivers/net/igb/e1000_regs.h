@@ -310,6 +310,7 @@
 #define E1000_VMOLR(_n)        (0x05AD0 + (4 * (_n)))
 #define E1000_VLVF(_n)         (0x05D00 + (4 * (_n))) /* VLAN Virtual Machine
                                                        * Filter - RW */
+#define E1000_VMVIR(_n)        (0x03700 + (4 * (_n)))
 
 #define wr32(reg, value) (writel(value, hw->hw_addr + reg))
 #define rd32(reg) (readl(hw->hw_addr + reg))

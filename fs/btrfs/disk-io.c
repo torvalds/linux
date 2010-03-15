@@ -901,7 +901,7 @@ static int __setup_root(u32 nodesize, u32 leafsize, u32 sectorsize,
 	root->highest_objectid = 0;
 	root->name = NULL;
 	root->in_sysfs = 0;
-	root->inode_tree.rb_node = NULL;
+	root->inode_tree = RB_ROOT;
 
 	INIT_LIST_HEAD(&root->dirty_list);
 	INIT_LIST_HEAD(&root->orphan_list);
@@ -1673,7 +1673,7 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	insert_inode_hash(fs_info->btree_inode);
 
 	spin_lock_init(&fs_info->block_group_cache_lock);
-	fs_info->block_group_cache_tree.rb_node = NULL;
+	fs_info->block_group_cache_tree = RB_ROOT;
 
 	extent_io_tree_init(&fs_info->freed_extents[0],
 			     fs_info->btree_inode->i_mapping, GFP_NOFS);
@@ -1982,7 +1982,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 
 	if (!(sb->s_flags & MS_RDONLY)) {
 		ret = btrfs_recover_relocation(tree_root);
-		BUG_ON(ret);
+		if (ret < 0) {
+			printk(KERN_WARNING
+			       "btrfs: failed to recover relocation\n");
+			err = -EINVAL;
+			goto fail_trans_kthread;
+		}
 	}
 
 	location.objectid = BTRFS_FS_TREE_OBJECTID;
@@ -1992,6 +1997,12 @@ struct btrfs_root *open_ctree(struct super_block *sb,
 	fs_info->fs_root = btrfs_read_fs_root_no_name(fs_info, &location);
 	if (!fs_info->fs_root)
 		goto fail_trans_kthread;
+
+	if (!(sb->s_flags & MS_RDONLY)) {
+		down_read(&fs_info->cleanup_work_sem);
+		btrfs_orphan_cleanup(fs_info->fs_root);
+		up_read(&fs_info->cleanup_work_sem);
+	}
 
 	return tree_root;
 

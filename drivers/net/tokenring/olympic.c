@@ -172,7 +172,7 @@ module_param_array(message_level, int, NULL, 0) ;
 static int network_monitor[OLYMPIC_MAX_ADAPTERS] = {0,};
 module_param_array(network_monitor, int, NULL, 0);
 
-static struct pci_device_id olympic_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(olympic_pci_tbl) = {
 	{PCI_VENDOR_ID_IBM,PCI_DEVICE_ID_IBM_TR_WAKE,PCI_ANY_ID,PCI_ANY_ID,},
 	{ } 	/* Terminating Entry */
 };
@@ -1139,9 +1139,8 @@ static void olympic_set_rx_mode(struct net_device *dev)
    	u8 __iomem *olympic_mmio = olympic_priv->olympic_mmio ; 
 	u8 options = 0; 
 	u8 __iomem *srb;
-	struct dev_mc_list *dmi ; 
+	struct dev_mc_list *dmi;
 	unsigned char dev_mc_address[4] ; 
-	int i ; 
 
 	writel(olympic_priv->srb,olympic_mmio+LAPA);
 	srb=olympic_priv->olympic_lap + (olympic_priv->srb & (~0xf800));
@@ -1178,7 +1177,7 @@ static void olympic_set_rx_mode(struct net_device *dev)
 
 	dev_mc_address[0] = dev_mc_address[1] = dev_mc_address[2] = dev_mc_address[3] = 0 ; 
 
-	for (i=0,dmi=dev->mc_list;i < dev->mc_count; i++,dmi = dmi->next) { 
+	netdev_for_each_mc_addr(dmi, dev) {
 		dev_mc_address[0] |= dmi->dmi_addr[2] ; 
 		dev_mc_address[1] |= dmi->dmi_addr[3] ; 
 		dev_mc_address[2] |= dmi->dmi_addr[4] ; 

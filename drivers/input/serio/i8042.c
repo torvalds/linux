@@ -430,7 +430,7 @@ static bool i8042_filter(unsigned char data, unsigned char str,
 	}
 
 	if (i8042_platform_filter && i8042_platform_filter(data, str, serio)) {
-		dbg("Filtered out by platfrom filter\n");
+		dbg("Filtered out by platform filter\n");
 		return true;
 	}
 
@@ -1161,9 +1161,17 @@ static int i8042_pm_restore(struct device *dev)
 	return 0;
 }
 
+static int i8042_pm_thaw(struct device *dev)
+{
+	i8042_interrupt(0, NULL);
+
+	return 0;
+}
+
 static const struct dev_pm_ops i8042_pm_ops = {
 	.suspend	= i8042_pm_reset,
 	.resume		= i8042_pm_restore,
+	.thaw		= i8042_pm_thaw,
 	.poweroff	= i8042_pm_reset,
 	.restore	= i8042_pm_restore,
 };
@@ -1378,6 +1386,8 @@ static int __init i8042_probe(struct platform_device *dev)
 {
 	int error;
 
+	i8042_platform_device = dev;
+
 	error = i8042_controller_selftest();
 	if (error)
 		return error;
@@ -1413,6 +1423,7 @@ static int __init i8042_probe(struct platform_device *dev)
 	i8042_free_aux_ports();	/* in case KBD failed but AUX not */
 	i8042_free_irqs();
 	i8042_controller_reset();
+	i8042_platform_device = NULL;
 
 	return error;
 }
@@ -1422,6 +1433,7 @@ static int __devexit i8042_remove(struct platform_device *dev)
 	i8042_unregister_ports();
 	i8042_free_irqs();
 	i8042_controller_reset();
+	i8042_platform_device = NULL;
 
 	return 0;
 }
@@ -1440,6 +1452,7 @@ static struct platform_driver i8042_driver = {
 
 static int __init i8042_init(void)
 {
+	struct platform_device *pdev;
 	int err;
 
 	dbg_init();
@@ -1452,31 +1465,18 @@ static int __init i8042_init(void)
 	if (err)
 		goto err_platform_exit;
 
-	i8042_platform_device = platform_device_alloc("i8042", -1);
-	if (!i8042_platform_device) {
-		err = -ENOMEM;
+	pdev = platform_create_bundle(&i8042_driver, i8042_probe, NULL, 0, NULL, 0);
+	if (IS_ERR(pdev)) {
+		err = PTR_ERR(pdev);
 		goto err_platform_exit;
 	}
-
-	err = platform_device_add(i8042_platform_device);
-	if (err)
-		goto err_free_device;
-
-	err = platform_driver_probe(&i8042_driver, i8042_probe);
-	if (err)
-		goto err_del_device;
 
 	panic_blink = i8042_panic_blink;
 
 	return 0;
 
- err_del_device:
-	platform_device_del(i8042_platform_device);
- err_free_device:
-	platform_device_put(i8042_platform_device);
  err_platform_exit:
 	i8042_platform_exit();
-
 	return err;
 }
 

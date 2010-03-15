@@ -91,7 +91,7 @@ static void usb_simtec_enableoc(struct s3c2410_hcd_info *info, int on)
 	}
 }
 
-static struct s3c2410_hcd_info usb_simtec_info = {
+static struct s3c2410_hcd_info usb_simtec_info __initdata = {
 	.port[0]	= {
 		.flags	= S3C_HCDFLG_USED
 	},
@@ -127,6 +127,6 @@ int usb_simtec_init(void)
 	gpio_direction_output(S3C2410_GPB(4), 1);
 	gpio_direction_input(S3C2410_GPG(10));
 
-	s3c_device_usb.dev.platform_data = &usb_simtec_info;
+	s3c_ohci_set_platdata(&usb_simtec_info);
 	return 0;
 }

@@ -33,21 +33,29 @@ MODULE_DESCRIPTION("Softmac Prism54 common code");
 MODULE_LICENSE("GPL");
 MODULE_ALIAS("prism54common");
 
+static int p54_sta_add_remove(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_sta *sta)
+{
+	struct p54_common *priv = hw->priv;
+
+	/*
+	 * Notify the firmware that we don't want or we don't
+	 * need to buffer frames for this station anymore.
+	 */
+
+	p54_sta_unlock(priv, sta->addr);
+
+	return 0;
+}
+
 static void p54_sta_notify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
 			      enum sta_notify_cmd notify_cmd,
 			      struct ieee80211_sta *sta)
 {
 	struct p54_common *priv = dev->priv;
-	switch (notify_cmd) {
-	case STA_NOTIFY_ADD:
-	case STA_NOTIFY_REMOVE:
-		/*
-		 * Notify the firmware that we don't want or we don't
-		 * need to buffer frames for this station anymore.
-		 */
 
-		p54_sta_unlock(priv, sta->addr);
-		break;
+	switch (notify_cmd) {
 	case STA_NOTIFY_AWAKE:
 		/* update the firmware's filter table */
 		p54_sta_unlock(priv, sta->addr);
@@ -216,7 +224,7 @@ static void p54_stop(struct ieee80211_hw *dev)
 }
 
 static int p54_add_interface(struct ieee80211_hw *dev,
-			     struct ieee80211_if_init_conf *conf)
+			     struct ieee80211_vif *vif)
 {
 	struct p54_common *priv = dev->priv;
 
@@ -226,28 +234,28 @@ static int p54_add_interface(struct ieee80211_hw *dev,
 		return -EOPNOTSUPP;
 	}
 
-	priv->vif = conf->vif;
+	priv->vif = vif;
 
-	switch (conf->type) {
+	switch (vif->type) {
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_ADHOC:
 	case NL80211_IFTYPE_AP:
 	case NL80211_IFTYPE_MESH_POINT:
-		priv->mode = conf->type;
+		priv->mode = vif->type;
 		break;
 	default:
 		mutex_unlock(&priv->conf_mutex);
 		return -EOPNOTSUPP;
 	}
 
-	memcpy(priv->mac_addr, conf->mac_addr, ETH_ALEN);
+	memcpy(priv->mac_addr, vif->addr, ETH_ALEN);
 	p54_setup_mac(priv);
 	mutex_unlock(&priv->conf_mutex);
 	return 0;
 }
 
 static void p54_remove_interface(struct ieee80211_hw *dev,
-				 struct ieee80211_if_init_conf *conf)
+				 struct ieee80211_vif *vif)
 {
 	struct p54_common *priv = dev->priv;
 
@@ -355,16 +363,6 @@ static int p54_get_stats(struct ieee80211_hw *dev,
 	struct p54_common *priv = dev->priv;
 
 	memcpy(stats, &priv->stats, sizeof(*stats));
-	return 0;
-}
-
-static int p54_get_tx_stats(struct ieee80211_hw *dev,
-			    struct ieee80211_tx_queue_stats *stats)
-{
-	struct p54_common *priv = dev->priv;
-
-	memcpy(stats, &priv->tx_stats[P54_QUEUE_DATA],
-	       sizeof(stats[0]) * dev->queues);
 	return 0;
 }
 
@@ -516,13 +514,14 @@ static const struct ieee80211_ops p54_ops = {
 	.remove_interface	= p54_remove_interface,
 	.set_tim		= p54_set_tim,
 	.sta_notify		= p54_sta_notify,
+	.sta_add		= p54_sta_add_remove,
+	.sta_remove		= p54_sta_add_remove,
 	.set_key		= p54_set_key,
 	.config			= p54_config,
 	.bss_info_changed	= p54_bss_info_changed,
 	.configure_filter	= p54_configure_filter,
 	.conf_tx		= p54_conf_tx,
 	.get_stats		= p54_get_stats,
-	.get_tx_stats		= p54_get_tx_stats
 };
 
 struct ieee80211_hw *p54_init_common(size_t priv_data_len)

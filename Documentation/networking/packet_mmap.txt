@@ -2,7 +2,7 @@
 + ABSTRACT
 --------------------------------------------------------------------------------
 
-This file documents the CONFIG_PACKET_MMAP option available with the PACKET
+This file documents the mmap() facility available with the PACKET
 socket interface on 2.4 and 2.6 kernels. This type of sockets is used for 
 capture network traffic with utilities like tcpdump or any other that needs
 raw access to network interface.
@@ -44,7 +44,7 @@ enabled. For transmission, check the MTU (Maximum Transmission Unit) used and
 supported by devices of your network.
 
 --------------------------------------------------------------------------------
-+ How to use CONFIG_PACKET_MMAP to improve capture process
++ How to use mmap() to improve capture process
 --------------------------------------------------------------------------------
 
 From the user standpoint, you should use the higher level libpcap library, which
@@ -64,7 +64,7 @@ the low level details or want to improve libpcap by including PACKET_MMAP
 support.
 
 --------------------------------------------------------------------------------
-+ How to use CONFIG_PACKET_MMAP directly to improve capture process
++ How to use mmap() directly to improve capture process
 --------------------------------------------------------------------------------
 
 From the system calls stand point, the use of PACKET_MMAP involves
@@ -105,7 +105,7 @@ also the mapping of the circular buffer in the user process and
 the use of this buffer.
 
 --------------------------------------------------------------------------------
-+ How to use CONFIG_PACKET_MMAP directly to improve transmission process
++ How to use mmap() directly to improve transmission process
 --------------------------------------------------------------------------------
 Transmission process is similar to capture as shown below.
 

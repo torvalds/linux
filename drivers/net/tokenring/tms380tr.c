@@ -693,7 +693,7 @@ static netdev_tx_t tms380tr_hardware_send_packet(struct sk_buff *skb,
  * NOTE: This function should be used whenever the status of any TPL must be
  * modified by the driver, because the compiler may otherwise change the
  * order of instructions such that writing the TPL status may be executed at
- * an undesireable time. When this function is used, the status is always
+ * an undesirable time. When this function is used, the status is always
  * written when the function is called.
  */
 static void tms380tr_write_tpl_status(TPL *tpl, unsigned int Status)
@@ -1212,10 +1212,9 @@ static void tms380tr_set_multicast_list(struct net_device *dev)
 		}
 		else
 		{
-			int i;
-			struct dev_mc_list *mclist = dev->mc_list;
-			for (i=0; i< dev->mc_count; i++)
-			{
+			struct dev_mc_list *mclist;
+
+			netdev_for_each_mc_addr(mclist, dev) {
 				((char *)(&tp->ocpl.FunctAddr))[0] |=
 					mclist->dmi_addr[2];
 				((char *)(&tp->ocpl.FunctAddr))[1] |=
@@ -1224,7 +1223,6 @@ static void tms380tr_set_multicast_list(struct net_device *dev)
 					mclist->dmi_addr[4];
 				((char *)(&tp->ocpl.FunctAddr))[3] |=
 					mclist->dmi_addr[5];
-				mclist = mclist->next;
 			}
 		}
 		tms380tr_exec_cmd(dev, OC_SET_FUNCT_ADDR);
@@ -2266,7 +2264,7 @@ static void tms380tr_rcv_status_irq(struct net_device *dev)
  * This function should be used whenever the status of any RPL must be
  * modified by the driver, because the compiler may otherwise change the
  * order of instructions such that writing the RPL status may be executed
- * at an undesireable time. When this function is used, the status is
+ * at an undesirable time. When this function is used, the status is
  * always written when the function is called.
  */
 static void tms380tr_write_rpl_status(RPL *rpl, unsigned int Status)

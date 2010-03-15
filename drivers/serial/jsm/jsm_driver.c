@@ -179,6 +179,7 @@ static int __devinit jsm_probe_one(struct pci_dev *pdev, const struct pci_device
 
 	return 0;
  out_free_irq:
+	jsm_remove_uart_port(brd);
 	free_irq(brd->irq, brd);
  out_iounmap:
 	iounmap(brd->re_map_membase);

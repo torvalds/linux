@@ -54,7 +54,7 @@ void cifs_dfs_release_automount_timer(void)
  * Extracts sharename form full UNC.
  * i.e. strips from UNC trailing path that is not part of share
  * name and fixup missing '\' in the begining of DFS node refferal
- * if neccessary.
+ * if necessary.
  * Returns pointer to share name on success or ERR_PTR on error.
  * Caller is responsible for freeing returned string.
  */
@@ -269,7 +269,7 @@ static int add_mount_helper(struct vfsmount *newmnt, struct nameidata *nd,
 	int err;
 
 	mntget(newmnt);
-	err = do_add_mount(newmnt, &nd->path, nd->path.mnt->mnt_flags, mntlist);
+	err = do_add_mount(newmnt, &nd->path, nd->path.mnt->mnt_flags | MNT_SHRINKABLE, mntlist);
 	switch (err) {
 	case 0:
 		path_put(&nd->path);
@@ -371,7 +371,6 @@ cifs_dfs_follow_mountpoint(struct dentry *dentry, struct nameidata *nd)
 	if (IS_ERR(mnt))
 		goto out_err;
 
-	nd->path.mnt->mnt_flags |= MNT_SHRINKABLE;
 	rc = add_mount_helper(mnt, nd, &cifs_dfs_automount_list);
 
 out:

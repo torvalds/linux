@@ -84,7 +84,7 @@ static const match_table_t tokens = {
 
 static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 {
-	char *options;
+	char *options, *tmp_options;
 	substring_t args[MAX_OPT_ARGS];
 	char *p;
 	int option = 0;
@@ -102,9 +102,12 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 	if (!opts)
 		return 0;
 
-	options = kstrdup(opts, GFP_KERNEL);
-	if (!options)
+	tmp_options = kstrdup(opts, GFP_KERNEL);
+	if (!tmp_options) {
+		ret = -ENOMEM;
 		goto fail_option_alloc;
+	}
+	options = tmp_options;
 
 	while ((p = strsep(&options, ",")) != NULL) {
 		int token;
@@ -159,8 +162,12 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			break;
 		case Opt_cache:
 			s = match_strdup(&args[0]);
-			if (!s)
-				goto fail_option_alloc;
+			if (!s) {
+				ret = -ENOMEM;
+				P9_DPRINTK(P9_DEBUG_ERROR,
+				  "problem allocating copy of cache arg\n");
+				goto free_and_return;
+			}
 
 			if (strcmp(s, "loose") == 0)
 				v9ses->cache = CACHE_LOOSE;
@@ -173,8 +180,12 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 
 		case Opt_access:
 			s = match_strdup(&args[0]);
-			if (!s)
-				goto fail_option_alloc;
+			if (!s) {
+				ret = -ENOMEM;
+				P9_DPRINTK(P9_DEBUG_ERROR,
+				  "problem allocating copy of access arg\n");
+				goto free_and_return;
+			}
 
 			v9ses->flags &= ~V9FS_ACCESS_MASK;
 			if (strcmp(s, "user") == 0)
@@ -194,13 +205,11 @@ static int v9fs_parse_options(struct v9fs_session_info *v9ses, char *opts)
 			continue;
 		}
 	}
-	kfree(options);
-	return ret;
 
+free_and_return:
+	kfree(tmp_options);
 fail_option_alloc:
-	P9_DPRINTK(P9_DEBUG_ERROR,
-		   "failed to allocate copy of option argument\n");
-	return -ENOMEM;
+	return ret;
 }
 
 /**
@@ -232,7 +241,7 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 	list_add(&v9ses->slist, &v9fs_sessionlist);
 	spin_unlock(&v9fs_sessionlist_lock);
 
-	v9ses->flags = V9FS_EXTENDED | V9FS_ACCESS_USER;
+	v9ses->flags = V9FS_PROTO_2000U | V9FS_ACCESS_USER;
 	strcpy(v9ses->uname, V9FS_DEFUSER);
 	strcpy(v9ses->aname, V9FS_DEFANAME);
 	v9ses->uid = ~0;
@@ -253,13 +262,13 @@ struct p9_fid *v9fs_session_init(struct v9fs_session_info *v9ses,
 		goto error;
 	}
 
-	if (!v9ses->clnt->dotu)
-		v9ses->flags &= ~V9FS_EXTENDED;
+	if (!p9_is_proto_dotu(v9ses->clnt))
+		v9ses->flags &= ~V9FS_PROTO_2000U;
 
 	v9ses->maxdata = v9ses->clnt->msize - P9_IOHDRSZ;
 
 	/* for legacy mode, fall back to V9FS_ACCESS_ANY */
-	if (!v9fs_extended(v9ses) &&
+	if (!v9fs_proto_dotu(v9ses) &&
 		((v9ses->flags&V9FS_ACCESS_MASK) == V9FS_ACCESS_USER)) {
 
 		v9ses->flags &= ~V9FS_ACCESS_MASK;

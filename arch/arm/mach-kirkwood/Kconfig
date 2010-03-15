@@ -32,6 +32,12 @@ config MACH_SHEEVAPLUG
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell SheevaPlug Reference Board.
 
+config MACH_ESATA_SHEEVAPLUG
+	bool "Marvell eSATA SheevaPlug Reference Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell eSATA SheevaPlug Reference Board.
+
 config MACH_TS219
 	bool "QNAP TS-110, TS-119, TS-210, TS-219 and TS-219P Turbo NAS"
 	help
@@ -46,17 +52,34 @@ config MACH_TS41X
 	  QNAP TS-410, TS-410U, TS-419P and TS-419U Turbo NAS
 	  devices.
 
+config MACH_OPENRD
+        bool
+
 config MACH_OPENRD_BASE
 	bool "Marvell OpenRD Base Board"
+	select MACH_OPENRD
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  Marvell OpenRD Base Board.
+
+config MACH_OPENRD_CLIENT
+	bool "Marvell OpenRD Client Board"
+	select MACH_OPENRD
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  Marvell OpenRD Client Board.
 
 config MACH_NETSPACE_V2
 	bool "LaCie Network Space v2 NAS Board"
 	help
 	  Say 'Y' here if you want your kernel to support the
 	  LaCie Network Space v2 NAS.
+
+config MACH_INETSPACE_V2
+	bool "LaCie Internet Space v2 NAS Board"
+	help
+	  Say 'Y' here if you want your kernel to support the
+	  LaCie Internet Space v2 NAS.
 
 endmenu
 

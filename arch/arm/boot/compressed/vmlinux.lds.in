@@ -14,6 +14,13 @@ SECTIONS
   /DISCARD/ : {
     *(.ARM.exidx*)
     *(.ARM.extab*)
+    /*
+     * Discard any r/w data - this produces a link error if we have any,
+     * which is required for PIC decompression.  Local data generates
+     * GOTOFF relocations, which prevents it being relocated independently
+     * of the text/got segments.
+     */
+    *(.data)
   }
 
   . = TEXT_START;
@@ -36,11 +43,13 @@ SECTIONS
 
   _etext = .;
 
+  /* Assume size of decompressed image is 4x the compressed image */
+  _image_size = (_etext - _text) * 4;
+
   _got_start = .;
   .got			: { *(.got) }
   _got_end = .;
   .got.plt		: { *(.got.plt) }
-  .data			: { *(.data) }
   _edata = .;
 
   . = BSS_START;

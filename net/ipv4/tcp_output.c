@@ -183,7 +183,8 @@ static inline void tcp_event_ack_sent(struct sock *sk, unsigned int pkts)
  */
 void tcp_select_initial_window(int __space, __u32 mss,
 			       __u32 *rcv_wnd, __u32 *window_clamp,
-			       int wscale_ok, __u8 *rcv_wscale)
+			       int wscale_ok, __u8 *rcv_wscale,
+			       __u32 init_rcv_wnd)
 {
 	unsigned int space = (__space < 0 ? 0 : __space);
 
@@ -232,7 +233,13 @@ void tcp_select_initial_window(int __space, __u32 mss,
 			init_cwnd = 2;
 		else if (mss > 1460)
 			init_cwnd = 3;
-		if (*rcv_wnd > init_cwnd * mss)
+		/* when initializing use the value from init_rcv_wnd
+		 * rather than the default from above
+		 */
+		if (init_rcv_wnd &&
+		    (*rcv_wnd > init_rcv_wnd * mss))
+			*rcv_wnd = init_rcv_wnd * mss;
+		else if (*rcv_wnd > init_cwnd * mss)
 			*rcv_wnd = init_cwnd * mss;
 	}
 
@@ -1794,11 +1801,6 @@ static int tcp_write_xmit(struct sock *sk, unsigned int mss_now, int nonagle,
 void __tcp_push_pending_frames(struct sock *sk, unsigned int cur_mss,
 			       int nonagle)
 {
-	struct sk_buff *skb = tcp_send_head(sk);
-
-	if (!skb)
-		return;
-
 	/* If we are closed, the bytes will have to remain here.
 	 * In time closedown will finish, we empty the write queue and
 	 * all will be happy.
@@ -2393,13 +2395,17 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 	struct tcp_extend_values *xvp = tcp_xv(rvp);
 	struct inet_request_sock *ireq = inet_rsk(req);
 	struct tcp_sock *tp = tcp_sk(sk);
+	const struct tcp_cookie_values *cvp = tp->cookie_values;
 	struct tcphdr *th;
 	struct sk_buff *skb;
 	struct tcp_md5sig_key *md5;
 	int tcp_header_size;
 	int mss;
+	int s_data_desired = 0;
 
-	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15, 1, GFP_ATOMIC);
+	if (cvp != NULL && cvp->s_data_constant && cvp->s_data_desired)
+		s_data_desired = cvp->s_data_desired;
+	skb = sock_wmalloc(sk, MAX_TCP_HEADER + 15 + s_data_desired, 1, GFP_ATOMIC);
 	if (skb == NULL)
 		return NULL;
 
@@ -2422,7 +2428,8 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 			&req->rcv_wnd,
 			&req->window_clamp,
 			ireq->wscale_ok,
-			&rcv_wscale);
+			&rcv_wscale,
+			dst_metric(dst, RTAX_INITRWND));
 		ireq->rcv_wscale = rcv_wscale;
 	}
 
@@ -2454,16 +2461,12 @@ struct sk_buff *tcp_make_synack(struct sock *sk, struct dst_entry *dst,
 			     TCPCB_FLAG_SYN | TCPCB_FLAG_ACK);
 
 	if (OPTION_COOKIE_EXTENSION & opts.options) {
-		const struct tcp_cookie_values *cvp = tp->cookie_values;
-
-		if (cvp != NULL &&
-		    cvp->s_data_constant &&
-		    cvp->s_data_desired > 0) {
-			u8 *buf = skb_put(skb, cvp->s_data_desired);
+		if (s_data_desired) {
+			u8 *buf = skb_put(skb, s_data_desired);
 
 			/* copy data directly from the listening socket. */
-			memcpy(buf, cvp->s_data_payload, cvp->s_data_desired);
-			TCP_SKB_CB(skb)->end_seq += cvp->s_data_desired;
+			memcpy(buf, cvp->s_data_payload, s_data_desired);
+			TCP_SKB_CB(skb)->end_seq += s_data_desired;
 		}
 
 		if (opts.hash_size > 0) {
@@ -2549,7 +2552,8 @@ static void tcp_connect_init(struct sock *sk)
 				  &tp->rcv_wnd,
 				  &tp->window_clamp,
 				  sysctl_tcp_window_scaling,
-				  &rcv_wscale);
+				  &rcv_wscale,
+				  dst_metric(dst, RTAX_INITRWND));
 
 	tp->rx_opt.rcv_wscale = rcv_wscale;
 	tp->rcv_ssthresh = tp->rcv_wnd;

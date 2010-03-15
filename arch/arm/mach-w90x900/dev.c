@@ -34,6 +34,7 @@
 #include <mach/regs-serial.h>
 #include <mach/nuc900_spi.h>
 #include <mach/map.h>
+#include <mach/fb.h>
 
 #include "cpu.h"
 
@@ -379,6 +380,47 @@ struct platform_device nuc900_device_kpi = {
 	.num_resources	= ARRAY_SIZE(nuc900_kpi_resource),
 	.resource	= nuc900_kpi_resource,
 };
+
+#ifdef CONFIG_FB_NUC900
+
+static struct resource nuc900_lcd_resource[] = {
+	[0] = {
+		.start = W90X900_PA_LCD,
+		.end   = W90X900_PA_LCD + W90X900_SZ_LCD - 1,
+		.flags = IORESOURCE_MEM,
+	},
+	[1] = {
+		.start = IRQ_LCD,
+		.end   = IRQ_LCD,
+		.flags = IORESOURCE_IRQ,
+	}
+};
+
+static u64 nuc900_device_lcd_dmamask = -1;
+struct platform_device nuc900_device_lcd = {
+	.name             = "nuc900-lcd",
+	.id               = -1,
+	.num_resources    = ARRAY_SIZE(nuc900_lcd_resource),
+	.resource         = nuc900_lcd_resource,
+	.dev              = {
+		.dma_mask               = &nuc900_device_lcd_dmamask,
+		.coherent_dma_mask      = -1,
+	}
+};
+
+void  nuc900_fb_set_platdata(struct nuc900fb_mach_info *pd)
+{
+	struct nuc900fb_mach_info *npd;
+
+	npd = kmalloc(sizeof(*npd), GFP_KERNEL);
+	if (npd) {
+		memcpy(npd, pd, sizeof(*npd));
+		nuc900_device_lcd.dev.platform_data = npd;
+	} else {
+		printk(KERN_ERR "no memory for LCD platform data\n");
+	}
+}
+#endif
 
 /*Here should be your evb resourse,such as LCD*/
 

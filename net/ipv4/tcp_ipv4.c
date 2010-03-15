@@ -742,9 +742,9 @@ static void tcp_v4_reqsk_send_ack(struct sock *sk, struct sk_buff *skb,
  *	This still operates on a request_sock only, not on a big
  *	socket.
  */
-static int __tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
-				struct request_sock *req,
-				struct request_values *rvp)
+static int tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
+			      struct request_sock *req,
+			      struct request_values *rvp)
 {
 	const struct inet_request_sock *ireq = inet_rsk(req);
 	int err = -1;
@@ -775,10 +775,11 @@ static int __tcp_v4_send_synack(struct sock *sk, struct dst_entry *dst,
 	return err;
 }
 
-static int tcp_v4_send_synack(struct sock *sk, struct request_sock *req,
+static int tcp_v4_rtx_synack(struct sock *sk, struct request_sock *req,
 			      struct request_values *rvp)
 {
-	return __tcp_v4_send_synack(sk, NULL, req, rvp);
+	TCP_INC_STATS_BH(sock_net(sk), TCP_MIB_RETRANSSEGS);
+	return tcp_v4_send_synack(sk, NULL, req, rvp);
 }
 
 /*
@@ -1192,10 +1193,11 @@ static int tcp_v4_inbound_md5_hash(struct sock *sk, struct sk_buff *skb)
 struct request_sock_ops tcp_request_sock_ops __read_mostly = {
 	.family		=	PF_INET,
 	.obj_size	=	sizeof(struct tcp_request_sock),
-	.rtx_syn_ack	=	tcp_v4_send_synack,
+	.rtx_syn_ack	=	tcp_v4_rtx_synack,
 	.send_ack	=	tcp_v4_reqsk_send_ack,
 	.destructor	=	tcp_v4_reqsk_destructor,
 	.send_reset	=	tcp_v4_send_reset,
+	.syn_ack_timeout = 	tcp_syn_ack_timeout,
 };
 
 #ifdef CONFIG_TCP_MD5SIG
@@ -1373,8 +1375,8 @@ int tcp_v4_conn_request(struct sock *sk, struct sk_buff *skb)
 	}
 	tcp_rsk(req)->snt_isn = isn;
 
-	if (__tcp_v4_send_synack(sk, dst, req,
-				 (struct request_values *)&tmp_ext) ||
+	if (tcp_v4_send_synack(sk, dst, req,
+			       (struct request_values *)&tmp_ext) ||
 	    want_cookie)
 		goto drop_and_free;
 
@@ -1653,6 +1655,11 @@ process:
 	if (sk->sk_state == TCP_TIME_WAIT)
 		goto do_time_wait;
 
+	if (unlikely(iph->ttl < inet_sk(sk)->min_ttl)) {
+		NET_INC_STATS_BH(net, LINUX_MIB_TCPMINTTLDROP);
+		goto discard_and_relse;
+	}
+
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
 	nf_reset(skb);
@@ -1677,8 +1684,11 @@ process:
 			if (!tcp_prequeue(sk, skb))
 				ret = tcp_v4_do_rcv(sk, skb);
 		}
-	} else
-		sk_add_backlog(sk, skb);
+	} else if (unlikely(sk_add_backlog(sk, skb))) {
+		bh_unlock_sock(sk);
+		NET_INC_STATS_BH(net, LINUX_MIB_TCPBACKLOGDROP);
+		goto discard_and_relse;
+	}
 	bh_unlock_sock(sk);
 
 	sock_put(sk);
@@ -2425,12 +2435,12 @@ static struct tcp_seq_afinfo tcp4_seq_afinfo = {
 	},
 };
 
-static int tcp4_proc_init_net(struct net *net)
+static int __net_init tcp4_proc_init_net(struct net *net)
 {
 	return tcp_proc_register(net, &tcp4_seq_afinfo);
 }
 
-static void tcp4_proc_exit_net(struct net *net)
+static void __net_exit tcp4_proc_exit_net(struct net *net)
 {
 	tcp_proc_unregister(net, &tcp4_seq_afinfo);
 }

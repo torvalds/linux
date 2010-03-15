@@ -45,36 +45,25 @@ kvmppc_trampoline_\intno:
 	 * To distinguish, we check a magic byte in the PACA
 	 */
 	mfspr	r13, SPRN_SPRG_PACA		/* r13 = PACA */
-	std	r12, (PACA_EXMC + EX_R12)(r13)
+	std	r12, PACA_KVM_SCRATCH0(r13)
 	mfcr	r12
-	stw	r12, (PACA_EXMC + EX_CCR)(r13)
+	stw	r12, PACA_KVM_SCRATCH1(r13)
 	lbz	r12, PACA_KVM_IN_GUEST(r13)
-	cmpwi	r12, 0
+	cmpwi	r12, KVM_GUEST_MODE_NONE
 	bne	..kvmppc_handler_hasmagic_\intno
 	/* No KVM guest? Then jump back to the Linux handler! */
-	lwz	r12, (PACA_EXMC + EX_CCR)(r13)
+	lwz	r12, PACA_KVM_SCRATCH1(r13)
 	mtcr	r12
-	ld	r12, (PACA_EXMC + EX_R12)(r13)
+	ld	r12, PACA_KVM_SCRATCH0(r13)
 	mfspr	r13, SPRN_SPRG_SCRATCH0		/* r13 = original r13 */
 	b	kvmppc_resume_\intno		/* Get back original handler */
 
 	/* Now we know we're handling a KVM guest */
 ..kvmppc_handler_hasmagic_\intno:
-	/* Unset guest state */
-	li	r12, 0
-	stb	r12, PACA_KVM_IN_GUEST(r13)
 
-	std	r1, (PACA_EXMC+EX_R9)(r13)
-	std	r10, (PACA_EXMC+EX_R10)(r13)
-	std	r11, (PACA_EXMC+EX_R11)(r13)
-	std	r2, (PACA_EXMC+EX_R13)(r13)
-
-	mfsrr0	r10
-	mfsrr1	r11
-
-	/* Restore R1/R2 so we can handle faults */
-	ld	r1, PACAR1(r13)
-	ld	r2, (PACA_EXMC+EX_SRR0)(r13)
+	/* Should we just skip the faulting instruction? */
+	cmpwi	r12, KVM_GUEST_MODE_SKIP
+	beq	kvmppc_handler_skip_ins
 
 	/* Let's store which interrupt we're handling */
 	li	r12, \intno
@@ -102,22 +91,106 @@ INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_ALTIVEC
 INTERRUPT_TRAMPOLINE	BOOK3S_INTERRUPT_VSX
 
 /*
+ * Bring us back to the faulting code, but skip the
+ * faulting instruction.
+ *
+ * This is a generic exit path from the interrupt
+ * trampolines above.
+ *
+ * Input Registers:
+ *
+ * R12               = free
+ * R13               = PACA
+ * PACA.KVM.SCRATCH0 = guest R12
+ * PACA.KVM.SCRATCH1 = guest CR
+ * SPRG_SCRATCH0     = guest R13
+ *
+ */
+kvmppc_handler_skip_ins:
+
+	/* Patch the IP to the next instruction */
+	mfsrr0	r12
+	addi	r12, r12, 4
+	mtsrr0	r12
+
+	/* Clean up all state */
+	lwz	r12, PACA_KVM_SCRATCH1(r13)
+	mtcr	r12
+	ld	r12, PACA_KVM_SCRATCH0(r13)
+	mfspr	r13, SPRN_SPRG_SCRATCH0
+
+	/* And get back into the code */
+	RFI
+
+/*
  * This trampoline brings us back to a real mode handler
  *
  * Input Registers:
  *
- * R6 = SRR0
- * R7 = SRR1
+ * R5 = SRR0
+ * R6 = SRR1
  * LR = real-mode IP
  *
  */
 .global kvmppc_handler_lowmem_trampoline
 kvmppc_handler_lowmem_trampoline:
 
-	mtsrr0	r6
-	mtsrr1	r7
+	mtsrr0	r5
+	mtsrr1	r6
 	blr
 kvmppc_handler_lowmem_trampoline_end:
+
+/*
+ * Call a function in real mode
+ *
+ * Input Registers:
+ *
+ * R3 = function
+ * R4 = MSR
+ * R5 = CTR
+ *
+ */
+_GLOBAL(kvmppc_rmcall)
+	mtmsr	r4		/* Disable relocation, so mtsrr
+				   doesn't get interrupted */
+	mtctr	r5
+	mtsrr0	r3
+	mtsrr1	r4
+	RFI
+
+/*
+ * Activate current's external feature (FPU/Altivec/VSX)
+ */
+#define define_load_up(what) 				\
+							\
+_GLOBAL(kvmppc_load_up_ ## what);			\
+	subi	r1, r1, INT_FRAME_SIZE;			\
+	mflr	r3;					\
+	std	r3, _LINK(r1);				\
+	mfmsr	r4;					\
+	std	r31, GPR3(r1);				\
+	mr	r31, r4;				\
+	li	r5, MSR_DR;				\
+	oris	r5, r5, MSR_EE@h;			\
+	andc	r4, r4, r5;				\
+	mtmsr	r4;					\
+							\
+	bl	.load_up_ ## what;			\
+							\
+	mtmsr	r31;					\
+	ld	r3, _LINK(r1);				\
+	ld	r31, GPR3(r1);				\
+	addi	r1, r1, INT_FRAME_SIZE;			\
+	mtlr	r3;					\
+	blr
+
+define_load_up(fpu)
+#ifdef CONFIG_ALTIVEC
+define_load_up(altivec)
+#endif
+#ifdef CONFIG_VSX
+define_load_up(vsx)
+#endif
 
 .global kvmppc_trampoline_lowmem
 kvmppc_trampoline_lowmem:

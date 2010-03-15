@@ -120,14 +120,14 @@ static inline void direct_qirr_info(int n_cpu, u8 value)
 
 /* LPAR low level accessors */
 
-static inline unsigned int lpar_xirr_info_get(void)
+static inline unsigned int lpar_xirr_info_get(unsigned char cppr)
 {
 	unsigned long lpar_rc;
 	unsigned long return_value;
 
-	lpar_rc = plpar_xirr(&return_value);
+	lpar_rc = plpar_xirr(&return_value, cppr);
 	if (lpar_rc != H_SUCCESS)
-		panic(" bad return code xirr - rc = %lx \n", lpar_rc);
+		panic(" bad return code xirr - rc = %lx\n", lpar_rc);
 	return (unsigned int)return_value;
 }
 
@@ -163,14 +163,13 @@ static inline void lpar_qirr_info(int n_cpu , u8 value)
 /* Interface to generic irq subsystem */
 
 #ifdef CONFIG_SMP
-static int get_irq_server(unsigned int virq, unsigned int strict_check)
+static int get_irq_server(unsigned int virq, cpumask_t cpumask,
+			  unsigned int strict_check)
 {
 	int server;
 	/* For the moment only implement delivery to all cpus or one cpu */
-	cpumask_t cpumask;
 	cpumask_t tmp = CPU_MASK_NONE;
 
-	cpumask_copy(&cpumask, irq_to_desc(virq)->affinity);
 	if (!distribute_irqs)
 		return default_server;
 
@@ -192,10 +191,7 @@ static int get_irq_server(unsigned int virq, unsigned int strict_check)
 	return default_server;
 }
 #else
-static int get_irq_server(unsigned int virq, unsigned int strict_check)
-{
-	return default_server;
-}
+#define get_irq_server(virq, cpumask, strict_check) (default_server)
 #endif
 
 static void xics_unmask_irq(unsigned int virq)
@@ -211,7 +207,7 @@ static void xics_unmask_irq(unsigned int virq)
 	if (irq == XICS_IPI || irq == XICS_IRQ_SPURIOUS)
 		return;
 
-	server = get_irq_server(virq, 0);
+	server = get_irq_server(virq, *(irq_to_desc(virq)->affinity), 0);
 
 	call_status = rtas_call(ibm_set_xive, 3, 1, NULL, irq, server,
 				DEFAULT_PRIORITY);
@@ -335,7 +331,8 @@ static unsigned int xics_get_irq_direct(void)
 
 static unsigned int xics_get_irq_lpar(void)
 {
-	unsigned int xirr = lpar_xirr_info_get();
+	struct xics_cppr *os_cppr = &__get_cpu_var(xics_cppr);
+	unsigned int xirr = lpar_xirr_info_get(os_cppr->stack[os_cppr->index]);
 	unsigned int vec = xics_xirr_vector(xirr);
 	unsigned int irq;
 
@@ -405,7 +402,7 @@ static int xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 	 * For the moment only implement delivery to all cpus or one cpu.
 	 * Get current irq_server for the given irq
 	 */
-	irq_server = get_irq_server(virq, 1);
+	irq_server = get_irq_server(virq, *cpumask, 1);
 	if (irq_server == -1) {
 		char cpulist[128];
 		cpumask_scnprintf(cpulist, sizeof(cpulist), cpumask);
@@ -428,7 +425,7 @@ static int xics_set_affinity(unsigned int virq, const struct cpumask *cpumask)
 }
 
 static struct irq_chip xics_pic_direct = {
-	.name = " XICS     ",
+	.name = "XICS",
 	.startup = xics_startup,
 	.mask = xics_mask_irq,
 	.unmask = xics_unmask_irq,
@@ -437,7 +434,7 @@ static struct irq_chip xics_pic_direct = {
 };
 
 static struct irq_chip xics_pic_lpar = {
-	.name = " XICS     ",
+	.name = "XICS",
 	.startup = xics_startup,
 	.mask = xics_mask_irq,
 	.unmask = xics_unmask_irq,
@@ -514,15 +511,13 @@ static void __init xics_init_host(void)
 /*
  * XICS only has a single IPI, so encode the messages per CPU
  */
-struct xics_ipi_struct {
-        unsigned long value;
-	} ____cacheline_aligned;
-
-static struct xics_ipi_struct xics_ipi_message[NR_CPUS] __cacheline_aligned;
+static DEFINE_PER_CPU_SHARED_ALIGNED(unsigned long, xics_ipi_message);
 
 static inline void smp_xics_do_message(int cpu, int msg)
 {
-	set_bit(msg, &xics_ipi_message[cpu].value);
+	unsigned long *tgt = &per_cpu(xics_ipi_message, cpu);
+
+	set_bit(msg, tgt);
 	mb();
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		lpar_qirr_info(cpu, IPI_PRIORITY);
@@ -548,25 +543,23 @@ void smp_xics_message_pass(int target, int msg)
 
 static irqreturn_t xics_ipi_dispatch(int cpu)
 {
+	unsigned long *tgt = &per_cpu(xics_ipi_message, cpu);
+
 	WARN_ON(cpu_is_offline(cpu));
 
 	mb();	/* order mmio clearing qirr */
-	while (xics_ipi_message[cpu].value) {
-		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION,
-				       &xics_ipi_message[cpu].value)) {
+	while (*tgt) {
+		if (test_and_clear_bit(PPC_MSG_CALL_FUNCTION, tgt)) {
 			smp_message_recv(PPC_MSG_CALL_FUNCTION);
 		}
-		if (test_and_clear_bit(PPC_MSG_RESCHEDULE,
-				       &xics_ipi_message[cpu].value)) {
+		if (test_and_clear_bit(PPC_MSG_RESCHEDULE, tgt)) {
 			smp_message_recv(PPC_MSG_RESCHEDULE);
 		}
-		if (test_and_clear_bit(PPC_MSG_CALL_FUNC_SINGLE,
-				       &xics_ipi_message[cpu].value)) {
+		if (test_and_clear_bit(PPC_MSG_CALL_FUNC_SINGLE, tgt)) {
 			smp_message_recv(PPC_MSG_CALL_FUNC_SINGLE);
 		}
 #if defined(CONFIG_DEBUGGER) || defined(CONFIG_KEXEC)
-		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK,
-				       &xics_ipi_message[cpu].value)) {
+		if (test_and_clear_bit(PPC_MSG_DEBUGGER_BREAK, tgt)) {
 			smp_message_recv(PPC_MSG_DEBUGGER_BREAK);
 		}
 #endif
@@ -788,9 +781,13 @@ static void xics_set_cpu_priority(unsigned char cppr)
 {
 	struct xics_cppr *os_cppr = &__get_cpu_var(xics_cppr);
 
-	BUG_ON(os_cppr->index != 0);
+	/*
+	 * we only really want to set the priority when there's
+	 * just one cppr value on the stack
+	 */
+	WARN_ON(os_cppr->index != 0);
 
-	os_cppr->stack[os_cppr->index] = cppr;
+	os_cppr->stack[0] = cppr;
 
 	if (firmware_has_feature(FW_FEATURE_LPAR))
 		lpar_cppr_info(cppr);
@@ -825,8 +822,14 @@ void xics_setup_cpu(void)
 
 void xics_teardown_cpu(void)
 {
+	struct xics_cppr *os_cppr = &__get_cpu_var(xics_cppr);
 	int cpu = smp_processor_id();
 
+	/*
+	 * we have to reset the cppr index to 0 because we're
+	 * not going to return from the IPI
+	 */
+	os_cppr->index = 0;
 	xics_set_cpu_priority(0);
 
 	/* Clear any pending IPI request */

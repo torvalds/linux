@@ -33,11 +33,6 @@ static char x86_stack_ids[][8] = {
 #endif
 };
 
-int x86_is_stack_id(int id, char *name)
-{
-	return x86_stack_ids[id - 1] == name;
-}
-
 static unsigned long *in_exception_stack(unsigned cpu, unsigned long stack,
 					 unsigned *usedp, char **idp)
 {
@@ -125,9 +120,15 @@ fixup_bp_irq_link(unsigned long bp, unsigned long *stack,
 {
 #ifdef CONFIG_FRAME_POINTER
 	struct stack_frame *frame = (struct stack_frame *)bp;
+	unsigned long next;
 
-	if (!in_irq_stack(stack, irq_stack, irq_stack_end))
-		return (unsigned long)frame->next_frame;
+	if (!in_irq_stack(stack, irq_stack, irq_stack_end)) {
+		if (!probe_kernel_address(&frame->next_frame, next))
+			return next;
+		else
+			WARN_ONCE(1, "Perf: bad frame pointer = %p in "
+				  "callchain\n", &frame->next_frame);
+	}
 #endif
 	return bp;
 }
@@ -291,6 +292,7 @@ void show_registers(struct pt_regs *regs)
 
 	sp = regs->sp;
 	printk("CPU %d ", cpu);
+	print_modules();
 	__show_regs(regs, 1);
 	printk("Process %s (pid: %d, threadinfo %p, task %p)\n",
 		cur->comm, cur->pid, task_thread_info(cur), cur);

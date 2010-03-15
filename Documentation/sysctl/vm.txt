@@ -573,11 +573,14 @@ Because other nodes' memory may be free. This means system total status
 may be not fatal yet.
 
 If this is set to 2, the kernel panics compulsorily even on the
-above-mentioned.
+above-mentioned. Even oom happens under memory cgroup, the whole
+system panics.
 
 The default value is 0.
 1 and 2 are for failover of clustering. Please select either
 according to your policy of failover.
+panic_on_oom=2+kdump gives you very strong tool to investigate
+why oom happens. You can get snapshot.
 
 =============================================================
 

@@ -235,7 +235,7 @@ static int pmcraid_slave_configure(struct scsi_device *scsi_dev)
 		scsi_dev->allow_restart = 1;
 		blk_queue_rq_timeout(scsi_dev->request_queue,
 				     PMCRAID_VSET_IO_TIMEOUT);
-		blk_queue_max_sectors(scsi_dev->request_queue,
+		blk_queue_max_hw_sectors(scsi_dev->request_queue,
 				      PMCRAID_VSET_MAX_SECTORS);
 	}
 

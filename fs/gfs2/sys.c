@@ -49,7 +49,7 @@ static ssize_t gfs2_attr_store(struct kobject *kobj, struct attribute *attr,
 	return a->store ? a->store(sdp, buf, len) : len;
 }
 
-static struct sysfs_ops gfs2_attr_ops = {
+static const struct sysfs_ops gfs2_attr_ops = {
 	.show  = gfs2_attr_show,
 	.store = gfs2_attr_store,
 };
@@ -167,7 +167,7 @@ static ssize_t quota_sync_store(struct gfs2_sbd *sdp, const char *buf,
 	if (simple_strtol(buf, NULL, 0) != 1)
 		return -EINVAL;
 
-	gfs2_quota_sync(sdp->sd_vfs, 0);
+	gfs2_quota_sync(sdp->sd_vfs, 0, 1);
 	return len;
 }
 
@@ -478,7 +478,6 @@ TUNE_ATTR(complain_secs, 0);
 TUNE_ATTR(statfs_slow, 0);
 TUNE_ATTR(new_files_jdata, 0);
 TUNE_ATTR(quota_simul_sync, 1);
-TUNE_ATTR(stall_secs, 1);
 TUNE_ATTR(statfs_quantum, 1);
 TUNE_ATTR_3(quota_scale, quota_scale_show, quota_scale_store);
 
@@ -491,7 +490,6 @@ static struct attribute *tune_attrs[] = {
 	&tune_attr_complain_secs.attr,
 	&tune_attr_statfs_slow.attr,
 	&tune_attr_quota_simul_sync.attr,
-	&tune_attr_stall_secs.attr,
 	&tune_attr_statfs_quantum.attr,
 	&tune_attr_quota_scale.attr,
 	&tune_attr_new_files_jdata.attr,
@@ -576,7 +574,7 @@ static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
 	return 0;
 }
 
-static struct kset_uevent_ops gfs2_uevent_ops = {
+static const struct kset_uevent_ops gfs2_uevent_ops = {
 	.uevent = gfs2_uevent,
 };
 

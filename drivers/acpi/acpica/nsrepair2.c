@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2009, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,7 +45,6 @@
 #include <acpi/acpi.h>
 #include "accommon.h"
 #include "acnamesp.h"
-#include "acpredef.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsrepair2")
@@ -93,7 +92,7 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 			  u32 sort_index,
 			  u8 sort_direction, char *sort_key_name);
 
-static acpi_status
+static void
 acpi_ns_sort_list(union acpi_operand_object **elements,
 		  u32 count, u32 index, u8 sort_direction);
 
@@ -443,7 +442,6 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 	union acpi_operand_object *obj_desc;
 	u32 i;
 	u32 previous_value;
-	acpi_status status;
 
 	ACPI_FUNCTION_NAME(ns_check_sorted_list);
 
@@ -494,19 +492,15 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 
 		/*
 		 * The list must be sorted in the specified order. If we detect a
-		 * discrepancy, issue a warning and sort the entire list
+		 * discrepancy, sort the entire list.
 		 */
 		if (((sort_direction == ACPI_SORT_ASCENDING) &&
 		     (obj_desc->integer.value < previous_value)) ||
 		    ((sort_direction == ACPI_SORT_DESCENDING) &&
 		     (obj_desc->integer.value > previous_value))) {
-			status =
-			    acpi_ns_sort_list(return_object->package.elements,
-					      outer_element_count, sort_index,
-					      sort_direction);
-			if (ACPI_FAILURE(status)) {
-				return (status);
-			}
+			acpi_ns_sort_list(return_object->package.elements,
+					  outer_element_count, sort_index,
+					  sort_direction);
 
 			data->flags |= ACPI_OBJECT_REPAIRED;
 
@@ -525,89 +519,6 @@ acpi_ns_check_sorted_list(struct acpi_predefined_data *data,
 
 /******************************************************************************
  *
- * FUNCTION:    acpi_ns_remove_null_elements
- *
- * PARAMETERS:  Data                - Pointer to validation data structure
- *              package_type        - An acpi_return_package_types value
- *              obj_desc            - A Package object
- *
- * RETURN:      None.
- *
- * DESCRIPTION: Remove all NULL package elements from packages that contain
- *              a variable number of sub-packages.
- *
- *****************************************************************************/
-
-void
-acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
-			     u8 package_type,
-			     union acpi_operand_object *obj_desc)
-{
-	union acpi_operand_object **source;
-	union acpi_operand_object **dest;
-	u32 count;
-	u32 new_count;
-	u32 i;
-
-	ACPI_FUNCTION_NAME(ns_remove_null_elements);
-
-	/*
-	 * PTYPE1 packages contain no subpackages.
-	 * PTYPE2 packages contain a variable number of sub-packages. We can
-	 * safely remove all NULL elements from the PTYPE2 packages.
-	 */
-	switch (package_type) {
-	case ACPI_PTYPE1_FIXED:
-	case ACPI_PTYPE1_VAR:
-	case ACPI_PTYPE1_OPTION:
-		return;
-
-	case ACPI_PTYPE2:
-	case ACPI_PTYPE2_COUNT:
-	case ACPI_PTYPE2_PKG_COUNT:
-	case ACPI_PTYPE2_FIXED:
-	case ACPI_PTYPE2_MIN:
-	case ACPI_PTYPE2_REV_FIXED:
-		break;
-
-	default:
-		return;
-	}
-
-	count = obj_desc->package.count;
-	new_count = count;
-
-	source = obj_desc->package.elements;
-	dest = source;
-
-	/* Examine all elements of the package object, remove nulls */
-
-	for (i = 0; i < count; i++) {
-		if (!*source) {
-			new_count--;
-		} else {
-			*dest = *source;
-			dest++;
-		}
-		source++;
-	}
-
-	/* Update parent package if any null elements were removed */
-
-	if (new_count < count) {
-		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
-				  "%s: Found and removed %u NULL elements\n",
-				  data->pathname, (count - new_count)));
-
-		/* NULL terminate list and update the package count */
-
-		*dest = NULL;
-		obj_desc->package.count = new_count;
-	}
-}
-
-/******************************************************************************
- *
  * FUNCTION:    acpi_ns_sort_list
  *
  * PARAMETERS:  Elements            - Package object element list
@@ -615,15 +526,16 @@ acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
  *              Index               - Sort by which package element
  *              sort_direction      - Ascending or Descending sort
  *
- * RETURN:      Status
+ * RETURN:      None
  *
  * DESCRIPTION: Sort the objects that are in a package element list.
  *
- * NOTE: Assumes that all NULL elements have been removed from the package.
+ * NOTE: Assumes that all NULL elements have been removed from the package,
+ *       and that all elements have been verified to be of type Integer.
  *
  *****************************************************************************/
 
-static acpi_status
+static void
 acpi_ns_sort_list(union acpi_operand_object **elements,
 		  u32 count, u32 index, u8 sort_direction)
 {
@@ -652,6 +564,4 @@ acpi_ns_sort_list(union acpi_operand_object **elements,
 			}
 		}
 	}
-
-	return (AE_OK);
 }

@@ -602,7 +602,7 @@ static int epson1355fb_remove(struct platform_device *dev)
 	return 0;
 }
 
-int __init epson1355fb_probe(struct platform_device *dev)
+int __devinit epson1355fb_probe(struct platform_device *dev)
 {
 	struct epson1355_par *default_par;
 	struct fb_info *info;

@@ -61,12 +61,6 @@ unsigned int boot_cpu_physical_apicid = -1U;
 
 /*
  * The highest APIC ID seen during enumeration.
- *
- * This determines the messaging protocol we can use: if all APIC IDs
- * are in the 0 ... 7 range, then we can use logical addressing which
- * has some performance advantages (better broadcasting).
- *
- * If there's an APIC ID above 8, we use physical addressing.
  */
 unsigned int max_physical_apicid;
 
@@ -587,7 +581,7 @@ calibrate_by_pmtimer(long deltapm, long *delta, long *deltatsc)
 		res = (((u64)(*deltatsc)) * pm_100ms);
 		do_div(res, deltapm);
 		apic_printk(APIC_VERBOSE, "TSC delta adjusted to "
-					  "PM-Timer: %lu (%ld) \n",
+					  "PM-Timer: %lu (%ld)\n",
 					(unsigned long)res, *deltatsc);
 		*deltatsc = (long)res;
 	}
@@ -1396,7 +1390,7 @@ void __init enable_IR_x2apic(void)
 	}
 
 	local_irq_save(flags);
-	mask_8259A();
+	legacy_pic->mask_all();
 	mask_IO_APIC_setup(ioapic_entries);
 
 	if (dmar_table_init_ret)
@@ -1428,7 +1422,7 @@ void __init enable_IR_x2apic(void)
 nox2apic:
 	if (!ret) /* IR enabling failed */
 		restore_IO_APIC_setup(ioapic_entries);
-	unmask_8259A();
+	legacy_pic->restore_mask();
 	local_irq_restore(flags);
 
 out:
@@ -1647,9 +1641,7 @@ int __init APIC_init_uniprocessor(void)
 #endif
 
 	enable_IR_x2apic();
-#ifdef CONFIG_X86_64
 	default_setup_apic_routing();
-#endif
 
 	verify_local_APIC();
 	connect_bsp_APIC();
@@ -1897,28 +1889,6 @@ void __cpuinit generic_processor_info(int apicid, int version)
 	if (apicid > max_physical_apicid)
 		max_physical_apicid = apicid;
 
-#ifdef CONFIG_X86_32
-	/*
-	 * Would be preferable to switch to bigsmp when CONFIG_HOTPLUG_CPU=y
-	 * but we need to work other dependencies like SMP_SUSPEND etc
-	 * before this can be done without some confusion.
-	 * if (CPU_HOTPLUG_ENABLED || num_processors > 8)
-	 *       - Ashok Raj <ashok.raj@intel.com>
-	 */
-	if (max_physical_apicid >= 8) {
-		switch (boot_cpu_data.x86_vendor) {
-		case X86_VENDOR_INTEL:
-			if (!APIC_XAPIC(version)) {
-				def_to_bigsmp = 0;
-				break;
-			}
-			/* If P4 and above fall through */
-		case X86_VENDOR_AMD:
-			def_to_bigsmp = 1;
-		}
-	}
-#endif
-
 #if defined(CONFIG_SMP) || defined(CONFIG_X86_64)
 	early_per_cpu(x86_cpu_to_apicid, cpu) = apicid;
 	early_per_cpu(x86_bios_cpu_apicid, cpu) = apicid;
@@ -2048,7 +2018,7 @@ static int lapic_resume(struct sys_device *dev)
 		}
 
 		mask_IO_APIC_setup(ioapic_entries);
-		mask_8259A();
+		legacy_pic->mask_all();
 	}
 
 	if (x2apic_mode)
@@ -2092,7 +2062,7 @@ static int lapic_resume(struct sys_device *dev)
 
 	if (intr_remapping_enabled) {
 		reenable_intr_remapping(x2apic_mode);
-		unmask_8259A();
+		legacy_pic->restore_mask();
 		restore_IO_APIC_setup(ioapic_entries);
 		free_ioapic_entries(ioapic_entries);
 	}

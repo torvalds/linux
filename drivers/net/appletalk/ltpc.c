@@ -1125,7 +1125,6 @@ struct net_device * __init ltpc_probe(void)
 		printk(KERN_INFO "Apple/Farallon LocalTalk-PC card at %03x, DMA%d.  Using polled mode.\n",io,dma);
 
 	dev->netdev_ops = &ltpc_netdev;
-	dev->mc_list = NULL;
 	dev->base_addr = io;
 	dev->irq = irq;
 	dev->dma = dma;

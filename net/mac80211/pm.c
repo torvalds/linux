@@ -10,9 +10,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_if_init_conf conf;
 	struct sta_info *sta;
-	unsigned long flags;
 
 	ieee80211_scan_cancel(local);
 
@@ -56,22 +54,21 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 	rcu_read_unlock();
 
 	/* remove STAs */
-	spin_lock_irqsave(&local->sta_lock, flags);
+	mutex_lock(&local->sta_mtx);
 	list_for_each_entry(sta, &local->sta_list, list) {
-		if (local->ops->sta_notify) {
+		if (sta->uploaded) {
 			sdata = sta->sdata;
 			if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 				sdata = container_of(sdata->bss,
 					     struct ieee80211_sub_if_data,
 					     u.ap);
 
-			drv_sta_notify(local, &sdata->vif, STA_NOTIFY_REMOVE,
-				       &sta->sta);
+			drv_sta_remove(local, sdata, &sta->sta);
 		}
 
 		mesh_plink_quiesce(sta);
 	}
-	spin_unlock_irqrestore(&local->sta_lock, flags);
+	mutex_unlock(&local->sta_mtx);
 
 	/* remove all interfaces */
 	list_for_each_entry(sdata, &local->interfaces, list) {
@@ -93,17 +90,14 @@ int __ieee80211_suspend(struct ieee80211_hw *hw)
 			break;
 		}
 
-		if (!netif_running(sdata->dev))
+		if (!ieee80211_sdata_running(sdata))
 			continue;
 
 		/* disable beaconing */
 		ieee80211_bss_info_change_notify(sdata,
 			BSS_CHANGED_BEACON_ENABLED);
 
-		conf.vif = &sdata->vif;
-		conf.type = sdata->vif.type;
-		conf.mac_addr = sdata->dev->dev_addr;
-		drv_remove_interface(local, &conf);
+		drv_remove_interface(local, &sdata->vif);
 	}
 
 	/* stop hardware - this must stop RX */

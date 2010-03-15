@@ -19,7 +19,6 @@
 #include <linux/moduleparam.h>
 #include <linux/mutex.h>
 #include <linux/freezer.h>
-#include <linux/semaphore.h>
 #include <asm/atomic.h>
 
 #include "csr.h"
@@ -1397,9 +1396,9 @@ static int update_pdrv(struct device *dev, void *data)
 			pdrv = container_of(drv, struct hpsb_protocol_driver,
 					    driver);
 			if (pdrv->update) {
-				down(&ud->device.sem);
+				device_lock(&ud->device);
 				error = pdrv->update(ud);
-				up(&ud->device.sem);
+				device_unlock(&ud->device);
 			}
 			if (error)
 				device_release_driver(&ud->device);

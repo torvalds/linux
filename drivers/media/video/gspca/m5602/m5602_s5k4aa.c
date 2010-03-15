@@ -48,6 +48,12 @@ static
 			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xa 2528")
 		}
 	}, {
+		.ident = "Fujitsu-Siemens Amilo Xi 2428",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "AMILO Xi 2428")
+		}
+	}, {
 		.ident = "Fujitsu-Siemens Amilo Xi 2528",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "FUJITSU SIEMENS"),
@@ -242,7 +248,7 @@ int s5k4aa_probe(struct sd *sd)
 		return -ENODEV;
 	}
 
-	info("Probing for a s5k4aa sensor");
+	PDEBUG(D_PROBE, "Probing for a s5k4aa sensor");
 
 	/* Preinit the sensor */
 	for (i = 0; i < ARRAY_SIZE(preinit_s5k4aa) && !err; i++) {

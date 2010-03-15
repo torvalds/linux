@@ -68,24 +68,77 @@ static void wait_for_dc_servo(struct snd_soc_codec *codec)
 	int count = 0;
 
 	dev_dbg(codec->dev, "Waiting for DC servo...\n");
+
 	do {
 		count++;
 		msleep(1);
 		reg = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_0);
-		dev_dbg(codec->dev, "DC servo status: %x\n", reg);
-	} while ((reg & WM8993_DCS_CAL_COMPLETE_MASK)
-		 != WM8993_DCS_CAL_COMPLETE_MASK && count < 1000);
+		dev_dbg(codec->dev, "DC servo: %x\n", reg);
+	} while (reg & WM8993_DCS_DATAPATH_BUSY);
 
-	if ((reg & WM8993_DCS_CAL_COMPLETE_MASK)
-	    != WM8993_DCS_CAL_COMPLETE_MASK)
+	if (reg & WM8993_DCS_DATAPATH_BUSY)
 		dev_err(codec->dev, "Timed out waiting for DC Servo\n");
+}
+
+/*
+ * Startup calibration of the DC servo
+ */
+static void calibrate_dc_servo(struct snd_soc_codec *codec)
+{
+	struct wm_hubs_data *hubs = codec->private_data;
+	u16 reg, dcs_cfg;
+
+	/* Set for 32 series updates */
+	snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
+			    WM8993_DCS_SERIES_NO_01_MASK,
+			    32 << WM8993_DCS_SERIES_NO_01_SHIFT);
+
+	/* Enable the DC servo.  Write all bits to avoid triggering startup
+	 * or write calibration.
+	 */
+	snd_soc_update_bits(codec, WM8993_DC_SERVO_0,
+			    0xFFFF,
+			    WM8993_DCS_ENA_CHAN_0 |
+			    WM8993_DCS_ENA_CHAN_1 |
+			    WM8993_DCS_TRIG_SERIES_1 |
+			    WM8993_DCS_TRIG_SERIES_0);
+
+	wait_for_dc_servo(codec);
+
+	/* Apply correction to DC servo result */
+	if (hubs->dcs_codes) {
+		dev_dbg(codec->dev, "Applying %d code DC servo correction\n",
+			hubs->dcs_codes);
+
+		/* HPOUT1L */
+		reg = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_1) &
+			WM8993_DCS_INTEG_CHAN_0_MASK;;
+		reg += hubs->dcs_codes;
+		dcs_cfg = reg << WM8993_DCS_DAC_WR_VAL_1_SHIFT;
+
+		/* HPOUT1R */
+		reg = snd_soc_read(codec, WM8993_DC_SERVO_READBACK_2) &
+			WM8993_DCS_INTEG_CHAN_1_MASK;
+		reg += hubs->dcs_codes;
+		dcs_cfg |= reg;
+
+		/* Do it */
+		snd_soc_write(codec, WM8993_DC_SERVO_3, dcs_cfg);
+		snd_soc_update_bits(codec, WM8993_DC_SERVO_0,
+				    WM8993_DCS_TRIG_DAC_WR_0 |
+				    WM8993_DCS_TRIG_DAC_WR_1,
+				    WM8993_DCS_TRIG_DAC_WR_0 |
+				    WM8993_DCS_TRIG_DAC_WR_1);
+
+		wait_for_dc_servo(codec);
+	}
 }
 
 /*
  * Update the DC servo calibration on gain changes
  */
 static int wm8993_put_dc_servo(struct snd_kcontrol *kcontrol,
-			      struct snd_ctl_elem_value *ucontrol)
+			       struct snd_ctl_elem_value *ucontrol)
 {
 	struct snd_soc_codec *codec = snd_kcontrol_chip(kcontrol);
 	int ret;
@@ -251,6 +304,47 @@ SOC_SINGLE_TLV("LINEOUT2 Volume", WM8993_LINE_OUTPUTS_VOLUME, 0, 1, 1,
 	       line_tlv),
 };
 
+static int hp_supply_event(struct snd_soc_dapm_widget *w,
+			   struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = w->codec;
+	struct wm_hubs_data *hubs = codec->private_data;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		switch (hubs->hp_startup_mode) {
+		case 0:
+			break;
+		case 1:
+			/* Enable the headphone amp */
+			snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_1,
+					    WM8993_HPOUT1L_ENA |
+					    WM8993_HPOUT1R_ENA,
+					    WM8993_HPOUT1L_ENA |
+					    WM8993_HPOUT1R_ENA);
+
+			/* Enable the second stage */
+			snd_soc_update_bits(codec, WM8993_ANALOGUE_HP_0,
+					    WM8993_HPOUT1L_DLY |
+					    WM8993_HPOUT1R_DLY,
+					    WM8993_HPOUT1L_DLY |
+					    WM8993_HPOUT1R_DLY);
+			break;
+		default:
+			dev_err(codec->dev, "Unknown HP startup mode %d\n",
+				hubs->hp_startup_mode);
+			break;
+		}
+
+	case SND_SOC_DAPM_PRE_PMD:
+		snd_soc_update_bits(codec, WM8993_CHARGE_PUMP_1,
+				    WM8993_CP_ENA, 0);
+		break;
+	}
+
+	return 0;
+}
+
 static int hp_event(struct snd_soc_dapm_widget *w,
 		    struct snd_kcontrol *kcontrol, int event)
 {
@@ -271,14 +365,11 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		reg |= WM8993_HPOUT1L_DLY | WM8993_HPOUT1R_DLY;
 		snd_soc_write(codec, WM8993_ANALOGUE_HP_0, reg);
 
-		/* Start the DC servo */
-		snd_soc_update_bits(codec, WM8993_DC_SERVO_0,
-				    0xFFFF,
-				    WM8993_DCS_ENA_CHAN_0 |
-				    WM8993_DCS_ENA_CHAN_1 |
-				    WM8993_DCS_TRIG_STARTUP_1 |
-				    WM8993_DCS_TRIG_STARTUP_0);
-		wait_for_dc_servo(codec);
+		/* Smallest supported update interval */
+		snd_soc_update_bits(codec, WM8993_DC_SERVO_1,
+				    WM8993_DCS_TIMER_PERIOD_01_MASK, 1);
+
+		calibrate_dc_servo(codec);
 
 		reg |= WM8993_HPOUT1R_OUTP | WM8993_HPOUT1R_RMV_SHORT |
 			WM8993_HPOUT1L_OUTP | WM8993_HPOUT1L_RMV_SHORT;
@@ -286,23 +377,19 @@ static int hp_event(struct snd_soc_dapm_widget *w,
 		break;
 
 	case SND_SOC_DAPM_PRE_PMD:
-		reg &= ~(WM8993_HPOUT1L_RMV_SHORT |
-			 WM8993_HPOUT1L_DLY |
-			 WM8993_HPOUT1L_OUTP |
-			 WM8993_HPOUT1R_RMV_SHORT |
-			 WM8993_HPOUT1R_DLY |
-			 WM8993_HPOUT1R_OUTP);
+		snd_soc_update_bits(codec, WM8993_ANALOGUE_HP_0,
+				    WM8993_HPOUT1L_DLY |
+				    WM8993_HPOUT1R_DLY |
+				    WM8993_HPOUT1L_RMV_SHORT |
+				    WM8993_HPOUT1R_RMV_SHORT, 0);
 
-		snd_soc_update_bits(codec, WM8993_DC_SERVO_0,
-				    0xffff, 0);
+		snd_soc_update_bits(codec, WM8993_ANALOGUE_HP_0,
+				    WM8993_HPOUT1L_OUTP |
+				    WM8993_HPOUT1R_OUTP, 0);
 
-		snd_soc_write(codec, WM8993_ANALOGUE_HP_0, reg);
 		snd_soc_update_bits(codec, WM8993_POWER_MANAGEMENT_1,
 				    WM8993_HPOUT1L_ENA | WM8993_HPOUT1R_ENA,
 				    0);
-
-		snd_soc_update_bits(codec, WM8993_CHARGE_PUMP_1,
-				    WM8993_CP_ENA, 0);
 		break;
 	}
 
@@ -473,6 +560,8 @@ SND_SOC_DAPM_MIXER("Right Output Mixer", WM8993_POWER_MANAGEMENT_3, 4, 0,
 SND_SOC_DAPM_PGA("Left Output PGA", WM8993_POWER_MANAGEMENT_3, 7, 0, NULL, 0),
 SND_SOC_DAPM_PGA("Right Output PGA", WM8993_POWER_MANAGEMENT_3, 6, 0, NULL, 0),
 
+SND_SOC_DAPM_SUPPLY("Headphone Supply", SND_SOC_NOPM, 0, 0, hp_supply_event, 
+		    SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_PRE_PMD),
 SND_SOC_DAPM_PGA_E("Headphone PGA", SND_SOC_NOPM, 0, 0,
 		   NULL, 0,
 		   hp_event, SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
@@ -626,6 +715,7 @@ static const struct snd_soc_dapm_route analogue_routes[] = {
 	{ "Headphone PGA", NULL, "Left Headphone Mux" },
 	{ "Headphone PGA", NULL, "Right Headphone Mux" },
 	{ "Headphone PGA", NULL, "CLK_SYS" },
+	{ "Headphone PGA", NULL, "Headphone Supply" },
 
 	{ "HPOUT1L", NULL, "Headphone PGA" },
 	{ "HPOUT1R", NULL, "Headphone PGA" },
@@ -752,6 +842,12 @@ int wm_hubs_handle_analogue_pdata(struct snd_soc_codec *codec,
 		snd_soc_update_bits(codec, WM8993_LINE_MIXER2,
 				    WM8993_LINEOUT2_MODE,
 				    WM8993_LINEOUT2_MODE);
+
+	/* If the line outputs are differential then we aren't presenting
+	 * VMID as an output and can disable it.
+	 */
+	if (lineout1_diff && lineout2_diff)
+		codec->idle_bias_off = 1;
 
 	if (lineout1fb)
 		snd_soc_update_bits(codec, WM8993_ADDITIONAL_CONTROL,

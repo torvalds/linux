@@ -95,7 +95,7 @@ extern char usermode_helper[];
 
 /* All EEs on the free list should have ID_VACANT (== 0)
  * freshly allocated EEs get !ID_VACANT (== 1)
- * so if it says "cannot dereference null pointer at adress 0x00000001",
+ * so if it says "cannot dereference null pointer at address 0x00000001",
  * it is most likely one of these :( */
 
 #define ID_IN_SYNC      (4711ULL)
@@ -1171,7 +1171,7 @@ extern int drbd_bitmap_io(struct drbd_conf *mdev, int (*io_fn)(struct drbd_conf 
 /* Meta data layout
    We reserve a 128MB Block (4k aligned)
    * either at the end of the backing device
-   * or on a seperate meta data device. */
+   * or on a separate meta data device. */
 
 #define MD_RESERVED_SECT (128LU << 11)  /* 128 MB, unit sectors */
 /* The following numbers are sectors */
@@ -1275,7 +1275,7 @@ struct bm_extent {
 #if DRBD_MAX_SECTORS_BM < DRBD_MAX_SECTORS_32
 #define DRBD_MAX_SECTORS      DRBD_MAX_SECTORS_BM
 #define DRBD_MAX_SECTORS_FLEX DRBD_MAX_SECTORS_BM
-#elif !defined(CONFIG_LBD) && BITS_PER_LONG == 32
+#elif !defined(CONFIG_LBDAF) && BITS_PER_LONG == 32
 #define DRBD_MAX_SECTORS      DRBD_MAX_SECTORS_32
 #define DRBD_MAX_SECTORS_FLEX DRBD_MAX_SECTORS_32
 #else
@@ -1371,10 +1371,9 @@ extern int is_valid_ar_handle(struct drbd_request *, sector_t);
 extern void drbd_suspend_io(struct drbd_conf *mdev);
 extern void drbd_resume_io(struct drbd_conf *mdev);
 extern char *ppsize(char *buf, unsigned long long size);
-extern sector_t drbd_new_dev_size(struct drbd_conf *,
-		struct drbd_backing_dev *);
+extern sector_t drbd_new_dev_size(struct drbd_conf *, struct drbd_backing_dev *, int);
 enum determine_dev_size { dev_size_error = -1, unchanged = 0, shrunk = 1, grew = 2 };
-extern enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *) __must_hold(local);
+extern enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *, int force) __must_hold(local);
 extern void resync_after_online_grow(struct drbd_conf *);
 extern void drbd_setup_queue_param(struct drbd_conf *mdev, unsigned int) __must_hold(local);
 extern int drbd_set_role(struct drbd_conf *mdev, enum drbd_role new_role,

@@ -170,14 +170,14 @@ struct async_merge {
 
 static void mapping_tree_init(struct mapping_tree *tree)
 {
-	tree->rb_root.rb_node = NULL;
+	tree->rb_root = RB_ROOT;
 	spin_lock_init(&tree->lock);
 }
 
 static void backref_cache_init(struct backref_cache *cache)
 {
 	int i;
-	cache->rb_root.rb_node = NULL;
+	cache->rb_root = RB_ROOT;
 	for (i = 0; i < BTRFS_MAX_LEVEL; i++)
 		INIT_LIST_HEAD(&cache->pending[i]);
 	spin_lock_init(&cache->lock);
@@ -3281,8 +3281,10 @@ static noinline_for_stack int relocate_block_group(struct reloc_control *rc)
 		return -ENOMEM;
 
 	path = btrfs_alloc_path();
-	if (!path)
+	if (!path) {
+		kfree(cluster);
 		return -ENOMEM;
+	}
 
 	rc->extents_found = 0;
 	rc->extents_skipped = 0;
@@ -3762,7 +3764,8 @@ out:
 				       BTRFS_DATA_RELOC_TREE_OBJECTID);
 		if (IS_ERR(fs_root))
 			err = PTR_ERR(fs_root);
-		btrfs_orphan_cleanup(fs_root);
+		else
+			btrfs_orphan_cleanup(fs_root);
 	}
 	return err;
 }

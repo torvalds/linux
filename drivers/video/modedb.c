@@ -893,7 +893,7 @@ const struct fb_videomode *fb_match_mode(const struct fb_var_screeninfo *var,
 }
 
 /**
- * fb_add_videomode: adds videomode entry to modelist
+ * fb_add_videomode - adds videomode entry to modelist
  * @mode: videomode to add
  * @head: struct list_head of modelist
  *
@@ -928,7 +928,7 @@ int fb_add_videomode(const struct fb_videomode *mode, struct list_head *head)
 }
 
 /**
- * fb_delete_videomode: removed videomode entry from modelist
+ * fb_delete_videomode - removed videomode entry from modelist
  * @mode: videomode to remove
  * @head: struct list_head of modelist
  *
@@ -953,7 +953,7 @@ void fb_delete_videomode(const struct fb_videomode *mode,
 }
 
 /**
- * fb_destroy_modelist: destroy modelist
+ * fb_destroy_modelist - destroy modelist
  * @head: struct list_head of modelist
  */
 void fb_destroy_modelist(struct list_head *head)
@@ -968,7 +968,7 @@ void fb_destroy_modelist(struct list_head *head)
 EXPORT_SYMBOL_GPL(fb_destroy_modelist);
 
 /**
- * fb_videomode_to_modelist: convert mode array to mode list
+ * fb_videomode_to_modelist - convert mode array to mode list
  * @modedb: array of struct fb_videomode
  * @num: number of entries in array
  * @head: struct list_head of modelist

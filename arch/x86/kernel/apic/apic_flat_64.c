@@ -223,7 +223,7 @@ struct apic apic_flat =  {
 };
 
 /*
- * Physflat mode is used when there are more than 8 CPUs on a AMD system.
+ * Physflat mode is used when there are more than 8 CPUs on a system.
  * We cannot use logical delivery in this case because the mask
  * overflows, so use physical mode.
  */
@@ -238,6 +238,11 @@ static int physflat_acpi_madt_oem_check(char *oem_id, char *oem_table_id)
 	if (acpi_gbl_FADT.header.revision >= FADT2_REVISION_ID &&
 		(acpi_gbl_FADT.flags & ACPI_FADT_APIC_PHYSICAL)) {
 		printk(KERN_DEBUG "system APIC only can use physical flat");
+		return 1;
+	}
+
+	if (!strncmp(oem_id, "IBM", 3) && !strncmp(oem_table_id, "EXA", 3)) {
+		printk(KERN_DEBUG "IBM Summit detected, will use apic physical");
 		return 1;
 	}
 #endif

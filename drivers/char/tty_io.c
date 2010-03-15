@@ -1951,8 +1951,10 @@ static int tty_fasync(int fd, struct file *filp, int on)
 			pid = task_pid(current);
 			type = PIDTYPE_PID;
 		}
+		get_pid(pid);
 		spin_unlock_irqrestore(&tty->ctrl_lock, flags);
 		retval = __f_setown(filp, pid, type, 0);
+		put_pid(pid);
 		if (retval)
 			goto out;
 	} else {
@@ -2026,7 +2028,7 @@ static int tiocgwinsz(struct tty_struct *tty, struct winsize __user *arg)
  *	@rows: rows (character)
  *	@cols: cols (character)
  *
- *	Update the termios variables and send the neccessary signals to
+ *	Update the termios variables and send the necessary signals to
  *	peform a terminal resize correctly
  */
 

@@ -452,6 +452,7 @@ int phy_attach_direct(struct net_device *dev, struct phy_device *phydev,
 		u32 flags, phy_interface_t interface);
 struct phy_device * phy_attach(struct net_device *dev,
 		const char *bus_id, u32 flags, phy_interface_t interface);
+struct phy_device *phy_find_first(struct mii_bus *bus);
 int phy_connect_direct(struct net_device *dev, struct phy_device *phydev,
 		void (*handler)(struct net_device *), u32 flags,
 		phy_interface_t interface);
@@ -485,6 +486,7 @@ void phy_driver_unregister(struct phy_driver *drv);
 int phy_driver_register(struct phy_driver *new_driver);
 void phy_prepare_link(struct phy_device *phydev,
 		void (*adjust_link)(struct net_device *));
+void phy_state_machine(struct work_struct *work);
 void phy_start_machine(struct phy_device *phydev,
 		void (*handler)(struct net_device *));
 void phy_stop_machine(struct phy_device *phydev);

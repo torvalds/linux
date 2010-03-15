@@ -881,7 +881,7 @@ static void kaweth_set_rx_mode(struct net_device *net)
 	if (net->flags & IFF_PROMISC) {
 		packet_filter_bitmap |= KAWETH_PACKET_FILTER_PROMISCUOUS;
 	}
-	else if ((net->mc_count) || (net->flags & IFF_ALLMULTI)) {
+	else if (!netdev_mc_empty(net) || (net->flags & IFF_ALLMULTI)) {
 		packet_filter_bitmap |= KAWETH_PACKET_FILTER_ALL_MULTICAST;
 	}
 

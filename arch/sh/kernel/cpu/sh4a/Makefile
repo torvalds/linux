@@ -41,7 +41,8 @@ pinmux-$(CONFIG_CPU_SUBTYPE_SH7757)	:= pinmux-sh7757.o
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7785)	:= pinmux-sh7785.o
 pinmux-$(CONFIG_CPU_SUBTYPE_SH7786)	:= pinmux-sh7786.o
 
-obj-y				+= $(clock-y)
-obj-$(CONFIG_SMP)		+= $(smp-y)
-obj-$(CONFIG_GENERIC_GPIO)	+= $(pinmux-y)
-obj-$(CONFIG_PERF_EVENTS)	+= perf_event.o
+obj-y					+= $(clock-y)
+obj-$(CONFIG_SMP)			+= $(smp-y)
+obj-$(CONFIG_GENERIC_GPIO)		+= $(pinmux-y)
+obj-$(CONFIG_PERF_EVENTS)		+= perf_event.o
+obj-$(CONFIG_HAVE_HW_BREAKPOINT)	+= ubc.o

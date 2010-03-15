@@ -329,7 +329,8 @@ static inline unsigned long uv_read_global_mmr64(int pnode, unsigned long offset
  */
 static inline unsigned long uv_global_gru_mmr_address(int pnode, unsigned long offset)
 {
-	return UV_GLOBAL_GRU_MMR_BASE | offset | (pnode << uv_hub_info->m_val);
+	return UV_GLOBAL_GRU_MMR_BASE | offset |
+		((unsigned long)pnode << uv_hub_info->m_val);
 }
 
 static inline void uv_write_global_mmr8(int pnode, unsigned long offset, unsigned char val)
@@ -493,6 +494,18 @@ static inline void uv_hub_send_ipi(int pnode, int apicid, int vector)
 
 	val = uv_hub_ipi_value(apicid, vector, dmode);
 	uv_write_global_mmr64(pnode, UVH_IPI_INT, val);
+}
+
+/*
+ * Get the minimum revision number of the hub chips within the partition.
+ *     1 - initial rev 1.0 silicon
+ *     2 - rev 2.0 production silicon
+ */
+static inline int uv_get_min_hub_revision_id(void)
+{
+	extern int uv_min_hub_revision_id;
+
+	return uv_min_hub_revision_id;
 }
 
 #endif /* CONFIG_X86_64 */

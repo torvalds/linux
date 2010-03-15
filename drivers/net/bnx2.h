@@ -349,7 +349,7 @@ struct l2_fhdr {
 #define BNX2_L2CTX_BD_PRE_READ				0x00000000
 #define BNX2_L2CTX_CTX_SIZE				0x00000000
 #define BNX2_L2CTX_CTX_TYPE				0x00000000
-#define BNX2_L2CTX_LO_WATER_MARK_DEFAULT		 32
+#define BNX2_L2CTX_LO_WATER_MARK_DEFAULT		 4
 #define BNX2_L2CTX_LO_WATER_MARK_SCALE			 4
 #define BNX2_L2CTX_LO_WATER_MARK_DIS			 0
 #define BNX2_L2CTX_HI_WATER_MARK_SHIFT			 4
@@ -6851,6 +6851,7 @@ struct bnx2 {
 	dma_addr_t		status_blk_mapping;
 
 	struct statistics_block	*stats_blk;
+	struct statistics_block	*temp_stats_blk;
 	dma_addr_t		stats_blk_mapping;
 
 	int			ctx_pages;

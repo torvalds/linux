@@ -28,9 +28,9 @@ int __init detect_cpu_and_cache_system(void)
 		[9] = (1 << 16)
 	};
 
-	pvr = (ctrl_inl(CCN_PVR) >> 8) & 0xffffff;
-	prr = (ctrl_inl(CCN_PRR) >> 4) & 0xff;
-	cvr = (ctrl_inl(CCN_CVR));
+	pvr = (__raw_readl(CCN_PVR) >> 8) & 0xffffff;
+	prr = (__raw_readl(CCN_PRR) >> 4) & 0xff;
+	cvr = (__raw_readl(CCN_CVR));
 
 	/*
 	 * Setup some sane SH-4 defaults for the icache
@@ -71,11 +71,11 @@ int __init detect_cpu_and_cache_system(void)
 		boot_cpu_data.dcache.ways = 4;
 	} else {
 		/* And some SH-4 defaults.. */
-		boot_cpu_data.flags |= CPU_HAS_PTEA;
+		boot_cpu_data.flags |= CPU_HAS_PTEA | CPU_HAS_FPU;
 		boot_cpu_data.family = CPU_FAMILY_SH4;
 	}
 
-	/* FPU detection works for everyone */
+	/* FPU detection works for almost everyone */
 	if ((cvr & 0x20000000))
 		boot_cpu_data.flags |= CPU_HAS_FPU;
 
@@ -124,6 +124,7 @@ int __init detect_cpu_and_cache_system(void)
 		boot_cpu_data.type = CPU_SH7785;
 		break;
 	case 0x4004:
+	case 0x4005:
 		boot_cpu_data.type = CPU_SH7786;
 		boot_cpu_data.flags |= CPU_HAS_PTEAEX | CPU_HAS_L2_CACHE;
 		break;
@@ -160,6 +161,7 @@ int __init detect_cpu_and_cache_system(void)
 		break;
 	case 0x700:
 		boot_cpu_data.type = CPU_SH4_501;
+		boot_cpu_data.flags &= ~CPU_HAS_FPU;
 		boot_cpu_data.icache.ways = 2;
 		boot_cpu_data.dcache.ways = 2;
 		break;
@@ -227,7 +229,7 @@ int __init detect_cpu_and_cache_system(void)
 			 * Size calculation is much more sensible
 			 * than it is for the L1.
 			 *
-			 * Sizes are 128KB, 258KB, 512KB, and 1MB.
+			 * Sizes are 128KB, 256KB, 512KB, and 1MB.
 			 */
 			size = (cvr & 0xf) << 17;
 

@@ -109,8 +109,8 @@ struct ttm_ref_object {
 	struct drm_hash_item hash;
 	struct list_head head;
 	struct kref kref;
-	struct ttm_base_object *obj;
 	enum ttm_ref_type ref_type;
+	struct ttm_base_object *obj;
 	struct ttm_object_file *tfile;
 };
 

@@ -66,21 +66,21 @@ int enic_get_vnic_config(struct enic *enic)
 	GET_CONFIG(wq_desc_count);
 	GET_CONFIG(rq_desc_count);
 	GET_CONFIG(mtu);
-	GET_CONFIG(intr_timer);
 	GET_CONFIG(intr_timer_type);
 	GET_CONFIG(intr_mode);
+	GET_CONFIG(intr_timer_usec);
 
 	c->wq_desc_count =
 		min_t(u32, ENIC_MAX_WQ_DESCS,
 		max_t(u32, ENIC_MIN_WQ_DESCS,
 		c->wq_desc_count));
-	c->wq_desc_count &= 0xfffffff0; /* must be aligned to groups of 16 */
+	c->wq_desc_count &= 0xffffffe0; /* must be aligned to groups of 32 */
 
 	c->rq_desc_count =
 		min_t(u32, ENIC_MAX_RQ_DESCS,
 		max_t(u32, ENIC_MIN_RQ_DESCS,
 		c->rq_desc_count));
-	c->rq_desc_count &= 0xfffffff0; /* must be aligned to groups of 16 */
+	c->rq_desc_count &= 0xffffffe0; /* must be aligned to groups of 32 */
 
 	if (c->mtu == 0)
 		c->mtu = 1500;
@@ -88,15 +88,17 @@ int enic_get_vnic_config(struct enic *enic)
 		max_t(u16, ENIC_MIN_MTU,
 		c->mtu));
 
-	c->intr_timer = min_t(u16, VNIC_INTR_TIMER_MAX, c->intr_timer);
+	c->intr_timer_usec = min_t(u32,
+		INTR_COALESCE_HW_TO_USEC(VNIC_INTR_TIMER_MAX),
+		c->intr_timer_usec);
 
 	printk(KERN_INFO PFX "vNIC MAC addr %pM wq/rq %d/%d\n",
 		enic->mac_addr, c->wq_desc_count, c->rq_desc_count);
 	printk(KERN_INFO PFX "vNIC mtu %d csum tx/rx %d/%d tso/lro %d/%d "
-		"intr timer %d\n",
+		"intr timer %d usec\n",
 		c->mtu, ENIC_SETTING(enic, TXCSUM),
 		ENIC_SETTING(enic, RXCSUM), ENIC_SETTING(enic, TSO),
-		ENIC_SETTING(enic, LRO), c->intr_timer);
+		ENIC_SETTING(enic, LRO), c->intr_timer_usec);
 
 	return 0;
 }
@@ -303,7 +305,7 @@ void enic_init_vnic_resources(struct enic *enic)
 
 	for (i = 0; i < enic->intr_count; i++) {
 		vnic_intr_init(&enic->intr[i],
-			enic->config.intr_timer,
+			INTR_COALESCE_USEC_TO_HW(enic->config.intr_timer_usec),
 			enic->config.intr_timer_type,
 			mask_on_assertion);
 	}

@@ -34,8 +34,8 @@
 #include <linux/crc-itu-t.h>
 #include <linux/exportfs.h>
 
-static inline int udf_match(int len1, const char *name1, int len2,
-			    const char *name2)
+static inline int udf_match(int len1, const unsigned char *name1, int len2,
+			    const unsigned char *name2)
 {
 	if (len1 != len2)
 		return 0;
@@ -142,15 +142,15 @@ int udf_write_fi(struct inode *inode, struct fileIdentDesc *cfi,
 }
 
 static struct fileIdentDesc *udf_find_entry(struct inode *dir,
-					    struct qstr *child,
+					    const struct qstr *child,
 					    struct udf_fileident_bh *fibh,
 					    struct fileIdentDesc *cfi)
 {
 	struct fileIdentDesc *fi = NULL;
 	loff_t f_pos;
 	int block, flen;
-	char *fname = NULL;
-	char *nameptr;
+	unsigned char *fname = NULL;
+	unsigned char *nameptr;
 	uint8_t lfi;
 	uint16_t liu;
 	loff_t size;
@@ -308,7 +308,7 @@ static struct fileIdentDesc *udf_add_entry(struct inode *dir,
 {
 	struct super_block *sb = dir->i_sb;
 	struct fileIdentDesc *fi = NULL;
-	char *name = NULL;
+	unsigned char *name = NULL;
 	int namelen;
 	loff_t f_pos;
 	loff_t size = udf_ext0_offset(dir) + dir->i_size;
@@ -563,6 +563,8 @@ static int udf_create(struct inode *dir, struct dentry *dentry, int mode,
 	int err;
 	struct udf_inode_info *iinfo;
 
+	dquot_initialize(dir);
+
 	lock_kernel();
 	inode = udf_new_inode(dir, mode, &err);
 	if (!inode) {
@@ -616,6 +618,8 @@ static int udf_mknod(struct inode *dir, struct dentry *dentry, int mode,
 	if (!old_valid_dev(rdev))
 		return -EINVAL;
 
+	dquot_initialize(dir);
+
 	lock_kernel();
 	err = -EIO;
 	inode = udf_new_inode(dir, mode, &err);
@@ -661,6 +665,8 @@ static int udf_mkdir(struct inode *dir, struct dentry *dentry, int mode)
 	int err;
 	struct udf_inode_info *dinfo = UDF_I(dir);
 	struct udf_inode_info *iinfo;
+
+	dquot_initialize(dir);
 
 	lock_kernel();
 	err = -EMLINK;
@@ -799,6 +805,8 @@ static int udf_rmdir(struct inode *dir, struct dentry *dentry)
 	struct fileIdentDesc *fi, cfi;
 	struct kernel_lb_addr tloc;
 
+	dquot_initialize(dir);
+
 	retval = -ENOENT;
 	lock_kernel();
 	fi = udf_find_entry(dir, &dentry->d_name, &fibh, &cfi);
@@ -845,6 +853,8 @@ static int udf_unlink(struct inode *dir, struct dentry *dentry)
 	struct fileIdentDesc cfi;
 	struct kernel_lb_addr tloc;
 
+	dquot_initialize(dir);
+
 	retval = -ENOENT;
 	lock_kernel();
 	fi = udf_find_entry(dir, &dentry->d_name, &fibh, &cfi);
@@ -885,19 +895,21 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 {
 	struct inode *inode;
 	struct pathComponent *pc;
-	char *compstart;
+	const char *compstart;
 	struct udf_fileident_bh fibh;
 	struct extent_position epos = {};
 	int eoffset, elen = 0;
 	struct fileIdentDesc *fi;
 	struct fileIdentDesc cfi;
-	char *ea;
+	uint8_t *ea;
 	int err;
 	int block;
-	char *name = NULL;
+	unsigned char *name = NULL;
 	int namelen;
 	struct buffer_head *bh;
 	struct udf_inode_info *iinfo;
+
+	dquot_initialize(dir);
 
 	lock_kernel();
 	inode = udf_new_inode(dir, S_IFLNK, &err);
@@ -970,7 +982,7 @@ static int udf_symlink(struct inode *dir, struct dentry *dentry,
 
 		pc = (struct pathComponent *)(ea + elen);
 
-		compstart = (char *)symname;
+		compstart = symname;
 
 		do {
 			symname++;
@@ -1069,6 +1081,8 @@ static int udf_link(struct dentry *old_dentry, struct inode *dir,
 	int err;
 	struct buffer_head *bh;
 
+	dquot_initialize(dir);
+
 	lock_kernel();
 	if (inode->i_nlink >= (256 << sizeof(inode->i_nlink)) - 1) {
 		unlock_kernel();
@@ -1130,6 +1144,9 @@ static int udf_rename(struct inode *old_dir, struct dentry *old_dentry,
 	int retval = -ENOENT;
 	struct kernel_lb_addr tloc;
 	struct udf_inode_info *old_iinfo = UDF_I(old_inode);
+
+	dquot_initialize(old_dir);
+	dquot_initialize(new_dir);
 
 	lock_kernel();
 	ofi = udf_find_entry(old_dir, &old_dentry->d_name, &ofibh, &ocfi);

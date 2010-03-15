@@ -27,7 +27,7 @@
 #define GET_CR2_INTO_RCX movq %cr2, %rcx
 #endif
 
-/* we are not able to switch in one step to the final KERNEL ADRESS SPACE
+/* we are not able to switch in one step to the final KERNEL ADDRESS SPACE
  * because we need identity-mapped pages.
  *
  */

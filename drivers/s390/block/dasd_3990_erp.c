@@ -1045,6 +1045,10 @@ dasd_3990_erp_com_rej(struct dasd_ccw_req * erp, char *sense)
 
 		erp->retries = 5;
 
+	} else if (sense[1] & SNS1_WRITE_INHIBITED) {
+		dev_err(&device->cdev->dev, "An I/O request was rejected"
+			" because writing is inhibited\n");
+		erp = dasd_3990_erp_cleanup(erp, DASD_CQR_FAILED);
 	} else {
 		/* fatal error -  set status to FAILED
 		   internal error 09 - Command Reject */

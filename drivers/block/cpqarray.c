@@ -448,11 +448,8 @@ static int __init cpqarray_register_ctlr( int i, struct pci_dev *pdev)
 		blk_queue_bounce_limit(q, hba[i]->pci_dev->dma_mask);
 
 	/* This is a hardware imposed limit. */
-	blk_queue_max_hw_segments(q, SG_MAX);
+	blk_queue_max_segments(q, SG_MAX);
 
-	/* This is a driver limit and could be eliminated. */
-	blk_queue_max_phys_segments(q, SG_MAX);
-	
 	init_timer(&hba[i]->timer);
 	hba[i]->timer.expires = jiffies + IDA_TIMER;
 	hba[i]->timer.data = (unsigned long)hba[i];

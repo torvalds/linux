@@ -72,6 +72,14 @@ comment "Supported Earthsoft PT1 Adapters"
 	depends on DVB_CORE && PCI && I2C
 source "drivers/media/dvb/pt1/Kconfig"
 
+comment "Supported Mantis Adapters"
+	depends on DVB_CORE && PCI && I2C
+	source "drivers/media/dvb/mantis/Kconfig"
+
+comment "Supported nGene Adapters"
+	depends on DVB_CORE && PCI && I2C
+	source "drivers/media/dvb/ngene/Kconfig"
+
 comment "Supported DVB Frontends"
 	depends on DVB_CORE
 source "drivers/media/dvb/frontends/Kconfig"

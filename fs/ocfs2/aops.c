@@ -577,8 +577,9 @@ static int ocfs2_direct_IO_get_blocks(struct inode *inode, sector_t iblock,
 		goto bail;
 	}
 
-	/* We should already CoW the refcounted extent. */
-	BUG_ON(ext_flags & OCFS2_EXT_REFCOUNTED);
+	/* We should already CoW the refcounted extent in case of create. */
+	BUG_ON(create && (ext_flags & OCFS2_EXT_REFCOUNTED));
+
 	/*
 	 * get_more_blocks() expects us to describe a hole by clearing
 	 * the mapped bit on bh_result().
@@ -599,7 +600,7 @@ bail:
 	return ret;
 }
 
-/* 
+/*
  * ocfs2_dio_end_io is called by the dio core when a dio is finished.  We're
  * particularly interested in the aio/dio case.  Like the core uses
  * i_alloc_sem, we use the rw_lock DLM lock to protect io on one node from
@@ -670,7 +671,7 @@ static ssize_t ocfs2_direct_IO(int rw,
 
 	ret = blockdev_direct_IO_no_locking(rw, iocb, inode,
 					    inode->i_sb->s_bdev, iov, offset,
-					    nr_segs, 
+					    nr_segs,
 					    ocfs2_direct_IO_get_blocks,
 					    ocfs2_dio_end_io);
 
@@ -1763,10 +1764,11 @@ int ocfs2_write_begin_nolock(struct address_space *mapping,
 
 	wc->w_handle = handle;
 
-	if (clusters_to_alloc && vfs_dq_alloc_space_nodirty(inode,
-			ocfs2_clusters_to_bytes(osb->sb, clusters_to_alloc))) {
-		ret = -EDQUOT;
-		goto out_commit;
+	if (clusters_to_alloc) {
+		ret = dquot_alloc_space_nodirty(inode,
+			ocfs2_clusters_to_bytes(osb->sb, clusters_to_alloc));
+		if (ret)
+			goto out_commit;
 	}
 	/*
 	 * We don't want this to fail in ocfs2_write_end(), so do it
@@ -1809,7 +1811,7 @@ success:
 	return 0;
 out_quota:
 	if (clusters_to_alloc)
-		vfs_dq_free_space(inode,
+		dquot_free_space(inode,
 			  ocfs2_clusters_to_bytes(osb->sb, clusters_to_alloc));
 out_commit:
 	ocfs2_commit_trans(osb, handle);

@@ -239,15 +239,3 @@ void viafb_get_gamma_support_state(int bpp, unsigned int *support_state)
 	else
 		*support_state = CRT_Device | DVI_Device | LCD_Device;
 }
-
-int viafb_input_parameter_converter(int parameter_value)
-{
-	int result;
-
-	if (parameter_value >= 1 && parameter_value <= 9)
-		result = 1 << (parameter_value - 1);
-	else
-		result = 1;
-
-	return result;
-}

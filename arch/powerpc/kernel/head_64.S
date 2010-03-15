@@ -219,7 +219,8 @@ generic_secondary_common_init:
 	 * physical cpu id in r24, we need to search the pacas to find
 	 * which logical id maps to our physical one.
 	 */
-	LOAD_REG_ADDR(r13, paca)	/* Get base vaddr of paca array	 */
+	LOAD_REG_ADDR(r13, paca)	/* Load paca pointer		 */
+	ld	r13,0(r13)		/* Get base vaddr of paca array	 */
 	li	r5,0			/* logical cpu id                */
 1:	lhz	r6,PACAHWCPUID(r13)	/* Load HW procid from paca      */
 	cmpw	r6,r24			/* Compare to our id             */
@@ -536,7 +537,8 @@ _GLOBAL(pmac_secondary_start)
 	mtmsrd	r3			/* RI on */
 
 	/* Set up a paca value for this processor. */
-	LOAD_REG_ADDR(r4,paca)		/* Get base vaddr of paca array	*/
+	LOAD_REG_ADDR(r4,paca)		/* Load paca pointer		*/
+	ld	r4,0(r4)		/* Get base vaddr of paca array	*/
 	mulli	r13,r24,PACA_SIZE	/* Calculate vaddr of right paca */
 	add	r13,r13,r4		/* for this processor.		*/
 	mtspr	SPRN_SPRG_PACA,r13	/* Save vaddr of paca in an SPRG*/
@@ -611,6 +613,17 @@ END_FW_FTR_SECTION_IFCLR(FW_FEATURE_ISERIES)
  */
 _GLOBAL(start_secondary_prolog)
 	ld	r2,PACATOC(r13)
+	li	r3,0
+	std	r3,0(r1)		/* Zero the stack frame pointer	*/
+	bl	.start_secondary
+	b	.
+/*
+ * Reset stack pointer and call start_secondary
+ * to continue with online operation when woken up
+ * from cede in cpu offline.
+ */
+_GLOBAL(start_secondary_resume)
+	ld	r1,PACAKSAVE(r13)	/* Reload kernel stack pointer */
 	li	r3,0
 	std	r3,0(r1)		/* Zero the stack frame pointer	*/
 	bl	.start_secondary

@@ -36,10 +36,9 @@ static struct file *do_open(char *name, int flags)
 		return ERR_PTR(error);
 
 	if (flags == O_RDWR)
-		error = may_open(&nd.path, MAY_READ|MAY_WRITE,
-					   FMODE_READ|FMODE_WRITE);
+		error = may_open(&nd.path, MAY_READ|MAY_WRITE, flags);
 	else
-		error = may_open(&nd.path, MAY_WRITE, FMODE_WRITE);
+		error = may_open(&nd.path, MAY_WRITE, flags);
 
 	if (!error)
 		return dentry_open(nd.path.dentry, nd.path.mnt, flags,

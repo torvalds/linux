@@ -113,7 +113,7 @@ MODULE_PARM_DESC(coalesce, "Enable or Disable interrupt coalescing, 1: Enable, 0
 module_param_array(dynamic_ipg, bool, NULL, 0);
 MODULE_PARM_DESC(dynamic_ipg, "Enable or Disable dynamic IPG, 1: Enable, 0: Disable");
 
-static struct pci_device_id amd8111e_pci_tbl[] = {
+static DEFINE_PCI_DEVICE_TABLE(amd8111e_pci_tbl) = {
 
 	{ PCI_VENDOR_ID_AMD, PCI_DEVICE_ID_AMD8111E_7462,
 	 PCI_ANY_ID, PCI_ANY_ID, 0, 0, 0UL },
@@ -1176,8 +1176,7 @@ static irqreturn_t amd8111e_interrupt(int irq, void *dev_id)
 			/* Schedule a polling routine */
 			__napi_schedule(&lp->napi);
 		} else if (intren0 & RINTEN0) {
-			printk("************Driver bug! \
-				interrupt while in poll\n");
+			printk("************Driver bug! interrupt while in poll\n");
 			/* Fix by disable receive interrupts */
 			writel(RINTEN0, mmio + INTEN0);
 		}
@@ -1378,28 +1377,28 @@ list to the device.
 */
 static void amd8111e_set_multicast_list(struct net_device *dev)
 {
-	struct dev_mc_list* mc_ptr;
+	struct dev_mc_list *mc_ptr;
 	struct amd8111e_priv *lp = netdev_priv(dev);
 	u32 mc_filter[2] ;
-	int i,bit_num;
+	int bit_num;
+
 	if(dev->flags & IFF_PROMISC){
 		writel( VAL2 | PROM, lp->mmio + CMD2);
 		return;
 	}
 	else
 		writel( PROM, lp->mmio + CMD2);
-	if(dev->flags & IFF_ALLMULTI || dev->mc_count > MAX_FILTER_SIZE){
+	if (dev->flags & IFF_ALLMULTI ||
+	    netdev_mc_count(dev) > MAX_FILTER_SIZE) {
 		/* get all multicast packet */
 		mc_filter[1] = mc_filter[0] = 0xffffffff;
-		lp->mc_list = dev->mc_list;
 		lp->options |= OPTION_MULTICAST_ENABLE;
 		amd8111e_writeq(*(u64*)mc_filter,lp->mmio + LADRF);
 		return;
 	}
-	if( dev->mc_count == 0 ){
+	if (netdev_mc_empty(dev)) {
 		/* get only own packets */
 		mc_filter[1] = mc_filter[0] = 0;
-		lp->mc_list = NULL;
 		lp->options &= ~OPTION_MULTICAST_ENABLE;
 		amd8111e_writeq(*(u64*)mc_filter,lp->mmio + LADRF);
 		/* disable promiscous mode */
@@ -1408,10 +1407,8 @@ static void amd8111e_set_multicast_list(struct net_device *dev)
 	}
 	/* load all the multicast addresses in the logic filter */
 	lp->options |= OPTION_MULTICAST_ENABLE;
-	lp->mc_list = dev->mc_list;
 	mc_filter[1] = mc_filter[0] = 0;
-	for (i = 0, mc_ptr = dev->mc_list; mc_ptr && i < dev->mc_count;
-		     i++, mc_ptr = mc_ptr->next) {
+	netdev_for_each_mc_addr(mc_ptr, dev) {
 		bit_num = (ether_crc_le(ETH_ALEN, mc_ptr->dmi_addr) >> 26) & 0x3f;
 		mc_filter[bit_num >> 5] |= 1 << (bit_num & 31);
 	}

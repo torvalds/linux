@@ -16,6 +16,8 @@
  * Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
  */
 
+#include <linux/usb.h>
+#include <linux/usb/audio.h>
 #include <sound/core.h>
 #include <sound/hwdep.h>
 #include <sound/pcm.h>
@@ -315,9 +317,9 @@ static int us122l_set_sample_rate(struct usb_device *dev, int rate)
 	data[0] = rate;
 	data[1] = rate >> 8;
 	data[2] = rate >> 16;
-	err = us122l_ctl_msg(dev, usb_sndctrlpipe(dev, 0), SET_CUR,
+	err = us122l_ctl_msg(dev, usb_sndctrlpipe(dev, 0), UAC_SET_CUR,
 			     USB_TYPE_CLASS|USB_RECIP_ENDPOINT|USB_DIR_OUT,
-			     SAMPLING_FREQ_CONTROL << 8, ep, data, 3, 1000);
+			     UAC_EP_CS_ATTR_SAMPLE_RATE << 8, ep, data, 3, 1000);
 	if (err < 0)
 		snd_printk(KERN_ERR "%d: cannot set freq %d to ep 0x%x\n",
 			   dev->devnum, rate, ep);

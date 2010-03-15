@@ -797,7 +797,7 @@ struct libipw_device {
 	/* Probe / Beacon management */
 	struct list_head network_free_list;
 	struct list_head network_list;
-	struct libipw_network *networks;
+	struct libipw_network *networks[MAX_NETWORK_COUNT];
 	int scans;
 	int scan_age;
 

@@ -12,6 +12,10 @@
 struct task_struct;
 struct lockdep_map;
 
+/* for sysctl */
+extern int prove_locking;
+extern int lock_stat;
+
 #ifdef CONFIG_LOCKDEP
 
 #include <linux/linkage.h>
@@ -532,6 +536,10 @@ do {									\
 #else
 # define might_lock(lock) do { } while (0)
 # define might_lock_read(lock) do { } while (0)
+#endif
+
+#ifdef CONFIG_PROVE_RCU
+extern void lockdep_rcu_dereference(const char *file, const int line);
 #endif
 
 #endif /* __LINUX_LOCKDEP_H */

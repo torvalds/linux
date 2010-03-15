@@ -23,6 +23,7 @@ struct kexec_segment;
 struct linux_dirent;
 struct linux_dirent64;
 struct list_head;
+struct mmap_arg_struct;
 struct msgbuf;
 struct msghdr;
 struct mmsghdr;
@@ -30,10 +31,13 @@ struct msqid_ds;
 struct new_utsname;
 struct nfsctl_arg;
 struct __old_kernel_stat;
+struct oldold_utsname;
+struct old_utsname;
 struct pollfd;
 struct rlimit;
 struct rusage;
 struct sched_param;
+struct sel_arg_struct;
 struct semaphore;
 struct sembuf;
 struct shmid_ds;
@@ -99,7 +103,7 @@ struct perf_event_attr;
 #define __SC_TEST5(t5, a5, ...)	__SC_TEST(t5); __SC_TEST4(__VA_ARGS__)
 #define __SC_TEST6(t6, a6, ...)	__SC_TEST(t6); __SC_TEST5(__VA_ARGS__)
 
-#ifdef CONFIG_EVENT_PROFILE
+#ifdef CONFIG_PERF_EVENTS
 
 #define TRACE_SYS_ENTER_PROFILE_INIT(sname)				       \
 	.profile_enable = prof_sysenter_enable,				       \
@@ -113,7 +117,7 @@ struct perf_event_attr;
 #define TRACE_SYS_ENTER_PROFILE_INIT(sname)
 #define TRACE_SYS_EXIT_PROFILE(sname)
 #define TRACE_SYS_EXIT_PROFILE_INIT(sname)
-#endif
+#endif /* CONFIG_PERF_EVENTS */
 
 #ifdef CONFIG_FTRACE_SYSCALLS
 #define __SC_STR_ADECL1(t, a)		#a
@@ -132,7 +136,8 @@ struct perf_event_attr;
 
 #define SYSCALL_TRACE_ENTER_EVENT(sname)				\
 	static const struct syscall_metadata __syscall_meta_##sname;	\
-	static struct ftrace_event_call event_enter_##sname;		\
+	static struct ftrace_event_call					\
+	__attribute__((__aligned__(4))) event_enter_##sname;		\
 	static struct trace_event enter_syscall_print_##sname = {	\
 		.trace                  = print_syscall_enter,		\
 	};								\
@@ -143,8 +148,7 @@ struct perf_event_attr;
 		.name                   = "sys_enter"#sname,		\
 		.system                 = "syscalls",			\
 		.event                  = &enter_syscall_print_##sname,	\
-		.raw_init		= trace_event_raw_init,		\
-		.show_format		= syscall_enter_format,		\
+		.raw_init		= init_syscall_trace,		\
 		.define_fields		= syscall_enter_define_fields,	\
 		.regfunc		= reg_event_syscall_enter,	\
 		.unregfunc		= unreg_event_syscall_enter,	\
@@ -154,7 +158,8 @@ struct perf_event_attr;
 
 #define SYSCALL_TRACE_EXIT_EVENT(sname)					\
 	static const struct syscall_metadata __syscall_meta_##sname;	\
-	static struct ftrace_event_call event_exit_##sname;		\
+	static struct ftrace_event_call					\
+	__attribute__((__aligned__(4))) event_exit_##sname;		\
 	static struct trace_event exit_syscall_print_##sname = {	\
 		.trace                  = print_syscall_exit,		\
 	};								\
@@ -165,8 +170,7 @@ struct perf_event_attr;
 		.name                   = "sys_exit"#sname,		\
 		.system                 = "syscalls",			\
 		.event                  = &exit_syscall_print_##sname,	\
-		.raw_init		= trace_event_raw_init,		\
-		.show_format		= syscall_exit_format,		\
+		.raw_init		= init_syscall_trace,		\
 		.define_fields		= syscall_exit_define_fields,	\
 		.regfunc		= reg_event_syscall_exit,	\
 		.unregfunc		= unreg_event_syscall_exit,	\
@@ -638,6 +642,7 @@ asmlinkage long sys_poll(struct pollfd __user *ufds, unsigned int nfds,
 				long timeout);
 asmlinkage long sys_select(int n, fd_set __user *inp, fd_set __user *outp,
 			fd_set __user *exp, struct timeval __user *tvp);
+asmlinkage long sys_old_select(struct sel_arg_struct __user *arg);
 asmlinkage long sys_epoll_create(int size);
 asmlinkage long sys_epoll_create1(int flags);
 asmlinkage long sys_epoll_ctl(int epfd, int op, int fd,
@@ -652,6 +657,8 @@ asmlinkage long sys_gethostname(char __user *name, int len);
 asmlinkage long sys_sethostname(char __user *name, int len);
 asmlinkage long sys_setdomainname(char __user *name, int len);
 asmlinkage long sys_newuname(struct new_utsname __user *name);
+asmlinkage long sys_uname(struct old_utsname __user *);
+asmlinkage long sys_olduname(struct oldold_utsname __user *);
 
 asmlinkage long sys_getrlimit(unsigned int resource,
 				struct rlimit __user *rlim);
@@ -681,6 +688,8 @@ asmlinkage long sys_shmat(int shmid, char __user *shmaddr, int shmflg);
 asmlinkage long sys_shmget(key_t key, size_t size, int flag);
 asmlinkage long sys_shmdt(char __user *shmaddr);
 asmlinkage long sys_shmctl(int shmid, int cmd, struct shmid_ds __user *buf);
+asmlinkage long sys_ipc(unsigned int call, int first, int second,
+		unsigned long third, void __user *ptr, long fifth);
 
 asmlinkage long sys_mq_open(const char __user *name, int oflag, mode_t mode, struct mq_attr __user *attr);
 asmlinkage long sys_mq_unlink(const char __user *name);
@@ -836,4 +845,6 @@ asmlinkage long sys_perf_event_open(
 asmlinkage long sys_mmap_pgoff(unsigned long addr, unsigned long len,
 			unsigned long prot, unsigned long flags,
 			unsigned long fd, unsigned long pgoff);
+asmlinkage long sys_old_mmap(struct mmap_arg_struct __user *arg);
+
 #endif

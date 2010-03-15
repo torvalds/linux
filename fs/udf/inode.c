@@ -36,6 +36,7 @@
 #include <linux/pagemap.h>
 #include <linux/buffer_head.h>
 #include <linux/writeback.h>
+#include <linux/quotaops.h>
 #include <linux/slab.h>
 #include <linux/crc-itu-t.h>
 
@@ -70,6 +71,9 @@ static int udf_get_block(struct inode *, sector_t, struct buffer_head *, int);
 
 void udf_delete_inode(struct inode *inode)
 {
+	if (!is_bad_inode(inode))
+		dquot_initialize(inode);
+
 	truncate_inode_pages(&inode->i_data, 0);
 
 	if (is_bad_inode(inode))
@@ -102,12 +106,14 @@ void udf_clear_inode(struct inode *inode)
 	if (iinfo->i_alloc_type != ICBTAG_FLAG_AD_IN_ICB &&
 	    inode->i_size != iinfo->i_lenExtents) {
 		printk(KERN_WARNING "UDF-fs (%s): Inode %lu (mode %o) has "
-			"inode size %llu different from extent lenght %llu. "
+			"inode size %llu different from extent length %llu. "
 			"Filesystem need not be standards compliant.\n",
 			inode->i_sb->s_id, inode->i_ino, inode->i_mode,
 			(unsigned long long)inode->i_size,
 			(unsigned long long)iinfo->i_lenExtents);
 	}
+
+	dquot_drop(inode);
 	kfree(iinfo->i_ext.i_data);
 	iinfo->i_ext.i_data = NULL;
 }
@@ -1373,12 +1379,12 @@ static mode_t udf_convert_permissions(struct fileEntry *fe)
 	return mode;
 }
 
-int udf_write_inode(struct inode *inode, int sync)
+int udf_write_inode(struct inode *inode, struct writeback_control *wbc)
 {
 	int ret;
 
 	lock_kernel();
-	ret = udf_update_inode(inode, sync);
+	ret = udf_update_inode(inode, wbc->sync_mode == WB_SYNC_ALL);
 	unlock_kernel();
 
 	return ret;
@@ -1402,20 +1408,19 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	unsigned char blocksize_bits = inode->i_sb->s_blocksize_bits;
 	struct udf_inode_info *iinfo = UDF_I(inode);
 
-	bh = udf_tread(inode->i_sb,
-			udf_get_lb_pblock(inode->i_sb,
-					  &iinfo->i_location, 0));
+	bh = udf_tgetblk(inode->i_sb,
+			udf_get_lb_pblock(inode->i_sb, &iinfo->i_location, 0));
 	if (!bh) {
-		udf_debug("bread failure\n");
-		return -EIO;
+		udf_debug("getblk failure\n");
+		return -ENOMEM;
 	}
 
-	memset(bh->b_data, 0x00, inode->i_sb->s_blocksize);
-
+	lock_buffer(bh);
+	memset(bh->b_data, 0, inode->i_sb->s_blocksize);
 	fe = (struct fileEntry *)bh->b_data;
 	efe = (struct extendedFileEntry *)bh->b_data;
 
-	if (fe->descTag.tagIdent == cpu_to_le16(TAG_IDENT_USE)) {
+	if (iinfo->i_use) {
 		struct unallocSpaceEntry *use =
 			(struct unallocSpaceEntry *)bh->b_data;
 
@@ -1423,20 +1428,18 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 		memcpy(bh->b_data + sizeof(struct unallocSpaceEntry),
 		       iinfo->i_ext.i_data, inode->i_sb->s_blocksize -
 					sizeof(struct unallocSpaceEntry));
+		use->descTag.tagIdent = cpu_to_le16(TAG_IDENT_USE);
+		use->descTag.tagLocation =
+				cpu_to_le32(iinfo->i_location.logicalBlockNum);
 		crclen = sizeof(struct unallocSpaceEntry) +
 				iinfo->i_lenAlloc - sizeof(struct tag);
-		use->descTag.tagLocation = cpu_to_le32(
-						iinfo->i_location.
-							logicalBlockNum);
 		use->descTag.descCRCLength = cpu_to_le16(crclen);
 		use->descTag.descCRC = cpu_to_le16(crc_itu_t(0, (char *)use +
 							   sizeof(struct tag),
 							   crclen));
 		use->descTag.tagChecksum = udf_tag_checksum(&use->descTag);
 
-		mark_buffer_dirty(bh);
-		brelse(bh);
-		return err;
+		goto out;
 	}
 
 	if (UDF_QUERY_FLAG(inode->i_sb, UDF_FLAG_UID_FORGET))
@@ -1591,18 +1594,21 @@ static int udf_update_inode(struct inode *inode, int do_sync)
 	fe->descTag.tagSerialNum = cpu_to_le16(sbi->s_serial_number);
 	fe->descTag.tagLocation = cpu_to_le32(
 					iinfo->i_location.logicalBlockNum);
-	crclen += iinfo->i_lenEAttr + iinfo->i_lenAlloc -
-								sizeof(struct tag);
+	crclen += iinfo->i_lenEAttr + iinfo->i_lenAlloc - sizeof(struct tag);
 	fe->descTag.descCRCLength = cpu_to_le16(crclen);
 	fe->descTag.descCRC = cpu_to_le16(crc_itu_t(0, (char *)fe + sizeof(struct tag),
 						  crclen));
 	fe->descTag.tagChecksum = udf_tag_checksum(&fe->descTag);
 
+out:
+	set_buffer_uptodate(bh);
+	unlock_buffer(bh);
+
 	/* write the data blocks */
 	mark_buffer_dirty(bh);
 	if (do_sync) {
 		sync_dirty_buffer(bh);
-		if (buffer_req(bh) && !buffer_uptodate(bh)) {
+		if (buffer_write_io_error(bh)) {
 			printk(KERN_WARNING "IO error syncing udf inode "
 				"[%s:%08lx]\n", inode->i_sb->s_id,
 				inode->i_ino);
@@ -1672,7 +1678,7 @@ int8_t udf_add_aext(struct inode *inode, struct extent_position *epos,
 		return -1;
 
 	if (epos->offset + (2 * adsize) > inode->i_sb->s_blocksize) {
-		char *sptr, *dptr;
+		unsigned char *sptr, *dptr;
 		struct buffer_head *nbh;
 		int err, loffset;
 		struct kernel_lb_addr obloc = epos->block;

@@ -2,25 +2,6 @@
 #define _ASM_IA64_SCATTERLIST_H
 
 /*
- * Modified 1998-1999, 2001-2002, 2004
- *	David Mosberger-Tang <davidm@hpl.hp.com>, Hewlett-Packard Co
- */
-
-#include <asm/types.h>
-
-struct scatterlist {
-#ifdef CONFIG_DEBUG_SG
-	unsigned long sg_magic;
-#endif
-	unsigned long page_link;
-	unsigned int offset;
-	unsigned int length;	/* buffer length */
-
-	dma_addr_t dma_address;
-	unsigned int dma_length;
-};
-
-/*
  * It used to be that ISA_DMA_THRESHOLD had something to do with the
  * DMA-limits of ISA-devices.  Nowadays, its only remaining use (apart
  * from the aha1542.c driver, which isn't 64-bit clean anyhow) is to
@@ -30,9 +11,6 @@ struct scatterlist {
  */
 #define ISA_DMA_THRESHOLD	0xffffffff
 
-#define sg_dma_len(sg)		((sg)->dma_length)
-#define sg_dma_address(sg)	((sg)->dma_address)
-
-#define	ARCH_HAS_SG_CHAIN
+#include <asm-generic/scatterlist.h>
 
 #endif /* _ASM_IA64_SCATTERLIST_H */

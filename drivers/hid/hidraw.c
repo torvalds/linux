@@ -134,7 +134,7 @@ static ssize_t hidraw_write(struct file *file, const char __user *buffer, size_t
 		goto out;
 	}
 
-	ret = dev->hid_output_raw_report(dev, buf, count);
+	ret = dev->hid_output_raw_report(dev, buf, count, HID_OUTPUT_REPORT);
 out:
 	kfree(buf);
 	return ret;

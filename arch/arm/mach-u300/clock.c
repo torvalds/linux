@@ -610,34 +610,34 @@ EXPORT_SYMBOL(clk_get_rate);
 
 static unsigned long clk_round_rate_mclk(struct clk *clk, unsigned long rate)
 {
-	if (rate >= 18900000)
+	if (rate <= 18900000)
 		return 18900000;
-	if (rate >= 20800000)
+	if (rate <= 20800000)
 		return 20800000;
-	if (rate >= 23100000)
+	if (rate <= 23100000)
 		return 23100000;
-	if (rate >= 26000000)
+	if (rate <= 26000000)
 		return 26000000;
-	if (rate >= 29700000)
+	if (rate <= 29700000)
 		return 29700000;
-	if (rate >= 34700000)
+	if (rate <= 34700000)
 		return 34700000;
-	if (rate >= 41600000)
+	if (rate <= 41600000)
 		return 41600000;
-	if (rate >= 52000000)
+	if (rate <= 52000000)
 		return 52000000;
 	return -EINVAL;
 }
 
 static unsigned long clk_round_rate_cpuclk(struct clk *clk, unsigned long rate)
 {
-	if (rate >= 13000000)
+	if (rate <= 13000000)
 		return 13000000;
-	if (rate >= 52000000)
+	if (rate <= 52000000)
 		return 52000000;
-	if (rate >= 104000000)
+	if (rate <= 104000000)
 		return 104000000;
-	if (rate >= 208000000)
+	if (rate <= 208000000)
 		return 208000000;
 	return -EINVAL;
 }
@@ -1276,11 +1276,8 @@ static struct clk_lookup lookups[] = {
 
 static void __init clk_register(void)
 {
-	int i;
-
 	/* Register the lookups */
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 }
 
 /*

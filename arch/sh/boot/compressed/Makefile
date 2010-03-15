@@ -6,13 +6,10 @@
 
 targets		:= vmlinux vmlinux.bin vmlinux.bin.gz \
 		   vmlinux.bin.bz2 vmlinux.bin.lzma \
+		   vmlinux.bin.lzo \
 		   head_$(BITS).o misc.o piggy.o
 
 OBJECTS = $(obj)/head_$(BITS).o $(obj)/misc.o $(obj)/cache.o
-
-ifdef CONFIG_SH_STANDARD_BIOS
-OBJECTS += $(obj)/../../kernel/sh_bios.o
-endif
 
 #
 # IMAGE_OFFSET is the load offset of the compression loader
@@ -47,6 +44,8 @@ $(obj)/vmlinux.bin.bz2: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,bzip2)
 $(obj)/vmlinux.bin.lzma: $(vmlinux.bin.all-y) FORCE
 	$(call if_changed,lzma)
+$(obj)/vmlinux.bin.lzo: $(vmlinux.bin.all-y) FORCE
+	$(call if_changed,lzo)
 
 OBJCOPYFLAGS += -R .empty_zero_page
 

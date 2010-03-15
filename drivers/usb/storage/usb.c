@@ -78,7 +78,7 @@ MODULE_AUTHOR("Matthew Dharm <mdharm-usb@one-eyed-alien.net>");
 MODULE_DESCRIPTION("USB Mass Storage driver for Linux");
 MODULE_LICENSE("GPL");
 
-static unsigned int delay_use = 5;
+static unsigned int delay_use = 1;
 module_param(delay_use, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(delay_use, "seconds to delay before using a new device");
 
@@ -434,7 +434,8 @@ static void adjust_quirks(struct us_data *us)
 	u16 vid = le16_to_cpu(us->pusb_dev->descriptor.idVendor);
 	u16 pid = le16_to_cpu(us->pusb_dev->descriptor.idProduct);
 	unsigned f = 0;
-	unsigned int mask = (US_FL_SANE_SENSE | US_FL_FIX_CAPACITY |
+	unsigned int mask = (US_FL_SANE_SENSE | US_FL_BAD_SENSE |
+			US_FL_FIX_CAPACITY |
 			US_FL_CAPACITY_HEURISTICS | US_FL_IGNORE_DEVICE |
 			US_FL_NOT_LOCKABLE | US_FL_MAX_SECTORS_64 |
 			US_FL_CAPACITY_OK | US_FL_IGNORE_RESIDUE |

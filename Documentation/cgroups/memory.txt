@@ -182,6 +182,8 @@ list.
 NOTE: Reclaim does not work for the root cgroup, since we cannot set any
 limits on the root cgroup.
 
+Note2: When panic_on_oom is set to "2", the whole system will panic.
+
 2. Locking
 
 The memory controller uses the following hierarchy
@@ -262,9 +264,11 @@ some of the pages cached in the cgroup (page cache pages).
 4.2 Task migration
 
 When a task migrates from one cgroup to another, it's charge is not
-carried forward. The pages allocated from the original cgroup still
+carried forward by default. The pages allocated from the original cgroup still
 remain charged to it, the charge is dropped when the page is freed or
 reclaimed.
+
+Note: You can move charges of a task along with task migration. See 8.
 
 4.3 Removing a cgroup
 
@@ -377,7 +381,8 @@ The feature can be disabled by
 NOTE1: Enabling/disabling will fail if the cgroup already has other
 cgroups created below it.
 
-NOTE2: This feature can be enabled/disabled per subtree.
+NOTE2: When panic_on_oom is set to "2", the whole system will panic in
+case of an oom event in any cgroup.
 
 7. Soft limits
 
@@ -414,7 +419,76 @@ NOTE1: Soft limits take effect over a long period of time, since they involve
 NOTE2: It is recommended to set the soft limit always below the hard limit,
        otherwise the hard limit will take precedence.
 
-8. TODO
+8. Move charges at task migration
+
+Users can move charges associated with a task along with task migration, that
+is, uncharge task's pages from the old cgroup and charge them to the new cgroup.
+This feature is not supported in !CONFIG_MMU environments because of lack of
+page tables.
+
+8.1 Interface
+
+This feature is disabled by default. It can be enabled(and disabled again) by
+writing to memory.move_charge_at_immigrate of the destination cgroup.
+
+If you want to enable it:
+
+# echo (some positive value) > memory.move_charge_at_immigrate
+
+Note: Each bits of move_charge_at_immigrate has its own meaning about what type
+      of charges should be moved. See 8.2 for details.
+Note: Charges are moved only when you move mm->owner, IOW, a leader of a thread
+      group.
+Note: If we cannot find enough space for the task in the destination cgroup, we
+      try to make space by reclaiming memory. Task migration may fail if we
+      cannot make enough space.
+Note: It can take several seconds if you move charges in giga bytes order.
+
+And if you want disable it again:
+
+# echo 0 > memory.move_charge_at_immigrate
+
+8.2 Type of charges which can be move
+
+Each bits of move_charge_at_immigrate has its own meaning about what type of
+charges should be moved.
+
+  bit | what type of charges would be moved ?
+ -----+------------------------------------------------------------------------
+   0  | A charge of an anonymous page(or swap of it) used by the target task.
+      | Those pages and swaps must be used only by the target task. You must
+      | enable Swap Extension(see 2.4) to enable move of swap charges.
+
+Note: Those pages and swaps must be charged to the old cgroup.
+Note: More type of pages(e.g. file cache, shmem,) will be supported by other
+      bits in future.
+
+8.3 TODO
+
+- Add support for other types of pages(e.g. file cache, shmem, etc.).
+- Implement madvise(2) to let users decide the vma to be moved or not to be
+  moved.
+- All of moving charge operations are done under cgroup_mutex. It's not good
+  behavior to hold the mutex too long, so we may need some trick.
+
+9. Memory thresholds
+
+Memory controler implements memory thresholds using cgroups notification
+API (see cgroups.txt). It allows to register multiple memory and memsw
+thresholds and gets notifications when it crosses.
+
+To register a threshold application need:
+ - create an eventfd using eventfd(2);
+ - open memory.usage_in_bytes or memory.memsw.usage_in_bytes;
+ - write string like "<event_fd> <memory.usage_in_bytes> <threshold>" to
+   cgroup.event_control.
+
+Application will be notified through eventfd when memory usage crosses
+threshold in any direction.
+
+It's applicable for root and non-root cgroup.
+
+10. TODO
 
 1. Add support for accounting huge pages (as a separate controller)
 2. Make per-cgroup scanner reclaim not-shared pages first

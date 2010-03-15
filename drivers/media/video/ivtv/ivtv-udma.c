@@ -213,6 +213,7 @@ void ivtv_udma_start(struct ivtv *itv)
 	write_reg_sync(read_reg(IVTV_REG_DMAXFER) | 0x01, IVTV_REG_DMAXFER);
 	set_bit(IVTV_F_I_DMA, &itv->i_flags);
 	set_bit(IVTV_F_I_UDMA, &itv->i_flags);
+	clear_bit(IVTV_F_I_UDMA_PENDING, &itv->i_flags);
 }
 
 void ivtv_udma_prepare(struct ivtv *itv)

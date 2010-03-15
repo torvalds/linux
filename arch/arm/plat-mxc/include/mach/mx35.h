@@ -1,3 +1,5 @@
+#ifndef __MACH_MX35_H__
+#define __MACH_MX35_H__
 /*
  * IRAM
  */
@@ -104,6 +106,13 @@
 #define MX35_NFC_BASE_ADDR		0xbb000000
 #define MX35_PCMCIA_MEM_BASE_ADDR	0xbc000000
 
+#define MX35_IO_ADDRESS(x) (						\
+	IMX_IO_ADDRESS(x, MX35_AIPS1) ?:				\
+	IMX_IO_ADDRESS(x, MX35_AIPS2) ?:				\
+	IMX_IO_ADDRESS(x, MX35_AVIC) ?:					\
+	IMX_IO_ADDRESS(x, MX35_X_MEMC) ?:				\
+	IMX_IO_ADDRESS(x, MX35_SPBA0))
+
 /*
  * Interrupt numbers
  */
@@ -180,6 +189,7 @@
 #define MX35_SYSTEM_REV_MIN		MX35_CHIP_REV_1_0
 #define MX35_SYSTEM_REV_NUM		3
 
+#ifdef IMX_NEEDS_DEPRECATED_SYMBOLS
 /* these should go away */
 #define MXC_FEC_BASE_ADDR MX35_FEC_BASE_ADDR
 #define MXC_INT_OWIRE MX35_INT_OWIRE
@@ -195,3 +205,6 @@
 #define MXC_INT_MLB MX35_INT_MLB
 #define MXC_INT_SPDIF MX35_INT_SPDIF
 #define MXC_INT_FEC MX35_INT_FEC
+#endif
+
+#endif /* ifndef __MACH_MX35_H__ */

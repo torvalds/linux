@@ -226,7 +226,7 @@ struct unlock_addr {
  * exists, but is for MTD_UADDR_NOT_SUPPORTED - and, therefore,
  * should not be used.  The  problem is that structures with
  * initializers have extra fields initialized to 0.  It is _very_
- * desireable to have the unlock address entries for unsupported
+ * desirable to have the unlock address entries for unsupported
  * data widths automatically initialized - that means that
  * MTD_UADDR_NOT_SUPPORTED must be 0 and the first entry here
  * must go unused.

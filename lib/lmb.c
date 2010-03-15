@@ -205,9 +205,8 @@ long lmb_add(u64 base, u64 size)
 
 }
 
-long lmb_remove(u64 base, u64 size)
+static long __lmb_remove(struct lmb_region *rgn, u64 base, u64 size)
 {
-	struct lmb_region *rgn = &(lmb.memory);
 	u64 rgnbegin, rgnend;
 	u64 end = base + size;
 	int i;
@@ -252,6 +251,16 @@ long lmb_remove(u64 base, u64 size)
 	 */
 	rgn->region[i].size = base - rgn->region[i].base;
 	return lmb_add_region(rgn, end, rgnend - end);
+}
+
+long lmb_remove(u64 base, u64 size)
+{
+	return __lmb_remove(&lmb.memory, base, size);
+}
+
+long __init lmb_free(u64 base, u64 size)
+{
+	return __lmb_remove(&lmb.reserved, base, size);
 }
 
 long __init lmb_reserve(u64 base, u64 size)

@@ -25,6 +25,7 @@
 
 #define MODULE_NAME "pac207"
 
+#include <linux/input.h>
 #include "gspca.h"
 
 MODULE_AUTHOR("Hans de Goede <hdgoede@redhat.com>");
@@ -77,7 +78,7 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val);
 static int sd_setgain(struct gspca_dev *gspca_dev, __s32 val);
 static int sd_getgain(struct gspca_dev *gspca_dev, __s32 *val);
 
-static struct ctrl sd_ctrls[] = {
+static const struct ctrl sd_ctrls[] = {
 #define SD_BRIGHTNESS 0
 	{
 	    {
@@ -495,6 +496,25 @@ static int sd_getautogain(struct gspca_dev *gspca_dev, __s32 *val)
 	return 0;
 }
 
+#ifdef CONFIG_INPUT
+static int sd_int_pkt_scan(struct gspca_dev *gspca_dev,
+			u8 *data,		/* interrupt packet data */
+			int len)		/* interrput packet length */
+{
+	int ret = -EINVAL;
+
+	if (len == 2 && data[0] == 0x5a && data[1] == 0x5a) {
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 1);
+		input_sync(gspca_dev->input_dev);
+		input_report_key(gspca_dev->input_dev, KEY_CAMERA, 0);
+		input_sync(gspca_dev->input_dev);
+		ret = 0;
+	}
+
+	return ret;
+}
+#endif
+
 /* sub-driver description */
 static const struct sd_desc sd_desc = {
 	.name = MODULE_NAME,
@@ -506,6 +526,9 @@ static const struct sd_desc sd_desc = {
 	.stopN = sd_stopN,
 	.dq_callback = pac207_do_auto_gain,
 	.pkt_scan = sd_pkt_scan,
+#ifdef CONFIG_INPUT
+	.int_pkt_scan = sd_int_pkt_scan,
+#endif
 };
 
 /* -- module initialisation -- */

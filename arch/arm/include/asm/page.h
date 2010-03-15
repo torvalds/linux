@@ -117,11 +117,12 @@
 #endif
 
 struct page;
+struct vm_area_struct;
 
 struct cpu_user_fns {
 	void (*cpu_clear_user_highpage)(struct page *page, unsigned long vaddr);
 	void (*cpu_copy_user_highpage)(struct page *to, struct page *from,
-			unsigned long vaddr);
+			unsigned long vaddr, struct vm_area_struct *vma);
 };
 
 #ifdef MULTI_USER
@@ -137,7 +138,7 @@ extern struct cpu_user_fns cpu_user;
 
 extern void __cpu_clear_user_highpage(struct page *page, unsigned long vaddr);
 extern void __cpu_copy_user_highpage(struct page *to, struct page *from,
-			unsigned long vaddr);
+			unsigned long vaddr, struct vm_area_struct *vma);
 #endif
 
 #define clear_user_highpage(page,vaddr)		\
@@ -145,7 +146,7 @@ extern void __cpu_copy_user_highpage(struct page *to, struct page *from,
 
 #define __HAVE_ARCH_COPY_USER_HIGHPAGE
 #define copy_user_highpage(to,from,vaddr,vma)	\
-	__cpu_copy_user_highpage(to, from, vaddr)
+	__cpu_copy_user_highpage(to, from, vaddr, vma)
 
 #define clear_page(page)	memset((void *)(page), 0, PAGE_SIZE)
 extern void copy_page(void *to, const void *from);

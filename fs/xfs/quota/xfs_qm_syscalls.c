@@ -891,7 +891,7 @@ xfs_qm_dqrele_all_inodes(
 	uint		 flags)
 {
 	ASSERT(mp->m_quotainfo);
-	xfs_inode_ag_iterator(mp, xfs_dqrele_inode, flags, XFS_ICI_NO_TAG);
+	xfs_inode_ag_iterator(mp, xfs_dqrele_inode, flags, XFS_ICI_NO_TAG, 0);
 }
 
 /*------------------------------------------------------------------------*/
@@ -1192,9 +1192,9 @@ xfs_qm_internalqcheck(
 	if (! XFS_IS_QUOTA_ON(mp))
 		return XFS_ERROR(ESRCH);
 
-	xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE | XFS_LOG_SYNC);
+	xfs_log_force(mp, XFS_LOG_SYNC);
 	XFS_bflush(mp->m_ddev_targp);
-	xfs_log_force(mp, (xfs_lsn_t)0, XFS_LOG_FORCE | XFS_LOG_SYNC);
+	xfs_log_force(mp, XFS_LOG_SYNC);
 	XFS_bflush(mp->m_ddev_targp);
 
 	mutex_lock(&qcheck_lock);

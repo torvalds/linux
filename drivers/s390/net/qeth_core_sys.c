@@ -8,6 +8,9 @@
  *		 Frank Blaschka <frank.blaschka@de.ibm.com>
  */
 
+#define KMSG_COMPONENT "qeth"
+#define pr_fmt(fmt) KMSG_COMPONENT ": " fmt
+
 #include <linux/list.h>
 #include <linux/rwsem.h>
 #include <asm/ebcdic.h>
@@ -118,7 +121,7 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 {
 	struct qeth_card *card = dev_get_drvdata(dev);
 	char *tmp;
-	unsigned int portno;
+	unsigned int portno, limit;
 
 	if (!card)
 		return -EINVAL;
@@ -128,9 +131,11 @@ static ssize_t qeth_dev_portno_store(struct device *dev,
 		return -EPERM;
 
 	portno = simple_strtoul(buf, &tmp, 16);
-	if (portno > QETH_MAX_PORTNO) {
+	if (portno > QETH_MAX_PORTNO)
 		return -EINVAL;
-	}
+	limit = (card->ssqd.pcnt ? card->ssqd.pcnt - 1 : card->ssqd.pcnt);
+	if (portno > limit)
+		return -EINVAL;
 
 	card->info.portno = portno;
 	return count;
@@ -537,7 +542,7 @@ static ssize_t qeth_dev_blkt_total_store(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 
 	return qeth_dev_blkt_store(card, buf, count,
-				   &card->info.blkt.time_total, 1000);
+				   &card->info.blkt.time_total, 5000);
 }
 
 
@@ -559,7 +564,7 @@ static ssize_t qeth_dev_blkt_inter_store(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 
 	return qeth_dev_blkt_store(card, buf, count,
-				   &card->info.blkt.inter_packet, 100);
+				   &card->info.blkt.inter_packet, 1000);
 }
 
 static DEVICE_ATTR(inter, 0644, qeth_dev_blkt_inter_show,
@@ -580,7 +585,7 @@ static ssize_t qeth_dev_blkt_inter_jumbo_store(struct device *dev,
 	struct qeth_card *card = dev_get_drvdata(dev);
 
 	return qeth_dev_blkt_store(card, buf, count,
-				   &card->info.blkt.inter_packet_jumbo, 100);
+				   &card->info.blkt.inter_packet_jumbo, 1000);
 }
 
 static DEVICE_ATTR(inter_jumbo, 0644, qeth_dev_blkt_inter_jumbo_show,

@@ -216,10 +216,30 @@ iommu_arena_free(struct pci_iommu_arena *arena, long ofs, long n)
 	for (i = 0; i < n; ++i)
 		p[i] = 0;
 }
-
-/* True if the machine supports DAC addressing, and DEV can
-   make use of it given MASK.  */
-static int pci_dac_dma_supported(struct pci_dev *hwdev, u64 mask);
+
+/*
+ * True if the machine supports DAC addressing, and DEV can
+ * make use of it given MASK.
+ */
+static int pci_dac_dma_supported(struct pci_dev *dev, u64 mask)
+{
+	dma64_addr_t dac_offset = alpha_mv.pci_dac_offset;
+	int ok = 1;
+
+	/* If this is not set, the machine doesn't support DAC at all.  */
+	if (dac_offset == 0)
+		ok = 0;
+
+	/* The device has to be able to address our DAC bit.  */
+	if ((dac_offset & dev->dma_mask) != dac_offset)
+		ok = 0;
+
+	/* If both conditions above are met, we are fine. */
+	DBGA("pci_dac_dma_supported %s from %p\n",
+	     ok ? "yes" : "no", __builtin_return_address(0));
+
+	return ok;
+}
 
 /* Map a single buffer of the indicated size for PCI DMA in streaming
    mode.  The 32-bit PCI bus mastering address to use is returned.
@@ -301,23 +321,36 @@ pci_map_single_1(struct pci_dev *pdev, void *cpu_addr, size_t size,
 	return ret;
 }
 
-dma_addr_t
-pci_map_single(struct pci_dev *pdev, void *cpu_addr, size_t size, int dir)
+/* Helper for generic DMA-mapping functions. */
+static struct pci_dev *alpha_gendev_to_pci(struct device *dev)
 {
-	int dac_allowed; 
+	if (dev && dev->bus == &pci_bus_type)
+		return to_pci_dev(dev);
 
-	if (dir == PCI_DMA_NONE)
-		BUG();
+	/* Assume that non-PCI devices asking for DMA are either ISA or EISA,
+	   BUG() otherwise. */
+	BUG_ON(!isa_bridge);
 
-	dac_allowed = pdev ? pci_dac_dma_supported(pdev, pdev->dma_mask) : 0; 
-	return pci_map_single_1(pdev, cpu_addr, size, dac_allowed);
+	/* Assume non-busmaster ISA DMA when dma_mask is not set (the ISA
+	   bridge is bus master then). */
+	if (!dev || !dev->dma_mask || !*dev->dma_mask)
+		return isa_bridge;
+
+	/* For EISA bus masters, return isa_bridge (it might have smaller
+	   dma_mask due to wiring limitations). */
+	if (*dev->dma_mask >= isa_bridge->dma_mask)
+		return isa_bridge;
+
+	/* This assumes ISA bus master with dma_mask 0xffffff. */
+	return NULL;
 }
-EXPORT_SYMBOL(pci_map_single);
 
-dma_addr_t
-pci_map_page(struct pci_dev *pdev, struct page *page, unsigned long offset,
-	     size_t size, int dir)
+static dma_addr_t alpha_pci_map_page(struct device *dev, struct page *page,
+				     unsigned long offset, size_t size,
+				     enum dma_data_direction dir,
+				     struct dma_attrs *attrs)
 {
+	struct pci_dev *pdev = alpha_gendev_to_pci(dev);
 	int dac_allowed;
 
 	if (dir == PCI_DMA_NONE)
@@ -327,7 +360,6 @@ pci_map_page(struct pci_dev *pdev, struct page *page, unsigned long offset,
 	return pci_map_single_1(pdev, (char *)page_address(page) + offset, 
 				size, dac_allowed);
 }
-EXPORT_SYMBOL(pci_map_page);
 
 /* Unmap a single streaming mode DMA translation.  The DMA_ADDR and
    SIZE must match what was provided for in a previous pci_map_single
@@ -335,16 +367,17 @@ EXPORT_SYMBOL(pci_map_page);
    the cpu to the buffer are guaranteed to see whatever the device
    wrote there.  */
 
-void
-pci_unmap_single(struct pci_dev *pdev, dma_addr_t dma_addr, size_t size,
-		 int direction)
+static void alpha_pci_unmap_page(struct device *dev, dma_addr_t dma_addr,
+				 size_t size, enum dma_data_direction dir,
+				 struct dma_attrs *attrs)
 {
 	unsigned long flags;
+	struct pci_dev *pdev = alpha_gendev_to_pci(dev);
 	struct pci_controller *hose = pdev ? pdev->sysdata : pci_isa_hose;
 	struct pci_iommu_arena *arena;
 	long dma_ofs, npages;
 
-	if (direction == PCI_DMA_NONE)
+	if (dir == PCI_DMA_NONE)
 		BUG();
 
 	if (dma_addr >= __direct_map_base
@@ -393,25 +426,16 @@ pci_unmap_single(struct pci_dev *pdev, dma_addr_t dma_addr, size_t size,
 	DBGA2("pci_unmap_single: sg [%llx,%zx] np %ld from %p\n",
 	      dma_addr, size, npages, __builtin_return_address(0));
 }
-EXPORT_SYMBOL(pci_unmap_single);
-
-void
-pci_unmap_page(struct pci_dev *pdev, dma_addr_t dma_addr,
-	       size_t size, int direction)
-{
-	pci_unmap_single(pdev, dma_addr, size, direction);
-}
-EXPORT_SYMBOL(pci_unmap_page);
 
 /* Allocate and map kernel buffer using consistent mode DMA for PCI
    device.  Returns non-NULL cpu-view pointer to the buffer if
    successful and sets *DMA_ADDRP to the pci side dma address as well,
    else DMA_ADDRP is undefined.  */
 
-void *
-__pci_alloc_consistent(struct pci_dev *pdev, size_t size,
-		       dma_addr_t *dma_addrp, gfp_t gfp)
+static void *alpha_pci_alloc_coherent(struct device *dev, size_t size,
+				      dma_addr_t *dma_addrp, gfp_t gfp)
 {
+	struct pci_dev *pdev = alpha_gendev_to_pci(dev);
 	void *cpu_addr;
 	long order = get_order(size);
 
@@ -439,13 +463,12 @@ try_again:
 		gfp |= GFP_DMA;
 		goto try_again;
 	}
-		
+
 	DBGA2("pci_alloc_consistent: %zx -> [%p,%llx] from %p\n",
 	      size, cpu_addr, *dma_addrp, __builtin_return_address(0));
 
 	return cpu_addr;
 }
-EXPORT_SYMBOL(__pci_alloc_consistent);
 
 /* Free and unmap a consistent DMA buffer.  CPU_ADDR and DMA_ADDR must
    be values that were returned from pci_alloc_consistent.  SIZE must
@@ -453,17 +476,16 @@ EXPORT_SYMBOL(__pci_alloc_consistent);
    References to the memory and mappings associated with CPU_ADDR or
    DMA_ADDR past this call are illegal.  */
 
-void
-pci_free_consistent(struct pci_dev *pdev, size_t size, void *cpu_addr,
-		    dma_addr_t dma_addr)
+static void alpha_pci_free_coherent(struct device *dev, size_t size,
+				    void *cpu_addr, dma_addr_t dma_addr)
 {
+	struct pci_dev *pdev = alpha_gendev_to_pci(dev);
 	pci_unmap_single(pdev, dma_addr, size, PCI_DMA_BIDIRECTIONAL);
 	free_pages((unsigned long)cpu_addr, get_order(size));
 
 	DBGA2("pci_free_consistent: [%llx,%zx] from %p\n",
 	      dma_addr, size, __builtin_return_address(0));
 }
-EXPORT_SYMBOL(pci_free_consistent);
 
 /* Classify the elements of the scatterlist.  Write dma_address
    of each element with:
@@ -626,23 +648,21 @@ sg_fill(struct device *dev, struct scatterlist *leader, struct scatterlist *end,
 	return 1;
 }
 
-int
-pci_map_sg(struct pci_dev *pdev, struct scatterlist *sg, int nents,
-	   int direction)
+static int alpha_pci_map_sg(struct device *dev, struct scatterlist *sg,
+			    int nents, enum dma_data_direction dir,
+			    struct dma_attrs *attrs)
 {
+	struct pci_dev *pdev = alpha_gendev_to_pci(dev);
 	struct scatterlist *start, *end, *out;
 	struct pci_controller *hose;
 	struct pci_iommu_arena *arena;
 	dma_addr_t max_dma;
 	int dac_allowed;
-	struct device *dev;
 
-	if (direction == PCI_DMA_NONE)
+	if (dir == PCI_DMA_NONE)
 		BUG();
 
-	dac_allowed = pdev ? pci_dac_dma_supported(pdev, pdev->dma_mask) : 0;
-
-	dev = pdev ? &pdev->dev : NULL;
+	dac_allowed = dev ? pci_dac_dma_supported(pdev, pdev->dma_mask) : 0;
 
 	/* Fast path single entry scatterlists.  */
 	if (nents == 1) {
@@ -699,19 +719,19 @@ pci_map_sg(struct pci_dev *pdev, struct scatterlist *sg, int nents,
 	/* Some allocation failed while mapping the scatterlist
 	   entries.  Unmap them now.  */
 	if (out > start)
-		pci_unmap_sg(pdev, start, out - start, direction);
+		pci_unmap_sg(pdev, start, out - start, dir);
 	return 0;
 }
-EXPORT_SYMBOL(pci_map_sg);
 
 /* Unmap a set of streaming mode DMA translations.  Again, cpu read
    rules concerning calls here are the same as for pci_unmap_single()
    above.  */
 
-void
-pci_unmap_sg(struct pci_dev *pdev, struct scatterlist *sg, int nents,
-	     int direction)
+static void alpha_pci_unmap_sg(struct device *dev, struct scatterlist *sg,
+			       int nents, enum dma_data_direction dir,
+			       struct dma_attrs *attrs)
 {
+	struct pci_dev *pdev = alpha_gendev_to_pci(dev);
 	unsigned long flags;
 	struct pci_controller *hose;
 	struct pci_iommu_arena *arena;
@@ -719,7 +739,7 @@ pci_unmap_sg(struct pci_dev *pdev, struct scatterlist *sg, int nents,
 	dma_addr_t max_dma;
 	dma_addr_t fbeg, fend;
 
-	if (direction == PCI_DMA_NONE)
+	if (dir == PCI_DMA_NONE)
 		BUG();
 
 	if (! alpha_mv.mv_pci_tbi)
@@ -783,15 +803,13 @@ pci_unmap_sg(struct pci_dev *pdev, struct scatterlist *sg, int nents,
 
 	DBGA("pci_unmap_sg: %ld entries\n", nents - (end - sg));
 }
-EXPORT_SYMBOL(pci_unmap_sg);
-
 
 /* Return whether the given PCI device DMA address mask can be
    supported properly.  */
 
-int
-pci_dma_supported(struct pci_dev *pdev, u64 mask)
+static int alpha_pci_supported(struct device *dev, u64 mask)
 {
+	struct pci_dev *pdev = alpha_gendev_to_pci(dev);
 	struct pci_controller *hose;
 	struct pci_iommu_arena *arena;
 
@@ -818,7 +836,6 @@ pci_dma_supported(struct pci_dev *pdev, u64 mask)
 
 	return 0;
 }
-EXPORT_SYMBOL(pci_dma_supported);
 
 
 /*
@@ -918,66 +935,32 @@ iommu_unbind(struct pci_iommu_arena *arena, long pg_start, long pg_count)
 	return 0;
 }
 
-/* True if the machine supports DAC addressing, and DEV can
-   make use of it given MASK.  */
-
-static int
-pci_dac_dma_supported(struct pci_dev *dev, u64 mask)
+static int alpha_pci_mapping_error(struct device *dev, dma_addr_t dma_addr)
 {
-	dma64_addr_t dac_offset = alpha_mv.pci_dac_offset;
-	int ok = 1;
-
-	/* If this is not set, the machine doesn't support DAC at all.  */
-	if (dac_offset == 0)
-		ok = 0;
-
-	/* The device has to be able to address our DAC bit.  */
-	if ((dac_offset & dev->dma_mask) != dac_offset)
-		ok = 0;
-
-	/* If both conditions above are met, we are fine. */
-	DBGA("pci_dac_dma_supported %s from %p\n",
-	     ok ? "yes" : "no", __builtin_return_address(0));
-
-	return ok;
+	return dma_addr == 0;
 }
 
-/* Helper for generic DMA-mapping functions. */
-
-struct pci_dev *
-alpha_gendev_to_pci(struct device *dev)
-{
-	if (dev && dev->bus == &pci_bus_type)
-		return to_pci_dev(dev);
-
-	/* Assume that non-PCI devices asking for DMA are either ISA or EISA,
-	   BUG() otherwise. */
-	BUG_ON(!isa_bridge);
-
-	/* Assume non-busmaster ISA DMA when dma_mask is not set (the ISA
-	   bridge is bus master then). */
-	if (!dev || !dev->dma_mask || !*dev->dma_mask)
-		return isa_bridge;
-
-	/* For EISA bus masters, return isa_bridge (it might have smaller
-	   dma_mask due to wiring limitations). */
-	if (*dev->dma_mask >= isa_bridge->dma_mask)
-		return isa_bridge;
-
-	/* This assumes ISA bus master with dma_mask 0xffffff. */
-	return NULL;
-}
-EXPORT_SYMBOL(alpha_gendev_to_pci);
-
-int
-dma_set_mask(struct device *dev, u64 mask)
+static int alpha_pci_set_mask(struct device *dev, u64 mask)
 {
 	if (!dev->dma_mask ||
 	    !pci_dma_supported(alpha_gendev_to_pci(dev), mask))
 		return -EIO;
 
 	*dev->dma_mask = mask;
-
 	return 0;
 }
-EXPORT_SYMBOL(dma_set_mask);
+
+struct dma_map_ops alpha_pci_ops = {
+	.alloc_coherent		= alpha_pci_alloc_coherent,
+	.free_coherent		= alpha_pci_free_coherent,
+	.map_page		= alpha_pci_map_page,
+	.unmap_page		= alpha_pci_unmap_page,
+	.map_sg			= alpha_pci_map_sg,
+	.unmap_sg		= alpha_pci_unmap_sg,
+	.mapping_error		= alpha_pci_mapping_error,
+	.dma_supported		= alpha_pci_supported,
+	.set_dma_mask		= alpha_pci_set_mask,
+};
+
+struct dma_map_ops *dma_ops = &alpha_pci_ops;
+EXPORT_SYMBOL(dma_ops);

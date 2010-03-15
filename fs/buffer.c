@@ -2893,7 +2893,7 @@ int block_write_full_page_endio(struct page *page, get_block_t *get_block,
 
 	/*
 	 * The page straddles i_size.  It must be zeroed out on each and every
-	 * writepage invokation because it may be mmapped.  "A file is mapped
+	 * writepage invocation because it may be mmapped.  "A file is mapped
 	 * in multiples of the page size.  For a file that is not a multiple of
 	 * the  page size, the remaining memory is zeroed when mapped, and
 	 * writes to that region are not written out to the file."
@@ -3265,7 +3265,7 @@ static void recalc_bh_state(void)
 	
 struct buffer_head *alloc_buffer_head(gfp_t gfp_flags)
 {
-	struct buffer_head *ret = kmem_cache_alloc(bh_cachep, gfp_flags);
+	struct buffer_head *ret = kmem_cache_zalloc(bh_cachep, gfp_flags);
 	if (ret) {
 		INIT_LIST_HEAD(&ret->b_assoc_buffers);
 		get_cpu_var(bh_accounting).nr++;
@@ -3352,15 +3352,6 @@ int bh_submit_read(struct buffer_head *bh)
 }
 EXPORT_SYMBOL(bh_submit_read);
 
-static void
-init_buffer_head(void *data)
-{
-	struct buffer_head *bh = data;
-
-	memset(bh, 0, sizeof(*bh));
-	INIT_LIST_HEAD(&bh->b_assoc_buffers);
-}
-
 void __init buffer_init(void)
 {
 	int nrpages;
@@ -3369,7 +3360,7 @@ void __init buffer_init(void)
 			sizeof(struct buffer_head), 0,
 				(SLAB_RECLAIM_ACCOUNT|SLAB_PANIC|
 				SLAB_MEM_SPREAD),
-				init_buffer_head);
+				NULL);
 
 	/*
 	 * Limit the bh occupancy to 10% of ZONE_NORMAL

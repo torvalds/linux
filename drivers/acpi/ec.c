@@ -76,8 +76,9 @@ enum ec_command {
 enum {
 	EC_FLAGS_QUERY_PENDING,		/* Query is pending */
 	EC_FLAGS_GPE_STORM,		/* GPE storm detected */
-	EC_FLAGS_HANDLERS_INSTALLED	/* Handlers for GPE and
+	EC_FLAGS_HANDLERS_INSTALLED,	/* Handlers for GPE and
 					 * OpReg are installed */
+	EC_FLAGS_FROZEN,		/* Transactions are suspended */
 };
 
 /* If we find an EC via the ECDT, we need to keep a ptr to its context */
@@ -201,14 +202,13 @@ unlock:
 	spin_unlock_irqrestore(&ec->curr_lock, flags);
 }
 
-static void acpi_ec_gpe_query(void *ec_cxt);
+static int acpi_ec_sync_query(struct acpi_ec *ec);
 
-static int ec_check_sci(struct acpi_ec *ec, u8 state)
+static int ec_check_sci_sync(struct acpi_ec *ec, u8 state)
 {
 	if (state & ACPI_EC_FLAG_SCI) {
 		if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags))
-			return acpi_os_execute(OSL_EC_BURST_HANDLER,
-				acpi_ec_gpe_query, ec);
+			return acpi_ec_sync_query(ec);
 	}
 	return 0;
 }
@@ -249,11 +249,6 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 {
 	unsigned long tmp;
 	int ret = 0;
-	pr_debug(PREFIX "transaction start\n");
-	/* disable GPE during transaction if storm is detected */
-	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
-		acpi_disable_gpe(NULL, ec->gpe);
-	}
 	if (EC_FLAGS_MSI)
 		udelay(ACPI_EC_MSI_UDELAY);
 	/* start transaction */
@@ -265,20 +260,9 @@ static int acpi_ec_transaction_unlocked(struct acpi_ec *ec,
 		clear_bit(EC_FLAGS_QUERY_PENDING, &ec->flags);
 	spin_unlock_irqrestore(&ec->curr_lock, tmp);
 	ret = ec_poll(ec);
-	pr_debug(PREFIX "transaction end\n");
 	spin_lock_irqsave(&ec->curr_lock, tmp);
 	ec->curr = NULL;
 	spin_unlock_irqrestore(&ec->curr_lock, tmp);
-	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
-		/* check if we received SCI during transaction */
-		ec_check_sci(ec, acpi_ec_read_status(ec));
-		/* it is safe to enable GPE outside of transaction */
-		acpi_enable_gpe(NULL, ec->gpe);
-	} else if (t->irq_count > ACPI_EC_STORM_THRESHOLD) {
-		pr_info(PREFIX "GPE storm detected, "
-			"transactions will use polling mode\n");
-		set_bit(EC_FLAGS_GPE_STORM, &ec->flags);
-	}
 	return ret;
 }
 
@@ -308,6 +292,10 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 	if (t->rdata)
 		memset(t->rdata, 0, t->rlen);
 	mutex_lock(&ec->lock);
+	if (test_bit(EC_FLAGS_FROZEN, &ec->flags)) {
+		status = -EINVAL;
+		goto unlock;
+	}
 	if (ec->global_lock) {
 		status = acpi_acquire_global_lock(ACPI_EC_UDELAY_GLK, &glk);
 		if (ACPI_FAILURE(status)) {
@@ -321,7 +309,34 @@ static int acpi_ec_transaction(struct acpi_ec *ec, struct transaction *t)
 		status = -ETIME;
 		goto end;
 	}
+	pr_debug(PREFIX "transaction start\n");
+	/* disable GPE during transaction if storm is detected */
+	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
+		/*
+		 * It has to be disabled at the hardware level regardless of the
+		 * GPE reference counting, so that it doesn't trigger.
+		 */
+		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_DISABLE);
+	}
+
 	status = acpi_ec_transaction_unlocked(ec, t);
+
+	/* check if we received SCI during transaction */
+	ec_check_sci_sync(ec, acpi_ec_read_status(ec));
+	if (test_bit(EC_FLAGS_GPE_STORM, &ec->flags)) {
+		msleep(1);
+		/*
+		 * It is safe to enable the GPE outside of the transaction.  Use
+		 * acpi_set_gpe() for that, since we used it to disable the GPE
+		 * above.
+		 */
+		acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_ENABLE);
+	} else if (t->irq_count > ACPI_EC_STORM_THRESHOLD) {
+		pr_info(PREFIX "GPE storm detected, "
+			"transactions will use polling mode\n");
+		set_bit(EC_FLAGS_GPE_STORM, &ec->flags);
+	}
+	pr_debug(PREFIX "transaction end\n");
 end:
 	if (ec->global_lock)
 		acpi_release_global_lock(glk);
@@ -443,7 +458,33 @@ int ec_transaction(u8 command,
 
 EXPORT_SYMBOL(ec_transaction);
 
-static int acpi_ec_query(struct acpi_ec *ec, u8 * data)
+void acpi_ec_suspend_transactions(void)
+{
+	struct acpi_ec *ec = first_ec;
+
+	if (!ec)
+		return;
+
+	mutex_lock(&ec->lock);
+	/* Prevent transactions from being carried out */
+	set_bit(EC_FLAGS_FROZEN, &ec->flags);
+	mutex_unlock(&ec->lock);
+}
+
+void acpi_ec_resume_transactions(void)
+{
+	struct acpi_ec *ec = first_ec;
+
+	if (!ec)
+		return;
+
+	mutex_lock(&ec->lock);
+	/* Allow transactions to be carried out again */
+	clear_bit(EC_FLAGS_FROZEN, &ec->flags);
+	mutex_unlock(&ec->lock);
+}
+
+static int acpi_ec_query_unlocked(struct acpi_ec *ec, u8 * data)
 {
 	int result;
 	u8 d;
@@ -452,20 +493,16 @@ static int acpi_ec_query(struct acpi_ec *ec, u8 * data)
 				.wlen = 0, .rlen = 1};
 	if (!ec || !data)
 		return -EINVAL;
-
 	/*
 	 * Query the EC to find out which _Qxx method we need to evaluate.
 	 * Note that successful completion of the query causes the ACPI_EC_SCI
 	 * bit to be cleared (and thus clearing the interrupt source).
 	 */
-
-	result = acpi_ec_transaction(ec, &t);
+	result = acpi_ec_transaction_unlocked(ec, &t);
 	if (result)
 		return result;
-
 	if (!d)
 		return -ENODATA;
-
 	*data = d;
 	return 0;
 }
@@ -509,43 +546,79 @@ void acpi_ec_remove_query_handler(struct acpi_ec *ec, u8 query_bit)
 
 EXPORT_SYMBOL_GPL(acpi_ec_remove_query_handler);
 
-static void acpi_ec_gpe_query(void *ec_cxt)
+static void acpi_ec_run(void *cxt)
 {
-	struct acpi_ec *ec = ec_cxt;
-	u8 value = 0;
-	struct acpi_ec_query_handler *handler, copy;
-
-	if (!ec || acpi_ec_query(ec, &value))
+	struct acpi_ec_query_handler *handler = cxt;
+	if (!handler)
 		return;
-	mutex_lock(&ec->lock);
+	pr_debug(PREFIX "start query execution\n");
+	if (handler->func)
+		handler->func(handler->data);
+	else if (handler->handle)
+		acpi_evaluate_object(handler->handle, NULL, NULL, NULL);
+	pr_debug(PREFIX "stop query execution\n");
+	kfree(handler);
+}
+
+static int acpi_ec_sync_query(struct acpi_ec *ec)
+{
+	u8 value = 0;
+	int status;
+	struct acpi_ec_query_handler *handler, *copy;
+	if ((status = acpi_ec_query_unlocked(ec, &value)))
+		return status;
 	list_for_each_entry(handler, &ec->list, node) {
 		if (value == handler->query_bit) {
 			/* have custom handler for this bit */
-			memcpy(&copy, handler, sizeof(copy));
-			mutex_unlock(&ec->lock);
-			if (copy.func) {
-				copy.func(copy.data);
-			} else if (copy.handle) {
-				acpi_evaluate_object(copy.handle, NULL, NULL, NULL);
-			}
-			return;
+			copy = kmalloc(sizeof(*handler), GFP_KERNEL);
+			if (!copy)
+				return -ENOMEM;
+			memcpy(copy, handler, sizeof(*copy));
+			pr_debug(PREFIX "push query execution (0x%2x) on queue\n", value);
+			return acpi_os_execute((copy->func) ?
+				OSL_NOTIFY_HANDLER : OSL_GPE_HANDLER,
+				acpi_ec_run, copy);
 		}
 	}
+	return 0;
+}
+
+static void acpi_ec_gpe_query(void *ec_cxt)
+{
+	struct acpi_ec *ec = ec_cxt;
+	if (!ec)
+		return;
+	mutex_lock(&ec->lock);
+	acpi_ec_sync_query(ec);
 	mutex_unlock(&ec->lock);
+}
+
+static void acpi_ec_gpe_query(void *ec_cxt);
+
+static int ec_check_sci(struct acpi_ec *ec, u8 state)
+{
+	if (state & ACPI_EC_FLAG_SCI) {
+		if (!test_and_set_bit(EC_FLAGS_QUERY_PENDING, &ec->flags)) {
+			pr_debug(PREFIX "push gpe query to the queue\n");
+			return acpi_os_execute(OSL_NOTIFY_HANDLER,
+				acpi_ec_gpe_query, ec);
+		}
+	}
+	return 0;
 }
 
 static u32 acpi_ec_gpe_handler(void *data)
 {
 	struct acpi_ec *ec = data;
-	u8 status;
 
 	pr_debug(PREFIX "~~~> interrupt\n");
-	status = acpi_ec_read_status(ec);
 
-	advance_transaction(ec, status);
-	if (ec_transaction_done(ec) && (status & ACPI_EC_FLAG_IBF) == 0)
+	advance_transaction(ec, acpi_ec_read_status(ec));
+	if (ec_transaction_done(ec) &&
+	    (acpi_ec_read_status(ec) & ACPI_EC_FLAG_IBF) == 0) {
 		wake_up(&ec->wait);
-	ec_check_sci(ec, status);
+		ec_check_sci(ec, acpi_ec_read_status(ec));
+	}
 	return ACPI_INTERRUPT_HANDLED;
 }
 
@@ -555,7 +628,7 @@ static u32 acpi_ec_gpe_handler(void *data)
 
 static acpi_status
 acpi_ec_space_handler(u32 function, acpi_physical_address address,
-		      u32 bits, acpi_integer *value,
+		      u32 bits, u64 *value,
 		      void *handler_context, void *region_context)
 {
 	struct acpi_ec *ec = handler_context;
@@ -586,7 +659,7 @@ acpi_ec_space_handler(u32 function, acpi_physical_address address,
 		++address;
 		if (function == ACPI_READ) {
 			result = acpi_ec_read(ec, address, &temp);
-			(*value) |= ((acpi_integer)temp) << i;
+			(*value) |= ((u64)temp) << i;
 		} else {
 			temp = 0xff & ((*value) >> i);
 			result = acpi_ec_write(ec, address, temp);
@@ -754,8 +827,8 @@ static int ec_install_handlers(struct acpi_ec *ec)
 				  &acpi_ec_gpe_handler, ec);
 	if (ACPI_FAILURE(status))
 		return -ENODEV;
-	acpi_set_gpe_type(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
-	acpi_enable_gpe(NULL, ec->gpe);
+
+	acpi_enable_gpe(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
 	status = acpi_install_address_space_handler(ec->handle,
 						    ACPI_ADR_SPACE_EC,
 						    &acpi_ec_space_handler,
@@ -772,6 +845,7 @@ static int ec_install_handlers(struct acpi_ec *ec)
 		} else {
 			acpi_remove_gpe_handler(NULL, ec->gpe,
 				&acpi_ec_gpe_handler);
+			acpi_disable_gpe(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
 			return -ENODEV;
 		}
 	}
@@ -782,6 +856,7 @@ static int ec_install_handlers(struct acpi_ec *ec)
 
 static void ec_remove_handlers(struct acpi_ec *ec)
 {
+	acpi_disable_gpe(NULL, ec->gpe, ACPI_GPE_TYPE_RUNTIME);
 	if (ACPI_FAILURE(acpi_remove_address_space_handler(ec->handle,
 				ACPI_ADR_SPACE_EC, &acpi_ec_space_handler)))
 		pr_err(PREFIX "failed to remove space handler\n");
@@ -1023,16 +1098,16 @@ error:
 static int acpi_ec_suspend(struct acpi_device *device, pm_message_t state)
 {
 	struct acpi_ec *ec = acpi_driver_data(device);
-	/* Stop using GPE */
-	acpi_disable_gpe(NULL, ec->gpe);
+	/* Stop using the GPE, but keep it reference counted. */
+	acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_DISABLE);
 	return 0;
 }
 
 static int acpi_ec_resume(struct acpi_device *device)
 {
 	struct acpi_ec *ec = acpi_driver_data(device);
-	/* Enable use of GPE back */
-	acpi_enable_gpe(NULL, ec->gpe);
+	/* Enable the GPE again, but don't reference count it once more. */
+	acpi_set_gpe(NULL, ec->gpe, ACPI_GPE_ENABLE);
 	return 0;
 }
 

@@ -973,7 +973,7 @@ static void bmac_set_multicast(struct net_device *dev)
 {
 	struct dev_mc_list *dmi;
 	struct bmac_data *bp = netdev_priv(dev);
-	int num_addrs = dev->mc_count;
+	int num_addrs = netdev_mc_count(dev);
 	unsigned short rx_cfg;
 	int i;
 
@@ -982,7 +982,7 @@ static void bmac_set_multicast(struct net_device *dev)
 
 	XXDEBUG(("bmac: enter bmac_set_multicast, n_addrs=%d\n", num_addrs));
 
-	if((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+	if((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 64)) {
 		for (i=0; i<4; i++) bp->hash_table_mask[i] = 0xffff;
 		bmac_update_hash_table_mask(dev, bp);
 		rx_cfg = bmac_rx_on(dev, 1, 0);
@@ -1000,7 +1000,7 @@ static void bmac_set_multicast(struct net_device *dev)
 			rx_cfg = bmac_rx_on(dev, 0, 0);
 			XXDEBUG(("bmac: multi disabled, rx_cfg=%#08x\n", rx_cfg));
 		} else {
-			for (dmi=dev->mc_list; dmi!=NULL; dmi=dmi->next)
+			netdev_for_each_mc_addr(dmi, dev)
 				bmac_addhash(bp, dmi->dmi_addr);
 			bmac_update_hash_table_mask(dev, bp);
 			rx_cfg = bmac_rx_on(dev, 1, 0);
@@ -1015,13 +1015,13 @@ static void bmac_set_multicast(struct net_device *dev)
 
 static void bmac_set_multicast(struct net_device *dev)
 {
-	struct dev_mc_list *dmi = dev->mc_list;
+	struct dev_mc_list *dmi;
 	char *addrs;
 	int i;
 	unsigned short rx_cfg;
 	u32 crc;
 
-	if((dev->flags & IFF_ALLMULTI) || (dev->mc_count > 64)) {
+	if((dev->flags & IFF_ALLMULTI) || (netdev_mc_count(dev) > 64)) {
 		bmwrite(dev, BHASH0, 0xffff);
 		bmwrite(dev, BHASH1, 0xffff);
 		bmwrite(dev, BHASH2, 0xffff);
@@ -1039,9 +1039,8 @@ static void bmac_set_multicast(struct net_device *dev)
 
 		for(i = 0; i < 4; i++) hash_table[i] = 0;
 
-		for(i = 0; i < dev->mc_count; i++) {
+		netdev_for_each_mc_addr(dmi, dev) {
 			addrs = dmi->dmi_addr;
-			dmi = dmi->next;
 
 			if(!(*addrs & 1))
 				continue;

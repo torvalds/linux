@@ -1051,12 +1051,6 @@ random_read(struct file *file, char __user *buf, size_t nbytes, loff_t *ppos)
 				/* like a named pipe */
 	}
 
-	/*
-	 * If we gave the user some bytes, update the access time.
-	 */
-	if (count)
-		file_accessed(file);
-
 	return (count ? count : retval);
 }
 
@@ -1107,7 +1101,6 @@ static ssize_t random_write(struct file *file, const char __user *buffer,
 			    size_t count, loff_t *ppos)
 {
 	size_t ret;
-	struct inode *inode = file->f_path.dentry->d_inode;
 
 	ret = write_pool(&blocking_pool, buffer, count);
 	if (ret)
@@ -1116,8 +1109,6 @@ static ssize_t random_write(struct file *file, const char __user *buffer,
 	if (ret)
 		return ret;
 
-	inode->i_mtime = current_fs_time(inode->i_sb);
-	mark_inode_dirty(inode);
 	return (ssize_t)count;
 }
 
@@ -1200,7 +1191,7 @@ const struct file_operations urandom_fops = {
 void generate_random_uuid(unsigned char uuid_out[16])
 {
 	get_random_bytes(uuid_out, 16);
-	/* Set UUID version to 4 --- truely random generation */
+	/* Set UUID version to 4 --- truly random generation */
 	uuid_out[6] = (uuid_out[6] & 0x0F) | 0x40;
 	/* Set the UUID variant to DCE */
 	uuid_out[8] = (uuid_out[8] & 0x3F) | 0x80;

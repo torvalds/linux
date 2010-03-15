@@ -429,8 +429,7 @@ static int upgrade_mode(struct dm_dev_internal *dd, fmode_t new_mode,
  * it's already present.
  */
 static int __table_get_device(struct dm_table *t, struct dm_target *ti,
-			      const char *path, sector_t start, sector_t len,
-			      fmode_t mode, struct dm_dev **result)
+		      const char *path, fmode_t mode, struct dm_dev **result)
 {
 	int r;
 	dev_t uninitialized_var(dev);
@@ -503,16 +502,15 @@ int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 		return 0;
 	}
 
-	if (blk_stack_limits(limits, &q->limits, start << 9) < 0)
-		DMWARN("%s: target device %s is misaligned: "
+	if (bdev_stack_limits(limits, bdev, start) < 0)
+		DMWARN("%s: adding target device %s caused an alignment inconsistency: "
 		       "physical_block_size=%u, logical_block_size=%u, "
 		       "alignment_offset=%u, start=%llu",
 		       dm_device_name(ti->table->md), bdevname(bdev, b),
 		       q->limits.physical_block_size,
 		       q->limits.logical_block_size,
 		       q->limits.alignment_offset,
-		       (unsigned long long) start << 9);
-
+		       (unsigned long long) start << SECTOR_SHIFT);
 
 	/*
 	 * Check if merge fn is supported.
@@ -528,11 +526,10 @@ int dm_set_device_limits(struct dm_target *ti, struct dm_dev *dev,
 }
 EXPORT_SYMBOL_GPL(dm_set_device_limits);
 
-int dm_get_device(struct dm_target *ti, const char *path, sector_t start,
-		  sector_t len, fmode_t mode, struct dm_dev **result)
+int dm_get_device(struct dm_target *ti, const char *path, fmode_t mode,
+		  struct dm_dev **result)
 {
-	return __table_get_device(ti->table, ti, path,
-				  start, len, mode, result);
+	return __table_get_device(ti->table, ti, path, mode, result);
 }
 
 
@@ -1026,9 +1023,9 @@ combine_limits:
 		 * for the table.
 		 */
 		if (blk_stack_limits(limits, &ti_limits, 0) < 0)
-			DMWARN("%s: target device "
+			DMWARN("%s: adding target device "
 			       "(start sect %llu len %llu) "
-			       "is misaligned",
+			       "caused an alignment inconsistency",
 			       dm_device_name(table->md),
 			       (unsigned long long) ti->begin,
 			       (unsigned long long) ti->len);
@@ -1079,15 +1076,6 @@ no_integrity:
 void dm_table_set_restrictions(struct dm_table *t, struct request_queue *q,
 			       struct queue_limits *limits)
 {
-	/*
-	 * Each target device in the table has a data area that should normally
-	 * be aligned such that the DM device's alignment_offset is 0.
-	 * FIXME: Propagate alignment_offsets up the stack and warn of
-	 *	  sub-optimal or inconsistent settings.
-	 */
-	limits->alignment_offset = 0;
-	limits->misaligned = 0;
-
 	/*
 	 * Copy table's limits to the DM device's request_queue
 	 */
@@ -1241,8 +1229,6 @@ void dm_table_unplug_all(struct dm_table *t)
 
 struct mapped_device *dm_table_get_md(struct dm_table *t)
 {
-	dm_get(t->md);
-
 	return t->md;
 }
 

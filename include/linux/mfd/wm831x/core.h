@@ -15,6 +15,7 @@
 #ifndef __MFD_WM831X_CORE_H__
 #define __MFD_WM831X_CORE_H__
 
+#include <linux/completion.h>
 #include <linux/interrupt.h>
 
 /*
@@ -254,9 +255,14 @@ struct wm831x {
 	int irq_masks_cur[WM831X_NUM_IRQ_REGS];   /* Currently active value */
 	int irq_masks_cache[WM831X_NUM_IRQ_REGS]; /* Cached hardware value */
 
+	/* Chip revision based flags */
+	unsigned has_gpio_ena:1;  /* Has GPIO enable bit */
+	unsigned has_cs_sts:1;    /* Has current sink status bit */
+
 	int num_gpio;
 
 	struct mutex auxadc_lock;
+	struct completion auxadc_done;
 
 	/* The WM831x has a security key blocking access to certain
 	 * registers.  The mutex is taken by the accessors for locking

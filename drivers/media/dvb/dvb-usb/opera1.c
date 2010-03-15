@@ -138,7 +138,7 @@ static int opera1_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msg[],
 					(msg[i].addr<<1)|(msg[i].flags&I2C_M_RD?0x01:0),
 					msg[i].buf,
 					msg[i].len
-					)!= msg[i].len)) {
+					)) != msg[i].len) {
 			break;
 		}
 		if (dvb_usb_opera1_debug & 0x10)

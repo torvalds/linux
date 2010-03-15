@@ -90,12 +90,6 @@ ENTRY(_copy_from_user)
 	CFI_ENDPROC
 ENDPROC(_copy_from_user)
 
-ENTRY(copy_user_generic)
-	CFI_STARTPROC
-	ALTERNATIVE_JUMP X86_FEATURE_REP_GOOD,copy_user_generic_unrolled,copy_user_generic_string
-	CFI_ENDPROC
-ENDPROC(copy_user_generic)
-
 	.section .fixup,"ax"
 	/* must zero dest */
 ENTRY(bad_from_user)

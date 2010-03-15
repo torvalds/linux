@@ -14,7 +14,7 @@
 struct wbsoft_priv {
 	u32 adapterIndex;	// 20060703.4 Add for using padapterContext global adapter point
 
-	WB_LOCALDESCRIPT sLocalPara;	// Myself connected parameters
+	struct wb_local_para sLocalPara;	// Myself connected parameters
 
 	MLME_FRAME sMlmeFrame;	// connect to peerSTA parameters
 

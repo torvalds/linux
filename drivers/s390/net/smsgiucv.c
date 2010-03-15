@@ -31,9 +31,9 @@
 
 struct smsg_callback {
 	struct list_head list;
-	char *prefix;
+	const char *prefix;
 	int len;
-	void (*callback)(char *from, char *str);
+	void (*callback)(const char *from, char *str);
 };
 
 MODULE_AUTHOR
@@ -100,8 +100,8 @@ static void smsg_message_pending(struct iucv_path *path,
 	kfree(buffer);
 }
 
-int smsg_register_callback(char *prefix,
-			   void (*callback)(char *from, char *str))
+int smsg_register_callback(const char *prefix,
+			   void (*callback)(const char *from, char *str))
 {
 	struct smsg_callback *cb;
 
@@ -117,8 +117,9 @@ int smsg_register_callback(char *prefix,
 	return 0;
 }
 
-void smsg_unregister_callback(char *prefix,
-			      void (*callback)(char *from, char *str))
+void smsg_unregister_callback(const char *prefix,
+			      void (*callback)(const char *from,
+					       char *str))
 {
 	struct smsg_callback *cb, *tmp;
 
@@ -176,7 +177,7 @@ static const struct dev_pm_ops smsg_pm_ops = {
 
 static struct device_driver smsg_driver = {
 	.owner = THIS_MODULE,
-	.name = "SMSGIUCV",
+	.name = SMSGIUCV_DRV_NAME,
 	.bus  = &iucv_bus,
 	.pm = &smsg_pm_ops,
 };

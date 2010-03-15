@@ -487,7 +487,8 @@ struct amd64_pvt {
 	/* misc settings */
 	struct flags {
 		unsigned long cf8_extcfg:1;
-		unsigned long ecc_report:1;
+		unsigned long nb_mce_enable:1;
+		unsigned long nb_ecc_prev:1;
 	} flags;
 };
 

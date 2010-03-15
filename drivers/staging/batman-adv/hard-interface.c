@@ -21,13 +21,11 @@
 
 #include "main.h"
 #include "hard-interface.h"
-#include "log.h"
 #include "soft-interface.h"
 #include "send.h"
 #include "translation-table.h"
 #include "routing.h"
 #include "hash.h"
-#include "compat.h"
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 
@@ -75,7 +73,6 @@ int hardif_min_mtu(void)
 static void check_known_mac_addr(uint8_t *addr)
 {
 	struct batman_if *batman_if;
-	char mac_string[ETH_STR_LEN];
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(batman_if, &if_list, list) {
@@ -86,10 +83,9 @@ static void check_known_mac_addr(uint8_t *addr)
 		if (!compare_orig(batman_if->net_dev->dev_addr, addr))
 			continue;
 
-		addr_to_string(mac_string, addr);
-		debug_log(LOG_TYPE_WARN, "The newly added mac address (%s) already exists on: %s\n",
-		          mac_string, batman_if->dev);
-		debug_log(LOG_TYPE_WARN, "It is strongly recommended to keep mac addresses unique to avoid problems!\n");
+		printk(KERN_WARNING "batman-adv:The newly added mac address (%pM) already exists on: %s\n",
+		       addr, batman_if->dev);
+		printk(KERN_WARNING "batman-adv:It is strongly recommended to keep mac addresses unique to avoid problems!\n");
 	}
 	rcu_read_unlock();
 }
@@ -154,9 +150,6 @@ void hardif_deactivate_interface(struct batman_if *batman_if)
 	if (batman_if->if_active != IF_ACTIVE)
 		return;
 
-	if (batman_if->raw_sock)
-		sock_release(batman_if->raw_sock);
-
 	/**
 	 * batman_if->net_dev has been acquired by dev_get_by_name() in
 	 * proc_interfaces_write() and has to be unreferenced.
@@ -165,22 +158,16 @@ void hardif_deactivate_interface(struct batman_if *batman_if)
 	if (batman_if->net_dev)
 		dev_put(batman_if->net_dev);
 
-	batman_if->raw_sock = NULL;
-	batman_if->net_dev = NULL;
-
 	batman_if->if_active = IF_INACTIVE;
 	active_ifs--;
 
-	debug_log(LOG_TYPE_NOTICE, "Interface deactivated: %s\n",
-	          batman_if->dev);
+	printk(KERN_INFO "batman-adv:Interface deactivated: %s\n",
+		  batman_if->dev);
 }
 
 /* (re)activate given interface. */
 static void hardif_activate_interface(struct batman_if *batman_if)
 {
-	struct sockaddr_ll bind_addr;
-	int retval;
-
 	if (batman_if->if_active != IF_INACTIVE)
 		return;
 
@@ -192,34 +179,7 @@ static void hardif_activate_interface(struct batman_if *batman_if)
 	if (!batman_if->net_dev)
 		goto dev_err;
 
-	retval = sock_create_kern(PF_PACKET, SOCK_RAW,
-				  __constant_htons(ETH_P_BATMAN),
-				  &batman_if->raw_sock);
-
-	if (retval < 0) {
-		debug_log(LOG_TYPE_WARN, "Can't create raw socket: %i\n",
-			  retval);
-		goto sock_err;
-	}
-
-	bind_addr.sll_family = AF_PACKET;
-	bind_addr.sll_ifindex = batman_if->net_dev->ifindex;
-	bind_addr.sll_protocol = 0;	/* is set by the kernel */
-
-	retval = kernel_bind(batman_if->raw_sock,
-			     (struct sockaddr *)&bind_addr, sizeof(bind_addr));
-
-	if (retval < 0) {
-		debug_log(LOG_TYPE_WARN, "Can't create bind raw socket: %i\n",
-			  retval);
-		goto bind_err;
-	}
-
 	check_known_mac_addr(batman_if->net_dev->dev_addr);
-
-	batman_if->raw_sock->sk->sk_user_data =
-		batman_if->raw_sock->sk->sk_data_ready;
-	batman_if->raw_sock->sk->sk_data_ready = batman_data_ready;
 
 	addr_to_string(batman_if->addr_str, batman_if->net_dev->dev_addr);
 
@@ -235,17 +195,12 @@ static void hardif_activate_interface(struct batman_if *batman_if)
 	if (batman_if->if_num == 0)
 		set_main_if_addr(batman_if->net_dev->dev_addr);
 
-	debug_log(LOG_TYPE_NOTICE, "Interface activated: %s\n",
-	          batman_if->dev);
+	printk(KERN_INFO "batman-adv:Interface activated: %s\n",
+		  batman_if->dev);
 
 	return;
 
-bind_err:
-	sock_release(batman_if->raw_sock);
-sock_err:
-	dev_put(batman_if->net_dev);
 dev_err:
-	batman_if->raw_sock = NULL;
 	batman_if->net_dev = NULL;
 }
 
@@ -290,7 +245,7 @@ static int resize_orig(struct orig_node *orig_node, int if_num)
 	data_ptr = kmalloc((if_num + 1) * sizeof(TYPE_OF_WORD) * NUM_WORDS,
 			   GFP_ATOMIC);
 	if (!data_ptr) {
-		debug_log(LOG_TYPE_WARN, "Can't resize orig: out of memory\n");
+		printk(KERN_ERR "batman-adv:Can't resize orig: out of memory\n");
 		return -1;
 	}
 
@@ -301,7 +256,7 @@ static int resize_orig(struct orig_node *orig_node, int if_num)
 
 	data_ptr = kmalloc((if_num + 1) * sizeof(uint8_t), GFP_ATOMIC);
 	if (!data_ptr) {
-		debug_log(LOG_TYPE_WARN, "Can't resize orig: out of memory\n");
+		printk(KERN_ERR "batman-adv:Can't resize orig: out of memory\n");
 		return -1;
 	}
 
@@ -319,16 +274,16 @@ int hardif_add_interface(char *dev, int if_num)
 	struct batman_if *batman_if;
 	struct batman_packet *batman_packet;
 	struct orig_node *orig_node;
-	struct hash_it_t *hashit = NULL;
+	unsigned long flags;
+	HASHIT(hashit);
 
 	batman_if = kmalloc(sizeof(struct batman_if), GFP_KERNEL);
 
 	if (!batman_if) {
-		debug_log(LOG_TYPE_WARN, "Can't add interface (%s): out of memory\n", dev);
+		printk(KERN_ERR "batman-adv:Can't add interface (%s): out of memory\n", dev);
 		return -1;
 	}
 
-	batman_if->raw_sock = NULL;
 	batman_if->net_dev = NULL;
 
 	if ((if_num == 0) && (num_hna > 0))
@@ -339,7 +294,7 @@ int hardif_add_interface(char *dev, int if_num)
 	batman_if->packet_buff = kmalloc(batman_if->packet_len, GFP_KERNEL);
 
 	if (!batman_if->packet_buff) {
-		debug_log(LOG_TYPE_WARN, "Can't add interface packet (%s): out of memory\n", dev);
+		printk(KERN_ERR "batman-adv:Can't add interface packet (%s): out of memory\n", dev);
 		goto out;
 	}
 
@@ -348,7 +303,7 @@ int hardif_add_interface(char *dev, int if_num)
 	batman_if->if_active = IF_INACTIVE;
 	INIT_RCU_HEAD(&batman_if->rcu);
 
-	debug_log(LOG_TYPE_NOTICE, "Adding interface: %s\n", dev);
+	printk(KERN_INFO "batman-adv:Adding interface: %s\n", dev);
 	avail_ifs++;
 
 	INIT_LIST_HEAD(&batman_if->list);
@@ -376,20 +331,20 @@ int hardif_add_interface(char *dev, int if_num)
 
 	/* resize all orig nodes because orig_node->bcast_own(_sum) depend on
 	 * if_num */
-	spin_lock(&orig_hash_lock);
+	spin_lock_irqsave(&orig_hash_lock, flags);
 
-	while (NULL != (hashit = hash_iterate(orig_hash, hashit))) {
-		orig_node = hashit->bucket->data;
+	while (hash_iterate(orig_hash, &hashit)) {
+		orig_node = hashit.bucket->data;
 		if (resize_orig(orig_node, if_num) == -1) {
-			spin_unlock(&orig_hash_lock);
+			spin_unlock_irqrestore(&orig_hash_lock, flags);
 			goto out;
 		}
 	}
 
-	spin_unlock(&orig_hash_lock);
+	spin_unlock_irqrestore(&orig_hash_lock, flags);
 
 	if (!hardif_is_interface_up(batman_if->dev))
-		debug_log(LOG_TYPE_WARN, "Not using interface %s (retrying later): interface not active\n", batman_if->dev);
+		printk(KERN_ERR "batman-adv:Not using interface %s (retrying later): interface not active\n", batman_if->dev);
 	else
 		hardif_activate_interface(batman_if);
 
@@ -400,8 +355,7 @@ int hardif_add_interface(char *dev, int if_num)
 	return 1;
 
 out:
-	if (batman_if->packet_buff)
-		kfree(batman_if->packet_buff);
+	kfree(batman_if->packet_buff);
 	kfree(batman_if);
 	kfree(dev);
 	return -1;
@@ -413,7 +367,7 @@ char hardif_get_active_if_num(void)
 }
 
 static int hard_if_event(struct notifier_block *this,
-                            unsigned long event, void *ptr)
+			    unsigned long event, void *ptr)
 {
 	struct net_device *dev = (struct net_device *)ptr;
 	struct batman_if *batman_if = get_batman_if_by_name(dev->name);
@@ -436,7 +390,6 @@ static int hard_if_event(struct notifier_block *this,
 		break;
 	/* NETDEV_CHANGEADDR - mac address change - what are we doing here ? */
 	default:
-		/* debug_log(LOG_TYPE_CRIT, "hard_if_event: %s %i\n", dev->name, event); */
 		break;
 	};
 
@@ -446,6 +399,122 @@ out:
 	return NOTIFY_DONE;
 }
 
+/* find batman interface by netdev. assumes rcu_read_lock on */
+static struct batman_if *find_batman_if(struct net_device *dev)
+{
+	struct batman_if *batman_if;
+
+	rcu_read_lock();
+	list_for_each_entry_rcu(batman_if, &if_list, list) {
+		if (batman_if->net_dev == dev) {
+			rcu_read_unlock();
+			return batman_if;
+		}
+	}
+	rcu_read_unlock();
+	return NULL;
+}
+
+
+/* receive a packet with the batman ethertype coming on a hard
+ * interface */
+int batman_skb_recv(struct sk_buff *skb, struct net_device *dev,
+	struct packet_type *ptype, struct net_device *orig_dev)
+{
+	struct batman_packet *batman_packet;
+	struct batman_if *batman_if;
+	struct net_device_stats *stats;
+	int ret;
+
+	skb = skb_share_check(skb, GFP_ATOMIC);
+
+	/* skb was released by skb_share_check() */
+	if (!skb)
+		goto err_out;
+
+	if (atomic_read(&module_state) != MODULE_ACTIVE)
+		goto err_free;
+
+	/* packet should hold at least type and version */
+	if (unlikely(skb_headlen(skb) < 2))
+		goto err_free;
+
+	/* expect a valid ethernet header here. */
+	if (unlikely(skb->mac_len != sizeof(struct ethhdr)
+				|| !skb_mac_header(skb)))
+		goto err_free;
+
+	batman_if = find_batman_if(skb->dev);
+	if (!batman_if)
+		goto err_free;
+
+	/* discard frames on not active interfaces */
+	if (batman_if->if_active != IF_ACTIVE)
+		goto err_free;
+
+	stats = (struct net_device_stats *)dev_get_stats(skb->dev);
+	if (stats) {
+		stats->rx_packets++;
+		stats->rx_bytes += skb->len;
+	}
+
+	batman_packet = (struct batman_packet *)skb->data;
+
+	if (batman_packet->version != COMPAT_VERSION) {
+		bat_dbg(DBG_BATMAN,
+			"Drop packet: incompatible batman version (%i)\n",
+			batman_packet->version);
+		goto err_free;
+	}
+
+	/* all receive handlers return whether they received or reused
+	 * the supplied skb. if not, we have to free the skb. */
+
+	switch (batman_packet->packet_type) {
+		/* batman originator packet */
+	case BAT_PACKET:
+		ret = recv_bat_packet(skb, batman_if);
+		break;
+
+		/* batman icmp packet */
+	case BAT_ICMP:
+		ret = recv_icmp_packet(skb);
+		break;
+
+		/* unicast packet */
+	case BAT_UNICAST:
+		ret = recv_unicast_packet(skb);
+		break;
+
+		/* broadcast packet */
+	case BAT_BCAST:
+		ret = recv_bcast_packet(skb);
+		break;
+
+		/* vis packet */
+	case BAT_VIS:
+		ret = recv_vis_packet(skb);
+		break;
+	default:
+		ret = NET_RX_DROP;
+	}
+
+	if (ret == NET_RX_DROP)
+		kfree_skb(skb);
+
+	/* return NET_RX_SUCCESS in any case as we
+	 * most probably dropped the packet for
+	 * routing-logical reasons. */
+
+	return NET_RX_SUCCESS;
+
+err_free:
+	kfree_skb(skb);
+err_out:
+	return NET_RX_DROP;
+}
+
+
 struct notifier_block hard_if_notifier = {
-        .notifier_call = hard_if_event,
+	.notifier_call = hard_if_event,
 };

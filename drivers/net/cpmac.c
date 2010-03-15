@@ -28,6 +28,7 @@
 #include <linux/delay.h>
 
 #include <linux/netdevice.h>
+#include <linux/if_vlan.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
 #include <linux/skbuff.h>
@@ -36,6 +37,7 @@
 #include <linux/phy_fixed.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/clk.h>
 #include <asm/gpio.h>
 #include <asm/atomic.h>
 
@@ -54,9 +56,9 @@ module_param(dumb_switch, int, 0444);
 MODULE_PARM_DESC(debug_level, "Number of NETIF_MSG bits to enable");
 MODULE_PARM_DESC(dumb_switch, "Assume switch is not connected to MDIO bus");
 
-#define CPMAC_VERSION "0.5.1"
-/* frame size + 802.1q tag */
-#define CPMAC_SKB_SIZE		(ETH_FRAME_LEN + 4)
+#define CPMAC_VERSION "0.5.2"
+/* frame size + 802.1q tag + FCS size */
+#define CPMAC_SKB_SIZE		(ETH_FRAME_LEN + ETH_FCS_LEN + VLAN_HLEN)
 #define CPMAC_QUEUES	8
 
 /* Ethernet registers */
@@ -294,9 +296,16 @@ static int cpmac_mdio_write(struct mii_bus *bus, int phy_id,
 
 static int cpmac_mdio_reset(struct mii_bus *bus)
 {
+	struct clk *cpmac_clk;
+
+	cpmac_clk = clk_get(&bus->dev, "cpmac");
+	if (IS_ERR(cpmac_clk)) {
+		printk(KERN_ERR "unable to get cpmac clock\n");
+		return -1;
+	}
 	ar7_device_reset(AR7_RESET_BIT_MDIO);
 	cpmac_write(bus->priv, CPMAC_MDIO_CONTROL, MDIOC_ENABLE |
-		    MDIOC_CLKDIV(ar7_cpmac_freq() / 2200000 - 1));
+		    MDIOC_CLKDIV(clk_get_rate(cpmac_clk) / 2200000 - 1));
 	return 0;
 }
 
@@ -320,7 +329,6 @@ static int cpmac_config(struct net_device *dev, struct ifmap *map)
 static void cpmac_set_multicast_list(struct net_device *dev)
 {
 	struct dev_mc_list *iter;
-	int i;
 	u8 tmp;
 	u32 mbp, bit, hash[2] = { 0, };
 	struct cpmac_priv *priv = netdev_priv(dev);
@@ -340,8 +348,7 @@ static void cpmac_set_multicast_list(struct net_device *dev)
 			 * cpmac uses some strange mac address hashing
 			 * (not crc32)
 			 */
-			for (i = 0, iter = dev->mc_list; i < dev->mc_count;
-			     i++, iter = iter->next) {
+			netdev_for_each_mc_addr(iter, dev) {
 				bit = 0;
 				tmp = iter->dmi_addr[0];
 				bit  ^= (tmp >> 2) ^ (tmp << 4);
@@ -1130,8 +1137,9 @@ static int __devinit cpmac_probe(struct platform_device *pdev)
 	}
 
 	if (phy_id == PHY_MAX_ADDR) {
-		dev_err(&pdev->dev, "no PHY present\n");
-		return -ENODEV;
+		dev_err(&pdev->dev, "no PHY present, falling back to switch on MDIO bus 0\n");
+		strncpy(mdio_bus_id, "0", MII_BUS_ID_SIZE); /* fixed phys bus */
+		phy_id = pdev->id;
 	}
 
 	dev = alloc_etherdev_mq(sizeof(*priv), CPMAC_QUEUES);
@@ -1284,8 +1292,8 @@ void __devexit cpmac_exit(void)
 {
 	platform_driver_unregister(&cpmac_driver);
 	mdiobus_unregister(cpmac_mii);
-	mdiobus_free(cpmac_mii);
 	iounmap(cpmac_mii->priv);
+	mdiobus_free(cpmac_mii);
 }
 
 module_init(cpmac_init);

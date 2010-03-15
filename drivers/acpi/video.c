@@ -78,6 +78,13 @@ MODULE_LICENSE("GPL");
 static int brightness_switch_enabled = 1;
 module_param(brightness_switch_enabled, bool, 0644);
 
+/*
+ * By default, we don't allow duplicate ACPI video bus devices
+ * under the same VGA controller
+ */
+static int allow_duplicates;
+module_param(allow_duplicates, bool, 0644);
+
 static int register_count = 0;
 static int acpi_video_bus_add(struct acpi_device *device);
 static int acpi_video_bus_remove(struct acpi_device *device, int type);
@@ -320,7 +327,7 @@ static int acpi_video_device_lcd_set_level(struct acpi_video_device *device,
 			int level);
 static int acpi_video_device_lcd_get_level_current(
 			struct acpi_video_device *device,
-			unsigned long long *level);
+			unsigned long long *level, int init);
 static int acpi_video_get_next_level(struct acpi_video_device *device,
 				     u32 level_current, u32 event);
 static int acpi_video_switch_brightness(struct acpi_video_device *device,
@@ -338,7 +345,7 @@ static int acpi_video_get_brightness(struct backlight_device *bd)
 	struct acpi_video_device *vd =
 		(struct acpi_video_device *)bl_get_data(bd);
 
-	if (acpi_video_device_lcd_get_level_current(vd, &cur_level))
+	if (acpi_video_device_lcd_get_level_current(vd, &cur_level, 0))
 		return -EINVAL;
 	for (i = 2; i < vd->brightness->count; i++) {
 		if (vd->brightness->levels[i] == cur_level)
@@ -407,7 +414,7 @@ static int video_get_cur_state(struct thermal_cooling_device *cooling_dev, unsig
 	unsigned long long level;
 	int offset;
 
-	if (acpi_video_device_lcd_get_level_current(video, &level))
+	if (acpi_video_device_lcd_get_level_current(video, &level, 0))
 		return -EINVAL;
 	for (offset = 2; offset < video->brightness->count; offset++)
 		if (level == video->brightness->levels[offset]) {
@@ -602,7 +609,7 @@ static struct dmi_system_id video_dmi_table[] __initdata = {
 
 static int
 acpi_video_device_lcd_get_level_current(struct acpi_video_device *device,
-					unsigned long long *level)
+					unsigned long long *level, int init)
 {
 	acpi_status status = AE_OK;
 	int i;
@@ -626,10 +633,16 @@ acpi_video_device_lcd_get_level_current(struct acpi_video_device *device,
 					device->brightness->curr = *level;
 					return 0;
 			}
-			/* BQC returned an invalid level. Stop using it.  */
-			ACPI_WARNING((AE_INFO, "%s returned an invalid level",
-						buf));
-			device->cap._BQC = device->cap._BCQ = 0;
+			if (!init) {
+				/*
+				 * BQC returned an invalid level.
+				 * Stop using it.
+				 */
+				ACPI_WARNING((AE_INFO,
+					      "%s returned an invalid level",
+					      buf));
+				device->cap._BQC = device->cap._BCQ = 0;
+			}
 		} else {
 			/* Fixme:
 			 * should we return an error or ignore this failure?
@@ -752,7 +765,7 @@ acpi_video_bus_POST_options(struct acpi_video_bus *video,
 static int
 acpi_video_bus_DOS(struct acpi_video_bus *video, int bios_flag, int lcd_flag)
 {
-	acpi_integer status = 0;
+	u64 status = 0;
 	union acpi_object arg0 = { ACPI_TYPE_INTEGER };
 	struct acpi_object_list args = { 1, &arg0 };
 
@@ -885,7 +898,7 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	if (!device->cap._BQC)
 		goto set_level;
 
-	result = acpi_video_device_lcd_get_level_current(device, &level_old);
+	result = acpi_video_device_lcd_get_level_current(device, &level_old, 1);
 	if (result)
 		goto out_free_levels;
 
@@ -896,7 +909,7 @@ acpi_video_init_brightness(struct acpi_video_device *device)
 	if (result)
 		goto out_free_levels;
 
-	result = acpi_video_device_lcd_get_level_current(device, &level);
+	result = acpi_video_device_lcd_get_level_current(device, &level, 0);
 	if (result)
 		goto out_free_levels;
 
@@ -1989,7 +2002,7 @@ acpi_video_switch_brightness(struct acpi_video_device *device, int event)
 		goto out;
 
 	result = acpi_video_device_lcd_get_level_current(device,
-							 &level_current);
+							 &level_current, 0);
 	if (result)
 		goto out;
 
@@ -2239,11 +2252,47 @@ static int acpi_video_resume(struct acpi_device *device)
 	return AE_OK;
 }
 
+static acpi_status
+acpi_video_bus_match(acpi_handle handle, u32 level, void *context,
+			void **return_value)
+{
+	struct acpi_device *device = context;
+	struct acpi_device *sibling;
+	int result;
+
+	if (handle == device->handle)
+		return AE_CTRL_TERMINATE;
+
+	result = acpi_bus_get_device(handle, &sibling);
+	if (result)
+		return AE_OK;
+
+	if (!strcmp(acpi_device_name(sibling), ACPI_VIDEO_BUS_NAME))
+			return AE_ALREADY_EXISTS;
+
+	return AE_OK;
+}
+
 static int acpi_video_bus_add(struct acpi_device *device)
 {
 	struct acpi_video_bus *video;
 	struct input_dev *input;
 	int error;
+	acpi_status status;
+
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE,
+				device->parent->handle, 1,
+				acpi_video_bus_match, NULL,
+				device, NULL);
+	if (status == AE_ALREADY_EXISTS) {
+		printk(KERN_WARNING FW_BUG
+			"Duplicate ACPI video bus devices for the"
+			" same VGA controller, please try module "
+			"parameter \"video.allow_duplicates=1\""
+			"if the current driver doesn't work.\n");
+		if (!allow_duplicates)
+			return -ENODEV;
+	}
 
 	video = kzalloc(sizeof(struct acpi_video_bus), GFP_KERNEL);
 	if (!video)

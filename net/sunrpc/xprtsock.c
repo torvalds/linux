@@ -297,12 +297,11 @@ static void xs_format_common_peer_addresses(struct rpc_xprt *xprt)
 	switch (sap->sa_family) {
 	case AF_INET:
 		sin = xs_addr_in(xprt);
-		(void)snprintf(buf, sizeof(buf), "%02x%02x%02x%02x",
-					NIPQUAD(sin->sin_addr.s_addr));
+		snprintf(buf, sizeof(buf), "%08x", ntohl(sin->sin_addr.s_addr));
 		break;
 	case AF_INET6:
 		sin6 = xs_addr_in6(xprt);
-		(void)snprintf(buf, sizeof(buf), "%pi6", &sin6->sin6_addr);
+		snprintf(buf, sizeof(buf), "%pi6", &sin6->sin6_addr);
 		break;
 	default:
 		BUG();
@@ -315,10 +314,10 @@ static void xs_format_common_peer_ports(struct rpc_xprt *xprt)
 	struct sockaddr *sap = xs_addr(xprt);
 	char buf[128];
 
-	(void)snprintf(buf, sizeof(buf), "%u", rpc_get_port(sap));
+	snprintf(buf, sizeof(buf), "%u", rpc_get_port(sap));
 	xprt->address_strings[RPC_DISPLAY_PORT] = kstrdup(buf, GFP_KERNEL);
 
-	(void)snprintf(buf, sizeof(buf), "%4hx", rpc_get_port(sap));
+	snprintf(buf, sizeof(buf), "%4hx", rpc_get_port(sap));
 	xprt->address_strings[RPC_DISPLAY_HEX_PORT] = kstrdup(buf, GFP_KERNEL);
 }
 
@@ -1912,6 +1911,11 @@ static void xs_tcp_setup_socket(struct rpc_xprt *xprt,
 	case -EALREADY:
 		xprt_clear_connecting(xprt);
 		return;
+	case -EINVAL:
+		/* Happens, for instance, if the user specified a link
+		 * local IPv6 address without a scope-id.
+		 */
+		goto out;
 	}
 out_eagain:
 	status = -EAGAIN;
@@ -2100,7 +2104,7 @@ static void xs_tcp_print_stats(struct rpc_xprt *xprt, struct seq_file *seq)
  * we allocate pages instead doing a kmalloc like rpc_malloc is because we want
  * to use the server side send routines.
  */
-void *bc_malloc(struct rpc_task *task, size_t size)
+static void *bc_malloc(struct rpc_task *task, size_t size)
 {
 	struct page *page;
 	struct rpc_buffer *buf;
@@ -2120,7 +2124,7 @@ void *bc_malloc(struct rpc_task *task, size_t size)
 /*
  * Free the space allocated in the bc_alloc routine
  */
-void bc_free(void *buffer)
+static void bc_free(void *buffer)
 {
 	struct rpc_buffer *buf;
 

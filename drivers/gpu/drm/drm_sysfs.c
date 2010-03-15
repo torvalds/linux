@@ -70,19 +70,17 @@ static int drm_class_resume(struct device *dev)
 	return 0;
 }
 
-/* Display the version of drm_core. This doesn't work right in current design */
-static ssize_t version_show(struct class *dev, char *buf)
-{
-	return sprintf(buf, "%s %d.%d.%d %s\n", CORE_NAME, CORE_MAJOR,
-		       CORE_MINOR, CORE_PATCHLEVEL, CORE_DATE);
-}
-
 static char *drm_devnode(struct device *dev, mode_t *mode)
 {
 	return kasprintf(GFP_KERNEL, "dri/%s", dev_name(dev));
 }
 
-static CLASS_ATTR(version, S_IRUGO, version_show, NULL);
+static CLASS_ATTR_STRING(version, S_IRUGO,
+		CORE_NAME " "
+		__stringify(CORE_MAJOR) "."
+		__stringify(CORE_MINOR) "."
+		__stringify(CORE_PATCHLEVEL) " "
+		CORE_DATE);
 
 /**
  * drm_sysfs_create - create a struct drm_sysfs_class structure
@@ -109,7 +107,7 @@ struct class *drm_sysfs_create(struct module *owner, char *name)
 	class->suspend = drm_class_suspend;
 	class->resume = drm_class_resume;
 
-	err = class_create_file(class, &class_attr_version);
+	err = class_create_file(class, &class_attr_version.attr);
 	if (err)
 		goto err_out_class;
 
@@ -132,7 +130,7 @@ void drm_sysfs_destroy(void)
 {
 	if ((drm_class == NULL) || (IS_ERR(drm_class)))
 		return;
-	class_remove_file(drm_class, &class_attr_version);
+	class_remove_file(drm_class, &class_attr_version.attr);
 	class_destroy(drm_class);
 }
 

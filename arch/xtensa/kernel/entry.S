@@ -104,7 +104,7 @@
  *   excsave has been restored, and
  *   stack pointer (a1) has been set.
  *
- * Note: _user_exception might be at an odd adress. Don't use call0..call12
+ * Note: _user_exception might be at an odd address. Don't use call0..call12
  */
 
 ENTRY(user_exception)
@@ -244,7 +244,7 @@ _user_exception:
  *   excsave has been restored, and
  *   stack pointer (a1) has been set.
  *
- * Note: _kernel_exception might be at an odd adress. Don't use call0..call12
+ * Note: _kernel_exception might be at an odd address. Don't use call0..call12
  */
 
 ENTRY(kernel_exception)

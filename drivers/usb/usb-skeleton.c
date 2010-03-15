@@ -28,7 +28,7 @@
 #define USB_SKEL_PRODUCT_ID	0xfff0
 
 /* table of devices that work with this driver */
-static struct usb_device_id skel_table[] = {
+static const struct usb_device_id skel_table[] = {
 	{ USB_DEVICE(USB_SKEL_VENDOR_ID, USB_SKEL_PRODUCT_ID) },
 	{ }					/* Terminating entry */
 };

@@ -116,10 +116,35 @@ struct ath_tx_stats {
 	u32 delim_underrun;
 };
 
+/**
+ * struct ath_rx_stats - RX Statistics
+ * @crc_err: No. of frames with incorrect CRC value
+ * @decrypt_crc_err: No. of frames whose CRC check failed after
+	decryption process completed
+ * @phy_err: No. of frames whose reception failed because the PHY
+	encountered an error
+ * @mic_err: No. of frames with incorrect TKIP MIC verification failure
+ * @pre_delim_crc_err: Pre-Frame delimiter CRC error detections
+ * @post_delim_crc_err: Post-Frame delimiter CRC error detections
+ * @decrypt_busy_err: Decryption interruptions counter
+ * @phy_err_stats: Individual PHY error statistics
+ */
+struct ath_rx_stats {
+	u32 crc_err;
+	u32 decrypt_crc_err;
+	u32 phy_err;
+	u32 mic_err;
+	u32 pre_delim_crc_err;
+	u32 post_delim_crc_err;
+	u32 decrypt_busy_err;
+	u32 phy_err_stats[ATH9K_PHYERR_MAX];
+};
+
 struct ath_stats {
 	struct ath_interrupt_stats istats;
 	struct ath_rc_stats rcstats[RATE_TABLE_SIZE];
 	struct ath_tx_stats txstats[ATH9K_NUM_TX_QUEUES];
+	struct ath_rx_stats rxstats;
 };
 
 struct ath9k_debug {
@@ -130,6 +155,7 @@ struct ath9k_debug {
 	struct dentry *debugfs_rcstat;
 	struct dentry *debugfs_wiphy;
 	struct dentry *debugfs_xmit;
+	struct dentry *debugfs_recv;
 	struct ath_stats stats;
 };
 
@@ -142,6 +168,7 @@ void ath_debug_stat_interrupt(struct ath_softc *sc, enum ath9k_int status);
 void ath_debug_stat_rc(struct ath_softc *sc, int final_rate);
 void ath_debug_stat_tx(struct ath_softc *sc, struct ath_txq *txq,
 		       struct ath_buf *bf);
+void ath_debug_stat_rx(struct ath_softc *sc, struct ath_buf *bf);
 void ath_debug_stat_retries(struct ath_softc *sc, int rix,
 			    int xretries, int retries, u8 per);
 
@@ -177,6 +204,11 @@ static inline void ath_debug_stat_rc(struct ath_softc *sc,
 
 static inline void ath_debug_stat_tx(struct ath_softc *sc,
 				     struct ath_txq *txq,
+				     struct ath_buf *bf)
+{
+}
+
+static inline void ath_debug_stat_rx(struct ath_softc *sc,
 				     struct ath_buf *bf)
 {
 }

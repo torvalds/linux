@@ -998,7 +998,7 @@ static int gfar_probe(struct of_device *ofdev,
 	}
 
 	/* Need to reverse the bit maps as  bit_map's MSB is q0
-	 * but, for_each_bit parses from right to left, which
+	 * but, for_each_set_bit parses from right to left, which
 	 * basically reverses the queue numbers */
 	for (i = 0; i< priv->num_grps; i++) {
 		priv->gfargrp[i].tx_bit_map = reverse_bitmap(
@@ -1011,7 +1011,7 @@ static int gfar_probe(struct of_device *ofdev,
 	 * also assign queues to groups */
 	for (grp_idx = 0; grp_idx < priv->num_grps; grp_idx++) {
 		priv->gfargrp[grp_idx].num_rx_queues = 0x0;
-		for_each_bit(i, &priv->gfargrp[grp_idx].rx_bit_map,
+		for_each_set_bit(i, &priv->gfargrp[grp_idx].rx_bit_map,
 				priv->num_rx_queues) {
 			priv->gfargrp[grp_idx].num_rx_queues++;
 			priv->rx_queue[i]->grp = &priv->gfargrp[grp_idx];
@@ -1019,7 +1019,7 @@ static int gfar_probe(struct of_device *ofdev,
 			rqueue = rqueue | ((RQUEUE_EN0 | RQUEUE_EX0) >> i);
 		}
 		priv->gfargrp[grp_idx].num_tx_queues = 0x0;
-		for_each_bit (i, &priv->gfargrp[grp_idx].tx_bit_map,
+		for_each_set_bit(i, &priv->gfargrp[grp_idx].tx_bit_map,
 				priv->num_tx_queues) {
 			priv->gfargrp[grp_idx].num_tx_queues++;
 			priv->tx_queue[i]->grp = &priv->gfargrp[grp_idx];
@@ -1709,7 +1709,7 @@ void gfar_configure_coalescing(struct gfar_private *priv,
 
 	if (priv->mode == MQ_MG_MODE) {
 		baddr = &regs->txic0;
-		for_each_bit (i, &tx_mask, priv->num_tx_queues) {
+		for_each_set_bit(i, &tx_mask, priv->num_tx_queues) {
 			if (likely(priv->tx_queue[i]->txcoalescing)) {
 				gfar_write(baddr + i, 0);
 				gfar_write(baddr + i, priv->tx_queue[i]->txic);
@@ -1717,7 +1717,7 @@ void gfar_configure_coalescing(struct gfar_private *priv,
 		}
 
 		baddr = &regs->rxic0;
-		for_each_bit (i, &rx_mask, priv->num_rx_queues) {
+		for_each_set_bit(i, &rx_mask, priv->num_rx_queues) {
 			if (likely(priv->rx_queue[i]->rxcoalescing)) {
 				gfar_write(baddr + i, 0);
 				gfar_write(baddr + i, priv->rx_queue[i]->rxic);
@@ -2021,7 +2021,6 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	}
 
 	/* setup the TxBD length and buffer pointer for the first BD */
-	tx_queue->tx_skbuff[tx_queue->skb_curtx] = skb;
 	txbdp_start->bufPtr = dma_map_single(&priv->ofdev->dev, skb->data,
 			skb_headlen(skb), DMA_TO_DEVICE);
 
@@ -2052,6 +2051,10 @@ static int gfar_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	eieio();
 
 	txbdp_start->lstatus = lstatus;
+
+	eieio(); /* force lstatus write before tx_skbuff */
+
+	tx_queue->tx_skbuff[tx_queue->skb_curtx] = skb;
 
 	/* Update the current skb pointer to the next entry we will use
 	 * (wrapping if necessary) */
@@ -2607,7 +2610,7 @@ static int gfar_poll(struct napi_struct *napi, int budget)
 		budget_per_queue = left_over_budget/num_queues;
 		left_over_budget = 0;
 
-		for_each_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
+		for_each_set_bit(i, &gfargrp->rx_bit_map, priv->num_rx_queues) {
 			if (test_bit(i, &serviced_queues))
 				continue;
 			rx_queue = priv->rx_queue[i];
@@ -2863,11 +2866,11 @@ static void gfar_set_multi(struct net_device *dev)
 			em_num = 0;
 		}
 
-		if (dev->mc_count == 0)
+		if (netdev_mc_empty(dev))
 			return;
 
 		/* Parse the list, and set the appropriate bits */
-		for(mc_ptr = dev->mc_list; mc_ptr; mc_ptr = mc_ptr->next) {
+		netdev_for_each_mc_addr(mc_ptr, dev) {
 			if (idx < em_num) {
 				gfar_set_mac_for_addr(dev, idx,
 						mc_ptr->dmi_addr);

@@ -406,6 +406,25 @@ static void dbg_rsvd64(struct xhci_hcd *xhci, u64 *ctx, dma_addr_t dma)
 	}
 }
 
+char *xhci_get_slot_state(struct xhci_hcd *xhci,
+		struct xhci_container_ctx *ctx)
+{
+	struct xhci_slot_ctx *slot_ctx = xhci_get_slot_ctx(xhci, ctx);
+
+	switch (GET_SLOT_STATE(slot_ctx->dev_state)) {
+	case 0:
+		return "enabled/disabled";
+	case 1:
+		return "default";
+	case 2:
+		return "addressed";
+	case 3:
+		return "configured";
+	default:
+		return "reserved";
+	}
+}
+
 void xhci_dbg_slot_ctx(struct xhci_hcd *xhci, struct xhci_container_ctx *ctx)
 {
 	/* Fields are 32 bits wide, DMA addresses are in bytes */

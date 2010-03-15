@@ -93,9 +93,9 @@ static int ts_open(struct file *file)
 	dprintk("open dev=%s\n", video_device_node_name(vdev));
 	err = -EBUSY;
 	if (!mutex_trylock(&dev->empress_tsq.vb_lock))
-		goto done;
+		return err;
 	if (atomic_read(&dev->empress_users))
-		goto done_up;
+		goto done;
 
 	/* Unmute audio */
 	saa_writeb(SAA7134_AUDIO_MUTE_CTRL,
@@ -105,10 +105,8 @@ static int ts_open(struct file *file)
 	file->private_data = dev;
 	err = 0;
 
-done_up:
-	mutex_unlock(&dev->empress_tsq.vb_lock);
 done:
-	unlock_kernel();
+	mutex_unlock(&dev->empress_tsq.vb_lock);
 	return err;
 }
 

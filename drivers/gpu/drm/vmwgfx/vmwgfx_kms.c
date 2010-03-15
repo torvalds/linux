@@ -553,9 +553,7 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 	} *cmd;
 	int i, increment = 1;
 
-	if (!num_clips ||
-	    !(dev_priv->fifo.capabilities &
-	      SVGA_FIFO_CAP_SCREEN_OBJECT)) {
+	if (!num_clips) {
 		num_clips = 1;
 		clips = &norect;
 		norect.x1 = norect.y1 = 0;
@@ -574,10 +572,10 @@ int vmw_framebuffer_dmabuf_dirty(struct drm_framebuffer *framebuffer,
 
 	for (i = 0; i < num_clips; i++, clips += increment) {
 		cmd[i].header = cpu_to_le32(SVGA_CMD_UPDATE);
-		cmd[i].body.x = cpu_to_le32(clips[i].x1);
-		cmd[i].body.y = cpu_to_le32(clips[i].y1);
-		cmd[i].body.width = cpu_to_le32(clips[i].x2 - clips[i].x1);
-		cmd[i].body.height = cpu_to_le32(clips[i].y2 - clips[i].y1);
+		cmd[i].body.x = cpu_to_le32(clips->x1);
+		cmd[i].body.y = cpu_to_le32(clips->y1);
+		cmd[i].body.width = cpu_to_le32(clips->x2 - clips->x1);
+		cmd[i].body.height = cpu_to_le32(clips->y2 - clips->y1);
 	}
 
 	vmw_fifo_commit(dev_priv, sizeof(*cmd) * num_clips);
@@ -709,6 +707,9 @@ static struct drm_framebuffer *vmw_kms_fb_create(struct drm_device *dev,
 	if (ret)
 		goto try_dmabuf;
 
+	if (!surface->scanout)
+		goto err_not_scanout;
+
 	ret = vmw_kms_new_framebuffer_surface(dev_priv, surface, &vfb,
 					      mode_cmd->width, mode_cmd->height);
 
@@ -742,6 +743,13 @@ try_dmabuf:
 	}
 
 	return &vfb->base;
+
+err_not_scanout:
+	DRM_ERROR("surface not marked as scanout\n");
+	/* vmw_user_surface_lookup takes one ref */
+	vmw_surface_unreference(&surface);
+
+	return NULL;
 }
 
 static int vmw_kms_fb_changed(struct drm_device *dev)
@@ -761,10 +769,10 @@ int vmw_kms_init(struct vmw_private *dev_priv)
 
 	drm_mode_config_init(dev);
 	dev->mode_config.funcs = &vmw_kms_funcs;
-	dev->mode_config.min_width = 640;
-	dev->mode_config.min_height = 480;
-	dev->mode_config.max_width = 2048;
-	dev->mode_config.max_height = 2048;
+	dev->mode_config.min_width = 1;
+	dev->mode_config.min_height = 1;
+	dev->mode_config.max_width = dev_priv->fb_max_width;
+	dev->mode_config.max_height = dev_priv->fb_max_height;
 
 	ret = vmw_kms_init_legacy_display_system(dev_priv);
 

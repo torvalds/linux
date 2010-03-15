@@ -1386,38 +1386,39 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 		goto done;
 
 	/* Calibration has finished, get the results and re-run */
+
+	/* work around empty results which can apparently happen on 5212 */
 	for (i = 0; i <= 10; i++) {
 		iq_corr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_CORR);
 		i_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_I);
 		q_pwr = ath5k_hw_reg_read(ah, AR5K_PHY_IQRES_CAL_PWR_Q);
+		ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+			"iq_corr:%x i_pwr:%x q_pwr:%x", iq_corr, i_pwr, q_pwr);
+		if (i_pwr && q_pwr)
+			break;
 	}
 
 	i_coffd = ((i_pwr >> 1) + (q_pwr >> 1)) >> 7;
 	q_coffd = q_pwr >> 7;
 
-	/* No correction */
-	if (i_coffd == 0 || q_coffd == 0)
+	/* protect against divide by 0 and loss of sign bits */
+	if (i_coffd == 0 || q_coffd < 2)
 		goto done;
 
-	i_coff = ((-iq_corr) / i_coffd);
+	i_coff = (-iq_corr) / i_coffd;
+	i_coff = clamp(i_coff, -32, 31); /* signed 6 bit */
 
-	/* Boundary check */
-	if (i_coff > 31)
-		i_coff = 31;
-	if (i_coff < -32)
-		i_coff = -32;
+	q_coff = (i_pwr / q_coffd) - 128;
+	q_coff = clamp(q_coff, -16, 15); /* signed 5 bit */
 
-	q_coff = (((s32)i_pwr / q_coffd) - 128);
+	ATH5K_DBG_UNLIMIT(ah->ah_sc, ATH5K_DEBUG_CALIBRATE,
+			"new I:%d Q:%d (i_coffd:%x q_coffd:%x)",
+			i_coff, q_coff, i_coffd, q_coffd);
 
-	/* Boundary check */
-	if (q_coff > 15)
-		q_coff = 15;
-	if (q_coff < -16)
-		q_coff = -16;
-
-	/* Commit new I/Q value */
-	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_ENABLE |
-		((u32)q_coff) | ((u32)i_coff << AR5K_PHY_IQ_CORR_Q_I_COFF_S));
+	/* Commit new I/Q values (set enable bit last to match HAL sources) */
+	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_Q_I_COFF, i_coff);
+	AR5K_REG_WRITE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_Q_Q_COFF, q_coff);
+	AR5K_REG_ENABLE_BITS(ah, AR5K_PHY_IQ, AR5K_PHY_IQ_CORR_ENABLE);
 
 	/* Re-enable calibration -if we don't we'll commit
 	 * the same values again and again */
@@ -1873,7 +1874,7 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 		break;
 	case AR5K_ANTMODE_FIXED_A:
 		def_ant = 1;
-		tx_ant = 0;
+		tx_ant = 1;
 		use_def_for_tx = true;
 		update_def_on_tx = false;
 		use_def_for_rts = true;
@@ -1882,7 +1883,7 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 		break;
 	case AR5K_ANTMODE_FIXED_B:
 		def_ant = 2;
-		tx_ant = 0;
+		tx_ant = 2;
 		use_def_for_tx = true;
 		update_def_on_tx = false;
 		use_def_for_rts = true;

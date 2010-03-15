@@ -8,7 +8,7 @@ perf-trace-perl - Process trace data with a Perl script
 SYNOPSIS
 --------
 [verse]
-'perf trace' [-s [lang]:script[.ext] ]
+'perf trace' [-s [Perl]:script[.pl] ]
 
 DESCRIPTION
 -----------

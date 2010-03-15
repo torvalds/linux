@@ -14,8 +14,8 @@ Introduction
  how the clocks are arranged. The first implementation used as single
  PLL to feed the ARM, memory and peripherals via a series of dividers
  and muxes and this is the implementation that is documented here. A
- newer version where there is a seperate PLL and clock divider for the
- ARM core is available as a seperate driver.
+ newer version where there is a separate PLL and clock divider for the
+ ARM core is available as a separate driver.
 
 
 Layout

@@ -3792,7 +3792,7 @@ static int write_int(struct file *file, const char *buffer, unsigned long count,
 	}
 	if  (count > 0 ) {
 		proc_number[count] = 0;
-		nr = wl_atoi( proc_number );
+		nr = simple_strtoul(proc_number , NULL, 0);
  		*(unsigned int *)data = nr;
 		if ( nr & 0x8000 ) {	//;?kludgy but it is unclear to me were else to place this
 #if DBG

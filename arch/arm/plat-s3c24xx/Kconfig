@@ -14,6 +14,28 @@ config PLAT_S3C24XX
 
 if PLAT_S3C24XX
 
+# low-level serial option nodes
+
+config CPU_LLSERIAL_S3C2410_ONLY
+	bool
+	default y if CPU_LLSERIAL_S3C2410 && !CPU_LLSERIAL_S3C2440
+
+config CPU_LLSERIAL_S3C2440_ONLY
+	bool
+	default y if CPU_LLSERIAL_S3C2440 && !CPU_LLSERIAL_S3C2410
+
+config CPU_LLSERIAL_S3C2410
+	bool
+	help
+	  Selected if there is an S3C2410 (or register compatible) serial
+	  low-level implementation needed
+
+config CPU_LLSERIAL_S3C2440
+	bool
+	help
+	  Selected if there is an S3C2440 (or register compatible) serial
+	  low-level implementation needed
+
 # code that is shared between a number of the s3c24xx implementations
 
 config S3C2410_CLOCK
@@ -27,53 +49,12 @@ config S3C24XX_DCLK
 	help
 	  Clock code for supporting DCLK/CLKOUT on S3C24XX architectures
 
-config CPU_S3C244X
-	bool
-	depends on ARCH_S3C2410 && (CPU_S3C2440 || CPU_S3C2442)
-	help
-	  Support for S3C2440 and S3C2442 Samsung Mobile CPU based systems.
-
-config S3C2440_CPUFREQ
-	bool "S3C2440/S3C2442 CPU Frequency scaling support"
-	depends on CPU_FREQ_S3C24XX && (CPU_S3C2440 || CPU_S3C2442)
-	select S3C2410_CPUFREQ_UTILS
-	default y
-	help
-	  CPU Frequency scaling support for S3C2440 and S3C2442 SoC CPUs.
-
-config S3C2440_XTAL_12000000
-	bool
-	help
-	  Indicate that the build needs to support 12MHz system
-	  crystal.
-
-config S3C2440_XTAL_16934400
-	bool
-	help
-	  Indicate that the build needs to support 16.9344MHz system
-	  crystal.
-
-config S3C2440_PLL_12000000
-	bool
-	depends on S3C2440_CPUFREQ && S3C2440_XTAL_12000000
-	default y if CPU_FREQ_S3C24XX_PLL
-	help
-	  PLL tables for S3C2440 or S3C2442 CPUs with 12MHz crystals.
-
-config S3C2440_PLL_16934400
-	bool
-	depends on S3C2440_CPUFREQ && S3C2440_XTAL_16934400
-	default y if CPU_FREQ_S3C24XX_PLL
-	help
-	  PLL tables for S3C2440 or S3C2442 CPUs with 16.934MHz crystals.
-
 config S3C24XX_PWM
 	bool "PWM device support"
 	select HAVE_PWM
 	help
 	  Support for exporting the PWM timer blocks via the pwm device
 	  system.
-
 
 # gpio configurations
 
@@ -116,13 +97,6 @@ config S3C2410_DMA_DEBUG
 	help
 	  Enable debugging output for the DMA code. This option sends info
 	  to the kernel log, at priority KERN_DEBUG.
-
-config S3C24XX_ADC
-	bool "ADC common driver support"
-	help
-	  Core support for the ADC block found in the S3C24XX SoC systems
-	  for drivers such as the touchscreen and hwmon to use to share
-	  this resource.
 
 # SPI default pin configuration code
 

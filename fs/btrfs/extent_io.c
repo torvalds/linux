@@ -104,8 +104,8 @@ void extent_io_exit(void)
 void extent_io_tree_init(struct extent_io_tree *tree,
 			  struct address_space *mapping, gfp_t mask)
 {
-	tree->state.rb_node = NULL;
-	tree->buffer.rb_node = NULL;
+	tree->state = RB_ROOT;
+	tree->buffer = RB_ROOT;
 	tree->ops = NULL;
 	tree->dirty_bytes = 0;
 	spin_lock_init(&tree->lock);
@@ -3165,10 +3165,9 @@ struct extent_buffer *alloc_extent_buffer(struct extent_io_tree *tree,
 		spin_unlock(&tree->buffer_lock);
 		goto free_eb;
 	}
-	spin_unlock(&tree->buffer_lock);
-
 	/* add one reference for the tree */
 	atomic_inc(&eb->refs);
+	spin_unlock(&tree->buffer_lock);
 	return eb;
 
 free_eb:

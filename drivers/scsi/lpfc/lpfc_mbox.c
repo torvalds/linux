@@ -1707,7 +1707,8 @@ lpfc_sli4_config(struct lpfc_hba *phba, struct lpfcMboxq *mbox,
 				alloc_len - sizeof(union  lpfc_sli4_cfg_shdr);
 	}
 	/* The sub-header is in DMA memory, which needs endian converstion */
-	lpfc_sli_pcimem_bcopy(cfg_shdr, cfg_shdr,
+	if (cfg_shdr)
+		lpfc_sli_pcimem_bcopy(cfg_shdr, cfg_shdr,
 			      sizeof(union  lpfc_sli4_cfg_shdr));
 
 	return alloc_len;
@@ -1744,6 +1745,65 @@ lpfc_sli4_mbox_opcode_get(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 		return 0;
 	cfg_shdr = (union lpfc_sli4_cfg_shdr *)mbox->sge_array->addr[0];
 	return bf_get(lpfc_mbox_hdr_opcode, &cfg_shdr->request);
+}
+
+/**
+ * lpfc_sli4_mbx_read_fcf_record - Allocate and construct read fcf mbox cmd
+ * @phba: pointer to lpfc hba data structure.
+ * @fcf_index: index to fcf table.
+ *
+ * This routine routine allocates and constructs non-embedded mailbox command
+ * for reading a FCF table entry refered by @fcf_index.
+ *
+ * Return: pointer to the mailbox command constructed if successful, otherwise
+ * NULL.
+ **/
+int
+lpfc_sli4_mbx_read_fcf_record(struct lpfc_hba *phba,
+			      struct lpfcMboxq *mboxq,
+			      uint16_t fcf_index)
+{
+	void *virt_addr;
+	dma_addr_t phys_addr;
+	uint8_t *bytep;
+	struct lpfc_mbx_sge sge;
+	uint32_t alloc_len, req_len;
+	struct lpfc_mbx_read_fcf_tbl *read_fcf;
+
+	if (!mboxq)
+		return -ENOMEM;
+
+	req_len = sizeof(struct fcf_record) +
+		  sizeof(union lpfc_sli4_cfg_shdr) + 2 * sizeof(uint32_t);
+
+	/* Set up READ_FCF SLI4_CONFIG mailbox-ioctl command */
+	alloc_len = lpfc_sli4_config(phba, mboxq, LPFC_MBOX_SUBSYSTEM_FCOE,
+			LPFC_MBOX_OPCODE_FCOE_READ_FCF_TABLE, req_len,
+			LPFC_SLI4_MBX_NEMBED);
+
+	if (alloc_len < req_len) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_MBOX,
+				"0291 Allocated DMA memory size (x%x) is "
+				"less than the requested DMA memory "
+				"size (x%x)\n", alloc_len, req_len);
+		return -ENOMEM;
+	}
+
+	/* Get the first SGE entry from the non-embedded DMA memory. This
+	 * routine only uses a single SGE.
+	 */
+	lpfc_sli4_mbx_sge_get(mboxq, 0, &sge);
+	phys_addr = getPaddr(sge.pa_hi, sge.pa_lo);
+	virt_addr = mboxq->sge_array->addr[0];
+	read_fcf = (struct lpfc_mbx_read_fcf_tbl *)virt_addr;
+
+	/* Set up command fields */
+	bf_set(lpfc_mbx_read_fcf_tbl_indx, &read_fcf->u.request, fcf_index);
+	/* Perform necessary endian conversion */
+	bytep = virt_addr + sizeof(union lpfc_sli4_cfg_shdr);
+	lpfc_sli_pcimem_bcopy(bytep, bytep, sizeof(uint32_t));
+
+	return 0;
 }
 
 /**
@@ -1946,13 +2006,14 @@ lpfc_reg_fcfi(struct lpfc_hba *phba, struct lpfcMboxq *mbox)
 	bf_set(lpfc_reg_fcfi_rq_id1, reg_fcfi, REG_FCF_INVALID_QID);
 	bf_set(lpfc_reg_fcfi_rq_id2, reg_fcfi, REG_FCF_INVALID_QID);
 	bf_set(lpfc_reg_fcfi_rq_id3, reg_fcfi, REG_FCF_INVALID_QID);
-	bf_set(lpfc_reg_fcfi_info_index, reg_fcfi, phba->fcf.fcf_indx);
+	bf_set(lpfc_reg_fcfi_info_index, reg_fcfi,
+	       phba->fcf.current_rec.fcf_indx);
 	/* reg_fcf addr mode is bit wise inverted value of fcf addr_mode */
-	bf_set(lpfc_reg_fcfi_mam, reg_fcfi,
-		(~phba->fcf.addr_mode) & 0x3);
-	if (phba->fcf.fcf_flag & FCF_VALID_VLAN) {
+	bf_set(lpfc_reg_fcfi_mam, reg_fcfi, (~phba->fcf.addr_mode) & 0x3);
+	if (phba->fcf.current_rec.vlan_id != 0xFFFF) {
 		bf_set(lpfc_reg_fcfi_vv, reg_fcfi, 1);
-		bf_set(lpfc_reg_fcfi_vlan_tag, reg_fcfi, phba->fcf.vlan_id);
+		bf_set(lpfc_reg_fcfi_vlan_tag, reg_fcfi,
+		       phba->fcf.current_rec.vlan_id);
 	}
 }
 
@@ -1991,4 +2052,42 @@ lpfc_resume_rpi(struct lpfcMboxq *mbox, struct lpfc_nodelist *ndlp)
 	bf_set(lpfc_resume_rpi_index, resume_rpi, ndlp->nlp_rpi);
 	bf_set(lpfc_resume_rpi_ii, resume_rpi, RESUME_INDEX_RPI);
 	resume_rpi->event_tag = ndlp->phba->fc_eventTag;
+}
+
+/**
+ * lpfc_supported_pages - Initialize the PORT_CAPABILITIES supported pages
+ *                        mailbox command.
+ * @mbox: pointer to lpfc mbox command to initialize.
+ *
+ * The PORT_CAPABILITIES supported pages mailbox command is issued to
+ * retrieve the particular feature pages supported by the port.
+ **/
+void
+lpfc_supported_pages(struct lpfcMboxq *mbox)
+{
+	struct lpfc_mbx_supp_pages *supp_pages;
+
+	memset(mbox, 0, sizeof(*mbox));
+	supp_pages = &mbox->u.mqe.un.supp_pages;
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_PORT_CAPABILITIES);
+	bf_set(cpn, supp_pages, LPFC_SUPP_PAGES);
+}
+
+/**
+ * lpfc_sli4_params - Initialize the PORT_CAPABILITIES SLI4 Params
+ *                    mailbox command.
+ * @mbox: pointer to lpfc mbox command to initialize.
+ *
+ * The PORT_CAPABILITIES SLI4 parameters mailbox command is issued to
+ * retrieve the particular SLI4 features supported by the port.
+ **/
+void
+lpfc_sli4_params(struct lpfcMboxq *mbox)
+{
+	struct lpfc_mbx_sli4_params *sli4_params;
+
+	memset(mbox, 0, sizeof(*mbox));
+	sli4_params = &mbox->u.mqe.un.sli4_params;
+	bf_set(lpfc_mqe_command, &mbox->u.mqe, MBX_PORT_CAPABILITIES);
+	bf_set(cpn, sli4_params, LPFC_SLI4_PARAMETERS);
 }

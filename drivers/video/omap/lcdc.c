@@ -389,7 +389,7 @@ static int omap_lcdc_enable_plane(int plane, int enable)
 /*
  * Configure the LCD DMA for a palette load operation and do the palette
  * downloading synchronously. We don't use the frame+palette load mode of
- * the controller, since the palette can always be downloaded seperately.
+ * the controller, since the palette can always be downloaded separately.
  */
 static void load_palette(void)
 {

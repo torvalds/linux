@@ -92,6 +92,13 @@ void exit_thread(void)
 	}
 }
 
+void show_regs(struct pt_regs *regs)
+{
+	show_registers(regs);
+	show_trace(NULL, regs, (unsigned long *)kernel_stack_pointer(regs),
+		   regs->bp);
+}
+
 void show_regs_common(void)
 {
 	const char *board, *product;
@@ -114,18 +121,6 @@ void show_regs_common(void)
 void flush_thread(void)
 {
 	struct task_struct *tsk = current;
-
-#ifdef CONFIG_X86_64
-	if (test_tsk_thread_flag(tsk, TIF_ABI_PENDING)) {
-		clear_tsk_thread_flag(tsk, TIF_ABI_PENDING);
-		if (test_tsk_thread_flag(tsk, TIF_IA32)) {
-			clear_tsk_thread_flag(tsk, TIF_IA32);
-		} else {
-			set_tsk_thread_flag(tsk, TIF_IA32);
-			current_thread_info()->status |= TS_COMPAT;
-		}
-	}
-#endif
 
 	flush_ptrace_hw_breakpoint(tsk);
 	memset(tsk->thread.tls_array, 0, sizeof(tsk->thread.tls_array));
@@ -288,6 +283,8 @@ int kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 	regs.es = __USER_DS;
 	regs.fs = __KERNEL_PERCPU;
 	regs.gs = __KERNEL_STACK_CANARY;
+#else
+	regs.ss = __KERNEL_DS;
 #endif
 
 	regs.orig_ax = -1;
@@ -610,7 +607,7 @@ void __cpuinit select_idle_routine(const struct cpuinfo_x86 *c)
 {
 #ifdef CONFIG_SMP
 	if (pm_idle == poll_idle && smp_num_siblings > 1) {
-		printk(KERN_WARNING "WARNING: polling idle and HT enabled,"
+		printk_once(KERN_WARNING "WARNING: polling idle and HT enabled,"
 			" performance may degrade.\n");
 	}
 #endif

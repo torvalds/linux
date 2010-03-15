@@ -1,8 +1,6 @@
 /*
  *  arch/arm/plat-mxc/include/mach/uncompress.h
  *
- *
- *
  *  Copyright (C) 1999 ARM Limited
  *  Copyright (C) Shane Nay (shane@minirl.com)
  *
@@ -25,7 +23,6 @@
 
 #define __MXC_BOOT_UNCOMPRESS
 
-#include <mach/hardware.h>
 #include <asm/mach-types.h>
 
 static unsigned long uart_base;
@@ -60,7 +57,9 @@ static void putc(int ch)
 	UART(TXR) = ch;
 }
 
-#define flush() do { } while (0)
+static inline void flush(void)
+{
+}
 
 #define MX1_UART1_BASE_ADDR	0x00206000
 #define MX25_UART1_BASE_ADDR	0x43f90000

@@ -12,7 +12,7 @@ enum ads7846_filter {
 };
 
 struct ads7846_platform_data {
-	u16	model;			/* 7843, 7845, 7846. */
+	u16	model;			/* 7843, 7845, 7846, 7873. */
 	u16	vref_delay_usecs;	/* 0 for external vref; etc */
 	u16	vref_mv;		/* external vref value, milliVolts */
 	bool	keep_vref_on;		/* set to keep vref on for differential
@@ -53,5 +53,6 @@ struct ads7846_platform_data {
 	int	(*filter)	(void *filter_data, int data_idx, int *val);
 	void	(*filter_cleanup)(void *filter_data);
 	void	(*wait_for_sync)(void);
+	bool	wakeup;
 };
 

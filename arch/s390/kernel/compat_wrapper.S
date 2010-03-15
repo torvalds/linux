@@ -547,7 +547,7 @@ sys32_setdomainname_wrapper:
 	.globl	sys32_newuname_wrapper
 sys32_newuname_wrapper:
 	llgtr	%r2,%r2			# struct new_utsname *
-	jg	sys_s390_newuname	# branch to system call
+	jg	sys_newuname		# branch to system call
 
 	.globl	compat_sys_adjtimex_wrapper
 compat_sys_adjtimex_wrapper:

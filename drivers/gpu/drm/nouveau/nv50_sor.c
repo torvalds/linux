@@ -90,10 +90,24 @@ nv50_sor_dpms(struct drm_encoder *encoder, int mode)
 {
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
+	struct drm_encoder *enc;
 	uint32_t val;
 	int or = nv_encoder->or;
 
 	NV_DEBUG_KMS(dev, "or %d mode %d\n", or, mode);
+
+	nv_encoder->last_dpms = mode;
+	list_for_each_entry(enc, &dev->mode_config.encoder_list, head) {
+		struct nouveau_encoder *nvenc = nouveau_encoder(enc);
+
+		if (nvenc == nv_encoder ||
+		    nvenc->disconnect != nv50_sor_disconnect ||
+		    nvenc->dcb->or != nv_encoder->dcb->or)
+			continue;
+
+		if (nvenc->last_dpms == DRM_MODE_DPMS_ON)
+			return;
+	}
 
 	/* wait for it to be done */
 	if (!nv_wait(NV50_PDISPLAY_SOR_DPMS_CTRL(or),

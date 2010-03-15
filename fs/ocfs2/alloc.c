@@ -1050,7 +1050,8 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 			strcpy(eb->h_signature, OCFS2_EXTENT_BLOCK_SIGNATURE);
 			eb->h_blkno = cpu_to_le64(first_blkno);
 			eb->h_fs_generation = cpu_to_le32(osb->fs_generation);
-			eb->h_suballoc_slot = cpu_to_le16(osb->slot_num);
+			eb->h_suballoc_slot =
+				cpu_to_le16(meta_ac->ac_alloc_slot);
 			eb->h_suballoc_bit = cpu_to_le16(suballoc_bit_start);
 			eb->h_list.l_count =
 				cpu_to_le16(ocfs2_extent_recs_per_eb(osb->sb));
@@ -5712,7 +5713,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 		goto out;
 	}
 
-	vfs_dq_free_space_nodirty(inode,
+	dquot_free_space_nodirty(inode,
 				  ocfs2_clusters_to_bytes(inode->i_sb, len));
 
 	ret = ocfs2_remove_extent(handle, et, cpos, len, meta_ac, dealloc);
@@ -6037,7 +6038,7 @@ static void ocfs2_truncate_log_worker(struct work_struct *work)
 	if (status < 0)
 		mlog_errno(status);
 	else
-		ocfs2_init_inode_steal_slot(osb);
+		ocfs2_init_steal_slots(osb);
 
 	mlog_exit(status);
 }
@@ -6935,7 +6936,7 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 		goto bail;
 	}
 
-	vfs_dq_free_space_nodirty(inode,
+	dquot_free_space_nodirty(inode,
 			ocfs2_clusters_to_bytes(osb->sb, clusters_to_del));
 	spin_lock(&OCFS2_I(inode)->ip_lock);
 	OCFS2_I(inode)->ip_clusters = le32_to_cpu(fe->i_clusters) -
@@ -7300,11 +7301,10 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 		unsigned int page_end;
 		u64 phys;
 
-		if (vfs_dq_alloc_space_nodirty(inode,
-				       ocfs2_clusters_to_bytes(osb->sb, 1))) {
-			ret = -EDQUOT;
+		ret = dquot_alloc_space_nodirty(inode,
+				       ocfs2_clusters_to_bytes(osb->sb, 1));
+		if (ret)
 			goto out_commit;
-		}
 		did_quota = 1;
 
 		ret = ocfs2_claim_clusters(osb, handle, data_ac, 1, &bit_off,
@@ -7380,7 +7380,7 @@ int ocfs2_convert_inline_data_to_extents(struct inode *inode,
 
 out_commit:
 	if (ret < 0 && did_quota)
-		vfs_dq_free_space_nodirty(inode,
+		dquot_free_space_nodirty(inode,
 					  ocfs2_clusters_to_bytes(osb->sb, 1));
 
 	ocfs2_commit_trans(osb, handle);

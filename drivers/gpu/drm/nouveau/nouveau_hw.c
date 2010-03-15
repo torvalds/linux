@@ -160,7 +160,7 @@ static void
 setPLL_single(struct drm_device *dev, uint32_t reg, struct nouveau_pll_vals *pv)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int chip_version = dev_priv->vbios->chip_version;
+	int chip_version = dev_priv->vbios.chip_version;
 	uint32_t oldpll = NVReadRAMDAC(dev, 0, reg);
 	int oldN = (oldpll >> 8) & 0xff, oldM = oldpll & 0xff;
 	uint32_t pll = (oldpll & 0xfff80000) | pv->log2P << 16 | pv->NM1;
@@ -216,7 +216,7 @@ setPLL_double_highregs(struct drm_device *dev, uint32_t reg1,
 		       struct nouveau_pll_vals *pv)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int chip_version = dev_priv->vbios->chip_version;
+	int chip_version = dev_priv->vbios.chip_version;
 	bool nv3035 = chip_version == 0x30 || chip_version == 0x35;
 	uint32_t reg2 = reg1 + ((reg1 == NV_RAMDAC_VPLL2) ? 0x5c : 0x70);
 	uint32_t oldpll1 = NVReadRAMDAC(dev, 0, reg1);
@@ -374,7 +374,7 @@ nouveau_hw_setpll(struct drm_device *dev, uint32_t reg1,
 		  struct nouveau_pll_vals *pv)
 {
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
-	int cv = dev_priv->vbios->chip_version;
+	int cv = dev_priv->vbios.chip_version;
 
 	if (cv == 0x30 || cv == 0x31 || cv == 0x35 || cv == 0x36 ||
 	    cv >= 0x40) {

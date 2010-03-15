@@ -59,7 +59,8 @@ static void evdev_pass_event(struct evdev_client *client,
 	client->head &= EVDEV_BUFFER_SIZE - 1;
 	spin_unlock(&client->buffer_lock);
 
-	kill_fasync(&client->fasync, SIGIO, POLL_IN);
+	if (event->type == EV_SYN)
+		kill_fasync(&client->fasync, SIGIO, POLL_IN);
 }
 
 /*
@@ -277,6 +278,8 @@ static int evdev_open(struct inode *inode, struct file *file)
 		goto err_free_client;
 
 	file->private_data = client;
+	nonseekable_open(inode, file);
+
 	return 0;
 
  err_free_client:
@@ -512,7 +515,7 @@ static long evdev_do_ioctl(struct file *file, unsigned int cmd,
 	struct input_absinfo abs;
 	struct ff_effect effect;
 	int __user *ip = (int __user *)p;
-	int i, t, u, v;
+	unsigned int i, t, u, v;
 	int error;
 
 	switch (cmd) {

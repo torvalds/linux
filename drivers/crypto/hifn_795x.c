@@ -321,7 +321,7 @@ static atomic_t hifn_dev_number;
 #define	HIFN_PUBOPLEN_MOD_M	0x0000007f	/* modulus length mask */
 #define	HIFN_PUBOPLEN_MOD_S	0		/* modulus length shift */
 #define	HIFN_PUBOPLEN_EXP_M	0x0003ff80	/* exponent length mask */
-#define	HIFN_PUBOPLEN_EXP_S	7		/* exponent lenght shift */
+#define	HIFN_PUBOPLEN_EXP_S	7		/* exponent length shift */
 #define	HIFN_PUBOPLEN_RED_M	0x003c0000	/* reducend length mask */
 #define	HIFN_PUBOPLEN_RED_S	18		/* reducend length shift */
 

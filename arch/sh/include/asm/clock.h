@@ -146,8 +146,17 @@ int sh_clk_mstp32_register(struct clk *clks, int nr);
 	.flags = _flags,						\
 }
 
+struct clk_div4_table {
+	struct clk_div_mult_table *div_mult_table;
+	void (*kick)(struct clk *clk);
+};
+
 int sh_clk_div4_register(struct clk *clks, int nr,
-			 struct clk_div_mult_table *table);
+			 struct clk_div4_table *table);
+int sh_clk_div4_enable_register(struct clk *clks, int nr,
+			 struct clk_div4_table *table);
+int sh_clk_div4_reparent_register(struct clk *clks, int nr,
+			 struct clk_div4_table *table);
 
 #define SH_CLK_DIV6(_name, _parent, _reg, _flags)	\
 {							\

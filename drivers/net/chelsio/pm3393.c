@@ -251,8 +251,9 @@ static int pm3393_interrupt_handler(struct cmac *cmac)
 	/* Read the master interrupt status register. */
 	pmread(cmac, SUNI1x10GEXP_REG_MASTER_INTERRUPT_STATUS,
 	       &master_intr_status);
-	CH_DBG(cmac->adapter, INTR, "PM3393 intr cause 0x%x\n",
-	       master_intr_status);
+	if (netif_msg_intr(cmac->adapter))
+		dev_dbg(&cmac->adapter->pdev->dev, "PM3393 intr cause 0x%x\n",
+			master_intr_status);
 
 	/* TBD XXX Lets just clear everything for now */
 	pm3393_interrupt_clear(cmac);
@@ -375,12 +376,12 @@ static int pm3393_set_rx_mode(struct cmac *cmac, struct t1_rx_mode *rm)
 		rx_mode |= SUNI1x10GEXP_BITMSK_RXXG_MHASH_EN;
 	} else if (t1_rx_mode_mc_cnt(rm)) {
 		/* Accept one or more multicast(s). */
-		u8 *addr;
+		struct dev_mc_list *dmi;
 		int bit;
 		u16 mc_filter[4] = { 0, };
 
-		while ((addr = t1_get_next_mcaddr(rm))) {
-			bit = (ether_crc(ETH_ALEN, addr) >> 23) & 0x3f;	/* bit[23:28] */
+		netdev_for_each_mc_addr(dmi, t1_get_netdev(rm)) {
+			bit = (ether_crc(ETH_ALEN, dmi->dmi_addr) >> 23) & 0x3f; /* bit[23:28] */
 			mc_filter[bit >> 4] |= 1 << (bit & 0xf);
 		}
 		pmwrite(cmac, SUNI1x10GEXP_REG_RXXG_MULTICAST_HASH_LOW, mc_filter[0]);
@@ -776,11 +777,12 @@ static int pm3393_mac_reset(adapter_t * adapter)
 		successful_reset = (is_pl4_reset_finished && !is_pl4_outof_lock
 				    && is_xaui_mabc_pll_locked);
 
-		CH_DBG(adapter, HW,
-		       "PM3393 HW reset %d: pl4_reset 0x%x, val 0x%x, "
-		       "is_pl4_outof_lock 0x%x, xaui_locked 0x%x\n",
-		       i, is_pl4_reset_finished, val, is_pl4_outof_lock,
-		       is_xaui_mabc_pll_locked);
+		if (netif_msg_hw(adapter))
+			dev_dbg(&adapter->pdev->dev,
+				"PM3393 HW reset %d: pl4_reset 0x%x, val 0x%x, "
+				"is_pl4_outof_lock 0x%x, xaui_locked 0x%x\n",
+				i, is_pl4_reset_finished, val,
+				is_pl4_outof_lock, is_xaui_mabc_pll_locked);
 	}
 	return successful_reset ? 0 : 1;
 }

@@ -37,21 +37,30 @@ extern void __iomem *gic_cpu_base_addr;
 extern void omap_map_common_io(void);
 extern struct sys_timer omap_timer;
 
-/* IO bases for various OMAP processors */
+/*
+ * IO bases for various OMAP processors
+ * Except the tap base, rest all the io bases
+ * listed are physical addresses.
+ */
 struct omap_globals {
 	u32		class;		/* OMAP class to detect */
 	void __iomem	*tap;		/* Control module ID code */
-	void __iomem	*sdrc;		/* SDRAM Controller */
-	void __iomem	*sms;		/* SDRAM Memory Scheduler */
-	void __iomem	*ctrl;		/* System Control Module */
-	void __iomem	*prm;		/* Power and Reset Management */
-	void __iomem	*cm;		/* Clock Management */
-	void __iomem	*cm2;
+	unsigned long   sdrc;           /* SDRAM Controller */
+	unsigned long   sms;            /* SDRAM Memory Scheduler */
+	unsigned long   ctrl;           /* System Control Module */
+	unsigned long   prm;            /* Power and Reset Management */
+	unsigned long   cm;             /* Clock Management */
+	unsigned long   cm2;
+	unsigned long	uart1_phys;
+	unsigned long	uart2_phys;
+	unsigned long	uart3_phys;
+	unsigned long	uart4_phys;
 };
 
 void omap2_set_globals_242x(void);
 void omap2_set_globals_243x(void);
 void omap2_set_globals_343x(void);
+void omap2_set_globals_36xx(void);
 void omap2_set_globals_443x(void);
 
 /* These get called from omap2_set_globals_xxxx(), do not call these */
@@ -59,6 +68,7 @@ void omap2_set_globals_tap(struct omap_globals *);
 void omap2_set_globals_sdrc(struct omap_globals *);
 void omap2_set_globals_control(struct omap_globals *);
 void omap2_set_globals_prcm(struct omap_globals *);
+void omap2_set_globals_uart(struct omap_globals *);
 
 /**
  * omap_test_timeout - busy-loop, testing a condition

@@ -370,7 +370,7 @@ int main(int argc, char **argv)
 	}
 
 	sock = socket(PF_INET, SOCK_DGRAM, IPPROTO_UDP);
-	if (socket < 0)
+	if (sock < 0)
 		bail("socket");
 
 	memset(&device, 0, sizeof(device));

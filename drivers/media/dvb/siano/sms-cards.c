@@ -62,6 +62,7 @@ static struct sms_board sms_boards[] = {
 	[SMS1XXX_BOARD_HAUPPAUGE_WINDHAM] = {
 		.name	= "Hauppauge WinTV MiniStick",
 		.type	= SMS_NOVA_B0,
+		.fw[DEVICE_MODE_ISDBT_BDA] = "sms1xxx-hcw-55xxx-isdbt-02.fw",
 		.fw[DEVICE_MODE_DVBT_BDA] = "sms1xxx-hcw-55xxx-dvbt-02.fw",
 		.board_cfg.leds_power = 26,
 		.board_cfg.led0 = 27,

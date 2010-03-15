@@ -59,10 +59,10 @@ extern struct device_node *k2_skiplist[2];
  * We use a single global lock to protect accesses. Each driver has
  * to take care of its own locking
  */
-DEFINE_SPINLOCK(feature_lock);
+DEFINE_RAW_SPINLOCK(feature_lock);
 
-#define LOCK(flags)	spin_lock_irqsave(&feature_lock, flags);
-#define UNLOCK(flags)	spin_unlock_irqrestore(&feature_lock, flags);
+#define LOCK(flags)	raw_spin_lock_irqsave(&feature_lock, flags);
+#define UNLOCK(flags)	raw_spin_unlock_irqrestore(&feature_lock, flags);
 
 
 /*
@@ -2426,7 +2426,7 @@ static int __init probe_motherboard(void)
 	    }
 	}
 	for(i=0; i<ARRAY_SIZE(pmac_mb_defs); i++) {
-	    if (machine_is_compatible(pmac_mb_defs[i].model_string)) {
+	    if (of_machine_is_compatible(pmac_mb_defs[i].model_string)) {
 		pmac_mb = pmac_mb_defs[i];
 		goto found;
 	    }

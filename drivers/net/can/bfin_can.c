@@ -26,6 +26,7 @@
 
 #define DRV_NAME "bfin_can"
 #define BFIN_CAN_TIMEOUT 100
+#define TX_ECHO_SKB_MAX  1
 
 /*
  * transmit and receive channels
@@ -318,6 +319,9 @@ static int bfin_can_start_xmit(struct sk_buff *skb, struct net_device *dev)
 	u16 val;
 	int i;
 
+	if (can_dropped_invalid_skb(dev, skb))
+		return NETDEV_TX_OK;
+
 	netif_stop_queue(dev);
 
 	/* fill id */
@@ -590,7 +594,7 @@ struct net_device *alloc_bfin_candev(void)
 	struct net_device *dev;
 	struct bfin_can_priv *priv;
 
-	dev = alloc_candev(sizeof(*priv));
+	dev = alloc_candev(sizeof(*priv), TX_ECHO_SKB_MAX);
 	if (!dev)
 		return NULL;
 
@@ -600,6 +604,7 @@ struct net_device *alloc_bfin_candev(void)
 	priv->can.bittiming_const = &bfin_can_bittiming_const;
 	priv->can.do_set_bittiming = bfin_can_set_bittiming;
 	priv->can.do_set_mode = bfin_can_set_mode;
+	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
 	return dev;
 }

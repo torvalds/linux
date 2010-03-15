@@ -18,6 +18,7 @@
 #include <linux/list.h>
 #include <linux/reboot.h>
 #include <linux/suspend.h>
+#include <linux/proc_fs.h>
 #include <asm/isc.h>
 #include <asm/crw.h>
 
@@ -232,7 +233,7 @@ void css_sched_sch_todo(struct subchannel *sch, enum sch_todo todo)
 	if (!get_device(&sch->dev))
 		return;
 	sch->todo = todo;
-	if (!queue_work(slow_path_wq, &sch->todo_work)) {
+	if (!queue_work(cio_work_q, &sch->todo_work)) {
 		/* Already queued, release workqueue ref. */
 		put_device(&sch->dev);
 	}
@@ -543,7 +544,7 @@ static void css_slow_path_func(struct work_struct *unused)
 }
 
 static DECLARE_WORK(slow_path_work, css_slow_path_func);
-struct workqueue_struct *slow_path_wq;
+struct workqueue_struct *cio_work_q;
 
 void css_schedule_eval(struct subchannel_id schid)
 {
@@ -552,7 +553,7 @@ void css_schedule_eval(struct subchannel_id schid)
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	idset_sch_add(slow_subchannel_set, schid);
 	atomic_set(&css_eval_scheduled, 1);
-	queue_work(slow_path_wq, &slow_path_work);
+	queue_work(cio_work_q, &slow_path_work);
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
@@ -563,7 +564,7 @@ void css_schedule_eval_all(void)
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	idset_fill(slow_subchannel_set);
 	atomic_set(&css_eval_scheduled, 1);
-	queue_work(slow_path_wq, &slow_path_work);
+	queue_work(cio_work_q, &slow_path_work);
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 }
 
@@ -594,14 +595,14 @@ void css_schedule_eval_all_unreg(void)
 	spin_lock_irqsave(&slow_subchannel_lock, flags);
 	idset_add_set(slow_subchannel_set, unreg_set);
 	atomic_set(&css_eval_scheduled, 1);
-	queue_work(slow_path_wq, &slow_path_work);
+	queue_work(cio_work_q, &slow_path_work);
 	spin_unlock_irqrestore(&slow_subchannel_lock, flags);
 	idset_free(unreg_set);
 }
 
 void css_wait_for_slow_path(void)
 {
-	flush_workqueue(slow_path_wq);
+	flush_workqueue(cio_work_q);
 }
 
 /* Schedule reprobing of all unregistered subchannels. */
@@ -992,11 +993,20 @@ static int __init channel_subsystem_init(void)
 	ret = css_bus_init();
 	if (ret)
 		return ret;
-
+	cio_work_q = create_singlethread_workqueue("cio");
+	if (!cio_work_q) {
+		ret = -ENOMEM;
+		goto out_bus;
+	}
 	ret = io_subchannel_init();
 	if (ret)
-		css_bus_cleanup();
+		goto out_wq;
 
+	return ret;
+out_wq:
+	destroy_workqueue(cio_work_q);
+out_bus:
+	css_bus_cleanup();
 	return ret;
 }
 subsys_initcall(channel_subsystem_init);
@@ -1006,9 +1016,24 @@ static int css_settle(struct device_driver *drv, void *unused)
 	struct css_driver *cssdrv = to_cssdriver(drv);
 
 	if (cssdrv->settle)
-		cssdrv->settle();
+		return cssdrv->settle();
 	return 0;
 }
+
+int css_complete_work(void)
+{
+	int ret;
+
+	/* Wait for the evaluation of subchannels to finish. */
+	ret = wait_event_interruptible(css_eval_wq,
+				       atomic_read(&css_eval_scheduled) == 0);
+	if (ret)
+		return -EINTR;
+	flush_workqueue(cio_work_q);
+	/* Wait for the subchannel type specific initialization to finish */
+	return bus_for_each_drv(&css_bus_type, NULL, NULL, css_settle);
+}
+
 
 /*
  * Wait for the initialization of devices to finish, to make sure we are
@@ -1018,12 +1043,40 @@ static int __init channel_subsystem_init_sync(void)
 {
 	/* Start initial subchannel evaluation. */
 	css_schedule_eval_all();
-	/* Wait for the evaluation of subchannels to finish. */
-	wait_event(css_eval_wq, atomic_read(&css_eval_scheduled) == 0);
-	/* Wait for the subchannel type specific initialization to finish */
-	return bus_for_each_drv(&css_bus_type, NULL, NULL, css_settle);
+	css_complete_work();
+	return 0;
 }
 subsys_initcall_sync(channel_subsystem_init_sync);
+
+#ifdef CONFIG_PROC_FS
+static ssize_t cio_settle_write(struct file *file, const char __user *buf,
+				size_t count, loff_t *ppos)
+{
+	int ret;
+
+	/* Handle pending CRW's. */
+	crw_wait_for_channel_report();
+	ret = css_complete_work();
+
+	return ret ? ret : count;
+}
+
+static const struct file_operations cio_settle_proc_fops = {
+	.write = cio_settle_write,
+};
+
+static int __init cio_settle_init(void)
+{
+	struct proc_dir_entry *entry;
+
+	entry = proc_create("cio_settle", S_IWUSR, NULL,
+			    &cio_settle_proc_fops);
+	if (!entry)
+		return -ENOMEM;
+	return 0;
+}
+device_initcall(cio_settle_init);
+#endif /*CONFIG_PROC_FS*/
 
 int sch_is_pseudo_sch(struct subchannel *sch)
 {

@@ -51,7 +51,6 @@
 #include <linux/sched.h>
 #include <linux/spinlock.h>
 #include <linux/wait.h>
-#include <linux/zlib.h>
 #include <linux/pagemap.h>
 
 #include "squashfs_fs.h"

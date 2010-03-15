@@ -224,6 +224,13 @@ static int temac_set_mac_address(struct net_device *ndev, void *address)
 	return 0;
 }
 
+static int netdev_set_mac_address(struct net_device *ndev, void *p)
+{
+	struct sockaddr *addr = p;
+
+	return temac_set_mac_address(ndev, addr->sa_data);
+}
+
 static void temac_set_multicast_list(struct net_device *ndev)
 {
 	struct temac_local *lp = netdev_priv(ndev);
@@ -232,7 +239,7 @@ static void temac_set_multicast_list(struct net_device *ndev)
 
 	mutex_lock(&lp->indirect_mutex);
 	if (ndev->flags & (IFF_ALLMULTI | IFF_PROMISC) ||
-	    ndev->mc_count > MULTICAST_CAM_TABLE_NUM) {
+	    netdev_mc_count(ndev) > MULTICAST_CAM_TABLE_NUM) {
 		/*
 		 *	We must make the kernel realise we had to move
 		 *	into promisc mode or we start all out war on
@@ -242,10 +249,11 @@ static void temac_set_multicast_list(struct net_device *ndev)
 		ndev->flags |= IFF_PROMISC;
 		temac_indirect_out32(lp, XTE_AFM_OFFSET, XTE_AFM_EPPRM_MASK);
 		dev_info(&ndev->dev, "Promiscuous mode enabled.\n");
-	} else if (ndev->mc_count) {
-		struct dev_mc_list *mclist = ndev->mc_list;
-		for (i = 0; mclist && i < ndev->mc_count; i++) {
+	} else if (!netdev_mc_empty(ndev)) {
+		struct dev_mc_list *mclist;
 
+		i = 0;
+		netdev_for_each_mc_addr(mclist, ndev) {
 			if (i >= MULTICAST_CAM_TABLE_NUM)
 				break;
 			multi_addr_msw = ((mclist->dmi_addr[3] << 24) |
@@ -258,7 +266,7 @@ static void temac_set_multicast_list(struct net_device *ndev)
 					  (mclist->dmi_addr[4]) | (i << 16));
 			temac_indirect_out32(lp, XTE_MAW1_OFFSET,
 					     multi_addr_lsw);
-			mclist = mclist->next;
+			i++;
 		}
 	} else {
 		val = temac_indirect_in32(lp, XTE_AFM_OFFSET);
@@ -615,7 +623,7 @@ static void ll_temac_recv(struct net_device *ndev)
 	while ((bdstat & STS_CTRL_APP0_CMPLT)) {
 
 		skb = lp->rx_skb[lp->rx_bd_ci];
-		length = cur_p->app4;
+		length = cur_p->app4 & 0x3FFF;
 
 		skb_vaddr = virt_to_bus(skb->data);
 		dma_unmap_single(ndev->dev.parent, skb_vaddr, length,
@@ -768,7 +776,7 @@ static const struct net_device_ops temac_netdev_ops = {
 	.ndo_open = temac_open,
 	.ndo_stop = temac_stop,
 	.ndo_start_xmit = temac_start_xmit,
-	.ndo_set_mac_address = temac_set_mac_address,
+	.ndo_set_mac_address = netdev_set_mac_address,
 	//.ndo_set_multicast_list = temac_set_multicast_list,
 #ifdef CONFIG_NET_POLL_CONTROLLER
 	.ndo_poll_controller = temac_poll_controller,
@@ -938,6 +946,9 @@ static int __devexit temac_of_remove(struct of_device *op)
 
 static struct of_device_id temac_of_match[] __devinitdata = {
 	{ .compatible = "xlnx,xps-ll-temac-1.01.b", },
+	{ .compatible = "xlnx,xps-ll-temac-2.00.a", },
+	{ .compatible = "xlnx,xps-ll-temac-2.02.a", },
+	{ .compatible = "xlnx,xps-ll-temac-2.03.a", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, temac_of_match);

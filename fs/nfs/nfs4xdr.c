@@ -1578,6 +1578,14 @@ static void encode_create_session(struct xdr_stream *xdr,
 	char machine_name[NFS4_MAX_MACHINE_NAME_LEN];
 	uint32_t len;
 	struct nfs_client *clp = args->client;
+	u32 max_resp_sz_cached;
+
+	/*
+	 * Assumes OPEN is the biggest non-idempotent compound.
+	 * 2 is the verifier.
+	 */
+	max_resp_sz_cached = (NFS4_dec_open_sz + RPC_REPHDRSIZE +
+			      RPC_MAX_AUTH_SIZE + 2) * XDR_UNIT;
 
 	len = scnprintf(machine_name, sizeof(machine_name), "%s",
 			clp->cl_ipaddr);
@@ -1592,7 +1600,7 @@ static void encode_create_session(struct xdr_stream *xdr,
 	*p++ = cpu_to_be32(args->fc_attrs.headerpadsz);	/* header padding size */
 	*p++ = cpu_to_be32(args->fc_attrs.max_rqst_sz);	/* max req size */
 	*p++ = cpu_to_be32(args->fc_attrs.max_resp_sz);	/* max resp size */
-	*p++ = cpu_to_be32(args->fc_attrs.max_resp_sz_cached);	/* Max resp sz cached */
+	*p++ = cpu_to_be32(max_resp_sz_cached);		/* Max resp sz cached */
 	*p++ = cpu_to_be32(args->fc_attrs.max_ops);	/* max operations */
 	*p++ = cpu_to_be32(args->fc_attrs.max_reqs);	/* max requests */
 	*p++ = cpu_to_be32(0);				/* rdmachannel_attrs */
@@ -4631,7 +4639,7 @@ static int decode_sequence(struct xdr_stream *xdr,
 	 * If the server returns different values for sessionID, slotID or
 	 * sequence number, the server is looney tunes.
 	 */
-	status = -ESERVERFAULT;
+	status = -EREMOTEIO;
 
 	if (memcmp(id.data, res->sr_session->sess_id.data,
 		   NFS4_MAX_SESSIONID_LEN)) {
@@ -5774,7 +5782,7 @@ static struct {
 	{ NFS4ERR_BAD_COOKIE,	-EBADCOOKIE	},
 	{ NFS4ERR_NOTSUPP,	-ENOTSUPP	},
 	{ NFS4ERR_TOOSMALL,	-ETOOSMALL	},
-	{ NFS4ERR_SERVERFAULT,	-ESERVERFAULT	},
+	{ NFS4ERR_SERVERFAULT,	-EREMOTEIO	},
 	{ NFS4ERR_BADTYPE,	-EBADTYPE	},
 	{ NFS4ERR_LOCKED,	-EAGAIN		},
 	{ NFS4ERR_SYMLINK,	-ELOOP		},
@@ -5801,7 +5809,7 @@ nfs4_stat_to_errno(int stat)
 	}
 	if (stat <= 10000 || stat > 10100) {
 		/* The server is looney tunes. */
-		return -ESERVERFAULT;
+		return -EREMOTEIO;
 	}
 	/* If we cannot translate the error, the recovery routines should
 	 * handle it.

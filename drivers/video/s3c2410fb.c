@@ -1004,12 +1004,12 @@ dealloc_fb:
 	return ret;
 }
 
-static int __init s3c2410fb_probe(struct platform_device *pdev)
+static int __devinit s3c2410fb_probe(struct platform_device *pdev)
 {
 	return s3c24xxfb_probe(pdev, DRV_S3C2410);
 }
 
-static int __init s3c2412fb_probe(struct platform_device *pdev)
+static int __devinit s3c2412fb_probe(struct platform_device *pdev)
 {
 	return s3c24xxfb_probe(pdev, DRV_S3C2412);
 }

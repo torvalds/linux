@@ -363,13 +363,10 @@ extern int CIFSSMBNotify(const int xid, struct cifsTconInfo *tcon,
 			__u32 filter, struct file *file, int multishot,
 			const struct nls_table *nls_codepage);
 extern ssize_t CIFSSMBQAllEAs(const int xid, struct cifsTconInfo *tcon,
-			const unsigned char *searchName, char *EAData,
+			const unsigned char *searchName,
+			const unsigned char *ea_name, char *EAData,
 			size_t bufsize, const struct nls_table *nls_codepage,
 			int remap_special_chars);
-extern ssize_t CIFSSMBQueryEA(const int xid, struct cifsTconInfo *tcon,
-		const unsigned char *searchName, const unsigned char *ea_name,
-		unsigned char *ea_value, size_t buf_size,
-		const struct nls_table *nls_codepage, int remap_special_chars);
 extern int CIFSSMBSetEA(const int xid, struct cifsTconInfo *tcon,
 		const char *fileName, const char *ea_name,
 		const void *ea_value, const __u16 ea_value_len,

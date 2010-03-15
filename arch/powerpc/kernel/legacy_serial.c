@@ -469,7 +469,7 @@ static int __init serial_dev_init(void)
 		return -ENODEV;
 
 	/*
-	 * Before we register the platfrom serial devices, we need
+	 * Before we register the platform serial devices, we need
 	 * to fixup their interrupts and their IO ports.
 	 */
 	DBG("Fixing serial ports interrupts and IO ports ...\n");

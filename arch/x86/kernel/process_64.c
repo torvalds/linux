@@ -211,12 +211,6 @@ void __show_regs(struct pt_regs *regs, int all)
 	printk(KERN_DEFAULT "DR3: %016lx DR6: %016lx DR7: %016lx\n", d3, d6, d7);
 }
 
-void show_regs(struct pt_regs *regs)
-{
-	show_registers(regs);
-	show_trace(NULL, regs, (void *)(regs + 1), regs->bp);
-}
-
 void release_thread(struct task_struct *dead_task)
 {
 	if (dead_task->mm) {
@@ -519,6 +513,18 @@ void set_personality_64bit(void)
 	   so it's not too bad. The main problem is just that
 	   32bit childs are affected again. */
 	current->personality &= ~READ_IMPLIES_EXEC;
+}
+
+void set_personality_ia32(void)
+{
+	/* inherit personality from parent */
+
+	/* Make sure to be in 32bit mode */
+	set_thread_flag(TIF_IA32);
+	current->personality |= force_personality32;
+
+	/* Prepare the first "return" to user space */
+	current_thread_info()->status |= TS_COMPAT;
 }
 
 unsigned long get_wchan(struct task_struct *p)

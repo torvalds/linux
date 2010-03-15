@@ -129,7 +129,7 @@ void __init init_rts7751r2d_IRQ(void)
 {
 	struct intc_desc *d;
 
-	switch (ctrl_inw(PA_VERREG) & 0xf0) {
+	switch (__raw_readw(PA_VERREG) & 0xf0) {
 #ifdef CONFIG_RTS7751R2D_PLUS
 	case 0x10:
 		printk(KERN_INFO "Using R2D-PLUS interrupt controller.\n");
@@ -147,7 +147,7 @@ void __init init_rts7751r2d_IRQ(void)
 #endif
 	default:
 		printk(KERN_INFO "Unknown R2D interrupt controller 0x%04x\n",
-		       ctrl_inw(PA_VERREG));
+		       __raw_readw(PA_VERREG));
 		return;
 	}
 

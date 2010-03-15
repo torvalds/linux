@@ -122,6 +122,7 @@ static int si3054_switch_put(struct snd_kcontrol *kcontrol,
 #define SI3054_KCONTROL(kname,reg,mask) { \
 	.iface = SNDRV_CTL_ELEM_IFACE_MIXER, \
 	.name = kname, \
+	.subdevice = HDA_SUBDEV_NID_FLAG | reg, \
 	.info = si3054_switch_info, \
 	.get  = si3054_switch_get, \
 	.put  = si3054_switch_put, \

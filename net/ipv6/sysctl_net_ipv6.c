@@ -55,7 +55,7 @@ struct ctl_path net_ipv6_ctl_path[] = {
 };
 EXPORT_SYMBOL_GPL(net_ipv6_ctl_path);
 
-static int ipv6_sysctl_net_init(struct net *net)
+static int __net_init ipv6_sysctl_net_init(struct net *net)
 {
 	struct ctl_table *ipv6_table;
 	struct ctl_table *ipv6_route_table;
@@ -98,7 +98,7 @@ out_ipv6_table:
 	goto out;
 }
 
-static void ipv6_sysctl_net_exit(struct net *net)
+static void __net_exit ipv6_sysctl_net_exit(struct net *net)
 {
 	struct ctl_table *ipv6_table;
 	struct ctl_table *ipv6_route_table;

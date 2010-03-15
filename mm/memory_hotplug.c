@@ -28,6 +28,7 @@
 #include <linux/pfn.h>
 #include <linux/suspend.h>
 #include <linux/mm_inline.h>
+#include <linux/firmware-map.h>
 
 #include <asm/tlbflush.h>
 
@@ -523,6 +524,9 @@ int __ref add_memory(int nid, u64 start, u64 size)
 		BUG_ON(ret);
 	}
 
+	/* create new memmap entry */
+	firmware_map_add_hotplug(start, start + size, "System RAM");
+
 	goto out;
 
 error:
@@ -684,9 +688,9 @@ do_migrate_range(unsigned long start_pfn, unsigned long end_pfn)
 			if (page_count(page))
 				not_managed++;
 #ifdef CONFIG_DEBUG_VM
-			printk(KERN_INFO "removing from LRU failed"
-					 " %lx/%d/%lx\n",
-				pfn, page_count(page), page->flags);
+			printk(KERN_ALERT "removing pfn %lx from LRU failed\n",
+			       pfn);
+			dump_page(page);
 #endif
 		}
 	}

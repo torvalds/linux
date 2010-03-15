@@ -343,10 +343,11 @@ static int vidioc_s_ctrl(struct file *file, void *priv,
 			 struct v4l2_control *ctl)
 {
 	struct cx25821_fh *fh = priv;
-	struct cx25821_dev *dev = fh->dev;
+	struct cx25821_dev *dev;
 	int err;
 
 	if (fh) {
+		dev = fh->dev;
 		err = v4l2_prio_check(&dev->prio, &fh->prio);
 		if (0 != err)
 			return err;

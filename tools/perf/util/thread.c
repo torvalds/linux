@@ -31,12 +31,41 @@ static struct thread *thread__new(pid_t pid)
 	return self;
 }
 
+static void map_groups__flush(struct map_groups *self)
+{
+	int type;
+
+	for (type = 0; type < MAP__NR_TYPES; type++) {
+		struct rb_root *root = &self->maps[type];
+		struct rb_node *next = rb_first(root);
+
+		while (next) {
+			struct map *pos = rb_entry(next, struct map, rb_node);
+			next = rb_next(&pos->rb_node);
+			rb_erase(&pos->rb_node, root);
+			/*
+			 * We may have references to this map, for
+			 * instance in some hist_entry instances, so
+			 * just move them to a separate list.
+			 */
+			list_add_tail(&pos->node, &self->removed_maps[pos->type]);
+		}
+	}
+}
+
 int thread__set_comm(struct thread *self, const char *comm)
 {
+	int err;
+
 	if (self->comm)
 		free(self->comm);
 	self->comm = strdup(comm);
-	return self->comm ? 0 : -ENOMEM;
+	err = self->comm == NULL ? -ENOMEM : 0;
+	if (!err) {
+		self->comm_set = true;
+		map_groups__flush(&self->mg);
+	}
+	return err;
 }
 
 int thread__comm_len(struct thread *self)
@@ -49,11 +78,6 @@ int thread__comm_len(struct thread *self)
 
 	return self->comm_len;
 }
-
-static const char *map_type__name[MAP__NR_TYPES] = {
-	[MAP__FUNCTION] = "Functions",
-	[MAP__VARIABLE] = "Variables",
-};
 
 static size_t __map_groups__fprintf_maps(struct map_groups *self,
 					 enum map_type type, FILE *fp)
@@ -255,11 +279,14 @@ int thread__fork(struct thread *self, struct thread *parent)
 {
 	int i;
 
-	if (self->comm)
-		free(self->comm);
-	self->comm = strdup(parent->comm);
-	if (!self->comm)
-		return -ENOMEM;
+	if (parent->comm_set) {
+		if (self->comm)
+			free(self->comm);
+		self->comm = strdup(parent->comm);
+		if (!self->comm)
+			return -ENOMEM;
+		self->comm_set = true;
+	}
 
 	for (i = 0; i < MAP__NR_TYPES; ++i)
 		if (map_groups__clone(&self->mg, &parent->mg, i) < 0)
@@ -282,14 +309,13 @@ size_t perf_session__fprintf(struct perf_session *self, FILE *fp)
 }
 
 struct symbol *map_groups__find_symbol(struct map_groups *self,
-				       struct perf_session *session,
 				       enum map_type type, u64 addr,
 				       symbol_filter_t filter)
 {
 	struct map *map = map_groups__find(self, type, addr);
 
 	if (map != NULL)
-		return map__find_symbol(map, session, map->map_ip(map, addr), filter);
+		return map__find_symbol(map, map->map_ip(map, addr), filter);
 
 	return NULL;
 }

@@ -25,10 +25,10 @@
 
   Some example of insert and search follows here. The search is a plain
   normal search over an ordered tree. The insert instead must be implemented
-  int two steps: as first thing the code must insert the element in
-  order as a red leaf in the tree, then the support library function
-  rb_insert_color() must be called. Such function will do the
-  not trivial work to rebalance the rbtree if necessary.
+  in two steps: First, the code must insert the element in order as a red leaf
+  in the tree, and then the support library function rb_insert_color() must
+  be called. Such function will do the not trivial work to rebalance the
+  rbtree, if necessary.
 
 -----------------------------------------------------------------------
 static inline struct page * rb_search_page_cache(struct inode * inode,

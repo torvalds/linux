@@ -502,32 +502,6 @@ struct pci_bus * __devinit ixp4xx_scan_bus(int nr, struct pci_sys_data *sys)
 	return pci_scan_bus(sys->busnr, &ixp4xx_ops, sys);
 }
 
-/*
- * We override these so we properly do dmabounce otherwise drivers
- * are able to set the dma_mask to 0xffffffff and we can no longer
- * trap bounces. :(
- *
- * We just return true on everyhing except for < 64MB in which case 
- * we will fail miseralby and die since we can't handle that case.
- */
-int
-pci_set_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	if (mask >= SZ_64M - 1 )
-		return 0;
-
-	return -EIO;
-}
-    
-int
-pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	if (mask >= SZ_64M - 1 )
-		return 0;
-
-	return -EIO;
-}
-
 EXPORT_SYMBOL(ixp4xx_pci_read);
 EXPORT_SYMBOL(ixp4xx_pci_write);
 

@@ -78,7 +78,7 @@ config BLK_DEV_INTEGRITY
 	Protection.  If in doubt, say N.
 
 config BLK_CGROUP
-	bool
+	tristate
 	depends on CGROUPS
 	default n
 	---help---

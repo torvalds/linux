@@ -150,7 +150,9 @@ walk:
 		walker->table_gfn[walker->level - 1] = table_gfn;
 		walker->pte_gpa[walker->level - 1] = pte_gpa;
 
-		kvm_read_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte));
+		if (kvm_read_guest(vcpu->kvm, pte_gpa, &pte, sizeof(pte)))
+			goto not_present;
+
 		trace_kvm_mmu_paging_element(pte, walker->level);
 
 		if (!is_present_gpte(pte))
@@ -160,7 +162,7 @@ walk:
 		if (rsvd_fault)
 			goto access_error;
 
-		if (write_fault && !is_writeble_pte(pte))
+		if (write_fault && !is_writable_pte(pte))
 			if (user_fault || is_write_protection(vcpu))
 				goto access_error;
 
@@ -488,18 +490,23 @@ static void FNAME(invlpg)(struct kvm_vcpu *vcpu, gva_t gva)
 	spin_unlock(&vcpu->kvm->mmu_lock);
 }
 
-static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr)
+static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, gva_t vaddr, u32 access,
+			       u32 *error)
 {
 	struct guest_walker walker;
 	gpa_t gpa = UNMAPPED_GVA;
 	int r;
 
-	r = FNAME(walk_addr)(&walker, vcpu, vaddr, 0, 0, 0);
+	r = FNAME(walk_addr)(&walker, vcpu, vaddr,
+			     !!(access & PFERR_WRITE_MASK),
+			     !!(access & PFERR_USER_MASK),
+			     !!(access & PFERR_FETCH_MASK));
 
 	if (r) {
 		gpa = gfn_to_gpa(walker.gfn);
 		gpa |= vaddr & ~PAGE_MASK;
-	}
+	} else if (error)
+		*error = walker.error_code;
 
 	return gpa;
 }

@@ -101,12 +101,15 @@ static inline int xhci_find_next_cap_offset(void __iomem *base, int ext_offset)
 
 	next = readl(base + ext_offset);
 
-	if (ext_offset == XHCI_HCC_PARAMS_OFFSET)
+	if (ext_offset == XHCI_HCC_PARAMS_OFFSET) {
 		/* Find the first extended capability */
 		next = XHCI_HCC_EXT_CAPS(next);
-	else
+		ext_offset = 0;
+	} else {
 		/* Find the next extended capability */
 		next = XHCI_EXT_CAPS_NEXT(next);
+	}
+
 	if (!next)
 		return 0;
 	/*

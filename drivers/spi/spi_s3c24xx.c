@@ -275,7 +275,7 @@ static inline u32 ack_bit(unsigned int irq)
  * Claim the FIQ handler (only one can be active at any one time) and
  * then setup the correct transfer code for this transfer.
  *
- * This call updates all the necessary state information if sucessful,
+ * This call updates all the necessary state information if successful,
  * so the caller does not need to do anything more than start the transfer
  * as normal, since the IRQ will have been re-routed to the FIQ handler.
 */

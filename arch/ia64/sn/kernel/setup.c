@@ -71,7 +71,7 @@ EXPORT_SYMBOL(sn_rtc_cycles_per_second);
 DEFINE_PER_CPU(struct sn_hub_info_s, __sn_hub_info);
 EXPORT_PER_CPU_SYMBOL(__sn_hub_info);
 
-DEFINE_PER_CPU(short [MAX_COMPACT_NODES], __sn_cnodeid_to_nasid);
+DEFINE_PER_CPU(short, __sn_cnodeid_to_nasid[MAX_COMPACT_NODES]);
 EXPORT_PER_CPU_SYMBOL(__sn_cnodeid_to_nasid);
 
 DEFINE_PER_CPU(struct nodepda_s *, __sn_nodepda);
@@ -241,7 +241,7 @@ static void __cpuinit sn_check_for_wars(void)
  * Note:  This stuff is duped here because Altix requires the PCDP to
  * locate a usable VGA device due to lack of proper ACPI support.  Structures
  * could be used from drivers/firmware/pcdp.h, but it was decided that moving
- * this file to a more public location just for Altix use was undesireable.
+ * this file to a more public location just for Altix use was undesirable.
  */
 
 struct hcdp_uart_desc {

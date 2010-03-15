@@ -30,7 +30,10 @@
 
 #include <mach/addr-map.h>
 #include <mach/regs-timers.h>
+#include <mach/regs-apbc.h>
 #include <mach/irqs.h>
+#include <mach/cputype.h>
+#include <asm/mach/time.h>
 
 #include "clock.h"
 
@@ -158,7 +161,7 @@ static void __init timer_config(void)
 
 	__raw_writel(cer & ~0x1, TIMERS_VIRT_BASE + TMR_CER); /* disable */
 
-	ccr &= TMR_CCR_CS_0(0x3);
+	ccr &= (cpu_is_mmp2()) ? TMR_CCR_CS_0(0) : TMR_CCR_CS_0(3);
 	__raw_writel(ccr, TIMERS_VIRT_BASE + TMR_CCR);
 
 	/* free-running mode */
@@ -197,3 +200,24 @@ void __init timer_init(int irq)
 	clocksource_register(&cksrc);
 	clockevents_register_device(&ckevt);
 }
+
+static void __init mmp2_timer_init(void)
+{
+	unsigned long clk_rst;
+
+	__raw_writel(APBC_APBCLK | APBC_RST, APBC_MMP2_TIMERS);
+
+	/*
+	 * enable bus/functional clock, enable 6.5MHz (divider 4),
+	 * release reset
+	 */
+	clk_rst = APBC_APBCLK | APBC_FNCLK | APBC_FNCLKSEL(1);
+	__raw_writel(clk_rst, APBC_MMP2_TIMERS);
+
+	timer_init(IRQ_MMP2_TIMER1);
+}
+
+struct sys_timer mmp2_timer = {
+	.init	= mmp2_timer_init,
+};
+

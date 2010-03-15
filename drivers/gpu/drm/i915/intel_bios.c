@@ -33,6 +33,8 @@
 #define	SLAVE_ADDR1	0x70
 #define	SLAVE_ADDR2	0x72
 
+static int panel_type;
+
 static void *
 find_section(struct bdb_header *bdb, int section_id)
 {
@@ -128,6 +130,7 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 	dev_priv->lvds_dither = lvds_options->pixel_dither;
 	if (lvds_options->panel_type == 0xff)
 		return;
+	panel_type = lvds_options->panel_type;
 
 	lvds_lfp_data = find_section(bdb, BDB_LVDS_LFP_DATA);
 	if (!lvds_lfp_data)
@@ -197,7 +200,8 @@ parse_lfp_panel_data(struct drm_i915_private *dev_priv,
 		memset(temp_mode, 0, sizeof(*temp_mode));
 	}
 	kfree(temp_mode);
-	if (temp_downclock < panel_fixed_mode->clock) {
+	if (temp_downclock < panel_fixed_mode->clock &&
+	    i915_lvds_downclock) {
 		dev_priv->lvds_downclock_avail = 1;
 		dev_priv->lvds_downclock = temp_downclock;
 		DRM_DEBUG_KMS("LVDS downclock is found in VBT. ",
@@ -243,6 +247,7 @@ static void
 parse_general_features(struct drm_i915_private *dev_priv,
 		       struct bdb_header *bdb)
 {
+	struct drm_device *dev = dev_priv->dev;
 	struct bdb_general_features *general;
 
 	/* Set sensible defaults in case we can't find the general block */
@@ -259,7 +264,7 @@ parse_general_features(struct drm_i915_private *dev_priv,
 			if (IS_I85X(dev_priv->dev))
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 66 : 48;
-			else if (IS_IRONLAKE(dev_priv->dev))
+			else if (IS_IRONLAKE(dev_priv->dev) || IS_GEN6(dev))
 				dev_priv->lvds_ssc_freq =
 					general->ssc_freq ? 100 : 120;
 			else
@@ -405,6 +410,34 @@ parse_driver_features(struct drm_i915_private *dev_priv,
 }
 
 static void
+parse_edp(struct drm_i915_private *dev_priv, struct bdb_header *bdb)
+{
+	struct bdb_edp *edp;
+
+	edp = find_section(bdb, BDB_EDP);
+	if (!edp) {
+		if (SUPPORTS_EDP(dev_priv->dev) && dev_priv->edp_support) {
+			DRM_DEBUG_KMS("No eDP BDB found but eDP panel supported,\
+				       assume 18bpp panel color depth.\n");
+			dev_priv->edp_bpp = 18;
+		}
+		return;
+	}
+
+	switch ((edp->color_depth >> (panel_type * 2)) & 3) {
+	case EDP_18BPP:
+		dev_priv->edp_bpp = 18;
+		break;
+	case EDP_24BPP:
+		dev_priv->edp_bpp = 24;
+		break;
+	case EDP_30BPP:
+		dev_priv->edp_bpp = 30;
+		break;
+	}
+}
+
+static void
 parse_device_mapping(struct drm_i915_private *dev_priv,
 		       struct bdb_header *bdb)
 {
@@ -521,6 +554,7 @@ intel_init_bios(struct drm_device *dev)
 	parse_sdvo_device_mapping(dev_priv, bdb);
 	parse_device_mapping(dev_priv, bdb);
 	parse_driver_features(dev_priv, bdb);
+	parse_edp(dev_priv, bdb);
 
 	pci_unmap_rom(pdev, bios);
 

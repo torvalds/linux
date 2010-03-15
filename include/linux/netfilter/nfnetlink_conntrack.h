@@ -40,6 +40,7 @@ enum ctattr_type {
 	CTA_NAT_SEQ_ADJ_ORIG,
 	CTA_NAT_SEQ_ADJ_REPLY,
 	CTA_SECMARK,
+	CTA_ZONE,
 	__CTA_MAX
 };
 #define CTA_MAX (__CTA_MAX - 1)
@@ -159,6 +160,7 @@ enum ctattr_expect {
 	CTA_EXPECT_TIMEOUT,
 	CTA_EXPECT_ID,
 	CTA_EXPECT_HELP_NAME,
+	CTA_EXPECT_ZONE,
 	__CTA_EXPECT_MAX
 };
 #define CTA_EXPECT_MAX (__CTA_EXPECT_MAX - 1)

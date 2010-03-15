@@ -30,7 +30,6 @@ struct serio {
 	char phys[32];
 
 	bool manual_bind;
-	bool registered;	/* port has been fully registered with driver core */
 
 	struct serio_device_id id;
 
@@ -135,25 +134,6 @@ static inline void serio_continue_rx(struct serio *serio)
 {
 	spin_unlock_irq(&serio->lock);
 }
-
-/*
- * Use the following functions to pin serio's driver in process context
- */
-static inline int serio_pin_driver(struct serio *serio)
-{
-	return mutex_lock_interruptible(&serio->drv_mutex);
-}
-
-static inline void serio_pin_driver_uninterruptible(struct serio *serio)
-{
-	mutex_lock(&serio->drv_mutex);
-}
-
-static inline void serio_unpin_driver(struct serio *serio)
-{
-	mutex_unlock(&serio->drv_mutex);
-}
-
 
 #endif
 

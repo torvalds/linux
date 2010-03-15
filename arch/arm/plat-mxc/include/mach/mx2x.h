@@ -20,8 +20,8 @@
  * MA  02110-1301, USA.
  */
 
-#ifndef __ASM_ARCH_MXC_MX2x_H__
-#define __ASM_ARCH_MXC_MX2x_H__
+#ifndef __MACH_MX2x_H__
+#define __MACH_MX2x_H__
 
 /* The following addresses are common between i.MX21 and i.MX27 */
 
@@ -176,6 +176,7 @@
 #define MX2x_DMA_REQ_CSI_STAT	30
 #define MX2x_DMA_REQ_CSI_RX	31
 
+#ifdef IMX_NEEDS_DEPRECATED_SYMBOLS
 /* these should go away */
 #define AIPI_BASE_ADDR MX2x_AIPI_BASE_ADDR
 #define AIPI_BASE_ADDR_VIRT MX2x_AIPI_BASE_ADDR_VIRT
@@ -287,5 +288,6 @@
 #define DMA_REQ_UART1_TX MX2x_DMA_REQ_UART1_TX
 #define DMA_REQ_CSI_STAT MX2x_DMA_REQ_CSI_STAT
 #define DMA_REQ_CSI_RX MX2x_DMA_REQ_CSI_RX
+#endif
 
-#endif /* __ASM_ARCH_MXC_MX2x_H__ */
+#endif /* ifndef __MACH_MX2x_H__ */

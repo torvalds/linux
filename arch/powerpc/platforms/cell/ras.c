@@ -255,7 +255,7 @@ static int __init cbe_sysreset_init(void)
 {
 	struct cbe_pmd_regs __iomem *regs;
 
-	sysreset_hack = machine_is_compatible("IBM,CBPLUS-1.0");
+	sysreset_hack = of_machine_is_compatible("IBM,CBPLUS-1.0");
 	if (!sysreset_hack)
 		return 0;
 

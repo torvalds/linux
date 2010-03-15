@@ -29,21 +29,23 @@
 #include <mach/common.h>
 #include <mach/hardware.h>
 
+#define IO_ADDR_CCM(off)	(MX27_IO_ADDRESS(MX27_CCM_BASE_ADDR + (off)))
+
 /* Register offsets */
-#define CCM_CSCR                (IO_ADDRESS(CCM_BASE_ADDR) + 0x0)
-#define CCM_MPCTL0              (IO_ADDRESS(CCM_BASE_ADDR) + 0x4)
-#define CCM_MPCTL1              (IO_ADDRESS(CCM_BASE_ADDR) + 0x8)
-#define CCM_SPCTL0              (IO_ADDRESS(CCM_BASE_ADDR) + 0xC)
-#define CCM_SPCTL1              (IO_ADDRESS(CCM_BASE_ADDR) + 0x10)
-#define CCM_OSC26MCTL           (IO_ADDRESS(CCM_BASE_ADDR) + 0x14)
-#define CCM_PCDR0               (IO_ADDRESS(CCM_BASE_ADDR) + 0x18)
-#define CCM_PCDR1               (IO_ADDRESS(CCM_BASE_ADDR) + 0x1c)
-#define CCM_PCCR0               (IO_ADDRESS(CCM_BASE_ADDR) + 0x20)
-#define CCM_PCCR1               (IO_ADDRESS(CCM_BASE_ADDR) + 0x24)
-#define CCM_CCSR                (IO_ADDRESS(CCM_BASE_ADDR) + 0x28)
-#define CCM_PMCTL               (IO_ADDRESS(CCM_BASE_ADDR) + 0x2c)
-#define CCM_PMCOUNT             (IO_ADDRESS(CCM_BASE_ADDR) + 0x30)
-#define CCM_WKGDCTL             (IO_ADDRESS(CCM_BASE_ADDR) + 0x34)
+#define CCM_CSCR		IO_ADDR_CCM(0x0)
+#define CCM_MPCTL0		IO_ADDR_CCM(0x4)
+#define CCM_MPCTL1		IO_ADDR_CCM(0x8)
+#define CCM_SPCTL0		IO_ADDR_CCM(0xc)
+#define CCM_SPCTL1		IO_ADDR_CCM(0x10)
+#define CCM_OSC26MCTL		IO_ADDR_CCM(0x14)
+#define CCM_PCDR0		IO_ADDR_CCM(0x18)
+#define CCM_PCDR1		IO_ADDR_CCM(0x1c)
+#define CCM_PCCR0		IO_ADDR_CCM(0x20)
+#define CCM_PCCR1		IO_ADDR_CCM(0x24)
+#define CCM_CCSR		IO_ADDR_CCM(0x28)
+#define CCM_PMCTL		IO_ADDR_CCM(0x2c)
+#define CCM_PMCOUNT		IO_ADDR_CCM(0x30)
+#define CCM_WKGDCTL		IO_ADDR_CCM(0x34)
 
 #define CCM_CSCR_UPDATE_DIS	(1 << 31)
 #define CCM_CSCR_SSI2		(1 << 23)
@@ -719,7 +721,6 @@ static void __init to2_adjust_clocks(void)
 int __init mx27_clocks_init(unsigned long fref)
 {
 	u32 cscr = __raw_readl(CCM_CSCR);
-	int i;
 
 	external_high_reference = fref;
 
@@ -736,8 +737,7 @@ int __init mx27_clocks_init(unsigned long fref)
 
 	to2_adjust_clocks();
 
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	/* Turn off all clocks we do not need */
 	__raw_writel(0, CCM_PCCR0);
@@ -755,7 +755,8 @@ int __init mx27_clocks_init(unsigned long fref)
 	clk_enable(&uart1_clk);
 #endif
 
-	mxc_timer_init(&gpt1_clk, IO_ADDRESS(GPT1_BASE_ADDR), MXC_INT_GPT1);
+	mxc_timer_init(&gpt1_clk, MX27_IO_ADDRESS(MX27_GPT1_BASE_ADDR),
+			MX27_INT_GPT1);
 
 	return 0;
 }

@@ -75,6 +75,7 @@
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
+#include <asm/unaligned.h>
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 #include "mct_u232.h"
@@ -110,7 +111,7 @@ static void mct_u232_unthrottle(struct tty_struct *tty);
 /*
  * All of the device info needed for the MCT USB-RS232 converter.
  */
-static struct usb_device_id id_table_combined [] = {
+static const struct usb_device_id id_table_combined[] = {
 	{ USB_DEVICE(MCT_U232_VID, MCT_U232_PID) },
 	{ USB_DEVICE(MCT_U232_VID, MCT_U232_SITECOM_PID) },
 	{ USB_DEVICE(MCT_U232_VID, MCT_U232_DU_H3SP_PID) },
@@ -231,19 +232,22 @@ static int mct_u232_calculate_baud_rate(struct usb_serial *serial,
 static int mct_u232_set_baud_rate(struct tty_struct *tty,
 	struct usb_serial *serial, struct usb_serial_port *port, speed_t value)
 {
-	__le32 divisor;
+	unsigned int divisor;
 	int rc;
-	unsigned char zero_byte = 0;
+	unsigned char *buf;
 	unsigned char cts_enable_byte = 0;
 	speed_t speed;
 
-	divisor = cpu_to_le32(mct_u232_calculate_baud_rate(serial, value,
-								&speed));
+	buf = kmalloc(MCT_U232_MAX_SIZE, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
 
+	divisor = mct_u232_calculate_baud_rate(serial, value, &speed);
+	put_unaligned_le32(cpu_to_le32(divisor), buf);
 	rc = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 				MCT_U232_SET_BAUD_RATE_REQUEST,
 				MCT_U232_SET_REQUEST_TYPE,
-				0, 0, &divisor, MCT_U232_SET_BAUD_RATE_SIZE,
+				0, 0, buf, MCT_U232_SET_BAUD_RATE_SIZE,
 				WDR_TIMEOUT);
 	if (rc < 0)	/*FIXME: What value speed results */
 		dev_err(&port->dev, "Set BAUD RATE %d failed (error = %d)\n",
@@ -269,10 +273,11 @@ static int mct_u232_set_baud_rate(struct tty_struct *tty,
 	   a device which is not asserting 'CTS'.
 	*/
 
+	buf[0] = 0;
 	rc = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 				MCT_U232_SET_UNKNOWN1_REQUEST,
 				MCT_U232_SET_REQUEST_TYPE,
-				0, 0, &zero_byte, MCT_U232_SET_UNKNOWN1_SIZE,
+				0, 0, buf, MCT_U232_SET_UNKNOWN1_SIZE,
 				WDR_TIMEOUT);
 	if (rc < 0)
 		dev_err(&port->dev, "Sending USB device request code %d "
@@ -284,30 +289,40 @@ static int mct_u232_set_baud_rate(struct tty_struct *tty,
 
 	dbg("set_baud_rate: send second control message, data = %02X",
 							cts_enable_byte);
+	buf[0] = cts_enable_byte;
 	rc = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			MCT_U232_SET_CTS_REQUEST,
 			MCT_U232_SET_REQUEST_TYPE,
-			0, 0, &cts_enable_byte, MCT_U232_SET_CTS_SIZE,
+			0, 0, buf, MCT_U232_SET_CTS_SIZE,
 			WDR_TIMEOUT);
 	if (rc < 0)
 		dev_err(&port->dev, "Sending USB device request code %d "
 			"failed (error = %d)\n", MCT_U232_SET_CTS_REQUEST, rc);
 
+	kfree(buf);
 	return rc;
 } /* mct_u232_set_baud_rate */
 
 static int mct_u232_set_line_ctrl(struct usb_serial *serial, unsigned char lcr)
 {
 	int rc;
+	unsigned char *buf;
+
+	buf = kmalloc(MCT_U232_MAX_SIZE, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	buf[0] = lcr;
 	rc = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			MCT_U232_SET_LINE_CTRL_REQUEST,
 			MCT_U232_SET_REQUEST_TYPE,
-			0, 0, &lcr, MCT_U232_SET_LINE_CTRL_SIZE,
+			0, 0, buf, MCT_U232_SET_LINE_CTRL_SIZE,
 			WDR_TIMEOUT);
 	if (rc < 0)
 		dev_err(&serial->dev->dev,
 			"Set LINE CTRL 0x%x failed (error = %d)\n", lcr, rc);
 	dbg("set_line_ctrl: 0x%x", lcr);
+	kfree(buf);
 	return rc;
 } /* mct_u232_set_line_ctrl */
 
@@ -315,23 +330,31 @@ static int mct_u232_set_modem_ctrl(struct usb_serial *serial,
 				   unsigned int control_state)
 {
 	int rc;
-	unsigned char mcr = MCT_U232_MCR_NONE;
+	unsigned char mcr;
+	unsigned char *buf;
 
+	buf = kmalloc(MCT_U232_MAX_SIZE, GFP_KERNEL);
+	if (buf == NULL)
+		return -ENOMEM;
+
+	mcr = MCT_U232_MCR_NONE;
 	if (control_state & TIOCM_DTR)
 		mcr |= MCT_U232_MCR_DTR;
 	if (control_state & TIOCM_RTS)
 		mcr |= MCT_U232_MCR_RTS;
 
+	buf[0] = mcr;
 	rc = usb_control_msg(serial->dev, usb_sndctrlpipe(serial->dev, 0),
 			MCT_U232_SET_MODEM_CTRL_REQUEST,
 			MCT_U232_SET_REQUEST_TYPE,
-			0, 0, &mcr, MCT_U232_SET_MODEM_CTRL_SIZE,
+			0, 0, buf, MCT_U232_SET_MODEM_CTRL_SIZE,
 			WDR_TIMEOUT);
 	if (rc < 0)
 		dev_err(&serial->dev->dev,
 			"Set MODEM CTRL 0x%x failed (error = %d)\n", mcr, rc);
 	dbg("set_modem_ctrl: state=0x%x ==> mcr=0x%x", control_state, mcr);
 
+	kfree(buf);
 	return rc;
 } /* mct_u232_set_modem_ctrl */
 
@@ -339,17 +362,27 @@ static int mct_u232_get_modem_stat(struct usb_serial *serial,
 						unsigned char *msr)
 {
 	int rc;
+	unsigned char *buf;
+
+	buf = kmalloc(MCT_U232_MAX_SIZE, GFP_KERNEL);
+	if (buf == NULL) {
+		*msr = 0;
+		return -ENOMEM;
+	}
 	rc = usb_control_msg(serial->dev, usb_rcvctrlpipe(serial->dev, 0),
 			MCT_U232_GET_MODEM_STAT_REQUEST,
 			MCT_U232_GET_REQUEST_TYPE,
-			0, 0, msr, MCT_U232_GET_MODEM_STAT_SIZE,
+			0, 0, buf, MCT_U232_GET_MODEM_STAT_SIZE,
 			WDR_TIMEOUT);
 	if (rc < 0) {
 		dev_err(&serial->dev->dev,
 			"Get MODEM STATus failed (error = %d)\n", rc);
 		*msr = 0;
+	} else {
+		*msr = buf[0];
 	}
 	dbg("get_modem_stat: 0x%x", *msr);
+	kfree(buf);
 	return rc;
 } /* mct_u232_get_modem_stat */
 

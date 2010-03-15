@@ -45,7 +45,7 @@ static int refcount;
 static struct workqueue_struct *stop_machine_wq;
 static struct stop_machine_data active, idle;
 static const struct cpumask *active_cpus;
-static void *stop_machine_work;
+static void __percpu *stop_machine_work;
 
 static void set_state(enum stopmachine_state newstate)
 {
