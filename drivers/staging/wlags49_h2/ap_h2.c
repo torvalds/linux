@@ -26,7 +26,7 @@
 
 
 #include "hcfcfg.h"				/* to get hcf_16 etc defined as well as */
-                                /* possible settings which inluence mdd.h or dhf.h */
+					/* possible settings which inluence mdd.h or dhf.h */
 #include "mdd.h"   				/* to get COMP_ID_STA etc defined */
 #include "dhf.h"   				/* used to be "fhfmem.h", to get memblock,plugrecord, */
 
@@ -3238,7 +3238,7 @@ static const hcf_8 fw_image_4_data[] = {
 
 static const CFG_IDENTITY_STRCT fw_image_infoidentity[] = {
 	{
-		sizeof( CFG_IDENTITY_STRCT ) / sizeof(hcf_16) - 1,
+		sizeof(CFG_IDENTITY_STRCT) / sizeof(hcf_16) - 1,
 		CFG_FW_IDENTITY,
 		COMP_ID_FW_AP,
 		2,							/* Variant /
@@ -3256,7 +3256,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0x0146,		/* sizeof(fw_image_1_data), */
 		0x00000060,					/* Target address in NIC Memory */
 		0x0000,						/* CRC: yes/no	TYPE: primary/station/tertiary */
-		(hcf_8 FAR   *) fw_image_1_data
+		(hcf_8 FAR *) fw_image_1_data
 	},
 	{
 		8,
@@ -3265,7 +3265,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0x1918,		/* sizeof(fw_image_2_data), */
 		0x00000C16,					/* Target address in NIC Memory */
 		0x0000,						/* CRC: yes/no	TYPE: primary/station/tertiary */
-		(hcf_8 FAR   *) fw_image_2_data
+		(hcf_8 FAR *) fw_image_2_data
 	},
 	{
 		8,
@@ -3274,7 +3274,7 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0x01bc,		/* sizeof(fw_image_3_data), */
 		0x001E252E,					/* Target address in NIC Memory */
 		0x0000,						/* CRC: yes/no	TYPE: primary/station/tertiary */
-		(hcf_8 FAR   *) fw_image_3_data
+		(hcf_8 FAR *) fw_image_3_data
 	},
 	{
 		8,
@@ -3283,14 +3283,14 @@ static const CFG_PROG_STRCT fw_image_code[] = {
 		0xab28,		/* sizeof(fw_image_4_data), */
 		0x001F4000,					/* Target address in NIC Memory */
 		0x0000,						/* CRC: yes/no	TYPE: primary/station/tertiary */
-		(hcf_8 FAR   *) fw_image_4_data
+		(hcf_8 FAR *) fw_image_4_data
 	},
 	{
 		5,
 		CFG_PROG,
 		CFG_PROG_STOP,				/* mode*/
 		0000,
- 	0x000F1297,					/* Start execution address */
+	0x000F1297,					/* Start execution address */
 	},
 	{ 0000, 0000, 0000, 0000, 00000000, 0000, 00000000}
 };
