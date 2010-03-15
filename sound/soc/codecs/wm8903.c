@@ -1531,7 +1531,7 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 {
 	struct wm8903_priv *wm8903;
 	struct snd_soc_codec *codec;
-	int ret;
+	int ret, i;
 	u16 val;
 
 	wm8903 = kzalloc(sizeof(struct wm8903_priv), GFP_KERNEL);
@@ -1577,6 +1577,17 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 		 val & WM8903_CHIP_REV_MASK);
 
 	wm8903_reset(codec);
+
+	/* Set up GPIOs */
+	if (pdata) {
+		for (i = 0; i < ARRAY_SIZE(pdata->gpio_cfg); i++) {
+			if (!pdata->gpio_cfg[i])
+				continue;
+
+			snd_soc_write(codec, WM8903_GPIO_CONTROL_1 + i,
+				      pdata->gpio_cfg[i] & 0xffff);
+		}
+	}
 
 	/* power on device */
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
