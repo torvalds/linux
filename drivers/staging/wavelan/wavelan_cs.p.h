@@ -745,14 +745,14 @@ static void
  */
 
 /* Shared memory speed, in ns */
-static int	mem_speed = 0;
+static int	mem_speed;
 
 /* New module interface */
 module_param(mem_speed, int, 0);
 
 #ifdef WAVELAN_ROAMING		/* Conditional compile, see above in options */
 /* Enable roaming mode ? No ! Please keep this to 0 */
-static int	do_roaming = 0;
+static int	do_roaming;
 module_param(do_roaming, bool, 0);
 #endif	/* WAVELAN_ROAMING */
 
