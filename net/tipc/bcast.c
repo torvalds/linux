@@ -558,10 +558,7 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 			      struct tipc_bearer *unused1,
 			      struct tipc_media_addr *unused2)
 {
-	static int send_count = 0;
-
 	int bp_index;
-	int swap_time;
 
 	/* Prepare buffer for broadcasting (if first time trying to send it) */
 
@@ -574,11 +571,6 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		msg_set_non_seq(msg, 1);
 		msg_set_mc_netid(msg, tipc_net_id);
 	}
-
-	/* Determine if bearer pairs should be swapped following this attempt */
-
-	if ((swap_time = (++send_count >= 10)))
-		send_count = 0;
 
 	/* Send buffer over bearers until all targets reached */
 
@@ -595,21 +587,22 @@ static int tipc_bcbearer_send(struct sk_buff *buf,
 		if (bcbearer->remains_new.count == bcbearer->remains.count)
 			continue;	/* bearer pair doesn't add anything */
 
-		if (!p->publ.blocked &&
-		    !p->media->send_msg(buf, &p->publ, &p->media->bcast_addr)) {
-			if (swap_time && s && !s->publ.blocked)
-				goto swap;
-			else
-				goto update;
+		if (p->publ.blocked ||
+		    p->media->send_msg(buf, &p->publ, &p->media->bcast_addr)) {
+			/* unable to send on primary bearer */
+			if (!s || s->publ.blocked ||
+			    s->media->send_msg(buf, &s->publ,
+					       &s->media->bcast_addr)) {
+				/* unable to send on either bearer */
+				continue;
+			}
 		}
 
-		if (!s || s->publ.blocked ||
-		    s->media->send_msg(buf, &s->publ, &s->media->bcast_addr))
-			continue;	/* unable to send using bearer pair */
-swap:
-		bcbearer->bpairs[bp_index].primary = s;
-		bcbearer->bpairs[bp_index].secondary = p;
-update:
+		if (s) {
+			bcbearer->bpairs[bp_index].primary = s;
+			bcbearer->bpairs[bp_index].secondary = p;
+		}
+
 		if (bcbearer->remains_new.count == 0)
 			return 0;
 
