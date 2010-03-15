@@ -2300,9 +2300,7 @@ static int select_fallback_rq(int cpu, struct task_struct *p)
 
 	/* No more Mr. Nice Guy. */
 	if (unlikely(dest_cpu >= nr_cpu_ids)) {
-		cpumask_copy(&p->cpus_allowed, cpu_possible_mask);
-		dest_cpu = cpumask_any(cpu_active_mask);
-
+		dest_cpu = cpuset_cpus_allowed_fallback(p);
 		/*
 		 * Don't tell them about moving exiting tasks or
 		 * kernel threads (both mm NULL), since they never
