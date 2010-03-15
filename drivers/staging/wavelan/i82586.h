@@ -30,14 +30,13 @@
 #define	ADDR_LEN	6
 #define	I82586NULL	0xFFFF
 
-#define	toff(t,p,f) 	(unsigned short)((void *)(&((t *)((void *)0 + (p)))->f) - (void *)0)
+#define	toff(t, p, f) 	(unsigned short)((void *)(&((t *)((void *)0 + (p)))->f) - (void *)0)
 
 /*
  * System Configuration Pointer (SCP).
  */
 typedef struct scp_t	scp_t;
-struct scp_t
-{
+struct scp_t {
 	unsigned short	scp_sysbus;	/* 82586 bus width:	*/
 #define		SCP_SY_16BBUS	(0x0 << 0)	/* 16 bits */
 #define		SCP_SY_8BBUS	(0x1 << 0)	/*  8 bits. */
@@ -50,8 +49,7 @@ struct scp_t
  * Intermediate System Configuration Pointer (ISCP).
  */
 typedef struct iscp_t	iscp_t;
-struct iscp_t
-{
+struct iscp_t {
 	unsigned short	iscp_busy;	/* set by CPU before first CA,	*/
 					/* cleared by 82586 after read.	*/
 	unsigned short	iscp_offset;	/* offset of SCB		*/
@@ -67,8 +65,7 @@ struct iscp_t
  *	then issues a Channel Attention (CA) to alert the 82586.
  */
 typedef struct scb_t	scb_t;
-struct scb_t
-{
+struct scb_t {
 	unsigned short	scb_status;	/* Status of 82586		*/
 #define		SCB_ST_INT	(0xF << 12)	/* Some of:		*/
 #define		SCB_ST_CX	(0x1 << 15)	/* Cmd completed	*/
@@ -118,14 +115,13 @@ struct scb_t
 	unsigned short	scb_ovrnerrs;	/* Frames lost due to slow bus	*/
 };
 
-#define	scboff(p,f) 	toff(scb_t, p, f)
+#define	scboff(p, f) 	toff(scb_t, p, f)
 
 /*
  * The eight Action Commands.
  */
 typedef enum acmd_e	acmd_e;
-enum acmd_e
-{
+enum acmd_e {
 	acmd_nop	= 0,	/* Do nothing				*/
 	acmd_ia_setup	= 1,	/* Load an (ethernet) address into the	*/
 				/* 82586				*/
@@ -143,8 +139,7 @@ enum acmd_e
  * Generic Action Command header.
  */
 typedef struct ach_t	ach_t;
-struct ach_t
-{
+struct ach_t {
 	unsigned short	ac_status;		/* Command status:	*/
 #define		AC_SFLD_C	(0x1 << 15)	/* Command completed	*/
 #define		AC_SFLD_B	(0x1 << 14)	/* Busy executing	*/
@@ -172,14 +167,13 @@ struct ach_t
 	unsigned short	ac_link;		/* Next Action Command	*/
 };
 
-#define	acoff(p,f) 	toff(ach_t, p, f)
+#define	acoff(p, f) 	toff(ach_t, p, f)
 
 /*
  * The Nop Action Command.
  */
 typedef struct ac_nop_t	ac_nop_t;
-struct ac_nop_t
-{
+struct ac_nop_t {
 	ach_t	nop_h;
 };
 
@@ -187,8 +181,7 @@ struct ac_nop_t
  * The IA-Setup Action Command.
  */
 typedef struct ac_ias_t	ac_ias_t;
-struct ac_ias_t
-{
+struct ac_ias_t {
 	ach_t		ias_h;
 	unsigned char	ias_addr[ADDR_LEN]; /* The (ethernet) address	*/
 };
@@ -197,8 +190,7 @@ struct ac_ias_t
  * The Configure Action Command.
  */
 typedef struct ac_cfg_t	ac_cfg_t;
-struct ac_cfg_t
-{
+struct ac_cfg_t {
 	ach_t		cfg_h;
 	unsigned char	cfg_byte_cnt;	/* Size foll data: 4-12	*/
 #define	AC_CFG_BYTE_CNT(v)	(((v) & 0xF) << 0)
@@ -255,8 +247,7 @@ struct ac_cfg_t
  * The MC-Setup Action Command.
  */
 typedef struct ac_mcs_t	ac_mcs_t;
-struct ac_mcs_t
-{
+struct ac_mcs_t {
 	ach_t		mcs_h;
 	unsigned short	mcs_cnt;	/* No. of bytes of MC addresses	*/
 #if 0
@@ -271,8 +262,7 @@ struct ac_mcs_t
  * The Transmit Action Command.
  */
 typedef struct ac_tx_t	ac_tx_t;
-struct ac_tx_t
-{
+struct ac_tx_t {
 	ach_t		tx_h;
 	unsigned short	tx_tbd_offset;	/* Address of list of buffers.	*/
 #if	0
@@ -290,8 +280,7 @@ ac_cfg_t action command.
  * The Time Domain Reflectometer Action Command.
  */
 typedef struct ac_tdr_t	ac_tdr_t;
-struct ac_tdr_t
-{
+struct ac_tdr_t {
 	ach_t		tdr_h;
 	unsigned short	tdr_result;	/* Result.	*/
 #define		AC_TDR_LNK_OK	(0x1 << 15)	/* No link problem	*/
@@ -307,8 +296,7 @@ struct ac_tdr_t
  * The Dump Action Command.
  */
 typedef struct ac_dmp_t	ac_dmp_t;
-struct ac_dmp_t
-{
+struct ac_dmp_t {
 	ach_t		dmp_h;
 	unsigned short	dmp_offset;	/* Result.	*/
 };
@@ -322,8 +310,7 @@ struct ac_dmp_t
  * The Diagnose Action Command.
  */
 typedef struct ac_dgn_t	ac_dgn_t;
-struct ac_dgn_t
-{
+struct ac_dgn_t {
 	ach_t		dgn_h;
 };
 
@@ -331,8 +318,7 @@ struct ac_dgn_t
  * Transmit Buffer Descriptor (TBD).
  */
 typedef struct tbd_t	tbd_t;
-struct tbd_t
-{
+struct tbd_t {
 	unsigned short	tbd_status;		/* Written by the CPU	*/
 #define		TBD_STATUS_EOF	(0x1 << 15)	/* This TBD is the	*/
 						/* last for this frame	*/
@@ -347,8 +333,7 @@ struct tbd_t
  * Receive Buffer Descriptor (RBD).
  */
 typedef struct rbd_t	rbd_t;
-struct rbd_t
-{
+struct rbd_t {
 	unsigned short	rbd_status;		/* Written by the 82586	*/
 #define		RBD_STATUS_EOF	(0x1 << 15)	/* This RBD is the	*/
 						/* last for this frame	*/
@@ -365,14 +350,13 @@ struct rbd_t
 						/* buffer can hold	*/
 };
 
-#define	rbdoff(p,f) 	toff(rbd_t, p, f)
+#define	rbdoff(p, f) 	toff(rbd_t, p, f)
 
 /*
  * Frame Descriptor (FD).
  */
 typedef struct fd_t	fd_t;
-struct fd_t
-{
+struct fd_t {
 	unsigned short	fd_status;		/* Written by the 82586	*/
 #define		FD_STATUS_C	(0x1 << 15)	/* Completed storing frame */
 #define		FD_STATUS_B	(0x1 << 14)	/* FD was consumed by RU */
@@ -403,7 +387,7 @@ in case, we leave the space.
 						/* Written by 82586	*/
 };
 
-#define	fdoff(p,f) 	toff(fd_t, p, f)
+#define	fdoff(p, f) 	toff(fd_t, p, f)
 
 /*
  * This software may only be used and distributed
