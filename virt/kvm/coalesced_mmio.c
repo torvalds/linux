@@ -120,8 +120,10 @@ int kvm_coalesced_mmio_init(struct kvm *kvm)
 	return ret;
 
 out_free_dev:
+	kvm->coalesced_mmio_dev = NULL;
 	kfree(dev);
 out_free_page:
+	kvm->coalesced_mmio_ring = NULL;
 	__free_page(page);
 out_err:
 	return ret;
