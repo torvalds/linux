@@ -241,6 +241,8 @@ struct wm8903_platform_data {
 	 */
 	u16 micdet_cfg;
 
+	int micdet_delay;      /* Delay after microphone detection (ms) */
+
 	u32 gpio_cfg[5];       /* Default register values for GPIO pin mux */
 };
 

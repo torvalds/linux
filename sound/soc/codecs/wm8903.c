@@ -23,6 +23,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <sound/core.h>
+#include <sound/jack.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/tlv.h>
@@ -222,6 +223,12 @@ struct wm8903_priv {
 	int capture_active;
 
 	struct completion wseq;
+
+	struct snd_soc_jack *mic_jack;
+	int mic_det;
+	int mic_short;
+	int mic_last_report;
+	int mic_delay;
 
 	struct snd_pcm_substream *master_substream;
 	struct snd_pcm_substream *slave_substream;
@@ -1437,18 +1444,111 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+/**
+ * wm8903_mic_detect - Enable microphone detection via the WM8903 IRQ
+ *
+ * @codec:  WM8903 codec
+ * @jack:   jack to report detection events on
+ * @det:    value to report for presence detection
+ * @shrt:   value to report for short detection
+ *
+ * Enable microphone detection via IRQ on the WM8903.  If GPIOs are
+ * being used to bring out signals to the processor then only platform
+ * data configuration is needed for WM8903 and processor GPIOs should
+ * be configured using snd_soc_jack_add_gpios() instead.
+ *
+ * The current threasholds for detection should be configured using
+ * micdet_cfg in the platform data.  Using this function will force on
+ * the microphone bias for the device.
+ */
+int wm8903_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
+		      int det, int shrt)
+{
+	struct wm8903_priv *wm8903 = codec->private_data;
+	int irq_mask = 0;
+
+	dev_dbg(codec->dev, "Enabling microphone detection: %x %x\n",
+		det, shrt);
+
+	/* Store the configuration */
+	wm8903->mic_jack = jack;
+	wm8903->mic_det = det;
+	wm8903->mic_short = shrt;
+
+	/* Enable interrupts we've got a report configured for */
+	if (det)
+		irq_mask &= ~WM8903_MICDET_EINT;
+	if (shrt)
+		irq_mask &= ~WM8903_MICSHRT_EINT;
+
+	snd_soc_update_bits(codec, WM8903_INTERRUPT_STATUS_1_MASK,
+			    WM8903_MICDET_EINT | WM8903_MICSHRT_EINT,
+			    irq_mask);
+
+	/* Enable mic detection, this may not have been set through
+	 * platform data (eg, if the defaults are OK). */
+	snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
+			    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
+	snd_soc_update_bits(codec, WM8903_MIC_BIAS_CONTROL_0,
+			    WM8903_MICDET_ENA, WM8903_MICDET_ENA);
+
+	/* Force the microphone bias on; this will trigger an initial
+	 * detection. */
+	snd_soc_dapm_force_enable_pin(codec, "Mic Bias");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm8903_mic_detect);
+
 static irqreturn_t wm8903_irq(int irq, void *data)
 {
 	struct wm8903_priv *wm8903 = data;
 	struct snd_soc_codec *codec = &wm8903->codec;
-	int reg;
+	int mic_report;
+	int int_pol;
+	int int_val = 0;
+	int mask = ~snd_soc_read(codec, WM8903_INTERRUPT_STATUS_1_MASK);
 
-	reg = snd_soc_read(codec, WM8903_INTERRUPT_STATUS_1);
+	int_val = snd_soc_read(codec, WM8903_INTERRUPT_STATUS_1) & mask;
 
-	if (reg & WM8903_WSEQ_BUSY_EINT) {
+	if (int_val & WM8903_WSEQ_BUSY_EINT) {
 		dev_dbg(codec->dev, "Write sequencer done\n");
 		complete(&wm8903->wseq);
 	}
+
+	/*
+	 * The rest is microphone jack detection.  We need to manually
+	 * invert the polarity of the interrupt after each event - to
+	 * simplify the code keep track of the last state we reported
+	 * and just invert the relevant bits in both the report and
+	 * the polarity register.
+	 */
+	mic_report = wm8903->mic_last_report;
+	int_pol = snd_soc_read(codec, WM8903_INTERRUPT_POLARITY_1);
+
+	if (int_val & WM8903_MICSHRT_EINT) {
+		dev_dbg(codec->dev, "Microphone short (pol=%x)\n", int_pol);
+
+		mic_report ^= wm8903->mic_short;
+		int_pol ^= WM8903_MICSHRT_INV;
+	}
+
+	if (int_val & WM8903_MICDET_EINT) {
+		dev_dbg(codec->dev, "Microphone detect (pol=%x)\n", int_pol);
+
+		mic_report ^= wm8903->mic_det;
+		int_pol ^= WM8903_MICDET_INV;
+
+		msleep(wm8903->mic_delay);
+	}
+
+	snd_soc_update_bits(codec, WM8903_INTERRUPT_POLARITY_1,
+			    WM8903_MICSHRT_INV | WM8903_MICDET_INV, int_pol);
+
+	snd_soc_jack_report(wm8903->mic_jack, mic_report,
+			    wm8903->mic_short | wm8903->mic_det);
+
+	wm8903->mic_last_report = mic_report;
 
 	return IRQ_HANDLED;
 }
