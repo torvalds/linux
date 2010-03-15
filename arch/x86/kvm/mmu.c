@@ -2560,36 +2560,11 @@ static bool last_updated_pte_accessed(struct kvm_vcpu *vcpu)
 }
 
 static void mmu_guess_page_from_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
-					  const u8 *new, int bytes)
+					  u64 gpte)
 {
 	gfn_t gfn;
-	int r;
-	u64 gpte = 0;
 	pfn_t pfn;
 
-	if (bytes != 4 && bytes != 8)
-		return;
-
-	/*
-	 * Assume that the pte write on a page table of the same type
-	 * as the current vcpu paging mode.  This is nearly always true
-	 * (might be false while changing modes).  Note it is verified later
-	 * by update_pte().
-	 */
-	if (is_pae(vcpu)) {
-		/* Handle a 32-bit guest writing two halves of a 64-bit gpte */
-		if ((bytes == 4) && (gpa % 4 == 0)) {
-			r = kvm_read_guest(vcpu->kvm, gpa & ~(u64)7, &gpte, 8);
-			if (r)
-				return;
-			memcpy((void *)&gpte + (gpa % 8), new, 4);
-		} else if ((bytes == 8) && (gpa % 8 == 0)) {
-			memcpy((void *)&gpte, new, 8);
-		}
-	} else {
-		if ((bytes == 4) && (gpa % 4 == 0))
-			memcpy((void *)&gpte, new, 4);
-	}
 	if (!is_present_gpte(gpte))
 		return;
 	gfn = (gpte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
@@ -2640,7 +2615,34 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 	int r;
 
 	pgprintk("%s: gpa %llx bytes %d\n", __func__, gpa, bytes);
-	mmu_guess_page_from_pte_write(vcpu, gpa, new, bytes);
+
+	switch (bytes) {
+	case 4:
+		gentry = *(const u32 *)new;
+		break;
+	case 8:
+		gentry = *(const u64 *)new;
+		break;
+	default:
+		gentry = 0;
+		break;
+	}
+
+	/*
+	 * Assume that the pte write on a page table of the same type
+	 * as the current vcpu paging mode.  This is nearly always true
+	 * (might be false while changing modes).  Note it is verified later
+	 * by update_pte().
+	 */
+	if (is_pae(vcpu) && bytes == 4) {
+		/* Handle a 32-bit guest writing two halves of a 64-bit gpte */
+		gpa &= ~(gpa_t)7;
+		r = kvm_read_guest(vcpu->kvm, gpa, &gentry, 8);
+		if (r)
+			gentry = 0;
+	}
+
+	mmu_guess_page_from_pte_write(vcpu, gpa, gentry);
 	spin_lock(&vcpu->kvm->mmu_lock);
 	kvm_mmu_access_page(vcpu, gfn);
 	kvm_mmu_free_some_pages(vcpu);
@@ -2705,20 +2707,11 @@ void kvm_mmu_pte_write(struct kvm_vcpu *vcpu, gpa_t gpa,
 				continue;
 		}
 		spte = &sp->spt[page_offset / sizeof(*spte)];
-		if ((gpa & (pte_size - 1)) || (bytes < pte_size)) {
-			gentry = 0;
-			r = kvm_read_guest_atomic(vcpu->kvm,
-						  gpa & ~(u64)(pte_size - 1),
-						  &gentry, pte_size);
-			new = (const void *)&gentry;
-			if (r < 0)
-				new = NULL;
-		}
 		while (npte--) {
 			entry = *spte;
 			mmu_pte_write_zap_pte(vcpu, sp, spte);
-			if (new)
-				mmu_pte_write_new_pte(vcpu, sp, spte, new);
+			if (gentry)
+				mmu_pte_write_new_pte(vcpu, sp, spte, &gentry);
 			mmu_pte_write_flush_tlb(vcpu, entry, *spte);
 			++spte;
 		}
