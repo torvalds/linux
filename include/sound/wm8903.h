@@ -232,6 +232,8 @@
 #define WM8903_GP5_DB_WIDTH                          1  /* GP5_DB */
 
 struct wm8903_platform_data {
+	bool irq_active_low;   /* Set if IRQ active low, default high */
+
         /* Default register value for R6 (Mic bias), used to configure
 	 * microphone detection.  In conjunction with gpio_cfg this
 	 * can be used to route the microphone status signals out onto

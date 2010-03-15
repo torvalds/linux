@@ -12,12 +12,12 @@
  * TODO:
  *  - TDM mode configuration.
  *  - Digital microphone support.
- *  - Interrupt support (mic detect and sequencer).
  */
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
 #include <linux/init.h>
+#include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
 #include <linux/i2c.h>
@@ -29,6 +29,7 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/initval.h>
+#include <sound/wm8903.h>
 
 #include "wm8903.h"
 
@@ -220,6 +221,8 @@ struct wm8903_priv {
 	int playback_active;
 	int capture_active;
 
+	struct completion wseq;
+
 	struct snd_pcm_substream *master_substream;
 	struct snd_pcm_substream *slave_substream;
 };
@@ -242,6 +245,7 @@ static int wm8903_run_sequence(struct snd_soc_codec *codec, unsigned int start)
 {
 	u16 reg[5];
 	struct i2c_client *i2c = codec->control_data;
+	struct wm8903_priv *wm8903 = codec->private_data;
 
 	BUG_ON(start > 48);
 
@@ -256,11 +260,11 @@ static int wm8903_run_sequence(struct snd_soc_codec *codec, unsigned int start)
 		     start | WM8903_WSEQ_START);
 
 	/* Wait for it to complete.  If we have the interrupt wired up then
-	 * we could block waiting for an interrupt, though polling may still
-	 * be desirable for diagnostic purposes.
+	 * that will break us out of the poll early.
 	 */
 	do {
-		msleep(10);
+		wait_for_completion_timeout(&wm8903->wseq,
+					    msecs_to_jiffies(10));
 
 		reg[4] = snd_soc_read(codec, WM8903_WRITE_SEQUENCER_4);
 	} while (reg[4] & WM8903_WSEQ_BUSY);
@@ -1433,6 +1437,22 @@ static int wm8903_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
+static irqreturn_t wm8903_irq(int irq, void *data)
+{
+	struct wm8903_priv *wm8903 = data;
+	struct snd_soc_codec *codec = &wm8903->codec;
+	int reg;
+
+	reg = snd_soc_read(codec, WM8903_INTERRUPT_STATUS_1);
+
+	if (reg & WM8903_WSEQ_BUSY_EINT) {
+		dev_dbg(codec->dev, "Write sequencer done\n");
+		complete(&wm8903->wseq);
+	}
+
+	return IRQ_HANDLED;
+}
+
 #define WM8903_PLAYBACK_RATES (SNDRV_PCM_RATE_8000 |\
 			       SNDRV_PCM_RATE_11025 |	\
 			       SNDRV_PCM_RATE_16000 |	\
@@ -1527,9 +1547,11 @@ static struct snd_soc_codec *wm8903_codec;
 static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 				      const struct i2c_device_id *id)
 {
+	struct wm8903_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct wm8903_priv *wm8903;
 	struct snd_soc_codec *codec;
 	int ret, i;
+	int trigger, irq_pol;
 	u16 val;
 
 	wm8903 = kzalloc(sizeof(struct wm8903_priv), GFP_KERNEL);
@@ -1553,6 +1575,7 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 	codec->reg_cache = &wm8903->reg_cache[0];
 	codec->private_data = wm8903;
 	codec->volatile_register = wm8903_volatile_register;
+	init_completion(&wm8903->wseq);
 
 	i2c_set_clientdata(i2c, codec);
 	codec->control_data = i2c;
@@ -1596,6 +1619,32 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 
 		wm8903->mic_delay = pdata->micdet_delay;
 	}
+	
+	if (i2c->irq) {
+		if (pdata && pdata->irq_active_low) {
+			trigger = IRQF_TRIGGER_LOW;
+			irq_pol = WM8903_IRQ_POL;
+		} else {
+			trigger = IRQF_TRIGGER_HIGH;
+			irq_pol = 0;
+		}
+
+		snd_soc_update_bits(codec, WM8903_INTERRUPT_CONTROL,
+				    WM8903_IRQ_POL, irq_pol);
+		
+		ret = request_threaded_irq(i2c->irq, NULL, wm8903_irq,
+					   trigger | IRQF_ONESHOT,
+					   "wm8903", wm8903);
+		if (ret != 0) {
+			dev_err(&i2c->dev, "Failed to request IRQ: %d\n",
+				ret);
+			goto err;
+		}
+
+		/* Enable write sequencer interrupts */
+		snd_soc_update_bits(codec, WM8903_INTERRUPT_STATUS_1_MASK,
+				    WM8903_IM_WSEQ_BUSY_EINT, 0);
+	}
 
 	/* power on device */
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_STANDBY);
@@ -1637,7 +1686,7 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 	ret = snd_soc_register_codec(codec);
 	if (ret != 0) {
 		dev_err(&i2c->dev, "Failed to register codec: %d\n", ret);
-		goto err;
+		goto err_irq;
 	}
 
 	ret = snd_soc_register_dai(&wm8903_dai);
@@ -1650,6 +1699,9 @@ static __devinit int wm8903_i2c_probe(struct i2c_client *i2c,
 
 err_codec:
 	snd_soc_unregister_codec(codec);
+err_irq:
+	if (i2c->irq)
+		free_irq(i2c->irq, wm8903);
 err:
 	wm8903_codec = NULL;
 	kfree(wm8903);
@@ -1659,11 +1711,15 @@ err:
 static __devexit int wm8903_i2c_remove(struct i2c_client *client)
 {
 	struct snd_soc_codec *codec = i2c_get_clientdata(client);
+	struct wm8903_priv *priv = codec->private_data;
 
 	snd_soc_unregister_dai(&wm8903_dai);
 	snd_soc_unregister_codec(codec);
 
 	wm8903_set_bias_level(codec, SND_SOC_BIAS_OFF);
+
+	if (client->irq)
+		free_irq(client->irq, priv);
 
 	kfree(codec->private_data);
 
