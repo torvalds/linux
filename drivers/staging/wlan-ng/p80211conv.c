@@ -208,7 +208,7 @@ int skb_ether_to_p80211(wlandevice_t *wlandev, u32 ethconv,
 		p80211_wep->data = kmalloc(skb->len, GFP_ATOMIC);
 		foo = wep_encrypt(wlandev, skb->data, p80211_wep->data,
 				  skb->len,
-				  (wlandev->hostwep &HOSTWEP_DEFAULTKEY_MASK),
+				  (wlandev->hostwep & HOSTWEP_DEFAULTKEY_MASK),
 				  p80211_wep->iv, p80211_wep->icv);
 		if (foo) {
 			printk(KERN_WARNING
