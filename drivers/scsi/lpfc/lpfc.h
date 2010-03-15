@@ -554,6 +554,7 @@ struct lpfc_hba {
 	struct lpfc_dmabuf slim2p;
 
 	MAILBOX_t *mbox;
+	uint32_t *mbox_ext;
 	uint32_t *inb_ha_copy;
 	uint32_t *inb_counter;
 	uint32_t inb_last_counter;
@@ -622,6 +623,7 @@ struct lpfc_hba {
 	uint32_t cfg_enable_hba_reset;
 	uint32_t cfg_enable_hba_heartbeat;
 	uint32_t cfg_enable_bg;
+	uint32_t cfg_hostmem_hgp;
 	uint32_t cfg_log_verbose;
 	uint32_t cfg_aer_support;
 	uint32_t cfg_suppress_link_up;

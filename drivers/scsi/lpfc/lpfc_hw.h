@@ -2934,6 +2934,12 @@ typedef struct {
 /* Union of all Mailbox Command types */
 #define MAILBOX_CMD_WSIZE	32
 #define MAILBOX_CMD_SIZE	(MAILBOX_CMD_WSIZE * sizeof(uint32_t))
+/* ext_wsize times 4 bytes should not be greater than max xmit size */
+#define MAILBOX_EXT_WSIZE	512
+#define MAILBOX_EXT_SIZE	(MAILBOX_EXT_WSIZE * sizeof(uint32_t))
+#define MAILBOX_HBA_EXT_OFFSET  0x100
+/* max mbox xmit size is a page size for sysfs IO operations */
+#define MAILBOX_MAX_XMIT_SIZE   PAGE_SIZE
 
 typedef union {
 	uint32_t varWords[MAILBOX_CMD_WSIZE - 1]; /* first word is type/
@@ -3652,7 +3658,8 @@ typedef struct _IOCB {	/* IOCB structure */
 /* Maximum IOCBs that will fit in SLI2 slim */
 #define MAX_SLI2_IOCB    498
 #define MAX_SLIM_IOCB_SIZE (SLI2_SLIM_SIZE - \
-			    (sizeof(MAILBOX_t) + sizeof(PCB_t)))
+			    (sizeof(MAILBOX_t) + sizeof(PCB_t) + \
+			    sizeof(uint32_t) * MAILBOX_EXT_WSIZE))
 
 /* HBQ entries are 4 words each = 4k */
 #define LPFC_TOTAL_HBQ_SIZE (sizeof(struct lpfc_hbq_entry) *  \
@@ -3660,6 +3667,7 @@ typedef struct _IOCB {	/* IOCB structure */
 
 struct lpfc_sli2_slim {
 	MAILBOX_t mbx;
+	uint32_t  mbx_ext_words[MAILBOX_EXT_WSIZE];
 	PCB_t pcb;
 	IOCB_t IOCBs[MAX_SLIM_IOCB_SIZE];
 };

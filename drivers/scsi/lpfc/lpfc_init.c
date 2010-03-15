@@ -5059,6 +5059,8 @@ lpfc_sli_pci_mem_setup(struct lpfc_hba *phba)
 
 	memset(phba->slim2p.virt, 0, SLI2_SLIM_SIZE);
 	phba->mbox = phba->slim2p.virt + offsetof(struct lpfc_sli2_slim, mbx);
+	phba->mbox_ext = (phba->slim2p.virt +
+		offsetof(struct lpfc_sli2_slim, mbx_ext_words));
 	phba->pcb = (phba->slim2p.virt + offsetof(struct lpfc_sli2_slim, pcb));
 	phba->IOCBs = (phba->slim2p.virt +
 		       offsetof(struct lpfc_sli2_slim, IOCBs));
