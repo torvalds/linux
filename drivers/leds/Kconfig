@@ -17,6 +17,13 @@ config LEDS_CLASS
 
 comment "LED drivers"
 
+config LEDS_88PM860X
+	tristate "LED Support for Marvell 88PM860x PMIC"
+	depends on LEDS_CLASS && MFD_88PM860X
+	help
+	  This option enables support for on-chip LED drivers found on Marvell
+	  Semiconductor 88PM8606 PMIC.
+
 config LEDS_ATMEL_PWM
 	tristate "LED Support using Atmel PWM outputs"
 	depends on LEDS_CLASS && ATMEL_PWM

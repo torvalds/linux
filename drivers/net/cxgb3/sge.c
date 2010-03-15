@@ -42,6 +42,7 @@
 #include "sge_defs.h"
 #include "t3_cpl.h"
 #include "firmware_exports.h"
+#include "cxgb3_offload.h"
 
 #define USE_GTS 0
 
@@ -196,13 +197,13 @@ static inline void refill_rspq(struct adapter *adapter,
 /**
  *	need_skb_unmap - does the platform need unmapping of sk_buffs?
  *
- *	Returns true if the platfrom needs sk_buff unmapping.  The compiler
+ *	Returns true if the platform needs sk_buff unmapping.  The compiler
  *	optimizes away unecessary code if this returns true.
  */
 static inline int need_skb_unmap(void)
 {
 	/*
-	 * This structure is used to tell if the platfrom needs buffer
+	 * This structure is used to tell if the platform needs buffer
 	 * unmapping by checking if DECLARE_PCI_UNMAP_ADDR defines anything.
 	 */
 	struct dummy {
@@ -2841,8 +2842,13 @@ void t3_sge_err_intr_handler(struct adapter *adapter)
 	}
 
 	if (status & (F_HIPIODRBDROPERR | F_LOPIODRBDROPERR))
-		CH_ALERT(adapter, "SGE dropped %s priority doorbell\n",
-			 status & F_HIPIODRBDROPERR ? "high" : "lo");
+		queue_work(cxgb3_wq, &adapter->db_drop_task);
+
+	if (status & (F_HIPRIORITYDBFULL | F_LOPRIORITYDBFULL))
+		queue_work(cxgb3_wq, &adapter->db_full_task);
+
+	if (status & (F_HIPRIORITYDBEMPTY | F_LOPRIORITYDBEMPTY))
+		queue_work(cxgb3_wq, &adapter->db_empty_task);
 
 	t3_write_reg(adapter, A_SG_INT_CAUSE, status);
 	if (status &  SGE_FATALERR)

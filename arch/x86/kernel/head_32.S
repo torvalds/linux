@@ -442,8 +442,8 @@ is386:	movl $2,%ecx		# set MP
 	 */
 	cmpb $0,ready
 	jne 1f
-	movl $per_cpu__gdt_page,%eax
-	movl $per_cpu__stack_canary,%ecx
+	movl $gdt_page,%eax
+	movl $stack_canary,%ecx
 	movw %cx, 8 * GDT_ENTRY_STACK_CANARY + 2(%eax)
 	shrl $16, %ecx
 	movb %cl, 8 * GDT_ENTRY_STACK_CANARY + 4(%eax)
@@ -706,7 +706,7 @@ idt_descr:
 	.word 0				# 32 bit align gdt_desc.address
 ENTRY(early_gdt_descr)
 	.word GDT_ENTRIES*8-1
-	.long per_cpu__gdt_page		/* Overwritten for secondary CPUs */
+	.long gdt_page			/* Overwritten for secondary CPUs */
 
 /*
  * The boot_gdt must mirror the equivalent in setup.S and is

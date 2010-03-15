@@ -117,6 +117,7 @@ ia64_init_addr_space (void)
 	 */
 	vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 	if (vma) {
+		INIT_LIST_HEAD(&vma->anon_vma_chain);
 		vma->vm_mm = current->mm;
 		vma->vm_start = current->thread.rbs_bot & PAGE_MASK;
 		vma->vm_end = vma->vm_start + PAGE_SIZE;
@@ -135,6 +136,7 @@ ia64_init_addr_space (void)
 	if (!(current->personality & MMAP_PAGE_ZERO)) {
 		vma = kmem_cache_zalloc(vm_area_cachep, GFP_KERNEL);
 		if (vma) {
+			INIT_LIST_HEAD(&vma->anon_vma_chain);
 			vma->vm_mm = current->mm;
 			vma->vm_end = PAGE_SIZE;
 			vma->vm_page_prot = __pgprot(pgprot_val(PAGE_READONLY) | _PAGE_MA_NAT);

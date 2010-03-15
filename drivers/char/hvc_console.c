@@ -146,7 +146,7 @@ static void hvc_console_print(struct console *co, const char *b,
 		return;
 
 	/* This console adapter was removed so it is not usable. */
-	if (vtermnos[index] < 0)
+	if (vtermnos[index] == -1)
 		return;
 
 	while (count > 0 || i > 0) {

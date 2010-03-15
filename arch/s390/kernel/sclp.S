@@ -235,7 +235,7 @@ _sclp_print:
 	lh	%r9,0(%r8)			# update sccb length
 	ar	%r9,%r6
 	sth	%r9,0(%r8)
-	ar	%r7,%r6				# update current mto adress
+	ar	%r7,%r6				# update current mto address
 	ltr	%r0,%r0				# more characters?
 	jnz	.LinitmtoS4
 	l	%r2,.LwritedataS4-.LbaseS4(%r13)# write data

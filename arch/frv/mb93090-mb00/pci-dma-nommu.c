@@ -106,13 +106,6 @@ void dma_free_coherent(struct device *hwdev, size_t size, void *vaddr, dma_addr_
 
 EXPORT_SYMBOL(dma_free_coherent);
 
-/*
- * Map a single buffer of the indicated size for DMA in streaming mode.
- * The 32-bit bus address to use is returned.
- *
- * Once the device is given the dma address, the device owns this memory
- * until either dma_unmap_single or pci_dma_sync_single is performed.
- */
 dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 			  enum dma_data_direction direction)
 {
@@ -125,22 +118,6 @@ dma_addr_t dma_map_single(struct device *dev, void *ptr, size_t size,
 
 EXPORT_SYMBOL(dma_map_single);
 
-/*
- * Map a set of buffers described by scatterlist in streaming
- * mode for DMA.  This is the scather-gather version of the
- * above dma_map_single interface.  Here the scatter gather list
- * elements are each tagged with the appropriate dma address
- * and length.  They are obtained via sg_dma_{address,length}(SG).
- *
- * NOTE: An implementation may be able to use a smaller number of
- *       DMA address/length pairs than there are SG table elements.
- *       (for example via virtual mapping capabilities)
- *       The routine returns the number of addr/length pairs actually
- *       used, at most nents.
- *
- * Device ownership issues as mentioned above for dma_map_single are
- * the same here.
- */
 int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 	       enum dma_data_direction direction)
 {
@@ -157,13 +134,6 @@ int dma_map_sg(struct device *dev, struct scatterlist *sg, int nents,
 
 EXPORT_SYMBOL(dma_map_sg);
 
-/*
- * Map a single page of the indicated size for DMA in streaming mode.
- * The 32-bit bus address to use is returned.
- *
- * Device ownership issues as mentioned above for dma_map_single are
- * the same here.
- */
 dma_addr_t dma_map_page(struct device *dev, struct page *page, unsigned long offset,
 			size_t size, enum dma_data_direction direction)
 {

@@ -394,7 +394,7 @@ static void ar9170_tx_fake_ampdu_status(struct ar9170 *ar)
 		ieee80211_tx_status_irqsafe(ar->hw, skb);
 	}
 
-	for_each_bit(i, &queue_bitmap, BITS_PER_BYTE) {
+	for_each_set_bit(i, &queue_bitmap, BITS_PER_BYTE) {
 #ifdef AR9170_QUEUE_STOP_DEBUG
 		printk(KERN_DEBUG "%s: wake queue %d\n",
 		       wiphy_name(ar->hw->wiphy), i);
@@ -2512,7 +2512,7 @@ void *ar9170_alloc(size_t priv_size)
 	/*
 	 * this buffer is used for rx stream reconstruction.
 	 * Under heavy load this device (or the transport layer?)
-	 * tends to split the streams into seperate rx descriptors.
+	 * tends to split the streams into separate rx descriptors.
 	 */
 
 	skb = __dev_alloc_skb(AR9170_MAX_RX_BUFFER_SIZE, GFP_KERNEL);

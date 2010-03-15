@@ -300,11 +300,11 @@ static int dnp_dio_insn_config(struct comedi_device *dev,
 
 	/* read 'old' direction of the port and set bits (out=1, in=0)             */
 	register_buffer = inb(CSCDR);
-	if (data[0] == COMEDI_OUTPUT) {
+	if (data[0] == COMEDI_OUTPUT)
 		register_buffer |= (1 << chan);
-	} else {
+	else
 		register_buffer &= ~(1 << chan);
-	}
+
 	outb(register_buffer, CSCDR);
 
 	return 1;

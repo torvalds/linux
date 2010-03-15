@@ -45,44 +45,16 @@
 #define	gadget_is_goku(g)	0
 #endif
 
-/* SH3 UDC -- not yet ported 2.4 --> 2.6 */
-#ifdef CONFIG_USB_GADGET_SUPERH
-#define	gadget_is_sh(g)		!strcmp("sh_udc", (g)->name)
-#else
-#define	gadget_is_sh(g)		0
-#endif
-
-/* not yet stable on 2.6 (would help "original Zaurus") */
-#ifdef CONFIG_USB_GADGET_SA1100
-#define	gadget_is_sa1100(g)	!strcmp("sa1100_udc", (g)->name)
-#else
-#define	gadget_is_sa1100(g)	0
-#endif
-
 #ifdef CONFIG_USB_GADGET_LH7A40X
 #define	gadget_is_lh7a40x(g)	!strcmp("lh7a40x_udc", (g)->name)
 #else
 #define	gadget_is_lh7a40x(g)	0
 #endif
 
-/* handhelds.org tree (?) */
-#ifdef CONFIG_USB_GADGET_MQ11XX
-#define	gadget_is_mq11xx(g)	!strcmp("mq11xx_udc", (g)->name)
-#else
-#define	gadget_is_mq11xx(g)	0
-#endif
-
 #ifdef CONFIG_USB_GADGET_OMAP
 #define	gadget_is_omap(g)	!strcmp("omap_udc", (g)->name)
 #else
 #define	gadget_is_omap(g)	0
-#endif
-
-/* not yet ported 2.4 --> 2.6 */
-#ifdef CONFIG_USB_GADGET_N9604
-#define	gadget_is_n9604(g)	!strcmp("n9604_udc", (g)->name)
-#else
-#define	gadget_is_n9604(g)	0
 #endif
 
 /* various unstable versions available */
@@ -122,14 +94,6 @@
 #define gadget_is_fsl_usb2(g)	0
 #endif
 
-/* Mentor high speed function controller */
-/* from Montavista kernel (?) */
-#ifdef CONFIG_USB_GADGET_MUSBHSFC
-#define gadget_is_musbhsfc(g)	!strcmp("musbhsfc_udc", (g)->name)
-#else
-#define gadget_is_musbhsfc(g)	0
-#endif
-
 /* Mentor high speed "dual role" controller, in peripheral role */
 #ifdef CONFIG_USB_GADGET_MUSB_HDRC
 #define gadget_is_musbhdrc(g)	!strcmp("musb_hdrc", (g)->name)
@@ -141,13 +105,6 @@
 #define gadget_is_langwell(g)	(!strcmp("langwell_udc", (g)->name))
 #else
 #define gadget_is_langwell(g)	0
-#endif
-
-/* from Montavista kernel (?) */
-#ifdef CONFIG_USB_GADGET_MPC8272
-#define gadget_is_mpc8272(g)	!strcmp("mpc8272_udc", (g)->name)
-#else
-#define gadget_is_mpc8272(g)	0
 #endif
 
 #ifdef CONFIG_USB_GADGET_M66592
@@ -203,20 +160,12 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 		return 0x02;
 	else if (gadget_is_pxa(gadget))
 		return 0x03;
-	else if (gadget_is_sh(gadget))
-		return 0x04;
-	else if (gadget_is_sa1100(gadget))
-		return 0x05;
 	else if (gadget_is_goku(gadget))
 		return 0x06;
-	else if (gadget_is_mq11xx(gadget))
-		return 0x07;
 	else if (gadget_is_omap(gadget))
 		return 0x08;
 	else if (gadget_is_lh7a40x(gadget))
 		return 0x09;
-	else if (gadget_is_n9604(gadget))
-		return 0x10;
 	else if (gadget_is_pxa27x(gadget))
 		return 0x11;
 	else if (gadget_is_s3c2410(gadget))
@@ -225,12 +174,8 @@ static inline int usb_gadget_controller_number(struct usb_gadget *gadget)
 		return 0x13;
 	else if (gadget_is_imx(gadget))
 		return 0x14;
-	else if (gadget_is_musbhsfc(gadget))
-		return 0x15;
 	else if (gadget_is_musbhdrc(gadget))
 		return 0x16;
-	else if (gadget_is_mpc8272(gadget))
-		return 0x17;
 	else if (gadget_is_atmel_usba(gadget))
 		return 0x18;
 	else if (gadget_is_fsl_usb2(gadget))
@@ -263,10 +208,6 @@ static inline bool gadget_supports_altsettings(struct usb_gadget *gadget)
 
 	/* PXA 27x and 3xx have *broken* altsetting support */
 	if (gadget_is_pxa27x(gadget))
-		return false;
-
-	/* SH3 hardware just doesn't do altsettings */
-	if (gadget_is_sh(gadget))
 		return false;
 
 	/* Everything else is *presumably* fine ... */

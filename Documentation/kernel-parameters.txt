@@ -200,10 +200,6 @@ and is between 256 and 4096 characters. It is defined in the file
 			acpi_display_output=video
 			See above.
 
-	acpi_early_pdc_eval	[HW,ACPI] Evaluate processor _PDC methods
-				early. Needed on some platforms to properly
-				initialize the EC.
-
 	acpi_irq_balance [HW,ACPI]
 			ACPI will balance active IRQs
 			default in APIC mode
@@ -1794,6 +1790,12 @@ and is between 256 and 4096 characters. It is defined in the file
 			purges which is reported from either PAL_VM_SUMMARY or
 			SAL PALO.
 
+	nr_cpus=	[SMP] Maximum number of processors that	an SMP kernel
+			could support.  nr_cpus=n : n >= 1 limits the kernel to
+			supporting 'n' processors. Later in runtime you can not
+			use hotplug cpu feature to put more cpu back to online.
+			just like you compile the kernel NR_CPUS=n
+
 	nr_uarts=	[SERIAL] maximum number of UARTs to be registered.
 
 	numa_zonelist_order= [KNL, BOOT] Select zonelist order for NUMA.
@@ -2827,6 +2829,12 @@ and is between 256 and 4096 characters. It is defined in the file
 	x2apic_phys	[X86-64,APIC] Use x2apic physical mode instead of
 			default x2apic cluster mode on platforms
 			supporting x2apic.
+
+	x86_mrst_timer= [X86-32,APBT]
+			Choose timer option for x86 Moorestown MID platform.
+			Two valid options are apbt timer only and lapic timer
+			plus one apbt timer for broadcast timer.
+			x86_mrst_timer=apbt_only | lapic_and_apbt
 
 	xd=		[HW,XT] Original XT pre-IDE (RLL encoded) disks.
 	xd_geo=		See header of drivers/block/xd.c.

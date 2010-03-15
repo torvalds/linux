@@ -411,6 +411,8 @@ static int alc_mux_enum_info(struct snd_kcontrol *kcontrol,
 	unsigned int mux_idx = snd_ctl_get_ioffidx(kcontrol, &uinfo->id);
 	if (mux_idx >= spec->num_mux_defs)
 		mux_idx = 0;
+	if (!spec->input_mux[mux_idx].num_items && mux_idx > 0)
+		mux_idx = 0;
 	return snd_hda_input_mux_info(&spec->input_mux[mux_idx], uinfo);
 }
 
@@ -439,6 +441,8 @@ static int alc_mux_enum_put(struct snd_kcontrol *kcontrol,
 
 	mux_idx = adc_idx >= spec->num_mux_defs ? 0 : adc_idx;
 	imux = &spec->input_mux[mux_idx];
+	if (!imux->num_items && mux_idx > 0)
+		imux = &spec->input_mux[0];
 
 	type = get_wcaps_type(get_wcaps(codec, nid));
 	if (type == AC_WID_AUD_MIX) {
@@ -4915,7 +4919,7 @@ static void fixup_automic_adc(struct hda_codec *codec)
 static void fixup_single_adc(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	hda_nid_t pin;
+	hda_nid_t pin = 0;
 	int i;
 
 	/* search for the input pin; there must be only one */
@@ -10105,6 +10109,8 @@ static void alc882_auto_init_input_src(struct hda_codec *codec)
 			continue;
 		mux_idx = c >= spec->num_mux_defs ? 0 : c;
 		imux = &spec->input_mux[mux_idx];
+		if (!imux->num_items && mux_idx > 0)
+			imux = &spec->input_mux[0];
 		for (idx = 0; idx < conns; idx++) {
 			/* if the current connection is the selected one,
 			 * unmute it as default - otherwise mute it
@@ -13201,7 +13207,7 @@ static int patch_alc268(struct hda_codec *codec)
 
 	if (board_config < 0 || board_config >= ALC268_MODEL_LAST)
 		board_config = snd_hda_check_board_codec_sid_config(codec,
-			ALC882_MODEL_LAST, alc268_models, alc268_ssid_cfg_tbl);
+			ALC268_MODEL_LAST, alc268_models, alc268_ssid_cfg_tbl);
 
 	if (board_config < 0 || board_config >= ALC268_MODEL_LAST) {
 		printk(KERN_INFO "hda_codec: %s: BIOS auto-probing.\n",
@@ -13561,6 +13567,8 @@ static void alc269_lifebook_unsol_event(struct hda_codec *codec,
 static void alc269_quanta_fl1_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->ext_mic.pin = 0x18;
 	spec->ext_mic.mux_idx = 0;
 	spec->int_mic.pin = 0x19;
@@ -13656,6 +13664,8 @@ static void alc269_laptop_unsol_event(struct hda_codec *codec,
 static void alc269_laptop_dmic_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->ext_mic.pin = 0x18;
 	spec->ext_mic.mux_idx = 0;
 	spec->int_mic.pin = 0x12;
@@ -13666,6 +13676,8 @@ static void alc269_laptop_dmic_setup(struct hda_codec *codec)
 static void alc269vb_laptop_dmic_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->ext_mic.pin = 0x18;
 	spec->ext_mic.mux_idx = 0;
 	spec->int_mic.pin = 0x12;
@@ -13676,6 +13688,8 @@ static void alc269vb_laptop_dmic_setup(struct hda_codec *codec)
 static void alc269_laptop_amic_setup(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
+	spec->autocfg.hp_pins[0] = 0x15;
+	spec->autocfg.speaker_pins[0] = 0x14;
 	spec->ext_mic.pin = 0x18;
 	spec->ext_mic.mux_idx = 0;
 	spec->int_mic.pin = 0x19;

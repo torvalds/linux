@@ -69,7 +69,7 @@ static noinline int join_transaction(struct btrfs_root *root)
 		cur_trans->commit_done = 0;
 		cur_trans->start_time = get_seconds();
 
-		cur_trans->delayed_refs.root.rb_node = NULL;
+		cur_trans->delayed_refs.root = RB_ROOT;
 		cur_trans->delayed_refs.num_entries = 0;
 		cur_trans->delayed_refs.num_heads_ready = 0;
 		cur_trans->delayed_refs.num_heads = 0;

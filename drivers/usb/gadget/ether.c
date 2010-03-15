@@ -259,7 +259,7 @@ static struct usb_configuration rndis_config_driver = {
 
 /*-------------------------------------------------------------------------*/
 
-#ifdef USB_ETH_EEM
+#ifdef CONFIG_USB_ETH_EEM
 static int use_eem = 1;
 #else
 static int use_eem;

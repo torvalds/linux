@@ -39,6 +39,7 @@
 #include <linux/platform_device.h>
 #include <linux/workqueue.h>
 #include <linux/mutex.h>
+#include <linux/pm_runtime.h>
 
 #include <linux/usb.h>
 
@@ -141,7 +142,7 @@ static const u8 usb3_rh_dev_descriptor[18] = {
 	0x09,       /*  __u8  bMaxPacketSize0; 2^9 = 512 Bytes */
 
 	0x6b, 0x1d, /*  __le16 idVendor; Linux Foundation */
-	0x02, 0x00, /*  __le16 idProduct; device 0x0002 */
+	0x03, 0x00, /*  __le16 idProduct; device 0x0003 */
 	KERNEL_VER, KERNEL_REL, /*  __le16 bcdDevice */
 
 	0x03,       /*  __u8  iManufacturer; */
@@ -1670,11 +1671,16 @@ int usb_hcd_alloc_bandwidth(struct usb_device *udev,
 			}
 		}
 		for (i = 0; i < num_intfs; ++i) {
+			struct usb_host_interface *first_alt;
+			int iface_num;
+
+			first_alt = &new_config->intf_cache[i]->altsetting[0];
+			iface_num = first_alt->desc.bInterfaceNumber;
 			/* Set up endpoints for alternate interface setting 0 */
-			alt = usb_find_alt_setting(new_config, i, 0);
+			alt = usb_find_alt_setting(new_config, iface_num, 0);
 			if (!alt)
 				/* No alt setting 0? Pick the first setting. */
-				alt = &new_config->intf_cache[i]->altsetting[0];
+				alt = first_alt;
 
 			for (j = 0; j < alt->desc.bNumEndpoints; j++) {
 				ret = hcd->driver->add_endpoint(hcd, udev, &alt->endpoint[j]);
@@ -1853,6 +1859,10 @@ int hcd_bus_resume(struct usb_device *rhdev, pm_message_t msg)
 	return status;
 }
 
+#endif	/* CONFIG_PM */
+
+#ifdef	CONFIG_USB_SUSPEND
+
 /* Workqueue routine for root-hub remote wakeup */
 static void hcd_resume_work(struct work_struct *work)
 {
@@ -1860,8 +1870,7 @@ static void hcd_resume_work(struct work_struct *work)
 	struct usb_device *udev = hcd->self.root_hub;
 
 	usb_lock_device(udev);
-	usb_mark_last_busy(udev);
-	usb_external_resume_device(udev, PMSG_REMOTE_RESUME);
+	usb_remote_wakeup(udev);
 	usb_unlock_device(udev);
 }
 
@@ -1880,12 +1889,12 @@ void usb_hcd_resume_root_hub (struct usb_hcd *hcd)
 
 	spin_lock_irqsave (&hcd_root_hub_lock, flags);
 	if (hcd->rh_registered)
-		queue_work(ksuspend_usb_wq, &hcd->wakeup_work);
+		queue_work(pm_wq, &hcd->wakeup_work);
 	spin_unlock_irqrestore (&hcd_root_hub_lock, flags);
 }
 EXPORT_SYMBOL_GPL(usb_hcd_resume_root_hub);
 
-#endif
+#endif	/* CONFIG_USB_SUSPEND */
 
 /*-------------------------------------------------------------------------*/
 
@@ -2030,7 +2039,7 @@ struct usb_hcd *usb_create_hcd (const struct hc_driver *driver,
 	init_timer(&hcd->rh_timer);
 	hcd->rh_timer.function = rh_timer_func;
 	hcd->rh_timer.data = (unsigned long) hcd;
-#ifdef CONFIG_PM
+#ifdef CONFIG_USB_SUSPEND
 	INIT_WORK(&hcd->wakeup_work, hcd_resume_work);
 #endif
 	mutex_init(&hcd->bandwidth_mutex);
@@ -2230,7 +2239,7 @@ void usb_remove_hcd(struct usb_hcd *hcd)
 	hcd->rh_registered = 0;
 	spin_unlock_irq (&hcd_root_hub_lock);
 
-#ifdef CONFIG_PM
+#ifdef CONFIG_USB_SUSPEND
 	cancel_work_sync(&hcd->wakeup_work);
 #endif
 

@@ -976,102 +976,11 @@ out:
 }
 
 /**
- * gfs2_readlinki - return the contents of a symlink
- * @ip: the symlink's inode
- * @buf: a pointer to the buffer to be filled
- * @len: a pointer to the length of @buf
- *
- * If @buf is too small, a piece of memory is kmalloc()ed and needs
- * to be freed by the caller.
- *
- * Returns: errno
- */
-
-static int gfs2_readlinki(struct gfs2_inode *ip, char **buf, unsigned int *len)
-{
-	struct gfs2_holder i_gh;
-	struct buffer_head *dibh;
-	unsigned int x;
-	int error;
-
-	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &i_gh);
-	error = gfs2_glock_nq(&i_gh);
-	if (error) {
-		gfs2_holder_uninit(&i_gh);
-		return error;
-	}
-
-	if (!ip->i_disksize) {
-		gfs2_consist_inode(ip);
-		error = -EIO;
-		goto out;
-	}
-
-	error = gfs2_meta_inode_buffer(ip, &dibh);
-	if (error)
-		goto out;
-
-	x = ip->i_disksize + 1;
-	if (x > *len) {
-		*buf = kmalloc(x, GFP_NOFS);
-		if (!*buf) {
-			error = -ENOMEM;
-			goto out_brelse;
-		}
-	}
-
-	memcpy(*buf, dibh->b_data + sizeof(struct gfs2_dinode), x);
-	*len = x;
-
-out_brelse:
-	brelse(dibh);
-out:
-	gfs2_glock_dq_uninit(&i_gh);
-	return error;
-}
-
-/**
- * gfs2_readlink - Read the value of a symlink
- * @dentry: the symlink
- * @buf: the buffer to read the symlink data into
- * @size: the size of the buffer
- *
- * Returns: errno
- */
-
-static int gfs2_readlink(struct dentry *dentry, char __user *user_buf,
-			 int user_size)
-{
-	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
-	char array[GFS2_FAST_NAME_SIZE], *buf = array;
-	unsigned int len = GFS2_FAST_NAME_SIZE;
-	int error;
-
-	error = gfs2_readlinki(ip, &buf, &len);
-	if (error)
-		return error;
-
-	if (user_size > len - 1)
-		user_size = len - 1;
-
-	if (copy_to_user(user_buf, buf, user_size))
-		error = -EFAULT;
-	else
-		error = user_size;
-
-	if (buf != array)
-		kfree(buf);
-
-	return error;
-}
-
-/**
  * gfs2_follow_link - Follow a symbolic link
  * @dentry: The dentry of the link
  * @nd: Data that we pass to vfs_follow_link()
  *
- * This can handle symlinks of any size. It is optimised for symlinks
- * under GFS2_FAST_NAME_SIZE.
+ * This can handle symlinks of any size.
  *
  * Returns: 0 on success or error code
  */
@@ -1079,19 +988,50 @@ static int gfs2_readlink(struct dentry *dentry, char __user *user_buf,
 static void *gfs2_follow_link(struct dentry *dentry, struct nameidata *nd)
 {
 	struct gfs2_inode *ip = GFS2_I(dentry->d_inode);
-	char array[GFS2_FAST_NAME_SIZE], *buf = array;
-	unsigned int len = GFS2_FAST_NAME_SIZE;
+	struct gfs2_holder i_gh;
+	struct buffer_head *dibh;
+	unsigned int x;
+	char *buf;
 	int error;
 
-	error = gfs2_readlinki(ip, &buf, &len);
-	if (!error) {
-		error = vfs_follow_link(nd, buf);
-		if (buf != array)
-			kfree(buf);
-	} else
-		path_put(&nd->path);
+	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &i_gh);
+	error = gfs2_glock_nq(&i_gh);
+	if (error) {
+		gfs2_holder_uninit(&i_gh);
+		nd_set_link(nd, ERR_PTR(error));
+		return NULL;
+	}
 
-	return ERR_PTR(error);
+	if (!ip->i_disksize) {
+		gfs2_consist_inode(ip);
+		buf = ERR_PTR(-EIO);
+		goto out;
+	}
+
+	error = gfs2_meta_inode_buffer(ip, &dibh);
+	if (error) {
+		buf = ERR_PTR(error);
+		goto out;
+	}
+
+	x = ip->i_disksize + 1;
+	buf = kmalloc(x, GFP_NOFS);
+	if (!buf)
+		buf = ERR_PTR(-ENOMEM);
+	else
+		memcpy(buf, dibh->b_data + sizeof(struct gfs2_dinode), x);
+	brelse(dibh);
+out:
+	gfs2_glock_dq_uninit(&i_gh);
+	nd_set_link(nd, buf);
+	return NULL;
+}
+
+static void gfs2_put_link(struct dentry *dentry, struct nameidata *nd, void *p)
+{
+	char *s = nd_get_link(nd);
+	if (!IS_ERR(s))
+		kfree(s);
 }
 
 /**
@@ -1426,8 +1366,9 @@ const struct inode_operations gfs2_dir_iops = {
 };
 
 const struct inode_operations gfs2_symlink_iops = {
-	.readlink = gfs2_readlink,
+	.readlink = generic_readlink,
 	.follow_link = gfs2_follow_link,
+	.put_link = gfs2_put_link,
 	.permission = gfs2_permission,
 	.setattr = gfs2_setattr,
 	.getattr = gfs2_getattr,

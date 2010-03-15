@@ -303,6 +303,49 @@ int pci_find_ext_capability(struct pci_dev *dev, int cap)
 }
 EXPORT_SYMBOL_GPL(pci_find_ext_capability);
 
+/**
+ * pci_bus_find_ext_capability - find an extended capability
+ * @bus:   the PCI bus to query
+ * @devfn: PCI device to query
+ * @cap:   capability code
+ *
+ * Like pci_find_ext_capability() but works for pci devices that do not have a
+ * pci_dev structure set up yet.
+ *
+ * Returns the address of the requested capability structure within the
+ * device's PCI configuration space or 0 in case the device does not
+ * support it.
+ */
+int pci_bus_find_ext_capability(struct pci_bus *bus, unsigned int devfn,
+				int cap)
+{
+	u32 header;
+	int ttl;
+	int pos = PCI_CFG_SPACE_SIZE;
+
+	/* minimum 8 bytes per capability */
+	ttl = (PCI_CFG_SPACE_EXP_SIZE - PCI_CFG_SPACE_SIZE) / 8;
+
+	if (!pci_bus_read_config_dword(bus, devfn, pos, &header))
+		return 0;
+	if (header == 0xffffffff || header == 0)
+		return 0;
+
+	while (ttl-- > 0) {
+		if (PCI_EXT_CAP_ID(header) == cap)
+			return pos;
+
+		pos = PCI_EXT_CAP_NEXT(header);
+		if (pos < PCI_CFG_SPACE_SIZE)
+			break;
+
+		if (!pci_bus_read_config_dword(bus, devfn, pos, &header))
+			break;
+	}
+
+	return 0;
+}
+
 static int __pci_find_next_ht_cap(struct pci_dev *dev, int pos, int ht_cap)
 {
 	int rc, ttl = PCI_FIND_CAP_TTL;
@@ -1540,8 +1583,10 @@ void pci_pm_init(struct pci_dev *dev)
 	int pm;
 	u16 pmc;
 
+	pm_runtime_forbid(&dev->dev);
 	device_enable_async_suspend(&dev->dev);
 	dev->wakeup_prepared = false;
+
 	dev->pm_cap = 0;
 
 	/* find PCI PM capability in list */
@@ -2253,35 +2298,6 @@ void pci_msi_off(struct pci_dev *dev)
 	}
 }
 
-#ifndef HAVE_ARCH_PCI_SET_DMA_MASK
-/*
- * These can be overridden by arch-specific implementations
- */
-int
-pci_set_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	if (!pci_dma_supported(dev, mask))
-		return -EIO;
-
-	dev->dma_mask = mask;
-	dev_dbg(&dev->dev, "using %dbit DMA mask\n", fls64(mask));
-
-	return 0;
-}
-    
-int
-pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	if (!pci_dma_supported(dev, mask))
-		return -EIO;
-
-	dev->dev.coherent_dma_mask = mask;
-	dev_dbg(&dev->dev, "using %dbit consistent DMA mask\n", fls64(mask));
-
-	return 0;
-}
-#endif
-
 #ifndef HAVE_ARCH_PCI_SET_DMA_MAX_SEGMENT_SIZE
 int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size)
 {
@@ -2443,7 +2459,7 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 	if (!probe) {
 		pci_block_user_cfg_access(dev);
 		/* block PM suspend, driver probe, etc. */
-		down(&dev->dev.sem);
+		device_lock(&dev->dev);
 	}
 
 	rc = pci_dev_specific_reset(dev, probe);
@@ -2465,7 +2481,7 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 	rc = pci_parent_bus_reset(dev, probe);
 done:
 	if (!probe) {
-		up(&dev->dev.sem);
+		device_unlock(&dev->dev);
 		pci_unblock_user_cfg_access(dev);
 	}
 
@@ -3023,8 +3039,6 @@ EXPORT_SYMBOL(pci_set_mwi);
 EXPORT_SYMBOL(pci_try_set_mwi);
 EXPORT_SYMBOL(pci_clear_mwi);
 EXPORT_SYMBOL_GPL(pci_intx);
-EXPORT_SYMBOL(pci_set_dma_mask);
-EXPORT_SYMBOL(pci_set_consistent_dma_mask);
 EXPORT_SYMBOL(pci_assign_resource);
 EXPORT_SYMBOL(pci_find_parent_resource);
 EXPORT_SYMBOL(pci_select_bars);

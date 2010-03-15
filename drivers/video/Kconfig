@@ -400,9 +400,12 @@ config FB_SA1100
 	  If you plan to use the LCD display with your SA-1100 system, say
 	  Y here.
 
+config HAVE_FB_IMX
+	bool
+
 config FB_IMX
 	tristate "Motorola i.MX LCD support"
-	depends on FB && (ARCH_MX1 || ARCH_MX2)
+	depends on FB && (HAVE_FB_IMX || ARCH_MX1 || ARCH_MX2)
 	select FB_CFB_FILLRECT
 	select FB_CFB_COPYAREA
 	select FB_CFB_IMAGEBLIT
@@ -908,6 +911,18 @@ config FB_XVR2500
 	  only works on sparc64 systems where the system firmware has
 	  mostly initialized the card already.  It is treated as a
 	  completely dumb framebuffer device.
+
+config FB_XVR1000
+	bool "Sun XVR-1000 support"
+	depends on SPARC64
+	select FB_CFB_FILLRECT
+	select FB_CFB_COPYAREA
+	select FB_CFB_IMAGEBLIT
+	help
+	  This is the framebuffer device for the Sun XVR-1000 and similar
+	  graphics cards.  The driver only works on sparc64 systems where
+	  the system firmware has mostly initialized the card already.  It
+	  is treated as a completely dumb framebuffer device.
 
 config FB_PVR2
 	tristate "NEC PowerVR 2 display support"
@@ -1494,7 +1509,6 @@ config FB_VIA
        select FB_CFB_FILLRECT
        select FB_CFB_COPYAREA
        select FB_CFB_IMAGEBLIT
-       select FB_SOFT_CURSOR
        select I2C_ALGOBIT
        select I2C
        help
@@ -1944,6 +1958,27 @@ config FB_S3C2410_DEBUG
 	help
 	  Turn on debugging messages. Note that you can set/unset at run time
 	  through sysfs
+
+config FB_NUC900
+        bool "NUC900 LCD framebuffer support"
+        depends on FB && ARCH_W90X900
+        select FB_CFB_FILLRECT
+        select FB_CFB_COPYAREA
+        select FB_CFB_IMAGEBLIT
+        ---help---
+          Frame buffer driver for the built-in LCD controller in the Nuvoton
+          NUC900 processor
+
+config GPM1040A0_320X240
+        bool "Giantplus Technology GPM1040A0 320x240 Color TFT LCD"
+        depends on FB_NUC900
+
+config FB_NUC900_DEBUG
+        bool "NUC900 lcd debug messages"
+        depends on FB_NUC900
+        help
+          Turn on debugging messages. Note that you can set/unset at run time
+          through sysfs
 
 config FB_SM501
 	tristate "Silicon Motion SM501 framebuffer support"

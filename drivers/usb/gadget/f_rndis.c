@@ -769,10 +769,6 @@ rndis_unbind(struct usb_configuration *c, struct usb_function *f)
 /* Some controllers can't support RNDIS ... */
 static inline bool can_support_rndis(struct usb_configuration *c)
 {
-	/* only two endpoints on sa1100 */
-	if (gadget_is_sa1100(c->cdev->gadget))
-		return false;
-
 	/* everything else is *presumably* fine */
 	return true;
 }

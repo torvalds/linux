@@ -150,7 +150,7 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		break;
 	case TTM_PL_TT:
-		man->gpu_offset = rdev->mc.gtt_location;
+		man->gpu_offset = rdev->mc.gtt_start;
 		man->available_caching = TTM_PL_MASK_CACHING;
 		man->default_caching = TTM_PL_FLAG_CACHED;
 		man->flags = TTM_MEMTYPE_FLAG_MAPPABLE | TTM_MEMTYPE_FLAG_CMA;
@@ -180,7 +180,7 @@ static int radeon_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		break;
 	case TTM_PL_VRAM:
 		/* "On-card" video ram */
-		man->gpu_offset = rdev->mc.vram_location;
+		man->gpu_offset = rdev->mc.vram_start;
 		man->flags = TTM_MEMTYPE_FLAG_FIXED |
 			     TTM_MEMTYPE_FLAG_NEEDS_IOREMAP |
 			     TTM_MEMTYPE_FLAG_MAPPABLE;
@@ -262,10 +262,10 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 
 	switch (old_mem->mem_type) {
 	case TTM_PL_VRAM:
-		old_start += rdev->mc.vram_location;
+		old_start += rdev->mc.vram_start;
 		break;
 	case TTM_PL_TT:
-		old_start += rdev->mc.gtt_location;
+		old_start += rdev->mc.gtt_start;
 		break;
 	default:
 		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);
@@ -273,10 +273,10 @@ static int radeon_move_blit(struct ttm_buffer_object *bo,
 	}
 	switch (new_mem->mem_type) {
 	case TTM_PL_VRAM:
-		new_start += rdev->mc.vram_location;
+		new_start += rdev->mc.vram_start;
 		break;
 	case TTM_PL_TT:
-		new_start += rdev->mc.gtt_location;
+		new_start += rdev->mc.gtt_start;
 		break;
 	default:
 		DRM_ERROR("Unknown placement %d\n", old_mem->mem_type);

@@ -255,7 +255,8 @@ void zfTkipInit(u8_t* key, u8_t* ta, struct zsTkipSeed* pSeed, u8_t* initIv)
     zfMemoryCopy(pSeed->ta, ta, 6);
     zfMemoryCopy(pSeed->tk, key, 16);
 
-    iv16 = *initIv++;
+    iv16 = *initIv;
+    initIv++;
     iv16 += *initIv<<8;
     initIv++;
 
@@ -264,7 +265,7 @@ void zfTkipInit(u8_t* key, u8_t* ta, struct zsTkipSeed* pSeed, u8_t* initIv)
     for(i=0; i<4; i++)      // initiv is little endian
     {
         iv32 += *initIv<<(i*8);
-        *initIv++;
+        initIv++;
     }
 
     pSeed->iv32 = iv32+1; // Force Recalculating on Tkip Phase1

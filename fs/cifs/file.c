@@ -2289,9 +2289,9 @@ cifs_oplock_break(struct slow_work *work)
 	if (inode && S_ISREG(inode->i_mode)) {
 #ifdef CONFIG_CIFS_EXPERIMENTAL
 		if (cinode->clientCanCacheAll == 0)
-			break_lease(inode, FMODE_READ);
+			break_lease(inode, O_RDONLY);
 		else if (cinode->clientCanCacheRead == 0)
-			break_lease(inode, FMODE_WRITE);
+			break_lease(inode, O_WRONLY);
 #endif
 		rc = filemap_fdatawrite(inode->i_mapping);
 		if (cinode->clientCanCacheRead == 0) {

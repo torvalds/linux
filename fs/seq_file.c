@@ -734,7 +734,7 @@ EXPORT_SYMBOL(seq_hlist_start_head);
  * seq_hlist_next - move to the next position of the hlist
  * @v:    the current iterator
  * @head: the head of the hlist
- * @pos:  the current posision
+ * @ppos: the current position
  *
  * Called at seq_file->op->next().
  */
@@ -800,7 +800,7 @@ EXPORT_SYMBOL(seq_hlist_start_head_rcu);
  * seq_hlist_next_rcu - move to the next position of the hlist protected by RCU
  * @v:    the current iterator
  * @head: the head of the hlist
- * @pos:  the current posision
+ * @ppos: the current position
  *
  * Called at seq_file->op->next().
  *

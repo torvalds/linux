@@ -41,6 +41,7 @@
 #include <linux/idr.h>
 #include <linux/mutex.h>
 #include <linux/completion.h>
+#include <linux/cdev.h>
 
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_umem.h>
@@ -69,23 +70,23 @@
 
 struct ib_uverbs_device {
 	struct kref				ref;
+	int					num_comp_vectors;
 	struct completion			comp;
-	int					devnum;
-	struct cdev			       *cdev;
 	struct device			       *dev;
 	struct ib_device		       *ib_dev;
-	int					num_comp_vectors;
+	int					devnum;
+	struct cdev			        cdev;
 };
 
 struct ib_uverbs_event_file {
 	struct kref				ref;
+	int					is_async;
 	struct ib_uverbs_file		       *uverbs_file;
 	spinlock_t				lock;
+	int					is_closed;
 	wait_queue_head_t			poll_wait;
 	struct fasync_struct		       *async_queue;
 	struct list_head			event_list;
-	int					is_async;
-	int					is_closed;
 };
 
 struct ib_uverbs_file {
@@ -145,7 +146,7 @@ extern struct idr ib_uverbs_srq_idr;
 void idr_remove_uobj(struct idr *idp, struct ib_uobject *uobj);
 
 struct file *ib_uverbs_alloc_event_file(struct ib_uverbs_file *uverbs_file,
-					int is_async, int *fd);
+					int is_async);
 struct ib_uverbs_event_file *ib_uverbs_lookup_comp_file(int fd);
 
 void ib_uverbs_release_ucq(struct ib_uverbs_file *file,

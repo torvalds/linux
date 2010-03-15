@@ -79,7 +79,7 @@ static ssize_t port_attr_show(struct kobject *kobj,
 	return port_attr->show(p, port_attr, buf);
 }
 
-static struct sysfs_ops port_sysfs_ops = {
+static const struct sysfs_ops port_sysfs_ops = {
 	.show = port_attr_show
 };
 

@@ -17,8 +17,7 @@ kernels must turn 4.1 on or off *before* turning support for version 4
 on or off; rpc.nfsd does this correctly.)
 
 The NFSv4 minorversion 1 (NFSv4.1) implementation in nfsd is based
-on the latest NFSv4.1 Internet Draft:
-http://tools.ietf.org/html/draft-ietf-nfsv4-minorversion1-29
+on RFC 5661.
 
 From the many new features in NFSv4.1 the current implementation
 focuses on the mandatory-to-implement NFSv4.1 Sessions, providing
@@ -44,7 +43,7 @@ interoperability problems with future clients.  Known issues:
 	  trunking, but this is a mandatory feature, and its use is
 	  recommended to clients in a number of places.  (E.g. to ensure
 	  timely renewal in case an existing connection's retry timeouts
-	  have gotten too long; see section 8.3 of the draft.)
+	  have gotten too long; see section 8.3 of the RFC.)
 	  Therefore, lack of this feature may cause future clients to
 	  fail.
 	- Incomplete backchannel support: incomplete backchannel gss

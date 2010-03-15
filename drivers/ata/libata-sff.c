@@ -2287,7 +2287,7 @@ EXPORT_SYMBOL_GPL(ata_sff_postreset);
  *	@qc: command
  *
  *	Drain the FIFO and device of any stuck data following a command
- *	failing to complete. In some cases this is neccessary before a
+ *	failing to complete. In some cases this is necessary before a
  *	reset will recover the device.
  *
  */

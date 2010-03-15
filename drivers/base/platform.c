@@ -128,7 +128,7 @@ struct platform_object {
 };
 
 /**
- * platform_device_put
+ * platform_device_put - destroy a platform device
  * @pdev: platform device to free
  *
  * Free all memory associated with a platform device.  This function must
@@ -152,7 +152,7 @@ static void platform_device_release(struct device *dev)
 }
 
 /**
- * platform_device_alloc
+ * platform_device_alloc - create a platform device
  * @name: base name of the device we're adding
  * @id: instance id
  *
@@ -177,7 +177,7 @@ struct platform_device *platform_device_alloc(const char *name, int id)
 EXPORT_SYMBOL_GPL(platform_device_alloc);
 
 /**
- * platform_device_add_resources
+ * platform_device_add_resources - add resources to a platform device
  * @pdev: platform device allocated by platform_device_alloc to add resources to
  * @res: set of resources that needs to be allocated for the device
  * @num: number of resources
@@ -202,7 +202,7 @@ int platform_device_add_resources(struct platform_device *pdev,
 EXPORT_SYMBOL_GPL(platform_device_add_resources);
 
 /**
- * platform_device_add_data
+ * platform_device_add_data - add platform-specific data to a platform device
  * @pdev: platform device allocated by platform_device_alloc to add resources to
  * @data: platform specific data for this platform device
  * @size: size of platform specific data
@@ -344,7 +344,7 @@ void platform_device_unregister(struct platform_device *pdev)
 EXPORT_SYMBOL_GPL(platform_device_unregister);
 
 /**
- * platform_device_register_simple
+ * platform_device_register_simple - add a platform-level device and its resources
  * @name: base name of the device we're adding
  * @id: instance id
  * @res: set of resources that needs to be allocated for the device
@@ -396,7 +396,7 @@ error:
 EXPORT_SYMBOL_GPL(platform_device_register_simple);
 
 /**
- * platform_device_register_data
+ * platform_device_register_data - add a platform-level device with platform-specific data
  * @parent: parent device for the device we're adding
  * @name: base name of the device we're adding
  * @id: instance id
@@ -473,7 +473,7 @@ static void platform_drv_shutdown(struct device *_dev)
 }
 
 /**
- * platform_driver_register
+ * platform_driver_register - register a driver for platform-level devices
  * @drv: platform driver structure
  */
 int platform_driver_register(struct platform_driver *drv)
@@ -491,7 +491,7 @@ int platform_driver_register(struct platform_driver *drv)
 EXPORT_SYMBOL_GPL(platform_driver_register);
 
 /**
- * platform_driver_unregister
+ * platform_driver_unregister - unregister a driver for platform-level devices
  * @drv: platform driver structure
  */
 void platform_driver_unregister(struct platform_driver *drv)
@@ -548,6 +548,64 @@ int __init_or_module platform_driver_probe(struct platform_driver *drv,
 }
 EXPORT_SYMBOL_GPL(platform_driver_probe);
 
+/**
+ * platform_create_bundle - register driver and create corresponding device
+ * @driver: platform driver structure
+ * @probe: the driver probe routine, probably from an __init section
+ * @res: set of resources that needs to be allocated for the device
+ * @n_res: number of resources
+ * @data: platform specific data for this platform device
+ * @size: size of platform specific data
+ *
+ * Use this in legacy-style modules that probe hardware directly and
+ * register a single platform device and corresponding platform driver.
+ */
+struct platform_device * __init_or_module platform_create_bundle(
+			struct platform_driver *driver,
+			int (*probe)(struct platform_device *),
+			struct resource *res, unsigned int n_res,
+			const void *data, size_t size)
+{
+	struct platform_device *pdev;
+	int error;
+
+	pdev = platform_device_alloc(driver->driver.name, -1);
+	if (!pdev) {
+		error = -ENOMEM;
+		goto err_out;
+	}
+
+	if (res) {
+		error = platform_device_add_resources(pdev, res, n_res);
+		if (error)
+			goto err_pdev_put;
+	}
+
+	if (data) {
+		error = platform_device_add_data(pdev, data, size);
+		if (error)
+			goto err_pdev_put;
+	}
+
+	error = platform_device_add(pdev);
+	if (error)
+		goto err_pdev_put;
+
+	error = platform_driver_probe(driver, probe);
+	if (error)
+		goto err_pdev_del;
+
+	return pdev;
+
+err_pdev_del:
+	platform_device_del(pdev);
+err_pdev_put:
+	platform_device_put(pdev);
+err_out:
+	return ERR_PTR(error);
+}
+EXPORT_SYMBOL_GPL(platform_create_bundle);
+
 /* modalias support enables more hands-off userspace setup:
  * (a) environment variable lets new-style hotplug events work once system is
  *     fully running:  "modprobe $MODALIAS"
@@ -578,7 +636,7 @@ static int platform_uevent(struct device *dev, struct kobj_uevent_env *env)
 }
 
 static const struct platform_device_id *platform_match_id(
-			struct platform_device_id *id,
+			const struct platform_device_id *id,
 			struct platform_device *pdev)
 {
 	while (id->name[0]) {

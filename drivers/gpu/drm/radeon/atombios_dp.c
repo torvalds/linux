@@ -321,6 +321,10 @@ static void dp_get_adjust_train(u8 link_status[DP_LINK_STATUS_SIZE],
 		train_set[lane] = v | p;
 }
 
+union aux_channel_transaction {
+	PROCESS_AUX_CHANNEL_TRANSACTION_PS_ALLOCATION v1;
+	PROCESS_AUX_CHANNEL_TRANSACTION_PARAMETERS_V2 v2;
+};
 
 /* radeon aux chan functions */
 bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
@@ -329,7 +333,7 @@ bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
 {
 	struct drm_device *dev = chan->dev;
 	struct radeon_device *rdev = dev->dev_private;
-	PROCESS_AUX_CHANNEL_TRANSACTION_PS_ALLOCATION args;
+	union aux_channel_transaction args;
 	int index = GetIndexIntoMasterTable(COMMAND, ProcessAuxChannelTransaction);
 	unsigned char *base;
 	int retry_count = 0;
@@ -341,31 +345,33 @@ bool radeon_process_aux_ch(struct radeon_i2c_chan *chan, u8 *req_bytes,
 retry:
 	memcpy(base, req_bytes, num_bytes);
 
-	args.lpAuxRequest = 0;
-	args.lpDataOut = 16;
-	args.ucDataOutLen = 0;
-	args.ucChannelID = chan->rec.i2c_id;
-	args.ucDelay = delay / 10;
+	args.v1.lpAuxRequest = 0;
+	args.v1.lpDataOut = 16;
+	args.v1.ucDataOutLen = 0;
+	args.v1.ucChannelID = chan->rec.i2c_id;
+	args.v1.ucDelay = delay / 10;
+	if (ASIC_IS_DCE4(rdev))
+		args.v2.ucHPD_ID = chan->rec.hpd_id;
 
 	atom_execute_table(rdev->mode_info.atom_context, index, (uint32_t *)&args);
 
-	if (args.ucReplyStatus && !args.ucDataOutLen) {
-		if (args.ucReplyStatus == 0x20 && retry_count++ < 10)
+	if (args.v1.ucReplyStatus && !args.v1.ucDataOutLen) {
+		if (args.v1.ucReplyStatus == 0x20 && retry_count++ < 10)
 			goto retry;
 		DRM_DEBUG("failed to get auxch %02x%02x %02x %02x 0x%02x %02x after %d retries\n",
 			  req_bytes[1], req_bytes[0], req_bytes[2], req_bytes[3],
-			  chan->rec.i2c_id, args.ucReplyStatus, retry_count);
+			  chan->rec.i2c_id, args.v1.ucReplyStatus, retry_count);
 		return false;
 	}
 
-	if (args.ucDataOutLen && read_byte && read_buf_len) {
-		if (read_buf_len < args.ucDataOutLen) {
+	if (args.v1.ucDataOutLen && read_byte && read_buf_len) {
+		if (read_buf_len < args.v1.ucDataOutLen) {
 			DRM_ERROR("Buffer to small for return answer %d %d\n",
-				  read_buf_len, args.ucDataOutLen);
+				  read_buf_len, args.v1.ucDataOutLen);
 			return false;
 		}
 		{
-			int len = min(read_buf_len, args.ucDataOutLen);
+			int len = min(read_buf_len, args.v1.ucDataOutLen);
 			memcpy(read_byte, base + 16, len);
 		}
 	}
@@ -626,12 +632,19 @@ void dp_link_train(struct drm_encoder *encoder,
 	dp_set_link_bw_lanes(radeon_connector, link_configuration);
 	/* disable downspread on the sink */
 	dp_set_downspread(radeon_connector, 0);
-	/* start training on the source */
-	radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_START,
-				  dig_connector->dp_clock, enc_id, 0);
-	/* set training pattern 1 on the source */
-	radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_PATTERN_SEL,
-				  dig_connector->dp_clock, enc_id, 0);
+	if (ASIC_IS_DCE4(rdev)) {
+		/* start training on the source */
+		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_START);
+		/* set training pattern 1 on the source */
+		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN1);
+	} else {
+		/* start training on the source */
+		radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_START,
+					  dig_connector->dp_clock, enc_id, 0);
+		/* set training pattern 1 on the source */
+		radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_PATTERN_SEL,
+					  dig_connector->dp_clock, enc_id, 0);
+	}
 
 	/* set initial vs/emph */
 	memset(train_set, 0, 4);
@@ -691,8 +704,11 @@ void dp_link_train(struct drm_encoder *encoder,
 	/* set training pattern 2 on the sink */
 	dp_set_training(radeon_connector, DP_TRAINING_PATTERN_2);
 	/* set training pattern 2 on the source */
-	radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_PATTERN_SEL,
-				  dig_connector->dp_clock, enc_id, 1);
+	if (ASIC_IS_DCE4(rdev))
+		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_PATTERN2);
+	else
+		radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_PATTERN_SEL,
+					  dig_connector->dp_clock, enc_id, 1);
 
 	/* channel equalization loop */
 	tries = 0;
@@ -729,7 +745,11 @@ void dp_link_train(struct drm_encoder *encoder,
 			  >> DP_TRAIN_PRE_EMPHASIS_SHIFT);
 
 	/* disable the training pattern on the sink */
-	dp_set_training(radeon_connector, DP_TRAINING_PATTERN_DISABLE);
+	if (ASIC_IS_DCE4(rdev))
+		atombios_dig_encoder_setup(encoder, ATOM_ENCODER_CMD_DP_LINK_TRAINING_COMPLETE);
+	else
+		radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_COMPLETE,
+					  dig_connector->dp_clock, enc_id, 0);
 
 	radeon_dp_encoder_service(rdev, ATOM_DP_ACTION_TRAINING_COMPLETE,
 				  dig_connector->dp_clock, enc_id, 0);

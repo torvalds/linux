@@ -71,6 +71,7 @@ Descriptions of section entries:
 	M: Mail patches to: FullName <address@domain>
 	L: Mailing list that is relevant to this area
 	W: Web-page with status/info
+	Q: Patchwork web based patch tracking system site
 	T: SCM tree type and location.  Type is one of: git, hg, quilt, stgit.
 	S: Status, one of the following:
 	   Supported:	Someone is actually paid to look after this.
@@ -182,6 +183,7 @@ M:	Ron Minnich <rminnich@sandia.gov>
 M:	Latchesar Ionkov <lucho@ionkov.net>
 L:	v9fs-developer@lists.sourceforge.net
 W:	http://swik.net/v9fs
+Q:	http://patchwork.kernel.org/project/v9fs-devel/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ericvh/v9fs.git
 S:	Maintained
 F:	Documentation/filesystems/9p.txt
@@ -238,6 +240,7 @@ ACPI
 M:	Len Brown <lenb@kernel.org>
 L:	linux-acpi@vger.kernel.org
 W:	http://www.lesswatts.org/projects/acpi/
+Q:	http://patchwork.kernel.org/project/linux-acpi/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lenb/linux-acpi-2.6.git
 S:	Supported
 F:	drivers/acpi/
@@ -428,7 +431,6 @@ P:	Jordan Crouse
 L:	linux-geode@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.amd.com/us-en/ConnectivitySolutions/TechnicalResources/0,,50_2334_2452_11363,00.html
 S:	Supported
-F:	arch/x86/kernel/geode_32.c
 F:	drivers/char/hw_random/geode-rng.c
 F:	drivers/crypto/geode*
 F:	drivers/video/geode/
@@ -663,6 +665,12 @@ S:	Maintained
 T:	git://git.pengutronix.de/git/imx/linux-2.6.git
 F:	arch/arm/mach-mx*/
 F:	arch/arm/plat-mxc/
+
+ARM/FREESCALE IMX51
+M:	Amit Kucheria <amit.kucheria@canonical.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+S:	Maintained
+F:	arch/arm/mach-mx5/
 
 ARM/GLOMATION GESBC9312SX MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
@@ -937,6 +945,16 @@ W:	http://www.fluff.org/ben/linux/
 S:	Maintained
 F:	arch/arm/mach-s3c6410/
 
+ARM/SHMOBILE ARM ARCHITECTURE
+M:	Paul Mundt <lethal@linux-sh.org>
+M:	Magnus Damm <magnus.damm@gmail.com>
+L:	linux-sh@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/genesis-2.6.git
+W:	http://oss.renesas.com
+S:	Supported
+F:	arch/arm/mach-shmobile/
+F:	drivers/sh/
+
 ARM/TECHNOLOGIC SYSTEMS TS7250 MACHINE SUPPORT
 M:	Lennert Buytenhek <kernel@wantstofly.org>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
@@ -965,6 +983,13 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 W:	http://www.arm.linux.org.uk/
 S:	Maintained
 F:	arch/arm/vfp/
+
+ASC7621 HARDWARE MONITOR DRIVER
+M:	George Joseph <george.joseph@fairview5.com>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/asc7621
+F:	drivers/hwmon/asc7621.c
 
 ASUS ACPI EXTRAS DRIVER
 M:	Corentin Chary <corentincj@iksaif.net>
@@ -1226,6 +1251,13 @@ W:	http://blackfin.uclinux.org
 S:	Supported
 F:	drivers/rtc/rtc-bfin.c
 
+BLACKFIN SDH DRIVER
+M:	Cliff Cai <cliff.cai@analog.com>
+L:	uclinux-dist-devel@blackfin.uclinux.org
+W:	http://blackfin.uclinux.org
+S:	Supported
+F:	drivers/mmc/host/bfin_sdh.c
+
 BLACKFIN SERIAL DRIVER
 M:	Sonic Zhang <sonic.zhang@analog.com>
 L:	uclinux-dist-devel@blackfin.uclinux.org
@@ -1332,6 +1364,7 @@ BTRFS FILE SYSTEM
 M:	Chris Mason <chris.mason@oracle.com>
 L:	linux-btrfs@vger.kernel.org
 W:	http://btrfs.wiki.kernel.org/
+Q:	http://patchwork.kernel.org/project/linux-btrfs/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mason/btrfs-unstable.git
 S:	Maintained
 F:	Documentation/filesystems/btrfs.txt
@@ -1506,6 +1539,7 @@ M:	Steve French <sfrench@samba.org>
 L:	linux-cifs-client@lists.samba.org (moderated for non-subscribers)
 L:	samba-technical@lists.samba.org (moderated for non-subscribers)
 W:	http://linux-cifs.samba.org/
+Q:	http://patchwork.ozlabs.org/project/linux-cifs-client/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/sfrench/cifs-2.6.git
 S:	Supported
 F:	Documentation/filesystems/cifs.txt
@@ -1792,6 +1826,7 @@ DEVICE-MAPPER  (LVM)
 P:	Alasdair Kergon
 L:	dm-devel@redhat.com
 W:	http://sources.redhat.com/dm
+Q:	http://patchwork.kernel.org/project/dm-devel/list/
 S:	Maintained
 F:	Documentation/device-mapper/
 F:	drivers/md/dm*
@@ -2137,6 +2172,7 @@ M:	"Theodore Ts'o" <tytso@mit.edu>
 M:	Andreas Dilger <adilger@sun.com>
 L:	linux-ext4@vger.kernel.org
 W:	http://ext4.wiki.kernel.org
+Q:	http://patchwork.ozlabs.org/project/linux-ext4/list/
 S:	Maintained
 F:	Documentation/filesystems/ext4.txt
 F:	fs/ext4/
@@ -2513,13 +2549,6 @@ L:	linux-parisc@vger.kernel.org
 S:	Maintained
 F:	sound/parisc/harmony.*
 
-HAYES ESP SERIAL DRIVER
-M:	"Andrew J. Robinson" <arobinso@nyx.net>
-W:	http://www.nyx.net/~arobinso
-S:	Maintained
-F:	Documentation/serial/hayes-esp.txt
-F:	drivers/char/esp.c
-
 HEWLETT-PACKARD SMART2 RAID DRIVER
 M:	Chirag Kantharia <chirag.kantharia@hp.com>
 L:	iss_storagedev@hp.com
@@ -2728,6 +2757,7 @@ F:	drivers/scsi/ips.*
 IDE SUBSYSTEM
 M:	"David S. Miller" <davem@davemloft.net>
 L:	linux-ide@vger.kernel.org
+Q:	http://patchwork.ozlabs.org/project/linux-ide/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/ide-2.6.git
 S:	Maintained
 F:	Documentation/ide/
@@ -2782,6 +2812,7 @@ M:	Sean Hefty <sean.hefty@intel.com>
 M:	Hal Rosenstock <hal.rosenstock@gmail.com>
 L:	linux-rdma@vger.kernel.org
 W:	http://www.openib.org/
+Q:	http://patchwork.kernel.org/project/linux-rdma/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/roland/infiniband.git
 S:	Supported
 F:	Documentation/infiniband/
@@ -2801,12 +2832,13 @@ INPUT (KEYBOARD, MOUSE, JOYSTICK, TOUCHSCREEN) DRIVERS
 M:	Dmitry Torokhov <dmitry.torokhov@gmail.com>
 M:	Dmitry Torokhov <dtor@mail.ru>
 L:	linux-input@vger.kernel.org
+Q:	http://patchwork.kernel.org/project/linux-input/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/dtor/input.git
 S:	Maintained
 F:	drivers/input/
 
 INTEL FRAMEBUFFER DRIVER (excluding 810 and 815)
-M:	Sylvain Meyer <sylvain.meyer@worldonline.fr>
+M:	Maik Broemme <mbroemme@plusserver.de>
 L:	linux-fbdev@vger.kernel.org
 S:	Maintained
 F:	Documentation/fb/intelfb.txt
@@ -3057,6 +3089,13 @@ W:	http://www.melware.de
 S:	Maintained
 F:	drivers/isdn/hardware/eicon/
 
+IT87 HARDWARE MONITORING DRIVER
+M:	Jean Delvare <khali@linux-fr.org>
+L:	lm-sensors@lm-sensors.org
+S:	Maintained
+F:	Documentation/hwmon/it87
+F:	drivers/hwmon/it87.c
+
 IVTV VIDEO4LINUX DRIVER
 M:	Andy Walls <awalls@radix.net>
 L:	ivtv-devel@ivtvdriver.org (moderated for non-subscribers)
@@ -3110,6 +3149,7 @@ F:	drivers/hwmon/k8temp.c
 KCONFIG
 M:	Roman Zippel <zippel@linux-m68k.org>
 L:	linux-kbuild@vger.kernel.org
+Q:	http://patchwork.kernel.org/project/linux-kbuild/list/
 S:	Maintained
 F:	Documentation/kbuild/kconfig-language.txt
 F:	scripts/kconfig/
@@ -3184,7 +3224,7 @@ F:	arch/x86/include/asm/svm.h
 F:	arch/x86/kvm/svm.c
 
 KERNEL VIRTUAL MACHINE (KVM) FOR POWERPC
-M:	Hollis Blanchard <hollisb@us.ibm.com>
+M:	Alexander Graf <agraf@suse.de>
 L:	kvm-ppc@vger.kernel.org
 W:	http://kvm.qumranet.com
 S:	Supported
@@ -3323,6 +3363,7 @@ M:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
 M:	Paul Mackerras <paulus@samba.org>
 W:	http://www.penguinppc.org/
 L:	linuxppc-dev@ozlabs.org
+Q:	http://patchwork.ozlabs.org/project/linuxppc-dev/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/benh/powerpc.git
 S:	Supported
 F:	Documentation/powerpc/
@@ -3442,6 +3483,13 @@ W:	http://www.linux-ntfs.org/content/view/19/37/
 S:	Maintained
 F:	Documentation/ldm.txt
 F:	fs/partitions/ldm.*
+
+LogFS
+M:	Joern Engel <joern@logfs.org>
+L:	logfs@logfs.org
+W:	logfs.org
+S:	Maintained
+F:	fs/logfs/
 
 LSILOGIC MPT FUSION DRIVERS (FC/SAS/SPI)
 M:	Eric Moore <Eric.Moore@lsi.com>
@@ -3579,6 +3627,7 @@ M:	Mauro Carvalho Chehab <mchehab@infradead.org>
 P:	LinuxTV.org Project
 L:	linux-media@vger.kernel.org
 W:	http://linuxtv.org
+Q:	http://patchwork.kernel.org/project/linux-media/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mchehab/linux-2.6.git
 S:	Maintained
 F:	Documentation/dvb/
@@ -3606,7 +3655,7 @@ F:	mm/
 
 MEMORY RESOURCE CONTROLLER
 M:	Balbir Singh <balbir@linux.vnet.ibm.com>
-M:	Pavel Emelyanov <xemul@openvz.org>
+M:	Daisuke Nishimura <nishimura@mxp.nes.nec.co.jp>
 M:	KAMEZAWA Hiroyuki <kamezawa.hiroyu@jp.fujitsu.com>
 L:	linux-mm@kvack.org
 S:	Maintained
@@ -3614,8 +3663,9 @@ F:	mm/memcontrol.c
 
 MEMORY TECHNOLOGY DEVICES (MTD)
 M:	David Woodhouse <dwmw2@infradead.org>
-W:	http://www.linux-mtd.infradead.org/
 L:	linux-mtd@lists.infradead.org
+W:	http://www.linux-mtd.infradead.org/
+Q:	http://patchwork.ozlabs.org/project/linux-mtd/list/
 T:	git git://git.infradead.org/mtd-2.6.git
 S:	Maintained
 F:	drivers/mtd/
@@ -3875,6 +3925,7 @@ S:	Maintained
 NETWORKING [WIRELESS]
 M:	"John W. Linville" <linville@tuxdriver.com>
 L:	linux-wireless@vger.kernel.org
+Q:	http://patchwork.kernel.org/project/linux-wireless/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/linville/wireless-2.6.git
 S:	Maintained
 F:	net/mac80211/
@@ -3967,6 +4018,7 @@ M:	Tony Lindgren <tony@atomide.com>
 L:	linux-omap@vger.kernel.org
 W:	http://www.muru.com/linux/omap/
 W:	http://linux.omap.com/
+Q:	http://patchwork.kernel.org/project/linux-omap/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/tmlind/linux-omap-2.6.git
 S:	Maintained
 F:	arch/arm/*omap*/
@@ -4193,6 +4245,7 @@ M:	Helge Deller <deller@gmx.de>
 M:	"James E.J. Bottomley" <jejb@parisc-linux.org>
 L:	linux-parisc@vger.kernel.org
 W:	http://www.parisc-linux.org/
+Q:	http://patchwork.kernel.org/project/linux-parisc/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/kyle/parisc-2.6.git
 S:	Maintained
 F:	arch/parisc/
@@ -4235,6 +4288,7 @@ F:	Documentation/powerpc/eeh-pci-error-recovery.txt
 PCI SUBSYSTEM
 M:	Jesse Barnes <jbarnes@virtuousgeek.org>
 L:	linux-pci@vger.kernel.org
+Q:	http://patchwork.kernel.org/project/linux-pci/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jbarnes/pci-2.6.git
 S:	Supported
 F:	Documentation/PCI/
@@ -4273,10 +4327,13 @@ PERFORMANCE EVENTS SUBSYSTEM
 M:	Peter Zijlstra <a.p.zijlstra@chello.nl>
 M:	Paul Mackerras <paulus@samba.org>
 M:	Ingo Molnar <mingo@elte.hu>
+M:	Arnaldo Carvalho de Melo <acme@redhat.com>
 S:	Supported
 F:	kernel/perf_event.c
 F:	include/linux/perf_event.h
-F:	arch/*/*/kernel/perf_event.c
+F:	arch/*/kernel/perf_event.c
+F:	arch/*/kernel/*/perf_event.c
+F:	arch/*/kernel/*/*/perf_event.c
 F:	arch/*/include/asm/perf_event.h
 F:	arch/*/lib/perf_event.c
 F:	arch/*/kernel/perf_callchain.c
@@ -4473,6 +4530,13 @@ L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
 S:	Maintained
 
+MMP2 SUPPORT (aka ARMADA610)
+M:	Haojian Zhuang <haojian.zhuang@marvell.com>
+M:	Eric Miao <eric.y.miao@gmail.com>
+L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/ycmiao/pxa-linux-2.6.git
+S:	Maintained
+
 PXA MMCI DRIVER
 S:	Orphan
 
@@ -4610,6 +4674,7 @@ F:	include/linux/rtc.h
 REAL TIME CLOCK (RTC) SUBSYSTEM
 M:	Alessandro Zummo <a.zummo@towertech.it>
 L:	rtc-linux@googlegroups.com
+Q:	http://patchwork.ozlabs.org/project/rtc-linux/list/
 S:	Maintained
 F:	Documentation/rtc.txt
 F:	drivers/rtc/
@@ -4977,6 +5042,7 @@ F:	drivers/*/*/*s3c2410*
 TI DAVINCI MACHINE SUPPORT
 P:	Kevin Hilman
 M:	davinci-linux-open-source@linux.davincidsp.com
+Q:	http://patchwork.kernel.org/project/linux-davinci/list/
 S:	Supported
 F:	arch/arm/mach-davinci
 
@@ -5142,6 +5208,7 @@ F:	include/sound/soc*
 SPARC + UltraSPARC (sparc/sparc64)
 M:	"David S. Miller" <davem@davemloft.net>
 L:	sparclinux@vger.kernel.org
+Q:	http://patchwork.ozlabs.org/project/sparclinux/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-2.6.git
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
 S:	Maintained
@@ -5157,6 +5224,7 @@ SPI SUBSYSTEM
 M:	David Brownell <dbrownell@users.sourceforge.net>
 M:	Grant Likely <grant.likely@secretlab.ca>
 L:	spi-devel-general@lists.sourceforge.net
+Q:	http://patchwork.kernel.org/project/spi-devel-general/list/
 S:	Maintained
 F:	Documentation/spi/
 F:	drivers/spi/
@@ -5212,7 +5280,7 @@ F:	drivers/net/starfire*
 
 STARMODE RADIO IP (STRIP) PROTOCOL DRIVER
 S:	Orphan
-F:	drivers/net/wireless/strip.c
+F:	drivers/staging/strip/strip.c
 F:	include/linux/if_strip.h
 
 STRADIS MPEG-2 DECODER DRIVER
@@ -5233,6 +5301,7 @@ SUPERH
 M:	Paul Mundt <lethal@linux-sh.org>
 L:	linux-sh@vger.kernel.org
 W:	http://www.linux-sh.org
+Q:	http://patchwork.kernel.org/project/linux-sh/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lethal/sh-2.6.git
 S:	Supported
 F:	Documentation/sh/
@@ -6000,7 +6069,7 @@ L:	linux-wireless@vger.kernel.org
 W:	http://www.hpl.hp.com/personal/Jean_Tourrilhes/Linux/
 S:	Maintained
 F:	Documentation/networking/wavelan.txt
-F:	drivers/net/wireless/wavelan*
+F:	drivers/staging/wavelan/
 
 WD7000 SCSI DRIVER
 M:	Miroslav Zagorac <zaga@fly.cc.fer.hr>
@@ -6108,6 +6177,7 @@ F:	arch/x86/
 X86 PLATFORM DRIVERS
 M:	Matthew Garrett <mjg@redhat.com>
 L:	platform-driver-x86@vger.kernel.org
+T:      git git://git.kernel.org/pub/scm/linux/kernel/git/mjg59/platform-drivers-x86.git
 S:	Maintained
 F:	drivers/platform/x86
 
@@ -6195,6 +6265,7 @@ F:	drivers/serial/zs.*
 THE REST
 M:	Linus Torvalds <torvalds@linux-foundation.org>
 L:	linux-kernel@vger.kernel.org
+Q:	http://patchwork.kernel.org/project/LKML/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux-2.6.git
 S:	Buried alive in reporters
 F:	*

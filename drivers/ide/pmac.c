@@ -496,12 +496,11 @@ static void pmac_write_devctl(ide_hwif_t *hwif, u8 ctl)
 /*
  * Old tuning functions (called on hdparm -p), sets up drive PIO timings
  */
-static void
-pmac_ide_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void pmac_ide_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 	struct ide_timing *tim = ide_timing_find_mode(XFER_PIO_0 + pio);
 	u32 *timings, t;
 	unsigned accessTicks, recTicks;
@@ -778,14 +777,14 @@ set_timings_mdma(ide_drive_t *drive, int intf_type, u32 *timings, u32 *timings2,
 #endif	
 }
 
-static void pmac_ide_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void pmac_ide_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	pmac_ide_hwif_t *pmif =
 		(pmac_ide_hwif_t *)dev_get_drvdata(hwif->gendev.parent);
 	int ret = 0;
 	u32 *timings, *timings2, tl[2];
 	u8 unit = drive->dn & 1;
+	const u8 speed = drive->dma_mode;
 
 	timings = &pmif->timings[unit];
 	timings2 = &pmif->timings[unit+2];
@@ -1651,8 +1650,8 @@ pmac_ide_dma_test_irq (ide_drive_t *drive)
 		if ((status & FLUSH) == 0)
 			break;
 		if (++timeout > 100) {
-			printk(KERN_WARNING "ide%d, ide_dma_test_irq \
-			timeout flushing channel\n", hwif->index);
+			printk(KERN_WARNING "ide%d, ide_dma_test_irq timeout flushing channel\n",
+			       hwif->index);
 			break;
 		}
 	}	

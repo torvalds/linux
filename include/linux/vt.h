@@ -27,7 +27,7 @@ struct vt_mode {
 #define VT_SETMODE	0x5602	/* set mode of active vt */
 #define		VT_AUTO		0x00	/* auto vt switching */
 #define		VT_PROCESS	0x01	/* process controls switching */
-#define		VT_ACKACQ	0x02	/* acknowledge switch */
+#define		VT_PROCESS_AUTO 0x02	/* process is notified of switching */
 
 struct vt_stat {
 	unsigned short v_active;	/* active vt */
@@ -38,6 +38,7 @@ struct vt_stat {
 #define VT_SENDSIG	0x5604	/* signal to send to bitmask of vts */
 
 #define VT_RELDISP	0x5605	/* release display */
+#define		VT_ACKACQ	0x02	/* acknowledge switch */
 
 #define VT_ACTIVATE	0x5606	/* make vt active */
 #define VT_WAITACTIVE	0x5607	/* wait for vt active */
