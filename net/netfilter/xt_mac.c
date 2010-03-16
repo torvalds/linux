@@ -10,6 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/skbuff.h>
+#include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #include <linux/etherdevice.h>
 
@@ -29,6 +30,8 @@ static bool mac_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	const struct xt_mac_info *info = par->matchinfo;
 	bool ret;
 
+	if (skb->dev == NULL || skb->dev->type != ARPHRD_ETHER)
+		return false;
 	if (skb_mac_header(skb) < skb->head)
 		return false;
 	if (skb_mac_header(skb) + ETH_HLEN > skb->data)
