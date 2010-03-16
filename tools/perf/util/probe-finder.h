@@ -3,6 +3,7 @@
 
 #include <stdbool.h>
 #include "util.h"
+#include "probe-event.h"
 
 #define MAX_PATH_LEN		 256
 #define MAX_PROBE_BUFFER	1024
@@ -14,67 +15,32 @@ static inline int is_c_varname(const char *name)
 	return isalpha(name[0]) || name[0] == '_';
 }
 
-struct probe_point {
-	char			*event;			/* Event name */
-	char			*group;			/* Event group */
-
-	/* Inputs */
-	char			*file;			/* File name */
-	int			line;			/* Line number */
-	char			*lazy_line;		/* Lazy line pattern */
-
-	char			*function;		/* Function name */
-	int			offset;			/* Offset bytes */
-
-	int			nr_args;		/* Number of arguments */
-	char			**args;			/* Arguments */
-
-	int			retprobe;		/* Return probe */
-
-	/* Output */
-	int			found;			/* Number of found probe points */
-	char			*probes[MAX_PROBES];	/* Output buffers (will be allocated)*/
-};
-
-/* Line number container */
-struct line_node {
-	struct list_head	list;
-	unsigned int		line;
-};
-
-/* Line range */
-struct line_range {
-	char			*file;			/* File name */
-	char			*function;		/* Function name */
-	unsigned int		start;			/* Start line number */
-	unsigned int		end;			/* End line number */
-	int			offset;			/* Start line offset */
-	char			*path;			/* Real path name */
-	struct list_head	line_list;		/* Visible lines */
-};
-
 #ifndef NO_DWARF_SUPPORT
-extern int find_probe_point(int fd, struct probe_point *pp);
+/* Find kprobe_trace_events specified by perf_probe_event from debuginfo */
+extern int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
+				    struct kprobe_trace_event **tevs);
+
 extern int find_line_range(int fd, struct line_range *lr);
 
 #include <dwarf.h>
 #include <libdw.h>
 
 struct probe_finder {
-	struct probe_point	*pp;		/* Target probe point */
+	struct perf_probe_event	*pev;		/* Target probe event */
+	int			ntevs;		/* number of trace events */
+	struct kprobe_trace_event *tevs;	/* Result trace events */
 
 	/* For function searching */
 	Dwarf_Addr		addr;		/* Address */
-	const char		*fname;		/* File name */
+	const char		*fname;		/* Real file name */
 	int			lno;		/* Line number */
 	Dwarf_Die		cu_die;		/* Current CU */
+	struct list_head	lcache;		/* Line cache for lazy match */
 
 	/* For variable searching */
 	Dwarf_Op		*fb_ops;	/* Frame base attribute */
-	const char		*var;		/* Current variable name */
-	char			*buf;		/* Current output buffer */
-	int			len;		/* Length of output buffer */
-	struct list_head	lcache;		/* Line cache for lazy match */
+	struct perf_probe_arg	*pvar;		/* Current target variable */
+	struct kprobe_trace_arg	*tvar;		/* Current result variable */
 };
 
 struct line_finder {

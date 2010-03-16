@@ -48,12 +48,11 @@
 
 /* Session management structure */
 static struct {
-	bool need_dwarf;
 	bool list_events;
 	bool force_add;
 	bool show_lines;
-	int nr_probe;
-	struct probe_point probes[MAX_PROBES];
+	int nevents;
+	struct perf_probe_event events[MAX_PROBES];
 	struct strlist *dellist;
 	struct line_range line_range;
 } params;
@@ -62,16 +61,16 @@ static struct {
 /* Parse an event definition. Note that any error must die. */
 static void parse_probe_event(const char *str)
 {
-	struct probe_point *pp = &params.probes[params.nr_probe];
+	struct perf_probe_event *pev = &params.events[params.nevents];
 
-	pr_debug("probe-definition(%d): %s\n", params.nr_probe, str);
-	if (++params.nr_probe == MAX_PROBES)
+	pr_debug("probe-definition(%d): %s\n", params.nevents, str);
+	if (++params.nevents == MAX_PROBES)
 		die("Too many probes (> %d) are specified.", MAX_PROBES);
 
-	/* Parse perf-probe event into probe_point */
-	parse_perf_probe_event(str, pp, &params.need_dwarf);
+	/* Parse a perf-probe command into event */
+	parse_perf_probe_command(str, pev);
 
-	pr_debug("%d arguments\n", pp->nr_args);
+	pr_debug("%d arguments\n", pev->nargs);
 }
 
 static void parse_probe_event_argv(int argc, const char **argv)
@@ -191,7 +190,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		parse_probe_event_argv(argc, argv);
 	}
 
-	if ((!params.nr_probe && !params.dellist && !params.list_events &&
+	if ((!params.nevents && !params.dellist && !params.list_events &&
 	     !params.show_lines))
 		usage_with_options(probe_usage, options);
 
@@ -199,7 +198,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		die("Failed to find debugfs path.");
 
 	if (params.list_events) {
-		if (params.nr_probe != 0 || params.dellist) {
+		if (params.nevents != 0 || params.dellist) {
 			pr_warning("  Error: Don't use --list with"
 				   " --add/--del.\n");
 			usage_with_options(probe_usage, options);
@@ -214,7 +213,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 
 #ifndef NO_DWARF_SUPPORT
 	if (params.show_lines) {
-		if (params.nr_probe != 0 || params.dellist) {
+		if (params.nevents != 0 || params.dellist) {
 			pr_warning("  Error: Don't use --line with"
 				   " --add/--del.\n");
 			usage_with_options(probe_usage, options);
@@ -226,14 +225,13 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 #endif
 
 	if (params.dellist) {
-		del_trace_kprobe_events(params.dellist);
+		del_perf_probe_events(params.dellist);
 		strlist__delete(params.dellist);
-		if (params.nr_probe == 0)
+		if (params.nevents == 0)
 			return 0;
 	}
 
-	add_trace_kprobe_events(params.probes, params.nr_probe,
-				params.force_add, params.need_dwarf);
+	add_perf_probe_events(params.events, params.nevents, params.force_add);
 	return 0;
 }
 

@@ -319,19 +319,20 @@ static Dwarf_Die *die_find_variable(Dwarf_Die *sp_die, const char *name,
  */
 
 /* Show a location */
-static void show_location(Dwarf_Op *op, struct probe_finder *pf)
+static void convert_location(Dwarf_Op *op, struct probe_finder *pf)
 {
 	unsigned int regn;
 	Dwarf_Word offs = 0;
-	int deref = 0, ret;
+	bool ref = false;
 	const char *regs;
+	struct kprobe_trace_arg *tvar = pf->tvar;
 
 	/* TODO: support CFA */
 	/* If this is based on frame buffer, set the offset */
 	if (op->atom == DW_OP_fbreg) {
 		if (pf->fb_ops == NULL)
 			die("The attribute of frame base is not supported.\n");
-		deref = 1;
+		ref = true;
 		offs = op->number;
 		op = &pf->fb_ops[0];
 	}
@@ -339,13 +340,13 @@ static void show_location(Dwarf_Op *op, struct probe_finder *pf)
 	if (op->atom >= DW_OP_breg0 && op->atom <= DW_OP_breg31) {
 		regn = op->atom - DW_OP_breg0;
 		offs += op->number;
-		deref = 1;
+		ref = true;
 	} else if (op->atom >= DW_OP_reg0 && op->atom <= DW_OP_reg31) {
 		regn = op->atom - DW_OP_reg0;
 	} else if (op->atom == DW_OP_bregx) {
 		regn = op->number;
 		offs += op->number2;
-		deref = 1;
+		ref = true;
 	} else if (op->atom == DW_OP_regx) {
 		regn = op->number;
 	} else
@@ -355,17 +356,15 @@ static void show_location(Dwarf_Op *op, struct probe_finder *pf)
 	if (!regs)
 		die("%u exceeds max register number.", regn);
 
-	if (deref)
-		ret = snprintf(pf->buf, pf->len, " %s=%+jd(%s)",
-			       pf->var, (intmax_t)offs, regs);
-	else
-		ret = snprintf(pf->buf, pf->len, " %s=%s", pf->var, regs);
-	DIE_IF(ret < 0);
-	DIE_IF(ret >= pf->len);
+	tvar->value = xstrdup(regs);
+	if (ref) {
+		tvar->ref = xzalloc(sizeof(struct kprobe_trace_arg_ref));
+		tvar->ref->offset = (long)offs;
+	}
 }
 
 /* Show a variables in kprobe event format */
-static void show_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
+static void convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 {
 	Dwarf_Attribute attr;
 	Dwarf_Op *expr;
@@ -379,49 +378,50 @@ static void show_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 	if (ret <= 0 || nexpr == 0)
 		goto error;
 
-	show_location(expr, pf);
+	convert_location(expr, pf);
 	/* *expr will be cached in libdw. Don't free it. */
 	return ;
 error:
 	/* TODO: Support const_value */
 	die("Failed to find the location of %s at this address.\n"
-	    " Perhaps, it has been optimized out.", pf->var);
+	    " Perhaps, it has been optimized out.", pf->pvar->name);
 }
 
 /* Find a variable in a subprogram die */
 static void find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
-	int ret;
 	Dwarf_Die vr_die;
 
 	/* TODO: Support struct members and arrays */
-	if (!is_c_varname(pf->var)) {
-		/* Output raw parameters */
-		ret = snprintf(pf->buf, pf->len, " %s", pf->var);
-		DIE_IF(ret < 0);
-		DIE_IF(ret >= pf->len);
-		return ;
+	if (!is_c_varname(pf->pvar->name)) {
+		/* Copy raw parameters */
+		pf->tvar->value = xstrdup(pf->pvar->name);
+	} else {
+		pf->tvar->name = xstrdup(pf->pvar->name);
+		pr_debug("Searching '%s' variable in context.\n",
+			 pf->pvar->name);
+		/* Search child die for local variables and parameters. */
+		if (!die_find_variable(sp_die, pf->pvar->name, &vr_die))
+			die("Failed to find '%s' in this function.",
+			    pf->pvar->name);
+		convert_variable(&vr_die, pf);
 	}
-
-	pr_debug("Searching '%s' variable in context.\n", pf->var);
-	/* Search child die for local variables and parameters. */
-	if (!die_find_variable(sp_die, pf->var, &vr_die))
-		die("Failed to find '%s' in this function.", pf->var);
-
-	show_variable(&vr_die, pf);
 }
 
 /* Show a probe point to output buffer */
-static void show_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
+static void convert_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
-	struct probe_point *pp = pf->pp;
+	struct kprobe_trace_event *tev;
 	Dwarf_Addr eaddr;
 	Dwarf_Die die_mem;
 	const char *name;
-	char tmp[MAX_PROBE_BUFFER];
-	int ret, i, len;
+	int ret, i;
 	Dwarf_Attribute fb_attr;
 	size_t nops;
+
+	if (pf->ntevs == MAX_PROBES)
+		die("Too many( > %d) probe point found.\n", MAX_PROBES);
+	tev = &pf->tevs[pf->ntevs++];
 
 	/* If no real subprogram, find a real one */
 	if (!sp_die || dwarf_tag(sp_die) != DW_TAG_subprogram) {
@@ -431,31 +431,18 @@ static void show_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 			die("Probe point is not found in subprograms.");
 	}
 
-	/* Output name of probe point */
+	/* Copy the name of probe point */
 	name = dwarf_diename(sp_die);
 	if (name) {
 		dwarf_entrypc(sp_die, &eaddr);
-		ret = snprintf(tmp, MAX_PROBE_BUFFER, "%s+%lu", name,
-				(unsigned long)(pf->addr - eaddr));
-		/* Copy the function name if possible */
-		if (!pp->function) {
-			pp->function = xstrdup(name);
-			pp->offset = (size_t)(pf->addr - eaddr);
-		}
-	} else {
+		tev->point.symbol = xstrdup(name);
+		tev->point.offset = (unsigned long)(pf->addr - eaddr);
+	} else
 		/* This function has no name. */
-		ret = snprintf(tmp, MAX_PROBE_BUFFER, "0x%jx",
-			       (uintmax_t)pf->addr);
-		if (!pp->function) {
-			/* TODO: Use _stext */
-			pp->function = xstrdup("");
-			pp->offset = (size_t)pf->addr;
-		}
-	}
-	DIE_IF(ret < 0);
-	DIE_IF(ret >= MAX_PROBE_BUFFER);
-	len = ret;
-	pr_debug("Probe point found: %s\n", tmp);
+		tev->point.offset = (unsigned long)pf->addr;
+
+	pr_debug("Probe point found: %s+%lu\n", tev->point.symbol,
+		 tev->point.offset);
 
 	/* Get the frame base attribute/ops */
 	dwarf_attr(sp_die, DW_AT_frame_base, &fb_attr);
@@ -465,22 +452,16 @@ static void show_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 
 	/* Find each argument */
 	/* TODO: use dwarf_cfi_addrframe */
-	for (i = 0; i < pp->nr_args; i++) {
-		pf->var = pp->args[i];
-		pf->buf = &tmp[len];
-		pf->len = MAX_PROBE_BUFFER - len;
+	tev->nargs = pf->pev->nargs;
+	tev->args = xzalloc(sizeof(struct kprobe_trace_arg) * tev->nargs);
+	for (i = 0; i < pf->pev->nargs; i++) {
+		pf->pvar = &pf->pev->args[i];
+		pf->tvar = &tev->args[i];
 		find_variable(sp_die, pf);
-		len += strlen(pf->buf);
 	}
 
 	/* *pf->fb_ops will be cached in libdw. Don't free it. */
 	pf->fb_ops = NULL;
-
-	if (pp->found == MAX_PROBES)
-		die("Too many( > %d) probe point found.\n", MAX_PROBES);
-
-	pp->probes[pp->found] = xstrdup(tmp);
-	pp->found++;
 }
 
 /* Find probe point from its line number */
@@ -512,7 +493,7 @@ static void find_probe_point_by_line(struct probe_finder *pf)
 			 (int)i, lineno, (uintmax_t)addr);
 		pf->addr = addr;
 
-		show_probe_point(NULL, pf);
+		convert_probe_point(NULL, pf);
 		/* Continuing, because target line might be inlined. */
 	}
 }
@@ -563,7 +544,7 @@ static void find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 	if (list_empty(&pf->lcache)) {
 		/* Matching lazy line pattern */
 		ret = find_lazy_match_lines(&pf->lcache, pf->fname,
-					    pf->pp->lazy_line);
+					    pf->pev->point.lazy_line);
 		if (ret <= 0)
 			die("No matched lines found in %s.", pf->fname);
 	}
@@ -596,7 +577,7 @@ static void find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 			 (int)i, lineno, (unsigned long long)addr);
 		pf->addr = addr;
 
-		show_probe_point(sp_die, pf);
+		convert_probe_point(sp_die, pf);
 		/* Continuing, because target line might be inlined. */
 	}
 	/* TODO: deallocate lines, but how? */
@@ -605,7 +586,7 @@ static void find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 static int probe_point_inline_cb(Dwarf_Die *in_die, void *data)
 {
 	struct probe_finder *pf = (struct probe_finder *)data;
-	struct probe_point *pp = pf->pp;
+	struct perf_probe_point *pp = &pf->pev->point;
 
 	if (pp->lazy_line)
 		find_probe_point_lazy(in_die, pf);
@@ -616,7 +597,7 @@ static int probe_point_inline_cb(Dwarf_Die *in_die, void *data)
 		pr_debug("found inline addr: 0x%jx\n",
 			 (uintmax_t)pf->addr);
 
-		show_probe_point(in_die, pf);
+		convert_probe_point(in_die, pf);
 	}
 
 	return DWARF_CB_OK;
@@ -626,7 +607,7 @@ static int probe_point_inline_cb(Dwarf_Die *in_die, void *data)
 static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 {
 	struct probe_finder *pf = (struct probe_finder *)data;
-	struct probe_point *pp = pf->pp;
+	struct perf_probe_point *pp = &pf->pev->point;
 
 	/* Check tag and diename */
 	if (dwarf_tag(sp_die) != DW_TAG_subprogram ||
@@ -646,7 +627,7 @@ static int probe_point_search_cb(Dwarf_Die *sp_die, void *data)
 			pf->addr = die_get_entrypc(sp_die);
 			pf->addr += pp->offset;
 			/* TODO: Check the address in this function */
-			show_probe_point(sp_die, pf);
+			convert_probe_point(sp_die, pf);
 		}
 	} else
 		/* Inlined function: search instances */
@@ -660,20 +641,25 @@ static void find_probe_point_by_func(struct probe_finder *pf)
 	dwarf_getfuncs(&pf->cu_die, probe_point_search_cb, pf, 0);
 }
 
-/* Find a probe point */
-int find_probe_point(int fd, struct probe_point *pp)
+/* Find kprobe_trace_events specified by perf_probe_event from debuginfo */
+int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
+			     struct kprobe_trace_event **tevs)
 {
-	struct probe_finder pf = {.pp = pp};
+	struct probe_finder pf = {.pev = pev};
+	struct perf_probe_point *pp = &pev->point;
 	Dwarf_Off off, noff;
 	size_t cuhl;
 	Dwarf_Die *diep;
 	Dwarf *dbg;
 
+	pf.tevs = xzalloc(sizeof(struct kprobe_trace_event) * MAX_PROBES);
+	*tevs = pf.tevs;
+	pf.ntevs = 0;
+
 	dbg = dwarf_begin(fd, DWARF_C_READ);
 	if (!dbg)
 		return -ENOENT;
 
-	pp->found = 0;
 	off = 0;
 	line_list__init(&pf.lcache);
 	/* Loop on CUs (Compilation Unit) */
@@ -704,7 +690,7 @@ int find_probe_point(int fd, struct probe_point *pp)
 	line_list__free(&pf.lcache);
 	dwarf_end(dbg);
 
-	return pp->found;
+	return pf.ntevs;
 }
 
 /* Find line range from its line number */
