@@ -1854,19 +1854,19 @@ static u16 dsi_vc_flush_receive_data(int channel)
 		u32 val;
 		u8 dt;
 		val = dsi_read_reg(DSI_VC_SHORT_PACKET_HEADER(channel));
-		DSSDBG("\trawval %#08x\n", val);
+		DSSERR("\trawval %#08x\n", val);
 		dt = FLD_GET(val, 5, 0);
 		if (dt == DSI_DT_RX_ACK_WITH_ERR) {
 			u16 err = FLD_GET(val, 23, 8);
 			dsi_show_rx_ack_with_err(err);
 		} else if (dt == DSI_DT_RX_SHORT_READ_1) {
-			DSSDBG("\tDCS short response, 1 byte: %#x\n",
+			DSSERR("\tDCS short response, 1 byte: %#x\n",
 					FLD_GET(val, 23, 8));
 		} else if (dt == DSI_DT_RX_SHORT_READ_2) {
-			DSSDBG("\tDCS short response, 2 byte: %#x\n",
+			DSSERR("\tDCS short response, 2 byte: %#x\n",
 					FLD_GET(val, 23, 8));
 		} else if (dt == DSI_DT_RX_DCS_LONG_READ) {
-			DSSDBG("\tDCS long response, len %d\n",
+			DSSERR("\tDCS long response, len %d\n",
 					FLD_GET(val, 23, 8));
 			dsi_vc_flush_long_data(channel);
 		} else {
