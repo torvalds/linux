@@ -54,6 +54,7 @@ MODULE_LICENSE("GPL");
 
 /* camera flags */
 #define HAS_BUTTON	0x1
+#define LED_REVERSE	0x2 /* some cameras unset gpio to turn on leds */
 
 /* specific webcam descriptor */
 struct sd {
@@ -731,7 +732,8 @@ static u16 bridge_init[][2] = {
 	{0x11be, 0xf0},	{0x11bf, 0x00},	{0x118c, 0x1f},
 	{0x118d, 0x1f},	{0x118e, 0x1f},	{0x118f, 0x1f},
 	{0x1180, 0x01},	{0x1181, 0x00},	{0x1182, 0x01},
-	{0x1183, 0x00},	{0x1184, 0x50},	{0x1185, 0x80}
+	{0x1183, 0x00},	{0x1184, 0x50},	{0x1185, 0x80},
+	{0x1007, 0x00}
 };
 
 /* Gain = (bit[3:0] / 16 + 1) * (bit[4] + 1) * (bit[5] + 1) * (bit[6] + 1) */
@@ -1974,6 +1976,11 @@ static int sd_init(struct gspca_dev *gspca_dev)
 		}
 	}
 
+	if (sd->flags & LED_REVERSE)
+		reg_w1(gspca_dev, 0x1006, 0x00);
+	else
+		reg_w1(gspca_dev, 0x1006, 0x20);
+
 	if (reg_w(gspca_dev, 0x10c0, i2c_init, 9) < 0) {
 		err("Device initialization failed");
 		return -ENODEV;
@@ -2154,6 +2161,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 	set_exposure(gspca_dev);
 	set_hvflip(gspca_dev);
 
+	reg_w1(gspca_dev, 0x1007, 0x20);
+
 	reg_r(gspca_dev, 0x1061, 1);
 	reg_w1(gspca_dev, 0x1061, gspca_dev->usb_buf[0] | 0x02);
 	return 0;
@@ -2161,6 +2170,8 @@ static int sd_start(struct gspca_dev *gspca_dev)
 
 static void sd_stopN(struct gspca_dev *gspca_dev)
 {
+	reg_w1(gspca_dev, 0x1007, 0x00);
+
 	reg_r(gspca_dev, 0x1061, 1);
 	reg_w1(gspca_dev, 0x1061, gspca_dev->usb_buf[0] & ~0x02);
 }
@@ -2350,7 +2361,7 @@ static const struct sd_desc sd_desc = {
 };
 
 #define SN9C20X(sensor, i2c_addr, flags) \
-	.driver_info =  (flags << 16) \
+	.driver_info =  ((flags & 0xff) << 16) \
 			| (SENSOR_ ## sensor << 8) \
 			| (i2c_addr)
 
@@ -2358,7 +2369,8 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6240), SN9C20X(MT9M001, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6242), SN9C20X(MT9M111, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6248), SN9C20X(OV9655, 0x30, 0)},
-	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30, HAS_BUTTON)},
+	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30,
+					     (HAS_BUTTON | LED_REVERSE))},
 	{USB_DEVICE(0x0c45, 0x624f), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6251), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6253), SN9C20X(OV9650, 0x30, 0)},
