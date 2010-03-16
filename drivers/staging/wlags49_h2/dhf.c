@@ -1,5 +1,5 @@
 
-//   vim:tw=110:ts=4:
+/*   vim:tw=110:ts=4: */
 /**************************************************************************************************************
 *
 * FILE   :	DHF.C
@@ -97,7 +97,7 @@
 #include "dhf.h"
 #include "mmd.h"
 
-//to distinguish MMD from HCF asserts by means of line number
+/* to distinguish MMD from HCF asserts by means of line number */
 #undef	FILE_NAME_OFFSET
 #define FILE_NAME_OFFSET MMD_FILE_NAME_OFFSET
 /*-----------------------------------------------------------------------------
@@ -106,18 +106,18 @@
  *
  *---------------------------------------------------------------------------*/
 
-//                    12345678901234
+/*                    12345678901234 */
 char signature[14] = "FUPU7D37dhfwci";
 
-//The binary download function "relocates" the image using constructions like:
-//	fw->identity = (CFG_IDENTITY_STRCT FAR *)((char FAR *)fw->identity + (hcf_32)fw );
-//under some of the memory models under MSVC 1.52 these constructions degrade to 16-bits pointer arithmetic.
-//fw->identity is limited, such that adding it to fw, does not need to carry over from offset to segment.
-//However the segment is not set at all.
-//As a workaround the PSEUDO_CHARP macro is introduced which is a char pointer except for MSVC 1.52, in
-//which case we know that a 32-bit quantity is adequate as a pointer.
-//Note that other platforms may experience comparable problems when using the binary download feature.
-#if defined(_MSC_VER) && _MSC_VER ==  800				// Visual C++ 1.5
+/* The binary download function "relocates" the image using constructions like:
+	fw->identity = (CFG_IDENTITY_STRCT FAR *)((char FAR *)fw->identity + (hcf_32)fw );
+	under some of the memory models under MSVC 1.52 these constructions degrade to 16-bits pointer arithmetic.
+	fw->identity is limited, such that adding it to fw, does not need to carry over from offset to segment.
+	However the segment is not set at all.
+	As a workaround the PSEUDO_CHARP macro is introduced which is a char pointer except for MSVC 1.52, in
+	which case we know that a 32-bit quantity is adequate as a pointer.
+	Note that other platforms may experience comparable problems when using the binary download feature. */
+#if defined(_MSC_VER) && _MSC_VER ==  800				/* Visual C++ 1.5 */
 #define PSEUDO_CHARP hcf_32
 #else
 #define PSEUDO_CHARP hcf_8*
@@ -132,12 +132,12 @@ char signature[14] = "FUPU7D37dhfwci";
  *
  *---------------------------------------------------------------------------*/
 
-// for USB/H1 we needed a smaller value than the CFG_DL_BUF_STRCT reported 8192
-// for the time being it seems simpler to always use 2000 for USB/H1 as well as all other cases rather than
-// using the "fixed anyway" CFG_DL_BUF_STRCT.
+/* for USB/H1 we needed a smaller value than the CFG_DL_BUF_STRCT reported 8192
+	for the time being it seems simpler to always use 2000 for USB/H1 as well as all other cases rather than
+	using the "fixed anyway" CFG_DL_BUF_STRCT. */
 #define DL_SIZE 2000
 
-//CFG_IDENTITY_STRCT   	pri_identity	= { LOF(CFG_IDENTITY_STRCT), CFG_PRI_IDENTITY };
+/* CFG_IDENTITY_STRCT   	pri_identity	= { LOF(CFG_IDENTITY_STRCT), CFG_PRI_IDENTITY }; */
 CFG_SUP_RANGE_STRCT 	mfi_sup        	= { LOF(CFG_SUP_RANGE_STRCT), CFG_NIC_MFI_SUP_RANGE };
 CFG_SUP_RANGE_STRCT 	cfi_sup        	= { LOF(CFG_SUP_RANGE_STRCT), CFG_NIC_CFI_SUP_RANGE };
 /* Note: could be used rather than the above explained and defined DL_SIZE if need arises
@@ -192,41 +192,41 @@ int   					rc = HCF_SUCCESS;
 CFG_RANGE_SPEC_STRCT*	i;
 
 	switch( fw->identity->typ ) {
-	  case CFG_FW_IDENTITY:				//Station F/W
-	  case COMP_ID_FW_AP_FAKE:			//;?is this useful (used to be:  CFG_AP_IDENTITY)
+	  case CFG_FW_IDENTITY:				/* Station F/W */
+	  case COMP_ID_FW_AP_FAKE:			/* ;?is this useful (used to be:  CFG_AP_IDENTITY) */
 		break;
 	  default:
-		MMDASSERT( DO_ASSERT, fw->identity->typ ) 	//unknown/unsupported firmware_type:
+		MMDASSERT( DO_ASSERT, fw->identity->typ ) 	/* unknown/unsupported firmware_type: */
 		rc = DHF_ERR_INCOMP_FW;
-		return rc; /* ;? how useful is this anyway,
+		return rc; /* ;? how useful is this anyway, 
 					*  till that is sorted out might as well violate my own single exit principle
 					*/
 	}
 	p = fw->compat;
 	i = NULL;
-	while( p->len && i == NULL ) {					// check the MFI ranges
+	while( p->len && i == NULL ) {					/* check the MFI ranges */
 		if ( p->typ  == CFG_MFI_ACT_RANGES_STA ) {
 			i = mmd_check_comp( (void*)p, &mfi_sup );
 		}
 		p++;
 	}
-	MMDASSERT( i, 0 )	//MFI: NIC Supplier not compatible with F/W image Actor
+	MMDASSERT( i, 0 )	/* MFI: NIC Supplier not compatible with F/W image Actor */
 	if ( i ) {
 		p = fw->compat;
 		i = NULL;
-		while ( p->len && i == NULL ) {			// check the CFI ranges
+		while ( p->len && i == NULL ) {			/* check the CFI ranges */
 			if ( p->typ  == CFG_CFI_ACT_RANGES_STA ) {
 				 i = mmd_check_comp( (void*)p, &cfi_sup );
 			}
 			p++;
 		}
-		MMDASSERT( i, 0 )	//CFI: NIC Supplier not compatible with F/W image Actor
+		MMDASSERT( i, 0 )	/* CFI: NIC Supplier not compatible with F/W image Actor */
 	}
 	if ( i == NULL ) {
 		rc = DHF_ERR_INCOMP_FW;
 	}
 	return rc;
-} // check_comp_fw
+} /* check_comp_fw */
 
 
 
@@ -277,13 +277,13 @@ int 			rc = HCF_SUCCESS;
 CFG_PROG_STRCT 	*p;
 int				i;
 
-	//validate the image
-	for ( i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++ ) /*NOP*/;
+	/* validate the image */
+	for ( i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++ ) /* NOP */;
 	if ( i != sizeof(signature) 		||
 		 fw->signature[i] != 0x01   	||
-		 //test for Little/Big Endian Binary flag
-		 fw->signature[i+1] != ( /*HCF_BIG_ENDIAN ? 'B' : */ 'L' ) ) rc = DHF_ERR_INCOMP_FW;
-	else {					//Little Endian Binary format
+		 /* test for Little/Big Endian Binary flag */
+		 fw->signature[i+1] != ( /* HCF_BIG_ENDIAN ? 'B' : */ 'L' ) ) rc = DHF_ERR_INCOMP_FW;
+	else {					/* Little Endian Binary format */
 		fw->codep    = (CFG_PROG_STRCT FAR *)((PSEUDO_CHARP)fw->codep + (hcf_32)fw );
 		fw->identity = (CFG_IDENTITY_STRCT FAR *)((PSEUDO_CHARP)fw->identity + (hcf_32)fw );
 		fw->compat   = (CFG_RANGE20_STRCT FAR *)((PSEUDO_CHARP)fw->compat + (hcf_32)fw );
@@ -295,7 +295,7 @@ int				i;
 		}
 	}
 	return rc;
-}   // dhf_download_binary
+}   /* dhf_download_binary */
 
 
 /*************************************************************************************************************
@@ -360,17 +360,17 @@ LTVP 				ltvp;
 int					i;
 
 	MMDASSERT( fw != NULL, 0 )
-	//validate the image
-	for ( i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++ ) /*NOP*/;
+	/* validate the image */
+	for ( i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++ ) /* NOP */;
 	if ( i != sizeof(signature) 		||
 		 fw->signature[i] != 0x01		||
-		 //check for binary image
+		 /* check for binary image */
 		 ( fw->signature[i+1] != 'C' && fw->signature[i+1] != ( /*HCF_BIG_ENDIAN ? 'B' : */ 'L' ) ) )
 		 rc = DHF_ERR_INCOMP_FW;
 
-//	Retrieve all information needed for download from the NIC
+/*	Retrieve all information needed for download from the NIC */
 	while ( ( rc == HCF_SUCCESS ) && ( ( ltvp = pp->ltvp) != NULL ) ) {
-		ltvp->len = pp++->len;	// Set len to original len. This len is changed to real len by GET_INFO()
+		ltvp->len = pp++->len;	/* Set len to original len. This len is changed to real len by GET_INFO() */
 		rc = GET_INFO( ltvp );
 		MMDASSERT( rc == HCF_SUCCESS, rc )
 		MMDASSERT( rc == HCF_SUCCESS, ltvp->typ )
@@ -385,6 +385,6 @@ int					i;
 	}
 	MMDASSERT( rc == HCF_SUCCESS, rc )
 	return rc;
-}   // dhf_download_fw
+}   /* dhf_download_fw */
 
 
