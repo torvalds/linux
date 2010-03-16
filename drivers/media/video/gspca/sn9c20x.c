@@ -27,6 +27,7 @@
 #include "jpeg.h"
 
 #include <media/v4l2-chip-ident.h>
+#include <linux/dmi.h>
 
 MODULE_AUTHOR("Brian Johnson <brijohn@gmail.com>, "
 		"microdia project <microdia@googlegroups.com>");
@@ -55,6 +56,7 @@ MODULE_LICENSE("GPL");
 /* camera flags */
 #define HAS_BUTTON	0x1
 #define LED_REVERSE	0x2 /* some cameras unset gpio to turn on leds */
+#define FLIP_DETECT	0x4
 
 /* specific webcam descriptor */
 struct sd {
@@ -126,6 +128,25 @@ static int sd_setexposure(struct gspca_dev *gspca_dev, s32 val);
 static int sd_getexposure(struct gspca_dev *gspca_dev, s32 *val);
 static int sd_setautoexposure(struct gspca_dev *gspca_dev, s32 val);
 static int sd_getautoexposure(struct gspca_dev *gspca_dev, s32 *val);
+
+static const struct dmi_system_id flip_dmi_table[] = {
+	{
+		.ident = "MSI MS-1034",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "MICRO-STAR INT'L CO.,LTD."),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MS-1034"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "0341")
+		}
+	},
+	{
+		.ident = "MSI MS-1632",
+		.matches = {
+			DMI_MATCH(DMI_BOARD_VENDOR, "MSI"),
+			DMI_MATCH(DMI_BOARD_NAME, "MS-1632")
+		}
+	},
+	{}
+};
 
 static const struct ctrl sd_ctrls[] = {
 	{
@@ -1496,17 +1517,26 @@ static int set_redblue(struct gspca_dev *gspca_dev)
 
 static int set_hvflip(struct gspca_dev *gspca_dev)
 {
-	u8 value, tslb;
+	u8 value, tslb, hflip, vflip;
 	u16 value2;
 	struct sd *sd = (struct sd *) gspca_dev;
+
+	if ((sd->flags & FLIP_DETECT) && dmi_check_system(flip_dmi_table)) {
+		hflip = !sd->hflip;
+		vflip = !sd->vflip;
+	} else {
+		hflip = sd->hflip;
+		vflip = sd->vflip;
+	}
+
 	switch (sd->sensor) {
 	case SENSOR_OV9650:
 		i2c_r1(gspca_dev, 0x1e, &value);
 		value &= ~0x30;
 		tslb = 0x01;
-		if (sd->hflip)
+		if (hflip)
 			value |= 0x20;
-		if (sd->vflip) {
+		if (vflip) {
 			value |= 0x10;
 			tslb = 0x49;
 		}
@@ -1517,9 +1547,9 @@ static int set_hvflip(struct gspca_dev *gspca_dev)
 	case SENSOR_MT9V011:
 		i2c_r2(gspca_dev, 0x20, &value2);
 		value2 &= ~0xc0a0;
-		if (sd->hflip)
+		if (hflip)
 			value2 |= 0x8080;
-		if (sd->vflip)
+		if (vflip)
 			value2 |= 0x4020;
 		i2c_w2(gspca_dev, 0x20, value2);
 		break;
@@ -1527,18 +1557,18 @@ static int set_hvflip(struct gspca_dev *gspca_dev)
 	case SENSOR_MT9V112:
 		i2c_r2(gspca_dev, 0x20, &value2);
 		value2 &= ~0x0003;
-		if (sd->hflip)
+		if (hflip)
 			value2 |= 0x0002;
-		if (sd->vflip)
+		if (vflip)
 			value2 |= 0x0001;
 		i2c_w2(gspca_dev, 0x20, value2);
 		break;
 	case SENSOR_HV7131R:
 		i2c_r1(gspca_dev, 0x01, &value);
 		value &= ~0x03;
-		if (sd->vflip)
+		if (vflip)
 			value |= 0x01;
-		if (sd->hflip)
+		if (hflip)
 			value |= 0x02;
 		i2c_w1(gspca_dev, 0x01, value);
 		break;
@@ -2371,7 +2401,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6248), SN9C20X(OV9655, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30,
 					     (HAS_BUTTON | LED_REVERSE))},
-	{USB_DEVICE(0x0c45, 0x624f), SN9C20X(OV9650, 0x30, 0)},
+	{USB_DEVICE(0x0c45, 0x624f), SN9C20X(OV9650, 0x30, FLIP_DETECT)},
 	{USB_DEVICE(0x0c45, 0x6251), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6253), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x6260), SN9C20X(OV7670, 0x21, 0)},
