@@ -2836,11 +2836,18 @@ int ceph_encode_inode_release(void **p, struct inode *inode,
 	struct ceph_cap *cap;
 	struct ceph_mds_request_release *rel = *p;
 	int ret = 0;
-
-	dout("encode_inode_release %p mds%d drop %s unless %s\n", inode,
-	     mds, ceph_cap_string(drop), ceph_cap_string(unless));
+	int used = 0;
 
 	spin_lock(&inode->i_lock);
+	used = __ceph_caps_used(ci);
+
+	dout("encode_inode_release %p mds%d used %s drop %s unless %s\n", inode,
+	     mds, ceph_cap_string(used), ceph_cap_string(drop),
+	     ceph_cap_string(unless));
+
+	/* only drop unused caps */
+	drop &= ~used;
+
 	cap = __get_cap_for_mds(ci, mds);
 	if (cap && __cap_is_valid(cap)) {
 		if (force ||
