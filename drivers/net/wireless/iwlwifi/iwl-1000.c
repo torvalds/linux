@@ -220,8 +220,8 @@ static struct iwl_lib_ops iwl1000_lib = {
 static const struct iwl_ops iwl1000_ops = {
 	.ucode = &iwlagn_ucode,
 	.lib = &iwl1000_lib,
-	.hcmd = &iwl5000_hcmd,
-	.utils = &iwl5000_hcmd_utils,
+	.hcmd = &iwlagn_hcmd,
+	.utils = &iwlagn_hcmd_utils,
 	.led = &iwlagn_led_ops,
 };
 
