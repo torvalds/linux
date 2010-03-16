@@ -295,6 +295,13 @@ extern void *xmemdupz(const void *data, size_t len);
 extern char *xstrndup(const char *str, size_t len);
 extern void *xrealloc(void *ptr, size_t size) __attribute__((weak));
 
+static inline void *xzalloc(size_t size)
+{
+	void *buf = xmalloc(size);
+
+	return memset(buf, 0, size);
+}
+
 static inline void *zalloc(size_t size)
 {
 	return calloc(1, size);
@@ -309,6 +316,7 @@ static inline int has_extension(const char *filename, const char *ext)
 {
 	size_t len = strlen(filename);
 	size_t extlen = strlen(ext);
+
 	return len > extlen && !memcmp(filename + len - extlen, ext, extlen);
 }
 
@@ -322,6 +330,7 @@ static inline int has_extension(const char *filename, const char *ext)
 #undef isalnum
 #undef tolower
 #undef toupper
+
 extern unsigned char sane_ctype[256];
 #define GIT_SPACE		0x01
 #define GIT_DIGIT		0x02
