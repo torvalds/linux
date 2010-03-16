@@ -472,8 +472,9 @@ static int __hw_perf_event_init(struct perf_event *event)
 	hwc->last_tag = ~0ULL;
 
 	/* Processor specifics */
-	if (x86_pmu.hw_config(attr, hwc))
-		return -EOPNOTSUPP;
+	err = x86_pmu.hw_config(attr, hwc);
+	if (err)
+		return err;
 
 	if (!hwc->sample_period) {
 		hwc->sample_period = x86_pmu.max_period;
