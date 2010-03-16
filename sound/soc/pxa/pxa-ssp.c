@@ -32,7 +32,6 @@
 
 #include <mach/hardware.h>
 #include <mach/dma.h>
-#include <mach/regs-ssp.h>
 #include <mach/audio.h>
 #include <mach/ssp.h>
 

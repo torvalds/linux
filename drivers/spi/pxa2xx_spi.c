@@ -36,7 +36,6 @@
 #include <asm/delay.h>
 
 #include <mach/dma.h>
-#include <mach/regs-ssp.h>
 #include <mach/ssp.h>
 #include <mach/pxa2xx_spi.h>
 
