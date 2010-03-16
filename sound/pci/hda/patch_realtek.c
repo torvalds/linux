@@ -338,7 +338,7 @@ struct alc_spec {
 	void (*init_hook)(struct hda_codec *codec);
 	void (*unsol_event)(struct hda_codec *codec, unsigned int res);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-	void (*power_hook)(struct hda_codec *codec, int power);
+	void (*power_hook)(struct hda_codec *codec);
 #endif
 
 	/* for pin sensing */
@@ -391,7 +391,7 @@ struct alc_config_preset {
 	void (*init_hook)(struct hda_codec *);
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	struct hda_amp_list *loopbacks;
-	void (*power_hook)(struct hda_codec *codec, int power);
+	void (*power_hook)(struct hda_codec *codec);
 #endif
 };
 
@@ -633,6 +633,7 @@ static int alc_pin_mode_put(struct snd_kcontrol *kcontrol,
 
 #define ALC_PIN_MODE(xname, nid, dir) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = 0,  \
+	  .subdevice = HDA_SUBDEV_NID_FLAG | nid, \
 	  .info = alc_pin_mode_info, \
 	  .get = alc_pin_mode_get, \
 	  .put = alc_pin_mode_put, \
@@ -684,6 +685,7 @@ static int alc_gpio_data_put(struct snd_kcontrol *kcontrol,
 }
 #define ALC_GPIO_DATA_SWITCH(xname, nid, mask) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = 0,  \
+	  .subdevice = HDA_SUBDEV_NID_FLAG | nid, \
 	  .info = alc_gpio_data_info, \
 	  .get = alc_gpio_data_get, \
 	  .put = alc_gpio_data_put, \
@@ -738,6 +740,7 @@ static int alc_spdif_ctrl_put(struct snd_kcontrol *kcontrol,
 }
 #define ALC_SPDIF_CTRL_SWITCH(xname, nid, mask) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = 0,  \
+	  .subdevice = HDA_SUBDEV_NID_FLAG | nid, \
 	  .info = alc_spdif_ctrl_info, \
 	  .get = alc_spdif_ctrl_get, \
 	  .put = alc_spdif_ctrl_put, \
@@ -791,6 +794,7 @@ static int alc_eapd_ctrl_put(struct snd_kcontrol *kcontrol,
 
 #define ALC_EAPD_CTRL_SWITCH(xname, nid, mask) \
 	{ .iface = SNDRV_CTL_ELEM_IFACE_MIXER, .name = xname, .index = 0,  \
+	  .subdevice = HDA_SUBDEV_NID_FLAG | nid, \
 	  .info = alc_eapd_ctrl_info, \
 	  .get = alc_eapd_ctrl_get, \
 	  .put = alc_eapd_ctrl_put, \
@@ -1840,14 +1844,6 @@ static void alc889_acer_aspire_8930g_setup(struct hda_codec *codec)
 	spec->autocfg.speaker_pins[2] = 0x1b;
 }
 
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-static void alc889_power_eapd(struct hda_codec *codec, int power)
-{
-	set_eapd(codec, 0x14, power);
-	set_eapd(codec, 0x15, power);
-}
-#endif
-
 /*
  * ALC880 3-stack model
  *
@@ -2450,6 +2446,15 @@ static const char *alc_slave_sws[] = {
  * build control elements
  */
 
+#define NID_MAPPING		(-1)
+
+#define SUBDEV_SPEAKER_		(0 << 6)
+#define SUBDEV_HP_		(1 << 6)
+#define SUBDEV_LINE_		(2 << 6)
+#define SUBDEV_SPEAKER(x)	(SUBDEV_SPEAKER_ | ((x) & 0x3f))
+#define SUBDEV_HP(x)		(SUBDEV_HP_ | ((x) & 0x3f))
+#define SUBDEV_LINE(x)		(SUBDEV_LINE_ | ((x) & 0x3f))
+
 static void alc_free_kctls(struct hda_codec *codec);
 
 #ifdef CONFIG_SND_HDA_INPUT_BEEP
@@ -2464,8 +2469,11 @@ static struct snd_kcontrol_new alc_beep_mixer[] = {
 static int alc_build_controls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
-	int err;
-	int i;
+	struct snd_kcontrol *kctl;
+	struct snd_kcontrol_new *knew;
+	int i, j, err;
+	unsigned int u;
+	hda_nid_t nid;
 
 	for (i = 0; i < spec->num_mixers; i++) {
 		err = snd_hda_add_new_ctls(codec, spec->mixers[i]);
@@ -2506,8 +2514,7 @@ static int alc_build_controls(struct hda_codec *codec)
 			if (!kctl)
 				return -ENOMEM;
 			kctl->private_value = spec->beep_amp;
-			err = snd_hda_ctl_add(codec,
-					get_amp_nid_(spec->beep_amp), kctl);
+			err = snd_hda_ctl_add(codec, 0, kctl);
 			if (err < 0)
 				return err;
 		}
@@ -2534,6 +2541,75 @@ static int alc_build_controls(struct hda_codec *codec)
 	}
 
 	alc_free_kctls(codec); /* no longer needed */
+
+	/* assign Capture Source enums to NID */
+	kctl = snd_hda_find_mixer_ctl(codec, "Capture Source");
+	if (!kctl)
+		kctl = snd_hda_find_mixer_ctl(codec, "Input Source");
+	for (i = 0; kctl && i < kctl->count; i++) {
+		hda_nid_t *nids = spec->capsrc_nids;
+		if (!nids)
+			nids = spec->adc_nids;
+		err = snd_hda_add_nid(codec, kctl, i, nids[i]);
+		if (err < 0)
+			return err;
+	}
+	if (spec->cap_mixer) {
+		const char *kname = kctl ? kctl->id.name : NULL;
+		for (knew = spec->cap_mixer; knew->name; knew++) {
+			if (kname && strcmp(knew->name, kname) == 0)
+				continue;
+			kctl = snd_hda_find_mixer_ctl(codec, knew->name);
+			for (i = 0; kctl && i < kctl->count; i++) {
+				err = snd_hda_add_nid(codec, kctl, i,
+						      spec->adc_nids[i]);
+				if (err < 0)
+					return err;
+			}
+		}
+	}
+
+	/* other nid->control mapping */
+	for (i = 0; i < spec->num_mixers; i++) {
+		for (knew = spec->mixers[i]; knew->name; knew++) {
+			if (knew->iface != NID_MAPPING)
+				continue;
+			kctl = snd_hda_find_mixer_ctl(codec, knew->name);
+			if (kctl == NULL)
+				continue;
+			u = knew->subdevice;
+			for (j = 0; j < 4; j++, u >>= 8) {
+				nid = u & 0x3f;
+				if (nid == 0)
+					continue;
+				switch (u & 0xc0) {
+				case SUBDEV_SPEAKER_:
+					nid = spec->autocfg.speaker_pins[nid];
+					break;
+				case SUBDEV_LINE_:
+					nid = spec->autocfg.line_out_pins[nid];
+					break;
+				case SUBDEV_HP_:
+					nid = spec->autocfg.hp_pins[nid];
+					break;
+				default:
+					continue;
+				}
+				err = snd_hda_add_nid(codec, kctl, 0, nid);
+				if (err < 0)
+					return err;
+			}
+			u = knew->private_value;
+			for (j = 0; j < 4; j++, u >>= 8) {
+				nid = u & 0xff;
+				if (nid == 0)
+					continue;
+				err = snd_hda_add_nid(codec, kctl, 0, nid);
+				if (err < 0)
+					return err;
+			}
+		}
+	}
 	return 0;
 }
 
@@ -3616,6 +3692,11 @@ static int alc_build_pcms(struct hda_codec *codec)
 	return 0;
 }
 
+static inline void alc_shutup(struct hda_codec *codec)
+{
+	snd_hda_shutup_pins(codec);
+}
+
 static void alc_free_kctls(struct hda_codec *codec)
 {
 	struct alc_spec *spec = codec->spec;
@@ -3636,17 +3717,47 @@ static void alc_free(struct hda_codec *codec)
 	if (!spec)
 		return;
 
+	alc_shutup(codec);
 	alc_free_kctls(codec);
 	kfree(spec);
 	snd_hda_detach_beep_device(codec);
 }
 
 #ifdef CONFIG_SND_HDA_POWER_SAVE
+static void alc_power_eapd(struct hda_codec *codec)
+{
+	/* We currently only handle front, HP */
+	switch (codec->vendor_id) {
+	case 0x10ec0260:
+		snd_hda_codec_write(codec, 0x0f, 0,
+				    AC_VERB_SET_EAPD_BTLENABLE, 0x00);
+		snd_hda_codec_write(codec, 0x10, 0,
+				    AC_VERB_SET_EAPD_BTLENABLE, 0x00);
+		break;
+	case 0x10ec0262:
+	case 0x10ec0267:
+	case 0x10ec0268:
+	case 0x10ec0269:
+	case 0x10ec0272:
+	case 0x10ec0660:
+	case 0x10ec0662:
+	case 0x10ec0663:
+	case 0x10ec0862:
+	case 0x10ec0889:
+		snd_hda_codec_write(codec, 0x14, 0,
+				    AC_VERB_SET_EAPD_BTLENABLE, 0x00);
+		snd_hda_codec_write(codec, 0x15, 0,
+				    AC_VERB_SET_EAPD_BTLENABLE, 0x00);
+		break;
+	}
+}
+
 static int alc_suspend(struct hda_codec *codec, pm_message_t state)
 {
 	struct alc_spec *spec = codec->spec;
+	alc_shutup(codec);
 	if (spec && spec->power_hook)
-		spec->power_hook(codec, 0);
+		spec->power_hook(codec);
 	return 0;
 }
 #endif
@@ -3654,16 +3765,9 @@ static int alc_suspend(struct hda_codec *codec, pm_message_t state)
 #ifdef SND_HDA_NEEDS_RESUME
 static int alc_resume(struct hda_codec *codec)
 {
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-	struct alc_spec *spec = codec->spec;
-#endif
 	codec->patch_ops.init(codec);
 	snd_hda_codec_resume_amp(codec);
 	snd_hda_codec_resume_cache(codec);
-#ifdef CONFIG_SND_HDA_POWER_SAVE
-	if (spec && spec->power_hook)
-		spec->power_hook(codec, 1);
-#endif
 	return 0;
 }
 #endif
@@ -3683,6 +3787,7 @@ static struct hda_codec_ops alc_patch_ops = {
 	.suspend = alc_suspend,
 	.check_power_status = alc_check_power_status,
 #endif
+	.reboot_notify = alc_shutup,
 };
 
 
@@ -3839,6 +3944,7 @@ static int alc_test_pin_src_put(struct snd_kcontrol *kcontrol,
 #define PIN_CTL_TEST(xname,nid) {			\
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,	\
 			.name = xname,		       \
+			.subdevice = HDA_SUBDEV_NID_FLAG | nid, \
 			.info = alc_test_pin_ctl_info, \
 			.get = alc_test_pin_ctl_get,   \
 			.put = alc_test_pin_ctl_put,   \
@@ -3848,6 +3954,7 @@ static int alc_test_pin_src_put(struct snd_kcontrol *kcontrol,
 #define PIN_SRC_TEST(xname,nid) {			\
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,	\
 			.name = xname,		       \
+			.subdevice = HDA_SUBDEV_NID_FLAG | nid, \
 			.info = alc_test_pin_src_info, \
 			.get = alc_test_pin_src_get,   \
 			.put = alc_test_pin_src_put,   \
@@ -4387,7 +4494,7 @@ static int add_control(struct alc_spec *spec, int type, const char *name,
 	if (!knew->name)
 		return -ENOMEM;
 	if (get_amp_nid_(val))
-		knew->subdevice = HDA_SUBDEV_NID_FLAG | get_amp_nid_(val);
+		knew->subdevice = HDA_SUBDEV_AMP_FLAG;
 	knew->private_value = val;
 	return 0;
 }
@@ -5182,6 +5289,7 @@ static struct snd_kcontrol_new alc260_hp_output_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_NID_FLAG | 0x11,
 		.info = snd_ctl_boolean_mono_info,
 		.get = alc260_hp_master_sw_get,
 		.put = alc260_hp_master_sw_put,
@@ -5220,6 +5328,7 @@ static struct snd_kcontrol_new alc260_hp_3013_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_NID_FLAG | 0x11,
 		.info = snd_ctl_boolean_mono_info,
 		.get = alc260_hp_master_sw_get,
 		.put = alc260_hp_master_sw_put,
@@ -9528,7 +9637,7 @@ static struct alc_config_preset alc882_presets[] = {
 		.setup = alc889_acer_aspire_8930g_setup,
 		.init_hook = alc_automute_amp,
 #ifdef CONFIG_SND_HDA_POWER_SAVE
-		.power_hook = alc889_power_eapd,
+		.power_hook = alc_power_eapd,
 #endif
 	},
 	[ALC888_ACER_ASPIRE_7730G] = {
@@ -10324,7 +10433,13 @@ static int alc262_hp_master_sw_put(struct snd_kcontrol *kcontrol,
 		.info = snd_ctl_boolean_mono_info,		\
 		.get = alc262_hp_master_sw_get,			\
 		.put = alc262_hp_master_sw_put,			\
+	}, \
+	{							\
+		.iface = NID_MAPPING,				\
+		.name = "Master Playback Switch",		\
+		.private_value = 0x15 | (0x16 << 8) | (0x1b << 16),	\
 	}
+
 
 static struct snd_kcontrol_new alc262_HP_BPC_mixer[] = {
 	ALC262_HP_MASTER_SWITCH,
@@ -10483,6 +10598,12 @@ static int alc262_hippo_master_sw_put(struct snd_kcontrol *kcontrol,
 		.info = snd_ctl_boolean_mono_info,		\
 		.get = alc262_hippo_master_sw_get,		\
 		.put = alc262_hippo_master_sw_put,		\
+	},							\
+	{							\
+		.iface = NID_MAPPING,				\
+		.name = "Master Playback Switch",		\
+		.subdevice = SUBDEV_HP(0) | (SUBDEV_LINE(0) << 8) | \
+			     (SUBDEV_SPEAKER(0) << 16), \
 	}
 
 static struct snd_kcontrol_new alc262_hippo_mixer[] = {
@@ -10963,10 +11084,16 @@ static struct snd_kcontrol_new alc262_fujitsu_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = alc262_fujitsu_master_sw_put,
 		.private_value = HDA_COMPOSE_AMP_VAL(0x14, 3, 0, HDA_OUTPUT),
+	},
+	{
+		.iface = NID_MAPPING,
+		.name = "Master Playback Switch",
+		.private_value = 0x1b,
 	},
 	HDA_CODEC_VOLUME("CD Playback Volume", 0x0b, 0x04, HDA_INPUT),
 	HDA_CODEC_MUTE("CD Playback Switch", 0x0b, 0x04, HDA_INPUT),
@@ -10998,6 +11125,7 @@ static struct snd_kcontrol_new alc262_lenovo_3000_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = alc262_lenovo_3000_master_sw_put,
@@ -11151,6 +11279,11 @@ static struct snd_kcontrol_new alc262_ultra_capture_mixer[] = {
 		.info = alc_mux_enum_info,
 		.get = alc_mux_enum_get,
 		.put = alc262_ultra_mux_enum_put,
+	},
+	{
+		.iface = NID_MAPPING,
+		.name = "Capture Source",
+		.private_value = 0x15,
 	},
 	{ } /* end */
 };
@@ -12170,6 +12303,7 @@ static struct snd_kcontrol_new alc268_acer_aspire_one_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = alc268_acer_master_sw_put,
@@ -12185,6 +12319,7 @@ static struct snd_kcontrol_new alc268_acer_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = alc268_acer_master_sw_put,
@@ -12202,6 +12337,7 @@ static struct snd_kcontrol_new alc268_acer_dmic_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = alc268_acer_master_sw_put,
@@ -13155,6 +13291,7 @@ static struct snd_kcontrol_new alc269_quanta_fl1_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = alc268_acer_master_sw_put,
@@ -13175,6 +13312,7 @@ static struct snd_kcontrol_new alc269_lifebook_mixer[] = {
 	{
 		.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
 		.name = "Master Playback Switch",
+		.subdevice = HDA_SUBDEV_AMP_FLAG,
 		.info = snd_hda_mixer_amp_switch_info,
 		.get = snd_hda_mixer_amp_switch_get,
 		.put = alc268_acer_master_sw_put,
@@ -14939,8 +15077,12 @@ static int patch_alc861(struct hda_codec *codec)
 	spec->vmaster_nid = 0x03;
 
 	codec->patch_ops = alc_patch_ops;
-	if (board_config == ALC861_AUTO)
+	if (board_config == ALC861_AUTO) {
 		spec->init_hook = alc861_auto_init;
+#ifdef CONFIG_SND_HDA_POWER_SAVE
+		spec->power_hook = alc_power_eapd;
+#endif
+	}
 #ifdef CONFIG_SND_HDA_POWER_SAVE
 	if (!spec->loopback.amplist)
 		spec->loopback.amplist = alc861_loopbacks;

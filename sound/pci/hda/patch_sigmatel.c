@@ -2688,7 +2688,7 @@ static struct snd_kcontrol_new *
 stac_control_new(struct sigmatel_spec *spec,
 		 struct snd_kcontrol_new *ktemp,
 		 const char *name,
-		 hda_nid_t nid)
+		 unsigned int subdev)
 {
 	struct snd_kcontrol_new *knew;
 
@@ -2704,8 +2704,7 @@ stac_control_new(struct sigmatel_spec *spec,
 		spec->kctls.alloced--;
 		return NULL;
 	}
-	if (nid)
-		knew->subdevice = HDA_SUBDEV_NID_FLAG | nid;
+	knew->subdevice = subdev;
 	return knew;
 }
 
@@ -2715,7 +2714,7 @@ static int stac92xx_add_control_temp(struct sigmatel_spec *spec,
 				     unsigned long val)
 {
 	struct snd_kcontrol_new *knew = stac_control_new(spec, ktemp, name,
-							 get_amp_nid_(val));
+							 HDA_SUBDEV_AMP_FLAG);
 	if (!knew)
 		return -ENOMEM;
 	knew->index = idx;
@@ -4160,34 +4159,52 @@ static void stac92xx_power_down(struct hda_codec *codec)
 static void stac_toggle_power_map(struct hda_codec *codec, hda_nid_t nid,
 				  int enable);
 
+static inline int get_int_hint(struct hda_codec *codec, const char *key,
+			       int *valp)
+{
+	const char *p;
+	p = snd_hda_get_hint(codec, key);
+	if (p) {
+		unsigned long val;
+		if (!strict_strtoul(p, 0, &val)) {
+			*valp = val;
+			return 1;
+		}
+	}
+	return 0;
+}
+
 /* override some hints from the hwdep entry */
 static void stac_store_hints(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	const char *p;
 	int val;
 
 	val = snd_hda_get_bool_hint(codec, "hp_detect");
 	if (val >= 0)
 		spec->hp_detect = val;
-	p = snd_hda_get_hint(codec, "gpio_mask");
-	if (p) {
-		spec->gpio_mask = simple_strtoul(p, NULL, 0);
+	if (get_int_hint(codec, "gpio_mask", &spec->gpio_mask)) {
 		spec->eapd_mask = spec->gpio_dir = spec->gpio_data =
 			spec->gpio_mask;
 	}
-	p = snd_hda_get_hint(codec, "gpio_dir");
-	if (p)
-		spec->gpio_dir = simple_strtoul(p, NULL, 0) & spec->gpio_mask;
-	p = snd_hda_get_hint(codec, "gpio_data");
-	if (p)
-		spec->gpio_data = simple_strtoul(p, NULL, 0) & spec->gpio_mask;
-	p = snd_hda_get_hint(codec, "eapd_mask");
-	if (p)
-		spec->eapd_mask = simple_strtoul(p, NULL, 0) & spec->gpio_mask;
+	if (get_int_hint(codec, "gpio_dir", &spec->gpio_dir))
+		spec->gpio_mask &= spec->gpio_mask;
+	if (get_int_hint(codec, "gpio_data", &spec->gpio_data))
+		spec->gpio_dir &= spec->gpio_mask;
+	if (get_int_hint(codec, "eapd_mask", &spec->eapd_mask))
+		spec->eapd_mask &= spec->gpio_mask;
+	if (get_int_hint(codec, "gpio_mute", &spec->gpio_mute))
+		spec->gpio_mute &= spec->gpio_mask;
 	val = snd_hda_get_bool_hint(codec, "eapd_switch");
 	if (val >= 0)
 		spec->eapd_switch = val;
+	get_int_hint(codec, "gpio_led_polarity", &spec->gpio_led_polarity);
+	if (get_int_hint(codec, "gpio_led", &spec->gpio_led)) {
+		spec->gpio_mask |= spec->gpio_led;
+		spec->gpio_dir |= spec->gpio_led;
+		if (spec->gpio_led_polarity)
+			spec->gpio_data |= spec->gpio_led;
+	}
 }
 
 static int stac92xx_init(struct hda_codec *codec)
@@ -4372,18 +4389,8 @@ static void stac92xx_free_kctls(struct hda_codec *codec)
 static void stac92xx_shutup(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec = codec->spec;
-	int i;
-	hda_nid_t nid;
 
-	/* reset each pin before powering down DAC/ADC to avoid click noise */
-	nid = codec->start_nid;
-	for (i = 0; i < codec->num_nodes; i++, nid++) {
-		unsigned int wcaps = get_wcaps(codec, nid);
-		unsigned int wid_type = get_wcaps_type(wcaps);
-		if (wid_type == AC_WID_PIN)
-			snd_hda_codec_read(codec, nid, 0,
-				AC_VERB_SET_PIN_WIDGET_CONTROL, 0);
-	}
+	snd_hda_shutup_pins(codec);
 
 	if (spec->eapd_mask)
 		stac_gpio_set(codec, spec->gpio_mask,
@@ -5431,6 +5438,54 @@ static int stac92hd71bxx_connected_smuxes(struct hda_codec *codec,
 		return 0;
 }
 
+/* HP dv7 bass switch - GPIO5 */
+#define stac_hp_bass_gpio_info	snd_ctl_boolean_mono_info
+static int stac_hp_bass_gpio_get(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+	ucontrol->value.integer.value[0] = !!(spec->gpio_data & 0x20);
+	return 0;
+}
+
+static int stac_hp_bass_gpio_put(struct snd_kcontrol *kcontrol,
+				 struct snd_ctl_elem_value *ucontrol)
+{
+	struct hda_codec *codec = snd_kcontrol_chip(kcontrol);
+	struct sigmatel_spec *spec = codec->spec;
+	unsigned int gpio_data;
+
+	gpio_data = (spec->gpio_data & ~0x20) |
+		(ucontrol->value.integer.value[0] ? 0x20 : 0);
+	if (gpio_data == spec->gpio_data)
+		return 0;
+	spec->gpio_data = gpio_data;
+	stac_gpio_set(codec, spec->gpio_mask, spec->gpio_dir, spec->gpio_data);
+	return 1;
+}
+
+static struct snd_kcontrol_new stac_hp_bass_sw_ctrl = {
+	.iface = SNDRV_CTL_ELEM_IFACE_MIXER,
+	.info = stac_hp_bass_gpio_info,
+	.get = stac_hp_bass_gpio_get,
+	.put = stac_hp_bass_gpio_put,
+};
+
+static int stac_add_hp_bass_switch(struct hda_codec *codec)
+{
+	struct sigmatel_spec *spec = codec->spec;
+
+	if (!stac_control_new(spec, &stac_hp_bass_sw_ctrl,
+			      "Bass Speaker Playback Switch", 0))
+		return -ENOMEM;
+
+	spec->gpio_mask |= 0x20;
+	spec->gpio_dir |= 0x20;
+	spec->gpio_data |= 0x20;
+	return 0;
+}
+
 static int patch_stac92hd71bxx(struct hda_codec *codec)
 {
 	struct sigmatel_spec *spec;
@@ -5672,6 +5727,15 @@ again:
 	if (err < 0) {
 		stac92xx_free(codec);
 		return err;
+	}
+
+	/* enable bass on HP dv7 */
+	if (spec->board_config == STAC_HP_DV5) {
+		unsigned int cap;
+		cap = snd_hda_param_read(codec, 0x1, AC_PAR_GPIO_CAP);
+		cap &= AC_GPIO_IO_COUNT;
+		if (cap >= 6)
+			stac_add_hp_bass_switch(codec);
 	}
 
 	codec->proc_widget_hook = stac92hd7x_proc_hook;

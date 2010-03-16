@@ -328,11 +328,11 @@ static int sound_mixer_ioctl(int mixdev, unsigned int cmd, void __user *arg)
 	return mixer_devs[mixdev]->ioctl(mixdev, cmd, arg);
 }
 
-static int sound_ioctl(struct inode *inode, struct file *file,
-		       unsigned int cmd, unsigned long arg)
+static long sound_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	int len = 0, dtype;
-	int dev = iminor(inode);
+	int dev = iminor(file->f_dentry->d_inode);
+	long ret = -EINVAL;
 	void __user *p = (void __user *)arg;
 
 	if (_SIOC_DIR(cmd) != _SIOC_NONE && _SIOC_DIR(cmd) != 0) {
@@ -353,6 +353,7 @@ static int sound_ioctl(struct inode *inode, struct file *file,
 	if (cmd == OSS_GETVERSION)
 		return __put_user(SOUND_VERSION, (int __user *)p);
 	
+	lock_kernel();
 	if (_IOC_TYPE(cmd) == 'M' && num_mixers > 0 &&   /* Mixer ioctl */
 	    (dev & 0x0f) != SND_DEV_CTL) {              
 		dtype = dev & 0x0f;
@@ -360,24 +361,31 @@ static int sound_ioctl(struct inode *inode, struct file *file,
 		case SND_DEV_DSP:
 		case SND_DEV_DSP16:
 		case SND_DEV_AUDIO:
-			return sound_mixer_ioctl(audio_devs[dev >> 4]->mixer_dev,
+			ret = sound_mixer_ioctl(audio_devs[dev >> 4]->mixer_dev,
 						 cmd, p);
-			
+			break;			
 		default:
-			return sound_mixer_ioctl(dev >> 4, cmd, p);
+			ret = sound_mixer_ioctl(dev >> 4, cmd, p);
+			break;
 		}
+		unlock_kernel();
+		return ret;
 	}
+
 	switch (dev & 0x0f) {
 	case SND_DEV_CTL:
 		if (cmd == SOUND_MIXER_GETLEVELS)
-			return get_mixer_levels(p);
-		if (cmd == SOUND_MIXER_SETLEVELS)
-			return set_mixer_levels(p);
-		return sound_mixer_ioctl(dev >> 4, cmd, p);
+			ret = get_mixer_levels(p);
+		else if (cmd == SOUND_MIXER_SETLEVELS)
+			ret = set_mixer_levels(p);
+		else
+			ret = sound_mixer_ioctl(dev >> 4, cmd, p);
+		break;
 
 	case SND_DEV_SEQ:
 	case SND_DEV_SEQ2:
-		return sequencer_ioctl(dev, file, cmd, p);
+		ret = sequencer_ioctl(dev, file, cmd, p);
+		break;
 
 	case SND_DEV_DSP:
 	case SND_DEV_DSP16:
@@ -390,7 +398,8 @@ static int sound_ioctl(struct inode *inode, struct file *file,
 		break;
 
 	}
-	return -EINVAL;
+	unlock_kernel();
+	return ret;
 }
 
 static unsigned int sound_poll(struct file *file, poll_table * wait)
@@ -490,7 +499,7 @@ const struct file_operations oss_sound_fops = {
 	.read		= sound_read,
 	.write		= sound_write,
 	.poll		= sound_poll,
-	.ioctl		= sound_ioctl,
+	.unlocked_ioctl	= sound_ioctl,
 	.mmap		= sound_mmap,
 	.open		= sound_open,
 	.release	= sound_release,
