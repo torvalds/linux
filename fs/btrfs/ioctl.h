@@ -127,14 +127,14 @@ struct btrfs_ioctl_defrag_range_args {
 };
 
 struct btrfs_ioctl_space_info {
-	u64 flags;
-	u64 total_bytes;
-	u64 used_bytes;
+	__u64 flags;
+	__u64 total_bytes;
+	__u64 used_bytes;
 };
 
 struct btrfs_ioctl_space_args {
-	u64 space_slots;
-	u64 total_spaces;
+	__u64 space_slots;
+	__u64 total_spaces;
 	struct btrfs_ioctl_space_info spaces[0];
 };
 
