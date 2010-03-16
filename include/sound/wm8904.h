@@ -19,6 +19,40 @@
 #define WM8904_GPIO_NO_CONFIG 0x8000
 
 /*
+ * R6 (0x06) - Mic Bias Control 0
+ */
+#define WM8904_MICDET_THR_MASK                  0x0070  /* MICDET_THR - [6:4] */
+#define WM8904_MICDET_THR_SHIFT                      4  /* MICDET_THR - [6:4] */
+#define WM8904_MICDET_THR_WIDTH                      3  /* MICDET_THR - [6:4] */
+#define WM8904_MICSHORT_THR_MASK                0x000C  /* MICSHORT_THR - [3:2] */
+#define WM8904_MICSHORT_THR_SHIFT                    2  /* MICSHORT_THR - [3:2] */
+#define WM8904_MICSHORT_THR_WIDTH                    2  /* MICSHORT_THR - [3:2] */
+#define WM8904_MICDET_ENA                       0x0002  /* MICDET_ENA */
+#define WM8904_MICDET_ENA_MASK                  0x0002  /* MICDET_ENA */
+#define WM8904_MICDET_ENA_SHIFT                      1  /* MICDET_ENA */
+#define WM8904_MICDET_ENA_WIDTH                      1  /* MICDET_ENA */
+#define WM8904_MICBIAS_ENA                      0x0001  /* MICBIAS_ENA */
+#define WM8904_MICBIAS_ENA_MASK                 0x0001  /* MICBIAS_ENA */
+#define WM8904_MICBIAS_ENA_SHIFT                     0  /* MICBIAS_ENA */
+#define WM8904_MICBIAS_ENA_WIDTH                     1  /* MICBIAS_ENA */
+
+/*
+ * R7 (0x07) - Mic Bias Control 1
+ */
+#define WM8904_MIC_DET_FILTER_ENA               0x8000  /* MIC_DET_FILTER_ENA */
+#define WM8904_MIC_DET_FILTER_ENA_MASK          0x8000  /* MIC_DET_FILTER_ENA */
+#define WM8904_MIC_DET_FILTER_ENA_SHIFT             15  /* MIC_DET_FILTER_ENA */
+#define WM8904_MIC_DET_FILTER_ENA_WIDTH              1  /* MIC_DET_FILTER_ENA */
+#define WM8904_MIC_SHORT_FILTER_ENA             0x4000  /* MIC_SHORT_FILTER_ENA */
+#define WM8904_MIC_SHORT_FILTER_ENA_MASK        0x4000  /* MIC_SHORT_FILTER_ENA */
+#define WM8904_MIC_SHORT_FILTER_ENA_SHIFT           14  /* MIC_SHORT_FILTER_ENA */
+#define WM8904_MIC_SHORT_FILTER_ENA_WIDTH            1  /* MIC_SHORT_FILTER_ENA */
+#define WM8904_MICBIAS_SEL_MASK                 0x0007  /* MICBIAS_SEL - [2:0] */
+#define WM8904_MICBIAS_SEL_SHIFT                     0  /* MICBIAS_SEL - [2:0] */
+#define WM8904_MICBIAS_SEL_WIDTH                     3  /* MICBIAS_SEL - [2:0] */
+
+
+/*
  * R121 (0x79) - GPIO Control 1
  */
 #define WM8904_GPIO1_PU                         0x0020  /* GPIO1_PU */
@@ -82,6 +116,7 @@
 #define WM8904_GPIO_BCLK_SEL_SHIFT                   0  /* GPIO_BCLK_SEL - [3:0] */
 #define WM8904_GPIO_BCLK_SEL_WIDTH                   4  /* GPIO_BCLK_SEL - [3:0] */
 
+#define WM8904_MIC_REGS  2
 #define WM8904_GPIO_REGS 4
 #define WM8904_DRC_REGS  4
 #define WM8904_EQ_REGS   25
@@ -122,6 +157,7 @@ struct wm8904_pdata {
 	struct wm8904_retune_mobile_cfg *retune_mobile_cfgs;
 
 	u32 gpio_cfg[WM8904_GPIO_REGS];
+	u32 mic_cfg[WM8904_MIC_REGS];
 };
 
 #endif

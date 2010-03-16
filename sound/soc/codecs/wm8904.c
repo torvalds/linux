@@ -2540,6 +2540,11 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 			wm8904->reg_cache[WM8904_GPIO_CONTROL_1 + i]
 				= pdata->gpio_cfg[i] & 0xffff;
 		}
+
+		/* Zero is the default value for these anyway */
+		for (i = 0; i < WM8904_MIC_REGS; i++)
+			wm8904->reg_cache[WM8904_MIC_BIAS_CONTROL_0 + i]
+				= pdata->mic_cfg[i];
 	}
 
 	/* Set Class W by default - this will be managed by the Class
