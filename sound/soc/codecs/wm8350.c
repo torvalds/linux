@@ -54,6 +54,7 @@ struct wm8350_output {
 struct wm8350_jack_data {
 	struct snd_soc_jack *jack;
 	int report;
+	int short_report;
 };
 
 struct wm8350_data {
@@ -62,6 +63,7 @@ struct wm8350_data {
 	struct wm8350_output out2;
 	struct wm8350_jack_data hpl;
 	struct wm8350_jack_data hpr;
+	struct wm8350_jack_data mic;
 	struct regulator_bulk_data supplies[ARRAY_SIZE(supply_names)];
 	int fll_freq_out;
 	int fll_freq_in;
@@ -1430,6 +1432,55 @@ int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
 }
 EXPORT_SYMBOL_GPL(wm8350_hp_jack_detect);
 
+static irqreturn_t wm8350_mic_handler(int irq, void *data)
+{
+	struct wm8350_data *priv = data;
+	struct wm8350 *wm8350 = priv->codec.control_data;
+	u16 reg;
+	int report = 0;
+
+	reg = wm8350_reg_read(wm8350, WM8350_JACK_PIN_STATUS);
+	if (reg & WM8350_JACK_MICSCD_LVL)
+		report |= priv->mic.short_report;
+	if (reg & WM8350_JACK_MICSD_LVL)
+		report |= priv->mic.report;
+
+	snd_soc_jack_report(priv->mic.jack, report,
+			    priv->mic.report | priv->mic.short_report);
+
+	return IRQ_HANDLED;
+}
+
+/**
+ * wm8350_mic_jack_detect - Enable microphone jack detection.
+ *
+ * @codec:         WM8350 codec
+ * @jack:          jack to report detection events on
+ * @detect_report: value to report when presence detected
+ * @short_report:  value to report when microphone short detected
+ *
+ * Enables the microphone jack detection of the WM8350.
+ */
+int wm8350_mic_jack_detect(struct snd_soc_codec *codec,
+			   struct snd_soc_jack *jack,
+			   int detect_report, int short_report)
+{
+	struct wm8350_data *priv = codec->private_data;
+	struct wm8350 *wm8350 = codec->control_data;
+
+	priv->mic.jack = jack;
+	priv->mic.report = detect_report;
+	priv->mic.short_report = short_report;
+
+	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
+	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_1, WM8350_MIC_DET_ENA);
+
+	snd_soc_dapm_force_enable_pin(codec, "Mic Bias");
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(wm8350_mic_jack_detect);
+
 static struct snd_soc_codec *wm8350_codec;
 
 static int wm8350_probe(struct platform_device *pdev)
@@ -1493,6 +1544,10 @@ static int wm8350_probe(struct platform_device *pdev)
 	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R,
 			    wm8350_hp_jack_handler, 0, "Right jack detect",
 			    priv);
+	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_MICSCD,
+			    wm8350_mic_handler, 0, "Microphone short", priv);
+	wm8350_register_irq(wm8350, WM8350_IRQ_CODEC_MICD,
+			    wm8350_mic_handler, 0, "Microphone detect", priv);
 
 	ret = snd_soc_new_pcms(socdev, SNDRV_DEFAULT_IDX1, SNDRV_DEFAULT_STR1);
 	if (ret < 0) {
@@ -1521,11 +1576,14 @@ static int wm8350_remove(struct platform_device *pdev)
 			  WM8350_JDL_ENA | WM8350_JDR_ENA);
 	wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
 
+	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_MICD, priv);
+	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_MICSCD, priv);
 	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_L, priv);
 	wm8350_free_irq(wm8350, WM8350_IRQ_CODEC_JCK_DET_R, priv);
 
 	priv->hpl.jack = NULL;
 	priv->hpr.jack = NULL;
+	priv->mic.jack = NULL;
 
 	/* cancel any work waiting to be queued. */
 	ret = cancel_delayed_work(&codec->delayed_work);

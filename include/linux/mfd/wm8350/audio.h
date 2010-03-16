@@ -492,6 +492,8 @@
  */
 #define WM8350_JACK_L_LVL			0x0800
 #define WM8350_JACK_R_LVL                       0x0400
+#define WM8350_JACK_MICSCD_LVL			0x0200
+#define WM8350_JACK_MICSD_LVL			0x0100
 
 /*
  * WM8350 Platform setup
