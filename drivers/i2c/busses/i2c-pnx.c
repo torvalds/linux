@@ -633,6 +633,8 @@ static int __devinit i2c_pnx_probe(struct platform_device *pdev)
 	 */
 
 	tmp = ((freq / 1000) / I2C_PNX_SPEED_KHZ) / 2 - 2;
+	if (tmp > 0x3FF)
+		tmp = 0x3FF;
 	iowrite32(tmp, I2C_REG_CKH(alg_data));
 	iowrite32(tmp, I2C_REG_CKL(alg_data));
 
