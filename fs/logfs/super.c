@@ -289,6 +289,10 @@ static int logfs_make_writeable(struct super_block *sb)
 {
 	int err;
 
+	err = logfs_open_segfile(sb);
+	if (err)
+		return err;
+
 	/* Repair any broken superblock copies */
 	err = logfs_recover_sb(sb);
 	if (err)
@@ -296,10 +300,6 @@ static int logfs_make_writeable(struct super_block *sb)
 
 	/* Check areas for trailing unaccounted data */
 	err = logfs_check_areas(sb);
-	if (err)
-		return err;
-
-	err = logfs_open_segfile(sb);
 	if (err)
 		return err;
 
