@@ -56,20 +56,20 @@ static struct {
 	struct probe_point probes[MAX_PROBES];
 	struct strlist *dellist;
 	struct line_range line_range;
-} session;
+} params;
 
 
 /* Parse an event definition. Note that any error must die. */
 static void parse_probe_event(const char *str)
 {
-	struct probe_point *pp = &session.probes[session.nr_probe];
+	struct probe_point *pp = &params.probes[params.nr_probe];
 
-	pr_debug("probe-definition(%d): %s\n", session.nr_probe, str);
-	if (++session.nr_probe == MAX_PROBES)
+	pr_debug("probe-definition(%d): %s\n", params.nr_probe, str);
+	if (++params.nr_probe == MAX_PROBES)
 		die("Too many probes (> %d) are specified.", MAX_PROBES);
 
 	/* Parse perf-probe event into probe_point */
-	parse_perf_probe_event(str, pp, &session.need_dwarf);
+	parse_perf_probe_event(str, pp, &params.need_dwarf);
 
 	pr_debug("%d arguments\n", pp->nr_args);
 }
@@ -103,9 +103,9 @@ static int opt_del_probe_event(const struct option *opt __used,
 			       const char *str, int unset __used)
 {
 	if (str) {
-		if (!session.dellist)
-			session.dellist = strlist__new(true, NULL);
-		strlist__add(session.dellist, str);
+		if (!params.dellist)
+			params.dellist = strlist__new(true, NULL);
+		strlist__add(params.dellist, str);
 	}
 	return 0;
 }
@@ -115,9 +115,9 @@ static int opt_show_lines(const struct option *opt __used,
 			  const char *str, int unset __used)
 {
 	if (str)
-		parse_line_range_desc(str, &session.line_range);
-	INIT_LIST_HEAD(&session.line_range.line_list);
-	session.show_lines = true;
+		parse_line_range_desc(str, &params.line_range);
+	INIT_LIST_HEAD(&params.line_range.line_list);
+	params.show_lines = true;
 	return 0;
 }
 #endif
@@ -140,7 +140,7 @@ static const struct option options[] = {
 	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
 		   "file", "vmlinux pathname"),
 #endif
-	OPT_BOOLEAN('l', "list", &session.list_events,
+	OPT_BOOLEAN('l', "list", &params.list_events,
 		    "list up current probe events"),
 	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
 		opt_del_probe_event),
@@ -168,7 +168,7 @@ static const struct option options[] = {
 #endif
 		"\t\t\tkprobe-tracer argument format.)\n",
 		opt_add_probe_event),
-	OPT_BOOLEAN('f', "force", &session.force_add, "forcibly add events"
+	OPT_BOOLEAN('f', "force", &params.force_add, "forcibly add events"
 		    " with existing name"),
 #ifndef NO_DWARF_SUPPORT
 	OPT_CALLBACK('L', "line", NULL,
@@ -190,20 +190,20 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		parse_probe_event_argv(argc, argv);
 	}
 
-	if ((!session.nr_probe && !session.dellist && !session.list_events &&
-	     !session.show_lines))
+	if ((!params.nr_probe && !params.dellist && !params.list_events &&
+	     !params.show_lines))
 		usage_with_options(probe_usage, options);
 
 	if (debugfs_valid_mountpoint(debugfs_path) < 0)
 		die("Failed to find debugfs path.");
 
-	if (session.list_events) {
-		if (session.nr_probe != 0 || session.dellist) {
+	if (params.list_events) {
+		if (params.nr_probe != 0 || params.dellist) {
 			pr_warning("  Error: Don't use --list with"
 				   " --add/--del.\n");
 			usage_with_options(probe_usage, options);
 		}
-		if (session.show_lines) {
+		if (params.show_lines) {
 			pr_warning("  Error: Don't use --list with --line.\n");
 			usage_with_options(probe_usage, options);
 		}
@@ -212,27 +212,27 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 	}
 
 #ifndef NO_DWARF_SUPPORT
-	if (session.show_lines) {
-		if (session.nr_probe != 0 || session.dellist) {
+	if (params.show_lines) {
+		if (params.nr_probe != 0 || params.dellist) {
 			pr_warning("  Error: Don't use --line with"
 				   " --add/--del.\n");
 			usage_with_options(probe_usage, options);
 		}
 
-		show_line_range(&session.line_range);
+		show_line_range(&params.line_range);
 		return 0;
 	}
 #endif
 
-	if (session.dellist) {
-		del_trace_kprobe_events(session.dellist);
-		strlist__delete(session.dellist);
-		if (session.nr_probe == 0)
+	if (params.dellist) {
+		del_trace_kprobe_events(params.dellist);
+		strlist__delete(params.dellist);
+		if (params.nr_probe == 0)
 			return 0;
 	}
 
-	add_trace_kprobe_events(session.probes, session.nr_probe,
-				session.force_add, session.need_dwarf);
+	add_trace_kprobe_events(params.probes, params.nr_probe,
+				params.force_add, params.need_dwarf);
 	return 0;
 }
 
