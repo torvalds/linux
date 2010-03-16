@@ -36,11 +36,9 @@
 #include "builtin.h"
 #include "util/util.h"
 #include "util/strlist.h"
-#include "util/event.h"
+#include "util/symbol.h"
 #include "util/debug.h"
 #include "util/debugfs.h"
-#include "util/symbol.h"
-#include "util/thread.h"
 #include "util/parse-options.h"
 #include "util/parse-events.h"	/* For debugfs_path */
 #include "util/probe-finder.h"
@@ -57,8 +55,6 @@ static struct {
 	int nr_probe;
 	struct probe_point probes[MAX_PROBES];
 	struct strlist *dellist;
-	struct map_groups kmap_groups;
-	struct map *kmaps[MAP__NR_TYPES];
 	struct line_range line_range;
 } session;
 
@@ -114,29 +110,7 @@ static int opt_del_probe_event(const struct option *opt __used,
 	return 0;
 }
 
-/* Currently just checking function name from symbol map */
-static void evaluate_probe_point(struct probe_point *pp)
-{
-	struct symbol *sym;
-	sym = map__find_symbol_by_name(session.kmaps[MAP__FUNCTION],
-				       pp->function, NULL);
-	if (!sym)
-		die("Kernel symbol \'%s\' not found - probe not added.",
-		    pp->function);
-}
-
 #ifndef NO_DWARF_SUPPORT
-static int open_vmlinux(void)
-{
-	if (map__load(session.kmaps[MAP__FUNCTION], NULL) < 0) {
-		pr_debug("Failed to load kernel map.\n");
-		return -EINVAL;
-	}
-	pr_debug("Try to open %s\n",
-		 session.kmaps[MAP__FUNCTION]->dso->long_name);
-	return open(session.kmaps[MAP__FUNCTION]->dso->long_name, O_RDONLY);
-}
-
 static int opt_show_lines(const struct option *opt __used,
 			  const char *str, int unset __used)
 {
@@ -204,31 +178,8 @@ static const struct option options[] = {
 	OPT_END()
 };
 
-/* Initialize symbol maps for vmlinux */
-static void init_vmlinux(void)
-{
-	symbol_conf.sort_by_name = true;
-	if (symbol_conf.vmlinux_name == NULL)
-		symbol_conf.try_vmlinux_path = true;
-	else
-		pr_debug("Use vmlinux: %s\n", symbol_conf.vmlinux_name);
-	if (symbol__init() < 0)
-		die("Failed to init symbol map.");
-
-	map_groups__init(&session.kmap_groups);
-	if (map_groups__create_kernel_maps(&session.kmap_groups,
-					   session.kmaps) < 0)
-		die("Failed to create kernel maps.");
-}
-
 int cmd_probe(int argc, const char **argv, const char *prefix __used)
 {
-	int i, ret;
-#ifndef NO_DWARF_SUPPORT
-	int fd;
-#endif
-	struct probe_point *pp;
-
 	argc = parse_options(argc, argv, options, probe_usage,
 			     PARSE_OPT_STOP_AT_NON_OPTION);
 	if (argc > 0) {
@@ -267,14 +218,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 				   " --add/--del.\n");
 			usage_with_options(probe_usage, options);
 		}
-		init_vmlinux();
-		fd = open_vmlinux();
-		if (fd < 0)
-			die("Could not open debuginfo file.");
-		ret = find_line_range(fd, &session.line_range);
-		if (ret <= 0)
-			die("Source line is not found.\n");
-		close(fd);
+
 		show_line_range(&session.line_range);
 		return 0;
 	}
@@ -287,72 +231,8 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 			return 0;
 	}
 
-	/* Add probes */
-	init_vmlinux();
-
-	if (session.need_dwarf)
-#ifdef NO_DWARF_SUPPORT
-		die("Debuginfo-analysis is not supported");
-#else	/* !NO_DWARF_SUPPORT */
-		pr_debug("Some probes require debuginfo.\n");
-
-	fd = open_vmlinux();
-	if (fd < 0) {
-		if (session.need_dwarf)
-			die("Could not open debuginfo file.");
-
-		pr_debug("Could not open vmlinux/module file."
-			 " Try to use symbols.\n");
-		goto end_dwarf;
-	}
-
-	/* Searching probe points */
-	for (i = 0; i < session.nr_probe; i++) {
-		pp = &session.probes[i];
-		if (pp->found)
-			continue;
-
-		lseek(fd, SEEK_SET, 0);
-		ret = find_probe_point(fd, pp);
-		if (ret > 0)
-			continue;
-		if (ret == 0) {	/* No error but failed to find probe point. */
-			synthesize_perf_probe_point(pp);
-			die("Probe point '%s' not found. - probe not added.",
-			    pp->probes[0]);
-		}
-		/* Error path */
-		if (session.need_dwarf) {
-			if (ret == -ENOENT)
-				pr_warning("No dwarf info found in the vmlinux - please rebuild with CONFIG_DEBUG_INFO=y.\n");
-			die("Could not analyze debuginfo.");
-		}
-		pr_debug("An error occurred in debuginfo analysis."
-			 " Try to use symbols.\n");
-		break;
-	}
-	close(fd);
-
-end_dwarf:
-#endif /* !NO_DWARF_SUPPORT */
-
-	/* Synthesize probes without dwarf */
-	for (i = 0; i < session.nr_probe; i++) {
-		pp = &session.probes[i];
-		if (pp->found)	/* This probe is already found. */
-			continue;
-
-		evaluate_probe_point(pp);
-		ret = synthesize_trace_kprobe_event(pp);
-		if (ret == -E2BIG)
-			die("probe point definition becomes too long.");
-		else if (ret < 0)
-			die("Failed to synthesize a probe point.");
-	}
-
-	/* Settng up probe points */
 	add_trace_kprobe_events(session.probes, session.nr_probe,
-				session.force_add);
+				session.force_add, session.need_dwarf);
 	return 0;
 }
 
