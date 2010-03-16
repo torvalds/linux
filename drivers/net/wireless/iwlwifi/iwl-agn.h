@@ -75,4 +75,7 @@ irqreturn_t iwl_isr_ict(int irq, void *data);
 bool iwl_good_ack_health(struct iwl_priv *priv,
 			 struct iwl_rx_packet *pkt);
 
+/* uCode */
+int iwlagn_load_ucode(struct iwl_priv *priv);
+
 #endif /* __iwl_agn_h__ */

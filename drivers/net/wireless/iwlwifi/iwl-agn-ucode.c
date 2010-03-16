@@ -30,9 +30,111 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
+#include <linux/sched.h>
 
 #include "iwl-dev.h"
 #include "iwl-core.h"
+#include "iwl-io.h"
+#include "iwl-5000-hw.h"
+
+/*
+ * ucode
+ */
+static int iwlagn_load_section(struct iwl_priv *priv, const char *name,
+				struct fw_desc *image, u32 dst_addr)
+{
+	dma_addr_t phy_addr = image->p_addr;
+	u32 byte_cnt = image->len;
+	int ret;
+
+	priv->ucode_write_complete = 0;
+
+	iwl_write_direct32(priv,
+		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_PAUSE);
+
+	iwl_write_direct32(priv,
+		FH_SRVC_CHNL_SRAM_ADDR_REG(FH_SRVC_CHNL), dst_addr);
+
+	iwl_write_direct32(priv,
+		FH_TFDIB_CTRL0_REG(FH_SRVC_CHNL),
+		phy_addr & FH_MEM_TFDIB_DRAM_ADDR_LSB_MSK);
+
+	iwl_write_direct32(priv,
+		FH_TFDIB_CTRL1_REG(FH_SRVC_CHNL),
+		(iwl_get_dma_hi_addr(phy_addr)
+			<< FH_MEM_TFDIB_REG1_ADDR_BITSHIFT) | byte_cnt);
+
+	iwl_write_direct32(priv,
+		FH_TCSR_CHNL_TX_BUF_STS_REG(FH_SRVC_CHNL),
+		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_NUM |
+		1 << FH_TCSR_CHNL_TX_BUF_STS_REG_POS_TB_IDX |
+		FH_TCSR_CHNL_TX_BUF_STS_REG_VAL_TFDB_VALID);
+
+	iwl_write_direct32(priv,
+		FH_TCSR_CHNL_TX_CONFIG_REG(FH_SRVC_CHNL),
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CHNL_ENABLE	|
+		FH_TCSR_TX_CONFIG_REG_VAL_DMA_CREDIT_DISABLE	|
+		FH_TCSR_TX_CONFIG_REG_VAL_CIRQ_HOST_ENDTFD);
+
+	IWL_DEBUG_INFO(priv, "%s uCode section being loaded...\n", name);
+	ret = wait_event_interruptible_timeout(priv->wait_command_queue,
+					priv->ucode_write_complete, 5 * HZ);
+	if (ret == -ERESTARTSYS) {
+		IWL_ERR(priv, "Could not load the %s uCode section due "
+			"to interrupt\n", name);
+		return ret;
+	}
+	if (!ret) {
+		IWL_ERR(priv, "Could not load the %s uCode section\n",
+			name);
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+static int iwlagn_load_given_ucode(struct iwl_priv *priv,
+		struct fw_desc *inst_image,
+		struct fw_desc *data_image)
+{
+	int ret = 0;
+
+	ret = iwlagn_load_section(priv, "INST", inst_image,
+				   IWL50_RTC_INST_LOWER_BOUND);
+	if (ret)
+		return ret;
+
+	return iwlagn_load_section(priv, "DATA", data_image,
+				    IWL50_RTC_DATA_LOWER_BOUND);
+}
+
+int iwlagn_load_ucode(struct iwl_priv *priv)
+{
+	int ret = 0;
+
+	/* check whether init ucode should be loaded, or rather runtime ucode */
+	if (priv->ucode_init.len && (priv->ucode_type == UCODE_NONE)) {
+		IWL_DEBUG_INFO(priv, "Init ucode found. Loading init ucode...\n");
+		ret = iwlagn_load_given_ucode(priv,
+			&priv->ucode_init, &priv->ucode_init_data);
+		if (!ret) {
+			IWL_DEBUG_INFO(priv, "Init ucode load complete.\n");
+			priv->ucode_type = UCODE_INIT;
+		}
+	} else {
+		IWL_DEBUG_INFO(priv, "Init ucode not found, or already loaded. "
+			"Loading runtime ucode...\n");
+		ret = iwlagn_load_given_ucode(priv,
+			&priv->ucode_code, &priv->ucode_data);
+		if (!ret) {
+			IWL_DEBUG_INFO(priv, "Runtime ucode load complete.\n");
+			priv->ucode_type = UCODE_RT;
+		}
+	}
+
+	return ret;
+}
 
 #define IWL_UCODE_GET(item)						\
 static u32 iwlagn_ucode_get_##item(const struct iwl_ucode_header *ucode,\
