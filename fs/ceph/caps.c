@@ -1407,6 +1407,7 @@ static int try_nonblocking_invalidate(struct inode *inode)
  */
 void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 		     struct ceph_mds_session *session)
+	__releases(session->s_mutex)
 {
 	struct ceph_client *client = ceph_inode_to_client(&ci->vfs_inode);
 	struct ceph_mds_client *mdsc = &client->mdsc;
@@ -1414,7 +1415,6 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 	struct ceph_cap *cap;
 	int file_wanted, used;
 	int took_snap_rwsem = 0;             /* true if mdsc->snap_rwsem held */
-	int drop_session_lock = session ? 0 : 1;
 	int issued, implemented, want, retain, revoking, flushing = 0;
 	int mds = -1;   /* keep track of how far we've gone through i_caps list
 			   to avoid an infinite loop on retry */
@@ -1639,7 +1639,7 @@ ack:
 	if (queue_invalidate)
 		ceph_queue_invalidate(inode);
 
-	if (session && drop_session_lock)
+	if (session)
 		mutex_unlock(&session->s_mutex);
 	if (took_snap_rwsem)
 		up_read(&mdsc->snap_rwsem);
@@ -2688,14 +2688,17 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	case CEPH_CAP_OP_REVOKE:
 	case CEPH_CAP_OP_GRANT:
 		r = handle_cap_grant(inode, h, session, cap, msg->middle);
-		if (r == 1)
+		if (r == 1) {
 			ceph_check_caps(ceph_inode(inode),
 					CHECK_CAPS_NODELAY|CHECK_CAPS_AUTHONLY,
 					session);
-		else if (r == 2)
+			session = NULL;
+		} else if (r == 2) {
 			ceph_check_caps(ceph_inode(inode),
 					CHECK_CAPS_NODELAY,
 					session);
+			session = NULL;
+		}
 		break;
 
 	case CEPH_CAP_OP_FLUSH_ACK:
@@ -2713,7 +2716,8 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	}
 
 done:
-	mutex_unlock(&session->s_mutex);
+	if (session)
+		mutex_unlock(&session->s_mutex);
 
 	if (check_caps)
 		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_NODELAY, NULL);
