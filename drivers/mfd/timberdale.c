@@ -31,6 +31,7 @@
 
 #include <linux/i2c.h>
 #include <linux/i2c-ocores.h>
+#include <linux/i2c-xiic.h>
 #include <linux/i2c/tsc2007.h>
 
 #include <linux/spi/spi.h>
@@ -69,12 +70,31 @@ static struct i2c_board_info timberdale_i2c_board_info[] = {
 	},
 };
 
+static __devinitdata struct xiic_i2c_platform_data
+timberdale_xiic_platform_data = {
+	.devices = timberdale_i2c_board_info,
+	.num_devices = ARRAY_SIZE(timberdale_i2c_board_info)
+};
+
 static __devinitdata struct ocores_i2c_platform_data
 timberdale_ocores_platform_data = {
 	.regstep = 4,
 	.clock_khz = 62500,
 	.devices = timberdale_i2c_board_info,
 	.num_devices = ARRAY_SIZE(timberdale_i2c_board_info)
+};
+
+const static __devinitconst struct resource timberdale_xiic_resources[] = {
+	{
+		.start	= XIICOFFSET,
+		.end	= XIICEND,
+		.flags	= IORESOURCE_MEM,
+	},
+	{
+		.start	= IRQ_TIMBERDALE_I2C,
+		.end	= IRQ_TIMBERDALE_I2C,
+		.flags	= IORESOURCE_IRQ,
+	},
 };
 
 const static __devinitconst struct resource timberdale_ocores_resources[] = {
@@ -270,6 +290,13 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg0[] = {
 		.resources = timberdale_uart_resources,
 	},
 	{
+		.name = "xiic-i2c",
+		.num_resources = ARRAY_SIZE(timberdale_xiic_resources),
+		.resources = timberdale_xiic_resources,
+		.platform_data = &timberdale_xiic_platform_data,
+		.data_size = sizeof(timberdale_xiic_platform_data),
+	},
+	{
 		.name = "timb-gpio",
 		.num_resources = ARRAY_SIZE(timberdale_gpio_resources),
 		.resources = timberdale_gpio_resources,
@@ -314,6 +341,13 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg1[] = {
 		.resources = timberdale_uartlite_resources,
 	},
 	{
+		.name = "xiic-i2c",
+		.num_resources = ARRAY_SIZE(timberdale_xiic_resources),
+		.resources = timberdale_xiic_resources,
+		.platform_data = &timberdale_xiic_platform_data,
+		.data_size = sizeof(timberdale_xiic_platform_data),
+	},
+	{
 		.name = "timb-gpio",
 		.num_resources = ARRAY_SIZE(timberdale_gpio_resources),
 		.resources = timberdale_gpio_resources,
@@ -356,6 +390,13 @@ static __devinitdata struct mfd_cell timberdale_cells_bar0_cfg2[] = {
 		.name = "timb-uart",
 		.num_resources = ARRAY_SIZE(timberdale_uart_resources),
 		.resources = timberdale_uart_resources,
+	},
+	{
+		.name = "xiic-i2c",
+		.num_resources = ARRAY_SIZE(timberdale_xiic_resources),
+		.resources = timberdale_xiic_resources,
+		.platform_data = &timberdale_xiic_platform_data,
+		.data_size = sizeof(timberdale_xiic_platform_data),
 	},
 	{
 		.name = "timb-gpio",
