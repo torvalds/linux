@@ -262,6 +262,49 @@ static void parse_perf_probe_point(char *arg, struct perf_probe_event *pev)
 		 pp->lazy_line);
 }
 
+/* Parse perf-probe event argument */
+static void parse_perf_probe_arg(const char *str, struct perf_probe_arg *arg)
+{
+	const char *tmp;
+	struct perf_probe_arg_field **fieldp;
+
+	pr_debug("parsing arg: %s into ", str);
+
+	tmp = strpbrk(str, "-.");
+	if (!is_c_varname(str) || !tmp) {
+		/* A variable, register, symbol or special value */
+		arg->name = xstrdup(str);
+		pr_debug("%s\n", arg->name);
+		return;
+	}
+
+	/* Structure fields */
+	arg->name = xstrndup(str, tmp - str);
+	pr_debug("%s, ", arg->name);
+	fieldp = &arg->field;
+
+	do {
+		*fieldp = xzalloc(sizeof(struct perf_probe_arg_field));
+		if (*tmp == '.') {
+			str = tmp + 1;
+			(*fieldp)->ref = false;
+		} else if (tmp[1] == '>') {
+			str = tmp + 2;
+			(*fieldp)->ref = true;
+		} else
+			semantic_error("Argument parse error: %s", str);
+
+		tmp = strpbrk(str, "-.");
+		if (tmp) {
+			(*fieldp)->name = xstrndup(str, tmp - str);
+			pr_debug("%s(%d), ", (*fieldp)->name, (*fieldp)->ref);
+			fieldp = &(*fieldp)->next;
+		}
+	} while (tmp);
+	(*fieldp)->name = xstrdup(str);
+	pr_debug("%s(%d)\n", (*fieldp)->name, (*fieldp)->ref);
+}
+
 /* Parse perf-probe event command */
 void parse_perf_probe_command(const char *cmd, struct perf_probe_event *pev)
 {
@@ -281,7 +324,7 @@ void parse_perf_probe_command(const char *cmd, struct perf_probe_event *pev)
 	pev->nargs = argc - 1;
 	pev->args = xzalloc(sizeof(struct perf_probe_arg) * pev->nargs);
 	for (i = 0; i < pev->nargs; i++) {
-		pev->args[i].name = xstrdup(argv[i + 1]);
+		parse_perf_probe_arg(argv[i + 1], &pev->args[i]);
 		if (is_c_varname(pev->args[i].name) && pev->point.retprobe)
 			semantic_error("You can't specify local variable for"
 				       " kretprobe");
@@ -351,6 +394,33 @@ void parse_kprobe_trace_command(const char *cmd, struct kprobe_trace_event *tev)
 	}
 
 	argv_free(argv);
+}
+
+/* Compose only probe arg */
+int synthesize_perf_probe_arg(struct perf_probe_arg *pa, char *buf, size_t len)
+{
+	struct perf_probe_arg_field *field = pa->field;
+	int ret;
+	char *tmp = buf;
+
+	ret = e_snprintf(tmp, len, "%s", pa->name);
+	if (ret <= 0)
+		goto error;
+	tmp += ret;
+	len -= ret;
+
+	while (field) {
+		ret = e_snprintf(tmp, len, "%s%s", field->ref ? "->" : ".",
+				 field->name);
+		if (ret <= 0)
+			goto error;
+		tmp += ret;
+		len -= ret;
+		field = field->next;
+	}
+	return tmp - buf;
+error:
+	die("Failed to synthesize perf probe argument: %s", strerror(-ret));
 }
 
 /* Compose only probe point (not argument) */
@@ -563,6 +633,7 @@ void convert_to_perf_probe_event(struct kprobe_trace_event *tev,
 void clear_perf_probe_event(struct perf_probe_event *pev)
 {
 	struct perf_probe_point *pp = &pev->point;
+	struct perf_probe_arg_field *field, *next;
 	int i;
 
 	if (pev->event)
@@ -575,9 +646,18 @@ void clear_perf_probe_event(struct perf_probe_event *pev)
 		free(pp->function);
 	if (pp->lazy_line)
 		free(pp->lazy_line);
-	for (i = 0; i < pev->nargs; i++)
+	for (i = 0; i < pev->nargs; i++) {
 		if (pev->args[i].name)
 			free(pev->args[i].name);
+		field = pev->args[i].field;
+		while (field) {
+			next = field->next;
+			if (field->name)
+				free(field->name);
+			free(field);
+			field = next;
+		}
+	}
 	if (pev->args)
 		free(pev->args);
 	memset(pev, 0, sizeof(*pev));
@@ -682,8 +762,10 @@ static void show_perf_probe_event(struct perf_probe_event *pev)
 
 	if (pev->nargs > 0) {
 		printf(" with");
-		for (i = 0; i < pev->nargs; i++)
-			printf(" %s", pev->args[i].name);
+		for (i = 0; i < pev->nargs; i++) {
+			synthesize_perf_probe_arg(&pev->args[i], buf, 128);
+			printf(" %s", buf);
+		}
 	}
 	printf(")\n");
 	free(place);

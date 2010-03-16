@@ -45,9 +45,17 @@ struct perf_probe_point {
 	bool		retprobe;	/* Return probe flag */
 };
 
+/* Perf probe probing argument field chain */
+struct perf_probe_arg_field {
+	struct perf_probe_arg_field	*next;	/* Next field */
+	char				*name;	/* Name of the field */
+	bool				ref;	/* Referencing flag */
+};
+
 /* Perf probe probing argument */
 struct perf_probe_arg {
-	char		*name;		/* Argument name */
+	char				*name;	/* Argument name */
+	struct perf_probe_arg_field	*field;	/* Structure fields */
 };
 
 /* Perf probe probing event (point + arg) */
@@ -86,6 +94,8 @@ extern void parse_kprobe_trace_command(const char *cmd,
 /* Events to command string */
 extern char *synthesize_perf_probe_command(struct perf_probe_event *pev);
 extern char *synthesize_kprobe_trace_command(struct kprobe_trace_event *tev);
+extern int synthesize_perf_probe_arg(struct perf_probe_arg *pa, char *buf,
+				     size_t len);
 
 /* Check the perf_probe_event needs debuginfo */
 extern bool perf_probe_event_need_dwarf(struct perf_probe_event *pev);

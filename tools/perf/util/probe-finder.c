@@ -206,6 +206,28 @@ static Dwarf_Addr die_get_entrypc(Dwarf_Die *dw_die)
 	return epc;
 }
 
+/* Get type die, but skip qualifiers and typedef */
+static Dwarf_Die *die_get_real_type(Dwarf_Die *vr_die, Dwarf_Die *die_mem)
+{
+	Dwarf_Attribute attr;
+	int tag;
+
+	do {
+		if (dwarf_attr(vr_die, DW_AT_type, &attr) == NULL ||
+		    dwarf_formref_die(&attr, die_mem) == NULL)
+			return NULL;
+
+		tag = dwarf_tag(die_mem);
+		vr_die = die_mem;
+	} while (tag == DW_TAG_const_type ||
+		 tag == DW_TAG_restrict_type ||
+		 tag == DW_TAG_volatile_type ||
+		 tag == DW_TAG_shared_type ||
+		 tag == DW_TAG_typedef);
+
+	return die_mem;
+}
+
 /* Return values for die_find callbacks */
 enum {
 	DIE_FIND_CB_FOUND = 0,		/* End of Search */
@@ -314,6 +336,25 @@ static Dwarf_Die *die_find_variable(Dwarf_Die *sp_die, const char *name,
 			      die_mem);
 }
 
+static int __die_find_member_cb(Dwarf_Die *die_mem, void *data)
+{
+	const char *name = data;
+
+	if ((dwarf_tag(die_mem) == DW_TAG_member) &&
+	    (die_compare_name(die_mem, name) == 0))
+		return DIE_FIND_CB_FOUND;
+
+	return DIE_FIND_CB_SIBLING;
+}
+
+/* Find a member called 'name' */
+static Dwarf_Die *die_find_member(Dwarf_Die *st_die, const char *name,
+				  Dwarf_Die *die_mem)
+{
+	return die_find_child(st_die, __die_find_member_cb, (void *)name,
+			      die_mem);
+}
+
 /*
  * Probe finder related functions
  */
@@ -363,6 +404,62 @@ static void convert_location(Dwarf_Op *op, struct probe_finder *pf)
 	}
 }
 
+static void convert_variable_fields(Dwarf_Die *vr_die, const char *varname,
+				    struct perf_probe_arg_field *field,
+				    struct kprobe_trace_arg_ref **ref_ptr)
+{
+	struct kprobe_trace_arg_ref *ref = *ref_ptr;
+	Dwarf_Attribute attr;
+	Dwarf_Die member;
+	Dwarf_Die type;
+	Dwarf_Word offs;
+
+	pr_debug("converting %s in %s\n", field->name, varname);
+	if (die_get_real_type(vr_die, &type) == NULL)
+		die("Failed to get a type information of %s.", varname);
+
+	/* Check the pointer and dereference */
+	if (dwarf_tag(&type) == DW_TAG_pointer_type) {
+		if (!field->ref)
+			die("Semantic error: %s must be referred by '->'",
+			    field->name);
+		/* Get the type pointed by this pointer */
+		if (die_get_real_type(&type, &type) == NULL)
+			die("Failed to get a type information of %s.", varname);
+
+		ref = xzalloc(sizeof(struct kprobe_trace_arg_ref));
+		if (*ref_ptr)
+			(*ref_ptr)->next = ref;
+		else
+			*ref_ptr = ref;
+	} else {
+		if (field->ref)
+			die("Semantic error: %s must be referred by '.'",
+			    field->name);
+		if (!ref)
+			die("Structure on a register is not supported yet.");
+	}
+
+	/* Verify it is a data structure  */
+	if (dwarf_tag(&type) != DW_TAG_structure_type)
+		die("%s is not a data structure.", varname);
+
+	if (die_find_member(&type, field->name, &member) == NULL)
+		die("%s(tyep:%s) has no member %s.", varname,
+		    dwarf_diename(&type), field->name);
+
+	/* Get the offset of the field */
+	if (dwarf_attr(&member, DW_AT_data_member_location, &attr) == NULL ||
+	    dwarf_formudata(&attr, &offs) != 0)
+		die("Failed to get the offset of %s.", field->name);
+	ref->offset += (long)offs;
+
+	/* Converting next field */
+	if (field->next)
+		convert_variable_fields(&member, field->name, field->next,
+					&ref);
+}
+
 /* Show a variables in kprobe event format */
 static void convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 {
@@ -379,6 +476,10 @@ static void convert_variable(Dwarf_Die *vr_die, struct probe_finder *pf)
 		goto error;
 
 	convert_location(expr, pf);
+
+	if (pf->pvar->field)
+		convert_variable_fields(vr_die, pf->pvar->name,
+					pf->pvar->field, &pf->tvar->ref);
 	/* *expr will be cached in libdw. Don't free it. */
 	return ;
 error:
@@ -391,13 +492,15 @@ error:
 static void find_variable(Dwarf_Die *sp_die, struct probe_finder *pf)
 {
 	Dwarf_Die vr_die;
+	char buf[128];
 
 	/* TODO: Support struct members and arrays */
 	if (!is_c_varname(pf->pvar->name)) {
 		/* Copy raw parameters */
 		pf->tvar->value = xstrdup(pf->pvar->name);
 	} else {
-		pf->tvar->name = xstrdup(pf->pvar->name);
+		synthesize_perf_probe_arg(pf->pvar, buf, 128);
+		pf->tvar->name = xstrdup(buf);
 		pr_debug("Searching '%s' variable in context.\n",
 			 pf->pvar->name);
 		/* Search child die for local variables and parameters. */
