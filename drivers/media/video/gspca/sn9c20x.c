@@ -50,7 +50,8 @@ MODULE_LICENSE("GPL");
 #define SENSOR_MT9V112	7
 #define SENSOR_MT9M001	8
 #define SENSOR_MT9M111	9
-#define SENSOR_HV7131R	10
+#define SENSOR_MT9M112  10
+#define SENSOR_HV7131R	11
 #define SENSOR_MT9VPRB	20
 
 /* camera flags */
@@ -731,6 +732,7 @@ static u16 i2c_ident[] = {
 	V4L2_IDENT_MT9V112,
 	V4L2_IDENT_MT9M001C12ST,
 	V4L2_IDENT_MT9M111,
+	V4L2_IDENT_MT9M112,
 	V4L2_IDENT_HV7131R,
 };
 
@@ -1056,6 +1058,13 @@ static struct i2c_reg_u16 mt9m001_init[] = {
 };
 
 static struct i2c_reg_u16 mt9m111_init[] = {
+	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0008},
+	{0xf0, 0x0001}, {0x3a, 0x4300}, {0x9b, 0x4300},
+	{0x06, 0x708e}, {0xf0, 0x0002}, {0x2e, 0x0a1e},
+	{0xf0, 0x0000},
+};
+
+static struct i2c_reg_u16 mt9m112_init[] = {
 	{0xf0, 0x0000}, {0x0d, 0x0021}, {0x0d, 0x0008},
 	{0xf0, 0x0001}, {0x3a, 0x4300}, {0x9b, 0x4300},
 	{0x06, 0x708e}, {0xf0, 0x0002}, {0x2e, 0x0a1e},
@@ -1388,6 +1397,23 @@ static int mt9v_init_sensor(struct gspca_dev *gspca_dev)
 	return -ENODEV;
 }
 
+static int mt9m112_init_sensor(struct gspca_dev *gspca_dev)
+{
+	struct sd *sd = (struct sd *) gspca_dev;
+	int i;
+	for (i = 0; i < ARRAY_SIZE(mt9m112_init); i++) {
+		if (i2c_w2(gspca_dev, mt9m112_init[i].reg,
+				mt9m112_init[i].val) < 0) {
+			err("MT9M112 sensor initialization failed");
+			return -ENODEV;
+		}
+	}
+	gspca_dev->ctrl_dis = (1 << EXPOSURE_IDX) | (1 << AUTOGAIN_IDX) | (1 << GAIN_IDX);
+	sd->hstart = 0;
+	sd->vstart = 2;
+	return 0;
+}
+
 static int mt9m111_init_sensor(struct gspca_dev *gspca_dev)
 {
 	struct sd *sd = (struct sd *) gspca_dev;
@@ -1553,6 +1579,7 @@ static int set_hvflip(struct gspca_dev *gspca_dev)
 			value2 |= 0x4020;
 		i2c_w2(gspca_dev, 0x20, value2);
 		break;
+	case SENSOR_MT9M112:
 	case SENSOR_MT9M111:
 	case SENSOR_MT9V112:
 		i2c_r2(gspca_dev, 0x20, &value2);
@@ -1878,7 +1905,7 @@ static int sd_dbg_g_register(struct gspca_dev *gspca_dev,
 		if (reg->match.addr != sd->i2c_addr)
 			return -EINVAL;
 		if (sd->sensor >= SENSOR_MT9V011 &&
-		    sd->sensor <= SENSOR_MT9M111) {
+		    sd->sensor <= SENSOR_MT9M112) {
 			if (i2c_r2(gspca_dev, reg->reg, (u16 *)&reg->val) < 0)
 				return -EINVAL;
 		} else {
@@ -1907,7 +1934,7 @@ static int sd_dbg_s_register(struct gspca_dev *gspca_dev,
 		if (reg->match.addr != sd->i2c_addr)
 			return -EINVAL;
 		if (sd->sensor >= SENSOR_MT9V011 &&
-		    sd->sensor <= SENSOR_MT9M111) {
+		    sd->sensor <= SENSOR_MT9M112) {
 			if (i2c_w2(gspca_dev, reg->reg, reg->val) < 0)
 				return -EINVAL;
 		} else {
@@ -1955,6 +1982,7 @@ static int sd_config(struct gspca_dev *gspca_dev,
 	sd->flags = (id->driver_info >> 16) & 0xff;
 
 	switch (sd->sensor) {
+	case SENSOR_MT9M112:
 	case SENSOR_MT9M111:
 	case SENSOR_OV9650:
 	case SENSOR_SOI968:
@@ -2051,6 +2079,11 @@ static int sd_init(struct gspca_dev *gspca_dev)
 			return -ENODEV;
 		info("MT9M111 sensor detected");
 		break;
+	case SENSOR_MT9M112:
+		if (mt9m112_init_sensor(gspca_dev) < 0)
+			return -ENODEV;
+		info("MT9M112 sensor detected");
+		break;
 	case SENSOR_MT9M001:
 		if (mt9m001_init_sensor(gspca_dev) < 0)
 			return -ENODEV;
@@ -2110,6 +2143,7 @@ static void configure_sensor_output(struct gspca_dev *gspca_dev, int mode)
 			i2c_w1(gspca_dev, 0x12, (value & 0x7) | 0x40);
 		}
 		break;
+	case SENSOR_MT9M112:
 	case SENSOR_MT9M111:
 		if (mode & MODE_SXGA) {
 			i2c_w2(gspca_dev, 0xf0, 0x0002);
@@ -2399,6 +2433,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6240), SN9C20X(MT9M001, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6242), SN9C20X(MT9M111, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6248), SN9C20X(OV9655, 0x30, 0)},
+	{USB_DEVICE(0x0c45, 0x624c), SN9C20X(MT9M112, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x624e), SN9C20X(SOI968, 0x30,
 					     (HAS_BUTTON | LED_REVERSE))},
 	{USB_DEVICE(0x0c45, 0x624f), SN9C20X(OV9650, 0x30, FLIP_DETECT)},
@@ -2412,6 +2447,7 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x0c45, 0x6280), SN9C20X(MT9M001, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6282), SN9C20X(MT9M111, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x6288), SN9C20X(OV9655, 0x30, HAS_BUTTON)},
+	{USB_DEVICE(0x0c45, 0x628c), SN9C20X(MT9M112, 0x5d, 0)},
 	{USB_DEVICE(0x0c45, 0x628e), SN9C20X(SOI968, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x628f), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x0c45, 0x62a0), SN9C20X(OV7670, 0x21, 0)},
@@ -2422,6 +2458,8 @@ static const __devinitdata struct usb_device_id device_table[] = {
 	{USB_DEVICE(0x045e, 0x00f4), SN9C20X(OV9650, 0x30, 0)},
 	{USB_DEVICE(0x145f, 0x013d), SN9C20X(OV7660, 0x21, 0)},
 	{USB_DEVICE(0x0458, 0x7029), SN9C20X(HV7131R, 0x11, 0)},
+	{USB_DEVICE(0x0458, 0x704a), SN9C20X(MT9M112, 0x5d, 0)},
+	{USB_DEVICE(0x0458, 0x704c), SN9C20X(MT9M112, 0x5d, 0)},
 	{USB_DEVICE(0xa168, 0x0610), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0xa168, 0x0611), SN9C20X(HV7131R, 0x11, 0)},
 	{USB_DEVICE(0xa168, 0x0613), SN9C20X(HV7131R, 0x11, 0)},
