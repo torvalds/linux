@@ -5136,6 +5136,21 @@ T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
 S:	Maintained
 F:	arch/sparc/
 
+SPARC SERIAL DRIVERS
+M:	"David S. Miller" <davem@davemloft.net>
+L:	sparclinux@vger.kernel.org
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-2.6.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/davem/sparc-next-2.6.git
+S:	Maintained
+F:	drivers/serial/suncore.c
+F:	drivers/serial/suncore.h
+F:	drivers/serial/sunhv.c
+F:	drivers/serial/sunsab.c
+F:	drivers/serial/sunsab.h
+F:	drivers/serial/sunsu.c
+F:	drivers/serial/sunzilog.c
+F:	drivers/serial/sunzilog.h
+
 SPECIALIX IO8+ MULTIPORT SERIAL CARD DRIVER
 M:	Roger Wolff <R.E.Wolff@BitWizard.nl>
 S:	Supported
