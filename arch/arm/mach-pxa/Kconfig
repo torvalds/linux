@@ -653,11 +653,6 @@ config PXA_SSP
 	help
 	  Enable support for PXA2xx SSP ports
 
-config PXA_SSP_LEGACY
-	bool
-	help
-	  Support of legacy SSP API
-
 config TOSA_BT
 	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"
 	depends on MACH_TOSA
