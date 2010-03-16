@@ -217,8 +217,8 @@ enum vreg_pdown_id {
 };
 
 enum {
-        PCOM_CLKRGM_APPS_RESET_USB_PHY  = 34,
-        PCOM_CLKRGM_APPS_RESET_USBH     = 37,
+	PCOM_CLKRGM_APPS_RESET_USB_PHY	= 34,
+	PCOM_CLKRGM_APPS_RESET_USBH	= 37,
 };
 
 /* gpio info for PCOM_RPC_GPIO_TLMM_CONFIG_EX */

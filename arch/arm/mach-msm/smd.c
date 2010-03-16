@@ -123,8 +123,6 @@ static void handle_modem_crash(void)
 		;
 }
 
-extern int (*msm_check_for_modem_crash)(void);
-
 uint32_t raw_smsm_get_state(enum smsm_state_item item)
 {
 	return readl(smd_info.state + item * 4);
@@ -904,9 +902,9 @@ static irqreturn_t smsm_irq_handler(int irq, void *data)
 
 	if (msm_smd_debug_mask & MSM_SMSM_DEBUG)
 		pr_info("<SM %08x %08x>\n", apps, modm);
-	if (modm & SMSM_RESET) {
+	if (modm & SMSM_RESET)
 		handle_modem_crash();
-	}
+
 	do_smd_probe();
 
 	spin_unlock_irqrestore(&smem_lock, flags);
@@ -1055,8 +1053,6 @@ int smd_core_init(void)
 
 	return 0;
 }
-
-extern void msm_init_last_radio_log(struct module *);
 
 static int __init msm_smd_probe(struct platform_device *pdev)
 {

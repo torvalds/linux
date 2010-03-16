@@ -20,24 +20,21 @@
 #include <linux/spinlock.h>
 #include <linux/list.h>
 
-struct smem_heap_info
-{
+struct smem_heap_info {
 	unsigned initialized;
 	unsigned free_offset;
 	unsigned heap_remaining;
 	unsigned reserved;
 };
 
-struct smem_heap_entry
-{
+struct smem_heap_entry {
 	unsigned allocated;
 	unsigned offset;
 	unsigned size;
 	unsigned reserved;
 };
 
-struct smem_proc_comm
-{
+struct smem_proc_comm {
 	unsigned command;
 	unsigned status;
 	unsigned data1;
@@ -54,8 +51,7 @@ struct smem_proc_comm
 #define VERSION_APPS      8
 #define VERSION_MODEM     9
 
-struct smem_shared
-{
+struct smem_shared {
 	struct smem_proc_comm proc_comm[4];
 	unsigned version[32];
 	struct smem_heap_info heap_info;
@@ -66,8 +62,7 @@ struct smem_shared
 #define SMSM_V2_SIZE		(sizeof(unsigned) * 4)
 
 #ifndef CONFIG_ARCH_MSM_SCORPION
-struct smsm_interrupt_info
-{
+struct smsm_interrupt_info {
 	uint32_t interrupt_mask;
 	uint32_t pending_interrupts;
 	uint32_t wakeup_reason;
@@ -156,8 +151,7 @@ void smsm_print_sleep_info(void);
 
 #define SMEM_NUM_SMD_CHANNELS        64
 
-typedef enum
-{
+typedef enum {
 	/* fixed items */
 	SMEM_PROC_COMM = 0,
 	SMEM_HEAP_INFO,
@@ -232,7 +226,7 @@ typedef enum
 	SMEM_SMEM_LOG_POWER_WRAP,
 	SMEM_SMEM_LOG_POWER_EVENTS,
 	SMEM_ERR_CRASH_LOG,
-	SMEM_ERR_F3_TRACE_LOG,	
+	SMEM_ERR_F3_TRACE_LOG,
 	SMEM_NUM_ITEMS,
 } smem_mem_type;
 
@@ -281,7 +275,7 @@ struct smd_shared_v1 {
 struct smd_shared_v2 {
 	struct smd_half_channel ch0;
 	struct smd_half_channel ch1;
-};	
+};
 
 struct smd_channel {
 	volatile struct smd_half_channel *send;
@@ -333,5 +327,7 @@ extern spinlock_t smem_lock;
 void *smem_find(unsigned id, unsigned size);
 void *smem_item(unsigned id, unsigned *size);
 uint32_t raw_smsm_get_state(enum smsm_state_item item);
+
+extern void msm_init_last_radio_log(struct module *);
 
 #endif
