@@ -5,6 +5,8 @@
 #include "probe-finder.h"
 #include "strlist.h"
 
+extern bool probe_event_dry_run;
+
 extern void parse_line_range_desc(const char *arg, struct line_range *lr);
 extern void parse_perf_probe_event(const char *str, struct probe_point *pp,
 				   bool *need_dwarf);

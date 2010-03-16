@@ -175,6 +175,7 @@ static const struct option options[] = {
 		     "FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]",
 		     "Show source code lines.", opt_show_lines),
 #endif
+	OPT__DRY_RUN(&probe_event_dry_run),
 	OPT_END()
 };
 

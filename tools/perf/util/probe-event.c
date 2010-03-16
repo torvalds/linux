@@ -49,6 +49,8 @@
 #define MAX_PROBE_ARGS 128
 #define PERFPROBE_GROUP "probe"
 
+bool probe_event_dry_run;	/* Dry run flag */
+
 #define semantic_error(msg ...) die("Semantic error :" msg)
 
 /* If there is no space to write, returns -E2BIG. */
@@ -430,7 +432,7 @@ error:
 	return ret;
 }
 
-static int open_kprobe_events(int flags, int mode)
+static int open_kprobe_events(bool readwrite)
 {
 	char buf[PATH_MAX];
 	int ret;
@@ -439,7 +441,11 @@ static int open_kprobe_events(int flags, int mode)
 	if (ret < 0)
 		die("Failed to make kprobe_events path.");
 
-	ret = open(buf, flags, mode);
+	if (readwrite && !probe_event_dry_run)
+		ret = open(buf, O_RDWR, O_APPEND);
+	else
+		ret = open(buf, O_RDONLY, 0);
+
 	if (ret < 0) {
 		if (errno == ENOENT)
 			die("kprobe_events file does not exist -"
@@ -535,7 +541,7 @@ void show_perf_probe_events(void)
 	setup_pager();
 	memset(&pp, 0, sizeof(pp));
 
-	fd = open_kprobe_events(O_RDONLY, 0);
+	fd = open_kprobe_events(false);
 	rawlist = get_trace_kprobe_event_rawlist(fd);
 	close(fd);
 
@@ -585,9 +591,11 @@ static void write_trace_kprobe_event(int fd, const char *buf)
 	int ret;
 
 	pr_debug("Writing event: %s\n", buf);
-	ret = write(fd, buf, strlen(buf));
-	if (ret <= 0)
-		die("Failed to write event: %s", strerror(errno));
+	if (!probe_event_dry_run) {
+		ret = write(fd, buf, strlen(buf));
+		if (ret <= 0)
+			die("Failed to write event: %s", strerror(errno));
+	}
 }
 
 static void get_new_event_name(char *buf, size_t len, const char *base,
@@ -630,7 +638,7 @@ static void __add_trace_kprobe_events(struct probe_point *probes,
 	struct strlist *namelist;
 	bool allow_suffix;
 
-	fd = open_kprobe_events(O_RDWR, O_APPEND);
+	fd = open_kprobe_events(true);
 	/* Get current event names */
 	namelist = get_perf_event_names(fd, false);
 
@@ -814,7 +822,7 @@ void del_trace_kprobe_events(struct strlist *dellist)
 	struct str_node *ent;
 	struct strlist *namelist;
 
-	fd = open_kprobe_events(O_RDWR, O_APPEND);
+	fd = open_kprobe_events(true);
 	/* Get current event names */
 	namelist = get_perf_event_names(fd, true);
 

@@ -57,6 +57,11 @@ OPTIONS
 --force::
 	Forcibly add events with existing name.
 
+-n::
+--dry-run::
+	Dry run. With this option, --add and --del doesn't execute actual
+	adding and removal operations.
+
 PROBE SYNTAX
 ------------
 Probe points are defined by following syntax.
