@@ -65,6 +65,8 @@
 
 #include "iwl-dev.h"
 
+extern struct iwl_ucode_ops iwlagn_ucode;
+
 int iwl_reset_ict(struct iwl_priv *priv);
 void iwl_disable_ict(struct iwl_priv *priv);
 int iwl_alloc_isr_ict(struct iwl_priv *priv);

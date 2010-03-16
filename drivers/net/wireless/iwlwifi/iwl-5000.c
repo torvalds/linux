@@ -1348,45 +1348,6 @@ static int iwl5000_send_tx_ant_config(struct iwl_priv *priv, u8 valid_tx_ant)
 	}
 }
 
-
-#define IWL5000_UCODE_GET(item)						\
-static u32 iwl5000_ucode_get_##item(const struct iwl_ucode_header *ucode,\
-				    u32 api_ver)			\
-{									\
-	if (api_ver <= 2)						\
-		return le32_to_cpu(ucode->u.v1.item);			\
-	return le32_to_cpu(ucode->u.v2.item);				\
-}
-
-static u32 iwl5000_ucode_get_header_size(u32 api_ver)
-{
-	if (api_ver <= 2)
-		return UCODE_HEADER_SIZE(1);
-	return UCODE_HEADER_SIZE(2);
-}
-
-static u32 iwl5000_ucode_get_build(const struct iwl_ucode_header *ucode,
-				   u32 api_ver)
-{
-	if (api_ver <= 2)
-		return 0;
-	return le32_to_cpu(ucode->u.v2.build);
-}
-
-static u8 *iwl5000_ucode_get_data(const struct iwl_ucode_header *ucode,
-				  u32 api_ver)
-{
-	if (api_ver <= 2)
-		return (u8 *) ucode->u.v1.data;
-	return (u8 *) ucode->u.v2.data;
-}
-
-IWL5000_UCODE_GET(inst_size);
-IWL5000_UCODE_GET(data_size);
-IWL5000_UCODE_GET(init_size);
-IWL5000_UCODE_GET(init_data_size);
-IWL5000_UCODE_GET(boot_size);
-
 static int iwl5000_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 {
 	struct iwl5000_channel_switch_cmd cmd;
@@ -1433,17 +1394,6 @@ struct iwl_hcmd_utils_ops iwl5000_hcmd_utils = {
 	.chain_noise_reset = iwl5000_chain_noise_reset,
 	.rts_tx_cmd_flag = iwl5000_rts_tx_cmd_flag,
 	.calc_rssi = iwl5000_calc_rssi,
-};
-
-struct iwl_ucode_ops iwl5000_ucode = {
-	.get_header_size = iwl5000_ucode_get_header_size,
-	.get_build = iwl5000_ucode_get_build,
-	.get_inst_size = iwl5000_ucode_get_inst_size,
-	.get_data_size = iwl5000_ucode_get_data_size,
-	.get_init_size = iwl5000_ucode_get_init_size,
-	.get_init_data_size = iwl5000_ucode_get_init_data_size,
-	.get_boot_size = iwl5000_ucode_get_boot_size,
-	.get_data = iwl5000_ucode_get_data,
 };
 
 struct iwl_lib_ops iwl5000_lib = {
@@ -1562,7 +1512,7 @@ static struct iwl_lib_ops iwl5150_lib = {
 };
 
 static const struct iwl_ops iwl5000_ops = {
-	.ucode = &iwl5000_ucode,
+	.ucode = &iwlagn_ucode,
 	.lib = &iwl5000_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl5000_hcmd_utils,
@@ -1570,7 +1520,7 @@ static const struct iwl_ops iwl5000_ops = {
 };
 
 static const struct iwl_ops iwl5150_ops = {
-	.ucode = &iwl5000_ucode,
+	.ucode = &iwlagn_ucode,
 	.lib = &iwl5150_lib,
 	.hcmd = &iwl5000_hcmd,
 	.utils = &iwl5000_hcmd_utils,
