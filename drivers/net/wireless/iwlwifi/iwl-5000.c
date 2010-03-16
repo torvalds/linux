@@ -65,7 +65,7 @@
 #define IWL5150_MODULE_FIRMWARE(api) _IWL5150_MODULE_FIRMWARE(api)
 
 /* NIC configuration for 5000 series */
-void iwl5000_nic_config(struct iwl_priv *priv)
+static void iwl5000_nic_config(struct iwl_priv *priv)
 {
 	unsigned long flags;
 	u16 radio_cfg;
@@ -164,7 +164,7 @@ static void iwl5000_set_ct_threshold(struct iwl_priv *priv)
 	priv->hw_params.ct_kill_threshold = CT_KILL_THRESHOLD_LEGACY;
 }
 
-int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
+static int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
 	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
@@ -266,7 +266,7 @@ static int iwl5000_hw_channel_switch(struct iwl_priv *priv, u16 channel)
 	return iwl_send_cmd_sync(priv, &hcmd);
 }
 
-struct iwl_lib_ops iwl5000_lib = {
+static struct iwl_lib_ops iwl5000_lib = {
 	.set_hw_params = iwl5000_hw_set_hw_params,
 	.txq_update_byte_cnt_tbl = iwlagn_txq_update_byte_cnt_tbl,
 	.txq_inval_byte_cnt_tbl = iwlagn_txq_inval_byte_cnt_tbl,
