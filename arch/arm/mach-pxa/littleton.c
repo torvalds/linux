@@ -41,7 +41,6 @@
 
 #include <mach/pxa300.h>
 #include <mach/pxafb.h>
-#include <mach/ssp.h>
 #include <mach/mmc.h>
 #include <mach/pxa2xx_spi.h>
 #include <mach/pxa27x_keypad.h>

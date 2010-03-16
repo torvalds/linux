@@ -45,7 +45,6 @@
 #include <mach/poodle.h>
 #include <mach/pxafb.h>
 #include <mach/sharpsl.h>
-#include <mach/ssp.h>
 #include <mach/pxa2xx_spi.h>
 
 #include <asm/hardware/scoop.h>
