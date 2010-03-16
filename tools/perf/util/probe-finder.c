@@ -125,8 +125,7 @@ static void line_list__add_line(struct list_head *head, unsigned int line)
 	p = head;
 found:
 	pr_debug("line list: add a line %u\n", line);
-	ln = zalloc(sizeof(struct line_node));
-	DIE_IF(ln == NULL);
+	ln = xzalloc(sizeof(struct line_node));
 	ln->line = line;
 	INIT_LIST_HEAD(&ln->list);
 	list_add(&ln->list, p);
@@ -416,7 +415,7 @@ static void show_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 				(unsigned long)(pf->addr - eaddr));
 		/* Copy the function name if possible */
 		if (!pp->function) {
-			pp->function = strdup(name);
+			pp->function = xstrdup(name);
 			pp->offset = (size_t)(pf->addr - eaddr);
 		}
 	} else {
@@ -425,7 +424,7 @@ static void show_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 			       (uintmax_t)pf->addr);
 		if (!pp->function) {
 			/* TODO: Use _stext */
-			pp->function = strdup("");
+			pp->function = xstrdup("");
 			pp->offset = (size_t)pf->addr;
 		}
 	}
@@ -456,7 +455,7 @@ static void show_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 	if (pp->found == MAX_PROBES)
 		die("Too many( > %d) probe point found.\n", MAX_PROBES);
 
-	pp->probes[pp->found] = strdup(tmp);
+	pp->probes[pp->found] = xstrdup(tmp);
 	pp->found++;
 }
 
@@ -506,8 +505,7 @@ static int find_lazy_match_lines(struct list_head *head,
 	if (fd < 0)
 		die("failed to open %s", fname);
 	DIE_IF(fstat(fd, &st) < 0);
-	fbuf = malloc(st.st_size + 2);
-	DIE_IF(fbuf == NULL);
+	fbuf = xmalloc(st.st_size + 2);
 	DIE_IF(read(fd, fbuf, st.st_size) < 0);
 	close(fd);
 	fbuf[st.st_size] = '\n';	/* Dummy line */
@@ -727,7 +725,7 @@ static void find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 
 		/* Copy real path */
 		if (!lf->lr->path)
-			lf->lr->path = strdup(src);
+			lf->lr->path = xstrdup(src);
 		line_list__add_line(&lf->lr->line_list, (unsigned int)lineno);
 	}
 	/* Update status */

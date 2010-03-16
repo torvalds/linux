@@ -33,6 +33,7 @@
 #include <limits.h>
 
 #undef _GNU_SOURCE
+#include "util.h"
 #include "event.h"
 #include "string.h"
 #include "strlist.h"
@@ -90,9 +91,9 @@ void parse_line_range_desc(const char *arg, struct line_range *lr)
 		if (*tmp != '\0')
 			semantic_error("Tailing with invalid character '%d'.",
 				       *tmp);
-		tmp = strndup(arg, (ptr - arg));
+		tmp = xstrndup(arg, (ptr - arg));
 	} else
-		tmp = strdup(arg);
+		tmp = xstrdup(arg);
 
 	if (strchr(tmp, '.'))
 		lr->file = tmp;
@@ -135,7 +136,7 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 		if (!check_event_name(arg))
 			semantic_error("%s is bad for event name -it must "
 				       "follow C symbol-naming rule.", arg);
-		pp->event = strdup(arg);
+		pp->event = xstrdup(arg);
 		arg = tmp;
 	}
 
@@ -147,17 +148,16 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 
 	/* Check arg is function or file and copy it */
 	if (strchr(arg, '.'))	/* File */
-		pp->file = strdup(arg);
+		pp->file = xstrdup(arg);
 	else			/* Function */
-		pp->function = strdup(arg);
-	DIE_IF(pp->file == NULL && pp->function == NULL);
+		pp->function = xstrdup(arg);
 
 	/* Parse other options */
 	while (ptr) {
 		arg = ptr;
 		c = nc;
 		if (c == ';') {	/* Lazy pattern must be the last part */
-			pp->lazy_line = strdup(arg);
+			pp->lazy_line = xstrdup(arg);
 			break;
 		}
 		ptr = strpbrk(arg, ";:+@%");
@@ -181,8 +181,7 @@ static void parse_perf_probe_probepoint(char *arg, struct probe_point *pp)
 		case '@':	/* File name */
 			if (pp->file)
 				semantic_error("SRC@SRC is not allowed.");
-			pp->file = strdup(arg);
-			DIE_IF(pp->file == NULL);
+			pp->file = xstrdup(arg);
 			break;
 		case '%':	/* Probe places */
 			if (strcmp(arg, "return") == 0) {
@@ -247,11 +246,9 @@ void parse_perf_probe_event(const char *str, struct probe_point *pp,
 
 	/* Copy arguments and ensure return probe has no C argument */
 	pp->nr_args = argc - 1;
-	pp->args = zalloc(sizeof(char *) * pp->nr_args);
+	pp->args = xzalloc(sizeof(char *) * pp->nr_args);
 	for (i = 0; i < pp->nr_args; i++) {
-		pp->args[i] = strdup(argv[i + 1]);
-		if (!pp->args[i])
-			die("Failed to copy argument.");
+		pp->args[i] = xstrdup(argv[i + 1]);
 		if (is_c_varname(pp->args[i])) {
 			if (pp->retprobe)
 				semantic_error("You can't specify local"
@@ -299,14 +296,12 @@ void parse_trace_kprobe_event(const char *str, struct probe_point *pp)
 	pp->file = NULL;
 
 	pp->nr_args = argc - 2;
-	pp->args = zalloc(sizeof(char *) * pp->nr_args);
+	pp->args = xzalloc(sizeof(char *) * pp->nr_args);
 	for (i = 0; i < pp->nr_args; i++) {
 		p = strchr(argv[i + 2], '=');
 		if (p)	/* We don't need which register is assigned. */
 			*p = '\0';
-		pp->args[i] = strdup(argv[i + 2]);
-		if (!pp->args[i])
-			die("Failed to copy argument.");
+		pp->args[i] = xstrdup(argv[i + 2]);
 	}
 
 	argv_free(argv);
@@ -319,10 +314,8 @@ int synthesize_perf_probe_point(struct probe_point *pp)
 	char offs[64] = "", line[64] = "";
 	int ret;
 
-	pp->probes[0] = buf = zalloc(MAX_CMDLEN);
+	pp->probes[0] = buf = xzalloc(MAX_CMDLEN);
 	pp->found = 1;
-	if (!buf)
-		die("Failed to allocate memory by zalloc.");
 	if (pp->offset) {
 		ret = e_snprintf(offs, 64, "+%d", pp->offset);
 		if (ret <= 0)
@@ -380,9 +373,7 @@ int synthesize_trace_kprobe_event(struct probe_point *pp)
 	char *buf;
 	int i, len, ret;
 
-	pp->probes[0] = buf = zalloc(MAX_CMDLEN);
-	if (!buf)
-		die("Failed to allocate memory by zalloc.");
+	pp->probes[0] = buf = xzalloc(MAX_CMDLEN);
 	ret = e_snprintf(buf, MAX_CMDLEN, "%s+%d", pp->function, pp->offset);
 	if (ret <= 0)
 		goto error;
@@ -612,10 +603,9 @@ void add_trace_kprobe_events(struct probe_point *probes, int nr_probes,
 	for (j = 0; j < nr_probes; j++) {
 		pp = probes + j;
 		if (!pp->event)
-			pp->event = strdup(pp->function);
+			pp->event = xstrdup(pp->function);
 		if (!pp->group)
-			pp->group = strdup(PERFPROBE_GROUP);
-		DIE_IF(!pp->event || !pp->group);
+			pp->group = xstrdup(PERFPROBE_GROUP);
 		/* If force_add is true, suffix search is allowed */
 		allow_suffix = force_add;
 		for (i = 0; i < pp->found; i++) {
@@ -709,9 +699,7 @@ void del_trace_kprobe_events(struct strlist *dellist)
 	namelist = get_perf_event_names(fd, true);
 
 	strlist__for_each(ent, dellist) {
-		str = strdup(ent->s);
-		if (!str)
-			die("Failed to copy event.");
+		str = xstrdup(ent->s);
 		pr_debug("Parsing: %s\n", str);
 		p = strchr(str, ':');
 		if (p) {

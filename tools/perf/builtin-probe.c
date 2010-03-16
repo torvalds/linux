@@ -87,9 +87,7 @@ static void parse_probe_event_argv(int argc, const char **argv)
 	len = 0;
 	for (i = 0; i < argc; i++)
 		len += strlen(argv[i]) + 1;
-	buf = zalloc(len + 1);
-	if (!buf)
-		die("Failed to allocate memory for binding arguments.");
+	buf = xzalloc(len + 1);
 	len = 0;
 	for (i = 0; i < argc; i++)
 		len += sprintf(&buf[len], "%s ", argv[i]);
