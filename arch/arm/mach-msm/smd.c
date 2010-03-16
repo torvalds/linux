@@ -605,48 +605,6 @@ static int smd_packet_read(smd_channel_t *ch, void *data, int len)
 	return r;
 }
 
-static int smd_alloc_v2(struct smd_channel *ch)
-{
-	struct smd_shared_v2 *shared2;
-	void *buffer;
-	unsigned buffer_sz;
-
-	shared2 = smem_alloc(SMEM_SMD_BASE_ID + ch->n, sizeof(*shared2));
-	buffer = smem_item(SMEM_SMD_FIFO_BASE_ID + ch->n, &buffer_sz);
-
-	if (!buffer)
-		return -1;
-
-	/* buffer must be a power-of-two size */
-	if (buffer_sz & (buffer_sz - 1))
-		return -1;
-
-	buffer_sz /= 2;
-	ch->send = &shared2->ch0;
-	ch->recv = &shared2->ch1;
-	ch->send_data = buffer;
-	ch->recv_data = buffer + buffer_sz;
-	ch->fifo_size = buffer_sz;
-	return 0;
-}
-
-static int smd_alloc_v1(struct smd_channel *ch)
-{
-	struct smd_shared_v1 *shared1;
-	shared1 = smem_alloc(ID_SMD_CHANNELS + ch->n, sizeof(*shared1));
-	if (!shared1) {
-		pr_err("smd_alloc_channel() cid %d does not exist\n", ch->n);
-		return -1;
-	}
-	ch->send = &shared1->ch0;
-	ch->recv = &shared1->ch1;
-	ch->send_data = shared1->data0;
-	ch->recv_data = shared1->data1;
-	ch->fifo_size = SMD_BUF_SIZE;
-	return 0;
-}
-
-
 static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 {
 	struct smd_channel *ch;
@@ -658,7 +616,7 @@ static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 	}
 	ch->n = cid;
 
-	if (smd_alloc_v2(ch) && smd_alloc_v1(ch)) {
+	if (_smd_alloc_channel(ch)) {
 		kfree(ch);
 		return -1;
 	}

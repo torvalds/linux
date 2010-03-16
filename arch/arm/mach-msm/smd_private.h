@@ -61,7 +61,7 @@ struct smem_shared {
 #define SMSM_V1_SIZE		(sizeof(unsigned) * 8)
 #define SMSM_V2_SIZE		(sizeof(unsigned) * 4)
 
-#ifndef CONFIG_ARCH_MSM_SCORPION
+#ifdef CONFIG_MSM_SMD_PKG3
 struct smsm_interrupt_info {
 	uint32_t interrupt_mask;
 	uint32_t pending_interrupts;
@@ -123,7 +123,7 @@ struct msm_dem_slave_data {
 #define SMSM_WKUP_REASON_ALARM	0x00000010
 #define SMSM_WKUP_REASON_RESET	0x00000020
 
-#ifndef CONFIG_ARCH_MSM_SCORPION
+#ifdef CONFIG_ARCH_MSM7X00A
 enum smsm_state_item {
 	SMSM_STATE_APPS = 1,
 	SMSM_STATE_MODEM = 3,
@@ -265,6 +265,7 @@ struct smd_half_channel {
 	unsigned head;
 } __attribute__(( aligned(4), packed ));
 
+/* Only used on SMD package v3 on msm7201a */
 struct smd_shared_v1 {
 	struct smd_half_channel ch0;
 	unsigned char data0[SMD_BUF_SIZE];
@@ -272,6 +273,7 @@ struct smd_shared_v1 {
 	unsigned char data1[SMD_BUF_SIZE];
 };
 
+/* Used on SMD package v4 */
 struct smd_shared_v2 {
 	struct smd_half_channel ch0;
 	struct smd_half_channel ch1;
@@ -329,5 +331,57 @@ void *smem_item(unsigned id, unsigned *size);
 uint32_t raw_smsm_get_state(enum smsm_state_item item);
 
 extern void msm_init_last_radio_log(struct module *);
+
+#ifdef CONFIG_MSM_SMD_PKG3
+/*
+ * This allocator assumes an SMD Package v3 which only exists on
+ * MSM7x00 SoC's.
+ */
+static inline int _smd_alloc_channel(struct smd_channel *ch)
+{
+	struct smd_shared_v1 *shared1;
+
+	shared1 = smem_alloc(ID_SMD_CHANNELS + ch->n, sizeof(*shared1));
+	if (!shared1) {
+		pr_err("smd_alloc_channel() cid %d does not exist\n", ch->n);
+		return -1;
+	}
+	ch->send = &shared1->ch0;
+	ch->recv = &shared1->ch1;
+	ch->send_data = shared1->data0;
+	ch->recv_data = shared1->data1;
+	ch->fifo_size = SMD_BUF_SIZE;
+	return 0;
+}
+#else
+/*
+ * This allocator assumes an SMD Package v4, the most common
+ * and the default.
+ */
+static inline int _smd_alloc_channel(struct smd_channel *ch)
+{
+	struct smd_shared_v2 *shared2;
+	void *buffer;
+	unsigned buffer_sz;
+
+	shared2 = smem_alloc(SMEM_SMD_BASE_ID + ch->n, sizeof(*shared2));
+	buffer = smem_item(SMEM_SMD_FIFO_BASE_ID + ch->n, &buffer_sz);
+
+	if (!buffer)
+		return -1;
+
+	/* buffer must be a power-of-two size */
+	if (buffer_sz & (buffer_sz - 1))
+		return -1;
+
+	buffer_sz /= 2;
+	ch->send = &shared2->ch0;
+	ch->recv = &shared2->ch1;
+	ch->send_data = buffer;
+	ch->recv_data = buffer + buffer_sz;
+	ch->fifo_size = buffer_sz;
+	return 0;
+}
+#endif /* CONFIG_MSM_SMD_PKG3 */
 
 #endif

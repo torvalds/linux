@@ -1,5 +1,21 @@
 if ARCH_MSM
 
+choice
+	prompt "Qualcomm MSM SoC Type"
+	default ARCH_MSM7X00A
+
+config ARCH_MSM7X00A
+	bool "MSM7x00A / MSM7x01A"
+	select ARCH_MSM_ARM11
+	select MSM_SMD_PKG3
+	select CPU_V6
+
+endchoice
+
+config ARCH_MSM_ARM11
+	bool
+
+
 comment "MSM Board Type"
 	depends on ARCH_MSM
 
@@ -28,19 +44,21 @@ choice
 endchoice
 
 config MACH_HALIBUT
-	depends on ARCH_MSM
-	select CPU_V6
+	depends on ARCH_MSM7X00A
 	default y
 	bool "Halibut Board (QCT SURF7201A)"
 	help
 	  Support for the Qualcomm SURF7201A eval board.
 
 config MACH_TROUT
-	select CPU_V6
+	depends on ARCH_MSM7X00A
 	default y
 	bool "HTC Dream (aka trout)"
 	help
 	  Support for the HTC Dream, T-Mobile G1, Android ADP1 devices.
+
+config MSM_SMD_PKG3
+	bool
 
 config MSM_SMD
 	default y
