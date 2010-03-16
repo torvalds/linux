@@ -77,9 +77,6 @@ irqreturn_t iwl_isr_ict(int irq, void *data);
 bool iwl_good_ack_health(struct iwl_priv *priv,
 			 struct iwl_rx_packet *pkt);
 
-/* uCode */
-int iwlagn_load_ucode(struct iwl_priv *priv);
-
 /* tx queue */
 void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
 		     int txq_id, u32 index);
@@ -96,5 +93,14 @@ int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 			   u16 ssn_idx, u8 tx_fifo);
 void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask);
+
+/* uCode */
+int iwlagn_load_ucode(struct iwl_priv *priv);
+void iwlagn_rx_calib_result(struct iwl_priv *priv,
+			 struct iwl_rx_mem_buffer *rxb);
+void iwlagn_rx_calib_complete(struct iwl_priv *priv,
+			   struct iwl_rx_mem_buffer *rxb);
+void iwlagn_init_alive_start(struct iwl_priv *priv);
+int iwlagn_alive_notify(struct iwl_priv *priv);
 
 #endif /* __iwl_agn_h__ */
