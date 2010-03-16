@@ -31,6 +31,7 @@ obj-$(CONFIG_EARLY_PRINTK)           += early_printk.o
 obj-$(CONFIG_EARLY_PRINTK)           += shadow_console.o
 obj-$(CONFIG_STACKTRACE)             += stacktrace.o
 obj-$(CONFIG_DEBUG_VERBOSE)          += trace.o
+obj-$(CONFIG_BFIN_PSEUDODBG_INSNS)   += pseudodbg.o
 
 # the kgdb test puts code into L2 and without linker
 # relaxation, we need to force long calls to/from it
