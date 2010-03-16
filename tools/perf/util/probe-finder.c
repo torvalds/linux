@@ -186,6 +186,62 @@ static const char *cu_find_realpath(Dwarf_Die *cu_die, const char *fname)
 	return src;
 }
 
+/* Compare diename and tname */
+static bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
+{
+	const char *name;
+	name = dwarf_diename(dw_die);
+	DIE_IF(name == NULL);
+	return strcmp(tname, name);
+}
+
+/* Get entry pc(or low pc, 1st entry of ranges)  of the die */
+static Dwarf_Addr die_get_entrypc(Dwarf_Die *dw_die)
+{
+	Dwarf_Addr epc;
+	int ret;
+
+	ret = dwarf_entrypc(dw_die, &epc);
+	DIE_IF(ret == -1);
+	return epc;
+}
+
+/* Return values for die_find callbacks */
+enum {
+	DIE_FIND_CB_FOUND = 0,		/* End of Search */
+	DIE_FIND_CB_CHILD = 1,		/* Search only children */
+	DIE_FIND_CB_SIBLING = 2,	/* Search only siblings */
+	DIE_FIND_CB_CONTINUE = 3,	/* Search children and siblings */
+};
+
+/* Search a child die */
+static Dwarf_Die *die_find_child(Dwarf_Die *rt_die,
+				 int (*callback)(Dwarf_Die *, void *),
+				 void *data, Dwarf_Die *die_mem)
+{
+	Dwarf_Die child_die;
+	int ret;
+
+	ret = dwarf_child(rt_die, die_mem);
+	if (ret != 0)
+		return NULL;
+
+	do {
+		ret = callback(die_mem, data);
+		if (ret == DIE_FIND_CB_FOUND)
+			return die_mem;
+
+		if ((ret & DIE_FIND_CB_CHILD) &&
+		    die_find_child(die_mem, callback, data, &child_die)) {
+			memcpy(die_mem, &child_die, sizeof(Dwarf_Die));
+			return die_mem;
+		}
+	} while ((ret & DIE_FIND_CB_SIBLING) &&
+		 dwarf_siblingof(die_mem, die_mem) == 0);
+
+	return NULL;
+}
+
 struct __addr_die_search_param {
 	Dwarf_Addr	addr;
 	Dwarf_Die	*die_mem;
@@ -217,77 +273,45 @@ static Dwarf_Die *die_find_real_subprogram(Dwarf_Die *cu_die, Dwarf_Addr addr,
 		return die_mem;
 }
 
+/* die_find callback for inline function search */
+static int __die_find_inline_cb(Dwarf_Die *die_mem, void *data)
+{
+	Dwarf_Addr *addr = data;
+
+	if (dwarf_tag(die_mem) == DW_TAG_inlined_subroutine &&
+	    dwarf_haspc(die_mem, *addr))
+		return DIE_FIND_CB_FOUND;
+
+	return DIE_FIND_CB_CONTINUE;
+}
+
 /* Similar to dwarf_getfuncs, but returns inlined_subroutine if exists. */
 static Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 				      Dwarf_Die *die_mem)
 {
-	Dwarf_Die child_die;
-	int ret;
-
-	ret = dwarf_child(sp_die, die_mem);
-	if (ret != 0)
-		return NULL;
-
-	do {
-		if (dwarf_tag(die_mem) == DW_TAG_inlined_subroutine &&
-		    dwarf_haspc(die_mem, addr))
-			return die_mem;
-
-		if (die_find_inlinefunc(die_mem, addr, &child_die)) {
-			memcpy(die_mem, &child_die, sizeof(Dwarf_Die));
-			return die_mem;
-		}
-	} while (dwarf_siblingof(die_mem, die_mem) == 0);
-
-	return NULL;
+	return die_find_child(sp_die, __die_find_inline_cb, &addr, die_mem);
 }
 
-/* Compare diename and tname */
-static bool die_compare_name(Dwarf_Die *dw_die, const char *tname)
+static int __die_find_variable_cb(Dwarf_Die *die_mem, void *data)
 {
-	const char *name;
-	name = dwarf_diename(dw_die);
-	DIE_IF(name == NULL);
-	return strcmp(tname, name);
+	const char *name = data;
+	int tag;
+
+	tag = dwarf_tag(die_mem);
+	if ((tag == DW_TAG_formal_parameter ||
+	     tag == DW_TAG_variable) &&
+	    (die_compare_name(die_mem, name) == 0))
+		return DIE_FIND_CB_FOUND;
+
+	return DIE_FIND_CB_CONTINUE;
 }
 
-/* Get entry pc(or low pc, 1st entry of ranges)  of the die */
-static Dwarf_Addr die_get_entrypc(Dwarf_Die *dw_die)
-{
-	Dwarf_Addr epc;
-	int ret;
-
-	ret = dwarf_entrypc(dw_die, &epc);
-	DIE_IF(ret == -1);
-	return epc;
-}
-
-/* Get a variable die */
+/* Find a variable called 'name' */
 static Dwarf_Die *die_find_variable(Dwarf_Die *sp_die, const char *name,
 				    Dwarf_Die *die_mem)
 {
-	Dwarf_Die child_die;
-	int tag;
-	int ret;
-
-	ret = dwarf_child(sp_die, die_mem);
-	if (ret != 0)
-		return NULL;
-
-	do {
-		tag = dwarf_tag(die_mem);
-		if ((tag == DW_TAG_formal_parameter ||
-		     tag == DW_TAG_variable) &&
-		    (die_compare_name(die_mem, name) == 0))
-			return die_mem;
-
-		if (die_find_variable(die_mem, name, &child_die)) {
-			memcpy(die_mem, &child_die, sizeof(Dwarf_Die));
-			return die_mem;
-		}
-	} while (dwarf_siblingof(die_mem, die_mem) == 0);
-
-	return NULL;
+	return die_find_child(sp_die, __die_find_variable_cb, (void *)name,
+			      die_mem);
 }
 
 /*
