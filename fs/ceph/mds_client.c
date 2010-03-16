@@ -529,6 +529,7 @@ static void __unregister_request(struct ceph_mds_client *mdsc,
 {
 	dout("__unregister_request %p tid %lld\n", req, req->r_tid);
 	rb_erase(&req->r_node, &mdsc->request_tree);
+	RB_CLEAR_NODE(&req->r_node);
 	ceph_mdsc_put_request(req);
 
 	if (req->r_unsafe_dir) {
@@ -2682,29 +2683,41 @@ void ceph_mdsc_pre_umount(struct ceph_mds_client *mdsc)
  */
 static void wait_unsafe_requests(struct ceph_mds_client *mdsc, u64 want_tid)
 {
-	struct ceph_mds_request *req = NULL;
+	struct ceph_mds_request *req = NULL, *nextreq;
 	struct rb_node *n;
 
 	mutex_lock(&mdsc->mutex);
 	dout("wait_unsafe_requests want %lld\n", want_tid);
+restart:
 	req = __get_oldest_req(mdsc);
 	while (req && req->r_tid <= want_tid) {
+		/* find next request */
+		n = rb_next(&req->r_node);
+		if (n)
+			nextreq = rb_entry(n, struct ceph_mds_request, r_node);
+		else
+			nextreq = NULL;
 		if ((req->r_op & CEPH_MDS_OP_WRITE)) {
 			/* write op */
 			ceph_mdsc_get_request(req);
+			if (nextreq)
+				ceph_mdsc_get_request(nextreq);
 			mutex_unlock(&mdsc->mutex);
 			dout("wait_unsafe_requests  wait on %llu (want %llu)\n",
 			     req->r_tid, want_tid);
 			wait_for_completion(&req->r_safe_completion);
 			mutex_lock(&mdsc->mutex);
-			n = rb_next(&req->r_node);
 			ceph_mdsc_put_request(req);
-		} else {
-			n = rb_next(&req->r_node);
+			if (!nextreq)
+				break;  /* next dne before, so we're done! */
+			if (RB_EMPTY_NODE(&nextreq->r_node)) {
+				/* next request was removed from tree */
+				ceph_mdsc_put_request(nextreq);
+				goto restart;
+			}
+			ceph_mdsc_put_request(nextreq);  /* won't go away */
 		}
-		if (!n)
-			break;
-		req = rb_entry(n, struct ceph_mds_request, r_node);
+		req = nextreq;
 	}
 	mutex_unlock(&mdsc->mutex);
 	dout("wait_unsafe_requests done\n");
