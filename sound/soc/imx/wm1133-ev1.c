@@ -181,8 +181,8 @@ static const struct snd_soc_dapm_route wm1133_ev1_map[] = {
 
 	/* Mic 2 Jack --> IN1RN and IN1RP (with automatic bias) */
 	{ "IN1RN", NULL, "Mic Bias" },
-	{ "IN1RP", NULL, "Mic1 Jack" },
-	{ "Mic Bias", NULL, "Mic1 Jack" },
+	{ "IN1RP", NULL, "Mic2 Jack" },
+	{ "Mic Bias", NULL, "Mic2 Jack" },
 
 	/* Line in Jack --> AUX (L+R) */
 	{ "IN3R", NULL, "Line In Jack" },
