@@ -33,14 +33,7 @@
 #define SSCR0_National	(0x2 << 4)	/* National Microwire */
 #define SSCR0_ECS	(1 << 6)	/* External clock select */
 #define SSCR0_SSE	(1 << 7)	/* Synchronous Serial Port Enable */
-
-#if defined(CONFIG_PXA25x)
-#define SSCR0_SCR	(0x0000ff00)	/* Serial Clock Rate (mask) */
-#define SSCR0_SerClkDiv(x) ((((x) - 2)/2) << 8) /* Divisor [2..512] */
-#elif defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
-#define SSCR0_SCR	(0x000fff00)	/* Serial Clock Rate (mask) */
-#define SSCR0_SerClkDiv(x) (((x) - 1) << 8) /* Divisor [1..4096] */
-#endif
+#define SSCR0_SCR(x)	((x) << 8)	/* Serial Clock Rate (mask) */
 
 #if defined(CONFIG_PXA27x) || defined(CONFIG_PXA3xx)
 #define SSCR0_EDSS	(1 << 20)	/* Extended data size select */

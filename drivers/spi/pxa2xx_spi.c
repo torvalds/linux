@@ -1318,14 +1318,14 @@ static int setup(struct spi_device *spi)
 	/* NOTE:  PXA25x_SSP _could_ use external clocking ... */
 	if (drv_data->ssp_type != PXA25x_SSP)
 		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
-				clk_get_rate(ssp->clk)
-					/ (1 + ((chip->cr0 & SSCR0_SCR) >> 8)),
-				chip->enable_dma ? "DMA" : "PIO");
+			clk_get_rate(ssp->clk)
+				/ (1 + ((chip->cr0 & SSCR0_SCR(0xfff)) >> 8)),
+			chip->enable_dma ? "DMA" : "PIO");
 	else
 		dev_dbg(&spi->dev, "%ld Hz actual, %s\n",
-				clk_get_rate(ssp->clk) / 2
-					/ (1 + ((chip->cr0 & SSCR0_SCR) >> 8)),
-				chip->enable_dma ? "DMA" : "PIO");
+			clk_get_rate(ssp->clk) / 2
+				/ (1 + ((chip->cr0 & SSCR0_SCR(0x0ff)) >> 8)),
+			chip->enable_dma ? "DMA" : "PIO");
 
 	if (spi->bits_per_word <= 8) {
 		chip->n_bytes = 1;
@@ -1558,7 +1558,7 @@ static int __init pxa2xx_spi_probe(struct platform_device *pdev)
 	write_SSCR1(SSCR1_RxTresh(RX_THRESH_DFLT) |
 				SSCR1_TxTresh(TX_THRESH_DFLT),
 				drv_data->ioaddr);
-	write_SSCR0(SSCR0_SerClkDiv(2)
+	write_SSCR0(SSCR0_SCR(2)
 			| SSCR0_Motorola
 			| SSCR0_DataSize(8),
 			drv_data->ioaddr);
