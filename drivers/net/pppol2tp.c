@@ -756,6 +756,7 @@ static int pppol2tp_recv_core(struct sock *sock, struct sk_buff *skb)
 
 	/* Try to dequeue as many skbs from reorder_q as we can. */
 	pppol2tp_recv_dequeue(session);
+	sock_put(sock);
 
 	return 0;
 
@@ -772,6 +773,7 @@ discard_bad_csum:
 	UDP_INC_STATS_USER(&init_net, UDP_MIB_INERRORS, 0);
 	tunnel->stats.rx_errors++;
 	kfree_skb(skb);
+	sock_put(sock);
 
 	return 0;
 
@@ -1662,6 +1664,7 @@ static int pppol2tp_connect(struct socket *sock, struct sockaddr *uservaddr,
 		if (tunnel_sock == NULL)
 			goto end;
 
+		sock_hold(tunnel_sock);
 		tunnel = tunnel_sock->sk_user_data;
 	} else {
 		tunnel = pppol2tp_tunnel_find(sock_net(sk), sp->pppol2tp.s_tunnel);
