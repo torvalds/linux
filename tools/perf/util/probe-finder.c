@@ -204,8 +204,8 @@ static int __die_search_func_cb(Dwarf_Die *fn_die, void *data)
 }
 
 /* Search a real subprogram including this line, */
-static Dwarf_Die *die_get_real_subprogram(Dwarf_Die *cu_die, Dwarf_Addr addr,
-					  Dwarf_Die *die_mem)
+static Dwarf_Die *die_find_real_subprogram(Dwarf_Die *cu_die, Dwarf_Addr addr,
+					   Dwarf_Die *die_mem)
 {
 	struct __addr_die_search_param ad;
 	ad.addr = addr;
@@ -218,8 +218,8 @@ static Dwarf_Die *die_get_real_subprogram(Dwarf_Die *cu_die, Dwarf_Addr addr,
 }
 
 /* Similar to dwarf_getfuncs, but returns inlined_subroutine if exists. */
-static Dwarf_Die *die_get_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
-				     Dwarf_Die *die_mem)
+static Dwarf_Die *die_find_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
+				      Dwarf_Die *die_mem)
 {
 	Dwarf_Die child_die;
 	int ret;
@@ -233,7 +233,7 @@ static Dwarf_Die *die_get_inlinefunc(Dwarf_Die *sp_die, Dwarf_Addr addr,
 		    dwarf_haspc(die_mem, addr))
 			return die_mem;
 
-		if (die_get_inlinefunc(die_mem, addr, &child_die)) {
+		if (die_find_inlinefunc(die_mem, addr, &child_die)) {
 			memcpy(die_mem, &child_die, sizeof(Dwarf_Die));
 			return die_mem;
 		}
@@ -401,7 +401,7 @@ static void show_probe_point(Dwarf_Die *sp_die, struct probe_finder *pf)
 
 	/* If no real subprogram, find a real one */
 	if (!sp_die || dwarf_tag(sp_die) != DW_TAG_subprogram) {
-		sp_die = die_get_real_subprogram(&pf->cu_die,
+		sp_die = die_find_real_subprogram(&pf->cu_die,
 						 pf->addr, &die_mem);
 		if (!sp_die)
 			die("Probe point is not found in subprograms.");
@@ -564,7 +564,7 @@ static void find_probe_point_lazy(Dwarf_Die *sp_die, struct probe_finder *pf)
 			if (!dwarf_haspc(sp_die, addr))
 				continue;
 			/* Address filtering 2: No child include addr? */
-			if (die_get_inlinefunc(sp_die, addr, &die_mem))
+			if (die_find_inlinefunc(sp_die, addr, &die_mem))
 				continue;
 		}
 
@@ -714,7 +714,7 @@ static void find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 				continue;
 
 			/* Address filtering 2: No child include addr? */
-			if (die_get_inlinefunc(sp_die, addr, &die_mem))
+			if (die_find_inlinefunc(sp_die, addr, &die_mem))
 				continue;
 		}
 
