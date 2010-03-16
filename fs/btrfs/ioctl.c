@@ -1848,39 +1848,74 @@ long btrfs_ioctl_space_info(struct btrfs_root *root, void __user *arg)
 	struct btrfs_ioctl_space_args space_args;
 	struct btrfs_ioctl_space_info space;
 	struct btrfs_ioctl_space_info *dest;
+	struct btrfs_ioctl_space_info *dest_orig;
+	struct btrfs_ioctl_space_info *user_dest;
 	struct btrfs_space_info *info;
+	int alloc_size;
 	int ret = 0;
+	int slot_count = 0;
 
 	if (copy_from_user(&space_args,
 			   (struct btrfs_ioctl_space_args __user *)arg,
 			   sizeof(space_args)))
 		return -EFAULT;
 
-	space_args.total_spaces = 0;
-	dest = (struct btrfs_ioctl_space_info *)
-		(arg + sizeof(struct btrfs_ioctl_space_args));
+	/* first we count slots */
+	rcu_read_lock();
+	list_for_each_entry_rcu(info, &root->fs_info->space_info, list)
+		slot_count++;
+	rcu_read_unlock();
 
+	/* space_slots == 0 means they are asking for a count */
+	if (space_args.space_slots == 0) {
+		space_args.total_spaces = slot_count;
+		goto out;
+	}
+	alloc_size = sizeof(*dest) * slot_count;
+	/* we generally have at most 6 or so space infos, one for each raid
+	 * level.  So, a whole page should be more than enough for everyone
+	 */
+	if (alloc_size > PAGE_CACHE_SIZE)
+		return -ENOMEM;
+
+	space_args.total_spaces = 0;
+	dest = kmalloc(alloc_size, GFP_NOFS);
+	if (!dest)
+		return -ENOMEM;
+	dest_orig = dest;
+
+	/* now we have a buffer to copy into */
 	rcu_read_lock();
 	list_for_each_entry_rcu(info, &root->fs_info->space_info, list) {
-		if (!space_args.space_slots) {
-			space_args.total_spaces++;
-			continue;
-		}
+		/* make sure we don't copy more than we allocated
+		 * in our buffer
+		 */
+		if (slot_count == 0)
+			break;
+		slot_count--;
+
+		/* make sure userland has enough room in their buffer */
 		if (space_args.total_spaces >= space_args.space_slots)
 			break;
+
 		space.flags = info->flags;
 		space.total_bytes = info->total_bytes;
 		space.used_bytes = info->bytes_used;
-		if (copy_to_user(dest, &space, sizeof(space))) {
-			ret = -EFAULT;
-			break;
-		}
+		memcpy(dest, &space, sizeof(space));
 		dest++;
 		space_args.total_spaces++;
 	}
 	rcu_read_unlock();
 
-	if (copy_to_user(arg, &space_args, sizeof(space_args)))
+	user_dest = (struct btrfs_ioctl_space_info *)
+		(arg + sizeof(struct btrfs_ioctl_space_args));
+
+	if (copy_to_user(user_dest, dest_orig, alloc_size))
+		ret = -EFAULT;
+
+	kfree(dest_orig);
+out:
+	if (ret == 0 && copy_to_user(arg, &space_args, sizeof(space_args)))
 		ret = -EFAULT;
 
 	return ret;
