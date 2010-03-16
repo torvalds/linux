@@ -1301,7 +1301,7 @@ static void do_connect_req(struct gigaset_capi_ctr *iif,
 	}
 
 	/* check parameter: CIP Value */
-	if (cmsg->CIPValue > ARRAY_SIZE(cip2bchlc) ||
+	if (cmsg->CIPValue >= ARRAY_SIZE(cip2bchlc) ||
 	    (cmsg->CIPValue > 0 && cip2bchlc[cmsg->CIPValue].bc == NULL)) {
 		dev_notice(cs->dev, "%s: unknown CIP value %d\n",
 			   "CONNECT_REQ", cmsg->CIPValue);
