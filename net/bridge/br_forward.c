@@ -19,7 +19,8 @@
 #include <linux/netfilter_bridge.h>
 #include "br_private.h"
 
-static int deliver_clone(struct net_bridge_port *prev, struct sk_buff *skb,
+static int deliver_clone(const struct net_bridge_port *prev,
+			 struct sk_buff *skb,
 			 void (*__packet_hook)(const struct net_bridge_port *p,
 					       struct sk_buff *skb));
 
@@ -112,7 +113,8 @@ void br_forward(const struct net_bridge_port *to, struct sk_buff *skb, struct sk
 		kfree_skb(skb);
 }
 
-static int deliver_clone(struct net_bridge_port *prev, struct sk_buff *skb,
+static int deliver_clone(const struct net_bridge_port *prev,
+			 struct sk_buff *skb,
 			 void (*__packet_hook)(const struct net_bridge_port *p,
 					       struct sk_buff *skb))
 {
