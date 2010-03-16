@@ -397,13 +397,6 @@ static const struct iwl_ops iwl5150_ops = {
 	.led = &iwlagn_led_ops,
 };
 
-struct iwl_mod_params iwl50_mod_params = {
-	.amsdu_size_8K = 1,
-	.restart_fw = 1,
-	/* the rest are 0 by default */
-};
-
-
 struct iwl_cfg iwl5300_agn_cfg = {
 	.name = "Intel(R) Ultimate N WiFi Link 5300 AGN",
 	.fw_name_pre = IWL5000_FW_PRE,
@@ -416,7 +409,7 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
@@ -443,7 +436,7 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
@@ -470,7 +463,7 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
@@ -495,7 +488,7 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
@@ -522,7 +515,7 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
@@ -549,7 +542,7 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
@@ -576,7 +569,7 @@ struct iwl_cfg iwl5150_abg_cfg = {
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
 	.num_of_queues = IWLAGN_NUM_QUEUES,
 	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
-	.mod_params = &iwl50_mod_params,
+	.mod_params = &iwlagn_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
 	.pll_cfg_val = CSR50_ANA_PLL_CFG_VAL,
@@ -592,15 +585,15 @@ struct iwl_cfg iwl5150_abg_cfg = {
 MODULE_FIRMWARE(IWL5000_MODULE_FIRMWARE(IWL5000_UCODE_API_MAX));
 MODULE_FIRMWARE(IWL5150_MODULE_FIRMWARE(IWL5150_UCODE_API_MAX));
 
-module_param_named(swcrypto50, iwl50_mod_params.sw_crypto, bool, S_IRUGO);
+module_param_named(swcrypto50, iwlagn_mod_params.sw_crypto, bool, S_IRUGO);
 MODULE_PARM_DESC(swcrypto50,
 		  "using software crypto engine (default 0 [hardware])\n");
-module_param_named(queues_num50, iwl50_mod_params.num_of_queues, int, S_IRUGO);
+module_param_named(queues_num50, iwlagn_mod_params.num_of_queues, int, S_IRUGO);
 MODULE_PARM_DESC(queues_num50, "number of hw queues in 50xx series");
-module_param_named(11n_disable50, iwl50_mod_params.disable_11n, int, S_IRUGO);
+module_param_named(11n_disable50, iwlagn_mod_params.disable_11n, int, S_IRUGO);
 MODULE_PARM_DESC(11n_disable50, "disable 50XX 11n functionality");
-module_param_named(amsdu_size_8K50, iwl50_mod_params.amsdu_size_8K,
+module_param_named(amsdu_size_8K50, iwlagn_mod_params.amsdu_size_8K,
 		   int, S_IRUGO);
 MODULE_PARM_DESC(amsdu_size_8K50, "enable 8K amsdu size in 50XX series");
-module_param_named(fw_restart50, iwl50_mod_params.restart_fw, int, S_IRUGO);
+module_param_named(fw_restart50, iwlagn_mod_params.restart_fw, int, S_IRUGO);
 MODULE_PARM_DESC(fw_restart50, "restart firmware in case of error");

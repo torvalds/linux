@@ -65,6 +65,7 @@
 
 #include "iwl-dev.h"
 
+extern struct iwl_mod_params iwlagn_mod_params;
 extern struct iwl_ucode_ops iwlagn_ucode;
 extern struct iwl_hcmd_ops iwlagn_hcmd;
 extern struct iwl_hcmd_utils_ops iwlagn_hcmd_utils;

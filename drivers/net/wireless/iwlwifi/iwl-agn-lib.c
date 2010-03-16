@@ -375,3 +375,9 @@ const u8 *iwlagn_eeprom_query_addr(const struct iwl_priv *priv,
 	BUG_ON(address >= priv->cfg->eeprom_size);
 	return &priv->eeprom[address];
 }
+
+struct iwl_mod_params iwlagn_mod_params = {
+	.amsdu_size_8K = 1,
+	.restart_fw = 1,
+	/* the rest are 0 by default */
+};
