@@ -173,6 +173,9 @@ static int i2c_pnx_master_xmit(struct i2c_pnx_algo_data *alg_data)
 		/* We still have something to talk about... */
 		val = *alg_data->mif.buf++;
 
+		if (alg_data->mif.len == 1)
+			val |= stop_bit;
+
 		alg_data->mif.len--;
 		iowrite32(val, I2C_REG_TX(alg_data));
 
@@ -246,6 +249,9 @@ static int i2c_pnx_master_rcv(struct i2c_pnx_algo_data *alg_data)
 			__func__);
 
 		if (alg_data->mif.len == 1) {
+			/* Last byte, do not acknowledge next rcv. */
+			val |= stop_bit;
+
 			/*
 			 * Enable interrupt RFDAIE (data in Rx fifo),
 			 * and disable DRMIE (need data for Tx)
