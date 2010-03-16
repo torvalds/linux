@@ -1000,7 +1000,7 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 advance_key:
 	if (key->offset < (u64)-1)
 		key->offset++;
-	else if (key->type < (u64)-1)
+	else if (key->type < (u8)-1)
 		key->type++;
 	else if (key->objectid < (u64)-1)
 		key->objectid++;
