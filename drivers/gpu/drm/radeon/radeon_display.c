@@ -1003,15 +1003,6 @@ int radeon_modeset_init(struct radeon_device *rdev)
 		radeon_combios_check_hardcoded_edid(rdev);
 	}
 
-	if (rdev->flags & RADEON_SINGLE_CRTC)
-		rdev->num_crtc = 1;
-	else {
-		if (ASIC_IS_DCE4(rdev))
-			rdev->num_crtc = 6;
-		else
-			rdev->num_crtc = 2;
-	}
-
 	/* allocate crtcs */
 	for (i = 0; i < rdev->num_crtc; i++) {
 		radeon_crtc_init(rdev->ddev, i);
