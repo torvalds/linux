@@ -1738,7 +1738,7 @@ bail:
 /**
  * ipath_7220_put_tid - write a TID to the chip
  * @dd: the infinipath device
- * @tidptr: pointer to the expected TID (in chip) to udpate
+ * @tidptr: pointer to the expected TID (in chip) to update
  * @tidtype: 0 for eager, 1 for expected
  * @pa: physical address of in memory buffer; ipath_tidinvalid if freeing
  *

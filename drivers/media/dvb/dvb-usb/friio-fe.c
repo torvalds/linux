@@ -300,7 +300,7 @@ static int jdvbt90502_set_frontend(struct dvb_frontend *fe,
 				   struct dvb_frontend_parameters *p)
 {
 	/**
-	 * NOTE: ignore all the paramters except frequency.
+	 * NOTE: ignore all the parameters except frequency.
 	 *       others should be fixed to the proper value for ISDB-T,
 	 *       but don't check here.
 	 */

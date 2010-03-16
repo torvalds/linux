@@ -188,7 +188,7 @@ struct wf_smu_sys_fans_state {
 };
 
 /*
- * Configs for SMU Sytem Fan control loop
+ * Configs for SMU System Fan control loop
  */
 static struct wf_smu_sys_fans_param wf_smu_sys_all_params[] = {
 	/* Model ID 2 */

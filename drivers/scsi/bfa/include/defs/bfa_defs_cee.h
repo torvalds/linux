@@ -54,7 +54,7 @@ struct bfa_cee_lldp_str_s {
 };
 
 
-/* LLDP paramters */
+/* LLDP parameters */
 struct bfa_cee_lldp_cfg_s {
 	struct bfa_cee_lldp_str_s chassis_id;
 	struct bfa_cee_lldp_str_s port_id;
