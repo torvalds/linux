@@ -17,13 +17,15 @@
 #include <linux/resource.h>
 #include <linux/platform_device.h>
 #include <linux/delay.h>
+#include <linux/gpio.h>
+
 #include <asm/mach-types.h>
-#include <asm/gpio.h>
 #include <mach/irqs.h>
 #include <mach/iomap.h>
 #include <mach/sdhci.h>
-#include <mach/gpio-names.h>
 #include <mach/pinmux.h>
+
+#include "gpio-names.h"
 
 /*static struct resource sdhci_resource1[] = {
 	[0] = {
