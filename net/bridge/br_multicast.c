@@ -49,22 +49,23 @@ static struct net_bridge_mdb_entry *__br_mdb_ip_get(
 static struct net_bridge_mdb_entry *br_mdb_ip_get(
 	struct net_bridge_mdb_htable *mdb, __be32 dst)
 {
+	if (!mdb)
+		return NULL;
+
 	return __br_mdb_ip_get(mdb, dst, br_ip_hash(mdb, dst));
 }
 
 struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 					struct sk_buff *skb)
 {
-	struct net_bridge_mdb_htable *mdb = br->mdb;
-
-	if (!mdb || br->multicast_disabled)
+	if (br->multicast_disabled)
 		return NULL;
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		if (BR_INPUT_SKB_CB(skb)->igmp)
 			break;
-		return br_mdb_ip_get(mdb, ip_hdr(skb)->daddr);
+		return br_mdb_ip_get(br->mdb, ip_hdr(skb)->daddr);
 	}
 
 	return NULL;
