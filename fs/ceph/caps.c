@@ -2195,18 +2195,19 @@ void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
  * Handle a cap GRANT message from the MDS.  (Note that a GRANT may
  * actually be a revocation if it specifies a smaller cap set.)
  *
- * caller holds s_mutex.
+ * caller holds s_mutex and i_lock, we drop both.
+ *
  * return value:
  *  0 - ok
  *  1 - check_caps on auth cap only (writeback)
  *  2 - check_caps (ack revoke)
  */
-static int handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
-			    struct ceph_mds_session *session,
-			    struct ceph_cap *cap,
-			    struct ceph_buffer *xattr_buf)
+static void handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
+			     struct ceph_mds_session *session,
+			     struct ceph_cap *cap,
+			     struct ceph_buffer *xattr_buf)
 	__releases(inode->i_lock)
-
+	__releases(session->s_mutex)
 {
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	int mds = session->s_mds;
@@ -2216,7 +2217,7 @@ static int handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 	u64 size = le64_to_cpu(grant->size);
 	u64 max_size = le64_to_cpu(grant->max_size);
 	struct timespec mtime, atime, ctime;
-	int reply = 0;
+	int check_caps = 0;
 	int wake = 0;
 	int writeback = 0;
 	int revoked_rdcache = 0;
@@ -2329,10 +2330,10 @@ static int handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 		if ((used & ~newcaps) & CEPH_CAP_FILE_BUFFER)
 			writeback = 1; /* will delay ack */
 		else if (dirty & ~newcaps)
-			reply = 1;     /* initiate writeback in check_caps */
+			check_caps = 1;  /* initiate writeback in check_caps */
 		else if (((used & ~newcaps) & CEPH_CAP_FILE_CACHE) == 0 ||
 			   revoked_rdcache)
-			reply = 2;     /* send revoke ack in check_caps */
+			check_caps = 2;     /* send revoke ack in check_caps */
 		cap->issued = newcaps;
 		cap->implemented |= newcaps;
 	} else if (cap->issued == newcaps) {
@@ -2361,7 +2362,14 @@ static int handle_cap_grant(struct inode *inode, struct ceph_mds_caps *grant,
 		ceph_queue_invalidate(inode);
 	if (wake)
 		wake_up(&ci->i_cap_wq);
-	return reply;
+
+	if (check_caps == 1)
+		ceph_check_caps(ci, CHECK_CAPS_NODELAY|CHECK_CAPS_AUTHONLY,
+				session);
+	else if (check_caps == 2)
+		ceph_check_caps(ci, CHECK_CAPS_NODELAY, session);
+	else
+		mutex_unlock(&session->s_mutex);
 }
 
 /*
@@ -2622,9 +2630,7 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	u64 cap_id;
 	u64 size, max_size;
 	u64 tid;
-	int check_caps = 0;
 	void *snaptrace;
-	int r;
 
 	dout("handle_caps from mds%d\n", mds);
 
@@ -2669,8 +2675,9 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	case CEPH_CAP_OP_IMPORT:
 		handle_cap_import(mdsc, inode, h, session,
 				  snaptrace, le32_to_cpu(h->snap_trace_len));
-		check_caps = 1; /* we may have sent a RELEASE to the old auth */
-		goto done;
+		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_NODELAY,
+				session);
+		goto done_unlocked;
 	}
 
 	/* the rest require a cap */
@@ -2687,19 +2694,8 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	switch (op) {
 	case CEPH_CAP_OP_REVOKE:
 	case CEPH_CAP_OP_GRANT:
-		r = handle_cap_grant(inode, h, session, cap, msg->middle);
-		if (r == 1) {
-			ceph_check_caps(ceph_inode(inode),
-					CHECK_CAPS_NODELAY|CHECK_CAPS_AUTHONLY,
-					session);
-			session = NULL;
-		} else if (r == 2) {
-			ceph_check_caps(ceph_inode(inode),
-					CHECK_CAPS_NODELAY,
-					session);
-			session = NULL;
-		}
-		break;
+		handle_cap_grant(inode, h, session, cap, msg->middle);
+		goto done_unlocked;
 
 	case CEPH_CAP_OP_FLUSH_ACK:
 		handle_cap_flush_ack(inode, tid, h, session, cap);
@@ -2716,11 +2712,8 @@ void ceph_handle_caps(struct ceph_mds_session *session,
 	}
 
 done:
-	if (session)
-		mutex_unlock(&session->s_mutex);
-
-	if (check_caps)
-		ceph_check_caps(ceph_inode(inode), CHECK_CAPS_NODELAY, NULL);
+	mutex_unlock(&session->s_mutex);
+done_unlocked:
 	if (inode)
 		iput(inode);
 	return;
