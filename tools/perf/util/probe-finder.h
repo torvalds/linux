@@ -20,6 +20,10 @@ static inline int is_c_varname(const char *name)
 extern int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
 				    struct kprobe_trace_event **tevs);
 
+/* Find a perf_probe_point from debuginfo */
+extern int find_perf_probe_point(int fd, unsigned long addr,
+				 struct perf_probe_point *ppt);
+
 extern int find_line_range(int fd, struct line_range *lr);
 
 #include <dwarf.h>

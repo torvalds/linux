@@ -70,7 +70,6 @@ static int e_snprintf(char *str, size_t size, const char *format, ...)
 	return ret;
 }
 
-
 static struct map_groups kmap_groups;
 static struct map *kmaps[MAP__NR_TYPES];
 
@@ -357,27 +356,39 @@ void parse_kprobe_trace_command(const char *cmd, struct kprobe_trace_event *tev)
 /* Compose only probe point (not argument) */
 static char *synthesize_perf_probe_point(struct perf_probe_point *pp)
 {
-	char *buf;
-	char offs[64] = "", line[64] = "";
-	int ret;
+	char *buf, *tmp;
+	char offs[32] = "", line[32] = "", file[32] = "";
+	int ret, len;
 
 	buf = xzalloc(MAX_CMDLEN);
 	if (pp->offset) {
-		ret = e_snprintf(offs, 64, "+%lu", pp->offset);
+		ret = e_snprintf(offs, 32, "+%lu", pp->offset);
 		if (ret <= 0)
 			goto error;
 	}
 	if (pp->line) {
-		ret = e_snprintf(line, 64, ":%d", pp->line);
+		ret = e_snprintf(line, 32, ":%d", pp->line);
+		if (ret <= 0)
+			goto error;
+	}
+	if (pp->file) {
+		len = strlen(pp->file) - 32;
+		if (len < 0)
+			len = 0;
+		tmp = strchr(pp->file + len, '/');
+		if (!tmp)
+			tmp = pp->file + len - 1;
+		ret = e_snprintf(file, 32, "@%s", tmp + 1);
 		if (ret <= 0)
 			goto error;
 	}
 
 	if (pp->function)
-		ret = e_snprintf(buf, MAX_CMDLEN, "%s%s%s%s", pp->function,
-				 offs, pp->retprobe ? "%return" : "", line);
+		ret = e_snprintf(buf, MAX_CMDLEN, "%s%s%s%s%s", pp->function,
+				 offs, pp->retprobe ? "%return" : "", line,
+				 file);
 	else
-		ret = e_snprintf(buf, MAX_CMDLEN, "%s%s", pp->file, line);
+		ret = e_snprintf(buf, MAX_CMDLEN, "%s%s", file, line);
 	if (ret <= 0)
 		goto error;
 
@@ -511,14 +522,31 @@ void convert_to_perf_probe_event(struct kprobe_trace_event *tev,
 {
 	char buf[64];
 	int i;
+#ifndef NO_DWARF_SUPPORT
+	struct symbol *sym;
+	int fd, ret = 0;
 
-	pev->event = xstrdup(tev->event);
-	pev->group = xstrdup(tev->group);
-
+	sym = map__find_symbol_by_name(kmaps[MAP__FUNCTION],
+				       tev->point.symbol, NULL);
+	if (sym) {
+		fd = open_vmlinux();
+		ret = find_perf_probe_point(fd, sym->start + tev->point.offset,
+					    &pev->point);
+		close(fd);
+	}
+	if (ret <= 0) {
+		pev->point.function = xstrdup(tev->point.symbol);
+		pev->point.offset = tev->point.offset;
+	}
+#else
 	/* Convert trace_point to probe_point */
 	pev->point.function = xstrdup(tev->point.symbol);
 	pev->point.offset = tev->point.offset;
+#endif
 	pev->point.retprobe = tev->point.retprobe;
+
+	pev->event = xstrdup(tev->event);
+	pev->group = xstrdup(tev->group);
 
 	/* Convert trace_arg to probe_arg */
 	pev->nargs = tev->nargs;
@@ -650,7 +678,7 @@ static void show_perf_probe_event(struct perf_probe_event *pev)
 	ret = e_snprintf(buf, 128, "%s:%s", pev->group, pev->event);
 	if (ret < 0)
 		die("Failed to copy event: %s", strerror(-ret));
-	printf("  %-40s (on %s", buf, place);
+	printf("  %-20s (on %s", buf, place);
 
 	if (pev->nargs > 0) {
 		printf(" with");
@@ -671,6 +699,7 @@ void show_perf_probe_events(void)
 	struct str_node *ent;
 
 	setup_pager();
+	init_vmlinux();
 
 	memset(&tev, 0, sizeof(tev));
 	memset(&pev, 0, sizeof(pev));

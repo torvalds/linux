@@ -693,6 +693,76 @@ int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
 	return pf.ntevs;
 }
 
+/* Reverse search */
+int find_perf_probe_point(int fd, unsigned long addr,
+			  struct perf_probe_point *ppt)
+{
+	Dwarf_Die cudie, spdie, indie;
+	Dwarf *dbg;
+	Dwarf_Line *line;
+	Dwarf_Addr laddr, eaddr;
+	const char *tmp;
+	int lineno, ret = 0;
+
+	dbg = dwarf_begin(fd, DWARF_C_READ);
+	if (!dbg)
+		return -ENOENT;
+
+	/* Find cu die */
+	if (!dwarf_addrdie(dbg, (Dwarf_Addr)addr, &cudie))
+		return -EINVAL;
+
+	/* Find a corresponding line */
+	line = dwarf_getsrc_die(&cudie, (Dwarf_Addr)addr);
+	if (line) {
+		dwarf_lineaddr(line, &laddr);
+		if ((Dwarf_Addr)addr == laddr) {
+			dwarf_lineno(line, &lineno);
+			ppt->line = lineno;
+
+			tmp = dwarf_linesrc(line, NULL, NULL);
+			DIE_IF(!tmp);
+			ppt->file = xstrdup(tmp);
+			ret = 1;
+		}
+	}
+
+	/* Find a corresponding function */
+	if (die_find_real_subprogram(&cudie, (Dwarf_Addr)addr, &spdie)) {
+		tmp = dwarf_diename(&spdie);
+		if (!tmp)
+			goto end;
+
+		dwarf_entrypc(&spdie, &eaddr);
+		if (!lineno) {
+			/* We don't have a line number, let's use offset */
+			ppt->function = xstrdup(tmp);
+			ppt->offset = addr - (unsigned long)eaddr;
+			ret = 1;
+			goto end;
+		}
+		if (die_find_inlinefunc(&spdie, (Dwarf_Addr)addr, &indie)) {
+			/* addr in an inline function */
+			tmp = dwarf_diename(&indie);
+			if (!tmp)
+				goto end;
+			dwarf_decl_line(&indie, &lineno);
+		} else {
+			if (eaddr == addr)	/* No offset: function entry */
+				lineno = ppt->line;
+			else
+				dwarf_decl_line(&spdie, &lineno);
+		}
+		ppt->function = xstrdup(tmp);
+		ppt->line -= lineno;	/* Make a relative line number */
+	}
+
+end:
+	dwarf_end(dbg);
+	return ret;
+}
+
+
 /* Find line range from its line number */
 static void find_line_range_by_line(Dwarf_Die *sp_die, struct line_finder *lf)
 {
