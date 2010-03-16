@@ -262,6 +262,9 @@ void atombios_crtc_dpms(struct drm_crtc *crtc, int mode)
 		atombios_enable_crtc(crtc, ATOM_DISABLE);
 		break;
 	}
+
+	/* adjust pm to dpms change */
+	radeon_pm_compute_clocks(rdev);
 }
 
 static void
@@ -1156,6 +1159,12 @@ static bool atombios_crtc_mode_fixup(struct drm_crtc *crtc,
 				     struct drm_display_mode *mode,
 				     struct drm_display_mode *adjusted_mode)
 {
+	struct drm_device *dev = crtc->dev;
+	struct radeon_device *rdev = dev->dev_private;
+
+	/* adjust pm to upcoming mode change */
+	radeon_pm_compute_clocks(rdev);
+
 	if (!radeon_crtc_scaling_mode_fixup(crtc, mode, adjusted_mode))
 		return false;
 	return true;

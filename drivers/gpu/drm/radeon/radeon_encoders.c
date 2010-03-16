@@ -262,9 +262,6 @@ static bool radeon_atom_mode_fixup(struct drm_encoder *encoder,
 	struct drm_device *dev = encoder->dev;
 	struct radeon_device *rdev = dev->dev_private;
 
-	/* adjust pm to upcoming mode change */
-	radeon_pm_compute_clocks(rdev);
-
 	/* set the active encoder to connector routing */
 	radeon_encoder_set_active_device(encoder);
 	drm_mode_set_crtcinfo(adjusted_mode, 0);
@@ -1074,8 +1071,6 @@ radeon_atom_encoder_dpms(struct drm_encoder *encoder, int mode)
 	}
 	radeon_atombios_encoder_dpms_scratch_regs(encoder, (mode == DRM_MODE_DPMS_ON) ? true : false);
 
-	/* adjust pm to dpms change */
-	radeon_pm_compute_clocks(rdev);
 }
 
 union crtc_source_param {
