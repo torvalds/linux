@@ -28,9 +28,10 @@ static void raid0_unplug(struct request_queue *q)
 	mddev_t *mddev = q->queuedata;
 	raid0_conf_t *conf = mddev->private;
 	mdk_rdev_t **devlist = conf->devlist;
+	int raid_disks = conf->strip_zone[0].nb_dev;
 	int i;
 
-	for (i=0; i<mddev->raid_disks; i++) {
+	for (i=0; i < raid_disks; i++) {
 		struct request_queue *r_queue = bdev_get_queue(devlist[i]->bdev);
 
 		blk_unplug(r_queue);
@@ -42,12 +43,13 @@ static int raid0_congested(void *data, int bits)
 	mddev_t *mddev = data;
 	raid0_conf_t *conf = mddev->private;
 	mdk_rdev_t **devlist = conf->devlist;
+	int raid_disks = conf->strip_zone[0].nb_dev;
 	int i, ret = 0;
 
 	if (mddev_congested(mddev, bits))
 		return 1;
 
-	for (i = 0; i < mddev->raid_disks && !ret ; i++) {
+	for (i = 0; i < raid_disks && !ret ; i++) {
 		struct request_queue *q = bdev_get_queue(devlist[i]->bdev);
 
 		ret |= bdi_congested(&q->backing_dev_info, bits);
@@ -65,6 +67,7 @@ static void dump_zones(mddev_t *mddev)
 	sector_t zone_start = 0;
 	char b[BDEVNAME_SIZE];
 	raid0_conf_t *conf = mddev->private;
+	int raid_disks = conf->strip_zone[0].nb_dev;
 	printk(KERN_INFO "******* %s configuration *********\n",
 		mdname(mddev));
 	h = 0;
@@ -72,7 +75,7 @@ static void dump_zones(mddev_t *mddev)
 		printk(KERN_INFO "zone%d=[", j);
 		for (k = 0; k < conf->strip_zone[j].nb_dev; k++)
 			printk("%s/",
-			bdevname(conf->devlist[j*mddev->raid_disks
+			bdevname(conf->devlist[j*raid_disks
 						+ k]->bdev, b));
 		printk("]\n");
 
@@ -401,6 +404,7 @@ static mdk_rdev_t *map_sector(mddev_t *mddev, struct strip_zone *zone,
 	unsigned int sect_in_chunk;
 	sector_t chunk;
 	raid0_conf_t *conf = mddev->private;
+	int raid_disks = conf->strip_zone[0].nb_dev;
 	unsigned int chunk_sects = mddev->chunk_sectors;
 
 	if (is_power_of_2(chunk_sects)) {
@@ -423,7 +427,7 @@ static mdk_rdev_t *map_sector(mddev_t *mddev, struct strip_zone *zone,
 	*	+ the position in the chunk
 	*/
 	*sector_offset = (chunk * chunk_sects) + sect_in_chunk;
-	return conf->devlist[(zone - conf->strip_zone)*mddev->raid_disks
+	return conf->devlist[(zone - conf->strip_zone)*raid_disks
 			     + sector_div(sector, zone->nb_dev)];
 }
 
@@ -518,6 +522,7 @@ static void raid0_status(struct seq_file *seq, mddev_t *mddev)
 	int j, k, h;
 	char b[BDEVNAME_SIZE];
 	raid0_conf_t *conf = mddev->private;
+	int raid_disks = conf->strip_zone[0].nb_dev;
 
 	sector_t zone_size;
 	sector_t zone_start = 0;
@@ -528,7 +533,7 @@ static void raid0_status(struct seq_file *seq, mddev_t *mddev)
 		seq_printf(seq, "=[");
 		for (k = 0; k < conf->strip_zone[j].nb_dev; k++)
 			seq_printf(seq, "%s/", bdevname(
-				conf->devlist[j*mddev->raid_disks + k]
+				conf->devlist[j*raid_disks + k]
 						->bdev, b));
 
 		zone_size  = conf->strip_zone[j].zone_end - zone_start;
