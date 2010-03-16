@@ -2612,19 +2612,18 @@ int hfa384x_drvr_start(hfa384x_t *hw)
 	if (result1 != 0) {
 		if (result2 != 0) {
 			printk(KERN_ERR
-				"cmd_initialize() failed on two attempts,"
-				" results %d and %d\n", result1, result2);
+				"cmd_initialize() failed on two attempts, results %d and %d\n",
+				result1, result2);
 			usb_kill_urb(&hw->rx_urb);
 			goto done;
 		} else {
 			pr_debug("First cmd_initialize() failed (result %d),\n",
 				 result1);
-			pr_debug("but second attempt succeeded."
-				 " All should be ok\n");
+			pr_debug("but second attempt succeeded. All should be ok\n");
 		}
 	} else if (result2 != 0) {
-		printk(KERN_WARNING "First cmd_initialize() succeeded,"
-			" but second attempt failed (result=%d)\n", result2);
+		printk(KERN_WARNING "First cmd_initialize() succeeded, but second attempt failed (result=%d)\n",
+			result2);
 		printk(KERN_WARNING
 		       "Most likely the card will be functional\n");
 		goto done;
@@ -3382,9 +3381,7 @@ retry:
 			 * our request has been acknowledged. Odd,
 			 * but our OUT URB is still alive...
 			 */
-			pr_debug("Causality violation: "
-				 "please reboot Universe, or email "
-				 "linux-wlan-devel@lists.linux-wlan.com\n");
+			pr_debug("Causality violation: please reboot Universe\n");
 			ctlx->state = CTLX_RESP_COMPLETE;
 			break;
 
@@ -3848,8 +3845,8 @@ retry:
 
 		default:
 			/* This is NOT a valid CTLX "success" state! */
-			printk(KERN_ERR "Illegal CTLX[%d]"
-				" success state(%s, %d) in OUT URB\n",
+			printk(KERN_ERR
+				"Illegal CTLX[%d] success state(%s, %d) in OUT URB\n",
 				le16_to_cpu(ctlx->outbuf.type),
 				ctlxstr(ctlx->state), urb->status);
 			break;
