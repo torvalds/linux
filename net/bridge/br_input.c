@@ -90,7 +90,7 @@ int br_handle_frame_finish(struct sk_buff *skb)
 
 	if (skb) {
 		if (dst)
-			br_forward(dst->dst, skb);
+			br_forward(dst->dst, skb, skb2);
 		else
 			br_flood_forward(br, skb, skb2);
 	}
