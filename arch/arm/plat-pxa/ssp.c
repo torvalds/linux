@@ -32,7 +32,7 @@
 
 #include <asm/irq.h>
 #include <mach/hardware.h>
-#include <mach/ssp.h>
+#include <plat/ssp.h>
 
 static DEFINE_MUTEX(ssp_lock);
 static LIST_HEAD(ssp_list);

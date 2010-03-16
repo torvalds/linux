@@ -36,7 +36,7 @@
 #include <asm/delay.h>
 
 #include <mach/dma.h>
-#include <mach/ssp.h>
+#include <plat/ssp.h>
 #include <mach/pxa2xx_spi.h>
 
 MODULE_AUTHOR("Stephen Street");

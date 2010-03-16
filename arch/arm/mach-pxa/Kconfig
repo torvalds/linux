@@ -648,11 +648,6 @@ config PXA_SHARP_Cxx00
 	help
 	  Enable common support for Sharp Cxx00 models
 
-config PXA_SSP
-	tristate
-	help
-	  Enable support for PXA2xx SSP ports
-
 config TOSA_BT
 	tristate "Control the state of built-in bluetooth chip on Sharp SL-6000"
 	depends on MACH_TOSA

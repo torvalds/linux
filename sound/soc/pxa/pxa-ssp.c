@@ -33,7 +33,7 @@
 #include <mach/hardware.h>
 #include <mach/dma.h>
 #include <mach/audio.h>
-#include <mach/ssp.h>
+#include <plat/ssp.h>
 
 #include "pxa2xx-pcm.h"
 #include "pxa-ssp.h"

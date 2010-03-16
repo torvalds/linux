@@ -14,7 +14,6 @@ obj-$(CONFIG_PXA3xx)		+= cpufreq-pxa3xx.o
 endif
 
 # Generic drivers that other drivers may depend upon
-obj-$(CONFIG_PXA_SSP)		+= ssp.o
 
 # SoC-specific code
 obj-$(CONFIG_PXA25x)		+= mfp-pxa2xx.o pxa2xx.o pxa25x.o

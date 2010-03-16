@@ -40,12 +40,12 @@
 #include <mach/pxa25x.h>
 #include <mach/mmc.h>
 #include <mach/udc.h>
-#include <plat/i2c.h>
 #include <mach/irda.h>
 #include <mach/poodle.h>
 #include <mach/pxafb.h>
 #include <mach/sharpsl.h>
 #include <mach/pxa2xx_spi.h>
+#include <plat/i2c.h>
 
 #include <asm/hardware/scoop.h>
 #include <asm/hardware/locomo.h>
