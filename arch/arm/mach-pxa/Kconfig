@@ -19,7 +19,6 @@ config MACH_MAINSTONE
 config MACH_ZYLONITE
 	bool
 	select PXA3xx
-	select PXA_SSP
 	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
 
@@ -39,7 +38,6 @@ config MACH_LITTLETON
 	select PXA3xx
 	select CPU_PXA300
 	select CPU_PXA310
-	select PXA_SSP
 
 config MACH_TAVOREVB
 	bool "PXA930 Evaluation Board (aka TavorEVB)"
@@ -98,7 +96,6 @@ config MACH_ARMCORE
 	select PXA27x
 	select IWMMXT
 	select PXA25x
-	select PXA_SSP
 
 config MACH_EM_X270
 	bool "CompuLab EM-x270 platform"
@@ -161,7 +158,6 @@ config MACH_XCEP
 	select MTD_CFI
 	select MTD_CHAR
 	select SMC91X
-	select PXA_SSP
 	help
 	  PXA255 based Single Board Computer with SMC 91C111 ethernet chip and 64 MB of flash.
 	  Tuned for usage in Libera instruments for particle accelerators.
@@ -180,7 +176,6 @@ config MACH_TRIZEPS4WL
 	depends on TRIZEPS_PXA
 	select TRIZEPS_PCMCIA
 	select PXA27x
-	select PXA_SSP
 
 choice
 	prompt "Select base board for Trizeps module"
@@ -217,7 +212,6 @@ config MACH_PCM027
 	bool "Phytec phyCORE-PXA270 CPU module (PCM-027)"
 	select PXA27x
 	select IWMMXT
-	select PXA_SSP
 	select PXA_HAVE_BOARD_IRQS
 
 config MACH_PCM990_BASEBOARD
@@ -261,7 +255,6 @@ config MACH_H4700
 	bool "HP iPAQ hx4700"
 	select PXA27x
 	select IWMMXT
-	select PXA_SSP
 	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
 
@@ -277,7 +270,6 @@ config MACH_MAGICIAN
 	bool "Enable HTC Magician Support"
 	select PXA27x
 	select IWMMXT
-	select PXA_SSP
 	select HAVE_PWM
 	select PXA_HAVE_BOARD_IRQS
 
@@ -431,13 +423,11 @@ config MACH_RAUMFELD_CONNECTOR
 	bool "Raumfeld Connector"
 	select PXA3xx
 	select CPU_PXA300
-	select PXA_SSP
 
 config MACH_RAUMFELD_SPEAKER
 	bool "Raumfeld Speaker"
 	select PXA3xx
 	select CPU_PXA300
-	select PXA_SSP
 
 config PXA_SHARPSL
 	bool "SHARP Zaurus SL-5600, SL-C7xx and SL-Cxx00 Models"
@@ -466,7 +456,6 @@ config MACH_POODLE
 	depends on PXA_SHARPSL
 	select PXA25x
 	select SHARP_LOCOMO
-	select PXA_SSP
 	select PXA_HAVE_BOARD_IRQS
 
 config MACH_CORGI
@@ -636,14 +625,12 @@ config CPU_PXA950
 
 config PXA_SHARP_C7xx
 	bool
-	select PXA_SSP
 	select SHARPSL_PM
 	help
 	  Enable support for all Sharp C7xx models
 
 config PXA_SHARP_Cxx00
 	bool
-	select PXA_SSP
 	select SHARPSL_PM
 	help
 	  Enable common support for Sharp Cxx00 models
