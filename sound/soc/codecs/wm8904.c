@@ -2425,6 +2425,7 @@ EXPORT_SYMBOL_GPL(soc_codec_dev_wm8904);
 static int wm8904_register(struct wm8904_priv *wm8904,
 			   enum snd_soc_control_type control)
 {
+	struct wm8904_pdata *pdata = wm8904->pdata;
 	int ret;
 	struct snd_soc_codec *codec = &wm8904->codec;
 	int i;
@@ -2529,6 +2530,17 @@ static int wm8904_register(struct wm8904_priv *wm8904,
 	wm8904->reg_cache[WM8904_ANALOGUE_OUT2_RIGHT] |= WM8904_LINEOUT_VU |
 		WM8904_LINEOUTRZC;
 	wm8904->reg_cache[WM8904_CLOCK_RATES_0] &= ~WM8904_SR_MODE;
+
+	/* Apply configuration from the platform data. */
+	if (wm8904->pdata) {
+		for (i = 0; i < WM8904_GPIO_REGS; i++) {
+			if (!pdata->gpio_cfg[i])
+				continue;
+
+			wm8904->reg_cache[WM8904_GPIO_CONTROL_1 + i]
+				= pdata->gpio_cfg[i] & 0xffff;
+		}
+	}
 
 	/* Set Class W by default - this will be managed by the Class
 	 * G widget at runtime where bypass paths are available.
