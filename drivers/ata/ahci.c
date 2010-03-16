@@ -2278,7 +2278,7 @@ static void ahci_port_intr(struct ata_port *ap)
 	struct ahci_port_priv *pp = ap->private_data;
 	struct ahci_host_priv *hpriv = ap->host->private_data;
 	int resetting = !!(ap->pflags & ATA_PFLAG_RESETTING);
-	u32 status, qc_active;
+	u32 status, qc_active = 0;
 	int rc;
 
 	status = readl(port_mmio + PORT_IRQ_STAT);
@@ -2336,11 +2336,22 @@ static void ahci_port_intr(struct ata_port *ap)
 		}
 	}
 
-	/* pp->active_link is valid iff any command is in flight */
-	if (ap->qc_active && pp->active_link->sactive)
-		qc_active = readl(port_mmio + PORT_SCR_ACT);
-	else
-		qc_active = readl(port_mmio + PORT_CMD_ISSUE);
+	/* pp->active_link is not reliable once FBS is enabled, both
+	 * PORT_SCR_ACT and PORT_CMD_ISSUE should be checked because
+	 * NCQ and non-NCQ commands may be in flight at the same time.
+	 */
+	if (pp->fbs_enabled) {
+		if (ap->qc_active) {
+			qc_active = readl(port_mmio + PORT_SCR_ACT);
+			qc_active |= readl(port_mmio + PORT_CMD_ISSUE);
+		}
+	} else {
+		/* pp->active_link is valid iff any command is in flight */
+		if (ap->qc_active && pp->active_link->sactive)
+			qc_active = readl(port_mmio + PORT_SCR_ACT);
+		else
+			qc_active = readl(port_mmio + PORT_CMD_ISSUE);
+	}
 
 	rc = ata_qc_complete_multiple(ap, qc_active);
 
