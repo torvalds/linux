@@ -589,3 +589,11 @@ Why:	Useful in 2003, implementation is a hack.
 	Generally invoked by accident today.
 	Seen as doing more harm than good.
 Who:	Len Brown <len.brown@intel.com>
+
+---------------------------
+
+What:	xt_NOTRACK
+Files:	net/netfilter/xt_NOTRACK.c
+When:	April 2011
+Why:	Superseded by xt_CT
+Who:	Netfilter developer team <netfilter-devel@vger.kernel.org>
