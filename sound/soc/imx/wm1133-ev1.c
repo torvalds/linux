@@ -203,6 +203,13 @@ static struct snd_soc_jack_pin hp_jack_pins[] = {
 	{ .pin = "Headphone Jack", .mask = SND_JACK_HEADPHONE },
 };
 
+static struct snd_soc_jack mic_jack;
+
+static struct snd_soc_jack_pin mic_jack_pins[] = {
+	{ .pin = "Mic1 Jack", .mask = SND_JACK_MICROPHONE },
+	{ .pin = "Mic2 Jack", .mask = SND_JACK_MICROPHONE },
+};
+
 static int wm1133_ev1_init(struct snd_soc_codec *codec)
 {
 	struct snd_soc_card *card = codec->socdev->card;
@@ -218,6 +225,14 @@ static int wm1133_ev1_init(struct snd_soc_codec *codec)
 	snd_soc_jack_add_pins(&hp_jack, ARRAY_SIZE(hp_jack_pins),
 			      hp_jack_pins);
 	wm8350_hp_jack_detect(codec, WM8350_JDR, &hp_jack, SND_JACK_HEADPHONE);
+
+	/* Microphone jack detection */
+	snd_soc_jack_new(card, "Microphone",
+			 SND_JACK_MICROPHONE | SND_JACK_BTN_0, &mic_jack);
+	snd_soc_jack_add_pins(&mic_jack, ARRAY_SIZE(mic_jack_pins),
+			      mic_jack_pins);
+	wm8350_mic_jack_detect(codec, &mic_jack, SND_JACK_MICROPHONE,
+			       SND_JACK_BTN_0);
 
 	return 0;
 }
