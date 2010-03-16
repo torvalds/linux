@@ -2550,9 +2550,8 @@ static void handle_cap_export(struct inode *inode, struct ceph_mds_caps *ex,
 			ci->i_cap_exporting_issued = cap->issued;
 		}
 		__ceph_remove_cap(cap);
-	} else {
-		WARN_ON(!cap);
 	}
+	/* else, we already released it */
 
 	spin_unlock(&inode->i_lock);
 }
