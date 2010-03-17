@@ -351,7 +351,7 @@ void ath9k_hw_set11n_txdesc(struct ath_hw *ah, struct ath_desc *ds,
 
 	ads->ds_ctl6 = SM(keyType, AR_EncrType);
 
-	if (AR_SREV_9285(ah)) {
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah)) {
 		ads->ds_ctl8 = 0;
 		ads->ds_ctl9 = 0;
 		ads->ds_ctl10 = 0;
