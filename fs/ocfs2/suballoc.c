@@ -941,11 +941,7 @@ static int ocfs2_reserve_clusters_with_limit(struct ocfs2_super *osb,
 		status = ocfs2_reserve_local_alloc_bits(osb,
 							bits_wanted,
 							*ac);
-		if (status == -EFBIG) {
-			/* The local alloc window is outside ac_max_block.
-			 * use the main bitmap. */
-			status = -ENOSPC;
-		} else if ((status < 0) && (status != -ENOSPC)) {
+		if ((status < 0) && (status != -ENOSPC)) {
 			mlog_errno(status);
 			goto bail;
 		}

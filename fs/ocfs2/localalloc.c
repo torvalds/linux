@@ -479,46 +479,6 @@ out:
 	return status;
 }
 
-/* Check to see if the local alloc window is within ac->ac_max_block */
-static int ocfs2_local_alloc_in_range(struct inode *inode,
-				      struct ocfs2_alloc_context *ac,
-				      u32 bits_wanted)
-{
-	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
-	struct ocfs2_dinode *alloc;
-	struct ocfs2_local_alloc *la;
-	int start;
-	u64 block_off;
-
-	if (!ac->ac_max_block)
-		return 1;
-
-	alloc = (struct ocfs2_dinode *) osb->local_alloc_bh->b_data;
-	la = OCFS2_LOCAL_ALLOC(alloc);
-
-	start = ocfs2_local_alloc_find_clear_bits(osb, alloc, &bits_wanted, NULL);
-	if (start == -1) {
-		mlog_errno(-ENOSPC);
-		return 0;
-	}
-
-	/*
-	 * Converting (bm_off + start + bits_wanted) to blocks gives us
-	 * the blkno just past our actual allocation.  This is perfect
-	 * to compare with ac_max_block.
-	 */
-	block_off = ocfs2_clusters_to_blocks(inode->i_sb,
-					     le32_to_cpu(la->la_bm_off) +
-					     start + bits_wanted);
-	mlog(0, "Checking %llu against %llu\n",
-	     (unsigned long long)block_off,
-	     (unsigned long long)ac->ac_max_block);
-	if (block_off > ac->ac_max_block)
-		return 0;
-
-	return 1;
-}
-
 /*
  * make sure we've got at least bits_wanted contiguous bits in the
  * local alloc. You lose them when you drop i_mutex.
@@ -610,17 +570,6 @@ int ocfs2_reserve_local_alloc_bits(struct ocfs2_super *osb,
 	if (ac->ac_max_block)
 		mlog(0, "Calling in_range for max block %llu\n",
 		     (unsigned long long)ac->ac_max_block);
-
-	if (!ocfs2_local_alloc_in_range(local_alloc_inode, ac,
-					bits_wanted)) {
-		/*
-		 * The window is outside ac->ac_max_block.
-		 * This errno tells the caller to keep localalloc enabled
-		 * but to get the allocation from the main bitmap.
-		 */
-		status = -EFBIG;
-		goto bail;
-	}
 
 	ac->ac_inode = local_alloc_inode;
 	/* We should never use localalloc from another slot */
