@@ -221,8 +221,7 @@ static int usb_serial_multi_urb_write(struct tty_struct *tty,
 
 		status = usb_submit_urb(urb, GFP_ATOMIC);
 		if (status) {
-			dev_err(&port->dev,
-				"%s - failed submitting write urb, error %d\n",
+			dev_err(&port->dev, "%s - error submitting urb: %d\n",
 				__func__, status);
 			goto error;
 		}
@@ -285,8 +284,7 @@ static int usb_serial_generic_write_start(struct usb_serial_port *port)
 	/* send the data out the bulk port */
 	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
 	if (result) {
-		dev_err(&port->dev,
-			"%s - failed submitting write urb, error %d\n",
+		dev_err(&port->dev, "%s - error submitting urb: %d\n",
 						__func__, result);
 		/* don't have to grab the lock here, as we will
 		   retry if != 0 */
@@ -324,10 +322,8 @@ int usb_serial_generic_write(struct tty_struct *tty,
 	if (!port->bulk_out_size)
 		return -ENODEV;
 
-	if (count == 0) {
-		dbg("%s - write request of 0 bytes", __func__);
+	if (!count)
 		return 0;
-	}
 
 	if (serial->type->max_in_flight_urbs)
 		return usb_serial_multi_urb_write(tty, port,
@@ -400,8 +396,7 @@ int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 
 	result = usb_submit_urb(port->read_urb, mem_flags);
 	if (result && result != -EPERM) {
-		dev_err(&port->dev,
-			"%s - failed submitting read urb, error %d\n",
+		dev_err(&port->dev, "%s - error submitting urb: %d\n",
 							__func__, result);
 	}
 	return result;
