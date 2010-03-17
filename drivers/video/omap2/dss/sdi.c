@@ -23,13 +23,16 @@
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
+#include <linux/regulator/consumer.h>
 
 #include <plat/display.h>
+#include <plat/cpu.h>
 #include "dss.h"
 
 static struct {
 	bool skip_init;
 	bool update_enabled;
+	struct regulator *vdds_sdi_reg;
 } sdi;
 
 static void sdi_basic_init(void)
@@ -56,6 +59,10 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 		DSSERR("failed to start device\n");
 		goto err0;
 	}
+
+	r = regulator_enable(sdi.vdds_sdi_reg);
+	if (r)
+		goto err1;
 
 	/* In case of skip_init sdi_init has already enabled the clocks */
 	if (!sdi.skip_init)
@@ -120,6 +127,7 @@ int omapdss_sdi_display_enable(struct omap_dss_device *dssdev)
 	return 0;
 err2:
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+	regulator_disable(sdi.vdds_sdi_reg);
 err1:
 	omap_dss_stop_device(dssdev);
 err0:
@@ -134,6 +142,8 @@ void omapdss_sdi_display_disable(struct omap_dss_device *dssdev)
 	dss_sdi_disable();
 
 	dss_clk_disable(DSS_CLK_ICK | DSS_CLK_FCK1);
+
+	regulator_disable(sdi.vdds_sdi_reg);
 
 	omap_dss_stop_device(dssdev);
 }
@@ -151,6 +161,11 @@ int sdi_init(bool skip_init)
 	/* we store this for first display enable, then clear it */
 	sdi.skip_init = skip_init;
 
+	sdi.vdds_sdi_reg = dss_get_vdds_sdi();
+	if (IS_ERR(sdi.vdds_sdi_reg)) {
+		DSSERR("can't get VDDS_SDI regulator\n");
+		return PTR_ERR(sdi.vdds_sdi_reg);
+	}
 	/*
 	 * Enable clocks already here, otherwise there would be a toggle
 	 * of them until sdi_display_enable is called.
