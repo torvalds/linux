@@ -44,20 +44,20 @@ c) If isn't used DMA then you can use only mode where
 Configuration options:
   [0] - PCI bus of device (optional)
   [1] - PCI slot of device (optional)
-          If bus/slot is not specified, then first available PCI
-          card will be used.
+	If bus/slot is not specified, then first available PCI
+	card will be used.
   [2] - 0= standard 8 DIFF/16 SE channels configuration
-        n= external multiplexer connected, 1<=n<=256
+	n = external multiplexer connected, 1 <= n <= 256
   [3] - 0=autoselect DMA or EOC interrupts operation
-        1=disable DMA mode
-        3=disable DMA and INT, only insn interface will work
+	1 = disable DMA mode
+	3 = disable DMA and INT, only insn interface will work
   [4] - sample&hold signal - card can generate signal for external S&H board
-        0=use SSHO (pin 45) signal is generated in onboard hardware S&H logic
-        0!=use ADCHN7 (pin 23) signal is generated from driver, number
-           say how long delay is requested in ns and sign polarity of the hold
-           (in this case external multiplexor can serve only 128 channels)
+	0 = use SSHO(pin 45) signal is generated in onboard hardware S&H logic
+	0 != use ADCHN7(pin 23) signal is generated from driver, number say how
+		long delay is requested in ns and sign polarity of the hold
+		(in this case external multiplexor can serve only 128 channels)
   [5] - 0=stop measure on all hardware errors
-        2|=ignore ADOR - A/D Overrun status
+	2 | = ignore ADOR - A/D Overrun status
 	8|=ignore Bover - A/D Burst Mode Overrun status
 	256|=ignore nFull - A/D FIFO Full status
 
