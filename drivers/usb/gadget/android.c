@@ -313,7 +313,7 @@ void android_register_function(struct android_usb_function *f)
 	/* bind our functions if they have all registered
 	 * and the main driver has bound.
 	 */
-	if (dev->config && _registered_function_count == dev->num_functions)
+	if (dev && dev->config && _registered_function_count == dev->num_functions)
 		bind_functions(dev);
 }
 
