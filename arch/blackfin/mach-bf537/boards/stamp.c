@@ -1810,6 +1810,12 @@ static struct platform_device ad5398_userspace_consumer_device = {
 #endif
 
 static struct i2c_board_info __initdata bfin_i2c_board_info[] = {
+#if defined(CONFIG_SND_BF5XX_SOC_AD193X) || defined(CONFIG_SND_BF5XX_SOC_AD193X_MODULE)
+	{
+		I2C_BOARD_INFO("ad1937", 0x04),
+	},
+#endif
+
 #if defined(CONFIG_INPUT_AD714X_I2C) || defined(CONFIG_INPUT_AD714X_I2C_MODULE)
 	{
 		I2C_BOARD_INFO("ad7142_captouch", 0x2C),
