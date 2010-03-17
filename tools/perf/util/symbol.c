@@ -151,9 +151,17 @@ void dso__set_long_name(struct dso *self, char *name)
 	self->long_name_len = strlen(name);
 }
 
+static void dso__set_short_name(struct dso *self, const char *name)
+{
+	if (name == NULL)
+		return;
+	self->short_name = name;
+	self->short_name_len = strlen(name);
+}
+
 static void dso__set_basename(struct dso *self)
 {
-	self->short_name = basename(self->long_name);
+	dso__set_short_name(self, basename(self->long_name));
 }
 
 struct dso *dso__new(const char *name)
@@ -164,7 +172,7 @@ struct dso *dso__new(const char *name)
 		int i;
 		strcpy(self->name, name);
 		dso__set_long_name(self, self->name);
-		self->short_name = self->name;
+		dso__set_short_name(self, self->name);
 		for (i = 0; i < MAP__NR_TYPES; ++i)
 			self->symbols[i] = self->symbol_names[i] = RB_ROOT;
 		self->slen_calculated = 0;
@@ -885,7 +893,6 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 	struct kmap *kmap = self->kernel ? map__kmap(map) : NULL;
 	struct map *curr_map = map;
 	struct dso *curr_dso = self;
-	size_t dso_name_len = strlen(self->short_name);
 	Elf_Data *symstrs, *secstrs;
 	uint32_t nr_syms;
 	int err = -1;
@@ -975,7 +982,8 @@ static int dso__load_sym(struct dso *self, struct map *map, const char *name,
 			char dso_name[PATH_MAX];
 
 			if (strcmp(section_name,
-				   curr_dso->short_name + dso_name_len) == 0)
+				   (curr_dso->short_name +
+				    self->short_name_len)) == 0)
 				goto new_symbol;
 
 			if (strcmp(section_name, ".text") == 0) {
@@ -1770,7 +1778,7 @@ struct dso *dso__new_kernel(const char *name)
 	struct dso *self = dso__new(name ?: "[kernel.kallsyms]");
 
 	if (self != NULL) {
-		self->short_name = "[kernel]";
+		dso__set_short_name(self, "[kernel]");
 		self->kernel	 = 1;
 	}
 

@@ -111,9 +111,10 @@ struct dso {
 	u8		 sorted_by_name;
 	u8		 loaded;
 	u8		 build_id[BUILD_ID_SIZE];
-	u16		 long_name_len;
 	const char	 *short_name;
 	char	 	 *long_name;
+	u16		 long_name_len;
+	u16		 short_name_len;
 	char		 name[0];
 };
 
