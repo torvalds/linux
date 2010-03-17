@@ -97,8 +97,10 @@ static int __bdev_writeseg(struct super_block *sb, u64 ofs, pgoff_t index,
 	unsigned int max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
 	int i;
 
+	if (max_pages > BIO_MAX_PAGES)
+		max_pages = BIO_MAX_PAGES;
 	bio = bio_alloc(GFP_NOFS, max_pages);
-	BUG_ON(!bio); /* FIXME: handle this */
+	BUG_ON(!bio);
 
 	for (i = 0; i < nr_pages; i++) {
 		if (i >= max_pages) {
@@ -191,8 +193,10 @@ static int do_erase(struct super_block *sb, u64 ofs, pgoff_t index,
 	unsigned int max_pages = queue_max_hw_sectors(q) >> (PAGE_SHIFT - 9);
 	int i;
 
+	if (max_pages > BIO_MAX_PAGES)
+		max_pages = BIO_MAX_PAGES;
 	bio = bio_alloc(GFP_NOFS, max_pages);
-	BUG_ON(!bio); /* FIXME: handle this */
+	BUG_ON(!bio);
 
 	for (i = 0; i < nr_pages; i++) {
 		if (i >= max_pages) {
