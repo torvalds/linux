@@ -319,6 +319,11 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 		get_random_bytes(&hash_rnd, sizeof(hash_rnd));
 		hash_rnd_inited = true;
 	}
+	if (info->check_set & ~XT_RECENT_VALID_FLAGS) {
+		pr_info(KBUILD_MODNAME ": Unsupported user space flags "
+			"(%08x)\n", info->check_set);
+		return false;
+	}
 	if (hweight8(info->check_set &
 		     (XT_RECENT_SET | XT_RECENT_REMOVE |
 		      XT_RECENT_CHECK | XT_RECENT_UPDATE)) != 1)
