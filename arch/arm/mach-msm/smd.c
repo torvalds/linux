@@ -872,9 +872,9 @@ static irqreturn_t smsm_irq_handler(int irq, void *data)
 int smsm_change_state(enum smsm_state_item item,
 		      uint32_t clear_mask, uint32_t set_mask)
 {
+	unsigned long addr = smd_info.state + item * 4;
 	unsigned long flags;
 	unsigned state;
-	unsigned addr = smd_info.state + item * 4;
 
 	if (!smd_info.ready)
 		return -EIO;
