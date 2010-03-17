@@ -261,3 +261,8 @@ krb5_derive_key(const struct gss_krb5_enctype *gk5e,
 		const struct xdr_netobj *inkey,
 		struct xdr_netobj *outkey,
 		const struct xdr_netobj *in_constant);
+
+u32
+gss_krb5_des3_make_key(const struct gss_krb5_enctype *gk5e,
+		       struct xdr_netobj *randombits,
+		       struct xdr_netobj *key);

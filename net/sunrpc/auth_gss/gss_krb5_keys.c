@@ -250,3 +250,56 @@ err_free_cipher:
 err_return:
 	return ret;
 }
+
+#define smask(step) ((1<<step)-1)
+#define pstep(x, step) (((x)&smask(step))^(((x)>>step)&smask(step)))
+#define parity_char(x) pstep(pstep(pstep((x), 4), 2), 1)
+
+static void mit_des_fixup_key_parity(u8 key[8])
+{
+	int i;
+	for (i = 0; i < 8; i++) {
+		key[i] &= 0xfe;
+		key[i] |= 1^parity_char(key[i]);
+	}
+}
+
+/*
+ * This is the des3 key derivation postprocess function
+ */
+u32 gss_krb5_des3_make_key(const struct gss_krb5_enctype *gk5e,
+			   struct xdr_netobj *randombits,
+			   struct xdr_netobj *key)
+{
+	int i;
+	u32 ret = EINVAL;
+
+	if (key->len != 24) {
+		dprintk("%s: key->len is %d\n", __func__, key->len);
+		goto err_out;
+	}
+	if (randombits->len != 21) {
+		dprintk("%s: randombits->len is %d\n",
+			__func__, randombits->len);
+		goto err_out;
+	}
+
+	/* take the seven bytes, move them around into the top 7 bits of the
+	   8 key bytes, then compute the parity bits.  Do this three times. */
+
+	for (i = 0; i < 3; i++) {
+		memcpy(key->data + i*8, randombits->data + i*7, 7);
+		key->data[i*8+7] = (((key->data[i*8]&1)<<1) |
+				    ((key->data[i*8+1]&1)<<2) |
+				    ((key->data[i*8+2]&1)<<3) |
+				    ((key->data[i*8+3]&1)<<4) |
+				    ((key->data[i*8+4]&1)<<5) |
+				    ((key->data[i*8+5]&1)<<6) |
+				    ((key->data[i*8+6]&1)<<7));
+
+		mit_des_fixup_key_parity(key->data + i*8);
+	}
+	ret = 0;
+err_out:
+	return ret;
+}

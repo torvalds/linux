@@ -152,6 +152,7 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 	default:
 		BUG();
 	case ENCTYPE_DES_CBC_RAW:
+	case ENCTYPE_DES3_CBC_RAW:
 		return gss_verify_mic_v1(ctx, message_buffer, read_token);
 	}
 }

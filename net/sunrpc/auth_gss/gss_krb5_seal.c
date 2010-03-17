@@ -142,6 +142,7 @@ gss_get_mic_kerberos(struct gss_ctx *gss_ctx, struct xdr_buf *text,
 	default:
 		BUG();
 	case ENCTYPE_DES_CBC_RAW:
+	case ENCTYPE_DES3_CBC_RAW:
 		return gss_get_mic_v1(ctx, text, token);
 	}
 }

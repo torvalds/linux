@@ -71,6 +71,26 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .cksumlength = 8,
 	  .keyed_cksum = 0,
 	},
+	/*
+	 * 3DES
+	 */
+	{
+	  .etype = ENCTYPE_DES3_CBC_RAW,
+	  .ctype = CKSUMTYPE_HMAC_SHA1_DES3,
+	  .name = "des3-hmac-sha1",
+	  .encrypt_name = "cbc(des3_ede)",
+	  .cksum_name = "hmac(sha1)",
+	  .encrypt = krb5_encrypt,
+	  .decrypt = krb5_decrypt,
+	  .mk_key = gss_krb5_des3_make_key,
+	  .signalg = SGN_ALG_HMAC_SHA1_DES3_KD,
+	  .sealalg = SEAL_ALG_DES3KD,
+	  .keybytes = 21,
+	  .keylength = 24,
+	  .blocksize = 8,
+	  .cksumlength = 20,
+	  .keyed_cksum = 1,
+	},
 };
 
 static const int num_supported_enctypes =
@@ -440,6 +460,9 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx)
 	p = simple_get_bytes(p, end, &ctx->enctype, sizeof(ctx->enctype));
 	if (IS_ERR(p))
 		goto out_err;
+	/* Map ENCTYPE_DES3_CBC_SHA1 to ENCTYPE_DES3_CBC_RAW */
+	if (ctx->enctype == ENCTYPE_DES3_CBC_SHA1)
+		ctx->enctype = ENCTYPE_DES3_CBC_RAW;
 	ctx->gk5e = get_gss_krb5_enctype(ctx->enctype);
 	if (ctx->gk5e == NULL) {
 		dprintk("gss_kerberos_mech: unsupported krb5 enctype %u\n",

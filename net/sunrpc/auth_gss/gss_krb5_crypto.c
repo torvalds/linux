@@ -184,6 +184,9 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 		       checksumdata + checksumlen - kctx->gk5e->cksumlength,
 		       kctx->gk5e->cksumlength);
 		break;
+	case CKSUMTYPE_HMAC_SHA1_DES3:
+		memcpy(cksumout->data, checksumdata, kctx->gk5e->cksumlength);
+		break;
 	default:
 		BUG();
 		break;

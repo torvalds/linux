@@ -350,6 +350,7 @@ gss_wrap_kerberos(struct gss_ctx *gctx, int offset,
 	default:
 		BUG();
 	case ENCTYPE_DES_CBC_RAW:
+	case ENCTYPE_DES3_CBC_RAW:
 		return gss_wrap_kerberos_v1(kctx, offset, buf, pages);
 	}
 }
@@ -363,6 +364,7 @@ gss_unwrap_kerberos(struct gss_ctx *gctx, int offset, struct xdr_buf *buf)
 	default:
 		BUG();
 	case ENCTYPE_DES_CBC_RAW:
+	case ENCTYPE_DES3_CBC_RAW:
 		return gss_unwrap_kerberos_v1(kctx, offset, buf);
 	}
 }
