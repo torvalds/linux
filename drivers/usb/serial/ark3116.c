@@ -355,14 +355,11 @@ static void ark3116_close(struct usb_serial_port *port)
 		/* deactivate interrupts */
 		ark3116_write_reg(serial, UART_IER, 0);
 
-		/* shutdown any bulk reads that might be going on */
-		if (serial->num_bulk_out)
-			usb_kill_urb(port->write_urb);
-		if (serial->num_bulk_in)
-			usb_kill_urb(port->read_urb);
+		usb_serial_generic_close(port);
 		if (serial->num_interrupt_in)
 			usb_kill_urb(port->interrupt_in_urb);
 	}
+
 }
 
 static int ark3116_open(struct tty_struct *tty, struct usb_serial_port *port)

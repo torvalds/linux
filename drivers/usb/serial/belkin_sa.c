@@ -246,9 +246,7 @@ static void belkin_sa_close(struct usb_serial_port *port)
 {
 	dbg("%s port %d", __func__, port->number);
 
-	/* shutdown our bulk reads and writes */
-	usb_kill_urb(port->write_urb);
-	usb_kill_urb(port->read_urb);
+	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
 } /* belkin_sa_close */
 
