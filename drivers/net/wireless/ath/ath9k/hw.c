@@ -3229,7 +3229,9 @@ int ath9k_hw_fill_cap_info(struct ath_hw *ah)
 	else
 		pCap->tx_triglevel_max = MAX_TX_FIFO_THRESHOLD;
 
-	if (AR_SREV_9285_10_OR_LATER(ah))
+	if (AR_SREV_9271(ah))
+		pCap->num_gpio_pins = AR9271_NUM_GPIO;
+	else if (AR_SREV_9285_10_OR_LATER(ah))
 		pCap->num_gpio_pins = AR9285_NUM_GPIO;
 	else if (AR_SREV_9280_10_OR_LATER(ah))
 		pCap->num_gpio_pins = AR928X_NUM_GPIO;
@@ -3465,7 +3467,9 @@ u32 ath9k_hw_gpio_get(struct ath_hw *ah, u32 gpio)
 	if (gpio >= ah->caps.num_gpio_pins)
 		return 0xffffffff;
 
-	if (AR_SREV_9287_10_OR_LATER(ah))
+	if (AR_SREV_9271(ah))
+		return MS_REG_READ(AR9271, gpio) != 0;
+	else if (AR_SREV_9287_10_OR_LATER(ah))
 		return MS_REG_READ(AR9287, gpio) != 0;
 	else if (AR_SREV_9285_10_OR_LATER(ah))
 		return MS_REG_READ(AR9285, gpio) != 0;
@@ -3494,6 +3498,9 @@ EXPORT_SYMBOL(ath9k_hw_cfg_output);
 
 void ath9k_hw_set_gpio(struct ath_hw *ah, u32 gpio, u32 val)
 {
+	if (AR_SREV_9271(ah))
+		val = ~val;
+
 	REG_RMW(ah, AR_GPIO_IN_OUT, ((val & 1) << gpio),
 		AR_GPIO_BIT(gpio));
 }

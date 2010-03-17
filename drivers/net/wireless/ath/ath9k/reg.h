@@ -940,6 +940,7 @@ enum {
 #define AR928X_NUM_GPIO                          10
 #define AR9285_NUM_GPIO                          12
 #define AR9287_NUM_GPIO                          11
+#define AR9271_NUM_GPIO                          16
 
 #define AR_GPIO_IN_OUT                           0x4048
 #define AR_GPIO_IN_VAL                           0x0FFFC000
@@ -950,6 +951,8 @@ enum {
 #define AR9285_GPIO_IN_VAL_S                     12
 #define AR9287_GPIO_IN_VAL                       0x003FF800
 #define AR9287_GPIO_IN_VAL_S                     11
+#define AR9271_GPIO_IN_VAL                       0xFFFF0000
+#define AR9271_GPIO_IN_VAL_S                     16
 
 #define AR_GPIO_OE_OUT                           0x404c
 #define AR_GPIO_OE_OUT_DRV                       0x3
