@@ -41,6 +41,9 @@
 #include <linux/sunrpc/gss_err.h>
 #include <linux/sunrpc/gss_asn1.h>
 
+/* Length of constant used in key derivation */
+#define GSS_KRB5_K5CLENGTH (5)
+
 /* Maximum key length (in bytes) for the supported crypto algorithms*/
 #define GSS_KRB5_MAX_KEYLEN (32)
 
@@ -69,6 +72,9 @@ struct gss_krb5_enctype {
 	u32 (*decrypt) (struct crypto_blkcipher *tfm,
 			void *iv, void *in, void *out,
 			int length);		/* decryption function */
+	u32 (*mk_key) (struct gss_krb5_enctype *gk5e,
+		       struct xdr_netobj *in,
+		       struct xdr_netobj *out);	/* complete key generation */
 };
 
 struct krb5_ctx {
@@ -148,6 +154,25 @@ enum seal_alg {
 #define ENCTYPE_UNKNOWN         0x01ff
 
 /*
+ * Constants used for key derivation
+ */
+/* for 3DES */
+#define KG_USAGE_SEAL (22)
+#define KG_USAGE_SIGN (23)
+#define KG_USAGE_SEQ  (24)
+
+/* from rfc3961 */
+#define KEY_USAGE_SEED_CHECKSUM         (0x99)
+#define KEY_USAGE_SEED_ENCRYPTION       (0xAA)
+#define KEY_USAGE_SEED_INTEGRITY        (0x55)
+
+/* from rfc4121 */
+#define KG_USAGE_ACCEPTOR_SEAL  (22)
+#define KG_USAGE_ACCEPTOR_SIGN  (23)
+#define KG_USAGE_INITIATOR_SEAL (24)
+#define KG_USAGE_INITIATOR_SIGN (25)
+
+/*
  * This compile-time check verifies that we will not exceed the
  * slack space allotted by the client and server auth_gss code
  * before they call gss_wrap().
@@ -211,3 +236,9 @@ krb5_get_seq_num(struct crypto_blkcipher *key,
 
 int
 xdr_extend_head(struct xdr_buf *buf, unsigned int base, unsigned int shiftlen);
+
+u32
+krb5_derive_key(struct gss_krb5_enctype *gk5e,
+		const struct xdr_netobj *inkey,
+		struct xdr_netobj *outkey,
+		const struct xdr_netobj *in_constant);
