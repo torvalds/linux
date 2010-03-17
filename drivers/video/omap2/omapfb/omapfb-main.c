@@ -668,9 +668,6 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 
 	DBG("check_fb_var %d\n", ofbi->id);
 
-	if (ofbi->region.size == 0)
-		return 0;
-
 	r = fb_mode_to_dss_mode(var, &mode);
 	if (r) {
 		DBG("cannot convert var to omap dss mode\n");
@@ -690,7 +687,8 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 	if (check_fb_res_bounds(var))
 		return -EINVAL;
 
-	if (check_fb_size(ofbi, var))
+	/* When no memory is allocated ignore the size check */
+	if (ofbi->region.size != 0 && check_fb_size(ofbi, var))
 		return -EINVAL;
 
 	if (var->xres + var->xoffset > var->xres_virtual)
@@ -894,8 +892,9 @@ static int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 		yres = var->yres;
 	}
 
-	omapfb_calc_addr(ofbi, var, fix, rotation,
-			 &data_start_p, &data_start_v);
+	if (ofbi->region.size)
+		omapfb_calc_addr(ofbi, var, fix, rotation,
+				 &data_start_p, &data_start_v);
 
 	r = fb_mode_to_dss_mode(var, &mode);
 	if (r) {
