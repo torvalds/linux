@@ -36,7 +36,7 @@
 #include "iwl-core.h"
 #include "iwl-sta.h"
 #include "iwl-io.h"
-#include "iwl-5000-hw.h"
+#include "iwl-agn-hw.h"
 
 /**
  * iwlagn_txq_update_byte_cnt_tbl - Set up entry in Tx byte-count array
@@ -45,7 +45,7 @@ void iwlagn_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 					    struct iwl_tx_queue *txq,
 					    u16 byte_cnt)
 {
-	struct iwl5000_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
+	struct iwlagn_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
 	int write_ptr = txq->q.write_ptr;
 	int txq_id = txq->q.id;
 	u8 sec_ctl = 0;
@@ -84,7 +84,7 @@ void iwlagn_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
 void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
 					   struct iwl_tx_queue *txq)
 {
-	struct iwl5000_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
+	struct iwlagn_scd_bc_tbl *scd_bc_tbl = priv->scd_bc_tbls.addr;
 	int txq_id = txq->q.id;
 	int read_ptr = txq->q.read_ptr;
 	u8 sta_id = 0;
@@ -171,13 +171,13 @@ int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 	unsigned long flags;
 	u16 ra_tid;
 
-	if ((IWL50_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWL50_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
+	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
+	    (IWLAGN_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
 	     <= txq_id)) {
 		IWL_WARN(priv,
 			"queue number out of range: %d, must be %d to %d\n",
-			txq_id, IWL50_FIRST_AMPDU_QUEUE,
-			IWL50_FIRST_AMPDU_QUEUE +
+			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
+			IWLAGN_FIRST_AMPDU_QUEUE +
 			priv->cfg->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}
@@ -231,13 +231,13 @@ int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
 int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
 			   u16 ssn_idx, u8 tx_fifo)
 {
-	if ((IWL50_FIRST_AMPDU_QUEUE > txq_id) ||
-	    (IWL50_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
+	if ((IWLAGN_FIRST_AMPDU_QUEUE > txq_id) ||
+	    (IWLAGN_FIRST_AMPDU_QUEUE + priv->cfg->num_of_ampdu_queues
 	     <= txq_id)) {
 		IWL_ERR(priv,
 			"queue number out of range: %d, must be %d to %d\n",
-			txq_id, IWL50_FIRST_AMPDU_QUEUE,
-			IWL50_FIRST_AMPDU_QUEUE +
+			txq_id, IWLAGN_FIRST_AMPDU_QUEUE,
+			IWLAGN_FIRST_AMPDU_QUEUE +
 			priv->cfg->num_of_ampdu_queues - 1);
 		return -EINVAL;
 	}

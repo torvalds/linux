@@ -35,7 +35,6 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-5000-hw.h"
 
 static int iwlagn_send_rxon_assoc(struct iwl_priv *priv)
 {

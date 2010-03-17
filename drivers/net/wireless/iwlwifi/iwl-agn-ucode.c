@@ -35,7 +35,7 @@
 #include "iwl-dev.h"
 #include "iwl-core.h"
 #include "iwl-io.h"
-#include "iwl-5000-hw.h"
+#include "iwl-agn-hw.h"
 
 /*
  * ucode
@@ -101,12 +101,12 @@ static int iwlagn_load_given_ucode(struct iwl_priv *priv,
 	int ret = 0;
 
 	ret = iwlagn_load_section(priv, "INST", inst_image,
-				   IWL50_RTC_INST_LOWER_BOUND);
+				   IWLAGN_RTC_INST_LOWER_BOUND);
 	if (ret)
 		return ret;
 
 	return iwlagn_load_section(priv, "DATA", data_image,
-				    IWL50_RTC_DATA_LOWER_BOUND);
+				    IWLAGN_RTC_DATA_LOWER_BOUND);
 }
 
 int iwlagn_load_ucode(struct iwl_priv *priv)

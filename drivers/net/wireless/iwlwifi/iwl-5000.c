@@ -45,6 +45,7 @@
 #include "iwl-helpers.h"
 #include "iwl-agn.h"
 #include "iwl-agn-led.h"
+#include "iwl-agn-hw.h"
 #include "iwl-5000-hw.h"
 #include "iwl-6000-hw.h"
 
@@ -69,7 +70,7 @@ static const s8 iwl5000_default_queue_to_tx_fifo[] = {
 	IWL_TX_FIFO_VI,
 	IWL_TX_FIFO_BE,
 	IWL_TX_FIFO_BK,
-	IWL50_CMD_FIFO_NUM,
+	IWLAGN_CMD_FIFO_NUM,
 	IWL_TX_FIFO_UNUSED,
 	IWL_TX_FIFO_UNUSED,
 	IWL_TX_FIFO_UNUSED,
@@ -456,7 +457,7 @@ int iwl5000_alive_notify(struct iwl_priv *priv)
 int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 {
 	if (priv->cfg->mod_params->num_of_queues >= IWL_MIN_NUM_QUEUES &&
-	    priv->cfg->mod_params->num_of_queues <= IWL50_NUM_QUEUES)
+	    priv->cfg->mod_params->num_of_queues <= IWLAGN_NUM_QUEUES)
 		priv->cfg->num_of_queues =
 			priv->cfg->mod_params->num_of_queues;
 
@@ -464,13 +465,13 @@ int iwl5000_hw_set_hw_params(struct iwl_priv *priv)
 	priv->hw_params.dma_chnl_num = FH50_TCSR_CHNL_NUM;
 	priv->hw_params.scd_bc_tbls_size =
 			priv->cfg->num_of_queues *
-			sizeof(struct iwl5000_scd_bc_tbl);
+			sizeof(struct iwlagn_scd_bc_tbl);
 	priv->hw_params.tfd_size = sizeof(struct iwl_tfd);
 	priv->hw_params.max_stations = IWL5000_STATION_COUNT;
 	priv->hw_params.bcast_sta_id = IWL5000_BROADCAST_ID;
 
-	priv->hw_params.max_data_size = IWL50_RTC_DATA_SIZE;
-	priv->hw_params.max_inst_size = IWL50_RTC_INST_SIZE;
+	priv->hw_params.max_data_size = IWLAGN_RTC_DATA_SIZE;
+	priv->hw_params.max_inst_size = IWLAGN_RTC_INST_SIZE;
 
 	priv->hw_params.max_bsm_size = 0;
 	priv->hw_params.ht40_channel =  BIT(IEEE80211_BAND_2GHZ) |
@@ -741,8 +742,8 @@ void iwl5000_rx_handler_setup(struct iwl_priv *priv)
 
 int iwl5000_hw_valid_rtc_data_addr(u32 addr)
 {
-	return (addr >= IWL50_RTC_DATA_LOWER_BOUND) &&
-		(addr < IWL50_RTC_DATA_UPPER_BOUND);
+	return (addr >= IWLAGN_RTC_DATA_LOWER_BOUND) &&
+		(addr < IWLAGN_RTC_DATA_UPPER_BOUND);
 }
 
 int  iwl5000_send_tx_power(struct iwl_priv *priv)
@@ -977,11 +978,11 @@ struct iwl_cfg iwl5300_agn_cfg = {
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
-	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl50_mod_params,
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
@@ -1004,11 +1005,11 @@ struct iwl_cfg iwl5100_bgn_cfg = {
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
-	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl50_mod_params,
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
@@ -1031,11 +1032,11 @@ struct iwl_cfg iwl5100_abg_cfg = {
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
 	.ops = &iwl5000_ops,
-	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl50_mod_params,
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
@@ -1056,11 +1057,11 @@ struct iwl_cfg iwl5100_agn_cfg = {
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
-	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5000_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5000_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl50_mod_params,
 	.valid_tx_ant = ANT_B,
 	.valid_rx_ant = ANT_AB,
@@ -1083,11 +1084,11 @@ struct iwl_cfg iwl5350_agn_cfg = {
 	.ucode_api_min = IWL5000_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5000_ops,
-	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl50_mod_params,
 	.valid_tx_ant = ANT_ABC,
 	.valid_rx_ant = ANT_ABC,
@@ -1110,11 +1111,11 @@ struct iwl_cfg iwl5150_agn_cfg = {
 	.ucode_api_min = IWL5150_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
 	.ops = &iwl5150_ops,
-	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl50_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
@@ -1137,11 +1138,11 @@ struct iwl_cfg iwl5150_abg_cfg = {
 	.ucode_api_min = IWL5150_UCODE_API_MIN,
 	.sku = IWL_SKU_A|IWL_SKU_G,
 	.ops = &iwl5150_ops,
-	.eeprom_size = IWL_5000_EEPROM_IMG_SIZE,
+	.eeprom_size = IWLAGN_EEPROM_IMG_SIZE,
 	.eeprom_ver = EEPROM_5050_EEPROM_VERSION,
 	.eeprom_calib_ver = EEPROM_5050_TX_POWER_VERSION,
-	.num_of_queues = IWL50_NUM_QUEUES,
-	.num_of_ampdu_queues = IWL50_NUM_AMPDU_QUEUES,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
 	.mod_params = &iwl50_mod_params,
 	.valid_tx_ant = ANT_A,
 	.valid_rx_ant = ANT_AB,
