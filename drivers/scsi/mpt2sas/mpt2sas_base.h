@@ -676,7 +676,8 @@ struct MPT2SAS_ADAPTER {
 	dma_addr_t	request_dma;
 	u32		request_dma_sz;
 	struct request_tracker *scsi_lookup;
-	spinlock_t scsi_lookup_lock;
+	ulong		scsi_lookup_pages;
+	spinlock_t 	scsi_lookup_lock;
 	struct list_head free_list;
 	int		pending_io_count;
 	wait_queue_head_t reset_wq;
@@ -688,7 +689,7 @@ struct MPT2SAS_ADAPTER {
 	u16		max_sges_in_chain_message;
 	u16		chains_needed_per_io;
 	u16		chain_offset_value_for_main_message;
-	u16		chain_depth;
+	u32		chain_depth;
 
 	/* hi-priority queue */
 	u16		hi_priority_smid;

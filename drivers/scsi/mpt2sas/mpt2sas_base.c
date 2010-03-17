@@ -1901,7 +1901,7 @@ _base_release_memory_pools(struct MPT2SAS_ADAPTER *ioc)
 		    ioc->config_page, ioc->config_page_dma);
 	}
 
-	kfree(ioc->scsi_lookup);
+	free_pages((ulong)ioc->scsi_lookup, ioc->scsi_lookup_pages);
 	kfree(ioc->hpr_lookup);
 	kfree(ioc->internal_lookup);
 }
@@ -2113,11 +2113,13 @@ _base_allocate_memory_pools(struct MPT2SAS_ADAPTER *ioc,  int sleep_flag)
 	    ioc->name, (unsigned long long) ioc->request_dma));
 	total_sz += sz;
 
-	ioc->scsi_lookup = kcalloc(ioc->scsiio_depth,
-	    sizeof(struct request_tracker), GFP_KERNEL);
+	sz = ioc->scsiio_depth * sizeof(struct request_tracker);
+	ioc->scsi_lookup_pages = get_order(sz);
+	ioc->scsi_lookup = (struct request_tracker *)__get_free_pages(
+	    GFP_KERNEL, ioc->scsi_lookup_pages);
 	if (!ioc->scsi_lookup) {
-		printk(MPT2SAS_ERR_FMT "scsi_lookup: kcalloc failed\n",
-		    ioc->name);
+		printk(MPT2SAS_ERR_FMT "scsi_lookup: get_free_pages failed, "
+		    "sz(%d)\n", ioc->name, (int)sz);
 		goto out;
 	}
 
