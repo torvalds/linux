@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2000-2009 LSI Corporation.
+ *  Copyright (c) 2000-2010 LSI Corporation.
  *
  *
  *           Name:  mpi2_init.h
