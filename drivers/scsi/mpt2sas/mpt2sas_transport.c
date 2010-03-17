@@ -1341,7 +1341,8 @@ _transport_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 		memcpy(req->sense, mpi_reply, sizeof(*mpi_reply));
 		req->sense_len = sizeof(*mpi_reply);
 		req->resid_len = 0;
-		rsp->resid_len -= mpi_reply->ResponseDataLength;
+		rsp->resid_len -=
+		    le16_to_cpu(mpi_reply->ResponseDataLength);
 	} else {
 		dtransportprintk(ioc, printk(MPT2SAS_DEBUG_FMT
 		    "%s - no reply\n", ioc->name, __func__));

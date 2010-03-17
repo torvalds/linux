@@ -1390,12 +1390,12 @@ mpt2sas_config_get_volume_handle(struct MPT2SAS_ADAPTER *ioc, u16 pd_handle,
 	if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
 		goto out;
 	for (i = 0; i < config_page->NumElements; i++) {
-		if ((config_page->ConfigElement[i].ElementFlags &
+		if ((le16_to_cpu(config_page->ConfigElement[i].ElementFlags) &
 		    MPI2_RAIDCONFIG0_EFLAGS_MASK_ELEMENT_TYPE) !=
 		    MPI2_RAIDCONFIG0_EFLAGS_VOL_PHYS_DISK_ELEMENT)
 			continue;
-		if (config_page->ConfigElement[i].PhysDiskDevHandle ==
-		    pd_handle) {
+		if (le16_to_cpu(config_page->ConfigElement[i].
+		    PhysDiskDevHandle) == pd_handle) {
 			*volume_handle = le16_to_cpu(config_page->
 			    ConfigElement[i].VolDevHandle);
 			r = 0;

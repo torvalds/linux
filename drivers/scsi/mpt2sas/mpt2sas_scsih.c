@@ -1376,7 +1376,7 @@ _scsih_display_sata_capabilities(struct MPT2SAS_ADAPTER *ioc,
 	}
 
 	flags = le16_to_cpu(sas_device_pg0.Flags);
-	device_info = le16_to_cpu(sas_device_pg0.DeviceInfo);
+	device_info = le32_to_cpu(sas_device_pg0.DeviceInfo);
 
 	sdev_printk(KERN_INFO, sdev,
 	    "atapi(%s), ncq(%s), asyn_notify(%s), smart(%s), fua(%s), "
@@ -3210,8 +3210,8 @@ _scsih_scsi_ioc_info(struct MPT2SAS_ADAPTER *ioc, struct scsi_cmnd *scmd,
 		struct sense_info data;
 		_scsih_normalize_sense(scmd->sense_buffer, &data);
 		printk(MPT2SAS_WARN_FMT "\t[sense_key,asc,ascq]: "
-		    "[0x%02x,0x%02x,0x%02x]\n", ioc->name, data.skey,
-		    data.asc, data.ascq);
+		    "[0x%02x,0x%02x,0x%02x], count(%d)\n", ioc->name, data.skey,
+		    data.asc, data.ascq, le32_to_cpu(mpi_reply->SenseCount));
 	}
 
 	if (scsi_state & MPI2_SCSI_STATE_RESPONSE_INFO_VALID) {
@@ -3265,7 +3265,7 @@ _scsih_smart_predicted_fault(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 		mpi_request.Function = MPI2_FUNCTION_SCSI_ENCLOSURE_PROCESSOR;
 		mpi_request.Action = MPI2_SEP_REQ_ACTION_WRITE_STATUS;
 		mpi_request.SlotStatus =
-		    MPI2_SEP_REQ_SLOTSTATUS_PREDICTED_FAULT;
+		    cpu_to_le32(MPI2_SEP_REQ_SLOTSTATUS_PREDICTED_FAULT);
 		mpi_request.DevHandle = cpu_to_le16(handle);
 		mpi_request.Flags = MPI2_SEP_REQ_FLAGS_DEVHANDLE_ADDRESS;
 		if ((mpt2sas_base_scsi_enclosure_processor(ioc, &mpi_reply,
@@ -5934,6 +5934,7 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	struct fw_event_work *fw_event;
 	Mpi2EventNotificationReply_t *mpi_reply;
 	u16 event;
+	u16 sz;
 
 	/* events turned off due to host reset or driver unloading */
 	if (ioc->remove_host)
@@ -5984,8 +5985,8 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 		    ioc->name, __FILE__, __LINE__, __func__);
 		return 1;
 	}
-	fw_event->event_data =
-	    kzalloc(mpi_reply->EventDataLength*4, GFP_ATOMIC);
+	sz = le16_to_cpu(mpi_reply->EventDataLength) * 4;
+	fw_event->event_data = kzalloc(sz, GFP_ATOMIC);
 	if (!fw_event->event_data) {
 		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
 		    ioc->name, __FILE__, __LINE__, __func__);
@@ -5994,7 +5995,7 @@ mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
 	}
 
 	memcpy(fw_event->event_data, mpi_reply->EventData,
-	    mpi_reply->EventDataLength*4);
+	    sz);
 	fw_event->ioc = ioc;
 	fw_event->VF_ID = mpi_reply->VF_ID;
 	fw_event->VP_ID = mpi_reply->VP_ID;
