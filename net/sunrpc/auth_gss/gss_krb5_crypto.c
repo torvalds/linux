@@ -197,6 +197,80 @@ out:
 	return err ? GSS_S_FAILURE : 0;
 }
 
+/*
+ * checksum the plaintext data and hdrlen bytes of the token header
+ * Per rfc4121, sec. 4.2.4, the checksum is performed over the data
+ * body then over the first 16 octets of the MIC token
+ * Inclusion of the header data in the calculation of the
+ * checksum is optional.
+ */
+u32
+make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
+		 struct xdr_buf *body, int body_offset, u8 *cksumkey,
+		 struct xdr_netobj *cksumout)
+{
+	struct hash_desc desc;
+	struct scatterlist sg[1];
+	int err;
+	u8 checksumdata[GSS_KRB5_MAX_CKSUM_LEN];
+	unsigned int checksumlen;
+
+	if (kctx->gk5e->keyed_cksum == 0) {
+		dprintk("%s: expected keyed hash for %s\n",
+			__func__, kctx->gk5e->name);
+		return GSS_S_FAILURE;
+	}
+	if (cksumkey == NULL) {
+		dprintk("%s: no key supplied for %s\n",
+			__func__, kctx->gk5e->name);
+		return GSS_S_FAILURE;
+	}
+
+	desc.tfm = crypto_alloc_hash(kctx->gk5e->cksum_name, 0,
+							CRYPTO_ALG_ASYNC);
+	if (IS_ERR(desc.tfm))
+		return GSS_S_FAILURE;
+	checksumlen = crypto_hash_digestsize(desc.tfm);
+	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	err = crypto_hash_setkey(desc.tfm, cksumkey, kctx->gk5e->keylength);
+	if (err)
+		goto out;
+
+	err = crypto_hash_init(&desc);
+	if (err)
+		goto out;
+	err = xdr_process_buf(body, body_offset, body->len - body_offset,
+			      checksummer, &desc);
+	if (err)
+		goto out;
+	if (header != NULL) {
+		sg_init_one(sg, header, hdrlen);
+		err = crypto_hash_update(&desc, sg, hdrlen);
+		if (err)
+			goto out;
+	}
+	err = crypto_hash_final(&desc, checksumdata);
+	if (err)
+		goto out;
+
+	cksumout->len = kctx->gk5e->cksumlength;
+
+	switch (kctx->gk5e->ctype) {
+	case CKSUMTYPE_HMAC_SHA1_96_AES128:
+	case CKSUMTYPE_HMAC_SHA1_96_AES256:
+		/* note that this truncates the hash */
+		memcpy(cksumout->data, checksumdata, kctx->gk5e->cksumlength);
+		break;
+	default:
+		BUG();
+		break;
+	}
+out:
+	crypto_free_hash(desc.tfm);
+	return err ? GSS_S_FAILURE : 0;
+}
+
 struct encryptor_desc {
 	u8 iv[GSS_KRB5_MAX_BLOCKSIZE];
 	struct blkcipher_desc desc;

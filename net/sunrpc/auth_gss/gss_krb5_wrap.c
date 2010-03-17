@@ -340,6 +340,174 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	return GSS_S_COMPLETE;
 }
 
+/*
+ * We cannot currently handle tokens with rotated data.  We need a
+ * generalized routine to rotate the data in place.  It is anticipated
+ * that we won't encounter rotated data in the general case.
+ */
+static u32
+rotate_left(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf, u16 rrc)
+{
+	unsigned int realrrc = rrc % (buf->len - offset - GSS_KRB5_TOK_HDR_LEN);
+
+	if (realrrc == 0)
+		return 0;
+
+	dprintk("%s: cannot process token with rotated data: "
+		"rrc %u, realrrc %u\n", __func__, rrc, realrrc);
+	return 1;
+}
+
+static u32
+gss_wrap_kerberos_v2(struct krb5_ctx *kctx, u32 offset,
+		     struct xdr_buf *buf, struct page **pages)
+{
+	int		blocksize;
+	u8		*ptr, *plainhdr;
+	s32		now;
+	u8		flags = 0x00;
+	__be16		*be16ptr, ec = 0;
+	__be64		*be64ptr;
+	u32		err;
+
+	dprintk("RPC:       %s\n", __func__);
+
+	if (kctx->gk5e->encrypt_v2 == NULL)
+		return GSS_S_FAILURE;
+
+	/* make room for gss token header */
+	if (xdr_extend_head(buf, offset, GSS_KRB5_TOK_HDR_LEN))
+		return GSS_S_FAILURE;
+
+	/* construct gss token header */
+	ptr = plainhdr = buf->head[0].iov_base + offset;
+	*ptr++ = (unsigned char) ((KG2_TOK_WRAP>>8) & 0xff);
+	*ptr++ = (unsigned char) (KG2_TOK_WRAP & 0xff);
+
+	if ((kctx->flags & KRB5_CTX_FLAG_INITIATOR) == 0)
+		flags |= KG2_TOKEN_FLAG_SENTBYACCEPTOR;
+	if ((kctx->flags & KRB5_CTX_FLAG_ACCEPTOR_SUBKEY) != 0)
+		flags |= KG2_TOKEN_FLAG_ACCEPTORSUBKEY;
+	/* We always do confidentiality in wrap tokens */
+	flags |= KG2_TOKEN_FLAG_SEALED;
+
+	*ptr++ = flags;
+	*ptr++ = 0xff;
+	be16ptr = (__be16 *)ptr;
+
+	blocksize = crypto_blkcipher_blocksize(kctx->acceptor_enc);
+	*be16ptr++ = cpu_to_be16(ec);
+	/* "inner" token header always uses 0 for RRC */
+	*be16ptr++ = cpu_to_be16(0);
+
+	be64ptr = (__be64 *)be16ptr;
+	spin_lock(&krb5_seq_lock);
+	*be64ptr = cpu_to_be64(kctx->seq_send64++);
+	spin_unlock(&krb5_seq_lock);
+
+	err = (*kctx->gk5e->encrypt_v2)(kctx, offset, buf, ec, pages);
+	if (err)
+		return err;
+
+	now = get_seconds();
+	return (kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
+}
+
+static u32
+gss_unwrap_kerberos_v2(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
+{
+	s32		now;
+	u64		seqnum;
+	u8		*ptr;
+	u8		flags = 0x00;
+	u16		ec, rrc;
+	int		err;
+	u32		headskip, tailskip;
+	u8		decrypted_hdr[GSS_KRB5_TOK_HDR_LEN];
+	unsigned int	movelen;
+
+
+	dprintk("RPC:       %s\n", __func__);
+
+	if (kctx->gk5e->decrypt_v2 == NULL)
+		return GSS_S_FAILURE;
+
+	ptr = buf->head[0].iov_base + offset;
+
+	if (be16_to_cpu(*((__be16 *)ptr)) != KG2_TOK_WRAP)
+		return GSS_S_DEFECTIVE_TOKEN;
+
+	flags = ptr[2];
+	if ((!kctx->initiate && (flags & KG2_TOKEN_FLAG_SENTBYACCEPTOR)) ||
+	    (kctx->initiate && !(flags & KG2_TOKEN_FLAG_SENTBYACCEPTOR)))
+		return GSS_S_BAD_SIG;
+
+	if ((flags & KG2_TOKEN_FLAG_SEALED) == 0) {
+		dprintk("%s: token missing expected sealed flag\n", __func__);
+		return GSS_S_DEFECTIVE_TOKEN;
+	}
+
+	if (ptr[3] != 0xff)
+		return GSS_S_DEFECTIVE_TOKEN;
+
+	ec = be16_to_cpup((__be16 *)(ptr + 4));
+	rrc = be16_to_cpup((__be16 *)(ptr + 6));
+
+	seqnum = be64_to_cpup((__be64 *)(ptr + 8));
+
+	if (rrc != 0) {
+		err = rotate_left(kctx, offset, buf, rrc);
+		if (err)
+			return GSS_S_FAILURE;
+	}
+
+	err = (*kctx->gk5e->decrypt_v2)(kctx, offset, buf,
+					&headskip, &tailskip);
+	if (err)
+		return GSS_S_FAILURE;
+
+	/*
+	 * Retrieve the decrypted gss token header and verify
+	 * it against the original
+	 */
+	err = read_bytes_from_xdr_buf(buf,
+				buf->len - GSS_KRB5_TOK_HDR_LEN - tailskip,
+				decrypted_hdr, GSS_KRB5_TOK_HDR_LEN);
+	if (err) {
+		dprintk("%s: error %u getting decrypted_hdr\n", __func__, err);
+		return GSS_S_FAILURE;
+	}
+	if (memcmp(ptr, decrypted_hdr, 6)
+				|| memcmp(ptr + 8, decrypted_hdr + 8, 8)) {
+		dprintk("%s: token hdr, plaintext hdr mismatch!\n", __func__);
+		return GSS_S_FAILURE;
+	}
+
+	/* do sequencing checks */
+
+	/* it got through unscathed.  Make sure the context is unexpired */
+	now = get_seconds();
+	if (now > kctx->endtime)
+		return GSS_S_CONTEXT_EXPIRED;
+
+	/*
+	 * Move the head data back to the right position in xdr_buf.
+	 * We ignore any "ec" data since it might be in the head or
+	 * the tail, and we really don't need to deal with it.
+	 * Note that buf->head[0].iov_len may indicate the available
+	 * head buffer space rather than that actually occupied.
+	 */
+	movelen = min_t(unsigned int, buf->head[0].iov_len, buf->len);
+	movelen -= offset + GSS_KRB5_TOK_HDR_LEN + headskip;
+	BUG_ON(offset + GSS_KRB5_TOK_HDR_LEN + headskip + movelen >
+							buf->head[0].iov_len);
+	memmove(ptr, ptr + GSS_KRB5_TOK_HDR_LEN + headskip, movelen);
+	buf->head[0].iov_len -= GSS_KRB5_TOK_HDR_LEN + headskip;
+	buf->len -= GSS_KRB5_TOK_HDR_LEN + headskip;
+
+	return GSS_S_COMPLETE;
+}
+
 u32
 gss_wrap_kerberos(struct gss_ctx *gctx, int offset,
 		  struct xdr_buf *buf, struct page **pages)
@@ -352,6 +520,9 @@ gss_wrap_kerberos(struct gss_ctx *gctx, int offset,
 	case ENCTYPE_DES_CBC_RAW:
 	case ENCTYPE_DES3_CBC_RAW:
 		return gss_wrap_kerberos_v1(kctx, offset, buf, pages);
+	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
+	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
+		return gss_wrap_kerberos_v2(kctx, offset, buf, pages);
 	}
 }
 
@@ -366,6 +537,9 @@ gss_unwrap_kerberos(struct gss_ctx *gctx, int offset, struct xdr_buf *buf)
 	case ENCTYPE_DES_CBC_RAW:
 	case ENCTYPE_DES3_CBC_RAW:
 		return gss_unwrap_kerberos_v1(kctx, offset, buf);
+	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
+	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
+		return gss_unwrap_kerberos_v2(kctx, offset, buf);
 	}
 }
 

@@ -53,6 +53,8 @@
 /* Maximum blocksize for the supported crypto algorithms */
 #define GSS_KRB5_MAX_BLOCKSIZE  (16)
 
+struct krb5_ctx;
+
 struct gss_krb5_enctype {
 	const u32		etype;		/* encryption (key) type */
 	const u32		ctype;		/* checksum type */
@@ -75,6 +77,12 @@ struct gss_krb5_enctype {
 	u32 (*mk_key) (const struct gss_krb5_enctype *gk5e,
 		       struct xdr_netobj *in,
 		       struct xdr_netobj *out);	/* complete key generation */
+	u32 (*encrypt_v2) (struct krb5_ctx *kctx, u32 offset,
+			   struct xdr_buf *buf, int ec,
+			   struct page **pages); /* v2 encryption function */
+	u32 (*decrypt_v2) (struct krb5_ctx *kctx, u32 offset,
+			   struct xdr_buf *buf, u32 *headskip,
+			   u32 *tailskip);	/* v2 decryption function */
 };
 
 /* krb5_ctx flags definitions */
@@ -112,6 +120,18 @@ extern spinlock_t krb5_seq_lock;
 #define KG_TOK_MIC_MSG    0x0101
 #define KG_TOK_WRAP_MSG   0x0201
 
+#define KG2_TOK_INITIAL     0x0101
+#define KG2_TOK_RESPONSE    0x0202
+#define KG2_TOK_MIC         0x0404
+#define KG2_TOK_WRAP        0x0504
+
+#define KG2_TOKEN_FLAG_SENTBYACCEPTOR   0x01
+#define KG2_TOKEN_FLAG_SEALED           0x02
+#define KG2_TOKEN_FLAG_ACCEPTORSUBKEY   0x04
+
+#define KG2_RESP_FLAG_ERROR             0x0001
+#define KG2_RESP_FLAG_DELEG_OK          0x0002
+
 enum sgn_alg {
 	SGN_ALG_DES_MAC_MD5 = 0x0000,
 	SGN_ALG_MD2_5 = 0x0001,
@@ -136,6 +156,9 @@ enum seal_alg {
 #define CKSUMTYPE_RSA_MD5_DES		0x0008
 #define CKSUMTYPE_NIST_SHA		0x0009
 #define CKSUMTYPE_HMAC_SHA1_DES3	0x000c
+#define CKSUMTYPE_HMAC_SHA1_96_AES128   0x000f
+#define CKSUMTYPE_HMAC_SHA1_96_AES256   0x0010
+#define CKSUMTYPE_HMAC_MD5_ARCFOUR      -138 /* Microsoft md5 hmac cksumtype */
 
 /* from gssapi_err_krb5.h */
 #define KG_CCACHE_NOMATCH                        (39756032L)
@@ -211,6 +234,11 @@ u32
 make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 		struct xdr_buf *body, int body_offset, u8 *cksumkey,
 		struct xdr_netobj *cksumout);
+
+u32
+make_checksum_v2(struct krb5_ctx *, char *header, int hdrlen,
+		 struct xdr_buf *body, int body_offset, u8 *key,
+		 struct xdr_netobj *cksum);
 
 u32 gss_get_mic_kerberos(struct gss_ctx *, struct xdr_buf *,
 		struct xdr_netobj *);
