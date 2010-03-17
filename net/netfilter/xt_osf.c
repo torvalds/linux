@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/kernel.h>
 
@@ -382,14 +382,14 @@ static int __init xt_osf_init(void)
 
 	err = nfnetlink_subsys_register(&xt_osf_nfnetlink);
 	if (err < 0) {
-		printk(KERN_ERR "Failed (%d) to register OSF nsfnetlink helper.\n", err);
+		pr_err("Failed to register OSF nsfnetlink helper (%d)\n", err);
 		goto err_out_exit;
 	}
 
 	err = xt_register_match(&xt_osf_match);
 	if (err) {
-		printk(KERN_ERR "Failed (%d) to register OS fingerprint "
-				"matching module.\n", err);
+		pr_err("Failed to register OS fingerprint "
+		       "matching module (%d)\n", err);
 		goto err_out_remove;
 	}
 

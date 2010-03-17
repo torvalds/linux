@@ -5,6 +5,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/jhash.h>
@@ -136,14 +137,14 @@ static bool xt_cluster_mt_checkentry(const struct xt_mtchk_param *par)
 	struct xt_cluster_match_info *info = par->matchinfo;
 
 	if (info->total_nodes > XT_CLUSTER_NODES_MAX) {
-		printk(KERN_ERR "xt_cluster: you have exceeded the maximum "
-				"number of cluster nodes (%u > %u)\n",
-				info->total_nodes, XT_CLUSTER_NODES_MAX);
+		pr_info("you have exceeded the maximum "
+			"number of cluster nodes (%u > %u)\n",
+			info->total_nodes, XT_CLUSTER_NODES_MAX);
 		return false;
 	}
 	if (info->node_mask >= (1ULL << info->total_nodes)) {
-		printk(KERN_ERR "xt_cluster: this node mask cannot be "
-				"higher than the total number of nodes\n");
+		pr_info("this node mask cannot be "
+			"higher than the total number of nodes\n");
 		return false;
 	}
 	return true;

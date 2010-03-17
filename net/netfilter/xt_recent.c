@@ -12,6 +12,7 @@
  * Author: Stephen Frost <sfrost@snowman.net>
  * Copyright 2002-2003, Stephen Frost, 2.5.x port by laforge@netfilter.org
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/init.h>
 #include <linux/ip.h>
 #include <linux/ipv6.h>
@@ -520,7 +521,7 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 		add = true;
 		break;
 	default:
-		printk(KERN_INFO KBUILD_MODNAME ": Need +ip, -ip or /\n");
+		pr_info("Need \"+ip\", \"-ip\" or \"/\"\n");
 		return -EINVAL;
 	}
 
@@ -535,8 +536,7 @@ recent_mt_proc_write(struct file *file, const char __user *input,
 	}
 
 	if (!succ) {
-		printk(KERN_INFO KBUILD_MODNAME ": illegal address written "
-		       "to procfs\n");
+		pr_info("illegal address written to procfs\n");
 		return -EINVAL;
 	}
 

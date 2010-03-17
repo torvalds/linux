@@ -9,7 +9,7 @@
  *
  * See RFC2474 for a description of the DSCP field within the IP Header.
 */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -65,7 +65,7 @@ static bool dscp_tg_check(const struct xt_tgchk_param *par)
 	const struct xt_DSCP_info *info = par->targinfo;
 
 	if (info->dscp > XT_DSCP_MAX) {
-		printk(KERN_WARNING "DSCP: dscp %x out of range\n", info->dscp);
+		pr_info("dscp %x out of range\n", info->dscp);
 		return false;
 	}
 	return true;

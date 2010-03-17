@@ -15,14 +15,13 @@
  * published by the Free Software Foundation.
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter/xt_CONNSECMARK.h>
 #include <net/netfilter/nf_conntrack.h>
 #include <net/netfilter/nf_conntrack_ecache.h>
-
-#define PFX "CONNSECMARK: "
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("James Morris <jmorris@redhat.com>");
@@ -91,8 +90,8 @@ static bool connsecmark_tg_check(const struct xt_tgchk_param *par)
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "security") != 0) {
-		printk(KERN_INFO PFX "target only valid in the \'mangle\' "
-		       "or \'security\' tables, not \'%s\'.\n", par->table);
+		pr_info("target only valid in the \'mangle\' "
+			"or \'security\' tables, not \'%s\'.\n", par->table);
 		return false;
 	}
 
@@ -102,13 +101,13 @@ static bool connsecmark_tg_check(const struct xt_tgchk_param *par)
 		break;
 
 	default:
-		printk(KERN_INFO PFX "invalid mode: %hu\n", info->mode);
+		pr_info("invalid mode: %hu\n", info->mode);
 		return false;
 	}
 
 	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
-		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->family);
+		pr_info("cannot load conntrack support for proto=%u\n",
+			par->family);
 		return false;
 	}
 	return true;

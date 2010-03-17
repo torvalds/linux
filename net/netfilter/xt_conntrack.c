@@ -9,7 +9,7 @@
  *	it under the terms of the GNU General Public License version 2 as
  *	published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <net/ipv6.h>
@@ -209,8 +209,8 @@ conntrack_mt_v2(const struct sk_buff *skb, const struct xt_match_param *par)
 static bool conntrack_mt_check(const struct xt_mtchk_param *par)
 {
 	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
-		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->family);
+		pr_info("cannot load conntrack support for proto=%u\n",
+			par->family);
 		return false;
 	}
 	return true;

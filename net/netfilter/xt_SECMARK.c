@@ -12,6 +12,7 @@
  * published by the Free Software Foundation.
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/selinux.h>
@@ -59,20 +60,19 @@ static bool checkentry_selinux(struct xt_secmark_target_info *info)
 	err = selinux_string_to_sid(sel->selctx, &sel->selsid);
 	if (err) {
 		if (err == -EINVAL)
-			printk(KERN_INFO PFX "invalid SELinux context \'%s\'\n",
-			       sel->selctx);
+			pr_info("invalid SELinux context \'%s\'\n",
+				sel->selctx);
 		return false;
 	}
 
 	if (!sel->selsid) {
-		printk(KERN_INFO PFX "unable to map SELinux context \'%s\'\n",
-		       sel->selctx);
+		pr_info("unable to map SELinux context \'%s\'\n", sel->selctx);
 		return false;
 	}
 
 	err = selinux_secmark_relabel_packet_permission(sel->selsid);
 	if (err) {
-		printk(KERN_INFO PFX "unable to obtain relabeling permission\n");
+		pr_info("unable to obtain relabeling permission\n");
 		return false;
 	}
 
@@ -86,14 +86,14 @@ static bool secmark_tg_check(const struct xt_tgchk_param *par)
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "security") != 0) {
-		printk(KERN_INFO PFX "target only valid in the \'mangle\' "
-		       "or \'security\' tables, not \'%s\'.\n", par->table);
+		pr_info("target only valid in the \'mangle\' "
+			"or \'security\' tables, not \'%s\'.\n", par->table);
 		return false;
 	}
 
 	if (mode && mode != info->mode) {
-		printk(KERN_INFO PFX "mode already set to %hu cannot mix with "
-		       "rules for mode %hu\n", mode, info->mode);
+		pr_info("mode already set to %hu cannot mix with "
+			"rules for mode %hu\n", mode, info->mode);
 		return false;
 	}
 
@@ -104,7 +104,7 @@ static bool secmark_tg_check(const struct xt_tgchk_param *par)
 		break;
 
 	default:
-		printk(KERN_INFO PFX "invalid mode: %hu\n", info->mode);
+		pr_info("invalid mode: %hu\n", info->mode);
 		return false;
 	}
 

@@ -1,6 +1,7 @@
 /* Kernel module to match connection tracking byte counter.
  * GPL (C) 2002 Martin Devera (devik@cdi.cz).
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/skbuff.h>
@@ -107,8 +108,8 @@ static bool connbytes_mt_check(const struct xt_mtchk_param *par)
 		return false;
 
 	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
-		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->family);
+		pr_info("cannot load conntrack support for proto=%u\n",
+			par->family);
 		return false;
 	}
 

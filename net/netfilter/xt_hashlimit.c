@@ -7,6 +7,7 @@
  *
  * Development of this code was funded by Astaro AG, http://www.astaro.com/
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/random.h>
@@ -166,17 +167,14 @@ dsthash_alloc_init(struct xt_hashlimit_htable *ht,
 	if (ht->cfg.max && ht->count >= ht->cfg.max) {
 		/* FIXME: do something. question is what.. */
 		if (net_ratelimit())
-			printk(KERN_WARNING
-				"xt_hashlimit: max count of %u reached\n",
-				ht->cfg.max);
+			pr_err("max count of %u reached\n", ht->cfg.max);
 		return NULL;
 	}
 
 	ent = kmem_cache_alloc(hashlimit_cachep, GFP_ATOMIC);
 	if (!ent) {
 		if (net_ratelimit())
-			printk(KERN_ERR
-				"xt_hashlimit: can't allocate dsthash_ent\n");
+			pr_err("cannot allocate dsthash_ent\n");
 		return NULL;
 	}
 	memcpy(&ent->dst, dst, sizeof(ent->dst));
@@ -681,8 +679,8 @@ static bool hashlimit_mt_check_v0(const struct xt_mtchk_param *par)
 	/* Check for overflow. */
 	if (r->cfg.burst == 0 ||
 	    user2credits(r->cfg.avg * r->cfg.burst) < user2credits(r->cfg.avg)) {
-		printk(KERN_ERR "xt_hashlimit: overflow, try lower: %u/%u\n",
-		       r->cfg.avg, r->cfg.burst);
+		pr_info("overflow, try lower: %u/%u\n",
+			r->cfg.avg, r->cfg.burst);
 		return false;
 	}
 	if (r->cfg.mode == 0 ||
@@ -718,8 +716,8 @@ static bool hashlimit_mt_check(const struct xt_mtchk_param *par)
 	if (info->cfg.burst == 0 ||
 	    user2credits(info->cfg.avg * info->cfg.burst) <
 	    user2credits(info->cfg.avg)) {
-		printk(KERN_ERR "xt_hashlimit: overflow, try lower: %u/%u\n",
-		       info->cfg.avg, info->cfg.burst);
+		pr_info("overflow, try lower: %u/%u\n",
+			info->cfg.avg, info->cfg.burst);
 		return false;
 	}
 	if (info->cfg.gc_interval == 0 || info->cfg.expire == 0)
@@ -1018,7 +1016,7 @@ static int __init hashlimit_mt_init(void)
 					    sizeof(struct dsthash_ent), 0, 0,
 					    NULL);
 	if (!hashlimit_cachep) {
-		printk(KERN_ERR "xt_hashlimit: unable to create slab cache\n");
+		pr_warning("unable to create slab cache\n");
 		goto err2;
 	}
 	return 0;

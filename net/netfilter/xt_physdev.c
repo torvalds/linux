@@ -7,7 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter_bridge.h>
@@ -95,9 +95,9 @@ static bool physdev_mt_check(const struct xt_mtchk_param *par)
 	     info->invert & XT_PHYSDEV_OP_BRIDGED) &&
 	    par->hook_mask & ((1 << NF_INET_LOCAL_OUT) |
 	    (1 << NF_INET_FORWARD) | (1 << NF_INET_POST_ROUTING))) {
-		printk(KERN_WARNING "physdev match: using --physdev-out in the "
-		       "OUTPUT, FORWARD and POSTROUTING chains for non-bridged "
-		       "traffic is not supported anymore.\n");
+		pr_info("using --physdev-out in the OUTPUT, FORWARD and "
+			"POSTROUTING chains for non-bridged traffic is not "
+			"supported anymore.\n");
 		if (par->hook_mask & (1 << NF_INET_LOCAL_OUT))
 			return false;
 	}

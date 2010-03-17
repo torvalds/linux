@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -133,24 +133,21 @@ static bool policy_mt_check(const struct xt_mtchk_param *par)
 	const struct xt_policy_info *info = par->matchinfo;
 
 	if (!(info->flags & (XT_POLICY_MATCH_IN|XT_POLICY_MATCH_OUT))) {
-		printk(KERN_ERR "xt_policy: neither incoming nor "
-				"outgoing policy selected\n");
+		pr_info("neither incoming nor outgoing policy selected\n");
 		return false;
 	}
 	if (par->hook_mask & ((1 << NF_INET_PRE_ROUTING) |
 	    (1 << NF_INET_LOCAL_IN)) && info->flags & XT_POLICY_MATCH_OUT) {
-		printk(KERN_ERR "xt_policy: output policy not valid in "
-				"PRE_ROUTING and INPUT\n");
+		pr_info("output policy not valid in PREROUTING and INPUT\n");
 		return false;
 	}
 	if (par->hook_mask & ((1 << NF_INET_POST_ROUTING) |
 	    (1 << NF_INET_LOCAL_OUT)) && info->flags & XT_POLICY_MATCH_IN) {
-		printk(KERN_ERR "xt_policy: input policy not valid in "
-				"POST_ROUTING and OUTPUT\n");
+		pr_info("input policy not valid in POSTROUTING and OUTPUT\n");
 		return false;
 	}
 	if (info->len > XT_POLICY_MAX_ELEM) {
-		printk(KERN_ERR "xt_policy: too many policy elements\n");
+		pr_info("too many policy elements\n");
 		return false;
 	}
 	return true;

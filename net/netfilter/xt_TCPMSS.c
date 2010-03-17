@@ -7,7 +7,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -67,14 +67,14 @@ tcpmss_mangle_packet(struct sk_buff *skb,
 	if (info->mss == XT_TCPMSS_CLAMP_PMTU) {
 		if (dst_mtu(skb_dst(skb)) <= minlen) {
 			if (net_ratelimit())
-				printk(KERN_ERR "xt_TCPMSS: "
+				pr_err("xt_TCPMSS: "
 				       "unknown or invalid path-MTU (%u)\n",
 				       dst_mtu(skb_dst(skb)));
 			return -1;
 		}
 		if (in_mtu <= minlen) {
 			if (net_ratelimit())
-				printk(KERN_ERR "xt_TCPMSS: unknown or "
+				pr_err("xt_TCPMSS: unknown or "
 				       "invalid path-MTU (%u)\n", in_mtu);
 			return -1;
 		}
@@ -245,14 +245,14 @@ static bool tcpmss_tg4_check(const struct xt_tgchk_param *par)
 	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
 			   (1 << NF_INET_LOCAL_OUT) |
 			   (1 << NF_INET_POST_ROUTING))) != 0) {
-		printk("xt_TCPMSS: path-MTU clamping only supported in "
-		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
+		pr_info("path-MTU clamping only supported in "
+			"FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return false;
 	}
 	xt_ematch_foreach(ematch, e)
 		if (find_syn_match(ematch))
 			return true;
-	printk("xt_TCPMSS: Only works on TCP SYN packets\n");
+	pr_info("Only works on TCP SYN packets\n");
 	return false;
 }
 
@@ -267,14 +267,14 @@ static bool tcpmss_tg6_check(const struct xt_tgchk_param *par)
 	    (par->hook_mask & ~((1 << NF_INET_FORWARD) |
 			   (1 << NF_INET_LOCAL_OUT) |
 			   (1 << NF_INET_POST_ROUTING))) != 0) {
-		printk("xt_TCPMSS: path-MTU clamping only supported in "
-		       "FORWARD, OUTPUT and POSTROUTING hooks\n");
+		pr_info("path-MTU clamping only supported in "
+			"FORWARD, OUTPUT and POSTROUTING hooks\n");
 		return false;
 	}
 	xt_ematch_foreach(ematch, e)
 		if (find_syn_match(ematch))
 			return true;
-	printk("xt_TCPMSS: Only works on TCP SYN packets\n");
+	pr_info("Only works on TCP SYN packets\n");
 	return false;
 }
 #endif

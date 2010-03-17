@@ -18,7 +18,7 @@
  * 02110-1301 USA.
  *
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/netfilter/x_tables.h>
@@ -87,7 +87,7 @@ static bool led_tg_check(const struct xt_tgchk_param *par)
 	int err;
 
 	if (ledinfo->id[0] == '\0') {
-		printk(KERN_ERR KBUILD_MODNAME ": No 'id' parameter given.\n");
+		pr_info("No 'id' parameter given.\n");
 		return false;
 	}
 
@@ -99,11 +99,9 @@ static bool led_tg_check(const struct xt_tgchk_param *par)
 
 	err = led_trigger_register(&ledinternal->netfilter_led_trigger);
 	if (err) {
-		printk(KERN_CRIT KBUILD_MODNAME
-			": led_trigger_register() failed\n");
+		pr_warning("led_trigger_register() failed\n");
 		if (err == -EEXIST)
-			printk(KERN_ERR KBUILD_MODNAME
-				": Trigger name is already in use.\n");
+			pr_warning("Trigger name is already in use.\n");
 		goto exit_alloc;
 	}
 

@@ -11,6 +11,7 @@
  * Kernel module to match connection tracking information.
  * GPL (C) 1999  Rusty Russell (rusty@rustcorp.com.au).
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/in.h>
 #include <linux/in6.h>
 #include <linux/ip.h>
@@ -225,8 +226,8 @@ static bool connlimit_mt_check(const struct xt_mtchk_param *par)
 		connlimit_rnd_inited = true;
 	}
 	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
-		printk(KERN_WARNING "cannot load conntrack support for "
-		       "address family %u\n", par->family);
+		pr_info("cannot load conntrack support for "
+			"address family %u\n", par->family);
 		return false;
 	}
 
