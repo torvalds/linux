@@ -167,12 +167,35 @@ void usb_serial_generic_close(struct usb_serial_port *port)
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_close);
 
+int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
+		void **dest, size_t size, const void *src, size_t count)
+{
+	if (!*dest) {
+		size = count;
+		*dest = kmalloc(count, GFP_ATOMIC);
+		if (!*dest) {
+			dev_err(&port->dev, "%s - could not allocate buffer\n",
+					__func__);
+			return -ENOMEM;
+		}
+	}
+	if (src) {
+		count = size;
+		memcpy(*dest, src, size);
+	} else {
+		count = kfifo_out_locked(&port->write_fifo, *dest, size,
+								&port->lock);
+	}
+	return count;
+}
+EXPORT_SYMBOL_GPL(usb_serial_generic_prepare_write_buffer);
+
 static int usb_serial_multi_urb_write(struct tty_struct *tty,
 	struct usb_serial_port *port, const unsigned char *buf, int count)
 {
 	unsigned long flags;
 	struct urb *urb;
-	unsigned char *buffer;
+	void *buffer;
 	int status;
 
 	spin_lock_irqsave(&port->lock, flags);
@@ -191,16 +214,14 @@ static int usb_serial_multi_urb_write(struct tty_struct *tty,
 		goto err_urb;
 	}
 
+	buffer = NULL;
 	count = min_t(int, count, PAGE_SIZE);
-	buffer = kmalloc(count, GFP_ATOMIC);
-	if (!buffer) {
-		dev_err(&port->dev, "%s - could not allocate buffer\n",
-				__func__);
-		status = -ENOMEM;
+	count = port->serial->type->prepare_write_buffer(port, &buffer, 0,
+								buf, count);
+	if (count < 0) {
+		status = count;
 		goto err_buf;
 	}
-
-	memcpy(buffer, buf, count);
 	usb_serial_debug_data(debug, &port->dev, __func__, count, buffer);
 	usb_fill_bulk_urb(urb, port->serial->dev,
 			usb_sndbulkpipe(port->serial->dev,
@@ -242,7 +263,6 @@ err_urb:
  */
 static int usb_serial_generic_write_start(struct usb_serial_port *port)
 {
-	unsigned char *data;
 	int result;
 	int count;
 	unsigned long flags;
@@ -255,10 +275,11 @@ static int usb_serial_generic_write_start(struct usb_serial_port *port)
 	port->write_urb_busy = 1;
 	spin_unlock_irqrestore(&port->lock, flags);
 
-	data = port->write_urb->transfer_buffer;
-	count = kfifo_out_locked(&port->write_fifo, data, port->bulk_out_size, &port->lock);
-	usb_serial_debug_data(debug, &port->dev, __func__, count, data);
-
+	count = port->serial->type->prepare_write_buffer(port,
+					&port->write_urb->transfer_buffer,
+					port->bulk_out_size, NULL, 0);
+	usb_serial_debug_data(debug, &port->dev, __func__,
+				count, port->write_urb->transfer_buffer);
 	port->write_urb->transfer_buffer_length = count;
 
 	/* send the data out the bulk port */

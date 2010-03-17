@@ -277,6 +277,9 @@ struct usb_serial_driver {
 	void (*write_bulk_callback)(struct urb *urb);
 	/* Called by the generic read bulk callback */
 	void (*process_read_urb)(struct urb *urb);
+	/* Called by the generic write implementation */
+	int (*prepare_write_buffer)(struct usb_serial_port *port,
+		void **dest, size_t size, const void *src, size_t count);
 };
 #define to_usb_serial_driver(d) \
 	container_of(d, struct usb_serial_driver, driver)
@@ -329,6 +332,8 @@ extern void usb_serial_generic_deregister(void);
 extern int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 						 gfp_t mem_flags);
 extern void usb_serial_generic_process_read_urb(struct urb *urb);
+extern int usb_serial_generic_prepare_write_buffer(struct usb_serial_port *port,
+		void **dest, size_t size, const void *src, size_t count);
 extern int usb_serial_handle_sysrq_char(struct tty_struct *tty,
 					struct usb_serial_port *port,
 					unsigned int ch);
