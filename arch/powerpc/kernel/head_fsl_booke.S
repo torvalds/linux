@@ -747,9 +747,6 @@ finish_tlb_load:
 #else
 	rlwimi	r12, r11, 26, 27, 31	/* extract WIMGE from pte */
 #endif
-#ifdef CONFIG_SMP
-	ori	r12, r12, MAS2_M
-#endif
 	mtspr	SPRN_MAS2, r12
 
 #ifdef CONFIG_PTE_64BIT
