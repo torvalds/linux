@@ -222,6 +222,7 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 	rg = ofbi->region;
 
 	down_write_nested(&rg->lock, rg->id);
+	atomic_inc(&rg->lock_count);
 
 	if (atomic_read(&rg->map_count)) {
 		r = -EBUSY;
@@ -252,6 +253,7 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 	}
 
  out:
+	atomic_dec(&rg->lock_count);
 	up_write(&rg->lock);
 
 	return r;

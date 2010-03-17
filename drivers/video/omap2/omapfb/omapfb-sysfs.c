@@ -453,6 +453,7 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 	rg = ofbi->region;
 
 	down_write_nested(&rg->lock, rg->id);
+	atomic_inc(&rg->lock_count);
 
 	if (atomic_read(&rg->map_count)) {
 		r = -EBUSY;
@@ -484,6 +485,7 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 
 	r = count;
 out:
+	atomic_dec(&rg->lock_count);
 	up_write(&rg->lock);
 
 	unlock_fb_info(fbi);

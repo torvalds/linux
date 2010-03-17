@@ -56,6 +56,7 @@ struct omapfb2_mem_region {
 	bool		map;		/* kernel mapped by the driver */
 	atomic_t	map_count;
 	struct rw_semaphore lock;
+	atomic_t	lock_count;
 };
 
 /* appended to fb_info */
@@ -166,11 +167,13 @@ static inline struct omapfb2_mem_region *
 omapfb_get_mem_region(struct omapfb2_mem_region *rg)
 {
 	down_read_nested(&rg->lock, rg->id);
+	atomic_inc(&rg->lock_count);
 	return rg;
 }
 
 static inline void omapfb_put_mem_region(struct omapfb2_mem_region *rg)
 {
+	atomic_dec(&rg->lock_count);
 	up_read(&rg->lock);
 }
 

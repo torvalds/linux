@@ -668,6 +668,8 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 
 	DBG("check_fb_var %d\n", ofbi->id);
 
+	WARN_ON(!atomic_read(&ofbi->region->lock_count));
+
 	r = fb_mode_to_dss_mode(var, &mode);
 	if (r) {
 		DBG("cannot convert var to omap dss mode\n");
@@ -873,6 +875,8 @@ int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 	int rotation = var->rotate;
 	int i;
 
+	WARN_ON(!atomic_read(&ofbi->region->lock_count));
+
 	for (i = 0; i < ofbi->num_overlays; i++) {
 		if (ovl != ofbi->overlays[i])
 			continue;
@@ -965,6 +969,8 @@ int omapfb_apply_changes(struct fb_info *fbi, int init)
 	if (omapfb_test_pattern)
 		fill_fb(fbi);
 #endif
+
+	WARN_ON(!atomic_read(&ofbi->region->lock_count));
 
 	for (i = 0; i < ofbi->num_overlays; i++) {
 		ovl = ofbi->overlays[i];
