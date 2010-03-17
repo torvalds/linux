@@ -26,10 +26,8 @@
 #include <linux/slab.h>
 #include <linux/debugfs.h>
 #include <linux/delay.h>
-#include <linux/io.h>
 
 #include <mach/msm_smd.h>
-#include <mach/msm_iomap.h>
 #include <mach/system.h>
 
 #include "smd_private.h"
@@ -68,16 +66,6 @@ void *smem_item(unsigned id, unsigned *size);
 static void smd_diag(void);
 
 static unsigned last_heap_free = 0xffffffff;
-
-static inline void msm_a2m_int(uint32_t irq)
-{
-#if defined(CONFIG_ARCH_MSM7X30)
-	writel(1 << irq, MSM_GCC_BASE + 0x8);
-#else
-	writel(1, MSM_CSR_BASE + 0x400 + (irq * 4));
-#endif
-}
-
 
 static inline void notify_other_smsm(void)
 {

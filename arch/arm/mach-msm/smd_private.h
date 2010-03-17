@@ -19,6 +19,9 @@
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
 #include <linux/list.h>
+#include <linux/io.h>
+
+#include <mach/msm_iomap.h>
 
 struct smem_heap_info {
 	unsigned initialized;
@@ -383,5 +386,18 @@ static inline int _smd_alloc_channel(struct smd_channel *ch)
 	return 0;
 }
 #endif /* CONFIG_MSM_SMD_PKG3 */
+
+#if defined(CONFIG_ARCH_MSM7X30)
+static inline void msm_a2m_int(uint32_t irq)
+{
+	writel(1 << irq, MSM_GCC_BASE + 0x8);
+}
+#else
+static inline void msm_a2m_int(uint32_t irq)
+{
+	writel(1, MSM_CSR_BASE + 0x400 + (irq * 4));
+}
+#endif /* CONFIG_ARCH_MSM7X30 */
+
 
 #endif
