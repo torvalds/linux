@@ -69,7 +69,7 @@ static void usb_debug_read_bulk_callback(struct urb *urb)
 	    memcmp(urb->transfer_buffer, USB_DEBUG_BRK,
 		   USB_DEBUG_BRK_SIZE) == 0) {
 		usb_serial_handle_break(port);
-		usb_serial_generic_resubmit_read_urb(port, GFP_ATOMIC);
+		usb_serial_generic_submit_read_urb(port, GFP_ATOMIC);
 		return;
 	}
 

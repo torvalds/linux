@@ -321,7 +321,7 @@ extern void usb_serial_generic_disconnect(struct usb_serial *serial);
 extern void usb_serial_generic_release(struct usb_serial *serial);
 extern int usb_serial_generic_register(int debug);
 extern void usb_serial_generic_deregister(void);
-extern void usb_serial_generic_resubmit_read_urb(struct usb_serial_port *port,
+extern int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 						 gfp_t mem_flags);
 extern int usb_serial_handle_sysrq_char(struct tty_struct *tty,
 					struct usb_serial_port *port,
