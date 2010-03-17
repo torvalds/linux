@@ -1059,9 +1059,12 @@ bool ath9k_hw_calibrate(struct ath_hw *ah, struct ath9k_channel *chan,
 	/* Do NF cal only at longer intervals */
 	if (longcal) {
 		/* Do periodic PAOffset Cal */
-		if (AR_SREV_9271(ah))
-			ath9k_hw_9271_pa_cal(ah, false);
-		else if (AR_SREV_9285_11_OR_LATER(ah)) {
+		if (AR_SREV_9271(ah)) {
+			if (!ah->pacal_info.skipcount)
+				ath9k_hw_9271_pa_cal(ah, false);
+			else
+				ah->pacal_info.skipcount--;
+		} else if (AR_SREV_9285_11_OR_LATER(ah)) {
 			if (!ah->pacal_info.skipcount)
 				ath9k_hw_9285_pa_cal(ah, false);
 			else
