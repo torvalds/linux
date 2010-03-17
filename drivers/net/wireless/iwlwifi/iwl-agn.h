@@ -80,4 +80,21 @@ bool iwl_good_ack_health(struct iwl_priv *priv,
 /* uCode */
 int iwlagn_load_ucode(struct iwl_priv *priv);
 
+/* tx queue */
+void iwlagn_set_wr_ptrs(struct iwl_priv *priv,
+		     int txq_id, u32 index);
+void iwlagn_tx_queue_set_status(struct iwl_priv *priv,
+			     struct iwl_tx_queue *txq,
+			     int tx_fifo_id, int scd_retry);
+void iwlagn_txq_update_byte_cnt_tbl(struct iwl_priv *priv,
+				    struct iwl_tx_queue *txq,
+				    u16 byte_cnt);
+void iwlagn_txq_inval_byte_cnt_tbl(struct iwl_priv *priv,
+				   struct iwl_tx_queue *txq);
+int iwlagn_txq_agg_enable(struct iwl_priv *priv, int txq_id,
+			  int tx_fifo, int sta_id, int tid, u16 ssn_idx);
+int iwlagn_txq_agg_disable(struct iwl_priv *priv, u16 txq_id,
+			   u16 ssn_idx, u8 tx_fifo);
+void iwlagn_txq_set_sched(struct iwl_priv *priv, u32 mask);
+
 #endif /* __iwl_agn_h__ */
