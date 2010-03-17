@@ -64,4 +64,4 @@ $(obj)/%.dtb: $(dtstree)/%.dts FORCE
 
 clean-kernel += linux.bin linux.bin.gz simpleImage.*
 
-clean-files += *.dtb simpleImage.*.unstrip
+clean-files += *.dtb simpleImage.*.unstrip linux.bin.ub
