@@ -305,13 +305,10 @@ static int __init ebt_ulog_init(void)
 	ebtulognl = netlink_kernel_create(&init_net, NETLINK_NFLOG,
 					  EBT_ULOG_MAXNLGROUPS, NULL, NULL,
 					  THIS_MODULE);
-	if (!ebtulognl) {
-		printk(KERN_WARNING KBUILD_MODNAME ": out of memory trying to "
-		       "call netlink_kernel_create\n");
+	if (!ebtulognl)
 		ret = -ENOMEM;
-	} else if ((ret = xt_register_target(&ebt_ulog_tg_reg)) != 0) {
+	else if ((ret = xt_register_target(&ebt_ulog_tg_reg)) != 0)
 		netlink_kernel_release(ebtulognl);
-	}
 
 	if (ret == 0)
 		nf_log_register(NFPROTO_BRIDGE, &ebt_ulog_logger);

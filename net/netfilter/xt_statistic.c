@@ -61,10 +61,8 @@ static bool statistic_mt_check(const struct xt_mtchk_param *par)
 		return false;
 
 	info->master = kzalloc(sizeof(*info->master), GFP_KERNEL);
-	if (info->master == NULL) {
-		printk(KERN_ERR KBUILD_MODNAME ": Out of memory\n");
+	if (info->master == NULL)
 		return false;
-	}
 	info->master->count = info->u.nth.count;
 
 	return true;

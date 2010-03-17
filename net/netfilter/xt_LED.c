@@ -92,10 +92,8 @@ static bool led_tg_check(const struct xt_tgchk_param *par)
 	}
 
 	ledinternal = kzalloc(sizeof(struct xt_led_info_internal), GFP_KERNEL);
-	if (!ledinternal) {
-		printk(KERN_CRIT KBUILD_MODNAME ": out of memory\n");
+	if (!ledinternal)
 		return false;
-	}
 
 	ledinternal->netfilter_led_trigger.name = ledinfo->id;
 

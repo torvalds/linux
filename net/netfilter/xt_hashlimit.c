@@ -215,10 +215,8 @@ static int htable_create_v0(struct net *net, struct xt_hashlimit_info *minfo, u_
 	/* FIXME: don't use vmalloc() here or anywhere else -HW */
 	hinfo = vmalloc(sizeof(struct xt_hashlimit_htable) +
 			sizeof(struct list_head) * size);
-	if (!hinfo) {
-		printk(KERN_ERR "xt_hashlimit: unable to create hashtable\n");
+	if (!hinfo)
 		return -1;
-	}
 	minfo->hinfo = hinfo;
 
 	/* copy match config into hashtable config */
@@ -288,10 +286,8 @@ static int htable_create(struct net *net, struct xt_hashlimit_mtinfo1 *minfo,
 	/* FIXME: don't use vmalloc() here or anywhere else -HW */
 	hinfo = vmalloc(sizeof(struct xt_hashlimit_htable) +
 	                sizeof(struct list_head) * size);
-	if (hinfo == NULL) {
-		printk(KERN_ERR "xt_hashlimit: unable to create hashtable\n");
+	if (hinfo == NULL)
 		return -1;
-	}
 	minfo->hinfo = hinfo;
 
 	/* copy match config into hashtable config */
