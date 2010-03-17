@@ -138,6 +138,7 @@ static struct usb_serial_driver cp210x_device = {
 	.usb_driver		= &cp210x_driver,
 	.id_table		= id_table,
 	.num_ports		= 1,
+	.bulk_in_size		= 256,
 	.bulk_out_size		= 256,
 	.open			= cp210x_open,
 	.close			= cp210x_close,
