@@ -217,7 +217,7 @@ static int usb_serial_multi_urb_write(struct tty_struct *tty,
 			usb_sndbulkpipe(port->serial->dev,
 					port->bulk_out_endpointAddress),
 			buffer, towrite,
-			usb_serial_generic_write_bulk_callback, port);
+			port->serial->type->write_bulk_callback, port);
 
 		status = usb_submit_urb(urb, GFP_ATOMIC);
 		if (status) {
