@@ -156,13 +156,19 @@ EXPORT_SYMBOL_GPL(usb_serial_generic_open);
 static void generic_cleanup(struct usb_serial_port *port)
 {
 	struct usb_serial *serial = port->serial;
+	unsigned long flags;
 
 	dbg("%s - port %d", __func__, port->number);
 
 	if (serial->dev) {
 		/* shutdown any bulk transfers that might be going on */
-		if (port->bulk_out_size)
+		if (port->bulk_out_size) {
 			usb_kill_urb(port->write_urb);
+
+			spin_lock_irqsave(&port->lock, flags);
+			kfifo_reset_out(&port->write_fifo);
+			spin_unlock_irqrestore(&port->lock, flags);
+		}
 		if (port->bulk_in_size)
 			usb_kill_urb(port->read_urb);
 	}
