@@ -5636,8 +5636,6 @@ _scsih_remove_unresponding_sas_devices(struct MPT2SAS_ADAPTER *ioc)
 			    (unsigned long long)
 			    sas_device->enclosure_logical_id,
 			    sas_device->slot);
-		/* invalidate the device handle */
-		sas_device->handle = 0;
 		_scsih_remove_device(ioc, sas_device);
 	}
 
