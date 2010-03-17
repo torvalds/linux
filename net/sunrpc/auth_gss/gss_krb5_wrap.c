@@ -124,11 +124,10 @@ make_confounder(char *p, u32 conflen)
 
 /* XXX factor out common code with seal/unseal. */
 
-u32
-gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
+static u32
+gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 		struct xdr_buf *buf, struct page **pages)
 {
-	struct krb5_ctx		*kctx = ctx->internal_ctx_id;
 	char			cksumdata[16];
 	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
 	int			blocksize = 0, plainlen;
@@ -203,10 +202,9 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 	return (kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
 
-u32
-gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
+static u32
+gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 {
-	struct krb5_ctx		*kctx = ctx->internal_ctx_id;
 	int			signalg;
 	int			sealalg;
 	char			cksumdata[16];
@@ -294,3 +292,31 @@ gss_unwrap_kerberos(struct gss_ctx *ctx, int offset, struct xdr_buf *buf)
 
 	return GSS_S_COMPLETE;
 }
+
+u32
+gss_wrap_kerberos(struct gss_ctx *gctx, int offset,
+		  struct xdr_buf *buf, struct page **pages)
+{
+	struct krb5_ctx	*kctx = gctx->internal_ctx_id;
+
+	switch (kctx->enctype) {
+	default:
+		BUG();
+	case ENCTYPE_DES_CBC_RAW:
+		return gss_wrap_kerberos_v1(kctx, offset, buf, pages);
+	}
+}
+
+u32
+gss_unwrap_kerberos(struct gss_ctx *gctx, int offset, struct xdr_buf *buf)
+{
+	struct krb5_ctx	*kctx = gctx->internal_ctx_id;
+
+	switch (kctx->enctype) {
+	default:
+		BUG();
+	case ENCTYPE_DES_CBC_RAW:
+		return gss_unwrap_kerberos_v1(kctx, offset, buf);
+	}
+}
+

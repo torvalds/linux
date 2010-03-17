@@ -70,11 +70,10 @@
 /* read_token is a mic token, and message_buffer is the data that the mic was
  * supposedly taken over. */
 
-u32
-gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
+static u32
+gss_verify_mic_v1(struct krb5_ctx *ctx,
 		struct xdr_buf *message_buffer, struct xdr_netobj *read_token)
 {
-	struct krb5_ctx		*ctx = gss_ctx->internal_ctx_id;
 	int			signalg;
 	int			sealalg;
 	char			cksumdata[16];
@@ -135,3 +134,19 @@ gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
 
 	return GSS_S_COMPLETE;
 }
+
+u32
+gss_verify_mic_kerberos(struct gss_ctx *gss_ctx,
+			struct xdr_buf *message_buffer,
+			struct xdr_netobj *read_token)
+{
+	struct krb5_ctx *ctx = gss_ctx->internal_ctx_id;
+
+	switch (ctx->enctype) {
+	default:
+		BUG();
+	case ENCTYPE_DES_CBC_RAW:
+		return gss_verify_mic_v1(ctx, message_buffer, read_token);
+	}
+}
+
