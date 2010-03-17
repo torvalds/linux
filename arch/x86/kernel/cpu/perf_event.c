@@ -28,6 +28,7 @@
 #include <asm/apic.h>
 #include <asm/stacktrace.h>
 #include <asm/nmi.h>
+#include <asm/compat.h>
 
 static u64 perf_event_mask __read_mostly;
 
@@ -1630,14 +1631,42 @@ copy_from_user_nmi(void *to, const void __user *from, unsigned long n)
 	return len;
 }
 
-static int copy_stack_frame(const void __user *fp, struct stack_frame *frame)
+#ifdef CONFIG_COMPAT
+static inline int
+perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
 {
-	unsigned long bytes;
+	/* 32-bit process in 64-bit kernel. */
+	struct stack_frame_ia32 frame;
+	const void __user *fp;
 
-	bytes = copy_from_user_nmi(frame, fp, sizeof(*frame));
+	if (!test_thread_flag(TIF_IA32))
+		return 0;
 
-	return bytes == sizeof(*frame);
+	fp = compat_ptr(regs->bp);
+	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+		unsigned long bytes;
+		frame.next_frame     = 0;
+		frame.return_address = 0;
+
+		bytes = copy_from_user_nmi(&frame, fp, sizeof(frame));
+		if (bytes != sizeof(frame))
+			break;
+
+		if (fp < compat_ptr(regs->sp))
+			break;
+
+		callchain_store(entry, frame.return_address);
+		fp = compat_ptr(frame.next_frame);
+	}
+	return 1;
 }
+#else
+static inline int
+perf_callchain_user32(struct pt_regs *regs, struct perf_callchain_entry *entry)
+{
+    return 0;
+}
+#endif
 
 static void
 perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
@@ -1653,11 +1682,16 @@ perf_callchain_user(struct pt_regs *regs, struct perf_callchain_entry *entry)
 	callchain_store(entry, PERF_CONTEXT_USER);
 	callchain_store(entry, regs->ip);
 
+	if (perf_callchain_user32(regs, entry))
+		return;
+
 	while (entry->nr < PERF_MAX_STACK_DEPTH) {
+		unsigned long bytes;
 		frame.next_frame	     = NULL;
 		frame.return_address = 0;
 
-		if (!copy_stack_frame(fp, &frame))
+		bytes = copy_from_user_nmi(&frame, fp, sizeof(frame));
+		if (bytes != sizeof(frame))
 			break;
 
 		if ((unsigned long)fp < regs->sp)
