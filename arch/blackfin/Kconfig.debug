@@ -238,7 +238,7 @@ config EARLY_PRINTK
 config NMI_WATCHDOG
 	bool "Enable NMI watchdog to help debugging lockup on SMP"
 	default n
-	depends on (SMP && !BFIN_SCRATCH_REG_RETN)
+	depends on SMP
 	help
 	  If any CPU in the system does not execute the period local timer
 	  interrupt for more than 5 seconds, then the NMI handler dumps debug
