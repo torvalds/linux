@@ -101,6 +101,10 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 		nf = 0 - ((nf ^ 0x1ff) + 1);
 	ath_print(common, ATH_DBG_CALIBRATE,
 		  "NF calibrated [ctl] [chain 0] is %d\n", nf);
+
+	if (AR_SREV_9271(ah) && (nf >= -114))
+		nf = -116;
+
 	nfarray[0] = nf;
 
 	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
@@ -139,6 +143,10 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 		nf = 0 - ((nf ^ 0x1ff) + 1);
 	ath_print(common, ATH_DBG_CALIBRATE,
 		  "NF calibrated [ext] [chain 0] is %d\n", nf);
+
+	if (AR_SREV_9271(ah) && (nf >= -114))
+		nf = -116;
+
 	nfarray[3] = nf;
 
 	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
