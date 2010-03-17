@@ -1979,7 +1979,7 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
 		return;
 	}
 
-	if (ioc->shost_recovery) {
+	if (ioc->shost_recovery || ioc->remove_host) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
 		return;
@@ -4246,7 +4246,7 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 		_scsih_sas_topology_change_event_debug(ioc, event_data);
 #endif
 
-	if (ioc->shost_recovery)
+	if (ioc->shost_recovery || ioc->remove_host)
 		return;
 
 	if (!ioc->sas_hba.num_phys)
@@ -4285,7 +4285,7 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 			    "expander event\n", ioc->name));
 			return;
 		}
-		if (ioc->shost_recovery)
+		if (ioc->shost_recovery || ioc->remove_host)
 			return;
 		phy_number = event_data->StartPhyNum + i;
 		reason_code = event_data->PHY[i].PhyStatus &

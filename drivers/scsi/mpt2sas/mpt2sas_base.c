@@ -3521,7 +3521,9 @@ mpt2sas_base_free_resources(struct MPT2SAS_ADAPTER *ioc)
 	    __func__));
 
 	_base_mask_interrupts(ioc);
+	ioc->shost_recovery = 1;
 	_base_make_ioc_ready(ioc, CAN_SLEEP, SOFT_RESET);
+	ioc->shost_recovery = 0;
 	if (ioc->pci_irq) {
 		synchronize_irq(pdev->irq);
 		free_irq(ioc->pci_irq, ioc);
