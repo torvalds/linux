@@ -1930,7 +1930,7 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 
 		ofbi->region = &fbdev->regions[i];
 		ofbi->region->id = i;
-		mutex_init(&ofbi->region->mtx);
+		init_rwsem(&ofbi->region->lock);
 
 		/* assign these early, so that fb alloc can use them */
 		ofbi->rotation_type = def_vrfb ? OMAP_DSS_ROT_VRFB :

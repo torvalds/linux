@@ -198,13 +198,7 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 
 	rg = ofbi->region;
 
-	/* FIXME probably should be a rwsem ... */
-	mutex_lock(&rg->mtx);
-	while (rg->ref) {
-		mutex_unlock(&rg->mtx);
-		schedule();
-		mutex_lock(&rg->mtx);
-	}
+	down_write(&rg->lock);
 
 	if (atomic_read(&rg->map_count)) {
 		r = -EBUSY;
@@ -235,7 +229,7 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 	}
 
  out:
-	mutex_unlock(&rg->mtx);
+	up_write(&rg->lock);
 
 	return r;
 }

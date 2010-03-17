@@ -27,6 +27,8 @@
 #define DEBUG
 #endif
 
+#include <linux/rwsem.h>
+
 #include <plat/display.h>
 
 #ifdef DEBUG
@@ -52,9 +54,8 @@ struct omapfb2_mem_region {
 	u8		type;		/* OMAPFB_PLANE_MEM_* */
 	bool		alloc;		/* allocated by the driver */
 	bool		map;		/* kernel mapped by the driver */
-	struct mutex    mtx;
-	unsigned int    ref;
 	atomic_t	map_count;
+	struct rw_semaphore lock;
 };
 
 /* appended to fb_info */
@@ -164,17 +165,13 @@ static inline int omapfb_overlay_enable(struct omap_overlay *ovl,
 static inline struct omapfb2_mem_region *
 omapfb_get_mem_region(struct omapfb2_mem_region *rg)
 {
-	mutex_lock(&rg->mtx);
-	rg->ref++;
-	mutex_unlock(&rg->mtx);
+	down_read(&rg->lock);
 	return rg;
 }
 
 static inline void omapfb_put_mem_region(struct omapfb2_mem_region *rg)
 {
-	mutex_lock(&rg->mtx);
-	rg->ref--;
-	mutex_unlock(&rg->mtx);
+	up_read(&rg->lock);
 }
 
 #endif

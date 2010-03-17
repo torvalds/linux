@@ -452,13 +452,7 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 
 	rg = ofbi->region;
 
-	/* FIXME probably should be a rwsem ... */
-	mutex_lock(&rg->mtx);
-	while (rg->ref) {
-		mutex_unlock(&rg->mtx);
-		schedule();
-		mutex_lock(&rg->mtx);
-	}
+	down_write(&rg->lock);
 
 	if (atomic_read(&rg->map_count)) {
 		r = -EBUSY;
@@ -490,7 +484,7 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 
 	r = count;
 out:
-	mutex_unlock(&rg->mtx);
+	up_write(&rg->lock);
 
 	unlock_fb_info(fbi);
 
