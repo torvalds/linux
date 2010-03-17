@@ -75,8 +75,6 @@ copy_from_user_nmi(void *to, const void __user *from, unsigned long n)
 	return len;
 }
 
-static u64 perf_event_mask __read_mostly;
-
 struct event_constraint {
 	union {
 		unsigned long	idxmsk[BITS_TO_LONGS(X86_PMC_IDX_MAX)];
@@ -1406,7 +1404,7 @@ void __init init_hw_perf_events(void)
 		     x86_pmu.num_events, X86_PMC_MAX_GENERIC);
 		x86_pmu.num_events = X86_PMC_MAX_GENERIC;
 	}
-	perf_event_mask = (1 << x86_pmu.num_events) - 1;
+	x86_pmu.intel_ctrl = (1 << x86_pmu.num_events) - 1;
 	perf_max_events = x86_pmu.num_events;
 
 	if (x86_pmu.num_events_fixed > X86_PMC_MAX_FIXED) {
@@ -1415,9 +1413,8 @@ void __init init_hw_perf_events(void)
 		x86_pmu.num_events_fixed = X86_PMC_MAX_FIXED;
 	}
 
-	perf_event_mask |=
+	x86_pmu.intel_ctrl |=
 		((1LL << x86_pmu.num_events_fixed)-1) << X86_PMC_IDX_FIXED;
-	x86_pmu.intel_ctrl = perf_event_mask;
 
 	perf_events_lapic_init();
 	register_die_notifier(&perf_event_nmi_notifier);
@@ -1442,7 +1439,7 @@ void __init init_hw_perf_events(void)
 	pr_info("... value mask:             %016Lx\n", x86_pmu.event_mask);
 	pr_info("... max period:             %016Lx\n", x86_pmu.max_period);
 	pr_info("... fixed-purpose events:   %d\n",     x86_pmu.num_events_fixed);
-	pr_info("... event mask:             %016Lx\n", perf_event_mask);
+	pr_info("... event mask:             %016Lx\n", x86_pmu.intel_ctrl);
 
 	perf_cpu_notifier(x86_pmu_notifier);
 }
