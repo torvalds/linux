@@ -573,23 +573,14 @@ ipv6_link_dev_addr(struct inet6_dev *idev, struct inet6_ifaddr *ifp)
 	*ifap = ifp;
 }
 
-/*
- *	Hash function taken from net_alias.c
- */
-static u8 ipv6_addr_hash(const struct in6_addr *addr)
+static u32 ipv6_addr_hash(const struct in6_addr *addr)
 {
-	__u32 word;
-
 	/*
 	 * We perform the hash function over the last 64 bits of the address
 	 * This will include the IEEE address token on links that support it.
 	 */
-
-	word = (__force u32)(addr->s6_addr32[2] ^ addr->s6_addr32[3]);
-	word ^= (word >> 16);
-	word ^= (word >> 8);
-
-	return ((word ^ (word >> 4)) & 0x0f);
+	return jhash_2words(addr->s6_addr32[2],  addr->s6_addr32[3], 0)
+		& (IN6_ADDR_HSIZE - 1);
 }
 
 /* On success it returns ifp with increased reference count */
@@ -600,7 +591,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 {
 	struct inet6_ifaddr *ifa = NULL;
 	struct rt6_info *rt;
-	int hash;
+	unsigned int hash;
 	int err = 0;
 	int addr_type = ipv6_addr_type(addr);
 
@@ -1277,7 +1268,7 @@ int ipv6_chk_addr(struct net *net, struct in6_addr *addr,
 {
 	struct inet6_ifaddr *ifp = NULL;
 	struct hlist_node *node;
-	u8 hash = ipv6_addr_hash(addr);
+	unsigned int hash = ipv6_addr_hash(addr);
 
 	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu(ifp, node, &inet6_addr_lst[hash], addr_lst) {
@@ -1302,7 +1293,7 @@ int ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
 {
 	struct inet6_ifaddr *ifp;
 	struct hlist_node *node;
-	u8 hash = ipv6_addr_hash(addr);
+	unsigned int hash = ipv6_addr_hash(addr);
 
 	hlist_for_each_entry(ifp, node, &inet6_addr_lst[hash], addr_lst) {
 		if (!net_eq(dev_net(ifp->idev->dev), net))
@@ -1345,7 +1336,7 @@ struct inet6_ifaddr *ipv6_get_ifaddr(struct net *net, const struct in6_addr *add
 {
 	struct inet6_ifaddr *ifp = NULL;
 	struct hlist_node *node;
-	u8 hash = ipv6_addr_hash(addr);
+	unsigned int hash = ipv6_addr_hash(addr);
 
 	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu(ifp, node, &inet6_addr_lst[hash], addr_lst) {
@@ -3083,7 +3074,7 @@ int ipv6_chk_home_addr(struct net *net, struct in6_addr *addr)
 	int ret = 0;
 	struct inet6_ifaddr *ifp = NULL;
 	struct hlist_node *n;
-	u8 hash = ipv6_addr_hash(addr);
+	unsigned int hash = ipv6_addr_hash(addr);
 
 	rcu_read_lock_bh();
 	hlist_for_each_entry_rcu(ifp, n, &inet6_addr_lst[hash], addr_lst) {
