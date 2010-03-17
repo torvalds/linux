@@ -517,6 +517,7 @@ void usb_serial_generic_throttle(struct tty_struct *tty)
 	port->throttle_req = 1;
 	spin_unlock_irqrestore(&port->lock, flags);
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_throttle);
 
 void usb_serial_generic_unthrottle(struct tty_struct *tty)
 {
@@ -534,6 +535,7 @@ void usb_serial_generic_unthrottle(struct tty_struct *tty)
 	if (was_throttled)
 		usb_serial_generic_submit_read_urb(port, GFP_KERNEL);
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_unthrottle);
 
 #ifdef CONFIG_MAGIC_SYSRQ
 int usb_serial_handle_sysrq_char(struct tty_struct *tty,
