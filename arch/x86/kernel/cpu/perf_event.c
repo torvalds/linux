@@ -1136,7 +1136,6 @@ void set_perf_event_pending(void)
 
 void perf_events_lapic_init(void)
 {
-#ifdef CONFIG_X86_LOCAL_APIC
 	if (!x86_pmu.apic || !x86_pmu_initialized())
 		return;
 
@@ -1144,7 +1143,6 @@ void perf_events_lapic_init(void)
 	 * Always use NMI for PMU
 	 */
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
-#endif
 }
 
 static int __kprobes
@@ -1168,9 +1166,7 @@ perf_event_nmi_handler(struct notifier_block *self,
 
 	regs = args->regs;
 
-#ifdef CONFIG_X86_LOCAL_APIC
 	apic_write(APIC_LVTPC, APIC_DM_NMI);
-#endif
 	/*
 	 * Can't rely on the handled return value to say it was our NMI, two
 	 * events could trigger 'simultaneously' raising two back-to-back NMIs.
