@@ -73,6 +73,27 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .keyed_cksum = 0,
 	},
 	/*
+	 * RC4-HMAC
+	 */
+	{
+	  .etype = ENCTYPE_ARCFOUR_HMAC,
+	  .ctype = CKSUMTYPE_HMAC_MD5_ARCFOUR,
+	  .name = "rc4-hmac",
+	  .encrypt_name = "ecb(arc4)",
+	  .cksum_name = "hmac(md5)",
+	  .encrypt = krb5_encrypt,
+	  .decrypt = krb5_decrypt,
+	  .mk_key = NULL,
+	  .signalg = SGN_ALG_HMAC_MD5,
+	  .sealalg = SEAL_ALG_MICROSOFT_RC4,
+	  .keybytes = 16,
+	  .keylength = 16,
+	  .blocksize = 1,
+	  .conflen = 8,
+	  .cksumlength = 8,
+	  .keyed_cksum = 1,
+	},
+	/*
 	 * 3DES
 	 */
 	{
@@ -392,6 +413,79 @@ out_err:
 	return -EINVAL;
 }
 
+/*
+ * Note that RC4 depends on deriving keys using the sequence
+ * number or the checksum of a token.  Therefore, the final keys
+ * cannot be calculated until the token is being constructed!
+ */
+static int
+context_derive_keys_rc4(struct krb5_ctx *ctx)
+{
+	struct crypto_hash *hmac;
+	char sigkeyconstant[] = "signaturekey";
+	int slen = strlen(sigkeyconstant) + 1;	/* include null terminator */
+	struct hash_desc desc;
+	struct scatterlist sg[1];
+	int err;
+
+	dprintk("RPC:       %s: entered\n", __func__);
+	/*
+	 * derive cksum (aka Ksign) key
+	 */
+	hmac = crypto_alloc_hash(ctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hmac)) {
+		dprintk("%s: error %ld allocating hash '%s'\n",
+			__func__, PTR_ERR(hmac), ctx->gk5e->cksum_name);
+		err = PTR_ERR(hmac);
+		goto out_err;
+	}
+
+	err = crypto_hash_setkey(hmac, ctx->Ksess, ctx->gk5e->keylength);
+	if (err)
+		goto out_err_free_hmac;
+
+	sg_init_table(sg, 1);
+	sg_set_buf(sg, sigkeyconstant, slen);
+
+	desc.tfm = hmac;
+	desc.flags = 0;
+
+	err = crypto_hash_init(&desc);
+	if (err)
+		goto out_err_free_hmac;
+
+	err = crypto_hash_digest(&desc, sg, slen, ctx->cksum);
+	if (err)
+		goto out_err_free_hmac;
+	/*
+	 * allocate hash, and blkciphers for data and seqnum encryption
+	 */
+	ctx->enc = crypto_alloc_blkcipher(ctx->gk5e->encrypt_name, 0,
+					  CRYPTO_ALG_ASYNC);
+	if (IS_ERR(ctx->enc)) {
+		err = PTR_ERR(ctx->enc);
+		goto out_err_free_hmac;
+	}
+
+	ctx->seq = crypto_alloc_blkcipher(ctx->gk5e->encrypt_name, 0,
+					  CRYPTO_ALG_ASYNC);
+	if (IS_ERR(ctx->seq)) {
+		crypto_free_blkcipher(ctx->enc);
+		err = PTR_ERR(ctx->seq);
+		goto out_err_free_hmac;
+	}
+
+	dprintk("RPC:       %s: returning success\n", __func__);
+
+	err = 0;
+
+out_err_free_hmac:
+	crypto_free_hash(hmac);
+out_err:
+	dprintk("RPC:       %s: returning %d\n", __func__, err);
+	return err;
+}
+
 static int
 context_derive_keys_new(struct krb5_ctx *ctx)
 {
@@ -561,6 +655,8 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx)
 	switch (ctx->enctype) {
 	case ENCTYPE_DES3_CBC_RAW:
 		return context_derive_keys_des3(ctx);
+	case ENCTYPE_ARCFOUR_HMAC:
+		return context_derive_keys_rc4(ctx);
 	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
 	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
 		return context_derive_keys_new(ctx);

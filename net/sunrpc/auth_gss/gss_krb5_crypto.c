@@ -124,6 +124,114 @@ checksummer(struct scatterlist *sg, void *data)
 	return crypto_hash_update(desc, sg, sg->length);
 }
 
+static int
+arcfour_hmac_md5_usage_to_salt(unsigned int usage, u8 salt[4])
+{
+	unsigned int ms_usage;
+
+	switch (usage) {
+	case KG_USAGE_SIGN:
+		ms_usage = 15;
+		break;
+	case KG_USAGE_SEAL:
+		ms_usage = 13;
+		break;
+	default:
+		return EINVAL;;
+	}
+	salt[0] = (ms_usage >> 0) & 0xff;
+	salt[1] = (ms_usage >> 8) & 0xff;
+	salt[2] = (ms_usage >> 16) & 0xff;
+	salt[3] = (ms_usage >> 24) & 0xff;
+
+	return 0;
+}
+
+static u32
+make_checksum_hmac_md5(struct krb5_ctx *kctx, char *header, int hdrlen,
+		       struct xdr_buf *body, int body_offset, u8 *cksumkey,
+		       unsigned int usage, struct xdr_netobj *cksumout)
+{
+	struct hash_desc                desc;
+	struct scatterlist              sg[1];
+	int err;
+	u8 checksumdata[GSS_KRB5_MAX_CKSUM_LEN];
+	u8 rc4salt[4];
+	struct crypto_hash *md5;
+	struct crypto_hash *hmac_md5;
+
+	if (cksumkey == NULL)
+		return GSS_S_FAILURE;
+
+	if (cksumout->len < kctx->gk5e->cksumlength) {
+		dprintk("%s: checksum buffer length, %u, too small for %s\n",
+			__func__, cksumout->len, kctx->gk5e->name);
+		return GSS_S_FAILURE;
+	}
+
+	if (arcfour_hmac_md5_usage_to_salt(usage, rc4salt)) {
+		dprintk("%s: invalid usage value %u\n", __func__, usage);
+		return GSS_S_FAILURE;
+	}
+
+	md5 = crypto_alloc_hash("md5", 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(md5))
+		return GSS_S_FAILURE;
+
+	hmac_md5 = crypto_alloc_hash(kctx->gk5e->cksum_name, 0,
+				     CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hmac_md5)) {
+		crypto_free_hash(md5);
+		return GSS_S_FAILURE;
+	}
+
+	desc.tfm = md5;
+	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	err = crypto_hash_init(&desc);
+	if (err)
+		goto out;
+	sg_init_one(sg, rc4salt, 4);
+	err = crypto_hash_update(&desc, sg, 4);
+	if (err)
+		goto out;
+
+	sg_init_one(sg, header, hdrlen);
+	err = crypto_hash_update(&desc, sg, hdrlen);
+	if (err)
+		goto out;
+	err = xdr_process_buf(body, body_offset, body->len - body_offset,
+			      checksummer, &desc);
+	if (err)
+		goto out;
+	err = crypto_hash_final(&desc, checksumdata);
+	if (err)
+		goto out;
+
+	desc.tfm = hmac_md5;
+	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	err = crypto_hash_init(&desc);
+	if (err)
+		goto out;
+	err = crypto_hash_setkey(hmac_md5, cksumkey, kctx->gk5e->keylength);
+	if (err)
+		goto out;
+
+	sg_init_one(sg, checksumdata, crypto_hash_digestsize(md5));
+	err = crypto_hash_digest(&desc, sg, crypto_hash_digestsize(md5),
+				 checksumdata);
+	if (err)
+		goto out;
+
+	memcpy(cksumout->data, checksumdata, kctx->gk5e->cksumlength);
+	cksumout->len = kctx->gk5e->cksumlength;
+out:
+	crypto_free_hash(md5);
+	crypto_free_hash(hmac_md5);
+	return err ? GSS_S_FAILURE : 0;
+}
+
 /*
  * checksum the plaintext data and hdrlen bytes of the token header
  * The checksum is performed over the first 8 bytes of the
@@ -139,6 +247,11 @@ make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 	int err;
 	u8 checksumdata[GSS_KRB5_MAX_CKSUM_LEN];
 	unsigned int checksumlen;
+
+	if (kctx->gk5e->ctype == CKSUMTYPE_HMAC_MD5_ARCFOUR)
+		return make_checksum_hmac_md5(kctx, header, hdrlen,
+					      body, body_offset,
+					      cksumkey, usage, cksumout);
 
 	if (cksumout->len < kctx->gk5e->cksumlength) {
 		dprintk("%s: checksum buffer length, %u, too small for %s\n",
@@ -733,3 +846,145 @@ out_err:
 		ret = GSS_S_FAILURE;
 	return ret;
 }
+
+/*
+ * Compute Kseq given the initial session key and the checksum.
+ * Set the key of the given cipher.
+ */
+int
+krb5_rc4_setup_seq_key(struct krb5_ctx *kctx, struct crypto_blkcipher *cipher,
+		       unsigned char *cksum)
+{
+	struct crypto_hash *hmac;
+	struct hash_desc desc;
+	struct scatterlist sg[1];
+	u8 Kseq[GSS_KRB5_MAX_KEYLEN];
+	u32 zeroconstant = 0;
+	int err;
+
+	dprintk("%s: entered\n", __func__);
+
+	hmac = crypto_alloc_hash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hmac)) {
+		dprintk("%s: error %ld, allocating hash '%s'\n",
+			__func__, PTR_ERR(hmac), kctx->gk5e->cksum_name);
+		return PTR_ERR(hmac);
+	}
+
+	desc.tfm = hmac;
+	desc.flags = 0;
+
+	err = crypto_hash_init(&desc);
+	if (err)
+		goto out_err;
+
+	/* Compute intermediate Kseq from session key */
+	err = crypto_hash_setkey(hmac, kctx->Ksess, kctx->gk5e->keylength);
+	if (err)
+		goto out_err;
+
+	sg_init_table(sg, 1);
+	sg_set_buf(sg, &zeroconstant, 4);
+
+	err = crypto_hash_digest(&desc, sg, 4, Kseq);
+	if (err)
+		goto out_err;
+
+	/* Compute final Kseq from the checksum and intermediate Kseq */
+	err = crypto_hash_setkey(hmac, Kseq, kctx->gk5e->keylength);
+	if (err)
+		goto out_err;
+
+	sg_set_buf(sg, cksum, 8);
+
+	err = crypto_hash_digest(&desc, sg, 8, Kseq);
+	if (err)
+		goto out_err;
+
+	err = crypto_blkcipher_setkey(cipher, Kseq, kctx->gk5e->keylength);
+	if (err)
+		goto out_err;
+
+	err = 0;
+
+out_err:
+	crypto_free_hash(hmac);
+	dprintk("%s: returning %d\n", __func__, err);
+	return err;
+}
+
+/*
+ * Compute Kcrypt given the initial session key and the plaintext seqnum.
+ * Set the key of cipher kctx->enc.
+ */
+int
+krb5_rc4_setup_enc_key(struct krb5_ctx *kctx, struct crypto_blkcipher *cipher,
+		       s32 seqnum)
+{
+	struct crypto_hash *hmac;
+	struct hash_desc desc;
+	struct scatterlist sg[1];
+	u8 Kcrypt[GSS_KRB5_MAX_KEYLEN];
+	u8 zeroconstant[4] = {0};
+	u8 seqnumarray[4];
+	int err, i;
+
+	dprintk("%s: entered, seqnum %u\n", __func__, seqnum);
+
+	hmac = crypto_alloc_hash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
+	if (IS_ERR(hmac)) {
+		dprintk("%s: error %ld, allocating hash '%s'\n",
+			__func__, PTR_ERR(hmac), kctx->gk5e->cksum_name);
+		return PTR_ERR(hmac);
+	}
+
+	desc.tfm = hmac;
+	desc.flags = 0;
+
+	err = crypto_hash_init(&desc);
+	if (err)
+		goto out_err;
+
+	/* Compute intermediate Kcrypt from session key */
+	for (i = 0; i < kctx->gk5e->keylength; i++)
+		Kcrypt[i] = kctx->Ksess[i] ^ 0xf0;
+
+	err = crypto_hash_setkey(hmac, Kcrypt, kctx->gk5e->keylength);
+	if (err)
+		goto out_err;
+
+	sg_init_table(sg, 1);
+	sg_set_buf(sg, zeroconstant, 4);
+
+	err = crypto_hash_digest(&desc, sg, 4, Kcrypt);
+	if (err)
+		goto out_err;
+
+	/* Compute final Kcrypt from the seqnum and intermediate Kcrypt */
+	err = crypto_hash_setkey(hmac, Kcrypt, kctx->gk5e->keylength);
+	if (err)
+		goto out_err;
+
+	seqnumarray[0] = (unsigned char) ((seqnum >> 24) & 0xff);
+	seqnumarray[1] = (unsigned char) ((seqnum >> 16) & 0xff);
+	seqnumarray[2] = (unsigned char) ((seqnum >> 8) & 0xff);
+	seqnumarray[3] = (unsigned char) ((seqnum >> 0) & 0xff);
+
+	sg_set_buf(sg, seqnumarray, 4);
+
+	err = crypto_hash_digest(&desc, sg, 4, Kcrypt);
+	if (err)
+		goto out_err;
+
+	err = crypto_blkcipher_setkey(cipher, Kcrypt, kctx->gk5e->keylength);
+	if (err)
+		goto out_err;
+
+	err = 0;
+
+out_err:
+	crypto_free_hash(hmac);
+	dprintk("%s: returning %d\n", __func__, err);
+	return err;
+}
+

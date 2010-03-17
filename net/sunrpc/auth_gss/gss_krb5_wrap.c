@@ -232,9 +232,26 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 			       seq_send, ptr + GSS_KRB5_TOK_HDR_LEN, ptr + 8)))
 		return GSS_S_FAILURE;
 
-	if (gss_encrypt_xdr_buf(kctx->enc, buf, offset + headlen - conflen,
-									pages))
-		return GSS_S_FAILURE;
+	if (kctx->enctype == ENCTYPE_ARCFOUR_HMAC) {
+		struct crypto_blkcipher *cipher;
+		int err;
+		cipher = crypto_alloc_blkcipher(kctx->gk5e->encrypt_name, 0,
+						CRYPTO_ALG_ASYNC);
+		if (IS_ERR(cipher))
+			return GSS_S_FAILURE;
+
+		krb5_rc4_setup_enc_key(kctx, cipher, seq_send);
+
+		err = gss_encrypt_xdr_buf(cipher, buf,
+					  offset + headlen - conflen, pages);
+		crypto_free_blkcipher(cipher);
+		if (err)
+			return GSS_S_FAILURE;
+	} else {
+		if (gss_encrypt_xdr_buf(kctx->enc, buf,
+					offset + headlen - conflen, pages))
+			return GSS_S_FAILURE;
+	}
 
 	return (kctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;
 }
@@ -291,8 +308,37 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	 */
 	crypt_offset = ptr + (GSS_KRB5_TOK_HDR_LEN + kctx->gk5e->cksumlength) -
 					(unsigned char *)buf->head[0].iov_base;
-	if (gss_decrypt_xdr_buf(kctx->enc, buf, crypt_offset))
-		return GSS_S_DEFECTIVE_TOKEN;
+
+	/*
+	 * Need plaintext seqnum to derive encryption key for arcfour-hmac
+	 */
+	if (krb5_get_seq_num(kctx, ptr + GSS_KRB5_TOK_HDR_LEN,
+			     ptr + 8, &direction, &seqnum))
+		return GSS_S_BAD_SIG;
+
+	if ((kctx->initiate && direction != 0xff) ||
+	    (!kctx->initiate && direction != 0))
+		return GSS_S_BAD_SIG;
+
+	if (kctx->enctype == ENCTYPE_ARCFOUR_HMAC) {
+		struct crypto_blkcipher *cipher;
+		int err;
+
+		cipher = crypto_alloc_blkcipher(kctx->gk5e->encrypt_name, 0,
+						CRYPTO_ALG_ASYNC);
+		if (IS_ERR(cipher))
+			return GSS_S_FAILURE;
+
+		krb5_rc4_setup_enc_key(kctx, cipher, seqnum);
+
+		err = gss_decrypt_xdr_buf(cipher, buf, crypt_offset);
+		crypto_free_blkcipher(cipher);
+		if (err)
+			return GSS_S_DEFECTIVE_TOKEN;
+	} else {
+		if (gss_decrypt_xdr_buf(kctx->enc, buf, crypt_offset))
+			return GSS_S_DEFECTIVE_TOKEN;
+	}
 
 	if (kctx->gk5e->keyed_cksum)
 		cksumkey = kctx->cksum;
@@ -315,14 +361,6 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 		return GSS_S_CONTEXT_EXPIRED;
 
 	/* do sequencing checks */
-
-	if (krb5_get_seq_num(kctx, ptr + GSS_KRB5_TOK_HDR_LEN,
-				    ptr + 8, &direction, &seqnum))
-		return GSS_S_BAD_SIG;
-
-	if ((kctx->initiate && direction != 0xff) ||
-	    (!kctx->initiate && direction != 0))
-		return GSS_S_BAD_SIG;
 
 	/* Copy the data back to the right position.  XXX: Would probably be
 	 * better to copy and encrypt at the same time. */
@@ -521,6 +559,7 @@ gss_wrap_kerberos(struct gss_ctx *gctx, int offset,
 		BUG();
 	case ENCTYPE_DES_CBC_RAW:
 	case ENCTYPE_DES3_CBC_RAW:
+	case ENCTYPE_ARCFOUR_HMAC:
 		return gss_wrap_kerberos_v1(kctx, offset, buf, pages);
 	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
 	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
@@ -538,6 +577,7 @@ gss_unwrap_kerberos(struct gss_ctx *gctx, int offset, struct xdr_buf *buf)
 		BUG();
 	case ENCTYPE_DES_CBC_RAW:
 	case ENCTYPE_DES3_CBC_RAW:
+	case ENCTYPE_ARCFOUR_HMAC:
 		return gss_unwrap_kerberos_v1(kctx, offset, buf);
 	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
 	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:

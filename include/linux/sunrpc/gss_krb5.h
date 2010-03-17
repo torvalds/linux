@@ -317,5 +317,14 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset,
 		     struct xdr_buf *buf, u32 *plainoffset,
 		     u32 *plainlen);
 
+int
+krb5_rc4_setup_seq_key(struct krb5_ctx *kctx,
+		       struct crypto_blkcipher *cipher,
+		       unsigned char *cksum);
+
+int
+krb5_rc4_setup_enc_key(struct krb5_ctx *kctx,
+		       struct crypto_blkcipher *cipher,
+		       s32 seqnum);
 void
 gss_krb5_make_confounder(char *p, u32 conflen);
