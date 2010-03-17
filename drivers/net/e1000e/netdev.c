@@ -5475,6 +5475,7 @@ static DEFINE_PCI_DEVICE_TABLE(e1000_pci_tbl) = {
 };
 MODULE_DEVICE_TABLE(pci, e1000_pci_tbl);
 
+#ifdef CONFIG_PM
 static const struct dev_pm_ops e1000_pm_ops = {
 	.suspend  = e1000_suspend,
 	.resume   = e1000_resume,
@@ -5486,6 +5487,7 @@ static const struct dev_pm_ops e1000_pm_ops = {
 	.runtime_resume = e1000_runtime_resume,
 	.runtime_idle = e1000_idle,
 };
+#endif
 
 /* PCI Device API Driver */
 static struct pci_driver e1000_driver = {
