@@ -67,17 +67,19 @@ struct sd {
 #define BRIDGE_SN9C110 2
 #define BRIDGE_SN9C120 3
 	u8 sensor;			/* Type of image sensor chip */
-#define SENSOR_ADCM1700 0
-#define SENSOR_HV7131R 1
-#define SENSOR_MI0360 2
-#define SENSOR_MO4000 3
-#define SENSOR_MT9V111 4
-#define SENSOR_OM6802 5
-#define SENSOR_OV7630 6
-#define SENSOR_OV7648 7
-#define SENSOR_OV7660 8
-#define SENSOR_PO1030 9
-#define SENSOR_SP80708 10
+enum {
+	SENSOR_ADCM1700,
+	SENSOR_HV7131R,
+	SENSOR_MI0360,
+	SENSOR_MO4000,
+	SENSOR_MT9V111,
+	SENSOR_OM6802,
+	SENSOR_OV7630,
+	SENSOR_OV7648,
+	SENSOR_OV7660,
+	SENSOR_PO1030,
+	SENSOR_SP80708,
+} sensors;
 	u8 i2c_addr;
 
 	u8 *jpeg_hdr;
@@ -281,29 +283,47 @@ static const struct ctrl sd_ctrls[] = {
 };
 
 /* table of the disabled controls */
-static __u32 ctrl_dis[] = {
-	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX) |
-			(1 << AUTOGAIN_IDX),	/* SENSOR_ADCM1700 0 */
-	(1 << INFRARED_IDX) | (1 << FREQ_IDX),
-						/* SENSOR_HV7131R 1 */
-	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX),
-						/* SENSOR_MI0360 2 */
-	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX),
-						/* SENSOR_MO4000 3 */
-	(1 << VFLIP_IDX) | (1 << FREQ_IDX),
-						/* SENSOR_MT9V111 4 */
-	(1 << INFRARED_IDX) | (1 << VFLIP_IDX) | (1 << FREQ_IDX),
-						/* SENSOR_OM6802 5 */
-	(1 << INFRARED_IDX),
-						/* SENSOR_OV7630 6 */
-	(1 << INFRARED_IDX),
-						/* SENSOR_OV7648 7 */
-	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX),
-						/* SENSOR_OV7660 8 */
-	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX) |
-			      (1 << FREQ_IDX),	/* SENSOR_PO1030 9 */
-	(1 << AUTOGAIN_IDX) | (1 << INFRARED_IDX) | (1 << VFLIP_IDX) |
-			      (1 << FREQ_IDX),	/* SENSOR_SP80708 10 */
+static const __u32 ctrl_dis[] = {
+[SENSOR_ADCM1700] =	(1 << AUTOGAIN_IDX) |
+			(1 << INFRARED_IDX) |
+			(1 << VFLIP_IDX) |
+			(1 << FREQ_IDX),
+
+[SENSOR_HV7131R] =	(1 << INFRARED_IDX) |
+			(1 << FREQ_IDX),
+
+[SENSOR_MI0360] =	(1 << INFRARED_IDX) |
+			(1 << VFLIP_IDX) |
+			(1 << FREQ_IDX),
+
+[SENSOR_MO4000] =	(1 << INFRARED_IDX) |
+			(1 << VFLIP_IDX) |
+			(1 << FREQ_IDX),
+
+[SENSOR_MT9V111] =	(1 << VFLIP_IDX) |
+			(1 << FREQ_IDX),
+
+[SENSOR_OM6802] =	(1 << INFRARED_IDX) |
+			(1 << VFLIP_IDX) |
+			(1 << FREQ_IDX),
+
+[SENSOR_OV7630] =	(1 << INFRARED_IDX),
+
+[SENSOR_OV7648] =	(1 << INFRARED_IDX),
+
+[SENSOR_OV7660] =	(1 << AUTOGAIN_IDX) |
+			(1 << INFRARED_IDX) |
+			(1 << VFLIP_IDX),
+
+[SENSOR_PO1030] =	(1 << AUTOGAIN_IDX) |
+			(1 << INFRARED_IDX) |
+			(1 << VFLIP_IDX) |
+			(1 << FREQ_IDX),
+
+[SENSOR_SP80708] =	(1 << AUTOGAIN_IDX) |
+			(1 << INFRARED_IDX) |
+			(1 << VFLIP_IDX) |
+			(1 << FREQ_IDX),
 };
 
 static const struct v4l2_pix_format cif_mode[] = {
@@ -456,17 +476,17 @@ static const u8 sn_sp80708[0x1c] = {
 
 /* sequence specific to the sensors - !! index = SENSOR_xxx */
 static const u8 *sn_tb[] = {
-	sn_adcm1700,
-	sn_hv7131,
-	sn_mi0360,
-	sn_mo4000,
-	sn_mt9v111,
-	sn_om6802,
-	sn_ov7630,
-	sn_ov7648,
-	sn_ov7660,
-	sn_po1030,
-	sn_sp80708
+[SENSOR_ADCM1700] =	sn_adcm1700,
+[SENSOR_HV7131R] =	sn_hv7131,
+[SENSOR_MI0360] =	sn_mi0360,
+[SENSOR_MO4000] =	sn_mo4000,
+[SENSOR_MT9V111] =	sn_mt9v111,
+[SENSOR_OM6802] =	sn_om6802,
+[SENSOR_OV7630] =	sn_ov7630,
+[SENSOR_OV7648] =	sn_ov7648,
+[SENSOR_OV7660] =	sn_ov7660,
+[SENSOR_PO1030] =	sn_po1030,
+[SENSOR_SP80708] =	sn_sp80708
 };
 
 /* default gamma table */
@@ -1069,18 +1089,18 @@ static const u8 sp80708_sensor_param1[][8] = {
 	{}
 };
 
-static const u8 (*sensor_init[11])[8] = {
-	adcm1700_sensor_init,	/* ADCM1700 0 */
-	hv7131r_sensor_init,	/* HV7131R 1 */
-	mi0360_sensor_init,	/* MI0360 2 */
-	mo4000_sensor_init,	/* MO4000 3 */
-	mt9v111_sensor_init,	/* MT9V111 4 */
-	om6802_sensor_init,	/* OM6802 5 */
-	ov7630_sensor_init,	/* OV7630 6 */
-	ov7648_sensor_init,	/* OV7648 7 */
-	ov7660_sensor_init,	/* OV7660 8 */
-	po1030_sensor_init,	/* PO1030 9 */
-	sp80708_sensor_init,	/* SP80708 10 */
+static const u8 (*sensor_init[])[8] = {
+[SENSOR_ADCM1700] =	adcm1700_sensor_init,
+[SENSOR_HV7131R] =	hv7131r_sensor_init,
+[SENSOR_MI0360] =	mi0360_sensor_init,
+[SENSOR_MO4000] =	mo4000_sensor_init,
+[SENSOR_MT9V111] =	mt9v111_sensor_init,
+[SENSOR_OM6802] =	om6802_sensor_init,
+[SENSOR_OV7630] =	ov7630_sensor_init,
+[SENSOR_OV7648] =	ov7648_sensor_init,
+[SENSOR_OV7660] =	ov7660_sensor_init,
+[SENSOR_PO1030] =	po1030_sensor_init,
+[SENSOR_SP80708] =	sp80708_sensor_init,
 };
 
 /* read <len> bytes to gspca_dev->usb_buf */
@@ -1703,7 +1723,7 @@ static void setcolors(struct gspca_dev *gspca_dev)
 	struct sd *sd = (struct sd *) gspca_dev;
 	int i, v;
 	u8 reg8a[12];			/* U & V gains */
-	static s16 uv[6] = {		/* same as reg84 in signed decimal */
+	static const s16 uv[6] = {	/* same as reg84 in signed decimal */
 		-24, -38, 64,		/* UR UG UB */
 		 62, -51, -9		/* VR VG VB */
 	};
