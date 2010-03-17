@@ -55,12 +55,12 @@
 #define CP_FLAG_AUTO_LOAD             ((2 * 32) + 5)
 #define CP_FLAG_AUTO_LOAD_NOT_PENDING 0
 #define CP_FLAG_AUTO_LOAD_PENDING     1
+#define CP_FLAG_NEWCTX                ((2 * 32) + 10)
+#define CP_FLAG_NEWCTX_BUSY           0
+#define CP_FLAG_NEWCTX_DONE           1
 #define CP_FLAG_XFER                  ((2 * 32) + 11)
 #define CP_FLAG_XFER_IDLE             0
 #define CP_FLAG_XFER_BUSY             1
-#define CP_FLAG_NEWCTX                ((2 * 32) + 12)
-#define CP_FLAG_NEWCTX_BUSY           0
-#define CP_FLAG_NEWCTX_DONE           1
 #define CP_FLAG_ALWAYS                ((2 * 32) + 13)
 #define CP_FLAG_ALWAYS_FALSE          0
 #define CP_FLAG_ALWAYS_TRUE           1
