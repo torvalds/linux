@@ -1298,6 +1298,7 @@ static void fixup_generic(struct usb_serial_driver *device)
 	set_to_generic_if_null(device, write_bulk_callback);
 	set_to_generic_if_null(device, disconnect);
 	set_to_generic_if_null(device, release);
+	set_to_generic_if_null(device, process_read_urb);
 }
 
 int usb_serial_register(struct usb_serial_driver *driver)

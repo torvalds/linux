@@ -408,7 +408,7 @@ int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_submit_read_urb);
 
-static void usb_serial_generic_process_read_urb(struct urb *urb)
+void usb_serial_generic_process_read_urb(struct urb *urb)
 {
 	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty;
@@ -433,6 +433,7 @@ static void usb_serial_generic_process_read_urb(struct urb *urb)
 	tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
 }
+EXPORT_SYMBOL_GPL(usb_serial_generic_process_read_urb);
 
 void usb_serial_generic_read_bulk_callback(struct urb *urb)
 {
@@ -451,7 +452,7 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 
 	usb_serial_debug_data(debug, &port->dev, __func__,
 						urb->actual_length, data);
-	usb_serial_generic_process_read_urb(urb);
+	port->serial->type->process_read_urb(urb);
 
 	/* Throttle the device if requested by tty */
 	spin_lock_irqsave(&port->lock, flags);
