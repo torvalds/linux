@@ -309,10 +309,14 @@ static int usb_serial_generic_write_start(struct usb_serial_port *port)
 		/* don't have to grab the lock here, as we will
 		   retry if != 0 */
 		port->write_urb_busy = 0;
-	} else
-		result = count;
+		return result;
+	}
 
-	return result;
+	spin_lock_irqsave(&port->lock, flags);
+	port->tx_bytes_flight += count;
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	return count;
 }
 
 /**
@@ -400,7 +404,7 @@ int usb_serial_generic_chars_in_buffer(struct tty_struct *tty)
 	if (serial->type->max_in_flight_urbs)
 		chars = port->tx_bytes_flight;
 	else
-		chars = kfifo_len(&port->write_fifo);
+		chars = kfifo_len(&port->write_fifo) + port->tx_bytes_flight;
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	dbg("%s - returns %d", __func__, chars);
@@ -510,7 +514,10 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 			port->urbs_in_flight = 0;
 		spin_unlock_irqrestore(&port->lock, flags);
 	} else {
+		spin_lock_irqsave(&port->lock, flags);
+		port->tx_bytes_flight -= urb->transfer_buffer_length;
 		port->write_urb_busy = 0;
+		spin_unlock_irqrestore(&port->lock, flags);
 
 		if (status)
 			kfifo_reset_out(&port->write_fifo);
