@@ -33,14 +33,13 @@
 
 #include "omap-mcbsp.h"
 #include "omap-pcm.h"
-#include "../codecs/twl4030.h"
 
 static int omap3beagle_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	unsigned int fmt;
 	int ret;
 
@@ -92,23 +91,19 @@ static struct snd_soc_ops omap3beagle_ops = {
 static struct snd_soc_dai_link omap3beagle_dai = {
 	.name = "TWL4030",
 	.stream_name = "TWL4030",
-	.cpu_dai = &omap_mcbsp_dai[0],
-	.codec_dai = &twl4030_dai[TWL4030_DAI_HIFI],
+	.cpu_dai_name = "omap-mcbsp-dai.1",
+	.platform_name = "omap-pcm-audio",
+	.codec_dai_name = "twl4030-hifi",
+	.codec_name = "twl4030-codec",
 	.ops = &omap3beagle_ops,
 };
 
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_omap3beagle = {
 	.name = "omap3beagle",
-	.platform = &omap_soc_platform,
+	.owner = THIS_MODULE,
 	.dai_link = &omap3beagle_dai,
 	.num_links = 1,
-};
-
-/* Audio subsystem */
-static struct snd_soc_device omap3beagle_snd_devdata = {
-	.card = &snd_soc_omap3beagle,
-	.codec_dev = &soc_codec_dev_twl4030,
 };
 
 static struct platform_device *omap3beagle_snd_device;
@@ -129,9 +124,7 @@ static int __init omap3beagle_soc_init(void)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(omap3beagle_snd_device, &omap3beagle_snd_devdata);
-	omap3beagle_snd_devdata.dev = &omap3beagle_snd_device->dev;
-	*(unsigned int *)omap3beagle_dai.cpu_dai->private_data = 1; /* McBSP2 */
+	platform_set_drvdata(omap3beagle_snd_device, &snd_soc_omap3beagle);
 
 	ret = platform_device_add(omap3beagle_snd_device);
 	if (ret)

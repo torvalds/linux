@@ -732,9 +732,15 @@ static struct platform_device ep93xx_i2s_device = {
 	.resource	= ep93xx_i2s_resource,
 };
 
+static struct platform_device ep93xx_pcm_device = {
+	.name		= "ep93xx-pcm-audio",
+	.id		= -1,
+};
+
 void __init ep93xx_register_i2s(void)
 {
 	platform_device_register(&ep93xx_i2s_device);
+	platform_device_register(&ep93xx_pcm_device);
 }
 
 #define EP93XX_SYSCON_DEVCFG_I2S_MASK	(EP93XX_SYSCON_DEVCFG_I2SONSSP | \

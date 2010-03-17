@@ -21,9 +21,6 @@
 #define WM8904_FLL_LRCLK         3
 #define WM8904_FLL_FREE_RUNNING  4
 
-extern struct snd_soc_dai wm8904_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8904;
-
 /*
  * Register values.
  */

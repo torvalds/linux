@@ -57,13 +57,4 @@
 
 #define WM8750_SYSCLK	0
 
-struct wm8750_setup_data {
-	int spi;
-	int i2c_bus;
-	unsigned short i2c_address;
-};
-
-extern struct snd_soc_dai wm8750_dai;
-extern struct snd_soc_codec_device soc_codec_dev_wm8750;
-
 #endif

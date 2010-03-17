@@ -222,7 +222,7 @@ static int s3c_ac97_hw_params(struct snd_pcm_substream *substream,
 				  struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct s3c_dma_params *dma_data;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
@@ -241,7 +241,7 @@ static int s3c_ac97_trigger(struct snd_pcm_substream *substream, int cmd,
 	u32 ac_glbctrl;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct s3c_dma_params *dma_data =
-		snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	ac_glbctrl = readl(s3c_ac97.regs + S3C_AC97_GLBCTRL);
 	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
@@ -277,7 +277,7 @@ static int s3c_ac97_hw_mic_params(struct snd_pcm_substream *substream,
 				      struct snd_soc_dai *dai)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
 		return -ENODEV;
@@ -293,7 +293,7 @@ static int s3c_ac97_mic_trigger(struct snd_pcm_substream *substream,
 	u32 ac_glbctrl;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct s3c_dma_params *dma_data =
-		snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
+		snd_soc_dai_get_dma_data(rtd->cpu_dai, substream);
 
 	ac_glbctrl = readl(s3c_ac97.regs + S3C_AC97_GLBCTRL);
 	ac_glbctrl &= ~S3C_AC97_GLBCTRL_MICINTM_MASK;
@@ -328,10 +328,9 @@ static struct snd_soc_dai_ops s3c_ac97_mic_dai_ops = {
 	.trigger	= s3c_ac97_mic_trigger,
 };
 
-struct snd_soc_dai s3c_ac97_dai[] = {
+static struct snd_soc_dai_driver s3c_ac97_dai[] = {
 	[S3C_AC97_DAI_PCM] = {
 		.name =	"s3c-ac97",
-		.id = S3C_AC97_DAI_PCM,
 		.ac97_control = 1,
 		.playback = {
 			.stream_name = "AC97 Playback",
@@ -349,7 +348,6 @@ struct snd_soc_dai s3c_ac97_dai[] = {
 	},
 	[S3C_AC97_DAI_MIC] = {
 		.name = "s3c-ac97-mic",
-		.id = S3C_AC97_DAI_MIC,
 		.ac97_control = 1,
 		.capture = {
 			.stream_name = "AC97 Mic Capture",
@@ -360,7 +358,6 @@ struct snd_soc_dai s3c_ac97_dai[] = {
 		.ops = &s3c_ac97_mic_dai_ops,
 	},
 };
-EXPORT_SYMBOL_GPL(s3c_ac97_dai);
 
 static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 {
@@ -449,10 +446,8 @@ static __devinit int s3c_ac97_probe(struct platform_device *pdev)
 		goto err4;
 	}
 
-	s3c_ac97_dai[S3C_AC97_DAI_PCM].dev = &pdev->dev;
-	s3c_ac97_dai[S3C_AC97_DAI_MIC].dev = &pdev->dev;
-
-	ret = snd_soc_register_dais(s3c_ac97_dai, ARRAY_SIZE(s3c_ac97_dai));
+	ret = snd_soc_register_dais(&pdev->dev, s3c_ac97_dai,
+			ARRAY_SIZE(s3c_ac97_dai));
 	if (ret)
 		goto err5;
 
@@ -476,7 +471,7 @@ static __devexit int s3c_ac97_remove(struct platform_device *pdev)
 {
 	struct resource *mem_res, *irq_res;
 
-	snd_soc_unregister_dais(s3c_ac97_dai, ARRAY_SIZE(s3c_ac97_dai));
+	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(s3c_ac97_dai));
 
 	irq_res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (irq_res)

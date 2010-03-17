@@ -46,40 +46,50 @@ static struct snd_soc_card smdk;
 static struct snd_soc_dai_link smdk_dai = {
 	.name = "AC97",
 	.stream_name = "AC97 PCM",
-	.cpu_dai = &s3c_ac97_dai[S3C_AC97_DAI_PCM],
-	.codec_dai = &wm9713_dai[WM9713_DAI_AC97_HIFI],
+	.platform_name = "s3c24xx-pcm-audio",
+	.cpu_dai_name = "s3c-ac97-dai",
+	.codec_dai_name = "wm9713-hifi",
+	.codec_name = "wm9713-codec",
 };
 
 static struct snd_soc_card smdk = {
 	.name = "SMDK",
-	.platform = &s3c24xx_soc_platform,
 	.dai_link = &smdk_dai,
 	.num_links = 1,
 };
 
-static struct snd_soc_device smdk_snd_ac97_devdata = {
-	.card = &smdk,
-	.codec_dev = &soc_codec_dev_wm9713,
-};
-
+static struct platform_device *smdk_snd_wm9713_device;
 static struct platform_device *smdk_snd_ac97_device;
 
 static int __init smdk_init(void)
 {
 	int ret;
 
-	smdk_snd_ac97_device = platform_device_alloc("soc-audio", -1);
-	if (!smdk_snd_ac97_device)
+	smdk_snd_wm9713_device = platform_device_alloc("wm9713-codec", -1);
+	if (!smdk_snd_wm9713_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(smdk_snd_ac97_device,
-			     &smdk_snd_ac97_devdata);
-	smdk_snd_ac97_devdata.dev = &smdk_snd_ac97_device->dev;
+	ret = platform_device_add(smdk_snd_wm9713_device);
+	if (ret)
+		goto err;
+
+	smdk_snd_ac97_device = platform_device_alloc("soc-audio", -1);
+	if (!smdk_snd_ac97_device) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	platform_set_drvdata(smdk_snd_ac97_device, &smdk);
 
 	ret = platform_device_add(smdk_snd_ac97_device);
-	if (ret)
+	if (ret) {
 		platform_device_put(smdk_snd_ac97_device);
+		goto err;
+	}
 
+	return 0;
+err:
+	platform_device_put(smdk_snd_wm9713_device);
 	return ret;
 }
 

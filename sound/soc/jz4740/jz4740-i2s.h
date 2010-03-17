@@ -13,6 +13,4 @@
 
 #define JZ4740_I2S_BIT_CLK		0
 
-extern struct snd_soc_dai jz4740_i2s_dai;
-
 #endif

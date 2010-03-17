@@ -415,7 +415,7 @@ struct platform_device mxc_usbh2 = {
 	};								\
 									\
 	struct platform_device imx_ssi_device ## n = {			\
-		.name = "imx-ssi",					\
+		.name = "imx-ssi-dai",					\
 		.id = n,						\
 		.num_resources = ARRAY_SIZE(imx_ssi_resources ## n),	\
 		.resource = imx_ssi_resources ## n,			\

@@ -60,10 +60,11 @@ static const struct snd_soc_dapm_route qi_lb60_routes[] = {
 			SND_SOC_DAIFMT_NB_NF | \
 			SND_SOC_DAIFMT_CBM_CFM)
 
-static int qi_lb60_codec_init(struct snd_soc_codec *codec)
+static int qi_lb60_codec_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
-	struct snd_soc_dai *cpu_dai = codec->socdev->card->dai_link->cpu_dai;
 
 	snd_soc_dapm_nc_pin(codec, "LIN");
 	snd_soc_dapm_nc_pin(codec, "RIN");
@@ -84,8 +85,10 @@ static int qi_lb60_codec_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link qi_lb60_dai = {
 	.name = "jz4740",
 	.stream_name = "jz4740",
-	.cpu_dai = &jz4740_i2s_dai,
-	.codec_dai = &jz4740_codec_dai,
+	.cpu_dai_name = "jz4740-i2s",
+	.platform_name = "jz4740-pmc-audio",
+	.codec_dai_name = "jz4740-hifi",
+	.codec_name = "jz4740-codec",
 	.init = qi_lb60_codec_init,
 };
 
@@ -93,12 +96,6 @@ static struct snd_soc_card qi_lb60 = {
 	.name = "QI LB60",
 	.dai_link = &qi_lb60_dai,
 	.num_links = 1,
-	.platform = &jz4740_soc_platform,
-};
-
-static struct snd_soc_device qi_lb60_snd_devdata = {
-	.card = &qi_lb60,
-	.codec_dev = &soc_codec_dev_jz4740_codec,
 };
 
 static struct platform_device *qi_lb60_snd_device;
@@ -129,8 +126,7 @@ static int __init qi_lb60_init(void)
 	gpio_direction_output(QI_LB60_SND_GPIO, 0);
 	gpio_direction_output(QI_LB60_AMP_GPIO, 0);
 
-	platform_set_drvdata(qi_lb60_snd_device, &qi_lb60_snd_devdata);
-	qi_lb60_snd_devdata.dev = &qi_lb60_snd_device->dev;
+	platform_set_drvdata(qi_lb60_snd_device, &qi_lb60);
 
 	ret = platform_device_add(qi_lb60_snd_device);
 	if (ret) {

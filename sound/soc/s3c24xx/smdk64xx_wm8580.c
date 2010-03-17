@@ -29,8 +29,8 @@ static int smdk64xx_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	unsigned int pll_out;
 	int bfs, rfs, ret;
 
@@ -174,8 +174,10 @@ static const struct snd_soc_dapm_route audio_map_rx[] = {
 	{"Rear-L/R", NULL, "VOUT3R"},
 };
 
-static int smdk64xx_wm8580_init_paiftx(struct snd_soc_codec *codec)
+static int smdk64xx_wm8580_init_paiftx(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+
 	/* Add smdk64xx specific Capture widgets */
 	snd_soc_dapm_new_controls(codec, wm8580_dapm_widgets_cpt,
 				  ARRAY_SIZE(wm8580_dapm_widgets_cpt));
@@ -194,8 +196,10 @@ static int smdk64xx_wm8580_init_paiftx(struct snd_soc_codec *codec)
 	return 0;
 }
 
-static int smdk64xx_wm8580_init_paifrx(struct snd_soc_codec *codec)
+static int smdk64xx_wm8580_init_paifrx(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+
 	/* Add smdk64xx specific Playback widgets */
 	snd_soc_dapm_new_controls(codec, wm8580_dapm_widgets_pbk,
 				  ARRAY_SIZE(wm8580_dapm_widgets_pbk));
@@ -213,16 +217,20 @@ static struct snd_soc_dai_link smdk64xx_dai[] = {
 { /* Primary Playback i/f */
 	.name = "WM8580 PAIF RX",
 	.stream_name = "Playback",
-	.cpu_dai = &s3c64xx_i2s_v4_dai,
-	.codec_dai = &wm8580_dai[WM8580_DAI_PAIFRX],
+	.cpu_dai_name = "s3c64xx-iis-v4",
+	.codec_dai_name = "wm8580-hifi-playback",
+	.platform_name = "s3c24xx-pcm-audio",
+	.codec_name = "wm8580-codec.0-001b",
 	.init = smdk64xx_wm8580_init_paifrx,
 	.ops = &smdk64xx_ops,
 },
 { /* Primary Capture i/f */
 	.name = "WM8580 PAIF TX",
 	.stream_name = "Capture",
-	.cpu_dai = &s3c64xx_i2s_v4_dai,
-	.codec_dai = &wm8580_dai[WM8580_DAI_PAIFTX],
+	.cpu_dai_name = "s3c64xx-iis-v4",
+	.codec_dai_name = "wm8580-hifi-capture",
+	.platform_name = "s3c24xx-pcm-audio",
+	.codec_name = "wm8580-codec.0-001b",
 	.init = smdk64xx_wm8580_init_paiftx,
 	.ops = &smdk64xx_ops,
 },
@@ -230,14 +238,8 @@ static struct snd_soc_dai_link smdk64xx_dai[] = {
 
 static struct snd_soc_card smdk64xx = {
 	.name = "smdk64xx",
-	.platform = &s3c24xx_soc_platform,
 	.dai_link = smdk64xx_dai,
 	.num_links = ARRAY_SIZE(smdk64xx_dai),
-};
-
-static struct snd_soc_device smdk64xx_snd_devdata = {
-	.card = &smdk64xx,
-	.codec_dev = &soc_codec_dev_wm8580,
 };
 
 static struct platform_device *smdk64xx_snd_device;
@@ -250,8 +252,7 @@ static int __init smdk64xx_audio_init(void)
 	if (!smdk64xx_snd_device)
 		return -ENOMEM;
 
-	platform_set_drvdata(smdk64xx_snd_device, &smdk64xx_snd_devdata);
-	smdk64xx_snd_devdata.dev = &smdk64xx_snd_device->dev;
+	platform_set_drvdata(smdk64xx_snd_device, &smdk64xx);
 	ret = platform_device_add(smdk64xx_snd_device);
 
 	if (ret)

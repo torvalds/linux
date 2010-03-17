@@ -18,16 +18,14 @@
 #include <mach/kirkwood.h>
 #include <plat/audio.h>
 #include <asm/mach-types.h>
-#include "kirkwood-i2s.h"
-#include "kirkwood-dma.h"
 #include "../codecs/cs42l51.h"
 
 static int openrd_client_hw_params(struct snd_pcm_substream *substream,
 		struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
 	unsigned int freq, fmt;
 
@@ -66,8 +64,10 @@ static struct snd_soc_dai_link openrd_client_dai[] = {
 {
 	.name = "CS42L51",
 	.stream_name = "CS42L51 HiFi",
-	.cpu_dai = &kirkwood_i2s_dai,
-	.codec_dai = &cs42l51_dai,
+	.cpu_dai_name = "kirkwood-i2s",
+	.platform_name = "kirkwood-pcm-audio",
+	.codec_dai_name = "cs42l51_hifi",
+	.codec_name = "cs42l51-codec.0-004a",
 	.ops = &openrd_client_ops,
 },
 };
@@ -75,14 +75,8 @@ static struct snd_soc_dai_link openrd_client_dai[] = {
 
 static struct snd_soc_card openrd_client = {
 	.name = "OpenRD Client",
-	.platform = &kirkwood_soc_platform,
 	.dai_link = openrd_client_dai,
 	.num_links = ARRAY_SIZE(openrd_client_dai),
-};
-
-static struct snd_soc_device openrd_client_snd_devdata = {
-	.card = &openrd_client,
-	.codec_dev = &soc_codec_device_cs42l51,
 };
 
 static struct platform_device *openrd_client_snd_device;
@@ -99,8 +93,7 @@ static int __init openrd_client_init(void)
 		return -ENOMEM;
 
 	platform_set_drvdata(openrd_client_snd_device,
-			&openrd_client_snd_devdata);
-	openrd_client_snd_devdata.dev = &openrd_client_snd_device->dev;
+			&openrd_client);
 
 	ret = platform_device_add(openrd_client_snd_device);
 	if (ret) {

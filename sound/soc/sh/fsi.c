@@ -271,16 +271,19 @@ static int fsi_is_port_a(struct fsi_priv *fsi)
 static struct snd_soc_dai *fsi_get_dai(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai_link *machine = rtd->dai;
 
-	return  machine->cpu_dai;
+	return  rtd->cpu_dai;
 }
 
 static struct fsi_priv *fsi_get_priv(struct snd_pcm_substream *substream)
 {
 	struct snd_soc_dai *dai = fsi_get_dai(substream);
+	struct fsi_master *master = snd_soc_dai_get_drvdata(dai);
 
-	return dai->private_data;
+	if (dai->id == 0)
+		return &master->fsia;
+	else
+		return &master->fsib;
 }
 
 static u32 fsi_get_info_flags(struct fsi_priv *fsi)
@@ -1025,10 +1028,9 @@ static int fsi_pcm_new(struct snd_card *card,
 
 
 ************************************************************************/
-struct snd_soc_dai fsi_soc_dai[] = {
+static struct snd_soc_dai_driver fsi_soc_dai[] = {
 	{
-		.name			= "FSIA",
-		.id			= 0,
+		.name			= "fsia-dai",
 		.playback = {
 			.rates		= FSI_RATES,
 			.formats	= FSI_FMTS,
@@ -1044,8 +1046,7 @@ struct snd_soc_dai fsi_soc_dai[] = {
 		.ops = &fsi_dai_ops,
 	},
 	{
-		.name			= "FSIB",
-		.id			= 1,
+		.name			= "fsib-dai",
 		.playback = {
 			.rates		= FSI_RATES,
 			.formats	= FSI_FMTS,
@@ -1061,15 +1062,12 @@ struct snd_soc_dai fsi_soc_dai[] = {
 		.ops = &fsi_dai_ops,
 	},
 };
-EXPORT_SYMBOL_GPL(fsi_soc_dai);
 
-struct snd_soc_platform fsi_soc_platform = {
-	.name		= "fsi-pcm",
-	.pcm_ops 	= &fsi_pcm_ops,
+static struct snd_soc_platform_driver fsi_soc_platform = {
+	.ops		= &fsi_pcm_ops,
 	.pcm_new	= fsi_pcm_new,
 	.pcm_free	= fsi_pcm_free,
 };
-EXPORT_SYMBOL_GPL(fsi_soc_platform);
 
 /************************************************************************
 
@@ -1132,11 +1130,7 @@ static int fsi_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(&pdev->dev);
 	pm_runtime_resume(&pdev->dev);
-
-	fsi_soc_dai[0].dev		= &pdev->dev;
-	fsi_soc_dai[0].private_data	= &master->fsia;
-	fsi_soc_dai[1].dev		= &pdev->dev;
-	fsi_soc_dai[1].private_data	= &master->fsib;
+	dev_set_drvdata(&pdev->dev, master);
 
 	fsi_soft_all_reset(master);
 
@@ -1147,13 +1141,13 @@ static int fsi_probe(struct platform_device *pdev)
 		goto exit_iounmap;
 	}
 
-	ret = snd_soc_register_platform(&fsi_soc_platform);
+	ret = snd_soc_register_platform(&pdev->dev, &fsi_soc_platform);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot snd soc register\n");
 		goto exit_free_irq;
 	}
 
-	return snd_soc_register_dais(fsi_soc_dai, ARRAY_SIZE(fsi_soc_dai));
+	return snd_soc_register_dais(&pdev->dev, fsi_soc_dai, ARRAY_SIZE(fsi_soc_dai));
 
 exit_free_irq:
 	free_irq(irq, master);
@@ -1171,10 +1165,10 @@ static int fsi_remove(struct platform_device *pdev)
 {
 	struct fsi_master *master;
 
-	master = fsi_get_master(fsi_soc_dai[0].private_data);
+	master = dev_get_drvdata(&pdev->dev);
 
-	snd_soc_unregister_dais(fsi_soc_dai, ARRAY_SIZE(fsi_soc_dai));
-	snd_soc_unregister_platform(&fsi_soc_platform);
+	snd_soc_unregister_dais(&pdev->dev, ARRAY_SIZE(fsi_soc_dai));
+	snd_soc_unregister_platform(&pdev->dev);
 
 	pm_runtime_disable(&pdev->dev);
 
@@ -1182,11 +1176,6 @@ static int fsi_remove(struct platform_device *pdev)
 
 	iounmap(master->base);
 	kfree(master);
-
-	fsi_soc_dai[0].dev		= NULL;
-	fsi_soc_dai[0].private_data	= NULL;
-	fsi_soc_dai[1].dev		= NULL;
-	fsi_soc_dai[1].private_data	= NULL;
 
 	return 0;
 }
@@ -1233,7 +1222,7 @@ static struct platform_device_id fsi_id_table[] = {
 
 static struct platform_driver fsi_driver = {
 	.driver 	= {
-		.name	= "sh_fsi",
+		.name	= "fsi-pcm-audio",
 		.pm	= &fsi_pm_ops,
 	},
 	.probe		= fsi_probe,

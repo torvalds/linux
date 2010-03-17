@@ -329,7 +329,7 @@ static int au1xpsc_pcm_new(struct snd_card *card,
 	return 0;
 }
 
-static int au1xpsc_pcm_probe(struct platform_device *pdev)
+static int au1xpsc_pcm_probe(struct snd_soc_platform *platform)
 {
 	if (!au1xpsc_audio_pcmdma[PCM_TX] || !au1xpsc_audio_pcmdma[PCM_RX])
 		return -ENODEV;
@@ -337,17 +337,10 @@ static int au1xpsc_pcm_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int au1xpsc_pcm_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 /* au1xpsc audio platform */
-struct snd_soc_platform au1xpsc_soc_platform = {
-	.name		= "au1xpsc-pcm-dbdma",
+struct snd_soc_platform_driver au1xpsc_soc_platform = {
 	.probe		= au1xpsc_pcm_probe,
-	.remove		= au1xpsc_pcm_remove,
-	.pcm_ops 	= &au1xpsc_pcm_ops,
+	.ops		= &au1xpsc_pcm_ops,
 	.pcm_new	= au1xpsc_pcm_new,
 	.pcm_free	= au1xpsc_pcm_free_dma_buffers,
 };
@@ -387,7 +380,7 @@ static int __devinit au1xpsc_pcm_drvprobe(struct platform_device *pdev)
 	}
 	(au1xpsc_audio_pcmdma[PCM_RX])->ddma_id = r->start;
 
-	ret = snd_soc_register_platform(&au1xpsc_soc_platform);
+	ret = snd_soc_register_platform(&pdev->dev, &au1xpsc_soc_platform);
 	if (!ret)
 		return ret;
 
@@ -404,7 +397,7 @@ static int __devexit au1xpsc_pcm_drvremove(struct platform_device *pdev)
 {
 	int i;
 
-	snd_soc_unregister_platform(&au1xpsc_soc_platform);
+	snd_soc_unregister_platform(&pdev->dev);
 
 	for (i = 0; i < 2; i++) {
 		if (au1xpsc_audio_pcmdma[i]) {
@@ -419,7 +412,7 @@ static int __devexit au1xpsc_pcm_drvremove(struct platform_device *pdev)
 
 static struct platform_driver au1xpsc_pcm_driver = {
 	.driver	= {
-		.name	= "au1xpsc-pcm",
+		.name	= "au1xpsc-pcm-audio",
 		.owner	= THIS_MODULE,
 	},
 	.probe		= au1xpsc_pcm_drvprobe,

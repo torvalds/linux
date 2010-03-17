@@ -40,8 +40,8 @@ static int am3517evm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_hw_params *params)
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
-	struct snd_soc_dai *codec_dai = rtd->dai->codec_dai;
-	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct snd_soc_dai *codec_dai = rtd->codec_dai;
+	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	int ret;
 
 	/* Set codec DAI configuration */
@@ -111,8 +111,10 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"MICIN", NULL, "Mic In"},
 };
 
-static int am3517evm_aic23_init(struct snd_soc_codec *codec)
+static int am3517evm_aic23_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+
 	/* Add am3517-evm specific widgets */
 	snd_soc_dapm_new_controls(codec, tlv320aic23_dapm_widgets,
 				  ARRAY_SIZE(tlv320aic23_dapm_widgets));
@@ -134,8 +136,10 @@ static int am3517evm_aic23_init(struct snd_soc_codec *codec)
 static struct snd_soc_dai_link am3517evm_dai = {
 	.name = "TLV320AIC23",
 	.stream_name = "AIC23",
-	.cpu_dai = &omap_mcbsp_dai[0],
-	.codec_dai = &tlv320aic23_dai,
+	.cpu_dai_name ="omap-mcbsp-dai.0",
+	.codec_dai_name = "tlv320aic23-hifi",
+	.platform_name = "omap-pcm-audio",
+	.codec_name = "tlv320aic23-codec",
 	.init = am3517evm_aic23_init,
 	.ops = &am3517evm_ops,
 };
@@ -143,15 +147,8 @@ static struct snd_soc_dai_link am3517evm_dai = {
 /* Audio machine driver */
 static struct snd_soc_card snd_soc_am3517evm = {
 	.name = "am3517evm",
-	.platform = &omap_soc_platform,
 	.dai_link = &am3517evm_dai,
 	.num_links = 1,
-};
-
-/* Audio subsystem */
-static struct snd_soc_device am3517evm_snd_devdata = {
-	.card = &snd_soc_am3517evm,
-	.codec_dev = &soc_codec_dev_tlv320aic23,
 };
 
 static struct platform_device *am3517evm_snd_device;
@@ -172,9 +169,7 @@ static int __init am3517evm_soc_init(void)
 		return -ENOMEM;
 	}
 
-	platform_set_drvdata(am3517evm_snd_device, &am3517evm_snd_devdata);
-	am3517evm_snd_devdata.dev = &am3517evm_snd_device->dev;
-	*(unsigned int *)am3517evm_dai.cpu_dai->private_data = 0; /* McBSP1 */
+	platform_set_drvdata(am3517evm_snd_device, &snd_soc_am3517evm);
 
 	ret = platform_device_add(am3517evm_snd_device);
 	if (ret)

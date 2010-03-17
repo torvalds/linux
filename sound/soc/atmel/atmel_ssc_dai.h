@@ -116,6 +116,5 @@ struct atmel_ssc_info {
 	struct atmel_pcm_dma_params *dma_params[2];
 	struct atmel_ssc_state ssc_state;
 };
-extern struct snd_soc_dai atmel_ssc_dai[];
 
 #endif /* _AT91_SSC_DAI_H */

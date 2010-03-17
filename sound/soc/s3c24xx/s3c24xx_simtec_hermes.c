@@ -73,8 +73,10 @@ static const struct snd_soc_dapm_route base_map[] = {
  * Attach our controls and configure the necessary codec
  * mappings for our sound card instance.
 */
-static int simtec_hermes_init(struct snd_soc_codec *codec)
+static int simtec_hermes_init(struct snd_soc_pcm_runtime *rtd)
 {
+	struct snd_soc_codec *codec = rtd->codec;
+
 	snd_soc_dapm_new_controls(codec, dapm_widgets,
 				  ARRAY_SIZE(dapm_widgets));
 
@@ -85,42 +87,33 @@ static int simtec_hermes_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_enable_pin(codec, "Line Out");
 	snd_soc_dapm_enable_pin(codec, "Mic Jack");
 
-	simtec_audio_init(codec);
+	simtec_audio_init(rtd);
 	snd_soc_dapm_sync(codec);
 
 	return 0;
 }
 
-static struct aic3x_setup_data codec_setup = {
-};
-
 static struct snd_soc_dai_link simtec_dai_aic33 = {
 	.name		= "tlv320aic33",
 	.stream_name	= "TLV320AIC33",
-	.cpu_dai	= &s3c24xx_i2s_dai,
-	.codec_dai	= &aic3x_dai,
+	.codec_name	= "tlv320aic3x-codec.0-0x1a",
+	.cpu_dai_name	= "s3c24xx-i2s",
+	.codec_dai_name = "tlv320aic3x-hifi",
+	.platform_name	= "s3c24xx-pcm-audio",
 	.init		= simtec_hermes_init,
 };
 
 /* simtec audio machine driver */
 static struct snd_soc_card snd_soc_machine_simtec_aic33 = {
 	.name		= "Simtec-Hermes",
-	.platform	= &s3c24xx_soc_platform,
 	.dai_link	= &simtec_dai_aic33,
 	.num_links	= 1,
-};
-
-/* simtec audio subsystem */
-static struct snd_soc_device simtec_snd_devdata_aic33 = {
-	.card		= &snd_soc_machine_simtec_aic33,
-	.codec_dev	= &soc_codec_dev_aic3x,
-	.codec_data	= &codec_setup,
 };
 
 static int __devinit simtec_audio_hermes_probe(struct platform_device *pd)
 {
 	dev_info(&pd->dev, "probing....\n");
-	return simtec_audio_core_probe(pd, &simtec_snd_devdata_aic33);
+	return simtec_audio_core_probe(pd, &snd_soc_machine_simtec_aic33);
 }
 
 static struct platform_driver simtec_audio_hermes_platdrv = {
