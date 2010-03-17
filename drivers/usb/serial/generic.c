@@ -408,16 +408,16 @@ int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 }
 EXPORT_SYMBOL_GPL(usb_serial_generic_submit_read_urb);
 
-/* Push data to tty layer and resubmit the bulk read URB */
-static void flush_and_resubmit_read_urb(struct usb_serial_port *port)
+static void usb_serial_generic_process_read_urb(struct urb *urb)
 {
-	struct urb *urb = port->read_urb;
-	struct tty_struct *tty = tty_port_tty_get(&port->port);
+	struct usb_serial_port *port = urb->context;
+	struct tty_struct *tty;
 	char *ch = (char *)urb->transfer_buffer;
 	int i;
 
+	tty = tty_port_tty_get(&port->port);
 	if (!tty)
-		goto done;
+		return;
 
 	/* The per character mucking around with sysrq path it too slow for
 	   stuff like 3G modems, so shortcircuit it in the 99.9999999% of cases
@@ -425,7 +425,6 @@ static void flush_and_resubmit_read_urb(struct usb_serial_port *port)
 	if (!port->port.console || !port->sysrq)
 		tty_insert_flip_string(tty, ch, urb->actual_length);
 	else {
-		/* Push data to tty */
 		for (i = 0; i < urb->actual_length; i++, ch++) {
 			if (!usb_serial_handle_sysrq_char(tty, port, *ch))
 				tty_insert_flip_char(tty, *ch, TTY_NORMAL);
@@ -433,8 +432,6 @@ static void flush_and_resubmit_read_urb(struct usb_serial_port *port)
 	}
 	tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
-done:
-	usb_serial_generic_submit_read_urb(port, GFP_ATOMIC);
 }
 
 void usb_serial_generic_read_bulk_callback(struct urb *urb)
@@ -454,13 +451,14 @@ void usb_serial_generic_read_bulk_callback(struct urb *urb)
 
 	usb_serial_debug_data(debug, &port->dev, __func__,
 						urb->actual_length, data);
+	usb_serial_generic_process_read_urb(urb);
 
 	/* Throttle the device if requested by tty */
 	spin_lock_irqsave(&port->lock, flags);
 	port->throttled = port->throttle_req;
 	if (!port->throttled) {
 		spin_unlock_irqrestore(&port->lock, flags);
-		flush_and_resubmit_read_urb(port);
+		usb_serial_generic_submit_read_urb(port, GFP_ATOMIC);
 	} else
 		spin_unlock_irqrestore(&port->lock, flags);
 }
@@ -523,20 +521,17 @@ void usb_serial_generic_unthrottle(struct tty_struct *tty)
 {
 	struct usb_serial_port *port = tty->driver_data;
 	int was_throttled;
-	unsigned long flags;
 
 	dbg("%s - port %d", __func__, port->number);
 
 	/* Clear the throttle flags */
-	spin_lock_irqsave(&port->lock, flags);
+	spin_lock_irq(&port->lock);
 	was_throttled = port->throttled;
 	port->throttled = port->throttle_req = 0;
-	spin_unlock_irqrestore(&port->lock, flags);
+	spin_unlock_irq(&port->lock);
 
-	if (was_throttled) {
-		/* Resume reading from device */
-		flush_and_resubmit_read_urb(port);
-	}
+	if (was_throttled)
+		usb_serial_generic_submit_read_urb(port, GFP_KERNEL);
 }
 
 #ifdef CONFIG_MAGIC_SYSRQ
