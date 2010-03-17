@@ -571,6 +571,8 @@ static struct usb_serial_driver ipaq_device = {
 	.description =		"PocketPC PDA",
 	.usb_driver = 		&ipaq_driver,
 	.id_table =		ipaq_id_table,
+	.bulk_in_size =		URBDATA_SIZE,
+	.bulk_out_size =	URBDATA_SIZE,
 	.open =			ipaq_open,
 	.close =		ipaq_close,
 	.attach =		ipaq_startup,
@@ -627,32 +629,6 @@ static int ipaq_open(struct tty_struct *tty,
 		list_add(&pkt->list, &priv->freelist);
 		priv->free_len += PACKET_SIZE;
 	}
-
-	/*
-	 * Lose the small buffers usbserial provides. Make larger ones.
-	 */
-
-	kfree(port->bulk_in_buffer);
-	kfree(port->bulk_out_buffer);
-	/* make sure the generic serial code knows */
-	port->bulk_out_buffer = NULL;
-
-	port->bulk_in_buffer = kmalloc(URBDATA_SIZE, GFP_KERNEL);
-	if (port->bulk_in_buffer == NULL)
-		goto enomem;
-
-	port->bulk_out_buffer = kmalloc(URBDATA_SIZE, GFP_KERNEL);
-	if (port->bulk_out_buffer == NULL) {
-		/* the buffer is useless, free it */
-		kfree(port->bulk_in_buffer);
-		port->bulk_in_buffer = NULL;
-		goto enomem;
-	}
-	port->read_urb->transfer_buffer = port->bulk_in_buffer;
-	port->write_urb->transfer_buffer = port->bulk_out_buffer;
-	port->read_urb->transfer_buffer_length = URBDATA_SIZE;
-	port->bulk_out_size = port->write_urb->transfer_buffer_length
-							= URBDATA_SIZE;
 
 	msleep(1000*initial_wait);
 

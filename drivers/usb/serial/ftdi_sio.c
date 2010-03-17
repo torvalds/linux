@@ -768,9 +768,6 @@ static const char *ftdi_chip_name[] = {
 };
 
 
-/* Constants for read urb and write urb */
-#define BUFSZ 512
-
 /* Used for TIOCMIWAIT */
 #define FTDI_STATUS_B0_MASK	(FTDI_RS0_CTS | FTDI_RS0_DSR | FTDI_RS0_RI | FTDI_RS0_RLSD)
 #define FTDI_STATUS_B1_MASK	(FTDI_RS_BI)
@@ -821,6 +818,7 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.usb_driver = 		&ftdi_driver,
 	.id_table =		id_table_combined,
 	.num_ports =		1,
+	.bulk_in_size =		512,
 	.probe =		ftdi_sio_probe,
 	.port_probe =		ftdi_sio_port_probe,
 	.port_remove =		ftdi_sio_port_remove,
@@ -1551,18 +1549,6 @@ static int ftdi_sio_port_probe(struct usb_serial_port *port)
 
 	if (quirk && quirk->port_probe)
 		quirk->port_probe(priv);
-
-	/* Increase the size of read buffers */
-	kfree(port->bulk_in_buffer);
-	port->bulk_in_buffer = kmalloc(BUFSZ, GFP_KERNEL);
-	if (!port->bulk_in_buffer) {
-		kfree(priv);
-		return -ENOMEM;
-	}
-	if (port->read_urb) {
-		port->read_urb->transfer_buffer = port->bulk_in_buffer;
-		port->read_urb->transfer_buffer_length = BUFSZ;
-	}
 
 	priv->port = port;
 
