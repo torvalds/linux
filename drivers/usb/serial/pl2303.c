@@ -1170,6 +1170,7 @@ static struct usb_serial_driver pl2303_device = {
 	.id_table =		id_table,
 	.usb_driver = 		&pl2303_driver,
 	.num_ports =		1,
+	.bulk_in_size =		256,
 	.bulk_out_size =	256,
 	.open =			pl2303_open,
 	.close =		pl2303_close,
