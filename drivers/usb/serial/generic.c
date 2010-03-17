@@ -256,7 +256,6 @@ error_no_buffer:
  */
 static int usb_serial_generic_write_start(struct usb_serial_port *port)
 {
-	struct usb_serial *serial = port->serial;
 	unsigned char *data;
 	int result;
 	int count;
@@ -281,15 +280,7 @@ static int usb_serial_generic_write_start(struct usb_serial_port *port)
 	count = kfifo_out_locked(&port->write_fifo, data, port->bulk_out_size, &port->lock);
 	usb_serial_debug_data(debug, &port->dev, __func__, count, data);
 
-	/* set up our urb */
-	usb_fill_bulk_urb(port->write_urb, serial->dev,
-			   usb_sndbulkpipe(serial->dev,
-				port->bulk_out_endpointAddress),
-			   port->write_urb->transfer_buffer, count,
-			   ((serial->type->write_bulk_callback) ?
-			     serial->type->write_bulk_callback :
-			     usb_serial_generic_write_bulk_callback),
-			   port);
+	port->write_urb->transfer_buffer_length = count;
 
 	/* send the data out the bulk port */
 	result = usb_submit_urb(port->write_urb, GFP_ATOMIC);
@@ -405,21 +396,9 @@ int usb_serial_generic_chars_in_buffer(struct tty_struct *tty)
 int usb_serial_generic_submit_read_urb(struct usb_serial_port *port,
 					gfp_t mem_flags)
 {
-	struct urb *urb = port->read_urb;
-	struct usb_serial *serial = port->serial;
 	int result;
 
-	/* Continue reading from device */
-	usb_fill_bulk_urb(urb, serial->dev,
-			   usb_rcvbulkpipe(serial->dev,
-					port->bulk_in_endpointAddress),
-			   urb->transfer_buffer,
-			   urb->transfer_buffer_length,
-			   ((serial->type->read_bulk_callback) ?
-			     serial->type->read_bulk_callback :
-			     usb_serial_generic_read_bulk_callback), port);
-
-	result = usb_submit_urb(urb, mem_flags);
+	result = usb_submit_urb(port->read_urb, mem_flags);
 	if (result && result != -EPERM) {
 		dev_err(&port->dev,
 			"%s - failed submitting read urb, error %d\n",
