@@ -1097,9 +1097,9 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		 */
 		res = drv_start(local);
 		if (res) {
-			WARN(local->suspended, "Harware became unavailable "
-			     "upon resume. This is could be a software issue"
-			     "prior to suspend or a hardware issue\n");
+			WARN(local->suspended, "Hardware became unavailable "
+			     "upon resume. This could be a software issue "
+			     "prior to suspend or a hardware issue.\n");
 			return res;
 		}
 
