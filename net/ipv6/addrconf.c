@@ -3124,21 +3124,12 @@ restart:
 		hlist_for_each_entry_rcu(ifp, node,
 					 &inet6_addr_lst[i], addr_lst) {
 			unsigned long age;
-#ifdef CONFIG_IPV6_PRIVACY
-			unsigned long regen_advance;
-#endif
 
 			if (ifp->flags & IFA_F_PERMANENT)
 				continue;
 
 			spin_lock(&ifp->lock);
 			age = (now - ifp->tstamp) / HZ;
-
-#ifdef CONFIG_IPV6_PRIVACY
-			regen_advance = ifp->idev->cnf.regen_max_retry *
-					ifp->idev->cnf.dad_transmits *
-					ifp->idev->nd_parms->retrans_time / HZ;
-#endif
 
 			if (ifp->valid_lft != INFINITY_LIFE_TIME &&
 			    age >= ifp->valid_lft) {
@@ -3173,6 +3164,10 @@ restart:
 #ifdef CONFIG_IPV6_PRIVACY
 			} else if ((ifp->flags&IFA_F_TEMPORARY) &&
 				   !(ifp->flags&IFA_F_TENTATIVE)) {
+				unsigned long regen_advance = ifp->idev->cnf.regen_max_retry *
+					ifp->idev->cnf.dad_transmits *
+					ifp->idev->nd_parms->retrans_time / HZ;
+
 				if (age >= ifp->prefered_lft - regen_advance) {
 					struct inet6_ifaddr *ifpub = ifp->ifpub;
 					if (time_before(ifp->tstamp + ifp->prefered_lft * HZ, next))
