@@ -1944,65 +1944,78 @@ mpt2sas_scsih_clear_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle)
 	}
 }
 
+
 /**
  * mpt2sas_scsih_issue_tm - main routine for sending tm requests
  * @ioc: per adapter struct
  * @device_handle: device handle
+ * @channel: the channel assigned by the OS
+ * @id: the id assigned by the OS
  * @lun: lun number
  * @type: MPI2_SCSITASKMGMT_TASKTYPE__XXX (defined in mpi2_init.h)
  * @smid_task: smid assigned to the task
  * @timeout: timeout in seconds
- * Context: The calling function needs to acquire the tm_cmds.mutex
+ * Context: user
  *
  * A generic API for sending task management requests to firmware.
  *
- * The ioc->tm_cmds.status flag should be MPT2_CMD_NOT_USED before calling
- * this API.
- *
  * The callback index is set inside `ioc->tm_cb_idx`.
  *
- * Return nothing.
+ * Return SUCCESS or FAILED.
  */
-void
-mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
-    u8 type, u16 smid_task, ulong timeout)
+int
+mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint channel,
+    uint id, uint lun, u8 type, u16 smid_task, ulong timeout,
+    struct scsi_cmnd *scmd)
 {
 	Mpi2SCSITaskManagementRequest_t *mpi_request;
 	Mpi2SCSITaskManagementReply_t *mpi_reply;
 	u16 smid = 0;
 	u32 ioc_state;
 	unsigned long timeleft;
+	struct scsi_cmnd *scmd_lookup;
+	int rc;
 
+	mutex_lock(&ioc->tm_cmds.mutex);
 	if (ioc->tm_cmds.status != MPT2_CMD_NOT_USED) {
 		printk(MPT2SAS_INFO_FMT "%s: tm_cmd busy!!!\n",
 		    __func__, ioc->name);
-		return;
+		rc = FAILED;
+		goto err_out;
 	}
 
 	if (ioc->shost_recovery || ioc->remove_host) {
 		printk(MPT2SAS_INFO_FMT "%s: host reset in progress!\n",
 		    __func__, ioc->name);
-		return;
+		rc = FAILED;
+		goto err_out;
 	}
 
 	ioc_state = mpt2sas_base_get_iocstate(ioc, 0);
 	if (ioc_state & MPI2_DOORBELL_USED) {
 		dhsprintk(ioc, printk(MPT2SAS_DEBUG_FMT "unexpected doorbell "
 		    "active!\n", ioc->name));
-		goto issue_host_reset;
+		mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
+		    FORCE_BIG_HAMMER);
+		rc = SUCCESS;
+		goto err_out;
 	}
 
 	if ((ioc_state & MPI2_IOC_STATE_MASK) == MPI2_IOC_STATE_FAULT) {
 		mpt2sas_base_fault_info(ioc, ioc_state &
 		    MPI2_DOORBELL_DATA_MASK);
-		goto issue_host_reset;
+		mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
+		    FORCE_BIG_HAMMER);
+		rc = SUCCESS;
+		goto err_out;
 	}
 
 	smid = mpt2sas_base_get_smid_hpr(ioc, ioc->tm_cb_idx);
 	if (!smid) {
 		printk(MPT2SAS_ERR_FMT "%s: failed obtaining a smid\n",
 		    ioc->name, __func__);
-		return;
+		rc = FAILED;
+		goto err_out;
 	}
 
 	dtmprintk(ioc, printk(MPT2SAS_INFO_FMT "sending tm: handle(0x%04x),"
@@ -2016,21 +2029,24 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
 	mpi_request->DevHandle = cpu_to_le16(handle);
 	mpi_request->TaskType = type;
 	mpi_request->TaskMID = cpu_to_le16(smid_task);
-	mpi_request->VP_ID = 0;  /* TODO */
-	mpi_request->VF_ID = 0;
 	int_to_scsilun(lun, (struct scsi_lun *)mpi_request->LUN);
 	mpt2sas_scsih_set_tm_flag(ioc, handle);
 	init_completion(&ioc->tm_cmds.done);
 	mpt2sas_base_put_smid_hi_priority(ioc, smid);
 	timeleft = wait_for_completion_timeout(&ioc->tm_cmds.done, timeout*HZ);
-	mpt2sas_scsih_clear_tm_flag(ioc, handle);
 	if (!(ioc->tm_cmds.status & MPT2_CMD_COMPLETE)) {
 		printk(MPT2SAS_ERR_FMT "%s: timeout\n",
 		    ioc->name, __func__);
 		_debug_dump_mf(mpi_request,
 		    sizeof(Mpi2SCSITaskManagementRequest_t)/4);
-		if (!(ioc->tm_cmds.status & MPT2_CMD_RESET))
-			goto issue_host_reset;
+		if (!(ioc->tm_cmds.status & MPT2_CMD_RESET)) {
+			mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
+			    FORCE_BIG_HAMMER);
+			rc = SUCCESS;
+			ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
+			mpt2sas_scsih_clear_tm_flag(ioc, handle);
+			goto err_out;
+		}
 	}
 
 	if (ioc->tm_cmds.status & MPT2_CMD_REPLY_VALID) {
@@ -2040,12 +2056,57 @@ mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
 		    ioc->name, le16_to_cpu(mpi_reply->IOCStatus),
 		    le32_to_cpu(mpi_reply->IOCLogInfo),
 		    le32_to_cpu(mpi_reply->TerminationCount)));
-		if (ioc->logging_level & MPT_DEBUG_TM)
+		if (ioc->logging_level & MPT_DEBUG_TM) {
 			_scsih_response_code(ioc, mpi_reply->ResponseCode);
+			if (mpi_reply->IOCStatus)
+				_debug_dump_mf(mpi_request,
+				    sizeof(Mpi2SCSITaskManagementRequest_t)/4);
+		}
 	}
-	return;
- issue_host_reset:
-	mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP, FORCE_BIG_HAMMER);
+
+	/* sanity check:
+	 * Check to see the commands were terminated.
+	 * This is only needed for eh callbacks, hence the scmd check.
+	 */
+	rc = FAILED;
+	if (scmd == NULL)
+		goto bypass_sanity_checks;
+	switch (type) {
+	case MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK:
+		scmd_lookup = _scsih_scsi_lookup_get(ioc, smid_task);
+		if (scmd_lookup && (scmd_lookup->serial_number ==
+		    scmd->serial_number))
+			rc = FAILED;
+		else
+			rc = SUCCESS;
+		break;
+
+	case MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET:
+		if (_scsih_scsi_lookup_find_by_target(ioc, id, channel))
+			rc = FAILED;
+		else
+			rc = SUCCESS;
+		break;
+
+	case MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET:
+		if (_scsih_scsi_lookup_find_by_lun(ioc, id, lun, channel))
+			rc = FAILED;
+		else
+			rc = SUCCESS;
+		break;
+	}
+
+ bypass_sanity_checks:
+
+	mpt2sas_scsih_clear_tm_flag(ioc, handle);
+	ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
+	mutex_unlock(&ioc->tm_cmds.mutex);
+
+	return rc;
+
+ err_out:
+	mutex_unlock(&ioc->tm_cmds.mutex);
+	return rc;
 }
 
 /**
@@ -2062,7 +2123,6 @@ _scsih_abort(struct scsi_cmnd *scmd)
 	u16 smid;
 	u16 handle;
 	int r;
-	struct scsi_cmnd *scmd_lookup;
 
 	printk(MPT2SAS_INFO_FMT "attempting task abort! scmd(%p)\n",
 	    ioc->name, scmd);
@@ -2097,19 +2157,10 @@ _scsih_abort(struct scsi_cmnd *scmd)
 
 	mpt2sas_halt_firmware(ioc);
 
-	mutex_lock(&ioc->tm_cmds.mutex);
 	handle = sas_device_priv_data->sas_target->handle;
-	mpt2sas_scsih_issue_tm(ioc, handle, sas_device_priv_data->lun,
-	    MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK, smid, 30);
-
-	/* sanity check - see whether command actually completed */
-	scmd_lookup = _scsih_scsi_lookup_get(ioc, smid);
-	if (scmd_lookup && (scmd_lookup->serial_number == scmd->serial_number))
-		r = FAILED;
-	else
-		r = SUCCESS;
-	ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
-	mutex_unlock(&ioc->tm_cmds.mutex);
+	r = mpt2sas_scsih_issue_tm(ioc, handle, scmd->device->channel,
+	    scmd->device->id, scmd->device->lun,
+	    MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK, smid, 30, scmd);
 
  out:
 	printk(MPT2SAS_INFO_FMT "task abort: %s scmd(%p)\n",
@@ -2166,22 +2217,9 @@ _scsih_dev_reset(struct scsi_cmnd *scmd)
 		goto out;
 	}
 
-	mutex_lock(&ioc->tm_cmds.mutex);
-	mpt2sas_scsih_issue_tm(ioc, handle, 0,
-	    MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET, scmd->device->lun,
-	    30);
-
-	/*
-	 *  sanity check see whether all commands to this device been
-	 *  completed
-	 */
-	if (_scsih_scsi_lookup_find_by_lun(ioc, scmd->device->id,
-	    scmd->device->lun, scmd->device->channel))
-		r = FAILED;
-	else
-		r = SUCCESS;
-	ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
-	mutex_unlock(&ioc->tm_cmds.mutex);
+	r = mpt2sas_scsih_issue_tm(ioc, handle, scmd->device->channel,
+	    scmd->device->id, scmd->device->lun,
+	    MPI2_SCSITASKMGMT_TASKTYPE_LOGICAL_UNIT_RESET, 0, 30, scmd);
 
  out:
 	printk(MPT2SAS_INFO_FMT "device reset: %s scmd(%p)\n",
@@ -2238,21 +2276,9 @@ _scsih_target_reset(struct scsi_cmnd *scmd)
 		goto out;
 	}
 
-	mutex_lock(&ioc->tm_cmds.mutex);
-	mpt2sas_scsih_issue_tm(ioc, handle, 0,
-	    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 30);
-
-	/*
-	 *  sanity check see whether all commands to this target been
-	 *  completed
-	 */
-	if (_scsih_scsi_lookup_find_by_target(ioc, scmd->device->id,
-	    scmd->device->channel))
-		r = FAILED;
-	else
-		r = SUCCESS;
-	ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
-	mutex_unlock(&ioc->tm_cmds.mutex);
+	r = mpt2sas_scsih_issue_tm(ioc, handle, scmd->device->channel,
+	    scmd->device->id, 0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0,
+	    30, scmd);
 
  out:
 	printk(MPT2SAS_INFO_FMT "target reset: %s scmd(%p)\n",
@@ -4183,8 +4209,8 @@ _scsih_remove_pd_device(struct MPT2SAS_ADAPTER *ioc, struct _sas_device
 		return;
 	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "issue target reset: "
 	    "handle(0x%04x)\n", ioc->name, vol_handle));
-	mpt2sas_scsih_issue_tm(ioc, vol_handle, 0,
-	    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 30);
+	mpt2sas_scsih_issue_tm(ioc, vol_handle, 0, 0, 0,
+	    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 30, NULL);
 	dewtprintk(ioc, printk(MPT2SAS_INFO_FMT "issue target reset "
 	    "done: handle(0x%04x)\n", ioc->name, vol_handle));
 	if (ioc->shost_recovery)
@@ -4668,7 +4694,6 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 	dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "%s: enter\n", ioc->name,
 	    __func__));
 
-	mutex_lock(&ioc->tm_cmds.mutex);
 	termination_count = 0;
 	query_count = 0;
 	mpi_reply = ioc->tm_cmds.reply;
@@ -4692,8 +4717,8 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 		lun = sas_device_priv_data->lun;
 		query_count++;
 
-		mpt2sas_scsih_issue_tm(ioc, handle, lun,
-		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, smid, 30);
+		mpt2sas_scsih_issue_tm(ioc, handle, 0, 0, lun,
+		    MPI2_SCSITASKMGMT_TASKTYPE_QUERY_TASK, smid, 30, NULL);
 		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
 		ioc_status = le16_to_cpu(mpi_reply->IOCStatus)
 		    & MPI2_IOCSTATUS_MASK;
@@ -4704,13 +4729,11 @@ _scsih_sas_broadcast_primative_event(struct MPT2SAS_ADAPTER *ioc,
 		     MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC))
 			continue;
 
-		mpt2sas_scsih_issue_tm(ioc, handle, lun,
-		    MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET, 0, 30);
-		ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
+		mpt2sas_scsih_issue_tm(ioc, handle, 0, 0, lun,
+		    MPI2_SCSITASKMGMT_TASKTYPE_ABRT_TASK_SET, 0, 30, NULL);
 		termination_count += le32_to_cpu(mpi_reply->TerminationCount);
 	}
 	ioc->broadcast_aen_busy = 0;
-	mutex_unlock(&ioc->tm_cmds.mutex);
 
 	dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT
 	    "%s - exit, query_count = %d termination_count = %d\n",

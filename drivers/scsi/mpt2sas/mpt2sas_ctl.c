@@ -753,6 +753,10 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 		Mpi2SCSITaskManagementRequest_t *tm_request =
 		    (Mpi2SCSITaskManagementRequest_t *)mpi_request;
 
+		dtmprintk(ioc, printk(MPT2SAS_DEBUG_FMT "TASK_MGMT: "
+		    "handle(0x%04x), task_type(0x%02x)\n", ioc->name,
+		    le16_to_cpu(tm_request->DevHandle), tm_request->TaskType));
+
 		if (tm_request->TaskType ==
 		    MPI2_SCSITASKMGMT_TASKTYPE_ABORT_TASK ||
 		    tm_request->TaskType ==
@@ -763,7 +767,6 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 			}
 		}
 
-		mutex_lock(&ioc->tm_cmds.mutex);
 		mpt2sas_scsih_set_tm_flag(ioc, le16_to_cpu(
 		    tm_request->DevHandle));
 		mpt2sas_base_put_smid_hi_priority(ioc, smid);
@@ -819,7 +822,6 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 	if (mpi_request->Function == MPI2_FUNCTION_SCSI_TASK_MGMT) {
 		Mpi2SCSITaskManagementRequest_t *tm_request =
 		    (Mpi2SCSITaskManagementRequest_t *)mpi_request;
-		mutex_unlock(&ioc->tm_cmds.mutex);
 		mpt2sas_scsih_clear_tm_flag(ioc, le16_to_cpu(
 		    tm_request->DevHandle));
 	} else if ((mpi_request->Function == MPI2_FUNCTION_SMP_PASSTHROUGH ||
@@ -900,12 +902,11 @@ _ctl_do_mpt_command(struct MPT2SAS_ADAPTER *ioc,
 			    "= (0x%04x)\n", ioc->name,
 			    le16_to_cpu(mpi_request->FunctionDependent1));
 			mpt2sas_halt_firmware(ioc);
-			mutex_lock(&ioc->tm_cmds.mutex);
 			mpt2sas_scsih_issue_tm(ioc,
-			    le16_to_cpu(mpi_request->FunctionDependent1), 0,
-			    MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 10);
+			    le16_to_cpu(mpi_request->FunctionDependent1), 0, 0,
+			    0, MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET, 0, 10,
+			    NULL);
 			ioc->tm_cmds.status = MPT2_CMD_NOT_USED;
-			mutex_unlock(&ioc->tm_cmds.mutex);
 		} else
 			mpt2sas_base_hard_reset_handler(ioc, CAN_SLEEP,
 			    FORCE_BIG_HAMMER);

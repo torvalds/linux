@@ -803,8 +803,9 @@ void mpt2sas_halt_firmware(struct MPT2SAS_ADAPTER *ioc);
 /* scsih shared API */
 u8 mpt2sas_scsih_event_callback(struct MPT2SAS_ADAPTER *ioc, u8 msix_index,
     u32 reply);
-void mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle, uint lun,
-    u8 type, u16 smid_task, ulong timeout);
+int mpt2sas_scsih_issue_tm(struct MPT2SAS_ADAPTER *ioc, u16 handle,
+    uint channel, uint id, uint lun, u8 type, u16 smid_task,
+    ulong timeout, struct scsi_cmnd *scmd);
 void mpt2sas_scsih_set_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle);
 void mpt2sas_scsih_clear_tm_flag(struct MPT2SAS_ADAPTER *ioc, u16 handle);
 struct _sas_node *mpt2sas_scsih_expander_find_by_handle(struct MPT2SAS_ADAPTER *ioc,
