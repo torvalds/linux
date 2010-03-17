@@ -120,7 +120,7 @@ char signature[14] = "FUPU7D37dhfwci";
 #if defined(_MSC_VER) && _MSC_VER ==  800				/* Visual C++ 1.5 */
 #define PSEUDO_CHARP hcf_32
 #else
-#define PSEUDO_CHARP hcf_8*
+#define PSEUDO_CHARP (hcf_8 *)
 #endif
 
 /*-----------------------------------------------------------------------------
@@ -164,7 +164,7 @@ LTV_INFO_STRUCT ltv_info[] = {
 /***********************************************************************************************************/
 /***************************************  PROTOTYPES  ******************************************************/
 /***********************************************************************************************************/
-static int				check_comp_fw( memimage *fw );
+static int				check_comp_fw(memimage *fw);
 
 
 /************************************************************************************************************
@@ -185,44 +185,44 @@ static int				check_comp_fw( memimage *fw );
 *.ENDDOC				END DOCUMENTATION
 *************************************************************************************************************/
 int
-check_comp_fw( memimage *fw )
+check_comp_fw(memimage *fw)
 {
 CFG_RANGE20_STRCT  		*p;
 int   					rc = HCF_SUCCESS;
-CFG_RANGE_SPEC_STRCT*	i;
+CFG_RANGE_SPEC_STRCT *i;
 
-	switch( fw->identity->typ ) {
-	  case CFG_FW_IDENTITY:				/* Station F/W */
-	  case COMP_ID_FW_AP_FAKE:			/* ;?is this useful (used to be:  CFG_AP_IDENTITY) */
+	switch (fw->identity->typ) {
+	case CFG_FW_IDENTITY:				/* Station F/W */
+	case COMP_ID_FW_AP_FAKE:			/* ;?is this useful (used to be:  CFG_AP_IDENTITY) */
 		break;
-	  default:
-		MMDASSERT( DO_ASSERT, fw->identity->typ ) 	/* unknown/unsupported firmware_type: */
+	default:
+		MMDASSERT(DO_ASSERT, fw->identity->typ) 	/* unknown/unsupported firmware_type: */
 		rc = DHF_ERR_INCOMP_FW;
-		return rc; /* ;? how useful is this anyway, 
+		return rc; /* ;? how useful is this anyway,
 					*  till that is sorted out might as well violate my own single exit principle
 					*/
 	}
 	p = fw->compat;
 	i = NULL;
-	while( p->len && i == NULL ) {					/* check the MFI ranges */
-		if ( p->typ  == CFG_MFI_ACT_RANGES_STA ) {
-			i = mmd_check_comp( (void*)p, &mfi_sup );
+	while (p->len && i == NULL) {					/* check the MFI ranges */
+		if (p->typ  == CFG_MFI_ACT_RANGES_STA) {
+			i = mmd_check_comp((void *)p, &mfi_sup);
 		}
 		p++;
 	}
-	MMDASSERT( i, 0 )	/* MFI: NIC Supplier not compatible with F/W image Actor */
-	if ( i ) {
+	MMDASSERT(i, 0)	/* MFI: NIC Supplier not compatible with F/W image Actor */
+	if (i) {
 		p = fw->compat;
 		i = NULL;
-		while ( p->len && i == NULL ) {			/* check the CFI ranges */
-			if ( p->typ  == CFG_CFI_ACT_RANGES_STA ) {
-				 i = mmd_check_comp( (void*)p, &cfi_sup );
+		while (p->len && i == NULL) {			/* check the CFI ranges */
+			if (p->typ  == CFG_CFI_ACT_RANGES_STA) {
+				 i = mmd_check_comp((void *)p, &cfi_sup);
 			}
 			p++;
 		}
-		MMDASSERT( i, 0 )	/* CFI: NIC Supplier not compatible with F/W image Actor */
+		MMDASSERT(i, 0)	/* CFI: NIC Supplier not compatible with F/W image Actor */
 	}
-	if ( i == NULL ) {
+	if (i == NULL) {
 		rc = DHF_ERR_INCOMP_FW;
 	}
 	return rc;
@@ -271,25 +271,25 @@ CFG_RANGE_SPEC_STRCT*	i;
 *.ENDDOC				END DOCUMENTATION
 *************************************************************************************************************/
 int
-dhf_download_binary( memimage *fw )
+dhf_download_binary(memimage *fw)
 {
 int 			rc = HCF_SUCCESS;
 CFG_PROG_STRCT 	*p;
 int				i;
 
 	/* validate the image */
-	for ( i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++ ) /* NOP */;
-	if ( i != sizeof(signature) 		||
+	for (i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++); /* NOP */
+	if (i != sizeof(signature) 		||
 		 fw->signature[i] != 0x01   	||
 		 /* test for Little/Big Endian Binary flag */
-		 fw->signature[i+1] != ( /* HCF_BIG_ENDIAN ? 'B' : */ 'L' ) ) rc = DHF_ERR_INCOMP_FW;
+		 fw->signature[i+1] != (/* HCF_BIG_ENDIAN ? 'B' : */ 'L')) rc = DHF_ERR_INCOMP_FW;
 	else {					/* Little Endian Binary format */
-		fw->codep    = (CFG_PROG_STRCT FAR *)((PSEUDO_CHARP)fw->codep + (hcf_32)fw );
-		fw->identity = (CFG_IDENTITY_STRCT FAR *)((PSEUDO_CHARP)fw->identity + (hcf_32)fw );
-		fw->compat   = (CFG_RANGE20_STRCT FAR *)((PSEUDO_CHARP)fw->compat + (hcf_32)fw );
-		for ( i = 0; fw->p[i]; i++ ) fw->p[i] = ((PSEUDO_CHARP)fw->p[i] + (hcf_32)fw );
+		fw->codep    = (CFG_PROG_STRCT FAR*)((PSEUDO_CHARP)fw->codep + (hcf_32)fw);
+		fw->identity = (CFG_IDENTITY_STRCT FAR*)((PSEUDO_CHARP)fw->identity + (hcf_32)fw);
+		fw->compat   = (CFG_RANGE20_STRCT FAR*)((PSEUDO_CHARP)fw->compat + (hcf_32)fw);
+		for (i = 0; fw->p[i]; i++) fw->p[i] = ((PSEUDO_CHARP)fw->p[i] + (hcf_32)fw);
 		p = fw->codep;
-		while ( p->len ) {
+		while (p->len) {
 			p->host_addr = (PSEUDO_CHARP)p->host_addr + (hcf_32)fw;
 			p++;
 		}
@@ -351,7 +351,7 @@ int				i;
 *.ENDDOC				END DOCUMENTATION
 *************************************************************************************************************/
 int
-dhf_download_fw( void *ifbp, memimage *fw )
+dhf_download_fw(void *ifbp, memimage *fw)
 {
 int 				rc = HCF_SUCCESS;
 LTV_INFO_STRUCT_PTR pp = ltv_info;
@@ -359,31 +359,31 @@ CFG_PROG_STRCT 		*p = fw->codep;
 LTVP 				ltvp;
 int					i;
 
-	MMDASSERT( fw != NULL, 0 )
+	MMDASSERT(fw != NULL, 0)
 	/* validate the image */
-	for ( i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++ ) /* NOP */;
-	if ( i != sizeof(signature) 		||
+	for (i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++) /* NOP */;
+	if (i != sizeof(signature) 		||
 		 fw->signature[i] != 0x01		||
 		 /* check for binary image */
-		 ( fw->signature[i+1] != 'C' && fw->signature[i+1] != ( /*HCF_BIG_ENDIAN ? 'B' : */ 'L' ) ) )
+		 (fw->signature[i+1] != 'C' && fw->signature[i+1] != (/*HCF_BIG_ENDIAN ? 'B' : */ 'L')))
 		 rc = DHF_ERR_INCOMP_FW;
 
 /*	Retrieve all information needed for download from the NIC */
-	while ( ( rc == HCF_SUCCESS ) && ( ( ltvp = pp->ltvp) != NULL ) ) {
+	while ((rc == HCF_SUCCESS) && ((ltvp = pp->ltvp) != NULL)) {
 		ltvp->len = pp++->len;	/* Set len to original len. This len is changed to real len by GET_INFO() */
-		rc = GET_INFO( ltvp );
-		MMDASSERT( rc == HCF_SUCCESS, rc )
-		MMDASSERT( rc == HCF_SUCCESS, ltvp->typ )
-		MMDASSERT( rc == HCF_SUCCESS, ltvp->len )
+		rc = GET_INFO(ltvp);
+		MMDASSERT(rc == HCF_SUCCESS, rc)
+		MMDASSERT(rc == HCF_SUCCESS, ltvp->typ)
+		MMDASSERT(rc == HCF_SUCCESS, ltvp->len)
 	}
-	if ( rc == HCF_SUCCESS ) rc = check_comp_fw( fw );
-	if ( rc == HCF_SUCCESS ) {
-		while ( rc == HCF_SUCCESS && p->len ) {
-			rc = PUT_INFO( p );
+	if (rc == HCF_SUCCESS) rc = check_comp_fw(fw);
+	if (rc == HCF_SUCCESS) {
+		while (rc == HCF_SUCCESS && p->len) {
+			rc = PUT_INFO(p);
 			p++;
 		}
 	}
-	MMDASSERT( rc == HCF_SUCCESS, rc )
+	MMDASSERT(rc == HCF_SUCCESS, rc)
 	return rc;
 }   /* dhf_download_fw */
 
