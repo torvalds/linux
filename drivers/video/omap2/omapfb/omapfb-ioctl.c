@@ -55,7 +55,7 @@ static struct omapfb2_mem_region *get_mem_region(struct omapfb_info *ofbi,
 	if (mem_idx >= fbdev->num_fbs)
 		return NULL;
 
-	return omapfb_get_mem_region(&fbdev->regions[mem_idx]);
+	return &fbdev->regions[mem_idx];
 }
 
 static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
@@ -77,12 +77,22 @@ static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 	/* XXX uses only the first overlay */
 	ovl = ofbi->overlays[0];
 
-	old_rg = omapfb_get_mem_region(ofbi->region);
+	old_rg = ofbi->region;
 	new_rg = get_mem_region(ofbi, pi->mem_idx);
 	if (!new_rg) {
 		r = -EINVAL;
-		goto put_old;
+		goto out;
 	}
+
+	/* Take the locks in a specific order to keep lockdep happy */
+	if (old_rg->id < new_rg->id) {
+		omapfb_get_mem_region(old_rg);
+		omapfb_get_mem_region(new_rg);
+	} else if (new_rg->id < old_rg->id) {
+		omapfb_get_mem_region(new_rg);
+		omapfb_get_mem_region(old_rg);
+	} else
+		omapfb_get_mem_region(old_rg);
 
 	if (pi->enabled && !new_rg->size) {
 		/*
@@ -90,7 +100,7 @@ static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 		 * until it's reallocated.
 		 */
 		r = -EINVAL;
-		goto put_new;
+		goto put_mem;
 	}
 
 	ovl->get_overlay_info(ovl, &old_info);
@@ -135,8 +145,15 @@ static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 	if (ovl->manager)
 		ovl->manager->apply(ovl->manager);
 
-	omapfb_put_mem_region(new_rg);
-	omapfb_put_mem_region(old_rg);
+	/* Release the locks in a specific order to keep lockdep happy */
+	if (old_rg->id > new_rg->id) {
+		omapfb_put_mem_region(old_rg);
+		omapfb_put_mem_region(new_rg);
+	} else if (new_rg->id > old_rg->id) {
+		omapfb_put_mem_region(new_rg);
+		omapfb_put_mem_region(old_rg);
+	} else
+		omapfb_put_mem_region(old_rg);
 
 	return 0;
 
@@ -147,10 +164,16 @@ static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 	}
 
 	ovl->set_overlay_info(ovl, &old_info);
- put_new:
-	omapfb_put_mem_region(new_rg);
- put_old:
-	omapfb_put_mem_region(old_rg);
+ put_mem:
+	/* Release the locks in a specific order to keep lockdep happy */
+	if (old_rg->id > new_rg->id) {
+		omapfb_put_mem_region(old_rg);
+		omapfb_put_mem_region(new_rg);
+	} else if (new_rg->id > old_rg->id) {
+		omapfb_put_mem_region(new_rg);
+		omapfb_put_mem_region(old_rg);
+	} else
+		omapfb_put_mem_region(old_rg);
  out:
 	dev_err(fbdev->dev, "setup_plane failed\n");
 
@@ -198,7 +221,7 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 
 	rg = ofbi->region;
 
-	down_write(&rg->lock);
+	down_write_nested(&rg->lock, rg->id);
 
 	if (atomic_read(&rg->map_count)) {
 		r = -EBUSY;

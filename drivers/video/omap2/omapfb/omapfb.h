@@ -165,7 +165,7 @@ static inline int omapfb_overlay_enable(struct omap_overlay *ovl,
 static inline struct omapfb2_mem_region *
 omapfb_get_mem_region(struct omapfb2_mem_region *rg)
 {
-	down_read(&rg->lock);
+	down_read_nested(&rg->lock, rg->id);
 	return rg;
 }
 

@@ -452,7 +452,7 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 
 	rg = ofbi->region;
 
-	down_write(&rg->lock);
+	down_write_nested(&rg->lock, rg->id);
 
 	if (atomic_read(&rg->map_count)) {
 		r = -EBUSY;
