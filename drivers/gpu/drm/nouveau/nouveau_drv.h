@@ -534,7 +534,6 @@ struct drm_nouveau_private {
 
 	struct fb_info *fbdev_info;
 
-	int fifo_alloc_count;
 	struct nouveau_channel *fifos[NOUVEAU_MAX_CHANNEL_NR];
 
 	struct nouveau_engine engine;
@@ -573,10 +572,6 @@ struct drm_nouveau_private {
 		struct nouveau_gpuobj *sg_ctxdma;
 		struct page *sg_dummy_page;
 		dma_addr_t sg_dummy_bus;
-
-		/* nottm hack */
-		struct drm_ttm_backend *sg_be;
-		unsigned long sg_handle;
 	} gart_info;
 
 	/* nv10-nv40 tiling regions */
@@ -615,11 +610,7 @@ struct drm_nouveau_private {
 	uint32_t dac_users[4];
 
 	struct nouveau_suspend_resume {
-		uint32_t fifo_mode;
-		uint32_t graph_ctx_control;
-		uint32_t graph_state;
 		uint32_t *ramin_copy;
-		uint64_t ramin_size;
 	} susres;
 
 	struct backlight_device *backlight;
