@@ -3009,8 +3009,8 @@ _base_send_ioc_init(struct MPT2SAS_ADAPTER *ioc, int sleep_flag)
 	 * since epoch ~ midnight January 1, 1970.
 	 */
 	do_gettimeofday(&current_time);
-	mpi_request.TimeStamp = (current_time.tv_sec * 1000) +
-	    (current_time.tv_usec >> 3);
+	mpi_request.TimeStamp = cpu_to_le64((u64)current_time.tv_sec * 1000 +
+	    (current_time.tv_usec / 1000));
 
 	if (ioc->logging_level & MPT_DEBUG_INIT) {
 		u32 *mfp;
