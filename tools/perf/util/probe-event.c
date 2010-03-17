@@ -1012,8 +1012,10 @@ end_dwarf:
 	if (!sym)
 		die("Kernel symbol \'%s\' not found - probe not added.",
 		    tev->point.symbol);
+#ifndef NO_DWARF_SUPPORT
 found:
 	close(fd);
+#endif
 	return ntevs;
 }
 
@@ -1172,10 +1174,13 @@ void show_line_range(struct line_range *lr)
 	unsigned int l = 1;
 	struct line_node *ln;
 	FILE *fp;
+#ifndef NO_DWARF_SUPPORT
 	int fd, ret;
+#endif
 
 	/* Search a line range */
 	init_vmlinux();
+#ifndef NO_DWARF_SUPPORT
 	fd = open_vmlinux();
 	if (fd < 0)
 		die("Could not open debuginfo file.");
@@ -1183,6 +1188,7 @@ void show_line_range(struct line_range *lr)
 	if (ret <= 0)
 		die("Source line is not found.\n");
 	close(fd);
+#endif
 
 	setup_pager();
 
