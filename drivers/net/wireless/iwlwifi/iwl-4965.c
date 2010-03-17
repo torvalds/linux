@@ -46,6 +46,7 @@
 #include "iwl-calib.h"
 #include "iwl-sta.h"
 #include "iwl-agn-led.h"
+#include "iwl-agn.h"
 
 static int iwl4965_send_tx_power(struct iwl_priv *priv);
 static int iwl4965_hw_get_temperature(struct iwl_priv *priv);
@@ -2020,7 +2021,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 			index = iwl_queue_dec_wrap(scd_ssn & 0xff, txq->q.n_bd);
 			IWL_DEBUG_TX_REPLY(priv, "Retry scheduler reclaim scd_ssn "
 					   "%d index %d\n", scd_ssn , index);
-			freed = iwl_tx_queue_reclaim(priv, txq_id, index);
+			freed = iwlagn_tx_queue_reclaim(priv, txq_id, index);
 			iwl_free_tfds_in_queue(priv, sta_id, tid, freed);
 
 			if (priv->mac80211_registered &&
@@ -2046,7 +2047,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 				   le32_to_cpu(tx_resp->rate_n_flags),
 				   tx_resp->failure_frame);
 
-		freed = iwl_tx_queue_reclaim(priv, txq_id, index);
+		freed = iwlagn_tx_queue_reclaim(priv, txq_id, index);
 		if (qc && likely(sta_id != IWL_INVALID_STATION))
 			priv->stations[sta_id].tid[tid].tfds_in_queue -= freed;
 
@@ -2056,7 +2057,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	}
 
 	if (qc && likely(sta_id != IWL_INVALID_STATION))
-		iwl_txq_check_empty(priv, sta_id, tid, txq_id);
+		iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
 	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
 		IWL_ERR(priv, "TODO:  Implement Tx ABORT REQUIRED!!!\n");

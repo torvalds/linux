@@ -887,7 +887,7 @@ static void iwl_setup_rx_handlers(struct iwl_priv *priv)
 	priv->rx_handlers[REPLY_RX_PHY_CMD] = iwl_rx_reply_rx_phy;
 	priv->rx_handlers[REPLY_RX_MPDU_CMD] = iwl_rx_reply_rx;
 	/* block ack */
-	priv->rx_handlers[REPLY_COMPRESSED_BA] = iwl_rx_reply_compressed_ba;
+	priv->rx_handlers[REPLY_COMPRESSED_BA] = iwlagn_rx_reply_compressed_ba;
 	/* Set up hardware specific Rx handlers */
 	priv->cfg->ops->lib->rx_handler_setup(priv);
 }
@@ -2249,7 +2249,7 @@ static void __iwl_down(struct iwl_priv *priv)
 	/* device going down, Stop using ICT table */
 	iwl_disable_ict(priv);
 
-	iwl_txq_ctx_stop(priv);
+	iwlagn_txq_ctx_stop(priv);
 	iwl_rxq_stop(priv);
 
 	/* Power-down device's busmaster DMA clocks */
@@ -2371,7 +2371,7 @@ static int __iwl_up(struct iwl_priv *priv)
 
 	iwl_write32(priv, CSR_INT, 0xFFFFFFFF);
 
-	ret = iwl_hw_nic_init(priv);
+	ret = iwlagn_hw_nic_init(priv);
 	if (ret) {
 		IWL_ERR(priv, "Unable to init nic\n");
 		return ret;
@@ -2782,7 +2782,7 @@ static int iwl_mac_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	IWL_DEBUG_TX(priv, "dev->xmit(%d bytes) at rate 0x%02x\n", skb->len,
 		     ieee80211_get_tx_rate(hw, IEEE80211_SKB_CB(skb))->bitrate);
 
-	if (iwl_tx_skb(priv, skb))
+	if (iwlagn_tx_skb(priv, skb))
 		dev_kfree_skb_any(skb);
 
 	IWL_DEBUG_MACDUMP(priv, "leave\n");
@@ -2970,7 +2970,7 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 			return ret;
 	case IEEE80211_AMPDU_TX_START:
 		IWL_DEBUG_HT(priv, "start Tx\n");
-		ret = iwl_tx_agg_start(priv, sta->addr, tid, ssn);
+		ret = iwlagn_tx_agg_start(priv, sta->addr, tid, ssn);
 		if (ret == 0) {
 			priv->_agn.agg_tids_count++;
 			IWL_DEBUG_HT(priv, "priv->_agn.agg_tids_count = %u\n",
@@ -2979,7 +2979,7 @@ static int iwl_mac_ampdu_action(struct ieee80211_hw *hw,
 		return ret;
 	case IEEE80211_AMPDU_TX_STOP:
 		IWL_DEBUG_HT(priv, "stop Tx\n");
-		ret = iwl_tx_agg_stop(priv, sta->addr, tid);
+		ret = iwlagn_tx_agg_stop(priv, sta->addr, tid);
 		if ((ret == 0) && (priv->_agn.agg_tids_count > 0)) {
 			priv->_agn.agg_tids_count--;
 			IWL_DEBUG_HT(priv, "priv->_agn.agg_tids_count = %u\n",
@@ -3738,7 +3738,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 
 	if (priv->rxq.bd)
 		iwl_rx_queue_free(priv, &priv->rxq);
-	iwl_hw_txq_ctx_free(priv);
+	iwlagn_hw_txq_ctx_free(priv);
 
 	iwl_eeprom_free(priv);
 

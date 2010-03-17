@@ -265,57 +265,6 @@ void iwl_hw_detect(struct iwl_priv *priv)
 }
 EXPORT_SYMBOL(iwl_hw_detect);
 
-int iwl_hw_nic_init(struct iwl_priv *priv)
-{
-	unsigned long flags;
-	struct iwl_rx_queue *rxq = &priv->rxq;
-	int ret;
-
-	/* nic_init */
-	spin_lock_irqsave(&priv->lock, flags);
-	priv->cfg->ops->lib->apm_ops.init(priv);
-
-	/* Set interrupt coalescing calibration timer to default (512 usecs) */
-	iwl_write8(priv, CSR_INT_COALESCING, IWL_HOST_INT_CALIB_TIMEOUT_DEF);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	ret = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
-
-	priv->cfg->ops->lib->apm_ops.config(priv);
-
-	/* Allocate the RX queue, or reset if it is already allocated */
-	if (!rxq->bd) {
-		ret = iwl_rx_queue_alloc(priv);
-		if (ret) {
-			IWL_ERR(priv, "Unable to initialize Rx queue\n");
-			return -ENOMEM;
-		}
-	} else
-		iwl_rx_queue_reset(priv, rxq);
-
-	iwl_rx_replenish(priv);
-
-	iwl_rx_init(priv, rxq);
-
-	spin_lock_irqsave(&priv->lock, flags);
-
-	rxq->need_update = 1;
-	iwl_rx_queue_update_write_ptr(priv, rxq);
-
-	spin_unlock_irqrestore(&priv->lock, flags);
-
-	/* Allocate and init all Tx and Command queues */
-	ret = iwl_txq_ctx_reset(priv);
-	if (ret)
-		return ret;
-
-	set_bit(STATUS_INIT, &priv->status);
-
-	return 0;
-}
-EXPORT_SYMBOL(iwl_hw_nic_init);
-
 /*
  * QoS  support
 */

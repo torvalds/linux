@@ -208,7 +208,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 					"scd_ssn=%d idx=%d txq=%d swq=%d\n",
 					scd_ssn , index, txq_id, txq->swq_id);
 
-			freed = iwl_tx_queue_reclaim(priv, txq_id, index);
+			freed = iwlagn_tx_queue_reclaim(priv, txq_id, index);
 			iwl_free_tfds_in_queue(priv, sta_id, tid, freed);
 
 			if (priv->mac80211_registered &&
@@ -236,7 +236,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 				   le32_to_cpu(tx_resp->rate_n_flags),
 				   tx_resp->failure_frame);
 
-		freed = iwl_tx_queue_reclaim(priv, txq_id, index);
+		freed = iwlagn_tx_queue_reclaim(priv, txq_id, index);
 		iwl_free_tfds_in_queue(priv, sta_id, tid, freed);
 
 		if (priv->mac80211_registered &&
@@ -244,7 +244,7 @@ static void iwlagn_rx_reply_tx(struct iwl_priv *priv,
 			iwl_wake_queue(priv, txq_id);
 	}
 
-	iwl_txq_check_empty(priv, sta_id, tid, txq_id);
+	iwlagn_txq_check_empty(priv, sta_id, tid, txq_id);
 
 	if (iwl_check_bits(status, TX_ABORT_REQUIRED_MSK))
 		IWL_ERR(priv, "TODO:  Implement Tx ABORT REQUIRED!!!\n");
@@ -381,3 +381,133 @@ struct iwl_mod_params iwlagn_mod_params = {
 	.restart_fw = 1,
 	/* the rest are 0 by default */
 };
+
+void iwlagn_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
+{
+	unsigned long flags;
+	int i;
+	spin_lock_irqsave(&rxq->lock, flags);
+	INIT_LIST_HEAD(&rxq->rx_free);
+	INIT_LIST_HEAD(&rxq->rx_used);
+	/* Fill the rx_used queue with _all_ of the Rx buffers */
+	for (i = 0; i < RX_FREE_BUFFERS + RX_QUEUE_SIZE; i++) {
+		/* In the reset function, these buffers may have been allocated
+		 * to an SKB, so we need to unmap and free potential storage */
+		if (rxq->pool[i].page != NULL) {
+			pci_unmap_page(priv->pci_dev, rxq->pool[i].page_dma,
+				PAGE_SIZE << priv->hw_params.rx_page_order,
+				PCI_DMA_FROMDEVICE);
+			__iwl_free_pages(priv, rxq->pool[i].page);
+			rxq->pool[i].page = NULL;
+		}
+		list_add_tail(&rxq->pool[i].list, &rxq->rx_used);
+	}
+
+	/* Set us so that we have processed and used all buffers, but have
+	 * not restocked the Rx queue with fresh buffers */
+	rxq->read = rxq->write = 0;
+	rxq->write_actual = 0;
+	rxq->free_count = 0;
+	spin_unlock_irqrestore(&rxq->lock, flags);
+}
+
+int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq)
+{
+	u32 rb_size;
+	const u32 rfdnlog = RX_QUEUE_SIZE_LOG; /* 256 RBDs */
+	u32 rb_timeout = 0; /* FIXME: RX_RB_TIMEOUT for all devices? */
+
+	if (!priv->cfg->use_isr_legacy)
+		rb_timeout = RX_RB_TIMEOUT;
+
+	if (priv->cfg->mod_params->amsdu_size_8K)
+		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_8K;
+	else
+		rb_size = FH_RCSR_RX_CONFIG_REG_VAL_RB_SIZE_4K;
+
+	/* Stop Rx DMA */
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG, 0);
+
+	/* Reset driver's Rx queue write index */
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_WPTR_REG, 0);
+
+	/* Tell device where to find RBD circular buffer in DRAM */
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_RBDCB_BASE_REG,
+			   (u32)(rxq->dma_addr >> 8));
+
+	/* Tell device where in DRAM to update its Rx status */
+	iwl_write_direct32(priv, FH_RSCSR_CHNL0_STTS_WPTR_REG,
+			   rxq->rb_stts_dma >> 4);
+
+	/* Enable Rx DMA
+	 * FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY is set because of HW bug in
+	 *      the credit mechanism in 5000 HW RX FIFO
+	 * Direct rx interrupts to hosts
+	 * Rx buffer size 4 or 8k
+	 * RB timeout 0x10
+	 * 256 RBDs
+	 */
+	iwl_write_direct32(priv, FH_MEM_RCSR_CHNL0_CONFIG_REG,
+			   FH_RCSR_RX_CONFIG_CHNL_EN_ENABLE_VAL |
+			   FH_RCSR_CHNL0_RX_IGNORE_RXF_EMPTY |
+			   FH_RCSR_CHNL0_RX_CONFIG_IRQ_DEST_INT_HOST_VAL |
+			   FH_RCSR_CHNL0_RX_CONFIG_SINGLE_FRAME_MSK |
+			   rb_size|
+			   (rb_timeout << FH_RCSR_RX_CONFIG_REG_IRQ_RBTH_POS)|
+			   (rfdnlog << FH_RCSR_RX_CONFIG_RBDCB_SIZE_POS));
+
+	/* Set interrupt coalescing timer to default (2048 usecs) */
+	iwl_write8(priv, CSR_INT_COALESCING, IWL_HOST_INT_TIMEOUT_DEF);
+
+	return 0;
+}
+
+int iwlagn_hw_nic_init(struct iwl_priv *priv)
+{
+	unsigned long flags;
+	struct iwl_rx_queue *rxq = &priv->rxq;
+	int ret;
+
+	/* nic_init */
+	spin_lock_irqsave(&priv->lock, flags);
+	priv->cfg->ops->lib->apm_ops.init(priv);
+
+	/* Set interrupt coalescing calibration timer to default (512 usecs) */
+	iwl_write8(priv, CSR_INT_COALESCING, IWL_HOST_INT_CALIB_TIMEOUT_DEF);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	ret = priv->cfg->ops->lib->apm_ops.set_pwr_src(priv, IWL_PWR_SRC_VMAIN);
+
+	priv->cfg->ops->lib->apm_ops.config(priv);
+
+	/* Allocate the RX queue, or reset if it is already allocated */
+	if (!rxq->bd) {
+		ret = iwl_rx_queue_alloc(priv);
+		if (ret) {
+			IWL_ERR(priv, "Unable to initialize Rx queue\n");
+			return -ENOMEM;
+		}
+	} else
+		iwlagn_rx_queue_reset(priv, rxq);
+
+	iwl_rx_replenish(priv);
+
+	iwlagn_rx_init(priv, rxq);
+
+	spin_lock_irqsave(&priv->lock, flags);
+
+	rxq->need_update = 1;
+	iwl_rx_queue_update_write_ptr(priv, rxq);
+
+	spin_unlock_irqrestore(&priv->lock, flags);
+
+	/* Allocate and init all Tx and Command queues */
+	ret = iwlagn_txq_ctx_reset(priv);
+	if (ret)
+		return ret;
+
+	set_bit(STATUS_INIT, &priv->status);
+
+	return 0;
+}

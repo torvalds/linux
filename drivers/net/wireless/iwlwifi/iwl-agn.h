@@ -113,5 +113,22 @@ void iwlagn_temperature(struct iwl_priv *priv);
 u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv);
 const u8 *iwlagn_eeprom_query_addr(const struct iwl_priv *priv,
 				   size_t offset);
+void iwlagn_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
+int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
+int iwlagn_hw_nic_init(struct iwl_priv *priv);
+
+/* tx */
+int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
+int iwlagn_tx_agg_start(struct iwl_priv *priv,
+			const u8 *ra, u16 tid, u16 *ssn);
+int iwlagn_tx_agg_stop(struct iwl_priv *priv , const u8 *ra, u16 tid);
+int iwlagn_txq_check_empty(struct iwl_priv *priv,
+			   int sta_id, u8 tid, int txq_id);
+void iwlagn_rx_reply_compressed_ba(struct iwl_priv *priv,
+				struct iwl_rx_mem_buffer *rxb);
+int iwlagn_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index);
+void iwlagn_hw_txq_ctx_free(struct iwl_priv *priv);
+int iwlagn_txq_ctx_reset(struct iwl_priv *priv);
+void iwlagn_txq_ctx_stop(struct iwl_priv *priv);
 
 #endif /* __iwl_agn_h__ */

@@ -1395,6 +1395,7 @@ void iwl_sta_modify_sleep_tx_count(struct iwl_priv *priv, int sta_id, int cnt)
 
 	iwl_send_add_sta(priv, &priv->stations[sta_id].sta, CMD_ASYNC);
 }
+EXPORT_SYMBOL(iwl_sta_modify_sleep_tx_count);
 
 int iwl_mac_sta_remove(struct ieee80211_hw *hw,
 			       struct ieee80211_vif *vif,
