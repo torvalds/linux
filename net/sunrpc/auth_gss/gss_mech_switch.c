@@ -285,6 +285,20 @@ gss_verify_mic(struct gss_ctx		*context_handle,
 				 mic_token);
 }
 
+/*
+ * This function is called from both the client and server code.
+ * Each makes guarantees about how much "slack" space is available
+ * for the underlying function in "buf"'s head and tail while
+ * performing the wrap.
+ *
+ * The client and server code allocate RPC_MAX_AUTH_SIZE extra
+ * space in both the head and tail which is available for use by
+ * the wrap function.
+ *
+ * Underlying functions should verify they do not use more than
+ * RPC_MAX_AUTH_SIZE of extra space in either the head or tail
+ * when performing the wrap.
+ */
 u32
 gss_wrap(struct gss_ctx	*ctx_id,
 	 int		offset,
