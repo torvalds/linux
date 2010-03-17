@@ -54,7 +54,7 @@ struct inet6_ifaddr {
 	struct inet6_dev	*idev;
 	struct rt6_info		*rt;
 
-	struct inet6_ifaddr	*lst_next;      /* next addr in addr_lst */
+	struct hlist_node	addr_lst;
 	struct inet6_ifaddr	*if_next;       /* next addr in inet6_dev */
 
 #ifdef CONFIG_IPV6_PRIVACY
