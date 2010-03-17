@@ -61,7 +61,7 @@ static const struct rpc_credops gss_nullops;
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
-#define GSS_CRED_SLACK		1024
+#define GSS_CRED_SLACK		(RPC_MAX_AUTH_SIZE * 2)
 /* length of a krb5 verifier (48), plus data added before arguments when
  * using integrity (two 4-byte integers): */
 #define GSS_VERF_SLACK		100

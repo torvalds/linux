@@ -155,11 +155,9 @@ gss_wrap_kerberos(struct gss_ctx *ctx, int offset,
 
 	ptr = buf->head[0].iov_base + offset;
 	/* shift data to make room for header. */
+	xdr_extend_head(buf, offset, headlen);
+
 	/* XXX Would be cleverer to encrypt while copying. */
-	/* XXX bounds checking, slack, etc. */
-	memmove(ptr + headlen, ptr, buf->head[0].iov_len - offset);
-	buf->head[0].iov_len += headlen;
-	buf->len += headlen;
 	BUG_ON((buf->len - offset - headlen) % blocksize);
 
 	g_make_token_header(&kctx->mech_used,

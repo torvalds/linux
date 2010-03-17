@@ -40,6 +40,12 @@
 #include <linux/sunrpc/gss_err.h>
 #include <linux/sunrpc/gss_asn1.h>
 
+/* Maximum checksum function output for the supported crypto algorithms */
+#define GSS_KRB5_MAX_CKSUM_LEN  (20)
+
+/* Maximum blocksize for the supported crypto algorithms */
+#define GSS_KRB5_MAX_BLOCKSIZE  (16)
+
 struct krb5_ctx {
 	int			initiate; /* 1 = initiating, 0 = accepting */
 	struct crypto_blkcipher	*enc;
@@ -113,6 +119,22 @@ enum seal_alg {
 #define ENCTYPE_DES3_CBC_SHA1   0x0010
 #define ENCTYPE_UNKNOWN         0x01ff
 
+/*
+ * This compile-time check verifies that we will not exceed the
+ * slack space allotted by the client and server auth_gss code
+ * before they call gss_wrap().
+ */
+#define GSS_KRB5_MAX_SLACK_NEEDED \
+	(GSS_KRB5_TOK_HDR_LEN     /* gss token header */         \
+	+ GSS_KRB5_MAX_CKSUM_LEN  /* gss token checksum */       \
+	+ GSS_KRB5_MAX_BLOCKSIZE  /* confounder */               \
+	+ GSS_KRB5_MAX_BLOCKSIZE  /* possible padding */         \
+	+ GSS_KRB5_TOK_HDR_LEN    /* encrypted hdr in v2 token */\
+	+ GSS_KRB5_MAX_CKSUM_LEN  /* encryption hmac */          \
+	+ 4 + 4                   /* RPC verifier */             \
+	+ GSS_KRB5_TOK_HDR_LEN                                   \
+	+ GSS_KRB5_MAX_CKSUM_LEN)
+
 s32
 make_checksum(char *, char *header, int hdrlen, struct xdr_buf *body,
 		   int body_offset, struct xdr_netobj *cksum);
@@ -157,3 +179,6 @@ s32
 krb5_get_seq_num(struct crypto_blkcipher *key,
 	       unsigned char *cksum,
 	       unsigned char *buf, int *direction, u32 *seqnum);
+
+int
+xdr_extend_head(struct xdr_buf *buf, unsigned int base, unsigned int shiftlen);
