@@ -2244,8 +2244,10 @@ again:
 		do_div(calc_size, stripe_len);
 		calc_size *= stripe_len;
 	}
+
 	/* we don't want tiny stripes */
-	calc_size = max_t(u64, min_stripe_size, calc_size);
+	if (!looped)
+		calc_size = max_t(u64, min_stripe_size, calc_size);
 
 	do_div(calc_size, stripe_len);
 	calc_size *= stripe_len;
