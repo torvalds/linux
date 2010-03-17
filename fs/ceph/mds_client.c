@@ -2647,7 +2647,9 @@ static void delayed_work(struct work_struct *work)
 		else
 			ceph_con_keepalive(&s->s_con);
 		add_cap_releases(mdsc, s, -1);
-		send_cap_releases(mdsc, s);
+		if (s->s_state == CEPH_MDS_SESSION_OPEN ||
+		    s->s_state == CEPH_MDS_SESSION_HUNG)
+			send_cap_releases(mdsc, s);
 		mutex_unlock(&s->s_mutex);
 		ceph_put_mds_session(s);
 
