@@ -142,7 +142,8 @@ gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 	else
 		cksumkey = NULL;
 
-	if (make_checksum(ctx, ptr, 8, text, 0, cksumkey, &md5cksum))
+	if (make_checksum(ctx, ptr, 8, text, 0, cksumkey,
+			  KG_USAGE_SIGN, &md5cksum))
 		return GSS_S_FAILURE;
 
 	memcpy(ptr + GSS_KRB5_TOK_HDR_LEN, md5cksum.data, md5cksum.len);
@@ -170,6 +171,7 @@ gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 	s32 now;
 	u64 seq_send;
 	u8 *cksumkey;
+	unsigned int cksum_usage;
 
 	dprintk("RPC:       %s\n", __func__);
 
@@ -182,13 +184,16 @@ gss_get_mic_v2(struct krb5_ctx *ctx, struct xdr_buf *text,
 	spin_unlock(&krb5_seq_lock);
 	*((u64 *)(krb5_hdr + 8)) = cpu_to_be64(seq_send);
 
-	if (ctx->initiate)
+	if (ctx->initiate) {
 		cksumkey = ctx->initiator_sign;
-	else
+		cksum_usage = KG_USAGE_INITIATOR_SIGN;
+	} else {
 		cksumkey = ctx->acceptor_sign;
+		cksum_usage = KG_USAGE_ACCEPTOR_SIGN;
+	}
 
 	if (make_checksum_v2(ctx, krb5_hdr, GSS_KRB5_TOK_HDR_LEN,
-			     text, 0, cksumkey, &cksumobj))
+			     text, 0, cksumkey, cksum_usage, &cksumobj))
 		return GSS_S_FAILURE;
 
 	memcpy(krb5_hdr + GSS_KRB5_TOK_HDR_LEN, cksumobj.data, cksumobj.len);

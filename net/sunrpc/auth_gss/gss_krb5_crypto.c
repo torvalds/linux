@@ -132,7 +132,7 @@ checksummer(struct scatterlist *sg, void *data)
 u32
 make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 	      struct xdr_buf *body, int body_offset, u8 *cksumkey,
-	      struct xdr_netobj *cksumout)
+	      unsigned int usage, struct xdr_netobj *cksumout)
 {
 	struct hash_desc                desc;
 	struct scatterlist              sg[1];
@@ -208,7 +208,7 @@ out:
 u32
 make_checksum_v2(struct krb5_ctx *kctx, char *header, int hdrlen,
 		 struct xdr_buf *body, int body_offset, u8 *cksumkey,
-		 struct xdr_netobj *cksumout)
+		 unsigned int usage, struct xdr_netobj *cksumout)
 {
 	struct hash_desc desc;
 	struct scatterlist sg[1];
@@ -537,15 +537,18 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 	int nblocks, nbytes;
 	struct encryptor_desc desc;
 	u32 cbcbytes;
+	unsigned int usage;
 
 	if (kctx->initiate) {
 		cipher = kctx->initiator_enc;
 		aux_cipher = kctx->initiator_enc_aux;
 		cksumkey = kctx->initiator_integ;
+		usage = KG_USAGE_INITIATOR_SEAL;
 	} else {
 		cipher = kctx->acceptor_enc;
 		aux_cipher = kctx->acceptor_enc_aux;
 		cksumkey = kctx->acceptor_integ;
+		usage = KG_USAGE_ACCEPTOR_SEAL;
 	}
 	blocksize = crypto_blkcipher_blocksize(cipher);
 
@@ -590,7 +593,8 @@ gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
 	buf->pages = pages;
 
 	err = make_checksum_v2(kctx, NULL, 0, buf,
-			       offset + GSS_KRB5_TOK_HDR_LEN, cksumkey, &hmac);
+			       offset + GSS_KRB5_TOK_HDR_LEN,
+			       cksumkey, usage, &hmac);
 	buf->pages = save_pages;
 	if (err)
 		return GSS_S_FAILURE;
@@ -654,15 +658,18 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf,
 	u8 pkt_hmac[GSS_KRB5_MAX_CKSUM_LEN];
 	int nblocks, blocksize, cbcbytes;
 	struct decryptor_desc desc;
+	unsigned int usage;
 
 	if (kctx->initiate) {
 		cipher = kctx->acceptor_enc;
 		aux_cipher = kctx->acceptor_enc_aux;
 		cksum_key = kctx->acceptor_integ;
+		usage = KG_USAGE_ACCEPTOR_SEAL;
 	} else {
 		cipher = kctx->initiator_enc;
 		aux_cipher = kctx->initiator_enc_aux;
 		cksum_key = kctx->initiator_integ;
+		usage = KG_USAGE_INITIATOR_SEAL;
 	}
 	blocksize = crypto_blkcipher_blocksize(cipher);
 
@@ -705,7 +712,7 @@ gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf,
 	our_hmac_obj.data = our_hmac;
 
 	ret = make_checksum_v2(kctx, NULL, 0, &subbuf, 0,
-			       cksum_key, &our_hmac_obj);
+			       cksum_key, usage, &our_hmac_obj);
 	if (ret)
 		goto out_err;
 

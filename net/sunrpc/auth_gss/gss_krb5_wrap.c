@@ -215,7 +215,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	tmp_pages = buf->pages;
 	buf->pages = pages;
 	if (make_checksum(kctx, ptr, 8, buf, offset + headlen - blocksize,
-					cksumkey, &md5cksum))
+					cksumkey, KG_USAGE_SEAL, &md5cksum))
 		return GSS_S_FAILURE;
 	buf->pages = tmp_pages;
 
@@ -298,7 +298,7 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 		cksumkey = NULL;
 
 	if (make_checksum(kctx, ptr, 8, buf, crypt_offset,
-						cksumkey, &md5cksum))
+					cksumkey, KG_USAGE_SEAL, &md5cksum))
 		return GSS_S_FAILURE;
 
 	if (memcmp(md5cksum.data, ptr + GSS_KRB5_TOK_HDR_LEN,

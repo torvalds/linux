@@ -235,12 +235,12 @@ enum seal_alg {
 u32
 make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
 		struct xdr_buf *body, int body_offset, u8 *cksumkey,
-		struct xdr_netobj *cksumout);
+		unsigned int usage, struct xdr_netobj *cksumout);
 
 u32
 make_checksum_v2(struct krb5_ctx *, char *header, int hdrlen,
 		 struct xdr_buf *body, int body_offset, u8 *key,
-		 struct xdr_netobj *cksum);
+		 unsigned int usage, struct xdr_netobj *cksum);
 
 u32 gss_get_mic_kerberos(struct gss_ctx *, struct xdr_buf *,
 		struct xdr_netobj *);

@@ -115,7 +115,7 @@ gss_verify_mic_v1(struct krb5_ctx *ctx,
 		cksumkey = NULL;
 
 	if (make_checksum(ctx, ptr, 8, message_buffer, 0,
-			  cksumkey, &md5cksum))
+			  cksumkey, KG_USAGE_SIGN, &md5cksum))
 		return GSS_S_FAILURE;
 
 	if (memcmp(md5cksum.data, ptr + GSS_KRB5_TOK_HDR_LEN,
@@ -154,6 +154,7 @@ gss_verify_mic_v2(struct krb5_ctx *ctx,
 	u8 *cksumkey;
 	u8 flags;
 	int i;
+	unsigned int cksum_usage;
 
 	dprintk("RPC:       %s\n", __func__);
 
@@ -174,13 +175,16 @@ gss_verify_mic_v2(struct krb5_ctx *ctx,
 		if (ptr[i] != 0xff)
 			return GSS_S_DEFECTIVE_TOKEN;
 
-	if (ctx->initiate)
+	if (ctx->initiate) {
 		cksumkey = ctx->acceptor_sign;
-	else
+		cksum_usage = KG_USAGE_ACCEPTOR_SIGN;
+	} else {
 		cksumkey = ctx->initiator_sign;
+		cksum_usage = KG_USAGE_INITIATOR_SIGN;
+	}
 
 	if (make_checksum_v2(ctx, ptr, GSS_KRB5_TOK_HDR_LEN, message_buffer, 0,
-			     cksumkey, &cksumobj))
+			     cksumkey, cksum_usage, &cksumobj))
 		return GSS_S_FAILURE;
 
 	if (memcmp(cksumobj.data, ptr + GSS_KRB5_TOK_HDR_LEN,
