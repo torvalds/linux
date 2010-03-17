@@ -16,7 +16,6 @@
 #include <linux/usb.h>
 #include <linux/usb/serial.h>
 
-#define URB_DEBUG_MAX_IN_FLIGHT_URBS	4000
 #define USB_DEBUG_MAX_PACKET_SIZE	8
 #define USB_DEBUG_BRK_SIZE		8
 static char USB_DEBUG_BRK[USB_DEBUG_BRK_SIZE] = {
@@ -84,7 +83,6 @@ static struct usb_serial_driver debug_device = {
 	.id_table =		id_table,
 	.num_ports =		1,
 	.open =			usb_debug_open,
-	.max_in_flight_urbs =	URB_DEBUG_MAX_IN_FLIGHT_URBS,
 	.break_ctl =		usb_debug_break_ctl,
 	.read_bulk_callback =	usb_debug_read_bulk_callback,
 };
