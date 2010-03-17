@@ -879,9 +879,11 @@ struct radeon_i2c_chan *radeon_i2c_create(struct drm_device *dev,
 	i2c->adapter.owner = THIS_MODULE;
 	i2c->dev = dev;
 	i2c_set_adapdata(&i2c->adapter, i2c);
-	if (rec->hw_capable &&
-	    ((rdev->family <= CHIP_RS480) ||
-	     ((rdev->family >= CHIP_RV515) && (rdev->family <= CHIP_R580)))) {
+	if (rec->mm_i2c ||
+	    (rec->hw_capable &&
+	     radeon_hw_i2c &&
+	     ((rdev->family <= CHIP_RS480) ||
+	      ((rdev->family >= CHIP_RV515) && (rdev->family <= CHIP_R580))))) {
 		/* set the radeon hw i2c adapter */
 		sprintf(i2c->adapter.name, "Radeon i2c hw bus %s", name);
 		i2c->adapter.algo = &radeon_i2c_algo;
