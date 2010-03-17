@@ -982,7 +982,7 @@ static int update_mctrl(struct usb_serial_port *port, unsigned int set,
 
 static __u32 get_ftdi_divisor(struct tty_struct *tty,
 						struct usb_serial_port *port)
-{ /* get_ftdi_divisor */
+{
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	__u32 div_value = 0;
 	int div_okay = 1;
@@ -1206,12 +1206,11 @@ static int get_serial_info(struct usb_serial_port *port,
 	if (copy_to_user(retinfo, &tmp, sizeof(*retinfo)))
 		return -EFAULT;
 	return 0;
-} /* get_serial_info */
-
+}
 
 static int set_serial_info(struct tty_struct *tty,
 	struct usb_serial_port *port, struct serial_struct __user *newinfo)
-{ /* set_serial_info */
+{
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct serial_struct new_serial;
 	struct ftdi_private old_priv;
@@ -1274,8 +1273,7 @@ check_and_exit:
 	else
 		mutex_unlock(&priv->cfg_lock);
 	return 0;
-
-} /* set_serial_info */
+}
 
 
 /* Determine type of FTDI chip based on USB config and descriptor. */
@@ -1577,7 +1575,7 @@ static void ftdi_USB_UIRT_setup(struct ftdi_private *priv)
 	priv->flags |= ASYNC_SPD_CUST;
 	priv->custom_divisor = 77;
 	priv->force_baud = 38400;
-} /* ftdi_USB_UIRT_setup */
+}
 
 /* Setup for the HE-TIRA1 device, which requires hardwired
  * baudrate (38400 gets mapped to 100000) and RTS-CTS enabled.  */
@@ -1590,7 +1588,7 @@ static void ftdi_HE_TIRA1_setup(struct ftdi_private *priv)
 	priv->custom_divisor = 240;
 	priv->force_baud = 38400;
 	priv->force_rtscts = 1;
-} /* ftdi_HE_TIRA1_setup */
+}
 
 /*
  * Module parameter to control latency timer for NDI FTDI-based USB devices.
@@ -1684,7 +1682,7 @@ static int ftdi_sio_port_remove(struct usb_serial_port *port)
 }
 
 static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
-{ /* ftdi_open */
+{
 	struct usb_device *dev = port->serial->dev;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	int result;
@@ -1714,8 +1712,7 @@ static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 		kref_get(&priv->kref);
 
 	return result;
-} /* ftdi_open */
-
+}
 
 static void ftdi_dtr_rts(struct usb_serial_port *port, int on)
 {
@@ -1745,12 +1742,9 @@ static void ftdi_dtr_rts(struct usb_serial_port *port, int on)
  * usbserial:__serial_close  only calls ftdi_close if the point is open
  *
  *   This only gets called when it is the last close
- *
- *
  */
-
 static void ftdi_close(struct usb_serial_port *port)
-{ /* ftdi_close */
+{
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 
 	dbg("%s", __func__);
@@ -1758,9 +1752,7 @@ static void ftdi_close(struct usb_serial_port *port)
 	/* shutdown our bulk read */
 	usb_kill_urb(port->read_urb);
 	kref_put(&priv->kref, ftdi_sio_priv_release);
-} /* ftdi_close */
-
-
+}
 
 /* The SIO requires the first byte to have:
  *  B0 1
@@ -1771,7 +1763,7 @@ static void ftdi_close(struct usb_serial_port *port)
  */
 static int ftdi_write(struct tty_struct *tty, struct usb_serial_port *port,
 			   const unsigned char *buf, int count)
-{ /* ftdi_write */
+{
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct urb *urb;
 	unsigned char *buffer;
@@ -1887,11 +1879,9 @@ error_no_buffer:
 	priv->tx_outstanding_urbs--;
 	spin_unlock_irqrestore(&priv->tx_lock, flags);
 	return count;
-} /* ftdi_write */
-
+}
 
 /* This function may get called when the device is closed */
-
 static void ftdi_write_bulk_callback(struct urb *urb)
 {
 	unsigned long flags;
@@ -1928,8 +1918,7 @@ static void ftdi_write_bulk_callback(struct urb *urb)
 	}
 
 	usb_serial_port_softint(port);
-} /* ftdi_write_bulk_callback */
-
+}
 
 static int ftdi_write_room(struct tty_struct *tty)
 {
@@ -2095,15 +2084,13 @@ static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
 
 }
 
-
 /* old_termios contains the original termios settings and tty->termios contains
  * the new setting to be used
  * WARNING: set_termios calls this with old_termios in kernel space
  */
-
 static void ftdi_set_termios(struct tty_struct *tty,
 		struct usb_serial_port *port, struct ktermios *old_termios)
-{ /* ftdi_termios */
+{
 	struct usb_device *dev = port->serial->dev;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	struct ktermios *termios = tty->termios;
@@ -2331,7 +2318,6 @@ static int ftdi_tiocmset(struct tty_struct *tty, struct file *file,
 	return update_mctrl(port, set, clear);
 }
 
-
 static int ftdi_ioctl(struct tty_struct *tty, struct file *file,
 					unsigned int cmd, unsigned long arg)
 {
@@ -2430,15 +2416,12 @@ failed_sio_register:
 	return retval;
 }
 
-
 static void __exit ftdi_exit(void)
 {
-
 	dbg("%s", __func__);
 
 	usb_deregister(&ftdi_driver);
 	usb_serial_deregister(&ftdi_sio_device);
-
 }
 
 
