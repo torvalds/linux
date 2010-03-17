@@ -44,6 +44,7 @@ struct nmk_gpio_chip {
 	/* Keep track of configured edges */
 	u32 edge_rising;
 	u32 edge_falling;
+	u32 backup[10];
 };
 
 static void __nmk_gpio_set_mode(struct nmk_gpio_chip *nmk_chip,
@@ -792,14 +793,60 @@ out:
 	return ret;
 }
 
+#ifdef CONFIG_PM
+static int nmk_gpio_pm(struct platform_device *dev, bool suspend)
+{
+	struct nmk_gpio_chip *nmk_chip = platform_get_drvdata(dev);
+	int i;
+	static const unsigned int regs[] = {
+		NMK_GPIO_DAT,
+		NMK_GPIO_PDIS,
+		NMK_GPIO_DIR,
+		NMK_GPIO_AFSLA,
+		NMK_GPIO_AFSLB,
+		NMK_GPIO_SLPC,
+		NMK_GPIO_RIMSC,
+		NMK_GPIO_FIMSC,
+		NMK_GPIO_RWIMSC,
+		NMK_GPIO_FWIMSC,
+	};
+
+	BUILD_BUG_ON(ARRAY_SIZE(nmk_chip->backup) != ARRAY_SIZE(regs));
+
+	/* XXX: is this sufficient? what about pull-up/down configuration? */
+
+	for (i = 0; i < ARRAY_SIZE(regs); i++) {
+		if (suspend)
+			nmk_chip->backup[i] = readl(nmk_chip->addr + regs[i]);
+		else
+			writel(nmk_chip->backup[i], nmk_chip->addr + regs[i]);
+	}
+
+	return 0;
+}
+
+static int nmk_gpio_suspend(struct platform_device *dev, pm_message_t state)
+{
+	return nmk_gpio_pm(dev, true);
+}
+
+static int nmk_gpio_resume(struct platform_device *dev)
+{
+	return nmk_gpio_pm(dev, false);
+}
+#else
+#define nmk_gpio_suspend	NULL
+#define nmk_gpio_resume		NULL
+#endif
+
 static struct platform_driver nmk_gpio_driver = {
 	.driver = {
 		.owner = THIS_MODULE,
 		.name = "gpio",
 		},
 	.probe = nmk_gpio_probe,
-	.suspend = NULL, /* to be done */
-	.resume = NULL,
+	.suspend = nmk_gpio_suspend,
+	.resume = nmk_gpio_resume,
 };
 
 static int __init nmk_gpio_init(void)
