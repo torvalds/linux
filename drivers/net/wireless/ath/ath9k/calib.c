@@ -103,7 +103,7 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 		  "NF calibrated [ctl] [chain 0] is %d\n", nf);
 	nfarray[0] = nf;
 
-	if (!AR_SREV_9285(ah)) {
+	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
 		if (AR_SREV_9280_10_OR_LATER(ah))
 			nf = MS(REG_READ(ah, AR_PHY_CH1_CCA),
 					AR9280_PHY_CH1_MINCCA_PWR);
@@ -141,7 +141,7 @@ static void ath9k_hw_do_getnf(struct ath_hw *ah,
 		  "NF calibrated [ext] [chain 0] is %d\n", nf);
 	nfarray[3] = nf;
 
-	if (!AR_SREV_9285(ah)) {
+	if (!AR_SREV_9285(ah) && !AR_SREV_9271(ah)) {
 		if (AR_SREV_9280_10_OR_LATER(ah))
 			nf = MS(REG_READ(ah, AR_PHY_CH1_EXT_CCA),
 					AR9280_PHY_CH1_EXT_MINCCA_PWR);
@@ -621,7 +621,7 @@ void ath9k_hw_loadnf(struct ath_hw *ah, struct ath9k_channel *chan)
 	u8 chainmask, rx_chain_status;
 
 	rx_chain_status = REG_READ(ah, AR_PHY_RX_CHAINMASK);
-	if (AR_SREV_9285(ah))
+	if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
 		chainmask = 0x9;
 	else if (AR_SREV_9280(ah) || AR_SREV_9287(ah)) {
 		if ((rx_chain_status & 0x2) || (rx_chain_status & 0x4))
@@ -715,7 +715,7 @@ void ath9k_init_nfcal_hist_buffer(struct ath_hw *ah)
 
 	if (AR_SREV_9280(ah))
 		noise_floor = AR_PHY_CCA_MAX_AR9280_GOOD_VALUE;
-	else if (AR_SREV_9285(ah))
+	else if (AR_SREV_9285(ah) || AR_SREV_9271(ah))
 		noise_floor = AR_PHY_CCA_MAX_AR9285_GOOD_VALUE;
 	else if (AR_SREV_9287(ah))
 		noise_floor = AR_PHY_CCA_MAX_AR9287_GOOD_VALUE;
