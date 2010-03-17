@@ -84,6 +84,7 @@ gss_verify_mic_v1(struct krb5_ctx *ctx,
 	u32			seqnum;
 	unsigned char		*ptr = (unsigned char *)read_token->data;
 	int			bodysize;
+	u8			*cksumkey;
 
 	dprintk("RPC:       krb5_read_token\n");
 
@@ -108,14 +109,16 @@ gss_verify_mic_v1(struct krb5_ctx *ctx,
 	if ((ptr[6] != 0xff) || (ptr[7] != 0xff))
 		return GSS_S_DEFECTIVE_TOKEN;
 
-	if (make_checksum((char *)ctx->gk5e->cksum_name, ptr, 8,
-					message_buffer, 0, &md5cksum))
+	if (ctx->gk5e->keyed_cksum)
+		cksumkey = ctx->cksum;
+	else
+		cksumkey = NULL;
+
+	if (make_checksum(ctx, ptr, 8, message_buffer, 0,
+			  cksumkey, &md5cksum))
 		return GSS_S_FAILURE;
 
-	if (krb5_encrypt(ctx->seq, NULL, md5cksum.data, md5cksum.data, 16))
-		return GSS_S_FAILURE;
-
-	if (memcmp(md5cksum.data + 8, ptr + GSS_KRB5_TOK_HDR_LEN,
+	if (memcmp(md5cksum.data, ptr + GSS_KRB5_TOK_HDR_LEN,
 					ctx->gk5e->cksumlength))
 		return GSS_S_BAD_SIG;
 

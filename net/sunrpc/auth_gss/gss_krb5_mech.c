@@ -66,6 +66,7 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .keylength = 8,
 	  .blocksize = 8,
 	  .cksumlength = 8,
+	  .keyed_cksum = 0,
 	},
 };
 

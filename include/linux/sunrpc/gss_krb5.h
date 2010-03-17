@@ -41,6 +41,9 @@
 #include <linux/sunrpc/gss_err.h>
 #include <linux/sunrpc/gss_asn1.h>
 
+/* Maximum key length (in bytes) for the supported crypto algorithms*/
+#define GSS_KRB5_MAX_KEYLEN (32)
+
 /* Maximum checksum function output for the supported crypto algorithms */
 #define GSS_KRB5_MAX_CKSUM_LEN  (20)
 
@@ -74,6 +77,7 @@ struct krb5_ctx {
 	const struct gss_krb5_enctype *gk5e; /* enctype-specific info */
 	struct crypto_blkcipher	*enc;
 	struct crypto_blkcipher	*seq;
+	u8			cksum[GSS_KRB5_MAX_KEYLEN];
 	s32			endtime;
 	u32			seq_send;
 	struct xdr_netobj	mech_used;
@@ -159,9 +163,10 @@ enum seal_alg {
 	+ GSS_KRB5_TOK_HDR_LEN                                   \
 	+ GSS_KRB5_MAX_CKSUM_LEN)
 
-s32
-make_checksum(char *, char *header, int hdrlen, struct xdr_buf *body,
-		   int body_offset, struct xdr_netobj *cksum);
+u32
+make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
+		struct xdr_buf *body, int body_offset, u8 *cksumkey,
+		struct xdr_netobj *cksumout);
 
 u32 gss_get_mic_kerberos(struct gss_ctx *, struct xdr_buf *,
 		struct xdr_netobj *);

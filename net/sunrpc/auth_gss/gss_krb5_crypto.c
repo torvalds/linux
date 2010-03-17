@@ -123,20 +123,41 @@ checksummer(struct scatterlist *sg, void *data)
 	return crypto_hash_update(desc, sg, sg->length);
 }
 
-/* checksum the plaintext data and hdrlen bytes of the token header */
-s32
-make_checksum(char *cksumname, char *header, int hdrlen, struct xdr_buf *body,
-		   int body_offset, struct xdr_netobj *cksum)
+/*
+ * checksum the plaintext data and hdrlen bytes of the token header
+ * The checksum is performed over the first 8 bytes of the
+ * gss token header and then over the data body
+ */
+u32
+make_checksum(struct krb5_ctx *kctx, char *header, int hdrlen,
+	      struct xdr_buf *body, int body_offset, u8 *cksumkey,
+	      struct xdr_netobj *cksumout)
 {
-	struct hash_desc                desc; /* XXX add to ctx? */
+	struct hash_desc                desc;
 	struct scatterlist              sg[1];
 	int err;
+	u8 checksumdata[GSS_KRB5_MAX_CKSUM_LEN];
+	unsigned int checksumlen;
 
-	desc.tfm = crypto_alloc_hash(cksumname, 0, CRYPTO_ALG_ASYNC);
+	if (cksumout->len < kctx->gk5e->cksumlength) {
+		dprintk("%s: checksum buffer length, %u, too small for %s\n",
+			__func__, cksumout->len, kctx->gk5e->name);
+		return GSS_S_FAILURE;
+	}
+
+	desc.tfm = crypto_alloc_hash(kctx->gk5e->cksum_name, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(desc.tfm))
 		return GSS_S_FAILURE;
-	cksum->len = crypto_hash_digestsize(desc.tfm);
 	desc.flags = CRYPTO_TFM_REQ_MAY_SLEEP;
+
+	checksumlen = crypto_hash_digestsize(desc.tfm);
+
+	if (cksumkey != NULL) {
+		err = crypto_hash_setkey(desc.tfm, cksumkey,
+					 kctx->gk5e->keylength);
+		if (err)
+			goto out;
+	}
 
 	err = crypto_hash_init(&desc);
 	if (err)
@@ -149,8 +170,25 @@ make_checksum(char *cksumname, char *header, int hdrlen, struct xdr_buf *body,
 			      checksummer, &desc);
 	if (err)
 		goto out;
-	err = crypto_hash_final(&desc, cksum->data);
+	err = crypto_hash_final(&desc, checksumdata);
+	if (err)
+		goto out;
 
+	switch (kctx->gk5e->ctype) {
+	case CKSUMTYPE_RSA_MD5:
+		err = kctx->gk5e->encrypt(kctx->seq, NULL, checksumdata,
+					  checksumdata, checksumlen);
+		if (err)
+			goto out;
+		memcpy(cksumout->data,
+		       checksumdata + checksumlen - kctx->gk5e->cksumlength,
+		       kctx->gk5e->cksumlength);
+		break;
+	default:
+		BUG();
+		break;
+	}
+	cksumout->len = kctx->gk5e->cksumlength;
 out:
 	crypto_free_hash(desc.tfm);
 	return err ? GSS_S_FAILURE : 0;

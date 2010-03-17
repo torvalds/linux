@@ -101,6 +101,7 @@ gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 	void			*ptr;
 	s32			now;
 	u32			seq_send;
+	u8			*cksumkey;
 
 	dprintk("RPC:       %s\n", __func__);
 	BUG_ON(ctx == NULL);
@@ -109,15 +110,15 @@ gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 
 	ptr = setup_token(ctx, token);
 
-	if (make_checksum((char *)ctx->gk5e->cksum_name, ptr, 8,
-						text, 0, &md5cksum))
+	if (ctx->gk5e->keyed_cksum)
+		cksumkey = ctx->cksum;
+	else
+		cksumkey = NULL;
+
+	if (make_checksum(ctx, ptr, 8, text, 0, cksumkey, &md5cksum))
 		return GSS_S_FAILURE;
 
-	if (krb5_encrypt(ctx->seq, NULL, md5cksum.data,
-			  md5cksum.data, md5cksum.len))
-		return GSS_S_FAILURE;
-
-	memcpy(ptr + GSS_KRB5_TOK_HDR_LEN, md5cksum.data + md5cksum.len - 8, 8);
+	memcpy(ptr + GSS_KRB5_TOK_HDR_LEN, md5cksum.data, md5cksum.len);
 
 	spin_lock(&krb5_seq_lock);
 	seq_send = ctx->seq_send++;

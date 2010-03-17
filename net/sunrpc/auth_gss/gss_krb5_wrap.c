@@ -167,6 +167,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	int			headlen;
 	struct page		**tmp_pages;
 	u32			seq_send;
+	u8			*cksumkey;
 
 	dprintk("RPC:       %s\n", __func__);
 
@@ -205,18 +206,20 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 
 	make_confounder(msg_start, blocksize);
 
+	if (kctx->gk5e->keyed_cksum)
+		cksumkey = kctx->cksum;
+	else
+		cksumkey = NULL;
+
 	/* XXXJBF: UGH!: */
 	tmp_pages = buf->pages;
 	buf->pages = pages;
-	if (make_checksum((char *)kctx->gk5e->cksum_name, ptr, 8, buf,
-				offset + headlen - blocksize, &md5cksum))
+	if (make_checksum(kctx, ptr, 8, buf, offset + headlen - blocksize,
+					cksumkey, &md5cksum))
 		return GSS_S_FAILURE;
 	buf->pages = tmp_pages;
 
-	if (krb5_encrypt(kctx->seq, NULL, md5cksum.data,
-			  md5cksum.data, md5cksum.len))
-		return GSS_S_FAILURE;
-	memcpy(ptr + GSS_KRB5_TOK_HDR_LEN, md5cksum.data + md5cksum.len - 8, 8);
+	memcpy(ptr + GSS_KRB5_TOK_HDR_LEN, md5cksum.data, md5cksum.len);
 
 	spin_lock(&krb5_seq_lock);
 	seq_send = kctx->seq_send++;
@@ -252,6 +255,7 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	int			data_len;
 	int			blocksize;
 	int			crypt_offset;
+	u8			*cksumkey;
 
 	dprintk("RPC:       gss_unwrap_kerberos\n");
 
@@ -288,15 +292,17 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	if (gss_decrypt_xdr_buf(kctx->enc, buf, crypt_offset))
 		return GSS_S_DEFECTIVE_TOKEN;
 
-	if (make_checksum((char *)kctx->gk5e->cksum_name, ptr, 8, buf,
-						crypt_offset, &md5cksum))
+	if (kctx->gk5e->keyed_cksum)
+		cksumkey = kctx->cksum;
+	else
+		cksumkey = NULL;
+
+	if (make_checksum(kctx, ptr, 8, buf, crypt_offset,
+						cksumkey, &md5cksum))
 		return GSS_S_FAILURE;
 
-	if (krb5_encrypt(kctx->seq, NULL, md5cksum.data,
-			   md5cksum.data, md5cksum.len))
-		return GSS_S_FAILURE;
-
-	if (memcmp(md5cksum.data + 8, ptr + GSS_KRB5_TOK_HDR_LEN, 8))
+	if (memcmp(md5cksum.data, ptr + GSS_KRB5_TOK_HDR_LEN,
+						kctx->gk5e->cksumlength))
 		return GSS_S_BAD_SIG;
 
 	/* it got through unscathed.  Make sure the context is unexpired */
