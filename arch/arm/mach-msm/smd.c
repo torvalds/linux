@@ -62,9 +62,6 @@ static struct shared_info smd_info = {
 module_param_named(debug_mask, msm_smd_debug_mask,
 		   int, S_IRUGO | S_IWUSR | S_IWGRP);
 
-void *smem_item(unsigned id, unsigned *size);
-static void smd_diag(void);
-
 static unsigned last_heap_free = 0xffffffff;
 
 static inline void notify_other_smsm(void)
@@ -146,44 +143,6 @@ LIST_HEAD(smd_ch_list_dsp);
 
 static unsigned char smd_ch_allocated[64];
 static struct work_struct probe_work;
-
-static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type);
-
-static void smd_channel_probe_worker(struct work_struct *work)
-{
-	struct smd_alloc_elm *shared;
-	unsigned ctype;
-	unsigned type;
-	unsigned n;
-
-	shared = smem_find(ID_CH_ALLOC_TBL, sizeof(*shared) * 64);
-	if (!shared) {
-		pr_err("smd: cannot find allocation table\n");
-		return;
-	}
-	for (n = 0; n < 64; n++) {
-		if (smd_ch_allocated[n])
-			continue;
-		if (!shared[n].ref_count)
-			continue;
-		if (!shared[n].name[0])
-			continue;
-		ctype = shared[n].ctype;
-		type = ctype & SMD_TYPE_MASK;
-
-		/* DAL channels are stream but neither the modem,
-		 * nor the DSP correctly indicate this.  Fixup manually.
-		 */
-		if (!memcmp(shared[n].name, "DAL", 3))
-			ctype = (ctype & (~SMD_KIND_MASK)) | SMD_KIND_STREAM;
-
-		type = shared[n].ctype & SMD_TYPE_MASK;
-		if ((type == SMD_TYPE_APPS_MODEM) ||
-		    (type == SMD_TYPE_APPS_DSP))
-			if (!smd_alloc_channel(shared[n].name, shared[n].cid, ctype))
-				smd_ch_allocated[n] = 1;
-	}
-}
 
 /* how many bytes are available for reading */
 static int smd_stream_read_avail(struct smd_channel *ch)
@@ -649,6 +608,42 @@ static int smd_alloc_channel(const char *name, uint32_t cid, uint32_t type)
 
 	platform_device_register(&ch->pdev);
 	return 0;
+}
+
+static void smd_channel_probe_worker(struct work_struct *work)
+{
+	struct smd_alloc_elm *shared;
+	unsigned ctype;
+	unsigned type;
+	unsigned n;
+
+	shared = smem_find(ID_CH_ALLOC_TBL, sizeof(*shared) * 64);
+	if (!shared) {
+		pr_err("smd: cannot find allocation table\n");
+		return;
+	}
+	for (n = 0; n < 64; n++) {
+		if (smd_ch_allocated[n])
+			continue;
+		if (!shared[n].ref_count)
+			continue;
+		if (!shared[n].name[0])
+			continue;
+		ctype = shared[n].ctype;
+		type = ctype & SMD_TYPE_MASK;
+
+		/* DAL channels are stream but neither the modem,
+		 * nor the DSP correctly indicate this.  Fixup manually.
+		 */
+		if (!memcmp(shared[n].name, "DAL", 3))
+			ctype = (ctype & (~SMD_KIND_MASK)) | SMD_KIND_STREAM;
+
+		type = shared[n].ctype & SMD_TYPE_MASK;
+		if ((type == SMD_TYPE_APPS_MODEM) ||
+		    (type == SMD_TYPE_APPS_DSP))
+			if (!smd_alloc_channel(shared[n].name, shared[n].cid, ctype))
+				smd_ch_allocated[n] = 1;
+	}
 }
 
 static void do_nothing_notify(void *priv, unsigned flags)
