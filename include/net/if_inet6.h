@@ -58,7 +58,7 @@ struct inet6_ifaddr {
 	struct inet6_ifaddr	*if_next;       /* next addr in inet6_dev */
 
 #ifdef CONFIG_IPV6_PRIVACY
-	struct inet6_ifaddr	*tmp_next;	/* next addr in tempaddr_lst */
+	struct list_head	tmp_list;
 	struct inet6_ifaddr	*ifpub;
 	int			regen_count;
 #endif
@@ -175,7 +175,7 @@ struct inet6_dev {
 #ifdef CONFIG_IPV6_PRIVACY
 	u8			rndid[8];
 	struct timer_list	regen_timer;
-	struct inet6_ifaddr	*tempaddr_list;
+	struct list_head	tempaddr_list;
 #endif
 
 	struct neigh_parms	*nd_parms;

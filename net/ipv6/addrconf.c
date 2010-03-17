@@ -401,6 +401,7 @@ static struct inet6_dev * ipv6_add_dev(struct net_device *dev)
 #endif
 
 #ifdef CONFIG_IPV6_PRIVACY
+	INIT_LIST_HEAD(&ndev->tempaddr_list);
 	setup_timer(&ndev->regen_timer, ipv6_regen_rndid, (unsigned long)ndev);
 	if ((dev->flags&IFF_LOOPBACK) ||
 	    dev->type == ARPHRD_TUNNEL ||
@@ -679,8 +680,7 @@ ipv6_add_addr(struct inet6_dev *idev, const struct in6_addr *addr, int pfxlen,
 
 #ifdef CONFIG_IPV6_PRIVACY
 	if (ifa->flags&IFA_F_TEMPORARY) {
-		ifa->tmp_next = idev->tempaddr_list;
-		idev->tempaddr_list = ifa;
+		list_add(&ifa->tmp_list, &idev->tempaddr_list);
 		in6_ifa_hold(ifa);
 	}
 #endif
@@ -732,19 +732,12 @@ static void ipv6_del_addr(struct inet6_ifaddr *ifp)
 	write_lock_bh(&idev->lock);
 #ifdef CONFIG_IPV6_PRIVACY
 	if (ifp->flags&IFA_F_TEMPORARY) {
-		for (ifap = &idev->tempaddr_list; (ifa=*ifap) != NULL;
-		     ifap = &ifa->tmp_next) {
-			if (ifa == ifp) {
-				*ifap = ifa->tmp_next;
-				if (ifp->ifpub) {
-					in6_ifa_put(ifp->ifpub);
-					ifp->ifpub = NULL;
-				}
-				__in6_ifa_put(ifp);
-				ifa->tmp_next = NULL;
-				break;
-			}
+		list_del(&ifp->tmp_list);
+		if (ifp->ifpub) {
+			in6_ifa_put(ifp->ifpub);
+			ifp->ifpub = NULL;
 		}
+		__in6_ifa_put(ifp);
 	}
 #endif
 
@@ -1970,7 +1963,7 @@ ok:
 #ifdef CONFIG_IPV6_PRIVACY
 			read_lock_bh(&in6_dev->lock);
 			/* update all temporary addresses in the list */
-			for (ift=in6_dev->tempaddr_list; ift; ift=ift->tmp_next) {
+			list_for_each_entry(ift, &in6_dev->tempaddr_list, tmp_list) {
 				/*
 				 * When adjusting the lifetimes of an existing
 				 * temporary address, only lower the lifetimes.
@@ -2675,9 +2668,10 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 		in6_dev_put(idev);
 
 	/* clear tempaddr list */
-	while ((ifa = idev->tempaddr_list) != NULL) {
-		idev->tempaddr_list = ifa->tmp_next;
-		ifa->tmp_next = NULL;
+	while (!list_empty(&idev->tempaddr_list)) {
+		ifa = list_first_entry(&idev->tempaddr_list,
+				       struct inet6_ifaddr, tmp_list);
+		list_del(&ifa->tmp_list);
 		ifa->dead = 1;
 		write_unlock_bh(&idev->lock);
 		spin_lock_bh(&ifa->lock);
