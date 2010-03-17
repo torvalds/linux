@@ -152,9 +152,8 @@ gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 	seq_send = ctx->seq_send++;
 	spin_unlock(&krb5_seq_lock);
 
-	if (krb5_make_seq_num(ctx->seq, ctx->initiate ? 0 : 0xff,
-			      seq_send, ptr + GSS_KRB5_TOK_HDR_LEN,
-			      ptr + 8))
+	if (krb5_make_seq_num(ctx, ctx->seq, ctx->initiate ? 0 : 0xff,
+			      seq_send, ptr + GSS_KRB5_TOK_HDR_LEN, ptr + 8))
 		return GSS_S_FAILURE;
 
 	return (ctx->endtime < now) ? GSS_S_CONTEXT_EXPIRED : GSS_S_COMPLETE;

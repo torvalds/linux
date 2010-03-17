@@ -131,7 +131,8 @@ gss_verify_mic_v1(struct krb5_ctx *ctx,
 
 	/* do sequencing checks */
 
-	if (krb5_get_seq_num(ctx->seq, ptr + GSS_KRB5_TOK_HDR_LEN, ptr + 8, &direction, &seqnum))
+	if (krb5_get_seq_num(ctx, ptr + GSS_KRB5_TOK_HDR_LEN, ptr + 8,
+			     &direction, &seqnum))
 		return GSS_S_FAILURE;
 
 	if ((ctx->initiate && direction != 0xff) ||

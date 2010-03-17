@@ -227,7 +227,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 
 	/* XXX would probably be more efficient to compute checksum
 	 * and encrypt at the same time: */
-	if ((krb5_make_seq_num(kctx->seq, kctx->initiate ? 0 : 0xff,
+	if ((krb5_make_seq_num(kctx, kctx->seq, kctx->initiate ? 0 : 0xff,
 			       seq_send, ptr + GSS_KRB5_TOK_HDR_LEN, ptr + 8)))
 		return GSS_S_FAILURE;
 
@@ -314,8 +314,8 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 
 	/* do sequencing checks */
 
-	if (krb5_get_seq_num(kctx->seq, ptr + GSS_KRB5_TOK_HDR_LEN, ptr + 8,
-				    &direction, &seqnum))
+	if (krb5_get_seq_num(kctx, ptr + GSS_KRB5_TOK_HDR_LEN,
+				    ptr + 8, &direction, &seqnum))
 		return GSS_S_BAD_SIG;
 
 	if ((kctx->initiate && direction != 0xff) ||
