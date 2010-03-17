@@ -340,7 +340,7 @@ nouveau_card_init_channel(struct drm_device *dev)
 
 	gpuobj = NULL;
 	ret = nouveau_gpuobj_dma_new(dev_priv->channel, NV_CLASS_DMA_IN_MEMORY,
-				     0, nouveau_mem_fb_amount(dev),
+				     0, dev_priv->vram_size,
 				     NV_DMA_ACCESS_RW, NV_DMA_TARGET_VIDMEM,
 				     &gpuobj);
 	if (ret)
@@ -425,6 +425,10 @@ nouveau_card_init(struct drm_device *dev)
 		if (ret)
 			goto out;
 	}
+
+	ret = nouveau_mem_detect(dev);
+	if (ret)
+		goto out_bios;
 
 	ret = nouveau_gpuobj_early_init(dev);
 	if (ret)

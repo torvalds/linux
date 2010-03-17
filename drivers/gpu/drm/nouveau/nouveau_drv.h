@@ -553,12 +553,6 @@ struct drm_nouveau_private {
 	uint32_t ramro_offset;
 	uint32_t ramro_size;
 
-	/* base physical addresses */
-	uint64_t fb_phys;
-	uint64_t fb_available_size;
-	uint64_t fb_mappable_pages;
-	uint64_t fb_aper_free;
-
 	struct {
 		enum {
 			NOUVEAU_GART_NONE = 0,
@@ -580,6 +574,16 @@ struct drm_nouveau_private {
 		spinlock_t lock;
 	} tile;
 
+	/* VRAM/fb configuration */
+	uint64_t vram_size;
+	uint64_t vram_sys_base;
+
+	uint64_t fb_phys;
+	uint64_t fb_available_size;
+	uint64_t fb_mappable_pages;
+	uint64_t fb_aper_free;
+	int fb_mtrr;
+
 	/* G8x/G9x virtual address space */
 	uint64_t vm_gart_base;
 	uint64_t vm_gart_size;
@@ -588,10 +592,6 @@ struct drm_nouveau_private {
 	uint64_t vm_end;
 	struct nouveau_gpuobj *vm_vram_pt[NV50_VM_VRAM_NR];
 	int vm_vram_pt_nr;
-	uint64_t vram_sys_base;
-
-	/* the mtrr covering the FB */
-	int fb_mtrr;
 
 	struct mem_block *ramin_heap;
 
@@ -709,7 +709,7 @@ extern struct mem_block *nouveau_mem_alloc_block(struct mem_block *,
 						 struct drm_file *, int tail);
 extern void nouveau_mem_takedown(struct mem_block **heap);
 extern void nouveau_mem_free_block(struct mem_block *);
-extern uint64_t nouveau_mem_fb_amount(struct drm_device *);
+extern int  nouveau_mem_detect(struct drm_device *dev);
 extern void nouveau_mem_release(struct drm_file *, struct mem_block *heap);
 extern int  nouveau_mem_init(struct drm_device *);
 extern int  nouveau_mem_init_agp(struct drm_device *);

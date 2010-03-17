@@ -71,7 +71,7 @@ nouveau_bo_fixup_align(struct drm_device *dev,
 	 * many small buffers.
 	 */
 	if (dev_priv->card_type == NV_50) {
-		uint32_t block_size = nouveau_mem_fb_amount(dev) >> 15;
+		uint32_t block_size = dev_priv->vram_size >> 15;
 		int i;
 
 		switch (tile_flags) {
@@ -399,8 +399,8 @@ nouveau_bo_init_mem_type(struct ttm_bo_device *bdev, uint32_t type,
 		man->io_addr = NULL;
 		man->io_offset = drm_get_resource_start(dev, 1);
 		man->io_size = drm_get_resource_len(dev, 1);
-		if (man->io_size > nouveau_mem_fb_amount(dev))
-			man->io_size = nouveau_mem_fb_amount(dev);
+		if (man->io_size > dev_priv->vram_size)
+			man->io_size = dev_priv->vram_size;
 
 		man->gpu_offset = dev_priv->vm_vram_base;
 		break;

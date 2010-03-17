@@ -143,7 +143,7 @@ nv50_evo_channel_new(struct drm_device *dev, struct nouveau_channel **pchan)
 	}
 
 	ret = nv50_evo_dmaobj_new(chan, 0x3d, NvEvoVRAM, 0, 0x19,
-				  0, nouveau_mem_fb_amount(dev));
+				  0, dev_priv->vram_size);
 	if (ret) {
 		nv50_evo_channel_del(pchan);
 		return ret;
@@ -231,7 +231,7 @@ nv50_display_init(struct drm_device *dev)
 	/* This used to be in crtc unblank, but seems out of place there. */
 	nv_wr32(dev, NV50_PDISPLAY_UNK_380, 0);
 	/* RAM is clamped to 256 MiB. */
-	ram_amount = nouveau_mem_fb_amount(dev);
+	ram_amount = dev_priv->vram_size;
 	NV_DEBUG_KMS(dev, "ram_amount %d\n", ram_amount);
 	if (ram_amount > 256*1024*1024)
 		ram_amount = 256*1024*1024;
