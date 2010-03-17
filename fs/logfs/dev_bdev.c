@@ -80,6 +80,7 @@ static void writeseg_end_io(struct bio *bio, int err)
 			prefetchw(&bvec->bv_page->flags);
 
 		end_page_writeback(page);
+		page_cache_release(page);
 	} while (bvec >= bio->bi_io_vec);
 	bio_put(bio);
 	if (atomic_dec_and_test(&super->s_pending_writes))
