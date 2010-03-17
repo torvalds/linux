@@ -519,10 +519,13 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 		port->write_urb_busy = 0;
 		spin_unlock_irqrestore(&port->lock, flags);
 
-		if (status)
+		if (status) {
+			spin_lock_irqsave(&port->lock, flags);
 			kfifo_reset_out(&port->write_fifo);
-		else
+			spin_unlock_irqrestore(&port->lock, flags);
+		} else {
 			usb_serial_generic_write_start(port);
+		}
 	}
 
 	if (status)
