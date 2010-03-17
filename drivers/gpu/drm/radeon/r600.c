@@ -676,7 +676,6 @@ void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc)
 
 int r600_mc_init(struct radeon_device *rdev)
 {
-	fixed20_12 a;
 	u32 tmp;
 	int chansize, numchan;
 
@@ -720,14 +719,10 @@ int r600_mc_init(struct radeon_device *rdev)
 		rdev->mc.real_vram_size = rdev->mc.aper_size;
 	}
 	r600_vram_gtt_location(rdev, &rdev->mc);
-	/* FIXME: we should enforce default clock in case GPU is not in
-	 * default setup
-	 */
-	a.full = rfixed_const(100);
-	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
-	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+
 	if (rdev->flags & RADEON_IS_IGP)
 		rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
+	radeon_update_bandwidth_info(rdev);
 	return 0;
 }
 

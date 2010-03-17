@@ -482,6 +482,7 @@ void r300_mc_init(struct radeon_device *rdev)
 	radeon_vram_location(rdev, &rdev->mc, base);
 	if (!(rdev->flags & RADEON_IS_AGP))
 		radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 void rv370_set_pcie_lanes(struct radeon_device *rdev, int lanes)

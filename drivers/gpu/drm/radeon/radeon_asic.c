@@ -543,6 +543,43 @@ static struct radeon_asic r600_asic = {
 	.ioctl_wait_idle = r600_ioctl_wait_idle,
 };
 
+static struct radeon_asic rs780_asic = {
+	.init = &r600_init,
+	.fini = &r600_fini,
+	.suspend = &r600_suspend,
+	.resume = &r600_resume,
+	.cp_commit = &r600_cp_commit,
+	.vga_set_state = &r600_vga_set_state,
+	.gpu_reset = &r600_gpu_reset,
+	.gart_tlb_flush = &r600_pcie_gart_tlb_flush,
+	.gart_set_page = &rs600_gart_set_page,
+	.ring_test = &r600_ring_test,
+	.ring_ib_execute = &r600_ring_ib_execute,
+	.irq_set = &r600_irq_set,
+	.irq_process = &r600_irq_process,
+	.get_vblank_counter = &rs600_get_vblank_counter,
+	.fence_ring_emit = &r600_fence_ring_emit,
+	.cs_parse = &r600_cs_parse,
+	.copy_blit = &r600_copy_blit,
+	.copy_dma = &r600_copy_blit,
+	.copy = &r600_copy_blit,
+	.get_engine_clock = &radeon_atom_get_engine_clock,
+	.set_engine_clock = &radeon_atom_set_engine_clock,
+	.get_memory_clock = NULL,
+	.set_memory_clock = NULL,
+	.get_pcie_lanes = NULL,
+	.set_pcie_lanes = NULL,
+	.set_clock_gating = NULL,
+	.set_surface_reg = r600_set_surface_reg,
+	.clear_surface_reg = r600_clear_surface_reg,
+	.bandwidth_update = &rs690_bandwidth_update,
+	.hpd_init = &r600_hpd_init,
+	.hpd_fini = &r600_hpd_fini,
+	.hpd_sense = &r600_hpd_sense,
+	.hpd_set_polarity = &r600_hpd_set_polarity,
+	.ioctl_wait_idle = r600_ioctl_wait_idle,
+};
+
 static struct radeon_asic rv770_asic = {
 	.init = &rv770_init,
 	.fini = &rv770_fini,
@@ -673,9 +710,11 @@ int radeon_asic_init(struct radeon_device *rdev)
 	case CHIP_RV620:
 	case CHIP_RV635:
 	case CHIP_RV670:
+		rdev->asic = &r600_asic;
+		break;
 	case CHIP_RS780:
 	case CHIP_RS880:
-		rdev->asic = &r600_asic;
+		rdev->asic = &rs780_asic;
 		break;
 	case CHIP_RV770:
 	case CHIP_RV730:

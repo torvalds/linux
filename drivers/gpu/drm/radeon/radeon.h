@@ -699,6 +699,7 @@ struct radeon_pm {
 	fixed20_12		ht_bandwidth;
 	fixed20_12		core_bandwidth;
 	fixed20_12		sclk;
+	fixed20_12		mclk;
 	fixed20_12		needed_bandwidth;
 	/* XXX: use a define for num power modes */
 	struct radeon_power_state power_state[8];
@@ -1179,6 +1180,7 @@ extern void radeon_gart_restore(struct radeon_device *rdev);
 extern int radeon_modeset_init(struct radeon_device *rdev);
 extern void radeon_modeset_fini(struct radeon_device *rdev);
 extern bool radeon_card_posted(struct radeon_device *rdev);
+extern void radeon_update_bandwidth_info(struct radeon_device *rdev);
 extern bool radeon_boot_test_post_card(struct radeon_device *rdev);
 extern int radeon_clocks_init(struct radeon_device *rdev);
 extern void radeon_clocks_fini(struct radeon_device *rdev);

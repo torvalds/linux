@@ -2025,6 +2025,7 @@ void r100_mc_init(struct radeon_device *rdev)
 	radeon_vram_location(rdev, &rdev->mc, base);
 	if (!(rdev->flags & RADEON_IS_AGP))
 		radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 
@@ -2416,11 +2417,8 @@ void r100_bandwidth_update(struct radeon_device *rdev)
 	/*
 	 * determine is there is enough bw for current mode
 	 */
-	mclk_ff.full = rfixed_const(rdev->clock.default_mclk);
-	temp_ff.full = rfixed_const(100);
-	mclk_ff.full = rfixed_div(mclk_ff, temp_ff);
-	sclk_ff.full = rfixed_const(rdev->clock.default_sclk);
-	sclk_ff.full = rfixed_div(sclk_ff, temp_ff);
+	sclk_ff = rdev->pm.sclk;
+	mclk_ff = rdev->pm.mclk;
 
 	temp = (rdev->mc.vram_width / 8) * (rdev->mc.vram_is_ddr ? 2 : 1);
 	temp_ff.full = rfixed_const(temp);

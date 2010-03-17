@@ -132,7 +132,6 @@ void rs690_pm_info(struct radeon_device *rdev)
 
 void rs690_mc_init(struct radeon_device *rdev)
 {
-	fixed20_12 a;
 	u64 base;
 
 	rs400_gart_adjust_size(rdev);
@@ -146,18 +145,10 @@ void rs690_mc_init(struct radeon_device *rdev)
 	base = RREG32_MC(R_000100_MCCFG_FB_LOCATION);
 	base = G_000100_MC_FB_START(base) << 16;
 	rs690_pm_info(rdev);
-	/* FIXME: we should enforce default clock in case GPU is not in
-	 * default setup
-	 */
-	a.full = rfixed_const(100);
-	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
-	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
-	a.full = rfixed_const(16);
-	/* core_bandwidth = sclk(Mhz) * 16 */
-	rdev->pm.core_bandwidth.full = rfixed_div(rdev->pm.sclk, a);
 	rdev->mc.igp_sideport_enabled = radeon_atombios_sideport_present(rdev);
 	radeon_vram_location(rdev, &rdev->mc, base);
 	radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 void rs690_line_buffer_adjust(struct radeon_device *rdev,

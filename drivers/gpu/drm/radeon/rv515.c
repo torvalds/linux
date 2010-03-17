@@ -280,19 +280,13 @@ static void rv515_vram_get_type(struct radeon_device *rdev)
 
 void rv515_mc_init(struct radeon_device *rdev)
 {
-	fixed20_12 a;
 
 	rv515_vram_get_type(rdev);
 	r100_vram_init_sizes(rdev);
 	radeon_vram_location(rdev, &rdev->mc, 0);
 	if (!(rdev->flags & RADEON_IS_AGP))
 		radeon_gtt_location(rdev, &rdev->mc);
-	/* FIXME: we should enforce default clock in case GPU is not in
-	 * default setup
-	 */
-	a.full = rfixed_const(100);
-	rdev->pm.sclk.full = rfixed_const(rdev->clock.default_sclk);
-	rdev->pm.sclk.full = rfixed_div(rdev->pm.sclk, a);
+	radeon_update_bandwidth_info(rdev);
 }
 
 uint32_t rv515_mc_rreg(struct radeon_device *rdev, uint32_t reg)
