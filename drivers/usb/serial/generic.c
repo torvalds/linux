@@ -259,21 +259,14 @@ static int usb_serial_generic_write_start(struct usb_serial_port *port)
 	int result;
 	int count;
 	unsigned long flags;
-	bool start_io;
 
-	/* Atomically determine whether we can and need to start a USB
-	 * operation. */
 	spin_lock_irqsave(&port->lock, flags);
-	if (port->write_urb_busy)
-		start_io = false;
-	else {
-		start_io = (kfifo_len(&port->write_fifo) != 0);
-		port->write_urb_busy = start_io;
-	}
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	if (!start_io)
+	if (port->write_urb_busy || !kfifo_len(&port->write_fifo)) {
+		spin_unlock_irqrestore(&port->lock, flags);
 		return 0;
+	}
+	port->write_urb_busy = 1;
+	spin_unlock_irqrestore(&port->lock, flags);
 
 	data = port->write_urb->transfer_buffer;
 	count = kfifo_out_locked(&port->write_fifo, data, port->bulk_out_size, &port->lock);
