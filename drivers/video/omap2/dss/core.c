@@ -526,11 +526,13 @@ static int omap_dss_probe(struct platform_device *pdev)
 	}
 #endif
 
+#ifdef CONFIG_OMAP2_DSS_DPI
 	r = dpi_init(pdev);
 	if (r) {
 		DSSERR("Failed to initialize dpi\n");
 		goto fail0;
 	}
+#endif
 
 	r = dispc_init();
 	if (r) {
@@ -601,7 +603,9 @@ static int omap_dss_remove(struct platform_device *pdev)
 	venc_exit();
 #endif
 	dispc_exit();
+#ifdef CONFIG_OMAP2_DSS_DPI
 	dpi_exit();
+#endif
 #ifdef CONFIG_OMAP2_DSS_RFBI
 	rfbi_exit();
 #endif

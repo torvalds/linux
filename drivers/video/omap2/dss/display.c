@@ -392,7 +392,9 @@ void dss_init_device(struct platform_device *pdev,
 	int r;
 
 	switch (dssdev->type) {
+#ifdef CONFIG_OMAP2_DSS_DPI
 	case OMAP_DISPLAY_TYPE_DPI:
+#endif
 #ifdef CONFIG_OMAP2_DSS_RFBI
 	case OMAP_DISPLAY_TYPE_DBI:
 #endif
@@ -413,9 +415,11 @@ void dss_init_device(struct platform_device *pdev,
 	}
 
 	switch (dssdev->type) {
+#ifdef CONFIG_OMAP2_DSS_DPI
 	case OMAP_DISPLAY_TYPE_DPI:
 		r = dpi_init_display(dssdev);
 		break;
+#endif
 #ifdef CONFIG_OMAP2_DSS_RFBI
 	case OMAP_DISPLAY_TYPE_DBI:
 		r = rfbi_init_display(dssdev);
