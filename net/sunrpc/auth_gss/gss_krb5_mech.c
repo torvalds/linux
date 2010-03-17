@@ -123,53 +123,47 @@ out_err:
 }
 
 static int
-gss_import_sec_context_kerberos(const void *p,
-				size_t len,
-				struct gss_ctx *ctx_id)
+gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 {
-	const void *end = (const void *)((const char *)p + len);
-	struct	krb5_ctx *ctx;
 	int tmp;
-
-	if (!(ctx = kzalloc(sizeof(*ctx), GFP_NOFS))) {
-		p = ERR_PTR(-ENOMEM);
-		goto out_err;
-	}
 
 	p = simple_get_bytes(p, end, &ctx->initiate, sizeof(ctx->initiate));
 	if (IS_ERR(p))
-		goto out_err_free_ctx;
+		goto out_err;
+
+	/* Old format supports only DES!  Any other enctype uses new format */
 	ctx->enctype = ENCTYPE_DES_CBC_RAW;
+
 	/* The downcall format was designed before we completely understood
 	 * the uses of the context fields; so it includes some stuff we
 	 * just give some minimal sanity-checking, and some we ignore
 	 * completely (like the next twenty bytes): */
 	if (unlikely(p + 20 > end || p + 20 < p))
-		goto out_err_free_ctx;
+		goto out_err;
 	p += 20;
 	p = simple_get_bytes(p, end, &tmp, sizeof(tmp));
 	if (IS_ERR(p))
-		goto out_err_free_ctx;
+		goto out_err;
 	if (tmp != SGN_ALG_DES_MAC_MD5) {
 		p = ERR_PTR(-ENOSYS);
-		goto out_err_free_ctx;
+		goto out_err;
 	}
 	p = simple_get_bytes(p, end, &tmp, sizeof(tmp));
 	if (IS_ERR(p))
-		goto out_err_free_ctx;
+		goto out_err;
 	if (tmp != SEAL_ALG_DES) {
 		p = ERR_PTR(-ENOSYS);
-		goto out_err_free_ctx;
+		goto out_err;
 	}
 	p = simple_get_bytes(p, end, &ctx->endtime, sizeof(ctx->endtime));
 	if (IS_ERR(p))
-		goto out_err_free_ctx;
+		goto out_err;
 	p = simple_get_bytes(p, end, &ctx->seq_send, sizeof(ctx->seq_send));
 	if (IS_ERR(p))
-		goto out_err_free_ctx;
+		goto out_err;
 	p = simple_get_netobj(p, end, &ctx->mech_used);
 	if (IS_ERR(p))
-		goto out_err_free_ctx;
+		goto out_err;
 	p = get_key(p, end, &ctx->enc);
 	if (IS_ERR(p))
 		goto out_err_free_mech;
@@ -181,9 +175,6 @@ gss_import_sec_context_kerberos(const void *p,
 		goto out_err_free_key2;
 	}
 
-	ctx_id->internal_ctx_id = ctx;
-
-	dprintk("RPC:       Successfully imported new context.\n");
 	return 0;
 
 out_err_free_key2:
@@ -192,10 +183,34 @@ out_err_free_key1:
 	crypto_free_blkcipher(ctx->enc);
 out_err_free_mech:
 	kfree(ctx->mech_used.data);
-out_err_free_ctx:
-	kfree(ctx);
 out_err:
 	return PTR_ERR(p);
+}
+
+static int
+gss_import_sec_context_kerberos(const void *p, size_t len,
+				struct gss_ctx *ctx_id)
+{
+	const void *end = (const void *)((const char *)p + len);
+	struct  krb5_ctx *ctx;
+	int ret;
+
+	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
+	if (ctx == NULL)
+		return -ENOMEM;
+
+	if (len == 85)
+		ret = gss_import_v1_context(p, end, ctx);
+	else
+		ret = -EINVAL;
+
+	if (ret == 0)
+		ctx_id->internal_ctx_id = ctx;
+	else
+		kfree(ctx);
+
+	dprintk("RPC:       %s: returning %d\n", __func__, ret);
+	return ret;
 }
 
 static void
