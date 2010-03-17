@@ -789,8 +789,7 @@ static int  ftdi_write(struct tty_struct *tty, struct usb_serial_port *port,
 static int  ftdi_write_room(struct tty_struct *tty);
 static int  ftdi_chars_in_buffer(struct tty_struct *tty);
 static void ftdi_write_bulk_callback(struct urb *urb);
-static void ftdi_read_bulk_callback(struct urb *urb);
-static void ftdi_process_read(struct usb_serial_port *port);
+static void ftdi_process_read_urb(struct urb *urb);
 static void ftdi_set_termios(struct tty_struct *tty,
 			struct usb_serial_port *port, struct ktermios *old);
 static int  ftdi_tiocmget(struct tty_struct *tty, struct file *file);
@@ -799,8 +798,6 @@ static int  ftdi_tiocmset(struct tty_struct *tty, struct file *file,
 static int  ftdi_ioctl(struct tty_struct *tty, struct file *file,
 			unsigned int cmd, unsigned long arg);
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state);
-static void ftdi_throttle(struct tty_struct *tty);
-static void ftdi_unthrottle(struct tty_struct *tty);
 
 static unsigned short int ftdi_232am_baud_base_to_divisor(int baud, int base);
 static unsigned short int ftdi_232am_baud_to_divisor(int baud);
@@ -825,12 +822,12 @@ static struct usb_serial_driver ftdi_sio_device = {
 	.open =			ftdi_open,
 	.close =		ftdi_close,
 	.dtr_rts =		ftdi_dtr_rts,
-	.throttle =		ftdi_throttle,
-	.unthrottle =		ftdi_unthrottle,
+	.throttle =		usb_serial_generic_throttle,
+	.unthrottle =		usb_serial_generic_unthrottle,
 	.write =		ftdi_write,
 	.write_room =		ftdi_write_room,
 	.chars_in_buffer =	ftdi_chars_in_buffer,
-	.read_bulk_callback =	ftdi_read_bulk_callback,
+	.process_read_urb =	ftdi_process_read_urb,
 	.write_bulk_callback =	ftdi_write_bulk_callback,
 	.tiocmget =		ftdi_tiocmget,
 	.tiocmset =		ftdi_tiocmset,
@@ -1686,31 +1683,10 @@ static int ftdi_sio_port_remove(struct usb_serial_port *port)
 	return 0;
 }
 
-static int ftdi_submit_read_urb(struct usb_serial_port *port, gfp_t mem_flags)
-{
-	struct urb *urb = port->read_urb;
-	struct usb_serial *serial = port->serial;
-	int result;
-
-	usb_fill_bulk_urb(urb, serial->dev,
-			   usb_rcvbulkpipe(serial->dev,
-					port->bulk_in_endpointAddress),
-			   urb->transfer_buffer,
-			   urb->transfer_buffer_length,
-			   ftdi_read_bulk_callback, port);
-	result = usb_submit_urb(urb, mem_flags);
-	if (result && result != -EPERM)
-		dev_err(&port->dev,
-			"%s - failed submitting read urb, error %d\n",
-							__func__, result);
-	return result;
-}
-
 static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 { /* ftdi_open */
 	struct usb_device *dev = port->serial->dev;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
-	unsigned long flags;
 	int result;
 
 	dbg("%s", __func__);
@@ -1732,14 +1708,8 @@ static int ftdi_open(struct tty_struct *tty, struct usb_serial_port *port)
 	if (tty)
 		ftdi_set_termios(tty, port, tty->termios);
 
-	/* Not throttled */
-	spin_lock_irqsave(&port->lock, flags);
-	port->throttled = 0;
-	port->throttle_req = 0;
-	spin_unlock_irqrestore(&port->lock, flags);
-
 	/* Start reading from the device */
-	result = ftdi_submit_read_urb(port, GFP_KERNEL);
+	result = usb_serial_generic_open(tty, port);
 	if (!result)
 		kref_get(&priv->kref);
 
@@ -2071,9 +2041,9 @@ static int ftdi_process_packet(struct tty_struct *tty,
 	return len;
 }
 
-static void ftdi_process_read(struct usb_serial_port *port)
+static void ftdi_process_read_urb(struct urb *urb)
 {
-	struct urb *urb = port->read_urb;
+	struct usb_serial_port *port = urb->context;
 	struct tty_struct *tty;
 	struct ftdi_private *priv = usb_get_serial_port_data(port);
 	char *data = (char *)urb->transfer_buffer;
@@ -2093,32 +2063,6 @@ static void ftdi_process_read(struct usb_serial_port *port)
 	if (count)
 		tty_flip_buffer_push(tty);
 	tty_kref_put(tty);
-}
-
-static void ftdi_read_bulk_callback(struct urb *urb)
-{
-	struct usb_serial_port *port = urb->context;
-	unsigned long flags;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	if (urb->status) {
-		dbg("%s - nonzero read bulk status received: %d",
-						__func__, urb->status);
-		return;
-	}
-
-	usb_serial_debug_data(debug, &port->dev, __func__,
-				urb->actual_length, urb->transfer_buffer);
-	ftdi_process_read(port);
-
-	spin_lock_irqsave(&port->lock, flags);
-	port->throttled = port->throttle_req;
-	if (!port->throttled) {
-		spin_unlock_irqrestore(&port->lock, flags);
-		ftdi_submit_read_urb(port, GFP_ATOMIC);
-	} else
-		spin_unlock_irqrestore(&port->lock, flags);
 }
 
 static void ftdi_break_ctl(struct tty_struct *tty, int break_state)
@@ -2454,35 +2398,6 @@ static int ftdi_ioctl(struct tty_struct *tty, struct file *file,
 	 */
 	dbg("%s arg not supported - it was 0x%04x - check /usr/include/asm/ioctls.h", __func__, cmd);
 	return -ENOIOCTLCMD;
-}
-
-static void ftdi_throttle(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	unsigned long flags;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	spin_lock_irqsave(&port->lock, flags);
-	port->throttle_req = 1;
-	spin_unlock_irqrestore(&port->lock, flags);
-}
-
-void ftdi_unthrottle(struct tty_struct *tty)
-{
-	struct usb_serial_port *port = tty->driver_data;
-	int was_throttled;
-	unsigned long flags;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	spin_lock_irqsave(&port->lock, flags);
-	was_throttled = port->throttled;
-	port->throttled = port->throttle_req = 0;
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	if (was_throttled)
-		ftdi_submit_read_urb(port, GFP_KERNEL);
 }
 
 static int __init ftdi_init(void)
