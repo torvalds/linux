@@ -129,14 +129,14 @@ struct videobuf_qtype_ops {
 
 	void *(*alloc)		(size_t size);
 	void *(*vmalloc)	(struct videobuf_buffer *buf);
-	int (*iolock)		(struct videobuf_queue* q,
+	int (*iolock)		(struct videobuf_queue *q,
 				 struct videobuf_buffer *vb,
 				 struct v4l2_framebuffer *fbuf);
 	int (*mmap)		(struct videobuf_queue *q,
 				 unsigned int *count,
 				 unsigned int *size,
 				 enum v4l2_memory memory);
-	int (*sync)		(struct videobuf_queue* q,
+	int (*sync)		(struct videobuf_queue *q,
 				 struct videobuf_buffer *buf);
 	int (*video_copy_to_user)(struct videobuf_queue *q,
 				 char __user *data,
@@ -185,14 +185,14 @@ struct videobuf_queue {
 };
 
 int videobuf_waiton(struct videobuf_buffer *vb, int non_blocking, int intr);
-int videobuf_iolock(struct videobuf_queue* q, struct videobuf_buffer *vb,
+int videobuf_iolock(struct videobuf_queue *q, struct videobuf_buffer *vb,
 		struct v4l2_framebuffer *fbuf);
 
 void *videobuf_alloc(struct videobuf_queue* q);
 
 /* Used on videobuf-dvb */
-void *videobuf_queue_to_vmalloc (struct videobuf_queue* q,
-				 struct videobuf_buffer *buf);
+void *videobuf_queue_to_vmalloc(struct videobuf_queue *q,
+				struct videobuf_buffer *buf);
 
 void videobuf_queue_core_init(struct videobuf_queue *q,
 			 const struct videobuf_queue_ops *ops,
