@@ -170,7 +170,7 @@ void ceph_msgpool_put(struct ceph_msgpool *pool, struct ceph_msg *msg)
 		msg->front.iov_len = pool->front_len;
 		msg->hdr.front_len = cpu_to_le32(pool->front_len);
 
-		kref_set(&msg->kref, 1);  /* retake a single ref */
+		kref_init(&msg->kref);  /* retake a single ref */
 		list_add(&msg->list_head, &pool->msgs);
 		pool->num++;
 		dout("msgpool_put %p reclaim %p, now %d/%d\n", pool, msg,
