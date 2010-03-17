@@ -188,19 +188,19 @@ struct iwl_eeprom_enhanced_txpwr {
 /* 5000 regulatory - indirect access */
 #define EEPROM_5000_REG_SKU_ID ((0x02)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 4  bytes */
-#define EEPROM_5000_REG_BAND_1_CHANNELS       ((0x08)\
+#define EEPROM_REG_BAND_1_CHANNELS       ((0x08)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 28 bytes */
-#define EEPROM_5000_REG_BAND_2_CHANNELS       ((0x26)\
+#define EEPROM_REG_BAND_2_CHANNELS       ((0x26)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 26 bytes */
-#define EEPROM_5000_REG_BAND_3_CHANNELS       ((0x42)\
+#define EEPROM_REG_BAND_3_CHANNELS       ((0x42)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 24 bytes */
-#define EEPROM_5000_REG_BAND_4_CHANNELS       ((0x5C)\
+#define EEPROM_REG_BAND_4_CHANNELS       ((0x5C)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22 bytes */
-#define EEPROM_5000_REG_BAND_5_CHANNELS       ((0x74)\
+#define EEPROM_REG_BAND_5_CHANNELS       ((0x74)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 12 bytes */
-#define EEPROM_5000_REG_BAND_24_HT40_CHANNELS  ((0x82)\
+#define EEPROM_REG_BAND_24_HT40_CHANNELS  ((0x82)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 14  bytes */
-#define EEPROM_5000_REG_BAND_52_HT40_CHANNELS  ((0x92)\
+#define EEPROM_REG_BAND_52_HT40_CHANNELS  ((0x92)\
 		| INDIRECT_ADDRESS | INDIRECT_REGULATORY)   /* 22  bytes */
 
 /* 6000 and up regulatory tx power - indirect access */

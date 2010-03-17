@@ -103,4 +103,14 @@ void iwlagn_rx_calib_complete(struct iwl_priv *priv,
 void iwlagn_init_alive_start(struct iwl_priv *priv);
 int iwlagn_alive_notify(struct iwl_priv *priv);
 
+/* lib */
+void iwlagn_rx_handler_setup(struct iwl_priv *priv);
+void iwlagn_setup_deferred_work(struct iwl_priv *priv);
+int iwlagn_hw_valid_rtc_data_addr(u32 addr);
+int iwlagn_send_tx_power(struct iwl_priv *priv);
+void iwlagn_temperature(struct iwl_priv *priv);
+u16 iwlagn_eeprom_calib_version(struct iwl_priv *priv);
+const u8 *iwlagn_eeprom_query_addr(const struct iwl_priv *priv,
+				   size_t offset);
+
 #endif /* __iwl_agn_h__ */
