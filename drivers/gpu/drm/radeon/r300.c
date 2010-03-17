@@ -165,9 +165,9 @@ void rv370_pcie_gart_disable(struct radeon_device *rdev)
 
 void rv370_pcie_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	rv370_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 void r300_fence_ring_emit(struct radeon_device *rdev,

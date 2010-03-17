@@ -268,9 +268,9 @@ void rs600_gart_disable(struct radeon_device *rdev)
 
 void rs600_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	rs600_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 #define R600_PTE_VALID     (1 << 0)

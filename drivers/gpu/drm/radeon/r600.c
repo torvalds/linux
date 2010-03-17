@@ -492,9 +492,9 @@ void r600_pcie_gart_disable(struct radeon_device *rdev)
 
 void r600_pcie_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	r600_pcie_gart_disable(rdev);
 	radeon_gart_table_vram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 void r600_agp_enable(struct radeon_device *rdev)

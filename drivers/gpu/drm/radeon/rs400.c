@@ -203,9 +203,9 @@ void rs400_gart_disable(struct radeon_device *rdev)
 
 void rs400_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	rs400_gart_disable(rdev);
 	radeon_gart_table_ram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 int rs400_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)

@@ -236,9 +236,9 @@ int r100_pci_gart_set_page(struct radeon_device *rdev, int i, uint64_t addr)
 
 void r100_pci_gart_fini(struct radeon_device *rdev)
 {
+	radeon_gart_fini(rdev);
 	r100_pci_gart_disable(rdev);
 	radeon_gart_table_ram_free(rdev);
-	radeon_gart_fini(rdev);
 }
 
 int r100_irq_set(struct radeon_device *rdev)
