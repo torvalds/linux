@@ -2644,7 +2644,7 @@ F:	drivers/char/hpet.c
 F:	include/linux/hpet.h
 
 HPET:	i386
-M:	"Venkatesh Pallipadi (Venki)" <venkatesh.pallipadi@intel.com>
+M:	"Venkatesh Pallipadi (Venki)" <venki@google.com>
 S:	Maintained
 F:	arch/x86/kernel/hpet.c
 F:	arch/x86/include/asm/hpet.h
