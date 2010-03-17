@@ -134,7 +134,7 @@ void ivtv_write_vbi(struct ivtv *itv, const struct v4l2_sliced_vbi_data *sliced,
 			}
 		}
 	}
-	if (found_cc && vi->cc_payload_idx < sizeof(vi->cc_payload)) {
+	if (found_cc && vi->cc_payload_idx < ARRAY_SIZE(vi->cc_payload)) {
 		vi->cc_payload[vi->cc_payload_idx++] = cc;
 		set_bit(IVTV_F_I_UPDATE_CC, &itv->i_flags);
 	}
