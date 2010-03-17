@@ -344,7 +344,7 @@ set_cdata(u8 cdata[GSS_KRB5_K5CLENGTH], u32 usage, u8 seed)
 }
 
 static int
-context_derive_keys_des3(struct krb5_ctx *ctx, u8 *rawkey, u32 keylen)
+context_derive_keys_des3(struct krb5_ctx *ctx)
 {
 	struct xdr_netobj c, keyin, keyout;
 	u8 cdata[GSS_KRB5_K5CLENGTH];
@@ -353,18 +353,18 @@ context_derive_keys_des3(struct krb5_ctx *ctx, u8 *rawkey, u32 keylen)
 	c.len = GSS_KRB5_K5CLENGTH;
 	c.data = cdata;
 
-	keyin.data = rawkey;
-	keyin.len = keylen;
-	keyout.len = keylen;
+	keyin.data = ctx->Ksess;
+	keyin.len = ctx->gk5e->keylength;
+	keyout.len = ctx->gk5e->keylength;
 
 	/* seq uses the raw key */
 	ctx->seq = context_v2_alloc_cipher(ctx, ctx->gk5e->encrypt_name,
-					   rawkey);
+					   ctx->Ksess);
 	if (ctx->seq == NULL)
 		goto out_err;
 
 	ctx->enc = context_v2_alloc_cipher(ctx, ctx->gk5e->encrypt_name,
-					   rawkey);
+					   ctx->Ksess);
 	if (ctx->enc == NULL)
 		goto out_free_seq;
 
@@ -389,7 +389,7 @@ out_err:
 }
 
 static int
-context_derive_keys_new(struct krb5_ctx *ctx, u8 *rawkey, u32 keylen)
+context_derive_keys_new(struct krb5_ctx *ctx)
 {
 	struct xdr_netobj c, keyin, keyout;
 	u8 cdata[GSS_KRB5_K5CLENGTH];
@@ -398,9 +398,9 @@ context_derive_keys_new(struct krb5_ctx *ctx, u8 *rawkey, u32 keylen)
 	c.len = GSS_KRB5_K5CLENGTH;
 	c.data = cdata;
 
-	keyin.data = rawkey;
-	keyin.len = keylen;
-	keyout.len = keylen;
+	keyin.data = ctx->Ksess;
+	keyin.len = ctx->gk5e->keylength;
+	keyout.len = ctx->gk5e->keylength;
 
 	/* initiator seal encryption */
 	set_cdata(cdata, KG_USAGE_INITIATOR_SEAL, KEY_USAGE_SEED_ENCRYPTION);
@@ -502,7 +502,6 @@ out_err:
 static int
 gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx)
 {
-	u8 rawkey[GSS_KRB5_MAX_KEYLEN];
 	int keylen;
 
 	p = simple_get_bytes(p, end, &ctx->flags, sizeof(ctx->flags));
@@ -538,7 +537,7 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx)
 	}
 	keylen = ctx->gk5e->keylength;
 
-	p = simple_get_bytes(p, end, rawkey, keylen);
+	p = simple_get_bytes(p, end, ctx->Ksess, keylen);
 	if (IS_ERR(p))
 		goto out_err;
 
@@ -557,10 +556,10 @@ gss_import_v2_context(const void *p, const void *end, struct krb5_ctx *ctx)
 
 	switch (ctx->enctype) {
 	case ENCTYPE_DES3_CBC_RAW:
-		return context_derive_keys_des3(ctx, rawkey, keylen);
+		return context_derive_keys_des3(ctx);
 	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
 	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
-		return context_derive_keys_new(ctx, rawkey, keylen);
+		return context_derive_keys_new(ctx);
 	default:
 		return -EINVAL;
 	}
