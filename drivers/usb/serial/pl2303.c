@@ -456,21 +456,10 @@ static void pl2303_dtr_rts(struct usb_serial_port *port, int on)
 
 static void pl2303_close(struct usb_serial_port *port)
 {
-	unsigned long flags;
-
 	dbg("%s - port %d", __func__, port->number);
 
-	spin_lock_irqsave(&port->lock, flags);
-	/* clear out any remaining data in the buffer */
-	kfifo_reset_out(&port->write_fifo);
-	spin_unlock_irqrestore(&port->lock, flags);
-
-	/* shutdown our urbs */
-	dbg("%s - shutting down urbs", __func__);
-	usb_kill_urb(port->write_urb);
-	usb_kill_urb(port->read_urb);
+	usb_serial_generic_close(port);
 	usb_kill_urb(port->interrupt_in_urb);
-
 }
 
 static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
