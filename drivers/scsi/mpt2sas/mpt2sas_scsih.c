@@ -4435,10 +4435,10 @@ _scsih_sas_device_status_change_event(struct MPT2SAS_ADAPTER *ioc,
 		     event_data);
 #endif
 
-	if (!(event_data->ReasonCode ==
+	if (event_data->ReasonCode !=
 	    MPI2_EVENT_SAS_DEV_STAT_RC_INTERNAL_DEVICE_RESET &&
-	   event_data->ReasonCode ==
-	    MPI2_EVENT_SAS_DEV_STAT_RC_CMP_INTERNAL_DEV_RESET))
+	   event_data->ReasonCode !=
+	    MPI2_EVENT_SAS_DEV_STAT_RC_CMP_INTERNAL_DEV_RESET)
 		return;
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
