@@ -23,8 +23,6 @@ $(obj)/system.dtb: $(obj)/$(DTB).dtb
 endif
 
 $(obj)/linux.bin: vmlinux FORCE
-	[ -n $(CONFIG_INITRAMFS_SOURCE) ] && [ ! -e $(CONFIG_INITRAMFS_SOURCE) ] && \
-	touch $(CONFIG_INITRAMFS_SOURCE) || echo "No CPIO image"
 	$(call if_changed,objcopy)
 	$(call if_changed,uimage)
 	@echo 'Kernel: $@ is ready' ' (#'`cat .version`')'
@@ -61,7 +59,5 @@ quiet_cmd_dtc = DTC     $@
 
 $(obj)/%.dtb: $(dtstree)/%.dts FORCE
 	$(call if_changed,dtc)
-
-clean-kernel += linux.bin linux.bin.gz simpleImage.*
 
 clean-files += *.dtb simpleImage.*.unstrip linux.bin.ub
