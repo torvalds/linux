@@ -55,7 +55,7 @@ static struct omapfb2_mem_region *get_mem_region(struct omapfb_info *ofbi,
 	if (mem_idx >= fbdev->num_fbs)
 		return NULL;
 
-	return &fbdev->regions[mem_idx];
+	return omapfb_get_mem_region(&fbdev->regions[mem_idx]);
 }
 
 static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
@@ -77,11 +77,11 @@ static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 	/* XXX uses only the first overlay */
 	ovl = ofbi->overlays[0];
 
-	old_rg = ofbi->region;
+	old_rg = omapfb_get_mem_region(ofbi->region);
 	new_rg = get_mem_region(ofbi, pi->mem_idx);
 	if (!new_rg) {
 		r = -EINVAL;
-		goto out;
+		goto put_old;
 	}
 
 	if (pi->enabled && !new_rg->size) {
@@ -90,7 +90,7 @@ static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 		 * until it's reallocated.
 		 */
 		r = -EINVAL;
-		goto out;
+		goto put_new;
 	}
 
 	ovl->get_overlay_info(ovl, &old_info);
@@ -135,6 +135,9 @@ static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 	if (ovl->manager)
 		ovl->manager->apply(ovl->manager);
 
+	omapfb_put_mem_region(new_rg);
+	omapfb_put_mem_region(old_rg);
+
 	return 0;
 
  undo:
@@ -144,6 +147,10 @@ static int omapfb_setup_plane(struct fb_info *fbi, struct omapfb_plane_info *pi)
 	}
 
 	ovl->set_overlay_info(ovl, &old_info);
+ put_new:
+	omapfb_put_mem_region(new_rg);
+ put_old:
+	omapfb_put_mem_region(old_rg);
  out:
 	dev_err(fbdev->dev, "setup_plane failed\n");
 
@@ -181,7 +188,7 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_device *fbdev = ofbi->fbdev;
 	struct omapfb2_mem_region *rg;
-	int r, i;
+	int r = 0, i;
 	size_t size;
 
 	if (mi->type > OMAPFB_MEMTYPE_MAX)
@@ -191,8 +198,18 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 
 	rg = ofbi->region;
 
-	if (atomic_read(&rg->map_count))
-		return -EBUSY;
+	/* FIXME probably should be a rwsem ... */
+	mutex_lock(&rg->mtx);
+	while (rg->ref) {
+		mutex_unlock(&rg->mtx);
+		schedule();
+		mutex_lock(&rg->mtx);
+	}
+
+	if (atomic_read(&rg->map_count)) {
+		r = -EBUSY;
+		goto out;
+	}
 
 	for (i = 0; i < fbdev->num_fbs; i++) {
 		struct omapfb_info *ofbi2 = FB2OFB(fbdev->fbs[i]);
@@ -204,7 +221,7 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 		for (j = 0; j < ofbi2->num_overlays; j++) {
 			if (ofbi2->overlays[j]->info.enabled) {
 				r = -EBUSY;
-				return r;
+				goto out;
 			}
 		}
 	}
@@ -213,11 +230,14 @@ static int omapfb_setup_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 		r = omapfb_realloc_fbmem(fbi, size, mi->type);
 		if (r) {
 			dev_err(fbdev->dev, "realloc fbmem failed\n");
-			return r;
+			goto out;
 		}
 	}
 
-	return 0;
+ out:
+	mutex_unlock(&rg->mtx);
+
+	return r;
 }
 
 static int omapfb_query_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
@@ -225,11 +245,13 @@ static int omapfb_query_mem(struct fb_info *fbi, struct omapfb_mem_info *mi)
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_mem_region *rg;
 
-	rg = ofbi->region;
+	rg = omapfb_get_mem_region(ofbi->region);
 	memset(mi, 0, sizeof(*mi));
 
 	mi->size = rg->size;
 	mi->type = rg->type;
+
+	omapfb_put_mem_region(rg);
 
 	return 0;
 }

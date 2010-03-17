@@ -49,6 +49,7 @@ static ssize_t store_rotate_type(struct device *dev,
 {
 	struct fb_info *fbi = dev_get_drvdata(dev);
 	struct omapfb_info *ofbi = FB2OFB(fbi);
+	struct omapfb2_mem_region *rg;
 	enum omap_dss_rotation_type rot_type;
 	int r;
 
@@ -64,9 +65,11 @@ static ssize_t store_rotate_type(struct device *dev,
 	if (rot_type == ofbi->rotation_type)
 		goto out;
 
-	if (ofbi->region->size) {
+	rg = omapfb_get_mem_region(ofbi->region);
+
+	if (rg->size) {
 		r = -EBUSY;
-		goto out;
+		goto put_region;
 	}
 
 	ofbi->rotation_type = rot_type;
@@ -75,6 +78,8 @@ static ssize_t store_rotate_type(struct device *dev,
 	 * Since the VRAM for this FB is not allocated at the moment we don't
 	 * need to do any further parameter checking at this point.
 	 */
+put_region:
+	omapfb_put_mem_region(rg);
 out:
 	unlock_fb_info(fbi);
 
@@ -111,6 +116,8 @@ static ssize_t store_mirror(struct device *dev,
 
 	ofbi->mirror = mirror;
 
+	omapfb_get_mem_region(ofbi->region);
+
 	memcpy(&new_var, &fbi->var, sizeof(new_var));
 	r = check_fb_var(fbi, &new_var);
 	if (r)
@@ -125,6 +132,8 @@ static ssize_t store_mirror(struct device *dev,
 
 	r = count;
 out:
+	omapfb_put_mem_region(ofbi->region);
+
 	unlock_fb_info(fbi);
 
 	return r;
@@ -263,10 +272,14 @@ static ssize_t store_overlays(struct device *dev, struct device_attribute *attr,
 
 		DBG("detaching %d\n", ofbi->overlays[i]->id);
 
+		omapfb_get_mem_region(ofbi->region);
+
 		omapfb_overlay_enable(ovl, 0);
 
 		if (ovl->manager)
 			ovl->manager->apply(ovl->manager);
+
+		omapfb_put_mem_region(ofbi->region);
 
 		for (t = i + 1; t < ofbi->num_overlays; t++) {
 			ofbi->rotation[t-1] = ofbi->rotation[t];
@@ -300,7 +313,12 @@ static ssize_t store_overlays(struct device *dev, struct device_attribute *attr,
 	}
 
 	if (added) {
+		omapfb_get_mem_region(ofbi->region);
+
 		r = omapfb_apply_changes(fbi, 0);
+
+		omapfb_put_mem_region(ofbi->region);
+
 		if (r)
 			goto out;
 	}
@@ -388,7 +406,12 @@ static ssize_t store_overlays_rotate(struct device *dev,
 		for (i = 0; i < num_ovls; ++i)
 			ofbi->rotation[i] = rotation[i];
 
+		omapfb_get_mem_region(ofbi->region);
+
 		r = omapfb_apply_changes(fbi, 0);
+
+		omapfb_put_mem_region(ofbi->region);
+
 		if (r)
 			goto out;
 
@@ -429,6 +452,14 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 
 	rg = ofbi->region;
 
+	/* FIXME probably should be a rwsem ... */
+	mutex_lock(&rg->mtx);
+	while (rg->ref) {
+		mutex_unlock(&rg->mtx);
+		schedule();
+		mutex_lock(&rg->mtx);
+	}
+
 	if (atomic_read(&rg->map_count)) {
 		r = -EBUSY;
 		goto out;
@@ -459,6 +490,8 @@ static ssize_t store_size(struct device *dev, struct device_attribute *attr,
 
 	r = count;
 out:
+	mutex_unlock(&rg->mtx);
+
 	unlock_fb_info(fbi);
 
 	return r;

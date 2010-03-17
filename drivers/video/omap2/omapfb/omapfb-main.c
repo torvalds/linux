@@ -1019,11 +1019,16 @@ err:
  * DO NOT MODIFY PAR */
 static int omapfb_check_var(struct fb_var_screeninfo *var, struct fb_info *fbi)
 {
+	struct omapfb_info *ofbi = FB2OFB(fbi);
 	int r;
 
 	DBG("check_var(%d)\n", FB2OFB(fbi)->id);
 
+	omapfb_get_mem_region(ofbi->region);
+
 	r = check_fb_var(fbi, var);
+
+	omapfb_put_mem_region(ofbi->region);
 
 	return r;
 }
@@ -1031,17 +1036,23 @@ static int omapfb_check_var(struct fb_var_screeninfo *var, struct fb_info *fbi)
 /* set the video mode according to info->var */
 static int omapfb_set_par(struct fb_info *fbi)
 {
+	struct omapfb_info *ofbi = FB2OFB(fbi);
 	int r;
 
 	DBG("set_par(%d)\n", FB2OFB(fbi)->id);
+
+	omapfb_get_mem_region(ofbi->region);
 
 	set_fb_fix(fbi);
 
 	r = setup_vrfb_rotation(fbi);
 	if (r)
-		return r;
+		goto out;
 
 	r = omapfb_apply_changes(fbi, 0);
+
+ out:
+	omapfb_put_mem_region(ofbi->region);
 
 	return r;
 }
@@ -1049,6 +1060,7 @@ static int omapfb_set_par(struct fb_info *fbi)
 static int omapfb_pan_display(struct fb_var_screeninfo *var,
 		struct fb_info *fbi)
 {
+	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct fb_var_screeninfo new_var;
 	int r;
 
@@ -1064,7 +1076,11 @@ static int omapfb_pan_display(struct fb_var_screeninfo *var,
 
 	fbi->var = new_var;
 
+	omapfb_get_mem_region(ofbi->region);
+
 	r = omapfb_apply_changes(fbi, 0);
+
+	omapfb_put_mem_region(ofbi->region);
 
 	return r;
 }
@@ -1073,14 +1089,18 @@ static void mmap_user_open(struct vm_area_struct *vma)
 {
 	struct omapfb2_mem_region *rg = vma->vm_private_data;
 
+	omapfb_get_mem_region(rg);
 	atomic_inc(&rg->map_count);
+	omapfb_put_mem_region(rg);
 }
 
 static void mmap_user_close(struct vm_area_struct *vma)
 {
 	struct omapfb2_mem_region *rg = vma->vm_private_data;
 
+	omapfb_get_mem_region(rg);
 	atomic_dec(&rg->map_count);
+	omapfb_put_mem_region(rg);
 }
 
 static struct vm_operations_struct mmap_user_ops = {
@@ -1096,6 +1116,7 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	unsigned long off;
 	unsigned long start;
 	u32 len;
+	int r = -EINVAL;
 
 	if (vma->vm_end - vma->vm_start == 0)
 		return 0;
@@ -1103,14 +1124,14 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 		return -EINVAL;
 	off = vma->vm_pgoff << PAGE_SHIFT;
 
-	rg = ofbi->region;
+	rg = omapfb_get_mem_region(ofbi->region);
 
 	start = omapfb_get_region_paddr(ofbi);
 	len = fix->smem_len;
 	if (off >= len)
-		return -EINVAL;
+		goto error;
 	if ((vma->vm_end - vma->vm_start + off) > len)
-		return -EINVAL;
+		goto error;
 
 	off += start;
 
@@ -1122,11 +1143,23 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	vma->vm_ops = &mmap_user_ops;
 	vma->vm_private_data = rg;
 	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
-			     vma->vm_end - vma->vm_start, vma->vm_page_prot))
-		return -EAGAIN;
+			       vma->vm_end - vma->vm_start,
+			       vma->vm_page_prot)) {
+		r = -EAGAIN;
+		goto error;
+	}
+
 	/* vm_ops.open won't be called for mmap itself. */
 	atomic_inc(&rg->map_count);
+
+	omapfb_put_mem_region(rg);
+
 	return 0;
+
+ error:
+	omapfb_put_mem_region(ofbi->region);
+
+	return r;
 }
 
 /* Store a single color palette entry into a pseudo palette or the hardware
@@ -1897,6 +1930,7 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 
 		ofbi->region = &fbdev->regions[i];
 		ofbi->region->id = i;
+		mutex_init(&ofbi->region->mtx);
 
 		/* assign these early, so that fb alloc can use them */
 		ofbi->rotation_type = def_vrfb ? OMAP_DSS_ROT_VRFB :
@@ -1927,7 +1961,13 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 
 	/* setup fb_infos */
 	for (i = 0; i < fbdev->num_fbs; i++) {
-		r = omapfb_fb_init(fbdev, fbdev->fbs[i]);
+		struct fb_info *fbi = fbdev->fbs[i];
+		struct omapfb_info *ofbi = FB2OFB(fbi);
+
+		omapfb_get_mem_region(ofbi->region);
+		r = omapfb_fb_init(fbdev, fbi);
+		omapfb_put_mem_region(ofbi->region);
+
 		if (r) {
 			dev_err(fbdev->dev, "failed to setup fb_info\n");
 			return r;
@@ -1948,7 +1988,13 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 	DBG("framebuffers registered\n");
 
 	for (i = 0; i < fbdev->num_fbs; i++) {
-		r = omapfb_apply_changes(fbdev->fbs[i], 1);
+		struct fb_info *fbi = fbdev->fbs[i];
+		struct omapfb_info *ofbi = FB2OFB(fbi);
+
+		omapfb_get_mem_region(ofbi->region);
+		r = omapfb_apply_changes(fbi, 1);
+		omapfb_put_mem_region(ofbi->region);
+
 		if (r) {
 			dev_err(fbdev->dev, "failed to change mode\n");
 			return r;
