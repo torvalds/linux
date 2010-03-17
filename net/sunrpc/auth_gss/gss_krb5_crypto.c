@@ -1,7 +1,7 @@
 /*
  *  linux/net/sunrpc/gss_krb5_crypto.c
  *
- *  Copyright (c) 2000 The Regents of the University of Michigan.
+ *  Copyright (c) 2000-2008 The Regents of the University of Michigan.
  *  All rights reserved.
  *
  *  Andy Adamson   <andros@umich.edu>
@@ -58,13 +58,13 @@ krb5_encrypt(
 {
 	u32 ret = -EINVAL;
 	struct scatterlist sg[1];
-	u8 local_iv[16] = {0};
+	u8 local_iv[GSS_KRB5_MAX_BLOCKSIZE] = {0};
 	struct blkcipher_desc desc = { .tfm = tfm, .info = local_iv };
 
 	if (length % crypto_blkcipher_blocksize(tfm) != 0)
 		goto out;
 
-	if (crypto_blkcipher_ivsize(tfm) > 16) {
+	if (crypto_blkcipher_ivsize(tfm) > GSS_KRB5_MAX_BLOCKSIZE) {
 		dprintk("RPC:       gss_k5encrypt: tfm iv size too large %d\n",
 			crypto_blkcipher_ivsize(tfm));
 		goto out;
@@ -92,13 +92,13 @@ krb5_decrypt(
 {
 	u32 ret = -EINVAL;
 	struct scatterlist sg[1];
-	u8 local_iv[16] = {0};
+	u8 local_iv[GSS_KRB5_MAX_BLOCKSIZE] = {0};
 	struct blkcipher_desc desc = { .tfm = tfm, .info = local_iv };
 
 	if (length % crypto_blkcipher_blocksize(tfm) != 0)
 		goto out;
 
-	if (crypto_blkcipher_ivsize(tfm) > 16) {
+	if (crypto_blkcipher_ivsize(tfm) > GSS_KRB5_MAX_BLOCKSIZE) {
 		dprintk("RPC:       gss_k5decrypt: tfm iv size too large %d\n",
 			crypto_blkcipher_ivsize(tfm));
 		goto out;
@@ -157,7 +157,7 @@ out:
 }
 
 struct encryptor_desc {
-	u8 iv[8]; /* XXX hard-coded blocksize */
+	u8 iv[GSS_KRB5_MAX_BLOCKSIZE];
 	struct blkcipher_desc desc;
 	int pos;
 	struct xdr_buf *outbuf;
@@ -198,7 +198,7 @@ encryptor(struct scatterlist *sg, void *data)
 	desc->fraglen += sg->length;
 	desc->pos += sg->length;
 
-	fraglen = thislen & 7; /* XXX hardcoded blocksize */
+	fraglen = thislen & (crypto_blkcipher_blocksize(desc->desc.tfm) - 1);
 	thislen -= fraglen;
 
 	if (thislen == 0)
@@ -256,7 +256,7 @@ gss_encrypt_xdr_buf(struct crypto_blkcipher *tfm, struct xdr_buf *buf,
 }
 
 struct decryptor_desc {
-	u8 iv[8]; /* XXX hard-coded blocksize */
+	u8 iv[GSS_KRB5_MAX_BLOCKSIZE];
 	struct blkcipher_desc desc;
 	struct scatterlist frags[4];
 	int fragno;
@@ -278,7 +278,7 @@ decryptor(struct scatterlist *sg, void *data)
 	desc->fragno++;
 	desc->fraglen += sg->length;
 
-	fraglen = thislen & 7; /* XXX hardcoded blocksize */
+	fraglen = thislen & (crypto_blkcipher_blocksize(desc->desc.tfm) - 1);
 	thislen -= fraglen;
 
 	if (thislen == 0)

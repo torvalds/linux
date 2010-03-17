@@ -4,7 +4,7 @@
  *  Adapted from MIT Kerberos 5-1.2.1 lib/include/krb5.h,
  *  lib/gssapi/krb5/gssapiP_krb5.h, and others
  *
- *  Copyright (c) 2000 The Regents of the University of Michigan.
+ *  Copyright (c) 2000-2008 The Regents of the University of Michigan.
  *  All rights reserved.
  *
  *  Andy Adamson   <andros@umich.edu>
@@ -36,6 +36,7 @@
  *
  */
 
+#include <linux/crypto.h>
 #include <linux/sunrpc/auth_gss.h>
 #include <linux/sunrpc/gss_err.h>
 #include <linux/sunrpc/gss_asn1.h>
@@ -46,9 +47,31 @@
 /* Maximum blocksize for the supported crypto algorithms */
 #define GSS_KRB5_MAX_BLOCKSIZE  (16)
 
+struct gss_krb5_enctype {
+	const u32		etype;		/* encryption (key) type */
+	const u32		ctype;		/* checksum type */
+	const char		*name;		/* "friendly" name */
+	const char		*encrypt_name;	/* crypto encrypt name */
+	const char		*cksum_name;	/* crypto checksum name */
+	const u16		signalg;	/* signing algorithm */
+	const u16		sealalg;	/* sealing algorithm */
+	const u32		blocksize;	/* encryption blocksize */
+	const u32		cksumlength;	/* checksum length */
+	const u32		keyed_cksum;	/* is it a keyed cksum? */
+	const u32		keybytes;	/* raw key len, in bytes */
+	const u32		keylength;	/* final key len, in bytes */
+	u32 (*encrypt) (struct crypto_blkcipher *tfm,
+			void *iv, void *in, void *out,
+			int length);		/* encryption function */
+	u32 (*decrypt) (struct crypto_blkcipher *tfm,
+			void *iv, void *in, void *out,
+			int length);		/* decryption function */
+};
+
 struct krb5_ctx {
 	int			initiate; /* 1 = initiating, 0 = accepting */
 	u32			enctype;
+	const struct gss_krb5_enctype *gk5e; /* enctype-specific info */
 	struct crypto_blkcipher	*enc;
 	struct crypto_blkcipher	*seq;
 	s32			endtime;

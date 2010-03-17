@@ -3,7 +3,7 @@
  *
  *  Adapted from MIT Kerberos 5-1.2.1 lib/gssapi/krb5/k5seal.c
  *
- *  Copyright (c) 2000 The Regents of the University of Michigan.
+ *  Copyright (c) 2000-2008 The Regents of the University of Michigan.
  *  All rights reserved.
  *
  *  Andy Adamson	<andros@umich.edu>
@@ -70,36 +70,47 @@
 
 DEFINE_SPINLOCK(krb5_seq_lock);
 
+static char *
+setup_token(struct krb5_ctx *ctx, struct xdr_netobj *token)
+{
+	__be16 *ptr, *krb5_hdr;
+	int body_size = GSS_KRB5_TOK_HDR_LEN + ctx->gk5e->cksumlength;
+
+	token->len = g_token_size(&ctx->mech_used, body_size);
+
+	ptr = (__be16 *)token->data;
+	g_make_token_header(&ctx->mech_used, body_size, (unsigned char **)&ptr);
+
+	/* ptr now at start of header described in rfc 1964, section 1.2.1: */
+	krb5_hdr = ptr;
+	*ptr++ = KG_TOK_MIC_MSG;
+	*ptr++ = cpu_to_le16(ctx->gk5e->signalg);
+	*ptr++ = SEAL_ALG_NONE;
+	*ptr++ = 0xffff;
+
+	return (char *)krb5_hdr;
+}
+
 static u32
 gss_get_mic_v1(struct krb5_ctx *ctx, struct xdr_buf *text,
 		struct xdr_netobj *token)
 {
-	char			cksumdata[16];
-	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
-	unsigned char		*ptr, *msg_start;
+	char			cksumdata[GSS_KRB5_MAX_CKSUM_LEN];
+	struct xdr_netobj	md5cksum = {.len = sizeof(cksumdata),
+					    .data = cksumdata};
+	void			*ptr;
 	s32			now;
 	u32			seq_send;
 
-	dprintk("RPC:       gss_krb5_seal\n");
+	dprintk("RPC:       %s\n", __func__);
 	BUG_ON(ctx == NULL);
 
 	now = get_seconds();
 
-	token->len = g_token_size(&ctx->mech_used, GSS_KRB5_TOK_HDR_LEN + 8);
+	ptr = setup_token(ctx, token);
 
-	ptr = token->data;
-	g_make_token_header(&ctx->mech_used, GSS_KRB5_TOK_HDR_LEN + 8, &ptr);
-
-	/* ptr now at header described in rfc 1964, section 1.2.1: */
-	ptr[0] = (unsigned char) ((KG_TOK_MIC_MSG >> 8) & 0xff);
-	ptr[1] = (unsigned char) (KG_TOK_MIC_MSG & 0xff);
-
-	msg_start = ptr + GSS_KRB5_TOK_HDR_LEN + 8;
-
-	*(__be16 *)(ptr + 2) = htons(SGN_ALG_DES_MAC_MD5);
-	memset(ptr + 4, 0xff, 4);
-
-	if (make_checksum("md5", ptr, 8, text, 0, &md5cksum))
+	if (make_checksum((char *)ctx->gk5e->cksum_name, ptr, 8,
+						text, 0, &md5cksum))
 		return GSS_S_FAILURE;
 
 	if (krb5_encrypt(ctx->seq, NULL, md5cksum.data,

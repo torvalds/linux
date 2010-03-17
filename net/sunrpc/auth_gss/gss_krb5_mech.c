@@ -1,7 +1,7 @@
 /*
  *  linux/net/sunrpc/gss_krb5_mech.c
  *
- *  Copyright (c) 2001 The Regents of the University of Michigan.
+ *  Copyright (c) 2001-2008 The Regents of the University of Michigan.
  *  All rights reserved.
  *
  *  Andy Adamson <andros@umich.edu>
@@ -48,6 +48,50 @@
 # define RPCDBG_FACILITY	RPCDBG_AUTH
 #endif
 
+static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
+	/*
+	 * DES (All DES enctypes are mapped to the same gss functionality)
+	 */
+	{
+	  .etype = ENCTYPE_DES_CBC_RAW,
+	  .ctype = CKSUMTYPE_RSA_MD5,
+	  .name = "des-cbc-crc",
+	  .encrypt_name = "cbc(des)",
+	  .cksum_name = "md5",
+	  .encrypt = krb5_encrypt,
+	  .decrypt = krb5_decrypt,
+	  .signalg = SGN_ALG_DES_MAC_MD5,
+	  .sealalg = SEAL_ALG_DES,
+	  .keybytes = 7,
+	  .keylength = 8,
+	  .blocksize = 8,
+	  .cksumlength = 8,
+	},
+};
+
+static const int num_supported_enctypes =
+	ARRAY_SIZE(supported_gss_krb5_enctypes);
+
+static int
+supported_gss_krb5_enctype(int etype)
+{
+	int i;
+	for (i = 0; i < num_supported_enctypes; i++)
+		if (supported_gss_krb5_enctypes[i].etype == etype)
+			return 1;
+	return 0;
+}
+
+static const struct gss_krb5_enctype *
+get_gss_krb5_enctype(int etype)
+{
+	int i;
+	for (i = 0; i < num_supported_enctypes; i++)
+		if (supported_gss_krb5_enctypes[i].etype == etype)
+			return &supported_gss_krb5_enctypes[i];
+	return NULL;
+}
+
 static const void *
 simple_get_bytes(const void *p, const void *end, void *res, int len)
 {
@@ -78,35 +122,45 @@ simple_get_netobj(const void *p, const void *end, struct xdr_netobj *res)
 }
 
 static inline const void *
-get_key(const void *p, const void *end, struct crypto_blkcipher **res)
+get_key(const void *p, const void *end,
+	struct krb5_ctx *ctx, struct crypto_blkcipher **res)
 {
 	struct xdr_netobj	key;
 	int			alg;
-	char			*alg_name;
 
 	p = simple_get_bytes(p, end, &alg, sizeof(alg));
 	if (IS_ERR(p))
 		goto out_err;
+
+	switch (alg) {
+	case ENCTYPE_DES_CBC_CRC:
+	case ENCTYPE_DES_CBC_MD4:
+	case ENCTYPE_DES_CBC_MD5:
+		/* Map all these key types to ENCTYPE_DES_CBC_RAW */
+		alg = ENCTYPE_DES_CBC_RAW;
+		break;
+	}
+
+	if (!supported_gss_krb5_enctype(alg)) {
+		printk(KERN_WARNING "gss_kerberos_mech: unsupported "
+			"encryption key algorithm %d\n", alg);
+		goto out_err;
+	}
 	p = simple_get_netobj(p, end, &key);
 	if (IS_ERR(p))
 		goto out_err;
 
-	switch (alg) {
-		case ENCTYPE_DES_CBC_RAW:
-			alg_name = "cbc(des)";
-			break;
-		default:
-			printk("gss_kerberos_mech: unsupported algorithm %d\n", alg);
-			goto out_err_free_key;
-	}
-	*res = crypto_alloc_blkcipher(alg_name, 0, CRYPTO_ALG_ASYNC);
+	*res = crypto_alloc_blkcipher(ctx->gk5e->encrypt_name, 0,
+							CRYPTO_ALG_ASYNC);
 	if (IS_ERR(*res)) {
-		printk("gss_kerberos_mech: unable to initialize crypto algorithm %s\n", alg_name);
+		printk(KERN_WARNING "gss_kerberos_mech: unable to initialize "
+			"crypto algorithm %s\n", ctx->gk5e->encrypt_name);
 		*res = NULL;
 		goto out_err_free_key;
 	}
 	if (crypto_blkcipher_setkey(*res, key.data, key.len)) {
-		printk("gss_kerberos_mech: error setting key for crypto algorithm %s\n", alg_name);
+		printk(KERN_WARNING "gss_kerberos_mech: error setting key for "
+			"crypto algorithm %s\n", ctx->gk5e->encrypt_name);
 		goto out_err_free_tfm;
 	}
 
@@ -133,6 +187,10 @@ gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 
 	/* Old format supports only DES!  Any other enctype uses new format */
 	ctx->enctype = ENCTYPE_DES_CBC_RAW;
+
+	ctx->gk5e = get_gss_krb5_enctype(ctx->enctype);
+	if (ctx->gk5e == NULL)
+		goto out_err;
 
 	/* The downcall format was designed before we completely understood
 	 * the uses of the context fields; so it includes some stuff we
@@ -164,10 +222,10 @@ gss_import_v1_context(const void *p, const void *end, struct krb5_ctx *ctx)
 	p = simple_get_netobj(p, end, &ctx->mech_used);
 	if (IS_ERR(p))
 		goto out_err;
-	p = get_key(p, end, &ctx->enc);
+	p = get_key(p, end, ctx, &ctx->enc);
 	if (IS_ERR(p))
 		goto out_err_free_mech;
-	p = get_key(p, end, &ctx->seq);
+	p = get_key(p, end, ctx, &ctx->seq);
 	if (IS_ERR(p))
 		goto out_err_free_key1;
 	if (p != end) {

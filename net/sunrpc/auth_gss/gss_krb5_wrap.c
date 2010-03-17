@@ -1,3 +1,33 @@
+/*
+ * COPYRIGHT (c) 2008
+ * The Regents of the University of Michigan
+ * ALL RIGHTS RESERVED
+ *
+ * Permission is granted to use, copy, create derivative works
+ * and redistribute this software and such derivative works
+ * for any purpose, so long as the name of The University of
+ * Michigan is not used in any advertising or publicity
+ * pertaining to the use of distribution of this software
+ * without specific, written prior authorization.  If the
+ * above copyright notice or any other identification of the
+ * University of Michigan is included in any copy of any
+ * portion of this software, then the disclaimer below must
+ * also be included.
+ *
+ * THIS SOFTWARE IS PROVIDED AS IS, WITHOUT REPRESENTATION
+ * FROM THE UNIVERSITY OF MICHIGAN AS TO ITS FITNESS FOR ANY
+ * PURPOSE, AND WITHOUT WARRANTY BY THE UNIVERSITY OF
+ * MICHIGAN OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING
+ * WITHOUT LIMITATION THE IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE. THE
+ * REGENTS OF THE UNIVERSITY OF MICHIGAN SHALL NOT BE LIABLE
+ * FOR ANY DAMAGES, INCLUDING SPECIAL, INDIRECT, INCIDENTAL, OR
+ * CONSEQUENTIAL DAMAGES, WITH RESPECT TO ANY CLAIM ARISING
+ * OUT OF OR IN CONNECTION WITH THE USE OF THE SOFTWARE, EVEN
+ * IF IT HAS BEEN OR IS HEREAFTER ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGES.
+ */
+
 #include <linux/types.h>
 #include <linux/jiffies.h>
 #include <linux/sunrpc/gss_krb5.h>
@@ -128,8 +158,9 @@ static u32
 gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 		struct xdr_buf *buf, struct page **pages)
 {
-	char			cksumdata[16];
-	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
+	char			cksumdata[GSS_KRB5_MAX_CKSUM_LEN];
+	struct xdr_netobj	md5cksum = {.len = sizeof(cksumdata),
+					    .data = cksumdata};
 	int			blocksize = 0, plainlen;
 	unsigned char		*ptr, *msg_start;
 	s32			now;
@@ -137,7 +168,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	struct page		**tmp_pages;
 	u32			seq_send;
 
-	dprintk("RPC:       gss_wrap_kerberos\n");
+	dprintk("RPC:       %s\n", __func__);
 
 	now = get_seconds();
 
@@ -146,8 +177,9 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	BUG_ON((buf->len - offset) % blocksize);
 	plainlen = blocksize + buf->len - offset;
 
-	headlen = g_token_size(&kctx->mech_used, 24 + plainlen) -
-						(buf->len - offset);
+	headlen = g_token_size(&kctx->mech_used,
+		GSS_KRB5_TOK_HDR_LEN + kctx->gk5e->cksumlength + plainlen) -
+		(buf->len - offset);
 
 	ptr = buf->head[0].iov_base + offset;
 	/* shift data to make room for header. */
@@ -157,25 +189,26 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	BUG_ON((buf->len - offset - headlen) % blocksize);
 
 	g_make_token_header(&kctx->mech_used,
-				GSS_KRB5_TOK_HDR_LEN + 8 + plainlen, &ptr);
+				GSS_KRB5_TOK_HDR_LEN +
+				kctx->gk5e->cksumlength + plainlen, &ptr);
 
 
 	/* ptr now at header described in rfc 1964, section 1.2.1: */
 	ptr[0] = (unsigned char) ((KG_TOK_WRAP_MSG >> 8) & 0xff);
 	ptr[1] = (unsigned char) (KG_TOK_WRAP_MSG & 0xff);
 
-	msg_start = ptr + 24;
+	msg_start = ptr + GSS_KRB5_TOK_HDR_LEN + kctx->gk5e->cksumlength;
 
-	*(__be16 *)(ptr + 2) = htons(SGN_ALG_DES_MAC_MD5);
+	*(__be16 *)(ptr + 2) = cpu_to_le16(kctx->gk5e->signalg);
 	memset(ptr + 4, 0xff, 4);
-	*(__be16 *)(ptr + 4) = htons(SEAL_ALG_DES);
+	*(__be16 *)(ptr + 4) = cpu_to_le16(kctx->gk5e->sealalg);
 
 	make_confounder(msg_start, blocksize);
 
 	/* XXXJBF: UGH!: */
 	tmp_pages = buf->pages;
 	buf->pages = pages;
-	if (make_checksum("md5", ptr, 8, buf,
+	if (make_checksum((char *)kctx->gk5e->cksum_name, ptr, 8, buf,
 				offset + headlen - blocksize, &md5cksum))
 		return GSS_S_FAILURE;
 	buf->pages = tmp_pages;
@@ -207,8 +240,9 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 {
 	int			signalg;
 	int			sealalg;
-	char			cksumdata[16];
-	struct xdr_netobj	md5cksum = {.len = 0, .data = cksumdata};
+	char			cksumdata[GSS_KRB5_MAX_CKSUM_LEN];
+	struct xdr_netobj	md5cksum = {.len = sizeof(cksumdata),
+					    .data = cksumdata};
 	s32			now;
 	int			direction;
 	s32			seqnum;
@@ -217,6 +251,7 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	void			*data_start, *orig_start;
 	int			data_len;
 	int			blocksize;
+	int			crypt_offset;
 
 	dprintk("RPC:       gss_unwrap_kerberos\n");
 
@@ -234,22 +269,27 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	/* get the sign and seal algorithms */
 
 	signalg = ptr[2] + (ptr[3] << 8);
-	if (signalg != SGN_ALG_DES_MAC_MD5)
+	if (signalg != kctx->gk5e->signalg)
 		return GSS_S_DEFECTIVE_TOKEN;
 
 	sealalg = ptr[4] + (ptr[5] << 8);
-	if (sealalg != SEAL_ALG_DES)
+	if (sealalg != kctx->gk5e->sealalg)
 		return GSS_S_DEFECTIVE_TOKEN;
 
 	if ((ptr[6] != 0xff) || (ptr[7] != 0xff))
 		return GSS_S_DEFECTIVE_TOKEN;
 
-	if (gss_decrypt_xdr_buf(kctx->enc, buf,
-			ptr + GSS_KRB5_TOK_HDR_LEN + 8 - (unsigned char *)buf->head[0].iov_base))
+	/*
+	 * Data starts after token header and checksum.  ptr points
+	 * to the beginning of the token header
+	 */
+	crypt_offset = ptr + (GSS_KRB5_TOK_HDR_LEN + kctx->gk5e->cksumlength) -
+					(unsigned char *)buf->head[0].iov_base;
+	if (gss_decrypt_xdr_buf(kctx->enc, buf, crypt_offset))
 		return GSS_S_DEFECTIVE_TOKEN;
 
-	if (make_checksum("md5", ptr, 8, buf,
-		 ptr + GSS_KRB5_TOK_HDR_LEN + 8 - (unsigned char *)buf->head[0].iov_base, &md5cksum))
+	if (make_checksum((char *)kctx->gk5e->cksum_name, ptr, 8, buf,
+						crypt_offset, &md5cksum))
 		return GSS_S_FAILURE;
 
 	if (krb5_encrypt(kctx->seq, NULL, md5cksum.data,
@@ -280,7 +320,8 @@ gss_unwrap_kerberos_v1(struct krb5_ctx *kctx, int offset, struct xdr_buf *buf)
 	 * better to copy and encrypt at the same time. */
 
 	blocksize = crypto_blkcipher_blocksize(kctx->enc);
-	data_start = ptr + GSS_KRB5_TOK_HDR_LEN + 8 + blocksize;
+	data_start = ptr + (GSS_KRB5_TOK_HDR_LEN + kctx->gk5e->cksumlength) +
+					blocksize;
 	orig_start = buf->head[0].iov_base + offset;
 	data_len = (buf->head[0].iov_base + buf->head[0].iov_len) - data_start;
 	memmove(orig_start, data_start, data_len);
