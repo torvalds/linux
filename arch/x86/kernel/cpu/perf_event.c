@@ -1005,8 +1005,11 @@ static int __hw_perf_event_init(struct perf_event *event)
 		if (atomic_read(&active_events) == 0) {
 			if (!reserve_pmc_hardware())
 				err = -EBUSY;
-			else
+			else {
 				err = reserve_bts_hardware();
+				if (err)
+					release_pmc_hardware();
+			}
 		}
 		if (!err)
 			atomic_inc(&active_events);
