@@ -124,8 +124,15 @@ void iwlagn_rx_replenish(struct iwl_priv *priv);
 void iwlagn_rx_replenish_now(struct iwl_priv *priv);
 void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_rxq_stop(struct iwl_priv *priv);
+int iwlagn_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
+void iwlagn_rx_reply_rx(struct iwl_priv *priv,
+		     struct iwl_rx_mem_buffer *rxb);
+void iwlagn_rx_reply_rx_phy(struct iwl_priv *priv,
+			 struct iwl_rx_mem_buffer *rxb);
 
 /* tx */
+void iwlagn_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
+			      struct ieee80211_tx_info *info);
 int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
 int iwlagn_tx_agg_start(struct iwl_priv *priv,
 			const u8 *ra, u16 tid, u16 *ssn);

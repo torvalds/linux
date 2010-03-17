@@ -1881,7 +1881,7 @@ static int iwl4965_tx_status_reply_tx(struct iwl_priv *priv,
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags &= ~IEEE80211_TX_CTL_AMPDU;
 		info->flags |= iwl_tx_status_to_mac80211(status);
-		iwl_hwrate_to_tx_control(priv, rate_n_flags, info);
+		iwlagn_hwrate_to_tx_control(priv, rate_n_flags, info);
 		/* FIXME: code repetition end */
 
 		IWL_DEBUG_TX_REPLY(priv, "1 Frame 0x%x failure :%d\n",
@@ -2036,7 +2036,7 @@ static void iwl4965_rx_reply_tx(struct iwl_priv *priv,
 	} else {
 		info->status.rates[0].count = tx_resp->failure_frame + 1;
 		info->flags |= iwl_tx_status_to_mac80211(status);
-		iwl_hwrate_to_tx_control(priv,
+		iwlagn_hwrate_to_tx_control(priv,
 					le32_to_cpu(tx_resp->rate_n_flags),
 					info);
 
@@ -2102,7 +2102,7 @@ static int iwl4965_calc_rssi(struct iwl_priv *priv,
 static void iwl4965_rx_handler_setup(struct iwl_priv *priv)
 {
 	/* Legacy Rx frames */
-	priv->rx_handlers[REPLY_RX] = iwl_rx_reply_rx;
+	priv->rx_handlers[REPLY_RX] = iwlagn_rx_reply_rx;
 	/* Tx response */
 	priv->rx_handlers[REPLY_TX] = iwl4965_rx_reply_tx;
 }

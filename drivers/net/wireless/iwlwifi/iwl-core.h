@@ -467,10 +467,7 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force);
  * Rate
  ******************************************************************************/
 
-void iwl_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
-			      struct ieee80211_tx_info *info);
 int iwl_hwrate_to_plcp_idx(u32 rate_n_flags);
-int iwl_hwrate_to_mac80211_idx(u32 rate_n_flags, enum ieee80211_band band);
 
 u8 iwl_rate_get_lowest_plcp(struct iwl_priv *priv);
 
@@ -670,10 +667,6 @@ extern int iwl_send_statistics_request(struct iwl_priv *priv,
 extern int iwl_verify_ucode(struct iwl_priv *priv);
 extern int iwl_send_lq_cmd(struct iwl_priv *priv,
 		struct iwl_link_quality_cmd *lq, u8 flags, bool init);
-extern void iwl_rx_reply_rx(struct iwl_priv *priv,
-		struct iwl_rx_mem_buffer *rxb);
-extern void iwl_rx_reply_rx_phy(struct iwl_priv *priv,
-				    struct iwl_rx_mem_buffer *rxb);
 void iwl_apm_stop(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 

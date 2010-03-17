@@ -38,6 +38,7 @@
 #include "iwl-io.h"
 #include "iwl-helpers.h"
 #include "iwl-agn-hw.h"
+#include "iwl-agn.h"
 
 /*
  * mac80211 queues, ACs, hardware queues, FIFOs.
@@ -1206,11 +1207,34 @@ static int iwlagn_tx_status_reply_compressed_ba(struct iwl_priv *priv,
 	info->flags |= IEEE80211_TX_STAT_AMPDU;
 	info->status.ampdu_ack_map = successes;
 	info->status.ampdu_ack_len = agg->frame_count;
-	iwl_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
+	iwlagn_hwrate_to_tx_control(priv, agg->rate_n_flags, info);
 
 	IWL_DEBUG_TX_REPLY(priv, "Bitmap %llx\n", (unsigned long long)bitmap);
 
 	return 0;
+}
+
+/**
+ * translate ucode response to mac80211 tx status control values
+ */
+void iwlagn_hwrate_to_tx_control(struct iwl_priv *priv, u32 rate_n_flags,
+				  struct ieee80211_tx_info *info)
+{
+	struct ieee80211_tx_rate *r = &info->control.rates[0];
+
+	info->antenna_sel_tx =
+		((rate_n_flags & RATE_MCS_ANT_ABC_MSK) >> RATE_MCS_ANT_POS);
+	if (rate_n_flags & RATE_MCS_HT_MSK)
+		r->flags |= IEEE80211_TX_RC_MCS;
+	if (rate_n_flags & RATE_MCS_GF_MSK)
+		r->flags |= IEEE80211_TX_RC_GREEN_FIELD;
+	if (rate_n_flags & RATE_MCS_HT40_MSK)
+		r->flags |= IEEE80211_TX_RC_40_MHZ_WIDTH;
+	if (rate_n_flags & RATE_MCS_DUP_MSK)
+		r->flags |= IEEE80211_TX_RC_DUP_DATA;
+	if (rate_n_flags & RATE_MCS_SGI_MSK)
+		r->flags |= IEEE80211_TX_RC_SHORT_GI;
+	r->idx = iwlagn_hwrate_to_mac80211_idx(rate_n_flags, info->band);
 }
 
 /**
