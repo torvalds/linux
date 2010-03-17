@@ -25,6 +25,8 @@
 
 static int debug;
 
+#define MAX_TX_URBS		40
+
 #ifdef CONFIG_USB_SERIAL_GENERIC
 
 static int generic_probe(struct usb_interface *interface,
@@ -172,78 +174,63 @@ static int usb_serial_multi_urb_write(struct tty_struct *tty,
 	struct urb *urb;
 	unsigned char *buffer;
 	int status;
-	int towrite;
-	int bwrite = 0;
 
-	dbg("%s - port %d", __func__, port->number);
-
-	if (count == 0)
-		dbg("%s - write request of 0 bytes", __func__);
-
-	while (count > 0) {
-		towrite = (count > port->bulk_out_size) ?
-			port->bulk_out_size : count;
-		spin_lock_irqsave(&port->lock, flags);
-		if (port->urbs_in_flight >
-		    port->serial->type->max_in_flight_urbs) {
-			spin_unlock_irqrestore(&port->lock, flags);
-			dbg("%s - write limit hit", __func__);
-			return bwrite;
-		}
-		port->tx_bytes_flight += towrite;
-		port->urbs_in_flight++;
+	spin_lock_irqsave(&port->lock, flags);
+	if (port->tx_urbs == MAX_TX_URBS) {
 		spin_unlock_irqrestore(&port->lock, flags);
+		dbg("%s - write limit hit", __func__);
+		return 0;
+	}
+	port->tx_urbs++;
+	spin_unlock_irqrestore(&port->lock, flags);
 
-		buffer = kmalloc(towrite, GFP_ATOMIC);
-		if (!buffer) {
-			dev_err(&port->dev,
-			"%s ran out of kernel memory for urb ...\n", __func__);
-			goto error_no_buffer;
-		}
+	urb = usb_alloc_urb(0, GFP_ATOMIC);
+	if (!urb) {
+		dev_err(&port->dev, "%s - no free urbs available\n", __func__);
+		status = -ENOMEM;
+		goto err_urb;
+	}
 
-		urb = usb_alloc_urb(0, GFP_ATOMIC);
-		if (!urb) {
-			dev_err(&port->dev, "%s - no more free urbs\n",
+	count = min_t(int, count, PAGE_SIZE);
+	buffer = kmalloc(count, GFP_ATOMIC);
+	if (!buffer) {
+		dev_err(&port->dev, "%s - could not allocate buffer\n",
 				__func__);
-			goto error_no_urb;
-		}
+		status = -ENOMEM;
+		goto err_buf;
+	}
 
-		/* Copy data */
-		memcpy(buffer, buf + bwrite, towrite);
-		usb_serial_debug_data(debug, &port->dev, __func__,
-				      towrite, buffer);
-		/* fill the buffer and send it */
-		usb_fill_bulk_urb(urb, port->serial->dev,
+	memcpy(buffer, buf, count);
+	usb_serial_debug_data(debug, &port->dev, __func__, count, buffer);
+	usb_fill_bulk_urb(urb, port->serial->dev,
 			usb_sndbulkpipe(port->serial->dev,
 					port->bulk_out_endpointAddress),
-			buffer, towrite,
+			buffer, count,
 			port->serial->type->write_bulk_callback, port);
 
-		status = usb_submit_urb(urb, GFP_ATOMIC);
-		if (status) {
-			dev_err(&port->dev, "%s - error submitting urb: %d\n",
+	status = usb_submit_urb(urb, GFP_ATOMIC);
+	if (status) {
+		dev_err(&port->dev, "%s - error submitting urb: %d\n",
 				__func__, status);
-			goto error;
-		}
-
-		/* This urb is the responsibility of the host driver now */
-		usb_free_urb(urb);
-		dbg("%s write: %d", __func__, towrite);
-		count -= towrite;
-		bwrite += towrite;
+		goto err;
 	}
-	return bwrite;
-
-error:
-	usb_free_urb(urb);
-error_no_urb:
-	kfree(buffer);
-error_no_buffer:
 	spin_lock_irqsave(&port->lock, flags);
-	port->urbs_in_flight--;
-	port->tx_bytes_flight -= towrite;
+	port->tx_bytes += urb->transfer_buffer_length;
 	spin_unlock_irqrestore(&port->lock, flags);
-	return bwrite;
+
+	usb_free_urb(urb);
+
+	return count;
+err:
+	kfree(buffer);
+err_buf:
+	usb_free_urb(urb);
+err_urb:
+	spin_lock_irqsave(&port->lock, flags);
+	port->tx_urbs--;
+	spin_unlock_irqrestore(&port->lock, flags);
+
+	return status;
 }
 
 /**
@@ -286,7 +273,7 @@ static int usb_serial_generic_write_start(struct usb_serial_port *port)
 	}
 
 	spin_lock_irqsave(&port->lock, flags);
-	port->tx_bytes_flight += count;
+	port->tx_bytes += count;
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	return count;
@@ -318,9 +305,8 @@ int usb_serial_generic_write(struct tty_struct *tty,
 	if (!count)
 		return 0;
 
-	if (serial->type->max_in_flight_urbs)
-		return usb_serial_multi_urb_write(tty, port,
-						  buf, count);
+	if (serial->type->multi_urb_write)
+		return usb_serial_multi_urb_write(tty, port, buf, count);
 
 	count = kfifo_in_locked(&port->write_fifo, buf, count, &port->lock);
 	result = usb_serial_generic_write_start(port);
@@ -337,7 +323,7 @@ int usb_serial_generic_write_room(struct tty_struct *tty)
 	struct usb_serial_port *port = tty->driver_data;
 	struct usb_serial *serial = port->serial;
 	unsigned long flags;
-	int room = 0;
+	int room;
 
 	dbg("%s - port %d", __func__, port->number);
 
@@ -345,14 +331,10 @@ int usb_serial_generic_write_room(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (serial->type->max_in_flight_urbs) {
-		if (port->urbs_in_flight < serial->type->max_in_flight_urbs)
-			room = port->bulk_out_size *
-				(serial->type->max_in_flight_urbs -
-				 port->urbs_in_flight);
-	} else {
+	if (serial->type->multi_urb_write)
+		room = (MAX_TX_URBS - port->tx_urbs) * PAGE_SIZE;
+	else
 		room = kfifo_avail(&port->write_fifo);
-	}
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	dbg("%s - returns %d", __func__, room);
@@ -372,10 +354,10 @@ int usb_serial_generic_chars_in_buffer(struct tty_struct *tty)
 		return 0;
 
 	spin_lock_irqsave(&port->lock, flags);
-	if (serial->type->max_in_flight_urbs)
-		chars = port->tx_bytes_flight;
+	if (serial->type->multi_urb_write)
+		chars = port->tx_bytes;
 	else
-		chars = kfifo_len(&port->write_fifo) + port->tx_bytes_flight;
+		chars = kfifo_len(&port->write_fifo) + port->tx_bytes;
 	spin_unlock_irqrestore(&port->lock, flags);
 
 	dbg("%s - returns %d", __func__, chars);
@@ -461,18 +443,16 @@ void usb_serial_generic_write_bulk_callback(struct urb *urb)
 
 	dbg("%s - port %d", __func__, port->number);
 
-	if (port->serial->type->max_in_flight_urbs) {
+	if (port->serial->type->multi_urb_write) {
 		kfree(urb->transfer_buffer);
 
 		spin_lock_irqsave(&port->lock, flags);
-		--port->urbs_in_flight;
-		port->tx_bytes_flight -= urb->transfer_buffer_length;
-		if (port->urbs_in_flight < 0)
-			port->urbs_in_flight = 0;
+		port->tx_bytes -= urb->transfer_buffer_length;
+		port->tx_urbs--;
 		spin_unlock_irqrestore(&port->lock, flags);
 	} else {
 		spin_lock_irqsave(&port->lock, flags);
-		port->tx_bytes_flight -= urb->transfer_buffer_length;
+		port->tx_bytes -= urb->transfer_buffer_length;
 		port->write_urb_busy = 0;
 		spin_unlock_irqrestore(&port->lock, flags);
 

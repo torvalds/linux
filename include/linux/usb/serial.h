@@ -60,6 +60,8 @@ enum port_dev_state {
  * @write_urb: pointer to the bulk out struct urb for this port.
  * @write_fifo: kfifo used to buffer outgoing data
  * @write_urb_busy: port`s writing status
+ * @tx_bytes: number of bytes currently in host stack queues
+ * @tx_urbs: number of urbs currently in host stack queues
  * @bulk_out_endpointAddress: endpoint address for the bulk out pipe for this
  *	port.
  * @write_wait: a wait_queue_head_t used by the port.
@@ -98,8 +100,8 @@ struct usb_serial_port {
 	int			write_urb_busy;
 	__u8			bulk_out_endpointAddress;
 
-	int			tx_bytes_flight;
-	int			urbs_in_flight;
+	int			tx_bytes;
+	int			tx_urbs;
 
 	wait_queue_head_t	write_wait;
 	struct work_struct	work;
@@ -223,7 +225,8 @@ struct usb_serial_driver {
 	struct device_driver	driver;
 	struct usb_driver	*usb_driver;
 	struct usb_dynids	dynids;
-	int			max_in_flight_urbs;
+
+	unsigned char		multi_urb_write:1;
 
 	size_t			bulk_in_size;
 	size_t			bulk_out_size;
