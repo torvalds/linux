@@ -148,6 +148,8 @@ static inline int omapfb_overlay_enable(struct omap_overlay *ovl,
 	struct omap_overlay_info info;
 
 	ovl->get_overlay_info(ovl, &info);
+	if (info.enabled == enable)
+		return 0;
 	info.enabled = enable;
 	return ovl->set_overlay_info(ovl, &info);
 }
