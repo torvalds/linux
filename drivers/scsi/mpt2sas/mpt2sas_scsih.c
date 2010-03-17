@@ -3045,8 +3045,11 @@ _scsih_qcmd(struct scsi_cmnd *scmd, void (*done)(struct scsi_cmnd *))
 		}
 	}
 
-	mpt2sas_base_put_smid_scsi_io(ioc, smid,
-	    sas_device_priv_data->sas_target->handle);
+	if (likely(mpi_request->Function == MPI2_FUNCTION_SCSI_IO_REQUEST))
+		mpt2sas_base_put_smid_scsi_io(ioc, smid,
+		    sas_device_priv_data->sas_target->handle);
+	else
+		mpt2sas_base_put_smid_default(ioc, smid);
 	return 0;
 
  out:
