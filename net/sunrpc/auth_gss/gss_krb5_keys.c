@@ -303,3 +303,33 @@ u32 gss_krb5_des3_make_key(const struct gss_krb5_enctype *gk5e,
 err_out:
 	return ret;
 }
+
+/*
+ * This is the aes key derivation postprocess function
+ */
+u32 gss_krb5_aes_make_key(const struct gss_krb5_enctype *gk5e,
+			  struct xdr_netobj *randombits,
+			  struct xdr_netobj *key)
+{
+	u32 ret = EINVAL;
+
+	if (key->len != 16 && key->len != 32) {
+		dprintk("%s: key->len is %d\n", __func__, key->len);
+		goto err_out;
+	}
+	if (randombits->len != 16 && randombits->len != 32) {
+		dprintk("%s: randombits->len is %d\n",
+			__func__, randombits->len);
+		goto err_out;
+	}
+	if (randombits->len != key->len) {
+		dprintk("%s: randombits->len is %d, key->len is %d\n",
+			__func__, randombits->len, key->len);
+		goto err_out;
+	}
+	memcpy(key->data, randombits->data, key->len);
+	ret = 0;
+err_out:
+	return ret;
+}
+

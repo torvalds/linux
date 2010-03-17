@@ -113,8 +113,8 @@ out:
 	return 0;
 }
 
-static void
-make_confounder(char *p, u32 conflen)
+void
+gss_krb5_make_confounder(char *p, u32 conflen)
 {
 	static u64 i = 0;
 	u64 *q = (u64 *)p;
@@ -204,7 +204,7 @@ gss_wrap_kerberos_v1(struct krb5_ctx *kctx, int offset,
 	memset(ptr + 4, 0xff, 4);
 	*(__be16 *)(ptr + 4) = cpu_to_le16(kctx->gk5e->sealalg);
 
-	make_confounder(msg_start, blocksize);
+	gss_krb5_make_confounder(msg_start, blocksize);
 
 	if (kctx->gk5e->keyed_cksum)
 		cksumkey = kctx->cksum;

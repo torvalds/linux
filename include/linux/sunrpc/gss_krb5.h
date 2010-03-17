@@ -99,6 +99,8 @@ struct krb5_ctx {
 	struct crypto_blkcipher	*seq;
 	struct crypto_blkcipher *acceptor_enc;
 	struct crypto_blkcipher *initiator_enc;
+	struct crypto_blkcipher *acceptor_enc_aux;
+	struct crypto_blkcipher *initiator_enc_aux;
 	u8			cksum[GSS_KRB5_MAX_KEYLEN];
 	s32			endtime;
 	u32			seq_send;
@@ -294,3 +296,21 @@ u32
 gss_krb5_des3_make_key(const struct gss_krb5_enctype *gk5e,
 		       struct xdr_netobj *randombits,
 		       struct xdr_netobj *key);
+
+u32
+gss_krb5_aes_make_key(const struct gss_krb5_enctype *gk5e,
+		      struct xdr_netobj *randombits,
+		      struct xdr_netobj *key);
+
+u32
+gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
+		     struct xdr_buf *buf, int ec,
+		     struct page **pages);
+
+u32
+gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset,
+		     struct xdr_buf *buf, u32 *plainoffset,
+		     u32 *plainlen);
+
+void
+gss_krb5_make_confounder(char *p, u32 conflen);

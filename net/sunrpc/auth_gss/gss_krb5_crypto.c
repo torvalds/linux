@@ -41,6 +41,7 @@
 #include <linux/crypto.h>
 #include <linux/highmem.h>
 #include <linux/pagemap.h>
+#include <linux/random.h>
 #include <linux/sunrpc/gss_krb5.h>
 #include <linux/sunrpc/xdr.h>
 
@@ -477,4 +478,251 @@ xdr_extend_head(struct xdr_buf *buf, unsigned int base, unsigned int shiftlen)
 	buf->len += shiftlen;
 
 	return 0;
+}
+
+static u32
+gss_krb5_cts_crypt(struct crypto_blkcipher *cipher, struct xdr_buf *buf,
+		   u32 offset, u8 *iv, struct page **pages, int encrypt)
+{
+	u32 ret;
+	struct scatterlist sg[1];
+	struct blkcipher_desc desc = { .tfm = cipher, .info = iv };
+	u8 data[crypto_blkcipher_blocksize(cipher) * 2];
+	struct page **save_pages;
+	u32 len = buf->len - offset;
+
+	BUG_ON(len > crypto_blkcipher_blocksize(cipher) * 2);
+
+	/*
+	 * For encryption, we want to read from the cleartext
+	 * page cache pages, and write the encrypted data to
+	 * the supplied xdr_buf pages.
+	 */
+	save_pages = buf->pages;
+	if (encrypt)
+		buf->pages = pages;
+
+	ret = read_bytes_from_xdr_buf(buf, offset, data, len);
+	buf->pages = save_pages;
+	if (ret)
+		goto out;
+
+	sg_init_one(sg, data, len);
+
+	if (encrypt)
+		ret = crypto_blkcipher_encrypt_iv(&desc, sg, sg, len);
+	else
+		ret = crypto_blkcipher_decrypt_iv(&desc, sg, sg, len);
+
+	if (ret)
+		goto out;
+
+	ret = write_bytes_to_xdr_buf(buf, offset, data, len);
+
+out:
+	return ret;
+}
+
+u32
+gss_krb5_aes_encrypt(struct krb5_ctx *kctx, u32 offset,
+		     struct xdr_buf *buf, int ec, struct page **pages)
+{
+	u32 err;
+	struct xdr_netobj hmac;
+	u8 *cksumkey;
+	u8 *ecptr;
+	struct crypto_blkcipher *cipher, *aux_cipher;
+	int blocksize;
+	struct page **save_pages;
+	int nblocks, nbytes;
+	struct encryptor_desc desc;
+	u32 cbcbytes;
+
+	if (kctx->initiate) {
+		cipher = kctx->initiator_enc;
+		aux_cipher = kctx->initiator_enc_aux;
+		cksumkey = kctx->initiator_integ;
+	} else {
+		cipher = kctx->acceptor_enc;
+		aux_cipher = kctx->acceptor_enc_aux;
+		cksumkey = kctx->acceptor_integ;
+	}
+	blocksize = crypto_blkcipher_blocksize(cipher);
+
+	/* hide the gss token header and insert the confounder */
+	offset += GSS_KRB5_TOK_HDR_LEN;
+	if (xdr_extend_head(buf, offset, blocksize))
+		return GSS_S_FAILURE;
+	gss_krb5_make_confounder(buf->head[0].iov_base + offset, blocksize);
+	offset -= GSS_KRB5_TOK_HDR_LEN;
+
+	if (buf->tail[0].iov_base != NULL) {
+		ecptr = buf->tail[0].iov_base + buf->tail[0].iov_len;
+	} else {
+		buf->tail[0].iov_base = buf->head[0].iov_base
+							+ buf->head[0].iov_len;
+		buf->tail[0].iov_len = 0;
+		ecptr = buf->tail[0].iov_base;
+	}
+
+	memset(ecptr, 'X', ec);
+	buf->tail[0].iov_len += ec;
+	buf->len += ec;
+
+	/* copy plaintext gss token header after filler (if any) */
+	memcpy(ecptr + ec, buf->head[0].iov_base + offset,
+						GSS_KRB5_TOK_HDR_LEN);
+	buf->tail[0].iov_len += GSS_KRB5_TOK_HDR_LEN;
+	buf->len += GSS_KRB5_TOK_HDR_LEN;
+
+	/* Do the HMAC */
+	hmac.len = GSS_KRB5_MAX_CKSUM_LEN;
+	hmac.data = buf->tail[0].iov_base + buf->tail[0].iov_len;
+
+	/*
+	 * When we are called, pages points to the real page cache
+	 * data -- which we can't go and encrypt!  buf->pages points
+	 * to scratch pages which we are going to send off to the
+	 * client/server.  Swap in the plaintext pages to calculate
+	 * the hmac.
+	 */
+	save_pages = buf->pages;
+	buf->pages = pages;
+
+	err = make_checksum_v2(kctx, NULL, 0, buf,
+			       offset + GSS_KRB5_TOK_HDR_LEN, cksumkey, &hmac);
+	buf->pages = save_pages;
+	if (err)
+		return GSS_S_FAILURE;
+
+	nbytes = buf->len - offset - GSS_KRB5_TOK_HDR_LEN;
+	nblocks = (nbytes + blocksize - 1) / blocksize;
+	cbcbytes = 0;
+	if (nblocks > 2)
+		cbcbytes = (nblocks - 2) * blocksize;
+
+	memset(desc.iv, 0, sizeof(desc.iv));
+
+	if (cbcbytes) {
+		desc.pos = offset + GSS_KRB5_TOK_HDR_LEN;
+		desc.fragno = 0;
+		desc.fraglen = 0;
+		desc.pages = pages;
+		desc.outbuf = buf;
+		desc.desc.info = desc.iv;
+		desc.desc.flags = 0;
+		desc.desc.tfm = aux_cipher;
+
+		sg_init_table(desc.infrags, 4);
+		sg_init_table(desc.outfrags, 4);
+
+		err = xdr_process_buf(buf, offset + GSS_KRB5_TOK_HDR_LEN,
+				      cbcbytes, encryptor, &desc);
+		if (err)
+			goto out_err;
+	}
+
+	/* Make sure IV carries forward from any CBC results. */
+	err = gss_krb5_cts_crypt(cipher, buf,
+				 offset + GSS_KRB5_TOK_HDR_LEN + cbcbytes,
+				 desc.iv, pages, 1);
+	if (err) {
+		err = GSS_S_FAILURE;
+		goto out_err;
+	}
+
+	/* Now update buf to account for HMAC */
+	buf->tail[0].iov_len += kctx->gk5e->cksumlength;
+	buf->len += kctx->gk5e->cksumlength;
+
+out_err:
+	if (err)
+		err = GSS_S_FAILURE;
+	return err;
+}
+
+u32
+gss_krb5_aes_decrypt(struct krb5_ctx *kctx, u32 offset, struct xdr_buf *buf,
+		     u32 *headskip, u32 *tailskip)
+{
+	struct xdr_buf subbuf;
+	u32 ret = 0;
+	u8 *cksum_key;
+	struct crypto_blkcipher *cipher, *aux_cipher;
+	struct xdr_netobj our_hmac_obj;
+	u8 our_hmac[GSS_KRB5_MAX_CKSUM_LEN];
+	u8 pkt_hmac[GSS_KRB5_MAX_CKSUM_LEN];
+	int nblocks, blocksize, cbcbytes;
+	struct decryptor_desc desc;
+
+	if (kctx->initiate) {
+		cipher = kctx->acceptor_enc;
+		aux_cipher = kctx->acceptor_enc_aux;
+		cksum_key = kctx->acceptor_integ;
+	} else {
+		cipher = kctx->initiator_enc;
+		aux_cipher = kctx->initiator_enc_aux;
+		cksum_key = kctx->initiator_integ;
+	}
+	blocksize = crypto_blkcipher_blocksize(cipher);
+
+
+	/* create a segment skipping the header and leaving out the checksum */
+	xdr_buf_subsegment(buf, &subbuf, offset + GSS_KRB5_TOK_HDR_LEN,
+				    (buf->len - offset - GSS_KRB5_TOK_HDR_LEN -
+				     kctx->gk5e->cksumlength));
+
+	nblocks = (subbuf.len + blocksize - 1) / blocksize;
+
+	cbcbytes = 0;
+	if (nblocks > 2)
+		cbcbytes = (nblocks - 2) * blocksize;
+
+	memset(desc.iv, 0, sizeof(desc.iv));
+
+	if (cbcbytes) {
+		desc.fragno = 0;
+		desc.fraglen = 0;
+		desc.desc.info = desc.iv;
+		desc.desc.flags = 0;
+		desc.desc.tfm = aux_cipher;
+
+		sg_init_table(desc.frags, 4);
+
+		ret = xdr_process_buf(&subbuf, 0, cbcbytes, decryptor, &desc);
+		if (ret)
+			goto out_err;
+	}
+
+	/* Make sure IV carries forward from any CBC results. */
+	ret = gss_krb5_cts_crypt(cipher, &subbuf, cbcbytes, desc.iv, NULL, 0);
+	if (ret)
+		goto out_err;
+
+
+	/* Calculate our hmac over the plaintext data */
+	our_hmac_obj.len = sizeof(our_hmac);
+	our_hmac_obj.data = our_hmac;
+
+	ret = make_checksum_v2(kctx, NULL, 0, &subbuf, 0,
+			       cksum_key, &our_hmac_obj);
+	if (ret)
+		goto out_err;
+
+	/* Get the packet's hmac value */
+	ret = read_bytes_from_xdr_buf(buf, buf->len - kctx->gk5e->cksumlength,
+				      pkt_hmac, kctx->gk5e->cksumlength);
+	if (ret)
+		goto out_err;
+
+	if (memcmp(pkt_hmac, our_hmac, kctx->gk5e->cksumlength) != 0) {
+		ret = GSS_S_BAD_SIG;
+		goto out_err;
+	}
+	*headskip = crypto_blkcipher_blocksize(cipher);
+	*tailskip = kctx->gk5e->cksumlength;
+out_err:
+	if (ret && ret != GSS_S_BAD_SIG)
+		ret = GSS_S_FAILURE;
+	return ret;
 }

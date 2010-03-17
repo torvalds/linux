@@ -91,6 +91,50 @@ static const struct gss_krb5_enctype supported_gss_krb5_enctypes[] = {
 	  .cksumlength = 20,
 	  .keyed_cksum = 1,
 	},
+	/*
+	 * AES128
+	 */
+	{
+	  .etype = ENCTYPE_AES128_CTS_HMAC_SHA1_96,
+	  .ctype = CKSUMTYPE_HMAC_SHA1_96_AES128,
+	  .name = "aes128-cts",
+	  .encrypt_name = "cts(cbc(aes))",
+	  .cksum_name = "hmac(sha1)",
+	  .encrypt = krb5_encrypt,
+	  .decrypt = krb5_decrypt,
+	  .mk_key = gss_krb5_aes_make_key,
+	  .encrypt_v2 = gss_krb5_aes_encrypt,
+	  .decrypt_v2 = gss_krb5_aes_decrypt,
+	  .signalg = -1,
+	  .sealalg = -1,
+	  .keybytes = 16,
+	  .keylength = 16,
+	  .blocksize = 16,
+	  .cksumlength = 12,
+	  .keyed_cksum = 1,
+	},
+	/*
+	 * AES256
+	 */
+	{
+	  .etype = ENCTYPE_AES256_CTS_HMAC_SHA1_96,
+	  .ctype = CKSUMTYPE_HMAC_SHA1_96_AES256,
+	  .name = "aes256-cts",
+	  .encrypt_name = "cts(cbc(aes))",
+	  .cksum_name = "hmac(sha1)",
+	  .encrypt = krb5_encrypt,
+	  .decrypt = krb5_decrypt,
+	  .mk_key = gss_krb5_aes_make_key,
+	  .encrypt_v2 = gss_krb5_aes_encrypt,
+	  .decrypt_v2 = gss_krb5_aes_decrypt,
+	  .signalg = -1,
+	  .sealalg = -1,
+	  .keybytes = 32,
+	  .keylength = 32,
+	  .blocksize = 16,
+	  .cksumlength = 12,
+	  .keyed_cksum = 1,
+	},
 };
 
 static const int num_supported_enctypes =
@@ -270,20 +314,19 @@ out_err:
 }
 
 struct crypto_blkcipher *
-context_v2_alloc_cipher(struct krb5_ctx *ctx, u8 *key)
+context_v2_alloc_cipher(struct krb5_ctx *ctx, const char *cname, u8 *key)
 {
 	struct crypto_blkcipher *cp;
 
-	cp = crypto_alloc_blkcipher(ctx->gk5e->encrypt_name,
-					0, CRYPTO_ALG_ASYNC);
+	cp = crypto_alloc_blkcipher(cname, 0, CRYPTO_ALG_ASYNC);
 	if (IS_ERR(cp)) {
 		dprintk("gss_kerberos_mech: unable to initialize "
-			"crypto algorithm %s\n", ctx->gk5e->encrypt_name);
+			"crypto algorithm %s\n", cname);
 		return NULL;
 	}
 	if (crypto_blkcipher_setkey(cp, key, ctx->gk5e->keylength)) {
 		dprintk("gss_kerberos_mech: error setting key for "
-			"crypto algorithm %s\n", ctx->gk5e->encrypt_name);
+			"crypto algorithm %s\n", cname);
 		crypto_free_blkcipher(cp);
 		return NULL;
 	}
@@ -315,11 +358,13 @@ context_derive_keys_des3(struct krb5_ctx *ctx, u8 *rawkey, u32 keylen)
 	keyout.len = keylen;
 
 	/* seq uses the raw key */
-	ctx->seq = context_v2_alloc_cipher(ctx, rawkey);
+	ctx->seq = context_v2_alloc_cipher(ctx, ctx->gk5e->encrypt_name,
+					   rawkey);
 	if (ctx->seq == NULL)
 		goto out_err;
 
-	ctx->enc = context_v2_alloc_cipher(ctx, rawkey);
+	ctx->enc = context_v2_alloc_cipher(ctx, ctx->gk5e->encrypt_name,
+					   rawkey);
 	if (ctx->enc == NULL)
 		goto out_free_seq;
 
@@ -366,7 +411,9 @@ context_derive_keys_new(struct krb5_ctx *ctx, u8 *rawkey, u32 keylen)
 			__func__, err);
 		goto out_err;
 	}
-	ctx->initiator_enc = context_v2_alloc_cipher(ctx, ctx->initiator_seal);
+	ctx->initiator_enc = context_v2_alloc_cipher(ctx,
+						     ctx->gk5e->encrypt_name,
+						     ctx->initiator_seal);
 	if (ctx->initiator_enc == NULL)
 		goto out_err;
 
@@ -379,7 +426,9 @@ context_derive_keys_new(struct krb5_ctx *ctx, u8 *rawkey, u32 keylen)
 			__func__, err);
 		goto out_free_initiator_enc;
 	}
-	ctx->acceptor_enc = context_v2_alloc_cipher(ctx, ctx->acceptor_seal);
+	ctx->acceptor_enc = context_v2_alloc_cipher(ctx,
+						    ctx->gk5e->encrypt_name,
+						    ctx->acceptor_seal);
 	if (ctx->acceptor_enc == NULL)
 		goto out_free_initiator_enc;
 
@@ -421,6 +470,23 @@ context_derive_keys_new(struct krb5_ctx *ctx, u8 *rawkey, u32 keylen)
 		dprintk("%s: Error %d deriving acceptor_integ key\n",
 			__func__, err);
 		goto out_free_acceptor_enc;
+	}
+
+	switch (ctx->enctype) {
+	case ENCTYPE_AES128_CTS_HMAC_SHA1_96:
+	case ENCTYPE_AES256_CTS_HMAC_SHA1_96:
+		ctx->initiator_enc_aux =
+			context_v2_alloc_cipher(ctx, "cbc(aes)",
+						ctx->initiator_seal);
+		if (ctx->initiator_enc_aux == NULL)
+			goto out_free_acceptor_enc;
+		ctx->acceptor_enc_aux =
+			context_v2_alloc_cipher(ctx, "cbc(aes)",
+						ctx->acceptor_seal);
+		if (ctx->acceptor_enc_aux == NULL) {
+			crypto_free_blkcipher(ctx->initiator_enc_aux);
+			goto out_free_acceptor_enc;
+		}
 	}
 
 	return 0;
@@ -537,6 +603,8 @@ gss_delete_sec_context_kerberos(void *internal_ctx) {
 	crypto_free_blkcipher(kctx->enc);
 	crypto_free_blkcipher(kctx->acceptor_enc);
 	crypto_free_blkcipher(kctx->initiator_enc);
+	crypto_free_blkcipher(kctx->acceptor_enc_aux);
+	crypto_free_blkcipher(kctx->initiator_enc_aux);
 	kfree(kctx->mech_used.data);
 	kfree(kctx);
 }
