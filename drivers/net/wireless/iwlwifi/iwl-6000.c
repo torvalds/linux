@@ -57,6 +57,7 @@
 #define IWL6050_UCODE_API_MIN 4
 
 #define IWL6000_FW_PRE "iwlwifi-6000-"
+#define IWL6000_G2_FW_PRE "iwlwifi-6005-"
 #define _IWL6000_MODULE_FIRMWARE(api) IWL6000_FW_PRE #api ".ucode"
 #define IWL6000_MODULE_FIRMWARE(api) _IWL6000_MODULE_FIRMWARE(api)
 
@@ -362,6 +363,39 @@ static const struct iwl_ops iwl6050_ops = {
 /*
  * "i": Internal configuration, use internal Power Amplifier
  */
+struct iwl_cfg iwl6000i_g2_2agn_cfg = {
+	.name = "6000 Series 2x2 AGN Gen2",
+	.fw_name_pre = IWL6000_G2_FW_PRE,
+	.ucode_api_max = IWL6000_UCODE_API_MAX,
+	.ucode_api_min = IWL6000_UCODE_API_MIN,
+	.sku = IWL_SKU_A|IWL_SKU_G|IWL_SKU_N,
+	.ops = &iwl6000_ops,
+	.eeprom_size = OTP_LOW_IMAGE_SIZE,
+	.eeprom_ver = EEPROM_6000_EEPROM_VERSION,
+	.eeprom_calib_ver = EEPROM_6000_TX_POWER_VERSION,
+	.num_of_queues = IWLAGN_NUM_QUEUES,
+	.num_of_ampdu_queues = IWLAGN_NUM_AMPDU_QUEUES,
+	.mod_params = &iwlagn_mod_params,
+	.valid_tx_ant = ANT_AB,
+	.valid_rx_ant = ANT_AB,
+	.pll_cfg_val = 0,
+	.set_l0s = true,
+	.use_bsm = false,
+	.pa_type = IWL_PA_INTERNAL,
+	.max_ll_items = OTP_MAX_LL_ITEMS_6x00,
+	.shadow_ram_support = true,
+	.ht_greenfield_support = true,
+	.led_compensation = 51,
+	.use_rts_for_ht = true, /* use rts/cts protection */
+	.chain_noise_num_beacons = IWL_CAL_NUM_BEACONS,
+	.supports_idle = true,
+	.adv_thermal_throttle = true,
+	.support_ct_kill_exit = true,
+	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.chain_noise_scale = 1000,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
+};
+
 struct iwl_cfg iwl6000i_2agn_cfg = {
 	.name = "Intel(R) Centrino(R) Advanced-N 6200 AGN",
 	.fw_name_pre = IWL6000_FW_PRE,
