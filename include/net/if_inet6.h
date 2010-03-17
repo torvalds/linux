@@ -64,6 +64,7 @@ struct inet6_ifaddr {
 #endif
 
 	int			dead;
+	struct rcu_head		rcu;
 };
 
 struct ip6_sf_socklist {
