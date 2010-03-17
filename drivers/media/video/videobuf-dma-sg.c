@@ -286,7 +286,7 @@ int videobuf_dma_unmap(struct videobuf_queue *q, struct videobuf_dmabuf *dma)
 	if (!dma->sglen)
 		return 0;
 
-	dma_unmap_sg(q->dev, dma->sglist, dma->nr_pages, dma->direction);
+	dma_unmap_sg(q->dev, dma->sglist, dma->sglen, dma->direction);
 
 	vfree(dma->sglist);
 	dma->sglist = NULL;
@@ -537,7 +537,7 @@ static int __videobuf_sync(struct videobuf_queue *q,
 	MAGIC_CHECK(mem->dma.magic, MAGIC_DMABUF);
 
 	dma_sync_sg_for_cpu(q->dev, mem->dma.sglist,
-			    mem->dma.nr_pages, mem->dma.direction);
+			    mem->dma.sglen, mem->dma.direction);
 
 	return 0;
 }
