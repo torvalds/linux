@@ -313,9 +313,10 @@ again:
 static atomic_t active_events;
 static DEFINE_MUTEX(pmc_reserve_mutex);
 
+#ifdef CONFIG_X86_LOCAL_APIC
+
 static bool reserve_pmc_hardware(void)
 {
-#ifdef CONFIG_X86_LOCAL_APIC
 	int i;
 
 	if (nmi_watchdog == NMI_LOCAL_APIC)
@@ -330,11 +331,9 @@ static bool reserve_pmc_hardware(void)
 		if (!reserve_evntsel_nmi(x86_pmu.eventsel + i))
 			goto eventsel_fail;
 	}
-#endif
 
 	return true;
 
-#ifdef CONFIG_X86_LOCAL_APIC
 eventsel_fail:
 	for (i--; i >= 0; i--)
 		release_evntsel_nmi(x86_pmu.eventsel + i);
@@ -349,12 +348,10 @@ perfctr_fail:
 		enable_lapic_nmi_watchdog();
 
 	return false;
-#endif
 }
 
 static void release_pmc_hardware(void)
 {
-#ifdef CONFIG_X86_LOCAL_APIC
 	int i;
 
 	for (i = 0; i < x86_pmu.num_events; i++) {
@@ -364,8 +361,14 @@ static void release_pmc_hardware(void)
 
 	if (nmi_watchdog == NMI_LOCAL_APIC)
 		enable_lapic_nmi_watchdog();
-#endif
 }
+
+#else
+
+static bool reserve_pmc_hardware(void) { return true; }
+static void release_pmc_hardware(void) {}
+
+#endif
 
 static int reserve_ds_buffers(void);
 static void release_ds_buffers(void);
