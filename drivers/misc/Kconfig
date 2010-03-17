@@ -422,6 +422,7 @@ config APANIC
 
 config APANIC_PLABEL
 	string "Android panic dump flash partition label"
+	depends on APANIC
 	default "kpanic"
 	---help---
 	 If your platform uses a different flash partition label for storing
