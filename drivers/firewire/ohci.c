@@ -231,6 +231,8 @@ static inline struct fw_ohci *fw_ohci(struct fw_card *card)
 
 static char ohci_driver_name[] = KBUILD_MODNAME;
 
+#define PCI_DEVICE_ID_TI_TSB12LV22	0x8009
+
 #define QUIRK_CYCLE_TIMER		1
 #define QUIRK_RESET_PACKET		2
 #define QUIRK_BE_HEADERS		4
@@ -239,6 +241,8 @@ static char ohci_driver_name[] = KBUILD_MODNAME;
 static const struct {
 	unsigned short vendor, device, flags;
 } ohci_quirks[] = {
+	{PCI_VENDOR_ID_TI,	PCI_DEVICE_ID_TI_TSB12LV22, QUIRK_CYCLE_TIMER |
+							    QUIRK_RESET_PACKET},
 	{PCI_VENDOR_ID_TI,	PCI_ANY_ID,	QUIRK_RESET_PACKET},
 	{PCI_VENDOR_ID_AL,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
 	{PCI_VENDOR_ID_NEC,	PCI_ANY_ID,	QUIRK_CYCLE_TIMER},
