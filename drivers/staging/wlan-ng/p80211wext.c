@@ -73,7 +73,7 @@ static u8 p80211_mhz_to_channel(u16 mhz)
 	if (mhz >= 5000)
 		return (mhz - 5000) / 5;
 
-	if (mhz == 2482)
+	if (mhz == 2484)
 		return 14;
 
 	if (mhz >= 2407)
