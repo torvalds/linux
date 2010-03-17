@@ -822,6 +822,40 @@ static unsigned calc_rotation_offset_vrfb(const struct fb_var_screeninfo *var,
 	return offset;
 }
 
+static void omapfb_calc_addr(const struct omapfb_info *ofbi,
+			     const struct fb_var_screeninfo *var,
+			     const struct fb_fix_screeninfo *fix,
+			     int rotation, u32 *paddr, void __iomem **vaddr)
+{
+	u32 data_start_p;
+	void __iomem *data_start_v;
+	int offset;
+
+	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
+		data_start_p = omapfb_get_region_rot_paddr(ofbi, rotation);
+		data_start_v = NULL;
+	} else {
+		data_start_p = omapfb_get_region_paddr(ofbi);
+		data_start_v = omapfb_get_region_vaddr(ofbi);
+	}
+
+	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
+		offset = calc_rotation_offset_vrfb(var, fix, rotation);
+	else
+		offset = calc_rotation_offset_dma(var, fix, rotation);
+
+	data_start_p += offset;
+	data_start_v += offset;
+
+	if (offset)
+		DBG("offset %d, %d = %d\n",
+		    var->xoffset, var->yoffset, offset);
+
+	DBG("paddr %x, vaddr %p\n", data_start_p, data_start_v);
+
+	*paddr = data_start_p;
+	*vaddr = data_start_v;
+}
 
 /* setup overlay according to the fb */
 static int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
@@ -832,9 +866,8 @@ static int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 	struct fb_var_screeninfo *var = &fbi->var;
 	struct fb_fix_screeninfo *fix = &fbi->fix;
 	enum omap_color_mode mode = 0;
-	int offset;
-	u32 data_start_p;
-	void __iomem *data_start_v;
+	u32 data_start_p = 0;
+	void __iomem *data_start_v = NULL;
 	struct omap_overlay_info info;
 	int xres, yres;
 	int screen_width;
@@ -861,28 +894,8 @@ static int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 		yres = var->yres;
 	}
 
-
-	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
-		data_start_p = omapfb_get_region_rot_paddr(ofbi, rotation);
-		data_start_v = NULL;
-	} else {
-		data_start_p = omapfb_get_region_paddr(ofbi);
-		data_start_v = omapfb_get_region_vaddr(ofbi);
-	}
-
-	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
-		offset = calc_rotation_offset_vrfb(var, fix, rotation);
-	else
-		offset = calc_rotation_offset_dma(var, fix, rotation);
-
-	data_start_p += offset;
-	data_start_v += offset;
-
-	if (offset)
-		DBG("offset %d, %d = %d\n",
-				var->xoffset, var->yoffset, offset);
-
-	DBG("paddr %x, vaddr %p\n", data_start_p, data_start_v);
+	omapfb_calc_addr(ofbi, var, fix, rotation,
+			 &data_start_p, &data_start_v);
 
 	r = fb_mode_to_dss_mode(var, &mode);
 	if (r) {
