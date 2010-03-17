@@ -641,7 +641,7 @@ static int ceph_sync_setxattr(struct dentry *dentry, const char *name,
 			return -ENOMEM;
 		err = -ENOMEM;
 		for (i = 0; i < nr_pages; i++) {
-			pages[i] = alloc_page(GFP_NOFS);
+			pages[i] = __page_cache_alloc(GFP_NOFS);
 			if (!pages[i]) {
 				nr_pages = i;
 				goto out;

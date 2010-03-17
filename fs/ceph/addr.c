@@ -274,7 +274,6 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 	struct ceph_osd_client *osdc = &ceph_inode_to_client(inode)->osdc;
 	int rc = 0;
 	struct page **pages;
-	struct pagevec pvec;
 	loff_t offset;
 	u64 len;
 
@@ -297,8 +296,6 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 	if (rc < 0)
 		goto out;
 
-	/* set uptodate and add to lru in pagevec-sized chunks */
-	pagevec_init(&pvec, 0);
 	for (; !list_empty(page_list) && len > 0;
 	     rc -= PAGE_CACHE_SIZE, len -= PAGE_CACHE_SIZE) {
 		struct page *page =
@@ -312,7 +309,7 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 			zero_user_segment(page, s, PAGE_CACHE_SIZE);
 		}
 
-		if (add_to_page_cache(page, mapping, page->index, GFP_NOFS)) {
+		if (add_to_page_cache_lru(page, mapping, page->index, GFP_NOFS)) {
 			page_cache_release(page);
 			dout("readpages %p add_to_page_cache failed %p\n",
 			     inode, page);
@@ -323,10 +320,8 @@ static int ceph_readpages(struct file *file, struct address_space *mapping,
 		flush_dcache_page(page);
 		SetPageUptodate(page);
 		unlock_page(page);
-		if (pagevec_add(&pvec, page) == 0)
-			pagevec_lru_add_file(&pvec);   /* add to lru */
+		page_cache_release(page);
 	}
-	pagevec_lru_add_file(&pvec);
 	rc = 0;
 
 out:

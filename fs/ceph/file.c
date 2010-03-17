@@ -326,7 +326,7 @@ static struct page **alloc_page_vector(int num_pages)
 	if (!pages)
 		return ERR_PTR(-ENOMEM);
 	for (i = 0; i < num_pages; i++) {
-		pages[i] = alloc_page(GFP_NOFS);
+		pages[i] = __page_cache_alloc(GFP_NOFS);
 		if (pages[i] == NULL) {
 			ceph_release_page_vector(pages, i);
 			return ERR_PTR(-ENOMEM);

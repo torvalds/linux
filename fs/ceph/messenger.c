@@ -1947,7 +1947,7 @@ struct ceph_messenger *ceph_messenger_create(struct ceph_entity_addr *myaddr)
 
 	/* the zero page is needed if a request is "canceled" while the message
 	 * is being written over the socket */
-	msgr->zero_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+	msgr->zero_page = __page_cache_alloc(GFP_KERNEL | __GFP_ZERO);
 	if (!msgr->zero_page) {
 		kfree(msgr);
 		return ERR_PTR(-ENOMEM);
