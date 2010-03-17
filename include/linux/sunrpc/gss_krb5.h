@@ -72,21 +72,36 @@ struct gss_krb5_enctype {
 	u32 (*decrypt) (struct crypto_blkcipher *tfm,
 			void *iv, void *in, void *out,
 			int length);		/* decryption function */
-	u32 (*mk_key) (struct gss_krb5_enctype *gk5e,
+	u32 (*mk_key) (const struct gss_krb5_enctype *gk5e,
 		       struct xdr_netobj *in,
 		       struct xdr_netobj *out);	/* complete key generation */
 };
 
+/* krb5_ctx flags definitions */
+#define KRB5_CTX_FLAG_INITIATOR         0x00000001
+#define KRB5_CTX_FLAG_CFX               0x00000002
+#define KRB5_CTX_FLAG_ACCEPTOR_SUBKEY   0x00000004
+
 struct krb5_ctx {
 	int			initiate; /* 1 = initiating, 0 = accepting */
 	u32			enctype;
+	u32			flags;
 	const struct gss_krb5_enctype *gk5e; /* enctype-specific info */
 	struct crypto_blkcipher	*enc;
 	struct crypto_blkcipher	*seq;
+	struct crypto_blkcipher *acceptor_enc;
+	struct crypto_blkcipher *initiator_enc;
 	u8			cksum[GSS_KRB5_MAX_KEYLEN];
 	s32			endtime;
 	u32			seq_send;
+	u64			seq_send64;
 	struct xdr_netobj	mech_used;
+	u8			initiator_sign[GSS_KRB5_MAX_KEYLEN];
+	u8			acceptor_sign[GSS_KRB5_MAX_KEYLEN];
+	u8			initiator_seal[GSS_KRB5_MAX_KEYLEN];
+	u8			acceptor_seal[GSS_KRB5_MAX_KEYLEN];
+	u8			initiator_integ[GSS_KRB5_MAX_KEYLEN];
+	u8			acceptor_integ[GSS_KRB5_MAX_KEYLEN];
 };
 
 extern spinlock_t krb5_seq_lock;
@@ -151,6 +166,10 @@ enum seal_alg {
 #define ENCTYPE_DES3_CBC_RAW    0x0006	/* DES-3 cbc mode raw */
 #define ENCTYPE_DES_HMAC_SHA1   0x0008
 #define ENCTYPE_DES3_CBC_SHA1   0x0010
+#define ENCTYPE_AES128_CTS_HMAC_SHA1_96 0x0011
+#define ENCTYPE_AES256_CTS_HMAC_SHA1_96 0x0012
+#define ENCTYPE_ARCFOUR_HMAC            0x0017
+#define ENCTYPE_ARCFOUR_HMAC_EXP        0x0018
 #define ENCTYPE_UNKNOWN         0x01ff
 
 /*
@@ -238,7 +257,7 @@ int
 xdr_extend_head(struct xdr_buf *buf, unsigned int base, unsigned int shiftlen);
 
 u32
-krb5_derive_key(struct gss_krb5_enctype *gk5e,
+krb5_derive_key(const struct gss_krb5_enctype *gk5e,
 		const struct xdr_netobj *inkey,
 		struct xdr_netobj *outkey,
 		const struct xdr_netobj *in_constant);

@@ -147,7 +147,7 @@ static void krb5_nfold(u32 inbits, const u8 *in,
  * Taken from MIT Kerberos and modified.
  */
 
-u32 krb5_derive_key(struct gss_krb5_enctype *gk5e,
+u32 krb5_derive_key(const struct gss_krb5_enctype *gk5e,
 		    const struct xdr_netobj *inkey,
 		    struct xdr_netobj *outkey,
 		    const struct xdr_netobj *in_constant)
