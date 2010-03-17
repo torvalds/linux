@@ -371,7 +371,7 @@ static void sctp_v6_copy_addrlist(struct list_head *addrlist,
 	}
 
 	read_lock_bh(&in6_dev->lock);
-	for (ifp = in6_dev->addr_list; ifp; ifp = ifp->if_next) {
+	list_for_each_entry(ifp, &in6_dev->addr_list, if_list) {
 		/* Add the address to the local list.  */
 		addr = t_new(struct sctp_sockaddr_entry, GFP_ATOMIC);
 		if (addr) {
