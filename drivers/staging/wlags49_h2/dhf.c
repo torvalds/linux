@@ -278,16 +278,19 @@ CFG_PROG_STRCT 	*p;
 int				i;
 
 	/* validate the image */
-	for (i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++); /* NOP */
+	for (i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++)
+		; /* NOP */
 	if (i != sizeof(signature) 		||
 		 fw->signature[i] != 0x01   	||
 		 /* test for Little/Big Endian Binary flag */
-		 fw->signature[i+1] != (/* HCF_BIG_ENDIAN ? 'B' : */ 'L')) rc = DHF_ERR_INCOMP_FW;
+		 fw->signature[i+1] != (/* HCF_BIG_ENDIAN ? 'B' : */ 'L'))
+		rc = DHF_ERR_INCOMP_FW;
 	else {					/* Little Endian Binary format */
 		fw->codep    = (CFG_PROG_STRCT FAR*)((PSEUDO_CHARP)fw->codep + (hcf_32)fw);
 		fw->identity = (CFG_IDENTITY_STRCT FAR*)((PSEUDO_CHARP)fw->identity + (hcf_32)fw);
 		fw->compat   = (CFG_RANGE20_STRCT FAR*)((PSEUDO_CHARP)fw->compat + (hcf_32)fw);
-		for (i = 0; fw->p[i]; i++) fw->p[i] = ((PSEUDO_CHARP)fw->p[i] + (hcf_32)fw);
+		for (i = 0; fw->p[i]; i++)
+			fw->p[i] = ((PSEUDO_CHARP)fw->p[i] + (hcf_32)fw);
 		p = fw->codep;
 		while (p->len) {
 			p->host_addr = (PSEUDO_CHARP)p->host_addr + (hcf_32)fw;
@@ -361,7 +364,8 @@ int					i;
 
 	MMDASSERT(fw != NULL, 0)
 	/* validate the image */
-	for (i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++) /* NOP */;
+	for (i = 0; i < sizeof(signature) && fw->signature[i] == signature[i]; i++)
+		; /* NOP */
 	if (i != sizeof(signature) 		||
 		 fw->signature[i] != 0x01		||
 		 /* check for binary image */
@@ -376,7 +380,8 @@ int					i;
 		MMDASSERT(rc == HCF_SUCCESS, ltvp->typ)
 		MMDASSERT(rc == HCF_SUCCESS, ltvp->len)
 	}
-	if (rc == HCF_SUCCESS) rc = check_comp_fw(fw);
+	if (rc == HCF_SUCCESS)
+		rc = check_comp_fw(fw);
 	if (rc == HCF_SUCCESS) {
 		while (rc == HCF_SUCCESS && p->len) {
 			rc = PUT_INFO(p);
