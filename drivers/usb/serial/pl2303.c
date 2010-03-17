@@ -770,10 +770,8 @@ static int pl2303_open(struct tty_struct *tty, struct usb_serial_port *port)
 		pl2303_set_termios(tty, port, &tmp_termios);
 
 	dbg("%s - submitting read urb", __func__);
-	result = usb_submit_urb(port->read_urb, GFP_KERNEL);
+	result = usb_serial_generic_submit_read_urb(port, GFP_KERNEL);
 	if (result) {
-		dev_err(&port->dev, "%s - failed submitting read urb,"
-			" error %d\n", __func__, result);
 		pl2303_close(port);
 		return -EPROTO;
 	}
@@ -1037,13 +1035,31 @@ exit:
 			__func__, retval);
 }
 
-static void pl2303_push_data(struct tty_struct *tty,
-		struct usb_serial_port *port, struct urb *urb,
-		u8 line_status)
+static void pl2303_process_read_urb(struct urb *urb)
 {
+	struct usb_serial_port *port = urb->context;
+	struct pl2303_private *priv = usb_get_serial_port_data(port);
+	struct tty_struct *tty;
 	unsigned char *data = urb->transfer_buffer;
-	/* get tty_flag from status */
 	char tty_flag = TTY_NORMAL;
+	unsigned long flags;
+	u8 line_status;
+	int i;
+
+	/* update line status */
+	spin_lock_irqsave(&priv->lock, flags);
+	line_status = priv->line_status;
+	priv->line_status &= ~UART_STATE_TRANSIENT_MASK;
+	spin_unlock_irqrestore(&priv->lock, flags);
+	wake_up_interruptible(&priv->delta_msr_wait);
+
+	if (!urb->actual_length)
+		return;
+
+	tty = tty_port_tty_get(&port->port);
+	if (!tty)
+		return;
+
 	/* break takes precedence over parity, */
 	/* which takes precedence over framing errors */
 	if (line_status & UART_BREAK_ERROR)
@@ -1061,63 +1077,13 @@ static void pl2303_push_data(struct tty_struct *tty,
 	if (tty_flag == TTY_NORMAL && !(port->port.console && port->sysrq))
 		tty_insert_flip_string(tty, data, urb->actual_length);
 	else {
-		int i;
 		for (i = 0; i < urb->actual_length; ++i)
 			if (!usb_serial_handle_sysrq_char(tty, port, data[i]))
 				tty_insert_flip_char(tty, data[i], tty_flag);
 	}
+
 	tty_flip_buffer_push(tty);
-}
-
-static void pl2303_read_bulk_callback(struct urb *urb)
-{
-	struct usb_serial_port *port =  urb->context;
-	struct pl2303_private *priv = usb_get_serial_port_data(port);
-	struct tty_struct *tty;
-	unsigned long flags;
-	int result;
-	int status = urb->status;
-	u8 line_status;
-
-	dbg("%s - port %d", __func__, port->number);
-
-	if (status) {
-		dbg("%s - urb status = %d", __func__, status);
-		if (status == -EPROTO) {
-			/* PL2303 mysteriously fails with -EPROTO reschedule
-			 * the read */
-			dbg("%s - caught -EPROTO, resubmitting the urb",
-			    __func__);
-			result = usb_submit_urb(urb, GFP_ATOMIC);
-			if (result)
-				dev_err(&urb->dev->dev, "%s - failed"
-					" resubmitting read urb, error %d\n",
-					__func__, result);
-			return;
-		}
-		dbg("%s - unable to handle the error, exiting.", __func__);
-		return;
-	}
-
-	usb_serial_debug_data(debug, &port->dev, __func__,
-			      urb->actual_length, urb->transfer_buffer);
-
-	spin_lock_irqsave(&priv->lock, flags);
-	line_status = priv->line_status;
-	priv->line_status &= ~UART_STATE_TRANSIENT_MASK;
-	spin_unlock_irqrestore(&priv->lock, flags);
-	wake_up_interruptible(&priv->delta_msr_wait);
-
-	tty = tty_port_tty_get(&port->port);
-	if (tty && urb->actual_length) {
-		pl2303_push_data(tty, port, urb, line_status);
-	}
 	tty_kref_put(tty);
-	/* Schedule the next read _if_ we are still open */
-	result = usb_submit_urb(urb, GFP_ATOMIC);
-	if (result && result != -EPERM)
-		dev_err(&urb->dev->dev, "%s - failed resubmitting"
-			" read urb, error %d\n", __func__, result);
 }
 
 static void pl2303_write_bulk_callback(struct urb *urb)
@@ -1182,7 +1148,7 @@ static struct usb_serial_driver pl2303_device = {
 	.set_termios =		pl2303_set_termios,
 	.tiocmget =		pl2303_tiocmget,
 	.tiocmset =		pl2303_tiocmset,
-	.read_bulk_callback =	pl2303_read_bulk_callback,
+	.process_read_urb =	pl2303_process_read_urb,
 	.read_int_callback =	pl2303_read_int_callback,
 	.write_bulk_callback =	pl2303_write_bulk_callback,
 	.write_room =		pl2303_write_room,
