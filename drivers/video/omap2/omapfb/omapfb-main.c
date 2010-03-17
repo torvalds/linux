@@ -157,7 +157,7 @@ static void fill_fb(struct fb_info *fbi)
 
 static unsigned omapfb_get_vrfb_offset(const struct omapfb_info *ofbi, int rot)
 {
-	const struct vrfb *vrfb = &ofbi->region.vrfb;
+	const struct vrfb *vrfb = &ofbi->region->vrfb;
 	unsigned offset;
 
 	switch (rot) {
@@ -185,27 +185,27 @@ static unsigned omapfb_get_vrfb_offset(const struct omapfb_info *ofbi, int rot)
 static u32 omapfb_get_region_rot_paddr(const struct omapfb_info *ofbi, int rot)
 {
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB) {
-		return ofbi->region.vrfb.paddr[rot]
+		return ofbi->region->vrfb.paddr[rot]
 			+ omapfb_get_vrfb_offset(ofbi, rot);
 	} else {
-		return ofbi->region.paddr;
+		return ofbi->region->paddr;
 	}
 }
 
 static u32 omapfb_get_region_paddr(const struct omapfb_info *ofbi)
 {
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
-		return ofbi->region.vrfb.paddr[0];
+		return ofbi->region->vrfb.paddr[0];
 	else
-		return ofbi->region.paddr;
+		return ofbi->region->paddr;
 }
 
 static void __iomem *omapfb_get_region_vaddr(const struct omapfb_info *ofbi)
 {
 	if (ofbi->rotation_type == OMAP_DSS_ROT_VRFB)
-		return ofbi->region.vrfb.vaddr[0];
+		return ofbi->region->vrfb.vaddr[0];
 	else
-		return ofbi->region.vaddr;
+		return ofbi->region->vaddr;
 }
 
 static struct omapfb_colormode omapfb_colormodes[] = {
@@ -450,7 +450,7 @@ static int check_vrfb_fb_size(unsigned long region_size,
 static int check_fb_size(const struct omapfb_info *ofbi,
 		struct fb_var_screeninfo *var)
 {
-	unsigned long max_frame_size = ofbi->region.size;
+	unsigned long max_frame_size = ofbi->region->size;
 	int bytespp = var->bits_per_pixel >> 3;
 	unsigned long line_size = var->xres_virtual * bytespp;
 
@@ -497,7 +497,7 @@ static int check_fb_size(const struct omapfb_info *ofbi,
 static int setup_vrfb_rotation(struct fb_info *fbi)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
-	struct omapfb2_mem_region *rg = &ofbi->region;
+	struct omapfb2_mem_region *rg = ofbi->region;
 	struct vrfb *vrfb = &rg->vrfb;
 	struct fb_var_screeninfo *var = &fbi->var;
 	struct fb_fix_screeninfo *fix = &fbi->fix;
@@ -558,9 +558,9 @@ static int setup_vrfb_rotation(struct fb_info *fbi)
 		return r;
 
 	/* used by open/write in fbmem.c */
-	fbi->screen_base = ofbi->region.vrfb.vaddr[0];
+	fbi->screen_base = ofbi->region->vrfb.vaddr[0];
 
-	fix->smem_start = ofbi->region.vrfb.paddr[0];
+	fix->smem_start = ofbi->region->vrfb.paddr[0];
 
 	switch (var->nonstd) {
 	case OMAPFB_COLOR_YUV422:
@@ -599,7 +599,7 @@ void set_fb_fix(struct fb_info *fbi)
 	struct fb_fix_screeninfo *fix = &fbi->fix;
 	struct fb_var_screeninfo *var = &fbi->var;
 	struct omapfb_info *ofbi = FB2OFB(fbi);
-	struct omapfb2_mem_region *rg = &ofbi->region;
+	struct omapfb2_mem_region *rg = ofbi->region;
 
 	DBG("set_fb_fix\n");
 
@@ -688,7 +688,7 @@ int check_fb_var(struct fb_info *fbi, struct fb_var_screeninfo *var)
 		return -EINVAL;
 
 	/* When no memory is allocated ignore the size check */
-	if (ofbi->region.size != 0 && check_fb_size(ofbi, var))
+	if (ofbi->region->size != 0 && check_fb_size(ofbi, var))
 		return -EINVAL;
 
 	if (var->xres + var->xoffset > var->xres_virtual)
@@ -856,7 +856,7 @@ static void omapfb_calc_addr(const struct omapfb_info *ofbi,
 }
 
 /* setup overlay according to the fb */
-static int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
+int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 		u16 posx, u16 posy, u16 outw, u16 outh)
 {
 	int r = 0;
@@ -892,7 +892,7 @@ static int omapfb_setup_overlay(struct fb_info *fbi, struct omap_overlay *ovl,
 		yres = var->yres;
 	}
 
-	if (ofbi->region.size)
+	if (ofbi->region->size)
 		omapfb_calc_addr(ofbi, var, fix, rotation,
 				 &data_start_p, &data_start_v);
 
@@ -971,7 +971,7 @@ int omapfb_apply_changes(struct fb_info *fbi, int init)
 
 		DBG("apply_changes, fb %d, ovl %d\n", ofbi->id, ovl->id);
 
-		if (ofbi->region.size == 0) {
+		if (ofbi->region->size == 0) {
 			/* the fb is not available. disable the overlay */
 			omapfb_overlay_enable(ovl, 0);
 			if (!init && ovl->manager)
@@ -1071,16 +1071,16 @@ static int omapfb_pan_display(struct fb_var_screeninfo *var,
 
 static void mmap_user_open(struct vm_area_struct *vma)
 {
-	struct omapfb_info *ofbi = (struct omapfb_info *)vma->vm_private_data;
+	struct omapfb2_mem_region *rg = vma->vm_private_data;
 
-	atomic_inc(&ofbi->map_count);
+	atomic_inc(&rg->map_count);
 }
 
 static void mmap_user_close(struct vm_area_struct *vma)
 {
-	struct omapfb_info *ofbi = (struct omapfb_info *)vma->vm_private_data;
+	struct omapfb2_mem_region *rg = vma->vm_private_data;
 
-	atomic_dec(&ofbi->map_count);
+	atomic_dec(&rg->map_count);
 }
 
 static struct vm_operations_struct mmap_user_ops = {
@@ -1092,6 +1092,7 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 {
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct fb_fix_screeninfo *fix = &fbi->fix;
+	struct omapfb2_mem_region *rg;
 	unsigned long off;
 	unsigned long start;
 	u32 len;
@@ -1101,6 +1102,8 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	if (vma->vm_pgoff > (~0UL >> PAGE_SHIFT))
 		return -EINVAL;
 	off = vma->vm_pgoff << PAGE_SHIFT;
+
+	rg = ofbi->region;
 
 	start = omapfb_get_region_paddr(ofbi);
 	len = fix->smem_len;
@@ -1117,12 +1120,12 @@ static int omapfb_mmap(struct fb_info *fbi, struct vm_area_struct *vma)
 	vma->vm_flags |= VM_IO | VM_RESERVED;
 	vma->vm_page_prot = pgprot_writecombine(vma->vm_page_prot);
 	vma->vm_ops = &mmap_user_ops;
-	vma->vm_private_data = ofbi;
+	vma->vm_private_data = rg;
 	if (io_remap_pfn_range(vma, vma->vm_start, off >> PAGE_SHIFT,
 			     vma->vm_end - vma->vm_start, vma->vm_page_prot))
 		return -EAGAIN;
 	/* vm_ops.open won't be called for mmap itself. */
-	atomic_inc(&ofbi->map_count);
+	atomic_inc(&rg->map_count);
 	return 0;
 }
 
@@ -1312,7 +1315,9 @@ static void omapfb_free_fbmem(struct fb_info *fbi)
 	struct omapfb2_device *fbdev = ofbi->fbdev;
 	struct omapfb2_mem_region *rg;
 
-	rg = &ofbi->region;
+	rg = ofbi->region;
+
+	WARN_ON(atomic_read(&rg->map_count));
 
 	if (rg->paddr)
 		if (omap_vram_free(rg->paddr, rg->size))
@@ -1367,8 +1372,15 @@ static int omapfb_alloc_fbmem(struct fb_info *fbi, unsigned long size,
 	void __iomem *vaddr;
 	int r;
 
-	rg = &ofbi->region;
-	memset(rg, 0, sizeof(*rg));
+	rg = ofbi->region;
+
+	rg->paddr = 0;
+	rg->vaddr = NULL;
+	memset(&rg->vrfb, 0, sizeof rg->vrfb);
+	rg->size = 0;
+	rg->type = 0;
+	rg->alloc = false;
+	rg->map = false;
 
 	size = PAGE_ALIGN(size);
 
@@ -1621,7 +1633,7 @@ static int omapfb_allocate_all_fbs(struct omapfb2_device *fbdev)
 	for (i = 0; i < fbdev->num_fbs; i++) {
 		struct omapfb_info *ofbi = FB2OFB(fbdev->fbs[i]);
 		struct omapfb2_mem_region *rg;
-		rg = &ofbi->region;
+		rg = ofbi->region;
 
 		DBG("region%d phys %08x virt %p size=%lu\n",
 				i,
@@ -1638,7 +1650,7 @@ int omapfb_realloc_fbmem(struct fb_info *fbi, unsigned long size, int type)
 	struct omapfb_info *ofbi = FB2OFB(fbi);
 	struct omapfb2_device *fbdev = ofbi->fbdev;
 	struct omap_dss_device *display = fb2display(fbi);
-	struct omapfb2_mem_region *rg = &ofbi->region;
+	struct omapfb2_mem_region *rg = ofbi->region;
 	unsigned long old_size = rg->size;
 	unsigned long old_paddr = rg->paddr;
 	int old_type = rg->type;
@@ -1721,7 +1733,7 @@ static int omapfb_fb_init(struct omapfb2_device *fbdev, struct fb_info *fbi)
 	fbi->flags = FBINFO_FLAG_DEFAULT;
 	fbi->pseudo_palette = fbdev->pseudo_palette;
 
-	if (ofbi->region.size == 0) {
+	if (ofbi->region->size == 0) {
 		clear_fb_info(fbi);
 		return 0;
 	}
@@ -1882,6 +1894,9 @@ static int omapfb_create_framebuffers(struct omapfb2_device *fbdev)
 		ofbi = FB2OFB(fbi);
 		ofbi->fbdev = fbdev;
 		ofbi->id = i;
+
+		ofbi->region = &fbdev->regions[i];
+		ofbi->region->id = i;
 
 		/* assign these early, so that fb alloc can use them */
 		ofbi->rotation_type = def_vrfb ? OMAP_DSS_ROT_VRFB :

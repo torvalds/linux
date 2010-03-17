@@ -85,6 +85,9 @@
 #define OMAPFB_MEMTYPE_SRAM		1
 #define OMAPFB_MEMTYPE_MAX		1
 
+#define OMAPFB_MEM_IDX_ENABLED	0x80
+#define OMAPFB_MEM_IDX_MASK	0x7f
+
 enum omapfb_color_format {
 	OMAPFB_COLOR_RGB565 = 0,
 	OMAPFB_COLOR_YUV422,
@@ -136,7 +139,7 @@ struct omapfb_plane_info {
 	__u8  enabled;
 	__u8  channel_out;
 	__u8  mirror;
-	__u8  reserved1;
+	__u8  mem_idx;
 	__u32 out_width;
 	__u32 out_height;
 	__u32 reserved2[12];
