@@ -58,7 +58,7 @@ static bool tos_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 {
 	const struct xt_tos_match_info *info = par->matchinfo;
 
-	if (par->match->family == NFPROTO_IPV4)
+	if (par->family == NFPROTO_IPV4)
 		return ((ip_hdr(skb)->tos & info->tos_mask) ==
 		       info->tos_value) ^ !!info->invert;
 	else

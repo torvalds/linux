@@ -703,8 +703,8 @@ static bool hashlimit_mt_check_v0(const struct xt_mtchk_param *par)
 		return false;
 
 	mutex_lock(&hashlimit_mutex);
-	r->hinfo = htable_find_get(net, r->name, par->match->family);
-	if (!r->hinfo && htable_create_v0(net, r, par->match->family) != 0) {
+	r->hinfo = htable_find_get(net, r->name, par->family);
+	if (!r->hinfo && htable_create_v0(net, r, par->family) != 0) {
 		mutex_unlock(&hashlimit_mutex);
 		return false;
 	}
@@ -730,7 +730,7 @@ static bool hashlimit_mt_check(const struct xt_mtchk_param *par)
 		return false;
 	if (info->name[sizeof(info->name)-1] != '\0')
 		return false;
-	if (par->match->family == NFPROTO_IPV4) {
+	if (par->family == NFPROTO_IPV4) {
 		if (info->cfg.srcmask > 32 || info->cfg.dstmask > 32)
 			return false;
 	} else {
@@ -739,8 +739,8 @@ static bool hashlimit_mt_check(const struct xt_mtchk_param *par)
 	}
 
 	mutex_lock(&hashlimit_mutex);
-	info->hinfo = htable_find_get(net, info->name, par->match->family);
-	if (!info->hinfo && htable_create(net, info, par->match->family) != 0) {
+	info->hinfo = htable_find_get(net, info->name, par->family);
+	if (!info->hinfo && htable_create(net, info, par->family) != 0) {
 		mutex_unlock(&hashlimit_mutex);
 		return false;
 	}

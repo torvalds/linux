@@ -39,9 +39,9 @@ state_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 
 static bool state_mt_check(const struct xt_mtchk_param *par)
 {
-	if (nf_ct_l3proto_try_module_get(par->match->family) < 0) {
+	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->match->family);
+				    "proto=%u\n", par->family);
 		return false;
 	}
 	return true;
@@ -49,7 +49,7 @@ static bool state_mt_check(const struct xt_mtchk_param *par)
 
 static void state_mt_destroy(const struct xt_mtdtor_param *par)
 {
-	nf_ct_l3proto_module_put(par->match->family);
+	nf_ct_l3proto_module_put(par->family);
 }
 
 static struct xt_match state_mt_reg[] __read_mostly = {

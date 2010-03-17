@@ -233,7 +233,7 @@ recent_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	u_int8_t ttl;
 	bool ret = info->invert;
 
-	if (par->match->family == NFPROTO_IPV4) {
+	if (par->family == NFPROTO_IPV4) {
 		const struct iphdr *iph = ip_hdr(skb);
 
 		if (info->side == XT_RECENT_DEST)
@@ -259,12 +259,12 @@ recent_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 
 	spin_lock_bh(&recent_lock);
 	t = recent_table_lookup(recent_net, info->name);
-	e = recent_entry_lookup(t, &addr, par->match->family,
+	e = recent_entry_lookup(t, &addr, par->family,
 				(info->check_set & XT_RECENT_TTL) ? ttl : 0);
 	if (e == NULL) {
 		if (!(info->check_set & XT_RECENT_SET))
 			goto out;
-		e = recent_entry_init(t, &addr, par->match->family, ttl);
+		e = recent_entry_init(t, &addr, par->family, ttl);
 		if (e == NULL)
 			*par->hotdrop = true;
 		ret = !ret;
