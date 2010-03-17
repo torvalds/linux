@@ -1015,7 +1015,7 @@ void iwl_rx_handle(struct iwl_priv *priv)
 			count++;
 			if (count >= 8) {
 				rxq->read = i;
-				iwl_rx_replenish_now(priv);
+				iwlagn_rx_replenish_now(priv);
 				count = 0;
 			}
 		}
@@ -1024,9 +1024,9 @@ void iwl_rx_handle(struct iwl_priv *priv)
 	/* Backtrack one entry */
 	rxq->read = i;
 	if (fill_rx)
-		iwl_rx_replenish_now(priv);
+		iwlagn_rx_replenish_now(priv);
 	else
-		iwl_rx_queue_restock(priv);
+		iwlagn_rx_queue_restock(priv);
 }
 
 /* call this function to flush any scheduled tasklet */
@@ -2250,7 +2250,7 @@ static void __iwl_down(struct iwl_priv *priv)
 	iwl_disable_ict(priv);
 
 	iwlagn_txq_ctx_stop(priv);
-	iwl_rxq_stop(priv);
+	iwlagn_rxq_stop(priv);
 
 	/* Power-down device's busmaster DMA clocks */
 	iwl_write_prph(priv, APMG_CLK_DIS_REG, APMG_CLK_VAL_DMA_CLK_RQT);
@@ -2521,7 +2521,7 @@ static void iwl_bg_rx_replenish(struct work_struct *data)
 		return;
 
 	mutex_lock(&priv->mutex);
-	iwl_rx_replenish(priv);
+	iwlagn_rx_replenish(priv);
 	mutex_unlock(&priv->mutex);
 }
 
@@ -3737,7 +3737,7 @@ static void __devexit iwl_pci_remove(struct pci_dev *pdev)
 	iwl_dealloc_ucode_pci(priv);
 
 	if (priv->rxq.bd)
-		iwl_rx_queue_free(priv, &priv->rxq);
+		iwlagn_rx_queue_free(priv, &priv->rxq);
 	iwlagn_hw_txq_ctx_free(priv);
 
 	iwl_eeprom_free(priv);

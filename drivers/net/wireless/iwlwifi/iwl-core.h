@@ -419,17 +419,12 @@ void iwl_rx_reply_error(struct iwl_priv *priv,
 /*****************************************************
 * RX
 ******************************************************/
-void iwl_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 void iwl_cmd_queue_free(struct iwl_priv *priv);
 int iwl_rx_queue_alloc(struct iwl_priv *priv);
 void iwl_rx_handle(struct iwl_priv *priv);
 void iwl_rx_queue_update_write_ptr(struct iwl_priv *priv,
 				  struct iwl_rx_queue *q);
-void iwl_rx_replenish(struct iwl_priv *priv);
-void iwl_rx_replenish_now(struct iwl_priv *priv);
-void iwl_rx_queue_restock(struct iwl_priv *priv);
 int iwl_rx_queue_space(const struct iwl_rx_queue *q);
-void iwl_rx_allocate(struct iwl_priv *priv, gfp_t priority);
 void iwl_tx_cmd_complete(struct iwl_priv *priv, struct iwl_rx_mem_buffer *rxb);
 /* Handlers */
 void iwl_rx_missed_beacon_notif(struct iwl_priv *priv,

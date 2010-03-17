@@ -117,6 +117,14 @@ void iwlagn_rx_queue_reset(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_rx_init(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
 int iwlagn_hw_nic_init(struct iwl_priv *priv);
 
+/* rx */
+void iwlagn_rx_queue_restock(struct iwl_priv *priv);
+void iwlagn_rx_allocate(struct iwl_priv *priv, gfp_t priority);
+void iwlagn_rx_replenish(struct iwl_priv *priv);
+void iwlagn_rx_replenish_now(struct iwl_priv *priv);
+void iwlagn_rx_queue_free(struct iwl_priv *priv, struct iwl_rx_queue *rxq);
+int iwlagn_rxq_stop(struct iwl_priv *priv);
+
 /* tx */
 int iwlagn_tx_skb(struct iwl_priv *priv, struct sk_buff *skb);
 int iwlagn_tx_agg_start(struct iwl_priv *priv,
