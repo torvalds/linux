@@ -840,7 +840,7 @@ static union drbd_state sanitize_state(struct drbd_conf *mdev, union drbd_state 
 			break;
 		case C_WF_BITMAP_S:
 		case C_PAUSED_SYNC_S:
-			ns.pdsk = D_OUTDATED;
+			ns.pdsk = os.pdsk > D_OUTDATED ? D_OUTDATED : os.pdsk;
 			break;
 		case C_SYNC_SOURCE:
 			ns.pdsk = D_INCONSISTENT;
