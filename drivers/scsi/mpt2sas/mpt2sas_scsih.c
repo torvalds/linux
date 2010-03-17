@@ -2384,7 +2384,6 @@ _scsih_fw_event_cleanup_queue(struct MPT2SAS_ADAPTER *ioc)
 	}
 }
 
-
 /**
  * _scsih_ublock_io_device - set the device state to SDEV_RUNNING
  * @ioc: per adapter object
@@ -3918,6 +3917,134 @@ _scsih_expander_remove(struct MPT2SAS_ADAPTER *ioc, u64 sas_address)
 }
 
 /**
+ * _scsih_check_access_status - check access flags
+ * @ioc: per adapter object
+ * @sas_address: sas address
+ * @handle: sas device handle
+ * @access_flags: errors returned during discovery of the device
+ *
+ * Return 0 for success, else failure
+ */
+static u8
+_scsih_check_access_status(struct MPT2SAS_ADAPTER *ioc, u64 sas_address,
+   u16 handle, u8 access_status)
+{
+	u8 rc = 1;
+	char *desc = NULL;
+
+	switch (access_status) {
+	case MPI2_SAS_DEVICE0_ASTATUS_NO_ERRORS:
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_NEEDS_INITIALIZATION:
+		rc = 0;
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_CAPABILITY_FAILED:
+		desc = "sata capability failed";
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_AFFILIATION_CONFLICT:
+		desc = "sata affiliation conflict";
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_ROUTE_NOT_ADDRESSABLE:
+		desc = "route not addressable";
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_SMP_ERROR_NOT_ADDRESSABLE:
+		desc = "smp error not addressable";
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_DEVICE_BLOCKED:
+		desc = "device blocked";
+		break;
+	case MPI2_SAS_DEVICE0_ASTATUS_SATA_INIT_FAILED:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_UNKNOWN:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_AFFILIATION_CONFLICT:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_DIAG:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_IDENTIFICATION:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_CHECK_POWER:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_PIO_SN:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_MDMA_SN:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_UDMA_SN:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_ZONING_VIOLATION:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_NOT_ADDRESSABLE:
+	case MPI2_SAS_DEVICE0_ASTATUS_SIF_MAX:
+		desc = "sata initialization failed";
+		break;
+	default:
+		desc = "unknown";
+		break;
+	}
+
+	if (!rc)
+		return 0;
+
+	printk(MPT2SAS_ERR_FMT "discovery errors(%s): sas_address(0x%016llx), "
+	    "handle(0x%04x)\n", ioc->name, desc,
+	    (unsigned long long)sas_address, handle);
+	return rc;
+}
+
+static void
+_scsih_check_device(struct MPT2SAS_ADAPTER *ioc, u16 handle)
+{
+	Mpi2ConfigReply_t mpi_reply;
+	Mpi2SasDevicePage0_t sas_device_pg0;
+	struct _sas_device *sas_device;
+	u32 ioc_status;
+	unsigned long flags;
+	u64 sas_address;
+	struct scsi_target *starget;
+	struct MPT2SAS_TARGET *sas_target_priv_data;
+	u32 device_info;
+
+	if ((mpt2sas_config_get_sas_device_pg0(ioc, &mpi_reply, &sas_device_pg0,
+	    MPI2_SAS_DEVICE_PGAD_FORM_HANDLE, handle)))
+		return;
+
+	ioc_status = le16_to_cpu(mpi_reply.IOCStatus) & MPI2_IOCSTATUS_MASK;
+	if (ioc_status != MPI2_IOCSTATUS_SUCCESS)
+		return;
+
+	/* check if this is end device */
+	device_info = le32_to_cpu(sas_device_pg0.DeviceInfo);
+	if (!(_scsih_is_end_device(device_info)))
+		return;
+
+	spin_lock_irqsave(&ioc->sas_device_lock, flags);
+	sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
+	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
+	    sas_address);
+
+	if (!sas_device) {
+		printk(MPT2SAS_ERR_FMT "device is not present "
+		    "handle(0x%04x), no sas_device!!!\n", ioc->name, handle);
+		spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+		return;
+	}
+
+	if (unlikely(sas_device->handle != handle)) {
+		starget = sas_device->starget;
+		sas_target_priv_data = starget->hostdata;
+		starget_printk(KERN_INFO, starget, "handle changed from(0x%04x)"
+		   " to (0x%04x)!!!\n", sas_device->handle, handle);
+		sas_target_priv_data->handle = handle;
+		sas_device->handle = handle;
+	}
+	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
+
+	/* check if device is present */
+	if (!(le16_to_cpu(sas_device_pg0.Flags) &
+	    MPI2_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)) {
+		printk(MPT2SAS_ERR_FMT "device is not present "
+		    "handle(0x%04x), flags!!!\n", ioc->name, handle);
+		return;
+	}
+
+	/* check if there were any issues with discovery */
+	if (_scsih_check_access_status(ioc, sas_address, handle,
+	    sas_device_pg0.AccessStatus))
+		return;
+	_scsih_ublock_io_device(ioc, handle);
+
+}
+
+/**
  * _scsih_add_device -  creating sas device object
  * @ioc: per adapter object
  * @handle: sas device handle
@@ -3955,6 +4082,8 @@ _scsih_add_device(struct MPT2SAS_ADAPTER *ioc, u16 handle, u8 phy_num, u8 is_pd)
 		return -1;
 	}
 
+	sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
+
 	/* check if device is present */
 	if (!(le16_to_cpu(sas_device_pg0.Flags) &
 	    MPI2_SAS_DEVICE0_FLAGS_DEVICE_PRESENT)) {
@@ -3965,15 +4094,10 @@ _scsih_add_device(struct MPT2SAS_ADAPTER *ioc, u16 handle, u8 phy_num, u8 is_pd)
 		return -1;
 	}
 
-	/* check if there were any issus with discovery */
-	if (sas_device_pg0.AccessStatus ==
-	    MPI2_SAS_DEVICE0_ASTATUS_SATA_INIT_FAILED) {
-		printk(MPT2SAS_ERR_FMT "failure at %s:%d/%s()!\n",
-		    ioc->name, __FILE__, __LINE__, __func__);
-		printk(MPT2SAS_ERR_FMT "AccessStatus = 0x%02x\n",
-		    ioc->name, sas_device_pg0.AccessStatus);
+	/* check if there were any issues with discovery */
+	if (_scsih_check_access_status(ioc, sas_address, handle,
+	    sas_device_pg0.AccessStatus))
 		return -1;
-	}
 
 	/* check if this is end device */
 	device_info = le32_to_cpu(sas_device_pg0.DeviceInfo);
@@ -3983,17 +4107,14 @@ _scsih_add_device(struct MPT2SAS_ADAPTER *ioc, u16 handle, u8 phy_num, u8 is_pd)
 		return -1;
 	}
 
-	sas_address = le64_to_cpu(sas_device_pg0.SASAddress);
 
 	spin_lock_irqsave(&ioc->sas_device_lock, flags);
 	sas_device = mpt2sas_scsih_sas_device_find_by_sas_address(ioc,
 	    sas_address);
 	spin_unlock_irqrestore(&ioc->sas_device_lock, flags);
 
-	if (sas_device) {
-		_scsih_ublock_io_device(ioc, handle);
+	if (sas_device)
 		return 0;
-	}
 
 	sas_device = kzalloc(sizeof(struct _sas_device),
 	    GFP_KERNEL);
@@ -4308,8 +4429,10 @@ _scsih_sas_topology_change_event(struct MPT2SAS_ADAPTER *ioc,
 			mpt2sas_transport_update_links(ioc, sas_address,
 			    handle, phy_number, link_rate);
 
-			if (link_rate >= MPI2_SAS_NEG_LINK_RATE_1_5)
-				_scsih_ublock_io_device(ioc, handle);
+			if (link_rate < MPI2_SAS_NEG_LINK_RATE_1_5)
+				break;
+
+			_scsih_check_device(ioc, handle);
 			break;
 		case MPI2_EVENT_SAS_TOPO_RC_TARG_ADDED:
 
