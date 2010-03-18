@@ -159,7 +159,8 @@ static int snd_soc_8_8_write(struct snd_soc_codec *codec, unsigned int reg,
 
 	BUG_ON(codec->volatile_register);
 
-	data[0] = reg & 0xff;
+	reg &= 0xff;
+	data[0] = reg;
 	data[1] = value & 0xff;
 
 	if (reg < codec->reg_cache_size)
@@ -180,6 +181,7 @@ static unsigned int snd_soc_8_8_read(struct snd_soc_codec *codec,
 				     unsigned int reg)
 {
 	u8 *cache = codec->reg_cache;
+	reg &= 0xff;
 	if (reg >= codec->reg_cache_size)
 		return -1;
 	return cache[reg];
