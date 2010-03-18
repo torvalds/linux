@@ -1291,9 +1291,13 @@ static int sony_nc_add(struct acpi_device *device)
 		       "controlled by ACPI video driver\n");
 	} else if (ACPI_SUCCESS(acpi_get_handle(sony_nc_acpi_handle, "GBRT",
 						&handle))) {
+							struct backlight_properties props;
+		memset(&props, 0, sizeof(struct backlight_properties));
+		props.max_brightness = SONY_MAX_BRIGHTNESS - 1;
 		sony_backlight_device = backlight_device_register("sony", NULL,
 								  NULL,
-								  &sony_backlight_ops);
+								  &sony_backlight_ops,
+								  &props);
 
 		if (IS_ERR(sony_backlight_device)) {
 			printk(KERN_WARNING DRV_PFX "unable to register backlight device\n");
@@ -1302,8 +1306,6 @@ static int sony_nc_add(struct acpi_device *device)
 			sony_backlight_device->props.brightness =
 			    sony_backlight_get_brightness
 			    (sony_backlight_device);
-			sony_backlight_device->props.max_brightness =
-			    SONY_MAX_BRIGHTNESS - 1;
 		}
 
 	}

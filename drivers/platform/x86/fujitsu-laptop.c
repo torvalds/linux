@@ -1126,16 +1126,20 @@ static int __init fujitsu_init(void)
 	/* Register backlight stuff */
 
 	if (!acpi_video_backlight_support()) {
-		fujitsu->bl_device =
-			backlight_device_register("fujitsu-laptop", NULL, NULL,
-						  &fujitsubl_ops);
+		struct backlight_properties props;
+
+		memset(&props, 0, sizeof(struct backlight_properties));
+		max_brightness = fujitsu->max_brightness;
+		props.max_brightness = max_brightness - 1;
+		fujitsu->bl_device = backlight_device_register("fujitsu-laptop",
+							       NULL, NULL,
+							       &fujitsubl_ops,
+							       &props);
 		if (IS_ERR(fujitsu->bl_device)) {
 			ret = PTR_ERR(fujitsu->bl_device);
 			fujitsu->bl_device = NULL;
 			goto fail_sysfs_group;
 		}
-		max_brightness = fujitsu->max_brightness;
-		fujitsu->bl_device->props.max_brightness = max_brightness - 1;
 		fujitsu->bl_device->props.brightness = fujitsu->brightness_level;
 	}
 
