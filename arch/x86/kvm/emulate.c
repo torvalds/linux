@@ -1508,7 +1508,7 @@ static int emulate_pop_sreg(struct x86_emulate_ctxt *ctxt,
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
-	rc = kvm_load_segment_descriptor(ctxt->vcpu, (u16)selector, seg);
+	rc = load_segment_descriptor(ctxt, ops, (u16)selector, seg);
 	return rc;
 }
 
@@ -1683,7 +1683,7 @@ static int emulate_ret_far(struct x86_emulate_ctxt *ctxt,
 	rc = emulate_pop(ctxt, ops, &cs, c->op_bytes);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
-	rc = kvm_load_segment_descriptor(ctxt->vcpu, (u16)cs, VCPU_SREG_CS);
+	rc = load_segment_descriptor(ctxt, ops, (u16)cs, VCPU_SREG_CS);
 	return rc;
 }
 
@@ -2717,7 +2717,7 @@ special_insn:
 		if (c->modrm_reg == VCPU_SREG_SS)
 			toggle_interruptibility(ctxt, KVM_X86_SHADOW_INT_MOV_SS);
 
-		rc = kvm_load_segment_descriptor(ctxt->vcpu, sel, c->modrm_reg);
+		rc = load_segment_descriptor(ctxt, ops, sel, c->modrm_reg);
 
 		c->dst.type = OP_NONE;  /* Disable writeback. */
 		break;
@@ -2892,8 +2892,8 @@ special_insn:
 		goto jmp;
 	case 0xea: /* jmp far */
 	jump_far:
-		if (kvm_load_segment_descriptor(ctxt->vcpu, c->src2.val,
-						VCPU_SREG_CS))
+		if (load_segment_descriptor(ctxt, ops, c->src2.val,
+					    VCPU_SREG_CS))
 			goto done;
 
 		c->eip = c->src.val;
