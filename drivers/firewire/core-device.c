@@ -180,44 +180,32 @@ static int fw_unit_match(struct device *dev, struct device_driver *drv)
 	return 0;
 }
 
+static void get_modalias_ids(const u32 *directory, int *id)
+{
+	struct fw_csr_iterator ci;
+	int key, value;
+
+	fw_csr_iterator_init(&ci, directory);
+	while (fw_csr_iterator_next(&ci, &key, &value)) {
+		switch (key) {
+		case CSR_VENDOR:	id[0] = value; break;
+		case CSR_MODEL:		id[1] = value; break;
+		case CSR_SPECIFIER_ID:	id[2] = value; break;
+		case CSR_VERSION:	id[3] = value; break;
+		}
+	}
+}
+
 static int get_modalias(struct fw_unit *unit, char *buffer, size_t buffer_size)
 {
-	struct fw_device *device = fw_parent_device(unit);
-	struct fw_csr_iterator ci;
+	int id[] = {0, 0, 0, 0};
 
-	int key, value;
-	int vendor = 0;
-	int model = 0;
-	int specifier_id = 0;
-	int version = 0;
-
-	fw_csr_iterator_init(&ci, &device->config_rom[5]);
-	while (fw_csr_iterator_next(&ci, &key, &value)) {
-		switch (key) {
-		case CSR_VENDOR:
-			vendor = value;
-			break;
-		case CSR_MODEL:
-			model = value;
-			break;
-		}
-	}
-
-	fw_csr_iterator_init(&ci, unit->directory);
-	while (fw_csr_iterator_next(&ci, &key, &value)) {
-		switch (key) {
-		case CSR_SPECIFIER_ID:
-			specifier_id = value;
-			break;
-		case CSR_VERSION:
-			version = value;
-			break;
-		}
-	}
+	get_modalias_ids(&fw_parent_device(unit)->config_rom[5], id);
+	get_modalias_ids(unit->directory, id);
 
 	return snprintf(buffer, buffer_size,
 			"ieee1394:ven%08Xmo%08Xsp%08Xver%08X",
-			vendor, model, specifier_id, version);
+			id[0], id[1], id[2], id[3]);
 }
 
 static int fw_unit_uevent(struct device *dev, struct kobj_uevent_env *env)
