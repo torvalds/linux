@@ -353,6 +353,7 @@ struct wl1271_if_operations {
 };
 
 struct wl1271 {
+	struct platform_device *plat_dev;
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
 

@@ -2008,6 +2008,14 @@ int wl1271_register_hw(struct wl1271 *wl)
 }
 EXPORT_SYMBOL_GPL(wl1271_register_hw);
 
+void wl1271_unregister_hw(struct wl1271 *wl)
+{
+	ieee80211_unregister_hw(wl->hw);
+	wl->mac80211_registered = false;
+
+}
+EXPORT_SYMBOL_GPL(wl1271_unregister_hw);
+
 int wl1271_init_ieee80211(struct wl1271 *wl)
 {
 	/* The tx descriptor buffer and the TKIP space. */
@@ -2046,6 +2054,7 @@ EXPORT_SYMBOL_GPL(wl1271_init_ieee80211);
 struct ieee80211_hw *wl1271_alloc_hw(void)
 {
 	struct ieee80211_hw *hw;
+	struct platform_device *plat_dev = NULL;
 	struct wl1271 *wl;
 	int i, ret;
 	static const u8 nokia_oui[3] = {0x00, 0x1f, 0xdf};
@@ -2054,8 +2063,17 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	if (!hw) {
 		wl1271_error("could not alloc ieee80211_hw");
 		ret = -ENOMEM;
-		goto err;
+		goto err_hw_alloc;
 	}
+
+	plat_dev = kmalloc(sizeof(wl1271_device), GFP_KERNEL);
+	if (!plat_dev) {
+		wl1271_error("could not allocate platform_device");
+		ret = -ENOMEM;
+		goto err_plat_alloc;
+	}
+
+	memcpy(plat_dev, &wl1271_device, sizeof(wl1271_device));
 
 	wl = hw->priv;
 	memset(wl, 0, sizeof(*wl));
@@ -2063,6 +2081,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	INIT_LIST_HEAD(&wl->list);
 
 	wl->hw = hw;
+	wl->plat_dev = plat_dev;
 
 	skb_queue_head_init(&wl->tx_queue);
 
@@ -2103,15 +2122,15 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl1271_debugfs_init(wl);
 
 	/* Register platform device */
-	ret = platform_device_register(&wl1271_device);
+	ret = platform_device_register(wl->plat_dev);
 	if (ret) {
 		wl1271_error("couldn't register platform device");
 		goto err_hw;
 	}
-	dev_set_drvdata(&wl1271_device.dev, wl);
+	dev_set_drvdata(&wl->plat_dev->dev, wl);
 
 	/* Create sysfs file to control bt coex state */
-	ret = device_create_file(&wl1271_device.dev, &dev_attr_bt_coex_state);
+	ret = device_create_file(&wl->plat_dev->dev, &dev_attr_bt_coex_state);
 	if (ret < 0) {
 		wl1271_error("failed to create sysfs file bt_coex_state");
 		goto err_platform;
@@ -2120,20 +2139,25 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	return hw;
 
 err_platform:
-	platform_device_unregister(&wl1271_device);
+	platform_device_unregister(wl->plat_dev);
 
 err_hw:
-	ieee80211_unregister_hw(wl->hw);
+	wl1271_debugfs_exit(wl);
+	kfree(plat_dev);
 
-err:
+err_plat_alloc:
+	ieee80211_free_hw(hw);
+
+err_hw_alloc:
+
 	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(wl1271_alloc_hw);
 
 int wl1271_free_hw(struct wl1271 *wl)
 {
-	platform_device_unregister(&wl1271_device);
-	ieee80211_unregister_hw(wl->hw);
+	platform_device_unregister(wl->plat_dev);
+	kfree(wl->plat_dev);
 
 	wl1271_debugfs_exit(wl);
 

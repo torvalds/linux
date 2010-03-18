@@ -161,6 +161,7 @@ int wl1271_set_partition(struct wl1271 *wl,
 /* Functions from wl1271_main.c */
 
 int wl1271_register_hw(struct wl1271 *wl);
+void wl1271_unregister_hw(struct wl1271 *wl);
 int wl1271_init_ieee80211(struct wl1271 *wl);
 struct ieee80211_hw *wl1271_alloc_hw(void);
 int wl1271_free_hw(struct wl1271 *wl);

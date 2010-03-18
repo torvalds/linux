@@ -422,7 +422,7 @@ static int __devinit wl1271_probe(struct spi_device *spi)
 	free_irq(wl->irq, wl);
 
  out_free:
-	ieee80211_free_hw(hw);
+	wl1271_free_hw(wl);
 
 	return ret;
 }
@@ -433,6 +433,7 @@ static int __devexit wl1271_remove(struct spi_device *spi)
 
 	free_irq(wl->irq, wl);
 
+	wl1271_unregister_hw(wl);
 	wl1271_free_hw(wl);
 
 	return 0;
