@@ -4542,33 +4542,13 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (!irqchip_in_kernel(vcpu->kvm))
 		kvm_set_cr8(vcpu, kvm_run->cr8);
 
-	if (vcpu->arch.pio.count) {
-		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-		r = emulate_instruction(vcpu, 0, 0, EMULTYPE_NO_DECODE);
-		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-		if (r == EMULATE_DO_MMIO) {
-			r = 0;
-			goto out;
+	if (vcpu->arch.pio.count || vcpu->mmio_needed ||
+	    vcpu->arch.emulate_ctxt.restart) {
+		if (vcpu->mmio_needed) {
+			memcpy(vcpu->mmio_data, kvm_run->mmio.data, 8);
+			vcpu->mmio_read_completed = 1;
+			vcpu->mmio_needed = 0;
 		}
-	}
-	if (vcpu->mmio_needed) {
-		memcpy(vcpu->mmio_data, kvm_run->mmio.data, 8);
-		vcpu->mmio_read_completed = 1;
-		vcpu->mmio_needed = 0;
-
-		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-		r = emulate_instruction(vcpu, vcpu->arch.mmio_fault_cr2, 0,
-					EMULTYPE_NO_DECODE);
-		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-		if (r == EMULATE_DO_MMIO) {
-			/*
-			 * Read-modify-write.  Back to userspace.
-			 */
-			r = 0;
-			goto out;
-		}
-	}
-	if (vcpu->arch.emulate_ctxt.restart) {
 		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
 		r = emulate_instruction(vcpu, 0, 0, EMULTYPE_NO_DECODE);
 		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
