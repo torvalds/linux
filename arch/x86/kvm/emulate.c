@@ -2411,13 +2411,13 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 }
 
 static void string_addr_inc(struct x86_emulate_ctxt *ctxt, unsigned long base,
-			    int reg, unsigned long **ptr)
+			    int reg, struct operand *op)
 {
 	struct decode_cache *c = &ctxt->decode;
 	int df = (ctxt->eflags & EFLG_DF) ? -1 : 1;
 
-	register_address_increment(c, &c->regs[reg], df * c->src.bytes);
-	*ptr = (unsigned long *)register_address(c,  base, c->regs[reg]);
+	register_address_increment(c, &c->regs[reg], df * op->bytes);
+	op->ptr = (unsigned long *)register_address(c,  base, c->regs[reg]);
 }
 
 int
@@ -2483,7 +2483,6 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 				goto done;
 			}
 		}
-		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
 		c->eip = ctxt->eip;
 	}
 
@@ -2936,11 +2935,13 @@ writeback:
 
 	if ((c->d & SrcMask) == SrcSI)
 		string_addr_inc(ctxt, seg_override_base(ctxt, c), VCPU_REGS_RSI,
-				&c->src.ptr);
+				&c->src);
 
 	if ((c->d & DstMask) == DstDI)
-		string_addr_inc(ctxt, es_base(ctxt), VCPU_REGS_RDI,
-				&c->dst.ptr);
+		string_addr_inc(ctxt, es_base(ctxt), VCPU_REGS_RDI, &c->dst);
+
+	if (c->rep_prefix && (c->d & String))
+		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
 
 	/* Commit shadow register state. */
 	memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
