@@ -293,6 +293,11 @@ enum {
 	/* module cs53132a: just ident 53132 */
 	V4L2_IDENT_CS53l32A = 53132,
 
+	/* modules upd61151 MPEG2 encoder: just ident 54000 */
+	V4L2_IDENT_UPD61161 = 54000,
+	/* modules upd61152 MPEG2 encoder with AC3: just ident 54001 */
+	V4L2_IDENT_UPD61162 = 54001,
+
 	/* module upd64031a: just ident 64031 */
 	V4L2_IDENT_UPD64031A = 64031,
 
