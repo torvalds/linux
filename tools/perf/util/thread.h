@@ -23,6 +23,7 @@ struct thread {
 	int			comm_len;
 };
 
+int find_all_tid(int pid, pid_t ** all_tid);
 void map_groups__init(struct map_groups *self);
 int thread__set_comm(struct thread *self, const char *comm);
 int thread__comm_len(struct thread *self);

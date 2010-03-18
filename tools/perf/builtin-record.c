@@ -27,7 +27,7 @@
 #include <unistd.h>
 #include <sched.h>
 
-static int			fd[MAX_NR_CPUS][MAX_COUNTERS];
+static int			*fd[MAX_NR_CPUS][MAX_COUNTERS];
 
 static long			default_interval		=      0;
 
@@ -43,6 +43,9 @@ static int			raw_samples			=      0;
 static int			system_wide			=      0;
 static int			profile_cpu			=     -1;
 static pid_t			target_pid			=     -1;
+static pid_t			target_tid			=     -1;
+static pid_t			*all_tids			=      NULL;
+static int			thread_num			=      0;
 static pid_t			child_pid			=     -1;
 static int			inherit				=      1;
 static int			force				=      0;
@@ -60,7 +63,7 @@ static struct timeval		this_read;
 
 static u64			bytes_written			=      0;
 
-static struct pollfd		event_array[MAX_NR_CPUS * MAX_COUNTERS];
+static struct pollfd		*event_array;
 
 static int			nr_poll				=      0;
 static int			nr_cpu				=      0;
@@ -77,7 +80,7 @@ struct mmap_data {
 	unsigned int		prev;
 };
 
-static struct mmap_data		mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
+static struct mmap_data		*mmap_array[MAX_NR_CPUS][MAX_COUNTERS];
 
 static unsigned long mmap_read_head(struct mmap_data *md)
 {
@@ -225,12 +228,13 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 	return h_attr;
 }
 
-static void create_counter(int counter, int cpu, pid_t pid)
+static void create_counter(int counter, int cpu)
 {
 	char *filter = filters[counter];
 	struct perf_event_attr *attr = attrs + counter;
 	struct perf_header_attr *h_attr;
 	int track = !counter; /* only the first counter needs these */
+	int thread_index;
 	int ret;
 	struct {
 		u64 count;
@@ -280,115 +284,124 @@ static void create_counter(int counter, int cpu, pid_t pid)
 		attr->enable_on_exec = 1;
 	}
 
+	for (thread_index = 0; thread_index < thread_num; thread_index++) {
 try_again:
-	fd[nr_cpu][counter] = sys_perf_event_open(attr, pid, cpu, group_fd, 0);
+		fd[nr_cpu][counter][thread_index] = sys_perf_event_open(attr,
+				all_tids[thread_index], cpu, group_fd, 0);
 
-	if (fd[nr_cpu][counter] < 0) {
-		int err = errno;
+		if (fd[nr_cpu][counter][thread_index] < 0) {
+			int err = errno;
 
-		if (err == EPERM || err == EACCES)
-			die("Permission error - are you root?\n"
-			    "\t Consider tweaking /proc/sys/kernel/perf_event_paranoid.\n");
-		else if (err ==  ENODEV && profile_cpu != -1)
-			die("No such device - did you specify an out-of-range profile CPU?\n");
+			if (err == EPERM || err == EACCES)
+				die("Permission error - are you root?\n"
+					"\t Consider tweaking"
+					" /proc/sys/kernel/perf_event_paranoid.\n");
+			else if (err ==  ENODEV && profile_cpu != -1) {
+				die("No such device - did you specify"
+					" an out-of-range profile CPU?\n");
+			}
 
-		/*
-		 * If it's cycles then fall back to hrtimer
-		 * based cpu-clock-tick sw counter, which
-		 * is always available even if no PMU support:
-		 */
-		if (attr->type == PERF_TYPE_HARDWARE
-			&& attr->config == PERF_COUNT_HW_CPU_CYCLES) {
+			/*
+			 * If it's cycles then fall back to hrtimer
+			 * based cpu-clock-tick sw counter, which
+			 * is always available even if no PMU support:
+			 */
+			if (attr->type == PERF_TYPE_HARDWARE
+					&& attr->config == PERF_COUNT_HW_CPU_CYCLES) {
 
-			if (verbose)
-				warning(" ... trying to fall back to cpu-clock-ticks\n");
-			attr->type = PERF_TYPE_SOFTWARE;
-			attr->config = PERF_COUNT_SW_CPU_CLOCK;
-			goto try_again;
-		}
-		printf("\n");
-		error("perfcounter syscall returned with %d (%s)\n",
-			fd[nr_cpu][counter], strerror(err));
+				if (verbose)
+					warning(" ... trying to fall back to cpu-clock-ticks\n");
+				attr->type = PERF_TYPE_SOFTWARE;
+				attr->config = PERF_COUNT_SW_CPU_CLOCK;
+				goto try_again;
+			}
+			printf("\n");
+			error("perfcounter syscall returned with %d (%s)\n",
+					fd[nr_cpu][counter][thread_index], strerror(err));
 
 #if defined(__i386__) || defined(__x86_64__)
-		if (attr->type == PERF_TYPE_HARDWARE && err == EOPNOTSUPP)
-			die("No hardware sampling interrupt available. No APIC? If so then you can boot the kernel with the \"lapic\" boot parameter to force-enable it.\n");
+			if (attr->type == PERF_TYPE_HARDWARE && err == EOPNOTSUPP)
+				die("No hardware sampling interrupt available."
+				    " No APIC? If so then you can boot the kernel"
+				    " with the \"lapic\" boot parameter to"
+				    " force-enable it.\n");
 #endif
 
-		die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
-		exit(-1);
-	}
-
-	h_attr = get_header_attr(attr, counter);
-	if (h_attr == NULL)
-		die("nomem\n");
-
-	if (!file_new) {
-		if (memcmp(&h_attr->attr, attr, sizeof(*attr))) {
-			fprintf(stderr, "incompatible append\n");
+			die("No CONFIG_PERF_EVENTS=y kernel support configured?\n");
 			exit(-1);
 		}
-	}
 
-	if (read(fd[nr_cpu][counter], &read_data, sizeof(read_data)) == -1) {
-		perror("Unable to read perf file descriptor\n");
-		exit(-1);
-	}
+		h_attr = get_header_attr(attr, counter);
+		if (h_attr == NULL)
+			die("nomem\n");
 
-	if (perf_header_attr__add_id(h_attr, read_data.id) < 0) {
-		pr_warning("Not enough memory to add id\n");
-		exit(-1);
-	}
+		if (!file_new) {
+			if (memcmp(&h_attr->attr, attr, sizeof(*attr))) {
+				fprintf(stderr, "incompatible append\n");
+				exit(-1);
+			}
+		}
 
-	assert(fd[nr_cpu][counter] >= 0);
-	fcntl(fd[nr_cpu][counter], F_SETFL, O_NONBLOCK);
-
-	/*
-	 * First counter acts as the group leader:
-	 */
-	if (group && group_fd == -1)
-		group_fd = fd[nr_cpu][counter];
-	if (multiplex && multiplex_fd == -1)
-		multiplex_fd = fd[nr_cpu][counter];
-
-	if (multiplex && fd[nr_cpu][counter] != multiplex_fd) {
-
-		ret = ioctl(fd[nr_cpu][counter], PERF_EVENT_IOC_SET_OUTPUT, multiplex_fd);
-		assert(ret != -1);
-	} else {
-		event_array[nr_poll].fd = fd[nr_cpu][counter];
-		event_array[nr_poll].events = POLLIN;
-		nr_poll++;
-
-		mmap_array[nr_cpu][counter].counter = counter;
-		mmap_array[nr_cpu][counter].prev = 0;
-		mmap_array[nr_cpu][counter].mask = mmap_pages*page_size - 1;
-		mmap_array[nr_cpu][counter].base = mmap(NULL, (mmap_pages+1)*page_size,
-				PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter], 0);
-		if (mmap_array[nr_cpu][counter].base == MAP_FAILED) {
-			error("failed to mmap with %d (%s)\n", errno, strerror(errno));
+		if (read(fd[nr_cpu][counter][thread_index], &read_data, sizeof(read_data)) == -1) {
+			perror("Unable to read perf file descriptor\n");
 			exit(-1);
 		}
-	}
 
-	if (filter != NULL) {
-		ret = ioctl(fd[nr_cpu][counter],
-			    PERF_EVENT_IOC_SET_FILTER, filter);
-		if (ret) {
-			error("failed to set filter with %d (%s)\n", errno,
-			      strerror(errno));
+		if (perf_header_attr__add_id(h_attr, read_data.id) < 0) {
+			pr_warning("Not enough memory to add id\n");
 			exit(-1);
+		}
+
+		assert(fd[nr_cpu][counter][thread_index] >= 0);
+		fcntl(fd[nr_cpu][counter][thread_index], F_SETFL, O_NONBLOCK);
+
+		/*
+		 * First counter acts as the group leader:
+		 */
+		if (group && group_fd == -1)
+			group_fd = fd[nr_cpu][counter][thread_index];
+		if (multiplex && multiplex_fd == -1)
+			multiplex_fd = fd[nr_cpu][counter][thread_index];
+
+		if (multiplex && fd[nr_cpu][counter][thread_index] != multiplex_fd) {
+
+			ret = ioctl(fd[nr_cpu][counter][thread_index], PERF_EVENT_IOC_SET_OUTPUT, multiplex_fd);
+			assert(ret != -1);
+		} else {
+			event_array[nr_poll].fd = fd[nr_cpu][counter][thread_index];
+			event_array[nr_poll].events = POLLIN;
+			nr_poll++;
+
+			mmap_array[nr_cpu][counter][thread_index].counter = counter;
+			mmap_array[nr_cpu][counter][thread_index].prev = 0;
+			mmap_array[nr_cpu][counter][thread_index].mask = mmap_pages*page_size - 1;
+			mmap_array[nr_cpu][counter][thread_index].base = mmap(NULL, (mmap_pages+1)*page_size,
+				PROT_READ|PROT_WRITE, MAP_SHARED, fd[nr_cpu][counter][thread_index], 0);
+			if (mmap_array[nr_cpu][counter][thread_index].base == MAP_FAILED) {
+				error("failed to mmap with %d (%s)\n", errno, strerror(errno));
+				exit(-1);
+			}
+		}
+
+		if (filter != NULL) {
+			ret = ioctl(fd[nr_cpu][counter][thread_index],
+					PERF_EVENT_IOC_SET_FILTER, filter);
+			if (ret) {
+				error("failed to set filter with %d (%s)\n", errno,
+						strerror(errno));
+				exit(-1);
+			}
 		}
 	}
 }
 
-static void open_counters(int cpu, pid_t pid)
+static void open_counters(int cpu)
 {
 	int counter;
 
 	group_fd = -1;
 	for (counter = 0; counter < nr_counters; counter++)
-		create_counter(counter, cpu, pid);
+		create_counter(counter, cpu);
 
 	nr_cpu++;
 }
@@ -529,6 +542,9 @@ static int __cmd_record(int argc, const char **argv)
 			exit(-1);
 		}
 
+		if (!system_wide && target_tid == -1 && target_pid == -1)
+			all_tids[0] = child_pid;
+
 		close(child_ready_pipe[1]);
 		close(go_pipe[0]);
 		/*
@@ -541,17 +557,12 @@ static int __cmd_record(int argc, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
-	if (forks && target_pid == -1 && !system_wide)
-		pid = child_pid;
-	else
-		pid = target_pid;
-
 	if ((!system_wide && !inherit) || profile_cpu != -1) {
-		open_counters(profile_cpu, pid);
+		open_counters(profile_cpu);
 	} else {
 		nr_cpus = read_cpu_map();
 		for (i = 0; i < nr_cpus; i++)
-			open_counters(cpumap[i], pid);
+			open_counters(cpumap[i]);
 	}
 
 	if (file_new) {
@@ -576,7 +587,7 @@ static int __cmd_record(int argc, const char **argv)
 	}
 
 	if (!system_wide && profile_cpu == -1)
-		event__synthesize_thread(target_pid, process_synthesized_event,
+		event__synthesize_thread(target_tid, process_synthesized_event,
 					 session);
 	else
 		event__synthesize_threads(process_synthesized_event, session);
@@ -599,11 +610,16 @@ static int __cmd_record(int argc, const char **argv)
 
 	for (;;) {
 		int hits = samples;
+		int thread;
 
 		for (i = 0; i < nr_cpu; i++) {
 			for (counter = 0; counter < nr_counters; counter++) {
-				if (mmap_array[i][counter].base)
-					mmap_read(&mmap_array[i][counter]);
+				for (thread = 0;
+					thread < thread_num; thread++) {
+					if (mmap_array[i][counter][thread].base)
+						mmap_read(&mmap_array[i][counter][thread]);
+				}
+
 			}
 		}
 
@@ -616,8 +632,15 @@ static int __cmd_record(int argc, const char **argv)
 
 		if (done) {
 			for (i = 0; i < nr_cpu; i++) {
-				for (counter = 0; counter < nr_counters; counter++)
-					ioctl(fd[i][counter], PERF_EVENT_IOC_DISABLE);
+				for (counter = 0;
+					counter < nr_counters;
+					counter++) {
+					for (thread = 0;
+						thread < thread_num;
+						thread++)
+						ioctl(fd[i][counter][thread],
+							PERF_EVENT_IOC_DISABLE);
+				}
 			}
 		}
 	}
@@ -649,7 +672,9 @@ static const struct option options[] = {
 	OPT_CALLBACK(0, "filter", NULL, "filter",
 		     "event filter", parse_filter),
 	OPT_INTEGER('p', "pid", &target_pid,
-		    "record events on existing pid"),
+		    "record events on existing process id"),
+	OPT_INTEGER('t', "tid", &target_tid,
+		    "record events on existing thread id"),
 	OPT_INTEGER('r', "realtime", &realtime_prio,
 		    "collect data with this RT SCHED_FIFO priority"),
 	OPT_BOOLEAN('R', "raw-samples", &raw_samples,
@@ -690,10 +715,12 @@ static const struct option options[] = {
 int cmd_record(int argc, const char **argv, const char *prefix __used)
 {
 	int counter;
+	int i,j;
 
 	argc = parse_options(argc, argv, options, record_usage,
 			    PARSE_OPT_STOP_AT_NON_OPTION);
-	if (!argc && target_pid == -1 && !system_wide && profile_cpu == -1)
+	if (!argc && target_pid == -1 && target_tid == -1 &&
+		!system_wide && profile_cpu == -1)
 		usage_with_options(record_usage, options);
 
 	symbol__init();
@@ -703,6 +730,37 @@ int cmd_record(int argc, const char **argv, const char *prefix __used)
 		attrs[0].type	= PERF_TYPE_HARDWARE;
 		attrs[0].config = PERF_COUNT_HW_CPU_CYCLES;
 	}
+
+	if (target_pid != -1) {
+		target_tid = target_pid;
+		thread_num = find_all_tid(target_pid, &all_tids);
+		if (thread_num <= 0) {
+			fprintf(stderr, "Can't find all threads of pid %d\n",
+					target_pid);
+			usage_with_options(record_usage, options);
+		}
+	} else {
+		all_tids=malloc(sizeof(pid_t));
+		if (!all_tids)
+			return -ENOMEM;
+
+		all_tids[0] = target_tid;
+		thread_num = 1;
+	}
+
+	for (i = 0; i < MAX_NR_CPUS; i++) {
+		for (j = 0; j < MAX_COUNTERS; j++) {
+			fd[i][j] = malloc(sizeof(int)*thread_num);
+			mmap_array[i][j] = malloc(
+				sizeof(struct mmap_data)*thread_num);
+			if (!fd[i][j] || !mmap_array[i][j])
+				return -ENOMEM;
+		}
+	}
+	event_array = malloc(
+		sizeof(struct pollfd)*MAX_NR_CPUS*MAX_COUNTERS*thread_num);
+	if (!event_array)
+		return -ENOMEM;
 
 	/*
 	 * User specified count overrides default frequency.
