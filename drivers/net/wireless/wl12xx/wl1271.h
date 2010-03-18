@@ -53,6 +53,7 @@ enum {
 	DEBUG_MAC80211	= BIT(11),
 	DEBUG_CMD	= BIT(12),
 	DEBUG_ACX	= BIT(13),
+	DEBUG_SDIO	= BIT(14),
 	DEBUG_ALL	= ~0,
 };
 
