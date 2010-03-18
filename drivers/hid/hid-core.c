@@ -1091,10 +1091,8 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 
 	buf = kmalloc(sizeof(char) * HID_DEBUG_BUFSIZE, GFP_ATOMIC);
 
-	if (!buf) {
-		report = hid_get_report(report_enum, data);
+	if (!buf)
 		goto nomem;
-	}
 
 	/* dump the report */
 	snprintf(buf, HID_DEBUG_BUFSIZE - 1,
@@ -1107,17 +1105,14 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, int size, int i
 		hid_debug_event(hid, buf);
 	}
 	hid_debug_event(hid, "\n");
-
-	report = hid_get_report(report_enum, data);
-
-	if (!report) {
-		kfree(buf);
-		return -1;
-	}
-
 	kfree(buf);
 
 nomem:
+	report = hid_get_report(report_enum, data);
+
+	if (!report)
+		return -1;
+
 	if (hdrv && hdrv->raw_event && hid_match_report(hid, report)) {
 		ret = hdrv->raw_event(hid, report, data, size);
 		if (ret != 0)
