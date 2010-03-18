@@ -853,9 +853,6 @@ static int scsi_target_add(struct scsi_target *starget)
 	error = device_add(&starget->dev);
 	if (error) {
 		dev_err(&starget->dev, "target device_add failed, error %d\n", error);
-		get_device(&starget->dev);
-		scsi_target_reap(starget);
-		put_device(&starget->dev);
 		return error;
 	}
 	transport_add_device(&starget->dev);
