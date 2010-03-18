@@ -7612,96 +7612,113 @@ void rtl8192_try_wake_queue(struct net_device *dev, int pri)
 
 void EnableHWSecurityConfig8192(struct net_device *dev)
 {
-        u8 SECR_value = 0x0;
+	u8 SECR_value = 0x0;
 	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
-	 struct ieee80211_device* ieee = priv->ieee80211;
+	struct ieee80211_device *ieee = priv->ieee80211;
 
 	SECR_value = SCR_TxEncEnable | SCR_RxDecEnable;
-#if 1
-	if (((KEY_TYPE_WEP40 == ieee->pairwise_key_type) || (KEY_TYPE_WEP104 == ieee->pairwise_key_type)) && (priv->ieee80211->auth_mode != 2))
-	{
-		SECR_value |= SCR_RxUseDK;
-		SECR_value |= SCR_TxUseDK;
+	switch (ieee->pairwise_key_type) {
+	case KEY_TYPE_WEP40:
+	case KEY_TYPE_WEP104:
+		if (priv->ieee80211->auth_mode != 2) {
+			SECR_value |= SCR_RxUseDK;
+			SECR_value |= SCR_TxUseDK;
+		}
+		break;
+	case KEY_TYPE_TKIP:
+	case KEY_TYPE_CCMP:
+		if (ieee->iw_mode == IW_MODE_ADHOC) {
+			SECR_value |= SCR_RxUseDK;
+			SECR_value |= SCR_TxUseDK;
+		}
+		break;
+	default:
+		break;
 	}
-	else if ((ieee->iw_mode == IW_MODE_ADHOC) && (ieee->pairwise_key_type & (KEY_TYPE_CCMP | KEY_TYPE_TKIP)))
-	{
-		SECR_value |= SCR_RxUseDK;
-		SECR_value |= SCR_TxUseDK;
-	}
-#endif
-        //add HWSec active enable here.
-//default using hwsec. when peer AP is in N mode only and pairwise_key_type is none_aes(which HT_IOT_ACT_PURE_N_MODE indicates it), use software security. when peer AP is in b,g,n mode mixed and pairwise_key_type is none_aes, use g mode hw security. WB on 2008.7.4
 
+	/*
+	 * add HWSec active enable here.
+	 * default using hwsec.
+	 * when peer AP is in N mode only and pairwise_key_type is none_aes
+	 * (which HT_IOT_ACT_PURE_N_MODE indicates it),
+	 * use software security.
+	 * when peer AP is in b,g,n mode mixed and pairwise_key_type is none_aes
+	 * use g mode hw security.
+	*/
 	ieee->hwsec_active = 1;
 
-	if ((ieee->pHTInfo->IOTAction&HT_IOT_ACT_PURE_N_MODE) || !hwwep)//!ieee->hwsec_support) //add hwsec_support flag to totol control hw_sec on/off
-	{
+	/* add hwsec_support flag to totol control hw_sec on/off */
+	if ((ieee->pHTInfo->IOTAction&HT_IOT_ACT_PURE_N_MODE) || !hwwep) {
 		ieee->hwsec_active = 0;
 		SECR_value &= ~SCR_RxDecEnable;
 	}
 
-	RT_TRACE(COMP_SEC,"%s:, hwsec:%d, pairwise_key:%d, SECR_value:%x\n", __FUNCTION__, \
-			ieee->hwsec_active, ieee->pairwise_key_type, SECR_value);
-	{
-                write_nic_byte(dev, SECR,  SECR_value);//SECR_value |  SCR_UseDK );
-        }
+	RT_TRACE(COMP_SEC, "%s(): hwsec: %d, pairwise_key: %d, "
+					"SECR_value: %x",
+					__func__, ieee->hwsec_active,
+					ieee->pairwise_key_type, SECR_value);
+
+	write_nic_byte(dev, SECR,  SECR_value); /* SECR_value |  SCR_UseDK ); */
 }
 
 
-void setKey(	struct net_device *dev,
+void setKey(struct net_device *dev,
 		u8 EntryNo,
 		u8 KeyIndex,
 		u16 KeyType,
 		u8 *MacAddr,
 		u8 DefaultKey,
-		u32 *KeyContent )
+		u32 *KeyContent)
 {
 	u32 TargetCommand = 0;
 	u32 TargetContent = 0;
 	u16 usConfig = 0;
 	u8 i;
-	if (EntryNo >= TOTAL_CAM_ENTRY)
-		RT_TRACE(COMP_ERR, "cam entry exceeds in setKey()\n");
 
-	RT_TRACE(COMP_SEC, "====>to setKey(), dev:%p, EntryNo:%d, KeyIndex:%d, KeyType:%d, MacAddr%pM\n", dev,EntryNo, KeyIndex, KeyType, MacAddr);
+	if (EntryNo >= TOTAL_CAM_ENTRY)
+		RT_TRACE(COMP_ERR, "%s(): cam entry exceeds TOTAL_CAM_ENTRY",
+								__func__);
+
+	RT_TRACE(COMP_SEC, "%s(): dev: %p, EntryNo: %d, "
+				"KeyIndex: %d, KeyType: %d, MacAddr: %pM",
+				__func__, dev, EntryNo,
+				KeyIndex, KeyType, MacAddr);
 
 	if (DefaultKey)
-		usConfig |= BIT15 | (KeyType<<2);
+		usConfig |= BIT15 | (KeyType << 2);
 	else
-		usConfig |= BIT15 | (KeyType<<2) | KeyIndex;
-//	usConfig |= BIT15 | (KeyType<<2) | (DefaultKey<<5) | KeyIndex;
+		usConfig |= BIT15 | (KeyType << 2) | KeyIndex;
 
-
-	for(i=0 ; i<CAM_CONTENT_COUNT; i++){
-		TargetCommand  = i+CAM_CONTENT_COUNT*EntryNo;
+	for (i = 0 ; i < CAM_CONTENT_COUNT; i++) {
+		TargetCommand  = i + CAM_CONTENT_COUNT * EntryNo;
 		TargetCommand |= BIT31|BIT16;
-
-		if(i==0){//MAC|Config
-			TargetContent = (u32)(*(MacAddr+0)) << 16|
-					(u32)(*(MacAddr+1)) << 24|
+		switch (i) {
+		case 0: /* MAC|Config */
+			TargetContent = (u32)(*(MacAddr + 0)) << 16|
+					(u32)(*(MacAddr + 1)) << 24|
 					(u32)usConfig;
 
 			write_nic_dword(dev, WCAMI, TargetContent);
 			write_nic_dword(dev, RWCAM, TargetCommand);
-	//		printk("setkey cam =%8x\n", read_cam(dev, i+6*EntryNo));
-		}
-		else if(i==1){//MAC
-                        TargetContent = (u32)(*(MacAddr+2)) 	 |
-                                        (u32)(*(MacAddr+3)) <<  8|
-                                        (u32)(*(MacAddr+4)) << 16|
-                                        (u32)(*(MacAddr+5)) << 24;
+			continue;
+		case 1: /* MAC */
+					TargetContent = (u32)(*(MacAddr + 2))|
+					(u32)(*(MacAddr + 3)) <<  8|
+					(u32)(*(MacAddr + 4)) << 16|
+					(u32)(*(MacAddr + 5)) << 24;
 			write_nic_dword(dev, WCAMI, TargetContent);
 			write_nic_dword(dev, RWCAM, TargetCommand);
-		}
-		else {
-			//Key Material
-			if(KeyContent !=NULL){
-			write_nic_dword(dev, WCAMI, (u32)(*(KeyContent+i-2)) );
-			write_nic_dword(dev, RWCAM, TargetCommand);
+			continue;
+		default: /* Key Material */
+			if (KeyContent != NULL) {
+				write_nic_dword(dev, WCAMI,
+						(u32)(*(KeyContent+i-2)));
+				write_nic_dword(dev, RWCAM,
+						TargetCommand);
+			}
+			continue;
 		}
 	}
-	}
-
 }
 
 /***************************************************************************
