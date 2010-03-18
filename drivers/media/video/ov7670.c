@@ -838,8 +838,12 @@ static int ov7670_s_fmt(struct v4l2_subdev *sd, struct v4l2_format *fmt)
 	 * the other parameters or the image looks poor.  If we're *not*
 	 * doing RGB565, we must not rewrite clkrc or the image looks
 	 * *really* poor.
+	 *
+	 * (Update) Now that we retain clkrc state, we should be able
+	 * to write it unconditionally, and that will make the frame
+	 * rate persistent too.
 	 */
-	if (fmt->fmt.pix.pixelformat == V4L2_PIX_FMT_RGB565 && ret == 0)
+	if (ret == 0)
 		ret = ov7670_write(sd, REG_CLKRC, info->clkrc);
 	return ret;
 }
