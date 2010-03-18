@@ -1097,7 +1097,6 @@ int iwl_tx_queue_reclaim(struct iwl_priv *priv, int txq_id, int index)
 			priv->cfg->ops->lib->txq_inval_byte_cnt_tbl(priv, txq);
 
 		priv->cfg->ops->lib->txq_free_tfd(priv, txq);
-		nfreed++;
 	}
 	return nfreed;
 }
