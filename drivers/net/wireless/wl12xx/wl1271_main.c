@@ -1781,6 +1781,7 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 			     const struct ieee80211_tx_queue_params *params)
 {
 	struct wl1271 *wl = hw->priv;
+	u8 ps_scheme;
 	int ret;
 
 	mutex_lock(&wl->mutex);
@@ -1798,11 +1799,15 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	if (ret < 0)
 		goto out_sleep;
 
+	if (params->uapsd)
+		ps_scheme = CONF_PS_SCHEME_UPSD_TRIGGER;
+	else
+		ps_scheme = CONF_PS_SCHEME_LEGACY;
+
 	ret = wl1271_acx_tid_cfg(wl, wl1271_tx_get_queue(queue),
 				 CONF_CHANNEL_TYPE_EDCF,
 				 wl1271_tx_get_queue(queue),
-				 CONF_PS_SCHEME_LEGACY,
-				 CONF_ACK_POLICY_LEGACY, 0, 0);
+				 ps_scheme, CONF_ACK_POLICY_LEGACY, 0, 0);
 	if (ret < 0)
 		goto out_sleep;
 
@@ -2083,6 +2088,7 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 		IEEE80211_HW_NOISE_DBM |
 		IEEE80211_HW_BEACON_FILTER |
 		IEEE80211_HW_SUPPORTS_PS |
+		IEEE80211_HW_SUPPORTS_UAPSD |
 		IEEE80211_HW_HAS_RATE_CONTROL;
 
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
