@@ -1801,7 +1801,7 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	ret = wl1271_acx_tid_cfg(wl, wl1271_tx_get_queue(queue),
 				 CONF_CHANNEL_TYPE_EDCF,
 				 wl1271_tx_get_queue(queue),
-				 CONF_PS_SCHEME_LEGACY_PSPOLL,
+				 CONF_PS_SCHEME_LEGACY,
 				 CONF_ACK_POLICY_LEGACY, 0, 0);
 	if (ret < 0)
 		goto out_sleep;
