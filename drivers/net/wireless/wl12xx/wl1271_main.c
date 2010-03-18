@@ -1080,12 +1080,47 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	wl->sta_rate_set = 0;
 	wl->flags = 0;
 	wl->vif = NULL;
+	wl->filters = 0;
 
 	for (i = 0; i < NUM_TX_QUEUES; i++)
 		wl->tx_blocks_freed[i] = 0;
 
 	wl1271_debugfs_reset(wl);
 	mutex_unlock(&wl->mutex);
+}
+
+static void wl1271_configure_filters(struct wl1271 *wl, unsigned int filters)
+{
+	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
+	wl->rx_filter = WL1271_DEFAULT_RX_FILTER;
+
+	/* combine requested filters with current filter config */
+	filters = wl->filters | filters;
+
+	wl1271_debug(DEBUG_FILTERS, "RX filters set: ");
+
+	if (filters & FIF_PROMISC_IN_BSS) {
+		wl1271_debug(DEBUG_FILTERS, " - FIF_PROMISC_IN_BSS");
+		wl->rx_config &= ~CFG_UNI_FILTER_EN;
+		wl->rx_config |= CFG_BSSID_FILTER_EN;
+	}
+	if (filters & FIF_BCN_PRBRESP_PROMISC) {
+		wl1271_debug(DEBUG_FILTERS, " - FIF_BCN_PRBRESP_PROMISC");
+		wl->rx_config &= ~CFG_BSSID_FILTER_EN;
+		wl->rx_config &= ~CFG_SSID_FILTER_EN;
+	}
+	if (filters & FIF_OTHER_BSS) {
+		wl1271_debug(DEBUG_FILTERS, " - FIF_OTHER_BSS");
+		wl->rx_config &= ~CFG_BSSID_FILTER_EN;
+	}
+	if (filters & FIF_CONTROL) {
+		wl1271_debug(DEBUG_FILTERS, " - FIF_CONTROL");
+		wl->rx_filter |= CFG_RX_CTL_EN;
+	}
+	if (filters & FIF_FCSFAIL) {
+		wl1271_debug(DEBUG_FILTERS, " - FIF_FCSFAIL");
+		wl->rx_filter |= CFG_RX_FCS_ERROR;
+	}
 }
 
 static int wl1271_join_channel(struct wl1271 *wl, int channel)
@@ -1095,11 +1130,11 @@ static int wl1271_join_channel(struct wl1271 *wl, int channel)
 	static const u8 dummy_bssid[ETH_ALEN] = { 0x0b, 0xad, 0xde,
 						  0xad, 0xbe, 0xef };
 
-	/* disable mac filter, so we hear everything */
-	wl->rx_config &= ~CFG_BSSID_FILTER_EN;
-
 	wl->channel = channel;
 	memcpy(wl->bssid, dummy_bssid, ETH_ALEN);
+
+	/* pass through frames from all BSS */
+	wl1271_configure_filters(wl, FIF_OTHER_BSS);
 
 	/* the dummy join is performed always with STATION BSS type to allow
 	   also ad-hoc mode to listen to the surroundings without sending any
@@ -1126,7 +1161,9 @@ static int wl1271_unjoin_channel(struct wl1271 *wl)
 	clear_bit(WL1271_FLAG_JOINED, &wl->flags);
 	wl->channel = 0;
 	memset(wl->bssid, 0, ETH_ALEN);
-	wl->rx_config = WL1271_DEFAULT_RX_CONFIG;
+
+	/* stop filterting packets based on bssid */
+	wl1271_configure_filters(wl, FIF_OTHER_BSS);
 
 out:
 	return ret;
@@ -1299,13 +1336,13 @@ static void wl1271_op_configure_filter(struct ieee80211_hw *hw,
 	if (ret < 0)
 		goto out_sleep;
 
-	kfree(fp);
-
-	/* FIXME: We still need to set our filters properly */
-
 	/* determine, whether supported filter values have changed */
 	if (changed == 0)
 		goto out_sleep;
+
+	/* configure filters */
+	wl->filters = *total;
+	wl1271_configure_filters(wl, 0);
 
 	/* apply configured filters */
 	ret = wl1271_acx_rx_config(wl, wl->rx_config, wl->rx_filter);
@@ -1317,6 +1354,7 @@ out_sleep:
 
 out:
 	mutex_unlock(&wl->mutex);
+	kfree(fp);
 }
 
 static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
@@ -1580,7 +1618,6 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	     * and enable the BSSID filter
 	     */
 	    memcmp(wl->bssid, bss_conf->bssid, ETH_ALEN)) {
-			wl->rx_config |= CFG_BSSID_FILTER_EN;
 			memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
 			ret = wl1271_cmd_build_null_data(wl);
 			if (ret < 0) {
@@ -1588,6 +1625,9 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 					       ret);
 				goto out_sleep;
 			}
+
+			/* filter out all packets not from this BSSID */
+			wl1271_configure_filters(wl, 0);
 
 			/* Need to update the BSSID (for filtering etc) */
 			do_join = true;

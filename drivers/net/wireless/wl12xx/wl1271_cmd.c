@@ -281,15 +281,6 @@ int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 	join->rx_filter_options = cpu_to_le32(wl->rx_filter);
 	join->bss_type = bss_type;
 
-	/*
-	 * FIXME: disable temporarily all filters because after commit
-	 * 9cef8737 "mac80211: fix managed mode BSSID handling" broke
-	 * association. The filter logic needs to be implemented properly
-	 * and once that is done, this hack can be removed.
-	 */
-	join->rx_config_options = cpu_to_le32(0);
-	join->rx_filter_options = cpu_to_le32(WL1271_DEFAULT_RX_FILTER);
-
 	if (wl->band == IEEE80211_BAND_2GHZ)
 		join->basic_rate_set = cpu_to_le32(CONF_HW_BIT_RATE_1MBPS   |
 						   CONF_HW_BIT_RATE_2MBPS   |

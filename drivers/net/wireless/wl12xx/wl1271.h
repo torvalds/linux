@@ -54,6 +54,7 @@ enum {
 	DEBUG_CMD	= BIT(12),
 	DEBUG_ACX	= BIT(13),
 	DEBUG_SDIO	= BIT(14),
+	DEBUG_FILTERS   = BIT(15),
 	DEBUG_ALL	= ~0,
 };
 
@@ -458,6 +459,7 @@ struct wl1271 {
 	/* Default key (for WEP) */
 	u32 default_key;
 
+	unsigned int filters;
 	unsigned int rx_config;
 	unsigned int rx_filter;
 
