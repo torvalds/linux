@@ -1057,6 +1057,10 @@ done_prefixes:
 
 	if (c->ad_bytes != 8)
 		c->modrm_ea = (u32)c->modrm_ea;
+
+	if (c->rip_relative)
+		c->modrm_ea += c->eip;
+
 	/*
 	 * Decode and fetch the source operand: register, memory
 	 * or immediate.
@@ -1091,6 +1095,8 @@ done_prefixes:
 			break;
 		}
 		c->src.type = OP_MEM;
+		c->src.ptr = (unsigned long *)c->modrm_ea;
+		c->src.val = 0;
 		break;
 	case SrcImm:
 	case SrcImmU:
@@ -1169,8 +1175,10 @@ done_prefixes:
 		c->src2.val = 1;
 		break;
 	case Src2Mem16:
-		c->src2.bytes = 2;
 		c->src2.type = OP_MEM;
+		c->src2.bytes = 2;
+		c->src2.ptr = (unsigned long *)(c->modrm_ea + c->src.bytes);
+		c->src2.val = 0;
 		break;
 	}
 
@@ -1192,6 +1200,15 @@ done_prefixes:
 			break;
 		}
 		c->dst.type = OP_MEM;
+		c->dst.ptr = (unsigned long *)c->modrm_ea;
+		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
+		c->dst.val = 0;
+		if (c->d & BitOp) {
+			unsigned long mask = ~(c->dst.bytes * 8 - 1);
+
+			c->dst.ptr = (void *)c->dst.ptr +
+						   (c->src.val & mask) / 8;
+		}
 		break;
 	case DstAcc:
 		c->dst.type = OP_REG;
@@ -1214,9 +1231,6 @@ done_prefixes:
 		c->dst.orig_val = c->dst.val;
 		break;
 	}
-
-	if (c->rip_relative)
-		c->modrm_ea += c->eip;
 
 done:
 	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
@@ -1638,14 +1652,13 @@ static inline int emulate_grp45(struct x86_emulate_ctxt *ctxt,
 }
 
 static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
-			       struct x86_emulate_ops *ops,
-			       unsigned long memop)
+			       struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
 	u64 old, new;
 	int rc;
 
-	rc = ops->read_emulated(memop, &old, 8, ctxt->vcpu);
+	rc = ops->read_emulated(c->modrm_ea, &old, 8, ctxt->vcpu);
 	if (rc != X86EMUL_CONTINUE)
 		return rc;
 
@@ -1660,7 +1673,7 @@ static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
 		new = ((u64)c->regs[VCPU_REGS_RCX] << 32) |
 		       (u32) c->regs[VCPU_REGS_RBX];
 
-		rc = ops->cmpxchg_emulated(memop, &old, &new, 8, ctxt->vcpu);
+		rc = ops->cmpxchg_emulated(c->modrm_ea, &old, &new, 8, ctxt->vcpu);
 		if (rc != X86EMUL_CONTINUE)
 			return rc;
 		ctxt->eflags |= EFLG_ZF;
@@ -2382,7 +2395,6 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 int
 x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
-	unsigned long memop = 0;
 	u64 msr_data;
 	unsigned long saved_eip = 0;
 	struct decode_cache *c = &ctxt->decode;
@@ -2417,9 +2429,6 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 		goto done;
 	}
 
-	if (((c->d & ModRM) && (c->modrm_mod != 3)) || (c->d & MemAbs))
-		memop = c->modrm_ea;
-
 	if (c->rep_prefix && (c->d & String)) {
 		/* All REP prefixes have the same first termination condition */
 		if (address_mask(c, c->regs[VCPU_REGS_RCX]) == 0) {
@@ -2451,8 +2460,6 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	}
 
 	if (c->src.type == OP_MEM) {
-		c->src.ptr = (unsigned long *)memop;
-		c->src.val = 0;
 		rc = ops->read_emulated((unsigned long)c->src.ptr,
 					&c->src.val,
 					c->src.bytes,
@@ -2463,8 +2470,6 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	}
 
 	if (c->src2.type == OP_MEM) {
-		c->src2.ptr = (unsigned long *)(memop + c->src.bytes);
-		c->src2.val = 0;
 		rc = ops->read_emulated((unsigned long)c->src2.ptr,
 					&c->src2.val,
 					c->src2.bytes,
@@ -2477,25 +2482,12 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 		goto special_insn;
 
 
-	if (c->dst.type == OP_MEM) {
-		c->dst.ptr = (unsigned long *)memop;
-		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
-		c->dst.val = 0;
-		if (c->d & BitOp) {
-			unsigned long mask = ~(c->dst.bytes * 8 - 1);
-
-			c->dst.ptr = (void *)c->dst.ptr +
-						   (c->src.val & mask) / 8;
-		}
-		if (!(c->d & Mov)) {
-			/* optimisation - avoid slow emulated read */
-			rc = ops->read_emulated((unsigned long)c->dst.ptr,
-						&c->dst.val,
-						c->dst.bytes,
-						ctxt->vcpu);
-			if (rc != X86EMUL_CONTINUE)
-				goto done;
-		}
+	if ((c->dst.type == OP_MEM) && !(c->d & Mov)) {
+		/* optimisation - avoid slow emulated read if Mov */
+		rc = ops->read_emulated((unsigned long)c->dst.ptr, &c->dst.val,
+					c->dst.bytes, ctxt->vcpu);
+		if (rc != X86EMUL_CONTINUE)
+			goto done;
 	}
 	c->dst.orig_val = c->dst.val;
 
@@ -3062,7 +3054,7 @@ twobyte_insn:
 			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
 			goto done;
 		case 7: /* invlpg*/
-			emulate_invlpg(ctxt->vcpu, memop);
+			emulate_invlpg(ctxt->vcpu, c->modrm_ea);
 			/* Disable writeback. */
 			c->dst.type = OP_NONE;
 			break;
@@ -3263,7 +3255,7 @@ twobyte_insn:
 							(u64) c->src.val;
 		break;
 	case 0xc7:		/* Grp9 (cmpxchg8b) */
-		rc = emulate_grp9(ctxt, ops, memop);
+		rc = emulate_grp9(ctxt, ops);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
 		c->dst.type = OP_NONE;
