@@ -26,6 +26,7 @@
 #include <linux/crc7.h>
 #include <linux/spi/spi.h>
 #include <linux/etherdevice.h>
+#include <linux/ieee80211.h>
 
 #include "wl1271.h"
 #include "wl1271_reg.h"
@@ -776,6 +777,27 @@ int wl1271_cmd_build_probe_req(struct wl1271 *wl,
 out:
 	dev_kfree_skb(skb);
 	return ret;
+}
+
+int wl1271_build_qos_null_data(struct wl1271 *wl)
+{
+	struct ieee80211_qos_hdr template;
+
+	memset(&template, 0, sizeof(template));
+
+	memcpy(template.addr1, wl->bssid, ETH_ALEN);
+	memcpy(template.addr2, wl->mac_addr, ETH_ALEN);
+	memcpy(template.addr3, wl->bssid, ETH_ALEN);
+
+	template.frame_control = cpu_to_le16(IEEE80211_FTYPE_DATA |
+					     IEEE80211_STYPE_QOS_NULLFUNC |
+					     IEEE80211_FCTL_TODS);
+
+	/* FIXME: not sure what priority to use here */
+	template.qos_ctrl = cpu_to_le16(0);
+
+	return wl1271_cmd_template_set(wl, CMD_TEMPL_QOS_NULL_DATA, &template,
+				       sizeof(template));
 }
 
 int wl1271_cmd_set_default_wep_key(struct wl1271 *wl, u8 id)
