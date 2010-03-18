@@ -1982,6 +1982,68 @@ static const struct ieee80211_ops wl1271_ops = {
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
+static ssize_t wl1271_sysfs_show_bt_coex_state(struct device *dev,
+					       struct device_attribute *attr,
+					       char *buf)
+{
+	struct wl1271 *wl = dev_get_drvdata(dev);
+	ssize_t len;
+
+	/* FIXME: what's the maximum length of buf? page size?*/
+	len = 500;
+
+	mutex_lock(&wl->mutex);
+	len = snprintf(buf, len, "%d\n\n0 - off\n1 - on\n",
+		       wl->sg_enabled);
+	mutex_unlock(&wl->mutex);
+
+	return len;
+
+}
+
+static ssize_t wl1271_sysfs_store_bt_coex_state(struct device *dev,
+						struct device_attribute *attr,
+						const char *buf, size_t count)
+{
+	struct wl1271 *wl = dev_get_drvdata(dev);
+	unsigned long res;
+	int ret;
+
+	ret = strict_strtoul(buf, 10, &res);
+
+	if (ret < 0) {
+		wl1271_warning("incorrect value written to bt_coex_mode");
+		return count;
+	}
+
+	mutex_lock(&wl->mutex);
+
+	res = !!res;
+
+	if (res == wl->sg_enabled)
+		goto out;
+
+	wl->sg_enabled = res;
+
+	if (wl->state == WL1271_STATE_OFF)
+		goto out;
+
+	ret = wl1271_ps_elp_wakeup(wl, false);
+	if (ret < 0)
+		goto out;
+
+	wl1271_acx_sg_enable(wl, wl->sg_enabled);
+	wl1271_ps_elp_sleep(wl);
+
+ out:
+	mutex_unlock(&wl->mutex);
+	return count;
+}
+
+static DEVICE_ATTR(bt_coex_state, S_IRUGO | S_IWUSR,
+		   wl1271_sysfs_show_bt_coex_state,
+		   wl1271_sysfs_store_bt_coex_state);
+
 int wl1271_register_hw(struct wl1271 *wl)
 {
 	int ret;
@@ -2073,6 +2135,7 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	wl->band = IEEE80211_BAND_2GHZ;
 	wl->vif = NULL;
 	wl->flags = 0;
+	wl->sg_enabled = true;
 
 	for (i = 0; i < ACX_TX_DESCRIPTORS; i++)
 		wl->tx_frames[i] = NULL;
@@ -2095,8 +2158,17 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 	}
 	dev_set_drvdata(&wl1271_device.dev, wl);
 
+	/* Create sysfs file to control bt coex state */
+	ret = device_create_file(&wl1271_device.dev, &dev_attr_bt_coex_state);
+	if (ret < 0) {
+		wl1271_error("failed to create sysfs file bt_coex_state");
+		goto err_platform;
+	}
 
 	return hw;
+
+err_platform:
+	platform_device_unregister(&wl1271_device);
 
 err_hw:
 	ieee80211_unregister_hw(wl->hw);

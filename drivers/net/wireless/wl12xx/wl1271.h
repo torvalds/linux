@@ -484,6 +484,8 @@ struct wl1271 {
 	/* Current chipset configuration */
 	struct conf_drv_settings conf;
 
+	bool sg_enabled;
+
 	struct list_head list;
 };
 

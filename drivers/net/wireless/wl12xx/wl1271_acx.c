@@ -534,7 +534,7 @@ out:
 }
 
 
-int wl1271_acx_sg_enable(struct wl1271 *wl)
+int wl1271_acx_sg_enable(struct wl1271 *wl, bool enable)
 {
 	struct acx_bt_wlan_coex *pta;
 	int ret;
@@ -547,7 +547,10 @@ int wl1271_acx_sg_enable(struct wl1271 *wl)
 		goto out;
 	}
 
-	pta->enable = wl->conf.sg.state;
+	if (enable)
+		pta->enable = wl->conf.sg.state;
+	else
+		pta->enable = CONF_SG_DISABLE;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_ENABLE, pta, sizeof(*pta));
 	if (ret < 0) {
