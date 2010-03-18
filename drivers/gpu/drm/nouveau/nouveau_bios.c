@@ -3198,7 +3198,6 @@ static int run_lvds_table(struct drm_device *dev, struct dcb_entry *dcbent, int 
 	struct nvbios *bios = &dev_priv->vbios;
 	unsigned int outputset = (dcbent->or == 4) ? 1 : 0;
 	uint16_t scriptptr = 0, clktable;
-	uint8_t clktableptr = 0;
 
 	/*
 	 * For now we assume version 3.0 table - g80 support will need some
@@ -3217,26 +3216,29 @@ static int run_lvds_table(struct drm_device *dev, struct dcb_entry *dcbent, int 
 		scriptptr = ROM16(bios->data[bios->fp.lvdsmanufacturerpointer + 11 + outputset * 2]);
 		break;
 	case LVDS_RESET:
+		clktable = bios->fp.lvdsmanufacturerpointer + 15;
+		if (dcbent->or == 4)
+			clktable += 8;
+
 		if (dcbent->lvdsconf.use_straps_for_mode) {
 			if (bios->fp.dual_link)
-				clktableptr += 2;
-			if (bios->fp.BITbit1)
-				clktableptr++;
+				clktable += 4;
+			if (bios->fp.if_is_24bit)
+				clktable += 2;
 		} else {
 			/* using EDID */
-			uint8_t fallback = bios->data[bios->fp.lvdsmanufacturerpointer + 4];
-			int fallbackcmpval = (dcbent->or == 4) ? 4 : 1;
+			int cmpval_24bit = (dcbent->or == 4) ? 4 : 1;
 
 			if (bios->fp.dual_link) {
-				clktableptr += 2;
-				fallbackcmpval *= 2;
+				clktable += 4;
+				cmpval_24bit <<= 1;
 			}
-			if (fallbackcmpval & fallback)
-				clktableptr++;
+
+			if (bios->fp.strapless_is_24bit & cmpval_24bit)
+				clktable += 2;
 		}
 
-		/* adding outputset * 8 may not be correct */
-		clktable = ROM16(bios->data[bios->fp.lvdsmanufacturerpointer + 15 + clktableptr * 2 + outputset * 8]);
+		clktable = ROM16(bios->data[clktable]);
 		if (!clktable) {
 			NV_ERROR(dev, "Pixel clock comparison table not found\n");
 			return -ENOENT;
@@ -3638,30 +3640,18 @@ int nouveau_bios_parse_lvds_table(struct drm_device *dev, int pxclk, bool *dl, b
 		*if_is_24bit = bios->data[lvdsofs] & 16;
 		break;
 	case 0x30:
-		/*
-		 * My money would be on there being a 24 bit interface bit in
-		 * this table, but I have no example of a laptop bios with a
-		 * 24 bit panel to confirm that. Hence we shout loudly if any
-		 * bit other than bit 0 is set (I've not even seen bit 1)
-		 */
-		if (bios->data[lvdsofs] > 1)
-			NV_ERROR(dev,
-				 "You have a very unusual laptop display; please report it\n");
+	case 0x40:
 		/*
 		 * No sign of the "power off for reset" or "reset for panel
 		 * on" bits, but it's safer to assume we should
 		 */
 		bios->fp.power_off_for_reset = true;
 		bios->fp.reset_after_pclk_change = true;
+
 		/*
 		 * It's ok lvdsofs is wrong for nv4x edid case; dual_link is
-		 * over-written, and BITbit1 isn't used
+		 * over-written, and if_is_24bit isn't used
 		 */
-		bios->fp.dual_link = bios->data[lvdsofs] & 1;
-		bios->fp.BITbit1 = bios->data[lvdsofs] & 2;
-		bios->fp.duallink_transition_clk = ROM16(bios->data[bios->fp.lvdsmanufacturerpointer + 5]) * 10;
-		break;
-	case 0x40:
 		bios->fp.dual_link = bios->data[lvdsofs] & 1;
 		bios->fp.if_is_24bit = bios->data[lvdsofs] & 2;
 		bios->fp.strapless_is_24bit = bios->data[bios->fp.lvdsmanufacturerpointer + 4];
