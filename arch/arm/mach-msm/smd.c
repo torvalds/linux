@@ -1001,6 +1001,13 @@ static int __init msm_smd_probe(struct platform_device *pdev)
 {
 	pr_info("smd_init()\n");
 
+	/*
+	 * If we haven't waited for the ARM9 to boot up till now,
+	 * then we need to wait here. Otherwise this should just
+	 * return immediately.
+	 */
+	proc_comm_boot_wait();
+
 	INIT_WORK(&probe_work, smd_channel_probe_worker);
 
 	if (smd_core_init()) {

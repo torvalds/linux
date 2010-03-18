@@ -16,6 +16,8 @@
 #ifndef _ARCH_ARM_MACH_MSM_PROC_COMM_H_
 #define _ARCH_ARM_MACH_MSM_PROC_COMM_H_
 
+#include <linux/init.h>
+
 enum {
 	PCOM_CMD_IDLE = 0x0,
 	PCOM_CMD_DONE,
@@ -251,5 +253,6 @@ enum {
 		(((drvstr) & 0xF) << 17))
 
 int msm_proc_comm(unsigned cmd, unsigned *data1, unsigned *data2);
+void __init proc_comm_boot_wait(void);
 
 #endif
