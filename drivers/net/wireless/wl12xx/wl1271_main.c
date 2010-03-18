@@ -1088,73 +1088,6 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	mutex_unlock(&wl->mutex);
 }
 
-#if 0
-static int wl1271_op_config_interface(struct ieee80211_hw *hw,
-				      struct ieee80211_vif *vif,
-				      struct ieee80211_if_conf *conf)
-{
-	struct wl1271 *wl = hw->priv;
-	struct sk_buff *beacon;
-	int ret;
-
-	wl1271_debug(DEBUG_MAC80211, "mac80211 config_interface bssid %pM",
-		     conf->bssid);
-	wl1271_dump_ascii(DEBUG_MAC80211, "ssid: ", conf->ssid,
-			  conf->ssid_len);
-
-	mutex_lock(&wl->mutex);
-
-	ret = wl1271_ps_elp_wakeup(wl, false);
-	if (ret < 0)
-		goto out;
-
-	if (memcmp(wl->bssid, conf->bssid, ETH_ALEN)) {
-		wl1271_debug(DEBUG_MAC80211, "bssid changed");
-
-		memcpy(wl->bssid, conf->bssid, ETH_ALEN);
-
-		ret = wl1271_cmd_join(wl, wl->bss_type);
-		if (ret < 0)
-			goto out_sleep;
-
-		ret = wl1271_cmd_build_null_data(wl);
-		if (ret < 0)
-			goto out_sleep;
-	}
-
-	wl->ssid_len = conf->ssid_len;
-	if (wl->ssid_len)
-		memcpy(wl->ssid, conf->ssid, wl->ssid_len);
-
-	if (conf->changed & IEEE80211_IFCC_BEACON) {
-		beacon = ieee80211_beacon_get(hw, vif);
-		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_BEACON,
-					      beacon->data, beacon->len);
-
-		if (ret < 0) {
-			dev_kfree_skb(beacon);
-			goto out_sleep;
-		}
-
-		ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PROBE_RESPONSE,
-					      beacon->data, beacon->len);
-
-		dev_kfree_skb(beacon);
-
-		if (ret < 0)
-			goto out_sleep;
-	}
-
-out_sleep:
-	wl1271_ps_elp_sleep(wl);
-
-out:
-	mutex_unlock(&wl->mutex);
-
-	return ret;
-}
-#endif
-
 static int wl1271_join_channel(struct wl1271 *wl, int channel)
 {
 	int ret = 0;
@@ -1940,7 +1873,6 @@ static const struct ieee80211_ops wl1271_ops = {
 	.add_interface = wl1271_op_add_interface,
 	.remove_interface = wl1271_op_remove_interface,
 	.config = wl1271_op_config,
-/* 	.config_interface = wl1271_op_config_interface, */
 	.prepare_multicast = wl1271_op_prepare_multicast,
 	.configure_filter = wl1271_op_configure_filter,
 	.tx = wl1271_op_tx,
