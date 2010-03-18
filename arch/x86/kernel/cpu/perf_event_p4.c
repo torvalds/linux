@@ -19,6 +19,11 @@ struct p4_event_template {
 	u64 config;			/* packed predefined bits */
 	int dep;			/* upstream dependency event index */
 	int key;			/* index into p4_templates */
+	u64 msr;			/*
+					 * the high 32 bits set into MSR_IA32_PEBS_ENABLE and
+					 * the low 32 bits set into MSR_P4_PEBS_MATRIX_VERT
+					 * for cache events
+					 */
 	unsigned int emask;		/* ESCR EventMask */
 	unsigned int escr_msr[2];	/* ESCR MSR for this event */
 	unsigned int cntr[2];		/* counter index (offset) */
@@ -30,6 +35,67 @@ struct p4_pmu_res {
 };
 
 static DEFINE_PER_CPU(struct p4_pmu_res, p4_pmu_config);
+
+#define P4_CACHE_EVENT_CONFIG(event, bit) \
+	p4_config_pack_escr(P4_EVENT_UNPACK_EVENT(event) << P4_EVNTSEL_EVENT_SHIFT) | \
+	p4_config_pack_escr((event##_##bit) << P4_EVNTSEL_EVENTMASK_SHIFT) | \
+	p4_config_pack_cccr(P4_EVENT_UNPACK_SELECTOR(event) << P4_CCCR_ESCR_SELECT_SHIFT)
+
+static __initconst u64 p4_hw_cache_event_ids
+				[PERF_COUNT_HW_CACHE_MAX]
+				[PERF_COUNT_HW_CACHE_OP_MAX]
+				[PERF_COUNT_HW_CACHE_RESULT_MAX] =
+{
+ [ C(L1D ) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0,
+					/* 1stL_cache_load_miss_retired */
+		[ C(RESULT_MISS)   ] = P4_CACHE_EVENT_CONFIG(P4_REPLAY_EVENT, NBOGUS)
+					| KEY_P4_L1D_OP_READ_RESULT_MISS,
+	},
+ },
+ [ C(LL  ) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0,
+					/* 2ndL_cache_load_miss_retired */
+		[ C(RESULT_MISS)   ] = P4_CACHE_EVENT_CONFIG(P4_REPLAY_EVENT, NBOGUS)
+					| KEY_P4_LL_OP_READ_RESULT_MISS,
+	},
+ },
+ [ C(DTLB) ] = {
+	[ C(OP_READ) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0,
+					/* DTLB_load_miss_retired */
+		[ C(RESULT_MISS)   ] = P4_CACHE_EVENT_CONFIG(P4_REPLAY_EVENT, NBOGUS)
+					| KEY_P4_DTLB_OP_READ_RESULT_MISS,
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = 0x0,
+					/* DTLB_store_miss_retired */
+		[ C(RESULT_MISS)   ] = P4_CACHE_EVENT_CONFIG(P4_REPLAY_EVENT, NBOGUS)
+					| KEY_P4_DTLB_OP_WRITE_RESULT_MISS,
+	},
+ },
+ [ C(ITLB) ] = {
+	[ C(OP_READ) ] = {
+					/* ITLB_reference.HIT */
+		[ C(RESULT_ACCESS) ] = P4_CACHE_EVENT_CONFIG(P4_ITLB_REFERENCE, HIT)
+					| KEY_P4_ITLB_OP_READ_RESULT_ACCESS,
+
+					/* ITLB_reference.MISS */
+		[ C(RESULT_MISS)   ] = P4_CACHE_EVENT_CONFIG(P4_ITLB_REFERENCE, MISS)
+					| KEY_P4_ITLB_OP_READ_RESULT_MISS,
+	},
+	[ C(OP_WRITE) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+	[ C(OP_PREFETCH) ] = {
+		[ C(RESULT_ACCESS) ] = -1,
+		[ C(RESULT_MISS)   ] = -1,
+	},
+ },
+};
 
 /*
  * WARN: CCCR1 doesn't have a working enable bit so try to not
@@ -121,11 +187,77 @@ struct p4_event_template p4_templates[] = {
 		.escr_msr	= { MSR_P4_FSB_ESCR0, MSR_P4_FSB_ESCR1 },
 		.cntr		= { 0, 2 },
 	},
-	[7] = {
+	[KEY_P4_L1D_OP_READ_RESULT_MISS] = {
+		.opcode	= P4_REPLAY_EVENT,
+		.config	= 0,
+		.dep	= -1,
+		.msr	= (u64)(1 << 0 | 1 << 24) << 32 | (1 << 0),
+		.key	= KEY_P4_L1D_OP_READ_RESULT_MISS,
+		.emask	=
+			P4_EVENT_ATTR(P4_REPLAY_EVENT, NBOGUS),
+		.escr_msr	= { MSR_P4_CRU_ESCR2, MSR_P4_CRU_ESCR2 },
+		.cntr		= { 16, 17 },
+	},
+	[KEY_P4_LL_OP_READ_RESULT_MISS] = {
+		.opcode	= P4_REPLAY_EVENT,
+		.config	= 0,
+		.dep	= -1,
+		.msr	= (u64)(1 << 1 | 1 << 24) << 32 | (1 << 0),
+		.key	= KEY_P4_LL_OP_READ_RESULT_MISS,
+		.emask	=
+			P4_EVENT_ATTR(P4_REPLAY_EVENT, NBOGUS),
+		.escr_msr	= { MSR_P4_CRU_ESCR2, MSR_P4_CRU_ESCR2 },
+		.cntr		= { 16, 17 },
+	},
+	[KEY_P4_DTLB_OP_READ_RESULT_MISS] = {
+		.opcode	= P4_REPLAY_EVENT,
+		.config	= 0,
+		.dep	= -1,
+		.msr	= (u64)(1 << 2 | 1 << 24) << 32 | (1 << 0),
+		.key	= KEY_P4_DTLB_OP_READ_RESULT_MISS,
+		.emask	=
+			P4_EVENT_ATTR(P4_REPLAY_EVENT, NBOGUS),
+		.escr_msr	= { MSR_P4_CRU_ESCR2, MSR_P4_CRU_ESCR2 },
+		.cntr		= { 16, 17 },
+	},
+	[KEY_P4_DTLB_OP_WRITE_RESULT_MISS] = {
+		.opcode	= P4_REPLAY_EVENT,
+		.config	= 0,
+		.dep	= -1,
+		.msr	= (u64)(1 << 2 | 1 << 24) << 32 | (1 << 1),
+		.key	= KEY_P4_DTLB_OP_WRITE_RESULT_MISS,
+		.emask	=
+			P4_EVENT_ATTR(P4_REPLAY_EVENT, NBOGUS),
+		.escr_msr	= { MSR_P4_CRU_ESCR2, MSR_P4_CRU_ESCR2 },
+		.cntr		= { 16, 17 },
+	},
+	[KEY_P4_ITLB_OP_READ_RESULT_ACCESS] = {
+		.opcode	= P4_ITLB_REFERENCE,
+		.config	= 0,
+		.dep	= -1,
+		.msr	= 0,
+		.key	= KEY_P4_ITLB_OP_READ_RESULT_ACCESS,
+		.emask	=
+			P4_EVENT_ATTR(P4_ITLB_REFERENCE, HIT),
+		.escr_msr	= { MSR_P4_ITLB_ESCR0, MSR_P4_ITLB_ESCR1 },
+		.cntr		= { 0, 2 },
+	},
+	[KEY_P4_ITLB_OP_READ_RESULT_MISS] = {
+		.opcode	= P4_ITLB_REFERENCE,
+		.config	= 0,
+		.dep	= -1,
+		.msr	= 0,
+		.key	= KEY_P4_ITLB_OP_READ_RESULT_MISS,
+		.emask	=
+			P4_EVENT_ATTR(P4_ITLB_REFERENCE, MISS),
+		.escr_msr	= { MSR_P4_ITLB_ESCR0, MSR_P4_ITLB_ESCR1 },
+		.cntr		= { 0, 2 },
+	},
+	[KEY_P4_UOP_TYPE] = {
 		.opcode	= P4_UOP_TYPE,
 		.config	= 0,
 		.dep	= -1,
-		.key	= 7,
+		.key	= KEY_P4_UOP_TYPE,
 		.emask	=
 			P4_EVENT_ATTR(P4_UOP_TYPE, TAGLOADS)	|
 			P4_EVENT_ATTR(P4_UOP_TYPE, TAGSTORES),
@@ -154,10 +286,6 @@ static u64 p4_pmu_event_map(int hw_event)
 	config |= p4_config_pack_escr(tpl->emask << P4_EVNTSEL_EVENTMASK_SHIFT);
 	config |= p4_config_pack_cccr(P4_EVENT_UNPACK_SELECTOR(tpl->opcode) << P4_CCCR_ESCR_SELECT_SHIFT);
 	config |= p4_config_pack_cccr(hw_event & P4_CCCR_RESERVED);
-
-	/* on HT machine we need a special bit */
-	if (p4_ht_active() && p4_ht_thread(raw_smp_processor_id()))
-		config = p4_set_ht_bit(config);
 
 	return config;
 }
@@ -211,6 +339,10 @@ static int p4_hw_config(struct perf_event_attr *attr, struct hw_perf_event *hwc)
 	/* Count user and OS events unless not requested to */
 	hwc->config |= p4_config_pack_escr(p4_default_escr_conf(cpu, attr->exclude_kernel,
 								attr->exclude_user));
+	/* on HT machine we need a special bit */
+	if (p4_ht_active() && p4_ht_thread(cpu))
+		hwc->config = p4_set_ht_bit(hwc->config);
+
 	return 0;
 }
 
@@ -271,6 +403,12 @@ static void p4_pmu_enable_event(struct perf_event *event)
 		pr_crit("%s: Wrong index: %d\n", __func__, hwc->idx);
 		return;
 	}
+
+	if (tpl->msr) {
+		(void)checking_wrmsrl(MSR_IA32_PEBS_ENABLE, tpl->msr >> 32);
+		(void)checking_wrmsrl(MSR_P4_PEBS_MATRIX_VERT, tpl->msr & 0xffffffff);
+	}
+
 	escr_base = (u64)tpl->escr_msr[thread];
 
 	/*
@@ -576,6 +714,9 @@ static __init int p4_pmu_init(void)
 			boot_cpu_data.x86_model);
 		return -ENODEV;
 	}
+
+	memcpy(hw_cache_event_ids, p4_hw_cache_event_ids,
+	       sizeof(hw_cache_event_ids));
 
 	pr_cont("Netburst events, ");
 

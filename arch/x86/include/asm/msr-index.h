@@ -357,6 +357,8 @@
 #define MSR_P4_U2L_ESCR0		0x000003b0
 #define MSR_P4_U2L_ESCR1		0x000003b1
 
+#define MSR_P4_PEBS_MATRIX_VERT		0x000003f2
+
 /* Intel Core-based CPU performance counters */
 #define MSR_CORE_PERF_FIXED_CTR0	0x00000309
 #define MSR_CORE_PERF_FIXED_CTR1	0x0000030a
