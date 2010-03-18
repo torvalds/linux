@@ -3404,6 +3404,86 @@ emul_write:
 	return emulator_write_emulated(addr, new, bytes, vcpu);
 }
 
+static int kernel_pio(struct kvm_vcpu *vcpu, void *pd)
+{
+	/* TODO: String I/O for in kernel device */
+	int r;
+
+	if (vcpu->arch.pio.in)
+		r = kvm_io_bus_read(vcpu->kvm, KVM_PIO_BUS, vcpu->arch.pio.port,
+				    vcpu->arch.pio.size, pd);
+	else
+		r = kvm_io_bus_write(vcpu->kvm, KVM_PIO_BUS,
+				     vcpu->arch.pio.port, vcpu->arch.pio.size,
+				     pd);
+	return r;
+}
+
+
+static int emulator_pio_in_emulated(int size, unsigned short port, void *val,
+			     unsigned int count, struct kvm_vcpu *vcpu)
+{
+	if (vcpu->arch.pio.cur_count)
+		goto data_avail;
+
+	trace_kvm_pio(1, port, size, 1);
+
+	vcpu->arch.pio.port = port;
+	vcpu->arch.pio.in = 1;
+	vcpu->arch.pio.string = 0;
+	vcpu->arch.pio.down = 0;
+	vcpu->arch.pio.rep = 0;
+	vcpu->arch.pio.count = vcpu->arch.pio.cur_count = count;
+	vcpu->arch.pio.size = size;
+
+	if (!kernel_pio(vcpu, vcpu->arch.pio_data)) {
+	data_avail:
+		memcpy(val, vcpu->arch.pio_data, size * count);
+		vcpu->arch.pio.cur_count = 0;
+		return 1;
+	}
+
+	vcpu->run->exit_reason = KVM_EXIT_IO;
+	vcpu->run->io.direction = KVM_EXIT_IO_IN;
+	vcpu->run->io.size = size;
+	vcpu->run->io.data_offset = KVM_PIO_PAGE_OFFSET * PAGE_SIZE;
+	vcpu->run->io.count = count;
+	vcpu->run->io.port = port;
+
+	return 0;
+}
+
+static int emulator_pio_out_emulated(int size, unsigned short port,
+			      const void *val, unsigned int count,
+			      struct kvm_vcpu *vcpu)
+{
+	trace_kvm_pio(0, port, size, 1);
+
+	vcpu->arch.pio.port = port;
+	vcpu->arch.pio.in = 0;
+	vcpu->arch.pio.string = 0;
+	vcpu->arch.pio.down = 0;
+	vcpu->arch.pio.rep = 0;
+	vcpu->arch.pio.count = vcpu->arch.pio.cur_count = count;
+	vcpu->arch.pio.size = size;
+
+	memcpy(vcpu->arch.pio_data, val, size * count);
+
+	if (!kernel_pio(vcpu, vcpu->arch.pio_data)) {
+		vcpu->arch.pio.cur_count = 0;
+		return 1;
+	}
+
+	vcpu->run->exit_reason = KVM_EXIT_IO;
+	vcpu->run->io.direction = KVM_EXIT_IO_OUT;
+	vcpu->run->io.size = size;
+	vcpu->run->io.data_offset = KVM_PIO_PAGE_OFFSET * PAGE_SIZE;
+	vcpu->run->io.count = count;
+	vcpu->run->io.port = port;
+
+	return 0;
+}
+
 static unsigned long get_segment_base(struct kvm_vcpu *vcpu, int seg)
 {
 	return kvm_x86_ops->get_segment_base(vcpu, seg);
@@ -3597,6 +3677,8 @@ static struct x86_emulate_ops emulate_ops = {
 	.read_emulated       = emulator_read_emulated,
 	.write_emulated      = emulator_write_emulated,
 	.cmpxchg_emulated    = emulator_cmpxchg_emulated,
+	.pio_in_emulated     = emulator_pio_in_emulated,
+	.pio_out_emulated    = emulator_pio_out_emulated,
 	.get_cached_descriptor = emulator_get_cached_descriptor,
 	.set_cached_descriptor = emulator_set_cached_descriptor,
 	.get_segment_selector = emulator_get_segment_selector,
@@ -3704,6 +3786,12 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	if (vcpu->arch.pio.string)
 		return EMULATE_DO_MMIO;
 
+	if (vcpu->arch.pio.cur_count && !vcpu->arch.pio.string) {
+		if (!vcpu->arch.pio.in)
+			vcpu->arch.pio.cur_count = 0;
+		return EMULATE_DO_MMIO;
+	}
+
 	if (r || vcpu->mmio_is_write) {
 		run->exit_reason = KVM_EXIT_MMIO;
 		run->mmio.phys_addr = vcpu->mmio_phys_addr;
@@ -3760,63 +3848,41 @@ int complete_pio(struct kvm_vcpu *vcpu)
 	int r;
 	unsigned long val;
 
-	if (!io->string) {
-		if (io->in) {
-			val = kvm_register_read(vcpu, VCPU_REGS_RAX);
-			memcpy(&val, vcpu->arch.pio_data, io->size);
-			kvm_register_write(vcpu, VCPU_REGS_RAX, val);
-		}
-	} else {
-		if (io->in) {
-			r = pio_copy_data(vcpu);
-			if (r)
-				goto out;
-		}
-
-		delta = 1;
-		if (io->rep) {
-			delta *= io->cur_count;
-			/*
-			 * The size of the register should really depend on
-			 * current address size.
-			 */
-			val = kvm_register_read(vcpu, VCPU_REGS_RCX);
-			val -= delta;
-			kvm_register_write(vcpu, VCPU_REGS_RCX, val);
-		}
-		if (io->down)
-			delta = -delta;
-		delta *= io->size;
-		if (io->in) {
-			val = kvm_register_read(vcpu, VCPU_REGS_RDI);
-			val += delta;
-			kvm_register_write(vcpu, VCPU_REGS_RDI, val);
-		} else {
-			val = kvm_register_read(vcpu, VCPU_REGS_RSI);
-			val += delta;
-			kvm_register_write(vcpu, VCPU_REGS_RSI, val);
-		}
+	if (io->in) {
+		r = pio_copy_data(vcpu);
+		if (r)
+			goto out;
 	}
+
+	delta = 1;
+	if (io->rep) {
+		delta *= io->cur_count;
+		/*
+		 * The size of the register should really depend on
+		 * current address size.
+		 */
+		val = kvm_register_read(vcpu, VCPU_REGS_RCX);
+		val -= delta;
+		kvm_register_write(vcpu, VCPU_REGS_RCX, val);
+	}
+	if (io->down)
+		delta = -delta;
+	delta *= io->size;
+	if (io->in) {
+		val = kvm_register_read(vcpu, VCPU_REGS_RDI);
+		val += delta;
+		kvm_register_write(vcpu, VCPU_REGS_RDI, val);
+	} else {
+		val = kvm_register_read(vcpu, VCPU_REGS_RSI);
+		val += delta;
+		kvm_register_write(vcpu, VCPU_REGS_RSI, val);
+	}
+
 out:
 	io->count -= io->cur_count;
 	io->cur_count = 0;
 
 	return 0;
-}
-
-static int kernel_pio(struct kvm_vcpu *vcpu, void *pd)
-{
-	/* TODO: String I/O for in kernel device */
-	int r;
-
-	if (vcpu->arch.pio.in)
-		r = kvm_io_bus_read(vcpu->kvm, KVM_PIO_BUS, vcpu->arch.pio.port,
-				    vcpu->arch.pio.size, pd);
-	else
-		r = kvm_io_bus_write(vcpu->kvm, KVM_PIO_BUS,
-				     vcpu->arch.pio.port, vcpu->arch.pio.size,
-				     pd);
-	return r;
 }
 
 static int pio_string_write(struct kvm_vcpu *vcpu)
@@ -3835,36 +3901,6 @@ static int pio_string_write(struct kvm_vcpu *vcpu)
 	}
 	return r;
 }
-
-int kvm_emulate_pio(struct kvm_vcpu *vcpu, int in, int size, unsigned port)
-{
-	unsigned long val;
-
-	trace_kvm_pio(!in, port, size, 1);
-
-	vcpu->run->exit_reason = KVM_EXIT_IO;
-	vcpu->run->io.direction = in ? KVM_EXIT_IO_IN : KVM_EXIT_IO_OUT;
-	vcpu->run->io.size = vcpu->arch.pio.size = size;
-	vcpu->run->io.data_offset = KVM_PIO_PAGE_OFFSET * PAGE_SIZE;
-	vcpu->run->io.count = vcpu->arch.pio.count = vcpu->arch.pio.cur_count = 1;
-	vcpu->run->io.port = vcpu->arch.pio.port = port;
-	vcpu->arch.pio.in = in;
-	vcpu->arch.pio.string = 0;
-	vcpu->arch.pio.down = 0;
-	vcpu->arch.pio.rep = 0;
-
-	if (!vcpu->arch.pio.in) {
-		val = kvm_register_read(vcpu, VCPU_REGS_RAX);
-		memcpy(vcpu->arch.pio_data, &val, 4);
-	}
-
-	if (!kernel_pio(vcpu, vcpu->arch.pio_data)) {
-		complete_pio(vcpu);
-		return 1;
-	}
-	return 0;
-}
-EXPORT_SYMBOL_GPL(kvm_emulate_pio);
 
 int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, int in,
 		  int size, unsigned long count, int down,
@@ -3930,6 +3966,16 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, int in,
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_pio_string);
+
+int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port)
+{
+	unsigned long val = kvm_register_read(vcpu, VCPU_REGS_RAX);
+	int ret = emulator_pio_out_emulated(size, port, &val, 1, vcpu);
+	/* do not return to emulator after return from userspace */
+	vcpu->arch.pio.cur_count = 0;
+	return ret;
+}
+EXPORT_SYMBOL_GPL(kvm_fast_pio_out);
 
 static void bounce_off(void *info)
 {
@@ -4661,9 +4707,12 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 
 	if (vcpu->arch.pio.cur_count) {
 		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-		r = complete_pio(vcpu);
+		if (!vcpu->arch.pio.string)
+			r = emulate_instruction(vcpu, 0, 0, EMULTYPE_NO_DECODE);
+		else
+			r = complete_pio(vcpu);
 		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-		if (r)
+		if (r == EMULATE_DO_MMIO)
 			goto out;
 	}
 	if (vcpu->mmio_needed) {

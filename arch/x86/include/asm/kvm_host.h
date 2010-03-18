@@ -590,8 +590,7 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 
 struct x86_emulate_ctxt;
 
-int kvm_emulate_pio(struct kvm_vcpu *vcpu, int in,
-		     int size, unsigned port);
+int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port);
 int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, int in,
 			   int size, unsigned long count, int down,
 			    gva_t address, int rep, unsigned port);

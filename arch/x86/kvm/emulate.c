@@ -210,13 +210,13 @@ static u32 opcode_table[256] = {
 	0, 0, 0, 0, 0, 0, 0, 0,
 	/* 0xE0 - 0xE7 */
 	0, 0, 0, 0,
-	ByteOp | SrcImmUByte, SrcImmUByte,
-	ByteOp | SrcImmUByte, SrcImmUByte,
+	ByteOp | SrcImmUByte | DstAcc, SrcImmUByte | DstAcc,
+	ByteOp | SrcImmUByte | DstAcc, SrcImmUByte | DstAcc,
 	/* 0xE8 - 0xEF */
 	SrcImm | Stack, SrcImm | ImplicitOps,
 	SrcImmU | Src2Imm16 | No64, SrcImmByte | ImplicitOps,
-	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
-	SrcNone | ByteOp | ImplicitOps, SrcNone | ImplicitOps,
+	SrcNone | ByteOp | DstAcc, SrcNone | DstAcc,
+	SrcNone | ByteOp | DstAcc, SrcNone | DstAcc,
 	/* 0xF0 - 0xF7 */
 	0, 0, 0, 0,
 	ImplicitOps | Priv, ImplicitOps, Group | Group3_Byte, Group | Group3,
@@ -2426,8 +2426,6 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	u64 msr_data;
 	unsigned long saved_eip = 0;
 	struct decode_cache *c = &ctxt->decode;
-	unsigned int port;
-	int io_dir_in;
 	int rc = X86EMUL_CONTINUE;
 
 	ctxt->interruptibility = 0;
@@ -2823,14 +2821,10 @@ special_insn:
 		break;
 	case 0xe4: 	/* inb */
 	case 0xe5: 	/* in */
-		port = c->src.val;
-		io_dir_in = 1;
-		goto do_io;
+		goto do_io_in;
 	case 0xe6: /* outb */
 	case 0xe7: /* out */
-		port = c->src.val;
-		io_dir_in = 0;
-		goto do_io;
+		goto do_io_out;
 	case 0xe8: /* call (near) */ {
 		long int rel = c->src.val;
 		c->src.val = (unsigned long) c->eip;
@@ -2855,25 +2849,29 @@ special_insn:
 		break;
 	case 0xec: /* in al,dx */
 	case 0xed: /* in (e/r)ax,dx */
-		port = c->regs[VCPU_REGS_RDX];
-		io_dir_in = 1;
-		goto do_io;
-	case 0xee: /* out al,dx */
-	case 0xef: /* out (e/r)ax,dx */
-		port = c->regs[VCPU_REGS_RDX];
-		io_dir_in = 0;
-	do_io:
-		if (!emulator_io_permited(ctxt, ops, port,
-					  (c->d & ByteOp) ? 1 : c->op_bytes)) {
+		c->src.val = c->regs[VCPU_REGS_RDX];
+	do_io_in:
+		c->dst.bytes = min(c->dst.bytes, 4u);
+		if (!emulator_io_permited(ctxt, ops, c->src.val, c->dst.bytes)) {
 			kvm_inject_gp(ctxt->vcpu, 0);
 			goto done;
 		}
-		if (kvm_emulate_pio(ctxt->vcpu, io_dir_in,
-				   (c->d & ByteOp) ? 1 : c->op_bytes,
-				   port) != 0) {
-			c->eip = saved_eip;
-			goto cannot_emulate;
+		if (!ops->pio_in_emulated(c->dst.bytes, c->src.val,
+					  &c->dst.val, 1, ctxt->vcpu))
+			goto done; /* IO is needed */
+		break;
+	case 0xee: /* out al,dx */
+	case 0xef: /* out (e/r)ax,dx */
+		c->src.val = c->regs[VCPU_REGS_RDX];
+	do_io_out:
+		c->dst.bytes = min(c->dst.bytes, 4u);
+		if (!emulator_io_permited(ctxt, ops, c->src.val, c->dst.bytes)) {
+			kvm_inject_gp(ctxt->vcpu, 0);
+			goto done;
 		}
+		ops->pio_out_emulated(c->dst.bytes, c->src.val, &c->dst.val, 1,
+				      ctxt->vcpu);
+		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xf4:              /* hlt */
 		ctxt->vcpu->arch.halt_request = 1;
