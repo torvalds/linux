@@ -1602,8 +1602,7 @@ static void backtrace_address(void *data, unsigned long addr, int reliable)
 {
 	struct perf_callchain_entry *entry = data;
 
-	if (reliable)
-		callchain_store(entry, addr);
+	callchain_store(entry, addr);
 }
 
 static const struct stacktrace_ops backtrace_ops = {
