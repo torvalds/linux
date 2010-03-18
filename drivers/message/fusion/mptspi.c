@@ -1152,6 +1152,9 @@ mptspi_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	u8 event = le32_to_cpu(pEvReply->Event) & 0xFF;
 	struct _MPT_SCSI_HOST *hd = shost_priv(ioc->sh);
 
+	if (ioc->bus_type != SPI)
+		return 0;
+
 	if (hd && event ==  MPI_EVENT_INTEGRATED_RAID) {
 		int reason
 			= (le32_to_cpu(pEvReply->Data[0]) & 0x00FF0000) >> 16;
@@ -1283,6 +1286,8 @@ mptspi_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 	int rc;
 
 	rc = mptscsih_ioc_reset(ioc, reset_phase);
+	if ((ioc->bus_type != SPI) || (!rc))
+		return rc;
 
 	/* only try to do a renegotiation if we're properly set up
 	 * if we get an ioc fault on bringup, ioc->sh will be NULL */

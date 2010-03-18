@@ -1358,6 +1358,9 @@ mptfc_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *pEvReply)
 	unsigned long flags;
 	int rc=1;
 
+	if (ioc->bus_type != FC)
+		return 0;
+
 	devtverboseprintk(ioc, printk(MYIOC_s_DEBUG_FMT "MPT event (=%02Xh) routed to SCSI host driver!\n",
 			ioc->name, event));
 
@@ -1396,7 +1399,7 @@ mptfc_ioc_reset(MPT_ADAPTER *ioc, int reset_phase)
 	unsigned long	flags;
 
 	rc = mptscsih_ioc_reset(ioc,reset_phase);
-	if (rc == 0)
+	if ((ioc->bus_type != FC) || (!rc))
 		return rc;
 
 

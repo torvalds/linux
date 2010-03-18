@@ -4779,6 +4779,9 @@ mptsas_event_process(MPT_ADAPTER *ioc, EventNotificationReply_t *reply)
 	struct fw_event_work *fw_event;
 	unsigned long delay;
 
+	if (ioc->bus_type != SAS)
+		return 0;
+
 	/* events turned off due to host reset or driver unloading */
 	if (ioc->fw_events_off)
 		return 0;
