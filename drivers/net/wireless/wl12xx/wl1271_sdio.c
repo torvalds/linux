@@ -156,19 +156,20 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 	sdio_release_host(func);
 }
 
+static void wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
+{
+}
+
 static struct wl1271_if_operations sdio_ops = {
 	.read		= wl1271_sdio_raw_read,
 	.write		= wl1271_sdio_raw_write,
 	.reset		= wl1271_sdio_reset,
 	.init		= wl1271_sdio_init,
+	.power		= wl1271_sdio_set_power,
 	.dev		= wl1271_sdio_wl_to_dev,
 	.enable_irq	= wl1271_sdio_enable_interrupts,
 	.disable_irq	= wl1271_sdio_disable_interrupts
 };
-
-static void wl1271_sdio_set_power(bool enable)
-{
-}
 
 static int __devinit wl1271_probe(struct sdio_func *func,
 				  const struct sdio_device_id *id)
@@ -189,8 +190,6 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 
 	wl->if_priv = func;
 	wl->if_ops = &sdio_ops;
-
-	wl->set_power = wl1271_sdio_set_power;
 
 	/* Grab access to FN0 for ELP reg. */
 	func->card->quirks |= MMC_QUIRK_LENIENT_FN0;

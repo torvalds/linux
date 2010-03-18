@@ -359,18 +359,6 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	return ret;
 }
 
-static void wl1271_power_off(struct wl1271 *wl)
-{
-	wl->set_power(false);
-	clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
-}
-
-static void wl1271_power_on(struct wl1271 *wl)
-{
-	wl->set_power(true);
-	set_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
-}
-
 static void wl1271_fw_status(struct wl1271 *wl,
 			     struct wl1271_fw_status *status)
 {

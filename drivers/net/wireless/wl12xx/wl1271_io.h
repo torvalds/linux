@@ -138,6 +138,18 @@ static inline void wl1271_write32(struct wl1271 *wl, int addr, u32 val)
 	wl1271_raw_write32(wl, wl1271_translate_addr(wl, addr), val);
 }
 
+static inline void wl1271_power_off(struct wl1271 *wl)
+{
+	wl->if_ops->power(wl, false);
+	clear_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
+}
+
+static inline void wl1271_power_on(struct wl1271 *wl)
+{
+	wl->if_ops->power(wl, true);
+	set_bit(WL1271_FLAG_GPIO_POWER, &wl->flags);
+}
+
 
 /* Top Register IO */
 void wl1271_top_reg_write(struct wl1271 *wl, int addr, u16 val);

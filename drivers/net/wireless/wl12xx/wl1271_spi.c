@@ -347,11 +347,18 @@ static struct platform_device wl1271_device = {
 	},
 };
 
+static void wl1271_spi_set_power(struct wl1271 *wl, bool enable)
+{
+	if (wl->set_power)
+		wl->set_power(enable);
+}
+
 static struct wl1271_if_operations spi_ops = {
 	.read		= wl1271_spi_raw_read,
 	.write		= wl1271_spi_raw_write,
 	.reset		= wl1271_spi_reset,
 	.init		= wl1271_spi_init,
+	.power		= wl1271_spi_set_power,
 	.dev		= wl1271_spi_wl_to_dev,
 	.enable_irq	= wl1271_spi_enable_interrupts,
 	.disable_irq	= wl1271_spi_disable_interrupts
