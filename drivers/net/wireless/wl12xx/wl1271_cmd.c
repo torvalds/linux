@@ -776,41 +776,37 @@ static int wl1271_build_extended_rates(u8 *rates, u8 band)
 
 int wl1271_cmd_build_null_data(struct wl1271 *wl)
 {
-	struct wl12xx_null_data_template template;
+	struct sk_buff *skb;
+	int ret = 0;
 
-	if (!is_zero_ether_addr(wl->bssid)) {
-		memcpy(template.header.da, wl->bssid, ETH_ALEN);
-		memcpy(template.header.bssid, wl->bssid, ETH_ALEN);
-	} else {
-		memset(template.header.da, 0xff, ETH_ALEN);
-		memset(template.header.bssid, 0xff, ETH_ALEN);
-	}
+	skb = ieee80211_nullfunc_get(wl->hw, wl->vif);
+	if (!skb)
+		goto out;
 
-	memcpy(template.header.sa, wl->mac_addr, ETH_ALEN);
-	template.header.frame_ctl = cpu_to_le16(IEEE80211_FTYPE_DATA |
-						IEEE80211_STYPE_NULLFUNC |
-						IEEE80211_FCTL_TODS);
+	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, skb->data,
+				      skb->len);
 
-	return wl1271_cmd_template_set(wl, CMD_TEMPL_NULL_DATA, &template,
-				       sizeof(template));
+out:
+	dev_kfree_skb(skb);
+	return ret;
 
 }
 
 int wl1271_cmd_build_ps_poll(struct wl1271 *wl, u16 aid)
 {
-	struct wl12xx_ps_poll_template template;
+	struct sk_buff *skb;
+	int ret = 0;
 
-	memcpy(template.bssid, wl->bssid, ETH_ALEN);
-	memcpy(template.ta, wl->mac_addr, ETH_ALEN);
+	skb = ieee80211_pspoll_get(wl->hw, wl->vif);
+	if (!skb)
+		goto out;
 
-	/* aid in PS-Poll has its two MSBs each set to 1 */
-	template.aid = cpu_to_le16(1 << 15 | 1 << 14 | aid);
+	ret = wl1271_cmd_template_set(wl, CMD_TEMPL_PS_POLL, skb->data,
+				      skb->len);
 
-	template.fc = cpu_to_le16(IEEE80211_FTYPE_CTL | IEEE80211_STYPE_PSPOLL);
-
-	return wl1271_cmd_template_set(wl, CMD_TEMPL_PS_POLL, &template,
-				       sizeof(template));
-
+out:
+	dev_kfree_skb(skb);
+	return ret;
 }
 
 int wl1271_cmd_build_probe_req(struct wl1271 *wl, u8 *ssid, size_t ssid_len,
