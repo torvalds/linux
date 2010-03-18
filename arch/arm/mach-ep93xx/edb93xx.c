@@ -74,7 +74,7 @@ static void __init edb93xx_register_flash(void)
 	}
 }
 
-static struct ep93xx_eth_data edb93xx_eth_data = {
+static struct ep93xx_eth_data __initdata edb93xx_eth_data = {
 	.phy_id		= 1,
 };
 
@@ -82,7 +82,7 @@ static struct ep93xx_eth_data edb93xx_eth_data = {
 /*************************************************************************
  * EDB93xx i2c peripheral handling
  *************************************************************************/
-static struct i2c_gpio_platform_data edb93xx_i2c_gpio_data = {
+static struct i2c_gpio_platform_data __initdata edb93xx_i2c_gpio_data = {
 	.sda_pin		= EP93XX_GPIO_LINE_EEDAT,
 	.sda_is_open_drain	= 0,
 	.scl_pin		= EP93XX_GPIO_LINE_EECLK,

@@ -80,7 +80,7 @@ static void __init micro9_register_flash(void)
 /*************************************************************************
  * Micro9 Ethernet
  *************************************************************************/
-static struct ep93xx_eth_data micro9_eth_data = {
+static struct ep93xx_eth_data __initdata micro9_eth_data = {
 	.phy_id		= 0x1f,
 };
 

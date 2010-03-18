@@ -330,6 +330,10 @@ static struct platform_device ep93xx_ohci_device = {
 	.resource	= ep93xx_ohci_resources,
 };
 
+
+/*************************************************************************
+ * EP93xx ethernet peripheral handling
+ *************************************************************************/
 static struct ep93xx_eth_data ep93xx_eth_data;
 
 static struct resource ep93xx_eth_resource[] = {
@@ -354,6 +358,12 @@ static struct platform_device ep93xx_eth_device = {
 	.resource	= ep93xx_eth_resource,
 };
 
+/**
+ * ep93xx_register_eth - Register the built-in ethernet platform device.
+ * @data:	platform specific ethernet configuration (__initdata)
+ * @copy_addr:	flag indicating that the MAC address should be copied
+ *		from the IndAd registers (as programmed by the bootloader)
+ */
 void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
 {
 	if (copy_addr)
@@ -370,11 +380,19 @@ void __init ep93xx_register_eth(struct ep93xx_eth_data *data, int copy_addr)
 static struct i2c_gpio_platform_data ep93xx_i2c_data;
 
 static struct platform_device ep93xx_i2c_device = {
-	.name			= "i2c-gpio",
-	.id			= 0,
-	.dev.platform_data	= &ep93xx_i2c_data,
+	.name		= "i2c-gpio",
+	.id		= 0,
+	.dev		= {
+		.platform_data	= &ep93xx_i2c_data,
+	},
 };
 
+/**
+ * ep93xx_register_i2c - Register the i2c platform device.
+ * @data:	platform specific i2c-gpio configuration (__initdata)
+ * @devices:	platform specific i2c bus device information (__initdata)
+ * @num:	the number of devices on the i2c bus
+ */
 void __init ep93xx_register_i2c(struct i2c_gpio_platform_data *data,
 				struct i2c_board_info *devices, int num)
 {
@@ -404,11 +422,11 @@ void __init ep93xx_register_i2c(struct i2c_gpio_platform_data *data,
  *************************************************************************/
 static struct gpio_led ep93xx_led_pins[] = {
 	{
-		.name			= "platform:grled",
-		.gpio			= EP93XX_GPIO_LINE_GRLED,
+		.name	= "platform:grled",
+		.gpio	= EP93XX_GPIO_LINE_GRLED,
 	}, {
-		.name			= "platform:rdled",
-		.gpio			= EP93XX_GPIO_LINE_RDLED,
+		.name	= "platform:rdled",
+		.gpio	= EP93XX_GPIO_LINE_RDLED,
 	},
 };
 
@@ -528,7 +546,7 @@ static struct platform_device ep93xx_fb_device = {
 	.name			= "ep93xx-fb",
 	.id			= -1,
 	.dev			= {
-		.platform_data	= &ep93xxfb_data,
+		.platform_data		= &ep93xxfb_data,
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.dma_mask		= &ep93xx_fb_device.dev.coherent_dma_mask,
 	},
@@ -536,6 +554,10 @@ static struct platform_device ep93xx_fb_device = {
 	.resource		= ep93xx_fb_resource,
 };
 
+/**
+ * ep93xx_register_fb - Register the framebuffer platform device.
+ * @data:	platform specific framebuffer configuration (__initdata)
+ */
 void __init ep93xx_register_fb(struct ep93xxfb_mach_info *data)
 {
 	ep93xxfb_data = *data;
@@ -546,6 +568,8 @@ void __init ep93xx_register_fb(struct ep93xxfb_mach_info *data)
 /*************************************************************************
  * EP93xx matrix keypad peripheral handling
  *************************************************************************/
+static struct ep93xx_keypad_platform_data ep93xx_keypad_data;
+
 static struct resource ep93xx_keypad_resource[] = {
 	{
 		.start	= EP93XX_KEY_MATRIX_PHYS_BASE,
@@ -559,15 +583,22 @@ static struct resource ep93xx_keypad_resource[] = {
 };
 
 static struct platform_device ep93xx_keypad_device = {
-	.name			= "ep93xx-keypad",
-	.id			= -1,
-	.num_resources		= ARRAY_SIZE(ep93xx_keypad_resource),
-	.resource		= ep93xx_keypad_resource,
+	.name		= "ep93xx-keypad",
+	.id		= -1,
+	.dev		= {
+		.platform_data	= &ep93xx_keypad_data,
+	},
+	.num_resources	= ARRAY_SIZE(ep93xx_keypad_resource),
+	.resource	= ep93xx_keypad_resource,
 };
 
+/**
+ * ep93xx_register_keypad - Register the keypad platform device.
+ * @data:	platform specific keypad configuration (__initdata)
+ */
 void __init ep93xx_register_keypad(struct ep93xx_keypad_platform_data *data)
 {
-	ep93xx_keypad_device.dev.platform_data = data;
+	ep93xx_keypad_data = *data;
 	platform_device_register(&ep93xx_keypad_device);
 }
 

@@ -41,7 +41,7 @@ static struct platform_device gesbc9312_flash = {
 	.resource	= &gesbc9312_flash_resource,
 };
 
-static struct ep93xx_eth_data gesbc9312_eth_data = {
+static struct ep93xx_eth_data __initdata gesbc9312_eth_data = {
 	.phy_id		= 1,
 };
 
