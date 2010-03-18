@@ -2291,6 +2291,7 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 	u16 old_tss_sel = ops->get_segment_selector(VCPU_SREG_TR, ctxt->vcpu);
 	ulong old_tss_base =
 		get_cached_descriptor_base(ctxt, ops, VCPU_SREG_TR);
+	u32 desc_limit;
 
 	/* FIXME: old_tss_base == ~0 ? */
 
@@ -2311,7 +2312,10 @@ static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
 		}
 	}
 
-	if (!next_tss_desc.p || desc_limit_scaled(&next_tss_desc) < 0x67) {
+	desc_limit = desc_limit_scaled(&next_tss_desc);
+	if (!next_tss_desc.p ||
+	    ((desc_limit < 0x67 && (next_tss_desc.type & 8)) ||
+	     desc_limit < 0x2b)) {
 		kvm_queue_exception_e(ctxt->vcpu, TS_VECTOR,
 				      tss_selector & 0xfffc);
 		return X86EMUL_PROPAGATE_FAULT;
