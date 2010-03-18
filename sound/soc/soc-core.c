@@ -1283,25 +1283,24 @@ static int soc_remove(struct platform_device *pdev)
 	struct snd_soc_platform *platform = card->platform;
 	struct snd_soc_codec_device *codec_dev = socdev->codec_dev;
 
-	if (!card->instantiated)
-		return 0;
+	if (card->instantiated) {
+		run_delayed_work(&card->delayed_work);
 
-	run_delayed_work(&card->delayed_work);
+		if (platform->remove)
+			platform->remove(pdev);
 
-	if (platform->remove)
-		platform->remove(pdev);
+		if (codec_dev->remove)
+			codec_dev->remove(pdev);
 
-	if (codec_dev->remove)
-		codec_dev->remove(pdev);
+		for (i = 0; i < card->num_links; i++) {
+			struct snd_soc_dai *cpu_dai = card->dai_link[i].cpu_dai;
+			if (cpu_dai->remove)
+				cpu_dai->remove(pdev, cpu_dai);
+		}
 
-	for (i = 0; i < card->num_links; i++) {
-		struct snd_soc_dai *cpu_dai = card->dai_link[i].cpu_dai;
-		if (cpu_dai->remove)
-			cpu_dai->remove(pdev, cpu_dai);
+		if (card->remove)
+			card->remove(pdev);
 	}
-
-	if (card->remove)
-		card->remove(pdev);
 
 	snd_soc_unregister_card(card);
 
