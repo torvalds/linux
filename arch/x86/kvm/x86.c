@@ -3150,18 +3150,17 @@ static int kvm_read_guest_virt_system(gva_t addr, void *val, unsigned int bytes,
 	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu, 0, error);
 }
 
-static int kvm_write_guest_virt_helper(gva_t addr, void *val,
+static int kvm_write_guest_virt_system(gva_t addr, void *val,
 				       unsigned int bytes,
-				       struct kvm_vcpu *vcpu, u32 access,
+				       struct kvm_vcpu *vcpu,
 				       u32 *error)
 {
 	void *data = val;
 	int r = X86EMUL_CONTINUE;
 
-	access |= PFERR_WRITE_MASK;
-
 	while (bytes) {
-		gpa_t gpa =  vcpu->arch.mmu.gva_to_gpa(vcpu, addr, access, error);
+		gpa_t gpa =  vcpu->arch.mmu.gva_to_gpa(vcpu, addr,
+						       PFERR_WRITE_MASK, error);
 		unsigned offset = addr & (PAGE_SIZE-1);
 		unsigned towrite = min(bytes, (unsigned)PAGE_SIZE - offset);
 		int ret;
@@ -3182,20 +3181,6 @@ static int kvm_write_guest_virt_helper(gva_t addr, void *val,
 	}
 out:
 	return r;
-}
-
-static int kvm_write_guest_virt(gva_t addr, void *val, unsigned int bytes,
-				struct kvm_vcpu *vcpu, u32 *error)
-{
-	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
-	return kvm_write_guest_virt_helper(addr, val, bytes, vcpu, access, error);
-}
-
-static int kvm_write_guest_virt_system(gva_t addr, void *val,
-				       unsigned int bytes,
-				       struct kvm_vcpu *vcpu, u32 *error)
-{
-	return kvm_write_guest_virt_helper(addr, val, bytes, vcpu, 0, error);
 }
 
 static int emulator_read_emulated(unsigned long addr,
@@ -3423,23 +3408,20 @@ static int kernel_pio(struct kvm_vcpu *vcpu, void *pd)
 static int emulator_pio_in_emulated(int size, unsigned short port, void *val,
 			     unsigned int count, struct kvm_vcpu *vcpu)
 {
-	if (vcpu->arch.pio.cur_count)
+	if (vcpu->arch.pio.count)
 		goto data_avail;
 
 	trace_kvm_pio(1, port, size, 1);
 
 	vcpu->arch.pio.port = port;
 	vcpu->arch.pio.in = 1;
-	vcpu->arch.pio.string = 0;
-	vcpu->arch.pio.down = 0;
-	vcpu->arch.pio.rep = 0;
-	vcpu->arch.pio.count = vcpu->arch.pio.cur_count = count;
+	vcpu->arch.pio.count  = count;
 	vcpu->arch.pio.size = size;
 
 	if (!kernel_pio(vcpu, vcpu->arch.pio_data)) {
 	data_avail:
 		memcpy(val, vcpu->arch.pio_data, size * count);
-		vcpu->arch.pio.cur_count = 0;
+		vcpu->arch.pio.count = 0;
 		return 1;
 	}
 
@@ -3461,16 +3443,13 @@ static int emulator_pio_out_emulated(int size, unsigned short port,
 
 	vcpu->arch.pio.port = port;
 	vcpu->arch.pio.in = 0;
-	vcpu->arch.pio.string = 0;
-	vcpu->arch.pio.down = 0;
-	vcpu->arch.pio.rep = 0;
-	vcpu->arch.pio.count = vcpu->arch.pio.cur_count = count;
+	vcpu->arch.pio.count = count;
 	vcpu->arch.pio.size = size;
 
 	memcpy(vcpu->arch.pio_data, val, size * count);
 
 	if (!kernel_pio(vcpu, vcpu->arch.pio_data)) {
-		vcpu->arch.pio.cur_count = 0;
+		vcpu->arch.pio.count = 0;
 		return 1;
 	}
 
@@ -3717,7 +3696,6 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	cache_all_regs(vcpu);
 
 	vcpu->mmio_is_write = 0;
-	vcpu->arch.pio.string = 0;
 
 	if (!(emulation_type & EMULTYPE_NO_DECODE)) {
 		int cs_db, cs_l;
@@ -3783,12 +3761,9 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 	if (r == 0)
 		kvm_x86_ops->set_interrupt_shadow(vcpu, shadow_mask);
 
-	if (vcpu->arch.pio.string)
-		return EMULATE_DO_MMIO;
-
-	if (vcpu->arch.pio.cur_count && !vcpu->arch.pio.string) {
+	if (vcpu->arch.pio.count) {
 		if (!vcpu->arch.pio.in)
-			vcpu->arch.pio.cur_count = 0;
+			vcpu->arch.pio.count = 0;
 		return EMULATE_DO_MMIO;
 	}
 
@@ -3821,158 +3796,12 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(emulate_instruction);
 
-static int pio_copy_data(struct kvm_vcpu *vcpu)
-{
-	void *p = vcpu->arch.pio_data;
-	gva_t q = vcpu->arch.pio.guest_gva;
-	unsigned bytes;
-	int ret;
-	u32 error_code;
-
-	bytes = vcpu->arch.pio.size * vcpu->arch.pio.cur_count;
-	if (vcpu->arch.pio.in)
-		ret = kvm_write_guest_virt(q, p, bytes, vcpu, &error_code);
-	else
-		ret = kvm_read_guest_virt(q, p, bytes, vcpu, &error_code);
-
-	if (ret == X86EMUL_PROPAGATE_FAULT)
-		kvm_inject_page_fault(vcpu, q, error_code);
-
-	return ret;
-}
-
-int complete_pio(struct kvm_vcpu *vcpu)
-{
-	struct kvm_pio_request *io = &vcpu->arch.pio;
-	long delta;
-	int r;
-	unsigned long val;
-
-	if (io->in) {
-		r = pio_copy_data(vcpu);
-		if (r)
-			goto out;
-	}
-
-	delta = 1;
-	if (io->rep) {
-		delta *= io->cur_count;
-		/*
-		 * The size of the register should really depend on
-		 * current address size.
-		 */
-		val = kvm_register_read(vcpu, VCPU_REGS_RCX);
-		val -= delta;
-		kvm_register_write(vcpu, VCPU_REGS_RCX, val);
-	}
-	if (io->down)
-		delta = -delta;
-	delta *= io->size;
-	if (io->in) {
-		val = kvm_register_read(vcpu, VCPU_REGS_RDI);
-		val += delta;
-		kvm_register_write(vcpu, VCPU_REGS_RDI, val);
-	} else {
-		val = kvm_register_read(vcpu, VCPU_REGS_RSI);
-		val += delta;
-		kvm_register_write(vcpu, VCPU_REGS_RSI, val);
-	}
-
-out:
-	io->count -= io->cur_count;
-	io->cur_count = 0;
-
-	return 0;
-}
-
-static int pio_string_write(struct kvm_vcpu *vcpu)
-{
-	struct kvm_pio_request *io = &vcpu->arch.pio;
-	void *pd = vcpu->arch.pio_data;
-	int i, r = 0;
-
-	for (i = 0; i < io->cur_count; i++) {
-		if (kvm_io_bus_write(vcpu->kvm, KVM_PIO_BUS,
-				     io->port, io->size, pd)) {
-			r = -EOPNOTSUPP;
-			break;
-		}
-		pd += io->size;
-	}
-	return r;
-}
-
-int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, int in,
-		  int size, unsigned long count, int down,
-		  gva_t address, int rep, unsigned port)
-{
-	unsigned now, in_page;
-	int ret = 0;
-
-	trace_kvm_pio(!in, port, size, count);
-
-	vcpu->run->exit_reason = KVM_EXIT_IO;
-	vcpu->run->io.direction = in ? KVM_EXIT_IO_IN : KVM_EXIT_IO_OUT;
-	vcpu->run->io.size = vcpu->arch.pio.size = size;
-	vcpu->run->io.data_offset = KVM_PIO_PAGE_OFFSET * PAGE_SIZE;
-	vcpu->run->io.count = vcpu->arch.pio.count = vcpu->arch.pio.cur_count = count;
-	vcpu->run->io.port = vcpu->arch.pio.port = port;
-	vcpu->arch.pio.in = in;
-	vcpu->arch.pio.string = 1;
-	vcpu->arch.pio.down = down;
-	vcpu->arch.pio.rep = rep;
-
-	if (!count) {
-		kvm_x86_ops->skip_emulated_instruction(vcpu);
-		return 1;
-	}
-
-	if (!down)
-		in_page = PAGE_SIZE - offset_in_page(address);
-	else
-		in_page = offset_in_page(address) + size;
-	now = min(count, (unsigned long)in_page / size);
-	if (!now)
-		now = 1;
-	if (down) {
-		/*
-		 * String I/O in reverse.  Yuck.  Kill the guest, fix later.
-		 */
-		pr_unimpl(vcpu, "guest string pio down\n");
-		kvm_inject_gp(vcpu, 0);
-		return 1;
-	}
-	vcpu->run->io.count = now;
-	vcpu->arch.pio.cur_count = now;
-
-	if (vcpu->arch.pio.cur_count == vcpu->arch.pio.count)
-		kvm_x86_ops->skip_emulated_instruction(vcpu);
-
-	vcpu->arch.pio.guest_gva = address;
-
-	if (!vcpu->arch.pio.in) {
-		/* string PIO write */
-		ret = pio_copy_data(vcpu);
-		if (ret == X86EMUL_PROPAGATE_FAULT)
-			return 1;
-		if (ret == 0 && !pio_string_write(vcpu)) {
-			complete_pio(vcpu);
-			if (vcpu->arch.pio.count == 0)
-				ret = 1;
-		}
-	}
-	/* no string PIO read support yet */
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(kvm_emulate_pio_string);
-
 int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port)
 {
 	unsigned long val = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	int ret = emulator_pio_out_emulated(size, port, &val, 1, vcpu);
 	/* do not return to emulator after return from userspace */
-	vcpu->arch.pio.cur_count = 0;
+	vcpu->arch.pio.count = 0;
 	return ret;
 }
 EXPORT_SYMBOL_GPL(kvm_fast_pio_out);
@@ -4705,15 +4534,14 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 	if (!irqchip_in_kernel(vcpu->kvm))
 		kvm_set_cr8(vcpu, kvm_run->cr8);
 
-	if (vcpu->arch.pio.cur_count) {
+	if (vcpu->arch.pio.count) {
 		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
-		if (!vcpu->arch.pio.string)
-			r = emulate_instruction(vcpu, 0, 0, EMULTYPE_NO_DECODE);
-		else
-			r = complete_pio(vcpu);
+		r = emulate_instruction(vcpu, 0, 0, EMULTYPE_NO_DECODE);
 		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
-		if (r == EMULATE_DO_MMIO)
+		if (r == EMULATE_DO_MMIO) {
+			r = 0;
 			goto out;
+		}
 	}
 	if (vcpu->mmio_needed) {
 		memcpy(vcpu->mmio_data, kvm_run->mmio.data, 8);

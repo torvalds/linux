@@ -153,8 +153,8 @@ static u32 opcode_table[256] = {
 	0, 0, 0, 0,
 	/* 0x68 - 0x6F */
 	SrcImm | Mov | Stack, 0, SrcImmByte | Mov | Stack, 0,
-	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* insb, insw/insd */
-	SrcNone  | ByteOp  | ImplicitOps, SrcNone  | ImplicitOps, /* outsb, outsw/outsd */
+	DstDI | ByteOp | Mov | String, DstDI | Mov | String, /* insb, insw/insd */
+	SrcSI | ByteOp | ImplicitOps | String, SrcSI | ImplicitOps | String, /* outsb, outsw/outsd */
 	/* 0x70 - 0x77 */
 	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
 	SrcImmByte, SrcImmByte, SrcImmByte, SrcImmByte,
@@ -2615,47 +2615,29 @@ special_insn:
 		break;
 	case 0x6c:		/* insb */
 	case 0x6d:		/* insw/insd */
+		c->dst.bytes = min(c->dst.bytes, 4u);
 		if (!emulator_io_permited(ctxt, ops, c->regs[VCPU_REGS_RDX],
-					  (c->d & ByteOp) ? 1 : c->op_bytes)) {
+					  c->dst.bytes)) {
 			kvm_inject_gp(ctxt->vcpu, 0);
 			goto done;
 		}
-		if (kvm_emulate_pio_string(ctxt->vcpu,
-				1,
-				(c->d & ByteOp) ? 1 : c->op_bytes,
-				c->rep_prefix ?
-				address_mask(c, c->regs[VCPU_REGS_RCX]) : 1,
-				(ctxt->eflags & EFLG_DF),
-				register_address(c, es_base(ctxt),
-						 c->regs[VCPU_REGS_RDI]),
-				c->rep_prefix,
-				c->regs[VCPU_REGS_RDX]) == 0) {
-			c->eip = saved_eip;
-			return -1;
-		}
-		return 0;
+		if (!ops->pio_in_emulated(c->dst.bytes, c->regs[VCPU_REGS_RDX],
+					  &c->dst.val, 1, ctxt->vcpu))
+			goto done; /* IO is needed, skip writeback */
+		break;
 	case 0x6e:		/* outsb */
 	case 0x6f:		/* outsw/outsd */
+		c->src.bytes = min(c->src.bytes, 4u);
 		if (!emulator_io_permited(ctxt, ops, c->regs[VCPU_REGS_RDX],
-					  (c->d & ByteOp) ? 1 : c->op_bytes)) {
+					  c->src.bytes)) {
 			kvm_inject_gp(ctxt->vcpu, 0);
 			goto done;
 		}
-		if (kvm_emulate_pio_string(ctxt->vcpu,
-				0,
-				(c->d & ByteOp) ? 1 : c->op_bytes,
-				c->rep_prefix ?
-				address_mask(c, c->regs[VCPU_REGS_RCX]) : 1,
-				(ctxt->eflags & EFLG_DF),
-					 register_address(c,
-					  seg_override_base(ctxt, c),
-						 c->regs[VCPU_REGS_RSI]),
-				c->rep_prefix,
-				c->regs[VCPU_REGS_RDX]) == 0) {
-			c->eip = saved_eip;
-			return -1;
-		}
-		return 0;
+		ops->pio_out_emulated(c->src.bytes, c->regs[VCPU_REGS_RDX],
+				      &c->src.val, 1, ctxt->vcpu);
+
+		c->dst.type = OP_NONE; /* nothing to writeback */
+		break;
 	case 0x70 ... 0x7f: /* jcc (short) */
 		if (test_cc(c->b, ctxt->eflags))
 			jmp_rel(c, c->src.val);

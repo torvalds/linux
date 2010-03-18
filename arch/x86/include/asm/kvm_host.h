@@ -224,14 +224,9 @@ struct kvm_pv_mmu_op_buffer {
 
 struct kvm_pio_request {
 	unsigned long count;
-	int cur_count;
-	gva_t guest_gva;
 	int in;
 	int port;
 	int size;
-	int string;
-	int down;
-	int rep;
 };
 
 /*
@@ -591,9 +586,6 @@ int kvm_set_msr(struct kvm_vcpu *vcpu, u32 msr_index, u64 data);
 struct x86_emulate_ctxt;
 
 int kvm_fast_pio_out(struct kvm_vcpu *vcpu, int size, unsigned short port);
-int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, int in,
-			   int size, unsigned long count, int down,
-			    gva_t address, int rep, unsigned port);
 void kvm_emulate_cpuid(struct kvm_vcpu *vcpu);
 int kvm_emulate_halt(struct kvm_vcpu *vcpu);
 int emulate_invlpg(struct kvm_vcpu *vcpu, gva_t address);
