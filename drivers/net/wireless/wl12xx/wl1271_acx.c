@@ -547,7 +547,7 @@ int wl1271_acx_sg_enable(struct wl1271 *wl)
 		goto out;
 	}
 
-	pta->enable = ACX_SG_DISABLE;
+	pta->enable = wl->conf.sg.state;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_ENABLE, pta, sizeof(*pta));
 	if (ret < 0) {
@@ -564,7 +564,7 @@ int wl1271_acx_sg_cfg(struct wl1271 *wl)
 {
 	struct acx_bt_wlan_coex_param *param;
 	struct conf_sg_settings *c = &wl->conf.sg;
-	int ret;
+	int i, ret;
 
 	wl1271_debug(DEBUG_ACX, "acx sg cfg");
 
@@ -575,8 +575,9 @@ int wl1271_acx_sg_cfg(struct wl1271 *wl)
 	}
 
 	/* BT-WLAN coext parameters */
-	param->params[ACX_SG_BT_PER_THRESHOLD] = c->per_threshold;
-	param->param_idx = ACX_SG_BT_PER_THRESHOLD;
+	for (i = 0; i < CONF_SG_PARAMS_MAX; i++)
+		param->params[i] = c->params[i];
+	param->param_idx = CONF_SG_PARAMS_ALL;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_CFG, param, sizeof(*param));
 	if (ret < 0) {
