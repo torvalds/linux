@@ -545,7 +545,7 @@ static void p4_pmu_swap_config_ts(struct hw_perf_event *hwc, int cpu)
 }
 
 /* ESCRs are not sequential in memory so we need a map */
-static unsigned int p4_escr_map[ARCH_P4_TOTAL_ESCR] = {
+static const unsigned int p4_escr_map[ARCH_P4_TOTAL_ESCR] = {
 	MSR_P4_ALF_ESCR0,	/*  0 */
 	MSR_P4_ALF_ESCR1,	/*  1 */
 	MSR_P4_BPU_ESCR0,	/*  2 */

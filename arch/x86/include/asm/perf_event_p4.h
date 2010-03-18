@@ -401,13 +401,13 @@ static inline u32 p4_default_escr_conf(int cpu, int exclude_os, int exclude_usr)
 #define P4_RETIRED_MISPRED_BRANCH_TYPE	P4_EVENT_PACK(0x05, 0x02)
 	/*
 	 * MSR_P4_TBPU_ESCR0:	4, 5
-	 * MSR_P4_TBPU_ESCR0:	6, 7
+	 * MSR_P4_TBPU_ESCR1:	6, 7
 	 */
 
 #define P4_RETIRED_BRANCH_TYPE		P4_EVENT_PACK(0x04, 0x02)
 	/*
 	 * MSR_P4_TBPU_ESCR0:	4, 5
-	 * MSR_P4_TBPU_ESCR0:	6, 7
+	 * MSR_P4_TBPU_ESCR1:	6, 7
 	 */
 
 #define P4_RESOURCE_STALL		P4_EVENT_PACK(0x01, 0x01)
