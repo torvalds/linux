@@ -1836,8 +1836,6 @@ static void ceph_fault(struct ceph_connection *con)
 		goto out;
 	}
 
-	clear_bit(BUSY, &con->state);  /* to avoid an improbable race */
-
 	mutex_lock(&con->mutex);
 	if (test_bit(CLOSED, &con->state))
 		goto out_unlock;
