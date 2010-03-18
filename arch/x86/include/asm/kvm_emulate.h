@@ -11,6 +11,8 @@
 #ifndef _ASM_X86_KVM_X86_EMULATE_H
 #define _ASM_X86_KVM_X86_EMULATE_H
 
+#include <asm/desc_defs.h>
+
 struct x86_emulate_ctxt;
 
 /*
@@ -210,5 +212,8 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt,
 		    struct x86_emulate_ops *ops);
 int x86_emulate_insn(struct x86_emulate_ctxt *ctxt,
 		     struct x86_emulate_ops *ops);
+int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
+			 struct x86_emulate_ops *ops,
+			 u16 tss_selector, int reason);
 
 #endif /* _ASM_X86_KVM_X86_EMULATE_H */

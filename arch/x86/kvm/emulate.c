@@ -33,6 +33,7 @@
 #include <asm/kvm_emulate.h>
 
 #include "x86.h"
+#include "tss.h"
 
 /*
  * Opcode effective-address decode tables.
@@ -1221,6 +1222,198 @@ done:
 	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
 }
 
+static u32 desc_limit_scaled(struct desc_struct *desc)
+{
+	u32 limit = get_desc_limit(desc);
+
+	return desc->g ? (limit << 12) | 0xfff : limit;
+}
+
+static void get_descriptor_table_ptr(struct x86_emulate_ctxt *ctxt,
+				     struct x86_emulate_ops *ops,
+				     u16 selector, struct desc_ptr *dt)
+{
+	if (selector & 1 << 2) {
+		struct desc_struct desc;
+		memset (dt, 0, sizeof *dt);
+		if (!ops->get_cached_descriptor(&desc, VCPU_SREG_LDTR, ctxt->vcpu))
+			return;
+
+		dt->size = desc_limit_scaled(&desc); /* what if limit > 65535? */
+		dt->address = get_desc_base(&desc);
+	} else
+		ops->get_gdt(dt, ctxt->vcpu);
+}
+
+/* allowed just for 8 bytes segments */
+static int read_segment_descriptor(struct x86_emulate_ctxt *ctxt,
+				   struct x86_emulate_ops *ops,
+				   u16 selector, struct desc_struct *desc)
+{
+	struct desc_ptr dt;
+	u16 index = selector >> 3;
+	int ret;
+	u32 err;
+	ulong addr;
+
+	get_descriptor_table_ptr(ctxt, ops, selector, &dt);
+
+	if (dt.size < index * 8 + 7) {
+		kvm_inject_gp(ctxt->vcpu, selector & 0xfffc);
+		return X86EMUL_PROPAGATE_FAULT;
+	}
+	addr = dt.address + index * 8;
+	ret = ops->read_std(addr, desc, sizeof *desc, ctxt->vcpu,  &err);
+	if (ret == X86EMUL_PROPAGATE_FAULT)
+		kvm_inject_page_fault(ctxt->vcpu, addr, err);
+
+       return ret;
+}
+
+/* allowed just for 8 bytes segments */
+static int write_segment_descriptor(struct x86_emulate_ctxt *ctxt,
+				    struct x86_emulate_ops *ops,
+				    u16 selector, struct desc_struct *desc)
+{
+	struct desc_ptr dt;
+	u16 index = selector >> 3;
+	u32 err;
+	ulong addr;
+	int ret;
+
+	get_descriptor_table_ptr(ctxt, ops, selector, &dt);
+
+	if (dt.size < index * 8 + 7) {
+		kvm_inject_gp(ctxt->vcpu, selector & 0xfffc);
+		return X86EMUL_PROPAGATE_FAULT;
+	}
+
+	addr = dt.address + index * 8;
+	ret = ops->write_std(addr, desc, sizeof *desc, ctxt->vcpu, &err);
+	if (ret == X86EMUL_PROPAGATE_FAULT)
+		kvm_inject_page_fault(ctxt->vcpu, addr, err);
+
+	return ret;
+}
+
+static int load_segment_descriptor(struct x86_emulate_ctxt *ctxt,
+				   struct x86_emulate_ops *ops,
+				   u16 selector, int seg)
+{
+	struct desc_struct seg_desc;
+	u8 dpl, rpl, cpl;
+	unsigned err_vec = GP_VECTOR;
+	u32 err_code = 0;
+	bool null_selector = !(selector & ~0x3); /* 0000-0003 are null */
+	int ret;
+
+	memset(&seg_desc, 0, sizeof seg_desc);
+
+	if ((seg <= VCPU_SREG_GS && ctxt->mode == X86EMUL_MODE_VM86)
+	    || ctxt->mode == X86EMUL_MODE_REAL) {
+		/* set real mode segment descriptor */
+		set_desc_base(&seg_desc, selector << 4);
+		set_desc_limit(&seg_desc, 0xffff);
+		seg_desc.type = 3;
+		seg_desc.p = 1;
+		seg_desc.s = 1;
+		goto load;
+	}
+
+	/* NULL selector is not valid for TR, CS and SS */
+	if ((seg == VCPU_SREG_CS || seg == VCPU_SREG_SS || seg == VCPU_SREG_TR)
+	    && null_selector)
+		goto exception;
+
+	/* TR should be in GDT only */
+	if (seg == VCPU_SREG_TR && (selector & (1 << 2)))
+		goto exception;
+
+	if (null_selector) /* for NULL selector skip all following checks */
+		goto load;
+
+	ret = read_segment_descriptor(ctxt, ops, selector, &seg_desc);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+
+	err_code = selector & 0xfffc;
+	err_vec = GP_VECTOR;
+
+	/* can't load system descriptor into segment selecor */
+	if (seg <= VCPU_SREG_GS && !seg_desc.s)
+		goto exception;
+
+	if (!seg_desc.p) {
+		err_vec = (seg == VCPU_SREG_SS) ? SS_VECTOR : NP_VECTOR;
+		goto exception;
+	}
+
+	rpl = selector & 3;
+	dpl = seg_desc.dpl;
+	cpl = ops->cpl(ctxt->vcpu);
+
+	switch (seg) {
+	case VCPU_SREG_SS:
+		/*
+		 * segment is not a writable data segment or segment
+		 * selector's RPL != CPL or segment selector's RPL != CPL
+		 */
+		if (rpl != cpl || (seg_desc.type & 0xa) != 0x2 || dpl != cpl)
+			goto exception;
+		break;
+	case VCPU_SREG_CS:
+		if (!(seg_desc.type & 8))
+			goto exception;
+
+		if (seg_desc.type & 4) {
+			/* conforming */
+			if (dpl > cpl)
+				goto exception;
+		} else {
+			/* nonconforming */
+			if (rpl > cpl || dpl != cpl)
+				goto exception;
+		}
+		/* CS(RPL) <- CPL */
+		selector = (selector & 0xfffc) | cpl;
+		break;
+	case VCPU_SREG_TR:
+		if (seg_desc.s || (seg_desc.type != 1 && seg_desc.type != 9))
+			goto exception;
+		break;
+	case VCPU_SREG_LDTR:
+		if (seg_desc.s || seg_desc.type != 2)
+			goto exception;
+		break;
+	default: /*  DS, ES, FS, or GS */
+		/*
+		 * segment is not a data or readable code segment or
+		 * ((segment is a data or nonconforming code segment)
+		 * and (both RPL and CPL > DPL))
+		 */
+		if ((seg_desc.type & 0xa) == 0x8 ||
+		    (((seg_desc.type & 0xc) != 0xc) &&
+		     (rpl > dpl && cpl > dpl)))
+			goto exception;
+		break;
+	}
+
+	if (seg_desc.s) {
+		/* mark segment as accessed */
+		seg_desc.type |= 1;
+		ret = write_segment_descriptor(ctxt, ops, selector, &seg_desc);
+		if (ret != X86EMUL_CONTINUE)
+			return ret;
+	}
+load:
+	ops->set_segment_selector(selector, seg, ctxt->vcpu);
+	ops->set_cached_descriptor(&seg_desc, seg, ctxt->vcpu);
+	return X86EMUL_CONTINUE;
+exception:
+	kvm_queue_exception_e(ctxt->vcpu, err_vec, err_code);
+	return X86EMUL_PROPAGATE_FAULT;
+}
+
 static inline void emulate_push(struct x86_emulate_ctxt *ctxt)
 {
 	struct decode_cache *c = &ctxt->decode;
@@ -1810,6 +2003,376 @@ static bool emulator_io_permited(struct x86_emulate_ctxt *ctxt,
 		if (!emulator_io_port_access_allowed(ctxt, ops, port, len))
 			return false;
 	return true;
+}
+
+static u32 get_cached_descriptor_base(struct x86_emulate_ctxt *ctxt,
+				      struct x86_emulate_ops *ops,
+				      int seg)
+{
+	struct desc_struct desc;
+	if (ops->get_cached_descriptor(&desc, seg, ctxt->vcpu))
+		return get_desc_base(&desc);
+	else
+		return ~0;
+}
+
+static void save_state_to_tss16(struct x86_emulate_ctxt *ctxt,
+				struct x86_emulate_ops *ops,
+				struct tss_segment_16 *tss)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	tss->ip = c->eip;
+	tss->flag = ctxt->eflags;
+	tss->ax = c->regs[VCPU_REGS_RAX];
+	tss->cx = c->regs[VCPU_REGS_RCX];
+	tss->dx = c->regs[VCPU_REGS_RDX];
+	tss->bx = c->regs[VCPU_REGS_RBX];
+	tss->sp = c->regs[VCPU_REGS_RSP];
+	tss->bp = c->regs[VCPU_REGS_RBP];
+	tss->si = c->regs[VCPU_REGS_RSI];
+	tss->di = c->regs[VCPU_REGS_RDI];
+
+	tss->es = ops->get_segment_selector(VCPU_SREG_ES, ctxt->vcpu);
+	tss->cs = ops->get_segment_selector(VCPU_SREG_CS, ctxt->vcpu);
+	tss->ss = ops->get_segment_selector(VCPU_SREG_SS, ctxt->vcpu);
+	tss->ds = ops->get_segment_selector(VCPU_SREG_DS, ctxt->vcpu);
+	tss->ldt = ops->get_segment_selector(VCPU_SREG_LDTR, ctxt->vcpu);
+}
+
+static int load_state_from_tss16(struct x86_emulate_ctxt *ctxt,
+				 struct x86_emulate_ops *ops,
+				 struct tss_segment_16 *tss)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int ret;
+
+	c->eip = tss->ip;
+	ctxt->eflags = tss->flag | 2;
+	c->regs[VCPU_REGS_RAX] = tss->ax;
+	c->regs[VCPU_REGS_RCX] = tss->cx;
+	c->regs[VCPU_REGS_RDX] = tss->dx;
+	c->regs[VCPU_REGS_RBX] = tss->bx;
+	c->regs[VCPU_REGS_RSP] = tss->sp;
+	c->regs[VCPU_REGS_RBP] = tss->bp;
+	c->regs[VCPU_REGS_RSI] = tss->si;
+	c->regs[VCPU_REGS_RDI] = tss->di;
+
+	/*
+	 * SDM says that segment selectors are loaded before segment
+	 * descriptors
+	 */
+	ops->set_segment_selector(tss->ldt, VCPU_SREG_LDTR, ctxt->vcpu);
+	ops->set_segment_selector(tss->es, VCPU_SREG_ES, ctxt->vcpu);
+	ops->set_segment_selector(tss->cs, VCPU_SREG_CS, ctxt->vcpu);
+	ops->set_segment_selector(tss->ss, VCPU_SREG_SS, ctxt->vcpu);
+	ops->set_segment_selector(tss->ds, VCPU_SREG_DS, ctxt->vcpu);
+
+	/*
+	 * Now load segment descriptors. If fault happenes at this stage
+	 * it is handled in a context of new task
+	 */
+	ret = load_segment_descriptor(ctxt, ops, tss->ldt, VCPU_SREG_LDTR);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+	ret = load_segment_descriptor(ctxt, ops, tss->es, VCPU_SREG_ES);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+	ret = load_segment_descriptor(ctxt, ops, tss->cs, VCPU_SREG_CS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+	ret = load_segment_descriptor(ctxt, ops, tss->ss, VCPU_SREG_SS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+	ret = load_segment_descriptor(ctxt, ops, tss->ds, VCPU_SREG_DS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+
+	return X86EMUL_CONTINUE;
+}
+
+static int task_switch_16(struct x86_emulate_ctxt *ctxt,
+			  struct x86_emulate_ops *ops,
+			  u16 tss_selector, u16 old_tss_sel,
+			  ulong old_tss_base, struct desc_struct *new_desc)
+{
+	struct tss_segment_16 tss_seg;
+	int ret;
+	u32 err, new_tss_base = get_desc_base(new_desc);
+
+	ret = ops->read_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+			    &err);
+	if (ret == X86EMUL_PROPAGATE_FAULT) {
+		/* FIXME: need to provide precise fault address */
+		kvm_inject_page_fault(ctxt->vcpu, old_tss_base, err);
+		return ret;
+	}
+
+	save_state_to_tss16(ctxt, ops, &tss_seg);
+
+	ret = ops->write_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+			     &err);
+	if (ret == X86EMUL_PROPAGATE_FAULT) {
+		/* FIXME: need to provide precise fault address */
+		kvm_inject_page_fault(ctxt->vcpu, old_tss_base, err);
+		return ret;
+	}
+
+	ret = ops->read_std(new_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+			    &err);
+	if (ret == X86EMUL_PROPAGATE_FAULT) {
+		/* FIXME: need to provide precise fault address */
+		kvm_inject_page_fault(ctxt->vcpu, new_tss_base, err);
+		return ret;
+	}
+
+	if (old_tss_sel != 0xffff) {
+		tss_seg.prev_task_link = old_tss_sel;
+
+		ret = ops->write_std(new_tss_base,
+				     &tss_seg.prev_task_link,
+				     sizeof tss_seg.prev_task_link,
+				     ctxt->vcpu, &err);
+		if (ret == X86EMUL_PROPAGATE_FAULT) {
+			/* FIXME: need to provide precise fault address */
+			kvm_inject_page_fault(ctxt->vcpu, new_tss_base, err);
+			return ret;
+		}
+	}
+
+	return load_state_from_tss16(ctxt, ops, &tss_seg);
+}
+
+static void save_state_to_tss32(struct x86_emulate_ctxt *ctxt,
+				struct x86_emulate_ops *ops,
+				struct tss_segment_32 *tss)
+{
+	struct decode_cache *c = &ctxt->decode;
+
+	tss->cr3 = ops->get_cr(3, ctxt->vcpu);
+	tss->eip = c->eip;
+	tss->eflags = ctxt->eflags;
+	tss->eax = c->regs[VCPU_REGS_RAX];
+	tss->ecx = c->regs[VCPU_REGS_RCX];
+	tss->edx = c->regs[VCPU_REGS_RDX];
+	tss->ebx = c->regs[VCPU_REGS_RBX];
+	tss->esp = c->regs[VCPU_REGS_RSP];
+	tss->ebp = c->regs[VCPU_REGS_RBP];
+	tss->esi = c->regs[VCPU_REGS_RSI];
+	tss->edi = c->regs[VCPU_REGS_RDI];
+
+	tss->es = ops->get_segment_selector(VCPU_SREG_ES, ctxt->vcpu);
+	tss->cs = ops->get_segment_selector(VCPU_SREG_CS, ctxt->vcpu);
+	tss->ss = ops->get_segment_selector(VCPU_SREG_SS, ctxt->vcpu);
+	tss->ds = ops->get_segment_selector(VCPU_SREG_DS, ctxt->vcpu);
+	tss->fs = ops->get_segment_selector(VCPU_SREG_FS, ctxt->vcpu);
+	tss->gs = ops->get_segment_selector(VCPU_SREG_GS, ctxt->vcpu);
+	tss->ldt_selector = ops->get_segment_selector(VCPU_SREG_LDTR, ctxt->vcpu);
+}
+
+static int load_state_from_tss32(struct x86_emulate_ctxt *ctxt,
+				 struct x86_emulate_ops *ops,
+				 struct tss_segment_32 *tss)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int ret;
+
+	ops->set_cr(3, tss->cr3, ctxt->vcpu);
+	c->eip = tss->eip;
+	ctxt->eflags = tss->eflags | 2;
+	c->regs[VCPU_REGS_RAX] = tss->eax;
+	c->regs[VCPU_REGS_RCX] = tss->ecx;
+	c->regs[VCPU_REGS_RDX] = tss->edx;
+	c->regs[VCPU_REGS_RBX] = tss->ebx;
+	c->regs[VCPU_REGS_RSP] = tss->esp;
+	c->regs[VCPU_REGS_RBP] = tss->ebp;
+	c->regs[VCPU_REGS_RSI] = tss->esi;
+	c->regs[VCPU_REGS_RDI] = tss->edi;
+
+	/*
+	 * SDM says that segment selectors are loaded before segment
+	 * descriptors
+	 */
+	ops->set_segment_selector(tss->ldt_selector, VCPU_SREG_LDTR, ctxt->vcpu);
+	ops->set_segment_selector(tss->es, VCPU_SREG_ES, ctxt->vcpu);
+	ops->set_segment_selector(tss->cs, VCPU_SREG_CS, ctxt->vcpu);
+	ops->set_segment_selector(tss->ss, VCPU_SREG_SS, ctxt->vcpu);
+	ops->set_segment_selector(tss->ds, VCPU_SREG_DS, ctxt->vcpu);
+	ops->set_segment_selector(tss->fs, VCPU_SREG_FS, ctxt->vcpu);
+	ops->set_segment_selector(tss->gs, VCPU_SREG_GS, ctxt->vcpu);
+
+	/*
+	 * Now load segment descriptors. If fault happenes at this stage
+	 * it is handled in a context of new task
+	 */
+	ret = load_segment_descriptor(ctxt, ops, tss->ldt_selector, VCPU_SREG_LDTR);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+	ret = load_segment_descriptor(ctxt, ops, tss->es, VCPU_SREG_ES);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+	ret = load_segment_descriptor(ctxt, ops, tss->cs, VCPU_SREG_CS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+	ret = load_segment_descriptor(ctxt, ops, tss->ss, VCPU_SREG_SS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+	ret = load_segment_descriptor(ctxt, ops, tss->ds, VCPU_SREG_DS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+	ret = load_segment_descriptor(ctxt, ops, tss->fs, VCPU_SREG_FS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+	ret = load_segment_descriptor(ctxt, ops, tss->gs, VCPU_SREG_GS);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+
+	return X86EMUL_CONTINUE;
+}
+
+static int task_switch_32(struct x86_emulate_ctxt *ctxt,
+			  struct x86_emulate_ops *ops,
+			  u16 tss_selector, u16 old_tss_sel,
+			  ulong old_tss_base, struct desc_struct *new_desc)
+{
+	struct tss_segment_32 tss_seg;
+	int ret;
+	u32 err, new_tss_base = get_desc_base(new_desc);
+
+	ret = ops->read_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+			    &err);
+	if (ret == X86EMUL_PROPAGATE_FAULT) {
+		/* FIXME: need to provide precise fault address */
+		kvm_inject_page_fault(ctxt->vcpu, old_tss_base, err);
+		return ret;
+	}
+
+	save_state_to_tss32(ctxt, ops, &tss_seg);
+
+	ret = ops->write_std(old_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+			     &err);
+	if (ret == X86EMUL_PROPAGATE_FAULT) {
+		/* FIXME: need to provide precise fault address */
+		kvm_inject_page_fault(ctxt->vcpu, old_tss_base, err);
+		return ret;
+	}
+
+	ret = ops->read_std(new_tss_base, &tss_seg, sizeof tss_seg, ctxt->vcpu,
+			    &err);
+	if (ret == X86EMUL_PROPAGATE_FAULT) {
+		/* FIXME: need to provide precise fault address */
+		kvm_inject_page_fault(ctxt->vcpu, new_tss_base, err);
+		return ret;
+	}
+
+	if (old_tss_sel != 0xffff) {
+		tss_seg.prev_task_link = old_tss_sel;
+
+		ret = ops->write_std(new_tss_base,
+				     &tss_seg.prev_task_link,
+				     sizeof tss_seg.prev_task_link,
+				     ctxt->vcpu, &err);
+		if (ret == X86EMUL_PROPAGATE_FAULT) {
+			/* FIXME: need to provide precise fault address */
+			kvm_inject_page_fault(ctxt->vcpu, new_tss_base, err);
+			return ret;
+		}
+	}
+
+	return load_state_from_tss32(ctxt, ops, &tss_seg);
+}
+
+static int emulator_do_task_switch(struct x86_emulate_ctxt *ctxt,
+				    struct x86_emulate_ops *ops,
+				    u16 tss_selector, int reason)
+{
+	struct desc_struct curr_tss_desc, next_tss_desc;
+	int ret;
+	u16 old_tss_sel = ops->get_segment_selector(VCPU_SREG_TR, ctxt->vcpu);
+	ulong old_tss_base =
+		get_cached_descriptor_base(ctxt, ops, VCPU_SREG_TR);
+
+	/* FIXME: old_tss_base == ~0 ? */
+
+	ret = read_segment_descriptor(ctxt, ops, tss_selector, &next_tss_desc);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+	ret = read_segment_descriptor(ctxt, ops, old_tss_sel, &curr_tss_desc);
+	if (ret != X86EMUL_CONTINUE)
+		return ret;
+
+	/* FIXME: check that next_tss_desc is tss */
+
+	if (reason != TASK_SWITCH_IRET) {
+		if ((tss_selector & 3) > next_tss_desc.dpl ||
+		    ops->cpl(ctxt->vcpu) > next_tss_desc.dpl) {
+			kvm_inject_gp(ctxt->vcpu, 0);
+			return X86EMUL_PROPAGATE_FAULT;
+		}
+	}
+
+	if (!next_tss_desc.p || desc_limit_scaled(&next_tss_desc) < 0x67) {
+		kvm_queue_exception_e(ctxt->vcpu, TS_VECTOR,
+				      tss_selector & 0xfffc);
+		return X86EMUL_PROPAGATE_FAULT;
+	}
+
+	if (reason == TASK_SWITCH_IRET || reason == TASK_SWITCH_JMP) {
+		curr_tss_desc.type &= ~(1 << 1); /* clear busy flag */
+		write_segment_descriptor(ctxt, ops, old_tss_sel,
+					 &curr_tss_desc);
+	}
+
+	if (reason == TASK_SWITCH_IRET)
+		ctxt->eflags = ctxt->eflags & ~X86_EFLAGS_NT;
+
+	/* set back link to prev task only if NT bit is set in eflags
+	   note that old_tss_sel is not used afetr this point */
+	if (reason != TASK_SWITCH_CALL && reason != TASK_SWITCH_GATE)
+		old_tss_sel = 0xffff;
+
+	if (next_tss_desc.type & 8)
+		ret = task_switch_32(ctxt, ops, tss_selector, old_tss_sel,
+				     old_tss_base, &next_tss_desc);
+	else
+		ret = task_switch_16(ctxt, ops, tss_selector, old_tss_sel,
+				     old_tss_base, &next_tss_desc);
+
+	if (reason == TASK_SWITCH_CALL || reason == TASK_SWITCH_GATE)
+		ctxt->eflags = ctxt->eflags | X86_EFLAGS_NT;
+
+	if (reason != TASK_SWITCH_IRET) {
+		next_tss_desc.type |= (1 << 1); /* set busy flag */
+		write_segment_descriptor(ctxt, ops, tss_selector,
+					 &next_tss_desc);
+	}
+
+	ops->set_cr(0,  ops->get_cr(0, ctxt->vcpu) | X86_CR0_TS, ctxt->vcpu);
+	ops->set_cached_descriptor(&next_tss_desc, VCPU_SREG_TR, ctxt->vcpu);
+	ops->set_segment_selector(tss_selector, VCPU_SREG_TR, ctxt->vcpu);
+
+	return ret;
+}
+
+int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
+			 struct x86_emulate_ops *ops,
+			 u16 tss_selector, int reason)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int rc;
+
+	memset(c, 0, sizeof(struct decode_cache));
+	c->eip = ctxt->eip;
+	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
+
+	rc = emulator_do_task_switch(ctxt, ops, tss_selector, reason);
+
+	if (rc == X86EMUL_CONTINUE) {
+		memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
+		kvm_rip_write(ctxt->vcpu, c->eip);
+	}
+
+	return rc;
 }
 
 int
