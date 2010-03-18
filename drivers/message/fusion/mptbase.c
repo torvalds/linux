@@ -6456,10 +6456,15 @@ out:
 		issue_hard_reset = 0;
 		printk(MYIOC_s_WARN_FMT "Issuing Reset from %s!!\n",
 		    ioc->name, __func__);
-		mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
+		if (retry_count == 0) {
+			if (mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP) != 0)
+				retry_count++;
+		} else
+			mpt_HardResetHandler(ioc, CAN_SLEEP);
+
 		mpt_free_msg_frame(ioc, mf);
 		/* attempt one retry for a timed out command */
-		if (!retry_count) {
+		if (retry_count < 2) {
 			printk(MYIOC_s_INFO_FMT
 			    "Attempting Retry Config request"
 			    " type 0x%x, page 0x%x,"
