@@ -671,6 +671,7 @@ static int __devinit pd6729_pci_probe(struct pci_dev *dev,
 		socket[i].socket.map_size = 0x1000;
 		socket[i].socket.irq_mask = mask;
 		socket[i].socket.pci_irq  = dev->irq;
+		socket[i].socket.cb_dev = dev;
 		socket[i].socket.owner = THIS_MODULE;
 
 		socket[i].number = i;
