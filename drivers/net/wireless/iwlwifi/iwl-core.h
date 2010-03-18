@@ -305,6 +305,7 @@ struct iwl_cfg {
 	s32 chain_noise_scale;
 	/* timer period for monitor the driver queues */
 	u32 monitor_recover_period;
+	bool temperature_kelvin;
 };
 
 /***************************
