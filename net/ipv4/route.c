@@ -932,10 +932,8 @@ static void rt_secret_rebuild_oneshot(struct net *net)
 {
 	del_timer_sync(&net->ipv4.rt_secret_timer);
 	rt_cache_invalidate(net);
-	if (ip_rt_secret_interval) {
-		net->ipv4.rt_secret_timer.expires += ip_rt_secret_interval;
-		add_timer(&net->ipv4.rt_secret_timer);
-	}
+	if (ip_rt_secret_interval)
+		mod_timer(&net->ipv4.rt_secret_timer, jiffies + ip_rt_secret_interval);
 }
 
 static void rt_emergency_hash_rebuild(struct net *net)
@@ -3103,22 +3101,20 @@ static void rt_secret_reschedule(int old)
 	rtnl_lock();
 	for_each_net(net) {
 		int deleted = del_timer_sync(&net->ipv4.rt_secret_timer);
+		long time;
 
 		if (!new)
 			continue;
 
 		if (deleted) {
-			long time = net->ipv4.rt_secret_timer.expires - jiffies;
+			time = net->ipv4.rt_secret_timer.expires - jiffies;
 
 			if (time <= 0 || (time += diff) <= 0)
 				time = 0;
-
-			net->ipv4.rt_secret_timer.expires = time;
 		} else
-			net->ipv4.rt_secret_timer.expires = new;
+			time = new;
 
-		net->ipv4.rt_secret_timer.expires += jiffies;
-		add_timer(&net->ipv4.rt_secret_timer);
+		mod_timer(&net->ipv4.rt_secret_timer, jiffies + time);
 	}
 	rtnl_unlock();
 }

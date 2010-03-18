@@ -49,22 +49,23 @@ static struct net_bridge_mdb_entry *__br_mdb_ip_get(
 static struct net_bridge_mdb_entry *br_mdb_ip_get(
 	struct net_bridge_mdb_htable *mdb, __be32 dst)
 {
+	if (!mdb)
+		return NULL;
+
 	return __br_mdb_ip_get(mdb, dst, br_ip_hash(mdb, dst));
 }
 
 struct net_bridge_mdb_entry *br_mdb_get(struct net_bridge *br,
 					struct sk_buff *skb)
 {
-	struct net_bridge_mdb_htable *mdb = br->mdb;
-
-	if (!mdb || br->multicast_disabled)
+	if (br->multicast_disabled)
 		return NULL;
 
 	switch (skb->protocol) {
 	case htons(ETH_P_IP):
 		if (BR_INPUT_SKB_CB(skb)->igmp)
 			break;
-		return br_mdb_ip_get(mdb, ip_hdr(skb)->daddr);
+		return br_mdb_ip_get(br->mdb, ip_hdr(skb)->daddr);
 	}
 
 	return NULL;
@@ -851,8 +852,8 @@ static int br_multicast_query(struct net_bridge *br,
 		if (ih3->nsrcs)
 			goto out;
 
-		max_delay = ih3->code ? 1 :
-			    IGMPV3_MRC(ih3->code) * (HZ / IGMP_TIMER_SCALE);
+		max_delay = ih3->code ?
+			    IGMPV3_MRC(ih3->code) * (HZ / IGMP_TIMER_SCALE) : 1;
 	}
 
 	if (!group)
@@ -990,7 +991,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 
 		err = pskb_trim_rcsum(skb2, len);
 		if (err)
-			return err;
+			goto err_out;
 	}
 
 	len -= ip_hdrlen(skb2);
@@ -1012,7 +1013,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 	case CHECKSUM_NONE:
 		skb2->csum = 0;
 		if (skb_checksum_complete(skb2))
-			return -EINVAL;
+			goto out;
 	}
 
 	err = 0;
@@ -1039,6 +1040,7 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 
 out:
 	__skb_push(skb2, offset);
+err_out:
 	if (skb2 != skb)
 		kfree_skb(skb2);
 	return err;

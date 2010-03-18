@@ -735,7 +735,7 @@ int netpoll_setup(struct netpoll *np)
 		npinfo = kmalloc(sizeof(*npinfo), GFP_KERNEL);
 		if (!npinfo) {
 			err = -ENOMEM;
-			goto release;
+			goto put;
 		}
 
 		npinfo->rx_flags = 0;
@@ -845,7 +845,7 @@ int netpoll_setup(struct netpoll *np)
 
 		kfree(npinfo);
 	}
-
+put:
 	dev_put(ndev);
 	return err;
 }

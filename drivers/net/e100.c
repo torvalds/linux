@@ -2858,7 +2858,7 @@ static int __devinit e100_probe(struct pci_dev *pdev,
 	}
 	nic->cbs_pool = pci_pool_create(netdev->name,
 			   nic->pdev,
-			   nic->params.cbs.count * sizeof(struct cb),
+			   nic->params.cbs.max * sizeof(struct cb),
 			   sizeof(u32),
 			   0);
 	DPRINTK(PROBE, INFO, "addr 0x%llx, irq %d, MAC addr %pM\n",
