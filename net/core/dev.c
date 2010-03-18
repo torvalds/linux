@@ -3757,11 +3757,10 @@ int netdev_set_master(struct net_device *slave, struct net_device *master)
 
 	slave->master = master;
 
-	synchronize_net();
-
-	if (old)
+	if (old) {
+		synchronize_net();
 		dev_put(old);
-
+	}
 	if (master)
 		slave->flags |= IFF_SLAVE;
 	else
