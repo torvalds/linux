@@ -11,6 +11,7 @@
  * Based on net/netfilter/xt_tcpudp.c
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/types.h>
 #include <linux/module.h>
 #include <net/ip.h>
@@ -23,12 +24,6 @@
 
 MODULE_DESCRIPTION("Xtables: IPv6 Mobility Header match");
 MODULE_LICENSE("GPL");
-
-#ifdef DEBUG_IP_FIREWALL_USER
-#define duprintf(format, args...) printk(format , ## args)
-#else
-#define duprintf(format, args...)
-#endif
 
 /* Returns 1 if the type is matched by the range, 0 otherwise */
 static inline bool
@@ -51,13 +46,13 @@ static bool mh_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 	if (mh == NULL) {
 		/* We've been asked to examine this packet, and we
 		   can't.  Hence, no choice but to drop. */
-		duprintf("Dropping evil MH tinygram.\n");
+		pr_debug("Dropping evil MH tinygram.\n");
 		*par->hotdrop = true;
 		return false;
 	}
 
 	if (mh->ip6mh_proto != IPPROTO_NONE) {
-		duprintf("Dropping invalid MH Payload Proto: %u\n",
+		pr_debug("Dropping invalid MH Payload Proto: %u\n",
 			 mh->ip6mh_proto);
 		*par->hotdrop = true;
 		return false;

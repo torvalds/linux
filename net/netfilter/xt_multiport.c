@@ -8,7 +8,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/types.h>
 #include <linux/udp.h>
@@ -25,12 +25,6 @@ MODULE_AUTHOR("Netfilter Core Team <coreteam@netfilter.org>");
 MODULE_DESCRIPTION("Xtables: multiple port matching for TCP, UDP, UDP-Lite, SCTP and DCCP");
 MODULE_ALIAS("ipt_multiport");
 MODULE_ALIAS("ip6t_multiport");
-
-#if 0
-#define duprintf(format, args...) printk(format , ## args)
-#else
-#define duprintf(format, args...)
-#endif
 
 /* Returns 1 if the port is matched by the test, 0 otherwise. */
 static inline bool
@@ -63,7 +57,7 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 		if (minfo->pflags[i]) {
 			/* range port matching */
 			e = minfo->ports[++i];
-			duprintf("src or dst matches with %d-%d?\n", s, e);
+			pr_debug("src or dst matches with %d-%d?\n", s, e);
 
 			if (minfo->flags == XT_MULTIPORT_SOURCE
 			    && src >= s && src <= e)
@@ -77,7 +71,7 @@ ports_match_v1(const struct xt_multiport_v1 *minfo,
 				return true ^ minfo->invert;
 		} else {
 			/* exact port matching */
-			duprintf("src or dst matches with %d?\n", s);
+			pr_debug("src or dst matches with %d?\n", s);
 
 			if (minfo->flags == XT_MULTIPORT_SOURCE
 			    && src == s)
@@ -109,7 +103,7 @@ multiport_mt_v0(const struct sk_buff *skb, const struct xt_match_param *par)
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
 		 */
-		duprintf("xt_multiport: Dropping evil offset=0 tinygram.\n");
+		pr_debug("Dropping evil offset=0 tinygram.\n");
 		*par->hotdrop = true;
 		return false;
 	}
@@ -133,7 +127,7 @@ multiport_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 		/* We've been asked to examine this packet, and we
 		 * can't.  Hence, no choice but to drop.
 		 */
-		duprintf("xt_multiport: Dropping evil offset=0 tinygram.\n");
+		pr_debug("Dropping evil offset=0 tinygram.\n");
 		*par->hotdrop = true;
 		return false;
 	}
