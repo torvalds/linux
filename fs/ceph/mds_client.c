@@ -2958,9 +2958,10 @@ static void con_put(struct ceph_connection *con)
 static void peer_reset(struct ceph_connection *con)
 {
 	struct ceph_mds_session *s = con->private;
+	struct ceph_mds_client *mdsc = s->s_mdsc;
 
-	pr_err("mds%d gave us the boot.  IMPLEMENT RECONNECT.\n",
-	       s->s_mds);
+	pr_warning("mds%d closed our session\n", s->s_mds);
+	send_mds_reconnect(mdsc, s);
 }
 
 static void dispatch(struct ceph_connection *con, struct ceph_msg *msg)
