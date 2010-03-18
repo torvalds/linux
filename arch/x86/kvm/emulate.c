@@ -1397,7 +1397,6 @@ static inline int emulate_grp3(struct x86_emulate_ctxt *ctxt,
 			       struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
-	int rc = X86EMUL_CONTINUE;
 
 	switch (c->modrm_reg) {
 	case 0 ... 1:	/* test */
@@ -1410,11 +1409,9 @@ static inline int emulate_grp3(struct x86_emulate_ctxt *ctxt,
 		emulate_1op("neg", c->dst, ctxt->eflags);
 		break;
 	default:
-		DPRINTF("Cannot emulate %02x\n", c->b);
-		rc = X86EMUL_UNHANDLEABLE;
-		break;
+		return 0;
 	}
-	return rc;
+	return 1;
 }
 
 static inline int emulate_grp45(struct x86_emulate_ctxt *ctxt,
@@ -2374,9 +2371,8 @@ special_insn:
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xf6 ... 0xf7:	/* Grp3 */
-		rc = emulate_grp3(ctxt, ops);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
+		if (!emulate_grp3(ctxt, ops))
+			goto cannot_emulate;
 		break;
 	case 0xf8: /* clc */
 		ctxt->eflags &= ~EFLG_CF;
