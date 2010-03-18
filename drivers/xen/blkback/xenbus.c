@@ -42,6 +42,11 @@ static int connect_ring(struct backend_info *);
 static void backend_changed(struct xenbus_watch *, const char **,
 			    unsigned int);
 
+struct xenbus_device *blkback_xenbus(struct backend_info *be)
+{
+	return be->dev;
+}
+
 static int blkback_name(blkif_t *blkif, char *buf)
 {
 	char *devpath, *devname;

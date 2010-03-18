@@ -136,4 +136,6 @@ int blkif_schedule(void *arg);
 int blkback_barrier(struct xenbus_transaction xbt,
 		    struct backend_info *be, int state);
 
+struct xenbus_device *blkback_xenbus(struct backend_info *be);
+
 #endif /* __BLKIF__BACKEND__COMMON_H__ */
