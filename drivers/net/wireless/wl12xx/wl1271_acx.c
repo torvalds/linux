@@ -547,7 +547,7 @@ int wl1271_acx_sg_enable(struct wl1271 *wl)
 		goto out;
 	}
 
-	pta->enable = SG_ENABLE;
+	pta->enable = ACX_SG_DISABLE;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_ENABLE, pta, sizeof(*pta));
 	if (ret < 0) {
@@ -575,19 +575,8 @@ int wl1271_acx_sg_cfg(struct wl1271 *wl)
 	}
 
 	/* BT-WLAN coext parameters */
-	param->per_threshold = cpu_to_le32(c->per_threshold);
-	param->max_scan_compensation_time =
-		cpu_to_le32(c->max_scan_compensation_time);
-	param->nfs_sample_interval = cpu_to_le16(c->nfs_sample_interval);
-	param->load_ratio = c->load_ratio;
-	param->auto_ps_mode = c->auto_ps_mode;
-	param->probe_req_compensation = c->probe_req_compensation;
-	param->scan_window_compensation = c->scan_window_compensation;
-	param->antenna_config = c->antenna_config;
-	param->beacon_miss_threshold = c->beacon_miss_threshold;
-	param->rate_adaptation_threshold =
-		cpu_to_le32(c->rate_adaptation_threshold);
-	param->rate_adaptation_snr = c->rate_adaptation_snr;
+	param->params[ACX_SG_BT_PER_THRESHOLD] = c->per_threshold;
+	param->param_idx = ACX_SG_BT_PER_THRESHOLD;
 
 	ret = wl1271_cmd_configure(wl, ACX_SG_CFG, param, sizeof(*param));
 	if (ret < 0) {
