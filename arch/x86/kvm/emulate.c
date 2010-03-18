@@ -2490,6 +2490,9 @@ twobyte_insn:
 				    (c->src.val & 0x0f), ctxt->vcpu);
 			c->dst.type = OP_NONE;
 			break;
+		case 5: /* not defined */
+			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			goto done;
 		case 7: /* invlpg*/
 			emulate_invlpg(ctxt->vcpu, memop);
 			/* Disable writeback. */
