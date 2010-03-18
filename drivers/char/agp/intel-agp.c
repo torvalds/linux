@@ -97,6 +97,9 @@ EXPORT_SYMBOL(intel_agp_enabled);
 #define IS_PINEVIEW (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_M_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_PINEVIEW_HB)
 
+#define IS_SNB (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB || \
+		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB)
+
 #define IS_G4X (agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_EAGLELAKE_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_Q45_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_G45_HB || \
@@ -107,8 +110,7 @@ EXPORT_SYMBOL(intel_agp_enabled);
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_M_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MA_HB || \
 		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_IRONLAKE_MC2_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_HB || \
-		agp_bridge->dev->device == PCI_DEVICE_ID_INTEL_SANDYBRIDGE_M_HB)
+		IS_SNB)
 
 extern int agp_memory_reserved;
 
@@ -1202,6 +1204,9 @@ static void intel_i9xx_setup_flush(void)
 {
 	/* return if already configured */
 	if (intel_private.ifp_resource.start)
+		return;
+
+	if (IS_SNB)
 		return;
 
 	/* setup a resource for this object */
