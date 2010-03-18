@@ -2126,12 +2126,11 @@ special_insn:
 	case 0x8c: { /* mov r/m, sreg */
 		struct kvm_segment segreg;
 
-		if (c->modrm_reg <= 5)
+		if (c->modrm_reg <= VCPU_SREG_GS)
 			kvm_get_segment(ctxt->vcpu, &segreg, c->modrm_reg);
 		else {
-			printk(KERN_INFO "0x8c: Invalid segreg in modrm byte 0x%02x\n",
-			       c->modrm);
-			goto cannot_emulate;
+			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			goto done;
 		}
 		c->dst.val = segreg.selector;
 		break;
