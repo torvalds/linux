@@ -2424,7 +2424,6 @@ int
 x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
 	u64 msr_data;
-	unsigned long saved_eip = 0;
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
 
@@ -2436,7 +2435,6 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	 */
 
 	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
-	saved_eip = c->eip;
 
 	if (ctxt->mode == X86EMUL_MODE_PROT64 && (c->d & No64)) {
 		kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
@@ -2928,11 +2926,7 @@ writeback:
 	kvm_rip_write(ctxt->vcpu, c->eip);
 
 done:
-	if (rc == X86EMUL_UNHANDLEABLE) {
-		c->eip = saved_eip;
-		return -1;
-	}
-	return 0;
+	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
 
 twobyte_insn:
 	switch (c->b) {
@@ -3209,6 +3203,5 @@ twobyte_insn:
 
 cannot_emulate:
 	DPRINTF("Cannot emulate %02x\n", c->b);
-	c->eip = saved_eip;
 	return -1;
 }
