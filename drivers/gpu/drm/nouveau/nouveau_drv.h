@@ -76,6 +76,7 @@ struct nouveau_bo {
 	struct ttm_buffer_object bo;
 	struct ttm_placement placement;
 	u32 placements[3];
+	u32 busy_placements[3];
 	struct ttm_bo_kmap_obj kmap;
 	struct list_head head;
 
@@ -1124,7 +1125,8 @@ extern int nouveau_bo_pin(struct nouveau_bo *, uint32_t flags);
 extern int nouveau_bo_unpin(struct nouveau_bo *);
 extern int nouveau_bo_map(struct nouveau_bo *);
 extern void nouveau_bo_unmap(struct nouveau_bo *);
-extern void nouveau_bo_placement_set(struct nouveau_bo *, uint32_t memtype);
+extern void nouveau_bo_placement_set(struct nouveau_bo *, uint32_t type,
+				     uint32_t busy);
 extern u16 nouveau_bo_rd16(struct nouveau_bo *nvbo, unsigned index);
 extern void nouveau_bo_wr16(struct nouveau_bo *nvbo, unsigned index, u16 val);
 extern u32 nouveau_bo_rd32(struct nouveau_bo *nvbo, unsigned index);
