@@ -2041,7 +2041,7 @@ static int mptsas_phy_reset(struct sas_phy *phy, int hard_reset)
 	if (!timeleft) {
 		/* On timeout reset the board */
 		mpt_free_msg_frame(ioc, mf);
-		mpt_HardResetHandler(ioc, CAN_SLEEP);
+		mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 		error = -ETIMEDOUT;
 		goto out_unlock;
 	}
@@ -2226,7 +2226,7 @@ static int mptsas_smp_handler(struct Scsi_Host *shost, struct sas_rphy *rphy,
 	if (!timeleft) {
 		printk(MYIOC_s_ERR_FMT "%s: smp timeout!\n", ioc->name, __func__);
 		/* On timeout reset the board */
-		mpt_HardResetHandler(ioc, CAN_SLEEP);
+		mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 		ret = -ETIMEDOUT;
 		goto unmap;
 	}
@@ -2833,7 +2833,7 @@ mptsas_exp_repmanufacture_info(MPT_ADAPTER *ioc,
 		if (ioc->sas_mgmt.status & MPT_MGMT_STATUS_DID_IOCRESET)
 			goto out_free;
 		if (!timeleft)
-			mpt_HardResetHandler(ioc, CAN_SLEEP);
+			mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 		goto out_free;
 	}
 
@@ -4717,7 +4717,7 @@ mptsas_broadcast_primative_work(struct fw_event_work *fw_event)
 	if (issue_reset) {
 		printk(MYIOC_s_WARN_FMT "Issuing Reset from %s!!\n",
 		    ioc->name, __func__);
-		mpt_HardResetHandler(ioc, CAN_SLEEP);
+		mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 	}
 	mptsas_free_fw_event(ioc, fw_event);
 }

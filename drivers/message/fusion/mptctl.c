@@ -311,7 +311,7 @@ mptctl_timeout_expired(MPT_ADAPTER *ioc, MPT_FRAME_HDR *mf)
 	dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT "Calling HardReset! \n",
 		 ioc->name));
 	CLEAR_MGMT_PENDING_STATUS(ioc->ioctl_cmds.status)
-	mpt_HardResetHandler(ioc, CAN_SLEEP);
+	mpt_Soft_Hard_ResetHandler(ioc, CAN_SLEEP);
 	mpt_free_msg_frame(ioc, mf);
 }
 
