@@ -1745,9 +1745,10 @@ static int wl1271_op_conf_tx(struct ieee80211_hw *hw, u16 queue,
 	if (ret < 0)
 		goto out;
 
+	/* the txop is confed in units of 32us by the mac80211, we need us */
 	ret = wl1271_acx_ac_cfg(wl, wl1271_tx_get_queue(queue),
 				params->cw_min, params->cw_max,
-				params->aifs, params->txop);
+				params->aifs, params->txop << 5);
 	if (ret < 0)
 		goto out_sleep;
 
