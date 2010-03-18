@@ -3058,6 +3058,18 @@ static int vcpu_mmio_read(struct kvm_vcpu *vcpu, gpa_t addr, int len, void *v)
 	return kvm_io_bus_read(vcpu->kvm, KVM_MMIO_BUS, addr, len, v);
 }
 
+static void kvm_set_segment(struct kvm_vcpu *vcpu,
+			struct kvm_segment *var, int seg)
+{
+	kvm_x86_ops->set_segment(vcpu, var, seg);
+}
+
+void kvm_get_segment(struct kvm_vcpu *vcpu,
+		     struct kvm_segment *var, int seg)
+{
+	kvm_x86_ops->get_segment(vcpu, var, seg);
+}
+
 gpa_t kvm_mmu_gva_to_gpa_read(struct kvm_vcpu *vcpu, gva_t gva, u32 *error)
 {
 	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
@@ -3138,14 +3150,18 @@ static int kvm_read_guest_virt_system(gva_t addr, void *val, unsigned int bytes,
 	return kvm_read_guest_virt_helper(addr, val, bytes, vcpu, 0, error);
 }
 
-static int kvm_write_guest_virt(gva_t addr, void *val, unsigned int bytes,
-				struct kvm_vcpu *vcpu, u32 *error)
+static int kvm_write_guest_virt_helper(gva_t addr, void *val,
+				       unsigned int bytes,
+				       struct kvm_vcpu *vcpu, u32 access,
+				       u32 *error)
 {
 	void *data = val;
 	int r = X86EMUL_CONTINUE;
 
+	access |= PFERR_WRITE_MASK;
+
 	while (bytes) {
-		gpa_t gpa = kvm_mmu_gva_to_gpa_write(vcpu, addr, error);
+		gpa_t gpa =  vcpu->arch.mmu.gva_to_gpa(vcpu, addr, access, error);
 		unsigned offset = addr & (PAGE_SIZE-1);
 		unsigned towrite = min(bytes, (unsigned)PAGE_SIZE - offset);
 		int ret;
@@ -3168,6 +3184,19 @@ out:
 	return r;
 }
 
+static int kvm_write_guest_virt(gva_t addr, void *val, unsigned int bytes,
+				struct kvm_vcpu *vcpu, u32 *error)
+{
+	u32 access = (kvm_x86_ops->get_cpl(vcpu) == 3) ? PFERR_USER_MASK : 0;
+	return kvm_write_guest_virt_helper(addr, val, bytes, vcpu, access, error);
+}
+
+static int kvm_write_guest_virt_system(gva_t addr, void *val,
+				       unsigned int bytes,
+				       struct kvm_vcpu *vcpu, u32 *error)
+{
+	return kvm_write_guest_virt_helper(addr, val, bytes, vcpu, 0, error);
+}
 
 static int emulator_read_emulated(unsigned long addr,
 				  void *val,
@@ -3484,12 +3513,95 @@ static int emulator_get_cpl(struct kvm_vcpu *vcpu)
 	return kvm_x86_ops->get_cpl(vcpu);
 }
 
+static void emulator_get_gdt(struct desc_ptr *dt, struct kvm_vcpu *vcpu)
+{
+	kvm_x86_ops->get_gdt(vcpu, dt);
+}
+
+static bool emulator_get_cached_descriptor(struct desc_struct *desc, int seg,
+					   struct kvm_vcpu *vcpu)
+{
+	struct kvm_segment var;
+
+	kvm_get_segment(vcpu, &var, seg);
+
+	if (var.unusable)
+		return false;
+
+	if (var.g)
+		var.limit >>= 12;
+	set_desc_limit(desc, var.limit);
+	set_desc_base(desc, (unsigned long)var.base);
+	desc->type = var.type;
+	desc->s = var.s;
+	desc->dpl = var.dpl;
+	desc->p = var.present;
+	desc->avl = var.avl;
+	desc->l = var.l;
+	desc->d = var.db;
+	desc->g = var.g;
+
+	return true;
+}
+
+static void emulator_set_cached_descriptor(struct desc_struct *desc, int seg,
+					   struct kvm_vcpu *vcpu)
+{
+	struct kvm_segment var;
+
+	/* needed to preserve selector */
+	kvm_get_segment(vcpu, &var, seg);
+
+	var.base = get_desc_base(desc);
+	var.limit = get_desc_limit(desc);
+	if (desc->g)
+		var.limit = (var.limit << 12) | 0xfff;
+	var.type = desc->type;
+	var.present = desc->p;
+	var.dpl = desc->dpl;
+	var.db = desc->d;
+	var.s = desc->s;
+	var.l = desc->l;
+	var.g = desc->g;
+	var.avl = desc->avl;
+	var.present = desc->p;
+	var.unusable = !var.present;
+	var.padding = 0;
+
+	kvm_set_segment(vcpu, &var, seg);
+	return;
+}
+
+static u16 emulator_get_segment_selector(int seg, struct kvm_vcpu *vcpu)
+{
+	struct kvm_segment kvm_seg;
+
+	kvm_get_segment(vcpu, &kvm_seg, seg);
+	return kvm_seg.selector;
+}
+
+static void emulator_set_segment_selector(u16 sel, int seg,
+					  struct kvm_vcpu *vcpu)
+{
+	struct kvm_segment kvm_seg;
+
+	kvm_get_segment(vcpu, &kvm_seg, seg);
+	kvm_seg.selector = sel;
+	kvm_set_segment(vcpu, &kvm_seg, seg);
+}
+
 static struct x86_emulate_ops emulate_ops = {
 	.read_std            = kvm_read_guest_virt_system,
+	.write_std           = kvm_write_guest_virt_system,
 	.fetch               = kvm_fetch_guest_virt,
 	.read_emulated       = emulator_read_emulated,
 	.write_emulated      = emulator_write_emulated,
 	.cmpxchg_emulated    = emulator_cmpxchg_emulated,
+	.get_cached_descriptor = emulator_get_cached_descriptor,
+	.set_cached_descriptor = emulator_set_cached_descriptor,
+	.get_segment_selector = emulator_get_segment_selector,
+	.set_segment_selector = emulator_set_segment_selector,
+	.get_gdt             = emulator_get_gdt,
 	.get_cr              = emulator_get_cr,
 	.set_cr              = emulator_set_cr,
 	.cpl                 = emulator_get_cpl,
@@ -4649,12 +4761,6 @@ int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 	return 0;
 }
 
-void kvm_get_segment(struct kvm_vcpu *vcpu,
-		     struct kvm_segment *var, int seg)
-{
-	kvm_x86_ops->get_segment(vcpu, var, seg);
-}
-
 void kvm_get_cs_db_l_bits(struct kvm_vcpu *vcpu, int *db, int *l)
 {
 	struct kvm_segment cs;
@@ -4724,12 +4830,6 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
 	vcpu->arch.mp_state = mp_state->mp_state;
 	vcpu_put(vcpu);
 	return 0;
-}
-
-static void kvm_set_segment(struct kvm_vcpu *vcpu,
-			struct kvm_segment *var, int seg)
-{
-	kvm_x86_ops->set_segment(vcpu, var, seg);
 }
 
 static void seg_desct_to_kvm_desct(struct desc_struct *seg_desc, u16 selector,

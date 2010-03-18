@@ -63,6 +63,15 @@ struct x86_emulate_ops {
 			unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
 
 	/*
+	 * write_std: Write bytes of standard (non-emulated/special) memory.
+	 *            Used for descriptor writing.
+	 *  @addr:  [IN ] Linear address to which to write.
+	 *  @val:   [OUT] Value write to memory, zero-extended to 'u_long'.
+	 *  @bytes: [IN ] Number of bytes to write to memory.
+	 */
+	int (*write_std)(unsigned long addr, void *val,
+			 unsigned int bytes, struct kvm_vcpu *vcpu, u32 *error);
+	/*
 	 * fetch: Read bytes of standard (non-emulated/special) memory.
 	 *        Used for instruction fetch.
 	 *  @addr:  [IN ] Linear address from which to read.
@@ -108,6 +117,13 @@ struct x86_emulate_ops {
 				const void *new,
 				unsigned int bytes,
 				struct kvm_vcpu *vcpu);
+	bool (*get_cached_descriptor)(struct desc_struct *desc,
+				      int seg, struct kvm_vcpu *vcpu);
+	void (*set_cached_descriptor)(struct desc_struct *desc,
+				      int seg, struct kvm_vcpu *vcpu);
+	u16 (*get_segment_selector)(int seg, struct kvm_vcpu *vcpu);
+	void (*set_segment_selector)(u16 sel, int seg, struct kvm_vcpu *vcpu);
+	void (*get_gdt)(struct desc_ptr *dt, struct kvm_vcpu *vcpu);
 	ulong (*get_cr)(int cr, struct kvm_vcpu *vcpu);
 	void (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
 	int (*cpl)(struct kvm_vcpu *vcpu);
