@@ -5525,13 +5525,14 @@ void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	struct net_device *dev = priv->ieee80211->dev;
 	struct ieee80211_device* ieee = priv->ieee80211;
 	RESET_TYPE ResetType = RESET_TYPE_NORESET;
-	u8 check_reset_cnt = 0;
+	static u8 check_reset_cnt;
+	u32 TotalRxBcnNum = 0;
+	u32 TotalRxDataNum = 0;
 	bool bBusyTraffic = false;
 
 	if(!priv->up)
 		return;
 	hal_dm_watchdog(dev);
-
 	/* to get busy traffic condition */
 	if (ieee->state == IEEE80211_LINKED) {
 		if (ieee->LinkDetectInfo.NumRxOkInPeriod > 666 ||
@@ -5545,23 +5546,15 @@ void rtl819x_watchdog_wqcallback(struct work_struct *work)
 
 	if (priv->ieee80211->state == IEEE80211_LINKED &&
 				priv->ieee80211->iw_mode == IW_MODE_INFRA) {
-		u32 TotalRxBcnNum = 0;
-		u32 TotalRxDataNum = 0;
 		rtl819x_update_rxcounts(priv, &TotalRxBcnNum, &TotalRxDataNum);
 		if ((TotalRxBcnNum + TotalRxDataNum) == 0) {
-			#ifdef TODO
-			if (rfState == eRfOff)
-				RT_TRACE(COMP_ERR, "========>%s()\n",
-								__func__);
-			#endif
-			RT_TRACE(COMP_ERR, "=>%s(): AP is power off,"
+			RT_TRACE(COMP_ERR, "%s(): AP is powered off,"
 					"connect another one\n", __func__);
 			/* Dot11d_Reset(dev); */
 			priv->ieee80211->state = IEEE80211_ASSOCIATING;
 			notify_wx_assoc_event(priv->ieee80211);
 			RemovePeerTS(priv->ieee80211,
 					priv->ieee80211->current_network.bssid);
-
 			ieee->is_roaming = true;
 			priv->ieee80211->link_change(dev);
 			queue_work(priv->ieee80211->wq,
@@ -5584,11 +5577,11 @@ void rtl819x_watchdog_wqcallback(struct work_struct *work)
 		(!priv->bDisableNormalResetCheck &&
 		 /* This is control by OID set in Pomelo */
 		ResetType == RESET_TYPE_SILENT)))) {
-		RT_TRACE(COMP_RESET, "%s():priv->force_reset is %d,"
+		RT_TRACE(COMP_RESET, "%s(): priv->force_reset is %d,"
 			"priv->ResetProgress is %d, "
 			"priv->bForcedSilentReset is %d, "
 			"priv->bDisableNormalResetCheck is %d, "
-			"ResetType is %d\n",
+			"ResetType is %d",
 					__func__,
 					priv->force_reset,
 					priv->ResetProgress,
@@ -5600,7 +5593,6 @@ void rtl819x_watchdog_wqcallback(struct work_struct *work)
 	priv->force_reset = false;
 	priv->bForcedSilentReset = false;
 	priv->bResetInProgress = false;
-	RT_TRACE(COMP_TRACE, " <==RtUsbCheckForHangWorkItemCallback()\n");
 }
 
 void watch_dog_timer_callback(unsigned long data)
