@@ -41,6 +41,8 @@ MODULE_ALIAS("ip6t_dst");
  *	5	-> RTALERT 2 x x
  */
 
+static struct xt_match hbh_mt6_reg[] __read_mostly;
+
 static bool
 hbh_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 {
@@ -58,7 +60,9 @@ hbh_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 	unsigned int optlen;
 	int err;
 
-	err = ipv6_find_hdr(skb, &ptr, par->match->data, NULL);
+	err = ipv6_find_hdr(skb, &ptr,
+			    (par->match == &hbh_mt6_reg[0]) ?
+			    NEXTHDR_HOP : NEXTHDR_DEST, NULL);
 	if (err < 0) {
 		if (err != -ENOENT)
 			*par->hotdrop = true;
@@ -179,13 +183,13 @@ static bool hbh_mt6_check(const struct xt_mtchk_param *par)
 
 static struct xt_match hbh_mt6_reg[] __read_mostly = {
 	{
+		/* Note, hbh_mt6 relies on the order of hbh_mt6_reg */
 		.name		= "hbh",
 		.family		= NFPROTO_IPV6,
 		.match		= hbh_mt6,
 		.matchsize	= sizeof(struct ip6t_opts),
 		.checkentry	= hbh_mt6_check,
 		.me		= THIS_MODULE,
-		.data		= NEXTHDR_HOP,
 	},
 	{
 		.name		= "dst",
@@ -194,7 +198,6 @@ static struct xt_match hbh_mt6_reg[] __read_mostly = {
 		.matchsize	= sizeof(struct ip6t_opts),
 		.checkentry	= hbh_mt6_check,
 		.me		= THIS_MODULE,
-		.data		= NEXTHDR_DEST,
 	},
 };
 
