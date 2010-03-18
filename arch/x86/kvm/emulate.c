@@ -1842,7 +1842,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	}
 
 	/* LOCK prefix is allowed only with some instructions */
-	if (c->lock_prefix && !(c->d & Lock)) {
+	if (c->lock_prefix && (!(c->d & Lock) || c->dst.type != OP_MEM)) {
 		kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
 		goto done;
 	}
