@@ -914,17 +914,23 @@ out:
 static noinline int key_in_sk(struct btrfs_key *key,
 			      struct btrfs_ioctl_search_key *sk)
 {
-	if (key->objectid < sk->min_objectid)
+	struct btrfs_key test;
+	int ret;
+
+	test.objectid = sk->min_objectid;
+	test.type = sk->min_type;
+	test.offset = sk->min_offset;
+
+	ret = btrfs_comp_cpu_keys(key, &test);
+	if (ret < 0)
 		return 0;
-	if (key->offset < sk->min_offset)
-		return 0;
-	if (key->type < sk->min_type)
-		return 0;
-	if (key->objectid > sk->max_objectid)
-		return 0;
-	if (key->type > sk->max_type)
-		return 0;
-	if (key->offset > sk->max_offset)
+
+	test.objectid = sk->max_objectid;
+	test.type = sk->max_type;
+	test.offset = sk->max_offset;
+
+	ret = btrfs_comp_cpu_keys(key, &test);
+	if (ret > 0)
 		return 0;
 	return 1;
 }
@@ -998,13 +1004,18 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 			break;
 	}
 advance_key:
-	if (key->offset < (u64)-1)
-		key->offset++;
-	else if (key->type < (u8)-1)
-		key->type++;
-	else if (key->objectid < (u64)-1)
-		key->objectid++;
 	ret = 0;
+	if (key->offset < (u64)-1 && key->offset < sk->max_offset)
+		key->offset++;
+	else if (key->type < (u8)-1 && key->type < sk->max_type) {
+		key->offset = 0;
+		key->type++;
+	} else if (key->objectid < (u64)-1 && key->objectid < sk->max_objectid) {
+		key->offset = 0;
+		key->type = 0;
+		key->objectid++;
+	} else
+		ret = 1;
 overflow:
 	*num_found += found;
 	return ret;
