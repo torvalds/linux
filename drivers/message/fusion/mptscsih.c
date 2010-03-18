@@ -1723,6 +1723,7 @@ mptscsih_get_tm_timeout(MPT_ADAPTER *ioc)
 	case FC:
 		return 40;
 	case SAS:
+		return 30;
 	case SPI:
 	default:
 		return 10;
@@ -1772,7 +1773,7 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 		    ioc->name, SCpnt));
 		SCpnt->result = DID_NO_CONNECT << 16;
 		SCpnt->scsi_done(SCpnt);
-		retval = 0;
+		retval = SUCCESS;
 		goto out;
 	}
 
@@ -1781,6 +1782,17 @@ mptscsih_abort(struct scsi_cmnd * SCpnt)
 	if (vdevice->vtarget->tflags & MPT_TARGET_FLAGS_RAID_COMPONENT) {
 		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
 		    "task abort: hidden raid component (sc=%p)\n",
+		    ioc->name, SCpnt));
+		SCpnt->result = DID_RESET << 16;
+		retval = FAILED;
+		goto out;
+	}
+
+	/* Task aborts are not supported for volumes.
+	 */
+	if (vdevice->vtarget->raidVolume) {
+		dtmprintk(ioc, printk(MYIOC_s_DEBUG_FMT
+		    "task abort: raid volume (sc=%p)\n",
 		    ioc->name, SCpnt));
 		SCpnt->result = DID_RESET << 16;
 		retval = FAILED;
