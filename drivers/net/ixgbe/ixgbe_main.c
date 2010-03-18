@@ -5018,6 +5018,7 @@ static void ixgbe_multispeed_fiber_task(struct work_struct *work)
 	autoneg = hw->phy.autoneg_advertised;
 	if ((!autoneg) && (hw->mac.ops.get_link_capabilities))
 		hw->mac.ops.get_link_capabilities(hw, &autoneg, &negotiation);
+	hw->mac.autotry_restart = false;
 	if (hw->mac.ops.setup_link)
 		hw->mac.ops.setup_link(hw, autoneg, negotiation, true);
 	adapter->flags |= IXGBE_FLAG_NEED_LINK_UPDATE;
@@ -6380,6 +6381,16 @@ static void __devexit ixgbe_remove(struct pci_dev *pdev)
 	del_timer_sync(&adapter->sfp_timer);
 	cancel_work_sync(&adapter->watchdog_task);
 	cancel_work_sync(&adapter->sfp_task);
+	if (adapter->hw.phy.multispeed_fiber) {
+		struct ixgbe_hw *hw = &adapter->hw;
+		/*
+		 * Restart clause 37 autoneg, disable and re-enable
+		 * the tx laser, to clear & alert the link partner
+		 * that it needs to restart autotry
+		 */
+		hw->mac.autotry_restart = true;
+		hw->mac.ops.flap_tx_laser(hw);
+	}
 	cancel_work_sync(&adapter->multispeed_fiber_task);
 	cancel_work_sync(&adapter->sfp_config_module_task);
 	if (adapter->flags & IXGBE_FLAG_FDIR_HASH_CAPABLE ||
