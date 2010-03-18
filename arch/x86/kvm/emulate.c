@@ -2486,8 +2486,8 @@ twobyte_insn:
 			c->dst.val = ops->get_cr(0, ctxt->vcpu);
 			break;
 		case 6: /* lmsw */
-			realmode_lmsw(ctxt->vcpu, (u16)c->src.val,
-				      &ctxt->eflags);
+			ops->set_cr(0, (ops->get_cr(0, ctxt->vcpu) & ~0x0ful) |
+				    (c->src.val & 0x0f), ctxt->vcpu);
 			c->dst.type = OP_NONE;
 			break;
 		case 7: /* invlpg*/

@@ -4098,13 +4098,6 @@ void realmode_lidt(struct kvm_vcpu *vcpu, u16 limit, unsigned long base)
 	kvm_x86_ops->set_idt(vcpu, &dt);
 }
 
-void realmode_lmsw(struct kvm_vcpu *vcpu, unsigned long msw,
-		   unsigned long *rflags)
-{
-	kvm_lmsw(vcpu, msw);
-	*rflags = kvm_get_rflags(vcpu);
-}
-
 static int move_to_next_stateful_cpuid_entry(struct kvm_vcpu *vcpu, int i)
 {
 	struct kvm_cpuid_entry2 *e = &vcpu->arch.cpuid_entries[i];
