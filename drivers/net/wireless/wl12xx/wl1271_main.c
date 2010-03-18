@@ -1029,12 +1029,13 @@ static void wl1271_op_remove_interface(struct ieee80211_hw *hw,
 	struct wl1271 *wl = hw->priv;
 	int i;
 
+	unregister_inetaddr_notifier(&wl1271_dev_notifier);
+
 	mutex_lock(&wl->mutex);
 	wl1271_debug(DEBUG_MAC80211, "mac80211 remove interface");
 
 	wl1271_info("down");
 
-	unregister_inetaddr_notifier(&wl1271_dev_notifier);
 	list_del(&wl->list);
 
 	WARN_ON(wl->state != WL1271_STATE_ON);
