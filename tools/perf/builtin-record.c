@@ -225,7 +225,7 @@ static struct perf_header_attr *get_header_attr(struct perf_event_attr *a, int n
 	return h_attr;
 }
 
-static void create_counter(int counter, int cpu, pid_t pid, bool forks)
+static void create_counter(int counter, int cpu, pid_t pid)
 {
 	char *filter = filters[counter];
 	struct perf_event_attr *attr = attrs + counter;
@@ -275,10 +275,10 @@ static void create_counter(int counter, int cpu, pid_t pid, bool forks)
 	attr->mmap		= track;
 	attr->comm		= track;
 	attr->inherit		= inherit;
-	attr->disabled		= 1;
-
-	if (forks)
+	if (target_pid == -1 && !system_wide) {
+		attr->disabled = 1;
 		attr->enable_on_exec = 1;
+	}
 
 try_again:
 	fd[nr_cpu][counter] = sys_perf_event_open(attr, pid, cpu, group_fd, 0);
@@ -380,17 +380,15 @@ try_again:
 			exit(-1);
 		}
 	}
-
-	ioctl(fd[nr_cpu][counter], PERF_EVENT_IOC_ENABLE);
 }
 
-static void open_counters(int cpu, pid_t pid, bool forks)
+static void open_counters(int cpu, pid_t pid)
 {
 	int counter;
 
 	group_fd = -1;
 	for (counter = 0; counter < nr_counters; counter++)
-		create_counter(counter, cpu, pid, forks);
+		create_counter(counter, cpu, pid);
 
 	nr_cpu++;
 }
@@ -425,7 +423,7 @@ static int __cmd_record(int argc, const char **argv)
 	int err;
 	unsigned long waking = 0;
 	int child_ready_pipe[2], go_pipe[2];
-	const bool forks = target_pid == -1 && argc > 0;
+	const bool forks = argc > 0;
 	char buf;
 
 	page_size = sysconf(_SC_PAGE_SIZE);
@@ -496,13 +494,13 @@ static int __cmd_record(int argc, const char **argv)
 	atexit(atexit_header);
 
 	if (forks) {
-		pid = fork();
+		child_pid = fork();
 		if (pid < 0) {
 			perror("failed to fork");
 			exit(-1);
 		}
 
-		if (!pid) {
+		if (!child_pid) {
 			close(child_ready_pipe[0]);
 			close(go_pipe[1]);
 			fcntl(go_pipe[0], F_SETFD, FD_CLOEXEC);
@@ -531,11 +529,6 @@ static int __cmd_record(int argc, const char **argv)
 			exit(-1);
 		}
 
-		child_pid = pid;
-
-		if (!system_wide)
-			target_pid = pid;
-
 		close(child_ready_pipe[1]);
 		close(go_pipe[0]);
 		/*
@@ -548,13 +541,17 @@ static int __cmd_record(int argc, const char **argv)
 		close(child_ready_pipe[0]);
 	}
 
+	if (forks && target_pid == -1 && !system_wide)
+		pid = child_pid;
+	else
+		pid = target_pid;
 
 	if ((!system_wide && !inherit) || profile_cpu != -1) {
-		open_counters(profile_cpu, target_pid, forks);
+		open_counters(profile_cpu, pid);
 	} else {
 		nr_cpus = read_cpu_map();
 		for (i = 0; i < nr_cpus; i++)
-			open_counters(cpumap[i], target_pid, forks);
+			open_counters(cpumap[i], pid);
 	}
 
 	if (file_new) {
