@@ -334,6 +334,7 @@ not_in_delay_slot:
 	addk	r6, r5, r5; /* << 1 */
 	addk	r6, r6, r6; /* << 2 */
 
+#ifdef DEBUG
 /* counting which exception happen */
 	lwi	r5, r0, 0x200 + TOPHYS(r0_ram)
 	addi	r5, r5, 1
@@ -341,6 +342,7 @@ not_in_delay_slot:
 	lwi	r5, r6, 0x200 + TOPHYS(r0_ram)
 	addi	r5, r5, 1
 	swi	r5, r6, 0x200 + TOPHYS(r0_ram)
+#endif
 /* end */
 	/* Load the HW Exception vector */
 	lwi	r6, r6, TOPHYS(_MB_HW_ExceptionVectorTable)
