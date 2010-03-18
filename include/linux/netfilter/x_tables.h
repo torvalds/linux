@@ -197,6 +197,7 @@ struct xt_counters_info {
  * @family:	Actual NFPROTO_* through which the function is invoked
  * 		(helpful when match->family == NFPROTO_UNSPEC)
  * @hotdrop:	drop packet if we had inspection problems
+ * Network namespace obtainable using dev_net(in/out)
  */
 struct xt_match_param {
 	const struct net_device *in, *out;
@@ -213,12 +214,14 @@ struct xt_match_param {
  * struct xt_mtchk_param - parameters for match extensions'
  * checkentry functions
  *
+ * @net:	network namespace through which the check was invoked
  * @table:	table the rule is tried to be inserted into
  * @entryinfo:	the family-specific rule data
- * 		(struct ipt_ip, ip6t_ip, ebt_entry)
+ * 		(struct ipt_ip, ip6t_ip, arpt_arp or (note) ebt_entry)
  * @match:	struct xt_match through which this function was invoked
  * @matchinfo:	per-match data
  * @hook_mask:	via which hooks the new rule is reachable
+ * Other fields as above.
  */
 struct xt_mtchk_param {
 	struct net *net;
@@ -230,7 +233,10 @@ struct xt_mtchk_param {
 	u_int8_t family;
 };
 
-/* Match destructor parameters */
+/**
+ * struct xt_mdtor_param - match destructor parameters
+ * Fields as above.
+ */
 struct xt_mtdtor_param {
 	struct net *net;
 	const struct xt_match *match;
