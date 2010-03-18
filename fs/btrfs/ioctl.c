@@ -1147,12 +1147,13 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 	root = btrfs_read_fs_root_no_name(info, &key);
 	if (IS_ERR(root)) {
 		printk(KERN_ERR "could not find root %llu\n", tree_id);
-		return -ENOENT;
+		ret = -ENOENT;
+		goto out;
 	}
 
 	key.objectid = dirid;
 	key.type = BTRFS_INODE_REF_KEY;
-	key.offset = 0;
+	key.offset = (u64)-1;
 
 	while(1) {
 		ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
@@ -1161,6 +1162,8 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 
 		l = path->nodes[0];
 		slot = path->slots[0];
+		if (ret > 0 && slot > 0)
+			slot--;
 		btrfs_item_key_to_cpu(l, &key, slot);
 
 		if (ret > 0 && (key.objectid != dirid ||
@@ -1184,7 +1187,7 @@ static noinline int btrfs_search_path_in_tree(struct btrfs_fs_info *info,
 
 		btrfs_release_path(root, path);
 		key.objectid = key.offset;
-		key.offset = 0;
+		key.offset = (u64)-1;
 		dirid = key.objectid;
 
 	}
