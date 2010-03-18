@@ -2483,7 +2483,7 @@ twobyte_insn:
 			break;
 		case 4: /* smsw */
 			c->dst.bytes = 2;
-			c->dst.val = realmode_get_cr(ctxt->vcpu, 0);
+			c->dst.val = ops->get_cr(0, ctxt->vcpu);
 			break;
 		case 6: /* lmsw */
 			realmode_lmsw(ctxt->vcpu, (u16)c->src.val,
@@ -2519,8 +2519,7 @@ twobyte_insn:
 	case 0x20: /* mov cr, reg */
 		if (c->modrm_mod != 3)
 			goto cannot_emulate;
-		c->regs[c->modrm_rm] =
-				realmode_get_cr(ctxt->vcpu, c->modrm_reg);
+		c->regs[c->modrm_rm] = ops->get_cr(c->modrm_reg, ctxt->vcpu);
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x21: /* mov from dr to reg */
@@ -2534,7 +2533,7 @@ twobyte_insn:
 	case 0x22: /* mov reg, cr */
 		if (c->modrm_mod != 3)
 			goto cannot_emulate;
-		realmode_set_cr(ctxt->vcpu, c->modrm_reg, c->modrm_val);
+		ops->set_cr(c->modrm_reg, c->modrm_val, ctxt->vcpu);
 		c->dst.type = OP_NONE;
 		break;
 	case 0x23: /* mov from reg to dr */

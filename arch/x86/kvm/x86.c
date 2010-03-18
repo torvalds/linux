@@ -3423,12 +3423,70 @@ void kvm_report_emulation_failure(struct kvm_vcpu *vcpu, const char *context)
 }
 EXPORT_SYMBOL_GPL(kvm_report_emulation_failure);
 
+static u64 mk_cr_64(u64 curr_cr, u32 new_val)
+{
+	return (curr_cr & ~((1ULL << 32) - 1)) | new_val;
+}
+
+static unsigned long emulator_get_cr(int cr, struct kvm_vcpu *vcpu)
+{
+	unsigned long value;
+
+	switch (cr) {
+	case 0:
+		value = kvm_read_cr0(vcpu);
+		break;
+	case 2:
+		value = vcpu->arch.cr2;
+		break;
+	case 3:
+		value = vcpu->arch.cr3;
+		break;
+	case 4:
+		value = kvm_read_cr4(vcpu);
+		break;
+	case 8:
+		value = kvm_get_cr8(vcpu);
+		break;
+	default:
+		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __func__, cr);
+		return 0;
+	}
+
+	return value;
+}
+
+static void emulator_set_cr(int cr, unsigned long val, struct kvm_vcpu *vcpu)
+{
+	switch (cr) {
+	case 0:
+		kvm_set_cr0(vcpu, mk_cr_64(kvm_read_cr0(vcpu), val));
+		break;
+	case 2:
+		vcpu->arch.cr2 = val;
+		break;
+	case 3:
+		kvm_set_cr3(vcpu, val);
+		break;
+	case 4:
+		kvm_set_cr4(vcpu, mk_cr_64(kvm_read_cr4(vcpu), val));
+		break;
+	case 8:
+		kvm_set_cr8(vcpu, val & 0xfUL);
+		break;
+	default:
+		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __func__, cr);
+	}
+}
+
 static struct x86_emulate_ops emulate_ops = {
 	.read_std            = kvm_read_guest_virt_system,
 	.fetch               = kvm_fetch_guest_virt,
 	.read_emulated       = emulator_read_emulated,
 	.write_emulated      = emulator_write_emulated,
 	.cmpxchg_emulated    = emulator_cmpxchg_emulated,
+	.get_cr              = emulator_get_cr,
+	.set_cr              = emulator_set_cr,
 };
 
 static void cache_all_regs(struct kvm_vcpu *vcpu)
@@ -4026,11 +4084,6 @@ int kvm_fix_hypercall(struct kvm_vcpu *vcpu)
 	return __emulator_write_emulated(rip, instruction, 3, vcpu, false);
 }
 
-static u64 mk_cr_64(u64 curr_cr, u32 new_val)
-{
-	return (curr_cr & ~((1ULL << 32) - 1)) | new_val;
-}
-
 void realmode_lgdt(struct kvm_vcpu *vcpu, u16 limit, unsigned long base)
 {
 	struct desc_ptr dt = { limit, base };
@@ -4050,57 +4103,6 @@ void realmode_lmsw(struct kvm_vcpu *vcpu, unsigned long msw,
 {
 	kvm_lmsw(vcpu, msw);
 	*rflags = kvm_get_rflags(vcpu);
-}
-
-unsigned long realmode_get_cr(struct kvm_vcpu *vcpu, int cr)
-{
-	unsigned long value;
-
-	switch (cr) {
-	case 0:
-		value = kvm_read_cr0(vcpu);
-		break;
-	case 2:
-		value = vcpu->arch.cr2;
-		break;
-	case 3:
-		value = vcpu->arch.cr3;
-		break;
-	case 4:
-		value = kvm_read_cr4(vcpu);
-		break;
-	case 8:
-		value = kvm_get_cr8(vcpu);
-		break;
-	default:
-		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __func__, cr);
-		return 0;
-	}
-
-	return value;
-}
-
-void realmode_set_cr(struct kvm_vcpu *vcpu, int cr, unsigned long val)
-{
-	switch (cr) {
-	case 0:
-		kvm_set_cr0(vcpu, mk_cr_64(kvm_read_cr0(vcpu), val));
-		break;
-	case 2:
-		vcpu->arch.cr2 = val;
-		break;
-	case 3:
-		kvm_set_cr3(vcpu, val);
-		break;
-	case 4:
-		kvm_set_cr4(vcpu, mk_cr_64(kvm_read_cr4(vcpu), val));
-		break;
-	case 8:
-		kvm_set_cr8(vcpu, val & 0xfUL);
-		break;
-	default:
-		vcpu_printf(vcpu, "%s: unexpected cr %u\n", __func__, cr);
-	}
 }
 
 static int move_to_next_stateful_cpuid_entry(struct kvm_vcpu *vcpu, int i)

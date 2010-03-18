@@ -108,7 +108,8 @@ struct x86_emulate_ops {
 				const void *new,
 				unsigned int bytes,
 				struct kvm_vcpu *vcpu);
-
+	ulong (*get_cr)(int cr, struct kvm_vcpu *vcpu);
+	void (*set_cr)(int cr, ulong val, struct kvm_vcpu *vcpu);
 };
 
 /* Type, address-of, and value of an instruction's operand. */
