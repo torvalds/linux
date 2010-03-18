@@ -742,7 +742,7 @@ proc_types:
 		.word	0x000f0000
 		W(b)	__armv4_mmu_cache_on
 		W(b)	__armv4_mmu_cache_off
-		W(b)	__armv4_mmu_cache_flush
+		W(b)	__armv5tej_mmu_cache_flush
 
 		.word	0x0007b000		@ ARMv6
 		.word	0x000ff000
