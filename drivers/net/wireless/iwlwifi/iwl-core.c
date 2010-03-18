@@ -65,7 +65,7 @@ MODULE_LICENSE("GPL");
  */
 static bool bt_coex_active = true;
 module_param(bt_coex_active, bool, S_IRUGO);
-MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist\n");
+MODULE_PARM_DESC(bt_coex_active, "enable wifi/bluetooth co-exist");
 
 static struct iwl_wimax_coex_event_entry cu_priorities[COEX_NUM_OF_EVENTS] = {
 	{COEX_CU_UNASSOC_IDLE_RP, COEX_CU_UNASSOC_IDLE_WP,
