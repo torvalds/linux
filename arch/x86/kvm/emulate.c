@@ -1257,7 +1257,7 @@ static int emulate_popf(struct x86_emulate_ctxt *ctxt,
 	int rc;
 	unsigned long val, change_mask;
 	int iopl = (ctxt->eflags & X86_EFLAGS_IOPL) >> IOPL_SHIFT;
-	int cpl = kvm_x86_ops->get_cpl(ctxt->vcpu);
+	int cpl = ops->cpl(ctxt->vcpu);
 
 	rc = emulate_pop(ctxt, ops, &val, len);
 	if (rc != X86EMUL_CONTINUE)
@@ -1758,7 +1758,8 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 	return X86EMUL_CONTINUE;
 }
 
-static bool emulator_bad_iopl(struct x86_emulate_ctxt *ctxt)
+static bool emulator_bad_iopl(struct x86_emulate_ctxt *ctxt,
+			      struct x86_emulate_ops *ops)
 {
 	int iopl;
 	if (ctxt->mode == X86EMUL_MODE_REAL)
@@ -1766,7 +1767,7 @@ static bool emulator_bad_iopl(struct x86_emulate_ctxt *ctxt)
 	if (ctxt->mode == X86EMUL_MODE_VM86)
 		return true;
 	iopl = (ctxt->eflags & X86_EFLAGS_IOPL) >> IOPL_SHIFT;
-	return kvm_x86_ops->get_cpl(ctxt->vcpu) > iopl;
+	return ops->cpl(ctxt->vcpu) > iopl;
 }
 
 static bool emulator_io_port_access_allowed(struct x86_emulate_ctxt *ctxt,
@@ -1803,7 +1804,7 @@ static bool emulator_io_permited(struct x86_emulate_ctxt *ctxt,
 				 struct x86_emulate_ops *ops,
 				 u16 port, u16 len)
 {
-	if (emulator_bad_iopl(ctxt))
+	if (emulator_bad_iopl(ctxt, ops))
 		if (!emulator_io_port_access_allowed(ctxt, ops, port, len))
 			return false;
 	return true;
@@ -1842,7 +1843,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	}
 
 	/* Privileged instruction can be executed only in CPL=0 */
-	if ((c->d & Priv) && kvm_x86_ops->get_cpl(ctxt->vcpu)) {
+	if ((c->d & Priv) && ops->cpl(ctxt->vcpu)) {
 		kvm_inject_gp(ctxt->vcpu, 0);
 		goto done;
 	}
@@ -2378,7 +2379,7 @@ special_insn:
 		c->dst.type = OP_NONE;	/* Disable writeback. */
 		break;
 	case 0xfa: /* cli */
-		if (emulator_bad_iopl(ctxt))
+		if (emulator_bad_iopl(ctxt, ops))
 			kvm_inject_gp(ctxt->vcpu, 0);
 		else {
 			ctxt->eflags &= ~X86_EFLAGS_IF;
@@ -2386,7 +2387,7 @@ special_insn:
 		}
 		break;
 	case 0xfb: /* sti */
-		if (emulator_bad_iopl(ctxt))
+		if (emulator_bad_iopl(ctxt, ops))
 			kvm_inject_gp(ctxt->vcpu, 0);
 		else {
 			toggle_interruptibility(ctxt, KVM_X86_SHADOW_INT_STI);

@@ -3479,6 +3479,11 @@ static void emulator_set_cr(int cr, unsigned long val, struct kvm_vcpu *vcpu)
 	}
 }
 
+static int emulator_get_cpl(struct kvm_vcpu *vcpu)
+{
+	return kvm_x86_ops->get_cpl(vcpu);
+}
+
 static struct x86_emulate_ops emulate_ops = {
 	.read_std            = kvm_read_guest_virt_system,
 	.fetch               = kvm_fetch_guest_virt,
@@ -3487,6 +3492,7 @@ static struct x86_emulate_ops emulate_ops = {
 	.cmpxchg_emulated    = emulator_cmpxchg_emulated,
 	.get_cr              = emulator_get_cr,
 	.set_cr              = emulator_set_cr,
+	.cpl                 = emulator_get_cpl,
 };
 
 static void cache_all_regs(struct kvm_vcpu *vcpu)
