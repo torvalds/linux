@@ -169,7 +169,7 @@ static const char *cu_find_realpath(Dwarf_Die *cu_die, const char *fname)
 {
 	Dwarf_Files *files;
 	size_t nfiles, i;
-	const char *src;
+	const char *src = NULL;
 	int ret;
 
 	if (!fname)

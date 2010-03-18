@@ -271,28 +271,6 @@ done:
 	return &emptyconstraint;
 }
 
-static __initconst struct x86_pmu amd_pmu = {
-	.name			= "AMD",
-	.handle_irq		= x86_pmu_handle_irq,
-	.disable_all		= x86_pmu_disable_all,
-	.enable_all		= x86_pmu_enable_all,
-	.enable			= x86_pmu_enable_event,
-	.disable		= x86_pmu_disable_event,
-	.eventsel		= MSR_K7_EVNTSEL0,
-	.perfctr		= MSR_K7_PERFCTR0,
-	.event_map		= amd_pmu_event_map,
-	.raw_event		= amd_pmu_raw_event,
-	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
-	.num_events		= 4,
-	.event_bits		= 48,
-	.event_mask		= (1ULL << 48) - 1,
-	.apic			= 1,
-	/* use highest bit to detect overflow */
-	.max_period		= (1ULL << 47) - 1,
-	.get_event_constraints	= amd_get_event_constraints,
-	.put_event_constraints	= amd_put_event_constraints
-};
-
 static struct amd_nb *amd_alloc_nb(int cpu, int nb_id)
 {
 	struct amd_nb *nb;
@@ -309,7 +287,7 @@ static struct amd_nb *amd_alloc_nb(int cpu, int nb_id)
 	 * initialize all possible NB constraints
 	 */
 	for (i = 0; i < x86_pmu.num_events; i++) {
-		set_bit(i, nb->event_constraints[i].idxmsk);
+		__set_bit(i, nb->event_constraints[i].idxmsk);
 		nb->event_constraints[i].weight = 1;
 	}
 	return nb;
@@ -378,6 +356,31 @@ static void amd_pmu_cpu_offline(int cpu)
 	raw_spin_unlock(&amd_nb_lock);
 }
 
+static __initconst struct x86_pmu amd_pmu = {
+	.name			= "AMD",
+	.handle_irq		= x86_pmu_handle_irq,
+	.disable_all		= x86_pmu_disable_all,
+	.enable_all		= x86_pmu_enable_all,
+	.enable			= x86_pmu_enable_event,
+	.disable		= x86_pmu_disable_event,
+	.eventsel		= MSR_K7_EVNTSEL0,
+	.perfctr		= MSR_K7_PERFCTR0,
+	.event_map		= amd_pmu_event_map,
+	.raw_event		= amd_pmu_raw_event,
+	.max_events		= ARRAY_SIZE(amd_perfmon_event_map),
+	.num_events		= 4,
+	.event_bits		= 48,
+	.event_mask		= (1ULL << 48) - 1,
+	.apic			= 1,
+	/* use highest bit to detect overflow */
+	.max_period		= (1ULL << 47) - 1,
+	.get_event_constraints	= amd_get_event_constraints,
+	.put_event_constraints	= amd_put_event_constraints,
+
+	.cpu_prepare		= amd_pmu_cpu_online,
+	.cpu_dead		= amd_pmu_cpu_offline,
+};
+
 static __init int amd_pmu_init(void)
 {
 	/* Performance-monitoring supported from K7 and later: */
@@ -390,11 +393,6 @@ static __init int amd_pmu_init(void)
 	memcpy(hw_cache_event_ids, amd_hw_cache_event_ids,
 	       sizeof(hw_cache_event_ids));
 
-	/*
-	 * explicitly initialize the boot cpu, other cpus will get
-	 * the cpu hotplug callbacks from smp_init()
-	 */
-	amd_pmu_cpu_online(smp_processor_id());
 	return 0;
 }
 
@@ -403,14 +401,6 @@ static __init int amd_pmu_init(void)
 static int amd_pmu_init(void)
 {
 	return 0;
-}
-
-static void amd_pmu_cpu_online(int cpu)
-{
-}
-
-static void amd_pmu_cpu_offline(int cpu)
-{
 }
 
 #endif
