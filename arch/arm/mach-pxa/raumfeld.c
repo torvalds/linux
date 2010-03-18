@@ -442,7 +442,7 @@ static struct gpio_keys_button gpio_keys_button[] = {
 		.active_low		= 0,
 		.wakeup			= 0,
 		.debounce_interval	= 5, /* ms */
-		.desc			= "on/off button",
+		.desc			= "on_off button",
 	},
 };
 
