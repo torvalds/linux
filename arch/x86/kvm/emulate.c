@@ -2520,28 +2520,20 @@ twobyte_insn:
 		c->dst.type = OP_NONE;
 		break;
 	case 0x20: /* mov cr, reg */
-		if (c->modrm_mod != 3)
-			goto cannot_emulate;
 		c->regs[c->modrm_rm] = ops->get_cr(c->modrm_reg, ctxt->vcpu);
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x21: /* mov from dr to reg */
-		if (c->modrm_mod != 3)
-			goto cannot_emulate;
 		if (emulator_get_dr(ctxt, c->modrm_reg, &c->regs[c->modrm_rm]))
 			goto cannot_emulate;
 		rc = X86EMUL_CONTINUE;
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x22: /* mov reg, cr */
-		if (c->modrm_mod != 3)
-			goto cannot_emulate;
 		ops->set_cr(c->modrm_reg, c->modrm_val, ctxt->vcpu);
 		c->dst.type = OP_NONE;
 		break;
 	case 0x23: /* mov from reg to dr */
-		if (c->modrm_mod != 3)
-			goto cannot_emulate;
 		if (emulator_set_dr(ctxt, c->modrm_reg, c->regs[c->modrm_rm]))
 			goto cannot_emulate;
 		rc = X86EMUL_CONTINUE;
