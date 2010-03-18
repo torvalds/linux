@@ -1600,8 +1600,11 @@ emulate_syscall(struct x86_emulate_ctxt *ctxt)
 	u64 msr_data;
 
 	/* syscall is not available in real mode */
-	if (ctxt->mode == X86EMUL_MODE_REAL || ctxt->mode == X86EMUL_MODE_VM86)
-		return X86EMUL_UNHANDLEABLE;
+	if (ctxt->mode == X86EMUL_MODE_REAL ||
+	    ctxt->mode == X86EMUL_MODE_VM86) {
+		kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+		return X86EMUL_PROPAGATE_FAULT;
+	}
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
 
@@ -1651,14 +1654,16 @@ emulate_sysenter(struct x86_emulate_ctxt *ctxt)
 	/* inject #GP if in real mode */
 	if (ctxt->mode == X86EMUL_MODE_REAL) {
 		kvm_inject_gp(ctxt->vcpu, 0);
-		return X86EMUL_UNHANDLEABLE;
+		return X86EMUL_PROPAGATE_FAULT;
 	}
 
 	/* XXX sysenter/sysexit have not been tested in 64bit mode.
 	* Therefore, we inject an #UD.
 	*/
-	if (ctxt->mode == X86EMUL_MODE_PROT64)
-		return X86EMUL_UNHANDLEABLE;
+	if (ctxt->mode == X86EMUL_MODE_PROT64) {
+		kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+		return X86EMUL_PROPAGATE_FAULT;
+	}
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
 
@@ -1713,7 +1718,7 @@ emulate_sysexit(struct x86_emulate_ctxt *ctxt)
 	if (ctxt->mode == X86EMUL_MODE_REAL ||
 	    ctxt->mode == X86EMUL_MODE_VM86) {
 		kvm_inject_gp(ctxt->vcpu, 0);
-		return X86EMUL_UNHANDLEABLE;
+		return X86EMUL_PROPAGATE_FAULT;
 	}
 
 	setup_syscalls_segments(ctxt, &cs, &ss);
