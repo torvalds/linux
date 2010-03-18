@@ -141,7 +141,7 @@ struct decode_cache {
 	u8 seg_override;
 	unsigned int d;
 	unsigned long regs[NR_VCPU_REGS];
-	unsigned long eip, eip_orig;
+	unsigned long eip;
 	/* modrm */
 	u8 modrm;
 	u8 modrm_mod;
@@ -160,6 +160,7 @@ struct x86_emulate_ctxt {
 	struct kvm_vcpu *vcpu;
 
 	unsigned long eflags;
+	unsigned long eip; /* eip before instruction emulation */
 	/* Emulated execution mode, represented by an X86EMUL_MODE value. */
 	int mode;
 	u32 cs_base;

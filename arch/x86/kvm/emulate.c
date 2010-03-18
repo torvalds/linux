@@ -667,7 +667,7 @@ static int do_insn_fetch(struct x86_emulate_ctxt *ctxt,
 	int rc;
 
 	/* x86 instructions are limited to 15 bytes. */
-	if (eip + size - ctxt->decode.eip_orig > 15)
+	if (eip + size - ctxt->eip > 15)
 		return X86EMUL_UNHANDLEABLE;
 	eip += ctxt->cs_base;
 	while (size--) {
@@ -927,7 +927,7 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	/* Shadow copy of register state. Committed on successful emulation. */
 
 	memset(c, 0, sizeof(struct decode_cache));
-	c->eip = c->eip_orig = kvm_rip_read(ctxt->vcpu);
+	c->eip = ctxt->eip;
 	ctxt->cs_base = seg_base(ctxt, VCPU_SREG_CS);
 	memcpy(c->regs, ctxt->vcpu->arch.regs, sizeof c->regs);
 
@@ -1878,7 +1878,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 			}
 		}
 		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
-		c->eip = kvm_rip_read(ctxt->vcpu);
+		c->eip = ctxt->eip;
 	}
 
 	if (c->src.type == OP_MEM) {
@@ -2447,7 +2447,7 @@ twobyte_insn:
 				goto done;
 
 			/* Let the processor re-execute the fixed hypercall */
-			c->eip = kvm_rip_read(ctxt->vcpu);
+			c->eip = ctxt->eip;
 			/* Disable writeback. */
 			c->dst.type = OP_NONE;
 			break;
@@ -2551,7 +2551,7 @@ twobyte_insn:
 			| ((u64)c->regs[VCPU_REGS_RDX] << 32);
 		if (kvm_set_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], msr_data)) {
 			kvm_inject_gp(ctxt->vcpu, 0);
-			c->eip = kvm_rip_read(ctxt->vcpu);
+			c->eip = ctxt->eip;
 		}
 		rc = X86EMUL_CONTINUE;
 		c->dst.type = OP_NONE;
@@ -2560,7 +2560,7 @@ twobyte_insn:
 		/* rdmsr */
 		if (kvm_get_msr(ctxt->vcpu, c->regs[VCPU_REGS_RCX], &msr_data)) {
 			kvm_inject_gp(ctxt->vcpu, 0);
-			c->eip = kvm_rip_read(ctxt->vcpu);
+			c->eip = ctxt->eip;
 		} else {
 			c->regs[VCPU_REGS_RAX] = (u32)msr_data;
 			c->regs[VCPU_REGS_RDX] = msr_data >> 32;
