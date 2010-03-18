@@ -43,3 +43,8 @@ obj-${CONFIG_MACH_VENTANA}              += board-ventana.o
 obj-${CONFIG_MACH_VENTANA}              += board-ventana-pinmux.o
 obj-${CONFIG_MACH_VENTANA}              += board-ventana-sdhci.o
 obj-${CONFIG_MACH_VENTANA}              += board-ventana-power.o
+
+obj-${CONFIG_MACH_OLYMPUS}              += board-olympus.o
+obj-${CONFIG_MACH_OLYMPUS}              += board-olympus-pinmux.o
+obj-${CONFIG_MACH_OLYMPUS}              += board-olympus-panel.o
+obj-${CONFIG_MACH_OLYMPUS}              += board-olympus-sdhci.o
