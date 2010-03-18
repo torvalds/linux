@@ -107,7 +107,6 @@ static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
 
-	sdio_claim_host(func);
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
 		((u8 *)buf)[0] = sdio_f0_readb(func, addr, &ret);
 		wl1271_debug(DEBUG_SPI, "sdio read 52 addr 0x%x, byte 0x%02x",
@@ -126,7 +125,6 @@ static void wl1271_sdio_raw_read(struct wl1271 *wl, int addr, void *buf,
 	if (ret)
 		wl1271_error("sdio read failed (%d)", ret);
 
-	sdio_release_host(func);
 }
 
 static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
@@ -135,7 +133,6 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 	int ret;
 	struct sdio_func *func = wl_to_func(wl);
 
-	sdio_claim_host(func);
 	if (unlikely(addr == HW_ACCESS_ELP_CTRL_REG_ADDR)) {
 		sdio_f0_writeb(func, ((u8 *)buf)[0], addr, &ret);
 		wl1271_debug(DEBUG_SPI, "sdio write 52 addr 0x%x, byte 0x%02x",
@@ -153,11 +150,19 @@ static void wl1271_sdio_raw_write(struct wl1271 *wl, int addr, void *buf,
 	if (ret)
 		wl1271_error("sdio write failed (%d)", ret);
 
-	sdio_release_host(func);
 }
 
 static void wl1271_sdio_set_power(struct wl1271 *wl, bool enable)
 {
+	struct sdio_func *func = wl_to_func(wl);
+
+	if (enable) {
+		sdio_claim_host(func);
+		sdio_enable_func(func);
+	} else {
+		sdio_disable_func(func);
+		sdio_release_host(func);
+	}
 }
 
 static struct wl1271_if_operations sdio_ops = {
@@ -219,21 +224,11 @@ static int __devinit wl1271_probe(struct sdio_func *func,
 	if (ret)
 		goto out_irq;
 
-	sdio_claim_host(func);
 	sdio_set_drvdata(func, wl);
-
-	ret = sdio_enable_func(func);
-	if (ret)
-		goto out_release;
-
-	sdio_release_host(func);
 
 	wl1271_notice("initialized");
 
 	return 0;
-
- out_release:
-	sdio_release_host(func);
 
  out_irq:
 	free_irq(wl->irq, wl);
@@ -250,10 +245,6 @@ static void __devexit wl1271_remove(struct sdio_func *func)
 	struct wl1271 *wl = sdio_get_drvdata(func);
 
 	ieee80211_unregister_hw(wl->hw);
-
-	sdio_claim_host(func);
-	sdio_disable_func(func);
-	sdio_release_host(func);
 
 	free_irq(wl->irq, wl);
 
