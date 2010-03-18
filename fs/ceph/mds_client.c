@@ -1268,7 +1268,7 @@ retry:
 		struct inode *inode = temp->d_inode;
 
 		if (inode && ceph_snap(inode) == CEPH_SNAPDIR) {
-			dout("build_path_dentry path+%d: %p SNAPDIR\n",
+			dout("build_path path+%d: %p SNAPDIR\n",
 			     pos, temp);
 		} else if (stop_on_nosnap && inode &&
 			   ceph_snap(inode) == CEPH_NOSNAP) {
@@ -1279,20 +1279,18 @@ retry:
 				break;
 			strncpy(path + pos, temp->d_name.name,
 				temp->d_name.len);
-			dout("build_path_dentry path+%d: %p '%.*s'\n",
-			     pos, temp, temp->d_name.len, path + pos);
 		}
 		if (pos)
 			path[--pos] = '/';
 		temp = temp->d_parent;
 		if (temp == NULL) {
-			pr_err("build_path_dentry corrupt dentry\n");
+			pr_err("build_path corrupt dentry\n");
 			kfree(path);
 			return ERR_PTR(-EINVAL);
 		}
 	}
 	if (pos != 0) {
-		pr_err("build_path_dentry did not end path lookup where "
+		pr_err("build_path did not end path lookup where "
 		       "expected, namelen is %d, pos is %d\n", len, pos);
 		/* presumably this is only possible if racing with a
 		   rename of one of the parent directories (we can not
@@ -1304,7 +1302,7 @@ retry:
 
 	*base = ceph_ino(temp->d_inode);
 	*plen = len;
-	dout("build_path_dentry on %p %d built %llx '%.*s'\n",
+	dout("build_path on %p %d built %llx '%.*s'\n",
 	     dentry, atomic_read(&dentry->d_count), *base, len, path);
 	return path;
 }
