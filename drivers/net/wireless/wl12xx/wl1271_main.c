@@ -2091,6 +2091,8 @@ int wl1271_init_ieee80211(struct wl1271 *wl)
 	if (wl1271_11a_enabled())
 		wl->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &wl1271_band_5ghz;
 
+	wl->hw->queues = 4;
+
 	SET_IEEE80211_DEV(wl->hw, wl1271_wl_to_dev(wl));
 
 	return 0;
