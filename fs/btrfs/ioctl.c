@@ -1215,6 +1215,9 @@ static noinline int btrfs_ioctl_ino_lookup(struct file *file,
 	}
 	inode = fdentry(file)->d_inode;
 
+	if (args->treeid == 0)
+		args->treeid = BTRFS_I(inode)->root->root_key.objectid;
+
 	ret = btrfs_search_path_in_tree(BTRFS_I(inode)->root->fs_info,
 					args->treeid, args->objectid,
 					args->name);
