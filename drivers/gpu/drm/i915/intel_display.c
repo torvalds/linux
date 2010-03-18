@@ -4717,6 +4717,20 @@ void intel_init_clock_gating(struct drm_device *dev)
 	 * specs, but enable as much else as we can.
 	 */
 	if (HAS_PCH_SPLIT(dev)) {
+		uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
+
+		if (IS_IRONLAKE(dev)) {
+			/* Required for FBC */
+			dspclk_gate |= DPFDUNIT_CLOCK_GATE_DISABLE;
+			/* Required for CxSR */
+			dspclk_gate |= DPARBUNIT_CLOCK_GATE_DISABLE;
+
+			I915_WRITE(PCH_3DCGDIS0,
+				   MARIUNIT_CLOCK_GATE_DISABLE |
+				   SVSMUNIT_CLOCK_GATE_DISABLE);
+		}
+
+		I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
 		return;
 	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;
