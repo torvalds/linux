@@ -2520,6 +2520,13 @@ twobyte_insn:
 		c->dst.type = OP_NONE;
 		break;
 	case 0x20: /* mov cr, reg */
+		switch (c->modrm_reg) {
+		case 1:
+		case 5 ... 7:
+		case 9 ... 15:
+			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			goto done;
+		}
 		c->regs[c->modrm_rm] = ops->get_cr(c->modrm_reg, ctxt->vcpu);
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
