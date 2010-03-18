@@ -863,6 +863,7 @@ static int send_renew_caps(struct ceph_mds_client *mdsc,
 	if (time_after_eq(jiffies, session->s_cap_ttl) &&
 	    time_after_eq(session->s_cap_ttl, session->s_renew_requested))
 		pr_info("mds%d caps stale\n", session->s_mds);
+	session->s_renew_requested = jiffies;
 
 	/* do not try to renew caps until a recovering mds has reconnected
 	 * with its clients. */
@@ -875,7 +876,6 @@ static int send_renew_caps(struct ceph_mds_client *mdsc,
 
 	dout("send_renew_caps to mds%d (%s)\n", session->s_mds,
 		ceph_mds_state_name(state));
-	session->s_renew_requested = jiffies;
 	msg = create_session_msg(CEPH_SESSION_REQUEST_RENEWCAPS,
 				 ++session->s_renew_seq);
 	if (IS_ERR(msg))
