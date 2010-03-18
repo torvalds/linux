@@ -268,7 +268,7 @@ enum {
 #define SCTP_MIB_MAX    __SCTP_MIB_MAX
 struct sctp_mib {
         unsigned long   mibs[SCTP_MIB_MAX];
-} __SNMP_MIB_ALIGN__;
+};
 
 
 /* Print debugging messages.  */
