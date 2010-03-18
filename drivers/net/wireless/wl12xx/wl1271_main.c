@@ -29,6 +29,7 @@
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
 #include <linux/inetdevice.h>
+#include <linux/platform_device.h>
 
 #include "wl1271.h"
 #include "wl12xx_80211.h"
@@ -278,6 +279,21 @@ static struct conf_drv_settings default_conf = {
 		.host_clk_settling_time = 5000,
 		.host_fast_wakeup_support = false
 	}
+};
+
+static void wl1271_device_release(struct device *dev)
+{
+
+}
+
+static struct platform_device wl1271_device = {
+	.name           = "wl1271",
+	.id             = -1,
+
+	/* device model insists to have a release function */
+	.dev            = {
+		.release = wl1271_device_release,
+	},
 };
 
 static LIST_HEAD(wl_list);
@@ -2025,12 +2041,13 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 {
 	struct ieee80211_hw *hw;
 	struct wl1271 *wl;
-	int i;
+	int i, ret;
 
 	hw = ieee80211_alloc_hw(sizeof(*wl), &wl1271_ops);
 	if (!hw) {
 		wl1271_error("could not alloc ieee80211_hw");
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto err;
 	}
 
 	wl = hw->priv;
@@ -2070,12 +2087,28 @@ struct ieee80211_hw *wl1271_alloc_hw(void)
 
 	wl1271_debugfs_init(wl);
 
+	/* Register platform device */
+	ret = platform_device_register(&wl1271_device);
+	if (ret) {
+		wl1271_error("couldn't register platform device");
+		goto err_hw;
+	}
+	dev_set_drvdata(&wl1271_device.dev, wl);
+
+
 	return hw;
+
+err_hw:
+	ieee80211_unregister_hw(wl->hw);
+
+err:
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(wl1271_alloc_hw);
 
 int wl1271_free_hw(struct wl1271 *wl)
 {
+	platform_device_unregister(&wl1271_device);
 	ieee80211_unregister_hw(wl->hw);
 
 	wl1271_debugfs_exit(wl);
