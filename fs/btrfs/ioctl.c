@@ -997,8 +997,8 @@ static noinline int copy_to_sk(struct btrfs_root *root,
 			read_extent_buffer(leaf, p,
 					   item_off, item_len);
 			*sk_offset += item_len;
-			found++;
 		}
+		found++;
 
 		if (*num_found >= sk->nr_items)
 			break;
