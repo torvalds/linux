@@ -151,6 +151,12 @@ struct fetch_cache {
 	unsigned long end;
 };
 
+struct read_cache {
+	u8 data[1024];
+	unsigned long pos;
+	unsigned long end;
+};
+
 struct decode_cache {
 	u8 twobyte;
 	u8 b;
@@ -178,6 +184,7 @@ struct decode_cache {
 	void *modrm_ptr;
 	unsigned long modrm_val;
 	struct fetch_cache fetch;
+	struct read_cache io_read;
 };
 
 struct x86_emulate_ctxt {

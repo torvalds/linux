@@ -1257,6 +1257,36 @@ done:
 	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
 }
 
+static int pio_in_emulated(struct x86_emulate_ctxt *ctxt,
+			   struct x86_emulate_ops *ops,
+			   unsigned int size, unsigned short port,
+			   void *dest)
+{
+	struct read_cache *rc = &ctxt->decode.io_read;
+
+	if (rc->pos == rc->end) { /* refill pio read ahead */
+		struct decode_cache *c = &ctxt->decode;
+		unsigned int in_page, n;
+		unsigned int count = c->rep_prefix ?
+			address_mask(c, c->regs[VCPU_REGS_RCX]) : 1;
+		in_page = (ctxt->eflags & EFLG_DF) ?
+			offset_in_page(c->regs[VCPU_REGS_RDI]) :
+			PAGE_SIZE - offset_in_page(c->regs[VCPU_REGS_RDI]);
+		n = min(min(in_page, (unsigned int)sizeof(rc->data)) / size,
+			count);
+		if (n == 0)
+			n = 1;
+		rc->pos = rc->end = 0;
+		if (!ops->pio_in_emulated(size, port, rc->data, n, ctxt->vcpu))
+			return 0;
+		rc->end = n * size;
+	}
+
+	memcpy(dest, rc->data + rc->pos, size);
+	rc->pos += size;
+	return 1;
+}
+
 static u32 desc_limit_scaled(struct desc_struct *desc)
 {
 	u32 limit = get_desc_limit(desc);
@@ -2622,8 +2652,8 @@ special_insn:
 			kvm_inject_gp(ctxt->vcpu, 0);
 			goto done;
 		}
-		if (!ops->pio_in_emulated(c->dst.bytes, c->regs[VCPU_REGS_RDX],
-					  &c->dst.val, 1, ctxt->vcpu))
+		if (!pio_in_emulated(ctxt, ops, c->dst.bytes,
+				     c->regs[VCPU_REGS_RDX], &c->dst.val))
 			goto done; /* IO is needed, skip writeback */
 		break;
 	case 0x6e:		/* outsb */
@@ -2839,8 +2869,8 @@ special_insn:
 			kvm_inject_gp(ctxt->vcpu, 0);
 			goto done;
 		}
-		if (!ops->pio_in_emulated(c->dst.bytes, c->src.val,
-					  &c->dst.val, 1, ctxt->vcpu))
+		if (!pio_in_emulated(ctxt, ops, c->dst.bytes, c->src.val,
+				     &c->dst.val))
 			goto done; /* IO is needed */
 		break;
 	case 0xee: /* out al,dx */
@@ -2928,8 +2958,14 @@ writeback:
 		string_addr_inc(ctxt, es_base(ctxt), VCPU_REGS_RDI, &c->dst);
 
 	if (c->rep_prefix && (c->d & String)) {
+		struct read_cache *rc = &ctxt->decode.io_read;
 		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
-		if (!(c->regs[VCPU_REGS_RCX] & 0x3ff))
+		/*
+		 * Re-enter guest when pio read ahead buffer is empty or,
+		 * if it is not used, after each 1024 iteration.
+		 */
+		if ((rc->end == 0 && !(c->regs[VCPU_REGS_RCX] & 0x3ff)) ||
+		    (rc->end != 0 && rc->end == rc->pos))
 			ctxt->restart = false;
 	}
 
