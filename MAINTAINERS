@@ -2643,15 +2643,11 @@ F:	Documentation/timers/hpet.txt
 F:	drivers/char/hpet.c
 F:	include/linux/hpet.h
 
-HPET:	i386
+HPET:	x86
 M:	"Venkatesh Pallipadi (Venki)" <venki@google.com>
 S:	Maintained
 F:	arch/x86/kernel/hpet.c
 F:	arch/x86/include/asm/hpet.h
-
-HPET:	x86_64
-M:	Vojtech Pavlik <vojtech@suse.cz>
-S:	Maintained
 
 HPET:	ACPI
 M:	Bob Picco <bob.picco@hp.com>
