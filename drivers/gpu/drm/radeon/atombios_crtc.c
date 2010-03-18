@@ -541,8 +541,9 @@ static u32 atombios_adjust_pll(struct drm_crtc *crtc,
 		int index;
 
 		index = GetIndexIntoMasterTable(COMMAND, AdjustDisplayPll);
-		atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
-				      &crev);
+		if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
+					   &crev))
+			return adjusted_clock;
 
 		memset(&args, 0, sizeof(args));
 
@@ -630,8 +631,9 @@ static void atombios_crtc_set_dcpll(struct drm_crtc *crtc)
 	memset(&args, 0, sizeof(args));
 
 	index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
-	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
-			      &crev);
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
+				   &crev))
+		return;
 
 	switch (frev) {
 	case 1:
@@ -705,8 +707,9 @@ static void atombios_crtc_set_pll(struct drm_crtc *crtc, struct drm_display_mode
 			   &ref_div, &post_div);
 
 	index = GetIndexIntoMasterTable(COMMAND, SetPixelClock);
-	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
-			      &crev);
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev,
+				   &crev))
+		return;
 
 	switch (frev) {
 	case 1:

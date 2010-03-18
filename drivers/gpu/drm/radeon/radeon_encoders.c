@@ -519,7 +519,8 @@ atombios_digital_setup(struct drm_encoder *encoder, int action)
 		break;
 	}
 
-	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev);
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return;
 
 	switch (frev) {
 	case 1:
@@ -725,7 +726,8 @@ atombios_dig_encoder_setup(struct drm_encoder *encoder, int action)
 	}
 	num = dig->dig_encoder + 1;
 
-	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev);
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return;
 
 	args.v1.ucAction = action;
 	args.v1.usPixelClock = cpu_to_le16(radeon_encoder->pixel_clock / 10);
@@ -813,7 +815,8 @@ atombios_dig_transmitter_setup(struct drm_encoder *encoder, int action, uint8_t 
 		}
 	}
 
-	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev);
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return;
 
 	args.v1.ucAction = action;
 	if (action == ATOM_TRANSMITTER_ACTION_INIT) {
@@ -1103,7 +1106,8 @@ atombios_set_encoder_crtc_source(struct drm_encoder *encoder)
 
 	memset(&args, 0, sizeof(args));
 
-	atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev);
+	if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+		return;
 
 	switch (frev) {
 	case 1:
@@ -1411,7 +1415,8 @@ atombios_dac_load_detect(struct drm_encoder *encoder, struct drm_connector *conn
 
 		memset(&args, 0, sizeof(args));
 
-		atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev);
+		if (!atom_parse_cmd_header(rdev->mode_info.atom_context, index, &frev, &crev))
+			return false;
 
 		args.sDacload.ucMisc = 0;
 

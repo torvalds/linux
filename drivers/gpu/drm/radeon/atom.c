@@ -1295,12 +1295,16 @@ void atom_destroy(struct atom_context *ctx)
 	kfree(ctx);
 }
 
-void atom_parse_data_header(struct atom_context *ctx, int index,
+bool atom_parse_data_header(struct atom_context *ctx, int index,
 			    uint16_t * size, uint8_t * frev, uint8_t * crev,
 			    uint16_t * data_start)
 {
 	int offset = index * 2 + 4;
 	int idx = CU16(ctx->data_table + offset);
+	u16 *mdt = (u16 *)(ctx->bios + ctx->data_table + 4);
+
+	if (!mdt[index])
+		return false;
 
 	if (size)
 		*size = CU16(idx);
@@ -1309,38 +1313,42 @@ void atom_parse_data_header(struct atom_context *ctx, int index,
 	if (crev)
 		*crev = CU8(idx + 3);
 	*data_start = idx;
-	return;
+	return true;
 }
 
-void atom_parse_cmd_header(struct atom_context *ctx, int index, uint8_t * frev,
+bool atom_parse_cmd_header(struct atom_context *ctx, int index, uint8_t * frev,
 			   uint8_t * crev)
 {
 	int offset = index * 2 + 4;
 	int idx = CU16(ctx->cmd_table + offset);
+	u16 *mct = (u16 *)(ctx->bios + ctx->cmd_table + 4);
+
+	if (!mct[index])
+		return false;
 
 	if (frev)
 		*frev = CU8(idx + 2);
 	if (crev)
 		*crev = CU8(idx + 3);
-	return;
+	return true;
 }
 
 int atom_allocate_fb_scratch(struct atom_context *ctx)
 {
 	int index = GetIndexIntoMasterTable(DATA, VRAM_UsageByFirmware);
 	uint16_t data_offset;
-	int usage_bytes;
+	int usage_bytes = 0;
 	struct _ATOM_VRAM_USAGE_BY_FIRMWARE *firmware_usage;
 
-	atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset);
+	if (atom_parse_data_header(ctx, index, NULL, NULL, NULL, &data_offset)) {
+		firmware_usage = (struct _ATOM_VRAM_USAGE_BY_FIRMWARE *)(ctx->bios + data_offset);
 
-	firmware_usage = (struct _ATOM_VRAM_USAGE_BY_FIRMWARE *)(ctx->bios + data_offset);
+		DRM_DEBUG("atom firmware requested %08x %dkb\n",
+			  firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware,
+			  firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb);
 
-	DRM_DEBUG("atom firmware requested %08x %dkb\n",
-		  firmware_usage->asFirmwareVramReserveInfo[0].ulStartAddrUsedByFirmware,
-		  firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb);
-
-	usage_bytes = firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb * 1024;
+		usage_bytes = firmware_usage->asFirmwareVramReserveInfo[0].usFirmwareUseInKb * 1024;
+	}
 	if (usage_bytes == 0)
 		usage_bytes = 20 * 1024;
 	/* allocate some scratch memory */

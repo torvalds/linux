@@ -368,10 +368,9 @@ static bool radeon_setup_enc_conn(struct drm_device *dev)
 
 	if (rdev->bios) {
 		if (rdev->is_atom_bios) {
-			if (rdev->family >= CHIP_R600)
+			ret = radeon_get_atom_connector_info_from_supported_devices_table(dev);
+			if (ret == false)
 				ret = radeon_get_atom_connector_info_from_object_table(dev);
-			else
-				ret = radeon_get_atom_connector_info_from_supported_devices_table(dev);
 		} else {
 			ret = radeon_get_legacy_connector_info_from_bios(dev);
 			if (ret == false)
