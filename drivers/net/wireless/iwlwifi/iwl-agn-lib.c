@@ -1071,30 +1071,14 @@ void iwlagn_rx_reply_rx(struct iwl_priv *priv,
 	/* Find max signal strength (dBm) among 3 antenna/receiver chains */
 	rx_status.signal = iwlagn_calc_rssi(priv, phy_res);
 
-	/* Meaningful noise values are available only from beacon statistics,
-	 *   which are gathered only when associated, and indicate noise
-	 *   only for the associated network channel ...
-	 * Ignore these noise values while scanning (other channels) */
-	if (iwl_is_associated(priv) &&
-	    !test_bit(STATUS_SCANNING, &priv->status)) {
-		rx_status.noise = priv->last_rx_noise;
-	} else {
-		rx_status.noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
-	}
-
-	/* Reset beacon noise level if not associated. */
-	if (!iwl_is_associated(priv))
-		priv->last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
-
 #ifdef CONFIG_IWLWIFI_DEBUG
 	/* Set "1" to report good data frames in groups of 100 */
 	if (unlikely(iwl_get_debug_level(priv) & IWL_DL_RX))
 		iwlagn_dbg_report_frame(priv, phy_res, len, header, 1);
 #endif
 	iwl_dbg_log_rx_data_frame(priv, len, header);
-	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, noise %d, TSF %llu\n",
-		rx_status.signal, rx_status.noise,
-		(unsigned long long)rx_status.mactime);
+	IWL_DEBUG_STATS_LIMIT(priv, "Rssi %d, TSF %llu\n",
+		rx_status.signal, (unsigned long long)rx_status.mactime);
 
 	/*
 	 * "antenna number"

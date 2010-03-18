@@ -259,6 +259,7 @@ static void iwl_rx_calc_noise(struct iwl_priv *priv)
 		le32_to_cpu(rx_info->beacon_silence_rssi_b) & IN_BAND_FILTER;
 	int bcn_silence_c =
 		le32_to_cpu(rx_info->beacon_silence_rssi_c) & IN_BAND_FILTER;
+	int last_rx_noise;
 
 	if (bcn_silence_a) {
 		total_silence += bcn_silence_a;
@@ -275,13 +276,13 @@ static void iwl_rx_calc_noise(struct iwl_priv *priv)
 
 	/* Average among active antennas */
 	if (num_active_rx)
-		priv->last_rx_noise = (total_silence / num_active_rx) - 107;
+		last_rx_noise = (total_silence / num_active_rx) - 107;
 	else
-		priv->last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
+		last_rx_noise = IWL_NOISE_MEAS_NOT_AVAILABLE;
 
 	IWL_DEBUG_CALIB(priv, "inband silence a %u, b %u, c %u, dBm %d\n",
 			bcn_silence_a, bcn_silence_b, bcn_silence_c,
-			priv->last_rx_noise);
+			last_rx_noise);
 }
 
 #ifdef CONFIG_IWLWIFI_DEBUG

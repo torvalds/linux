@@ -1167,8 +1167,6 @@ struct iwl_priv {
 
 	unsigned long status;
 
-	int last_rx_noise;	/* From beacon statistics */
-
 	/* counts mgmt, ctl, and data packets */
 	struct traffic_stats tx_stats;
 	struct traffic_stats rx_stats;
