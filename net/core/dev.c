@@ -772,14 +772,17 @@ EXPORT_SYMBOL(__dev_getfirstbyhwtype);
 
 struct net_device *dev_getfirstbyhwtype(struct net *net, unsigned short type)
 {
-	struct net_device *dev;
+	struct net_device *dev, *ret = NULL;
 
-	rtnl_lock();
-	dev = __dev_getfirstbyhwtype(net, type);
-	if (dev)
-		dev_hold(dev);
-	rtnl_unlock();
-	return dev;
+	rcu_read_lock();
+	for_each_netdev_rcu(net, dev)
+		if (dev->type == type) {
+			dev_hold(dev);
+			ret = dev;
+			break;
+		}
+	rcu_read_unlock();
+	return ret;
 }
 EXPORT_SYMBOL(dev_getfirstbyhwtype);
 
