@@ -305,6 +305,7 @@ sonixj		0c45:6138	Sn9c120 Mo4000
 sonixj		0c45:613a	Microdia Sonix PC Camera
 sonixj		0c45:613b	Surfer SN-206
 sonixj		0c45:613c	Sonix Pccam168
+sonixj		0c45:6142	Hama PC-Webcam AC-150
 sonixj		0c45:6143	Sonix Pccam168
 sonixj		0c45:6148	Digitus DA-70811/ZSMC USB PC Camera ZS211/Microdia
 sonixj		0c45:614a	Frontech E-Ccam (JIL-2225)
