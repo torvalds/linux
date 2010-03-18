@@ -183,13 +183,13 @@ int omapfb_update_window(struct fb_info *fbi,
 	struct omapfb2_device *fbdev = ofbi->fbdev;
 	int r;
 
-	omapfb_lock(fbdev);
 	lock_fb_info(fbi);
+	omapfb_lock(fbdev);
 
 	r = omapfb_update_window_nolock(fbi, x, y, w, h);
 
-	unlock_fb_info(fbi);
 	omapfb_unlock(fbdev);
+	unlock_fb_info(fbi);
 
 	return r;
 }

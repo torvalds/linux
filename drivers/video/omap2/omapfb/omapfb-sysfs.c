@@ -137,8 +137,8 @@ static ssize_t show_overlays(struct device *dev,
 	ssize_t l = 0;
 	int t;
 
-	omapfb_lock(fbdev);
 	lock_fb_info(fbi);
+	omapfb_lock(fbdev);
 
 	for (t = 0; t < ofbi->num_overlays; t++) {
 		struct omap_overlay *ovl = ofbi->overlays[t];
@@ -154,8 +154,8 @@ static ssize_t show_overlays(struct device *dev,
 
 	l += snprintf(buf + l, PAGE_SIZE - l, "\n");
 
-	unlock_fb_info(fbi);
 	omapfb_unlock(fbdev);
+	unlock_fb_info(fbi);
 
 	return l;
 }
@@ -195,8 +195,8 @@ static ssize_t store_overlays(struct device *dev, struct device_attribute *attr,
 	if (buf[len - 1] == '\n')
 		len = len - 1;
 
-	omapfb_lock(fbdev);
 	lock_fb_info(fbi);
+	omapfb_lock(fbdev);
 
 	if (len > 0) {
 		char *p = (char *)buf;
@@ -303,8 +303,8 @@ static ssize_t store_overlays(struct device *dev, struct device_attribute *attr,
 
 	r = count;
 out:
-	unlock_fb_info(fbi);
 	omapfb_unlock(fbdev);
+	unlock_fb_info(fbi);
 
 	return r;
 }
