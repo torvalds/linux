@@ -3755,6 +3755,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 		return EMULATE_DONE;
 	}
 
+restart:
 	r = x86_emulate_insn(&vcpu->arch.emulate_ctxt, &emulate_ops);
 	shadow_mask = vcpu->arch.emulate_ctxt.interruptibility;
 
@@ -3777,7 +3778,7 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 
 	if (r) {
 		if (kvm_mmu_unprotect_page_virt(vcpu, cr2))
-			return EMULATE_DONE;
+			goto done;
 		if (!vcpu->mmio_needed) {
 			kvm_report_emulation_failure(vcpu, "mmio");
 			return EMULATE_FAIL;
@@ -3791,6 +3792,13 @@ int emulate_instruction(struct kvm_vcpu *vcpu,
 		vcpu->mmio_needed = 0;
 		return EMULATE_DO_MMIO;
 	}
+
+done:
+	if (vcpu->arch.exception.pending)
+		vcpu->arch.emulate_ctxt.restart = false;
+
+	if (vcpu->arch.emulate_ctxt.restart)
+		goto restart;
 
 	return EMULATE_DONE;
 }
@@ -4556,6 +4564,15 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run)
 			/*
 			 * Read-modify-write.  Back to userspace.
 			 */
+			r = 0;
+			goto out;
+		}
+	}
+	if (vcpu->arch.emulate_ctxt.restart) {
+		vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+		r = emulate_instruction(vcpu, 0, 0, EMULTYPE_NO_DECODE);
+		srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
+		if (r == EMULATE_DO_MMIO) {
 			r = 0;
 			goto out;
 		}

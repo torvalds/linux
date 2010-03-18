@@ -193,6 +193,7 @@ struct x86_emulate_ctxt {
 	/* interruptibility state, as a result of execution of STI or MOV SS */
 	int interruptibility;
 
+	bool restart; /* restart string instruction after writeback */
 	/* decode cache */
 	struct decode_cache decode;
 };

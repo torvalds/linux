@@ -927,8 +927,11 @@ x86_decode_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	int mode = ctxt->mode;
 	int def_op_bytes, def_ad_bytes, group;
 
-	/* Shadow copy of register state. Committed on successful emulation. */
 
+	/* we cannot decode insn before we complete previous rep insn */
+	WARN_ON(ctxt->restart);
+
+	/* Shadow copy of register state. Committed on successful emulation. */
 	memset(c, 0, sizeof(struct decode_cache));
 	c->eip = ctxt->eip;
 	ctxt->cs_base = seg_base(ctxt, VCPU_SREG_CS);
@@ -2426,6 +2429,7 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	u64 msr_data;
 	struct decode_cache *c = &ctxt->decode;
 	int rc = X86EMUL_CONTINUE;
+	int saved_dst_type = c->dst.type;
 
 	ctxt->interruptibility = 0;
 
@@ -2454,8 +2458,11 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 	}
 
 	if (c->rep_prefix && (c->d & String)) {
+		ctxt->restart = true;
 		/* All REP prefixes have the same first termination condition */
 		if (address_mask(c, c->regs[VCPU_REGS_RCX]) == 0) {
+		string_done:
+			ctxt->restart = false;
 			kvm_rip_write(ctxt->vcpu, c->eip);
 			goto done;
 		}
@@ -2467,17 +2474,13 @@ x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 		 * 	- if REPNE/REPNZ and ZF = 1 then done
 		 */
 		if ((c->b == 0xa6) || (c->b == 0xa7) ||
-				(c->b == 0xae) || (c->b == 0xaf)) {
+		    (c->b == 0xae) || (c->b == 0xaf)) {
 			if ((c->rep_prefix == REPE_PREFIX) &&
-				((ctxt->eflags & EFLG_ZF) == 0)) {
-					kvm_rip_write(ctxt->vcpu, c->eip);
-					goto done;
-			}
+			    ((ctxt->eflags & EFLG_ZF) == 0))
+				goto string_done;
 			if ((c->rep_prefix == REPNE_PREFIX) &&
-				((ctxt->eflags & EFLG_ZF) == EFLG_ZF)) {
-				kvm_rip_write(ctxt->vcpu, c->eip);
-				goto done;
-			}
+			    ((ctxt->eflags & EFLG_ZF) == EFLG_ZF))
+				goto string_done;
 		}
 		c->eip = ctxt->eip;
 	}
@@ -2911,6 +2914,12 @@ writeback:
 	if (rc != X86EMUL_CONTINUE)
 		goto done;
 
+	/*
+	 * restore dst type in case the decoding will be reused
+	 * (happens for string instruction )
+	 */
+	c->dst.type = saved_dst_type;
+
 	if ((c->d & SrcMask) == SrcSI)
 		string_addr_inc(ctxt, seg_override_base(ctxt, c), VCPU_REGS_RSI,
 				&c->src);
@@ -2918,8 +2927,11 @@ writeback:
 	if ((c->d & DstMask) == DstDI)
 		string_addr_inc(ctxt, es_base(ctxt), VCPU_REGS_RDI, &c->dst);
 
-	if (c->rep_prefix && (c->d & String))
+	if (c->rep_prefix && (c->d & String)) {
 		register_address_increment(c, &c->regs[VCPU_REGS_RCX], -1);
+		if (!(c->regs[VCPU_REGS_RCX] & 0x3ff))
+			ctxt->restart = false;
+	}
 
 	/* Commit shadow register state. */
 	memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
