@@ -1149,11 +1149,6 @@ mptscsih_remove(struct pci_dev *pdev)
 	MPT_SCSI_HOST		*hd;
 	int sz1;
 
-	if(!host) {
-		mpt_detach(pdev);
-		return;
-	}
-
 	scsi_remove_host(host);
 
 	if((hd = shost_priv(host)) == NULL)

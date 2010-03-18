@@ -5073,6 +5073,12 @@ static void __devexit mptsas_remove(struct pci_dev *pdev)
 	struct mptsas_portinfo *p, *n;
 	int i;
 
+	if (!ioc->sh) {
+		printk(MYIOC_s_INFO_FMT "IOC is in Target mode\n", ioc->name);
+		mpt_detach(pdev);
+		return;
+	}
+
 	mptsas_shutdown(pdev);
 
 	mptsas_del_device_components(ioc);
