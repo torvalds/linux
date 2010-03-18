@@ -1619,12 +1619,10 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	     */
 	    memcmp(wl->bssid, bss_conf->bssid, ETH_ALEN)) {
 			memcpy(wl->bssid, bss_conf->bssid, ETH_ALEN);
+
 			ret = wl1271_cmd_build_null_data(wl);
-			if (ret < 0) {
-				wl1271_warning("cmd buld null data failed %d",
-					       ret);
+			if (ret < 0)
 				goto out_sleep;
-			}
 
 			/* filter out all packets not from this BSSID */
 			wl1271_configure_filters(wl, 0);
