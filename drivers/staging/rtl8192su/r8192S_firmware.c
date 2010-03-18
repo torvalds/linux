@@ -338,143 +338,159 @@ void FirmwareHeaderPriveUpdate(struct net_device *dev, PRT_8192S_FIRMWARE_PRIV 	
 	pFwPriv->rf_config = FirmwareHeaderMapRfType(dev);
 }
 
+bool FirmwareRequest92S(struct net_device *dev, rt_firmware *pFirmware)
+{
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	bool rtStatus = true;
+	const char *pFwImageFileName[1] = {"RTL8192SU/rtl8192sfw.bin"};
+	u8 *pucMappedFile = NULL;
+	u32 ulInitStep = 0;
+	u8 FwHdrSize = RT_8192S_FIRMWARE_HDR_SIZE;
+	PRT_8192S_FIRMWARE_HDR pFwHdr = NULL;
+	u32 file_length = 0;
+	int rc;
+	const struct firmware *fw_entry;
 
+	rc = request_firmware(&fw_entry,
+				pFwImageFileName[ulInitStep],
+				&priv->udev->dev);
+	if (rc < 0)
+		goto RequestFirmware_Fail;
+
+	if (fw_entry->size > sizeof(pFirmware->szFwTmpBuffer)) {
+		RT_TRACE(COMP_ERR, "%s(): image file too large"
+					"for container buffer", __func__);
+		release_firmware(fw_entry);
+		goto RequestFirmware_Fail;
+	}
+
+	memcpy(pFirmware->szFwTmpBuffer, fw_entry->data, fw_entry->size);
+	pFirmware->szFwTmpBufferLen = fw_entry->size;
+	release_firmware(fw_entry);
+
+	pucMappedFile = pFirmware->szFwTmpBuffer;
+	file_length = pFirmware->szFwTmpBufferLen;
+
+	/* Retrieve FW header. */
+	pFirmware->pFwHeader = (PRT_8192S_FIRMWARE_HDR) pucMappedFile;
+	pFwHdr = pFirmware->pFwHeader;
+
+	RT_TRACE(COMP_FIRMWARE, "%s(): signature: %x, version: %x, "
+				"size: %x, imemsize: %x, sram size: %x",
+				__func__, pFwHdr->Signature, pFwHdr->Version,
+				pFwHdr->DMEMSize, pFwHdr->IMG_IMEM_SIZE,
+				pFwHdr->IMG_SRAM_SIZE);
+
+	pFirmware->FirmwareVersion =  byte(pFwHdr->Version , 0);
+
+	if ((pFwHdr->IMG_IMEM_SIZE == 0) ||
+			(pFwHdr->IMG_IMEM_SIZE > sizeof(pFirmware->FwIMEM))) {
+		RT_TRACE(COMP_ERR, "%s(): memory for data image is less than"
+						" IMEM requires", __func__);
+		goto RequestFirmware_Fail;
+	} else {
+		pucMappedFile += FwHdrSize;
+		/* Retrieve IMEM image. */
+		memcpy(pFirmware->FwIMEM, pucMappedFile, pFwHdr->IMG_IMEM_SIZE);
+		pFirmware->FwIMEMLen = pFwHdr->IMG_IMEM_SIZE;
+	}
+
+	if (pFwHdr->IMG_SRAM_SIZE > sizeof(pFirmware->FwEMEM)) {
+		RT_TRACE(COMP_ERR, "%s(): memory for data image is less than"
+						" EMEM requires", __func__);
+		goto RequestFirmware_Fail;
+	} else {
+		pucMappedFile += pFirmware->FwIMEMLen;
+		/* Retriecve EMEM image */
+		memcpy(pFirmware->FwEMEM, pucMappedFile, pFwHdr->IMG_SRAM_SIZE);
+		pFirmware->FwEMEMLen = pFwHdr->IMG_SRAM_SIZE;
+	}
+	return rtStatus;
+
+RequestFirmware_Fail:
+	RT_TRACE(COMP_ERR, "%s(): failed with TCR-Status: %x\n",
+					__func__, read_nic_word(dev, TCR));
+	rtStatus = false;
+	return rtStatus;
+}
 
 bool FirmwareDownload92S(struct net_device *dev)
 {
-	struct r8192_priv 	*priv = ieee80211_priv(dev);
-	bool				rtStatus = true;
-	const char 		*pFwImageFileName[1] = {"RTL8192SU/rtl8192sfw.bin"};
-	u8				*pucMappedFile = NULL;
-	u32				ulFileLength, ulInitStep = 0;
-	u8				FwHdrSize = RT_8192S_FIRMWARE_HDR_SIZE;
-	rt_firmware		*pFirmware = priv->pFirmware;
-	u8				FwStatus = FW_STATUS_INIT;
-	PRT_8192S_FIRMWARE_HDR		pFwHdr = NULL;
-	PRT_8192S_FIRMWARE_PRIV		pFwPriv = NULL;
-	int 				rc;
-	const struct firmware 	*fw_entry;
-	u32				file_length = 0;
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	bool rtStatus = true;
+	u8 *pucMappedFile = NULL;
+	u32 ulFileLength;
+	u8 FwHdrSize = RT_8192S_FIRMWARE_HDR_SIZE;
+	rt_firmware *pFirmware = priv->pFirmware;
+	u8 FwStatus = FW_STATUS_INIT;
+	PRT_8192S_FIRMWARE_HDR pFwHdr = NULL;
+	PRT_8192S_FIRMWARE_PRIV pFwPriv = NULL;
 
 	pFirmware->FWStatus = FW_STATUS_INIT;
-
-	RT_TRACE(COMP_FIRMWARE, " --->FirmwareDownload92S()\n");
-
-/*
-* Load the firmware from RTL8192SU/rtl8192sfw.bin
-*/
-	if(pFirmware->szFwTmpBufferLen == 0)
-	{
-		rc = request_firmware(&fw_entry, pFwImageFileName[ulInitStep],&priv->udev->dev);
-			if(rc < 0 ) {
-				RT_TRACE(COMP_ERR, "request firmware fail!\n");
-				goto DownloadFirmware_Fail;
-			}
-
-			if(fw_entry->size > sizeof(pFirmware->szFwTmpBuffer)) {
-				RT_TRACE(COMP_ERR, "img file size exceed the container buffer fail!\n");
-				release_firmware(fw_entry);
-				goto DownloadFirmware_Fail;
-			}
-
-			memcpy(pFirmware->szFwTmpBuffer,fw_entry->data,fw_entry->size);
-			pFirmware->szFwTmpBufferLen = fw_entry->size;
-			release_firmware(fw_entry);
-
-			pucMappedFile = pFirmware->szFwTmpBuffer;
-			file_length = pFirmware->szFwTmpBufferLen;
-
-			/* Retrieve FW header. */
-			pFirmware->pFwHeader = (PRT_8192S_FIRMWARE_HDR) pucMappedFile;
-			pFwHdr = pFirmware->pFwHeader;
-			RT_TRACE(COMP_FIRMWARE,"signature:%x, version:%x, size:%x, imemsize:%x, sram size:%x\n", \
-					pFwHdr->Signature, pFwHdr->Version, pFwHdr->DMEMSize, \
-					pFwHdr->IMG_IMEM_SIZE, pFwHdr->IMG_SRAM_SIZE);
-			pFirmware->FirmwareVersion =  byte(pFwHdr->Version ,0);
-			if ((pFwHdr->IMG_IMEM_SIZE==0) || (pFwHdr->IMG_IMEM_SIZE > sizeof(pFirmware->FwIMEM))) {
-				RT_TRACE(COMP_ERR, "%s: memory for data image is less than IMEM required\n",\
-					__FUNCTION__);
-				goto DownloadFirmware_Fail;
-			} else {
-				pucMappedFile+=FwHdrSize;
-				/* Retrieve IMEM image. */
-				memcpy(pFirmware->FwIMEM, pucMappedFile, pFwHdr->IMG_IMEM_SIZE);
-				pFirmware->FwIMEMLen = pFwHdr->IMG_IMEM_SIZE;
-			}
-
-			if (pFwHdr->IMG_SRAM_SIZE > sizeof(pFirmware->FwEMEM)) {
-				RT_TRACE(COMP_ERR, "%s: memory for data image is less than EMEM required\n",\
-					__FUNCTION__);
-					goto DownloadFirmware_Fail;
-				} else {
-					pucMappedFile += pFirmware->FwIMEMLen;
-					/* Retriecve EMEM image */
-					memcpy(pFirmware->FwEMEM, pucMappedFile, pFwHdr->IMG_SRAM_SIZE);//===>6
-					pFirmware->FwEMEMLen = pFwHdr->IMG_SRAM_SIZE;
-				}
+	/*
+	 * Load the firmware from RTL8192SU/rtl8192sfw.bin if necessary
+	 */
+	if (pFirmware->szFwTmpBufferLen == 0) {
+		if (FirmwareRequest92S(dev, pFirmware) != true)
+			goto DownloadFirmware_Fail;
 	}
-
 	FwStatus = FirmwareGetNextStatus(pFirmware->FWStatus);
-	while(FwStatus!= FW_STATUS_READY)
-	{
-		// Image buffer redirection.
-		switch(FwStatus)
-		{
-			case FW_STATUS_LOAD_IMEM:
-				pucMappedFile = pFirmware->FwIMEM;
-				ulFileLength = pFirmware->FwIMEMLen;
-				break;
+	while (FwStatus != FW_STATUS_READY) {
+		/* Image buffer redirection. */
+		switch (FwStatus) {
+		case FW_STATUS_LOAD_IMEM:
+			pucMappedFile = pFirmware->FwIMEM;
+			ulFileLength = pFirmware->FwIMEMLen;
+			break;
 
-			case FW_STATUS_LOAD_EMEM:
-				pucMappedFile = pFirmware->FwEMEM;
-				ulFileLength = pFirmware->FwEMEMLen;
-				break;
+		case FW_STATUS_LOAD_EMEM:
+			pucMappedFile = pFirmware->FwEMEM;
+			ulFileLength = pFirmware->FwEMEMLen;
+			break;
 
-			case FW_STATUS_LOAD_DMEM:
-				/* <Roger_Notes> Partial update the content of header private. 2008.12.18 */
-                                pFwHdr = pFirmware->pFwHeader;
-                                pFwPriv = (PRT_8192S_FIRMWARE_PRIV)&pFwHdr->FWPriv;
-				FirmwareHeaderPriveUpdate(dev, pFwPriv);
-				pucMappedFile = (u8*)(pFirmware->pFwHeader)+RT_8192S_FIRMWARE_HDR_EXCLUDE_PRI_SIZE;
-				ulFileLength = FwHdrSize-RT_8192S_FIRMWARE_HDR_EXCLUDE_PRI_SIZE;
-				break;
+		case FW_STATUS_LOAD_DMEM:
+			/* Partial update the content of private header */
+			pFwHdr = pFirmware->pFwHeader;
+			pFwPriv = (PRT_8192S_FIRMWARE_PRIV)&pFwHdr->FWPriv;
+			FirmwareHeaderPriveUpdate(dev, pFwPriv);
+			pucMappedFile = (u8 *)(pFirmware->pFwHeader) +
+					RT_8192S_FIRMWARE_HDR_EXCLUDE_PRI_SIZE;
 
-			default:
-				RT_TRACE(COMP_ERR, "Unexpected Download step!!\n");
-				goto DownloadFirmware_Fail;
-				break;
+			ulFileLength = FwHdrSize -
+					RT_8192S_FIRMWARE_HDR_EXCLUDE_PRI_SIZE;
+			break;
+
+		default:
+			RT_TRACE(COMP_ERR, "Unexpected Download step!!\n");
+			goto DownloadFirmware_Fail;
+			break;
 		}
 
-		//3//
-		//3// <2> Download image file
-	//3	//
-		rtStatus = FirmwareDownloadCode(dev, pucMappedFile, ulFileLength);
+		/* <2> Download image file */
+
+		rtStatus = FirmwareDownloadCode(dev,
+						pucMappedFile,
+						ulFileLength);
 
 		if(rtStatus != true)
-		{
-			RT_TRACE(COMP_ERR, "FirmwareDownloadCode() fail ! \n" );
 			goto DownloadFirmware_Fail;
-		}
 
-		//3//
-		//3// <3> Check whether load FW process is ready
-	//3	//
+		/* <3> Check whether load FW process is ready */
+
 		rtStatus = FirmwareCheckReady(dev, FwStatus);
 
 		if(rtStatus != true)
-		{
-			RT_TRACE(COMP_ERR, "FirmwareDownloadCode() fail ! \n");
 			goto DownloadFirmware_Fail;
-		}
 
 		FwStatus = FirmwareGetNextStatus(pFirmware->FWStatus);
 	}
 
-	RT_TRACE(COMP_FIRMWARE, "Firmware Download Success!!\n");
+	RT_TRACE(COMP_FIRMWARE, "%s(): Firmware Download Success", __func__);
 	return rtStatus;
 
-	DownloadFirmware_Fail:
-	RT_TRACE(COMP_ERR, "Firmware Download Fail!!%x\n",read_nic_word(dev, TCR));
+DownloadFirmware_Fail:
+	RT_TRACE(COMP_ERR, "%s(): failed with TCR-Status: %x\n",
+					__func__, read_nic_word(dev, TCR));
 	rtStatus = false;
 	return rtStatus;
 }
