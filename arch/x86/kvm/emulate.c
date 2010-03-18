@@ -2531,9 +2531,12 @@ twobyte_insn:
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x21: /* mov from dr to reg */
-		if (emulator_get_dr(ctxt, c->modrm_reg, &c->regs[c->modrm_rm]))
-			goto cannot_emulate;
-		rc = X86EMUL_CONTINUE;
+		if ((ops->get_cr(4, ctxt->vcpu) & X86_CR4_DE) &&
+		    (c->modrm_reg == 4 || c->modrm_reg == 5)) {
+			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			goto done;
+		}
+		emulator_get_dr(ctxt, c->modrm_reg, &c->regs[c->modrm_rm]);
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x22: /* mov reg, cr */
@@ -2541,9 +2544,12 @@ twobyte_insn:
 		c->dst.type = OP_NONE;
 		break;
 	case 0x23: /* mov from reg to dr */
-		if (emulator_set_dr(ctxt, c->modrm_reg, c->regs[c->modrm_rm]))
-			goto cannot_emulate;
-		rc = X86EMUL_CONTINUE;
+		if ((ops->get_cr(4, ctxt->vcpu) & X86_CR4_DE) &&
+		    (c->modrm_reg == 4 || c->modrm_reg == 5)) {
+			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
+			goto done;
+		}
+		emulator_set_dr(ctxt, c->modrm_reg, c->regs[c->modrm_rm]);
 		c->dst.type = OP_NONE;	/* no writeback */
 		break;
 	case 0x30:
