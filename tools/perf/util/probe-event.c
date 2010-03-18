@@ -880,7 +880,7 @@ static void __add_kprobe_trace_events(struct perf_probe_event *pev,
 				      int ntevs, bool allow_suffix)
 {
 	int i, fd;
-	struct kprobe_trace_event *tev;
+	struct kprobe_trace_event *tev = NULL;
 	char buf[64];
 	const char *event, *group;
 	struct strlist *namelist;
