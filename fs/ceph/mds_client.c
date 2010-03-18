@@ -1660,10 +1660,9 @@ static void __wake_requests(struct ceph_mds_client *mdsc,
 
 /*
  * Wake up threads with requests pending for @mds, so that they can
- * resubmit their requests to a possibly different mds.  If @all is set,
- * wake up if their requests has been forwarded to @mds, too.
+ * resubmit their requests to a possibly different mds.
  */
-static void kick_requests(struct ceph_mds_client *mdsc, int mds, int all)
+static void kick_requests(struct ceph_mds_client *mdsc, int mds)
 {
 	struct ceph_mds_request *req;
 	struct rb_node *p;
@@ -2026,6 +2025,8 @@ static void handle_session(struct ceph_mds_session *session,
 
 	switch (op) {
 	case CEPH_SESSION_OPEN:
+		if (session->s_state == CEPH_MDS_SESSION_RECONNECTING)
+			pr_info("mds%d reconnect success\n", session->s_mds);
 		session->s_state = CEPH_MDS_SESSION_OPEN;
 		renewed_caps(mdsc, session, 0);
 		wake = 1;
@@ -2039,10 +2040,12 @@ static void handle_session(struct ceph_mds_session *session,
 		break;
 
 	case CEPH_SESSION_CLOSE:
+		if (session->s_state == CEPH_MDS_SESSION_RECONNECTING)
+			pr_info("mds%d reconnect denied\n", session->s_mds);
 		remove_session_caps(session);
 		wake = 1; /* for good measure */
 		complete(&mdsc->session_close_waiters);
-		kick_requests(mdsc, mds, 0);      /* cur only */
+		kick_requests(mdsc, mds);
 		break;
 
 	case CEPH_SESSION_STALE:
@@ -2258,7 +2261,6 @@ send:
 	reply->nr_pages = calc_pages_for(0, pagelist->length);
 	ceph_con_send(&session->s_con, reply);
 
-	session->s_state = CEPH_MDS_SESSION_OPEN;
 	mutex_unlock(&session->s_mutex);
 
 	mutex_lock(&mdsc->mutex);
@@ -2334,7 +2336,7 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 			}
 
 			/* kick any requests waiting on the recovering mds */
-			kick_requests(mdsc, i, 1);
+			kick_requests(mdsc, i);
 		} else if (oldstate == newstate) {
 			continue;  /* nothing new with this mds */
 		}
@@ -2347,18 +2349,14 @@ static void check_new_map(struct ceph_mds_client *mdsc,
 			send_mds_reconnect(mdsc, i);
 
 		/*
-		 * kick requests on any mds that has gone active.
-		 *
-		 * kick requests on cur or forwarder: we may have sent
-		 * the request to mds1, mds1 told us it forwarded it
-		 * to mds2, but then we learn mds1 failed and can't be
-		 * sure it successfully forwarded our request before
-		 * it died.
+		 * kick request on any mds that has gone active.
 		 */
 		if (oldstate < CEPH_MDS_STATE_ACTIVE &&
 		    newstate >= CEPH_MDS_STATE_ACTIVE) {
-			pr_info("mds%d reconnect completed\n", s->s_mds);
-			kick_requests(mdsc, i, 1);
+			if (oldstate != CEPH_MDS_STATE_CREATING &&
+			    oldstate != CEPH_MDS_STATE_STARTING)
+				pr_info("mds%d recovery completed\n", s->s_mds);
+			kick_requests(mdsc, i);
 			ceph_kick_flushing_caps(mdsc, s);
 			wake_up_session_caps(s, 1);
 		}
