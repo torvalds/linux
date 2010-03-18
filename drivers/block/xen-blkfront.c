@@ -943,6 +943,7 @@ static void blkfront_connect(struct blkfront_info *info)
 		printk(KERN_INFO "Setting capacity to %Lu\n",
 		       sectors);
 		set_capacity(info->gd, sectors);
+		revalidate_disk(info->gd);
 
 		/* fall through */
 	case BLKIF_STATE_SUSPENDED:
