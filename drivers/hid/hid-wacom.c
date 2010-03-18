@@ -30,6 +30,7 @@
 struct wacom_data {
 	__u16 tool;
 	unsigned char butstate;
+	unsigned char high_speed;
 #ifdef CONFIG_HID_WACOM_POWER_SUPPLY
 	int battery_capacity;
 	struct power_supply battery;
@@ -105,6 +106,7 @@ static int wacom_ac_get_property(struct power_supply *psy,
 
 static void wacom_poke(struct hid_device *hdev, u8 speed)
 {
+	struct wacom_data *wdata = hid_get_drvdata(hdev);
 	int limit, ret;
 	char rep_data[2];
 
@@ -128,8 +130,10 @@ static void wacom_poke(struct hid_device *hdev, u8 speed)
 					HID_FEATURE_REPORT);
 		} while (ret < 0 && limit-- > 0);
 
-		if (ret >= 0)
+		if (ret >= 0) {
+			wdata->high_speed = speed;
 			return;
+		}
 	}
 
 	/*
@@ -140,6 +144,35 @@ static void wacom_poke(struct hid_device *hdev, u8 speed)
 				rep_data[0], ret);
 	return;
 }
+
+static ssize_t wacom_show_speed(struct device *dev,
+				struct device_attribute
+				*attr, char *buf)
+{
+	struct wacom_data *wdata = dev_get_drvdata(dev);
+
+	return snprintf(buf, PAGE_SIZE, "%i\n", wdata->high_speed);
+}
+
+static ssize_t wacom_store_speed(struct device *dev,
+				struct device_attribute *attr,
+				const char *buf, size_t count)
+{
+	struct hid_device *hdev = container_of(dev, struct hid_device, dev);
+	int new_speed;
+
+	if (sscanf(buf, "%1d", &new_speed ) != 1)
+		return -EINVAL;
+
+	if (new_speed == 0 || new_speed == 1) {
+		wacom_poke(hdev, new_speed);
+		return strnlen(buf, PAGE_SIZE);
+	} else
+		return -EINVAL;
+}
+
+static DEVICE_ATTR(speed, S_IRUGO | S_IWUGO,
+		wacom_show_speed, wacom_store_speed);
 
 static int wacom_raw_event(struct hid_device *hdev, struct hid_report *report,
 		u8 *raw_data, int size)
@@ -296,6 +329,11 @@ static int wacom_probe(struct hid_device *hdev,
 		dev_err(&hdev->dev, "hw start failed\n");
 		goto err_free;
 	}
+
+	ret = device_create_file(&hdev->dev, &dev_attr_speed);
+	if (ret)
+		dev_warn(&hdev->dev,
+			"can't create sysfs speed attribute err: %d\n", ret);
 
 	/* Set Wacom mode 2 with high reporting speed */
 	wacom_poke(hdev, 1);
