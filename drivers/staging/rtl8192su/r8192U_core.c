@@ -2595,30 +2595,20 @@ void rtl8192SU_update_ratr_table(struct net_device* dev)
 void rtl8192SU_link_change(struct net_device *dev)
 {
 	struct r8192_priv *priv = ieee80211_priv(dev);
-	struct ieee80211_device* ieee = priv->ieee80211;
-	//unsigned long flags;
+	struct ieee80211_device *ieee = priv->ieee80211;
 	u32 reg = 0;
 
-	printk("=====>%s 1\n", __func__);
 	reg = read_nic_dword(dev, RCR);
-
-	if (ieee->state == IEEE80211_LINKED)
-	{
-
+	if (ieee->state == IEEE80211_LINKED) {
 		rtl8192SU_net_update(dev);
 		rtl8192SU_update_ratr_table(dev);
 		ieee->SetFwCmdHandler(dev, FW_CMD_HIGH_PWR_ENABLE);
 		priv->ReceiveConfig = reg |= RCR_CBSSID;
 
-	}else{
+	} else
 		priv->ReceiveConfig = reg &= ~RCR_CBSSID;
-
-	}
-
 	write_nic_dword(dev, RCR, reg);
 	rtl8192_update_msr(dev);
-
-	printk("<=====%s 2\n", __func__);
 }
 
 static struct ieee80211_qos_parameters def_qos_parameters = {
