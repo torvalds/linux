@@ -51,6 +51,7 @@
 #define DstReg      (2<<1)	/* Register operand. */
 #define DstMem      (3<<1)	/* Memory operand. */
 #define DstAcc      (4<<1)      /* Destination Accumulator */
+#define DstDI       (5<<1)	/* Destination is in ES:(E)DI */
 #define DstMask     (7<<1)
 /* Source operand type. */
 #define SrcNone     (0<<4)	/* No source operand. */
@@ -64,6 +65,7 @@
 #define SrcOne      (7<<4)	/* Implied '1' */
 #define SrcImmUByte (8<<4)      /* 8-bit unsigned immediate operand. */
 #define SrcImmU     (9<<4)      /* Immediate operand, unsigned */
+#define SrcSI       (0xa<<4)	/* Source is in the DS:RSI */
 #define SrcMask     (0xf<<4)
 /* Generic ModRM decode. */
 #define ModRM       (1<<8)
@@ -177,12 +179,12 @@ static u32 opcode_table[256] = {
 	/* 0xA0 - 0xA7 */
 	ByteOp | DstReg | SrcMem | Mov | MemAbs, DstReg | SrcMem | Mov | MemAbs,
 	ByteOp | DstMem | SrcReg | Mov | MemAbs, DstMem | SrcReg | Mov | MemAbs,
-	ByteOp | ImplicitOps | Mov | String, ImplicitOps | Mov | String,
-	ByteOp | ImplicitOps | String, ImplicitOps | String,
+	ByteOp | SrcSI | DstDI | Mov | String, SrcSI | DstDI | Mov | String,
+	ByteOp | SrcSI | DstDI | String, SrcSI | DstDI | String,
 	/* 0xA8 - 0xAF */
-	0, 0, ByteOp | ImplicitOps | Mov | String, ImplicitOps | Mov | String,
-	ByteOp | ImplicitOps | Mov | String, ImplicitOps | Mov | String,
-	ByteOp | ImplicitOps | String, ImplicitOps | String,
+	0, 0, ByteOp | DstDI | Mov | String, DstDI | Mov | String,
+	ByteOp | SrcSI | DstAcc | Mov | String, SrcSI | DstAcc | Mov | String,
+	ByteOp | DstDI | String, DstDI | String,
 	/* 0xB0 - 0xB7 */
 	ByteOp | DstReg | SrcImm | Mov, ByteOp | DstReg | SrcImm | Mov,
 	ByteOp | DstReg | SrcImm | Mov, ByteOp | DstReg | SrcImm | Mov,
@@ -1145,6 +1147,14 @@ done_prefixes:
 		c->src.bytes = 1;
 		c->src.val = 1;
 		break;
+	case SrcSI:
+		c->src.type = OP_MEM;
+		c->src.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
+		c->src.ptr = (unsigned long *)
+			register_address(c,  seg_override_base(ctxt, c),
+					 c->regs[VCPU_REGS_RSI]);
+		c->src.val = 0;
+		break;
 	}
 
 	/*
@@ -1229,6 +1239,14 @@ done_prefixes:
 				break;
 		}
 		c->dst.orig_val = c->dst.val;
+		break;
+	case DstDI:
+		c->dst.type = OP_MEM;
+		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
+		c->dst.ptr = (unsigned long *)
+			register_address(c, es_base(ctxt),
+					 c->regs[VCPU_REGS_RDI]);
+		c->dst.val = 0;
 		break;
 	}
 
@@ -2392,6 +2410,16 @@ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
 	return rc;
 }
 
+static void string_addr_inc(struct x86_emulate_ctxt *ctxt, unsigned long base,
+			    int reg, unsigned long **ptr)
+{
+	struct decode_cache *c = &ctxt->decode;
+	int df = (ctxt->eflags & EFLG_DF) ? -1 : 1;
+
+	register_address_increment(c, &c->regs[reg], df * c->src.bytes);
+	*ptr = (unsigned long *)register_address(c,  base, c->regs[reg]);
+}
+
 int
 x86_emulate_insn(struct x86_emulate_ctxt *ctxt, struct x86_emulate_ops *ops)
 {
@@ -2754,89 +2782,16 @@ special_insn:
 		c->dst.val = (unsigned long)c->regs[VCPU_REGS_RAX];
 		break;
 	case 0xa4 ... 0xa5:	/* movs */
-		c->dst.type = OP_MEM;
-		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
-		c->dst.ptr = (unsigned long *)register_address(c,
-						   es_base(ctxt),
-						   c->regs[VCPU_REGS_RDI]);
-		rc = ops->read_emulated(register_address(c,
-						seg_override_base(ctxt, c),
-						c->regs[VCPU_REGS_RSI]),
-					&c->dst.val,
-					c->dst.bytes, ctxt->vcpu);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
-		register_address_increment(c, &c->regs[VCPU_REGS_RSI],
-				       (ctxt->eflags & EFLG_DF) ? -c->dst.bytes
-							   : c->dst.bytes);
-		register_address_increment(c, &c->regs[VCPU_REGS_RDI],
-				       (ctxt->eflags & EFLG_DF) ? -c->dst.bytes
-							   : c->dst.bytes);
-		break;
+		goto mov;
 	case 0xa6 ... 0xa7:	/* cmps */
-		c->src.type = OP_NONE; /* Disable writeback. */
-		c->src.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
-		c->src.ptr = (unsigned long *)register_address(c,
-				       seg_override_base(ctxt, c),
-						   c->regs[VCPU_REGS_RSI]);
-		rc = ops->read_emulated((unsigned long)c->src.ptr,
-					&c->src.val,
-					c->src.bytes,
-					ctxt->vcpu);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
-
 		c->dst.type = OP_NONE; /* Disable writeback. */
-		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
-		c->dst.ptr = (unsigned long *)register_address(c,
-						   es_base(ctxt),
-						   c->regs[VCPU_REGS_RDI]);
-		rc = ops->read_emulated((unsigned long)c->dst.ptr,
-					&c->dst.val,
-					c->dst.bytes,
-					ctxt->vcpu);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
-
 		DPRINTF("cmps: mem1=0x%p mem2=0x%p\n", c->src.ptr, c->dst.ptr);
-
-		emulate_2op_SrcV("cmp", c->src, c->dst, ctxt->eflags);
-
-		register_address_increment(c, &c->regs[VCPU_REGS_RSI],
-				       (ctxt->eflags & EFLG_DF) ? -c->src.bytes
-								  : c->src.bytes);
-		register_address_increment(c, &c->regs[VCPU_REGS_RDI],
-				       (ctxt->eflags & EFLG_DF) ? -c->dst.bytes
-								  : c->dst.bytes);
-
-		break;
+		goto cmp;
 	case 0xaa ... 0xab:	/* stos */
-		c->dst.type = OP_MEM;
-		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
-		c->dst.ptr = (unsigned long *)register_address(c,
-						   es_base(ctxt),
-						   c->regs[VCPU_REGS_RDI]);
 		c->dst.val = c->regs[VCPU_REGS_RAX];
-		register_address_increment(c, &c->regs[VCPU_REGS_RDI],
-				       (ctxt->eflags & EFLG_DF) ? -c->dst.bytes
-							   : c->dst.bytes);
 		break;
 	case 0xac ... 0xad:	/* lods */
-		c->dst.type = OP_REG;
-		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
-		c->dst.ptr = (unsigned long *)&c->regs[VCPU_REGS_RAX];
-		rc = ops->read_emulated(register_address(c,
-						seg_override_base(ctxt, c),
-						c->regs[VCPU_REGS_RSI]),
-					&c->dst.val,
-					c->dst.bytes,
-					ctxt->vcpu);
-		if (rc != X86EMUL_CONTINUE)
-			goto done;
-		register_address_increment(c, &c->regs[VCPU_REGS_RSI],
-				       (ctxt->eflags & EFLG_DF) ? -c->dst.bytes
-							   : c->dst.bytes);
-		break;
+		goto mov;
 	case 0xae ... 0xaf:	/* scas */
 		DPRINTF("Urk! I don't handle SCAS.\n");
 		goto cannot_emulate;
@@ -2978,6 +2933,14 @@ writeback:
 	rc = writeback(ctxt, ops);
 	if (rc != X86EMUL_CONTINUE)
 		goto done;
+
+	if ((c->d & SrcMask) == SrcSI)
+		string_addr_inc(ctxt, seg_override_base(ctxt, c), VCPU_REGS_RSI,
+				&c->src.ptr);
+
+	if ((c->d & DstMask) == DstDI)
+		string_addr_inc(ctxt, es_base(ctxt), VCPU_REGS_RDI,
+				&c->dst.ptr);
 
 	/* Commit shadow register state. */
 	memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
