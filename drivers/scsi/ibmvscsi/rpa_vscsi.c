@@ -334,10 +334,23 @@ static int rpavscsi_reenable_crq_queue(struct crq_queue *queue,
 	return rc;
 }
 
+/**
+ * rpavscsi_resume: - resume after suspend
+ * @hostdata:	ibmvscsi_host_data of host
+ *
+ */
+static int rpavscsi_resume(struct ibmvscsi_host_data *hostdata)
+{
+	vio_disable_interrupts(to_vio_dev(hostdata->dev));
+	tasklet_schedule(&hostdata->srp_task);
+	return 0;
+}
+
 struct ibmvscsi_ops rpavscsi_ops = {
 	.init_crq_queue = rpavscsi_init_crq_queue,
 	.release_crq_queue = rpavscsi_release_crq_queue,
 	.reset_crq_queue = rpavscsi_reset_crq_queue,
 	.reenable_crq_queue = rpavscsi_reenable_crq_queue,
 	.send_crq = rpavscsi_send_crq,
+	.resume = rpavscsi_resume,
 };

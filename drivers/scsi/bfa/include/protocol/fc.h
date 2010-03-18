@@ -50,6 +50,11 @@ struct fchs_s {
 
 	u32        ro;		/* relative offset */
 };
+
+#define FC_SOF_LEN      4
+#define FC_EOF_LEN      4
+#define FC_CRC_LEN      4
+
 /*
  * Fibre Channel BB_E Header Structure
  */
