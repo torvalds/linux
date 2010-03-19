@@ -43,6 +43,12 @@ struct intc_handle_int {
 	unsigned long handle;
 };
 
+struct intc_window {
+	phys_addr_t phys;
+	void __iomem *virt;
+	unsigned long size;
+};
+
 struct intc_desc_int {
 	struct list_head list;
 	struct sys_device sysdev;
@@ -56,6 +62,8 @@ struct intc_desc_int {
 	unsigned int nr_prio;
 	struct intc_handle_int *sense;
 	unsigned int nr_sense;
+	struct intc_window *window;
+	unsigned int nr_windows;
 	struct irq_chip chip;
 };
 
@@ -420,10 +428,38 @@ static int intc_set_sense(unsigned int irq, unsigned int type)
 	return 0;
 }
 
+static unsigned long intc_phys_to_virt(struct intc_desc_int *d,
+				       unsigned long address)
+{
+	struct intc_window *window;
+	int k;
+
+	/* scan through physical windows and convert address */
+	for (k = 0; k < d->nr_windows; k++) {
+		window = d->window + k;
+
+		if (address < window->phys)
+			continue;
+
+		if (address >= (window->phys + window->size))
+			continue;
+
+		address -= window->phys;
+		address += (unsigned long)window->virt;
+
+		return address;
+	}
+
+	/* no windows defined, register must be 1:1 mapped virt:phys */
+	return address;
+}
+
 static unsigned int __init intc_get_reg(struct intc_desc_int *d,
-				 unsigned long address)
+					unsigned long address)
 {
 	unsigned int k;
+
+	address = intc_phys_to_virt(d, address);
 
 	for (k = 0; k < d->nr_reg; k++) {
 		if (d->reg[k] == address)
@@ -774,6 +810,8 @@ static unsigned int __init save_reg(struct intc_desc_int *d,
 				    unsigned int smp)
 {
 	if (value) {
+		value = intc_phys_to_virt(d, value);
+
 		d->reg[cnt] = value;
 #ifdef CONFIG_SMP
 		d->smp[cnt] = smp;
@@ -794,6 +832,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 	unsigned int i, k, smp;
 	struct intc_hw_desc *hw = &desc->hw;
 	struct intc_desc_int *d;
+	struct resource *res;
 
 	d = kzalloc(sizeof(*d), GFP_NOWAIT);
 	if (!d)
@@ -802,6 +841,25 @@ int __init register_intc_controller(struct intc_desc *desc)
 	INIT_LIST_HEAD(&d->list);
 	list_add(&d->list, &intc_list);
 
+	if (desc->num_resources) {
+		d->nr_windows = desc->num_resources;
+		d->window = kzalloc(d->nr_windows * sizeof(*d->window),
+				    GFP_NOWAIT);
+		if (!d->window)
+			goto err1;
+
+		for (k = 0; k < d->nr_windows; k++) {
+			res = desc->resource + k;
+			WARN_ON(resource_type(res) != IORESOURCE_MEM);
+			d->window[k].phys = res->start;
+			d->window[k].size = resource_size(res);
+			d->window[k].virt = ioremap_nocache(res->start,
+							 resource_size(res));
+			if (!d->window[k].virt)
+				goto err2;
+		}
+	}
+
 	d->nr_reg = hw->mask_regs ? hw->nr_mask_regs * 2 : 0;
 	d->nr_reg += hw->prio_regs ? hw->nr_prio_regs * 2 : 0;
 	d->nr_reg += hw->sense_regs ? hw->nr_sense_regs : 0;
@@ -809,12 +867,12 @@ int __init register_intc_controller(struct intc_desc *desc)
 
 	d->reg = kzalloc(d->nr_reg * sizeof(*d->reg), GFP_NOWAIT);
 	if (!d->reg)
-		goto err1;
+		goto err2;
 
 #ifdef CONFIG_SMP
 	d->smp = kzalloc(d->nr_reg * sizeof(*d->smp), GFP_NOWAIT);
 	if (!d->smp)
-		goto err2;
+		goto err3;
 #endif
 	k = 0;
 
@@ -830,7 +888,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 		d->prio = kzalloc(hw->nr_vectors * sizeof(*d->prio),
 				  GFP_NOWAIT);
 		if (!d->prio)
-			goto err3;
+			goto err4;
 
 		for (i = 0; i < hw->nr_prio_regs; i++) {
 			smp = IS_SMP(hw->prio_regs[i]);
@@ -843,7 +901,7 @@ int __init register_intc_controller(struct intc_desc *desc)
 		d->sense = kzalloc(hw->nr_vectors * sizeof(*d->sense),
 				   GFP_NOWAIT);
 		if (!d->sense)
-			goto err4;
+			goto err5;
 
 		for (i = 0; i < hw->nr_sense_regs; i++)
 			k += save_reg(d, k, hw->sense_regs[i].reg, 0);
@@ -925,17 +983,23 @@ int __init register_intc_controller(struct intc_desc *desc)
 		intc_enable_disable_enum(desc, d, desc->force_enable, 1);
 
 	return 0;
- err4:
+err5:
 	kfree(d->prio);
- err3:
+err4:
 #ifdef CONFIG_SMP
 	kfree(d->smp);
- err2:
+err3:
 #endif
 	kfree(d->reg);
- err1:
+err2:
+	for (k = 0; k < d->nr_windows; k++)
+		if (d->window[k].virt)
+			iounmap(d->window[k].virt);
+
+	kfree(d->window);
+err1:
 	kfree(d);
- err0:
+err0:
 	pr_err("unable to allocate INTC memory\n");
 
 	return -ENOMEM;

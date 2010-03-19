@@ -1,6 +1,8 @@
 #ifndef __SH_INTC_H
 #define __SH_INTC_H
 
+#include <linux/ioport.h>
+
 typedef unsigned char intc_enum;
 
 struct intc_vect {
@@ -71,6 +73,8 @@ struct intc_hw_desc {
 
 struct intc_desc {
 	char *name;
+	struct resource *resource;
+	unsigned int num_resources;
 	intc_enum force_enable;
 	intc_enum force_disable;
 	struct intc_hw_desc hw;
