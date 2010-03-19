@@ -2279,26 +2279,25 @@ void gelic_wl_interrupt(struct net_device *netdev, u64 status)
 /*
  * driver helpers
  */
-#define IW_IOCTL(n) [(n) - SIOCSIWCOMMIT]
 static const iw_handler gelic_wl_wext_handler[] =
 {
-	IW_IOCTL(SIOCGIWNAME)		= gelic_wl_get_name,
-	IW_IOCTL(SIOCGIWRANGE)		= gelic_wl_get_range,
-	IW_IOCTL(SIOCSIWSCAN)		= gelic_wl_set_scan,
-	IW_IOCTL(SIOCGIWSCAN)		= gelic_wl_get_scan,
-	IW_IOCTL(SIOCSIWAUTH)		= gelic_wl_set_auth,
-	IW_IOCTL(SIOCGIWAUTH)		= gelic_wl_get_auth,
-	IW_IOCTL(SIOCSIWESSID)		= gelic_wl_set_essid,
-	IW_IOCTL(SIOCGIWESSID)		= gelic_wl_get_essid,
-	IW_IOCTL(SIOCSIWENCODE)		= gelic_wl_set_encode,
-	IW_IOCTL(SIOCGIWENCODE)		= gelic_wl_get_encode,
-	IW_IOCTL(SIOCSIWAP)		= gelic_wl_set_ap,
-	IW_IOCTL(SIOCGIWAP)		= gelic_wl_get_ap,
-	IW_IOCTL(SIOCSIWENCODEEXT)	= gelic_wl_set_encodeext,
-	IW_IOCTL(SIOCGIWENCODEEXT)	= gelic_wl_get_encodeext,
-	IW_IOCTL(SIOCSIWMODE)		= gelic_wl_set_mode,
-	IW_IOCTL(SIOCGIWMODE)		= gelic_wl_get_mode,
-	IW_IOCTL(SIOCGIWNICKN)		= gelic_wl_get_nick,
+	IW_HANDLER(SIOCGIWNAME, gelic_wl_get_name),
+	IW_HANDLER(SIOCGIWRANGE, gelic_wl_get_range),
+	IW_HANDLER(SIOCSIWSCAN, gelic_wl_set_scan),
+	IW_HANDLER(SIOCGIWSCAN, gelic_wl_get_scan),
+	IW_HANDLER(SIOCSIWAUTH, gelic_wl_set_auth),
+	IW_HANDLER(SIOCGIWAUTH, gelic_wl_get_auth),
+	IW_HANDLER(SIOCSIWESSID, gelic_wl_set_essid),
+	IW_HANDLER(SIOCGIWESSID, gelic_wl_get_essid),
+	IW_HANDLER(SIOCSIWENCODE, gelic_wl_set_encode),
+	IW_HANDLER(SIOCGIWENCODE, gelic_wl_get_encode),
+	IW_HANDLER(SIOCSIWAP, gelic_wl_set_ap),
+	IW_HANDLER(SIOCGIWAP, gelic_wl_get_ap),
+	IW_HANDLER(SIOCSIWENCODEEXT, gelic_wl_set_encodeext),
+	IW_HANDLER(SIOCGIWENCODEEXT, gelic_wl_get_encodeext),
+	IW_HANDLER(SIOCSIWMODE, gelic_wl_set_mode),
+	IW_HANDLER(SIOCGIWMODE, gelic_wl_get_mode),
+	IW_HANDLER(SIOCGIWNICKN, gelic_wl_get_nick),
 };
 
 static const struct iw_handler_def gelic_wl_wext_handler_def = {
