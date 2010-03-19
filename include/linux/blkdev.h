@@ -158,7 +158,6 @@ enum rq_flag_bits {
 struct request {
 	struct list_head queuelist;
 	struct call_single_data csd;
-	int cpu;
 
 	struct request_queue *q;
 
@@ -166,9 +165,11 @@ struct request {
 	enum rq_cmd_type_bits cmd_type;
 	unsigned long atomic_flags;
 
+	int cpu;
+
 	/* the following two fields are internal, NEVER access directly */
-	sector_t __sector;		/* sector cursor */
 	unsigned int __data_len;	/* total data len */
+	sector_t __sector;		/* sector cursor */
 
 	struct bio *bio;
 	struct bio *biotail;
@@ -201,20 +202,20 @@ struct request {
 
 	unsigned short ioprio;
 
+	int ref_count;
+
 	void *special;		/* opaque pointer available for LLD use */
 	char *buffer;		/* kaddr of the current segment if available */
 
 	int tag;
 	int errors;
 
-	int ref_count;
-
 	/*
 	 * when request is used as a packet command carrier
 	 */
-	unsigned short cmd_len;
 	unsigned char __cmd[BLK_MAX_CDB];
 	unsigned char *cmd;
+	unsigned short cmd_len;
 
 	unsigned int extra_len;	/* length of alignment and padding */
 	unsigned int sense_len;
