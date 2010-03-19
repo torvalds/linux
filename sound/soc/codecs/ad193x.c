@@ -285,7 +285,7 @@ static int ad193x_hw_params(struct snd_pcm_substream *substream,
 	return 0;
 }
 
-int ad193x_bus_probe(struct device *dev, void *ctrl_data, int bus_type)
+static int ad193x_bus_probe(struct device *dev, void *ctrl_data, int bus_type)
 {
 	struct snd_soc_codec *codec;
 	struct ad193x_priv *ad193x;
@@ -302,16 +302,14 @@ int ad193x_bus_probe(struct device *dev, void *ctrl_data, int bus_type)
 
 	return ad193x_register(ad193x, bus_type);
 }
-EXPORT_SYMBOL_GPL(ad193x_bus_probe);
 
-int ad193x_bus_remove(struct device *dev)
+static int ad193x_bus_remove(struct device *dev)
 {
 	struct ad193x_priv *ad193x = dev_get_drvdata(dev);
 
 	ad193x_unregister(ad193x);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(ad193x_bus_remove);
 
 static struct snd_soc_dai_ops ad193x_dai_ops = {
 	.hw_params = ad193x_hw_params,

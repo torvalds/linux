@@ -77,7 +77,5 @@
 
 extern struct snd_soc_dai ad193x_dai;
 extern struct snd_soc_codec_device soc_codec_dev_ad193x;
-extern int ad193x_bus_probe(struct device *dev, void *ctrl_data, int bus_type);
-extern int ad193x_bus_remove(struct device *dev);
 
 #endif
