@@ -72,6 +72,8 @@ struct attribute_group *sm_create_sysfs_attributes(struct sm_ftl *ftl)
 	vendor_attribute =
 		kzalloc(sizeof(struct sm_sysfs_attribute), GFP_KERNEL);
 
+	sysfs_attr_init(&vendor_attribute->dev_attr.attr);
+
 	vendor_attribute->data = vendor;
 	vendor_attribute->len = vendor_len;
 	vendor_attribute->dev_attr.attr.name = "vendor";
