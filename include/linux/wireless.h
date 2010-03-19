@@ -346,6 +346,8 @@
 #define SIOCIWFIRST	0x8B00
 #define SIOCIWLAST	SIOCIWLASTPRIV		/* 0x8BFF */
 #define IW_IOCTL_IDX(cmd)	((cmd) - SIOCIWFIRST)
+#define IW_HANDLER(id, func)			\
+	[IW_IOCTL_IDX(id)] = func
 
 /* Odd : get (world access), even : set (root access) */
 #define IW_IS_SET(cmd)	(!((cmd) & 0x1))
