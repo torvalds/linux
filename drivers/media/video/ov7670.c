@@ -409,6 +409,42 @@ static struct regval_list ov7670_fmt_raw[] = {
 
 /*
  * Low-level register I/O.
+ *
+ * Note that there are two versions of these.  On the XO 1, the
+ * i2c controller only does SMBUS, so that's what we use.  The
+ * ov7670 is not really an SMBUS device, though, so the communication
+ * is not always entirely reliable.
+ */
+#ifdef CONFIG_OLPC_XO_1
+static int ov7670_read(struct v4l2_subdev *sd, unsigned char reg,
+		unsigned char *value)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret;
+
+	ret = i2c_smbus_read_byte_data(client, reg);
+	if (ret >= 0) {
+		*value = (unsigned char)ret;
+		ret = 0;
+	}
+	return ret;
+}
+
+
+static int ov7670_write(struct v4l2_subdev *sd, unsigned char reg,
+		unsigned char value)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	int ret = i2c_smbus_write_byte_data(client, reg, value);
+
+	if (reg == REG_COM7 && (value & COM7_RESET))
+		msleep(5);  /* Wait for reset to run */
+	return ret;
+}
+
+#else /* ! CONFIG_OLPC_XO_1 */
+/*
+ * On most platforms, we'd rather do straight i2c I/O.
  */
 static int ov7670_read(struct v4l2_subdev *sd, unsigned char reg,
 		unsigned char *value)
@@ -462,6 +498,7 @@ static int ov7670_write(struct v4l2_subdev *sd, unsigned char reg,
 		msleep(5);  /* Wait for reset to run */
 	return ret;
 }
+#endif /* CONFIG_OLPC_XO_1 */
 
 
 /*
