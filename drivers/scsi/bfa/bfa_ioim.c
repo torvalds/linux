@@ -758,7 +758,7 @@ bfa_ioim_send_ioreq(struct bfa_ioim_s *ioim)
 	sge = &m->sges[0];
 	if (ioim->nsges) {
 		sg = (struct scatterlist *)scsi_sglist(cmnd);
-		addr = (u64) sg_dma_address(sg);
+		addr = bfa_os_sgaddr(sg_dma_address(sg));
 		sge->sga = *(union bfi_addr_u *) &addr;
 		pgdlen = sg_dma_len(sg);
 		sge->sg_len = pgdlen;
@@ -891,7 +891,7 @@ bfa_ioim_sgpg_setup(struct bfa_ioim_s *ioim)
 
 		pgcumsz = 0;
 		for (i = 0; i < nsges; i++, sge++, sgeid++, sg = sg_next(sg)) {
-			addr = (u64) sg_dma_address(sg);
+			addr = bfa_os_sgaddr(sg_dma_address(sg));
 			sge->sga = *(union bfi_addr_u *) &addr;
 			sge->sg_len = sg_dma_len(sg);
 			pgcumsz += sge->sg_len;
