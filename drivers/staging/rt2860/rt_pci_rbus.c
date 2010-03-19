@@ -81,7 +81,7 @@ void RTMP_AllocateTxDescMemory(struct rt_rtmp_adapter *pAd,
 			       u32 Index,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
-			       void ** VirtualAddress,
+			       void **VirtualAddress,
 			       dma_addr_t *PhysicalAddress)
 {
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
@@ -96,7 +96,7 @@ void RTMP_AllocateTxDescMemory(struct rt_rtmp_adapter *pAd,
 void RTMP_AllocateMgmtDescMemory(struct rt_rtmp_adapter *pAd,
 				 unsigned long Length,
 				 IN BOOLEAN Cached,
-				 void ** VirtualAddress,
+				 void **VirtualAddress,
 				 dma_addr_t *PhysicalAddress)
 {
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
@@ -111,7 +111,7 @@ void RTMP_AllocateMgmtDescMemory(struct rt_rtmp_adapter *pAd,
 void RTMP_AllocateRxDescMemory(struct rt_rtmp_adapter *pAd,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
-			       void ** VirtualAddress,
+			       void **VirtualAddress,
 			       dma_addr_t *PhysicalAddress)
 {
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
@@ -139,7 +139,7 @@ void RTMP_AllocateFirstTxBuffer(struct rt_rtmp_adapter *pAd,
 				u32 Index,
 				unsigned long Length,
 				IN BOOLEAN Cached,
-				void ** VirtualAddress,
+				void **VirtualAddress,
 				dma_addr_t *PhysicalAddress)
 {
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
@@ -173,7 +173,7 @@ void RTMP_FreeFirstTxBuffer(struct rt_rtmp_adapter *pAd,
 void RTMP_AllocateSharedMemory(struct rt_rtmp_adapter *pAd,
 			       unsigned long Length,
 			       IN BOOLEAN Cached,
-			       void ** VirtualAddress,
+			       void **VirtualAddress,
 			       dma_addr_t *PhysicalAddress)
 {
 	struct os_cookie *pObj = (struct os_cookie *)pAd->OS_Cookie;
@@ -197,7 +197,7 @@ void RTMP_AllocateSharedMemory(struct rt_rtmp_adapter *pAd,
 void *RTMP_AllocateRxPacketBuffer(struct rt_rtmp_adapter *pAd,
 					 unsigned long Length,
 					 IN BOOLEAN Cached,
-					 void ** VirtualAddress,
+					 void **VirtualAddress,
 					 OUT dma_addr_t *
 					 PhysicalAddress)
 {
