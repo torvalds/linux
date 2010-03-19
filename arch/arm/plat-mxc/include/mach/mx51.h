@@ -28,6 +28,12 @@
  */
 
 /*
+ * IROM
+ */
+#define MX51_IROM_BASE_ADDR		0x0
+#define MX51_IROM_SIZE			SZ_64K
+
+/*
  * IRAM
  */
 #define MX51_IRAM_BASE_ADDR		0x1FFE0000	/* internal ram */
@@ -438,12 +444,7 @@
 
 #if !defined(__ASSEMBLY__) && !defined(__MXC_BOOT_UNCOMPRESS)
 
-extern unsigned int system_rev;
-
-static inline unsigned int mx51_revision(void)
-{
-	return system_rev;
-}
+extern int mx51_revision(void);
 #endif
 
 #endif	/*  __ASM_ARCH_MXC_MX51_H__ */
