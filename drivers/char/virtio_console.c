@@ -681,6 +681,10 @@ static void resize_console(struct port *port)
 	struct virtio_device *vdev;
 	struct winsize ws;
 
+	/* The port could have been hot-unplugged */
+	if (!port)
+		return;
+
 	vdev = port->portdev->vdev;
 	if (virtio_has_feature(vdev, VIRTIO_CONSOLE_F_SIZE)) {
 		vdev->config->get(vdev,
