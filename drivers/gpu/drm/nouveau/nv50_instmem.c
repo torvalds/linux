@@ -63,9 +63,10 @@ nv50_instmem_init(struct drm_device *dev)
 	struct drm_nouveau_private *dev_priv = dev->dev_private;
 	struct nouveau_channel *chan;
 	uint32_t c_offset, c_size, c_ramfc, c_vmpd, c_base, pt_size;
+	uint32_t save_nv001700;
+	uint64_t v;
 	struct nv50_instmem_priv *priv;
 	int ret, i;
-	uint32_t v, save_nv001700;
 
 	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
 	if (!priv)
@@ -184,8 +185,8 @@ nv50_instmem_init(struct drm_device *dev)
 
 	i = 0;
 	while (v < dev_priv->vram_sys_base + c_offset + c_size) {
-		BAR0_WI32(priv->pramin_pt->gpuobj, i + 0, v);
-		BAR0_WI32(priv->pramin_pt->gpuobj, i + 4, 0x00000000);
+		BAR0_WI32(priv->pramin_pt->gpuobj, i + 0, lower_32_bits(v));
+		BAR0_WI32(priv->pramin_pt->gpuobj, i + 4, upper_32_bits(v));
 		v += 0x1000;
 		i += 8;
 	}
