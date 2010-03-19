@@ -96,7 +96,9 @@
 # define SCSCR_INIT(port)       0x0038  /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
 #elif defined(CONFIG_CPU_SUBTYPE_SH7724)
 # define SCIF_ORER              0x0001  /* overrun error bit */
-# define SCSCR_INIT(port)       0x0038  /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */
+# define SCSCR_INIT(port) ((port)->type == PORT_SCIFA ? \
+	0x30 /* TIE=0,RIE=0,TE=1,RE=1 */ : \
+	0x38 /* TIE=0,RIE=0,TE=1,RE=1,REIE=1 */ )
 #elif defined(CONFIG_CPU_SUBTYPE_SH4_202)
 # define SCSPTR2 0xffe80020 /* 16 bit SCIF */
 # define SCIF_ORER 0x0001   /* overrun error bit */
@@ -199,6 +201,8 @@
     defined(CONFIG_CPU_SUBTYPE_SH7786)  || \
     defined(CONFIG_CPU_SUBTYPE_SHX3)
 #define SCI_CTRL_FLAGS_REIE 0x08 /* 7750 SCIF */
+#elif defined(CONFIG_CPU_SUBTYPE_SH7724)
+#define SCI_CTRL_FLAGS_REIE ((port)->type == PORT_SCIFA ? 0 : 8)
 #else
 #define SCI_CTRL_FLAGS_REIE 0
 #endif
