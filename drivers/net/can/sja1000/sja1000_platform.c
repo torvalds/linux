@@ -90,7 +90,7 @@ static int sp_probe(struct platform_device *pdev)
 	priv = netdev_priv(dev);
 
 	dev->irq = res_irq->start;
-	priv->irq_flags = res_irq->flags & IRQF_TRIGGER_MASK;
+	priv->irq_flags = res_irq->flags & (IRQF_TRIGGER_MASK | IRQF_SHARED);
 	priv->reg_base = addr;
 	priv->read_reg = sp_read_reg;
 	priv->write_reg = sp_write_reg;
