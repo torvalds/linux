@@ -1622,7 +1622,7 @@ static void ocfs2_xa_block_wipe_namevalue(struct ocfs2_xa_loc *loc)
 	/* Now tell xh->xh_entries about it */
 	for (i = 0; i < count; i++) {
 		offset = le16_to_cpu(xh->xh_entries[i].xe_name_offset);
-		if (offset < namevalue_offset)
+		if (offset <= namevalue_offset)
 			le16_add_cpu(&xh->xh_entries[i].xe_name_offset,
 				     namevalue_size);
 	}
