@@ -2297,13 +2297,19 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu, int level)
 		/* no rsvd bits for 2 level 4K page table entries */
 		context->rsvd_bits_mask[0][1] = 0;
 		context->rsvd_bits_mask[0][0] = 0;
+		context->rsvd_bits_mask[1][0] = context->rsvd_bits_mask[0][0];
+
+		if (!is_pse(vcpu)) {
+			context->rsvd_bits_mask[1][1] = 0;
+			break;
+		}
+
 		if (is_cpuid_PSE36())
 			/* 36bits PSE 4MB page */
 			context->rsvd_bits_mask[1][1] = rsvd_bits(17, 21);
 		else
 			/* 32 bits PSE 4MB page */
 			context->rsvd_bits_mask[1][1] = rsvd_bits(13, 21);
-		context->rsvd_bits_mask[1][0] = context->rsvd_bits_mask[1][0];
 		break;
 	case PT32E_ROOT_LEVEL:
 		context->rsvd_bits_mask[0][2] =
@@ -2316,7 +2322,7 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu, int level)
 		context->rsvd_bits_mask[1][1] = exb_bit_rsvd |
 			rsvd_bits(maxphyaddr, 62) |
 			rsvd_bits(13, 20);		/* large page */
-		context->rsvd_bits_mask[1][0] = context->rsvd_bits_mask[1][0];
+		context->rsvd_bits_mask[1][0] = context->rsvd_bits_mask[0][0];
 		break;
 	case PT64_ROOT_LEVEL:
 		context->rsvd_bits_mask[0][3] = exb_bit_rsvd |
@@ -2334,7 +2340,7 @@ static void reset_rsvds_bits_mask(struct kvm_vcpu *vcpu, int level)
 		context->rsvd_bits_mask[1][1] = exb_bit_rsvd |
 			rsvd_bits(maxphyaddr, 51) |
 			rsvd_bits(13, 20);		/* large page */
-		context->rsvd_bits_mask[1][0] = context->rsvd_bits_mask[1][0];
+		context->rsvd_bits_mask[1][0] = context->rsvd_bits_mask[0][0];
 		break;
 	}
 }
