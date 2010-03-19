@@ -1598,9 +1598,9 @@ EXPORT_SYMBOL(iwl_uninit_drv);
 void iwl_free_isr_ict(struct iwl_priv *priv)
 {
 	if (priv->ict_tbl_vir) {
-		pci_free_consistent(priv->pci_dev, (sizeof(u32) * ICT_COUNT) +
-					PAGE_SIZE, priv->ict_tbl_vir,
-					priv->ict_tbl_dma);
+		dma_free_coherent(&priv->pci_dev->dev,
+				  (sizeof(u32) * ICT_COUNT) + PAGE_SIZE,
+				  priv->ict_tbl_vir, priv->ict_tbl_dma);
 		priv->ict_tbl_vir = NULL;
 	}
 }
@@ -1616,9 +1616,9 @@ int iwl_alloc_isr_ict(struct iwl_priv *priv)
 	if (priv->cfg->use_isr_legacy)
 		return 0;
 	/* allocate shrared data table */
-	priv->ict_tbl_vir = pci_alloc_consistent(priv->pci_dev, (sizeof(u32) *
-						  ICT_COUNT) + PAGE_SIZE,
-						  &priv->ict_tbl_dma);
+	priv->ict_tbl_vir = dma_alloc_coherent(&priv->pci_dev->dev,
+					(sizeof(u32) * ICT_COUNT) + PAGE_SIZE,
+					&priv->ict_tbl_dma, GFP_KERNEL);
 	if (!priv->ict_tbl_vir)
 		return -ENOMEM;
 
