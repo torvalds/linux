@@ -94,6 +94,7 @@ static s32 igb_get_invariants_82575(struct e1000_hw *hw)
 	case E1000_DEV_ID_82576_FIBER:
 	case E1000_DEV_ID_82576_SERDES:
 	case E1000_DEV_ID_82576_QUAD_COPPER:
+	case E1000_DEV_ID_82576_QUAD_COPPER_ET2:
 	case E1000_DEV_ID_82576_SERDES_QUAD:
 		mac->type = e1000_82576;
 		break;
