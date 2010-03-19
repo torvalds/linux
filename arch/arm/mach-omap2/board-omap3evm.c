@@ -514,14 +514,11 @@ static struct regulator_init_data omap3_evm_vdac = {
 };
 
 /* VPLL2 for digital video outputs */
-static struct regulator_consumer_supply omap3_evm_vpll2_supply = {
-	.supply		= "vdvi",
-	.dev		= &omap3_evm_lcd_device.dev,
-};
+static struct regulator_consumer_supply omap3_evm_vpll2_supply =
+	REGULATOR_SUPPLY("vdds_dsi", "omapdss");
 
 static struct regulator_init_data omap3_evm_vpll2 = {
 	.constraints = {
-		.name			= "VDVI",
 		.min_uV			= 1800000,
 		.max_uV			= 1800000,
 		.apply_uV		= true,
