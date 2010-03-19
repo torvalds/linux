@@ -4218,7 +4218,8 @@ int snd_hda_parse_pin_def_config(struct hda_codec *codec,
 			break;
 		case AC_JACK_MIC_IN: {
 			int preferred, alt;
-			if (loc == AC_JACK_LOC_FRONT) {
+			if (loc == AC_JACK_LOC_FRONT ||
+			    (loc & 0x30) == AC_JACK_LOC_INTERNAL) {
 				preferred = AUTO_PIN_FRONT_MIC;
 				alt = AUTO_PIN_MIC;
 			} else {
