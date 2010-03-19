@@ -35,6 +35,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_TPA6130A2 if I2C
 	select SND_SOC_TLV320DAC33 if I2C
 	select SND_SOC_TWL4030 if TWL4030_CORE
+	select SND_SOC_TWL6040 if TWL4030_CORE
 	select SND_SOC_UDA134X
 	select SND_SOC_UDA1380 if I2C
 	select SND_SOC_WM2000 if I2C
@@ -166,6 +167,9 @@ config SND_SOC_TLV320DAC33
 
 config SND_SOC_TWL4030
 	select TWL4030_CODEC
+	tristate
+
+config SND_SOC_TWL6040
 	tristate
 
 config SND_SOC_UDA134X
