@@ -36,7 +36,7 @@ ebt_mark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return info->target | ~EBT_VERDICT_BITS;
 }
 
-static bool ebt_mark_tg_check(const struct xt_tgchk_param *par)
+static int ebt_mark_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct ebt_mark_t_info *info = par->targinfo;
 	int tmp;

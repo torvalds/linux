@@ -101,7 +101,7 @@ hl_tg6(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool ttl_tg_check(const struct xt_tgchk_param *par)
+static int ttl_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct ipt_TTL_info *info = par->targinfo;
 
@@ -114,7 +114,7 @@ static bool ttl_tg_check(const struct xt_tgchk_param *par)
 	return true;
 }
 
-static bool hl_tg6_check(const struct xt_tgchk_param *par)
+static int hl_tg6_check(const struct xt_tgchk_param *par)
 {
 	const struct ip6t_HL_info *info = par->targinfo;
 

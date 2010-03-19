@@ -53,7 +53,7 @@ static u8 xt_ct_find_proto(const struct xt_tgchk_param *par)
 		return 0;
 }
 
-static bool xt_ct_tg_check(const struct xt_tgchk_param *par)
+static int xt_ct_tg_check(const struct xt_tgchk_param *par)
 {
 	struct xt_ct_target_info *info = par->targinfo;
 	struct nf_conntrack_tuple t;

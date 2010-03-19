@@ -80,7 +80,7 @@ static void led_timeout_callback(unsigned long data)
 	led_trigger_event(&ledinternal->netfilter_led_trigger, LED_OFF);
 }
 
-static bool led_tg_check(const struct xt_tgchk_param *par)
+static int led_tg_check(const struct xt_tgchk_param *par)
 {
 	struct xt_led_info *ledinfo = par->targinfo;
 	struct xt_led_info_internal *ledinternal;

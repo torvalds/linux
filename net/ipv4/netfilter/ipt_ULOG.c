@@ -307,7 +307,7 @@ static void ipt_logfn(u_int8_t pf,
 	ipt_ulog_packet(hooknum, skb, in, out, &loginfo, prefix);
 }
 
-static bool ulog_tg_check(const struct xt_tgchk_param *par)
+static int ulog_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct ipt_ulog_info *loginfo = par->targinfo;
 

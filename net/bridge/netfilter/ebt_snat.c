@@ -42,7 +42,7 @@ out:
 	return info->target | ~EBT_VERDICT_BITS;
 }
 
-static bool ebt_snat_tg_check(const struct xt_tgchk_param *par)
+static int ebt_snat_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct ebt_nat_info *info = par->targinfo;
 	int tmp;

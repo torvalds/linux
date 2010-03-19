@@ -24,7 +24,7 @@
 
 static DEFINE_SPINLOCK(ebt_log_lock);
 
-static bool ebt_log_tg_check(const struct xt_tgchk_param *par)
+static int ebt_log_tg_check(const struct xt_tgchk_param *par)
 {
 	struct ebt_log_info *info = par->targinfo;
 

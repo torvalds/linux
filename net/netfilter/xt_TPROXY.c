@@ -59,7 +59,7 @@ tproxy_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return NF_DROP;
 }
 
-static bool tproxy_tg_check(const struct xt_tgchk_param *par)
+static int tproxy_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct ipt_ip *i = par->entryinfo;
 

@@ -54,7 +54,7 @@ target(struct sk_buff *skb, const struct xt_target_param *par)
 	return mangle->target;
 }
 
-static bool checkentry(const struct xt_tgchk_param *par)
+static int checkentry(const struct xt_tgchk_param *par)
 {
 	const struct arpt_mangle *mangle = par->targinfo;
 

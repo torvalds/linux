@@ -81,7 +81,7 @@ nfqueue_tg_v1(struct sk_buff *skb, const struct xt_target_param *par)
 	return NF_QUEUE_NR(queue);
 }
 
-static bool nfqueue_tg_v1_check(const struct xt_tgchk_param *par)
+static int nfqueue_tg_v1_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_NFQ_info_v1 *info = par->targinfo;
 	u32 maxid;

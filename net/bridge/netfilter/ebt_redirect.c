@@ -32,7 +32,7 @@ ebt_redirect_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return info->target;
 }
 
-static bool ebt_redirect_tg_check(const struct xt_tgchk_param *par)
+static int ebt_redirect_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct ebt_redirect_info *info = par->targinfo;
 	unsigned int hook_mask;

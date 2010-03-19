@@ -342,8 +342,8 @@ struct xt_target {
 	/* Called when user tries to insert an entry of this type:
            hook_mask is a bitmask of hooks from which it can be
            called. */
-	/* Should return true or false. */
-	bool (*checkentry)(const struct xt_tgchk_param *);
+	/* Should return true or false, or an error code (-Exxxx). */
+	int (*checkentry)(const struct xt_tgchk_param *);
 
 	/* Called when entry of this type deleted. */
 	void (*destroy)(const struct xt_tgdtor_param *);

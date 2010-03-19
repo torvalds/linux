@@ -74,7 +74,7 @@ ipt_dnat_target(struct sk_buff *skb, const struct xt_target_param *par)
 	return nf_nat_setup_info(ct, &mr->range[0], IP_NAT_MANIP_DST);
 }
 
-static bool ipt_snat_checkentry(const struct xt_tgchk_param *par)
+static int ipt_snat_checkentry(const struct xt_tgchk_param *par)
 {
 	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
@@ -86,7 +86,7 @@ static bool ipt_snat_checkentry(const struct xt_tgchk_param *par)
 	return true;
 }
 
-static bool ipt_dnat_checkentry(const struct xt_tgchk_param *par)
+static int ipt_dnat_checkentry(const struct xt_tgchk_param *par)
 {
 	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
