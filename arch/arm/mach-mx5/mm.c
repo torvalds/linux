@@ -49,11 +49,6 @@ static struct map_desc mxc_io_desc[] __initdata = {
 		.pfn = __phys_to_pfn(MX51_AIPS2_BASE_ADDR),
 		.length = MX51_AIPS2_SIZE,
 		.type = MT_DEVICE
-	}, {
-		.virtual = MX51_NFC_AXI_BASE_ADDR_VIRT,
-		.pfn = __phys_to_pfn(MX51_NFC_AXI_BASE_ADDR),
-		.length = MX51_NFC_AXI_SIZE,
-		.type = MT_DEVICE
 	},
 };
 
