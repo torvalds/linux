@@ -965,7 +965,7 @@ static irqreturn_t ixgbevf_msix_mbx(int irq, void *data)
 
 	if ((msg & IXGBE_MBVFICR_VFREQ_MASK) == IXGBE_PF_CONTROL_MSG)
 		mod_timer(&adapter->watchdog_timer,
-			  round_jiffies(jiffies + 10));
+			  round_jiffies(jiffies + 1));
 
 	return IRQ_HANDLED;
 }
