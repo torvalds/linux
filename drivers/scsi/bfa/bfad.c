@@ -590,7 +590,6 @@ bfad_init_timer(struct bfad_s *bfad)
 int
 bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 {
-	unsigned long   bar0_len;
 	int             rc = -ENODEV;
 
 	if (pci_enable_device(pdev)) {
@@ -610,9 +609,7 @@ bfad_pci_init(struct pci_dev *pdev, struct bfad_s *bfad)
 			goto out_release_region;
 		}
 
-	bfad->pci_bar0_map = pci_resource_start(pdev, 0);
-	bar0_len = pci_resource_len(pdev, 0);
-	bfad->pci_bar0_kva = ioremap(bfad->pci_bar0_map, bar0_len);
+	bfad->pci_bar0_kva = pci_iomap(pdev, 0, pci_resource_len(pdev, 0));
 
 	if (bfad->pci_bar0_kva == NULL) {
 		BFA_PRINTF(BFA_ERR, "Fail to map bar0\n");
@@ -645,11 +642,7 @@ out:
 void
 bfad_pci_uninit(struct pci_dev *pdev, struct bfad_s *bfad)
 {
-#if defined(__ia64__)
 	pci_iounmap(pdev, bfad->pci_bar0_kva);
-#else
-	iounmap(bfad->pci_bar0_kva);
-#endif
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
