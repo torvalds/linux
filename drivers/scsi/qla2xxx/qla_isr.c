@@ -620,11 +620,10 @@ skip_rio:
 		 *           vp_idx does not match
 		 *       Event is not global, vp_idx does not match
 		 */
-		if ((mb[1] == 0xffff && (mb[3] & 0xff) != 0xff)
-			|| (mb[1] != 0xffff)) {
-			if (vha->vp_idx != (mb[3] & 0xff))
-				break;
-		}
+		if (IS_QLA2XXX_MIDTYPE(ha) &&
+		    ((mb[1] == 0xffff && (mb[3] & 0xff) != 0xff) ||
+			(mb[1] != 0xffff)) && vha->vp_idx != (mb[3] & 0xff))
+			break;
 
 		/* Global event -- port logout or port unavailable. */
 		if (mb[1] == 0xffff && mb[2] == 0x7) {
