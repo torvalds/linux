@@ -313,13 +313,13 @@ _hw_exception_handler:
 	mfs	r5, rmsr;
 	nop
 	swi	r5, r1, 0;
-	mfs	r3, resr
+	mfs	r4, resr
 	nop
-	mfs	r4, rear;
+	mfs	r3, rear;
 	nop
 
 #ifndef CONFIG_MMU
-	andi	r5, r3, 0x1000;		/* Check ESR[DS] */
+	andi	r5, r4, 0x1000;		/* Check ESR[DS] */
 	beqi	r5, not_in_delay_slot;	/* Branch if ESR[DS] not set */
 	mfs	r17, rbtr;	/* ESR[DS] set - return address in BTR */
 	nop
@@ -327,7 +327,7 @@ not_in_delay_slot:
 	swi	r17, r1, PT_R17
 #endif
 
-	andi	r5, r3, 0x1F;		/* Extract ESR[EXC] */
+	andi	r5, r4, 0x1F;		/* Extract ESR[EXC] */
 
 #ifdef CONFIG_MMU
 	/* Calculate exception vector offset = r5 << 2 */
@@ -378,7 +378,7 @@ handle_other_ex: /* Handle Other exceptions here */
 	swi	r18, r1, PT_R18
 
 	or	r5, r1, r0
-	andi	r6, r3, 0x1F; /* Load ESR[EC] */
+	andi	r6, r4, 0x1F; /* Load ESR[EC] */
 	lwi	r7, r0, PER_CPU(KM) /* MS: saving current kernel mode to regs */
 	swi	r7, r1, PT_MODE
 	mfs	r7, rfsr
@@ -428,11 +428,11 @@ handle_other_ex: /* Handle Other exceptions here */
  */
 handle_unaligned_ex:
 	/* Working registers already saved: R3, R4, R5, R6
-	 *  R3 = ESR
-	 *  R4 = EAR
+	 *  R4 = ESR
+	 *  R3 = EAR
 	 */
 #ifdef CONFIG_MMU
-	andi	r6, r3, 0x1000			/* Check ESR[DS] */
+	andi	r6, r4, 0x1000			/* Check ESR[DS] */
 	beqi	r6, _no_delayslot		/* Branch if ESR[DS] not set */
 	mfs	r17, rbtr;	/* ESR[DS] set - return address in BTR */
 	nop
@@ -441,7 +441,7 @@ _no_delayslot:
 	RESTORE_STATE;
 	bri	unaligned_data_trap
 #endif
-	andi	r6, r3, 0x3E0; /* Mask and extract the register operand */
+	andi	r6, r4, 0x3E0; /* Mask and extract the register operand */
 	srl	r6, r6; /* r6 >> 5 */
 	srl	r6, r6;
 	srl	r6, r6;
@@ -450,33 +450,33 @@ _no_delayslot:
 	/* Store the register operand in a temporary location */
 	sbi	r6, r0, TOPHYS(ex_reg_op);
 
-	andi	r6, r3, 0x400; /* Extract ESR[S] */
+	andi	r6, r4, 0x400; /* Extract ESR[S] */
 	bnei	r6, ex_sw;
 ex_lw:
-	andi	r6, r3, 0x800; /* Extract ESR[W] */
+	andi	r6, r4, 0x800; /* Extract ESR[W] */
 	beqi	r6, ex_lhw;
-	lbui	r5, r4, 0; /* Exception address in r4 */
+	lbui	r5, r3, 0; /* Exception address in r3 */
 	/* Load a word, byte-by-byte from destination address
 		and save it in tmp space */
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_0);
-	lbui	r5, r4, 1;
+	lbui	r5, r3, 1;
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_1);
-	lbui	r5, r4, 2;
+	lbui	r5, r3, 2;
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_2);
-	lbui	r5, r4, 3;
+	lbui	r5, r3, 3;
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_3);
-	/* Get the destination register value into r3 */
-	lwi	r3, r0, TOPHYS(ex_tmp_data_loc_0);
+	/* Get the destination register value into r4 */
+	lwi	r4, r0, TOPHYS(ex_tmp_data_loc_0);
 	bri	ex_lw_tail;
 ex_lhw:
-	lbui	r5, r4, 0; /* Exception address in r4 */
+	lbui	r5, r3, 0; /* Exception address in r3 */
 	/* Load a half-word, byte-by-byte from destination
 		address and save it in tmp space */
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_0);
-	lbui	r5, r4, 1;
+	lbui	r5, r3, 1;
 	sbi	r5, r0, TOPHYS(ex_tmp_data_loc_1);
-	/* Get the destination register value into r3 */
-	lhui	r3, r0, TOPHYS(ex_tmp_data_loc_0);
+	/* Get the destination register value into r4 */
+	lhui	r4, r0, TOPHYS(ex_tmp_data_loc_0);
 ex_lw_tail:
 	/* Get the destination register number into r5 */
 	lbui	r5, r0, TOPHYS(ex_reg_op);
@@ -504,25 +504,25 @@ ex_sw_tail:
 	andi	r6, r6, 0x800; /* Extract ESR[W] */
 	beqi	r6, ex_shw;
 	/* Get the word - delay slot */
-	swi	r3, r0, TOPHYS(ex_tmp_data_loc_0);
+	swi	r4, r0, TOPHYS(ex_tmp_data_loc_0);
 	/* Store the word, byte-by-byte into destination address */
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_0);
-	sbi	r3, r4, 0;
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_1);
-	sbi	r3, r4, 1;
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_2);
-	sbi	r3, r4, 2;
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_3);
-	sbi	r3, r4, 3;
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_0);
+	sbi	r4, r3, 0;
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_1);
+	sbi	r4, r3, 1;
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_2);
+	sbi	r4, r3, 2;
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_3);
+	sbi	r4, r3, 3;
 	bri	ex_handler_done;
 
 ex_shw:
 	/* Store the lower half-word, byte-by-byte into destination address */
-	swi	r3, r0, TOPHYS(ex_tmp_data_loc_0);
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_2);
-	sbi	r3, r4, 0;
-	lbui	r3, r0, TOPHYS(ex_tmp_data_loc_3);
-	sbi	r3, r4, 1;
+	swi	r4, r0, TOPHYS(ex_tmp_data_loc_0);
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_2);
+	sbi	r4, r3, 0;
+	lbui	r4, r0, TOPHYS(ex_tmp_data_loc_3);
+	sbi	r4, r3, 1;
 ex_sw_end: /* Exception handling of store word, ends. */
 
 ex_handler_done:
