@@ -135,8 +135,7 @@ void rds_ib_recv_clear_ring(struct rds_ib_connection *ic)
 }
 
 static int rds_ib_recv_refill_one(struct rds_connection *conn,
-				  struct rds_ib_recv_work *recv,
-				  gfp_t kptr_gfp, gfp_t page_gfp)
+				  struct rds_ib_recv_work *recv)
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	dma_addr_t dma_addr;
@@ -148,8 +147,7 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 			rds_ib_stats_inc(s_ib_rx_alloc_limit);
 			goto out;
 		}
-		recv->r_ibinc = kmem_cache_alloc(rds_ib_incoming_slab,
-						 kptr_gfp);
+		recv->r_ibinc = kmem_cache_alloc(rds_ib_incoming_slab, GFP_NOWAIT);
 		if (!recv->r_ibinc) {
 			atomic_dec(&rds_ib_allocation);
 			goto out;
@@ -159,7 +157,7 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	}
 
 	if (!recv->r_frag) {
-		recv->r_frag = kmem_cache_alloc(rds_ib_frag_slab, kptr_gfp);
+		recv->r_frag = kmem_cache_alloc(rds_ib_frag_slab, GFP_NOWAIT);
 		if (!recv->r_frag)
 			goto out;
 		INIT_LIST_HEAD(&recv->r_frag->f_item);
@@ -167,7 +165,7 @@ static int rds_ib_recv_refill_one(struct rds_connection *conn,
 	}
 
 	if (!ic->i_frag.f_page) {
-		ic->i_frag.f_page = alloc_page(page_gfp);
+		ic->i_frag.f_page = alloc_page(GFP_NOWAIT);
 		if (!ic->i_frag.f_page)
 			goto out;
 		ic->i_frag.f_offset = 0;
@@ -221,8 +219,7 @@ out:
  *
  * -1 is returned if posting fails due to temporary resource exhaustion.
  */
-int rds_ib_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
-		       gfp_t page_gfp, int prefill)
+int rds_ib_recv_refill(struct rds_connection *conn, int prefill)
 {
 	struct rds_ib_connection *ic = conn->c_transport_data;
 	struct rds_ib_recv_work *recv;
@@ -241,7 +238,7 @@ int rds_ib_recv_refill(struct rds_connection *conn, gfp_t kptr_gfp,
 		}
 
 		recv = &ic->i_recvs[pos];
-		ret = rds_ib_recv_refill_one(conn, recv, kptr_gfp, page_gfp);
+		ret = rds_ib_recv_refill_one(conn, recv);
 		if (ret) {
 			ret = -1;
 			break;
@@ -856,11 +853,8 @@ void rds_ib_recv_tasklet_fn(unsigned long data)
 	if (rds_ib_ring_empty(&ic->i_recv_ring))
 		rds_ib_stats_inc(s_ib_rx_ring_empty);
 
-	/*
-	 * If the ring is running low, then schedule the thread to refill.
-	 */
 	if (rds_ib_ring_low(&ic->i_recv_ring))
-		queue_delayed_work(rds_wq, &conn->c_recv_w, 0);
+		rds_ib_recv_refill(conn, 0);
 }
 
 int rds_ib_recv(struct rds_connection *conn)
@@ -875,7 +869,7 @@ int rds_ib_recv(struct rds_connection *conn)
 	 * we're really low and we want the caller to back off for a bit.
 	 */
 	mutex_lock(&ic->i_recv_mutex);
-	if (rds_ib_recv_refill(conn, GFP_KERNEL, GFP_HIGHUSER, 0))
+	if (rds_ib_recv_refill(conn, 0))
 		ret = -ENOMEM;
 	else
 		rds_ib_stats_inc(s_ib_rx_refill_from_thread);
