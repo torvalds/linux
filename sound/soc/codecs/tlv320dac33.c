@@ -1038,11 +1038,7 @@ static int dac33_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	case SND_SOC_DAIFMT_DSP_A:
 		aictrl_a |= DAC33_AFMT_DSP;
 		aictrl_b &= ~DAC33_DATA_DELAY_MASK;
-		aictrl_b |= DAC33_DATA_DELAY(1); /* 1 bit delay */
-		break;
-	case SND_SOC_DAIFMT_DSP_B:
-		aictrl_a |= DAC33_AFMT_DSP;
-		aictrl_b &= ~DAC33_DATA_DELAY_MASK; /* No delay */
+		aictrl_b |= DAC33_DATA_DELAY(0);
 		break;
 	case SND_SOC_DAIFMT_RIGHT_J:
 		aictrl_a |= DAC33_AFMT_RIGHT_J;
