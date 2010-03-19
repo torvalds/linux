@@ -90,8 +90,8 @@ struct sci_port {
 	struct dma_chan			*chan_rx;
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
 	struct device			*dma_dev;
-	enum sh_dmae_slave_chan_id	slave_tx;
-	enum sh_dmae_slave_chan_id	slave_rx;
+	unsigned int			slave_tx;
+	unsigned int			slave_rx;
 	struct dma_async_tx_descriptor	*desc_tx;
 	struct dma_async_tx_descriptor	*desc_rx[2];
 	dma_cookie_t			cookie_tx;

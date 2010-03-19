@@ -17,7 +17,7 @@
 
 #define SH_DMAC_MAX_CHANNELS	6
 
-enum sh_dmae_slave_chan_id {
+enum {
 	SHDMA_SLAVE_SCIF0_TX,
 	SHDMA_SLAVE_SCIF0_RX,
 	SHDMA_SLAVE_SCIF1_TX,
@@ -38,7 +38,7 @@ enum sh_dmae_slave_chan_id {
 };
 
 struct sh_dmae_slave_config {
-	enum sh_dmae_slave_chan_id	slave_id;
+	unsigned int			slave_id;
 	dma_addr_t			addr;
 	u32				chcr;
 	char				mid_rid;
@@ -68,7 +68,7 @@ struct device;
 
 /* Used by slave DMA clients to request DMA to/from a specific peripheral */
 struct sh_dmae_slave {
-	enum sh_dmae_slave_chan_id	slave_id; /* Set by the platform */
+	unsigned int			slave_id; /* Set by the platform */
 	struct device			*dma_dev; /* Set by the platform */
 	struct sh_dmae_slave_config	*config;  /* Set by the driver */
 };
