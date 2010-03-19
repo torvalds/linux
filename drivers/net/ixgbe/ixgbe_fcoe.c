@@ -614,9 +614,9 @@ int ixgbe_fcoe_enable(struct net_device *netdev)
 	netdev->vlan_features |= NETIF_F_FSO;
 	netdev->vlan_features |= NETIF_F_FCOE_MTU;
 	netdev->fcoe_ddp_xid = IXGBE_FCOE_DDP_MAX - 1;
-	netdev_features_change(netdev);
 
 	ixgbe_init_interrupt_scheme(adapter);
+	netdev_features_change(netdev);
 
 	if (netif_running(netdev))
 		netdev->netdev_ops->ndo_open(netdev);
@@ -660,11 +660,11 @@ int ixgbe_fcoe_disable(struct net_device *netdev)
 	netdev->vlan_features &= ~NETIF_F_FSO;
 	netdev->vlan_features &= ~NETIF_F_FCOE_MTU;
 	netdev->fcoe_ddp_xid = 0;
-	netdev_features_change(netdev);
 
 	ixgbe_cleanup_fcoe(adapter);
-
 	ixgbe_init_interrupt_scheme(adapter);
+	netdev_features_change(netdev);
+
 	if (netif_running(netdev))
 		netdev->netdev_ops->ndo_open(netdev);
 	rc = 0;
