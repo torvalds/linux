@@ -170,8 +170,7 @@ void RTMPFilterCalibration(struct rt_rtmp_adapter *pAd)
 	pAd->Mlme.CaliBW40RfR24 = 0x2F;	/*Bit[5] must be 1 for BW 40 */
 
 	do {
-		if (loop == 1)	/*BandWidth = 40 MHz */
-		{
+		if (loop == 1) {	/*BandWidth = 40 MHz */
 			/* Write 0x27 to RF_R24 to program filter */
 			RF_R24_Value = 0x27;
 			RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
@@ -190,8 +189,7 @@ void RTMPFilterCalibration(struct rt_rtmp_adapter *pAd)
 			RT30xxReadRFRegister(pAd, RF_R31, &value);
 			value |= 0x20;
 			RT30xxWriteRFRegister(pAd, RF_R31, value);
-		} else		/*BandWidth = 20 MHz */
-		{
+		} else {	/*BandWidth = 20 MHz */
 			/* Write 0x07 to RF_R24 to program filter */
 			RF_R24_Value = 0x07;
 			RT30xxWriteRFRegister(pAd, RF_R24, RF_R24_Value);
@@ -353,8 +351,7 @@ void RT30xxLoadRFNormalModeSetup(struct rt_rtmp_adapter *pAd)
 	RT30xxReadRFRegister(pAd, RF_R27, &RFValue);
 	/* TX to RX IQ glitch(RF_R27) has been fixed in RT3070(F). */
 	/* Raising RF voltage is no longer needed for RT3070(F) */
-	if (IS_RT3090(pAd))	/* RT309x and RT3071/72 */
-	{
+	if (IS_RT3090(pAd)) {	/* RT309x and RT3071/72 */
 		if ((pAd->MACVersion & 0xffff) < 0x0211)
 			RFValue = (RFValue & (~0x77)) | 0x3;
 		else
