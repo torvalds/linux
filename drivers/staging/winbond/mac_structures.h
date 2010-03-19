@@ -116,13 +116,6 @@
 #define WLAN_MAX_PAIRWISE_CIPHER_SUITE_COUNT    ((u16) 6)
 #define WLAN_MAX_AUTH_KEY_MGT_SUITE_LIST_COUNT  ((u16) 2)
 
-//========================================================
-typedef enum enum_PowerManagementMode
-{
-    ACTIVE = 0,
-    POWER_SAVE
-} WB_PM_Mode, *PWB_PM_MODE;
-
 //===================================================================
 //  Reason Code (Table 18): indicate the reason of DisAssoc, DeAuthen
 //  length of ReasonCode is 2 Octs.
