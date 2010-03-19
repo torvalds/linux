@@ -25,8 +25,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
-
-#include <asm/dmaengine.h>
+#include <linux/sh_dma.h>
 
 #include "shdma.h"
 
