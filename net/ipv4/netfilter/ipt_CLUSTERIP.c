@@ -9,6 +9,7 @@
  * published by the Free Software Foundation.
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/proc_fs.h>
 #include <linux/jhash.h>
@@ -238,8 +239,7 @@ clusterip_hashfn(const struct sk_buff *skb,
 		break;
 	default:
 		if (net_ratelimit())
-			printk(KERN_NOTICE "CLUSTERIP: unknown protocol `%u'\n",
-				iph->protocol);
+			pr_info("unknown protocol %u\n", iph->protocol);
 		sport = dport = 0;
 	}
 
@@ -261,7 +261,7 @@ clusterip_hashfn(const struct sk_buff *skb,
 		hashval = 0;
 		/* This cannot happen, unless the check function wasn't called
 		 * at rule load time */
-		printk("CLUSTERIP: unknown mode `%u'\n", config->hash_mode);
+		pr_info("unknown mode %u\n", config->hash_mode);
 		BUG();
 		break;
 	}
@@ -294,7 +294,7 @@ clusterip_tg(struct sk_buff *skb, const struct xt_target_param *par)
 
 	ct = nf_ct_get(skb, &ctinfo);
 	if (ct == NULL) {
-		printk(KERN_ERR "CLUSTERIP: no conntrack!\n");
+		pr_info("no conntrack!\n");
 			/* FIXME: need to drop invalid ones, since replies
 			 * to outgoing connections of other nodes will be
 			 * marked as INVALID */
@@ -357,14 +357,13 @@ static bool clusterip_tg_check(const struct xt_tgchk_param *par)
 	if (cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP &&
 	    cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP_SPT &&
 	    cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP_SPT_DPT) {
-		printk(KERN_WARNING "CLUSTERIP: unknown mode `%u'\n",
-			cipinfo->hash_mode);
+		pr_info("unknown mode %u\n", cipinfo->hash_mode);
 		return false;
 
 	}
 	if (e->ip.dmsk.s_addr != htonl(0xffffffff) ||
 	    e->ip.dst.s_addr == 0) {
-		printk(KERN_ERR "CLUSTERIP: Please specify destination IP\n");
+		pr_info("Please specify destination IP\n");
 		return false;
 	}
 
@@ -373,26 +372,28 @@ static bool clusterip_tg_check(const struct xt_tgchk_param *par)
 	config = clusterip_config_find_get(e->ip.dst.s_addr, 1);
 	if (!config) {
 		if (!(cipinfo->flags & CLUSTERIP_FLAG_NEW)) {
-			printk(KERN_WARNING "CLUSTERIP: no config found for %pI4, need 'new'\n", &e->ip.dst.s_addr);
+			pr_info("no config found for %pI4, need 'new'\n",
+				&e->ip.dst.s_addr);
 			return false;
 		} else {
 			struct net_device *dev;
 
 			if (e->ip.iniface[0] == '\0') {
-				printk(KERN_WARNING "CLUSTERIP: Please specify an interface name\n");
+				pr_info("Please specify an interface name\n");
 				return false;
 			}
 
 			dev = dev_get_by_name(&init_net, e->ip.iniface);
 			if (!dev) {
-				printk(KERN_WARNING "CLUSTERIP: no such interface %s\n", e->ip.iniface);
+				pr_info("no such interface %s\n",
+					e->ip.iniface);
 				return false;
 			}
 
 			config = clusterip_config_init(cipinfo,
 							e->ip.dst.s_addr, dev);
 			if (!config) {
-				printk(KERN_WARNING "CLUSTERIP: cannot allocate config\n");
+				pr_info("cannot allocate config\n");
 				dev_put(dev);
 				return false;
 			}
@@ -402,8 +403,8 @@ static bool clusterip_tg_check(const struct xt_tgchk_param *par)
 	cipinfo->config = config;
 
 	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
-		printk(KERN_WARNING "can't load conntrack support for "
-				    "proto=%u\n", par->family);
+		pr_info("cannot load conntrack support for proto=%u\n",
+			par->family);
 		return false;
 	}
 
@@ -478,8 +479,8 @@ static void arp_print(struct arp_payload *payload)
 	}
 	hbuffer[--k]='\0';
 
-	printk("src %pI4@%s, dst %pI4\n",
-		&payload->src_ip, hbuffer, &payload->dst_ip);
+	pr_debug("src %pI4@%s, dst %pI4\n",
+		 &payload->src_ip, hbuffer, &payload->dst_ip);
 }
 #endif
 
@@ -518,7 +519,7 @@ arp_mangle(unsigned int hook,
 	 * this wouldn't work, since we didn't subscribe the mcast group on
 	 * other interfaces */
 	if (c->dev != out) {
-		pr_debug("CLUSTERIP: not mangling arp reply on different "
+		pr_debug("not mangling arp reply on different "
 			 "interface: cip'%s'-skb'%s'\n",
 			 c->dev->name, out->name);
 		clusterip_config_put(c);
@@ -529,7 +530,7 @@ arp_mangle(unsigned int hook,
 	memcpy(payload->src_hw, c->clustermac, arp->ar_hln);
 
 #ifdef DEBUG
-	pr_debug(KERN_DEBUG "CLUSTERIP mangled arp reply: ");
+	pr_debug("mangled arp reply: ");
 	arp_print(payload);
 #endif
 
@@ -705,13 +706,13 @@ static int __init clusterip_tg_init(void)
 #ifdef CONFIG_PROC_FS
 	clusterip_procdir = proc_mkdir("ipt_CLUSTERIP", init_net.proc_net);
 	if (!clusterip_procdir) {
-		printk(KERN_ERR "CLUSTERIP: Unable to proc dir entry\n");
+		pr_err("Unable to proc dir entry\n");
 		ret = -ENOMEM;
 		goto cleanup_hook;
 	}
 #endif /* CONFIG_PROC_FS */
 
-	printk(KERN_NOTICE "ClusterIP Version %s loaded successfully\n",
+	pr_info("ClusterIP Version %s loaded successfully\n",
 		CLUSTERIP_VERSION);
 	return 0;
 
@@ -726,8 +727,7 @@ cleanup_target:
 
 static void __exit clusterip_tg_exit(void)
 {
-	printk(KERN_NOTICE "ClusterIP Version %s unloading\n",
-		CLUSTERIP_VERSION);
+	pr_info("ClusterIP Version %s unloading\n", CLUSTERIP_VERSION);
 #ifdef CONFIG_PROC_FS
 	remove_proc_entry(clusterip_procdir->name, clusterip_procdir->parent);
 #endif

@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/timer.h>
@@ -31,11 +31,11 @@ static bool redirect_tg_check(const struct xt_tgchk_param *par)
 	const struct nf_nat_multi_range_compat *mr = par->targinfo;
 
 	if (mr->range[0].flags & IP_NAT_RANGE_MAP_IPS) {
-		pr_debug("redirect_check: bad MAP_IPS.\n");
+		pr_debug("bad MAP_IPS.\n");
 		return false;
 	}
 	if (mr->rangesize != 1) {
-		pr_debug("redirect_check: bad rangesize %u.\n", mr->rangesize);
+		pr_debug("bad rangesize %u.\n", mr->rangesize);
 		return false;
 	}
 	return true;

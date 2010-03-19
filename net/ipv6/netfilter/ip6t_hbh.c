@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ipv6.h>
@@ -169,12 +169,12 @@ static bool hbh_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_opts *optsinfo = par->matchinfo;
 
 	if (optsinfo->invflags & ~IP6T_OPTS_INV_MASK) {
-		pr_debug("ip6t_opts: unknown flags %X\n", optsinfo->invflags);
+		pr_debug("unknown flags %X\n", optsinfo->invflags);
 		return false;
 	}
 
 	if (optsinfo->flags & IP6T_OPTS_NSTRICT) {
-		pr_debug("ip6t_opts: Not strict - not implemented");
+		pr_debug("Not strict - not implemented");
 		return false;
 	}
 

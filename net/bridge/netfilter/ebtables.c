@@ -14,8 +14,7 @@
  *  as published by the Free Software Foundation; either version
  *  2 of the License, or (at your option) any later version.
  */
-
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/kmod.h>
 #include <linux/module.h>
 #include <linux/vmalloc.h>
@@ -2127,7 +2126,7 @@ static int size_entry_mwt(struct ebt_entry *entry, const unsigned char *base,
 			return ret;
 		new_offset += ret;
 		if (offsets_update && new_offset) {
-			pr_debug("ebtables: change offset %d to %d\n",
+			pr_debug("change offset %d to %d\n",
 				offsets_update[i], offsets[j] + new_offset);
 			offsets_update[i] = offsets[j] + new_offset;
 		}

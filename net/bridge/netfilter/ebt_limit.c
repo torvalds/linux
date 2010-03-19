@@ -10,6 +10,7 @@
  *  September, 2003
  *
  */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/netdevice.h>
 #include <linux/spinlock.h>
@@ -71,7 +72,7 @@ static bool ebt_limit_mt_check(const struct xt_mtchk_param *par)
 	/* Check for overflow. */
 	if (info->burst == 0 ||
 	    user2credits(info->avg * info->burst) < user2credits(info->avg)) {
-		printk("Overflow in ebt_limit, try lower: %u/%u\n",
+		pr_info("overflow, try lower: %u/%u\n",
 			info->avg, info->burst);
 		return false;
 	}

@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/in.h>
 #include <linux/ip.h>
 #include <net/ip.h>
@@ -98,8 +98,7 @@ static bool ecn_mt_check(const struct xt_mtchk_param *par)
 
 	if (info->operation & (IPT_ECN_OP_MATCH_ECE|IPT_ECN_OP_MATCH_CWR) &&
 	    ip->proto != IPPROTO_TCP) {
-		printk(KERN_WARNING "ipt_ecn: can't match TCP bits in rule for"
-		       " non-tcp packets\n");
+		pr_info("cannot match TCP bits in rule for non-tcp packets\n");
 		return false;
 	}
 

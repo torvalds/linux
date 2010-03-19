@@ -7,6 +7,7 @@
  */
 
 /* Everything about the rules for NAT. */
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/types.h>
 #include <linux/ip.h>
 #include <linux/netfilter.h>
@@ -79,7 +80,7 @@ static bool ipt_snat_checkentry(const struct xt_tgchk_param *par)
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
-		printk("SNAT: multiple ranges no longer supported\n");
+		pr_info("SNAT: multiple ranges no longer supported\n");
 		return false;
 	}
 	return true;
@@ -91,7 +92,7 @@ static bool ipt_dnat_checkentry(const struct xt_tgchk_param *par)
 
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
-		printk("DNAT: multiple ranges no longer supported\n");
+		pr_info("DNAT: multiple ranges no longer supported\n");
 		return false;
 	}
 	return true;

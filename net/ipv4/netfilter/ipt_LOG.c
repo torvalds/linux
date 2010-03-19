@@ -9,7 +9,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/spinlock.h>
 #include <linux/skbuff.h>
@@ -444,12 +444,11 @@ static bool log_tg_check(const struct xt_tgchk_param *par)
 	const struct ipt_log_info *loginfo = par->targinfo;
 
 	if (loginfo->level >= 8) {
-		pr_debug("LOG: level %u >= 8\n", loginfo->level);
+		pr_debug("level %u >= 8\n", loginfo->level);
 		return false;
 	}
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
-		pr_debug("LOG: prefix term %i\n",
-			 loginfo->prefix[sizeof(loginfo->prefix)-1]);
+		pr_debug("prefix is not null-terminated\n");
 		return false;
 	}
 	return true;

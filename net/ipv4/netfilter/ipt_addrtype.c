@@ -8,7 +8,7 @@
  *  it under the terms of the GNU General Public License version 2 as
  *  published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/skbuff.h>
@@ -76,24 +76,24 @@ static bool addrtype_mt_checkentry_v1(const struct xt_mtchk_param *par)
 
 	if (info->flags & IPT_ADDRTYPE_LIMIT_IFACE_IN &&
 	    info->flags & IPT_ADDRTYPE_LIMIT_IFACE_OUT) {
-		printk(KERN_ERR "ipt_addrtype: both incoming and outgoing "
-				"interface limitation cannot be selected\n");
+		pr_info("both incoming and outgoing "
+			"interface limitation cannot be selected\n");
 		return false;
 	}
 
 	if (par->hook_mask & ((1 << NF_INET_PRE_ROUTING) |
 	    (1 << NF_INET_LOCAL_IN)) &&
 	    info->flags & IPT_ADDRTYPE_LIMIT_IFACE_OUT) {
-		printk(KERN_ERR "ipt_addrtype: output interface limitation "
-				"not valid in PRE_ROUTING and INPUT\n");
+		pr_info("output interface limitation "
+			"not valid in PREROUTING and INPUT\n");
 		return false;
 	}
 
 	if (par->hook_mask & ((1 << NF_INET_POST_ROUTING) |
 	    (1 << NF_INET_LOCAL_OUT)) &&
 	    info->flags & IPT_ADDRTYPE_LIMIT_IFACE_IN) {
-		printk(KERN_ERR "ipt_addrtype: input interface limitation "
-				"not valid in POST_ROUTING and OUTPUT\n");
+		pr_info("input interface limitation "
+			"not valid in POSTROUTING and OUTPUT\n");
 		return false;
 	}
 

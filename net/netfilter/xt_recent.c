@@ -321,8 +321,8 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 		hash_rnd_inited = true;
 	}
 	if (info->check_set & ~XT_RECENT_VALID_FLAGS) {
-		pr_info(KBUILD_MODNAME ": Unsupported user space flags "
-			"(%08x)\n", info->check_set);
+		pr_info("Unsupported user space flags (%08x)\n",
+			info->check_set);
 		return false;
 	}
 	if (hweight8(info->check_set &
@@ -336,7 +336,7 @@ static bool recent_mt_check(const struct xt_mtchk_param *par)
 	if ((info->check_set & XT_RECENT_REAP) && !info->seconds)
 		return false;
 	if (info->hit_count > ip_pkt_list_tot) {
-		pr_info(KBUILD_MODNAME ": hitcount (%u) is larger than "
+		pr_info("hitcount (%u) is larger than "
 			"packets to be remembered (%u)\n",
 			info->hit_count, ip_pkt_list_tot);
 		return false;

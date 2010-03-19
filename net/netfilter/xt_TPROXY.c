@@ -9,7 +9,7 @@
  * published by the Free Software Foundation.
  *
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ip.h>
@@ -67,7 +67,7 @@ static bool tproxy_tg_check(const struct xt_tgchk_param *par)
 	    && !(i->invflags & IPT_INV_PROTO))
 		return true;
 
-	pr_info("xt_TPROXY: Can be used only in combination with "
+	pr_info("Can be used only in combination with "
 		"either -p tcp or -p udp\n");
 	return false;
 }

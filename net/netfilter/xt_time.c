@@ -223,8 +223,8 @@ static bool time_mt_check(const struct xt_mtchk_param *par)
 
 	if (info->daytime_start > XT_TIME_MAX_DAYTIME ||
 	    info->daytime_stop > XT_TIME_MAX_DAYTIME) {
-		printk(KERN_WARNING "xt_time: invalid argument - start or "
-		       "stop time greater than 23:59:59\n");
+		pr_info("invalid argument - start or "
+			"stop time greater than 23:59:59\n");
 		return false;
 	}
 

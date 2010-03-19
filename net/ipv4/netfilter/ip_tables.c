@@ -39,13 +39,13 @@ MODULE_DESCRIPTION("IPv4 packet filter");
 /*#define DEBUG_IP_FIREWALL_USER*/
 
 #ifdef DEBUG_IP_FIREWALL
-#define dprintf(format, args...)  printk(format , ## args)
+#define dprintf(format, args...) pr_info(format , ## args)
 #else
 #define dprintf(format, args...)
 #endif
 
 #ifdef DEBUG_IP_FIREWALL_USER
-#define duprintf(format, args...) printk(format , ## args)
+#define duprintf(format, args...) pr_info(format , ## args)
 #else
 #define duprintf(format, args...)
 #endif
@@ -168,8 +168,7 @@ static unsigned int
 ipt_error(struct sk_buff *skb, const struct xt_target_param *par)
 {
 	if (net_ratelimit())
-		printk("ip_tables: error: `%s'\n",
-		       (const char *)par->targinfo);
+		pr_info("error: `%s'\n", (const char *)par->targinfo);
 
 	return NF_DROP;
 }
@@ -591,7 +590,7 @@ check_entry(const struct ipt_entry *e, const char *name)
 	const struct ipt_entry_target *t;
 
 	if (!ip_checkentry(&e->ip)) {
-		duprintf("ip_tables: ip check failed %p %s.\n", e, name);
+		duprintf("ip check failed %p %s.\n", e, name);
 		return -EINVAL;
 	}
 
@@ -618,8 +617,7 @@ check_match(struct ipt_entry_match *m, struct xt_mtchk_param *par)
 	ret = xt_check_match(par, m->u.match_size - sizeof(*m),
 	      ip->proto, ip->invflags & IPT_INV_PROTO);
 	if (ret < 0) {
-		duprintf("ip_tables: check failed for `%s'.\n",
-			 par.match->name);
+		duprintf("check failed for `%s'.\n", par.match->name);
 		return ret;
 	}
 	return 0;
@@ -667,7 +665,7 @@ static int check_target(struct ipt_entry *e, struct net *net, const char *name)
 	ret = xt_check_target(&par, t->u.target_size - sizeof(*t),
 	      e->ip.proto, e->ip.invflags & IPT_INV_PROTO);
 	if (ret < 0) {
-		duprintf("ip_tables: check failed for `%s'.\n",
+		duprintf("check failed for `%s'.\n",
 			 t->u.kernel.target->name);
 		return ret;
 	}
@@ -1311,7 +1309,7 @@ do_replace(struct net *net, const void __user *user, unsigned int len)
 	if (ret != 0)
 		goto free_newinfo;
 
-	duprintf("ip_tables: Translated table\n");
+	duprintf("Translated table\n");
 
 	ret = __do_replace(net, tmp.name, tmp.valid_hooks, newinfo,
 			   tmp.num_counters, tmp.counters);
@@ -2276,7 +2274,7 @@ static int __init ip_tables_init(void)
 	if (ret < 0)
 		goto err5;
 
-	printk(KERN_INFO "ip_tables: (C) 2000-2006 Netfilter Core Team\n");
+	pr_info("(C) 2000-2006 Netfilter Core Team\n");
 	return 0;
 
 err5:

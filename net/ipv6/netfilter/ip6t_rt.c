@@ -6,7 +6,7 @@
  * it under the terms of the GNU General Public License version 2 as
  * published by the Free Software Foundation.
  */
-
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 #include <linux/module.h>
 #include <linux/skbuff.h>
 #include <linux/ipv6.h>
@@ -29,7 +29,7 @@ static inline bool
 segsleft_match(u_int32_t min, u_int32_t max, u_int32_t id, bool invert)
 {
 	bool r;
-	pr_debug("rt segsleft_match:%c 0x%x <= 0x%x <= 0x%x",
+	pr_debug("segsleft_match:%c 0x%x <= 0x%x <= 0x%x\n",
 		 invert ? '!' : ' ', min, id, max);
 	r = (id >= min && id <= max) ^ invert;
 	pr_debug(" result %s\n", r ? "PASS" : "FAILED");
@@ -188,7 +188,7 @@ static bool rt_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_rt *rtinfo = par->matchinfo;
 
 	if (rtinfo->invflags & ~IP6T_RT_INV_MASK) {
-		pr_debug("ip6t_rt: unknown flags %X\n", rtinfo->invflags);
+		pr_debug("unknown flags %X\n", rtinfo->invflags);
 		return false;
 	}
 	if ((rtinfo->flags & (IP6T_RT_RES | IP6T_RT_FST_MASK)) &&
