@@ -2419,7 +2419,7 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 		if (!netif_carrier_ok(netdev)) {
 			hw_dbg(&adapter->hw, "NIC Link is Up %s, ",
 			       ((link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
-				"10 Gbps" : "1 Gbps"));
+				"10 Gbps\n" : "1 Gbps\n"));
 			netif_carrier_on(netdev);
 			netif_tx_wake_all_queues(netdev);
 		} else {
@@ -2695,7 +2695,7 @@ static int ixgbevf_open(struct net_device *netdev)
 		if (hw->adapter_stopped) {
 			err = IXGBE_ERR_MBX;
 			printk(KERN_ERR "Unable to start - perhaps the PF"
-			       "Driver isn't up yet\n");
+			       " Driver isn't up yet\n");
 			goto err_setup_reset;
 		}
 	}
