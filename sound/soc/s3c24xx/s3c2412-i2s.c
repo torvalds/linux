@@ -151,14 +151,17 @@ static int s3c2412_i2s_hw_params(struct snd_pcm_substream *substream,
 				 struct snd_soc_dai *cpu_dai)
 {
 	struct s3c_i2sv2_info *i2s = to_info(cpu_dai);
+	struct s3c_dma_params *dma_data;
 	u32 iismod;
 
 	pr_debug("Entered %s\n", __func__);
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		cpu_dai->dma_data = i2s->dma_playback;
+		dma_data = i2s->dma_playback;
 	else
-		cpu_dai->dma_data = i2s->dma_capture;
+		dma_data = i2s->dma_capture;
+
+	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
 	iismod = readl(i2s->regs + S3C2412_IISMOD);
 	pr_debug("%s: r: IISMOD: %x\n", __func__, iismod);

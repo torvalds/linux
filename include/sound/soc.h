@@ -376,6 +376,7 @@ struct snd_soc_pcm_stream {
 	unsigned int channels_min;	/* min channels */
 	unsigned int channels_max;	/* max channels */
 	unsigned int active;		/* num of active users of the stream */
+	void *dma_data;			/* used by platform code */
 };
 
 /* SoC audio ops */

@@ -164,6 +164,7 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = rtd->dai->cpu_dai;
+	struct pxa2xx_pcm_dma_params *dma_data;
 
 	BUG_ON(IS_ERR(clk_i2s));
 	clk_enable(clk_i2s);
@@ -171,9 +172,11 @@ static int pxa2xx_i2s_hw_params(struct snd_pcm_substream *substream,
 	pxa_i2s_wait();
 
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		cpu_dai->dma_data = &pxa2xx_i2s_pcm_stereo_out;
+		dma_data = &pxa2xx_i2s_pcm_stereo_out;
 	else
-		cpu_dai->dma_data = &pxa2xx_i2s_pcm_stereo_in;
+		dma_data = &pxa2xx_i2s_pcm_stereo_in;
+
+	snd_soc_dai_set_dma_data(cpu_dai, substream, dma_data);
 
 	/* is port used by another stream */
 	if (!(SACR0 & SACR0_ENB)) {

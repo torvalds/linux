@@ -222,7 +222,8 @@ static int davinci_vcif_probe(struct platform_device *pdev)
 					davinci_vc->davinci_vcif.dma_rx_addr;
 
 	davinci_vcif_dai.dev = &pdev->dev;
-	davinci_vcif_dai.dma_data = davinci_vcif_dev->dma_params;
+	davinci_vcif_dai.capture.dma_data = davinci_vcif_dev->dma_params;
+	davinci_vcif_dai.playback.dma_data = davinci_vcif_dev->dma_params;
 	davinci_vcif_dai.private_data = davinci_vcif_dev;
 
 	ret = snd_soc_register_dai(&davinci_vcif_dai);
