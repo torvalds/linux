@@ -80,14 +80,14 @@ const static struct intel_device_info intel_i915g_info = {
 	.is_i915g = 1, .is_i9xx = 1, .cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i915gm_info = {
-	.is_i9xx = 1,  .is_mobile = 1, .has_fbc = 1,
+	.is_i9xx = 1,  .is_mobile = 1,
 	.cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i945g_info = {
 	.is_i9xx = 1, .has_hotplug = 1, .cursor_needs_physical = 1,
 };
 const static struct intel_device_info intel_i945gm_info = {
-	.is_i945gm = 1, .is_i9xx = 1, .is_mobile = 1, .has_fbc = 1,
+	.is_i945gm = 1, .is_i9xx = 1, .is_mobile = 1,
 	.has_hotplug = 1, .cursor_needs_physical = 1,
 };
 
