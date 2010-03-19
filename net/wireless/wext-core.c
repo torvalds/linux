@@ -261,44 +261,44 @@ static const unsigned standard_ioctl_num = ARRAY_SIZE(standard_ioctl);
  * we know about.
  */
 static const struct iw_ioctl_description standard_event[] = {
-	[IWEVTXDROP	- IWEVFIRST] = {
+	[IW_EVENT_IDX(IWEVTXDROP)] = {
 		.header_type	= IW_HEADER_TYPE_ADDR,
 	},
-	[IWEVQUAL	- IWEVFIRST] = {
+	[IW_EVENT_IDX(IWEVQUAL)] = {
 		.header_type	= IW_HEADER_TYPE_QUAL,
 	},
-	[IWEVCUSTOM	- IWEVFIRST] = {
+	[IW_EVENT_IDX(IWEVCUSTOM)] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
 		.max_tokens	= IW_CUSTOM_MAX,
 	},
-	[IWEVREGISTERED	- IWEVFIRST] = {
+	[IW_EVENT_IDX(IWEVREGISTERED)] = {
 		.header_type	= IW_HEADER_TYPE_ADDR,
 	},
-	[IWEVEXPIRED	- IWEVFIRST] = {
+	[IW_EVENT_IDX(IWEVEXPIRED)] = {
 		.header_type	= IW_HEADER_TYPE_ADDR,
 	},
-	[IWEVGENIE	- IWEVFIRST] = {
+	[IW_EVENT_IDX(IWEVGENIE)] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
 		.max_tokens	= IW_GENERIC_IE_MAX,
 	},
-	[IWEVMICHAELMICFAILURE	- IWEVFIRST] = {
+	[IW_EVENT_IDX(IWEVMICHAELMICFAILURE)] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
 		.max_tokens	= sizeof(struct iw_michaelmicfailure),
 	},
-	[IWEVASSOCREQIE	- IWEVFIRST] = {
+	[IW_EVENT_IDX(IWEVASSOCREQIE)] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
 		.max_tokens	= IW_GENERIC_IE_MAX,
 	},
-	[IWEVASSOCRESPIE	- IWEVFIRST] = {
+	[IW_EVENT_IDX(IWEVASSOCRESPIE)] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
 		.max_tokens	= IW_GENERIC_IE_MAX,
 	},
-	[IWEVPMKIDCAND	- IWEVFIRST] = {
+	[IW_EVENT_IDX(IWEVPMKIDCAND)] = {
 		.header_type	= IW_HEADER_TYPE_POINT,
 		.token_size	= 1,
 		.max_tokens	= sizeof(struct iw_pmkid_cand),
@@ -453,7 +453,7 @@ void wireless_send_event(struct net_device *	dev,
 		if (cmd_index < standard_ioctl_num)
 			descr = &(standard_ioctl[cmd_index]);
 	} else {
-		cmd_index = cmd - IWEVFIRST;
+		cmd_index = IW_EVENT_IDX(cmd);
 		if (cmd_index < standard_event_num)
 			descr = &(standard_event[cmd_index]);
 	}
