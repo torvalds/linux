@@ -306,6 +306,7 @@ struct iwl_cfg {
 	/* timer period for monitor the driver queues */
 	u32 monitor_recover_period;
 	bool temperature_kelvin;
+	bool off_channel_workaround;
 };
 
 /***************************

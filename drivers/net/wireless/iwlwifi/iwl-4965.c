@@ -2259,6 +2259,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.monitor_recover_period = IWL_MONITORING_PERIOD,
 	.temperature_kelvin = true,
+	.off_channel_workaround = true,
 };
 
 /* Module firmware */

@@ -992,12 +992,12 @@ void iwl_set_rxon_chain(struct iwl_priv *priv)
 	rx_chain |= idle_rx_cnt  << RXON_RX_CHAIN_CNT_POS;
 
 	/* copied from 'iwl_bg_request_scan()' */
-	/* Force use of chains B and C (0x6) for Rx for 4965
-	 * Avoid A (0x1) because of its off-channel reception on A-band.
+	/* Force use of chains B and C (0x6) for Rx
+	 * Avoid A (0x1) for the device has off-channel reception on A-band.
 	 * MIMO is not used here, but value is required */
 	if (iwl_is_monitor_mode(priv) &&
 	    !(priv->staging_rxon.flags & RXON_FLG_BAND_24G_MSK) &&
-	    ((priv->hw_rev & CSR_HW_REV_TYPE_MSK) == CSR_HW_REV_TYPE_4965)) {
+	    priv->cfg->off_channel_workaround) {
 		rx_chain = ANT_ABC << RXON_RX_CHAIN_VALID_POS;
 		rx_chain |= ANT_BC << RXON_RX_CHAIN_FORCE_SEL_POS;
 		rx_chain |= ANT_ABC << RXON_RX_CHAIN_FORCE_MIMO_SEL_POS;
