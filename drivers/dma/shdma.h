@@ -19,6 +19,7 @@
 
 #include <asm/dmaengine.h>
 
+#define SH_DMA_SLAVE_NUMBER 256
 #define SH_DMA_TCR_MAX 0x00FFFFFF	/* 16MB */
 
 struct device;

@@ -44,7 +44,7 @@ enum sh_dmae_desc_status {
 #define LOG2_DEFAULT_XFER_SIZE	2
 
 /* A bitmask with bits enough for enum sh_dmae_slave_chan_id */
-static unsigned long sh_dmae_slave_used[BITS_TO_LONGS(SHDMA_SLAVE_NUMBER)];
+static unsigned long sh_dmae_slave_used[BITS_TO_LONGS(SH_DMA_SLAVE_NUMBER)];
 
 static void sh_dmae_chan_ld_cleanup(struct sh_dmae_chan *sh_chan, bool all);
 
@@ -274,7 +274,7 @@ static struct sh_dmae_slave_config *sh_dmae_find_slave(
 	struct sh_dmae_pdata *pdata = shdev->pdata;
 	int i;
 
-	if (param->slave_id >= SHDMA_SLAVE_NUMBER)
+	if (param->slave_id >= SH_DMA_SLAVE_NUMBER)
 		return NULL;
 
 	for (i = 0; i < pdata->slave_num; i++)

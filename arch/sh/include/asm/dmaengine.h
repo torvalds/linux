@@ -34,7 +34,6 @@ enum {
 	SHDMA_SLAVE_SIUA_RX,
 	SHDMA_SLAVE_SIUB_TX,
 	SHDMA_SLAVE_SIUB_RX,
-	SHDMA_SLAVE_NUMBER,	/* Must stay last */
 };
 
 struct sh_dmae_slave_config {
