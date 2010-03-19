@@ -214,7 +214,7 @@ static int htable_create_v0(struct net *net, struct xt_hashlimit_info *minfo, u_
 	hinfo = vmalloc(sizeof(struct xt_hashlimit_htable) +
 			sizeof(struct list_head) * size);
 	if (!hinfo)
-		return -1;
+		return -ENOMEM;
 	minfo->hinfo = hinfo;
 
 	/* copy match config into hashtable config */
@@ -250,7 +250,7 @@ static int htable_create_v0(struct net *net, struct xt_hashlimit_info *minfo, u_
 		&dl_file_ops, hinfo);
 	if (!hinfo->pde) {
 		vfree(hinfo);
-		return -1;
+		return -ENOMEM;
 	}
 	hinfo->net = net;
 
@@ -285,7 +285,7 @@ static int htable_create(struct net *net, struct xt_hashlimit_mtinfo1 *minfo,
 	hinfo = vmalloc(sizeof(struct xt_hashlimit_htable) +
 	                sizeof(struct list_head) * size);
 	if (hinfo == NULL)
-		return -1;
+		return -ENOMEM;
 	minfo->hinfo = hinfo;
 
 	/* copy match config into hashtable config */
@@ -311,7 +311,7 @@ static int htable_create(struct net *net, struct xt_hashlimit_mtinfo1 *minfo,
 		&dl_file_ops, hinfo);
 	if (hinfo->pde == NULL) {
 		vfree(hinfo);
-		return -1;
+		return -ENOMEM;
 	}
 	hinfo->net = net;
 
@@ -675,13 +675,14 @@ static int hashlimit_mt_check_v0(const struct xt_mtchk_param *par)
 {
 	struct net *net = par->net;
 	struct xt_hashlimit_info *r = par->matchinfo;
+	int ret;
 
 	/* Check for overflow. */
 	if (r->cfg.burst == 0 ||
 	    user2credits(r->cfg.avg * r->cfg.burst) < user2credits(r->cfg.avg)) {
 		pr_info("overflow, try lower: %u/%u\n",
 			r->cfg.avg, r->cfg.burst);
-		return -EINVAL;
+		return -ERANGE;
 	}
 	if (r->cfg.mode == 0 ||
 	    r->cfg.mode > (XT_HASHLIMIT_HASH_DPT |
@@ -698,9 +699,12 @@ static int hashlimit_mt_check_v0(const struct xt_mtchk_param *par)
 
 	mutex_lock(&hashlimit_mutex);
 	r->hinfo = htable_find_get(net, r->name, par->family);
-	if (!r->hinfo && htable_create_v0(net, r, par->family) != 0) {
-		mutex_unlock(&hashlimit_mutex);
-		return -EINVAL;
+	if (r->hinfo == NULL) {
+		ret = htable_create_v0(net, r, par->family);
+		if (ret < 0) {
+			mutex_unlock(&hashlimit_mutex);
+			return ret;
+		}
 	}
 	mutex_unlock(&hashlimit_mutex);
 	return 0;
@@ -710,6 +714,7 @@ static int hashlimit_mt_check(const struct xt_mtchk_param *par)
 {
 	struct net *net = par->net;
 	struct xt_hashlimit_mtinfo1 *info = par->matchinfo;
+	int ret;
 
 	/* Check for overflow. */
 	if (info->cfg.burst == 0 ||
@@ -717,7 +722,7 @@ static int hashlimit_mt_check(const struct xt_mtchk_param *par)
 	    user2credits(info->cfg.avg)) {
 		pr_info("overflow, try lower: %u/%u\n",
 			info->cfg.avg, info->cfg.burst);
-		return -EINVAL;
+		return -ERANGE;
 	}
 	if (info->cfg.gc_interval == 0 || info->cfg.expire == 0)
 		return -EINVAL;
@@ -733,9 +738,12 @@ static int hashlimit_mt_check(const struct xt_mtchk_param *par)
 
 	mutex_lock(&hashlimit_mutex);
 	info->hinfo = htable_find_get(net, info->name, par->family);
-	if (!info->hinfo && htable_create(net, info, par->family) != 0) {
-		mutex_unlock(&hashlimit_mutex);
-		return -EINVAL;
+	if (info->hinfo == NULL) {
+		ret = htable_create(net, info, par->family);
+		if (ret < 0) {
+			mutex_unlock(&hashlimit_mutex);
+			return ret;
+		}
 	}
 	mutex_unlock(&hashlimit_mutex);
 	return 0;

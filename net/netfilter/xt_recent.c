@@ -355,8 +355,10 @@ static int recent_mt_check(const struct xt_mtchk_param *par)
 
 	t = kzalloc(sizeof(*t) + sizeof(t->iphash[0]) * ip_list_hash_size,
 		    GFP_KERNEL);
-	if (t == NULL)
+	if (t == NULL) {
+		ret = -ENOMEM;
 		goto out;
+	}
 	t->refcnt = 1;
 	strcpy(t->name, info->name);
 	INIT_LIST_HEAD(&t->lru_list);
@@ -367,6 +369,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par)
 		  &recent_mt_fops, t);
 	if (pde == NULL) {
 		kfree(t);
+		ret = -ENOMEM;
 		goto out;
 	}
 	pde->uid = ip_list_uid;

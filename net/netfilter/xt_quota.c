@@ -52,7 +52,7 @@ static int quota_mt_check(const struct xt_mtchk_param *par)
 
 	q->master = kmalloc(sizeof(*q->master), GFP_KERNEL);
 	if (q->master == NULL)
-		return -EINVAL;
+		return -ENOMEM;
 
 	q->master->quota = q->quota;
 	return 0;

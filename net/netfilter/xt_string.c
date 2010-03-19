@@ -63,7 +63,7 @@ static int string_mt_check(const struct xt_mtchk_param *par)
 	ts_conf = textsearch_prepare(conf->algo, conf->pattern, conf->patlen,
 				     GFP_KERNEL, flags);
 	if (IS_ERR(ts_conf))
-		return -EINVAL;
+		return PTR_ERR(ts_conf);
 
 	conf->config = ts_conf;
 	return 0;

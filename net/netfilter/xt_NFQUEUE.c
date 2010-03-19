@@ -98,7 +98,7 @@ static int nfqueue_tg_v1_check(const struct xt_tgchk_param *par)
 	if (maxid > 0xffff) {
 		pr_err("NFQUEUE: number of queues (%u) out of range (got %u)\n",
 		       info->queues_total, maxid);
-		return -EINVAL;
+		return -ERANGE;
 	}
 	return 0;
 }

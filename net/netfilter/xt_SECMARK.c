@@ -50,7 +50,7 @@ secmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 	return XT_CONTINUE;
 }
 
-static bool checkentry_selinux(struct xt_secmark_target_info *info)
+static int checkentry_selinux(struct xt_secmark_target_info *info)
 {
 	int err;
 	struct xt_secmark_target_selinux_info *sel = &info->u.sel;
@@ -62,27 +62,28 @@ static bool checkentry_selinux(struct xt_secmark_target_info *info)
 		if (err == -EINVAL)
 			pr_info("invalid SELinux context \'%s\'\n",
 				sel->selctx);
-		return false;
+		return err;
 	}
 
 	if (!sel->selsid) {
 		pr_info("unable to map SELinux context \'%s\'\n", sel->selctx);
-		return false;
+		return -ENOENT;
 	}
 
 	err = selinux_secmark_relabel_packet_permission(sel->selsid);
 	if (err) {
 		pr_info("unable to obtain relabeling permission\n");
-		return false;
+		return err;
 	}
 
 	selinux_secmark_refcount_inc();
-	return true;
+	return 0;
 }
 
 static int secmark_tg_check(const struct xt_tgchk_param *par)
 {
 	struct xt_secmark_target_info *info = par->targinfo;
+	int err;
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "security") != 0) {
@@ -99,8 +100,9 @@ static int secmark_tg_check(const struct xt_tgchk_param *par)
 
 	switch (info->mode) {
 	case SECMARK_MODE_SEL:
-		if (!checkentry_selinux(info))
-			return -EINVAL;
+		err = checkentry_selinux(info);
+		if (err <= 0)
+			return err;
 		break;
 
 	default:

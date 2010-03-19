@@ -57,11 +57,13 @@ helper_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 static int helper_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_helper_info *info = par->matchinfo;
+	int ret;
 
-	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
+	ret = nf_ct_l3proto_try_module_get(par->family);
+	if (ret < 0) {
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
-		return -EINVAL;
+		return ret;
 	}
 	info->name[29] = '\0';
 	return 0;

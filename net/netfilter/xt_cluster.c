@@ -145,7 +145,7 @@ static int xt_cluster_mt_checkentry(const struct xt_mtchk_param *par)
 	if (info->node_mask >= (1ULL << info->total_nodes)) {
 		pr_info("this node mask cannot be "
 			"higher than the total number of nodes\n");
-		return -EINVAL;
+		return -EDOM;
 	}
 	return 0;
 }

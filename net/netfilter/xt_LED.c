@@ -93,7 +93,7 @@ static int led_tg_check(const struct xt_tgchk_param *par)
 
 	ledinternal = kzalloc(sizeof(struct xt_led_info_internal), GFP_KERNEL);
 	if (!ledinternal)
-		return -EINVAL;
+		return -ENOMEM;
 
 	ledinternal->netfilter_led_trigger.name = ledinfo->id;
 
@@ -115,7 +115,7 @@ static int led_tg_check(const struct xt_tgchk_param *par)
 
 exit_alloc:
 	kfree(ledinternal);
-	return -EINVAL;
+	return err;
 }
 
 static void led_tg_destroy(const struct xt_tgdtor_param *par)

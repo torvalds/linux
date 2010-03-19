@@ -220,22 +220,24 @@ static int connlimit_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_connlimit_info *info = par->matchinfo;
 	unsigned int i;
+	int ret;
 
 	if (unlikely(!connlimit_rnd_inited)) {
 		get_random_bytes(&connlimit_rnd, sizeof(connlimit_rnd));
 		connlimit_rnd_inited = true;
 	}
-	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
+	ret = nf_ct_l3proto_try_module_get(par->family);
+	if (ret < 0) {
 		pr_info("cannot load conntrack support for "
 			"address family %u\n", par->family);
-		return -EINVAL;
+		return ret;
 	}
 
 	/* init private data */
 	info->data = kmalloc(sizeof(struct xt_connlimit_data), GFP_KERNEL);
 	if (info->data == NULL) {
 		nf_ct_l3proto_module_put(par->family);
-		return -EINVAL;
+		return -ENOMEM;
 	}
 
 	spin_lock_init(&info->data->lock);

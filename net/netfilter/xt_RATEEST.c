@@ -93,6 +93,7 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 		struct nlattr		opt;
 		struct gnet_estimator	est;
 	} cfg;
+	int ret;
 
 	if (unlikely(!rnd_inited)) {
 		get_random_bytes(&jhash_rnd, sizeof(jhash_rnd));
@@ -115,6 +116,7 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 		return 0;
 	}
 
+	ret = -ENOMEM;
 	est = kzalloc(sizeof(*est), GFP_KERNEL);
 	if (!est)
 		goto err1;
@@ -130,8 +132,9 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 	cfg.est.interval	= info->interval;
 	cfg.est.ewma_log	= info->ewma_log;
 
-	if (gen_new_estimator(&est->bstats, &est->rstats, &est->lock,
-			      &cfg.opt) < 0)
+	ret = gen_new_estimator(&est->bstats, &est->rstats,
+				&est->lock, &cfg.opt);
+	if (ret < 0)
 		goto err2;
 
 	info->est = est;
@@ -141,7 +144,7 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 err2:
 	kfree(est);
 err1:
-	return -EINVAL;
+	return ret;
 }
 
 static void xt_rateest_tg_destroy(const struct xt_tgdtor_param *par)

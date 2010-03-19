@@ -87,6 +87,7 @@ connsecmark_tg(struct sk_buff *skb, const struct xt_target_param *par)
 static int connsecmark_tg_check(const struct xt_tgchk_param *par)
 {
 	const struct xt_connsecmark_target_info *info = par->targinfo;
+	int ret;
 
 	if (strcmp(par->table, "mangle") != 0 &&
 	    strcmp(par->table, "security") != 0) {
@@ -102,13 +103,14 @@ static int connsecmark_tg_check(const struct xt_tgchk_param *par)
 
 	default:
 		pr_info("invalid mode: %hu\n", info->mode);
-		return false;
+		return -EINVAL;
 	}
 
-	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
+	ret = nf_ct_l3proto_try_module_get(par->family);
+	if (ret < 0) {
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
-		return -EINVAL;
+		return ret;
 	}
 	return 0;
 }

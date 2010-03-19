@@ -59,6 +59,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par)
 	struct nf_conntrack_tuple t;
 	struct nf_conn_help *help;
 	struct nf_conn *ct;
+	int ret = 0;
 	u8 proto;
 
 	if (info->flags & ~XT_CT_NOTRACK)
@@ -75,28 +76,34 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par)
 		goto err1;
 #endif
 
-	if (nf_ct_l3proto_try_module_get(par->family) < 0)
+	ret = nf_ct_l3proto_try_module_get(par->family);
+	if (ret < 0)
 		goto err1;
 
 	memset(&t, 0, sizeof(t));
 	ct = nf_conntrack_alloc(par->net, info->zone, &t, &t, GFP_KERNEL);
+	ret = PTR_ERR(ct);
 	if (IS_ERR(ct))
 		goto err2;
 
+	ret = 0;
 	if ((info->ct_events || info->exp_events) &&
 	    !nf_ct_ecache_ext_add(ct, info->ct_events, info->exp_events,
 				  GFP_KERNEL))
 		goto err3;
 
 	if (info->helper[0]) {
+		ret = -ENOENT;
 		proto = xt_ct_find_proto(par);
 		if (!proto)
 			goto err3;
 
+		ret = -ENOMEM;
 		help = nf_ct_helper_ext_add(ct, GFP_KERNEL);
 		if (help == NULL)
 			goto err3;
 
+		ret = -ENOENT;
 		help->helper = nf_conntrack_helper_try_module_get(info->helper,
 								  par->family,
 								  proto);
@@ -115,7 +122,7 @@ err3:
 err2:
 	nf_ct_l3proto_module_put(par->family);
 err1:
-	return -EINVAL;
+	return ret;
 }
 
 static void xt_ct_tg_destroy(const struct xt_tgdtor_param *par)

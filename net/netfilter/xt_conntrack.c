@@ -208,10 +208,13 @@ conntrack_mt_v2(const struct sk_buff *skb, const struct xt_match_param *par)
 
 static int conntrack_mt_check(const struct xt_mtchk_param *par)
 {
-	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
+	int ret;
+
+	ret = nf_ct_l3proto_try_module_get(par->family);
+	if (ret < 0) {
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
-		return -EINVAL;
+		return ret;
 	}
 	return 0;
 }

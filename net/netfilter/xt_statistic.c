@@ -62,7 +62,7 @@ static int statistic_mt_check(const struct xt_mtchk_param *par)
 
 	info->master = kzalloc(sizeof(*info->master), GFP_KERNEL);
 	if (info->master == NULL)
-		return -EINVAL;
+		return -ENOMEM;
 	info->master->count = info->u.nth.count;
 
 	return 0;

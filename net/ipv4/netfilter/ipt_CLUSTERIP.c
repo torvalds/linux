@@ -351,8 +351,8 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 {
 	struct ipt_clusterip_tgt_info *cipinfo = par->targinfo;
 	const struct ipt_entry *e = par->entryinfo;
-
 	struct clusterip_config *config;
+	int ret;
 
 	if (cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP &&
 	    cipinfo->hash_mode != CLUSTERIP_HASHMODE_SIP_SPT &&
@@ -387,7 +387,7 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 			if (!dev) {
 				pr_info("no such interface %s\n",
 					e->ip.iniface);
-				return -EINVAL;
+				return -ENOENT;
 			}
 
 			config = clusterip_config_init(cipinfo,
@@ -395,17 +395,18 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 			if (!config) {
 				pr_info("cannot allocate config\n");
 				dev_put(dev);
-				return -EINVAL;
+				return -ENOMEM;
 			}
 			dev_mc_add(config->dev,config->clustermac, ETH_ALEN, 0);
 		}
 	}
 	cipinfo->config = config;
 
-	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
+	ret = nf_ct_l3proto_try_module_get(par->family);
+	if (ret < 0) {
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
-		return -EINVAL;
+		return ret;
 	}
 
 	return 0;

@@ -107,7 +107,7 @@ static int ttl_tg_check(const struct xt_tgchk_param *par)
 
 	if (info->mode > IPT_TTL_MAXMODE) {
 		pr_info("TTL: invalid or unknown mode %u\n", info->mode);
-		return false;
+		return -EINVAL;
 	}
 	if (info->mode != IPT_TTL_SET && info->ttl == 0)
 		return -EINVAL;
