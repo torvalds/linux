@@ -71,10 +71,10 @@ nfqueue_tg_v1(struct sk_buff *skb, const struct xt_target_param *par)
 	u32 queue = info->queuenum;
 
 	if (info->queues_total > 1) {
-		if (par->target->family == NFPROTO_IPV4)
+		if (par->family == NFPROTO_IPV4)
 			queue = hash_v4(skb) % info->queues_total + queue;
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
-		else if (par->target->family == NFPROTO_IPV6)
+		else if (par->family == NFPROTO_IPV6)
 			queue = hash_v6(skb) % info->queues_total + queue;
 #endif
 	}
