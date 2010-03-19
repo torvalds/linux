@@ -750,9 +750,8 @@ static void interrupt_pci9118_ai_dma(struct comedi_device *dev,
 		comedi_event(dev, s);
 		return;
 	}
-
 	if (int_adstat & devpriv->ai_maskerr)
-/* if (int_adstat & 0x106) */
+					/* if (int_adstat & 0x106) */
 		if (pci9118_decode_error_status(dev, s, int_adstat))
 			return;
 
@@ -2215,10 +2214,10 @@ static int pci9118_attach(struct comedi_device *dev,
 
 	if (!pcidev) {
 		if (opt_bus || opt_slot) {
-			printk(" - Card at b:s %d:%d %s\n",
+			printk(KERN_ERR " - Card at b:s %d:%d %s\n",
 			       opt_bus, opt_slot, errstr);
 		} else {
-			printk(" - Card %s\n", errstr);
+			printk(KERN_ERR " - Card %s\n", errstr);
 		}
 		return -EIO;
 	}
@@ -2234,8 +2233,8 @@ static int pci9118_attach(struct comedi_device *dev,
 	iobase_a = pci_resource_start(pcidev, 0);
 	iobase_9 = pci_resource_start(pcidev, 2);
 
-	printk(", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx", pci_bus, pci_slot,
-	       pci_func, iobase_9, iobase_a);
+	printk(KERN_ERR ", b:s:f=%d:%d:%d, io=0x%4lx, 0x%4lx", pci_bus,
+				pci_slot, pci_func, iobase_9, iobase_a);
 
 	dev->iobase = iobase_9;
 	dev->board_name = this_board->name;
