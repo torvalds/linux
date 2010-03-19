@@ -1490,6 +1490,10 @@ int bond_enslave(struct net_device *bond_dev, struct net_device *slave_dev)
 				goto err_undo_flags;
 			}
 
+			/* Flush unicast and multicast addresses */
+			dev_unicast_flush(bond_dev);
+			dev_addr_discard(bond_dev);
+
 			if (slave_dev->type != ARPHRD_ETHER)
 				bond_setup_by_slave(bond_dev, slave_dev);
 			else
