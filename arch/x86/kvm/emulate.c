@@ -1396,7 +1396,7 @@ static int emulate_ret_far(struct x86_emulate_ctxt *ctxt,
 	rc = emulate_pop(ctxt, ops, &cs, c->op_bytes);
 	if (rc)
 		return rc;
-	rc = kvm_load_segment_descriptor(ctxt->vcpu, (u16)cs, 1, VCPU_SREG_CS);
+	rc = kvm_load_segment_descriptor(ctxt->vcpu, (u16)cs, VCPU_SREG_CS);
 	return rc;
 }
 
@@ -1992,12 +1992,11 @@ special_insn:
 		break;
 	case 0x8e: { /* mov seg, r/m16 */
 		uint16_t sel;
-		int type_bits;
-		int err;
 
 		sel = c->src.val;
 
-		if (c->modrm_reg == VCPU_SREG_CS) {
+		if (c->modrm_reg == VCPU_SREG_CS ||
+		    c->modrm_reg > VCPU_SREG_GS) {
 			kvm_queue_exception(ctxt->vcpu, UD_VECTOR);
 			goto done;
 		}
@@ -2005,18 +2004,7 @@ special_insn:
 		if (c->modrm_reg == VCPU_SREG_SS)
 			toggle_interruptibility(ctxt, X86_SHADOW_INT_MOV_SS);
 
-		if (c->modrm_reg <= 5) {
-			type_bits = (c->modrm_reg == 1) ? 9 : 1;
-			err = kvm_load_segment_descriptor(ctxt->vcpu, sel,
-							  type_bits, c->modrm_reg);
-		} else {
-			printk(KERN_INFO "Invalid segreg in modrm byte 0x%02x\n",
-					c->modrm);
-			goto cannot_emulate;
-		}
-
-		if (err < 0)
-			goto cannot_emulate;
+		rc = kvm_load_segment_descriptor(ctxt->vcpu, sel, c->modrm_reg);
 
 		c->dst.type = OP_NONE;  /* Disable writeback. */
 		break;
@@ -2186,11 +2174,9 @@ special_insn:
 	case 0xe9: /* jmp rel */
 		goto jmp;
 	case 0xea: /* jmp far */
-		if (kvm_load_segment_descriptor(ctxt->vcpu, c->src2.val, 9,
-					VCPU_SREG_CS) < 0) {
-			DPRINTF("jmp far: Failed to load CS descriptor\n");
-			goto cannot_emulate;
-		}
+		if (kvm_load_segment_descriptor(ctxt->vcpu, c->src2.val,
+						VCPU_SREG_CS))
+			goto done;
 
 		c->eip = c->src.val;
 		break;
