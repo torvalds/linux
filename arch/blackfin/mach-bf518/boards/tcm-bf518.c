@@ -7,6 +7,7 @@
  */
 
 #include <linux/device.h>
+#include <linux/etherdevice.h>
 #include <linux/platform_device.h>
 #include <linux/mtd/mtd.h>
 #include <linux/mtd/partitions.h>
@@ -29,53 +30,46 @@
 /*
  * Name the Board for the /proc/cpuinfo
  */
-const char bfin_board_name[] = "ADI BF518F-EZBRD";
+const char bfin_board_name[] = "Bluetechnix TCM-BF518";
 
 /*
  *  Driver needs to know address, irq and flag pin.
  */
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
-static struct mtd_partition ezbrd_partitions[] = {
+static struct mtd_partition tcm_partitions[] = {
 	{
 		.name       = "bootloader(nor)",
 		.size       = 0x40000,
 		.offset     = 0,
-	}, {
-		.name       = "linux kernel(nor)",
+	},
+	{
+		.name       = "linux(nor)",
 		.size       = 0x1C0000,
-		.offset     = MTDPART_OFS_APPEND,
-	}, {
-		.name       = "file system(nor)",
-		.size       = MTDPART_SIZ_FULL,
 		.offset     = MTDPART_OFS_APPEND,
 	}
 };
 
-static struct physmap_flash_data ezbrd_flash_data = {
+static struct physmap_flash_data tcm_flash_data = {
 	.width      = 2,
-	.parts      = ezbrd_partitions,
-	.nr_parts   = ARRAY_SIZE(ezbrd_partitions),
+	.parts      = tcm_partitions,
+	.nr_parts   = ARRAY_SIZE(tcm_partitions),
 };
 
-static struct resource ezbrd_flash_resource = {
+static struct resource tcm_flash_resource = {
 	.start = 0x20000000,
-#if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
-	.end   = 0x202fffff,
-#else
-	.end   = 0x203fffff,
-#endif
+	.end   = 0x201fffff,
 	.flags = IORESOURCE_MEM,
 };
 
-static struct platform_device ezbrd_flash_device = {
+static struct platform_device tcm_flash_device = {
 	.name          = "physmap-flash",
 	.id            = 0,
 	.dev = {
-		.platform_data = &ezbrd_flash_data,
+		.platform_data = &tcm_flash_data,
 	},
 	.num_resources = 1,
-	.resource      = &ezbrd_flash_resource,
+	.resource      = &tcm_flash_resource,
 };
 #endif
 
@@ -95,30 +89,6 @@ static struct platform_device bfin_mac_device = {
 	.name = "bfin_mac",
 	.dev.platform_data = &bfin_mii_bus,
 };
-
-#if defined(CONFIG_NET_DSA_KSZ8893M) || defined(CONFIG_NET_DSA_KSZ8893M_MODULE)
-static struct dsa_chip_data ksz8893m_switch_chip_data = {
-	.mii_bus = &bfin_mii_bus.dev,
-	.port_names = {
-		NULL,
-		"eth%d",
-		"eth%d",
-		"cpu",
-	},
-};
-static struct dsa_platform_data ksz8893m_switch_data = {
-	.nr_chips = 1,
-	.netdev = &bfin_mac_device.dev,
-	.chip = &ksz8893m_switch_chip_data,
-};
-
-static struct platform_device ksz8893m_switch_device = {
-	.name		= "dsa",
-	.id		= 0,
-	.num_resources	= 0,
-	.dev.platform_data = &ksz8893m_switch_data,
-};
-#endif
 #endif
 
 #if defined(CONFIG_MTD_M25P80) \
@@ -159,17 +129,6 @@ static struct bfin5xx_spi_chip spi_adc_chip_info = {
 };
 #endif
 
-#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
-#if defined(CONFIG_NET_DSA_KSZ8893M) \
-	|| defined(CONFIG_NET_DSA_KSZ8893M_MODULE)
-/* SPI SWITCH CHIP */
-static struct bfin5xx_spi_chip spi_switch_info = {
-	.enable_dma = 0,
-	.bits_per_word = 8,
-};
-#endif
-#endif
-
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 static struct bfin5xx_spi_chip mmc_spi_chip_info = {
 	.enable_dma = 0,
@@ -190,11 +149,11 @@ static const struct ad7877_platform_data bfin_ad7877_ts_info = {
 	.y_plate_ohms		= 486,
 	.pressure_max		= 1000,
 	.pressure_min		= 0,
-	.stopacq_polarity 	= 1,
-	.first_conversion_delay = 3,
-	.acquisition_time 	= 1,
-	.averaging 		= 1,
-	.pen_down_acc_interval 	= 1,
+	.stopacq_polarity	= 1,
+	.first_conversion_delay	= 3,
+	.acquisition_time	= 1,
+	.averaging		= 1,
+	.pen_down_acc_interval	= 1,
 };
 #endif
 
@@ -221,7 +180,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 		.modalias = "m25p80", /* Name of spi_driver for this device */
 		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0, /* Framework bus number */
-		.chip_select = 2, /* On BF518F-EZBRD it's SPI0_SSEL2 */
+		.chip_select = 2, /* SPI0_SSEL2 */
 		.platform_data = &bfin_spi_flash_data,
 		.controller_data = &spi_flash_chip_info,
 		.mode = SPI_MODE_3,
@@ -240,25 +199,10 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 	},
 #endif
 
-#if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
-#if defined(CONFIG_NET_DSA_KSZ8893M) \
-	|| defined(CONFIG_NET_DSA_KSZ8893M_MODULE)
-	{
-		.modalias = "ksz8893m",
-		.max_speed_hz = 5000000,
-		.bus_num = 0,
-		.chip_select = 1,
-		.platform_data = NULL,
-		.controller_data = &spi_switch_info,
-		.mode = SPI_MODE_3,
-	},
-#endif
-#endif
-
 #if defined(CONFIG_MMC_SPI) || defined(CONFIG_MMC_SPI_MODULE)
 	{
 		.modalias = "mmc_spi",
-		.max_speed_hz = 25000000,     /* max spi clock (SCK) speed in HZ */
+		.max_speed_hz = 20000000,     /* max spi clock (SCK) speed in HZ */
 		.bus_num = 0,
 		.chip_select = 5,
 		.controller_data = &mmc_spi_chip_info,
@@ -312,7 +256,7 @@ static struct spi_board_info bfin_spi_board_info[] __initdata = {
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
 /* SPI (0) */
 static struct bfin5xx_spi_master bfin_spi0_info = {
-	.num_chipselect = 5,
+	.num_chipselect = 6,
 	.enable_dma = 1,  /* master has the ability to do dma transfer */
 	.pin_req = {P_SPI0_SCK, P_SPI0_MISO, P_SPI0_MOSI, 0},
 };
@@ -693,7 +637,7 @@ static struct platform_device bfin_dpmc = {
 	},
 };
 
-static struct platform_device *stamp_devices[] __initdata = {
+static struct platform_device *tcm_devices[] __initdata = {
 
 	&bfin_dpmc,
 
@@ -704,9 +648,6 @@ static struct platform_device *stamp_devices[] __initdata = {
 #if defined(CONFIG_BFIN_MAC) || defined(CONFIG_BFIN_MAC_MODULE)
 	&bfin_mii_bus,
 	&bfin_mac_device,
-#if defined(CONFIG_NET_DSA_KSZ8893M) || defined(CONFIG_NET_DSA_KSZ8893M_MODULE)
-	&ksz8893m_switch_device,
-#endif
 #endif
 
 #if defined(CONFIG_SPI_BFIN) || defined(CONFIG_SPI_BFIN_MODULE)
@@ -754,28 +695,23 @@ static struct platform_device *stamp_devices[] __initdata = {
 #endif
 
 #if defined(CONFIG_MTD_PHYSMAP) || defined(CONFIG_MTD_PHYSMAP_MODULE)
-	&ezbrd_flash_device,
+	&tcm_flash_device,
 #endif
 };
 
-static int __init ezbrd_init(void)
+static int __init tcm_init(void)
 {
 	printk(KERN_INFO "%s(): registering device resources\n", __func__);
 	i2c_register_board_info(0, bfin_i2c_board_info,
 				ARRAY_SIZE(bfin_i2c_board_info));
-	platform_add_devices(stamp_devices, ARRAY_SIZE(stamp_devices));
+	platform_add_devices(tcm_devices, ARRAY_SIZE(tcm_devices));
 	spi_register_board_info(bfin_spi_board_info, ARRAY_SIZE(bfin_spi_board_info));
-	/* setup BF518-EZBRD GPIO pin PG11 to AMS2, PG15 to AMS3. */
-	peripheral_request(P_AMS2, "ParaFlash");
-#if !defined(CONFIG_SPI_BFIN) && !defined(CONFIG_SPI_BFIN_MODULE)
-	peripheral_request(P_AMS3, "ParaFlash");
-#endif
 	return 0;
 }
 
-arch_initcall(ezbrd_init);
+arch_initcall(tcm_init);
 
-static struct platform_device *ezbrd_early_devices[] __initdata = {
+static struct platform_device *tcm_early_devices[] __initdata = {
 #if defined(CONFIG_SERIAL_BFIN_CONSOLE) || defined(CONFIG_EARLY_PRINTK)
 #ifdef CONFIG_SERIAL_BFIN_UART0
 	&bfin_uart0_device,
@@ -798,8 +734,8 @@ static struct platform_device *ezbrd_early_devices[] __initdata = {
 void __init native_machine_early_platform_add_devices(void)
 {
 	printk(KERN_INFO "register early platform devices\n");
-	early_platform_add_devices(ezbrd_early_devices,
-		ARRAY_SIZE(ezbrd_early_devices));
+	early_platform_add_devices(tcm_early_devices,
+		ARRAY_SIZE(tcm_early_devices));
 }
 
 void native_machine_restart(char *cmd)
@@ -811,16 +747,7 @@ void native_machine_restart(char *cmd)
 
 void bfin_get_ether_addr(char *addr)
 {
-	/* the MAC is stored in OTP memory page 0xDF */
-	u32 ret;
-	u64 otp_mac;
-	u32 (*otp_read)(u32 page, u32 flags, u64 *page_content) = (void *)0xEF00001A;
-
-	ret = otp_read(0xDF, 0x00, &otp_mac);
-	if (!(ret & 0x1)) {
-		char *otp_mac_p = (char *)&otp_mac;
-		for (ret = 0; ret < 6; ++ret)
-			addr[ret] = otp_mac_p[5 - ret];
-	}
+	random_ether_addr(addr);
+	printk(KERN_WARNING "%s:%s: Setting Ethernet MAC to a random one\n", __FILE__, __func__);
 }
 EXPORT_SYMBOL(bfin_get_ether_addr);

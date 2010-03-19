@@ -151,7 +151,17 @@
 
 #define GPIO_IRQ_BASE	IRQ_PF0
 
-#define NR_IRQS     (IRQ_PH15+1)
+#define IRQ_MAC_PHYINT		119 /* PHY_INT Interrupt */
+#define IRQ_MAC_MMCINT		120 /* MMC Counter Interrupt */
+#define IRQ_MAC_RXFSINT		121 /* RX Frame-Status Interrupt */
+#define IRQ_MAC_TXFSINT		122 /* TX Frame-Status Interrupt */
+#define IRQ_MAC_WAKEDET		123 /* Wake-Up Interrupt */
+#define IRQ_MAC_RXDMAERR	124 /* RX DMA Direction Error Interrupt */
+#define IRQ_MAC_TXDMAERR	125 /* TX DMA Direction Error Interrupt */
+#define IRQ_MAC_STMDONE		126 /* Station Mgt. Transfer Done Interrupt */
+
+#define NR_MACH_IRQS	(IRQ_MAC_STMDONE + 1)
+#define NR_IRQS		(NR_MACH_IRQS + NR_SPARE_IRQS)
 
 #define IVG7            7
 #define IVG8            8
