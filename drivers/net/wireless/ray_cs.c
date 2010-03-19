@@ -1531,28 +1531,28 @@ static iw_stats *ray_get_wireless_stats(struct net_device *dev)
  */
 
 static const iw_handler ray_handler[] = {
-	[SIOCSIWCOMMIT - SIOCIWFIRST] = (iw_handler) ray_commit,
-	[SIOCGIWNAME - SIOCIWFIRST] = (iw_handler) ray_get_name,
-	[SIOCSIWFREQ - SIOCIWFIRST] = (iw_handler) ray_set_freq,
-	[SIOCGIWFREQ - SIOCIWFIRST] = (iw_handler) ray_get_freq,
-	[SIOCSIWMODE - SIOCIWFIRST] = (iw_handler) ray_set_mode,
-	[SIOCGIWMODE - SIOCIWFIRST] = (iw_handler) ray_get_mode,
-	[SIOCGIWRANGE - SIOCIWFIRST] = (iw_handler) ray_get_range,
+	IW_HANDLER(SIOCSIWCOMMIT, (iw_handler)ray_commit),
+	IW_HANDLER(SIOCGIWNAME, (iw_handler)ray_get_name),
+	IW_HANDLER(SIOCSIWFREQ, (iw_handler)ray_set_freq),
+	IW_HANDLER(SIOCGIWFREQ, (iw_handler)ray_get_freq),
+	IW_HANDLER(SIOCSIWMODE, (iw_handler)ray_set_mode),
+	IW_HANDLER(SIOCGIWMODE, (iw_handler)ray_get_mode),
+	IW_HANDLER(SIOCGIWRANGE, (iw_handler)ray_get_range),
 #ifdef WIRELESS_SPY
-	[SIOCSIWSPY - SIOCIWFIRST] = (iw_handler) iw_handler_set_spy,
-	[SIOCGIWSPY - SIOCIWFIRST] = (iw_handler) iw_handler_get_spy,
-	[SIOCSIWTHRSPY - SIOCIWFIRST] = (iw_handler) iw_handler_set_thrspy,
-	[SIOCGIWTHRSPY - SIOCIWFIRST] = (iw_handler) iw_handler_get_thrspy,
+	IW_HANDLER(SIOCSIWSPY, iw_handler_set_spy),
+	IW_HANDLER(SIOCGIWSPY, iw_handler_get_spy),
+	IW_HANDLER(SIOCSIWTHRSPY, iw_handler_set_thrspy),
+	IW_HANDLER(SIOCGIWTHRSPY, iw_handler_get_thrspy),
 #endif /* WIRELESS_SPY */
-	[SIOCGIWAP - SIOCIWFIRST] = (iw_handler) ray_get_wap,
-	[SIOCSIWESSID - SIOCIWFIRST] = (iw_handler) ray_set_essid,
-	[SIOCGIWESSID - SIOCIWFIRST] = (iw_handler) ray_get_essid,
-	[SIOCSIWRATE - SIOCIWFIRST] = (iw_handler) ray_set_rate,
-	[SIOCGIWRATE - SIOCIWFIRST] = (iw_handler) ray_get_rate,
-	[SIOCSIWRTS - SIOCIWFIRST] = (iw_handler) ray_set_rts,
-	[SIOCGIWRTS - SIOCIWFIRST] = (iw_handler) ray_get_rts,
-	[SIOCSIWFRAG - SIOCIWFIRST] = (iw_handler) ray_set_frag,
-	[SIOCGIWFRAG - SIOCIWFIRST] = (iw_handler) ray_get_frag,
+	IW_HANDLER(SIOCGIWAP, (iw_handler)ray_get_wap),
+	IW_HANDLER(SIOCSIWESSID, (iw_handler)ray_set_essid),
+	IW_HANDLER(SIOCGIWESSID, (iw_handler)ray_get_essid),
+	IW_HANDLER(SIOCSIWRATE, (iw_handler)ray_set_rate),
+	IW_HANDLER(SIOCGIWRATE, (iw_handler)ray_get_rate),
+	IW_HANDLER(SIOCSIWRTS, (iw_handler)ray_set_rts),
+	IW_HANDLER(SIOCGIWRTS, (iw_handler)ray_get_rts),
+	IW_HANDLER(SIOCSIWFRAG, (iw_handler)ray_set_frag),
+	IW_HANDLER(SIOCGIWFRAG, (iw_handler)ray_get_frag),
 };
 
 #define SIOCSIPFRAMING	SIOCIWFIRSTPRIV	/* Set framing mode */
