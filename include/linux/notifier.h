@@ -182,7 +182,10 @@ static inline int notifier_to_errno(int ret)
  *	VC switch chains (for loadable kernel svgalib VC switch helpers) etc...
  */
  
-/* netdevice notifier chain */
+/* netdevice notifier chain. Please remember to update the rtnetlink
+ * notification exclusion list in rtnetlink_event() when adding new
+ * types.
+ */
 #define NETDEV_UP	0x0001	/* For now you can't veto a device up/down */
 #define NETDEV_DOWN	0x0002
 #define NETDEV_REBOOT	0x0003	/* Tell a protocol stack a network interface
