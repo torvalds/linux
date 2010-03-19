@@ -778,7 +778,7 @@ static int dac33_prepare_chip(struct snd_pcm_substream *substream)
 	if (dac33->fifo_mode) {
 		/* Generic for all FIFO modes */
 		/* 50-51 : ASRC Control registers */
-		dac33_write(codec, DAC33_ASRC_CTRL_A, (1 << 4)); /* div=2 */
+		dac33_write(codec, DAC33_ASRC_CTRL_A, DAC33_SRCLKDIV(1));
 		dac33_write(codec, DAC33_ASRC_CTRL_B, 1); /* ??? */
 
 		/* Write registers 0x34 and 0x35 (MSB, LSB) */
@@ -1062,7 +1062,7 @@ static void dac33_init_chip(struct snd_soc_codec *codec)
 {
 	/* 44-46: DAC Control Registers */
 	/* A : DAC sample rate Fsref/1.5 */
-	dac33_write(codec, DAC33_DAC_CTRL_A, DAC33_DACRATE(1));
+	dac33_write(codec, DAC33_DAC_CTRL_A, DAC33_DACRATE(0));
 	/* B : DAC src=normal, not muted */
 	dac33_write(codec, DAC33_DAC_CTRL_B, DAC33_DACSRCR_RIGHT |
 					     DAC33_DACSRCL_LEFT);
