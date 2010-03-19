@@ -49,13 +49,14 @@ config SND_BF5XX_SOC_AD1836
 	help
 	  Say Y if you want to add support for SoC audio on BF5xx STAMP/EZKIT.
 
-config SND_BF5XX_SOC_AD1938
-	tristate "SoC AD1938 Audio support for Blackfin"
+config SND_BF5XX_SOC_AD193X
+	tristate "SoC AD193X Audio support for Blackfin"
 	depends on SND_BF5XX_TDM
 	select SND_BF5XX_SOC_TDM
-	select SND_SOC_AD1938
+	select SND_SOC_AD193X
 	help
-	  Say Y if you want to add support for AD1938 codec on Blackfin.
+	  Say Y if you want to add support for AD193X codec on Blackfin.
+	  This driver supports AD1936, AD1937, AD1938 and AD1939.
 
 config SND_BF5XX_AC97
 	tristate "SoC AC97 Audio for the ADI BF5xx chip"
