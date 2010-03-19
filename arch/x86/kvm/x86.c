@@ -3079,6 +3079,8 @@ int kvm_emulate_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 {
 	unsigned long val;
 
+	trace_kvm_pio(!in, port, size, 1);
+
 	vcpu->run->exit_reason = KVM_EXIT_IO;
 	vcpu->run->io.direction = in ? KVM_EXIT_IO_IN : KVM_EXIT_IO_OUT;
 	vcpu->run->io.size = vcpu->arch.pio.size = size;
@@ -3089,9 +3091,6 @@ int kvm_emulate_pio(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	vcpu->arch.pio.string = 0;
 	vcpu->arch.pio.down = 0;
 	vcpu->arch.pio.rep = 0;
-
-	trace_kvm_pio(vcpu->run->io.direction == KVM_EXIT_IO_OUT, port,
-		      size, 1);
 
 	val = kvm_register_read(vcpu, VCPU_REGS_RAX);
 	memcpy(vcpu->arch.pio_data, &val, 4);
@@ -3111,6 +3110,8 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	unsigned now, in_page;
 	int ret = 0;
 
+	trace_kvm_pio(!in, port, size, count);
+
 	vcpu->run->exit_reason = KVM_EXIT_IO;
 	vcpu->run->io.direction = in ? KVM_EXIT_IO_IN : KVM_EXIT_IO_OUT;
 	vcpu->run->io.size = vcpu->arch.pio.size = size;
@@ -3121,9 +3122,6 @@ int kvm_emulate_pio_string(struct kvm_vcpu *vcpu, struct kvm_run *run, int in,
 	vcpu->arch.pio.string = 1;
 	vcpu->arch.pio.down = down;
 	vcpu->arch.pio.rep = rep;
-
-	trace_kvm_pio(vcpu->run->io.direction == KVM_EXIT_IO_OUT, port,
-		      size, count);
 
 	if (!count) {
 		kvm_x86_ops->skip_emulated_instruction(vcpu);
