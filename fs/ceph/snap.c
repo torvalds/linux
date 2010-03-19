@@ -314,9 +314,9 @@ static int build_snap_context(struct ceph_snap_realm *realm)
 	   because we rebuild_snap_realms() works _downward_ in
 	   hierarchy after each update.) */
 	if (realm->cached_context &&
-	    realm->cached_context->seq <= realm->seq &&
+	    realm->cached_context->seq == realm->seq &&
 	    (!parent ||
-	     realm->cached_context->seq <= parent->cached_context->seq)) {
+	     realm->cached_context->seq >= parent->cached_context->seq)) {
 		dout("build_snap_context %llx %p: %p seq %lld (%d snaps)"
 		     " (unchanged)\n",
 		     realm->ino, realm, realm->cached_context,
