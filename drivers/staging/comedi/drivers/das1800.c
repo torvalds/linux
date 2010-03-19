@@ -797,10 +797,8 @@ static int das1800_detach(struct comedi_device *dev)
 			free_dma(devpriv->dma0);
 		if (devpriv->dma1)
 			free_dma(devpriv->dma1);
-		if (devpriv->ai_buf0)
-			kfree(devpriv->ai_buf0);
-		if (devpriv->ai_buf1)
-			kfree(devpriv->ai_buf1);
+		kfree(devpriv->ai_buf0);
+		kfree(devpriv->ai_buf1);
 	}
 
 	printk("comedi%d: %s: remove\n", dev->minor,
