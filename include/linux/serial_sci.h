@@ -3,7 +3,7 @@
 
 #include <linux/serial_core.h>
 #ifdef CONFIG_SERIAL_SH_SCI_DMA
-#include <asm/dmaengine.h>
+#include <linux/sh_dma.h>
 #endif
 
 /*
