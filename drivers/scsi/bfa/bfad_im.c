@@ -518,7 +518,9 @@ bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port,
 {
 	int error = 1;
 
+	mutex_lock(&bfad_mutex);
 	if (!idr_pre_get(&bfad_im_port_index, GFP_KERNEL)) {
+		mutex_unlock(&bfad_mutex);
 		printk(KERN_WARNING "idr_pre_get failure\n");
 		goto out;
 	}
@@ -526,9 +528,12 @@ bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port,
 	error = idr_get_new(&bfad_im_port_index, im_port,
 					 &im_port->idr_id);
 	if (error) {
+		mutex_unlock(&bfad_mutex);
 		printk(KERN_WARNING "idr_get_new failure\n");
 		goto out;
 	}
+
+	mutex_unlock(&bfad_mutex);
 
 	im_port->shost = bfad_os_scsi_host_alloc(im_port, bfad);
 	if (!im_port->shost) {
@@ -563,7 +568,9 @@ bfad_im_scsi_host_alloc(struct bfad_s *bfad, struct bfad_im_port_s *im_port,
 out_fc_rel:
 	scsi_host_put(im_port->shost);
 out_free_idr:
+	mutex_lock(&bfad_mutex);
 	idr_remove(&bfad_im_port_index, im_port->idr_id);
+	mutex_unlock(&bfad_mutex);
 out:
 	return error;
 }
@@ -571,8 +578,6 @@ out:
 void
 bfad_im_scsi_host_free(struct bfad_s *bfad, struct bfad_im_port_s *im_port)
 {
-	unsigned long flags;
-
 	bfa_trc(bfad, bfad->inst_no);
 	bfa_log(bfad->logmod, BFA_LOG_LINUX_SCSI_HOST_FREE,
 			im_port->shost->host_no);
@@ -582,9 +587,9 @@ bfad_im_scsi_host_free(struct bfad_s *bfad, struct bfad_im_port_s *im_port)
 	scsi_remove_host(im_port->shost);
 	scsi_host_put(im_port->shost);
 
-	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	mutex_lock(&bfad_mutex);
 	idr_remove(&bfad_im_port_index, im_port->idr_id);
-	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+	mutex_unlock(&bfad_mutex);
 }
 
 static void

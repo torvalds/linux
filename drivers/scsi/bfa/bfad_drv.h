@@ -293,5 +293,6 @@ extern struct list_head bfad_list;
 extern int bfa_lun_queue_depth;
 extern int bfad_supported_fc4s;
 extern int bfa_linkup_delay;
+extern struct mutex bfad_mutex;
 
 #endif /* __BFAD_DRV_H__ */

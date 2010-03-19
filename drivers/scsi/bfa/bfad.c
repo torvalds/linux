@@ -33,7 +33,7 @@
 #include <fcb/bfa_fcb.h>
 
 BFA_TRC_FILE(LDRV, BFAD);
-static DEFINE_MUTEX(bfad_mutex);
+DEFINE_MUTEX(bfad_mutex);
 LIST_HEAD(bfad_list);
 static int      bfad_inst;
 int bfad_supported_fc4s;
