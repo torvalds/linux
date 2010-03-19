@@ -4170,6 +4170,10 @@ static noinline int find_free_extent(struct btrfs_trans_handle *trans,
 	ins->offset = 0;
 
 	space_info = __find_space_info(root->fs_info, data);
+	if (!space_info) {
+		printk(KERN_ERR "No space info for %d\n", data);
+		return -ENOSPC;
+	}
 
 	if (orig_root->ref_cows || empty_size)
 		allowed_chunk_alloc = 1;
@@ -7372,7 +7376,6 @@ static int find_first_block_group(struct btrfs_root *root,
 		}
 		path->slots[0]++;
 	}
-	ret = -ENOENT;
 out:
 	return ret;
 }
