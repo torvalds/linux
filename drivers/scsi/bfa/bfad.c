@@ -299,8 +299,6 @@ bfa_fcb_vport_delete(struct bfad_vport_s *vport_drv)
 		complete(vport_drv->comp_del);
 		return;
 	}
-
-	kfree(vport_drv);
 }
 
 /**
@@ -483,7 +481,7 @@ ext:
  */
 bfa_status_t
 bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
-		  struct bfa_port_cfg_s *port_cfg)
+		  struct bfa_port_cfg_s *port_cfg, struct device *dev)
 {
 	struct bfad_vport_s *vport;
 	int             rc = BFA_STATUS_OK;
@@ -506,7 +504,8 @@ bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
 		goto ext_free_vport;
 
 	if (port_cfg->roles & BFA_PORT_ROLE_FCP_IM) {
-		rc = bfad_im_scsi_host_alloc(bfad, vport->drv_port.im_port);
+		rc = bfad_im_scsi_host_alloc(bfad, vport->drv_port.im_port,
+							dev);
 		if (rc != BFA_STATUS_OK)
 			goto ext_free_fcs_vport;
 	}
@@ -848,7 +847,8 @@ bfad_cfg_pport(struct bfad_s *bfad, enum bfa_port_role role)
 			goto out;
 		}
 
-		rc = bfad_im_scsi_host_alloc(bfad, bfad->pport.im_port);
+		rc = bfad_im_scsi_host_alloc(bfad, bfad->pport.im_port,
+						&bfad->pcidev->dev);
 		if (rc != BFA_STATUS_OK)
 			goto out;
 

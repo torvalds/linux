@@ -254,7 +254,7 @@ do {                                            	\
 
 
 bfa_status_t    bfad_vport_create(struct bfad_s *bfad, u16 vf_id,
-				  struct bfa_port_cfg_s *port_cfg);
+			  struct bfa_port_cfg_s *port_cfg, struct device *dev);
 bfa_status_t    bfad_vf_create(struct bfad_s *bfad, u16 vf_id,
 			       struct bfa_port_cfg_s *port_cfg);
 bfa_status_t    bfad_cfg_pport(struct bfad_s *bfad, enum bfa_port_role role);

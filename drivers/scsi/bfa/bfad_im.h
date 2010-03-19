@@ -34,7 +34,7 @@ void bfad_im_port_online(struct bfad_s *bfad, struct bfad_port_s *port);
 void bfad_im_port_offline(struct bfad_s *bfad, struct bfad_port_s *port);
 void bfad_im_port_clean(struct bfad_im_port_s *im_port);
 int  bfad_im_scsi_host_alloc(struct bfad_s *bfad,
-				struct bfad_im_port_s *im_port);
+		struct bfad_im_port_s *im_port, struct device *dev);
 void bfad_im_scsi_host_free(struct bfad_s *bfad,
 				struct bfad_im_port_s *im_port);
 
@@ -64,9 +64,11 @@ struct bfad_im_port_s {
 	struct work_struct port_delete_work;
 	int             idr_id;
 	u16        cur_scsi_id;
+	u16	   flags;
 	struct list_head binding_list;
 	struct Scsi_Host *shost;
 	struct list_head itnim_mapped_list;
+	struct fc_vport *fc_vport;
 };
 
 enum bfad_itnim_state {
@@ -140,6 +142,8 @@ void bfad_im_itnim_unmap(struct bfad_im_port_s  *im_port,
 extern struct scsi_host_template bfad_im_scsi_host_template;
 extern struct scsi_host_template bfad_im_vport_template;
 extern struct fc_function_template bfad_im_fc_function_template;
+extern struct fc_function_template bfad_im_vport_fc_function_template;
 extern struct scsi_transport_template *bfad_im_scsi_transport_template;
+extern struct scsi_transport_template *bfad_im_scsi_vport_transport_template;
 
 #endif

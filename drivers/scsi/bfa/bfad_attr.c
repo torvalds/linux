@@ -364,7 +364,208 @@ bfad_im_set_rport_loss_tmo(struct fc_rport *rport, u32 timeout)
 
 }
 
+static int
+bfad_im_vport_create(struct fc_vport *fc_vport, bool disable)
+{
+	char *vname = fc_vport->symbolic_name;
+	struct Scsi_Host *shost = fc_vport->shost;
+	struct bfad_im_port_s *im_port =
+		(struct bfad_im_port_s *) shost->hostdata[0];
+	struct bfad_s *bfad = im_port->bfad;
+	struct bfa_port_cfg_s port_cfg;
+	int status = 0, rc;
+	unsigned long flags;
+
+	memset(&port_cfg, 0, sizeof(port_cfg));
+
+	port_cfg.pwwn = wwn_to_u64((u8 *) &fc_vport->port_name);
+	port_cfg.nwwn = wwn_to_u64((u8 *) &fc_vport->node_name);
+
+	if (strlen(vname) > 0)
+		strcpy((char *)&port_cfg.sym_name, vname);
+
+	port_cfg.roles = BFA_PORT_ROLE_FCP_IM;
+	rc = bfad_vport_create(bfad, 0, &port_cfg, &fc_vport->dev);
+
+	if (rc == BFA_STATUS_OK) {
+		struct bfad_vport_s   *vport;
+		struct bfa_fcs_vport_s *fcs_vport;
+		struct Scsi_Host *vshost;
+
+		spin_lock_irqsave(&bfad->bfad_lock, flags);
+		fcs_vport = bfa_fcs_vport_lookup(&bfad->bfa_fcs, 0,
+					port_cfg.pwwn);
+		if (fcs_vport == NULL) {
+			spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+			return VPCERR_BAD_WWN;
+		}
+
+		fc_vport_set_state(fc_vport, FC_VPORT_ACTIVE);
+		if (disable) {
+			bfa_fcs_vport_stop(fcs_vport);
+			fc_vport_set_state(fc_vport, FC_VPORT_DISABLED);
+		}
+		spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+		vport = fcs_vport->vport_drv;
+		vshost = vport->drv_port.im_port->shost;
+		fc_host_node_name(vshost) = wwn_to_u64((u8 *) &port_cfg.nwwn);
+		fc_host_port_name(vshost) = wwn_to_u64((u8 *) &port_cfg.pwwn);
+		fc_vport->dd_data = vport;
+		vport->drv_port.im_port->fc_vport = fc_vport;
+
+	} else if (rc == BFA_STATUS_INVALID_WWN)
+		return VPCERR_BAD_WWN;
+	else if (rc == BFA_STATUS_VPORT_EXISTS)
+		return VPCERR_BAD_WWN;
+	else if (rc == BFA_STATUS_VPORT_MAX)
+		return VPCERR_NO_FABRIC_SUPP;
+	else if (rc == BFA_STATUS_VPORT_WWN_BP)
+		return VPCERR_BAD_WWN;
+	 else
+		return FC_VPORT_FAILED;
+
+	return status;
+}
+
+static int
+bfad_im_vport_delete(struct fc_vport *fc_vport)
+{
+	struct bfad_vport_s *vport = (struct bfad_vport_s *)fc_vport->dd_data;
+	struct bfad_im_port_s *im_port =
+			(struct bfad_im_port_s *) vport->drv_port.im_port;
+	struct bfad_s *bfad = im_port->bfad;
+	struct bfad_port_s *port;
+	struct bfa_fcs_vport_s *fcs_vport;
+	struct Scsi_Host *vshost;
+	wwn_t   pwwn;
+	int rc;
+	unsigned long flags;
+	struct completion fcomp;
+
+	if (im_port->flags & BFAD_PORT_DELETE)
+		goto free_scsi_host;
+
+	port = im_port->port;
+
+	vshost = vport->drv_port.im_port->shost;
+	pwwn = wwn_to_u64((u8 *) &fc_host_port_name(vshost));
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	fcs_vport = bfa_fcs_vport_lookup(&bfad->bfa_fcs, 0, pwwn);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	if (fcs_vport == NULL)
+		return VPCERR_BAD_WWN;
+
+	vport->drv_port.flags |= BFAD_PORT_DELETE;
+
+	vport->comp_del = &fcomp;
+	init_completion(vport->comp_del);
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	rc = bfa_fcs_vport_delete(&vport->fcs_vport);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	wait_for_completion(vport->comp_del);
+
+free_scsi_host:
+	bfad_os_scsi_host_free(bfad, im_port);
+
+	kfree(vport);
+
+	return 0;
+}
+
+static int
+bfad_im_vport_disable(struct fc_vport *fc_vport, bool disable)
+{
+	struct bfad_vport_s *vport;
+	struct bfad_s *bfad;
+	struct bfa_fcs_vport_s *fcs_vport;
+	struct Scsi_Host *vshost;
+	wwn_t   pwwn;
+	unsigned long flags;
+
+	vport = (struct bfad_vport_s *)fc_vport->dd_data;
+	bfad = vport->drv_port.bfad;
+	vshost = vport->drv_port.im_port->shost;
+	pwwn = wwn_to_u64((u8 *) &fc_vport->port_name);
+
+	spin_lock_irqsave(&bfad->bfad_lock, flags);
+	fcs_vport = bfa_fcs_vport_lookup(&bfad->bfa_fcs, 0, pwwn);
+	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
+
+	if (fcs_vport == NULL)
+		return VPCERR_BAD_WWN;
+
+	if (disable) {
+		bfa_fcs_vport_stop(fcs_vport);
+		fc_vport_set_state(fc_vport, FC_VPORT_DISABLED);
+	} else {
+		bfa_fcs_vport_start(fcs_vport);
+		fc_vport_set_state(fc_vport, FC_VPORT_ACTIVE);
+	}
+
+	return 0;
+}
+
 struct fc_function_template bfad_im_fc_function_template = {
+
+	/* Target dynamic attributes */
+	.get_starget_port_id = bfad_im_get_starget_port_id,
+	.show_starget_port_id = 1,
+	.get_starget_node_name = bfad_im_get_starget_node_name,
+	.show_starget_node_name = 1,
+	.get_starget_port_name = bfad_im_get_starget_port_name,
+	.show_starget_port_name = 1,
+
+	/* Host dynamic attribute */
+	.get_host_port_id = bfad_im_get_host_port_id,
+	.show_host_port_id = 1,
+
+	/* Host fixed attributes */
+	.show_host_node_name = 1,
+	.show_host_port_name = 1,
+	.show_host_supported_classes = 1,
+	.show_host_supported_fc4s = 1,
+	.show_host_supported_speeds = 1,
+	.show_host_maxframe_size = 1,
+
+	/* More host dynamic attributes */
+	.show_host_port_type = 1,
+	.get_host_port_type = bfad_im_get_host_port_type,
+	.show_host_port_state = 1,
+	.get_host_port_state = bfad_im_get_host_port_state,
+	.show_host_active_fc4s = 1,
+	.get_host_active_fc4s = bfad_im_get_host_active_fc4s,
+	.show_host_speed = 1,
+	.get_host_speed = bfad_im_get_host_speed,
+	.show_host_fabric_name = 1,
+	.get_host_fabric_name = bfad_im_get_host_fabric_name,
+
+	.show_host_symbolic_name = 1,
+
+	/* Statistics */
+	.get_fc_host_stats = bfad_im_get_stats,
+	.reset_fc_host_stats = bfad_im_reset_stats,
+
+	/* Allocation length for host specific data */
+	.dd_fcrport_size = sizeof(struct bfad_itnim_data_s *),
+
+	/* Remote port fixed attributes */
+	.show_rport_maxframe_size = 1,
+	.show_rport_supported_classes = 1,
+	.show_rport_dev_loss_tmo = 1,
+	.get_rport_dev_loss_tmo = bfad_im_get_rport_loss_tmo,
+	.set_rport_dev_loss_tmo = bfad_im_set_rport_loss_tmo,
+
+	.vport_create = bfad_im_vport_create,
+	.vport_delete = bfad_im_vport_delete,
+	.vport_disable = bfad_im_vport_disable,
+};
+
+struct fc_function_template bfad_im_vport_fc_function_template = {
 
 	/* Target dynamic attributes */
 	.get_starget_port_id = bfad_im_get_starget_port_id,
