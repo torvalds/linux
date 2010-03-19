@@ -15,12 +15,10 @@
 #include <linux/freezer.h>
 #include <linux/sysfs.h>
 #include <linux/bitops.h>
+#include <linux/mtd/nand_ecc.h>
 #include "nand/sm_common.h"
 #include "sm_ftl.h"
 
-#ifdef CONFIG_SM_FTL_MUSEUM
-#include <linux/mtd/nand_ecc.h>
-#endif
 
 
 struct workqueue_struct *cache_flush_workqueue;
@@ -206,7 +204,6 @@ static void sm_break_offset(struct sm_ftl *ftl, loff_t offset,
 
 static int sm_correct_sector(uint8_t *buffer, struct sm_oob *oob)
 {
-#ifdef CONFIG_SM_FTL_MUSEUM
 	uint8_t ecc[3];
 
 	__nand_calculate_ecc(buffer, SM_SMALL_PAGE, ecc);
@@ -218,7 +215,6 @@ static int sm_correct_sector(uint8_t *buffer, struct sm_oob *oob)
 	__nand_calculate_ecc(buffer, SM_SMALL_PAGE, ecc);
 	if (__nand_correct_data(buffer, ecc, oob->ecc2, SM_SMALL_PAGE) < 0)
 		return -EIO;
-#endif
 	return 0;
 }
 
@@ -382,7 +378,6 @@ restart:
 			oob.data_status = 0;
 		}
 
-#ifdef CONFIG_SM_FTL_MUSEUM
 		if (ftl->smallpagenand) {
 			__nand_calculate_ecc(buf + boffset,
 						SM_SMALL_PAGE, oob.ecc1);
@@ -390,7 +385,6 @@ restart:
 			__nand_calculate_ecc(buf + boffset + SM_SMALL_PAGE,
 						SM_SMALL_PAGE, oob.ecc2);
 		}
-#endif
 		if (!sm_write_sector(ftl, zone, block, boffset,
 							buf + boffset, &oob))
 			continue;
