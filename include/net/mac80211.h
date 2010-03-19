@@ -954,6 +954,11 @@ enum ieee80211_tkip_key_type {
  *	Hardware can provide ack status reports of Tx frames to
  *	the stack.
  *
+ * @IEEE80211_HW_CONNECTION_MONITOR:
+ *      The hardware performs its own connection monitoring, including
+ *      periodic keep-alives to the AP and probing the AP on beacon loss.
+ *      When this flag is set, signaling beacon-loss will cause an immediate
+ *      change to disassociated state.
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -975,6 +980,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_DYNAMIC_SMPS		= 1<<16,
 	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,
 	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
+	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
 };
 
 /**
@@ -2364,11 +2370,25 @@ void ieee80211_sta_block_awake(struct ieee80211_hw *hw,
  *
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  *
- * When beacon filtering is enabled with IEEE80211_HW_BEACON_FILTERING and
- * IEEE80211_CONF_PS is set, the driver needs to inform whenever the
+ * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTERING and
+ * %IEEE80211_CONF_PS is set, the driver needs to inform whenever the
  * hardware is not receiving beacons with this function.
  */
 void ieee80211_beacon_loss(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_connection_loss - inform hardware has lost connection to the AP
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ *
+ * When beacon filtering is enabled with %IEEE80211_HW_BEACON_FILTERING, and
+ * %IEEE80211_CONF_PS and %IEEE80211_HW_CONNECTION_MONITOR are set, the driver
+ * needs to inform if the connection to the AP has been lost.
+ *
+ * This function will cause immediate change to disassociated state,
+ * without connection recovery attempts.
+ */
+void ieee80211_connection_loss(struct ieee80211_vif *vif);
 
 /* Rate control API */
 
