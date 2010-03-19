@@ -219,8 +219,8 @@ static inline int cifs_open_inode_helper(struct inode *inode, struct file *file,
 		cFYI(1, ("inode unchanged on server"));
 	} else {
 		if (file->f_path.dentry->d_inode->i_mapping) {
-		/* BB no need to lock inode until after invalidate
-		   since namei code should already have it locked? */
+			/* BB no need to lock inode until after invalidate
+			since namei code should already have it locked? */
 			rc = filemap_write_and_wait(file->f_path.dentry->d_inode->i_mapping);
 			if (rc != 0)
 				CIFS_I(file->f_path.dentry->d_inode)->write_behind_rc = rc;
@@ -1890,11 +1890,10 @@ static ssize_t cifs_read(struct file *file, char *read_data, size_t read_size,
 
 int cifs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
-	struct dentry *dentry = file->f_path.dentry;
 	int rc, xid;
 
 	xid = GetXid();
-	rc = cifs_revalidate(dentry);
+	rc = cifs_revalidate_file(file);
 	if (rc) {
 		cFYI(1, ("Validation prior to mmap failed, error=%d", rc));
 		FreeXid(xid);
