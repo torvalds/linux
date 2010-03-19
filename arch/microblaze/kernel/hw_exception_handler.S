@@ -562,20 +562,16 @@ ex_handler_done:
 		 */
 		mfs	r11, rpid
 		nop
-		mfs	r3, rear		/* Get faulting address */
-		nop
 		/* If we are faulting a kernel address, we have to use the
 		 * kernel page tables.
 		 */
-		ori	r4, r0, CONFIG_KERNEL_START
-		cmpu	r4, r3, r4
-		bgti	r4, ex3
+		ori	r5, r0, CONFIG_KERNEL_START
+		cmpu	r5, r3, r5
+		bgti	r5, ex3
 		/* First, check if it was a zone fault (which means a user
 		 * tried to access a kernel or read-protected page - always
 		 * a SEGV). All other faults here must be stores, so no
 		 * need to check ESR_S as well. */
-		mfs	r4, resr
-		nop
 		andi	r4, r4, 0x800		/* ESR_Z - zone protection */
 		bnei	r4, ex2
 
@@ -590,8 +586,6 @@ ex_handler_done:
 		 * tried to access a kernel or read-protected page - always
 		 * a SEGV). All other faults here must be stores, so no
 		 * need to check ESR_S as well. */
-		mfs	r4, resr
-		nop
 		andi	r4, r4, 0x800		/* ESR_Z */
 		bnei	r4, ex2
 		/* get current task address */
@@ -666,8 +660,6 @@ ex_handler_done:
 		 * R3 = ESR
 		 */
 
-		mfs	r3, rear		/* Get faulting address */
-		nop
 		RESTORE_STATE;
 		bri	page_fault_instr_trap
 
@@ -681,8 +673,6 @@ ex_handler_done:
 		 * R3 = EAR, R4 = ESR
 		 */
 		mfs	r11, rpid
-		nop
-		mfs	r3, rear		/* Get faulting address */
 		nop
 
 		/* If we are faulting a kernel address, we have to use the
@@ -753,8 +743,6 @@ ex_handler_done:
 		 *  R3 = ESR
 		 */
 		mfs	r11, rpid
-		nop
-		mfs	r3, rear		/* Get faulting address */
 		nop
 
 		/* If we are faulting a kernel address, we have to use the
