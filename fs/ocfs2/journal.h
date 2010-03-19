@@ -325,8 +325,7 @@ int ocfs2_journal_access(handle_t *handle, struct ocfs2_caching_info *ci,
  *	<modify the bh>
  * 	ocfs2_journal_dirty(handle, bh);
  */
-int                  ocfs2_journal_dirty(handle_t *handle,
-					 struct buffer_head *bh);
+void ocfs2_journal_dirty(handle_t *handle, struct buffer_head *bh);
 
 /*
  *  Credit Macros:

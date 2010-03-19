@@ -1061,11 +1061,7 @@ static int ocfs2_create_new_meta_bhs(handle_t *handle,
 
 			/* We'll also be dirtied by the caller, so
 			 * this isn't absolutely necessary. */
-			status = ocfs2_journal_dirty(handle, bhs[i]);
-			if (status < 0) {
-				mlog_errno(status);
-				goto bail;
-			}
+			ocfs2_journal_dirty(handle, bhs[i]);
 		}
 
 		count += num_got;
@@ -1270,12 +1266,7 @@ static int ocfs2_add_branch(handle_t *handle,
 		if (!eb_el->l_tree_depth)
 			new_last_eb_blk = le64_to_cpu(eb->h_blkno);
 
-		status = ocfs2_journal_dirty(handle, bh);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
-
+		ocfs2_journal_dirty(handle, bh);
 		next_blkno = le64_to_cpu(eb->h_blkno);
 	}
 
@@ -1321,17 +1312,10 @@ static int ocfs2_add_branch(handle_t *handle,
 	eb = (struct ocfs2_extent_block *) (*last_eb_bh)->b_data;
 	eb->h_next_leaf_blk = cpu_to_le64(new_last_eb_blk);
 
-	status = ocfs2_journal_dirty(handle, *last_eb_bh);
-	if (status < 0)
-		mlog_errno(status);
-	status = ocfs2_journal_dirty(handle, et->et_root_bh);
-	if (status < 0)
-		mlog_errno(status);
-	if (eb_bh) {
-		status = ocfs2_journal_dirty(handle, eb_bh);
-		if (status < 0)
-			mlog_errno(status);
-	}
+	ocfs2_journal_dirty(handle, *last_eb_bh);
+	ocfs2_journal_dirty(handle, et->et_root_bh);
+	if (eb_bh)
+		ocfs2_journal_dirty(handle, eb_bh);
 
 	/*
 	 * Some callers want to track the rightmost leaf so pass it
@@ -1399,11 +1383,7 @@ static int ocfs2_shift_tree_depth(handle_t *handle,
 	for (i = 0; i < le16_to_cpu(root_el->l_next_free_rec); i++)
 		eb_el->l_recs[i] = root_el->l_recs[i];
 
-	status = ocfs2_journal_dirty(handle, new_eb_bh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
+	ocfs2_journal_dirty(handle, new_eb_bh);
 
 	status = ocfs2_et_root_journal_access(handle, et,
 					      OCFS2_JOURNAL_ACCESS_WRITE);
@@ -1428,11 +1408,7 @@ static int ocfs2_shift_tree_depth(handle_t *handle,
 	if (root_el->l_tree_depth == cpu_to_le16(1))
 		ocfs2_et_set_last_eb_blk(et, le64_to_cpu(eb->h_blkno));
 
-	status = ocfs2_journal_dirty(handle, et->et_root_bh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
+	ocfs2_journal_dirty(handle, et->et_root_bh);
 
 	*ret_new_eb_bh = new_eb_bh;
 	new_eb_bh = NULL;
@@ -2064,7 +2040,7 @@ static void ocfs2_complete_edge_insert(handle_t *handle,
 				       struct ocfs2_path *right_path,
 				       int subtree_index)
 {
-	int ret, i, idx;
+	int i, idx;
 	struct ocfs2_extent_list *el, *left_el, *right_el;
 	struct ocfs2_extent_rec *left_rec, *right_rec;
 	struct buffer_head *root_bh = left_path->p_node[subtree_index].bh;
@@ -2102,13 +2078,8 @@ static void ocfs2_complete_edge_insert(handle_t *handle,
 		ocfs2_adjust_adjacent_records(left_rec, left_el, right_rec,
 					      right_el);
 
-		ret = ocfs2_journal_dirty(handle, left_path->p_node[i].bh);
-		if (ret)
-			mlog_errno(ret);
-
-		ret = ocfs2_journal_dirty(handle, right_path->p_node[i].bh);
-		if (ret)
-			mlog_errno(ret);
+		ocfs2_journal_dirty(handle, left_path->p_node[i].bh);
+		ocfs2_journal_dirty(handle, right_path->p_node[i].bh);
 
 		/*
 		 * Setup our list pointers now so that the current
@@ -2132,9 +2103,7 @@ static void ocfs2_complete_edge_insert(handle_t *handle,
 
 	root_bh = left_path->p_node[subtree_index].bh;
 
-	ret = ocfs2_journal_dirty(handle, root_bh);
-	if (ret)
-		mlog_errno(ret);
+	ocfs2_journal_dirty(handle, root_bh);
 }
 
 static int ocfs2_rotate_subtree_right(handle_t *handle,
@@ -2207,11 +2176,7 @@ static int ocfs2_rotate_subtree_right(handle_t *handle,
 
 	ocfs2_create_empty_extent(right_el);
 
-	ret = ocfs2_journal_dirty(handle, right_leaf_bh);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
+	ocfs2_journal_dirty(handle, right_leaf_bh);
 
 	/* Do the copy now. */
 	i = le16_to_cpu(left_el->l_next_free_rec) - 1;
@@ -2230,11 +2195,7 @@ static int ocfs2_rotate_subtree_right(handle_t *handle,
 	memset(&left_el->l_recs[0], 0, sizeof(struct ocfs2_extent_rec));
 	le16_add_cpu(&left_el->l_next_free_rec, 1);
 
-	ret = ocfs2_journal_dirty(handle, left_leaf_bh);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
+	ocfs2_journal_dirty(handle, left_leaf_bh);
 
 	ocfs2_complete_edge_insert(handle, left_path, right_path,
 				   subtree_index);
@@ -2823,12 +2784,8 @@ static int ocfs2_rotate_subtree_left(handle_t *handle,
 		ocfs2_remove_empty_extent(right_leaf_el);
 	}
 
-	ret = ocfs2_journal_dirty(handle, path_leaf_bh(left_path));
-	if (ret)
-		mlog_errno(ret);
-	ret = ocfs2_journal_dirty(handle, path_leaf_bh(right_path));
-	if (ret)
-		mlog_errno(ret);
+	ocfs2_journal_dirty(handle, path_leaf_bh(left_path));
+	ocfs2_journal_dirty(handle, path_leaf_bh(right_path));
 
 	if (del_right_subtree) {
 		ocfs2_unlink_subtree(handle, et, left_path, right_path,
@@ -2851,9 +2808,7 @@ static int ocfs2_rotate_subtree_left(handle_t *handle,
 		if (right_has_empty)
 			ocfs2_remove_empty_extent(left_leaf_el);
 
-		ret = ocfs2_journal_dirty(handle, et_root_bh);
-		if (ret)
-			mlog_errno(ret);
+		ocfs2_journal_dirty(handle, et_root_bh);
 
 		*deleted = 1;
 	} else
@@ -2962,10 +2917,7 @@ static int ocfs2_rotate_rightmost_leaf_left(handle_t *handle,
 	}
 
 	ocfs2_remove_empty_extent(el);
-
-	ret = ocfs2_journal_dirty(handle, bh);
-	if (ret)
-		mlog_errno(ret);
+	ocfs2_journal_dirty(handle, bh);
 
 out:
 	return ret;
@@ -3506,15 +3458,9 @@ static int ocfs2_merge_rec_right(struct ocfs2_path *left_path,
 
 	ocfs2_cleanup_merge(el, index);
 
-	ret = ocfs2_journal_dirty(handle, bh);
-	if (ret)
-		mlog_errno(ret);
-
+	ocfs2_journal_dirty(handle, bh);
 	if (right_path) {
-		ret = ocfs2_journal_dirty(handle, path_leaf_bh(right_path));
-		if (ret)
-			mlog_errno(ret);
-
+		ocfs2_journal_dirty(handle, path_leaf_bh(right_path));
 		ocfs2_complete_edge_insert(handle, left_path, right_path,
 					   subtree_index);
 	}
@@ -3683,14 +3629,9 @@ static int ocfs2_merge_rec_left(struct ocfs2_path *right_path,
 
 	ocfs2_cleanup_merge(el, index);
 
-	ret = ocfs2_journal_dirty(handle, bh);
-	if (ret)
-		mlog_errno(ret);
-
+	ocfs2_journal_dirty(handle, bh);
 	if (left_path) {
-		ret = ocfs2_journal_dirty(handle, path_leaf_bh(left_path));
-		if (ret)
-			mlog_errno(ret);
+		ocfs2_journal_dirty(handle, path_leaf_bh(left_path));
 
 		/*
 		 * In the situation that the right_rec is empty and the extent
@@ -4016,10 +3957,7 @@ static void ocfs2_adjust_rightmost_records(handle_t *handle,
 		le32_add_cpu(&rec->e_int_clusters,
 			     -le32_to_cpu(rec->e_cpos));
 
-		ret = ocfs2_journal_dirty(handle, bh);
-		if (ret)
-			mlog_errno(ret);
-
+		ocfs2_journal_dirty(handle, bh);
 	}
 }
 
@@ -4251,17 +4189,13 @@ static int ocfs2_insert_path(handle_t *handle,
 		 * dirty this for us.
 		 */
 		if (left_path)
-			ret = ocfs2_journal_dirty(handle,
-						  path_leaf_bh(left_path));
-			if (ret)
-				mlog_errno(ret);
+			ocfs2_journal_dirty(handle,
+					    path_leaf_bh(left_path));
 	} else
 		ocfs2_insert_at_leaf(et, insert_rec, path_leaf_el(right_path),
 				     insert);
 
-	ret = ocfs2_journal_dirty(handle, leaf_bh);
-	if (ret)
-		mlog_errno(ret);
+	ocfs2_journal_dirty(handle, leaf_bh);
 
 	if (left_path) {
 		/*
@@ -4384,9 +4318,7 @@ out_update_clusters:
 		ocfs2_et_update_clusters(et,
 					 le16_to_cpu(insert_rec->e_leaf_clusters));
 
-	ret = ocfs2_journal_dirty(handle, et->et_root_bh);
-	if (ret)
-		mlog_errno(ret);
+	ocfs2_journal_dirty(handle, et->et_root_bh);
 
 out:
 	ocfs2_free_path(left_path);
@@ -4895,11 +4827,7 @@ int ocfs2_add_clusters_in_btree(handle_t *handle,
 		goto leave;
 	}
 
-	status = ocfs2_journal_dirty(handle, et->et_root_bh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto leave;
-	}
+	ocfs2_journal_dirty(handle, et->et_root_bh);
 
 	clusters_to_add -= num_bits;
 	*logical_offset += num_bits;
@@ -5724,11 +5652,7 @@ int ocfs2_remove_btree_range(struct inode *inode,
 
 	ocfs2_et_update_clusters(et, -len);
 
-	ret = ocfs2_journal_dirty(handle, et->et_root_bh);
-	if (ret) {
-		mlog_errno(ret);
-		goto out_commit;
-	}
+	ocfs2_journal_dirty(handle, et->et_root_bh);
 
 	ret = ocfs2_truncate_log_append(osb, handle, phys_blkno, len);
 	if (ret)
@@ -5850,11 +5774,7 @@ int ocfs2_truncate_log_append(struct ocfs2_super *osb,
 	}
 	tl->tl_recs[index].t_clusters = cpu_to_le32(num_clusters);
 
-	status = ocfs2_journal_dirty(handle, tl_bh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
+	ocfs2_journal_dirty(handle, tl_bh);
 
 bail:
 	mlog_exit(status);
@@ -5893,11 +5813,7 @@ static int ocfs2_replay_truncate_records(struct ocfs2_super *osb,
 
 		tl->tl_used = cpu_to_le16(i);
 
-		status = ocfs2_journal_dirty(handle, tl_bh);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
+		ocfs2_journal_dirty(handle, tl_bh);
 
 		/* TODO: Perhaps we can calculate the bulk of the
 		 * credits up front rather than extending like
@@ -6824,11 +6740,7 @@ find_tail_record:
 		}
 
 delete:
-		ret = ocfs2_journal_dirty(handle, bh);
-		if (ret) {
-			mlog_errno(ret);
-			goto out;
-		}
+		ocfs2_journal_dirty(handle, bh);
 
 		mlog(0, "extent list container %llu, after: record %d: "
 		     "(%u, %u, %llu), next = %u.\n",
@@ -6959,22 +6871,14 @@ static int ocfs2_do_truncate(struct ocfs2_super *osb,
 	} else if (last_eb)
 		fe->i_last_eb_blk = last_eb->h_blkno;
 
-	status = ocfs2_journal_dirty(handle, fe_bh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto bail;
-	}
+	ocfs2_journal_dirty(handle, fe_bh);
 
 	if (last_eb) {
 		/* If there will be a new last extent block, then by
 		 * definition, there cannot be any leaves to the right of
 		 * him. */
 		last_eb->h_next_leaf_blk = 0;
-		status = ocfs2_journal_dirty(handle, last_eb_bh);
-		if (status < 0) {
-			mlog_errno(status);
-			goto bail;
-		}
+		ocfs2_journal_dirty(handle, last_eb_bh);
 	}
 
 	if (delete_blk) {

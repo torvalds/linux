@@ -734,8 +734,7 @@ int ocfs2_journal_access(handle_t *handle, struct ocfs2_caching_info *ci,
 	return __ocfs2_journal_access(handle, ci, bh, NULL, type);
 }
 
-int ocfs2_journal_dirty(handle_t *handle,
-			struct buffer_head *bh)
+void ocfs2_journal_dirty(handle_t *handle, struct buffer_head *bh)
 {
 	int status;
 
@@ -743,13 +742,9 @@ int ocfs2_journal_dirty(handle_t *handle,
 		   (unsigned long long)bh->b_blocknr);
 
 	status = jbd2_journal_dirty_metadata(handle, bh);
-	if (status < 0)
-		mlog(ML_ERROR, "Could not dirty metadata buffer. "
-		     "(bh->b_blocknr=%llu)\n",
-		     (unsigned long long)bh->b_blocknr);
+	BUG_ON(status);
 
-	mlog_exit(status);
-	return status;
+	mlog_exit_void();
 }
 
 #define OCFS2_DEFAULT_COMMIT_INTERVAL	(HZ * JBD2_DEFAULT_MAX_COMMIT_AGE)

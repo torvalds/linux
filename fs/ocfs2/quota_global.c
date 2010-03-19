@@ -260,10 +260,8 @@ ssize_t ocfs2_quota_write(struct super_block *sb, int type,
 		brelse(bh);
 		goto out;
 	}
-	err = ocfs2_journal_dirty(handle, bh);
+	ocfs2_journal_dirty(handle, bh);
 	brelse(bh);
-	if (err < 0)
-		goto out;
 out:
 	if (err) {
 		mutex_unlock(&gqinode->i_mutex);

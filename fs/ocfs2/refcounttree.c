@@ -1269,9 +1269,7 @@ static int ocfs2_change_refcount_rec(handle_t *handle,
 	} else if (merge)
 		ocfs2_refcount_rec_merge(rb, index);
 
-	ret = ocfs2_journal_dirty(handle, ref_leaf_bh);
-	if (ret)
-		mlog_errno(ret);
+	ocfs2_journal_dirty(handle, ref_leaf_bh);
 out:
 	return ret;
 }
@@ -1803,11 +1801,7 @@ static int ocfs2_insert_refcount_rec(handle_t *handle,
 	if (merge)
 		ocfs2_refcount_rec_merge(rb, index);
 
-	ret = ocfs2_journal_dirty(handle, ref_leaf_bh);
-	if (ret) {
-		mlog_errno(ret);
-		goto out;
-	}
+	ocfs2_journal_dirty(handle, ref_leaf_bh);
 
 	if (index == 0) {
 		ret = ocfs2_adjust_refcount_rec(handle, ci,
@@ -1978,9 +1972,7 @@ static int ocfs2_split_refcount_rec(handle_t *handle,
 			ocfs2_refcount_rec_merge(rb, index);
 	}
 
-	ret = ocfs2_journal_dirty(handle, ref_leaf_bh);
-	if (ret)
-		mlog_errno(ret);
+	ocfs2_journal_dirty(handle, ref_leaf_bh);
 
 out:
 	brelse(new_bh);
@@ -3041,11 +3033,7 @@ static int ocfs2_duplicate_clusters_by_jbd(handle_t *handle,
 		}
 
 		memcpy(new_bh->b_data, old_bh->b_data, sb->s_blocksize);
-		ret = ocfs2_journal_dirty(handle, new_bh);
-		if (ret) {
-			mlog_errno(ret);
-			break;
-		}
+		ocfs2_journal_dirty(handle, new_bh);
 
 		brelse(new_bh);
 		brelse(old_bh);

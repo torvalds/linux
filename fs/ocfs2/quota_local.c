@@ -118,12 +118,8 @@ static int ocfs2_modify_bh(struct inode *inode, struct buffer_head *bh,
 	lock_buffer(bh);
 	modify(bh, private);
 	unlock_buffer(bh);
-	status = ocfs2_journal_dirty(handle, bh);
-	if (status < 0) {
-		mlog_errno(status);
-		ocfs2_commit_trans(OCFS2_SB(sb), handle);
-		return status;
-	}
+	ocfs2_journal_dirty(handle, bh);
+
 	status = ocfs2_commit_trans(OCFS2_SB(sb), handle);
 	if (status < 0) {
 		mlog_errno(status);
@@ -522,9 +518,7 @@ static int ocfs2_recover_local_quota_file(struct inode *lqinode,
 			ocfs2_clear_bit(bit, dchunk->dqc_bitmap);
 			le32_add_cpu(&dchunk->dqc_free, 1);
 			unlock_buffer(qbh);
-			status = ocfs2_journal_dirty(handle, qbh);
-			if (status < 0)
-				mlog_errno(status);
+			ocfs2_journal_dirty(handle, qbh);
 out_commit:
 			mutex_unlock(&sb_dqopt(sb)->dqio_mutex);
 			ocfs2_commit_trans(OCFS2_SB(sb), handle);
@@ -630,9 +624,7 @@ int ocfs2_finish_quota_recovery(struct ocfs2_super *osb,
 		lock_buffer(bh);
 		ldinfo->dqi_flags = cpu_to_le32(flags | OLQF_CLEAN);
 		unlock_buffer(bh);
-		status = ocfs2_journal_dirty(handle, bh);
-		if (status < 0)
-			mlog_errno(status);
+		ocfs2_journal_dirty(handle, bh);
 out_trans:
 		ocfs2_commit_trans(osb, handle);
 out_bh:
@@ -1008,11 +1000,7 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 	       sb->s_blocksize - sizeof(struct ocfs2_local_disk_chunk) -
 	       OCFS2_QBLK_RESERVED_SPACE);
 	unlock_buffer(bh);
-	status = ocfs2_journal_dirty(handle, bh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto out_trans;
-	}
+	ocfs2_journal_dirty(handle, bh);
 
 	/* Initialize new block with structures */
 	down_read(&OCFS2_I(lqinode)->ip_alloc_sem);
@@ -1039,11 +1027,7 @@ static struct ocfs2_quota_chunk *ocfs2_local_quota_add_chunk(
 	lock_buffer(dbh);
 	memset(dbh->b_data, 0, sb->s_blocksize - OCFS2_QBLK_RESERVED_SPACE);
 	unlock_buffer(dbh);
-	status = ocfs2_journal_dirty(handle, dbh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto out_trans;
-	}
+	ocfs2_journal_dirty(handle, dbh);
 
 	/* Update local quotafile info */
 	oinfo->dqi_blocks += 2;
@@ -1154,11 +1138,8 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 	lock_buffer(bh);
 	memset(bh->b_data, 0, sb->s_blocksize);
 	unlock_buffer(bh);
-	status = ocfs2_journal_dirty(handle, bh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto out_trans;
-	}
+	ocfs2_journal_dirty(handle, bh);
+
 	/* Update chunk header */
 	status = ocfs2_journal_access_dq(handle, INODE_CACHE(lqinode),
 					 chunk->qc_headerbh,
@@ -1172,11 +1153,8 @@ static struct ocfs2_quota_chunk *ocfs2_extend_local_quota_file(
 	lock_buffer(chunk->qc_headerbh);
 	le32_add_cpu(&dchunk->dqc_free, ol_quota_entries_per_block(sb));
 	unlock_buffer(chunk->qc_headerbh);
-	status = ocfs2_journal_dirty(handle, chunk->qc_headerbh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto out_trans;
-	}
+	ocfs2_journal_dirty(handle, chunk->qc_headerbh);
+
 	/* Update file header */
 	oinfo->dqi_blocks++;
 	status = ocfs2_local_write_info(sb, type);
@@ -1311,12 +1289,8 @@ static int ocfs2_local_release_dquot(struct dquot *dquot)
 	ocfs2_clear_bit(offset, dchunk->dqc_bitmap);
 	le32_add_cpu(&dchunk->dqc_free, 1);
 	unlock_buffer(od->dq_chunk->qc_headerbh);
-	status = ocfs2_journal_dirty(handle, od->dq_chunk->qc_headerbh);
-	if (status < 0) {
-		mlog_errno(status);
-		goto out;
-	}
-	status = 0;
+	ocfs2_journal_dirty(handle, od->dq_chunk->qc_headerbh);
+
 out:
 	/* Clear the read bit so that next time someone uses this
 	 * dquot he reads fresh info from disk and allocates local
