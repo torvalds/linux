@@ -436,7 +436,7 @@ struct Extended_Supported_Rates_Element
 #define OUI_CIPHER_CCMP				0x04
 #define OUI_CIPHER_WEP_104			0x05
 
-typedef struct _SUITE_SELECTOR_
+struct suite_selector
 {
 	union
 	{
@@ -447,23 +447,23 @@ typedef struct _SUITE_SELECTOR_
 			u8	Type;
 		}SuitSelector;
 	};
-}SUITE_SELECTOR;
+};
 
 //--  WPA  --
 struct	RSN_Information_Element
 {
 	u8					Element_ID;
 	u8					Length;
-	SUITE_SELECTOR	OuiWPAAdditional;//WPA version 2.0 additional field, and should be 00:50:F2:01
+	struct suite_selector	OuiWPAAdditional; /* WPA version 2.0 additional field, and should be 00:50:F2:01 */
 	u16					Version;
-	SUITE_SELECTOR		GroupKeySuite;
+	struct suite_selector		GroupKeySuite;
 	u16					PairwiseKeySuiteCount;
-	SUITE_SELECTOR		PairwiseKeySuite[1];
+	struct suite_selector		PairwiseKeySuite[1];
 }__attribute__ ((packed));
 struct RSN_Auth_Sub_Information_Element
 {
 	u16				AuthKeyMngtSuiteCount;
-	SUITE_SELECTOR	AuthKeyMngtSuite[1];
+	struct suite_selector	AuthKeyMngtSuite[1];
 }__attribute__ ((packed));
 
 //--  WPA2  --
@@ -508,16 +508,16 @@ struct	WPA2_RSN_Information_Element
 	u8					Element_ID;
 	u8					Length;
 	u16					Version;
-	SUITE_SELECTOR		GroupKeySuite;
+	struct suite_selector		GroupKeySuite;
 	u16					PairwiseKeySuiteCount;
-	SUITE_SELECTOR		PairwiseKeySuite[1];
+	struct suite_selector		PairwiseKeySuite[1];
 
 }__attribute__ ((packed));
 
 struct WPA2_RSN_Auth_Sub_Information_Element
 {
 	u16				AuthKeyMngtSuiteCount;
-	SUITE_SELECTOR	AuthKeyMngtSuite[1];
+	struct suite_selector	AuthKeyMngtSuite[1];
 }__attribute__ ((packed));
 
 
