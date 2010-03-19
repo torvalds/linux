@@ -120,7 +120,7 @@ static bool tcp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool tcp_mt_check(const struct xt_mtchk_param *par)
+static int tcp_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_tcp *tcpinfo = par->matchinfo;
 
@@ -155,7 +155,7 @@ static bool udp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			      !!(udpinfo->invflags & XT_UDP_INV_DSTPT));
 }
 
-static bool udp_mt_check(const struct xt_mtchk_param *par)
+static int udp_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_udp *udpinfo = par->matchinfo;
 

@@ -303,7 +303,7 @@ struct xt_match {
 		      const struct xt_match_param *);
 
 	/* Called when user tries to insert an entry of this type. */
-	bool (*checkentry)(const struct xt_mtchk_param *);
+	int (*checkentry)(const struct xt_mtchk_param *);
 
 	/* Called when entry of this type deleted. */
 	void (*destroy)(const struct xt_mtdtor_param *);

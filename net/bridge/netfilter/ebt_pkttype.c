@@ -20,7 +20,7 @@ ebt_pkttype_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return (skb->pkt_type == info->pkt_type) ^ info->invert;
 }
 
-static bool ebt_pkttype_mt_check(const struct xt_mtchk_param *par)
+static int ebt_pkttype_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ebt_pkttype_info *info = par->matchinfo;
 

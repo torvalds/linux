@@ -62,7 +62,7 @@ static bool mh_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 			  !!(mhinfo->invflags & IP6T_MH_INV_TYPE));
 }
 
-static bool mh_mt6_check(const struct xt_mtchk_param *par)
+static int mh_mt6_check(const struct xt_mtchk_param *par)
 {
 	const struct ip6t_mh *mhinfo = par->matchinfo;
 

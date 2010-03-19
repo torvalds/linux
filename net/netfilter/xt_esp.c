@@ -60,7 +60,7 @@ static bool esp_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			 !!(espinfo->invflags & XT_ESP_INV_SPI));
 }
 
-static bool esp_mt_check(const struct xt_mtchk_param *par)
+static int esp_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_esp *espinfo = par->matchinfo;
 

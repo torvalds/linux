@@ -102,7 +102,7 @@ frag_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 		  (ntohs(fh->frag_off) & IP6_MF));
 }
 
-static bool frag_mt6_check(const struct xt_mtchk_param *par)
+static int frag_mt6_check(const struct xt_mtchk_param *par)
 {
 	const struct ip6t_frag *fraginfo = par->matchinfo;
 

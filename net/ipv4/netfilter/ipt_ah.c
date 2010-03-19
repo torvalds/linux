@@ -55,7 +55,7 @@ static bool ah_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 			 !!(ahinfo->invflags & IPT_AH_INV_SPI));
 }
 
-static bool ah_mt_check(const struct xt_mtchk_param *par)
+static int ah_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ipt_ah *ahinfo = par->matchinfo;
 

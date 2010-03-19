@@ -87,7 +87,7 @@ static bool ah_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 		!(ahinfo->hdrres && ah->reserved);
 }
 
-static bool ah_mt6_check(const struct xt_mtchk_param *par)
+static int ah_mt6_check(const struct xt_mtchk_param *par)
 {
 	const struct ip6t_ah *ahinfo = par->matchinfo;
 

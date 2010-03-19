@@ -2176,7 +2176,7 @@ icmp_match(const struct sk_buff *skb, const struct xt_match_param *par)
 				    !!(icmpinfo->invflags&IPT_ICMP_INV));
 }
 
-static bool icmp_checkentry(const struct xt_mtchk_param *par)
+static int icmp_checkentry(const struct xt_mtchk_param *par)
 {
 	const struct ipt_icmp *icmpinfo = par->matchinfo;
 

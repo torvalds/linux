@@ -22,7 +22,7 @@ ebt_mark_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return ((skb->mark & info->mask) == info->mark) ^ info->invert;
 }
 
-static bool ebt_mark_mt_check(const struct xt_mtchk_param *par)
+static int ebt_mark_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ebt_mark_m_info *info = par->matchinfo;
 

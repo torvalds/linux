@@ -97,7 +97,7 @@ user2credits(u_int32_t user)
 	return (user * HZ * CREDITS_PER_JIFFY) / XT_LIMIT_SCALE;
 }
 
-static bool limit_mt_check(const struct xt_mtchk_param *par)
+static int limit_mt_check(const struct xt_mtchk_param *par)
 {
 	struct xt_rateinfo *r = par->matchinfo;
 	struct xt_limit_priv *priv;

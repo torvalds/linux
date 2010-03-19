@@ -77,7 +77,7 @@ ebt_ip_mt(const struct sk_buff *skb, const struct xt_match_param *par)
 	return true;
 }
 
-static bool ebt_ip_mt_check(const struct xt_mtchk_param *par)
+static int ebt_ip_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct ebt_ip_info *info = par->matchinfo;
 	const struct ebt_entry *e = par->entryinfo;
