@@ -505,10 +505,10 @@ struct RSN_Capability_Element
 }__attribute__ ((packed)) ;
 
 #ifdef _WPA2_
-typedef struct _PMKID
+struct pmkid
 {
   u8 pValue[16];
-}PMKID;
+};
 
 struct	WPA2_RSN_Information_Element
 {
@@ -531,7 +531,7 @@ struct WPA2_RSN_Auth_Sub_Information_Element
 struct PMKID_Information_Element
 {
 	u16				PMKID_Count;
-	PMKID pmkid [16] ;
+	struct pmkid pmkid[16];
 }__attribute__ ((packed));
 
 #endif //enddef _WPA2_
