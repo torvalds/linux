@@ -313,19 +313,6 @@ config 8XX_MINIMAL_FPEMU
 
 	  It is recommended that you build a soft-float userspace instead.
 
-config IOMMU_VMERGE
-	bool "Enable IOMMU virtual merging"
-	depends on PPC64
-	default y
-	help
-	  Cause IO segments sent to a device for DMA to be merged virtually
-	  by the IOMMU when they happen to have been allocated contiguously.
-	  This doesn't add pressure to the IOMMU allocator. However, some
-	  drivers don't support getting large merged segments coming back
-	  from *_map_sg().
-
-	  Most drivers don't have this problem; it is safe to say Y here.
-
 config IOMMU_HELPER
 	def_bool PPC64
 
