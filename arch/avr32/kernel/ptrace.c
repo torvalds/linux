@@ -28,9 +28,9 @@ static struct pt_regs *get_user_regs(struct task_struct *tsk)
 				  THREAD_SIZE - sizeof(struct pt_regs));
 }
 
-static void ptrace_single_step(struct task_struct *tsk)
+static void user_enable_single_step(struct task_struct *tsk)
 {
-	pr_debug("ptrace_single_step: pid=%u, PC=0x%08lx, SR=0x%08lx\n",
+	pr_debug("user_enable_single_step: pid=%u, PC=0x%08lx, SR=0x%08lx\n",
 		 tsk->pid, task_pt_regs(tsk)->pc, task_pt_regs(tsk)->sr);
 
 	/*
@@ -47,6 +47,11 @@ static void ptrace_single_step(struct task_struct *tsk)
 	 */
 	set_tsk_thread_flag(tsk, TIF_BREAKPOINT);
 	set_tsk_thread_flag(tsk, TIF_SINGLE_STEP);
+}
+
+void user_disable_single_step(struct task_struct *child)
+{
+	/* XXX(hch): a no-op here seems wrong.. */
 }
 
 /*
@@ -165,50 +170,6 @@ long arch_ptrace(struct task_struct *child, long request, long addr, long data)
 
 	case PTRACE_POKEUSR:
 		ret = ptrace_write_user(child, addr, data);
-		break;
-
-	/* continue and stop at next (return from) syscall */
-	case PTRACE_SYSCALL:
-	/* restart after signal */
-	case PTRACE_CONT:
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		if (request == PTRACE_SYSCALL)
-			set_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		else
-			clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		child->exit_code = data;
-		/* XXX: Are we sure no breakpoints are active here? */
-		wake_up_process(child);
-		ret = 0;
-		break;
-
-	/*
-	 * Make the child exit. Best I can do is send it a
-	 * SIGKILL. Perhaps it should be put in the status that it
-	 * wants to exit.
-	 */
-	case PTRACE_KILL:
-		ret = 0;
-		if (child->exit_state == EXIT_ZOMBIE)
-			break;
-		child->exit_code = SIGKILL;
-		wake_up_process(child);
-		break;
-
-	/*
-	 * execute single instruction.
-	 */
-	case PTRACE_SINGLESTEP:
-		ret = -EIO;
-		if (!valid_signal(data))
-			break;
-		clear_tsk_thread_flag(child, TIF_SYSCALL_TRACE);
-		ptrace_single_step(child);
-		child->exit_code = data;
-		wake_up_process(child);
-		ret = 0;
 		break;
 
 	case PTRACE_GETREGS:

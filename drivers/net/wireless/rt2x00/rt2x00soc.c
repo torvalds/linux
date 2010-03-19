@@ -112,6 +112,7 @@ exit_free_device:
 
 	return retval;
 }
+EXPORT_SYMBOL_GPL(rt2x00soc_probe);
 
 int rt2x00soc_remove(struct platform_device *pdev)
 {

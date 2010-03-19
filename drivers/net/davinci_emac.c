@@ -2385,7 +2385,7 @@ static int emac_dev_open(struct net_device *ndev)
 	struct emac_priv *priv = netdev_priv(ndev);
 
 	netif_carrier_off(ndev);
-	for (cnt = 0; cnt <= ETH_ALEN; cnt++)
+	for (cnt = 0; cnt < ETH_ALEN; cnt++)
 		ndev->dev_addr[cnt] = priv->mac_addr[cnt];
 
 	/* Configuration items */
@@ -2658,7 +2658,7 @@ static int __devinit davinci_emac_probe(struct platform_device *pdev)
 
 	pdata = pdev->dev.platform_data;
 	if (!pdata) {
-		printk(KERN_ERR "DaVinci EMAC: No platfrom data\n");
+		printk(KERN_ERR "DaVinci EMAC: No platform data\n");
 		return -ENODEV;
 	}
 

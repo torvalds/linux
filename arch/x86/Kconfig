@@ -102,6 +102,9 @@ config ZONE_DMA
 config SBUS
 	bool
 
+config NEED_DMA_MAP_STATE
+       def_bool (X86_64 || DMAR || DMA_API_DEBUG)
+
 config GENERIC_ISA_DMA
 	def_bool y
 
@@ -659,7 +662,7 @@ config GART_IOMMU
 	bool "GART IOMMU support" if EMBEDDED
 	default y
 	select SWIOTLB
-	depends on X86_64 && PCI
+	depends on X86_64 && PCI && K8_NB
 	---help---
 	  Support for full DMA access of devices with 32bit memory access only
 	  on systems with more than 3GB. This is usually needed for USB,
@@ -2058,7 +2061,7 @@ endif # X86_32
 
 config K8_NB
 	def_bool y
-	depends on AGP_AMD64 || (X86_64 && (GART_IOMMU || (PCI && NUMA)))
+	depends on CPU_SUP_AMD && PCI
 
 source "drivers/pcmcia/Kconfig"
 

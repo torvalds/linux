@@ -1583,8 +1583,10 @@ void pci_pm_init(struct pci_dev *dev)
 	int pm;
 	u16 pmc;
 
+	pm_runtime_forbid(&dev->dev);
 	device_enable_async_suspend(&dev->dev);
 	dev->wakeup_prepared = false;
+
 	dev->pm_cap = 0;
 
 	/* find PCI PM capability in list */
@@ -2296,35 +2298,6 @@ void pci_msi_off(struct pci_dev *dev)
 	}
 }
 
-#ifndef HAVE_ARCH_PCI_SET_DMA_MASK
-/*
- * These can be overridden by arch-specific implementations
- */
-int
-pci_set_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	if (!pci_dma_supported(dev, mask))
-		return -EIO;
-
-	dev->dma_mask = mask;
-	dev_dbg(&dev->dev, "using %dbit DMA mask\n", fls64(mask));
-
-	return 0;
-}
-    
-int
-pci_set_consistent_dma_mask(struct pci_dev *dev, u64 mask)
-{
-	if (!pci_dma_supported(dev, mask))
-		return -EIO;
-
-	dev->dev.coherent_dma_mask = mask;
-	dev_dbg(&dev->dev, "using %dbit consistent DMA mask\n", fls64(mask));
-
-	return 0;
-}
-#endif
-
 #ifndef HAVE_ARCH_PCI_SET_DMA_MAX_SEGMENT_SIZE
 int pci_set_dma_max_seg_size(struct pci_dev *dev, unsigned int size)
 {
@@ -2486,7 +2459,7 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 	if (!probe) {
 		pci_block_user_cfg_access(dev);
 		/* block PM suspend, driver probe, etc. */
-		down(&dev->dev.sem);
+		device_lock(&dev->dev);
 	}
 
 	rc = pci_dev_specific_reset(dev, probe);
@@ -2508,7 +2481,7 @@ static int pci_dev_reset(struct pci_dev *dev, int probe)
 	rc = pci_parent_bus_reset(dev, probe);
 done:
 	if (!probe) {
-		up(&dev->dev.sem);
+		device_unlock(&dev->dev);
 		pci_unblock_user_cfg_access(dev);
 	}
 
@@ -3066,8 +3039,6 @@ EXPORT_SYMBOL(pci_set_mwi);
 EXPORT_SYMBOL(pci_try_set_mwi);
 EXPORT_SYMBOL(pci_clear_mwi);
 EXPORT_SYMBOL_GPL(pci_intx);
-EXPORT_SYMBOL(pci_set_dma_mask);
-EXPORT_SYMBOL(pci_set_consistent_dma_mask);
 EXPORT_SYMBOL(pci_assign_resource);
 EXPORT_SYMBOL(pci_find_parent_resource);
 EXPORT_SYMBOL(pci_select_bars);

@@ -70,7 +70,7 @@ static ssize_t drv_attr_store(struct kobject *kobj, struct attribute *attr,
 	return ret;
 }
 
-static struct sysfs_ops driver_sysfs_ops = {
+static const struct sysfs_ops driver_sysfs_ops = {
 	.show	= drv_attr_show,
 	.store	= drv_attr_store,
 };
@@ -115,7 +115,7 @@ static ssize_t bus_attr_store(struct kobject *kobj, struct attribute *attr,
 	return ret;
 }
 
-static struct sysfs_ops bus_sysfs_ops = {
+static const struct sysfs_ops bus_sysfs_ops = {
 	.show	= bus_attr_show,
 	.store	= bus_attr_store,
 };
@@ -154,7 +154,7 @@ static int bus_uevent_filter(struct kset *kset, struct kobject *kobj)
 	return 0;
 }
 
-static struct kset_uevent_ops bus_uevent_ops = {
+static const struct kset_uevent_ops bus_uevent_ops = {
 	.filter = bus_uevent_filter,
 };
 
@@ -173,10 +173,10 @@ static ssize_t driver_unbind(struct device_driver *drv,
 	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (dev && dev->driver == drv) {
 		if (dev->parent)	/* Needed for USB */
-			down(&dev->parent->sem);
+			device_lock(dev->parent);
 		device_release_driver(dev);
 		if (dev->parent)
-			up(&dev->parent->sem);
+			device_unlock(dev->parent);
 		err = count;
 	}
 	put_device(dev);
@@ -200,12 +200,12 @@ static ssize_t driver_bind(struct device_driver *drv,
 	dev = bus_find_device_by_name(bus, NULL, buf);
 	if (dev && dev->driver == NULL && driver_match_device(drv, dev)) {
 		if (dev->parent)	/* Needed for USB */
-			down(&dev->parent->sem);
-		down(&dev->sem);
+			device_lock(dev->parent);
+		device_lock(dev);
 		err = driver_probe_device(drv, dev);
-		up(&dev->sem);
+		device_unlock(dev);
 		if (dev->parent)
-			up(&dev->parent->sem);
+			device_unlock(dev->parent);
 
 		if (err > 0) {
 			/* success */
@@ -744,10 +744,10 @@ static int __must_check bus_rescan_devices_helper(struct device *dev,
 
 	if (!dev->driver) {
 		if (dev->parent)	/* Needed for USB */
-			down(&dev->parent->sem);
+			device_lock(dev->parent);
 		ret = device_attach(dev);
 		if (dev->parent)
-			up(&dev->parent->sem);
+			device_unlock(dev->parent);
 	}
 	return ret < 0 ? ret : 0;
 }
@@ -779,10 +779,10 @@ int device_reprobe(struct device *dev)
 {
 	if (dev->driver) {
 		if (dev->parent)        /* Needed for USB */
-			down(&dev->parent->sem);
+			device_lock(dev->parent);
 		device_release_driver(dev);
 		if (dev->parent)
-			up(&dev->parent->sem);
+			device_unlock(dev->parent);
 	}
 	return bus_rescan_devices_helper(dev, NULL);
 }

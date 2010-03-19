@@ -138,9 +138,9 @@ __kprobes void *ftrace_perf_buf_prepare(int size, unsigned short type,
 	cpu = smp_processor_id();
 
 	if (in_nmi())
-		trace_buf = rcu_dereference(perf_trace_buf_nmi);
+		trace_buf = rcu_dereference_sched(perf_trace_buf_nmi);
 	else
-		trace_buf = rcu_dereference(perf_trace_buf);
+		trace_buf = rcu_dereference_sched(perf_trace_buf);
 
 	if (!trace_buf)
 		goto err;

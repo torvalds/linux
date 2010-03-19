@@ -320,7 +320,7 @@ static ssize_t overlay_attr_store(struct kobject *kobj, struct attribute *attr,
 	return overlay_attr->store(overlay, buf, size);
 }
 
-static struct sysfs_ops overlay_sysfs_ops = {
+static const struct sysfs_ops overlay_sysfs_ops = {
 	.show = overlay_attr_show,
 	.store = overlay_attr_store,
 };

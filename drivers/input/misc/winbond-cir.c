@@ -385,26 +385,24 @@ wbcir_do_getkeycode(struct wbcir_data *data, u32 scancode)
 }
 
 static int
-wbcir_getkeycode(struct input_dev *dev, int scancode, int *keycode)
+wbcir_getkeycode(struct input_dev *dev,
+		 unsigned int scancode, unsigned int *keycode)
 {
 	struct wbcir_data *data = input_get_drvdata(dev);
 
-	*keycode = (int)wbcir_do_getkeycode(data, (u32)scancode);
+	*keycode = wbcir_do_getkeycode(data, scancode);
 	return 0;
 }
 
 static int
-wbcir_setkeycode(struct input_dev *dev, int sscancode, int keycode)
+wbcir_setkeycode(struct input_dev *dev,
+		 unsigned int scancode, unsigned int keycode)
 {
 	struct wbcir_data *data = input_get_drvdata(dev);
 	struct wbcir_keyentry *keyentry;
 	struct wbcir_keyentry *new_keyentry;
 	unsigned long flags;
 	unsigned int old_keycode = KEY_RESERVED;
-	u32 scancode = (u32)sscancode;
-
-	if (keycode < 0 || keycode > KEY_MAX)
-		return -EINVAL;
 
 	new_keyentry = kmalloc(sizeof(*new_keyentry), GFP_KERNEL);
 	if (!new_keyentry)
