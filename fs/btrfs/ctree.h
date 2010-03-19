@@ -834,7 +834,6 @@ struct btrfs_fs_info {
 	u64 last_trans_log_full_commit;
 	u64 open_ioctl_trans;
 	unsigned long mount_opt;
-	u64 max_extent;
 	u64 max_inline;
 	u64 alloc_start;
 	struct btrfs_transaction *running_transaction;

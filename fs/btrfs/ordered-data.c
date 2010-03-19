@@ -303,6 +303,7 @@ static int __btrfs_remove_ordered_extent(struct inode *inode,
 				struct btrfs_ordered_extent *entry)
 {
 	struct btrfs_ordered_inode_tree *tree;
+	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct rb_node *node;
 
 	tree = &BTRFS_I(inode)->ordered_tree;
@@ -312,12 +313,13 @@ static int __btrfs_remove_ordered_extent(struct inode *inode,
 	set_bit(BTRFS_ORDERED_COMPLETE, &entry->flags);
 
 	spin_lock(&BTRFS_I(inode)->accounting_lock);
+	WARN_ON(!BTRFS_I(inode)->outstanding_extents);
 	BTRFS_I(inode)->outstanding_extents--;
 	spin_unlock(&BTRFS_I(inode)->accounting_lock);
 	btrfs_unreserve_metadata_for_delalloc(BTRFS_I(inode)->root,
 					      inode, 1);
 
-	spin_lock(&BTRFS_I(inode)->root->fs_info->ordered_extent_lock);
+	spin_lock(&root->fs_info->ordered_extent_lock);
 	list_del_init(&entry->root_extent_list);
 
 	/*
@@ -329,7 +331,7 @@ static int __btrfs_remove_ordered_extent(struct inode *inode,
 	    !mapping_tagged(inode->i_mapping, PAGECACHE_TAG_DIRTY)) {
 		list_del_init(&BTRFS_I(inode)->ordered_operations);
 	}
-	spin_unlock(&BTRFS_I(inode)->root->fs_info->ordered_extent_lock);
+	spin_unlock(&root->fs_info->ordered_extent_lock);
 
 	return 0;
 }

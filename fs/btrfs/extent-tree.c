@@ -2846,7 +2846,7 @@ int btrfs_unreserve_metadata_for_delalloc(struct btrfs_root *root,
 	}
 	spin_unlock(&BTRFS_I(inode)->accounting_lock);
 
-	BTRFS_I(inode)->reserved_extents--;
+	BTRFS_I(inode)->reserved_extents -= num_items;
 	BUG_ON(BTRFS_I(inode)->reserved_extents < 0);
 
 	if (meta_sinfo->bytes_delalloc < num_bytes) {
@@ -3111,7 +3111,7 @@ again:
 		return -ENOSPC;
 	}
 
-	BTRFS_I(inode)->reserved_extents++;
+	BTRFS_I(inode)->reserved_extents += num_items;
 	check_force_delalloc(meta_sinfo);
 	spin_unlock(&meta_sinfo->lock);
 
