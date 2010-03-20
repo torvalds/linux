@@ -180,8 +180,7 @@ enum enum_MMPDUResultCode
 //   Define the transmission constants based on W89C32 MAC
 //   target specification.
 //===========================================================*/
-typedef enum enum_TxRate
-{
+typedef enum enum_TxRate {
     TXRATE_1M               = 0,
     TXRATE_2MLONG           = 2,
     TXRATE_2MSHORT          = 3,
@@ -238,53 +237,48 @@ typedef enum enum_TxRate
 #define CAPABILITY_DSSS_OFDM_BIT		0x2000
 
 
-struct Capability_Information_Element
-{
-  union
-  {
-  	u16 __attribute__ ((packed)) wValue;
+struct Capability_Information_Element {
+  union {
+	u16 __attribute__ ((packed)) wValue;
     #ifdef _BIG_ENDIAN_  /* 20060926 add by anson's endian */
-    struct _Capability
-    {
-        /* --  11G  -- */
-	u8	Reserved3 : 2;
-	u8	DSSS_OFDM : 1;
-	u8	Reserved2 : 2;
-	u8	Short_Slot_Time : 1;
-	u8    Reserved1 : 2;
-	u8    Channel_Agility : 1;
-	u8    PBCC : 1;
-	u8    ShortPreamble : 1;
-	u8    CF_Privacy : 1;
-	u8    CF_Poll_Request : 1;
-	u8    CF_Pollable : 1;
-	u8    IBSS : 1;
-	u8    ESS : 1;
+    struct _Capability {
+	/* --  11G  -- */
+	u8	Reserved3:2;
+	u8	DSSS_OFDM:1;
+	u8	Reserved2:2;
+	u8	Short_Slot_Time:1;
+	u8    Reserved1:2;
+	u8    Channel_Agility:1;
+	u8    PBCC:1;
+	u8    ShortPreamble:1;
+	u8    CF_Privacy:1;
+	u8    CF_Poll_Request:1;
+	u8    CF_Pollable:1;
+	u8    IBSS:1;
+	u8    ESS:1;
     } __attribute__ ((packed)) Capability;
     #else
-    struct _Capability
-    {
-        u8    ESS : 1;
-        u8    IBSS : 1;
-        u8    CF_Pollable : 1;
-        u8    CF_Poll_Request : 1;
-        u8    CF_Privacy : 1;
-        u8    ShortPreamble : 1;
-        u8    PBCC : 1;
-        u8    Channel_Agility : 1;
-        u8    Reserved1 : 2;
+    struct _Capability {
+	u8    ESS:1;
+	u8    IBSS:1;
+	u8    CF_Pollable:1;
+	u8    CF_Poll_Request:1;
+	u8    CF_Privacy:1;
+	u8    ShortPreamble:1;
+	u8    PBCC:1;
+	u8    Channel_Agility:1;
+	u8    Reserved1:2;
 		/* --  11G  -- */
-		u8	Short_Slot_Time : 1;
-		u8	Reserved2 : 2;
-		u8	DSSS_OFDM : 1;
-		u8	Reserved3 : 2;
+		u8	Short_Slot_Time:1;
+		u8	Reserved2:2;
+		u8	DSSS_OFDM:1;
+		u8	Reserved3:2;
     } __attribute__ ((packed)) Capability;
     #endif
-  }__attribute__ ((packed)) ;
-}__attribute__ ((packed));
+  } __attribute__ ((packed)) ;
+} __attribute__ ((packed));
 
-struct FH_Parameter_Set_Element
-{
+struct FH_Parameter_Set_Element {
     u8    Element_ID;
     u8    Length;
     u8    Dwell_Time[2];
@@ -293,29 +287,25 @@ struct FH_Parameter_Set_Element
     u8    Hop_Index;
 };
 
-struct DS_Parameter_Set_Element
-{
+struct DS_Parameter_Set_Element {
     u8    Element_ID;
     u8    Length;
     u8    Current_Channel;
 };
 
-struct Supported_Rates_Element
-{
+struct Supported_Rates_Element {
     u8    Element_ID;
     u8    Length;
     u8    SupportedRates[8];
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
-struct SSID_Element
-{
+struct SSID_Element {
     u8    Element_ID;
     u8    Length;
     u8    SSID[32];
-}__attribute__ ((packed)) ;
+} __attribute__ ((packed)) ;
 
-struct CF_Parameter_Set_Element
-{
+struct CF_Parameter_Set_Element {
     u8    Element_ID;
     u8    Length;
     u8    CFP_Count;
@@ -324,8 +314,7 @@ struct CF_Parameter_Set_Element
     u8    CFP_DurRemaining[2];    /* in time units */
 };
 
-struct TIM_Element
-{
+struct TIM_Element {
     u8    Element_ID;
     u8    Length;
     u8    DTIM_Count;
@@ -334,22 +323,19 @@ struct TIM_Element
     u8    Partial_Virtual_Bitmap[251];
 };
 
-struct IBSS_Parameter_Set_Element
-{
+struct IBSS_Parameter_Set_Element {
     u8    Element_ID;
     u8    Length;
     u8    ATIM_Window[2];
 };
 
-struct Challenge_Text_Element
-{
+struct Challenge_Text_Element {
     u8    Element_ID;
     u8    Length;
     u8    Challenge_Text[253];
 };
 
-struct PHY_Parameter_Set_Element
-{
+struct PHY_Parameter_Set_Element {
 /*  int     aSlotTime; */
 /*  int     aSifsTime; */
     s32     aCCATime;
@@ -372,13 +358,12 @@ struct PHY_Parameter_Set_Element
 };
 
 /* --  11G  -- */
-struct ERP_Information_Element
-{
+struct ERP_Information_Element {
     u8	Element_ID;
     u8	Length;
     #ifdef _BIG_ENDIAN_ /* 20060926 add by anson's endian */
-    	u8	Reserved:5;   /* 20060926 add by anson */
-       u8	Barker_Preamble_Mode:1;
+	u8	Reserved:5;   /* 20060926 add by anson */
+	u8	Barker_Preamble_Mode:1;
 	u8	Use_Protection:1;
        u8	NonERP_Present:1;
     #else
@@ -389,12 +374,11 @@ struct ERP_Information_Element
     #endif
 };
 
-struct Extended_Supported_Rates_Element
-{
+struct Extended_Supported_Rates_Element {
     u8	Element_ID;
     u8	Length;
     u8	ExtendedSupportedRates[255];
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
 /* WPA(802.11i draft 3.0) */
 #define VERSION_WPA				1
@@ -564,7 +548,7 @@ struct Management_Frame {
     u16		Sequence_Control;
     /* Management Frame Body <= 325 bytes */
     /* FCS 4 bytes */
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
 /* SW-MAC don't Tx/Rx Control-Frame, HW-MAC do it. */
 struct Control_Frame {
@@ -573,7 +557,7 @@ struct Control_Frame {
     u8		RA[MAC_ADDR_LENGTH];
     u8		TA[MAC_ADDR_LENGTH];
     u16		FCS;
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
 struct Data_Frame {
     struct MAC_frame_control frame_control;
@@ -585,29 +569,26 @@ struct Data_Frame {
     u8		Addr4[MAC_ADDR_LENGTH]; /* only exist when ToDS=FromDS=1 */
     /* Data Frame Body <= 2312 */
     /* FCS */
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
-struct Disassociation_Frame_Body
-{
+struct Disassociation_Frame_Body {
     u16    reasonCode;
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
-struct Association_Request_Frame_Body
-{
+struct Association_Request_Frame_Body {
     u16    capability_information;
     u16    listenInterval;
     u8     Current_AP_Address[MAC_ADDR_LENGTH];/* for reassociation only */
     /*  SSID (2+32 bytes) */
     /*  Supported_Rates (2+8 bytes) */
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
-struct Association_Response_Frame_Body
-{
+struct Association_Response_Frame_Body {
     u16    capability_information;
     u16    statusCode;
     u16    Association_ID;
     struct Supported_Rates_Element supportedRates;
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
 /*struct Reassociation_Request_Frame_Body
 {
@@ -619,22 +600,19 @@ struct Association_Response_Frame_Body
 };*/
 /* eliminated by WS 07/22/04 comboined with associateion request frame. */
 
-struct Reassociation_Response_Frame_Body
-{
+struct Reassociation_Response_Frame_Body {
     u16    capability_information;
     u16    statusCode;
     u16    Association_ID;
     struct Supported_Rates_Element supportedRates;
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
-struct Deauthentication_Frame_Body
-{
+struct Deauthentication_Frame_Body {
     u16    reasonCode;
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
 
-struct Probe_Response_Frame_Body
-{
+struct Probe_Response_Frame_Body {
     u16    Timestamp;
     u16    Beacon_Interval;
     u16    Capability_Information;
@@ -643,16 +621,15 @@ struct Probe_Response_Frame_Body
     // PHY parameter Set (DS Parameters)
     // CF parameter Set
     // IBSS parameter Set */
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
-struct Authentication_Frame_Body
-{
+struct Authentication_Frame_Body {
     u16    algorithmNumber;
     u16    sequenceNumber;
     u16    statusCode;
     /* NB: don't include ChallengeText in this structure
 	// struct Challenge_Text_Element sChallengeTextElement; // wkchen added */
-}__attribute__ ((packed));
+} __attribute__ ((packed));
 
 
 #endif /* _MAC_Structure_H_ */
