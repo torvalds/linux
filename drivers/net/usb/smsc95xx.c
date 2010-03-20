@@ -1189,9 +1189,21 @@ static struct sk_buff *smsc95xx_tx_fixup(struct usbnet *dev,
 	}
 
 	if (csum) {
-		u32 csum_preamble = smsc95xx_calc_csum_preamble(skb);
-		skb_push(skb, 4);
-		memcpy(skb->data, &csum_preamble, 4);
+		if (skb->len <= 45) {
+			/* workaround - hardware tx checksum does not work
+			 * properly with extremely small packets */
+			long csstart = skb->csum_start - skb_headroom(skb);
+			__wsum calc = csum_partial(skb->data + csstart,
+				skb->len - csstart, 0);
+			*((__sum16 *)(skb->data + csstart
+				+ skb->csum_offset)) = csum_fold(calc);
+
+			csum = false;
+		} else {
+			u32 csum_preamble = smsc95xx_calc_csum_preamble(skb);
+			skb_push(skb, 4);
+			memcpy(skb->data, &csum_preamble, 4);
+		}
 	}
 
 	skb_push(skb, 4);
