@@ -38,9 +38,9 @@
 * software indicates your acceptance of these terms and conditions.  If you do
 * not agree with these terms and conditions, do not use the software.
 *
-* COPYRIGHT © 1994 - 1995	by AT&T.				All Rights Reserved
-* COPYRIGHT © 1999 - 2000 by Lucent Technologies.	All Rights Reserved
-* COPYRIGHT © 2001 - 2004	by Agere Systems Inc.	All Rights Reserved
+* COPYRIGHT (C) 1994 - 1995	by AT&T.				All Rights Reserved
+* COPYRIGHT (C) 1999 - 2000 by Lucent Technologies.	All Rights Reserved
+* COPYRIGHT (C) 2001 - 2004	by Agere Systems Inc.	All Rights Reserved
 * All rights reserved.
 *
 * Redistribution and use in source or binary forms, with or without
@@ -85,11 +85,11 @@
 #include "hcf.h"   		 	// includes HCFCFG.H too
 
 #ifdef DHF_UIL
-#define GET_INFO( pp )  uil_get_info( (LTVP)pp )
-#define PUT_INFO( pp )  uil_put_info( (LTVP)pp )
+#define GET_INFO(pp)  uil_get_info((LTVP)pp)
+#define PUT_INFO(pp)  uil_put_info((LTVP)pp)
 #else
-#define GET_INFO( pp )  hcf_get_info( ifbp, (LTVP)pp )
-#define PUT_INFO( pp )  hcf_put_info( ifbp, (LTVP)pp )
+#define GET_INFO(pp)  hcf_get_info(ifbp, (LTVP)pp)
+#define PUT_INFO(pp)  hcf_put_info(ifbp, (LTVP)pp)
 #endif
 
 
@@ -189,9 +189,9 @@ typedef struct {
  */
 typedef struct {
 	char					signature[14+1+1];	// signature (see DHF.C) + C/LE-Bin/BE-Bin-flag + format version
-	CFG_PROG_STRCT FAR		*codep;				//
+	CFG_PROG_STRCT FAR * codep;				//
 	hcf_32           	 	execution;    		// Execution address of the firmware
-	void FAR 		      	*place_holder_1;
+	void FAR * place_holder_1;
 	void FAR  		     	*place_holder_2;
 	CFG_RANGE20_STRCT FAR  	*compat;      		// Pointer to the compatibility info records
 	CFG_IDENTITY_STRCT FAR 	*identity;    		// Pointer to the identity info records
@@ -209,8 +209,8 @@ typedef struct {
  *
  *---------------------------------------------------------------------------*/
 
-EXTERN_C int dhf_download_fw( void *ifbp, memimage *fw );	//	ifbp, ignored when using the UIL
-EXTERN_C int dhf_download_binary( memimage *fw );
+EXTERN_C int dhf_download_fw(void *ifbp, memimage *fw);	//	ifbp, ignored when using the UIL
+EXTERN_C int dhf_download_binary(memimage *fw);
 
 
 /*-----------------------------------------------------------------------------
@@ -220,7 +220,7 @@ EXTERN_C int dhf_download_binary( memimage *fw );
  *---------------------------------------------------------------------------*/
 
 // defined in DHF.C; see there for comments
-EXTERN_C hcf_16 *find_record_in_pda( hcf_16 *pdap, hcf_16 code );
+EXTERN_C hcf_16 *find_record_in_pda(hcf_16 *pdap, hcf_16 code);
 
 #endif  // DHF_H
 
