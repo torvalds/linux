@@ -100,20 +100,6 @@ static void wacom_sys_irq(struct urb *urb)
 		     __func__, retval);
 }
 
-__u16 wacom_be16_to_cpu(unsigned char *data)
-{
-	__u16 value;
-	value = be16_to_cpu(*(__be16 *) data);
-	return value;
-}
-
-__u16 wacom_le16_to_cpu(unsigned char *data)
-{
-	__u16 value;
-	value = le16_to_cpu(*(__le16 *) data);
-	return value;
-}
-
 static int wacom_open(struct input_dev *dev)
 {
 	struct wacom *wacom = input_get_drvdata(dev);
@@ -210,9 +196,9 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							features->device_type = BTN_TOOL_TRIPLETAP;
 						}
 						features->x_max =
-							wacom_le16_to_cpu(&report[i + 3]);
+							get_unaligned_le16(&report[i + 3]);
 						features->x_phy =
-							wacom_le16_to_cpu(&report[i + 6]);
+							get_unaligned_le16(&report[i + 6]);
 						features->unit = report[i + 9];
 						features->unitExpo = report[i + 11];
 						i += 12;
@@ -222,7 +208,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							features->pktlen = WACOM_PKGLEN_GRAPHIRE;
 						features->device_type = BTN_TOOL_PEN;
 						features->x_max =
-							wacom_le16_to_cpu(&report[i + 3]);
+							get_unaligned_le16(&report[i + 3]);
 						i += 4;
 					}
 				} else if (usage == WCM_DIGITIZER) {
@@ -244,15 +230,15 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							features->pktlen = WACOM_PKGLEN_TPC2FG;
 							features->device_type = BTN_TOOL_TRIPLETAP;
 							features->y_max =
-								wacom_le16_to_cpu(&report[i + 3]);
+								get_unaligned_le16(&report[i + 3]);
 							features->y_phy =
-								wacom_le16_to_cpu(&report[i + 6]);
+								get_unaligned_le16(&report[i + 6]);
 							i += 7;
 						} else {
 							features->y_max =
 								features->x_max;
 							features->y_phy =
-								wacom_le16_to_cpu(&report[i + 3]);
+								get_unaligned_le16(&report[i + 3]);
 							i += 4;
 						}
 					} else if (pen) {
@@ -261,7 +247,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 							features->pktlen = WACOM_PKGLEN_GRAPHIRE;
 						features->device_type = BTN_TOOL_PEN;
 						features->y_max =
-							wacom_le16_to_cpu(&report[i + 3]);
+							get_unaligned_le16(&report[i + 3]);
 						i += 4;
 					}
 				}
@@ -280,7 +266,7 @@ static int wacom_parse_hid(struct usb_interface *intf, struct hid_descriptor *hi
 			case HID_USAGE_UNDEFINED:
 				if (usage == WCM_DESKTOP && finger) /* capacity */
 					features->pressure_max =
-						wacom_le16_to_cpu(&report[i + 3]);
+						get_unaligned_le16(&report[i + 3]);
 				i += 4;
 				break;
 			}
