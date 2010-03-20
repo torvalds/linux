@@ -68,6 +68,7 @@ MODULE_PARM_DESC(disable_other_ir, "disable full codes of "
 /* Helper functions for RC5 and NEC decoding at GPIO16 or GPIO18 */
 static int saa7134_rc5_irq(struct saa7134_dev *dev);
 static int saa7134_nec_irq(struct saa7134_dev *dev);
+static int saa7134_raw_decode_irq(struct saa7134_dev *dev);
 static void nec_task(unsigned long data);
 static void saa7134_nec_timer(unsigned long data);
 
@@ -403,10 +404,12 @@ void saa7134_input_irq(struct saa7134_dev *dev)
 
 	if (ir->nec_gpio) {
 		saa7134_nec_irq(dev);
-	} else if (!ir->polling && !ir->rc5_gpio) {
+	} else if (!ir->polling && !ir->rc5_gpio && !ir->raw_decode) {
 		build_key(dev);
 	} else if (ir->rc5_gpio) {
 		saa7134_rc5_irq(dev);
+	} else if (ir->raw_decode) {
+		saa7134_raw_decode_irq(dev);
 	}
 }
 
@@ -417,6 +420,23 @@ static void saa7134_input_timer(unsigned long data)
 
 	build_key(dev);
 	mod_timer(&ir->timer, jiffies + msecs_to_jiffies(ir->polling));
+}
+
+void ir_raw_decode_timer_end(unsigned long data)
+{
+	struct saa7134_dev *dev = (struct saa7134_dev *)data;
+	struct card_ir *ir = dev->remote;
+	int rc;
+
+	/*
+	 * FIXME: the IR key handling code should be called by the decoder,
+	 * after implementing the repeat mode
+	 */
+	rc = ir_raw_event_handle(dev->remote->dev);
+	if (rc >= 0) {
+		ir_input_keydown(ir->dev, &ir->ir, rc);
+		ir_input_nokey(ir->dev, &ir->ir);
+	}
 }
 
 void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
@@ -447,6 +467,11 @@ void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 		setup_timer(&ir->timer_keyup, saa7134_nec_timer,
 			    (unsigned long)dev);
 		tasklet_init(&ir->tlet, nec_task, (unsigned long)dev);
+	} else if (ir->raw_decode) {
+		/* set timer_end for code completion */
+		init_timer(&ir->timer_end);
+		ir->timer_end.function = ir_raw_decode_timer_end;
+		ir->timer_end.data = (unsigned long)dev;
 	}
 }
 
@@ -462,6 +487,9 @@ void saa7134_ir_stop(struct saa7134_dev *dev)
 		del_timer_sync(&ir->timer_end);
 	else if (ir->nec_gpio)
 		tasklet_kill(&ir->tlet);
+	else if (ir->raw_decode)
+		del_timer_sync(&ir->timer_end);
+
 	ir->running = 0;
 }
 
@@ -509,6 +537,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	int polling      = 0;
 	int rc5_gpio	 = 0;
 	int nec_gpio	 = 0;
+	int raw_decode   = 0;
 	u64 ir_type = IR_TYPE_OTHER;
 	int err;
 
@@ -574,7 +603,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 		ir_codes     = &ir_codes_avermedia_m135a_rm_jx_table;
 		mask_keydown = 0x0040000;
 		mask_keycode = 0xffff;
-		nec_gpio     = 1;
+		raw_decode   = 1;
 		break;
 	case SAA7134_BOARD_AVERMEDIA_777:
 	case SAA7134_BOARD_AVERMEDIA_A16AR:
@@ -755,6 +784,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	ir->polling      = polling;
 	ir->rc5_gpio	 = rc5_gpio;
 	ir->nec_gpio	 = nec_gpio;
+	ir->raw_decode	 = raw_decode;
 
 	/* init input device */
 	snprintf(ir->name, sizeof(ir->name), "saa7134 IR (%s)",
@@ -762,7 +792,7 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(dev->pci));
 
-	if (ir_codes->ir_type != IR_TYPE_OTHER) {
+	if (ir_codes->ir_type != IR_TYPE_OTHER && !raw_decode) {
 		ir->props.allowed_protos = IR_TYPE_RC5 | IR_TYPE_NEC;
 		ir->props.priv = dev;
 		ir->props.change_protocol = saa7134_ir_change_protocol;
@@ -790,6 +820,11 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	err = ir_input_register(ir->dev, ir_codes, &ir->props, MODULE_NAME);
 	if (err)
 		goto err_out_stop;
+	if (ir_codes->ir_type != IR_TYPE_OTHER) {
+		err = ir_raw_event_register(ir->dev);
+		if (err)
+			goto err_out_stop;
+	}
 
 	saa7134_ir_start(dev, ir);
 
@@ -813,6 +848,7 @@ void saa7134_input_fini(struct saa7134_dev *dev)
 		return;
 
 	saa7134_ir_stop(dev);
+	ir_raw_event_unregister(dev->remote->dev);
 	ir_input_unregister(dev->remote->dev);
 	kfree(dev->remote);
 	dev->remote = NULL;
@@ -919,6 +955,48 @@ void saa7134_probe_i2c_ir(struct saa7134_dev *dev)
 	i2c_new_device(&dev->i2c_adap, &info);
 }
 
+static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
+{
+	struct card_ir	*ir = dev->remote;
+	unsigned long 	timeout;
+	int count, pulse, oldpulse;
+
+	/* Disable IR IRQ line */
+	saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
+
+	/* Generate initial event */
+	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+	pulse = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2) & ir->mask_keydown;
+	ir_raw_event_store(dev->remote->dev, pulse? IR_PULSE : IR_SPACE);
+
+#if 1
+	/* Wait up to 10 ms for event change */
+	oldpulse = pulse;
+	for (count = 0; count < 1000; count++)  {
+		udelay(10);
+		/* rising SAA7134_GPIO_GPRESCAN reads the status */
+		saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+		saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
+		pulse = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2)
+			& ir->mask_keydown;
+		if (pulse != oldpulse)
+			break;
+	}
+
+	/* Store final event */
+	ir_raw_event_store(dev->remote->dev, pulse? IR_PULSE : IR_SPACE);
+#endif
+	/* Wait 15 ms before deciding to do something else */
+	timeout = jiffies + jiffies_to_msecs(15);
+	mod_timer(&ir->timer_end, timeout);
+
+	/* Enable IR IRQ line */
+	saa_setl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
+
+	return 1;
+}
+
 static int saa7134_rc5_irq(struct saa7134_dev *dev)
 {
 	struct card_ir *ir = dev->remote;
@@ -960,7 +1038,6 @@ static int saa7134_rc5_irq(struct saa7134_dev *dev)
 
 	return 1;
 }
-
 
 /* On NEC protocol, One has 2.25 ms, and zero has 1.125 ms
    The first pulse (start) has 9 + 4.5 ms

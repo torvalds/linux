@@ -16,6 +16,8 @@
 
 #include <linux/input.h>
 #include <linux/spinlock.h>
+#include <linux/kfifo.h>
+#include <linux/time.h>
 
 extern int ir_core_debug;
 #define IR_dprintk(level, fmt, arg...)	if (ir_core_debug >= level) \
@@ -26,6 +28,13 @@ extern int ir_core_debug;
 #define IR_TYPE_PD	(1  << 1)	/* Pulse distance encoded IR */
 #define IR_TYPE_NEC	(1  << 2)
 #define IR_TYPE_OTHER	(((u64)1) << 63l)
+
+enum raw_event_type {
+	IR_SPACE	= (1 << 0),
+	IR_PULSE	= (1 << 1),
+	IR_START_EVENT	= (1 << 2),
+	IR_STOP_EVENT	= (1 << 3),
+};
 
 struct ir_scancode {
 	u16	scancode;
@@ -46,6 +55,15 @@ struct ir_dev_props {
 	int (*change_protocol)(void *priv, u64 ir_type);
 };
 
+struct ir_raw_event {
+	struct timespec		delta;	/* Time spent before event */
+	enum raw_event_type	type;	/* event type */
+};
+
+struct ir_raw_event_ctrl {
+	struct kfifo			kfifo;		/* fifo for the pulse/space events */
+	struct timespec			last_event;	/* when last event occurred */
+};
 
 struct ir_input_dev {
 	struct device			dev;		/* device */
@@ -53,7 +71,9 @@ struct ir_input_dev {
 	struct ir_scancode_table	rc_tab;		/* scan/key table */
 	unsigned long			devno;		/* device number */
 	const struct ir_dev_props	*props;		/* Device properties */
+	struct ir_raw_event_ctrl	*raw;		/* for raw pulse/space events */
 };
+
 #define to_ir_input_dev(_attr) container_of(_attr, struct ir_input_dev, attr)
 
 /* Routines from ir-keytable.c */
@@ -71,5 +91,17 @@ void ir_input_unregister(struct input_dev *input_dev);
 
 int ir_register_class(struct input_dev *input_dev);
 void ir_unregister_class(struct input_dev *input_dev);
+
+/* Routines from ir-raw-event.c */
+int ir_raw_event_register(struct input_dev *input_dev);
+void ir_raw_event_unregister(struct input_dev *input_dev);
+int ir_raw_event_store(struct input_dev *input_dev, enum raw_event_type type);
+int ir_raw_event_handle(struct input_dev *input_dev);
+
+/* from ir-nec-decoder.c */
+int ir_nec_decode(struct input_dev *input_dev,
+		  struct ir_raw_event *evs,
+		  int len);
+
 
 #endif

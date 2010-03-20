@@ -82,6 +82,9 @@ struct card_ir {
 	/* NEC decoding */
 	u32			nec_gpio;
 	struct tasklet_struct   tlet;
+
+	/* IR core raw decoding */
+	u32			raw_decode;
 };
 
 /* Routines from ir-functions.c */
