@@ -571,7 +571,6 @@ static struct pci_bus *pcmcia_lookup_bus(struct pcmcia_socket *s)
 
 static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int first)
 {
-	dev_node_t *node;
 	struct pcmcia_device *p_dev;
 	struct pcmcia_driver *p_drv;
 	int ret = 0;
@@ -633,21 +632,13 @@ static int get_device_info(struct pcmcia_socket *s, bind_info_t *bind_info, int 
 		goto err_put;
 	}
 
-	if (first)
-		node = p_dev->dev_node;
-	else
-		for (node = p_dev->dev_node; node; node = node->next)
-			if (node == bind_info->next)
-				break;
-	if (!node) {
+	if (!first) {
 		ret = -ENODEV;
 		goto err_put;
 	}
 
-	strlcpy(bind_info->name, node->dev_name, DEV_NAME_LEN);
-	bind_info->major = node->major;
-	bind_info->minor = node->minor;
-	bind_info->next = node->next;
+	strlcpy(bind_info->name, dev_name(&p_dev->dev), DEV_NAME_LEN);
+	bind_info->next = NULL;
 
  err_put:
 	pcmcia_put_dev(p_dev);

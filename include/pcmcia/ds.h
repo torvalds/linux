@@ -62,15 +62,6 @@ struct pcmcia_driver {
 int pcmcia_register_driver(struct pcmcia_driver *driver);
 void pcmcia_unregister_driver(struct pcmcia_driver *driver);
 
-/* Some drivers use dev_node_t to store char or block device information.
- * Don't use this in new drivers, though.
- */
-typedef struct dev_node_t {
-	char			dev_name[DEV_NAME_LEN];
-	u_short			major, minor;
-	struct dev_node_t	*next;
-} dev_node_t;
-
 struct pcmcia_device {
 	/* the socket and the device_no [for multifunction devices]
 	   uniquely define a pcmcia_device */
@@ -88,7 +79,6 @@ struct pcmcia_device {
 	struct list_head	socket_device_list;
 
 	/* deprecated, will be cleaned up soon */
-	dev_node_t		*dev_node;
 	u_int			open;
 	io_req_t		io;
 	config_req_t		conf;

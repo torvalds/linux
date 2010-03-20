@@ -1,4 +1,7 @@
 This file details changes in 2.6 which affect PCMCIA card driver authors:
+* No dev_node_t (as of 2.6.35)
+   There is no more need to fill out a "dev_node_t" structure.
+
 * New IRQ request rules (as of 2.6.35)
    Instead of the old pcmcia_request_irq() interface, drivers may now
    choose between:

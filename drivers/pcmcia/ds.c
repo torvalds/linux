@@ -371,8 +371,6 @@ static int pcmcia_device_remove(struct device *dev)
 	if (p_drv->remove)
 		p_drv->remove(p_dev);
 
-	p_dev->dev_node = NULL;
-
 	/* check for proper unloading */
 	if (p_dev->_irq || p_dev->_io || p_dev->_locked)
 		dev_printk(KERN_INFO, dev,
