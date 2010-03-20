@@ -3328,7 +3328,7 @@ EXPORT_SYMBOL_GPL(emulator_write_emulated);
 #  define CMPXCHG64(ptr, old, new) CMPXCHG_TYPE(u64, ptr, old, new)
 #else
 #  define CMPXCHG64(ptr, old, new) \
-	(cmpxchg64((u64 *)(ptr), *(u64 *)(old), *(u *)(new)) == *(u64 *)(old))
+	(cmpxchg64((u64 *)(ptr), *(u64 *)(old), *(u64 *)(new)) == *(u64 *)(old))
 #endif
 
 static int emulator_cmpxchg_emulated(unsigned long addr,
