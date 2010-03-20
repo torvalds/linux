@@ -155,8 +155,8 @@ static void ipv6_ifa_notify(int event, struct inet6_ifaddr *ifa);
 
 static void inet6_prefix_notify(int event, struct inet6_dev *idev,
 				struct prefix_info *pinfo);
-static int ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
-			      struct net_device *dev);
+static bool ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
+			       struct net_device *dev);
 
 static ATOMIC_NOTIFIER_HEAD(inet6addr_chain);
 
@@ -1295,23 +1295,22 @@ int ipv6_chk_addr(struct net *net, struct in6_addr *addr,
 }
 EXPORT_SYMBOL(ipv6_chk_addr);
 
-static
-int ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
-		       struct net_device *dev)
+static bool ipv6_chk_same_addr(struct net *net, const struct in6_addr *addr,
+			       struct net_device *dev)
 {
+	unsigned int hash = ipv6_addr_hash(addr);
 	struct inet6_ifaddr *ifp;
 	struct hlist_node *node;
-	unsigned int hash = ipv6_addr_hash(addr);
 
 	hlist_for_each_entry(ifp, node, &inet6_addr_lst[hash], addr_lst) {
 		if (!net_eq(dev_net(ifp->idev->dev), net))
 			continue;
 		if (ipv6_addr_equal(&ifp->addr, addr)) {
 			if (dev == NULL || ifp->idev->dev == dev)
-				break;
+				return true;
 		}
 	}
-	return ifp != NULL;
+	return false;
 }
 
 int ipv6_chk_prefix(struct in6_addr *addr, struct net_device *dev)
