@@ -6,7 +6,7 @@ pcmcia_core-y					+= cs.o rsrc_mgr.o socket_sysfs.o
 pcmcia_core-$(CONFIG_CARDBUS)			+= cardbus.o
 obj-$(CONFIG_PCCARD)				+= pcmcia_core.o
 
-pcmcia-y					+= ds.o pcmcia_resource.o cistpl.o
+pcmcia-y					+= ds.o pcmcia_resource.o cistpl.o pcmcia_cis.o
 pcmcia-$(CONFIG_PCMCIA_IOCTL)			+= pcmcia_ioctl.o
 obj-$(CONFIG_PCMCIA)				+= pcmcia.o
 
