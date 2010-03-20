@@ -739,11 +739,11 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 			ha->flt_region_gold_fw = start;
 			break;
 		case FLT_REG_FCP_PRIO_0:
-			if (!(PCI_FUNC(ha->pdev->devfn) & 1))
+			if (ha->flags.port0)
 				ha->flt_region_fcp_prio = start;
 			break;
 		case FLT_REG_FCP_PRIO_1:
-			if (PCI_FUNC(ha->pdev->devfn) & 1)
+			if (!ha->flags.port0)
 				ha->flt_region_fcp_prio = start;
 			break;
 		}
