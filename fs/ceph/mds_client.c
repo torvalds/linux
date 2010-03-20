@@ -328,6 +328,8 @@ static struct ceph_mds_session *register_session(struct ceph_mds_client *mdsc,
 	struct ceph_mds_session *s;
 
 	s = kzalloc(sizeof(*s), GFP_NOFS);
+	if (!s)
+		return ERR_PTR(-ENOMEM);
 	s->s_mdsc = mdsc;
 	s->s_mds = mds;
 	s->s_state = CEPH_MDS_SESSION_NEW;
