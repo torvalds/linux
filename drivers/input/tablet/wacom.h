@@ -115,14 +115,9 @@ struct wacom {
 	char phys[32];
 };
 
-struct wacom_combo {
-	struct wacom *wacom;
-	struct urb *urb;
-};
-
 extern const struct usb_device_id wacom_ids[];
 
-int wacom_wac_irq(struct wacom_wac * wacom_wac, void * wcombo);
+void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len);
 void wacom_setup_input_capabilities(struct input_dev *input_dev,
 				    struct wacom_wac *wacom_wac);
 __u16 wacom_le16_to_cpu(unsigned char *data);

@@ -70,15 +70,9 @@ static int usb_set_report(struct usb_interface *intf, unsigned char type,
 		buf, size, 1000);
 }
 
-static struct input_dev * get_input_dev(struct wacom_combo *wcombo)
-{
-	return wcombo->wacom->wacom_wac.input;
-}
-
 static void wacom_sys_irq(struct urb *urb)
 {
 	struct wacom *wacom = urb->context;
-	struct wacom_combo wcombo;
 	int retval;
 
 	switch (urb->status) {
@@ -96,11 +90,7 @@ static void wacom_sys_irq(struct urb *urb)
 		goto exit;
 	}
 
-	wcombo.wacom = wacom;
-	wcombo.urb = urb;
-
-	if (wacom_wac_irq(&wacom->wacom_wac, &wcombo))
-		input_sync(get_input_dev(&wcombo));
+	wacom_wac_irq(&wacom->wacom_wac, urb->actual_length);
 
  exit:
 	usb_mark_last_busy(wacom->usbdev);

@@ -15,7 +15,7 @@
 #include "wacom_wac.h"
 #include "wacom.h"
 
-static int wacom_penpartner_irq(struct wacom_wac *wacom, void *wcombo)
+static int wacom_penpartner_irq(struct wacom_wac *wacom)
 {
 	unsigned char *data = wacom->data;
 	struct input_dev *input = wacom->input;
@@ -58,7 +58,7 @@ static int wacom_penpartner_irq(struct wacom_wac *wacom, void *wcombo)
 	return 1;
 }
 
-static int wacom_pl_irq(struct wacom_wac *wacom, void *wcombo)
+static int wacom_pl_irq(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
@@ -130,7 +130,7 @@ static int wacom_pl_irq(struct wacom_wac *wacom, void *wcombo)
 	return 1;
 }
 
-static int wacom_ptu_irq(struct wacom_wac *wacom, void *wcombo)
+static int wacom_ptu_irq(struct wacom_wac *wacom)
 {
 	unsigned char *data = wacom->data;
 	struct input_dev *input = wacom->input;
@@ -158,7 +158,7 @@ static int wacom_ptu_irq(struct wacom_wac *wacom, void *wcombo)
 	return 1;
 }
 
-static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
+static int wacom_graphire_irq(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
@@ -269,7 +269,7 @@ exit:
 	return retval;
 }
 
-static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
+static int wacom_intuos_inout(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
@@ -396,7 +396,7 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 	return 0;
 }
 
-static void wacom_intuos_general(struct wacom_wac *wacom, void *wcombo)
+static void wacom_intuos_general(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
@@ -427,7 +427,7 @@ static void wacom_intuos_general(struct wacom_wac *wacom, void *wcombo)
 	}
 }
 
-static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
+static int wacom_intuos_irq(struct wacom_wac *wacom)
 {
 	struct wacom_features *features = &wacom->features;
 	unsigned char *data = wacom->data;
@@ -504,7 +504,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 	}
 
 	/* process in/out prox events */
-	result = wacom_intuos_inout(wacom, wcombo);
+	result = wacom_intuos_inout(wacom);
 	if (result)
                 return result - 1;
 
@@ -537,7 +537,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 	}
 
 	/* process general packets */
-	wacom_intuos_general(wacom, wcombo);
+	wacom_intuos_general(wacom);
 
 	/* 4D mouse, 2D mouse, marker pen rotation, tilt mouse, or Lens cursor packets */
 	if ((data[1] & 0xbc) == 0xa8 || (data[1] & 0xbe) == 0xb0 || (data[1] & 0xbc) == 0xac) {
@@ -615,7 +615,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 }
 
 
-static void wacom_tpc_finger_in(struct wacom_wac *wacom, void *wcombo, char *data, int idx)
+static void wacom_tpc_finger_in(struct wacom_wac *wacom, char *data, int idx)
 {
 	struct input_dev *input = wacom->input;
 
@@ -631,7 +631,7 @@ static void wacom_tpc_finger_in(struct wacom_wac *wacom, void *wcombo, char *dat
 		input_report_key(input, BTN_TOUCH, 1);
 }
 
-static void wacom_tpc_touch_out(struct wacom_wac *wacom, void *wcombo, int idx)
+static void wacom_tpc_touch_out(struct wacom_wac *wacom, int idx)
 {
 	struct input_dev *input = wacom->input;
 
@@ -645,11 +645,10 @@ static void wacom_tpc_touch_out(struct wacom_wac *wacom, void *wcombo, int idx)
 		input_report_key(input, BTN_TOUCH, 0);
 }
 
-static void wacom_tpc_touch_in(struct wacom_wac *wacom, void *wcombo)
+static void wacom_tpc_touch_in(struct wacom_wac *wacom, size_t len)
 {
 	char *data = wacom->data;
 	struct input_dev *input = wacom->input;
-	struct urb *urb = ((struct wacom_combo *)wcombo)->urb;
 	static int firstFinger = 0;
 	static int secondFinger = 0;
 
@@ -657,7 +656,7 @@ static void wacom_tpc_touch_in(struct wacom_wac *wacom, void *wcombo)
 	wacom->id[0] = TOUCH_DEVICE_ID;
 	wacom->tool[1] = BTN_TOOL_TRIPLETAP;
 
-	if (urb->actual_length != WACOM_PKGLEN_TPC1FG) {
+	if (len != WACOM_PKGLEN_TPC1FG) {
 
 		switch (data[0]) {
 
@@ -675,10 +674,10 @@ static void wacom_tpc_touch_in(struct wacom_wac *wacom, void *wcombo)
 			wacom->id[1] = data[1] & 0x03;
 
 			if (data[1] & 0x01) {
-				wacom_tpc_finger_in(wacom, wcombo, data, 0);
+				wacom_tpc_finger_in(wacom, data, 0);
 				firstFinger = 1;
 			} else if (firstFinger) {
-				wacom_tpc_touch_out(wacom, wcombo, 0);
+				wacom_tpc_touch_out(wacom, 0);
 			}
 
 			if (data[1] & 0x02) {
@@ -686,14 +685,14 @@ static void wacom_tpc_touch_in(struct wacom_wac *wacom, void *wcombo)
 				if (firstFinger)
 					input_sync(input);
 
-				wacom_tpc_finger_in(wacom, wcombo, data, 1);
+				wacom_tpc_finger_in(wacom, data, 1);
 				secondFinger = 1;
 			} else if (secondFinger) {
 				/* sync first finger data */
 				if (firstFinger)
 					input_sync(input);
 
-				wacom_tpc_touch_out(wacom, wcombo, 1);
+				wacom_tpc_touch_out(wacom, 1);
 				secondFinger = 0;
 			}
 			if (!(data[1] & 0x01))
@@ -709,20 +708,19 @@ static void wacom_tpc_touch_in(struct wacom_wac *wacom, void *wcombo)
 	}
 }
 
-static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
+static int wacom_tpc_irq(struct wacom_wac *wacom, size_t len)
 {
 	struct wacom_features *features = &wacom->features;
 	char *data = wacom->data;
 	struct input_dev *input = wacom->input;
 	int prox = 0, pressure, idx = -1;
-	struct urb *urb = ((struct wacom_combo *)wcombo)->urb;
 
 	dbg("wacom_tpc_irq: received report #%d", data[0]);
 
-	if (urb->actual_length == WACOM_PKGLEN_TPC1FG || /* single touch */
+	if (len == WACOM_PKGLEN_TPC1FG ||		 /* single touch */
 	    data[0] == WACOM_REPORT_TPC1FG ||		 /* single touch */
 	    data[0] == WACOM_REPORT_TPC2FG) {		 /* 2FG touch */
-		if (urb->actual_length == WACOM_PKGLEN_TPC1FG) {  /* with touch */
+		if (len == WACOM_PKGLEN_TPC1FG) {	/* with touch */
 			prox = data[0] & 0x01;
 		} else {  /* with capacity */
 			if (data[0] == WACOM_REPORT_TPC1FG)
@@ -735,28 +733,28 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 
 		if (!wacom->shared->stylus_in_proximity) {
 			if (prox) {
-				wacom_tpc_touch_in(wacom, wcombo);
+				wacom_tpc_touch_in(wacom, len);
 			} else {
 				if (data[0] == WACOM_REPORT_TPC2FG) {
 					/* 2FGT out-prox */
 					idx = (wacom->id[1] & 0x01) - 1;
 					if (idx == 0) {
-						wacom_tpc_touch_out(wacom, wcombo, idx);
+						wacom_tpc_touch_out(wacom, idx);
 						/* sync first finger event */
 						if (wacom->id[1] & 0x02)
 							input_sync(input);
 					}
 					idx = (wacom->id[1] & 0x02) - 1;
 					if (idx == 1)
-						wacom_tpc_touch_out(wacom, wcombo, idx);
+						wacom_tpc_touch_out(wacom, idx);
 				} else {
 					/* one finger touch */
-					wacom_tpc_touch_out(wacom, wcombo, 0);
+					wacom_tpc_touch_out(wacom, 0);
 				}
 				wacom->id[0] = 0;
 			}
 		} else if (wacom->id[0]) { /* force touch out-prox */
-			wacom_tpc_touch_out(wacom, wcombo, 0);
+			wacom_tpc_touch_out(wacom, 0);
 		}
 		return 1;
 	} else if (data[0] == WACOM_REPORT_PENABLED) { /* Penabled */
@@ -792,22 +790,28 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 	return 0;
 }
 
-int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
+void wacom_wac_irq(struct wacom_wac *wacom_wac, size_t len)
 {
+	bool sync;
+
 	switch (wacom_wac->features.type) {
 	case PENPARTNER:
-		return wacom_penpartner_irq(wacom_wac, wcombo);
+		sync = wacom_penpartner_irq(wacom_wac);
+		break;
 
 	case PL:
-		return wacom_pl_irq(wacom_wac, wcombo);
+		sync = wacom_pl_irq(wacom_wac);
+		break;
 
 	case WACOM_G4:
 	case GRAPHIRE:
 	case WACOM_MO:
-		return wacom_graphire_irq(wacom_wac, wcombo);
+		sync = wacom_graphire_irq(wacom_wac);
+		break;
 
 	case PTU:
-		return wacom_ptu_irq(wacom_wac, wcombo);
+		sync = wacom_ptu_irq(wacom_wac);
+		break;
 
 	case INTUOS:
 	case INTUOS3S:
@@ -818,16 +822,21 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 	case INTUOS4L:
 	case CINTIQ:
 	case WACOM_BEE:
-		return wacom_intuos_irq(wacom_wac, wcombo);
+		sync = wacom_intuos_irq(wacom_wac);
+		break;
 
 	case TABLETPC:
 	case TABLETPC2FG:
-		return wacom_tpc_irq(wacom_wac, wcombo);
+		sync = wacom_tpc_irq(wacom_wac, len);
+		break;
 
 	default:
-		return 0;
+		sync = false;
+		break;
 	}
-	return 0;
+
+	if (sync)
+		input_sync(wacom_wac->input);
 }
 
 static void wacom_setup_intuos(struct wacom_wac *wacom_wac)
