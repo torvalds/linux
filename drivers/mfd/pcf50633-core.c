@@ -679,6 +679,7 @@ static int __devexit pcf50633_remove(struct i2c_client *client)
 	for (i = 0; i < PCF50633_NUM_REGULATORS; i++)
 		platform_device_unregister(pcf->regulator_pdev[i]);
 
+	i2c_set_clientdata(client, NULL);
 	kfree(pcf);
 
 	return 0;

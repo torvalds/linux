@@ -202,6 +202,7 @@ static int __devexit pm860x_remove(struct i2c_client *client)
 	i2c_unregister_device(chip->companion);
 	i2c_set_clientdata(chip->companion, NULL);
 	i2c_set_clientdata(chip->client, NULL);
+	i2c_set_clientdata(client, NULL);
 	kfree(chip);
 	return 0;
 }
