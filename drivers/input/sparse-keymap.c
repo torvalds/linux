@@ -163,7 +163,7 @@ int sparse_keymap_setup(struct input_dev *dev,
 	return 0;
 
  err_out:
-	kfree(keymap);
+	kfree(map);
 	return error;
 
 }
