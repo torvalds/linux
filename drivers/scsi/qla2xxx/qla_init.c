@@ -349,6 +349,12 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 		}
 	}
 
+	if (IS_QLA24XX_TYPE(ha) || IS_QLA25XX(ha)) {
+		if (qla24xx_read_fcp_prio_cfg(vha))
+			qla_printk(KERN_ERR, ha,
+			"Unable to read FCP priority data.\n");
+	}
+
 	return (rval);
 }
 
@@ -4904,4 +4910,166 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
 	memset(ha->fw_options, 0, sizeof(ha->fw_options));
 	ha->fw_options[2] |= BIT_9;
 	qla2x00_set_fw_options(vha, ha->fw_options);
+}
+
+/*
+ * qla24xx_get_fcp_prio
+ *	Gets the fcp cmd priority value for the logged in port.
+ *	Looks for a match of the port descriptors within
+ *	each of the fcp prio config entries. If a match is found,
+ *	the tag (priority) value is returned.
+ *
+ * Input:
+ *	ha = adapter block po
+ *	fcport = port structure pointer.
+ *
+ * Return:
+ * 	non-zero (if found)
+ * 	0 (if not found)
+ *
+ * Context:
+ * 	Kernel context
+ */
+uint8_t
+qla24xx_get_fcp_prio(scsi_qla_host_t *vha, fc_port_t *fcport)
+{
+	int i, entries;
+	uint8_t pid_match, wwn_match;
+	uint8_t priority;
+	uint32_t pid1, pid2;
+	uint64_t wwn1, wwn2;
+	struct qla_fcp_prio_entry *pri_entry;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!ha->fcp_prio_cfg || !ha->flags.fcp_prio_enabled)
+		return 0;
+
+	priority = 0;
+	entries = ha->fcp_prio_cfg->num_entries;
+	pri_entry = &ha->fcp_prio_cfg->entry[0];
+
+	for (i = 0; i < entries; i++) {
+		pid_match = wwn_match = 0;
+
+		if (!(pri_entry->flags & FCP_PRIO_ENTRY_VALID)) {
+			pri_entry++;
+			continue;
+		}
+
+		/* check source pid for a match */
+		if (pri_entry->flags & FCP_PRIO_ENTRY_SPID_VALID) {
+			pid1 = pri_entry->src_pid & INVALID_PORT_ID;
+			pid2 = vha->d_id.b24 & INVALID_PORT_ID;
+			if (pid1 == INVALID_PORT_ID)
+				pid_match++;
+			else if (pid1 == pid2)
+				pid_match++;
+		}
+
+		/* check destination pid for a match */
+		if (pri_entry->flags & FCP_PRIO_ENTRY_DPID_VALID) {
+			pid1 = pri_entry->dst_pid & INVALID_PORT_ID;
+			pid2 = fcport->d_id.b24 & INVALID_PORT_ID;
+			if (pid1 == INVALID_PORT_ID)
+				pid_match++;
+			else if (pid1 == pid2)
+				pid_match++;
+		}
+
+		/* check source WWN for a match */
+		if (pri_entry->flags & FCP_PRIO_ENTRY_SWWN_VALID) {
+			wwn1 = wwn_to_u64(vha->port_name);
+			wwn2 = wwn_to_u64(pri_entry->src_wwpn);
+			if (wwn2 == (uint64_t)-1)
+				wwn_match++;
+			else if (wwn1 == wwn2)
+				wwn_match++;
+		}
+
+		/* check destination WWN for a match */
+		if (pri_entry->flags & FCP_PRIO_ENTRY_DWWN_VALID) {
+			wwn1 = wwn_to_u64(fcport->port_name);
+			wwn2 = wwn_to_u64(pri_entry->dst_wwpn);
+			if (wwn2 == (uint64_t)-1)
+				wwn_match++;
+			else if (wwn1 == wwn2)
+				wwn_match++;
+		}
+
+		if (pid_match == 2 || wwn_match == 2) {
+			/* Found a matching entry */
+			if (pri_entry->flags & FCP_PRIO_ENTRY_TAG_VALID)
+				priority = pri_entry->tag;
+			break;
+		}
+
+		pri_entry++;
+	}
+
+	return priority;
+}
+
+/*
+ * qla24xx_update_fcport_fcp_prio
+ *	Activates fcp priority for the logged in fc port
+ *
+ * Input:
+ *	ha = adapter block pointer.
+ *	fcp = port structure pointer.
+ *
+ * Return:
+ *	QLA_SUCCESS or QLA_FUNCTION_FAILED
+ *
+ * Context:
+ *	Kernel context.
+ */
+int
+qla24xx_update_fcport_fcp_prio(scsi_qla_host_t *ha, fc_port_t *fcport)
+{
+	int ret;
+	uint8_t priority;
+	uint16_t mb[5];
+
+	if (atomic_read(&fcport->state) == FCS_UNCONFIGURED ||
+		fcport->port_type != FCT_TARGET ||
+		fcport->loop_id == FC_NO_LOOP_ID)
+		return QLA_FUNCTION_FAILED;
+
+	priority = qla24xx_get_fcp_prio(ha, fcport);
+	ret = qla24xx_set_fcp_prio(ha, fcport->loop_id, priority, mb);
+	if (ret == QLA_SUCCESS)
+		fcport->fcp_prio = priority;
+	else
+		DEBUG2(printk(KERN_WARNING
+			"scsi(%ld): Unable to activate fcp priority, "
+			" ret=0x%x\n", ha->host_no, ret));
+
+	return  ret;
+}
+
+/*
+ * qla24xx_update_all_fcp_prio
+ *	Activates fcp priority for all the logged in ports
+ *
+ * Input:
+ *	ha = adapter block pointer.
+ *
+ * Return:
+ *	QLA_SUCCESS or QLA_FUNCTION_FAILED
+ *
+ * Context:
+ *	Kernel context.
+ */
+int
+qla24xx_update_all_fcp_prio(scsi_qla_host_t *vha)
+{
+	int ret;
+	fc_port_t *fcport;
+
+	ret = QLA_FUNCTION_FAILED;
+	/* We need to set priority for all logged in ports */
+	list_for_each_entry(fcport, &vha->vp_fcports, list)
+		ret = qla24xx_update_fcport_fcp_prio(vha, fcport);
+
+	return ret;
 }

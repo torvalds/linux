@@ -648,6 +648,12 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 	const uint32_t def_npiv_conf1[] =
 		{ FA_NPIV_CONF1_ADDR_24, FA_NPIV_CONF1_ADDR,
 			FA_NPIV_CONF1_ADDR_81 };
+	const uint32_t fcp_prio_cfg0[] =
+		{ FA_FCP_PRIO0_ADDR, FA_FCP_PRIO0_ADDR_25,
+			0 };
+	const uint32_t fcp_prio_cfg1[] =
+		{ FA_FCP_PRIO1_ADDR, FA_FCP_PRIO1_ADDR_25,
+			0 };
 	uint32_t def;
 	uint16_t *wptr;
 	uint16_t cnt, chksum;
@@ -732,6 +738,14 @@ qla2xxx_get_flt_info(scsi_qla_host_t *vha, uint32_t flt_addr)
 		case FLT_REG_GOLD_FW:
 			ha->flt_region_gold_fw = start;
 			break;
+		case FLT_REG_FCP_PRIO_0:
+			if (!(PCI_FUNC(ha->pdev->devfn) & 1))
+				ha->flt_region_fcp_prio = start;
+			break;
+		case FLT_REG_FCP_PRIO_1:
+			if (PCI_FUNC(ha->pdev->devfn) & 1)
+				ha->flt_region_fcp_prio = start;
+			break;
 		}
 	}
 	goto done;
@@ -750,12 +764,14 @@ no_flash_data:
 	ha->flt_region_boot = def_boot[def];
 	ha->flt_region_vpd_nvram = def_vpd_nvram[def];
 	ha->flt_region_vpd = ha->flags.port0 ?
-	    def_vpd0[def]: def_vpd1[def];
+	    def_vpd0[def] : def_vpd1[def];
 	ha->flt_region_nvram = ha->flags.port0 ?
-	    def_nvram0[def]: def_nvram1[def];
+	    def_nvram0[def] : def_nvram1[def];
 	ha->flt_region_fdt = def_fdt[def];
 	ha->flt_region_npiv_conf = ha->flags.port0 ?
-	    def_npiv_conf0[def]: def_npiv_conf1[def];
+	    def_npiv_conf0[def] : def_npiv_conf1[def];
+	ha->flt_region_fcp_prio = ha->flags.port0 ?
+	    fcp_prio_cfg0[def] : fcp_prio_cfg1[def];
 done:
 	DEBUG2(qla_printk(KERN_DEBUG, ha, "FLT[%s]: boot=0x%x fw=0x%x "
 	    "vpd_nvram=0x%x vpd=0x%x nvram=0x%x fdt=0x%x flt=0x%x "
@@ -2721,4 +2737,51 @@ qla2xxx_get_vpd_field(scsi_qla_host_t *vha, char *key, char *str, size_t size)
 		return snprintf(str, size, "%.*s", len, pos + 3);
 
 	return 0;
+}
+
+int
+qla24xx_read_fcp_prio_cfg(scsi_qla_host_t *vha)
+{
+	int len, max_len;
+	uint32_t fcp_prio_addr;
+	struct qla_hw_data *ha = vha->hw;
+
+	if (!ha->fcp_prio_cfg) {
+		ha->fcp_prio_cfg = vmalloc(FCP_PRIO_CFG_SIZE);
+		if (!ha->fcp_prio_cfg) {
+			qla_printk(KERN_WARNING, ha,
+			"Unable to allocate memory for fcp priority data "
+					"(%x).\n", FCP_PRIO_CFG_SIZE);
+			return QLA_FUNCTION_FAILED;
+		}
+	}
+	memset(ha->fcp_prio_cfg, 0, FCP_PRIO_CFG_SIZE);
+
+	fcp_prio_addr = ha->flt_region_fcp_prio;
+
+	/* first read the fcp priority data header from flash */
+	ha->isp_ops->read_optrom(vha, (uint8_t *)ha->fcp_prio_cfg,
+			fcp_prio_addr << 2, FCP_PRIO_CFG_HDR_SIZE);
+
+	if (!qla24xx_fcp_prio_cfg_valid(ha->fcp_prio_cfg, 0))
+		goto fail;
+
+	/* read remaining FCP CMD config data from flash */
+	fcp_prio_addr += (FCP_PRIO_CFG_HDR_SIZE >> 2);
+	len = ha->fcp_prio_cfg->num_entries * FCP_PRIO_CFG_ENTRY_SIZE;
+	max_len = FCP_PRIO_CFG_SIZE - FCP_PRIO_CFG_HDR_SIZE;
+
+	ha->isp_ops->read_optrom(vha, (uint8_t *)&ha->fcp_prio_cfg->entry[0],
+			fcp_prio_addr << 2, (len < max_len ? len : max_len));
+
+	/* revalidate the entire FCP priority config data, including entries */
+	if (!qla24xx_fcp_prio_cfg_valid(ha->fcp_prio_cfg, 1))
+		goto fail;
+
+	ha->flags.fcp_prio_enabled = 1;
+	return QLA_SUCCESS;
+fail:
+	vfree(ha->fcp_prio_cfg);
+	ha->fcp_prio_cfg = NULL;
+	return QLA_FUNCTION_FAILED;
 }

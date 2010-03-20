@@ -35,6 +35,166 @@ done:
 	return sp;
 }
 
+int
+qla24xx_fcp_prio_cfg_valid(struct qla_fcp_prio_cfg *pri_cfg, uint8_t flag)
+{
+	int i, ret, num_valid;
+	uint8_t *bcode;
+	struct qla_fcp_prio_entry *pri_entry;
+
+	ret = 1;
+	num_valid = 0;
+	bcode = (uint8_t *)pri_cfg;
+
+	if (bcode[0x0] != 'H' || bcode[0x1] != 'Q' || bcode[0x2] != 'O' ||
+			bcode[0x3] != 'S') {
+		return 0;
+	}
+	if (flag != 1)
+		return ret;
+
+	pri_entry = &pri_cfg->entry[0];
+	for (i = 0; i < pri_cfg->num_entries; i++) {
+		if (pri_entry->flags & FCP_PRIO_ENTRY_TAG_VALID)
+			num_valid++;
+		pri_entry++;
+	}
+
+	if (num_valid == 0)
+		ret = 0;
+
+	return ret;
+}
+
+static int
+qla24xx_proc_fcp_prio_cfg_cmd(struct fc_bsg_job *bsg_job)
+{
+	struct Scsi_Host *host = bsg_job->shost;
+	scsi_qla_host_t *vha = shost_priv(host);
+	struct qla_hw_data *ha = vha->hw;
+	int ret = 0;
+	uint32_t len;
+	uint32_t oper;
+
+	bsg_job->reply->reply_payload_rcv_len = 0;
+
+	if (test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
+		test_bit(ABORT_ISP_ACTIVE, &vha->dpc_flags) ||
+		test_bit(ISP_ABORT_RETRY, &vha->dpc_flags)) {
+		ret = -EBUSY;
+		goto exit_fcp_prio_cfg;
+	}
+
+	/* Get the sub command */
+	oper = bsg_job->request->rqst_data.h_vendor.vendor_cmd[1];
+
+	/* Only set config is allowed if config memory is not allocated */
+	if (!ha->fcp_prio_cfg && (oper != QLFC_FCP_PRIO_SET_CONFIG)) {
+		ret = -EINVAL;
+		goto exit_fcp_prio_cfg;
+	}
+	switch (oper) {
+	case QLFC_FCP_PRIO_DISABLE:
+		if (ha->flags.fcp_prio_enabled) {
+			ha->flags.fcp_prio_enabled = 0;
+			ha->fcp_prio_cfg->attributes &=
+				~FCP_PRIO_ATTR_ENABLE;
+			qla24xx_update_all_fcp_prio(vha);
+			bsg_job->reply->result = DID_OK;
+		} else {
+			ret = -EINVAL;
+			bsg_job->reply->result = (DID_ERROR << 16);
+			goto exit_fcp_prio_cfg;
+		}
+		break;
+
+	case QLFC_FCP_PRIO_ENABLE:
+		if (!ha->flags.fcp_prio_enabled) {
+			if (ha->fcp_prio_cfg) {
+				ha->flags.fcp_prio_enabled = 1;
+				ha->fcp_prio_cfg->attributes |=
+				    FCP_PRIO_ATTR_ENABLE;
+				qla24xx_update_all_fcp_prio(vha);
+				bsg_job->reply->result = DID_OK;
+			} else {
+				ret = -EINVAL;
+				bsg_job->reply->result = (DID_ERROR << 16);
+				goto exit_fcp_prio_cfg;
+			}
+		}
+		break;
+
+	case QLFC_FCP_PRIO_GET_CONFIG:
+		len = bsg_job->reply_payload.payload_len;
+		if (!len || len > FCP_PRIO_CFG_SIZE) {
+			ret = -EINVAL;
+			bsg_job->reply->result = (DID_ERROR << 16);
+			goto exit_fcp_prio_cfg;
+		}
+
+		bsg_job->reply->result = DID_OK;
+		bsg_job->reply->reply_payload_rcv_len =
+			sg_copy_from_buffer(
+			bsg_job->reply_payload.sg_list,
+			bsg_job->reply_payload.sg_cnt, ha->fcp_prio_cfg,
+			len);
+
+		break;
+
+	case QLFC_FCP_PRIO_SET_CONFIG:
+		len = bsg_job->request_payload.payload_len;
+		if (!len || len > FCP_PRIO_CFG_SIZE) {
+			bsg_job->reply->result = (DID_ERROR << 16);
+			ret = -EINVAL;
+			goto exit_fcp_prio_cfg;
+		}
+
+		if (!ha->fcp_prio_cfg) {
+			ha->fcp_prio_cfg = vmalloc(FCP_PRIO_CFG_SIZE);
+			if (!ha->fcp_prio_cfg) {
+				qla_printk(KERN_WARNING, ha,
+					"Unable to allocate memory "
+					"for fcp prio config data (%x).\n",
+					FCP_PRIO_CFG_SIZE);
+				bsg_job->reply->result = (DID_ERROR << 16);
+				ret = -ENOMEM;
+				goto exit_fcp_prio_cfg;
+			}
+		}
+
+		memset(ha->fcp_prio_cfg, 0, FCP_PRIO_CFG_SIZE);
+		sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+		bsg_job->request_payload.sg_cnt, ha->fcp_prio_cfg,
+			FCP_PRIO_CFG_SIZE);
+
+		/* validate fcp priority data */
+		if (!qla24xx_fcp_prio_cfg_valid(
+			(struct qla_fcp_prio_cfg *)
+			ha->fcp_prio_cfg, 1)) {
+			bsg_job->reply->result = (DID_ERROR << 16);
+			ret = -EINVAL;
+			/* If buffer was invalidatic int
+			 * fcp_prio_cfg is of no use
+			 */
+			vfree(ha->fcp_prio_cfg);
+			ha->fcp_prio_cfg = NULL;
+			goto exit_fcp_prio_cfg;
+		}
+
+		ha->flags.fcp_prio_enabled = 0;
+		if (ha->fcp_prio_cfg->attributes & FCP_PRIO_ATTR_ENABLE)
+			ha->flags.fcp_prio_enabled = 1;
+		qla24xx_update_all_fcp_prio(vha);
+		bsg_job->reply->result = DID_OK;
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+exit_fcp_prio_cfg:
+	bsg_job->job_done(bsg_job);
+	return ret;
+}
 static int
 qla2x00_process_els(struct fc_bsg_job *bsg_job)
 {
@@ -947,6 +1107,9 @@ qla2x00_process_vendor_specific(struct fc_bsg_job *bsg_job)
 
 	case QL_VND_IIDMA:
 		return qla24xx_iidma(bsg_job);
+
+	case QL_VND_FCP_PRIO_CFG_CMD:
+		return qla24xx_proc_fcp_prio_cfg_cmd(bsg_job);
 
 	default:
 		bsg_job->reply->result = (DID_ERROR << 16);

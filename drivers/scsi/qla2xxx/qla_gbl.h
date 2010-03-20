@@ -328,6 +328,9 @@ extern int
 qla2x00_write_ram_word(scsi_qla_host_t *, uint32_t, uint32_t);
 
 extern int qla2x00_get_data_rate(scsi_qla_host_t *);
+extern int qla24xx_set_fcp_prio(scsi_qla_host_t *, uint16_t, uint16_t,
+	uint16_t *);
+
 /*
  * Global Function Prototypes in qla_isr.c source file.
  */
@@ -384,6 +387,7 @@ extern int qla2xxx_get_flash_info(scsi_qla_host_t *);
 extern int qla2xxx_get_vpd_field(scsi_qla_host_t *, char *, char *, size_t);
 
 extern void qla2xxx_flash_npiv_conf(scsi_qla_host_t *);
+extern int qla24xx_read_fcp_prio_cfg(scsi_qla_host_t *);
 
 /*
  * Global Function Prototypes in qla_dbg.c source file.
@@ -430,7 +434,10 @@ extern void qla2x00_init_host_attr(scsi_qla_host_t *);
 extern void qla2x00_alloc_sysfs_attr(scsi_qla_host_t *);
 extern void qla2x00_free_sysfs_attr(scsi_qla_host_t *);
 extern int qla2x00_loopback_test(scsi_qla_host_t *, struct msg_echo_lb *, uint16_t *);
-extern int qla2x00_echo_test(scsi_qla_host_t *, struct msg_echo_lb *, uint16_t *);
+extern int qla2x00_echo_test(scsi_qla_host_t *,
+	struct msg_echo_lb *, uint16_t *);
+extern int qla24xx_update_all_fcp_prio(scsi_qla_host_t *);
+extern int qla24xx_fcp_prio_cfg_valid(struct qla_fcp_prio_cfg *, uint8_t);
 
 /*
  * Global Function Prototypes in qla_dfs.c source file.
