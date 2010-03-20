@@ -528,6 +528,81 @@ static int wacom_retrieve_hid_descriptor(struct usb_interface *intf,
 	return error;
 }
 
+struct wacom_usbdev_data {
+	struct list_head list;
+	struct kref kref;
+	struct usb_device *dev;
+	struct wacom_shared shared;
+};
+
+static LIST_HEAD(wacom_udev_list);
+static DEFINE_MUTEX(wacom_udev_list_lock);
+
+static struct wacom_usbdev_data *wacom_get_usbdev_data(struct usb_device *dev)
+{
+	struct wacom_usbdev_data *data;
+
+	list_for_each_entry(data, &wacom_udev_list, list) {
+		if (data->dev == dev) {
+			kref_get(&data->kref);
+			return data;
+		}
+	}
+
+	return NULL;
+}
+
+static int wacom_add_shared_data(struct wacom_wac *wacom,
+				 struct usb_device *dev)
+{
+	struct wacom_usbdev_data *data;
+	int retval = 0;
+
+	mutex_lock(&wacom_udev_list_lock);
+
+	data = wacom_get_usbdev_data(dev);
+	if (!data) {
+		data = kzalloc(sizeof(struct wacom_usbdev_data), GFP_KERNEL);
+		if (!data) {
+			retval = -ENOMEM;
+			goto out;
+		}
+
+		kref_init(&data->kref);
+		data->dev = dev;
+		list_add_tail(&data->list, &wacom_udev_list);
+	}
+
+	wacom->shared = &data->shared;
+
+out:
+	mutex_unlock(&wacom_udev_list_lock);
+	return retval;
+}
+
+static void wacom_release_shared_data(struct kref *kref)
+{
+	struct wacom_usbdev_data *data =
+		container_of(kref, struct wacom_usbdev_data, kref);
+
+	mutex_lock(&wacom_udev_list_lock);
+	list_del(&data->list);
+	mutex_unlock(&wacom_udev_list_lock);
+
+	kfree(data);
+}
+
+static void wacom_remove_shared_data(struct wacom_wac *wacom)
+{
+	struct wacom_usbdev_data *data;
+
+	if (wacom->shared) {
+		data = container_of(wacom->shared, struct wacom_usbdev_data, shared);
+		kref_put(&data->kref, wacom_release_shared_data);
+		wacom->shared = NULL;
+	}
+}
+
 static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *id)
 {
 	struct usb_device *dev = interface_to_usbdev(intf);
@@ -600,6 +675,10 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 			features->device_type == BTN_TOOL_PEN ?
 				" Pen" : " Finger",
 			sizeof(wacom_wac->name));
+
+		error = wacom_add_shared_data(wacom_wac, dev);
+		if (error)
+			goto fail3;
 	}
 
 	input_dev->name = wacom_wac->name;
@@ -624,7 +703,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 
 	error = input_register_device(wacom->dev);
 	if (error)
-		goto fail3;
+		goto fail4;
 
 	/* Note that if query fails it is not a hard failure */
 	wacom_query_tablet_data(intf, features);
@@ -632,6 +711,7 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	usb_set_intfdata(intf, wacom);
 	return 0;
 
+ fail4:	wacom_remove_shared_data(wacom_wac);
  fail3:	usb_free_urb(wacom->irq);
  fail2:	usb_buffer_free(dev, WACOM_PKGLEN_MAX, wacom_wac->data, wacom->data_dma);
  fail1:	input_free_device(input_dev);
@@ -651,6 +731,7 @@ static void wacom_disconnect(struct usb_interface *intf)
 	usb_free_urb(wacom->irq);
 	usb_buffer_free(interface_to_usbdev(intf), WACOM_PKGLEN_MAX,
 			wacom->wacom_wac->data, wacom->data_dma);
+	wacom_remove_shared_data(wacom->wacom_wac);
 	kfree(wacom->wacom_wac);
 	kfree(wacom);
 }

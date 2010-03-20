@@ -71,6 +71,10 @@ struct wacom_features {
 	unsigned char unitExpo;
 };
 
+struct wacom_shared {
+	bool stylus_in_proximity;
+};
+
 struct wacom_wac {
 	char name[64];
 	unsigned char *data;
@@ -78,6 +82,7 @@ struct wacom_wac {
 	int id[2];
 	__u32 serial[2];
 	struct wacom_features features;
+	struct wacom_shared *shared;
 };
 
 #endif
