@@ -608,3 +608,75 @@ scatter/gather method (videobuf-dma-sg), DMA with linear access
 
 Please see Documentation/video4linux/videobuf for more information on how
 to use the videobuf layer.
+
+struct v4l2_fh
+--------------
+
+struct v4l2_fh provides a way to easily keep file handle specific data
+that is used by the V4L2 framework. Using v4l2_fh is optional for
+drivers.
+
+The users of v4l2_fh (in the V4L2 framework, not the driver) know
+whether a driver uses v4l2_fh as its file->private_data pointer by
+testing the V4L2_FL_USES_V4L2_FH bit in video_device->flags.
+
+Useful functions:
+
+- v4l2_fh_init()
+
+  Initialise the file handle. This *MUST* be performed in the driver's
+  v4l2_file_operations->open() handler.
+
+- v4l2_fh_add()
+
+  Add a v4l2_fh to video_device file handle list. May be called after
+  initialising the file handle.
+
+- v4l2_fh_del()
+
+  Unassociate the file handle from video_device(). The file handle
+  exit function may now be called.
+
+- v4l2_fh_exit()
+
+  Uninitialise the file handle. After uninitialisation the v4l2_fh
+  memory can be freed.
+
+struct v4l2_fh is allocated as a part of the driver's own file handle
+structure and is set to file->private_data in the driver's open
+function by the driver. Drivers can extract their own file handle
+structure by using the container_of macro. Example:
+
+struct my_fh {
+	int blah;
+	struct v4l2_fh fh;
+};
+
+...
+
+int my_open(struct file *file)
+{
+	struct my_fh *my_fh;
+	struct video_device *vfd;
+	int ret;
+
+	...
+
+	ret = v4l2_fh_init(&my_fh->fh, vfd);
+	if (ret)
+		return ret;
+
+	v4l2_fh_add(&my_fh->fh);
+
+	file->private_data = &my_fh->fh;
+
+	...
+}
+
+int my_release(struct file *file)
+{
+	struct v4l2_fh *fh = file->private_data;
+	struct my_fh *my_fh = container_of(fh, struct my_fh, fh);
+
+	...
+}
