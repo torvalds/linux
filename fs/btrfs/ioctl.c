@@ -1211,6 +1211,9 @@ static noinline int btrfs_ioctl_ino_lookup(struct file *file,
 		return -EPERM;
 
 	args = kmalloc(sizeof(*args), GFP_KERNEL);
+	if (!args)
+		return -ENOMEM;
+
 	if (copy_from_user(args, argp, sizeof(*args))) {
 		kfree(args);
 		return -EFAULT;
