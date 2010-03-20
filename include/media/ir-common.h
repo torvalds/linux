@@ -102,7 +102,7 @@ void ir_rc5_timer_keyup(unsigned long data);
 extern struct ir_scancode_table ir_codes_empty_table;
 extern struct ir_scancode_table ir_codes_avermedia_table;
 extern struct ir_scancode_table ir_codes_avermedia_dvbt_table;
-extern struct ir_scancode_table ir_codes_avermedia_m135a_table;
+extern struct ir_scancode_table ir_codes_avermedia_m135a_rm_jx_table;
 extern struct ir_scancode_table ir_codes_avermedia_cardbus_table;
 extern struct ir_scancode_table ir_codes_apac_viewcomp_table;
 extern struct ir_scancode_table ir_codes_pixelview_table;
