@@ -510,7 +510,7 @@ static int should_defrag_range(struct inode *inode, u64 start, u64 len,
 		em = btrfs_get_extent(inode, NULL, 0, start, len, 0);
 		unlock_extent(io_tree, start, start + len - 1, GFP_NOFS);
 
-		if (!em)
+		if (IS_ERR(em))
 			return 0;
 	}
 
