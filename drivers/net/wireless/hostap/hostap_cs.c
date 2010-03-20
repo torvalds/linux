@@ -39,7 +39,6 @@ MODULE_PARM_DESC(ignore_cis_vcc, "Ignore broken CIS VCC entry");
 
 /* struct local_info::hw_priv */
 struct hostap_cs_priv {
-	dev_node_t node;
 	struct pcmcia_device *link;
 	int sandisk_connectplus;
 };
@@ -625,8 +624,6 @@ static int prism2_config(struct pcmcia_device *link)
 	local = iface->local;
 	local->hw_priv = hw_priv;
 	hw_priv->link = link;
-	strcpy(hw_priv->node.dev_name, dev->name);
-	link->dev_node = &hw_priv->node;
 
 	ret = pcmcia_request_irq(link, prism2_interrupt);
 	if (ret)
@@ -665,11 +662,9 @@ static int prism2_config(struct pcmcia_device *link)
 	sandisk_enable_wireless(dev);
 
 	ret = prism2_hw_config(dev, 1);
-	if (!ret) {
+	if (!ret)
 		ret = hostap_hw_ready(dev);
-		if (ret == 0 && local->ddev)
-			strcpy(hw_priv->node.dev_name, local->ddev->name);
-	}
+
 	return ret;
 
  failed:

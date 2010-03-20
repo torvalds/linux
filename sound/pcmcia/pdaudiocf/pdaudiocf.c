@@ -234,7 +234,6 @@ static int pdacf_config(struct pcmcia_device *link)
 	if (snd_pdacf_assign_resources(pdacf, link->io.BasePort1, link->irq) < 0)
 		goto failed;
 
-	link->dev_node = &pdacf->node;
 	return 0;
 
 failed:

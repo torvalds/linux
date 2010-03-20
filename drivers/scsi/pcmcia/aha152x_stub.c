@@ -80,7 +80,6 @@ MODULE_LICENSE("Dual MPL/GPL");
 
 typedef struct scsi_info_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t		node;
     struct Scsi_Host	*host;
 } scsi_info_t;
 
@@ -185,8 +184,6 @@ static int aha152x_config_cs(struct pcmcia_device *link)
 	goto failed;
     }
 
-    sprintf(info->node.dev_name, "scsi%d", host->host_no);
-    link->dev_node = &info->node;
     info->host = host;
 
     return 0;

@@ -191,7 +191,6 @@
 
 struct scsi_info_t {
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 	struct Scsi_Host *host;
 	unsigned short manf_id;
 };
@@ -792,8 +791,6 @@ SYM53C500_config(struct pcmcia_device *link)
 	*/
 	data->fast_pio = USE_FAST_PIO;
 
-	sprintf(info->node.dev_name, "scsi%d", host->host_no);
-	link->dev_node = &info->node;
 	info->host = host;
 
 	if (scsi_add_host(host, NULL))

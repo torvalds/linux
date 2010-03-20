@@ -67,7 +67,6 @@ MODULE_LICENSE("GPL");
 
 typedef struct btuart_info_t {
 	struct pcmcia_device *p_dev;
-	dev_node_t node;
 
 	struct hci_dev *hdev;
 
@@ -679,9 +678,6 @@ found_port:
 
 	if (btuart_open(info) != 0)
 		goto failed;
-
-	strcpy(info->node.dev_name, info->hdev->name);
-	link->dev_node = &info->node;
 
 	return 0;
 

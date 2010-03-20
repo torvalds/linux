@@ -65,7 +65,6 @@ MODULE_LICENSE("GPL");
 
 typedef struct bluecard_info_t {
 	struct pcmcia_device *p_dev;
-	dev_node_t node;
 
 	struct hci_dev *hdev;
 
@@ -915,9 +914,6 @@ static int bluecard_config(struct pcmcia_device *link)
 
 	if (bluecard_open(info) != 0)
 		goto failed;
-
-	strcpy(info->node.dev_name, info->hdev->name);
-	link->dev_node = &info->node;
 
 	return 0;
 

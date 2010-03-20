@@ -1754,8 +1754,6 @@ static int nsp_cs_config(struct pcmcia_device *link)
 
 	scsi_scan_host(host);
 
-	snprintf(info->node.dev_name, sizeof(info->node.dev_name), "scsi%d", host->host_no);
-	link->dev_node  = &info->node;
 	info->host = host;
 
 	/* Finally, report what we've done */
@@ -1813,7 +1811,6 @@ static void nsp_cs_release(struct pcmcia_device *link)
 	if (info->host != NULL) {
 		scsi_remove_host(info->host);
 	}
-	link->dev_node = NULL;
 
 	if (link->win) {
 		if (data != NULL) {

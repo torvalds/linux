@@ -211,7 +211,6 @@ static int snd_vxpocket_assign_resources(struct vx_core *chip, int port, int irq
 static int vxpocket_config(struct pcmcia_device *link)
 {
 	struct vx_core *chip = link->priv;
-	struct snd_vxpocket *vxp = (struct snd_vxpocket *)chip;
 	int ret;
 
 	snd_printdd(KERN_DEBUG "vxpocket_config called\n");
@@ -245,7 +244,6 @@ static int vxpocket_config(struct pcmcia_device *link)
 	if (snd_vxpocket_assign_resources(chip, link->io.BasePort1, link->irq) < 0)
 		goto failed;
 
-	link->dev_node = &vxp->node;
 	return 0;
 
 failed:

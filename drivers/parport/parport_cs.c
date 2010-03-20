@@ -75,7 +75,6 @@ INT_MODULE_PARM(epp_mode, 1);
 typedef struct parport_info_t {
 	struct pcmcia_device	*p_dev;
     int			ndev;
-    dev_node_t		node;
     struct parport	*port;
 } parport_info_t;
 
@@ -193,11 +192,7 @@ static int parport_config(struct pcmcia_device *link)
     if (epp_mode)
 	p->modes |= PARPORT_MODE_TRISTATE | PARPORT_MODE_EPP;
     info->ndev = 1;
-    info->node.major = LP_MAJOR;
-    info->node.minor = p->number;
     info->port = p;
-    strcpy(info->node.dev_name, p->name);
-    link->dev_node = &info->node;
 
     return 0;
 

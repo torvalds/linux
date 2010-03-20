@@ -82,7 +82,6 @@ static struct scsi_host_template qlogicfas_driver_template = {
 
 typedef struct scsi_info_t {
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 	struct Scsi_Host *host;
 	unsigned short manf_id;
 } scsi_info_t;
@@ -235,8 +234,6 @@ static int qlogic_config(struct pcmcia_device * link)
 		goto failed;
 	}
 
-	sprintf(info->node.dev_name, "scsi%d", host->host_no);
-	link->dev_node = &info->node;
 	info->host = host;
 
 	return 0;
