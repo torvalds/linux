@@ -1003,8 +1003,6 @@ static int br_multicast_ipv4_rcv(struct net_bridge *br,
 	if (!pskb_may_pull(skb2, sizeof(*ih)))
 		goto out;
 
-	iph = ip_hdr(skb2);
-
 	switch (skb2->ip_summed) {
 	case CHECKSUM_COMPLETE:
 		if (!csum_fold(skb2->csum))
