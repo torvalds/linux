@@ -1,5 +1,5 @@
 
-//   vim:tw=110:ts=4:
+/*   vim:tw=110:ts=4: */
 #ifndef DHF_H
 #define DHF_H
 
@@ -82,7 +82,7 @@
 #include <windef.h>
 #endif
 
-#include "hcf.h"   		 	// includes HCFCFG.H too
+#include "hcf.h"   		 	/* includes HCFCFG.H too */
 
 #ifdef DHF_UIL
 #define GET_INFO(pp)  uil_get_info((LTVP)pp)
@@ -94,15 +94,15 @@
 
 
 /*---- Defines --------------------------------------------------------------*/
-#define CODEMASK				0x0000FFFFL    	// Codemask for plug records
+#define CODEMASK				0x0000FFFFL    	/* Codemask for plug records */
 
 /*---- Error numbers --------------------------------------------------------*/
 
-#define DHF_ERR_INCOMP_FW		0x40	//Image not compatible with NIC
+#define DHF_ERR_INCOMP_FW		0x40	/* Image not compatible with NIC */
 
 /*---- Type definitions -----------------------------------------------------*/
-//* needed by dhf_wrap.c
-//
+/* needed by dhf_wrap.c */
+
 typedef struct {
 	LTVP 	ltvp;
 	hcf_16	len;
@@ -119,9 +119,9 @@ typedef struct {
  */
 
 typedef struct {
-	hcf_32	code;      	// Code to plug
-	hcf_32	addr;      	// Address within the memory image to plug it in
-	hcf_32	len;       	// The # of bytes which are available to store it
+	hcf_32	code;      	/* Code to plug */
+	hcf_32	addr;      	/* Address within the memory image to plug it in */
+	hcf_32	len;       	/* The # of bytes which are available to store it */
 } plugrecord;
 
 /*
@@ -159,7 +159,7 @@ typedef struct {
 	char 	str[MAX_DEBUGEXPORT_LEN];
 } exportrecord;
 
-// Offsets in memimage array p[]
+/* Offsets in memimage array p[] */
 #define FWSTRINGS_FUNCTION		0
 #define FWEXPORTS_FUNCTION		1
 
@@ -188,13 +188,13 @@ typedef struct {
  * 	The end of the array is indicated by a plug record of which all fields are zero.
  */
 typedef struct {
-	char					signature[14+1+1];	// signature (see DHF.C) + C/LE-Bin/BE-Bin-flag + format version
-	CFG_PROG_STRCT FAR * codep;				//
-	hcf_32           	 	execution;    		// Execution address of the firmware
-	void FAR * place_holder_1;
+	char					signature[14+1+1];	/* signature (see DHF.C) + C/LE-Bin/BE-Bin-flag + format version */
+	CFG_PROG_STRCT FAR *codep;				/* */
+	hcf_32           	 	execution;    		/* Execution address of the firmware */
+	void FAR *place_holder_1;
 	void FAR  		     	*place_holder_2;
-	CFG_RANGE20_STRCT FAR  	*compat;      		// Pointer to the compatibility info records
-	CFG_IDENTITY_STRCT FAR 	*identity;    		// Pointer to the identity info records
+	CFG_RANGE20_STRCT FAR  	*compat;      		/* Pointer to the compatibility info records */
+	CFG_IDENTITY_STRCT FAR 	*identity;    		/* Pointer to the identity info records */
 	void FAR				*p[2];				/* (Up to 9) pointers for (future) expansion
 												 * currently in use:
 												 *  - F/W printf information
@@ -209,7 +209,7 @@ typedef struct {
  *
  *---------------------------------------------------------------------------*/
 
-EXTERN_C int dhf_download_fw(void *ifbp, memimage *fw);	//	ifbp, ignored when using the UIL
+EXTERN_C int dhf_download_fw(void *ifbp, memimage *fw);	/* ifbp, ignored when using the UIL */
 EXTERN_C int dhf_download_binary(memimage *fw);
 
 
@@ -219,8 +219,8 @@ EXTERN_C int dhf_download_binary(memimage *fw);
  *
  *---------------------------------------------------------------------------*/
 
-// defined in DHF.C; see there for comments
+/* defined in DHF.C; see there for comments */
 EXTERN_C hcf_16 *find_record_in_pda(hcf_16 *pdap, hcf_16 code);
 
-#endif  // DHF_H
+#endif  /* DHF_H */
 
