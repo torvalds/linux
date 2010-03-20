@@ -110,9 +110,9 @@ struct wacom {
 	struct usb_device *usbdev;
 	struct usb_interface *intf;
 	struct urb *irq;
-	struct wacom_wac *wacom_wac;
+	struct wacom_wac wacom_wac;
 	struct mutex lock;
-	unsigned int open:1;
+	bool open;
 	char phys[32];
 };
 

@@ -11,8 +11,9 @@
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
  */
-#include "wacom.h"
+
 #include "wacom_wac.h"
+#include "wacom.h"
 
 static int wacom_penpartner_irq(struct wacom_wac *wacom, void *wcombo)
 {

@@ -11,8 +11,8 @@
  * (at your option) any later version.
  */
 
-#include "wacom.h"
 #include "wacom_wac.h"
+#include "wacom.h"
 
 /* defines to get HID report descriptor */
 #define HID_DEVICET_HID		(USB_TYPE_CLASS | 0x01)
@@ -99,7 +99,7 @@ static void wacom_sys_irq(struct urb *urb)
 	wcombo.wacom = wacom;
 	wcombo.urb = urb;
 
-	if (wacom_wac_irq(wacom->wacom_wac, (void *)&wcombo))
+	if (wacom_wac_irq(&wacom->wacom_wac, (void *)&wcombo))
 		input_sync(get_input_dev(&wcombo));
 
  exit:
@@ -168,7 +168,7 @@ static int wacom_open(struct input_dev *dev)
 		return -EIO;
 	}
 
-	wacom->open = 1;
+	wacom->open = true;
 	wacom->intf->needs_remote_wakeup = 1;
 
 	mutex_unlock(&wacom->lock);
@@ -181,7 +181,7 @@ static void wacom_close(struct input_dev *dev)
 
 	mutex_lock(&wacom->lock);
 	usb_kill_urb(wacom->irq);
-	wacom->open = 0;
+	wacom->open = false;
 	wacom->intf->needs_remote_wakeup = 0;
 	mutex_unlock(&wacom->lock);
 }
@@ -617,13 +617,13 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 		return -EINVAL;
 
 	wacom = kzalloc(sizeof(struct wacom), GFP_KERNEL);
-	wacom_wac = kzalloc(sizeof(struct wacom_wac), GFP_KERNEL);
 	input_dev = input_allocate_device();
-	if (!wacom || !input_dev || !wacom_wac) {
+	if (!wacom || !input_dev) {
 		error = -ENOMEM;
 		goto fail1;
 	}
 
+	wacom_wac = &wacom->wacom_wac;
 	wacom_wac->features = *((struct wacom_features *)id->driver_info);
 	features = &wacom_wac->features;
 	if (features->pktlen > WACOM_PKGLEN_MAX) {
@@ -682,7 +682,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
 	}
 
 	input_dev->name = wacom_wac->name;
-	wacom->wacom_wac = wacom_wac;
 
 	input_dev->evbit[0] |= BIT_MASK(EV_KEY) | BIT_MASK(EV_ABS);
 	input_dev->keybit[BIT_WORD(BTN_DIGI)] |= BIT_MASK(BTN_TOUCH);
@@ -716,7 +715,6 @@ static int wacom_probe(struct usb_interface *intf, const struct usb_device_id *i
  fail2:	usb_buffer_free(dev, WACOM_PKGLEN_MAX, wacom_wac->data, wacom->data_dma);
  fail1:	input_free_device(input_dev);
 	kfree(wacom);
-	kfree(wacom_wac);
 	return error;
 }
 
@@ -730,9 +728,8 @@ static void wacom_disconnect(struct usb_interface *intf)
 	input_unregister_device(wacom->dev);
 	usb_free_urb(wacom->irq);
 	usb_buffer_free(interface_to_usbdev(intf), WACOM_PKGLEN_MAX,
-			wacom->wacom_wac->data, wacom->data_dma);
-	wacom_remove_shared_data(wacom->wacom_wac);
-	kfree(wacom->wacom_wac);
+			wacom->wacom_wac.data, wacom->data_dma);
+	wacom_remove_shared_data(&wacom->wacom_wac);
 	kfree(wacom);
 }
 
@@ -750,7 +747,7 @@ static int wacom_suspend(struct usb_interface *intf, pm_message_t message)
 static int wacom_resume(struct usb_interface *intf)
 {
 	struct wacom *wacom = usb_get_intfdata(intf);
-	struct wacom_features *features = &wacom->wacom_wac->features;
+	struct wacom_features *features = &wacom->wacom_wac.features;
 	int rv;
 
 	mutex_lock(&wacom->lock);
