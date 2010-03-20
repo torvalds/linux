@@ -45,16 +45,6 @@
 #define DRV_NAME "pata_pcmcia"
 #define DRV_VERSION "0.3.5"
 
-/*
- *	Private data structure to glue stuff together
- */
-
-struct ata_pcmcia_info {
-	struct pcmcia_device *pdev;
-	int		ndev;
-	dev_node_t	node;
-};
-
 /**
  *	pcmcia_set_mode	-	PCMCIA specific mode setup
  *	@link: link
@@ -248,21 +238,12 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 {
 	struct ata_host *host;
 	struct ata_port *ap;
-	struct ata_pcmcia_info *info;
 	struct pcmcia_config_check *stk = NULL;
 	int is_kme = 0, ret = -ENOMEM, p;
 	unsigned long io_base, ctl_base;
 	void __iomem *io_addr, *ctl_addr;
 	int n_ports = 1;
 	struct ata_port_operations *ops = &pcmcia_port_ops;
-
-	info = kzalloc(sizeof(*info), GFP_KERNEL);
-	if (info == NULL)
-		return -ENOMEM;
-
-	/* Glue stuff together. FIXME: We may be able to get rid of info with care */
-	info->pdev = pdev;
-	pdev->priv = info;
 
 	/* Set up attributes in order to probe card and get resources */
 	pdev->io.Attributes1 = IO_DATA_PATH_WIDTH_AUTO;
@@ -347,16 +328,14 @@ static int pcmcia_init_one(struct pcmcia_device *pdev)
 	if (ret)
 		goto failed;
 
-	info->ndev = 1;
+	pdev->priv = host;
 	kfree(stk);
 	return 0;
 
 failed:
 	kfree(stk);
-	info->ndev = 0;
 	pcmcia_disable_device(pdev);
 out1:
-	kfree(info);
 	return ret;
 }
 
@@ -370,20 +349,12 @@ out1:
 
 static void pcmcia_remove_one(struct pcmcia_device *pdev)
 {
-	struct ata_pcmcia_info *info = pdev->priv;
-	struct device *dev = &pdev->dev;
+	struct ata_host *host = pdev->priv;
 
-	if (info != NULL) {
-		/* If we have attached the device to the ATA layer, detach it */
-		if (info->ndev) {
-			struct ata_host *host = dev_get_drvdata(dev);
-			ata_host_detach(host);
-		}
-		info->ndev = 0;
-		pdev->priv = NULL;
-	}
+	if (host)
+		ata_host_detach(host);
+
 	pcmcia_disable_device(pdev);
-	kfree(info);
 }
 
 static struct pcmcia_device_id pcmcia_devices[] = {
