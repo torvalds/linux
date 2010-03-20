@@ -804,7 +804,7 @@ qla84xx_mgmt_cmd(struct fc_bsg_job *bsg_job)
 	int rval = 0;
 	struct qla_bsg_a84_mgmt *ql84_mgmt;
 	uint32_t sg_cnt;
-	uint32_t data_len;
+	uint32_t data_len = 0;
 	uint32_t dma_direction = DMA_NONE;
 
 	if (test_bit(ISP_ABORT_NEEDED, &vha->dpc_flags) ||
@@ -980,9 +980,11 @@ qla84xx_mgmt_cmd(struct fc_bsg_job *bsg_job)
 	}
 
 	bsg_job->job_done(bsg_job);
-	dma_free_coherent(&ha->pdev->dev, data_len, mgmt_b, mgmt_dma);
 
 done_unmap_sg:
+	if (mgmt_b)
+		dma_free_coherent(&ha->pdev->dev, data_len, mgmt_b, mgmt_dma);
+
 	if (dma_direction == DMA_TO_DEVICE)
 		dma_unmap_sg(&ha->pdev->dev, bsg_job->request_payload.sg_list,
 			bsg_job->request_payload.sg_cnt, DMA_TO_DEVICE);
