@@ -421,6 +421,10 @@ static void saa7134_input_timer(unsigned long data)
 
 void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 {
+	if (ir->running)
+		return;
+
+	ir->running = 1;
 	if (ir->polling) {
 		setup_timer(&ir->timer, saa7134_input_timer,
 			    (unsigned long)dev);
@@ -448,8 +452,50 @@ void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 
 void saa7134_ir_stop(struct saa7134_dev *dev)
 {
+	struct card_ir *ir = dev->remote;
+
+	if (!ir->running)
+		return;
 	if (dev->remote->polling)
 		del_timer_sync(&dev->remote->timer);
+	else if (ir->rc5_gpio)
+		del_timer_sync(&ir->timer_end);
+	else if (ir->nec_gpio)
+		tasklet_kill(&ir->tlet);
+	ir->running = 0;
+}
+
+int saa7134_ir_change_protocol(void *priv, u64 ir_type)
+{
+	struct saa7134_dev *dev = priv;
+	struct card_ir *ir = dev->remote;
+	u32 nec_gpio, rc5_gpio;
+
+	if (ir_type == IR_TYPE_RC5) {
+		dprintk("Changing protocol to RC5\n");
+		nec_gpio = 0;
+		rc5_gpio = 1;
+	} else if (ir_type == IR_TYPE_NEC) {
+		dprintk("Changing protocol to NEC\n");
+		nec_gpio = 1;
+		rc5_gpio = 0;
+	} else {
+		dprintk("IR protocol type %ud is not supported\n",
+			(unsigned)ir_type);
+		return -EINVAL;
+	}
+
+	if (ir->running) {
+		saa7134_ir_stop(dev);
+		ir->nec_gpio = nec_gpio;
+		ir->rc5_gpio = rc5_gpio;
+		saa7134_ir_start(dev, ir);
+	} else {
+		ir->nec_gpio = nec_gpio;
+		ir->rc5_gpio = rc5_gpio;
+	}
+
+	return 0;
 }
 
 int saa7134_input_init1(struct saa7134_dev *dev)
@@ -698,6 +744,9 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	}
 
 	ir->dev = input_dev;
+	dev->remote = ir;
+
+	ir->running = 0;
 
 	/* init hardware-specific stuff */
 	ir->mask_keycode = mask_keycode;
@@ -713,6 +762,14 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	snprintf(ir->phys, sizeof(ir->phys), "pci-%s/ir0",
 		 pci_name(dev->pci));
 
+	if (ir_codes->ir_type != IR_TYPE_OTHER) {
+		ir->props.allowed_protos = IR_TYPE_RC5 | IR_TYPE_NEC;
+		ir->props.priv = dev;
+		ir->props.change_protocol = saa7134_ir_change_protocol;
+
+		/* Set IR protocol */
+		saa7134_ir_change_protocol(ir->props.priv, ir_codes->ir_type);
+	}
 	err = ir_input_init(input_dev, &ir->ir, ir_type);
 	if (err < 0)
 		goto err_out_free;
@@ -730,12 +787,11 @@ int saa7134_input_init1(struct saa7134_dev *dev)
 	}
 	input_dev->dev.parent = &dev->pci->dev;
 
-	dev->remote = ir;
-	saa7134_ir_start(dev, ir);
-
-	err = ir_input_register(ir->dev, ir_codes, NULL, MODULE_NAME);
+	err = ir_input_register(ir->dev, ir_codes, &ir->props, MODULE_NAME);
 	if (err)
 		goto err_out_stop;
+
+	saa7134_ir_start(dev, ir);
 
 	/* the remote isn't as bouncy as a keyboard */
 	ir->dev->rep[REP_DELAY] = repeat_delay;

@@ -51,6 +51,9 @@ struct card_ir {
 	char                    name[32];
 	char                    phys[32];
 
+	u32			running:1;
+	struct ir_dev_props	props;
+
 	/* Usual gpio signalling */
 
 	u32                     mask_keycode;
