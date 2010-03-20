@@ -46,11 +46,21 @@ struct resource *pcmcia_make_resource(unsigned long start, unsigned long end,
 	return res;
 }
 
+static int static_find_io(struct pcmcia_socket *s, unsigned int attr,
+			unsigned int *base, unsigned int num,
+			unsigned int align)
+{
+	if (!s->io_offset)
+		return -EINVAL;
+	*base = s->io_offset | (*base & 0x0fff);
+
+	return 0;
+}
+
 
 struct pccard_resource_ops pccard_static_ops = {
 	.validate_mem = NULL,
-	.adjust_io_region = NULL,
-	.find_io = NULL,
+	.find_io = static_find_io,
 	.find_mem = NULL,
 	.add_io = NULL,
 	.add_mem = NULL,

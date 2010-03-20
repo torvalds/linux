@@ -56,24 +56,15 @@ static resource_size_t pcmcia_align(void *align_data,
 }
 
 
-static int iodyn_adjust_io_region(struct resource *res, unsigned long r_start,
-		unsigned long r_end, struct pcmcia_socket *s)
-{
-	return adjust_resource(res, r_start, r_end - r_start + 1);
-}
-
-
-static struct resource *iodyn_find_io_region(unsigned long base, int num,
-		unsigned long align, struct pcmcia_socket *s)
+static struct resource *__iodyn_find_io_region(struct pcmcia_socket *s,
+					unsigned long base, int num,
+					unsigned long align)
 {
 	struct resource *res = pcmcia_make_resource(0, num, IORESOURCE_IO,
 						dev_name(&s->dev));
 	struct pcmcia_align_data data;
 	unsigned long min = base;
 	int ret;
-
-	if (align == 0)
-		align = 0x10000;
 
 	data.mask = align - 1;
 	data.offset = base & data.mask;
@@ -94,10 +85,83 @@ static struct resource *iodyn_find_io_region(unsigned long base, int num,
 	return res;
 }
 
+static int iodyn_find_io(struct pcmcia_socket *s, unsigned int attr,
+			unsigned int *base, unsigned int num,
+			unsigned int align)
+{
+	int i, ret = 0;
+
+	/* Check for an already-allocated window that must conflict with
+	 * what was asked for.  It is a hack because it does not catch all
+	 * potential conflicts, just the most obvious ones.
+	 */
+	for (i = 0; i < MAX_IO_WIN; i++) {
+		if (!s->io[i].res)
+			continue;
+
+		if (!*base)
+			continue;
+
+		if ((s->io[i].res->start & (align-1)) == *base)
+			return -EBUSY;
+	}
+
+	for (i = 0; i < MAX_IO_WIN; i++) {
+		struct resource *res = s->io[i].res;
+		unsigned int try;
+
+		if (res && (res->flags & IORESOURCE_BITS) !=
+			(attr & IORESOURCE_BITS))
+			continue;
+
+		if (!res) {
+			if (align == 0)
+				align = 0x10000;
+
+			res = s->io[i].res = __iodyn_find_io_region(s, *base,
+								num, align);
+			if (!res)
+				return -EINVAL;
+
+			*base = res->start;
+			s->io[i].res->flags =
+				((res->flags & ~IORESOURCE_BITS) |
+					(attr & IORESOURCE_BITS));
+			s->io[i].InUse = num;
+			return 0;
+		}
+
+		/* Try to extend top of window */
+		try = res->end + 1;
+		if ((*base == 0) || (*base == try)) {
+			if (adjust_resource(s->io[i].res, res->start,
+					res->end - res->start + num + 1))
+				continue;
+			*base = try;
+			s->io[i].InUse += num;
+			return 0;
+		}
+
+		/* Try to extend bottom of window */
+		try = res->start - num;
+		if ((*base == 0) || (*base == try)) {
+			if (adjust_resource(s->io[i].res,
+					res->start - num,
+					res->end - res->start + num + 1))
+				continue;
+			*base = try;
+			s->io[i].InUse += num;
+			return 0;
+		}
+	}
+
+	return -EINVAL;
+}
+
+
 struct pccard_resource_ops pccard_iodyn_ops = {
 	.validate_mem = NULL,
-	.adjust_io_region = iodyn_adjust_io_region,
-	.find_io = iodyn_find_io_region,
+	.find_io = iodyn_find_io,
 	.find_mem = NULL,
 	.add_io = NULL,
 	.add_mem = NULL,

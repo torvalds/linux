@@ -52,13 +52,11 @@ struct cis_cache_entry {
 
 struct pccard_resource_ops {
 	int	(*validate_mem)		(struct pcmcia_socket *s);
-	int	(*adjust_io_region)	(struct resource *res,
-					 unsigned long r_start,
-					 unsigned long r_end,
-					 struct pcmcia_socket *s);
-	struct resource* (*find_io)	(unsigned long base, int num,
-					 unsigned long align,
-					 struct pcmcia_socket *s);
+	int	(*find_io)		(struct pcmcia_socket *s,
+					 unsigned int attr,
+					 unsigned int *base,
+					 unsigned int num,
+					 unsigned int align);
 	struct resource* (*find_mem)	(unsigned long base, unsigned long num,
 					 unsigned long align, int low,
 					 struct pcmcia_socket *s);

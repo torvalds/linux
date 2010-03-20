@@ -40,23 +40,6 @@ static int io_speed;
 module_param(io_speed, int, 0444);
 
 
-static int pcmcia_adjust_io_region(struct resource *res, unsigned long start,
-				   unsigned long end, struct pcmcia_socket *s)
-{
-	if (s->resource_ops->adjust_io_region)
-		return s->resource_ops->adjust_io_region(res, start, end, s);
-	return -ENOMEM;
-}
-
-static struct resource *pcmcia_find_io_region(unsigned long base, int num,
-					      unsigned long align,
-					      struct pcmcia_socket *s)
-{
-	if (s->resource_ops->find_io)
-		return s->resource_ops->find_io(base, num, align, s);
-	return NULL;
-}
-
 int pcmcia_validate_mem(struct pcmcia_socket *s)
 {
 	if (s->resource_ops->validate_mem)
@@ -82,8 +65,7 @@ struct resource *pcmcia_find_mem_region(u_long base, u_long num, u_long align,
 static int alloc_io_space(struct pcmcia_socket *s, u_int attr,
 			  unsigned int *base, unsigned int num, u_int lines)
 {
-	int i;
-	unsigned int try, align;
+	unsigned int align;
 
 	align = (*base) ? (lines ? 1<<lines : 0) : 1;
 	if (align && (align < num)) {
@@ -100,50 +82,8 @@ static int alloc_io_space(struct pcmcia_socket *s, u_int attr,
 		       *base, align);
 		align = 0;
 	}
-	if ((s->features & SS_CAP_STATIC_MAP) && s->io_offset) {
-		*base = s->io_offset | (*base & 0x0fff);
-		return 0;
-	}
-	/* Check for an already-allocated window that must conflict with
-	 * what was asked for.  It is a hack because it does not catch all
-	 * potential conflicts, just the most obvious ones.
-	 */
-	for (i = 0; i < MAX_IO_WIN; i++)
-		if ((s->io[i].res) && *base &&
-		    ((s->io[i].res->start & (align-1)) == *base))
-			return 1;
-	for (i = 0; i < MAX_IO_WIN; i++) {
-		if (!s->io[i].res) {
-			s->io[i].res = pcmcia_find_io_region(*base, num, align, s);
-			if (s->io[i].res) {
-				*base = s->io[i].res->start;
-				s->io[i].res->flags = (s->io[i].res->flags & ~IORESOURCE_BITS) | (attr & IORESOURCE_BITS);
-				s->io[i].InUse = num;
-				break;
-			} else
-				return 1;
-		} else if ((s->io[i].res->flags & IORESOURCE_BITS) != (attr & IORESOURCE_BITS))
-			continue;
-		/* Try to extend top of window */
-		try = s->io[i].res->end + 1;
-		if ((*base == 0) || (*base == try))
-			if (pcmcia_adjust_io_region(s->io[i].res, s->io[i].res->start,
-						    s->io[i].res->end + num, s) == 0) {
-				*base = try;
-				s->io[i].InUse += num;
-				break;
-			}
-		/* Try to extend bottom of window */
-		try = s->io[i].res->start - num;
-		if ((*base == 0) || (*base == try))
-			if (pcmcia_adjust_io_region(s->io[i].res, s->io[i].res->start - num,
-						    s->io[i].res->end, s) == 0) {
-				*base = try;
-				s->io[i].InUse += num;
-				break;
-			}
-	}
-	return (i == MAX_IO_WIN);
+
+	return s->resource_ops->find_io(s, attr, base, num, align);
 } /* alloc_io_space */
 
 
@@ -683,7 +623,8 @@ EXPORT_SYMBOL(pcmcia_request_irq);
  * free_irq themselves, too), or the pcmcia_request_irq() function.
  */
 int __must_check
-pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev, irq_handler_t handler)
+__pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev,
+			irq_handler_t handler)
 {
 	int ret;
 
@@ -705,7 +646,7 @@ pcmcia_request_exclusive_irq(struct pcmcia_device *p_dev, irq_handler_t handler)
 
 	return ret;
 } /* pcmcia_request_exclusive_irq */
-EXPORT_SYMBOL(pcmcia_request_exclusive_irq);
+EXPORT_SYMBOL(__pcmcia_request_exclusive_irq);
 
 
 #ifdef CONFIG_PCMCIA_PROBE

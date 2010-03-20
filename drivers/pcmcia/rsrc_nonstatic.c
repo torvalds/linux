@@ -649,8 +649,9 @@ pcmcia_align(void *align_data, const struct resource *res,
  * Adjust an existing IO region allocation, but making sure that we don't
  * encroach outside the resources which the user supplied.
  */
-static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_start,
-				      unsigned long r_end, struct pcmcia_socket *s)
+static int __nonstatic_adjust_io_region(struct pcmcia_socket *s,
+					unsigned long r_start,
+					unsigned long r_end)
 {
 	struct resource_map *m;
 	struct socket_data *s_data = s->resource_data;
@@ -663,8 +664,7 @@ static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_star
 		if (start > r_start || r_end > end)
 			continue;
 
-		ret = adjust_resource(res, r_start, r_end - r_start + 1);
-		break;
+		ret = 0;
 	}
 
 	return ret;
@@ -683,8 +683,9 @@ static int nonstatic_adjust_io_region(struct resource *res, unsigned long r_star
 
 ======================================================================*/
 
-static struct resource *nonstatic_find_io_region(unsigned long base, int num,
-		   unsigned long align, struct pcmcia_socket *s)
+static struct resource *__nonstatic_find_io_region(struct pcmcia_socket *s,
+						unsigned long base, int num,
+						unsigned long align)
 {
 	struct resource *res = pcmcia_make_resource(0, num, IORESOURCE_IO,
 						dev_name(&s->dev));
@@ -692,9 +693,6 @@ static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 	struct pcmcia_align_data data;
 	unsigned long min = base;
 	int ret;
-
-	if (align == 0)
-		align = 0x10000;
 
 	data.mask = align - 1;
 	data.offset = base & data.mask;
@@ -715,6 +713,92 @@ static struct resource *nonstatic_find_io_region(unsigned long base, int num,
 	}
 	return res;
 }
+
+static int nonstatic_find_io(struct pcmcia_socket *s, unsigned int attr,
+			unsigned int *base, unsigned int num,
+			unsigned int align)
+{
+	int i, ret = 0;
+
+	/* Check for an already-allocated window that must conflict with
+	 * what was asked for.  It is a hack because it does not catch all
+	 * potential conflicts, just the most obvious ones.
+	 */
+	for (i = 0; i < MAX_IO_WIN; i++) {
+		if (!s->io[i].res)
+			continue;
+
+		if (!*base)
+			continue;
+
+		if ((s->io[i].res->start & (align-1)) == *base)
+			return -EBUSY;
+	}
+
+	for (i = 0; i < MAX_IO_WIN; i++) {
+		struct resource *res = s->io[i].res;
+		unsigned int try;
+
+		if (res && (res->flags & IORESOURCE_BITS) !=
+			(attr & IORESOURCE_BITS))
+			continue;
+
+		if (!res) {
+			if (align == 0)
+				align = 0x10000;
+
+			res = s->io[i].res = __nonstatic_find_io_region(s,
+								*base, num,
+								align);
+			if (!res)
+				return -EINVAL;
+
+			*base = res->start;
+			s->io[i].res->flags =
+				((res->flags & ~IORESOURCE_BITS) |
+					(attr & IORESOURCE_BITS));
+			s->io[i].InUse = num;
+			return 0;
+		}
+
+		/* Try to extend top of window */
+		try = res->end + 1;
+		if ((*base == 0) || (*base == try)) {
+			ret =  __nonstatic_adjust_io_region(s, res->start,
+							res->end + num);
+			if (!ret) {
+				ret = adjust_resource(s->io[i].res, res->start,
+					       res->end - res->start + num + 1);
+				if (ret)
+					continue;
+				*base = try;
+				s->io[i].InUse += num;
+				return 0;
+			}
+		}
+
+		/* Try to extend bottom of window */
+		try = res->start - num;
+		if ((*base == 0) || (*base == try)) {
+			ret =  __nonstatic_adjust_io_region(s,
+							res->start - num,
+							res->end);
+			if (!ret) {
+				ret = adjust_resource(s->io[i].res,
+					       res->start - num,
+					       res->end - res->start + num + 1);
+				if (ret)
+					continue;
+				*base = try;
+				s->io[i].InUse += num;
+				return 0;
+			}
+		}
+	}
+
+	return -EINVAL;
+}
+
 
 static struct resource *nonstatic_find_mem_region(u_long base, u_long num,
 		u_long align, int low, struct pcmcia_socket *s)
@@ -946,8 +1030,7 @@ static void nonstatic_release_resource_db(struct pcmcia_socket *s)
 
 struct pccard_resource_ops pccard_nonstatic_ops = {
 	.validate_mem = pcmcia_nonstatic_validate_mem,
-	.adjust_io_region = nonstatic_adjust_io_region,
-	.find_io = nonstatic_find_io_region,
+	.find_io = nonstatic_find_io,
 	.find_mem = nonstatic_find_mem_region,
 	.add_io = adjust_io,
 	.add_mem = adjust_memory,
