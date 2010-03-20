@@ -41,7 +41,7 @@ config ARCH_MSM8X60
 	select CPU_V7
 	select MSM_V2_TLMM
 	select MSM_GPIOMUX
-	select MACH_MSM8X60_RUMI3 if (!MACH_MSM8X60_RUMI3)
+	select MACH_MSM8X60_SURF if (!MACH_MSM8X60_RUMI3)
 
 endchoice
 
@@ -99,6 +99,12 @@ config MACH_MSM8X60_RUMI3
 	bool "MSM8x60 RUMI3"
 	help
 	  Support for the Qualcomm MSM8x60 RUMI3 emulator.
+
+config MACH_MSM8X60_SURF
+	depends on ARCH_MSM8X60
+	bool "MSM8x60 SURF"
+	help
+	  Support for the Qualcomm MSM8x60 SURF eval board.
 
 endmenu
 
