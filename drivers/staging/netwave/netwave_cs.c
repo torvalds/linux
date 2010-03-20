@@ -61,7 +61,6 @@
 #include <pcmcia/cistpl.h>
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/mem_op.h>
 
 #include <asm/system.h>
 #include <asm/io.h>

@@ -93,7 +93,6 @@ earlier 3Com products.
 #include <pcmcia/cisreg.h>
 #include <pcmcia/ciscode.h>
 #include <pcmcia/ds.h>
-#include <pcmcia/mem_op.h>
 
 #include <asm/uaccess.h>
 #include <asm/io.h>
