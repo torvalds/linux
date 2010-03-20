@@ -85,6 +85,7 @@ struct wacom_wac {
 	__u32 serial[2];
 	struct wacom_features features;
 	struct wacom_shared *shared;
+	struct input_dev *input;
 };
 
 #endif
