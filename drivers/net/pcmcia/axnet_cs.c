@@ -113,7 +113,6 @@ static irqreturn_t ax_interrupt(int irq, void *dev_id);
 
 typedef struct axnet_dev_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t		node;
     caddr_t		base;
     struct timer_list	watchdog;
     int			stale, fast_poll;
@@ -194,8 +193,7 @@ static void axnet_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "axnet_detach(0x%p)\n", link);
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     axnet_release(link);
 
@@ -392,16 +390,12 @@ static int axnet_config(struct pcmcia_device *link)
     }
 
     info->phy_id = (i < 32) ? i : -1;
-    link->dev_node = &info->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "axnet_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(info->node.dev_name, dev->name);
 
     printk(KERN_INFO "%s: Asix AX88%d90: io %#3lx, irq %d, "
 	   "hw_addr %pM\n",

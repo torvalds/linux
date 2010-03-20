@@ -1451,6 +1451,8 @@ static void wl3501_detach(struct pcmcia_device *link)
 	netif_device_detach(dev);
 	wl3501_release(link);
 
+	unregister_netdev(dev);
+
 	if (link->priv)
 		free_netdev(link->priv);
 
@@ -1977,20 +1979,15 @@ static int wl3501_config(struct pcmcia_device *link)
 	}
 
 	this = netdev_priv(dev);
-	/*
-	 * At this point, the dev_node_t structure(s) should be initialized and
-	 * arranged in a linked list at link->dev_node.
-	 */
-	link->dev_node = &this->node;
 
 	this->base_addr = dev->base_addr;
 
 	if (!wl3501_get_flash_mac_addr(this)) {
 		printk(KERN_WARNING "%s: Cant read MAC addr in flash ROM?\n",
 		       dev->name);
+		unregister_netdev(dev);
 		goto failed;
 	}
-	strcpy(this->node.dev_name, dev->name);
 
 	for (i = 0; i < 6; i++)
 		dev->dev_addr[i] = ((char *)&this->mac_addr)[i];
@@ -2034,12 +2031,6 @@ failed:
  */
 static void wl3501_release(struct pcmcia_device *link)
 {
-	struct net_device *dev = link->priv;
-
-	/* Unlink the device chain */
-	if (link->dev_node)
-		unregister_netdev(dev);
-
 	pcmcia_disable_device(link);
 }
 

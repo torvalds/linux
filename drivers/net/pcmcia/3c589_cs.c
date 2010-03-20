@@ -106,7 +106,6 @@ enum RxFilter {
 
 struct el3_private {
 	struct pcmcia_device	*p_dev;
-    dev_node_t 		node;
     /* For transceiver monitoring */
     struct timer_list	media;
     u16			media_status;
@@ -222,8 +221,7 @@ static void tc589_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "3c589_detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     tc589_release(link);
 
@@ -241,7 +239,6 @@ static void tc589_detach(struct pcmcia_device *link)
 static int tc589_config(struct pcmcia_device *link)
 {
     struct net_device *dev = link->priv;
-    struct el3_private *lp = netdev_priv(dev);
     __be16 *phys_addr;
     int ret, i, j, multi = 0, fifo;
     unsigned int ioaddr;
@@ -312,16 +309,12 @@ static int tc589_config(struct pcmcia_device *link)
     else
 	printk(KERN_ERR "3c589_cs: invalid if_port requested\n");
     
-    link->dev_node = &lp->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_ERR "3c589_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(lp->node.dev_name, dev->name);
 
     printk(KERN_INFO "%s: 3Com 3c%s, io %#3lx, irq %d, "
 	   "hw_addr %pM\n",

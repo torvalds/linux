@@ -103,7 +103,6 @@ struct smc_private {
     u_short			manfid;
     u_short			cardid;
 
-    dev_node_t			node;
     struct sk_buff		*saved_skb;
     int				packets_waiting;
     void			__iomem *base;
@@ -323,7 +322,6 @@ static int smc91c92_probe(struct pcmcia_device *link)
 	return -ENOMEM;
     smc = netdev_priv(dev);
     smc->p_dev = link;
-    link->priv = dev;
 
     spin_lock_init(&smc->lock);
     link->io.NumPorts1 = 16;
@@ -361,8 +359,7 @@ static void smc91c92_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "smc91c92_detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     smc91c92_release(link);
 
@@ -956,16 +953,12 @@ static int smc91c92_config(struct pcmcia_device *link)
 	SMC_SELECT_BANK(0);
     }
 
-    link->dev_node = &smc->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_ERR "smc91c92_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto config_undo;
     }
-
-    strcpy(smc->node.dev_name, dev->name);
 
     printk(KERN_INFO "%s: smc91c%s rev %d: io %#3lx, irq %d, "
 	   "hw_addr %pM\n",

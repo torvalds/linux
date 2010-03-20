@@ -208,7 +208,6 @@ static hw_info_t dl10022_info = { 0, 0, 0, 0, IS_DL10022|HAS_MII };
 
 typedef struct pcnet_dev_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t		node;
     u_int		flags;
     void		__iomem *base;
     struct timer_list	watchdog;
@@ -287,8 +286,7 @@ static void pcnet_detach(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "pcnet_detach\n");
 
-	if (link->dev_node)
-		unregister_netdev(dev);
+	unregister_netdev(dev);
 
 	pcnet_release(link);
 
@@ -639,16 +637,12 @@ static int pcnet_config(struct pcmcia_device *link)
     if (info->flags & (IS_DL10019|IS_DL10022))
 	mii_phy_probe(dev);
 
-    link->dev_node = &info->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "pcnet_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(info->node.dev_name, dev->name);
 
     if (info->flags & (IS_DL10019|IS_DL10022)) {
 	u_char id = inb(dev->base_addr + 0x1a);

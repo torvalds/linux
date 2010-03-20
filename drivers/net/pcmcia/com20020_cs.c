@@ -122,7 +122,6 @@ static void com20020_detach(struct pcmcia_device *p_dev);
 
 typedef struct com20020_dev_t {
     struct net_device       *dev;
-    dev_node_t          node;
 } com20020_dev_t;
 
 /*======================================================================
@@ -195,18 +194,16 @@ static void com20020_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "com20020_detach\n");
 
-    if (link->dev_node) {
-	dev_dbg(&link->dev, "unregister...\n");
+    dev_dbg(&link->dev, "unregister...\n");
 
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
-	/*
-	 * this is necessary because we register our IRQ separately
-	 * from card services.
-	 */
-	if (dev->irq)
+    /*
+     * this is necessary because we register our IRQ separately
+     * from card services.
+     */
+    if (dev->irq)
 	    free_irq(dev->irq, dev);
-    }
 
     com20020_release(link);
 
@@ -297,7 +294,6 @@ static int com20020_config(struct pcmcia_device *link)
     lp->card_name = "PCMCIA COM20020";
     lp->card_flags = ARC_CAN_10MBIT; /* pretend all of them can 10Mbit */
 
-    link->dev_node = &info->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     i = com20020_found(dev, 0);	/* calls register_netdev */
@@ -305,11 +301,8 @@ static int com20020_config(struct pcmcia_device *link)
     if (i != 0) {
 	dev_printk(KERN_NOTICE, &link->dev,
 		"com20020_cs: com20020_found() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(info->node.dev_name, dev->name);
 
     dev_dbg(&link->dev,KERN_INFO "%s: port %#3lx, irq %d\n",
            dev->name, dev->base_addr, dev->irq);

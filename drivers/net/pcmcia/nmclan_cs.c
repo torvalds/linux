@@ -363,7 +363,6 @@ typedef struct _mace_statistics {
 
 typedef struct _mace_private {
 	struct pcmcia_device	*p_dev;
-    dev_node_t node;
     struct net_device_stats linux_stats; /* Linux statistics counters */
     mace_statistics mace_stats; /* MACE chip statistics counters */
 
@@ -491,8 +490,7 @@ static void nmclan_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "nmclan_detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     nmclan_release(link);
 
@@ -696,17 +694,13 @@ static int nmclan_config(struct pcmcia_device *link)
   else
     printk(KERN_NOTICE "nmclan_cs: invalid if_port requested\n");
 
-  link->dev_node = &lp->node;
   SET_NETDEV_DEV(dev, &link->dev);
 
   i = register_netdev(dev);
   if (i != 0) {
     printk(KERN_NOTICE "nmclan_cs: register_netdev() failed\n");
-    link->dev_node = NULL;
     goto failed;
   }
-
-  strcpy(lp->node.dev_name, dev->name);
 
   printk(KERN_INFO "%s: nmclan: port %#3lx, irq %d, %s port,"
 	 " hw_addr %pM\n",

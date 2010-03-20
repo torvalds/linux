@@ -379,8 +379,7 @@ static void ray_detach(struct pcmcia_device *link)
 	del_timer(&local->timer);
 
 	if (link->priv) {
-		if (link->dev_node)
-			unregister_netdev(dev);
+		unregister_netdev(dev);
 		free_netdev(dev);
 	}
 	dev_dbg(&link->dev, "ray_cs ray_detach ending\n");
@@ -488,9 +487,6 @@ static int ray_config(struct pcmcia_device *link)
 		ray_release(link);
 		return i;
 	}
-
-	strcpy(local->node.dev_name, dev->name);
-	link->dev_node = &local->node;
 
 	printk(KERN_INFO "%s: RayLink, irq %d, hw_addr %pM\n",
 	       dev->name, dev->irq, dev->dev_addr);

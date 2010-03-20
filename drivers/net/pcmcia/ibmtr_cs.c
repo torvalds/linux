@@ -104,7 +104,6 @@ static void ibmtr_detach(struct pcmcia_device *p_dev);
 typedef struct ibmtr_dev_t {
 	struct pcmcia_device	*p_dev;
     struct net_device	*dev;
-    dev_node_t          node;
     window_handle_t     sram_win_handle;
     struct tok_info	*ti;
 } ibmtr_dev_t;
@@ -190,8 +189,7 @@ static void ibmtr_detach(struct pcmcia_device *link)
      */
     ti->sram_phys |= 1;
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
     
     del_timer_sync(&(ti->tr_timer));
 
@@ -289,17 +287,13 @@ static int __devinit ibmtr_config(struct pcmcia_device *link)
         Adapters Technical Reference"  SC30-3585 for this info.  */
     ibmtr_hw_setup(dev, mmiobase);
 
-    link->dev_node = &info->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     i = ibmtr_probe_card(dev);
     if (i != 0) {
 	printk(KERN_NOTICE "ibmtr_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(info->node.dev_name, dev->name);
 
     printk(KERN_INFO
 	   "%s: port %#3lx, irq %d,  mmio %#5lx, sram %#5lx, hwaddr=%pM\n",

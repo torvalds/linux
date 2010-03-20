@@ -297,31 +297,9 @@ static void xirc2ps_detach(struct pcmcia_device *p_dev);
 
 static irqreturn_t xirc2ps_interrupt(int irq, void *dev_id);
 
-/****************
- * A linked list of "instances" of the device.  Each actual
- * PCMCIA card corresponds to one device instance, and is described
- * by one struct pcmcia_device structure (defined in ds.h).
- *
- * You may not want to use a linked list for this -- for example, the
- * memory card driver uses an array of struct pcmcia_device pointers, where minor
- * device numbers are used to derive the corresponding array index.
- */
-
-/****************
- * A driver needs to provide a dev_node_t structure for each device
- * on a card.  In some cases, there is only one device per card (for
- * example, ethernet cards, modems).  In other cases, there may be
- * many actual or logical devices (SCSI adapters, memory cards with
- * multiple partitions).  The dev_node_t structures need to be kept
- * in a linked list starting at the 'dev' field of a struct pcmcia_device
- * structure.  We allocate them in the card's private data structure,
- * because they generally can't be allocated dynamically.
- */
-
 typedef struct local_info_t {
 	struct net_device	*dev;
 	struct pcmcia_device	*p_dev;
-    dev_node_t node;
 
     int card_type;
     int probe_port;
@@ -579,8 +557,7 @@ xirc2ps_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     xirc2ps_release(link);
 
@@ -985,16 +962,12 @@ xirc2ps_config(struct pcmcia_device * link)
     if (local->dingo)
 	do_reset(dev, 1); /* a kludge to make the cem56 work */
 
-    link->dev_node = &local->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if ((err=register_netdev(dev))) {
 	printk(KNOT_XIRC "register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto config_error;
     }
-
-    strcpy(local->node.dev_name, dev->name);
 
     /* give some infos about the hardware */
     printk(KERN_INFO "%s: %s: port %#3lx, irq %d, hwaddr %pM\n",

@@ -110,7 +110,6 @@ typedef enum { MBH10302, MBH10304, TDK, CONTEC, LA501, UNGERMANN,
 */
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t node;
     long open_time;
     uint tx_started:1;
     uint tx_queue;
@@ -274,8 +273,7 @@ static void fmvj18x_detach(struct pcmcia_device *link)
 
     dev_dbg(&link->dev, "fmvj18x_detach\n");
 
-    if (link->dev_node)
-	unregister_netdev(dev);
+    unregister_netdev(dev);
 
     fmvj18x_release(link);
 
@@ -523,16 +521,12 @@ static int fmvj18x_config(struct pcmcia_device *link)
     }
 
     lp->cardtype = cardtype;
-    link->dev_node = &lp->node;
     SET_NETDEV_DEV(dev, &link->dev);
 
     if (register_netdev(dev) != 0) {
 	printk(KERN_NOTICE "fmvj18x_cs: register_netdev() failed\n");
-	link->dev_node = NULL;
 	goto failed;
     }
-
-    strcpy(lp->node.dev_name, dev->name);
 
     /* print current configuration */
     printk(KERN_INFO "%s: %s, sram %s, port %#3lx, irq %d, "

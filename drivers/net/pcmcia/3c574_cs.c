@@ -200,7 +200,6 @@ enum Window4 {		/* Window 4: Xcvr/media bits. */
 
 struct el3_private {
 	struct pcmcia_device	*p_dev;
-	dev_node_t node;
 	u16 advertising, partner;		/* NWay media advertisement */
 	unsigned char phys;			/* MII device address */
 	unsigned int autoselect:1, default_media:3;	/* Read from the EEPROM/Wn3_Config. */
@@ -309,8 +308,7 @@ static void tc574_detach(struct pcmcia_device *link)
 
 	dev_dbg(&link->dev, "3c574_detach()\n");
 
-	if (link->dev_node)
-		unregister_netdev(dev);
+	unregister_netdev(dev);
 
 	tc574_release(link);
 
@@ -444,16 +442,12 @@ static int tc574_config(struct pcmcia_device *link)
 		}
 	}
 
-	link->dev_node = &lp->node;
 	SET_NETDEV_DEV(dev, &link->dev);
 
 	if (register_netdev(dev) != 0) {
 		printk(KERN_NOTICE "3c574_cs: register_netdev() failed\n");
-		link->dev_node = NULL;
 		goto failed;
 	}
-
-	strcpy(lp->node.dev_name, dev->name);
 
 	printk(KERN_INFO "%s: %s at io %#3lx, irq %d, "
 	       "hw_addr %pM.\n",
