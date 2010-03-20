@@ -289,6 +289,7 @@ static int wis_saa7113_probe(struct i2c_client *client,
 	if (write_regs(client, initial_registers) < 0) {
 		printk(KERN_ERR
 			"wis-saa7113: error initializing SAA7113\n");
+		i2c_set_clientdata(client, NULL);
 		kfree(dec);
 		return -ENODEV;
 	}
