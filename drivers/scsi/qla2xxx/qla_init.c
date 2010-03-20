@@ -340,7 +340,7 @@ qla2x00_initialize_adapter(scsi_qla_host_t *vha)
 	ha->flags.chip_reset_done = 1;
 
 	if (rval == QLA_SUCCESS && IS_QLA84XX(ha)) {
-	/* Issue verify 84xx FW IOCB to complete 84xx initialization */
+		/* Issue verify 84xx FW IOCB to complete 84xx initialization */
 		rval = qla84xx_init_chip(vha);
 		if (rval != QLA_SUCCESS) {
 			qla_printk(KERN_ERR, ha,
@@ -4924,7 +4924,7 @@ qla81xx_update_fw_options(scsi_qla_host_t *vha)
  *	fcport = port structure pointer.
  *
  * Return:
- * 	non-zero (if found)
+ *	non-zero (if found)
  * 	0 (if not found)
  *
  * Context:

@@ -1177,15 +1177,13 @@ qla24xx_84xx_fw_version_show(struct device *dev,
 	scsi_qla_host_t *vha = shost_priv(class_to_shost(dev));
 	struct qla_hw_data *ha = vha->hw;
 
-	if (IS_QLA84XX(ha) && ha->cs84xx) {
-		if (ha->cs84xx->op_fw_version == 0) {
+	if (IS_QLA84XX(ha) && ha->cs84xx)
+		if (ha->cs84xx->op_fw_version == 0)
 			rval = qla84xx_verify_chip(vha, status);
-	}
 
 	if ((rval == QLA_SUCCESS) && (status[0] == 0))
 		return snprintf(buf, PAGE_SIZE, "%u\n",
 			(uint32_t)ha->cs84xx->op_fw_version);
-	}
 
 	return snprintf(buf, PAGE_SIZE, "\n");
 }

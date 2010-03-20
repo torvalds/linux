@@ -3840,7 +3840,7 @@ qla2x00_write_ram_word(scsi_qla_host_t *vha, uint32_t risc_addr, uint32_t data)
 	mbx_cmd_t *mcp = &mc;
 
 	if (!IS_FWI2_CAPABLE(vha->hw))
-                return QLA_FUNCTION_FAILED;
+		return QLA_FUNCTION_FAILED;
 
 	DEBUG11(printk("%s(%ld): entered.\n", __func__, vha->host_no));
 
