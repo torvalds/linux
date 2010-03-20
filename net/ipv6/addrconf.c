@@ -2456,6 +2456,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 				return notifier_from_errno(-ENOMEM);
 		}
 		break;
+
 	case NETDEV_UP:
 	case NETDEV_CHANGE:
 		if (dev->flags & IFF_SLAVE)
@@ -2485,10 +2486,9 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			}
 
 			if (idev) {
-				if (idev->if_flags & IF_READY) {
+				if (idev->if_flags & IF_READY)
 					/* device is already configured. */
 					break;
-				}
 				idev->if_flags |= IF_READY;
 			}
 
@@ -2517,25 +2517,30 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 			addrconf_dev_config(dev);
 			break;
 		}
+
 		if (idev) {
 			if (run_pending)
 				addrconf_dad_run(idev);
 
-			/* If the MTU changed during the interface down, when the
-			   interface up, the changed MTU must be reflected in the
-			   idev as well as routers.
+			/*
+			 * If the MTU changed during the interface down,
+			 * when the interface up, the changed MTU must be
+			 * reflected in the idev as well as routers.
 			 */
-			if (idev->cnf.mtu6 != dev->mtu && dev->mtu >= IPV6_MIN_MTU) {
+			if (idev->cnf.mtu6 != dev->mtu &&
+			    dev->mtu >= IPV6_MIN_MTU) {
 				rt6_mtu_change(dev, dev->mtu);
 				idev->cnf.mtu6 = dev->mtu;
 			}
 			idev->tstamp = jiffies;
 			inet6_ifinfo_notify(RTM_NEWLINK, idev);
-			/* If the changed mtu during down is lower than IPV6_MIN_MTU
-			   stop IPv6 on this interface.
+
+			/*
+			 * If the changed mtu during down is lower than
+			 * IPV6_MIN_MTU stop IPv6 on this interface.
 			 */
 			if (dev->mtu < IPV6_MIN_MTU)
-				addrconf_ifdown(dev, event != NETDEV_DOWN);
+				addrconf_ifdown(dev, 1);
 		}
 		break;
 
@@ -2552,7 +2557,10 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 				break;
 		}
 
-		/* MTU falled under IPV6_MIN_MTU. Stop IPv6 on this interface. */
+		/*
+		 * MTU falled under IPV6_MIN_MTU.
+		 * Stop IPv6 on this interface.
+		 */
 
 	case NETDEV_DOWN:
 	case NETDEV_UNREGISTER:
@@ -2572,6 +2580,7 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
 				return notifier_from_errno(err);
 		}
 		break;
+
 	case NETDEV_PRE_TYPE_CHANGE:
 	case NETDEV_POST_TYPE_CHANGE:
 		addrconf_type_change(dev, event);
@@ -2586,7 +2595,6 @@ static int addrconf_notify(struct notifier_block *this, unsigned long event,
  */
 static struct notifier_block ipv6_dev_notf = {
 	.notifier_call = addrconf_notify,
-	.priority = 0
 };
 
 static void addrconf_type_change(struct net_device *dev, unsigned long event)
@@ -2618,8 +2626,9 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	if (idev == NULL)
 		return -ENODEV;
 
-	/* Step 1: remove reference to ipv6 device from parent device.
-		   Do not dev_put!
+	/*
+	 * Step 1: remove reference to ipv6 device from parent device.
+	 *	   Do not dev_put!
 	 */
 	if (how) {
 		idev->dead = 1;
@@ -2634,16 +2643,15 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	write_lock_bh(&idev->lock);
 
-	/* Step 3: clear flags for stateless addrconf */
+	/* Step 2: clear flags for stateless addrconf */
 	if (!how)
 		idev->if_flags &= ~(IF_RS_SENT|IF_RA_RCVD|IF_READY);
 
-	/* Step 4: clear address list */
 #ifdef CONFIG_IPV6_PRIVACY
 	if (how && del_timer(&idev->regen_timer))
 		in6_dev_put(idev);
 
-	/* clear tempaddr list */
+	/* Step 3: clear tempaddr list */
 	while (!list_empty(&idev->tempaddr_list)) {
 		ifa = list_first_entry(&idev->tempaddr_list,
 				       struct inet6_ifaddr, tmp_list);
@@ -2669,7 +2677,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 		/* If just doing link down, and address is permanent
 		   and not link-local, then retain it. */
-		if (how == 0 &&
+		if (!how &&
 		    (ifa->flags&IFA_F_PERMANENT) &&
 		    !(ipv6_addr_type(&ifa->addr) & IPV6_ADDR_LINKLOCAL)) {
 			list_move_tail(&ifa->if_list, &keep_list);
@@ -2711,7 +2719,6 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 	write_unlock_bh(&idev->lock);
 
 	/* Step 5: Discard multicast list */
-
 	if (how)
 		ipv6_mc_destroy_dev(idev);
 	else
@@ -2719,8 +2726,7 @@ static int addrconf_ifdown(struct net_device *dev, int how)
 
 	idev->tstamp = jiffies;
 
-	/* Shot the device (if unregistered) */
-
+	/* Last: Shot the device (if unregistered) */
 	if (how) {
 		addrconf_sysctl_unregister(idev);
 		neigh_parms_release(&nd_tbl, idev->nd_parms);
@@ -3108,8 +3114,7 @@ static void addrconf_verify(unsigned long foo)
 
 	del_timer(&addr_chk_timer);
 
-	for (i=0; i < IN6_ADDR_HSIZE; i++) {
-
+	for (i = 0; i < IN6_ADDR_HSIZE; i++) {
 restart:
 		hlist_for_each_entry_rcu(ifp, node,
 					 &inet6_addr_lst[i], addr_lst) {
@@ -4376,7 +4381,7 @@ static int __addrconf_sysctl_register(struct net *net, char *dev_name,
 	if (t == NULL)
 		goto out;
 
-	for (i=0; t->addrconf_vars[i].data; i++) {
+	for (i = 0; t->addrconf_vars[i].data; i++) {
 		t->addrconf_vars[i].data += (char*)p - (char*)&ipv6_devconf;
 		t->addrconf_vars[i].extra1 = idev; /* embedded; no ref */
 		t->addrconf_vars[i].extra2 = net;
