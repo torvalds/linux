@@ -34,8 +34,7 @@ int ipwireless_tty_init(void);
 void ipwireless_tty_release(void);
 
 struct ipw_tty *ipwireless_tty_create(struct ipw_hardware *hw,
-				      struct ipw_network *net,
-				      dev_node_t *nodes);
+				      struct ipw_network *net);
 void ipwireless_tty_free(struct ipw_tty *tty);
 void ipwireless_tty_received(struct ipw_tty *tty, unsigned char *data,
 			     unsigned int length);

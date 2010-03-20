@@ -228,8 +228,7 @@ static int config_ipwireless(struct ipw_dev *ipw)
 	if (!ipw->network)
 		goto exit;
 
-	ipw->tty = ipwireless_tty_create(ipw->hardware, ipw->network,
-			ipw->nodes);
+	ipw->tty = ipwireless_tty_create(ipw->hardware, ipw->network);
 	if (!ipw->tty)
 		goto exit;
 
@@ -243,8 +242,6 @@ static int config_ipwireless(struct ipw_dev *ipw)
 
 	if (ret != 0)
 		goto exit;
-
-	link->dev_node = &ipw->nodes[0];
 
 	return 0;
 
@@ -305,9 +302,6 @@ static int ipwireless_attach(struct pcmcia_device *link)
 
 	ipw->link = link;
 	link->priv = ipw;
-
-	/* Link this device into our device list. */
-	link->dev_node = &ipw->nodes[0];
 
 	ipw->hardware = ipwireless_hardware_create();
 	if (!ipw->hardware) {
