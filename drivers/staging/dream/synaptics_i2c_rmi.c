@@ -535,6 +535,7 @@ err_input_register_device_failed:
 err_input_dev_alloc_failed:
 err_detect_failed:
 err_power_failed:
+	i2c_set_clientdata(client, NULL);
 	kfree(ts);
 err_alloc_data_failed:
 err_check_functionality_failed:
@@ -552,6 +553,7 @@ static int synaptics_ts_remove(struct i2c_client *client)
 	else
 		hrtimer_cancel(&ts->timer);
 	input_unregister_device(ts->input_dev);
+	i2c_set_clientdata(client, NULL);
 	kfree(ts);
 	return 0;
 }
