@@ -20,36 +20,36 @@ static int wacom_penpartner_irq(struct wacom_wac *wacom, void *wcombo)
 	unsigned char *data = wacom->data;
 
 	switch (data[0]) {
-		case 1:
-			if (data[5] & 0x80) {
-				wacom->tool[0] = (data[5] & 0x20) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
-				wacom->id[0] = (data[5] & 0x20) ? ERASER_DEVICE_ID : STYLUS_DEVICE_ID;
-				wacom_report_key(wcombo, wacom->tool[0], 1);
-				wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]); /* report tool id */
-				wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[1]));
-				wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[3]));
-				wacom_report_abs(wcombo, ABS_PRESSURE, (signed char)data[6] + 127);
-				wacom_report_key(wcombo, BTN_TOUCH, ((signed char)data[6] > -127));
-				wacom_report_key(wcombo, BTN_STYLUS, (data[5] & 0x40));
-			} else {
-				wacom_report_key(wcombo, wacom->tool[0], 0);
-				wacom_report_abs(wcombo, ABS_MISC, 0); /* report tool id */
-				wacom_report_abs(wcombo, ABS_PRESSURE, -1);
-				wacom_report_key(wcombo, BTN_TOUCH, 0);
-			}
-			break;
-		case 2:
-			wacom_report_key(wcombo, BTN_TOOL_PEN, 1);
-			wacom_report_abs(wcombo, ABS_MISC, STYLUS_DEVICE_ID); /* report tool id */
+	case 1:
+		if (data[5] & 0x80) {
+			wacom->tool[0] = (data[5] & 0x20) ? BTN_TOOL_RUBBER : BTN_TOOL_PEN;
+			wacom->id[0] = (data[5] & 0x20) ? ERASER_DEVICE_ID : STYLUS_DEVICE_ID;
+			wacom_report_key(wcombo, wacom->tool[0], 1);
+			wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]); /* report tool id */
 			wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[1]));
 			wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[3]));
 			wacom_report_abs(wcombo, ABS_PRESSURE, (signed char)data[6] + 127);
-			wacom_report_key(wcombo, BTN_TOUCH, ((signed char)data[6] > -80) && !(data[5] & 0x20));
+			wacom_report_key(wcombo, BTN_TOUCH, ((signed char)data[6] > -127));
 			wacom_report_key(wcombo, BTN_STYLUS, (data[5] & 0x40));
-			break;
-		default:
-			printk(KERN_INFO "wacom_penpartner_irq: received unknown report #%d\n", data[0]);
-			return 0;
+		} else {
+			wacom_report_key(wcombo, wacom->tool[0], 0);
+			wacom_report_abs(wcombo, ABS_MISC, 0); /* report tool id */
+			wacom_report_abs(wcombo, ABS_PRESSURE, -1);
+			wacom_report_key(wcombo, BTN_TOUCH, 0);
+		}
+		break;
+	case 2:
+		wacom_report_key(wcombo, BTN_TOOL_PEN, 1);
+		wacom_report_abs(wcombo, ABS_MISC, STYLUS_DEVICE_ID); /* report tool id */
+		wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[1]));
+		wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[3]));
+		wacom_report_abs(wcombo, ABS_PRESSURE, (signed char)data[6] + 127);
+		wacom_report_key(wcombo, BTN_TOUCH, ((signed char)data[6] > -80) && !(data[5] & 0x20));
+		wacom_report_key(wcombo, BTN_STYLUS, (data[5] & 0x40));
+		break;
+	default:
+		printk(KERN_INFO "wacom_penpartner_irq: received unknown report #%d\n", data[0]);
+		return 0;
         }
 	return 1;
 }
@@ -222,7 +222,7 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 
 	/* send pad data */
 	switch (features->type) {
-	    case WACOM_G4:
+	case WACOM_G4:
 		prox = data[7] & 0xf8;
 		if (prox || wacom->id[1]) {
 			wacom->id[1] = PAD_DEVICE_ID;
@@ -239,7 +239,8 @@ static int wacom_graphire_irq(struct wacom_wac *wacom, void *wcombo)
 		}
 		retval = 1;
 		break;
-	    case WACOM_MO:
+
+	case WACOM_MO:
 		prox = (data[7] & 0xf8) || data[8];
 		if (prox || wacom->id[1]) {
 			wacom->id[1] = PAD_DEVICE_ID;
@@ -279,64 +280,73 @@ static int wacom_intuos_inout(struct wacom_wac *wacom, void *wcombo)
 			(data[6] << 4) + (data[7] >> 4);
 
 		wacom->id[idx] = (data[2] << 4) | (data[3] >> 4);
+
 		switch (wacom->id[idx]) {
-			case 0x812: /* Inking pen */
-			case 0x801: /* Intuos3 Inking pen */
-			case 0x20802: /* Intuos4 Classic Pen */
-			case 0x012:
-				wacom->tool[idx] = BTN_TOOL_PENCIL;
-				break;
-			case 0x822: /* Pen */
-			case 0x842:
-			case 0x852:
-			case 0x823: /* Intuos3 Grip Pen */
-			case 0x813: /* Intuos3 Classic Pen */
-			case 0x885: /* Intuos3 Marker Pen */
-			case 0x802: /* Intuos4 Grip Pen Eraser */
-			case 0x804: /* Intuos4 Marker Pen */
-			case 0x40802: /* Intuos4 Classic Pen */
-			case 0x022:
-				wacom->tool[idx] = BTN_TOOL_PEN;
-				break;
-			case 0x832: /* Stroke pen */
-			case 0x032:
-				wacom->tool[idx] = BTN_TOOL_BRUSH;
-				break;
-			case 0x007: /* Mouse 4D and 2D */
-		        case 0x09c:
-			case 0x094:
-			case 0x017: /* Intuos3 2D Mouse */
-			case 0x806: /* Intuos4 Mouse */
-				wacom->tool[idx] = BTN_TOOL_MOUSE;
-				break;
-			case 0x096: /* Lens cursor */
-			case 0x097: /* Intuos3 Lens cursor */
-			case 0x006: /* Intuos4 Lens cursor */
-				wacom->tool[idx] = BTN_TOOL_LENS;
-				break;
-			case 0x82a: /* Eraser */
-			case 0x85a:
-		        case 0x91a:
-			case 0xd1a:
-			case 0x0fa:
-			case 0x82b: /* Intuos3 Grip Pen Eraser */
-			case 0x81b: /* Intuos3 Classic Pen Eraser */
-			case 0x91b: /* Intuos3 Airbrush Eraser */
-			case 0x80c: /* Intuos4 Marker Pen Eraser */
-			case 0x80a: /* Intuos4 Grip Pen Eraser */
-			case 0x4080a: /* Intuos4 Classic Pen Eraser */
-			case 0x90a: /* Intuos4 Airbrush Eraser */
-				wacom->tool[idx] = BTN_TOOL_RUBBER;
-				break;
-			case 0xd12:
-			case 0x912:
-			case 0x112:
-			case 0x913: /* Intuos3 Airbrush */
-			case 0x902: /* Intuos4 Airbrush */
-				wacom->tool[idx] = BTN_TOOL_AIRBRUSH;
-				break;
-			default: /* Unknown tool */
-				wacom->tool[idx] = BTN_TOOL_PEN;
+		case 0x812: /* Inking pen */
+		case 0x801: /* Intuos3 Inking pen */
+		case 0x20802: /* Intuos4 Classic Pen */
+		case 0x012:
+			wacom->tool[idx] = BTN_TOOL_PENCIL;
+			break;
+
+		case 0x822: /* Pen */
+		case 0x842:
+		case 0x852:
+		case 0x823: /* Intuos3 Grip Pen */
+		case 0x813: /* Intuos3 Classic Pen */
+		case 0x885: /* Intuos3 Marker Pen */
+		case 0x802: /* Intuos4 Grip Pen Eraser */
+		case 0x804: /* Intuos4 Marker Pen */
+		case 0x40802: /* Intuos4 Classic Pen */
+		case 0x022:
+			wacom->tool[idx] = BTN_TOOL_PEN;
+			break;
+
+		case 0x832: /* Stroke pen */
+		case 0x032:
+			wacom->tool[idx] = BTN_TOOL_BRUSH;
+			break;
+
+		case 0x007: /* Mouse 4D and 2D */
+		case 0x09c:
+		case 0x094:
+		case 0x017: /* Intuos3 2D Mouse */
+		case 0x806: /* Intuos4 Mouse */
+			wacom->tool[idx] = BTN_TOOL_MOUSE;
+			break;
+
+		case 0x096: /* Lens cursor */
+		case 0x097: /* Intuos3 Lens cursor */
+		case 0x006: /* Intuos4 Lens cursor */
+			wacom->tool[idx] = BTN_TOOL_LENS;
+			break;
+
+		case 0x82a: /* Eraser */
+		case 0x85a:
+		case 0x91a:
+		case 0xd1a:
+		case 0x0fa:
+		case 0x82b: /* Intuos3 Grip Pen Eraser */
+		case 0x81b: /* Intuos3 Classic Pen Eraser */
+		case 0x91b: /* Intuos3 Airbrush Eraser */
+		case 0x80c: /* Intuos4 Marker Pen Eraser */
+		case 0x80a: /* Intuos4 Grip Pen Eraser */
+		case 0x4080a: /* Intuos4 Classic Pen Eraser */
+		case 0x90a: /* Intuos4 Airbrush Eraser */
+			wacom->tool[idx] = BTN_TOOL_RUBBER;
+			break;
+
+		case 0xd12:
+		case 0x912:
+		case 0x112:
+		case 0x913: /* Intuos3 Airbrush */
+		case 0x902: /* Intuos4 Airbrush */
+			wacom->tool[idx] = BTN_TOOL_AIRBRUSH;
+			break;
+
+		default: /* Unknown tool */
+			wacom->tool[idx] = BTN_TOOL_PEN;
+			break;
 		}
 		return 1;
 	}
@@ -406,7 +416,6 @@ static void wacom_intuos_general(struct wacom_wac *wacom, void *wcombo)
 				((data[7] << 1) & 0x7e) | (data[8] >> 7));
 		wacom_report_abs(wcombo, ABS_TILT_Y, data[8] & 0x7f);
 	}
-	return;
 }
 
 static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
@@ -487,7 +496,7 @@ static int wacom_intuos_irq(struct wacom_wac *wacom, void *wcombo)
 	/* process in/out prox events */
 	result = wacom_intuos_inout(wacom, wcombo);
 	if (result)
-                return result-1;
+                return result - 1;
 
 	/* don't proceed if we don't know the ID */
 	if (!wacom->id[idx])
@@ -635,44 +644,47 @@ static void wacom_tpc_touch_in(struct wacom_wac *wacom, void *wcombo)
 	wacom->tool[1] = BTN_TOOL_TRIPLETAP;
 
 	if (urb->actual_length != WACOM_PKGLEN_TPC1FG) {
+
 		switch (data[0]) {
-			case WACOM_REPORT_TPC1FG:
-				wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[2]));
-				wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[4]));
-				wacom_report_abs(wcombo, ABS_PRESSURE, wacom_le16_to_cpu(&data[6]));
-				wacom_report_key(wcombo, BTN_TOUCH, wacom_le16_to_cpu(&data[6]));
-				wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
-				wacom_report_key(wcombo, wacom->tool[0], 1);
-				break;
-			case WACOM_REPORT_TPC2FG:
-				/* keep this byte to send proper out-prox event */
-				wacom->id[1] = data[1] & 0x03;
 
-				if (data[1] & 0x01) {
-					wacom_tpc_finger_in(wacom, wcombo, data, 0);
-					firstFinger = 1;
-				} else if (firstFinger) {
-					wacom_tpc_touch_out(wacom, wcombo, 0);
-				}
+		case WACOM_REPORT_TPC1FG:
+			wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[2]));
+			wacom_report_abs(wcombo, ABS_Y, wacom_le16_to_cpu(&data[4]));
+			wacom_report_abs(wcombo, ABS_PRESSURE, wacom_le16_to_cpu(&data[6]));
+			wacom_report_key(wcombo, BTN_TOUCH, wacom_le16_to_cpu(&data[6]));
+			wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
+			wacom_report_key(wcombo, wacom->tool[0], 1);
+			break;
 
-				if (data[1] & 0x02) {
-					/* sync first finger data */
-					if (firstFinger)
-						wacom_input_sync(wcombo);
+		case WACOM_REPORT_TPC2FG:
+			/* keep this byte to send proper out-prox event */
+			wacom->id[1] = data[1] & 0x03;
 
-					wacom_tpc_finger_in(wacom, wcombo, data, 1);
-					secondFinger = 1;
-				} else if (secondFinger) {
-					/* sync first finger data */
-					if (firstFinger)
-						wacom_input_sync(wcombo);
+			if (data[1] & 0x01) {
+				wacom_tpc_finger_in(wacom, wcombo, data, 0);
+				firstFinger = 1;
+			} else if (firstFinger) {
+				wacom_tpc_touch_out(wacom, wcombo, 0);
+			}
 
-					wacom_tpc_touch_out(wacom, wcombo, 1);
-					secondFinger = 0;
-				}
-				if (!(data[1] & 0x01))
-					firstFinger = 0;
-				break;
+			if (data[1] & 0x02) {
+				/* sync first finger data */
+				if (firstFinger)
+					wacom_input_sync(wcombo);
+
+				wacom_tpc_finger_in(wacom, wcombo, data, 1);
+				secondFinger = 1;
+			} else if (secondFinger) {
+				/* sync first finger data */
+				if (firstFinger)
+					wacom_input_sync(wcombo);
+
+				wacom_tpc_touch_out(wacom, wcombo, 1);
+				secondFinger = 0;
+			}
+			if (!(data[1] & 0x01))
+				firstFinger = 0;
+			break;
 		}
 	} else {
 		wacom_report_abs(wcombo, ABS_X, wacom_le16_to_cpu(&data[1]));
@@ -681,7 +693,6 @@ static void wacom_tpc_touch_in(struct wacom_wac *wacom, void *wcombo)
 		wacom_report_abs(wcombo, ABS_MISC, wacom->id[0]);
 		wacom_report_key(wcombo, wacom->tool[0], 1);
 	}
-	return;
 }
 
 static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
@@ -769,37 +780,37 @@ static int wacom_tpc_irq(struct wacom_wac *wacom, void *wcombo)
 int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 {
 	switch (wacom_wac->features.type) {
-		case PENPARTNER:
-			return wacom_penpartner_irq(wacom_wac, wcombo);
+	case PENPARTNER:
+		return wacom_penpartner_irq(wacom_wac, wcombo);
 
-		case PL:
-			return wacom_pl_irq(wacom_wac, wcombo);
+	case PL:
+		return wacom_pl_irq(wacom_wac, wcombo);
 
-		case WACOM_G4:
-		case GRAPHIRE:
-		case WACOM_MO:
-			return wacom_graphire_irq(wacom_wac, wcombo);
+	case WACOM_G4:
+	case GRAPHIRE:
+	case WACOM_MO:
+		return wacom_graphire_irq(wacom_wac, wcombo);
 
-		case PTU:
-			return wacom_ptu_irq(wacom_wac, wcombo);
+	case PTU:
+		return wacom_ptu_irq(wacom_wac, wcombo);
 
-		case INTUOS:
-		case INTUOS3S:
-		case INTUOS3:
-		case INTUOS3L:
-		case INTUOS4S:
-		case INTUOS4:
-		case INTUOS4L:
-		case CINTIQ:
-		case WACOM_BEE:
-			return wacom_intuos_irq(wacom_wac, wcombo);
+	case INTUOS:
+	case INTUOS3S:
+	case INTUOS3:
+	case INTUOS3L:
+	case INTUOS4S:
+	case INTUOS4:
+	case INTUOS4L:
+	case CINTIQ:
+	case WACOM_BEE:
+		return wacom_intuos_irq(wacom_wac, wcombo);
 
-		case TABLETPC:
-		case TABLETPC2FG:
-			return wacom_tpc_irq(wacom_wac, wcombo);
+	case TABLETPC:
+	case TABLETPC2FG:
+		return wacom_tpc_irq(wacom_wac, wcombo);
 
-		default:
-			return 0;
+	default:
+		return 0;
 	}
 	return 0;
 }
@@ -807,53 +818,63 @@ int wacom_wac_irq(struct wacom_wac *wacom_wac, void *wcombo)
 void wacom_init_input_dev(struct input_dev *input_dev, struct wacom_wac *wacom_wac)
 {
 	switch (wacom_wac->features.type) {
-		case WACOM_MO:
-			input_dev_mo(input_dev, wacom_wac);
-		case WACOM_G4:
-			input_dev_g4(input_dev, wacom_wac);
-			/* fall through */
-		case GRAPHIRE:
-			input_dev_g(input_dev, wacom_wac);
-			break;
-		case WACOM_BEE:
-			input_dev_bee(input_dev, wacom_wac);
-		case INTUOS3:
-		case INTUOS3L:
-		case CINTIQ:
-			input_dev_i3(input_dev, wacom_wac);
-			/* fall through */
-		case INTUOS3S:
-			input_dev_i3s(input_dev, wacom_wac);
-			/* fall through */
-		case INTUOS:
-			input_dev_i(input_dev, wacom_wac);
-			break;
-		case INTUOS4:
-		case INTUOS4L:
-			input_dev_i4(input_dev, wacom_wac);
-			/* fall through */
-		case INTUOS4S:
-			input_dev_i4s(input_dev, wacom_wac);
-			input_dev_i(input_dev, wacom_wac);
-			break;
-		case TABLETPC2FG:
-			input_dev_tpc2fg(input_dev, wacom_wac);
-			/* fall through */
-		case TABLETPC:
-			input_dev_tpc(input_dev, wacom_wac);
-			if (wacom_wac->features.device_type != BTN_TOOL_PEN)
-				break;  /* no need to process stylus stuff */
+	case WACOM_MO:
+		input_dev_mo(input_dev, wacom_wac);
 
-			/* fall through */
-		case PL:
-		case PTU:
-			input_dev_pl(input_dev, wacom_wac);
-			/* fall through */
-		case PENPARTNER:
-			input_dev_pt(input_dev, wacom_wac);
-			break;
+	case WACOM_G4:
+		input_dev_g4(input_dev, wacom_wac);
+		/* fall through */
+
+	case GRAPHIRE:
+		input_dev_g(input_dev, wacom_wac);
+		break;
+
+	case WACOM_BEE:
+		input_dev_bee(input_dev, wacom_wac);
+
+	case INTUOS3:
+	case INTUOS3L:
+	case CINTIQ:
+		input_dev_i3(input_dev, wacom_wac);
+		/* fall through */
+
+	case INTUOS3S:
+		input_dev_i3s(input_dev, wacom_wac);
+		/* fall through */
+
+	case INTUOS:
+		input_dev_i(input_dev, wacom_wac);
+		break;
+
+	case INTUOS4:
+	case INTUOS4L:
+		input_dev_i4(input_dev, wacom_wac);
+		/* fall through */
+
+	case INTUOS4S:
+		input_dev_i4s(input_dev, wacom_wac);
+		input_dev_i(input_dev, wacom_wac);
+		break;
+
+	case TABLETPC2FG:
+		input_dev_tpc2fg(input_dev, wacom_wac);
+		/* fall through */
+
+	case TABLETPC:
+		input_dev_tpc(input_dev, wacom_wac);
+		if (wacom_wac->features.device_type != BTN_TOOL_PEN)
+			break;  /* no need to process stylus stuff */
+		/* fall through */
+
+	case PL:
+	case PTU:
+		input_dev_pl(input_dev, wacom_wac);
+		/* fall through */
+
+	case PENPARTNER:
+		input_dev_pt(input_dev, wacom_wac);
+		break;
 	}
-	return;
 }
 
 static const struct wacom_features wacom_features_0x00 =

@@ -99,12 +99,12 @@ static void wacom_sys_irq(struct urb *urb)
 	wcombo.wacom = wacom;
 	wcombo.urb = urb;
 
-	if (wacom_wac_irq(&wacom->wacom_wac, (void *)&wcombo))
+	if (wacom_wac_irq(&wacom->wacom_wac, &wcombo))
 		input_sync(get_input_dev(&wcombo));
 
  exit:
 	usb_mark_last_busy(wacom->usbdev);
-	retval = usb_submit_urb (urb, GFP_ATOMIC);
+	retval = usb_submit_urb(urb, GFP_ATOMIC);
 	if (retval)
 		err ("%s - usb_submit_urb failed with result %d",
 		     __func__, retval);
