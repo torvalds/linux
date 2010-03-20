@@ -93,7 +93,7 @@ static ssize_t store_protocol(struct device *d,
 
 	buf = strsep((char **) &data, "\n");
 
-	if (!strcasecmp(buf, "rc-5"))
+	if (!strcasecmp(buf, "rc-5") || !strcasecmp(buf, "rc5"))
 		ir_type = IR_TYPE_RC5;
 	else if (!strcasecmp(buf, "pd"))
 		ir_type = IR_TYPE_PD;
