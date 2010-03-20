@@ -65,8 +65,7 @@ MODULE_LICENSE("Dual MPL/GPL");
 typedef struct ide_info_t {
 	struct pcmcia_device	*p_dev;
 	struct ide_host		*host;
-    int		ndev;
-    dev_node_t	node;
+	int			ndev;
 } ide_info_t;
 
 static void ide_release(struct pcmcia_device *);
@@ -308,13 +307,10 @@ static int ide_config(struct pcmcia_device *link)
 	goto failed;
 
     info->ndev = 1;
-    sprintf(info->node.dev_name, "hd%c", 'a' + host->ports[0]->index * 2);
-    info->node.major = host->ports[0]->major;
-    info->node.minor = 0;
     info->host = host;
-    link->dev_node = &info->node;
-    printk(KERN_INFO "ide-cs: %s: Vpp = %d.%d\n",
-	   info->node.dev_name, link->conf.Vpp / 10, link->conf.Vpp % 10);
+    dev_info(&link->dev, "ide-cs: hd%c: Vpp = %d.%d\n",
+	    'a' + host->ports[0]->index * 2,
+	    link->conf.Vpp / 10, link->conf.Vpp % 10);
 
     kfree(stk);
     return 0;

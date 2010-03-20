@@ -47,7 +47,6 @@ static const char driver_name[DEV_NAME_LEN]  = "sl811_cs";
 
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
-	dev_node_t		node;
 } local_info_t;
 
 static void sl811_cs_release(struct pcmcia_device * link);
@@ -185,7 +184,6 @@ static int sl811_cs_config_check(struct pcmcia_device *p_dev,
 static int sl811_cs_config(struct pcmcia_device *link)
 {
 	struct device		*parent = &link->dev;
-	local_info_t		*dev = link->priv;
 	int			ret;
 
 	dev_dbg(&link->dev, "sl811_cs_config\n");
@@ -204,12 +202,8 @@ static int sl811_cs_config(struct pcmcia_device *link)
 	if (ret)
 		goto failed;
 
-	sprintf(dev->node.dev_name, driver_name);
-	dev->node.major = dev->node.minor = 0;
-	link->dev_node = &dev->node;
-
-	printk(KERN_INFO "%s: index 0x%02x: ",
-	       dev->node.dev_name, link->conf.ConfigIndex);
+	dev_info(&link->dev, "index 0x%02x: ",
+		link->conf.ConfigIndex);
 	if (link->conf.Vpp)
 		printk(", Vpp %d.%d", link->conf.Vpp/10, link->conf.Vpp%10);
 	printk(", irq %d", link->irq);

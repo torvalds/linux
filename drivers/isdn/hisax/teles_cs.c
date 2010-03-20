@@ -68,34 +68,8 @@ static void teles_cs_release(struct pcmcia_device *link);
 
 static void teles_detach(struct pcmcia_device *p_dev) __devexit ;
 
-/*
-   A linked list of "instances" of the teles_cs device.  Each actual
-   PCMCIA card corresponds to one device instance, and is described
-   by one struct pcmcia_device structure (defined in ds.h).
-
-   You may not want to use a linked list for this -- for example, the
-   memory card driver uses an array of struct pcmcia_device pointers, where minor
-   device numbers are used to derive the corresponding array index.
-*/
-
-/*
-   A driver needs to provide a dev_node_t structure for each device
-   on a card.  In some cases, there is only one device per card (for
-   example, ethernet cards, modems).  In other cases, there may be
-   many actual or logical devices (SCSI adapters, memory cards with
-   multiple partitions).  The dev_node_t structures need to be kept
-   in a linked list starting at the 'dev' field of a struct pcmcia_device
-   structure.  We allocate them in the card's private data structure,
-   because they generally shouldn't be allocated dynamically.
-   In this case, we also provide a flag to indicate if a device is
-   "stopped" due to a power management event, or card ejection.  The
-   device IO routines can use a flag like this to throttle IO to a
-   card that is not ready to accept it.
-*/
-
 typedef struct local_info_t {
 	struct pcmcia_device	*p_dev;
-    dev_node_t          node;
     int                 busy;
     int			cardnr;
 } local_info_t;
@@ -216,16 +190,9 @@ static int __devinit teles_cs_config(struct pcmcia_device *link)
     if (i != 0)
       goto cs_failed;
 
-    /* At this point, the dev_node_t structure(s) should be
-       initialized and arranged in a linked list at link->dev. *//*  */
-    sprintf(dev->node.dev_name, "teles");
-    dev->node.major = dev->node.minor = 0x0;
-
-    link->dev_node = &dev->node;
-
     /* Finally, report what we've done */
-    printk(KERN_INFO "%s: index 0x%02x:",
-           dev->node.dev_name, link->conf.ConfigIndex);
+    dev_info(&link->dev, "index 0x%02x:",
+	    link->conf.ConfigIndex);
     if (link->conf.Attributes & CONF_ENABLE_IRQ)
 	    printk(", irq %d", link->irq);
     if (link->io.NumPorts1)
