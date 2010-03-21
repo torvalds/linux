@@ -3649,6 +3649,11 @@ static void emulator_set_segment_selector(u16 sel, int seg,
 	kvm_set_segment(vcpu, &kvm_seg, seg);
 }
 
+static void emulator_set_rflags(struct kvm_vcpu *vcpu, unsigned long rflags)
+{
+	kvm_x86_ops->set_rflags(vcpu, rflags);
+}
+
 static struct x86_emulate_ops emulate_ops = {
 	.read_std            = kvm_read_guest_virt_system,
 	.write_std           = kvm_write_guest_virt_system,
@@ -3666,6 +3671,7 @@ static struct x86_emulate_ops emulate_ops = {
 	.get_cr              = emulator_get_cr,
 	.set_cr              = emulator_set_cr,
 	.cpl                 = emulator_get_cpl,
+	.set_rflags          = emulator_set_rflags,
 };
 
 static void cache_all_regs(struct kvm_vcpu *vcpu)
@@ -3785,8 +3791,6 @@ restart:
 		}
 		return EMULATE_DO_MMIO;
 	}
-
-	kvm_x86_ops->set_rflags(vcpu, vcpu->arch.emulate_ctxt.eflags);
 
 	if (vcpu->mmio_is_write) {
 		vcpu->mmio_needed = 0;

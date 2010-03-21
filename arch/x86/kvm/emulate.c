@@ -2972,6 +2972,7 @@ writeback:
 	/* Commit shadow register state. */
 	memcpy(ctxt->vcpu->arch.regs, c->regs, sizeof c->regs);
 	kvm_rip_write(ctxt->vcpu, c->eip);
+	ops->set_rflags(ctxt->vcpu, ctxt->eflags);
 
 done:
 	return (rc == X86EMUL_UNHANDLEABLE) ? -1 : 0;
