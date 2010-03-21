@@ -802,7 +802,7 @@ void __init pmb_init(void)
 	writel_uncached(0, PMB_IRMCR);
 
 	/* Flush out the TLB */
-	__raw_writel(__raw_readl(MMUCR) | MMUCR_TI, MMUCR);
+	local_flush_tlb_all();
 	ctrl_barrier();
 }
 
