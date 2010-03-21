@@ -52,6 +52,7 @@
 #define DstMem      (3<<1)	/* Memory operand. */
 #define DstAcc      (4<<1)      /* Destination Accumulator */
 #define DstDI       (5<<1)	/* Destination is in ES:(E)DI */
+#define DstMem64    (6<<1)	/* 64bit memory operand */
 #define DstMask     (7<<1)
 /* Source operand type. */
 #define SrcNone     (0<<4)	/* No source operand. */
@@ -360,7 +361,7 @@ static u32 group_table[] = {
 	DstMem | SrcImmByte | ModRM, DstMem | SrcImmByte | ModRM | Lock,
 	DstMem | SrcImmByte | ModRM | Lock, DstMem | SrcImmByte | ModRM | Lock,
 	[Group9*8] =
-	0, ImplicitOps | ModRM | Lock, 0, 0, 0, 0, 0, 0,
+	0, DstMem64 | ModRM | Lock, 0, 0, 0, 0, 0, 0,
 };
 
 static u32 group2_table[] = {
@@ -1205,6 +1206,7 @@ done_prefixes:
 			 c->twobyte && (c->b == 0xb6 || c->b == 0xb7));
 		break;
 	case DstMem:
+	case DstMem64:
 		if ((c->d & ModRM) && c->modrm_mod == 3) {
 			c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
 			c->dst.type = OP_REG;
@@ -1214,7 +1216,10 @@ done_prefixes:
 		}
 		c->dst.type = OP_MEM;
 		c->dst.ptr = (unsigned long *)c->modrm_ea;
-		c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
+		if ((c->d & DstMask) == DstMem64)
+			c->dst.bytes = 8;
+		else
+			c->dst.bytes = (c->d & ByteOp) ? 1 : c->op_bytes;
 		c->dst.val = 0;
 		if (c->d & BitOp) {
 			unsigned long mask = ~(c->dst.bytes * 8 - 1);
@@ -1706,12 +1711,7 @@ static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
 			       struct x86_emulate_ops *ops)
 {
 	struct decode_cache *c = &ctxt->decode;
-	u64 old, new;
-	int rc;
-
-	rc = ops->read_emulated(c->modrm_ea, &old, 8, ctxt->vcpu);
-	if (rc != X86EMUL_CONTINUE)
-		return rc;
+	u64 old = c->dst.orig_val;
 
 	if (((u32) (old >> 0) != (u32) c->regs[VCPU_REGS_RAX]) ||
 	    ((u32) (old >> 32) != (u32) c->regs[VCPU_REGS_RDX])) {
@@ -1719,15 +1719,12 @@ static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
 		c->regs[VCPU_REGS_RAX] = (u32) (old >> 0);
 		c->regs[VCPU_REGS_RDX] = (u32) (old >> 32);
 		ctxt->eflags &= ~EFLG_ZF;
-
 	} else {
-		new = ((u64)c->regs[VCPU_REGS_RCX] << 32) |
+		c->dst.val = ((u64)c->regs[VCPU_REGS_RCX] << 32) |
 		       (u32) c->regs[VCPU_REGS_RBX];
 
-		rc = ops->cmpxchg_emulated(c->modrm_ea, &old, &new, 8, ctxt->vcpu);
-		if (rc != X86EMUL_CONTINUE)
-			return rc;
 		ctxt->eflags |= EFLG_ZF;
+		c->lock_prefix = 1;
 	}
 	return X86EMUL_CONTINUE;
 }
@@ -3245,7 +3242,6 @@ twobyte_insn:
 		rc = emulate_grp9(ctxt, ops);
 		if (rc != X86EMUL_CONTINUE)
 			goto done;
-		c->dst.type = OP_NONE;
 		break;
 	}
 	goto writeback;
