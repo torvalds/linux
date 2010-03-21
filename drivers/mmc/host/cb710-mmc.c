@@ -25,7 +25,7 @@ static const u8 cb710_src_freq_mhz[16] = {
 	50, 55, 60, 65, 70, 75, 80, 85
 };
 
-static void cb710_mmc_set_clock(struct mmc_host *mmc, int hz)
+static void cb710_mmc_select_clock_divider(struct mmc_host *mmc, int hz)
 {
 	struct cb710_slot *slot = cb710_mmc_to_slot(mmc);
 	struct pci_dev *pdev = cb710_slot_to_chip(slot)->pdev;
@@ -33,8 +33,11 @@ static void cb710_mmc_set_clock(struct mmc_host *mmc, int hz)
 	u32 divider_idx;
 	int src_hz;
 
-	/* this is magic, unverifiable for me, unless I get
-	 * MMC card with cables connected to bus signals */
+	/* on CB710 in HP nx9500:
+	 *   src_freq_idx == 0
+	 *   indexes 1-7 work as written in the table
+	 *   indexes 0,8-15 give no clock output
+	 */
 	pci_read_config_dword(pdev, 0x48, &src_freq_idx);
 	src_freq_idx = (src_freq_idx >> 16) & 0xF;
 	src_hz = cb710_src_freq_mhz[src_freq_idx] * 1000000;
@@ -46,13 +49,15 @@ static void cb710_mmc_set_clock(struct mmc_host *mmc, int hz)
 
 	if (src_freq_idx)
 		divider_idx |= 0x8;
+	else if (divider_idx == 0)
+		divider_idx = 1;
 
 	cb710_pci_update_config_reg(pdev, 0x40, ~0xF0000000, divider_idx << 28);
 
 	dev_dbg(cb710_slot_dev(slot),
-		"clock set to %d Hz, wanted %d Hz; flag = %d\n",
+		"clock set to %d Hz, wanted %d Hz; src_freq_idx = %d, divider_idx = %d|%d\n",
 		src_hz >> cb710_clock_divider_log2[divider_idx & 7],
-		hz, (divider_idx & 8) != 0);
+		hz, src_freq_idx, divider_idx & 7, divider_idx & 8);
 }
 
 static void __cb710_mmc_enable_irq(struct cb710_slot *slot,
@@ -512,7 +517,7 @@ static int cb710_mmc_powerup(struct cb710_slot *slot)
 #endif
 	int err;
 
-	/* a lot of magic; see comment in cb710_mmc_set_clock() */
+	/* a lot of magic for now */
 	dev_dbg(cb710_slot_dev(slot), "bus powerup\n");
 	cb710_dump_regs(chip, CB710_DUMP_REGS_MMC);
 	err = cb710_wait_while_busy(slot, CB710_MMC_S2_BUSY_20);
@@ -572,7 +577,7 @@ static void cb710_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	struct cb710_mmc_reader *reader = mmc_priv(mmc);
 	int err;
 
-	cb710_mmc_set_clock(mmc, ios->clock);
+	cb710_mmc_select_clock_divider(mmc, ios->clock);
 
 	if (!cb710_mmc_is_card_inserted(slot)) {
 		dev_dbg(cb710_slot_dev(slot),
