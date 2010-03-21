@@ -5970,7 +5970,7 @@ void md_error(mddev_t *mddev, mdk_rdev_t *rdev)
 	mddev->pers->error_handler(mddev,rdev);
 	if (mddev->degraded)
 		set_bit(MD_RECOVERY_RECOVER, &mddev->recovery);
-	set_bit(StateChanged, &rdev->flags);
+	sysfs_notify_dirent(rdev->sysfs_state);
 	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	set_bit(MD_RECOVERY_NEEDED, &mddev->recovery);
 	md_wakeup_thread(mddev->thread);
@@ -6961,11 +6961,6 @@ void md_check_recovery(mddev_t *mddev)
 
 		if (mddev->flags)
 			md_update_sb(mddev, 0);
-
-		list_for_each_entry(rdev, &mddev->disks, same_set)
-			if (test_and_clear_bit(StateChanged, &rdev->flags))
-				sysfs_notify_dirent(rdev->sysfs_state);
-
 
 		if (test_bit(MD_RECOVERY_RUNNING, &mddev->recovery) &&
 		    !test_bit(MD_RECOVERY_DONE, &mddev->recovery)) {
