@@ -1778,7 +1778,7 @@ static void handle_reply(struct ceph_mds_session *session, struct ceph_msg *msg)
 	dout("handle_reply %p\n", req);
 
 	/* correct session? */
-	if (!req->r_session && req->r_session != session) {
+	if (req->r_session != session) {
 		pr_err("mdsc_handle_reply got %llu on session mds%d"
 		       " not mds%d\n", tid, session->s_mds,
 		       req->r_session ? req->r_session->s_mds : -1);
