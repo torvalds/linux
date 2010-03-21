@@ -1581,6 +1581,21 @@ static int patch_cxt5047(struct hda_codec *codec)
 #endif	
 	}
 	spec->vmaster_nid = 0x13;
+
+	switch (codec->subsystem_id >> 16) {
+	case 0x103c:
+		/* HP laptops have really bad sound over 0 dB on NID 0x10.
+		 * Fix max PCM level to 0 dB (originally it has 0x1e steps
+		 * with 0 dB offset 0x17)
+		 */
+		snd_hda_override_amp_caps(codec, 0x10, HDA_INPUT,
+					  (0x17 << AC_AMPCAP_OFFSET_SHIFT) |
+					  (0x17 << AC_AMPCAP_NUM_STEPS_SHIFT) |
+					  (0x05 << AC_AMPCAP_STEP_SIZE_SHIFT) |
+					  (1 << AC_AMPCAP_MUTE_SHIFT));
+		break;
+	}
+
 	return 0;
 }
 
