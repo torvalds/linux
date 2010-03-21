@@ -595,36 +595,48 @@ static int kernel_math_error(struct pt_regs *regs, const char *str, int trapnr)
  * the correct behaviour even in the presence of the asynchronous
  * IRQ13 behaviour
  */
-void math_error(void __user *ip)
+void math_error(struct pt_regs *regs, int error_code, int trapnr)
 {
 	struct task_struct *task;
 	siginfo_t info;
-	unsigned short cwd, swd, err;
+	unsigned short err;
 
 	/*
 	 * Save the info for the exception handler and clear the error.
 	 */
 	task = current;
 	save_init_fpu(task);
-	task->thread.trap_no = 16;
-	task->thread.error_code = 0;
+	task->thread.trap_no = trapnr;
+	task->thread.error_code = error_code;
 	info.si_signo = SIGFPE;
 	info.si_errno = 0;
-	info.si_addr = ip;
-	/*
-	 * (~cwd & swd) will mask out exceptions that are not set to unmasked
-	 * status.  0x3f is the exception bits in these regs, 0x200 is the
-	 * C1 reg you need in case of a stack fault, 0x040 is the stack
-	 * fault bit.  We should only be taking one exception at a time,
-	 * so if this combination doesn't produce any single exception,
-	 * then we have a bad program that isn't synchronizing its FPU usage
-	 * and it will suffer the consequences since we won't be able to
-	 * fully reproduce the context of the exception
-	 */
-	cwd = get_fpu_cwd(task);
-	swd = get_fpu_swd(task);
+	info.si_addr = (void __user *)regs->ip;
+	if (trapnr == 16) {
+		unsigned short cwd, swd;
+		/*
+		 * (~cwd & swd) will mask out exceptions that are not set to unmasked
+		 * status.  0x3f is the exception bits in these regs, 0x200 is the
+		 * C1 reg you need in case of a stack fault, 0x040 is the stack
+		 * fault bit.  We should only be taking one exception at a time,
+		 * so if this combination doesn't produce any single exception,
+		 * then we have a bad program that isn't synchronizing its FPU usage
+		 * and it will suffer the consequences since we won't be able to
+		 * fully reproduce the context of the exception
+		 */
+		cwd = get_fpu_cwd(task);
+		swd = get_fpu_swd(task);
 
-	err = swd & ~cwd;
+		err = swd & ~cwd;
+	} else {
+		/*
+		 * The SIMD FPU exceptions are handled a little differently, as there
+		 * is only a single status/control register.  Thus, to determine which
+		 * unmasked exception was caught we must mask the exception mask bits
+		 * at 0x1f80, and then use these to mask the exception bits at 0x3f.
+		 */
+		unsigned short mxcsr = get_fpu_mxcsr(task);
+		err = ~(mxcsr >> 7) & mxcsr;
+	}
 
 	if (err & 0x001) {	/* Invalid op */
 		/*
@@ -663,55 +675,7 @@ dotraplinkage void do_coprocessor_error(struct pt_regs *regs, long error_code)
 		return;
 #endif
 
-	math_error((void __user *)regs->ip);
-}
-
-static void simd_math_error(void __user *ip)
-{
-	struct task_struct *task;
-	siginfo_t info;
-	unsigned short mxcsr;
-
-	/*
-	 * Save the info for the exception handler and clear the error.
-	 */
-	task = current;
-	save_init_fpu(task);
-	task->thread.trap_no = 19;
-	task->thread.error_code = 0;
-	info.si_signo = SIGFPE;
-	info.si_errno = 0;
-	info.si_code = __SI_FAULT;
-	info.si_addr = ip;
-	/*
-	 * The SIMD FPU exceptions are handled a little differently, as there
-	 * is only a single status/control register.  Thus, to determine which
-	 * unmasked exception was caught we must mask the exception mask bits
-	 * at 0x1f80, and then use these to mask the exception bits at 0x3f.
-	 */
-	mxcsr = get_fpu_mxcsr(task);
-	switch (~((mxcsr & 0x1f80) >> 7) & (mxcsr & 0x3f)) {
-	case 0x000:
-	default:
-		break;
-	case 0x001: /* Invalid Op */
-		info.si_code = FPE_FLTINV;
-		break;
-	case 0x002: /* Denormalize */
-	case 0x010: /* Underflow */
-		info.si_code = FPE_FLTUND;
-		break;
-	case 0x004: /* Zero Divide */
-		info.si_code = FPE_FLTDIV;
-		break;
-	case 0x008: /* Overflow */
-		info.si_code = FPE_FLTOVF;
-		break;
-	case 0x020: /* Precision */
-		info.si_code = FPE_FLTRES;
-		break;
-	}
-	force_sig_info(SIGFPE, &info, task);
+	math_error(regs, error_code, 16);
 }
 
 dotraplinkage void
@@ -727,7 +691,7 @@ do_simd_coprocessor_error(struct pt_regs *regs, long error_code)
 		return;
 #endif
 
-	simd_math_error((void __user *)regs->ip);
+	math_error(regs, error_code, 19);
 }
 
 dotraplinkage void
