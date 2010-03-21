@@ -1019,31 +1019,42 @@ static void option_indat_callback(struct urb *urb)
 	dbg("%s: %p", __func__, urb);
 
 	endpoint = usb_pipeendpoint(urb->pipe);
-	port =  urb->context;
+	port = urb->context;
 
-	if (status) {
+	switch (status) {
+	case 0:
+		/* success */
+		break;
+	case -ECONNRESET:
+	case -ENOENT:
+	case -ESHUTDOWN:
+		/* this urb is terminated, clean up */
+		dbg("%s: urb shutting down with status: %d on endpoint %02x.",
+		    __func__, status, endpoint);
+		return;
+	default:
 		dbg("%s: nonzero status: %d on endpoint %02x.",
 		    __func__, status, endpoint);
-	} else {
-		tty = tty_port_tty_get(&port->port);
-		if (urb->actual_length) {
-			tty_insert_flip_string(tty, data, urb->actual_length);
-			tty_flip_buffer_push(tty);
-		} else 
-			dbg("%s: empty read urb received", __func__);
-		tty_kref_put(tty);
-
-		/* Resubmit urb so we continue receiving */
-		if (status != -ESHUTDOWN) {
-			err = usb_submit_urb(urb, GFP_ATOMIC);
-			if (err && err != -EPERM)
-				printk(KERN_ERR "%s: resubmit read urb failed. "
-					"(%d)", __func__, err);
-			else
-				usb_mark_last_busy(port->serial->dev);
-		}
-
+		goto exit;
 	}
+
+	if (urb->actual_length) {
+		tty = tty_port_tty_get(&port->port);
+		tty_insert_flip_string(tty, data, urb->actual_length);
+		tty_flip_buffer_push(tty);
+		tty_kref_put(tty);
+	} else
+		dbg("%s: empty read urb received", __func__);
+
+exit:
+	/* Resubmit urb so we continue receiving */
+	err = usb_submit_urb(urb, GFP_ATOMIC);
+	if (err && err != -EPERM)
+		printk(KERN_ERR "%s: resubmit read urb failed. "
+			"(%d)", __func__, err);
+	else
+		usb_mark_last_busy(port->serial->dev);
+
 	return;
 }
 
