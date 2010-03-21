@@ -102,8 +102,6 @@ static void cb710_mmc_reset_events(struct cb710_slot *slot)
 
 static void cb710_mmc_enable_4bit_data(struct cb710_slot *slot, int enable)
 {
-	dev_dbg(cb710_slot_dev(slot), "configuring %d-data-line%s mode\n",
-		enable ? 4 : 1, enable ? "s" : "");
 	if (enable)
 		cb710_modify_port_8(slot, CB710_MMC_CONFIG1_PORT,
 			CB710_MMC_C1_4BIT_DATA_BUS, 0);
