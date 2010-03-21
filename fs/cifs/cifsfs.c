@@ -312,6 +312,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->clientCanCacheRead = false;
 	cifs_inode->clientCanCacheAll = false;
 	cifs_inode->delete_pending = false;
+	cifs_inode->invalid_mapping = false;
 	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 	cifs_inode->server_eof = 0;
 
@@ -638,7 +639,7 @@ static loff_t cifs_llseek(struct file *file, loff_t offset, int origin)
 		   setting the revalidate time to zero */
 		CIFS_I(file->f_path.dentry->d_inode)->time = 0;
 
-		retval = cifs_revalidate(file->f_path.dentry);
+		retval = cifs_revalidate_file(file);
 		if (retval < 0)
 			return (loff_t)retval;
 	}

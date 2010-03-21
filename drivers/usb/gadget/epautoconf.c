@@ -266,7 +266,7 @@ struct usb_ep * __init usb_ep_autoconfig (
 		}
 
 #ifdef CONFIG_BLACKFIN
-	} else if (gadget_is_musbhsfc(gadget) || gadget_is_musbhdrc(gadget)) {
+	} else if (gadget_is_musbhdrc(gadget)) {
 		if ((USB_ENDPOINT_XFER_BULK == type) ||
 		    (USB_ENDPOINT_XFER_ISOC == type)) {
 			if (USB_DIR_IN & desc->bEndpointAddress)
