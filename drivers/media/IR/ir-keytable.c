@@ -405,6 +405,7 @@ void ir_keyup(struct input_dev *dev)
 	if (!ir->keypressed)
 		return;
 
+	IR_dprintk(1, "keyup key 0x%04x\n", ir->keycode);
 	input_report_key(dev, ir->keycode, 0);
 	input_sync(dev);
 	ir->keypressed = 0;

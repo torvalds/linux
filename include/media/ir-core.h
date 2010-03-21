@@ -18,6 +18,7 @@
 #include <linux/spinlock.h>
 #include <linux/kfifo.h>
 #include <linux/time.h>
+#include <linux/timer.h>
 
 extern int ir_core_debug;
 #define IR_dprintk(level, fmt, arg...)	if (ir_core_debug >= level) \
@@ -63,6 +64,7 @@ struct ir_raw_event {
 struct ir_raw_event_ctrl {
 	struct kfifo			kfifo;		/* fifo for the pulse/space events */
 	struct timespec			last_event;	/* when last event occurred */
+	struct timer_list		timer_keyup;	/* timer for key release */
 };
 
 struct ir_input_dev {

@@ -425,8 +425,11 @@ static void saa7134_input_timer(unsigned long data)
 void ir_raw_decode_timer_end(unsigned long data)
 {
 	struct saa7134_dev *dev = (struct saa7134_dev *)data;
+	struct card_ir *ir = dev->remote;
 
 	ir_raw_event_handle(dev->remote->dev);
+
+	ir->active = 0;
 }
 
 void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
@@ -462,6 +465,7 @@ void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)
 		init_timer(&ir->timer_end);
 		ir->timer_end.function = ir_raw_decode_timer_end;
 		ir->timer_end.data = (unsigned long)dev;
+		ir->active = 0;
 	}
 }
 
@@ -477,8 +481,10 @@ void saa7134_ir_stop(struct saa7134_dev *dev)
 		del_timer_sync(&ir->timer_end);
 	else if (ir->nec_gpio)
 		tasklet_kill(&ir->tlet);
-	else if (ir->raw_decode)
+	else if (ir->raw_decode) {
 		del_timer_sync(&ir->timer_end);
+		ir->active = 0;
+	}
 
 	ir->running = 0;
 }
@@ -951,38 +957,23 @@ static int saa7134_raw_decode_irq(struct saa7134_dev *dev)
 	unsigned long 	timeout;
 	int count, pulse, oldpulse;
 
-	/* Disable IR IRQ line */
-	saa_clearl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
-
 	/* Generate initial event */
 	saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 	saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
 	pulse = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2) & ir->mask_keydown;
 	ir_raw_event_store(dev->remote->dev, pulse? IR_PULSE : IR_SPACE);
 
-#if 1
-	/* Wait up to 10 ms for event change */
-	oldpulse = pulse;
-	for (count = 0; count < 1000; count++)  {
-		udelay(10);
-		/* rising SAA7134_GPIO_GPRESCAN reads the status */
-		saa_clearb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
-		saa_setb(SAA7134_GPIO_GPMODE3, SAA7134_GPIO_GPRESCAN);
-		pulse = saa_readl(SAA7134_GPIO_GPSTATUS0 >> 2)
-			& ir->mask_keydown;
-		if (pulse != oldpulse)
-			break;
+
+	/*
+	 * Wait 15 ms from the start of the first IR event before processing
+	 * the event. This time is enough for NEC protocol. May need adjustments
+	 * to work with other protocols.
+	 */
+	if (!ir->active) {
+		timeout = jiffies + jiffies_to_msecs(15);
+		mod_timer(&ir->timer_end, timeout);
+		ir->active = 1;
 	}
-
-	/* Store final event */
-	ir_raw_event_store(dev->remote->dev, pulse? IR_PULSE : IR_SPACE);
-#endif
-	/* Wait 15 ms before deciding to do something else */
-	timeout = jiffies + jiffies_to_msecs(15);
-	mod_timer(&ir->timer_end, timeout);
-
-	/* Enable IR IRQ line */
-	saa_setl(SAA7134_IRQ2, SAA7134_IRQ2_INTE_GPIO18);
 
 	return 1;
 }
