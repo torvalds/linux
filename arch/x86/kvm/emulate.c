@@ -1724,7 +1724,6 @@ static inline int emulate_grp9(struct x86_emulate_ctxt *ctxt,
 		       (u32) c->regs[VCPU_REGS_RBX];
 
 		ctxt->eflags |= EFLG_ZF;
-		c->lock_prefix = 1;
 	}
 	return X86EMUL_CONTINUE;
 }
