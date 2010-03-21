@@ -365,7 +365,7 @@ static int ir_setkeycode(struct input_dev *dev,
  *
  * This routine is used by the input routines when a key is pressed at the
  * IR. The scancode is received and needs to be converted into a keycode.
- * If the key is not found, it returns KEY_UNKNOWN. Otherwise, returns the
+ * If the key is not found, it returns KEY_RESERVED. Otherwise, returns the
  * corresponding keycode from the table.
  */
 u32 ir_g_keycode_from_table(struct input_dev *dev, u32 scancode)
@@ -390,6 +390,61 @@ u32 ir_g_keycode_from_table(struct input_dev *dev, u32 scancode)
 	return KEY_RESERVED;
 }
 EXPORT_SYMBOL_GPL(ir_g_keycode_from_table);
+
+/**
+ * ir_keyup() - generates input event to cleanup a key press
+ * @input_dev:	the struct input_dev descriptor of the device
+ *
+ * This routine is used by the input routines when a key is pressed at the
+ * IR. It reports a keyup input event via input_report_key().
+ */
+void ir_keyup(struct input_dev *dev)
+{
+	struct ir_input_dev *ir = input_get_drvdata(dev);
+
+	if (!ir->keypressed)
+		return;
+
+	input_report_key(dev, ir->keycode, 0);
+	input_sync(dev);
+	ir->keypressed = 0;
+}
+EXPORT_SYMBOL_GPL(ir_keyup);
+
+/**
+ * ir_keydown() - generates input event for a key press
+ * @input_dev:	the struct input_dev descriptor of the device
+ * @scancode:	the scancode that we're seeking
+ *
+ * This routine is used by the input routines when a key is pressed at the
+ * IR. It gets the keycode for a scancode and reports an input event via
+ * input_report_key().
+ */
+void ir_keydown(struct input_dev *dev, int scancode)
+{
+	struct ir_input_dev *ir = input_get_drvdata(dev);
+
+	u32 keycode = ir_g_keycode_from_table(dev, scancode);
+
+	/* If already sent a keydown, do a keyup */
+	if (ir->keypressed)
+		ir_keyup(dev);
+
+	if (KEY_RESERVED == keycode)
+		return;
+
+	ir->keycode = keycode;
+	ir->keypressed = 1;
+
+	IR_dprintk(1, "%s: key down event, key 0x%04x, scancode 0x%04x\n",
+		dev->name, keycode, scancode);
+
+	input_report_key(dev, ir->keycode, 1);
+	input_sync(dev);
+
+}
+EXPORT_SYMBOL_GPL(ir_keydown);
+
 
 /**
  * ir_input_register() - sets the IR keycode table and add the handlers

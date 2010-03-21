@@ -72,6 +72,10 @@ struct ir_input_dev {
 	unsigned long			devno;		/* device number */
 	const struct ir_dev_props	*props;		/* Device properties */
 	struct ir_raw_event_ctrl	*raw;		/* for raw pulse/space events */
+
+	/* key info - needed by IR keycode handlers */
+	u32				keycode;	/* linux key code */
+	int				keypressed;	/* current state */
 };
 
 #define to_ir_input_dev(_attr) container_of(_attr, struct ir_input_dev, attr)
