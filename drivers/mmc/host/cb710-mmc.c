@@ -100,12 +100,6 @@ static void cb710_mmc_reset_events(struct cb710_slot *slot)
 	cb710_write_port_8(slot, CB710_MMC_STATUS2_PORT, 0xFF);
 }
 
-static int cb710_mmc_is_card_inserted(struct cb710_slot *slot)
-{
-	return cb710_read_port_8(slot, CB710_MMC_STATUS3_PORT)
-		& CB710_MMC_S3_CARD_DETECTED;
-}
-
 static void cb710_mmc_enable_4bit_data(struct cb710_slot *slot, int enable)
 {
 	dev_dbg(cb710_slot_dev(slot), "configuring %d-data-line%s mode\n",
@@ -499,13 +493,9 @@ static void cb710_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 	reader->mrq = mrq;
 	cb710_mmc_enable_irq(slot, CB710_MMC_IE_TEST_MASK, 0);
 
-	if (cb710_mmc_is_card_inserted(slot)) {
-		if (!cb710_mmc_command(mmc, mrq->cmd) && mrq->stop)
-			cb710_mmc_command(mmc, mrq->stop);
-		mdelay(1);
-	} else {
-		mrq->cmd->error = -ENOMEDIUM;
-	}
+	if (!cb710_mmc_command(mmc, mrq->cmd) && mrq->stop)
+		cb710_mmc_command(mmc, mrq->stop);
+	mdelay(1);
 
 	tasklet_schedule(&reader->finish_req_tasklet);
 }
@@ -579,12 +569,6 @@ static void cb710_mmc_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 
 	cb710_mmc_select_clock_divider(mmc, ios->clock);
 
-	if (!cb710_mmc_is_card_inserted(slot)) {
-		dev_dbg(cb710_slot_dev(slot),
-			"no card inserted - ignoring bus powerup request\n");
-		ios->power_mode = MMC_POWER_OFF;
-	}
-
 	if (ios->power_mode != reader->last_power_mode)
 	switch (ios->power_mode) {
 	case MMC_POWER_ON:
@@ -622,6 +606,14 @@ static int cb710_mmc_get_ro(struct mmc_host *mmc)
 
 	return cb710_read_port_8(slot, CB710_MMC_STATUS3_PORT)
 		& CB710_MMC_S3_WRITE_PROTECTED;
+}
+
+static int cb710_mmc_get_cd(struct mmc_host *mmc)
+{
+	struct cb710_slot *slot = cb710_mmc_to_slot(mmc);
+
+	return cb710_read_port_8(slot, CB710_MMC_STATUS3_PORT)
+		& CB710_MMC_S3_CARD_DETECTED;
 }
 
 static int cb710_mmc_irq_handler(struct cb710_slot *slot)
@@ -669,7 +661,8 @@ static void cb710_mmc_finish_request_tasklet(unsigned long data)
 static const struct mmc_host_ops cb710_mmc_host = {
 	.request = cb710_mmc_request,
 	.set_ios = cb710_mmc_set_ios,
-	.get_ro = cb710_mmc_get_ro
+	.get_ro = cb710_mmc_get_ro,
+	.get_cd = cb710_mmc_get_cd,
 };
 
 #ifdef CONFIG_PM
