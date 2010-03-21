@@ -30,37 +30,35 @@
 #define MIN_BIT0_TIME	360000
 #define MAX_BIT0_TIME	760000
 
-
-/** Decode NEC pulsecode. This code can take up to 76.5 ms to run.
-	Unfortunately, using IRQ to decode pulse didn't work, since it uses
-	a pulse train of 38KHz. This means one pulse on each 52 us
-*/
-
-int ir_nec_decode(struct input_dev *input_dev,
-		  struct ir_raw_event *evs,
-		  int len)
+/**
+ * __ir_nec_decode() - Decode one NEC pulsecode
+ * @input_dev:	the struct input_dev descriptor of the device
+ * @evs:	event array with type/duration of pulse/space
+ * @len:	length of the array
+ * @pos:	position to start seeking for a code
+ * This function returns the decoded ircode or -EINVAL if no pulse got decoded
+ */
+static int __ir_nec_decode(struct input_dev *input_dev,
+			   struct ir_raw_event *evs,
+			   int len, int *pos)
 {
-	int i, count = -1;
+	int count = -1;
 	int ircode = 0, not_code = 0;
-#if 0
-	/* Needed only after porting the event code to the decoder */
-	struct ir_input_dev *ir = input_get_drvdata(input_dev);
-#endif
 
 	/* Be sure that the first event is an start one and is a pulse */
-	for (i = 0; i < len; i++) {
-		if (evs[i].type & (IR_START_EVENT | IR_PULSE))
+	for (; *pos < len; (*pos)++) {
+		if (evs[*pos].type & (IR_START_EVENT | IR_PULSE))
 			break;
 	}
-	i++;	/* First event doesn't contain data */
+	(*pos)++;	/* First event doesn't contain data */
 
-	if (i >= len)
+	if (*pos >= len)
 		return 0;
 
 	/* First space should have 4.5 ms otherwise is not NEC protocol */
-	if ((evs[i].delta.tv_nsec < MIN_START_TIME) |
-	    (evs[i].delta.tv_nsec > MAX_START_TIME) |
-	    (evs[i].type != IR_SPACE))
+	if ((evs[*pos].delta.tv_nsec < MIN_START_TIME) |
+	    (evs[*pos].delta.tv_nsec > MAX_START_TIME) |
+	    (evs[*pos].type != IR_SPACE))
 		goto err;
 
 	/*
@@ -68,24 +66,24 @@ int ir_nec_decode(struct input_dev *input_dev,
 	 */
 
 	count = 0;
-	for (i++; i < len; i++) {
+	for ((*pos)++; *pos < len; (*pos)++) {
 		int bit;
 
-		if ((evs[i].delta.tv_nsec < MIN_PULSE_TIME) |
-		    (evs[i].delta.tv_nsec > MAX_PULSE_TIME) |
-		    (evs[i].type != IR_PULSE))
+		if ((evs[*pos].delta.tv_nsec < MIN_PULSE_TIME) |
+		    (evs[*pos].delta.tv_nsec > MAX_PULSE_TIME) |
+		    (evs[*pos].type != IR_PULSE))
 			goto err;
 
-		if (++i >= len)
+		if (++*pos >= len)
 			goto err;
-		if (evs[i].type != IR_SPACE)
+		if (evs[*pos].type != IR_SPACE)
 			goto err;
 
-		if ((evs[i].delta.tv_nsec > MIN_BIT1_TIME) &&
-		    (evs[i].delta.tv_nsec < MAX_BIT1_TIME))
+		if ((evs[*pos].delta.tv_nsec > MIN_BIT1_TIME) &&
+		    (evs[*pos].delta.tv_nsec < MAX_BIT1_TIME))
 			bit = 1;
-		else if ((evs[i].delta.tv_nsec > MIN_BIT0_TIME) &&
-			 (evs[i].delta.tv_nsec < MAX_BIT0_TIME))
+		else if ((evs[*pos].delta.tv_nsec > MIN_BIT0_TIME) &&
+			 (evs[*pos].delta.tv_nsec < MAX_BIT0_TIME))
 			bit = 0;
 		else
 			goto err;
@@ -120,12 +118,40 @@ int ir_nec_decode(struct input_dev *input_dev,
 	}
 
 	IR_dprintk(1, "NEC scancode 0x%04x\n", ircode);
+	ir_keydown(input_dev, ircode);
+	ir_keyup(input_dev);
 
 	return ircode;
 err:
 	IR_dprintk(1, "NEC decoded failed at bit %d while decoding %luus time\n",
-		   count, (evs[i].delta.tv_nsec + 500) / 1000);
+		   count, (evs[*pos].delta.tv_nsec + 500) / 1000);
 
 	return -EINVAL;
 }
+
+/**
+ * __ir_nec_decode() - Decodes all NEC pulsecodes on a given array
+ * @input_dev:	the struct input_dev descriptor of the device
+ * @evs:	event array with type/duration of pulse/space
+ * @len:	length of the array
+ * This function returns the number of decoded pulses or -EINVAL if no
+ * pulse got decoded
+ */
+int ir_nec_decode(struct input_dev *input_dev,
+			   struct ir_raw_event *evs,
+			   int len)
+{
+	int pos = 0;
+	int rc = 0;
+
+	while (pos < len) {
+		if (__ir_nec_decode(input_dev, evs, len, &pos) >= 0)
+			rc++;
+	}
+
+	if (!rc)
+		return -EINVAL;
+	return rc;
+}
+
 EXPORT_SYMBOL_GPL(ir_nec_decode);

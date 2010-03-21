@@ -425,18 +425,8 @@ static void saa7134_input_timer(unsigned long data)
 void ir_raw_decode_timer_end(unsigned long data)
 {
 	struct saa7134_dev *dev = (struct saa7134_dev *)data;
-	struct card_ir *ir = dev->remote;
-	int rc;
 
-	/*
-	 * FIXME: the IR key handling code should be called by the decoder,
-	 * after implementing the repeat mode
-	 */
-	rc = ir_raw_event_handle(dev->remote->dev);
-	if (rc >= 0) {
-		ir_input_keydown(ir->dev, &ir->ir, rc);
-		ir_input_nokey(ir->dev, &ir->ir);
-	}
+	ir_raw_event_handle(dev->remote->dev);
 }
 
 void saa7134_ir_start(struct saa7134_dev *dev, struct card_ir *ir)

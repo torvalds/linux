@@ -84,7 +84,8 @@ struct ir_input_dev {
 
 u32 ir_g_keycode_from_table(struct input_dev *input_dev,
 			    u32 scancode);
-
+void ir_keyup(struct input_dev *dev);
+void ir_keydown(struct input_dev *dev, int scancode);
 int ir_input_register(struct input_dev *dev,
 		      const struct ir_scancode_table *ir_codes,
 		      const struct ir_dev_props *props,
