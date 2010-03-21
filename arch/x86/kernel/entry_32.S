@@ -53,6 +53,7 @@
 #include <asm/processor-flags.h>
 #include <asm/ftrace.h>
 #include <asm/irq_vectors.h>
+#include <asm/cpufeature.h>
 
 /* Avoid __ASSEMBLER__'ifying <linux/audit.h> just for this.  */
 #include <linux/elf-em.h>
@@ -905,7 +906,25 @@ ENTRY(simd_coprocessor_error)
 	RING0_INT_FRAME
 	pushl $0
 	CFI_ADJUST_CFA_OFFSET 4
+#ifdef CONFIG_X86_INVD_BUG
+	/* AMD 486 bug: invd from userspace calls exception 19 instead of #GP */
+661:	pushl $do_general_protection
+662:
+.section .altinstructions,"a"
+	.balign 4
+	.long 661b
+	.long 663f
+	.byte X86_FEATURE_XMM
+	.byte 662b-661b
+	.byte 664f-663f
+.previous
+.section .altinstr_replacement,"ax"
+663:	pushl $do_simd_coprocessor_error
+664:
+.previous
+#else
 	pushl $do_simd_coprocessor_error
+#endif
 	CFI_ADJUST_CFA_OFFSET 4
 	jmp error_code
 	CFI_ENDPROC
