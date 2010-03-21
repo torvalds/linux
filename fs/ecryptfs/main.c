@@ -633,11 +633,16 @@ out:
  * @sb: The ecryptfs super block
  *
  * Used to bring the superblock down and free the private data.
- * Private data is free'd in ecryptfs_put_super()
  */
 static void ecryptfs_kill_block_super(struct super_block *sb)
 {
-	generic_shutdown_super(sb);
+	struct ecryptfs_sb_info *sb_info = ecryptfs_superblock_to_private(sb);
+	kill_anon_super(sb);
+	if (!sb_info)
+		return;
+	ecryptfs_destroy_mount_crypt_stat(&sb_info->mount_crypt_stat);
+	bdi_destroy(&sb_info->bdi);
+	kmem_cache_free(ecryptfs_sb_info_cache, sb_info);
 }
 
 static struct file_system_type ecryptfs_fs_type = {
