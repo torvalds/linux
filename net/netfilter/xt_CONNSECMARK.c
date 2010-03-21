@@ -107,12 +107,10 @@ static int connsecmark_tg_check(const struct xt_tgchk_param *par)
 	}
 
 	ret = nf_ct_l3proto_try_module_get(par->family);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
-		return ret;
-	}
-	return 0;
+	return ret;
 }
 
 static void connsecmark_tg_destroy(const struct xt_tgdtor_param *par)

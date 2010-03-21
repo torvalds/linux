@@ -403,13 +403,10 @@ static int clusterip_tg_check(const struct xt_tgchk_param *par)
 	cipinfo->config = config;
 
 	ret = nf_ct_l3proto_try_module_get(par->family);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 /* drop reference count of cluster config when rule is deleted */

@@ -211,12 +211,10 @@ static int conntrack_mt_check(const struct xt_mtchk_param *par)
 	int ret;
 
 	ret = nf_ct_l3proto_try_module_get(par->family);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
-		return ret;
-	}
-	return 0;
+	return ret;
 }
 
 static void conntrack_mt_destroy(const struct xt_mtdtor_param *par)

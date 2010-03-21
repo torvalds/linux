@@ -109,13 +109,10 @@ static int connbytes_mt_check(const struct xt_mtchk_param *par)
 		return -EINVAL;
 
 	ret = nf_ct_l3proto_try_module_get(par->family);
-	if (ret < 0) {
+	if (ret < 0)
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
-		return ret;
-	}
-
-	return 0;
+	return ret;
 }
 
 static void connbytes_mt_destroy(const struct xt_mtdtor_param *par)
