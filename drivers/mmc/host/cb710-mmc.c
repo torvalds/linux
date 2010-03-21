@@ -743,6 +743,7 @@ static int __devinit cb710_mmc_init(struct platform_device *pdev)
 err_free_mmc:
 	dev_dbg(cb710_slot_dev(slot), "mmc_add_host() failed: %d\n", err);
 
+	cb710_set_irq_handler(slot, NULL);
 	mmc_free_host(mmc);
 	return err;
 }
