@@ -749,8 +749,8 @@ buffer_setup(struct videobuf_queue *vq, unsigned int *count, unsigned int *size)
 	if (0 == *count)
 		*count = 32;
 
-	while (*size * *count > vid_limit * 1024 * 1024)
-		(*count)--;
+	if (*size * *count > vid_limit * 1024 * 1024)
+		*count = (vid_limit * 1024 * 1024) / *size;
 
 	dprintk(dev, 1, "%s, count=%d, size=%d\n", __func__,
 		*count, *size);

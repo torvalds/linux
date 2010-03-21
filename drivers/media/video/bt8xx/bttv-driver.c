@@ -1806,8 +1806,8 @@ buffer_setup(struct videobuf_queue *q, unsigned int *count, unsigned int *size)
 	*size = fh->fmt->depth*fh->width*fh->height >> 3;
 	if (0 == *count)
 		*count = gbuffers;
-	while (*size * *count > gbuffers * gbufsize)
-		(*count)--;
+	if (*size * *count > gbuffers * gbufsize)
+		*count = (gbuffers * gbufsize) / *size;
 	return 0;
 }
 

@@ -516,8 +516,8 @@ int cx25821_buffer_setup(struct videobuf_queue *q, unsigned int *count,
 	if (0 == *count)
 		*count = 32;
 
-	while (*size * *count > vid_limit * 1024 * 1024)
-		(*count)--;
+	if (*size * *count > vid_limit * 1024 * 1024)
+		*count = (vid_limit * 1024 * 1024) / *size;
 
 	return 0;
 }

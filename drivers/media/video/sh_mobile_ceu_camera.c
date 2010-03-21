@@ -213,8 +213,8 @@ static int sh_mobile_ceu_videobuf_setup(struct videobuf_queue *vq,
 		*count = 2;
 
 	if (pcdev->video_limit) {
-		while (PAGE_ALIGN(*size) * *count > pcdev->video_limit)
-			(*count)--;
+		if (PAGE_ALIGN(*size) * *count > pcdev->video_limit)
+			*count = pcdev->video_limit / PAGE_ALIGN(*size);
 	}
 
 	dev_dbg(icd->dev.parent, "count=%d, size=%d\n", *count, *size);
