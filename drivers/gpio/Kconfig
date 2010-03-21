@@ -282,6 +282,14 @@ config GPIO_TIMBERDALE
 	---help---
 	Add support for the GPIO IP in the timberdale FPGA.
 
+config GPIO_RDC321X
+	tristate "RDC R-321x GPIO support"
+	depends on PCI && GPIOLIB
+	select MFD_RDC321X
+	help
+	  Support for the RDC R321x SoC GPIOs over southbridge
+	  PCI configuration space.
+
 comment "SPI GPIO expanders:"
 
 config GPIO_MAX7301
