@@ -351,7 +351,7 @@ static struct regval_list ov7670_default_regs[] = {
 static struct regval_list ov7670_fmt_yuv422[] = {
 	{ REG_COM7, 0x0 },  /* Selects YUV mode */
 	{ REG_RGB444, 0 },	/* No RGB444 please */
-	{ REG_COM1, 0 },
+	{ REG_COM1, 0 },	/* CCIR601 */
 	{ REG_COM15, COM15_R00FF },
 	{ REG_COM9, 0x18 }, /* 4x gain ceiling; 0x8 is reserved bit */
 	{ 0x4f, 0x80 }, 	/* "matrix coefficient 1" */
@@ -367,7 +367,7 @@ static struct regval_list ov7670_fmt_yuv422[] = {
 static struct regval_list ov7670_fmt_rgb565[] = {
 	{ REG_COM7, COM7_RGB },	/* Selects RGB mode */
 	{ REG_RGB444, 0 },	/* No RGB444 please */
-	{ REG_COM1, 0x0 },
+	{ REG_COM1, 0x0 },	/* CCIR601 */
 	{ REG_COM15, COM15_RGB565 },
 	{ REG_COM9, 0x38 }, 	/* 16x gain ceiling; 0x8 is reserved bit */
 	{ 0x4f, 0xb3 }, 	/* "matrix coefficient 1" */
@@ -383,7 +383,7 @@ static struct regval_list ov7670_fmt_rgb565[] = {
 static struct regval_list ov7670_fmt_rgb444[] = {
 	{ REG_COM7, COM7_RGB },	/* Selects RGB mode */
 	{ REG_RGB444, R444_ENABLE },	/* Enable xxxxrrrr ggggbbbb */
-	{ REG_COM1, 0x40 },	/* Magic reserved bit */
+	{ REG_COM1, 0x0 },	/* CCIR601 */
 	{ REG_COM15, COM15_R01FE|COM15_RGB565 }, /* Data range needed? */
 	{ REG_COM9, 0x38 }, 	/* 16x gain ceiling; 0x8 is reserved bit */
 	{ 0x4f, 0xb3 }, 	/* "matrix coefficient 1" */
@@ -432,7 +432,7 @@ static int ov7670_write(struct v4l2_subdev *sd, unsigned char reg,
 	int ret = i2c_smbus_write_byte_data(client, reg, value);
 
 	if (reg == REG_COM7 && (value & COM7_RESET))
-		msleep(2);  /* Wait for reset to run */
+		msleep(5);  /* Wait for reset to run */
 	return ret;
 }
 
