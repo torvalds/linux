@@ -1567,8 +1567,13 @@ static int __do_request(struct ceph_mds_client *mdsc,
 
 	/* get, open session */
 	session = __ceph_lookup_mds_session(mdsc, mds);
-	if (!session)
+	if (!session) {
 		session = register_session(mdsc, mds);
+		if (IS_ERR(session)) {
+			err = PTR_ERR(session);
+			goto finish;
+		}
+	}
 	dout("do_request mds%d session %p state %s\n", mds, session,
 	     session_state_name(session->s_state));
 	if (session->s_state != CEPH_MDS_SESSION_OPEN &&
