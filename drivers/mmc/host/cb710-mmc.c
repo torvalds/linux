@@ -495,7 +495,6 @@ static void cb710_mmc_request(struct mmc_host *mmc, struct mmc_request *mrq)
 
 	if (!cb710_mmc_command(mmc, mrq->cmd) && mrq->stop)
 		cb710_mmc_command(mmc, mrq->stop);
-	mdelay(1);
 
 	tasklet_schedule(&reader->finish_req_tasklet);
 }
