@@ -265,6 +265,7 @@ void rs400_mc_init(struct radeon_device *rdev)
 	base = (RREG32(RADEON_NB_TOM) & 0xffff) << 16;
 	radeon_vram_location(rdev, &rdev->mc, base);
 	radeon_gtt_location(rdev, &rdev->mc);
+	radeon_update_bandwidth_info(rdev);
 }
 
 uint32_t rs400_mc_rreg(struct radeon_device *rdev, uint32_t reg)
