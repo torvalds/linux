@@ -1113,6 +1113,9 @@ static int ip6mr_mfc_add(struct net *net, struct mf6cctl *mfc, int mrtsock)
 	unsigned char ttls[MAXMIFS];
 	int i;
 
+	if (mfc->mf6cc_parent >= MAXMIFS)
+		return -ENFILE;
+
 	memset(ttls, 255, MAXMIFS);
 	for (i = 0; i < MAXMIFS; i++) {
 		if (IF_ISSET(i, &mfc->mf6cc_ifset))
