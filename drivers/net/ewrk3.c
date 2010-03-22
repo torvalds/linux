@@ -1776,8 +1776,7 @@ static int ewrk3_ioctl(struct net_device *dev, struct ifreq *rq, int cmd)
 		break;
 	case EWRK3_SET_MCA:	/* Set a multicast address */
 		if (capable(CAP_NET_ADMIN)) {
-			if (ioc->len > 1024)
-			{
+			if (ioc->len > HASH_TABLE_LEN) {
 				status = -EINVAL;
 				break;
 			}
