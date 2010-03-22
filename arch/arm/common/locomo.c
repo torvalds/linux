@@ -707,7 +707,7 @@ void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int 
 	udelay(DAC_SCL_HIGH_HOLD_TIME);	/* 4.7 usec */
 	if (locomo_readl(mapbase + LOCOMO_DAC) & LOCOMO_DAC_SDAOEB) {	/* High is error */
 		printk(KERN_WARNING "locomo: m62332_senddata Error 1\n");
-		return;
+		goto out;
 	}
 
 	/* Send Sub address (LSB is channel select) */
@@ -735,7 +735,7 @@ void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int 
 	udelay(DAC_SCL_HIGH_HOLD_TIME);	/* 4.7 usec */
 	if (locomo_readl(mapbase + LOCOMO_DAC) & LOCOMO_DAC_SDAOEB) {	/* High is error */
 		printk(KERN_WARNING "locomo: m62332_senddata Error 2\n");
-		return;
+		goto out;
 	}
 
 	/* Send DAC data */
@@ -760,9 +760,9 @@ void locomo_m62332_senddata(struct locomo_dev *ldev, unsigned int dac_data, int 
 	udelay(DAC_SCL_HIGH_HOLD_TIME);	/* 4.7 usec */
 	if (locomo_readl(mapbase + LOCOMO_DAC) & LOCOMO_DAC_SDAOEB) {	/* High is error */
 		printk(KERN_WARNING "locomo: m62332_senddata Error 3\n");
-		return;
 	}
 
+out:
 	/* stop */
 	r = locomo_readl(mapbase + LOCOMO_DAC);
 	r &=  ~(LOCOMO_DAC_SCLOEB);
