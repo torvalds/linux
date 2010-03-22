@@ -1047,35 +1047,26 @@ static void be_tx_compl_process(struct be_adapter *adapter, u16 last_index)
 	struct be_eth_wrb *wrb;
 	struct sk_buff **sent_skbs = adapter->tx_obj.sent_skb_list;
 	struct sk_buff *sent_skb;
-	u64 busaddr;
-	u16 cur_index, num_wrbs = 0;
+	u16 cur_index, num_wrbs = 1; /* account for hdr wrb */
+	bool unmap_skb_hdr = true;
 
-	cur_index = txq->tail;
-	sent_skb = sent_skbs[cur_index];
+	sent_skb = sent_skbs[txq->tail];
 	BUG_ON(!sent_skb);
-	sent_skbs[cur_index] = NULL;
-	wrb = queue_tail_node(txq);
-	be_dws_le_to_cpu(wrb, sizeof(*wrb));
-	busaddr = ((u64)wrb->frag_pa_hi << 32) | (u64)wrb->frag_pa_lo;
-	if (busaddr != 0) {
-		pci_unmap_single(adapter->pdev, busaddr,
-				 wrb->frag_len, PCI_DMA_TODEVICE);
-	}
-	num_wrbs++;
+	sent_skbs[txq->tail] = NULL;
+
+	/* skip header wrb */
 	queue_tail_inc(txq);
 
-	while (cur_index != last_index) {
+	do {
 		cur_index = txq->tail;
 		wrb = queue_tail_node(txq);
-		be_dws_le_to_cpu(wrb, sizeof(*wrb));
-		busaddr = ((u64)wrb->frag_pa_hi << 32) | (u64)wrb->frag_pa_lo;
-		if (busaddr != 0) {
-			pci_unmap_page(adapter->pdev, busaddr,
-				       wrb->frag_len, PCI_DMA_TODEVICE);
-		}
+		unmap_tx_frag(adapter->pdev, wrb, (unmap_skb_hdr &&
+					sent_skb->len > sent_skb->data_len));
+		unmap_skb_hdr = false;
+
 		num_wrbs++;
 		queue_tail_inc(txq);
-	}
+	} while (cur_index != last_index);
 
 	atomic_sub(num_wrbs, &txq->used);
 
