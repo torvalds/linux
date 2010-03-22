@@ -37,8 +37,6 @@
 #include <linux/lis3lv02d.h>
 #include <linux/pda_power.h>
 #include <linux/power_supply.h>
-#include <linux/pda_power.h>
-#include <linux/power_supply.h>
 #include <linux/regulator/max8660.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/fixed.h>
