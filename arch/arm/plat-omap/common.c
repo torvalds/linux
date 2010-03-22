@@ -44,9 +44,6 @@
 
 #define NO_LENGTH_CHECK 0xffffffff
 
-unsigned char omap_bootloader_tag[512];
-int omap_bootloader_tag_len;
-
 struct omap_board_config_kernel *omap_board_config;
 int omap_board_config_size;
 
