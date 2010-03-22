@@ -293,6 +293,11 @@ static void radeon_pm_set_clocks(struct radeon_device *rdev)
 		}
 	}
 
+	/* update display watermarks based on new power state */
+	radeon_update_bandwidth_info(rdev);
+	if (rdev->pm.active_crtc_count)
+		radeon_bandwidth_update(rdev);
+
 	mutex_unlock(&rdev->cp.mutex);
 }
 
