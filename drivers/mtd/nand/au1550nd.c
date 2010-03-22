@@ -19,6 +19,7 @@
 #include <asm/io.h>
 
 #include <asm/mach-au1x00/au1xxx.h>
+#include <asm/mach-db1x00/bcsr.h>
 
 /*
  * MTD structure for NAND controller
@@ -475,7 +476,8 @@ static int __init au1xxx_nand_init(void)
 	/* set gpio206 high */
 	au_writel(au_readl(GPIO2_DIR) & ~(1 << 6), GPIO2_DIR);
 
-	boot_swapboot = (au_readl(MEM_STSTAT) & (0x7 << 1)) | ((bcsr->status >> 6) & 0x1);
+	boot_swapboot = (au_readl(MEM_STSTAT) & (0x7 << 1)) | ((bcsr_read(BCSR_STATUS) >> 6) & 0x1);
+
 	switch (boot_swapboot) {
 	case 0:
 	case 2:

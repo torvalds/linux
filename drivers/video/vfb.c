@@ -479,7 +479,7 @@ static int __init vfb_setup(char *options)
      *  Initialisation
      */
 
-static int __init vfb_probe(struct platform_device *dev)
+static int __devinit vfb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	int retval = -ENOMEM;

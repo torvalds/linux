@@ -320,7 +320,7 @@ static int qt202x_reset_phy(struct efx_nic *efx)
 
 	falcon_board(efx)->type->init_phy(efx);
 
-	return rc;
+	return 0;
 
  fail:
 	EFX_ERR(efx, "PHY reset timed out\n");
@@ -445,4 +445,5 @@ struct efx_phy_operations falcon_qt202x_phy_ops = {
 	.remove	  	 = qt202x_phy_remove,
 	.get_settings	 = qt202x_phy_get_settings,
 	.set_settings	 = efx_mdio_set_settings,
+	.test_alive	 = efx_mdio_test_alive,
 };

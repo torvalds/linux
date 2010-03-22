@@ -37,6 +37,23 @@ static int pwr_irqs_off;
 module_param(pwr_irqs_off, bool, 0644);
 MODULE_PARM_DESC(pwr_irqs_off, "Force IRQs off during power-on of slot. Use only when seeing IRQ storms!");
 
+static char o2_speedup[] = "default";
+module_param_string(o2_speedup, o2_speedup, sizeof(o2_speedup), 0444);
+MODULE_PARM_DESC(o2_speedup, "Use prefetch/burst for O2-bridges: 'on', 'off' "
+	"or 'default' (uses recommended behaviour for the detected bridge)");
+
+/*
+ * Only probe "regular" interrupts, don't
+ * touch dangerous spots like the mouse irq,
+ * because there are mice that apparently
+ * get really confused if they get fondled
+ * too intimately.
+ *
+ * Default to 11, 10, 9, 7, 6, 5, 4, 3.
+ */
+static u32 isa_interrupts = 0x0ef8;
+
+
 #define debug(x, s, args...) dev_dbg(&s->dev->dev, x, ##args)
 
 /* Don't ask.. */
@@ -49,6 +66,8 @@ MODULE_PARM_DESC(pwr_irqs_off, "Force IRQs off during power-on of slot. Use only
  */
 #ifdef CONFIG_YENTA_TI
 static int yenta_probe_cb_irq(struct yenta_socket *socket);
+static unsigned int yenta_probe_irq(struct yenta_socket *socket,
+				u32 isa_irq_mask);
 #endif
 
 
@@ -324,8 +343,8 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 		/* ISA interrupt control? */
 		intr = exca_readb(socket, I365_INTCTL);
 		intr = (intr & ~0xf);
-		if (!socket->cb_irq) {
-			intr |= state->io_irq;
+		if (!socket->dev->irq) {
+			intr |= socket->cb_irq ? socket->cb_irq : state->io_irq;
 			bridge |= CB_BRIDGE_INTR;
 		}
 		exca_writeb(socket, I365_INTCTL, intr);
@@ -335,7 +354,7 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 		reg = exca_readb(socket, I365_INTCTL) & (I365_RING_ENA | I365_INTR_ENA);
 		reg |= (state->flags & SS_RESET) ? 0 : I365_PC_RESET;
 		reg |= (state->flags & SS_IOCARD) ? I365_PC_IOCARD : 0;
-		if (state->io_irq != socket->cb_irq) {
+		if (state->io_irq != socket->dev->irq) {
 			reg |= state->io_irq;
 			bridge |= CB_BRIDGE_INTR;
 		}
@@ -351,7 +370,9 @@ static int yenta_set_socket(struct pcmcia_socket *sock, socket_state_t *state)
 			exca_writeb(socket, I365_POWER, reg);
 
 		/* CSC interrupt: no ISA irq for CSC */
-		reg = I365_CSC_DETECT;
+		reg = exca_readb(socket, I365_CSCINT);
+		reg &= I365_CSC_IRQ_MASK;
+		reg |= I365_CSC_DETECT;
 		if (state->flags & SS_IOCARD) {
 			if (state->csc_mask & SS_STSCHG)
 				reg |= I365_CSC_STSCHG;
@@ -649,9 +670,10 @@ static int yenta_search_one_res(struct resource *root, struct resource *res,
 static int yenta_search_res(struct yenta_socket *socket, struct resource *res,
 			    u32 min)
 {
+	struct resource *root;
 	int i;
-	for (i = 0; i < PCI_BUS_NUM_RESOURCES; i++) {
-		struct resource *root = socket->dev->bus->resource[i];
+
+	pci_bus_for_each_resource(socket->dev->bus, root, i) {
 		if (!root)
 			continue;
 
@@ -890,22 +912,12 @@ static struct cardbus_type cardbus_type[] = {
 };
 
 
-/*
- * Only probe "regular" interrupts, don't
- * touch dangerous spots like the mouse irq,
- * because there are mice that apparently
- * get really confused if they get fondled
- * too intimately.
- *
- * Default to 11, 10, 9, 7, 6, 5, 4, 3.
- */
-static u32 isa_interrupts = 0x0ef8;
-
 static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mask)
 {
 	int i;
 	unsigned long val;
 	u32 mask;
+	u8 reg;
 
 	/*
 	 * Probe for usable interrupts using the force
@@ -913,6 +925,7 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 	 */
 	cb_writel(socket, CB_SOCKET_EVENT, -1);
 	cb_writel(socket, CB_SOCKET_MASK, CB_CSTSMASK);
+	reg = exca_readb(socket, I365_CSCINT);
 	exca_writeb(socket, I365_CSCINT, 0);
 	val = probe_irq_on() & isa_irq_mask;
 	for (i = 1; i < 16; i++) {
@@ -924,7 +937,7 @@ static unsigned int yenta_probe_irq(struct yenta_socket *socket, u32 isa_irq_mas
 		cb_writel(socket, CB_SOCKET_EVENT, -1);
 	}
 	cb_writel(socket, CB_SOCKET_MASK, 0);
-	exca_writeb(socket, I365_CSCINT, 0);
+	exca_writeb(socket, I365_CSCINT, reg);
 
 	mask = probe_irq_mask(val) & 0xffff;
 
@@ -961,6 +974,8 @@ static irqreturn_t yenta_probe_handler(int irq, void *dev_id)
 /* probes the PCI interrupt, use only on override functions */
 static int yenta_probe_cb_irq(struct yenta_socket *socket)
 {
+	u8 reg;
+
 	if (!socket->cb_irq)
 		return -1;
 
@@ -973,7 +988,8 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
 	}
 
 	/* generate interrupt, wait */
-	exca_writeb(socket, I365_CSCINT, I365_CSC_STSCHG);
+	reg = exca_readb(socket, I365_CSCINT);
+	exca_writeb(socket, I365_CSCINT, reg | I365_CSC_STSCHG);
 	cb_writel(socket, CB_SOCKET_EVENT, -1);
 	cb_writel(socket, CB_SOCKET_MASK, CB_CSTSMASK);
 	cb_writel(socket, CB_SOCKET_FORCE, CB_FCARDSTS);
@@ -982,7 +998,7 @@ static int yenta_probe_cb_irq(struct yenta_socket *socket)
 
 	/* disable interrupts */
 	cb_writel(socket, CB_SOCKET_MASK, 0);
-	exca_writeb(socket, I365_CSCINT, 0);
+	exca_writeb(socket, I365_CSCINT, reg);
 	cb_writel(socket, CB_SOCKET_EVENT, -1);
 	exca_readb(socket, I365_CSC);
 
@@ -1402,10 +1418,10 @@ static struct pci_device_id yenta_table[] = {
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_7510, TI12XX),
 	CB_ID(PCI_VENDOR_ID_TI, PCI_DEVICE_ID_TI_7610, TI12XX),
 
-	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_710, TI12XX),
-	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_712, TI12XX),
-	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_720, TI12XX),
-	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_722, TI12XX),
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_710, ENE),
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_712, ENE),
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_720, ENE),
+	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_722, ENE),
 	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1211, ENE),
 	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1225, ENE),
 	CB_ID(PCI_VENDOR_ID_ENE, PCI_DEVICE_ID_ENE_1410, ENE),

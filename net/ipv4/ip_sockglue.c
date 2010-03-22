@@ -451,7 +451,8 @@ static int do_ip_setsockopt(struct sock *sk, int level,
 			     (1<<IP_TTL) | (1<<IP_HDRINCL) |
 			     (1<<IP_MTU_DISCOVER) | (1<<IP_RECVERR) |
 			     (1<<IP_ROUTER_ALERT) | (1<<IP_FREEBIND) |
-			     (1<<IP_PASSSEC) | (1<<IP_TRANSPARENT))) ||
+			     (1<<IP_PASSSEC) | (1<<IP_TRANSPARENT) |
+			     (1<<IP_MINTTL))) ||
 	    optname == IP_MULTICAST_TTL ||
 	    optname == IP_MULTICAST_ALL ||
 	    optname == IP_MULTICAST_LOOP ||
@@ -936,6 +937,14 @@ mc_msf_out:
 		inet->transparent = !!val;
 		break;
 
+	case IP_MINTTL:
+		if (optlen < 1)
+			goto e_inval;
+		if (val < 0 || val > 255)
+			goto e_inval;
+		inet->min_ttl = val;
+		break;
+
 	default:
 		err = -ENOPROTOOPT;
 		break;
@@ -1197,6 +1206,9 @@ static int do_ip_getsockopt(struct sock *sk, int level, int optname,
 		break;
 	case IP_TRANSPARENT:
 		val = inet->transparent;
+		break;
+	case IP_MINTTL:
+		val = inet->min_ttl;
 		break;
 	default:
 		release_sock(sk);

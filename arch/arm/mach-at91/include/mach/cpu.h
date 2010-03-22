@@ -33,6 +33,8 @@
 #define ARCH_ID_AT91SAM9XE256	0x329a93a0
 #define ARCH_ID_AT91SAM9XE512	0x329aa3a0
 
+#define ARCH_ID_AT572D940HF	0x0e0303e0
+
 #define ARCH_ID_AT91M40800	0x14080044
 #define ARCH_ID_AT91R40807	0x44080746
 #define ARCH_ID_AT91M40807	0x14080745
@@ -139,6 +141,12 @@ static inline unsigned long at91cap9_rev_identify(void)
 #define cpu_is_at91cap9()	(0)
 #define cpu_is_at91cap9_revB()	(0)
 #define cpu_is_at91cap9_revC()	(0)
+#endif
+
+#ifdef CONFIG_ARCH_AT572D940HF
+#define cpu_is_at572d940hf() (at91_cpu_identify() == ARCH_ID_AT572D940HF)
+#else
+#define cpu_is_at572d940hf() (0)
 #endif
 
 /*

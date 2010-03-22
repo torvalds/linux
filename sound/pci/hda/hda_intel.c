@@ -125,6 +125,7 @@ MODULE_SUPPORTED_DEVICE("{{Intel, ICH6},"
 			 "{Intel, ICH9},"
 			 "{Intel, ICH10},"
 			 "{Intel, PCH},"
+			 "{Intel, CPT},"
 			 "{Intel, SCH},"
 			 "{ATI, SB450},"
 			 "{ATI, SB600},"
@@ -259,8 +260,6 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define AZX_MAX_FRAG		32
 /* max buffer size - no h/w limit, you can increase as you like */
 #define AZX_MAX_BUF_SIZE	(1024*1024*1024)
-/* max number of PCM devics per card */
-#define AZX_MAX_PCMS		8
 
 /* RIRB int mask: overrun[2], response[0] */
 #define RIRB_INT_RESPONSE	0x01
@@ -268,7 +267,8 @@ enum { SDI0, SDI1, SDI2, SDI3, SDO0, SDO1, SDO2, SDO3 };
 #define RIRB_INT_MASK		0x05
 
 /* STATESTS int mask: S3,SD2,SD1,SD0 */
-#define AZX_MAX_CODECS		4
+#define AZX_MAX_CODECS		8
+#define AZX_DEFAULT_CODECS	4
 #define STATESTS_INT_MASK	((1 << AZX_MAX_CODECS) - 1)
 
 /* SD_CTL bits */
@@ -408,7 +408,7 @@ struct azx {
 	struct azx_dev *azx_dev;
 
 	/* PCM */
-	struct snd_pcm *pcm[AZX_MAX_PCMS];
+	struct snd_pcm *pcm[HDA_MAX_PCMS];
 
 	/* HD codec */
 	unsigned short codec_mask;
@@ -449,6 +449,7 @@ struct azx {
 /* driver types */
 enum {
 	AZX_DRIVER_ICH,
+	AZX_DRIVER_PCH,
 	AZX_DRIVER_SCH,
 	AZX_DRIVER_ATI,
 	AZX_DRIVER_ATIHDMI,
@@ -463,6 +464,7 @@ enum {
 
 static char *driver_short_names[] __devinitdata = {
 	[AZX_DRIVER_ICH] = "HDA Intel",
+	[AZX_DRIVER_PCH] = "HDA Intel PCH",
 	[AZX_DRIVER_SCH] = "HDA Intel MID",
 	[AZX_DRIVER_ATI] = "HDA ATI SB",
 	[AZX_DRIVER_ATIHDMI] = "HDA ATI HDMI",
@@ -968,8 +970,8 @@ static void azx_stream_start(struct azx *chip, struct azx_dev *azx_dev)
 	azx_dev->insufficient = 1;
 
 	/* enable SIE */
-	azx_writeb(chip, INTCTL,
-		   azx_readb(chip, INTCTL) | (1 << azx_dev->index));
+	azx_writel(chip, INTCTL,
+		   azx_readl(chip, INTCTL) | (1 << azx_dev->index));
 	/* set DMA start and interrupt mask */
 	azx_sd_writeb(azx_dev, SD_CTL, azx_sd_readb(azx_dev, SD_CTL) |
 		      SD_CTL_DMA_START | SD_INT_MASK);
@@ -988,8 +990,8 @@ static void azx_stream_stop(struct azx *chip, struct azx_dev *azx_dev)
 {
 	azx_stream_clear(chip, azx_dev);
 	/* disable SIE */
-	azx_writeb(chip, INTCTL,
-		   azx_readb(chip, INTCTL) & ~(1 << azx_dev->index));
+	azx_writel(chip, INTCTL,
+		   azx_readl(chip, INTCTL) & ~(1 << azx_dev->index));
 }
 
 
@@ -1065,6 +1067,7 @@ static void azx_init_pci(struct azx *chip)
 				0x01, NVIDIA_HDA_ENABLE_COHBIT);
 		break;
 	case AZX_DRIVER_SCH:
+	case AZX_DRIVER_PCH:
 		pci_read_config_word(chip->pci, INTEL_SCH_HDA_DEVC, &snoop);
 		if (snoop & INTEL_SCH_HDA_DEVC_NOSNOOP) {
 			pci_write_config_word(chip->pci, INTEL_SCH_HDA_DEVC,
@@ -1350,7 +1353,7 @@ static void azx_bus_reset(struct hda_bus *bus)
 	if (chip->initialized) {
 		int i;
 
-		for (i = 0; i < AZX_MAX_PCMS; i++)
+		for (i = 0; i < HDA_MAX_PCMS; i++)
 			snd_pcm_suspend_all(chip->pcm[i]);
 		snd_hda_suspend(chip->bus);
 		snd_hda_resume(chip->bus);
@@ -1365,6 +1368,7 @@ static void azx_bus_reset(struct hda_bus *bus)
 
 /* number of codec slots for each chipset: 0 = default slots (i.e. 4) */
 static unsigned int azx_max_codecs[AZX_NUM_DRIVERS] __devinitdata = {
+	[AZX_DRIVER_NVIDIA] = 8,
 	[AZX_DRIVER_TERA] = 1,
 };
 
@@ -1397,7 +1401,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 	codecs = 0;
 	max_slots = azx_max_codecs[chip->driver_type];
 	if (!max_slots)
-		max_slots = AZX_MAX_CODECS;
+		max_slots = AZX_DEFAULT_CODECS;
 
 	/* First try to probe all given codec slots */
 	for (c = 0; c < max_slots; c++) {
@@ -1412,7 +1416,7 @@ static int __devinit azx_codec_create(struct azx *chip, const char *model)
 				chip->codec_mask &= ~(1 << c);
 				/* More badly, accessing to a non-existing
 				 * codec often screws up the controller chip,
-				 * and distrubs the further communications.
+				 * and disturbs the further communications.
 				 * Thus if an error occurs during probing,
 				 * better to reset the controller chip to
 				 * get back to the sanity state.
@@ -1983,7 +1987,7 @@ azx_attach_pcm_stream(struct hda_bus *bus, struct hda_codec *codec,
 	int pcm_dev = cpcm->device;
 	int s, err;
 
-	if (pcm_dev >= AZX_MAX_PCMS) {
+	if (pcm_dev >= HDA_MAX_PCMS) {
 		snd_printk(KERN_ERR SFX "Invalid PCM device number %d\n",
 			   pcm_dev);
 		return -EINVAL;
@@ -2139,7 +2143,7 @@ static int azx_suspend(struct pci_dev *pci, pm_message_t state)
 
 	snd_power_change_state(card, SNDRV_CTL_POWER_D3hot);
 	azx_clear_irq_pending(chip);
-	for (i = 0; i < AZX_MAX_PCMS; i++)
+	for (i = 0; i < HDA_MAX_PCMS; i++)
 		snd_pcm_suspend_all(chip->pcm[i]);
 	if (chip->initialized)
 		snd_hda_suspend(chip->bus);
@@ -2261,9 +2265,13 @@ static int azx_dev_free(struct snd_device *device)
 static struct snd_pci_quirk position_fix_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1028, 0x01cc, "Dell D820", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1028, 0x01de, "Dell Precision 390", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x1028, 0x01f6, "Dell Latitude 131L", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x103c, 0x306d, "HP dv3", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x1106, 0x3288, "ASUS M2V-MX SE", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1043, 0x813d, "ASUS P5AD2", POS_FIX_LPIB),
 	SND_PCI_QUIRK(0x1462, 0x1002, "MSI Wind U115", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x1565, 0x820f, "Biostar Microtech", POS_FIX_LPIB),
+	SND_PCI_QUIRK(0x8086, 0xd601, "eMachines T5212", POS_FIX_LPIB),
 	{}
 };
 
@@ -2350,7 +2358,9 @@ static void __devinit check_probe_mask(struct azx *chip, int dev)
  */
 static struct snd_pci_quirk msi_black_list[] __devinitdata = {
 	SND_PCI_QUIRK(0x1043, 0x81f2, "ASUS", 0), /* Athlon64 X2 + nvidia */
-	SND_PCI_QUIRK(0x1043, 0x829c, "ASUS", 0), /* nvidia */
+	SND_PCI_QUIRK(0x1043, 0x81f6, "ASUS", 0), /* nvidia */
+	SND_PCI_QUIRK(0x1043, 0x822d, "ASUS", 0), /* Athlon64 X2 + nvidia MCP55 */
+	SND_PCI_QUIRK(0x1849, 0x0888, "ASRock", 0), /* Athlon64 X2 + nvidia */
 	{}
 };
 
@@ -2369,6 +2379,13 @@ static void __devinit check_msi(struct azx *chip)
 		       "hda_intel: msi for device %04x:%04x set to %d\n",
 		       q->subvendor, q->subdevice, q->value);
 		chip->msi = q->value;
+		return;
+	}
+
+	/* NVidia chipsets seem to cause troubles with MSI */
+	if (chip->driver_type == AZX_DRIVER_NVIDIA) {
+		printk(KERN_INFO "hda_intel: Disable MSI for Nvidia chipset\n");
+		chip->msi = 0;
 	}
 }
 
@@ -2418,6 +2435,7 @@ static int __devinit azx_create(struct snd_card *card, struct pci_dev *pci,
 	if (bdl_pos_adj[dev] < 0) {
 		switch (chip->driver_type) {
 		case AZX_DRIVER_ICH:
+		case AZX_DRIVER_PCH:
 			bdl_pos_adj[dev] = 1;
 			break;
 		default:
@@ -2696,6 +2714,9 @@ static DEFINE_PCI_DEVICE_TABLE(azx_ids) = {
 	{ PCI_DEVICE(0x8086, 0x3a6e), .driver_data = AZX_DRIVER_ICH },
 	/* PCH */
 	{ PCI_DEVICE(0x8086, 0x3b56), .driver_data = AZX_DRIVER_ICH },
+	{ PCI_DEVICE(0x8086, 0x3b57), .driver_data = AZX_DRIVER_ICH },
+	/* CPT */
+	{ PCI_DEVICE(0x8086, 0x1c20), .driver_data = AZX_DRIVER_PCH },
 	/* SCH */
 	{ PCI_DEVICE(0x8086, 0x811b), .driver_data = AZX_DRIVER_SCH },
 	/* ATI SB 450/600 */

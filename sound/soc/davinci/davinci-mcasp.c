@@ -767,14 +767,26 @@ static int davinci_mcasp_trigger(struct snd_pcm_substream *substream,
 	int ret = 0;
 
 	switch (cmd) {
-	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_RESUME:
+	case SNDRV_PCM_TRIGGER_START:
 	case SNDRV_PCM_TRIGGER_PAUSE_RELEASE:
+		if (!dev->clk_active) {
+			clk_enable(dev->clk);
+			dev->clk_active = 1;
+		}
 		davinci_mcasp_start(dev, substream->stream);
 		break;
 
-	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
+		davinci_mcasp_stop(dev, substream->stream);
+		if (dev->clk_active) {
+			clk_disable(dev->clk);
+			dev->clk_active = 0;
+		}
+
+		break;
+
+	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
 		davinci_mcasp_stop(dev, substream->stream);
 		break;
@@ -866,6 +878,7 @@ static int davinci_mcasp_probe(struct platform_device *pdev)
 	}
 
 	clk_enable(dev->clk);
+	dev->clk_active = 1;
 
 	dev->base = (void __iomem *)IO_ADDRESS(mem->start);
 	dev->op_mode = pdata->op_mode;

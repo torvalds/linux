@@ -625,6 +625,10 @@ enum {
 	LINE_MODE_PINCFG,
 	LINE_MODE_VERB,
 	LINE_MODE_HINT,
+	LINE_MODE_VENDOR_ID,
+	LINE_MODE_SUBSYSTEM_ID,
+	LINE_MODE_REVISION_ID,
+	LINE_MODE_CHIP_NAME,
 	NUM_LINE_MODES,
 };
 
@@ -654,53 +658,71 @@ static void parse_codec_mode(char *buf, struct hda_bus *bus,
 }
 
 /* parse the contents after the other command tags, [pincfg], [verb],
- * [hint] and [model]
+ * [vendor_id], [subsystem_id], [revision_id], [chip_name], [hint] and [model]
  * just pass to the sysfs helper (only when any codec was specified)
  */
 static void parse_pincfg_mode(char *buf, struct hda_bus *bus,
 			      struct hda_codec **codecp)
 {
-	if (!*codecp)
-		return;
 	parse_user_pin_configs(*codecp, buf);
 }
 
 static void parse_verb_mode(char *buf, struct hda_bus *bus,
 			    struct hda_codec **codecp)
 {
-	if (!*codecp)
-		return;
 	parse_init_verbs(*codecp, buf);
 }
 
 static void parse_hint_mode(char *buf, struct hda_bus *bus,
 			    struct hda_codec **codecp)
 {
-	if (!*codecp)
-		return;
 	parse_hints(*codecp, buf);
 }
 
 static void parse_model_mode(char *buf, struct hda_bus *bus,
 			     struct hda_codec **codecp)
 {
-	if (!*codecp)
-		return;
 	kfree((*codecp)->modelname);
 	(*codecp)->modelname = kstrdup(buf, GFP_KERNEL);
 }
 
+static void parse_chip_name_mode(char *buf, struct hda_bus *bus,
+				 struct hda_codec **codecp)
+{
+	kfree((*codecp)->chip_name);
+	(*codecp)->chip_name = kstrdup(buf, GFP_KERNEL);
+}
+
+#define DEFINE_PARSE_ID_MODE(name) \
+static void parse_##name##_mode(char *buf, struct hda_bus *bus, \
+				 struct hda_codec **codecp) \
+{ \
+	unsigned long val; \
+	if (!strict_strtoul(buf, 0, &val)) \
+		(*codecp)->name = val; \
+}
+
+DEFINE_PARSE_ID_MODE(vendor_id);
+DEFINE_PARSE_ID_MODE(subsystem_id);
+DEFINE_PARSE_ID_MODE(revision_id);
+
+
 struct hda_patch_item {
 	const char *tag;
 	void (*parser)(char *buf, struct hda_bus *bus, struct hda_codec **retc);
+	int need_codec;
 };
 
 static struct hda_patch_item patch_items[NUM_LINE_MODES] = {
-	[LINE_MODE_CODEC] = { "[codec]", parse_codec_mode },
-	[LINE_MODE_MODEL] = { "[model]", parse_model_mode },
-	[LINE_MODE_VERB] = { "[verb]", parse_verb_mode },
-	[LINE_MODE_PINCFG] = { "[pincfg]", parse_pincfg_mode },
-	[LINE_MODE_HINT] = { "[hint]", parse_hint_mode },
+	[LINE_MODE_CODEC] = { "[codec]", parse_codec_mode, 0 },
+	[LINE_MODE_MODEL] = { "[model]", parse_model_mode, 1 },
+	[LINE_MODE_VERB] = { "[verb]", parse_verb_mode, 1 },
+	[LINE_MODE_PINCFG] = { "[pincfg]", parse_pincfg_mode, 1 },
+	[LINE_MODE_HINT] = { "[hint]", parse_hint_mode, 1 },
+	[LINE_MODE_VENDOR_ID] = { "[vendor_id]", parse_vendor_id_mode, 1 },
+	[LINE_MODE_SUBSYSTEM_ID] = { "[subsystem_id]", parse_subsystem_id_mode, 1 },
+	[LINE_MODE_REVISION_ID] = { "[revision_id]", parse_revision_id_mode, 1 },
+	[LINE_MODE_CHIP_NAME] = { "[chip_name]", parse_chip_name_mode, 1 },
 };
 
 /* check the line starting with '[' -- change the parser mode accodingly */
@@ -783,7 +805,8 @@ int snd_hda_load_patch(struct hda_bus *bus, const char *patch)
 			continue;
 		if (*buf == '[')
 			line_mode = parse_line_mode(buf, bus);
-		else if (patch_items[line_mode].parser)
+		else if (patch_items[line_mode].parser &&
+			 (codec || !patch_items[line_mode].need_codec))
 			patch_items[line_mode].parser(buf, bus, &codec);
 	}
 	release_firmware(fw);

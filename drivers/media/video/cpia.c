@@ -3737,9 +3737,6 @@ static int cpia_mmap(struct file *file, struct vm_area_struct *vma)
 	if (size > FRAME_NUM*CPIA_MAX_FRAME_SIZE)
 		return -EINVAL;
 
-	if (!cam || !cam->ops)
-		return -ENODEV;
-
 	/* make this _really_ smp-safe */
 	if (mutex_lock_interruptible(&cam->busy_lock))
 		return -EINTR;

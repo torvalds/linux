@@ -64,7 +64,6 @@ static unsigned long imote2_pin_config[] __initdata = {
 	GPIO116_GPIO,			/* CC_CCA */
 	GPIO0_GPIO,			/* CC_FIFOP */
 	GPIO16_GPIO,			/* CCSFD */
-	GPIO39_GPIO,			/* CSn */
 	GPIO115_GPIO,			/* Power enable */
 
 	/* I2C */
@@ -72,7 +71,7 @@ static unsigned long imote2_pin_config[] __initdata = {
 	GPIO118_I2C_SDA,
 
 	/* SSP 3 - 802.15.4 radio */
-	GPIO39_GPIO, 			/* Chip Select */
+	GPIO39_GPIO,			/* Chip Select */
 	GPIO34_SSP3_SCLK,
 	GPIO35_SSP3_TXD,
 	GPIO41_SSP3_RXD,

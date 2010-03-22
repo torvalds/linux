@@ -26,7 +26,9 @@
 
 #include <linux/netfilter/x_tables.h>
 #include <linux/netfilter_arp.h>
-
+#include <linux/netfilter_ipv4/ip_tables.h>
+#include <linux/netfilter_ipv6/ip6_tables.h>
+#include <linux/netfilter_arp/arp_tables.h>
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Harald Welte <laforge@netfilter.org>");
@@ -37,7 +39,7 @@ MODULE_DESCRIPTION("{ip,ip6,arp,eb}_tables backend module");
 struct compat_delta {
 	struct compat_delta *next;
 	unsigned int offset;
-	short delta;
+	int delta;
 };
 
 struct xt_af {
@@ -364,8 +366,10 @@ int xt_check_match(struct xt_mtchk_param *par,
 		 * ebt_among is exempt from centralized matchsize checking
 		 * because it uses a dynamic-size data set.
 		 */
-		pr_err("%s_tables: %s match: invalid size %Zu != %u\n",
+		pr_err("%s_tables: %s.%u match: invalid size "
+		       "%u (kernel) != (user) %u\n",
 		       xt_prefix[par->family], par->match->name,
+		       par->match->revision,
 		       XT_ALIGN(par->match->matchsize), size);
 		return -EINVAL;
 	}
@@ -435,10 +439,10 @@ void xt_compat_flush_offsets(u_int8_t af)
 }
 EXPORT_SYMBOL_GPL(xt_compat_flush_offsets);
 
-short xt_compat_calc_jump(u_int8_t af, unsigned int offset)
+int xt_compat_calc_jump(u_int8_t af, unsigned int offset)
 {
 	struct compat_delta *tmp;
-	short delta;
+	int delta;
 
 	for (tmp = xt[af].compat_offsets, delta = 0; tmp; tmp = tmp->next)
 		if (tmp->offset < offset)
@@ -481,8 +485,8 @@ int xt_compat_match_from_user(struct xt_entry_match *m, void **dstptr,
 }
 EXPORT_SYMBOL_GPL(xt_compat_match_from_user);
 
-int xt_compat_match_to_user(struct xt_entry_match *m, void __user **dstptr,
-			    unsigned int *size)
+int xt_compat_match_to_user(const struct xt_entry_match *m,
+			    void __user **dstptr, unsigned int *size)
 {
 	const struct xt_match *match = m->u.kernel.match;
 	struct compat_xt_entry_match __user *cm = *dstptr;
@@ -514,8 +518,10 @@ int xt_check_target(struct xt_tgchk_param *par,
 		    unsigned int size, u_int8_t proto, bool inv_proto)
 {
 	if (XT_ALIGN(par->target->targetsize) != size) {
-		pr_err("%s_tables: %s target: invalid size %Zu != %u\n",
+		pr_err("%s_tables: %s.%u target: invalid size "
+		       "%u (kernel) != (user) %u\n",
 		       xt_prefix[par->family], par->target->name,
+		       par->target->revision,
 		       XT_ALIGN(par->target->targetsize), size);
 		return -EINVAL;
 	}
@@ -582,8 +588,8 @@ void xt_compat_target_from_user(struct xt_entry_target *t, void **dstptr,
 }
 EXPORT_SYMBOL_GPL(xt_compat_target_from_user);
 
-int xt_compat_target_to_user(struct xt_entry_target *t, void __user **dstptr,
-			     unsigned int *size)
+int xt_compat_target_to_user(const struct xt_entry_target *t,
+			     void __user **dstptr, unsigned int *size)
 {
 	const struct xt_target *target = t->u.kernel.target;
 	struct compat_xt_entry_target __user *ct = *dstptr;
@@ -1090,6 +1096,60 @@ static const struct file_operations xt_target_ops = {
 #define FORMAT_TARGETS 	"_tables_targets"
 
 #endif /* CONFIG_PROC_FS */
+
+/**
+ * xt_hook_link - set up hooks for a new table
+ * @table:	table with metadata needed to set up hooks
+ * @fn:		Hook function
+ *
+ * This function will take care of creating and registering the necessary
+ * Netfilter hooks for XT tables.
+ */
+struct nf_hook_ops *xt_hook_link(const struct xt_table *table, nf_hookfn *fn)
+{
+	unsigned int hook_mask = table->valid_hooks;
+	uint8_t i, num_hooks = hweight32(hook_mask);
+	uint8_t hooknum;
+	struct nf_hook_ops *ops;
+	int ret;
+
+	ops = kmalloc(sizeof(*ops) * num_hooks, GFP_KERNEL);
+	if (ops == NULL)
+		return ERR_PTR(-ENOMEM);
+
+	for (i = 0, hooknum = 0; i < num_hooks && hook_mask != 0;
+	     hook_mask >>= 1, ++hooknum) {
+		if (!(hook_mask & 1))
+			continue;
+		ops[i].hook     = fn;
+		ops[i].owner    = table->me;
+		ops[i].pf       = table->af;
+		ops[i].hooknum  = hooknum;
+		ops[i].priority = table->priority;
+		++i;
+	}
+
+	ret = nf_register_hooks(ops, num_hooks);
+	if (ret < 0) {
+		kfree(ops);
+		return ERR_PTR(ret);
+	}
+
+	return ops;
+}
+EXPORT_SYMBOL_GPL(xt_hook_link);
+
+/**
+ * xt_hook_unlink - remove hooks for a table
+ * @ops:	nf_hook_ops array as returned by nf_hook_link
+ * @hook_mask:	the very same mask that was passed to nf_hook_link
+ */
+void xt_hook_unlink(const struct xt_table *table, struct nf_hook_ops *ops)
+{
+	nf_unregister_hooks(ops, hweight32(table->valid_hooks));
+	kfree(ops);
+}
+EXPORT_SYMBOL_GPL(xt_hook_unlink);
 
 int xt_proto_init(struct net *net, u_int8_t af)
 {

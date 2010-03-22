@@ -22,7 +22,10 @@
 #include <linux/io.h>
 #include <linux/bug.h>
 #include <linux/param.h>
+#include <linux/pci.h>
 #include <linux/cache.h>
+#include <linux/of_platform.h>
+#include <linux/dma-mapping.h>
 #include <asm/cacheflush.h>
 #include <asm/entry.h>
 #include <asm/cpuinfo.h>
@@ -54,13 +57,9 @@ void __init setup_arch(char **cmdline_p)
 
 	microblaze_cache_init();
 
-	invalidate_dcache();
-	enable_dcache();
-
-	invalidate_icache();
-	enable_icache();
-
 	setup_memory();
+
+	xilinx_pci_init();
 
 #if defined(CONFIG_SELFMOD_INTC) || defined(CONFIG_SELFMOD_TIMER)
 	printk(KERN_NOTICE "Self modified code enable\n");
@@ -188,3 +187,37 @@ static int microblaze_debugfs_init(void)
 }
 arch_initcall(microblaze_debugfs_init);
 #endif
+
+static int dflt_bus_notify(struct notifier_block *nb,
+				unsigned long action, void *data)
+{
+	struct device *dev = data;
+
+	/* We are only intereted in device addition */
+	if (action != BUS_NOTIFY_ADD_DEVICE)
+		return 0;
+
+	set_dma_ops(dev, &dma_direct_ops);
+
+	return NOTIFY_DONE;
+}
+
+static struct notifier_block dflt_plat_bus_notifier = {
+	.notifier_call = dflt_bus_notify,
+	.priority = INT_MAX,
+};
+
+static struct notifier_block dflt_of_bus_notifier = {
+	.notifier_call = dflt_bus_notify,
+	.priority = INT_MAX,
+};
+
+static int __init setup_bus_notifier(void)
+{
+	bus_register_notifier(&platform_bus_type, &dflt_plat_bus_notifier);
+	bus_register_notifier(&of_platform_bus_type, &dflt_of_bus_notifier);
+
+	return 0;
+}
+
+arch_initcall(setup_bus_notifier);

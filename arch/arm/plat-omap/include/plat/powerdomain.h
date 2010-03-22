@@ -1,8 +1,8 @@
 /*
  * OMAP2/3 powerdomain control
  *
- * Copyright (C) 2007-8 Texas Instruments, Inc.
- * Copyright (C) 2007-8 Nokia Corporation
+ * Copyright (C) 2007-2008 Texas Instruments, Inc.
+ * Copyright (C) 2007-2009 Nokia Corporation
  *
  * Written by Paul Walmsley
  *
@@ -37,6 +37,9 @@
 #define PWRSTS_OFF_RET		((1 << PWRDM_POWER_OFF) | \
 				 (1 << PWRDM_POWER_RET))
 
+#define PWRSTS_RET_ON		((1 << PWRDM_POWER_RET) | \
+				 (1 << PWRDM_POWER_ON))
+
 #define PWRSTS_OFF_RET_ON	(PWRSTS_OFF_RET | (1 << PWRDM_POWER_ON))
 
 
@@ -48,16 +51,16 @@
 					  */
 
 /*
- * Number of memory banks that are power-controllable.	On OMAP3430, the
- * maximum is 4.
+ * Number of memory banks that are power-controllable.	On OMAP4430, the
+ * maximum is 5.
  */
-#define PWRDM_MAX_MEM_BANKS	4
+#define PWRDM_MAX_MEM_BANKS	5
 
 /*
  * Maximum number of clockdomains that can be associated with a powerdomain.
- * CORE powerdomain on OMAP3 is the worst case
+ * CORE powerdomain on OMAP4 is the worst case
  */
-#define PWRDM_MAX_CLKDMS	4
+#define PWRDM_MAX_CLKDMS	9
 
 /* XXX A completely arbitrary number. What is reasonable here? */
 #define PWRDM_TRANSITION_BAILOUT 100000
@@ -65,65 +68,40 @@
 struct clockdomain;
 struct powerdomain;
 
-/* Encodes dependencies between powerdomains - statically defined */
-struct pwrdm_dep {
-
-	/* Powerdomain name */
-	const char *pwrdm_name;
-
-	/* Powerdomain pointer - resolved by the powerdomain code */
-	struct powerdomain *pwrdm;
-
-	/* Flags to mark OMAP chip restrictions, etc. */
-	const struct omap_chip_id omap_chip;
-
-};
-
+/**
+ * struct powerdomain - OMAP powerdomain
+ * @name: Powerdomain name
+ * @omap_chip: represents the OMAP chip types containing this pwrdm
+ * @prcm_offs: the address offset from CM_BASE/PRM_BASE
+ * @pwrsts: Possible powerdomain power states
+ * @pwrsts_logic_ret: Possible logic power states when pwrdm in RETENTION
+ * @flags: Powerdomain flags
+ * @banks: Number of software-controllable memory banks in this powerdomain
+ * @pwrsts_mem_ret: Possible memory bank pwrstates when pwrdm in RETENTION
+ * @pwrsts_mem_on: Possible memory bank pwrstates when pwrdm in ON
+ * @pwrdm_clkdms: Clockdomains in this powerdomain
+ * @node: list_head linking all powerdomains
+ * @state:
+ * @state_counter:
+ * @timer:
+ * @state_timer:
+ */
 struct powerdomain {
-
-	/* Powerdomain name */
 	const char *name;
-
-	/* the address offset from CM_BASE/PRM_BASE */
-	const s16 prcm_offs;
-
-	/* Used to represent the OMAP chip types containing this pwrdm */
 	const struct omap_chip_id omap_chip;
-
-	/* Powerdomains that can be told to wake this powerdomain up */
-	struct pwrdm_dep *wkdep_srcs;
-
-	/* Powerdomains that can be told to keep this pwrdm from inactivity */
-	struct pwrdm_dep *sleepdep_srcs;
-
-	/* Bit shift of this powerdomain's PM_WKDEP/CM_SLEEPDEP bit */
-	const u8 dep_bit;
-
-	/* Possible powerdomain power states */
+	const s16 prcm_offs;
 	const u8 pwrsts;
-
-	/* Possible logic power states when pwrdm in RETENTION */
 	const u8 pwrsts_logic_ret;
-
-	/* Powerdomain flags */
 	const u8 flags;
-
-	/* Number of software-controllable memory banks in this powerdomain */
 	const u8 banks;
-
-	/* Possible memory bank pwrstates when pwrdm in RETENTION */
 	const u8 pwrsts_mem_ret[PWRDM_MAX_MEM_BANKS];
-
-	/* Possible memory bank pwrstates when pwrdm is ON */
 	const u8 pwrsts_mem_on[PWRDM_MAX_MEM_BANKS];
-
-	/* Clockdomains in this powerdomain */
 	struct clockdomain *pwrdm_clkdms[PWRDM_MAX_CLKDMS];
-
 	struct list_head node;
-
 	int state;
 	unsigned state_counter[PWRDM_MAX_PWRSTS];
+	unsigned ret_logic_off_counter;
+	unsigned ret_mem_off_counter[PWRDM_MAX_MEM_BANKS];
 
 #ifdef CONFIG_PM_DEBUG
 	s64 timer;
@@ -134,8 +112,6 @@ struct powerdomain {
 
 void pwrdm_init(struct powerdomain **pwrdm_list);
 
-int pwrdm_register(struct powerdomain *pwrdm);
-int pwrdm_unregister(struct powerdomain *pwrdm);
 struct powerdomain *pwrdm_lookup(const char *name);
 
 int pwrdm_for_each(int (*fn)(struct powerdomain *pwrdm, void *user),
@@ -148,13 +124,6 @@ int pwrdm_del_clkdm(struct powerdomain *pwrdm, struct clockdomain *clkdm);
 int pwrdm_for_each_clkdm(struct powerdomain *pwrdm,
 			 int (*fn)(struct powerdomain *pwrdm,
 				   struct clockdomain *clkdm));
-
-int pwrdm_add_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
-int pwrdm_del_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
-int pwrdm_read_wkdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
-int pwrdm_add_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
-int pwrdm_del_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
-int pwrdm_read_sleepdep(struct powerdomain *pwrdm1, struct powerdomain *pwrdm2);
 
 int pwrdm_get_mem_bank_count(struct powerdomain *pwrdm);
 
@@ -170,8 +139,10 @@ int pwrdm_set_mem_retst(struct powerdomain *pwrdm, u8 bank, u8 pwrst);
 
 int pwrdm_read_logic_pwrst(struct powerdomain *pwrdm);
 int pwrdm_read_prev_logic_pwrst(struct powerdomain *pwrdm);
+int pwrdm_read_logic_retst(struct powerdomain *pwrdm);
 int pwrdm_read_mem_pwrst(struct powerdomain *pwrdm, u8 bank);
 int pwrdm_read_prev_mem_pwrst(struct powerdomain *pwrdm, u8 bank);
+int pwrdm_read_mem_retst(struct powerdomain *pwrdm, u8 bank);
 
 int pwrdm_enable_hdwr_sar(struct powerdomain *pwrdm);
 int pwrdm_disable_hdwr_sar(struct powerdomain *pwrdm);

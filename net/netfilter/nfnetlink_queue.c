@@ -112,7 +112,6 @@ instance_create(u_int16_t queue_num, int pid)
 	inst->copy_mode = NFQNL_COPY_NONE;
 	spin_lock_init(&inst->lock);
 	INIT_LIST_HEAD(&inst->queue_list);
-	INIT_RCU_HEAD(&inst->rcu);
 
 	if (!try_module_get(THIS_MODULE)) {
 		err = -EAGAIN;
@@ -414,13 +413,13 @@ nfqnl_enqueue_packet(struct nf_queue_entry *entry, unsigned int queuenum)
 		queue->queue_dropped++;
 		if (net_ratelimit())
 			  printk(KERN_WARNING "nf_queue: full at %d entries, "
-				 "dropping packets(s). Dropped: %d\n",
-				 queue->queue_total, queue->queue_dropped);
+				 "dropping packets(s).\n",
+				 queue->queue_total);
 		goto err_out_free_nskb;
 	}
 
 	/* nfnetlink_unicast will either free the nskb or add it to a socket */
-	err = nfnetlink_unicast(nskb, queue->peer_pid, MSG_DONTWAIT);
+	err = nfnetlink_unicast(nskb, &init_net, queue->peer_pid, MSG_DONTWAIT);
 	if (err < 0) {
 		queue->queue_user_dropped++;
 		goto err_out_unlock;

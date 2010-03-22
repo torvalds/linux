@@ -60,6 +60,8 @@ extern int qla2x00_async_login_done(struct scsi_qla_host *, fc_port_t *,
 extern int qla2x00_async_logout_done(struct scsi_qla_host *, fc_port_t *,
     uint16_t *);
 
+extern fc_port_t *
+qla2x00_alloc_fcport(scsi_qla_host_t *, gfp_t );
 /*
  * Global Data in qla_os.c source file.
  */
@@ -76,6 +78,7 @@ extern int ql2xiidmaenable;
 extern int ql2xmaxqueues;
 extern int ql2xmultique_tag;
 extern int ql2xfwloadbin;
+extern int ql2xetsenable;
 
 extern int qla2x00_loop_reset(scsi_qla_host_t *);
 extern void qla2x00_abort_all_cmds(scsi_qla_host_t *, int);
@@ -94,7 +97,6 @@ extern int qla2x00_post_uevent_work(struct scsi_qla_host *, u32);
 
 extern int qla81xx_restart_mpi_firmware(scsi_qla_host_t *);
 
-extern void qla2x00_abort_fcport_cmds(fc_port_t *);
 extern struct scsi_qla_host *qla2x00_create_host(struct scsi_host_template *,
 	struct qla_hw_data *);
 extern void qla2x00_free_host(struct scsi_qla_host *);
@@ -154,6 +156,7 @@ int qla2x00_marker(struct scsi_qla_host *, struct req_que *, struct rsp_que *,
 int __qla2x00_marker(struct scsi_qla_host *, struct req_que *, struct rsp_que *,
 						uint16_t, uint16_t, uint8_t);
 extern int qla2x00_start_sp(srb_t *);
+extern void qla2x00_ctx_sp_free(srb_t *);
 
 /*
  * Global Function Prototypes in qla_mbx.c source file.
@@ -426,6 +429,8 @@ extern void qla2x00_free_sysfs_attr(scsi_qla_host_t *);
 extern void qla2x00_init_host_attr(scsi_qla_host_t *);
 extern void qla2x00_alloc_sysfs_attr(scsi_qla_host_t *);
 extern void qla2x00_free_sysfs_attr(scsi_qla_host_t *);
+extern int qla2x00_loopback_test(scsi_qla_host_t *, struct msg_echo_lb *, uint16_t *);
+extern int qla2x00_echo_test(scsi_qla_host_t *, struct msg_echo_lb *, uint16_t *);
 
 /*
  * Global Function Prototypes in qla_dfs.c source file.

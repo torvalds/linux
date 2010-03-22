@@ -322,7 +322,7 @@ int udpv6_recvmsg(struct kiocb *iocb, struct sock *sk,
 	struct ipv6_pinfo *np = inet6_sk(sk);
 	struct inet_sock *inet = inet_sk(sk);
 	struct sk_buff *skb;
-	unsigned int ulen, copied;
+	unsigned int ulen;
 	int peeked;
 	int err;
 	int is_udplite = IS_UDPLITE(sk);
@@ -341,10 +341,9 @@ try_again:
 		goto out;
 
 	ulen = skb->len - sizeof(struct udphdr);
-	copied = len;
-	if (copied > ulen)
-		copied = ulen;
-	else if (copied < ulen)
+	if (len > ulen)
+		len = ulen;
+	else if (len < ulen)
 		msg->msg_flags |= MSG_TRUNC;
 
 	is_udp4 = (skb->protocol == htons(ETH_P_IP));
@@ -355,14 +354,14 @@ try_again:
 	 * coverage checksum (UDP-Lite), do it before the copy.
 	 */
 
-	if (copied < ulen || UDP_SKB_CB(skb)->partial_cov) {
+	if (len < ulen || UDP_SKB_CB(skb)->partial_cov) {
 		if (udp_lib_checksum_complete(skb))
 			goto csum_copy_err;
 	}
 
 	if (skb_csum_unnecessary(skb))
 		err = skb_copy_datagram_iovec(skb, sizeof(struct udphdr),
-					      msg->msg_iov, copied       );
+					      msg->msg_iov,len);
 	else {
 		err = skb_copy_and_csum_datagram_iovec(skb, sizeof(struct udphdr), msg->msg_iov);
 		if (err == -EINVAL)
@@ -411,7 +410,7 @@ try_again:
 			datagram_recv_ctl(sk, msg, skb);
 	}
 
-	err = copied;
+	err = len;
 	if (flags & MSG_TRUNC)
 		err = ulen;
 
@@ -584,16 +583,20 @@ static void flush_stack(struct sock **stack, unsigned int count,
 			bh_lock_sock(sk);
 			if (!sock_owned_by_user(sk))
 				udpv6_queue_rcv_skb(sk, skb1);
-			else
-				sk_add_backlog(sk, skb1);
+			else if (sk_add_backlog(sk, skb1)) {
+				kfree_skb(skb1);
+				bh_unlock_sock(sk);
+				goto drop;
+			}
 			bh_unlock_sock(sk);
-		} else {
-			atomic_inc(&sk->sk_drops);
-			UDP6_INC_STATS_BH(sock_net(sk),
-					UDP_MIB_RCVBUFERRORS, IS_UDPLITE(sk));
-			UDP6_INC_STATS_BH(sock_net(sk),
-					UDP_MIB_INERRORS, IS_UDPLITE(sk));
+			continue;
 		}
+drop:
+		atomic_inc(&sk->sk_drops);
+		UDP6_INC_STATS_BH(sock_net(sk),
+				UDP_MIB_RCVBUFERRORS, IS_UDPLITE(sk));
+		UDP6_INC_STATS_BH(sock_net(sk),
+				UDP_MIB_INERRORS, IS_UDPLITE(sk));
 	}
 }
 /*
@@ -681,12 +684,11 @@ static inline int udp6_csum_init(struct sk_buff *skb, struct udphdr *uh,
 int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		   int proto)
 {
+	struct net *net = dev_net(skb->dev);
 	struct sock *sk;
 	struct udphdr *uh;
-	struct net_device *dev = skb->dev;
 	struct in6_addr *saddr, *daddr;
 	u32 ulen = 0;
-	struct net *net = dev_net(skb->dev);
 
 	if (!pskb_may_pull(skb, sizeof(struct udphdr)))
 		goto short_packet;
@@ -745,7 +747,7 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 		UDP6_INC_STATS_BH(net, UDP_MIB_NOPORTS,
 				proto == IPPROTO_UDPLITE);
 
-		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0, dev);
+		icmpv6_send(skb, ICMPV6_DEST_UNREACH, ICMPV6_PORT_UNREACH, 0);
 
 		kfree_skb(skb);
 		return 0;
@@ -756,8 +758,12 @@ int __udp6_lib_rcv(struct sk_buff *skb, struct udp_table *udptable,
 	bh_lock_sock(sk);
 	if (!sock_owned_by_user(sk))
 		udpv6_queue_rcv_skb(sk, skb);
-	else
-		sk_add_backlog(sk, skb);
+	else if (sk_add_backlog(sk, skb)) {
+		atomic_inc(&sk->sk_drops);
+		bh_unlock_sock(sk);
+		sock_put(sk);
+		goto discard;
+	}
 	bh_unlock_sock(sk);
 	sock_put(sk);
 	return 0;
@@ -1396,7 +1402,7 @@ static struct udp_seq_afinfo udp6_seq_afinfo = {
 	},
 };
 
-int udp6_proc_init(struct net *net)
+int __net_init udp6_proc_init(struct net *net)
 {
 	return udp_proc_register(net, &udp6_seq_afinfo);
 }

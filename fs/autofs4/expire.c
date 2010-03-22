@@ -279,7 +279,6 @@ struct dentry *autofs4_expire_direct(struct super_block *sb,
 			root->d_mounted--;
 		}
 		ino->flags |= AUTOFS_INF_EXPIRING;
-		autofs4_add_expiring(root);
 		init_completion(&ino->expire_complete);
 		spin_unlock(&sbi->fs_lock);
 		return root;
@@ -407,7 +406,6 @@ found:
 		expired, (int)expired->d_name.len, expired->d_name.name);
 	ino = autofs4_dentry_ino(expired);
 	ino->flags |= AUTOFS_INF_EXPIRING;
-	autofs4_add_expiring(expired);
 	init_completion(&ino->expire_complete);
 	spin_unlock(&sbi->fs_lock);
 	spin_lock(&dcache_lock);
@@ -435,7 +433,7 @@ int autofs4_expire_wait(struct dentry *dentry)
 
 		DPRINTK("expire done status=%d", status);
 
-		if (d_unhashed(dentry) && IS_DEADDIR(dentry->d_inode))
+		if (d_unhashed(dentry))
 			return -EAGAIN;
 
 		return status;
@@ -475,7 +473,6 @@ int autofs4_expire_run(struct super_block *sb,
 	spin_lock(&sbi->fs_lock);
 	ino = autofs4_dentry_ino(dentry);
 	ino->flags &= ~AUTOFS_INF_EXPIRING;
-	autofs4_del_expiring(dentry);
 	complete_all(&ino->expire_complete);
 	spin_unlock(&sbi->fs_lock);
 
@@ -506,7 +503,6 @@ int autofs4_do_expire_multi(struct super_block *sb, struct vfsmount *mnt,
 			ino->flags &= ~AUTOFS_INF_MOUNTPOINT;
 		}
 		ino->flags &= ~AUTOFS_INF_EXPIRING;
-		autofs4_del_expiring(dentry);
 		complete_all(&ino->expire_complete);
 		spin_unlock(&sbi->fs_lock);
 		dput(dentry);

@@ -584,9 +584,10 @@ static void iscsi_sw_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	struct iscsi_conn *conn = cls_conn->dd_data;
 	struct iscsi_tcp_conn *tcp_conn = conn->dd_data;
 	struct iscsi_sw_tcp_conn *tcp_sw_conn = tcp_conn->dd_data;
+	struct socket *sock = tcp_sw_conn->sock;
 
 	/* userspace may have goofed up and not bound us */
-	if (!tcp_sw_conn->sock)
+	if (!sock)
 		return;
 	/*
 	 * Make sure our recv side is stopped.
@@ -596,6 +597,11 @@ static void iscsi_sw_tcp_conn_stop(struct iscsi_cls_conn *cls_conn, int flag)
 	write_lock_bh(&tcp_sw_conn->sock->sk->sk_callback_lock);
 	set_bit(ISCSI_SUSPEND_BIT, &conn->suspend_rx);
 	write_unlock_bh(&tcp_sw_conn->sock->sk->sk_callback_lock);
+
+	if (sock->sk->sk_sleep && waitqueue_active(sock->sk->sk_sleep)) {
+		sock->sk->sk_err = EIO;
+		wake_up_interruptible(sock->sk->sk_sleep);
+	}
 
 	iscsi_conn_stop(cls_conn, flag);
 	iscsi_sw_tcp_release_conn(conn);
@@ -868,7 +874,7 @@ static struct scsi_host_template iscsi_sw_tcp_sht = {
 	.cmd_per_lun		= ISCSI_DEF_CMD_PER_LUN,
 	.eh_abort_handler       = iscsi_eh_abort,
 	.eh_device_reset_handler= iscsi_eh_device_reset,
-	.eh_target_reset_handler= iscsi_eh_target_reset,
+	.eh_target_reset_handler = iscsi_eh_recover_target,
 	.use_clustering         = DISABLE_CLUSTERING,
 	.slave_alloc            = iscsi_sw_tcp_slave_alloc,
 	.slave_configure        = iscsi_sw_tcp_slave_configure,

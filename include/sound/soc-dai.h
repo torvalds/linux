@@ -16,6 +16,8 @@
 
 #include <linux/list.h>
 
+#include <sound/soc.h>
+
 struct snd_pcm_substream;
 
 /*

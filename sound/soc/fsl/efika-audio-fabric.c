@@ -55,7 +55,7 @@ static __init int efika_fabric_init(void)
 	struct platform_device *pdev;
 	int rc;
 
-	if (!machine_is_compatible("bplan,efika"))
+	if (!of_machine_is_compatible("bplan,efika"))
 		return -ENODEV;
 
 	card.platform = &mpc5200_audio_dma_platform;

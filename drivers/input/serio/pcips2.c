@@ -186,7 +186,7 @@ static void __devexit pcips2_remove(struct pci_dev *dev)
 	pci_disable_device(dev);
 }
 
-static struct pci_device_id pcips2_ids[] = {
+static const struct pci_device_id pcips2_ids[] = {
 	{
 		.vendor		= 0x14f2,	/* MOBILITY */
 		.device		= 0x0123,	/* Keyboard */

@@ -218,7 +218,7 @@ static void set_multicast_finish(struct net_device *dev)
 
 	/* if all multi or too many multicasts; just enable all */
 	if ((dev->flags & IFF_ALLMULTI) != 0 ||
-	    dev->mc_count > FCC_MAX_MULTICAST_ADDRS) {
+	    netdev_mc_count(dev) > FCC_MAX_MULTICAST_ADDRS) {
 
 		W32(ep, fen_gaddrh, 0xffffffff);
 		W32(ep, fen_gaddrl, 0xffffffff);
@@ -235,7 +235,7 @@ static void set_multicast_list(struct net_device *dev)
 
 	if ((dev->flags & IFF_PROMISC) == 0) {
 		set_multicast_start(dev);
-		for (pmc = dev->mc_list; pmc != NULL; pmc = pmc->next)
+		netdev_for_each_mc_addr(pmc, dev)
 			set_multicast_one(dev, pmc->dmi_addr);
 		set_multicast_finish(dev);
 	} else
@@ -476,8 +476,9 @@ static void clear_int_events(struct net_device *dev, u32 int_events)
 
 static void ev_error(struct net_device *dev, u32 int_events)
 {
-	printk(KERN_WARNING DRV_MODULE_NAME
-	       ": %s FS_ENET ERROR(s) 0x%x\n", dev->name, int_events);
+	struct fs_enet_private *fep = netdev_priv(dev);
+
+	dev_warn(fep->dev, "FS_ENET ERROR(s) 0x%x\n", int_events);
 }
 
 static int get_regs(struct net_device *dev, void *p, int *sizep)

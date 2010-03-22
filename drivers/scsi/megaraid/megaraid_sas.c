@@ -10,7 +10,7 @@
  *	   2 of the License, or (at your option) any later version.
  *
  * FILE		: megaraid_sas.c
- * Version     : v00.00.04.12-rc1
+ * Version     : v00.00.04.17.1-rc1
  *
  * Authors:
  *	(email-id : megaraidlinux@lsi.com)
@@ -843,6 +843,7 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	pthru->lun = scp->device->lun;
 	pthru->cdb_len = scp->cmd_len;
 	pthru->timeout = 0;
+	pthru->pad_0 = 0;
 	pthru->flags = flags;
 	pthru->data_xfer_len = scsi_bufflen(scp);
 
@@ -873,6 +874,12 @@ megasas_build_dcdb(struct megasas_instance *instance, struct scsi_cmnd *scp,
 	} else
 		pthru->sge_count = megasas_make_sgl32(instance, scp,
 						      &pthru->sgl);
+
+	if (pthru->sge_count > instance->max_num_sge) {
+		printk(KERN_ERR "megasas: DCDB two many SGE NUM=%x\n",
+			pthru->sge_count);
+		return 0;
+	}
 
 	/*
 	 * Sense info specific
@@ -999,6 +1006,12 @@ megasas_build_ldio(struct megasas_instance *instance, struct scsi_cmnd *scp,
 		ldio->sge_count = megasas_make_sgl64(instance, scp, &ldio->sgl);
 	} else
 		ldio->sge_count = megasas_make_sgl32(instance, scp, &ldio->sgl);
+
+	if (ldio->sge_count > instance->max_num_sge) {
+		printk(KERN_ERR "megasas: build_ld_io: sge_count = %x\n",
+			ldio->sge_count);
+		return 0;
+	}
 
 	/*
 	 * Sense info specific
@@ -2250,6 +2263,7 @@ megasas_get_pd_list(struct megasas_instance *instance)
 	dcmd->sge_count = 1;
 	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = MEGASAS_MAX_PD * sizeof(struct MR_PD_LIST);
 	dcmd->opcode = MR_DCMD_PD_LIST_QUERY;
 	dcmd->sgl.sge32[0].phys_addr = ci_h;
@@ -2291,6 +2305,86 @@ megasas_get_pd_list(struct megasas_instance *instance)
 				ci, ci_h);
 	megasas_return_cmd(instance, cmd);
 
+	return ret;
+}
+
+/*
+ * megasas_get_ld_list_info -	Returns FW's ld_list structure
+ * @instance:				Adapter soft state
+ * @ld_list:				ld_list structure
+ *
+ * Issues an internal command (DCMD) to get the FW's controller PD
+ * list structure.  This information is mainly used to find out SYSTEM
+ * supported by the FW.
+ */
+static int
+megasas_get_ld_list(struct megasas_instance *instance)
+{
+	int ret = 0, ld_index = 0, ids = 0;
+	struct megasas_cmd *cmd;
+	struct megasas_dcmd_frame *dcmd;
+	struct MR_LD_LIST *ci;
+	dma_addr_t ci_h = 0;
+
+	cmd = megasas_get_cmd(instance);
+
+	if (!cmd) {
+		printk(KERN_DEBUG "megasas_get_ld_list: Failed to get cmd\n");
+		return -ENOMEM;
+	}
+
+	dcmd = &cmd->frame->dcmd;
+
+	ci = pci_alloc_consistent(instance->pdev,
+				sizeof(struct MR_LD_LIST),
+				&ci_h);
+
+	if (!ci) {
+		printk(KERN_DEBUG "Failed to alloc mem in get_ld_list\n");
+		megasas_return_cmd(instance, cmd);
+		return -ENOMEM;
+	}
+
+	memset(ci, 0, sizeof(*ci));
+	memset(dcmd->mbox.b, 0, MFI_MBOX_SIZE);
+
+	dcmd->cmd = MFI_CMD_DCMD;
+	dcmd->cmd_status = 0xFF;
+	dcmd->sge_count = 1;
+	dcmd->flags = MFI_FRAME_DIR_READ;
+	dcmd->timeout = 0;
+	dcmd->data_xfer_len = sizeof(struct MR_LD_LIST);
+	dcmd->opcode = MR_DCMD_LD_GET_LIST;
+	dcmd->sgl.sge32[0].phys_addr = ci_h;
+	dcmd->sgl.sge32[0].length = sizeof(struct MR_LD_LIST);
+	dcmd->pad_0  = 0;
+
+	if (!megasas_issue_polled(instance, cmd)) {
+		ret = 0;
+	} else {
+		ret = -1;
+	}
+
+	/* the following function will get the instance PD LIST */
+
+	if ((ret == 0) && (ci->ldCount < MAX_LOGICAL_DRIVES)) {
+		memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
+
+		for (ld_index = 0; ld_index < ci->ldCount; ld_index++) {
+			if (ci->ldList[ld_index].state != 0) {
+				ids = ci->ldList[ld_index].ref.targetId;
+				instance->ld_ids[ids] =
+					ci->ldList[ld_index].ref.targetId;
+			}
+		}
+	}
+
+	pci_free_consistent(instance->pdev,
+				sizeof(struct MR_LD_LIST),
+				ci,
+				ci_h);
+
+	megasas_return_cmd(instance, cmd);
 	return ret;
 }
 
@@ -2339,6 +2433,7 @@ megasas_get_ctrl_info(struct megasas_instance *instance,
 	dcmd->sge_count = 1;
 	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = sizeof(struct megasas_ctrl_info);
 	dcmd->opcode = MR_DCMD_CTRL_GET_INFO;
 	dcmd->sgl.sge32[0].phys_addr = ci_h;
@@ -2590,6 +2685,9 @@ static int megasas_init_mfi(struct megasas_instance *instance)
 		(MEGASAS_MAX_PD * sizeof(struct megasas_pd_list)));
 	megasas_get_pd_list(instance);
 
+	memset(instance->ld_ids, 0xff, MEGASAS_MAX_LD_IDS);
+	megasas_get_ld_list(instance);
+
 	ctrl_info = kmalloc(sizeof(struct megasas_ctrl_info), GFP_KERNEL);
 
 	/*
@@ -2714,6 +2812,7 @@ megasas_get_seq_num(struct megasas_instance *instance,
 	dcmd->sge_count = 1;
 	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = sizeof(struct megasas_evt_log_info);
 	dcmd->opcode = MR_DCMD_CTRL_EVENT_GET_INFO;
 	dcmd->sgl.sge32[0].phys_addr = el_info_h;
@@ -2828,6 +2927,7 @@ megasas_register_aen(struct megasas_instance *instance, u32 seq_num,
 	dcmd->sge_count = 1;
 	dcmd->flags = MFI_FRAME_DIR_READ;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = sizeof(struct megasas_evt_detail);
 	dcmd->opcode = MR_DCMD_CTRL_EVENT_WAIT;
 	dcmd->mbox.w[0] = seq_num;
@@ -3166,6 +3266,7 @@ static void megasas_flush_cache(struct megasas_instance *instance)
 	dcmd->sge_count = 0;
 	dcmd->flags = MFI_FRAME_DIR_NONE;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = 0;
 	dcmd->opcode = MR_DCMD_CTRL_CACHE_FLUSH;
 	dcmd->mbox.b[0] = MR_FLUSH_CTRL_CACHE | MR_FLUSH_DISK_CACHE;
@@ -3205,6 +3306,7 @@ static void megasas_shutdown_controller(struct megasas_instance *instance,
 	dcmd->sge_count = 0;
 	dcmd->flags = MFI_FRAME_DIR_NONE;
 	dcmd->timeout = 0;
+	dcmd->pad_0 = 0;
 	dcmd->data_xfer_len = 0;
 	dcmd->opcode = opcode;
 
@@ -3781,6 +3883,7 @@ static int megasas_mgmt_compat_ioctl_fw(struct file *file, unsigned long arg)
 	    compat_alloc_user_space(sizeof(struct megasas_iocpacket));
 	int i;
 	int error = 0;
+	compat_uptr_t ptr;
 
 	if (clear_user(ioc, sizeof(*ioc)))
 		return -EFAULT;
@@ -3793,9 +3896,22 @@ static int megasas_mgmt_compat_ioctl_fw(struct file *file, unsigned long arg)
 	    copy_in_user(&ioc->sge_count, &cioc->sge_count, sizeof(u32)))
 		return -EFAULT;
 
-	for (i = 0; i < MAX_IOCTL_SGE; i++) {
-		compat_uptr_t ptr;
+	/*
+	 * The sense_ptr is used in megasas_mgmt_fw_ioctl only when
+	 * sense_len is not null, so prepare the 64bit value under
+	 * the same condition.
+	 */
+	if (ioc->sense_len) {
+		void __user **sense_ioc_ptr =
+			(void __user **)(ioc->frame.raw + ioc->sense_off);
+		compat_uptr_t *sense_cioc_ptr =
+			(compat_uptr_t *)(cioc->frame.raw + cioc->sense_off);
+		if (get_user(ptr, sense_cioc_ptr) ||
+		    put_user(compat_ptr(ptr), sense_ioc_ptr))
+			return -EFAULT;
+	}
 
+	for (i = 0; i < MAX_IOCTL_SGE; i++) {
 		if (get_user(ptr, &cioc->sgl[i].iov_base) ||
 		    put_user(compat_ptr(ptr), &ioc->sgl[i].iov_base) ||
 		    copy_in_user(&ioc->sgl[i].iov_len,
@@ -3970,6 +4086,7 @@ megasas_aen_polling(struct work_struct *work)
 	struct  Scsi_Host *host;
 	struct  scsi_device *sdev1;
 	u16     pd_index = 0;
+	u16	ld_index = 0;
 	int     i, j, doscan = 0;
 	u32 seq_num;
 	int error;
@@ -3985,8 +4102,124 @@ megasas_aen_polling(struct work_struct *work)
 
 		switch (instance->evt_detail->code) {
 		case MR_EVT_PD_INSERTED:
+			if (megasas_get_pd_list(instance) == 0) {
+			for (i = 0; i < MEGASAS_MAX_PD_CHANNELS; i++) {
+				for (j = 0;
+				j < MEGASAS_MAX_DEV_PER_CHANNEL;
+				j++) {
+
+				pd_index =
+				(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
+
+				sdev1 =
+				scsi_device_lookup(host, i, j, 0);
+
+				if (instance->pd_list[pd_index].driveState
+						== MR_PD_STATE_SYSTEM) {
+						if (!sdev1) {
+						scsi_add_device(host, i, j, 0);
+						}
+
+					if (sdev1)
+						scsi_device_put(sdev1);
+					}
+				}
+			}
+			}
+			doscan = 0;
+			break;
+
 		case MR_EVT_PD_REMOVED:
+			if (megasas_get_pd_list(instance) == 0) {
+			megasas_get_pd_list(instance);
+			for (i = 0; i < MEGASAS_MAX_PD_CHANNELS; i++) {
+				for (j = 0;
+				j < MEGASAS_MAX_DEV_PER_CHANNEL;
+				j++) {
+
+				pd_index =
+				(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
+
+				sdev1 =
+				scsi_device_lookup(host, i, j, 0);
+
+				if (instance->pd_list[pd_index].driveState
+					== MR_PD_STATE_SYSTEM) {
+					if (sdev1) {
+						scsi_device_put(sdev1);
+					}
+				} else {
+					if (sdev1) {
+						scsi_remove_device(sdev1);
+						scsi_device_put(sdev1);
+					}
+				}
+				}
+			}
+			}
+			doscan = 0;
+			break;
+
+		case MR_EVT_LD_OFFLINE:
+		case MR_EVT_LD_DELETED:
+			megasas_get_ld_list(instance);
+			for (i = 0; i < MEGASAS_MAX_LD_CHANNELS; i++) {
+				for (j = 0;
+				j < MEGASAS_MAX_DEV_PER_CHANNEL;
+				j++) {
+
+				ld_index =
+				(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
+
+				sdev1 = scsi_device_lookup(host,
+					i + MEGASAS_MAX_LD_CHANNELS,
+					j,
+					0);
+
+				if (instance->ld_ids[ld_index] != 0xff) {
+					if (sdev1) {
+						scsi_device_put(sdev1);
+					}
+				} else {
+					if (sdev1) {
+						scsi_remove_device(sdev1);
+						scsi_device_put(sdev1);
+					}
+				}
+				}
+			}
+			doscan = 0;
+			break;
+		case MR_EVT_LD_CREATED:
+			megasas_get_ld_list(instance);
+			for (i = 0; i < MEGASAS_MAX_LD_CHANNELS; i++) {
+				for (j = 0;
+					j < MEGASAS_MAX_DEV_PER_CHANNEL;
+					j++) {
+					ld_index =
+					(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
+
+					sdev1 = scsi_device_lookup(host,
+						i+MEGASAS_MAX_LD_CHANNELS,
+						j, 0);
+
+					if (instance->ld_ids[ld_index] !=
+								0xff) {
+						if (!sdev1) {
+							scsi_add_device(host,
+								i + 2,
+								j, 0);
+						}
+					}
+					if (sdev1) {
+						scsi_device_put(sdev1);
+					}
+				}
+			}
+			doscan = 0;
+			break;
 		case MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED:
+		case MR_EVT_FOREIGN_CFG_IMPORTED:
 			doscan = 1;
 			break;
 		default:
@@ -4013,6 +4246,31 @@ megasas_aen_polling(struct work_struct *work)
 					}
 					if (sdev1)
 						scsi_device_put(sdev1);
+				} else {
+					if (sdev1) {
+						scsi_remove_device(sdev1);
+						scsi_device_put(sdev1);
+					}
+				}
+			}
+		}
+
+		megasas_get_ld_list(instance);
+		for (i = 0; i < MEGASAS_MAX_LD_CHANNELS; i++) {
+			for (j = 0; j < MEGASAS_MAX_DEV_PER_CHANNEL; j++) {
+				ld_index =
+				(i * MEGASAS_MAX_DEV_PER_CHANNEL) + j;
+
+				sdev1 = scsi_device_lookup(host,
+					i+MEGASAS_MAX_LD_CHANNELS, j, 0);
+				if (instance->ld_ids[ld_index] != 0xff) {
+					if (!sdev1) {
+						scsi_add_device(host,
+								i+2,
+								j, 0);
+					} else {
+						scsi_device_put(sdev1);
+					}
 				} else {
 					if (sdev1) {
 						scsi_remove_device(sdev1);

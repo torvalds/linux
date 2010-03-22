@@ -627,6 +627,39 @@ struct els_entry_24xx {
 	uint32_t rx_len;		/* Data segment 1 length. */
 };
 
+struct els_sts_entry_24xx {
+	uint8_t entry_type;		/* Entry type. */
+	uint8_t entry_count;		/* Entry count. */
+	uint8_t sys_define;		/* System Defined. */
+	uint8_t entry_status;		/* Entry Status. */
+
+	uint32_t handle;		/* System handle. */
+
+	uint16_t comp_status;
+
+	uint16_t nport_handle;		/* N_PORT handle. */
+
+	uint16_t reserved_1;
+
+	uint8_t vp_index;
+	uint8_t sof_type;
+
+	uint32_t rx_xchg_address;	/* Receive exchange address. */
+	uint16_t reserved_2;
+
+	uint8_t opcode;
+	uint8_t reserved_3;
+
+	uint8_t port_id[3];
+	uint8_t reserved_4;
+
+	uint16_t reserved_5;
+
+	uint16_t control_flags;		/* Control flags. */
+	uint32_t total_byte_count;
+	uint32_t error_subcode_1;
+	uint32_t error_subcode_2;
+};
 /*
  * ISP queue - Mailbox Command entry structure definition.
  */

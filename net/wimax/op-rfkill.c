@@ -410,8 +410,7 @@ void wimax_rfkill_rm(struct wimax_dev *wimax_dev)
  * just query).
  */
 
-static const
-struct nla_policy wimax_gnl_rfkill_policy[WIMAX_GNL_ATTR_MAX + 1] = {
+static const struct nla_policy wimax_gnl_rfkill_policy[WIMAX_GNL_ATTR_MAX + 1] = {
 	[WIMAX_GNL_RFKILL_IFIDX] = {
 		.type = NLA_U32,
 	},

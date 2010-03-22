@@ -2,7 +2,7 @@
  *
  * GPL LICENSE SUMMARY
  *
- * Copyright(c) 2008 - 2009 Intel Corporation. All rights reserved.
+ * Copyright(c) 2008 - 2010 Intel Corporation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of version 2 of the GNU General Public License as
@@ -58,7 +58,6 @@ const char *get_cmd_string(u8 cmd)
 		IWL_CMD(COEX_PRIORITY_TABLE_CMD);
 		IWL_CMD(COEX_MEDIUM_NOTIFICATION);
 		IWL_CMD(COEX_EVENT_CMD);
-		IWL_CMD(RADAR_NOTIFICATION);
 		IWL_CMD(REPLY_QUIET_CMD);
 		IWL_CMD(REPLY_CHANNEL_SWITCH);
 		IWL_CMD(CHANNEL_SWITCH_NOTIFICATION);
@@ -165,15 +164,13 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 	 /* A synchronous command can not have a callback set. */
 	BUG_ON(cmd->callback);
 
-	if (test_and_set_bit(STATUS_HCMD_SYNC_ACTIVE, &priv->status)) {
-		IWL_ERR(priv,
-			"Error sending %s: Already sending a host command\n",
+	IWL_DEBUG_INFO(priv, "Attempting to send sync command %s\n",
 			get_cmd_string(cmd->id));
-		ret = -EBUSY;
-		goto out;
-	}
+	mutex_lock(&priv->sync_cmd_mutex);
 
 	set_bit(STATUS_HCMD_ACTIVE, &priv->status);
+	IWL_DEBUG_INFO(priv, "Setting HCMD_ACTIVE for command %s \n",
+			get_cmd_string(cmd->id));
 
 	cmd_idx = iwl_enqueue_hcmd(priv, cmd);
 	if (cmd_idx < 0) {
@@ -194,6 +191,8 @@ int iwl_send_cmd_sync(struct iwl_priv *priv, struct iwl_host_cmd *cmd)
 				jiffies_to_msecs(HOST_COMPLETE_TIMEOUT));
 
 			clear_bit(STATUS_HCMD_ACTIVE, &priv->status);
+			IWL_DEBUG_INFO(priv, "Clearing HCMD_ACTIVE for command %s \n",
+				       get_cmd_string(cmd->id));
 			ret = -ETIMEDOUT;
 			goto cancel;
 		}
@@ -238,7 +237,7 @@ fail:
 		cmd->reply_page = 0;
 	}
 out:
-	clear_bit(STATUS_HCMD_SYNC_ACTIVE, &priv->status);
+	mutex_unlock(&priv->sync_cmd_mutex);
 	return ret;
 }
 EXPORT_SYMBOL(iwl_send_cmd_sync);

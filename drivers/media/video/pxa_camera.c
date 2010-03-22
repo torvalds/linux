@@ -898,17 +898,7 @@ static void recalculate_fifo_timeout(struct pxa_camera_dev *pcdev,
 
 static void pxa_camera_activate(struct pxa_camera_dev *pcdev)
 {
-	struct pxacamera_platform_data *pdata = pcdev->pdata;
-	struct device *dev = pcdev->soc_host.v4l2_dev.dev;
 	u32 cicr4 = 0;
-
-	dev_dbg(dev, "Registered platform device at %p data %p\n",
-		pcdev, pdata);
-
-	if (pdata && pdata->init) {
-		dev_dbg(dev, "%s: Init gpios\n", __func__);
-		pdata->init(dev);
-	}
 
 	/* disable all interrupts */
 	__raw_writel(0x3ff, pcdev->base + CICR0);

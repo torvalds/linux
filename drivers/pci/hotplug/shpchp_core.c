@@ -65,8 +65,6 @@ static int get_power_status	(struct hotplug_slot *slot, u8 *value);
 static int get_attention_status	(struct hotplug_slot *slot, u8 *value);
 static int get_latch_status	(struct hotplug_slot *slot, u8 *value);
 static int get_adapter_status	(struct hotplug_slot *slot, u8 *value);
-static int get_max_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *value);
-static int get_cur_bus_speed	(struct hotplug_slot *slot, enum pci_bus_speed *value);
 
 static struct hotplug_slot_ops shpchp_hotplug_slot_ops = {
 	.set_attention_status =	set_attention_status,
@@ -76,8 +74,6 @@ static struct hotplug_slot_ops shpchp_hotplug_slot_ops = {
 	.get_attention_status =	get_attention_status,
 	.get_latch_status =	get_latch_status,
 	.get_adapter_status =	get_adapter_status,
-	.get_max_bus_speed =	get_max_bus_speed,
-	.get_cur_bus_speed =	get_cur_bus_speed,
 };
 
 /**
@@ -275,37 +271,6 @@ static int get_adapter_status (struct hotplug_slot *hotplug_slot, u8 *value)
 	retval = slot->hpc_ops->get_adapter_status(slot, value);
 	if (retval < 0)
 		*value = hotplug_slot->info->adapter_status;
-
-	return 0;
-}
-
-static int get_max_bus_speed(struct hotplug_slot *hotplug_slot,
-				enum pci_bus_speed *value)
-{
-	struct slot *slot = get_slot(hotplug_slot);
-	int retval;
-
-	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
-		 __func__, slot_name(slot));
-
-	retval = slot->hpc_ops->get_max_bus_speed(slot, value);
-	if (retval < 0)
-		*value = PCI_SPEED_UNKNOWN;
-
-	return 0;
-}
-
-static int get_cur_bus_speed (struct hotplug_slot *hotplug_slot, enum pci_bus_speed *value)
-{
-	struct slot *slot = get_slot(hotplug_slot);
-	int retval;
-
-	ctrl_dbg(slot->ctrl, "%s: physical_slot = %s\n",
-		 __func__, slot_name(slot));
-
-	retval = slot->hpc_ops->get_cur_bus_speed(slot, value);
-	if (retval < 0)
-		*value = PCI_SPEED_UNKNOWN;
 
 	return 0;
 }

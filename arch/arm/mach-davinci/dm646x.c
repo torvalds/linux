@@ -42,7 +42,6 @@
 /*
  * Device specific clocks
  */
-#define DM646X_REF_FREQ		27000000
 #define DM646X_AUX_FREQ		24000000
 
 static struct pll_data pll1_data = {
@@ -57,7 +56,6 @@ static struct pll_data pll2_data = {
 
 static struct clk ref_clk = {
 	.name = "ref_clk",
-	.rate = DM646X_REF_FREQ,
 };
 
 static struct clk aux_clkin = {
@@ -313,7 +311,7 @@ static struct clk vpif1_clk = {
 	.flags = ALWAYS_ENABLED,
 };
 
-struct davinci_clk dm646x_clks[] = {
+struct clk_lookup dm646x_clks[] = {
 	CLK(NULL, "ref", &ref_clk),
 	CLK(NULL, "aux", &aux_clkin),
 	CLK(NULL, "pll1", &pll1_clk),
@@ -513,14 +511,6 @@ static u8 dm646x_default_priorities[DAVINCI_N_AINTC_IRQ] = {
 
 /*----------------------------------------------------------------------*/
 
-static const s8 dma_chan_dm646x_no_event[] = {
-	 0,  1,  2,  3, 13,
-	14, 15, 24, 25, 26,
-	27, 30, 31, 54, 55,
-	56,
-	-1
-};
-
 /* Four Transfer Controllers on DM646x */
 static const s8
 dm646x_queue_tc_mapping[][2] = {
@@ -549,7 +539,6 @@ static struct edma_soc_info dm646x_edma_info[] = {
 		.n_slot			= 512,
 		.n_tc			= 4,
 		.n_cc			= 1,
-		.noevent		= dma_chan_dm646x_no_event,
 		.queue_tc_mapping	= dm646x_queue_tc_mapping,
 		.queue_priority_mapping	= dm646x_queue_priority_mapping,
 	},
@@ -925,6 +914,7 @@ void dm646x_setup_vpif(struct vpif_display_config *display_config,
 
 void __init dm646x_init(void)
 {
+	dm646x_board_setup_refclk(&ref_clk);
 	davinci_common_init(&davinci_soc_info_dm646x);
 }
 

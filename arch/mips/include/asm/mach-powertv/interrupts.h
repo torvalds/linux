@@ -251,4 +251,3 @@
 						 * channel 3. */
 #define irq_mpeg_d		(ibase+0) 	/* MPEG Decoder Interrupt */
 #endif	/* _ASM_MACH_POWERTV_INTERRUPTS_H_ */
-

@@ -956,8 +956,7 @@ static int __init pf_init(void)
 		return -ENOMEM;
 	}
 
-	blk_queue_max_phys_segments(pf_queue, cluster);
-	blk_queue_max_hw_segments(pf_queue, cluster);
+	blk_queue_max_segments(pf_queue, cluster);
 
 	for (pf = units, unit = 0; unit < PF_UNITS; pf++, unit++) {
 		struct gendisk *disk = pf->disk;

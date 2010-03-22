@@ -1094,11 +1094,9 @@ static int __devinit i82596_probe(struct net_device *dev)
 		return i;
 	};
 
-	DEB(DEB_PROBE, printk(KERN_INFO "%s: 82596 at %#3lx,",
-			      dev->name, dev->base_addr));
-	for (i = 0; i < 6; i++)
-		DEB(DEB_PROBE, printk(" %2.2X", dev->dev_addr[i]));
-	DEB(DEB_PROBE, printk(" IRQ %d.\n", dev->irq));
+	DEB(DEB_PROBE, printk(KERN_INFO "%s: 82596 at %#3lx, %pM IRQ %d.\n",
+			      dev->name, dev->base_addr, dev->dev_addr,
+			      dev->irq));
 	DEB(DEB_INIT, printk(KERN_INFO
 			     "%s: dma at 0x%p (%d bytes), lp->scb at 0x%p\n",
 			     dev->name, dma, (int)sizeof(struct i596_dma),
@@ -1382,31 +1380,32 @@ static void set_multicast_list(struct net_device *dev)
 		}
 	}
 
-	cnt = dev->mc_count;
+	cnt = netdev_mc_count(dev);
 	if (cnt > MAX_MC_CNT) {
 		cnt = MAX_MC_CNT;
 		printk(KERN_NOTICE "%s: Only %d multicast addresses supported",
 			dev->name, cnt);
 	}
 
-	if (dev->mc_count > 0) {
+	if (!netdev_mc_empty(dev)) {
 		struct dev_mc_list *dmi;
 		unsigned char *cp;
 		struct mc_cmd *cmd;
 
 		cmd = &dma->mc_cmd;
 		cmd->cmd.command = SWAP16(CmdMulticastList);
-		cmd->mc_cnt = SWAP16(dev->mc_count * 6);
+		cmd->mc_cnt = SWAP16(netdev_mc_count(dev) * 6);
 		cp = cmd->mc_addrs;
-		for (dmi = dev->mc_list;
-		     cnt && dmi != NULL;
-		     dmi = dmi->next, cnt--, cp += 6) {
+		netdev_for_each_mc_addr(dmi, dev) {
+			if (!cnt--)
+				break;
 			memcpy(cp, dmi->dmi_addr, 6);
 			if (i596_debug > 1)
 				DEB(DEB_MULTI,
 				    printk(KERN_DEBUG
 					   "%s: Adding address %pM\n",
 					   dev->name, cp));
+			cp += 6;
 		}
 		DMA_WBACK_INV(dev, &dma->mc_cmd, sizeof(struct mc_cmd));
 		i596_add_cmd(dev, &cmd->cmd);

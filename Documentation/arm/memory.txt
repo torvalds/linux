@@ -59,7 +59,11 @@ PAGE_OFFSET	high_memory-1	Kernel direct-mapped RAM region.
 				This maps the platforms RAM, and typically
 				maps all platform RAM in a 1:1 relationship.
 
-TASK_SIZE	PAGE_OFFSET-1	Kernel module space
+PKMAP_BASE	PAGE_OFFSET-1	Permanent kernel mappings
+				One way of mapping HIGHMEM pages into kernel
+				space.
+
+MODULES_VADDR	MODULES_END-1	Kernel module space
 				Kernel modules inserted via insmod are
 				placed here using dynamic mappings.
 

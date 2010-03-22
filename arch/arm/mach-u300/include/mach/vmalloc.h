@@ -9,4 +9,4 @@
  * End must be above the I/O registers and on an even 2MiB boundary.
  * Author: Linus Walleij <linus.walleij@stericsson.com>
  */
-#define VMALLOC_END	0xfe800000
+#define VMALLOC_END	0xfe800000UL

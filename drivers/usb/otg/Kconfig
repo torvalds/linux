@@ -44,6 +44,7 @@ config ISP1301_OMAP
 config USB_ULPI
 	bool "Generic ULPI Transceiver Driver"
 	depends on ARM
+	select USB_OTG_UTILS
 	help
 	  Enable this to support ULPI connected USB OTG transceivers which
 	  are likely found on embedded boards.

@@ -287,7 +287,7 @@ static struct fb_ops cobalt_lcd_fbops = {
 	.fb_cursor	= cobalt_lcdfb_cursor,
 };
 
-static int __init cobalt_lcdfb_probe(struct platform_device *dev)
+static int __devinit cobalt_lcdfb_probe(struct platform_device *dev)
 {
 	struct fb_info *info;
 	struct resource *res;

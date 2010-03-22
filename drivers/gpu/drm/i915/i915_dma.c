@@ -35,6 +35,9 @@
 #include "i915_drv.h"
 #include "i915_trace.h"
 #include <linux/vgaarb.h>
+#include <linux/acpi.h>
+#include <linux/pnp.h>
+#include <linux/vga_switcheroo.h>
 
 /* Really want an OS-independent resettable timer.  Would like to have
  * this loop run for (eg) 3 sec, but have the timer reset every time
@@ -933,6 +936,120 @@ static int i915_get_bridge_dev(struct drm_device *dev)
 	return 0;
 }
 
+#define MCHBAR_I915 0x44
+#define MCHBAR_I965 0x48
+#define MCHBAR_SIZE (4*4096)
+
+#define DEVEN_REG 0x54
+#define   DEVEN_MCHBAR_EN (1 << 28)
+
+/* Allocate space for the MCH regs if needed, return nonzero on error */
+static int
+intel_alloc_mchbar_resource(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int reg = IS_I965G(dev) ? MCHBAR_I965 : MCHBAR_I915;
+	u32 temp_lo, temp_hi = 0;
+	u64 mchbar_addr;
+	int ret = 0;
+
+	if (IS_I965G(dev))
+		pci_read_config_dword(dev_priv->bridge_dev, reg + 4, &temp_hi);
+	pci_read_config_dword(dev_priv->bridge_dev, reg, &temp_lo);
+	mchbar_addr = ((u64)temp_hi << 32) | temp_lo;
+
+	/* If ACPI doesn't have it, assume we need to allocate it ourselves */
+#ifdef CONFIG_PNP
+	if (mchbar_addr &&
+	    pnp_range_reserved(mchbar_addr, mchbar_addr + MCHBAR_SIZE)) {
+		ret = 0;
+		goto out;
+	}
+#endif
+
+	/* Get some space for it */
+	ret = pci_bus_alloc_resource(dev_priv->bridge_dev->bus, &dev_priv->mch_res,
+				     MCHBAR_SIZE, MCHBAR_SIZE,
+				     PCIBIOS_MIN_MEM,
+				     0,   pcibios_align_resource,
+				     dev_priv->bridge_dev);
+	if (ret) {
+		DRM_DEBUG_DRIVER("failed bus alloc: %d\n", ret);
+		dev_priv->mch_res.start = 0;
+		goto out;
+	}
+
+	if (IS_I965G(dev))
+		pci_write_config_dword(dev_priv->bridge_dev, reg + 4,
+				       upper_32_bits(dev_priv->mch_res.start));
+
+	pci_write_config_dword(dev_priv->bridge_dev, reg,
+			       lower_32_bits(dev_priv->mch_res.start));
+out:
+	return ret;
+}
+
+/* Setup MCHBAR if possible, return true if we should disable it again */
+static void
+intel_setup_mchbar(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int mchbar_reg = IS_I965G(dev) ? MCHBAR_I965 : MCHBAR_I915;
+	u32 temp;
+	bool enabled;
+
+	dev_priv->mchbar_need_disable = false;
+
+	if (IS_I915G(dev) || IS_I915GM(dev)) {
+		pci_read_config_dword(dev_priv->bridge_dev, DEVEN_REG, &temp);
+		enabled = !!(temp & DEVEN_MCHBAR_EN);
+	} else {
+		pci_read_config_dword(dev_priv->bridge_dev, mchbar_reg, &temp);
+		enabled = temp & 1;
+	}
+
+	/* If it's already enabled, don't have to do anything */
+	if (enabled)
+		return;
+
+	if (intel_alloc_mchbar_resource(dev))
+		return;
+
+	dev_priv->mchbar_need_disable = true;
+
+	/* Space is allocated or reserved, so enable it. */
+	if (IS_I915G(dev) || IS_I915GM(dev)) {
+		pci_write_config_dword(dev_priv->bridge_dev, DEVEN_REG,
+				       temp | DEVEN_MCHBAR_EN);
+	} else {
+		pci_read_config_dword(dev_priv->bridge_dev, mchbar_reg, &temp);
+		pci_write_config_dword(dev_priv->bridge_dev, mchbar_reg, temp | 1);
+	}
+}
+
+static void
+intel_teardown_mchbar(struct drm_device *dev)
+{
+	drm_i915_private_t *dev_priv = dev->dev_private;
+	int mchbar_reg = IS_I965G(dev) ? MCHBAR_I965 : MCHBAR_I915;
+	u32 temp;
+
+	if (dev_priv->mchbar_need_disable) {
+		if (IS_I915G(dev) || IS_I915GM(dev)) {
+			pci_read_config_dword(dev_priv->bridge_dev, DEVEN_REG, &temp);
+			temp &= ~DEVEN_MCHBAR_EN;
+			pci_write_config_dword(dev_priv->bridge_dev, DEVEN_REG, temp);
+		} else {
+			pci_read_config_dword(dev_priv->bridge_dev, mchbar_reg, &temp);
+			temp &= ~1;
+			pci_write_config_dword(dev_priv->bridge_dev, mchbar_reg, temp);
+		}
+	}
+
+	if (dev_priv->mch_res.start)
+		release_resource(&dev_priv->mch_res);
+}
+
 /**
  * i915_probe_agp - get AGP bootup configuration
  * @pdev: PCI device
@@ -978,59 +1095,123 @@ static int i915_probe_agp(struct drm_device *dev, uint32_t *aperture_size,
 	 * Some of the preallocated space is taken by the GTT
 	 * and popup.  GTT is 1K per MB of aperture size, and popup is 4K.
 	 */
-	if (IS_G4X(dev) || IS_PINEVIEW(dev) || IS_IRONLAKE(dev))
+	if (IS_G4X(dev) || IS_PINEVIEW(dev) || IS_IRONLAKE(dev) || IS_GEN6(dev))
 		overhead = 4096;
 	else
 		overhead = (*aperture_size / 1024) + 4096;
 
-	switch (tmp & INTEL_GMCH_GMS_MASK) {
-	case INTEL_855_GMCH_GMS_DISABLED:
-		DRM_ERROR("video memory is disabled\n");
-		return -1;
-	case INTEL_855_GMCH_GMS_STOLEN_1M:
-		stolen = 1 * 1024 * 1024;
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_4M:
-		stolen = 4 * 1024 * 1024;
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_8M:
-		stolen = 8 * 1024 * 1024;
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_16M:
-		stolen = 16 * 1024 * 1024;
-		break;
-	case INTEL_855_GMCH_GMS_STOLEN_32M:
-		stolen = 32 * 1024 * 1024;
-		break;
-	case INTEL_915G_GMCH_GMS_STOLEN_48M:
-		stolen = 48 * 1024 * 1024;
-		break;
-	case INTEL_915G_GMCH_GMS_STOLEN_64M:
-		stolen = 64 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_128M:
-		stolen = 128 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_256M:
-		stolen = 256 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_96M:
-		stolen = 96 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_160M:
-		stolen = 160 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_224M:
-		stolen = 224 * 1024 * 1024;
-		break;
-	case INTEL_GMCH_GMS_STOLEN_352M:
-		stolen = 352 * 1024 * 1024;
-		break;
-	default:
-		DRM_ERROR("unexpected GMCH_GMS value: 0x%02x\n",
-			tmp & INTEL_GMCH_GMS_MASK);
-		return -1;
+	if (IS_GEN6(dev)) {
+		/* SNB has memory control reg at 0x50.w */
+		pci_read_config_word(dev->pdev, SNB_GMCH_CTRL, &tmp);
+
+		switch (tmp & SNB_GMCH_GMS_STOLEN_MASK) {
+		case INTEL_855_GMCH_GMS_DISABLED:
+			DRM_ERROR("video memory is disabled\n");
+			return -1;
+		case SNB_GMCH_GMS_STOLEN_32M:
+			stolen = 32 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_64M:
+			stolen = 64 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_96M:
+			stolen = 96 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_128M:
+			stolen = 128 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_160M:
+			stolen = 160 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_192M:
+			stolen = 192 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_224M:
+			stolen = 224 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_256M:
+			stolen = 256 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_288M:
+			stolen = 288 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_320M:
+			stolen = 320 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_352M:
+			stolen = 352 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_384M:
+			stolen = 384 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_416M:
+			stolen = 416 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_448M:
+			stolen = 448 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_480M:
+			stolen = 480 * 1024 * 1024;
+			break;
+		case SNB_GMCH_GMS_STOLEN_512M:
+			stolen = 512 * 1024 * 1024;
+			break;
+		default:
+			DRM_ERROR("unexpected GMCH_GMS value: 0x%02x\n",
+				  tmp & SNB_GMCH_GMS_STOLEN_MASK);
+			return -1;
+		}
+	} else {
+		switch (tmp & INTEL_GMCH_GMS_MASK) {
+		case INTEL_855_GMCH_GMS_DISABLED:
+			DRM_ERROR("video memory is disabled\n");
+			return -1;
+		case INTEL_855_GMCH_GMS_STOLEN_1M:
+			stolen = 1 * 1024 * 1024;
+			break;
+		case INTEL_855_GMCH_GMS_STOLEN_4M:
+			stolen = 4 * 1024 * 1024;
+			break;
+		case INTEL_855_GMCH_GMS_STOLEN_8M:
+			stolen = 8 * 1024 * 1024;
+			break;
+		case INTEL_855_GMCH_GMS_STOLEN_16M:
+			stolen = 16 * 1024 * 1024;
+			break;
+		case INTEL_855_GMCH_GMS_STOLEN_32M:
+			stolen = 32 * 1024 * 1024;
+			break;
+		case INTEL_915G_GMCH_GMS_STOLEN_48M:
+			stolen = 48 * 1024 * 1024;
+			break;
+		case INTEL_915G_GMCH_GMS_STOLEN_64M:
+			stolen = 64 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_128M:
+			stolen = 128 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_256M:
+			stolen = 256 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_96M:
+			stolen = 96 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_160M:
+			stolen = 160 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_224M:
+			stolen = 224 * 1024 * 1024;
+			break;
+		case INTEL_GMCH_GMS_STOLEN_352M:
+			stolen = 352 * 1024 * 1024;
+			break;
+		default:
+			DRM_ERROR("unexpected GMCH_GMS value: 0x%02x\n",
+				  tmp & INTEL_GMCH_GMS_MASK);
+			return -1;
+		}
 	}
+
 	*preallocated_size = stolen - overhead;
 	*start = overhead;
 
@@ -1064,7 +1245,7 @@ static unsigned long i915_gtt_to_phys(struct drm_device *dev,
 	int gtt_offset, gtt_size;
 
 	if (IS_I965G(dev)) {
-		if (IS_G4X(dev) || IS_IRONLAKE(dev)) {
+		if (IS_G4X(dev) || IS_IRONLAKE(dev) || IS_GEN6(dev)) {
 			gtt_offset = 2*1024*1024;
 			gtt_size = 2*1024*1024;
 		} else {
@@ -1133,6 +1314,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 	/* Leave 1M for line length buffer & misc. */
 	compressed_fb = drm_mm_search_free(&dev_priv->vram, size, 4096, 0);
 	if (!compressed_fb) {
+		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		i915_warn_stolen(dev);
 		return;
 	}
@@ -1140,6 +1322,7 @@ static void i915_setup_compression(struct drm_device *dev, int size)
 	compressed_fb = drm_mm_get_block(compressed_fb, size, 4096);
 	if (!compressed_fb) {
 		i915_warn_stolen(dev);
+		dev_priv->no_fbc_reason = FBC_STOLEN_TOO_SMALL;
 		return;
 	}
 
@@ -1197,6 +1380,32 @@ static unsigned int i915_vga_set_decode(void *cookie, bool state)
 		       VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
 	else
 		return VGA_RSRC_NORMAL_IO | VGA_RSRC_NORMAL_MEM;
+}
+
+static void i915_switcheroo_set_state(struct pci_dev *pdev, enum vga_switcheroo_state state)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	pm_message_t pmm = { .event = PM_EVENT_SUSPEND };
+	if (state == VGA_SWITCHEROO_ON) {
+		printk(KERN_INFO "i915: switched off\n");
+		/* i915 resume handler doesn't set to D0 */
+		pci_set_power_state(dev->pdev, PCI_D0);
+		i915_resume(dev);
+	} else {
+		printk(KERN_ERR "i915: switched off\n");
+		i915_suspend(dev, pmm);
+	}
+}
+
+static bool i915_switcheroo_can_switch(struct pci_dev *pdev)
+{
+	struct drm_device *dev = pci_get_drvdata(pdev);
+	bool can_switch;
+
+	spin_lock(&dev->count_lock);
+	can_switch = (dev->open_count == 0);
+	spin_unlock(&dev->count_lock);
+	return can_switch;
 }
 
 static int i915_load_modeset_init(struct drm_device *dev,
@@ -1260,6 +1469,12 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	if (ret)
 		goto destroy_ringbuffer;
 
+	ret = vga_switcheroo_register_client(dev->pdev,
+					     i915_switcheroo_set_state,
+					     i915_switcheroo_can_switch);
+	if (ret)
+		goto destroy_ringbuffer;
+
 	intel_modeset_init(dev);
 
 	ret = drm_irq_install(dev);
@@ -1281,7 +1496,9 @@ static int i915_load_modeset_init(struct drm_device *dev,
 	return 0;
 
 destroy_ringbuffer:
+	mutex_lock(&dev->struct_mutex);
 	i915_gem_cleanup_ringbuffer(dev);
+	mutex_unlock(&dev->struct_mutex);
 out:
 	return ret;
 }
@@ -1445,10 +1662,13 @@ int i915_driver_load(struct drm_device *dev, unsigned long flags)
 
 	dev->driver->get_vblank_counter = i915_get_vblank_counter;
 	dev->max_vblank_count = 0xffffff; /* only 24 bits of frame count */
-	if (IS_G4X(dev) || IS_IRONLAKE(dev)) {
+	if (IS_G4X(dev) || IS_IRONLAKE(dev) || IS_GEN6(dev)) {
 		dev->max_vblank_count = 0xffffffff; /* full 32 bit counter */
 		dev->driver->get_vblank_counter = gm45_get_vblank_counter;
 	}
+
+	/* Try to make sure MCHBAR is enabled before poking at it */
+	intel_setup_mchbar(dev);
 
 	i915_gem_load(dev);
 
@@ -1523,6 +1743,8 @@ int i915_driver_unload(struct drm_device *dev)
 {
 	struct drm_i915_private *dev_priv = dev->dev_private;
 
+	i915_destroy_error_state(dev);
+
 	destroy_workqueue(dev_priv->wq);
 	del_timer_sync(&dev_priv->hangcheck_timer);
 
@@ -1544,6 +1766,7 @@ int i915_driver_unload(struct drm_device *dev)
 			dev_priv->child_dev_num = 0;
 		}
 		drm_irq_uninstall(dev);
+		vga_switcheroo_unregister_client(dev->pdev);
 		vga_client_register(dev->pdev, NULL, NULL, NULL);
 	}
 
@@ -1568,6 +1791,8 @@ int i915_driver_unload(struct drm_device *dev)
 
 		intel_cleanup_overlay(dev);
 	}
+
+	intel_teardown_mchbar(dev);
 
 	pci_dev_put(dev_priv->bridge_dev);
 	kfree(dev->dev_private);
@@ -1611,6 +1836,7 @@ void i915_driver_lastclose(struct drm_device * dev)
 
 	if (!dev_priv || drm_core_check_feature(dev, DRIVER_MODESET)) {
 		drm_fb_helper_restore();
+		vga_switcheroo_process_delayed_switch();
 		return;
 	}
 

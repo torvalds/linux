@@ -2009,6 +2009,8 @@ static int fcoe_destroy(const char *buffer, struct kernel_param *kp)
 	fcoe_interface_cleanup(fcoe);
 	rtnl_unlock();
 	fcoe_if_destroy(fcoe->ctlr.lp);
+	module_put(THIS_MODULE);
+
 out_putdev:
 	dev_put(netdev);
 out_nodev:
@@ -2059,6 +2061,11 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 	}
 #endif
 
+	if (!try_module_get(THIS_MODULE)) {
+		rc = -EINVAL;
+		goto out_nomod;
+	}
+
 	rtnl_lock();
 	netdev = fcoe_if_to_netdev(buffer);
 	if (!netdev) {
@@ -2099,17 +2106,24 @@ static int fcoe_create(const char *buffer, struct kernel_param *kp)
 	if (!fcoe_link_ok(lport))
 		fcoe_ctlr_link_up(&fcoe->ctlr);
 
-	rc = 0;
-out_free:
 	/*
 	 * Release from init in fcoe_interface_create(), on success lport
 	 * should be holding a reference taken in fcoe_if_create().
 	 */
 	fcoe_interface_put(fcoe);
+	dev_put(netdev);
+	rtnl_unlock();
+	mutex_unlock(&fcoe_config_mutex);
+
+	return 0;
+out_free:
+	fcoe_interface_put(fcoe);
 out_putdev:
 	dev_put(netdev);
 out_nodev:
 	rtnl_unlock();
+	module_put(THIS_MODULE);
+out_nomod:
 	mutex_unlock(&fcoe_config_mutex);
 	return rc;
 }

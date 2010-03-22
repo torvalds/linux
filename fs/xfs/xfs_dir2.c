@@ -44,7 +44,7 @@
 #include "xfs_vnodeops.h"
 #include "xfs_trace.h"
 
-struct xfs_name xfs_name_dotdot = {"..", 2};
+struct xfs_name xfs_name_dotdot = { (unsigned char *)"..", 2};
 
 /*
  * ASCII case-insensitive (ie. A-Z) support for directories that was
@@ -66,8 +66,8 @@ xfs_ascii_ci_hashname(
 STATIC enum xfs_dacmp
 xfs_ascii_ci_compname(
 	struct xfs_da_args *args,
-	const char	*name,
-	int 		len)
+	const unsigned char *name,
+	int		len)
 {
 	enum xfs_dacmp	result;
 	int		i;
@@ -247,7 +247,7 @@ xfs_dir_createname(
 int
 xfs_dir_cilookup_result(
 	struct xfs_da_args *args,
-	const char	*name,
+	const unsigned char *name,
 	int		len)
 {
 	if (args->cmpresult == XFS_CMP_DIFFERENT)

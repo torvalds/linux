@@ -144,30 +144,33 @@ void pmu_backlight_set_sleep(int sleep)
 
 void __init pmu_backlight_init()
 {
+	struct backlight_properties props;
 	struct backlight_device *bd;
 	char name[10];
 	int level, autosave;
 
 	/* Special case for the old PowerBook since I can't test on it */
 	autosave =
-		machine_is_compatible("AAPL,3400/2400") ||
-		machine_is_compatible("AAPL,3500");
+		of_machine_is_compatible("AAPL,3400/2400") ||
+		of_machine_is_compatible("AAPL,3500");
 
 	if (!autosave &&
 	    !pmac_has_backlight_type("pmu") &&
-	    !machine_is_compatible("AAPL,PowerBook1998") &&
-	    !machine_is_compatible("PowerBook1,1"))
+	    !of_machine_is_compatible("AAPL,PowerBook1998") &&
+	    !of_machine_is_compatible("PowerBook1,1"))
 		return;
 
 	snprintf(name, sizeof(name), "pmubl");
 
-	bd = backlight_device_register(name, NULL, NULL, &pmu_backlight_data);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
+	bd = backlight_device_register(name, NULL, NULL, &pmu_backlight_data,
+				       &props);
 	if (IS_ERR(bd)) {
 		printk(KERN_ERR "PMU Backlight registration failed\n");
 		return;
 	}
 	uses_pmu_bl = 1;
-	bd->props.max_brightness = FB_BACKLIGHT_LEVELS - 1;
 	pmu_backlight_init_curve(0x7F, 0x46, 0x0E);
 
 	level = bd->props.max_brightness;

@@ -134,15 +134,7 @@ static struct valkyrie_regvals valkyrie_reg_init_14 = {
     { 1024, 0 },
 	1024, 768
 };
-
-/* Register values for 800x600, 72Hz mode (11) */
-static struct valkyrie_regvals valkyrie_reg_init_11 = {
-    13,
-    { 17, 27, 3 },  /* pixel clock = 49.63MHz for V=71.66Hz */
-    { 800, 0 },
-	800, 600
-};
-#endif /* CONFIG_MAC */
+#endif /* !defined CONFIG_MAC */
 
 /* Register values for 832x624, 75Hz mode (13) */
 static struct valkyrie_regvals valkyrie_reg_init_13 = {
@@ -150,6 +142,14 @@ static struct valkyrie_regvals valkyrie_reg_init_13 = {
     { 23, 42, 3 },  /* pixel clock = 57.07MHz for V=74.27Hz */
     { 832, 0 },
 	832, 624
+};
+
+/* Register values for 800x600, 72Hz mode (11) */
+static struct valkyrie_regvals valkyrie_reg_init_11 = {
+    13,
+    { 17, 27, 3 },  /* pixel clock = 49.63MHz for V=71.66Hz */
+    { 800, 0 },
+	800, 600
 };
 
 /* Register values for 800x600, 60Hz mode (10) */
@@ -188,24 +188,13 @@ static struct valkyrie_regvals *valkyrie_reg_init[VMODE_MAX] = {
 	NULL,
 	NULL,
 	&valkyrie_reg_init_10,
-#ifdef CONFIG_MAC
-	NULL,
-	NULL,
-	&valkyrie_reg_init_13,
-	NULL,
-	NULL,
-	NULL,
-	NULL,
-#else
 	&valkyrie_reg_init_11,
 	NULL,
 	&valkyrie_reg_init_13,
+#ifndef CONFIG_MAC
 	&valkyrie_reg_init_14,
 	&valkyrie_reg_init_15,
 	NULL,
 	&valkyrie_reg_init_17,
 #endif
-	NULL,
-	NULL,
-	NULL
 };

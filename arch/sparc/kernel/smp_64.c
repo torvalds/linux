@@ -370,7 +370,7 @@ static int __cpuinit smp_boot_one_cpu(unsigned int cpu)
 	} else {
 		struct device_node *dp = of_find_node_by_cpuid(cpu);
 
-		prom_startcpu(dp->node, entry, cookie);
+		prom_startcpu(dp->phandle, entry, cookie);
 	}
 
 	for (timeout = 0; timeout < 50000; timeout++) {

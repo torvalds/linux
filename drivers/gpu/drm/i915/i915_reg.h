@@ -53,6 +53,25 @@
 #define INTEL_GMCH_GMS_STOLEN_224M	(0xc << 4)
 #define INTEL_GMCH_GMS_STOLEN_352M	(0xd << 4)
 
+#define SNB_GMCH_CTRL	0x50
+#define SNB_GMCH_GMS_STOLEN_MASK	0xF8
+#define SNB_GMCH_GMS_STOLEN_32M		(1 << 3)
+#define SNB_GMCH_GMS_STOLEN_64M		(2 << 3)
+#define SNB_GMCH_GMS_STOLEN_96M		(3 << 3)
+#define SNB_GMCH_GMS_STOLEN_128M	(4 << 3)
+#define SNB_GMCH_GMS_STOLEN_160M	(5 << 3)
+#define SNB_GMCH_GMS_STOLEN_192M	(6 << 3)
+#define SNB_GMCH_GMS_STOLEN_224M	(7 << 3)
+#define SNB_GMCH_GMS_STOLEN_256M	(8 << 3)
+#define SNB_GMCH_GMS_STOLEN_288M	(9 << 3)
+#define SNB_GMCH_GMS_STOLEN_320M	(0xa << 3)
+#define SNB_GMCH_GMS_STOLEN_352M	(0xb << 3)
+#define SNB_GMCH_GMS_STOLEN_384M	(0xc << 3)
+#define SNB_GMCH_GMS_STOLEN_416M	(0xd << 3)
+#define SNB_GMCH_GMS_STOLEN_448M	(0xe << 3)
+#define SNB_GMCH_GMS_STOLEN_480M	(0xf << 3)
+#define SNB_GMCH_GMS_STOLEN_512M	(0x10 << 3)
+
 /* PCI config space */
 
 #define HPLLCC	0xc0 /* 855 only */
@@ -61,6 +80,7 @@
 #define   GC_CLOCK_100_200		(1 << 0)
 #define   GC_CLOCK_100_133		(2 << 0)
 #define   GC_CLOCK_166_250		(3 << 0)
+#define GCFGC2	0xda
 #define GCFGC	0xf0 /* 915+ only */
 #define   GC_LOW_FREQUENCY_ENABLE	(1 << 7)
 #define   GC_DISPLAY_CLOCK_190_200_MHZ	(0 << 4)
@@ -234,6 +254,9 @@
 #define   I965_FENCE_REG_VALID		(1<<0)
 #define   I965_FENCE_MAX_PITCH_VAL	0x0400
 
+#define FENCE_REG_SANDYBRIDGE_0		0x100000
+#define   SANDYBRIDGE_FENCE_PITCH_SHIFT	32
+
 /*
  * Instruction and interrupt control regs
  */
@@ -265,6 +288,7 @@
 #define INSTDONE1	0x0207c /* 965+ only */
 #define ACTHD_I965	0x02074
 #define HWS_PGA		0x02080
+#define HWS_PGA_GEN6	0x04080
 #define HWS_ADDRESS_MASK	0xfffff000
 #define HWS_START_ADDRESS_SHIFT	4
 #define PWRCTXA		0x2088 /* 965GM+ only */
@@ -282,7 +306,7 @@
 #define   I915_PIPE_CONTROL_NOTIFY_INTERRUPT		(1<<18)
 #define   I915_DISPLAY_PORT_INTERRUPT			(1<<17)
 #define   I915_RENDER_COMMAND_PARSER_ERROR_INTERRUPT	(1<<15)
-#define   I915_GMCH_THERMAL_SENSOR_EVENT_INTERRUPT	(1<<14)
+#define   I915_GMCH_THERMAL_SENSOR_EVENT_INTERRUPT	(1<<14) /* p-state */
 #define   I915_HWB_OOM_INTERRUPT			(1<<13)
 #define   I915_SYNC_STATUS_INTERRUPT			(1<<12)
 #define   I915_DISPLAY_PLANE_A_FLIP_PENDING_INTERRUPT	(1<<11)
@@ -306,11 +330,14 @@
 #define   I915_ERROR_MEMORY_REFRESH			(1<<1)
 #define   I915_ERROR_INSTRUCTION			(1<<0)
 #define INSTPM	        0x020c0
+#define   INSTPM_SELF_EN (1<<12) /* 915GM only */
 #define ACTHD	        0x020c8
 #define FW_BLC		0x020d8
 #define FW_BLC2	 	0x020dc
 #define FW_BLC_SELF	0x020e0 /* 915+ only */
-#define   FW_BLC_SELF_EN (1<<15)
+#define   FW_BLC_SELF_EN_MASK      (1<<31)
+#define   FW_BLC_SELF_FIFO_MASK    (1<<16) /* 945 only */
+#define   FW_BLC_SELF_EN           (1<<15) /* 945 only */
 #define MM_BURST_LENGTH     0x00700000
 #define MM_FIFO_WATERMARK   0x0001F000
 #define LM_BURST_LENGTH     0x00000700
@@ -324,6 +351,7 @@
 #define   CM0_COLOR_EVICT_DISABLE (1<<3)
 #define   CM0_DEPTH_WRITE_DISABLE (1<<1)
 #define   CM0_RC_OP_FLUSH_DISABLE (1<<0)
+#define BB_ADDR		0x02140 /* 8 bytes */
 #define GFX_FLSH_CNTL	0x02170 /* 915+ only */
 
 
@@ -784,10 +812,144 @@
 #define CLKCFG_MEM_800					(3 << 4)
 #define CLKCFG_MEM_MASK					(7 << 4)
 
-/** GM965 GM45 render standby register */
-#define MCHBAR_RENDER_STANDBY	0x111B8
+#define CRSTANDVID		0x11100
+#define PXVFREQ_BASE		0x11110 /* P[0-15]VIDFREQ (0x1114c) (Ironlake) */
+#define   PXVFREQ_PX_MASK	0x7f000000
+#define   PXVFREQ_PX_SHIFT	24
+#define VIDFREQ_BASE		0x11110
+#define VIDFREQ1		0x11110 /* VIDFREQ1-4 (0x1111c) (Cantiga) */
+#define VIDFREQ2		0x11114
+#define VIDFREQ3		0x11118
+#define VIDFREQ4		0x1111c
+#define   VIDFREQ_P0_MASK	0x1f000000
+#define   VIDFREQ_P0_SHIFT	24
+#define   VIDFREQ_P0_CSCLK_MASK	0x00f00000
+#define   VIDFREQ_P0_CSCLK_SHIFT 20
+#define   VIDFREQ_P0_CRCLK_MASK	0x000f0000
+#define   VIDFREQ_P0_CRCLK_SHIFT 16
+#define   VIDFREQ_P1_MASK	0x00001f00
+#define   VIDFREQ_P1_SHIFT	8
+#define   VIDFREQ_P1_CSCLK_MASK	0x000000f0
+#define   VIDFREQ_P1_CSCLK_SHIFT 4
+#define   VIDFREQ_P1_CRCLK_MASK	0x0000000f
+#define INTTOEXT_BASE_ILK	0x11300
+#define INTTOEXT_BASE		0x11120 /* INTTOEXT1-8 (0x1113c) */
+#define   INTTOEXT_MAP3_SHIFT	24
+#define   INTTOEXT_MAP3_MASK	(0x1f << INTTOEXT_MAP3_SHIFT)
+#define   INTTOEXT_MAP2_SHIFT	16
+#define   INTTOEXT_MAP2_MASK	(0x1f << INTTOEXT_MAP2_SHIFT)
+#define   INTTOEXT_MAP1_SHIFT	8
+#define   INTTOEXT_MAP1_MASK	(0x1f << INTTOEXT_MAP1_SHIFT)
+#define   INTTOEXT_MAP0_SHIFT	0
+#define   INTTOEXT_MAP0_MASK	(0x1f << INTTOEXT_MAP0_SHIFT)
+#define MEMSWCTL		0x11170 /* Ironlake only */
+#define   MEMCTL_CMD_MASK	0xe000
+#define   MEMCTL_CMD_SHIFT	13
+#define   MEMCTL_CMD_RCLK_OFF	0
+#define   MEMCTL_CMD_RCLK_ON	1
+#define   MEMCTL_CMD_CHFREQ	2
+#define   MEMCTL_CMD_CHVID	3
+#define   MEMCTL_CMD_VMMOFF	4
+#define   MEMCTL_CMD_VMMON	5
+#define   MEMCTL_CMD_STS	(1<<12) /* write 1 triggers command, clears
+					   when command complete */
+#define   MEMCTL_FREQ_MASK	0x0f00 /* jitter, from 0-15 */
+#define   MEMCTL_FREQ_SHIFT	8
+#define   MEMCTL_SFCAVM		(1<<7)
+#define   MEMCTL_TGT_VID_MASK	0x007f
+#define MEMIHYST		0x1117c
+#define MEMINTREN		0x11180 /* 16 bits */
+#define   MEMINT_RSEXIT_EN	(1<<8)
+#define   MEMINT_CX_SUPR_EN	(1<<7)
+#define   MEMINT_CONT_BUSY_EN	(1<<6)
+#define   MEMINT_AVG_BUSY_EN	(1<<5)
+#define   MEMINT_EVAL_CHG_EN	(1<<4)
+#define   MEMINT_MON_IDLE_EN	(1<<3)
+#define   MEMINT_UP_EVAL_EN	(1<<2)
+#define   MEMINT_DOWN_EVAL_EN	(1<<1)
+#define   MEMINT_SW_CMD_EN	(1<<0)
+#define MEMINTRSTR		0x11182 /* 16 bits */
+#define   MEM_RSEXIT_MASK	0xc000
+#define   MEM_RSEXIT_SHIFT	14
+#define   MEM_CONT_BUSY_MASK	0x3000
+#define   MEM_CONT_BUSY_SHIFT	12
+#define   MEM_AVG_BUSY_MASK	0x0c00
+#define   MEM_AVG_BUSY_SHIFT	10
+#define   MEM_EVAL_CHG_MASK	0x0300
+#define   MEM_EVAL_BUSY_SHIFT	8
+#define   MEM_MON_IDLE_MASK	0x00c0
+#define   MEM_MON_IDLE_SHIFT	6
+#define   MEM_UP_EVAL_MASK	0x0030
+#define   MEM_UP_EVAL_SHIFT	4
+#define   MEM_DOWN_EVAL_MASK	0x000c
+#define   MEM_DOWN_EVAL_SHIFT	2
+#define   MEM_SW_CMD_MASK	0x0003
+#define   MEM_INT_STEER_GFX	0
+#define   MEM_INT_STEER_CMR	1
+#define   MEM_INT_STEER_SMI	2
+#define   MEM_INT_STEER_SCI	3
+#define MEMINTRSTS		0x11184
+#define   MEMINT_RSEXIT		(1<<7)
+#define   MEMINT_CONT_BUSY	(1<<6)
+#define   MEMINT_AVG_BUSY	(1<<5)
+#define   MEMINT_EVAL_CHG	(1<<4)
+#define   MEMINT_MON_IDLE	(1<<3)
+#define   MEMINT_UP_EVAL	(1<<2)
+#define   MEMINT_DOWN_EVAL	(1<<1)
+#define   MEMINT_SW_CMD		(1<<0)
+#define MEMMODECTL		0x11190
+#define   MEMMODE_BOOST_EN	(1<<31)
+#define   MEMMODE_BOOST_FREQ_MASK 0x0f000000 /* jitter for boost, 0-15 */
+#define   MEMMODE_BOOST_FREQ_SHIFT 24
+#define   MEMMODE_IDLE_MODE_MASK 0x00030000
+#define   MEMMODE_IDLE_MODE_SHIFT 16
+#define   MEMMODE_IDLE_MODE_EVAL 0
+#define   MEMMODE_IDLE_MODE_CONT 1
+#define   MEMMODE_HWIDLE_EN	(1<<15)
+#define   MEMMODE_SWMODE_EN	(1<<14)
+#define   MEMMODE_RCLK_GATE	(1<<13)
+#define   MEMMODE_HW_UPDATE	(1<<12)
+#define   MEMMODE_FSTART_MASK	0x00000f00 /* starting jitter, 0-15 */
+#define   MEMMODE_FSTART_SHIFT	8
+#define   MEMMODE_FMAX_MASK	0x000000f0 /* max jitter, 0-15 */
+#define   MEMMODE_FMAX_SHIFT	4
+#define   MEMMODE_FMIN_MASK	0x0000000f /* min jitter, 0-15 */
+#define RCBMAXAVG		0x1119c
+#define MEMSWCTL2		0x1119e /* Cantiga only */
+#define   SWMEMCMD_RENDER_OFF	(0 << 13)
+#define   SWMEMCMD_RENDER_ON	(1 << 13)
+#define   SWMEMCMD_SWFREQ	(2 << 13)
+#define   SWMEMCMD_TARVID	(3 << 13)
+#define   SWMEMCMD_VRM_OFF	(4 << 13)
+#define   SWMEMCMD_VRM_ON	(5 << 13)
+#define   CMDSTS		(1<<12)
+#define   SFCAVM		(1<<11)
+#define   SWFREQ_MASK		0x0380 /* P0-7 */
+#define   SWFREQ_SHIFT		7
+#define   TARVID_MASK		0x001f
+#define MEMSTAT_CTG		0x111a0
+#define RCBMINAVG		0x111a0
+#define RCUPEI			0x111b0
+#define RCDNEI			0x111b4
+#define MCHBAR_RENDER_STANDBY		0x111b8
 #define   RCX_SW_EXIT		(1<<23)
 #define   RSX_STATUS_MASK	0x00700000
+#define VIDCTL			0x111c0
+#define VIDSTS			0x111c8
+#define VIDSTART		0x111cc /* 8 bits */
+#define MEMSTAT_ILK			0x111f8
+#define   MEMSTAT_VID_MASK	0x7f00
+#define   MEMSTAT_VID_SHIFT	8
+#define   MEMSTAT_PSTATE_MASK	0x00f8
+#define   MEMSTAT_PSTATE_SHIFT  3
+#define   MEMSTAT_MON_ACTV	(1<<2)
+#define   MEMSTAT_SRC_CTL_MASK	0x0003
+#define   MEMSTAT_SRC_CTL_CORE	0
+#define   MEMSTAT_SRC_CTL_TRB	1
+#define   MEMSTAT_SRC_CTL_THM	2
+#define   MEMSTAT_SRC_CTL_STDBY 3
+#define RCPREVBSYTUPAVG		0x113b8
+#define RCPREVBSYTDNAVG		0x113bc
 #define PEG_BAND_GAP_DATA	0x14d68
 
 /*

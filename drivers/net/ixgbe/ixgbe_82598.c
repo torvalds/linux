@@ -357,12 +357,34 @@ static s32 ixgbe_fc_enable_82598(struct ixgbe_hw *hw, s32 packetbuf_num)
 	u32 fctrl_reg;
 	u32 rmcs_reg;
 	u32 reg;
+	u32 link_speed = 0;
+	bool link_up;
 
 #ifdef CONFIG_DCB
 	if (hw->fc.requested_mode == ixgbe_fc_pfc)
 		goto out;
 
 #endif /* CONFIG_DCB */
+	/*
+	 * On 82598 having Rx FC on causes resets while doing 1G
+	 * so if it's on turn it off once we know link_speed. For
+	 * more details see 82598 Specification update.
+	 */
+	hw->mac.ops.check_link(hw, &link_speed, &link_up, false);
+	if (link_up && link_speed == IXGBE_LINK_SPEED_1GB_FULL) {
+		switch (hw->fc.requested_mode) {
+		case ixgbe_fc_full:
+			hw->fc.requested_mode = ixgbe_fc_tx_pause;
+			break;
+		case ixgbe_fc_rx_pause:
+			hw->fc.requested_mode = ixgbe_fc_none;
+			break;
+		default:
+			/* no change */
+			break;
+		}
+	}
+
 	/* Negotiate the fc mode to use */
 	ret_val = ixgbe_fc_autoneg(hw);
 	if (ret_val)

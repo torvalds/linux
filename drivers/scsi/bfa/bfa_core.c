@@ -385,6 +385,15 @@ bfa_debug_fwsave(struct bfa_s *bfa, void *trcdata, int *trclen)
 }
 
 /**
+ * Clear the saved firmware trace information of an IOC.
+ */
+void
+bfa_debug_fwsave_clear(struct bfa_s *bfa)
+{
+	bfa_ioc_debug_fwsave_clear(&bfa->ioc);
+}
+
+/**
  * 		Fetch firmware trace data.
  *
  * @param[in]		bfa			BFA instance
@@ -398,5 +407,15 @@ bfa_status_t
 bfa_debug_fwtrc(struct bfa_s *bfa, void *trcdata, int *trclen)
 {
 	return bfa_ioc_debug_fwtrc(&bfa->ioc, trcdata, trclen);
+}
+
+/**
+ * Reset hw semaphore & usage cnt regs and initialize.
+ */
+void
+bfa_chip_reset(struct bfa_s *bfa)
+{
+	bfa_ioc_ownership_reset(&bfa->ioc);
+	bfa_ioc_pll_init(&bfa->ioc);
 }
 #endif

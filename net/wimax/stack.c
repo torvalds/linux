@@ -75,8 +75,7 @@ MODULE_PARM_DESC(debug,
  * close to where the data is generated.
  */
 /*
-static const
-struct nla_policy wimax_gnl_re_status_change[WIMAX_GNL_ATTR_MAX + 1] = {
+static const struct nla_policy wimax_gnl_re_status_change[WIMAX_GNL_ATTR_MAX + 1] = {
 	[WIMAX_GNL_STCH_STATE_OLD] = { .type = NLA_U8 },
 	[WIMAX_GNL_STCH_STATE_NEW] = { .type = NLA_U8 },
 };

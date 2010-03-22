@@ -129,11 +129,11 @@ static struct udma_timing {
 	{ 0x1a, 0x01, 0xcb },	/* UDMA mode 6 */
 };
 
-static void pdcnew_set_dma_mode(ide_drive_t *drive, const u8 speed)
+static void pdcnew_set_dma_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif	= drive->hwif;
 	struct pci_dev *dev	= to_pci_dev(hwif->dev);
 	u8 adj			= (drive->dn & 1) ? 0x08 : 0x00;
+	const u8 speed		= drive->dma_mode;
 
 	/*
 	 * IDE core issues SETFEATURES_XFER to the drive first (thanks to
@@ -167,11 +167,11 @@ static void pdcnew_set_dma_mode(ide_drive_t *drive, const u8 speed)
  	}
 }
 
-static void pdcnew_set_pio_mode(ide_drive_t *drive, const u8 pio)
+static void pdcnew_set_pio_mode(ide_hwif_t *hwif, ide_drive_t *drive)
 {
-	ide_hwif_t *hwif = drive->hwif;
 	struct pci_dev *dev = to_pci_dev(hwif->dev);
 	u8 adj = (drive->dn & 1) ? 0x08 : 0x00;
+	const u8 pio = drive->pio_mode - XFER_PIO_0;
 
 	if (max_dma_rate(dev) == 4) {
 		set_indexed_reg(hwif, 0x0c + adj, pio_timings[pio].reg0c);

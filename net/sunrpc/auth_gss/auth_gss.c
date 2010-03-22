@@ -206,8 +206,14 @@ gss_fill_context(const void *p, const void *end, struct gss_cl_ctx *ctx, struct 
 	ctx->gc_win = window_size;
 	/* gssd signals an error by passing ctx->gc_win = 0: */
 	if (ctx->gc_win == 0) {
-		/* in which case, p points to  an error code which we ignore */
-		p = ERR_PTR(-EACCES);
+		/*
+		 * in which case, p points to an error code. Anything other
+		 * than -EKEYEXPIRED gets converted to -EACCES.
+		 */
+		p = simple_get_bytes(p, end, &ret, sizeof(ret));
+		if (!IS_ERR(p))
+			p = (ret == -EKEYEXPIRED) ? ERR_PTR(-EKEYEXPIRED) :
+						    ERR_PTR(-EACCES);
 		goto err;
 	}
 	/* copy the opaque wire context */
@@ -646,6 +652,7 @@ gss_pipe_downcall(struct file *filp, const char __user *src, size_t mlen)
 		err = PTR_ERR(p);
 		switch (err) {
 		case -EACCES:
+		case -EKEYEXPIRED:
 			gss_msg->msg.errno = err;
 			err = mlen;
 			break;

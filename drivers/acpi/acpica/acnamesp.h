@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2008, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -286,6 +286,17 @@ acpi_status
 acpi_ns_repair_package_list(struct acpi_predefined_data *data,
 			    union acpi_operand_object **obj_desc_ptr);
 
+acpi_status
+acpi_ns_repair_null_element(struct acpi_predefined_data *data,
+			    u32 expected_btypes,
+			    u32 package_index,
+			    union acpi_operand_object **return_object_ptr);
+
+void
+acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
+			     u8 package_type,
+			     union acpi_operand_object *obj_desc);
+
 /*
  * nsrepair2 - Return object repair for specific
  * predefined methods/objects
@@ -295,11 +306,6 @@ acpi_ns_complex_repairs(struct acpi_predefined_data *data,
 			struct acpi_namespace_node *node,
 			acpi_status validate_status,
 			union acpi_operand_object **return_object_ptr);
-
-void
-acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
-			     u8 package_type,
-			     union acpi_operand_object *obj_desc);
 
 /*
  * nssearch - Namespace searching and entry

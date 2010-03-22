@@ -35,6 +35,7 @@
 #include <linux/cdev.h>
 #include <linux/kdev_t.h>
 #include <linux/mutex.h>
+#include <linux/sched.h>
 #include <linux/mm.h>
 #include <linux/poll.h>
 #include <linux/wait.h>
@@ -182,8 +183,8 @@ static DECLARE_WAIT_QUEUE_HEAD(sep_event);
 static int sep_load_firmware(struct sep_device *sep)
 {
 	const struct firmware *fw;
-	char *cache_name = "cache.image.bin";
-	char *res_name = "resident.image.bin";
+	char *cache_name = "sep/cache.image.bin";
+	char *res_name = "sep/resident.image.bin";
 	int error;
 
 	edbg("SEP Driver:rar_virtual is %p\n", sep->rar_addr);
@@ -221,6 +222,9 @@ static int sep_load_firmware(struct sep_device *sep)
 		sep->rar_addr, (unsigned long long)sep->rar_bus);
 	return 0;
 }
+
+MODULE_FIRMWARE("sep/cache.image.bin");
+MODULE_FIRMWARE("sep/resident.image.bin");
 
 /**
  *	sep_map_and_alloc_shared_area	-	allocate shared block
@@ -273,8 +277,8 @@ static dma_addr_t sep_shared_virt_to_bus(struct sep_device *sep,
 						void *virt_address)
 {
 	dma_addr_t pa = sep->shared_bus + (virt_address - sep->shared_addr);
-	edbg("sep: virt to bus b %08llx v %p\n",
-		(unsigned long long)pa, virt_address);
+	edbg("sep: virt to bus b %08llx v %p\n", (unsigned long long) pa,
+								virt_address);
 	return pa;
 }
 
@@ -380,8 +384,7 @@ static int sep_mmap(struct file *filp, struct vm_area_struct *vma)
 	   shared area */
 	if ((vma->vm_end - vma->vm_start) > SEP_DRIVER_MMMAP_AREA_SIZE) {
 		edbg("SEP Driver mmap requested size is more than allowed\n");
-		printk(KERN_WARNING "SEP Driver mmap requested size is more \
-			than allowed\n");
+		printk(KERN_WARNING "SEP Driver mmap requested size is more than allowed\n");
 		printk(KERN_WARNING "SEP Driver vma->vm_end is %08lx\n", vma->vm_end);
 		printk(KERN_WARNING "SEP Driver vma->vm_end is %08lx\n", vma->vm_start);
 		return -EAGAIN;
@@ -941,8 +944,9 @@ static int sep_lock_user_pages(struct sep_device *sep,
 			dbg("data_size is %lu\n", data_size);
 			while (1);
 		}
-		edbg("lli_array[%lu].physical_address is %08lx, \
-		lli_array[%lu].block_size is %lu\n", count, lli_array[count].physical_address, count, lli_array[count].block_size);
+		edbg("lli_array[%lu].physical_address is %08lx, lli_array[%lu].block_size is %lu\n",
+		     count, lli_array[count].physical_address,
+		     count, lli_array[count].block_size);
 	}
 
 	/* set output params */
@@ -1771,7 +1775,7 @@ static struct sep_flow_context_t *sep_find_flow_context(struct sep_device *sep,
 static int sep_create_flow_dma_tables_handler(struct sep_device *sep,
 							unsigned long arg)
 {
-	int error;
+	int error = -ENOENT;
 	struct sep_driver_build_flow_table_t command_args;
 	/* first table - output */
 	struct sep_lli_entry_t first_table_data;
@@ -2232,7 +2236,7 @@ static int sep_set_flow_id_handler(struct sep_device *sep,
 	return error;
 }
 
-static int sep_ioctl(struct inode *inode, struct file *filp, unsigned int cmd, unsigned long arg)
+static long sep_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 {
 	int error = 0;
 	struct sep_device *sep = filp->private_data;
@@ -2586,7 +2590,7 @@ end_function:
 	return error;
 }
 
-static struct pci_device_id sep_pci_id_tbl[] = {
+static const struct pci_device_id sep_pci_id_tbl[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x080c)},
 	{0}
 };
@@ -2607,7 +2611,7 @@ static dev_t sep_devno;
 /* the files operations structure of the driver */
 static struct file_operations sep_file_operations = {
 	.owner = THIS_MODULE,
-	.ioctl = sep_ioctl,
+	.unlocked_ioctl = sep_ioctl,
 	.poll = sep_poll,
 	.open = sep_open,
 	.release = sep_release,

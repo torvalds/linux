@@ -40,7 +40,7 @@ struct net_device;
  * Documentation/pcmcia/driver.txt for details.
 */
 struct pcmcia_dynids {
-	spinlock_t		lock;
+	struct mutex		lock;
 	struct list_head	list;
 };
 

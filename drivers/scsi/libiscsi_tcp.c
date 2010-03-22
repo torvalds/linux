@@ -992,12 +992,10 @@ static struct iscsi_r2t_info *iscsi_tcp_get_curr_r2t(struct iscsi_task *task)
 		if (r2t == NULL) {
 			if (kfifo_out(&tcp_task->r2tqueue,
 			    (void *)&tcp_task->r2t, sizeof(void *)) !=
-			    sizeof(void *)) {
-				WARN_ONCE(1, "unexpected fifo state");
+			    sizeof(void *))
 				r2t = NULL;
-			}
-
-			r2t = tcp_task->r2t;
+			else
+				r2t = tcp_task->r2t;
 		}
 		spin_unlock_bh(&session->lock);
 	}

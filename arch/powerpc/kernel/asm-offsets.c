@@ -194,6 +194,30 @@ int main(void)
 	DEFINE(PACA_KVM_IN_GUEST, offsetof(struct paca_struct, kvm_in_guest));
 	DEFINE(PACA_KVM_SLB, offsetof(struct paca_struct, kvm_slb));
 	DEFINE(PACA_KVM_SLB_MAX, offsetof(struct paca_struct, kvm_slb_max));
+	DEFINE(PACA_KVM_CR, offsetof(struct paca_struct, shadow_vcpu.cr));
+	DEFINE(PACA_KVM_XER, offsetof(struct paca_struct, shadow_vcpu.xer));
+	DEFINE(PACA_KVM_R0, offsetof(struct paca_struct, shadow_vcpu.gpr[0]));
+	DEFINE(PACA_KVM_R1, offsetof(struct paca_struct, shadow_vcpu.gpr[1]));
+	DEFINE(PACA_KVM_R2, offsetof(struct paca_struct, shadow_vcpu.gpr[2]));
+	DEFINE(PACA_KVM_R3, offsetof(struct paca_struct, shadow_vcpu.gpr[3]));
+	DEFINE(PACA_KVM_R4, offsetof(struct paca_struct, shadow_vcpu.gpr[4]));
+	DEFINE(PACA_KVM_R5, offsetof(struct paca_struct, shadow_vcpu.gpr[5]));
+	DEFINE(PACA_KVM_R6, offsetof(struct paca_struct, shadow_vcpu.gpr[6]));
+	DEFINE(PACA_KVM_R7, offsetof(struct paca_struct, shadow_vcpu.gpr[7]));
+	DEFINE(PACA_KVM_R8, offsetof(struct paca_struct, shadow_vcpu.gpr[8]));
+	DEFINE(PACA_KVM_R9, offsetof(struct paca_struct, shadow_vcpu.gpr[9]));
+	DEFINE(PACA_KVM_R10, offsetof(struct paca_struct, shadow_vcpu.gpr[10]));
+	DEFINE(PACA_KVM_R11, offsetof(struct paca_struct, shadow_vcpu.gpr[11]));
+	DEFINE(PACA_KVM_R12, offsetof(struct paca_struct, shadow_vcpu.gpr[12]));
+	DEFINE(PACA_KVM_R13, offsetof(struct paca_struct, shadow_vcpu.gpr[13]));
+	DEFINE(PACA_KVM_HOST_R1, offsetof(struct paca_struct, shadow_vcpu.host_r1));
+	DEFINE(PACA_KVM_HOST_R2, offsetof(struct paca_struct, shadow_vcpu.host_r2));
+	DEFINE(PACA_KVM_VMHANDLER, offsetof(struct paca_struct,
+					    shadow_vcpu.vmhandler));
+	DEFINE(PACA_KVM_SCRATCH0, offsetof(struct paca_struct,
+					   shadow_vcpu.scratch0));
+	DEFINE(PACA_KVM_SCRATCH1, offsetof(struct paca_struct,
+					   shadow_vcpu.scratch1));
 #endif
 #endif /* CONFIG_PPC64 */
 
@@ -389,8 +413,6 @@ int main(void)
 	DEFINE(VCPU_HOST_PID, offsetof(struct kvm_vcpu, arch.host_pid));
 	DEFINE(VCPU_GPRS, offsetof(struct kvm_vcpu, arch.gpr));
 	DEFINE(VCPU_LR, offsetof(struct kvm_vcpu, arch.lr));
-	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));
-	DEFINE(VCPU_XER, offsetof(struct kvm_vcpu, arch.xer));
 	DEFINE(VCPU_CTR, offsetof(struct kvm_vcpu, arch.ctr));
 	DEFINE(VCPU_PC, offsetof(struct kvm_vcpu, arch.pc));
 	DEFINE(VCPU_MSR, offsetof(struct kvm_vcpu, arch.msr));
@@ -411,11 +433,16 @@ int main(void)
 	DEFINE(VCPU_HOST_R2, offsetof(struct kvm_vcpu, arch.host_r2));
 	DEFINE(VCPU_HOST_MSR, offsetof(struct kvm_vcpu, arch.host_msr));
 	DEFINE(VCPU_SHADOW_MSR, offsetof(struct kvm_vcpu, arch.shadow_msr));
+	DEFINE(VCPU_SHADOW_SRR1, offsetof(struct kvm_vcpu, arch.shadow_srr1));
 	DEFINE(VCPU_TRAMPOLINE_LOWMEM, offsetof(struct kvm_vcpu, arch.trampoline_lowmem));
 	DEFINE(VCPU_TRAMPOLINE_ENTER, offsetof(struct kvm_vcpu, arch.trampoline_enter));
 	DEFINE(VCPU_HIGHMEM_HANDLER, offsetof(struct kvm_vcpu, arch.highmem_handler));
+	DEFINE(VCPU_RMCALL, offsetof(struct kvm_vcpu, arch.rmcall));
 	DEFINE(VCPU_HFLAGS, offsetof(struct kvm_vcpu, arch.hflags));
-#endif
+#else
+	DEFINE(VCPU_CR, offsetof(struct kvm_vcpu, arch.cr));
+	DEFINE(VCPU_XER, offsetof(struct kvm_vcpu, arch.xer));
+#endif /* CONFIG_PPC64 */
 #endif
 #ifdef CONFIG_44x
 	DEFINE(PGD_T_LOG2, PGD_T_LOG2);

@@ -44,13 +44,42 @@
 #include <linux/cpu.h>
 #include <linux/mutex.h>
 #include <linux/module.h>
+#include <linux/kernel_stat.h>
 
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 static struct lock_class_key rcu_lock_key;
 struct lockdep_map rcu_lock_map =
 	STATIC_LOCKDEP_MAP_INIT("rcu_read_lock", &rcu_lock_key);
 EXPORT_SYMBOL_GPL(rcu_lock_map);
+
+static struct lock_class_key rcu_bh_lock_key;
+struct lockdep_map rcu_bh_lock_map =
+	STATIC_LOCKDEP_MAP_INIT("rcu_read_lock_bh", &rcu_bh_lock_key);
+EXPORT_SYMBOL_GPL(rcu_bh_lock_map);
+
+static struct lock_class_key rcu_sched_lock_key;
+struct lockdep_map rcu_sched_lock_map =
+	STATIC_LOCKDEP_MAP_INIT("rcu_read_lock_sched", &rcu_sched_lock_key);
+EXPORT_SYMBOL_GPL(rcu_sched_lock_map);
 #endif
+
+int rcu_scheduler_active __read_mostly;
+EXPORT_SYMBOL_GPL(rcu_scheduler_active);
+
+/*
+ * This function is invoked towards the end of the scheduler's initialization
+ * process.  Before this is called, the idle task might contain
+ * RCU read-side critical sections (during which time, this idle
+ * task is booting the system).  After this function is called, the
+ * idle tasks are prohibited from containing RCU read-side critical
+ * sections.
+ */
+void rcu_scheduler_starting(void)
+{
+	WARN_ON(num_online_cpus() != 1);
+	WARN_ON(nr_context_switches() > 0);
+	rcu_scheduler_active = 1;
+}
 
 /*
  * Awaken the corresponding synchronize_rcu() instance now that a

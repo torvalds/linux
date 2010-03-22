@@ -1475,14 +1475,13 @@ static void set_multicast_list(struct net_device *dev)
 {
   mace_private *lp = netdev_priv(dev);
   int adr[ETHER_ADDR_LEN] = {0}; /* Ethernet address */
-  int i;
-  struct dev_mc_list *dmi = dev->mc_list;
+  struct dev_mc_list *dmi;
 
 #ifdef PCMCIA_DEBUG
   {
     static int old;
-    if (dev->mc_count != old) {
-      old = dev->mc_count;
+    if (netdev_mc_count(dev) != old) {
+      old = netdev_mc_count(dev);
       pr_debug("%s: setting Rx mode to %d addresses.\n",
 	    dev->name, old);
     }
@@ -1490,15 +1489,14 @@ static void set_multicast_list(struct net_device *dev)
 #endif
 
   /* Set multicast_num_addrs. */
-  lp->multicast_num_addrs = dev->mc_count;
+  lp->multicast_num_addrs = netdev_mc_count(dev);
 
   /* Set multicast_ladrf. */
   if (num_addrs > 0) {
     /* Calculate multicast logical address filter */
     memset(lp->multicast_ladrf, 0, MACE_LADRF_LEN);
-    for (i = 0; i < dev->mc_count; i++) {
+    netdev_for_each_mc_addr(dmi, dev) {
       memcpy(adr, dmi->dmi_addr, ETHER_ADDR_LEN);
-      dmi = dmi->next;
       BuildLAF(lp->multicast_ladrf, adr);
     }
   }
@@ -1537,15 +1535,15 @@ static void set_multicast_list(struct net_device *dev)
 #ifdef PCMCIA_DEBUG
   {
     static int old;
-    if (dev->mc_count != old) {
-      old = dev->mc_count;
+    if (netdev_mc_count(dev) != old) {
+      old = netdev_mc_count(dev);
       pr_debug("%s: setting Rx mode to %d addresses.\n",
 	    dev->name, old);
     }
   }
 #endif
 
-  lp->multicast_num_addrs = dev->mc_count;
+  lp->multicast_num_addrs = netdev_mc_count(dev);
   restore_multicast_list(dev);
 
 } /* set_multicast_list */

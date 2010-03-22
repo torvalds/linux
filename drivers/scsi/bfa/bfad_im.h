@@ -23,7 +23,6 @@
 
 #define FCPI_NAME " fcpim"
 
-void bfad_flags_set(struct bfad_s *bfad, u32 flags);
 bfa_status_t bfad_im_module_init(void);
 void bfad_im_module_exit(void);
 bfa_status_t bfad_im_probe(struct bfad_s *bfad);
@@ -126,7 +125,6 @@ bfa_status_t bfad_os_thread_workq(struct bfad_s *bfad);
 void bfad_os_destroy_workq(struct bfad_im_s *im);
 void bfad_os_itnim_process(struct bfad_itnim_s *itnim_drv);
 void bfad_os_fc_host_init(struct bfad_im_port_s *im_port);
-void bfad_os_init_work(struct bfad_im_port_s *im_port);
 void bfad_os_scsi_host_free(struct bfad_s *bfad,
 				 struct bfad_im_port_s *im_port);
 void bfad_os_ramp_up_qdepth(struct bfad_itnim_s *itnim,
@@ -136,9 +134,6 @@ struct bfad_itnim_s *bfad_os_get_itnim(struct bfad_im_port_s *im_port, int id);
 int bfad_os_scsi_add_host(struct Scsi_Host *shost,
 		struct bfad_im_port_s *im_port, struct bfad_s *bfad);
 
-/*
- * scsi_host_template entries
- */
 void bfad_im_itnim_unmap(struct bfad_im_port_s  *im_port,
 			 struct bfad_itnim_s *itnim);
 

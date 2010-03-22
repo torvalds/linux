@@ -90,12 +90,10 @@ static int ak4104_spi_write(struct snd_soc_codec *codec, unsigned int reg,
 	if (reg >= codec->reg_cache_size)
 		return -EINVAL;
 
-	reg &= AK4104_REG_MASK;
-	reg |= AK4104_WRITE;
-
 	/* only write to the hardware if value has changed */
 	if (cache[reg] != value) {
-		u8 tmp[2] = { reg, value };
+		u8 tmp[2] = { (reg & AK4104_REG_MASK) | AK4104_WRITE, value };
+
 		if (spi_write(spi, tmp, sizeof(tmp))) {
 			dev_err(&spi->dev, "SPI write failed\n");
 			return -EIO;
@@ -185,9 +183,7 @@ struct snd_soc_dai ak4104_dai = {
 		.stream_name = "Playback",
 		.channels_min = 2,
 		.channels_max = 2,
-		.rates = SNDRV_PCM_RATE_44100 |
-			 SNDRV_PCM_RATE_48000 |
-			 SNDRV_PCM_RATE_32000,
+		.rates = SNDRV_PCM_RATE_8000_192000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE  |
 			   SNDRV_PCM_FMTBIT_S24_3LE |
 			   SNDRV_PCM_FMTBIT_S24_LE

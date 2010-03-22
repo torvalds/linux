@@ -1,5 +1,5 @@
 /*
- * SCSI RDAM Protocol lib functions
+ * SCSI RDMA Protocol lib functions
  *
  * Copyright (C) 2006 FUJITA Tomonori <tomof@acm.org>
  *
@@ -328,7 +328,7 @@ int srp_transfer_data(struct scsi_cmnd *sc, struct srp_cmd *cmd,
 	int offset, err = 0;
 	u8 format;
 
-	offset = cmd->add_cdb_len * 4;
+	offset = cmd->add_cdb_len & ~3;
 
 	dir = srp_cmd_direction(cmd);
 	if (dir == DMA_FROM_DEVICE)
@@ -366,7 +366,7 @@ static int vscsis_data_length(struct srp_cmd *cmd, enum dma_data_direction dir)
 {
 	struct srp_direct_buf *md;
 	struct srp_indirect_buf *id;
-	int len = 0, offset = cmd->add_cdb_len * 4;
+	int len = 0, offset = cmd->add_cdb_len & ~3;
 	u8 fmt;
 
 	if (dir == DMA_TO_DEVICE)
@@ -440,6 +440,6 @@ int srp_cmd_queue(struct Scsi_Host *shost, struct srp_cmd *cmd, void *info,
 }
 EXPORT_SYMBOL_GPL(srp_cmd_queue);
 
-MODULE_DESCRIPTION("SCSI RDAM Protocol lib functions");
+MODULE_DESCRIPTION("SCSI RDMA Protocol lib functions");
 MODULE_AUTHOR("FUJITA Tomonori");
 MODULE_LICENSE("GPL");

@@ -547,7 +547,6 @@ static const struct v4l2_queryctrl ov772x_controls[] = {
 	},
 };
 
-
 /*
  * general function
  */
@@ -634,7 +633,12 @@ static unsigned long ov772x_query_bus_param(struct soc_camera_device *icd)
 	struct soc_camera_link *icl = to_soc_camera_link(icd);
 	unsigned long flags = SOCAM_PCLK_SAMPLE_RISING | SOCAM_MASTER |
 		SOCAM_VSYNC_ACTIVE_HIGH | SOCAM_HSYNC_ACTIVE_HIGH |
-		SOCAM_DATA_ACTIVE_HIGH | priv->info->buswidth;
+		SOCAM_DATA_ACTIVE_HIGH;
+
+	if (priv->info->flags & OV772X_FLAG_8BIT)
+		flags |= SOCAM_DATAWIDTH_8;
+	else
+		flags |= SOCAM_DATAWIDTH_10;
 
 	return soc_camera_apply_sensor_flags(icl, flags);
 }
@@ -1040,15 +1044,6 @@ static int ov772x_video_probe(struct soc_camera_device *icd,
 		return -ENODEV;
 
 	/*
-	 * ov772x only use 8 or 10 bit bus width
-	 */
-	if (SOCAM_DATAWIDTH_10 != priv->info->buswidth &&
-	    SOCAM_DATAWIDTH_8  != priv->info->buswidth) {
-		dev_err(&client->dev, "bus width error\n");
-		return -ENODEV;
-	}
-
-	/*
 	 * check and show product ID and manufacturer ID
 	 */
 	pid = i2c_smbus_read_byte_data(client, PID);
@@ -1130,7 +1125,6 @@ static int ov772x_probe(struct i2c_client *client,
 			const struct i2c_device_id *did)
 {
 	struct ov772x_priv        *priv;
-	struct ov772x_camera_info *info;
 	struct soc_camera_device  *icd = client->dev.platform_data;
 	struct i2c_adapter        *adapter = to_i2c_adapter(client->dev.parent);
 	struct soc_camera_link    *icl;
@@ -1145,8 +1139,6 @@ static int ov772x_probe(struct i2c_client *client,
 	if (!icl || !icl->priv)
 		return -EINVAL;
 
-	info = icl->priv;
-
 	if (!i2c_check_functionality(adapter, I2C_FUNC_SMBUS_BYTE_DATA)) {
 		dev_err(&adapter->dev,
 			"I2C-Adapter doesn't support "
@@ -1158,7 +1150,7 @@ static int ov772x_probe(struct i2c_client *client,
 	if (!priv)
 		return -ENOMEM;
 
-	priv->info = info;
+	priv->info = icl->priv;
 
 	v4l2_i2c_subdev_init(&priv->subdev, client, &ov772x_subdev_ops);
 

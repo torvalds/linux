@@ -124,21 +124,21 @@ static inline void __down_read(struct rw_semaphore *sem)
 
 	asm volatile(
 #ifndef __s390x__
-		"	l	%0,0(%3)\n"
+		"	l	%0,%2\n"
 		"0:	lr	%1,%0\n"
-		"	ahi	%1,%5\n"
-		"	cs	%0,%1,0(%3)\n"
+		"	ahi	%1,%4\n"
+		"	cs	%0,%1,%2\n"
 		"	jl	0b"
 #else /* __s390x__ */
-		"	lg	%0,0(%3)\n"
+		"	lg	%0,%2\n"
 		"0:	lgr	%1,%0\n"
-		"	aghi	%1,%5\n"
-		"	csg	%0,%1,0(%3)\n"
+		"	aghi	%1,%4\n"
+		"	csg	%0,%1,%2\n"
 		"	jl	0b"
 #endif /* __s390x__ */
-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
-		: "a" (&sem->count), "m" (sem->count),
-		  "i" (RWSEM_ACTIVE_READ_BIAS) : "cc", "memory");
+		: "=&d" (old), "=&d" (new), "=Q" (sem->count)
+		: "Q" (sem->count), "i" (RWSEM_ACTIVE_READ_BIAS)
+		: "cc", "memory");
 	if (old < 0)
 		rwsem_down_read_failed(sem);
 }
@@ -152,25 +152,25 @@ static inline int __down_read_trylock(struct rw_semaphore *sem)
 
 	asm volatile(
 #ifndef __s390x__
-		"	l	%0,0(%3)\n"
+		"	l	%0,%2\n"
 		"0:	ltr	%1,%0\n"
 		"	jm	1f\n"
-		"	ahi	%1,%5\n"
-		"	cs	%0,%1,0(%3)\n"
+		"	ahi	%1,%4\n"
+		"	cs	%0,%1,%2\n"
 		"	jl	0b\n"
 		"1:"
 #else /* __s390x__ */
-		"	lg	%0,0(%3)\n"
+		"	lg	%0,%2\n"
 		"0:	ltgr	%1,%0\n"
 		"	jm	1f\n"
-		"	aghi	%1,%5\n"
-		"	csg	%0,%1,0(%3)\n"
+		"	aghi	%1,%4\n"
+		"	csg	%0,%1,%2\n"
 		"	jl	0b\n"
 		"1:"
 #endif /* __s390x__ */
-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
-		: "a" (&sem->count), "m" (sem->count),
-		  "i" (RWSEM_ACTIVE_READ_BIAS) : "cc", "memory");
+		: "=&d" (old), "=&d" (new), "=Q" (sem->count)
+		: "Q" (sem->count), "i" (RWSEM_ACTIVE_READ_BIAS)
+		: "cc", "memory");
 	return old >= 0 ? 1 : 0;
 }
 
@@ -184,20 +184,20 @@ static inline void __down_write_nested(struct rw_semaphore *sem, int subclass)
 	tmp = RWSEM_ACTIVE_WRITE_BIAS;
 	asm volatile(
 #ifndef __s390x__
-		"	l	%0,0(%3)\n"
+		"	l	%0,%2\n"
 		"0:	lr	%1,%0\n"
-		"	a	%1,%5\n"
-		"	cs	%0,%1,0(%3)\n"
+		"	a	%1,%4\n"
+		"	cs	%0,%1,%2\n"
 		"	jl	0b"
 #else /* __s390x__ */
-		"	lg	%0,0(%3)\n"
+		"	lg	%0,%2\n"
 		"0:	lgr	%1,%0\n"
-		"	ag	%1,%5\n"
-		"	csg	%0,%1,0(%3)\n"
+		"	ag	%1,%4\n"
+		"	csg	%0,%1,%2\n"
 		"	jl	0b"
 #endif /* __s390x__ */
-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
-		: "a" (&sem->count), "m" (sem->count), "m" (tmp)
+		: "=&d" (old), "=&d" (new), "=Q" (sem->count)
+		: "Q" (sem->count), "m" (tmp)
 		: "cc", "memory");
 	if (old != 0)
 		rwsem_down_write_failed(sem);
@@ -217,22 +217,22 @@ static inline int __down_write_trylock(struct rw_semaphore *sem)
 
 	asm volatile(
 #ifndef __s390x__
-		"	l	%0,0(%2)\n"
+		"	l	%0,%1\n"
 		"0:	ltr	%0,%0\n"
 		"	jnz	1f\n"
-		"	cs	%0,%4,0(%2)\n"
+		"	cs	%0,%3,%1\n"
 		"	jl	0b\n"
 #else /* __s390x__ */
-		"	lg	%0,0(%2)\n"
+		"	lg	%0,%1\n"
 		"0:	ltgr	%0,%0\n"
 		"	jnz	1f\n"
-		"	csg	%0,%4,0(%2)\n"
+		"	csg	%0,%3,%1\n"
 		"	jl	0b\n"
 #endif /* __s390x__ */
 		"1:"
-		: "=&d" (old), "=m" (sem->count)
-		: "a" (&sem->count), "m" (sem->count),
-		  "d" (RWSEM_ACTIVE_WRITE_BIAS) : "cc", "memory");
+		: "=&d" (old), "=Q" (sem->count)
+		: "Q" (sem->count), "d" (RWSEM_ACTIVE_WRITE_BIAS)
+		: "cc", "memory");
 	return (old == RWSEM_UNLOCKED_VALUE) ? 1 : 0;
 }
 
@@ -245,21 +245,20 @@ static inline void __up_read(struct rw_semaphore *sem)
 
 	asm volatile(
 #ifndef __s390x__
-		"	l	%0,0(%3)\n"
+		"	l	%0,%2\n"
 		"0:	lr	%1,%0\n"
-		"	ahi	%1,%5\n"
-		"	cs	%0,%1,0(%3)\n"
+		"	ahi	%1,%4\n"
+		"	cs	%0,%1,%2\n"
 		"	jl	0b"
 #else /* __s390x__ */
-		"	lg	%0,0(%3)\n"
+		"	lg	%0,%2\n"
 		"0:	lgr	%1,%0\n"
-		"	aghi	%1,%5\n"
-		"	csg	%0,%1,0(%3)\n"
+		"	aghi	%1,%4\n"
+		"	csg	%0,%1,%2\n"
 		"	jl	0b"
 #endif /* __s390x__ */
-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
-		: "a" (&sem->count), "m" (sem->count),
-		  "i" (-RWSEM_ACTIVE_READ_BIAS)
+		: "=&d" (old), "=&d" (new), "=Q" (sem->count)
+		: "Q" (sem->count), "i" (-RWSEM_ACTIVE_READ_BIAS)
 		: "cc", "memory");
 	if (new < 0)
 		if ((new & RWSEM_ACTIVE_MASK) == 0)
@@ -276,20 +275,20 @@ static inline void __up_write(struct rw_semaphore *sem)
 	tmp = -RWSEM_ACTIVE_WRITE_BIAS;
 	asm volatile(
 #ifndef __s390x__
-		"	l	%0,0(%3)\n"
+		"	l	%0,%2\n"
 		"0:	lr	%1,%0\n"
-		"	a	%1,%5\n"
-		"	cs	%0,%1,0(%3)\n"
+		"	a	%1,%4\n"
+		"	cs	%0,%1,%2\n"
 		"	jl	0b"
 #else /* __s390x__ */
-		"	lg	%0,0(%3)\n"
+		"	lg	%0,%2\n"
 		"0:	lgr	%1,%0\n"
-		"	ag	%1,%5\n"
-		"	csg	%0,%1,0(%3)\n"
+		"	ag	%1,%4\n"
+		"	csg	%0,%1,%2\n"
 		"	jl	0b"
 #endif /* __s390x__ */
-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
-		: "a" (&sem->count), "m" (sem->count), "m" (tmp)
+		: "=&d" (old), "=&d" (new), "=Q" (sem->count)
+		: "Q" (sem->count), "m" (tmp)
 		: "cc", "memory");
 	if (new < 0)
 		if ((new & RWSEM_ACTIVE_MASK) == 0)
@@ -306,20 +305,20 @@ static inline void __downgrade_write(struct rw_semaphore *sem)
 	tmp = -RWSEM_WAITING_BIAS;
 	asm volatile(
 #ifndef __s390x__
-		"	l	%0,0(%3)\n"
+		"	l	%0,%2\n"
 		"0:	lr	%1,%0\n"
-		"	a	%1,%5\n"
-		"	cs	%0,%1,0(%3)\n"
+		"	a	%1,%4\n"
+		"	cs	%0,%1,%2\n"
 		"	jl	0b"
 #else /* __s390x__ */
-		"	lg	%0,0(%3)\n"
+		"	lg	%0,%2\n"
 		"0:	lgr	%1,%0\n"
-		"	ag	%1,%5\n"
-		"	csg	%0,%1,0(%3)\n"
+		"	ag	%1,%4\n"
+		"	csg	%0,%1,%2\n"
 		"	jl	0b"
 #endif /* __s390x__ */
-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
-		: "a" (&sem->count), "m" (sem->count), "m" (tmp)
+		: "=&d" (old), "=&d" (new), "=Q" (sem->count)
+		: "Q" (sem->count), "m" (tmp)
 		: "cc", "memory");
 	if (new > 1)
 		rwsem_downgrade_wake(sem);
@@ -334,20 +333,20 @@ static inline void rwsem_atomic_add(long delta, struct rw_semaphore *sem)
 
 	asm volatile(
 #ifndef __s390x__
-		"	l	%0,0(%3)\n"
+		"	l	%0,%2\n"
 		"0:	lr	%1,%0\n"
-		"	ar	%1,%5\n"
-		"	cs	%0,%1,0(%3)\n"
+		"	ar	%1,%4\n"
+		"	cs	%0,%1,%2\n"
 		"	jl	0b"
 #else /* __s390x__ */
-		"	lg	%0,0(%3)\n"
+		"	lg	%0,%2\n"
 		"0:	lgr	%1,%0\n"
-		"	agr	%1,%5\n"
-		"	csg	%0,%1,0(%3)\n"
+		"	agr	%1,%4\n"
+		"	csg	%0,%1,%2\n"
 		"	jl	0b"
 #endif /* __s390x__ */
-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
-		: "a" (&sem->count), "m" (sem->count), "d" (delta)
+		: "=&d" (old), "=&d" (new), "=Q" (sem->count)
+		: "Q" (sem->count), "d" (delta)
 		: "cc", "memory");
 }
 
@@ -360,20 +359,20 @@ static inline long rwsem_atomic_update(long delta, struct rw_semaphore *sem)
 
 	asm volatile(
 #ifndef __s390x__
-		"	l	%0,0(%3)\n"
+		"	l	%0,%2\n"
 		"0:	lr	%1,%0\n"
-		"	ar	%1,%5\n"
-		"	cs	%0,%1,0(%3)\n"
+		"	ar	%1,%4\n"
+		"	cs	%0,%1,%2\n"
 		"	jl	0b"
 #else /* __s390x__ */
-		"	lg	%0,0(%3)\n"
+		"	lg	%0,%2\n"
 		"0:	lgr	%1,%0\n"
-		"	agr	%1,%5\n"
-		"	csg	%0,%1,0(%3)\n"
+		"	agr	%1,%4\n"
+		"	csg	%0,%1,%2\n"
 		"	jl	0b"
 #endif /* __s390x__ */
-		: "=&d" (old), "=&d" (new), "=m" (sem->count)
-		: "a" (&sem->count), "m" (sem->count), "d" (delta)
+		: "=&d" (old), "=&d" (new), "=Q" (sem->count)
+		: "Q" (sem->count), "d" (delta)
 		: "cc", "memory");
 	return new;
 }

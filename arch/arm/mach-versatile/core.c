@@ -851,8 +851,7 @@ void __init versatile_init(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(lookups); i++)
-		clkdev_add(&lookups[i]);
+	clkdev_add_table(lookups, ARRAY_SIZE(lookups));
 
 	platform_device_register(&versatile_flash_device);
 	platform_device_register(&versatile_i2c_device);

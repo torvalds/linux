@@ -3,7 +3,7 @@
  *
  * Fibre Channel related functions for the zfcp device driver.
  *
- * Copyright IBM Corporation 2008, 2009
+ * Copyright IBM Corporation 2008, 2010
  */
 
 #define KMSG_COMPONENT "zfcp"
@@ -316,7 +316,7 @@ void zfcp_fc_port_did_lookup(struct work_struct *work)
 
 	zfcp_erp_port_reopen(port, 0, "fcgpn_3", NULL);
 out:
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 }
 
 /**
@@ -325,9 +325,9 @@ out:
  */
 void zfcp_fc_trigger_did_lookup(struct zfcp_port *port)
 {
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 	if (!queue_work(port->adapter->work_queue, &port->gid_pn_work))
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 }
 
 /**
@@ -389,7 +389,7 @@ static void zfcp_fc_adisc_handler(void *data)
 	zfcp_scsi_schedule_rport_register(port);
  out:
 	atomic_clear_mask(ZFCP_STATUS_PORT_LINK_TEST, &port->status);
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 	kmem_cache_free(zfcp_data.adisc_cache, adisc);
 }
 
@@ -436,7 +436,7 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 		container_of(work, struct zfcp_port, test_link_work);
 	int retval;
 
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 	port->rport_task = RPORT_DEL;
 	zfcp_scsi_rport_work(&port->rport_work);
 
@@ -455,7 +455,7 @@ void zfcp_fc_link_test_work(struct work_struct *work)
 	zfcp_erp_port_forced_reopen(port, 0, "fcltwk1", NULL);
 
 out:
-	put_device(&port->sysfs_device);
+	put_device(&port->dev);
 }
 
 /**
@@ -468,9 +468,9 @@ out:
  */
 void zfcp_fc_test_link(struct zfcp_port *port)
 {
-	get_device(&port->sysfs_device);
+	get_device(&port->dev);
 	if (!queue_work(port->adapter->work_queue, &port->test_link_work))
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 }
 
 static void zfcp_free_sg_env(struct zfcp_fc_gpn_ft *gpn_ft, int buf_num)
@@ -617,8 +617,7 @@ static int zfcp_fc_eval_gpn_ft(struct zfcp_fc_gpn_ft *gpn_ft,
 
 	list_for_each_entry_safe(port, tmp, &remove_lh, list) {
 		zfcp_erp_port_shutdown(port, 0, "fcegpf2", NULL);
-		zfcp_device_unregister(&port->sysfs_device,
-				       &zfcp_sysfs_port_attrs);
+		zfcp_device_unregister(&port->dev, &zfcp_sysfs_port_attrs);
 	}
 
 	return ret;
@@ -731,7 +730,7 @@ static int zfcp_fc_exec_els_job(struct fc_bsg_job *job,
 			return -EINVAL;
 
 		d_id = port->d_id;
-		put_device(&port->sysfs_device);
+		put_device(&port->dev);
 	} else
 		d_id = ntoh24(job->request->rqst_data.h_els.port_id);
 

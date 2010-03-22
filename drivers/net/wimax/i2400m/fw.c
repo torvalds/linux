@@ -612,7 +612,7 @@ ssize_t i2400m_bm_cmd(struct i2400m *i2400m,
 		goto error_wait_for_ack;
 	}
 	rx_bytes = result;
-	/* verify the ack and read more if neccessary [result is the
+	/* verify the ack and read more if necessary [result is the
 	 * final amount of bytes we get in the ack]  */
 	result = __i2400m_bm_ack_verify(i2400m, opcode, ack, ack_size, flags);
 	if (result < 0)
@@ -1041,21 +1041,14 @@ int i2400m_read_mac_addr(struct i2400m *i2400m)
 		dev_err(dev, "BM: read mac addr failed: %d\n", result);
 		goto error_read_mac;
 	}
-	d_printf(2, dev,
-		 "mac addr is %02x:%02x:%02x:%02x:%02x:%02x\n",
-		 ack_buf.ack_pl[0], ack_buf.ack_pl[1],
-		 ack_buf.ack_pl[2], ack_buf.ack_pl[3],
-		 ack_buf.ack_pl[4], ack_buf.ack_pl[5]);
+	d_printf(2, dev, "mac addr is %pM\n", ack_buf.ack_pl);
 	if (i2400m->bus_bm_mac_addr_impaired == 1) {
 		ack_buf.ack_pl[0] = 0x00;
 		ack_buf.ack_pl[1] = 0x16;
 		ack_buf.ack_pl[2] = 0xd3;
 		get_random_bytes(&ack_buf.ack_pl[3], 3);
 		dev_err(dev, "BM is MAC addr impaired, faking MAC addr to "
-			"mac addr is %02x:%02x:%02x:%02x:%02x:%02x\n",
-			ack_buf.ack_pl[0], ack_buf.ack_pl[1],
-			ack_buf.ack_pl[2], ack_buf.ack_pl[3],
-			ack_buf.ack_pl[4], ack_buf.ack_pl[5]);
+			"mac addr is %pM\n", ack_buf.ack_pl);
 		result = 0;
 	}
 	net_dev->addr_len = ETH_ALEN;

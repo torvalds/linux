@@ -32,12 +32,17 @@
 struct nilfs_write_info {
 	struct the_nilfs       *nilfs;
 	struct bio	       *bio;
-	int 			start, end; /* The region to be submitted */
+	int			start, end; /* The region to be submitted */
 	int			rest_blocks;
 	int			max_pages;
 	int			nr_vecs;
 	sector_t		blocknr;
 };
+
+
+static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
+			      struct the_nilfs *nilfs);
+static int nilfs_segbuf_wait(struct nilfs_segment_buffer *segbuf);
 
 
 static struct kmem_cache *nilfs_segbuf_cachep;
@@ -169,7 +174,7 @@ int nilfs_segbuf_reset(struct nilfs_segment_buffer *segbuf, unsigned flags,
 }
 
 /*
- * Setup segument summary
+ * Setup segment summary
  */
 void nilfs_segbuf_fill_in_segsum(struct nilfs_segment_buffer *segbuf)
 {
@@ -300,6 +305,19 @@ void nilfs_truncate_logs(struct list_head *logs,
 		nilfs_segbuf_clear(segbuf);
 		nilfs_segbuf_free(segbuf);
 	}
+}
+
+int nilfs_write_logs(struct list_head *logs, struct the_nilfs *nilfs)
+{
+	struct nilfs_segment_buffer *segbuf;
+	int ret = 0;
+
+	list_for_each_entry(segbuf, logs, sb_list) {
+		ret = nilfs_segbuf_write(segbuf, nilfs);
+		if (ret)
+			break;
+	}
+	return ret;
 }
 
 int nilfs_wait_on_logs(struct list_head *logs)
@@ -452,8 +470,8 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
  *
  * %-ENOMEM - Insufficient memory available.
  */
-int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
-		       struct the_nilfs *nilfs)
+static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
+			      struct the_nilfs *nilfs)
 {
 	struct nilfs_write_info wi;
 	struct buffer_head *bh;
@@ -496,7 +514,7 @@ int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
  *
  * %-EIO - I/O error
  */
-int nilfs_segbuf_wait(struct nilfs_segment_buffer *segbuf)
+static int nilfs_segbuf_wait(struct nilfs_segment_buffer *segbuf)
 {
 	int err = 0;
 

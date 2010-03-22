@@ -646,7 +646,7 @@ void ieee80211_stop_send_beacons(struct ieee80211_device *ieee)
 void ieee80211_start_send_beacons(struct ieee80211_device *ieee)
 {
 	if(ieee->start_send_beacons)
-		ieee->start_send_beacons(ieee->dev,ieee->basic_rate);
+		ieee->start_send_beacons(ieee->dev);
 	if(ieee->softmac_features & IEEE_SOFTMAC_BEACONS)
 		ieee80211_beacons_start(ieee);
 }
@@ -686,6 +686,11 @@ void ieee80211_stop_scan(struct ieee80211_device *ieee)
 /* called with ieee->lock held */
 void ieee80211_rtl_start_scan(struct ieee80211_device *ieee)
 {
+#ifdef ENABLE_IPS
+	if(ieee->ieee80211_ips_leave_wq != NULL)
+		ieee->ieee80211_ips_leave_wq(ieee->dev);
+#endif
+
 #ifdef ENABLE_DOT11D
 	if(IS_DOT11D_ENABLE(ieee) )
 	{
@@ -1090,6 +1095,40 @@ struct sk_buff* ieee80211_null_func(struct ieee80211_device *ieee,short pwr)
 
 	return skb;
 
+
+}
+
+struct sk_buff* ieee80211_pspoll_func(struct ieee80211_device *ieee)
+{
+	struct sk_buff *skb;
+	struct ieee80211_pspoll_hdr* hdr;
+
+#ifdef USB_USE_ALIGNMENT
+        u32 Tmpaddr=0;
+        int alignment=0;
+        skb = dev_alloc_skb(sizeof(struct ieee80211_pspoll_hdr) + ieee->tx_headroom + USB_512B_ALIGNMENT_SIZE);
+#else
+	skb = dev_alloc_skb(sizeof(struct ieee80211_pspoll_hdr)+ieee->tx_headroom);
+#endif
+	if (!skb)
+		return NULL;
+
+#ifdef USB_USE_ALIGNMENT
+        Tmpaddr = (u32)skb->data;
+        alignment = Tmpaddr & 0x1ff;
+        skb_reserve(skb,(USB_512B_ALIGNMENT_SIZE - alignment));
+#endif
+	skb_reserve(skb, ieee->tx_headroom);
+
+	hdr = (struct ieee80211_pspoll_hdr*)skb_put(skb,sizeof(struct ieee80211_pspoll_hdr));
+
+	memcpy(hdr->bssid, ieee->current_network.bssid, ETH_ALEN);
+	memcpy(hdr->ta, ieee->dev->dev_addr, ETH_ALEN);
+
+	hdr->aid = cpu_to_le16(ieee->assoc_id | 0xc000);
+	hdr->frame_ctl = cpu_to_le16(IEEE80211_FTYPE_CTL |IEEE80211_STYPE_PSPOLL | IEEE80211_FCTL_PM);
+
+	return skb;
 
 }
 
@@ -1582,6 +1621,11 @@ void ieee80211_associate_procedure_wq(struct ieee80211_device *ieee)
 {
 #endif
 	ieee->sync_scan_hurryup = 1;
+#ifdef ENABLE_IPS
+	if(ieee->ieee80211_ips_leave != NULL)
+        	ieee->ieee80211_ips_leave(ieee->dev);
+#endif
+
 	down(&ieee->wx_sem);
 
 	if (ieee->data_hard_stop)
@@ -1591,6 +1635,17 @@ void ieee80211_associate_procedure_wq(struct ieee80211_device *ieee)
 	printk("===>%s(), chan:%d\n", __FUNCTION__, ieee->current_network.channel);
 	//ieee->set_chan(ieee->dev, ieee->current_network.channel);
 	HTSetConnectBwMode(ieee, HT_CHANNEL_WIDTH_20, HT_EXTCHNL_OFFSET_NO_EXT);
+
+#ifdef ENABLE_IPS
+	if(ieee->eRFPowerState == eRfOff)
+	{
+		if(ieee->ieee80211_ips_leave_wq != NULL)
+			ieee->ieee80211_ips_leave_wq(ieee->dev);
+
+		up(&ieee->wx_sem);
+		return;
+	}
+#endif
 
 	ieee->associate_seq = 1;
 	ieee80211_associate_step1(ieee);
@@ -1897,7 +1952,7 @@ ieee80211_rx_assoc_rq(struct ieee80211_device *ieee, struct sk_buff *skb)
 		ieee80211_resp_to_assoc_rq(ieee, dest);
 	}
 
-	printk(KERN_INFO"New client associated: "MAC_FMT"\n", MAC_ARG(dest));
+	printk(KERN_INFO"New client associated: %pM\n", dest);
 	//FIXME
 	#if 0
 	spin_lock_irqsave(&ieee->lock,flags);
@@ -1918,42 +1973,91 @@ void ieee80211_sta_ps_send_null_frame(struct ieee80211_device *ieee, short pwr)
 
 }
 
+void ieee80211_sta_ps_send_pspoll_frame(struct ieee80211_device *ieee)
+{
+
+	struct sk_buff *buf = ieee80211_pspoll_func(ieee);
+
+	if (buf)
+		softmac_ps_mgmt_xmit(buf, ieee);
+
+}
 
 short ieee80211_sta_ps_sleep(struct ieee80211_device *ieee, u32 *time_h, u32 *time_l)
 {
 	int timeout = ieee->ps_timeout;
 	u8 dtim;
-	/*if(ieee->ps == IEEE80211_PS_DISABLED ||
-		ieee->iw_mode != IW_MODE_INFRA ||
-		ieee->state != IEEE80211_LINKED)
+	PRT_POWER_SAVE_CONTROL	pPSC = (PRT_POWER_SAVE_CONTROL)(&(ieee->PowerSaveControl));
 
+	if(ieee->LPSDelayCnt)
+	{
+		//printk("===============>Delay enter LPS for DHCP and ARP packets...\n");
+		ieee->LPSDelayCnt --;
 		return 0;
-	*/
+	}
+
 	dtim = ieee->current_network.dtim_data;
-	//printk("DTIM\n");
+//	printk("%s():DTIM:%d\n",__FUNCTION__,dtim);
 	if(!(dtim & IEEE80211_DTIM_VALID))
 		return 0;
 	timeout = ieee->current_network.beacon_interval; //should we use ps_timeout value or beacon_interval
 	//printk("VALID\n");
 	ieee->current_network.dtim_data = IEEE80211_DTIM_INVALID;
-
-	if(dtim & ((IEEE80211_DTIM_UCAST | IEEE80211_DTIM_MBCAST)& ieee->ps))
+	/* there's no need to nofity AP that I find you buffered with broadcast packet */
+	if(dtim & (IEEE80211_DTIM_UCAST & ieee->ps))
 		return 2;
 
-	if(!time_after(jiffies, ieee->dev->trans_start + MSECS(timeout)))
+	if(!time_after(jiffies, ieee->dev->trans_start + MSECS(timeout))){
+//		printk("%s():111Oh Oh ,it is not time out return 0\n",__FUNCTION__);
 		return 0;
-
-	if(!time_after(jiffies, ieee->last_rx_ps_time + MSECS(timeout)))
+	}
+	if(!time_after(jiffies, ieee->last_rx_ps_time + MSECS(timeout))){
+//		printk("%s():222Oh Oh ,it is not time out return 0\n",__FUNCTION__);
 		return 0;
-
+	}
 	if((ieee->softmac_features & IEEE_SOFTMAC_SINGLE_QUEUE ) &&
 		(ieee->mgmt_queue_tail != ieee->mgmt_queue_head))
 		return 0;
 
 	if(time_l){
+		if(ieee->bAwakePktSent == true) {
+			pPSC->LPSAwakeIntvl = 1;//tx wake one beacon
+		} else {
+			u8		MaxPeriod = 1;
+
+			if(pPSC->LPSAwakeIntvl == 0)
+				pPSC->LPSAwakeIntvl = 1;
+			//pNdisCommon->RegLPSMaxIntvl /// 0x0 - eFastPs, 0xFF -DTIM, 0xNN - 0xNN * BeaconIntvl
+			if(pPSC->RegMaxLPSAwakeIntvl == 0) // Default (0x0 - eFastPs, 0xFF -DTIM, 0xNN - 0xNN * BeaconIntvl)
+				MaxPeriod = 1; // 1 Beacon interval
+			else if(pPSC->RegMaxLPSAwakeIntvl == 0xFF) // DTIM
+				MaxPeriod = ieee->current_network.dtim_period;
+			else
+				MaxPeriod = pPSC->RegMaxLPSAwakeIntvl;
+			pPSC->LPSAwakeIntvl = (pPSC->LPSAwakeIntvl >= MaxPeriod) ? MaxPeriod : (pPSC->LPSAwakeIntvl + 1);
+		}
+		{
+			u8 LPSAwakeIntvl_tmp = 0;
+			u8 period = ieee->current_network.dtim_period;
+			u8 count = ieee->current_network.tim.tim_count;
+			if(count == 0 ) {
+				if(pPSC->LPSAwakeIntvl > period)
+					LPSAwakeIntvl_tmp = period + (pPSC->LPSAwakeIntvl - period) -((pPSC->LPSAwakeIntvl-period)%period);
+				else
+					LPSAwakeIntvl_tmp = pPSC->LPSAwakeIntvl;
+
+			} else {
+				if(pPSC->LPSAwakeIntvl > ieee->current_network.tim.tim_count)
+					LPSAwakeIntvl_tmp = count + (pPSC->LPSAwakeIntvl - count) -((pPSC->LPSAwakeIntvl-count)%period);
+				else
+					LPSAwakeIntvl_tmp = pPSC->LPSAwakeIntvl;//ieee->current_network.tim.tim_count;//pPSC->LPSAwakeIntvl;
+			}
+			//printk("=========>%s()assoc_id:%d(%#x),bAwakePktSent:%d,DTIM:%d, sleep interval:%d, LPSAwakeIntvl_tmp:%d, count:%d\n",__func__,ieee->assoc_id,cpu_to_le16(ieee->assoc_id),ieee->bAwakePktSent,ieee->current_network.dtim_period,pPSC->LPSAwakeIntvl,LPSAwakeIntvl_tmp,count);
+
 		*time_l = ieee->current_network.last_dtim_sta_time[0]
-			+ (ieee->current_network.beacon_interval);
+			+ MSECS(ieee->current_network.beacon_interval * LPSAwakeIntvl_tmp);
 		//	* ieee->current_network.dtim_period) * 1000;
+	}
 	}
 
 	if(time_h){
@@ -1982,6 +2086,8 @@ inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 		ieee->state != IEEE80211_LINKED)){
 
 	//	#warning CHECK_LOCK_HERE
+		printk("=====>%s(): no need to ps,wake up!! ieee->ps is %d,ieee->iw_mode is %d,ieee->state is %d\n",
+			__FUNCTION__,ieee->ps,ieee->iw_mode,ieee->state);
 		spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
 
 		ieee80211_sta_wakeup(ieee, 1);
@@ -1991,27 +2097,27 @@ inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 
 	sleep = ieee80211_sta_ps_sleep(ieee,&th, &tl);
 	/* 2 wake, 1 sleep, 0 do nothing */
-	if(sleep == 0)
+	if(sleep == 0)//it is not time out or dtim is not valid
+	{
+		//printk("===========>sleep is 0,do nothing\n");
 		goto out;
-
+	}
 	if(sleep == 1){
-
-		if(ieee->sta_sleep == 1)
+		//printk("===========>sleep is 1,to sleep\n");
+		if(ieee->sta_sleep == 1){
+			//printk("%s(1): sta_sleep = 1, sleep again ++++++++++ \n", __func__);
 			ieee->enter_sleep_state(ieee->dev,th,tl);
+		}
 
 		else if(ieee->sta_sleep == 0){
 		//	printk("send null 1\n");
 			spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
 
 			if(ieee->ps_is_queue_empty(ieee->dev)){
-
-
 				ieee->sta_sleep = 2;
-
 				ieee->ack_tx_to_ieee = 1;
-
+				//printk("%s(2): sta_sleep = 0, notify AP we will sleeped ++++++++++ SendNullFunctionData\n", __func__);
 				ieee80211_sta_ps_send_null_frame(ieee,1);
-
 				ieee->ps_th = th;
 				ieee->ps_tl = tl;
 			}
@@ -2019,11 +2125,13 @@ inline void ieee80211_sta_ps(struct ieee80211_device *ieee)
 
 		}
 
+		ieee->bAwakePktSent = false;//after null to power save we set it to false. not listen every beacon.
 
 	}else if(sleep == 2){
-//#warning CHECK_LOCK_HERE
+		//printk("==========>sleep is 2,to wakeup\n");
 		spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
 
+		//printk("%s(3): pkt buffered in ap will awake ++++++++++ ieee80211_sta_wakeup\n", __func__);
 		ieee80211_sta_wakeup(ieee,1);
 
 		spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
@@ -2038,9 +2146,19 @@ void ieee80211_sta_wakeup(struct ieee80211_device *ieee, short nl)
 {
 	if(ieee->sta_sleep == 0){
 		if(nl){
-			printk("Warning: driver is probably failing to report TX ps error\n");
-			ieee->ack_tx_to_ieee = 1;
-			ieee80211_sta_ps_send_null_frame(ieee, 0);
+			if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_NULL_DATA_POWER_SAVING)
+			{
+				//printk("%s(1): notify AP we are awaked ++++++++++ SendNullFunctionData\n", __func__);
+				//printk("Warning: driver is probably failing to report TX ps error\n");
+				ieee->ack_tx_to_ieee = 1;
+				ieee80211_sta_ps_send_null_frame(ieee, 0);
+			}
+			else
+			{
+				ieee->ack_tx_to_ieee = 1;
+				//printk("%s(2): notify AP we are awaked ++++++++++ Send PS-Poll\n", __func__);
+				ieee80211_sta_ps_send_pspoll_frame(ieee);
+			}
 		}
 		return;
 
@@ -2048,12 +2166,27 @@ void ieee80211_sta_wakeup(struct ieee80211_device *ieee, short nl)
 
 	if(ieee->sta_sleep == 1)
 		ieee->sta_wake_up(ieee->dev);
-
-	ieee->sta_sleep = 0;
-
 	if(nl){
-		ieee->ack_tx_to_ieee = 1;
-		ieee80211_sta_ps_send_null_frame(ieee, 0);
+
+			if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_NULL_DATA_POWER_SAVING)
+			{
+				//printk("%s(3): notify AP we are awaked ++++++++++ SendNullFunctionData\n", __func__);
+				//printk("Warning: driver is probably failing to report TX ps error\n");
+				ieee->ack_tx_to_ieee = 1;
+				ieee80211_sta_ps_send_null_frame(ieee, 0);
+			}
+			else
+			{
+				ieee->ack_tx_to_ieee = 1;
+			ieee->polling = true;
+				//printk("%s(4): notify AP we are awaked ++++++++++ Send PS-Poll\n", __func__);
+				//ieee80211_sta_ps_send_null_frame(ieee, 0);
+				ieee80211_sta_ps_send_pspoll_frame(ieee);
+			}
+
+	} else {
+		ieee->sta_sleep = 0;
+		ieee->polling = false;
 	}
 }
 
@@ -2067,23 +2200,30 @@ void ieee80211_ps_tx_ack(struct ieee80211_device *ieee, short success)
 		/* Null frame with PS bit set */
 		if(success){
 			ieee->sta_sleep = 1;
+			//printk("notify AP we will sleep and send null ok, so sleep now++++++++++ enter_sleep_state\n");
 			ieee->enter_sleep_state(ieee->dev,ieee->ps_th,ieee->ps_tl);
 		}
-		/* if the card report not success we can't be sure the AP
-		 * has not RXed so we can't assume the AP believe us awake
-		 */
-	}
-	/* 21112005 - tx again null without PS bit if lost */
-	else {
+	} else {/* 21112005 - tx again null without PS bit if lost */
 
 		if((ieee->sta_sleep == 0) && !success){
 			spin_lock_irqsave(&ieee->mgmt_tx_lock, flags2);
-			ieee80211_sta_ps_send_null_frame(ieee, 0);
+			//ieee80211_sta_ps_send_null_frame(ieee, 0);
+			if(ieee->pHTInfo->IOTAction & HT_IOT_ACT_NULL_DATA_POWER_SAVING)
+			{
+				//printk("notify AP we will sleep but send bull failed, so resend++++++++++ SendNullFunctionData\n");
+				ieee80211_sta_ps_send_null_frame(ieee, 0);
+			}
+			else
+			{
+				//printk("notify AP we are awaked but send pspoll failed, so resend++++++++++ Send PS-Poll\n");
+				ieee80211_sta_ps_send_pspoll_frame(ieee);
+			}
 			spin_unlock_irqrestore(&ieee->mgmt_tx_lock, flags2);
 		}
 	}
 	spin_unlock_irqrestore(&ieee->lock, flags);
 }
+
 void ieee80211_process_action(struct ieee80211_device* ieee, struct sk_buff* skb)
 {
 	struct ieee80211_hdr* header = (struct ieee80211_hdr*)skb->data;
@@ -2227,7 +2367,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 								{
 									if (!ieee->GetNmodeSupportBySecCfg(ieee->dev))
 									{
-												// WEP or TKIP encryption
+										// WEP or TKIP encryption
 										if(IsHTHalfNmodeAPs(ieee))
 										{
 											bSupportNmode = true;
@@ -2238,7 +2378,7 @@ ieee80211_rx_frame_softmac(struct ieee80211_device *ieee, struct sk_buff *skb,
 											bSupportNmode = false;
 											bHalfSupportNmode = false;
 										}
-									printk("==========>to link with AP using SEC(%d, %d)", bSupportNmode, bHalfSupportNmode);
+									printk("==========>to link with AP using SEC(%d, %d)\n", bSupportNmode, bHalfSupportNmode);
 									}
 								}
 								/* Dummy wirless mode setting to avoid encryption issue */
@@ -2574,6 +2714,7 @@ void ieee80211_start_ibss_wq(struct ieee80211_device *ieee)
 		ieee->ssid_set = 1;
 	}
 
+	ieee->state = IEEE80211_NOLINK;
 	/* check if we have this cell in our network list */
 	ieee80211_softmac_check_all_nets(ieee);
 
@@ -2705,6 +2846,10 @@ void ieee80211_start_bss(struct ieee80211_device *ieee)
 	spin_lock_irqsave(&ieee->lock, flags);
 
 	if (ieee->state == IEEE80211_NOLINK){
+#ifdef ENABLE_IPS
+		if(ieee->ieee80211_ips_leave_wq != NULL)
+			ieee->ieee80211_ips_leave_wq(ieee->dev);
+#endif
 		ieee->actscanning = true;
 		ieee80211_rtl_start_scan(ieee);
 	}
@@ -2823,21 +2968,23 @@ struct sk_buff *ieee80211_get_beacon(struct ieee80211_device *ieee)
 	return skb;
 }
 
-void ieee80211_softmac_stop_protocol(struct ieee80211_device *ieee)
+void ieee80211_softmac_stop_protocol(struct ieee80211_device *ieee, u8 shutdown)
 {
 	ieee->sync_scan_hurryup = 1;
 	down(&ieee->wx_sem);
-	ieee80211_stop_protocol(ieee);
+	ieee80211_stop_protocol(ieee, shutdown);
 	up(&ieee->wx_sem);
 }
 
 
-void ieee80211_stop_protocol(struct ieee80211_device *ieee)
+void ieee80211_stop_protocol(struct ieee80211_device *ieee, u8 shutdown)
 {
 	if (!ieee->proto_started)
 		return;
 
-	ieee->proto_started = 0;
+	if(shutdown)
+		ieee->proto_started = 0;
+	ieee->proto_stoppping = 1;
 
 	ieee80211_stop_send_beacons(ieee);
 	del_timer_sync(&ieee->associate_timer);
@@ -2849,6 +2996,8 @@ void ieee80211_stop_protocol(struct ieee80211_device *ieee)
 
 	ieee80211_disassociate(ieee);
 	RemoveAllTS(ieee); //added as we disconnect from the previous BSS, Remove all TS
+
+	ieee->proto_stoppping = 0;
 }
 
 void ieee80211_softmac_start_protocol(struct ieee80211_device *ieee)
@@ -2893,6 +3042,8 @@ void ieee80211_start_protocol(struct ieee80211_device *ieee)
 	}
 
 	ieee->init_wmmparam_flag = 0;//reinitialize AC_xx_PARAM registers.
+
+	ieee->state = IEEE80211_NOLINK;
 
 
 	/* if the user set the MAC of the ad-hoc cell and then
@@ -3013,7 +3164,9 @@ void ieee80211_softmac_init(struct ieee80211_device *ieee)
 #endif
 	sema_init(&ieee->wx_sem, 1);
 	sema_init(&ieee->scan_sem, 1);
-
+#ifdef ENABLE_IPS
+	sema_init(&ieee->ips_sem,1);
+#endif
 	spin_lock_init(&ieee->mgmt_tx_lock);
 	spin_lock_init(&ieee->beacon_lock);
 
@@ -3537,5 +3690,6 @@ EXPORT_SYMBOL_NOVERS(ieee80211_stop_scan);
 EXPORT_SYMBOL_NOVERS(ieee80211_send_probe_requests);
 EXPORT_SYMBOL_NOVERS(ieee80211_softmac_scan_syncro);
 EXPORT_SYMBOL_NOVERS(ieee80211_start_scan_syncro);
+EXPORT_SYMBOL_NOVERS(ieee80211_sta_ps_send_null_frame);
+EXPORT_SYMBOL_NOVERS(ieee80211_sta_ps_send_pspoll_frame);
 #endif
-//EXPORT_SYMBOL(ieee80211_sta_ps_send_null_frame);

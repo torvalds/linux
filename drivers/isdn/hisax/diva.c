@@ -1148,7 +1148,7 @@ static int __devinit setup_diva_isapnp(struct IsdnCard *card)
 
 #endif	/* ISAPNP */
 
-#ifdef CONFIG_PCI_LEGACY
+#ifdef CONFIG_PCI
 static struct pci_dev *dev_diva __devinitdata = NULL;
 static struct pci_dev *dev_diva_u __devinitdata = NULL;
 static struct pci_dev *dev_diva201 __devinitdata = NULL;
@@ -1159,21 +1159,21 @@ static int __devinit setup_diva_pci(struct IsdnCard *card)
 	struct IsdnCardState *cs = card->cs;
 
 	cs->subtyp = 0;
-	if ((dev_diva = pci_find_device(PCI_VENDOR_ID_EICON,
+	if ((dev_diva = hisax_find_pci_device(PCI_VENDOR_ID_EICON,
 		PCI_DEVICE_ID_EICON_DIVA20, dev_diva))) {
 		if (pci_enable_device(dev_diva))
 			return(0);
 		cs->subtyp = DIVA_PCI;
 		cs->irq = dev_diva->irq;
 		cs->hw.diva.cfg_reg = pci_resource_start(dev_diva, 2);
-	} else if ((dev_diva_u = pci_find_device(PCI_VENDOR_ID_EICON,
+	} else if ((dev_diva_u = hisax_find_pci_device(PCI_VENDOR_ID_EICON,
 		PCI_DEVICE_ID_EICON_DIVA20_U, dev_diva_u))) {
 		if (pci_enable_device(dev_diva_u))
 			return(0);
 		cs->subtyp = DIVA_PCI;
 		cs->irq = dev_diva_u->irq;
 		cs->hw.diva.cfg_reg = pci_resource_start(dev_diva_u, 2);
-	} else if ((dev_diva201 = pci_find_device(PCI_VENDOR_ID_EICON,
+	} else if ((dev_diva201 = hisax_find_pci_device(PCI_VENDOR_ID_EICON,
 		PCI_DEVICE_ID_EICON_DIVA201, dev_diva201))) {
 		if (pci_enable_device(dev_diva201))
 			return(0);
@@ -1183,7 +1183,7 @@ static int __devinit setup_diva_pci(struct IsdnCard *card)
 			(ulong) ioremap(pci_resource_start(dev_diva201, 0), 4096);
 		cs->hw.diva.cfg_reg =
 			(ulong) ioremap(pci_resource_start(dev_diva201, 1), 4096);
-	} else if ((dev_diva202 = pci_find_device(PCI_VENDOR_ID_EICON,
+	} else if ((dev_diva202 = hisax_find_pci_device(PCI_VENDOR_ID_EICON,
 		PCI_DEVICE_ID_EICON_DIVA202, dev_diva202))) {
 		if (pci_enable_device(dev_diva202))
 			return(0);
@@ -1229,14 +1229,14 @@ static int __devinit setup_diva_pci(struct IsdnCard *card)
 	return (1);		/* card found */
 }
 
-#else	/* if !CONFIG_PCI_LEGACY */
+#else	/* if !CONFIG_PCI */
 
 static int __devinit setup_diva_pci(struct IsdnCard *card)
 {
 	return (-1);	/* card not found; continue search */
 }
 
-#endif	/* CONFIG_PCI_LEGACY */
+#endif	/* CONFIG_PCI */
 
 int __devinit
 setup_diva(struct IsdnCard *card)

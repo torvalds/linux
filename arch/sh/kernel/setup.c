@@ -421,6 +421,8 @@ void __init setup_arch(char **cmdline_p)
 
 	parse_early_param();
 
+	uncached_init();
+
 	plat_early_device_setup();
 
 	/* Let earlyprintk output early console messages */
@@ -441,7 +443,7 @@ void __init setup_arch(char **cmdline_p)
 
 	nodes_clear(node_online_map);
 
-	/* Setup bootmem with available RAM */
+	pmb_init();
 	lmb_init();
 	setup_memory();
 	sparse_init();
@@ -449,16 +451,13 @@ void __init setup_arch(char **cmdline_p)
 #ifdef CONFIG_DUMMY_CONSOLE
 	conswitchp = &dummy_con;
 #endif
+	paging_init();
+
+	ioremap_fixed_init();
 
 	/* Perform the machine specific initialisation */
 	if (likely(sh_mv.mv_setup))
 		sh_mv.mv_setup(cmdline_p);
-
-	paging_init();
-
-#ifdef CONFIG_PMB_ENABLE
-	pmb_init();
-#endif
 
 #ifdef CONFIG_SMP
 	plat_smp_setup();

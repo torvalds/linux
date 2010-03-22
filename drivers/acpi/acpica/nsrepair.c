@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2009, Intel Corp.
+ * Copyright (C) 2000 - 2010, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@
 #include "accommon.h"
 #include "acnamesp.h"
 #include "acinterp.h"
+#include "acpredef.h"
 
 #define _COMPONENT          ACPI_NAMESPACE
 ACPI_MODULE_NAME("nsrepair")
@@ -70,6 +71,12 @@ ACPI_MODULE_NAME("nsrepair")
  * Buffer  -> String
  * Buffer  -> Package of Integers
  * Package -> Package of one Package
+ *
+ * Additional possible repairs:
+ *
+ * Optional/unnecessary NULL package elements removed
+ * Required package elements that are NULL replaced by Integer/String/Buffer
+ * Incorrect standalone package wrapped with required outer package
  *
  ******************************************************************************/
 /* Local prototypes */
@@ -502,6 +509,172 @@ acpi_ns_convert_to_package(union acpi_operand_object *original_object,
 
 	*return_object = new_object;
 	return (AE_OK);
+}
+
+/*******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_repair_null_element
+ *
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              expected_btypes     - Object types expected
+ *              package_index       - Index of object within parent package (if
+ *                                    applicable - ACPI_NOT_PACKAGE_ELEMENT
+ *                                    otherwise)
+ *              return_object_ptr   - Pointer to the object returned from the
+ *                                    evaluation of a method or object
+ *
+ * RETURN:      Status. AE_OK if repair was successful.
+ *
+ * DESCRIPTION: Attempt to repair a NULL element of a returned Package object.
+ *
+ ******************************************************************************/
+
+acpi_status
+acpi_ns_repair_null_element(struct acpi_predefined_data *data,
+			    u32 expected_btypes,
+			    u32 package_index,
+			    union acpi_operand_object **return_object_ptr)
+{
+	union acpi_operand_object *return_object = *return_object_ptr;
+	union acpi_operand_object *new_object;
+
+	ACPI_FUNCTION_NAME(ns_repair_null_element);
+
+	/* No repair needed if return object is non-NULL */
+
+	if (return_object) {
+		return (AE_OK);
+	}
+
+	/*
+	 * Attempt to repair a NULL element of a Package object. This applies to
+	 * predefined names that return a fixed-length package and each element
+	 * is required. It does not apply to variable-length packages where NULL
+	 * elements are allowed, especially at the end of the package.
+	 */
+	if (expected_btypes & ACPI_RTYPE_INTEGER) {
+
+		/* Need an Integer - create a zero-value integer */
+
+		new_object = acpi_ut_create_integer_object(0);
+	} else if (expected_btypes & ACPI_RTYPE_STRING) {
+
+		/* Need a String - create a NULL string */
+
+		new_object = acpi_ut_create_string_object(0);
+	} else if (expected_btypes & ACPI_RTYPE_BUFFER) {
+
+		/* Need a Buffer - create a zero-length buffer */
+
+		new_object = acpi_ut_create_buffer_object(0);
+	} else {
+		/* Error for all other expected types */
+
+		return (AE_AML_OPERAND_TYPE);
+	}
+
+	if (!new_object) {
+		return (AE_NO_MEMORY);
+	}
+
+	/* Set the reference count according to the parent Package object */
+
+	new_object->common.reference_count =
+	    data->parent_package->common.reference_count;
+
+	ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+			  "%s: Converted NULL package element to expected %s at index %u\n",
+			  data->pathname,
+			  acpi_ut_get_object_type_name(new_object),
+			  package_index));
+
+	*return_object_ptr = new_object;
+	data->flags |= ACPI_OBJECT_REPAIRED;
+	return (AE_OK);
+}
+
+/******************************************************************************
+ *
+ * FUNCTION:    acpi_ns_remove_null_elements
+ *
+ * PARAMETERS:  Data                - Pointer to validation data structure
+ *              package_type        - An acpi_return_package_types value
+ *              obj_desc            - A Package object
+ *
+ * RETURN:      None.
+ *
+ * DESCRIPTION: Remove all NULL package elements from packages that contain
+ *              a variable number of sub-packages. For these types of
+ *              packages, NULL elements can be safely removed.
+ *
+ *****************************************************************************/
+
+void
+acpi_ns_remove_null_elements(struct acpi_predefined_data *data,
+			     u8 package_type,
+			     union acpi_operand_object *obj_desc)
+{
+	union acpi_operand_object **source;
+	union acpi_operand_object **dest;
+	u32 count;
+	u32 new_count;
+	u32 i;
+
+	ACPI_FUNCTION_NAME(ns_remove_null_elements);
+
+	/*
+	 * PTYPE1 packages contain no subpackages.
+	 * PTYPE2 packages contain a variable number of sub-packages. We can
+	 * safely remove all NULL elements from the PTYPE2 packages.
+	 */
+	switch (package_type) {
+	case ACPI_PTYPE1_FIXED:
+	case ACPI_PTYPE1_VAR:
+	case ACPI_PTYPE1_OPTION:
+		return;
+
+	case ACPI_PTYPE2:
+	case ACPI_PTYPE2_COUNT:
+	case ACPI_PTYPE2_PKG_COUNT:
+	case ACPI_PTYPE2_FIXED:
+	case ACPI_PTYPE2_MIN:
+	case ACPI_PTYPE2_REV_FIXED:
+		break;
+
+	default:
+		return;
+	}
+
+	count = obj_desc->package.count;
+	new_count = count;
+
+	source = obj_desc->package.elements;
+	dest = source;
+
+	/* Examine all elements of the package object, remove nulls */
+
+	for (i = 0; i < count; i++) {
+		if (!*source) {
+			new_count--;
+		} else {
+			*dest = *source;
+			dest++;
+		}
+		source++;
+	}
+
+	/* Update parent package if any null elements were removed */
+
+	if (new_count < count) {
+		ACPI_DEBUG_PRINT((ACPI_DB_REPAIR,
+				  "%s: Found and removed %u NULL elements\n",
+				  data->pathname, (count - new_count)));
+
+		/* NULL terminate list and update the package count */
+
+		*dest = NULL;
+		obj_desc->package.count = new_count;
+	}
 }
 
 /*******************************************************************************

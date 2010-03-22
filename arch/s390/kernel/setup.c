@@ -396,15 +396,12 @@ static void __init
 setup_lowcore(void)
 {
 	struct _lowcore *lc;
-	int lc_pages;
 
 	/*
 	 * Setup lowcore for boot cpu
 	 */
-	lc_pages = sizeof(void *) == 8 ? 2 : 1;
-	lc = (struct _lowcore *)
-		__alloc_bootmem(lc_pages * PAGE_SIZE, lc_pages * PAGE_SIZE, 0);
-	memset(lc, 0, lc_pages * PAGE_SIZE);
+	BUILD_BUG_ON(sizeof(struct _lowcore) != LC_PAGES * 4096);
+	lc = __alloc_bootmem(LC_PAGES * PAGE_SIZE, LC_PAGES * PAGE_SIZE, 0);
 	lc->restart_psw.mask = PSW_BASE_BITS | PSW_DEFAULT_KEY;
 	lc->restart_psw.addr =
 		PSW_ADDR_AMODE | (unsigned long) restart_int_handler;
@@ -804,7 +801,7 @@ setup_arch(char **cmdline_p)
 	if (MACHINE_IS_VM)
 		pr_info("Linux is running as a z/VM "
 			"guest operating system in 31-bit mode\n");
-	else
+	else if (MACHINE_IS_LPAR)
 		pr_info("Linux is running natively in 31-bit mode\n");
 	if (MACHINE_HAS_IEEE)
 		pr_info("The hardware system has IEEE compatible "
@@ -818,7 +815,7 @@ setup_arch(char **cmdline_p)
 			"guest operating system in 64-bit mode\n");
 	else if (MACHINE_IS_KVM)
 		pr_info("Linux is running under KVM in 64-bit mode\n");
-	else
+	else if (MACHINE_IS_LPAR)
 		pr_info("Linux is running natively in 64-bit mode\n");
 #endif /* CONFIG_64BIT */
 

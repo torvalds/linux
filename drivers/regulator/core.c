@@ -19,9 +19,12 @@
 #include <linux/err.h>
 #include <linux/mutex.h>
 #include <linux/suspend.h>
+#include <linux/delay.h>
 #include <linux/regulator/consumer.h>
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
+
+#include "dummy.h"
 
 #define REGULATOR_VERSION "0.5"
 
@@ -1084,6 +1087,13 @@ overflow_err:
 	return NULL;
 }
 
+static int _regulator_get_enable_time(struct regulator_dev *rdev)
+{
+	if (!rdev->desc->ops->enable_time)
+		return 0;
+	return rdev->desc->ops->enable_time(rdev);
+}
+
 /* Internal regulator request function */
 static struct regulator *_regulator_get(struct device *dev, const char *id,
 					int exclusive)
@@ -1115,6 +1125,22 @@ static struct regulator *_regulator_get(struct device *dev, const char *id,
 			goto found;
 		}
 	}
+
+#ifdef CONFIG_REGULATOR_DUMMY
+	if (!devname)
+		devname = "deviceless";
+
+	/* If the board didn't flag that it was fully constrained then
+	 * substitute in a dummy regulator so consumers can continue.
+	 */
+	if (!has_full_constraints) {
+		pr_warning("%s supply %s not found, using dummy regulator\n",
+			   devname, id);
+		rdev = dummy_regulator_rdev;
+		goto found;
+	}
+#endif
+
 	mutex_unlock(&regulator_list_mutex);
 	return regulator;
 
@@ -1251,7 +1277,7 @@ static int _regulator_can_change_status(struct regulator_dev *rdev)
 /* locks held by regulator_enable() */
 static int _regulator_enable(struct regulator_dev *rdev)
 {
-	int ret;
+	int ret, delay;
 
 	/* do we need to enable the supply regulator first */
 	if (rdev->supply) {
@@ -1275,13 +1301,34 @@ static int _regulator_enable(struct regulator_dev *rdev)
 			if (!_regulator_can_change_status(rdev))
 				return -EPERM;
 
-			if (rdev->desc->ops->enable) {
-				ret = rdev->desc->ops->enable(rdev);
-				if (ret < 0)
-					return ret;
-			} else {
+			if (!rdev->desc->ops->enable)
 				return -EINVAL;
+
+			/* Query before enabling in case configuration
+			 * dependant.  */
+			ret = _regulator_get_enable_time(rdev);
+			if (ret >= 0) {
+				delay = ret;
+			} else {
+				printk(KERN_WARNING
+					"%s: enable_time() failed for %s: %d\n",
+					__func__, rdev_get_name(rdev),
+					ret);
+				delay = 0;
 			}
+
+			/* Allow the regulator to ramp; it would be useful
+			 * to extend this for bulk operations so that the
+			 * regulators can ramp together.  */
+			ret = rdev->desc->ops->enable(rdev);
+			if (ret < 0)
+				return ret;
+
+			if (delay >= 1000)
+				mdelay(delay / 1000);
+			else if (delay)
+				udelay(delay);
+
 		} else if (ret < 0) {
 			printk(KERN_ERR "%s: is_enabled() failed for %s: %d\n",
 			       __func__, rdev_get_name(rdev), ret);
@@ -1341,6 +1388,9 @@ static int _regulator_disable(struct regulator_dev *rdev)
 				       __func__, rdev_get_name(rdev));
 				return ret;
 			}
+
+			_notifier_call_chain(rdev, REGULATOR_EVENT_DISABLE,
+					     NULL);
 		}
 
 		/* decrease our supplies ref count and disable if required */
@@ -1399,8 +1449,8 @@ static int _regulator_force_disable(struct regulator_dev *rdev)
 			return ret;
 		}
 		/* notify other consumers that power has been forced off */
-		_notifier_call_chain(rdev, REGULATOR_EVENT_FORCE_DISABLE,
-			NULL);
+		_notifier_call_chain(rdev, REGULATOR_EVENT_FORCE_DISABLE |
+			REGULATOR_EVENT_DISABLE, NULL);
 	}
 
 	/* decrease our supplies ref count and disable if required */
@@ -1434,9 +1484,9 @@ EXPORT_SYMBOL_GPL(regulator_force_disable);
 
 static int _regulator_is_enabled(struct regulator_dev *rdev)
 {
-	/* sanity check */
+	/* If we don't know then assume that the regulator is always on */
 	if (!rdev->desc->ops->is_enabled)
-		return -EINVAL;
+		return 1;
 
 	return rdev->desc->ops->is_enabled(rdev);
 }
@@ -2451,8 +2501,15 @@ EXPORT_SYMBOL_GPL(regulator_get_init_drvdata);
 
 static int __init regulator_init(void)
 {
+	int ret;
+
 	printk(KERN_INFO "regulator: core version %s\n", REGULATOR_VERSION);
-	return class_register(&regulator_class);
+
+	ret = class_register(&regulator_class);
+
+	regulator_dummy_init();
+
+	return ret;
 }
 
 /* init early to allow our consumers to complete system booting */

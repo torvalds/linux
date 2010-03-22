@@ -289,7 +289,7 @@ struct mpic
 #ifdef CONFIG_MPIC_U3_HT_IRQS
 	/* The fixup table */
 	struct mpic_irq_fixup	*fixups;
-	spinlock_t		fixup_lock;
+	raw_spinlock_t	fixup_lock;
 #endif
 
 	/* Register access method */

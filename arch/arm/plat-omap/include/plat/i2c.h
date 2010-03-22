@@ -34,6 +34,5 @@ static inline int omap_register_i2c_bus(int bus_id, u32 clkrate,
 }
 #endif
 
-int omap_plat_register_i2c_bus(int bus_id, u32 clkrate,
-				 struct i2c_board_info const *info,
-				 unsigned len);
+void __init omap1_i2c_mux_pins(int bus_id);
+void __init omap2_i2c_mux_pins(int bus_id);

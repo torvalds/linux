@@ -62,7 +62,7 @@ pte_t *sun4c_pte_offset_kernel(pmd_t *dir, unsigned long address)
 	return NULL;
 }
 
-void sun4c_update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t pte)
+void sun4c_update_mmu_cache(struct vm_area_struct *vma, unsigned long address, pte_t *ptep)
 {
 }
 

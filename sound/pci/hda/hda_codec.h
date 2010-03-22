@@ -527,6 +527,9 @@ enum {
 /* max. codec address */
 #define HDA_MAX_CODEC_ADDRESS	0x0f
 
+/* max number of PCM devics per card */
+#define HDA_MAX_PCMS		10
+
 /*
  * generic arrays
  */

@@ -457,7 +457,7 @@ static void ieee80211_mesh_housekeeping(struct ieee80211_sub_if_data *sdata,
 
 #ifdef CONFIG_MAC80211_VERBOSE_DEBUG
 	printk(KERN_DEBUG "%s: running mesh housekeeping\n",
-	       sdata->dev->name);
+	       sdata->name);
 #endif
 
 	ieee80211_sta_expire(sdata, IEEE80211_MESH_PEER_INACTIVITY_LIMIT);
@@ -565,7 +565,7 @@ static void ieee80211_mesh_rx_bcn_presp(struct ieee80211_sub_if_data *sdata,
 
 	/* ignore ProbeResp to foreign address */
 	if (stype == IEEE80211_STYPE_PROBE_RESP &&
-	    compare_ether_addr(mgmt->da, sdata->dev->dev_addr))
+	    compare_ether_addr(mgmt->da, sdata->vif.addr))
 		return;
 
 	baselen = (u8 *) mgmt->u.probe_resp.variable - (u8 *) mgmt;
@@ -645,7 +645,7 @@ static void ieee80211_mesh_work(struct work_struct *work)
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct sk_buff *skb;
 
-	if (!netif_running(sdata->dev))
+	if (!ieee80211_sdata_running(sdata))
 		return;
 
 	if (local->scanning)

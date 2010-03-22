@@ -62,11 +62,6 @@ extern struct ipc_namespace init_ipc_ns;
 extern atomic_t nr_ipc_ns;
 
 extern spinlock_t mq_lock;
-#if defined(CONFIG_POSIX_MQUEUE) || defined(CONFIG_SYSVIPC)
-#define INIT_IPC_NS(ns)		.ns		= &init_ipc_ns,
-#else
-#define INIT_IPC_NS(ns)
-#endif
 
 #ifdef CONFIG_SYSVIPC
 extern int register_ipcns_notifier(struct ipc_namespace *);
