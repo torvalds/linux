@@ -125,6 +125,15 @@ int radeon_pm_init(struct radeon_device *rdev)
 
 void radeon_pm_fini(struct radeon_device *rdev)
 {
+	if (rdev->pm.state != PM_STATE_DISABLED) {
+		/* cancel work */
+		cancel_delayed_work_sync(&rdev->pm.idle_work);
+		/* reset default clocks */
+		rdev->pm.state = PM_STATE_DISABLED;
+		rdev->pm.planned_action = PM_ACTION_DEFAULT;
+		radeon_pm_set_clocks(rdev);
+	}
+
 	if (rdev->pm.i2c_bus)
 		radeon_i2c_destroy(rdev->pm.i2c_bus);
 }

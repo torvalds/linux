@@ -161,6 +161,11 @@ void r600_get_power_state(struct radeon_device *rdev,
 			}
 			rdev->pm.requested_clock_mode_index = 0;
 			break;
+		case PM_ACTION_DEFAULT:
+			rdev->pm.requested_power_state_index = rdev->pm.default_power_state_index;
+			rdev->pm.requested_clock_mode_index = 0;
+			rdev->pm.can_upclock = false;
+			break;
 		case PM_ACTION_NONE:
 		default:
 			DRM_ERROR("Requested mode for not defined action\n");
@@ -220,6 +225,11 @@ void r600_get_power_state(struct radeon_device *rdev,
 					rdev->pm.power_state[rdev->pm.requested_power_state_index].num_clock_modes - 1;
 				rdev->pm.can_upclock = false;
 			}
+			break;
+		case PM_ACTION_DEFAULT:
+			rdev->pm.requested_power_state_index = rdev->pm.default_power_state_index;
+			rdev->pm.requested_clock_mode_index = 0;
+			rdev->pm.can_upclock = false;
 			break;
 		case PM_ACTION_NONE:
 		default:

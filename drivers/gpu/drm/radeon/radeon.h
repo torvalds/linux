@@ -615,7 +615,8 @@ enum radeon_pm_action {
 	PM_ACTION_NONE,
 	PM_ACTION_MINIMUM,
 	PM_ACTION_DOWNCLOCK,
-	PM_ACTION_UPCLOCK
+	PM_ACTION_UPCLOCK,
+	PM_ACTION_DEFAULT
 };
 
 enum radeon_voltage_type {
