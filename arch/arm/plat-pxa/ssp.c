@@ -115,7 +115,7 @@ static int __devinit ssp_probe(struct platform_device *pdev)
 		goto err_free_clk;
 	}
 
-	res = request_mem_region(res->start, res->end - res->start + 1,
+	res = request_mem_region(res->start, resource_size(res),
 			pdev->name);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "failed to request memory resource\n");
@@ -125,7 +125,7 @@ static int __devinit ssp_probe(struct platform_device *pdev)
 
 	ssp->phys_base = res->start;
 
-	ssp->mmio_base = ioremap(res->start, res->end - res->start + 1);
+	ssp->mmio_base = ioremap(res->start, resource_size(res));
 	if (ssp->mmio_base == NULL) {
 		dev_err(&pdev->dev, "failed to ioremap() registers\n");
 		ret = -ENODEV;
@@ -156,7 +156,7 @@ static int __devinit ssp_probe(struct platform_device *pdev)
 err_free_io:
 	iounmap(ssp->mmio_base);
 err_free_mem:
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 err_free_clk:
 	clk_put(ssp->clk);
 err_free:
@@ -176,7 +176,7 @@ static int __devexit ssp_remove(struct platform_device *pdev)
 	iounmap(ssp->mmio_base);
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	release_mem_region(res->start, res->end - res->start + 1);
+	release_mem_region(res->start, resource_size(res));
 
 	clk_put(ssp->clk);
 
