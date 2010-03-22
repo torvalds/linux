@@ -38,9 +38,10 @@ extern void igb_rx_fifo_flush_82575(struct e1000_hw *hw);
                                      (ID_LED_DEF1_DEF2 <<  4) | \
                                      (ID_LED_OFF1_ON2))
 
-#define E1000_RAR_ENTRIES_82575   16
-#define E1000_RAR_ENTRIES_82576   24
-#define E1000_RAR_ENTRIES_82580   24
+#define E1000_RAR_ENTRIES_82575        16
+#define E1000_RAR_ENTRIES_82576        24
+#define E1000_RAR_ENTRIES_82580        24
+#define E1000_RAR_ENTRIES_I350         32
 
 #define E1000_SW_SYNCH_MB              0x00000100
 #define E1000_STAT_DEV_RST_SET         0x00100000

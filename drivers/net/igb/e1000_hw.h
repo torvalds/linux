@@ -53,6 +53,10 @@ struct e1000_hw;
 #define E1000_DEV_ID_82580_SERDES             0x1510
 #define E1000_DEV_ID_82580_SGMII              0x1511
 #define E1000_DEV_ID_82580_COPPER_DUAL        0x1516
+#define E1000_DEV_ID_I350_COPPER              0x1521
+#define E1000_DEV_ID_I350_FIBER               0x1522
+#define E1000_DEV_ID_I350_SERDES              0x1523
+#define E1000_DEV_ID_I350_SGMII               0x1524
 
 #define E1000_REVISION_2 2
 #define E1000_REVISION_4 4
@@ -72,6 +76,7 @@ enum e1000_mac_type {
 	e1000_82575,
 	e1000_82576,
 	e1000_82580,
+	e1000_i350,
 	e1000_num_macs  /* List is 1-based, so subtract 1 for true count. */
 };
 
