@@ -487,22 +487,9 @@ struct super_block *get_active_super(struct block_device *bdev)
 		if (sb->s_bdev != bdev)
 			continue;
 
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_write(&sb->s_umount);
-		if (sb->s_root) {
-			spin_lock(&sb_lock);
-			if (sb->s_count > S_BIAS) {
-				atomic_inc(&sb->s_active);
-				sb->s_count--;
-				spin_unlock(&sb_lock);
-				return sb;
-			}
-			spin_unlock(&sb_lock);
-		}
-		up_write(&sb->s_umount);
-		put_super(sb);
-		yield();
+		if (grab_super(sb)) /* drops sb_lock */
+			return sb;
+
 		spin_lock(&sb_lock);
 	}
 	spin_unlock(&sb_lock);
