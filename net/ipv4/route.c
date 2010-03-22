@@ -146,7 +146,6 @@ static struct dst_entry *ipv4_negative_advice(struct dst_entry *dst);
 static void		 ipv4_link_failure(struct sk_buff *skb);
 static void		 ip_rt_update_pmtu(struct dst_entry *dst, u32 mtu);
 static int rt_garbage_collect(struct dst_ops *ops);
-static void rt_emergency_hash_rebuild(struct net *net);
 
 
 static struct dst_ops ipv4_dst_ops = {
@@ -780,11 +779,30 @@ static void rt_do_flush(int process_context)
 #define FRACT_BITS 3
 #define ONE (1UL << FRACT_BITS)
 
+/*
+ * Given a hash chain and an item in this hash chain,
+ * find if a previous entry has the same hash_inputs
+ * (but differs on tos, mark or oif)
+ * Returns 0 if an alias is found.
+ * Returns ONE if rth has no alias before itself.
+ */
+static int has_noalias(const struct rtable *head, const struct rtable *rth)
+{
+	const struct rtable *aux = head;
+
+	while (aux != rth) {
+		if (compare_hash_inputs(&aux->fl, &rth->fl))
+			return 0;
+		aux = aux->u.dst.rt_next;
+	}
+	return ONE;
+}
+
 static void rt_check_expire(void)
 {
 	static unsigned int rover;
 	unsigned int i = rover, goal;
-	struct rtable *rth, *aux, **rthp;
+	struct rtable *rth, **rthp;
 	unsigned long samples = 0;
 	unsigned long sum = 0, sum2 = 0;
 	unsigned long delta;
@@ -835,15 +853,7 @@ nofree:
 					 * attributes don't unfairly skew
 					 * the length computation
 					 */
-					for (aux = rt_hash_table[i].chain;;) {
-						if (aux == rth) {
-							length += ONE;
-							break;
-						}
-						if (compare_hash_inputs(&aux->fl, &rth->fl))
-							break;
-						aux = aux->u.dst.rt_next;
-					}
+					length += has_noalias(rt_hash_table[i].chain, rth);
 					continue;
 				}
 			} else if (!rt_may_expire(rth, tmo, ip_rt_gc_timeout))
@@ -922,10 +932,8 @@ static void rt_secret_rebuild_oneshot(struct net *net)
 {
 	del_timer_sync(&net->ipv4.rt_secret_timer);
 	rt_cache_invalidate(net);
-	if (ip_rt_secret_interval) {
-		net->ipv4.rt_secret_timer.expires += ip_rt_secret_interval;
-		add_timer(&net->ipv4.rt_secret_timer);
-	}
+	if (ip_rt_secret_interval)
+		mod_timer(&net->ipv4.rt_secret_timer, jiffies + ip_rt_secret_interval);
 }
 
 static void rt_emergency_hash_rebuild(struct net *net)
@@ -1073,6 +1081,21 @@ work_done:
 out:	return 0;
 }
 
+/*
+ * Returns number of entries in a hash chain that have different hash_inputs
+ */
+static int slow_chain_length(const struct rtable *head)
+{
+	int length = 0;
+	const struct rtable *rth = head;
+
+	while (rth) {
+		length += has_noalias(head, rth);
+		rth = rth->u.dst.rt_next;
+	}
+	return length >> FRACT_BITS;
+}
+
 static int rt_intern_hash(unsigned hash, struct rtable *rt,
 			  struct rtable **rp, struct sk_buff *skb)
 {
@@ -1185,7 +1208,8 @@ restart:
 			rt_free(cand);
 		}
 	} else {
-		if (chain_length > rt_chain_length_max) {
+		if (chain_length > rt_chain_length_max &&
+		    slow_chain_length(rt_hash_table[hash].chain) > rt_chain_length_max) {
 			struct net *net = dev_net(rt->u.dst.dev);
 			int num = ++net->ipv4.current_rt_cache_rebuild_count;
 			if (!rt_caching(dev_net(rt->u.dst.dev))) {
@@ -3077,22 +3101,20 @@ static void rt_secret_reschedule(int old)
 	rtnl_lock();
 	for_each_net(net) {
 		int deleted = del_timer_sync(&net->ipv4.rt_secret_timer);
+		long time;
 
 		if (!new)
 			continue;
 
 		if (deleted) {
-			long time = net->ipv4.rt_secret_timer.expires - jiffies;
+			time = net->ipv4.rt_secret_timer.expires - jiffies;
 
 			if (time <= 0 || (time += diff) <= 0)
 				time = 0;
-
-			net->ipv4.rt_secret_timer.expires = time;
 		} else
-			net->ipv4.rt_secret_timer.expires = new;
+			time = new;
 
-		net->ipv4.rt_secret_timer.expires += jiffies;
-		add_timer(&net->ipv4.rt_secret_timer);
+		mod_timer(&net->ipv4.rt_secret_timer, jiffies + time);
 	}
 	rtnl_unlock();
 }

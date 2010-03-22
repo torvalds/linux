@@ -202,6 +202,7 @@ static void appledisplay_work(struct work_struct *work)
 static int appledisplay_probe(struct usb_interface *iface,
 	const struct usb_device_id *id)
 {
+	struct backlight_properties props;
 	struct appledisplay *pdata;
 	struct usb_device *udev = interface_to_usbdev(iface);
 	struct usb_host_interface *iface_desc;
@@ -279,15 +280,15 @@ static int appledisplay_probe(struct usb_interface *iface,
 	/* Register backlight device */
 	snprintf(bl_name, sizeof(bl_name), "appledisplay%d",
 		atomic_inc_return(&count_displays) - 1);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = 0xff;
 	pdata->bd = backlight_device_register(bl_name, NULL, pdata,
-						&appledisplay_bl_data);
+					      &appledisplay_bl_data, &props);
 	if (IS_ERR(pdata->bd)) {
 		dev_err(&iface->dev, "Backlight registration failed\n");
 		retval = PTR_ERR(pdata->bd);
 		goto error;
 	}
-
-	pdata->bd->props.max_brightness = 0xff;
 
 	/* Try to get brightness */
 	brightness = appledisplay_bl_get_brightness(pdata->bd);

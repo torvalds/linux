@@ -578,4 +578,8 @@ void sa1111_set_io_dir(struct sa1111_dev *sadev, unsigned int bits, unsigned int
 void sa1111_set_io(struct sa1111_dev *sadev, unsigned int bits, unsigned int v);
 void sa1111_set_sleep_io(struct sa1111_dev *sadev, unsigned int bits, unsigned int v);
 
+struct sa1111_platform_data {
+	int	irq_base;	/* base for cascaded on-chip IRQs */
+};
+
 #endif  /* _ASM_ARCH_SA1111 */

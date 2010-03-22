@@ -998,11 +998,11 @@ static struct inet_protosw dccp_v4_protosw = {
 
 static int __net_init dccp_v4_init_net(struct net *net)
 {
-	int err;
+	if (dccp_hashinfo.bhash == NULL)
+		return -ESOCKTNOSUPPORT;
 
-	err = inet_ctl_sock_create(&net->dccp.v4_ctl_sk, PF_INET,
-				   SOCK_DCCP, IPPROTO_DCCP, net);
-	return err;
+	return inet_ctl_sock_create(&net->dccp.v4_ctl_sk, PF_INET,
+				    SOCK_DCCP, IPPROTO_DCCP, net);
 }
 
 static void __net_exit dccp_v4_exit_net(struct net *net)

@@ -302,7 +302,7 @@ void ext4_journal_abort_handle(const char *caller, const char *err_fn,
  * write out the superblock safely.
  *
  * We'll just use the jbd2_journal_abort() error code to record an error in
- * the journal instead.  On recovery, the journal will compain about
+ * the journal instead.  On recovery, the journal will complain about
  * that error until we've noted it down and cleared it.
  */
 

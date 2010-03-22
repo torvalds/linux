@@ -891,7 +891,7 @@ static int hwarc_post_reset(struct usb_interface *iface)
 }
 
 /** USB device ID's that we handle */
-static struct usb_device_id hwarc_id_table[] = {
+static const struct usb_device_id hwarc_id_table[] = {
 	/* D-Link DUB-1210 */
 	{ USB_DEVICE_AND_INTERFACE_INFO(0x07d1, 0x3d02, 0xe0, 0x01, 0x02),
 	  .driver_info = WUSB_QUIRK_WHCI_CMD_EVT },

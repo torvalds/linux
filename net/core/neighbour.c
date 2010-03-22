@@ -771,6 +771,8 @@ static __inline__ int neigh_max_probes(struct neighbour *n)
 }
 
 static void neigh_invalidate(struct neighbour *neigh)
+	__releases(neigh->lock)
+	__acquires(neigh->lock)
 {
 	struct sk_buff *skb;
 

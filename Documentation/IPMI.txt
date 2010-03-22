@@ -365,6 +365,7 @@ You can change this at module load time (for a module) with:
        regshifts=<shift1>,<shift2>,...
        slave_addrs=<addr1>,<addr2>,...
        force_kipmid=<enable1>,<enable2>,...
+       kipmid_max_busy_us=<ustime1>,<ustime2>,...
        unload_when_empty=[0|1]
 
 Each of these except si_trydefaults is a list, the first item for the
@@ -433,6 +434,7 @@ kernel command line as:
        ipmi_si.regshifts=<shift1>,<shift2>,...
        ipmi_si.slave_addrs=<addr1>,<addr2>,...
        ipmi_si.force_kipmid=<enable1>,<enable2>,...
+       ipmi_si.kipmid_max_busy_us=<ustime1>,<ustime2>,...
 
 It works the same as the module parameters of the same names.
 
@@ -449,6 +451,16 @@ is in progress.  The force_kipmid module parameter will all the user to
 force this thread on or off.  If you force it off and don't have
 interrupts, the driver will run VERY slowly.  Don't blame me,
 these interfaces suck.
+
+Unfortunately, this thread can use a lot of CPU depending on the
+interface's performance.  This can waste a lot of CPU and cause
+various issues with detecting idle CPU and using extra power.  To
+avoid this, the kipmid_max_busy_us sets the maximum amount of time, in
+microseconds, that kipmid will spin before sleeping for a tick.  This
+value sets a balance between performance and CPU waste and needs to be
+tuned to your needs.  Maybe, someday, auto-tuning will be added, but
+that's not a simple thing and even the auto-tuning would need to be
+tuned to the user's desired performance.
 
 The driver supports a hot add and remove of interfaces.  This way,
 interfaces can be added or removed after the kernel is up and running.

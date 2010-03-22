@@ -1,3 +1,10 @@
+#ifndef __MACH_MX31_H__
+#define __MACH_MX31_H__
+
+#ifndef __ASSEMBLER__
+#include <linux/io.h>
+#endif
+
 /*
  * IRAM
  */
@@ -107,7 +114,29 @@
 #define MX31_EMI_CTL_BASE_ADDR			(MX31_X_MEMC_BASE_ADDR + 0x4000)
 #define MX31_PCMCIA_CTL_BASE_ADDR		MX31_EMI_CTL_BASE_ADDR
 
+#define MX31_WEIM_CSCRx_BASE_ADDR(cs)	(MX31_WEIM_BASE_ADDR + (cs) * 0x10)
+#define MX31_WEIM_CSCRxU(cs)			(MX31_WEIM_CSCRx_BASE_ADDR(cs))
+#define MX31_WEIM_CSCRxL(cs)			(MX31_WEIM_CSCRx_BASE_ADDR(cs) + 0x4)
+#define MX31_WEIM_CSCRxA(cs)			(MX31_WEIM_CSCRx_BASE_ADDR(cs) + 0x8)
+
 #define MX31_PCMCIA_MEM_BASE_ADDR	0xbc000000
+
+#define MX31_IO_ADDRESS(x) (						\
+	IMX_IO_ADDRESS(x, MX31_AIPS1) ?:				\
+	IMX_IO_ADDRESS(x, MX31_AIPS2) ?:				\
+	IMX_IO_ADDRESS(x, MX31_AVIC) ?:					\
+	IMX_IO_ADDRESS(x, MX31_X_MEMC) ?:				\
+	IMX_IO_ADDRESS(x, MX31_SPBA0))
+
+#ifndef __ASSEMBLER__
+static inline void mx31_setup_weimcs(size_t cs,
+		unsigned upper, unsigned lower, unsigned addional)
+{
+	__raw_writel(upper, MX31_IO_ADDRESS(MX31_WEIM_CSCRxU(cs)));
+	__raw_writel(lower, MX31_IO_ADDRESS(MX31_WEIM_CSCRxL(cs)));
+	__raw_writel(addional, MX31_IO_ADDRESS(MX31_WEIM_CSCRxA(cs)));
+}
+#endif
 
 #define MX31_INT_I2C3		3
 #define MX31_INT_I2C2		4
@@ -186,6 +215,7 @@
 #define MX31_SYSTEM_REV_MIN		MX31_CHIP_REV_1_0
 #define MX31_SYSTEM_REV_NUM		3
 
+#ifdef IMX_NEEDS_DEPRECATED_SYMBOLS
 /* these should go away */
 #define ATA_BASE_ADDR MX31_ATA_BASE_ADDR
 #define UART4_BASE_ADDR MX31_UART4_BASE_ADDR
@@ -216,3 +246,6 @@
 #define MXC_INT_UART5 MX31_INT_UART5
 #define MXC_INT_CCM MX31_INT_CCM
 #define MXC_INT_PCMCIA MX31_INT_PCMCIA
+#endif
+
+#endif /* ifndef __MACH_MX31_H__ */

@@ -56,6 +56,15 @@ void __init generate_cplb_tables_cpu(unsigned int cpu)
 		i_tbl[i_i++].data = SDRAM_IGENERIC | PAGE_SIZE_4MB;
 	}
 
+#ifdef CONFIG_ROMKERNEL
+	/* Cover kernel XIP flash area */
+	addr = CONFIG_ROM_BASE & ~(4 * 1024 * 1024 - 1);
+	d_tbl[i_d].addr = addr;
+	d_tbl[i_d++].data = SDRAM_DGENERIC | PAGE_SIZE_4MB;
+	i_tbl[i_i].addr = addr;
+	i_tbl[i_i++].data = SDRAM_IGENERIC | PAGE_SIZE_4MB;
+#endif
+
 	/* Cover L1 memory.  One 4M area for code and data each is enough.  */
 	if (cpu == 0) {
 		if (L1_DATA_A_LENGTH || L1_DATA_B_LENGTH) {

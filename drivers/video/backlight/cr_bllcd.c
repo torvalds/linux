@@ -170,6 +170,7 @@ static struct lcd_ops cr_lcd_ops = {
 
 static int cr_backlight_probe(struct platform_device *pdev)
 {
+	struct backlight_properties props;
 	struct backlight_device *bdp;
 	struct lcd_device *ldp;
 	struct cr_panel *crp;
@@ -190,8 +191,9 @@ static int cr_backlight_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	bdp = backlight_device_register("cr-backlight",
-					&pdev->dev, NULL, &cr_backlight_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	bdp = backlight_device_register("cr-backlight", &pdev->dev, NULL,
+					&cr_backlight_ops, &props);
 	if (IS_ERR(bdp)) {
 		pci_dev_put(lpc_dev);
 		return PTR_ERR(bdp);
@@ -220,9 +222,7 @@ static int cr_backlight_probe(struct platform_device *pdev)
 	crp->cr_lcd_device = ldp;
 	crp->cr_backlight_device->props.power = FB_BLANK_UNBLANK;
 	crp->cr_backlight_device->props.brightness = 0;
-	crp->cr_backlight_device->props.max_brightness = 0;
 	cr_backlight_set_intensity(crp->cr_backlight_device);
-
 	cr_lcd_set_power(crp->cr_lcd_device, FB_BLANK_UNBLANK);
 
 	platform_set_drvdata(pdev, crp);

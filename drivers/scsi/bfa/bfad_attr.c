@@ -141,7 +141,7 @@ bfad_im_get_host_port_type(struct Scsi_Host *shost)
 	struct bfad_s         *bfad = im_port->bfad;
 	struct bfa_pport_attr_s attr;
 
-	bfa_pport_get_attr(&bfad->bfa, &attr);
+	bfa_fcport_get_attr(&bfad->bfa, &attr);
 
 	switch (attr.port_type) {
 	case BFA_PPORT_TYPE_NPORT:
@@ -173,7 +173,7 @@ bfad_im_get_host_port_state(struct Scsi_Host *shost)
 	struct bfad_s         *bfad = im_port->bfad;
 	struct bfa_pport_attr_s attr;
 
-	bfa_pport_get_attr(&bfad->bfa, &attr);
+	bfa_fcport_get_attr(&bfad->bfa, &attr);
 
 	switch (attr.port_state) {
 	case BFA_PPORT_ST_LINKDOWN:
@@ -229,8 +229,10 @@ bfad_im_get_host_speed(struct Scsi_Host *shost)
 			(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;
 	struct bfa_pport_attr_s attr;
+	unsigned long   flags;
 
-	bfa_pport_get_attr(&bfad->bfa, &attr);
+	spin_lock_irqsave(shost->host_lock, flags);
+	bfa_fcport_get_attr(&bfad->bfa, &attr);
 	switch (attr.speed) {
 	case BFA_PPORT_SPEED_8GBPS:
 		fc_host_speed(shost) = FC_PORTSPEED_8GBIT;
@@ -248,6 +250,7 @@ bfad_im_get_host_speed(struct Scsi_Host *shost)
 		fc_host_speed(shost) = FC_PORTSPEED_UNKNOWN;
 		break;
 	}
+	spin_unlock_irqrestore(shost->host_lock, flags);
 }
 
 /**
@@ -285,7 +288,7 @@ bfad_im_get_stats(struct Scsi_Host *shost)
 	init_completion(&fcomp.comp);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
 	memset(hstats, 0, sizeof(struct fc_host_statistics));
-	rc = bfa_pport_get_stats(&bfad->bfa,
+	rc =  bfa_port_get_stats(BFA_FCPORT(&bfad->bfa),
 				     (union bfa_pport_stats_u *) hstats,
 				     bfad_hcb_comp, &fcomp);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
@@ -312,7 +315,8 @@ bfad_im_reset_stats(struct Scsi_Host *shost)
 
 	init_completion(&fcomp.comp);
 	spin_lock_irqsave(&bfad->bfad_lock, flags);
-	rc = bfa_pport_clear_stats(&bfad->bfa, bfad_hcb_comp, &fcomp);
+	rc = bfa_port_clear_stats(BFA_FCPORT(&bfad->bfa), bfad_hcb_comp,
+		&fcomp);
 	spin_unlock_irqrestore(&bfad->bfad_lock, flags);
 
 	if (rc != BFA_STATUS_OK)
@@ -421,12 +425,10 @@ bfad_im_serial_num_show(struct device *dev, struct device_attribute *attr,
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;
-	struct bfa_ioc_attr_s  ioc_attr;
+	char serial_num[BFA_ADAPTER_SERIAL_NUM_LEN];
 
-	memset(&ioc_attr, 0, sizeof(ioc_attr));
-	bfa_get_attr(&bfad->bfa, &ioc_attr);
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			ioc_attr.adapter_attr.serial_num);
+	bfa_get_adapter_serial_num(&bfad->bfa, serial_num);
+	return snprintf(buf, PAGE_SIZE, "%s\n", serial_num);
 }
 
 static ssize_t
@@ -437,11 +439,10 @@ bfad_im_model_show(struct device *dev, struct device_attribute *attr,
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;
-	struct bfa_ioc_attr_s  ioc_attr;
+	char model[BFA_ADAPTER_MODEL_NAME_LEN];
 
-	memset(&ioc_attr, 0, sizeof(ioc_attr));
-	bfa_get_attr(&bfad->bfa, &ioc_attr);
-	return snprintf(buf, PAGE_SIZE, "%s\n", ioc_attr.adapter_attr.model);
+	bfa_get_adapter_model(&bfad->bfa, model);
+	return snprintf(buf, PAGE_SIZE, "%s\n", model);
 }
 
 static ssize_t
@@ -452,12 +453,10 @@ bfad_im_model_desc_show(struct device *dev, struct device_attribute *attr,
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;
-	struct bfa_ioc_attr_s  ioc_attr;
+	char model_descr[BFA_ADAPTER_MODEL_DESCR_LEN];
 
-	memset(&ioc_attr, 0, sizeof(ioc_attr));
-	bfa_get_attr(&bfad->bfa, &ioc_attr);
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			ioc_attr.adapter_attr.model_descr);
+	bfa_get_adapter_model(&bfad->bfa, model_descr);
+	return snprintf(buf, PAGE_SIZE, "%s\n", model_descr);
 }
 
 static ssize_t
@@ -482,14 +481,13 @@ bfad_im_symbolic_name_show(struct device *dev, struct device_attribute *attr,
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;
-	struct bfa_ioc_attr_s  ioc_attr;
+	char model[BFA_ADAPTER_MODEL_NAME_LEN];
+	char fw_ver[BFA_VERSION_LEN];
 
-	memset(&ioc_attr, 0, sizeof(ioc_attr));
-	bfa_get_attr(&bfad->bfa, &ioc_attr);
-
+	bfa_get_adapter_model(&bfad->bfa, model);
+	bfa_get_adapter_fw_ver(&bfad->bfa, fw_ver);
 	return snprintf(buf, PAGE_SIZE, "Brocade %s FV%s DV%s\n",
-			ioc_attr.adapter_attr.model,
-			ioc_attr.adapter_attr.fw_ver, BFAD_DRIVER_VERSION);
+		model, fw_ver, BFAD_DRIVER_VERSION);
 }
 
 static ssize_t
@@ -500,11 +498,10 @@ bfad_im_hw_version_show(struct device *dev, struct device_attribute *attr,
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;
-	struct bfa_ioc_attr_s  ioc_attr;
+	char hw_ver[BFA_VERSION_LEN];
 
-	memset(&ioc_attr, 0, sizeof(ioc_attr));
-	bfa_get_attr(&bfad->bfa, &ioc_attr);
-	return snprintf(buf, PAGE_SIZE, "%s\n", ioc_attr.adapter_attr.hw_ver);
+	bfa_get_pci_chip_rev(&bfad->bfa, hw_ver);
+	return snprintf(buf, PAGE_SIZE, "%s\n", hw_ver);
 }
 
 static ssize_t
@@ -522,12 +519,10 @@ bfad_im_optionrom_version_show(struct device *dev,
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;
-	struct bfa_ioc_attr_s  ioc_attr;
+	char optrom_ver[BFA_VERSION_LEN];
 
-	memset(&ioc_attr, 0, sizeof(ioc_attr));
-	bfa_get_attr(&bfad->bfa, &ioc_attr);
-	return snprintf(buf, PAGE_SIZE, "%s\n",
-			ioc_attr.adapter_attr.optrom_ver);
+	bfa_get_adapter_optrom_ver(&bfad->bfa, optrom_ver);
+	return snprintf(buf, PAGE_SIZE, "%s\n", optrom_ver);
 }
 
 static ssize_t
@@ -538,11 +533,10 @@ bfad_im_fw_version_show(struct device *dev, struct device_attribute *attr,
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;
-	struct bfa_ioc_attr_s  ioc_attr;
+	char fw_ver[BFA_VERSION_LEN];
 
-	memset(&ioc_attr, 0, sizeof(ioc_attr));
-	bfa_get_attr(&bfad->bfa, &ioc_attr);
-	return snprintf(buf, PAGE_SIZE, "%s\n", ioc_attr.adapter_attr.fw_ver);
+	bfa_get_adapter_fw_ver(&bfad->bfa, fw_ver);
+	return snprintf(buf, PAGE_SIZE, "%s\n", fw_ver);
 }
 
 static ssize_t
@@ -553,11 +547,9 @@ bfad_im_num_of_ports_show(struct device *dev, struct device_attribute *attr,
 	struct bfad_im_port_s *im_port =
 			(struct bfad_im_port_s *) shost->hostdata[0];
 	struct bfad_s         *bfad = im_port->bfad;
-	struct bfa_ioc_attr_s  ioc_attr;
 
-	memset(&ioc_attr, 0, sizeof(ioc_attr));
-	bfa_get_attr(&bfad->bfa, &ioc_attr);
-	return snprintf(buf, PAGE_SIZE, "%d\n", ioc_attr.adapter_attr.nports);
+	return snprintf(buf, PAGE_SIZE, "%d\n",
+		bfa_get_nports(&bfad->bfa));
 }
 
 static ssize_t
