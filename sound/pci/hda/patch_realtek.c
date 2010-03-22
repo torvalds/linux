@@ -1263,7 +1263,7 @@ static void alc_init_auto_mic(struct hda_codec *codec)
 static int alc_auto_parse_customize_define(struct hda_codec *codec)
 {
 	unsigned int ass, tmp, i;
-	unsigned nid;
+	unsigned nid = 0;
 	struct alc_spec *spec = codec->spec;
 
 	ass = codec->subsystem_id & 0xffff;
