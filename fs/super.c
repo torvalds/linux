@@ -178,38 +178,15 @@ void put_super(struct super_block *sb)
 
 
 /**
- *	deactivate_super	-	drop an active reference to superblock
- *	@s: superblock to deactivate
- *
- *	Drops an active reference to superblock, acquiring a temprory one if
- *	there is no active references left.  In that case we lock superblock,
- *	tell fs driver to shut it down and drop the temporary reference we
- *	had just acquired.
- */
-void deactivate_super(struct super_block *s)
-{
-	struct file_system_type *fs = s->s_type;
-	if (atomic_dec_and_test(&s->s_active)) {
-		vfs_dq_off(s, 0);
-		down_write(&s->s_umount);
-		fs->kill_sb(s);
-		put_filesystem(fs);
-		put_super(s);
-	}
-}
-
-EXPORT_SYMBOL(deactivate_super);
-
-/**
  *	deactivate_locked_super	-	drop an active reference to superblock
  *	@s: superblock to deactivate
  *
- *	Equivalent of up_write(&s->s_umount); deactivate_super(s);, except that
- *	it does not unlock it until it's all over.  As the result, it's safe to
- *	use to dispose of new superblock on ->get_sb() failure exits - nobody
- *	will see the sucker until it's all over.  Equivalent using up_write +
- *	deactivate_super is safe for that purpose only if superblock is either
- *	safe to use or has NULL ->s_root when we unlock.
+ *	Drops an active reference to superblock, converting it into a temprory
+ *	one if there is no other active references left.  In that case we
+ *	tell fs driver to shut it down and drop the temporary reference we
+ *	had just acquired.
+ *
+ *	Caller holds exclusive lock on superblock; that lock is released.
  */
 void deactivate_locked_super(struct super_block *s)
 {
@@ -225,6 +202,24 @@ void deactivate_locked_super(struct super_block *s)
 }
 
 EXPORT_SYMBOL(deactivate_locked_super);
+
+/**
+ *	deactivate_super	-	drop an active reference to superblock
+ *	@s: superblock to deactivate
+ *
+ *	Variant of deactivate_locked_super(), except that superblock is *not*
+ *	locked by caller.  If we are going to drop the final active reference,
+ *	lock will be acquired prior to that.
+ */
+void deactivate_super(struct super_block *s)
+{
+        if (!atomic_add_unless(&s->s_active, -1, 1)) {
+		down_write(&s->s_umount);
+		deactivate_locked_super(s);
+	}
+}
+
+EXPORT_SYMBOL(deactivate_super);
 
 /**
  *	grab_super - acquire an active reference
@@ -247,12 +242,10 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
 	/* it's going away */
 	s->s_count++;
 	spin_unlock(&sb_lock);
-	/* usually that'll be enough for it to die... */
+	/* wait for it to die */
 	down_write(&s->s_umount);
 	up_write(&s->s_umount);
 	put_super(s);
-	/* ... but in case it wasn't, let's at least yield() */
-	yield();
 	return 0;
 }
 
