@@ -26,9 +26,9 @@
 #include <linux/spinlock.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
-#include <asm/time.h>
-#include <asm/io.h>
-#include <asm/uaccess.h>
+#include <linux/time.h>
+#include <linux/io.h>
+#include <linux/uaccess.h>
 
 #include "../vme.h"
 #include "../vme_bridge.h"
@@ -1684,9 +1684,8 @@ static int ca91cx42_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_info(&pdev->dev, "Slot ID is %d\n",
 		ca91cx42_slot_get(ca91cx42_bridge));
 
-	if (ca91cx42_crcsr_init(ca91cx42_bridge, pdev)) {
+	if (ca91cx42_crcsr_init(ca91cx42_bridge, pdev))
 		dev_err(&pdev->dev, "CR/CSR configuration failed.\n");
-	}
 
 	/* Need to save ca91cx42_bridge pointer locally in link list for use in
 	 * ca91cx42_remove()
