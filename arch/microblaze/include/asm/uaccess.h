@@ -197,16 +197,22 @@ extern long strnlen_user(const char *src, long count);
  * already performed before the finction (macro) is called.
  */
 
-#define get_user(x, ptr)						\
-({									\
-	access_ok(VERIFY_READ, (ptr), sizeof(*(ptr)))			\
-		? __get_user((x), (ptr)) : -EFAULT;			\
-})
-
-#define put_user(x, ptr)						\
-({									\
-	access_ok(VERIFY_WRITE, (ptr), sizeof(*(ptr)))			\
-		? __put_user((x), (ptr)) : -EFAULT;			\
+#define __get_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
+({								\
+	__asm__ __volatile__ (					\
+			"1:"	insn	" %1, %2, r0;"		\
+			"	addk	%0, r0, r0;"		\
+			"2:			"		\
+			__FIXUP_SECTION				\
+			"3:	brid	2b;	"		\
+			"	addik	%0, r0, %3;"		\
+			".previous;"				\
+			__EX_TABLE_SECTION			\
+			".word	1b,3b;"				\
+			".previous;"				\
+		: "=&r"(__gu_err), "=r"(__gu_val)		\
+		: "r"(__gu_ptr), "i"(-EFAULT)			\
+	);							\
 })
 
 #define __get_user(x, ptr)						\
@@ -231,24 +237,49 @@ extern long strnlen_user(const char *src, long count);
 	__gu_err;							\
 })
 
-#define __get_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
+#define get_user(x, ptr)						\
+({									\
+	access_ok(VERIFY_READ, (ptr), sizeof(*(ptr)))			\
+		? __get_user((x), (ptr)) : -EFAULT;			\
+})
+
+#define __put_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
 ({								\
 	__asm__ __volatile__ (					\
 			"1:"	insn	" %1, %2, r0;"		\
 			"	addk	%0, r0, r0;"		\
 			"2:			"		\
 			__FIXUP_SECTION				\
-			"3:	brid	2b;	"		\
+			"3:	brid	2b;"			\
 			"	addik	%0, r0, %3;"		\
 			".previous;"				\
 			__EX_TABLE_SECTION			\
 			".word	1b,3b;"				\
 			".previous;"				\
-		: "=&r"(__gu_err), "=r"(__gu_val)		\
-		: "r"(__gu_ptr), "i"(-EFAULT)			\
+		: "=&r"(__gu_err)				\
+		: "r"(__gu_val), "r"(__gu_ptr), "i"(-EFAULT)	\
 	);							\
 })
 
+#define __put_user_asm_8(__gu_ptr, __gu_val, __gu_err)		\
+({								\
+	__asm__ __volatile__ ("	lwi	%0, %1, 0;"		\
+			"1:	swi	%0, %2, 0;"		\
+			"	lwi	%0, %1, 4;"		\
+			"2:	swi	%0, %2, 4;"		\
+			"	addk	%0, r0, r0;"		\
+			"3:				"	\
+			__FIXUP_SECTION				\
+			"4:	brid	3b;"			\
+			"	addik	%0, r0, %3;"		\
+			".previous;"				\
+			__EX_TABLE_SECTION			\
+			".word	1b,4b,2b,4b;"			\
+			".previous;"				\
+		: "=&r"(__gu_err)				\
+		: "r"(&__gu_val), "r"(__gu_ptr), "i"(-EFAULT)	\
+		);						\
+})
 
 #define __put_user(x, ptr)						\
 ({									\
@@ -273,43 +304,10 @@ extern long strnlen_user(const char *src, long count);
 	__gu_err;							\
 })
 
-#define __put_user_asm_8(__gu_ptr, __gu_val, __gu_err)	\
-({							\
-__asm__ __volatile__ ("	lwi	%0, %1, 0;		\
-		1:	swi	%0, %2, 0;		\
-			lwi	%0, %1, 4;		\
-		2:	swi	%0, %2, 4;		\
-			addk	%0,r0,r0;		\
-		3:					\
-		.section .fixup,\"ax\";			\
-		4:	brid	3b;			\
-			addik	%0, r0, %3;		\
-		.previous;				\
-		.section __ex_table,\"a\";		\
-		.word	1b,4b,2b,4b;			\
-		.previous;"				\
-	: "=&r"(__gu_err)				\
-	: "r"(&__gu_val),				\
-	"r"(__gu_ptr), "i"(-EFAULT)			\
-	);						\
-})
-
-#define __put_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
-({								\
-	__asm__ __volatile__ (					\
-			"1:"	insn	" %1, %2, r0;		\
-				addk	%0, r0, r0;		\
-			2:					\
-			.section .fixup,\"ax\";			\
-			3:	brid	2b;			\
-				addik	%0, r0, %3;		\
-			.previous;				\
-			.section __ex_table,\"a\";		\
-			.word	1b,3b;				\
-			.previous;"				\
-		: "=r"(__gu_err)				\
-		: "r"(__gu_val), "r"(__gu_ptr), "i"(-EFAULT)	\
-	);							\
+#define put_user(x, ptr)						\
+({									\
+	access_ok(VERIFY_WRITE, (ptr), sizeof(*(ptr)))			\
+		? __put_user((x), (ptr)) : -EFAULT;			\
 })
 
 /* Return: number of not copied bytes, i.e. 0 if OK or non-zero if fail. */
