@@ -191,11 +191,38 @@ extern long strnlen_user(const char *src, long count);
 
 #else /* CONFIG_MMU */
 
-/*
- * All the __XXX versions macros/functions below do not perform
- * access checking. It is assumed that the necessary checks have been
- * already performed before the finction (macro) is called.
- */
+/* Return: number of not copied bytes, i.e. 0 if OK or non-zero if fail. */
+static inline unsigned long __must_check __clear_user(void __user *to,
+							unsigned long n)
+{
+	/* normal memset with two words to __ex_table */
+	__asm__ __volatile__ (				\
+			"1:	sb	r0, %2, r0;"	\
+			"	addik	%0, %0, -1;"	\
+			"	bneid	%0, 1b;"	\
+			"	addik	%2, %2, 1;"	\
+			"2:			"	\
+			__EX_TABLE_SECTION		\
+			".word	1b,2b;"			\
+			".previous;"			\
+		: "=r"(n)				\
+		: "0"(n), "r"(to)
+	);
+	return n;
+}
+
+static inline unsigned long __must_check clear_user(void __user *to,
+							unsigned long n)
+{
+	might_sleep();
+	if (unlikely(!access_ok(VERIFY_WRITE, to, n)))
+		return n;
+	return __clear_user(to, n);
+}
+
+/* put_user and get_user macros */
+
+extern long __user_bad(void);
 
 #define __get_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
 ({								\
@@ -231,17 +258,52 @@ extern long strnlen_user(const char *src, long count);
 		__get_user_asm("lw", (ptr), __gu_val, __gu_err);	\
 		break;							\
 	default:							\
-		__gu_val = 0; __gu_err = -EINVAL;			\
+		/* __gu_val = 0; __gu_err = -EINVAL;*/ __gu_err = __user_bad();\
 	}								\
 	x = (__typeof__(*(ptr))) __gu_val;				\
 	__gu_err;							\
 })
+
+/**
+ * get_user: - Get a simple variable from user space.
+ * @x:   Variable to store result.
+ * @ptr: Source address, in user space.
+ *
+ * Context: User context only.  This function may sleep.
+ *
+ * This macro copies a single simple variable from user space to kernel
+ * space.  It supports simple types like char and int, but not larger
+ * data types like structures or arrays.
+ *
+ * @ptr must have pointer-to-simple-variable type, and the result of
+ * dereferencing @ptr must be assignable to @x without a cast.
+ *
+ * Returns zero on success, or -EFAULT on error.
+ * On error, the variable @x is set to zero.
+ */
 
 #define get_user(x, ptr)						\
 ({									\
 	access_ok(VERIFY_READ, (ptr), sizeof(*(ptr)))			\
 		? __get_user((x), (ptr)) : -EFAULT;			\
 })
+
+/**
+ * put_user: - Write a simple value into user space.
+ * @x:   Value to copy to user space.
+ * @ptr: Destination address, in user space.
+ *
+ * Context: User context only.  This function may sleep.
+ *
+ * This macro copies a single simple value from kernel space to user
+ * space.  It supports simple types like char and int, but not larger
+ * data types like structures or arrays.
+ *
+ * @ptr must have pointer-to-simple-variable type, and @x must be assignable
+ * to the result of dereferencing @ptr.
+ *
+ * Returns zero on success, or -EFAULT on error.
+ */
 
 #define __put_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
 ({								\
@@ -299,7 +361,7 @@ extern long strnlen_user(const char *src, long count);
 		__put_user_asm_8((ptr), __gu_val, __gu_err);		\
 		break;							\
 	default:							\
-		__gu_err = -EINVAL;					\
+		/*__gu_err = -EINVAL;*/	__gu_err = __user_bad();	\
 	}								\
 	__gu_err;							\
 })
@@ -309,36 +371,6 @@ extern long strnlen_user(const char *src, long count);
 	access_ok(VERIFY_WRITE, (ptr), sizeof(*(ptr)))			\
 		? __put_user((x), (ptr)) : -EFAULT;			\
 })
-
-/* Return: number of not copied bytes, i.e. 0 if OK or non-zero if fail. */
-static inline unsigned long __must_check __clear_user(void __user *to,
-							unsigned long n)
-{
-	/* normal memset with two words to __ex_table */
-	__asm__ __volatile__ (				\
-			"1:	sb	r0, %2, r0;"	\
-			"	addik	%0, %0, -1;"	\
-			"	bneid	%0, 1b;"	\
-			"	addik	%2, %2, 1;"	\
-			"2:			"	\
-			__EX_TABLE_SECTION		\
-			".word	1b,2b;"			\
-			".previous;"			\
-		: "=r"(n)				\
-		: "0"(n), "r"(to)
-	);
-	return n;
-}
-
-static inline unsigned long __must_check clear_user(void __user *to,
-							unsigned long n)
-{
-	might_sleep();
-	if (unlikely(!access_ok(VERIFY_WRITE, to, n)))
-		return n;
-
-	return __clear_user(to, n);
-}
 
 #define __copy_from_user(to, from, n)	copy_from_user((to), (from), (n))
 #define __copy_from_user_inatomic(to, from, n) \
