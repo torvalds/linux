@@ -115,7 +115,7 @@ Mount Options
 	number of entries in that directory.
 
   nocrc
-	Disable CRC32C calculation for data writes.  If set, the OSD
+	Disable CRC32C calculation for data writes.  If set, the storage node
 	must rely on TCP's error correction to detect data corruption
 	in the data payload.
 
