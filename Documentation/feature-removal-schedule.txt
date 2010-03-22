@@ -545,3 +545,14 @@ Why:	udev fully replaces this special file system that only contains CAPI
 	NCCI TTY device nodes. User space (pppdcapiplugin) works without
 	noticing the difference.
 Who:	Jan Kiszka <jan.kiszka@web.de>
+
+----------------------------
+
+What:	iwlwifi 50XX module parameters
+When:	2.6.40
+Why:	The "..50" modules parameters were used to configure 5000 series and
+	up devices; different set of module parameters also available for 4965
+	with same functionalities. Consolidate both set into single place
+	in drivers/net/wireless/iwlwifi/iwl-agn.c
+
+Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>

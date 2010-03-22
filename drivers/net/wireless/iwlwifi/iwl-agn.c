@@ -3921,3 +3921,33 @@ module_param_named(debug, iwl_debug_level, uint, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(debug, "debug output mask");
 #endif
 
+module_param_named(swcrypto50, iwlagn_mod_params.sw_crypto, bool, S_IRUGO);
+MODULE_PARM_DESC(swcrypto50,
+		 "using crypto in software (default 0 [hardware]) (deprecated)");
+module_param_named(swcrypto, iwlagn_mod_params.sw_crypto, int, S_IRUGO);
+MODULE_PARM_DESC(swcrypto, "using crypto in software (default 0 [hardware])");
+module_param_named(queues_num50,
+		   iwlagn_mod_params.num_of_queues, int, S_IRUGO);
+MODULE_PARM_DESC(queues_num50,
+		 "number of hw queues in 50xx series (deprecated)");
+module_param_named(queues_num, iwlagn_mod_params.num_of_queues, int, S_IRUGO);
+MODULE_PARM_DESC(queues_num, "number of hw queues.");
+module_param_named(11n_disable50, iwlagn_mod_params.disable_11n, int, S_IRUGO);
+MODULE_PARM_DESC(11n_disable50, "disable 50XX 11n functionality (deprecated)");
+module_param_named(11n_disable, iwlagn_mod_params.disable_11n, int, S_IRUGO);
+MODULE_PARM_DESC(11n_disable, "disable 11n functionality");
+module_param_named(amsdu_size_8K50, iwlagn_mod_params.amsdu_size_8K,
+		   int, S_IRUGO);
+MODULE_PARM_DESC(amsdu_size_8K50,
+		 "enable 8K amsdu size in 50XX series (deprecated)");
+module_param_named(amsdu_size_8K, iwlagn_mod_params.amsdu_size_8K,
+		   int, S_IRUGO);
+MODULE_PARM_DESC(amsdu_size_8K, "enable 8K amsdu size");
+module_param_named(fw_restart50, iwlagn_mod_params.restart_fw, int, S_IRUGO);
+MODULE_PARM_DESC(fw_restart50,
+		 "restart firmware in case of error (deprecated)");
+module_param_named(fw_restart, iwlagn_mod_params.restart_fw, int, S_IRUGO);
+MODULE_PARM_DESC(fw_restart, "restart firmware in case of error");
+module_param_named(
+	disable_hw_scan, iwlagn_mod_params.disable_hw_scan, int, S_IRUGO);
+MODULE_PARM_DESC(disable_hw_scan, "disable hardware scanning (default 0)");
