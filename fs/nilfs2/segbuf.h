@@ -76,6 +76,7 @@ struct nilfs_segsum_info {
  * @sb_rest_blocks: Number of residual blocks in the current segment
  * @sb_segsum_buffers: List of buffers for segment summaries
  * @sb_payload_buffers: List of buffers for segment payload
+ * @sb_super_root: Pointer to buffer storing a super root block (if exists)
  * @sb_nbio: Number of flying bio requests
  * @sb_err: I/O error status
  * @sb_bio_event: Completion event of log writing
@@ -95,6 +96,7 @@ struct nilfs_segment_buffer {
 	/* Buffers */
 	struct list_head	sb_segsum_buffers;
 	struct list_head	sb_payload_buffers; /* including super root */
+	struct buffer_head     *sb_super_root;
 
 	/* io status */
 	int			sb_nbio;

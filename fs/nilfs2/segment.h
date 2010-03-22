@@ -100,7 +100,6 @@ struct nilfs_segsum_pointer {
  * @sc_write_logs: List of segment buffers to hold logs under writing
  * @sc_segbuf_nblocks: Number of available blocks in segment buffers.
  * @sc_curseg: Current segment buffer
- * @sc_super_root: Pointer to the super root buffer
  * @sc_stage: Collection stage
  * @sc_finfo_ptr: pointer to the current finfo struct in the segment summary
  * @sc_binfo_ptr: pointer to the current binfo struct in the segment summary
@@ -148,7 +147,6 @@ struct nilfs_sc_info {
 	struct list_head	sc_write_logs;
 	unsigned long		sc_segbuf_nblocks;
 	struct nilfs_segment_buffer *sc_curseg;
-	struct buffer_head     *sc_super_root;
 
 	struct nilfs_cstage	sc_stage;
 
