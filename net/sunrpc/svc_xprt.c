@@ -156,6 +156,7 @@ void svc_xprt_init(struct svc_xprt_class *xcl, struct svc_xprt *xprt,
 	INIT_LIST_HEAD(&xprt->xpt_list);
 	INIT_LIST_HEAD(&xprt->xpt_ready);
 	INIT_LIST_HEAD(&xprt->xpt_deferred);
+	INIT_LIST_HEAD(&xprt->xpt_users);
 	mutex_init(&xprt->xpt_mutex);
 	spin_lock_init(&xprt->xpt_lock);
 	set_bit(XPT_BUSY, &xprt->xpt_flags);
@@ -881,6 +882,19 @@ static void svc_age_temp_xprts(unsigned long closure)
 	mod_timer(&serv->sv_temptimer, jiffies + svc_conn_age_period * HZ);
 }
 
+static void call_xpt_users(struct svc_xprt *xprt)
+{
+	struct svc_xpt_user *u;
+
+	spin_lock(&xprt->xpt_lock);
+	while (!list_empty(&xprt->xpt_users)) {
+		u = list_first_entry(&xprt->xpt_users, struct svc_xpt_user, list);
+		list_del(&u->list);
+		u->callback(u);
+	}
+	spin_unlock(&xprt->xpt_lock);
+}
+
 /*
  * Remove a dead transport
  */
@@ -913,6 +927,7 @@ void svc_delete_xprt(struct svc_xprt *xprt)
 	while ((dr = svc_deferred_dequeue(xprt)) != NULL)
 		kfree(dr);
 
+	call_xpt_users(xprt);
 	svc_xprt_put(xprt);
 }
 

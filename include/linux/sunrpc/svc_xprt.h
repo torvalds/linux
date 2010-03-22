@@ -33,6 +33,16 @@ struct svc_xprt_class {
 	u32			xcl_max_payload;
 };
 
+/*
+ * This is embedded in an object that wants a callback before deleting
+ * an xprt; intended for use by NFSv4.1, which needs to know when a
+ * client's tcp connection (and hence possibly a backchannel) goes away.
+ */
+struct svc_xpt_user {
+	struct list_head list;
+	void (*callback)(struct svc_xpt_user *);
+};
+
 struct svc_xprt {
 	struct svc_xprt_class	*xpt_class;
 	struct svc_xprt_ops	*xpt_ops;
@@ -67,9 +77,24 @@ struct svc_xprt {
 	struct sockaddr_storage	xpt_remote;	/* remote peer's address */
 	size_t			xpt_remotelen;	/* length of address */
 	struct rpc_wait_queue	xpt_bc_pending;	/* backchannel wait queue */
+	struct list_head	xpt_users;	/* callbacks on free */
 
 	struct net		*xpt_net;
 };
+
+static inline void register_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)
+{
+	spin_lock(&xpt->xpt_lock);
+	list_add(&u->list, &xpt->xpt_users);
+	spin_unlock(&xpt->xpt_lock);
+}
+
+static inline void unregister_xpt_user(struct svc_xprt *xpt, struct svc_xpt_user *u)
+{
+	spin_lock(&xpt->xpt_lock);
+	list_del_init(&u->list);
+	spin_unlock(&xpt->xpt_lock);
+}
 
 int	svc_reg_xprt_class(struct svc_xprt_class *);
 void	svc_unreg_xprt_class(struct svc_xprt_class *);
