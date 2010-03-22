@@ -17,7 +17,12 @@ EXPORT_SYMBOL_GPL(perf_arch_fetch_caller_regs);
 static char *perf_trace_buf;
 static char *perf_trace_buf_nmi;
 
-typedef typeof(char [PERF_MAX_TRACE_SIZE]) perf_trace_t ;
+/*
+ * Force it to be aligned to unsigned long to avoid misaligned accesses
+ * suprises
+ */
+typedef typeof(unsigned long [PERF_MAX_TRACE_SIZE / sizeof(unsigned long)])
+	perf_trace_t;
 
 /* Count the events in use (per event id, not per instance) */
 static int	total_ref_count;
@@ -130,6 +135,8 @@ __kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
 	char *trace_buf, *raw_data;
 	int pc, cpu;
 
+	BUILD_BUG_ON(PERF_MAX_TRACE_SIZE % sizeof(unsigned long));
+
 	pc = preempt_count();
 
 	/* Protect the per cpu buffer, begin the rcu read side */
@@ -152,7 +159,7 @@ __kprobes void *perf_trace_buf_prepare(int size, unsigned short type,
 	raw_data = per_cpu_ptr(trace_buf, cpu);
 
 	/* zero the dead bytes from align to not leak stack to user */
-	*(u64 *)(&raw_data[size - sizeof(u64)]) = 0ULL;
+	memset(&raw_data[size - sizeof(u64)], 0, sizeof(u64));
 
 	entry = (struct trace_entry *)raw_data;
 	tracing_generic_entry_update(entry, *irq_flags, pc);
