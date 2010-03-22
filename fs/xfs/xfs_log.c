@@ -648,6 +648,19 @@ xfs_log_unmount(xfs_mount_t *mp)
 	xlog_dealloc_log(mp->m_log);
 }
 
+void
+xfs_log_item_init(
+	struct xfs_mount	*mp,
+	struct xfs_log_item	*item,
+	int			type,
+	struct xfs_item_ops	*ops)
+{
+	item->li_mountp = mp;
+	item->li_ailp = mp->m_ail;
+	item->li_type = type;
+	item->li_ops = ops;
+}
+
 /*
  * Write region vectors to log.  The write happens using the space reservation
  * of the ticket (tic).  It is not a requirement that all writes for a given

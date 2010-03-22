@@ -865,17 +865,9 @@ xfs_inode_item_init(
 	ASSERT(ip->i_itemp == NULL);
 	iip = ip->i_itemp = kmem_zone_zalloc(xfs_ili_zone, KM_SLEEP);
 
-	iip->ili_item.li_type = XFS_LI_INODE;
-	iip->ili_item.li_ops = &xfs_inode_item_ops;
-	iip->ili_item.li_mountp = mp;
-	iip->ili_item.li_ailp = mp->m_ail;
 	iip->ili_inode = ip;
-
-	/*
-	   We have zeroed memory. No need ...
-	   iip->ili_extents_buf = NULL;
-	 */
-
+	xfs_log_item_init(mp, &iip->ili_item, XFS_LI_INODE,
+						&xfs_inode_item_ops);
 	iip->ili_format.ilf_type = XFS_LI_INODE;
 	iip->ili_format.ilf_ino = ip->i_ino;
 	iip->ili_format.ilf_blkno = ip->i_imap.im_blkno;

@@ -259,10 +259,7 @@ xfs_efi_init(xfs_mount_t	*mp,
 							     KM_SLEEP);
 	}
 
-	efip->efi_item.li_type = XFS_LI_EFI;
-	efip->efi_item.li_ops = &xfs_efi_item_ops;
-	efip->efi_item.li_mountp = mp;
-	efip->efi_item.li_ailp = mp->m_ail;
+	xfs_log_item_init(mp, &efip->efi_item, XFS_LI_EFI, &xfs_efi_item_ops);
 	efip->efi_format.efi_nextents = nextents;
 	efip->efi_format.efi_id = (__psint_t)(void*)efip;
 
@@ -554,10 +551,7 @@ xfs_efd_init(xfs_mount_t	*mp,
 							     KM_SLEEP);
 	}
 
-	efdp->efd_item.li_type = XFS_LI_EFD;
-	efdp->efd_item.li_ops = &xfs_efd_item_ops;
-	efdp->efd_item.li_mountp = mp;
-	efdp->efd_item.li_ailp = mp->m_ail;
+	xfs_log_item_init(mp, &efdp->efd_item, XFS_LI_EFD, &xfs_efd_item_ops);
 	efdp->efd_efip = efip;
 	efdp->efd_format.efd_nextents = nextents;
 	efdp->efd_format.efd_efi_id = efip->efi_format.efi_id;

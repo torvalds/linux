@@ -733,10 +733,7 @@ xfs_buf_item_init(
 
 	bip = (xfs_buf_log_item_t*)kmem_zone_zalloc(xfs_buf_item_zone,
 						    KM_SLEEP);
-	bip->bli_item.li_type = XFS_LI_BUF;
-	bip->bli_item.li_ops = &xfs_buf_item_ops;
-	bip->bli_item.li_mountp = mp;
-	bip->bli_item.li_ailp = mp->m_ail;
+	xfs_log_item_init(mp, &bip->bli_item, XFS_LI_BUF, &xfs_buf_item_ops);
 	bip->bli_buf = bp;
 	xfs_buf_hold(bp);
 	bip->bli_format.blf_type = XFS_LI_BUF;

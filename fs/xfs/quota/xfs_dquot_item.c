@@ -357,9 +357,8 @@ xfs_qm_dquot_logitem_init(
 	xfs_dq_logitem_t  *lp;
 	lp = &dqp->q_logitem;
 
-	lp->qli_item.li_type = XFS_LI_DQUOT;
-	lp->qli_item.li_ops = &xfs_dquot_item_ops;
-	lp->qli_item.li_mountp = dqp->q_mount;
+	xfs_log_item_init(dqp->q_mount, &lp->qli_item, XFS_LI_DQUOT,
+					&xfs_dquot_item_ops);
 	lp->qli_dquot = dqp;
 	lp->qli_format.qlf_type = XFS_LI_DQUOT;
 	lp->qli_format.qlf_id = be32_to_cpu(dqp->q_core.d_id);
@@ -586,11 +585,8 @@ xfs_qm_qoff_logitem_init(
 
 	qf = (xfs_qoff_logitem_t*) kmem_zalloc(sizeof(xfs_qoff_logitem_t), KM_SLEEP);
 
-	qf->qql_item.li_type = XFS_LI_QUOTAOFF;
-	if (start)
-		qf->qql_item.li_ops = &xfs_qm_qoffend_logitem_ops;
-	else
-		qf->qql_item.li_ops = &xfs_qm_qoff_logitem_ops;
+	xfs_log_item_init(mp, &qf->qql_item, XFS_LI_QUOTAOFF, start ?
+			&xfs_qm_qoffend_logitem_ops : &xfs_qm_qoff_logitem_ops);
 	qf->qql_item.li_mountp = mp;
 	qf->qql_format.qf_type = XFS_LI_QUOTAOFF;
 	qf->qql_format.qf_flags = flags;
