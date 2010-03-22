@@ -170,18 +170,20 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 	newtFormDestroy(form);
 }
 
+static char browser__last_msg[1024];
+
 int browser__show_help(const char *format, va_list ap)
 {
 	int ret;
 	static int backlog;
-	static char msg[1024];
 
-        ret = vsnprintf(msg + backlog, sizeof(msg) - backlog, format, ap);
+        ret = vsnprintf(browser__last_msg + backlog,
+			sizeof(browser__last_msg) - backlog, format, ap);
 	backlog += ret;
 
-	if (msg[backlog - 1] == '\n') {
+	if (browser__last_msg[backlog - 1] == '\n') {
 		newtPopHelpLine();
-		newtPushHelpLine(msg);
+		newtPushHelpLine(browser__last_msg);
 		newtRefresh();
 		backlog = 0;
 	}
@@ -200,8 +202,13 @@ void setup_browser(void)
 	newtPushHelpLine(" ");
 }
 
-void exit_browser(void)
+void exit_browser(bool wait_for_ok)
 {
-	if (use_browser)
+	if (use_browser) {
+		if (wait_for_ok) {
+			char title[] = "Fatal Error", ok[] = "Ok";
+			newtWinMessage(title, ok, browser__last_msg);
+		}
 		newtFinished();
+	}
 }

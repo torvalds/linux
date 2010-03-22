@@ -77,10 +77,10 @@ static inline void setup_browser(void)
 {
 	setup_pager();
 }
-static inline void exit_browser(void) {}
+static inline void exit_browser(bool wait_for_ok __used) {}
 #else
 void setup_browser(void);
-void exit_browser(void);
+void exit_browser(bool wait_for_ok);
 #endif
 
 extern const char *editor_program;
