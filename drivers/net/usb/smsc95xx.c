@@ -709,6 +709,8 @@ static void smsc95xx_start_rx_path(struct usbnet *dev)
 
 static int smsc95xx_phy_initialize(struct usbnet *dev)
 {
+	int bmcr, timeout = 0;
+
 	/* Initialize MII structure */
 	dev->mii.dev = dev->net;
 	dev->mii.mdio_read = smsc95xx_mdio_read;
@@ -717,7 +719,20 @@ static int smsc95xx_phy_initialize(struct usbnet *dev)
 	dev->mii.reg_num_mask = 0x1f;
 	dev->mii.phy_id = SMSC95XX_INTERNAL_PHY_ID;
 
+	/* reset phy and wait for reset to complete */
 	smsc95xx_mdio_write(dev->net, dev->mii.phy_id, MII_BMCR, BMCR_RESET);
+
+	do {
+		msleep(10);
+		bmcr = smsc95xx_mdio_read(dev->net, dev->mii.phy_id, MII_BMCR);
+		timeout++;
+	} while ((bmcr & MII_BMCR) && (timeout < 100));
+
+	if (timeout >= 100) {
+		netdev_warn(dev->net, "timeout on PHY Reset");
+		return -EIO;
+	}
+
 	smsc95xx_mdio_write(dev->net, dev->mii.phy_id, MII_ADVERTISE,
 		ADVERTISE_ALL | ADVERTISE_CSMA | ADVERTISE_PAUSE_CAP |
 		ADVERTISE_PAUSE_ASYM);

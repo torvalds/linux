@@ -21,6 +21,7 @@
 #include <asm/blackfin.h>
 #include <asm/time.h>
 #include <asm/gptimers.h>
+#include <asm/nmi.h>
 
 /* Accelerators for sched_clock()
  * convert from cycles(64bits) => nanoseconds (64bits)
@@ -50,7 +51,11 @@
 
 static notrace cycle_t bfin_read_cycles(struct clocksource *cs)
 {
+#ifdef CONFIG_CPU_FREQ
 	return __bfin_cycles_off + (get_cycles() << __bfin_cycles_mod);
+#else
+	return get_cycles();
+#endif
 }
 
 static struct clocksource bfin_cs_cycles = {
@@ -132,7 +137,6 @@ static int __init bfin_cs_gptimer0_init(void)
 # define bfin_cs_gptimer0_init()
 #endif
 
-
 #if defined(CONFIG_GPTMR0_CLOCKSOURCE) || defined(CONFIG_CYCLES_CLOCKSOURCE)
 /* prefer to use cycles since it has higher rating */
 notrace unsigned long long sched_clock(void)
@@ -145,47 +149,8 @@ notrace unsigned long long sched_clock(void)
 }
 #endif
 
-#ifdef CONFIG_CORE_TIMER_IRQ_L1
-__attribute__((l1_text))
-#endif
-irqreturn_t timer_interrupt(int irq, void *dev_id);
-
-static int bfin_timer_set_next_event(unsigned long, \
-		struct clock_event_device *);
-
-static void bfin_timer_set_mode(enum clock_event_mode, \
-		struct clock_event_device *);
-
-static struct clock_event_device clockevent_bfin = {
 #if defined(CONFIG_TICKSOURCE_GPTMR0)
-	.name		= "bfin_gptimer0",
-	.rating		= 300,
-	.irq		= IRQ_TIMER0,
-#else
-	.name		= "bfin_core_timer",
-	.rating		= 350,
-	.irq		= IRQ_CORETMR,
-#endif
-	.shift		= 32,
-	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
-	.set_next_event = bfin_timer_set_next_event,
-	.set_mode	= bfin_timer_set_mode,
-};
-
-static struct irqaction bfin_timer_irq = {
-#if defined(CONFIG_TICKSOURCE_GPTMR0)
-	.name		= "Blackfin GPTimer0",
-#else
-	.name		= "Blackfin CoreTimer",
-#endif
-	.flags		= IRQF_DISABLED | IRQF_TIMER | \
-			  IRQF_IRQPOLL | IRQF_PERCPU,
-	.handler	= timer_interrupt,
-	.dev_id		= &clockevent_bfin,
-};
-
-#if defined(CONFIG_TICKSOURCE_GPTMR0)
-static int bfin_timer_set_next_event(unsigned long cycles,
+static int bfin_gptmr0_set_next_event(unsigned long cycles,
                                      struct clock_event_device *evt)
 {
 	disable_gptimers(TIMER0bit);
@@ -196,7 +161,7 @@ static int bfin_timer_set_next_event(unsigned long cycles,
 	return 0;
 }
 
-static void bfin_timer_set_mode(enum clock_event_mode mode,
+static void bfin_gptmr0_set_mode(enum clock_event_mode mode,
 				struct clock_event_device *evt)
 {
 	switch (mode) {
@@ -224,25 +189,65 @@ static void bfin_timer_set_mode(enum clock_event_mode mode,
 	}
 }
 
-static void bfin_timer_ack(void)
+static void bfin_gptmr0_ack(void)
 {
 	set_gptimer_status(TIMER_GROUP1, TIMER_STATUS_TIMIL0);
 }
 
-static void __init bfin_timer_init(void)
+static void __init bfin_gptmr0_init(void)
 {
 	disable_gptimers(TIMER0bit);
 }
 
-static unsigned long  __init bfin_clockevent_check(void)
+#ifdef CONFIG_CORE_TIMER_IRQ_L1
+__attribute__((l1_text))
+#endif
+irqreturn_t bfin_gptmr0_interrupt(int irq, void *dev_id)
 {
-	setup_irq(IRQ_TIMER0, &bfin_timer_irq);
-	return get_sclk();
+	struct clock_event_device *evt = dev_id;
+	smp_mb();
+	evt->event_handler(evt);
+	bfin_gptmr0_ack();
+	return IRQ_HANDLED;
 }
 
-#else /* CONFIG_TICKSOURCE_CORETMR */
+static struct irqaction gptmr0_irq = {
+	.name		= "Blackfin GPTimer0",
+	.flags		= IRQF_DISABLED | IRQF_TIMER | \
+			  IRQF_IRQPOLL | IRQF_PERCPU,
+	.handler	= bfin_gptmr0_interrupt,
+};
 
-static int bfin_timer_set_next_event(unsigned long cycles,
+static struct clock_event_device clockevent_gptmr0 = {
+	.name		= "bfin_gptimer0",
+	.rating		= 300,
+	.irq		= IRQ_TIMER0,
+	.shift		= 32,
+	.features	= CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT,
+	.set_next_event = bfin_gptmr0_set_next_event,
+	.set_mode	= bfin_gptmr0_set_mode,
+};
+
+static void __init bfin_gptmr0_clockevent_init(struct clock_event_device *evt)
+{
+	unsigned long clock_tick;
+
+	clock_tick = get_sclk();
+	evt->mult = div_sc(clock_tick, NSEC_PER_SEC, evt->shift);
+	evt->max_delta_ns = clockevent_delta2ns(-1, evt);
+	evt->min_delta_ns = clockevent_delta2ns(100, evt);
+
+	evt->cpumask = cpumask_of(0);
+
+	clockevents_register_device(evt);
+}
+#endif /* CONFIG_TICKSOURCE_GPTMR0 */
+
+#if defined(CONFIG_TICKSOURCE_CORETMR)
+/* per-cpu local core timer */
+static DEFINE_PER_CPU(struct clock_event_device, coretmr_events);
+
+static int bfin_coretmr_set_next_event(unsigned long cycles,
 				struct clock_event_device *evt)
 {
 	bfin_write_TCNTL(TMPWR);
@@ -253,7 +258,7 @@ static int bfin_timer_set_next_event(unsigned long cycles,
 	return 0;
 }
 
-static void bfin_timer_set_mode(enum clock_event_mode mode,
+static void bfin_coretmr_set_mode(enum clock_event_mode mode,
 				struct clock_event_device *evt)
 {
 	switch (mode) {
@@ -285,19 +290,13 @@ static void bfin_timer_set_mode(enum clock_event_mode mode,
 	}
 }
 
-static void bfin_timer_ack(void)
-{
-}
-
-static void __init bfin_timer_init(void)
+void bfin_coretmr_init(void)
 {
 	/* power up the timer, but don't enable it just yet */
 	bfin_write_TCNTL(TMPWR);
 	CSYNC();
 
-	/*
-	 * the TSCALE prescaler counter.
-	 */
+	/* the TSCALE prescaler counter. */
 	bfin_write_TSCALE(TIME_SCALE - 1);
 	bfin_write_TPERIOD(0);
 	bfin_write_TCOUNT(0);
@@ -305,48 +304,54 @@ static void __init bfin_timer_init(void)
 	CSYNC();
 }
 
-static unsigned long  __init bfin_clockevent_check(void)
+#ifdef CONFIG_CORE_TIMER_IRQ_L1
+__attribute__((l1_text))
+#endif
+irqreturn_t bfin_coretmr_interrupt(int irq, void *dev_id)
 {
-	setup_irq(IRQ_CORETMR, &bfin_timer_irq);
-	return get_cclk() / TIME_SCALE;
-}
+	int cpu = smp_processor_id();
+	struct clock_event_device *evt = &per_cpu(coretmr_events, cpu);
 
-void __init setup_core_timer(void)
-{
-	bfin_timer_init();
-	bfin_timer_set_mode(CLOCK_EVT_MODE_PERIODIC, NULL);
-}
-#endif /* CONFIG_TICKSOURCE_GPTMR0 */
-
-/*
- * timer_interrupt() needs to keep up the real-time clock,
- * as well as call the "do_timer()" routine every clocktick
- */
-irqreturn_t timer_interrupt(int irq, void *dev_id)
-{
-	struct clock_event_device *evt = dev_id;
 	smp_mb();
 	evt->event_handler(evt);
-	bfin_timer_ack();
+
+	touch_nmi_watchdog();
+
 	return IRQ_HANDLED;
 }
 
-static int __init bfin_clockevent_init(void)
+static struct irqaction coretmr_irq = {
+	.name		= "Blackfin CoreTimer",
+	.flags		= IRQF_DISABLED | IRQF_TIMER | \
+			  IRQF_IRQPOLL | IRQF_PERCPU,
+	.handler	= bfin_coretmr_interrupt,
+};
+
+void bfin_coretmr_clockevent_init(void)
 {
-	unsigned long timer_clk;
+	unsigned long clock_tick;
+	unsigned int cpu = smp_processor_id();
+	struct clock_event_device *evt = &per_cpu(coretmr_events, cpu);
 
-	timer_clk = bfin_clockevent_check();
+	evt->name = "bfin_core_timer";
+	evt->rating = 350;
+	evt->irq = -1;
+	evt->shift = 32;
+	evt->features = CLOCK_EVT_FEAT_PERIODIC | CLOCK_EVT_FEAT_ONESHOT;
+	evt->set_next_event = bfin_coretmr_set_next_event;
+	evt->set_mode = bfin_coretmr_set_mode;
 
-	bfin_timer_init();
+	clock_tick = get_cclk() / TIME_SCALE;
+	evt->mult = div_sc(clock_tick, NSEC_PER_SEC, evt->shift);
+	evt->max_delta_ns = clockevent_delta2ns(-1, evt);
+	evt->min_delta_ns = clockevent_delta2ns(100, evt);
 
-	clockevent_bfin.mult = div_sc(timer_clk, NSEC_PER_SEC, clockevent_bfin.shift);
-	clockevent_bfin.max_delta_ns = clockevent_delta2ns(-1, &clockevent_bfin);
-	clockevent_bfin.min_delta_ns = clockevent_delta2ns(100, &clockevent_bfin);
-	clockevent_bfin.cpumask = cpumask_of(0);
-	clockevents_register_device(&clockevent_bfin);
+	evt->cpumask = cpumask_of(cpu);
 
-	return 0;
+	clockevents_register_device(evt);
 }
+#endif /* CONFIG_TICKSOURCE_CORETMR */
+
 
 void __init time_init(void)
 {
@@ -370,5 +375,21 @@ void __init time_init(void)
 
 	bfin_cs_cycles_init();
 	bfin_cs_gptimer0_init();
-	bfin_clockevent_init();
+
+#if defined(CONFIG_TICKSOURCE_CORETMR)
+	bfin_coretmr_init();
+	setup_irq(IRQ_CORETMR, &coretmr_irq);
+	bfin_coretmr_clockevent_init();
+#endif
+
+#if defined(CONFIG_TICKSOURCE_GPTMR0)
+	bfin_gptmr0_init();
+	setup_irq(IRQ_TIMER0, &gptmr0_irq);
+	gptmr0_irq.dev_id = &clockevent_gptmr0;
+	bfin_gptmr0_clockevent_init(&clockevent_gptmr0);
+#endif
+
+#if !defined(CONFIG_TICKSOURCE_CORETMR) && !defined(CONFIG_TICKSOURCE_GPTMR0)
+# error at least one clock event device is required
+#endif
 }

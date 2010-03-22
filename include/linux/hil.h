@@ -168,14 +168,14 @@ enum hil_command {
 	HIL_CMD_PR6	= 0x45,	/* Prompt6 */
 	HIL_CMD_PR7	= 0x46,	/* Prompt7 */
 	HIL_CMD_PRM	= 0x47,	/* Prompt (General Purpose) */
-	HIL_CMD_AK1	= 0x48,	/* Acknowlege1 */  
-	HIL_CMD_AK2	= 0x49,	/* Acknowlege2 */
-	HIL_CMD_AK3	= 0x4a,	/* Acknowlege3 */
-	HIL_CMD_AK4	= 0x4b,	/* Acknowlege4 */
-	HIL_CMD_AK5	= 0x4c,	/* Acknowlege5 */
-	HIL_CMD_AK6	= 0x4d,	/* Acknowlege6 */
-	HIL_CMD_AK7	= 0x4e,	/* Acknowlege7 */
-	HIL_CMD_ACK	= 0x4f,	/* Acknowlege (General Purpose) */
+	HIL_CMD_AK1	= 0x48,	/* Acknowledge1 */  
+	HIL_CMD_AK2	= 0x49,	/* Acknowledge2 */
+	HIL_CMD_AK3	= 0x4a,	/* Acknowledge3 */
+	HIL_CMD_AK4	= 0x4b,	/* Acknowledge4 */
+	HIL_CMD_AK5	= 0x4c,	/* Acknowledge5 */
+	HIL_CMD_AK6	= 0x4d,	/* Acknowledge6 */
+	HIL_CMD_AK7	= 0x4e,	/* Acknowledge7 */
+	HIL_CMD_ACK	= 0x4f,	/* Acknowledge (General Purpose) */
 
 	/* 0x50 to 0x78 reserved for future use  */
 	/* 0x80 to 0xEF device-specific commands */

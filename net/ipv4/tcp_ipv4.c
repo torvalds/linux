@@ -1651,12 +1651,14 @@ int tcp_v4_rcv(struct sk_buff *skb)
 	if (!sk)
 		goto no_tcp_socket;
 
-	if (iph->ttl < inet_sk(sk)->min_ttl)
-		goto discard_and_relse;
-
 process:
 	if (sk->sk_state == TCP_TIME_WAIT)
 		goto do_time_wait;
+
+	if (unlikely(iph->ttl < inet_sk(sk)->min_ttl)) {
+		NET_INC_STATS_BH(net, LINUX_MIB_TCPMINTTLDROP);
+		goto discard_and_relse;
+	}
 
 	if (!xfrm4_policy_check(sk, XFRM_POLICY_IN, skb))
 		goto discard_and_relse;
@@ -1682,8 +1684,11 @@ process:
 			if (!tcp_prequeue(sk, skb))
 				ret = tcp_v4_do_rcv(sk, skb);
 		}
-	} else
-		sk_add_backlog(sk, skb);
+	} else if (unlikely(sk_add_backlog(sk, skb))) {
+		bh_unlock_sock(sk);
+		NET_INC_STATS_BH(net, LINUX_MIB_TCPBACKLOGDROP);
+		goto discard_and_relse;
+	}
 	bh_unlock_sock(sk);
 
 	sock_put(sk);

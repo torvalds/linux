@@ -126,7 +126,7 @@ bfa_fcs_itnim_sm_offline(struct bfa_fcs_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->fcs, event);
 	}
 
 }
@@ -161,7 +161,7 @@ bfa_fcs_itnim_sm_prli_send(struct bfa_fcs_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->fcs, event);
 	}
 }
 
@@ -205,7 +205,7 @@ bfa_fcs_itnim_sm_prli(struct bfa_fcs_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->fcs, event);
 	}
 }
 
@@ -240,7 +240,7 @@ bfa_fcs_itnim_sm_prli_retry(struct bfa_fcs_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->fcs, event);
 	}
 }
 
@@ -270,7 +270,7 @@ bfa_fcs_itnim_sm_hcb_online(struct bfa_fcs_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->fcs, event);
 	}
 }
 
@@ -298,7 +298,7 @@ bfa_fcs_itnim_sm_online(struct bfa_fcs_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->fcs, event);
 	}
 }
 
@@ -321,7 +321,7 @@ bfa_fcs_itnim_sm_hcb_offline(struct bfa_fcs_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->fcs, event);
 	}
 }
 
@@ -354,7 +354,7 @@ bfa_fcs_itnim_sm_initiator(struct bfa_fcs_itnim_s *itnim,
 		break;
 
 	default:
-		bfa_assert(0);
+		bfa_sm_fault(itnim->fcs, event);
 	}
 }
 
@@ -385,19 +385,8 @@ bfa_fcs_itnim_aen_post(struct bfa_fcs_itnim_s *itnim,
 	wwn2str(lpwwn_ptr, lpwwn);
 	wwn2str(rpwwn_ptr, rpwwn);
 
-	switch (event) {
-	case BFA_ITNIM_AEN_ONLINE:
-		bfa_log(logmod, BFA_AEN_ITNIM_ONLINE, rpwwn_ptr, lpwwn_ptr);
-		break;
-	case BFA_ITNIM_AEN_OFFLINE:
-		bfa_log(logmod, BFA_AEN_ITNIM_OFFLINE, rpwwn_ptr, lpwwn_ptr);
-		break;
-	case BFA_ITNIM_AEN_DISCONNECT:
-		bfa_log(logmod, BFA_AEN_ITNIM_DISCONNECT, rpwwn_ptr, lpwwn_ptr);
-		break;
-	default:
-		break;
-	}
+	bfa_log(logmod, BFA_LOG_CREATE_ID(BFA_AEN_CAT_ITNIM, event),
+		rpwwn_ptr, lpwwn_ptr);
 
 	aen_data.itnim.vf_id = rport->port->fabric->vf_id;
 	aen_data.itnim.ppwwn =
@@ -689,7 +678,6 @@ bfa_cb_itnim_tov_begin(void *cb_arg)
 	struct bfa_fcs_itnim_s *itnim = (struct bfa_fcs_itnim_s *)cb_arg;
 
 	bfa_trc(itnim->fcs, itnim->rport->pwwn);
-	bfa_fcb_itnim_tov_begin(itnim->itnim_drv);
 }
 
 /**
@@ -822,22 +810,3 @@ void
 bfa_fcs_itnim_resume(struct bfa_fcs_itnim_s *itnim)
 {
 }
-
-/**
- *   Module initialization
- */
-void
-bfa_fcs_fcpim_modinit(struct bfa_fcs_s *fcs)
-{
-}
-
-/**
- *   Module cleanup
- */
-void
-bfa_fcs_fcpim_modexit(struct bfa_fcs_s *fcs)
-{
-	bfa_fcs_modexit_comp(fcs);
-}
-
-

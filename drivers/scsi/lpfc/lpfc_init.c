@@ -350,7 +350,12 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	mb = &pmb->u.mb;
 
 	/* Get login parameters for NID.  */
-	lpfc_read_sparam(phba, pmb, 0);
+	rc = lpfc_read_sparam(phba, pmb, 0);
+	if (rc) {
+		mempool_free(pmb, phba->mbox_mem_pool);
+		return -ENOMEM;
+	}
+
 	pmb->vport = vport;
 	if (lpfc_sli_issue_mbox(phba, pmb, MBX_POLL) != MBX_SUCCESS) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
@@ -359,7 +364,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 				mb->mbxCommand, mb->mbxStatus);
 		phba->link_state = LPFC_HBA_ERROR;
 		mp = (struct lpfc_dmabuf *) pmb->context1;
-		mempool_free( pmb, phba->mbox_mem_pool);
+		mempool_free(pmb, phba->mbox_mem_pool);
 		lpfc_mbuf_free(phba, mp->virt, mp->phys);
 		kfree(mp);
 		return -EIO;
@@ -544,7 +549,7 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 			mempool_free(pmb, phba->mbox_mem_pool);
 			return -EIO;
 		}
-	} else if (phba->cfg_suppress_link_up == 0) {
+	} else if (phba->cfg_suppress_link_up == LPFC_INITIALIZE_LINK) {
 		lpfc_init_link(phba, pmb, phba->cfg_topology,
 			phba->cfg_link_speed);
 		pmb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
@@ -571,6 +576,11 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 	}
 	/* MBOX buffer will be freed in mbox compl */
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmb) {
+		phba->link_state = LPFC_HBA_ERROR;
+		return -ENOMEM;
+	}
+
 	lpfc_config_async(phba, pmb, LPFC_ELS_RING);
 	pmb->mbox_cmpl = lpfc_config_async_cmpl;
 	pmb->vport = phba->pport;
@@ -588,6 +598,11 @@ lpfc_config_port_post(struct lpfc_hba *phba)
 
 	/* Get Option rom version */
 	pmb = mempool_alloc(phba->mbox_mem_pool, GFP_KERNEL);
+	if (!pmb) {
+		phba->link_state = LPFC_HBA_ERROR;
+		return -ENOMEM;
+	}
+
 	lpfc_dump_wakeup_param(phba, pmb);
 	pmb->mbox_cmpl = lpfc_dump_wakeup_param_cmpl;
 	pmb->vport = phba->pport;
@@ -652,7 +667,7 @@ lpfc_hba_init_link(struct lpfc_hba *phba)
 			mempool_free(pmb, phba->mbox_mem_pool);
 		return -EIO;
 	}
-	phba->cfg_suppress_link_up = 0;
+	phba->cfg_suppress_link_up = LPFC_INITIALIZE_LINK;
 
 	return 0;
 }
@@ -807,6 +822,8 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	LIST_HEAD(aborts);
 	int ret;
 	unsigned long iflag = 0;
+	struct lpfc_sglq *sglq_entry = NULL;
+
 	ret = lpfc_hba_down_post_s3(phba);
 	if (ret)
 		return ret;
@@ -822,6 +839,10 @@ lpfc_hba_down_post_s4(struct lpfc_hba *phba)
 	 * list.
 	 */
 	spin_lock(&phba->sli4_hba.abts_sgl_list_lock);
+	list_for_each_entry(sglq_entry,
+		&phba->sli4_hba.lpfc_abts_els_sgl_list, list)
+		sglq_entry->state = SGL_FREED;
+
 	list_splice_init(&phba->sli4_hba.lpfc_abts_els_sgl_list,
 			&phba->sli4_hba.lpfc_sgl_list);
 	spin_unlock(&phba->sli4_hba.abts_sgl_list_lock);
@@ -2178,8 +2199,10 @@ lpfc_stop_vport_timers(struct lpfc_vport *vport)
 void
 __lpfc_sli4_stop_fcf_redisc_wait_timer(struct lpfc_hba *phba)
 {
-	/* Clear pending FCF rediscovery wait timer */
-	phba->fcf.fcf_flag &= ~FCF_REDISC_PEND;
+	/* Clear pending FCF rediscovery wait and failover in progress flags */
+	phba->fcf.fcf_flag &= ~(FCF_REDISC_PEND |
+				FCF_DEAD_DISC |
+				FCF_ACVL_DISC);
 	/* Now, try to stop the timer */
 	del_timer(&phba->fcf.redisc_wait);
 }
@@ -2576,6 +2599,14 @@ lpfc_create_port(struct lpfc_hba *phba, int instance, struct device *dev)
 	init_timer(&vport->els_tmofunc);
 	vport->els_tmofunc.function = lpfc_els_timeout;
 	vport->els_tmofunc.data = (unsigned long)vport;
+	if (phba->pcidev->device == PCI_DEVICE_ID_HORNET) {
+		phba->menlo_flag |= HBA_MENLO_SUPPORT;
+		/* check for menlo minimum sg count */
+		if (phba->cfg_sg_seg_cnt < LPFC_DEFAULT_MENLO_SG_SEG_CNT) {
+			phba->cfg_sg_seg_cnt = LPFC_DEFAULT_MENLO_SG_SEG_CNT;
+			shost->sg_tablesize = phba->cfg_sg_seg_cnt;
+		}
+	}
 
 	error = scsi_add_host_with_dma(shost, dev, &phba->pcidev->dev);
 	if (error)
@@ -2912,6 +2943,9 @@ lpfc_sli4_fcf_redisc_wait_tmo(unsigned long ptr)
 	/* FCF rediscovery event to worker thread */
 	phba->fcf.fcf_flag |= FCF_REDISC_EVT;
 	spin_unlock_irq(&phba->hbalock);
+	lpfc_printf_log(phba, KERN_INFO, LOG_FIP,
+			"2776 FCF rediscover wait timer expired, post "
+			"a worker thread event for FCF table scan\n");
 	/* wake up worker thread */
 	lpfc_worker_wake_up(phba);
 }
@@ -3183,6 +3217,68 @@ out_free_pmb:
 }
 
 /**
+ * lpfc_sli4_perform_vport_cvl - Perform clear virtual link on a vport
+ * @vport: pointer to vport data structure.
+ *
+ * This routine is to perform Clear Virtual Link (CVL) on a vport in
+ * response to a CVL event.
+ *
+ * Return the pointer to the ndlp with the vport if successful, otherwise
+ * return NULL.
+ **/
+static struct lpfc_nodelist *
+lpfc_sli4_perform_vport_cvl(struct lpfc_vport *vport)
+{
+	struct lpfc_nodelist *ndlp;
+	struct Scsi_Host *shost;
+	struct lpfc_hba *phba;
+
+	if (!vport)
+		return NULL;
+	ndlp = lpfc_findnode_did(vport, Fabric_DID);
+	if (!ndlp)
+		return NULL;
+	phba = vport->phba;
+	if (!phba)
+		return NULL;
+	if (phba->pport->port_state <= LPFC_FLOGI)
+		return NULL;
+	/* If virtual link is not yet instantiated ignore CVL */
+	if (vport->port_state <= LPFC_FDISC)
+		return NULL;
+	shost = lpfc_shost_from_vport(vport);
+	if (!shost)
+		return NULL;
+	lpfc_linkdown_port(vport);
+	lpfc_cleanup_pending_mbox(vport);
+	spin_lock_irq(shost->host_lock);
+	vport->fc_flag |= FC_VPORT_CVL_RCVD;
+	spin_unlock_irq(shost->host_lock);
+
+	return ndlp;
+}
+
+/**
+ * lpfc_sli4_perform_all_vport_cvl - Perform clear virtual link on all vports
+ * @vport: pointer to lpfc hba data structure.
+ *
+ * This routine is to perform Clear Virtual Link (CVL) on all vports in
+ * response to a FCF dead event.
+ **/
+static void
+lpfc_sli4_perform_all_vport_cvl(struct lpfc_hba *phba)
+{
+	struct lpfc_vport **vports;
+	int i;
+
+	vports = lpfc_create_vport_work_array(phba);
+	if (vports)
+		for (i = 0; i <= phba->max_vports && vports[i] != NULL; i++)
+			lpfc_sli4_perform_vport_cvl(vports[i]);
+	lpfc_destroy_vport_work_array(phba, vports);
+}
+
+/**
  * lpfc_sli4_async_fcoe_evt - Process the asynchronous fcoe event
  * @phba: pointer to lpfc hba data structure.
  * @acqe_link: pointer to the async fcoe completion queue entry.
@@ -3198,7 +3294,6 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	struct lpfc_vport *vport;
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host  *shost;
-	uint32_t link_state;
 	int active_vlink_present;
 	struct lpfc_vport **vports;
 	int i;
@@ -3208,10 +3303,11 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 	switch (event_type) {
 	case LPFC_FCOE_EVENT_TYPE_NEW_FCF:
 	case LPFC_FCOE_EVENT_TYPE_FCF_PARAM_MOD:
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-			"2546 New FCF found index 0x%x tag 0x%x\n",
-			acqe_fcoe->index,
-			acqe_fcoe->event_tag);
+		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
+			"2546 New FCF found/FCF parameter modified event: "
+			"evt_tag:x%x, fcf_index:x%x\n",
+			acqe_fcoe->event_tag, acqe_fcoe->index);
+
 		spin_lock_irq(&phba->hbalock);
 		if ((phba->fcf.fcf_flag & FCF_SCAN_DONE) ||
 		    (phba->hba_flag & FCF_DISC_INPROGRESS)) {
@@ -3222,6 +3318,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			spin_unlock_irq(&phba->hbalock);
 			break;
 		}
+
 		if (phba->fcf.fcf_flag & FCF_REDISC_EVT) {
 			/*
 			 * If fast FCF failover rescan event is pending,
@@ -3232,12 +3329,33 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 		}
 		spin_unlock_irq(&phba->hbalock);
 
-		/* Read the FCF table and re-discover SAN. */
-		rc = lpfc_sli4_read_fcf_record(phba, LPFC_FCOE_FCF_GET_FIRST);
+		if ((phba->fcf.fcf_flag & FCF_DISCOVERY) &&
+		    !(phba->fcf.fcf_flag & FCF_REDISC_FOV)) {
+			/*
+			 * During period of FCF discovery, read the FCF
+			 * table record indexed by the event to update
+			 * FCF round robin failover eligible FCF bmask.
+			 */
+			lpfc_printf_log(phba, KERN_INFO, LOG_FIP |
+					LOG_DISCOVERY,
+					"2779 Read new FCF record with "
+					"fcf_index:x%x for updating FCF "
+					"round robin failover bmask\n",
+					acqe_fcoe->index);
+			rc = lpfc_sli4_read_fcf_rec(phba, acqe_fcoe->index);
+		}
+
+		/* Otherwise, scan the entire FCF table and re-discover SAN */
+		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
+				"2770 Start FCF table scan due to new FCF "
+				"event: evt_tag:x%x, fcf_index:x%x\n",
+				acqe_fcoe->event_tag, acqe_fcoe->index);
+		rc = lpfc_sli4_fcf_scan_read_fcf_rec(phba,
+						     LPFC_FCOE_FCF_GET_FIRST);
 		if (rc)
-			lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-					"2547 Read FCF record failed 0x%x\n",
-					rc);
+			lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
+					"2547 Issue FCF scan read FCF mailbox "
+					"command failed 0x%x\n", rc);
 		break;
 
 	case LPFC_FCOE_EVENT_TYPE_FCF_TABLE_FULL:
@@ -3248,47 +3366,63 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 		break;
 
 	case LPFC_FCOE_EVENT_TYPE_FCF_DEAD:
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 			"2549 FCF disconnected from network index 0x%x"
 			" tag 0x%x\n", acqe_fcoe->index,
 			acqe_fcoe->event_tag);
 		/* If the event is not for currently used fcf do nothing */
 		if (phba->fcf.current_rec.fcf_indx != acqe_fcoe->index)
 			break;
-		/*
-		 * Currently, driver support only one FCF - so treat this as
-		 * a link down, but save the link state because we don't want
-		 * it to be changed to Link Down unless it is already down.
+		/* We request port to rediscover the entire FCF table for
+		 * a fast recovery from case that the current FCF record
+		 * is no longer valid if we are not in the middle of FCF
+		 * failover process already.
 		 */
-		link_state = phba->link_state;
-		lpfc_linkdown(phba);
-		phba->link_state = link_state;
-		/* Unregister FCF if no devices connected to it */
-		lpfc_unregister_unused_fcf(phba);
+		spin_lock_irq(&phba->hbalock);
+		if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
+			spin_unlock_irq(&phba->hbalock);
+			/* Update FLOGI FCF failover eligible FCF bmask */
+			lpfc_sli4_fcf_rr_index_clear(phba, acqe_fcoe->index);
+			break;
+		}
+		/* Mark the fast failover process in progress */
+		phba->fcf.fcf_flag |= FCF_DEAD_DISC;
+		spin_unlock_irq(&phba->hbalock);
+		lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
+				"2771 Start FCF fast failover process due to "
+				"FCF DEAD event: evt_tag:x%x, fcf_index:x%x "
+				"\n", acqe_fcoe->event_tag, acqe_fcoe->index);
+		rc = lpfc_sli4_redisc_fcf_table(phba);
+		if (rc) {
+			lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
+					LOG_DISCOVERY,
+					"2772 Issue FCF rediscover mabilbox "
+					"command failed, fail through to FCF "
+					"dead event\n");
+			spin_lock_irq(&phba->hbalock);
+			phba->fcf.fcf_flag &= ~FCF_DEAD_DISC;
+			spin_unlock_irq(&phba->hbalock);
+			/*
+			 * Last resort will fail over by treating this
+			 * as a link down to FCF registration.
+			 */
+			lpfc_sli4_fcf_dead_failthrough(phba);
+		} else
+			/* Handling fast FCF failover to a DEAD FCF event
+			 * is considered equalivant to receiving CVL to all
+			 * vports.
+			 */
+			lpfc_sli4_perform_all_vport_cvl(phba);
 		break;
 	case LPFC_FCOE_EVENT_TYPE_CVL:
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
+		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
 			"2718 Clear Virtual Link Received for VPI 0x%x"
 			" tag 0x%x\n", acqe_fcoe->index, acqe_fcoe->event_tag);
 		vport = lpfc_find_vport_by_vpid(phba,
 				acqe_fcoe->index - phba->vpi_base);
-		if (!vport)
-			break;
-		ndlp = lpfc_findnode_did(vport, Fabric_DID);
+		ndlp = lpfc_sli4_perform_vport_cvl(vport);
 		if (!ndlp)
 			break;
-		shost = lpfc_shost_from_vport(vport);
-		if (phba->pport->port_state <= LPFC_FLOGI)
-			break;
-		/* If virtual link is not yet instantiated ignore CVL */
-		if (vport->port_state <= LPFC_FDISC)
-			break;
-
-		lpfc_linkdown_port(vport);
-		lpfc_cleanup_pending_mbox(vport);
-		spin_lock_irq(shost->host_lock);
-		vport->fc_flag |= FC_VPORT_CVL_RCVD;
-		spin_unlock_irq(shost->host_lock);
 		active_vlink_present = 0;
 
 		vports = lpfc_create_vport_work_array(phba);
@@ -3311,6 +3445,7 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			 * re-instantiate the Vlink using FDISC.
 			 */
 			mod_timer(&ndlp->nlp_delayfunc, jiffies + HZ);
+			shost = lpfc_shost_from_vport(vport);
 			spin_lock_irq(shost->host_lock);
 			ndlp->nlp_flag |= NLP_DELAY_TMO;
 			spin_unlock_irq(shost->host_lock);
@@ -3321,15 +3456,38 @@ lpfc_sli4_async_fcoe_evt(struct lpfc_hba *phba,
 			 * Otherwise, we request port to rediscover
 			 * the entire FCF table for a fast recovery
 			 * from possible case that the current FCF
-			 * is no longer valid.
+			 * is no longer valid if we are not already
+			 * in the FCF failover process.
 			 */
+			spin_lock_irq(&phba->hbalock);
+			if (phba->fcf.fcf_flag & FCF_DISCOVERY) {
+				spin_unlock_irq(&phba->hbalock);
+				break;
+			}
+			/* Mark the fast failover process in progress */
+			phba->fcf.fcf_flag |= FCF_ACVL_DISC;
+			spin_unlock_irq(&phba->hbalock);
+			lpfc_printf_log(phba, KERN_INFO, LOG_FIP |
+					LOG_DISCOVERY,
+					"2773 Start FCF fast failover due "
+					"to CVL event: evt_tag:x%x\n",
+					acqe_fcoe->event_tag);
 			rc = lpfc_sli4_redisc_fcf_table(phba);
-			if (rc)
+			if (rc) {
+				lpfc_printf_log(phba, KERN_ERR, LOG_FIP |
+						LOG_DISCOVERY,
+						"2774 Issue FCF rediscover "
+						"mabilbox command failed, "
+						"through to CVL event\n");
+				spin_lock_irq(&phba->hbalock);
+				phba->fcf.fcf_flag &= ~FCF_ACVL_DISC;
+				spin_unlock_irq(&phba->hbalock);
 				/*
 				 * Last resort will be re-try on the
 				 * the current registered FCF entry.
 				 */
 				lpfc_retry_pport_discovery(phba);
+			}
 		}
 		break;
 	default:
@@ -3426,11 +3584,14 @@ void lpfc_sli4_fcf_redisc_event_proc(struct lpfc_hba *phba)
 	spin_unlock_irq(&phba->hbalock);
 
 	/* Scan FCF table from the first entry to re-discover SAN */
-	rc = lpfc_sli4_read_fcf_record(phba, LPFC_FCOE_FCF_GET_FIRST);
+	lpfc_printf_log(phba, KERN_INFO, LOG_FIP | LOG_DISCOVERY,
+			"2777 Start FCF table scan after FCF "
+			"rediscovery quiescent period over\n");
+	rc = lpfc_sli4_fcf_scan_read_fcf_rec(phba, LPFC_FCOE_FCF_GET_FIRST);
 	if (rc)
-		lpfc_printf_log(phba, KERN_ERR, LOG_DISCOVERY,
-				"2747 Post FCF rediscovery read FCF record "
-				"failed 0x%x\n", rc);
+		lpfc_printf_log(phba, KERN_ERR, LOG_FIP | LOG_DISCOVERY,
+				"2747 Issue FCF scan read FCF mailbox "
+				"command failed 0x%x\n", rc);
 }
 
 /**
@@ -3722,6 +3883,7 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 	int rc, i, hbq_count, buf_size, dma_buf_size, max_buf_size;
 	uint8_t pn_page[LPFC_MAX_SUPPORTED_PAGES] = {0};
 	struct lpfc_mqe *mqe;
+	int longs;
 
 	/* Before proceed, wait for POST done and device ready */
 	rc = lpfc_sli4_post_status_check(phba);
@@ -3898,13 +4060,24 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 		goto out_free_active_sgl;
 	}
 
+	/* Allocate eligible FCF bmask memory for FCF round robin failover */
+	longs = (LPFC_SLI4_FCF_TBL_INDX_MAX + BITS_PER_LONG - 1)/BITS_PER_LONG;
+	phba->fcf.fcf_rr_bmask = kzalloc(longs * sizeof(unsigned long),
+					 GFP_KERNEL);
+	if (!phba->fcf.fcf_rr_bmask) {
+		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
+				"2759 Failed allocate memory for FCF round "
+				"robin failover bmask\n");
+		goto out_remove_rpi_hdrs;
+	}
+
 	phba->sli4_hba.fcp_eq_hdl = kzalloc((sizeof(struct lpfc_fcp_eq_hdl) *
 				    phba->cfg_fcp_eq_count), GFP_KERNEL);
 	if (!phba->sli4_hba.fcp_eq_hdl) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_INIT,
 				"2572 Failed allocate memory for fast-path "
 				"per-EQ handle array\n");
-		goto out_remove_rpi_hdrs;
+		goto out_free_fcf_rr_bmask;
 	}
 
 	phba->sli4_hba.msix_entries = kzalloc((sizeof(struct msix_entry) *
@@ -3957,6 +4130,8 @@ lpfc_sli4_driver_resource_setup(struct lpfc_hba *phba)
 
 out_free_fcp_eq_hdl:
 	kfree(phba->sli4_hba.fcp_eq_hdl);
+out_free_fcf_rr_bmask:
+	kfree(phba->fcf.fcf_rr_bmask);
 out_remove_rpi_hdrs:
 	lpfc_sli4_remove_rpi_hdrs(phba);
 out_free_active_sgl:
@@ -4001,6 +4176,9 @@ lpfc_sli4_driver_resource_unset(struct lpfc_hba *phba)
 	/* Free the allocated rpi headers. */
 	lpfc_sli4_remove_rpi_hdrs(phba);
 	lpfc_sli4_remove_rpis(phba);
+
+	/* Free eligible FCF index bmask */
+	kfree(phba->fcf.fcf_rr_bmask);
 
 	/* Free the ELS sgl list */
 	lpfc_free_active_sgl(phba);
@@ -4397,6 +4575,7 @@ lpfc_init_sgl_list(struct lpfc_hba *phba)
 
 		/* The list order is used by later block SGL registraton */
 		spin_lock_irq(&phba->hbalock);
+		sglq_entry->state = SGL_FREED;
 		list_add_tail(&sglq_entry->list, &phba->sli4_hba.lpfc_sgl_list);
 		phba->sli4_hba.lpfc_els_sgl_array[i] = sglq_entry;
 		phba->sli4_hba.total_sglq_bufs++;

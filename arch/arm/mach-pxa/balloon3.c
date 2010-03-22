@@ -132,6 +132,14 @@ static void __init balloon3_init_irq(void)
 		"enabled\n", __func__, BALLOON3_AUX_NIRQ);
 }
 
+static unsigned long balloon3_ac97_pin_config[] = {
+	GPIO28_AC97_BITCLK,
+	GPIO29_AC97_SDATA_IN_0,
+	GPIO30_AC97_SDATA_OUT,
+	GPIO31_AC97_SYNC,
+	GPIO113_AC97_nRESET,
+};
+
 static void balloon3_backlight_power(int on)
 {
 	pr_debug("%s: power is %s\n", __func__, on ? "on" : "off");
@@ -140,26 +148,7 @@ static void balloon3_backlight_power(int on)
 
 static unsigned long balloon3_lcd_pin_config[] = {
 	/* LCD - 16bpp Active TFT */
-	GPIO58_LCD_LDD_0,
-	GPIO59_LCD_LDD_1,
-	GPIO60_LCD_LDD_2,
-	GPIO61_LCD_LDD_3,
-	GPIO62_LCD_LDD_4,
-	GPIO63_LCD_LDD_5,
-	GPIO64_LCD_LDD_6,
-	GPIO65_LCD_LDD_7,
-	GPIO66_LCD_LDD_8,
-	GPIO67_LCD_LDD_9,
-	GPIO68_LCD_LDD_10,
-	GPIO69_LCD_LDD_11,
-	GPIO70_LCD_LDD_12,
-	GPIO71_LCD_LDD_13,
-	GPIO72_LCD_LDD_14,
-	GPIO73_LCD_LDD_15,
-	GPIO74_LCD_FCLK,
-	GPIO75_LCD_LCLK,
-	GPIO76_LCD_PCLK,
-	GPIO77_LCD_BIAS,
+	GPIOxx_LCD_TFT_16BPP,
 
 	GPIO99_GPIO,		/* Backlight */
 };
@@ -311,8 +300,10 @@ static void __init balloon3_init(void)
 	pxa_set_stuart_info(NULL);
 
 	pxa_set_i2c_info(NULL);
-	if (balloon3_has(BALLOON3_FEATURE_AUDIO))
+	if (balloon3_has(BALLOON3_FEATURE_AUDIO)) {
+		pxa2xx_mfp_config(ARRAY_AND_SIZE(balloon3_ac97_pin_config));
 		pxa_set_ac97_info(NULL);
+	}
 
 	if (balloon3_has(BALLOON3_FEATURE_TOPPOLY)) {
 		pxa2xx_mfp_config(ARRAY_AND_SIZE(balloon3_lcd_pin_config));

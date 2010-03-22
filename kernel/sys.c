@@ -33,6 +33,7 @@
 #include <linux/task_io_accounting_ops.h>
 #include <linux/seccomp.h>
 #include <linux/cpu.h>
+#include <linux/personality.h>
 #include <linux/ptrace.h>
 #include <linux/fs_struct.h>
 
@@ -1114,6 +1115,15 @@ out:
 
 DECLARE_RWSEM(uts_sem);
 
+#ifdef COMPAT_UTS_MACHINE
+#define override_architecture(name) \
+	(current->personality == PER_LINUX32 && \
+	 copy_to_user(name->machine, COMPAT_UTS_MACHINE, \
+		      sizeof(COMPAT_UTS_MACHINE)))
+#else
+#define override_architecture(name)	0
+#endif
+
 SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 {
 	int errno = 0;
@@ -1122,8 +1132,65 @@ SYSCALL_DEFINE1(newuname, struct new_utsname __user *, name)
 	if (copy_to_user(name, utsname(), sizeof *name))
 		errno = -EFAULT;
 	up_read(&uts_sem);
+
+	if (!errno && override_architecture(name))
+		errno = -EFAULT;
 	return errno;
 }
+
+#ifdef __ARCH_WANT_SYS_OLD_UNAME
+/*
+ * Old cruft
+ */
+SYSCALL_DEFINE1(uname, struct old_utsname __user *, name)
+{
+	int error = 0;
+
+	if (!name)
+		return -EFAULT;
+
+	down_read(&uts_sem);
+	if (copy_to_user(name, utsname(), sizeof(*name)))
+		error = -EFAULT;
+	up_read(&uts_sem);
+
+	if (!error && override_architecture(name))
+		error = -EFAULT;
+	return error;
+}
+
+SYSCALL_DEFINE1(olduname, struct oldold_utsname __user *, name)
+{
+	int error;
+
+	if (!name)
+		return -EFAULT;
+	if (!access_ok(VERIFY_WRITE, name, sizeof(struct oldold_utsname)))
+		return -EFAULT;
+
+	down_read(&uts_sem);
+	error = __copy_to_user(&name->sysname, &utsname()->sysname,
+			       __OLD_UTS_LEN);
+	error |= __put_user(0, name->sysname + __OLD_UTS_LEN);
+	error |= __copy_to_user(&name->nodename, &utsname()->nodename,
+				__OLD_UTS_LEN);
+	error |= __put_user(0, name->nodename + __OLD_UTS_LEN);
+	error |= __copy_to_user(&name->release, &utsname()->release,
+				__OLD_UTS_LEN);
+	error |= __put_user(0, name->release + __OLD_UTS_LEN);
+	error |= __copy_to_user(&name->version, &utsname()->version,
+				__OLD_UTS_LEN);
+	error |= __put_user(0, name->version + __OLD_UTS_LEN);
+	error |= __copy_to_user(&name->machine, &utsname()->machine,
+				__OLD_UTS_LEN);
+	error |= __put_user(0, name->machine + __OLD_UTS_LEN);
+	up_read(&uts_sem);
+
+	if (!error && override_architecture(name))
+		error = -EFAULT;
+	return error ? -EFAULT : 0;
+}
+#endif
 
 SYSCALL_DEFINE2(sethostname, char __user *, name, int, len)
 {

@@ -639,12 +639,16 @@ static int asus_backlight_init(struct asus_laptop *asus)
 {
 	struct backlight_device *bd;
 	struct device *dev = &asus->platform_device->dev;
+	struct backlight_properties props;
 
 	if (!acpi_check_handle(asus->handle, METHOD_BRIGHTNESS_GET, NULL) &&
 	    !acpi_check_handle(asus->handle, METHOD_BRIGHTNESS_SET, NULL) &&
 	    lcd_switch_handle) {
+		memset(&props, 0, sizeof(struct backlight_properties));
+		props.max_brightness = 15;
+
 		bd = backlight_device_register(ASUS_LAPTOP_FILE, dev,
-					       asus, &asusbl_ops);
+					       asus, &asusbl_ops, &props);
 		if (IS_ERR(bd)) {
 			pr_err("Could not register asus backlight device\n");
 			asus->backlight_device = NULL;
@@ -653,7 +657,6 @@ static int asus_backlight_init(struct asus_laptop *asus)
 
 		asus->backlight_device = bd;
 
-		bd->props.max_brightness = 15;
 		bd->props.power = FB_BLANK_UNBLANK;
 		bd->props.brightness = asus_read_brightness(bd);
 		backlight_update_status(bd);

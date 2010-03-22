@@ -249,22 +249,6 @@ SYSCALL_DEFINE5(n32_msgrcv, int, msqid, u32, msgp, size_t, msgsz,
 }
 #endif
 
-SYSCALL_DEFINE1(32_newuname, struct new_utsname __user *, name)
-{
-	int ret = 0;
-
-	down_read(&uts_sem);
-	if (copy_to_user(name, utsname(), sizeof *name))
-		ret = -EFAULT;
-	up_read(&uts_sem);
-
-	if (current->personality == PER_LINUX32 && !ret)
-		if (copy_to_user(name->machine, "mips\0\0\0", 8))
-			ret = -EFAULT;
-
-	return ret;
-}
-
 SYSCALL_DEFINE1(32_personality, unsigned long, personality)
 {
 	int ret;

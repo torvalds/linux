@@ -14,6 +14,9 @@
 #define _ASM_POWERPC_PACA_H
 #ifdef __KERNEL__
 
+#ifdef CONFIG_PPC64
+
+#include <linux/init.h>
 #include <asm/types.h>
 #include <asm/lppaca.h>
 #include <asm/mmu.h>
@@ -145,8 +148,19 @@ struct paca_struct {
 #endif
 };
 
-extern struct paca_struct paca[];
-extern void initialise_pacas(void);
+extern struct paca_struct *paca;
+extern __initdata struct paca_struct boot_paca;
+extern void initialise_paca(struct paca_struct *new_paca, int cpu);
+
+extern void allocate_pacas(void);
+extern void free_unused_pacas(void);
+
+#else /* CONFIG_PPC64 */
+
+static inline void allocate_pacas(void) { };
+static inline void free_unused_pacas(void) { };
+
+#endif /* CONFIG_PPC64 */
 
 #endif /* __KERNEL__ */
 #endif /* _ASM_POWERPC_PACA_H */

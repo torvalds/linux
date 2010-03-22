@@ -1881,7 +1881,7 @@ out:
  * ocfs2_file_lock() and ocfs2_file_unlock() map to a single pair of
  * flock() calls. The locking approach this requires is sufficiently
  * different from all other cluster lock types that we implement a
- * seperate path to the "low-level" dlm calls. In particular:
+ * separate path to the "low-level" dlm calls. In particular:
  *
  * - No optimization of lock levels is done - we take at exactly
  *   what's been requested.

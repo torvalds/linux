@@ -582,3 +582,10 @@ Why:	The paravirt mmu host support is slower than non-paravirt mmu, both
 Who:	Avi Kivity <avi@redhat.com>
 
 ----------------------------
+
+What: 	"acpi=ht" boot option
+When:	2.6.35
+Why:	Useful in 2003, implementation is a hack.
+	Generally invoked by accident today.
+	Seen as doing more harm than good.
+Who:	Len Brown <len.brown@intel.com>

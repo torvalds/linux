@@ -368,7 +368,7 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 	int valid = 0;
 	int i;
 
-	/* Critical Shutdown (required) */
+	/* Critical Shutdown */
 	if (flag & ACPI_TRIPS_CRITICAL) {
 		status = acpi_evaluate_integer(tz->device->handle,
 				"_CRT", NULL, &tmp);
@@ -379,17 +379,19 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 		 * Below zero (Celsius) values clearly aren't right for sure..
 		 * ... so lets discard those as invalid.
 		 */
-		if (ACPI_FAILURE(status) ||
-				tz->trips.critical.temperature <= 2732) {
+		if (ACPI_FAILURE(status)) {
 			tz->trips.critical.flags.valid = 0;
-			ACPI_EXCEPTION((AE_INFO, status,
-					"No or invalid critical threshold"));
-			return -ENODEV;
+			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
+					  "No critical threshold\n"));
+		} else if (tmp <= 2732) {
+			printk(KERN_WARNING FW_BUG "Invalid critical threshold "
+			       "(%llu)\n", tmp);
+			tz->trips.critical.flags.valid = 0;
 		} else {
 			tz->trips.critical.flags.valid = 1;
 			ACPI_DEBUG_PRINT((ACPI_DB_INFO,
-					"Found critical threshold [%lu]\n",
-					tz->trips.critical.temperature));
+					  "Found critical threshold [%lu]\n",
+					  tz->trips.critical.temperature));
 		}
 		if (tz->trips.critical.flags.valid == 1) {
 			if (crt == -1) {
@@ -575,7 +577,23 @@ static int acpi_thermal_trips_update(struct acpi_thermal *tz, int flag)
 
 static int acpi_thermal_get_trip_points(struct acpi_thermal *tz)
 {
-	return acpi_thermal_trips_update(tz, ACPI_TRIPS_INIT);
+	int i, valid, ret = acpi_thermal_trips_update(tz, ACPI_TRIPS_INIT);
+
+	if (ret)
+		return ret;
+
+	valid = tz->trips.critical.flags.valid |
+		tz->trips.hot.flags.valid |
+		tz->trips.passive.flags.valid;
+
+	for (i = 0; i < ACPI_THERMAL_MAX_ACTIVE; i++)
+		valid |= tz->trips.active[i].flags.valid;
+
+	if (!valid) {
+		printk(KERN_WARNING FW_BUG "No valid trip found\n");
+		return -ENODEV;
+	}
+	return 0;
 }
 
 static void acpi_thermal_check(void *data)

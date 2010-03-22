@@ -256,6 +256,7 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 {
 	struct pcmcia_socket *s;
 	config_t *c;
+	int ret;
 
 	s = p_dev->socket;
 
@@ -264,13 +265,13 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 
 	if (!(s->state & SOCKET_PRESENT)) {
 		dev_dbg(&s->dev, "No card present\n");
-		mutex_unlock(&s->ops_mutex);
-		return -ENODEV;
+		ret = -ENODEV;
+		goto unlock;
 	}
 	if (!(c->state & CONFIG_LOCKED)) {
 		dev_dbg(&s->dev, "Configuration isnt't locked\n");
-		mutex_unlock(&s->ops_mutex);
-		return -EACCES;
+		ret = -EACCES;
+		goto unlock;
 	}
 
 	if (mod->Attributes & CONF_IRQ_CHANGE_VALID) {
@@ -286,7 +287,8 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 
 	if (mod->Attributes & CONF_VCC_CHANGE_VALID) {
 		dev_dbg(&s->dev, "changing Vcc is not allowed at this time\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	/* We only allow changing Vpp1 and Vpp2 to the same value */
@@ -294,21 +296,21 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 	    (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
 		if (mod->Vpp1 != mod->Vpp2) {
 			dev_dbg(&s->dev, "Vpp1 and Vpp2 must be the same\n");
-			mutex_unlock(&s->ops_mutex);
-			return -EINVAL;
+			ret = -EINVAL;
+			goto unlock;
 		}
 		s->socket.Vpp = mod->Vpp1;
 		if (s->ops->set_socket(s, &s->socket)) {
-			mutex_unlock(&s->ops_mutex);
 			dev_printk(KERN_WARNING, &s->dev,
 				   "Unable to set VPP\n");
-			return -EIO;
+			ret = -EIO;
+			goto unlock;
 		}
 	} else if ((mod->Attributes & CONF_VPP1_CHANGE_VALID) ||
 		   (mod->Attributes & CONF_VPP2_CHANGE_VALID)) {
 		dev_dbg(&s->dev, "changing Vcc is not allowed at this time\n");
-		mutex_unlock(&s->ops_mutex);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto unlock;
 	}
 
 	if (mod->Attributes & CONF_IO_CHANGE_WIDTH) {
@@ -332,9 +334,11 @@ int pcmcia_modify_configuration(struct pcmcia_device *p_dev,
 			s->ops->set_io_map(s, &io_on);
 		}
 	}
+	ret = 0;
+unlock:
 	mutex_unlock(&s->ops_mutex);
 
-	return 0;
+	return ret;
 } /* modify_configuration */
 EXPORT_SYMBOL(pcmcia_modify_configuration);
 
@@ -751,14 +755,6 @@ int pcmcia_request_irq(struct pcmcia_device *p_dev, irq_req_t *req)
 		printk(KERN_WARNING "pcmcia: Driver needs updating to support IRQ sharing.\n");
 
 #ifdef CONFIG_PCMCIA_PROBE
-
-#ifdef IRQ_NOAUTOEN
-	/* if the underlying IRQ infrastructure allows for it, only allocate
-	 * the IRQ, but do not enable it
-	 */
-	if (!(req->Handler))
-		type |= IRQ_NOAUTOEN;
-#endif /* IRQ_NOAUTOEN */
 
 	if (s->irq.AssignedIRQ != 0) {
 		/* If the interrupt is already assigned, it must be the same */

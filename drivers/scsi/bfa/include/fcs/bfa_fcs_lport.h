@@ -34,14 +34,6 @@ struct bfa_fcs_s;
 struct bfa_fcs_fabric_s;
 
 /*
-* @todo : need to move to a global config file.
- * Maximum Vports supported per physical port or vf.
- */
-#define BFA_FCS_MAX_VPORTS_SUPP_CB  255
-#define BFA_FCS_MAX_VPORTS_SUPP_CT  191
-
-/*
-* @todo : need to move to a global config file.
  * Maximum Rports supported per port (physical/logical).
  */
 #define BFA_FCS_MAX_RPORTS_SUPP  256	/* @todo : tentative value */

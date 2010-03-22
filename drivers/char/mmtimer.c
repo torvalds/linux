@@ -546,7 +546,7 @@ static void mmtimer_tasklet(unsigned long data)
 {
 	int nodeid = data;
 	struct mmtimer_node *mn = &timers[nodeid];
-	struct mmtimer *x = rb_entry(mn->next, struct mmtimer, list);
+	struct mmtimer *x;
 	struct k_itimer *t;
 	unsigned long flags;
 

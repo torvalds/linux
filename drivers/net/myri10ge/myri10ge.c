@@ -3687,7 +3687,6 @@ static void myri10ge_probe_slices(struct myri10ge_priv *mgp)
 	if (status != 0) {
 		dev_err(&mgp->pdev->dev, "failed reset\n");
 		goto abort_with_fw;
-		return;
 	}
 
 	mgp->max_intr_slots = cmd.data0 / sizeof(struct mcp_slot);

@@ -627,7 +627,7 @@ enum i2400m_bm_cmd_flags {
  * @I2400M_BRI_NO_REBOOT: Do not reboot the device and proceed
  *     directly to wait for a reboot barker from the device.
  * @I2400M_BRI_MAC_REINIT: We need to reinitialize the boot
- *     rom after reading the MAC adress. This is quite a dirty hack,
+ *     rom after reading the MAC address. This is quite a dirty hack,
  *     if you ask me -- the device requires the bootrom to be
  *     intialized after reading the MAC address.
  */

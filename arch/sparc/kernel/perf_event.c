@@ -1189,7 +1189,7 @@ static int __kprobes perf_event_nmi_handler(struct notifier_block *self,
 
 	regs = args->regs;
 
-	data.addr = 0;
+	perf_sample_data_init(&data, 0);
 
 	cpuc = &__get_cpu_var(cpu_hw_events);
 
@@ -1353,7 +1353,7 @@ static void perf_callchain_user_32(struct pt_regs *regs,
 }
 
 /* Like powerpc we can't get PMU interrupts within the PMU handler,
- * so no need for seperate NMI and IRQ chains as on x86.
+ * so no need for separate NMI and IRQ chains as on x86.
  */
 static DEFINE_PER_CPU(struct perf_callchain_entry, callchain);
 

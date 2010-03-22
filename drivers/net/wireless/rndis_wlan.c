@@ -1496,51 +1496,67 @@ static void set_multicast_list(struct usbnet *usbdev)
 {
 	struct rndis_wlan_private *priv = get_rndis_wlan_priv(usbdev);
 	struct dev_mc_list *mclist;
-	__le32 filter;
-	int ret, i, size;
-	char *buf;
+	__le32 filter, basefilter;
+	int ret;
+	char *mc_addrs = NULL;
+	int mc_count;
 
-	filter = RNDIS_PACKET_TYPE_DIRECTED | RNDIS_PACKET_TYPE_BROADCAST;
+	basefilter = filter = RNDIS_PACKET_TYPE_DIRECTED |
+			      RNDIS_PACKET_TYPE_BROADCAST;
 
-	netif_addr_lock_bh(usbdev->net);
 	if (usbdev->net->flags & IFF_PROMISC) {
 		filter |= RNDIS_PACKET_TYPE_PROMISCUOUS |
 			RNDIS_PACKET_TYPE_ALL_LOCAL;
-	} else if (usbdev->net->flags & IFF_ALLMULTI ||
-		   netdev_mc_count(usbdev->net) > priv->multicast_size) {
+	} else if (usbdev->net->flags & IFF_ALLMULTI) {
 		filter |= RNDIS_PACKET_TYPE_ALL_MULTICAST;
-	} else if (!netdev_mc_empty(usbdev->net)) {
-		size = min(priv->multicast_size, netdev_mc_count(usbdev->net));
-		buf = kmalloc(size * ETH_ALEN, GFP_KERNEL);
-		if (!buf) {
+	}
+
+	if (filter != basefilter)
+		goto set_filter;
+
+	/*
+	 * mc_list should be accessed holding the lock, so copy addresses to
+	 * local buffer first.
+	 */
+	netif_addr_lock_bh(usbdev->net);
+	mc_count = netdev_mc_count(usbdev->net);
+	if (mc_count > priv->multicast_size) {
+		filter |= RNDIS_PACKET_TYPE_ALL_MULTICAST;
+	} else if (mc_count) {
+		int i = 0;
+
+		mc_addrs = kmalloc(mc_count * ETH_ALEN, GFP_ATOMIC);
+		if (!mc_addrs) {
 			netdev_warn(usbdev->net,
 				    "couldn't alloc %d bytes of memory\n",
-				    size * ETH_ALEN);
+				    mc_count * ETH_ALEN);
 			netif_addr_unlock_bh(usbdev->net);
 			return;
 		}
 
-		i = 0;
-		netdev_for_each_mc_addr(mclist, usbdev->net) {
-			if (i == size)
-				break;
-			memcpy(buf + i++ * ETH_ALEN, mclist->dmi_addr, ETH_ALEN);
-		}
+		netdev_for_each_mc_addr(mclist, usbdev->net)
+			memcpy(mc_addrs + i++ * ETH_ALEN,
+			       mclist->dmi_addr, ETH_ALEN);
+	}
+	netif_addr_unlock_bh(usbdev->net);
 
-		ret = rndis_set_oid(usbdev, OID_802_3_MULTICAST_LIST, buf,
-								i * ETH_ALEN);
-		if (ret == 0 && i > 0)
+	if (filter != basefilter)
+		goto set_filter;
+
+	if (mc_count) {
+		ret = rndis_set_oid(usbdev, OID_802_3_MULTICAST_LIST, mc_addrs,
+				    mc_count * ETH_ALEN);
+		kfree(mc_addrs);
+		if (ret == 0)
 			filter |= RNDIS_PACKET_TYPE_MULTICAST;
 		else
 			filter |= RNDIS_PACKET_TYPE_ALL_MULTICAST;
 
 		netdev_dbg(usbdev->net, "OID_802_3_MULTICAST_LIST(%d, max: %d) -> %d\n",
-			   i, priv->multicast_size, ret);
-
-		kfree(buf);
+			   mc_count, priv->multicast_size, ret);
 	}
-	netif_addr_unlock_bh(usbdev->net);
 
+set_filter:
 	ret = rndis_set_oid(usbdev, OID_GEN_CURRENT_PACKET_FILTER, &filter,
 							sizeof(filter));
 	if (ret < 0) {

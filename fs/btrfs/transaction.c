@@ -69,7 +69,7 @@ static noinline int join_transaction(struct btrfs_root *root)
 		cur_trans->commit_done = 0;
 		cur_trans->start_time = get_seconds();
 
-		cur_trans->delayed_refs.root.rb_node = NULL;
+		cur_trans->delayed_refs.root = RB_ROOT;
 		cur_trans->delayed_refs.num_entries = 0;
 		cur_trans->delayed_refs.num_heads_ready = 0;
 		cur_trans->delayed_refs.num_heads = 0;
@@ -997,11 +997,8 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans,
 
 		mutex_unlock(&root->fs_info->trans_mutex);
 
-		if (flush_on_commit) {
+		if (flush_on_commit || snap_pending) {
 			btrfs_start_delalloc_inodes(root, 1);
-			ret = btrfs_wait_ordered_extents(root, 0, 1);
-			BUG_ON(ret);
-		} else if (snap_pending) {
 			ret = btrfs_wait_ordered_extents(root, 0, 1);
 			BUG_ON(ret);
 		}

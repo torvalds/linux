@@ -381,7 +381,7 @@ static int __devinit bcm_umi_nand_probe(struct platform_device *pdev)
 	if (!r)
 		return -ENXIO;
 
-	/* map physical adress */
+	/* map physical address */
 	bcm_umi_io_base = ioremap(r->start, r->end - r->start + 1);
 
 	if (!bcm_umi_io_base) {
@@ -525,7 +525,7 @@ static int bcm_umi_nand_remove(struct platform_device *pdev)
 	/* Release resources, unregister device */
 	nand_release(board_mtd);
 
-	/* unmap physical adress */
+	/* unmap physical address */
 	iounmap(bcm_umi_io_base);
 
 	/* Free the MTD device structure */

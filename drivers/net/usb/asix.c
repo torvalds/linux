@@ -54,6 +54,7 @@ static const char driver_name [] = "asix";
 #define AX_CMD_WRITE_IPG0		0x12
 #define AX_CMD_WRITE_IPG1		0x13
 #define AX_CMD_READ_NODE_ID		0x13
+#define AX_CMD_WRITE_NODE_ID		0x14
 #define AX_CMD_WRITE_IPG2		0x14
 #define AX_CMD_WRITE_MULTI_FILTER	0x16
 #define AX88172_CMD_READ_NODE_ID	0x17
@@ -165,6 +166,7 @@ static const char driver_name [] = "asix";
 /* This structure cannot exceed sizeof(unsigned long [5]) AKA 20 bytes */
 struct asix_data {
 	u8 multi_filter[AX_MCAST_FILTER_SIZE];
+	u8 mac_addr[ETH_ALEN];
 	u8 phymode;
 	u8 ledmode;
 	u8 eeprom_len;
@@ -732,6 +734,30 @@ static int asix_ioctl (struct net_device *net, struct ifreq *rq, int cmd)
 	return generic_mii_ioctl(&dev->mii, if_mii(rq), cmd, NULL);
 }
 
+static int asix_set_mac_address(struct net_device *net, void *p)
+{
+	struct usbnet *dev = netdev_priv(net);
+	struct asix_data *data = (struct asix_data *)&dev->data;
+	struct sockaddr *addr = p;
+
+	if (netif_running(net))
+		return -EBUSY;
+	if (!is_valid_ether_addr(addr->sa_data))
+		return -EADDRNOTAVAIL;
+
+	memcpy(net->dev_addr, addr->sa_data, ETH_ALEN);
+
+	/* We use the 20 byte dev->data
+	 * for our 6 byte mac buffer
+	 * to avoid allocating memory that
+	 * is tricky to free later */
+	memcpy(data->mac_addr, addr->sa_data, ETH_ALEN);
+	asix_write_cmd_async(dev, AX_CMD_WRITE_NODE_ID, 0, 0, ETH_ALEN,
+							data->mac_addr);
+
+	return 0;
+}
+
 /* We need to override some ethtool_ops so we require our
    own structure so we don't interfere with other usbnet
    devices that may be connected at the same time. */
@@ -919,7 +945,7 @@ static const struct net_device_ops ax88772_netdev_ops = {
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
 	.ndo_change_mtu		= usbnet_change_mtu,
-	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_set_mac_address 	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_do_ioctl		= asix_ioctl,
 	.ndo_set_multicast_list = asix_set_multicast,
@@ -1213,7 +1239,7 @@ static const struct net_device_ops ax88178_netdev_ops = {
 	.ndo_stop		= usbnet_stop,
 	.ndo_start_xmit		= usbnet_start_xmit,
 	.ndo_tx_timeout		= usbnet_tx_timeout,
-	.ndo_set_mac_address 	= eth_mac_addr,
+	.ndo_set_mac_address 	= asix_set_mac_address,
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_set_multicast_list = asix_set_multicast,
 	.ndo_do_ioctl 		= asix_ioctl,

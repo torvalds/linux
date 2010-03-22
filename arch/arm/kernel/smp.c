@@ -99,6 +99,7 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	*pmd = __pmd((PHYS_OFFSET & PGDIR_MASK) |
 		     PMD_TYPE_SECT | PMD_SECT_AP_WRITE);
 	flush_pmd_entry(pmd);
+	outer_clean_range(__pa(pmd), __pa(pmd + 1));
 
 	/*
 	 * We need to tell the secondary core where to find
@@ -106,7 +107,8 @@ int __cpuinit __cpu_up(unsigned int cpu)
 	 */
 	secondary_data.stack = task_stack_page(idle) + THREAD_START_SP;
 	secondary_data.pgdir = virt_to_phys(pgd);
-	wmb();
+	__cpuc_flush_dcache_area(&secondary_data, sizeof(secondary_data));
+	outer_clean_range(__pa(&secondary_data), __pa(&secondary_data + 1));
 
 	/*
 	 * Now bring the CPU into our world.

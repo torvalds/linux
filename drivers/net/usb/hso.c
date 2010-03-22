@@ -1155,9 +1155,6 @@ static void _hso_serial_set_termios(struct tty_struct *tty,
 static void hso_resubmit_rx_bulk_urb(struct hso_serial *serial, struct urb *urb)
 {
 	int result;
-#ifdef CONFIG_HSO_AUTOPM
-	usb_mark_last_busy(urb->dev);
-#endif
 	/* We are done with this URB, resubmit it. Prep the USB to wait for
 	 * another frame */
 	usb_fill_bulk_urb(urb, serial->parent->usb,

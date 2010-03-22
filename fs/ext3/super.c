@@ -164,7 +164,7 @@ void ext3_msg(struct super_block *sb, const char *prefix,
  * write out the superblock safely.
  *
  * We'll just use the journal_abort() error code to record an error in
- * the journal instead.  On recovery, the journal will compain about
+ * the journal instead.  On recovery, the journal will complain about
  * that error until we've noted it down and cleared it.
  */
 
