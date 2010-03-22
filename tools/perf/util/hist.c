@@ -328,8 +328,6 @@ static size_t __callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 						   left_margin);
 		i = 0;
 		list_for_each_entry(chain, &child->val, list) {
-			if (chain->ip >= PERF_CONTEXT_MAX)
-				continue;
 			ret += ipchain__fprintf_graph(fp, chain, depth,
 						      new_depth_mask, i++,
 						      new_total,
@@ -368,9 +366,6 @@ static size_t callchain__fprintf_graph(FILE *fp, struct callchain_node *self,
 	int ret = 0;
 
 	list_for_each_entry(chain, &self->val, list) {
-		if (chain->ip >= PERF_CONTEXT_MAX)
-			continue;
-
 		if (!i++ && sort__first_dimension == SORT_SYM)
 			continue;
 

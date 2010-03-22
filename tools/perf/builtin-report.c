@@ -83,6 +83,7 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 {
 	struct symbol **syms = NULL, *parent = NULL;
 	bool hit;
+	int err;
 	struct hist_entry *he;
 	struct event_stat_id *stats;
 	struct perf_event_attr *attr;
@@ -109,8 +110,11 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 	if (symbol_conf.use_callchain) {
 		if (!hit)
 			callchain_init(&he->callchain);
-		append_chain(&he->callchain, data->callchain, syms);
+		err = append_chain(&he->callchain, data->callchain, syms);
 		free(syms);
+
+		if (err)
+			return err;
 	}
 
 	return 0;
