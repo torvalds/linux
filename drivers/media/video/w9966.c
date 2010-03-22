@@ -133,9 +133,9 @@ static const char *pardev[] = {[0 ... W9966_MAXCAMS] = "aggressive"};
 #endif
 module_param_array(pardev, charp, NULL, 0);
 MODULE_PARM_DESC(pardev, "pardev: where to search for\n"
-			 "\teach camera. 'aggressive' means brute-force search.\n"
-			 "\tEg: >pardev=parport3,aggressive,parport2,parport1< would assign\n"
-			 "\tcam 1 to parport3 and search every parport for cam 2 etc...");
+		"\teach camera. 'aggressive' means brute-force search.\n"
+		"\tEg: >pardev=parport3,aggressive,parport2,parport1< would assign\n"
+		"\tcam 1 to parport3 and search every parport for cam 2 etc...");
 
 static int parmode;
 module_param(parmode, int, 0);
@@ -152,13 +152,13 @@ static struct w9966_dev w9966_cams[W9966_MAXCAMS];
 
 
 /* Set camera phase flags, so we know what to uninit when terminating */
-static inline void w9966_setState(struct w9966_dev *cam, int mask, int val)
+static inline void w9966_set_state(struct w9966_dev *cam, int mask, int val)
 {
 	cam->dev_state = (cam->dev_state & ~mask) ^ val;
 }
 
 /* Get camera phase flags */
-static inline int w9966_getState(struct w9966_dev *cam, int mask, int val)
+static inline int w9966_get_state(struct w9966_dev *cam, int mask, int val)
 {
 	return ((cam->dev_state & mask) == val);
 }
@@ -166,25 +166,25 @@ static inline int w9966_getState(struct w9966_dev *cam, int mask, int val)
 /* Claim parport for ourself */
 static void w9966_pdev_claim(struct w9966_dev *cam)
 {
-	if (w9966_getState(cam, W9966_STATE_CLAIMED, W9966_STATE_CLAIMED))
+	if (w9966_get_state(cam, W9966_STATE_CLAIMED, W9966_STATE_CLAIMED))
 		return;
 	parport_claim_or_block(cam->pdev);
-	w9966_setState(cam, W9966_STATE_CLAIMED, W9966_STATE_CLAIMED);
+	w9966_set_state(cam, W9966_STATE_CLAIMED, W9966_STATE_CLAIMED);
 }
 
 /* Release parport for others to use */
 static void w9966_pdev_release(struct w9966_dev *cam)
 {
-	if (w9966_getState(cam, W9966_STATE_CLAIMED, 0))
+	if (w9966_get_state(cam, W9966_STATE_CLAIMED, 0))
 		return;
 	parport_release(cam->pdev);
-	w9966_setState(cam, W9966_STATE_CLAIMED, 0);
+	w9966_set_state(cam, W9966_STATE_CLAIMED, 0);
 }
 
 /* Read register from W9966 interface-chip
    Expects a claimed pdev
    -1 on error, else register data (byte) */
-static int w9966_rReg(struct w9966_dev *cam, int reg)
+static int w9966_read_reg(struct w9966_dev *cam, int reg)
 {
 	/* ECP, read, regtransfer, REG, REG, REG, REG, REG */
 	const unsigned char addr = 0x80 | (reg & 0x1f);
@@ -205,7 +205,7 @@ static int w9966_rReg(struct w9966_dev *cam, int reg)
 /* Write register to W9966 interface-chip
    Expects a claimed pdev
    -1 on error */
-static int w9966_wReg(struct w9966_dev *cam, int reg, int data)
+static int w9966_write_reg(struct w9966_dev *cam, int reg, int data)
 {
 	/* ECP, write, regtransfer, REG, REG, REG, REG, REG */
 	const unsigned char addr = 0xc0 | (reg & 0x1f);
@@ -236,7 +236,7 @@ static void w9966_i2c_setsda(struct w9966_dev *cam, int state)
 	else
 		cam->i2c_state &= ~W9966_I2C_W_DATA;
 
-	w9966_wReg(cam, 0x18, cam->i2c_state);
+	w9966_write_reg(cam, 0x18, cam->i2c_state);
 	udelay(5);
 }
 
@@ -244,7 +244,7 @@ static void w9966_i2c_setsda(struct w9966_dev *cam, int state)
    Expects a claimed pdev. */
 static int w9966_i2c_getscl(struct w9966_dev *cam)
 {
-	const unsigned char state = w9966_rReg(cam, 0x18);
+	const unsigned char state = w9966_read_reg(cam, 0x18);
 	return ((state & W9966_I2C_R_CLOCK) > 0);
 }
 
@@ -259,7 +259,7 @@ static int w9966_i2c_setscl(struct w9966_dev *cam, int state)
 	else
 		cam->i2c_state &= ~W9966_I2C_W_CLOCK;
 
-	w9966_wReg(cam, 0x18, cam->i2c_state);
+	w9966_write_reg(cam, 0x18, cam->i2c_state);
 	udelay(5);
 
 	/* we go to high, we also expect the peripheral to ack. */
@@ -278,7 +278,7 @@ static int w9966_i2c_setscl(struct w9966_dev *cam, int state)
    Expects a claimed pdev. */
 static int w9966_i2c_getsda(struct w9966_dev *cam)
 {
-	const unsigned char state = w9966_rReg(cam, 0x18);
+	const unsigned char state = w9966_read_reg(cam, 0x18);
 	return ((state & W9966_I2C_R_DATA) > 0);
 }
 #endif
@@ -332,7 +332,7 @@ static int w9966_i2c_rbyte(struct w9966_dev *cam)
 /* Read a register from the i2c device.
    Expects claimed pdev. -1 on error */
 #if 0
-static int w9966_rReg_i2c(struct w9966_dev *cam, int reg)
+static int w9966_read_reg_i2c(struct w9966_dev *cam, int reg)
 {
 	int data;
 
@@ -367,14 +367,14 @@ static int w9966_rReg_i2c(struct w9966_dev *cam, int reg)
 
 /* Write a register to the i2c device.
    Expects claimed pdev. -1 on error */
-static int w9966_wReg_i2c(struct w9966_dev *cam, int reg, int data)
+static int w9966_write_reg_i2c(struct w9966_dev *cam, int reg, int data)
 {
 	w9966_i2c_setsda(cam, 0);
 	w9966_i2c_setscl(cam, 0);
 
 	if (w9966_i2c_wbyte(cam, W9966_I2C_W_ID) == -1 ||
-	    w9966_i2c_wbyte(cam, reg) == -1 ||
-	    w9966_i2c_wbyte(cam, data) == -1)
+			w9966_i2c_wbyte(cam, reg) == -1 ||
+			w9966_i2c_wbyte(cam, data) == -1)
 		return -1;
 
 	w9966_i2c_setsda(cam, 0);
@@ -489,15 +489,15 @@ static int w9966_setup(struct w9966_dev *cam, int x1, int y1, int x2, int y2, in
 	enh_s = 0;
 	enh_e = w * h * 2;
 
-/* Modify capture window if necessary and calculate downscaling */
+	/* Modify capture window if necessary and calculate downscaling */
 	if (w9966_calcscale(w, W9966_WND_MIN_X, W9966_WND_MAX_X, &x1, &x2, &scale_x) != 0 ||
-	    w9966_calcscale(h, W9966_WND_MIN_Y, W9966_WND_MAX_Y, &y1, &y2, &scale_y) != 0)
+			w9966_calcscale(h, W9966_WND_MIN_Y, W9966_WND_MAX_Y, &y1, &y2, &scale_y) != 0)
 		return -1;
 
 	DPRINTF("%dx%d, x: %d<->%d, y: %d<->%d, sx: %d/64, sy: %d/64.\n",
-		w, h, x1, x2, y1, y2, scale_x & ~0x80, scale_y & ~0x80);
+			w, h, x1, x2, y1, y2, scale_x & ~0x80, scale_y & ~0x80);
 
-/* Setup registers */
+	/* Setup registers */
 	regs[0x00] = 0x00;			/* Set normal operation */
 	regs[0x01] = 0x18;			/* Capture mode */
 	regs[0x02] = scale_y;			/* V-scaling */
@@ -536,18 +536,18 @@ static int w9966_setup(struct w9966_dev *cam, int x1, int y1, int x2, int y2, in
 	saa7111_regs[0x0c] = cam->color;
 	saa7111_regs[0x0d] = cam->hue;
 
-/* Reset (ECP-fifo & serial-bus) */
-	if (w9966_wReg(cam, 0x00, 0x03) == -1)
+	/* Reset (ECP-fifo & serial-bus) */
+	if (w9966_write_reg(cam, 0x00, 0x03) == -1)
 		return -1;
 
-/* Write regs to w9966cf chip */
+	/* Write regs to w9966cf chip */
 	for (i = 0; i < 0x1c; i++)
-		if (w9966_wReg(cam, i, regs[i]) == -1)
+		if (w9966_write_reg(cam, i, regs[i]) == -1)
 			return -1;
 
-/* Write regs to saa7111 chip */
+	/* Write regs to saa7111 chip */
 	for (i = 0; i < 0x20; i++)
-		if (w9966_wReg_i2c(cam, i, saa7111_regs[i]) == -1)
+		if (w9966_write_reg_i2c(cam, i, saa7111_regs[i]) == -1)
 			return -1;
 
 	return 0;
@@ -563,134 +563,134 @@ static long w9966_v4l_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 
 	switch (cmd) {
 	case VIDIOCGCAP:
-	{
-		static struct video_capability vcap = {
-			.name      = W9966_DRIVERNAME,
-			.type      = VID_TYPE_CAPTURE | VID_TYPE_SCALES,
-			.channels  = 1,
-			.maxwidth  = W9966_WND_MAX_W,
-			.maxheight = W9966_WND_MAX_H,
-			.minwidth  = 2,
-			.minheight = 1,
-		};
-		struct video_capability *cap = arg;
-		*cap = vcap;
-		return 0;
-	}
+		{
+			static struct video_capability vcap = {
+				.name      = W9966_DRIVERNAME,
+				.type      = VID_TYPE_CAPTURE | VID_TYPE_SCALES,
+				.channels  = 1,
+				.maxwidth  = W9966_WND_MAX_W,
+				.maxheight = W9966_WND_MAX_H,
+				.minwidth  = 2,
+				.minheight = 1,
+			};
+			struct video_capability *cap = arg;
+			*cap = vcap;
+			return 0;
+		}
 	case VIDIOCGCHAN:
-	{
-		struct video_channel *vch = arg;
-		if (vch->channel != 0)	/* We only support one channel (#0) */
-			return -EINVAL;
-		memset(vch, 0, sizeof(*vch));
-		strcpy(vch->name, "CCD-input");
-		vch->type = VIDEO_TYPE_CAMERA;
-		return 0;
-	}
+		{
+			struct video_channel *vch = arg;
+			if (vch->channel != 0)	/* We only support one channel (#0) */
+				return -EINVAL;
+			memset(vch, 0, sizeof(*vch));
+			strcpy(vch->name, "CCD-input");
+			vch->type = VIDEO_TYPE_CAMERA;
+			return 0;
+		}
 	case VIDIOCSCHAN:
-	{
-		struct video_channel *vch = arg;
-		if (vch->channel != 0)
-			return -EINVAL;
-		return 0;
-	}
+		{
+			struct video_channel *vch = arg;
+			if (vch->channel != 0)
+				return -EINVAL;
+			return 0;
+		}
 	case VIDIOCGTUNER:
-	{
-		struct video_tuner *vtune = arg;
-		if (vtune->tuner != 0)
-			return -EINVAL;
-		strcpy(vtune->name, "no tuner");
-		vtune->rangelow = 0;
-		vtune->rangehigh = 0;
-		vtune->flags = VIDEO_TUNER_NORM;
-		vtune->mode = VIDEO_MODE_AUTO;
-		vtune->signal = 0xffff;
-		return 0;
-	}
+		{
+			struct video_tuner *vtune = arg;
+			if (vtune->tuner != 0)
+				return -EINVAL;
+			strcpy(vtune->name, "no tuner");
+			vtune->rangelow = 0;
+			vtune->rangehigh = 0;
+			vtune->flags = VIDEO_TUNER_NORM;
+			vtune->mode = VIDEO_MODE_AUTO;
+			vtune->signal = 0xffff;
+			return 0;
+		}
 	case VIDIOCSTUNER:
-	{
-		struct video_tuner *vtune = arg;
-		if (vtune->tuner != 0)
-			return -EINVAL;
-		if (vtune->mode != VIDEO_MODE_AUTO)
-			return -EINVAL;
-		return 0;
-	}
+		{
+			struct video_tuner *vtune = arg;
+			if (vtune->tuner != 0)
+				return -EINVAL;
+			if (vtune->mode != VIDEO_MODE_AUTO)
+				return -EINVAL;
+			return 0;
+		}
 	case VIDIOCGPICT:
-	{
-		struct video_picture vpic = {
-			cam->brightness << 8,	/* brightness */
-			(cam->hue + 128) << 8,	/* hue */
-			cam->color << 9,	/* color */
-			cam->contrast << 9,	/* contrast */
-			0x8000,			/* whiteness */
-			16, VIDEO_PALETTE_YUV422/* bpp, palette format */
-		};
-		struct video_picture *pic = arg;
-		*pic = vpic;
-		return 0;
-	}
+		{
+			struct video_picture vpic = {
+				cam->brightness << 8,	/* brightness */
+				(cam->hue + 128) << 8,	/* hue */
+				cam->color << 9,	/* color */
+				cam->contrast << 9,	/* contrast */
+				0x8000,			/* whiteness */
+				16, VIDEO_PALETTE_YUV422/* bpp, palette format */
+			};
+			struct video_picture *pic = arg;
+			*pic = vpic;
+			return 0;
+		}
 	case VIDIOCSPICT:
-	{
-		struct video_picture *vpic = arg;
-		if (vpic->depth != 16 || (vpic->palette != VIDEO_PALETTE_YUV422 && vpic->palette != VIDEO_PALETTE_YUYV))
-			return -EINVAL;
+		{
+			struct video_picture *vpic = arg;
+			if (vpic->depth != 16 || (vpic->palette != VIDEO_PALETTE_YUV422 && vpic->palette != VIDEO_PALETTE_YUYV))
+				return -EINVAL;
 
-		cam->brightness = vpic->brightness >> 8;
-		cam->hue = (vpic->hue >> 8) - 128;
-		cam->color = vpic->colour >> 9;
-		cam->contrast = vpic->contrast >> 9;
+			cam->brightness = vpic->brightness >> 8;
+			cam->hue = (vpic->hue >> 8) - 128;
+			cam->color = vpic->colour >> 9;
+			cam->contrast = vpic->contrast >> 9;
 
-		w9966_pdev_claim(cam);
+			w9966_pdev_claim(cam);
 
-		if (
-			w9966_wReg_i2c(cam, 0x0a, cam->brightness) == -1 ||
-			w9966_wReg_i2c(cam, 0x0b, cam->contrast) == -1 ||
-			w9966_wReg_i2c(cam, 0x0c, cam->color) == -1 ||
-			w9966_wReg_i2c(cam, 0x0d, cam->hue) == -1
-		) {
+			if (
+					w9966_write_reg_i2c(cam, 0x0a, cam->brightness) == -1 ||
+					w9966_write_reg_i2c(cam, 0x0b, cam->contrast) == -1 ||
+					w9966_write_reg_i2c(cam, 0x0c, cam->color) == -1 ||
+					w9966_write_reg_i2c(cam, 0x0d, cam->hue) == -1
+			   ) {
+				w9966_pdev_release(cam);
+				return -EIO;
+			}
+
 			w9966_pdev_release(cam);
-			return -EIO;
+			return 0;
 		}
-
-		w9966_pdev_release(cam);
-		return 0;
-	}
 	case VIDIOCSWIN:
-	{
-		int ret;
-		struct video_window *vwin = arg;
+		{
+			int ret;
+			struct video_window *vwin = arg;
 
-		if (vwin->flags != 0)
-			return -EINVAL;
-		if (vwin->clipcount != 0)
-			return -EINVAL;
-		if (vwin->width < 2 || vwin->width > W9966_WND_MAX_W)
-			return -EINVAL;
-		if (vwin->height < 1 || vwin->height > W9966_WND_MAX_H)
-			return -EINVAL;
+			if (vwin->flags != 0)
+				return -EINVAL;
+			if (vwin->clipcount != 0)
+				return -EINVAL;
+			if (vwin->width < 2 || vwin->width > W9966_WND_MAX_W)
+				return -EINVAL;
+			if (vwin->height < 1 || vwin->height > W9966_WND_MAX_H)
+				return -EINVAL;
 
-		/* Update camera regs */
-		w9966_pdev_claim(cam);
-		ret = w9966_setup(cam, 0, 0, 1023, 1023, vwin->width, vwin->height);
-		w9966_pdev_release(cam);
+			/* Update camera regs */
+			w9966_pdev_claim(cam);
+			ret = w9966_setup(cam, 0, 0, 1023, 1023, vwin->width, vwin->height);
+			w9966_pdev_release(cam);
 
-		if (ret != 0) {
-			DPRINTF("VIDIOCSWIN: w9966_setup() failed.\n");
-			return -EIO;
+			if (ret != 0) {
+				DPRINTF("VIDIOCSWIN: w9966_setup() failed.\n");
+				return -EIO;
+			}
+
+			return 0;
 		}
-
-		return 0;
-	}
 	case VIDIOCGWIN:
-	{
-		struct video_window *vwin = arg;
-		memset(vwin, 0, sizeof(*vwin));
-		vwin->width = cam->width;
-		vwin->height = cam->height;
-		return 0;
-	}
-	/* Unimplemented */
+		{
+			struct video_window *vwin = arg;
+			memset(vwin, 0, sizeof(*vwin));
+			vwin->width = cam->width;
+			vwin->height = cam->height;
+			return 0;
+		}
+		/* Unimplemented */
 	case VIDIOCCAPTURE:
 	case VIDIOCGFBUF:
 	case VIDIOCSFBUF:
@@ -707,14 +707,14 @@ static long w9966_v4l_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 }
 
 static long w9966_v4l_ioctl(struct file *file,
-			   unsigned int cmd, unsigned long arg)
+		unsigned int cmd, unsigned long arg)
 {
 	return video_usercopy(file, cmd, arg, w9966_v4l_do_ioctl);
 }
 
 /* Capture data */
 static ssize_t w9966_v4l_read(struct file *file, char  __user *buf,
-			      size_t count, loff_t *ppos)
+		size_t count, loff_t *ppos)
 {
 	struct w9966_dev *cam = video_drvdata(file);
 	unsigned char addr = 0xa0;	/* ECP, read, CCD-transfer, 00000 */
@@ -727,14 +727,14 @@ static ssize_t w9966_v4l_read(struct file *file, char  __user *buf,
 		return -EINVAL;
 
 	w9966_pdev_claim(cam);
-	w9966_wReg(cam, 0x00, 0x02);	/* Reset ECP-FIFO buffer */
-	w9966_wReg(cam, 0x00, 0x00);	/* Return to normal operation */
-	w9966_wReg(cam, 0x01, 0x98);	/* Enable capture */
+	w9966_write_reg(cam, 0x00, 0x02);	/* Reset ECP-FIFO buffer */
+	w9966_write_reg(cam, 0x00, 0x00);	/* Return to normal operation */
+	w9966_write_reg(cam, 0x01, 0x98);	/* Enable capture */
 
 	/* write special capture-addr and negotiate into data transfer */
 	if ((parport_negotiate(cam->pport, cam->ppmode|IEEE1284_ADDR) != 0) ||
-	    (parport_write(cam->pport, &addr, 1) != 1) ||
-	    (parport_negotiate(cam->pport, cam->ppmode|IEEE1284_DATA) != 0)) {
+			(parport_write(cam->pport, &addr, 1) != 1) ||
+			(parport_negotiate(cam->pport, cam->ppmode|IEEE1284_DATA) != 0)) {
 		w9966_pdev_release(cam);
 		return -EFAULT;
 	}
@@ -760,7 +760,7 @@ static ssize_t w9966_v4l_read(struct file *file, char  __user *buf,
 		dleft -= tsize;
 	}
 
-	w9966_wReg(cam, 0x01, 0x18);	/* Disable capture */
+	w9966_write_reg(cam, 0x01, 0x18);	/* Disable capture */
 
 out:
 	kfree(tbuf);
@@ -814,7 +814,7 @@ static int w9966_init(struct w9966_dev *cam, struct parport* port)
 	cam->color = 64;
 	cam->hue = 0;
 
-/* Select requested transfer mode */
+	/* Select requested transfer mode */
 	switch (parmode) {
 	default:	/* Auto-detect (priority: hw-ecp, hw-epp, sw-ecp) */
 	case 0:
@@ -830,20 +830,20 @@ static int w9966_init(struct w9966_dev *cam, struct parport* port)
 		break;
 	case 2:		/* hw- or sw-epp */
 		cam->ppmode = IEEE1284_MODE_EPP;
-	break;
+		break;
 	}
 
-/* Tell the parport driver that we exists */
+	/* Tell the parport driver that we exists */
 	cam->pdev = parport_register_device(port, "w9966", NULL, NULL, NULL, 0, NULL);
 	if (cam->pdev == NULL) {
 		DPRINTF("parport_register_device() failed\n");
 		return -1;
 	}
-	w9966_setState(cam, W9966_STATE_PDEV, W9966_STATE_PDEV);
+	w9966_set_state(cam, W9966_STATE_PDEV, W9966_STATE_PDEV);
 
 	w9966_pdev_claim(cam);
 
-/* Setup a default capture mode */
+	/* Setup a default capture mode */
 	if (w9966_setup(cam, 0, 0, 1023, 1023, 200, 160) != 0) {
 		DPRINTF("w9966_setup() failed.\n");
 		return -1;
@@ -851,18 +851,18 @@ static int w9966_init(struct w9966_dev *cam, struct parport* port)
 
 	w9966_pdev_release(cam);
 
-/* Fill in the video_device struct and register us to v4l */
+	/* Fill in the video_device struct and register us to v4l */
 	memcpy(&cam->vdev, &w9966_template, sizeof(struct video_device));
 	video_set_drvdata(&cam->vdev, cam);
 
 	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, video_nr) < 0)
 		return -1;
 
-	w9966_setState(cam, W9966_STATE_VDEV, W9966_STATE_VDEV);
+	w9966_set_state(cam, W9966_STATE_VDEV, W9966_STATE_VDEV);
 
 	/* All ok */
 	printk(KERN_INFO "w9966cf: Found and initialized a webcam on %s.\n",
-		cam->pport->name);
+			cam->pport->name);
 	return 0;
 }
 
@@ -870,23 +870,23 @@ static int w9966_init(struct w9966_dev *cam, struct parport* port)
 /* Terminate everything gracefully */
 static void w9966_term(struct w9966_dev *cam)
 {
-/* Unregister from v4l */
-	if (w9966_getState(cam, W9966_STATE_VDEV, W9966_STATE_VDEV)) {
+	/* Unregister from v4l */
+	if (w9966_get_state(cam, W9966_STATE_VDEV, W9966_STATE_VDEV)) {
 		video_unregister_device(&cam->vdev);
-		w9966_setState(cam, W9966_STATE_VDEV, 0);
+		w9966_set_state(cam, W9966_STATE_VDEV, 0);
 	}
 
-/* Terminate from IEEE1284 mode and release pdev block */
-	if (w9966_getState(cam, W9966_STATE_PDEV, W9966_STATE_PDEV)) {
+	/* Terminate from IEEE1284 mode and release pdev block */
+	if (w9966_get_state(cam, W9966_STATE_PDEV, W9966_STATE_PDEV)) {
 		w9966_pdev_claim(cam);
 		parport_negotiate(cam->pport, IEEE1284_MODE_COMPAT);
 		w9966_pdev_release(cam);
 	}
 
-/* Unregister from parport */
-	if (w9966_getState(cam, W9966_STATE_PDEV, W9966_STATE_PDEV)) {
+	/* Unregister from parport */
+	if (w9966_get_state(cam, W9966_STATE_PDEV, W9966_STATE_PDEV)) {
 		parport_unregister_device(cam->pdev);
-		w9966_setState(cam, W9966_STATE_PDEV, 0);
+		w9966_set_state(cam, W9966_STATE_PDEV, 0);
 	}
 }
 
