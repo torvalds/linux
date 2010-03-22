@@ -159,18 +159,14 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface,
 		if (mast_stat & BUFWRERR)
 			dev_dbg(&iface->adap.dev, "Buffer Write Error\n");
 
-		/* if both err and complete int stats are set, return proper
-		 * results.
+		/* If it is a quick transfer, only address without data,
+		 * not an err, return 1.
 		 */
-		if (twi_int_status & MCOMP) {
-			/* If it is a quick transfer, only address without data,
-			 * not an err, return 1.
-			 * If address is acknowledged return 1.
-			 */
-			if ((iface->writeNum == 0 && (mast_stat & BUFRDERR))
-				|| !(mast_stat & ANAK))
-				iface->result = 1;
-		}
+		if (iface->cur_mode == TWI_I2C_MODE_STANDARD &&
+			iface->transPtr == NULL &&
+			(twi_int_status & MCOMP) && (mast_stat & DNAK))
+			iface->result = 1;
+
 		complete(&iface->complete);
 		return;
 	}
