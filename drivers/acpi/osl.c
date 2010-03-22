@@ -1151,16 +1151,10 @@ int acpi_check_resource_conflict(const struct resource *res)
 
 	if (clash) {
 		if (acpi_enforce_resources != ENFORCE_RESOURCES_NO) {
-			printk("%sACPI: %s resource %s [0x%llx-0x%llx]"
-			       " conflicts with ACPI region %s"
-			       " [0x%llx-0x%llx]\n",
-			       acpi_enforce_resources == ENFORCE_RESOURCES_LAX
-			       ? KERN_WARNING : KERN_ERR,
-			       ioport ? "I/O" : "Memory", res->name,
-			       (long long) res->start, (long long) res->end,
-			       res_list_elem->name,
-			       (long long) res_list_elem->start,
-			       (long long) res_list_elem->end);
+			printk(KERN_WARNING "ACPI: resource %s %pR"
+			       " conflicts with ACPI region %s %pR\n",
+			       res->name, res, res_list_elem->name,
+			       res_list_elem);
 			if (acpi_enforce_resources == ENFORCE_RESOURCES_LAX)
 				printk(KERN_NOTICE "ACPI: This conflict may"
 				       " cause random problems and system"
