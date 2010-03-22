@@ -15,7 +15,7 @@ static inline int is_c_varname(const char *name)
 	return isalpha(name[0]) || name[0] == '_';
 }
 
-#ifndef NO_DWARF_SUPPORT
+#ifdef DWARF_SUPPORT
 /* Find kprobe_trace_events specified by perf_probe_event from debuginfo */
 extern int find_kprobe_trace_events(int fd, struct perf_probe_event *pev,
 				    struct kprobe_trace_event **tevs);
@@ -57,6 +57,6 @@ struct line_finder {
 	int			found;
 };
 
-#endif /* NO_DWARF_SUPPORT */
+#endif /* DWARF_SUPPORT */
 
 #endif /*_PROBE_FINDER_H */

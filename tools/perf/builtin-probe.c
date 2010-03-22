@@ -109,7 +109,7 @@ static int opt_del_probe_event(const struct option *opt __used,
 	return 0;
 }
 
-#ifndef NO_DWARF_SUPPORT
+#ifdef DWARF_SUPPORT
 static int opt_show_lines(const struct option *opt __used,
 			  const char *str, int unset __used)
 {
@@ -126,7 +126,7 @@ static const char * const probe_usage[] = {
 	"perf probe [<options>] --add 'PROBEDEF' [--add 'PROBEDEF' ...]",
 	"perf probe [<options>] --del '[GROUP:]EVENT' ...",
 	"perf probe --list",
-#ifndef NO_DWARF_SUPPORT
+#ifdef DWARF_SUPPORT
 	"perf probe --line 'LINEDESC'",
 #endif
 	NULL
@@ -135,20 +135,16 @@ static const char * const probe_usage[] = {
 static const struct option options[] = {
 	OPT_BOOLEAN('v', "verbose", &verbose,
 		    "be more verbose (show parsed arguments, etc)"),
-#ifndef NO_DWARF_SUPPORT
-	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
-		   "file", "vmlinux pathname"),
-#endif
 	OPT_BOOLEAN('l', "list", &params.list_events,
 		    "list up current probe events"),
 	OPT_CALLBACK('d', "del", NULL, "[GROUP:]EVENT", "delete a probe event.",
 		opt_del_probe_event),
 	OPT_CALLBACK('a', "add", NULL,
-#ifdef NO_DWARF_SUPPORT
-		"[EVENT=]FUNC[+OFF|%return] [ARG ...]",
-#else
+#ifdef DWARF_SUPPORT
 		"[EVENT=]FUNC[@SRC][+OFF|%return|:RL|;PT]|SRC:AL|SRC;PT"
 		" [ARG ...]",
+#else
+		"[EVENT=]FUNC[+OFF|%return] [ARG ...]",
 #endif
 		"probe point definition, where\n"
 		"\t\tGROUP:\tGroup name (optional)\n"
@@ -156,23 +152,25 @@ static const struct option options[] = {
 		"\t\tFUNC:\tFunction name\n"
 		"\t\tOFF:\tOffset from function entry (in byte)\n"
 		"\t\t%return:\tPut the probe at function return\n"
-#ifdef NO_DWARF_SUPPORT
-		"\t\tARG:\tProbe argument (only \n"
-#else
+#ifdef DWARF_SUPPORT
 		"\t\tSRC:\tSource code path\n"
 		"\t\tRL:\tRelative line number from function entry.\n"
 		"\t\tAL:\tAbsolute line number in file.\n"
 		"\t\tPT:\tLazy expression of line code.\n"
 		"\t\tARG:\tProbe argument (local variable name or\n"
-#endif
 		"\t\t\tkprobe-tracer argument format.)\n",
+#else
+		"\t\tARG:\tProbe argument (kprobe-tracer argument format.)\n",
+#endif
 		opt_add_probe_event),
 	OPT_BOOLEAN('f', "force", &params.force_add, "forcibly add events"
 		    " with existing name"),
-#ifndef NO_DWARF_SUPPORT
+#ifdef DWARF_SUPPORT
 	OPT_CALLBACK('L', "line", NULL,
 		     "FUNC[:RLN[+NUM|:RLN2]]|SRC:ALN[+NUM|:ALN2]",
 		     "Show source code lines.", opt_show_lines),
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
 #endif
 	OPT__DRY_RUN(&probe_event_dry_run),
 	OPT_END()
@@ -211,7 +209,7 @@ int cmd_probe(int argc, const char **argv, const char *prefix __used)
 		return 0;
 	}
 
-#ifndef NO_DWARF_SUPPORT
+#ifdef DWARF_SUPPORT
 	if (params.show_lines) {
 		if (params.nevents != 0 || params.dellist) {
 			pr_warning("  Error: Don't use --line with"

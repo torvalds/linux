@@ -42,7 +42,8 @@
 #include "color.h"
 #include "symbol.h"
 #include "thread.h"
-#include "parse-events.h"  /* For debugfs_path */
+#include "trace-event.h"	/* For __unused */
+#include "parse-events.h"	/* For debugfs_path */
 #include "probe-event.h"
 #include "probe-finder.h"
 
@@ -70,10 +71,11 @@ static int e_snprintf(char *str, size_t size, const char *format, ...)
 	return ret;
 }
 
+static char *synthesize_perf_probe_point(struct perf_probe_point *pp);
 static struct map_groups kmap_groups;
 static struct map *kmaps[MAP__NR_TYPES];
 
-/* Initialize symbol maps for vmlinux */
+/* Initialize symbol maps and path of vmlinux */
 static void init_vmlinux(void)
 {
 	symbol_conf.sort_by_name = true;
@@ -89,7 +91,7 @@ static void init_vmlinux(void)
 		die("Failed to create kernel maps.");
 }
 
-#ifndef NO_DWARF_SUPPORT
+#ifdef DWARF_SUPPORT
 static int open_vmlinux(void)
 {
 	if (map__load(kmaps[MAP__FUNCTION], NULL) < 0) {
@@ -99,6 +101,176 @@ static int open_vmlinux(void)
 	pr_debug("Try to open %s\n", kmaps[MAP__FUNCTION]->dso->long_name);
 	return open(kmaps[MAP__FUNCTION]->dso->long_name, O_RDONLY);
 }
+
+static void convert_to_perf_probe_point(struct kprobe_trace_point *tp,
+					struct perf_probe_point *pp)
+{
+	struct symbol *sym;
+	int fd, ret = 0;
+
+	sym = map__find_symbol_by_name(kmaps[MAP__FUNCTION],
+				       tp->symbol, NULL);
+	if (sym) {
+		fd = open_vmlinux();
+		ret = find_perf_probe_point(fd, sym->start + tp->offset, pp);
+		close(fd);
+	}
+	if (ret <= 0) {
+		pp->function = xstrdup(tp->symbol);
+		pp->offset = tp->offset;
+	}
+	pp->retprobe = tp->retprobe;
+}
+
+/* Try to find perf_probe_event with debuginfo */
+static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
+					   struct kprobe_trace_event **tevs)
+{
+	bool need_dwarf = perf_probe_event_need_dwarf(pev);
+	int fd, ntevs;
+
+	fd = open_vmlinux();
+	if (fd < 0) {
+		if (need_dwarf)
+			die("Could not open debuginfo file.");
+
+		pr_debug("Could not open vmlinux. Try to use symbols.\n");
+		return 0;
+	}
+
+	/* Searching trace events corresponding to probe event */
+	ntevs = find_kprobe_trace_events(fd, pev, tevs);
+	close(fd);
+
+	if (ntevs > 0)	/* Succeeded to find trace events */
+		return ntevs;
+
+	if (ntevs == 0)	/* No error but failed to find probe point. */
+		die("Probe point '%s' not found. - probe not added.",
+		    synthesize_perf_probe_point(&pev->point));
+
+	/* Error path */
+	if (need_dwarf) {
+		if (ntevs == -ENOENT)
+			pr_warning("No dwarf info found in the vmlinux - "
+				"please rebuild with CONFIG_DEBUG_INFO=y.\n");
+		die("Could not analyze debuginfo.");
+	}
+	pr_debug("An error occurred in debuginfo analysis."
+		 " Try to use symbols.\n");
+	return 0;
+
+}
+
+#define LINEBUF_SIZE 256
+#define NR_ADDITIONAL_LINES 2
+
+static void show_one_line(FILE *fp, unsigned int l, bool skip, bool show_num)
+{
+	char buf[LINEBUF_SIZE];
+	const char *color = PERF_COLOR_BLUE;
+
+	if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
+		goto error;
+	if (!skip) {
+		if (show_num)
+			fprintf(stdout, "%7u  %s", l, buf);
+		else
+			color_fprintf(stdout, color, "         %s", buf);
+	}
+
+	while (strlen(buf) == LINEBUF_SIZE - 1 &&
+	       buf[LINEBUF_SIZE - 2] != '\n') {
+		if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
+			goto error;
+		if (!skip) {
+			if (show_num)
+				fprintf(stdout, "%s", buf);
+			else
+				color_fprintf(stdout, color, "%s", buf);
+		}
+	}
+	return;
+error:
+	if (feof(fp))
+		die("Source file is shorter than expected.");
+	else
+		die("File read error: %s", strerror(errno));
+}
+
+/*
+ * Show line-range always requires debuginfo to find source file and
+ * line number.
+ */
+void show_line_range(struct line_range *lr)
+{
+	unsigned int l = 1;
+	struct line_node *ln;
+	FILE *fp;
+	int fd, ret;
+
+	/* Search a line range */
+	init_vmlinux();
+	fd = open_vmlinux();
+	if (fd < 0)
+		die("Could not open debuginfo file.");
+	ret = find_line_range(fd, lr);
+	if (ret <= 0)
+		die("Source line is not found.\n");
+	close(fd);
+
+	setup_pager();
+
+	if (lr->function)
+		fprintf(stdout, "<%s:%d>\n", lr->function,
+			lr->start - lr->offset);
+	else
+		fprintf(stdout, "<%s:%d>\n", lr->file, lr->start);
+
+	fp = fopen(lr->path, "r");
+	if (fp == NULL)
+		die("Failed to open %s: %s", lr->path, strerror(errno));
+	/* Skip to starting line number */
+	while (l < lr->start)
+		show_one_line(fp, l++, true, false);
+
+	list_for_each_entry(ln, &lr->line_list, list) {
+		while (ln->line > l)
+			show_one_line(fp, (l++) - lr->offset, false, false);
+		show_one_line(fp, (l++) - lr->offset, false, true);
+	}
+
+	if (lr->end == INT_MAX)
+		lr->end = l + NR_ADDITIONAL_LINES;
+	while (l < lr->end && !feof(fp))
+		show_one_line(fp, (l++) - lr->offset, false, false);
+
+	fclose(fp);
+}
+
+#else	/* !DWARF_SUPPORT */
+
+static void convert_to_perf_probe_point(struct kprobe_trace_point *tp,
+					struct perf_probe_point *pp)
+{
+	pp->function = xstrdup(tp->symbol);
+	pp->offset = tp->offset;
+	pp->retprobe = tp->retprobe;
+}
+
+static int try_to_find_kprobe_trace_events(struct perf_probe_event *pev,
+				struct kprobe_trace_event **tevs __unused)
+{
+	if (perf_probe_event_need_dwarf(pev))
+		die("Debuginfo-analysis is not supported");
+	return 0;
+}
+
+void show_line_range(struct line_range *lr __unused)
+{
+	die("Debuginfo-analysis is not supported");
+}
+
 #endif
 
 void parse_line_range_desc(const char *arg, struct line_range *lr)
@@ -592,31 +764,13 @@ void convert_to_perf_probe_event(struct kprobe_trace_event *tev,
 {
 	char buf[64];
 	int i;
-#ifndef NO_DWARF_SUPPORT
-	struct symbol *sym;
-	int fd, ret = 0;
 
-	sym = map__find_symbol_by_name(kmaps[MAP__FUNCTION],
-				       tev->point.symbol, NULL);
-	if (sym) {
-		fd = open_vmlinux();
-		ret = find_perf_probe_point(fd, sym->start + tev->point.offset,
-					    &pev->point);
-		close(fd);
-	}
-	if (ret <= 0) {
-		pev->point.function = xstrdup(tev->point.symbol);
-		pev->point.offset = tev->point.offset;
-	}
-#else
-	/* Convert trace_point to probe_point */
-	pev->point.function = xstrdup(tev->point.symbol);
-	pev->point.offset = tev->point.offset;
-#endif
-	pev->point.retprobe = tev->point.retprobe;
-
+	/* Convert event/group name */
 	pev->event = xstrdup(tev->event);
 	pev->group = xstrdup(tev->group);
+
+	/* Convert trace_point to probe_point */
+	convert_to_perf_probe_point(&tev->point, &pev->point);
 
 	/* Convert trace_arg to probe_arg */
 	pev->nargs = tev->nargs;
@@ -944,52 +1098,13 @@ static int convert_to_kprobe_trace_events(struct perf_probe_event *pev,
 					  struct kprobe_trace_event **tevs)
 {
 	struct symbol *sym;
-	bool need_dwarf;
-#ifndef NO_DWARF_SUPPORT
-	int fd;
-#endif
 	int ntevs = 0, i;
 	struct kprobe_trace_event *tev;
 
-	need_dwarf = perf_probe_event_need_dwarf(pev);
-
-	if (need_dwarf)
-#ifdef NO_DWARF_SUPPORT
-		die("Debuginfo-analysis is not supported");
-#else	/* !NO_DWARF_SUPPORT */
-		pr_debug("Some probes require debuginfo.\n");
-
-	fd = open_vmlinux();
-	if (fd < 0) {
-		if (need_dwarf)
-			die("Could not open debuginfo file.");
-
-		pr_debug("Could not open vmlinux/module file."
-			 " Try to use symbols.\n");
-		goto end_dwarf;
-	}
-
-	/* Searching probe points */
-	ntevs = find_kprobe_trace_events(fd, pev, tevs);
-
-	if (ntevs > 0)	/* Found */
-		goto found;
-
-	if (ntevs == 0)	/* No error but failed to find probe point. */
-		die("Probe point '%s' not found. - probe not added.",
-		    synthesize_perf_probe_point(&pev->point));
-
-	/* Error path */
-	if (need_dwarf) {
-		if (ntevs == -ENOENT)
-			pr_warning("No dwarf info found in the vmlinux - please rebuild with CONFIG_DEBUG_INFO=y.\n");
-		die("Could not analyze debuginfo.");
-	}
-	pr_debug("An error occurred in debuginfo analysis."
-		 " Try to use symbols.\n");
-
-end_dwarf:
-#endif /* !NO_DWARF_SUPPORT */
+	/* Convert perf_probe_event with debuginfo */
+	ntevs = try_to_find_kprobe_trace_events(pev, tevs);
+	if (ntevs > 0)
+		return ntevs;
 
 	/* Allocate trace event buffer */
 	ntevs = 1;
@@ -1012,10 +1127,7 @@ end_dwarf:
 	if (!sym)
 		die("Kernel symbol \'%s\' not found - probe not added.",
 		    tev->point.symbol);
-#ifndef NO_DWARF_SUPPORT
-found:
-	close(fd);
-#endif
+
 	return ntevs;
 }
 
@@ -1132,91 +1244,4 @@ void del_perf_probe_events(struct strlist *dellist)
 	strlist__delete(namelist);
 	close(fd);
 }
-
-#define LINEBUF_SIZE 256
-#define NR_ADDITIONAL_LINES 2
-
-static void show_one_line(FILE *fp, unsigned int l, bool skip, bool show_num)
-{
-	char buf[LINEBUF_SIZE];
-	const char *color = PERF_COLOR_BLUE;
-
-	if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
-		goto error;
-	if (!skip) {
-		if (show_num)
-			fprintf(stdout, "%7u  %s", l, buf);
-		else
-			color_fprintf(stdout, color, "         %s", buf);
-	}
-
-	while (strlen(buf) == LINEBUF_SIZE - 1 &&
-	       buf[LINEBUF_SIZE - 2] != '\n') {
-		if (fgets(buf, LINEBUF_SIZE, fp) == NULL)
-			goto error;
-		if (!skip) {
-			if (show_num)
-				fprintf(stdout, "%s", buf);
-			else
-				color_fprintf(stdout, color, "%s", buf);
-		}
-	}
-	return;
-error:
-	if (feof(fp))
-		die("Source file is shorter than expected.");
-	else
-		die("File read error: %s", strerror(errno));
-}
-
-void show_line_range(struct line_range *lr)
-{
-	unsigned int l = 1;
-	struct line_node *ln;
-	FILE *fp;
-#ifndef NO_DWARF_SUPPORT
-	int fd, ret;
-#endif
-
-	/* Search a line range */
-	init_vmlinux();
-#ifndef NO_DWARF_SUPPORT
-	fd = open_vmlinux();
-	if (fd < 0)
-		die("Could not open debuginfo file.");
-	ret = find_line_range(fd, lr);
-	if (ret <= 0)
-		die("Source line is not found.\n");
-	close(fd);
-#endif
-
-	setup_pager();
-
-	if (lr->function)
-		fprintf(stdout, "<%s:%d>\n", lr->function,
-			lr->start - lr->offset);
-	else
-		fprintf(stdout, "<%s:%d>\n", lr->file, lr->start);
-
-	fp = fopen(lr->path, "r");
-	if (fp == NULL)
-		die("Failed to open %s: %s", lr->path, strerror(errno));
-	/* Skip to starting line number */
-	while (l < lr->start)
-		show_one_line(fp, l++, true, false);
-
-	list_for_each_entry(ln, &lr->line_list, list) {
-		while (ln->line > l)
-			show_one_line(fp, (l++) - lr->offset, false, false);
-		show_one_line(fp, (l++) - lr->offset, false, true);
-	}
-
-	if (lr->end == INT_MAX)
-		lr->end = l + NR_ADDITIONAL_LINES;
-	while (l < lr->end && !feof(fp))
-		show_one_line(fp, (l++) - lr->offset, false, false);
-
-	fclose(fp);
-}
-
 
