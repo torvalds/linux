@@ -342,7 +342,7 @@ struct zone {
 	 * prev_priority holds the scanning priority for this zone.  It is
 	 * defined as the scanning priority at which we achieved our reclaim
 	 * target at the previous try_to_free_pages() or balance_pgdat()
-	 * invokation.
+	 * invocation.
 	 *
 	 * We use prev_priority as a measure of how much stress page reclaim is
 	 * under - it drives the swappiness decision: whether to unmap mapped

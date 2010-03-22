@@ -138,7 +138,7 @@ static int bl_set_status(struct backlight_device *bd)
 	return msi_wmi_set_block(0, backlight_map[bright]);
 }
 
-static struct backlight_ops msi_backlight_ops = {
+static const struct backlight_ops msi_backlight_ops = {
 	.get_brightness	= bl_get,
 	.update_status	= bl_set_status,
 };
@@ -249,12 +249,17 @@ static int __init msi_wmi_init(void)
 		goto err_uninstall_notifier;
 
 	if (!acpi_video_backlight_support()) {
-		backlight = backlight_device_register(DRV_NAME,
-				NULL, NULL, &msi_backlight_ops);
-		if (IS_ERR(backlight))
+		struct backlight_properties props;
+		memset(&props, 0, sizeof(struct backlight_properties));
+		props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
+		backlight = backlight_device_register(DRV_NAME, NULL, NULL,
+						      &msi_backlight_ops,
+						      &props);
+		if (IS_ERR(backlight)) {
+			err = PTR_ERR(backlight);
 			goto err_free_input;
+		}
 
-		backlight->props.max_brightness = ARRAY_SIZE(backlight_map) - 1;
 		err = bl_get(NULL);
 		if (err < 0)
 			goto err_free_backlight;

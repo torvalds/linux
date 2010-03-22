@@ -101,7 +101,7 @@ extern bfa_boolean_t bfa_auto_recover;
 extern struct bfa_module_s hal_mod_flash;
 extern struct bfa_module_s hal_mod_fcdiag;
 extern struct bfa_module_s hal_mod_sgpg;
-extern struct bfa_module_s hal_mod_pport;
+extern struct bfa_module_s hal_mod_fcport;
 extern struct bfa_module_s hal_mod_fcxp;
 extern struct bfa_module_s hal_mod_lps;
 extern struct bfa_module_s hal_mod_uf;

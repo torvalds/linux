@@ -575,7 +575,7 @@ static int uart_carrier_raised(struct tty_port *tport)
 	struct sdio_uart_port *port =
 			container_of(tport, struct sdio_uart_port, port);
 	unsigned int ret = sdio_uart_claim_func(port);
-	if (ret)	/* Missing hardware shoudn't block for carrier */
+	if (ret)	/* Missing hardware shouldn't block for carrier */
 		return 1;
 	ret = sdio_uart_get_mctrl(port);
 	sdio_uart_release_func(port);

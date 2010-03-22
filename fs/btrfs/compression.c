@@ -478,7 +478,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 			goto next;
 		}
 
-		page = alloc_page(mapping_gfp_mask(mapping) | GFP_NOFS);
+		page = alloc_page(mapping_gfp_mask(mapping) & ~__GFP_FS);
 		if (!page)
 			break;
 

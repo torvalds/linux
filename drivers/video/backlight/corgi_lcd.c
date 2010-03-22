@@ -533,6 +533,7 @@ err_free_backlight_on:
 
 static int __devinit corgi_lcd_probe(struct spi_device *spi)
 {
+	struct backlight_properties props;
 	struct corgi_lcd_platform_data *pdata = spi->dev.platform_data;
 	struct corgi_lcd *lcd;
 	int ret = 0;
@@ -559,13 +560,14 @@ static int __devinit corgi_lcd_probe(struct spi_device *spi)
 	lcd->power = FB_BLANK_POWERDOWN;
 	lcd->mode = (pdata) ? pdata->init_mode : CORGI_LCD_MODE_VGA;
 
-	lcd->bl_dev = backlight_device_register("corgi_bl", &spi->dev,
-					lcd, &corgi_bl_ops);
+	memset(&props, 0, sizeof(struct backlight_properties));
+	props.max_brightness = pdata->max_intensity;
+	lcd->bl_dev = backlight_device_register("corgi_bl", &spi->dev, lcd,
+						&corgi_bl_ops, &props);
 	if (IS_ERR(lcd->bl_dev)) {
 		ret = PTR_ERR(lcd->bl_dev);
 		goto err_unregister_lcd;
 	}
-	lcd->bl_dev->props.max_brightness = pdata->max_intensity;
 	lcd->bl_dev->props.brightness = pdata->default_intensity;
 	lcd->bl_dev->props.power = FB_BLANK_UNBLANK;
 

@@ -564,10 +564,10 @@ void hid_debug_event(struct hid_device *hdev, char *buf)
 	struct hid_debug_list *list;
 
 	list_for_each_entry(list, &hdev->debug_list, node) {
-		for (i = 0; i <= strlen(buf); i++)
-			list->hid_debug_buf[(list->tail + i) % (HID_DEBUG_BUFSIZE - 1)] =
+		for (i = 0; i < strlen(buf); i++)
+			list->hid_debug_buf[(list->tail + i) % HID_DEBUG_BUFSIZE] =
 				buf[i];
-		list->tail = (list->tail + i) % (HID_DEBUG_BUFSIZE - 1);
+		list->tail = (list->tail + i) % HID_DEBUG_BUFSIZE;
         }
 }
 EXPORT_SYMBOL_GPL(hid_debug_event);

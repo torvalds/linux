@@ -9,7 +9,7 @@
 #include <linux/usb/input.h>
 
 static int dvb_usb_getkeycode(struct input_dev *dev,
-				    int scancode, int *keycode)
+				unsigned int scancode, unsigned int *keycode)
 {
 	struct dvb_usb_device *d = input_get_drvdata(dev);
 
@@ -39,7 +39,7 @@ static int dvb_usb_getkeycode(struct input_dev *dev,
 }
 
 static int dvb_usb_setkeycode(struct input_dev *dev,
-				    int scancode, int keycode)
+				unsigned int scancode, unsigned int keycode)
 {
 	struct dvb_usb_device *d = input_get_drvdata(dev);
 

@@ -432,7 +432,9 @@
 #define __ARCH_WANT_SYS_SIGPENDING
 #define __ARCH_WANT_SYS_SIGPROCMASK
 #define __ARCH_WANT_SYS_RT_SIGSUSPEND
-#ifndef __32bit_syscall_numbers__
+#ifdef __32bit_syscall_numbers__
+#define __ARCH_WANT_SYS_IPC
+#else
 #define __ARCH_WANT_COMPAT_SYS_TIME
 #define __ARCH_WANT_COMPAT_SYS_RT_SIGSUSPEND
 #endif

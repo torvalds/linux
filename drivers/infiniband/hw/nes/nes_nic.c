@@ -1595,7 +1595,6 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	struct nes_vnic *nesvnic;
 	struct net_device *netdev;
 	struct nic_qp_map *curr_qp_map;
-	u32 u32temp;
 	u8 phy_type = nesdev->nesadapter->phy_type[nesdev->mac_index];
 
 	netdev = alloc_etherdev(sizeof(struct nes_vnic));
@@ -1707,6 +1706,10 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 	     ((phy_type == NES_PHY_TYPE_PUMA_1G) &&
 	      (((PCI_FUNC(nesdev->pcidev->devfn) == 1) && (nesdev->mac_index == 2)) ||
 	       ((PCI_FUNC(nesdev->pcidev->devfn) == 2) && (nesdev->mac_index == 1)))))) {
+		u32 u32temp;
+		u32 link_mask;
+		u32 link_val;
+
 		u32temp = nes_read_indexed(nesdev, NES_IDX_PHY_PCS_CONTROL_STATUS0 +
 				(0x200 * (nesdev->mac_index & 1)));
 		if (phy_type != NES_PHY_TYPE_PUMA_1G) {
@@ -1715,13 +1718,36 @@ struct net_device *nes_netdev_init(struct nes_device *nesdev,
 				(0x200 * (nesdev->mac_index & 1)), u32temp);
 		}
 
+		/* Check and set linkup here.  This is for back to back */
+		/* configuration where second port won't get link interrupt */
+		switch (phy_type) {
+		case NES_PHY_TYPE_PUMA_1G:
+			if (nesdev->mac_index < 2) {
+				link_mask = 0x01010000;
+				link_val = 0x01010000;
+			} else {
+				link_mask = 0x02020000;
+				link_val = 0x02020000;
+			}
+			break;
+		default:
+			link_mask = 0x0f1f0000;
+			link_val = 0x0f0f0000;
+			break;
+		}
+
+		u32temp = nes_read_indexed(nesdev,
+					   NES_IDX_PHY_PCS_CONTROL_STATUS0 +
+					   (0x200 * (nesdev->mac_index & 1)));
+		if ((u32temp & link_mask) == link_val)
+			nesvnic->linkup = 1;
+
 		/* clear the MAC interrupt status, assumes direct logical to physical mapping */
 		u32temp = nes_read_indexed(nesdev, NES_IDX_MAC_INT_STATUS + (0x200 * nesdev->mac_index));
 		nes_debug(NES_DBG_INIT, "Phy interrupt status = 0x%X.\n", u32temp);
 		nes_write_indexed(nesdev, NES_IDX_MAC_INT_STATUS + (0x200 * nesdev->mac_index), u32temp);
 
 		nes_init_phy(nesdev);
-
 	}
 
 	return netdev;

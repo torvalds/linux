@@ -44,6 +44,7 @@
 #include <linux/efi.h>
 #include <linux/mmzone.h>
 #include <linux/nodemask.h>
+#include <acpi/processor.h>
 #include <asm/io.h>
 #include <asm/iosapic.h>
 #include <asm/machvec.h>
@@ -906,6 +907,8 @@ int acpi_map_lsapic(acpi_handle handle, int *pcpu)
 
 	cpu_set(cpu, cpu_present_map);
 	ia64_cpu_to_sapicid[cpu] = physid;
+
+	acpi_processor_set_pdc(handle);
 
 	*pcpu = cpu;
 	return (0);
