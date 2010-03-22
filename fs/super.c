@@ -93,7 +93,7 @@ static struct super_block *alloc_super(struct file_system_type *type)
 		 * subclass.
 		 */
 		down_write_nested(&s->s_umount, SINGLE_DEPTH_NESTING);
-		s->s_count = S_BIAS;
+		s->s_count = 1;
 		atomic_set(&s->s_active, 1);
 		mutex_init(&s->s_vfs_rename_mutex);
 		mutex_init(&s->s_dquot.dqio_mutex);
@@ -189,9 +189,7 @@ void put_super(struct super_block *sb)
 void deactivate_super(struct super_block *s)
 {
 	struct file_system_type *fs = s->s_type;
-	if (atomic_dec_and_lock(&s->s_active, &sb_lock)) {
-		s->s_count -= S_BIAS-1;
-		spin_unlock(&sb_lock);
+	if (atomic_dec_and_test(&s->s_active)) {
 		vfs_dq_off(s, 0);
 		down_write(&s->s_umount);
 		fs->kill_sb(s);
@@ -216,9 +214,7 @@ EXPORT_SYMBOL(deactivate_super);
 void deactivate_locked_super(struct super_block *s)
 {
 	struct file_system_type *fs = s->s_type;
-	if (atomic_dec_and_lock(&s->s_active, &sb_lock)) {
-		s->s_count -= S_BIAS-1;
-		spin_unlock(&sb_lock);
+	if (atomic_dec_and_test(&s->s_active)) {
 		vfs_dq_off(s, 0);
 		fs->kill_sb(s);
 		put_filesystem(fs);
@@ -243,21 +239,19 @@ EXPORT_SYMBOL(deactivate_locked_super);
  */
 static int grab_super(struct super_block *s) __releases(sb_lock)
 {
+	if (atomic_inc_not_zero(&s->s_active)) {
+		spin_unlock(&sb_lock);
+		down_write(&s->s_umount);
+		return 1;
+	}
+	/* it's going away */
 	s->s_count++;
 	spin_unlock(&sb_lock);
+	/* usually that'll be enough for it to die... */
 	down_write(&s->s_umount);
-	if (s->s_root) {
-		spin_lock(&sb_lock);
-		if (s->s_count > S_BIAS) {
-			atomic_inc(&s->s_active);
-			s->s_count--;
-			spin_unlock(&sb_lock);
-			return 1;
-		}
-		spin_unlock(&sb_lock);
-	}
 	up_write(&s->s_umount);
 	put_super(s);
+	/* ... but in case it wasn't, let's at least yield() */
 	yield();
 	return 0;
 }

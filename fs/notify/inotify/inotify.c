@@ -110,14 +110,10 @@ EXPORT_SYMBOL_GPL(get_inotify_watch);
 int pin_inotify_watch(struct inotify_watch *watch)
 {
 	struct super_block *sb = watch->inode->i_sb;
-	spin_lock(&sb_lock);
-	if (sb->s_count >= S_BIAS) {
-		atomic_inc(&sb->s_active);
-		spin_unlock(&sb_lock);
+	if (atomic_inc_not_zero(&sb->s_active)) {
 		atomic_inc(&watch->count);
 		return 1;
 	}
-	spin_unlock(&sb_lock);
 	return 0;
 }
 
@@ -518,16 +514,16 @@ EXPORT_SYMBOL_GPL(inotify_init_watch);
  * ->s_umount, which will almost certainly wait until the superblock is shut
  * down and the watch in question is pining for fjords.  That's fine, but
  * there is a problem - we might have hit the window between ->s_active
- * getting to 0 / ->s_count - below S_BIAS (i.e. the moment when superblock
- * is past the point of no return and is heading for shutdown) and the
- * moment when deactivate_super() acquires ->s_umount.  We could just do
- * drop_super() yield() and retry, but that's rather antisocial and this
- * stuff is luser-triggerable.  OTOH, having grabbed ->s_umount and having
- * found that we'd got there first (i.e. that ->s_root is non-NULL) we know
- * that we won't race with inotify_umount_inodes().  So we could grab a
- * reference to watch and do the rest as above, just with drop_super() instead
- * of deactivate_super(), right?  Wrong.  We had to drop ih->mutex before we
- * could grab ->s_umount.  So the watch could've been gone already.
+ * getting to 0 (i.e. the moment when superblock is past the point of no return
+ * and is heading for shutdown) and the moment when deactivate_super() acquires
+ * ->s_umount.  We could just do drop_super() yield() and retry, but that's
+ * rather antisocial and this stuff is luser-triggerable.  OTOH, having grabbed
+ * ->s_umount and having found that we'd got there first (i.e. that ->s_root is
+ * non-NULL) we know that we won't race with inotify_umount_inodes().  So we
+ * could grab a reference to watch and do the rest as above, just with
+ * drop_super() instead of deactivate_super(), right?  Wrong.  We had to drop
+ * ih->mutex before we could grab ->s_umount.  So the watch could've been gone
+ * already.
  *
  * That still can be dealt with - we need to save watch->wd, do idr_find()
  * and compare its result with our pointer.  If they match, we either have
@@ -565,14 +561,12 @@ static int pin_to_kill(struct inotify_handle *ih, struct inotify_watch *watch)
 	struct super_block *sb = watch->inode->i_sb;
 	s32 wd = watch->wd;
 
-	spin_lock(&sb_lock);
-	if (sb->s_count >= S_BIAS) {
-		atomic_inc(&sb->s_active);
-		spin_unlock(&sb_lock);
+	if (atomic_inc_not_zero(&sb->s_active)) {
 		get_inotify_watch(watch);
 		mutex_unlock(&ih->mutex);
 		return 1;	/* the best outcome */
 	}
+	spin_lock(&sb_lock);
 	sb->s_count++;
 	spin_unlock(&sb_lock);
 	mutex_unlock(&ih->mutex); /* can't grab ->s_umount under it */
