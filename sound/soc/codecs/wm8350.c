@@ -1393,7 +1393,8 @@ static irqreturn_t wm8350_hp_jack_handler(int irq, void *data)
  * @jack:   jack to report detection events on
  * @report: value to report
  *
- * Enables the headphone jack detection of the WM8350.
+ * Enables the headphone jack detection of the WM8350.  If no report
+ * is specified then detection is disabled.
  */
 int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
 			  struct snd_soc_jack *jack, int report)
@@ -1422,8 +1423,12 @@ int wm8350_hp_jack_detect(struct snd_soc_codec *codec, enum wm8350_jack which,
 		return -EINVAL;
 	}
 
-	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
-	wm8350_set_bits(wm8350, WM8350_JACK_DETECT, ena);
+	if (report) {
+		wm8350_set_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
+		wm8350_set_bits(wm8350, WM8350_JACK_DETECT, ena);
+	} else {
+		wm8350_clear_bits(wm8350, WM8350_JACK_DETECT, ena);
+	}
 
 	/* Sync status */
 	wm8350_hp_jack_handler(irq + wm8350->irq_base, priv);
@@ -1459,7 +1464,8 @@ static irqreturn_t wm8350_mic_handler(int irq, void *data)
  * @detect_report: value to report when presence detected
  * @short_report:  value to report when microphone short detected
  *
- * Enables the microphone jack detection of the WM8350.
+ * Enables the microphone jack detection of the WM8350.  If both reports
+ * are specified as zero then detection is disabled.
  */
 int wm8350_mic_jack_detect(struct snd_soc_codec *codec,
 			   struct snd_soc_jack *jack,
@@ -1472,8 +1478,14 @@ int wm8350_mic_jack_detect(struct snd_soc_codec *codec,
 	priv->mic.report = detect_report;
 	priv->mic.short_report = short_report;
 
-	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
-	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_1, WM8350_MIC_DET_ENA);
+	if (detect_report || short_report) {
+		wm8350_set_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
+		wm8350_set_bits(wm8350, WM8350_POWER_MGMT_1,
+				WM8350_MIC_DET_ENA);
+	} else {
+		wm8350_clear_bits(wm8350, WM8350_POWER_MGMT_1,
+				  WM8350_MIC_DET_ENA);
+	}
 
 	return 0;
 }
