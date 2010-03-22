@@ -39,7 +39,7 @@ static struct tegra_pingroup_config olympus_pinmux[] = {
 	{TEGRA_PINGROUP_DTC,   TEGRA_MUX_RSVD1,         TEGRA_PUPD_PULL_DOWN, TEGRA_TRI_TRISTATE},
 	{TEGRA_PINGROUP_DTD,   TEGRA_MUX_SDIO2,         TEGRA_PUPD_PULL_DOWN, TEGRA_TRI_TRISTATE},
 	{TEGRA_PINGROUP_DTE,   TEGRA_MUX_RSVD1,         TEGRA_PUPD_NORMAL,    TEGRA_TRI_TRISTATE},
-	{TEGRA_PINGROUP_DTF,   TEGRA_MUX_I2C3,          TEGRA_PUPD_PULL_UP,   TEGRA_TRI_TRISTATE},
+	{TEGRA_PINGROUP_DTF,   TEGRA_MUX_I2C3,          TEGRA_PUPD_PULL_UP,   TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_GMA,   TEGRA_MUX_SDIO4,         TEGRA_PUPD_NORMAL,    TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_GMB,   TEGRA_MUX_GMI,           TEGRA_PUPD_NORMAL,    TEGRA_TRI_NORMAL},
 	{TEGRA_PINGROUP_GMC,   TEGRA_MUX_UARTD,         TEGRA_PUPD_NORMAL,    TEGRA_TRI_NORMAL},
@@ -140,5 +140,5 @@ static struct tegra_pingroup_config olympus_pinmux[] = {
 
 void olympus_pinmux_init(void)
 {
-	//tegra_pinmux_config_table(olympus_pinmux, ARRAY_SIZE(olympus_pinmux));
+	tegra_pinmux_config_table(olympus_pinmux, ARRAY_SIZE(olympus_pinmux));
 }

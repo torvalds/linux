@@ -200,6 +200,10 @@ static void __init tegra_olympus_init(void)
 	clk_set_rate(clk, 216000000);
 	clk_enable(clk);
 
+	clk = clk_get_sys(NULL, "pll_p_out3");
+	clk_set_rate(clk, 72000000);
+	clk_enable(clk);
+
 	clk = clk_get_sys("uart.3", NULL);
 	clk_set_rate(clk, 216000000);
 	clk_enable(clk);
