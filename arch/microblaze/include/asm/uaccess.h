@@ -111,9 +111,6 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 # define __EX_TABLE_SECTION	".section .discard,\"a\"\n"
 #endif
 
-extern unsigned long __copy_tofrom_user(void __user *to,
-		const void __user *from, unsigned long size);
-
 /* Return: number of not copied bytes, i.e. 0 if OK or non-zero if fail. */
 static inline unsigned long __must_check __clear_user(void __user *to,
 							unsigned long n)
@@ -144,8 +141,7 @@ static inline unsigned long __must_check clear_user(void __user *to,
 	return __clear_user(to, n);
 }
 
-#ifndef CONFIG_MMU
-
+/* put_user and get_user macros */
 extern long __user_bad(void);
 
 #define __get_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
@@ -251,114 +247,6 @@ extern long __user_bad(void);
 		);						\
 })
 
-#define __put_user(x, ptr)						\
-({									\
-	__typeof__(*(ptr)) volatile __gu_val = (x);			\
-	long __gu_err = 0;						\
-	switch (sizeof(__gu_val)) {					\
-	case 1:								\
-		__put_user_asm("sb", (ptr), __gu_val, __gu_err);	\
-		break;							\
-	case 2:								\
-		__put_user_asm("sh", (ptr), __gu_val, __gu_err);	\
-		break;							\
-	case 4:								\
-		__put_user_asm("sw", (ptr), __gu_val, __gu_err);	\
-		break;							\
-	case 8:								\
-		__put_user_asm_8((ptr), __gu_val, __gu_err);		\
-		break;							\
-	default:							\
-		/*__gu_err = -EINVAL;*/	__gu_err = __user_bad();	\
-	}								\
-	__gu_err;							\
-})
-
-#define put_user(x, ptr)	__put_user((x), (ptr))
-
-#define copy_to_user(to, from, n)	(memcpy((to), (from), (n)), 0)
-#define copy_from_user(to, from, n)	(memcpy((to), (from), (n)), 0)
-
-#define __copy_to_user(to, from, n)	(copy_to_user((to), (from), (n)))
-#define __copy_from_user(to, from, n)	(copy_from_user((to), (from), (n)))
-#define __copy_to_user_inatomic(to, from, n) \
-			(__copy_to_user((to), (from), (n)))
-#define __copy_from_user_inatomic(to, from, n) \
-			(__copy_from_user((to), (from), (n)))
-
-extern long strncpy_from_user(char *dst, const char *src, long count);
-extern long strnlen_user(const char *src, long count);
-
-#else /* CONFIG_MMU */
-
-/* put_user and get_user macros */
-
-extern long __user_bad(void);
-
-#define __get_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
-({								\
-	__asm__ __volatile__ (					\
-			"1:"	insn	" %1, %2, r0;"		\
-			"	addk	%0, r0, r0;"		\
-			"2:			"		\
-			__FIXUP_SECTION				\
-			"3:	brid	2b;	"		\
-			"	addik	%0, r0, %3;"		\
-			".previous;"				\
-			__EX_TABLE_SECTION			\
-			".word	1b,3b;"				\
-			".previous;"				\
-		: "=&r"(__gu_err), "=r"(__gu_val)		\
-		: "r"(__gu_ptr), "i"(-EFAULT)			\
-	);							\
-})
-
-#define __get_user(x, ptr)						\
-({									\
-	unsigned long __gu_val;						\
-	/*unsigned long __gu_ptr = (unsigned long)(ptr);*/		\
-	long __gu_err;							\
-	switch (sizeof(*(ptr))) {					\
-	case 1:								\
-		__get_user_asm("lbu", (ptr), __gu_val, __gu_err);	\
-		break;							\
-	case 2:								\
-		__get_user_asm("lhu", (ptr), __gu_val, __gu_err);	\
-		break;							\
-	case 4:								\
-		__get_user_asm("lw", (ptr), __gu_val, __gu_err);	\
-		break;							\
-	default:							\
-		/* __gu_val = 0; __gu_err = -EINVAL;*/ __gu_err = __user_bad();\
-	}								\
-	x = (__typeof__(*(ptr))) __gu_val;				\
-	__gu_err;							\
-})
-
-/**
- * get_user: - Get a simple variable from user space.
- * @x:   Variable to store result.
- * @ptr: Source address, in user space.
- *
- * Context: User context only.  This function may sleep.
- *
- * This macro copies a single simple variable from user space to kernel
- * space.  It supports simple types like char and int, but not larger
- * data types like structures or arrays.
- *
- * @ptr must have pointer-to-simple-variable type, and the result of
- * dereferencing @ptr must be assignable to @x without a cast.
- *
- * Returns zero on success, or -EFAULT on error.
- * On error, the variable @x is set to zero.
- */
-
-#define get_user(x, ptr)						\
-({									\
-	access_ok(VERIFY_READ, (ptr), sizeof(*(ptr)))			\
-		? __get_user((x), (ptr)) : -EFAULT;			\
-})
-
 /**
  * put_user: - Write a simple value into user space.
  * @x:   Value to copy to user space.
@@ -376,44 +264,6 @@ extern long __user_bad(void);
  * Returns zero on success, or -EFAULT on error.
  */
 
-#define __put_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
-({								\
-	__asm__ __volatile__ (					\
-			"1:"	insn	" %1, %2, r0;"		\
-			"	addk	%0, r0, r0;"		\
-			"2:			"		\
-			__FIXUP_SECTION				\
-			"3:	brid	2b;"			\
-			"	addik	%0, r0, %3;"		\
-			".previous;"				\
-			__EX_TABLE_SECTION			\
-			".word	1b,3b;"				\
-			".previous;"				\
-		: "=&r"(__gu_err)				\
-		: "r"(__gu_val), "r"(__gu_ptr), "i"(-EFAULT)	\
-	);							\
-})
-
-#define __put_user_asm_8(__gu_ptr, __gu_val, __gu_err)		\
-({								\
-	__asm__ __volatile__ ("	lwi	%0, %1, 0;"		\
-			"1:	swi	%0, %2, 0;"		\
-			"	lwi	%0, %1, 4;"		\
-			"2:	swi	%0, %2, 4;"		\
-			"	addk	%0, r0, r0;"		\
-			"3:				"	\
-			__FIXUP_SECTION				\
-			"4:	brid	3b;"			\
-			"	addik	%0, r0, %3;"		\
-			".previous;"				\
-			__EX_TABLE_SECTION			\
-			".word	1b,4b,2b,4b;"			\
-			".previous;"				\
-		: "=&r"(__gu_err)				\
-		: "r"(&__gu_val), "r"(__gu_ptr), "i"(-EFAULT)	\
-		);						\
-})
-
 #define __put_user(x, ptr)						\
 ({									\
 	__typeof__(*(ptr)) volatile __gu_val = (x);			\
@@ -422,7 +272,7 @@ extern long __user_bad(void);
 	case 1:								\
 		__put_user_asm("sb", (ptr), __gu_val, __gu_err);	\
 		break;							\
-	case 2: 							\
+	case 2:								\
 		__put_user_asm("sh", (ptr), __gu_val, __gu_err);	\
 		break;							\
 	case 4:								\
@@ -437,11 +287,71 @@ extern long __user_bad(void);
 	__gu_err;							\
 })
 
+#ifndef CONFIG_MMU
+
+#define put_user(x, ptr)	__put_user((x), (ptr))
+
+static inline long strnlen_user(const char __user *src, long count)
+{
+	return strlen(src) + 1;
+}
+
+#define __do_strncpy_from_user(dst, src, count, res)			\
+	do {								\
+		char *tmp;						\
+		strncpy(dst, src, count);				\
+		for (tmp = dst; *tmp && count > 0; tmp++, count--)	\
+			;						\
+		res = (tmp - dst);					\
+	} while (0)
+
+static inline long __strncpy_from_user(char *dst,
+				const char __user *src, long count)
+{
+	long res;
+	__do_strncpy_from_user(dst, src, count, res);
+	return res;
+}
+
+static inline long strncpy_from_user(char *dst,
+				const char __user *src, long count)
+{
+	long res = -EFAULT;
+	if (access_ok(VERIFY_READ, src, 1))
+		__do_strncpy_from_user(dst, src, count, res);
+	return res;
+}
+
+static inline unsigned long __copy_tofrom_user(void __user *to,
+		const void __user *from, unsigned long size)
+{
+	memcpy(to, from, size);
+	return 0;
+}
+
+#define copy_to_user(to, from, n)	(memcpy((to), (from), (n)), 0)
+#define copy_from_user(to, from, n)	(memcpy((to), (from), (n)), 0)
+
+#define __copy_to_user(to, from, n)	(copy_to_user((to), (from), (n)))
+#define __copy_from_user(to, from, n)	(copy_from_user((to), (from), (n)))
+#define __copy_to_user_inatomic(to, from, n) \
+			(__copy_to_user((to), (from), (n)))
+#define __copy_from_user_inatomic(to, from, n) \
+			(__copy_from_user((to), (from), (n)))
+
+extern long strncpy_from_user(char *dst, const char *src, long count);
+extern long strnlen_user(const char *src, long count);
+
+#else /* CONFIG_MMU */
+
 #define put_user(x, ptr)						\
 ({									\
 	access_ok(VERIFY_WRITE, (ptr), sizeof(*(ptr)))			\
 		? __put_user((x), (ptr)) : -EFAULT;			\
 })
+
+extern unsigned long __copy_tofrom_user(void __user *to,
+		const void __user *from, unsigned long size);
 
 #define __copy_from_user(to, from, n)	\
 	__copy_tofrom_user((__force void __user *)(to), \
