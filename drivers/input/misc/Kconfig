@@ -25,7 +25,7 @@ config INPUT_88PM860X_ONKEY
 config INPUT_AD714X
 	tristate "Analog Devices AD714x Capacitance Touch Sensor"
 	help
-	  Say Y here if you want to support an AD7142/AD7147 touch sensor.
+	  Say Y here if you want to support an AD7142/3/7/8/7A touch sensor.
 
 	  You should select a bus connection too.
 
