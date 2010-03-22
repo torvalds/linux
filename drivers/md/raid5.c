@@ -5788,6 +5788,18 @@ static void *raid5_takeover(mddev_t *mddev)
 	return ERR_PTR(-EINVAL);
 }
 
+static void *raid4_takeover(mddev_t *mddev)
+{
+	/* raid4 can take over raid5 if layout is right.
+	 */
+	if (mddev->level == 5 &&
+	    mddev->layout == ALGORITHM_PARITY_N) {
+		mddev->new_layout = 0;
+		mddev->new_level = 4;
+		return setup_conf(mddev);
+	}
+	return ERR_PTR(-EINVAL);
+}
 
 static struct mdk_personality raid5_personality;
 
@@ -5903,6 +5915,7 @@ static struct mdk_personality raid4_personality =
 	.start_reshape  = raid5_start_reshape,
 	.finish_reshape = raid5_finish_reshape,
 	.quiesce	= raid5_quiesce,
+	.takeover	= raid4_takeover,
 };
 
 static int __init raid5_init(void)
