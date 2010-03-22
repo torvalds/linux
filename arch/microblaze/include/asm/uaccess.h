@@ -71,6 +71,9 @@ struct exception_table_entry {
 	unsigned long insn, fixup;
 };
 
+/* Returns 0 if exception not found and fixup otherwise.  */
+extern unsigned long search_exception_table(unsigned long);
+
 #ifndef CONFIG_MMU
 
 /* Check against bounds of physical memory */
@@ -107,6 +110,39 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 # define __FIXUP_SECTION	".section .discard,\"ax\"\n"
 # define __EX_TABLE_SECTION	".section .discard,\"a\"\n"
 #endif
+
+extern unsigned long __copy_tofrom_user(void __user *to,
+		const void __user *from, unsigned long size);
+
+/* Return: number of not copied bytes, i.e. 0 if OK or non-zero if fail. */
+static inline unsigned long __must_check __clear_user(void __user *to,
+							unsigned long n)
+{
+	/* normal memset with two words to __ex_table */
+	__asm__ __volatile__ (				\
+			"1:	sb	r0, %2, r0;"	\
+			"	addik	%0, %0, -1;"	\
+			"	bneid	%0, 1b;"	\
+			"	addik	%2, %2, 1;"	\
+			"2:			"	\
+			__EX_TABLE_SECTION		\
+			".word	1b,2b;"			\
+			".previous;"			\
+		: "=r"(n)				\
+		: "0"(n), "r"(to)
+	);
+	return n;
+}
+
+static inline unsigned long __must_check clear_user(void __user *to,
+							unsigned long n)
+{
+	might_sleep();
+	if (unlikely(!access_ok(VERIFY_WRITE, to, n)))
+		return n;
+
+	return __clear_user(to, n);
+}
 
 #ifndef CONFIG_MMU
 
@@ -173,52 +209,10 @@ extern int bad_user_access_length(void);
 #define __copy_from_user_inatomic(to, from, n) \
 			(__copy_from_user((to), (from), (n)))
 
-#define __clear_user(addr, n)	(memset((void *)(addr), 0, (n)), 0)
-
-/* stejne s MMU */
-static inline unsigned long clear_user(void *addr, unsigned long size)
-{
-	if (access_ok(VERIFY_WRITE, addr, size))
-		size = __clear_user(addr, size);
-	return size;
-}
-
-/* Returns 0 if exception not found and fixup otherwise.  */
-extern unsigned long search_exception_table(unsigned long);
-
 extern long strncpy_from_user(char *dst, const char *src, long count);
 extern long strnlen_user(const char *src, long count);
 
 #else /* CONFIG_MMU */
-
-/* Return: number of not copied bytes, i.e. 0 if OK or non-zero if fail. */
-static inline unsigned long __must_check __clear_user(void __user *to,
-							unsigned long n)
-{
-	/* normal memset with two words to __ex_table */
-	__asm__ __volatile__ (				\
-			"1:	sb	r0, %2, r0;"	\
-			"	addik	%0, %0, -1;"	\
-			"	bneid	%0, 1b;"	\
-			"	addik	%2, %2, 1;"	\
-			"2:			"	\
-			__EX_TABLE_SECTION		\
-			".word	1b,2b;"			\
-			".previous;"			\
-		: "=r"(n)				\
-		: "0"(n), "r"(to)
-	);
-	return n;
-}
-
-static inline unsigned long __must_check clear_user(void __user *to,
-							unsigned long n)
-{
-	might_sleep();
-	if (unlikely(!access_ok(VERIFY_WRITE, to, n)))
-		return n;
-	return __clear_user(to, n);
-}
 
 /* put_user and get_user macros */
 
@@ -371,9 +365,6 @@ extern long __user_bad(void);
 	access_ok(VERIFY_WRITE, (ptr), sizeof(*(ptr)))			\
 		? __put_user((x), (ptr)) : -EFAULT;			\
 })
-
-extern unsigned long __copy_tofrom_user(void __user *to,
-		const void __user *from, unsigned long size);
 
 #define __copy_from_user(to, from, n)	\
 	__copy_tofrom_user((__force void __user *)(to), \
