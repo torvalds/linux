@@ -61,6 +61,12 @@ static int rds_loop_xmit(struct rds_connection *conn, struct rds_message *rm,
 			 unsigned int hdr_off, unsigned int sg,
 			 unsigned int off)
 {
+	/* Do not send cong updates to loopback */
+	if (rm->m_inc.i_hdr.h_flags & RDS_FLAG_CONG_BITMAP) {
+		rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
+		return sizeof(struct rds_header) + RDS_CONG_MAP_BYTES;
+	}
+
 	BUG_ON(hdr_off || sg || off);
 
 	rds_inc_init(&rm->m_inc, conn, conn->c_laddr);
@@ -86,18 +92,6 @@ static void rds_loop_inc_free(struct rds_incoming *inc)
 {
         struct rds_message *rm = container_of(inc, struct rds_message, m_inc);
         rds_message_put(rm);
-}
-
-static int rds_loop_xmit_cong_map(struct rds_connection *conn,
-				  struct rds_cong_map *map,
-				  unsigned long offset)
-{
-	BUG_ON(offset);
-	BUG_ON(map != conn->c_lcong);
-
-	rds_cong_map_updated(conn->c_fcong, ~(u64) 0);
-
-	return sizeof(struct rds_header) + RDS_CONG_MAP_BYTES;
 }
 
 /* we need to at least give the thread something to succeed */
@@ -180,7 +174,6 @@ void rds_loop_exit(void)
  */
 struct rds_transport rds_loop_transport = {
 	.xmit			= rds_loop_xmit,
-	.xmit_cong_map		= rds_loop_xmit_cong_map,
 	.recv			= rds_loop_recv,
 	.conn_alloc		= rds_loop_conn_alloc,
 	.conn_free		= rds_loop_conn_free,

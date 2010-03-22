@@ -264,7 +264,6 @@ struct rds_transport rds_iw_transport = {
 	.laddr_check		= rds_iw_laddr_check,
 	.xmit_complete		= rds_iw_xmit_complete,
 	.xmit			= rds_iw_xmit,
-	.xmit_cong_map		= NULL,
 	.xmit_rdma		= rds_iw_xmit_rdma,
 	.recv			= rds_iw_recv,
 	.conn_alloc		= rds_iw_conn_alloc,

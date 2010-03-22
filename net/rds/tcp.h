@@ -80,8 +80,6 @@ void rds_tcp_xmit_complete(struct rds_connection *conn);
 int rds_tcp_xmit(struct rds_connection *conn, struct rds_message *rm,
 	         unsigned int hdr_off, unsigned int sg, unsigned int off);
 void rds_tcp_write_space(struct sock *sk);
-int rds_tcp_xmit_cong_map(struct rds_connection *conn,
-			  struct rds_cong_map *map, unsigned long offset);
 
 /* tcp_stats.c */
 DECLARE_PER_CPU(struct rds_tcp_statistics, rds_tcp_stats);

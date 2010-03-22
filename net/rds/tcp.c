@@ -258,7 +258,6 @@ struct rds_transport rds_tcp_transport = {
 	.laddr_check		= rds_tcp_laddr_check,
 	.xmit_prepare		= rds_tcp_xmit_prepare,
 	.xmit_complete		= rds_tcp_xmit_complete,
-	.xmit_cong_map		= rds_tcp_xmit_cong_map,
 	.xmit			= rds_tcp_xmit,
 	.recv			= rds_tcp_recv,
 	.conn_alloc		= rds_tcp_conn_alloc,

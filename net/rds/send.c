@@ -147,41 +147,16 @@ int rds_send_xmit(struct rds_connection *conn)
 		/*
 		 * If between sending messages, we can send a pending congestion
 		 * map update.
-		 *
-		 * Transports either define a special xmit_cong_map function,
-		 * or we allocate a cong_map message and treat it just like any
-		 * other send.
 		 */
 		if (!rm && test_and_clear_bit(0, &conn->c_map_queued)) {
-			if (conn->c_trans->xmit_cong_map) {
-				unsigned long map_offset = 0;
-				unsigned long map_bytes = sizeof(struct rds_header) +
-					RDS_CONG_MAP_BYTES;
-
-				while (map_bytes) {
-					ret = conn->c_trans->xmit_cong_map(conn, conn->c_lcong,
-									   map_offset);
-					if (ret <= 0) {
-						/* too far down the rabbithole! */
-						mutex_unlock(&conn->c_send_lock);
-						rds_conn_error(conn, "Cong map xmit failed\n");
-						goto out;
-					}
-
-					map_offset += ret;
-					map_bytes -= ret;
-				}
-			} else {
-				/* send cong update like a normal rm */
-				rm = rds_cong_update_alloc(conn);
-				if (IS_ERR(rm)) {
-					ret = PTR_ERR(rm);
-					break;
-				}
-				rm->data.op_active = 1;
-
-				conn->c_xmit_rm = rm;
+			rm = rds_cong_update_alloc(conn);
+			if (IS_ERR(rm)) {
+				ret = PTR_ERR(rm);
+				break;
 			}
+			rm->data.op_active = 1;
+
+			conn->c_xmit_rm = rm;
 		}
 
 		/*

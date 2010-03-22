@@ -393,10 +393,6 @@ struct rds_notifier {
  *                 transport is responsible for other serialization, including
  *                 rds_recv_incoming().  This is called in process context but
  *                 should try hard not to block.
- *
- * @xmit_cong_map: This asks the transport to send the local bitmap down the
- * 		   given connection.  XXX get a better story about the bitmap
- * 		   flag and header.
  */
 
 #define RDS_TRANS_IB	0
@@ -420,8 +416,6 @@ struct rds_transport {
 	void (*xmit_complete)(struct rds_connection *conn);
 	int (*xmit)(struct rds_connection *conn, struct rds_message *rm,
 		    unsigned int hdr_off, unsigned int sg, unsigned int off);
-	int (*xmit_cong_map)(struct rds_connection *conn,
-			     struct rds_cong_map *map, unsigned long offset);
 	int (*xmit_rdma)(struct rds_connection *conn, struct rm_rdma_op *op);
 	int (*xmit_atomic)(struct rds_connection *conn, struct rm_atomic_op *op);
 	int (*recv)(struct rds_connection *conn);
