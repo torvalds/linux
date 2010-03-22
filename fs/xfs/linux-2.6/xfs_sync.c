@@ -660,7 +660,7 @@ xfs_syncd_init(
 	mp->m_sync_work.w_syncer = xfs_sync_worker;
 	mp->m_sync_work.w_mount = mp;
 	mp->m_sync_work.w_completion = NULL;
-	mp->m_sync_task = kthread_run(xfssyncd, mp, "xfssyncd");
+	mp->m_sync_task = kthread_run(xfssyncd, mp, "xfssyncd/%s", mp->m_fsname);
 	if (IS_ERR(mp->m_sync_task))
 		return -PTR_ERR(mp->m_sync_task);
 	return 0;
