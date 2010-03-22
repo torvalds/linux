@@ -68,6 +68,22 @@ like:
    SYN_MT_REPORT
    SYN_REPORT
 
+Here is the sequence after lifting one of the fingers:
+
+   ABS_MT_POSITION_X
+   ABS_MT_POSITION_Y
+   SYN_MT_REPORT
+   SYN_REPORT
+
+And here is the sequence after lifting the remaining finger:
+
+   SYN_MT_REPORT
+   SYN_REPORT
+
+If the driver reports one of BTN_TOUCH or ABS_PRESSURE in addition to the
+ABS_MT events, the last SYN_MT_REPORT event may be omitted. Otherwise, the
+last SYN_REPORT will be dropped by the input core, resulting in no
+zero-finger event reaching userland.
 
 Event Semantics
 ---------------
