@@ -99,8 +99,10 @@ static int omap_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct omap_runtime_data *prtd = runtime->private_data;
-	struct omap_pcm_dma_data *dma_data = rtd->dai->cpu_dai->dma_data;
+	struct omap_pcm_dma_data *dma_data;
 	int err = 0;
+
+	dma_data = snd_soc_dai_get_dma_data(rtd->dai->cpu_dai, substream);
 
 	/* return if this is a bufferless transfer e.g.
 	 * codec <--> BT codec or GSM modem -- lg FIXME */
