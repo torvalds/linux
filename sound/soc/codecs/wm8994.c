@@ -3332,6 +3332,36 @@ static int wm8994_aif_mute(struct snd_soc_dai *codec_dai, int mute)
 	return 0;
 }
 
+static int wm8994_set_tristate(struct snd_soc_dai *codec_dai, int tristate)
+{
+	struct snd_soc_codec *codec = codec_dai->codec;
+	int reg, val, mask;
+
+	switch (codec_dai->id) {
+	case 1:
+		reg = WM8994_AIF1_MASTER_SLAVE;
+		mask = WM8994_AIF1_TRI;
+		break;
+	case 2:
+		reg = WM8994_AIF2_MASTER_SLAVE;
+		mask = WM8994_AIF2_TRI;
+		break;
+	case 3:
+		reg = WM8994_POWER_MANAGEMENT_6;
+		mask = WM8994_AIF3_TRI;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	if (tristate)
+		val = mask;
+	else
+		val = 0;
+
+	return snd_soc_update_bits(codec, reg, mask, reg);
+}
+
 #define WM8994_RATES SNDRV_PCM_RATE_8000_96000
 
 #define WM8994_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE |\
@@ -3343,6 +3373,7 @@ static struct snd_soc_dai_ops wm8994_aif1_dai_ops = {
 	.hw_params	= wm8994_hw_params,
 	.digital_mute	= wm8994_aif_mute,
 	.set_pll	= wm8994_set_fll,
+	.set_tristate	= wm8994_set_tristate,
 };
 
 static struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
@@ -3351,6 +3382,11 @@ static struct snd_soc_dai_ops wm8994_aif2_dai_ops = {
 	.hw_params	= wm8994_hw_params,
 	.digital_mute   = wm8994_aif_mute,
 	.set_pll	= wm8994_set_fll,
+	.set_tristate	= wm8994_set_tristate,
+};
+
+static struct snd_soc_dai_ops wm8994_aif3_dai_ops = {
+	.set_tristate	= wm8994_set_tristate,
 };
 
 struct snd_soc_dai wm8994_dai[] = {
@@ -3394,6 +3430,7 @@ struct snd_soc_dai wm8994_dai[] = {
 	},
 	{
 		.name = "WM8994 AIF3",
+		.id = 3,
 		.playback = {
 			.stream_name = "AIF3 Playback",
 			.channels_min = 2,
@@ -3408,6 +3445,7 @@ struct snd_soc_dai wm8994_dai[] = {
 			.rates = WM8994_RATES,
 			.formats = WM8994_FORMATS,
 		},
+		.ops = &wm8994_aif3_dai_ops,
 	}
 };
 EXPORT_SYMBOL_GPL(wm8994_dai);
