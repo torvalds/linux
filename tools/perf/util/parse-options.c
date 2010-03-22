@@ -500,6 +500,7 @@ int usage_with_options_internal(const char * const *usagestr,
 void usage_with_options(const char * const *usagestr,
 			const struct option *opts)
 {
+	exit_browser(false);
 	usage_with_options_internal(usagestr, opts, 0);
 	exit(129);
 }
