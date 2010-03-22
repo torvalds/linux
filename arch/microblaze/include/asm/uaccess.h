@@ -213,32 +213,66 @@ extern long __user_bad(void);
 		? __get_user((x), (ptr)) : -EFAULT;			\
 })
 
-/* Undefined function to trigger linker error */
-extern int bad_user_access_length(void);
-
-/* FIXME is not there defined __pu_val */
-#define __put_user(var, ptr)					\
+#define __put_user_asm(insn, __gu_ptr, __gu_val, __gu_err)	\
 ({								\
-	int __pu_err = 0;					\
-	switch (sizeof(*(ptr))) {				\
-	case 1:							\
-	case 2:							\
-	case 4:							\
-		*(ptr) = (var);					\
-		break;						\
-	case 8: {						\
-		typeof(*(ptr)) __pu_val = (var);		\
-		memcpy(ptr, &__pu_val, sizeof(__pu_val));	\
-		}						\
-		break;						\
-	default:						\
-		__pu_err = __put_user_bad();			\
-		break;						\
-	}							\
-	__pu_err;						\
+	__asm__ __volatile__ (					\
+			"1:"	insn	" %1, %2, r0;"		\
+			"	addk	%0, r0, r0;"		\
+			"2:			"		\
+			__FIXUP_SECTION				\
+			"3:	brid	2b;"			\
+			"	addik	%0, r0, %3;"		\
+			".previous;"				\
+			__EX_TABLE_SECTION			\
+			".word	1b,3b;"				\
+			".previous;"				\
+		: "=&r"(__gu_err)				\
+		: "r"(__gu_val), "r"(__gu_ptr), "i"(-EFAULT)	\
+	);							\
 })
 
-#define __put_user_bad()	(bad_user_access_length(), (-EFAULT))
+#define __put_user_asm_8(__gu_ptr, __gu_val, __gu_err)		\
+({								\
+	__asm__ __volatile__ ("	lwi	%0, %1, 0;"		\
+			"1:	swi	%0, %2, 0;"		\
+			"	lwi	%0, %1, 4;"		\
+			"2:	swi	%0, %2, 4;"		\
+			"	addk	%0, r0, r0;"		\
+			"3:			"		\
+			__FIXUP_SECTION				\
+			"4:	brid	3b;"			\
+			"	addik	%0, r0, %3;"		\
+			".previous;"				\
+			__EX_TABLE_SECTION			\
+			".word	1b,4b,2b,4b;"			\
+			".previous;"				\
+		: "=&r"(__gu_err)				\
+		: "r"(&__gu_val), "r"(__gu_ptr), "i"(-EFAULT)	\
+		);						\
+})
+
+#define __put_user(x, ptr)						\
+({									\
+	__typeof__(*(ptr)) volatile __gu_val = (x);			\
+	long __gu_err = 0;						\
+	switch (sizeof(__gu_val)) {					\
+	case 1:								\
+		__put_user_asm("sb", (ptr), __gu_val, __gu_err);	\
+		break;							\
+	case 2:								\
+		__put_user_asm("sh", (ptr), __gu_val, __gu_err);	\
+		break;							\
+	case 4:								\
+		__put_user_asm("sw", (ptr), __gu_val, __gu_err);	\
+		break;							\
+	case 8:								\
+		__put_user_asm_8((ptr), __gu_val, __gu_err);		\
+		break;							\
+	default:							\
+		/*__gu_err = -EINVAL;*/	__gu_err = __user_bad();	\
+	}								\
+	__gu_err;							\
+})
 
 #define put_user(x, ptr)	__put_user((x), (ptr))
 
