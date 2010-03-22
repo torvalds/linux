@@ -366,6 +366,14 @@ void ceph_con_open(struct ceph_connection *con, struct ceph_entity_addr *addr)
 }
 
 /*
+ * return true if this connection ever successfully opened
+ */
+bool ceph_con_opened(struct ceph_connection *con)
+{
+	return con->connect_seq > 0;
+}
+
+/*
  * generic get/put
  */
 struct ceph_connection *ceph_con_get(struct ceph_connection *con)

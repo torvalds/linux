@@ -413,11 +413,22 @@ static void remove_old_osds(struct ceph_osd_client *osdc, int remove_all)
  */
 static int __reset_osd(struct ceph_osd_client *osdc, struct ceph_osd *osd)
 {
+	struct ceph_osd_request *req;
 	int ret = 0;
 
 	dout("__reset_osd %p osd%d\n", osd, osd->o_osd);
 	if (list_empty(&osd->o_requests)) {
 		__remove_osd(osdc, osd);
+	} else if (memcmp(&osdc->osdmap->osd_addr[osd->o_osd],
+			  &osd->o_con.peer_addr,
+			  sizeof(osd->o_con.peer_addr)) == 0 &&
+		   !ceph_con_opened(&osd->o_con)) {
+		dout(" osd addr hasn't changed and connection never opened,"
+		     " letting msgr retry");
+		/* touch each r_stamp for handle_timeout()'s benfit */
+		list_for_each_entry(req, &osd->o_requests, r_osd_item)
+			req->r_stamp = jiffies;
+		ret = -EAGAIN;
 	} else {
 		ceph_con_close(&osd->o_con);
 		ceph_con_open(&osd->o_con, &osdc->osdmap->osd_addr[osd->o_osd]);
@@ -862,7 +873,9 @@ static int __kick_requests(struct ceph_osd_client *osdc,
 
 	dout("kick_requests osd%d\n", kickosd ? kickosd->o_osd : -1);
 	if (kickosd) {
-		__reset_osd(osdc, kickosd);
+		err = __reset_osd(osdc, kickosd);
+		if (err == -EAGAIN)
+			return 1;
 	} else {
 		for (p = rb_first(&osdc->osds); p; p = n) {
 			struct ceph_osd *osd =
