@@ -6203,6 +6203,7 @@ int ocfs2_truncate_log_init(struct ocfs2_super *osb)
  */
 struct ocfs2_cached_block_free {
 	struct ocfs2_cached_block_free		*free_next;
+	u64					free_bg;
 	u64					free_blk;
 	unsigned int				free_bit;
 };
@@ -6249,8 +6250,11 @@ static int ocfs2_free_cached_blocks(struct ocfs2_super *osb,
 	}
 
 	while (head) {
-		bg_blkno = ocfs2_which_suballoc_group(head->free_blk,
-						      head->free_bit);
+		if (head->free_bg)
+			bg_blkno = head->free_bg;
+		else
+			bg_blkno = ocfs2_which_suballoc_group(head->free_blk,
+							      head->free_bit);
 		mlog(0, "Free bit: (bit %u, blkno %llu)\n",
 		     head->free_bit, (unsigned long long)head->free_blk);
 
@@ -6298,7 +6302,7 @@ int ocfs2_cache_cluster_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
 	int ret = 0;
 	struct ocfs2_cached_block_free *item;
 
-	item = kmalloc(sizeof(*item), GFP_NOFS);
+	item = kzalloc(sizeof(*item), GFP_NOFS);
 	if (item == NULL) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -6438,8 +6442,8 @@ ocfs2_find_per_slot_free_list(int type,
 }
 
 int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
-			      int type, int slot, u64 blkno,
-			      unsigned int bit)
+			      int type, int slot, u64 suballoc,
+			      u64 blkno, unsigned int bit)
 {
 	int ret;
 	struct ocfs2_per_slot_free_list *fl;
@@ -6452,7 +6456,7 @@ int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
 		goto out;
 	}
 
-	item = kmalloc(sizeof(*item), GFP_NOFS);
+	item = kzalloc(sizeof(*item), GFP_NOFS);
 	if (item == NULL) {
 		ret = -ENOMEM;
 		mlog_errno(ret);
@@ -6462,6 +6466,7 @@ int ocfs2_cache_block_dealloc(struct ocfs2_cached_dealloc_ctxt *ctxt,
 	mlog(0, "Insert: (type %d, slot %u, bit %u, blk %llu)\n",
 	     type, slot, bit, (unsigned long long)blkno);
 
+	item->free_bg = suballoc;
 	item->free_blk = blkno;
 	item->free_bit = bit;
 	item->free_next = fl->f_first;
@@ -6478,6 +6483,7 @@ static int ocfs2_cache_extent_block_free(struct ocfs2_cached_dealloc_ctxt *ctxt,
 {
 	return ocfs2_cache_block_dealloc(ctxt, EXTENT_ALLOC_SYSTEM_INODE,
 					 le16_to_cpu(eb->h_suballoc_slot),
+					 le64_to_cpu(eb->h_suballoc_loc),
 					 le64_to_cpu(eb->h_blkno),
 					 le16_to_cpu(eb->h_suballoc_bit));
 }

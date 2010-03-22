@@ -4466,7 +4466,10 @@ static int ocfs2_dx_dir_remove_index(struct inode *dir,
 
 	blk = le64_to_cpu(dx_root->dr_blkno);
 	bit = le16_to_cpu(dx_root->dr_suballoc_bit);
-	bg_blkno = ocfs2_which_suballoc_group(blk, bit);
+	if (dx_root->dr_suballoc_loc)
+		bg_blkno = le64_to_cpu(dx_root->dr_suballoc_loc);
+	else
+		bg_blkno = ocfs2_which_suballoc_group(blk, bit);
 	ret = ocfs2_free_suballoc_bits(handle, dx_alloc_inode, dx_alloc_bh,
 				       bit, bg_blkno, 1);
 	if (ret)

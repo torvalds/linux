@@ -2466,7 +2466,10 @@ static int ocfs2_xattr_free_block(struct inode *inode,
 	xb = (struct ocfs2_xattr_block *)blk_bh->b_data;
 	blk = le64_to_cpu(xb->xb_blkno);
 	bit = le16_to_cpu(xb->xb_suballoc_bit);
-	bg_blkno = ocfs2_which_suballoc_group(blk, bit);
+	if (xb->xb_suballoc_loc)
+		bg_blkno = le64_to_cpu(xb->xb_suballoc_loc);
+	else
+		bg_blkno = ocfs2_which_suballoc_group(blk, bit);
 
 	xb_alloc_inode = ocfs2_get_system_file_inode(osb,
 				EXTENT_ALLOC_SYSTEM_INODE,

@@ -2349,6 +2349,8 @@ int ocfs2_free_dinode(handle_t *handle,
 	u16 bit = le16_to_cpu(di->i_suballoc_bit);
 	u64 bg_blkno = ocfs2_which_suballoc_group(blk, bit);
 
+	if (di->i_suballoc_loc)
+		bg_blkno = le64_to_cpu(di->i_suballoc_loc);
 	return ocfs2_free_suballoc_bits(handle, inode_alloc_inode,
 					inode_alloc_bh, bit, bg_blkno, 1);
 }

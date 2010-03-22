@@ -792,7 +792,10 @@ int ocfs2_remove_refcount_tree(struct inode *inode, struct buffer_head *di_bh)
 	if (le32_to_cpu(rb->rf_count) == 1) {
 		blk = le64_to_cpu(rb->rf_blkno);
 		bit = le16_to_cpu(rb->rf_suballoc_bit);
-		bg_blkno = ocfs2_which_suballoc_group(blk, bit);
+		if (rb->rf_suballoc_loc)
+			bg_blkno = le64_to_cpu(rb->rf_suballoc_loc);
+		else
+			bg_blkno = ocfs2_which_suballoc_group(blk, bit);
 
 		alloc_inode = ocfs2_get_system_file_inode(osb,
 					EXTENT_ALLOC_SYSTEM_INODE,
@@ -2108,6 +2111,7 @@ static int ocfs2_remove_refcount_extent(handle_t *handle,
 	 */
 	ret = ocfs2_cache_block_dealloc(dealloc, EXTENT_ALLOC_SYSTEM_INODE,
 					le16_to_cpu(rb->rf_suballoc_slot),
+					le64_to_cpu(rb->rf_suballoc_loc),
 					le64_to_cpu(rb->rf_blkno),
 					le16_to_cpu(rb->rf_suballoc_bit));
 	if (ret) {
