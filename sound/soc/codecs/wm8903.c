@@ -1465,7 +1465,7 @@ int wm8903_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 		      int det, int shrt)
 {
 	struct wm8903_priv *wm8903 = codec->private_data;
-	int irq_mask = 0;
+	int irq_mask = WM8903_MICDET_EINT | WM8903_MICSHRT_EINT;
 
 	dev_dbg(codec->dev, "Enabling microphone detection: %x %x\n",
 		det, shrt);
@@ -1485,16 +1485,17 @@ int wm8903_mic_detect(struct snd_soc_codec *codec, struct snd_soc_jack *jack,
 			    WM8903_MICDET_EINT | WM8903_MICSHRT_EINT,
 			    irq_mask);
 
-	/* Enable mic detection, this may not have been set through
-	 * platform data (eg, if the defaults are OK). */
-	snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
-			    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
-	snd_soc_update_bits(codec, WM8903_MIC_BIAS_CONTROL_0,
-			    WM8903_MICDET_ENA, WM8903_MICDET_ENA);
-
-	/* Force the microphone bias on; this will trigger an initial
-	 * detection. */
-	snd_soc_dapm_force_enable_pin(codec, "Mic Bias");
+	if (det && shrt) {
+		/* Enable mic detection, this may not have been set through
+		 * platform data (eg, if the defaults are OK). */
+		snd_soc_update_bits(codec, WM8903_WRITE_SEQUENCER_0,
+				    WM8903_WSEQ_ENA, WM8903_WSEQ_ENA);
+		snd_soc_update_bits(codec, WM8903_MIC_BIAS_CONTROL_0,
+				    WM8903_MICDET_ENA, WM8903_MICDET_ENA);
+	} else {
+		snd_soc_update_bits(codec, WM8903_MIC_BIAS_CONTROL_0,
+				    WM8903_MICDET_ENA, 0);
+	}
 
 	return 0;
 }
