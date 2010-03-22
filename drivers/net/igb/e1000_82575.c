@@ -1446,22 +1446,12 @@ void igb_vmdq_set_replication_pf(struct e1000_hw *hw, bool enable)
  **/
 static s32 igb_read_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 *data)
 {
-	u32 mdicnfg = 0;
 	s32 ret_val;
 
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
-
-	/*
-	 * We config the phy address in MDICNFG register now. Same bits
-	 * as before. The values in MDIC can be written but will be
-	 * ignored. This allows us to call the old function after
-	 * configuring the PHY address in the new register
-	 */
-	mdicnfg = (hw->phy.addr << E1000_MDIC_PHY_SHIFT);
-	wr32(E1000_MDICNFG, mdicnfg);
 
 	ret_val = igb_read_phy_reg_mdic(hw, offset, data);
 
@@ -1481,22 +1471,12 @@ out:
  **/
 static s32 igb_write_phy_reg_82580(struct e1000_hw *hw, u32 offset, u16 data)
 {
-	u32 mdicnfg = 0;
 	s32 ret_val;
 
 
 	ret_val = hw->phy.ops.acquire(hw);
 	if (ret_val)
 		goto out;
-
-	/*
-	 * We config the phy address in MDICNFG register now. Same bits
-	 * as before. The values in MDIC can be written but will be
-	 * ignored. This allows us to call the old function after
-	 * configuring the PHY address in the new register
-	 */
-	mdicnfg = (hw->phy.addr << E1000_MDIC_PHY_SHIFT);
-	wr32(E1000_MDICNFG, mdicnfg);
 
 	ret_val = igb_write_phy_reg_mdic(hw, offset, data);
 
