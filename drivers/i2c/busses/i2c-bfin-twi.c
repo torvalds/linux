@@ -358,15 +358,7 @@ static int bfin_twi_do_master_xfer(struct i2c_adapter *adap,
 static int bfin_twi_master_xfer(struct i2c_adapter *adap,
 				struct i2c_msg *msgs, int num)
 {
-	int i, ret = 0;
-
-	for (i = 0; i < adap->retries; i++) {
-		ret = bfin_twi_do_master_xfer(adap, msgs, num);
-		if (ret > 0)
-			break;
-	}
-
-	return ret;
+	return bfin_twi_do_master_xfer(adap, msgs, num);
 }
 
 /*
@@ -574,16 +566,8 @@ int bfin_twi_smbus_xfer(struct i2c_adapter *adap, u16 addr,
 			unsigned short flags, char read_write,
 			u8 command, int size, union i2c_smbus_data *data)
 {
-	int i, ret = 0;
-
-	for (i = 0; i < adap->retries; i++) {
-		ret = bfin_twi_do_smbus_xfer(adap, addr, flags,
+	return bfin_twi_do_smbus_xfer(adap, addr, flags,
 			read_write, command, size, data);
-		if (ret == 0)
-			break;
-	}
-
-	return ret;
 }
 
 /*
