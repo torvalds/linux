@@ -24,6 +24,8 @@
  * 21-08-02: Converted to input API, major cleanup. (Vojtech Pavlik)
  */
 
+#define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
+
 #include <linux/consolemap.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -639,7 +641,7 @@ static void k_spec(struct vc_data *vc, unsigned char value, char up_flag)
 
 static void k_lowercase(struct vc_data *vc, unsigned char value, char up_flag)
 {
-	printk(KERN_ERR "keyboard.c: k_lowercase was called - impossible\n");
+	pr_err("k_lowercase was called - impossible\n");
 }
 
 static void k_unicode(struct vc_data *vc, unsigned int value, char up_flag)
@@ -714,7 +716,7 @@ static void k_fn(struct vc_data *vc, unsigned char value, char up_flag)
 		if (func_table[value])
 			puts_queue(vc, func_table[value]);
 	} else
-		printk(KERN_ERR "k_fn called with value=%d\n", value);
+		pr_err("k_fn called with value=%d\n", value);
 }
 
 static void k_cur(struct vc_data *vc, unsigned char value, char up_flag)
@@ -912,7 +914,7 @@ static void k_brl(struct vc_data *vc, unsigned char value, char up_flag)
 
 	if (kbd->kbdmode != VC_UNICODE) {
 		if (!up_flag)
-			printk("keyboard mode must be unicode for braille patterns\n");
+			pr_warning("keyboard mode must be unicode for braille patterns\n");
 		return;
 	}
 
@@ -1169,7 +1171,8 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 	if ((raw_mode = (kbd->kbdmode == VC_RAW)) && !hw_raw)
 		if (emulate_raw(vc, keycode, !down << 7))
 			if (keycode < BTN_MISC && printk_ratelimit())
-				printk(KERN_WARNING "keyboard.c: can't emulate rawmode for keycode %d\n", keycode);
+				pr_warning("can't emulate rawmode for keycode %d\n",
+					   keycode);
 
 #ifdef CONFIG_SPARC
 	if (keycode == KEY_A && sparc_l1_a_state) {
