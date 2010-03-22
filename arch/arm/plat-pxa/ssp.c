@@ -92,6 +92,22 @@ static int __devinit ssp_probe(struct platform_device *pdev)
 		goto err_free;
 	}
 
+	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
+	if (res == NULL) {
+		dev_err(&pdev->dev, "no SSP RX DRCMR defined\n");
+		ret = -ENODEV;
+		goto err_free_clk;
+	}
+	ssp->drcmr_rx = res->start;
+
+	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
+	if (res == NULL) {
+		dev_err(&pdev->dev, "no SSP TX DRCMR defined\n");
+		ret = -ENODEV;
+		goto err_free_clk;
+	}
+	ssp->drcmr_tx = res->start;
+
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (res == NULL) {
 		dev_err(&pdev->dev, "no memory resource defined\n");
@@ -122,22 +138,6 @@ static int __devinit ssp_probe(struct platform_device *pdev)
 		ret = -ENODEV;
 		goto err_free_io;
 	}
-
-	res = platform_get_resource(pdev, IORESOURCE_DMA, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no SSP RX DRCMR defined\n");
-		ret = -ENODEV;
-		goto err_free_io;
-	}
-	ssp->drcmr_rx = res->start;
-
-	res = platform_get_resource(pdev, IORESOURCE_DMA, 1);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "no SSP TX DRCMR defined\n");
-		ret = -ENODEV;
-		goto err_free_io;
-	}
-	ssp->drcmr_tx = res->start;
 
 	/* PXA2xx/3xx SSP ports starts from 1 and the internal pdev->id
 	 * starts from 0, do a translation here
