@@ -233,11 +233,6 @@ where examples can be found.
 difference between the contact position and the approaching tool position
 could be used to derive tilt.
 [2] The list can of course be extended.
-[3] The multi-touch X driver is currently in the prototyping stage. At the
-time of writing (April 2009), the MT protocol is not yet merged, and the
-prototype implements finger matching, basic mouse support and two-finger
-scrolling. The project aims at improving the quality of current multi-touch
-functionality available in the Synaptics X driver, and in addition
-implement more advanced gestures.
+[3] Multitouch X driver project: http://bitmath.org/code/multitouch/.
 [4] See the section on event computation.
 [5] See the section on finger tracking.
