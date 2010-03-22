@@ -269,9 +269,8 @@ config HID_QUANTA
 	Support for Quanta Optical Touch dual-touch panels.
 
 config HID_ROCCAT_KONE
-	tristate "Roccat Kone" if EMBEDDED
+	tristate "Roccat Kone Mouse support"
 	depends on USB_HID
-	default !EMBEDDED
 	---help---
 	Support for Roccat Kone mouse.
 
