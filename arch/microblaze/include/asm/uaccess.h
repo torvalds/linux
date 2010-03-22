@@ -375,12 +375,24 @@ extern long __user_bad(void);
 extern unsigned long __copy_tofrom_user(void __user *to,
 		const void __user *from, unsigned long size);
 
-#define __copy_from_user(to, from, n)	copy_from_user((to), (from), (n))
+#define __copy_from_user(to, from, n)	\
+	__copy_tofrom_user((__force void __user *)(to), \
+				(void __user *)(from), (n))
 #define __copy_from_user_inatomic(to, from, n) \
 		copy_from_user((to), (from), (n))
 
+static inline long copy_from_user(void *to,
+		const void __user *from, unsigned long n)
+{
+	might_sleep();
+	if (access_ok(VERIFY_READ, from, n))
+		return __copy_from_user(to, from, n);
+	else
+		return n;
+}
+
 #define __copy_to_user(to, from, n)	\
-	__copy_tofrom_user((void __user *)(to),	\
+		__copy_tofrom_user((void __user *)(to), \
 			(__force const void __user *)(from), (n))
 #define __copy_to_user_inatomic(to, from, n)	copy_to_user((to), (from), (n))
 
@@ -394,12 +406,6 @@ static inline long copy_to_user(void __user *to,
 		return n;
 }
 
-#define copy_from_user(to, from, n)					\
-	(access_ok(VERIFY_READ, (from), (n)) ?				\
-		__copy_tofrom_user((__force void __user *)(to),		\
-			(void __user *)(from), (n))			\
-		: -EFAULT)
-
 extern int __strncpy_user(char *to, const char __user *from, int len);
 extern int __strnlen_user(const char __user *sstr, int len);
 
@@ -410,7 +416,6 @@ extern int __strnlen_user(const char __user *sstr, int len);
 		(access_ok(VERIFY_READ, str, 1) ? __strnlen_user(str, len) : 0)
 
 #endif /* CONFIG_MMU */
-
 
 #endif  /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
