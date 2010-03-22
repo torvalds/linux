@@ -554,6 +554,8 @@ static struct hda_codec_preset snd_hda_preset_nvhdmi[] = {
 	  .patch = patch_nvhdmi_8ch_89 },
 	{ .id = 0x10de000b, .name = "GT21x HDMI",
 	  .patch = patch_nvhdmi_8ch_89 },
+	{ .id = 0x10de000a, .name = "GT220 HDMI",
+	  .patch = patch_nvhdmi_8ch_89 },
 	{ .id = 0x10de000d, .name = "GT240 HDMI",
 	  .patch = patch_nvhdmi_8ch_89 },
 	{} /* terminator */
@@ -568,6 +570,7 @@ MODULE_ALIAS("snd-hda-codec-id:10de0067");
 MODULE_ALIAS("snd-hda-codec-id:10de8001");
 MODULE_ALIAS("snd-hda-codec-id:10de000c");
 MODULE_ALIAS("snd-hda-codec-id:10de000b");
+MODULE_ALIAS("snd-hda-codec-id:10de000a");
 MODULE_ALIAS("snd-hda-codec-id:10de000d");
 
 MODULE_LICENSE("GPL");
