@@ -202,8 +202,8 @@ void nilfs_segbuf_fill_in_segsum(struct nilfs_segment_buffer *segbuf)
 /*
  * CRC calculation routines
  */
-void nilfs_segbuf_fill_in_segsum_crc(struct nilfs_segment_buffer *segbuf,
-				     u32 seed)
+static void
+nilfs_segbuf_fill_in_segsum_crc(struct nilfs_segment_buffer *segbuf, u32 seed)
 {
 	struct buffer_head *bh;
 	struct nilfs_segment_summary *raw_sum;
@@ -230,8 +230,8 @@ void nilfs_segbuf_fill_in_segsum_crc(struct nilfs_segment_buffer *segbuf,
 	raw_sum->ss_sumsum = cpu_to_le32(crc);
 }
 
-void nilfs_segbuf_fill_in_data_crc(struct nilfs_segment_buffer *segbuf,
-				   u32 seed)
+static void nilfs_segbuf_fill_in_data_crc(struct nilfs_segment_buffer *segbuf,
+					  u32 seed)
 {
 	struct buffer_head *bh;
 	struct nilfs_segment_summary *raw_sum;
@@ -255,6 +255,20 @@ void nilfs_segbuf_fill_in_data_crc(struct nilfs_segment_buffer *segbuf,
 		kunmap_atomic(kaddr, KM_USER0);
 	}
 	raw_sum->ss_datasum = cpu_to_le32(crc);
+}
+
+static void
+nilfs_segbuf_fill_in_super_root_crc(struct nilfs_segment_buffer *segbuf,
+				    u32 seed)
+{
+	struct nilfs_super_root *raw_sr;
+	u32 crc;
+
+	raw_sr = (struct nilfs_super_root *)segbuf->sb_super_root->b_data;
+	crc = crc32_le(seed,
+		       (unsigned char *)raw_sr + sizeof(raw_sr->sr_sum),
+		       NILFS_SR_BYTES - sizeof(raw_sr->sr_sum));
+	raw_sr->sr_sum = cpu_to_le32(crc);
 }
 
 static void nilfs_release_buffers(struct list_head *list)
@@ -334,6 +348,23 @@ int nilfs_wait_on_logs(struct list_head *logs)
 			ret = err;
 	}
 	return ret;
+}
+
+/**
+ * nilfs_add_checksums_on_logs - add checksums on the logs
+ * @logs: list of segment buffers storing target logs
+ * @seed: checksum seed value
+ */
+void nilfs_add_checksums_on_logs(struct list_head *logs, u32 seed)
+{
+	struct nilfs_segment_buffer *segbuf;
+
+	list_for_each_entry(segbuf, logs, sb_list) {
+		if (segbuf->sb_super_root)
+			nilfs_segbuf_fill_in_super_root_crc(segbuf, seed);
+		nilfs_segbuf_fill_in_segsum_crc(segbuf, seed);
+		nilfs_segbuf_fill_in_data_crc(segbuf, seed);
+	}
 }
 
 /*

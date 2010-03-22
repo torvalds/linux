@@ -932,35 +932,6 @@ static void nilfs_segctor_fill_in_file_bmap(struct nilfs_sc_info *sci,
 	}
 }
 
-/*
- * CRC calculation routines
- */
-static void nilfs_fill_in_super_root_crc(struct buffer_head *bh_sr, u32 seed)
-{
-	struct nilfs_super_root *raw_sr =
-		(struct nilfs_super_root *)bh_sr->b_data;
-	u32 crc;
-
-	crc = crc32_le(seed,
-		       (unsigned char *)raw_sr + sizeof(raw_sr->sr_sum),
-		       NILFS_SR_BYTES - sizeof(raw_sr->sr_sum));
-	raw_sr->sr_sum = cpu_to_le32(crc);
-}
-
-static void nilfs_segctor_fill_in_checksums(struct nilfs_sc_info *sci,
-					    u32 seed)
-{
-	struct nilfs_segment_buffer *segbuf;
-
-	list_for_each_entry(segbuf, &sci->sc_segbufs, sb_list) {
-		if (segbuf->sb_super_root)
-			nilfs_fill_in_super_root_crc(segbuf->sb_super_root,
-						     seed);
-		nilfs_segbuf_fill_in_segsum_crc(segbuf, seed);
-		nilfs_segbuf_fill_in_data_crc(segbuf, seed);
-	}
-}
-
 static void nilfs_segctor_fill_in_super_root(struct nilfs_sc_info *sci,
 					     struct the_nilfs *nilfs)
 {
@@ -2174,7 +2145,9 @@ static int nilfs_segctor_do_construct(struct nilfs_sc_info *sci, int mode)
 			nilfs_abort_logs(&sci->sc_segbufs, failed_page, err);
 			goto failed_to_write;
 		}
-		nilfs_segctor_fill_in_checksums(sci, nilfs->ns_crc_seed);
+
+		nilfs_add_checksums_on_logs(&sci->sc_segbufs,
+					    nilfs->ns_crc_seed);
 
 		err = nilfs_segctor_write(sci, nilfs);
 		if (unlikely(err))

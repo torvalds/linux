@@ -139,8 +139,6 @@ int nilfs_segbuf_extend_segsum(struct nilfs_segment_buffer *);
 int nilfs_segbuf_extend_payload(struct nilfs_segment_buffer *,
 				struct buffer_head **);
 void nilfs_segbuf_fill_in_segsum(struct nilfs_segment_buffer *);
-void nilfs_segbuf_fill_in_segsum_crc(struct nilfs_segment_buffer *, u32);
-void nilfs_segbuf_fill_in_data_crc(struct nilfs_segment_buffer *, u32);
 
 static inline void
 nilfs_segbuf_add_segsum_buffer(struct nilfs_segment_buffer *segbuf,
@@ -173,6 +171,7 @@ void nilfs_truncate_logs(struct list_head *logs,
 			 struct nilfs_segment_buffer *last);
 int nilfs_write_logs(struct list_head *logs, struct the_nilfs *nilfs);
 int nilfs_wait_on_logs(struct list_head *logs);
+void nilfs_add_checksums_on_logs(struct list_head *logs, u32 seed);
 
 static inline void nilfs_destroy_logs(struct list_head *logs)
 {
