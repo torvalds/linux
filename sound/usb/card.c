@@ -606,6 +606,9 @@ static int usb_audio_resume(struct usb_interface *intf)
 
 	return 0;
 }
+#else
+#define usb_audio_suspend	NULL
+#define usb_audio_resume	NULL
 #endif		/* CONFIG_PM */
 
 static struct usb_device_id usb_audio_ids [] = {
