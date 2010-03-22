@@ -2645,66 +2645,6 @@ static void pineview_disable_cxsr(struct drm_device *dev)
 	DRM_INFO("Big FIFO is disabled\n");
 }
 
-static void pineview_enable_cxsr(struct drm_device *dev, unsigned long clock,
-				 int pixel_size)
-{
-	struct drm_i915_private *dev_priv = dev->dev_private;
-	u32 reg;
-	unsigned long wm;
-	struct cxsr_latency *latency;
-
-	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev), dev_priv->fsb_freq,
-		dev_priv->mem_freq);
-	if (!latency) {
-		DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
-		pineview_disable_cxsr(dev);
-		return;
-	}
-
-	/* Display SR */
-	wm = intel_calculate_wm(clock, &pineview_display_wm, pixel_size,
-				latency->display_sr);
-	reg = I915_READ(DSPFW1);
-	reg &= 0x7fffff;
-	reg |= wm << 23;
-	I915_WRITE(DSPFW1, reg);
-	DRM_DEBUG_KMS("DSPFW1 register is %x\n", reg);
-
-	/* cursor SR */
-	wm = intel_calculate_wm(clock, &pineview_cursor_wm, pixel_size,
-				latency->cursor_sr);
-	reg = I915_READ(DSPFW3);
-	reg &= ~(0x3f << 24);
-	reg |= (wm & 0x3f) << 24;
-	I915_WRITE(DSPFW3, reg);
-
-	/* Display HPLL off SR */
-	wm = intel_calculate_wm(clock, &pineview_display_hplloff_wm,
-		latency->display_hpll_disable, I915_FIFO_LINE_SIZE);
-	reg = I915_READ(DSPFW3);
-	reg &= 0xfffffe00;
-	reg |= wm & 0x1ff;
-	I915_WRITE(DSPFW3, reg);
-
-	/* cursor HPLL off SR */
-	wm = intel_calculate_wm(clock, &pineview_cursor_hplloff_wm, pixel_size,
-				latency->cursor_hpll_disable);
-	reg = I915_READ(DSPFW3);
-	reg &= ~(0x3f << 16);
-	reg |= (wm & 0x3f) << 16;
-	I915_WRITE(DSPFW3, reg);
-	DRM_DEBUG_KMS("DSPFW3 register is %x\n", reg);
-
-	/* activate cxsr */
-	reg = I915_READ(DSPFW3);
-	reg |= PINEVIEW_SELF_REFRESH_EN;
-	I915_WRITE(DSPFW3, reg);
-
-	DRM_INFO("Big FIFO is enabled\n");
-
-	return;
-}
-
 /*
  * Latency for FIFO fetches is dependent on several factors:
  *   - memory configuration (speed, channels)
@@ -2787,6 +2727,71 @@ static int i830_get_fifo_size(struct drm_device *dev, int plane)
 			plane ? "B" : "A", size);
 
 	return size;
+}
+
+static void pineview_update_wm(struct drm_device *dev,  int planea_clock,
+			  int planeb_clock, int sr_hdisplay, int pixel_size)
+{
+	struct drm_i915_private *dev_priv = dev->dev_private;
+	u32 reg;
+	unsigned long wm;
+	struct cxsr_latency *latency;
+	int sr_clock;
+
+	latency = intel_get_cxsr_latency(IS_PINEVIEW_G(dev), dev_priv->fsb_freq,
+					 dev_priv->mem_freq);
+	if (!latency) {
+		DRM_DEBUG_KMS("Unknown FSB/MEM found, disable CxSR\n");
+		pineview_disable_cxsr(dev);
+		return;
+	}
+
+	if (!planea_clock || !planeb_clock) {
+		sr_clock = planea_clock ? planea_clock : planeb_clock;
+
+		/* Display SR */
+		wm = intel_calculate_wm(sr_clock, &pineview_display_wm,
+					pixel_size, latency->display_sr);
+		reg = I915_READ(DSPFW1);
+		reg &= ~DSPFW_SR_MASK;
+		reg |= wm << DSPFW_SR_SHIFT;
+		I915_WRITE(DSPFW1, reg);
+		DRM_DEBUG_KMS("DSPFW1 register is %x\n", reg);
+
+		/* cursor SR */
+		wm = intel_calculate_wm(sr_clock, &pineview_cursor_wm,
+					pixel_size, latency->cursor_sr);
+		reg = I915_READ(DSPFW3);
+		reg &= ~DSPFW_CURSOR_SR_MASK;
+		reg |= (wm & 0x3f) << DSPFW_CURSOR_SR_SHIFT;
+		I915_WRITE(DSPFW3, reg);
+
+		/* Display HPLL off SR */
+		wm = intel_calculate_wm(sr_clock, &pineview_display_hplloff_wm,
+					pixel_size, latency->display_hpll_disable);
+		reg = I915_READ(DSPFW3);
+		reg &= ~DSPFW_HPLL_SR_MASK;
+		reg |= wm & DSPFW_HPLL_SR_MASK;
+		I915_WRITE(DSPFW3, reg);
+
+		/* cursor HPLL off SR */
+		wm = intel_calculate_wm(sr_clock, &pineview_cursor_hplloff_wm,
+					pixel_size, latency->cursor_hpll_disable);
+		reg = I915_READ(DSPFW3);
+		reg &= ~DSPFW_HPLL_CURSOR_MASK;
+		reg |= (wm & 0x3f) << DSPFW_HPLL_CURSOR_SHIFT;
+		I915_WRITE(DSPFW3, reg);
+		DRM_DEBUG_KMS("DSPFW3 register is %x\n", reg);
+
+		/* activate cxsr */
+		reg = I915_READ(DSPFW3);
+		reg |= PINEVIEW_SELF_REFRESH_EN;
+		I915_WRITE(DSPFW3, reg);
+		DRM_DEBUG_KMS("Self-refresh is enabled\n");
+	} else {
+		pineview_disable_cxsr(dev);
+		DRM_DEBUG_KMS("Self-refresh is disabled\n");
+	}
 }
 
 static void g4x_update_wm(struct drm_device *dev,  int planea_clock,
@@ -3077,12 +3082,6 @@ static void intel_update_watermarks(struct drm_device *dev)
 
 	if (enabled <= 0)
 		return;
-
-	/* Single plane configs can enable self refresh */
-	if (enabled == 1 && IS_PINEVIEW(dev))
-		pineview_enable_cxsr(dev, sr_clock, pixel_size);
-	else if (IS_PINEVIEW(dev))
-		pineview_disable_cxsr(dev);
 
 	dev_priv->display.update_wm(dev, planea_clock, planeb_clock,
 				    sr_hdisplay, pixel_size);
@@ -5091,7 +5090,20 @@ static void intel_init_display(struct drm_device *dev)
 	/* For FIFO watermark updates */
 	if (HAS_PCH_SPLIT(dev))
 		dev_priv->display.update_wm = NULL;
-	else if (IS_G4X(dev))
+	else if (IS_PINEVIEW(dev)) {
+		if (!intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
+					    dev_priv->fsb_freq,
+					    dev_priv->mem_freq)) {
+			DRM_INFO("failed to find known CxSR latency "
+				 "(found fsb freq %d, mem freq %d), "
+				 "disabling CxSR\n",
+				 dev_priv->fsb_freq, dev_priv->mem_freq);
+			/* Disable CxSR and never update its watermark again */
+			pineview_disable_cxsr(dev);
+			dev_priv->display.update_wm = NULL;
+		} else
+			dev_priv->display.update_wm = pineview_update_wm;
+	} else if (IS_G4X(dev))
 		dev_priv->display.update_wm = g4x_update_wm;
 	else if (IS_I965G(dev))
 		dev_priv->display.update_wm = i965_update_wm;
@@ -5164,13 +5176,6 @@ void intel_modeset_init(struct drm_device *dev)
 		    (unsigned long)dev);
 
 	intel_setup_overlay(dev);
-
-	if (IS_PINEVIEW(dev) && !intel_get_cxsr_latency(IS_PINEVIEW_G(dev),
-							dev_priv->fsb_freq,
-							dev_priv->mem_freq))
-		DRM_INFO("failed to find known CxSR latency "
-			 "(found fsb freq %d, mem freq %d), disabling CxSR\n",
-			 dev_priv->fsb_freq, dev_priv->mem_freq);
 }
 
 void intel_modeset_cleanup(struct drm_device *dev)
