@@ -758,7 +758,14 @@ static acpi_status __acpi_os_execute(acpi_execute_type type,
 	queue = hp ? kacpi_hotplug_wq :
 		(type == OSL_NOTIFY_HANDLER ? kacpi_notify_wq : kacpid_wq);
 	dpc->wait = hp ? 1 : 0;
-	INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+
+	if (queue == kacpi_hotplug_wq)
+		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+	else if (queue == kacpi_notify_wq)
+		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+	else
+		INIT_WORK(&dpc->work, acpi_os_execute_deferred);
+
 	ret = queue_work(queue, &dpc->work);
 
 	if (!ret) {
