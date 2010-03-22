@@ -81,14 +81,15 @@ static const u16 pin_req[2][3] = {
 	{P_TWI1_SCL, P_TWI1_SDA, 0},
 };
 
-static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
+static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface,
+					unsigned short twi_int_status)
 {
-	unsigned short twi_int_status = read_INT_STAT(iface);
 	unsigned short mast_stat = read_MASTER_STAT(iface);
 
 	if (twi_int_status & XMTSERV) {
 		/* Transmit next data */
 		if (iface->writeNum > 0) {
+			SSYNC();
 			write_XMT_DATA8(iface, *(iface->transPtr++));
 			iface->writeNum--;
 		}
@@ -110,10 +111,6 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 				write_MASTER_CTL(iface,
 					(read_MASTER_CTL(iface) | RSTART) & ~MDIR);
 		}
-		SSYNC();
-		/* Clear status */
-		write_INT_STAT(iface, XMTSERV);
-		SSYNC();
 	}
 	if (twi_int_status & RCVSERV) {
 		if (iface->readNum > 0) {
@@ -135,7 +132,6 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 		} else if (iface->manual_stop) {
 			write_MASTER_CTL(iface,
 				read_MASTER_CTL(iface) | STOP);
-			SSYNC();
 		} else if (iface->cur_mode == TWI_I2C_MODE_REPEAT &&
 		           iface->cur_msg + 1 < iface->msg_num) {
 			if (iface->pmsg[iface->cur_msg + 1].flags & I2C_M_RD)
@@ -144,18 +140,12 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 			else
 				write_MASTER_CTL(iface,
 					(read_MASTER_CTL(iface) | RSTART) & ~MDIR);
-			SSYNC();
 		}
-		/* Clear interrupt source */
-		write_INT_STAT(iface, RCVSERV);
-		SSYNC();
 	}
 	if (twi_int_status & MERR) {
-		write_INT_STAT(iface, MERR);
 		write_INT_MASK(iface, 0);
 		write_MASTER_STAT(iface, 0x3e);
 		write_MASTER_CTL(iface, 0);
-		SSYNC();
 		iface->result = -EIO;
 
 		if (mast_stat & LOSTARB)
@@ -173,10 +163,6 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 		 * results.
 		 */
 		if (twi_int_status & MCOMP) {
-			write_INT_STAT(iface, MCOMP);
-			write_INT_MASK(iface, 0);
-			write_MASTER_CTL(iface, 0);
-			SSYNC();
 			/* If it is a quick transfer, only address without data,
 			 * not an err, return 1.
 			 * If address is acknowledged return 1.
@@ -189,8 +175,6 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 		return;
 	}
 	if (twi_int_status & MCOMP) {
-		write_INT_STAT(iface, MCOMP);
-		SSYNC();
 		if (iface->cur_mode == TWI_I2C_MODE_COMBINED) {
 			if (iface->readNum == 0) {
 				/* set the read number to 1 and ask for manual
@@ -212,7 +196,6 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 			/* remove restart bit and enable master receive */
 			write_MASTER_CTL(iface,
 				read_MASTER_CTL(iface) & ~RSTART);
-			SSYNC();
 		} else if (iface->cur_mode == TWI_I2C_MODE_REPEAT &&
 				iface->cur_msg+1 < iface->msg_num) {
 			iface->cur_msg++;
@@ -231,7 +214,6 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 					write_XMT_DATA8(iface,
 						*(iface->transPtr++));
 					iface->writeNum--;
-					SSYNC();
 				}
 			}
 
@@ -249,12 +231,10 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 			/* remove restart bit and enable master receive */
 			write_MASTER_CTL(iface,
 				read_MASTER_CTL(iface) & ~RSTART);
-			SSYNC();
 		} else {
 			iface->result = 1;
 			write_INT_MASK(iface, 0);
 			write_MASTER_CTL(iface, 0);
-			SSYNC();
 		}
 	}
 	complete(&iface->complete);
@@ -265,9 +245,18 @@ static irqreturn_t bfin_twi_interrupt_entry(int irq, void *dev_id)
 {
 	struct bfin_twi_iface *iface = dev_id;
 	unsigned long flags;
+	unsigned short twi_int_status;
 
 	spin_lock_irqsave(&iface->lock, flags);
-	bfin_twi_handle_interrupt(iface);
+	while (1) {
+		twi_int_status = read_INT_STAT(iface);
+		if (!twi_int_status)
+			break;
+		/* Clear interrupt status */
+		write_INT_STAT(iface, twi_int_status);
+		bfin_twi_handle_interrupt(iface, twi_int_status);
+		SSYNC();
+	}
 	spin_unlock_irqrestore(&iface->lock, flags);
 	return IRQ_HANDLED;
 }
