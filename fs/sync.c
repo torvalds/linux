@@ -80,35 +80,15 @@ EXPORT_SYMBOL_GPL(sync_filesystem);
 /*
  * Sync all the data for all the filesystems (called by sys_sync() and
  * emergency sync)
- *
- * This operation is careful to avoid the livelock which could easily happen
- * if two or more filesystems are being continuously dirtied.  s_need_sync
- * is used only here.  We set it against all filesystems and then clear it as
- * we sync them.  So redirtied filesystems are skipped.
- *
- * But if process A is currently running sync_filesystems and then process B
- * calls sync_filesystems as well, process B will set all the s_need_sync
- * flags again, which will cause process A to resync everything.  Fix that with
- * a local mutex.
  */
 static void sync_filesystems(int wait)
 {
-	struct super_block *sb;
-	static DEFINE_MUTEX(mutex);
+	struct super_block *sb, *n;
 
-	mutex_lock(&mutex);		/* Could be down_interruptible */
 	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list)
-		if (!list_empty(&sb->s_instances))
-			sb->s_need_sync = 1;
-
-restart:
-	list_for_each_entry(sb, &super_blocks, s_list) {
+	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
 		if (list_empty(&sb->s_instances))
 			continue;
-		if (!sb->s_need_sync)
-			continue;
-		sb->s_need_sync = 0;
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 
@@ -119,11 +99,9 @@ restart:
 
 		/* restart only when sb is no longer on the list */
 		spin_lock(&sb_lock);
-		if (__put_super_and_need_restart(sb))
-			goto restart;
+		__put_super(sb);
 	}
 	spin_unlock(&sb_lock);
-	mutex_unlock(&mutex);
 }
 
 /*

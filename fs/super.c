@@ -130,7 +130,7 @@ static inline void destroy_super(struct super_block *s)
  * Drop a superblock's refcount.  Returns non-zero if the superblock was
  * destroyed.  The caller must hold sb_lock.
  */
-static int __put_super(struct super_block *sb)
+int __put_super(struct super_block *sb)
 {
 	int ret = 0;
 
