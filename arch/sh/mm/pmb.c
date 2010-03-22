@@ -323,6 +323,7 @@ static void __clear_pmb_entry(struct pmb_entry *pmbe)
 	writel_uncached(data_val & ~PMB_V, data);
 }
 
+#ifdef CONFIG_PM
 static void set_pmb_entry(struct pmb_entry *pmbe)
 {
 	unsigned long flags;
@@ -331,6 +332,7 @@ static void set_pmb_entry(struct pmb_entry *pmbe)
 	__set_pmb_entry(pmbe);
 	spin_unlock_irqrestore(&pmbe->lock, flags);
 }
+#endif /* CONFIG_PM */
 
 int pmb_bolt_mapping(unsigned long vaddr, phys_addr_t phys,
 		     unsigned long size, pgprot_t prot)
