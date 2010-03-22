@@ -15,6 +15,7 @@
 
 #include <linux/platform_device.h>
 #include <linux/types.h>
+#include <linux/notifier.h>
 #include <linux/workqueue.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
@@ -261,6 +262,10 @@ int snd_soc_jack_new(struct snd_soc_card *card, const char *id, int type,
 void snd_soc_jack_report(struct snd_soc_jack *jack, int status, int mask);
 int snd_soc_jack_add_pins(struct snd_soc_jack *jack, int count,
 			  struct snd_soc_jack_pin *pins);
+void snd_soc_jack_notifier_register(struct snd_soc_jack *jack,
+				    struct notifier_block *nb);
+void snd_soc_jack_notifier_unregister(struct snd_soc_jack *jack,
+				      struct notifier_block *nb);
 #ifdef CONFIG_GPIOLIB
 int snd_soc_jack_add_gpios(struct snd_soc_jack *jack, int count,
 			struct snd_soc_jack_gpio *gpios);
@@ -364,6 +369,7 @@ struct snd_soc_jack {
 	struct snd_soc_card *card;
 	struct list_head pins;
 	int status;
+	struct blocking_notifier_head notifier;
 };
 
 /* SoC PCM stream information */
