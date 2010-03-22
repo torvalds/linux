@@ -144,75 +144,7 @@ MODULE_PARM_DESC(parmode, "parmode: transfer mode (0=auto, 1=ecp, 2=epp");
 static int video_nr = -1;
 module_param(video_nr, int, 0);
 
-/*
- *	Private data
- */
-
 static struct w9966_dev w9966_cams[W9966_MAXCAMS];
-
-/*
- *	Private function declares
- */
-
-static inline void w9966_setState(struct w9966_dev *cam, int mask, int val);
-static inline int  w9966_getState(struct w9966_dev *cam, int mask, int val);
-static inline void w9966_pdev_claim(struct w9966_dev *vdev);
-static inline void w9966_pdev_release(struct w9966_dev *vdev);
-
-static int w9966_rReg(struct w9966_dev *cam, int reg);
-static int w9966_wReg(struct w9966_dev *cam, int reg, int data);
-#if 0
-static int w9966_rReg_i2c(struct w9966_dev *cam, int reg);
-#endif
-static int w9966_wReg_i2c(struct w9966_dev *cam, int reg, int data);
-static int w9966_findlen(int near, int size, int maxlen);
-static int w9966_calcscale(int size, int min, int max, int *beg, int *end, unsigned char *factor);
-static int w9966_setup(struct w9966_dev *cam, int x1, int y1, int x2, int y2, int w, int h);
-
-static int  w9966_init(struct w9966_dev *cam, struct parport* port);
-static void w9966_term(struct w9966_dev *cam);
-
-static inline void w9966_i2c_setsda(struct w9966_dev *cam, int state);
-static inline int  w9966_i2c_setscl(struct w9966_dev *cam, int state);
-static inline int  w9966_i2c_getsda(struct w9966_dev *cam);
-static inline int  w9966_i2c_getscl(struct w9966_dev *cam);
-static int w9966_i2c_wbyte(struct w9966_dev *cam, int data);
-#if 0
-static int w9966_i2c_rbyte(struct w9966_dev *cam);
-#endif
-
-static long w9966_v4l_ioctl(struct file *file,
-			   unsigned int cmd, unsigned long arg);
-static ssize_t w9966_v4l_read(struct file *file, char __user *buf,
-			      size_t count, loff_t *ppos);
-
-static int w9966_exclusive_open(struct file *file)
-{
-	struct w9966_dev *cam = video_drvdata(file);
-
-	return test_and_set_bit(0, &cam->in_use) ? -EBUSY : 0;
-}
-
-static int w9966_exclusive_release(struct file *file)
-{
-	struct w9966_dev *cam = video_drvdata(file);
-
-	clear_bit(0, &cam->in_use);
-	return 0;
-}
-
-static const struct v4l2_file_operations w9966_fops = {
-	.owner		= THIS_MODULE,
-	.open           = w9966_exclusive_open,
-	.release        = w9966_exclusive_release,
-	.ioctl          = w9966_v4l_ioctl,
-	.read           = w9966_v4l_read,
-};
-static struct video_device w9966_template = {
-	.name           = W9966_DRIVERNAME,
-	.fops           = &w9966_fops,
-	.release 	= video_device_release_empty,
-};
 
 /*
  *	Private function defines
@@ -232,7 +164,7 @@ static inline int w9966_getState(struct w9966_dev *cam, int mask, int val)
 }
 
 /* Claim parport for ourself */
-static inline void w9966_pdev_claim(struct w9966_dev *cam)
+static void w9966_pdev_claim(struct w9966_dev *cam)
 {
 	if (w9966_getState(cam, W9966_STATE_CLAIMED, W9966_STATE_CLAIMED))
 		return;
@@ -241,7 +173,7 @@ static inline void w9966_pdev_claim(struct w9966_dev *cam)
 }
 
 /* Release parport for others to use */
-static inline void w9966_pdev_release(struct w9966_dev *cam)
+static void w9966_pdev_release(struct w9966_dev *cam)
 {
 	if (w9966_getState(cam, W9966_STATE_CLAIMED, 0))
 		return;
@@ -291,97 +223,168 @@ static int w9966_wReg(struct w9966_dev *cam, int reg, int data)
 	return 0;
 }
 
-/* Initialize camera device. Setup all internal flags, set a
-   default video mode, setup ccd-chip, register v4l device etc..
-   Also used for 'probing' of hardware.
-   -1 on error */
-static int w9966_init(struct w9966_dev *cam, struct parport* port)
+/*
+ *	Ugly and primitive i2c protocol functions
+ */
+
+/* Sets the data line on the i2c bus.
+   Expects a claimed pdev. */
+static void w9966_i2c_setsda(struct w9966_dev *cam, int state)
 {
-	if (cam->dev_state != 0)
-		return -1;
+	if (state)
+		cam->i2c_state |= W9966_I2C_W_DATA;
+	else
+		cam->i2c_state &= ~W9966_I2C_W_DATA;
 
-	cam->pport = port;
-	cam->brightness = 128;
-	cam->contrast = 64;
-	cam->color = 64;
-	cam->hue = 0;
+	w9966_wReg(cam, 0x18, cam->i2c_state);
+	udelay(5);
+}
 
-/* Select requested transfer mode */
-	switch (parmode) {
-	default:	/* Auto-detect (priority: hw-ecp, hw-epp, sw-ecp) */
-	case 0:
-		if (port->modes & PARPORT_MODE_ECP)
-			cam->ppmode = IEEE1284_MODE_ECP;
-		else if (port->modes & PARPORT_MODE_EPP)
-			cam->ppmode = IEEE1284_MODE_EPP;
-		else
-			cam->ppmode = IEEE1284_MODE_ECP;
-		break;
-	case 1:		/* hw- or sw-ecp */
-		cam->ppmode = IEEE1284_MODE_ECP;
-		break;
-	case 2:		/* hw- or sw-epp */
-		cam->ppmode = IEEE1284_MODE_EPP;
-	break;
+/* Get peripheral clock line
+   Expects a claimed pdev. */
+static int w9966_i2c_getscl(struct w9966_dev *cam)
+{
+	const unsigned char state = w9966_rReg(cam, 0x18);
+	return ((state & W9966_I2C_R_CLOCK) > 0);
+}
+
+/* Sets the clock line on the i2c bus.
+   Expects a claimed pdev. -1 on error */
+static int w9966_i2c_setscl(struct w9966_dev *cam, int state)
+{
+	unsigned long timeout;
+
+	if (state)
+		cam->i2c_state |= W9966_I2C_W_CLOCK;
+	else
+		cam->i2c_state &= ~W9966_I2C_W_CLOCK;
+
+	w9966_wReg(cam, 0x18, cam->i2c_state);
+	udelay(5);
+
+	/* we go to high, we also expect the peripheral to ack. */
+	if (state) {
+		timeout = jiffies + 100;
+		while (!w9966_i2c_getscl(cam)) {
+			if (time_after(jiffies, timeout))
+				return -1;
+		}
 	}
-
-/* Tell the parport driver that we exists */
-	cam->pdev = parport_register_device(port, "w9966", NULL, NULL, NULL, 0, NULL);
-	if (cam->pdev == NULL) {
-		DPRINTF("parport_register_device() failed\n");
-		return -1;
-	}
-	w9966_setState(cam, W9966_STATE_PDEV, W9966_STATE_PDEV);
-
-	w9966_pdev_claim(cam);
-
-/* Setup a default capture mode */
-	if (w9966_setup(cam, 0, 0, 1023, 1023, 200, 160) != 0) {
-		DPRINTF("w9966_setup() failed.\n");
-		return -1;
-	}
-
-	w9966_pdev_release(cam);
-
-/* Fill in the video_device struct and register us to v4l */
-	memcpy(&cam->vdev, &w9966_template, sizeof(struct video_device));
-	video_set_drvdata(&cam->vdev, cam);
-
-	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, video_nr) < 0)
-		return -1;
-
-	w9966_setState(cam, W9966_STATE_VDEV, W9966_STATE_VDEV);
-
-	/* All ok */
-	printk(KERN_INFO "w9966cf: Found and initialized a webcam on %s.\n",
-		cam->pport->name);
 	return 0;
 }
 
-
-/* Terminate everything gracefully */
-static void w9966_term(struct w9966_dev *cam)
+#if 0
+/* Get peripheral data line
+   Expects a claimed pdev. */
+static int w9966_i2c_getsda(struct w9966_dev *cam)
 {
-/* Unregister from v4l */
-	if (w9966_getState(cam, W9966_STATE_VDEV, W9966_STATE_VDEV)) {
-		video_unregister_device(&cam->vdev);
-		w9966_setState(cam, W9966_STATE_VDEV, 0);
+	const unsigned char state = w9966_rReg(cam, 0x18);
+	return ((state & W9966_I2C_R_DATA) > 0);
+}
+#endif
+
+/* Write a byte with ack to the i2c bus.
+   Expects a claimed pdev. -1 on error */
+static int w9966_i2c_wbyte(struct w9966_dev *cam, int data)
+{
+	int i;
+
+	for (i = 7; i >= 0; i--) {
+		w9966_i2c_setsda(cam, (data >> i) & 0x01);
+
+		if (w9966_i2c_setscl(cam, 1) == -1)
+			return -1;
+		w9966_i2c_setscl(cam, 0);
 	}
 
-/* Terminate from IEEE1284 mode and release pdev block */
-	if (w9966_getState(cam, W9966_STATE_PDEV, W9966_STATE_PDEV)) {
-		w9966_pdev_claim(cam);
-		parport_negotiate(cam->pport, IEEE1284_MODE_COMPAT);
-		w9966_pdev_release(cam);
-	}
+	w9966_i2c_setsda(cam, 1);
 
-/* Unregister from parport */
-	if (w9966_getState(cam, W9966_STATE_PDEV, W9966_STATE_PDEV)) {
-		parport_unregister_device(cam->pdev);
-		w9966_setState(cam, W9966_STATE_PDEV, 0);
-	}
+	if (w9966_i2c_setscl(cam, 1) == -1)
+		return -1;
+	w9966_i2c_setscl(cam, 0);
+
+	return 0;
 }
 
+/* Read a data byte with ack from the i2c-bus
+   Expects a claimed pdev. -1 on error */
+#if 0
+static int w9966_i2c_rbyte(struct w9966_dev *cam)
+{
+	unsigned char data = 0x00;
+	int i;
+
+	w9966_i2c_setsda(cam, 1);
+
+	for (i = 0; i < 8; i++) {
+		if (w9966_i2c_setscl(cam, 1) == -1)
+			return -1;
+		data = data << 1;
+		if (w9966_i2c_getsda(cam))
+			data |= 0x01;
+
+		w9966_i2c_setscl(cam, 0);
+	}
+	return data;
+}
+#endif
+
+/* Read a register from the i2c device.
+   Expects claimed pdev. -1 on error */
+#if 0
+static int w9966_rReg_i2c(struct w9966_dev *cam, int reg)
+{
+	int data;
+
+	w9966_i2c_setsda(cam, 0);
+	w9966_i2c_setscl(cam, 0);
+
+	if (w9966_i2c_wbyte(cam, W9966_I2C_W_ID) == -1 ||
+	    w9966_i2c_wbyte(cam, reg) == -1)
+		return -1;
+
+	w9966_i2c_setsda(cam, 1);
+	if (w9966_i2c_setscl(cam, 1) == -1)
+		return -1;
+	w9966_i2c_setsda(cam, 0);
+	w9966_i2c_setscl(cam, 0);
+
+	if (w9966_i2c_wbyte(cam, W9966_I2C_R_ID) == -1)
+		return -1;
+	data = w9966_i2c_rbyte(cam);
+	if (data == -1)
+		return -1;
+
+	w9966_i2c_setsda(cam, 0);
+
+	if (w9966_i2c_setscl(cam, 1) == -1)
+		return -1;
+	w9966_i2c_setsda(cam, 1);
+
+	return data;
+}
+#endif
+
+/* Write a register to the i2c device.
+   Expects claimed pdev. -1 on error */
+static int w9966_wReg_i2c(struct w9966_dev *cam, int reg, int data)
+{
+	w9966_i2c_setsda(cam, 0);
+	w9966_i2c_setscl(cam, 0);
+
+	if (w9966_i2c_wbyte(cam, W9966_I2C_W_ID) == -1 ||
+	    w9966_i2c_wbyte(cam, reg) == -1 ||
+	    w9966_i2c_wbyte(cam, data) == -1)
+		return -1;
+
+	w9966_i2c_setsda(cam, 0);
+	if (w9966_i2c_setscl(cam, 1) == -1)
+		return -1;
+
+	w9966_i2c_setsda(cam, 1);
+
+	return 0;
+}
 
 /* Find a good length for capture window (used both for W and H)
    A bit ugly but pretty functional. The capture length
@@ -546,167 +549,6 @@ static int w9966_setup(struct w9966_dev *cam, int x1, int y1, int x2, int y2, in
 	for (i = 0; i < 0x20; i++)
 		if (w9966_wReg_i2c(cam, i, saa7111_regs[i]) == -1)
 			return -1;
-
-	return 0;
-}
-
-/*
- *	Ugly and primitive i2c protocol functions
- */
-
-/* Sets the data line on the i2c bus.
-   Expects a claimed pdev. */
-static inline void w9966_i2c_setsda(struct w9966_dev *cam, int state)
-{
-	if (state)
-		cam->i2c_state |= W9966_I2C_W_DATA;
-	else
-		cam->i2c_state &= ~W9966_I2C_W_DATA;
-
-	w9966_wReg(cam, 0x18, cam->i2c_state);
-	udelay(5);
-}
-
-/* Get peripheral clock line
-   Expects a claimed pdev. */
-static inline int w9966_i2c_getscl(struct w9966_dev *cam)
-{
-	const unsigned char state = w9966_rReg(cam, 0x18);
-	return ((state & W9966_I2C_R_CLOCK) > 0);
-}
-
-/* Sets the clock line on the i2c bus.
-   Expects a claimed pdev. -1 on error */
-static inline int w9966_i2c_setscl(struct w9966_dev *cam, int state)
-{
-	unsigned long timeout;
-
-	if (state)
-		cam->i2c_state |= W9966_I2C_W_CLOCK;
-	else
-		cam->i2c_state &= ~W9966_I2C_W_CLOCK;
-
-	w9966_wReg(cam, 0x18, cam->i2c_state);
-	udelay(5);
-
-	/* we go to high, we also expect the peripheral to ack. */
-	if (state) {
-		timeout = jiffies + 100;
-		while (!w9966_i2c_getscl(cam)) {
-			if (time_after(jiffies, timeout))
-				return -1;
-		}
-	}
-	return 0;
-}
-
-/* Get peripheral data line
-   Expects a claimed pdev. */
-static inline int w9966_i2c_getsda(struct w9966_dev *cam)
-{
-	const unsigned char state = w9966_rReg(cam, 0x18);
-	return ((state & W9966_I2C_R_DATA) > 0);
-}
-
-/* Write a byte with ack to the i2c bus.
-   Expects a claimed pdev. -1 on error */
-static int w9966_i2c_wbyte(struct w9966_dev *cam, int data)
-{
-	int i;
-
-	for (i = 7; i >= 0; i--) {
-		w9966_i2c_setsda(cam, (data >> i) & 0x01);
-
-		if (w9966_i2c_setscl(cam, 1) == -1)
-			return -1;
-		w9966_i2c_setscl(cam, 0);
-	}
-
-	w9966_i2c_setsda(cam, 1);
-
-	if (w9966_i2c_setscl(cam, 1) == -1)
-		return -1;
-	w9966_i2c_setscl(cam, 0);
-
-	return 0;
-}
-
-/* Read a data byte with ack from the i2c-bus
-   Expects a claimed pdev. -1 on error */
-#if 0
-static int w9966_i2c_rbyte(struct w9966_dev *cam)
-{
-	unsigned char data = 0x00;
-	int i;
-
-	w9966_i2c_setsda(cam, 1);
-
-	for (i = 0; i < 8; i++) {
-		if (w9966_i2c_setscl(cam, 1) == -1)
-			return -1;
-		data = data << 1;
-		if (w9966_i2c_getsda(cam))
-			data |= 0x01;
-
-		w9966_i2c_setscl(cam, 0);
-	}
-	return data;
-}
-#endif
-
-/* Read a register from the i2c device.
-   Expects claimed pdev. -1 on error */
-#if 0
-static int w9966_rReg_i2c(struct w9966_dev *cam, int reg)
-{
-	int data;
-
-	w9966_i2c_setsda(cam, 0);
-	w9966_i2c_setscl(cam, 0);
-
-	if (w9966_i2c_wbyte(cam, W9966_I2C_W_ID) == -1 ||
-	    w9966_i2c_wbyte(cam, reg) == -1)
-		return -1;
-
-	w9966_i2c_setsda(cam, 1);
-	if (w9966_i2c_setscl(cam, 1) == -1)
-		return -1;
-	w9966_i2c_setsda(cam, 0);
-	w9966_i2c_setscl(cam, 0);
-
-	if (w9966_i2c_wbyte(cam, W9966_I2C_R_ID) == -1)
-		return -1;
-	data = w9966_i2c_rbyte(cam);
-	if (data == -1)
-		return -1;
-
-	w9966_i2c_setsda(cam, 0);
-
-	if (w9966_i2c_setscl(cam, 1) == -1)
-		return -1;
-	w9966_i2c_setsda(cam, 1);
-
-	return data;
-}
-#endif
-
-/* Write a register to the i2c device.
-   Expects claimed pdev. -1 on error */
-static int w9966_wReg_i2c(struct w9966_dev *cam, int reg, int data)
-{
-	w9966_i2c_setsda(cam, 0);
-	w9966_i2c_setscl(cam, 0);
-
-	if (w9966_i2c_wbyte(cam, W9966_I2C_W_ID) == -1 ||
-	    w9966_i2c_wbyte(cam, reg) == -1 ||
-	    w9966_i2c_wbyte(cam, data) == -1)
-		return -1;
-
-	w9966_i2c_setsda(cam, 0);
-	if (w9966_i2c_setscl(cam, 1) == -1)
-		return -1;
-
-	w9966_i2c_setsda(cam, 1);
 
 	return 0;
 }
@@ -925,6 +767,127 @@ out:
 	w9966_pdev_release(cam);
 
 	return count;
+}
+
+static int w9966_exclusive_open(struct file *file)
+{
+	struct w9966_dev *cam = video_drvdata(file);
+
+	return test_and_set_bit(0, &cam->in_use) ? -EBUSY : 0;
+}
+
+static int w9966_exclusive_release(struct file *file)
+{
+	struct w9966_dev *cam = video_drvdata(file);
+
+	clear_bit(0, &cam->in_use);
+	return 0;
+}
+
+static const struct v4l2_file_operations w9966_fops = {
+	.owner		= THIS_MODULE,
+	.open           = w9966_exclusive_open,
+	.release        = w9966_exclusive_release,
+	.ioctl          = w9966_v4l_ioctl,
+	.read           = w9966_v4l_read,
+};
+
+static struct video_device w9966_template = {
+	.name           = W9966_DRIVERNAME,
+	.fops           = &w9966_fops,
+	.release 	= video_device_release_empty,
+};
+
+
+/* Initialize camera device. Setup all internal flags, set a
+   default video mode, setup ccd-chip, register v4l device etc..
+   Also used for 'probing' of hardware.
+   -1 on error */
+static int w9966_init(struct w9966_dev *cam, struct parport* port)
+{
+	if (cam->dev_state != 0)
+		return -1;
+
+	cam->pport = port;
+	cam->brightness = 128;
+	cam->contrast = 64;
+	cam->color = 64;
+	cam->hue = 0;
+
+/* Select requested transfer mode */
+	switch (parmode) {
+	default:	/* Auto-detect (priority: hw-ecp, hw-epp, sw-ecp) */
+	case 0:
+		if (port->modes & PARPORT_MODE_ECP)
+			cam->ppmode = IEEE1284_MODE_ECP;
+		else if (port->modes & PARPORT_MODE_EPP)
+			cam->ppmode = IEEE1284_MODE_EPP;
+		else
+			cam->ppmode = IEEE1284_MODE_ECP;
+		break;
+	case 1:		/* hw- or sw-ecp */
+		cam->ppmode = IEEE1284_MODE_ECP;
+		break;
+	case 2:		/* hw- or sw-epp */
+		cam->ppmode = IEEE1284_MODE_EPP;
+	break;
+	}
+
+/* Tell the parport driver that we exists */
+	cam->pdev = parport_register_device(port, "w9966", NULL, NULL, NULL, 0, NULL);
+	if (cam->pdev == NULL) {
+		DPRINTF("parport_register_device() failed\n");
+		return -1;
+	}
+	w9966_setState(cam, W9966_STATE_PDEV, W9966_STATE_PDEV);
+
+	w9966_pdev_claim(cam);
+
+/* Setup a default capture mode */
+	if (w9966_setup(cam, 0, 0, 1023, 1023, 200, 160) != 0) {
+		DPRINTF("w9966_setup() failed.\n");
+		return -1;
+	}
+
+	w9966_pdev_release(cam);
+
+/* Fill in the video_device struct and register us to v4l */
+	memcpy(&cam->vdev, &w9966_template, sizeof(struct video_device));
+	video_set_drvdata(&cam->vdev, cam);
+
+	if (video_register_device(&cam->vdev, VFL_TYPE_GRABBER, video_nr) < 0)
+		return -1;
+
+	w9966_setState(cam, W9966_STATE_VDEV, W9966_STATE_VDEV);
+
+	/* All ok */
+	printk(KERN_INFO "w9966cf: Found and initialized a webcam on %s.\n",
+		cam->pport->name);
+	return 0;
+}
+
+
+/* Terminate everything gracefully */
+static void w9966_term(struct w9966_dev *cam)
+{
+/* Unregister from v4l */
+	if (w9966_getState(cam, W9966_STATE_VDEV, W9966_STATE_VDEV)) {
+		video_unregister_device(&cam->vdev);
+		w9966_setState(cam, W9966_STATE_VDEV, 0);
+	}
+
+/* Terminate from IEEE1284 mode and release pdev block */
+	if (w9966_getState(cam, W9966_STATE_PDEV, W9966_STATE_PDEV)) {
+		w9966_pdev_claim(cam);
+		parport_negotiate(cam->pport, IEEE1284_MODE_COMPAT);
+		w9966_pdev_release(cam);
+	}
+
+/* Unregister from parport */
+	if (w9966_getState(cam, W9966_STATE_PDEV, W9966_STATE_PDEV)) {
+		parport_unregister_device(cam->pdev);
+		w9966_setState(cam, W9966_STATE_PDEV, 0);
+	}
 }
 
 
