@@ -59,6 +59,8 @@ static int quota_sync_all(int type)
 	spin_lock(&sb_lock);
 restart:
 	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
 		if (!sb->s_qcop || !sb->s_qcop->quota_sync)
 			continue;
 

@@ -135,6 +135,7 @@ static int __put_super(struct super_block *sb)
 	int ret = 0;
 
 	if (!--sb->s_count) {
+		list_del_init(&sb->s_list);
 		destroy_super(sb);
 		ret = 1;
 	}
@@ -151,7 +152,7 @@ static int __put_super(struct super_block *sb)
 int __put_super_and_need_restart(struct super_block *sb)
 {
 	/* check for race with generic_shutdown_super() */
-	if (list_empty(&sb->s_list)) {
+	if (list_empty(&sb->s_instances)) {
 		/* super block is removed, need to restart... */
 		__put_super(sb);
 		return 1;
@@ -308,8 +309,7 @@ void generic_shutdown_super(struct super_block *sb)
 	}
 	spin_lock(&sb_lock);
 	/* should be initialized for __put_super_and_need_restart() */
-	list_del_init(&sb->s_list);
-	list_del(&sb->s_instances);
+	list_del_init(&sb->s_instances);
 	spin_unlock(&sb_lock);
 	up_write(&sb->s_umount);
 }
@@ -400,6 +400,8 @@ void sync_supers(void)
 	spin_lock(&sb_lock);
 restart:
 	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
 		if (sb->s_op->write_super && sb->s_dirt) {
 			sb->s_count++;
 			spin_unlock(&sb_lock);
@@ -435,6 +437,8 @@ struct super_block * get_super(struct block_device *bdev)
 	spin_lock(&sb_lock);
 rescan:
 	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
 		if (sb->s_bdev == bdev) {
 			sb->s_count++;
 			spin_unlock(&sb_lock);
@@ -471,6 +475,8 @@ struct super_block *get_active_super(struct block_device *bdev)
 
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
 		if (sb->s_bdev != bdev)
 			continue;
 
@@ -490,6 +496,8 @@ struct super_block * user_get_super(dev_t dev)
 	spin_lock(&sb_lock);
 rescan:
 	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
 		if (sb->s_dev ==  dev) {
 			sb->s_count++;
 			spin_unlock(&sb_lock);
@@ -600,6 +608,8 @@ static void do_emergency_remount(struct work_struct *work)
 
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
 		sb->s_count++;
 		spin_unlock(&sb_lock);
 		down_write(&sb->s_umount);

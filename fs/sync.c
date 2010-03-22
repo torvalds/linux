@@ -99,10 +99,13 @@ static void sync_filesystems(int wait)
 	mutex_lock(&mutex);		/* Could be down_interruptible */
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list)
-		sb->s_need_sync = 1;
+		if (!list_empty(&sb->s_instances))
+			sb->s_need_sync = 1;
 
 restart:
 	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
 		if (!sb->s_need_sync)
 			continue;
 		sb->s_need_sync = 0;

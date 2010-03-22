@@ -552,6 +552,8 @@ restart:
 		prune_ratio = unused / count;
 	spin_lock(&sb_lock);
 	list_for_each_entry(sb, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
 		if (sb->s_nr_dentry_unused == 0)
 			continue;
 		sb->s_count++;
