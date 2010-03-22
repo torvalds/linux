@@ -1475,8 +1475,6 @@ int wm8350_mic_jack_detect(struct snd_soc_codec *codec,
 	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_4, WM8350_TOCLK_ENA);
 	wm8350_set_bits(wm8350, WM8350_POWER_MGMT_1, WM8350_MIC_DET_ENA);
 
-	snd_soc_dapm_force_enable_pin(codec, "Mic Bias");
-
 	return 0;
 }
 EXPORT_SYMBOL_GPL(wm8350_mic_jack_detect);

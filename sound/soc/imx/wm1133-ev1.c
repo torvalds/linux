@@ -234,6 +234,8 @@ static int wm1133_ev1_init(struct snd_soc_codec *codec)
 	wm8350_mic_jack_detect(codec, &mic_jack, SND_JACK_MICROPHONE,
 			       SND_JACK_BTN_0);
 
+	snd_soc_dapm_force_enable_pin(codec, "Mic Bias");
+
 	return 0;
 }
 
