@@ -38,7 +38,6 @@
 #include <linux/kbd_kern.h>
 #include <linux/kbd_diacr.h>
 #include <linux/vt_kern.h>
-#include <linux/sysrq.h>
 #include <linux/input.h>
 #include <linux/reboot.h>
 #include <linux/notifier.h>
@@ -82,8 +81,7 @@ void compute_shiftstate(void);
 typedef void (k_handler_fn)(struct vc_data *vc, unsigned char value,
 			    char up_flag);
 static k_handler_fn K_HANDLERS;
-k_handler_fn *k_handler[16] = { K_HANDLERS };
-EXPORT_SYMBOL_GPL(k_handler);
+static k_handler_fn *k_handler[16] = { K_HANDLERS };
 
 #define FN_HANDLERS\
 	fn_null,	fn_enter,	fn_show_ptregs,	fn_show_mem,\
@@ -146,22 +144,6 @@ static struct ledptr {
 	unsigned int mask;
 	unsigned char valid:1;
 } ledptrs[3];
-
-/* Simple translation table for the SysRq keys */
-
-#ifdef CONFIG_MAGIC_SYSRQ
-unsigned char kbd_sysrq_xlate[KEY_MAX + 1] =
-        "\000\0331234567890-=\177\t"                    /* 0x00 - 0x0f */
-        "qwertyuiop[]\r\000as"                          /* 0x10 - 0x1f */
-        "dfghjkl;'`\000\\zxcv"                          /* 0x20 - 0x2f */
-        "bnm,./\000*\000 \000\201\202\203\204\205"      /* 0x30 - 0x3f */
-        "\206\207\210\211\212\000\000789-456+1"         /* 0x40 - 0x4f */
-        "230\177\000\000\213\214\000\000\000\000\000\000\000\000\000\000" /* 0x50 - 0x5f */
-        "\r\000/";                                      /* 0x60 - 0x6f */
-static int sysrq_down;
-static int sysrq_alt_use;
-#endif
-static int sysrq_alt;
 
 /*
  * Notifier list for console keyboard events
@@ -1108,7 +1090,8 @@ static int emulate_raw(struct vc_data *vc, unsigned int keycode,
 			 * pressing PrtSc/SysRq alone, but simply 0x54
 			 * when pressing Alt+PrtSc/SysRq.
 			 */
-			if (sysrq_alt) {
+			if (test_bit(KEY_LEFTALT, key_down) ||
+			    test_bit(KEY_RIGHTALT, key_down)) {
 				put_queue(vc, 0x54 | up_flag);
 			} else {
 				put_queue(vc, 0xe0);
@@ -1176,8 +1159,6 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 
 	kbd = kbd_table + vc->vc_num;
 
-	if (keycode == KEY_LEFTALT || keycode == KEY_RIGHTALT)
-		sysrq_alt = down ? keycode : 0;
 #ifdef CONFIG_SPARC
 	if (keycode == KEY_STOP)
 		sparc_l1_a_state = down;
@@ -1190,21 +1171,6 @@ static void kbd_keycode(unsigned int keycode, int down, int hw_raw)
 			if (keycode < BTN_MISC && printk_ratelimit())
 				printk(KERN_WARNING "keyboard.c: can't emulate rawmode for keycode %d\n", keycode);
 
-#ifdef CONFIG_MAGIC_SYSRQ	       /* Handle the SysRq Hack */
-	if (keycode == KEY_SYSRQ && (sysrq_down || (down == 1 && sysrq_alt))) {
-		if (!sysrq_down) {
-			sysrq_down = down;
-			sysrq_alt_use = sysrq_alt;
-		}
-		return;
-	}
-	if (sysrq_down && !down && keycode == sysrq_alt_use)
-		sysrq_down = 0;
-	if (sysrq_down && down && !rep) {
-		handle_sysrq(kbd_sysrq_xlate[keycode], tty);
-		return;
-	}
-#endif
 #ifdef CONFIG_SPARC
 	if (keycode == KEY_A && sparc_l1_a_state) {
 		sparc_l1_a_state = 0;
