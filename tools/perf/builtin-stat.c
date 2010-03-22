@@ -144,10 +144,11 @@ struct stats			runtime_branches_stats;
 #define ERR_PERF_OPEN \
 "Error: counter %d, sys_perf_event_open() syscall returned with %d (%s)\n"
 
-static void create_perf_stat_counter(int counter)
+static int create_perf_stat_counter(int counter)
 {
 	struct perf_event_attr *attr = attrs + counter;
 	int thread;
+	int ncreated = 0;
 
 	if (scale)
 		attr->read_format = PERF_FORMAT_TOTAL_TIME_ENABLED |
@@ -159,9 +160,11 @@ static void create_perf_stat_counter(int counter)
 		for (cpu = 0; cpu < nr_cpus; cpu++) {
 			fd[cpu][counter][0] = sys_perf_event_open(attr,
 					-1, cpumap[cpu], -1, 0);
-			if (fd[cpu][counter][0] < 0 && verbose)
-				fprintf(stderr, ERR_PERF_OPEN, counter,
-					fd[cpu][counter][0], strerror(errno));
+			if (fd[cpu][counter][0] < 0)
+				pr_debug(ERR_PERF_OPEN, counter,
+					 fd[cpu][counter][0], strerror(errno));
+			else
+				++ncreated;
 		}
 	} else {
 		attr->inherit	     = inherit;
@@ -172,12 +175,16 @@ static void create_perf_stat_counter(int counter)
 		for (thread = 0; thread < thread_num; thread++) {
 			fd[0][counter][thread] = sys_perf_event_open(attr,
 				all_tids[thread], -1, -1, 0);
-			if (fd[0][counter][thread] < 0 && verbose)
-				fprintf(stderr, ERR_PERF_OPEN, counter,
-					fd[0][counter][thread],
-					strerror(errno));
+			if (fd[0][counter][thread] < 0)
+				pr_debug(ERR_PERF_OPEN, counter,
+					 fd[0][counter][thread],
+					 strerror(errno));
+			else
+				++ncreated;
 		}
 	}
+
+	return ncreated;
 }
 
 /*
@@ -264,7 +271,7 @@ static int run_perf_stat(int argc __used, const char **argv)
 {
 	unsigned long long t0, t1;
 	int status = 0;
-	int counter;
+	int counter, ncreated = 0;
 	int child_ready_pipe[2], go_pipe[2];
 	const bool forks = (argc > 0);
 	char buf;
@@ -324,7 +331,16 @@ static int run_perf_stat(int argc __used, const char **argv)
 	}
 
 	for (counter = 0; counter < nr_counters; counter++)
-		create_perf_stat_counter(counter);
+		ncreated += create_perf_stat_counter(counter);
+
+	if (ncreated == 0) {
+		pr_err("No permission to collect %sstats.\n"
+		       "Consider tweaking /proc/sys/kernel/perf_event_paranoid.\n",
+		       system_wide ? "system-wide " : "");
+		if (child_pid != -1)
+			kill(child_pid, SIGTERM);
+		return -1;
+	}
 
 	/*
 	 * Enable counters and exec the command:
@@ -587,7 +603,8 @@ int cmd_stat(int argc, const char **argv, const char *prefix __used)
 		status = run_perf_stat(argc, argv);
 	}
 
-	print_stat(argc, argv);
+	if (status != -1)
+		print_stat(argc, argv);
 
 	return status;
 }
