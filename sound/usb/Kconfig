@@ -22,8 +22,7 @@ config SND_USB_AUDIO
 	  will be called snd-usb-audio.
 
 config SND_USB_UA101
-	tristate "Edirol UA-101/UA-1000 driver (EXPERIMENTAL)"
-	depends on EXPERIMENTAL
+	tristate "Edirol UA-101/UA-1000 driver"
 	select SND_PCM
 	select SND_RAWMIDI
 	help
