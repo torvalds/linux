@@ -368,8 +368,9 @@ static void __devinit quirk_io_region(struct pci_dev *dev, unsigned region,
 		bus_region.end = res->end;
 		pcibios_bus_to_resource(dev, res, &bus_region);
 
-		pci_claim_resource(dev, nr);
-		dev_info(&dev->dev, "quirk: %pR claimed by %s\n", res, name);
+		if (pci_claim_resource(dev, nr) == 0)
+			dev_info(&dev->dev, "quirk: %pR claimed by %s\n",
+				 res, name);
 	}
 }	
 
