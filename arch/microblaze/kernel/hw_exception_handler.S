@@ -721,9 +721,8 @@ ex_handler_done:
 		 * Many of these bits are software only. Bits we don't set
 		 * here we (properly should) assume have the appropriate value.
 		 */
+		brid	finish_tlb_load
 		andni	r4, r4, 0x0ce2		/* Make sure 20, 21 are zero */
-
-		bri	finish_tlb_load
 	ex7:
 		/* The bailout. Restore registers to pre-exception conditions
 		 * and call the heavyweights to help us out.
@@ -779,7 +778,7 @@ ex_handler_done:
 		lwi	r4, r5, 0		/* Get Linux PTE */
 
 		andi	r6, r4, _PAGE_PRESENT
-		beqi	r6, ex7
+		beqi	r6, ex10
 
 		ori	r4, r4, _PAGE_ACCESSED
 		swi	r4, r5, 0
@@ -792,9 +791,8 @@ ex_handler_done:
 		 * Many of these bits are software only. Bits we don't set
 		 * here we (properly should) assume have the appropriate value.
 		 */
+		brid	finish_tlb_load
 		andni	r4, r4, 0x0ce2		/* Make sure 20, 21 are zero */
-
-		bri	finish_tlb_load
 	ex10:
 		/* The bailout. Restore registers to pre-exception conditions
 		 * and call the heavyweights to help us out.
@@ -824,9 +822,9 @@ ex_handler_done:
 		andi	r5, r5, (MICROBLAZE_TLB_SIZE-1)
 		ori	r6, r0, 1
 		cmp	r31, r5, r6
-		blti	r31, sem
+		blti	r31, ex12
 		addik	r5, r6, 1
-	sem:
+	ex12:
 		/* MS: save back current TLB index */
 		swi	r5, r0, TOPHYS(tlb_index)
 
@@ -846,7 +844,6 @@ ex_handler_done:
 		nop
 
 		/* Done...restore registers and get out of here. */
-	ex12:
 		mts	rpid, r11
 		nop
 		bri 4
