@@ -39,7 +39,7 @@
 #include <asm/byteorder.h>
 
 #if 0
-#define DEBUG(n, args...) printk(args)
+#define DEBUG(n, args...) printk(KERN_INFO args)
 #define CHECK_LOST	1
 #else
 #define DEBUG(n, args...)
@@ -55,7 +55,7 @@
 #define VERSION	"0.03"
 
 #define ar_inl(addr) 		inl((unsigned long)(addr))
-#define ar_outl(val, addr)	outl((unsigned long)(val),(unsigned long)(addr))
+#define ar_outl(val, addr)	outl((unsigned long)(val), (unsigned long)(addr))
 
 extern struct cpuinfo_m32r	boot_cpu_data;
 
@@ -214,13 +214,12 @@ void init_iic(void)
 
 	/* I2C CLK */
 	/* 50MH-100k */
-	if (freq == 75) {
+	if (freq == 75)
 		ar_outl(369, PLDI2CFREQ);	/* BCLK = 75MHz */
-	} else if (freq == 50) {
+	else if (freq == 50)
 		ar_outl(244, PLDI2CFREQ);	/* BCLK = 50MHz */
-	} else {
+	else
 		ar_outl(244, PLDI2CFREQ);	/* default: BCLK = 50MHz */
-	}
 	ar_outl(0x1, PLDI2CCR); 	/* I2CCR Enable */
 }
 
@@ -260,7 +259,7 @@ static inline void wait_for_vertical_sync(int exp_line)
 			break;
 	}
 	if (tmout < 0)
-		printk("arv: lost %d -> %d\n", exp_line, l);
+		printk(KERN_ERR "arv: lost %d -> %d\n", exp_line, l);
 #else
 	while (ar_inl(ARVHCOUNT) != exp_line)
 		cpu_relax();
@@ -277,7 +276,7 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 	unsigned char *p;
 	int h, w;
 	unsigned char *py, *pu, *pv;
-#if ! USE_INT
+#if !USE_INT
 	int l;
 #endif
 
@@ -313,7 +312,7 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 	/* .... AR interrupts .... */
 	interruptible_sleep_on(&ar->wait);
 	if (signal_pending(current)) {
-		printk("arv: interrupted while get frame data.\n");
+		printk(KERN_ERR "arv: interrupted while get frame data.\n");
 		ret = -EINTR;
 		goto out_up;
 	}
@@ -386,7 +385,7 @@ static ssize_t ar_read(struct file *file, char *buf, size_t count, loff_t *ppos)
 		}
 	}
 	if (copy_to_user(buf, yuv, ar->frame_bytes)) {
-		printk("arv: failed while copy_to_user yuv.\n");
+		printk(KERN_ERR "arv: failed while copy_to_user yuv.\n");
 		ret = -EFAULT;
 		goto out_up;
 	}
@@ -402,7 +401,7 @@ static long ar_do_ioctl(struct file *file, unsigned int cmd, void *arg)
 	struct ar_device *ar = video_get_drvdata(dev);
 
 	DEBUG(1, "ar_ioctl()\n");
-	switch(cmd) {
+	switch (cmd) {
 	case VIDIOCGCAP:
 	{
 		struct video_capability *b = arg;
@@ -559,11 +558,11 @@ static void ar_interrupt(int irq, void *dev)
 	line_count = ar_inl(ARVHCOUNT);			/* line number */
 	if (ar->mode == AR_MODE_INTERLACE && ar->size == AR_SIZE_VGA) {
 		/* operations for interlace mode */
-		if ( line_count < (AR_HEIGHT_VGA/2) ) 	/* even line */
+		if (line_count < (AR_HEIGHT_VGA / 2)) 	/* even line */
 			line_number = (line_count << 1);
 		else 					/* odd line */
 			line_number =
-			(((line_count - (AR_HEIGHT_VGA/2)) << 1) + 1);
+			(((line_count - (AR_HEIGHT_VGA / 2)) << 1) + 1);
 	} else {
 		line_number = line_count;
 	}
@@ -627,7 +626,7 @@ static int ar_initialize(struct video_device *dev)
 {
 	struct ar_device *ar = video_get_drvdata(dev);
 	unsigned long cr = 0;
-	int i,found=0;
+	int i, found = 0;
 
 	DEBUG(1, "ar_initialize:\n");
 
@@ -666,66 +665,66 @@ static int ar_initialize(struct video_device *dev)
 	if (found == 0)
 		return -ENODEV;
 
-	printk("arv: Initializing ");
+	printk(KERN_INFO "arv: Initializing ");
 
-	iic(2,0x78,0x11,0x01,0x00);	/* start */
-	iic(3,0x78,0x12,0x00,0x06);
-	iic(3,0x78,0x12,0x12,0x30);
-	iic(3,0x78,0x12,0x15,0x58);
-	iic(3,0x78,0x12,0x17,0x30);
-	printk(".");
-	iic(3,0x78,0x12,0x1a,0x97);
-	iic(3,0x78,0x12,0x1b,0xff);
-	iic(3,0x78,0x12,0x1c,0xff);
-	iic(3,0x78,0x12,0x26,0x10);
-	iic(3,0x78,0x12,0x27,0x00);
-	printk(".");
-	iic(2,0x78,0x34,0x02,0x00);
-	iic(2,0x78,0x7a,0x10,0x00);
-	iic(2,0x78,0x80,0x39,0x00);
-	iic(2,0x78,0x81,0xe6,0x00);
-	iic(2,0x78,0x8d,0x00,0x00);
-	printk(".");
-	iic(2,0x78,0x8e,0x0c,0x00);
-	iic(2,0x78,0x8f,0x00,0x00);
+	iic(2, 0x78, 0x11, 0x01, 0x00);	/* start */
+	iic(3, 0x78, 0x12, 0x00, 0x06);
+	iic(3, 0x78, 0x12, 0x12, 0x30);
+	iic(3, 0x78, 0x12, 0x15, 0x58);
+	iic(3, 0x78, 0x12, 0x17, 0x30);
+	printk(KERN_CONT ".");
+	iic(3, 0x78, 0x12, 0x1a, 0x97);
+	iic(3, 0x78, 0x12, 0x1b, 0xff);
+	iic(3, 0x78, 0x12, 0x1c, 0xff);
+	iic(3, 0x78, 0x12, 0x26, 0x10);
+	iic(3, 0x78, 0x12, 0x27, 0x00);
+	printk(KERN_CONT ".");
+	iic(2, 0x78, 0x34, 0x02, 0x00);
+	iic(2, 0x78, 0x7a, 0x10, 0x00);
+	iic(2, 0x78, 0x80, 0x39, 0x00);
+	iic(2, 0x78, 0x81, 0xe6, 0x00);
+	iic(2, 0x78, 0x8d, 0x00, 0x00);
+	printk(KERN_CONT ".");
+	iic(2, 0x78, 0x8e, 0x0c, 0x00);
+	iic(2, 0x78, 0x8f, 0x00, 0x00);
 #if 0
-	iic(2,0x78,0x90,0x00,0x00);	/* AWB on=1 off=0 */
+	iic(2, 0x78, 0x90, 0x00, 0x00);	/* AWB on=1 off=0 */
 #endif
-	iic(2,0x78,0x93,0x01,0x00);
-	iic(2,0x78,0x94,0xcd,0x00);
-	iic(2,0x78,0x95,0x00,0x00);
-	printk(".");
-	iic(2,0x78,0x96,0xa0,0x00);
-	iic(2,0x78,0x97,0x00,0x00);
-	iic(2,0x78,0x98,0x60,0x00);
-	iic(2,0x78,0x99,0x01,0x00);
-	iic(2,0x78,0x9a,0x19,0x00);
-	printk(".");
-	iic(2,0x78,0x9b,0x02,0x00);
-	iic(2,0x78,0x9c,0xe8,0x00);
-	iic(2,0x78,0x9d,0x02,0x00);
-	iic(2,0x78,0x9e,0x2e,0x00);
-	iic(2,0x78,0xb8,0x78,0x00);
-	iic(2,0x78,0xba,0x05,0x00);
+	iic(2, 0x78, 0x93, 0x01, 0x00);
+	iic(2, 0x78, 0x94, 0xcd, 0x00);
+	iic(2, 0x78, 0x95, 0x00, 0x00);
+	printk(KERN_CONT ".");
+	iic(2, 0x78, 0x96, 0xa0, 0x00);
+	iic(2, 0x78, 0x97, 0x00, 0x00);
+	iic(2, 0x78, 0x98, 0x60, 0x00);
+	iic(2, 0x78, 0x99, 0x01, 0x00);
+	iic(2, 0x78, 0x9a, 0x19, 0x00);
+	printk(KERN_CONT ".");
+	iic(2, 0x78, 0x9b, 0x02, 0x00);
+	iic(2, 0x78, 0x9c, 0xe8, 0x00);
+	iic(2, 0x78, 0x9d, 0x02, 0x00);
+	iic(2, 0x78, 0x9e, 0x2e, 0x00);
+	iic(2, 0x78, 0xb8, 0x78, 0x00);
+	iic(2, 0x78, 0xba, 0x05, 0x00);
 #if 0
-	iic(2,0x78,0x83,0x8c,0x00);	/* brightness */
+	iic(2, 0x78, 0x83, 0x8c, 0x00);	/* brightness */
 #endif
-	printk(".");
+	printk(KERN_CONT ".");
 
 	/* color correction */
-	iic(3,0x78,0x49,0x00,0x95);	/* a		*/
-	iic(3,0x78,0x49,0x01,0x96);	/* b		*/
-	iic(3,0x78,0x49,0x03,0x85);	/* c		*/
-	iic(3,0x78,0x49,0x04,0x97);	/* d		*/
-	iic(3,0x78,0x49,0x02,0x7e);	/* e(Lo)	*/
-	iic(3,0x78,0x49,0x05,0xa4);	/* f(Lo)	*/
-	iic(3,0x78,0x49,0x06,0x04);	/* e(Hi)	*/
-	iic(3,0x78,0x49,0x07,0x04);	/* e(Hi)	*/
-	iic(2,0x78,0x48,0x01,0x00);	/* on=1 off=0	*/
+	iic(3, 0x78, 0x49, 0x00, 0x95);	/* a		*/
+	iic(3, 0x78, 0x49, 0x01, 0x96);	/* b		*/
+	iic(3, 0x78, 0x49, 0x03, 0x85);	/* c		*/
+	iic(3, 0x78, 0x49, 0x04, 0x97);	/* d		*/
+	iic(3, 0x78, 0x49, 0x02, 0x7e);	/* e(Lo)	*/
+	iic(3, 0x78, 0x49, 0x05, 0xa4);	/* f(Lo)	*/
+	iic(3, 0x78, 0x49, 0x06, 0x04);	/* e(Hi)	*/
+	iic(3, 0x78, 0x49, 0x07, 0x04);	/* e(Hi)	*/
+	iic(2, 0x78, 0x48, 0x01, 0x00);	/* on=1 off=0	*/
 
-	printk(".");
-	iic(2,0x78,0x11,0x00,0x00);	/* end */
-	printk(" done\n");
+	printk(KERN_CONT ".");
+	iic(2, 0x78, 0x11, 0x00, 0x00);	/* end */
+	printk(KERN_CONT " done\n");
 	return 0;
 }
 
@@ -787,8 +786,8 @@ static int __init ar_init(void)
 #if USE_INT
 	/* allocate a DMA buffer for 1 line.  */
 	ar->line_buff = kmalloc(MAX_AR_LINE_BYTES, GFP_KERNEL | GFP_DMA);
-	if (ar->line_buff == NULL || ! ALIGN4(ar->line_buff)) {
-		printk("arv: buffer allocation failed for DMA.\n");
+	if (ar->line_buff == NULL || !ALIGN4(ar->line_buff)) {
+		printk(KERN_ERR "arv: buffer allocation failed for DMA.\n");
 		ret = -ENOMEM;
 		goto out_end;
 	}
@@ -796,8 +795,8 @@ static int __init ar_init(void)
 	/* allocate buffers for a frame */
 	for (i = 0; i < MAX_AR_HEIGHT; i++) {
 		ar->frame[i] = kmalloc(MAX_AR_LINE_BYTES, GFP_KERNEL);
-		if (ar->frame[i] == NULL || ! ALIGN4(ar->frame[i])) {
-			printk("arv: buffer allocation failed for frame.\n");
+		if (ar->frame[i] == NULL || !ALIGN4(ar->frame[i])) {
+			printk(KERN_ERR "arv: buffer allocation failed for frame.\n");
 			ret = -ENOMEM;
 			goto out_line_buff;
 		}
@@ -834,14 +833,14 @@ static int __init ar_init(void)
 
 #if USE_INT
 	if (request_irq(M32R_IRQ_INT3, ar_interrupt, 0, "arv", ar)) {
-		printk("arv: request_irq(%d) failed.\n", M32R_IRQ_INT3);
+		printk(KERN_ERR "arv: request_irq(%d) failed.\n", M32R_IRQ_INT3);
 		ret = -EIO;
 		goto out_irq;
 	}
 #endif
 
 	if (ar_initialize(ar->vdev) != 0) {
-		printk("arv: M64278 not found.\n");
+		printk(KERN_ERR "arv: M64278 not found.\n");
 		ret = -ENODEV;
 		goto out_dev;
 	}
@@ -854,12 +853,12 @@ static int __init ar_init(void)
 	 */
 	if (video_register_device(ar->vdev, VFL_TYPE_GRABBER, video_nr) != 0) {
 		/* return -1, -ENFILE(full) or others */
-		printk("arv: register video (Colour AR) failed.\n");
+		printk(KERN_ERR "arv: register video (Colour AR) failed.\n");
 		ret = -ENODEV;
 		goto out_dev;
 	}
 
-	printk("%s: Found M64278 VGA (IRQ %d, Freq %dMHz).\n",
+	printk(KERN_INFO "%s: Found M64278 VGA (IRQ %d, Freq %dMHz).\n",
 		video_device_node_name(ar->vdev), M32R_IRQ_INT3, freq);
 
 	return 0;
@@ -886,7 +885,7 @@ out_end:
 static int __init ar_init_module(void)
 {
 	freq = (boot_cpu_data.bus_clock / 1000000);
-	printk("arv: Bus clock %d\n", freq);
+	printk(KERN_INFO "arv: Bus clock %d\n", freq);
 	if (freq != 50 && freq != 75)
 		freq = DEFAULT_FREQ;
 	return ar_init();
