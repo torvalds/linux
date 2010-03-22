@@ -111,6 +111,9 @@ static inline int ___range_ok(unsigned long addr, unsigned long size)
 # define __EX_TABLE_SECTION	".section .discard,\"a\"\n"
 #endif
 
+extern unsigned long __copy_tofrom_user(void __user *to,
+		const void __user *from, unsigned long size);
+
 /* Return: number of not copied bytes, i.e. 0 if OK or non-zero if fail. */
 static inline unsigned long __must_check __clear_user(void __user *to,
 							unsigned long n)
@@ -322,23 +325,6 @@ static inline long strncpy_from_user(char *dst,
 	return res;
 }
 
-static inline unsigned long __copy_tofrom_user(void __user *to,
-		const void __user *from, unsigned long size)
-{
-	memcpy(to, from, size);
-	return 0;
-}
-
-#define copy_to_user(to, from, n)	(memcpy((to), (from), (n)), 0)
-#define copy_from_user(to, from, n)	(memcpy((to), (from), (n)), 0)
-
-#define __copy_to_user(to, from, n)	(copy_to_user((to), (from), (n)))
-#define __copy_from_user(to, from, n)	(copy_from_user((to), (from), (n)))
-#define __copy_to_user_inatomic(to, from, n) \
-			(__copy_to_user((to), (from), (n)))
-#define __copy_from_user_inatomic(to, from, n) \
-			(__copy_from_user((to), (from), (n)))
-
 extern long strncpy_from_user(char *dst, const char *src, long count);
 extern long strnlen_user(const char *src, long count);
 
@@ -350,8 +336,24 @@ extern long strnlen_user(const char *src, long count);
 		? __put_user((x), (ptr)) : -EFAULT;			\
 })
 
-extern unsigned long __copy_tofrom_user(void __user *to,
-		const void __user *from, unsigned long size);
+extern int __strncpy_user(char *to, const char __user *from, int len);
+
+#define __strncpy_from_user	__strncpy_user
+
+static inline long
+strncpy_from_user(char *dst, const char __user *src, long count)
+{
+	if (!access_ok(VERIFY_READ, src, 1))
+		return -EFAULT;
+	return __strncpy_from_user(dst, src, count);
+}
+
+extern int __strnlen_user(const char __user *sstr, int len);
+
+#define strnlen_user(str, len)	\
+		(access_ok(VERIFY_READ, str, 1) ? __strnlen_user(str, len) : 0)
+
+#endif /* CONFIG_MMU */
 
 #define __copy_from_user(to, from, n)	\
 	__copy_tofrom_user((__force void __user *)(to), \
@@ -383,25 +385,6 @@ static inline long copy_to_user(void __user *to,
 	else
 		return n;
 }
-
-extern int __strncpy_user(char *to, const char __user *from, int len);
-
-#define __strncpy_from_user	__strncpy_user
-
-static inline long
-strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	if (!access_ok(VERIFY_READ, src, 1))
-		return -EFAULT;
-	return __strncpy_from_user(dst, src, count);
-}
-
-extern int __strnlen_user(const char __user *sstr, int len);
-
-#define strnlen_user(str, len)	\
-		(access_ok(VERIFY_READ, str, 1) ? __strnlen_user(str, len) : 0)
-
-#endif /* CONFIG_MMU */
 
 #endif  /* __ASSEMBLY__ */
 #endif /* __KERNEL__ */
