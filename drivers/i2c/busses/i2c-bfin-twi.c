@@ -157,6 +157,18 @@ static void bfin_twi_handle_interrupt(struct bfin_twi_iface *iface)
 		write_MASTER_CTL(iface, 0);
 		SSYNC();
 		iface->result = -EIO;
+
+		if (mast_stat & LOSTARB)
+			dev_dbg(&iface->adap.dev, "Lost Arbitration\n");
+		if (mast_stat & ANAK)
+			dev_dbg(&iface->adap.dev, "Address Not Acknowledged\n");
+		if (mast_stat & DNAK)
+			dev_dbg(&iface->adap.dev, "Data Not Acknowledged\n");
+		if (mast_stat & BUFRDERR)
+			dev_dbg(&iface->adap.dev, "Buffer Read Error\n");
+		if (mast_stat & BUFWRERR)
+			dev_dbg(&iface->adap.dev, "Buffer Write Error\n");
+
 		/* if both err and complete int stats are set, return proper
 		 * results.
 		 */
