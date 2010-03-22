@@ -70,7 +70,7 @@ struct ceph_osd_request {
 
 	char              r_oid[40];          /* object name */
 	int               r_oid_len;
-	unsigned long     r_sent_stamp;
+	unsigned long     r_stamp;            /* send OR check time */
 	bool              r_resend;           /* msg send failed, needs retry */
 
 	struct ceph_file_layout r_file_layout;

@@ -633,7 +633,7 @@ static int __send_request(struct ceph_osd_client *osdc,
 	reqhead->flags |= cpu_to_le32(req->r_flags);  /* e.g., RETRY */
 	reqhead->reassert_version = req->r_reassert_version;
 
-	req->r_sent_stamp = jiffies;
+	req->r_stamp = jiffies;
 	list_move_tail(&osdc->req_lru, &req->r_req_lru_item);
 
 	ceph_msg_get(req->r_request); /* send consumes a ref */
@@ -660,7 +660,7 @@ static void handle_timeout(struct work_struct *work)
 	unsigned long timeout = osdc->client->mount_args->osd_timeout * HZ;
 	unsigned long keepalive =
 		osdc->client->mount_args->osd_keepalive_timeout * HZ;
-	unsigned long last_sent = 0;
+	unsigned long last_stamp = 0;
 	struct rb_node *p;
 	struct list_head slow_osds;
 
@@ -697,12 +697,12 @@ static void handle_timeout(struct work_struct *work)
 		req = list_entry(osdc->req_lru.next, struct ceph_osd_request,
 				 r_req_lru_item);
 
-		if (time_before(jiffies, req->r_sent_stamp + timeout))
+		if (time_before(jiffies, req->r_stamp + timeout))
 			break;
 
-		BUG_ON(req == last_req && req->r_sent_stamp == last_sent);
+		BUG_ON(req == last_req && req->r_stamp == last_stamp);
 		last_req = req;
-		last_sent = req->r_sent_stamp;
+		last_stamp = req->r_stamp;
 
 		osd = req->r_osd;
 		BUG_ON(!osd);
@@ -718,7 +718,7 @@ static void handle_timeout(struct work_struct *work)
 	 */
 	INIT_LIST_HEAD(&slow_osds);
 	list_for_each_entry(req, &osdc->req_lru, r_req_lru_item) {
-		if (time_before(jiffies, req->r_sent_stamp + keepalive))
+		if (time_before(jiffies, req->r_stamp + keepalive))
 			break;
 
 		osd = req->r_osd;
