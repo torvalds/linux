@@ -158,7 +158,7 @@ out_unlock:
 	mutex_unlock(&dir->d_inode->i_mutex);
 	if (status == 0) {
 		clp->cl_firststate = 1;
-		vfs_fsync(rec_file, rec_file->f_path.dentry, 0);
+		vfs_fsync(rec_file, 0);
 	}
 	nfs4_reset_creds(original_cred);
 	dprintk("NFSD: nfsd4_create_clid_dir returns %d\n", status);
@@ -288,7 +288,7 @@ nfsd4_remove_clid_dir(struct nfs4_client *clp)
 	status = nfsd4_unlink_clid_dir(clp->cl_recdir, HEXDIR_LEN-1);
 	nfs4_reset_creds(original_cred);
 	if (status == 0)
-		vfs_fsync(rec_file, rec_file->f_path.dentry, 0);
+		vfs_fsync(rec_file, 0);
 	mnt_drop_write(rec_file->f_path.mnt);
 out:
 	if (status)
@@ -325,7 +325,7 @@ nfsd4_recdir_purge_old(void) {
 		goto out;
 	status = nfsd4_list_rec_dir(rec_file->f_path.dentry, purge_old);
 	if (status == 0)
-		vfs_fsync(rec_file, rec_file->f_path.dentry, 0);
+		vfs_fsync(rec_file, 0);
 	mnt_drop_write(rec_file->f_path.mnt);
 out:
 	if (status)

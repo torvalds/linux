@@ -158,7 +158,6 @@ EXPORT_SYMBOL(file_fsync);
 /**
  * vfs_fsync_range - helper to sync a range of data & metadata to disk
  * @file:		file to sync
- * @dentry:		dentry of @file
  * @start:		offset in bytes of the beginning of data range to sync
  * @end:		offset in bytes of the end of data range (inclusive)
  * @datasync:		perform only datasync
@@ -166,32 +165,13 @@ EXPORT_SYMBOL(file_fsync);
  * Write back data in range @start..@end and metadata for @file to disk.  If
  * @datasync is set only metadata needed to access modified file data is
  * written.
- *
- * In case this function is called from nfsd @file may be %NULL and
- * only @dentry is set.  This can only happen when the filesystem
- * implements the export_operations API.
  */
-int vfs_fsync_range(struct file *file, struct dentry *dentry, loff_t start,
-		    loff_t end, int datasync)
+int vfs_fsync_range(struct file *file, loff_t start, loff_t end, int datasync)
 {
-	const struct file_operations *fop;
-	struct address_space *mapping;
+	struct address_space *mapping = file->f_mapping;
 	int err, ret;
 
-	/*
-	 * Get mapping and operations from the file in case we have
-	 * as file, or get the default values for them in case we
-	 * don't have a struct file available.  Damn nfsd..
-	 */
-	if (file) {
-		mapping = file->f_mapping;
-		fop = file->f_op;
-	} else {
-		mapping = dentry->d_inode->i_mapping;
-		fop = dentry->d_inode->i_fop;
-	}
-
-	if (!fop || !fop->fsync) {
+	if (!file->f_op || !file->f_op->fsync) {
 		ret = -EINVAL;
 		goto out;
 	}
@@ -203,7 +183,7 @@ int vfs_fsync_range(struct file *file, struct dentry *dentry, loff_t start,
 	 * livelocks in fsync_buffers_list().
 	 */
 	mutex_lock(&mapping->host->i_mutex);
-	err = fop->fsync(file, dentry, datasync);
+	err = file->f_op->fsync(file, file->f_path.dentry, datasync);
 	if (!ret)
 		ret = err;
 	mutex_unlock(&mapping->host->i_mutex);
@@ -216,19 +196,14 @@ EXPORT_SYMBOL(vfs_fsync_range);
 /**
  * vfs_fsync - perform a fsync or fdatasync on a file
  * @file:		file to sync
- * @dentry:		dentry of @file
  * @datasync:		only perform a fdatasync operation
  *
  * Write back data and metadata for @file to disk.  If @datasync is
  * set only metadata needed to access modified file data is written.
- *
- * In case this function is called from nfsd @file may be %NULL and
- * only @dentry is set.  This can only happen when the filesystem
- * implements the export_operations API.
  */
-int vfs_fsync(struct file *file, struct dentry *dentry, int datasync)
+int vfs_fsync(struct file *file, int datasync)
 {
-	return vfs_fsync_range(file, dentry, 0, LLONG_MAX, datasync);
+	return vfs_fsync_range(file, 0, LLONG_MAX, datasync);
 }
 EXPORT_SYMBOL(vfs_fsync);
 
@@ -239,7 +214,7 @@ static int do_fsync(unsigned int fd, int datasync)
 
 	file = fget(fd);
 	if (file) {
-		ret = vfs_fsync(file, file->f_path.dentry, datasync);
+		ret = vfs_fsync(file, datasync);
 		fput(file);
 	}
 	return ret;
@@ -267,8 +242,7 @@ int generic_write_sync(struct file *file, loff_t pos, loff_t count)
 {
 	if (!(file->f_flags & O_DSYNC) && !IS_SYNC(file->f_mapping->host))
 		return 0;
-	return vfs_fsync_range(file, file->f_path.dentry, pos,
-			       pos + count - 1,
+	return vfs_fsync_range(file, pos, pos + count - 1,
 			       (file->f_flags & __O_SYNC) ? 0 : 1);
 }
 EXPORT_SYMBOL(generic_write_sync);
