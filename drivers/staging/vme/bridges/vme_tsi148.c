@@ -2455,9 +2455,10 @@ static int tsi148_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	dev_info(&pdev->dev, "VME Write and flush and error check is %s\n",
 		err_chk ? "enabled" : "disabled");
 
-	if (tsi148_crcsr_init(tsi148_bridge, pdev))
+	if (tsi148_crcsr_init(tsi148_bridge, pdev)) {
 		dev_err(&pdev->dev, "CR/CSR configuration failed.\n");
 		goto err_crcsr;
+	}
 
 	retval = vme_register_bridge(tsi148_bridge);
 	if (retval != 0) {
