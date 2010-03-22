@@ -562,7 +562,6 @@ ex_handler_done:
 		 */
 		mfs	r11, rpid
 		nop
-		bri	4
 		mfs	r3, rear		/* Get faulting address */
 		nop
 		/* If we are faulting a kernel address, we have to use the
@@ -679,18 +678,17 @@ ex_handler_done:
 	 */
 	handle_data_tlb_miss_exception:
 		/* Working registers already saved: R3, R4, R5, R6
-		 * R3 = ESR
+		 * R3 = EAR, R4 = ESR
 		 */
 		mfs	r11, rpid
 		nop
-		bri	4
 		mfs	r3, rear		/* Get faulting address */
 		nop
 
 		/* If we are faulting a kernel address, we have to use the
 		 * kernel page tables. */
-		ori	r4, r0, CONFIG_KERNEL_START
-		cmpu	r4, r3, r4
+		ori	r6, r0, CONFIG_KERNEL_START
+		cmpu	r4, r3, r6
 		bgti	r4, ex5
 		ori	r4, r0, swapper_pg_dir
 		mts	rpid, r0		/* TLB will have 0 TID */
@@ -756,7 +754,6 @@ ex_handler_done:
 		 */
 		mfs	r11, rpid
 		nop
-		bri	4
 		mfs	r3, rear		/* Get faulting address */
 		nop
 
