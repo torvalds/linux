@@ -294,40 +294,6 @@ extern long __user_bad(void);
 
 #define put_user(x, ptr)	__put_user((x), (ptr))
 
-static inline long strnlen_user(const char __user *src, long count)
-{
-	return strlen(src) + 1;
-}
-
-#define __do_strncpy_from_user(dst, src, count, res)			\
-	do {								\
-		char *tmp;						\
-		strncpy(dst, src, count);				\
-		for (tmp = dst; *tmp && count > 0; tmp++, count--)	\
-			;						\
-		res = (tmp - dst);					\
-	} while (0)
-
-static inline long __strncpy_from_user(char *dst,
-				const char __user *src, long count)
-{
-	long res;
-	__do_strncpy_from_user(dst, src, count, res);
-	return res;
-}
-
-static inline long strncpy_from_user(char *dst,
-				const char __user *src, long count)
-{
-	long res = -EFAULT;
-	if (access_ok(VERIFY_READ, src, 1))
-		__do_strncpy_from_user(dst, src, count, res);
-	return res;
-}
-
-extern long strncpy_from_user(char *dst, const char *src, long count);
-extern long strnlen_user(const char *src, long count);
-
 #else /* CONFIG_MMU */
 
 #define put_user(x, ptr)						\
@@ -335,26 +301,9 @@ extern long strnlen_user(const char *src, long count);
 	access_ok(VERIFY_WRITE, (ptr), sizeof(*(ptr)))			\
 		? __put_user((x), (ptr)) : -EFAULT;			\
 })
-
-extern int __strncpy_user(char *to, const char __user *from, int len);
-
-#define __strncpy_from_user	__strncpy_user
-
-static inline long
-strncpy_from_user(char *dst, const char __user *src, long count)
-{
-	if (!access_ok(VERIFY_READ, src, 1))
-		return -EFAULT;
-	return __strncpy_from_user(dst, src, count);
-}
-
-extern int __strnlen_user(const char __user *sstr, int len);
-
-#define strnlen_user(str, len)	\
-		(access_ok(VERIFY_READ, str, 1) ? __strnlen_user(str, len) : 0)
-
 #endif /* CONFIG_MMU */
 
+/* copy_to_from_user */
 #define __copy_from_user(to, from, n)	\
 	__copy_tofrom_user((__force void __user *)(to), \
 				(void __user *)(from), (n))
@@ -367,8 +316,7 @@ static inline long copy_from_user(void *to,
 	might_sleep();
 	if (access_ok(VERIFY_READ, from, n))
 		return __copy_from_user(to, from, n);
-	else
-		return n;
+	return n;
 }
 
 #define __copy_to_user(to, from, n)	\
@@ -382,8 +330,36 @@ static inline long copy_to_user(void __user *to,
 	might_sleep();
 	if (access_ok(VERIFY_WRITE, to, n))
 		return __copy_to_user(to, from, n);
-	else
-		return n;
+	return n;
+}
+
+/*
+ * Copy a null terminated string from userspace.
+ */
+extern int __strncpy_user(char *to, const char __user *from, int len);
+
+#define __strncpy_from_user	__strncpy_user
+
+static inline long
+strncpy_from_user(char *dst, const char __user *src, long count)
+{
+	if (!access_ok(VERIFY_READ, src, 1))
+		return -EFAULT;
+	return __strncpy_from_user(dst, src, count);
+}
+
+/*
+ * Return the size of a string (including the ending 0)
+ *
+ * Return 0 on exception, a value greater than N if too long
+ */
+extern int __strnlen_user(const char __user *sstr, int len);
+
+static inline long strnlen_user(const char __user *src, long n)
+{
+	if (!access_ok(VERIFY_READ, src, 1))
+		return 0;
+	return __strnlen_user(src, n);
 }
 
 #endif  /* __ASSEMBLY__ */
