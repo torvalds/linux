@@ -127,9 +127,13 @@ static bool dccp_mt_check(const struct xt_mtchk_param *par)
 {
 	const struct xt_dccp_info *info = par->matchinfo;
 
-	return !(info->flags & ~XT_DCCP_VALID_FLAGS)
-		&& !(info->invflags & ~XT_DCCP_VALID_FLAGS)
-		&& !(info->invflags & ~info->flags);
+	if (info->flags & ~XT_DCCP_VALID_FLAGS)
+		return false;
+	if (info->invflags & ~XT_DCCP_VALID_FLAGS)
+		return false;
+	if (info->invflags & ~info->flags)
+		return false;
+	return true;
 }
 
 static struct xt_match dccp_mt_reg[] __read_mostly = {
