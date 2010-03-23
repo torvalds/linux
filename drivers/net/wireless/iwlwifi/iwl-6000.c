@@ -278,6 +278,9 @@ static struct iwl_lib_ops iwl6000_lib = {
 		.set_ct_kill = iwl6000_set_ct_threshold,
 	 },
 	.add_bcast_station = iwl_add_bcast_station,
+	.recover_from_tx_stall = iwl_bg_monitor_recover,
+	.check_plcp_health = iwl_good_plcp_health,
+	.check_ack_health = iwl_good_ack_health,
 };
 
 static const struct iwl_ops iwl6000_ops = {
@@ -343,6 +346,9 @@ static struct iwl_lib_ops iwl6050_lib = {
 		.set_calib_version = iwl6050_set_calib_version,
 	 },
 	.add_bcast_station = iwl_add_bcast_station,
+	.recover_from_tx_stall = iwl_bg_monitor_recover,
+	.check_plcp_health = iwl_good_plcp_health,
+	.check_ack_health = iwl_good_ack_health,
 };
 
 static const struct iwl_ops iwl6050_ops = {
@@ -357,7 +363,7 @@ static const struct iwl_ops iwl6050_ops = {
  * "i": Internal configuration, use internal Power Amplifier
  */
 struct iwl_cfg iwl6000i_2agn_cfg = {
-	.name = "6000 Series 2x2 AGN",
+	.name = "Intel(R) Centrino(R) Advanced-N 6200 AGN",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
@@ -386,10 +392,11 @@ struct iwl_cfg iwl6000i_2agn_cfg = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 struct iwl_cfg iwl6000i_2abg_cfg = {
-	.name = "6000 Series 2x2 ABG",
+	.name = "Intel(R) Centrino(R) Advanced-N 6200 ABG",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
@@ -417,10 +424,11 @@ struct iwl_cfg iwl6000i_2abg_cfg = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 struct iwl_cfg iwl6000i_2bg_cfg = {
-	.name = "6000 Series 2x2 BG",
+	.name = "Intel(R) Centrino(R) Advanced-N 6200 BG",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
@@ -448,10 +456,11 @@ struct iwl_cfg iwl6000i_2bg_cfg = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 struct iwl_cfg iwl6050_2agn_cfg = {
-	.name = "6050 Series 2x2 AGN",
+	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 AGN",
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
@@ -480,10 +489,11 @@ struct iwl_cfg iwl6050_2agn_cfg = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1500,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 struct iwl_cfg iwl6050_2abg_cfg = {
-	.name = "6050 Series 2x2 ABG",
+	.name = "Intel(R) Centrino(R) Advanced-N + WiMAX 6250 ABG",
 	.fw_name_pre = IWL6050_FW_PRE,
 	.ucode_api_max = IWL6050_UCODE_API_MAX,
 	.ucode_api_min = IWL6050_UCODE_API_MIN,
@@ -511,10 +521,11 @@ struct iwl_cfg iwl6050_2abg_cfg = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1500,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 struct iwl_cfg iwl6000_3agn_cfg = {
-	.name = "6000 Series 3x3 AGN",
+	.name = "Intel(R) Centrino(R) Ultimate-N 6300 AGN",
 	.fw_name_pre = IWL6000_FW_PRE,
 	.ucode_api_max = IWL6000_UCODE_API_MAX,
 	.ucode_api_min = IWL6000_UCODE_API_MIN,
@@ -543,6 +554,7 @@ struct iwl_cfg iwl6000_3agn_cfg = {
 	.support_ct_kill_exit = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
 	.chain_noise_scale = 1000,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 MODULE_FIRMWARE(IWL6000_MODULE_FIRMWARE(IWL6000_UCODE_API_MAX));

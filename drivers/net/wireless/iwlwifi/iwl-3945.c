@@ -1911,6 +1911,8 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 				  "configuration (%d).\n", rc);
 			return rc;
 		}
+		iwl_clear_ucode_stations(priv, false);
+		iwl_restore_stations(priv);
 	}
 
 	IWL_DEBUG_INFO(priv, "Sending RXON\n"
@@ -1941,7 +1943,10 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 
 	memcpy(active_rxon, staging_rxon, sizeof(*active_rxon));
 
-	iwl_clear_stations_table(priv);
+	if (!new_assoc) {
+		iwl_clear_ucode_stations(priv, false);
+		iwl_restore_stations(priv);
+	}
 
 	/* If we issue a new RXON command which required a tune then we must
 	 * send a new TXPOWER command or we won't be able to Tx any frames */
@@ -1950,19 +1955,6 @@ static int iwl3945_commit_rxon(struct iwl_priv *priv)
 		IWL_ERR(priv, "Error setting Tx power (%d).\n", rc);
 		return rc;
 	}
-
-	/* Add the broadcast address so we can send broadcast frames */
-	priv->cfg->ops->lib->add_bcast_station(priv);
-
-	/* If we have set the ASSOC_MSK and we are in BSS mode then
-	 * add the IWL_AP_ID to the station rate table */
-	if (iwl_is_associated(priv) &&
-	    (priv->iw_mode == NL80211_IFTYPE_STATION))
-		if (iwl_add_station(priv, priv->active_rxon.bssid_addr,
-				true, CMD_SYNC, NULL) == IWL_INVALID_STATION) {
-			IWL_ERR(priv, "Error adding AP address for transmit\n");
-			return -EIO;
-		}
 
 	/* Init the hardware's rate fallback order based on the band */
 	rc = iwl3945_init_hw_rate_table(priv);
@@ -2828,6 +2820,7 @@ static struct iwl_cfg iwl3945_bg_cfg = {
 	.led_compensation = 64,
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 static struct iwl_cfg iwl3945_abg_cfg = {
@@ -2846,6 +2839,7 @@ static struct iwl_cfg iwl3945_abg_cfg = {
 	.led_compensation = 64,
 	.broken_powersave = true,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 DEFINE_PCI_DEVICE_TABLE(iwl3945_hw_card_ids) = {

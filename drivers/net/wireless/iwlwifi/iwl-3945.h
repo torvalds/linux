@@ -95,7 +95,6 @@ struct iwl3945_rs_sta {
 	u8 tgg;
 	u8 flush_pending;
 	u8 start_rate;
-	u8 ibss_sta_added;
 	struct timer_list rate_scale_flush;
 	struct iwl3945_rate_scale_data win[IWL_RATE_COUNT_3945];
 #ifdef CONFIG_MAC80211_DEBUGFS

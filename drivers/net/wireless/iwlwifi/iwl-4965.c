@@ -2187,6 +2187,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 	.load_ucode = iwl4965_load_bsm,
 	.dump_nic_event_log = iwl_dump_nic_event_log,
 	.dump_nic_error_log = iwl_dump_nic_error_log,
+	.dump_fh = iwl_dump_fh,
 	.set_channel_switch = iwl4965_hw_channel_switch,
 	.apm_ops = {
 		.init = iwl_apm_init,
@@ -2220,6 +2221,7 @@ static struct iwl_lib_ops iwl4965_lib = {
 		.set_ct_kill = iwl4965_set_ct_threshold,
 	},
 	.add_bcast_station = iwl_add_bcast_station,
+	.check_plcp_health = iwl_good_plcp_health,
 };
 
 static const struct iwl_ops iwl4965_ops = {
@@ -2231,7 +2233,7 @@ static const struct iwl_ops iwl4965_ops = {
 };
 
 struct iwl_cfg iwl4965_agn_cfg = {
-	.name = "4965AGN",
+	.name = "Intel(R) Wireless WiFi Link 4965AGN",
 	.fw_name_pre = IWL4965_FW_PRE,
 	.ucode_api_max = IWL4965_UCODE_API_MAX,
 	.ucode_api_min = IWL4965_UCODE_API_MIN,
@@ -2254,6 +2256,7 @@ struct iwl_cfg iwl4965_agn_cfg = {
 	.led_compensation = 61,
 	.chain_noise_num_beacons = IWL4965_CAL_NUM_BEACONS,
 	.plcp_delta_threshold = IWL_MAX_PLCP_ERR_THRESHOLD_DEF,
+	.monitor_recover_period = IWL_MONITORING_PERIOD,
 };
 
 /* Module firmware */

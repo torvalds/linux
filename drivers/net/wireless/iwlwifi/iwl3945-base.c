@@ -2480,8 +2480,6 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 		goto restart;
 	}
 
-	iwl_clear_stations_table(priv);
-
 	rfkill = iwl_read_prph(priv, APMG_RFKILL_REG);
 	IWL_DEBUG_INFO(priv, "RFKILL status: 0x%x\n", rfkill);
 
@@ -2502,6 +2500,13 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 
 	/* After the ALIVE response, we can send commands to 3945 uCode */
 	set_bit(STATUS_ALIVE, &priv->status);
+
+	if (priv->cfg->ops->lib->recover_from_tx_stall) {
+		/* Enable timer to monitor the driver queues */
+		mod_timer(&priv->monitor_recover,
+			jiffies +
+			msecs_to_jiffies(priv->cfg->monitor_recover_period));
+	}
 
 	if (iwl_is_rfkill(priv))
 		return;
@@ -2558,7 +2563,8 @@ static void __iwl3945_down(struct iwl_priv *priv)
 	if (!exit_pending)
 		set_bit(STATUS_EXIT_PENDING, &priv->status);
 
-	iwl_clear_stations_table(priv);
+	/* Station information will now be cleared in device */
+	iwl_clear_ucode_stations(priv, true);
 
 	/* Unblock any waiting calls */
 	wake_up_interruptible_all(&priv->wait_command_queue);
@@ -2691,8 +2697,6 @@ static int __iwl3945_up(struct iwl_priv *priv)
 		return 0;
 
 	for (i = 0; i < MAX_HW_RESTARTS; i++) {
-
-		iwl_clear_stations_table(priv);
 
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
@@ -3119,12 +3123,13 @@ void iwl3945_post_associate(struct iwl_priv *priv)
 	case NL80211_IFTYPE_ADHOC:
 
 		priv->assoc_id = 1;
-		iwl_add_station(priv, priv->bssid, 0, CMD_SYNC, NULL);
+		iwl_add_local_station(priv, priv->bssid, false);
 		iwl3945_sync_sta(priv, IWL_STA_ID,
-				 (priv->band == IEEE80211_BAND_5GHZ) ?
-				 IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP,
+				(priv->band == IEEE80211_BAND_5GHZ) ?
+				IWL_RATE_6M_PLCP : IWL_RATE_1M_PLCP,
 				 CMD_ASYNC);
 		iwl3945_rate_scale_init(priv->hw, IWL_STA_ID);
+
 		iwl3945_send_beacon_cmd(priv);
 
 		break;
@@ -3309,7 +3314,7 @@ void iwl3945_config_ap(struct iwl_priv *priv)
 		/* restore RXON assoc */
 		priv->staging_rxon.filter_flags |= RXON_FILTER_ASSOC_MSK;
 		iwlcore_commit_rxon(priv);
-		iwl_add_station(priv, iwl_bcast_addr, 0, CMD_SYNC, NULL);
+		iwl_add_local_station(priv, iwl_bcast_addr, false);
 	}
 	iwl3945_send_beacon_cmd(priv);
 
@@ -3376,6 +3381,38 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 	return ret;
 }
 
+static int iwl3945_mac_sta_add(struct ieee80211_hw *hw,
+			       struct ieee80211_vif *vif,
+			       struct ieee80211_sta *sta)
+{
+	struct iwl_priv *priv = hw->priv;
+	int ret;
+	bool is_ap = priv->iw_mode == NL80211_IFTYPE_STATION;
+	u8 sta_id;
+
+	IWL_DEBUG_INFO(priv, "received request to add station %pM\n",
+			sta->addr);
+
+	ret = iwl_add_station_common(priv, sta->addr, is_ap, &sta->ht_cap,
+				     &sta_id);
+	if (ret) {
+		IWL_ERR(priv, "Unable to add station %pM (%d)\n",
+			sta->addr, ret);
+		/* Should we return success if return code is EEXIST ? */
+		return ret;
+	}
+
+	/* Initialize rate scaling */
+	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM \n",
+		       sta->addr);
+	iwl3945_rs_rate_init(priv, sta, sta_id);
+
+	return 0;
+
+
+
+	return ret;
+}
 /*****************************************************************************
  *
  * sysfs attributes
@@ -3766,6 +3803,13 @@ static void iwl3945_setup_deferred_work(struct iwl_priv *priv)
 
 	iwl3945_hw_setup_deferred_work(priv);
 
+	if (priv->cfg->ops->lib->recover_from_tx_stall) {
+		init_timer(&priv->monitor_recover);
+		priv->monitor_recover.data = (unsigned long)priv;
+		priv->monitor_recover.function =
+			priv->cfg->ops->lib->recover_from_tx_stall;
+	}
+
 	tasklet_init(&priv->irq_tasklet, (void (*)(unsigned long))
 		     iwl3945_irq_tasklet, (unsigned long)priv);
 }
@@ -3778,6 +3822,8 @@ static void iwl3945_cancel_deferred_work(struct iwl_priv *priv)
 	cancel_delayed_work(&priv->scan_check);
 	cancel_delayed_work(&priv->alive_start);
 	cancel_work_sync(&priv->beacon_update);
+	if (priv->cfg->ops->lib->recover_from_tx_stall)
+		del_timer_sync(&priv->monitor_recover);
 }
 
 static struct attribute *iwl3945_sysfs_entries[] = {
@@ -3815,7 +3861,9 @@ static struct ieee80211_ops iwl3945_hw_ops = {
 	.conf_tx = iwl_mac_conf_tx,
 	.reset_tsf = iwl_mac_reset_tsf,
 	.bss_info_changed = iwl_bss_info_changed,
-	.hw_scan = iwl_mac_hw_scan
+	.hw_scan = iwl_mac_hw_scan,
+	.sta_add = iwl3945_mac_sta_add,
+	.sta_remove = iwl_mac_sta_remove,
 };
 
 static int iwl3945_init_drv(struct iwl_priv *priv)
@@ -3833,9 +3881,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 
 	mutex_init(&priv->mutex);
 	mutex_init(&priv->sync_cmd_mutex);
-
-	/* Clear the driver's (not device's) station table */
-	iwl_clear_stations_table(priv);
 
 	priv->ieee_channels = NULL;
 	priv->ieee_rates = NULL;
@@ -4196,7 +4241,6 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 	iwl3945_hw_txq_ctx_free(priv);
 
 	iwl3945_unset_hw_params(priv);
-	iwl_clear_stations_table(priv);
 
 	/*netif_stop_queue(dev); */
 	flush_workqueue(priv->workqueue);

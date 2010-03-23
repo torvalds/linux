@@ -183,6 +183,10 @@ struct iwl_queue {
 	int n_bd;              /* number of BDs in this queue */
 	int write_ptr;       /* 1-st empty entry (index) host_w*/
 	int read_ptr;         /* last used entry (index) host_r*/
+	/* use for monitoring and recovering the stuck queue */
+	int last_read_ptr;      /* storing the last read_ptr */
+	/* number of time read_ptr and last_read_ptr are the same */
+	u8 repeat_same_read_ptr;
 	dma_addr_t dma_addr;   /* physical addr for BD's */
 	int n_window;	       /* safe queue window */
 	u32 id;
@@ -544,11 +548,18 @@ struct iwl_qos_info {
 	struct iwl_qosparam_cmd def_qos_parm;
 };
 
+/*
+ * Structure should be accessed with sta_lock held. When station addition
+ * is in progress (IWL_STA_UCODE_INPROGRESS) it is possible to access only
+ * the commands (iwl_addsta_cmd and iwl_link_quality_cmd) without sta_lock
+ * held.
+ */
 struct iwl_station_entry {
 	struct iwl_addsta_cmd sta;
 	struct iwl_tid_data tid[MAX_TID_COUNT];
 	u8 used;
 	struct iwl_hw_key keyinfo;
+	struct iwl_link_quality_cmd *lq;
 };
 
 /*
@@ -1037,6 +1048,11 @@ struct iwl_event_log {
 #define IWL_DELAY_NEXT_FORCE_RF_RESET  (HZ*3)
 #define IWL_DELAY_NEXT_FORCE_FW_RELOAD (HZ*5)
 
+/* timer constants use to monitor and recover stuck tx queues in mSecs */
+#define IWL_MONITORING_PERIOD  (1000)
+#define IWL_ONE_HUNDRED_MSECS   (100)
+#define IWL_SIXTY_SECS          (60000)
+
 enum iwl_reset {
 	IWL_RF_RESET = 0,
 	IWL_FW_RESET,
@@ -1163,7 +1179,6 @@ struct iwl_priv {
 
 	u16 active_rate;
 
-	u8 assoc_station_added;
 	u8 start_calib;
 	struct iwl_sensitivity_data sensitivity_data;
 	struct iwl_chain_noise_data chain_noise_data;
@@ -1285,6 +1300,11 @@ struct iwl_priv {
 			int ict_index;
 			u32 inta;
 			bool use_ict;
+			/*
+			 * reporting the number of tids has AGG on. 0 means
+			 * no AGGREGATION
+			 */
+			u8 agg_tids_count;
 		} _agn;
 #endif
 	};
@@ -1348,6 +1368,7 @@ struct iwl_priv {
 	struct work_struct run_time_calib_work;
 	struct timer_list statistics_periodic;
 	struct timer_list ucode_trace;
+	struct timer_list monitor_recover;
 	bool hw_ready;
 
 	struct iwl_event_log event_log;
