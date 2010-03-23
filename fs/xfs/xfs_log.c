@@ -664,7 +664,10 @@ xfs_log_item_init(
 /*
  * Write region vectors to log.  The write happens using the space reservation
  * of the ticket (tic).  It is not a requirement that all writes for a given
- * transaction occur with one call to xfs_log_write().
+ * transaction occur with one call to xfs_log_write(). However, it is important
+ * to note that the transaction reservation code makes an assumption about the
+ * number of log headers a transaction requires that may be violated if you
+ * don't pass all the transaction vectors in one call....
  */
 int
 xfs_log_write(
@@ -3170,14 +3173,16 @@ xfs_log_ticket_get(
  * Allocate and initialise a new log ticket.
  */
 STATIC xlog_ticket_t *
-xlog_ticket_alloc(xlog_t		*log,
-		int		unit_bytes,
-		int		cnt,
-		char		client,
-		uint		xflags)
+xlog_ticket_alloc(
+	struct log	*log,
+	int		unit_bytes,
+	int		cnt,
+	char		client,
+	uint		xflags)
 {
-	xlog_ticket_t	*tic;
+	struct xlog_ticket *tic;
 	uint		num_headers;
+	int		iclog_space;
 
 	tic = kmem_zone_zalloc(xfs_log_ticket_zone, KM_SLEEP|KM_MAYFAIL);
 	if (!tic)
@@ -3221,15 +3226,39 @@ xlog_ticket_alloc(xlog_t		*log,
 	/* for start-rec */
 	unit_bytes += sizeof(xlog_op_header_t);
 
-	/* for LR headers */
-	num_headers = ((unit_bytes + log->l_iclog_size-1) >> log->l_iclog_size_log);
+	/*
+	 * for LR headers - the space for data in an iclog is the size minus
+	 * the space used for the headers. If we use the iclog size, then we
+	 * undercalculate the number of headers required.
+	 *
+	 * Furthermore - the addition of op headers for split-recs might
+	 * increase the space required enough to require more log and op
+	 * headers, so take that into account too.
+	 *
+	 * IMPORTANT: This reservation makes the assumption that if this
+	 * transaction is the first in an iclog and hence has the LR headers
+	 * accounted to it, then the remaining space in the iclog is
+	 * exclusively for this transaction.  i.e. if the transaction is larger
+	 * than the iclog, it will be the only thing in that iclog.
+	 * Fundamentally, this means we must pass the entire log vector to
+	 * xlog_write to guarantee this.
+	 */
+	iclog_space = log->l_iclog_size - log->l_iclog_hsize;
+	num_headers = howmany(unit_bytes, iclog_space);
+
+	/* for split-recs - ophdrs added when data split over LRs */
+	unit_bytes += sizeof(xlog_op_header_t) * num_headers;
+
+	/* add extra header reservations if we overrun */
+	while (!num_headers ||
+	       howmany(unit_bytes, iclog_space) > num_headers) {
+		unit_bytes += sizeof(xlog_op_header_t);
+		num_headers++;
+	}
 	unit_bytes += log->l_iclog_hsize * num_headers;
 
 	/* for commit-rec LR header - note: padding will subsume the ophdr */
 	unit_bytes += log->l_iclog_hsize;
-
-	/* for split-recs - ophdrs added when data split over LRs */
-	unit_bytes += sizeof(xlog_op_header_t) * num_headers;
 
 	/* for roundoff padding for transaction data and one for commit record */
 	if (xfs_sb_version_haslogv2(&log->l_mp->m_sb) &&
@@ -3252,7 +3281,7 @@ xlog_ticket_alloc(xlog_t		*log,
 	tic->t_trans_type	= 0;
 	if (xflags & XFS_LOG_PERM_RESERV)
 		tic->t_flags |= XLOG_TIC_PERM_RESERV;
-	sv_init(&(tic->t_wait), SV_DEFAULT, "logtick");
+	sv_init(&tic->t_wait, SV_DEFAULT, "logtick");
 
 	xlog_tic_reset_res(tic);
 
