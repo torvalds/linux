@@ -7646,9 +7646,11 @@ poll_bnx2(struct net_device *dev)
 	int i;
 
 	for (i = 0; i < bp->irq_nvecs; i++) {
-		disable_irq(bp->irq_tbl[i].vector);
-		bnx2_interrupt(bp->irq_tbl[i].vector, &bp->bnx2_napi[i]);
-		enable_irq(bp->irq_tbl[i].vector);
+		struct bnx2_irq *irq = &bp->irq_tbl[i];
+
+		disable_irq(irq->vector);
+		irq->handler(irq->vector, &bp->bnx2_napi[i]);
+		enable_irq(irq->vector);
 	}
 }
 #endif
