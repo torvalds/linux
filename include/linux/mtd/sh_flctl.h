@@ -93,7 +93,10 @@
 #define INIT_FL4ECCRESULT_VAL	0x03FF03FF
 #define LOOP_TIMEOUT_MAX	0x00010000
 
-#define mtd_to_flctl(mtd)	container_of(mtd, struct sh_flctl, mtd)
+static inline struct sh_flctl *mtd_to_flctl(struct mtd_info *mtdinfo)
+{
+	return container_of(mtdinfo, struct sh_flctl, mtd);
+}
 
 struct sh_flctl {
 	struct mtd_info		mtd;
