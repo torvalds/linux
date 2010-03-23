@@ -1866,127 +1866,141 @@ xlog_write(
 	struct xlog_in_core	**commit_iclog,
 	uint			flags)
 {
-    xlog_t	     *log = mp->m_log;
-    xlog_in_core_t   *iclog = NULL;  /* ptr to current in-core log */
-    xlog_op_header_t *logop_head;    /* ptr to log operation header */
-    __psint_t	     ptr;	     /* copy address into data region */
-    int		     len;	     /* # xlog_write() bytes 2 still copy */
-    int		     index;	     /* region index currently copying */
-    int		     log_offset;     /* offset (from 0) into data region */
-    int		     start_rec_copy; /* # bytes to copy for start record */
-    int		     partial_copy;   /* did we split a region? */
-    int		     partial_copy_len;/* # bytes copied if split region */
-    int		     copy_len;	     /* # bytes actually memcpy'ing */
-    int		     copy_off;	     /* # bytes from entry start */
-    int		     contwr;	     /* continued write of in-core log? */
-    int		     error;
-    int		     record_cnt = 0, data_cnt = 0;
+	struct log		*log = mp->m_log;
+	struct xlog_in_core	*iclog = NULL;
+	int			len;
+	int			index;
+	int			partial_copy = 0;
+	int			partial_copy_len = 0;
+	int			contwr = 0;
+	int			record_cnt = 0;
+	int			data_cnt = 0;
+	int			error;
 
-    partial_copy_len = partial_copy = 0;
-    contwr = *start_lsn = 0;
+	*start_lsn = 0;
 
-    len = xlog_write_calc_vec_length(ticket, reg, nentries);
-    if (ticket->t_curr_res < len) {
-	xlog_print_tic_res(mp, ticket);
+	len = xlog_write_calc_vec_length(ticket, reg, nentries);
+	if (ticket->t_curr_res < len) {
+		xlog_print_tic_res(mp, ticket);
 #ifdef DEBUG
-	xlog_panic(
-		"xfs_log_write: reservation ran out. Need to up reservation");
+		xlog_panic(
+	"xfs_log_write: reservation ran out. Need to up reservation");
 #else
-	/* Customer configurable panic */
-	xfs_cmn_err(XFS_PTAG_LOGRES, CE_ALERT, mp,
-		"xfs_log_write: reservation ran out. Need to up reservation");
-	/* If we did not panic, shutdown the filesystem */
-	xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
+		/* Customer configurable panic */
+		xfs_cmn_err(XFS_PTAG_LOGRES, CE_ALERT, mp,
+	"xfs_log_write: reservation ran out. Need to up reservation");
+
+		/* If we did not panic, shutdown the filesystem */
+		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 #endif
-    } else
+	}
+
 	ticket->t_curr_res -= len;
 
-    for (index = 0; index < nentries; ) {
-	if ((error = xlog_state_get_iclog_space(log, len, &iclog, ticket,
-					       &contwr, &log_offset)))
-		return error;
+	for (index = 0; index < nentries; ) {
+		__psint_t	ptr;
+		int		log_offset;
 
-	ASSERT(log_offset <= iclog->ic_size - 1);
-	ptr = (__psint_t) ((char *)iclog->ic_datap+log_offset);
+		error = xlog_state_get_iclog_space(log, len, &iclog, ticket,
+						   &contwr, &log_offset);
+		if (error)
+			return error;
 
-	/* start_lsn is the first lsn written to. That's all we need. */
-	if (! *start_lsn)
-	    *start_lsn = be64_to_cpu(iclog->ic_header.h_lsn);
+		ASSERT(log_offset <= iclog->ic_size - 1);
+		ptr = (__psint_t)((char *)iclog->ic_datap + log_offset);
 
-	/* This loop writes out as many regions as can fit in the amount
-	 * of space which was allocated by xlog_state_get_iclog_space().
-	 */
-	while (index < nentries) {
-	    ASSERT(reg[index].i_len % sizeof(__int32_t) == 0);
-	    ASSERT((__psint_t)ptr % sizeof(__int32_t) == 0);
+		/* start_lsn is the first lsn written to. That's all we need. */
+		if (!*start_lsn)
+			*start_lsn = be64_to_cpu(iclog->ic_header.h_lsn);
 
-	    start_rec_copy = xlog_write_start_rec(ptr, ticket);
-	    if (start_rec_copy) {
-		record_cnt++;
-		xlog_write_adv_cnt(ptr, len, log_offset, start_rec_copy);
-	    }
+		/*
+		 * This loop writes out as many regions as can fit in the amount
+		 * of space which was allocated by xlog_state_get_iclog_space().
+		 */
+		while (index < nentries) {
+			struct xlog_op_header	*ophdr;
+			int			start_rec_copy;
+			int			copy_len;
+			int			copy_off;
 
-	    logop_head = xlog_write_setup_ophdr(log, ptr, ticket, flags);
-	    if (!logop_head)
-	    	return XFS_ERROR(EIO);
-	    xlog_write_adv_cnt(ptr, len, log_offset, sizeof(xlog_op_header_t));
+			ASSERT(reg[index].i_len % sizeof(__int32_t) == 0);
+			ASSERT((__psint_t)ptr % sizeof(__int32_t) == 0);
 
-	    len += xlog_write_setup_copy(ticket, logop_head,
-	    				 iclog->ic_size - log_offset,
-					 reg[index].i_len, &copy_off,
-					 &copy_len, &partial_copy,
-					 &partial_copy_len);
-	    xlog_verify_dest_ptr(log, ptr);
+			start_rec_copy = xlog_write_start_rec(ptr, ticket);
+			if (start_rec_copy) {
+				record_cnt++;
+				xlog_write_adv_cnt(ptr, len, log_offset,
+						   start_rec_copy);
+			}
 
-	    /* copy region */
-	    ASSERT(copy_len >= 0);
-	    memcpy((xfs_caddr_t)ptr, reg[index].i_addr + copy_off, copy_len);
-	    xlog_write_adv_cnt(ptr, len, log_offset, copy_len);
+			ophdr = xlog_write_setup_ophdr(log, ptr, ticket, flags);
+			if (!ophdr)
+				return XFS_ERROR(EIO);
 
-	    /* make copy_len total bytes copied, including headers */
-	    copy_len += start_rec_copy + sizeof(xlog_op_header_t);
-	    record_cnt++;
-	    data_cnt += contwr ? copy_len : 0;
+			xlog_write_adv_cnt(ptr, len, log_offset,
+					   sizeof(struct xlog_op_header));
 
-	    error = xlog_write_copy_finish(log, iclog, flags,
-	    				   &record_cnt, &data_cnt,
-					   &partial_copy, &partial_copy_len,
-					   log_offset, commit_iclog);
-	    if (error)
-	    	return error;
+			len += xlog_write_setup_copy(ticket, ophdr,
+						     iclog->ic_size-log_offset,
+						     reg[index].i_len,
+						     &copy_off, &copy_len,
+						     &partial_copy,
+						     &partial_copy_len);
+			xlog_verify_dest_ptr(log, ptr);
 
-	    /*
-	     * if we had a partial copy, we need to get more iclog
-	     * space but we don't want to increment the region
-	     * index because there is still more is this region to write.
-	     *
-	     * If we completed writing this region, and we flushed
-	     * the iclog (indicated by resetting of the record
-	     * count), then we also need to get more log space. If
-	     * this was the last record, though, we are done and
-	     * can just return.
-	     */
-	    if (partial_copy)
-	    	break;
+			/* copy region */
+			ASSERT(copy_len >= 0);
+			memcpy((xfs_caddr_t)ptr, reg[index].i_addr + copy_off,
+			       copy_len);
+			xlog_write_adv_cnt(ptr, len, log_offset, copy_len);
 
-	    index++;
-	    if (record_cnt == 0) {
-		if (index == nentries)
-		    return 0;
-		break;
-	    }
-	} /* while (index < nentries) */
-    } /* for (index = 0; index < nentries; ) */
-    ASSERT(len == 0);
+			copy_len += start_rec_copy + sizeof(xlog_op_header_t);
+			record_cnt++;
+			data_cnt += contwr ? copy_len : 0;
 
-    xlog_state_finish_copy(log, iclog, record_cnt, data_cnt);
-    if (commit_iclog) {
+			error = xlog_write_copy_finish(log, iclog, flags,
+						       &record_cnt, &data_cnt,
+						       &partial_copy,
+						       &partial_copy_len,
+						       log_offset,
+						       commit_iclog);
+			if (error)
+				return error;
+
+			/*
+			 * if we had a partial copy, we need to get more iclog
+			 * space but we don't want to increment the region
+			 * index because there is still more is this region to
+			 * write.
+			 *
+			 * If we completed writing this region, and we flushed
+			 * the iclog (indicated by resetting of the record
+			 * count), then we also need to get more log space. If
+			 * this was the last record, though, we are done and
+			 * can just return.
+			 */
+			if (partial_copy)
+				break;
+
+			index++;
+			if (record_cnt == 0) {
+				if (index == nentries)
+					return 0;
+				break;
+			}
+		}
+	}
+
+	ASSERT(len == 0);
+
+	xlog_state_finish_copy(log, iclog, record_cnt, data_cnt);
+	if (!commit_iclog)
+		return xlog_state_release_iclog(log, iclog);
+
 	ASSERT(flags & XLOG_COMMIT_TRANS);
 	*commit_iclog = iclog;
 	return 0;
-    }
-    return xlog_state_release_iclog(log, iclog);
-}	/* xlog_write */
+}
 
 
 /*****************************************************************************
