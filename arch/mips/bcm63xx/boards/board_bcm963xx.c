@@ -619,6 +619,76 @@ static const struct board_info __initdata *bcm963xx_boards[] = {
 };
 
 /*
+ * Register a sane SPROMv2 to make the on-board
+ * bcm4318 WLAN work
+ */
+#ifdef CONFIG_SSB_PCIHOST
+static struct ssb_sprom bcm63xx_sprom = {
+	.revision		= 0x02,
+	.board_rev		= 0x17,
+	.country_code		= 0x0,
+	.ant_available_bg 	= 0x3,
+	.pa0b0			= 0x15ae,
+	.pa0b1			= 0xfa85,
+	.pa0b2			= 0xfe8d,
+	.pa1b0			= 0xffff,
+	.pa1b1			= 0xffff,
+	.pa1b2			= 0xffff,
+	.gpio0			= 0xff,
+	.gpio1			= 0xff,
+	.gpio2			= 0xff,
+	.gpio3			= 0xff,
+	.maxpwr_bg		= 0x004c,
+	.itssi_bg		= 0x00,
+	.boardflags_lo		= 0x2848,
+	.boardflags_hi		= 0x0000,
+};
+#endif
+
+/*
+ * return board name for /proc/cpuinfo
+ */
+const char *board_get_name(void)
+{
+	return board.name;
+}
+
+/*
+ * register & return a new board mac address
+ */
+static int board_get_mac_address(u8 *mac)
+{
+	u8 *p;
+	int count;
+
+	if (mac_addr_used >= nvram.mac_addr_count) {
+		printk(KERN_ERR PFX "not enough mac address\n");
+		return -ENODEV;
+	}
+
+	memcpy(mac, nvram.mac_addr_base, ETH_ALEN);
+	p = mac + ETH_ALEN - 1;
+	count = mac_addr_used;
+
+	while (count--) {
+		do {
+			(*p)++;
+			if (*p != 0)
+				break;
+			p--;
+		} while (p != mac);
+	}
+
+	if (p == mac) {
+		printk(KERN_ERR PFX "unable to fetch mac address\n");
+		return -ENODEV;
+	}
+
+	mac_addr_used++;
+	return 0;
+}
+
+/*
  * early init callback, read nvram data from flash and checksum it
  */
 void __init board_prom_init(void)
@@ -744,49 +814,6 @@ void __init board_setup(void)
 		panic("unexpected CPU for bcm963xx board");
 }
 
-/*
- * return board name for /proc/cpuinfo
- */
-const char *board_get_name(void)
-{
-	return board.name;
-}
-
-/*
- * register & return a new board mac address
- */
-static int board_get_mac_address(u8 *mac)
-{
-	u8 *p;
-	int count;
-
-	if (mac_addr_used >= nvram.mac_addr_count) {
-		printk(KERN_ERR PFX "not enough mac address\n");
-		return -ENODEV;
-	}
-
-	memcpy(mac, nvram.mac_addr_base, ETH_ALEN);
-	p = mac + ETH_ALEN - 1;
-	count = mac_addr_used;
-
-	while (count--) {
-		do {
-			(*p)++;
-			if (*p != 0)
-				break;
-			p--;
-		} while (p != mac);
-	}
-
-	if (p == mac) {
-		printk(KERN_ERR PFX "unable to fetch mac address\n");
-		return -ENODEV;
-	}
-
-	mac_addr_used++;
-	return 0;
-}
-
 static struct mtd_partition mtd_partitions[] = {
 	{
 		.name		= "cfe",
@@ -817,33 +844,6 @@ static struct platform_device mtd_dev = {
 		.platform_data	= &flash_data,
 	},
 };
-
-/*
- * Register a sane SPROMv2 to make the on-board
- * bcm4318 WLAN work
- */
-#ifdef CONFIG_SSB_PCIHOST
-static struct ssb_sprom bcm63xx_sprom = {
-	.revision		= 0x02,
-	.board_rev		= 0x17,
-	.country_code		= 0x0,
-	.ant_available_bg 	= 0x3,
-	.pa0b0			= 0x15ae,
-	.pa0b1			= 0xfa85,
-	.pa0b2			= 0xfe8d,
-	.pa1b0			= 0xffff,
-	.pa1b1			= 0xffff,
-	.pa1b2			= 0xffff,
-	.gpio0			= 0xff,
-	.gpio1			= 0xff,
-	.gpio2			= 0xff,
-	.gpio3			= 0xff,
-	.maxpwr_bg		= 0x004c,
-	.itssi_bg		= 0x00,
-	.boardflags_lo		= 0x2848,
-	.boardflags_hi		= 0x0000,
-};
-#endif
 
 static struct gpio_led_platform_data bcm63xx_led_data;
 
