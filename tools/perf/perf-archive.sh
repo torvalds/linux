@@ -30,4 +30,7 @@ done
 
 tar cfj $PERF_DATA.tar.bz2 -C $DEBUGDIR -T $MANIFEST
 rm -f $MANIFEST $BUILDIDS
+echo -e "Now please run:\n"
+echo -e "$ tar xvf $PERF_DATA.tar.bz2 -C ~/.debug\n"
+echo "wherever you need to run 'perf report' on."
 exit 0
