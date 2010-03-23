@@ -322,7 +322,7 @@ static int fsi_get_fifo_residue(struct fsi_priv *fsi, int is_play)
 /************************************************************************
 
 
-		ctrl function
+		irq function
 
 
 ************************************************************************/
@@ -344,6 +344,35 @@ static void fsi_irq_disable(struct fsi_priv *fsi, int is_play)
 	fsi_master_mask_set(master, IEMSK, data, 0);
 }
 
+static u32 fsi_irq_get_status(struct fsi_master *master)
+{
+	return fsi_master_read(master, INT_ST);
+}
+
+static void fsi_irq_clear_all_status(struct fsi_master *master)
+{
+	fsi_master_write(master, INT_ST, 0x0000000);
+}
+
+static void fsi_irq_clear_status(struct fsi_priv *fsi)
+{
+	u32 data = 0;
+	struct fsi_master *master = fsi_get_master(fsi);
+
+	data |= fsi_port_ab_io_bit(fsi, 0);
+	data |= fsi_port_ab_io_bit(fsi, 1);
+
+	/* clear interrupt factor */
+	fsi_master_mask_set(master, INT_ST, data, 0);
+}
+
+/************************************************************************
+
+
+		ctrl function
+
+
+************************************************************************/
 static void fsi_clk_ctrl(struct fsi_priv *fsi, int enable)
 {
 	u32 val = fsi_is_port_a(fsi) ? (1 << 0) : (1 << 4);
@@ -355,25 +384,17 @@ static void fsi_clk_ctrl(struct fsi_priv *fsi, int enable)
 		fsi_master_mask_set(master, CLK_RST, val, 0);
 }
 
-static void fsi_irq_init(struct fsi_priv *fsi, int is_play)
+static void fsi_fifo_init(struct fsi_priv *fsi, int is_play)
 {
-	u32 data;
 	u32 ctrl;
 
-	data = fsi_port_ab_io_bit(fsi, is_play);
 	ctrl = is_play ? DOFF_CTL : DIFF_CTL;
-
-	/* set IMSK */
-	fsi_irq_disable(fsi, is_play);
 
 	/* set interrupt generation factor */
 	fsi_reg_write(fsi, ctrl, IRQ_HALF);
 
 	/* clear FIFO */
 	fsi_reg_mask_set(fsi, ctrl, FIFO_CLR, FIFO_CLR);
-
-	/* clear interrupt factor */
-	fsi_master_mask_set(fsi_get_master(fsi), INT_ST, data, 0);
 }
 
 static void fsi_soft_all_reset(struct fsi_master *master)
@@ -559,7 +580,7 @@ static int fsi_data_pop(struct fsi_priv *fsi, int startup)
 static irqreturn_t fsi_interrupt(int irq, void *data)
 {
 	struct fsi_master *master = data;
-	u32 int_st = fsi_master_read(master, INT_ST);
+	u32 int_st = fsi_irq_get_status(master);
 
 	/* clear irq status */
 	fsi_master_mask_set(master, SOFT_RST, IR, 0);
@@ -574,7 +595,7 @@ static irqreturn_t fsi_interrupt(int irq, void *data)
 	if (int_st & INT_B_IN)
 		fsi_data_pop(&master->fsib, 0);
 
-	fsi_master_write(master, INT_ST, 0x0000000);
+	fsi_irq_clear_all_status(master);
 
 	return IRQ_HANDLED;
 }
@@ -699,8 +720,12 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	if (is_master)
 		fsi_clk_ctrl(fsi, 1);
 
-	/* irq setting */
-	fsi_irq_init(fsi, is_play);
+	/* irq clear */
+	fsi_irq_disable(fsi, is_play);
+	fsi_irq_clear_status(fsi);
+
+	/* fifo init */
+	fsi_fifo_init(fsi, is_play);
 
 	return ret;
 }
