@@ -21,6 +21,9 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 #include <linux/i2c.h>
+#if defined(CONFIG_SPI)
+#include <linux/spi/spi.h>
+#endif
 #include <linux/videodev2.h>
 #include <media/v4l2-device.h>
 
@@ -95,6 +98,14 @@ void v4l2_device_unregister(struct v4l2_device *v4l2_dev)
 			   is a platform bus, then it is never deleted. */
 			if (client)
 				i2c_unregister_device(client);
+		}
+#endif
+#if defined(CONFIG_SPI)
+		if (sd->flags & V4L2_SUBDEV_FL_IS_SPI) {
+			struct spi_device *spi = v4l2_get_subdevdata(sd);
+
+			if (spi)
+				spi_unregister_device(spi);
 		}
 #endif
 	}
