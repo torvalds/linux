@@ -2141,6 +2141,7 @@ int mpol_parse_str(char *str, struct mempolicy **mpol, int no_context)
 		if (nodelist)
 			goto out;
 		mode = MPOL_PREFERRED;
+		err = 0;
 		break;
 	case MPOL_DEFAULT:
 		/*
