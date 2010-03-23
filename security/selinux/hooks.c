@@ -126,11 +126,6 @@ __setup("selinux=", selinux_enabled_setup);
 int selinux_enabled = 1;
 #endif
 
-/* Lists of inode and superblock security structures initialized
-   before the policy was loaded. */
-static LIST_HEAD(superblock_security_head);
-static DEFINE_SPINLOCK(sb_security_lock);
-
 static struct kmem_cache *sel_inode_cache;
 
 /**
@@ -266,7 +261,6 @@ static int superblock_alloc_security(struct super_block *sb)
 		return -ENOMEM;
 
 	mutex_init(&sbsec->lock);
-	INIT_LIST_HEAD(&sbsec->list);
 	INIT_LIST_HEAD(&sbsec->isec_head);
 	spin_lock_init(&sbsec->isec_lock);
 	sbsec->sb = sb;
@@ -281,12 +275,6 @@ static int superblock_alloc_security(struct super_block *sb)
 static void superblock_free_security(struct super_block *sb)
 {
 	struct superblock_security_struct *sbsec = sb->s_security;
-
-	spin_lock(&sb_security_lock);
-	if (!list_empty(&sbsec->list))
-		list_del_init(&sbsec->list);
-	spin_unlock(&sb_security_lock);
-
 	sb->s_security = NULL;
 	kfree(sbsec);
 }
@@ -612,10 +600,6 @@ static int selinux_set_mnt_opts(struct super_block *sb,
 			/* Defer initialization until selinux_complete_init,
 			   after the initial policy is loaded and the security
 			   server is ready to handle calls. */
-			spin_lock(&sb_security_lock);
-			if (list_empty(&sbsec->list))
-				list_add(&sbsec->list, &superblock_security_head);
-			spin_unlock(&sb_security_lock);
 			goto out;
 		}
 		rc = -EINVAL;
@@ -806,16 +790,10 @@ static void selinux_sb_clone_mnt_opts(const struct super_block *oldsb,
 
 	/*
 	 * if the parent was able to be mounted it clearly had no special lsm
-	 * mount options.  thus we can safely put this sb on the list and deal
-	 * with it later
+	 * mount options.  thus we can safely deal with this superblock later
 	 */
-	if (!ss_initialized) {
-		spin_lock(&sb_security_lock);
-		if (list_empty(&newsbsec->list))
-			list_add(&newsbsec->list, &superblock_security_head);
-		spin_unlock(&sb_security_lock);
+	if (!ss_initialized)
 		return;
-	}
 
 	/* how can we clone if the old one wasn't set up?? */
 	BUG_ON(!(oldsbsec->flags & SE_SBINITIALIZED));
@@ -5680,35 +5658,18 @@ static __init int selinux_init(void)
 	return 0;
 }
 
+static void delayed_superblock_init(struct super_block *sb, void *unused)
+{
+	superblock_doinit(sb, NULL);
+}
+
 void selinux_complete_init(void)
 {
 	printk(KERN_DEBUG "SELinux:  Completing initialization.\n");
 
 	/* Set up any superblocks initialized prior to the policy load. */
 	printk(KERN_DEBUG "SELinux:  Setting up existing superblocks.\n");
-	spin_lock(&sb_lock);
-	spin_lock(&sb_security_lock);
-next_sb:
-	if (!list_empty(&superblock_security_head)) {
-		struct superblock_security_struct *sbsec =
-				list_entry(superblock_security_head.next,
-					   struct superblock_security_struct,
-					   list);
-		struct super_block *sb = sbsec->sb;
-		sb->s_count++;
-		spin_unlock(&sb_security_lock);
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		if (sb->s_root)
-			superblock_doinit(sb, NULL);
-		drop_super(sb);
-		spin_lock(&sb_lock);
-		spin_lock(&sb_security_lock);
-		list_del_init(&sbsec->list);
-		goto next_sb;
-	}
-	spin_unlock(&sb_security_lock);
-	spin_unlock(&sb_lock);
+	iterate_supers(delayed_superblock_init, NULL);
 }
 
 /* SELinux requires early initialization in order to label
