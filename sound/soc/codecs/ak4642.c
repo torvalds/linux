@@ -101,6 +101,13 @@
 #define BCKO_MASK	(1 << 3)
 #define BCKO_64		BCKO_MASK
 
+/* MD_CTL2 */
+#define FS0		(1 << 0)
+#define FS1		(1 << 1)
+#define FS2		(1 << 2)
+#define FS3		(1 << 5)
+#define FS_MASK		(FS0 | FS1 | FS2 | FS3)
+
 struct snd_soc_codec_device soc_codec_dev_ak4642;
 
 /* codec private data */
@@ -196,14 +203,12 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 *
 		 * PLL, Master Mode
 		 * Audio I/F Format :MSB justified (ADC & DAC)
-		 * Sampling Frequency: 44.1kHz
-		 * Digital Volume: −8dB
+		 * Digital Volume: -8dB
 		 * Bass Boost Level : Middle
 		 *
 		 * This operation came from example code of
 		 * "ASAHI KASEI AK4642" (japanese) manual p97.
 		 */
-		ak4642_write(codec, 0x05, 0x27);
 		ak4642_write(codec, 0x0f, 0x09);
 		ak4642_write(codec, 0x0e, 0x19);
 		ak4642_write(codec, 0x09, 0x91);
@@ -219,7 +224,6 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 *
 		 * PLL Master Mode
 		 * Audio I/F Format:MSB justified (ADC & DAC)
-		 * Sampling Frequency:44.1kHz
 		 * Pre MIC AMP:+20dB
 		 * MIC Power On
 		 * ALC setting:Refer to Table 35
@@ -228,7 +232,6 @@ static int ak4642_dai_startup(struct snd_pcm_substream *substream,
 		 * This operation came from example code of
 		 * "ASAHI KASEI AK4642" (japanese) manual p94.
 		 */
-		ak4642_write(codec, 0x05, 0x27);
 		ak4642_write(codec, 0x02, 0x05);
 		ak4642_write(codec, 0x06, 0x3c);
 		ak4642_write(codec, 0x08, 0xe1);
@@ -321,11 +324,65 @@ static int ak4642_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	return 0;
 }
 
+static int ak4642_dai_hw_params(struct snd_pcm_substream *substream,
+				struct snd_pcm_hw_params *params,
+				struct snd_soc_dai *dai)
+{
+	struct snd_soc_codec *codec = dai->codec;
+	u8 rate;
+
+	switch (params_rate(params)) {
+	case 7350:
+		rate = FS2;
+		break;
+	case 8000:
+		rate = 0;
+		break;
+	case 11025:
+		rate = FS2 | FS0;
+		break;
+	case 12000:
+		rate = FS0;
+		break;
+	case 14700:
+		rate = FS2 | FS1;
+		break;
+	case 16000:
+		rate = FS1;
+		break;
+	case 22050:
+		rate = FS2 | FS1 | FS0;
+		break;
+	case 24000:
+		rate = FS1 | FS0;
+		break;
+	case 29400:
+		rate = FS3 | FS2 | FS1;
+		break;
+	case 32000:
+		rate = FS3 | FS1;
+		break;
+	case 44100:
+		rate = FS3 | FS2 | FS1 | FS0;
+		break;
+	case 48000:
+		rate = FS3 | FS1 | FS0;
+		break;
+	default:
+		return -EINVAL;
+		break;
+	}
+	snd_soc_update_bits(codec, MD_CTL2, FS_MASK, rate);
+
+	return 0;
+}
+
 static struct snd_soc_dai_ops ak4642_dai_ops = {
 	.startup	= ak4642_dai_startup,
 	.shutdown	= ak4642_dai_shutdown,
 	.set_sysclk	= ak4642_dai_set_sysclk,
 	.set_fmt	= ak4642_dai_set_fmt,
+	.hw_params	= ak4642_dai_hw_params,
 };
 
 struct snd_soc_dai ak4642_dai = {
@@ -343,6 +400,7 @@ struct snd_soc_dai ak4642_dai = {
 		.rates = SNDRV_PCM_RATE_8000_48000,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE },
 	.ops = &ak4642_dai_ops,
+	.symmetric_rates = 1,
 };
 EXPORT_SYMBOL_GPL(ak4642_dai);
 
