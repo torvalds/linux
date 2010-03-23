@@ -24,9 +24,6 @@
 						 * SERDES infos are present */
 #define AR5K_EEPROM_MAGIC		0x003d	/* EEPROM Magic number */
 #define AR5K_EEPROM_MAGIC_VALUE		0x5aa5	/* Default - found on EEPROM */
-#define AR5K_EEPROM_MAGIC_5212		0x0000145c /* 5212 */
-#define AR5K_EEPROM_MAGIC_5211		0x0000145b /* 5211 */
-#define AR5K_EEPROM_MAGIC_5210		0x0000145a /* 5210 */
 
 #define	AR5K_EEPROM_IS_HB63		0x000b	/* Talon detect */
 
@@ -78,9 +75,9 @@
 #define AR5K_EEPROM_HDR_11A(_v)		(((_v) >> AR5K_EEPROM_MODE_11A) & 0x1)
 #define AR5K_EEPROM_HDR_11B(_v)		(((_v) >> AR5K_EEPROM_MODE_11B) & 0x1)
 #define AR5K_EEPROM_HDR_11G(_v)		(((_v) >> AR5K_EEPROM_MODE_11G) & 0x1)
-#define AR5K_EEPROM_HDR_T_2GHZ_DIS(_v)	(((_v) >> 3) & 0x1)	/* Disable turbo for 2Ghz (?) */
-#define AR5K_EEPROM_HDR_T_5GHZ_DBM(_v)	(((_v) >> 4) & 0x7f)	/* Max turbo power for a/XR mode (eeprom_init) */
-#define AR5K_EEPROM_HDR_DEVICE(_v)	(((_v) >> 11) & 0x7)
+#define AR5K_EEPROM_HDR_T_2GHZ_DIS(_v)	(((_v) >> 3) & 0x1)	/* Disable turbo for 2Ghz */
+#define AR5K_EEPROM_HDR_T_5GHZ_DBM(_v)	(((_v) >> 4) & 0x7f)	/* Max turbo power for < 2W power consumption */
+#define AR5K_EEPROM_HDR_DEVICE(_v)	(((_v) >> 11) & 0x7)	/* Device type (1 Cardbus, 2 PCI, 3 MiniPCI, 4 AP) */
 #define AR5K_EEPROM_HDR_RFKILL(_v)	(((_v) >> 14) & 0x1)	/* Device has RFKill support */
 #define AR5K_EEPROM_HDR_T_5GHZ_DIS(_v)	(((_v) >> 15) & 0x1)	/* Disable turbo for 5Ghz */
 
@@ -101,7 +98,7 @@
 
 #define AR5K_EEPROM_MISC1			AR5K_EEPROM_INFO(5)
 #define AR5K_EEPROM_TARGET_PWRSTART(_v)		((_v) & 0xfff)
-#define AR5K_EEPROM_HAS32KHZCRYSTAL(_v)		(((_v) >> 14) & 0x1)
+#define AR5K_EEPROM_HAS32KHZCRYSTAL(_v)		(((_v) >> 14) & 0x1)	/* has 32KHz crystal for sleep mode */
 #define AR5K_EEPROM_HAS32KHZCRYSTAL_OLD(_v)	(((_v) >> 15) & 0x1)
 
 #define AR5K_EEPROM_MISC2			AR5K_EEPROM_INFO(6)
@@ -114,26 +111,27 @@
 
 #define AR5K_EEPROM_MISC4		AR5K_EEPROM_INFO(8)
 #define AR5K_EEPROM_CAL_DATA_START(_v)	(((_v) >> 4) & 0xfff)
-#define AR5K_EEPROM_MASK_R0(_v)		(((_v) >> 2) & 0x3)
-#define AR5K_EEPROM_MASK_R1(_v)		((_v) & 0x3)
+#define AR5K_EEPROM_MASK_R0(_v)		(((_v) >> 2) & 0x3)	/* modes supported by radio 0 (bit 1: G, bit 2: A) */
+#define AR5K_EEPROM_MASK_R1(_v)		((_v) & 0x3)		/* modes supported by radio 1 (bit 1: G, bit 2: A) */
 
 #define AR5K_EEPROM_MISC5		AR5K_EEPROM_INFO(9)
-#define AR5K_EEPROM_COMP_DIS(_v)	((_v) & 0x1)
-#define AR5K_EEPROM_AES_DIS(_v)		(((_v) >> 1) & 0x1)
-#define AR5K_EEPROM_FF_DIS(_v)		(((_v) >> 2) & 0x1)
-#define AR5K_EEPROM_BURST_DIS(_v)	(((_v) >> 3) & 0x1)
-#define AR5K_EEPROM_MAX_QCU(_v)		(((_v) >> 4) & 0xf)
-#define AR5K_EEPROM_HEAVY_CLIP_EN(_v)	(((_v) >> 8) & 0x1)
-#define AR5K_EEPROM_KEY_CACHE_SIZE(_v)	(((_v) >> 12) & 0xf)
+#define AR5K_EEPROM_COMP_DIS(_v)	((_v) & 0x1)		/* disable compression */
+#define AR5K_EEPROM_AES_DIS(_v)		(((_v) >> 1) & 0x1)	/* disable AES */
+#define AR5K_EEPROM_FF_DIS(_v)		(((_v) >> 2) & 0x1)	/* disable fast frames */
+#define AR5K_EEPROM_BURST_DIS(_v)	(((_v) >> 3) & 0x1)	/* disable bursting */
+#define AR5K_EEPROM_MAX_QCU(_v)		(((_v) >> 4) & 0xf)	/* max number of QCUs. defaults to 10 */
+#define AR5K_EEPROM_HEAVY_CLIP_EN(_v)	(((_v) >> 8) & 0x1)	/* enable heayy clipping */
+#define AR5K_EEPROM_KEY_CACHE_SIZE(_v)	(((_v) >> 12) & 0xf)	/* key cache size. defaults to 128 */
 
 #define AR5K_EEPROM_MISC6		AR5K_EEPROM_INFO(10)
-#define AR5K_EEPROM_TX_CHAIN_DIS	((_v) & 0x8)
-#define AR5K_EEPROM_RX_CHAIN_DIS	(((_v) >> 3) & 0x8)
-#define AR5K_EEPROM_FCC_MID_EN		(((_v) >> 6) & 0x1)
-#define AR5K_EEPROM_JAP_U1EVEN_EN	(((_v) >> 7) & 0x1)
-#define AR5K_EEPROM_JAP_U2_EN		(((_v) >> 8) & 0x1)
-#define AR5K_EEPROM_JAP_U1ODD_EN	(((_v) >> 9) & 0x1)
-#define AR5K_EEPROM_JAP_11A_NEW_EN	(((_v) >> 10) & 0x1)
+#define AR5K_EEPROM_TX_CHAIN_DIS	((_v) & 0x7)		/* MIMO chains disabled for TX bitmask */
+#define AR5K_EEPROM_RX_CHAIN_DIS	(((_v) >> 3) & 0x7)	/* MIMO chains disabled for RX bitmask */
+#define AR5K_EEPROM_FCC_MID_EN		(((_v) >> 6) & 0x1)	/* 5.47-5.7GHz supported */
+#define AR5K_EEPROM_JAP_U1EVEN_EN	(((_v) >> 7) & 0x1)	/* Japan UNII1 band (5.15-5.25GHz) on even channels (5180, 5200, 5220, 5240) supported */
+#define AR5K_EEPROM_JAP_U2_EN		(((_v) >> 8) & 0x1)	/* Japan UNII2 band (5.25-5.35GHz) supported */
+#define AR5K_EEPROM_JAP_MID_EN		(((_v) >> 9) & 0x1)	/* Japan band from 5.47-5.7GHz supported */
+#define AR5K_EEPROM_JAP_U1ODD_EN	(((_v) >> 10) & 0x1)	/* Japan UNII2 band (5.15-5.25GHz) on odd channels (5170, 5190, 5210, 5230) supported */
+#define AR5K_EEPROM_JAP_11A_NEW_EN	(((_v) >> 11) & 0x1)	/* Japan A mode enabled (using even channels) */
 
 /* calibration settings */
 #define AR5K_EEPROM_MODES_11A(_v)	AR5K_EEPROM_OFF(_v, 0x00c5, 0x00d4)
@@ -389,7 +387,49 @@ struct ath5k_edge_power {
 	bool flag;
 };
 
-/* EEPROM calibration data */
+/**
+ * struct ath5k_eeprom_info - EEPROM calibration data
+ *
+ * @ee_regdomain: ath/regd.c takes care of COUNTRY_ERD and WORLDWIDE_ROAMING
+ *	flags
+ * @ee_ant_gain: Antenna gain in 0.5dB steps signed [5211 only?]
+ * @ee_cck_ofdm_gain_delta: difference in gainF to output the same power for
+ *	OFDM and CCK packets
+ * @ee_cck_ofdm_power_delta: power difference between OFDM (6Mbps) and CCK
+ *	(11Mbps) rate in G mode. 0.1dB steps
+ * @ee_scaled_cck_delta: for Japan Channel 14: 0.1dB resolution
+ *
+ * @ee_i_cal: Initial I coefficient to correct I/Q mismatch in the receive path
+ * @ee_q_cal: Initial Q coefficient to correct I/Q mismatch in the receive path
+ * @ee_fixed_bias: use ee_ob and ee_db settings or use automatic control
+ * @ee_switch_settling: RX/TX Switch settling time
+ * @ee_atn_tx_rx: Difference in attenuation between TX and RX in 1dB steps
+ * @ee_ant_control: Antenna Control Settings
+ * @ee_ob: Bias current for Output stage of PA
+ *	B/G mode: Index [0] is used for AR2112/5112, otherwise [1]
+ *	A mode: [0] 5.15-5.25 [1] 5.25-5.50 [2] 5.50-5.70 [3] 5.70-5.85 GHz
+ * @ee_db: Bias current for Output stage of PA. see @ee_ob
+ * @ee_tx_end2xlna_enable: Time difference from when BB finishes sending a frame
+ *	to when the external LNA is activated
+ * @ee_tx_end2xpa_disable: Time difference from when BB finishes sending a frame
+ *	to when the external PA switch is deactivated
+ * @ee_tx_frm2xpa_enable: Time difference from when MAC sends frame to when
+ *	external PA switch is activated
+ * @ee_thr_62: Clear Channel Assessment (CCA) sensitivity
+ *	(IEEE802.11a section 17.3.10.5 )
+ * @ee_xlna_gain: Total gain of the LNA (information only)
+ * @ee_xpd: Use external (1) or internal power detector
+ * @ee_x_gain: Gain for external power detector output (differences in EEMAP
+ *	versions!)
+ * @ee_i_gain: Initial gain value after reset
+ * @ee_margin_tx_rx: Margin in dB when final attenuation stage should be used
+ *
+ * @ee_false_detect: Backoff in Sensitivity (dB) on channels with spur signals
+ * @ee_noise_floor_thr: Noise floor threshold in 1dB steps
+ * @ee_adc_desired_size: Desired amplitude for ADC, used by AGC; in 0.5 dB steps
+ * @ee_pga_desired_size: Desired output of PGA (for BB gain) in 0.5 dB steps
+ * @ee_pd_gain_overlap: PD ADC curves need to overlap in 0.5dB steps (ee_map>=2)
+ */
 struct ath5k_eeprom_info {
 
 	/* Header information */

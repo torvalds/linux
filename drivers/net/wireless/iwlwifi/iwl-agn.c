@@ -54,6 +54,7 @@
 #include "iwl-helpers.h"
 #include "iwl-sta.h"
 #include "iwl-calib.h"
+#include "iwl-agn.h"
 
 
 /******************************************************************************
@@ -1258,9 +1259,9 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 	/* Ack/clear/reset pending uCode interrupts.
 	 * Note:  Some bits in CSR_INT are "OR" of bits in CSR_FH_INT_STATUS,
 	 */
-	iwl_write32(priv, CSR_INT, priv->inta);
+	iwl_write32(priv, CSR_INT, priv->_agn.inta);
 
-	inta = priv->inta;
+	inta = priv->_agn.inta;
 
 #ifdef CONFIG_IWLWIFI_DEBUG
 	if (iwl_get_debug_level(priv) & IWL_DL_ISR) {
@@ -1273,8 +1274,8 @@ static void iwl_irq_tasklet(struct iwl_priv *priv)
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	/* saved interrupt in inta variable now we can reset priv->inta */
-	priv->inta = 0;
+	/* saved interrupt in inta variable now we can reset priv->_agn.inta */
+	priv->_agn.inta = 0;
 
 	/* Now service all interrupt bits discovered above. */
 	if (inta & CSR_INT_BIT_HW_ERR) {
@@ -2102,8 +2103,7 @@ static void iwl_alive_start(struct iwl_priv *priv)
 
 	ieee80211_wake_queues(priv->hw);
 
-	priv->active_rate = priv->rates_mask;
-	priv->active_rate_basic = priv->rates_mask & IWL_BASIC_RATES_MASK;
+	priv->active_rate = IWL_RATES_MASK;
 
 	/* Configure Tx antenna selection based on H/W config */
 	if (priv->cfg->ops->hcmd->set_tx_ant)
@@ -2143,18 +2143,6 @@ static void iwl_alive_start(struct iwl_priv *priv)
 	wake_up_interruptible(&priv->wait_command_queue);
 
 	iwl_power_update_mode(priv, true);
-
-	/* reassociate for ADHOC mode */
-	if (priv->vif && (priv->iw_mode == NL80211_IFTYPE_ADHOC)) {
-		struct sk_buff *beacon = ieee80211_beacon_get(priv->hw,
-								priv->vif);
-		if (beacon)
-			iwl_mac_beacon_update(priv->hw, beacon);
-	}
-
-
-	if (test_and_clear_bit(STATUS_MODE_PENDING, &priv->status))
-		iwl_set_mode(priv, priv->iw_mode);
 
 	return;
 
@@ -2881,7 +2869,6 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	mutex_lock(&priv->mutex);
 	iwl_scan_cancel_timeout(priv, 100);
-	mutex_unlock(&priv->mutex);
 
 	/* If we are getting WEP group key and we didn't receive any key mapping
 	 * so far, we are in legacy wep mode (group key only), otherwise we are
@@ -2917,6 +2904,7 @@ static int iwl_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		ret = -EINVAL;
 	}
 
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return ret;
@@ -3121,87 +3109,6 @@ static ssize_t store_tx_power(struct device *d,
 
 static DEVICE_ATTR(tx_power, S_IWUSR | S_IRUGO, show_tx_power, store_tx_power);
 
-static ssize_t show_flags(struct device *d,
-			  struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-
-	return sprintf(buf, "0x%04X\n", priv->active_rxon.flags);
-}
-
-static ssize_t store_flags(struct device *d,
-			   struct device_attribute *attr,
-			   const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	unsigned long val;
-	u32 flags;
-	int ret = strict_strtoul(buf, 0, &val);
-	if (ret)
-		return ret;
-	flags = (u32)val;
-
-	mutex_lock(&priv->mutex);
-	if (le32_to_cpu(priv->staging_rxon.flags) != flags) {
-		/* Cancel any currently running scans... */
-		if (iwl_scan_cancel_timeout(priv, 100))
-			IWL_WARN(priv, "Could not cancel scan.\n");
-		else {
-			IWL_DEBUG_INFO(priv, "Commit rxon.flags = 0x%04X\n", flags);
-			priv->staging_rxon.flags = cpu_to_le32(flags);
-			iwlcore_commit_rxon(priv);
-		}
-	}
-	mutex_unlock(&priv->mutex);
-
-	return count;
-}
-
-static DEVICE_ATTR(flags, S_IWUSR | S_IRUGO, show_flags, store_flags);
-
-static ssize_t show_filter_flags(struct device *d,
-				 struct device_attribute *attr, char *buf)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-
-	return sprintf(buf, "0x%04X\n",
-		le32_to_cpu(priv->active_rxon.filter_flags));
-}
-
-static ssize_t store_filter_flags(struct device *d,
-				  struct device_attribute *attr,
-				  const char *buf, size_t count)
-{
-	struct iwl_priv *priv = dev_get_drvdata(d);
-	unsigned long val;
-	u32 filter_flags;
-	int ret = strict_strtoul(buf, 0, &val);
-	if (ret)
-		return ret;
-	filter_flags = (u32)val;
-
-	mutex_lock(&priv->mutex);
-	if (le32_to_cpu(priv->staging_rxon.filter_flags) != filter_flags) {
-		/* Cancel any currently running scans... */
-		if (iwl_scan_cancel_timeout(priv, 100))
-			IWL_WARN(priv, "Could not cancel scan.\n");
-		else {
-			IWL_DEBUG_INFO(priv, "Committing rxon.filter_flags = "
-				       "0x%04X\n", filter_flags);
-			priv->staging_rxon.filter_flags =
-				cpu_to_le32(filter_flags);
-			iwlcore_commit_rxon(priv);
-		}
-	}
-	mutex_unlock(&priv->mutex);
-
-	return count;
-}
-
-static DEVICE_ATTR(filter_flags, S_IWUSR | S_IRUGO, show_filter_flags,
-		   store_filter_flags);
-
-
 static ssize_t show_statistics(struct device *d,
 			       struct device_attribute *attr, char *buf)
 {
@@ -3391,7 +3298,6 @@ static int iwl_init_drv(struct iwl_priv *priv)
 	priv->qos_data.qos_active = 0;
 	priv->qos_data.qos_cap.val = 0;
 
-	priv->rates_mask = IWL_RATES_MASK;
 	/* Set the tx_power_user_lmt to the lowest power level
 	 * this value will get overwritten by channel max power avg
 	 * from eeprom */
@@ -3427,8 +3333,6 @@ static void iwl_uninit_drv(struct iwl_priv *priv)
 }
 
 static struct attribute *iwl_sysfs_entries[] = {
-	&dev_attr_flags.attr,
-	&dev_attr_filter_flags.attr,
 	&dev_attr_statistics.attr,
 	&dev_attr_temperature.attr,
 	&dev_attr_tx_power.attr,

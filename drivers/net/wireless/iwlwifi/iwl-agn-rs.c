@@ -597,10 +597,6 @@ static u16 rs_get_supported_rates(struct iwl_lq_sta *lq_sta,
 				  struct ieee80211_hdr *hdr,
 				  enum iwl_table_type rate_type)
 {
-	if (hdr && is_multicast_ether_addr(hdr->addr1) &&
-	    lq_sta->active_rate_basic)
-		return lq_sta->active_rate_basic;
-
 	if (is_legacy(rate_type)) {
 		return lq_sta->active_legacy_rate;
 	} else {
@@ -2552,7 +2548,6 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 	lq_sta->missed_rate_counter = IWL_MISSED_RATE_MAX;
 	lq_sta->is_green = rs_use_green(sta, &priv->current_ht_config);
 	lq_sta->active_legacy_rate = priv->active_rate & ~(0x1000);
-	lq_sta->active_rate_basic = priv->active_rate_basic;
 	lq_sta->band = priv->band;
 	/*
 	 * active_siso_rate mask includes 9 MBits (bit 5), and CCK (bits 0-3),
@@ -2956,12 +2951,8 @@ static ssize_t rs_sta_dbgfs_rate_scale_data_read(struct file *file,
 		desc += sprintf(buff+desc,
 				"Bit Rate= %d Mb/s\n",
 				iwl_rates[lq_sta->last_txrate_idx].ieee >> 1);
-	desc += sprintf(buff+desc,
-			"Signal Level= %d dBm\tNoise Level= %d dBm\n",
-			priv->last_rx_rssi, priv->last_rx_noise);
-	desc += sprintf(buff+desc,
-			"Tsf= 0x%llx\tBeacon time= 0x%08X\n",
-			priv->last_tsf, priv->last_beacon_time);
+	desc += sprintf(buff+desc, "Noise Level= %d dBm\n",
+			priv->last_rx_noise);
 
 	ret = simple_read_from_buffer(user_buf, count, ppos, buff, desc);
 	return ret;

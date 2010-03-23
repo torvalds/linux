@@ -11666,7 +11666,7 @@ static int ipw_prom_alloc(struct ipw_priv *priv)
 	if (priv->prom_net_dev)
 		return -EPERM;
 
-	priv->prom_net_dev = alloc_ieee80211(sizeof(struct ipw_prom_priv), 1);
+	priv->prom_net_dev = alloc_libipw(sizeof(struct ipw_prom_priv), 1);
 	if (priv->prom_net_dev == NULL)
 		return -ENOMEM;
 
@@ -11685,7 +11685,7 @@ static int ipw_prom_alloc(struct ipw_priv *priv)
 
 	rc = register_netdev(priv->prom_net_dev);
 	if (rc) {
-		free_ieee80211(priv->prom_net_dev, 1);
+		free_libipw(priv->prom_net_dev, 1);
 		priv->prom_net_dev = NULL;
 		return rc;
 	}
@@ -11699,7 +11699,7 @@ static void ipw_prom_free(struct ipw_priv *priv)
 		return;
 
 	unregister_netdev(priv->prom_net_dev);
-	free_ieee80211(priv->prom_net_dev, 1);
+	free_libipw(priv->prom_net_dev, 1);
 
 	priv->prom_net_dev = NULL;
 }
@@ -11727,7 +11727,7 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 	struct ipw_priv *priv;
 	int i;
 
-	net_dev = alloc_ieee80211(sizeof(struct ipw_priv), 0);
+	net_dev = alloc_libipw(sizeof(struct ipw_priv), 0);
 	if (net_dev == NULL) {
 		err = -ENOMEM;
 		goto out;
@@ -11747,7 +11747,7 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
 	mutex_init(&priv->mutex);
 	if (pci_enable_device(pdev)) {
 		err = -ENODEV;
-		goto out_free_ieee80211;
+		goto out_free_libipw;
 	}
 
 	pci_set_master(pdev);
@@ -11874,8 +11874,8 @@ static int __devinit ipw_pci_probe(struct pci_dev *pdev,
       out_pci_disable_device:
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
-      out_free_ieee80211:
-	free_ieee80211(priv->net_dev, 0);
+      out_free_libipw:
+	free_libipw(priv->net_dev, 0);
       out:
 	return err;
 }
@@ -11942,11 +11942,11 @@ static void __devexit ipw_pci_remove(struct pci_dev *pdev)
 	pci_release_regions(pdev);
 	pci_disable_device(pdev);
 	pci_set_drvdata(pdev, NULL);
-	/* wiphy_unregister needs to be here, before free_ieee80211 */
+	/* wiphy_unregister needs to be here, before free_libipw */
 	wiphy_unregister(priv->ieee->wdev.wiphy);
 	kfree(priv->ieee->a_band.channels);
 	kfree(priv->ieee->bg_band.channels);
-	free_ieee80211(priv->net_dev, 0);
+	free_libipw(priv->net_dev, 0);
 	free_firmware();
 }
 

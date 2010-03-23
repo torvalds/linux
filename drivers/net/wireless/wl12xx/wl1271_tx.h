@@ -26,7 +26,7 @@
 #define __WL1271_TX_H__
 
 #define TX_HW_BLOCK_SPARE                2
-#define TX_HW_BLOCK_SHIFT_DIV            8
+#define TX_HW_BLOCK_SIZE                 252
 
 #define TX_HW_MGMT_PKT_LIFETIME_TU       2000
 /* The chipset reference driver states, that the "aid" value 1
@@ -160,7 +160,7 @@ static inline int wl1271_tx_ac_to_tid(int ac)
 }
 
 void wl1271_tx_work(struct work_struct *work);
-void wl1271_tx_complete(struct wl1271 *wl, u32 count);
+void wl1271_tx_complete(struct wl1271 *wl);
 void wl1271_tx_flush(struct wl1271 *wl);
 
 #endif

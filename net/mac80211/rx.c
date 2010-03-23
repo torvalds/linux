@@ -178,14 +178,6 @@ ieee80211_add_rx_radiotap_header(struct ieee80211_local *local,
 		pos++;
 	}
 
-	/* IEEE80211_RADIOTAP_DBM_ANTNOISE */
-	if (local->hw.flags & IEEE80211_HW_NOISE_DBM) {
-		*pos = status->noise;
-		rthdr->it_present |=
-			cpu_to_le32(1 << IEEE80211_RADIOTAP_DBM_ANTNOISE);
-		pos++;
-	}
-
 	/* IEEE80211_RADIOTAP_LOCK_QUALITY is missing */
 
 	/* IEEE80211_RADIOTAP_ANTENNA */
@@ -1077,7 +1069,6 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 	sta->rx_fragments++;
 	sta->rx_bytes += rx->skb->len;
 	sta->last_signal = status->signal;
-	sta->last_noise = status->noise;
 
 	/*
 	 * Change STA power saving mode only at the end of a frame

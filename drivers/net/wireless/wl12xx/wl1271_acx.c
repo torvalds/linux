@@ -31,7 +31,6 @@
 #include "wl1271.h"
 #include "wl12xx_80211.h"
 #include "wl1271_reg.h"
-#include "wl1271_spi.h"
 #include "wl1271_ps.h"
 
 int wl1271_acx_wake_up_conditions(struct wl1271 *wl)
@@ -136,12 +135,7 @@ int wl1271_acx_tx_power(struct wl1271 *wl, int power)
 		goto out;
 	}
 
-	/*
-	 * FIXME: This is a workaround needed while we don't the correct
-	 * calibration, to avoid distortions
-	 */
-	/* acx->current_tx_power = power * 10; */
-	acx->current_tx_power = 120;
+	acx->current_tx_power = power * 10;
 
 	ret = wl1271_cmd_configure(wl, DOT11_CUR_TX_PWR, acx, sizeof(*acx));
 	if (ret < 0) {

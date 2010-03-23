@@ -336,7 +336,6 @@ void iwl_bss_info_changed(struct ieee80211_hw *hw,
 				     u32 changes);
 int iwl_mac_beacon_update(struct ieee80211_hw *hw, struct sk_buff *skb);
 int iwl_commit_rxon(struct iwl_priv *priv);
-int iwl_set_mode(struct iwl_priv *priv, int mode);
 int iwl_mac_add_interface(struct ieee80211_hw *hw,
 			  struct ieee80211_vif *vif);
 void iwl_mac_remove_interface(struct ieee80211_hw *hw,
@@ -560,11 +559,6 @@ int iwl_send_card_state(struct iwl_priv *priv, u32 flags,
  * PCI						     *
  *****************************************************/
 irqreturn_t iwl_isr_legacy(int irq, void *data);
-int iwl_reset_ict(struct iwl_priv *priv);
-void iwl_disable_ict(struct iwl_priv *priv);
-int iwl_alloc_isr_ict(struct iwl_priv *priv);
-void iwl_free_isr_ict(struct iwl_priv *priv);
-irqreturn_t iwl_isr_ict(int irq, void *data);
 
 static inline u16 iwl_pcie_link_ctl(struct iwl_priv *priv)
 {
@@ -622,7 +616,6 @@ void iwlcore_free_geos(struct iwl_priv *priv);
 #define STATUS_SCAN_HW		15
 #define STATUS_POWER_PMI	16
 #define STATUS_FW_ERROR		17
-#define STATUS_MODE_PENDING	18
 
 
 static inline int iwl_is_ready(struct iwl_priv *priv)
@@ -682,7 +675,6 @@ extern void iwl_rx_reply_rx_phy(struct iwl_priv *priv,
 void iwl_rx_reply_compressed_ba(struct iwl_priv *priv,
 					   struct iwl_rx_mem_buffer *rxb);
 void iwl_apm_stop(struct iwl_priv *priv);
-int iwl_apm_stop_master(struct iwl_priv *priv);
 int iwl_apm_init(struct iwl_priv *priv);
 
 void iwl_setup_rxon_timing(struct iwl_priv *priv);

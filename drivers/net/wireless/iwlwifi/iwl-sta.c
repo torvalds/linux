@@ -549,8 +549,10 @@ int iwl_send_static_wepkey_cmd(struct iwl_priv *priv, u8 send_if_empty)
 	struct iwl_host_cmd cmd = {
 		.id = REPLY_WEPKEY,
 		.data = wep_cmd,
-		.flags = CMD_ASYNC,
+		.flags = CMD_SYNC,
 	};
+
+	might_sleep();
 
 	memset(wep_cmd, 0, cmd_size +
 			(sizeof(struct iwl_wep_key) * WEP_KEYS_MAX));
@@ -587,9 +589,9 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 			       struct ieee80211_key_conf *keyconf)
 {
 	int ret;
-	unsigned long flags;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
+	WARN_ON(!mutex_is_locked(&priv->mutex));
+
 	IWL_DEBUG_WEP(priv, "Removing default WEP key: idx=%d\n",
 		      keyconf->keyidx);
 
@@ -601,13 +603,12 @@ int iwl_remove_default_wep_key(struct iwl_priv *priv,
 	memset(&priv->wep_keys[keyconf->keyidx], 0, sizeof(priv->wep_keys[0]));
 	if (iwl_is_rfkill(priv)) {
 		IWL_DEBUG_WEP(priv, "Not sending REPLY_WEPKEY command due to RFKILL.\n");
-		spin_unlock_irqrestore(&priv->sta_lock, flags);
+		/* but keys in device are clear anyway so return success */
 		return 0;
 	}
 	ret = iwl_send_static_wepkey_cmd(priv, 1);
 	IWL_DEBUG_WEP(priv, "Remove default WEP key: idx=%d ret=%d\n",
 		      keyconf->keyidx, ret);
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	return ret;
 }
@@ -617,7 +618,8 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 			    struct ieee80211_key_conf *keyconf)
 {
 	int ret;
-	unsigned long flags;
+
+	WARN_ON(!mutex_is_locked(&priv->mutex));
 
 	if (keyconf->keylen != WEP_KEY_LEN_128 &&
 	    keyconf->keylen != WEP_KEY_LEN_64) {
@@ -629,12 +631,11 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 	keyconf->hw_key_idx = HW_KEY_DEFAULT;
 	priv->stations[IWL_AP_ID].keyinfo.alg = ALG_WEP;
 
-	spin_lock_irqsave(&priv->sta_lock, flags);
 	priv->default_wep_key++;
 
 	if (test_and_set_bit(keyconf->keyidx, &priv->ucode_key_table))
 		IWL_ERR(priv, "index %d already used in uCode key table.\n",
-			keyconf->keyidx);
+			  keyconf->keyidx);
 
 	priv->wep_keys[keyconf->keyidx].key_size = keyconf->keylen;
 	memcpy(&priv->wep_keys[keyconf->keyidx].key, &keyconf->key,
@@ -643,7 +644,6 @@ int iwl_set_default_wep_key(struct iwl_priv *priv,
 	ret = iwl_send_static_wepkey_cmd(priv, 0);
 	IWL_DEBUG_WEP(priv, "Set default WEP key: len=%d idx=%d ret=%d\n",
 		keyconf->keylen, keyconf->keyidx, ret);
-	spin_unlock_irqrestore(&priv->sta_lock, flags);
 
 	return ret;
 }

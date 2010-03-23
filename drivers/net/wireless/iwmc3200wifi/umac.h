@@ -362,7 +362,7 @@ struct iwm_udma_out_wifi_hdr {
 #define IWM_RX_TICKET_SPECIAL_SNAP_MSK    0x4
 #define IWM_RX_TICKET_AMSDU_MSK           0x8
 #define IWM_RX_TICKET_DROP_REASON_POS       4
-#define IWM_RX_TICKET_DROP_REASON_MSK (0x1F << RX_TICKET_FLAGS_DROP_REASON_POS)
+#define IWM_RX_TICKET_DROP_REASON_MSK (0x1F << IWM_RX_TICKET_DROP_REASON_POS)
 
 #define IWM_RX_DROP_NO_DROP                          0x0
 #define IWM_RX_DROP_BAD_CRC                          0x1

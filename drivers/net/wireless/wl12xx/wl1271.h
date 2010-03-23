@@ -110,6 +110,9 @@ enum {
 #define WL1271_FW_NAME "wl1271-fw.bin"
 #define WL1271_NVS_NAME "wl1271-nvs.bin"
 
+#define WL1271_TX_SECURITY_LO16(s) ((u16)((s) & 0xffff))
+#define WL1271_TX_SECURITY_HI32(s) ((u32)(((s) >> 16) & 0xffffffff))
+
 /* NVS data structure */
 #define WL1271_NVS_SECTION_SIZE                  468
 
@@ -334,11 +337,25 @@ struct wl1271_scan {
 	u8 probe_requests;
 };
 
+struct wl1271_if_operations {
+	void (*read)(struct wl1271 *wl, int addr, void *buf, size_t len,
+		     bool fixed);
+	void (*write)(struct wl1271 *wl, int addr, void *buf, size_t len,
+		     bool fixed);
+	void (*reset)(struct wl1271 *wl);
+	void (*init)(struct wl1271 *wl);
+	struct device* (*dev)(struct wl1271 *wl);
+	void (*enable_irq)(struct wl1271 *wl);
+	void (*disable_irq)(struct wl1271 *wl);
+};
+
 struct wl1271 {
 	struct ieee80211_hw *hw;
 	bool mac80211_registered;
 
-	struct spi_device *spi;
+	void *if_priv;
+
+	struct wl1271_if_operations *if_ops;
 
 	void (*set_power)(bool enable);
 	int irq;
@@ -357,6 +374,8 @@ struct wl1271 {
 #define WL1271_FLAG_IN_ELP             (6)
 #define WL1271_FLAG_PSM                (7)
 #define WL1271_FLAG_PSM_REQUESTED      (8)
+#define WL1271_FLAG_IRQ_PENDING        (9)
+#define WL1271_FLAG_IRQ_RUNNING       (10)
 	unsigned long flags;
 
 	struct wl1271_partition_set part;
@@ -382,13 +401,13 @@ struct wl1271 {
 	/* Accounting for allocated / available TX blocks on HW */
 	u32 tx_blocks_freed[NUM_TX_QUEUES];
 	u32 tx_blocks_available;
-	u8 tx_results_count;
+	u32 tx_results_count;
 
 	/* Transmitted TX packets counter for chipset interface */
-	int tx_packets_count;
+	u32 tx_packets_count;
 
 	/* Time-offset between host and chipset clocks */
-	int time_offset;
+	s64 time_offset;
 
 	/* Session counter for the chipset */
 	int session_counter;
@@ -403,8 +422,7 @@ struct wl1271 {
 
 	/* Security sequence number counters */
 	u8 tx_security_last_seq;
-	u16 tx_security_seq_16;
-	u32 tx_security_seq_32;
+	s64 tx_security_seq;
 
 	/* FW Rx counter */
 	u32 rx_counter;
@@ -477,7 +495,8 @@ int wl1271_plt_stop(struct wl1271 *wl);
 
 #define WL1271_DEFAULT_POWER_LEVEL 0
 
-#define WL1271_TX_QUEUE_MAX_LENGTH 20
+#define WL1271_TX_QUEUE_LOW_WATERMARK  10
+#define WL1271_TX_QUEUE_HIGH_WATERMARK 25
 
 /* WL1271 needs a 200ms sleep after power on, and a 20ms sleep before power
    on in case is has been shut down shortly before */

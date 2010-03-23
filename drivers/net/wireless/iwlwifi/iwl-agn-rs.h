@@ -411,7 +411,6 @@ struct iwl_lq_sta {
 	u16 active_siso_rate;
 	u16 active_mimo2_rate;
 	u16 active_mimo3_rate;
-	u16 active_rate_basic;
 	s8 max_rate_idx;     /* Max rate set by user */
 	u8 missed_rate_counter;
 

@@ -113,7 +113,6 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	/*
 	 * HW information
 	 */
-	ah->ah_op_mode = NL80211_IFTYPE_STATION;
 	ah->ah_radar.r_enabled = AR5K_TUNE_RADAR_ALERT;
 	ah->ah_turbo = false;
 	ah->ah_txpower.txp_tpc = AR5K_TUNE_TPC_TXPOWER;
@@ -123,6 +122,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	ah->ah_cw_min = AR5K_TUNE_CWMIN;
 	ah->ah_limit_tx_retries = AR5K_INIT_TX_RETRY;
 	ah->ah_software_retry = false;
+	ah->ah_ant_mode = AR5K_ANTMODE_DEFAULT;
 
 	/*
 	 * Find the mac version
@@ -148,7 +148,6 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	/* Get MAC, PHY and RADIO revisions */
 	ah->ah_mac_srev = srev;
 	ah->ah_mac_version = AR5K_REG_MS(srev, AR5K_SREV_VER);
-	ah->ah_mac_revision = AR5K_REG_MS(srev, AR5K_SREV_REV);
 	ah->ah_phy_revision = ath5k_hw_reg_read(ah, AR5K_PHY_CHIP_ID) &
 			0xffffffff;
 	ah->ah_radio_5ghz_revision = ath5k_hw_radio_revision(ah,
@@ -327,7 +326,7 @@ int ath5k_hw_attach(struct ath5k_softc *sc)
 	/* Set BSSID to bcast address: ff:ff:ff:ff:ff:ff for now */
 	memcpy(common->curbssid, ath_bcast_mac, ETH_ALEN);
 	ath5k_hw_set_associd(ah);
-	ath5k_hw_set_opmode(ah);
+	ath5k_hw_set_opmode(ah, sc->opmode);
 
 	ath5k_hw_rfgain_opt_init(ah);
 

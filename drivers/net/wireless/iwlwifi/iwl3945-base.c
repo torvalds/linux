@@ -351,11 +351,11 @@ static int iwl3945_send_beacon_cmd(struct iwl_priv *priv)
 
 static void iwl3945_unset_hw_params(struct iwl_priv *priv)
 {
-	if (priv->shared_virt)
+	if (priv->_3945.shared_virt)
 		dma_free_coherent(&priv->pci_dev->dev,
 				  sizeof(struct iwl3945_shared),
-				  priv->shared_virt,
-				  priv->shared_phys);
+				  priv->_3945.shared_virt,
+				  priv->_3945.shared_phys);
 }
 
 static void iwl3945_build_tx_cmd_hwcrypto(struct iwl_priv *priv,
@@ -503,15 +503,6 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 	else if (ieee80211_is_reassoc_req(fc))
 		IWL_DEBUG_TX(priv, "Sending REASSOC frame\n");
 #endif
-
-	/* drop all non-injected data frame if we are not associated */
-	if (ieee80211_is_data(fc) &&
-	    !(info->flags & IEEE80211_TX_CTL_INJECTED) &&
-	    (!iwl_is_associated(priv) ||
-	     ((priv->iw_mode == NL80211_IFTYPE_STATION) && !priv->assoc_id))) {
-		IWL_DEBUG_DROP(priv, "Dropping - !iwl_is_associated\n");
-		goto drop_unlock;
-	}
 
 	spin_unlock_irqrestore(&priv->lock, flags);
 
@@ -753,7 +744,7 @@ static int iwl3945_get_measurement(struct iwl_priv *priv,
 	if (iwl_is_associated(priv))
 		add_time =
 		    iwl3945_usecs_to_beacons(
-			le64_to_cpu(params->start_time) - priv->last_tsf,
+			le64_to_cpu(params->start_time) - priv->_3945.last_tsf,
 			le16_to_cpu(priv->rxon_timing.beacon_interval));
 
 	memset(&spectrum, 0, sizeof(spectrum));
@@ -767,7 +758,7 @@ static int iwl3945_get_measurement(struct iwl_priv *priv,
 
 	if (iwl_is_associated(priv))
 		spectrum.start_time =
-		    iwl3945_add_beacon_time(priv->last_beacon_time,
+		    iwl3945_add_beacon_time(priv->_3945.last_beacon_time,
 				add_time,
 				le16_to_cpu(priv->rxon_timing.beacon_interval));
 	else
@@ -2517,8 +2508,7 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 
 	ieee80211_wake_queues(priv->hw);
 
-	priv->active_rate = priv->rates_mask;
-	priv->active_rate_basic = priv->rates_mask & IWL_BASIC_RATES_MASK;
+	priv->active_rate = IWL_RATES_MASK;
 
 	iwl_power_update_mode(priv, true);
 
@@ -2546,17 +2536,6 @@ static void iwl3945_alive_start(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "ALIVE processing complete.\n");
 	set_bit(STATUS_READY, &priv->status);
 	wake_up_interruptible(&priv->wait_command_queue);
-
-	/* reassociate for ADHOC mode */
-	if (priv->vif && (priv->iw_mode == NL80211_IFTYPE_ADHOC)) {
-		struct sk_buff *beacon = ieee80211_beacon_get(priv->hw,
-								priv->vif);
-		if (beacon)
-			iwl_mac_beacon_update(priv->hw, beacon);
-	}
-
-	if (test_and_clear_bit(STATUS_MODE_PENDING, &priv->status))
-		iwl_set_mode(priv, priv->iw_mode);
 
 	return;
 
@@ -2718,7 +2697,7 @@ static int __iwl3945_up(struct iwl_priv *priv)
 		/* load bootstrap state machine,
 		 * load bootstrap program into processor's memory,
 		 * prepare to load the "initialize" uCode */
-		priv->cfg->ops->lib->load_ucode(priv);
+		rc = priv->cfg->ops->lib->load_ucode(priv);
 
 		if (rc) {
 			IWL_ERR(priv,
@@ -2786,7 +2765,7 @@ static void iwl3945_bg_alive_start(struct work_struct *data)
 static void iwl3945_rfkill_poll(struct work_struct *data)
 {
 	struct iwl_priv *priv =
-	    container_of(data, struct iwl_priv, rfkill_poll.work);
+	    container_of(data, struct iwl_priv, _3945.rfkill_poll.work);
 	bool old_rfkill = test_bit(STATUS_RF_KILL_HW, &priv->status);
 	bool new_rfkill = !(iwl_read32(priv, CSR_GP_CNTRL)
 			& CSR_GP_CNTRL_REG_FLAG_HW_RF_KILL_SW);
@@ -2805,7 +2784,7 @@ static void iwl3945_rfkill_poll(struct work_struct *data)
 
 	/* Keep this running, even if radio now enabled.  This will be
 	 * cancelled in mac_start() if system decides to start again */
-	queue_delayed_work(priv->workqueue, &priv->rfkill_poll,
+	queue_delayed_work(priv->workqueue, &priv->_3945.rfkill_poll,
 			   round_jiffies_relative(2 * HZ));
 
 }
@@ -2820,7 +2799,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		.len = sizeof(struct iwl3945_scan_cmd),
 		.flags = CMD_SIZE_HUGE,
 	};
-	int rc = 0;
 	struct iwl3945_scan_cmd *scan;
 	struct ieee80211_conf *conf = NULL;
 	u8 n_probes = 0;
@@ -2848,7 +2826,6 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	if (test_bit(STATUS_SCAN_HW, &priv->status)) {
 		IWL_DEBUG_INFO(priv, "Multiple concurrent scan requests  "
 				"Ignoring second request.\n");
-		rc = -EIO;
 		goto done;
 	}
 
@@ -2883,7 +2860,7 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		priv->scan = kmalloc(sizeof(struct iwl3945_scan_cmd) +
 				     IWL_MAX_SCAN_SIZE, GFP_KERNEL);
 		if (!priv->scan) {
-			rc = -ENOMEM;
+			IWL_DEBUG_SCAN(priv, "Fail to allocate scan memory\n");
 			goto done;
 		}
 	}
@@ -2926,7 +2903,9 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 			       scan_suspend_time, interval);
 	}
 
-	if (priv->scan_request->n_ssids) {
+	if (priv->is_internal_short_scan) {
+		IWL_DEBUG_SCAN(priv, "Start internal passive scan.\n");
+	} else if (priv->scan_request->n_ssids) {
 		int i, p = 0;
 		IWL_DEBUG_SCAN(priv, "Kicking off active scan\n");
 		for (i = 0; i < priv->scan_request->n_ssids; i++) {
@@ -2973,13 +2952,20 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 		goto done;
 	}
 
-	scan->tx_cmd.len = cpu_to_le16(
+	if (!priv->is_internal_short_scan) {
+		scan->tx_cmd.len = cpu_to_le16(
 			iwl_fill_probe_req(priv,
 				(struct ieee80211_mgmt *)scan->data,
 				priv->scan_request->ie,
 				priv->scan_request->ie_len,
 				IWL_MAX_SCAN_SIZE - sizeof(*scan)));
-
+	} else {
+		scan->tx_cmd.len = cpu_to_le16(
+			iwl_fill_probe_req(priv,
+				(struct ieee80211_mgmt *)scan->data,
+				NULL, 0,
+				IWL_MAX_SCAN_SIZE - sizeof(*scan)));
+	}
 	/* select Rx antennas */
 	scan->flags |= iwl3945_get_antenna_flags(priv);
 
@@ -3001,8 +2987,7 @@ static void iwl3945_bg_request_scan(struct work_struct *data)
 	scan->len = cpu_to_le16(cmd.len);
 
 	set_bit(STATUS_SCAN_HW, &priv->status);
-	rc = iwl_send_cmd_sync(priv, &cmd);
-	if (rc)
+	if (iwl_send_cmd_sync(priv, &cmd))
 		goto done;
 
 	queue_delayed_work(priv->workqueue, &priv->scan_check,
@@ -3212,7 +3197,7 @@ static int iwl3945_mac_start(struct ieee80211_hw *hw)
 
 	/* ucode is running and will send rfkill notifications,
 	 * no need to poll the killswitch state anymore */
-	cancel_delayed_work(&priv->rfkill_poll);
+	cancel_delayed_work(&priv->_3945.rfkill_poll);
 
 	iwl_led_start(priv);
 
@@ -3253,7 +3238,7 @@ static void iwl3945_mac_stop(struct ieee80211_hw *hw)
 	flush_workqueue(priv->workqueue);
 
 	/* start polling the killswitch state again */
-	queue_delayed_work(priv->workqueue, &priv->rfkill_poll,
+	queue_delayed_work(priv->workqueue, &priv->_3945.rfkill_poll,
 			   round_jiffies_relative(2 * HZ));
 
 	IWL_DEBUG_MAC80211(priv, "leave\n");
@@ -3365,7 +3350,6 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 
 	mutex_lock(&priv->mutex);
 	iwl_scan_cancel_timeout(priv, 100);
-	mutex_unlock(&priv->mutex);
 
 	switch (cmd) {
 	case SET_KEY:
@@ -3386,6 +3370,7 @@ static int iwl3945_mac_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		ret = -EINVAL;
 	}
 
+	mutex_unlock(&priv->mutex);
 	IWL_DEBUG_MAC80211(priv, "leave\n");
 
 	return ret;
@@ -3590,7 +3575,7 @@ static ssize_t store_measurement(struct device *d,
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	struct ieee80211_measurement_params params = {
 		.channel = le16_to_cpu(priv->active_rxon.channel),
-		.start_time = cpu_to_le64(priv->last_tsf),
+		.start_time = cpu_to_le64(priv->_3945.last_tsf),
 		.duration = cpu_to_le16(1),
 	};
 	u8 type = IWL_MEASURE_BASIC;
@@ -3660,7 +3645,7 @@ static ssize_t show_statistics(struct device *d,
 	struct iwl_priv *priv = dev_get_drvdata(d);
 	u32 size = sizeof(struct iwl3945_notif_statistics);
 	u32 len = 0, ofs = 0;
-	u8 *data = (u8 *)&priv->statistics_39;
+	u8 *data = (u8 *)&priv->_3945.statistics;
 	int rc = 0;
 
 	if (!iwl_is_alive(priv))
@@ -3773,7 +3758,7 @@ static void iwl3945_setup_deferred_work(struct iwl_priv *priv)
 	INIT_WORK(&priv->beacon_update, iwl3945_bg_beacon_update);
 	INIT_DELAYED_WORK(&priv->init_alive_start, iwl3945_bg_init_alive_start);
 	INIT_DELAYED_WORK(&priv->alive_start, iwl3945_bg_alive_start);
-	INIT_DELAYED_WORK(&priv->rfkill_poll, iwl3945_rfkill_poll);
+	INIT_DELAYED_WORK(&priv->_3945.rfkill_poll, iwl3945_rfkill_poll);
 	INIT_WORK(&priv->scan_completed, iwl_bg_scan_completed);
 	INIT_WORK(&priv->request_scan, iwl3945_bg_request_scan);
 	INIT_WORK(&priv->abort_scan, iwl_bg_abort_scan);
@@ -3864,7 +3849,6 @@ static int iwl3945_init_drv(struct iwl_priv *priv)
 	priv->qos_data.qos_active = 0;
 	priv->qos_data.qos_cap.val = 0;
 
-	priv->rates_mask = IWL_RATES_MASK;
 	priv->tx_power_user_lmt = IWL_DEFAULT_TX_POWER;
 
 	if (eeprom->version < EEPROM_3945_EEPROM_VERSION) {
@@ -4129,7 +4113,7 @@ static int iwl3945_pci_probe(struct pci_dev *pdev, const struct pci_device_id *e
 		IWL_ERR(priv, "failed to create debugfs files. Ignoring error: %d\n", err);
 
 	/* Start monitoring the killswitch */
-	queue_delayed_work(priv->workqueue, &priv->rfkill_poll,
+	queue_delayed_work(priv->workqueue, &priv->_3945.rfkill_poll,
 			   2 * HZ);
 
 	return 0;
@@ -4203,7 +4187,7 @@ static void __devexit iwl3945_pci_remove(struct pci_dev *pdev)
 
 	sysfs_remove_group(&pdev->dev.kobj, &iwl3945_attribute_group);
 
-	cancel_delayed_work_sync(&priv->rfkill_poll);
+	cancel_delayed_work_sync(&priv->_3945.rfkill_poll);
 
 	iwl3945_dealloc_ucode_pci(priv);
 

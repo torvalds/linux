@@ -6102,7 +6102,7 @@ static const struct net_device_ops ipw2100_netdev_ops = {
 	.ndo_validate_addr	= eth_validate_addr,
 };
 
-/* Look into using netdev destructor to shutdown ieee80211? */
+/* Look into using netdev destructor to shutdown libipw? */
 
 static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 					       void __iomem * base_addr,
@@ -6112,7 +6112,7 @@ static struct net_device *ipw2100_alloc_device(struct pci_dev *pci_dev,
 	struct ipw2100_priv *priv;
 	struct net_device *dev;
 
-	dev = alloc_ieee80211(sizeof(struct ipw2100_priv), 0);
+	dev = alloc_libipw(sizeof(struct ipw2100_priv), 0);
 	if (!dev)
 		return NULL;
 	priv = libipw_priv(dev);
@@ -6425,7 +6425,7 @@ static int ipw2100_pci_init_one(struct pci_dev *pci_dev,
 		sysfs_remove_group(&pci_dev->dev.kobj,
 				   &ipw2100_attribute_group);
 
-		free_ieee80211(dev, 0);
+		free_libipw(dev, 0);
 		pci_set_drvdata(pci_dev, NULL);
 	}
 
@@ -6483,10 +6483,10 @@ static void __devexit ipw2100_pci_remove_one(struct pci_dev *pci_dev)
 		if (dev->base_addr)
 			iounmap((void __iomem *)dev->base_addr);
 
-		/* wiphy_unregister needs to be here, before free_ieee80211 */
+		/* wiphy_unregister needs to be here, before free_libipw */
 		wiphy_unregister(priv->ieee->wdev.wiphy);
 		kfree(priv->ieee->bg_band.channels);
-		free_ieee80211(dev, 0);
+		free_libipw(dev, 0);
 	}
 
 	pci_release_regions(pci_dev);

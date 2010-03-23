@@ -520,6 +520,7 @@ Who:	Hans de Goede <hdegoede@redhat.com>
 
 ----------------------------
 
+
 What:	corgikbd, spitzkbd, tosakbd driver
 When:	2.6.35
 Files:	drivers/input/keyboard/{corgi,spitz,tosa}kbd.c
@@ -540,6 +541,24 @@ Why:	The corgi touchscreen is now deprecated in favour of the generic
 	ads7846 driver now. Provided that the original driver is not generic
 	and is difficult to maintain, it will be removed later.
 Who:	Eric Miao <eric.y.miao@gmail.com>
+
+----------------------------
+
+What:	sysfs-class-rfkill state file
+When:	Feb 2014
+Files:	net/rfkill/core.c
+Why: 	Documented as obsolete since Feb 2010. This file is limited to 3
+	states while the rfkill drivers can have 4 states.
+Who: 	anybody or Florian Mickler <florian@mickler.org>
+
+----------------------------
+
+What: 	sysfs-class-rfkill claim file
+When:	Feb 2012
+Files:	net/rfkill/core.c
+Why:	It is not possible to claim an rfkill driver since 2007. This is
+	Documented as obsolete since Feb 2010.
+Who: 	anybody or Florian Mickler <florian@mickler.org>
 
 ----------------------------
 

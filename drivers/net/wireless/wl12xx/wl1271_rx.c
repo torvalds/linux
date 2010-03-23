@@ -25,7 +25,6 @@
 #include "wl1271_acx.h"
 #include "wl1271_reg.h"
 #include "wl1271_rx.h"
-#include "wl1271_spi.h"
 #include "wl1271_io.h"
 
 static u8 wl1271_rx_get_mem_block(struct wl1271_fw_status *status,
@@ -160,6 +159,13 @@ static void wl1271_rx_handle_data(struct wl1271 *wl, u32 length)
 	u8 *buf;
 	u8 beacon = 0;
 
+	/*
+	 * In PLT mode we seem to get frames and mac80211 warns about them,
+	 * workaround this by not retrieving them at all.
+	 */
+	if (unlikely(wl->state == WL1271_STATE_PLT))
+		return;
+
 	skb = __dev_alloc_skb(length, GFP_KERNEL);
 	if (!skb) {
 		wl1271_error("Couldn't allocate RX frame");
@@ -218,6 +224,7 @@ void wl1271_rx(struct wl1271 *wl, struct wl1271_fw_status *status)
 
 		wl->rx_counter++;
 		drv_rx_counter = wl->rx_counter & NUM_RX_PKT_DESC_MOD_MASK;
-		wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
 	}
+
+	wl1271_write32(wl, RX_DRIVER_COUNTER_ADDRESS, wl->rx_counter);
 }

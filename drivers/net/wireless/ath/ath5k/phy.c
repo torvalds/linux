@@ -20,8 +20,6 @@
  *
  */
 
-#define _ATH5K_PHY
-
 #include <linux/delay.h>
 
 #include "ath5k.h"
@@ -1190,7 +1188,7 @@ static s16 ath5k_hw_get_median_noise_floor(struct ath5k_hw *ah)
  * The median of the values in the history is then loaded into the
  * hardware for its own use for RSSI and CCA measurements.
  */
-void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
+static void ath5k_hw_update_noise_floor(struct ath5k_hw *ah)
 {
 	struct ath5k_eeprom_info *ee = &ah->ah_capabilities.cap_eeprom;
 	u32 val;
@@ -1399,7 +1397,11 @@ static int ath5k_hw_rf511x_calibrate(struct ath5k_hw *ah,
 	}
 
 	i_coffd = ((i_pwr >> 1) + (q_pwr >> 1)) >> 7;
-	q_coffd = q_pwr >> 7;
+
+	if (ah->ah_version == AR5K_AR5211)
+		q_coffd = q_pwr >> 6;
+	else
+		q_coffd = q_pwr >> 7;
 
 	/* protect against divide by 0 and loss of sign bits */
 	if (i_coffd == 0 || q_coffd < 2)
@@ -1768,23 +1770,13 @@ u16 ath5k_hw_radio_revision(struct ath5k_hw *ah, unsigned int chan)
 * Antenna control *
 \*****************/
 
-void /*TODO:Boundary check*/
+static void /*TODO:Boundary check*/
 ath5k_hw_set_def_antenna(struct ath5k_hw *ah, u8 ant)
 {
 	ATH5K_TRACE(ah->ah_sc);
 
 	if (ah->ah_version != AR5K_AR5210)
 		ath5k_hw_reg_write(ah, ant & 0x7, AR5K_DEFAULT_ANTENNA);
-}
-
-unsigned int ath5k_hw_get_def_antenna(struct ath5k_hw *ah)
-{
-	ATH5K_TRACE(ah->ah_sc);
-
-	if (ah->ah_version != AR5K_AR5210)
-		return ath5k_hw_reg_read(ah, AR5K_DEFAULT_ANTENNA) & 0x7;
-
-	return false; /*XXX: What do we return for 5210 ?*/
 }
 
 /*
@@ -1930,6 +1922,7 @@ ath5k_hw_set_antenna_mode(struct ath5k_hw *ah, u8 ant_mode)
 
 	ah->ah_tx_ant = tx_ant;
 	ah->ah_ant_mode = ant_mode;
+	ah->ah_def_ant = def_ant;
 
 	sta_id1 |= use_def_for_tx ? AR5K_STA_ID1_DEFAULT_ANTENNA : 0;
 	sta_id1 |= update_def_on_tx ? AR5K_STA_ID1_DESC_ANTENNA : 0;
@@ -2440,19 +2433,6 @@ ath5k_combine_linear_pcdac_curves(struct ath5k_hw *ah, s16* table_min,
 		pcdac_tmp = pcdac_high_pwr;
 
 		edge_flag = 0x40;
-#if 0
-		/* If both min and max power limits are in lower
-		 * power curve's range, only use the low power curve.
-		 * TODO: min/max levels are related to target
-		 * power values requested from driver/user
-		 * XXX: Is this really needed ? */
-		if (min_pwr < table_max[1] &&
-		max_pwr < table_max[1]) {
-			edge_flag = 0;
-			pcdac_tmp = pcdac_low_pwr;
-			max_pwr_idx = (table_max[1] - table_min[1])/2;
-		}
-#endif
 	} else {
 		pcdac_low_pwr = ah->ah_txpower.tmpL[1]; /* Zeroed */
 		pcdac_high_pwr = ah->ah_txpower.tmpL[0];
@@ -3143,5 +3123,3 @@ int ath5k_hw_set_txpower_limit(struct ath5k_hw *ah, u8 txpower)
 
 	return ath5k_hw_txpower(ah, channel, ee_mode, txpower);
 }
-
-#undef _ATH5K_PHY

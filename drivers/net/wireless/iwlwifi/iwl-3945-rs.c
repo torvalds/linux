@@ -372,11 +372,11 @@ static void rs_rate_init(void *priv_r, struct ieee80211_supported_band *sband,
 		}
 	}
 
-	priv->sta_supp_rates = sta->supp_rates[sband->band];
+	priv->_3945.sta_supp_rates = sta->supp_rates[sband->band];
 	/* For 5 GHz band it start at IWL_FIRST_OFDM_RATE */
 	if (sband->band == IEEE80211_BAND_5GHZ) {
 		rs_sta->last_txrate_idx += IWL_FIRST_OFDM_RATE;
-		priv->sta_supp_rates = priv->sta_supp_rates <<
+		priv->_3945.sta_supp_rates = priv->_3945.sta_supp_rates <<
 						IWL_FIRST_OFDM_RATE;
 	}
 
@@ -946,7 +946,7 @@ void iwl3945_rate_scale_init(struct ieee80211_hw *hw, s32 sta_id)
 
 	spin_unlock_irqrestore(&rs_sta->lock, flags);
 
-	rssi = priv->last_rx_rssi;
+	rssi = priv->_3945.last_rx_rssi;
 	if (rssi == 0)
 		rssi = IWL_MIN_RSSI_VAL;
 

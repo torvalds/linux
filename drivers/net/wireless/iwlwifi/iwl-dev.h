@@ -304,13 +304,11 @@ struct iwl_channel_info {
 	struct iwl3945_scan_power_info scan_pwr_info[IWL_NUM_SCAN_RATES];
 };
 
-#define IWL_TX_FIFO_AC0	0
-#define IWL_TX_FIFO_AC1	1
-#define IWL_TX_FIFO_AC2	2
-#define IWL_TX_FIFO_AC3	3
-#define IWL_TX_FIFO_HCCA_1	5
-#define IWL_TX_FIFO_HCCA_2	6
-#define IWL_TX_FIFO_NONE	7
+#define IWL_TX_FIFO_BK		0
+#define IWL_TX_FIFO_BE		1
+#define IWL_TX_FIFO_VI		2
+#define IWL_TX_FIFO_VO		3
+#define IWL_TX_FIFO_UNUSED	-1
 
 /* Minimum number of queues. MAX_NUM is defined in hw specific files.
  * Set the minimum to accommodate the 4 standard TX queues, 1 command
@@ -1092,10 +1090,6 @@ struct iwl_priv {
 	struct iwl_channel_info *channel_info;	/* channel info array */
 	u8 channel_count;	/* # of channels */
 
-	/* each calibration channel group in the EEPROM has a derived
-	 * clip setting for each rate. 3945 only.*/
-	const struct iwl3945_clip_group clip39_groups[5];
-
 	/* thermal calibration */
 	s32 temperature;	/* degrees Kelvin */
 	s32 last_temperature;
@@ -1168,7 +1162,6 @@ struct iwl_priv {
 	u64 led_tpt;
 
 	u16 active_rate;
-	u16 active_rate_basic;
 
 	u8 assoc_station_added;
 	u8 start_calib;
@@ -1197,7 +1190,6 @@ struct iwl_priv {
 
 	unsigned long status;
 
-	int last_rx_rssi;	/* From Rx packet statistics */
 	int last_rx_noise;	/* From beacon statistics */
 
 	/* counts mgmt, ctl, and data packets */
@@ -1218,8 +1210,6 @@ struct iwl_priv {
 #endif
 
 	/* context information */
-	u16 rates_mask;
-
 	u8 bssid[ETH_ALEN];
 	u16 rts_threshold;
 	u8 mac_addr[ETH_ALEN];
@@ -1228,7 +1218,7 @@ struct iwl_priv {
 	spinlock_t sta_lock;
 	int num_stations;
 	struct iwl_station_entry stations[IWL_STATION_COUNT];
-	struct iwl_wep_key wep_keys[WEP_KEYS_MAX];
+	struct iwl_wep_key wep_keys[WEP_KEYS_MAX]; /* protected by mutex */
 	u8 default_wep_key;
 	u8 key_mapping_key;
 	unsigned long ucode_key_table;
@@ -1244,10 +1234,6 @@ struct iwl_priv {
 
 	u8 mac80211_registered;
 
-	/* Rx'd packet timing information */
-	u32 last_beacon_time;
-	u64 last_tsf;
-
 	/* eeprom -- this is in the card's little endian byte order */
 	u8 *eeprom;
 	int    nvm_device_type;
@@ -1262,20 +1248,48 @@ struct iwl_priv {
 	u16 beacon_int;
 	struct ieee80211_vif *vif;
 
-	/*Added for 3945 */
-	void *shared_virt;
-	dma_addr_t shared_phys;
-	/*End*/
-	struct iwl_hw_params hw_params;
+	union {
+#if defined(CONFIG_IWL3945) || defined(CONFIG_IWL3945_MODULE)
+		struct {
+			void *shared_virt;
+			dma_addr_t shared_phys;
 
-	/* INT ICT Table */
-	__le32 *ict_tbl;
-	dma_addr_t ict_tbl_dma;
-	dma_addr_t aligned_ict_tbl_dma;
-	int ict_index;
-	void *ict_tbl_vir;
-	u32 inta;
-	bool use_ict;
+			struct delayed_work thermal_periodic;
+			struct delayed_work rfkill_poll;
+
+			struct iwl3945_notif_statistics statistics;
+
+			u32 sta_supp_rates;
+			int last_rx_rssi;	/* From Rx packet statistics */
+
+			/* Rx'd packet timing information */
+			u32 last_beacon_time;
+			u64 last_tsf;
+
+			/*
+			 * each calibration channel group in the
+			 * EEPROM has a derived clip setting for
+			 * each rate.
+			 */
+			const struct iwl3945_clip_group clip_groups[5];
+
+		} _3945;
+#endif
+#if defined(CONFIG_IWLAGN) || defined(CONFIG_IWLAGN_MODULE)
+		struct {
+			/* INT ICT Table */
+			__le32 *ict_tbl;
+			void *ict_tbl_vir;
+			dma_addr_t ict_tbl_dma;
+			dma_addr_t aligned_ict_tbl_dma;
+			int ict_index;
+			u32 inta;
+			bool use_ict;
+		} _agn;
+#endif
+	};
+
+	struct iwl_hw_params hw_params;
 
 	u32 inta_mask;
 	/* Current association information needed to configure the
@@ -1302,10 +1316,6 @@ struct iwl_priv {
 	struct delayed_work init_alive_start;
 	struct delayed_work alive_start;
 	struct delayed_work scan_check;
-
-	/*For 3945 only*/
-	struct delayed_work thermal_periodic;
-	struct delayed_work rfkill_poll;
 
 	/* TX Power */
 	s8 tx_power_user_lmt;
@@ -1339,12 +1349,6 @@ struct iwl_priv {
 	struct timer_list statistics_periodic;
 	struct timer_list ucode_trace;
 	bool hw_ready;
-	/*For 3945*/
-#define IWL_DEFAULT_TX_POWER 0x0F
-
-	struct iwl3945_notif_statistics statistics_39;
-
-	u32 sta_supp_rates;
 
 	struct iwl_event_log event_log;
 }; /*iwl_priv */

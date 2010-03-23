@@ -22,22 +22,17 @@
  */
 
 #include <linux/module.h>
-#include <linux/platform_device.h>
-#include <linux/interrupt.h>
 #include <linux/firmware.h>
 #include <linux/delay.h>
-#include <linux/irq.h>
 #include <linux/spi/spi.h>
 #include <linux/crc32.h>
 #include <linux/etherdevice.h>
 #include <linux/vmalloc.h>
-#include <linux/spi/wl12xx.h>
 #include <linux/inetdevice.h>
 
 #include "wl1271.h"
 #include "wl12xx_80211.h"
 #include "wl1271_reg.h"
-#include "wl1271_spi.h"
 #include "wl1271_io.h"
 #include "wl1271_event.h"
 #include "wl1271_tx.h"
@@ -364,11 +359,6 @@ static int wl1271_plt_init(struct wl1271 *wl)
 	return ret;
 }
 
-static void wl1271_disable_interrupts(struct wl1271 *wl)
-{
-	disable_irq(wl->irq);
-}
-
 static void wl1271_power_off(struct wl1271 *wl)
 {
 	wl->set_power(false);
@@ -384,10 +374,11 @@ static void wl1271_power_on(struct wl1271 *wl)
 static void wl1271_fw_status(struct wl1271 *wl,
 			     struct wl1271_fw_status *status)
 {
+	struct timespec ts;
 	u32 total = 0;
 	int i;
 
-	wl1271_read(wl, FW_STATUS_ADDR, status, sizeof(*status), false);
+	wl1271_raw_read(wl, FW_STATUS_ADDR, status, sizeof(*status), false);
 
 	wl1271_debug(DEBUG_IRQ, "intr: 0x%x (fw_rx_counter = %d, "
 		     "drv_rx_counter = %d, tx_results_counter = %d)",
@@ -412,14 +403,19 @@ static void wl1271_fw_status(struct wl1271 *wl,
 		ieee80211_queue_work(wl->hw, &wl->tx_work);
 
 	/* update the host-chipset time offset */
-	wl->time_offset = jiffies_to_usecs(jiffies) -
-		le32_to_cpu(status->fw_localtime);
+	getnstimeofday(&ts);
+	wl->time_offset = (timespec_to_ns(&ts) >> 10) -
+		(s64)le32_to_cpu(status->fw_localtime);
 }
+
+#define WL1271_IRQ_MAX_LOOPS 10
 
 static void wl1271_irq_work(struct work_struct *work)
 {
 	int ret;
 	u32 intr;
+	int loopcount = WL1271_IRQ_MAX_LOOPS;
+	unsigned long flags;
 	struct wl1271 *wl =
 		container_of(work, struct wl1271, irq_work);
 
@@ -427,83 +423,69 @@ static void wl1271_irq_work(struct work_struct *work)
 
 	wl1271_debug(DEBUG_IRQ, "IRQ work");
 
-	if (wl->state == WL1271_STATE_OFF)
+	if (unlikely(wl->state == WL1271_STATE_OFF))
 		goto out;
 
 	ret = wl1271_ps_elp_wakeup(wl, true);
 	if (ret < 0)
 		goto out;
 
-	wl1271_write32(wl, ACX_REG_INTERRUPT_MASK, WL1271_ACX_INTR_ALL);
+	spin_lock_irqsave(&wl->wl_lock, flags);
+	while (test_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags) && loopcount) {
+		clear_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags);
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
+		loopcount--;
 
-	wl1271_fw_status(wl, wl->fw_status);
-	intr = le32_to_cpu(wl->fw_status->intr);
-	if (!intr) {
-		wl1271_debug(DEBUG_IRQ, "Zero interrupt received.");
-		goto out_sleep;
+		wl1271_fw_status(wl, wl->fw_status);
+		intr = le32_to_cpu(wl->fw_status->intr);
+		if (!intr) {
+			wl1271_debug(DEBUG_IRQ, "Zero interrupt received.");
+			continue;
+		}
+
+		intr &= WL1271_INTR_MASK;
+
+		if (intr & WL1271_ACX_INTR_DATA) {
+			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_DATA");
+
+			/* check for tx results */
+			if (wl->fw_status->tx_results_counter !=
+			    (wl->tx_results_count & 0xff))
+				wl1271_tx_complete(wl);
+
+			wl1271_rx(wl, wl->fw_status);
+		}
+
+		if (intr & WL1271_ACX_INTR_EVENT_A) {
+			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_A");
+			wl1271_event_handle(wl, 0);
+		}
+
+		if (intr & WL1271_ACX_INTR_EVENT_B) {
+			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_B");
+			wl1271_event_handle(wl, 1);
+		}
+
+		if (intr & WL1271_ACX_INTR_INIT_COMPLETE)
+			wl1271_debug(DEBUG_IRQ,
+				     "WL1271_ACX_INTR_INIT_COMPLETE");
+
+		if (intr & WL1271_ACX_INTR_HW_AVAILABLE)
+			wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_HW_AVAILABLE");
+
+		spin_lock_irqsave(&wl->wl_lock, flags);
 	}
 
-	intr &= WL1271_INTR_MASK;
+	if (test_bit(WL1271_FLAG_IRQ_PENDING, &wl->flags))
+		ieee80211_queue_work(wl->hw, &wl->irq_work);
+	else
+		clear_bit(WL1271_FLAG_IRQ_RUNNING, &wl->flags);
+	spin_unlock_irqrestore(&wl->wl_lock, flags);
 
-	if (intr & WL1271_ACX_INTR_EVENT_A) {
-		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_A");
-		wl1271_event_handle(wl, 0);
-	}
-
-	if (intr & WL1271_ACX_INTR_EVENT_B) {
-		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_EVENT_B");
-		wl1271_event_handle(wl, 1);
-	}
-
-	if (intr & WL1271_ACX_INTR_INIT_COMPLETE)
-		wl1271_debug(DEBUG_IRQ,
-			     "WL1271_ACX_INTR_INIT_COMPLETE");
-
-	if (intr & WL1271_ACX_INTR_HW_AVAILABLE)
-		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_HW_AVAILABLE");
-
-	if (intr & WL1271_ACX_INTR_DATA) {
-		u8 tx_res_cnt = wl->fw_status->tx_results_counter -
-			wl->tx_results_count;
-
-		wl1271_debug(DEBUG_IRQ, "WL1271_ACX_INTR_DATA");
-
-		/* check for tx results */
-		if (tx_res_cnt)
-			wl1271_tx_complete(wl, tx_res_cnt);
-
-		wl1271_rx(wl, wl->fw_status);
-	}
-
-out_sleep:
-	wl1271_write32(wl, ACX_REG_INTERRUPT_MASK,
-		       WL1271_ACX_INTR_ALL & ~(WL1271_INTR_MASK));
 	wl1271_ps_elp_sleep(wl);
 
 out:
 	mutex_unlock(&wl->mutex);
-}
-
-static irqreturn_t wl1271_irq(int irq, void *cookie)
-{
-	struct wl1271 *wl;
-	unsigned long flags;
-
-	wl1271_debug(DEBUG_IRQ, "IRQ");
-
-	wl = cookie;
-
-	/* complete the ELP completion */
-	spin_lock_irqsave(&wl->wl_lock, flags);
-	if (wl->elp_compl) {
-		complete(wl->elp_compl);
-		wl->elp_compl = NULL;
-	}
-
-	ieee80211_queue_work(wl->hw, &wl->irq_work);
-	spin_unlock_irqrestore(&wl->wl_lock, flags);
-
-	return IRQ_HANDLED;
 }
 
 static int wl1271_fetch_firmware(struct wl1271 *wl)
@@ -511,7 +493,7 @@ static int wl1271_fetch_firmware(struct wl1271 *wl)
 	const struct firmware *fw;
 	int ret;
 
-	ret = request_firmware(&fw, WL1271_FW_NAME, &wl->spi->dev);
+	ret = request_firmware(&fw, WL1271_FW_NAME, wl1271_wl_to_dev(wl));
 
 	if (ret < 0) {
 		wl1271_error("could not get firmware: %d", ret);
@@ -583,7 +565,7 @@ static int wl1271_fetch_nvs(struct wl1271 *wl)
 	const struct firmware *fw;
 	int ret;
 
-	ret = request_firmware(&fw, WL1271_NVS_NAME, &wl->spi->dev);
+	ret = request_firmware(&fw, WL1271_NVS_NAME, wl1271_wl_to_dev(wl));
 
 	if (ret < 0) {
 		wl1271_error("could not get nvs file: %d", ret);
@@ -825,15 +807,13 @@ static int wl1271_op_tx(struct ieee80211_hw *hw, struct sk_buff *skb)
 	 * The workqueue is slow to process the tx_queue and we need stop
 	 * the queue here, otherwise the queue will get too long.
 	 */
-	if (skb_queue_len(&wl->tx_queue) >= WL1271_TX_QUEUE_MAX_LENGTH) {
-		ieee80211_stop_queues(wl->hw);
+	if (skb_queue_len(&wl->tx_queue) >= WL1271_TX_QUEUE_HIGH_WATERMARK) {
+		wl1271_debug(DEBUG_TX, "op_tx: stopping queues");
 
-		/*
-		 * FIXME: this is racy, the variable is not properly
-		 * protected. Maybe fix this by removing the stupid
-		 * variable altogether and checking the real queue state?
-		 */
+		spin_lock_irqsave(&wl->wl_lock, flags);
+		ieee80211_stop_queues(wl->hw);
 		set_bit(WL1271_FLAG_TX_QUEUE_STOPPED, &wl->flags);
+		spin_unlock_irqrestore(&wl->wl_lock, flags);
 	}
 
 	return NETDEV_TX_OK;
@@ -1040,8 +1020,7 @@ static void wl1271_op_stop(struct ieee80211_hw *hw)
 	wl->tx_results_count = 0;
 	wl->tx_packets_count = 0;
 	wl->tx_security_last_seq = 0;
-	wl->tx_security_seq_16 = 0;
-	wl->tx_security_seq_32 = 0;
+	wl->tx_security_seq = 0;
 	wl->time_offset = 0;
 	wl->session_counter = 0;
 	wl->rate_set = CONF_TX_RATE_MASK_BASIC;
@@ -1127,7 +1106,7 @@ static int wl1271_op_config_interface(struct ieee80211_hw *hw,
 
 		memcpy(wl->bssid, conf->bssid, ETH_ALEN);
 
-		ret = wl1271_cmd_join(wl);
+		ret = wl1271_cmd_join(wl, wl->bss_type);
 		if (ret < 0)
 			goto out_sleep;
 
@@ -1176,17 +1155,16 @@ static int wl1271_join_channel(struct wl1271 *wl, int channel)
 	static const u8 dummy_bssid[ETH_ALEN] = { 0x0b, 0xad, 0xde,
 						  0xad, 0xbe, 0xef };
 
-	/* the dummy join is not required for ad-hoc */
-	if (wl->bss_type == BSS_TYPE_IBSS)
-		goto out;
-
 	/* disable mac filter, so we hear everything */
 	wl->rx_config &= ~CFG_BSSID_FILTER_EN;
 
 	wl->channel = channel;
 	memcpy(wl->bssid, dummy_bssid, ETH_ALEN);
 
-	ret = wl1271_cmd_join(wl);
+	/* the dummy join is performed always with STATION BSS type to allow
+	   also ad-hoc mode to listen to the surroundings without sending any
+	   beacons yet. */
+	ret = wl1271_cmd_join(wl, BSS_TYPE_STA_BSS);
 	if (ret < 0)
 		goto out;
 
@@ -1255,7 +1233,7 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 	    test_bit(WL1271_FLAG_JOINED, &wl->flags)) {
 		wl->channel = channel;
 		/* FIXME: maybe use CMD_CHANNEL_SWITCH for this? */
-		ret = wl1271_cmd_join(wl);
+		ret = wl1271_cmd_join(wl, wl->bss_type);
 		if (ret < 0)
 			wl1271_warning("cmd join to update channel failed %d",
 				       ret);
@@ -1272,13 +1250,13 @@ static int wl1271_op_config(struct ieee80211_hw *hw, u32 changed)
 		 * through the bss_info_changed() hook.
 		 */
 		if (test_bit(WL1271_FLAG_STA_ASSOCIATED, &wl->flags)) {
-			wl1271_info("psm enabled");
+			wl1271_debug(DEBUG_PSM, "psm enabled");
 			ret = wl1271_ps_set_mode(wl, STATION_POWER_SAVE_MODE,
 						 true);
 		}
 	} else if (!(conf->flags & IEEE80211_CONF_PS) &&
 		   test_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags)) {
-		wl1271_info("psm disabled");
+		wl1271_debug(DEBUG_PSM, "psm disabled");
 
 		clear_bit(WL1271_FLAG_PSM_REQUESTED, &wl->flags);
 
@@ -1449,15 +1427,15 @@ static int wl1271_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		key_type = KEY_TKIP;
 
 		key_conf->hw_key_idx = key_conf->keyidx;
-		tx_seq_32 = wl->tx_security_seq_32;
-		tx_seq_16 = wl->tx_security_seq_16;
+		tx_seq_32 = WL1271_TX_SECURITY_HI32(wl->tx_security_seq);
+		tx_seq_16 = WL1271_TX_SECURITY_LO16(wl->tx_security_seq);
 		break;
 	case ALG_CCMP:
 		key_type = KEY_AES;
 
 		key_conf->flags |= IEEE80211_KEY_FLAG_GENERATE_IV;
-		tx_seq_32 = wl->tx_security_seq_32;
-		tx_seq_16 = wl->tx_security_seq_16;
+		tx_seq_32 = WL1271_TX_SECURITY_HI32(wl->tx_security_seq);
+		tx_seq_16 = WL1271_TX_SECURITY_LO16(wl->tx_security_seq);
 		break;
 	default:
 		wl1271_error("Unknown key algo 0x%x", key_conf->alg);
@@ -1738,7 +1716,7 @@ static void wl1271_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (do_join) {
-		ret = wl1271_cmd_join(wl);
+		ret = wl1271_cmd_join(wl, wl->bss_type);
 		if (ret < 0) {
 			wl1271_warning("cmd join failed %d", ret);
 			goto out_sleep;
@@ -1959,7 +1937,7 @@ static const struct ieee80211_ops wl1271_ops = {
 	CFG80211_TESTMODE_CMD(wl1271_tm_cmd)
 };
 
-static int wl1271_register_hw(struct wl1271 *wl)
+int wl1271_register_hw(struct wl1271 *wl)
 {
 	int ret;
 
@@ -1980,8 +1958,9 @@ static int wl1271_register_hw(struct wl1271 *wl)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(wl1271_register_hw);
 
-static int wl1271_init_ieee80211(struct wl1271 *wl)
+int wl1271_init_ieee80211(struct wl1271 *wl)
 {
 	/* The tx descriptor buffer and the TKIP space. */
 	wl->hw->extra_tx_headroom = WL1271_TKIP_IV_SPACE +
@@ -1994,7 +1973,8 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	wl->hw->flags = IEEE80211_HW_SIGNAL_DBM |
 		IEEE80211_HW_NOISE_DBM |
 		IEEE80211_HW_BEACON_FILTER |
-		IEEE80211_HW_SUPPORTS_PS;
+		IEEE80211_HW_SUPPORTS_PS |
+		IEEE80211_HW_HAS_RATE_CONTROL;
 
 	wl->hw->wiphy->interface_modes = BIT(NL80211_IFTYPE_STATION) |
 		BIT(NL80211_IFTYPE_ADHOC);
@@ -2004,29 +1984,15 @@ static int wl1271_init_ieee80211(struct wl1271 *wl)
 	if (wl1271_11a_enabled())
 		wl->hw->wiphy->bands[IEEE80211_BAND_5GHZ] = &wl1271_band_5ghz;
 
-	SET_IEEE80211_DEV(wl->hw, &wl->spi->dev);
+	SET_IEEE80211_DEV(wl->hw, wl1271_wl_to_dev(wl));
 
 	return 0;
 }
-
-static void wl1271_device_release(struct device *dev)
-{
-
-}
-
-static struct platform_device wl1271_device = {
-	.name           = "wl1271",
-	.id             = -1,
-
-	/* device model insists to have a release function */
-	.dev            = {
-		.release = wl1271_device_release,
-	},
-};
+EXPORT_SYMBOL_GPL(wl1271_init_ieee80211);
 
 #define WL1271_DEFAULT_CHANNEL 0
 
-static struct ieee80211_hw *wl1271_alloc_hw(void)
+struct ieee80211_hw *wl1271_alloc_hw(void)
 {
 	struct ieee80211_hw *hw;
 	struct wl1271 *wl;
@@ -2073,8 +2039,11 @@ static struct ieee80211_hw *wl1271_alloc_hw(void)
 	/* Apply default driver configuration. */
 	wl1271_conf_init(wl);
 
+	wl1271_debugfs_init(wl);
+
 	return hw;
 }
+EXPORT_SYMBOL_GPL(wl1271_alloc_hw);
 
 int wl1271_free_hw(struct wl1271 *wl)
 {
@@ -2095,145 +2064,8 @@ int wl1271_free_hw(struct wl1271 *wl)
 
 	return 0;
 }
-
-static int __devinit wl1271_probe(struct spi_device *spi)
-{
-	struct wl12xx_platform_data *pdata;
-	struct ieee80211_hw *hw;
-	struct wl1271 *wl;
-	int ret;
-
-	pdata = spi->dev.platform_data;
-	if (!pdata) {
-		wl1271_error("no platform data");
-		return -ENODEV;
-	}
-
-	hw = wl1271_alloc_hw();
-	if (IS_ERR(hw))
-		return PTR_ERR(hw);
-
-	wl = hw->priv;
-
-	dev_set_drvdata(&spi->dev, wl);
-	wl->spi = spi;
-
-	/* This is the only SPI value that we need to set here, the rest
-	 * comes from the board-peripherals file */
-	spi->bits_per_word = 32;
-
-	ret = spi_setup(spi);
-	if (ret < 0) {
-		wl1271_error("spi_setup failed");
-		goto out_free;
-	}
-
-	wl->set_power = pdata->set_power;
-	if (!wl->set_power) {
-		wl1271_error("set power function missing in platform data");
-		ret = -ENODEV;
-		goto out_free;
-	}
-
-	wl->irq = spi->irq;
-	if (wl->irq < 0) {
-		wl1271_error("irq missing in platform data");
-		ret = -ENODEV;
-		goto out_free;
-	}
-
-	ret = request_irq(wl->irq, wl1271_irq, 0, DRIVER_NAME, wl);
-	if (ret < 0) {
-		wl1271_error("request_irq() failed: %d", ret);
-		goto out_free;
-	}
-
-	set_irq_type(wl->irq, IRQ_TYPE_EDGE_RISING);
-
-	disable_irq(wl->irq);
-
-	ret = platform_device_register(&wl1271_device);
-	if (ret) {
-		wl1271_error("couldn't register platform device");
-		goto out_irq;
-	}
-	dev_set_drvdata(&wl1271_device.dev, wl);
-
-	ret = wl1271_init_ieee80211(wl);
-	if (ret)
-		goto out_platform;
-
-	ret = wl1271_register_hw(wl);
-	if (ret)
-		goto out_platform;
-
-	wl1271_debugfs_init(wl);
-
-	wl1271_notice("initialized");
-
-	return 0;
-
- out_platform:
-	platform_device_unregister(&wl1271_device);
-
- out_irq:
-	free_irq(wl->irq, wl);
-
- out_free:
-	ieee80211_free_hw(hw);
-
-	return ret;
-}
-
-static int __devexit wl1271_remove(struct spi_device *spi)
-{
-	struct wl1271 *wl = dev_get_drvdata(&spi->dev);
-
-	platform_device_unregister(&wl1271_device);
-	free_irq(wl->irq, wl);
-
-	wl1271_free_hw(wl);
-
-	return 0;
-}
-
-
-static struct spi_driver wl1271_spi_driver = {
-	.driver = {
-		.name		= "wl1271",
-		.bus		= &spi_bus_type,
-		.owner		= THIS_MODULE,
-	},
-
-	.probe		= wl1271_probe,
-	.remove		= __devexit_p(wl1271_remove),
-};
-
-static int __init wl1271_init(void)
-{
-	int ret;
-
-	ret = spi_register_driver(&wl1271_spi_driver);
-	if (ret < 0) {
-		wl1271_error("failed to register spi driver: %d", ret);
-		goto out;
-	}
-
-out:
-	return ret;
-}
-
-static void __exit wl1271_exit(void)
-{
-	spi_unregister_driver(&wl1271_spi_driver);
-
-	wl1271_notice("unloaded");
-}
-
-module_init(wl1271_init);
-module_exit(wl1271_exit);
+EXPORT_SYMBOL_GPL(wl1271_free_hw);
 
 MODULE_LICENSE("GPL");
 MODULE_AUTHOR("Luciano Coelho <luciano.coelho@nokia.com>");
 MODULE_AUTHOR("Juuso Oikarinen <juuso.oikarinen@nokia.com>");
-MODULE_FIRMWARE(WL1271_FW_NAME);

@@ -1151,7 +1151,8 @@ static void ath9k_hw_init_interrupt_masks(struct ath_hw *ah,
 		ah->mask_reg |= AR_IMR_MIB;
 
 	REG_WRITE(ah, AR_IMR, ah->mask_reg);
-	REG_WRITE(ah, AR_IMR_S2, REG_READ(ah, AR_IMR_S2) | AR_IMR_S2_GTT);
+	ah->imrs2_reg |= AR_IMR_S2_GTT;
+	REG_WRITE(ah, AR_IMR_S2, ah->imrs2_reg);
 
 	if (!AR_SREV_9100(ah)) {
 		REG_WRITE(ah, AR_INTR_SYNC_CAUSE, 0xFFFFFFFF);
@@ -2920,14 +2921,11 @@ enum ath9k_int ath9k_hw_set_interrupts(struct ath_hw *ah, enum ath9k_int ints)
 
 	ath_print(common, ATH_DBG_INTERRUPT, "new IMR 0x%x\n", mask);
 	REG_WRITE(ah, AR_IMR, mask);
-	mask = REG_READ(ah, AR_IMR_S2) & ~(AR_IMR_S2_TIM |
-					   AR_IMR_S2_DTIM |
-					   AR_IMR_S2_DTIMSYNC |
-					   AR_IMR_S2_CABEND |
-					   AR_IMR_S2_CABTO |
-					   AR_IMR_S2_TSFOOR |
-					   AR_IMR_S2_GTT | AR_IMR_S2_CST);
-	REG_WRITE(ah, AR_IMR_S2, mask | mask2);
+	ah->imrs2_reg &= ~(AR_IMR_S2_TIM | AR_IMR_S2_DTIM | AR_IMR_S2_DTIMSYNC |
+			   AR_IMR_S2_CABEND | AR_IMR_S2_CABTO |
+			   AR_IMR_S2_TSFOOR | AR_IMR_S2_GTT | AR_IMR_S2_CST);
+	ah->imrs2_reg |= mask2;
+	REG_WRITE(ah, AR_IMR_S2, ah->imrs2_reg);
 	ah->mask_reg = ints;
 
 	if (!(pCap->hw_caps & ATH9K_HW_CAP_AUTOSLEEP)) {

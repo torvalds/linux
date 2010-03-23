@@ -29,7 +29,6 @@
 
 #include "wl1271.h"
 #include "wl1271_reg.h"
-#include "wl1271_spi.h"
 #include "wl1271_io.h"
 #include "wl1271_acx.h"
 #include "wl12xx_80211.h"
@@ -248,7 +247,7 @@ int wl1271_cmd_radio_parms(struct wl1271 *wl)
 	return ret;
 }
 
-int wl1271_cmd_join(struct wl1271 *wl)
+int wl1271_cmd_join(struct wl1271 *wl, u8 bss_type)
 {
 	static bool do_cal = true;
 	struct wl1271_cmd_join *join;
@@ -279,7 +278,7 @@ int wl1271_cmd_join(struct wl1271 *wl)
 
 	join->rx_config_options = cpu_to_le32(wl->rx_config);
 	join->rx_filter_options = cpu_to_le32(wl->rx_filter);
-	join->bss_type = wl->bss_type;
+	join->bss_type = bss_type;
 
 	/*
 	 * FIXME: disable temporarily all filters because after commit
@@ -319,8 +318,7 @@ int wl1271_cmd_join(struct wl1271 *wl)
 
 	/* reset TX security counters */
 	wl->tx_security_last_seq = 0;
-	wl->tx_security_seq_16 = 0;
-	wl->tx_security_seq_32 = 0;
+	wl->tx_security_seq = 0;
 
 	ret = wl1271_cmd_send(wl, CMD_START_JOIN, join, sizeof(*join), 0);
 	if (ret < 0) {
