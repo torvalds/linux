@@ -422,5 +422,6 @@ enum ar9170_txq {
 
 #define AR9170_TXQ_DEPTH	32
 #define AR9170_TX_MAX_PENDING	128
+#define AR9170_RX_STREAM_MAX_SIZE 65535
 
 #endif /* __AR9170_HW_H */
