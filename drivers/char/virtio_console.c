@@ -646,12 +646,12 @@ static int put_chars(u32 vtermno, const char *buf, int count)
 {
 	struct port *port;
 
+	if (unlikely(early_put_chars))
+		return early_put_chars(vtermno, buf, count);
+
 	port = find_port_by_vtermno(vtermno);
 	if (!port)
 		return 0;
-
-	if (unlikely(early_put_chars))
-		return early_put_chars(vtermno, buf, count);
 
 	return send_buf(port, (void *)buf, count);
 }
