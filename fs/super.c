@@ -602,10 +602,10 @@ int do_remount_sb(struct super_block *sb, int flags, void *data, int force)
 
 static void do_emergency_remount(struct work_struct *work)
 {
-	struct super_block *sb;
+	struct super_block *sb, *n;
 
 	spin_lock(&sb_lock);
-	list_for_each_entry(sb, &super_blocks, s_list) {
+	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
 		if (list_empty(&sb->s_instances))
 			continue;
 		sb->s_count++;
@@ -618,8 +618,8 @@ static void do_emergency_remount(struct work_struct *work)
 			do_remount_sb(sb, MS_RDONLY, NULL, 1);
 		}
 		up_write(&sb->s_umount);
-		put_super(sb);
 		spin_lock(&sb_lock);
+		__put_super(sb);
 	}
 	spin_unlock(&sb_lock);
 	kfree(work);
