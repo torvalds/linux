@@ -108,6 +108,7 @@ static const char * scsi_debug_version_date = "20100324";
 #define DEF_ATO 1
 #define DEF_PHYSBLK_EXP 0
 #define DEF_LOWEST_ALIGNED 0
+#define DEF_OPT_BLKS 64
 #define DEF_UNMAP_MAX_BLOCKS 0
 #define DEF_UNMAP_MAX_DESC 0
 #define DEF_UNMAP_GRANULARITY 0
@@ -175,6 +176,7 @@ static int scsi_debug_guard = DEF_GUARD;
 static int scsi_debug_ato = DEF_ATO;
 static int scsi_debug_physblk_exp = DEF_PHYSBLK_EXP;
 static int scsi_debug_lowest_aligned = DEF_LOWEST_ALIGNED;
+static int scsi_debug_opt_blks = DEF_OPT_BLKS;
 static int scsi_debug_unmap_max_desc = DEF_UNMAP_MAX_DESC;
 static int scsi_debug_unmap_max_blocks = DEF_UNMAP_MAX_BLOCKS;
 static int scsi_debug_unmap_granularity = DEF_UNMAP_GRANULARITY;
@@ -704,15 +706,22 @@ static int inquiry_evpd_b0(unsigned char * arr)
 	unsigned int gran;
 
 	memcpy(arr, vpdb0_data, sizeof(vpdb0_data));
+
+	/* Optimal transfer length granularity */
 	gran = 1 << scsi_debug_physblk_exp;
 	arr[2] = (gran >> 8) & 0xff;
 	arr[3] = gran & 0xff;
+
+	/* Maximum Transfer Length */
 	if (sdebug_store_sectors > 0x400) {
 		arr[4] = (sdebug_store_sectors >> 24) & 0xff;
 		arr[5] = (sdebug_store_sectors >> 16) & 0xff;
 		arr[6] = (sdebug_store_sectors >> 8) & 0xff;
 		arr[7] = sdebug_store_sectors & 0xff;
 	}
+
+	/* Optimal Transfer Length */
+	put_unaligned_be32(scsi_debug_opt_blks, &arr[8]);
 
 	if (scsi_debug_unmap_max_desc) {
 		unsigned int blocks;
@@ -722,15 +731,20 @@ static int inquiry_evpd_b0(unsigned char * arr)
 		else
 			blocks = 0xffffffff;
 
+		/* Maximum Unmap LBA Count */
 		put_unaligned_be32(blocks, &arr[16]);
+
+		/* Maximum Unmap Block Descriptor Count */
 		put_unaligned_be32(scsi_debug_unmap_max_desc, &arr[20]);
 	}
 
+	/* Unmap Granularity Alignment */
 	if (scsi_debug_unmap_alignment) {
 		put_unaligned_be32(scsi_debug_unmap_alignment, &arr[28]);
 		arr[28] |= 0x80; /* UGAVALID */
 	}
 
+	/* Optimal Unmap Granularity */
 	if (scsi_debug_unmap_granularity) {
 		put_unaligned_be32(scsi_debug_unmap_granularity, &arr[24]);
 		return 0x3c; /* Mandatory page length for thin provisioning */
@@ -2685,6 +2699,7 @@ module_param_named(dif, scsi_debug_dif, int, S_IRUGO);
 module_param_named(guard, scsi_debug_guard, int, S_IRUGO);
 module_param_named(ato, scsi_debug_ato, int, S_IRUGO);
 module_param_named(physblk_exp, scsi_debug_physblk_exp, int, S_IRUGO);
+module_param_named(opt_blks, scsi_debug_opt_blks, int, S_IRUGO);
 module_param_named(lowest_aligned, scsi_debug_lowest_aligned, int, S_IRUGO);
 module_param_named(unmap_max_blocks, scsi_debug_unmap_max_blocks, int, S_IRUGO);
 module_param_named(unmap_max_desc, scsi_debug_unmap_max_desc, int, S_IRUGO);
@@ -2715,6 +2730,7 @@ MODULE_PARM_DESC(virtual_gb, "virtual gigabyte size (def=0 -> use dev_size_mb)")
 MODULE_PARM_DESC(vpd_use_hostno, "0 -> dev ids ignore hostno (def=1 -> unique dev ids)");
 MODULE_PARM_DESC(sector_size, "logical block size in bytes (def=512)");
 MODULE_PARM_DESC(physblk_exp, "physical block exponent (def=0)");
+MODULE_PARM_DESC(opt_blks, "optimal transfer length in block (def=64)");
 MODULE_PARM_DESC(lowest_aligned, "lowest aligned lba (def=0)");
 MODULE_PARM_DESC(dix, "data integrity extensions mask (def=0)");
 MODULE_PARM_DESC(dif, "data integrity field type: 0-3 (def=0)");
