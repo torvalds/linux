@@ -395,11 +395,10 @@ EXPORT_SYMBOL(drop_super);
  */
 void sync_supers(void)
 {
-	struct super_block *sb;
+	struct super_block *sb, *n;
 
 	spin_lock(&sb_lock);
-restart:
-	list_for_each_entry(sb, &super_blocks, s_list) {
+	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
 		if (list_empty(&sb->s_instances))
 			continue;
 		if (sb->s_op->write_super && sb->s_dirt) {
@@ -412,8 +411,7 @@ restart:
 			up_read(&sb->s_umount);
 
 			spin_lock(&sb_lock);
-			if (__put_super_and_need_restart(sb))
-				goto restart;
+			__put_super(sb);
 		}
 	}
 	spin_unlock(&sb_lock);
