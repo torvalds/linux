@@ -141,7 +141,7 @@ static const struct dmi_system_id __initdata mbp_device_table[] = {
 		.callback	= mbp_dmi_match,
 		.ident		= "MacBook 1,1",
 		.matches	= {
-			DMI_MATCH(DMI_SYS_VENDOR, "Apple Inc."),
+			DMI_MATCH(DMI_SYS_VENDOR, "Apple Computer, Inc."),
 			DMI_MATCH(DMI_PRODUCT_NAME, "MacBook1,1"),
 		},
 		.driver_data	= (void *)&intel_chipset_data,
