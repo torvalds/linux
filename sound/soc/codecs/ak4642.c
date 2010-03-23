@@ -80,12 +80,18 @@
 
 #define AK4642_CACHEREGNUM 	0x25
 
+/* MD_CTL1 */
+#define PLL3		(1 << 7)
+#define PLL2		(1 << 6)
+#define PLL1		(1 << 5)
+#define PLL0		(1 << 4)
+#define PLL_MASK	(PLL3 | PLL2 | PLL1 | PLL0)
+
 struct snd_soc_codec_device soc_codec_dev_ak4642;
 
 /* codec private data */
 struct ak4642_priv {
 	struct snd_soc_codec codec;
-	unsigned int sysclk;
 };
 
 static struct snd_soc_codec *ak4642_codec;
@@ -249,9 +255,32 @@ static int ak4642_dai_set_sysclk(struct snd_soc_dai *codec_dai,
 	int clk_id, unsigned int freq, int dir)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
-	struct ak4642_priv *ak4642 = codec->private_data;
+	u8 pll;
 
-	ak4642->sysclk = freq;
+	switch (freq) {
+	case 11289600:
+		pll = PLL2;
+		break;
+	case 12288000:
+		pll = PLL2 | PLL0;
+		break;
+	case 12000000:
+		pll = PLL2 | PLL1;
+		break;
+	case 24000000:
+		pll = PLL2 | PLL1 | PLL0;
+		break;
+	case 13500000:
+		pll = PLL3 | PLL2;
+		break;
+	case 27000000:
+		pll = PLL3 | PLL2 | PLL0;
+		break;
+	default:
+		return -EINVAL;
+	}
+	snd_soc_update_bits(codec, MD_CTL1, PLL_MASK, pll);
+
 	return 0;
 }
 
@@ -342,7 +371,6 @@ static int ak4642_init(struct ak4642_priv *ak4642)
 	 *
 	 * Audio I/F Format: MSB justified (ADC & DAC)
 	 * BICK frequency at Master Mode: 64fs
-	 * Input Master Clock Select at PLL Mode: 11.2896MHz
 	 * MCKO: Enable
 	 * Sampling Frequency: 44.1kHz
 	 *
@@ -352,10 +380,8 @@ static int ak4642_init(struct ak4642_priv *ak4642)
 	 * please fix-me
 	 */
 	ak4642_write(codec, 0x01, 0x08);
-	ak4642_write(codec, 0x04, 0x4a);
 	ak4642_write(codec, 0x05, 0x27);
-	ak4642_write(codec, 0x00, 0x40);
-	ak4642_write(codec, 0x01, 0x0b);
+	ak4642_write(codec, 0x04, 0x0a);
 
 	return ret;
 
