@@ -70,8 +70,8 @@ static void qla2x00_free_device(scsi_qla_host_t *);
 int ql2xfdmienable=1;
 module_param(ql2xfdmienable, int, S_IRUGO|S_IRUSR);
 MODULE_PARM_DESC(ql2xfdmienable,
-		"Enables FDMI registratons "
-		"Default is 0 - no FDMI. 1 - perfom FDMI.");
+		"Enables FDMI registrations. "
+		"0 - no FDMI. Default is 1 - perform FDMI.");
 
 #define MAX_Q_DEPTH    32
 static int ql2xmaxqdepth = MAX_Q_DEPTH;
