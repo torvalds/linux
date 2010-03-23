@@ -753,8 +753,7 @@ static int soc_camera_g_crop(struct file *file, void *fh,
 /*
  * According to the V4L2 API, drivers shall not update the struct v4l2_crop
  * argument with the actual geometry, instead, the user shall use G_CROP to
- * retrieve it. However, we expect camera host and client drivers to update
- * the argument, which we then use internally, but do not return to the user.
+ * retrieve it.
  */
 static int soc_camera_s_crop(struct file *file, void *fh,
 			     struct v4l2_crop *a)
