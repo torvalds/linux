@@ -31,20 +31,20 @@
 #include <asm/memory.h>
 #include <asm/mach/map.h>
 #include <mach/common.h>
-#include <mach/board-mx31pdk.h>
+#include <mach/board-mx31_3ds.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include "devices.h"
 
 /*!
- * @file mx31pdk.c
+ * @file mx31_3ds.c
  *
  * @brief This file contains the board-specific initialization routines.
  *
  * @ingroup System
  */
 
-static int mx31pdk_pins[] = {
+static int mx31_3ds_pins[] = {
 	/* UART1 */
 	MX31_PIN_CTS1__CTS1,
 	MX31_PIN_RTS1__RTS1,
@@ -95,7 +95,7 @@ static struct platform_device smsc911x_device = {
  * LEDs, switches, interrupts for Ethernet.
  */
 
-static void mx31pdk_expio_irq_handler(uint32_t irq, struct irq_desc *desc)
+static void mx31_3ds_expio_irq_handler(uint32_t irq, struct irq_desc *desc)
 {
 	uint32_t imr_val;
 	uint32_t int_valid;
@@ -163,7 +163,7 @@ static struct irq_chip expio_irq_chip = {
 	.unmask = expio_unmask_irq,
 };
 
-static int __init mx31pdk_init_expio(void)
+static int __init mx31_3ds_init_expio(void)
 {
 	int i;
 	int ret;
@@ -176,7 +176,7 @@ static int __init mx31pdk_init_expio(void)
 		return -ENODEV;
 	}
 
-	pr_info("i.MX31PDK Debug board detected, rev = 0x%04X\n",
+	pr_info("i.MX31 3DS Debug board detected, rev = 0x%04X\n",
 		__raw_readw(CPLD_CODE_VER_REG));
 
 	/*
@@ -201,7 +201,7 @@ static int __init mx31pdk_init_expio(void)
 		set_irq_flags(i, IRQF_VALID);
 	}
 	set_irq_type(EXPIO_PARENT_INT, IRQ_TYPE_LEVEL_LOW);
-	set_irq_chained_handler(EXPIO_PARENT_INT, mx31pdk_expio_irq_handler);
+	set_irq_chained_handler(EXPIO_PARENT_INT, mx31_3ds_expio_irq_handler);
 
 	return 0;
 }
@@ -209,7 +209,7 @@ static int __init mx31pdk_init_expio(void)
 /*
  * This structure defines the MX31 memory map.
  */
-static struct map_desc mx31pdk_io_desc[] __initdata = {
+static struct map_desc mx31_3ds_io_desc[] __initdata = {
 	{
 		.virtual = MX31_CS5_BASE_ADDR_VIRT,
 		.pfn = __phys_to_pfn(MX31_CS5_BASE_ADDR),
@@ -221,10 +221,10 @@ static struct map_desc mx31pdk_io_desc[] __initdata = {
 /*
  * Set up static virtual mappings.
  */
-static void __init mx31pdk_map_io(void)
+static void __init mx31_3ds_map_io(void)
 {
 	mx31_map_io();
-	iotable_init(mx31pdk_io_desc, ARRAY_SIZE(mx31pdk_io_desc));
+	iotable_init(mx31_3ds_io_desc, ARRAY_SIZE(mx31_3ds_io_desc));
 }
 
 /*!
@@ -232,35 +232,35 @@ static void __init mx31pdk_map_io(void)
  */
 static void __init mxc_board_init(void)
 {
-	mxc_iomux_setup_multiple_pins(mx31pdk_pins, ARRAY_SIZE(mx31pdk_pins),
-				      "mx31pdk");
+	mxc_iomux_setup_multiple_pins(mx31_3ds_pins, ARRAY_SIZE(mx31_3ds_pins),
+				      "mx31_3ds");
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 
-	if (!mx31pdk_init_expio())
+	if (!mx31_3ds_init_expio())
 		platform_device_register(&smsc911x_device);
 }
 
-static void __init mx31pdk_timer_init(void)
+static void __init mx31_3ds_timer_init(void)
 {
 	mx31_clocks_init(26000000);
 }
 
-static struct sys_timer mx31pdk_timer = {
-	.init	= mx31pdk_timer_init,
+static struct sys_timer mx31_3ds_timer = {
+	.init	= mx31_3ds_timer_init,
 };
 
 /*
  * The following uses standard kernel macros defined in arch.h in order to
- * initialize __mach_desc_MX31PDK data structure.
+ * initialize __mach_desc_MX31_3DS data structure.
  */
 MACHINE_START(MX31_3DS, "Freescale MX31PDK (3DS)")
 	/* Maintainer: Freescale Semiconductor, Inc. */
 	.phys_io	= MX31_AIPS1_BASE_ADDR,
 	.io_pg_offst	= (MX31_AIPS1_BASE_ADDR_VIRT >> 18) & 0xfffc,
 	.boot_params    = MX3x_PHYS_OFFSET + 0x100,
-	.map_io         = mx31pdk_map_io,
+	.map_io         = mx31_3ds_map_io,
 	.init_irq       = mx31_init_irq,
 	.init_machine   = mxc_board_init,
-	.timer          = &mx31pdk_timer,
+	.timer          = &mx31_3ds_timer,
 MACHINE_END
