@@ -2537,21 +2537,6 @@ static void ixgbe_restore_vlan(struct ixgbe_adapter *adapter)
 	}
 }
 
-static u8 *ixgbe_addr_list_itr(struct ixgbe_hw *hw, u8 **mc_addr_ptr, u32 *vmdq)
-{
-	struct dev_mc_list *mc_ptr;
-	u8 *addr = *mc_addr_ptr;
-	*vmdq = 0;
-
-	mc_ptr = container_of(addr, struct dev_mc_list, dmi_addr[0]);
-	if (mc_ptr->next)
-		*mc_addr_ptr = mc_ptr->next->dmi_addr;
-	else
-		*mc_addr_ptr = NULL;
-
-	return addr;
-}
-
 /**
  * ixgbe_set_rx_mode - Unicast, Multicast and Promiscuous mode set
  * @netdev: network interface device structure
@@ -2566,8 +2551,6 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 	struct ixgbe_adapter *adapter = netdev_priv(netdev);
 	struct ixgbe_hw *hw = &adapter->hw;
 	u32 fctrl, vlnctrl;
-	u8 *addr_list = NULL;
-	int addr_count = 0;
 
 	/* Check for Promiscuous and All Multicast modes */
 
@@ -2596,11 +2579,8 @@ void ixgbe_set_rx_mode(struct net_device *netdev)
 	hw->mac.ops.update_uc_addr_list(hw, netdev);
 
 	/* reprogram multicast list */
-	addr_count = netdev_mc_count(netdev);
-	if (addr_count)
-		addr_list = netdev->mc_list->dmi_addr;
-	hw->mac.ops.update_mc_addr_list(hw, addr_list, addr_count,
-	                                ixgbe_addr_list_itr);
+	hw->mac.ops.update_mc_addr_list(hw, netdev);
+
 	if (adapter->num_vfs)
 		ixgbe_restore_vf_multicasts(adapter);
 }
