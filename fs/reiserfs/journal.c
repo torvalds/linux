@@ -2184,6 +2184,15 @@ static int journal_read_transaction(struct super_block *sb,
 		brelse(d_bh);
 		return 1;
 	}
+
+	if (bdev_read_only(sb->s_bdev)) {
+		reiserfs_warning(sb, "clm-2076",
+				 "device is readonly, unable to replay log");
+		brelse(c_bh);
+		brelse(d_bh);
+		return -EROFS;
+	}
+
 	trans_id = get_desc_trans_id(desc);
 	/* now we know we've got a good transaction, and it was inside the valid time ranges */
 	log_blocks = kmalloc(get_desc_trans_len(desc) *
@@ -2420,12 +2429,6 @@ static int journal_read(struct super_block *sb)
 		}
 		brelse(d_bh);
 		goto start_log_replay;
-	}
-
-	if (continue_replay && bdev_read_only(sb->s_bdev)) {
-		reiserfs_warning(sb, "clm-2076",
-				 "device is readonly, unable to replay log");
-		return -1;
 	}
 
 	/* ok, there are transactions that need to be replayed.  start with the first log block, find
