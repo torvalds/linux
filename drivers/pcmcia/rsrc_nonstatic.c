@@ -810,6 +810,13 @@ static int adjust_io(struct pcmcia_socket *s, unsigned int action, unsigned long
 	unsigned long size = end - start + 1;
 	int ret = 0;
 
+#if defined(CONFIG_X86)
+	/* on x86, avoid anything < 0x100 for it is often used for
+	 * legacy platform devices */
+	if (start < 0x100)
+		start = 0x100;
+#endif
+
 	if (end < start)
 		return -EINVAL;
 
