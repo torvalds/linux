@@ -46,22 +46,32 @@ struct ixgbe_stats {
 	int sizeof_stat;
 	int stat_offset;
 	int base_stat_offset;
+	int saved_reset_offset;
 };
 
-#define IXGBEVF_STAT(m, b)  sizeof(((struct ixgbevf_adapter *)0)->m), \
-			    offsetof(struct ixgbevf_adapter, m),      \
-			    offsetof(struct ixgbevf_adapter, b)
+#define IXGBEVF_STAT(m, b, r)  sizeof(((struct ixgbevf_adapter *)0)->m), \
+			    offsetof(struct ixgbevf_adapter, m),         \
+			    offsetof(struct ixgbevf_adapter, b),         \
+			    offsetof(struct ixgbevf_adapter, r)
 static struct ixgbe_stats ixgbe_gstrings_stats[] = {
-	{"rx_packets", IXGBEVF_STAT(stats.vfgprc, stats.base_vfgprc)},
-	{"tx_packets", IXGBEVF_STAT(stats.vfgptc, stats.base_vfgptc)},
-	{"rx_bytes", IXGBEVF_STAT(stats.vfgorc, stats.base_vfgorc)},
-	{"tx_bytes", IXGBEVF_STAT(stats.vfgotc, stats.base_vfgotc)},
-	{"tx_busy", IXGBEVF_STAT(tx_busy, zero_base)},
-	{"multicast", IXGBEVF_STAT(stats.vfmprc, stats.base_vfmprc)},
-	{"rx_csum_offload_good", IXGBEVF_STAT(hw_csum_rx_good, zero_base)},
-	{"rx_csum_offload_errors", IXGBEVF_STAT(hw_csum_rx_error, zero_base)},
-	{"tx_csum_offload_ctxt", IXGBEVF_STAT(hw_csum_tx_good, zero_base)},
-	{"rx_header_split", IXGBEVF_STAT(rx_hdr_split, zero_base)},
+	{"rx_packets", IXGBEVF_STAT(stats.vfgprc, stats.base_vfgprc,
+				    stats.saved_reset_vfgprc)},
+	{"tx_packets", IXGBEVF_STAT(stats.vfgptc, stats.base_vfgptc,
+				    stats.saved_reset_vfgptc)},
+	{"rx_bytes", IXGBEVF_STAT(stats.vfgorc, stats.base_vfgorc,
+				  stats.saved_reset_vfgorc)},
+	{"tx_bytes", IXGBEVF_STAT(stats.vfgotc, stats.base_vfgotc,
+				  stats.saved_reset_vfgotc)},
+	{"tx_busy", IXGBEVF_STAT(tx_busy, zero_base, zero_base)},
+	{"multicast", IXGBEVF_STAT(stats.vfmprc, stats.base_vfmprc,
+				   stats.saved_reset_vfmprc)},
+	{"rx_csum_offload_good", IXGBEVF_STAT(hw_csum_rx_good, zero_base,
+					      zero_base)},
+	{"rx_csum_offload_errors", IXGBEVF_STAT(hw_csum_rx_error, zero_base,
+						zero_base)},
+	{"tx_csum_offload_ctxt", IXGBEVF_STAT(hw_csum_tx_good, zero_base,
+					      zero_base)},
+	{"rx_header_split", IXGBEVF_STAT(rx_hdr_split, zero_base, zero_base)},
 };
 
 #define IXGBE_QUEUE_STATS_LEN 0
@@ -455,10 +465,14 @@ static void ixgbevf_get_ethtool_stats(struct net_device *netdev,
 			ixgbe_gstrings_stats[i].stat_offset;
 		char *b = (char *)adapter +
 			ixgbe_gstrings_stats[i].base_stat_offset;
+		char *r = (char *)adapter +
+			ixgbe_gstrings_stats[i].saved_reset_offset;
 		data[i] = ((ixgbe_gstrings_stats[i].sizeof_stat ==
 			    sizeof(u64)) ? *(u64 *)p : *(u32 *)p) -
 			  ((ixgbe_gstrings_stats[i].sizeof_stat ==
-			    sizeof(u64)) ? *(u64 *)b : *(u32 *)b);
+			    sizeof(u64)) ? *(u64 *)b : *(u32 *)b) +
+			  ((ixgbe_gstrings_stats[i].sizeof_stat ==
+			    sizeof(u64)) ? *(u64 *)r : *(u32 *)r);
 	}
 }
 

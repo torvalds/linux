@@ -348,10 +348,12 @@ static void amd_pmu_cpu_offline(int cpu)
 
 	raw_spin_lock(&amd_nb_lock);
 
-	if (--cpuhw->amd_nb->refcnt == 0)
-		kfree(cpuhw->amd_nb);
+	if (cpuhw->amd_nb) {
+		if (--cpuhw->amd_nb->refcnt == 0)
+			kfree(cpuhw->amd_nb);
 
-	cpuhw->amd_nb = NULL;
+		cpuhw->amd_nb = NULL;
+	}
 
 	raw_spin_unlock(&amd_nb_lock);
 }
