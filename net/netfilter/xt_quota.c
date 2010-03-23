@@ -48,14 +48,14 @@ static int quota_mt_check(const struct xt_mtchk_param *par)
 	struct xt_quota_info *q = par->matchinfo;
 
 	if (q->flags & ~XT_QUOTA_MASK)
-		return false;
+		return -EINVAL;
 
 	q->master = kmalloc(sizeof(*q->master), GFP_KERNEL);
 	if (q->master == NULL)
-		return false;
+		return -EINVAL;
 
 	q->master->quota = q->quota;
-	return true;
+	return 0;
 }
 
 static void quota_mt_destroy(const struct xt_mtdtor_param *par)

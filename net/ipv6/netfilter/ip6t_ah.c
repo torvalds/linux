@@ -93,9 +93,9 @@ static int ah_mt6_check(const struct xt_mtchk_param *par)
 
 	if (ahinfo->invflags & ~IP6T_AH_INV_MASK) {
 		pr_debug("unknown flags %X\n", ahinfo->invflags);
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_match ah_mt6_reg __read_mostly = {

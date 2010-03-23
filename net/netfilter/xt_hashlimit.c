@@ -681,30 +681,29 @@ static int hashlimit_mt_check_v0(const struct xt_mtchk_param *par)
 	    user2credits(r->cfg.avg * r->cfg.burst) < user2credits(r->cfg.avg)) {
 		pr_info("overflow, try lower: %u/%u\n",
 			r->cfg.avg, r->cfg.burst);
-		return false;
+		return -EINVAL;
 	}
 	if (r->cfg.mode == 0 ||
 	    r->cfg.mode > (XT_HASHLIMIT_HASH_DPT |
 			   XT_HASHLIMIT_HASH_DIP |
 			   XT_HASHLIMIT_HASH_SIP |
 			   XT_HASHLIMIT_HASH_SPT))
-		return false;
+		return -EINVAL;
 	if (!r->cfg.gc_interval)
-		return false;
+		return -EINVAL;
 	if (!r->cfg.expire)
-		return false;
+		return -EINVAL;
 	if (r->name[sizeof(r->name) - 1] != '\0')
-		return false;
+		return -EINVAL;
 
 	mutex_lock(&hashlimit_mutex);
 	r->hinfo = htable_find_get(net, r->name, par->family);
 	if (!r->hinfo && htable_create_v0(net, r, par->family) != 0) {
 		mutex_unlock(&hashlimit_mutex);
-		return false;
+		return -EINVAL;
 	}
 	mutex_unlock(&hashlimit_mutex);
-
-	return true;
+	return 0;
 }
 
 static int hashlimit_mt_check(const struct xt_mtchk_param *par)
@@ -718,28 +717,28 @@ static int hashlimit_mt_check(const struct xt_mtchk_param *par)
 	    user2credits(info->cfg.avg)) {
 		pr_info("overflow, try lower: %u/%u\n",
 			info->cfg.avg, info->cfg.burst);
-		return false;
+		return -EINVAL;
 	}
 	if (info->cfg.gc_interval == 0 || info->cfg.expire == 0)
-		return false;
+		return -EINVAL;
 	if (info->name[sizeof(info->name)-1] != '\0')
-		return false;
+		return -EINVAL;
 	if (par->family == NFPROTO_IPV4) {
 		if (info->cfg.srcmask > 32 || info->cfg.dstmask > 32)
-			return false;
+			return -EINVAL;
 	} else {
 		if (info->cfg.srcmask > 128 || info->cfg.dstmask > 128)
-			return false;
+			return -EINVAL;
 	}
 
 	mutex_lock(&hashlimit_mutex);
 	info->hinfo = htable_find_get(net, info->name, par->family);
 	if (!info->hinfo && htable_create(net, info, par->family) != 0) {
 		mutex_unlock(&hashlimit_mutex);
-		return false;
+		return -EINVAL;
 	}
 	mutex_unlock(&hashlimit_mutex);
-	return true;
+	return 0;
 }
 
 static void

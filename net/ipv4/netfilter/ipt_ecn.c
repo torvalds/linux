@@ -91,18 +91,18 @@ static int ecn_mt_check(const struct xt_mtchk_param *par)
 	const struct ipt_ip *ip = par->entryinfo;
 
 	if (info->operation & IPT_ECN_OP_MATCH_MASK)
-		return false;
+		return -EINVAL;
 
 	if (info->invert & IPT_ECN_OP_MATCH_MASK)
-		return false;
+		return -EINVAL;
 
 	if (info->operation & (IPT_ECN_OP_MATCH_ECE|IPT_ECN_OP_MATCH_CWR) &&
 	    ip->proto != IPPROTO_TCP) {
 		pr_info("cannot match TCP bits in rule for non-tcp packets\n");
-		return false;
+		return -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
 
 static struct xt_match ecn_mt_reg __read_mostly = {

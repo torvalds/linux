@@ -48,10 +48,10 @@ static int dscp_mt_check(const struct xt_mtchk_param *par)
 
 	if (info->dscp > XT_DSCP_MAX) {
 		pr_info("dscp %x out of range\n", info->dscp);
-		return false;
+		return -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
 
 static bool tos_mt(const struct sk_buff *skb, const struct xt_match_param *par)

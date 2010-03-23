@@ -66,10 +66,10 @@ static int esp_mt_check(const struct xt_mtchk_param *par)
 
 	if (espinfo->invflags & ~XT_ESP_INV_MASK) {
 		pr_debug("unknown flags %X\n", espinfo->invflags);
-		return false;
+		return -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
 
 static struct xt_match esp_mt_reg[] __read_mostly = {

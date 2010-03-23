@@ -134,23 +134,23 @@ static int policy_mt_check(const struct xt_mtchk_param *par)
 
 	if (!(info->flags & (XT_POLICY_MATCH_IN|XT_POLICY_MATCH_OUT))) {
 		pr_info("neither incoming nor outgoing policy selected\n");
-		return false;
+		return -EINVAL;
 	}
 	if (par->hook_mask & ((1 << NF_INET_PRE_ROUTING) |
 	    (1 << NF_INET_LOCAL_IN)) && info->flags & XT_POLICY_MATCH_OUT) {
 		pr_info("output policy not valid in PREROUTING and INPUT\n");
-		return false;
+		return -EINVAL;
 	}
 	if (par->hook_mask & ((1 << NF_INET_POST_ROUTING) |
 	    (1 << NF_INET_LOCAL_OUT)) && info->flags & XT_POLICY_MATCH_IN) {
 		pr_info("input policy not valid in POSTROUTING and OUTPUT\n");
-		return false;
+		return -EINVAL;
 	}
 	if (info->len > XT_POLICY_MAX_ELEM) {
 		pr_info("too many policy elements\n");
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_match policy_mt_reg[] __read_mostly = {

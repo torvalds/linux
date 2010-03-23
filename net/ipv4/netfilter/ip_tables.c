@@ -2181,7 +2181,7 @@ static int icmp_checkentry(const struct xt_mtchk_param *par)
 	const struct ipt_icmp *icmpinfo = par->matchinfo;
 
 	/* Must specify no unknown invflags */
-	return !(icmpinfo->invflags & ~IPT_ICMP_INV);
+	return (icmpinfo->invflags & ~IPT_ICMP_INV) ? -EINVAL : 0;
 }
 
 /* The built-in targets: standard (NULL) and error. */

@@ -61,10 +61,10 @@ static int helper_mt_check(const struct xt_mtchk_param *par)
 	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
-		return false;
+		return -EINVAL;
 	}
 	info->name[29] = '\0';
-	return true;
+	return 0;
 }
 
 static void helper_mt_destroy(const struct xt_mtdtor_param *par)

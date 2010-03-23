@@ -107,12 +107,12 @@ static int limit_mt_check(const struct xt_mtchk_param *par)
 	    || user2credits(r->avg * r->burst) < user2credits(r->avg)) {
 		pr_info("Overflow, try lower: %u/%u\n",
 			r->avg, r->burst);
-		return false;
+		return -EINVAL;
 	}
 
 	priv = kmalloc(sizeof(*priv), GFP_KERNEL);
 	if (priv == NULL)
-		return false;
+		return -EINVAL;
 
 	/* For SMP, we only want to use one set of state. */
 	r->master = priv;
@@ -124,7 +124,7 @@ static int limit_mt_check(const struct xt_mtchk_param *par)
 		r->credit_cap = user2credits(r->avg * r->burst); /* Credits full. */
 		r->cost = user2credits(r->avg);
 	}
-	return true;
+	return 0;
 }
 
 static void limit_mt_destroy(const struct xt_mtdtor_param *par)

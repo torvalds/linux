@@ -100,20 +100,20 @@ static int connbytes_mt_check(const struct xt_mtchk_param *par)
 	if (sinfo->what != XT_CONNBYTES_PKTS &&
 	    sinfo->what != XT_CONNBYTES_BYTES &&
 	    sinfo->what != XT_CONNBYTES_AVGPKT)
-		return false;
+		return -EINVAL;
 
 	if (sinfo->direction != XT_CONNBYTES_DIR_ORIGINAL &&
 	    sinfo->direction != XT_CONNBYTES_DIR_REPLY &&
 	    sinfo->direction != XT_CONNBYTES_DIR_BOTH)
-		return false;
+		return -EINVAL;
 
 	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		pr_info("cannot load conntrack support for proto=%u\n",
 			par->family);
-		return false;
+		return -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
 
 static void connbytes_mt_destroy(const struct xt_mtdtor_param *par)

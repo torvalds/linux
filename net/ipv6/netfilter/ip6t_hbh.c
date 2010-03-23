@@ -170,15 +170,15 @@ static int hbh_mt6_check(const struct xt_mtchk_param *par)
 
 	if (optsinfo->invflags & ~IP6T_OPTS_INV_MASK) {
 		pr_debug("unknown flags %X\n", optsinfo->invflags);
-		return false;
+		return -EINVAL;
 	}
 
 	if (optsinfo->flags & IP6T_OPTS_NSTRICT) {
 		pr_debug("Not strict - not implemented");
-		return false;
+		return -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
 
 static struct xt_match hbh_mt6_reg[] __read_mostly = {

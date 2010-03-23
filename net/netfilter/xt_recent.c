@@ -314,7 +314,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par)
 	struct proc_dir_entry *pde;
 #endif
 	unsigned i;
-	bool ret = false;
+	int ret = -EINVAL;
 
 	if (unlikely(!hash_rnd_inited)) {
 		get_random_bytes(&hash_rnd, sizeof(hash_rnd));
@@ -323,33 +323,33 @@ static int recent_mt_check(const struct xt_mtchk_param *par)
 	if (info->check_set & ~XT_RECENT_VALID_FLAGS) {
 		pr_info("Unsupported user space flags (%08x)\n",
 			info->check_set);
-		return false;
+		return -EINVAL;
 	}
 	if (hweight8(info->check_set &
 		     (XT_RECENT_SET | XT_RECENT_REMOVE |
 		      XT_RECENT_CHECK | XT_RECENT_UPDATE)) != 1)
-		return false;
+		return -EINVAL;
 	if ((info->check_set & (XT_RECENT_SET | XT_RECENT_REMOVE)) &&
 	    (info->seconds || info->hit_count ||
 	    (info->check_set & XT_RECENT_MODIFIERS)))
-		return false;
+		return -EINVAL;
 	if ((info->check_set & XT_RECENT_REAP) && !info->seconds)
-		return false;
+		return -EINVAL;
 	if (info->hit_count > ip_pkt_list_tot) {
 		pr_info("hitcount (%u) is larger than "
 			"packets to be remembered (%u)\n",
 			info->hit_count, ip_pkt_list_tot);
-		return false;
+		return -EINVAL;
 	}
 	if (info->name[0] == '\0' ||
 	    strnlen(info->name, XT_RECENT_NAME_LEN) == XT_RECENT_NAME_LEN)
-		return false;
+		return -EINVAL;
 
 	mutex_lock(&recent_mutex);
 	t = recent_table_lookup(recent_net, info->name);
 	if (t != NULL) {
 		t->refcnt++;
-		ret = true;
+		ret = 0;
 		goto out;
 	}
 
@@ -375,7 +375,7 @@ static int recent_mt_check(const struct xt_mtchk_param *par)
 	spin_lock_bh(&recent_lock);
 	list_add_tail(&t->list, &recent_net->tables);
 	spin_unlock_bh(&recent_lock);
-	ret = true;
+	ret = 0;
 out:
 	mutex_unlock(&recent_mutex);
 	return ret;

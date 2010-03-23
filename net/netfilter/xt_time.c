@@ -225,10 +225,10 @@ static int time_mt_check(const struct xt_mtchk_param *par)
 	    info->daytime_stop > XT_TIME_MAX_DAYTIME) {
 		pr_info("invalid argument - start or "
 			"stop time greater than 23:59:59\n");
-		return false;
+		return -EINVAL;
 	}
 
-	return true;
+	return 0;
 }
 
 static struct xt_match xt_time_mt_reg __read_mostly = {

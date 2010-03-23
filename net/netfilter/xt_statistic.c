@@ -58,14 +58,14 @@ static int statistic_mt_check(const struct xt_mtchk_param *par)
 
 	if (info->mode > XT_STATISTIC_MODE_MAX ||
 	    info->flags & ~XT_STATISTIC_MASK)
-		return false;
+		return -EINVAL;
 
 	info->master = kzalloc(sizeof(*info->master), GFP_KERNEL);
 	if (info->master == NULL)
-		return false;
+		return -EINVAL;
 	info->master->count = info->u.nth.count;
 
-	return true;
+	return 0;
 }
 
 static void statistic_mt_destroy(const struct xt_mtdtor_param *par)

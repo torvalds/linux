@@ -228,21 +228,21 @@ static int connlimit_mt_check(const struct xt_mtchk_param *par)
 	if (nf_ct_l3proto_try_module_get(par->family) < 0) {
 		pr_info("cannot load conntrack support for "
 			"address family %u\n", par->family);
-		return false;
+		return -EINVAL;
 	}
 
 	/* init private data */
 	info->data = kmalloc(sizeof(struct xt_connlimit_data), GFP_KERNEL);
 	if (info->data == NULL) {
 		nf_ct_l3proto_module_put(par->family);
-		return false;
+		return -EINVAL;
 	}
 
 	spin_lock_init(&info->data->lock);
 	for (i = 0; i < ARRAY_SIZE(info->data->iphash); ++i)
 		INIT_LIST_HEAD(&info->data->iphash[i]);
 
-	return true;
+	return 0;
 }
 
 static void connlimit_mt_destroy(const struct xt_mtdtor_param *par)

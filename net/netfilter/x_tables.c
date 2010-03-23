@@ -363,6 +363,8 @@ static char *textify_hooks(char *buf, size_t size, unsigned int mask)
 int xt_check_match(struct xt_mtchk_param *par,
 		   unsigned int size, u_int8_t proto, bool inv_proto)
 {
+	int ret;
+
 	if (XT_ALIGN(par->match->matchsize) != size &&
 	    par->match->matchsize != -1) {
 		/*
@@ -399,8 +401,14 @@ int xt_check_match(struct xt_mtchk_param *par,
 		       par->match->proto);
 		return -EINVAL;
 	}
-	if (par->match->checkentry != NULL && !par->match->checkentry(par))
-		return -EINVAL;
+	if (par->match->checkentry != NULL) {
+		ret = par->match->checkentry(par);
+		if (ret < 0)
+			return ret;
+		else if (ret > 0)
+			/* Flag up potential errors. */
+			return -EIO;
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xt_check_match);

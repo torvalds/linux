@@ -140,14 +140,14 @@ static int xt_cluster_mt_checkentry(const struct xt_mtchk_param *par)
 		pr_info("you have exceeded the maximum "
 			"number of cluster nodes (%u > %u)\n",
 			info->total_nodes, XT_CLUSTER_NODES_MAX);
-		return false;
+		return -EINVAL;
 	}
 	if (info->node_mask >= (1ULL << info->total_nodes)) {
 		pr_info("this node mask cannot be "
 			"higher than the total number of nodes\n");
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_match xt_cluster_match __read_mostly = {

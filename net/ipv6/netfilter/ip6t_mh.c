@@ -67,7 +67,7 @@ static int mh_mt6_check(const struct xt_mtchk_param *par)
 	const struct ip6t_mh *mhinfo = par->matchinfo;
 
 	/* Must specify no unknown invflags */
-	return !(mhinfo->invflags & ~IP6T_MH_INV_MASK);
+	return (mhinfo->invflags & ~IP6T_MH_INV_MASK) ? -EINVAL : 0;
 }
 
 static struct xt_match mh_mt6_reg __read_mostly = {

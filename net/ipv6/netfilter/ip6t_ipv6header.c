@@ -125,9 +125,9 @@ static int ipv6header_mt6_check(const struct xt_mtchk_param *par)
 	/* invflags is 0 or 0xff in hard mode */
 	if ((!info->modeflag) && info->invflags != 0x00 &&
 	    info->invflags != 0xFF)
-		return false;
+		return -EINVAL;
 
-	return true;
+	return 0;
 }
 
 static struct xt_match ipv6header_mt6_reg __read_mostly = {

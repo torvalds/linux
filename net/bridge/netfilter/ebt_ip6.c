@@ -86,24 +86,24 @@ static int ebt_ip6_mt_check(const struct xt_mtchk_param *par)
 	struct ebt_ip6_info *info = par->matchinfo;
 
 	if (e->ethproto != htons(ETH_P_IPV6) || e->invflags & EBT_IPROTO)
-		return false;
+		return -EINVAL;
 	if (info->bitmask & ~EBT_IP6_MASK || info->invflags & ~EBT_IP6_MASK)
-		return false;
+		return -EINVAL;
 	if (info->bitmask & (EBT_IP6_DPORT | EBT_IP6_SPORT)) {
 		if (info->invflags & EBT_IP6_PROTO)
-			return false;
+			return -EINVAL;
 		if (info->protocol != IPPROTO_TCP &&
 		    info->protocol != IPPROTO_UDP &&
 		    info->protocol != IPPROTO_UDPLITE &&
 		    info->protocol != IPPROTO_SCTP &&
 		    info->protocol != IPPROTO_DCCP)
-			return false;
+			return -EINVAL;
 	}
 	if (info->bitmask & EBT_IP6_DPORT && info->dport[0] > info->dport[1])
-		return false;
+		return -EINVAL;
 	if (info->bitmask & EBT_IP6_SPORT && info->sport[0] > info->sport[1])
-		return false;
-	return true;
+		return -EINVAL;
+	return 0;
 }
 
 static struct xt_match ebt_ip6_mt_reg __read_mostly = {

@@ -108,10 +108,10 @@ static int ebt_arp_mt_check(const struct xt_mtchk_param *par)
 	if ((e->ethproto != htons(ETH_P_ARP) &&
 	   e->ethproto != htons(ETH_P_RARP)) ||
 	   e->invflags & EBT_IPROTO)
-		return false;
+		return -EINVAL;
 	if (info->bitmask & ~EBT_ARP_MASK || info->invflags & ~EBT_ARP_MASK)
-		return false;
-	return true;
+		return -EINVAL;
+	return 0;
 }
 
 static struct xt_match ebt_arp_mt_reg __read_mostly = {

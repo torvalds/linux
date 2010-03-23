@@ -48,26 +48,25 @@ static int string_mt_check(const struct xt_mtchk_param *par)
 
 	/* Damn, can't handle this case properly with iptables... */
 	if (conf->from_offset > conf->to_offset)
-		return false;
+		return -EINVAL;
 	if (conf->algo[XT_STRING_MAX_ALGO_NAME_SIZE - 1] != '\0')
-		return false;
+		return -EINVAL;
 	if (conf->patlen > XT_STRING_MAX_PATTERN_SIZE)
-		return false;
+		return -EINVAL;
 	if (par->match->revision == 1) {
 		if (conf->u.v1.flags &
 		    ~(XT_STRING_FLAG_IGNORECASE | XT_STRING_FLAG_INVERT))
-			return false;
+			return -EINVAL;
 		if (conf->u.v1.flags & XT_STRING_FLAG_IGNORECASE)
 			flags |= TS_IGNORECASE;
 	}
 	ts_conf = textsearch_prepare(conf->algo, conf->pattern, conf->patlen,
 				     GFP_KERNEL, flags);
 	if (IS_ERR(ts_conf))
-		return false;
+		return -EINVAL;
 
 	conf->config = ts_conf;
-
-	return true;
+	return 0;
 }
 
 static void string_mt_destroy(const struct xt_mtdtor_param *par)

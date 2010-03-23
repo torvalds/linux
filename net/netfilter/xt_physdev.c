@@ -89,7 +89,7 @@ static int physdev_mt_check(const struct xt_mtchk_param *par)
 
 	if (!(info->bitmask & XT_PHYSDEV_OP_MASK) ||
 	    info->bitmask & ~XT_PHYSDEV_OP_MASK)
-		return false;
+		return -EINVAL;
 	if (info->bitmask & XT_PHYSDEV_OP_OUT &&
 	    (!(info->bitmask & XT_PHYSDEV_OP_BRIDGED) ||
 	     info->invert & XT_PHYSDEV_OP_BRIDGED) &&
@@ -99,9 +99,9 @@ static int physdev_mt_check(const struct xt_mtchk_param *par)
 			"POSTROUTING chains for non-bridged traffic is not "
 			"supported anymore.\n");
 		if (par->hook_mask & (1 << NF_INET_LOCAL_OUT))
-			return false;
+			return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_match physdev_mt_reg __read_mostly = {
