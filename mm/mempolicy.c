@@ -806,9 +806,13 @@ static long do_get_mempolicy(int *policy, nodemask_t *nmask,
 
 	err = 0;
 	if (nmask) {
-		task_lock(current);
-		get_policy_nodemask(pol, nmask);
-		task_unlock(current);
+		if (mpol_store_user_nodemask(pol)) {
+			*nmask = pol->w.user_nodemask;
+		} else {
+			task_lock(current);
+			get_policy_nodemask(pol, nmask);
+			task_unlock(current);
+		}
 	}
 
  out:
