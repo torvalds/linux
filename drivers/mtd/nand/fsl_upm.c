@@ -48,7 +48,10 @@ struct fsl_upm_nand {
 	uint32_t wait_flags;
 };
 
-#define to_fsl_upm_nand(mtd) container_of(mtd, struct fsl_upm_nand, mtd)
+static inline struct fsl_upm_nand *to_fsl_upm_nand(struct mtd_info *mtdinfo)
+{
+	return container_of(mtdinfo, struct fsl_upm_nand, mtd);
+}
 
 static int fun_chip_ready(struct mtd_info *mtd)
 {
