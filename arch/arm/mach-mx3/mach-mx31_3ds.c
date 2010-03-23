@@ -35,6 +35,7 @@
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
 #include <mach/mxc_nand.h>
+#include <mach/spi.h>
 #include "devices.h"
 
 /*!
@@ -52,6 +53,24 @@ static int mx31_3ds_pins[] = {
 	MX31_PIN_TXD1__TXD1,
 	MX31_PIN_RXD1__RXD1,
 	IOMUX_MODE(MX31_PIN_GPIO1_1, IOMUX_CONFIG_GPIO),
+	/* SPI 1 */
+	MX31_PIN_CSPI2_SCLK__SCLK,
+	MX31_PIN_CSPI2_MOSI__MOSI,
+	MX31_PIN_CSPI2_MISO__MISO,
+	MX31_PIN_CSPI2_SPI_RDY__SPI_RDY,
+	MX31_PIN_CSPI2_SS0__SS0,
+	MX31_PIN_CSPI2_SS2__SS2, /*CS for MC13783 */
+};
+
+/* SPI */
+static int spi1_internal_chipselect[] = {
+	MXC_SPI_CS(0),
+	MXC_SPI_CS(2),
+};
+
+static struct spi_imx_master spi1_pdata = {
+	.chipselect	= spi1_internal_chipselect,
+	.num_chipselect	= ARRAY_SIZE(spi1_internal_chipselect),
 };
 
 /*
@@ -249,6 +268,7 @@ static void __init mxc_board_init(void)
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
 	mxc_register_device(&mxc_nand_device, &imx31_3ds_nand_flash_pdata);
+	mxc_register_device(&mxc_spi_device1, &spi1_pdata);
 
 	if (!mx31_3ds_init_expio())
 		platform_device_register(&smsc911x_device);
