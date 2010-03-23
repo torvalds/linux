@@ -998,7 +998,7 @@ ecryptfs_setxattr(struct dentry *dentry, const char *name, const void *value,
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	if (!lower_dentry->d_inode->i_op->setxattr) {
-		rc = -ENOSYS;
+		rc = -EOPNOTSUPP;
 		goto out;
 	}
 	mutex_lock(&lower_dentry->d_inode->i_mutex);
@@ -1016,7 +1016,7 @@ ecryptfs_getxattr_lower(struct dentry *lower_dentry, const char *name,
 	int rc = 0;
 
 	if (!lower_dentry->d_inode->i_op->getxattr) {
-		rc = -ENOSYS;
+		rc = -EOPNOTSUPP;
 		goto out;
 	}
 	mutex_lock(&lower_dentry->d_inode->i_mutex);
@@ -1043,7 +1043,7 @@ ecryptfs_listxattr(struct dentry *dentry, char *list, size_t size)
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	if (!lower_dentry->d_inode->i_op->listxattr) {
-		rc = -ENOSYS;
+		rc = -EOPNOTSUPP;
 		goto out;
 	}
 	mutex_lock(&lower_dentry->d_inode->i_mutex);
@@ -1060,7 +1060,7 @@ static int ecryptfs_removexattr(struct dentry *dentry, const char *name)
 
 	lower_dentry = ecryptfs_dentry_to_lower(dentry);
 	if (!lower_dentry->d_inode->i_op->removexattr) {
-		rc = -ENOSYS;
+		rc = -EOPNOTSUPP;
 		goto out;
 	}
 	mutex_lock(&lower_dentry->d_inode->i_mutex);
