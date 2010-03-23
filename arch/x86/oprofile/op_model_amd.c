@@ -30,13 +30,10 @@
 #include "op_counter.h"
 
 #define NUM_COUNTERS 4
-#define NUM_CONTROLS 4
 #ifdef CONFIG_OPROFILE_EVENT_MULTIPLEX
 #define NUM_VIRT_COUNTERS 32
-#define NUM_VIRT_CONTROLS 32
 #else
 #define NUM_VIRT_COUNTERS NUM_COUNTERS
-#define NUM_VIRT_CONTROLS NUM_CONTROLS
 #endif
 
 #define OP_EVENT_MASK			0x0FFF
@@ -134,13 +131,15 @@ static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
 	int i;
 
 	for (i = 0; i < NUM_COUNTERS; i++) {
-		if (reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
-			msrs->counters[i].addr = MSR_K7_PERFCTR0 + i;
-	}
-
-	for (i = 0; i < NUM_CONTROLS; i++) {
-		if (reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + i))
-			msrs->controls[i].addr = MSR_K7_EVNTSEL0 + i;
+		if (!reserve_perfctr_nmi(MSR_K7_PERFCTR0 + i))
+			continue;
+		if (!reserve_evntsel_nmi(MSR_K7_EVNTSEL0 + i)) {
+			release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
+			continue;
+		}
+		/* both registers must be reserved */
+		msrs->counters[i].addr = MSR_K7_PERFCTR0 + i;
+		msrs->controls[i].addr = MSR_K7_EVNTSEL0 + i;
 	}
 }
 
@@ -160,7 +159,7 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 	}
 
 	/* clear all counters */
-	for (i = 0; i < NUM_CONTROLS; ++i) {
+	for (i = 0; i < NUM_COUNTERS; ++i) {
 		if (unlikely(!msrs->controls[i].addr)) {
 			if (counter_config[i].enabled && !smp_processor_id())
 				/*
@@ -175,12 +174,10 @@ static void op_amd_setup_ctrs(struct op_x86_model_spec const *model,
 			op_x86_warn_in_use(i);
 		val &= model->reserved;
 		wrmsrl(msrs->controls[i].addr, val);
-	}
-
-	/* avoid a false detection of ctr overflows in NMI handler */
-	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (unlikely(!msrs->counters[i].addr))
-			continue;
+		/*
+		 * avoid a false detection of ctr overflows in NMI
+		 * handler
+		 */
 		wrmsrl(msrs->counters[i].addr, -1LL);
 	}
 
@@ -430,12 +427,10 @@ static void op_amd_shutdown(struct op_msrs const * const msrs)
 	int i;
 
 	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (msrs->counters[i].addr)
-			release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
-	}
-	for (i = 0; i < NUM_CONTROLS; ++i) {
-		if (msrs->controls[i].addr)
-			release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
+		if (!msrs->counters[i].addr)
+			continue;
+		release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
+		release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
 	}
 }
 
@@ -583,7 +578,7 @@ static void op_amd_exit(void)
 
 struct op_x86_model_spec op_amd_spec = {
 	.num_counters		= NUM_COUNTERS,
-	.num_controls		= NUM_CONTROLS,
+	.num_controls		= NUM_COUNTERS,
 	.num_virt_counters	= NUM_VIRT_COUNTERS,
 	.reserved		= MSR_AMD_EVENTSEL_RESERVED,
 	.event_mask		= OP_EVENT_MASK,

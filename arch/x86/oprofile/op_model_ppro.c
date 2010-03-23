@@ -35,13 +35,15 @@ static void ppro_fill_in_addresses(struct op_msrs * const msrs)
 	int i;
 
 	for (i = 0; i < num_counters; i++) {
-		if (reserve_perfctr_nmi(MSR_P6_PERFCTR0 + i))
-			msrs->counters[i].addr = MSR_P6_PERFCTR0 + i;
-	}
-
-	for (i = 0; i < num_counters; i++) {
-		if (reserve_evntsel_nmi(MSR_P6_EVNTSEL0 + i))
-			msrs->controls[i].addr = MSR_P6_EVNTSEL0 + i;
+		if (!reserve_perfctr_nmi(MSR_P6_PERFCTR0 + i))
+			continue;
+		if (!reserve_evntsel_nmi(MSR_P6_EVNTSEL0 + i)) {
+			release_perfctr_nmi(MSR_P6_PERFCTR0 + i);
+			continue;
+		}
+		/* both registers must be reserved */
+		msrs->counters[i].addr = MSR_P6_PERFCTR0 + i;
+		msrs->controls[i].addr = MSR_P6_EVNTSEL0 + i;
 	}
 }
 
@@ -92,12 +94,10 @@ static void ppro_setup_ctrs(struct op_x86_model_spec const *model,
 			op_x86_warn_in_use(i);
 		val &= model->reserved;
 		wrmsrl(msrs->controls[i].addr, val);
-	}
-
-	/* avoid a false detection of ctr overflows in NMI handler */
-	for (i = 0; i < num_counters; ++i) {
-		if (unlikely(!msrs->counters[i].addr))
-			continue;
+		/*
+		 * avoid a false detection of ctr overflows in NMI *
+		 * handler
+		 */
 		wrmsrl(msrs->counters[i].addr, -1LL);
 	}
 
@@ -194,12 +194,10 @@ static void ppro_shutdown(struct op_msrs const * const msrs)
 	int i;
 
 	for (i = 0; i < num_counters; ++i) {
-		if (msrs->counters[i].addr)
-			release_perfctr_nmi(MSR_P6_PERFCTR0 + i);
-	}
-	for (i = 0; i < num_counters; ++i) {
-		if (msrs->controls[i].addr)
-			release_evntsel_nmi(MSR_P6_EVNTSEL0 + i);
+		if (!msrs->counters[i].addr)
+			continue;
+		release_perfctr_nmi(MSR_P6_PERFCTR0 + i);
+		release_evntsel_nmi(MSR_P6_EVNTSEL0 + i);
 	}
 	if (reset_value) {
 		kfree(reset_value);
