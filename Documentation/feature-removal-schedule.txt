@@ -556,3 +556,15 @@ Why:	The "..50" modules parameters were used to configure 5000 series and
 	in drivers/net/wireless/iwlwifi/iwl-agn.c
 
 Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
+
+----------------------------
+
+What:	iwl4965 alias support
+When:	2.6.40
+Why:	Internal alias support has been present in module-init-tools for some
+	time, the MODULE_ALIAS("iwl4965") boilerplate aliases can be removed
+	with no impact.
+
+Who:	Wey-Yi Guy <wey-yi.w.guy@intel.com>
+
+----------------------------
