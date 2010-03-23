@@ -210,7 +210,6 @@ static int grab_super(struct super_block *s) __releases(sb_lock)
 {
 	if (atomic_inc_not_zero(&s->s_active)) {
 		spin_unlock(&sb_lock);
-		down_write(&s->s_umount);
 		return 1;
 	}
 	/* it's going away */
@@ -317,6 +316,7 @@ retry:
 				up_write(&s->s_umount);
 				destroy_super(s);
 			}
+			down_write(&old->s_umount);
 			return old;
 		}
 	}
@@ -466,7 +466,7 @@ EXPORT_SYMBOL(get_super);
  *
  * Scans the superblock list and finds the superblock of the file system
  * mounted on the device given.  Returns the superblock with an active
- * reference and s_umount held exclusively or %NULL if none was found.
+ * reference or %NULL if none was found.
  */
 struct super_block *get_active_super(struct block_device *bdev)
 {
