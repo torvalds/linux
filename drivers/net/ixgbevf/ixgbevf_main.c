@@ -2417,9 +2417,9 @@ static void ixgbevf_watchdog_task(struct work_struct *work)
 
 	if (link_up) {
 		if (!netif_carrier_ok(netdev)) {
-			hw_dbg(&adapter->hw, "NIC Link is Up %s, ",
-			       ((link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
-				"10 Gbps\n" : "1 Gbps\n"));
+			hw_dbg(&adapter->hw, "NIC Link is Up, %u Gbps\n",
+			       (link_speed == IXGBE_LINK_SPEED_10GB_FULL) ?
+			       10 : 1);
 			netif_carrier_on(netdev);
 			netif_tx_wake_all_queues(netdev);
 		} else {
