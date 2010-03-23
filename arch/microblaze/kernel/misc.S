@@ -26,6 +26,7 @@
  * We avoid flushing the pinned 0, 1 and possibly 2 entries.
  */
 .globl _tlbia;
+.type  _tlbia, @function
 .align 4;
 _tlbia:
 	addik	r12, r0, 63 /* flush all entries (63 - 3) */
@@ -41,11 +42,13 @@ _tlbia_1:
 	/* sync */
 	rtsd	r15, 8
 	nop
+	.size  _tlbia, . - _tlbia
 
 /*
  * Flush MMU TLB for a particular address (in r5)
  */
 .globl _tlbie;
+.type  _tlbie, @function
 .align 4;
 _tlbie:
 	mts	rtlbsx, r5 /* look up the address in TLB */
@@ -59,10 +62,13 @@ _tlbie_1:
 	rtsd	r15, 8
 	nop
 
+	.size  _tlbie, . - _tlbie
+
 /*
  * Allocate TLB entry for early console
  */
 .globl early_console_reg_tlb_alloc;
+.type  early_console_reg_tlb_alloc, @function
 .align 4;
 early_console_reg_tlb_alloc:
 	/*
@@ -86,6 +92,8 @@ early_console_reg_tlb_alloc:
 	rtsd	r15, 8
 	nop
 
+	.size  early_console_reg_tlb_alloc, . - early_console_reg_tlb_alloc
+
 /*
  * Copy a whole page (4096 bytes).
  */
@@ -104,6 +112,7 @@ early_console_reg_tlb_alloc:
 #define DCACHE_LINE_BYTES (4 * 4)
 
 .globl copy_page;
+.type  copy_page, @function
 .align 4;
 copy_page:
 	ori	r11, r0, (PAGE_SIZE/DCACHE_LINE_BYTES) - 1
@@ -118,3 +127,5 @@ _copy_page_loop:
 	addik	r11, r11, -1
 	rtsd	r15, 8
 	nop
+
+	.size  copy_page, . - copy_page
