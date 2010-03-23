@@ -750,6 +750,11 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	/* And the BSSID changed - we're associated now */
 	bss_info_changed |= BSS_CHANGED_BSSID;
 
+	/* Tell the driver to monitor connection quality (if supported) */
+	if ((local->hw.flags & IEEE80211_HW_SUPPORTS_CQM_RSSI) &&
+	    sdata->vif.bss_conf.cqm_rssi_thold)
+		bss_info_changed |= BSS_CHANGED_CQM;
+
 	ieee80211_bss_info_change_notify(sdata, bss_info_changed);
 
 	mutex_lock(&local->iflist_mtx);
@@ -2182,3 +2187,13 @@ int ieee80211_mgd_action(struct ieee80211_sub_if_data *sdata,
 	*cookie = (unsigned long) skb;
 	return 0;
 }
+
+void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
+			       enum nl80211_cqm_rssi_threshold_event rssi_event,
+			       gfp_t gfp)
+{
+	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+
+	cfg80211_cqm_rssi_notify(sdata->dev, rssi_event, gfp);
+}
+EXPORT_SYMBOL(ieee80211_cqm_rssi_notify);

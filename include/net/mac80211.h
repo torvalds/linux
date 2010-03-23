@@ -144,6 +144,7 @@ struct ieee80211_low_level_stats {
  *	new beacon (beaconing modes)
  * @BSS_CHANGED_BEACON_ENABLED: Beaconing should be
  *	enabled/disabled (beaconing modes)
+ * @BSS_CHANGED_CQM: Connection quality monitor config changed
  */
 enum ieee80211_bss_change {
 	BSS_CHANGED_ASSOC		= 1<<0,
@@ -156,6 +157,7 @@ enum ieee80211_bss_change {
 	BSS_CHANGED_BSSID		= 1<<7,
 	BSS_CHANGED_BEACON		= 1<<8,
 	BSS_CHANGED_BEACON_ENABLED	= 1<<9,
+	BSS_CHANGED_CQM			= 1<<10,
 };
 
 /**
@@ -185,6 +187,9 @@ enum ieee80211_bss_change {
  * @enable_beacon: whether beaconing should be enabled or not
  * @ht_operation_mode: HT operation mode (like in &struct ieee80211_ht_info).
  *	This field is only valid when the channel type is one of the HT types.
+ * @cqm_rssi_thold: Connection quality monitor RSSI threshold, a zero value
+ *	implies disabled
+ * @cqm_rssi_hyst: Connection quality monitor RSSI hysteresis
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
@@ -202,6 +207,8 @@ struct ieee80211_bss_conf {
 	u64 timestamp;
 	u32 basic_rates;
 	u16 ht_operation_mode;
+	s32 cqm_rssi_thold;
+	u32 cqm_rssi_hyst;
 };
 
 /**
@@ -959,6 +966,12 @@ enum ieee80211_tkip_key_type {
  *      periodic keep-alives to the AP and probing the AP on beacon loss.
  *      When this flag is set, signaling beacon-loss will cause an immediate
  *      change to disassociated state.
+ *
+ * @IEEE80211_HW_SUPPORTS_CQM_RSSI:
+ *	Hardware can do connection quality monitoring - i.e. it can monitor
+ *	connection quality related parameters, such as the RSSI level and
+ *	provide notifications if configured trigger levels are reached.
+ *
  */
 enum ieee80211_hw_flags {
 	IEEE80211_HW_HAS_RATE_CONTROL			= 1<<0,
@@ -981,6 +994,7 @@ enum ieee80211_hw_flags {
 	IEEE80211_HW_SUPPORTS_UAPSD			= 1<<17,
 	IEEE80211_HW_REPORTS_TX_ACK_STATUS		= 1<<18,
 	IEEE80211_HW_CONNECTION_MONITOR			= 1<<19,
+	IEEE80211_HW_SUPPORTS_CQM_RSSI			= 1<<20,
 };
 
 /**
@@ -2389,6 +2403,22 @@ void ieee80211_beacon_loss(struct ieee80211_vif *vif);
  * without connection recovery attempts.
  */
 void ieee80211_connection_loss(struct ieee80211_vif *vif);
+
+/**
+ * ieee80211_cqm_rssi_notify - inform a configured connection quality monitoring
+ *	rssi threshold triggered
+ *
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @rssi_event: the RSSI trigger event type
+ * @gfp: context flags
+ *
+ * When the %IEEE80211_HW_SUPPORTS_CQM_RSSI is set, and a connection quality
+ * monitoring is configured with an rssi threshold, the driver will inform
+ * whenever the rssi level reaches the threshold.
+ */
+void ieee80211_cqm_rssi_notify(struct ieee80211_vif *vif,
+			       enum nl80211_cqm_rssi_threshold_event rssi_event,
+			       gfp_t gfp);
 
 /* Rate control API */
 
