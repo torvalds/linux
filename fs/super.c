@@ -22,22 +22,15 @@
 
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/smp_lock.h>
 #include <linux/acct.h>
 #include <linux/blkdev.h>
 #include <linux/quotaops.h>
-#include <linux/namei.h>
 #include <linux/mount.h>
 #include <linux/security.h>
-#include <linux/syscalls.h>
 #include <linux/writeback.h>		/* for the emergency remount stuff */
 #include <linux/idr.h>
-#include <linux/kobject.h>
 #include <linux/mutex.h>
-#include <linux/file.h>
 #include <linux/backing-dev.h>
-#include <asm/uaccess.h>
 #include "internal.h"
 
 
