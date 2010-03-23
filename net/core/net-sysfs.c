@@ -739,7 +739,9 @@ void netdev_unregister_kobject(struct net_device * net)
 	if (!net_eq(dev_net(net), &init_net))
 		return;
 
+#ifdef CONFIG_SYSFS
 	rx_queue_remove_kobjects(net);
+#endif
 
 	device_del(dev);
 }
@@ -780,11 +782,13 @@ int netdev_register_kobject(struct net_device *net)
 	if (error)
 		return error;
 
+#ifdef CONFIG_SYSFS
 	error = rx_queue_register_kobjects(net);
 	if (error) {
 		device_del(dev);
 		return error;
 	}
+#endif
 
 	return error;
 }
