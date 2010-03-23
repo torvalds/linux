@@ -126,6 +126,18 @@ static void op_mux_switch_ctrl(struct op_x86_model_spec const *model,
 
 /* functions for op_amd_spec */
 
+static void op_amd_shutdown(struct op_msrs const * const msrs)
+{
+	int i;
+
+	for (i = 0; i < NUM_COUNTERS; ++i) {
+		if (!msrs->counters[i].addr)
+			continue;
+		release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
+		release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
+	}
+}
+
 static void op_amd_fill_in_addresses(struct op_msrs * const msrs)
 {
 	int i;
@@ -420,18 +432,6 @@ static void op_amd_stop(struct op_msrs const * const msrs)
 	}
 
 	op_amd_stop_ibs();
-}
-
-static void op_amd_shutdown(struct op_msrs const * const msrs)
-{
-	int i;
-
-	for (i = 0; i < NUM_COUNTERS; ++i) {
-		if (!msrs->counters[i].addr)
-			continue;
-		release_perfctr_nmi(MSR_K7_PERFCTR0 + i);
-		release_evntsel_nmi(MSR_K7_EVNTSEL0 + i);
-	}
 }
 
 static u8 ibs_eilvt_off;

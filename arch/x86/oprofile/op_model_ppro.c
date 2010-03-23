@@ -30,6 +30,22 @@ static int counter_width = 32;
 
 static u64 *reset_value;
 
+static void ppro_shutdown(struct op_msrs const * const msrs)
+{
+	int i;
+
+	for (i = 0; i < num_counters; ++i) {
+		if (!msrs->counters[i].addr)
+			continue;
+		release_perfctr_nmi(MSR_P6_PERFCTR0 + i);
+		release_evntsel_nmi(MSR_P6_EVNTSEL0 + i);
+	}
+	if (reset_value) {
+		kfree(reset_value);
+		reset_value = NULL;
+	}
+}
+
 static void ppro_fill_in_addresses(struct op_msrs * const msrs)
 {
 	int i;
@@ -188,23 +204,6 @@ static void ppro_stop(struct op_msrs const * const msrs)
 		wrmsrl(msrs->controls[i].addr, val);
 	}
 }
-
-static void ppro_shutdown(struct op_msrs const * const msrs)
-{
-	int i;
-
-	for (i = 0; i < num_counters; ++i) {
-		if (!msrs->counters[i].addr)
-			continue;
-		release_perfctr_nmi(MSR_P6_PERFCTR0 + i);
-		release_evntsel_nmi(MSR_P6_EVNTSEL0 + i);
-	}
-	if (reset_value) {
-		kfree(reset_value);
-		reset_value = NULL;
-	}
-}
-
 
 struct op_x86_model_spec op_ppro_spec = {
 	.num_counters		= 2,

@@ -385,6 +385,24 @@ static unsigned int get_stagger(void)
 
 static unsigned long reset_value[NUM_COUNTERS_NON_HT];
 
+static void p4_shutdown(struct op_msrs const * const msrs)
+{
+	int i;
+
+	for (i = 0; i < num_counters; ++i) {
+		if (msrs->counters[i].addr)
+			release_perfctr_nmi(msrs->counters[i].addr);
+	}
+	/*
+	 * some of the control registers are specially reserved in
+	 * conjunction with the counter registers (hence the starting offset).
+	 * This saves a few bits.
+	 */
+	for (i = num_counters; i < num_controls; ++i) {
+		if (msrs->controls[i].addr)
+			release_evntsel_nmi(msrs->controls[i].addr);
+	}
+}
 
 static void p4_fill_in_addresses(struct op_msrs * const msrs)
 {
@@ -667,26 +685,6 @@ static void p4_stop(struct op_msrs const * const msrs)
 		wrmsr(p4_counters[VIRT_CTR(stag, i)].cccr_address, low, high);
 	}
 }
-
-static void p4_shutdown(struct op_msrs const * const msrs)
-{
-	int i;
-
-	for (i = 0; i < num_counters; ++i) {
-		if (msrs->counters[i].addr)
-			release_perfctr_nmi(msrs->counters[i].addr);
-	}
-	/*
-	 * some of the control registers are specially reserved in
-	 * conjunction with the counter registers (hence the starting offset).
-	 * This saves a few bits.
-	 */
-	for (i = num_counters; i < num_controls; ++i) {
-		if (msrs->controls[i].addr)
-			release_evntsel_nmi(msrs->controls[i].addr);
-	}
-}
-
 
 #ifdef CONFIG_SMP
 struct op_x86_model_spec op_p4_ht2_spec = {
