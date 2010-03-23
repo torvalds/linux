@@ -242,3 +242,7 @@ int __devexit __max730x_remove(struct device *dev)
 	return ret;
 }
 EXPORT_SYMBOL_GPL(__max730x_remove);
+
+MODULE_AUTHOR("Juergen Beisert, Wolfram Sang");
+MODULE_LICENSE("GPL v2");
+MODULE_DESCRIPTION("MAX730x GPIO-Expanders, generic parts");
