@@ -90,6 +90,6 @@ static int xfrm6_output_finish(struct sk_buff *skb)
 
 int xfrm6_output(struct sk_buff *skb)
 {
-	return NF_HOOK(PF_INET6, NF_INET_POST_ROUTING, skb, NULL, skb_dst(skb)->dev,
-		       xfrm6_output_finish);
+	return NF_HOOK(NFPROTO_IPV6, NF_INET_POST_ROUTING, skb, NULL,
+		       skb_dst(skb)->dev, xfrm6_output_finish);
 }
