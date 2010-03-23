@@ -34,6 +34,7 @@
 #include <mach/board-mx31_3ds.h>
 #include <mach/imx-uart.h>
 #include <mach/iomux-mx3.h>
+#include <mach/mxc_nand.h>
 #include "devices.h"
 
 /*!
@@ -51,6 +52,17 @@ static int mx31_3ds_pins[] = {
 	MX31_PIN_TXD1__TXD1,
 	MX31_PIN_RXD1__RXD1,
 	IOMUX_MODE(MX31_PIN_GPIO1_1, IOMUX_CONFIG_GPIO),
+};
+
+/*
+ * NAND Flash
+ */
+static struct mxc_nand_platform_data imx31_3ds_nand_flash_pdata = {
+	.width		= 1,
+	.hw_ecc		= 1,
+#ifdef MACH_MX31_3DS_MXC_NAND_USE_BBT
+	.flash_bbt	= 1,
+#endif
 };
 
 static struct imxuart_platform_data uart_pdata = {
@@ -236,6 +248,7 @@ static void __init mxc_board_init(void)
 				      "mx31_3ds");
 
 	mxc_register_device(&mxc_uart_device0, &uart_pdata);
+	mxc_register_device(&mxc_nand_device, &imx31_3ds_nand_flash_pdata);
 
 	if (!mx31_3ds_init_expio())
 		platform_device_register(&smsc911x_device);
