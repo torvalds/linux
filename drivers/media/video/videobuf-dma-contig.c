@@ -55,14 +55,14 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 	struct videobuf_queue *q = map->q;
 	int i;
 
-	dev_dbg(map->q->dev, "vm_close %p [count=%u,vma=%08lx-%08lx]\n",
+	dev_dbg(q->dev, "vm_close %p [count=%u,vma=%08lx-%08lx]\n",
 		map, map->count, vma->vm_start, vma->vm_end);
 
 	map->count--;
 	if (0 == map->count) {
 		struct videobuf_dma_contig_memory *mem;
 
-		dev_dbg(map->q->dev, "munmap %p q=%p\n", map, q);
+		dev_dbg(q->dev, "munmap %p q=%p\n", map, q);
 		mutex_lock(&q->vb_lock);
 
 		/* We need first to cancel streams, before unmapping */
@@ -89,7 +89,7 @@ static void videobuf_vm_close(struct vm_area_struct *vma)
 				/* vfree is not atomic - can't be
 				   called with IRQ's disabled
 				 */
-				dev_dbg(map->q->dev, "buf[%d] freeing %p\n",
+				dev_dbg(q->dev, "buf[%d] freeing %p\n",
 					i, mem->vaddr);
 
 				dma_free_coherent(q->dev, mem->size,
