@@ -158,7 +158,7 @@ struct x86_pmu {
 						 struct perf_event *event);
 	struct event_constraint *event_constraints;
 
-	void		(*cpu_prepare)(int cpu);
+	int		(*cpu_prepare)(int cpu);
 	void		(*cpu_starting)(int cpu);
 	void		(*cpu_dying)(int cpu);
 	void		(*cpu_dead)(int cpu);
@@ -1333,11 +1333,12 @@ static int __cpuinit
 x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 {
 	unsigned int cpu = (long)hcpu;
+	int ret = NOTIFY_OK;
 
 	switch (action & ~CPU_TASKS_FROZEN) {
 	case CPU_UP_PREPARE:
 		if (x86_pmu.cpu_prepare)
-			x86_pmu.cpu_prepare(cpu);
+			ret = x86_pmu.cpu_prepare(cpu);
 		break;
 
 	case CPU_STARTING:
@@ -1350,6 +1351,7 @@ x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 			x86_pmu.cpu_dying(cpu);
 		break;
 
+	case CPU_UP_CANCELED:
 	case CPU_DEAD:
 		if (x86_pmu.cpu_dead)
 			x86_pmu.cpu_dead(cpu);
@@ -1359,7 +1361,7 @@ x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
 		break;
 	}
 
-	return NOTIFY_OK;
+	return ret;
 }
 
 static void __init pmu_check_apic(void)
