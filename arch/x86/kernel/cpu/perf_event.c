@@ -133,8 +133,8 @@ struct x86_pmu {
 	int		(*handle_irq)(struct pt_regs *);
 	void		(*disable_all)(void);
 	void		(*enable_all)(void);
-	void		(*enable)(struct hw_perf_event *, int);
-	void		(*disable)(struct hw_perf_event *, int);
+	void		(*enable)(struct perf_event *);
+	void		(*disable)(struct perf_event *);
 	unsigned	eventsel;
 	unsigned	perfctr;
 	u64		(*event_map)(int);
@@ -157,6 +157,11 @@ struct x86_pmu {
 	void		(*put_event_constraints)(struct cpu_hw_events *cpuc,
 						 struct perf_event *event);
 	struct event_constraint *event_constraints;
+
+	void		(*cpu_prepare)(int cpu);
+	void		(*cpu_starting)(int cpu);
+	void		(*cpu_dying)(int cpu);
+	void		(*cpu_dead)(int cpu);
 };
 
 static struct x86_pmu x86_pmu __read_mostly;
@@ -165,8 +170,7 @@ static DEFINE_PER_CPU(struct cpu_hw_events, cpu_hw_events) = {
 	.enabled = 1,
 };
 
-static int x86_perf_event_set_period(struct perf_event *event,
-			     struct hw_perf_event *hwc, int idx);
+static int x86_perf_event_set_period(struct perf_event *event);
 
 /*
  * Generalized hw caching related hw_event table, filled
@@ -189,11 +193,12 @@ static u64 __read_mostly hw_cache_event_ids
  * Returns the delta events processed.
  */
 static u64
-x86_perf_event_update(struct perf_event *event,
-			struct hw_perf_event *hwc, int idx)
+x86_perf_event_update(struct perf_event *event)
 {
+	struct hw_perf_event *hwc = &event->hw;
 	int shift = 64 - x86_pmu.event_bits;
 	u64 prev_raw_count, new_raw_count;
+	int idx = hwc->idx;
 	s64 delta;
 
 	if (idx == X86_PMC_IDX_FIXED_BTS)
@@ -293,7 +298,7 @@ static inline bool bts_available(void)
 	return x86_pmu.enable_bts != NULL;
 }
 
-static inline void init_debug_store_on_cpu(int cpu)
+static void init_debug_store_on_cpu(int cpu)
 {
 	struct debug_store *ds = per_cpu(cpu_hw_events, cpu).ds;
 
@@ -305,7 +310,7 @@ static inline void init_debug_store_on_cpu(int cpu)
 		     (u32)((u64)(unsigned long)ds >> 32));
 }
 
-static inline void fini_debug_store_on_cpu(int cpu)
+static void fini_debug_store_on_cpu(int cpu)
 {
 	if (!per_cpu(cpu_hw_events, cpu).ds)
 		return;
@@ -638,7 +643,7 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 		if (test_bit(hwc->idx, used_mask))
 			break;
 
-		set_bit(hwc->idx, used_mask);
+		__set_bit(hwc->idx, used_mask);
 		if (assign)
 			assign[i] = hwc->idx;
 	}
@@ -687,7 +692,7 @@ static int x86_schedule_events(struct cpu_hw_events *cpuc, int n, int *assign)
 			if (j == X86_PMC_IDX_MAX)
 				break;
 
-			set_bit(j, used_mask);
+			__set_bit(j, used_mask);
 
 			if (assign)
 				assign[i] = j;
@@ -780,6 +785,7 @@ static inline int match_prev_assignment(struct hw_perf_event *hwc,
 		hwc->last_tag == cpuc->tags[i];
 }
 
+static int x86_pmu_start(struct perf_event *event);
 static void x86_pmu_stop(struct perf_event *event);
 
 void hw_perf_enable(void)
@@ -796,6 +802,7 @@ void hw_perf_enable(void)
 		return;
 
 	if (cpuc->n_added) {
+		int n_running = cpuc->n_events - cpuc->n_added;
 		/*
 		 * apply assignment obtained either from
 		 * hw_perf_group_sched_in() or x86_pmu_enable()
@@ -803,8 +810,7 @@ void hw_perf_enable(void)
 		 * step1: save events moving to new counters
 		 * step2: reprogram moved events into new counters
 		 */
-		for (i = 0; i < cpuc->n_events; i++) {
-
+		for (i = 0; i < n_running; i++) {
 			event = cpuc->event_list[i];
 			hwc = &event->hw;
 
@@ -819,29 +825,18 @@ void hw_perf_enable(void)
 				continue;
 
 			x86_pmu_stop(event);
-
-			hwc->idx = -1;
 		}
 
 		for (i = 0; i < cpuc->n_events; i++) {
-
 			event = cpuc->event_list[i];
 			hwc = &event->hw;
 
-			if (hwc->idx == -1) {
+			if (!match_prev_assignment(hwc, cpuc, i))
 				x86_assign_hw_event(event, cpuc, i);
-				x86_perf_event_set_period(event, hwc, hwc->idx);
-			}
-			/*
-			 * need to mark as active because x86_pmu_disable()
-			 * clear active_mask and events[] yet it preserves
-			 * idx
-			 */
-			set_bit(hwc->idx, cpuc->active_mask);
-			cpuc->events[hwc->idx] = event;
+			else if (i < n_running)
+				continue;
 
-			x86_pmu.enable(hwc, hwc->idx);
-			perf_event_update_userpage(event);
+			x86_pmu_start(event);
 		}
 		cpuc->n_added = 0;
 		perf_events_lapic_init();
@@ -853,15 +848,16 @@ void hw_perf_enable(void)
 	x86_pmu.enable_all();
 }
 
-static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc, int idx)
+static inline void __x86_pmu_enable_event(struct hw_perf_event *hwc)
 {
-	(void)checking_wrmsrl(hwc->config_base + idx,
+	(void)checking_wrmsrl(hwc->config_base + hwc->idx,
 			      hwc->config | ARCH_PERFMON_EVENTSEL_ENABLE);
 }
 
-static inline void x86_pmu_disable_event(struct hw_perf_event *hwc, int idx)
+static inline void x86_pmu_disable_event(struct perf_event *event)
 {
-	(void)checking_wrmsrl(hwc->config_base + idx, hwc->config);
+	struct hw_perf_event *hwc = &event->hw;
+	(void)checking_wrmsrl(hwc->config_base + hwc->idx, hwc->config);
 }
 
 static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
@@ -871,12 +867,12 @@ static DEFINE_PER_CPU(u64 [X86_PMC_IDX_MAX], pmc_prev_left);
  * To be called with the event disabled in hw:
  */
 static int
-x86_perf_event_set_period(struct perf_event *event,
-			     struct hw_perf_event *hwc, int idx)
+x86_perf_event_set_period(struct perf_event *event)
 {
+	struct hw_perf_event *hwc = &event->hw;
 	s64 left = atomic64_read(&hwc->period_left);
 	s64 period = hwc->sample_period;
-	int err, ret = 0;
+	int err, ret = 0, idx = hwc->idx;
 
 	if (idx == X86_PMC_IDX_FIXED_BTS)
 		return 0;
@@ -922,11 +918,11 @@ x86_perf_event_set_period(struct perf_event *event,
 	return ret;
 }
 
-static void x86_pmu_enable_event(struct hw_perf_event *hwc, int idx)
+static void x86_pmu_enable_event(struct perf_event *event)
 {
 	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
 	if (cpuc->enabled)
-		__x86_pmu_enable_event(hwc, idx);
+		__x86_pmu_enable_event(&event->hw);
 }
 
 /*
@@ -962,34 +958,32 @@ static int x86_pmu_enable(struct perf_event *event)
 	memcpy(cpuc->assign, assign, n*sizeof(int));
 
 	cpuc->n_events = n;
-	cpuc->n_added  = n - n0;
+	cpuc->n_added += n - n0;
 
 	return 0;
 }
 
 static int x86_pmu_start(struct perf_event *event)
 {
-	struct hw_perf_event *hwc = &event->hw;
+	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
+	int idx = event->hw.idx;
 
-	if (hwc->idx == -1)
+	if (idx == -1)
 		return -EAGAIN;
 
-	x86_perf_event_set_period(event, hwc, hwc->idx);
-	x86_pmu.enable(hwc, hwc->idx);
+	x86_perf_event_set_period(event);
+	cpuc->events[idx] = event;
+	__set_bit(idx, cpuc->active_mask);
+	x86_pmu.enable(event);
+	perf_event_update_userpage(event);
 
 	return 0;
 }
 
 static void x86_pmu_unthrottle(struct perf_event *event)
 {
-	struct cpu_hw_events *cpuc = &__get_cpu_var(cpu_hw_events);
-	struct hw_perf_event *hwc = &event->hw;
-
-	if (WARN_ON_ONCE(hwc->idx >= X86_PMC_IDX_MAX ||
-				cpuc->events[hwc->idx] != event))
-		return;
-
-	x86_pmu.enable(hwc, hwc->idx);
+	int ret = x86_pmu_start(event);
+	WARN_ON_ONCE(ret);
 }
 
 void perf_event_print_debug(void)
@@ -1049,18 +1043,16 @@ static void x86_pmu_stop(struct perf_event *event)
 	struct hw_perf_event *hwc = &event->hw;
 	int idx = hwc->idx;
 
-	/*
-	 * Must be done before we disable, otherwise the nmi handler
-	 * could reenable again:
-	 */
-	clear_bit(idx, cpuc->active_mask);
-	x86_pmu.disable(hwc, idx);
+	if (!__test_and_clear_bit(idx, cpuc->active_mask))
+		return;
+
+	x86_pmu.disable(event);
 
 	/*
 	 * Drain the remaining delta count out of a event
 	 * that we are disabling:
 	 */
-	x86_perf_event_update(event, hwc, idx);
+	x86_perf_event_update(event);
 
 	cpuc->events[idx] = NULL;
 }
@@ -1108,7 +1100,7 @@ static int x86_pmu_handle_irq(struct pt_regs *regs)
 		event = cpuc->events[idx];
 		hwc = &event->hw;
 
-		val = x86_perf_event_update(event, hwc, idx);
+		val = x86_perf_event_update(event);
 		if (val & (1ULL << (x86_pmu.event_bits - 1)))
 			continue;
 
@@ -1118,11 +1110,11 @@ static int x86_pmu_handle_irq(struct pt_regs *regs)
 		handled		= 1;
 		data.period	= event->hw.last_period;
 
-		if (!x86_perf_event_set_period(event, hwc, idx))
+		if (!x86_perf_event_set_period(event))
 			continue;
 
 		if (perf_event_overflow(event, 1, &data, regs))
-			x86_pmu.disable(hwc, idx);
+			x86_pmu_stop(event);
 	}
 
 	if (handled)
@@ -1309,7 +1301,7 @@ int hw_perf_group_sched_in(struct perf_event *leader,
 	memcpy(cpuc->assign, assign, n0*sizeof(int));
 
 	cpuc->n_events  = n0;
-	cpuc->n_added   = n1;
+	cpuc->n_added  += n1;
 	ctx->nr_active += n1;
 
 	/*
@@ -1336,6 +1328,39 @@ undo:
 #include "perf_event_amd.c"
 #include "perf_event_p6.c"
 #include "perf_event_intel.c"
+
+static int __cpuinit
+x86_pmu_notifier(struct notifier_block *self, unsigned long action, void *hcpu)
+{
+	unsigned int cpu = (long)hcpu;
+
+	switch (action & ~CPU_TASKS_FROZEN) {
+	case CPU_UP_PREPARE:
+		if (x86_pmu.cpu_prepare)
+			x86_pmu.cpu_prepare(cpu);
+		break;
+
+	case CPU_STARTING:
+		if (x86_pmu.cpu_starting)
+			x86_pmu.cpu_starting(cpu);
+		break;
+
+	case CPU_DYING:
+		if (x86_pmu.cpu_dying)
+			x86_pmu.cpu_dying(cpu);
+		break;
+
+	case CPU_DEAD:
+		if (x86_pmu.cpu_dead)
+			x86_pmu.cpu_dead(cpu);
+		break;
+
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
 
 static void __init pmu_check_apic(void)
 {
@@ -1415,11 +1440,13 @@ void __init init_hw_perf_events(void)
 	pr_info("... max period:             %016Lx\n", x86_pmu.max_period);
 	pr_info("... fixed-purpose events:   %d\n",     x86_pmu.num_events_fixed);
 	pr_info("... event mask:             %016Lx\n", perf_event_mask);
+
+	perf_cpu_notifier(x86_pmu_notifier);
 }
 
 static inline void x86_pmu_read(struct perf_event *event)
 {
-	x86_perf_event_update(event, &event->hw, event->hw.idx);
+	x86_perf_event_update(event);
 }
 
 static const struct pmu pmu = {
@@ -1675,28 +1702,16 @@ struct perf_callchain_entry *perf_callchain(struct pt_regs *regs)
 	return entry;
 }
 
-void hw_perf_event_setup_online(int cpu)
+#ifdef CONFIG_EVENT_TRACING
+void perf_arch_fetch_caller_regs(struct pt_regs *regs, unsigned long ip, int skip)
 {
-	init_debug_store_on_cpu(cpu);
-
-	switch (boot_cpu_data.x86_vendor) {
-	case X86_VENDOR_AMD:
-		amd_pmu_cpu_online(cpu);
-		break;
-	default:
-		return;
-	}
+	regs->ip = ip;
+	/*
+	 * perf_arch_fetch_caller_regs adds another call, we need to increment
+	 * the skip level
+	 */
+	regs->bp = rewind_frame_pointer(skip + 1);
+	regs->cs = __KERNEL_CS;
+	local_save_flags(regs->flags);
 }
-
-void hw_perf_event_setup_offline(int cpu)
-{
-	init_debug_store_on_cpu(cpu);
-
-	switch (boot_cpu_data.x86_vendor) {
-	case X86_VENDOR_AMD:
-		amd_pmu_cpu_offline(cpu);
-		break;
-	default:
-		return;
-	}
-}
+#endif

@@ -17,9 +17,6 @@
 
 #ifndef __BFAD_ATTR_H__
 #define __BFAD_ATTR_H__
-/**
- *  bfad_attr.h VMware driver configuration interface module.
- */
 
 /**
  *  FC_transport_template FC transport template
@@ -51,12 +48,6 @@ bfad_im_get_starget_port_name(struct scsi_target *starget);
  */
 void
 bfad_im_get_host_port_id(struct Scsi_Host *shost);
-
-/**
- * FC transport template entry, issue a LIP.
- */
-int
-bfad_im_issue_fc_host_lip(struct Scsi_Host *shost);
 
 struct Scsi_Host*
 bfad_os_starget_to_shost(struct scsi_target *starget);

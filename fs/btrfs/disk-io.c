@@ -263,13 +263,15 @@ static int csum_tree_block(struct btrfs_root *root, struct extent_buffer *buf,
 static int verify_parent_transid(struct extent_io_tree *io_tree,
 				 struct extent_buffer *eb, u64 parent_transid)
 {
+	struct extent_state *cached_state = NULL;
 	int ret;
 
 	if (!parent_transid || btrfs_header_generation(eb) == parent_transid)
 		return 0;
 
-	lock_extent(io_tree, eb->start, eb->start + eb->len - 1, GFP_NOFS);
-	if (extent_buffer_uptodate(io_tree, eb) &&
+	lock_extent_bits(io_tree, eb->start, eb->start + eb->len - 1,
+			 0, &cached_state, GFP_NOFS);
+	if (extent_buffer_uptodate(io_tree, eb, cached_state) &&
 	    btrfs_header_generation(eb) == parent_transid) {
 		ret = 0;
 		goto out;
@@ -282,10 +284,10 @@ static int verify_parent_transid(struct extent_io_tree *io_tree,
 		       (unsigned long long)btrfs_header_generation(eb));
 	}
 	ret = 1;
-	clear_extent_buffer_uptodate(io_tree, eb);
+	clear_extent_buffer_uptodate(io_tree, eb, &cached_state);
 out:
-	unlock_extent(io_tree, eb->start, eb->start + eb->len - 1,
-		      GFP_NOFS);
+	unlock_extent_cached(io_tree, eb->start, eb->start + eb->len - 1,
+			     &cached_state, GFP_NOFS);
 	return ret;
 }
 
@@ -2497,7 +2499,8 @@ int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid)
 	int ret;
 	struct inode *btree_inode = buf->first_page->mapping->host;
 
-	ret = extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree, buf);
+	ret = extent_buffer_uptodate(&BTRFS_I(btree_inode)->io_tree, buf,
+				     NULL);
 	if (!ret)
 		return ret;
 

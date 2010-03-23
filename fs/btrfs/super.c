@@ -63,10 +63,10 @@ static void btrfs_put_super(struct super_block *sb)
 }
 
 enum {
-	Opt_degraded, Opt_subvol, Opt_device, Opt_nodatasum, Opt_nodatacow,
-	Opt_max_extent, Opt_max_inline, Opt_alloc_start, Opt_nobarrier,
-	Opt_ssd, Opt_nossd, Opt_ssd_spread, Opt_thread_pool, Opt_noacl,
-	Opt_compress, Opt_compress_force, Opt_notreelog, Opt_ratio,
+	Opt_degraded, Opt_subvol, Opt_subvolid, Opt_device, Opt_nodatasum,
+	Opt_nodatacow, Opt_max_extent, Opt_max_inline, Opt_alloc_start,
+	Opt_nobarrier, Opt_ssd, Opt_nossd, Opt_ssd_spread, Opt_thread_pool,
+	Opt_noacl, Opt_compress, Opt_compress_force, Opt_notreelog, Opt_ratio,
 	Opt_flushoncommit,
 	Opt_discard, Opt_err,
 };
@@ -74,6 +74,7 @@ enum {
 static match_table_t tokens = {
 	{Opt_degraded, "degraded"},
 	{Opt_subvol, "subvol=%s"},
+	{Opt_subvolid, "subvolid=%d"},
 	{Opt_device, "device=%s"},
 	{Opt_nodatasum, "nodatasum"},
 	{Opt_nodatacow, "nodatacow"},
@@ -94,31 +95,6 @@ static match_table_t tokens = {
 	{Opt_discard, "discard"},
 	{Opt_err, NULL},
 };
-
-u64 btrfs_parse_size(char *str)
-{
-	u64 res;
-	int mult = 1;
-	char *end;
-	char last;
-
-	res = simple_strtoul(str, &end, 10);
-
-	last = end[0];
-	if (isalpha(last)) {
-		last = tolower(last);
-		switch (last) {
-		case 'g':
-			mult *= 1024;
-		case 'm':
-			mult *= 1024;
-		case 'k':
-			mult *= 1024;
-		}
-		res = res * mult;
-	}
-	return res;
-}
 
 /*
  * Regular mount options parser.  Everything that is needed only when
@@ -157,6 +133,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 			btrfs_set_opt(info->mount_opt, DEGRADED);
 			break;
 		case Opt_subvol:
+		case Opt_subvolid:
 		case Opt_device:
 			/*
 			 * These are parsed by btrfs_parse_early_options
@@ -214,7 +191,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_max_extent:
 			num = match_strdup(&args[0]);
 			if (num) {
-				info->max_extent = btrfs_parse_size(num);
+				info->max_extent = memparse(num, NULL);
 				kfree(num);
 
 				info->max_extent = max_t(u64,
@@ -226,7 +203,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_max_inline:
 			num = match_strdup(&args[0]);
 			if (num) {
-				info->max_inline = btrfs_parse_size(num);
+				info->max_inline = memparse(num, NULL);
 				kfree(num);
 
 				if (info->max_inline) {
@@ -241,7 +218,7 @@ int btrfs_parse_options(struct btrfs_root *root, char *options)
 		case Opt_alloc_start:
 			num = match_strdup(&args[0]);
 			if (num) {
-				info->alloc_start = btrfs_parse_size(num);
+				info->alloc_start = memparse(num, NULL);
 				kfree(num);
 				printk(KERN_INFO
 					"btrfs: allocations start at %llu\n",
@@ -292,12 +269,13 @@ out:
  * only when we need to allocate a new super block.
  */
 static int btrfs_parse_early_options(const char *options, fmode_t flags,
-		void *holder, char **subvol_name,
+		void *holder, char **subvol_name, u64 *subvol_objectid,
 		struct btrfs_fs_devices **fs_devices)
 {
 	substring_t args[MAX_OPT_ARGS];
 	char *opts, *p;
 	int error = 0;
+	int intarg;
 
 	if (!options)
 		goto out;
@@ -319,6 +297,18 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 		switch (token) {
 		case Opt_subvol:
 			*subvol_name = match_strdup(&args[0]);
+			break;
+		case Opt_subvolid:
+			intarg = 0;
+			error = match_int(&args[0], &intarg);
+			if (!error) {
+				/* we want the original fs_tree */
+				if (!intarg)
+					*subvol_objectid =
+						BTRFS_FS_TREE_OBJECTID;
+				else
+					*subvol_objectid = intarg;
+			}
 			break;
 		case Opt_device:
 			error = btrfs_scan_one_device(match_strdup(&args[0]),
@@ -345,6 +335,110 @@ static int btrfs_parse_early_options(const char *options, fmode_t flags,
 			return -ENOMEM;
 	}
 	return error;
+}
+
+static struct dentry *get_default_root(struct super_block *sb,
+				       u64 subvol_objectid)
+{
+	struct btrfs_root *root = sb->s_fs_info;
+	struct btrfs_root *new_root;
+	struct btrfs_dir_item *di;
+	struct btrfs_path *path;
+	struct btrfs_key location;
+	struct inode *inode;
+	struct dentry *dentry;
+	u64 dir_id;
+	int new = 0;
+
+	/*
+	 * We have a specific subvol we want to mount, just setup location and
+	 * go look up the root.
+	 */
+	if (subvol_objectid) {
+		location.objectid = subvol_objectid;
+		location.type = BTRFS_ROOT_ITEM_KEY;
+		location.offset = (u64)-1;
+		goto find_root;
+	}
+
+	path = btrfs_alloc_path();
+	if (!path)
+		return ERR_PTR(-ENOMEM);
+	path->leave_spinning = 1;
+
+	/*
+	 * Find the "default" dir item which points to the root item that we
+	 * will mount by default if we haven't been given a specific subvolume
+	 * to mount.
+	 */
+	dir_id = btrfs_super_root_dir(&root->fs_info->super_copy);
+	di = btrfs_lookup_dir_item(NULL, root, path, dir_id, "default", 7, 0);
+	if (!di) {
+		/*
+		 * Ok the default dir item isn't there.  This is weird since
+		 * it's always been there, but don't freak out, just try and
+		 * mount to root most subvolume.
+		 */
+		btrfs_free_path(path);
+		dir_id = BTRFS_FIRST_FREE_OBJECTID;
+		new_root = root->fs_info->fs_root;
+		goto setup_root;
+	}
+
+	btrfs_dir_item_key_to_cpu(path->nodes[0], di, &location);
+	btrfs_free_path(path);
+
+find_root:
+	new_root = btrfs_read_fs_root_no_name(root->fs_info, &location);
+	if (IS_ERR(new_root))
+		return ERR_PTR(PTR_ERR(new_root));
+
+	if (btrfs_root_refs(&new_root->root_item) == 0)
+		return ERR_PTR(-ENOENT);
+
+	dir_id = btrfs_root_dirid(&new_root->root_item);
+setup_root:
+	location.objectid = dir_id;
+	location.type = BTRFS_INODE_ITEM_KEY;
+	location.offset = 0;
+
+	inode = btrfs_iget(sb, &location, new_root, &new);
+	if (!inode)
+		return ERR_PTR(-ENOMEM);
+
+	/*
+	 * If we're just mounting the root most subvol put the inode and return
+	 * a reference to the dentry.  We will have already gotten a reference
+	 * to the inode in btrfs_fill_super so we're good to go.
+	 */
+	if (!new && sb->s_root->d_inode == inode) {
+		iput(inode);
+		return dget(sb->s_root);
+	}
+
+	if (new) {
+		const struct qstr name = { .name = "/", .len = 1 };
+
+		/*
+		 * New inode, we need to make the dentry a sibling of s_root so
+		 * everything gets cleaned up properly on unmount.
+		 */
+		dentry = d_alloc(sb->s_root, &name);
+		if (!dentry) {
+			iput(inode);
+			return ERR_PTR(-ENOMEM);
+		}
+		d_splice_alias(inode, dentry);
+	} else {
+		/*
+		 * We found the inode in cache, just find a dentry for it and
+		 * put the reference to the inode we just got.
+		 */
+		dentry = d_find_alias(inode);
+		iput(inode);
+	}
+
+	return dentry;
 }
 
 static int btrfs_fill_super(struct super_block *sb,
@@ -380,7 +474,7 @@ static int btrfs_fill_super(struct super_block *sb,
 	key.objectid = BTRFS_FIRST_FREE_OBJECTID;
 	key.type = BTRFS_INODE_ITEM_KEY;
 	key.offset = 0;
-	inode = btrfs_iget(sb, &key, tree_root->fs_info->fs_root);
+	inode = btrfs_iget(sb, &key, tree_root->fs_info->fs_root, NULL);
 	if (IS_ERR(inode)) {
 		err = PTR_ERR(inode);
 		goto fail_close;
@@ -392,12 +486,6 @@ static int btrfs_fill_super(struct super_block *sb,
 		err = -ENOMEM;
 		goto fail_close;
 	}
-#if 0
-	/* this does the super kobj at the same time */
-	err = btrfs_sysfs_add_super(tree_root->fs_info);
-	if (err)
-		goto fail_close;
-#endif
 
 	sb->s_root = root_dentry;
 
@@ -489,19 +577,22 @@ static int btrfs_test_super(struct super_block *s, void *data)
 static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 		const char *dev_name, void *data, struct vfsmount *mnt)
 {
-	char *subvol_name = NULL;
 	struct block_device *bdev = NULL;
 	struct super_block *s;
 	struct dentry *root;
 	struct btrfs_fs_devices *fs_devices = NULL;
 	fmode_t mode = FMODE_READ;
+	char *subvol_name = NULL;
+	u64 subvol_objectid = 0;
 	int error = 0;
+	int found = 0;
 
 	if (!(flags & MS_RDONLY))
 		mode |= FMODE_WRITE;
 
 	error = btrfs_parse_early_options(data, mode, fs_type,
-					  &subvol_name, &fs_devices);
+					  &subvol_name, &subvol_objectid,
+					  &fs_devices);
 	if (error)
 		return error;
 
@@ -530,6 +621,7 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 			goto error_close_devices;
 		}
 
+		found = 1;
 		btrfs_close_devices(fs_devices);
 	} else {
 		char b[BDEVNAME_SIZE];
@@ -547,25 +639,35 @@ static int btrfs_get_sb(struct file_system_type *fs_type, int flags,
 		s->s_flags |= MS_ACTIVE;
 	}
 
-	if (!strcmp(subvol_name, "."))
-		root = dget(s->s_root);
-	else {
-		mutex_lock(&s->s_root->d_inode->i_mutex);
-		root = lookup_one_len(subvol_name, s->s_root,
+	root = get_default_root(s, subvol_objectid);
+	if (IS_ERR(root)) {
+		error = PTR_ERR(root);
+		deactivate_locked_super(s);
+		goto error;
+	}
+	/* if they gave us a subvolume name bind mount into that */
+	if (strcmp(subvol_name, ".")) {
+		struct dentry *new_root;
+		mutex_lock(&root->d_inode->i_mutex);
+		new_root = lookup_one_len(subvol_name, root,
 				      strlen(subvol_name));
-		mutex_unlock(&s->s_root->d_inode->i_mutex);
+		mutex_unlock(&root->d_inode->i_mutex);
 
-		if (IS_ERR(root)) {
+		if (IS_ERR(new_root)) {
 			deactivate_locked_super(s);
-			error = PTR_ERR(root);
-			goto error_free_subvol_name;
-		}
-		if (!root->d_inode) {
+			error = PTR_ERR(new_root);
 			dput(root);
+			goto error_close_devices;
+		}
+		if (!new_root->d_inode) {
+			dput(root);
+			dput(new_root);
 			deactivate_locked_super(s);
 			error = -ENXIO;
-			goto error_free_subvol_name;
+			goto error_close_devices;
 		}
+		dput(root);
+		root = new_root;
 	}
 
 	mnt->mnt_sb = s;
@@ -580,6 +682,7 @@ error_close_devices:
 	btrfs_close_devices(fs_devices);
 error_free_subvol_name:
 	kfree(subvol_name);
+error:
 	return error;
 }
 
@@ -624,14 +727,37 @@ static int btrfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 {
 	struct btrfs_root *root = btrfs_sb(dentry->d_sb);
 	struct btrfs_super_block *disk_super = &root->fs_info->super_copy;
+	struct list_head *head = &root->fs_info->space_info;
+	struct btrfs_space_info *found;
+	u64 total_used = 0;
+	u64 data_used = 0;
 	int bits = dentry->d_sb->s_blocksize_bits;
 	__be32 *fsid = (__be32 *)root->fs_info->fsid;
 
+	rcu_read_lock();
+	list_for_each_entry_rcu(found, head, list) {
+		if (found->flags & (BTRFS_BLOCK_GROUP_DUP|
+				    BTRFS_BLOCK_GROUP_RAID10|
+				    BTRFS_BLOCK_GROUP_RAID1)) {
+			total_used += found->bytes_used;
+			if (found->flags & BTRFS_BLOCK_GROUP_DATA)
+				data_used += found->bytes_used;
+			else
+				data_used += found->total_bytes;
+		}
+
+		total_used += found->bytes_used;
+		if (found->flags & BTRFS_BLOCK_GROUP_DATA)
+			data_used += found->bytes_used;
+		else
+			data_used += found->total_bytes;
+	}
+	rcu_read_unlock();
+
 	buf->f_namelen = BTRFS_NAME_LEN;
 	buf->f_blocks = btrfs_super_total_bytes(disk_super) >> bits;
-	buf->f_bfree = buf->f_blocks -
-		(btrfs_super_bytes_used(disk_super) >> bits);
-	buf->f_bavail = buf->f_bfree;
+	buf->f_bfree = buf->f_blocks - (total_used >> bits);
+	buf->f_bavail = buf->f_blocks - (data_used >> bits);
 	buf->f_bsize = dentry->d_sb->s_blocksize;
 	buf->f_type = BTRFS_SUPER_MAGIC;
 
