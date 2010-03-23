@@ -404,7 +404,7 @@ static void iwlagn_tx_cmd_build_rate(struct iwl_priv *priv,
 	if (ieee80211_is_probe_resp(fc))
 		data_retry_limit = 3;
 	else
-		data_retry_limit = IWL_DEFAULT_TX_RETRY;
+		data_retry_limit = IWLAGN_DEFAULT_TX_RETRY;
 	tx_cmd->data_retry_limit = data_retry_limit;
 
 	/* Set retry limit on RTS packets */

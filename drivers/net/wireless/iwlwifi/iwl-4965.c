@@ -2086,7 +2086,7 @@ static int iwl4965_calc_rssi(struct iwl_priv *priv,
 
 	/* dBm = max_rssi dB - agc dB - constant.
 	 * Higher AGC (higher radio gain) means lower signal. */
-	return max_rssi - agc - IWL49_RSSI_OFFSET;
+	return max_rssi - agc - IWLAGN_RSSI_OFFSET;
 }
 
 

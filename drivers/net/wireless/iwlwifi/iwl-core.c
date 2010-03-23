@@ -1376,10 +1376,11 @@ int iwl_set_tx_power(struct iwl_priv *priv, s8 tx_power, bool force)
 	int ret = 0;
 	s8 prev_tx_power = priv->tx_power_user_lmt;
 
-	if (tx_power < IWL_TX_POWER_TARGET_POWER_MIN) {
-		IWL_WARN(priv, "Requested user TXPOWER %d below lower limit %d.\n",
+	if (tx_power < IWLAGN_TX_POWER_TARGET_POWER_MIN) {
+		IWL_WARN(priv,
+			 "Requested user TXPOWER %d below lower limit %d.\n",
 			 tx_power,
-			 IWL_TX_POWER_TARGET_POWER_MIN);
+			 IWLAGN_TX_POWER_TARGET_POWER_MIN);
 		return -EINVAL;
 	}
 
