@@ -18,7 +18,6 @@
 #include <linux/quotaops.h>
 #include <linux/types.h>
 #include <linux/writeback.h>
-#include "../internal.h"
 
 static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 				     qid_t id)
@@ -46,36 +45,22 @@ static int check_quotactl_permission(struct super_block *sb, int type, int cmd,
 	return security_quotactl(cmd, type, id, sb);
 }
 
+static void quota_sync_one(struct super_block *sb, void *arg)
+{
+	if (sb->s_qcop && sb->s_qcop->quota_sync)
+		sb->s_qcop->quota_sync(sb, *(int *)arg, 1);
+}
+
 static int quota_sync_all(int type)
 {
-	struct super_block *sb, *n;
 	int ret;
 
 	if (type >= MAXQUOTAS)
 		return -EINVAL;
 	ret = security_quotactl(Q_SYNC, type, 0, NULL);
-	if (ret)
-		return ret;
-
-	spin_lock(&sb_lock);
-	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
-		if (list_empty(&sb->s_instances))
-			continue;
-		if (!sb->s_qcop || !sb->s_qcop->quota_sync)
-			continue;
-
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		if (sb->s_root)
-			sb->s_qcop->quota_sync(sb, type, 1);
-		up_read(&sb->s_umount);
-		spin_lock(&sb_lock);
-		__put_super(sb);
-	}
-	spin_unlock(&sb_lock);
-
-	return 0;
+	if (!ret)
+		iterate_supers(quota_sync_one, &type);
+	return ret;
 }
 
 static int quota_quotaon(struct super_block *sb, int type, int cmd, qid_t id,

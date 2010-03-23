@@ -560,25 +560,17 @@ repeat:
 	return err;
 }
 
+static void do_thaw_one(struct super_block *sb, void *unused)
+{
+	char b[BDEVNAME_SIZE];
+	while (sb->s_bdev && !thaw_bdev(sb->s_bdev, sb))
+		printk(KERN_WARNING "Emergency Thaw on %s\n",
+		       bdevname(sb->s_bdev, b));
+}
+
 static void do_thaw_all(struct work_struct *work)
 {
-	struct super_block *sb, *n;
-	char b[BDEVNAME_SIZE];
-
-	spin_lock(&sb_lock);
-	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
-		if (list_empty(&sb->s_instances))
-			continue;
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-		down_read(&sb->s_umount);
-		while (sb->s_bdev && !thaw_bdev(sb->s_bdev, sb))
-			printk(KERN_WARNING "Emergency Thaw on %s\n",
-			       bdevname(sb->s_bdev, b));
-		up_read(&sb->s_umount);
-		spin_lock(&sb_lock);
-	}
-	spin_unlock(&sb_lock);
+	iterate_supers(do_thaw_one, NULL);
 	kfree(work);
 	printk(KERN_WARNING "Emergency Thaw complete\n");
 }

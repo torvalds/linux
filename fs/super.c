@@ -392,6 +392,36 @@ void sync_supers(void)
 }
 
 /**
+ *	iterate_supers - call function for all active superblocks
+ *	@f: function to call
+ *	@arg: argument to pass to it
+ *
+ *	Scans the superblock list and calls given function, passing it
+ *	locked superblock and given argument.
+ */
+void iterate_supers(void (*f)(struct super_block *, void *), void *arg)
+{
+	struct super_block *sb, *n;
+
+	spin_lock(&sb_lock);
+	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
+		if (list_empty(&sb->s_instances))
+			continue;
+		sb->s_count++;
+		spin_unlock(&sb_lock);
+
+		down_read(&sb->s_umount);
+		if (sb->s_root)
+			f(sb, arg);
+		up_read(&sb->s_umount);
+
+		spin_lock(&sb_lock);
+		__put_super(sb);
+	}
+	spin_unlock(&sb_lock);
+}
+
+/**
  *	get_super - get the superblock of a device
  *	@bdev: device to get the superblock for
  *	

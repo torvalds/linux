@@ -77,31 +77,18 @@ int sync_filesystem(struct super_block *sb)
 }
 EXPORT_SYMBOL_GPL(sync_filesystem);
 
+static void sync_one_sb(struct super_block *sb, void *arg)
+{
+	if (!(sb->s_flags & MS_RDONLY) && sb->s_bdi)
+		__sync_filesystem(sb, *(int *)arg);
+}
 /*
  * Sync all the data for all the filesystems (called by sys_sync() and
  * emergency sync)
  */
 static void sync_filesystems(int wait)
 {
-	struct super_block *sb, *n;
-
-	spin_lock(&sb_lock);
-	list_for_each_entry_safe(sb, n, &super_blocks, s_list) {
-		if (list_empty(&sb->s_instances))
-			continue;
-		sb->s_count++;
-		spin_unlock(&sb_lock);
-
-		down_read(&sb->s_umount);
-		if (!(sb->s_flags & MS_RDONLY) && sb->s_root && sb->s_bdi)
-			__sync_filesystem(sb, wait);
-		up_read(&sb->s_umount);
-
-		/* restart only when sb is no longer on the list */
-		spin_lock(&sb_lock);
-		__put_super(sb);
-	}
-	spin_unlock(&sb_lock);
+	iterate_supers(sync_one_sb, &wait);
 }
 
 /*
