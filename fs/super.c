@@ -944,6 +944,96 @@ out:
 
 EXPORT_SYMBOL_GPL(vfs_kern_mount);
 
+/**
+ * freeze_super -- lock the filesystem and force it into a consistent state
+ * @super: the super to lock
+ *
+ * Syncs the super to make sure the filesystem is consistent and calls the fs's
+ * freeze_fs.  Subsequent calls to this without first thawing the fs will return
+ * -EBUSY.
+ */
+int freeze_super(struct super_block *sb)
+{
+	int ret;
+
+	atomic_inc(&sb->s_active);
+	down_write(&sb->s_umount);
+	if (sb->s_frozen) {
+		deactivate_locked_super(sb);
+		return -EBUSY;
+	}
+
+	if (sb->s_flags & MS_RDONLY) {
+		sb->s_frozen = SB_FREEZE_TRANS;
+		smp_wmb();
+		up_write(&sb->s_umount);
+		return 0;
+	}
+
+	sb->s_frozen = SB_FREEZE_WRITE;
+	smp_wmb();
+
+	sync_filesystem(sb);
+
+	sb->s_frozen = SB_FREEZE_TRANS;
+	smp_wmb();
+
+	sync_blockdev(sb->s_bdev);
+	if (sb->s_op->freeze_fs) {
+		ret = sb->s_op->freeze_fs(sb);
+		if (ret) {
+			printk(KERN_ERR
+				"VFS:Filesystem freeze failed\n");
+			sb->s_frozen = SB_UNFROZEN;
+			deactivate_locked_super(sb);
+			return ret;
+		}
+	}
+	up_write(&sb->s_umount);
+	return 0;
+}
+EXPORT_SYMBOL(freeze_super);
+
+/**
+ * thaw_super -- unlock filesystem
+ * @sb: the super to thaw
+ *
+ * Unlocks the filesystem and marks it writeable again after freeze_super().
+ */
+int thaw_super(struct super_block *sb)
+{
+	int error;
+
+	down_write(&sb->s_umount);
+	if (sb->s_frozen == SB_UNFROZEN) {
+		up_write(&sb->s_umount);
+		return -EINVAL;
+	}
+
+	if (sb->s_flags & MS_RDONLY)
+		goto out;
+
+	if (sb->s_op->unfreeze_fs) {
+		error = sb->s_op->unfreeze_fs(sb);
+		if (error) {
+			printk(KERN_ERR
+				"VFS:Filesystem thaw failed\n");
+			sb->s_frozen = SB_FREEZE_TRANS;
+			up_write(&sb->s_umount);
+			return error;
+		}
+	}
+
+out:
+	sb->s_frozen = SB_UNFROZEN;
+	smp_wmb();
+	wake_up(&sb->s_wait_unfrozen);
+	deactivate_locked_super(sb);
+
+	return 0;
+}
+EXPORT_SYMBOL(thaw_super);
+
 static struct vfsmount *fs_set_subtype(struct vfsmount *mnt, const char *fstype)
 {
 	int err;
