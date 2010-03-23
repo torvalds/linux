@@ -295,6 +295,7 @@ static void free_msrs(void)
 		kfree(per_cpu(cpu_msrs, i).controls);
 		per_cpu(cpu_msrs, i).controls = NULL;
 	}
+	nmi_shutdown_mux();
 }
 
 static int allocate_msrs(void)
@@ -307,14 +308,21 @@ static int allocate_msrs(void)
 		per_cpu(cpu_msrs, i).counters = kzalloc(counters_size,
 							GFP_KERNEL);
 		if (!per_cpu(cpu_msrs, i).counters)
-			return 0;
+			goto fail;
 		per_cpu(cpu_msrs, i).controls = kzalloc(controls_size,
 							GFP_KERNEL);
 		if (!per_cpu(cpu_msrs, i).controls)
-			return 0;
+			goto fail;
 	}
 
+	if (!nmi_setup_mux())
+		goto fail;
+
 	return 1;
+
+fail:
+	free_msrs();
+	return 0;
 }
 
 static void nmi_cpu_setup(void *dummy)
@@ -342,17 +350,7 @@ static int nmi_setup(void)
 	int cpu;
 
 	if (!allocate_msrs())
-		err = -ENOMEM;
-	else if (!nmi_setup_mux())
-		err = -ENOMEM;
-	else
-		err = register_die_notifier(&profile_exceptions_nb);
-
-	if (err) {
-		free_msrs();
-		nmi_shutdown_mux();
-		return err;
-	}
+		return -ENOMEM;
 
 	/* We need to serialize save and setup for HT because the subset
 	 * of msrs are distinct for save and setup operations
@@ -374,9 +372,17 @@ static int nmi_setup(void)
 
 		mux_clone(cpu);
 	}
+
+	err = register_die_notifier(&profile_exceptions_nb);
+	if (err)
+		goto fail;
+
 	on_each_cpu(nmi_cpu_setup, NULL, 1);
 	nmi_enabled = 1;
 	return 0;
+fail:
+	free_msrs();
+	return err;
 }
 
 static void nmi_cpu_restore_registers(struct op_msrs *msrs)
@@ -421,7 +427,6 @@ static void nmi_shutdown(void)
 	nmi_enabled = 0;
 	on_each_cpu(nmi_cpu_shutdown, NULL, 1);
 	unregister_die_notifier(&profile_exceptions_nb);
-	nmi_shutdown_mux();
 	msrs = &get_cpu_var(cpu_msrs);
 	model->shutdown(msrs);
 	free_msrs();
