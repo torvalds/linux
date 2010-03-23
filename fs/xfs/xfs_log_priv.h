@@ -449,6 +449,14 @@ extern void	 xlog_pack_data(xlog_t *log, xlog_in_core_t *iclog, int);
 
 extern kmem_zone_t	*xfs_log_ticket_zone;
 
+static inline void
+xlog_write_adv_cnt(void **ptr, int *len, int *off, size_t bytes)
+{
+	*ptr += bytes;
+	*len -= bytes;
+	*off += bytes;
+}
+
 /*
  * Unmount record type is used as a pseudo transaction type for the ticket.
  * It's value must be outside the range of XFS_TRANS_* values.
