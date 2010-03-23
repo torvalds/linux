@@ -382,6 +382,7 @@ int can_request_irq(unsigned int irq, unsigned long irqflags)
 {
 	struct irq_desc *desc = irq_to_desc(irq);
 	struct irqaction *action;
+	unsigned long flags;
 
 	if (!desc)
 		return 0;
@@ -389,10 +390,13 @@ int can_request_irq(unsigned int irq, unsigned long irqflags)
 	if (desc->status & IRQ_NOREQUEST)
 		return 0;
 
+	raw_spin_lock_irqsave(&desc->lock, flags);
 	action = desc->action;
 	if (action)
 		if (irqflags & action->flags & IRQF_SHARED)
 			action = NULL;
+
+	raw_spin_unlock_irqrestore(&desc->lock, flags);
 
 	return !action;
 }
