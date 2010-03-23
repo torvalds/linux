@@ -6322,7 +6322,7 @@ static int netdev_set_eeprom(struct net_device *dev,
 	int len;
 
 	if (eeprom->magic != EEPROM_MAGIC)
-		return 1;
+		return -EINVAL;
 
 	len = (eeprom->offset + eeprom->len + 1) / 2;
 	for (i = eeprom->offset / 2; i < len; i++)
