@@ -32,6 +32,9 @@
 #include "avivod.h"
 #include "evergreen_reg.h"
 
+#define EVERGREEN_PFP_UCODE_SIZE 1120
+#define EVERGREEN_PM4_UCODE_SIZE 1376
+
 static void evergreen_gpu_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 
@@ -418,23 +421,91 @@ static void evergreen_mc_program(struct radeon_device *rdev)
 	rv515_vga_render_disable(rdev);
 }
 
-#if 0
 /*
  * CP.
  */
-static void evergreen_cp_stop(struct radeon_device *rdev)
-{
-	/* XXX */
-}
-
 
 static int evergreen_cp_load_microcode(struct radeon_device *rdev)
 {
-	/* XXX */
+	const __be32 *fw_data;
+	int i;
 
+	if (!rdev->me_fw || !rdev->pfp_fw)
+		return -EINVAL;
+
+	r700_cp_stop(rdev);
+	WREG32(CP_RB_CNTL, RB_NO_UPDATE | (15 << 8) | (3 << 0));
+
+	fw_data = (const __be32 *)rdev->pfp_fw->data;
+	WREG32(CP_PFP_UCODE_ADDR, 0);
+	for (i = 0; i < EVERGREEN_PFP_UCODE_SIZE; i++)
+		WREG32(CP_PFP_UCODE_DATA, be32_to_cpup(fw_data++));
+	WREG32(CP_PFP_UCODE_ADDR, 0);
+
+	fw_data = (const __be32 *)rdev->me_fw->data;
+	WREG32(CP_ME_RAM_WADDR, 0);
+	for (i = 0; i < EVERGREEN_PM4_UCODE_SIZE; i++)
+		WREG32(CP_ME_RAM_DATA, be32_to_cpup(fw_data++));
+
+	WREG32(CP_PFP_UCODE_ADDR, 0);
+	WREG32(CP_ME_RAM_WADDR, 0);
+	WREG32(CP_ME_RAM_RADDR, 0);
 	return 0;
 }
+
+int evergreen_cp_resume(struct radeon_device *rdev)
+{
+	u32 tmp;
+	u32 rb_bufsz;
+	int r;
+
+	/* Reset cp; if cp is reset, then PA, SH, VGT also need to be reset */
+	WREG32(GRBM_SOFT_RESET, (SOFT_RESET_CP |
+				 SOFT_RESET_PA |
+				 SOFT_RESET_SH |
+				 SOFT_RESET_VGT |
+				 SOFT_RESET_SX));
+	RREG32(GRBM_SOFT_RESET);
+	mdelay(15);
+	WREG32(GRBM_SOFT_RESET, 0);
+	RREG32(GRBM_SOFT_RESET);
+
+	/* Set ring buffer size */
+	rb_bufsz = drm_order(rdev->cp.ring_size / 8);
+	tmp = RB_NO_UPDATE | (drm_order(RADEON_GPU_PAGE_SIZE/8) << 8) | rb_bufsz;
+#ifdef __BIG_ENDIAN
+	tmp |= BUF_SWAP_32BIT;
 #endif
+	WREG32(CP_RB_CNTL, tmp);
+	WREG32(CP_SEM_WAIT_TIMER, 0x4);
+
+	/* Set the write pointer delay */
+	WREG32(CP_RB_WPTR_DELAY, 0);
+
+	/* Initialize the ring buffer's read and write pointers */
+	WREG32(CP_RB_CNTL, tmp | RB_RPTR_WR_ENA);
+	WREG32(CP_RB_RPTR_WR, 0);
+	WREG32(CP_RB_WPTR, 0);
+	WREG32(CP_RB_RPTR_ADDR, rdev->cp.gpu_addr & 0xFFFFFFFF);
+	WREG32(CP_RB_RPTR_ADDR_HI, upper_32_bits(rdev->cp.gpu_addr));
+	mdelay(1);
+	WREG32(CP_RB_CNTL, tmp);
+
+	WREG32(CP_RB_BASE, rdev->cp.gpu_addr >> 8);
+	WREG32(CP_DEBUG, (1 << 27) | (1 << 28));
+
+	rdev->cp.rptr = RREG32(CP_RB_RPTR);
+	rdev->cp.wptr = RREG32(CP_RB_WPTR);
+
+	r600_cp_start(rdev);
+	rdev->cp.ready = true;
+	r = radeon_ring_test(rdev);
+	if (r) {
+		rdev->cp.ready = false;
+		return r;
+	}
+	return 0;
+}
 
 /*
  * Core functions
@@ -1138,15 +1209,15 @@ static int evergreen_startup(struct radeon_device *rdev)
 {
 	int r;
 
-#if 0
-	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
+	/* XXX until interrupts are supported */
+	if (!rdev->me_fw || !rdev->pfp_fw /*|| !rdev->rlc_fw*/) {
 		r = r600_init_microcode(rdev);
 		if (r) {
 			DRM_ERROR("Failed to load firmware!\n");
 			return r;
 		}
 	}
-#endif
+
 	evergreen_mc_program(rdev);
 	if (rdev->flags & RADEON_IS_AGP) {
 		evergreen_agp_enable(rdev);
@@ -1184,6 +1255,7 @@ static int evergreen_startup(struct radeon_device *rdev)
 		return r;
 	}
 	r600_irq_set(rdev);
+#endif
 
 	r = radeon_ring_init(rdev, rdev->cp.ring_size);
 	if (r)
@@ -1191,12 +1263,12 @@ static int evergreen_startup(struct radeon_device *rdev)
 	r = evergreen_cp_load_microcode(rdev);
 	if (r)
 		return r;
-	r = r600_cp_resume(rdev);
+	r = evergreen_cp_resume(rdev);
 	if (r)
 		return r;
 	/* write back buffer are not vital so don't worry about failure */
 	r600_wb_enable(rdev);
-#endif
+
 	return 0;
 }
 
@@ -1221,13 +1293,13 @@ int evergreen_resume(struct radeon_device *rdev)
 		DRM_ERROR("r600 startup failed on resume\n");
 		return r;
 	}
-#if 0
+
 	r = r600_ib_test(rdev);
 	if (r) {
 		DRM_ERROR("radeon: failled testing IB (%d).\n", r);
 		return r;
 	}
-#endif
+
 	return r;
 
 }
@@ -1236,12 +1308,11 @@ int evergreen_suspend(struct radeon_device *rdev)
 {
 #if 0
 	int r;
-
+#endif
 	/* FIXME: we should wait for ring to be empty */
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
 	r600_wb_disable(rdev);
-#endif
 
 	evergreen_pcie_gart_disable(rdev);
 #if 0
@@ -1348,10 +1419,10 @@ int evergreen_init(struct radeon_device *rdev)
 	r = radeon_irq_kms_init(rdev);
 	if (r)
 		return r;
-
+#endif
 	rdev->cp.ring_obj = NULL;
 	r600_ring_init(rdev, 1024 * 1024);
-
+#if 0
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
 #endif
@@ -1362,9 +1433,13 @@ int evergreen_init(struct radeon_device *rdev)
 	rdev->accel_working = false;
 	r = evergreen_startup(rdev);
 	if (r) {
-		evergreen_suspend(rdev);
-		/*r600_wb_fini(rdev);*/
-		/*radeon_ring_fini(rdev);*/
+		dev_err(rdev->dev, "disabling GPU acceleration\n");
+		r700_cp_fini(rdev);
+		r600_wb_fini(rdev);
+#if 0
+		r600_irq_fini(rdev);
+		radeon_irq_kms_fini(rdev);
+#endif
 		evergreen_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
 	}

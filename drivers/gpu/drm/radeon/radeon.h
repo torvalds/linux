@@ -1300,6 +1300,7 @@ extern void rs690_line_buffer_adjust(struct radeon_device *rdev,
 extern void r600_vram_gtt_location(struct radeon_device *rdev, struct radeon_mc *mc);
 extern bool r600_card_posted(struct radeon_device *rdev);
 extern void r600_cp_stop(struct radeon_device *rdev);
+extern int r600_cp_start(struct radeon_device *rdev);
 extern void r600_ring_init(struct radeon_device *rdev, unsigned ring_size);
 extern int r600_cp_resume(struct radeon_device *rdev);
 extern void r600_cp_fini(struct radeon_device *rdev);
@@ -1339,6 +1340,9 @@ extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder,
 					    int bps,
 					    uint8_t status_bits,
 					    uint8_t category_code);
+
+extern void r700_cp_stop(struct radeon_device *rdev);
+extern void r700_cp_fini(struct radeon_device *rdev);
 
 /* evergreen */
 struct evergreen_mc_save {

@@ -89,6 +89,7 @@
 #define	CP_QUEUE_THRESHOLDS				0x8760
 #define		ROQ_IB1_START(x)				((x) << 0)
 #define		ROQ_IB2_START(x)				((x) << 8)
+#define	CP_RB_BASE					0xC100
 #define	CP_RB_CNTL					0xC104
 #define		RB_BUFSZ(x)					((x) << 0)
 #define		RB_BLKSZ(x)					((x) << 8)
@@ -104,6 +105,7 @@
 #define	CP_RB_WPTR_ADDR_HI				0xC11C
 #define	CP_RB_WPTR_DELAY				0x8704
 #define	CP_SEM_WAIT_TIMER				0x85BC
+#define	CP_DEBUG					0xC1FC
 
 
 #define	GC_USER_SHADER_PIPE_CONFIG			0x8954

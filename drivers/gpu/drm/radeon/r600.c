@@ -43,6 +43,8 @@
 #define R700_PFP_UCODE_SIZE 848
 #define R700_PM4_UCODE_SIZE 1360
 #define R700_RLC_UCODE_SIZE 1024
+#define EVERGREEN_PFP_UCODE_SIZE 1120
+#define EVERGREEN_PM4_UCODE_SIZE 1376
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/R600_pfp.bin");
@@ -67,6 +69,14 @@ MODULE_FIRMWARE("radeon/RV710_pfp.bin");
 MODULE_FIRMWARE("radeon/RV710_me.bin");
 MODULE_FIRMWARE("radeon/R600_rlc.bin");
 MODULE_FIRMWARE("radeon/R700_rlc.bin");
+MODULE_FIRMWARE("radeon/CEDAR_pfp.bin");
+MODULE_FIRMWARE("radeon/CEDAR_me.bin");
+MODULE_FIRMWARE("radeon/REDWOOD_pfp.bin");
+MODULE_FIRMWARE("radeon/REDWOOD_me.bin");
+MODULE_FIRMWARE("radeon/JUNIPER_pfp.bin");
+MODULE_FIRMWARE("radeon/JUNIPER_me.bin");
+MODULE_FIRMWARE("radeon/CYRPESS_pfp.bin");
+MODULE_FIRMWARE("radeon/CYPRESS_me.bin");
 
 int r600_debugfs_mc_info_init(struct radeon_device *rdev);
 
@@ -1449,10 +1459,31 @@ int r600_init_microcode(struct radeon_device *rdev)
 		chip_name = "RV710";
 		rlc_chip_name = "R700";
 		break;
+	case CHIP_CEDAR:
+		chip_name = "CEDAR";
+		rlc_chip_name = "";
+		break;
+	case CHIP_REDWOOD:
+		chip_name = "REDWOOD";
+		rlc_chip_name = "";
+		break;
+	case CHIP_JUNIPER:
+		chip_name = "JUNIPER";
+		rlc_chip_name = "";
+		break;
+	case CHIP_CYPRESS:
+	case CHIP_HEMLOCK:
+		chip_name = "CYPRESS";
+		rlc_chip_name = "";
+		break;
 	default: BUG();
 	}
 
-	if (rdev->family >= CHIP_RV770) {
+	if (rdev->family >= CHIP_CEDAR) {
+		pfp_req_size = EVERGREEN_PFP_UCODE_SIZE * 4;
+		me_req_size = EVERGREEN_PM4_UCODE_SIZE * 4;
+		rlc_req_size = 0;
+	} else if (rdev->family >= CHIP_RV770) {
 		pfp_req_size = R700_PFP_UCODE_SIZE * 4;
 		me_req_size = R700_PM4_UCODE_SIZE * 4;
 		rlc_req_size = R700_RLC_UCODE_SIZE * 4;
@@ -1487,6 +1518,8 @@ int r600_init_microcode(struct radeon_device *rdev)
 		err = -EINVAL;
 	}
 
+	/* XXX until evergreen interrupts are supported */
+	if (rdev->family < CHIP_CEDAR) {
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", rlc_chip_name);
 	err = request_firmware(&rdev->rlc_fw, fw_name, &pdev->dev);
 	if (err)
@@ -1496,6 +1529,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 		       "r600_rlc: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->rlc_fw->size, fw_name);
 		err = -EINVAL;
+	}
 	}
 
 out:
@@ -1566,12 +1600,15 @@ int r600_cp_start(struct radeon_device *rdev)
 	}
 	radeon_ring_write(rdev, PACKET3(PACKET3_ME_INITIALIZE, 5));
 	radeon_ring_write(rdev, 0x1);
-	if (rdev->family < CHIP_RV770) {
-		radeon_ring_write(rdev, 0x3);
-		radeon_ring_write(rdev, rdev->config.r600.max_hw_contexts - 1);
-	} else {
+	if (rdev->family >= CHIP_CEDAR) {
+		radeon_ring_write(rdev, 0x0);
+		radeon_ring_write(rdev, rdev->config.evergreen.max_hw_contexts - 1);
+	} else if (rdev->family >= CHIP_RV770) {
 		radeon_ring_write(rdev, 0x0);
 		radeon_ring_write(rdev, rdev->config.rv770.max_hw_contexts - 1);
+	} else {
+		radeon_ring_write(rdev, 0x3);
+		radeon_ring_write(rdev, rdev->config.r600.max_hw_contexts - 1);
 	}
 	radeon_ring_write(rdev, PACKET3_ME_INITIALIZE_DEVICE_ID(1));
 	radeon_ring_write(rdev, 0);
