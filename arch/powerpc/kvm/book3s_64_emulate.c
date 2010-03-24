@@ -239,6 +239,34 @@ void kvmppc_set_bat(struct kvm_vcpu *vcpu, struct kvmppc_bat *bat, bool upper,
 	}
 }
 
+static u32 kvmppc_read_bat(struct kvm_vcpu *vcpu, int sprn)
+{
+	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
+	struct kvmppc_bat *bat;
+
+	switch (sprn) {
+	case SPRN_IBAT0U ... SPRN_IBAT3L:
+		bat = &vcpu_book3s->ibat[(sprn - SPRN_IBAT0U) / 2];
+		break;
+	case SPRN_IBAT4U ... SPRN_IBAT7L:
+		bat = &vcpu_book3s->ibat[4 + ((sprn - SPRN_IBAT4U) / 2)];
+		break;
+	case SPRN_DBAT0U ... SPRN_DBAT3L:
+		bat = &vcpu_book3s->dbat[(sprn - SPRN_DBAT0U) / 2];
+		break;
+	case SPRN_DBAT4U ... SPRN_DBAT7L:
+		bat = &vcpu_book3s->dbat[4 + ((sprn - SPRN_DBAT4U) / 2)];
+		break;
+	default:
+		BUG();
+	}
+
+	if (sprn % 2)
+		return bat->raw >> 32;
+	else
+		return bat->raw;
+}
+
 static void kvmppc_write_bat(struct kvm_vcpu *vcpu, int sprn, u32 val)
 {
 	struct kvmppc_vcpu_book3s *vcpu_book3s = to_book3s(vcpu);
@@ -290,6 +318,7 @@ int kvmppc_core_emulate_mtspr(struct kvm_vcpu *vcpu, int sprn, int rs)
 		/* BAT writes happen so rarely that we're ok to flush
 		 * everything here */
 		kvmppc_mmu_pte_flush(vcpu, 0, 0);
+		kvmppc_mmu_flush_segments(vcpu);
 		break;
 	case SPRN_HID0:
 		to_book3s(vcpu)->hid[0] = spr_val;
@@ -373,6 +402,12 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	int emulated = EMULATE_DONE;
 
 	switch (sprn) {
+	case SPRN_IBAT0U ... SPRN_IBAT3L:
+	case SPRN_IBAT4U ... SPRN_IBAT7L:
+	case SPRN_DBAT0U ... SPRN_DBAT3L:
+	case SPRN_DBAT4U ... SPRN_DBAT7L:
+		kvmppc_set_gpr(vcpu, rt, kvmppc_read_bat(vcpu, sprn));
+		break;
 	case SPRN_SDR1:
 		kvmppc_set_gpr(vcpu, rt, to_book3s(vcpu)->sdr1);
 		break;
