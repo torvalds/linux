@@ -2177,7 +2177,7 @@ int weight_p __read_mostly = 64;            /* old backlog weight */
 
 DEFINE_PER_CPU(struct netif_rx_stats, netdev_rx_stat) = { 0, };
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_RPS
 /*
  * get_rps_cpu is called from netif_receive_skb and returns the target
  * CPU from the RPS map of the receiving queue for a given skb.
@@ -2325,7 +2325,7 @@ enqueue:
 
 		/* Schedule NAPI for backlog device */
 		if (napi_schedule_prep(&queue->backlog)) {
-#ifdef CONFIG_SMP
+#ifdef CONFIG_RPS
 			if (cpu != smp_processor_id()) {
 				struct rps_remote_softirq_cpus *rcpus =
 				    &__get_cpu_var(rps_remote_softirq_cpus);
@@ -2376,7 +2376,7 @@ int netif_rx(struct sk_buff *skb)
 	if (!skb->tstamp.tv64)
 		net_timestamp(skb);
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_RPS
 	cpu = get_rps_cpu(skb->dev, skb);
 	if (cpu < 0)
 		cpu = smp_processor_id();
@@ -2750,7 +2750,7 @@ out:
  */
 int netif_receive_skb(struct sk_buff *skb)
 {
-#ifdef CONFIG_SMP
+#ifdef CONFIG_RPS
 	int cpu;
 
 	cpu = get_rps_cpu(skb->dev, skb);
@@ -3189,7 +3189,7 @@ void netif_napi_del(struct napi_struct *napi)
 }
 EXPORT_SYMBOL(netif_napi_del);
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_RPS
 /*
  * net_rps_action sends any pending IPI's for rps.  This is only called from
  * softirq and interrupts must be enabled.
@@ -3214,7 +3214,7 @@ static void net_rx_action(struct softirq_action *h)
 	unsigned long time_limit = jiffies + 2;
 	int budget = netdev_budget;
 	void *have;
-#ifdef CONFIG_SMP
+#ifdef CONFIG_RPS
 	int select;
 	struct rps_remote_softirq_cpus *rcpus;
 #endif
@@ -3280,7 +3280,7 @@ static void net_rx_action(struct softirq_action *h)
 		netpoll_poll_unlock(have);
 	}
 out:
-#ifdef CONFIG_SMP
+#ifdef CONFIG_RPS
 	rcpus = &__get_cpu_var(rps_remote_softirq_cpus);
 	select = rcpus->select;
 	rcpus->select ^= 1;
@@ -5277,6 +5277,7 @@ int register_netdevice(struct net_device *dev)
 
 	dev->iflink = -1;
 
+#ifdef CONFIG_RPS
 	if (!dev->num_rx_queues) {
 		/*
 		 * Allocate a single RX queue if driver never called
@@ -5293,7 +5294,7 @@ int register_netdevice(struct net_device *dev)
 		atomic_set(&dev->_rx->count, 1);
 		dev->num_rx_queues = 1;
 	}
-
+#endif
 	/* Init, if this function is available */
 	if (dev->netdev_ops->ndo_init) {
 		ret = dev->netdev_ops->ndo_init(dev);
@@ -5653,11 +5654,13 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		void (*setup)(struct net_device *), unsigned int queue_count)
 {
 	struct netdev_queue *tx;
-	struct netdev_rx_queue *rx;
 	struct net_device *dev;
 	size_t alloc_size;
 	struct net_device *p;
+#ifdef CONFIG_RPS
+	struct netdev_rx_queue *rx;
 	int i;
+#endif
 
 	BUG_ON(strlen(name) >= sizeof(dev->name));
 
@@ -5683,6 +5686,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 		goto free_p;
 	}
 
+#ifdef CONFIG_RPS
 	rx = kcalloc(queue_count, sizeof(struct netdev_rx_queue), GFP_KERNEL);
 	if (!rx) {
 		printk(KERN_ERR "alloc_netdev: Unable to allocate "
@@ -5698,6 +5702,7 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	 */
 	for (i = 0; i < queue_count; i++)
 		rx[i].first = rx;
+#endif
 
 	dev = PTR_ALIGN(p, NETDEV_ALIGN);
 	dev->padded = (char *)dev - (char *)p;
@@ -5713,8 +5718,10 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	dev->num_tx_queues = queue_count;
 	dev->real_num_tx_queues = queue_count;
 
+#ifdef CONFIG_RPS
 	dev->_rx = rx;
 	dev->num_rx_queues = queue_count;
+#endif
 
 	dev->gso_max_size = GSO_MAX_SIZE;
 
@@ -5731,8 +5738,10 @@ struct net_device *alloc_netdev_mq(int sizeof_priv, const char *name,
 	return dev;
 
 free_rx:
+#ifdef CONFIG_RPS
 	kfree(rx);
 free_tx:
+#endif
 	kfree(tx);
 free_p:
 	kfree(p);
@@ -6236,7 +6245,7 @@ static int __init net_dev_init(void)
 		queue->completion_queue = NULL;
 		INIT_LIST_HEAD(&queue->poll_list);
 
-#ifdef CONFIG_SMP
+#ifdef CONFIG_RPS
 		queue->csd.func = trigger_softirq;
 		queue->csd.info = queue;
 		queue->csd.flags = 0;

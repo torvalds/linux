@@ -531,6 +531,7 @@ struct netdev_queue {
 	unsigned long		tx_dropped;
 } ____cacheline_aligned_in_smp;
 
+#ifdef CONFIG_RPS
 /*
  * This structure holds an RPS map which can be of variable length.  The
  * map is an array of CPUs.
@@ -549,6 +550,7 @@ struct netdev_rx_queue {
 	struct netdev_rx_queue *first;
 	atomic_t count;
 } ____cacheline_aligned_in_smp;
+#endif
 
 /*
  * This structure defines the management hooks for network devices.
@@ -897,12 +899,14 @@ struct net_device {
 
 	unsigned char		broadcast[MAX_ADDR_LEN];	/* hw bcast add	*/
 
+#ifdef CONFIG_RPS
 	struct kset		*queues_kset;
 
 	struct netdev_rx_queue	*_rx;
 
 	/* Number of RX queues allocated at alloc_netdev_mq() time  */
 	unsigned int		num_rx_queues;
+#endif
 
 	struct netdev_queue	rx_queue;
 
