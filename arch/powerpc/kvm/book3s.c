@@ -651,26 +651,34 @@ void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 	kvmppc_recalc_shadow_msr(vcpu);
 }
 
-static int kvmppc_check_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr)
+static int kvmppc_read_inst(struct kvm_vcpu *vcpu)
 {
 	ulong srr0 = vcpu->arch.pc;
 	int ret;
 
-	/* Need to do paired single emulation? */
-	if (!(vcpu->arch.hflags & BOOK3S_HFLAG_PAIRED_SINGLE))
-		return EMULATE_DONE;
-
-	/* Read out the instruction */
 	ret = kvmppc_ld(vcpu, &srr0, sizeof(u32), &vcpu->arch.last_inst, false);
 	if (ret == -ENOENT) {
 		vcpu->arch.msr = kvmppc_set_field(vcpu->arch.msr, 33, 33, 1);
 		vcpu->arch.msr = kvmppc_set_field(vcpu->arch.msr, 34, 36, 0);
 		vcpu->arch.msr = kvmppc_set_field(vcpu->arch.msr, 42, 47, 0);
 		kvmppc_book3s_queue_irqprio(vcpu, BOOK3S_INTERRUPT_INST_STORAGE);
-	} else if(ret == EMULATE_DONE) {
+		return EMULATE_AGAIN;
+	}
+
+	return EMULATE_DONE;
+}
+
+static int kvmppc_check_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr)
+{
+
+	/* Need to do paired single emulation? */
+	if (!(vcpu->arch.hflags & BOOK3S_HFLAG_PAIRED_SINGLE))
+		return EMULATE_DONE;
+
+	/* Read out the instruction */
+	if (kvmppc_read_inst(vcpu) == EMULATE_DONE)
 		/* Need to emulate */
 		return EMULATE_FAIL;
-	}
 
 	return EMULATE_AGAIN;
 }
