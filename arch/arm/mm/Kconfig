@@ -736,6 +736,12 @@ config NEEDS_SYSCALL_FOR_CMPXCHG
 config OUTER_CACHE
 	bool
 
+config OUTER_CACHE_SYNC
+	bool
+	help
+	  The outer cache has a outer_cache_fns.sync function pointer
+	  that can be used to drain the write buffer of the outer cache.
+
 config CACHE_FEROCEON_L2
 	bool "Enable the Feroceon L2 cache controller"
 	depends on ARCH_KIRKWOOD || ARCH_MV78XX0
