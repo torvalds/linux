@@ -1479,6 +1479,7 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 	int retcode = NO_ERROR;
 	int ldsc = 0; /* local disk size changed */
 	enum determine_dev_size dd;
+	enum dds_flags ddsf;
 
 	memset(&rs, 0, sizeof(struct resize));
 	if (!resize_from_tags(mdev, nlp->tag_list, &rs)) {
@@ -1502,13 +1503,19 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 		goto fail;
 	}
 
+	if (rs.no_resync && mdev->agreed_pro_version < 93) {
+		retcode = ERR_NEED_APV_93;
+		goto fail;
+	}
+
 	if (mdev->ldev->known_size != drbd_get_capacity(mdev->ldev->backing_bdev)) {
 		mdev->ldev->known_size = drbd_get_capacity(mdev->ldev->backing_bdev);
 		ldsc = 1;
 	}
 
 	mdev->ldev->dc.disk_size = (sector_t)rs.resize_size;
-	dd = drbd_determin_dev_size(mdev, rs.resize_force ? DDSF_FORCED : 0);
+	ddsf = (rs.resize_force ? DDSF_FORCED : 0) | (rs.no_resync ? DDSF_NO_RESYNC : 0);
+	dd = drbd_determin_dev_size(mdev, ddsf);
 	drbd_md_sync(mdev);
 	put_ldev(mdev);
 	if (dd == dev_size_error) {
@@ -1521,7 +1528,7 @@ static int drbd_nl_resize(struct drbd_conf *mdev, struct drbd_nl_cfg_req *nlp,
 			set_bit(RESIZE_PENDING, &mdev->flags);
 
 		drbd_send_uuids(mdev);
-		drbd_send_sizes(mdev, 1, 0);
+		drbd_send_sizes(mdev, 1, ddsf);
 	}
 
  fail:
