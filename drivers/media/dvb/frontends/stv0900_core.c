@@ -1875,7 +1875,7 @@ static struct dvb_frontend_ops stv0900_ops = {
 	},
 	.release			= stv0900_release,
 	.init				= stv0900_init,
-	.get_frontend               	= stv0900_get_frontend,
+	.get_frontend                   = stv0900_get_frontend,
 	.get_frontend_algo		= stv0900_frontend_algo,
 	.i2c_gate_ctrl			= stv0900_i2c_gate_ctrl,
 	.diseqc_send_master_cmd		= stv0900_send_master_cmd,
