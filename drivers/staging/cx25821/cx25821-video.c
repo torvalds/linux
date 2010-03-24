@@ -54,31 +54,31 @@ static void init_controls(struct cx25821_dev *dev, int chan_num);
 
 struct cx25821_fmt formats[] = {
 	{
-	 .name = "8 bpp, gray",
-	 .fourcc = V4L2_PIX_FMT_GREY,
-	 .depth = 8,
-	 .flags = FORMAT_FLAGS_PACKED,
+		.name = "8 bpp, gray",
+		.fourcc = V4L2_PIX_FMT_GREY,
+		.depth = 8,
+		.flags = FORMAT_FLAGS_PACKED,
 	 }, {
-	     .name = "4:1:1, packed, Y41P",
-	     .fourcc = V4L2_PIX_FMT_Y41P,
-	     .depth = 12,
-	     .flags = FORMAT_FLAGS_PACKED,
-	     }, {
-		 .name = "4:2:2, packed, YUYV",
-		 .fourcc = V4L2_PIX_FMT_YUYV,
-		 .depth = 16,
-		 .flags = FORMAT_FLAGS_PACKED,
-		 }, {
-		     .name = "4:2:2, packed, UYVY",
-		     .fourcc = V4L2_PIX_FMT_UYVY,
-		     .depth = 16,
-		     .flags = FORMAT_FLAGS_PACKED,
-		     }, {
-			 .name = "4:2:0, YUV",
-			 .fourcc = V4L2_PIX_FMT_YUV420,
-			 .depth = 12,
-			 .flags = FORMAT_FLAGS_PACKED,
-			 },
+		.name = "4:1:1, packed, Y41P",
+		.fourcc = V4L2_PIX_FMT_Y41P,
+		.depth = 12,
+		.flags = FORMAT_FLAGS_PACKED,
+	}, {
+		.name = "4:2:2, packed, YUYV",
+		.fourcc = V4L2_PIX_FMT_YUYV,
+		.depth = 16,
+		.flags = FORMAT_FLAGS_PACKED,
+	}, {
+		.name = "4:2:2, packed, UYVY",
+		.fourcc = V4L2_PIX_FMT_UYVY,
+		.depth = 16,
+		.flags = FORMAT_FLAGS_PACKED,
+	}, {
+		.name = "4:2:0, YUV",
+		.fourcc = V4L2_PIX_FMT_YUV420,
+		.depth = 12,
+		.flags = FORMAT_FLAGS_PACKED,
+	},
 };
 
 int get_format_size(void)
