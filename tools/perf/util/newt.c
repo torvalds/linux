@@ -157,7 +157,7 @@ static void __callchain__append_graph_browser(struct callchain_node *self,
 				indexes[depth + 2] = NEWT_ARG_LAST;
 				++chain_idx;
 			}
-			newt_checkbox_tree__add(tree, str, chain->ms.sym, indexes);
+			newt_checkbox_tree__add(tree, str, &chain->ms, indexes);
 			free(alloc_str);
 			++printed;
 		}
@@ -193,7 +193,7 @@ static void callchain__append_graph_browser(struct callchain_node *self,
 			continue;
 
 		str = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
-		newt_checkbox_tree__add(tree, str, chain->ms.sym, indexes);
+		newt_checkbox_tree__add(tree, str, &chain->ms, indexes);
 	}
 
 	indexes[1] = parent_idx;
@@ -287,14 +287,14 @@ static size_t hist_entry__append_browser(struct hist_entry *self,
 
 		indexes[0] = NEWT_ARG_APPEND;
 		indexes[1] = NEWT_ARG_LAST;
-		newt_checkbox_tree__add(tree, s, self->ms.sym, indexes);
+		newt_checkbox_tree__add(tree, s, &self->ms, indexes);
 	} else
-		newtListboxAppendEntry(tree, s, self->ms.sym);
+		newtListboxAppendEntry(tree, s, &self->ms);
 
 	return strlen(s);
 }
 
-static void symbol__annotate_browser(const struct symbol *self)
+static void map_symbol__annotate_browser(const struct map_symbol *self)
 {
 	FILE *fp;
 	int cols, rows;
@@ -305,10 +305,11 @@ static void symbol__annotate_browser(const struct symbol *self)
 	size_t max_usable_width;
 	char *line = NULL;
 
-	if (self == NULL)
+	if (self->sym == NULL)
 		return;
 
-	if (asprintf(&str, "perf annotate %s 2>&1 | expand", self->name) < 0)
+	if (asprintf(&str, "perf annotate -d \"%s\" %s 2>&1 | expand",
+		     self->map->dso->name, self->sym->name) < 0)
 		return;
 
 	fp = popen(str, "r");
@@ -338,7 +339,7 @@ static void symbol__annotate_browser(const struct symbol *self)
 
 	newtListboxSetWidth(tree, max_line_len);
 
-	newtCenteredWindow(max_line_len + 2, rows - 5, self->name);
+	newtCenteredWindow(max_line_len + 2, rows - 5, self->sym->name);
 	form = newt_form__new();
 	newtFormAddComponents(form, tree, NULL);
 
@@ -359,7 +360,7 @@ static const void *newt__symbol_tree_get_current(newtComponent self)
 
 static void perf_session__selection(newtComponent self, void *data)
 {
-	const struct symbol **symbol_ptr = data;
+	const struct map_symbol **symbol_ptr = data;
 	*symbol_ptr = newt__symbol_tree_get_current(self);
 }
 
@@ -376,7 +377,7 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 	char str[1024];
 	newtComponent form, tree;
 	struct newtExitStruct es;
-	const struct symbol *selection;
+	const struct map_symbol *selection;
 
 	snprintf(str, sizeof(str), "Samples: %Ld", session_total);
 	newtDrawRootText(0, 0, str);
@@ -416,11 +417,8 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 		int len = hist_entry__append_browser(h, tree, session_total);
 		if (len > max_len)
 			max_len = len;
-		if (symbol_conf.use_callchain) {
+		if (symbol_conf.use_callchain)
 			hist_entry__append_callchain_browser(h, tree, session_total, idx++);
-			if (idx > 3300)
-				break;
-		}
 	}
 
 	if (max_len > cols)
@@ -441,14 +439,12 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 	while (1) {
 		char annotate[512];
 		const char *options[2];
-		int nr_options = 0, choice;
+		int nr_options = 0, choice = 0;
 
 		newtFormRun(form, &es);
 		if (es.reason == NEWT_EXIT_HOTKEY) {
-			if (toupper(es.u.key) == 'A') {
-				symbol__annotate_browser(selection);
-				continue;
-			}
+			if (toupper(es.u.key) == 'A')
+				goto do_annotate;
 			if (es.u.key == NEWT_KEY_ESCAPE ||
 			    toupper(es.u.key) == 'Q' ||
 			    es.u.key == CTRL('c')) {
@@ -459,9 +455,9 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 			}
 		}
 
-		if (selection != NULL) {
+		if (selection->sym != NULL) {
 			snprintf(annotate, sizeof(annotate),
-				 "Annotate %s", selection->name);
+				 "Annotate %s", selection->sym->name);
 			options[nr_options++] = annotate;
 		}
 
@@ -469,8 +465,17 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 		choice = popup_menu(nr_options, options);
 		if (choice == nr_options - 1)
 			break;
-		else if (selection != NULL && choice >= 0)
-			symbol__annotate_browser(selection);
+do_annotate:
+		if (selection->sym != NULL && choice >= 0) {
+			if (selection->map->dso->origin == DSO__ORIG_KERNEL) {
+				newtPopHelpLine();
+				newtPushHelpLine("No vmlinux file found, can't "
+						 "annotate with just a "
+						 "kallsyms file");
+				continue;
+			}
+			map_symbol__annotate_browser(selection);
+		}
 	}
 
 	newtFormDestroy(form);
