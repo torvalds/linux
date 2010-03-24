@@ -788,3 +788,9 @@ config ARM_L1_CACHE_SHIFT
 	int
 	default 6 if ARM_L1_CACHE_SHIFT_6
 	default 5
+
+config ARCH_HAS_BARRIERS
+	bool
+	help
+	  This option allows the use of custom mandatory barriers
+	  included via the mach/barriers.h file.
