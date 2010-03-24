@@ -475,7 +475,7 @@ s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw)
 			msleep(edata);
 			break;
 		case IXGBE_DATA_NL:
-			hw_dbg(hw, "DATA:  \n");
+			hw_dbg(hw, "DATA:\n");
 			data_offset++;
 			hw->eeprom.ops.read(hw, data_offset++,
 			                    &phy_offset);
@@ -491,7 +491,7 @@ s32 ixgbe_reset_phy_nl(struct ixgbe_hw *hw)
 			break;
 		case IXGBE_CONTROL_NL:
 			data_offset++;
-			hw_dbg(hw, "CONTROL: \n");
+			hw_dbg(hw, "CONTROL:\n");
 			if (edata == IXGBE_CONTROL_EOL_NL) {
 				hw_dbg(hw, "EOL\n");
 				end_data = true;

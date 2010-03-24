@@ -3480,7 +3480,7 @@ static int __devinit ixgbevf_probe(struct pci_dev *pdev,
 
 	hw_dbg(hw, "MAC: %d\n", hw->mac.type);
 
-	hw_dbg(hw, "LRO is disabled \n");
+	hw_dbg(hw, "LRO is disabled\n");
 
 	hw_dbg(hw, "Intel(R) 82599 Virtual Function\n");
 	cards_found++;

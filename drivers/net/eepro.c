@@ -646,7 +646,7 @@ static void __init printEEPROMInfo(struct net_device *dev)
 	if (GetBit(Word,ee_PortTPE)) printk(KERN_DEBUG "TPE ");
 	if (GetBit(Word,ee_PortBNC)) printk(KERN_DEBUG "BNC ");
 	if (GetBit(Word,ee_PortAUI)) printk(KERN_DEBUG "AUI ");
-	printk(KERN_DEBUG "port(s) \n");
+	printk(KERN_DEBUG "port(s)\n");
 
 	Word = lp->word[6];
 	printk(KERN_DEBUG "Word6:\n");
@@ -766,7 +766,7 @@ static int __init eepro_probe1(struct net_device *dev, int autoprobe)
 	/* Grab the region so we can find another board if autoIRQ fails. */
 	if (!request_region(ioaddr, EEPRO_IO_EXTENT, DRV_NAME)) {
 		if (!autoprobe)
-			printk(KERN_WARNING "EEPRO: io-port 0x%04x in use \n",
+			printk(KERN_WARNING "EEPRO: io-port 0x%04x in use\n",
 				ioaddr);
 		return -EBUSY;
 	}
