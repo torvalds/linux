@@ -772,10 +772,10 @@ static int __init init_u32(void)
 	printk("    Performance counters on\n");
 #endif
 #ifdef CONFIG_NET_CLS_IND
-	printk("    input device check on \n");
+	printk("    input device check on\n");
 #endif
 #ifdef CONFIG_NET_CLS_ACT
-	printk("    Actions configured \n");
+	printk("    Actions configured\n");
 #endif
 	return register_tcf_proto_ops(&cls_u32_ops);
 }

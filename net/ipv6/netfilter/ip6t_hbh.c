@@ -141,11 +141,11 @@ hbh_mt6(const struct sk_buff *skb, const struct xt_match_param *par)
 			}
 
 			/* Step to the next */
-			pr_debug("len%04X \n", optlen);
+			pr_debug("len%04X\n", optlen);
 
 			if ((ptr > skb->len - optlen || hdrlen < optlen) &&
 			    temp < optinfo->optsnr - 1) {
-				pr_debug("new pointer is too large! \n");
+				pr_debug("new pointer is too large!\n");
 				break;
 			}
 			ptr += optlen;

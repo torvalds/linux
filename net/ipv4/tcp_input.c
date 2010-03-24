@@ -4318,7 +4318,7 @@ static void tcp_ofo_queue(struct sock *sk)
 		}
 
 		if (!after(TCP_SKB_CB(skb)->end_seq, tp->rcv_nxt)) {
-			SOCK_DEBUG(sk, "ofo packet was already received \n");
+			SOCK_DEBUG(sk, "ofo packet was already received\n");
 			__skb_unlink(skb, &tp->out_of_order_queue);
 			__kfree_skb(skb);
 			continue;
