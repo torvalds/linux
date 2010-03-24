@@ -270,6 +270,13 @@ map_again:
 			    (rflags & HPTE_R_N) ? '-' : 'x',
 			    orig_pte->eaddr, hpteg, va, orig_pte->vpage, hpaddr);
 
+		/* The ppc_md code may give us a secondary entry even though we
+		   asked for a primary. Fix up. */
+		if ((ret & _PTEIDX_SECONDARY) && !(vflags & HPTE_V_SECONDARY)) {
+			hash = ~hash;
+			hpteg = ((hash & htab_hash_mask) * HPTES_PER_GROUP);
+		}
+
 		pte->slot = hpteg + (ret & 7);
 		pte->host_va = va;
 		pte->pte = *orig_pte;
