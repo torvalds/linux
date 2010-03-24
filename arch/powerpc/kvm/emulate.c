@@ -38,10 +38,12 @@
 #define OP_31_XOP_LBZX      87
 #define OP_31_XOP_STWX      151
 #define OP_31_XOP_STBX      215
+#define OP_31_XOP_LBZUX     119
 #define OP_31_XOP_STBUX     247
 #define OP_31_XOP_LHZX      279
 #define OP_31_XOP_LHZUX     311
 #define OP_31_XOP_MFSPR     339
+#define OP_31_XOP_LHAX      343
 #define OP_31_XOP_STHX      407
 #define OP_31_XOP_STHUX     439
 #define OP_31_XOP_MTSPR     467
@@ -173,6 +175,19 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 			emulated = kvmppc_handle_load(run, vcpu, rt, 1, 1);
 			break;
 
+		case OP_31_XOP_LBZUX:
+			rt = get_rt(inst);
+			ra = get_ra(inst);
+			rb = get_rb(inst);
+
+			ea = kvmppc_get_gpr(vcpu, rb);
+			if (ra)
+				ea += kvmppc_get_gpr(vcpu, ra);
+
+			emulated = kvmppc_handle_load(run, vcpu, rt, 1, 1);
+			kvmppc_set_gpr(vcpu, ra, ea);
+			break;
+
 		case OP_31_XOP_STWX:
 			rs = get_rs(inst);
 			emulated = kvmppc_handle_store(run, vcpu,
@@ -200,6 +215,11 @@ int kvmppc_emulate_instruction(struct kvm_run *run, struct kvm_vcpu *vcpu)
 						       kvmppc_get_gpr(vcpu, rs),
 			                               1, 1);
 			kvmppc_set_gpr(vcpu, rs, ea);
+			break;
+
+		case OP_31_XOP_LHAX:
+			rt = get_rt(inst);
+			emulated = kvmppc_handle_loads(run, vcpu, rt, 2, 1);
 			break;
 
 		case OP_31_XOP_LHZX:
