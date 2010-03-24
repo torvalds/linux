@@ -3401,7 +3401,7 @@ struct snd_soc_dai wm8994_dai[] = {
 			.rates = WM8994_RATES,
 			.formats = WM8994_FORMATS,
 		},
-		.playback = {
+		.capture = {
 			.stream_name = "AIF3 Capture",
 			.channels_min = 2,
 			.channels_max = 2,
