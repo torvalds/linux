@@ -702,6 +702,11 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 		return RESUME_GUEST;
 	}
 
+	/* We already own the ext */
+	if (vcpu->arch.guest_owned_ext & msr) {
+		return RESUME_GUEST;
+	}
+
 #ifdef DEBUG_EXT
 	printk(KERN_INFO "Loading up ext 0x%lx\n", msr);
 #endif
