@@ -99,10 +99,11 @@ struct kvmppc_vcpu_book3s {
 #define CONTEXT_GUEST		1
 #define CONTEXT_GUEST_END	2
 
-#define VSID_REAL	0xfffffffffff00000
-#define VSID_REAL_DR	0xffffffffffe00000
-#define VSID_REAL_IR	0xffffffffffd00000
-#define VSID_BAT	0xffffffffffc00000
+#define VSID_REAL_DR	0x7ffffffffff00000
+#define VSID_REAL_IR	0x7fffffffffe00000
+#define VSID_SPLIT_MASK	0x7fffffffffe00000
+#define VSID_REAL	0x7fffffffffc00000
+#define VSID_BAT	0x7fffffffffb00000
 #define VSID_PR		0x8000000000000000
 
 extern void kvmppc_mmu_pte_flush(struct kvm_vcpu *vcpu, u64 ea, u64 ea_mask);

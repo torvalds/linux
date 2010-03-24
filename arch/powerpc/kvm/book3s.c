@@ -134,6 +134,14 @@ void kvmppc_set_msr(struct kvm_vcpu *vcpu, u64 msr)
 
 	if (((vcpu->arch.msr & (MSR_IR|MSR_DR)) != (old_msr & (MSR_IR|MSR_DR))) ||
 	    (vcpu->arch.msr & MSR_PR) != (old_msr & MSR_PR)) {
+		bool dr = (vcpu->arch.msr & MSR_DR) ? true : false;
+		bool ir = (vcpu->arch.msr & MSR_IR) ? true : false;
+
+		/* Flush split mode PTEs */
+		if (dr != ir)
+			kvmppc_mmu_pte_vflush(vcpu, VSID_SPLIT_MASK,
+					      VSID_SPLIT_MASK);
+
 		kvmppc_mmu_flush_segments(vcpu);
 		kvmppc_mmu_map_segment(vcpu, vcpu->arch.pc);
 	}
@@ -396,15 +404,7 @@ static int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, bool data,
 	} else {
 		pte->eaddr = eaddr;
 		pte->raddr = eaddr & 0xffffffff;
-		pte->vpage = eaddr >> 12;
-		switch (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
-		case 0:
-			pte->vpage |= VSID_REAL;
-		case MSR_DR:
-			pte->vpage |= VSID_REAL_DR;
-		case MSR_IR:
-			pte->vpage |= VSID_REAL_IR;
-		}
+		pte->vpage = VSID_REAL | eaddr >> 12;
 		pte->may_read = true;
 		pte->may_write = true;
 		pte->may_execute = true;
@@ -513,12 +513,10 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 	int page_found = 0;
 	struct kvmppc_pte pte;
 	bool is_mmio = false;
+	bool dr = (vcpu->arch.msr & MSR_DR) ? true : false;
+	bool ir = (vcpu->arch.msr & MSR_IR) ? true : false;
 
-	if ( vec == BOOK3S_INTERRUPT_DATA_STORAGE ) {
-		relocated = (vcpu->arch.msr & MSR_DR);
-	} else {
-		relocated = (vcpu->arch.msr & MSR_IR);
-	}
+	relocated = data ? dr : ir;
 
 	/* Resolve real address if translation turned on */
 	if (relocated) {
@@ -530,14 +528,18 @@ int kvmppc_handle_pagefault(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		pte.raddr = eaddr & 0xffffffff;
 		pte.eaddr = eaddr;
 		pte.vpage = eaddr >> 12;
-		switch (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
-		case 0:
-			pte.vpage |= VSID_REAL;
-		case MSR_DR:
-			pte.vpage |= VSID_REAL_DR;
-		case MSR_IR:
-			pte.vpage |= VSID_REAL_IR;
-		}
+	}
+
+	switch (vcpu->arch.msr & (MSR_DR|MSR_IR)) {
+	case 0:
+		pte.vpage |= VSID_REAL;
+		break;
+	case MSR_DR:
+		pte.vpage |= VSID_REAL_DR;
+		break;
+	case MSR_IR:
+		pte.vpage |= VSID_REAL_IR;
+		break;
 	}
 
 	if (vcpu->arch.mmu.is_dcbz32(vcpu) &&
