@@ -53,35 +53,24 @@ static void state_mt_destroy(const struct xt_mtdtor_param *par)
 	nf_ct_l3proto_module_put(par->family);
 }
 
-static struct xt_match state_mt_reg[] __read_mostly = {
-	{
-		.name		= "state",
-		.family		= NFPROTO_IPV4,
-		.checkentry	= state_mt_check,
-		.match		= state_mt,
-		.destroy	= state_mt_destroy,
-		.matchsize	= sizeof(struct xt_state_info),
-		.me		= THIS_MODULE,
-	},
-	{
-		.name		= "state",
-		.family		= NFPROTO_IPV6,
-		.checkentry	= state_mt_check,
-		.match		= state_mt,
-		.destroy	= state_mt_destroy,
-		.matchsize	= sizeof(struct xt_state_info),
-		.me		= THIS_MODULE,
-	},
+static struct xt_match state_mt_reg __read_mostly = {
+	.name       = "state",
+	.family     = NFPROTO_UNSPEC,
+	.checkentry = state_mt_check,
+	.match      = state_mt,
+	.destroy    = state_mt_destroy,
+	.matchsize  = sizeof(struct xt_state_info),
+	.me         = THIS_MODULE,
 };
 
 static int __init state_mt_init(void)
 {
-	return xt_register_matches(state_mt_reg, ARRAY_SIZE(state_mt_reg));
+	return xt_register_match(&state_mt_reg);
 }
 
 static void __exit state_mt_exit(void)
 {
-	xt_unregister_matches(state_mt_reg, ARRAY_SIZE(state_mt_reg));
+	xt_unregister_match(&state_mt_reg);
 }
 
 module_init(state_mt_init);
