@@ -513,24 +513,32 @@ int event__preprocess_sample(const event_t *self, struct perf_session *session,
 
 	dump_printf(" ... thread: %s:%d\n", thread->comm, thread->pid);
 
-	thread__find_addr_location(thread, session, cpumode, MAP__FUNCTION,
-				   self->ip.ip, al, filter);
+	thread__find_addr_map(thread, session, cpumode, MAP__FUNCTION,
+			      self->ip.ip, al);
 	dump_printf(" ...... dso: %s\n",
 		    al->map ? al->map->dso->long_name :
 			al->level == 'H' ? "[hypervisor]" : "<not found>");
-	/*
-	 * We have to do this here as we may have a dso with no symbol hit that
-	 * has a name longer than the ones with symbols sampled.
-	 */
-	if (al->map && !sort_dso.elide && !al->map->dso->slen_calculated)
-		dso__calc_col_width(al->map->dso);
+	al->sym = NULL;
 
-	if (symbol_conf.dso_list &&
-	    (!al->map || !al->map->dso ||
-	     !(strlist__has_entry(symbol_conf.dso_list, al->map->dso->short_name) ||
-	       (al->map->dso->short_name != al->map->dso->long_name &&
-		strlist__has_entry(symbol_conf.dso_list, al->map->dso->long_name)))))
-		goto out_filtered;
+	if (al->map) {
+		if (symbol_conf.dso_list &&
+		    (!al->map || !al->map->dso ||
+		     !(strlist__has_entry(symbol_conf.dso_list,
+					  al->map->dso->short_name) ||
+		       (al->map->dso->short_name != al->map->dso->long_name &&
+			strlist__has_entry(symbol_conf.dso_list,
+					   al->map->dso->long_name)))))
+			goto out_filtered;
+		/*
+		 * We have to do this here as we may have a dso with no symbol
+		 * hit that has a name longer than the ones with symbols
+		 * sampled.
+		 */
+		if (!sort_dso.elide && !al->map->dso->slen_calculated)
+			dso__calc_col_width(al->map->dso);
+
+		al->sym = map__find_symbol(al->map, al->addr, filter);
+	}
 
 	if (symbol_conf.sym_list && al->sym &&
 	    !strlist__has_entry(symbol_conf.sym_list, al->sym->name))
