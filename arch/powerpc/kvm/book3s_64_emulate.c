@@ -189,6 +189,8 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			ulong ra = 0;
 			ulong addr, vaddr;
 			u32 zeros[8] = { 0, 0, 0, 0, 0, 0, 0, 0 };
+			u32 dsisr;
+			int r;
 
 			if (get_ra(inst))
 				ra = kvmppc_get_gpr(vcpu, get_ra(inst));
@@ -198,14 +200,23 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				addr &= 0xffffffff;
 			vaddr = addr;
 
-			if (kvmppc_st(vcpu, &addr, 32, zeros, true)) {
+			r = kvmppc_st(vcpu, &addr, 32, zeros, true);
+			if ((r == -ENOENT) || (r == -EPERM)) {
+				*advance = 0;
 				vcpu->arch.dear = vaddr;
 				vcpu->arch.fault_dear = vaddr;
-				to_book3s(vcpu)->dsisr = DSISR_PROTFAULT |
-						      DSISR_ISSTORE;
+
+				dsisr = DSISR_ISSTORE;
+				if (r == -ENOENT)
+					dsisr |= DSISR_NOHPTE;
+				else if (r == -EPERM)
+					dsisr |= DSISR_PROTFAULT;
+
+				to_book3s(vcpu)->dsisr = dsisr;
+				vcpu->arch.fault_dsisr = dsisr;
+
 				kvmppc_book3s_queue_irqprio(vcpu,
 					BOOK3S_INTERRUPT_DATA_STORAGE);
-				kvmppc_mmu_pte_flush(vcpu, vaddr, ~0xFFFULL);
 			}
 
 			break;

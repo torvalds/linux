@@ -29,6 +29,7 @@
 #include <linux/gfp.h>
 #include <linux/sched.h>
 #include <linux/vmalloc.h>
+#include <linux/highmem.h>
 
 #define VCPU_STAT(x) offsetof(struct kvm_vcpu, stat.x), KVM_STAT_VCPU
 
@@ -369,34 +370,29 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
  */
 static void kvmppc_patch_dcbz(struct kvm_vcpu *vcpu, struct kvmppc_pte *pte)
 {
-	bool touched = false;
-	hva_t hpage;
+	struct page *hpage;
+	u64 hpage_offset;
 	u32 *page;
 	int i;
 
-	hpage = gfn_to_hva(vcpu->kvm, pte->raddr >> PAGE_SHIFT);
-	if (kvm_is_error_hva(hpage))
+	hpage = gfn_to_page(vcpu->kvm, pte->raddr >> PAGE_SHIFT);
+	if (is_error_page(hpage))
 		return;
 
-	hpage |= pte->raddr & ~PAGE_MASK;
-	hpage &= ~0xFFFULL;
+	hpage_offset = pte->raddr & ~PAGE_MASK;
+	hpage_offset &= ~0xFFFULL;
+	hpage_offset /= 4;
 
-	page = vmalloc(HW_PAGE_SIZE);
+	get_page(hpage);
+	page = kmap_atomic(hpage, KM_USER0);
 
-	if (copy_from_user(page, (void __user *)hpage, HW_PAGE_SIZE))
-		goto out;
+	/* patch dcbz into reserved instruction, so we trap */
+	for (i=hpage_offset; i < hpage_offset + (HW_PAGE_SIZE / 4); i++)
+		if ((page[i] & 0xff0007ff) == INS_DCBZ)
+			page[i] &= 0xfffffff7;
 
-	for (i=0; i < HW_PAGE_SIZE / 4; i++)
-		if ((page[i] & 0xff0007ff) == INS_DCBZ) {
-			page[i] &= 0xfffffff7; // reserved instruction, so we trap
-			touched = true;
-		}
-
-	if (touched)
-		copy_to_user((void __user *)hpage, page, HW_PAGE_SIZE);
-
-out:
-	vfree(page);
+	kunmap_atomic(page, KM_USER0);
+	put_page(hpage);
 }
 
 static int kvmppc_xlate(struct kvm_vcpu *vcpu, ulong eaddr, bool data,
@@ -449,30 +445,21 @@ int kvmppc_st(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
 	      bool data)
 {
 	struct kvmppc_pte pte;
-	hva_t hva = *eaddr;
 
 	vcpu->stat.st++;
 
 	if (kvmppc_xlate(vcpu, *eaddr, data, &pte))
-		goto nopte;
+		return -ENOENT;
 
 	*eaddr = pte.raddr;
 
-	hva = kvmppc_pte_to_hva(vcpu, &pte, false);
-	if (kvm_is_error_hva(hva))
-		goto mmio;
+	if (!pte.may_write)
+		return -EPERM;
 
-	if (copy_to_user((void __user *)hva, ptr, size)) {
-		printk(KERN_INFO "kvmppc_st at 0x%lx failed\n", hva);
-		goto mmio;
-	}
+	if (kvm_write_guest(vcpu->kvm, pte.raddr, ptr, size))
+		return EMULATE_DO_MMIO;
 
 	return EMULATE_DONE;
-
-nopte:
-	return -ENOENT;
-mmio:
-	return EMULATE_DO_MMIO;
 }
 
 int kvmppc_ld(struct kvm_vcpu *vcpu, ulong *eaddr, int size, void *ptr,
@@ -787,6 +774,7 @@ int kvmppc_handle_exit(struct kvm_run *run, struct kvm_vcpu *vcpu,
 			 *     that no guest that needs the dcbz hack does NX.
 			 */
 			kvmppc_mmu_pte_flush(vcpu, vcpu->arch.pc, ~0xFFFULL);
+			r = RESUME_GUEST;
 		} else {
 			vcpu->arch.msr |= vcpu->arch.shadow_srr1 & 0x58000000;
 			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
