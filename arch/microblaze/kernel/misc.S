@@ -29,7 +29,7 @@
 .type  _tlbia, @function
 .align 4;
 _tlbia:
-	addik	r12, r0, 63 /* flush all entries (63 - 3) */
+	addik	r12, r0, MICROBLAZE_TLB_SIZE - 1 /* flush all entries (63 - 3) */
 	/* isync */
 _tlbia_1:
 	mts	rtlbx, r12
@@ -75,7 +75,7 @@ early_console_reg_tlb_alloc:
 	 * Load a TLB entry for the UART, so that microblaze_progress() can use
 	 * the UARTs nice and early.  We use a 4k real==virtual mapping.
 	 */
-	ori	r4, r0, 63
+	ori	r4, r0, MICROBLAZE_TLB_SIZE - 1
 	mts	rtlbx, r4 /* TLB slot 2 */
 
 	or	r4,r5,r0

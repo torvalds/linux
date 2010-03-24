@@ -134,7 +134,7 @@ _copy_bram:
 	 * virtual to physical.
 	 */
 	nop
-	addik	r3, r0, 63		/* Invalidate all TLB entries */
+	addik	r3, r0, MICROBLAZE_TLB_SIZE -1	/* Invalidate all TLB entries */
 _invalidate:
 	mts	rtlbx, r3
 	mts	rtlbhi, r0			/* flush: ensure V is clear   */
