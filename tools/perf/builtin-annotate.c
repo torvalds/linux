@@ -69,13 +69,13 @@ static int sym__alloc_hist(struct symbol *self)
 static int annotate__hist_hit(struct hist_entry *he, u64 ip)
 {
 	unsigned int sym_size, offset;
-	struct symbol *sym = he->sym;
+	struct symbol *sym = he->ms.sym;
 	struct sym_priv *priv;
 	struct sym_hist *h;
 
 	he->count++;
 
-	if (!sym || !he->map)
+	if (!sym || !he->ms.map)
 		return 0;
 
 	priv = symbol__priv(sym);
@@ -85,7 +85,7 @@ static int annotate__hist_hit(struct hist_entry *he, u64 ip)
 	sym_size = sym->end - sym->start;
 	offset = ip - sym->start;
 
-	pr_debug3("%s: ip=%#Lx\n", __func__, he->map->unmap_ip(he->map, ip));
+	pr_debug3("%s: ip=%#Lx\n", __func__, he->ms.map->unmap_ip(he->ms.map, ip));
 
 	if (offset >= sym_size)
 		return 0;
@@ -94,8 +94,8 @@ static int annotate__hist_hit(struct hist_entry *he, u64 ip)
 	h->sum++;
 	h->ip[offset]++;
 
-	pr_debug3("%#Lx %s: count++ [ip: %#Lx, %#Lx] => %Ld\n", he->sym->start,
-		  he->sym->name, ip, ip - he->sym->start, h->ip[offset]);
+	pr_debug3("%#Lx %s: count++ [ip: %#Lx, %#Lx] => %Ld\n", he->ms.sym->start,
+		  he->ms.sym->name, ip, ip - he->ms.sym->start, h->ip[offset]);
 	return 0;
 }
 
@@ -187,7 +187,7 @@ static struct objdump_line *objdump__get_next_ip_line(struct list_head *head,
 static int parse_line(FILE *file, struct hist_entry *he,
 		      struct list_head *head)
 {
-	struct symbol *sym = he->sym;
+	struct symbol *sym = he->ms.sym;
 	struct objdump_line *objdump_line;
 	char *line = NULL, *tmp, *tmp2;
 	size_t line_len;
@@ -226,7 +226,7 @@ static int parse_line(FILE *file, struct hist_entry *he,
 	}
 
 	if (line_ip != -1) {
-		u64 start = map__rip_2objdump(he->map, sym->start);
+		u64 start = map__rip_2objdump(he->ms.map, sym->start);
 		offset = line_ip - start;
 	}
 
@@ -244,7 +244,7 @@ static int objdump_line__print(struct objdump_line *self,
 			       struct list_head *head,
 			       struct hist_entry *he, u64 len)
 {
-	struct symbol *sym = he->sym;
+	struct symbol *sym = he->ms.sym;
 	static const char *prev_line;
 	static const char *prev_color;
 
@@ -327,7 +327,7 @@ static void insert_source_line(struct sym_ext *sym_ext)
 
 static void free_source_line(struct hist_entry *he, int len)
 {
-	struct sym_priv *priv = symbol__priv(he->sym);
+	struct sym_priv *priv = symbol__priv(he->ms.sym);
 	struct sym_ext *sym_ext = priv->ext;
 	int i;
 
@@ -346,7 +346,7 @@ static void free_source_line(struct hist_entry *he, int len)
 static void
 get_source_line(struct hist_entry *he, int len, const char *filename)
 {
-	struct symbol *sym = he->sym;
+	struct symbol *sym = he->ms.sym;
 	u64 start;
 	int i;
 	char cmd[PATH_MAX * 2];
@@ -361,7 +361,7 @@ get_source_line(struct hist_entry *he, int len, const char *filename)
 	if (!priv->ext)
 		return;
 
-	start = he->map->unmap_ip(he->map, sym->start);
+	start = he->ms.map->unmap_ip(he->ms.map, sym->start);
 
 	for (i = 0; i < len; i++) {
 		char *path = NULL;
@@ -425,7 +425,7 @@ static void print_summary(const char *filename)
 
 static void hist_entry__print_hits(struct hist_entry *self)
 {
-	struct symbol *sym = self->sym;
+	struct symbol *sym = self->ms.sym;
 	struct sym_priv *priv = symbol__priv(sym);
 	struct sym_hist *h = priv->hist;
 	u64 len = sym->end - sym->start, offset;
@@ -439,9 +439,9 @@ static void hist_entry__print_hits(struct hist_entry *self)
 
 static void annotate_sym(struct hist_entry *he)
 {
-	struct map *map = he->map;
+	struct map *map = he->ms.map;
 	struct dso *dso = map->dso;
-	struct symbol *sym = he->sym;
+	struct symbol *sym = he->ms.sym;
 	const char *filename = dso->long_name, *d_filename;
 	u64 len;
 	char command[PATH_MAX*2];
@@ -526,17 +526,17 @@ static void perf_session__find_annotations(struct perf_session *self)
 		struct hist_entry *he = rb_entry(nd, struct hist_entry, rb_node);
 		struct sym_priv *priv;
 
-		if (he->sym == NULL)
+		if (he->ms.sym == NULL)
 			continue;
 
-		priv = symbol__priv(he->sym);
+		priv = symbol__priv(he->ms.sym);
 		if (priv->hist == NULL)
 			continue;
 
 		annotate_sym(he);
 		/*
 		 * Since we have a hist_entry per IP for the same symbol, free
-		 * he->sym->hist to signal we already processed this symbol.
+		 * he->ms.sym->hist to signal we already processed this symbol.
 		 */
 		free(priv->hist);
 		priv->hist = NULL;

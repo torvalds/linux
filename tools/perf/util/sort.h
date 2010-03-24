@@ -45,8 +45,7 @@ struct hist_entry {
 	struct rb_node		rb_node;
 	u64			count;
 	struct thread		*thread;
-	struct map		*map;
-	struct symbol		*sym;
+	struct map_symbol	ms;
 	u64			ip;
 	char			level;
 	struct symbol	  *parent;

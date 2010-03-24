@@ -22,8 +22,10 @@ struct hist_entry *__perf_session__add_hist_entry(struct rb_root *hists,
 	struct hist_entry *he;
 	struct hist_entry entry = {
 		.thread	= al->thread,
-		.map	= al->map,
-		.sym	= al->sym,
+		.ms = {
+			.map	= al->map,
+			.sym	= al->sym,
+		},
 		.ip	= al->addr,
 		.level	= al->level,
 		.count	= count,
@@ -654,7 +656,7 @@ print_entries:
 		if (symbol_conf.use_callchain)
 			ret += hist_entry__fprintf_callchain(h, fp, session_total);
 
-		if (h->map == NULL && verbose > 1) {
+		if (h->ms.map == NULL && verbose > 1) {
 			__map_groups__fprintf_maps(&h->thread->mg,
 						   MAP__FUNCTION, fp);
 			fprintf(fp, "%.10s end\n", graph_dotted_line);

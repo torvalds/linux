@@ -131,8 +131,8 @@ sort__comm_print(FILE *fp, struct hist_entry *self, unsigned int width)
 int64_t
 sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 {
-	struct dso *dso_l = left->map ? left->map->dso : NULL;
-	struct dso *dso_r = right->map ? right->map->dso : NULL;
+	struct dso *dso_l = left->ms.map ? left->ms.map->dso : NULL;
+	struct dso *dso_r = right->ms.map ? right->ms.map->dso : NULL;
 	const char *dso_name_l, *dso_name_r;
 
 	if (!dso_l || !dso_r)
@@ -152,9 +152,9 @@ sort__dso_cmp(struct hist_entry *left, struct hist_entry *right)
 size_t
 sort__dso_print(FILE *fp, struct hist_entry *self, unsigned int width)
 {
-	if (self->map && self->map->dso) {
-		const char *dso_name = !verbose ? self->map->dso->short_name :
-						  self->map->dso->long_name;
+	if (self->ms.map && self->ms.map->dso) {
+		const char *dso_name = !verbose ? self->ms.map->dso->short_name :
+						  self->ms.map->dso->long_name;
 		return repsep_fprintf(fp, "%-*s", width, dso_name);
 	}
 
@@ -168,11 +168,11 @@ sort__sym_cmp(struct hist_entry *left, struct hist_entry *right)
 {
 	u64 ip_l, ip_r;
 
-	if (left->sym == right->sym)
+	if (left->ms.sym == right->ms.sym)
 		return 0;
 
-	ip_l = left->sym ? left->sym->start : left->ip;
-	ip_r = right->sym ? right->sym->start : right->ip;
+	ip_l = left->ms.sym ? left->ms.sym->start : left->ip;
+	ip_r = right->ms.sym ? right->ms.sym->start : right->ip;
 
 	return (int64_t)(ip_r - ip_l);
 }
@@ -184,13 +184,13 @@ sort__sym_print(FILE *fp, struct hist_entry *self, unsigned int width __used)
 	size_t ret = 0;
 
 	if (verbose) {
-		char o = self->map ? dso__symtab_origin(self->map->dso) : '!';
+		char o = self->ms.map ? dso__symtab_origin(self->ms.map->dso) : '!';
 		ret += repsep_fprintf(fp, "%#018llx %c ", (u64)self->ip, o);
 	}
 
 	ret += repsep_fprintf(fp, "[%c] ", self->level);
-	if (self->sym)
-		ret += repsep_fprintf(fp, "%s", self->sym->name);
+	if (self->ms.sym)
+		ret += repsep_fprintf(fp, "%s", self->ms.sym->name);
 	else
 		ret += repsep_fprintf(fp, "%#016llx", (u64)self->ip);
 

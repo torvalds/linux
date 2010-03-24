@@ -287,9 +287,9 @@ static size_t hist_entry__append_browser(struct hist_entry *self,
 
 		indexes[0] = NEWT_ARG_APPEND;
 		indexes[1] = NEWT_ARG_LAST;
-		newt_checkbox_tree__add(tree, s, self->sym, indexes);
+		newt_checkbox_tree__add(tree, s, self->ms.sym, indexes);
 	} else
-		newtListboxAppendEntry(tree, s, self->sym);
+		newtListboxAppendEntry(tree, s, self->ms.sym);
 
 	return strlen(s);
 }

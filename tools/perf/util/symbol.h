@@ -88,6 +88,11 @@ struct ref_reloc_sym {
 	u64		unrelocated_addr;
 };
 
+struct map_symbol {
+	struct map    *map;
+	struct symbol *sym;
+};
+
 struct addr_location {
 	struct thread *thread;
 	struct map    *map;
