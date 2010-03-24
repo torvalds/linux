@@ -37,6 +37,7 @@
 #define OP_31_XOP_SLBIA		498
 #define OP_31_XOP_MFSR		595
 #define OP_31_XOP_MFSRIN	659
+#define OP_31_XOP_DCBA		758
 #define OP_31_XOP_SLBMFEV	851
 #define OP_31_XOP_EIOIO		854
 #define OP_31_XOP_SLBMFEE	915
@@ -182,6 +183,9 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 				t = vcpu->arch.mmu.slbmfev(vcpu, rb);
 				kvmppc_set_gpr(vcpu, get_rt(inst), t);
 			}
+			break;
+		case OP_31_XOP_DCBA:
+			/* Gets treated as NOP */
 			break;
 		case OP_31_XOP_DCBZ:
 		{
