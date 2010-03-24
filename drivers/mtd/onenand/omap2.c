@@ -402,7 +402,7 @@ static int omap3_onenand_write_bufferram(struct mtd_info *mtd, int area,
 
 	dma_src = dma_map_single(&c->pdev->dev, buf, count, DMA_TO_DEVICE);
 	dma_dst = c->phys_base + bram_offset;
-	if (dma_mapping_error(&c->pdev->dev, dma_dst)) {
+	if (dma_mapping_error(&c->pdev->dev, dma_src)) {
 		dev_err(&c->pdev->dev,
 			"Couldn't DMA map a %d byte buffer\n",
 			count);
@@ -425,7 +425,7 @@ static int omap3_onenand_write_bufferram(struct mtd_info *mtd, int area,
 		if (*done)
 			break;
 
-	dma_unmap_single(&c->pdev->dev, dma_dst, count, DMA_TO_DEVICE);
+	dma_unmap_single(&c->pdev->dev, dma_src, count, DMA_TO_DEVICE);
 
 	if (!*done) {
 		dev_err(&c->pdev->dev, "timeout waiting for DMA\n");
@@ -520,7 +520,7 @@ static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
 	dma_src = dma_map_single(&c->pdev->dev, (void *) buffer, count,
 				 DMA_TO_DEVICE);
 	dma_dst = c->phys_base + bram_offset;
-	if (dma_mapping_error(&c->pdev->dev, dma_dst)) {
+	if (dma_mapping_error(&c->pdev->dev, dma_src)) {
 		dev_err(&c->pdev->dev,
 			"Couldn't DMA map a %d byte buffer\n",
 			count);
@@ -538,7 +538,7 @@ static int omap2_onenand_write_bufferram(struct mtd_info *mtd, int area,
 	omap_start_dma(c->dma_channel);
 	wait_for_completion(&c->dma_done);
 
-	dma_unmap_single(&c->pdev->dev, dma_dst, count, DMA_TO_DEVICE);
+	dma_unmap_single(&c->pdev->dev, dma_src, count, DMA_TO_DEVICE);
 
 	return 0;
 }
