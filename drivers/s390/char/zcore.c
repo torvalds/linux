@@ -141,33 +141,6 @@ static int memcpy_hsa_kernel(void *dest, unsigned long src, size_t count)
 	return memcpy_hsa(dest, src, count, TO_KERNEL);
 }
 
-static int memcpy_real(void *dest, unsigned long src, size_t count)
-{
-	unsigned long flags;
-	int rc = -EFAULT;
-	register unsigned long _dest asm("2") = (unsigned long) dest;
-	register unsigned long _len1 asm("3") = (unsigned long) count;
-	register unsigned long _src  asm("4") = src;
-	register unsigned long _len2 asm("5") = (unsigned long) count;
-
-	if (count == 0)
-		return 0;
-	flags = __raw_local_irq_stnsm(0xf8UL); /* switch to real mode */
-	asm volatile (
-		"0:	mvcle	%1,%2,0x0\n"
-		"1:	jo	0b\n"
-		"	lhi	%0,0x0\n"
-		"2:\n"
-		EX_TABLE(1b,2b)
-		: "+d" (rc), "+d" (_dest), "+d" (_src), "+d" (_len1),
-		  "+d" (_len2), "=m" (*((long*)dest))
-		: "m" (*((long*)src))
-		: "cc", "memory");
-	__raw_local_irq_ssm(flags);
-
-	return rc;
-}
-
 static int memcpy_real_user(void __user *dest, unsigned long src, size_t count)
 {
 	static char buf[4096];
@@ -175,7 +148,7 @@ static int memcpy_real_user(void __user *dest, unsigned long src, size_t count)
 
 	while (offs < count) {
 		size = min(sizeof(buf), count - offs);
-		if (memcpy_real(buf, src + offs, size))
+		if (memcpy_real(buf, (void *) src + offs, size))
 			return -EFAULT;
 		if (copy_to_user(dest + offs, buf, size))
 			return -EFAULT;
@@ -663,7 +636,7 @@ static int __init zcore_reipl_init(void)
 	if (ipib_info.ipib < ZFCPDUMP_HSA_SIZE)
 		rc = memcpy_hsa_kernel(ipl_block, ipib_info.ipib, PAGE_SIZE);
 	else
-		rc = memcpy_real(ipl_block, ipib_info.ipib, PAGE_SIZE);
+		rc = memcpy_real(ipl_block, (void *) ipib_info.ipib, PAGE_SIZE);
 	if (rc) {
 		free_page((unsigned long) ipl_block);
 		return rc;

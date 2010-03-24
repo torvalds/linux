@@ -110,6 +110,7 @@ extern void pfault_fini(void);
 #endif /* CONFIG_PFAULT */
 
 extern void cmma_init(void);
+extern int memcpy_real(void *, void *, size_t);
 
 #define finish_arch_switch(prev) do {					     \
 	set_fs(current->thread.mm_segment);				     \
