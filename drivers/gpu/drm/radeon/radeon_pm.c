@@ -113,7 +113,7 @@ int radeon_pm_init(struct radeon_device *rdev)
 
 	INIT_DELAYED_WORK(&rdev->pm.idle_work, radeon_pm_idle_work_handler);
 
-	if (radeon_dynpm != -1 && radeon_dynpm) {
+	if ((radeon_dynpm != -1 && radeon_dynpm) && (rdev->pm.num_power_states > 1)) {
 		rdev->pm.state = PM_STATE_PAUSED;
 		DRM_INFO("radeon: dynamic power management enabled\n");
 	}
