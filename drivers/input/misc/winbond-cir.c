@@ -56,6 +56,7 @@
 #include <linux/io.h>
 #include <linux/bitrev.h>
 #include <linux/bitops.h>
+#include <linux/slab.h>
 
 #define DRVNAME "winbond-cir"
 

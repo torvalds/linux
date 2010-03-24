@@ -13,7 +13,6 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/sched.h>
-#include <linux/slab.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
 #include <mach/hardware.h>

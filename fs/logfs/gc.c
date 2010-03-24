@@ -7,6 +7,7 @@
  */
 #include "logfs.h"
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 /*
  * Wear leveling needs to kick in when the difference between low erase

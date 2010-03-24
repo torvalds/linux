@@ -21,6 +21,7 @@
 #include <linux/in6.h>
 #include <linux/ipv6.h>
 #include <linux/route.h>
+#include <linux/slab.h>
 
 #include <net/ipv6.h>
 #include <net/ndisc.h>

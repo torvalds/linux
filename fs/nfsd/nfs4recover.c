@@ -32,6 +32,7 @@
 */
 
 #include <linux/file.h>
+#include <linux/slab.h>
 #include <linux/namei.h>
 #include <linux/crypto.h>
 #include <linux/sched.h>

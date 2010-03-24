@@ -16,8 +16,8 @@
 #include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/dma-mapping.h>
+#include <linux/slab.h>
 #include <linux/init.h>
-#include <linux/gfp.h>
 #include <linux/clk.h>
 #include <linux/fb.h>
 #include <linux/io.h>

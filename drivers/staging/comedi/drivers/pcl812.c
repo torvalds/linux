@@ -108,6 +108,7 @@ Options for ACL-8113, ISO-813:
 */
 
 #include <linux/interrupt.h>
+#include <linux/gfp.h>
 #include "../comedidev.h"
 
 #include <linux/delay.h>

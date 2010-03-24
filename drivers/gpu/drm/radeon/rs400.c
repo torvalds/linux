@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <drm/drmP.h>
 #include "radeon.h"
 #include "rs400d.h"

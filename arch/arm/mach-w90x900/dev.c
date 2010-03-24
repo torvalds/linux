@@ -18,6 +18,7 @@
 #include <linux/timer.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
+#include <linux/slab.h>
 
 #include <linux/mtd/physmap.h>
 #include <linux/mtd/mtd.h>

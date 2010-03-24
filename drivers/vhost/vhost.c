@@ -22,6 +22,7 @@
 #include <linux/poll.h>
 #include <linux/file.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 
 #include <linux/net.h>
 #include <linux/if_packet.h>

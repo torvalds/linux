@@ -4,6 +4,7 @@
 #include <linux/seq_file.h>
 #include <linux/highmem.h>
 #include <linux/ptrace.h>
+#include <linux/slab.h>
 #include <linux/pagemap.h>
 #include <linux/mempolicy.h>
 #include <linux/swap.h>

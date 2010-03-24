@@ -10,6 +10,7 @@
 #include <linux/list.h>
 #include <linux/uaccess.h>
 #include <linux/seq_file.h>
+#include <linux/slab.h>
 #include <linux/rcupdate.h>
 #include <linux/mutex.h>
 

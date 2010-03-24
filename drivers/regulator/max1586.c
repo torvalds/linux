@@ -22,6 +22,7 @@
 #include <linux/i2c.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/driver.h>
+#include <linux/slab.h>
 #include <linux/regulator/max1586.h>
 
 #define MAX1586_V3_MAX_VSEL 31

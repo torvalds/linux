@@ -20,6 +20,7 @@
 #include <linux/tcp.h>
 #include <linux/mii.h>
 #include <linux/kthread.h>
+#include <linux/slab.h>
 
 #include <asm/ebcdic.h>
 #include <asm/io.h>

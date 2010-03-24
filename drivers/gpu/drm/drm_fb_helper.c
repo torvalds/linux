@@ -29,6 +29,7 @@
  */
 #include <linux/kernel.h>
 #include <linux/sysrq.h>
+#include <linux/slab.h>
 #include <linux/fb.h>
 #include "drmP.h"
 #include "drm_crtc.h"

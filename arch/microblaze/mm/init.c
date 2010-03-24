@@ -15,6 +15,7 @@
 #include <linux/initrd.h>
 #include <linux/pagemap.h>
 #include <linux/pfn.h>
+#include <linux/slab.h>
 #include <linux/swap.h>
 
 #include <asm/page.h>

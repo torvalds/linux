@@ -32,6 +32,7 @@
 #include <linux/wait.h>
 #include <linux/mm.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #define TTM_MEMORY_ALLOC_RETRIES 4
 

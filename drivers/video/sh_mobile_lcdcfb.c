@@ -20,6 +20,7 @@
 #include <linux/interrupt.h>
 #include <linux/vmalloc.h>
 #include <linux/ioctl.h>
+#include <linux/slab.h>
 #include <video/sh_mobile_lcdc.h>
 #include <asm/atomic.h>
 

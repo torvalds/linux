@@ -2,7 +2,6 @@
 #include <linux/slab.h>
 #include <linux/bio.h>
 #include <linux/mm.h>
-#include <linux/gfp.h>
 #include <linux/pagemap.h>
 #include <linux/page-flags.h>
 #include <linux/module.h>

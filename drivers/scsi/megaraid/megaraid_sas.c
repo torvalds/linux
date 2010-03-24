@@ -35,6 +35,7 @@
 #include <linux/delay.h>
 #include <linux/smp_lock.h>
 #include <linux/uio.h>
+#include <linux/slab.h>
 #include <asm/uaccess.h>
 #include <linux/fs.h>
 #include <linux/compat.h>

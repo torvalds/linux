@@ -28,6 +28,7 @@
 #include <linux/poll.h>
 #include <linux/device.h>
 #include <linux/major.h>
+#include <linux/slab.h>
 #include <linux/hid.h>
 #include <linux/mutex.h>
 #include <linux/sched.h>

@@ -18,6 +18,7 @@
  */
 #include "logfs.h"
 #include <linux/sched.h>
+#include <linux/slab.h>
 
 static u64 adjust_bix(u64 bix, level_t level)
 {

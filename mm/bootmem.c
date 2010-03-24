@@ -10,6 +10,7 @@
  */
 #include <linux/init.h>
 #include <linux/pfn.h>
+#include <linux/slab.h>
 #include <linux/bootmem.h>
 #include <linux/module.h>
 #include <linux/kmemleak.h>

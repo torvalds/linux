@@ -16,7 +16,6 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/timer.h>
-#include <linux/slab.h>
 #include <linux/ioport.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>

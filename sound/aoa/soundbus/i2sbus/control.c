@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/delay.h>
+#include <linux/slab.h>
 
 #include <asm/io.h>
 #include <asm/prom.h>

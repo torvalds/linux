@@ -138,12 +138,12 @@
 #include <linux/ioport.h>
 #include <linux/in.h>
 #include <linux/skbuff.h>
-#include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <linux/gfp.h>
 
 #include <asm/system.h>
 #include <asm/io.h>

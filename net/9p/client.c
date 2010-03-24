@@ -29,6 +29,7 @@
 #include <linux/poll.h>
 #include <linux/idr.h>
 #include <linux/mutex.h>
+#include <linux/slab.h>
 #include <linux/sched.h>
 #include <linux/uaccess.h>
 #include <net/9p/9p.h>

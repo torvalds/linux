@@ -17,6 +17,7 @@
  */
 #include <linux/sched.h>
 #include <linux/bio.h>
+#include <linux/slab.h>
 #include <linux/buffer_head.h>
 #include <linux/blkdev.h>
 #include <linux/random.h>

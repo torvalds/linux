@@ -28,6 +28,7 @@
 #include <linux/input.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
+#include <linux/slab.h>
 #include "drmP.h"
 #include "intel_drv.h"
 #include "i915_drm.h"

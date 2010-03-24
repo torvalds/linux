@@ -49,6 +49,7 @@
 #include <linux/nmi.h>
 #include <linux/tboot.h>
 #include <linux/stackprotector.h>
+#include <linux/gfp.h>
 
 #include <asm/acpi.h>
 #include <asm/desc.h>

@@ -34,6 +34,7 @@
 #include "nouveau_dma.h"
 
 #include <linux/log2.h>
+#include <linux/slab.h>
 
 static void
 nouveau_bo_del_ttm(struct ttm_buffer_object *bo)

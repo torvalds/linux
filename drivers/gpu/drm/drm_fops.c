@@ -36,6 +36,7 @@
 
 #include "drmP.h"
 #include <linux/poll.h>
+#include <linux/slab.h>
 #include <linux/smp_lock.h>
 
 static int drm_open_helper(struct inode *inode, struct file *filp,

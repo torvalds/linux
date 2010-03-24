@@ -25,6 +25,7 @@
 #include <linux/ethtool.h>
 #include <linux/mii.h>
 #include <linux/eeprom_93cx6.h>
+#include <linux/slab.h>
 
 #include <net/ax88796.h>
 

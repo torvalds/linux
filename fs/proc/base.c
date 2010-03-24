@@ -81,6 +81,7 @@
 #include <linux/elf.h>
 #include <linux/pid_namespace.h>
 #include <linux/fs_struct.h>
+#include <linux/slab.h>
 #include "internal.h"
 
 /* NOTE:

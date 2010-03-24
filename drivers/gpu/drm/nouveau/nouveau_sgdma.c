@@ -1,6 +1,7 @@
 #include "drmP.h"
 #include "nouveau_drv.h"
 #include <linux/pagemap.h>
+#include <linux/slab.h>
 
 #define NV_CTXDMA_PAGE_SHIFT 12
 #define NV_CTXDMA_PAGE_SIZE  (1 << NV_CTXDMA_PAGE_SHIFT)

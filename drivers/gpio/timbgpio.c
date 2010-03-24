@@ -27,6 +27,7 @@
 #include <linux/io.h>
 #include <linux/timb_gpio.h>
 #include <linux/interrupt.h>
+#include <linux/slab.h>
 
 #define DRIVER_NAME "timb-gpio"
 

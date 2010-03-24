@@ -12,11 +12,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/init.h>
-#include <linux/slab.h>
 #include <linux/fs.h>
 #include <linux/pagemap.h>
 #include <linux/mount.h>
 #include <linux/namei.h>
+#include <linux/gfp.h>
 #include "internal.h"
 
 

@@ -29,6 +29,7 @@
 #include <linux/poll.h>
 #include <linux/platform_device.h>
 #include <linux/msm_rpcrouter.h>
+#include <linux/slab.h>
 
 #include <asm/uaccess.h>
 #include <asm/byteorder.h>

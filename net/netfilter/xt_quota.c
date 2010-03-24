@@ -4,6 +4,7 @@
  * Sam Johnston <samj@samj.net>
  */
 #include <linux/skbuff.h>
+#include <linux/slab.h>
 #include <linux/spinlock.h>
 
 #include <linux/netfilter/x_tables.h>

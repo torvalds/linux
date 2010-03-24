@@ -16,7 +16,6 @@
  * Boston, MA 021110-1307, USA.
  */
 
-#include <linux/gfp.h>
 #include <linux/slab.h>
 #include <linux/blkdev.h>
 #include <linux/writeback.h>

@@ -17,6 +17,7 @@
 #include <linux/mm.h>
 #include <linux/init.h>
 #include <linux/kdebug.h>
+#include <linux/gfp.h>
 
 #include <asm/smp.h>
 #include <asm/delay.h>

@@ -32,6 +32,7 @@
 #include <linux/device.h>
 #include <linux/proc_fs.h>
 #include <linux/acpi.h>
+#include <linux/slab.h>
 #ifdef CONFIG_X86
 #include <asm/mpspec.h>
 #endif

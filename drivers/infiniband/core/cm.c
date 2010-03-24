@@ -42,6 +42,7 @@
 #include <linux/random.h>
 #include <linux/rbtree.h>
 #include <linux/spinlock.h>
+#include <linux/slab.h>
 #include <linux/sysfs.h>
 #include <linux/workqueue.h>
 #include <linux/kdev_t.h>

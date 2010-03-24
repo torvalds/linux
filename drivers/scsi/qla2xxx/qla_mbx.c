@@ -7,6 +7,7 @@
 #include "qla_def.h"
 
 #include <linux/delay.h>
+#include <linux/gfp.h>
 
 
 /*

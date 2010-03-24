@@ -35,6 +35,7 @@
 #include <linux/moduleparam.h>
 #include <linux/random.h>
 #include <linux/highmem.h>
+#include <linux/slab.h>
 #include <asm/byteorder.h>
 
 #include <rdma/ib_verbs.h>

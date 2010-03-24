@@ -46,6 +46,7 @@
 #include <linux/skbuff.h>
 #include <linux/jiffies.h>
 #include <linux/list.h>
+#include <linux/slab.h>
 
 /* for sysctl */
 #include <linux/fs.h>
