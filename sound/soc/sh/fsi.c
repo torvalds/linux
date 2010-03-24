@@ -79,6 +79,12 @@
 #define INT_A_IN	(1 << 4)
 #define INT_A_OUT	(1 << 0)
 
+/* SOFT_RST */
+#define PBSR		(1 << 12) /* Port B Software Reset */
+#define PASR		(1 <<  8) /* Port A Software Reset */
+#define IR		(1 <<  4) /* Interrupt Reset */
+#define FSISR		(1 <<  0) /* Software Reset */
+
 #define FSI_RATES SNDRV_PCM_RATE_8000_96000
 
 #define FSI_FMTS (SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S16_LE)
@@ -372,18 +378,13 @@ static void fsi_irq_init(struct fsi_priv *fsi, int is_play)
 
 static void fsi_soft_all_reset(struct fsi_master *master)
 {
-	u32 status = fsi_master_read(master, SOFT_RST);
-
 	/* port AB reset */
-	status &= 0x000000ff;
-	fsi_master_write(master, SOFT_RST, status);
+	fsi_master_mask_set(master, SOFT_RST, PASR | PBSR, 0);
 	mdelay(10);
 
 	/* soft reset */
-	status &= 0x000000f0;
-	fsi_master_write(master, SOFT_RST, status);
-	status |= 0x00000001;
-	fsi_master_write(master, SOFT_RST, status);
+	fsi_master_mask_set(master, SOFT_RST, FSISR, 0);
+	fsi_master_mask_set(master, SOFT_RST, FSISR, FSISR);
 	mdelay(10);
 }
 
@@ -558,12 +559,11 @@ static int fsi_data_pop(struct fsi_priv *fsi, int startup)
 static irqreturn_t fsi_interrupt(int irq, void *data)
 {
 	struct fsi_master *master = data;
-	u32 status = fsi_master_read(master, SOFT_RST) & ~0x00000010;
 	u32 int_st = fsi_master_read(master, INT_ST);
 
 	/* clear irq status */
-	fsi_master_write(master, SOFT_RST, status);
-	fsi_master_write(master, SOFT_RST, status | 0x00000010);
+	fsi_master_mask_set(master, SOFT_RST, IR, 0);
+	fsi_master_mask_set(master, SOFT_RST, IR, IR);
 
 	if (int_st & INT_A_OUT)
 		fsi_data_push(&master->fsia, 0);
