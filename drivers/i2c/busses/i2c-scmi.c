@@ -54,6 +54,7 @@ static const struct acpi_device_id acpi_smbus_cmi_ids[] = {
 	{ACPI_SMBUS_IBM_HID, (kernel_ulong_t)&ibm_smbus_methods},
 	{"", 0}
 };
+MODULE_DEVICE_TABLE(acpi, acpi_smbus_cmi_ids);
 
 #define ACPI_SMBUS_STATUS_OK			0x00
 #define ACPI_SMBUS_STATUS_FAIL			0x07
