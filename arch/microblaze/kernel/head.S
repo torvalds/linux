@@ -105,8 +105,8 @@ no_fdt_arg:
 	tophys(r4,r4)			/* convert to phys address */
 	ori	r3, r0, COMMAND_LINE_SIZE - 1 /* number of loops */
 _copy_command_line:
-	lbu	r2, r5, r6 /* r7=r5+r6 - r5 contain pointer to command line */
-	sb	r2, r4, r6		/* addr[r4+r6]= r7*/
+	lbu	r2, r5, r6 /* r2=r5+r6 - r5 contain pointer to command line */
+	sb	r2, r4, r6		/* addr[r4+r6]= r2*/
 	addik	r6, r6, 1		/* increment counting */
 	bgtid	r3, _copy_command_line	/* loop for all entries       */
 	addik	r3, r3, -1		/* descrement loop */
