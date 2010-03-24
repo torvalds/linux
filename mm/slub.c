@@ -2429,9 +2429,11 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
 #ifdef CONFIG_SLUB_DEBUG
 	void *addr = page_address(page);
 	void *p;
-	DECLARE_BITMAP(map, page->objects);
+	long *map = kzalloc(BITS_TO_LONGS(page->objects) * sizeof(long),
+			    GFP_ATOMIC);
 
-	bitmap_zero(map, page->objects);
+	if (!map)
+		return;
 	slab_err(s, page, "%s", text);
 	slab_lock(page);
 	for_each_free_object(p, s, page->freelist)
@@ -2446,6 +2448,7 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
 		}
 	}
 	slab_unlock(page);
+	kfree(map);
 #endif
 }
 
@@ -3651,10 +3654,10 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
 }
 
 static void process_slab(struct loc_track *t, struct kmem_cache *s,
-		struct page *page, enum track_item alloc)
+		struct page *page, enum track_item alloc,
+		long *map)
 {
 	void *addr = page_address(page);
-	DECLARE_BITMAP(map, page->objects);
 	void *p;
 
 	bitmap_zero(map, page->objects);
@@ -3673,11 +3676,14 @@ static int list_locations(struct kmem_cache *s, char *buf,
 	unsigned long i;
 	struct loc_track t = { 0, 0, NULL };
 	int node;
+	unsigned long *map = kmalloc(BITS_TO_LONGS(oo_objects(s->max)) *
+				     sizeof(unsigned long), GFP_KERNEL);
 
-	if (!alloc_loc_track(&t, PAGE_SIZE / sizeof(struct location),
-			GFP_TEMPORARY))
+	if (!map || !alloc_loc_track(&t, PAGE_SIZE / sizeof(struct location),
+				     GFP_TEMPORARY)) {
+		kfree(map);
 		return sprintf(buf, "Out of memory\n");
-
+	}
 	/* Push back cpu slabs */
 	flush_all(s);
 
@@ -3691,9 +3697,9 @@ static int list_locations(struct kmem_cache *s, char *buf,
 
 		spin_lock_irqsave(&n->list_lock, flags);
 		list_for_each_entry(page, &n->partial, lru)
-			process_slab(&t, s, page, alloc);
+			process_slab(&t, s, page, alloc, map);
 		list_for_each_entry(page, &n->full, lru)
-			process_slab(&t, s, page, alloc);
+			process_slab(&t, s, page, alloc, map);
 		spin_unlock_irqrestore(&n->list_lock, flags);
 	}
 
@@ -3744,6 +3750,7 @@ static int list_locations(struct kmem_cache *s, char *buf,
 	}
 
 	free_loc_track(&t);
+	kfree(map);
 	if (!t.count)
 		len += sprintf(buf, "No data\n");
 	return len;
