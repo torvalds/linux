@@ -2258,7 +2258,7 @@ static int ql_tx_rx_clean(struct ql3_adapter *qdev,
 				       "%x.\n",
 				       ndev->name, net_rsp->opcode);
 				printk(KERN_ERR PFX
-				       "0x%08lx 0x%08lx 0x%08lx 0x%08lx \n",
+				       "0x%08lx 0x%08lx 0x%08lx 0x%08lx\n",
 				       (unsigned long int)tmp[0],
 				       (unsigned long int)tmp[1],
 				       (unsigned long int)tmp[2],

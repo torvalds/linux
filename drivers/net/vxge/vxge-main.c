@@ -4174,7 +4174,7 @@ vxge_probe(struct pci_dev *pdev, const struct pci_device_id *pre)
 			ret = pci_enable_sriov(pdev, max_config_dev - 1);
 			if (ret)
 				vxge_debug_ll_config(VXGE_ERR,
-					"Failed to enable SRIOV: %d \n", ret);
+					"Failed to enable SRIOV: %d\n", ret);
 	}
 
 	/*

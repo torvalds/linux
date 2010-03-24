@@ -3883,7 +3883,7 @@ static int ucc_geth_probe(struct of_device* ofdev, const struct of_device_id *ma
 	}
 
 	if (netif_msg_probe(&debug))
-		printk(KERN_INFO "ucc_geth: UCC%1d at 0x%8x (irq = %d) \n",
+		printk(KERN_INFO "ucc_geth: UCC%1d at 0x%8x (irq = %d)\n",
 			ug_info->uf_info.ucc_num + 1, ug_info->uf_info.regs,
 			ug_info->uf_info.irq);
 

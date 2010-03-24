@@ -263,7 +263,7 @@ static inline void tsi108_write_tbi(struct tsi108_prv_data *data,
 			return;
 		udelay(10);
 	}
-	printk(KERN_ERR "%s function time out \n", __func__);
+	printk(KERN_ERR "%s function time out\n", __func__);
 }
 
 static int mii_speed(struct mii_if_info *mii)
@@ -1056,7 +1056,7 @@ static void tsi108_stop_ethernet(struct net_device *dev)
 			return;
 		udelay(10);
 	}
-	printk(KERN_ERR "%s function time out \n", __func__);
+	printk(KERN_ERR "%s function time out\n", __func__);
 }
 
 static void tsi108_reset_ether(struct tsi108_prv_data * data)
@@ -1233,7 +1233,7 @@ static void tsi108_init_phy(struct net_device *dev)
 		udelay(10);
 	}
 	if (i == 0)
-		printk(KERN_ERR "%s function time out \n", __func__);
+		printk(KERN_ERR "%s function time out\n", __func__);
 
 	if (data->phy_type == TSI108_PHY_BCM54XX) {
 		tsi108_write_mii(data, 0x09, 0x0300);

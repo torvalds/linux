@@ -4667,13 +4667,13 @@ static int bond_check_params(struct bond_params *params)
 	}
 
 	if (num_grat_arp < 0 || num_grat_arp > 255) {
-		pr_warning("Warning: num_grat_arp (%d) not in range 0-255 so it was reset to 1 \n",
+		pr_warning("Warning: num_grat_arp (%d) not in range 0-255 so it was reset to 1\n",
 			   num_grat_arp);
 		num_grat_arp = 1;
 	}
 
 	if (num_unsol_na < 0 || num_unsol_na > 255) {
-		pr_warning("Warning: num_unsol_na (%d) not in range 0-255 so it was reset to 1 \n",
+		pr_warning("Warning: num_unsol_na (%d) not in range 0-255 so it was reset to 1\n",
 			   num_unsol_na);
 		num_unsol_na = 1;
 	}

@@ -496,7 +496,7 @@ be_test_ddr_dma(struct be_adapter *adapter)
 	ddrdma_cmd.va = pci_alloc_consistent(adapter->pdev, ddrdma_cmd.size,
 					&ddrdma_cmd.dma);
 	if (!ddrdma_cmd.va) {
-		dev_err(&adapter->pdev->dev, "Memory allocation failure \n");
+		dev_err(&adapter->pdev->dev, "Memory allocation failure\n");
 		return -ENOMEM;
 	}
 

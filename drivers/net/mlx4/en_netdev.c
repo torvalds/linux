@@ -503,7 +503,7 @@ static void mlx4_en_do_get_stats(struct work_struct *work)
 
 	err = mlx4_en_DUMP_ETH_STATS(mdev, priv->port, 0);
 	if (err)
-		en_dbg(HW, priv, "Could not update stats \n");
+		en_dbg(HW, priv, "Could not update stats\n");
 
 	mutex_lock(&mdev->state_lock);
 	if (mdev->device_up) {

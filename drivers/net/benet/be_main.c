@@ -1749,7 +1749,7 @@ static int be_setup_wol(struct be_adapter *adapter, bool enable)
 			PCICFG_PM_CONTROL_OFFSET, PCICFG_PM_CONTROL_MASK);
 		if (status) {
 			dev_err(&adapter->pdev->dev,
-				"Could not enable Wake-on-lan \n");
+				"Could not enable Wake-on-lan\n");
 			pci_free_consistent(adapter->pdev, cmd.size, cmd.va,
 					cmd.dma);
 			return status;

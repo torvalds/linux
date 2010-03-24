@@ -2464,7 +2464,7 @@ static void TLan_PhyPrint( struct net_device *dev )
 		printk( "TLAN:   Device %s, Unmanaged PHY.\n", dev->name );
 	} else if ( phy <= TLAN_PHY_MAX_ADDR ) {
 		printk( "TLAN:   Device %s, PHY 0x%02x.\n", dev->name, phy );
-		printk( "TLAN:      Off.  +0     +1     +2     +3 \n" );
+		printk( "TLAN:      Off.  +0     +1     +2     +3\n" );
                 for ( i = 0; i < 0x20; i+= 4 ) {
 			printk( "TLAN:      0x%02x", i );
 			TLan_MiiReadReg( dev, phy, i, &data0 );

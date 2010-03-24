@@ -1499,7 +1499,7 @@ static void sis900_read_mode(struct net_device *net_dev, int *speed, int *duplex
 	}
 
 	if(netif_msg_link(sis_priv))
-		printk(KERN_INFO "%s: Media Link On %s %s-duplex \n",
+		printk(KERN_INFO "%s: Media Link On %s %s-duplex\n",
 	       				net_dev->name,
 	       				*speed == HW_SPEED_100_MBPS ?
 	       					"100mbps" : "10mbps",
@@ -1523,7 +1523,7 @@ static void sis900_tx_timeout(struct net_device *net_dev)
 	int i;
 
 	if(netif_msg_tx_err(sis_priv))
-		printk(KERN_INFO "%s: Transmit timeout, status %8.8x %8.8x \n",
+		printk(KERN_INFO "%s: Transmit timeout, status %8.8x %8.8x\n",
 	       		net_dev->name, inl(ioaddr + cr), inl(ioaddr + isr));
 
 	/* Disable interrupts by clearing the interrupt mask. */

@@ -138,7 +138,7 @@ static void dwmac100_dump_dma_regs(unsigned long ioaddr)
 {
 	int i;
 
-	DBG(KERN_DEBUG "DWMAC 100 DMA CSR \n");
+	DBG(KERN_DEBUG "DWMAC 100 DMA CSR\n");
 	for (i = 0; i < 9; i++)
 		pr_debug("\t CSR%d (offset 0x%x): 0x%08x\n", i,
 		       (DMA_BUS_MODE + i * 4),

@@ -688,7 +688,7 @@ try_new:
 			 pl_type, buf_len);
 		tx_msg->num_pls = le16_to_cpu(num_pls+1);
 		tx_msg->size += padded_len;
-		d_printf(2, dev, "TX: appended %zu b (up to %u b) pl #%u \n",
+		d_printf(2, dev, "TX: appended %zu b (up to %u b) pl #%u\n",
 			padded_len, tx_msg->size, num_pls+1);
 		d_printf(2, dev,
 			 "TX: appended hdr @%zu %zu b pl #%u @%zu %zu/%zu b\n",
