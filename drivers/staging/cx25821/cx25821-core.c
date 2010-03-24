@@ -864,7 +864,7 @@ static void cx25821_initialize(struct cx25821_dev *dev)
 	cx25821_gpio_init(dev);
 }
 
-static int get_resources(struct cx25821_dev *dev)
+static int cx25821_get_resources(struct cx25821_dev *dev)
 {
 	if (request_mem_region
 	    (pci_resource_start(dev->pci, 0), pci_resource_len(dev->pci, 0),
@@ -971,7 +971,7 @@ static int cx25821_dev_setup(struct cx25821_dev *dev)
 	dev->i2c_bus[0].i2c_period = (0x07 << 24);	/* 1.95MHz */
 
 
-	if (get_resources(dev) < 0) {
+	if (cx25821_get_resources(dev) < 0) {
 		printk(KERN_ERR "%s No more PCIe resources for "
 		       "subsystem: %04x:%04x\n",
 		       dev->name, dev->pci->subsystem_vendor,
