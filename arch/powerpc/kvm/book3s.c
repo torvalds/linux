@@ -609,7 +609,9 @@ void kvmppc_giveup_ext(struct kvm_vcpu *vcpu, ulong msr)
 {
 	struct thread_struct *t = &current->thread;
 	u64 *vcpu_fpr = vcpu->arch.fpr;
+#ifdef CONFIG_VSX
 	u64 *vcpu_vsx = vcpu->arch.vsr;
+#endif
 	u64 *thread_fpr = (u64*)t->fpr;
 	int i;
 
@@ -689,7 +691,9 @@ static int kvmppc_handle_ext(struct kvm_vcpu *vcpu, unsigned int exit_nr,
 {
 	struct thread_struct *t = &current->thread;
 	u64 *vcpu_fpr = vcpu->arch.fpr;
+#ifdef CONFIG_VSX
 	u64 *vcpu_vsx = vcpu->arch.vsr;
+#endif
 	u64 *thread_fpr = (u64*)t->fpr;
 	int i;
 
@@ -1221,8 +1225,12 @@ int __kvmppc_vcpu_run(struct kvm_run *kvm_run, struct kvm_vcpu *vcpu)
 {
 	int ret;
 	struct thread_struct ext_bkp;
+#ifdef CONFIG_ALTIVEC
 	bool save_vec = current->thread.used_vr;
+#endif
+#ifdef CONFIG_VSX
 	bool save_vsx = current->thread.used_vsr;
+#endif
 	ulong ext_msr;
 
 	/* No need to go into the guest when all we do is going out */
