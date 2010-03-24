@@ -24,8 +24,8 @@ static unsigned int ath9k_debug = ATH_DBG_DEFAULT;
 module_param_named(debug, ath9k_debug, uint, 0);
 MODULE_PARM_DESC(debug, "Debugging mask");
 
-int modparam_nohwcrypt;
-module_param_named(nohwcrypt, modparam_nohwcrypt, int, 0444);
+int htc_modparam_nohwcrypt;
+module_param_named(nohwcrypt, htc_modparam_nohwcrypt, int, 0444);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption");
 
 #define CHAN2G(_freq, _idx)  { \
@@ -93,7 +93,7 @@ static int ath9k_htc_wait_for_target(struct ath9k_htc_priv *priv)
 
 static void ath9k_deinit_priv(struct ath9k_htc_priv *priv)
 {
-	ath9k_exit_debug(priv->ah);
+	ath9k_htc_exit_debug(priv->ah);
 	ath9k_hw_deinit(priv->ah);
 	tasklet_kill(&priv->wmi_tasklet);
 	tasklet_kill(&priv->rx_tasklet);
@@ -474,7 +474,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
 		goto err_hw;
 	}
 
-	ret = ath9k_init_debug(ah);
+	ret = ath9k_htc_init_debug(ah);
 	if (ret) {
 		ath_print(common, ATH_DBG_FATAL,
 			  "Unable to create debugfs files\n");
@@ -492,7 +492,7 @@ static int ath9k_init_priv(struct ath9k_htc_priv *priv, u16 devid)
 	return 0;
 
 err_queues:
-	ath9k_exit_debug(ah);
+	ath9k_htc_exit_debug(ah);
 err_debug:
 	ath9k_hw_deinit(ah);
 err_hw:
@@ -678,7 +678,7 @@ static int __init ath9k_htc_init(void)
 {
 	int error;
 
-	error = ath9k_debug_create_root();
+	error = ath9k_htc_debug_create_root();
 	if (error < 0) {
 		printk(KERN_ERR
 			"ath9k_htc: Unable to create debugfs root: %d\n",
@@ -698,7 +698,7 @@ static int __init ath9k_htc_init(void)
 	return 0;
 
 err_usb:
-	ath9k_debug_remove_root();
+	ath9k_htc_debug_remove_root();
 err_dbg:
 	return error;
 }
@@ -707,7 +707,7 @@ module_init(ath9k_htc_init);
 static void __exit ath9k_htc_exit(void)
 {
 	ath9k_hif_usb_exit();
-	ath9k_debug_remove_root();
+	ath9k_htc_debug_remove_root();
 	printk(KERN_INFO "ath9k_htc: Driver unloaded\n");
 }
 module_exit(ath9k_htc_exit);

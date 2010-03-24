@@ -36,8 +36,8 @@ int get_hw_qnum(u16 queue, int *hwq_map)
 	}
 }
 
-int ath_txq_update(struct ath9k_htc_priv *priv, int qnum,
-		   struct ath9k_tx_queue_info *qinfo)
+int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
+		       struct ath9k_tx_queue_info *qinfo)
 {
 	struct ath_hw *ah = priv->ah;
 	int error = 0;

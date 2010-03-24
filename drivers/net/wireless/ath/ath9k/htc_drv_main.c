@@ -595,7 +595,7 @@ static const struct file_operations fops_recv = {
 	.owner = THIS_MODULE
 };
 
-int ath9k_init_debug(struct ath_hw *ah)
+int ath9k_htc_init_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
@@ -630,11 +630,11 @@ int ath9k_init_debug(struct ath_hw *ah)
 	return 0;
 
 err:
-	ath9k_exit_debug(ah);
+	ath9k_htc_exit_debug(ah);
 	return -ENOMEM;
 }
 
-void ath9k_exit_debug(struct ath_hw *ah)
+void ath9k_htc_exit_debug(struct ath_hw *ah)
 {
 	struct ath_common *common = ath9k_hw_common(ah);
 	struct ath9k_htc_priv *priv = (struct ath9k_htc_priv *) common->priv;
@@ -645,7 +645,7 @@ void ath9k_exit_debug(struct ath_hw *ah)
 	debugfs_remove(priv->debug.debugfs_phy);
 }
 
-int ath9k_debug_create_root(void)
+int ath9k_htc_debug_create_root(void)
 {
 	ath9k_debugfs_root = debugfs_create_dir(KBUILD_MODNAME, NULL);
 	if (!ath9k_debugfs_root)
@@ -654,7 +654,7 @@ int ath9k_debug_create_root(void)
 	return 0;
 }
 
-void ath9k_debug_remove_root(void)
+void ath9k_htc_debug_remove_root(void)
 {
 	debugfs_remove(ath9k_debugfs_root);
 	ath9k_debugfs_root = NULL;
@@ -1358,7 +1358,7 @@ static int ath9k_htc_conf_tx(struct ieee80211_hw *hw, u16 queue,
 		  queue, qnum, params->aifs, params->cw_min,
 		  params->cw_max, params->txop);
 
-	ret = ath_txq_update(priv, qnum, &qi);
+	ret = ath_htc_txq_update(priv, qnum, &qi);
 	if (ret)
 		ath_print(common, ATH_DBG_FATAL, "TXQ Update failed\n");
 
@@ -1377,7 +1377,7 @@ static int ath9k_htc_set_key(struct ieee80211_hw *hw,
 	struct ath_common *common = ath9k_hw_common(priv->ah);
 	int ret = 0;
 
-	if (modparam_nohwcrypt)
+	if (htc_modparam_nohwcrypt)
 		return -ENOSPC;
 
 	mutex_lock(&priv->mutex);

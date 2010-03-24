@@ -41,7 +41,7 @@
 	((((u32)(_h)) << 22) | (((u32)(_l)) >> 10))
 
 extern struct ieee80211_ops ath9k_htc_ops;
-extern int modparam_nohwcrypt;
+extern int htc_modparam_nohwcrypt;
 
 enum htc_phymode {
 	HTC_MODE_AUTO		= 0,
@@ -408,8 +408,8 @@ void ath9k_tx_cleanup(struct ath9k_htc_priv *priv);
 bool ath9k_htc_txq_setup(struct ath9k_htc_priv *priv,
 			 enum ath9k_tx_queue_subtype qtype);
 int get_hw_qnum(u16 queue, int *hwq_map);
-int ath_txq_update(struct ath9k_htc_priv *priv, int qnum,
-		   struct ath9k_tx_queue_info *qinfo);
+int ath_htc_txq_update(struct ath9k_htc_priv *priv, int qnum,
+		       struct ath9k_tx_queue_info *qinfo);
 
 int ath9k_rx_init(struct ath9k_htc_priv *priv);
 void ath9k_rx_cleanup(struct ath9k_htc_priv *priv);
@@ -427,15 +427,15 @@ void ath9k_htc_disconnect_device(struct htc_target *htc_handle, bool hotunplug);
 int ath9k_htc_resume(struct htc_target *htc_handle);
 #endif
 #ifdef CONFIG_ATH9K_HTC_DEBUGFS
-int ath9k_debug_create_root(void);
-void ath9k_debug_remove_root(void);
-int ath9k_init_debug(struct ath_hw *ah);
-void ath9k_exit_debug(struct ath_hw *ah);
+int ath9k_htc_debug_create_root(void);
+void ath9k_htc_debug_remove_root(void);
+int ath9k_htc_init_debug(struct ath_hw *ah);
+void ath9k_htc_exit_debug(struct ath_hw *ah);
 #else
-static inline int ath9k_debug_create_root(void) { return 0; };
-static inline void ath9k_debug_remove_root(void) {};
-static inline int ath9k_init_debug(struct ath_hw *ah) { return 0; };
-static inline void ath9k_exit_debug(struct ath_hw *ah) {};
+static inline int ath9k_htc_debug_create_root(void) { return 0; };
+static inline void ath9k_htc_debug_remove_root(void) {};
+static inline int ath9k_htc_init_debug(struct ath_hw *ah) { return 0; };
+static inline void ath9k_htc_exit_debug(struct ath_hw *ah) {};
 #endif /* CONFIG_ATH9K_HTC_DEBUGFS */
 
 #endif /* HTC_H */
