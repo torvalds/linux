@@ -28,6 +28,47 @@ static newtComponent newt_form__new(void)
 	return self;
 }
 
+static int popup_menu(int argc, const char *argv[])
+{
+	struct newtExitStruct es;
+	int i, rc = -1, max_len = 5;
+	newtComponent listbox, form = newt_form__new();
+
+	if (form == NULL)
+		return -1;
+
+	listbox = newtListbox(0, 0, argc, NEWT_FLAG_RETURNEXIT);
+	if (listbox == NULL)
+		goto out_destroy_form;
+
+	newtFormAddComponents(form, listbox, NULL);
+
+	for (i = 0; i < argc; ++i) {
+		int len = strlen(argv[i]);
+		if (len > max_len)
+			max_len = len;
+		if (newtListboxAddEntry(listbox, argv[i], (void *)(long)i))
+			goto out_destroy_form;
+	}
+
+	newtCenteredWindow(max_len, argc, NULL);
+	newtFormRun(form, &es);
+	rc = newtListboxGetCurrent(listbox) - NULL;
+	if (es.reason == NEWT_EXIT_HOTKEY)
+		rc = -1;
+	newtPopWindow();
+out_destroy_form:
+	newtFormDestroy(form);
+	return rc;
+}
+
+static bool dialog_yesno(const char *msg)
+{
+	/* newtWinChoice should really be accepting const char pointers... */
+	char yes[] = "Yes", no[] = "No";
+	return newtWinChoice(NULL, no, yes, (char *)msg) == 2;
+}
+
 /*
  * When debugging newt problems it was useful to be able to "unroll"
  * the calls to newtCheckBoxTreeAdd{Array,Item}, so that we can generate
@@ -309,6 +350,19 @@ out_free_str:
 	free(str);
 }
 
+static const void *newt__symbol_tree_get_current(newtComponent self)
+{
+	if (symbol_conf.use_callchain)
+		return newtCheckboxTreeGetCurrent(self);
+	return newtListboxGetCurrent(self);
+}
+
+static void perf_session__selection(newtComponent self, void *data)
+{
+	const struct symbol **symbol_ptr = data;
+	*symbol_ptr = newt__symbol_tree_get_current(self);
+}
+
 void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 				const char *helpline)
 {
@@ -322,6 +376,7 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 	char str[1024];
 	newtComponent form, tree;
 	struct newtExitStruct es;
+	const struct symbol *selection;
 
 	snprintf(str, sizeof(str), "Samples: %Ld", session_total);
 	newtDrawRootText(0, 0, str);
@@ -335,6 +390,8 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 	else
 		tree = newtListbox(0, 0, rows - 5, (NEWT_FLAG_SCROLL |
 						       NEWT_FLAG_RETURNEXIT));
+
+	newtComponentAddCallback(tree, perf_session__selection, &selection);
 
 	list_for_each_entry(se, &hist_entry__sort_list, list) {
 		if (se->elide)
@@ -377,20 +434,43 @@ void perf_session__browse_hists(struct rb_root *hists, u64 session_total,
 	form = newt_form__new();
 	newtFormAddHotKey(form, 'A');
 	newtFormAddHotKey(form, 'a');
+	newtFormAddHotKey(form, NEWT_KEY_RIGHT);
 	newtFormAddComponents(form, tree, NULL);
+	selection = newt__symbol_tree_get_current(tree);
 
 	while (1) {
-		const struct symbol *selection;
+		char annotate[512];
+		const char *options[2];
+		int nr_options = 0, choice;
 
 		newtFormRun(form, &es);
-		if (es.reason == NEWT_EXIT_HOTKEY &&
-		    toupper(es.u.key) != 'A')
+		if (es.reason == NEWT_EXIT_HOTKEY) {
+			if (toupper(es.u.key) == 'A') {
+				symbol__annotate_browser(selection);
+				continue;
+			}
+			if (es.u.key == NEWT_KEY_ESCAPE ||
+			    toupper(es.u.key) == 'Q' ||
+			    es.u.key == CTRL('c')) {
+				if (dialog_yesno("Do you really want to exit?"))
+					break;
+				else
+					continue;
+			}
+		}
+
+		if (selection != NULL) {
+			snprintf(annotate, sizeof(annotate),
+				 "Annotate %s", selection->name);
+			options[nr_options++] = annotate;
+		}
+
+		options[nr_options++] = "Exit";
+		choice = popup_menu(nr_options, options);
+		if (choice == nr_options - 1)
 			break;
-		if (!symbol_conf.use_callchain)
-			selection = newtListboxGetCurrent(tree);
-		else
-			selection = newtCheckboxTreeGetCurrent(tree);
-		symbol__annotate_browser(selection);
+		else if (selection != NULL && choice >= 0)
+			symbol__annotate_browser(selection);
 	}
 
 	newtFormDestroy(form);
