@@ -588,6 +588,25 @@ struct platform_device imx_wdt_device0 = {
 	.resource       = imx_wdt_resources,
 };
 
+static struct resource imx_rtc_resources[] = {
+	{
+		.start  = MX31_RTC_BASE_ADDR,
+		.end    = MX31_RTC_BASE_ADDR + 0x3fff,
+		.flags  = IORESOURCE_MEM,
+	},
+	{
+		.start  = MX31_INT_RTC,
+		.flags  = IORESOURCE_IRQ,
+	},
+};
+
+struct platform_device imx_rtc_device0 = {
+	.name           = "mxc_rtc",
+	.id             = -1,
+	.num_resources  = ARRAY_SIZE(imx_rtc_resources),
+	.resource       = imx_rtc_resources,
+};
+
 static int __init mx3_devices_init(void)
 {
 	if (cpu_is_mx31()) {
