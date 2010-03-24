@@ -556,7 +556,7 @@ static int ray_init(struct net_device *dev)
 	local->fw_ver = local->startup_res.firmware_version[0];
 	local->fw_bld = local->startup_res.firmware_version[1];
 	local->fw_var = local->startup_res.firmware_version[2];
-	dev_dbg(&link->dev, "ray_init firmware version %d.%d \n", local->fw_ver,
+	dev_dbg(&link->dev, "ray_init firmware version %d.%d\n", local->fw_ver,
 	      local->fw_bld);
 
 	local->tib_length = 0x20;
@@ -2234,7 +2234,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 			    (dev->mtu + RX_MAC_HEADER_LENGTH + ETH_HLEN +
 			     FCS_LEN)) {
 				pr_debug(
-				      "ray_cs invalid packet length %d received \n",
+				      "ray_cs invalid packet length %d received\n",
 				      rx_len);
 				return;
 			}
@@ -2245,7 +2245,7 @@ static void rx_data(struct net_device *dev, struct rcs __iomem *prcs,
 			    (dev->mtu + RX_MAC_HEADER_LENGTH + ETH_HLEN +
 			     FCS_LEN)) {
 				pr_debug(
-				      "ray_cs invalid packet length %d received \n",
+				      "ray_cs invalid packet length %d received\n",
 				      rx_len);
 				return;
 			}
@@ -2753,11 +2753,11 @@ static int ray_cs_proc_show(struct seq_file *m, void *v)
 			seq_printf(m, "Hop dwell            = %d Kus\n",
 				   pfh->dwell_time[0] +
 				   256 * pfh->dwell_time[1]);
-			seq_printf(m, "Hop set              = %d \n",
+			seq_printf(m, "Hop set              = %d\n",
 				   pfh->hop_set);
-			seq_printf(m, "Hop pattern          = %d \n",
+			seq_printf(m, "Hop pattern          = %d\n",
 				   pfh->hop_pattern);
-			seq_printf(m, "Hop index            = %d \n",
+			seq_printf(m, "Hop index            = %d\n",
 				   pfh->hop_index);
 			p += p[1] + 2;
 		} else {
