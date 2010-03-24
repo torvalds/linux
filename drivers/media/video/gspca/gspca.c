@@ -279,10 +279,6 @@ static void gspca_input_destroy_urb(struct gspca_dev *gspca_dev)
 		usb_free_urb(urb);
 	}
 }
-#else
-#define gspca_input_connect(gspca_dev)		0
-#define gspca_input_create_urb(gspca_dev)
-#define gspca_input_destroy_urb(gspca_dev)
 #endif
 
 /* get the current input frame buffer */
