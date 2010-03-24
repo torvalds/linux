@@ -202,6 +202,15 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 		addr = sg_dma_address(sg);
 		len = sg_dma_len(sg);
 		while (len) {
+			/* max number of buffers allowed in one DDP context */
+			if (j >= IXGBE_BUFFCNT_MAX) {
+				netif_err(adapter, drv, adapter->netdev,
+					  "xid=%x:%d,%d,%d:addr=%llx "
+					  "not enough descriptors\n",
+					  xid, i, j, dmacount, (u64)addr);
+				goto out_noddp_free;
+			}
+
 			/* get the offset of length of current buffer */
 			thisoff = addr & ((dma_addr_t)bufflen - 1);
 			thislen = min((bufflen - thisoff), len);
@@ -227,20 +236,13 @@ int ixgbe_fcoe_ddp_get(struct net_device *netdev, u16 xid,
 			len -= thislen;
 			addr += thislen;
 			j++;
-			/* max number of buffers allowed in one DDP context */
-			if (j > IXGBE_BUFFCNT_MAX) {
-				DPRINTK(DRV, ERR, "xid=%x:%d,%d,%d:addr=%llx "
-					"not enough descriptors\n",
-					xid, i, j, dmacount, (u64)addr);
-				goto out_noddp_free;
-			}
 		}
 	}
 	/* only the last buffer may have non-full bufflen */
 	lastsize = thisoff + thislen;
 
 	fcbuff = (IXGBE_FCBUFF_4KB << IXGBE_FCBUFF_BUFFSIZE_SHIFT);
-	fcbuff |= (j << IXGBE_FCBUFF_BUFFCNT_SHIFT);
+	fcbuff |= ((j & 0xff) << IXGBE_FCBUFF_BUFFCNT_SHIFT);
 	fcbuff |= (firstoff << IXGBE_FCBUFF_OFFSET_SHIFT);
 	fcbuff |= (IXGBE_FCBUFF_VALID);
 
