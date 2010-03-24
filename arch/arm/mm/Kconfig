@@ -763,6 +763,7 @@ config CACHE_L2X0
 		   REALVIEW_EB_A9MP || ARCH_MX35 || ARCH_MX31 || MACH_REALVIEW_PBX || ARCH_NOMADIK || ARCH_OMAP4
 	default y
 	select OUTER_CACHE
+	select OUTER_CACHE_SYNC
 	help
 	  This option enables the L2x0 PrimeCell.
 
