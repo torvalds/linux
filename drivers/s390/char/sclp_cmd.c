@@ -308,6 +308,13 @@ struct assign_storage_sccb {
 	u16 rn;
 } __packed;
 
+int arch_get_memory_phys_device(unsigned long start_pfn)
+{
+	if (!rzm)
+		return 0;
+	return PFN_PHYS(start_pfn) >> ilog2(rzm);
+}
+
 static unsigned long long rn2addr(u16 rn)
 {
 	return (unsigned long long) (rn - 1) * rzm;
@@ -702,13 +709,6 @@ int sclp_chp_configure(struct chp_id chpid)
 int sclp_chp_deconfigure(struct chp_id chpid)
 {
 	return do_chp_configure(SCLP_CMDW_DECONFIGURE_CHPATH | chpid.id << 8);
-}
-
-int arch_get_memory_phys_device(unsigned long start_pfn)
-{
-	if (!rzm)
-		return 0;
-	return PFN_PHYS(start_pfn) / rzm;
 }
 
 struct chp_info_sccb {
