@@ -5077,7 +5077,7 @@ mii_get_phy(struct net_device *dev)
 	    lp->phy[k].spd.value = GENERIC_VALUE;  /* TX & T4, H/F Duplex    */
 	    lp->mii_cnt++;
 	    lp->active++;
-	    printk("%s: Using generic MII device control. If the board doesn't operate, \nplease mail the following dump to the author:\n", dev->name);
+	    printk("%s: Using generic MII device control. If the board doesn't operate,\nplease mail the following dump to the author:\n", dev->name);
 	    j = de4x5_debug;
 	    de4x5_debug |= DEBUG_MII;
 	    de4x5_dbg_mii(dev, k);
@@ -5337,7 +5337,7 @@ de4x5_dbg_open(struct net_device *dev)
 	    }
 	}
 	printk("...0x%8.8x\n", le32_to_cpu(lp->tx_ring[i].buf));
-	printk("Ring size: \nRX: %d\nTX: %d\n",
+	printk("Ring size:\nRX: %d\nTX: %d\n",
 	       (short)lp->rxRingSize,
 	       (short)lp->txRingSize);
     }
