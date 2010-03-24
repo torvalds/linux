@@ -39,7 +39,7 @@ struct callchain_param {
 
 struct callchain_list {
 	u64			ip;
-	struct symbol		*sym;
+	struct map_symbol	ms;
 	struct list_head	list;
 };
 
@@ -57,5 +57,5 @@ static inline u64 cumul_hits(struct callchain_node *node)
 
 int register_callchain_param(struct callchain_param *param);
 int append_chain(struct callchain_node *root, struct ip_callchain *chain,
-		 struct symbol **syms);
+		 struct map_symbol *syms);
 #endif	/* __PERF_CALLCHAIN_H */

@@ -117,13 +117,13 @@ static bool symbol__match_parent_regex(struct symbol *sym)
 	return 0;
 }
 
-struct symbol **perf_session__resolve_callchain(struct perf_session *self,
-						struct thread *thread,
-						struct ip_callchain *chain,
-						struct symbol **parent)
+struct map_symbol *perf_session__resolve_callchain(struct perf_session *self,
+						   struct thread *thread,
+						   struct ip_callchain *chain,
+						   struct symbol **parent)
 {
 	u8 cpumode = PERF_RECORD_MISC_USER;
-	struct symbol **syms = NULL;
+	struct map_symbol *syms = NULL;
 	unsigned int i;
 
 	if (symbol_conf.use_callchain) {
@@ -160,7 +160,8 @@ struct symbol **perf_session__resolve_callchain(struct perf_session *self,
 				*parent = al.sym;
 			if (!symbol_conf.use_callchain)
 				break;
-			syms[i] = al.sym;
+			syms[i].map = al.map;
+			syms[i].sym = al.sym;
 		}
 	}
 

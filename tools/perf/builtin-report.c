@@ -81,7 +81,8 @@ static int perf_session__add_hist_entry(struct perf_session *self,
 					struct addr_location *al,
 					struct sample_data *data)
 {
-	struct symbol **syms = NULL, *parent = NULL;
+	struct map_symbol *syms = NULL;
+	struct symbol *parent = NULL;
 	bool hit;
 	int err;
 	struct hist_entry *he;

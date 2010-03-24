@@ -104,8 +104,8 @@ static void newt_checkbox_tree__add(newtComponent tree, const char *str,
 static char *callchain_list__sym_name(struct callchain_list *self,
 				      char *bf, size_t bfsize)
 {
-	if (self->sym)
-		return self->sym->name;
+	if (self->ms.sym)
+		return self->ms.sym->name;
 
 	snprintf(bf, bfsize, "%#Lx", self->ip);
 	return bf;
@@ -157,7 +157,7 @@ static void __callchain__append_graph_browser(struct callchain_node *self,
 				indexes[depth + 2] = NEWT_ARG_LAST;
 				++chain_idx;
 			}
-			newt_checkbox_tree__add(tree, str, chain->sym, indexes);
+			newt_checkbox_tree__add(tree, str, chain->ms.sym, indexes);
 			free(alloc_str);
 			++printed;
 		}
@@ -193,7 +193,7 @@ static void callchain__append_graph_browser(struct callchain_node *self,
 			continue;
 
 		str = callchain_list__sym_name(chain, ipstr, sizeof(ipstr));
-		newt_checkbox_tree__add(tree, str, chain->sym, indexes);
+		newt_checkbox_tree__add(tree, str, chain->ms.sym, indexes);
 	}
 
 	indexes[1] = parent_idx;

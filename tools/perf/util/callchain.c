@@ -185,8 +185,8 @@ create_child(struct callchain_node *parent, bool inherit_children)
 
 
 struct resolved_ip {
-	u64		ip;
-	struct symbol	*sym;
+	u64		  ip;
+	struct map_symbol ms;
 };
 
 struct resolved_chain {
@@ -212,7 +212,7 @@ fill_node(struct callchain_node *node, struct resolved_chain *chain, int start)
 			return;
 		}
 		call->ip = chain->ips[i].ip;
-		call->sym = chain->ips[i].sym;
+		call->ms = chain->ips[i].ms;
 		list_add_tail(&call->list, &node->val);
 	}
 	node->val_nr = chain->nr - start;
@@ -318,10 +318,10 @@ __append_chain(struct callchain_node *root, struct resolved_chain *chain,
 		if (i == chain->nr)
 			break;
 
-		sym = chain->ips[i].sym;
+		sym = chain->ips[i].ms.sym;
 
-		if (cnode->sym && sym) {
-			if (cnode->sym->start != sym->start)
+		if (cnode->ms.sym && sym) {
+			if (cnode->ms.sym->start != sym->start)
 				break;
 		} else if (cnode->ip != chain->ips[i].ip)
 			break;
@@ -353,9 +353,8 @@ __append_chain(struct callchain_node *root, struct resolved_chain *chain,
 	return 0;
 }
 
-static void
-filter_context(struct ip_callchain *old, struct resolved_chain *new,
-	       struct symbol **syms)
+static void filter_context(struct ip_callchain *old, struct resolved_chain *new,
+			   struct map_symbol *syms)
 {
 	int i, j = 0;
 
@@ -364,7 +363,7 @@ filter_context(struct ip_callchain *old, struct resolved_chain *new,
 			continue;
 
 		new->ips[j].ip = old->ips[i];
-		new->ips[j].sym = syms[i];
+		new->ips[j].ms = syms[i];
 		j++;
 	}
 
@@ -373,7 +372,7 @@ filter_context(struct ip_callchain *old, struct resolved_chain *new,
 
 
 int append_chain(struct callchain_node *root, struct ip_callchain *chain,
-		  struct symbol **syms)
+		 struct map_symbol *syms)
 {
 	struct resolved_chain *filtered;
 
