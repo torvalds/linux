@@ -877,7 +877,7 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 		case TIMEOUT_EVT:
 			dbg_link("TIM ");
 			if (l_ptr->next_in_no != l_ptr->checkpoint) {
-				dbg_link("-> WW \n");
+				dbg_link("-> WW\n");
 				l_ptr->state = WORKING_WORKING;
 				l_ptr->fsm_msg_cnt = 0;
 				l_ptr->checkpoint = l_ptr->next_in_no;
@@ -934,7 +934,7 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			link_set_timer(l_ptr, cont_intv);
 			break;
 		case RESET_MSG:
-			dbg_link("RES \n");
+			dbg_link("RES\n");
 			dbg_link(" -> RR\n");
 			l_ptr->state = RESET_RESET;
 			l_ptr->fsm_msg_cnt = 0;
@@ -947,7 +947,7 @@ static void link_state_event(struct link *l_ptr, unsigned event)
 			l_ptr->started = 1;
 			/* fall through */
 		case TIMEOUT_EVT:
-			dbg_link("TIM \n");
+			dbg_link("TIM\n");
 			tipc_link_send_proto_msg(l_ptr, RESET_MSG, 0, 0, 0, 0, 0);
 			l_ptr->fsm_msg_cnt++;
 			link_set_timer(l_ptr, cont_intv);
@@ -3295,7 +3295,7 @@ static void link_dump_rec_queue(struct link *l_ptr)
 			info("buffer %x invalid\n", crs);
 			return;
 		}
-		msg_dbg(buf_msg(crs), "In rec queue: \n");
+		msg_dbg(buf_msg(crs), "In rec queue:\n");
 		crs = crs->next;
 	}
 }
