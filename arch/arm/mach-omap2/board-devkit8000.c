@@ -676,8 +676,8 @@ static void __init devkit8000_init(void)
 	devkit8000_flash_init();
 
 	/* Ensure SDRC pins are mux'd for self-refresh */
-	omap_mux_init_signal("sdr_cke0", OMAP_PIN_OUTPUT);
-	omap_mux_init_signal("sdr_cke1", OMAP_PIN_OUTPUT);
+	omap_mux_init_signal("sdrc_cke0", OMAP_PIN_OUTPUT);
+	omap_mux_init_signal("sdrc_cke1", OMAP_PIN_OUTPUT);
 }
 
 static void __init devkit8000_map_io(void)
