@@ -2688,7 +2688,7 @@ void drbd_mdev_cleanup(struct drbd_conf *mdev)
 	drbd_set_my_capacity(mdev, 0);
 	if (mdev->bitmap) {
 		/* maybe never allocated. */
-		drbd_bm_resize(mdev, 0);
+		drbd_bm_resize(mdev, 0, 1);
 		drbd_bm_cleanup(mdev);
 	}
 

@@ -546,7 +546,7 @@ enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *mdev, enum dds_
 	if (drbd_get_capacity(mdev->this_bdev) != size ||
 	    drbd_bm_capacity(mdev) != size) {
 		int err;
-		err = drbd_bm_resize(mdev, size);
+		err = drbd_bm_resize(mdev, size, !(flags & DDSF_NO_RESYNC));
 		if (unlikely(err)) {
 			/* currently there is only one error: ENOMEM! */
 			size = drbd_bm_capacity(mdev)>>1;

@@ -441,7 +441,7 @@ static void bm_memset(struct drbd_bitmap *b, size_t offset, int c, size_t len)
  * In case this is actually a resize, we copy the old bitmap into the new one.
  * Otherwise, the bitmap is initialized to all bits set.
  */
-int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity)
+int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity, int set_new_bits)
 {
 	struct drbd_bitmap *b = mdev->bitmap;
 	unsigned long bits, words, owords, obits, *p_addr, *bm;
@@ -526,8 +526,12 @@ int drbd_bm_resize(struct drbd_conf *mdev, sector_t capacity)
 	b->bm_dev_capacity = capacity;
 
 	if (growing) {
-		bm_memset(b, owords, 0xff, words-owords);
-		b->bm_set += bits - obits;
+		if (set_new_bits) {
+			bm_memset(b, owords, 0xff, words-owords);
+			b->bm_set += bits - obits;
+		} else
+			bm_memset(b, owords, 0x00, words-owords);
+
 	}
 
 	if (want < have) {

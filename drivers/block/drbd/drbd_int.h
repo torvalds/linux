@@ -1311,7 +1311,7 @@ struct bm_extent {
 #define APP_R_HSIZE 15
 
 extern int  drbd_bm_init(struct drbd_conf *mdev);
-extern int  drbd_bm_resize(struct drbd_conf *mdev, sector_t sectors);
+extern int  drbd_bm_resize(struct drbd_conf *mdev, sector_t sectors, int set_new_bits);
 extern void drbd_bm_cleanup(struct drbd_conf *mdev);
 extern void drbd_bm_set_all(struct drbd_conf *mdev);
 extern void drbd_bm_clear_all(struct drbd_conf *mdev);
