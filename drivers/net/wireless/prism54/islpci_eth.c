@@ -89,7 +89,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 	u32 curr_frag;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_FUNCTION_CALLS, "islpci_eth_transmit \n");
+	DEBUG(SHOW_FUNCTION_CALLS, "islpci_eth_transmit\n");
 #endif
 
 	/* lock the driver code */
@@ -140,7 +140,7 @@ islpci_eth_transmit(struct sk_buff *skb, struct net_device *ndev)
 			}
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-			DEBUG(SHOW_TRACING, "memmove %p %p %i \n", skb->data,
+			DEBUG(SHOW_TRACING, "memmove %p %p %i\n", skb->data,
 			      src, skb->len);
 #endif
 		} else {
@@ -319,7 +319,7 @@ islpci_eth_receive(islpci_private *priv)
 	int discard = 0;
 
 #if VERBOSE > SHOW_ERROR_MESSAGES
-	DEBUG(SHOW_FUNCTION_CALLS, "islpci_eth_receive \n");
+	DEBUG(SHOW_FUNCTION_CALLS, "islpci_eth_receive\n");
 #endif
 
 	/* the device has written an Ethernet frame in the data area
@@ -431,7 +431,7 @@ islpci_eth_receive(islpci_private *priv)
 		skb = dev_alloc_skb(MAX_FRAGMENT_SIZE_RX + 2);
 		if (unlikely(skb == NULL)) {
 			/* error allocating an sk_buff structure elements */
-			DEBUG(SHOW_ERROR_MESSAGES, "Error allocating skb \n");
+			DEBUG(SHOW_ERROR_MESSAGES, "Error allocating skb\n");
 			break;
 		}
 		skb_reserve(skb, (4 - (long) skb->data) & 0x03);

@@ -38,7 +38,7 @@ static void p54_dump_tx_queue(struct p54_common *priv)
 	u32 largest_hole = 0, free;
 
 	spin_lock_irqsave(&priv->tx_queue.lock, flags);
-	printk(KERN_DEBUG "%s: / --- tx queue dump (%d entries) --- \n",
+	printk(KERN_DEBUG "%s: / --- tx queue dump (%d entries) ---\n",
 	       wiphy_name(priv->hw->wiphy), skb_queue_len(&priv->tx_queue));
 
 	prev_addr = priv->rx_start;
