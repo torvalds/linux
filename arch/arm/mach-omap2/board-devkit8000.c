@@ -649,6 +649,10 @@ static const struct ehci_hcd_omap_platform_data ehci_pdata __initconst = {
 
 static void __init devkit8000_init(void)
 {
+	omap_serial_init();
+
+	omap_dm9000_init();
+
 	devkit8000_i2c_init();
 	platform_add_devices(devkit8000_devices,
 			ARRAY_SIZE(devkit8000_devices));
@@ -657,10 +661,6 @@ static void __init devkit8000_init(void)
 
 	spi_register_board_info(devkit8000_spi_board_info,
 	ARRAY_SIZE(devkit8000_spi_board_info));
-
-	omap_serial_init();
-
-	omap_dm9000_init();
 
 	devkit8000_ads7846_init();
 
