@@ -511,10 +511,79 @@ bool evergreen_gpu_is_lockup(struct radeon_device *rdev)
 	return false;
 }
 
+static int evergreen_gpu_soft_reset(struct radeon_device *rdev)
+{
+	struct evergreen_mc_save save;
+	u32 srbm_reset = 0;
+	u32 grbm_reset = 0;
+
+	dev_info(rdev->dev, "GPU softreset \n");
+	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
+		RREG32(GRBM_STATUS));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
+		RREG32(GRBM_STATUS_SE0));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
+		RREG32(GRBM_STATUS_SE1));
+	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
+		RREG32(SRBM_STATUS));
+	evergreen_mc_stop(rdev, &save);
+	if (evergreen_mc_wait_for_idle(rdev)) {
+		dev_warn(rdev->dev, "Wait for MC idle timedout !\n");
+	}
+	/* Disable CP parsing/prefetching */
+	WREG32(CP_ME_CNTL, CP_ME_HALT | CP_PFP_HALT);
+
+	/* reset all the gfx blocks */
+	grbm_reset = (SOFT_RESET_CP |
+		      SOFT_RESET_CB |
+		      SOFT_RESET_DB |
+		      SOFT_RESET_PA |
+		      SOFT_RESET_SC |
+		      SOFT_RESET_SPI |
+		      SOFT_RESET_SH |
+		      SOFT_RESET_SX |
+		      SOFT_RESET_TC |
+		      SOFT_RESET_TA |
+		      SOFT_RESET_VC |
+		      SOFT_RESET_VGT);
+
+	dev_info(rdev->dev, "  GRBM_SOFT_RESET=0x%08X\n", grbm_reset);
+	WREG32(GRBM_SOFT_RESET, grbm_reset);
+	(void)RREG32(GRBM_SOFT_RESET);
+	udelay(50);
+	WREG32(GRBM_SOFT_RESET, 0);
+	(void)RREG32(GRBM_SOFT_RESET);
+
+	/* reset all the system blocks */
+	srbm_reset = SRBM_SOFT_RESET_ALL_MASK;
+
+	dev_info(rdev->dev, "  SRBM_SOFT_RESET=0x%08X\n", srbm_reset);
+	WREG32(SRBM_SOFT_RESET, srbm_reset);
+	(void)RREG32(SRBM_SOFT_RESET);
+	udelay(50);
+	WREG32(SRBM_SOFT_RESET, 0);
+	(void)RREG32(SRBM_SOFT_RESET);
+	/* Wait a little for things to settle down */
+	udelay(50);
+	dev_info(rdev->dev, "  GRBM_STATUS=0x%08X\n",
+		RREG32(GRBM_STATUS));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE0=0x%08X\n",
+		RREG32(GRBM_STATUS_SE0));
+	dev_info(rdev->dev, "  GRBM_STATUS_SE1=0x%08X\n",
+		RREG32(GRBM_STATUS_SE1));
+	dev_info(rdev->dev, "  SRBM_STATUS=0x%08X\n",
+		RREG32(SRBM_STATUS));
+	/* After reset we need to reinit the asic as GPU often endup in an
+	 * incoherent state.
+	 */
+	atom_asic_init(rdev->mode_info.atom_context);
+	evergreen_mc_resume(rdev, &save);
+	return 0;
+}
+
 int evergreen_asic_reset(struct radeon_device *rdev)
 {
-	/* FIXME: implement for evergreen */
-	return 0;
+	return evergreen_gpu_soft_reset(rdev);
 }
 
 static int evergreen_startup(struct radeon_device *rdev)

@@ -78,10 +78,53 @@
 #define	GRBM_CNTL					0x8000
 #define		GRBM_READ_TIMEOUT(x)				((x) << 0)
 #define	GRBM_SOFT_RESET					0x8020
-#define		SOFT_RESET_CP					(1<<0)
+#define		SOFT_RESET_CP					(1 << 0)
+#define		SOFT_RESET_CB					(1 << 1)
+#define		SOFT_RESET_DB					(1 << 3)
+#define		SOFT_RESET_PA					(1 << 5)
+#define		SOFT_RESET_SC					(1 << 6)
+#define		SOFT_RESET_SPI					(1 << 8)
+#define		SOFT_RESET_SH					(1 << 9)
+#define		SOFT_RESET_SX					(1 << 10)
+#define		SOFT_RESET_TC					(1 << 11)
+#define		SOFT_RESET_TA					(1 << 12)
+#define		SOFT_RESET_VC					(1 << 13)
+#define		SOFT_RESET_VGT					(1 << 14)
+
 #define	GRBM_STATUS					0x8010
 #define		CMDFIFO_AVAIL_MASK				0x0000000F
-#define		GUI_ACTIVE					(1<<31)
+#define		SRBM_RQ_PENDING					(1 << 5)
+#define		CF_RQ_PENDING					(1 << 7)
+#define		PF_RQ_PENDING					(1 << 8)
+#define		GRBM_EE_BUSY					(1 << 10)
+#define		SX_CLEAN					(1 << 11)
+#define		DB_CLEAN					(1 << 12)
+#define		CB_CLEAN					(1 << 13)
+#define		TA_BUSY 					(1 << 14)
+#define		VGT_BUSY_NO_DMA					(1 << 16)
+#define		VGT_BUSY					(1 << 17)
+#define		SX_BUSY 					(1 << 20)
+#define		SH_BUSY 					(1 << 21)
+#define		SPI_BUSY					(1 << 22)
+#define		SC_BUSY 					(1 << 24)
+#define		PA_BUSY 					(1 << 25)
+#define		DB_BUSY 					(1 << 26)
+#define		CP_COHERENCY_BUSY      				(1 << 28)
+#define		CP_BUSY 					(1 << 29)
+#define		CB_BUSY 					(1 << 30)
+#define		GUI_ACTIVE					(1 << 31)
+#define	GRBM_STATUS_SE0					0x8014
+#define	GRBM_STATUS_SE1					0x8018
+#define		SE_SX_CLEAN					(1 << 0)
+#define		SE_DB_CLEAN					(1 << 1)
+#define		SE_CB_CLEAN					(1 << 2)
+#define		SE_TA_BUSY					(1 << 25)
+#define		SE_SX_BUSY					(1 << 26)
+#define		SE_SPI_BUSY					(1 << 27)
+#define		SE_SH_BUSY					(1 << 28)
+#define		SE_SC_BUSY					(1 << 29)
+#define		SE_DB_BUSY					(1 << 30)
+#define		SE_CB_BUSY					(1 << 31)
 
 #define	HDP_HOST_PATH_CNTL				0x2C00
 #define	HDP_NONSURFACE_BASE				0x2C04
@@ -266,5 +309,21 @@
 #define	WAIT_UNTIL					0x8040
 
 #define	SRBM_STATUS				        0x0E50
+#define	SRBM_SOFT_RESET				        0x0E60
+#define		SRBM_SOFT_RESET_ALL_MASK    	       	0x00FEEFA6
+#define		SOFT_RESET_BIF				(1 << 1)
+#define		SOFT_RESET_CG				(1 << 2)
+#define		SOFT_RESET_DC				(1 << 5)
+#define		SOFT_RESET_GRBM				(1 << 8)
+#define		SOFT_RESET_HDP				(1 << 9)
+#define		SOFT_RESET_IH				(1 << 10)
+#define		SOFT_RESET_MC				(1 << 11)
+#define		SOFT_RESET_RLC				(1 << 13)
+#define		SOFT_RESET_ROM				(1 << 14)
+#define		SOFT_RESET_SEM				(1 << 15)
+#define		SOFT_RESET_VMC				(1 << 17)
+#define		SOFT_RESET_TST				(1 << 21)
+#define		SOFT_RESET_REGBB		       	(1 << 22)
+#define		SOFT_RESET_ORB				(1 << 23)
 
 #endif
