@@ -2532,8 +2532,6 @@ static int alc_build_controls(struct hda_codec *codec)
 			return err;
 	}
 
-	alc_free_kctls(codec); /* no longer needed */
-
 	/* assign Capture Source enums to NID */
 	kctl = snd_hda_find_mixer_ctl(codec, "Capture Source");
 	if (!kctl)
@@ -2602,6 +2600,9 @@ static int alc_build_controls(struct hda_codec *codec)
 			}
 		}
 	}
+
+	alc_free_kctls(codec); /* no longer needed */
+
 	return 0;
 }
 
