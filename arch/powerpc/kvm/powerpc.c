@@ -149,6 +149,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	switch (ext) {
 	case KVM_CAP_PPC_SEGSTATE:
 	case KVM_CAP_PPC_PAIRED_SINGLES:
+	case KVM_CAP_PPC_UNSET_IRQ:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -451,7 +452,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *run)
 
 int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 {
-	kvmppc_core_queue_external(vcpu, irq);
+	if (irq->irq == KVM_INTERRUPT_UNSET)
+		kvmppc_core_dequeue_external(vcpu, irq);
+	else
+		kvmppc_core_queue_external(vcpu, irq);
 
 	if (waitqueue_active(&vcpu->wq)) {
 		wake_up_interruptible(&vcpu->wq);

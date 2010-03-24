@@ -84,4 +84,7 @@ struct kvm_guest_debug_arch {
 #define KVM_REG_QPR		0x0040
 #define KVM_REG_FQPR		0x0060
 
+#define KVM_INTERRUPT_SET	-1U
+#define KVM_INTERRUPT_UNSET	-2U
+
 #endif /* __LINUX_KVM_POWERPC_H */
