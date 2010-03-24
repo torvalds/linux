@@ -120,9 +120,9 @@
 	.macro REG_TYPE type reg
 	R64_NUM reg_type_r64 \reg
 	XMM_NUM reg_type_xmm \reg
-	.if reg_type_r64 != REG_NUM_INVALID
+	.if reg_type_r64 <> REG_NUM_INVALID
 	\type = REG_TYPE_R64
-	.elseif reg_type_xmm != REG_NUM_INVALID
+	.elseif reg_type_xmm <> REG_NUM_INVALID
 	\type = REG_TYPE_XMM
 	.else
 	\type = REG_TYPE_INVALID
