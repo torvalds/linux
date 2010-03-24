@@ -50,7 +50,6 @@
 #include <linux/input/matrix_keypad.h>
 #include <linux/spi/spi.h>
 #include <linux/spi/ads7846.h>
-#include <linux/usb/otg.h>
 #include <linux/dm9000.h>
 #include <linux/interrupt.h>
 
