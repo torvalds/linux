@@ -131,6 +131,8 @@ extern void kvmppc_rmcall(ulong srr0, ulong srr1);
 extern void kvmppc_load_up_fpu(void);
 extern void kvmppc_load_up_altivec(void);
 extern void kvmppc_load_up_vsx(void);
+extern u32 kvmppc_alignment_dsisr(struct kvm_vcpu *vcpu, unsigned int inst);
+extern ulong kvmppc_alignment_dar(struct kvm_vcpu *vcpu, unsigned int inst);
 
 static inline struct kvmppc_vcpu_book3s *to_book3s(struct kvm_vcpu *vcpu)
 {

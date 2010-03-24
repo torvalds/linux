@@ -44,6 +44,11 @@
 /* DCBZ is actually 1014, but we patch it to 1010 so we get a trap */
 #define OP_31_XOP_DCBZ		1010
 
+#define OP_LFS			48
+#define OP_LFD			50
+#define OP_STFS			52
+#define OP_STFD			54
+
 #define SPRN_GQR0		912
 #define SPRN_GQR1		913
 #define SPRN_GQR2		914
@@ -474,3 +479,73 @@ int kvmppc_core_emulate_mfspr(struct kvm_vcpu *vcpu, int sprn, int rt)
 	return emulated;
 }
 
+u32 kvmppc_alignment_dsisr(struct kvm_vcpu *vcpu, unsigned int inst)
+{
+	u32 dsisr = 0;
+
+	/*
+	 * This is what the spec says about DSISR bits (not mentioned = 0):
+	 *
+	 * 12:13		[DS]	Set to bits 30:31
+	 * 15:16		[X]	Set to bits 29:30
+	 * 17			[X]	Set to bit 25
+	 *			[D/DS]	Set to bit 5
+	 * 18:21		[X]	Set to bits 21:24
+	 *			[D/DS]	Set to bits 1:4
+	 * 22:26			Set to bits 6:10 (RT/RS/FRT/FRS)
+	 * 27:31			Set to bits 11:15 (RA)
+	 */
+
+	switch (get_op(inst)) {
+	/* D-form */
+	case OP_LFS:
+	case OP_LFD:
+	case OP_STFD:
+	case OP_STFS:
+		dsisr |= (inst >> 12) & 0x4000;	/* bit 17 */
+		dsisr |= (inst >> 17) & 0x3c00; /* bits 18:21 */
+		break;
+	/* X-form */
+	case 31:
+		dsisr |= (inst << 14) & 0x18000; /* bits 15:16 */
+		dsisr |= (inst << 8)  & 0x04000; /* bit 17 */
+		dsisr |= (inst << 3)  & 0x03c00; /* bits 18:21 */
+		break;
+	default:
+		printk(KERN_INFO "KVM: Unaligned instruction 0x%x\n", inst);
+		break;
+	}
+
+	dsisr |= (inst >> 16) & 0x03ff; /* bits 22:31 */
+
+	return dsisr;
+}
+
+ulong kvmppc_alignment_dar(struct kvm_vcpu *vcpu, unsigned int inst)
+{
+	ulong dar = 0;
+	ulong ra;
+
+	switch (get_op(inst)) {
+	case OP_LFS:
+	case OP_LFD:
+	case OP_STFD:
+	case OP_STFS:
+		ra = get_ra(inst);
+		if (ra)
+			dar = kvmppc_get_gpr(vcpu, ra);
+		dar += (s32)((s16)inst);
+		break;
+	case 31:
+		ra = get_ra(inst);
+		if (ra)
+			dar = kvmppc_get_gpr(vcpu, ra);
+		dar += kvmppc_get_gpr(vcpu, get_rb(inst));
+		break;
+	default:
+		printk(KERN_INFO "KVM: Unaligned instruction 0x%x\n", inst);
+		break;
+	}
+
+	return dar;
+}

@@ -906,6 +906,16 @@ program_interrupt:
 		}
 		break;
 	}
+	case BOOK3S_INTERRUPT_ALIGNMENT:
+		if (kvmppc_read_inst(vcpu) == EMULATE_DONE) {
+			to_book3s(vcpu)->dsisr = kvmppc_alignment_dsisr(vcpu,
+				vcpu->arch.last_inst);
+			vcpu->arch.dear = kvmppc_alignment_dar(vcpu,
+				vcpu->arch.last_inst);
+			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
+		}
+		r = RESUME_GUEST;
+		break;
 	case BOOK3S_INTERRUPT_MACHINE_CHECK:
 	case BOOK3S_INTERRUPT_TRACE:
 		kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
