@@ -888,20 +888,20 @@ static void dequeue_rt_entity(struct sched_rt_entity *rt_se)
  * Adding/removing a task to/from a priority array:
  */
 static void
-enqueue_task_rt(struct rq *rq, struct task_struct *p, int wakeup, bool head)
+enqueue_task_rt(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct sched_rt_entity *rt_se = &p->rt;
 
-	if (wakeup)
+	if (flags & ENQUEUE_WAKEUP)
 		rt_se->timeout = 0;
 
-	enqueue_rt_entity(rt_se, head);
+	enqueue_rt_entity(rt_se, flags & ENQUEUE_HEAD);
 
 	if (!task_current(rq, p) && p->rt.nr_cpus_allowed > 1)
 		enqueue_pushable_task(rq, p);
 }
 
-static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int sleep)
+static void dequeue_task_rt(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct sched_rt_entity *rt_se = &p->rt;
 

@@ -757,9 +757,6 @@ place_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial)
 	se->vruntime = vruntime;
 }
 
-#define ENQUEUE_WAKEUP	1
-#define ENQUEUE_MIGRATE 2
-
 static void
 enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
@@ -767,7 +764,7 @@ enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 	 * Update the normalized vruntime before updating min_vruntime
 	 * through callig update_curr().
 	 */
-	if (!(flags & ENQUEUE_WAKEUP) || (flags & ENQUEUE_MIGRATE))
+	if (!(flags & ENQUEUE_WAKEUP) || (flags & ENQUEUE_WAKING))
 		se->vruntime += cfs_rq->min_vruntime;
 
 	/*
@@ -803,7 +800,7 @@ static void clear_buddies(struct cfs_rq *cfs_rq, struct sched_entity *se)
 }
 
 static void
-dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
+dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int flags)
 {
 	/*
 	 * Update run-time statistics of the 'current'.
@@ -811,7 +808,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 	update_curr(cfs_rq);
 
 	update_stats_dequeue(cfs_rq, se);
-	if (sleep) {
+	if (flags & DEQUEUE_SLEEP) {
 #ifdef CONFIG_SCHEDSTATS
 		if (entity_is_task(se)) {
 			struct task_struct *tsk = task_of(se);
@@ -836,7 +833,7 @@ dequeue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se, int sleep)
 	 * update can refer to the ->curr item and we need to reflect this
 	 * movement in our normalized position.
 	 */
-	if (!sleep)
+	if (!(flags & DEQUEUE_SLEEP))
 		se->vruntime -= cfs_rq->min_vruntime;
 }
 
@@ -1045,16 +1042,10 @@ static inline void hrtick_update(struct rq *rq)
  * then put the task into the rbtree:
  */
 static void
-enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup, bool head)
+enqueue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
-	int flags = 0;
-
-	if (wakeup)
-		flags |= ENQUEUE_WAKEUP;
-	if (p->state == TASK_WAKING)
-		flags |= ENQUEUE_MIGRATE;
 
 	for_each_sched_entity(se) {
 		if (se->on_rq)
@@ -1072,18 +1063,18 @@ enqueue_task_fair(struct rq *rq, struct task_struct *p, int wakeup, bool head)
  * decreased. We remove the task from the rbtree and
  * update the fair scheduling stats:
  */
-static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int sleep)
+static void dequeue_task_fair(struct rq *rq, struct task_struct *p, int flags)
 {
 	struct cfs_rq *cfs_rq;
 	struct sched_entity *se = &p->se;
 
 	for_each_sched_entity(se) {
 		cfs_rq = cfs_rq_of(se);
-		dequeue_entity(cfs_rq, se, sleep);
+		dequeue_entity(cfs_rq, se, flags);
 		/* Don't dequeue parent if it has other entities besides us */
 		if (cfs_rq->load.weight)
 			break;
-		sleep = 1;
+		flags |= DEQUEUE_SLEEP;
 	}
 
 	hrtick_update(rq);

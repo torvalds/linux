@@ -1877,44 +1877,43 @@ static void update_avg(u64 *avg, u64 sample)
 	*avg += diff >> 3;
 }
 
-static void
-enqueue_task(struct rq *rq, struct task_struct *p, int wakeup, bool head)
+static void enqueue_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	update_rq_clock(rq);
 	sched_info_queued(p);
-	p->sched_class->enqueue_task(rq, p, wakeup, head);
+	p->sched_class->enqueue_task(rq, p, flags);
 	p->se.on_rq = 1;
 }
 
-static void dequeue_task(struct rq *rq, struct task_struct *p, int sleep)
+static void dequeue_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	update_rq_clock(rq);
 	sched_info_dequeued(p);
-	p->sched_class->dequeue_task(rq, p, sleep);
+	p->sched_class->dequeue_task(rq, p, flags);
 	p->se.on_rq = 0;
 }
 
 /*
  * activate_task - move a task to the runqueue.
  */
-static void activate_task(struct rq *rq, struct task_struct *p, int wakeup)
+static void activate_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	if (task_contributes_to_load(p))
 		rq->nr_uninterruptible--;
 
-	enqueue_task(rq, p, wakeup, false);
+	enqueue_task(rq, p, flags);
 	inc_nr_running(rq);
 }
 
 /*
  * deactivate_task - remove a task from the runqueue.
  */
-static void deactivate_task(struct rq *rq, struct task_struct *p, int sleep)
+static void deactivate_task(struct rq *rq, struct task_struct *p, int flags)
 {
 	if (task_contributes_to_load(p))
 		rq->nr_uninterruptible++;
 
-	dequeue_task(rq, p, sleep);
+	dequeue_task(rq, p, flags);
 	dec_nr_running(rq);
 }
 
@@ -2353,6 +2352,7 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 {
 	int cpu, orig_cpu, this_cpu, success = 0;
 	unsigned long flags;
+	unsigned long en_flags = ENQUEUE_WAKEUP;
 	struct rq *rq;
 
 	this_cpu = get_cpu();
@@ -2386,8 +2386,10 @@ static int try_to_wake_up(struct task_struct *p, unsigned int state,
 	}
 	p->state = TASK_WAKING;
 
-	if (p->sched_class->task_waking)
+	if (p->sched_class->task_waking) {
 		p->sched_class->task_waking(rq, p);
+		en_flags |= ENQUEUE_WAKING;
+	}
 
 	cpu = select_task_rq(rq, p, SD_BALANCE_WAKE, wake_flags);
 	if (cpu != orig_cpu)
@@ -2432,7 +2434,7 @@ out_activate:
 		schedstat_inc(p, se.statistics.nr_wakeups_local);
 	else
 		schedstat_inc(p, se.statistics.nr_wakeups_remote);
-	activate_task(rq, p, 1);
+	activate_task(rq, p, en_flags);
 	success = 1;
 
 out_running:
@@ -3623,7 +3625,7 @@ need_resched_nonpreemptible:
 		if (unlikely(signal_pending_state(prev->state, prev)))
 			prev->state = TASK_RUNNING;
 		else
-			deactivate_task(rq, prev, 1);
+			deactivate_task(rq, prev, DEQUEUE_SLEEP);
 		switch_count = &prev->nvcsw;
 	}
 
@@ -4193,7 +4195,7 @@ void rt_mutex_setprio(struct task_struct *p, int prio)
 	if (running)
 		p->sched_class->set_curr_task(rq);
 	if (on_rq) {
-		enqueue_task(rq, p, 0, oldprio < prio);
+		enqueue_task(rq, p, oldprio < prio ? ENQUEUE_HEAD : 0);
 
 		check_class_changed(rq, p, prev_class, oldprio, running);
 	}
@@ -4236,7 +4238,7 @@ void set_user_nice(struct task_struct *p, long nice)
 	delta = p->prio - old_prio;
 
 	if (on_rq) {
-		enqueue_task(rq, p, 0, false);
+		enqueue_task(rq, p, 0);
 		/*
 		 * If the task increased its priority or is running and
 		 * lowered its priority, then reschedule its CPU:
@@ -8180,7 +8182,7 @@ void sched_move_task(struct task_struct *tsk)
 	if (unlikely(running))
 		tsk->sched_class->set_curr_task(rq);
 	if (on_rq)
-		enqueue_task(rq, tsk, 0, false);
+		enqueue_task(rq, tsk, 0);
 
 	task_rq_unlock(rq, &flags);
 }
