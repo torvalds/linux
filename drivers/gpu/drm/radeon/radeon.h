@@ -372,7 +372,7 @@ struct radeon_irq {
 	bool		installed;
 	bool		sw_int;
 	/* FIXME: use a define max crtc rather than hardcode it */
-	bool		crtc_vblank_int[2];
+	bool		crtc_vblank_int[6];
 	wait_queue_head_t	vblank_queue;
 	/* FIXME: use defines for max hpd/dacs */
 	bool            hpd[6];
@@ -1324,6 +1324,8 @@ extern void r600_irq_fini(struct radeon_device *rdev);
 extern void r600_ih_ring_init(struct radeon_device *rdev, unsigned ring_size);
 extern int r600_irq_set(struct radeon_device *rdev);
 extern void r600_irq_suspend(struct radeon_device *rdev);
+extern void r600_disable_interrupts(struct radeon_device *rdev);
+extern void r600_rlc_stop(struct radeon_device *rdev);
 /* r600 audio */
 extern int r600_audio_init(struct radeon_device *rdev);
 extern int r600_audio_tmds_index(struct drm_encoder *encoder);
@@ -1343,6 +1345,7 @@ extern void r600_hdmi_update_audio_settings(struct drm_encoder *encoder,
 
 extern void r700_cp_stop(struct radeon_device *rdev);
 extern void r700_cp_fini(struct radeon_device *rdev);
+void evergreen_disable_interrupt_state(struct radeon_device *rdev);
 
 /* evergreen */
 struct evergreen_mc_save {

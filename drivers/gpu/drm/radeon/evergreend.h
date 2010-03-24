@@ -405,4 +405,152 @@
 #define		SOFT_RESET_REGBB		       	(1 << 22)
 #define		SOFT_RESET_ORB				(1 << 23)
 
+#define IH_RB_CNTL                                        0x3e00
+#       define IH_RB_ENABLE                               (1 << 0)
+#       define IH_IB_SIZE(x)                              ((x) << 1) /* log2 */
+#       define IH_RB_FULL_DRAIN_ENABLE                    (1 << 6)
+#       define IH_WPTR_WRITEBACK_ENABLE                   (1 << 8)
+#       define IH_WPTR_WRITEBACK_TIMER(x)                 ((x) << 9) /* log2 */
+#       define IH_WPTR_OVERFLOW_ENABLE                    (1 << 16)
+#       define IH_WPTR_OVERFLOW_CLEAR                     (1 << 31)
+#define IH_RB_BASE                                        0x3e04
+#define IH_RB_RPTR                                        0x3e08
+#define IH_RB_WPTR                                        0x3e0c
+#       define RB_OVERFLOW                                (1 << 0)
+#       define WPTR_OFFSET_MASK                           0x3fffc
+#define IH_RB_WPTR_ADDR_HI                                0x3e10
+#define IH_RB_WPTR_ADDR_LO                                0x3e14
+#define IH_CNTL                                           0x3e18
+#       define ENABLE_INTR                                (1 << 0)
+#       define IH_MC_SWAP(x)                              ((x) << 2)
+#       define IH_MC_SWAP_NONE                            0
+#       define IH_MC_SWAP_16BIT                           1
+#       define IH_MC_SWAP_32BIT                           2
+#       define IH_MC_SWAP_64BIT                           3
+#       define RPTR_REARM                                 (1 << 4)
+#       define MC_WRREQ_CREDIT(x)                         ((x) << 15)
+#       define MC_WR_CLEAN_CNT(x)                         ((x) << 20)
+
+#define CP_INT_CNTL                                     0xc124
+#       define CNTX_BUSY_INT_ENABLE                     (1 << 19)
+#       define CNTX_EMPTY_INT_ENABLE                    (1 << 20)
+#       define SCRATCH_INT_ENABLE                       (1 << 25)
+#       define TIME_STAMP_INT_ENABLE                    (1 << 26)
+#       define IB2_INT_ENABLE                           (1 << 29)
+#       define IB1_INT_ENABLE                           (1 << 30)
+#       define RB_INT_ENABLE                            (1 << 31)
+#define CP_INT_STATUS                                   0xc128
+#       define SCRATCH_INT_STAT                         (1 << 25)
+#       define TIME_STAMP_INT_STAT                      (1 << 26)
+#       define IB2_INT_STAT                             (1 << 29)
+#       define IB1_INT_STAT                             (1 << 30)
+#       define RB_INT_STAT                              (1 << 31)
+
+#define GRBM_INT_CNTL                                   0x8060
+#       define RDERR_INT_ENABLE                         (1 << 0)
+#       define GUI_IDLE_INT_ENABLE                      (1 << 19)
+
+/* 0x6e98, 0x7a98, 0x10698, 0x11298, 0x11e98, 0x12a98 */
+#define CRTC_STATUS_FRAME_COUNT                         0x6e98
+
+/* 0x6bb8, 0x77b8, 0x103b8, 0x10fb8, 0x11bb8, 0x127b8 */
+#define VLINE_STATUS                                    0x6bb8
+#       define VLINE_OCCURRED                           (1 << 0)
+#       define VLINE_ACK                                (1 << 4)
+#       define VLINE_STAT                               (1 << 12)
+#       define VLINE_INTERRUPT                          (1 << 16)
+#       define VLINE_INTERRUPT_TYPE                     (1 << 17)
+/* 0x6bbc, 0x77bc, 0x103bc, 0x10fbc, 0x11bbc, 0x127bc */
+#define VBLANK_STATUS                                   0x6bbc
+#       define VBLANK_OCCURRED                          (1 << 0)
+#       define VBLANK_ACK                               (1 << 4)
+#       define VBLANK_STAT                              (1 << 12)
+#       define VBLANK_INTERRUPT                         (1 << 16)
+#       define VBLANK_INTERRUPT_TYPE                    (1 << 17)
+
+/* 0x6b40, 0x7740, 0x10340, 0x10f40, 0x11b40, 0x12740 */
+#define INT_MASK                                        0x6b40
+#       define VBLANK_INT_MASK                          (1 << 0)
+#       define VLINE_INT_MASK                           (1 << 4)
+
+#define DISP_INTERRUPT_STATUS                           0x60f4
+#       define LB_D1_VLINE_INTERRUPT                    (1 << 2)
+#       define LB_D1_VBLANK_INTERRUPT                   (1 << 3)
+#       define DC_HPD1_INTERRUPT                        (1 << 17)
+#       define DC_HPD1_RX_INTERRUPT                     (1 << 18)
+#       define DACA_AUTODETECT_INTERRUPT                (1 << 22)
+#       define DACB_AUTODETECT_INTERRUPT                (1 << 23)
+#       define DC_I2C_SW_DONE_INTERRUPT                 (1 << 24)
+#       define DC_I2C_HW_DONE_INTERRUPT                 (1 << 25)
+#define DISP_INTERRUPT_STATUS_CONTINUE                  0x60f8
+#       define LB_D2_VLINE_INTERRUPT                    (1 << 2)
+#       define LB_D2_VBLANK_INTERRUPT                   (1 << 3)
+#       define DC_HPD2_INTERRUPT                        (1 << 17)
+#       define DC_HPD2_RX_INTERRUPT                     (1 << 18)
+#       define DISP_TIMER_INTERRUPT                     (1 << 24)
+#define DISP_INTERRUPT_STATUS_CONTINUE2                 0x60fc
+#       define LB_D3_VLINE_INTERRUPT                    (1 << 2)
+#       define LB_D3_VBLANK_INTERRUPT                   (1 << 3)
+#       define DC_HPD3_INTERRUPT                        (1 << 17)
+#       define DC_HPD3_RX_INTERRUPT                     (1 << 18)
+#define DISP_INTERRUPT_STATUS_CONTINUE3                 0x6100
+#       define LB_D4_VLINE_INTERRUPT                    (1 << 2)
+#       define LB_D4_VBLANK_INTERRUPT                   (1 << 3)
+#       define DC_HPD4_INTERRUPT                        (1 << 17)
+#       define DC_HPD4_RX_INTERRUPT                     (1 << 18)
+#define DISP_INTERRUPT_STATUS_CONTINUE4                 0x614c
+#       define LB_D5_VLINE_INTERRUPT                    (1 << 2)
+#       define LB_D5_VBLANK_INTERRUPT                   (1 << 3)
+#       define DC_HPD5_INTERRUPT                        (1 << 17)
+#       define DC_HPD5_RX_INTERRUPT                     (1 << 18)
+#define DISP_INTERRUPT_STATUS_CONTINUE5                 0x6050
+#       define LB_D6_VLINE_INTERRUPT                    (1 << 2)
+#       define LB_D6_VBLANK_INTERRUPT                   (1 << 3)
+#       define DC_HPD6_INTERRUPT                        (1 << 17)
+#       define DC_HPD6_RX_INTERRUPT                     (1 << 18)
+
+/* 0x6858, 0x7458, 0x10058, 0x10c58, 0x11858, 0x12458 */
+#define GRPH_INT_STATUS                                 0x6858
+#       define GRPH_PFLIP_INT_OCCURRED                  (1 << 0)
+#       define GRPH_PFLIP_INT_CLEAR                     (1 << 8)
+/* 0x685c, 0x745c, 0x1005c, 0x10c5c, 0x1185c, 0x1245c */
+#define	GRPH_INT_CONTROL			        0x685c
+#       define GRPH_PFLIP_INT_MASK                      (1 << 0)
+#       define GRPH_PFLIP_INT_TYPE                      (1 << 8)
+
+#define	DACA_AUTODETECT_INT_CONTROL			0x66c8
+#define	DACB_AUTODETECT_INT_CONTROL			0x67c8
+
+#define DC_HPD1_INT_STATUS                              0x601c
+#define DC_HPD2_INT_STATUS                              0x6028
+#define DC_HPD3_INT_STATUS                              0x6034
+#define DC_HPD4_INT_STATUS                              0x6040
+#define DC_HPD5_INT_STATUS                              0x604c
+#define DC_HPD6_INT_STATUS                              0x6058
+#       define DC_HPDx_INT_STATUS                       (1 << 0)
+#       define DC_HPDx_SENSE                            (1 << 1)
+#       define DC_HPDx_RX_INT_STATUS                    (1 << 8)
+
+#define DC_HPD1_INT_CONTROL                             0x6020
+#define DC_HPD2_INT_CONTROL                             0x602c
+#define DC_HPD3_INT_CONTROL                             0x6038
+#define DC_HPD4_INT_CONTROL                             0x6044
+#define DC_HPD5_INT_CONTROL                             0x6050
+#define DC_HPD6_INT_CONTROL                             0x605c
+#       define DC_HPDx_INT_ACK                          (1 << 0)
+#       define DC_HPDx_INT_POLARITY                     (1 << 8)
+#       define DC_HPDx_INT_EN                           (1 << 16)
+#       define DC_HPDx_RX_INT_ACK                       (1 << 20)
+#       define DC_HPDx_RX_INT_EN                        (1 << 24)
+
+#define DC_HPD1_CONTROL                                   0x6024
+#define DC_HPD2_CONTROL                                   0x6030
+#define DC_HPD3_CONTROL                                   0x603c
+#define DC_HPD4_CONTROL                                   0x6048
+#define DC_HPD5_CONTROL                                   0x6054
+#define DC_HPD6_CONTROL                                   0x6060
+#       define DC_HPDx_CONNECTION_TIMER(x)                ((x) << 0)
+#       define DC_HPDx_RX_INT_TIMER(x)                    ((x) << 16)
+#       define DC_HPDx_EN                                 (1 << 28)
+
 #endif

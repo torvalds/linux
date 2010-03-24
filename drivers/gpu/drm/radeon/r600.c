@@ -45,6 +45,7 @@
 #define R700_RLC_UCODE_SIZE 1024
 #define EVERGREEN_PFP_UCODE_SIZE 1120
 #define EVERGREEN_PM4_UCODE_SIZE 1376
+#define EVERGREEN_RLC_UCODE_SIZE 768
 
 /* Firmware Names */
 MODULE_FIRMWARE("radeon/R600_pfp.bin");
@@ -71,12 +72,16 @@ MODULE_FIRMWARE("radeon/R600_rlc.bin");
 MODULE_FIRMWARE("radeon/R700_rlc.bin");
 MODULE_FIRMWARE("radeon/CEDAR_pfp.bin");
 MODULE_FIRMWARE("radeon/CEDAR_me.bin");
+MODULE_FIRMWARE("radeon/CEDAR_rlc.bin");
 MODULE_FIRMWARE("radeon/REDWOOD_pfp.bin");
 MODULE_FIRMWARE("radeon/REDWOOD_me.bin");
+MODULE_FIRMWARE("radeon/REDWOOD_rlc.bin");
 MODULE_FIRMWARE("radeon/JUNIPER_pfp.bin");
 MODULE_FIRMWARE("radeon/JUNIPER_me.bin");
+MODULE_FIRMWARE("radeon/JUNIPER_rlc.bin");
 MODULE_FIRMWARE("radeon/CYRPESS_pfp.bin");
 MODULE_FIRMWARE("radeon/CYPRESS_me.bin");
+MODULE_FIRMWARE("radeon/CYPRESS_rlc.bin");
 
 int r600_debugfs_mc_info_init(struct radeon_device *rdev);
 
@@ -84,6 +89,7 @@ int r600_debugfs_mc_info_init(struct radeon_device *rdev);
 int r600_mc_wait_for_idle(struct radeon_device *rdev);
 void r600_gpu_init(struct radeon_device *rdev);
 void r600_fini(struct radeon_device *rdev);
+void r600_irq_disable(struct radeon_device *rdev);
 
 /* hpd for digital panel detect/disconnect */
 bool r600_hpd_sense(struct radeon_device *rdev, enum radeon_hpd_id hpd)
@@ -1461,20 +1467,20 @@ int r600_init_microcode(struct radeon_device *rdev)
 		break;
 	case CHIP_CEDAR:
 		chip_name = "CEDAR";
-		rlc_chip_name = "";
+		rlc_chip_name = "CEDAR";
 		break;
 	case CHIP_REDWOOD:
 		chip_name = "REDWOOD";
-		rlc_chip_name = "";
+		rlc_chip_name = "REDWOOD";
 		break;
 	case CHIP_JUNIPER:
 		chip_name = "JUNIPER";
-		rlc_chip_name = "";
+		rlc_chip_name = "JUNIPER";
 		break;
 	case CHIP_CYPRESS:
 	case CHIP_HEMLOCK:
 		chip_name = "CYPRESS";
-		rlc_chip_name = "";
+		rlc_chip_name = "CYPRESS";
 		break;
 	default: BUG();
 	}
@@ -1482,7 +1488,7 @@ int r600_init_microcode(struct radeon_device *rdev)
 	if (rdev->family >= CHIP_CEDAR) {
 		pfp_req_size = EVERGREEN_PFP_UCODE_SIZE * 4;
 		me_req_size = EVERGREEN_PM4_UCODE_SIZE * 4;
-		rlc_req_size = 0;
+		rlc_req_size = EVERGREEN_RLC_UCODE_SIZE * 4;
 	} else if (rdev->family >= CHIP_RV770) {
 		pfp_req_size = R700_PFP_UCODE_SIZE * 4;
 		me_req_size = R700_PM4_UCODE_SIZE * 4;
@@ -1518,8 +1524,6 @@ int r600_init_microcode(struct radeon_device *rdev)
 		err = -EINVAL;
 	}
 
-	/* XXX until evergreen interrupts are supported */
-	if (rdev->family < CHIP_CEDAR) {
 	snprintf(fw_name, sizeof(fw_name), "radeon/%s_rlc.bin", rlc_chip_name);
 	err = request_firmware(&rdev->rlc_fw, fw_name, &pdev->dev);
 	if (err)
@@ -1529,7 +1533,6 @@ int r600_init_microcode(struct radeon_device *rdev)
 		       "r600_rlc: Bogus length %zu in firmware \"%s\"\n",
 		       rdev->rlc_fw->size, fw_name);
 		err = -EINVAL;
-	}
 	}
 
 out:
@@ -2309,10 +2312,11 @@ static void r600_ih_ring_fini(struct radeon_device *rdev)
 	}
 }
 
-static void r600_rlc_stop(struct radeon_device *rdev)
+void r600_rlc_stop(struct radeon_device *rdev)
 {
 
-	if (rdev->family >= CHIP_RV770) {
+	if ((rdev->family >= CHIP_RV770) &&
+	    (rdev->family <= CHIP_RV740)) {
 		/* r7xx asics need to soft reset RLC before halting */
 		WREG32(SRBM_SOFT_RESET, SOFT_RESET_RLC);
 		RREG32(SRBM_SOFT_RESET);
@@ -2349,7 +2353,12 @@ static int r600_rlc_init(struct radeon_device *rdev)
 	WREG32(RLC_UCODE_CNTL, 0);
 
 	fw_data = (const __be32 *)rdev->rlc_fw->data;
-	if (rdev->family >= CHIP_RV770) {
+	if (rdev->family >= CHIP_CEDAR) {
+		for (i = 0; i < EVERGREEN_RLC_UCODE_SIZE; i++) {
+			WREG32(RLC_UCODE_ADDR, i);
+			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
+		}
+	} else if (rdev->family >= CHIP_RV770) {
 		for (i = 0; i < R700_RLC_UCODE_SIZE; i++) {
 			WREG32(RLC_UCODE_ADDR, i);
 			WREG32(RLC_UCODE_DATA, be32_to_cpup(fw_data++));
@@ -2379,7 +2388,7 @@ static void r600_enable_interrupts(struct radeon_device *rdev)
 	rdev->ih.enabled = true;
 }
 
-static void r600_disable_interrupts(struct radeon_device *rdev)
+void r600_disable_interrupts(struct radeon_device *rdev)
 {
 	u32 ih_rb_cntl = RREG32(IH_RB_CNTL);
 	u32 ih_cntl = RREG32(IH_CNTL);
@@ -2494,7 +2503,10 @@ int r600_irq_init(struct radeon_device *rdev)
 	WREG32(IH_CNTL, ih_cntl);
 
 	/* force the active interrupt state to all disabled */
-	r600_disable_interrupt_state(rdev);
+	if (rdev->family >= CHIP_CEDAR)
+		evergreen_disable_interrupt_state(rdev);
+	else
+		r600_disable_interrupt_state(rdev);
 
 	/* enable irqs */
 	r600_enable_interrupts(rdev);
@@ -2504,7 +2516,7 @@ int r600_irq_init(struct radeon_device *rdev)
 
 void r600_irq_suspend(struct radeon_device *rdev)
 {
-	r600_disable_interrupts(rdev);
+	r600_irq_disable(rdev);
 	r600_rlc_stop(rdev);
 }
 
