@@ -156,10 +156,10 @@ static ssize_t read_file_dma(struct file *file, char __user *user_buf,
 		"txfifo_dcu_num_0:   %2d    txfifo_dcu_num_1:       %2d\n",
 		(val[6] & 0x0001e000) >> 13, (val[6] & 0x001e0000) >> 17);
 
-	len += snprintf(buf + len, DMA_BUF_LEN - len, "pcu observe: 0x%x \n",
+	len += snprintf(buf + len, DMA_BUF_LEN - len, "pcu observe: 0x%x\n",
 			REG_READ_D(ah, AR_OBS_BUS_1));
 	len += snprintf(buf + len, DMA_BUF_LEN - len,
-			"AR_CR: 0x%x \n", REG_READ_D(ah, AR_CR));
+			"AR_CR: 0x%x\n", REG_READ_D(ah, AR_CR));
 
 	ath9k_ps_restore(sc);
 

@@ -359,7 +359,7 @@ static void ath_btcoex_no_stomp_timer(void *arg)
 	bool is_btscan = sc->sc_flags & SC_OP_BT_SCAN;
 
 	ath_print(ath9k_hw_common(ah), ATH_DBG_BTCOEX,
-		  "no stomp timer running \n");
+		  "no stomp timer running\n");
 
 	spin_lock_bh(&btcoex->btcoex_lock);
 
