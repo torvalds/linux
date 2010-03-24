@@ -902,7 +902,7 @@ retry:
 	if (!drbd_send_protocol(mdev))
 		return -1;
 	drbd_send_sync_param(mdev, &mdev->sync_conf);
-	drbd_send_sizes(mdev, 0);
+	drbd_send_sizes(mdev, 0, 0);
 	drbd_send_uuids(mdev);
 	drbd_send_state(mdev);
 	clear_bit(USE_DEGR_WFC_T, &mdev->flags);
@@ -2866,6 +2866,7 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 	unsigned int max_seg_s;
 	sector_t p_size, p_usize, my_usize;
 	int ldsc = 0; /* local disk size changed */
+	enum dds_flags ddsf;
 
 	ERR_IF(h->length != (sizeof(*p)-sizeof(*h))) return FALSE;
 	if (drbd_recv(mdev, h->payload, h->length) != h->length)
@@ -2921,8 +2922,9 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 	}
 #undef min_not_zero
 
+	ddsf = be16_to_cpu(p->dds_flags);
 	if (get_ldev(mdev)) {
-	  dd = drbd_determin_dev_size(mdev, 0);
+		dd = drbd_determin_dev_size(mdev, ddsf);
 		put_ldev(mdev);
 		if (dd == dev_size_error)
 			return FALSE;
@@ -2942,7 +2944,7 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 		if (max_seg_s != queue_max_segment_size(mdev->rq_queue))
 			drbd_setup_queue_param(mdev, max_seg_s);
 
-		drbd_setup_order_type(mdev, be32_to_cpu(p->queue_order_type));
+		drbd_setup_order_type(mdev, be16_to_cpu(p->queue_order_type));
 		put_ldev(mdev);
 	}
 
@@ -2951,14 +2953,17 @@ static int receive_sizes(struct drbd_conf *mdev, struct p_header *h)
 		    drbd_get_capacity(mdev->this_bdev) || ldsc) {
 			/* we have different sizes, probably peer
 			 * needs to know my new size... */
-			drbd_send_sizes(mdev, 0);
+			drbd_send_sizes(mdev, 0, ddsf);
 		}
 		if (test_and_clear_bit(RESIZE_PENDING, &mdev->flags) ||
 		    (dd == grew && mdev->state.conn == C_CONNECTED)) {
 			if (mdev->state.pdsk >= D_INCONSISTENT &&
-			    mdev->state.disk >= D_INCONSISTENT)
-				resync_after_online_grow(mdev);
-			else
+			    mdev->state.disk >= D_INCONSISTENT) {
+				if (ddsf & DDSF_NO_RESYNC)
+					dev_info(DEV, "Resync of new storage suppressed with --assume-clean\n");
+				else
+					resync_after_online_grow(mdev);
+			} else
 				set_bit(RESYNC_AFTER_NEG, &mdev->flags);
 		}
 	}

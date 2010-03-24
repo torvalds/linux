@@ -481,7 +481,8 @@ struct p_sizes {
 	u64	    u_size;  /* user requested size */
 	u64	    c_size;  /* current exported size */
 	u32	    max_segment_size;  /* Maximal size of a BIO */
-	u32	    queue_order_type;
+	u16	    queue_order_type;  /* not yet implemented in DRBD*/
+	u16	    dds_flags; /* use enum dds_flags here. */
 } __packed;
 
 struct p_state {
@@ -1081,6 +1082,11 @@ enum chg_state_flags {
 	CS_ORDERED      = CS_WAIT_COMPLETE + CS_SERIALIZE,
 };
 
+enum dds_flags {
+	DDSF_FORCED    = 1,
+	DDSF_NO_RESYNC = 2, /* Do not run a resync for the new space */
+};
+
 extern void drbd_init_set_defaults(struct drbd_conf *mdev);
 extern int drbd_change_state(struct drbd_conf *mdev, enum chg_state_flags f,
 			union drbd_state mask, union drbd_state val);
@@ -1113,7 +1119,7 @@ extern int drbd_send_protocol(struct drbd_conf *mdev);
 extern int drbd_send_uuids(struct drbd_conf *mdev);
 extern int drbd_send_uuids_skip_initial_sync(struct drbd_conf *mdev);
 extern int drbd_send_sync_uuid(struct drbd_conf *mdev, u64 val);
-extern int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply);
+extern int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags flags);
 extern int _drbd_send_state(struct drbd_conf *mdev);
 extern int drbd_send_state(struct drbd_conf *mdev);
 extern int _drbd_send_cmd(struct drbd_conf *mdev, struct socket *sock,
@@ -1382,10 +1388,6 @@ extern void drbd_suspend_io(struct drbd_conf *mdev);
 extern void drbd_resume_io(struct drbd_conf *mdev);
 extern char *ppsize(char *buf, unsigned long long size);
 extern sector_t drbd_new_dev_size(struct drbd_conf *, struct drbd_backing_dev *, int);
-enum dds_flags {
-	DDSF_FORCED    = 1,
-	DDSF_NO_RESYNC = 2, /* Do not run a resync for the new space */
-};
 enum determine_dev_size { dev_size_error = -1, unchanged = 0, shrunk = 1, grew = 2 };
 extern enum determine_dev_size drbd_determin_dev_size(struct drbd_conf *, enum dds_flags) __must_hold(local);
 extern void resync_after_online_grow(struct drbd_conf *);

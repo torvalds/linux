@@ -1240,7 +1240,7 @@ static void after_state_ch(struct drbd_conf *mdev, union drbd_state os,
 	    os.disk == D_ATTACHING && ns.disk == D_NEGOTIATING) {
 		kfree(mdev->p_uuid); /* We expect to receive up-to-date UUIDs soon. */
 		mdev->p_uuid = NULL; /* ...to not use the old ones in the mean time */
-		drbd_send_sizes(mdev, 0);  /* to start sync... */
+		drbd_send_sizes(mdev, 0, 0);  /* to start sync... */
 		drbd_send_uuids(mdev);
 		drbd_send_state(mdev);
 	}
@@ -1763,7 +1763,7 @@ int drbd_send_sync_uuid(struct drbd_conf *mdev, u64 val)
 			     (struct p_header *)&p, sizeof(p));
 }
 
-int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply)
+int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply, enum dds_flags flags)
 {
 	struct p_sizes p;
 	sector_t d_size, u_size;
@@ -1775,7 +1775,6 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply)
 		d_size = drbd_get_max_capacity(mdev->ldev);
 		u_size = mdev->ldev->dc.disk_size;
 		q_order_type = drbd_queue_order_type(mdev);
-		p.queue_order_type = cpu_to_be32(drbd_queue_order_type(mdev));
 		put_ldev(mdev);
 	} else {
 		d_size = 0;
@@ -1787,7 +1786,8 @@ int drbd_send_sizes(struct drbd_conf *mdev, int trigger_reply)
 	p.u_size = cpu_to_be64(u_size);
 	p.c_size = cpu_to_be64(trigger_reply ? 0 : drbd_get_capacity(mdev->this_bdev));
 	p.max_segment_size = cpu_to_be32(queue_max_segment_size(mdev->rq_queue));
-	p.queue_order_type = cpu_to_be32(q_order_type);
+	p.queue_order_type = cpu_to_be16(q_order_type);
+	p.dds_flags = cpu_to_be16(flags);
 
 	ok = drbd_send_cmd(mdev, USE_DATA_SOCKET, P_SIZES,
 			   (struct p_header *)&p, sizeof(p));
