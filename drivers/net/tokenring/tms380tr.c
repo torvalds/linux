@@ -1391,7 +1391,7 @@ static int tms380tr_bringup_diags(struct net_device *dev)
 			Status &= STS_MASK;
 
 			if(tms380tr_debug > 3)
-				printk(KERN_DEBUG " %04X \n", Status);
+				printk(KERN_DEBUG " %04X\n", Status);
 			/* BUD successfully completed */
 			if(Status == STS_INITIALIZE)
 				return (1);
@@ -1847,7 +1847,7 @@ static void tms380tr_chk_irq(struct net_device *dev)
 			break;
 
 		case DMA_WRITE_ABORT:
-			printk(KERN_INFO "%s: DMA write operation aborted: \n",
+			printk(KERN_INFO "%s: DMA write operation aborted:\n",
 				dev->name);
 			switch (AdapterCheckBlock[1])
 			{
