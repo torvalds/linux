@@ -127,9 +127,9 @@ struct kvmppc_pte {
 	u64 eaddr;
 	u64 vpage;
 	u64 raddr;
-	bool may_read;
-	bool may_write;
-	bool may_execute;
+	bool may_read		: 1;
+	bool may_write		: 1;
+	bool may_execute	: 1;
 };
 
 struct kvmppc_mmu {

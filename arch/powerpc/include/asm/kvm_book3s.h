@@ -29,40 +29,40 @@ struct kvmppc_slb {
 	u64 vsid;
 	u64 orige;
 	u64 origv;
-	bool valid;
-	bool Ks;
-	bool Kp;
-	bool nx;
-	bool large;	/* PTEs are 16MB */
-	bool tb;	/* 1TB segment */
-	bool class;
+	bool valid	: 1;
+	bool Ks		: 1;
+	bool Kp		: 1;
+	bool nx		: 1;
+	bool large	: 1;	/* PTEs are 16MB */
+	bool tb		: 1;	/* 1TB segment */
+	bool class	: 1;
 };
 
 struct kvmppc_sr {
 	u32 raw;
 	u32 vsid;
-	bool Ks;
-	bool Kp;
-	bool nx;
-	bool valid;
+	bool Ks		: 1;
+	bool Kp		: 1;
+	bool nx		: 1;
+	bool valid	: 1;
 };
 
 struct kvmppc_bat {
 	u64 raw;
 	u32 bepi;
 	u32 bepi_mask;
-	bool vs;
-	bool vp;
 	u32 brpn;
 	u8 wimg;
 	u8 pp;
+	bool vs		: 1;
+	bool vp		: 1;
 };
 
 struct kvmppc_sid_map {
 	u64 guest_vsid;
 	u64 guest_esid;
 	u64 host_vsid;
-	bool valid;
+	bool valid	: 1;
 };
 
 #define SID_MAP_BITS    9
