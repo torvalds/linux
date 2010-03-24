@@ -44,6 +44,7 @@ struct kvmppc_sr {
 	bool Ks;
 	bool Kp;
 	bool nx;
+	bool valid;
 };
 
 struct kvmppc_bat {
