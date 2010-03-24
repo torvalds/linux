@@ -1742,7 +1742,7 @@ static int vlsi_irda_suspend(struct pci_dev *pdev, pm_message_t state)
 	vlsi_irda_dev_t *idev;
 
 	if (!ndev) {
-		IRDA_ERROR("%s - %s: no netdevice \n",
+		IRDA_ERROR("%s - %s: no netdevice\n",
 			   __func__, pci_name(pdev));
 		return 0;
 	}
@@ -1781,7 +1781,7 @@ static int vlsi_irda_resume(struct pci_dev *pdev)
 	vlsi_irda_dev_t	*idev;
 
 	if (!ndev) {
-		IRDA_ERROR("%s - %s: no netdevice \n",
+		IRDA_ERROR("%s - %s: no netdevice\n",
 			   __func__, pci_name(pdev));
 		return 0;
 	}
