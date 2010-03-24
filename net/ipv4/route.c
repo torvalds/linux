@@ -1212,11 +1212,11 @@ restart:
 		    slow_chain_length(rt_hash_table[hash].chain) > rt_chain_length_max) {
 			struct net *net = dev_net(rt->u.dst.dev);
 			int num = ++net->ipv4.current_rt_cache_rebuild_count;
-			if (!rt_caching(dev_net(rt->u.dst.dev))) {
+			if (!rt_caching(net)) {
 				printk(KERN_WARNING "%s: %d rebuilds is over limit, route caching disabled\n",
 					rt->u.dst.dev->name, num);
 			}
-			rt_emergency_hash_rebuild(dev_net(rt->u.dst.dev));
+			rt_emergency_hash_rebuild(net);
 		}
 	}
 
