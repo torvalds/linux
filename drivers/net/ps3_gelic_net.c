@@ -326,7 +326,7 @@ static int gelic_descr_prepare_rx(struct gelic_card *card,
 	unsigned int bufsize;
 
 	if (gelic_descr_get_status(descr) !=  GELIC_DESCR_DMA_NOT_IN_USE)
-		dev_info(ctodev(card), "%s: ERROR status \n", __func__);
+		dev_info(ctodev(card), "%s: ERROR status\n", __func__);
 	/* we need to round up the buffer size to a multiple of 128 */
 	bufsize = ALIGN(GELIC_NET_MAX_MTU, GELIC_NET_RXBUF_ALIGN);
 
@@ -1434,7 +1434,7 @@ static void gelic_net_tx_timeout_task(struct work_struct *work)
 		container_of(work, struct gelic_card, tx_timeout_task);
 	struct net_device *netdev = card->netdev[GELIC_PORT_ETHERNET_0];
 
-	dev_info(ctodev(card), "%s:Timed out. Restarting... \n", __func__);
+	dev_info(ctodev(card), "%s:Timed out. Restarting...\n", __func__);
 
 	if (!(netdev->flags & IFF_UP))
 		goto out;
