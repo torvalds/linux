@@ -872,12 +872,24 @@ program_interrupt:
 		break;
 	}
 	case BOOK3S_INTERRUPT_SYSCALL:
-#ifdef EXIT_DEBUG
-		printk(KERN_INFO "Syscall Nr %d\n", (int)kvmppc_get_gpr(vcpu, 0));
-#endif
-		vcpu->stat.syscall_exits++;
-		kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
-		r = RESUME_GUEST;
+		// XXX make user settable
+		if (vcpu->arch.osi_enabled &&
+		    (((u32)kvmppc_get_gpr(vcpu, 3)) == OSI_SC_MAGIC_R3) &&
+		    (((u32)kvmppc_get_gpr(vcpu, 4)) == OSI_SC_MAGIC_R4)) {
+			u64 *gprs = run->osi.gprs;
+			int i;
+
+			run->exit_reason = KVM_EXIT_OSI;
+			for (i = 0; i < 32; i++)
+				gprs[i] = kvmppc_get_gpr(vcpu, i);
+			vcpu->arch.osi_needed = 1;
+			r = RESUME_HOST_NV;
+
+		} else {
+			vcpu->stat.syscall_exits++;
+			kvmppc_book3s_queue_irqprio(vcpu, exit_nr);
+			r = RESUME_GUEST;
+		}
 		break;
 	case BOOK3S_INTERRUPT_FP_UNAVAIL:
 	case BOOK3S_INTERRUPT_ALTIVEC:

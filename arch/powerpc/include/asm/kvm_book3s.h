@@ -148,6 +148,11 @@ static inline ulong dsisr(void)
 
 extern void kvm_return_point(void);
 
+/* Magic register values loaded into r3 and r4 before the 'sc' assembly
+ * instruction for the OSI hypercalls */
+#define OSI_SC_MAGIC_R3			0x113724FA
+#define OSI_SC_MAGIC_R4			0x77810F9B
+
 #define INS_DCBZ			0x7c0007ec
 
 #endif /* __ASM_KVM_BOOK3S_H__ */

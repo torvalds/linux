@@ -958,9 +958,9 @@ executed a memory-mapped I/O instruction which could not be satisfied
 by kvm.  The 'data' member contains the written data if 'is_write' is
 true, and should be filled by application code otherwise.
 
-NOTE: For KVM_EXIT_IO and KVM_EXIT_MMIO, the corresponding operations
-are complete (and guest state is consistent) only after userspace has
-re-entered the kernel with KVM_RUN.  The kernel side will first finish
+NOTE: For KVM_EXIT_IO, KVM_EXIT_MMIO and KVM_EXIT_OSI, the corresponding
+operations are complete (and guest state is consistent) only after userspace
+has re-entered the kernel with KVM_RUN.  The kernel side will first finish
 incomplete operations and then check for pending signals.  Userspace
 can re-enter the guest with an unmasked signal pending to complete
 pending operations.
@@ -1014,6 +1014,19 @@ s390 specific.
 		} dcr;
 
 powerpc specific.
+
+		/* KVM_EXIT_OSI */
+		struct {
+			__u64 gprs[32];
+		} osi;
+
+MOL uses a special hypercall interface it calls 'OSI'. To enable it, we catch
+hypercalls and exit with this exit struct that contains all the guest gprs.
+
+If exit_reason is KVM_EXIT_OSI, then the vcpu has triggered such a hypercall.
+Userspace can now handle the hypercall and when it's done modify the gprs as
+necessary. Upon guest entry all guest GPRs will then be replaced by the values
+in this struct.
 
 		/* Fix the size of the union. */
 		char padding[256];

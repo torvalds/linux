@@ -273,6 +273,8 @@ struct kvm_vcpu_arch {
 	u8 mmio_sign_extend;
 	u8 dcr_needed;
 	u8 dcr_is_write;
+	u8 osi_needed;
+	u8 osi_enabled;
 
 	u32 cpr0_cfgaddr; /* holds the last set cpr0_cfgaddr */
 

@@ -160,6 +160,7 @@ struct kvm_pit_config {
 #define KVM_EXIT_DCR              15
 #define KVM_EXIT_NMI              16
 #define KVM_EXIT_INTERNAL_ERROR   17
+#define KVM_EXIT_OSI              18
 
 /* For KVM_EXIT_INTERNAL_ERROR */
 #define KVM_INTERNAL_ERROR_EMULATION 1
@@ -259,6 +260,10 @@ struct kvm_run {
 			__u32 ndata;
 			__u64 data[16];
 		} internal;
+		/* KVM_EXIT_OSI */
+		struct {
+			__u64 gprs[32];
+		} osi;
 		/* Fix the size of the union. */
 		char padding[256];
 	};
@@ -516,6 +521,7 @@ struct kvm_enable_cap {
 #define KVM_CAP_DEBUGREGS 50
 #endif
 #define KVM_CAP_X86_ROBUST_SINGLESTEP 51
+#define KVM_CAP_PPC_OSI 52
 #define KVM_CAP_PPC_UNSET_IRQ 53
 #define KVM_CAP_ENABLE_CAP 54
 
