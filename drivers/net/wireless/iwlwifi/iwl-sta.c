@@ -71,7 +71,7 @@ u8 iwl_find_station(struct iwl_priv *priv, const u8 *addr)
 	    (!(priv->stations[ret].used & IWL_STA_UCODE_ACTIVE) ||
 	     ((priv->stations[ret].used & IWL_STA_UCODE_ACTIVE) &&
 	      (priv->stations[ret].used & IWL_STA_UCODE_INPROGRESS)))) {
-		IWL_ERR(priv, "Requested station info for sta %d before ready. \n",
+		IWL_ERR(priv, "Requested station info for sta %d before ready.\n",
 			ret);
 		ret = IWL_INVALID_STATION;
 	}
@@ -143,7 +143,7 @@ static void iwl_process_add_sta_resp(struct iwl_priv *priv,
 			sta_id);
 		break;
 	case ADD_STA_MODIFY_NON_EXIST_STA:
-		IWL_ERR(priv, "Attempting to modify non-existing station %d \n",
+		IWL_ERR(priv, "Attempting to modify non-existing station %d\n",
 			sta_id);
 		break;
 	default:
@@ -571,7 +571,7 @@ static int iwl_remove_station(struct iwl_priv *priv, struct ieee80211_sta *sta)
 
 	if (!iwl_is_ready(priv)) {
 		IWL_DEBUG_INFO(priv,
-			"Unable to remove station %pM, device not ready. \n",
+			"Unable to remove station %pM, device not ready.\n",
 			sta->addr);
 		/*
 		 * It is typical for stations to be removed when we are
@@ -668,7 +668,7 @@ void iwl_clear_ucode_stations(struct iwl_priv *priv, bool force)
 	} else {
 		for (i = 0; i < priv->hw_params.max_stations; i++) {
 			if (priv->stations[i].used & IWL_STA_UCODE_ACTIVE) {
-				IWL_DEBUG_INFO(priv, "Clearing ucode active for station %d \n", i);
+				IWL_DEBUG_INFO(priv, "Clearing ucode active for station %d\n", i);
 				priv->stations[i].used &= ~IWL_STA_UCODE_ACTIVE;
 				cleared = true;
 			}
@@ -1105,7 +1105,7 @@ int iwl_remove_dynamic_key(struct iwl_priv *priv,
 	priv->stations[sta_id].sta.mode = STA_CONTROL_MODIFY_MSK;
 
 	if (iwl_is_rfkill(priv)) {
-		IWL_DEBUG_WEP(priv, "Not sending REPLY_ADD_STA command because RFKILL enabled. \n");
+		IWL_DEBUG_WEP(priv, "Not sending REPLY_ADD_STA command because RFKILL enabled.\n");
 		spin_unlock_irqrestore(&priv->sta_lock, flags);
 		return 0;
 	}
@@ -1207,7 +1207,7 @@ int iwl_send_lq_cmd(struct iwl_priv *priv,
 		return ret;
 
 	if (init) {
-		IWL_DEBUG_INFO(priv, "init LQ command complete, clearing sta addition status for sta %d \n",
+		IWL_DEBUG_INFO(priv, "init LQ command complete, clearing sta addition status for sta %d\n",
 			       lq->sta_id);
 		spin_lock_irqsave(&priv->sta_lock, flags_spin);
 		priv->stations[lq->sta_id].used &= ~IWL_STA_UCODE_INPROGRESS;

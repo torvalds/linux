@@ -597,9 +597,9 @@ static int iwl3945_tx_skb(struct iwl_priv *priv, struct sk_buff *skb)
 		txq->need_update = 0;
 	}
 
-	IWL_DEBUG_TX(priv, "sequence nr = 0X%x \n",
+	IWL_DEBUG_TX(priv, "sequence nr = 0X%x\n",
 		     le16_to_cpu(out_cmd->hdr.sequence));
-	IWL_DEBUG_TX(priv, "tx_flags = 0X%x \n", le32_to_cpu(tx_cmd->tx_flags));
+	IWL_DEBUG_TX(priv, "tx_flags = 0X%x\n", le32_to_cpu(tx_cmd->tx_flags));
 	iwl_print_hex_dump(priv, IWL_DL_TX, tx_cmd, sizeof(*tx_cmd));
 	iwl_print_hex_dump(priv, IWL_DL_TX, (u8 *)tx_cmd->hdr,
 			   ieee80211_hdrlen(fc));
@@ -1937,7 +1937,7 @@ static int iwl3945_get_channels_for_scan(struct iwl_priv *priv,
 		added++;
 	}
 
-	IWL_DEBUG_SCAN(priv, "total channels to scan %d \n", added);
+	IWL_DEBUG_SCAN(priv, "total channels to scan %d\n", added);
 	return added;
 }
 
@@ -3401,7 +3401,7 @@ static int iwl3945_mac_sta_add(struct ieee80211_hw *hw,
 	}
 
 	/* Initialize rate scaling */
-	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM \n",
+	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",
 		       sta->addr);
 	iwl3945_rs_rate_init(priv, sta, sta_id);
 

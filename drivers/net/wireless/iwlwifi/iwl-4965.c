@@ -410,7 +410,7 @@ static void iwl4965_gain_computation(struct iwl_priv *priv,
 				      sizeof(cmd), &cmd);
 		if (ret)
 			IWL_DEBUG_CALIB(priv, "fail sending cmd "
-				     "REPLY_PHY_CALIBRATION_CMD \n");
+				     "REPLY_PHY_CALIBRATION_CMD\n");
 
 		/* TODO we might want recalculate
 		 * rx_chain in rxon cmd */
@@ -1612,19 +1612,19 @@ static int iwl4965_is_temp_calib_needed(struct iwl_priv *priv)
 
 	/* get absolute value */
 	if (temp_diff < 0) {
-		IWL_DEBUG_POWER(priv, "Getting cooler, delta %d, \n", temp_diff);
+		IWL_DEBUG_POWER(priv, "Getting cooler, delta %d\n", temp_diff);
 		temp_diff = -temp_diff;
 	} else if (temp_diff == 0)
-		IWL_DEBUG_POWER(priv, "Same temp, \n");
+		IWL_DEBUG_POWER(priv, "Temperature unchanged\n");
 	else
-		IWL_DEBUG_POWER(priv, "Getting warmer, delta %d, \n", temp_diff);
+		IWL_DEBUG_POWER(priv, "Getting warmer, delta %d\n", temp_diff);
 
 	if (temp_diff < IWL_TEMPERATURE_THRESHOLD) {
-		IWL_DEBUG_POWER(priv, "Thermal txpower calib not needed\n");
+		IWL_DEBUG_POWER(priv, " => thermal txpower calib not needed\n");
 		return 0;
 	}
 
-	IWL_DEBUG_POWER(priv, "Thermal txpower calib needed\n");
+	IWL_DEBUG_POWER(priv, " => thermal txpower calib needed\n");
 
 	return 1;
 }

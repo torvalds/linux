@@ -181,7 +181,7 @@ int iwl_commit_rxon(struct iwl_priv *priv)
 			IWL_ERR(priv, "Error setting new RXON (%d)\n", ret);
 			return ret;
 		}
-		IWL_DEBUG_INFO(priv, "Return from !new_assoc RXON. \n");
+		IWL_DEBUG_INFO(priv, "Return from !new_assoc RXON.\n");
 		memcpy(active_rxon, &priv->staging_rxon, sizeof(*active_rxon));
 		iwl_clear_ucode_stations(priv, false);
 		iwl_restore_stations(priv);
@@ -2303,7 +2303,7 @@ static int iwl_prepare_card_hw(struct iwl_priv *priv)
 {
 	int ret = 0;
 
-	IWL_DEBUG_INFO(priv, "iwl_prepare_card_hw enter \n");
+	IWL_DEBUG_INFO(priv, "iwl_prepare_card_hw enter\n");
 
 	ret = iwl_set_hw_ready(priv);
 	if (priv->hw_ready)
@@ -3067,7 +3067,7 @@ static int iwlagn_mac_sta_add(struct ieee80211_hw *hw,
 	iwl_restore_wepkeys(priv);
 
 	/* Initialize rate scaling */
-	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM \n",
+	IWL_DEBUG_INFO(priv, "Initializing rate scaling for station %pM\n",
 		       sta->addr);
 	iwl_rs_rate_init(priv, sta, sta_id);
 

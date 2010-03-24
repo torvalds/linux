@@ -486,7 +486,7 @@ static void _iwl3945_dbg_report_frame(struct iwl_priv *priv,
 		 *    but you can hack it to show more, if you'd like to. */
 		if (dataframe)
 			IWL_DEBUG_RX(priv, "%s: mhd=0x%04x, dst=0x%02x, "
-				     "len=%u, rssi=%d, chnl=%d, rate=%d, \n",
+				     "len=%u, rssi=%d, chnl=%d, rate=%d,\n",
 				     title, le16_to_cpu(fc), header->addr1[5],
 				     length, rssi, channel, rate);
 		else {
@@ -998,7 +998,7 @@ static void iwl3945_nic_config(struct iwl_priv *priv)
 	IWL_DEBUG_INFO(priv, "HW Revision ID = 0x%X\n", rev_id);
 
 	if (rev_id & PCI_CFG_REV_ID_BIT_RTP)
-		IWL_DEBUG_INFO(priv, "RTP type \n");
+		IWL_DEBUG_INFO(priv, "RTP type\n");
 	else if (rev_id & PCI_CFG_REV_ID_BIT_BASIC_SKU) {
 		IWL_DEBUG_INFO(priv, "3945 RADIO-MB type\n");
 		iwl_set_bit(priv, CSR_HW_IF_CONFIG_REG,
