@@ -91,7 +91,7 @@ struct rds_connection {
 	struct rds_cong_map	*c_lcong;
 	struct rds_cong_map	*c_fcong;
 
-	struct mutex		c_send_lock;	/* protect send ring */
+	spinlock_t		c_send_lock;	/* protect send ring */
 	struct rds_message	*c_xmit_rm;
 	unsigned long		c_xmit_sg;
 	unsigned int		c_xmit_hdr_off;
@@ -548,8 +548,8 @@ struct rds_statistics {
 	uint64_t	s_recv_ping;
 	uint64_t	s_send_queue_empty;
 	uint64_t	s_send_queue_full;
-	uint64_t	s_send_sem_contention;
-	uint64_t	s_send_sem_queue_raced;
+	uint64_t	s_send_lock_contention;
+	uint64_t	s_send_lock_queue_raced;
 	uint64_t	s_send_immediate_retry;
 	uint64_t	s_send_delayed_retry;
 	uint64_t	s_send_drop_acked;

@@ -62,18 +62,6 @@ static struct hlist_head *rds_conn_bucket(__be32 laddr, __be32 faddr)
 		var |= RDS_INFO_CONNECTION_FLAG_##suffix;	\
 } while (0)
 
-static inline int rds_conn_is_sending(struct rds_connection *conn)
-{
-	int ret = 0;
-
-	if (!mutex_trylock(&conn->c_send_lock))
-		ret = 1;
-	else
-		mutex_unlock(&conn->c_send_lock);
-
-	return ret;
-}
-
 static struct rds_connection *rds_conn_lookup(struct hlist_head *head,
 					      __be32 laddr, __be32 faddr,
 					      struct rds_transport *trans)
@@ -158,7 +146,7 @@ static struct rds_connection *__rds_conn_create(__be32 laddr, __be32 faddr,
 	spin_lock_init(&conn->c_lock);
 	conn->c_next_tx_seq = 1;
 
-	mutex_init(&conn->c_send_lock);
+	spin_lock_init(&conn->c_send_lock);
 	INIT_LIST_HEAD(&conn->c_send_queue);
 	INIT_LIST_HEAD(&conn->c_retrans);
 
@@ -283,10 +271,12 @@ void rds_conn_shutdown(struct rds_connection *conn)
 		}
 		mutex_unlock(&conn->c_cm_lock);
 
-		mutex_lock(&conn->c_send_lock);
+		/* verify everybody's out of rds_send_xmit() */
+		spin_lock_irq(&conn->c_send_lock);
+		spin_unlock_irq(&conn->c_send_lock);
+
 		conn->c_trans->conn_shutdown(conn);
 		rds_conn_reset(conn);
-		mutex_unlock(&conn->c_send_lock);
 
 		if (!rds_conn_transition(conn, RDS_CONN_DISCONNECTING, RDS_CONN_DOWN)) {
 			/* This can happen - eg when we're in the middle of tearing
@@ -476,7 +466,7 @@ static int rds_conn_info_visitor(struct rds_connection *conn,
 	cinfo->flags = 0;
 
 	rds_conn_info_set(cinfo->flags,
-			  rds_conn_is_sending(conn), SENDING);
+			  spin_is_locked(&conn->c_send_lock), SENDING);
 	/* XXX Future: return the state rather than these funky bits */
 	rds_conn_info_set(cinfo->flags,
 			  atomic_read(&conn->c_state) == RDS_CONN_CONNECTING,

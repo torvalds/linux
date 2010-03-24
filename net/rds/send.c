@@ -116,19 +116,18 @@ int rds_send_xmit(struct rds_connection *conn)
 	int was_empty = 0;
 	LIST_HEAD(to_be_dropped);
 
+	if (!rds_conn_up(conn))
+		goto out;
+
 	/*
 	 * sendmsg calls here after having queued its message on the send
 	 * queue.  We only have one task feeding the connection at a time.  If
 	 * another thread is already feeding the queue then we back off.  This
 	 * avoids blocking the caller and trading per-connection data between
 	 * caches per message.
-	 *
-	 * The sem holder will issue a retry if they notice that someone queued
-	 * a message after they stopped walking the send queue but before they
-	 * dropped the sem.
 	 */
-	if (!mutex_trylock(&conn->c_send_lock)) {
-		rds_stats_inc(s_send_sem_contention);
+	if (!spin_trylock_irqsave(&conn->c_send_lock, flags)) {
+		rds_stats_inc(s_send_lock_contention);
 		ret = -ENOMEM;
 		goto out;
 	}
@@ -346,7 +345,7 @@ int rds_send_xmit(struct rds_connection *conn)
 	 * stop processing the loop when the transport hasn't taken
 	 * responsibility for forward progress.
 	 */
-	mutex_unlock(&conn->c_send_lock);
+	spin_unlock_irqrestore(&conn->c_send_lock, flags);
 
 	if (send_quota == 0 && !was_empty) {
 		/* We exhausted the send quota, but there's work left to
@@ -360,7 +359,7 @@ int rds_send_xmit(struct rds_connection *conn)
 		 * spin lock */
 		spin_lock_irqsave(&conn->c_lock, flags);
 		if (!list_empty(&conn->c_send_queue)) {
-			rds_stats_inc(s_send_sem_queue_raced);
+			rds_stats_inc(s_send_lock_queue_raced);
 			ret = -EAGAIN;
 		}
 		spin_unlock_irqrestore(&conn->c_lock, flags);
