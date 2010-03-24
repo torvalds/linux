@@ -168,7 +168,7 @@ int rds_send_xmit(struct rds_connection *conn)
 		if (!rm) {
 			unsigned int len;
 
-			spin_lock_irqsave(&conn->c_lock, flags);
+			spin_lock(&conn->c_lock);
 
 			if (!list_empty(&conn->c_send_queue)) {
 				rm = list_entry(conn->c_send_queue.next,
@@ -183,7 +183,7 @@ int rds_send_xmit(struct rds_connection *conn)
 				list_move_tail(&rm->m_conn_item, &conn->c_retrans);
 			}
 
-			spin_unlock_irqrestore(&conn->c_lock, flags);
+			spin_unlock(&conn->c_lock);
 
 			if (!rm) {
 				was_empty = 1;
@@ -199,11 +199,10 @@ int rds_send_xmit(struct rds_connection *conn)
 			 */
 			if (rm->rdma.op_active &&
 			    test_bit(RDS_MSG_RETRANSMITTED, &rm->m_flags)) {
-				spin_lock_irqsave(&conn->c_lock, flags);
+				spin_lock(&conn->c_lock);
 				if (test_and_clear_bit(RDS_MSG_ON_CONN, &rm->m_flags))
 					list_move(&rm->m_conn_item, &to_be_dropped);
-				spin_unlock_irqrestore(&conn->c_lock, flags);
-				rds_message_put(rm);
+				spin_unlock(&conn->c_lock);
 				continue;
 			}
 
@@ -326,10 +325,6 @@ int rds_send_xmit(struct rds_connection *conn)
 		}
 	}
 
-	/* Nuke any messages we decided not to retransmit. */
-	if (!list_empty(&to_be_dropped))
-		rds_send_remove_from_sock(&to_be_dropped, RDS_RDMA_DROPPED);
-
 	if (conn->c_trans->xmit_complete)
 		conn->c_trans->xmit_complete(conn);
 
@@ -346,6 +341,14 @@ int rds_send_xmit(struct rds_connection *conn)
 	 * responsibility for forward progress.
 	 */
 	spin_unlock_irqrestore(&conn->c_send_lock, flags);
+
+	/* Nuke any messages we decided not to retransmit. */
+	if (!list_empty(&to_be_dropped)) {
+		/* irqs on here, so we can put(), unlike above */
+		list_for_each_entry(rm, &to_be_dropped, m_conn_item)
+			rds_message_put(rm);
+		rds_send_remove_from_sock(&to_be_dropped, RDS_RDMA_DROPPED);
+	}
 
 	if (send_quota == 0 && !was_empty) {
 		/* We exhausted the send quota, but there's work left to
