@@ -150,6 +150,7 @@ int kvm_dev_ioctl_check_extension(long ext)
 	case KVM_CAP_PPC_SEGSTATE:
 	case KVM_CAP_PPC_PAIRED_SINGLES:
 	case KVM_CAP_PPC_UNSET_IRQ:
+	case KVM_CAP_ENABLE_CAP:
 		r = 1;
 		break;
 	case KVM_CAP_COALESCED_MMIO:
@@ -465,6 +466,23 @@ int kvm_vcpu_ioctl_interrupt(struct kvm_vcpu *vcpu, struct kvm_interrupt *irq)
 	return 0;
 }
 
+static int kvm_vcpu_ioctl_enable_cap(struct kvm_vcpu *vcpu,
+				     struct kvm_enable_cap *cap)
+{
+	int r;
+
+	if (cap->flags)
+		return -EINVAL;
+
+	switch (cap->cap) {
+	default:
+		r = -EINVAL;
+		break;
+	}
+
+	return r;
+}
+
 int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
                                     struct kvm_mp_state *mp_state)
 {
@@ -491,6 +509,15 @@ long kvm_arch_vcpu_ioctl(struct file *filp,
 		if (copy_from_user(&irq, argp, sizeof(irq)))
 			goto out;
 		r = kvm_vcpu_ioctl_interrupt(vcpu, &irq);
+		break;
+	}
+	case KVM_ENABLE_CAP:
+	{
+		struct kvm_enable_cap cap;
+		r = -EFAULT;
+		if (copy_from_user(&cap, argp, sizeof(cap)))
+			goto out;
+		r = kvm_vcpu_ioctl_enable_cap(vcpu, &cap);
 		break;
 	}
 	default:

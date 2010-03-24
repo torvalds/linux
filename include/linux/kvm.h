@@ -400,6 +400,15 @@ struct kvm_ioeventfd {
 	__u8  pad[36];
 };
 
+/* for KVM_ENABLE_CAP */
+struct kvm_enable_cap {
+	/* in */
+	__u32 cap;
+	__u32 flags;
+	__u64 args[4];
+	__u8  pad[64];
+};
+
 #define KVMIO 0xAE
 
 /*
@@ -508,6 +517,7 @@ struct kvm_ioeventfd {
 #endif
 #define KVM_CAP_X86_ROBUST_SINGLESTEP 51
 #define KVM_CAP_PPC_UNSET_IRQ 53
+#define KVM_CAP_ENABLE_CAP 54
 
 #ifdef KVM_CAP_IRQ_ROUTING
 
@@ -697,6 +707,7 @@ struct kvm_clock_data {
 /* Available with KVM_CAP_DEBUGREGS */
 #define KVM_GET_DEBUGREGS         _IOR(KVMIO,  0xa1, struct kvm_debugregs)
 #define KVM_SET_DEBUGREGS         _IOW(KVMIO,  0xa2, struct kvm_debugregs)
+#define KVM_ENABLE_CAP            _IOW(KVMIO,  0xa3, struct kvm_enable_cap)
 
 #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
 

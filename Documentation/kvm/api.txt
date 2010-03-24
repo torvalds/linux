@@ -813,6 +813,41 @@ This ioctl is required on Intel-based hosts.  This is needed on Intel hardware
 because of a quirk in the virtualization implementation (see the internals
 documentation when it pops into existence).
 
+4.36 KVM_ENABLE_CAP
+
+Capability: KVM_CAP_ENABLE_CAP
+Architectures: ppc
+Type: vcpu ioctl
+Parameters: struct kvm_enable_cap (in)
+Returns: 0 on success; -1 on error
+
++Not all extensions are enabled by default. Using this ioctl the application
+can enable an extension, making it available to the guest.
+
+On systems that do not support this ioctl, it always fails. On systems that
+do support it, it only works for extensions that are supported for enablement.
+
+To check if a capability can be enabled, the KVM_CHECK_EXTENSION ioctl should
+be used.
+
+struct kvm_enable_cap {
+       /* in */
+       __u32 cap;
+
+The capability that is supposed to get enabled.
+
+       __u32 flags;
+
+A bitfield indicating future enhancements. Has to be 0 for now.
+
+       __u64 args[4];
+
+Arguments for enabling a feature. If a feature needs initial values to
+function properly, this is the place to put them.
+
+       __u8  pad[64];
+};
+
 5. The kvm_run structure
 
 Application code obtains a pointer to the kvm_run structure by
