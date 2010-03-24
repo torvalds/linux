@@ -24,12 +24,49 @@
 #ifndef EVERGREEND_H
 #define EVERGREEND_H
 
+#define EVERGREEN_MAX_SH_GPRS           256
+#define EVERGREEN_MAX_TEMP_GPRS         16
+#define EVERGREEN_MAX_SH_THREADS        256
+#define EVERGREEN_MAX_SH_STACK_ENTRIES  4096
+#define EVERGREEN_MAX_FRC_EOV_CNT       16384
+#define EVERGREEN_MAX_BACKENDS          8
+#define EVERGREEN_MAX_BACKENDS_MASK     0xFF
+#define EVERGREEN_MAX_SIMDS             16
+#define EVERGREEN_MAX_SIMDS_MASK        0xFFFF
+#define EVERGREEN_MAX_PIPES             8
+#define EVERGREEN_MAX_PIPES_MASK        0xFF
+#define EVERGREEN_MAX_LDS_NUM           0xFFFF
+
 /* Registers */
 
-#define	CC_GC_SHADER_PIPE_CONFIG			0x8950
-#define	CC_RB_BACKEND_DISABLE				0x98F4
-#define		BACKEND_DISABLE(x)				((x) << 16)
+#define RCU_IND_INDEX           			0x100
+#define RCU_IND_DATA            			0x104
+
+#define GRBM_GFX_INDEX          			0x802C
+#define		INSTANCE_INDEX(x)			((x) << 0)
+#define		SE_INDEX(x)     			((x) << 16)
+#define		INSTANCE_BROADCAST_WRITES      		(1 << 30)
+#define		SE_BROADCAST_WRITES      		(1 << 31)
+#define RLC_GFX_INDEX           			0x3fC4
+#define CC_GC_SHADER_PIPE_CONFIG			0x8950
+#define		WRITE_DIS      				(1 << 0)
+#define CC_RB_BACKEND_DISABLE				0x98F4
+#define		BACKEND_DISABLE(x)     			((x) << 16)
+#define GB_ADDR_CONFIG  				0x98F8
+#define		NUM_PIPES(x)				((x) << 0)
+#define		PIPE_INTERLEAVE_SIZE(x)			((x) << 4)
+#define		BANK_INTERLEAVE_SIZE(x)			((x) << 8)
+#define		NUM_SHADER_ENGINES(x)			((x) << 12)
+#define		SHADER_ENGINE_TILE_SIZE(x)     		((x) << 16)
+#define		NUM_GPUS(x)     			((x) << 20)
+#define		MULTI_GPU_TILE_SIZE(x)     		((x) << 24)
+#define		ROW_SIZE(x)             		((x) << 28)
+#define GB_BACKEND_MAP  				0x98FC
+#define DMIF_ADDR_CONFIG  				0xBD4
+#define HDP_ADDR_CONFIG  				0x2F48
+
 #define	CC_SYS_RB_BACKEND_DISABLE			0x3F88
+#define	GC_USER_RB_BACKEND_DISABLE			0x9B7C
 
 #define	CGTS_SYS_TCC_DISABLE				0x3F90
 #define	CGTS_TCC_DISABLE				0x9148
@@ -38,9 +75,9 @@
 
 #define	CONFIG_MEMSIZE					0x5428
 
-#define	CP_ME_CNTL					0x86D8
-#define		CP_ME_HALT					(1<<28)
-#define		CP_PFP_HALT					(1<<26)
+#define CP_ME_CNTL					0x86D8
+#define		CP_ME_HALT					(1 << 28)
+#define		CP_PFP_HALT					(1 << 26)
 #define	CP_ME_RAM_DATA					0xC160
 #define	CP_ME_RAM_RADDR					0xC158
 #define	CP_ME_RAM_WADDR					0xC15C
@@ -53,10 +90,10 @@
 #define		ROQ_IB1_START(x)				((x) << 0)
 #define		ROQ_IB2_START(x)				((x) << 8)
 #define	CP_RB_CNTL					0xC104
-#define		RB_BUFSZ(x)					((x)<<0)
-#define		RB_BLKSZ(x)					((x)<<8)
-#define		RB_NO_UPDATE					(1<<27)
-#define		RB_RPTR_WR_ENA					(1<<31)
+#define		RB_BUFSZ(x)					((x) << 0)
+#define		RB_BLKSZ(x)					((x) << 8)
+#define		RB_NO_UPDATE					(1 << 27)
+#define		RB_RPTR_WR_ENA					(1 << 31)
 #define		BUF_SWAP_32BIT					(2 << 16)
 #define	CP_RB_RPTR					0x8700
 #define	CP_RB_RPTR_ADDR					0xC10C
@@ -184,9 +221,10 @@
 #define	PA_SC_FIFO_SIZE					0x8BCC
 #define		SC_PRIM_FIFO_SIZE(x)				((x) << 0)
 #define		SC_HIZ_TILE_FIFO_SIZE(x)			((x) << 12)
+#define		SC_EARLYZ_TILE_FIFO_SIZE(x)			((x) << 20)
 #define	PA_SC_FORCE_EOV_MAX_CNTS			0x8B24
-#define		FORCE_EOV_MAX_CLK_CNT(x)			((x)<<0)
-#define		FORCE_EOV_MAX_REZ_CNT(x)			((x)<<16)
+#define		FORCE_EOV_MAX_CLK_CNT(x)			((x) << 0)
+#define		FORCE_EOV_MAX_REZ_CNT(x)			((x) << 16)
 #define PA_SC_LINE_STIPPLE				0x28A0C
 #define	PA_SC_LINE_STIPPLE_STATE			0x8B10
 
@@ -203,7 +241,7 @@
 
 #define	SMX_DC_CTL0					0xA020
 #define		USE_HASH_FUNCTION				(1 << 0)
-#define		CACHE_DEPTH(x)					((x) << 1)
+#define		NUMBER_OF_SETS(x)				((x) << 1)
 #define		FLUSH_ALL_ON_EVENT				(1 << 10)
 #define		STALL_ON_EVENT					(1 << 11)
 #define	SMX_EVENT_CTL					0xA02C
@@ -234,6 +272,13 @@
 #define	SQ_CONFIG					0x8C00
 #define		VC_ENABLE					(1 << 0)
 #define		EXPORT_SRC_C					(1 << 1)
+#define		CS_PRIO(x)					((x) << 18)
+#define		LS_PRIO(x)					((x) << 20)
+#define		HS_PRIO(x)					((x) << 22)
+#define		PS_PRIO(x)					((x) << 24)
+#define		VS_PRIO(x)					((x) << 26)
+#define		GS_PRIO(x)					((x) << 28)
+#define		ES_PRIO(x)					((x) << 30)
 #define	SQ_GPR_RESOURCE_MGMT_1				0x8C04
 #define		NUM_PS_GPRS(x)					((x) << 0)
 #define		NUM_VS_GPRS(x)					((x) << 16)
@@ -241,6 +286,29 @@
 #define	SQ_GPR_RESOURCE_MGMT_2				0x8C08
 #define		NUM_GS_GPRS(x)					((x) << 0)
 #define		NUM_ES_GPRS(x)					((x) << 16)
+#define	SQ_GPR_RESOURCE_MGMT_3				0x8C0C
+#define		NUM_HS_GPRS(x)					((x) << 0)
+#define		NUM_LS_GPRS(x)					((x) << 16)
+#define	SQ_THREAD_RESOURCE_MGMT				0x8C18
+#define		NUM_PS_THREADS(x)				((x) << 0)
+#define		NUM_VS_THREADS(x)				((x) << 8)
+#define		NUM_GS_THREADS(x)				((x) << 16)
+#define		NUM_ES_THREADS(x)				((x) << 24)
+#define	SQ_THREAD_RESOURCE_MGMT_2			0x8C1C
+#define		NUM_HS_THREADS(x)				((x) << 0)
+#define		NUM_LS_THREADS(x)				((x) << 8)
+#define	SQ_STACK_RESOURCE_MGMT_1			0x8C20
+#define		NUM_PS_STACK_ENTRIES(x)				((x) << 0)
+#define		NUM_VS_STACK_ENTRIES(x)				((x) << 16)
+#define	SQ_STACK_RESOURCE_MGMT_2			0x8C24
+#define		NUM_GS_STACK_ENTRIES(x)				((x) << 0)
+#define		NUM_ES_STACK_ENTRIES(x)				((x) << 16)
+#define	SQ_STACK_RESOURCE_MGMT_3			0x8C28
+#define		NUM_HS_STACK_ENTRIES(x)				((x) << 0)
+#define		NUM_LS_STACK_ENTRIES(x)				((x) << 16)
+#define	SQ_DYN_GPR_CNTL_PS_FLUSH_REQ    		0x8D8C
+#define	SQ_LDS_RESOURCE_MGMT    			0x8E2C
+
 #define	SQ_MS_FIFO_SIZES				0x8CF0
 #define		CACHE_FIFO_SIZE(x)				((x) << 0)
 #define		FETCH_FIFO_HIWATER(x)				((x) << 8)
@@ -255,6 +323,15 @@
 #define		SMX_BUFFER_SIZE(x)				((x) << 16)
 #define	SX_MISC						0x28350
 
+#define CB_PERF_CTR0_SEL_0				0x9A20
+#define CB_PERF_CTR0_SEL_1				0x9A24
+#define CB_PERF_CTR1_SEL_0				0x9A28
+#define CB_PERF_CTR1_SEL_1				0x9A2C
+#define CB_PERF_CTR2_SEL_0				0x9A30
+#define CB_PERF_CTR2_SEL_1				0x9A34
+#define CB_PERF_CTR3_SEL_0				0x9A38
+#define CB_PERF_CTR3_SEL_1				0x9A3C
+
 #define	TA_CNTL_AUX					0x9508
 #define		DISABLE_CUBE_WRAP				(1 << 0)
 #define		DISABLE_CUBE_ANISO				(1 << 1)
@@ -263,7 +340,7 @@
 #define		SYNC_ALIGNER					(1 << 26)
 
 #define	VGT_CACHE_INVALIDATION				0x88C4
-#define		CACHE_INVALIDATION(x)				((x)<<0)
+#define		CACHE_INVALIDATION(x)				((x) << 0)
 #define			VC_ONLY						0
 #define			TC_ONLY						1
 #define			VC_AND_TC					2
