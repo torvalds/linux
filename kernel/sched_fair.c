@@ -1392,7 +1392,8 @@ find_idlest_cpu(struct sched_group *group, struct task_struct *p, int this_cpu)
  *
  * preempt must be disabled.
  */
-static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flags)
+static int
+select_task_rq_fair(struct rq *rq, struct task_struct *p, int sd_flag, int wake_flags)
 {
 	struct sched_domain *tmp, *affine_sd = NULL, *sd = NULL;
 	int cpu = smp_processor_id();
@@ -1492,8 +1493,11 @@ static int select_task_rq_fair(struct task_struct *p, int sd_flag, int wake_flag
 				  cpumask_weight(sched_domain_span(sd))))
 			tmp = affine_sd;
 
-		if (tmp)
+		if (tmp) {
+			spin_unlock(&rq->lock);
 			update_shares(tmp);
+			spin_lock(&rq->lock);
+		}
 	}
 
 	if (affine_sd && wake_affine(affine_sd, p, sync)) {
