@@ -84,8 +84,8 @@ struct kvmppc_vcpu_book3s {
 	u64 hid[6];
 	u64 gqr[8];
 	int slb_nr;
+	u32 dsisr;
 	u64 sdr1;
-	u64 dsisr;
 	u64 hior;
 	u64 msr_mask;
 	u64 vsid_first;

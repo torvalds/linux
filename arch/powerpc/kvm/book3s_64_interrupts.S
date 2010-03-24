@@ -171,7 +171,7 @@ kvmppc_handler_highmem:
 	std	r3, VCPU_PC(r7)
 	std	r4, VCPU_SHADOW_SRR1(r7)
 	std	r5, VCPU_FAULT_DEAR(r7)
-	std	r6, VCPU_FAULT_DSISR(r7)
+	stw	r6, VCPU_FAULT_DSISR(r7)
 
 	ld	r5, VCPU_HFLAGS(r7)
 	rldicl.	r5, r5, 0, 63		/* CR = ((r5 & 1) == 0) */

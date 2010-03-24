@@ -260,7 +260,7 @@ struct kvm_vcpu_arch {
 
 	u32 last_inst;
 #ifdef CONFIG_PPC64
-	ulong fault_dsisr;
+	u32 fault_dsisr;
 #endif
 	ulong fault_dear;
 	ulong fault_esr;
