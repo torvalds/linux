@@ -357,6 +357,10 @@ void kvmppc_set_pvr(struct kvm_vcpu *vcpu, u32 pvr)
 	    !strcmp(cur_cpu_spec->platform, "ppc970"))
 		vcpu->arch.hflags |= BOOK3S_HFLAG_DCBZ32;
 
+	/* Cell performs badly if MSR_FEx are set. So let's hope nobody
+	   really needs them in a VM on Cell and force disable them. */
+	if (!strcmp(cur_cpu_spec->platform, "ppc-cell-be"))
+		to_book3s(vcpu)->msr_mask &= ~(MSR_FE0 | MSR_FE1);
 }
 
 /* Book3s_32 CPUs always have 32 bytes cache line size, which Linux assumes. To
