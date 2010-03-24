@@ -35,6 +35,7 @@
 #define OP_31_XOP_SLBMTE	402
 #define OP_31_XOP_SLBIE		434
 #define OP_31_XOP_SLBIA		498
+#define OP_31_XOP_MFSR		595
 #define OP_31_XOP_MFSRIN	659
 #define OP_31_XOP_SLBMFEV	851
 #define OP_31_XOP_EIOIO		854
@@ -90,6 +91,18 @@ int kvmppc_core_emulate_op(struct kvm_run *run, struct kvm_vcpu *vcpu,
 		case OP_31_XOP_MTMSR:
 			kvmppc_set_msr(vcpu, kvmppc_get_gpr(vcpu, get_rs(inst)));
 			break;
+		case OP_31_XOP_MFSR:
+		{
+			int srnum;
+
+			srnum = kvmppc_get_field(inst, 12 + 32, 15 + 32);
+			if (vcpu->arch.mmu.mfsrin) {
+				u32 sr;
+				sr = vcpu->arch.mmu.mfsrin(vcpu, srnum);
+				kvmppc_set_gpr(vcpu, get_rt(inst), sr);
+			}
+			break;
+		}
 		case OP_31_XOP_MFSRIN:
 		{
 			int srnum;
