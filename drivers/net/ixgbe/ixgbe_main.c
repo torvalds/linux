@@ -5648,7 +5648,8 @@ static u16 ixgbe_select_queue(struct net_device *dev, struct sk_buff *skb)
 
 #ifdef IXGBE_FCOE
 	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
-	    (skb->protocol == htons(ETH_P_FCOE))) {
+	    ((skb->protocol == htons(ETH_P_FCOE)) ||
+	     (skb->protocol == htons(ETH_P_FIP)))) {
 		txq &= (adapter->ring_feature[RING_F_FCOE].indices - 1);
 		txq += adapter->ring_feature[RING_F_FCOE].mask;
 		return txq;
@@ -5695,18 +5696,25 @@ static netdev_tx_t ixgbe_xmit_frame(struct sk_buff *skb,
 
 	tx_ring = adapter->tx_ring[skb->queue_mapping];
 
-	if ((adapter->flags & IXGBE_FLAG_FCOE_ENABLED) &&
-	    (skb->protocol == htons(ETH_P_FCOE))) {
-		tx_flags |= IXGBE_TX_FLAGS_FCOE;
 #ifdef IXGBE_FCOE
+	if (adapter->flags & IXGBE_FLAG_FCOE_ENABLED) {
 #ifdef CONFIG_IXGBE_DCB
-		tx_flags &= ~(IXGBE_TX_FLAGS_VLAN_PRIO_MASK
-			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
-		tx_flags |= ((adapter->fcoe.up << 13)
-			      << IXGBE_TX_FLAGS_VLAN_SHIFT);
+		/* for FCoE with DCB, we force the priority to what
+		 * was specified by the switch */
+		if ((skb->protocol == htons(ETH_P_FCOE)) ||
+		    (skb->protocol == htons(ETH_P_FIP))) {
+			tx_flags &= ~(IXGBE_TX_FLAGS_VLAN_PRIO_MASK
+				      << IXGBE_TX_FLAGS_VLAN_SHIFT);
+			tx_flags |= ((adapter->fcoe.up << 13)
+				     << IXGBE_TX_FLAGS_VLAN_SHIFT);
+		}
 #endif
-#endif
+		/* flag for FCoE offloads */
+		if (skb->protocol == htons(ETH_P_FCOE))
+			tx_flags |= IXGBE_TX_FLAGS_FCOE;
 	}
+#endif
+
 	/* four things can cause us to need a context descriptor */
 	if (skb_is_gso(skb) ||
 	    (skb->ip_summed == CHECKSUM_PARTIAL) ||
