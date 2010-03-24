@@ -126,23 +126,12 @@ priority!
 2.3 Basis for grouping tasks
 ----------------------------
 
-There are two compile-time settings for allocating CPU bandwidth. These are
-configured using the "Basis for grouping tasks" multiple choice menu under
-General setup > Group CPU Scheduler:
-
-a. CONFIG_USER_SCHED (aka "Basis for grouping tasks" =  "user id")
-
-This lets you use the virtual files under
-"/sys/kernel/uids/<uid>/cpu_rt_runtime_us" to control he CPU time reserved for
-each user .
-
-The other option is:
-
-.o CONFIG_CGROUP_SCHED (aka "Basis for grouping tasks" = "Control groups")
+Enabling CONFIG_RT_GROUP_SCHED lets you explicitly allocate real
+CPU bandwidth to task groups.
 
 This uses the /cgroup virtual file system and
 "/cgroup/<cgroup>/cpu.rt_runtime_us" to control the CPU time reserved for each
-control group instead.
+control group.
 
 For more information on working with control groups, you should read
 Documentation/cgroups/cgroups.txt as well.
@@ -161,8 +150,7 @@ For now, this can be simplified to just the following (but see Future plans):
 ===============
 
 There is work in progress to make the scheduling period for each group
-("/sys/kernel/uids/<uid>/cpu_rt_period_us" or
-"/cgroup/<cgroup>/cpu.rt_period_us" respectively) configurable as well.
+("/cgroup/<cgroup>/cpu.rt_period_us") configurable as well.
 
 The constraint on the period is that a subgroup must have a smaller or
 equal period to its parent. But realistically its not very useful _yet_
