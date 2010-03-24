@@ -3244,13 +3244,15 @@ void ixgbe_down(struct ixgbe_adapter *adapter)
 
 	/* disable receive for all VFs and wait one second */
 	if (adapter->num_vfs) {
-		for (i = 0 ; i < adapter->num_vfs; i++)
-			adapter->vfinfo[i].clear_to_send = 0;
-
 		/* ping all the active vfs to let them know we are going down */
 		ixgbe_ping_all_vfs(adapter);
+
 		/* Disable all VFTE/VFRE TX/RX */
 		ixgbe_disable_tx_rx(adapter);
+
+		/* Mark all the VFs as inactive */
+		for (i = 0 ; i < adapter->num_vfs; i++)
+			adapter->vfinfo[i].clear_to_send = 0;
 	}
 
 	/* disable receives */
