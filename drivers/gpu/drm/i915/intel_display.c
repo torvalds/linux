@@ -1032,7 +1032,7 @@ static void i8xx_enable_fbc(struct drm_crtc *crtc, unsigned long interval)
 	/* enable it... */
 	fbc_ctl = FBC_CTL_EN | FBC_CTL_PERIODIC;
 	if (IS_I945GM(dev))
-		fbc_ctl |= FBC_C3_IDLE; /* 945 needs special SR handling */
+		fbc_ctl |= FBC_CTL_C3_IDLE; /* 945 needs special SR handling */
 	fbc_ctl |= (dev_priv->cfb_pitch & 0xff) << FBC_CTL_STRIDE_SHIFT;
 	fbc_ctl |= (interval & 0x2fff) << FBC_CTL_INTERVAL_SHIFT;
 	if (obj_priv->tiling_mode != I915_TILING_NONE)
@@ -4717,6 +4717,20 @@ void intel_init_clock_gating(struct drm_device *dev)
 	 * specs, but enable as much else as we can.
 	 */
 	if (HAS_PCH_SPLIT(dev)) {
+		uint32_t dspclk_gate = VRHUNIT_CLOCK_GATE_DISABLE;
+
+		if (IS_IRONLAKE(dev)) {
+			/* Required for FBC */
+			dspclk_gate |= DPFDUNIT_CLOCK_GATE_DISABLE;
+			/* Required for CxSR */
+			dspclk_gate |= DPARBUNIT_CLOCK_GATE_DISABLE;
+
+			I915_WRITE(PCH_3DCGDIS0,
+				   MARIUNIT_CLOCK_GATE_DISABLE |
+				   SVSMUNIT_CLOCK_GATE_DISABLE);
+		}
+
+		I915_WRITE(PCH_DSPCLK_GATE_D, dspclk_gate);
 		return;
 	} else if (IS_G4X(dev)) {
 		uint32_t dspclk_gate;
