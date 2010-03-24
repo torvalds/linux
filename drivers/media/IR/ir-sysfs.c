@@ -1,6 +1,6 @@
 /* ir-register.c - handle IR scancode->keycode tables
  *
- * Copyright (C) 2009 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ * Copyright (C) 2009-2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
  *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -28,7 +28,7 @@ static char *ir_devnode(struct device *dev, mode_t *mode)
 	return kasprintf(GFP_KERNEL, "irrcv/%s", dev_name(dev));
 }
 
-struct class ir_input_class = {
+static struct class ir_input_class = {
 	.name		= "irrcv",
 	.devnode	= ir_devnode,
 };
@@ -250,6 +250,9 @@ static int __init ir_core_init(void)
 		printk(KERN_ERR "ir_core: unable to register irrcv class\n");
 		return rc;
 	}
+
+	/* Initialize/load the decoders that will be used */
+	ir_raw_init();
 
 	return 0;
 }

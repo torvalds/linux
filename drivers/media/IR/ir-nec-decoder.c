@@ -1,4 +1,4 @@
-/* ir-raw-event.c - handle IR Pulse/Space event
+/* ir-nec-decoder.c - handle NEC IR Pulse/Space protocol
  *
  * Copyright (C) 2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
  *
@@ -147,7 +147,7 @@ static int __ir_nec_decode(struct input_dev *input_dev,
 		if (++count == 32)
 			break;
 	}
-	*pos++;
+	(*pos)++;
 
 	/*
 	 * Fixme: may need to accept Extended NEC protocol?
@@ -181,9 +181,9 @@ err:
  * This function returns the number of decoded pulses or -EINVAL if no
  * pulse got decoded
  */
-int ir_nec_decode(struct input_dev *input_dev,
-			   struct ir_raw_event *evs,
-			   int len)
+static int ir_nec_decode(struct input_dev *input_dev,
+			 struct ir_raw_event *evs,
+			 int len)
 {
 	int pos = 0;
 	int rc = 0;
@@ -198,4 +198,27 @@ int ir_nec_decode(struct input_dev *input_dev,
 	return rc;
 }
 
-EXPORT_SYMBOL_GPL(ir_nec_decode);
+static struct ir_raw_handler nec_handler = {
+	.decode = ir_nec_decode,
+};
+
+static int __init ir_nec_decode_init(void)
+{
+	ir_raw_handler_register(&nec_handler);
+
+	printk(KERN_INFO "IR NEC protocol handler initialized\n");
+	return 0;
+}
+
+static void __exit ir_nec_decode_exit(void)
+{
+	ir_raw_handler_unregister(&nec_handler);
+}
+
+module_init(ir_nec_decode_init);
+module_exit(ir_nec_decode_exit);
+
+MODULE_LICENSE("GPL");
+MODULE_AUTHOR("Mauro Carvalho Chehab <mchehab@redhat.com>");
+MODULE_AUTHOR("Red Hat Inc. (http://www.redhat.com)");
+MODULE_DESCRIPTION("NEC IR protocol decoder");

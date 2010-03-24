@@ -7,3 +7,12 @@ config VIDEO_IR
 	tristate
 	depends on IR_CORE
 	default IR_CORE
+
+config IR_NEC_DECODER
+	tristate "Enable IR raw decoder for NEC protocol"
+	depends on IR_CORE
+	default y
+
+	---help---
+	   Enable this option if you have IR with NEC protocol, and
+	   if the IR is decoded in software

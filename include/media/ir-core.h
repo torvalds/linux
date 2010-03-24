@@ -1,6 +1,8 @@
 /*
  * Remote Controller core header
  *
+ * Copyright (C) 2009-2010 by Mauro Carvalho Chehab <mchehab@redhat.com>
+ *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
  *  the Free Software Foundation version 2 of the License.
@@ -80,6 +82,14 @@ struct ir_input_dev {
 	int				keypressed;	/* current state */
 };
 
+struct ir_raw_handler {
+	struct list_head list;
+
+	int (*decode)(struct input_dev *input_dev,
+		      struct ir_raw_event *evs,
+		      int len);
+};
+
 #define to_ir_input_dev(_attr) container_of(_attr, struct ir_input_dev, attr)
 
 /* Routines from ir-keytable.c */
@@ -104,11 +114,20 @@ int ir_raw_event_register(struct input_dev *input_dev);
 void ir_raw_event_unregister(struct input_dev *input_dev);
 int ir_raw_event_store(struct input_dev *input_dev, enum raw_event_type type);
 int ir_raw_event_handle(struct input_dev *input_dev);
+int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler);
+void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler);
+
+#ifdef MODULE
+void ir_raw_init(void);
+#else
+#define ir_raw_init() 0
+#endif
 
 /* from ir-nec-decoder.c */
-int ir_nec_decode(struct input_dev *input_dev,
-		  struct ir_raw_event *evs,
-		  int len);
-
-
+#ifdef CONFIG_IR_NEC_DECODER_MODULE
+#define load_nec_decode()	request_module("ir-nec-decoder")
+#else
+#define load_nec_decode()	0
 #endif
+
+#endif /* _IR_CORE */

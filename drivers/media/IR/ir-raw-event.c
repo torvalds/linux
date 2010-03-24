@@ -13,9 +13,17 @@
  */
 
 #include <media/ir-core.h>
+#include <linux/workqueue.h>
 
 /* Define the max number of bit transitions per IR keycode */
 #define MAX_IR_EVENT_SIZE	256
+
+/* Used to handle IR raw handler extensions */
+static LIST_HEAD(ir_raw_handler_list);
+static DEFINE_MUTEX(ir_raw_handler_lock);
+
+/* Used to load the decoders */
+static struct work_struct wq_load;
 
 static void ir_keyup_timer(unsigned long data)
 {
@@ -101,6 +109,7 @@ int ir_raw_event_handle(struct input_dev *input_dev)
 	int				rc;
 	struct ir_raw_event		*evs;
 	int 				len, i;
+	struct ir_raw_handler		*ir_raw_handler;
 
 	/*
 	 * Store the events into a temporary buffer. This allows calling more than
@@ -122,10 +131,56 @@ int ir_raw_event_handle(struct input_dev *input_dev)
 			evs[i].type, (evs[i].delta.tv_nsec + 500) / 1000);
 	}
 
-	rc = ir_nec_decode(input_dev, evs, len);
+	/*
+	 * Call all ir decoders. This allows decoding the same event with
+	 * more than one protocol handler.
+	 * FIXME: better handle the returned code: does it make sense to use
+	 * other decoders, if the first one already handled the IR?
+	 */
+	list_for_each_entry(ir_raw_handler, &ir_raw_handler_list, list) {
+		rc = ir_raw_handler->decode(input_dev, evs, len);
+	}
 
 	kfree(evs);
 
 	return rc;
 }
 EXPORT_SYMBOL_GPL(ir_raw_event_handle);
+
+/*
+ * Extension interface - used to register the IR decoders
+ */
+
+int ir_raw_handler_register(struct ir_raw_handler *ir_raw_handler)
+{
+	mutex_lock(&ir_raw_handler_lock);
+	list_add_tail(&ir_raw_handler->list, &ir_raw_handler_list);
+	mutex_unlock(&ir_raw_handler_lock);
+	return 0;
+}
+EXPORT_SYMBOL(ir_raw_handler_register);
+
+void ir_raw_handler_unregister(struct ir_raw_handler *ir_raw_handler)
+{
+	mutex_lock(&ir_raw_handler_lock);
+	list_del(&ir_raw_handler->list);
+	mutex_unlock(&ir_raw_handler_lock);
+}
+EXPORT_SYMBOL(ir_raw_handler_unregister);
+
+static void init_decoders(struct work_struct *work)
+{
+	/* Load the decoder modules */
+
+	load_nec_decode();
+
+	/* If needed, we may later add some init code. In this case,
+	   it is needed to change the CONFIG_MODULE test at ir-core.h
+	 */
+}
+
+void ir_raw_init(void)
+{
+	INIT_WORK(&wq_load, init_decoders);
+	schedule_work(&wq_load);
+}
