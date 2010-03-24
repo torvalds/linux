@@ -1273,18 +1273,21 @@ SYSCALL_DEFINE2(old_getrlimit, unsigned int, resource,
 #endif
 
 /* make sure you are allowed to change @tsk limits before calling this */
-int do_setrlimit(struct task_struct *tsk, unsigned int resource,
-		struct rlimit *new_rlim)
+int do_prlimit(struct task_struct *tsk, unsigned int resource,
+		struct rlimit *new_rlim, struct rlimit *old_rlim)
 {
-	struct rlimit *old_rlim;
+	struct rlimit *rlim;
 	int retval = 0;
 
 	if (resource >= RLIM_NLIMITS)
 		return -EINVAL;
-	if (new_rlim->rlim_cur > new_rlim->rlim_max)
-		return -EINVAL;
-	if (resource == RLIMIT_NOFILE && new_rlim->rlim_max > sysctl_nr_open)
-		return -EPERM;
+	if (new_rlim) {
+		if (new_rlim->rlim_cur > new_rlim->rlim_max)
+			return -EINVAL;
+		if (resource == RLIMIT_NOFILE &&
+				new_rlim->rlim_max > sysctl_nr_open)
+			return -EPERM;
+	}
 
 	/* protect tsk->signal and tsk->sighand from disappearing */
 	read_lock(&tasklist_lock);
@@ -1293,31 +1296,32 @@ int do_setrlimit(struct task_struct *tsk, unsigned int resource,
 		goto out;
 	}
 
-	old_rlim = tsk->signal->rlim + resource;
+	rlim = tsk->signal->rlim + resource;
 	task_lock(tsk->group_leader);
-	if (new_rlim->rlim_max > old_rlim->rlim_max &&
-			!capable(CAP_SYS_RESOURCE))
-		retval = -EPERM;
-	if (!retval)
-		retval = security_task_setrlimit(tsk->group_leader, resource,
-				new_rlim);
-
-	if (resource == RLIMIT_CPU && new_rlim->rlim_cur == 0) {
-		/*
-		 * The caller is asking for an immediate RLIMIT_CPU
-		 * expiry.  But we use the zero value to mean "it was
-		 * never set".  So let's cheat and make it one second
-		 * instead
-		 */
-		new_rlim->rlim_cur = 1;
+	if (new_rlim) {
+		if (new_rlim->rlim_max > rlim->rlim_max &&
+				!capable(CAP_SYS_RESOURCE))
+			retval = -EPERM;
+		if (!retval)
+			retval = security_task_setrlimit(tsk->group_leader,
+					resource, new_rlim);
+		if (resource == RLIMIT_CPU && new_rlim->rlim_cur == 0) {
+			/*
+			 * The caller is asking for an immediate RLIMIT_CPU
+			 * expiry.  But we use the zero value to mean "it was
+			 * never set".  So let's cheat and make it one second
+			 * instead
+			 */
+			new_rlim->rlim_cur = 1;
+		}
 	}
-
-	if (!retval)
-		*old_rlim = *new_rlim;
+	if (!retval) {
+		if (old_rlim)
+			*old_rlim = *rlim;
+		if (new_rlim)
+			*rlim = *new_rlim;
+	}
 	task_unlock(tsk->group_leader);
-
-	if (retval || resource != RLIMIT_CPU)
-		goto out;
 
 	/*
 	 * RLIMIT_CPU handling.   Note that the kernel fails to return an error
@@ -1325,10 +1329,9 @@ int do_setrlimit(struct task_struct *tsk, unsigned int resource,
 	 * very long-standing error, and fixing it now risks breakage of
 	 * applications, so we live with it
 	 */
-	if (new_rlim->rlim_cur == RLIM_INFINITY)
-		goto out;
-
-	update_rlimit_cpu(tsk, new_rlim->rlim_cur);
+	 if (!retval && new_rlim && resource == RLIMIT_CPU &&
+			 new_rlim->rlim_cur != RLIM_INFINITY)
+		update_rlimit_cpu(tsk, new_rlim->rlim_cur);
 out:
 	read_unlock(&tasklist_lock);
 	return retval;
@@ -1340,7 +1343,7 @@ SYSCALL_DEFINE2(setrlimit, unsigned int, resource, struct rlimit __user *, rlim)
 
 	if (copy_from_user(&new_rlim, rlim, sizeof(*rlim)))
 		return -EFAULT;
-	return do_setrlimit(current, resource, &new_rlim);
+	return do_prlimit(current, resource, &new_rlim, NULL);
 }
 
 /*
