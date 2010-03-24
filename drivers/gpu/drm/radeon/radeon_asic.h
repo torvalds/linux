@@ -281,6 +281,7 @@ int rv770_resume(struct radeon_device *rdev);
 /*
  * evergreen
  */
+void evergreen_pcie_gart_tlb_flush(struct radeon_device *rdev);
 int evergreen_init(struct radeon_device *rdev);
 void evergreen_fini(struct radeon_device *rdev);
 int evergreen_suspend(struct radeon_device *rdev);

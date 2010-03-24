@@ -27,7 +27,7 @@
 #include "radeon.h"
 #include "radeon_asic.h"
 #include "radeon_drm.h"
-#include "rv770d.h"
+#include "evergreend.h"
 #include "atom.h"
 #include "avivod.h"
 #include "evergreen_reg.h"
@@ -82,10 +82,31 @@ static int evergreen_mc_wait_for_idle(struct radeon_device *rdev)
 /*
  * GART
  */
+void evergreen_pcie_gart_tlb_flush(struct radeon_device *rdev)
+{
+	unsigned i;
+	u32 tmp;
+
+	WREG32(VM_CONTEXT0_REQUEST_RESPONSE, REQUEST_TYPE(1));
+	for (i = 0; i < rdev->usec_timeout; i++) {
+		/* read MC_STATUS */
+		tmp = RREG32(VM_CONTEXT0_REQUEST_RESPONSE);
+		tmp = (tmp & RESPONSE_TYPE_MASK) >> RESPONSE_TYPE_SHIFT;
+		if (tmp == 2) {
+			printk(KERN_WARNING "[drm] r600 flush TLB failed\n");
+			return;
+		}
+		if (tmp) {
+			return;
+		}
+		udelay(1);
+	}
+}
+
 int evergreen_pcie_gart_enable(struct radeon_device *rdev)
 {
 	u32 tmp;
-	int r, i;
+	int r;
 
 	if (rdev->gart.table.vram.robj == NULL) {
 		dev_err(rdev->dev, "No VRAM object for PCIE GART.\n");
@@ -120,10 +141,9 @@ int evergreen_pcie_gart_enable(struct radeon_device *rdev)
 				RANGE_PROTECTION_FAULT_ENABLE_DEFAULT);
 	WREG32(VM_CONTEXT0_PROTECTION_FAULT_DEFAULT_ADDR,
 			(u32)(rdev->dummy_page.addr >> 12));
-	for (i = 1; i < 7; i++)
-		WREG32(VM_CONTEXT0_CNTL + (i * 4), 0);
+	WREG32(VM_CONTEXT1_CNTL, 0);
 
-	r600_pcie_gart_tlb_flush(rdev);
+	evergreen_pcie_gart_tlb_flush(rdev);
 	rdev->gart.ready = true;
 	return 0;
 }
@@ -131,11 +151,11 @@ int evergreen_pcie_gart_enable(struct radeon_device *rdev)
 void evergreen_pcie_gart_disable(struct radeon_device *rdev)
 {
 	u32 tmp;
-	int i, r;
+	int r;
 
 	/* Disable all tables */
-	for (i = 0; i < 7; i++)
-		WREG32(VM_CONTEXT0_CNTL + (i * 4), 0);
+	WREG32(VM_CONTEXT0_CNTL, 0);
+	WREG32(VM_CONTEXT1_CNTL, 0);
 
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_FRAGMENT_PROCESSING |
@@ -172,7 +192,6 @@ void evergreen_pcie_gart_fini(struct radeon_device *rdev)
 void evergreen_agp_enable(struct radeon_device *rdev)
 {
 	u32 tmp;
-	int i;
 
 	/* Setup L2 cache */
 	WREG32(VM_L2_CNTL, ENABLE_L2_CACHE | ENABLE_L2_FRAGMENT_PROCESSING |
@@ -192,8 +211,8 @@ void evergreen_agp_enable(struct radeon_device *rdev)
 	WREG32(MC_VM_MB_L1_TLB1_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB2_CNTL, tmp);
 	WREG32(MC_VM_MB_L1_TLB3_CNTL, tmp);
-	for (i = 0; i < 7; i++)
-		WREG32(VM_CONTEXT0_CNTL + (i * 4), 0);
+	WREG32(VM_CONTEXT0_CNTL, 0);
+	WREG32(VM_CONTEXT1_CNTL, 0);
 }
 
 static void evergreen_mc_stop(struct radeon_device *rdev, struct evergreen_mc_save *save)
@@ -500,9 +519,9 @@ int evergreen_asic_reset(struct radeon_device *rdev)
 
 static int evergreen_startup(struct radeon_device *rdev)
 {
-#if 0
 	int r;
 
+#if 0
 	if (!rdev->me_fw || !rdev->pfp_fw || !rdev->rlc_fw) {
 		r = r600_init_microcode(rdev);
 		if (r) {
@@ -512,15 +531,13 @@ static int evergreen_startup(struct radeon_device *rdev)
 	}
 #endif
 	evergreen_mc_program(rdev);
-#if 0
 	if (rdev->flags & RADEON_IS_AGP) {
-		evergreem_agp_enable(rdev);
+		evergreen_agp_enable(rdev);
 	} else {
 		r = evergreen_pcie_gart_enable(rdev);
 		if (r)
 			return r;
 	}
-#endif
 	evergreen_gpu_init(rdev);
 #if 0
 	if (!rdev->r600_blit.shader_obj) {
@@ -607,7 +624,10 @@ int evergreen_suspend(struct radeon_device *rdev)
 	r700_cp_stop(rdev);
 	rdev->cp.ready = false;
 	r600_wb_disable(rdev);
+#endif
+
 	evergreen_pcie_gart_disable(rdev);
+#if 0
 	/* unpin shaders bo */
 	r = radeon_bo_reserve(rdev->r600_blit.shader_obj, false);
 	if (likely(r == 0)) {
@@ -717,18 +737,18 @@ int evergreen_init(struct radeon_device *rdev)
 
 	rdev->ih.ring_obj = NULL;
 	r600_ih_ring_init(rdev, 64 * 1024);
-
+#endif
 	r = r600_pcie_gart_init(rdev);
 	if (r)
 		return r;
-#endif
+
 	rdev->accel_working = false;
 	r = evergreen_startup(rdev);
 	if (r) {
 		evergreen_suspend(rdev);
 		/*r600_wb_fini(rdev);*/
 		/*radeon_ring_fini(rdev);*/
-		/*evergreen_pcie_gart_fini(rdev);*/
+		evergreen_pcie_gart_fini(rdev);
 		rdev->accel_working = false;
 	}
 	if (rdev->accel_working) {
@@ -756,8 +776,8 @@ void evergreen_fini(struct radeon_device *rdev)
 	radeon_irq_kms_fini(rdev);
 	radeon_ring_fini(rdev);
 	r600_wb_fini(rdev);
-	evergreen_pcie_gart_fini(rdev);
 #endif
+	evergreen_pcie_gart_fini(rdev);
 	radeon_gem_fini(rdev);
 	radeon_fence_driver_fini(rdev);
 	radeon_clocks_fini(rdev);
