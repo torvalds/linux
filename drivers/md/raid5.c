@@ -3879,7 +3879,7 @@ static int make_request(struct request_queue *q, struct bio * bi)
 	sector_t logical_sector, last_sector;
 	struct stripe_head *sh;
 	const int rw = bio_data_dir(bi);
-	int cpu, remaining;
+	int remaining;
 
 	if (unlikely(bio_rw_flagged(bi, BIO_RW_BARRIER))) {
 		/* Drain all pending writes.  We only really need
@@ -3893,12 +3893,6 @@ static int make_request(struct request_queue *q, struct bio * bi)
 	}
 
 	md_write_start(mddev, bi);
-
-	cpu = part_stat_lock();
-	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
-	part_stat_add(cpu, &mddev->gendisk->part0, sectors[rw],
-		      bio_sectors(bi));
-	part_stat_unlock();
 
 	if (rw == READ &&
 	     mddev->reshape_position == MaxSector &&

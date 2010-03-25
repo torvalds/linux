@@ -787,7 +787,6 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	struct page **behind_pages = NULL;
 	const int rw = bio_data_dir(bio);
 	const bool do_sync = bio_rw_flagged(bio, BIO_RW_SYNCIO);
-	int cpu;
 	bool do_barriers;
 	mdk_rdev_t *blocked_rdev;
 
@@ -832,12 +831,6 @@ static int make_request(struct request_queue *q, struct bio * bio)
 	wait_barrier(conf);
 
 	bitmap = mddev->bitmap;
-
-	cpu = part_stat_lock();
-	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
-	part_stat_add(cpu, &mddev->gendisk->part0, sectors[rw],
-		      bio_sectors(bio));
-	part_stat_unlock();
 
 	/*
 	 * make_request() can abort the operation when READA is being

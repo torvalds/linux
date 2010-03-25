@@ -288,22 +288,14 @@ static int linear_stop (mddev_t *mddev)
 
 static int linear_make_request (struct request_queue *q, struct bio *bio)
 {
-	const int rw = bio_data_dir(bio);
 	mddev_t *mddev = q->queuedata;
 	dev_info_t *tmp_dev;
 	sector_t start_sector;
-	int cpu;
 
 	if (unlikely(bio_rw_flagged(bio, BIO_RW_BARRIER))) {
 		md_barrier_request(mddev, bio);
 		return 0;
 	}
-
-	cpu = part_stat_lock();
-	part_stat_inc(cpu, &mddev->gendisk->part0, ios[rw]);
-	part_stat_add(cpu, &mddev->gendisk->part0, sectors[rw],
-		      bio_sectors(bio));
-	part_stat_unlock();
 
 	rcu_read_lock();
 	tmp_dev = which_dev(mddev, bio->bi_sector);
