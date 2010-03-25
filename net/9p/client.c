@@ -1321,7 +1321,8 @@ static int p9_client_statsize(struct p9_wstat *wst, int proto_version)
 	if (wst->muid)
 		ret += strlen(wst->muid);
 
-	if (proto_version == p9_proto_2000u) {
+	if ((proto_version == p9_proto_2000u) ||
+		(proto_version == p9_proto_2000L)) {
 		ret += 2+4+4+4;	/* extension[s] n_uid[4] n_gid[4] n_muid[4] */
 		if (wst->extension)
 			ret += strlen(wst->extension);
