@@ -776,7 +776,6 @@ config ARCH_NOMADIK
 
 config ARCH_DAVINCI
 	bool "TI DaVinci"
-	select CPU_ARM926T
 	select GENERIC_TIME
 	select GENERIC_CLOCKEVENTS
 	select GENERIC_GPIO
