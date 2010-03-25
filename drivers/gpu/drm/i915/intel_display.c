@@ -754,8 +754,8 @@ bool intel_pipe_has_type (struct drm_crtc *crtc, int type)
     return false;
 }
 
-struct drm_connector *
-intel_pipe_get_output (struct drm_crtc *crtc)
+static struct drm_connector *
+intel_pipe_get_connector (struct drm_crtc *crtc)
 {
     struct drm_device *dev = crtc->dev;
     struct drm_mode_config *mode_config = &dev->mode_config;
@@ -2916,7 +2916,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	int dspsize_reg = (plane == 0) ? DSPASIZE : DSPBSIZE;
 	int dsppos_reg = (plane == 0) ? DSPAPOS : DSPBPOS;
 	int pipesrc_reg = (pipe == 0) ? PIPEASRC : PIPEBSRC;
-	int refclk, num_outputs = 0;
+	int refclk, num_connectors = 0;
 	intel_clock_t clock, reduced_clock;
 	u32 dpll = 0, fp = 0, fp2 = 0, dspcntr, pipeconf;
 	bool ok, has_reduced_clock = false, is_sdvo = false, is_dvo = false;
@@ -2974,10 +2974,10 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			break;
 		}
 
-		num_outputs++;
+		num_connectors++;
 	}
 
-	if (is_lvds && dev_priv->lvds_use_ssc && num_outputs < 2) {
+	if (is_lvds && dev_priv->lvds_use_ssc && num_connectors < 2) {
 		refclk = dev_priv->lvds_ssc_freq * 1000;
 		DRM_DEBUG_KMS("using SSC reference clock of %d MHz\n",
 					refclk / 1000);
@@ -3048,7 +3048,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		if (is_edp) {
 			struct drm_connector *edp;
 			target_clock = mode->clock;
-			edp = intel_pipe_get_output(crtc);
+			edp = intel_pipe_get_connector(crtc);
 			intel_edp_link_config(to_intel_encoder(edp),
 					&lane, &link_bw);
 		} else {
@@ -3230,7 +3230,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 		/* XXX: just matching BIOS for now */
 		/*	dpll |= PLL_REF_INPUT_TVCLKINBC; */
 		dpll |= 3;
-	else if (is_lvds && dev_priv->lvds_use_ssc && num_outputs < 2)
+	else if (is_lvds && dev_priv->lvds_use_ssc && num_connectors < 2)
 		dpll |= PLLB_REF_INPUT_SPREADSPECTRUMIN;
 	else
 		dpll |= PLL_REF_INPUT_DREFCLK;
@@ -3654,9 +3654,9 @@ static void intel_crtc_gamma_set(struct drm_crtc *crtc, u16 *red, u16 *green,
  * detection.
  *
  * It will be up to the load-detect code to adjust the pipe as appropriate for
- * its requirements.  The pipe will be connected to no other outputs.
+ * its requirements.  The pipe will be connected to no other encoders.
  *
- * Currently this code will only succeed if there is a pipe with no outputs
+ * Currently this code will only succeed if there is a pipe with no encoders
  * configured for it.  In the future, it could choose to temporarily disable
  * some outputs to free up a pipe for its use.
  *
@@ -3770,7 +3770,7 @@ void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder, int dpm
 		drm_helper_disable_unused_functions(dev);
 	}
 
-	/* Switch crtc and output back off if necessary */
+	/* Switch crtc and encoder back off if necessary */
 	if (crtc->enabled && dpms_mode != DRM_MODE_DPMS_ON) {
 		if (encoder->crtc == crtc)
 			encoder_funcs->dpms(encoder, dpms_mode);
