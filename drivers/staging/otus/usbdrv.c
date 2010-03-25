@@ -350,7 +350,8 @@ int usbdrv_open(struct net_device *dev)
     }
 
     size = zfiGlobalDataSize(dev);
-    if ((mem = kmalloc(size, GFP_KERNEL)) == NULL)
+    mem = kmalloc(size, GFP_KERNEL);
+    if (mem == NULL)
     {
         rc = -EBUSY;
         goto exit;
@@ -698,7 +699,8 @@ void usbdrv_remove1(struct pci_dev *pcid)
     struct net_device *dev;
     struct usbdrv_private *macp;
 
-    if (!(dev = (struct net_device *) pci_get_drvdata(pcid)))
+    dev = (struct net_device *)pci_get_drvdata(pcid);
+    if (!dev)
         return;
 
     macp = dev->ml_priv;

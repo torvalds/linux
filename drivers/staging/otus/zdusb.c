@@ -95,7 +95,8 @@ static int zfLnxProbe(struct usb_interface *interface,
         printk(KERN_NOTICE "USB 1.1 Host\n");
 #endif
 
-    if (!(macp = kmalloc(sizeof(struct usbdrv_private), GFP_KERNEL)))
+    macp = kmalloc(sizeof(struct usbdrv_private), GFP_KERNEL);
+    if (!macp)
     {
         printk(KERN_ERR "out of memory allocating device structure\n");
         result = -ENOMEM;
