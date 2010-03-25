@@ -275,7 +275,7 @@ void musb_platform_restore_context(struct musb *musb,
 }
 #endif
 
-int musb_platform_suspend(struct musb *musb)
+static int musb_platform_suspend(struct musb *musb)
 {
 	u32 l;
 
