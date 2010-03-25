@@ -147,18 +147,13 @@ static void wait_current_trans(struct btrfs_root *root)
 		while (1) {
 			prepare_to_wait(&root->fs_info->transaction_wait, &wait,
 					TASK_UNINTERRUPTIBLE);
-			if (cur_trans->blocked) {
-				mutex_unlock(&root->fs_info->trans_mutex);
-				schedule();
-				mutex_lock(&root->fs_info->trans_mutex);
-				finish_wait(&root->fs_info->transaction_wait,
-					    &wait);
-			} else {
-				finish_wait(&root->fs_info->transaction_wait,
-					    &wait);
+			if (!cur_trans->blocked)
 				break;
-			}
+			mutex_unlock(&root->fs_info->trans_mutex);
+			schedule();
+			mutex_lock(&root->fs_info->trans_mutex);
 		}
+		finish_wait(&root->fs_info->transaction_wait, &wait);
 		put_transaction(cur_trans);
 	}
 }
