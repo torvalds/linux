@@ -59,7 +59,6 @@
 #include "reg.h"
 #include "debug.h"
 
-static u8 ath5k_calinterval = 10; /* Calibrate PHY every 10 secs (TODO: Fixme) */
 static int modparam_nohwcrypt;
 module_param_named(nohwcrypt, modparam_nohwcrypt, bool, S_IRUGO);
 MODULE_PARM_DESC(nohwcrypt, "Disable hardware encryption.");
@@ -2496,9 +2495,6 @@ ath5k_init(struct ath5k_softc *sc)
 	 * no matter this is the first time through or not.
 	 */
 	ath5k_stop_locked(sc);
-
-	/* Set PHY calibration interval */
-	ah->ah_cal_intval = ath5k_calinterval;
 
 	/*
 	 * The basic interface to setting the hardware in a good

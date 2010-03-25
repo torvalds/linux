@@ -202,6 +202,7 @@
 #define AR5K_TUNE_MAX_TXPOWER			63
 #define AR5K_TUNE_DEFAULT_TXPOWER		25
 #define AR5K_TUNE_TPC_TXPOWER			false
+#define ATH5K_TUNE_CALIBRATION_INTERVAL_FULL    10000   /* 10 sec */
 
 #define AR5K_INIT_CARR_SENSE_EN			1
 
@@ -1100,9 +1101,6 @@ struct ath5k_hw {
 
 	/* Calibration timestamp */
 	unsigned long		ah_cal_tstamp;
-
-	/* Calibration interval (secs) */
-	u8			ah_cal_intval;
 
 	/* Software interrupt mask */
 	u8			ah_swi_mask;

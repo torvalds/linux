@@ -1108,7 +1108,7 @@ ath5k_hw_calibration_poll(struct ath5k_hw *ah)
 	/* Calibration interval in jiffies */
 	unsigned long cal_intval;
 
-	cal_intval = msecs_to_jiffies(ah->ah_cal_intval * 1000);
+	cal_intval = msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
 
 	/* Initialize timestamp if needed */
 	if (!ah->ah_cal_tstamp)
