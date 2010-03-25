@@ -225,20 +225,6 @@ static int __init check_initrd(struct meminfo *mi)
 	return initrd_node;
 }
 
-static inline void map_memory_bank(struct membank *bank)
-{
-#ifdef CONFIG_MMU
-	struct map_desc map;
-
-	map.pfn = bank_pfn_start(bank);
-	map.virtual = __phys_to_virt(bank_phys_start(bank));
-	map.length = bank_phys_size(bank);
-	map.type = MT_MEMORY;
-
-	create_mapping(&map);
-#endif
-}
-
 static void __init bootmem_init_node(int node, struct meminfo *mi,
 	unsigned long start_pfn, unsigned long end_pfn)
 {
@@ -246,16 +232,6 @@ static void __init bootmem_init_node(int node, struct meminfo *mi,
 	unsigned int boot_pages;
 	pg_data_t *pgdat;
 	int i;
-
-	/*
-	 * Map the memory banks for this node.
-	 */
-	for_each_nodebank(i, mi, node) {
-		struct membank *bank = &mi->bank[i];
-
-		if (!bank->highmem)
-			map_memory_bank(bank);
-	}
 
 	/*
 	 * Allocate the bootmem bitmap page.
