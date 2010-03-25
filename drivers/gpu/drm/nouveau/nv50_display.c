@@ -529,8 +529,10 @@ int nv50_display_create(struct drm_device *dev)
 	}
 
 	ret = nv50_display_init(dev);
-	if (ret)
+	if (ret) {
+		nv50_display_destroy(dev);
 		return ret;
+	}
 
 	return 0;
 }
