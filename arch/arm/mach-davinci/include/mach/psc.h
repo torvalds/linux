@@ -189,13 +189,19 @@
 #define MDSTAT		0x800
 #define MDCTL		0xA00
 
+/* PSC module states */
+#define PSC_STATE_SWRSTDISABLE	0
+#define PSC_STATE_SYNCRST	1
+#define PSC_STATE_DISABLE	2
+#define PSC_STATE_ENABLE	3
+
 #define MDSTAT_STATE_MASK 0x1f
 
 #ifndef __ASSEMBLER__
 
 extern int davinci_psc_is_clk_active(unsigned int ctlr, unsigned int id);
 extern void davinci_psc_config(unsigned int domain, unsigned int ctlr,
-		unsigned int id, char enable);
+		unsigned int id, u32 next_state);
 
 #endif
 

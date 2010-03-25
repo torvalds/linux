@@ -101,10 +101,11 @@ struct clk {
 
 /* Clock flags: SoC-specific flags start at BIT(16) */
 #define ALWAYS_ENABLED		BIT(1)
-#define CLK_PSC                 BIT(2)
-#define PSC_DSP                 BIT(3) /* PSC uses DSP domain, not ARM */
+#define CLK_PSC			BIT(2)
+#define PSC_DSP			BIT(3) /* PSC uses DSP domain, not ARM */
 #define CLK_PLL			BIT(4) /* PLL-derived clock */
-#define PRE_PLL                 BIT(5) /* source is before PLL mult/div */
+#define PRE_PLL			BIT(5) /* source is before PLL mult/div */
+#define PSC_SWRSTDISABLE	BIT(6) /* Disable state is SwRstDisable */
 
 #define CLK(dev, con, ck) 	\
 	{			\

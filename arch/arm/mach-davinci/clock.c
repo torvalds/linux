@@ -43,7 +43,8 @@ static void __clk_enable(struct clk *clk)
 	if (clk->parent)
 		__clk_enable(clk->parent);
 	if (clk->usecount++ == 0 && (clk->flags & CLK_PSC))
-		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc, 1);
+		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc,
+				PSC_STATE_ENABLE);
 }
 
 static void __clk_disable(struct clk *clk)
@@ -52,7 +53,9 @@ static void __clk_disable(struct clk *clk)
 		return;
 	if (--clk->usecount == 0 && !(clk->flags & CLK_PLL) &&
 	    (clk->flags & CLK_PSC))
-		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc, 0);
+		davinci_psc_config(psc_domain(clk), clk->gpsc, clk->lpsc,
+				(clk->flags & PSC_SWRSTDISABLE) ?
+				PSC_STATE_SWRSTDISABLE : PSC_STATE_DISABLE);
 	if (clk->parent)
 		__clk_disable(clk->parent);
 }
@@ -234,7 +237,10 @@ static int __init clk_disable_unused(void)
 			continue;
 
 		pr_info("Clocks: disable unused %s\n", ck->name);
-		davinci_psc_config(psc_domain(ck), ck->gpsc, ck->lpsc, 0);
+
+		davinci_psc_config(psc_domain(ck), ck->gpsc, ck->lpsc,
+				(ck->flags & PSC_SWRSTDISABLE) ?
+				PSC_STATE_SWRSTDISABLE : PSC_STATE_DISABLE);
 	}
 	spin_unlock_irq(&clockfw_lock);
 
