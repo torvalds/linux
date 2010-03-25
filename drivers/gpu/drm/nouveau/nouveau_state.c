@@ -505,7 +505,7 @@ nouveau_card_init(struct drm_device *dev)
 		else
 			ret = nv04_display_create(dev);
 		if (ret)
-			goto out_irq;
+			goto out_channel;
 	}
 
 	ret = nouveau_backlight_init(dev);
@@ -519,6 +519,11 @@ nouveau_card_init(struct drm_device *dev)
 
 	return 0;
 
+out_channel:
+	if (dev_priv->channel) {
+		nouveau_channel_free(dev_priv->channel);
+		dev_priv->channel = NULL;
+	}
 out_irq:
 	drm_irq_uninstall(dev);
 out_fifo:
@@ -536,6 +541,7 @@ out_mc:
 out_gpuobj:
 	nouveau_gpuobj_takedown(dev);
 out_mem:
+	nouveau_sgdma_takedown(dev);
 	nouveau_mem_close(dev);
 out_instmem:
 	engine->instmem.takedown(dev);
