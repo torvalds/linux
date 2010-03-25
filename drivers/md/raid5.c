@@ -3713,10 +3713,10 @@ static void raid5_align_endio(struct bio *bi, int error)
 
 	bio_put(bi);
 
-	mddev = raid_bi->bi_bdev->bd_disk->queue->queuedata;
-	conf = mddev->private;
 	rdev = (void*)raid_bi->bi_next;
 	raid_bi->bi_next = NULL;
+	mddev = rdev->mddev;
+	conf = mddev->private;
 
 	rdev_dec_pending(rdev, conf->mddev);
 
