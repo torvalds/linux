@@ -149,6 +149,13 @@ config AMCC_PPC440SPE_ADMA
 	help
 	  Enable support for the AMCC PPC440SPe RAID engines.
 
+config TIMB_DMA
+	tristate "Timberdale FPGA DMA support"
+	depends on MFD_TIMBERDALE || HAS_IOMEM
+	select DMA_ENGINE
+	help
+	  Enable support for the Timberdale FPGA DMA engine.
+
 config ARCH_HAS_ASYNC_TX_FIND_CHANNEL
 	bool
 
