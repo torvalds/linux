@@ -86,6 +86,8 @@ do { \
 
 /**
  * enum p9_msg_t - 9P message types
+ * @P9_TSTATFS: file system status request
+ * @P9_RSTATFS: file system status response
  * @P9_TVERSION: version handshake request
  * @P9_RVERSION: version handshake response
  * @P9_TAUTH: request to establish authentication channel
@@ -125,6 +127,8 @@ do { \
  */
 
 enum p9_msg_t {
+	P9_TSTATFS = 8,
+	P9_RSTATFS,
 	P9_TVERSION = 100,
 	P9_RVERSION,
 	P9_TAUTH = 102,
@@ -350,6 +354,22 @@ struct p9_wstat {
 };
 
 /* Structures for Protocol Operations */
+struct p9_tstatfs {
+	u32 fid;
+};
+
+struct p9_rstatfs {
+	u32 type;
+	u32 bsize;
+	u64 blocks;
+	u64 bfree;
+	u64 bavail;
+	u64 files;
+	u64 ffree;
+	u64 fsid;
+	u32 namelen;
+};
+
 struct p9_tversion {
 	u32 msize;
 	struct p9_str version;

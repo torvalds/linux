@@ -1365,3 +1365,42 @@ error:
 	return err;
 }
 EXPORT_SYMBOL(p9_client_wstat);
+
+int p9_client_statfs(struct p9_fid *fid, struct p9_rstatfs *sb)
+{
+	int err;
+	struct p9_req_t *req;
+	struct p9_client *clnt;
+
+	err = 0;
+	clnt = fid->clnt;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TSTATFS fid %d\n", fid->fid);
+
+	req = p9_client_rpc(clnt, P9_TSTATFS, "d", fid->fid);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+
+	err = p9pdu_readf(req->rc, clnt->proto_version, "ddqqqqqqd", &sb->type,
+		&sb->bsize, &sb->blocks, &sb->bfree, &sb->bavail,
+		&sb->files, &sb->ffree, &sb->fsid, &sb->namelen);
+	if (err) {
+		p9pdu_dump(1, req->rc);
+		p9_free_req(clnt, req);
+		goto error;
+	}
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RSTATFS fid %d type 0x%lx bsize %ld "
+		"blocks %llu bfree %llu bavail %llu files %llu ffree %llu "
+		"fsid %llu namelen %ld\n",
+		fid->fid, (long unsigned int)sb->type, (long int)sb->bsize,
+		sb->blocks, sb->bfree, sb->bavail, sb->files,  sb->ffree,
+		sb->fsid, (long int)sb->namelen);
+
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_statfs);

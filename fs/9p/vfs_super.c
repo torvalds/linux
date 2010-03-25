@@ -38,6 +38,7 @@
 #include <linux/idr.h>
 #include <linux/sched.h>
 #include <linux/slab.h>
+#include <linux/statfs.h>
 #include <net/9p/9p.h>
 #include <net/9p/client.h>
 
@@ -214,6 +215,42 @@ v9fs_umount_begin(struct super_block *sb)
 	v9fs_session_begin_cancel(v9ses);
 }
 
+static int v9fs_statfs(struct dentry *dentry, struct kstatfs *buf)
+{
+	struct v9fs_session_info *v9ses;
+	struct p9_fid *fid;
+	struct p9_rstatfs rs;
+	int res;
+
+	fid = v9fs_fid_lookup(dentry);
+	if (IS_ERR(fid)) {
+		res = PTR_ERR(fid);
+		goto done;
+	}
+
+	v9ses = v9fs_inode2v9ses(dentry->d_inode);
+	if (v9fs_proto_dotl(v9ses)) {
+		res = p9_client_statfs(fid, &rs);
+		if (res == 0) {
+			buf->f_type = rs.type;
+			buf->f_bsize = rs.bsize;
+			buf->f_blocks = rs.blocks;
+			buf->f_bfree = rs.bfree;
+			buf->f_bavail = rs.bavail;
+			buf->f_files = rs.files;
+			buf->f_ffree = rs.ffree;
+			buf->f_fsid.val[0] = rs.fsid & 0xFFFFFFFFUL;
+			buf->f_fsid.val[1] = (rs.fsid >> 32) & 0xFFFFFFFFUL;
+			buf->f_namelen = rs.namelen;
+		}
+		if (res != -ENOSYS)
+			goto done;
+	}
+	res = simple_statfs(dentry, buf);
+done:
+	return res;
+}
+
 static const struct super_operations v9fs_super_ops = {
 #ifdef CONFIG_9P_FSCACHE
 	.alloc_inode = v9fs_alloc_inode,
@@ -230,7 +267,7 @@ static const struct super_operations v9fs_super_ops_dotl = {
 	.alloc_inode = v9fs_alloc_inode,
 	.destroy_inode = v9fs_destroy_inode,
 #endif
-	.statfs = simple_statfs,
+	.statfs = v9fs_statfs,
 	.clear_inode = v9fs_clear_inode,
 	.show_options = generic_show_options,
 	.umount_begin = v9fs_umount_begin,
