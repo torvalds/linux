@@ -162,7 +162,7 @@ int __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
 		}
 		if (vmas)
 			vmas[i] = vma;
-		start += PAGE_SIZE;
+		start = (start + PAGE_SIZE) & PAGE_MASK;
 	}
 
 	return i;
