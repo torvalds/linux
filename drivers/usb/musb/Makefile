@@ -72,12 +72,6 @@ endif
 
 ################################################################################
 
-# FIXME remove all these extra "-DMUSB_* things, stick to CONFIG_*
-
-ifeq ($(CONFIG_USB_INVENTRA_MUSB_HAS_AHB_ID),y)
-	EXTRA_CFLAGS += -DMUSB_AHB_ID
-endif
-
 # Debugging
 
 ifeq ($(CONFIG_USB_MUSB_DEBUG),y)
