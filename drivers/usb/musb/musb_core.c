@@ -149,6 +149,87 @@ static inline struct musb *dev_to_musb(struct device *dev)
 
 /*-------------------------------------------------------------------------*/
 
+#ifndef CONFIG_BLACKFIN
+static int musb_ulpi_read(struct otg_transceiver *otg, u32 offset)
+{
+	void __iomem *addr = otg->io_priv;
+	int	i = 0;
+	u8	r;
+	u8	power;
+
+	/* Make sure the transceiver is not in low power mode */
+	power = musb_readb(addr, MUSB_POWER);
+	power &= ~MUSB_POWER_SUSPENDM;
+	musb_writeb(addr, MUSB_POWER, power);
+
+	/* REVISIT: musbhdrc_ulpi_an.pdf recommends setting the
+	 * ULPICarKitControlDisableUTMI after clearing POWER_SUSPENDM.
+	 */
+
+	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)offset);
+	musb_writeb(addr, MUSB_ULPI_REG_CONTROL,
+			MUSB_ULPI_REG_REQ | MUSB_ULPI_RDN_WR);
+
+	while (!(musb_readb(addr, MUSB_ULPI_REG_CONTROL)
+				& MUSB_ULPI_REG_CMPLT)) {
+		i++;
+		if (i == 10000) {
+			DBG(3, "ULPI read timed out\n");
+			return -ETIMEDOUT;
+		}
+
+	}
+	r = musb_readb(addr, MUSB_ULPI_REG_CONTROL);
+	r &= ~MUSB_ULPI_REG_CMPLT;
+	musb_writeb(addr, MUSB_ULPI_REG_CONTROL, r);
+
+	return musb_readb(addr, MUSB_ULPI_REG_DATA);
+}
+
+static int musb_ulpi_write(struct otg_transceiver *otg,
+		u32 offset, u32 data)
+{
+	void __iomem *addr = otg->io_priv;
+	int	i = 0;
+	u8	r = 0;
+	u8	power;
+
+	/* Make sure the transceiver is not in low power mode */
+	power = musb_readb(addr, MUSB_POWER);
+	power &= ~MUSB_POWER_SUSPENDM;
+	musb_writeb(addr, MUSB_POWER, power);
+
+	musb_writeb(addr, MUSB_ULPI_REG_ADDR, (u8)offset);
+	musb_writeb(addr, MUSB_ULPI_REG_DATA, (u8)data);
+	musb_writeb(addr, MUSB_ULPI_REG_CONTROL, MUSB_ULPI_REG_REQ);
+
+	while (!(musb_readb(addr, MUSB_ULPI_REG_CONTROL)
+				& MUSB_ULPI_REG_CMPLT)) {
+		i++;
+		if (i == 10000) {
+			DBG(3, "ULPI write timed out\n");
+			return -ETIMEDOUT;
+		}
+	}
+
+	r = musb_readb(addr, MUSB_ULPI_REG_CONTROL);
+	r &= ~MUSB_ULPI_REG_CMPLT;
+	musb_writeb(addr, MUSB_ULPI_REG_CONTROL, r);
+
+	return 0;
+}
+#else
+#define musb_ulpi_read(a, b)		NULL
+#define musb_ulpi_write(a, b, c)	NULL
+#endif
+
+static struct otg_io_access_ops musb_ulpi_access = {
+	.read = musb_ulpi_read,
+	.write = musb_ulpi_write,
+};
+
+/*-------------------------------------------------------------------------*/
+
 #if !defined(CONFIG_USB_TUSB6010) && !defined(CONFIG_BLACKFIN)
 
 /*
@@ -1952,6 +2033,11 @@ bad_config:
 	if (!musb->isr) {
 		status = -ENODEV;
 		goto fail3;
+	}
+
+	if (!musb->xceiv->io_ops) {
+		musb->xceiv->io_priv = musb->mregs;
+		musb->xceiv->io_ops = &musb_ulpi_access;
 	}
 
 #ifndef CONFIG_MUSB_PIO_ONLY
