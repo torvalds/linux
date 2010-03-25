@@ -746,8 +746,8 @@ bool intel_pipe_has_type (struct drm_crtc *crtc, int type)
     list_for_each_entry(l_entry, &mode_config->connector_list, head) {
 	    if (l_entry->encoder &&
 	        l_entry->encoder->crtc == crtc) {
-		    struct intel_output *intel_output = to_intel_output(l_entry);
-		    if (intel_output->type == type)
+		    struct intel_encoder *intel_encoder = to_intel_encoder(l_entry);
+		    if (intel_encoder->type == type)
 			    return true;
 	    }
     }
@@ -2942,19 +2942,19 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 	drm_vblank_pre_modeset(dev, pipe);
 
 	list_for_each_entry(connector, &mode_config->connector_list, head) {
-		struct intel_output *intel_output = to_intel_output(connector);
+		struct intel_encoder *intel_encoder = to_intel_encoder(connector);
 
 		if (!connector->encoder || connector->encoder->crtc != crtc)
 			continue;
 
-		switch (intel_output->type) {
+		switch (intel_encoder->type) {
 		case INTEL_OUTPUT_LVDS:
 			is_lvds = true;
 			break;
 		case INTEL_OUTPUT_SDVO:
 		case INTEL_OUTPUT_HDMI:
 			is_sdvo = true;
-			if (intel_output->needs_tv_clock)
+			if (intel_encoder->needs_tv_clock)
 				is_tv = true;
 			break;
 		case INTEL_OUTPUT_DVO:
@@ -3049,7 +3049,7 @@ static int intel_crtc_mode_set(struct drm_crtc *crtc,
 			struct drm_connector *edp;
 			target_clock = mode->clock;
 			edp = intel_pipe_get_output(crtc);
-			intel_edp_link_config(to_intel_output(edp),
+			intel_edp_link_config(to_intel_encoder(edp),
 					&lane, &link_bw);
 		} else {
 			/* DP over FDI requires target mode clock
@@ -3669,14 +3669,14 @@ static struct drm_display_mode load_detect_mode = {
 		 704, 832, 0, 480, 489, 491, 520, 0, DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC),
 };
 
-struct drm_crtc *intel_get_load_detect_pipe(struct intel_output *intel_output,
+struct drm_crtc *intel_get_load_detect_pipe(struct intel_encoder *intel_encoder,
 					    struct drm_display_mode *mode,
 					    int *dpms_mode)
 {
 	struct intel_crtc *intel_crtc;
 	struct drm_crtc *possible_crtc;
 	struct drm_crtc *supported_crtc =NULL;
-	struct drm_encoder *encoder = &intel_output->enc;
+	struct drm_encoder *encoder = &intel_encoder->enc;
 	struct drm_crtc *crtc = NULL;
 	struct drm_device *dev = encoder->dev;
 	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
@@ -3728,8 +3728,8 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_output *intel_output,
 	}
 
 	encoder->crtc = crtc;
-	intel_output->base.encoder = encoder;
-	intel_output->load_detect_temp = true;
+	intel_encoder->base.encoder = encoder;
+	intel_encoder->load_detect_temp = true;
 
 	intel_crtc = to_intel_crtc(crtc);
 	*dpms_mode = intel_crtc->dpms_mode;
@@ -3754,18 +3754,18 @@ struct drm_crtc *intel_get_load_detect_pipe(struct intel_output *intel_output,
 	return crtc;
 }
 
-void intel_release_load_detect_pipe(struct intel_output *intel_output, int dpms_mode)
+void intel_release_load_detect_pipe(struct intel_encoder *intel_encoder, int dpms_mode)
 {
-	struct drm_encoder *encoder = &intel_output->enc;
+	struct drm_encoder *encoder = &intel_encoder->enc;
 	struct drm_device *dev = encoder->dev;
 	struct drm_crtc *crtc = encoder->crtc;
 	struct drm_encoder_helper_funcs *encoder_funcs = encoder->helper_private;
 	struct drm_crtc_helper_funcs *crtc_funcs = crtc->helper_private;
 
-	if (intel_output->load_detect_temp) {
+	if (intel_encoder->load_detect_temp) {
 		encoder->crtc = NULL;
-		intel_output->base.encoder = NULL;
-		intel_output->load_detect_temp = false;
+		intel_encoder->base.encoder = NULL;
+		intel_encoder->load_detect_temp = false;
 		crtc->enabled = drm_helper_crtc_in_use(crtc);
 		drm_helper_disable_unused_functions(dev);
 	}
@@ -4398,8 +4398,8 @@ static int intel_connector_clones(struct drm_device *dev, int type_mask)
 	int entry = 0;
 
         list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct intel_output *intel_output = to_intel_output(connector);
-		if (type_mask & intel_output->clone_mask)
+		struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+		if (type_mask & intel_encoder->clone_mask)
 			index_mask |= (1 << entry);
 		entry++;
 	}
@@ -4494,12 +4494,12 @@ static void intel_setup_outputs(struct drm_device *dev)
 		intel_tv_init(dev);
 
 	list_for_each_entry(connector, &dev->mode_config.connector_list, head) {
-		struct intel_output *intel_output = to_intel_output(connector);
-		struct drm_encoder *encoder = &intel_output->enc;
+		struct intel_encoder *intel_encoder = to_intel_encoder(connector);
+		struct drm_encoder *encoder = &intel_encoder->enc;
 
-		encoder->possible_crtcs = intel_output->crtc_mask;
+		encoder->possible_crtcs = intel_encoder->crtc_mask;
 		encoder->possible_clones = intel_connector_clones(dev,
-						intel_output->clone_mask);
+						intel_encoder->clone_mask);
 	}
 }
 
@@ -4977,9 +4977,9 @@ void intel_modeset_cleanup(struct drm_device *dev)
 */
 struct drm_encoder *intel_best_encoder(struct drm_connector *connector)
 {
-	struct intel_output *intel_output = to_intel_output(connector);
+	struct intel_encoder *intel_encoder = to_intel_encoder(connector);
 
-	return &intel_output->enc;
+	return &intel_encoder->enc;
 }
 
 /*
