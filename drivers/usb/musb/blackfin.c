@@ -289,10 +289,6 @@ void musb_platform_disable(struct musb *musb)
 {
 }
 
-static void bfin_vbus_power(struct musb *musb, int is_on, int sleeping)
-{
-}
-
 static void bfin_set_vbus(struct musb *musb, int is_on)
 {
 	int value = musb->config->gpio_vrsel_active;
@@ -410,7 +406,6 @@ int musb_platform_resume(struct musb *musb)
 int musb_platform_exit(struct musb *musb)
 {
 
-	bfin_vbus_power(musb, 0 /*off*/, 1);
 	gpio_free(musb->config->gpio_vrsel);
 	musb_platform_suspend(musb);
 
