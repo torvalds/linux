@@ -49,7 +49,7 @@ config AR7
 	  family: TNETD7100, 7200 and 7300.
 
 config BCM47XX
-	bool "BCM47XX based boards"
+	bool "Broadcom BCM47XX based boards"
 	select CEVT_R4K
 	select CSRC_R4K
 	select DMA_NONCOHERENT
