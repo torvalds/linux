@@ -2198,9 +2198,9 @@ static int __btrfs_alloc_chunk(struct btrfs_trans_handle *trans,
 		min_stripes = 2;
 	}
 	if (type & (BTRFS_BLOCK_GROUP_RAID1)) {
-		num_stripes = min_t(u64, 2, fs_devices->rw_devices);
-		if (num_stripes < 2)
+		if (fs_devices->rw_devices < 2)
 			return -ENOSPC;
+		num_stripes = 2;
 		min_stripes = 2;
 	}
 	if (type & (BTRFS_BLOCK_GROUP_RAID10)) {
