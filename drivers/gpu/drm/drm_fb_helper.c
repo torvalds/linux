@@ -283,6 +283,8 @@ static struct sysrq_key_op sysrq_drm_fb_helper_restore_op = {
 	.help_msg = "force-fb(V)",
 	.action_msg = "Restore framebuffer console",
 };
+#else
+static struct sysrq_key_op sysrq_drm_fb_helper_restore_op = { };
 #endif
 
 static void drm_fb_helper_on(struct fb_info *info)
