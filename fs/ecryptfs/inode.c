@@ -388,9 +388,9 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	mutex_unlock(&lower_dir_dentry->d_inode->i_mutex);
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
-		printk(KERN_ERR "%s: lookup_one_len() returned [%d] on "
-		       "lower_dentry = [%s]\n", __func__, rc,
-		       ecryptfs_dentry->d_name.name);
+		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
+				"[%d] on lower_dentry = [%s]\n", __func__, rc,
+				encrypted_and_encoded_name);
 		goto out_d_drop;
 	}
 	if (lower_dentry->d_inode)
@@ -417,9 +417,9 @@ static struct dentry *ecryptfs_lookup(struct inode *ecryptfs_dir_inode,
 	mutex_unlock(&lower_dir_dentry->d_inode->i_mutex);
 	if (IS_ERR(lower_dentry)) {
 		rc = PTR_ERR(lower_dentry);
-		printk(KERN_ERR "%s: lookup_one_len() returned [%d] on "
-		       "lower_dentry = [%s]\n", __func__, rc,
-		       encrypted_and_encoded_name);
+		ecryptfs_printk(KERN_DEBUG, "%s: lookup_one_len() returned "
+				"[%d] on lower_dentry = [%s]\n", __func__, rc,
+				encrypted_and_encoded_name);
 		goto out_d_drop;
 	}
 lookup_and_interpose:
