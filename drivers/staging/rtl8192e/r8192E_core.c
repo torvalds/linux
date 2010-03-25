@@ -1864,13 +1864,15 @@ static short rtl8192_pci_initdescring(struct net_device *dev)
 
     /* general process for other queue */
     for (i = 0; i < MAX_TX_QUEUE_COUNT; i++) {
-        if ((ret = rtl8192_alloc_tx_desc_ring(dev, i, priv->txringcount)))
+        ret = rtl8192_alloc_tx_desc_ring(dev, i, priv->txringcount);
+        if (ret)
             goto err_free_rings;
     }
 
 #if 0
     /* specific process for hardware beacon process */
-    if ((ret = rtl8192_alloc_tx_desc_ring(dev, MAX_TX_QUEUE_COUNT - 1, 2)))
+    ret = rtl8192_alloc_tx_desc_ring(dev, MAX_TX_QUEUE_COUNT - 1, 2);
+    if (ret)
         goto err_free_rings;
 #endif
 
