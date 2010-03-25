@@ -12,7 +12,7 @@
  *  SAS disks.
  *
  *
- *  For documentation see http://www.torque.net/sg/sdebug26.html
+ *  For documentation see http://sg.danny.cz/sg/sdebug26.html
  *
  *   D. Gilbert (dpg) work for Magneto-Optical device test [20010421]
  *   dpg: work for devfs large number of disks [20010809]
@@ -58,8 +58,8 @@
 #include "sd.h"
 #include "scsi_logging.h"
 
-#define SCSI_DEBUG_VERSION "1.81"
-static const char * scsi_debug_version_date = "20070104";
+#define SCSI_DEBUG_VERSION "1.82"
+static const char * scsi_debug_version_date = "20100324";
 
 /* Additional Sense Code (ASC) */
 #define NO_ADDITIONAL_SENSE 0x0
@@ -147,12 +147,18 @@ static const char * scsi_debug_version_date = "20070104";
 #define SAM2_LUN_ADDRESS_METHOD 0
 #define SAM2_WLUN_REPORT_LUNS 0xc101
 
+/* Can queue up to this number of commands. Typically commands that
+ * that have a non-zero delay are queued. */
+#define SCSI_DEBUG_CANQUEUE  255
+
 static int scsi_debug_add_host = DEF_NUM_HOST;
 static int scsi_debug_delay = DEF_DELAY;
 static int scsi_debug_dev_size_mb = DEF_DEV_SIZE_MB;
 static int scsi_debug_every_nth = DEF_EVERY_NTH;
 static int scsi_debug_max_luns = DEF_MAX_LUNS;
+static int scsi_debug_max_queue = SCSI_DEBUG_CANQUEUE;
 static int scsi_debug_num_parts = DEF_NUM_PARTS;
+static int scsi_debug_no_uld = 0;
 static int scsi_debug_num_tgts = DEF_NUM_TGTS; /* targets per host */
 static int scsi_debug_opts = DEF_OPTS;
 static int scsi_debug_scsi_level = DEF_SCSI_LEVEL;
@@ -192,7 +198,6 @@ static int sdebug_sectors_per;		/* sectors per cylinder */
 
 #define SDEBUG_SENSE_LEN 32
 
-#define SCSI_DEBUG_CANQUEUE  255
 #define SCSI_DEBUG_MAX_CMD_LEN 32
 
 struct sdebug_dev_info {
@@ -2265,7 +2270,7 @@ static void timer_intr_handler(unsigned long indx)
 	struct sdebug_queued_cmd * sqcp;
 	unsigned long iflags;
 
-	if (indx >= SCSI_DEBUG_CANQUEUE) {
+	if (indx >= scsi_debug_max_queue) {
 		printk(KERN_ERR "scsi_debug:timer_intr_handler: indx too "
 		       "large\n");
 		return;
@@ -2379,6 +2384,8 @@ static int scsi_debug_slave_configure(struct scsi_device *sdp)
 		scsi_adjust_queue_depth(sdp, SDEBUG_TAGGED_QUEUING,
 					sdp->host->cmd_per_lun);
 	blk_queue_max_segment_size(sdp->request_queue, 256 * 1024);
+	if (scsi_debug_no_uld)
+		sdp->no_uld_attach = 1;
 	return 0;
 }
 
@@ -2405,7 +2412,7 @@ static int stop_queued_cmnd(struct scsi_cmnd *cmnd)
 	struct sdebug_queued_cmd *sqcp;
 
 	spin_lock_irqsave(&queued_arr_lock, iflags);
-	for (k = 0; k < SCSI_DEBUG_CANQUEUE; ++k) {
+	for (k = 0; k < scsi_debug_max_queue; ++k) {
 		sqcp = &queued_arr[k];
 		if (sqcp->in_use && (cmnd == sqcp->a_cmnd)) {
 			del_timer_sync(&sqcp->cmnd_timer);
@@ -2415,7 +2422,7 @@ static int stop_queued_cmnd(struct scsi_cmnd *cmnd)
 		}
 	}
 	spin_unlock_irqrestore(&queued_arr_lock, iflags);
-	return (k < SCSI_DEBUG_CANQUEUE) ? 1 : 0;
+	return (k < scsi_debug_max_queue) ? 1 : 0;
 }
 
 /* Deletes (stops) timers of all queued commands */
@@ -2426,7 +2433,7 @@ static void stop_all_queued(void)
 	struct sdebug_queued_cmd *sqcp;
 
 	spin_lock_irqsave(&queued_arr_lock, iflags);
-	for (k = 0; k < SCSI_DEBUG_CANQUEUE; ++k) {
+	for (k = 0; k < scsi_debug_max_queue; ++k) {
 		sqcp = &queued_arr[k];
 		if (sqcp->in_use && sqcp->a_cmnd) {
 			del_timer_sync(&sqcp->cmnd_timer);
@@ -2532,7 +2539,7 @@ static void __init init_all_queued(void)
 	struct sdebug_queued_cmd * sqcp;
 
 	spin_lock_irqsave(&queued_arr_lock, iflags);
-	for (k = 0; k < SCSI_DEBUG_CANQUEUE; ++k) {
+	for (k = 0; k < scsi_debug_max_queue; ++k) {
 		sqcp = &queued_arr[k];
 		init_timer(&sqcp->cmnd_timer);
 		sqcp->in_use = 0;
@@ -2624,12 +2631,12 @@ static int schedule_resp(struct scsi_cmnd * cmnd,
 		struct sdebug_queued_cmd * sqcp = NULL;
 
 		spin_lock_irqsave(&queued_arr_lock, iflags);
-		for (k = 0; k < SCSI_DEBUG_CANQUEUE; ++k) {
+		for (k = 0; k < scsi_debug_max_queue; ++k) {
 			sqcp = &queued_arr[k];
 			if (! sqcp->in_use)
 				break;
 		}
-		if (k >= SCSI_DEBUG_CANQUEUE) {
+		if (k >= scsi_debug_max_queue) {
 			spin_unlock_irqrestore(&queued_arr_lock, iflags);
 			printk(KERN_WARNING "scsi_debug: can_queue exceeded\n");
 			return 1;	/* report busy to mid level */
@@ -2661,7 +2668,9 @@ module_param_named(dsense, scsi_debug_dsense, int, S_IRUGO | S_IWUSR);
 module_param_named(every_nth, scsi_debug_every_nth, int, S_IRUGO | S_IWUSR);
 module_param_named(fake_rw, scsi_debug_fake_rw, int, S_IRUGO | S_IWUSR);
 module_param_named(max_luns, scsi_debug_max_luns, int, S_IRUGO | S_IWUSR);
+module_param_named(max_queue, scsi_debug_max_queue, int, S_IRUGO | S_IWUSR);
 module_param_named(no_lun_0, scsi_debug_no_lun_0, int, S_IRUGO | S_IWUSR);
+module_param_named(no_uld, scsi_debug_no_uld, int, S_IRUGO);
 module_param_named(num_parts, scsi_debug_num_parts, int, S_IRUGO);
 module_param_named(num_tgts, scsi_debug_num_tgts, int, S_IRUGO | S_IWUSR);
 module_param_named(opts, scsi_debug_opts, int, S_IRUGO | S_IWUSR);
@@ -2694,7 +2703,9 @@ MODULE_PARM_DESC(dsense, "use descriptor sense format(def=0 -> fixed)");
 MODULE_PARM_DESC(every_nth, "timeout every nth command(def=0)");
 MODULE_PARM_DESC(fake_rw, "fake reads/writes instead of copying (def=0)");
 MODULE_PARM_DESC(max_luns, "number of LUNs per target to simulate(def=1)");
+MODULE_PARM_DESC(max_queue, "max number of queued commands (1 to 255(def))");
 MODULE_PARM_DESC(no_lun_0, "no LU number 0 (def=0 -> have lun 0)");
+MODULE_PARM_DESC(no_uld, "stop ULD (e.g. sd driver) attaching (def=0))");
 MODULE_PARM_DESC(num_parts, "number of partitions(def=0)");
 MODULE_PARM_DESC(num_tgts, "number of targets per host to simulate(def=1)");
 MODULE_PARM_DESC(opts, "1->noise, 2->medium_err, 4->timeout, 8->recovered_err... (def=0)");
@@ -2969,6 +2980,31 @@ static ssize_t sdebug_max_luns_store(struct device_driver * ddp,
 DRIVER_ATTR(max_luns, S_IRUGO | S_IWUSR, sdebug_max_luns_show,
 	    sdebug_max_luns_store);
 
+static ssize_t sdebug_max_queue_show(struct device_driver * ddp, char * buf)
+{
+        return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_max_queue);
+}
+static ssize_t sdebug_max_queue_store(struct device_driver * ddp,
+				      const char * buf, size_t count)
+{
+        int n;
+
+	if ((count > 0) && (1 == sscanf(buf, "%d", &n)) && (n > 0) &&
+	    (n <= SCSI_DEBUG_CANQUEUE)) {
+		scsi_debug_max_queue = n;
+		return count;
+	}
+	return -EINVAL;
+}
+DRIVER_ATTR(max_queue, S_IRUGO | S_IWUSR, sdebug_max_queue_show,
+	    sdebug_max_queue_store);
+
+static ssize_t sdebug_no_uld_show(struct device_driver * ddp, char * buf)
+{
+        return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_no_uld);
+}
+DRIVER_ATTR(no_uld, S_IRUGO, sdebug_no_uld_show, NULL);
+
 static ssize_t sdebug_scsi_level_show(struct device_driver * ddp, char * buf)
 {
         return scnprintf(buf, PAGE_SIZE, "%d\n", scsi_debug_scsi_level);
@@ -3106,7 +3142,9 @@ static int do_create_driverfs_files(void)
 	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_every_nth);
 	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_fake_rw);
 	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_max_luns);
+	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_max_queue);
 	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_no_lun_0);
+	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_no_uld);
 	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_num_parts);
 	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_num_tgts);
 	ret |= driver_create_file(&sdebug_driverfs_driver, &driver_attr_ptype);
@@ -3138,7 +3176,9 @@ static void do_remove_driverfs_files(void)
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_ptype);
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_num_tgts);
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_num_parts);
+	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_no_uld);
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_no_lun_0);
+	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_max_queue);
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_max_luns);
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_fake_rw);
 	driver_remove_file(&sdebug_driverfs_driver, &driver_attr_every_nth);
@@ -3829,12 +3869,13 @@ static int sdebug_driver_probe(struct device * dev)
 
 	sdbg_host = to_sdebug_host(dev);
 
-        hpnt = scsi_host_alloc(&sdebug_driver_template, sizeof(sdbg_host));
-        if (NULL == hpnt) {
-                printk(KERN_ERR "%s: scsi_register failed\n", __func__);
-                error = -ENODEV;
+	sdebug_driver_template.can_queue = scsi_debug_max_queue;
+	hpnt = scsi_host_alloc(&sdebug_driver_template, sizeof(sdbg_host));
+	if (NULL == hpnt) {
+		printk(KERN_ERR "%s: scsi_register failed\n", __func__);
+		error = -ENODEV;
 		return error;
-        }
+	}
 
         sdbg_host->shost = hpnt;
 	*((struct sdebug_host_info **)hpnt->hostdata) = sdbg_host;
