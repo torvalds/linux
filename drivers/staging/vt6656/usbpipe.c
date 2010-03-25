@@ -193,7 +193,8 @@ PIPEnsControlOut(
 			 usb_sndctrlpipe(pDevice->usb , 0), (char *) &pDevice->sUsbCtlRequest,
 			 pbyBuffer, wLength, s_nsControlInUsbIoCompleteWrite, pDevice);
 
-	if ((ntStatus = usb_submit_urb(pDevice->pControlURB, GFP_ATOMIC)) != 0) {
+	ntStatus = usb_submit_urb(pDevice->pControlURB, GFP_ATOMIC);
+	if (ntStatus != 0) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"control send request submission failed: %d\n", ntStatus);
 		return STATUS_FAILURE;
 	}
@@ -251,7 +252,8 @@ PIPEnsControlIn(
 			 usb_rcvctrlpipe(pDevice->usb , 0), (char *) &pDevice->sUsbCtlRequest,
 			 pbyBuffer, wLength, s_nsControlInUsbIoCompleteRead, pDevice);
 
-	if ((ntStatus = usb_submit_urb(pDevice->pControlURB, GFP_ATOMIC)) != 0) {
+	ntStatus = usb_submit_urb(pDevice->pControlURB, GFP_ATOMIC);
+	if (ntStatus != 0) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"control request submission failed: %d\n", ntStatus);
 	}else {
 		MP_SET_FLAG(pDevice, fMP_CONTROL_READS);
@@ -414,7 +416,8 @@ usb_fill_bulk_urb(pDevice->pInterruptURB,
 #endif
 #endif
 
-	if ((ntStatus = usb_submit_urb(pDevice->pInterruptURB, GFP_ATOMIC)) != 0) {
+	ntStatus = usb_submit_urb(pDevice->pInterruptURB, GFP_ATOMIC);
+	if (ntStatus != 0) {
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit int URB failed %d\n", ntStatus);
     }
 
@@ -494,7 +497,8 @@ s_nsInterruptUsbIoCompleteRead(
 
     if (pDevice->fKillEventPollingThread != TRUE) {
    #if 0               //reserve int URB submit
-	if ((ntStatus = usb_submit_urb(urb, GFP_ATOMIC)) != 0) {
+	ntStatus = usb_submit_urb(urb, GFP_ATOMIC);
+	if (ntStatus != 0) {
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Re-Submit int URB failed %d\n", ntStatus);
     }
    #else                                                                                     //replace int URB submit by bulk transfer
@@ -507,7 +511,8 @@ s_nsInterruptUsbIoCompleteRead(
 		     s_nsInterruptUsbIoCompleteRead,
 		     pDevice);
 
-	if ((ntStatus = usb_submit_urb(pDevice->pInterruptURB, GFP_ATOMIC)) != 0) {
+	ntStatus = usb_submit_urb(pDevice->pInterruptURB, GFP_ATOMIC);
+	if (ntStatus != 0) {
 	    DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit int URB failed %d\n", ntStatus);
            }
 
@@ -572,7 +577,8 @@ PIPEnsBulkInUsbRead(
 		s_nsBulkInUsbIoCompleteRead,
 		pRCB);
 
-	if((ntStatus = usb_submit_urb(pUrb, GFP_ATOMIC)) != 0){
+	ntStatus = usb_submit_urb(pUrb, GFP_ATOMIC);
+	if (ntStatus != 0) {
 		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit Rx URB failed %d\n", ntStatus);
 		return STATUS_FAILURE ;
 	}
@@ -718,7 +724,8 @@ PIPEnsSendBulkOut(
         		s_nsBulkOutIoCompleteWrite,
         		pContext);
 
-    	if((status = usb_submit_urb(pUrb, GFP_ATOMIC))!=0)
+    	status = usb_submit_urb(pUrb, GFP_ATOMIC);
+    	if (status != 0)
     	{
     		DBG_PRT(MSG_LEVEL_DEBUG, KERN_INFO"Submit Tx URB failed %d\n", status);
     		return STATUS_FAILURE;

@@ -1434,7 +1434,8 @@ static int Config_FileGetParameter(UCHAR *string, UCHAR *dest,UCHAR *source)
     source+=strlen(buf1);
 
 //find target string start point
-    if((start_p = kstrstr(source,buf1))==NULL)
+    start_p = kstrstr(source,buf1);
+    if (start_p == NULL)
 	return FALSE;
 
 //check if current config line is marked by "#" ??
@@ -1446,7 +1447,8 @@ for(ii=1;;ii++) {
 }
 
 //find target string end point
-     if((end_p = kstrstr(start_p,"\n"))==NULL) {       //cann't find "\n",but don't care
+     end_p = kstrstr(start_p,"\n");
+     if (end_p == NULL) {       //can't find "\n",but don't care
           end_p=start_p+strlen(start_p);   //no include "\n"
        }
 
@@ -1455,7 +1457,8 @@ for(ii=1;;ii++) {
    buf2[end_p-start_p]='\0';
 
    //find value
-   if((start_p = kstrstr(buf2,"="))==NULL)
+   start_p = kstrstr(buf2,"=");
+   if (start_p == NULL)
       return FALSE;
    memset(buf1,0,100);
    strcpy(buf1,start_p+1);
@@ -1548,7 +1551,8 @@ static int Read_config_file(PSDevice pDevice) {
  pDevice->config_file.eAuthenMode = -1;
  pDevice->config_file.eEncryptionStatus = -1;
 
-  if((buffer=Config_FileOperation(pDevice)) ==NULL) {
+  buffer = Config_FileOperation(pDevice);
+  if (buffer == NULL) {
      result =-1;
      return result;
   }
