@@ -1371,7 +1371,7 @@ int cmd_top(int argc, const char **argv, const char *prefix __used)
 	for (i = 0; i < MAX_NR_CPUS; i++) {
 		for (j = 0; j < MAX_COUNTERS; j++) {
 			fd[i][j] = malloc(sizeof(int)*thread_num);
-			mmap_array[i][j] = malloc(
+			mmap_array[i][j] = zalloc(
 				sizeof(struct mmap_data)*thread_num);
 			if (!fd[i][j] || !mmap_array[i][j])
 				return -ENOMEM;
