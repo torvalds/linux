@@ -457,13 +457,13 @@ static int log_tg6_check(const struct xt_tgchk_param *par)
 
 	if (loginfo->level >= 8) {
 		pr_debug("level %u >= 8\n", loginfo->level);
-		return false;
+		return -EINVAL;
 	}
 	if (loginfo->prefix[sizeof(loginfo->prefix)-1] != '\0') {
 		pr_debug("prefix not null-terminated\n");
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_target log_tg6_reg __read_mostly = {

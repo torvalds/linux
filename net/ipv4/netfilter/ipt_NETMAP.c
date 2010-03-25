@@ -28,13 +28,13 @@ static int netmap_tg_check(const struct xt_tgchk_param *par)
 
 	if (!(mr->range[0].flags & IP_NAT_RANGE_MAP_IPS)) {
 		pr_debug("bad MAP_IPS.\n");
-		return false;
+		return -EINVAL;
 	}
 	if (mr->rangesize != 1) {
 		pr_debug("bad rangesize %u.\n", mr->rangesize);
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static unsigned int

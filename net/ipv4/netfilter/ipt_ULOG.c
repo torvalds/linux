@@ -313,14 +313,14 @@ static int ulog_tg_check(const struct xt_tgchk_param *par)
 
 	if (loginfo->prefix[sizeof(loginfo->prefix) - 1] != '\0') {
 		pr_debug("prefix not null-terminated\n");
-		return false;
+		return -EINVAL;
 	}
 	if (loginfo->qthreshold > ULOG_MAX_QLEN) {
 		pr_debug("queue threshold %Zu > MAX_QLEN\n",
 			 loginfo->qthreshold);
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 #ifdef CONFIG_COMPAT

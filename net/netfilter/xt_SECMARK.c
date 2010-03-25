@@ -88,29 +88,29 @@ static int secmark_tg_check(const struct xt_tgchk_param *par)
 	    strcmp(par->table, "security") != 0) {
 		pr_info("target only valid in the \'mangle\' "
 			"or \'security\' tables, not \'%s\'.\n", par->table);
-		return false;
+		return -EINVAL;
 	}
 
 	if (mode && mode != info->mode) {
 		pr_info("mode already set to %hu cannot mix with "
 			"rules for mode %hu\n", mode, info->mode);
-		return false;
+		return -EINVAL;
 	}
 
 	switch (info->mode) {
 	case SECMARK_MODE_SEL:
 		if (!checkentry_selinux(info))
-			return false;
+			return -EINVAL;
 		break;
 
 	default:
 		pr_info("invalid mode: %hu\n", info->mode);
-		return false;
+		return -EINVAL;
 	}
 
 	if (!mode)
 		mode = info->mode;
-	return true;
+	return 0;
 }
 
 static void secmark_tg_destroy(const struct xt_tgdtor_param *par)

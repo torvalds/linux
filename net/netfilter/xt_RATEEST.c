@@ -109,10 +109,10 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 		    (info->interval != est->params.interval ||
 		     info->ewma_log != est->params.ewma_log)) {
 			xt_rateest_put(est);
-			return false;
+			return -EINVAL;
 		}
 		info->est = est;
-		return true;
+		return 0;
 	}
 
 	est = kzalloc(sizeof(*est), GFP_KERNEL);
@@ -136,13 +136,12 @@ static int xt_rateest_tg_checkentry(const struct xt_tgchk_param *par)
 
 	info->est = est;
 	xt_rateest_hash_insert(est);
-
-	return true;
+	return 0;
 
 err2:
 	kfree(est);
 err1:
-	return false;
+	return -EINVAL;
 }
 
 static void xt_rateest_tg_destroy(const struct xt_tgdtor_param *par)

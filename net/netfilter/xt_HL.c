@@ -110,8 +110,8 @@ static int ttl_tg_check(const struct xt_tgchk_param *par)
 		return false;
 	}
 	if (info->mode != IPT_TTL_SET && info->ttl == 0)
-		return false;
-	return true;
+		return -EINVAL;
+	return 0;
 }
 
 static int hl_tg6_check(const struct xt_tgchk_param *par)
@@ -120,14 +120,14 @@ static int hl_tg6_check(const struct xt_tgchk_param *par)
 
 	if (info->mode > IP6T_HL_MAXMODE) {
 		pr_info("invalid or unknown mode %u\n", info->mode);
-		return false;
+		return -EINVAL;
 	}
 	if (info->mode != IP6T_HL_SET && info->hop_limit == 0) {
 		pr_info("increment/decrement does not "
 			"make sense with value 0\n");
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_target hl_tg_reg[] __read_mostly = {

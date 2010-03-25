@@ -181,16 +181,16 @@ static int reject_tg_check(const struct xt_tgchk_param *par)
 
 	if (rejinfo->with == IPT_ICMP_ECHOREPLY) {
 		pr_info("ECHOREPLY no longer supported.\n");
-		return false;
+		return -EINVAL;
 	} else if (rejinfo->with == IPT_TCP_RESET) {
 		/* Must specify that it's a TCP packet */
 		if (e->ip.proto != IPPROTO_TCP ||
 		    (e->ip.invflags & XT_INV_PROTO)) {
 			pr_info("TCP_RESET invalid for non-tcp\n");
-			return false;
+			return -EINVAL;
 		}
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_target reject_tg_reg __read_mostly = {

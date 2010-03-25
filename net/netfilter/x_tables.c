@@ -528,6 +528,8 @@ EXPORT_SYMBOL_GPL(xt_compat_match_to_user);
 int xt_check_target(struct xt_tgchk_param *par,
 		    unsigned int size, u_int8_t proto, bool inv_proto)
 {
+	int ret;
+
 	if (XT_ALIGN(par->target->targetsize) != size) {
 		pr_err("%s_tables: %s.%u target: invalid size "
 		       "%u (kernel) != (user) %u\n",
@@ -559,8 +561,14 @@ int xt_check_target(struct xt_tgchk_param *par,
 		       par->target->proto);
 		return -EINVAL;
 	}
-	if (par->target->checkentry != NULL && !par->target->checkentry(par))
-		return -EINVAL;
+	if (par->target->checkentry != NULL) {
+		ret = par->target->checkentry(par);
+		if (ret < 0)
+			return ret;
+		else if (ret > 0)
+			/* Flag up potential errors. */
+			return -EIO;
+	}
 	return 0;
 }
 EXPORT_SYMBOL_GPL(xt_check_target);

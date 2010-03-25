@@ -62,7 +62,7 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par)
 	u8 proto;
 
 	if (info->flags & ~XT_CT_NOTRACK)
-		return false;
+		return -EINVAL;
 
 	if (info->flags & XT_CT_NOTRACK) {
 		ct = &nf_conntrack_untracked;
@@ -108,14 +108,14 @@ static int xt_ct_tg_check(const struct xt_tgchk_param *par)
 	__set_bit(IPS_CONFIRMED_BIT, &ct->status);
 out:
 	info->ct = ct;
-	return true;
+	return 0;
 
 err3:
 	nf_conntrack_free(ct);
 err2:
 	nf_ct_l3proto_module_put(par->family);
 err1:
-	return false;
+	return -EINVAL;
 }
 
 static void xt_ct_tg_destroy(const struct xt_tgdtor_param *par)

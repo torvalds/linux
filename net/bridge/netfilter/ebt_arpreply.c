@@ -63,11 +63,11 @@ static int ebt_arpreply_tg_check(const struct xt_tgchk_param *par)
 	const struct ebt_entry *e = par->entryinfo;
 
 	if (BASE_CHAIN && info->target == EBT_RETURN)
-		return false;
+		return -EINVAL;
 	if (e->ethproto != htons(ETH_P_ARP) ||
 	    e->invflags & EBT_IPROTO)
-		return false;
-	return true;
+		return -EINVAL;
+	return 0;
 }
 
 static struct xt_target ebt_arpreply_tg_reg __read_mostly = {

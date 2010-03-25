@@ -65,11 +65,11 @@ static int tproxy_tg_check(const struct xt_tgchk_param *par)
 
 	if ((i->proto == IPPROTO_TCP || i->proto == IPPROTO_UDP)
 	    && !(i->invflags & IPT_INV_PROTO))
-		return true;
+		return 0;
 
 	pr_info("Can be used only in combination with "
 		"either -p tcp or -p udp\n");
-	return false;
+	return -EINVAL;
 }
 
 static struct xt_target tproxy_tg_reg __read_mostly = {

@@ -81,9 +81,9 @@ static int ipt_snat_checkentry(const struct xt_tgchk_param *par)
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
 		pr_info("SNAT: multiple ranges no longer supported\n");
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static int ipt_dnat_checkentry(const struct xt_tgchk_param *par)
@@ -93,9 +93,9 @@ static int ipt_dnat_checkentry(const struct xt_tgchk_param *par)
 	/* Must be a valid range */
 	if (mr->rangesize != 1) {
 		pr_info("DNAT: multiple ranges no longer supported\n");
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 unsigned int

@@ -246,13 +246,13 @@ static int tcpmss_tg4_check(const struct xt_tgchk_param *par)
 			   (1 << NF_INET_POST_ROUTING))) != 0) {
 		pr_info("path-MTU clamping only supported in "
 			"FORWARD, OUTPUT and POSTROUTING hooks\n");
-		return false;
+		return -EINVAL;
 	}
 	xt_ematch_foreach(ematch, e)
 		if (find_syn_match(ematch))
-			return true;
+			return 0;
 	pr_info("Only works on TCP SYN packets\n");
-	return false;
+	return -EINVAL;
 }
 
 #if defined(CONFIG_IP6_NF_IPTABLES) || defined(CONFIG_IP6_NF_IPTABLES_MODULE)
@@ -268,13 +268,13 @@ static int tcpmss_tg6_check(const struct xt_tgchk_param *par)
 			   (1 << NF_INET_POST_ROUTING))) != 0) {
 		pr_info("path-MTU clamping only supported in "
 			"FORWARD, OUTPUT and POSTROUTING hooks\n");
-		return false;
+		return -EINVAL;
 	}
 	xt_ematch_foreach(ematch, e)
 		if (find_syn_match(ematch))
-			return true;
+			return 0;
 	pr_info("Only works on TCP SYN packets\n");
-	return false;
+	return -EINVAL;
 }
 #endif
 

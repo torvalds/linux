@@ -66,9 +66,9 @@ static int dscp_tg_check(const struct xt_tgchk_param *par)
 
 	if (info->dscp > XT_DSCP_MAX) {
 		pr_info("dscp %x out of range\n", info->dscp);
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static unsigned int

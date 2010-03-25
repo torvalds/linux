@@ -92,15 +92,15 @@ static int nfqueue_tg_v1_check(const struct xt_tgchk_param *par)
 	}
 	if (info->queues_total == 0) {
 		pr_err("NFQUEUE: number of total queues is 0\n");
-		return false;
+		return -EINVAL;
 	}
 	maxid = info->queues_total - 1 + info->queuenum;
 	if (maxid > 0xffff) {
 		pr_err("NFQUEUE: number of queues (%u) out of range (got %u)\n",
 		       info->queues_total, maxid);
-		return false;
+		return -EINVAL;
 	}
-	return true;
+	return 0;
 }
 
 static struct xt_target nfqueue_tg_reg[] __read_mostly = {
