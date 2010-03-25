@@ -118,6 +118,7 @@ static void __init cns3420_init(void)
 {
 	platform_add_devices(cns3420_pdevs, ARRAY_SIZE(cns3420_pdevs));
 
+	cns3xxx_ahci_init();
 	cns3xxx_sdhci_init();
 
 	pm_power_off = cns3xxx_power_off;
