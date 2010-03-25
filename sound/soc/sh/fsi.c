@@ -46,8 +46,9 @@
 #define MUTE		0x020C
 #define CLK_RST		0x0210
 #define SOFT_RST	0x0214
+#define FIFO_SZ		0x0218
 #define MREG_START	INT_ST
-#define MREG_END	SOFT_RST
+#define MREG_END	FIFO_SZ
 
 /* DO_FMT */
 /* DI_FMT */
@@ -84,6 +85,11 @@
 #define PASR		(1 <<  8) /* Port A Software Reset */
 #define IR		(1 <<  4) /* Interrupt Reset */
 #define FSISR		(1 <<  0) /* Software Reset */
+
+/* FIFO_SZ */
+#define OUT_SZ_MASK	0x7
+#define BO_SZ_SHIFT	8
+#define AO_SZ_SHIFT	0
 
 #define FSI_RATES SNDRV_PCM_RATE_8000_96000
 
@@ -384,9 +390,42 @@ static void fsi_clk_ctrl(struct fsi_priv *fsi, int enable)
 		fsi_master_mask_set(master, CLK_RST, val, 0);
 }
 
-static void fsi_fifo_init(struct fsi_priv *fsi, int is_play)
+static void fsi_fifo_init(struct fsi_priv *fsi,
+			  int is_play,
+			  struct snd_soc_dai *dai)
 {
-	u32 ctrl;
+	struct fsi_master *master = fsi_get_master(fsi);
+	u32 ctrl, shift, i;
+
+	/* get on-chip RAM capacity */
+	shift = fsi_master_read(master, FIFO_SZ);
+	shift >>= fsi_is_port_a(fsi) ? AO_SZ_SHIFT : BO_SZ_SHIFT;
+	shift &= OUT_SZ_MASK;
+	fsi->fifo_max = 256 << shift;
+	dev_dbg(dai->dev, "fifo = %d words\n", fsi->fifo_max);
+
+	/*
+	 * The maximum number of sample data varies depending
+	 * on the number of channels selected for the format.
+	 *
+	 * FIFOs are used in 4-channel units in 3-channel mode
+	 * and in 8-channel units in 5- to 7-channel mode
+	 * meaning that more FIFOs than the required size of DPRAM
+	 * are used.
+	 *
+	 * ex) if 256 words of DP-RAM is connected
+	 * 1 channel:  256 (256 x 1 = 256)
+	 * 2 channels: 128 (128 x 2 = 256)
+	 * 3 channels:  64 ( 64 x 3 = 192)
+	 * 4 channels:  64 ( 64 x 4 = 256)
+	 * 5 channels:  32 ( 32 x 5 = 160)
+	 * 6 channels:  32 ( 32 x 6 = 192)
+	 * 7 channels:  32 ( 32 x 7 = 224)
+	 * 8 channels:  32 ( 32 x 8 = 256)
+	 */
+	for (i = 1; i < fsi->chan; i <<= 1)
+		fsi->fifo_max >>= 1;
+	dev_dbg(dai->dev, "%d channel %d store\n", fsi->chan, fsi->fifo_max);
 
 	ctrl = is_play ? DOFF_CTL : DIFF_CTL;
 
@@ -689,29 +728,6 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 		dev_err(dai->dev, "unknown format.\n");
 		return -EINVAL;
 	}
-
-	switch (fsi->chan) {
-	case 1:
-		fsi->fifo_max = 256;
-		break;
-	case 2:
-		fsi->fifo_max = 128;
-		break;
-	case 3:
-	case 4:
-		fsi->fifo_max = 64;
-		break;
-	case 5:
-	case 6:
-	case 7:
-	case 8:
-		fsi->fifo_max = 32;
-		break;
-	default:
-		dev_err(dai->dev, "channel size error.\n");
-		return -EINVAL;
-	}
-
 	fsi_reg_write(fsi, reg, data);
 
 	/*
@@ -725,7 +741,7 @@ static int fsi_dai_startup(struct snd_pcm_substream *substream,
 	fsi_irq_clear_status(fsi);
 
 	/* fifo init */
-	fsi_fifo_init(fsi, is_play);
+	fsi_fifo_init(fsi, is_play, dai);
 
 	return ret;
 }
