@@ -1518,7 +1518,8 @@ static void __cfq_set_active_queue(struct cfq_data *cfqd,
 				   struct cfq_queue *cfqq)
 {
 	if (cfqq) {
-		cfq_log_cfqq(cfqd, cfqq, "set_active");
+		cfq_log_cfqq(cfqd, cfqq, "set_active wl_prio:%d wl_type:%d",
+				cfqd->serving_prio, cfqd->serving_type);
 		cfqq->slice_start = 0;
 		cfqq->dispatch_start = jiffies;
 		cfqq->allocated_slice = 0;
@@ -1788,7 +1789,11 @@ static bool cfq_should_idle(struct cfq_data *cfqd, struct cfq_queue *cfqq)
 	 * Otherwise, we do only if they are the last ones
 	 * in their service tree.
 	 */
-	return service_tree->count == 1 && cfq_cfqq_sync(cfqq);
+	if (service_tree->count == 1 && cfq_cfqq_sync(cfqq))
+		return 1;
+	cfq_log_cfqq(cfqd, cfqq, "Not idling. st->count:%d",
+			service_tree->count);
+	return 0;
 }
 
 static void cfq_arm_slice_timer(struct cfq_data *cfqd)
@@ -1833,8 +1838,11 @@ static void cfq_arm_slice_timer(struct cfq_data *cfqd)
 	 * time slice.
 	 */
 	if (sample_valid(cic->ttime_samples) &&
-	    (cfqq->slice_end - jiffies < cic->ttime_mean))
+	    (cfqq->slice_end - jiffies < cic->ttime_mean)) {
+		cfq_log_cfqq(cfqd, cfqq, "Not idling. think_time:%d",
+				cic->ttime_mean);
 		return;
+	}
 
 	cfq_mark_cfqq_wait_request(cfqq);
 
@@ -2042,6 +2050,7 @@ static void choose_service_tree(struct cfq_data *cfqd, struct cfq_group *cfqg)
 		slice = max(slice, 2 * cfqd->cfq_slice_idle);
 
 	slice = max_t(unsigned, slice, CFQ_MIN_TT);
+	cfq_log(cfqd, "workload slice:%d", slice);
 	cfqd->workload_expires = jiffies + slice;
 	cfqd->noidle_tree_requires_idle = false;
 }
@@ -3308,6 +3317,7 @@ static void cfq_completed_request(struct request_queue *q, struct request *rq)
 		if (cfq_should_wait_busy(cfqd, cfqq)) {
 			cfqq->slice_end = jiffies + cfqd->cfq_slice_idle;
 			cfq_mark_cfqq_wait_busy(cfqq);
+			cfq_log_cfqq(cfqd, cfqq, "will busy wait");
 		}
 
 		/*
