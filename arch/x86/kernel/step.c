@@ -169,9 +169,19 @@ static void enable_step(struct task_struct *child, bool block)
 	 * So noone should try to use debugger block stepping in a program
 	 * that uses user-mode single stepping itself.
 	 */
-	if (!enable_single_step(child))
-		return;
-	/* XXX */
+	if (enable_single_step(child) && block) {
+		unsigned long debugctl = get_debugctlmsr();
+
+		debugctl |= DEBUGCTLMSR_BTF;
+		update_debugctlmsr(debugctl);
+		set_tsk_thread_flag(child, TIF_BLOCKSTEP);
+	} else if (test_tsk_thread_flag(child, TIF_BLOCKSTEP)) {
+		unsigned long debugctl = get_debugctlmsr();
+
+		debugctl &= ~DEBUGCTLMSR_BTF;
+		update_debugctlmsr(debugctl);
+		clear_tsk_thread_flag(child, TIF_BLOCKSTEP);
+	}
 }
 
 void user_enable_single_step(struct task_struct *child)
@@ -189,7 +199,13 @@ void user_disable_single_step(struct task_struct *child)
 	/*
 	 * Make sure block stepping (BTF) is disabled.
 	 */
-	/* XXX */
+	if (test_tsk_thread_flag(child, TIF_BLOCKSTEP)) {
+		unsigned long debugctl = get_debugctlmsr();
+
+		debugctl &= ~DEBUGCTLMSR_BTF;
+		update_debugctlmsr(debugctl);
+		clear_tsk_thread_flag(child, TIF_BLOCKSTEP);
+	}
 
 	/* Always clear TIF_SINGLESTEP... */
 	clear_tsk_thread_flag(child, TIF_SINGLESTEP);

@@ -799,7 +799,7 @@ extern void cpu_init(void);
 
 static inline unsigned long get_debugctlmsr(void)
 {
-    unsigned long debugctlmsr = 0;
+	unsigned long debugctlmsr = 0;
 
 #ifndef CONFIG_X86_DEBUGCTLMSR
 	if (boot_cpu_data.x86 < 6)
@@ -807,7 +807,7 @@ static inline unsigned long get_debugctlmsr(void)
 #endif
 	rdmsrl(MSR_IA32_DEBUGCTLMSR, debugctlmsr);
 
-    return debugctlmsr;
+	return debugctlmsr;
 }
 
 static inline void update_debugctlmsr(unsigned long debugctlmsr)

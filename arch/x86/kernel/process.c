@@ -195,6 +195,17 @@ void __switch_to_xtra(struct task_struct *prev_p, struct task_struct *next_p,
 	prev = &prev_p->thread;
 	next = &next_p->thread;
 
+	if (test_tsk_thread_flag(prev_p, TIF_BLOCKSTEP) ^
+	    test_tsk_thread_flag(next_p, TIF_BLOCKSTEP)) {
+		unsigned long debugctl = get_debugctlmsr();
+
+		debugctl &= ~DEBUGCTLMSR_BTF;
+		if (test_tsk_thread_flag(next_p, TIF_BLOCKSTEP))
+			debugctl |= DEBUGCTLMSR_BTF;
+
+		update_debugctlmsr(debugctl);
+	}
+
 	if (test_tsk_thread_flag(prev_p, TIF_NOTSC) ^
 	    test_tsk_thread_flag(next_p, TIF_NOTSC)) {
 		/* prev and next are different */

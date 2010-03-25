@@ -544,6 +544,11 @@ dotraplinkage void __kprobes do_debug(struct pt_regs *regs, long error_code)
 	/* DR6 may or may not be cleared by the CPU */
 	set_debugreg(0, 6);
 
+	/*
+	 * The processor cleared BTF, so don't mark that we need it set.
+	 */
+	clear_tsk_thread_flag(tsk, TIF_BLOCKSTEP);
+
 	/* Store the virtualized DR6 value */
 	tsk->thread.debugreg6 = dr6;
 
