@@ -5423,7 +5423,6 @@ S:	Maintained
 F:	sound/soc/codecs/twl4030*
 
 TIPC NETWORK LAYER
-M:	Per Liden <per.liden@ericsson.com>
 M:	Jon Maloy <jon.maloy@ericsson.com>
 M:	Allan Stephens <allan.stephens@windriver.com>
 L:	tipc-discussion@lists.sourceforge.net
