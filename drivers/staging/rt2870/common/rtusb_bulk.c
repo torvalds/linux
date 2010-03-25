@@ -474,7 +474,8 @@ void RTUSBBulkOutDataPacket(struct rt_rtmp_adapter *pAd,
 			  (usb_complete_t) RTUSBBulkOutDataPacketComplete);
 
 	pUrb = pHTTXContext->pUrb;
-	if ((ret = RTUSB_SUBMIT_URB(pUrb)) != 0) {
+	ret = RTUSB_SUBMIT_URB(pUrb);
+	if (ret != 0) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("RTUSBBulkOutDataPacket: Submit Tx URB failed %d\n",
 			  ret));
@@ -572,7 +573,8 @@ void RTUSBBulkOutNullFrame(struct rt_rtmp_adapter *pAd)
 			(usb_complete_t) RTUSBBulkOutNullFrameComplete);
 
 	pUrb = pNullContext->pUrb;
-	if ((ret = RTUSB_SUBMIT_URB(pUrb)) != 0) {
+	ret = RTUSB_SUBMIT_URB(pUrb);
+	if (ret != 0) {
 		RTMP_IRQ_LOCK(&pAd->BulkOutLock[0], IrqFlags);
 		pAd->BulkOutPending[0] = FALSE;
 		pAd->watchDogTxPendingCnt[0] = 0;
@@ -666,7 +668,8 @@ void RTUSBBulkOutMLMEPacket(struct rt_rtmp_adapter *pAd, u8 Index)
 	pUrb->transfer_flags &= (~URB_NO_TRANSFER_DMA_MAP);
 
 	pUrb = pMLMEContext->pUrb;
-	if ((ret = RTUSB_SUBMIT_URB(pUrb)) != 0) {
+	ret = RTUSB_SUBMIT_URB(pUrb);
+	if (ret != 0) {
 		DBGPRINT(RT_DEBUG_ERROR,
 			 ("RTUSBBulkOutMLMEPacket: Submit MLME URB failed %d\n",
 			  ret));
@@ -741,7 +744,8 @@ void RTUSBBulkOutPsPoll(struct rt_rtmp_adapter *pAd)
 			(usb_complete_t) RTUSBBulkOutPsPollComplete);
 
 	pUrb = pPsPollContext->pUrb;
-	if ((ret = RTUSB_SUBMIT_URB(pUrb)) != 0) {
+	ret = RTUSB_SUBMIT_URB(pUrb);
+	if (ret != 0) {
 		RTMP_IRQ_LOCK(&pAd->BulkOutLock[0], IrqFlags);
 		pAd->BulkOutPending[0] = FALSE;
 		pAd->watchDogTxPendingCnt[0] = 0;
@@ -798,7 +802,8 @@ void DoBulkIn(struct rt_rtmp_adapter *pAd)
 	RTUSBInitRxDesc(pAd, pRxContext);
 
 	pUrb = pRxContext->pUrb;
-	if ((ret = RTUSB_SUBMIT_URB(pUrb)) != 0) {	/* fail */
+	ret = RTUSB_SUBMIT_URB(pUrb);
+	if (ret != 0) {	/* fail */
 
 		RTMP_IRQ_LOCK(&pAd->BulkInLock, IrqFlags);
 		pRxContext->InUse = FALSE;

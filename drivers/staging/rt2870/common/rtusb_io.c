@@ -1167,11 +1167,10 @@ void CMDHandler(struct rt_rtmp_adapter *pAd)
 								     (usb_complete_t)
 								     RTUSBBulkOutDataPacketComplete);
 
-								if ((ret =
-								     RTUSB_SUBMIT_URB
+								ret = RTUSB_SUBMIT_URB
 								     (pHTTXContext->
-								      pUrb)) !=
-								    0) {
+								      pUrb);
+								if (ret != 0) {
 									RTMP_INT_LOCK
 									    (&pAd->
 									     BulkOutLock
@@ -1540,7 +1539,8 @@ void CMDHandler(struct rt_rtmp_adapter *pAd)
 							RTUSBInitRxDesc(pAd,
 									pRxContext);
 							pUrb = pRxContext->pUrb;
-							if ((ret = RTUSB_SUBMIT_URB(pUrb)) != 0) {	/* fail */
+							ret = RTUSB_SUBMIT_URB(pUrb);
+							if (ret != 0) {	/* fail */
 
 								RTMP_IRQ_LOCK
 								    (&pAd->
