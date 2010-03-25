@@ -1105,22 +1105,14 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
 void
 ath5k_hw_calibration_poll(struct ath5k_hw *ah)
 {
-	/* Calibration interval in jiffies */
-	unsigned long cal_intval;
-
-	cal_intval = msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
-
-	/* Initialize timestamp if needed */
-	if (!ah->ah_cal_tstamp)
-		ah->ah_cal_tstamp = jiffies;
-
-	/* For now we always do full calibration
-	 * Mark software interrupt mask and fire software
-	 * interrupt (bit gets auto-cleared) */
-	if (time_is_before_eq_jiffies(ah->ah_cal_tstamp + cal_intval)) {
-		ah->ah_cal_tstamp = jiffies;
+	if (time_is_before_eq_jiffies(ah->ah_cal_next_full)) {
+		ah->ah_cal_next_full = jiffies +
+			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
 		tasklet_schedule(&ah->ah_sc->calib);
 	}
+	/* we could use SWI to generate enough interrupts to meet our
+	 * calibration interval requirements, if necessary:
+	 * AR5K_REG_ENABLE_BITS(ah, AR5K_CR, AR5K_CR_SWI); */
 }
 
 static int sign_extend(int val, const int nbits)

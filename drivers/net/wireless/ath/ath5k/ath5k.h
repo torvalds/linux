@@ -1100,7 +1100,7 @@ struct ath5k_hw {
 	s32			ah_noise_floor;
 
 	/* Calibration timestamp */
-	unsigned long		ah_cal_tstamp;
+	unsigned long		ah_cal_next_full;
 
 	/* Calibration mask */
 	u8			ah_cal_mask;
