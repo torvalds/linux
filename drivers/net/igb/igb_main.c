@@ -1105,9 +1105,6 @@ static void igb_configure(struct igb_adapter *adapter)
 		struct igb_ring *ring = adapter->rx_ring[i];
 		igb_alloc_rx_buffers_adv(ring, igb_desc_unused(ring));
 	}
-
-
-	adapter->tx_queue_len = netdev->tx_queue_len;
 }
 
 /**
@@ -1213,7 +1210,6 @@ void igb_down(struct igb_adapter *adapter)
 	del_timer_sync(&adapter->watchdog_timer);
 	del_timer_sync(&adapter->phy_info_timer);
 
-	netdev->tx_queue_len = adapter->tx_queue_len;
 	netif_carrier_off(netdev);
 
 	/* record the stats before reset*/
@@ -3106,17 +3102,13 @@ static void igb_watchdog_task(struct work_struct *work)
 			       ((ctrl & E1000_CTRL_RFCE) ?  "RX" :
 			       ((ctrl & E1000_CTRL_TFCE) ?  "TX" : "None")));
 
-			/* tweak tx_queue_len according to speed/duplex and
-			 * adjust the timeout factor */
-			netdev->tx_queue_len = adapter->tx_queue_len;
+			/* adjust timeout factor according to speed/duplex */
 			adapter->tx_timeout_factor = 1;
 			switch (adapter->link_speed) {
 			case SPEED_10:
-				netdev->tx_queue_len = 10;
 				adapter->tx_timeout_factor = 14;
 				break;
 			case SPEED_100:
-				netdev->tx_queue_len = 100;
 				/* maybe add some timeout factor ? */
 				break;
 			}
@@ -3963,7 +3955,7 @@ void igb_update_stats(struct igb_adapter *adapter)
 	struct net_device_stats *net_stats = igb_get_stats(adapter->netdev);
 	struct e1000_hw *hw = &adapter->hw;
 	struct pci_dev *pdev = adapter->pdev;
-	u32 rnbc, reg;
+	u32 reg, mpc;
 	u16 phy_tmp;
 	int i;
 	u64 bytes, packets;
@@ -4021,7 +4013,9 @@ void igb_update_stats(struct igb_adapter *adapter)
 	adapter->stats.symerrs += rd32(E1000_SYMERRS);
 	adapter->stats.sec += rd32(E1000_SEC);
 
-	adapter->stats.mpc += rd32(E1000_MPC);
+	mpc = rd32(E1000_MPC);
+	adapter->stats.mpc += mpc;
+	net_stats->rx_fifo_errors += mpc;
 	adapter->stats.scc += rd32(E1000_SCC);
 	adapter->stats.ecol += rd32(E1000_ECOL);
 	adapter->stats.mcc += rd32(E1000_MCC);
@@ -4036,9 +4030,7 @@ void igb_update_stats(struct igb_adapter *adapter)
 	adapter->stats.gptc += rd32(E1000_GPTC);
 	adapter->stats.gotc += rd32(E1000_GOTCL);
 	rd32(E1000_GOTCH); /* clear GOTCL */
-	rnbc = rd32(E1000_RNBC);
-	adapter->stats.rnbc += rnbc;
-	net_stats->rx_fifo_errors += rnbc;
+	adapter->stats.rnbc += rd32(E1000_RNBC);
 	adapter->stats.ruc += rd32(E1000_RUC);
 	adapter->stats.rfc += rd32(E1000_RFC);
 	adapter->stats.rjc += rd32(E1000_RJC);
@@ -5110,7 +5102,7 @@ static void igb_receive_skb(struct igb_q_vector *q_vector,
 {
 	struct igb_adapter *adapter = q_vector->adapter;
 
-	if (vlan_tag)
+	if (vlan_tag && adapter->vlgrp)
 		vlan_gro_receive(&q_vector->napi, adapter->vlgrp,
 		                 vlan_tag, skb);
 	else

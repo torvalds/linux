@@ -1246,8 +1246,8 @@ netxen_nic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	int pci_func_id = PCI_FUNC(pdev->devfn);
 	uint8_t revision_id;
 
-	if (pdev->revision >= NX_P3_A0 && pdev->revision < NX_P3_B1) {
-		pr_warning("%s: chip revisions between 0x%x-0x%x"
+	if (pdev->revision >= NX_P3_A0 && pdev->revision <= NX_P3_B1) {
+		pr_warning("%s: chip revisions between 0x%x-0x%x "
 				"will not be enabled.\n",
 				module_name(THIS_MODULE), NX_P3_A0, NX_P3_B1);
 		return -ENODEV;
