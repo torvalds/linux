@@ -749,6 +749,51 @@ Writes debug registers into the vcpu.
 See KVM_GET_DEBUGREGS for the data structure. The flags field is unused
 yet and must be cleared on entry.
 
+4.34 KVM_SET_USER_MEMORY_REGION
+
+Capability: KVM_CAP_USER_MEM
+Architectures: all
+Type: vm ioctl
+Parameters: struct kvm_userspace_memory_region (in)
+Returns: 0 on success, -1 on error
+
+struct kvm_userspace_memory_region {
+	__u32 slot;
+	__u32 flags;
+	__u64 guest_phys_addr;
+	__u64 memory_size; /* bytes */
+	__u64 userspace_addr; /* start of the userspace allocated memory */
+};
+
+/* for kvm_memory_region::flags */
+#define KVM_MEM_LOG_DIRTY_PAGES  1UL
+
+This ioctl allows the user to create or modify a guest physical memory
+slot.  When changing an existing slot, it may be moved in the guest
+physical memory space, or its flags may be modified.  It may not be
+resized.  Slots may not overlap in guest physical address space.
+
+Memory for the region is taken starting at the address denoted by the
+field userspace_addr, which must point at user addressable memory for
+the entire memory slot size.  Any object may back this memory, including
+anonymous memory, ordinary files, and hugetlbfs.
+
+It is recommended that the lower 21 bits of guest_phys_addr and userspace_addr
+be identical.  This allows large pages in the guest to be backed by large
+pages in the host.
+
+The flags field supports just one flag, KVM_MEM_LOG_DIRTY_PAGES, which
+instructs kvm to keep track of writes to memory within the slot.  See
+the KVM_GET_DIRTY_LOG ioctl.
+
+When the KVM_CAP_SYNC_MMU capability, changes in the backing of the memory
+region are automatically reflected into the guest.  For example, an mmap()
+that affects the region will be made visible immediately.  Another example
+is madvise(MADV_DROP).
+
+It is recommended to use this API instead of the KVM_SET_MEMORY_REGION ioctl.
+The KVM_SET_MEMORY_REGION does not allow fine grained control over memory
+allocation and is deprecated.
 
 5. The kvm_run structure
 
