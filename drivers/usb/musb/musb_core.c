@@ -2056,12 +2056,12 @@ bad_config:
 
 	status = musb_init_debugfs(musb);
 	if (status < 0)
-		goto fail2;
+		goto fail4;
 
 #ifdef CONFIG_SYSFS
 	status = sysfs_create_group(&musb->controller->kobj, &musb_attr_group);
 	if (status)
-		goto fail4;
+		goto fail5;
 #endif
 
 	dev_info(dev, "USB %s mode controller at %p using %s, IRQ %d\n",
@@ -2077,6 +2077,9 @@ bad_config:
 			musb->nIrq);
 
 	return 0;
+
+fail5:
+	musb_exit_debugfs(musb);
 
 fail4:
 	if (!is_otg_enabled(musb) && is_host_enabled(musb))
