@@ -982,6 +982,8 @@ struct ath5k_capabilities {
 	struct {
 		u8	q_tx_num;
 	} cap_queues;
+
+	bool cap_has_phyerr_counters;
 };
 
 /* size of noise floor history (keep it a power of two) */
