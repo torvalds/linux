@@ -157,7 +157,7 @@ static __init void da830_evm_usb_init(void)
 				   __func__, ret);
 	}
 
-	ret = da8xx_pinmux_setup(da830_evm_usb11_pins);
+	ret = davinci_cfg_reg_list(da830_evm_usb11_pins);
 	if (ret) {
 		pr_warning("%s: USB 1.1 PinMux setup failed: %d\n",
 			   __func__, ret);
@@ -254,7 +254,7 @@ static inline void da830_evm_init_mmc(void)
 {
 	int ret;
 
-	ret = da8xx_pinmux_setup(da830_evm_mmc_sd_pins);
+	ret = davinci_cfg_reg_list(da830_evm_mmc_sd_pins);
 	if (ret) {
 		pr_warning("da830_evm_init: mmc/sd mux setup failed: %d\n",
 				ret);
@@ -407,7 +407,7 @@ static inline void da830_evm_init_nand(int mux_mode)
 		return;
 	}
 
-	ret = da8xx_pinmux_setup(da830_evm_emif25_pins);
+	ret = davinci_cfg_reg_list(da830_evm_emif25_pins);
 	if (ret)
 		pr_warning("da830_evm_init: emif25 mux setup failed: %d\n",
 				ret);
@@ -427,7 +427,7 @@ static inline void da830_evm_init_lcdc(int mux_mode)
 {
 	int ret;
 
-	ret = da8xx_pinmux_setup(da830_lcdcntl_pins);
+	ret = davinci_cfg_reg_list(da830_lcdcntl_pins);
 	if (ret)
 		pr_warning("da830_evm_init: lcdcntl mux setup failed: %d\n",
 				ret);
@@ -507,7 +507,7 @@ static __init void da830_evm_init(void)
 		pr_warning("da830_evm_init: edma registration failed: %d\n",
 				ret);
 
-	ret = da8xx_pinmux_setup(da830_i2c0_pins);
+	ret = davinci_cfg_reg_list(da830_i2c0_pins);
 	if (ret)
 		pr_warning("da830_evm_init: i2c0 mux setup failed: %d\n",
 				ret);
@@ -523,7 +523,7 @@ static __init void da830_evm_init(void)
 	soc_info->emac_pdata->mdio_max_freq = DA830_EVM_MDIO_FREQUENCY;
 	soc_info->emac_pdata->rmii_en = 1;
 
-	ret = da8xx_pinmux_setup(da830_cpgmac_pins);
+	ret = davinci_cfg_reg_list(da830_cpgmac_pins);
 	if (ret)
 		pr_warning("da830_evm_init: cpgmac mux setup failed: %d\n",
 				ret);
@@ -542,7 +542,7 @@ static __init void da830_evm_init(void)
 	i2c_register_board_info(1, da830_evm_i2c_devices,
 			ARRAY_SIZE(da830_evm_i2c_devices));
 
-	ret = da8xx_pinmux_setup(da830_evm_mcasp1_pins);
+	ret = davinci_cfg_reg_list(da830_evm_mcasp1_pins);
 	if (ret)
 		pr_warning("da830_evm_init: mcasp1 mux setup failed: %d\n",
 				ret);

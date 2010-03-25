@@ -146,10 +146,4 @@ extern const short da850_mmcsd0_pins[];
 extern const short da850_nand_pins[];
 extern const short da850_nor_pins[];
 
-#ifdef CONFIG_DAVINCI_MUX
-int da8xx_pinmux_setup(const short pins[]);
-#else
-static inline int da8xx_pinmux_setup(const short pins[]) { return 0; }
-#endif
-
 #endif /* __ASM_ARCH_DAVINCI_DA8XX_H */
