@@ -226,41 +226,15 @@ static cycle_t igb_read_clock(const struct cyclecounter *tc)
 	return stamp;
 }
 
-#ifdef DEBUG
 /**
- * igb_get_hw_dev_name - return device name string
+ * igb_get_hw_dev - return device
  * used by hardware layer to print debugging information
  **/
-char *igb_get_hw_dev_name(struct e1000_hw *hw)
+struct net_device *igb_get_hw_dev(struct e1000_hw *hw)
 {
 	struct igb_adapter *adapter = hw->back;
-	return adapter->netdev->name;
+	return adapter->netdev;
 }
-
-/**
- * igb_get_time_str - format current NIC and system time as string
- */
-static char *igb_get_time_str(struct igb_adapter *adapter,
-			      char buffer[160])
-{
-	cycle_t hw = adapter->cycles.read(&adapter->cycles);
-	struct timespec nic = ns_to_timespec(timecounter_read(&adapter->clock));
-	struct timespec sys;
-	struct timespec delta;
-	getnstimeofday(&sys);
-
-	delta = timespec_sub(nic, sys);
-
-	sprintf(buffer,
-		"HW %llu, NIC %ld.%09lus, SYS %ld.%09lus, NIC-SYS %lds + %09luns",
-		hw,
-		(long)nic.tv_sec, nic.tv_nsec,
-		(long)sys.tv_sec, sys.tv_nsec,
-		(long)delta.tv_sec, delta.tv_nsec);
-
-	return buffer;
-}
-#endif
 
 /**
  * igb_init_module - Driver Registration Routine

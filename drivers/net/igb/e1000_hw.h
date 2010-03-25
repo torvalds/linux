@@ -31,6 +31,7 @@
 #include <linux/types.h>
 #include <linux/delay.h>
 #include <linux/io.h>
+#include <linux/netdevice.h>
 
 #include "e1000_regs.h"
 #include "e1000_defines.h"
@@ -507,14 +508,11 @@ struct e1000_hw {
 	u8  revision_id;
 };
 
-#ifdef DEBUG
-extern char *igb_get_hw_dev_name(struct e1000_hw *hw);
+extern struct net_device *igb_get_hw_dev(struct e1000_hw *hw);
 #define hw_dbg(format, arg...) \
-	printk(KERN_DEBUG "%s: " format, igb_get_hw_dev_name(hw), ##arg)
-#else
-#define hw_dbg(format, arg...)
-#endif
-#endif
+	netdev_dbg(igb_get_hw_dev(hw), format, ##arg)
+
 /* These functions must be implemented by drivers */
 s32  igb_read_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
 s32  igb_write_pcie_cap_reg(struct e1000_hw *hw, u32 reg, u16 *value);
+#endif /* _E1000_HW_H_ */
