@@ -4,7 +4,8 @@
 #include <linux/compiler.h>
 #include <linux/list.h>
 #include <linux/rbtree.h>
-#include <linux/types.h>
+#include <stdio.h>
+#include "types.h"
 
 enum map_type {
 	MAP__FUNCTION = 0,
@@ -89,5 +90,49 @@ void map__fixup_start(struct map *self);
 void map__fixup_end(struct map *self);
 
 void map__reloc_vmlinux(struct map *self);
+
+struct map_groups {
+	struct rb_root		maps[MAP__NR_TYPES];
+	struct list_head	removed_maps[MAP__NR_TYPES];
+};
+
+size_t __map_groups__fprintf_maps(struct map_groups *self,
+				  enum map_type type, FILE *fp);
+void maps__insert(struct rb_root *maps, struct map *map);
+struct map *maps__find(struct rb_root *maps, u64 addr);
+void map_groups__init(struct map_groups *self);
+size_t map_groups__fprintf_maps(struct map_groups *self, FILE *fp);
+
+static inline void map_groups__insert(struct map_groups *self, struct map *map)
+{
+	 maps__insert(&self->maps[map->type], map);
+}
+
+static inline struct map *map_groups__find(struct map_groups *self,
+					   enum map_type type, u64 addr)
+{
+	return maps__find(&self->maps[type], addr);
+}
+
+struct symbol *map_groups__find_symbol(struct map_groups *self,
+				       enum map_type type, u64 addr,
+				       symbol_filter_t filter);
+
+static inline struct symbol *map_groups__find_function(struct map_groups *self,
+						       u64 addr,
+						       symbol_filter_t filter)
+{
+	return map_groups__find_symbol(self, MAP__FUNCTION, addr, filter);
+}
+
+struct map *map_groups__find_by_name(struct map_groups *self,
+				     enum map_type type, const char *name);
+int __map_groups__create_kernel_maps(struct map_groups *self,
+				     struct map *vmlinux_maps[MAP__NR_TYPES],
+				     struct dso *kernel);
+int map_groups__create_kernel_maps(struct map_groups *self,
+				   struct map *vmlinux_maps[MAP__NR_TYPES]);
+struct map *map_groups__new_module(struct map_groups *self, u64 start,
+				   const char *filename);
 
 #endif /* __PERF_MAP_H */

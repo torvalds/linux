@@ -272,46 +272,6 @@ static int map_groups__fixup_overlappings(struct map_groups *self,
 	return 0;
 }
 
-void maps__insert(struct rb_root *maps, struct map *map)
-{
-	struct rb_node **p = &maps->rb_node;
-	struct rb_node *parent = NULL;
-	const u64 ip = map->start;
-	struct map *m;
-
-	while (*p != NULL) {
-		parent = *p;
-		m = rb_entry(parent, struct map, rb_node);
-		if (ip < m->start)
-			p = &(*p)->rb_left;
-		else
-			p = &(*p)->rb_right;
-	}
-
-	rb_link_node(&map->rb_node, parent, p);
-	rb_insert_color(&map->rb_node, maps);
-}
-
-struct map *maps__find(struct rb_root *maps, u64 ip)
-{
-	struct rb_node **p = &maps->rb_node;
-	struct rb_node *parent = NULL;
-	struct map *m;
-
-	while (*p != NULL) {
-		parent = *p;
-		m = rb_entry(parent, struct map, rb_node);
-		if (ip < m->start)
-			p = &(*p)->rb_left;
-		else if (ip > m->end)
-			p = &(*p)->rb_right;
-		else
-			return m;
-	}
-
-	return NULL;
-}
-
 void thread__insert_map(struct thread *self, struct map *map)
 {
 	map_groups__fixup_overlappings(&self->mg, map);
@@ -367,16 +327,3 @@ size_t perf_session__fprintf(struct perf_session *self, FILE *fp)
 
 	return ret;
 }
-
-struct symbol *map_groups__find_symbol(struct map_groups *self,
-				       enum map_type type, u64 addr,
-				       symbol_filter_t filter)
-{
-	struct map *map = map_groups__find(self, type, addr);
-
-	if (map != NULL)
-		return map__find_symbol(map, map->map_ip(map, addr), filter);
-
-	return NULL;
-}
-

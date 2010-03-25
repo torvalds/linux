@@ -1,8 +1,9 @@
 #include "symbol.h"
+#include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
-#include "debug.h"
+#include "map.h"
 
 const char *map_type__name[MAP__NR_TYPES] = {
 	[MAP__FUNCTION] = "Functions",
@@ -231,4 +232,85 @@ u64 map__objdump_2ip(struct map *map, u64 addr)
 			addr :
 			map->unmap_ip(map, addr);	/* RIP -> IP */
 	return ip;
+}
+
+struct symbol *map_groups__find_symbol(struct map_groups *self,
+				       enum map_type type, u64 addr,
+				       symbol_filter_t filter)
+{
+	struct map *map = map_groups__find(self, type, addr);
+
+	if (map != NULL)
+		return map__find_symbol(map, map->map_ip(map, addr), filter);
+
+	return NULL;
+}
+
+static u64 map__reloc_map_ip(struct map *map, u64 ip)
+{
+	return ip + (s64)map->pgoff;
+}
+
+static u64 map__reloc_unmap_ip(struct map *map, u64 ip)
+{
+	return ip - (s64)map->pgoff;
+}
+
+void map__reloc_vmlinux(struct map *self)
+{
+	struct kmap *kmap = map__kmap(self);
+	s64 reloc;
+
+	if (!kmap->ref_reloc_sym || !kmap->ref_reloc_sym->unrelocated_addr)
+		return;
+
+	reloc = (kmap->ref_reloc_sym->unrelocated_addr -
+		 kmap->ref_reloc_sym->addr);
+
+	if (!reloc)
+		return;
+
+	self->map_ip   = map__reloc_map_ip;
+	self->unmap_ip = map__reloc_unmap_ip;
+	self->pgoff    = reloc;
+}
+
+void maps__insert(struct rb_root *maps, struct map *map)
+{
+	struct rb_node **p = &maps->rb_node;
+	struct rb_node *parent = NULL;
+	const u64 ip = map->start;
+	struct map *m;
+
+	while (*p != NULL) {
+		parent = *p;
+		m = rb_entry(parent, struct map, rb_node);
+		if (ip < m->start)
+			p = &(*p)->rb_left;
+		else
+			p = &(*p)->rb_right;
+	}
+
+	rb_link_node(&map->rb_node, parent, p);
+	rb_insert_color(&map->rb_node, maps);
+}
+
+struct map *maps__find(struct rb_root *maps, u64 ip)
+{
+	struct rb_node **p = &maps->rb_node;
+	struct rb_node *parent = NULL;
+	struct map *m;
+
+	while (*p != NULL) {
+		parent = *p;
+		m = rb_entry(parent, struct map, rb_node);
+		if (ip < m->start)
+			p = &(*p)->rb_left;
+		else if (ip > m->end)
+			p = &(*p)->rb_right;
+		else
+			return m;
+	}
+
+	return NULL;
 }
