@@ -794,6 +794,13 @@ v9fs_vfs_rename(struct inode *old_dir, struct dentry *old_dentry,
 		goto clunk_olddir;
 	}
 
+	if (v9fs_proto_dotl(v9ses)) {
+		retval = p9_client_rename(oldfid, newdirfid,
+					(char *) new_dentry->d_name.name);
+		if (retval != -ENOSYS)
+			goto clunk_newdir;
+	}
+
 	/* 9P can only handle file rename in the same directory */
 	if (memcmp(&olddirfid->qid, &newdirfid->qid, sizeof(newdirfid->qid))) {
 		P9_DPRINTK(P9_DEBUG_ERROR,

@@ -1404,3 +1404,31 @@ error:
 	return err;
 }
 EXPORT_SYMBOL(p9_client_statfs);
+
+int p9_client_rename(struct p9_fid *fid, struct p9_fid *newdirfid, char *name)
+{
+	int err;
+	struct p9_req_t *req;
+	struct p9_client *clnt;
+
+	err = 0;
+	clnt = fid->clnt;
+
+	P9_DPRINTK(P9_DEBUG_9P, ">>> TRENAME fid %d newdirfid %d name %s\n",
+			fid->fid, newdirfid->fid, name);
+
+	req = p9_client_rpc(clnt, P9_TRENAME, "dds", fid->fid,
+			newdirfid->fid, name);
+	if (IS_ERR(req)) {
+		err = PTR_ERR(req);
+		goto error;
+	}
+
+	P9_DPRINTK(P9_DEBUG_9P, "<<< RRENAME fid %d\n", fid->fid);
+
+	p9_free_req(clnt, req);
+error:
+	return err;
+}
+EXPORT_SYMBOL(p9_client_rename);
+
