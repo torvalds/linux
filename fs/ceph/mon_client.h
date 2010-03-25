@@ -63,7 +63,7 @@ struct ceph_mon_client {
 	struct delayed_work delayed_work;
 
 	struct ceph_auth_client *auth;
-	struct ceph_msg *m_auth;
+	struct ceph_msg *m_auth, *m_auth_reply;
 	int pending_auth;
 
 	bool hunting;
@@ -72,9 +72,8 @@ struct ceph_mon_client {
 	struct ceph_connection *con;
 	bool have_fsid;
 
-	/* msg pools */
+	/* msgs */
 	struct ceph_msgpool msgpool_subscribe_ack;
-	struct ceph_msgpool msgpool_auth_reply;
 
 	/* pending statfs requests */
 	struct rb_root statfs_request_tree;

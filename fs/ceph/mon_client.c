@@ -638,16 +638,21 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 			       sizeof(struct ceph_mon_subscribe_ack), 1, false);
 	if (err < 0)
 		goto out_monmap;
-	err = ceph_msgpool_init(&monc->msgpool_auth_reply, 4096, 1, false);
-	if (err < 0)
+
+	monc->m_auth_reply = ceph_msg_new(CEPH_MSG_AUTH_REPLY, 4096, 0, 0,
+					  NULL);
+	if (IS_ERR(monc->m_auth_reply)) {
+		err = PTR_ERR(monc->m_auth_reply);
+		monc->m_auth_reply = NULL;
 		goto out_pool;
+	}
 
 	monc->m_auth = ceph_msg_new(CEPH_MSG_AUTH, 4096, 0, 0, NULL);
 	monc->pending_auth = 0;
 	if (IS_ERR(monc->m_auth)) {
 		err = PTR_ERR(monc->m_auth);
 		monc->m_auth = NULL;
-		goto out_pool3;
+		goto out_auth_reply;
 	}
 
 	monc->cur_mon = -1;
@@ -665,8 +670,8 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 	monc->want_next_osdmap = 1;
 	return 0;
 
-out_pool3:
-	ceph_msgpool_destroy(&monc->msgpool_auth_reply);
+out_auth_reply:
+	ceph_msg_put(monc->m_auth_reply);
 out_pool:
 	ceph_msgpool_destroy(&monc->msgpool_subscribe_ack);
 out_monmap:
@@ -692,8 +697,8 @@ void ceph_monc_stop(struct ceph_mon_client *monc)
 	ceph_auth_destroy(monc->auth);
 
 	ceph_msg_put(monc->m_auth);
+	ceph_msg_put(monc->m_auth_reply);
 	ceph_msgpool_destroy(&monc->msgpool_subscribe_ack);
-	ceph_msgpool_destroy(&monc->msgpool_auth_reply);
 
 	kfree(monc->monmap);
 }
@@ -815,7 +820,7 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 	case CEPH_MSG_STATFS_REPLY:
 		return get_statfs_reply(con, hdr, skip);
 	case CEPH_MSG_AUTH_REPLY:
-		m = ceph_msgpool_get(&monc->msgpool_auth_reply, front_len);
+		m = ceph_msg_get(monc->m_auth_reply);
 		break;
 	case CEPH_MSG_MON_MAP:
 	case CEPH_MSG_MDS_MAP:
