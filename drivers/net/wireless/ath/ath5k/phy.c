@@ -1102,19 +1102,6 @@ int ath5k_hw_channel(struct ath5k_hw *ah, struct ieee80211_channel *channel)
   PHY calibration
 \*****************/
 
-void
-ath5k_hw_calibration_poll(struct ath5k_hw *ah)
-{
-	if (time_is_before_eq_jiffies(ah->ah_cal_next_full)) {
-		ah->ah_cal_next_full = jiffies +
-			msecs_to_jiffies(ATH5K_TUNE_CALIBRATION_INTERVAL_FULL);
-		tasklet_schedule(&ah->ah_sc->calib);
-	}
-	/* we could use SWI to generate enough interrupts to meet our
-	 * calibration interval requirements, if necessary:
-	 * AR5K_REG_ENABLE_BITS(ah, AR5K_CR, AR5K_CR_SWI); */
-}
-
 static int sign_extend(int val, const int nbits)
 {
 	int order = BIT(nbits-1);
