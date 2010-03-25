@@ -145,10 +145,6 @@ void musb_platform_enable(struct musb *musb)
 void musb_platform_disable(struct musb *musb)
 {
 }
-static void omap_vbus_power(struct musb *musb, int is_on, int sleeping)
-{
-}
-
 static void omap_set_vbus(struct musb *musb, int is_on)
 {
 	u8		devctl;
@@ -255,8 +251,6 @@ int __init musb_platform_init(struct musb *musb, void *board_data)
 			musb_readl(musb->mregs, OTG_INTERFSEL),
 			musb_readl(musb->mregs, OTG_SIMENABLE));
 
-	omap_vbus_power(musb, musb->board_mode == MUSB_HOST, 1);
-
 	if (is_host_enabled(musb))
 		musb->board_set_vbus = omap_set_vbus;
 
@@ -335,8 +329,6 @@ static int musb_platform_resume(struct musb *musb)
 
 int musb_platform_exit(struct musb *musb)
 {
-
-	omap_vbus_power(musb, 0 /*off*/, 1);
 
 	musb_platform_suspend(musb);
 
