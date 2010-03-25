@@ -2021,9 +2021,9 @@ out_dio:
 		if (ret < 0)
 			written = ret;
 
-		if (!ret && (old_size != i_size_read(inode) ||
-		    old_clusters != OCFS2_I(inode)->ip_clusters ||
-		    has_refcount)) {
+		if (!ret && ((old_size != i_size_read(inode)) ||
+			     (old_clusters != OCFS2_I(inode)->ip_clusters) ||
+			     has_refcount)) {
 			ret = jbd2_journal_force_commit(osb->journal->j_journal);
 			if (ret < 0)
 				written = ret;
