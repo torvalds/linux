@@ -1386,6 +1386,7 @@ static struct ceph_msg *get_reply(struct ceph_connection *con,
 		     req->r_reply, req->r_con_filling_msg);
 		ceph_con_revoke_message(req->r_con_filling_msg, req->r_reply);
 		ceph_con_put(req->r_con_filling_msg);
+		req->r_con_filling_msg = NULL;
 	}
 
 	if (front > req->r_reply->front.iov_len) {
