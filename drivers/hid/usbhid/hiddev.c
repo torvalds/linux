@@ -267,6 +267,7 @@ static int hiddev_open(struct inode *inode, struct file *file)
 	struct hiddev_list *list;
 	int res, i;
 
+	/* See comment in hiddev_connect() for BKL explanation */
 	lock_kernel();
 	i = iminor(inode) - HIDDEV_MINOR_BASE;
 
@@ -894,8 +895,22 @@ int hiddev_connect(struct hid_device *hid, unsigned int force)
 	hiddev->hid = hid;
 	hiddev->exist = 1;
 
-	/* when lock_kernel() usage is fixed in usb_open(),
-	 * we could also fix it here */
+	/*
+	 * BKL here is used to avoid race after usb_register_dev().
+	 * Once the device node has been created, open() could happen on it.
+	 * The code below will then fail, as hiddev_table hasn't been
+	 * updated.
+	 *
+	 * The obvious fix -- introducing mutex to guard hiddev_table[]
+	 * doesn't work, as usb_open() and usb_register_dev() both take
+	 * minor_rwsem, thus we'll have ABBA deadlock.
+	 *
+	 * Before BKL pushdown, usb_open() had been acquiring it in right
+	 * order, so _open() was safe to use it to protect from this race.
+	 * Now the order is different, but AB-BA deadlock still doesn't occur
+	 * as BKL is dropped on schedule() (i.e. while sleeping on
+	 * minor_rwsem). Fugly.
+	 */
 	lock_kernel();
 	retval = usb_register_dev(usbhid->intf, &hiddev_class);
 	if (retval) {
