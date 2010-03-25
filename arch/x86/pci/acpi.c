@@ -123,7 +123,7 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 	acpi_status status;
 	unsigned long flags;
 	struct resource *root, *conflict;
-	u64 start, end;
+	u64 start, end, max_len;
 
 	status = resource_to_addr(acpi_res, &addr);
 	if (!ACPI_SUCCESS(status))
@@ -139,6 +139,17 @@ setup_resource(struct acpi_resource *acpi_res, void *data)
 		flags = IORESOURCE_IO;
 	} else
 		return AE_OK;
+
+	max_len = addr.maximum - addr.minimum + 1;
+	if (addr.address_length > max_len) {
+		dev_printk(KERN_DEBUG, &info->bridge->dev,
+			   "host bridge window length %#llx doesn't fit in "
+			   "%#llx-%#llx, trimming\n",
+			   (unsigned long long) addr.address_length,
+			   (unsigned long long) addr.minimum,
+			   (unsigned long long) addr.maximum);
+		addr.address_length = max_len;
+	}
 
 	start = addr.minimum + addr.translation_offset;
 	end = start + addr.address_length - 1;
