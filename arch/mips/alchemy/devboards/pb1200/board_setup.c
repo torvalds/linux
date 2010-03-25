@@ -48,12 +48,6 @@ const char *get_system_type(void)
 	return "Alchemy Pb1200";
 }
 
-void board_reset(void)
-{
-	bcsr_write(BCSR_RESETS, 0);
-	bcsr_write(BCSR_SYSTEM, 0);
-}
-
 void __init board_setup(void)
 {
 	printk(KERN_INFO "AMD Alchemy Pb1200 Board\n");
