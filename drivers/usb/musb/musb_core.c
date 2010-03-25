@@ -1857,11 +1857,6 @@ static void musb_free(struct musb *musb)
 	musb_platform_exit(musb);
 	musb_writeb(musb->mregs, MUSB_DEVCTL, 0);
 
-	if (musb->clock) {
-		clk_disable(musb->clock);
-		clk_put(musb->clock);
-	}
-
 #ifdef CONFIG_USB_MUSB_HDRC_HCD
 	usb_put_hcd(musb_to_hcd(musb));
 #else
