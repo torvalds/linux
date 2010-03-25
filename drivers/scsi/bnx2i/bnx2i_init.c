@@ -278,6 +278,7 @@ static int bnx2i_init_one(struct bnx2i_hba *hba, struct cnic_dev *cnic)
 	int rc;
 
 	mutex_lock(&bnx2i_dev_lock);
+	hba->cnic = cnic;
 	rc = cnic->register_device(cnic, CNIC_ULP_ISCSI, hba);
 	if (!rc) {
 		hba->age++;
@@ -324,8 +325,7 @@ void bnx2i_ulp_init(struct cnic_dev *dev)
 	if (bnx2i_init_one(hba, dev)) {
 		printk(KERN_ERR "bnx2i - hba %p init failed\n", hba);
 		bnx2i_free_hba(hba);
-	} else
-		hba->cnic = dev;
+	}
 }
 
 
