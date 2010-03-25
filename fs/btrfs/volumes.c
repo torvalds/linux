@@ -3389,6 +3389,8 @@ int btrfs_read_chunk_tree(struct btrfs_root *root)
 	key.type = 0;
 again:
 	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
+	if (ret < 0)
+		goto error;
 	while (1) {
 		leaf = path->nodes[0];
 		slot = path->slots[0];
