@@ -586,6 +586,12 @@ F:	drivers/mtd/nand/bcm_umi_bch.c
 F:	drivers/mtd/nand/bcm_umi_hamming.c
 F:	drivers/mtd/nand/nand_bcm_umi.h
 
+ARM/CAVIUM NETWORKS CNS3XXX MACHINE SUPPORT
+M:	Anton Vorontsov <avorontsov@mvista.com>
+S:	Maintained
+F:	arch/arm/mach-cns3xxx/
+T:	git git://git.infradead.org/users/cbou/linux-cns3xxx.git
+
 ARM/CIRRUS LOGIC EP93XX ARM ARCHITECTURE
 M:	Hartley Sweeten <hsweeten@visionengravers.com>
 M:	Ryan Mallon <ryan@bluewatersys.com>

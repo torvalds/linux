@@ -1,0 +1,4 @@
+menu "CNS3XXX platform type"
+	depends on ARCH_CNS3XXX
+
+endmenu
