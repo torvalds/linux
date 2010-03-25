@@ -172,13 +172,7 @@ static irqreturn_t blackfin_interrupt(int irq, void *__hci)
 
 	spin_unlock_irqrestore(&musb->lock, flags);
 
-	/* REVISIT we sometimes get spurious IRQs on g_ep0
-	 * not clear why... fall in BF54x too.
-	 */
-	if (retval != IRQ_HANDLED)
-		DBG(5, "spurious?\n");
-
-	return IRQ_HANDLED;
+	return retval;
 }
 
 static void musb_conn_timer_handler(unsigned long _musb)
