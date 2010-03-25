@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/slab.h>
+#include <linux/sysrq.h>
 #include <linux/tty.h>
 #include <linux/tty_flip.h>
 #include <linux/module.h>
@@ -558,6 +559,7 @@ void usb_serial_generic_unthrottle(struct tty_struct *tty)
 	}
 }
 
+#ifdef CONFIG_MAGIC_SYSRQ
 int usb_serial_handle_sysrq_char(struct tty_struct *tty,
 			struct usb_serial_port *port, unsigned int ch)
 {
@@ -571,6 +573,13 @@ int usb_serial_handle_sysrq_char(struct tty_struct *tty,
 	}
 	return 0;
 }
+#else
+int usb_serial_handle_sysrq_char(struct tty_struct *tty,
+			struct usb_serial_port *port, unsigned int ch)
+{
+	return 0;
+}
+#endif
 EXPORT_SYMBOL_GPL(usb_serial_handle_sysrq_char);
 
 int usb_serial_handle_break(struct usb_serial_port *port)
