@@ -634,17 +634,21 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 		CEPH_ENTITY_TYPE_OSD | CEPH_ENTITY_TYPE_MDS;
 
 	/* msg pools */
-	err = ceph_msgpool_init(&monc->msgpool_subscribe_ack,
-			       sizeof(struct ceph_mon_subscribe_ack), 1, false);
-	if (err < 0)
+	monc->m_subscribe_ack = ceph_msg_new(CEPH_MSG_MON_SUBSCRIBE_ACK,
+				     sizeof(struct ceph_mon_subscribe_ack),
+				     0, 0, NULL);
+	if (IS_ERR(monc->m_subscribe_ack)) {
+		err = PTR_ERR(monc->m_subscribe_ack);
+		monc->m_subscribe_ack = NULL;
 		goto out_monmap;
+	}
 
 	monc->m_auth_reply = ceph_msg_new(CEPH_MSG_AUTH_REPLY, 4096, 0, 0,
 					  NULL);
 	if (IS_ERR(monc->m_auth_reply)) {
 		err = PTR_ERR(monc->m_auth_reply);
 		monc->m_auth_reply = NULL;
-		goto out_pool;
+		goto out_subscribe_ack;
 	}
 
 	monc->m_auth = ceph_msg_new(CEPH_MSG_AUTH, 4096, 0, 0, NULL);
@@ -672,8 +676,8 @@ int ceph_monc_init(struct ceph_mon_client *monc, struct ceph_client *cl)
 
 out_auth_reply:
 	ceph_msg_put(monc->m_auth_reply);
-out_pool:
-	ceph_msgpool_destroy(&monc->msgpool_subscribe_ack);
+out_subscribe_ack:
+	ceph_msg_put(monc->m_subscribe_ack);
 out_monmap:
 	kfree(monc->monmap);
 out:
@@ -698,7 +702,7 @@ void ceph_monc_stop(struct ceph_mon_client *monc)
 
 	ceph_msg_put(monc->m_auth);
 	ceph_msg_put(monc->m_auth_reply);
-	ceph_msgpool_destroy(&monc->msgpool_subscribe_ack);
+	ceph_msg_put(monc->m_subscribe_ack);
 
 	kfree(monc->monmap);
 }
@@ -815,7 +819,7 @@ static struct ceph_msg *mon_alloc_msg(struct ceph_connection *con,
 
 	switch (type) {
 	case CEPH_MSG_MON_SUBSCRIBE_ACK:
-		m = ceph_msgpool_get(&monc->msgpool_subscribe_ack, front_len);
+		m = ceph_msg_get(monc->m_subscribe_ack);
 		break;
 	case CEPH_MSG_STATFS_REPLY:
 		return get_statfs_reply(con, hdr, skip);
