@@ -1299,7 +1299,8 @@ int cx25821_risc_databuffer_audio(struct pci_dev *pci,
 	instructions = 1 + (bpl * lines) / PAGE_SIZE + lines;
 	instructions += 1;
 
-	if ((rc = btcx_riscmem_alloc(pci, risc, instructions * 12)) < 0)
+	rc = btcx_riscmem_alloc(pci, risc, instructions * 12);
+	if (rc < 0)
 		return rc;
 
 	/* write risc instructions */
