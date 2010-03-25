@@ -403,7 +403,8 @@ short buffer_add(struct buffer **buffer, u32 *buf, dma_addr_t dma,
 	tmp=*buffer;
 
 	while(tmp->next!=(*buffer)) tmp=tmp->next;
-	if ((tmp->next= kmalloc(sizeof(struct buffer),GFP_KERNEL)) == NULL){
+	tmp->next = kmalloc(sizeof(struct buffer),GFP_KERNEL);
+	if (tmp->next == NULL) {
 		DMESGE("Failed to kmalloc TX/RX struct");
 		return -1;
 	}
@@ -1155,7 +1156,8 @@ short alloc_rx_desc_ring(struct net_device *dev, u16 bufsize, int count)
 	tmp=desc;
 
 	for (i = 0; i < count; i++) {
-		if ((buf= kmalloc(bufsize * sizeof(u8),GFP_ATOMIC)) == NULL){
+		buf = kmalloc(bufsize * sizeof(u8),GFP_ATOMIC);
+		if (buf == NULL) {
 			DMESGE("Failed to kmalloc RX buffer");
 			return -1;
 		}
