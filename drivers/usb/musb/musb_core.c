@@ -965,10 +965,8 @@ static void musb_shutdown(struct platform_device *pdev)
 	spin_lock_irqsave(&musb->lock, flags);
 	musb_platform_disable(musb);
 	musb_generic_disable(musb);
-	if (musb->clock) {
+	if (musb->clock)
 		clk_put(musb->clock);
-		musb->clock = NULL;
-	}
 	spin_unlock_irqrestore(&musb->lock, flags);
 
 	/* FIXME power down */
