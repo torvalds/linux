@@ -1,4 +1,3 @@
-#include "event.h"
 #include "symbol.h"
 #include <stdlib.h>
 #include <string.h>
@@ -38,13 +37,12 @@ void map__init(struct map *self, enum map_type type,
 	RB_CLEAR_NODE(&self->rb_node);
 }
 
-struct map *map__new(struct mmap_event *event, enum map_type type,
-		     char *cwd, int cwdlen)
+struct map *map__new(u64 start, u64 len, u64 pgoff, u32 pid, char *filename,
+		     enum map_type type, char *cwd, int cwdlen)
 {
 	struct map *self = malloc(sizeof(*self));
 
 	if (self != NULL) {
-		const char *filename = event->filename;
 		char newfilename[PATH_MAX];
 		struct dso *dso;
 		int anon;
@@ -62,7 +60,7 @@ struct map *map__new(struct mmap_event *event, enum map_type type,
 		anon = is_anon_memory(filename);
 
 		if (anon) {
-			snprintf(newfilename, sizeof(newfilename), "/tmp/perf-%d.map", event->pid);
+			snprintf(newfilename, sizeof(newfilename), "/tmp/perf-%d.map", pid);
 			filename = newfilename;
 		}
 
@@ -70,8 +68,7 @@ struct map *map__new(struct mmap_event *event, enum map_type type,
 		if (dso == NULL)
 			goto out_delete;
 
-		map__init(self, type, event->start, event->start + event->len,
-			  event->pgoff, dso);
+		map__init(self, type, start, start + len, pgoff, dso);
 
 		if (anon) {
 set_identity:

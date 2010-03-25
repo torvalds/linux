@@ -393,7 +393,8 @@ int event__process_mmap(event_t *self, struct perf_session *session)
 	}
 
 	thread = perf_session__findnew(session, self->mmap.pid);
-	map = map__new(&self->mmap, MAP__FUNCTION,
+	map = map__new(self->mmap.start, self->mmap.len, self->mmap.pgoff,
+		       self->mmap.pid, self->mmap.filename, MAP__FUNCTION,
 		       session->cwd, session->cwdlen);
 
 	if (thread == NULL || map == NULL)

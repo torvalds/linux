@@ -68,14 +68,13 @@ u64 map__rip_2objdump(struct map *map, u64 rip);
 u64 map__objdump_2ip(struct map *map, u64 addr);
 
 struct symbol;
-struct mmap_event;
 
 typedef int (*symbol_filter_t)(struct map *map, struct symbol *sym);
 
 void map__init(struct map *self, enum map_type type,
 	       u64 start, u64 end, u64 pgoff, struct dso *dso);
-struct map *map__new(struct mmap_event *event, enum map_type,
-		     char *cwd, int cwdlen);
+struct map *map__new(u64 start, u64 len, u64 pgoff, u32 pid, char *filename,
+		     enum map_type type, char *cwd, int cwdlen);
 void map__delete(struct map *self);
 struct map *map__clone(struct map *self);
 int map__overlap(struct map *l, struct map *r);
